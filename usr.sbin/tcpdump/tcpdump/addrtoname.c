@@ -23,7 +23,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: addrtoname.c,v 1.37 94/06/16 00:42:28 mccanne Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/addrtoname.c,v 1.2 1995/03/08 12:52:07 olah Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -353,7 +353,7 @@ etheraddr_string(register const u_char *ep)
 		char buf[128];
 		if (ether_ntohost(buf, (struct ether_addr *)ep) == 0) {
 			tp->e_name = savestr(buf);
-			return (buf);
+			return (tp->e_name);
 		}
 	}
 #endif
