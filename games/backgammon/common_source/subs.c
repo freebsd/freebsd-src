@@ -36,6 +36,7 @@ static char sccsid[] = "@(#)subs.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "back.h"
 
 int	buffnum;
@@ -298,25 +299,27 @@ nexturn ()  {
 	colorptr += c;
 }
 
-getarg (arg)
-register char	***arg;
+getarg (argc, argv)
+register int    argc;
+register char	**argv;
 
 {
-	register char	**s;
+	register char	ch;
+	extern int optind;
+	extern char *optarg;
 
 	/* process arguments here.  dashes are ignored, nbrw are ignored
 	   if the game is being recovered */
 
-	s = *arg;
-	while (s[0][0] == '-') {
-		switch (s[0][1])  {
+	while ((ch = getopt(argc, argv, "nbrwp:t:s:")) != EOF) {
+		switch (ch)  {
 
 		/* don't ask if rules or instructions needed */
 		case 'n':
 			if (rflag)
 				break;
 			aflag = 0;
-			args[acnt++] = 'n';
+			args[acnt++] = strdup("-n");
 			break;
 
 		/* player is both read and white */
@@ -325,7 +328,7 @@ register char	***arg;
 				break;
 			pnum = 0;
 			aflag = 0;
-			args[acnt++] = 'b';
+			args[acnt++] = strdup("-b");
 			break;
 
 		/* player is red */
@@ -334,7 +337,7 @@ register char	***arg;
 				break;
 			pnum = -1;
 			aflag = 0;
-			args[acnt++] = 'r';
+			args[acnt++] = strdup("-r");
 			break;
 
 		/* player is white */
@@ -343,41 +346,37 @@ register char	***arg;
 				break;
 			pnum = 1;
 			aflag = 0;
-			args[acnt++] = 'w';
+			args[acnt++] = strdup("-w");
 			break;
 
 		/* print board after move according to following character */
 		case 'p':
-			if (s[0][2] != 'r' && s[0][2] != 'w' && s[0][2] != 'b')
+			if (optarg[0] != 'r' && optarg[0] != 'w' && optarg[0] != 'b')
 				break;
-			args[acnt++] = 'p';
-			args[acnt++] = s[0][2];
-			if (s[0][2] == 'r')
+			args[acnt] = strdup("-p ");
+			args[acnt++][2] = optarg[0];
+			if (optarg[0] == 'r')
 				bflag = 1;
-			if (s[0][2] == 'w')
+			if (optarg[0] == 'w')
 				bflag = -1;
-			if (s[0][2] == 'b')
+			if (optarg[0] == 'b')
 				bflag = 0;
 			break;
 
 		case 't':
-			if (s[0][2] == '\0') {	/* get terminal caps */
-				s++;
-				tflag = getcaps (*s);
-			} else
-				tflag = getcaps (&s[0][2]);
+		        tflag = getcaps (optarg);
 			break;
 
 		case 's':
-			s++;
 			/* recover file */
-			recover (s[0]);
+			recover (optarg);
 			break;
 		}
-		s++;
 	}
-	if (s[0] != 0 && s[0][0] != '\0')
-		recover(s[0]);
+	argc -= optind;
+	argv += optind;
+	if ( argc && argv[0][0] != '\0' )
+		recover(argv[0]);
 }
 
 init ()  {
@@ -428,7 +427,7 @@ getout ()  {
 
 	/* fix terminal status */
 	fixtty (old);
-	exit();
+	exit(0);
 }
 roll ()  {
 	register char	c;

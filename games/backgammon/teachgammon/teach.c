@@ -41,6 +41,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)teach.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <string.h>
 #include "back.h"
 
 char	*hello[];
@@ -78,6 +79,7 @@ char	**argv;
 {
 	register int	i;
 
+	acnt = 1;
 	signal (2,getout);
 	if (gtty (0,&tty) == -1)			/* get old tty mode */
 		errexit ("teachgammon(gtty)");
@@ -89,12 +91,7 @@ char	**argv;
 #endif
 	ospeed = tty.sg_ospeed;				/* for termlib */
 	tflag = getcaps (getenv ("TERM"));
-#ifdef V7
-	while (*++argv != 0)
-#else
-	while (*++argv != -1)
-#endif
-		getarg (&argv);
+	getarg (argc, argv);
 	if (tflag)  {
 		noech &= ~(CRMOD|XTABS);
 		raw &= ~(CRMOD|XTABS);
@@ -155,12 +152,18 @@ char	**argv;
 }
 
 leave()  {
+        register int i;
 	if (tflag)
 		clear();
 	else
 		writec ('\n');
 	fixtty(old);
-	execl (EXEC,"backgammon",args,"n",0);
+	args[0] = strdup("backgammon");
+	args[acnt++] = strdup("-n");
+	args[acnt] = 0;
+	execv (EXEC,args);
+	for (i = 0; i < acnt; i++)
+	    free(args[i]);
 	writel ("Help! Backgammon program is missing\007!!\n");
 	exit (-1);
 }
