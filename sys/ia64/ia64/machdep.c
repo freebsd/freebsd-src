@@ -253,7 +253,7 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 	KASSERT(size >= sizeof(struct pcpu) + sizeof(struct pcb),
-	    (__func__ ": too small an allocation for pcpu"));
+	    ("%s: too small an allocation for pcpu", __func__));
 	pcpu->pc_pcb = (void*)(pcpu+1);
 }
 
@@ -452,7 +452,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	}
 
 	KASSERT(ia64_port_base != 0,
-	    (__func__ ": no I/O memory region"));
+	    ("%s: no I/O memory region", __func__));
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.
