@@ -56,7 +56,7 @@ winsertln(win)
 #endif
 	if (win->orig == NULL)
 		temp = win->lines[win->maxy - 1];
-	for (y = win->maxy - 1; y > win->cury; --y) {
+	for (y = win->maxy - 1; y > (int) win->cury; --y) {
 		win->lines[y]->flags &= ~__ISPASTEOL;
 		win->lines[y - 1]->flags &= ~__ISPASTEOL;
 		if (win->orig == NULL)

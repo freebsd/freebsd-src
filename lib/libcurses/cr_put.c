@@ -79,7 +79,8 @@ __mvcur(ly, lx, y, x, in_refresh)
 	destline = y;
 	outcol = lx;
 	outline = ly;
-	fgoto(in_refresh);
+	if (destline != destcol || outline != outcol)
+		fgoto(in_refresh);
 	return (OK);
 }	
         
@@ -102,11 +103,11 @@ fgoto(in_refresh)
 			while (l > 0) {
 				if (__pfast)
 					if (CR)
-						tputs(CR, 0, __cputchar);
+						tputs(CR, 1, __cputchar);
 					else
 						putchar('\r');
 				if (NL)
-					tputs(NL, 0, __cputchar);
+					tputs(NL, 1, __cputchar);
 				else
 					putchar('\n');
 				l--;
@@ -147,7 +148,7 @@ fgoto(in_refresh)
 			 * Eggert's Superbee description which wins better.
 			 */
 			if (NL /* && !XB */ && __pfast)
-				tputs(NL, 0, __cputchar);
+				tputs(NL, 1, __cputchar);
 			else
 				putchar('\n');
 			l--;
@@ -167,7 +168,7 @@ fgoto(in_refresh)
 		if (outcol != COLS - 1 && plod(strlen(cgp), in_refresh) > 0)
 			plod(0, in_refresh);
 		else 
-			tputs(cgp, 0, __cputchar);
+			tputs(cgp, 1, __cputchar);
 	} else
 		plod(0, in_refresh);
 	outline = destline;
@@ -244,7 +245,7 @@ plod(cnt, in_refresh)
 			 * Cheaper to home.  Do it now and pretend it's a
 			 * regular local motion.
 			 */
-			tputs(HO, 0, plodput);
+			tputs(HO, 1, plodput);
 			outcol = outline = 0;
 		} else if (LL) {
 			/*
@@ -253,7 +254,7 @@ plod(cnt, in_refresh)
 			 */
 			k = (LINES - 1) - destline;
 			if (i + k + 2 < j && (k <= 0 || UP)) {
-				tputs(LL, 0, plodput);
+				tputs(LL, 1, plodput);
 				outcol = 0;
 				outline = LINES - 1;
 			}
@@ -303,12 +304,12 @@ plod(cnt, in_refresh)
 		 * into account.
 		 */
 		if (CR)
-			tputs(CR, 0, plodput);
+			tputs(CR, 1, plodput);
 		else
 			plodput('\r');
 		if (NC) {
 			if (NL)
-				tputs(NL, 0, plodput);
+				tputs(NL, 1, plodput);
 			else
 				plodput('\n');
 			outline++;
@@ -319,7 +320,7 @@ plod(cnt, in_refresh)
 dontcr:	while (outline < destline) {
 		outline++;
 		if (NL)
-			tputs(NL, 0, plodput);
+			tputs(NL, 1, plodput);
 		else
 			plodput('\n');
 		if (plodcnt < 0)
@@ -348,7 +349,7 @@ dontcr:	while (outline < destline) {
 	}
 	while (outline > destline) {
 		outline--;
-		tputs(UP, 0, plodput);
+		tputs(UP, 1, plodput);
 		if (plodcnt < 0)
 			goto out;
 	}
