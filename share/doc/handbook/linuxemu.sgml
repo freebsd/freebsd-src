@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.1 1996/05/14 20:31:52 rich Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.2 1996/05/15 15:17:28 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -543,16 +543,14 @@ libraries and unpacked the mathematica you can obtain
 the `machine ID' by running the program `mathinfo' in
 the Install directory:
 <verb>
-cd /usr/local/Mathematica/Install
-mathinfo
+% cd /usr/local/Mathematica/Install
+% mathinfo
+LINUX: 'ioctl' fd=5, typ=0x89(), num=0x27 not implemented
+richc.isdn.bcm.tmc.edu   9845-03452-90255
+%
 </verb>
-this will print out something like:
-<verb>
-LINUX: 'ioctl' fd=3D3, typ=3D0x89(=89), num=3D0x27 not implemented
-richc.isdn.bcm.tmc.edu=099845-03452-90255
-</verb>
-where '9845-03452-90255' is your 'machine ID'.  You can
-ignore the message about the ioctl that is not
+So, for example, the `machine ID' of `richc' is '9845-03452-90255'.
+You can ignore the message about the ioctl that is not
 implemented.  It won't prevent Mathematica from running
 in any way and you can safely ignore it, though you
 will see the message every time you run Mathematica.
