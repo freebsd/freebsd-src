@@ -726,6 +726,7 @@ dcons_modevent(module_t mode, int type, void *data)
 
 		break;
 	case MOD_SHUTDOWN:
+		dg.buf->magic = 0;
 		break;
 	default:
 		err = EOPNOTSUPP;
