@@ -326,11 +326,11 @@ main(argc, argv)
 		case 'm':		/* mark interval */
 			MarkInterval = atoi(optarg) * 60;
 			break;
+		case 'n':
+			resolve = 0;
+			break;
 		case 'p':		/* path */
 			funixn[0] = optarg;
-			break;
-		case 'r':
-			resolve = 0;
 			break;
 		case 's':		/* no network mode */
 			SecureMode++;
