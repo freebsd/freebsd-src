@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.29 1995/03/07 17:25:46 davidg Exp $
+ * $Id: vm_object.c,v 1.30 1995/03/12 07:58:28 davidg Exp $
  */
 
 /*
@@ -136,7 +136,7 @@ _vm_object_allocate(size, object)
 	object->size = size;
 	object->ref_count = 1;
 	vm_object_lock_init(object);
-	object->flags = OBJ_INTERNAL;	/* vm_allocate_with_pager will reset */
+	object->flags = OBJ_INTERNAL;	/* pager will reset */
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 
