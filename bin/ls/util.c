@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: util.c,v 1.3 1994/09/24 02:55:58 davidg Exp $
  */
 
 #ifndef lint
@@ -60,7 +60,7 @@ prcopy(src, dest, len)
 	int ch;
 
 	while (len--) {
-		ch = *src++ & 0xff;
+		ch = *src++;
 		*dest++ = isprint(ch) ? ch : '?';
 	}
 }
