@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.72 1996/05/03 21:01:38 phk Exp $
+**  $Id: ncr.c,v 1.73 1996/06/12 05:10:44 gpalmer Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1254,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.72 1996/05/03 21:01:38 phk Exp $\n";
+	"\n$Id: ncr.c,v 1.73 1996/06/12 05:10:44 gpalmer Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5773,9 +5773,18 @@ void ncr_int_sir (ncb_p np)
 		/*
 		**	Check against controller limits.
 		*/
-		fak = (4ul * per - 1) / np->ns_sync - 3;
-		if (ofs && (fak>7))   {chg = 1; ofs = 0;}
-		if (!ofs) fak=7;
+		if (ofs != 0) {
+			fak = (4ul * per - 1) / np->ns_sync - 3;
+			if (fak>7) {
+				chg = 1;
+				ofs = 0;
+			}
+		}
+		if (ofs == 0) {
+			fak = 7;
+			per = 0;
+			tp->minsync = 0;
+		}
 
 		if (DEBUG_FLAGS & DEBUG_NEGO) {
 			PRINT_ADDR(cp->xfer);
