@@ -67,6 +67,7 @@ char	 bfr[MAXBSIZE];			/* I/O buffer. */
 char	 fname[MAXPATHLEN];		/* File name prefix. */
 regex_t	 rgx;
 int	 pflag;
+long	 sufflen = 2;			/* File name suffix length. */
 
 void newfile __P((void));
 void split1 __P((void));
@@ -81,7 +82,7 @@ main(argc, argv)
 	int ch;
 	char *ep, *p;
 
-	while ((ch = getopt(argc, argv, "-0123456789b:l:p:")) != -1)
+	while ((ch = getopt(argc, argv, "-0123456789a:b:l:p:")) != -1)
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -105,6 +106,11 @@ main(argc, argv)
 			if (ifd != -1)
 				usage();
 			ifd = 0;
+			break;
+		case 'a':		/* Suffix length */
+			if ((sufflen = strtol(optarg, &ep, 10)) <= 0 || *ep)
+				errx(EX_USAGE,
+				    "%s: illegal suffix length", optarg);
 			break;
 		case 'b':		/* Byte count. */
 			if ((bytecnt = strtoq(optarg, &ep, 10)) <= 0 ||
@@ -145,6 +151,8 @@ main(argc, argv)
 	if (*argv != NULL)
 		usage();
 
+	if (strlen(fname) + (unsigned long)sufflen >= sizeof(fname))
+		errx(EX_USAGE, "suffix is too long");
 	if (pflag && (numlines != 0 || bytecnt != 0))
 		usage();
 
@@ -273,6 +281,7 @@ writeit:
 void
 newfile()
 {
+	long i, maxfiles, tfnum;
 	static long fnum;
 	static int defname;
 	static char *fpnt;
@@ -288,19 +297,32 @@ newfile()
 		}
 		ofd = fileno(stdout);
 	}
+
+	/* maxfiles = 26^sufflen, but don't use libm. */
+	for (maxfiles = 1, i = 0; i < sufflen; i++)
+		if ((maxfiles *= 26) <= 0)
+			errx(EX_USAGE, "suffix is too long (max %ld)", i);
+
 	/*
 	 * Hack to increase max files; original code wandered through
-	 * magic characters.  Maximum files is 3 * 26 * 26 == 2028
+	 * magic characters.
 	 */
-#define MAXFILES	676
-	if (fnum == MAXFILES) {
+	if (fnum == maxfiles) {
 		if (!defname || fname[0] == 'z')
 			errx(EX_DATAERR, "too many files");
 		++fname[0];
 		fnum = 0;
 	}
-	fpnt[0] = fnum / 26 + 'a';
-	fpnt[1] = fnum % 26 + 'a';
+
+	/* Generate suffix of sufflen letters */
+	tfnum = fnum;
+	i = sufflen - 1;
+	do {
+		fpnt[i] = tfnum % 26 + 'a';
+		tfnum /= 26;
+	} while (i-- > 0);
+	fpnt[sufflen] = '\0';
+
 	++fnum;
 	if (!freopen(fname, "w", stdout))
 		err(EX_IOERR, "%s", fname);
@@ -311,6 +333,8 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: split [-b byte_count] [-l line_count] [-p pattern] [file [prefix]]\n");
+"usage: split [-a sufflen] [-b byte_count] [-l line_count] [-p pattern]\n");
+	(void)fprintf(stderr,
+"             [file [prefix]]\n");
 	exit(EX_USAGE);
 }
