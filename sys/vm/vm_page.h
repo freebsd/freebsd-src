@@ -342,7 +342,6 @@ void vm_page_io_start(vm_page_t m);
 void vm_page_io_finish(vm_page_t m);
 void vm_page_hold(vm_page_t mem);
 void vm_page_unhold(vm_page_t mem);
-void vm_page_copy(vm_page_t src_m, vm_page_t dest_m);
 void vm_page_free(vm_page_t m);
 void vm_page_free_zero(vm_page_t m);
 int vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg);
