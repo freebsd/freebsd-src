@@ -67,10 +67,10 @@
 
 /*
  *	Define the version level of the kernel - so we can compile in the
- *	appropriate bits of code. By default this will compile for a 2.1
+ *	appropriate bits of code. By default this will compile for a 4.x
  *	level kernel.
  */
-#define	VFREEBSD	410
+#define	VFREEBSD	400
 #define	STATIC		static
 
 /*****************************************************************************/
