@@ -139,10 +139,10 @@ ieee80211_ifattach(struct ifnet *ifp)
 	/* validate ic->ic_curmode */
 	if ((ic->ic_modecaps & (1<<ic->ic_curmode)) == 0)
 		ic->ic_curmode = IEEE80211_MODE_AUTO;
+	ic->ic_des_chan = IEEE80211_CHAN_ANYC;	/* any channel is ok */
 
 	(void) ieee80211_setmode(ic, ic->ic_curmode);
 
-	ic->ic_des_chan = IEEE80211_CHAN_ANYC;	/* any channel is ok */
 	if (ic->ic_lintval == 0)
 		ic->ic_lintval = 100;		/* default sleep */
 	ic->ic_bmisstimeout = 7*ic->ic_lintval;	/* default 7 beacons */
@@ -656,7 +656,7 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 	 * Verify at least one channel is present in the available
 	 * channel list before committing to the new mode.
 	 */
-	KASSERT(mode < N(chanflags), ("Unexpected mode %u\n", mode));
+	KASSERT(mode < N(chanflags), ("Unexpected mode %u", mode));
 	modeflags = chanflags[mode];
 	for (i = 0; i <= IEEE80211_CHAN_MAX; i++) {
 		c = &ic->ic_channels[i];
