@@ -189,13 +189,13 @@ statf(indent, p)
 		output(indent, &offset, "cksum=%lu", val);
 	}
 	if (keys & F_MD5 && S_ISREG(p->fts_statp->st_mode)) {
-		char *md5digest = MD5File(p->fts_accpath);
+		char *md5digest, buf[33];
 
+		md5digest = MD5File(p->fts_accpath,buf);
 		if (!md5digest) {
 			err("%s: %s", p->fts_accpath, strerror(errno));
 		} else {
 			output(indent, &offset, "md5digest=%s", md5digest);
-			free(md5digest);
 		}
 	}
 	if (keys & F_SLINK &&
