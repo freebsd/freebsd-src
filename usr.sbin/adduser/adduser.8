@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.22 1997/09/01 06:14:16 charnier Exp $
+.\" $Id: adduser.8,v 1.23 1998/02/02 15:46:44 wosch Exp $
 .\"
 .Dd January 9, 1995
 .Dt ADDUSER 8
@@ -139,6 +139,10 @@ Parse command line options.
 .Bl -tag -width Ds
 .It Sy -batch username [group[,group]...] [class] [fullname] [password]
 Batch mode.
+The listed groups are secondary groups that the new user should be a
+member of in addition to the default login group. Null string arguments
+may be used as place holders, and result in the default value for the
+nulled field being used.
 .It Sy -check_only
 Check /etc/passwd, /etc/group, /etc/shells and exit.
 .It Sy -class Ar login_class
