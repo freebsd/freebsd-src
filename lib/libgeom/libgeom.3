@@ -39,8 +39,9 @@
 .Nm geom_stats_snapshot_timestamp ,
 .Nm geom_stats_snapshot_reset ,
 .Nm geom_stats_snapshot_next
+.Nd userland API library for kernel GEOM subsystem
 .Sh LIBRARY
-.Lb geom
+.Lb libgeom
 .Sh SYNOPSIS
 .In libgeom.h
 .Ss "Statistics functions"
@@ -70,43 +71,43 @@ not perform any normalization or presentation on the raw data, this is
 left as an excercize for user-land presentation utilities.
 .Pp
 The
-.Nm geom_stats_open
+.Fn geom_stats_open
 and 
-.Nm geom_stats_close
+.Fn geom_stats_close
 functions opens and closes the necessary pathways to access the raw 
 statistics information in the kernel.  These functions are likely to
 open one or more files and cache the filedescriptors locally.
-.Nm geom_stats_open
+.Fn geom_stats_open
 returns zero on success, and sets errno if not.
 .Pp
 The
-.Nm geom_stats_resync
+.Fn geom_stats_resync
 function will check if more statistics collection points have been
 added in the kernel since
-.Nm geom_stats_open
+.Fn geom_stats_open
 or the previous call to
-.Nm geom_stats_resync .
+.Fn geom_stats_resync .
 .Pp
-.Nm geom_stats_snapshot_get
+.Fn geom_stats_snapshot_get
 will aquire a snapshot of the raw data from the kernel and while a
 reasonable effort is made to make this snapshot as atomic and consistent
 as possible, no guarantee is given that it will actually be so.
 The snapshot must be freed again using the
-.Nm geom_stats_snapshot_free
+.Fn geom_stats_snapshot_free
 function.
-.Nm geom_stats_snapshot_get
+.Fn geom_stats_snapshot_get
 returns NULL on failure.
 .Pp
-.Nm geom_stats_snapshot_timestamp
+.Fn geom_stats_snapshot_timestamp
 provides access to the timestamp aquired in the snapshot.
 .Pp
-.Nm geom_stats_snapshot_reset
+.Fn geom_stats_snapshot_reset
 and
-.Nm geom_stats_snapshot_next
+.Fn geom_stats_snapshot_next
 provides an iterator over the statistics slots in the snapshot.
-.Nm geom_stats_snapshot_reset
+.Fn geom_stats_snapshot_reset
 forces the internal pointer in the snapshot back to before the first item.
-.Nm geom_stats_snapshot_next
+.Fn geom_stats_snapshot_next
 returns the next item and NULL if there are no more items in the snapshot.
 .Sh AUTHORS
 .An Poul-Henning Kamp Aq phk@FreeBSD.org
