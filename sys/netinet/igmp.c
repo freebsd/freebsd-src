@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.15 1995/12/09 20:43:51 phk Exp $
+ * $Id: igmp.c,v 1.16 1996/03/14 16:59:16 fenner Exp $
  */
 
 /*
@@ -331,7 +331,7 @@ igmp_input(m, iphlen)
 	 * Pass all valid IGMP packets up to any process(es) listening
 	 * on a raw IGMP socket.
 	 */
-	rip_input(m);
+	rip_input(m, iphlen);
 }
 
 void
