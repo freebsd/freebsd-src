@@ -2,7 +2,7 @@
  * hwaddr.c - routines that deal with hardware addresses.
  * (i.e. Ethernet)
  *
- *	$Id$
+ *	$Id: hwaddr.c,v 1.3 1996/09/22 21:52:16 wosch Exp $
  */
 
 #include <sys/types.h>
@@ -198,7 +198,7 @@ setarp(s, ia, hafamily, haddr, halen)
 	extern char *inet_ntoa();
 
 	a = inet_ntoa(*ia);
-	sprintf(buf, "arp -d %s; arp -s %s %s temp",
+	snprintf(buf, sizeof(buf), "arp -d %s; arp -s %s %s temp",
 			a, a, haddrtoa(haddr, halen));
 	if (debug > 2)
 		report(LOG_INFO, buf);

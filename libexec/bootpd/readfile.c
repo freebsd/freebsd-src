@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id$
+	$Id: readfile.c,v 1.2 1996/09/22 21:52:26 wosch Exp $
 
 ************************************************************************/
 
@@ -817,7 +817,8 @@ eval_symbol(symbol, hp)
 	if ((*symbol)[0] == 'T') {	/* generic symbol */
 		(*symbol)++;
 		value = get_u_long(symbol);
-		sprintf(current_tagname, "T%d", (int)value);
+		snprintf(current_tagname, sizeof(current_tagname),
+			"T%d", (int)value);
 		eat_whitespace(symbol);
 		if ((*symbol)[0] != '=') {
 			return E_SYNTAX_ERROR;
