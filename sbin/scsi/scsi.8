@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.1.1.1 1995/01/24 12:07:27 dufault Exp $
+.\"	$Id: scsi.8,v 1.2 1995/04/17 14:51:54 dufault Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 1
@@ -51,6 +51,8 @@
 .Bd -literal -offset
 Usage:
 scsi -f device -d debug_level                    # To set debug level
+scsi -f device [-v] -z seconds                   # To freeze bus
+scsi -f device -m page [-P pc]                   # To read mode pages
 scsi -f device -p [-b bus] [-l lun]              # To probe all devices
 scsi -f device -r [-b bus] [-t targ] [-l lun]    # To reprobe a device
 scsi -f device [-v] -c cmd_fmt [arg0 ... argn] \\ # To send a command...
@@ -76,6 +78,37 @@ with the
 option.  See
 .Fr /sys/scsi/scsi_debug.h
 to figure out what to set the kernel debug level to.
+.Pp
+The
+.Fr -z
+option freezes all activity on all SCSI busses for a given number of
+seconds.  If
+.Fr -v
+is also specified then a BEL character is sent to the standard
+output at the start and finish of the bus freeze.
+This requires that the kernel be built with the SCSI_FREEZE kernel option.
+This kernel code is not committed yet.
+.Pp
+The
+.Fr -m
+option is used to read a device mode page.  The file
+.Fr /usr/share/misc/scsi_modes
+is read to look at for how to interpret the mode data.  The environment
+variable SCSI_MODES can specify a different file to use.
+The
+.Fr -P
+option can be used to specify a page control field.  The page control
+fields are
+.Bd -literal -offset
+0 Current Values
+1 Changeable Values
+2 Default Values
+3 Saved Values
+.Ed
+.Pp
+Eventually this will also support a
+.Fr -e
+option to permit editing the fields.
 .Pp
 The
 .Fr -p
@@ -160,6 +193,17 @@ root# scsi -f /dev/rsd2c -c "12 0 0 0 64 0" -i 64 "s8 z8 z16 z4"
 FUJITSU M2654S-512 010P
 .Ed
 .Pp
+.Sh ENVIRONMENT
+The SU_DEBUG_OUTPUT variable can be set to a file to send debugging
+output to that file.
+.Pp
+The SU_DEBUG_LEVEL variable can be set to a non-zero integer to increase
+the level of debugging.  Currently this is a on or off thing; it should
+perhaps use the ioctl to set the debug level in the kernel and then set
+it back to zero at program exit.
+.Pp
+The SU_DEBUG_TRUNCATE variable can be set to an integer to limit the
+amount of data phase output sent to the debugging file.
 .Sh SEE ALSO
 .Xr scsi 4 ,
 .Xr scsi 3
