@@ -23,6 +23,9 @@
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 #include "getopt.h"
 #include "awk.h"
 #include "patchlevel.h"
@@ -142,6 +145,9 @@ char **argv;
 	extern int opterr;
 	extern char *optarg;
 
+#ifdef __FreeBSD__
+	(void) setlocale(LC_CTYPE, "");
+#endif
 #ifdef __EMX__
 	_response(&argc, &argv);
 	_wildcard(&argc, &argv);
