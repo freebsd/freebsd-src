@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: parser.c,v 1.3 1994/09/24 02:58:08 davidg Exp $
  */
 
 #ifndef lint
@@ -1181,7 +1181,7 @@ parsebackq: {
                 while ((c = pgetc ()) != '`') {
                        if (c == '\\') {
                                 c = pgetc ();
-                                if (c != '\\' && c != '`' && c != '$'
+                                if (c != '`' && c != '$'
                                     && (!dblquote || c != '"'))
                                         STPUTC('\\', out);
                        }
