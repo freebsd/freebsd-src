@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.37 1996/03/02 02:54:21 dyson Exp $
+ * $Id: vm_mmap.c,v 1.38 1996/03/02 17:14:09 peter Exp $
  */
 
 /*
@@ -753,9 +753,16 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	if (object == NULL)
 		return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
 
+	/*
+	 * default to MAP_SHARED on a device mapping
+	 */
+	if ((type == OBJT_DEVICE) &&
+		(flags & (MAP_SHARED|MAP_COPY|MAP_PRIVATE)) == 0)
+		flags |= MAP_SHARED;
+
 	object2 = NULL;
 	docow = 0;
-	if ((flags & (MAP_ANON|MAP_SHARED)) == 0 && (type != OBJT_DEVICE)) {
+	if ((flags & (MAP_ANON|MAP_SHARED)) == 0) {
 		docow = MAP_COPY_ON_WRITE;
 		if (objsize < size) {
 			object2 = vm_object_allocate( OBJT_DEFAULT,
@@ -769,6 +776,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			docow |= MAP_COPY_NEEDED;
 		}
 	}
+
 	if (object2)
 		rv = vm_map_find(map, object2, 0, addr, size, fitit,
 			prot, maxprot, docow);
@@ -802,7 +810,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	/*
 	 * Shared memory is also shared with children.
 	 */
-	if (flags & MAP_SHARED) {
+	if (flags & (MAP_SHARED|MAP_INHERIT)) {
 		rv = vm_map_inherit(map, *addr, *addr + size, VM_INHERIT_SHARE);
 		if (rv != KERN_SUCCESS) {
 			(void) vm_map_remove(map, *addr, *addr + size);
