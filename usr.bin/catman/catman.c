@@ -730,7 +730,6 @@ int
 main(int argc, char **argv)
 {
 	int opt;
-	extern int optind;
 
 	if ((uid = getuid()) == 0) {
 		fprintf(stderr, "don't run %s as root, use:\n   echo", argv[0]);
