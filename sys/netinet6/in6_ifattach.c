@@ -958,8 +958,10 @@ in6_ifdetach(ifp)
 	}
 
 	/* leave from all multicast groups joined */
-	in6_pcbpurgeif0(LIST_FIRST(udbinfo.listhead), ifp);
-	in6_pcbpurgeif0(LIST_FIRST(ripcbinfo.listhead), ifp);
+	if (udbinfo.listhead != NULL)
+		in6_pcbpurgeif0(LIST_FIRST(udbinfo.listhead), ifp);
+	if (ripcbinfo.listhead != NULL)
+		in6_pcbpurgeif0(LIST_FIRST(ripcbinfo.listhead), ifp);
 	for (in6m = LIST_FIRST(&in6_multihead); in6m; in6m = in6m_next) {
 		in6m_next = LIST_NEXT(in6m, in6m_entry);
 		if (in6m->in6m_ifp != ifp)
