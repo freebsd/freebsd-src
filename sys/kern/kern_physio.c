@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.11 1995/05/30 08:05:36 rgrimes Exp $
+ * $Id: kern_physio.c,v 1.12 1995/09/08 11:08:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -91,16 +91,19 @@ physio(strategy, bp, dev, rw, minp, uio)
 			bp->b_blkno = btodb(uio->uio_offset);
 
 
-			if (rw && !useracc(bp->b_data, bp->b_bufsize, B_WRITE)) {
-				error = EFAULT;
-				goto doerror;
-			}
-			if (!rw && !useracc(bp->b_data, bp->b_bufsize, B_READ)) {
-				error = EFAULT;
-				goto doerror;
-			}
+			if (uio->uio_segflg == UIO_USERSPACE) {
+				if (rw && !useracc(bp->b_data, bp->b_bufsize, B_WRITE)) {
+					error = EFAULT;
+					goto doerror;
+				}
+				if (!rw && !useracc(bp->b_data, bp->b_bufsize, B_READ)) {
+					error = EFAULT;
+					goto doerror;
+				}
 
-			vmapbuf(bp);
+				/* bring buffer into kernel space */
+				vmapbuf(bp);
+			}
 
 			/* perform transfer */
 			(*strategy)(bp);
@@ -110,7 +113,9 @@ physio(strategy, bp, dev, rw, minp, uio)
 				tsleep((caddr_t)bp, PRIBIO, "physstr", 0);
 			splx(spl);
 
-			vunmapbuf(bp);
+			/* release mapping into kernel space */
+			if (uio->uio_segflg == UIO_USERSPACE)
+				vunmapbuf(bp);
 
 			/*
 			 * update the uio data
