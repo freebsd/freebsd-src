@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.51 1996/06/14 18:35:00 jkh Exp $
+ * $Id: config.c,v 1.16.2.52 1996/06/17 09:04:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -451,7 +451,7 @@ configPackages(dialogMenuItem *self)
 		       "(or path to media) and try again.  If your local site does not\n"
 		       "carry the packages collection, then we recommend either a CD\n"
 		       "distribution or the master distribution on ftp.freebsd.org.");
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
 	}
 	msgNotify("Got INDEX successfully, now building packages menu..");
 	index_init(&top, &plist);
@@ -505,6 +505,7 @@ configPorts(dialogMenuItem *self)
 {
     char *cp, *dist = NULL; /* Shut up compiler */
 
+    dialog_clear();
     if (!variable_get(VAR_PORTS_PATH))
 	variable_set2(VAR_PORTS_PATH, dist = "/cdrom/ports");
     while (!directory_exists(dist)) {
