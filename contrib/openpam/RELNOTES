@@ -1,18 +1,13 @@
 
-		  Release notes for OpenPAM Cinnamon
-		  ==================================
+		 Release notes for OpenPAM Cinquefoil
+		 ====================================
 
 The library itself is complete.  Documentation exists in the form of
-man pages for the library functions, though a few pages are still
-incomplete.
+man pages for the library functions.
 
-This release is incorporated into FreeBSD-CURRENT as of 2002-05-02.
+This release is incorporated into FreeBSD-CURRENT as of 2002-05-24.
 It has also been successfully built on NetBSD, and should build with
 minimal or no changes on OpenBSD.  It has not been tested on any other
 OS.
 
-Known issues:
-
-  - The documentation is still incomplete.
-
-$P4: //depot/projects/openpam/RELNOTES#10 $
+$P4: //depot/projects/openpam/RELNOTES#11 $
