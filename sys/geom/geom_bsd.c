@@ -788,10 +788,10 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		return (gp);
 	/*
 	 * ...else push the "self-destruct" button, by spoiling our own
-	 * consumer.  This triggers a call to g_std_spoiled which will
+	 * consumer.  This triggers a call to g_slice_spoiled which will
 	 * dismantle what was setup.
 	 */
-	g_std_spoiled(cp);
+	g_slice_spoiled(cp);
 	return (NULL);
 }
 
