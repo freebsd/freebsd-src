@@ -76,16 +76,17 @@ typedef struct Buffer {
 
 void Buf_AddByte(Buffer *, Byte);
 void Buf_AddBytes(Buffer *, size_t, const Byte *);
-Byte *Buf_GetAll(Buffer *, size_t *);
-void Buf_Clear(Buffer *);
-size_t Buf_Size(const Buffer *);
-Buffer *Buf_Init(size_t);
-void Buf_Destroy(Buffer *, Boolean);
-void Buf_ReplaceLastByte(Buffer *, Byte);
-char *Buf_Peel(Buffer *);
-
 void Buf_Append(Buffer *, const char []);
+void Buf_AppendBuf(Buffer *, const Buffer *);
 void Buf_AppendRange(Buffer *, const char [], const char *);
+void Buf_Clear(Buffer *);
+char *Buf_Data(const Buffer *);
+void Buf_Destroy(Buffer *, Boolean);
+Byte *Buf_GetAll(Buffer *, size_t *);
+Buffer *Buf_Init(size_t);
+char *Buf_Peel(Buffer *);
+void Buf_ReplaceLastByte(Buffer *, Byte);
+size_t Buf_Size(const Buffer *);
 void Buf_StripNewlines(Buffer *);
 
 #endif /* buf_h_a61a6812 */
