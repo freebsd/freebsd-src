@@ -13,16 +13,12 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
+ *    without modification.
  * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
- * Where this Software is combined with software released under the terms of 
- * the GNU Public License ("GPL") and the terms of the GPL would require the 
- * combined work to also be released under the terms of the GPL, the terms
- * and conditions of this License will apply in addition to those of the
- * GPL with the exception of any terms or conditions of this License that
- * conflict with, or are expressly prohibited by, the GPL.
+ * Alternatively, this software may be distributed under the terms of the
+ * the GNU Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -274,7 +270,10 @@ static void	ahc_handle_devreset(struct ahc_softc *ahc,
 				    struct ahc_devinfo *devinfo,
 				    cam_status status, ac_code acode,
 				    char *message,
-				    int verbose_only);
+				    int verbose_level);
+#ifdef AHC_DUMP_SEQ
+static void	ahc_dumpseq(struct ahc_softc *ahc);
+#endif
 static void	ahc_loadseq(struct ahc_softc *ahc);
 static int	ahc_check_patch(struct ahc_softc *ahc,
 				struct patch **start_patch,
@@ -367,18 +366,16 @@ static __inline void	   ahc_freeze_ccb(union ccb* ccb);
 static __inline cam_status ahc_ccb_status(union ccb* ccb);
 static __inline void	   ahcsetccbstatus(union ccb* ccb,
 					   cam_status status);
-static __inline void	   ahc_run_tqinfifo(struct ahc_softc *ahc);
-static __inline void	   ahc_run_qoutfifo(struct ahc_softc *ahc);
+static void		   ahc_run_tqinfifo(struct ahc_softc *ahc);
+static void		   ahc_run_qoutfifo(struct ahc_softc *ahc);
 
 static __inline struct ahc_initiator_tinfo *
 			   ahc_fetch_transinfo(struct ahc_softc *ahc,
 					       char channel,
 					       u_int our_id, u_int target,
 					       struct tmode_tstate **tstate);
-static __inline void
-		ahcfreescb(struct ahc_softc *ahc, struct scb *scb);
-static __inline struct scb *
-		ahcgetscb(struct ahc_softc *ahc);
+static void	   ahcfreescb(struct ahc_softc *ahc, struct scb *scb);
+static __inline	struct scb *ahcgetscb(struct ahc_softc *ahc);
 
 static __inline u_int32_t
 ahc_hscb_busaddr(struct ahc_softc *ahc, u_int index)
@@ -483,7 +480,7 @@ ahc_fetch_transinfo(struct ahc_softc *ahc, char channel, u_int our_id,
 	return (&(*tstate)->transinfo[remote_id]);
 }
 
-static __inline void
+static void
 ahc_run_tqinfifo(struct ahc_softc *ahc)
 {
 	struct target_cmd *cmd;
@@ -512,7 +509,7 @@ ahc_run_tqinfifo(struct ahc_softc *ahc)
 	}
 }
 
-static __inline void
+static void
 ahc_run_qoutfifo(struct ahc_softc *ahc)
 {
 	struct scb *scb;
@@ -549,7 +546,7 @@ ahc_run_qoutfifo(struct ahc_softc *ahc)
  * An scb (and hence an scb entry on the board) is put onto the
  * free list.
  */
-static __inline void
+static void
 ahcfreescb(struct ahc_softc *ahc, struct scb *scb)
 {       
 	struct hardware_scb *hscb;
@@ -981,13 +978,18 @@ ahc_reset(struct ahc_softc *ahc)
 	u_int	sblkctl;
 	int	wait;
 	
+#ifdef AHC_DUMP_SEQ
+	ahc_dumpseq(ahc);
+#endif
 	ahc_outb(ahc, HCNTRL, CHIPRST | ahc->pause);
 	/*
 	 * Ensure that the reset has finished
 	 */
 	wait = 1000;
-	while (--wait && !(ahc_inb(ahc, HCNTRL) & CHIPRSTACK))
+	do {
 		DELAY(1000);
+	} while (--wait && !(ahc_inb(ahc, HCNTRL) & CHIPRSTACK));
+
 	if (wait == 0) {
 		printf("%s: WARNING - Failed chip reset!  "
 		       "Trying to initialize anyway.\n", ahc_name(ahc));
@@ -2575,17 +2577,29 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 				printf("SCB %d - Abort %s Completed.\n",
 				       scb->hscb->tag, tag == SCB_LIST_NULL ?
 				       "" : "Tag");
-				if ((scb->flags & SCB_RECOVERY_SCB) != 0) {
-					ahcsetccbstatus(scb->ccb,
-							CAM_REQ_ABORTED);
-					ahc_done(ahc, scb);
-				}
+				ahc_abort_scbs(ahc, target, channel,
+					       TCL_LUN(saved_tcl), tag,
+					       ROLE_INITIATOR,
+					       CAM_REQ_ABORTED);
 				printerror = 0;
 				break;
 			case MSG_BUS_DEV_RESET:
 			{
 				struct ahc_devinfo devinfo;
 
+				/*
+				 * Don't mark the user's request for this BDR
+				 * as completing with CAM_BDR_SENT.  CAM3
+				 * specifies CAM_REQ_CMP.
+				 */
+				if (scb != NULL
+				 && scb->ccb->ccb_h.func_code == XPT_RESET_DEV
+				 && ahc_match_scb(scb, target, channel,
+						  TCL_LUN(saved_tcl),
+						  ROLE_INITIATOR,
+						  SCB_LIST_NULL)) {
+					ahcsetccbstatus(scb->ccb, CAM_REQ_CMP);
+				}
 				ahc_compile_devinfo(&devinfo,
 						    initiator_role_id,
 						    target,
@@ -2595,7 +2609,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 				ahc_handle_devreset(ahc, &devinfo,
 						    CAM_BDR_SENT, AC_SENT_BDR,
 						    "Bus Device Reset",
-						    /*verbose_only*/FALSE);
+						    /*verbose_level*/0);
 				printerror = 0;
 				break;
 			}
@@ -2656,7 +2670,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 			ahc_scb_devinfo(ahc, &devinfo, scb);
 			ahc_handle_devreset(ahc, &devinfo, CAM_SEL_TIMEOUT,
 					    /*ac_code*/0, "Selection Timeout",
-					    /*verbose_only*/TRUE);
+					    /*verbose_level*/2);
 		}
 		/* Stop the selection */
 		ahc_outb(ahc, SCSISEQ, 0);
@@ -2782,9 +2796,9 @@ ahc_build_transfer_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		dosync = tinfo->goal.period != 0;
 	}
 
-	if (dowide)
+	if (dowide) {
 		ahc_construct_wdtr(ahc, tinfo->goal.width);
-	else if (dosync) {
+	} else if (dosync) {
 		struct	ahc_syncrate *rate;
 		u_int	period;
 		u_int	offset;
@@ -2907,7 +2921,7 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		struct ahc_initiator_tinfo *tinfo;
 		struct tmode_tstate *tstate;
 
-		/* note 8bit xfers and clear flag */
+		/* note 8bit xfers */
 		printf("%s:%c:%d: refuses WIDE negotiation.  Using "
 		       "8bit transfers\n", ahc_name(ahc),
 		       devinfo->channel, devinfo->target);
@@ -2915,10 +2929,13 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 			      MSG_EXT_WDTR_BUS_8_BIT,
 			      AHC_TRANS_ACTIVE|AHC_TRANS_GOAL,
 			      /*paused*/TRUE);
-		ahc_set_syncrate(ahc, devinfo, scb->ccb->ccb_h.path,
-				 /*syncrate*/NULL, /*period*/0,
-				 /*offset*/0, AHC_TRANS_ACTIVE,
-				 /*paused*/TRUE);
+		/*
+		 * No need to clear the sync rate.  If the target
+		 * did not accept the command, our syncrate is
+		 * unaffected.  If the target started the negotiation,
+		 * but rejected our response, we already cleared the
+		 * sync rate before sending our WDTR.
+		 */
 		tinfo = ahc_fetch_transinfo(ahc, devinfo->channel,
 					    devinfo->our_scsiid,
 					    devinfo->target, &tstate);
@@ -3111,12 +3128,12 @@ reswitch:
 			if (ahc->msgout_len != 0)
 				ahc_outb(ahc, SCSISIGO,
 					 ahc_inb(ahc, SCSISIGO) | ATNO);
-		}
+		} else 
+			ahc->msgin_index++;
 
 		/* Ack the byte */
 		ahc_outb(ahc, CLRSINT1, CLRREQINIT);
 		ahc_inb(ahc, SCSIDATL);
-		ahc->msgin_index++;
 		break;
 	}
 	case MSG_TYPE_TARGET_MSGIN:
@@ -3529,7 +3546,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 		ahc_handle_devreset(ahc, devinfo,
 				    CAM_BDR_SENT, AC_SENT_BDR,
 				    "Bus Device Reset Received",
-				    /*verbose_only*/FALSE);
+				    /*verbose_level*/0);
 		restart_sequencer(ahc);
 		done = MSGLOOP_TERMINATED;
 		break;
@@ -3673,7 +3690,7 @@ ahc_handle_ign_wide_residue(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 static void
 ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		    cam_status status, ac_code acode, char *message,
-		    int verbose_only)
+		    int verbose_level)
 {
 	struct cam_path *path;
 	int found;
@@ -3725,7 +3742,7 @@ ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		xpt_free_path(path);
 
 	if (message != NULL
-	 && (verbose_only == 0 || bootverbose != 0))
+	 && (verbose_level <= bootverbose))
 		printf("%s: %s on %c:%d. %d SCBs aborted\n", ahc_name(ahc),
 		       message, devinfo->channel, devinfo->target, found);
 }
@@ -3807,7 +3824,8 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 				   SCB_LUN(scb), scb->hscb->tag,
 				   ROLE_INITIATOR, /*status*/0,
 				   SEARCH_REMOVE);
-		if (ahc_ccb_status(ccb) == CAM_BDR_SENT)
+		if (ahc_ccb_status(ccb) == CAM_BDR_SENT
+		 || ahc_ccb_status(ccb) == CAM_REQ_ABORTED)
 			ahcsetccbstatus(ccb, CAM_CMD_TIMEOUT);
 		xpt_print_path(ccb->ccb_h.path);
 		printf("no longer in timeout, status = %x\n",
@@ -5164,6 +5182,36 @@ ahcallocscbs(struct ahc_softc *ahc)
 	}
 }
 
+#ifdef AHC_DUMP_SEQ
+static void
+ahc_dumpseq(struct ahc_softc* ahc)
+{
+	int i;
+	int max_prog;
+
+	if ((ahc->chip & AHC_BUS_MASK) < AHC_PCI)
+		max_prog = 448;
+	else if ((ahc->features & AHC_ULTRA2) != 0)
+		max_prog = 768;
+	else
+		max_prog = 512;
+
+	ahc_outb(ahc, SEQCTL, PERRORDIS|FAILDIS|FASTMODE|LOADRAM);
+	ahc_outb(ahc, SEQADDR0, 0);
+	ahc_outb(ahc, SEQADDR1, 0);
+	for (i = 0; i < max_prog; i++) {
+		u_int8_t ins_bytes[4];
+
+		ahc_insb(ahc, SEQRAM, ins_bytes, 4);
+		printf("0x%2.2x%2.2x%2.2x%2.2x\n", 
+		       ins_bytes[0], 
+		       ins_bytes[1], 
+		       ins_bytes[2], 
+		       ins_bytes[3]);
+	}
+}
+#endif
+
 static void
 ahc_loadseq(struct ahc_softc *ahc)
 {
@@ -5607,7 +5655,7 @@ bus_reset:
 				/*
 				 * Remove this SCB from the disconnected
 				 * list so that a reconnect at this point
-				 * causes a BDR.
+				 * causes a BDR or abort.
 				 */
 				ahc_search_disc_list(ahc, target, channel, lun,
 						     scb->hscb->tag);
@@ -6298,9 +6346,6 @@ ahc_calc_residual(struct scb *scb)
 	 * Clean out the residual information in this SCB for its
 	 * next consumer.
 	 */
-	hscb->residual_data_count[0] = 0;
-	hscb->residual_data_count[1] = 0;
-	hscb->residual_data_count[2] = 0;
 	hscb->residual_SG_count = 0;
 
 #ifdef AHC_DEBUG
