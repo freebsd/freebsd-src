@@ -1554,8 +1554,8 @@ mlx_enquire(struct mlx_softc *sc, int command, size_t bufsize, void (* complete)
     if ((mc->mc_complete == NULL) && (mc != NULL))
 	mlx_releasecmd(mc);
     /* we got an error, and we allocated a result */
-    if ((error != 0) && (mc->mc_data != NULL)) {
-	free(mc->mc_data, M_DEVBUF);
+    if ((error != 0) && (result != NULL)) {
+	free(result, M_DEVBUF);
 	mc->mc_data = NULL;
     }
     return(result);
