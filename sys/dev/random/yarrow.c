@@ -184,6 +184,11 @@ random_init(void)
 	mtx_exit(&Giant, MTX_DEF);
 #endif
 
+	/* This can be turned off by the very paranoid
+	 * a reseed will turn it back on.
+	 */
+	random_state.seeded = 1;
+
 	random_state.gengateinterval = 10;
 	random_state.bins = 10;
 	random_state.pool[0].thresh = 100;
