@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.19 1998/09/23 06:11:35 markm Exp $
+#	$Id: Makefile.inc1,v 1.20 1998/09/23 10:30:43 obrien Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -82,7 +82,7 @@ SUBDIR+= usr.sbin
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 SUBDIR+= secure
 .endif
-.if exists(lkm) && !defined(NOLKM) && ${OBJFORMAT} == "aout"
+.if exists(lkm) && !defined(NOLKM)
 SUBDIR+= lkm
 .endif
 
@@ -741,7 +741,7 @@ _perl=		gnu/usr.bin/perl/miniperl
 .if !defined(NOSHARE) && exists(${.CURDIR}/share)
 _scrnmaps=	share/syscons/scrnmaps
 .endif
-.if !defined(NOLKM) && exists(${.CURDIR}/lkm) && ${OBJFORMAT} == "aout"
+.if !defined(NOLKM) && exists(${.CURDIR}/lkm)
 _linux=		lkm/linux
 .endif
 .if ${OBJFORMAT} == "aout"
