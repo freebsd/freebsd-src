@@ -95,7 +95,7 @@ checkinode(inumber, idesc)
 	struct zlncnt *zlnp;
 	int ndb, j;
 	mode_t mode;
-	char symbuf[MAXSYMLINKLEN];
+	char *symbuf;
 
 	dp = getnextinode(inumber);
 	mode = dp->di_mode & IFMT;
@@ -141,9 +141,10 @@ checkinode(inumber, idesc)
 		if (doinglevel2 &&
 		    dp->di_size > 0 && dp->di_size < MAXSYMLINKLEN &&
 		    dp->di_blocks != 0) {
+			symbuf = alloca(secsize);
 			if (bread(fsreadfd, symbuf,
 			    fsbtodb(&sblock, dp->di_db[0]),
-			    (long)dp->di_size) != 0)
+			    (long)secsize) != 0)
 				errexit("cannot read symlink");
 			if (debug) {
 				symbuf[dp->di_size] = 0;
