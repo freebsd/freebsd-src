@@ -35,6 +35,7 @@
 #include "target.h"
 #include "regcache.h"
 #include "gdbcmd.h"
+#include "solib-svr4.h"
 
 #include <sys/ptrace.h>
 
@@ -109,12 +110,15 @@ static td_err_e (*td_thr_sstep_p) (td_thrhandle_t *th, int step);
 
 static td_err_e (*td_ta_tsd_iter_p) (const td_thragent_t *ta,
 				 td_key_iter_f *func, void *data);
-
+static td_err_e (*td_thr_tls_get_addr_p) (const td_thrhandle_t *th,
+                                          void *map_address,
+                                          size_t offset, void **address);
 static td_err_e (*td_thr_dbsuspend_p) (const td_thrhandle_t *);
 static td_err_e (*td_thr_dbresume_p) (const td_thrhandle_t *);
 
 /* Prototypes for local functions.  */
 static void fbsd_thread_find_new_threads (void);
+static int fbsd_thread_alive (ptid_t ptid);
 
 /* Building process ids.  */
 
@@ -367,13 +371,19 @@ fbsd_thread_detach (char *args, int from_tty)
 static int
 suspend_thread_callback (const td_thrhandle_t *th_p, void *data)
 {
-  return td_thr_dbsuspend_p (th_p);
+  int err = td_thr_dbsuspend_p (th_p);
+  if (err != 0)
+	printf_filtered("%s %s\n", __func__, thread_db_err_str (err));
+  return (err);
 }
 
 static int
 resume_thread_callback (const td_thrhandle_t *th_p, void *data)
 {
-  return td_thr_dbresume_p (th_p);
+  int err = td_thr_dbresume_p (th_p);
+  if (err != 0)
+	printf_filtered("%s %s\n", __func__, thread_db_err_str (err));
+  return (err);
 }
 
 static void
@@ -496,6 +506,16 @@ fbsd_thread_wait (ptid_t ptid, struct target_waitstatus *ourstatus)
       ret = thread_from_lwp (BUILD_LWP (lwp, GET_PID (ret)));
       if (!in_thread_list (ret))
         add_thread (ret);
+      /* this is a hack, if an event won't cause gdb to stop, for example,
+         SIGARLM, gdb resumes the process immediatly without setting
+         inferior_ptid to the new thread returned here, this is a bug
+         because inferior_ptid may already not exist there, and passing
+         a none existing thread to fbsd_thread_resume causes error. */
+      if (!fbsd_thread_alive (inferior_ptid))
+        {
+          delete_thread (inferior_ptid);
+          inferior_ptid = ret;
+       }
     }
 
   return (ret);
@@ -816,6 +836,59 @@ fbsd_thread_pid_to_str (ptid_t ptid)
   return normal_pid_to_str (ptid);
 }
 
+CORE_ADDR
+fbsd_thread_get_local_address(ptid_t ptid, struct objfile *objfile,
+                              CORE_ADDR offset)
+{
+  td_thrhandle_t th;
+  void *address;
+  CORE_ADDR lm;
+  int ret, is_library = (objfile->flags & OBJF_SHARED);
+
+  if (IS_THREAD (ptid))
+    {
+      if (!td_thr_tls_get_addr_p)
+        error ("Cannot find thread-local interface in thread_db library.");
+
+      /* Get the address of the link map for this objfile. */
+      lm = svr4_fetch_objfile_link_map (objfile);
+
+      /* Couldn't find link map. Bail out. */
+      if (!lm)
+        {
+          if (is_library)
+            error ("Cannot find shared library `%s' link_map in dynamic"
+                   " linker's module list", objfile->name);
+          else
+            error ("Cannot find executable file `%s' link_map in dynamic"
+                   " linker's module list", objfile->name);
+        }
+
+      ret = td_ta_map_id2thr_p (thread_agent, GET_THREAD(ptid), &th);
+
+      /* get the address of the variable. */
+      ret = td_thr_tls_get_addr_p (&th, (void *) lm, offset, &address);
+
+      if (ret != TD_OK)
+        {
+          if (is_library)
+            error ("Cannot find thread-local storage for thread %ld, "
+                   "shared library %s:\n%s",
+                   (long) GET_THREAD (ptid),
+                   objfile->name, thread_db_err_str (ret));
+          else
+            error ("Cannot find thread-local storage for thread %ld, "
+                   "executable file %s:\n%s",
+                   (long) GET_THREAD (ptid),
+                   objfile->name, thread_db_err_str (ret));
+        }
+
+      /* Cast assuming host == target. */
+      return (CORE_ADDR) address;
+    }
+  return (0);
+}
+
 static int
 tsd_cb (thread_key_t key, void (*destructor)(void *), void *ignore)
 {
@@ -862,6 +935,7 @@ init_thread_db_ops (void)
   thread_db_ops.to_has_thread_control = tc_none;
   thread_db_ops.to_insert_breakpoint = memory_insert_breakpoint;
   thread_db_ops.to_remove_breakpoint = memory_remove_breakpoint;
+  thread_db_ops.to_get_thread_local_address = fbsd_thread_get_local_address;
   thread_db_ops.to_magic = OPS_MAGIC;
 }
 
@@ -934,6 +1008,8 @@ thread_db_load (void)
   td_thr_dbresume_p = dlsym (handle, "td_thr_dbresume");
   if (td_thr_dbresume_p == NULL)
     return 0;
+
+  td_thr_tls_get_addr_p = dlsym (handle, "td_thr_tls_get_addr");
 
   /* Initialize the library.  */
   err = td_init_p ();
