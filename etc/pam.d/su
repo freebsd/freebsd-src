@@ -7,7 +7,7 @@
 # auth
 auth		sufficient	pam_rootok.so	no_warn
 auth		sufficient	pam_self.so	no_warn
-auth		requisite	pam_wheel.so	no_warn auth_as_self noroot_ok
+auth		requisite	pam_wheel.so	no_warn auth_as_self noroot_ok exempt_if_empty
 #auth		sufficient	pam_kerberosIV.so	no_warn
 #auth		sufficient	pam_krb5.so	no_warn try_first_pass auth_as_self
 auth		sufficient	pam_opie.so	no_warn no_fake_prompts
