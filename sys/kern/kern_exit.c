@@ -147,7 +147,7 @@ exit1(td, rv)
 	}
 
 	/*
-	 * XXXKSE: MUST abort all other threads before proceeding past here.
+	 * XXXXKSE: MUST abort all other threads before proceeding past here.
 	 */
 	PROC_LOCK(p);
 	if (p->p_flag & P_KSES) {
@@ -156,6 +156,17 @@ exit1(td, rv)
 		 * if so, act apropriatly, (exit or suspend);
 		 */
 		thread_suspend_check(0);
+		/*
+		 * Here is a trick..
+		 * We need to free up our KSE to process other threads
+		 * so that we can safely set the UNBOUND flag
+		 * (whether or not we have a mailbox) as we are NEVER
+		 * going to return to the user.
+		 * The flag will not be set yet if we are exiting
+		 * because of a signal, pagefault, or similar
+		 * (or even an exit(2) from the UTS).
+		 */
+		td->td_flags |= TDF_UNBOUND;
 
 		/*
 		 * Kill off the other threads. This requires
@@ -181,6 +192,7 @@ exit1(td, rv)
 		 * Turn off threading support.
 		 */
 		p->p_flag &= ~P_KSES;
+		td->td_flags &= ~TDF_UNBOUND;
 		thread_single_end(); 	/* Don't need this any more. */
 	}
 	/*
@@ -225,10 +237,8 @@ exit1(td, rv)
 	 */
 	TAILQ_FOREACH(ep, &exit_list, next) 
 		(*ep->function)(p);
-	
-	PROC_LOCK(p);
+
 	stopprofclock(p);
-	PROC_UNLOCK(p);
 
 	MALLOC(p->p_ru, struct rusage *, sizeof(struct rusage),
 		M_ZOMBIE, 0);

@@ -296,7 +296,7 @@ trap(a0, a1, a2, entry, framep)
 	CTR5(KTR_TRAP, "%s trap: pid %d, (%lx, %lx, %lx)",
 	    user ? "user" : "kernel", p->p_pid, a0, a1, a2);
 	if (user)  {
-		sticks = td->td_sticks;
+		sticks = td->td_kse->ke_sticks;
 		td->td_frame = framep;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
@@ -666,7 +666,7 @@ syscall(code, framep)
 	cnt.v_syscall++;
 	td->td_frame = framep;
 	opc = framep->tf_regs[FRAME_PC] - 4;
-	sticks = td->td_sticks;
+	sticks = td->td_kse->ke_sticks;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
 	if (p->p_flag & P_KSES)

@@ -2611,7 +2611,8 @@ forwarded_statclock(struct trapframe frame)
 {
 
 	mtx_lock_spin(&sched_lock);
-	statclock_process(curthread, TRAPF_PC(&frame), TRAPF_USERMODE(&frame));
+	statclock_process(curthread->td_kse, TRAPF_PC(&frame),
+	    TRAPF_USERMODE(&frame));
 	mtx_unlock_spin(&sched_lock);
 }
 

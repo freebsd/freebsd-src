@@ -379,6 +379,7 @@ proc0_init(void *dummy __unused)
 	ke->ke_oncpu = 0;
 	ke->ke_state = KES_THREAD;
 	ke->ke_thread = td;
+	ke->ke_owner = td;
 	p->p_peers = 0;
 	p->p_leader = p;
 
