@@ -767,7 +767,7 @@ asn_get_octet ( bufp, octet, plen )
 	 * &i is really a dummy value here as we don't keep track
 	 * of the ongoing buffer length
 	 */
-	len = asn_get_encoded ( &bp, &i, plen );
+	len = asn_get_encoded ( &bp, &i );
 
 	for ( i = 0; i < len; i++ ) {
 		*octet++ = *bp++;
