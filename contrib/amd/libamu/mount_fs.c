@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,8 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mount_fs.c,v 1.1.1.2 1999/01/13 19:20:28 obrien Exp $
+ * $Id: mount_fs.c,v 1.7 1999/08/22 21:12:33 ezk Exp $
+ * $FreeBSD$
  *
  */
 
@@ -109,6 +110,7 @@ struct opt_tab mnt_flags[] =
 };
 
 
+/* compute generic mount flags */
 int
 compute_mount_flags(mntent_t *mntp)
 {
@@ -141,6 +143,20 @@ compute_mount_flags(mntent_t *mntp)
   for (opt = mnt_flags; opt->opt; opt++) {
     flags |= hasmntopt(mntp, opt->opt) ? opt->flag : 0;
   }
+
+  return flags;
+}
+
+
+/* compute generic mount flags for automounter mounts */
+int
+compute_automounter_mount_flags(mntent_t *mntp)
+{
+  int flags = 0;
+
+#ifdef MNT2_GEN_OPT_IGNORE
+  flags |= MNT2_GEN_OPT_IGNORE;
+#endif /* not MNT2_GEN_OPT_IGNORE */
 
   return flags;
 }
@@ -754,6 +770,13 @@ compute_automounter_nfs_args(nfs_args_t *nap, mntent_t *mntp)
   nap->flags |= MNT2_NFS_OPT_ACDIRMIN | MNT2_NFS_OPT_ACDIRMAX;
 # endif /* defined(MNT2_NFS_OPT_ACDIRMIN) && defined(MNT2_NFS_OPT_ACDIRMAX) */
 #endif /* not MNT2_NFS_OPT_NOAC */
+  /*
+   * Provide a slight bit more security by requiring the kernel to use
+   * reserved ports.
+   */
+#ifdef MNT2_NFS_OPT_RESVPORT
+  nap->flags |= MNT2_NFS_OPT_RESVPORT;
+#endif /* MNT2_NFS_OPT_RESVPORT */
 }
 
 
@@ -816,7 +839,7 @@ print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
   nbp = nap->syncaddr;
   plog(XLOG_DEBUG, "NA->syncaddr {netbuf} 0x%x", (int) nbp);
   kncp = nap->knconf;
-  plog(XLOG_DEBUG, "NA->knconf->semantics %lu", kncp->knc_semantics);
+  plog(XLOG_DEBUG, "NA->knconf->semantics %lu", (unsigned long) kncp->knc_semantics);
   plog(XLOG_DEBUG, "NA->knconf->protofmly \"%s\"", kncp->knc_protofmly);
   plog(XLOG_DEBUG, "NA->knconf->proto \"%s\"", kncp->knc_proto);
   plog(XLOG_DEBUG, "NA->knconf->rdev %lu", kncp->knc_rdev);
@@ -824,9 +847,9 @@ print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
 #else /* not HAVE_TRANSPORT_TYPE_TLI */
   sap = (struct sockaddr_in *) &nap->addr;
   plog(XLOG_DEBUG, "NA->addr {sockaddr_in} (len=%d) = \"%s\"",
-       sizeof(struct sockaddr_in),
+       (int) sizeof(struct sockaddr_in),
        get_hex_string(sizeof(struct sockaddr_in), (const char *)sap));
-#ifdef HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN_off
+#ifdef HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN
   plog(XLOG_DEBUG, "NA->addr.sin_len = \"%d\"", sap->sin_len);
 #endif /* HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN */
   plog(XLOG_DEBUG, "NA->addr.sin_family = \"%d\"", sap->sin_family);
@@ -836,6 +859,10 @@ print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
 #endif /* not HAVE_TRANSPORT_TYPE_TLI */
 
   plog(XLOG_DEBUG, "NA->hostname = \"%s\"", nap->hostname ? nap->hostname : "null");
+#ifdef HAVE_FIELD_NFS_ARGS_T_NAMLEN
+  plog(XLOG_DEBUG, "NA->namlen = %d", nap->namlen);
+#endif /* HAVE_FIELD_NFS_ARGS_T_NAMLEN */
+
 #ifdef MNT2_NFS_OPT_FSNAME
   plog(XLOG_DEBUG, "NA->fsname = \"%s\"", nap->fsname ? nap->fsname : "null");
 #endif /* MNT2_NFS_OPT_FSNAME */
@@ -872,6 +899,9 @@ print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
 
   plog(XLOG_DEBUG, "NA->rsize = %d", nap->rsize);
   plog(XLOG_DEBUG, "NA->wsize = %d", nap->wsize);
+#ifdef HAVE_FIELD_NFS_ARGS_T_BSIZE
+  plog(XLOG_DEBUG, "NA->bsize = %d", nap->bsize);
+#endif /* HAVE_FIELD_NFS_ARGS_T_BSIZE */
   plog(XLOG_DEBUG, "NA->timeo = %d", nap->timeo);
   plog(XLOG_DEBUG, "NA->retrans = %d", nap->retrans);
 
