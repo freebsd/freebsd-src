@@ -5,7 +5,7 @@
 #	kernel config file and then edited (stripped down) to
 #	match your hardware configuration.
 #
-#	last edit-date: [Sun May 27 09:56:41 2001]
+#	last edit-date: [Sun Oct 21 11:03:37 2001]
 #
 # $FreeBSD$
 #
@@ -50,6 +50,7 @@ options		ELSA_QS1ISA
 options		SIEMENS_ISURF2
 options		ASUSCOM_IPAC
 options		EICON_DIVA
+options		COMPAQ_M610
 
 # enable ELSA Microlink PCI card within the "isic" driver
 options		ELSA_QS1PCI

@@ -1,7 +1,10 @@
 $FreeBSD$
 
-ReleaseNotes for isdn4bsd             last edit-date: [Thu Oct 18 13:49:05 2001]
+ReleaseNotes for isdn4bsd             last edit-date: [Sun Oct 21 11:07:23 2001]
 ================================================================================
+
+- add support written by Steve Looman for the Compaq Microcom 610 ISDN card 
+  (also known as Compaq series PSB2222I).
 
 release 1.01
 --------------------------------------------------------------------------------
