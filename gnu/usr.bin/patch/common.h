@@ -1,6 +1,9 @@
-/* $Header: common.h,v 2.0.1.2 88/06/22 20:44:53 lwall Locked $
+/* $Header: /a/cvs/386BSD/src/gnu/patch/common.h,v 1.1.1.1 1993/06/19 14:21:52 paul Exp $
  *
- * $Log:	common.h,v $
+ * $Log: common.h,v $
+ * Revision 1.1.1.1  1993/06/19  14:21:52  paul
+ * b-maked patch-2.10
+ *
  * Revision 2.0.1.2  88/06/22  20:44:53  lwall
  * patch12: sprintf was declared wrong
  * 
@@ -58,10 +61,10 @@
 #define TRUE (1)
 #define FALSE (0)
 
-#define MAXHUNKSIZE 100000		/* is this enough lines? */
+#define MAXHUNKSIZE 200000		/* is this enough lines? */
 #define INITHUNKMAX 125			/* initial dynamic allocation size */
-#define MAXLINELEN 1024
-#define BUFFERSIZE 1024
+#define MAXLINELEN 4096
+#define BUFFERSIZE 4096
 
 #define SCCSPREFIX "s."
 #define GET "get %s"
