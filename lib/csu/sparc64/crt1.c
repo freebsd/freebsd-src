@@ -57,6 +57,7 @@ char **environ;
 char *__progname = "";
 
 /* The entry function. */
+/*
  *
  * %o0 holds ps_strings pointer.  For Solaris compat and/or shared
  * libraries, if %g1 is not 0, it is a routine to pass to atexit().
