@@ -82,7 +82,7 @@
 #define HAVE_INDEX 1
 
 /* Define if you have the insque function.  */
-/* #undef HAVE_INSQUE */
+#define HAVE_INSQUE 1
 
 /* Define if you have the memchr function.  */
 #define HAVE_MEMCHR 1
