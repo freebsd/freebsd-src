@@ -102,17 +102,19 @@ BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
 .ORDER: buildkernel installkernel
 .ORDER: buildkernel reinstallkernel
 
+PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKEOBJDIRPREFIX?=	/usr/obj
-MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE_ARCH}
-PATH=	${MAKEPATH}:/sbin:/bin:/usr/sbin:/usr/bin
-MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
+MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}
+_MAKE=	PATH=${PATH} \
+	`if [ -x ${MAKEPATH}/make ]; then echo ${MAKEPATH}/make; else echo ${MAKE}; fi` \
+	-m ${.CURDIR}/share/mk -f Makefile.inc1
 
 #
 # Handle the user-driven targets, using the source relative mk files.
 #
 ${TGTS} ${BITGTS}: upgrade_checks
 	@cd ${.CURDIR}; \
-		${MAKE} ${.TARGET}
+		${_MAKE} ${.TARGET}
 
 # Set a reasonable default
 .MAIN:	all
@@ -133,16 +135,16 @@ world: upgrade_checks
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making 'pre-world' target"
 	@echo "--------------------------------------------------------------"
-	@cd ${.CURDIR}; ${MAKE} pre-world
+	@cd ${.CURDIR}; ${_MAKE} pre-world
 .endif
-	@cd ${.CURDIR}; ${MAKE} buildworld
-	@cd ${.CURDIR}; ${MAKE} -B installworld
+	@cd ${.CURDIR}; ${_MAKE} buildworld
+	@cd ${.CURDIR}; ${_MAKE} -B installworld
 .if target(post-world)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making 'post-world' target"
 	@echo "--------------------------------------------------------------"
-	@cd ${.CURDIR}; ${MAKE} post-world
+	@cd ${.CURDIR}; ${_MAKE} post-world
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -161,9 +163,11 @@ kernel: buildkernel installkernel
 # for building the world.
 #
 upgrade_checks:
-	@(cd ${.CURDIR}/tools/regression/usr.bin/make && \
-	    PATH=${PATH} make 2>/dev/null) || \
-	    (cd ${.CURDIR} && make make)
+	@if ! (cd ${.CURDIR}/tools/regression/usr.bin/make && \
+	    PATH=${PATH} ${MAKE} 2>/dev/null); \
+	then \
+	    (cd ${.CURDIR} && make make); \
+	fi
 
 #
 # Upgrade make(1) to the current version using the installed
@@ -203,7 +207,7 @@ upgrade:	aout-to-elf
 
 ${UPGRADE} : upgrade_checks
 	@cd ${.CURDIR}; \
-		${MAKE} -f Makefile.upgrade -m ${.CURDIR}/share/mk ${.TARGET}
+		${_MAKE} -f Makefile.upgrade -m ${.CURDIR}/share/mk ${.TARGET}
 
 
 universe:
