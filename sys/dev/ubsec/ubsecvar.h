@@ -173,7 +173,6 @@ struct ubsec_q {
 
 struct ubsec_softc {
 	device_t		sc_dev;		/* device backpointer */
-	struct mtx		sc_mtx;		/* per-driver lock */
 	struct resource		*sc_irq;
 	void			*sc_ih;		/* interrupt handler cookie */
 	bus_space_handle_t	sc_sh;		/* memory handle */
@@ -201,9 +200,6 @@ struct ubsec_softc {
 	struct ubsec_q		*sc_queuea[UBS_MAX_NQUEUE];
 	SIMPLEQ_HEAD(,ubsec_q2)	sc_q2free;	/* free list */
 };
-
-#define	UBSEC_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	UBSEC_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
 
 #define	UBSEC_QFLAGS_COPYOUTIV		0x1
 
