@@ -103,7 +103,9 @@
 int (*pmath_emulate) __P((struct trapframe *));
 
 extern void trap __P((struct trapframe frame));
+#ifdef I386_CPU
 extern int trapwrite __P((unsigned addr));
+#endif
 extern void syscall __P((struct trapframe frame));
 
 static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
@@ -878,6 +880,7 @@ dblfault_handler()
 	panic("double fault");
 }
 
+#ifdef I386_CPU
 /*
  * Compensate for 386 brain damage (missing URKR).
  * This is a little simpler than the pagefault handler in trap() because
@@ -925,6 +928,7 @@ int trapwrite(addr)
 
 	return (0);
 }
+#endif
 
 /*
  *	syscall -	system call request C handler
