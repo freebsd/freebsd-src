@@ -104,28 +104,8 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		db_printsym(ip, DB_STGY_PROC);
 		db_printf("\n");
 
-		/*
-		 * Was this an exception? If so, we can keep unwinding
-		 * based on the interrupted trapframe. We could do
-		 * this by constructing funky unwind records in
-		 * exception.s but this is easier.
-		 */
-		if (ip >= (u_int64_t) &ia64_vector_table[0]
-		    && ip < (u_int64_t) &ia64_vector_table[32768]) {
-			u_int64_t sp = ia64_unwind_state_get_sp(us);
-			ia64_free_unwind_state(us);
-			us = ia64_create_unwind_state((struct trapframe *)
-						      (sp + 16));
-		} else if (ip >= (u_int64_t) &do_syscall[0]
-		      && ip < (u_int64_t) &do_syscall_end[0]) {
-			u_int64_t sp = ia64_unwind_state_get_sp(us);
-			ia64_free_unwind_state(us);
-			us = ia64_create_unwind_state((struct trapframe *)
-						      (sp + 16 + 8*8));
-		} else {
-			if (ia64_unwind_state_previous_frame(us))
-				break;
-		}
+		if (ia64_unwind_state_previous_frame(us))
+			break;
 
 		ip = ia64_unwind_state_get_ip(us);
 		if (!ip)
