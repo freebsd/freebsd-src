@@ -350,9 +350,10 @@ copy(argv, type, fts_options)
 			 * honour setuid, setgid and sticky bits, but we
 			 * normally want to preserve them on directories.
 			 */
-			if (pflag)
-				rval = setfile(curr->fts_statp, 0);
-			else {
+			if (pflag) {
+				if (setfile(curr->fts_statp, 0))
+				    rval = 1;
+			} else {
 				mode = curr->fts_statp->st_mode;
 				if ((mode & (S_ISUID | S_ISGID | S_ISTXT)) ||
 				    ((mode | S_IRWXU) & mask) != (mode & mask))
