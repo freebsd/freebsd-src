@@ -835,7 +835,7 @@ ugenioctl(dev, cmd, addr, flag, p)
 		uio.uio_segflg = UIO_USERSPACE;
 		uio.uio_rw = UIO_READ;
 		uio.uio_procp = p;
-		error = uiomove(cdesc, len, &uio);
+		error = uiomove((caddr_t)cdesc, len, &uio);
 		free(cdesc, M_TEMP);
 		return (error);
 	}
