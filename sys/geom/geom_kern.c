@@ -83,6 +83,7 @@ g_up_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 	struct mtx mymutex;
 
+	bzero(&mymutex, sizeof mymutex);
 	mtx_init(&mymutex, "g_up", MTX_DEF, 0);
 	mtx_lock(&mymutex);
 	tp->td_base_pri = PRIBIO;
@@ -107,6 +108,7 @@ g_down_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 	struct mtx mymutex;
 
+	bzero(&mymutex, sizeof mymutex);
 	mtx_init(&mymutex, "g_down", MTX_DEF, 0);
 	mtx_lock(&mymutex);
 	tp->td_base_pri = PRIBIO;
