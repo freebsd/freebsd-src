@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.18 1995/09/14 21:02:16 gibbs Exp $
+# $Id: Makefile,v 1.19 1996/02/23 16:08:23 wpaul Exp $
 
 PROG=	passwd
 SRCS=	local_passwd.c yppasswd_private_xdr.c yppasswd_comm.c yp_passwd.c \
@@ -13,7 +13,7 @@ LDADD=	-lcrypt -lrpcsvc
 
 CFLAGS+= -DCRYPT -DYP -I. -I${.CURDIR} -I${.CURDIR}/../../usr.sbin/vipw \
 	-I${.CURDIR}/../../usr.bin/chpass -I${.CURDIR}/../../libexec/ypxfr \
-	-I${.CURDIR}/../../usr.sbin/rpc.yppasswdd -Dyp_error=warnx
+	-I${.CURDIR}/../../usr.sbin/rpc.yppasswdd -Dyp_error=warnx -DLOGGING
 
 SRCS+= ypxfr_misc.c yp_clnt.c yppasswd_clnt.c
 
