@@ -458,7 +458,8 @@ is_section (name)
   register char **vs;
 
   for (vs = section_list; *vs != NULL; vs++)
-    if ((strcmp (*vs, name) == NULL) || (isdigit (name[0])))
+    if ((strcmp (*vs, name) == NULL)
+	|| (isdigit (name[0]) && strlen(name) == 1))
       return strdup (name);
 
   return NULL;
