@@ -107,9 +107,9 @@ Don't ask for confirmation for commands that can cause problems if misused
 .Ar Note ,
 if there is no tty associated with the process, this is implied.
 .It Fl q
-While adding or flushing, be quiet about actions (implies '-f').  This is
-useful for adjusting rules by executing multiple ipfw commands in a script
-(e.g. sh /etc/rc.firewall), or by processing a file of many ipfw rules,
+While adding, zeroing or flushing, be quiet about actions (implies '-f').
+This is useful for adjusting rules by executing multiple ipfw commands in a
+script (e.g. sh /etc/rc.firewall), or by processing a file of many ipfw rules,
 across a remote login session.  If a flush is performed in normal
 (verbose) mode, it prints a message.  Because all rules are flushed, the
 message cannot be delivered to the login session, the login session is
