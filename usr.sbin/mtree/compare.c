@@ -61,9 +61,6 @@ __FBSDID("$FreeBSD$");
 #include "mtree.h"
 #include "extern.h"
 
-extern int uflag;
-extern int lineno;
-
 #define	INDENTNAMELEN	8
 #define	LABEL \
 	if (!label++) { \
