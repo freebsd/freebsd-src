@@ -505,7 +505,7 @@ wlattach(struct isa_device *id)
        ifp->if_done
        ifp->if_reset
        */
-    ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+    ether_ifattach(ifp, &sc->wl_addr[0]);
 
     bcopy(&sc->wl_addr[0], sc->wl_ac.ac_enaddr, WAVELAN_ADDR_SIZE);
     printf("%s%d: address %6D, NWID 0x%02x%02x", ifp->if_name, ifp->if_unit,
@@ -886,9 +886,7 @@ wlstart(struct ifnet *ifp)
     IF_DEQUEUE(&ifp->if_snd, m);
     if (m != (struct mbuf *)0) {
 	/* let BPF see it before we commit it */
-	if (ifp->if_bpf) {
-	    bpf_mtap(ifp, m);
-	}
+	BPF_MTAP(ifp, m);
 	sc->tbusy++;
 	/* set the watchdog timer so that if the board
 	 * fails to interrupt we will restart
@@ -929,45 +927,33 @@ wlread(int unit, u_short fd_p)
     register struct ifnet	*ifp = &sc->wl_if;
     short			base = sc->base;
     fd_t			fd;
-    struct ether_header		eh;
-    struct mbuf			*m, *tm;
+    struct ether_header		*eh;
+    struct mbuf			*m;
     rbd_t			rbd;
     u_char			*mb_p;
-    u_short			mlen, len, clen;
+    u_short			mlen, len;
     u_short			bytes_in_msg, bytes_in_mbuf, bytes;
 
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
-	printf("wl%d: entered wlread()\n",unit);
+	printf("wl%d: entered wlread()\n", unit);
 #endif
     if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
-	printf("wl%d read(): board is not running.\n", ifp->if_unit);
+	printf("wl%d read(): board is not running.\n", unit);
 	sc->hacr &= ~HACR_INTRON;
 	CMD(unit);		/* turn off interrupts */
     }
-    /* read ether_header info out of device memory. doesn't
-     * go into mbuf.  goes directly into eh structure
-     */
-    len = sizeof(struct ether_header);	/* 14 bytes */
-    outw(PIOR1(base), fd_p);
-    insw(PIOP1(base), &fd, (sizeof(fd_t) - len)/2);
-    insw(PIOP1(base), &eh, (len-2)/2);
-    eh.ether_type = ntohs(inw(PIOP1(base)));
-#ifdef WLDEBUG
-    if (sc->wl_if.if_flags & IFF_DEBUG) {
-	printf("wlread: rcv packet, type is %x\n", eh.ether_type);
-    }
-#endif 
-    /*
-     * WARNING.  above is done now in ether_input, above may be
-     * useful for debug. jrb
-     */
-    eh.ether_type = htons(eh.ether_type);
 
+    /*
+     * Collect message size.
+     */
+    outw(PIOR1(base), fd_p);
+    insw(PIOP1(base), &fd, sizeof(fd_t)/2);
     if (fd.rbd_offset == I82586NULL) {
-	printf("wl%d read(): Invalid buffer\n", unit);
 	if (wlhwrst(unit) != TRUE) {
+	    sc->hacr &= ~HACR_INTRON;
+	    CMD(unit);		/* turn off interrupts */
 	    printf("wl%d read(): hwrst trouble.\n", unit);
 	}
 	return 0;
@@ -976,14 +962,12 @@ wlread(int unit, u_short fd_p)
     outw(PIOR1(base), fd.rbd_offset);
     insw(PIOP1(base), &rbd, sizeof(rbd_t)/2);
     bytes_in_msg = rbd.status & RBD_SW_COUNT;
-    MGETHDR(m, M_DONTWAIT, MT_DATA);
-    tm = m;
-    if (m == (struct mbuf *)0) {
-	/*
-	 * not only do we want to return, we need to drop the packet on
-	 * the floor to clear the interrupt.
-	 *
-	 */
+
+    /*
+     * Allocate a cluster'd mbuf to receive the packet.
+     */
+    m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+    if (m == NULL) {
 	if (wlhwrst(unit) != TRUE) {
 	    sc->hacr &= ~HACR_INTRON;
 	    CMD(unit);		/* turn off interrupts */
@@ -991,31 +975,15 @@ wlread(int unit, u_short fd_p)
 	}
 	return 0;
     }
-    m->m_next = (struct mbuf *) 0;
-    m->m_pkthdr.rcvif = ifp;
-    m->m_pkthdr.len = 0; /* don't know this yet */
-    m->m_len = MHLEN;
+    m->m_pkthdr.len = m->m_len = MCLBYTES;
+    m_adj(m, ETHER_ALIGN);		/* align IP header */
 
-    /* always use a cluster. jrb 
+    /*
+     * Collect the message data.
      */
-    MCLGET(m, M_DONTWAIT);
-    if (m->m_flags & M_EXT) {
-    	m->m_len = MCLBYTES;
-    }
-    else {
-    	m_freem(m);
-    	if (wlhwrst(unit) != TRUE) {
-    	    sc->hacr &= ~HACR_INTRON;
-    	    CMD(unit);		/* turn off interrupts */
-    	    printf("wl%d read(): hwrst trouble.\n", unit);
-    	}
-    	return 0;
-    }
-
     mlen = 0;
-    clen = mlen;
-    bytes_in_mbuf = m->m_len;
-    mb_p = mtod(tm, u_char *);
+    mb_p = mtod(m, u_char *);
+    bytes_in_mbuf = MCLBYTES;
     bytes = min(bytes_in_mbuf, bytes_in_msg);
     for (;;) {
 	if (bytes & 1) {
@@ -1025,40 +993,29 @@ wlread(int unit, u_short fd_p)
 	}
 	outw(PIOR1(base), rbd.buffer_addr);
 	insw(PIOP1(base), mb_p, len/2);
-	clen += bytes;
 	mlen += bytes;
 
-	if (!(bytes_in_mbuf -= bytes)) {
-	    MGET(tm->m_next, M_DONTWAIT, MT_DATA);
-	    tm = tm->m_next;
-	    if (tm == (struct mbuf *)0) {
-		m_freem(m);
-		printf("wl%d read(): No mbuf nth\n", unit);
-		if (wlhwrst(unit) != TRUE) {
-		    sc->hacr &= ~HACR_INTRON;
-		    CMD(unit);  /* turn off interrupts */
-		    printf("wl%d read(): hwrst trouble.\n", unit);
-		}
-		return 0;
+	if (bytes > bytes_in_mbuf) {
+	    /* XXX something wrong, a packet should fit in 1 cluster */
+	    m_freem(m);
+	    printf("wl%d read(): packet too large (%u > %u)\n",
+		   unit, bytes, bytes_in_mbuf);
+	    if (wlhwrst(unit) != TRUE) {
+		sc->hacr &= ~HACR_INTRON;
+		CMD(unit);  /* turn off interrupts */
+		printf("wl%d read(): hwrst trouble.\n", unit);
 	    }
-	    mlen = 0;
-	    tm->m_len = MLEN;
-	    bytes_in_mbuf = MLEN;
-	    mb_p = mtod(tm, u_char *);
-	} else {
-	    mb_p += bytes;
+	    return 0;
 	}
-
-	if (!(bytes_in_msg  -= bytes)) {
-	    if (rbd.status & RBD_SW_EOF ||
-		rbd.next_rbd_offset == I82586NULL) {
-		tm->m_len = mlen;
+	mb_p += bytes;
+	bytes_in_msg -= bytes;
+	if (bytes_in_msg == 0) {
+	    if (rbd.status & RBD_SW_EOF || rbd.next_rbd_offset == I82586NULL) {
 		break;
-	    } else {
-		outw(PIOR1(base), rbd.next_rbd_offset);
-		insw(PIOP1(base), &rbd, sizeof(rbd_t)/2);
-		bytes_in_msg = rbd.status & RBD_SW_COUNT;
 	    }
+	    outw(PIOR1(base), rbd.next_rbd_offset);
+	    insw(PIOP1(base), &rbd, sizeof(rbd_t)/2);
+	    bytes_in_msg = rbd.status & RBD_SW_COUNT;
 	} else {
 	    rbd.buffer_addr += bytes;
 	}
@@ -1066,7 +1023,8 @@ wlread(int unit, u_short fd_p)
 	bytes = min(bytes_in_mbuf, bytes_in_msg);
     }
 
-    m->m_pkthdr.len = clen;
+    m->m_pkthdr.len = m->m_len = mlen;
+    m->m_pkthdr.rcvif = ifp;
 
     /*
      * If hw is in promiscuous mode (note that I said hardware, not if
@@ -1081,6 +1039,8 @@ wlread(int unit, u_short fd_p)
      * However, there does not appear to be a way to read the nwid
      * for a received packet.  -gdt 1998-08-07
      */
+    /* XXX verify mbuf length */
+    eh = mtod(m, struct ether_header *);
     if (
 #ifdef WL_USE_IFNET_PROMISC_CHECK /* not defined */
 	(sc->wl_ac.ac_if.if_flags & (IFF_PROMISC|IFF_ALLMULTI))
@@ -1089,28 +1049,27 @@ wlread(int unit, u_short fd_p)
 	(sc->mode & (MOD_PROM | MOD_ENAL))
 #endif
 	&&
-	(eh.ether_dhost[0] & 1) == 0 && /* !mcast and !bcast */
-	bcmp(eh.ether_dhost, sc->wl_ac.ac_enaddr,
-	     sizeof(eh.ether_dhost)) != 0 ) {
+	(eh->ether_dhost[0] & 1) == 0 && /* !mcast and !bcast */
+	bcmp(eh->ether_dhost, sc->wl_ac.ac_enaddr,
+	     sizeof(eh->ether_dhost)) != 0 ) {
       m_freem(m);
       return 1;
     }
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
-	printf("wl%d: wlrecv %d bytes\n", unit, clen);
+	printf("wl%d: wlrecv %u bytes\n", unit, mlen);
 #endif
 
 #ifdef WLCACHE
-    wl_cache_store(unit, base, &eh, m);
+    wl_cache_store(unit, base, eh, m);
 #endif
 
     /*
      * received packet is now in a chain of mbuf's.  next step is
      * to pass the packet upwards.
-     *
      */
-    ether_input(&sc->wl_if, &eh, m);
+    (*ifp->if_input)(ifp, m);
     return 1;
 }
 
@@ -1149,12 +1108,6 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
     opri = splimp();
     switch (cmd) {
-    case SIOCSIFADDR:
-    case SIOCGIFADDR:
-    case SIOCSIFMTU:
-        error = ether_ioctl(ifp, cmd, data);
-        break;
-
     case SIOCSIFFLAGS:
 	if (ifp->if_flags & IFF_ALLMULTI) {
 	    mode |= MOD_ENAL;
@@ -1349,7 +1302,8 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 
     default:
-	error = EINVAL;
+        error = ether_ioctl(ifp, cmd, data);
+	break;
     }
     splx(opri);
     return (error);

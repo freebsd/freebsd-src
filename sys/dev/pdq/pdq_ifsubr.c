@@ -189,9 +189,10 @@ pdq_os_receive_pdu(
     int drop)
 {
     pdq_softc_t *sc = pdq->pdq_os_ctx;
+    struct ifnet *ifp = &sc->sc_if;
     struct fddi_header *fh;
 
-    sc->sc_if.if_ipackets++;
+    ifp->if_ipackets++;
 #if defined(PDQ_BUS_DMA)
     {
 	/*
@@ -217,15 +218,14 @@ pdq_os_receive_pdu(
 #endif
     fh = mtod(m, struct fddi_header *);
     if (drop || (fh->fddi_fc & (FDDIFC_L|FDDIFC_F)) != FDDIFC_LLC_ASYNC) {
-	sc->sc_if.if_iqdrops++;
-	sc->sc_if.if_ierrors++;
+	ifp->if_iqdrops++;
+	ifp->if_ierrors++;
 	PDQ_OS_DATABUF_FREE(pdq, m);
 	return;
     }
 
-    m_adj(m, FDDI_HDR_LEN);
-    m->m_pkthdr.rcvif = &sc->sc_if;
-    fddi_input(&sc->sc_if, fh, m);
+    m->m_pkthdr.rcvif = ifp;
+    (*ifp->if_input)(ifp, m);
 }
 
 void

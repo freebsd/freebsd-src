@@ -202,7 +202,7 @@ an_detach_pci(device_t dev)
 
 	an_stop(sc);
 	ifmedia_removeall(&sc->an_ifmedia);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	an_release_resources(dev);
 

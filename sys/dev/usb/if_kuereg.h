@@ -110,7 +110,6 @@ struct kue_ether_desc {
 #define KUE_RXFILT_MULTICAST		0x0010
 
 #define KUE_TIMEOUT		1000
-#define ETHER_ALIGN		2
 #define KUE_BUFSZ		1536
 #define KUE_MIN_FRAMELEN	60
 

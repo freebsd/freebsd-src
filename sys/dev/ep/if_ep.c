@@ -311,7 +311,7 @@ ep_attach(sc)
 	}
 
 	if (!attached)
-		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 #ifdef EP_LOCAL_STATS
 	sc->rx_no_first = sc->rx_no_mbuf = sc->rx_bpf_disc =
@@ -509,9 +509,7 @@ startagain:
 
     splx(s);
 
-    if (ifp->if_bpf) {
-	bpf_mtap(ifp, top);
-    }
+    BPF_MTAP(ifp, top);
 
     ifp->if_timer = 2;
     ifp->if_opackets++;
@@ -657,7 +655,6 @@ static void
 epread(sc)
     register struct ep_softc *sc;
 {
-    struct ether_header *eh;
     struct mbuf *top, *mcur, *m;
     struct ifnet *ifp;
     int lenthisone;
@@ -765,9 +762,7 @@ read_again:
     top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
     top->m_pkthdr.len = sc->cur_len;
 
-    eh = mtod(top, struct ether_header *);
-    m_adj(top, sizeof(struct ether_header));
-    ether_input(ifp, eh, top);
+    (*ifp->if_input)(ifp, top);
     sc->top = 0;
     while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
     outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
@@ -857,12 +852,6 @@ ep_if_ioctl(ifp, cmd, data)
 	s = splimp();
 
 	switch (cmd) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, cmd, data);
-	break;
-
 	case SIOCSIFFLAGS:
 		if (((ifp->if_flags & IFF_UP) == 0) &&
 		    (ifp->if_flags & IFF_RUNNING)) {
@@ -899,7 +888,7 @@ ep_if_ioctl(ifp, cmd, data)
 		}
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
 

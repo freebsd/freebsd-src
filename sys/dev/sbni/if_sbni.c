@@ -242,7 +242,7 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 			(csr0 & 0x01 ? 500000 : 2000000) / (1 << flags.rate);
 
 	        ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	}
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
@@ -693,8 +693,7 @@ prepare_to_send(struct sbni_softc *sc)
 
 	sbni_outb(sc, CSR0, sbni_inb(sc, CSR0) | TR_REQ);
 	sc->arpcom.ac_if.if_flags |= IFF_OACTIVE;
-	if (sc->arpcom.ac_if.if_bpf)
-		bpf_mtap(&sc->arpcom.ac_if, sc->tx_buf_p);
+	BPF_MTAP(&sc->arpcom.ac_if, sc->tx_buf_p);
 }
 
 
@@ -851,17 +850,14 @@ get_rx_buf(struct sbni_softc *sc)
 static void
 indicate_pkt(struct sbni_softc *sc)
 {
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct mbuf *m;
-	struct ether_header *eh;
 
 	m = sc->rx_buf_p;
-	m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len   = m->m_len = sc->inppos;
-	eh = mtod(m, struct ether_header *);
 
-	/* Remove link layer address and indicate packet */
-	m_adj(m, sizeof(struct ether_header));
-	ether_input(&sc->arpcom.ac_if, eh, m);
+	(*ifp->if_input)(ifp, m);
 	sc->rx_buf_p = NULL;
 }
 
@@ -1063,11 +1059,6 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	s = splimp();
 
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		ether_ioctl(ifp, command, data);
-		break;
-
 	case SIOCSIFFLAGS:
 		/*
 		 * If the interface is marked up and stopped, then start it.
@@ -1149,7 +1140,8 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
+		break;
 	}
 
 	splx(s);

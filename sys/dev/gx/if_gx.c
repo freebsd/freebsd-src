@@ -348,6 +348,7 @@ gx_attach(device_t dev)
 	ifp->if_init = gx_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = GX_TX_RING_CNT - 1;
+	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
 
 	/* see if we can enable hardware checksumming */
 	if (gx->gx_vflags & GXF_CSUM) {
@@ -382,7 +383,7 @@ gx_attach(device_t dev)
 	/*
 	 * Call MI attach routines.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, gx->arpcom.ac_enaddr);
 
 	GX_UNLOCK(gx);
 	splx(s);
@@ -611,7 +612,7 @@ gx_detach(device_t dev)
 	ifp = &gx->arpcom.ac_if;
 	GX_LOCK(gx);
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	gx_reset(gx);
 	gx_stop(gx);
 	ifmedia_removeall(&gx->gx_media);
@@ -917,10 +918,6 @@ gx_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	GX_LOCK(gx);
 
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > GX_MAX_MTU) {
 			error = EINVAL;
@@ -971,7 +968,7 @@ gx_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
@@ -1220,7 +1217,6 @@ gx_setmulti(struct gx_softc *gx)
 static void
 gx_rxeof(struct gx_softc *gx)
 {
-	struct ether_header *eh;
 	struct gx_rx_desc *rx;
 	struct ifnet *ifp;
 	int idx, staterr, len;
@@ -1286,11 +1282,7 @@ gx_rxeof(struct gx_softc *gx)
 		}
 
 		ifp->if_ipackets++;
-		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
-
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
 
 #define IP_CSMASK 	(GX_RXSTAT_IGNORE_CSUM | GX_RXSTAT_HAS_IP_CSUM)
 #define TCP_CSMASK \
@@ -1315,14 +1307,13 @@ gx_rxeof(struct gx_softc *gx)
 			}
 		}
 		/*
-		 * If we received a packet with a vlan tag, pass it
-		 * to vlan_input() instead of ether_input().
+		 * If we received a packet with a vlan tag,
+		 * mark the packet before it's passed up.
 		 */
 		if (staterr & GX_RXSTAT_VLAN_PKT) {
-			VLAN_INPUT_TAG(eh, m, rx->rx_special);
-			continue;
+			VLAN_INPUT_TAG(ifp, m, rx->rx_special, continue);
 		}
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 		continue;
 
   ierror:
@@ -1471,12 +1462,7 @@ gx_encap(struct gx_softc *gx, struct mbuf *m_head)
 	struct gx_tx_desc_ctx *tctx;
 	struct mbuf *m;
 	int idx, cnt, csumopts, txcontext;
-	struct ifvlan *ifv = NULL;
-
-	if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
-	    m_head->m_pkthdr.rcvif != NULL &&
-	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
-		ifv = m_head->m_pkthdr.rcvif->if_softc;
+	struct m_tag *mtag;
 
 	cnt = gx->gx_txcnt;
 	idx = gx->gx_tx_tail_idx;
@@ -1526,7 +1512,6 @@ gx_encap(struct gx_softc *gx, struct mbuf *m_head)
 		cnt++;
 	}
 context_done:
-
 	/*
  	 * Start packing the mbufs in this chain into the transmit
 	 * descriptors.  Stop when we run out of descriptors or hit
@@ -1562,9 +1547,10 @@ printf("overflow(2): %d, %d\n", cnt, GX_TX_RING_CNT);
 	if (tx != NULL) {
 		tx->tx_command |= GX_TXTCP_REPORT_STATUS | GX_TXTCP_INT_DELAY |
 		    GX_TXTCP_ETHER_CRC | GX_TXTCP_END_OF_PKT;
-		if (ifv != NULL) {
+		mtag = VLAN_OUTPUT_TAG(&gx->arpcom.ac_if, m);
+		if (mtag != NULL) {
 			tx->tx_command |= GX_TXTCP_VLAN_ENABLE;
-			tx->tx_vlan = ifv->ifv_tag;
+			tx->tx_vlan = VLAN_TAG_VALUE(mtag);
 		}
 		gx->gx_txcnt = cnt;
 		gx->gx_tx_tail_idx = idx;
@@ -1613,8 +1599,7 @@ gx_start(struct ifnet *ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m_head);
+		BPF_MTAP(ifp, m_head);
 
 		/*
 		 * Set a timeout in case the chip goes out to lunch.

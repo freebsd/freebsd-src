@@ -333,8 +333,9 @@ epic_attach(dev)
 	printf("\n");
 
 	/* Attach to OS's managers */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->sc_macaddr);
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	callout_handle_init(&sc->stat_ch);
 
 fail:
@@ -359,7 +360,7 @@ epic_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	epic_stop(sc);
 
@@ -416,10 +417,6 @@ epic_ifioctl(ifp, command, data)
 	x = splimp();
 
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFMTU:
 		if (ifp->if_mtu == ifr->ifr_mtu)
 			break;
@@ -475,7 +472,8 @@ epic_ifioctl(ifp, command, data)
 		break;
 
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
+		break;
 	}
 	splx(x);
 
@@ -609,8 +607,7 @@ epic_ifstart(ifp)
 		/* Set watchdog timer */
 		ifp->if_timer = 8;
 
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m0);
+		BPF_MTAP(ifp, m0);
 	}
 
 	ifp->if_flags |= IFF_OACTIVE;
@@ -631,7 +628,6 @@ epic_rx_done(sc)
 	struct epic_rx_buffer *buf;
 	struct epic_rx_desc *desc;
 	struct mbuf *m;
-	struct ether_header *eh;
 
 	while ((sc->rx_desc[sc->cur_rx].status & 0x8000) == 0) {
 		buf = sc->rx_buffer + sc->cur_rx;
@@ -671,13 +667,11 @@ epic_rx_done(sc)
 		desc->status = 0x8000;
 		
 		/* First mbuf in packet holds the ethernet and packet headers */
-		eh = mtod(m, struct ether_header *);
-		m->m_pkthdr.len = m->m_len = len - sizeof(struct ether_header);
-		m->m_data += sizeof(struct ether_header);
 		m->m_pkthdr.rcvif = ifp;
+		m->m_pkthdr.len = m->m_len = len;
 
 		/* Give mbuf to OS */
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 
 		/* Successfuly received frame */
 		ifp->if_ipackets++;

@@ -197,7 +197,7 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 		ifmedia_set(&sc->sc_media, IFM_ETHER|IFM_MANUAL);
 	}
 
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, myea);
 
 #if NRND > 0
 	rnd_attach_source(&sc->rnd_source, device_get_nameunit(sc->sc_dev),
@@ -261,12 +261,6 @@ sncioctl(ifp, cmd, data)
 
 	switch (cmd) {
 
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		err = ether_ioctl(ifp, cmd, data);
-		break;
-
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP) == 0 &&
 		    (ifp->if_flags & IFF_RUNNING) != 0) {
@@ -315,7 +309,8 @@ sncioctl(ifp, cmd, data)
 		err = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
 		break;
 	default:
-		err = EINVAL;
+		err = ether_ioctl(ifp, cmd, data);
+		break;
 	}
 	splx(s);
 	return (err);
@@ -358,8 +353,7 @@ outloop:
 	 * If bpf is listening on this interface, let it
 	 * see the packet before we commit it to the wire.
 	 */
-	if (ifp->if_bpf)
-		bpf_mtap(ifp, m);
+	BPF_MTAP(ifp, m);
 
 	/*
 	 * If there is nothing in the o/p queue, and there is room in
@@ -1105,9 +1099,8 @@ sonic_read(sc, pkt, len)
 	}
 #endif /* SNCDEBUG */
 
-	/* Pass the packet up, with the ether header sort-of removed. */
-	m_adj(m, sizeof(struct ether_header));
-	ether_input(ifp, et, m);
+	/* Pass the packet up. */
+	(*ifp->if_input)(ifp, m);
 	return (1);
 }
 

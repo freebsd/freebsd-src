@@ -517,7 +517,7 @@ ray_attach(device_t dev)
 	ifp->if_init = ray_init;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, ep->e_station_addr);
 
 	/*
 	 * Initialise the timers and driver
@@ -593,7 +593,7 @@ ray_detach(device_t dev)
 	sc->sc_gone = 1;
 	sc->sc_c.np_havenet = 0;
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 
 	/*
 	 * Stop the runq and wake up anyone sleeping for us.
@@ -644,15 +644,6 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	s = splimp();
 
 	switch (command) {
-
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-	case SIOCSIFADDR:
-		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GIFADDR/SIFMTU");
-		error = ether_ioctl(ifp, command, data);
-/* XXX SIFADDR used to fall through to SIOCSIFFLAGS */
-		break;
-
 	case SIOCSIFFLAGS:
 		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFFLAGS 0x%0x", ifp->if_flags);
 		/*
@@ -734,7 +725,9 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	default:
-		error = EINVAL;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "OTHER (pass to ether)");
+		error = ether_ioctl(ifp, command, data);
+		break;
 
 	}
 
@@ -1910,7 +1903,6 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ieee80211_frame *header = mtod(m0, struct ieee80211_frame *);
-	struct ether_header *eh;
 	struct llc *llc;
 	u_int8_t *sa = NULL, *da = NULL, *ra = NULL, *ta = NULL;
 	int trim = 0;
@@ -2024,6 +2016,7 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 		    llc->llc_un.type_snap.org_code[0] == 0 &&
 		    llc->llc_un.type_snap.org_code[1] == 0 &&
 		    llc->llc_un.type_snap.org_code[2] == 0) {
+			struct ether_header *eh;
 			/*
 			 * This is not magic. RFC1042 header is 8
 			 * bytes, with the last two bytes being the
@@ -2079,9 +2072,7 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 	RAY_MBUF_DUMP(sc, RAY_DBG_RX, m0, "(3) packet after trimming");
 	ifp->if_ipackets++;
 	ray_rx_update_cache(sc, header->i_addr2, siglev, antenna);
-	eh = mtod(m0, struct ether_header *);
-	m_adj(m0, sizeof(struct ether_header));
-	ether_input(ifp, eh, m0);
+	(*ifp->if_input)(ifp, m0);
 }
 
 /*

@@ -174,7 +174,7 @@ fe_pccard_detach(device_t dev)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	fe_stop(sc);
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	fe_release_resource(dev);
 

@@ -1642,7 +1642,7 @@ ed_attach(sc, unit, flags)
 		/*
 		 * Attach the interface
 		 */
-		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	}
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
@@ -2127,9 +2127,7 @@ outloop:
 	/*
 	 * Tap off here if there is a bpf listener.
 	 */
-	if (ifp->if_bpf) {
-		bpf_mtap(ifp, m0);
-	}
+	BPF_MTAP(ifp, m0);
 
 	m_freem(m0);
 
@@ -2565,13 +2563,6 @@ ed_ioctl(ifp, command, data)
 	s = splimp();
 
 	switch (command) {
-
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
-
 	case SIOCSIFFLAGS:
 
 		/*
@@ -2631,7 +2622,7 @@ ed_ioctl(ifp, command, data)
 #endif
 
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 	}
 	(void) splx(s);
 	return (error);
@@ -2683,6 +2674,7 @@ ed_get_packet(sc, buf, len)
 	char   *buf;
 	u_short len;
 {
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ether_header *eh;
 	struct mbuf *m;
 
@@ -2690,7 +2682,7 @@ ed_get_packet(sc, buf, len)
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return;
-	m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
+	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len;
 
 	/*
@@ -2721,11 +2713,11 @@ ed_get_packet(sc, buf, len)
 	 * Don't read in the entire packet if we know we're going to drop it
 	 * and no bpf is active.
 	 */
-	if (!sc->arpcom.ac_if.if_bpf && BDG_ACTIVE( (&sc->arpcom.ac_if) ) ) {
+	if (!ifp->if_bpf && BDG_ACTIVE( (ifp) ) ) {
 		struct ifnet *bif;
 
 		ed_ring_copy(sc, buf, (char *)eh, ETHER_HDR_LEN);
-		bif = bridge_in_ptr(&sc->arpcom.ac_if, eh) ;
+		bif = bridge_in_ptr(ifp, eh) ;
 		if (bif == BDG_DROP) {
 			m_freem(m);
 			return;
@@ -2739,13 +2731,9 @@ ed_get_packet(sc, buf, len)
 		 */
 		ed_ring_copy(sc, buf, (char *)eh, len);
 
-	/*
-	 * Remove link layer address.
-	 */
-	m->m_pkthdr.len = m->m_len = len - sizeof(struct ether_header);
-	m->m_data += sizeof(struct ether_header);
+	m->m_pkthdr.len = m->m_len = len;
 
-	ether_input(&sc->arpcom.ac_if, eh, m);
+	(*ifp->if_input)(ifp, m);
 }
 
 /*

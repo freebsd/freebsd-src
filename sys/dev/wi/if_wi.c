@@ -211,7 +211,7 @@ wi_generic_detach(dev)
 	/* Delete all remaining media. */
 	ifmedia_removeall(&sc->ifmedia);
 
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
 	wi_free(dev);
 	sc->wi_gone = 1;
@@ -469,7 +469,7 @@ wi_generic_attach(device_t dev)
 	/*
 	 * Call MI attach routine.
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	callout_handle_init(&sc->wi_stat_ch);
 	WI_UNLOCK(sc, s);
 
@@ -675,8 +675,7 @@ wi_rxeof(sc)
 		ifp->if_ipackets++;
 
 		/* Handle BPF listeners. */
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m);
+		BPF_MTAP(ifp, m);
 
 		m_freem(m);
 	} else {
@@ -816,11 +815,10 @@ wi_rxeof(sc)
 				return;
 		}
 		/* Receive packet. */
-		m_adj(m, sizeof(struct ether_header));
 #ifdef WICACHE
 		wi_cache_store(sc, eh, m, rx_frame.wi_q_info);
 #endif  
-		ether_input(ifp, eh, m);
+		(*ifp->if_input)(ifp, m);
 	}
 }
 
@@ -1679,11 +1677,6 @@ wi_ioctl(ifp, command, data)
 	}
 
 	switch(command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-		error = ether_ioctl(ifp, command, data);
-		break;
 	case SIOCSIFFLAGS:
 		/*
 		 * Can't do promisc and hostap at the same time.  If all that's
@@ -2047,7 +2040,7 @@ wi_ioctl(ifp, command, data)
 		error = wihap_ioctl(sc, command, data);
 		break;
 	default:
-		error = EINVAL;
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 out:
@@ -2405,8 +2398,8 @@ nextpkt:
  	 * this frame to him. Also, don't send this to the bpf sniffer
  	 * if we're in procframe or monitor sniffing mode.
 	 */
- 	if (!(sc->wi_procframe || sc->wi_debug.wi_monitor) && ifp->if_bpf)
-		bpf_mtap(ifp, m0);
+ 	if (!(sc->wi_procframe || sc->wi_debug.wi_monitor))
+		BPF_MTAP(ifp, m0);
 
 	m_freem(m0);
 

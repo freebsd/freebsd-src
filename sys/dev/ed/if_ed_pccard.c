@@ -106,7 +106,7 @@ ed_pccard_detach(device_t dev)
 	}
 	ed_stop(sc);
 	ifp->if_flags &= ~IFF_RUNNING;
-	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+	ether_ifdetach(ifp);
 	sc->gone = 1;
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
