@@ -63,12 +63,12 @@
 #include <openssl/rand.h>
 
 int RSA_padding_add_PKCS1_type_1(unsigned char *to, int tlen,
-	     unsigned char *from, int flen)
+	     const unsigned char *from, int flen)
 	{
 	int j;
 	unsigned char *p;
 
-	if (flen > (tlen-11))
+	if (flen > (tlen-RSA_PKCS1_PADDING_SIZE))
 		{
 		RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_TYPE_1,RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
 		return(0);
@@ -89,10 +89,10 @@ int RSA_padding_add_PKCS1_type_1(unsigned char *to, int tlen,
 	}
 
 int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
-	     unsigned char *from, int flen, int num)
+	     const unsigned char *from, int flen, int num)
 	{
 	int i,j;
-	unsigned char *p;
+	const unsigned char *p;
 
 	p=from;
 	if ((num != (flen+1)) || (*(p++) != 01))
@@ -141,7 +141,7 @@ int RSA_padding_check_PKCS1_type_1(unsigned char *to, int tlen,
 	}
 
 int RSA_padding_add_PKCS1_type_2(unsigned char *to, int tlen,
-	     unsigned char *from, int flen)
+	     const unsigned char *from, int flen)
 	{
 	int i,j;
 	unsigned char *p;
@@ -179,10 +179,10 @@ int RSA_padding_add_PKCS1_type_2(unsigned char *to, int tlen,
 	}
 
 int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
-	     unsigned char *from, int flen, int num)
+	     const unsigned char *from, int flen, int num)
 	{
 	int i,j;
-	unsigned char *p;
+	const unsigned char *p;
 
 	p=from;
 	if ((num != (flen+1)) || (*(p++) != 02))

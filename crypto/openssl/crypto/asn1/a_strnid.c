@@ -105,7 +105,7 @@ int ASN1_STRING_set_default_mask_asc(char *p)
 		mask = strtoul(p + 5, &end, 0);
 		if(*end) return 0;
 	} else if(!strcmp(p, "nombstr"))
-		mask = ~((unsigned long)(B_ASN1_BMPSTRING|B_ASN1_UTF8STRING));
+			 mask = ~((unsigned long)(B_ASN1_BMPSTRING|B_ASN1_UTF8STRING));
 	else if(!strcmp(p, "pkix"))
 			mask = ~((unsigned long)B_ASN1_T61STRING);
 	else if(!strcmp(p, "utf8only")) mask = B_ASN1_UTF8STRING;
@@ -170,8 +170,10 @@ static ASN1_STRING_TABLE tbl_standard[] = {
 {NID_givenName,			1, ub_name, DIRSTRING_TYPE, 0},
 {NID_surname,			1, ub_name, DIRSTRING_TYPE, 0},
 {NID_initials,			1, ub_name, DIRSTRING_TYPE, 0},
+{NID_friendlyName,		-1, -1, B_ASN1_BMPSTRING, STABLE_NO_MASK},
 {NID_name,			1, ub_name, DIRSTRING_TYPE, 0},
-{NID_dnQualifier,		-1, -1, B_ASN1_PRINTABLESTRING, STABLE_NO_MASK}
+{NID_dnQualifier,		-1, -1, B_ASN1_PRINTABLESTRING, STABLE_NO_MASK},
+{NID_ms_csp_name,		-1, -1, B_ASN1_BMPSTRING, STABLE_NO_MASK}
 };
 
 static int sk_table_cmp(const ASN1_STRING_TABLE * const *a,

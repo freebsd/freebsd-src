@@ -277,8 +277,8 @@ err:
 	return(0);
 	}
 
-#ifndef NO_BIO
-#ifndef NO_FP_API
+#ifndef OPENSSL_NO_BIO
+#ifndef OPENSSL_NO_FP_API
 int BN_print_fp(FILE *fp, const BIGNUM *a)
 	{
 	BIO *b;
@@ -321,7 +321,7 @@ end:
 #endif
 
 #ifdef BN_DEBUG
-void bn_dump1(FILE *o, const char *a, BN_ULONG *b,int n)
+void bn_dump1(FILE *o, const char *a, const BN_ULONG *b,int n)
 	{
 	int i;
 	fprintf(o, "%s=", a);

@@ -206,6 +206,10 @@ static int ssl_read(BIO *b, char *out, int outl)
 		BIO_set_retry_special(b);
 		retry_reason=BIO_RR_SSL_X509_LOOKUP;
 		break;
+	case SSL_ERROR_WANT_ACCEPT:
+		BIO_set_retry_special(b);
+		retry_reason=BIO_RR_ACCEPT;
+		break;
 	case SSL_ERROR_WANT_CONNECT:
 		BIO_set_retry_special(b);
 		retry_reason=BIO_RR_CONNECT;
@@ -482,7 +486,9 @@ static long ssl_callback_ctrl(BIO *b, int cmd, bio_info_cb *fp)
 		{
 	case BIO_CTRL_SET_CALLBACK:
 		{
-		SSL_set_info_callback(ssl,fp);
+		/* FIXME: setting this via a completely different prototype
+		   seems like a crap idea */
+		SSL_set_info_callback(ssl,(void (*)(const SSL *,int,int))fp);
 		}
 		break;
 	default:

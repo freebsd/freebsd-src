@@ -1,5 +1,5 @@
 
- OpenSSL 0.9.6g 9 August 2002
+ OpenSSL 0.9.7 31 Dec 2002
 
  Copyright (c) 1998-2002 The OpenSSL Project
  Copyright (c) 1995-1998 Eric A. Young, Tim J. Hudson
@@ -154,7 +154,7 @@
     - Stack Traceback (if the application dumps core)
 
  Report the bug to the OpenSSL project via the Request Tracker
- (http://www.openssl.org/rt2.html) by mail to:
+ (http://www.openssl.org/support/rt2.html) by mail to:
 
     openssl-bugs@openssl.org
 

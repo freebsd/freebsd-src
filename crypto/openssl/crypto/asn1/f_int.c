@@ -69,10 +69,16 @@ int i2a_ASN1_INTEGER(BIO *bp, ASN1_INTEGER *a)
 
 	if (a == NULL) return(0);
 
+	if (a->type & V_ASN1_NEG)
+		{
+		if (BIO_write(bp, "-", 1) != 1) goto err;
+		n = 1;
+		}
+
 	if (a->length == 0)
 		{
 		if (BIO_write(bp,"00",2) != 2) goto err;
-		n=2;
+		n += 2;
 		}
 	else
 		{
@@ -163,8 +169,7 @@ int a2i_ASN1_INTEGER(BIO *bp, ASN1_INTEGER *bs, char *buf, int size)
 				sp=(unsigned char *)OPENSSL_malloc(
 					(unsigned int)num+i*2);
 			else
-				sp=(unsigned char *)OPENSSL_realloc(s,
-					(unsigned int)num+i*2);
+				sp=OPENSSL_realloc_clean(s,slen,num+i*2);
 			if (sp == NULL)
 				{
 				ASN1err(ASN1_F_A2I_ASN1_INTEGER,ERR_R_MALLOC_FAILURE);

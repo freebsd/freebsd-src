@@ -126,11 +126,11 @@ void main_encrypt(void)
 
 void main_decrypt(void)
 {
-	char buf[512];
+	char buf[520];
 	char ebuf[512];
 	unsigned int buflen;
         EVP_CIPHER_CTX ectx;
-        unsigned char iv[8];
+        unsigned char iv[EVP_MAX_IV_LENGTH];
 	unsigned char *encryptKey; 
 	unsigned int ekeylen; 
 	EVP_PKEY *privateKey;
@@ -164,7 +164,6 @@ void main_decrypt(void)
 
 	read(STDIN, encryptKey, ekeylen);
 	read(STDIN, iv, sizeof(iv));
-
 	EVP_OpenInit(&ectx,
 		   EVP_des_ede3_cbc(), 
 		   encryptKey,
@@ -185,7 +184,6 @@ void main_decrypt(void)
 		}
 
 		EVP_OpenUpdate(&ectx, buf, &buflen, ebuf, readlen);
-
 		write(STDOUT, buf, buflen);
 	}
 

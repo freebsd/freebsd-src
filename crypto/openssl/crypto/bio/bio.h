@@ -59,12 +59,13 @@
 #ifndef HEADER_BIO_H
 #define HEADER_BIO_H
 
-#ifndef NO_FP_API
+#ifndef OPENSSL_NO_FP_API
 # include <stdio.h>
 #endif
 #include <stdarg.h>
 
 #include <openssl/crypto.h>
+#include <openssl/e_os2.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -179,7 +180,7 @@ extern "C" {
 #define BIO_retry_type(a)		((a)->flags & BIO_FLAGS_RWS)
 #define BIO_should_retry(a)		((a)->flags & BIO_FLAGS_SHOULD_RETRY)
 
-/* The next two are used in conjunction with the
+/* The next three are used in conjunction with the
  * BIO_should_io_special() condition.  After this returns true,
  * BIO *BIO_get_retry_BIO(BIO *bio, int *reason); will walk the BIO 
  * stack and return the 'reason' for the special and the offending BIO.
@@ -188,6 +189,8 @@ extern "C" {
 #define BIO_RR_SSL_X509_LOOKUP		0x01
 /* Returned from the connect BIO when a connect would have blocked */
 #define BIO_RR_CONNECT			0x02
+/* Returned from the accept BIO when an accept would have blocked */
+#define BIO_RR_ACCEPT			0x03
 
 /* These are passed by the BIO callback */
 #define BIO_CB_FREE	0x01
@@ -215,7 +218,7 @@ typedef struct bio_st BIO;
 
 typedef void bio_info_cb(struct bio_st *, int, const char *, int, long, long);
 
-#ifndef WIN16
+#ifndef OPENSSL_SYS_WIN16
 typedef struct bio_method_st
 	{
 	int type;
@@ -464,8 +467,9 @@ int BIO_read_filename(BIO *b,const char *name);
 size_t BIO_ctrl_pending(BIO *b);
 size_t BIO_ctrl_wpending(BIO *b);
 #define BIO_flush(b)		(int)BIO_ctrl(b,BIO_CTRL_FLUSH,0,NULL)
-#define BIO_get_info_callback(b,cbp) (int)BIO_ctrl(b,BIO_CTRL_GET_CALLBACK,0,(bio_info_cb **)(cbp))
-#define BIO_set_info_callback(b,cb) (int)BIO_callback_ctrl(b,BIO_CTRL_SET_CALLBACK,(bio_info_cb *)(cb))
+#define BIO_get_info_callback(b,cbp) (int)BIO_ctrl(b,BIO_CTRL_GET_CALLBACK,0, \
+						   cbp)
+#define BIO_set_info_callback(b,cb) (int)BIO_callback_ctrl(b,BIO_CTRL_SET_CALLBACK,cb)
 
 /* For the BIO_f_buffer() type */
 #define BIO_buffer_get_num_lines(b) BIO_ctrl(b,BIO_CTRL_GET,0,NULL)
@@ -493,8 +497,8 @@ int BIO_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 unsigned long BIO_number_read(BIO *bio);
 unsigned long BIO_number_written(BIO *bio);
 
-# ifndef NO_FP_API
-#  if defined(WIN16) && defined(_WINDLL)
+# ifndef OPENSSL_NO_FP_API
+#  if defined(OPENSSL_SYS_WIN16) && defined(_WINDLL)
 BIO_METHOD *BIO_s_file_internal(void);
 BIO *BIO_new_file_internal(char *filename, char *mode);
 BIO *BIO_new_fp_internal(FILE *stream, int close_flag);
@@ -518,6 +522,7 @@ int	BIO_read(BIO *b, void *data, int len);
 int	BIO_gets(BIO *bp,char *buf, int size);
 int	BIO_write(BIO *b, const void *data, int len);
 int	BIO_puts(BIO *bp,const char *buf);
+int	BIO_indent(BIO *b,int indent,int max);
 long	BIO_ctrl(BIO *bp,int cmd,long larg,void *parg);
 long BIO_callback_ctrl(BIO *b, int cmd, void (*fp)(struct bio_st *, int, const char *, int, long, long));
 char *	BIO_ptr_ctrl(BIO *bp,int cmd,long larg);
@@ -536,7 +541,7 @@ int BIO_nread(BIO *bio, char **buf, int num);
 int BIO_nwrite0(BIO *bio, char **buf);
 int BIO_nwrite(BIO *bio, char **buf, int num);
 
-#ifndef WIN16
+#ifndef OPENSSL_SYS_WIN16
 long BIO_debug_callback(BIO *bio,int cmd,const char *argp,int argi,
 	long argl,long ret);
 #else
@@ -550,12 +555,14 @@ BIO_METHOD *BIO_s_socket(void);
 BIO_METHOD *BIO_s_connect(void);
 BIO_METHOD *BIO_s_accept(void);
 BIO_METHOD *BIO_s_fd(void);
+#ifndef OPENSSL_SYS_OS2
 BIO_METHOD *BIO_s_log(void);
+#endif
 BIO_METHOD *BIO_s_bio(void);
 BIO_METHOD *BIO_s_null(void);
 BIO_METHOD *BIO_f_null(void);
 BIO_METHOD *BIO_f_buffer(void);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 BIO_METHOD *BIO_f_linebuffer(void);
 #endif
 BIO_METHOD *BIO_f_nbio_test(void);
@@ -602,7 +609,7 @@ int BIO_new_bio_pair(BIO **bio1, size_t writebuf1,
 
 void BIO_copy_next_retry(BIO *b);
 
-long BIO_ghbn_ctrl(int cmd,int iarg,char *parg);
+/*long BIO_ghbn_ctrl(int cmd,int iarg,char *parg);*/
 
 int BIO_printf(BIO *bio, const char *format, ...);
 int BIO_vprintf(BIO *bio, const char *format, va_list args);
@@ -643,6 +650,7 @@ void ERR_load_BIO_strings(void);
 #define BIO_F_CONN_CTRL					 127
 #define BIO_F_CONN_STATE				 115
 #define BIO_F_FILE_CTRL					 116
+#define BIO_F_FILE_READ					 130
 #define BIO_F_LINEBUFFER_CTRL				 129
 #define BIO_F_MEM_READ					 128
 #define BIO_F_MEM_WRITE					 117
@@ -669,6 +677,7 @@ void ERR_load_BIO_strings(void);
 #define BIO_R_NO_HOSTNAME_SPECIFIED			 112
 #define BIO_R_NO_PORT_DEFINED				 113
 #define BIO_R_NO_PORT_SPECIFIED				 114
+#define BIO_R_NO_SUCH_FILE				 128
 #define BIO_R_NULL_PARAMETER				 115
 #define BIO_R_TAG_MISMATCH				 116
 #define BIO_R_UNABLE_TO_BIND_SOCKET			 117

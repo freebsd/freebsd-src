@@ -63,7 +63,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef NO_BF
+#include "../e_os.h"
+
+#ifdef OPENSSL_NO_BF
 int main(int argc, char *argv[])
 {
     printf("No BF support\n");
@@ -275,7 +277,7 @@ int main(int argc, char *argv[])
 	else
 		ret=test();
 
-	exit(ret);
+	EXIT(ret);
 	return(0);
 	}
 
@@ -454,9 +456,9 @@ static int test(void)
 	len=strlen(cbc_data)+1;
 
 	BF_set_key(&key,16,cbc_key);
-	memset(cbc_in,0,40);
-	memset(cbc_out,0,40);
-	memcpy(iv,cbc_iv,8);
+	memset(cbc_in,0,sizeof cbc_in);
+	memset(cbc_out,0,sizeof cbc_out);
+	memcpy(iv,cbc_iv,sizeof iv);
 	BF_cbc_encrypt((unsigned char *)cbc_data,cbc_out,len,
 		&key,iv,BF_ENCRYPT);
 	if (memcmp(cbc_out,cbc_ok,32) != 0)

@@ -13,6 +13,11 @@ B<openssl> B<ca>
 [B<-name section>]
 [B<-gencrl>]
 [B<-revoke file>]
+[B<-crl_reason reason>]
+[B<-crl_hold instruction>]
+[B<-crl_compromise time>]
+[B<-crl_CA_compromise time>]
+[B<-subj arg>]
 [B<-crldays days>]
 [B<-crlhours hours>]
 [B<-crlexts section>]
@@ -33,9 +38,11 @@ B<openssl> B<ca>
 [B<-spkac file>]
 [B<-ss_cert file>]
 [B<-preserveDN>]
+[B<-noemailDN>]
 [B<-batch>]
 [B<-msie_hack>]
 [B<-extensions section>]
+[B<-extfile section>]
 
 =head1 DESCRIPTION
 
@@ -71,7 +78,7 @@ a single self signed certificate to be signed by the CA.
 =item B<-spkac filename>
 
 a file containing a single Netscape signed public key and challenge
-and additional field values to be signed by the CA. See the B<NOTES>
+and additional field values to be signed by the CA. See the B<SPKAC FORMAT>
 section for information on the required format.
 
 =item B<-infiles>
@@ -109,6 +116,7 @@ the 'ps' utility) this option should be used with caution.
 
 the key password source. For more information about the format of B<arg>
 see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+
 =item B<-verbose>
 
 this prints extra details about the operations being performed.
@@ -159,6 +167,15 @@ is the same as the request. This is largely for compatibility with the
 older IE enrollment control which would only accept certificates if their
 DNs match the order of the request. This is not needed for Xenroll.
 
+=item B<-noemailDN>
+
+The DN of a certificate can contain the EMAIL field if present in the
+request DN, however it is good policy just having the e-mail set into
+the altName extension of the certificate. When this option is set the
+EMAIL field is removed from the certificate' subject and set only in
+the, eventually present, extensions. The B<email_in_dn> keyword can be
+used in the configuration file to enable this behaviour.
+
 =item B<-batch>
 
 this sets the batch mode. In this mode no questions will be asked
@@ -167,9 +184,16 @@ and all certificates will be certified automatically.
 =item B<-extensions section>
 
 the section of the configuration file containing certificate extensions
-to be added when a certificate is issued. If no extension section is
-present then a V1 certificate is created. If the extension section
-is present (even if it is empty) then a V3 certificate is created.
+to be added when a certificate is issued (defaults to B<x509_extensions>
+unless the B<-extfile> option is used). If no extension section is
+present then, a V1 certificate is created. If the extension section
+is present (even if it is empty), then a V3 certificate is created.
+
+=item B<-extfile file>
+
+an additional configuration file to read certificate extensions from
+(using the default section unless the B<-extensions> option is also
+used).
 
 =back
 
@@ -193,6 +217,39 @@ the number of hours before the next CRL is due.
 =item B<-revoke filename>
 
 a filename containing a certificate to revoke.
+
+=item B<-crl_reason reason>
+
+revocation reason, where B<reason> is one of: B<unspecified>, B<keyCompromise>,
+B<CACompromise>, B<affiliationChanged>, B<superseded>, B<cessationOfOperation>,
+B<certificateHold> or B<removeFromCRL>. The matching of B<reason> is case
+insensitive. Setting any revocation reason will make the CRL v2.
+
+In practive B<removeFromCRL> is not particularly useful because it is only used
+in delta CRLs which are not currently implemented.
+
+=item B<-crl_hold instruction>
+
+This sets the CRL revocation reason code to B<certificateHold> and the hold
+instruction to B<instruction> which must be an OID. Although any OID can be
+used only B<holdInstructionNone> (the use of which is discouraged by RFC2459)
+B<holdInstructionCallIssuer> or B<holdInstructionReject> will normally be used.
+
+=item B<-crl_compromise time>
+
+This sets the revocation reason to B<keyCompromise> and the compromise time to
+B<time>. B<time> should be in GeneralizedTime format that is B<YYYYMMDDHHMMSSZ>.
+
+=item B<-crl_CA_compromise time>
+
+This is the same as B<crl_compromise> except the revocation reason is set to
+B<CACompromise>.
+
+=item B<-subj arg>
+
+supersedes subject name given in the request.
+The arg must be formatted as I</type0=value0/type1=value1/type2=...>,
+characters may be escaped by \ (backslash), no spaces are skipped.
 
 =item B<-crlexts section>
 
@@ -311,6 +368,12 @@ the same as B<-crlexts>.
 
 the same as B<-preserveDN>
 
+=item B<email_in_dn>
+
+the same as B<-noemailDN>. If you want the EMAIL field to be removed
+from the DN of the certificate simply set this to 'no'. If not present
+the default is to allow for the EMAIL filed in the certificate's DN.
+
 =item B<msie_hack>
 
 the same as B<-msie_hack>
@@ -319,6 +382,37 @@ the same as B<-msie_hack>
 
 the same as B<-policy>. Mandatory. See the B<POLICY FORMAT> section
 for more information.
+
+=item B<nameopt>, B<certopt>
+
+these options allow the format used to display the certificate details
+when asking the user to confirm signing. All the options supported by
+the B<x509> utilities B<-nameopt> and B<-certopt> switches can be used
+here, except the B<no_signame> and B<no_sigdump> are permanently set
+and cannot be disabled (this is because the certificate signature cannot
+be displayed because the certificate has not been signed at this point).
+
+For convenience the values B<default_ca> are accepted by both to produce
+a reasonable output.
+
+If neither option is present the format used in earlier versions of
+OpenSSL is used. Use of the old format is B<strongly> discouraged because
+it only displays fields mentioned in the B<policy> section, mishandles
+multicharacter string types and does not display extensions.
+
+=item B<copy_extensions>
+
+determines how extensions in certificate requests should be handled.
+If set to B<none> or this option is not present then extensions are
+ignored and not copied to the certificate. If set to B<copy> then any
+extensions present in the request that are not already present are copied
+to the certificate. If set to B<copyall> then all extensions in the
+request are copied to the certificate: if the extension is already present
+in the certificate it is deleted first. See the B<WARNINGS> section before
+using this option.
+
+The main use of this option is to allow a certificate request to supply
+values for certain extensions such as subjectAltName.
 
 =back
 
@@ -409,6 +503,11 @@ A sample configuration file with the relevant sections for B<ca>:
  default_md     = md5                   # md to use
 
  policy         = policy_any            # default policy
+ email_in_dn    = no                    # Don't add the email into cert DN
+
+ nameopt	= default_ca		# Subject name display option
+ certopt	= default_ca		# Certificate display option
+ copy_extensions = none			# Don't copy extensions from request
 
  [ policy_any ]
  countryName            = supplied
@@ -417,18 +516,6 @@ A sample configuration file with the relevant sections for B<ca>:
  organizationalUnitName = optional
  commonName             = supplied
  emailAddress           = optional
-
-=head1 WARNINGS
-
-The B<ca> command is quirky and at times downright unfriendly.
-
-The B<ca> utility was originally meant as an example of how to do things
-in a CA. It was not supposed be be used as a full blown CA itself:
-nevertheless some people are using it for this purpose.
-
-The B<ca> command is effectively a single user command: no locking is
-done on the various files and attempts to run more than one B<ca> command
-on the same database can have unpredictable results.
 
 =head1 FILES
 
@@ -459,9 +546,6 @@ if corrupted it can be difficult to fix. It is theoretically possible
 to rebuild the index file from all the issued certificates and a current
 CRL: however there is no option to do this.
 
-CRL entry extensions cannot currently be created: only CRL extensions
-can be added.
-
 V2 CRL features like delta CRL support and CRL numbers are not currently
 supported.
 
@@ -473,10 +557,6 @@ possible to include one SPKAC or self signed certificate.
 The use of an in memory text database can cause problems when large
 numbers of certificates are present because, as the name implies
 the database has to be kept in memory.
-
-Certificate request extensions are ignored: some kind of "policy" should
-be included to use certain static extensions and certain extensions
-from the request.
 
 It is not possible to certify two certificates with the same DN: this
 is a side effect of how the text database is indexed and it cannot easily
@@ -490,12 +570,48 @@ exposed at either a command or interface level so a more friendly utility
 B<CA.pl> help a little but not very much.
 
 Any fields in a request that are not present in a policy are silently
-deleted. This does not happen if the B<-preserveDN> option is used but
-the extra fields are not displayed when the user is asked to certify
-a request. The behaviour should be more friendly and configurable.
+deleted. This does not happen if the B<-preserveDN> option is used. To
+enforce the absence of the EMAIL field within the DN, as suggested by
+RFCs, regardless the contents of the request' subject the B<-noemailDN>
+option can be used. The behaviour should be more friendly and
+configurable.
 
 Cancelling some commands by refusing to certify a certificate can
 create an empty file.
+
+=head1 WARNINGS
+
+The B<ca> command is quirky and at times downright unfriendly.
+
+The B<ca> utility was originally meant as an example of how to do things
+in a CA. It was not supposed to be used as a full blown CA itself:
+nevertheless some people are using it for this purpose.
+
+The B<ca> command is effectively a single user command: no locking is
+done on the various files and attempts to run more than one B<ca> command
+on the same database can have unpredictable results.
+
+The B<copy_extensions> option should be used with caution. If care is
+not taken then it can be a security risk. For example if a certificate
+request contains a basicConstraints extension with CA:TRUE and the
+B<copy_extensions> value is set to B<copyall> and the user does not spot
+this when the certificate is displayed then this will hand the requestor
+a valid CA certificate.
+
+This situation can be avoided by setting B<copy_extensions> to B<copy>
+and including basicConstraints with CA:FALSE in the configuration file.
+Then if the request contains a basicConstraints extension it will be
+ignored.
+
+It is advisable to also include values for other extensions such
+as B<keyUsage> to prevent a request supplying its own values.
+
+Additional restrictions can be placed on the CA certificate itself.
+For example if the CA certificate has:
+
+ basicConstraints = CA:TRUE, pathlen:0
+
+then even if a certificate is issued with CA:TRUE it will not be valid.
 
 =head1 SEE ALSO
 

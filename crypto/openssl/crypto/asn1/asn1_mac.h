@@ -70,14 +70,14 @@ extern "C" {
 #endif 
 
 #define ASN1_MAC_H_err(f,r,line) \
-	ERR_PUT_error(ASN1_MAC_ERR_LIB,(f),(r),ERR_file_name,(line))
+	ERR_PUT_error(ASN1_MAC_ERR_LIB,(f),(r),__FILE__,(line))
 
 #define M_ASN1_D2I_vars(a,type,func) \
 	ASN1_CTX c; \
 	type ret=NULL; \
 	\
-	c.pp=pp; \
-	c.q= *pp; \
+	c.pp=(unsigned char **)pp; \
+	c.q= *(unsigned char **)pp; \
 	c.error=ERR_R_NESTED_ASN1_ERROR; \
 	if ((a == NULL) || ((*a) == NULL)) \
 		{ if ((ret=(type)func()) == NULL) \
@@ -85,13 +85,13 @@ extern "C" {
 	else	ret=(*a);
 
 #define M_ASN1_D2I_Init() \
-	c.p= *pp; \
+	c.p= *(unsigned char **)pp; \
 	c.max=(length == 0)?0:(c.p+length);
 
 #define M_ASN1_D2I_Finish_2(a) \
 	if (!asn1_Finish(&c)) \
 		{ c.line=__LINE__; goto err; } \
-	*pp=c.p; \
+	*(unsigned char **)pp=c.p; \
 	if (a != NULL) (*a)=ret; \
 	return(ret);
 
@@ -99,7 +99,7 @@ extern "C" {
 	M_ASN1_D2I_Finish_2(a); \
 err:\
 	ASN1_MAC_H_err((e),c.error,c.line); \
-	asn1_add_error(*pp,(int)(c.q- *pp)); \
+	asn1_add_error(*(unsigned char **)pp,(int)(c.q- *pp)); \
 	if ((ret != NULL) && ((a == NULL) || (*a != ret))) func(ret); \
 	return(NULL)
 
@@ -195,9 +195,6 @@ err:\
 #define M_ASN1_I2D_put_SEQUENCE_opt_type(type,a,f) \
 	if ((a != NULL) && (sk_##type##_num(a) != 0)) \
 		M_ASN1_I2D_put_SEQUENCE_type(type,a,f);
-
-#define M_ASN1_I2D_put_SEQUENCE_opt_ex_type(type,a,f) \
-	if (a) M_ASN1_I2D_put_SEQUENCE_type(type,a,f);
 
 #define M_ASN1_D2I_get_IMP_set_opt(b,func,free_func,tag) \
 	if ((c.slen != 0) && \
@@ -392,9 +389,6 @@ err:\
 		if ((a != NULL) && (sk_##type##_num(a) != 0)) \
 			M_ASN1_I2D_len_SEQUENCE_type(type,a,f);
 
-#define M_ASN1_I2D_len_SEQUENCE_opt_ex_type(type,a,f) \
-		if (a) M_ASN1_I2D_len_SEQUENCE_type(type,a,f);
-
 #define M_ASN1_I2D_len_IMP_SET(a,f,x) \
 		ret+=i2d_ASN1_SET(a,NULL,f,x,V_ASN1_CONTEXT_SPECIFIC,IS_SET);
 
@@ -451,15 +445,6 @@ err:\
 
 #define M_ASN1_I2D_len_EXP_SEQUENCE_opt_type(type,a,f,mtag,tag,v) \
 		if ((a != NULL) && (sk_##type##_num(a) != 0))\
-			{ \
-			v=i2d_ASN1_SET_OF_##type(a,NULL,f,tag, \
-						 V_ASN1_UNIVERSAL, \
-						 IS_SEQUENCE); \
-			ret+=ASN1_object_size(1,v,mtag); \
-			}
-
-#define M_ASN1_I2D_len_EXP_SEQUENCE_opt_ex_type(type,a,f,mtag,tag,v) \
-		if (a)\
 			{ \
 			v=i2d_ASN1_SET_OF_##type(a,NULL,f,tag, \
 						 V_ASN1_UNIVERSAL, \
@@ -545,14 +530,6 @@ err:\
 
 #define M_ASN1_I2D_put_EXP_SEQUENCE_opt_type(type,a,f,mtag,tag,v) \
 		if ((a != NULL) && (sk_##type##_num(a) != 0)) \
-			{ \
-			ASN1_put_object(&p,1,v,mtag,V_ASN1_CONTEXT_SPECIFIC); \
-			i2d_ASN1_SET_OF_##type(a,&p,f,tag,V_ASN1_UNIVERSAL, \
-					       IS_SEQUENCE); \
-			}
-
-#define M_ASN1_I2D_put_EXP_SEQUENCE_opt_ex_type(type,a,f,mtag,tag,v) \
-		if (a) \
 			{ \
 			ASN1_put_object(&p,1,v,mtag,V_ASN1_CONTEXT_SPECIFIC); \
 			i2d_ASN1_SET_OF_##type(a,&p,f,tag,V_ASN1_UNIVERSAL, \

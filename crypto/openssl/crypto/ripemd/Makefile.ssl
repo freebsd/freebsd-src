@@ -12,7 +12,8 @@ INSTALL_PREFIX=
 OPENSSLDIR=     /usr/local/ssl
 INSTALLTOP=/usr/local/ssl
 MAKE=           make -f Makefile.ssl
-MAKEDEPEND=	$(TOP)/util/domd $(TOP)
+MAKEDEPPROG=	makedepend
+MAKEDEPEND=	$(TOP)/util/domd $(TOP) -MD $(MAKEDEPPROG)
 MAKEFILE=       Makefile.ssl
 AR=             ar r
 
@@ -42,8 +43,7 @@ all:    lib
 
 lib:    $(LIBOBJ)
 	$(AR) $(LIB) $(LIBOBJ)
-	@echo You may get an error following this line.  Please ignore.
-	- $(RANLIB) $(LIB)
+	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
 # elf
@@ -92,7 +92,7 @@ lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
 depend:
-	$(MAKEDEPEND) $(INCLUDES) $(DEPFLAG) $(PROGS) $(LIBSRC)
+	$(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
 
 dclean:
 	$(PERL) -pe 'if (/^# DO NOT DELETE THIS LINE/) {print; exit(0);}' $(MAKEFILE) >Makefile.new
@@ -103,7 +103,11 @@ clean:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-rmd_dgst.o: ../../include/openssl/opensslconf.h
+rmd_dgst.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
 rmd_dgst.o: ../../include/openssl/opensslv.h ../../include/openssl/ripemd.h
-rmd_dgst.o: ../md32_common.h rmd_locl.h rmdconst.h
-rmd_one.o: ../../include/openssl/ripemd.h
+rmd_dgst.o: ../md32_common.h rmd_dgst.c rmd_locl.h rmdconst.h
+rmd_one.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+rmd_one.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
+rmd_one.o: ../../include/openssl/ripemd.h ../../include/openssl/safestack.h
+rmd_one.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+rmd_one.o: rmd_one.c

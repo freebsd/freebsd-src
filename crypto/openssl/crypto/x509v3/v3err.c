@@ -63,7 +63,7 @@
 #include <openssl/x509v3.h>
 
 /* BEGIN ERROR CODES */
-#ifndef NO_ERR
+#ifndef OPENSSL_NO_ERR
 static ERR_STRING_DATA X509V3_str_functs[]=
 	{
 {ERR_PACK(0,X509V3_F_COPY_EMAIL,0),	"COPY_EMAIL"},
@@ -98,6 +98,7 @@ static ERR_STRING_DATA X509V3_str_functs[]=
 {ERR_PACK(0,X509V3_F_V2I_GENERAL_NAME,0),	"v2i_GENERAL_NAME"},
 {ERR_PACK(0,X509V3_F_V2I_GENERAL_NAMES,0),	"v2i_GENERAL_NAMES"},
 {ERR_PACK(0,X509V3_F_V3_GENERIC_EXTENSION,0),	"V3_GENERIC_EXTENSION"},
+{ERR_PACK(0,X509V3_F_X509V3_ADD_I2D,0),	"X509V3_ADD_I2D"},
 {ERR_PACK(0,X509V3_F_X509V3_ADD_VALUE,0),	"X509V3_add_value"},
 {ERR_PACK(0,X509V3_F_X509V3_EXT_ADD,0),	"X509V3_EXT_add"},
 {ERR_PACK(0,X509V3_F_X509V3_EXT_ADD_ALIAS,0),	"X509V3_EXT_add_alias"},
@@ -106,6 +107,7 @@ static ERR_STRING_DATA X509V3_str_functs[]=
 {ERR_PACK(0,X509V3_F_X509V3_GET_VALUE_BOOL,0),	"X509V3_get_value_bool"},
 {ERR_PACK(0,X509V3_F_X509V3_PARSE_LIST,0),	"X509V3_parse_list"},
 {ERR_PACK(0,X509V3_F_X509_PURPOSE_ADD,0),	"X509_PURPOSE_add"},
+{ERR_PACK(0,X509V3_F_X509_PURPOSE_SET,0),	"X509_PURPOSE_set"},
 {0,NULL}
 	};
 
@@ -117,8 +119,10 @@ static ERR_STRING_DATA X509V3_str_reasons[]=
 {X509V3_R_BN_TO_ASN1_INTEGER_ERROR       ,"bn to asn1 integer error"},
 {X509V3_R_DUPLICATE_ZONE_ID              ,"duplicate zone id"},
 {X509V3_R_ERROR_CONVERTING_ZONE          ,"error converting zone"},
+{X509V3_R_ERROR_CREATING_EXTENSION       ,"error creating extension"},
 {X509V3_R_ERROR_IN_EXTENSION             ,"error in extension"},
 {X509V3_R_EXPECTED_A_SECTION_NAME        ,"expected a section name"},
+{X509V3_R_EXTENSION_EXISTS               ,"extension exists"},
 {X509V3_R_EXTENSION_NAME_ERROR           ,"extension name error"},
 {X509V3_R_EXTENSION_NOT_FOUND            ,"extension not found"},
 {X509V3_R_EXTENSION_SETTING_NOT_SUPPORTED,"extension setting not supported"},
@@ -135,6 +139,7 @@ static ERR_STRING_DATA X509V3_str_reasons[]=
 {X509V3_R_INVALID_OBJECT_IDENTIFIER      ,"invalid object identifier"},
 {X509V3_R_INVALID_OPTION                 ,"invalid option"},
 {X509V3_R_INVALID_POLICY_IDENTIFIER      ,"invalid policy identifier"},
+{X509V3_R_INVALID_PURPOSE                ,"invalid purpose"},
 {X509V3_R_INVALID_SECTION                ,"invalid section"},
 {X509V3_R_INVALID_SYNTAX                 ,"invalid syntax"},
 {X509V3_R_ISSUER_DECODE_ERROR            ,"issuer decode error"},
@@ -167,7 +172,7 @@ void ERR_load_X509V3_strings(void)
 	if (init)
 		{
 		init=0;
-#ifndef NO_ERR
+#ifndef OPENSSL_NO_ERR
 		ERR_load_strings(ERR_LIB_X509V3,X509V3_str_functs);
 		ERR_load_strings(ERR_LIB_X509V3,X509V3_str_reasons);
 #endif

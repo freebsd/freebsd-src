@@ -74,7 +74,7 @@ DSO_METHOD *DSO_METHOD_dlfcn(void)
 /* Part of the hack in "dlfcn_load" ... */
 #define DSO_MAX_TRANSLATED_SIZE 256
 
-static int dlfcn_load(DSO *dso, const char *filename);
+static int dlfcn_load(DSO *dso);
 static int dlfcn_unload(DSO *dso);
 static void *dlfcn_bind_var(DSO *dso, const char *symname);
 static DSO_FUNC_TYPE dlfcn_bind_func(DSO *dso, const char *symname);
@@ -82,8 +82,9 @@ static DSO_FUNC_TYPE dlfcn_bind_func(DSO *dso, const char *symname);
 static int dlfcn_unbind(DSO *dso, char *symname, void *symptr);
 static int dlfcn_init(DSO *dso);
 static int dlfcn_finish(DSO *dso);
-#endif
 static long dlfcn_ctrl(DSO *dso, int cmd, long larg, void *parg);
+#endif
+static char *dlfcn_name_converter(DSO *dso, const char *filename);
 
 static DSO_METHOD dso_meth_dlfcn = {
 	"OpenSSL 'dlfcn' shared library method",
@@ -96,7 +97,8 @@ static DSO_METHOD dso_meth_dlfcn = {
 	NULL, /* unbind_var */
 	NULL, /* unbind_func */
 #endif
-	dlfcn_ctrl,
+	NULL, /* ctrl */
+	dlfcn_name_converter,
 	NULL, /* init */
 	NULL  /* finish */
 	};
@@ -130,41 +132,40 @@ DSO_METHOD *DSO_METHOD_dlfcn(void)
  * (i) the handle (void*) returned from dlopen().
  */
 
-static int dlfcn_load(DSO *dso, const char *filename)
+static int dlfcn_load(DSO *dso)
 	{
-	void *ptr;
-	char translated[DSO_MAX_TRANSLATED_SIZE];
-	int len;
+	void *ptr = NULL;
+	/* See applicable comments in dso_dl.c */
+	char *filename = DSO_convert_filename(dso, NULL);
 
-	/* NB: This is a hideous hack, but I'm not yet sure what
-	 * to replace it with. This attempts to convert any filename,
-	 * that looks like it has no path information, into a
-	 * translated form, e. "blah" -> "libblah.so" */
-	len = strlen(filename);
-	if((dso->flags & DSO_FLAG_NAME_TRANSLATION) &&
-			(len + 6 < DSO_MAX_TRANSLATED_SIZE) &&
-			(strstr(filename, "/") == NULL))
+	if(filename == NULL)
 		{
-		sprintf(translated, "lib%s.so", filename);
-		ptr = dlopen(translated, DLOPEN_FLAG);
+		DSOerr(DSO_F_DLFCN_LOAD,DSO_R_NO_FILENAME);
+		goto err;
 		}
-	else
-		{
-		ptr = dlopen(filename, DLOPEN_FLAG);
-		}
+	ptr = dlopen(filename, DLOPEN_FLAG);
 	if(ptr == NULL)
 		{
 		DSOerr(DSO_F_DLFCN_LOAD,DSO_R_LOAD_FAILED);
-		return(0);
+		ERR_add_error_data(4, "filename(", filename, "): ", dlerror());
+		goto err;
 		}
 	if(!sk_push(dso->meth_data, (char *)ptr))
 		{
 		DSOerr(DSO_F_DLFCN_LOAD,DSO_R_STACK_ERROR);
-		dlclose(ptr);
-		return(0);
+		goto err;
 		}
+	/* Success */
+	dso->loaded_filename = filename;
 	return(1);
-	}
+err:
+	/* Cleanup! */
+	if(filename != NULL)
+		OPENSSL_free(filename);
+	if(ptr != NULL)
+		dlclose(ptr);
+	return(0);
+}
 
 static int dlfcn_unload(DSO *dso)
 	{
@@ -214,6 +215,7 @@ static void *dlfcn_bind_var(DSO *dso, const char *symname)
 	if(sym == NULL)
 		{
 		DSOerr(DSO_F_DLFCN_BIND_VAR,DSO_R_SYM_FAILURE);
+		ERR_add_error_data(4, "symname(", symname, "): ", dlerror());
 		return(NULL);
 		}
 	return(sym);
@@ -244,33 +246,44 @@ static DSO_FUNC_TYPE dlfcn_bind_func(DSO *dso, const char *symname)
 	if(sym == NULL)
 		{
 		DSOerr(DSO_F_DLFCN_BIND_FUNC,DSO_R_SYM_FAILURE);
+		ERR_add_error_data(4, "symname(", symname, "): ", dlerror());
 		return(NULL);
 		}
 	return(sym);
 	}
 
-static long dlfcn_ctrl(DSO *dso, int cmd, long larg, void *parg)
+static char *dlfcn_name_converter(DSO *dso, const char *filename)
 	{
-	if(dso == NULL)
+	char *translated;
+	int len, rsize, transform;
+
+	len = strlen(filename);
+	rsize = len + 1;
+	transform = (strstr(filename, "/") == NULL);
+	if(transform)
 		{
-		DSOerr(DSO_F_DLFCN_CTRL,ERR_R_PASSED_NULL_PARAMETER);
-		return(-1);
+		/* We will convert this to "%s.so" or "lib%s.so" */
+		rsize += 3;	/* The length of ".so" */
+		if ((DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0)
+			rsize += 3; /* The length of "lib" */
 		}
-	switch(cmd)
+	translated = OPENSSL_malloc(rsize);
+	if(translated == NULL)
 		{
-	case DSO_CTRL_GET_FLAGS:
-		return dso->flags;
-	case DSO_CTRL_SET_FLAGS:
-		dso->flags = (int)larg;
-		return(0);
-	case DSO_CTRL_OR_FLAGS:
-		dso->flags |= (int)larg;
-		return(0);
-	default:
-		break;
+		DSOerr(DSO_F_DLFCN_NAME_CONVERTER,
+				DSO_R_NAME_TRANSLATION_FAILED);
+		return(NULL);
 		}
-	DSOerr(DSO_F_DLFCN_CTRL,DSO_R_UNKNOWN_COMMAND);
-	return(-1);
+	if(transform)
+		{
+		if ((DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0)
+			sprintf(translated, "lib%s.so", filename);
+		else
+			sprintf(translated, "%s.so", filename);
+		}
+	else
+		sprintf(translated, "%s", filename);
+	return(translated);
 	}
 
 #endif /* DSO_DLFCN */

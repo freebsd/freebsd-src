@@ -18,6 +18,7 @@ B<openssl> B<s_client>
 [B<-pause>]
 [B<-showcerts>]
 [B<-debug>]
+[B<-msg>]
 [B<-nbio_test>]
 [B<-state>]
 [B<-nbio>]
@@ -32,6 +33,7 @@ B<openssl> B<s_client>
 [B<-no_tls1>]
 [B<-bugs>]
 [B<-cipher cipherlist>]
+[B<-engine id>]
 [B<-rand file(s)>]
 
 =head1 DESCRIPTION
@@ -111,6 +113,10 @@ prints out the SSL session states.
 
 print extensive debugging information including a hex dump of all traffic.
 
+=item B<-msg>
+
+show all protocol messages with hex dump.
+
 =item B<-nbio_test>
 
 tests non-blocking I/O
@@ -131,7 +137,7 @@ input.
 
 =item B<-quiet>
 
-inhibit printing of session and certificate information.  This implicitely
+inhibit printing of session and certificate information.  This implicitly
 turns on B<-ign_eof> as well.
 
 =item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>
@@ -157,6 +163,13 @@ the server determines which cipher suite is used it should take the first
 supported cipher in the list sent by the client. See the B<ciphers>
 command for more information.
 
+=item B<-engine id>
+
+specifying an engine (by it's unique B<id> string) will cause B<s_client>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
 =item B<-rand file(s)>
 
 a file or files containing random data used to seed the random number
@@ -172,7 +185,7 @@ all others.
 If a connection is established with an SSL server then any data received
 from the server is displayed and any key presses will be sent to the
 server. When used interactively (which means neither B<-quiet> nor B<-ign_eof>
-have been given), the session will be renegociated if the line begins with an
+have been given), the session will be renegotiated if the line begins with an
 B<R>, and if the line begins with a B<Q> or if end of file is reached, the
 connection will be closed down.
 

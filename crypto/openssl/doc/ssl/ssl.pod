@@ -317,6 +317,10 @@ protocol context defined in the B<SSL_CTX> structure.
 
 =item void B<SSL_CTX_set_info_callback>(SSL_CTX *ctx, void (*cb)(SSL *ssl, int cb, int ret));
 
+=item void B<SSL_CTX_set_msg_callback>(SSL_CTX *ctx, void (*cb)(int write_p, int version, int content_type, const void *buf, size_t len, SSL *ssl, void *arg));
+
+=item void B<SSL_CTX_set_msg_callback_arg>(SSL_CTX *ctx, void *arg);
+
 =item void B<SSL_CTX_set_options>(SSL_CTX *ctx, unsigned long op);
 
 =item void B<SSL_CTX_set_quiet_shutdown>(SSL_CTX *ctx, int mode);
@@ -347,7 +351,7 @@ appropriate size (using ???) and return it.
 
 long B<SSL_set_tmp_rsa_callback>(SSL *ssl, RSA *(*cb)(SSL *ssl, int export, int keylength));
 
-The same as L<"SSL_CTX_set_tmp_rsa_callback">, except it operates on an SSL
+The same as B<SSL_CTX_set_tmp_rsa_callback>, except it operates on an SSL
 session instead of a context.
 
 =item void B<SSL_CTX_set_verify>(SSL_CTX *ctx, int mode, int (*cb);(void))
@@ -576,6 +580,10 @@ connection defined in the B<SSL> structure.
 
 =item void B<SSL_set_info_callback>(SSL *ssl, void (*cb);(void))
 
+=item void B<SSL_set_msg_callback>(SSL *ctx, void (*cb)(int write_p, int version, int content_type, const void *buf, size_t len, SSL *ssl, void *arg));
+
+=item void B<SSL_set_msg_callback_arg>(SSL *ctx, void *arg);
+
 =item void B<SSL_set_options>(SSL *ssl, unsigned long op);
 
 =item void B<SSL_set_quiet_shutdown>(SSL *ssl, int mode);
@@ -669,8 +677,11 @@ L<SSL_CTX_set_cipher_list(3)|SSL_CTX_set_cipher_list(3)>,
 L<SSL_CTX_set_client_CA_list(3)|SSL_CTX_set_client_CA_list(3)>,
 L<SSL_CTX_set_client_cert_cb(3)|SSL_CTX_set_client_cert_cb(3)>,
 L<SSL_CTX_set_default_passwd_cb(3)|SSL_CTX_set_default_passwd_cb(3)>,
+L<SSL_CTX_set_generate_session_id(3)|SSL_CTX_set_generate_session_id(3)>,
 L<SSL_CTX_set_info_callback(3)|SSL_CTX_set_info_callback(3)>,
+L<SSL_CTX_set_max_cert_list(3)|SSL_CTX_set_max_cert_list(3)>,
 L<SSL_CTX_set_mode(3)|SSL_CTX_set_mode(3)>,
+L<SSL_CTX_set_msg_callback(3)|SSL_CTX_set_msg_callback(3)>,
 L<SSL_CTX_set_options(3)|SSL_CTX_set_options(3)>,
 L<SSL_CTX_set_quiet_shutdown(3)|SSL_CTX_set_quiet_shutdown(3)>,
 L<SSL_CTX_set_session_cache_mode(3)|SSL_CTX_set_session_cache_mode(3)>,
