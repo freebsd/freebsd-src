@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.h,v 1.2 1998/10/13 21:41:32 ken Exp $
+ *      $Id: cam_periph.h,v 1.3 1998/10/22 22:16:48 ken Exp $
  */
 
 #ifndef _CAM_CAM_PERIPH_H
@@ -130,9 +130,17 @@ int		cam_periph_ioctl(struct cam_periph *periph, int cmd,
 				 int (*error_routine)(union ccb *ccb,
 						      cam_flags camflags,
 						      u_int32_t sense_flags));
+void		cam_freeze_devq(struct cam_path *path);
 u_int32_t	cam_release_devq(struct cam_path *path, u_int32_t relsim_flags,
 				 u_int32_t opening_reduction, u_int32_t timeout,
 				 int getcount_only);
+void		cam_periph_async(struct cam_periph *periph, u_int32_t code,
+		 		 struct cam_path *path, void *arg);
+void		cam_periph_bus_settle(struct cam_periph *periph,
+				      u_int bus_settle_ms);
+void		cam_periph_freeze_after_event(struct cam_periph *periph,
+					      struct timeval* event_time,
+					      u_int duration_ms);
 int		cam_periph_error(union ccb *ccb, cam_flags camflags,
 				 u_int32_t sense_flags, union ccb *save_ccb);
 
