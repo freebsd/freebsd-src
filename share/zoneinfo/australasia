@@ -1,4 +1,4 @@
-# @(#)australasia	7.30
+# @(#)australasia	7.31
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -48,15 +48,15 @@ Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 # so use Lindeman.
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	QL	1989	1991	-	Oct	lastSun	2:00s	1:00	-
-Rule	QL	1990	1992	-	Mar	Sun>=1	2:00s	0	-
+Rule	AQ	1989	1991	-	Oct	lastSun	2:00s	1:00	-
+Rule	AQ	1990	1992	-	Mar	Sun>=1	2:00s	0	-
 Rule	Holiday	1989	1993	-	Oct	lastSun	2:00s	1:00	-
 Rule	Holiday	1990	1994	-	Mar	Sun>=1	2:00s	0	-
 Zone Australia/Brisbane	10:12:08 -	LMT	1895
 			10:00	-	EST	1917 Jan 1 0:01
 			10:00	Aus	EST	1971 Oct lastSun 2:00s
 			10:00	1:00	EST	1972 Feb lastSun 2:00s
-			10:00	QL	EST
+			10:00	AQ	EST
 Zone Australia/Lindeman  9:55:56 -	LMT	1895
 			10:00	-	EST	1917 Jan 1 0:01
 			10:00	Aus	EST	1971 Oct lastSun 2:00s
@@ -339,7 +339,7 @@ Zone Pacific/Palau	8:57:56 -	LMT	1901		# Koror
 			9:00	-	PWT	# Palau Time
 
 # Palmyra
-# uninhabited since World War II; was probably like Pacific/Kiritmati
+# uninhabited since World War II; was probably like Pacific/Kiritimati
 
 # Papua New Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
