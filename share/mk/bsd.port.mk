@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.232 1996/11/30 10:31:50 asami Exp $
+# $Id: bsd.port.mk,v 1.233 1996/12/04 05:53:17 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -459,7 +459,7 @@ MASTER_SITE_TEX_CTAN?=  \
 MASTER_SITE_SUNSITE?=	\
 	ftp://sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/ \
 	ftp://ftp.infomagic.com/pub/mirrors/linux/sunsite/${MASTER_SITE_SUBDIR}/ \
-	ftp://ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/
+	ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/
 
 # The primary backup site.
 MASTER_SITE_BACKUP?=	\
