@@ -88,7 +88,7 @@ int	digittoint __P((int));
 #endif
 __END_DECLS
 
-#define	__istype(c,f)	(!!__maskrune((c),(f))
+#define	__istype(c,f)	(!!__maskrune((c),(f)))
 
 #define	isalnum(c)	__istype((c), _A|_D)
 #define	isalpha(c)	__istype((c), _A)
