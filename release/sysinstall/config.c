@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.134 1999/05/15 14:34:20 jkh Exp $
+ * $Id: config.c,v 1.135 1999/05/15 15:05:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -552,9 +552,11 @@ tryagain:
     }
 
     if (file_readable("/var/run/ld.so.hints"))
-	systemExecute("/sbin/ldconfig -m /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
+	vsystem("/sbin/ldconfig -m /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
     else
-	systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
+	vsystem("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
+    vsystem("/sbin/ldconfig -aout /usr/lib/compat/aout /usr/lib/aout /usr/X11R6/lib/aout /usr/local/lib/aout");
+    vsystem("/sbin/ifconfig lo0 127.0.0.1");
     execfile = string_concat("/usr/X11R6/bin/", config);
     if (file_executable(execfile)) {
 	dialog_clear_norefresh();
