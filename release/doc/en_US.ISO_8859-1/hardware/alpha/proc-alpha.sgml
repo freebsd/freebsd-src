@@ -1210,7 +1210,7 @@ cpu	EV4</programlisting></para>
       PC164SX</quote>) family</title>
 
       <para>EB164 is a newer design evaluation board, based on the 21164A 
-      CPU. This design has been used to 'spin off' multiple variations, 
+      CPU. This design has been used to <quote>spin off</quote> multiple variations, 
       some of which are used by OEM manufacturers/assembly shops. Samsung 
       did its own PC164LX which has only 32 bit PCI, whereas the Digital 
       variant has 64 bit PCI.</para>
@@ -1293,12 +1293,12 @@ cpu	EV4</programlisting></para>
       <para>164LX and 164SX with SRM firmware version 5.8 or later can boot 
       from Adaptec 2940-series adapters.</para>
 
-      <para>In summary: this family of machines is 'blessed' with a 
+      <para>In summary: this family of machines is <quote>blessed</quote> with a 
       challenging compatibility as far as SCSI adapters go.</para>
 
       <para>On PC164 the SRM sometimes seems to loose its variable settings. 
-      "For PC164, current superstition says that, to avoid losing settings,
-      you want to first downgrade to SRM 4.x and then upgrade to a 5.x"
+      <quote>For PC164, current superstition says that, to avoid losing settings,
+      you want to first downgrade to SRM 4.x and then upgrade to 5.x.</quote>
       One sample error that was observed was: 
       <screen>ERROR: ISA table corrupt!</screen>
       A sequence of a downgrade to SRM4.9, an <screen><prompt>&gt;&gt;&gt;
@@ -1307,7 +1307,7 @@ cpu	EV4</programlisting></para>
       made the problem go away. Some PC164 owners report they have never seen 
       the problem. </para>
 
-      <para>On PC164SX the AlphaBIOS allows you a selection to select 'SRM' to
+      <para>On PC164SX the AlphaBIOS allows you a selection to select SRM to
       be used as console on the next power up. This selection does 
       not appear to have any effect. In other words, you will get the 
       AlphaBIOS regardless of what you select. The fix is to reflash the 
@@ -1400,7 +1400,7 @@ cpu             EV5</programlisting></para>
           <para>embedded Symbios 53c810 Fast SCSI-2 chip</para>
         </listitem>
         <listitem>
-          <para>Intel 82378IB ("Saturn") PCI-ISA bridge chip</para>
+          <para>Intel 82378IB (<quote>Saturn</quote>) PCI-ISA bridge chip</para>
         </listitem>
         <listitem>
           <para>graphics is embedded TGA or PCI VGA (model dependent)</para>
@@ -1590,8 +1590,8 @@ cpu	EV4</programlisting></para>
       whereas the other Qlogic SCSI chip is dedicated to external SCSI devices.
       </para>
   
-      <para>In AS500 DIMMs are installed in sets of 4, in 'physically 
-      interleaved' layout. So, a bank of 4 DIMMs is <emphasis>not</emphasis>
+      <para>In AS500 DIMMs are installed in sets of 4, in <quote>physically 
+      interleaved</quote> layout. So, a bank of 4 DIMMs is <emphasis>not</emphasis>
       4 physically adjacent DIMMs.</para>
   
       <para>In AS600 the memory SIMMs are placed onto two memory daughter 
@@ -1775,7 +1775,7 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
 	    </para>
 	  </listitem>
 	  <listitem>
-	    <para>21271 Core Logic chipset ("Tsunami")</para>
+	    <para>21271 Core Logic chipset (<quote>Tsunami</quote>)</para>
 	  </listitem>
 	  <listitem>
 	    <para>2 on-board 21143 Fast Ethernet controllers</para>
@@ -1816,7 +1816,7 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
       power cord.</para>
 
       <para>Webbrick is shipped in a desktop-style case similar to the older 
-      21164 "Maverick" workstations but this case offers much better access 
+      21164 <quote>Maverick</quote> workstations but this case offers much better access 
       to the components. If you intend to build a farm you can rackmount them 
       in a 19-inch rack; they are 3U high. Slate is 1U high but has only 
       one PCI slot.</para>
@@ -1874,7 +1874,7 @@ cpu	EV5</programlisting></para>
 	  JEDEC standard, registered ECC SDRAM DIMMs</para>
 	</listitem>
 	<listitem>
-          <para>21271 Core Logic chip-set ("Tsunami")</para>
+          <para>21271 Core Logic chip-set (<quote>Tsunami</quote>)</para>
 	</listitem>
 	<listitem>
           <para>1 on-board 21143 Ethernet controller</para>
@@ -1890,7 +1890,7 @@ cpu	EV5</programlisting></para>
 	</listitem>
 	<listitem>
           <para>expansion: 2 independent PCI buses, driven by high-speed I/O
- 	     channels called 'hoses':
+ 	     channels called <quote>hoses</quote>:
 	     <itemizedlist>
 	       <listitem>
 		 <para>hose 0: (the upper 3 slots)
@@ -1951,8 +1951,8 @@ cpu	EV5</programlisting></para>
 
       <para>For 500 MHz CPUs 83 MHz DIMMs will do. Compaq specifies PC100 
       DIMMs for all CPU speeds. DIMMs are installed in sets of 4, starting 
-      with the DIMM slots marked '0'. Memory capacity is max 4 GB. 
-      DIMMs are installed 'physically interleaved', note the markings of the
+      with the DIMM slots marked <quote>0</quote> Memory capacity is max 4 GB. 
+      DIMMs are installed <quote>physically interleaved</quote>, note the markings of the
       slots. Memory bandwidth of Monet is twice that of Webbrick. The DIMMs 
       live on the CPU daughter-card. Note that the system uses ECC RAM so you 
       need DIMMs with 72 bits (not the generic PC-class 64 bit DIMMs)</para>
@@ -1963,7 +1963,8 @@ cpu	EV5</programlisting></para>
 
       <para>The USB interface is supported by &os;.If you experience 
       problems trying to use the USB interface please check if
-      the SRM variable "usb_enable" is set to "on". You can change this by
+      the SRM variable <varname>usb_enable</varname> is set to
+      <literal>on</literal>. You can change this by
       performing: 
       <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET USB_ENABLE ON</userinput></screen></para>
 
@@ -2393,7 +2394,7 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
      this interface.</para>
 
      <para>Rawhides are available with a 8 64-bit PCI / 3 EISA 
-     slot expansion backplanes (called 'Saddle' modules). There 
+     slot expansion backplanes (called <quote>Saddle</quote> modules). There 
      are 2 separate PCI buses, PCI0 and PCI1. PCI0 has 1 dedicated 
      PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
      PCI/EISA bridge that drives things like the serial and 
@@ -2533,7 +2534,7 @@ cpu	EV5</programlisting>
 	    3 modules max for AS8200. Maximum memory is 14 GBytes.</para>
 	  </listitem>
 	  <listitem>
-            <para>expansion: 3 system 'I/O ports' that allow up to 
+            <para>expansion: 3 system <quote>I/O ports</quote> that allow up to 
 	    12 I/O channels each I/O channel can connect to 
 	    XMI, Futurebus+ or PCI boxes
 	  </listitem>
@@ -2547,7 +2548,7 @@ cpu	EV5</programlisting>
       Futurebus+ (which are AS8400 only) are both unsupported.</para>
 
       <para>The I/O port modules are designated KFTIA or KFTHA. The 
-      I/O port modules supply so called 'hoses' that connect to 
+      I/O port modules supply so called <quote>hoses</quote> that connect to 
       up to 4 (KFTHA) PCI buses or 1 PCI bus (KFTIA). KFTIA has 
       embedded dual 10baseT Ethernet, single FDDI, 3 SCSI Fast 
       Wide Differential SCSI buses and a single Fast Wide Single Ended
@@ -2680,7 +2681,7 @@ cpu	EV5</programlisting></para>
        This does not appear to be documented in the UP1000 docs. The 
        system accesses the serial EEPROM on the DIMMs via the SM bus. 
        Note that if only a single DIMM is used it must be installed in 
-       slot *2*. This is a bit counter-intuitive.</para>
+       slot <emphasis>2</emphasis>. This is a bit counter-intuitive.</para>
 
        <para>The UP1000 needs a 400Watt ATX power supply according 
        to the manufacturer. This might be a bit overly 
@@ -2776,7 +2777,7 @@ cpu	EV5</programlisting>
       This does not appear to be documented in the UP1100 docs. The 
       system accesses the serial EEPROM on the DIMMs via the SM bus. 
       Note that if only a single DIMM is used it must be installed in 
-      slot *2*. This is a bit counter-intuitive.</para>
+      slot <emphasis>2</emphasis>. This is a bit counter-intuitive.</para>
 
       <para>The UP1100 needs a 400Watt ATX power supply according to 
       the manufacturer. This might be a bit overly conservative/pessimistic 
@@ -2865,7 +2866,7 @@ cpu	EV5</programlisting>
       lives in 2Mbytes of flash ROM.</para>
 
       <para>The CS20 needs ECC capable DIMMs. Note that it 
-      uses *buffered* DIMMs.</para>
+      uses <emphasis>buffered</emphasis> DIMMs.</para>
 
       <para>The CS20 has an I2C based internal monitoring system for things 
       like temperature, fans, voltages etc. The I2C also supports 
