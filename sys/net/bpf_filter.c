@@ -37,7 +37,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf_filter.c,v 1.11 1998/12/07 03:26:34 eivind Exp $
+ * $Id: bpf_filter.c,v 1.12 1998/12/07 16:31:15 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -285,7 +285,8 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_W|BPF_IND:
 			k = X + pc->k;
-			if (pc->k > buflen || X > buflen - pc->k || sizeof(int32_t) > buflen - k) {
+			if (pc->k > buflen || X > buflen - pc->k ||
+			    sizeof(int32_t) > buflen - k) {
 #ifdef KERNEL
 				int merr;
 
@@ -309,7 +310,8 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_H|BPF_IND:
 			k = X + pc->k;
-			if (X > buflen || pc->k > buflen - X || sizeof(int16_t) > buflen - k) {
+			if (X > buflen || pc->k > buflen - X ||
+			    sizeof(int16_t) > buflen - k) {
 #ifdef KERNEL
 				int merr;
 
@@ -537,7 +539,8 @@ bpf_validate(f, len)
 				if (from >= len || p->k >= len - from)
 					return 0;
 			}
-			else if (from >= len || p->jt >= len - from || p->jf >= len - from)
+			else if (from >= len || p->jt >= len - from ||
+				 p->jf >= len - from)
 				return 0;
 		}
 		/*
