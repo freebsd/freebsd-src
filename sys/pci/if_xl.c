@@ -2082,7 +2082,7 @@ static void xl_intr(arg)
 	if (ifp->if_snd.ifq_head != NULL)
 		(*ifp->if_start)(ifp);
 
-	XL_LOCK(sc);
+	XL_UNLOCK(sc);
 
 	return;
 }
