@@ -1345,21 +1345,24 @@ restart:
 restartsync:
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
-			if ((bp->b_flags & B_DELWRI) && (bp->b_lblkno < 0)) {
-				if (BUF_LOCK(bp,
-				    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-				    VI_MTX(vp)) == ENOLCK)
-					goto restart;
-				bremfree(bp);
-				if (bp->b_vp == vp)
-					bp->b_flags |= B_ASYNC;
-				else
-					bp->b_flags &= ~B_ASYNC;
-				
-				BUF_WRITE(bp);
-				VI_LOCK(vp);
-				goto restartsync;
+			if (bp->b_lblkno > 0)
+				continue;
+			/*
+			 * Since we hold the vnode lock this should only
+			 * fail if we're racing with the buf daemon.
+			 */
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+			    VI_MTX(vp)) == ENOLCK) {
+				goto restart;
 			}
+			KASSERT((bp->b_flags & B_DELWRI),
+			    ("buf(%p) on dirty queue without DELWRI.", bp));
+
+			bremfree(bp);
+			bawrite(bp);
+			VI_LOCK(vp);
+			goto restartsync;
 		}
 	}
 	
