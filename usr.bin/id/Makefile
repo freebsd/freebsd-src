@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	id
+WARNS?=	2
 MAN=	id.1 groups.1 whoami.1
 
 # XXX BROKEN:	afterinstall:
