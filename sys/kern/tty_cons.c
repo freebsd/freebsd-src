@@ -55,6 +55,8 @@
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
+#include <ddb/ddb.h>
+
 #include <machine/cpu.h>
 
 static	d_open_t	cnopen;
@@ -112,6 +114,9 @@ static int cn_mute;
 static int openflag;			/* how /dev/console was opened */
 static int cn_is_open;
 static dev_t cn_devfsdev;		/* represents the device private info */
+static u_char console_pausing;		/* pause after each line during probe */
+static char *console_pausestr=
+"<pause; press any key to proceed to next line or '.' to end pause mode>";
 
 void	cndebug(char *);
 
@@ -162,11 +167,19 @@ cninit(void)
 		cnadd(best_cn);
 		best_cn->cn_init(best_cn);
 	}
+	if (boothowto & RB_PAUSE)
+		console_pausing = 1;
 	/*
 	 * Make the best console the preferred console.
 	 */
 	cnselect(best_cn);
 }
+
+void
+cninit_finish()
+{
+	console_pausing = 0;
+} 
 
 /* add a new physical console to back the virtual console */
 int
@@ -526,6 +539,7 @@ cnputc(int c)
 {
 	struct cn_device *cnd;
 	struct consdev *cn;
+	char *cp;
 
 	if (cn_mute || c == '\0')
 		return;
@@ -534,6 +548,16 @@ cnputc(int c)
 		if (c == '\n')
 			cn->cn_putc(cn->cn_dev, '\r');
 		cn->cn_putc(cn->cn_dev, c);
+	}
+	if (console_pausing && !db_active && (c == '\n')) {
+		for (cp = console_pausestr; *cp != '\0'; cp++)
+			cnputc(*cp);
+		if (cngetc() == '.')
+			console_pausing = 0;
+		cnputc('\r');
+		for (cp = console_pausestr; *cp != '\0'; cp++)
+			cnputc(' ');
+		cnputc('\r');
 	}
 }
 
