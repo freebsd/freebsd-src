@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.36 1997/10/12 20:23:51 phk Exp $
+ * $Id: kern_malloc.c,v 1.37 1997/10/28 19:00:53 phk Exp $
  */
 
 #include <sys/param.h>
@@ -407,6 +407,9 @@ malloc_init(type)
 
 	if (type->ks_magic != M_MAGIC) 
 		panic("malloc type lacks magic");
+
+	if (cnt.v_page_count == 0)
+		panic("malloc_init not allowed before vm init");
 
 	/*
 	 * Limit maximum memory for each type to 60% of malloc area size or
