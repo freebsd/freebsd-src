@@ -1,0 +1,74 @@
+# $FreeBSD$
+#
+# Please see the file src/etc/mtree/README before making changes to this file.
+#
+
+/set type=dir uname=root gname=wheel mode=0755
+.
+    bin
+    ..
+    boot
+        defaults
+        ..
+    ..
+    dev
+        fd              mode=0555
+        ..
+    ..
+    etc
+        defaults
+        ..
+        gnats
+        ..
+        isdn            mode=0700
+        ..
+        kerberosIV
+        ..
+        mail
+        ..
+        mtree
+        ..
+        namedb
+# leave commented out until buildworld/installworld can
+# handle new user ids
+#             s               uname=bind gname=bind mode=0750
+#             ..
+        ..
+        periodic
+            daily
+            ..
+            monthly
+            ..
+            security
+            ..
+            weekly
+            ..
+        ..
+        ppp
+        ..
+        skel
+        ..
+        ssh
+        ..
+        ssl
+        ..
+        uucp            uname=uucp gname=uucp mode=0770
+        ..
+    ..
+    mnt
+    ..
+    modules
+    ..
+    proc            mode=0555
+    ..
+    root
+    ..
+    sbin
+    ..
+    tmp             mode=01777
+    ..
+    usr
+    ..
+    var
+    ..
+..
