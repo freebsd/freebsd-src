@@ -55,7 +55,7 @@ specific to the local environment.
 Ordinarily,
 .Nm
 reads the
-.Pa ntp.conf
+.Xr ntp.conf 5
 configuration file at startup time
 in order to determine the synchronization sources and operating modes.
 It is also possible to specify a working, although limited,
@@ -155,71 +155,6 @@ Note: since the slew rate is limited to 0.5 ms/s,
 each second of adjustment requires an amortization interval of 2000 s.
 Thus, an adjustment of many seconds can take hours or days to amortize.
 .El
-.Ss The Configuration File
-The
-.Nm
-configuration file is read at initial startup by the
-.Xr ntpd 8
-daemon in order to specify the synchronization sources,
-modes and other related information.
-Usually, it is installed in the
-.Pa /etc
-directory,
-but could be installed elsewhere
-(see the daemon's
-.Fl c
-command line option).
-.Pp
-The file format is similar to other Unix configuration files.
-Comments begin with a
-.Qq #
-character and extend to the end of the line;
-blank lines are ignored.
-Configuration commands consist of an initial keyword
-followed by a list of arguments,
-some of which may be optional, separated by whitespace.
-Commands may not be continued over multiple lines.
-Arguments may be host names,
-host addresses written in numeric, dotted-quad form,
-integers, floating point numbers (when specifying times in seconds)
-and text strings.
-.Pp
-See the following pages for configuration and control options.
-While there is a rich set of options available,
-the only required option is one or more
-.Ic server ,
-.Ic peer ,
-.Ic broadcast
-or
-.Ic manycastclient
-commands
-described in
-.Xr ntp_conf 8 .
-.Pp
-.Bl -tag -width ntp_clockX8X -compact
-.It Xr ntp_conf 8
-Configuration Options
-.It Xr ntp_auth 8
-Authentication Options
-.It Xr ntp_mon 8
-Monitoring Options
-.It Xr ntp_acc 8
-Access Control Options
-.It Xr ntp_clock 8
-Reference Clock Options
-.It Xr ntp_misc 8
-Miscellaneous Options
-.Pp
-.El
-The
-.Qo
-Notes on Configuring NTP and Setting up a NTP Subnet
-.Qc
-page
-(available as part of the HTML documentation
-provided in
-.Pa /usr/share/doc/ntp )
-contains an extended discussion of these options.
 .Sh FILES
 .Bl -tag -width /etc/ntp.drift -compact
 .It Pa /etc/ntp.conf
@@ -229,13 +164,47 @@ the default name of the drift file
 .It Pa /etc/ntp.keys
 the default name of the key file
 .El
+.Ss Variables
+Most variables used by the NTP protocol
+can be examined with
+.Xr ntpdc 8
+(mode 7 messages) and
+.Xr ntpq 8 (mode 6 messages).
+Currently, very few variables can be modified via mode 6 messages.
+These variables are either created with the
+.Ic setvar
+directive
+(described in the
+.Qq Miscellaneous Options
+section of the
+.Xr ntp.conf 5
+page)
+or the leap warning bits.
+The leap warning bits can be set in the
+.Va leapwarning
+variable up to one month ahead.
+Both the
+.Va leapwarning
+and
+.Va leapindication
+variables have a slightly different encoding
+than the usual leap bits interpretation:
+.Pp
+.Bl -tag -width indent -compact
+.It 00
+The daemon passes the leap bits of its synchronization source
+(usual mode of operation).
+.It 01
+.It 10
+A leap second is added/deleted (operator forced leap second).
+.It 11
+Leap information from the synchronizations source is ignored
+(thus
+.Dv LEAP_NOWARNING
+is passed on).
+.El
 .Sh SEE ALSO
-.Xr ntp_acc 8 ,
-.Xr ntp_auth 8 ,
-.Xr ntp_clock 8 ,
-.Xr ntp_conf 8 ,
-.Xr ntp_misc 8 ,
-.Xr ntp_mon 8 ,
+.Xr ntp.conf 5 ,
 .Xr ntpdate 8 ,
 .Xr ntpdc 8 ,
 .Xr ntpq 8
