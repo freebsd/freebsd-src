@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.10 1994/01/21 17:11:38 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.11 1994/02/08 09:26:04 davidg Exp $
  */
 
 #include "npx.h"
@@ -210,32 +210,6 @@ setredzone(pte, vaddr)
    taken. a sensible scheme might be to save the initial context
    used by sched (that has physical memory mapped 1:1 at bottom)
    and take the dump while still in mapped mode */
-}
-
-/*
- * Move pages from one kernel virtual address to another.
- * Both addresses are assumed to reside in the Sysmap,
- * and size must be a multiple of CLSIZE.
- */
-void
-pagemove(from, to, size)
-	register caddr_t from, to;
-	int size;
-{
-	register struct pte *fpte, *tpte;
-
-	if (size % CLBYTES)
-		panic("pagemove");
-	fpte = kvtopte(from);
-	tpte = kvtopte(to);
-	while (size > 0) {
-		*tpte++ = *fpte;
-		*(int *)fpte++ = 0;
-		from += NBPG;
-		to += NBPG;
-		size -= NBPG;
-	}
-	tlbflush();
 }
 
 /*
