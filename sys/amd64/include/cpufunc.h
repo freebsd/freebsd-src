@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.21 1994/09/15 16:27:12 paul Exp $
+ *	$Id: cpufunc.h,v 1.22 1994/09/15 17:55:47 paul Exp $
  */
 
 /*
@@ -145,7 +145,9 @@ extern void DELAY(int);
 
 void	setidt	__P((int, void (*)(), int, int));
 extern u_long kvtop(void *);
+#ifndef outw	/* If not inline defined */
 extern void outw(int /*u_short*/, int /*u_short*/); /* XXX inline!*/
+#endif
 extern void outsb(int /*u_short*/, void *, size_t);
 extern void outsw(int /*u_short*/, void *, size_t);
 extern void insw(int /*u_short*/, void *, size_t);
