@@ -477,3 +477,10 @@
                   Stop printing MSP autodetect. Requested by
                   Chris D. Faulhaber <jedgar@fxp.org>
 
+2.12  16 Apr 2000 Set adelay as an 8 bit value, noticed by
+                  Thomas Klausner <wiz@netbsd.org>
+                  Fix typo in the new interrupt code.
+
+
+
+
