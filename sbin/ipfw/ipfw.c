@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 1993 Daniel Boulet
  * Copyright (c) 1994 Ugen J.S.Antsilevich
+ * Idea and grammar partially left from:
+ * Copyright (c) 1993 Daniel Boulet
  *
  * Redistribution and use in source forms, with and without modification,
  * are permitted provided that this entire comment appears intact.
@@ -11,33 +12,110 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *
- * Command line interface for IP firewall facility
+ * NEW command line interface for IP firewall facility
  */
 
-#define IPFIREWALL
-#include <kvm.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <machine/endian.h>  
-#include <nlist.h>
-#include <paths.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-#include <netinet/ip_fw.h>
-#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <limits.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <netdb.h>
+#include <kvm.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#define IPFIREWALL
+#define IPACCT
+#include <netinet/ip_fw.h>
+
+#define MAXSTR	25
+
+char 		progname[MAXSTR];		/* Program name for errors */
+char		proto_name[MAXSTR]="";		/* Current line protocol   */
+int 		s;				/* main RAW socket 	   */
+int 		do_resolv=1;			/* Would try to resolv all */
+int 		do_verbose=0;			/* Verbose output(differs) */
+int 		ports_ok=0;			/* flag allowing ports     */
+u_short		flags=0;			/* New entry flags 	   */
 
 
-struct nlist nl[]={
+#define FW	1	/* Firewall action   */
+#define AC	2	/* Accounting action */
+
+
+#define S_SEP1		"f" /* of "from" */
+#define S_SEP2		"t" /* of "to"   */
+
+#define P_AC		"a" /* of "accept" for policy action */
+#define P_DE		"d" /* of "deny" for policy action   */
+
+#define CH_FW		"f" /* of "firewall" for chains in zero/flush       */
+#define CH_AC		"a" /* of "accounting" for chain in zero/flush/list */
+#define CH_BLK		"b" /* of "blocking" for chain in list 	            */
+#define CH_FWD		"f" /* of "forwarding" for chain in list            */
+
+char	action_tab[][MAXSTR]={
+"addb",
+#define A_ADDB 		0
+"delb",
+#define A_DELB 		1
+"chkb",
+#define A_CHKB		2
+"addf",
+#define A_ADDF		3
+"delf",	
+#define A_DELF		4
+"chkf",
+#define A_CHKF		5
+"adda",
+#define A_ADDA		6
+"dela",
+#define A_DELA		7
+"f",
+#define A_FLUSH		8
+"z",
+#define A_ZERO		9
+"l",
+#define A_LIST		10
+"p",
+#define A_POLICY	11
+"",
+#define A_NONE		12
+};
+
+
+char	type_tab[][MAXSTR]={
+"ac",
+#define T_ACCEPT	0
+"de",
+#define T_DENY		1
+"si",
+#define T_SINGLE	2
+"bi",
+#define T_BIDIR		3
+"",
+#define T_NONE		4
+};
+
+
+char	proto_tab[][MAXSTR]={
+"all",
+#define P_ALL		0
+"icmp",
+#define P_ICMP		1
+"tcp",
+#define P_TCP		2
+"udp",
+#define P_UDP		3
+""
+#define P_NONE		4
+};
+
+struct nlist nlf[]={
 #define N_BCHAIN 	0
 	{ "_ip_fw_blk_chain" },
 #define N_FCHAIN 	1
@@ -47,849 +125,569 @@ struct nlist nl[]={
 	"" ,
 };
 
-#define    IPF_FORWARDING 	0
-#define    IPF_BLOCKING 	1
 
-/*
- * Global flags.
- */
-int do_resolv=1;
-int do_verbose=0;
+struct nlist nla[]={
+#define N_ACHAIN	0
+	{ "_ip_acct_chain" },
+	"" ,
+};
 
-show_usage()
+
+int mask_bits(m_ad)
+struct in_addr m_ad;
 {
-fprintf(stderr,"ipfw: [-nv] <command>\n");
+int h_fnd=0,h_num=0,i;
+u_long mask;
+
+	mask=ntohl(m_ad.s_addr);
+	for (i=0;i<sizeof(u_long)*CHAR_BIT;i++) {
+		if (mask & 1L) {
+			h_fnd=1;
+			h_num++;
+		} else {
+			if (h_fnd)
+				return -1;
+		}
+	mask=mask>>1;
+	} 
+	return h_num;
 }
 
 
-static
-void
-print_ip(xaddr)
-struct in_addr xaddr;
-{
-    u_long addr = ntohl(xaddr.s_addr);
-    printf("%d.%d.%d.%d",(addr>>24) & 0xff,(addr>>16)&0xff,(addr>>8)&0xff,addr&0xff);
-}
 
 void
-show_firewall_chain(chain)
+show_ipfw(chain,c_t)
 struct ip_fw *chain;
+int	c_t;
 {
-	    char *comma;
-	    u_long adrt;
-	    struct hostent *he;
-	    int i;
+char *comma;
+u_long adrt;
+struct hostent *he;
+int i,mb;
 
-	    if ( chain->flags & IP_FW_F_ACCEPT ) {
-		printf("accept ");
-	    } else {
-		printf("deny   ");
-	    }
 
-	    switch ( chain->flags & IP_FW_F_KIND ) {
-	    case IP_FW_F_ICMP: printf("icmp "); break;
-	    case IP_FW_F_TCP: printf("tcp  "); break;
-	    case IP_FW_F_UDP: printf("udp  "); break;
-	    case IP_FW_F_ALL: printf("all  "); break;
-	    default: break;
-	    }
-	    printf("from ");
+if (do_verbose) {
+	printf("%8d:%8d ",chain->b_cnt,chain->p_cnt);
+}
+	
 
-	    adrt=ntohl(chain->src_mask.s_addr);
-	    if (adrt==0xFFFFFFFFl && do_resolv)
-		{
-		  adrt=(chain->src.s_addr);
-	          he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
-		  if (he==NULL)
-			{
-	    		 print_ip(chain->src); printf(":");
-	    		 print_ip(chain->src_mask);
-			}
-		  else
+if (do_verbose)
+	if (c_t==FW) {
+		if (chain->flags & IP_FW_F_ACCEPT) 
+			printf("A");
+		else 
+			printf("D");
+	} else {
+		if (chain->flags & IP_FW_F_BIDIR) 
+			printf("B");
+		else 
+			printf("S");
+	}
+else
+	if (c_t==FW) {
+		if (chain->flags & IP_FW_F_ACCEPT) 
+			printf("accept ");
+		else 
+			printf("deny   ");
+	} else {
+		if (chain->flags & IP_FW_F_BIDIR) 
+			printf("bidir  ");
+		else 
+			printf("single ");
+	}
+
+if (do_verbose)
+	switch (chain->flags & IP_FW_F_KIND) {
+		case IP_FW_F_ICMP:
+			printf("I ");
+			break;
+		case IP_FW_F_TCP:
+			printf("T ");
+			break;
+		case IP_FW_F_UDP:
+			printf("U ");
+			break;
+		case IP_FW_F_ALL:
+			printf("A ");
+			break;
+		default:
+			break;
+	}
+else
+	switch (chain->flags & IP_FW_F_KIND) {
+		case IP_FW_F_ICMP:
+			printf("icmp ");
+			break;
+		case IP_FW_F_TCP:
+			printf("tcp  ");
+			break;
+		case IP_FW_F_UDP:
+			printf("udp  ");
+			break;
+		case IP_FW_F_ALL:
+			printf("all  ");
+			break;
+		default:
+			break;
+	}
+
+if (do_verbose)
+	printf("[");
+else
+	printf("from ");
+
+	adrt=ntohl(chain->src_mask.s_addr);
+	if (adrt==ULONG_MAX && do_resolv) {
+		adrt=(chain->src.s_addr);
+		he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
+		if (he==NULL) {
+			printf(inet_ntoa(chain->src));
+			printf(":");
+			printf(inet_ntoa(chain->src_mask));
+		} else
 			printf("%s",he->h_name);
-		}
-	    else
-		{
-	          print_ip(chain->src); printf(":");
-	          print_ip(chain->src_mask);
-		}
+	} else {
+		printf(inet_ntoa(chain->src));
+		if (adrt!=ULONG_MAX)
+			if ((mb=mask_bits(chain->src_mask))>=0)
+				printf("/%d",mb);
+			else {
+				printf(":");
+				printf(inet_ntoa(chain->src_mask));
+			}
+	}
 
-	    comma = " ";
-	    for ( i = 0; i < chain->n_src_p; i += 1 ) {
+	comma = " ";
+	for (i=0;i<chain->n_src_p; i++ ) {
 		printf("%s%d",comma,chain->ports[i]);
-		if ( i == 0 && (chain->flags & IP_FW_F_SRNG) ) {
-		    comma = ":";
-		} else {
-		    comma = ",";
-		}
-	    }
+		if (i==0 && (chain->flags & IP_FW_F_SRNG)) 
+			comma = ":";
+		else 
+			comma = ",";
+	}
 
-	    printf(" to ");
-	    adrt=ntohl(chain->dst_mask.s_addr);
-	    if (adrt==0xFFFFFFFFl && do_resolv)
-		{
-		  adrt=(chain->dst.s_addr);
-	          he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
-		  if (he==NULL)
-			{
-	    		 print_ip(chain->dst); printf(":");
-	    		 print_ip(chain->dst_mask);
-			}
-		  else
+if (do_verbose)
+	printf("][");
+else
+	printf(" to ");
+
+	adrt=ntohl(chain->dst_mask.s_addr);
+	if (adrt==ULONG_MAX && do_resolv) {
+		adrt=(chain->dst.s_addr);
+		he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
+		if (he==NULL) {
+			printf(inet_ntoa(chain->dst));
+			printf(":");
+			printf(inet_ntoa(chain->dst_mask));
+		} else
 			printf("%s",he->h_name);
-		}
-	    else
-		{
-	          print_ip(chain->dst); printf(":");
-	          print_ip(chain->dst_mask);
-		}
+	} else {
+		printf(inet_ntoa(chain->dst));
+		if (adrt!=ULONG_MAX) 
+			if ((mb=mask_bits(chain->dst_mask))>=0)
+				printf("/%d",mb);
+			else {
+				printf(":");
+				printf(inet_ntoa(chain->dst_mask));
+			}
+	}
 
-	    comma = " ";
-	    for ( i = 0; i < chain->n_dst_p; i += 1 ) {
+	comma = " ";
+	for (i=0;i<chain->n_dst_p;i++) {
 		printf("%s%d",comma,chain->ports[chain->n_src_p+i]);
-		if ( i == chain->n_src_p && (chain->flags & IP_FW_F_DRNG) ) {
-		    comma = ":";
-		} else {
+		if (i==chain->n_src_p && (chain->flags & IP_FW_F_DRNG))
+			comma = ":";
+		else 
 		    comma = ",";
-		}
 	    }
-	    printf("\n");
-	   /* chain = chain->next; */
+
+if (do_verbose)
+	printf("]\n");
+else
+	printf("\n");
 }
 
 
-list_kernel_data()
+list(av)
+char 	**av;
 {
 kvm_t *kd;
 static char errb[_POSIX2_LINE_MAX];
 struct ip_fw b,*btmp;
 
- if ( (kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb)) == NULL)
-    {
-     printf("kvm_openfiles: %s\n",kvm_geterr(kd));
-     exit(1);
-    }
- if (kvm_nlist(kd,nl) < 0 || nl[0].n_type == 0)
-    {
-      printf("kvm_nlist: no namelist in %s\n",getbootfile());
-      exit(1);
-    }
-
-kvm_read(kd,(u_long)nl[N_BCHAIN].n_value,&b,sizeof(struct ip_fw));
-printf("Blocking chain entries:\n");
-while(b.next!=NULL)
-{
- btmp=b.next;
- kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
- show_firewall_chain(&b);
-}
-
-kvm_read(kd,(u_long)nl[N_FCHAIN].n_value,&b,sizeof(struct ip_fw));
-printf("Forwarding chain entries:\n");
-while(b.next!=NULL)
-{
- btmp=b.next;
- kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
- show_firewall_chain(&b);
-}
-}
-
-
-
-static
-char *
-fmtip(u_long uaddr)
-{
-    static char tbuf[100];
-
-    sprintf(tbuf,"%d.%d.%d.%d",
-    ((char *)&uaddr)[0] & 0xff,
-    ((char *)&uaddr)[1] & 0xff,
-    ((char *)&uaddr)[2] & 0xff,
-    ((char *)&uaddr)[3] & 0xff);
-
-    return( &tbuf[0] );
-}
-
-static
-void
-print_ports(int cnt, int range, u_short *ports)
-{
-    int ix;
-    char *pad;
-
-    if ( range ) {
-	if ( cnt < 2 ) {
-	    fprintf(stderr,"ipfw:  range flag set but only %d ports\n",cnt);
-	    abort();
-	}
-	printf("%d:%d",ports[0],ports[1]);
-	ix = 2;
-	pad = " ";
-    } else {
-	ix = 0;
-	pad = "";
-    }
-
-    while ( ix < cnt ) {
-	printf("%s%d",pad,ports[ix]);
-	pad = " ";
-	ix += 1;
-    }
-}
-
-int
-do_setsockopt( int fd, int proto, int cmd, void *data, int datalen, int ok_errno )
-{
-
-    switch ( cmd ) {
-    case IP_FW_FLUSH:  break;
-    case IP_FW_POLICY: break;
-    case IP_FW_CHK_BLK:  break;
-    case IP_FW_CHK_FWD:  break;
-    case IP_FW_ADD_BLK:  break;
-    case IP_FW_ADD_FWD:  break;
-    case IP_FW_DEL_BLK:  break;
-    case IP_FW_DEL_FWD:  break;
-    default:
-	fprintf(stderr,"ipfw: unknown command (%d) passed to setsockopt\n",cmd);
-	exit(1);
-    }
-	if ( setsockopt(fd, proto, cmd, data, datalen) < 0 ) {
-	    if ( errno == ok_errno ) {
-		return(errno);
-	    }
-	    perror("ipfw: setsockopt");
-	    exit(1);
-           }
-    return(0);
-}
-
-void
-show_parms(char **argv)
-{
-    while ( *argv ) {
-	printf("%s ",*argv++);
-    }
-}
-
-int
-get_protocol(char *arg,void (*cmd_usage)(int),int kind)
-{
-    if ( arg == NULL ) {
-	fprintf(stderr,"ipfw: missing protocol name\n");
-    } else if ( strcmp(arg, "tcp") == 0 ) {
-	return( IP_FW_F_TCP );
-    } else if ( strcmp(arg, "udp") == 0 ) {
-	return( IP_FW_F_UDP );
-    } else if ( strcmp(arg, "icmp") == 0 ) {
-	return( IP_FW_F_ICMP );
-    } else if ( strcmp(arg, "all") == 0 ) {
-	return( IP_FW_F_ALL );
-    } else {
-	fprintf(stderr,"illegal protocol name \"%s\"\n",arg);
-    }
-    exit(1);
-    return(0);
-}
-
-void
-get_ipaddr(char *arg,struct in_addr *addr,struct in_addr *mask,void(*usage)(int),int kind)
-{
-    char *p, *tbuf;
-    int period_cnt, non_digit;
-    struct hostent *hptr;
-
-    if ( arg == NULL ) {
-	fprintf(stderr,"ipfw: missing ip address\n");
-	exit(1);
-    }
-
-    period_cnt = 0;
-    non_digit = 0;
-    for ( p = arg; *p != '\0' && *p != '/' && *p != ':'; p += 1 ) {
-	if ( *p == '.' ) {
-	    if ( p > arg && *(p-1) == '.' ) {
-		fprintf(stderr,"ipfw: two periods in a row in ip address (%s)\n",arg);
-		exit(1);
-	    }
-	    period_cnt += 1;
-	} else if ( !isdigit(*p) ) {
-	    non_digit = 1;
-	}
-    }
-
-    tbuf = malloc(p - arg + 1);
-    strncpy(tbuf,arg,p-arg);
-    tbuf[p-arg] = '\0';
-
-    if ( non_digit  ) 
-	{
-	if (do_resolv)
-         {
-	hptr = gethostbyname(tbuf);
-	if ( hptr == NULL ) {
-	    fprintf(stderr,"ipfw:  unknown host \"%s\"\n",tbuf);
-	    exit(1);
-	 }
-         }
-	else
-	 {
-	   fprintf(stderr,"ipfw: bad IP \"%s\"\n",tbuf);
-	   exit(1);
-	 }
-
-	if ( hptr->h_length != sizeof(struct in_addr) ) {
-	    fprintf(stderr,"ipfe: hostentry addr length = %d, expected 4\n",
-	    hptr->h_length,sizeof(struct in_addr));
-	    exit(1);
+	if (!(kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb))) {
+     		fprintf(stderr,"%s: kvm_openfiles: %s\n",
+					progname,kvm_geterr(kd));
+     		exit(1);
 	}
 
-	bcopy( hptr->h_addr, addr, sizeof(struct in_addr) );
+if (*av==NULL || !strncmp(*av,CH_BLK,strlen(CH_BLK)) 
+              || !strncmp(*av,CH_FWD,strlen(CH_FWD))) {
+	if (kvm_nlist(kd,nlf)<0 || nlf[0].n_type==0) {
+		fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
+						progname,getbootfile());
+      		exit(1);
+    	}
+}
 
-    } else {
+if (*av==NULL || !strncmp(*av,CH_BLK,strlen(CH_BLK))) {
+	kvm_read(kd,(u_long)nlf[N_BCHAIN].n_value,&b,sizeof(struct ip_fw));
+	printf("Blocking chain entries:\n");
+	while(b.next!=NULL) {
+		btmp=b.next;
+		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
+		show_ipfw(&b,FW);
+	}
+}
 
-	if ( period_cnt == 3 ) {
+if (*av==NULL || !strncmp(*av,CH_FWD,strlen(CH_FWD))) {
+	kvm_read(kd,(u_long)nlf[N_FCHAIN].n_value,&b,sizeof(struct ip_fw));
+	printf("Forwarding chain entries:\n");
+	while(b.next!=NULL) {
+		btmp=b.next;
+		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
+		show_ipfw(&b,FW);
+	}
+}
 
-	    int a1, a2, a3, a4;
 
-		sscanf(tbuf,"%d.%d.%d.%d",&a1,&a2,&a3,&a4);
+if (*av==NULL ||  !strncmp(*av,CH_AC,strlen(CH_AC))) {
+	if (kvm_nlist(kd,nla)<0 || nla[0].n_type==0) {
+		fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
+						progname,getbootfile());
+      		exit(1);
+    	}
+}
 
-	    if ( a1 > 255 || a2 > 255 || a3 > 255 || a4 > 255 ) {
-		fprintf(stderr,"ipfw: number too large in ip address (%s)\n",arg);
+if (*av==NULL || !strncmp(*av,CH_AC,strlen(CH_AC))) {
+	kvm_read(kd,(u_long)nla[N_ACHAIN].n_value,&b,sizeof(struct ip_fw));
+	printf("Accounting chain entries:\n");
+	while(b.next!=NULL) {
+		btmp=b.next;
+		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
+		show_ipfw(&b,AC);
+	}
+}
+
+}
+
+
+
+
+
+
+int get_num(str,tab)
+char 	*str;
+char	tab[][MAXSTR];
+{
+int	i=0;
+	while(tab[i][0]!='\0') {
+		if (strlen(str)>=strlen(tab[i]))
+			if (!strncmp(str,tab[i],strlen(tab[i])))
+				return i;
+		i++;
+	}
+return i;
+}
+
+
+
+void show_usage()
+{
+	printf("%s: bad arguments\n",progname);
+}
+
+
+
+
+u_short get_port(str)
+char	*str;
+{
+struct servent *sptr;
+char *end;
+int port,slen = strlen(str);
+
+	if ((slen>0) && (strspn(str,"0123456789")==slen)) {
+		port = strtol(str,&end,10);
+		if (*end!='\0') {
+	    		fprintf(stderr,"%s: illegal port number :%s\n"
+							,progname,str);
+	    	exit(1);
+		}
+
+		if ((port<=0) || (port>USHRT_MAX)) {
+			fprintf(stderr,"%s: port number out of range :%d\n"
+							,progname,port);
+	    		exit(1);
+		}
+		return((u_short)port);
+    	} else {
+		sptr = getservbyname(str,proto_name);
+		if (!sptr) {
+	    		fprintf(stderr,"%s: unknown service :%s\n"
+							,progname,str);
+	    		exit(1);
+		}
+		return((u_short)ntohs(sptr->s_port));
+    	}
+}
+
+
+char *findchar(str,c)
+char	*str;
+char	c;
+{
+int i,len=strlen(str);
+
+for (i=0;i<len;i++) {
+	if (str[i]==c)
+		return(char*)(&str[i]);
+}
+return NULL;
+}
+
+
+int set_entry_ports(str,ports,a_max,is_range)
+char		*str;
+u_short		*ports;
+int		a_max;
+int		*is_range;
+{
+char 	*s_pr2,*s_h,*s_t,*cp;
+u_short	p1,p2; 
+int i=0;
+
+	(void)strtok(str,":");
+	s_pr2=strtok(NULL,"");
+	if (s_pr2) {
+		p1 = get_port(str);
+		p2 = get_port(s_pr2);
+		if (a_max<2) {
+			fprintf(stderr,"%s: too many ports.\n",progname);
+			exit(1);
+		}
+		ports[0]=p1;
+		ports[1]=p2;
+		*is_range=1;
+		return 2;
+	}
+	s_h=str;
+	while ((cp=findchar(s_h,','))!=NULL) {
+		if (i>a_max) {
+			fprintf(stderr,"%s: too many ports.\n",progname);
+			exit(1);
+		}
+		*cp='\0';
+		if ((s_t=(++cp))=='\0') {
+			fprintf(stderr,"%s: bad port list.\n",progname);
+			exit(1);
+		}
+		ports[i++]=get_port(s_h);
+		s_h=s_t;
+	}
+	if (i>a_max) {
+		fprintf(stderr,"%s: too many ports.\n",progname);
 		exit(1);
-	    }
+	}
+	ports[i]=get_port(s_h);
+	*is_range=0;
+	return (i+1);
+}
 
-	    ((char *)addr)[0] = a1;
-	    ((char *)addr)[1] = a2;
-	    ((char *)addr)[2] = a3;
-	    ((char *)addr)[3] = a4;
 
-	} else if ( strcmp(tbuf,"0") == 0 ) {
 
-	    ((char *)addr)[0] = 0;
-	    ((char *)addr)[1] = 0;
-	    ((char *)addr)[2] = 0;
-	    ((char *)addr)[3] = 0;
+void set_entry_ip(str,addr,mask)
+char 	*str;
+struct in_addr  *addr,*mask;
+{
+char	*sm_bit,*sm_oct,*end;
+int	n_bit;
+struct	hostent *hptr;
 
-	} else {
-
-	    fprintf(stderr,"ipfw:  incorrect ip address format \"%s\"\n",tbuf);
-	    exit(1);
-
+	(void)strtok(str,"/");
+	sm_bit=strtok(NULL,"");
+	(void)strtok(str,":");
+	sm_oct=strtok(NULL,"");
+	
+	if (!inet_aton(str,addr)) {
+		if (do_resolv) {
+			if (!(hptr=gethostbyname(str))) {
+				fprintf(stderr,"%s: Unknown host name : %s\n",
+						progname,str);
+				exit(1);
+			} else {
+				addr->s_addr=*((u_long *)hptr->h_addr);
+			}
+		} else {
+			fprintf(stderr,"%s: Bad IP : %s\n",progname,str);
+			exit(1);
+		}
 	}
 
-    }
+	mask->s_addr=htonl(ULONG_MAX);
 
-    free(tbuf);
+		if (sm_bit) {
+			n_bit = strtol(sm_bit,&end,10);
+            		if (*end!='\0') {
+                		show_usage();
+                		exit(1);
+            		}
+			if (n_bit<0 || n_bit>sizeof(u_long)*CHAR_BIT) {
+				show_usage();
+				exit(1);
+			}
+		 	mask->s_addr=
+			     htonl(ULONG_MAX<<(sizeof(u_long)*CHAR_BIT-n_bit));
+		} 
 
-    if ( mask == NULL ) {
-
-	if ( *p != '\0' ) {
-	    fprintf(stderr,"ipfw: ip netmask no allowed here (%s)\n",addr);
-	    exit(1);
-	}
-
-    } else {
-
-	if ( *p == ':' ) {
-
-	    get_ipaddr(p+1,mask,NULL,usage,kind);
-
-	} else if ( *p == '/' ) {
-
-	    int bits;
-	    char *end;
-
-	    p += 1;
-	    if ( *p == '\0' ) {
-		fprintf(stderr,"ipfw: missing mask value (%s)\n",arg);
-		exit(1);
-	    } else if ( !isdigit(*p) ) {
-		fprintf(stderr,"ipfw: non-numeric mask value (%s)\n",arg);
-		exit(1);
-	    }
-
-	    bits = strtol(p,&end,10);
-	    if ( *end != '\0' ) {
-		fprintf(stderr,"ipfw: junk after mask (%s)\n",arg);
-		exit(1);
-	    }
-
-	    if ( bits < 0 || bits > sizeof(u_long) * 8 ) {
-		fprintf(stderr,"ipfw: mask length value out of range (%s)\n",arg);
-		exit(1);
-	    }
-
-	    if ( bits == 0 ) {	/* left shifts of 32 aren't defined */
-		mask->s_addr = 0;
-	    } else {
-		((char *)mask)[0] = (-1 << (32 - bits)) >> 24;
-		((char *)mask)[1] = (-1 << (32 - bits)) >> 16;
-		((char *)mask)[2] = (-1 << (32 - bits)) >>  8;
-		((char *)mask)[3] = (-1 << (32 - bits)) >>  0;
-	    }
-
-	} else if ( *p == '\0' ) {
-
-	    mask->s_addr = 0xffffffff;
-
-	} else {
-
-	    fprintf(stderr,"ipfw: junk after ip address (%s)\n",arg);
-	    exit(1);
-
-	}
-
+		if (sm_oct) {
+			if (!inet_aton(sm_oct,mask)) {
+				show_usage();
+				exit(1);
+			}
+		}
 	/*
-	 * Mask off any bits in the address that are zero in the mask.
-	 * This allows the user to describe a network by specifying
-	 * any host on the network masked with the network's netmask.
+ 	 * Ugh..better of corse do it in kernel so no error possible
+	 * but faster here so this way it goes...
 	 */
 
-	addr->s_addr &= mask->s_addr;
-
-    }
-
+	addr->s_addr=mask->s_addr & addr->s_addr;
 }
 
-u_short
-get_one_port(char *arg,void (*usage)(int),int kind,const char *proto_name)
+
+void set_entry(av,frwl) 
+char 	**av;
+struct ip_fw * frwl;
 {
-    int slen = strlen(arg);
+int p_num=0,ir=0;
 
-    if ( slen > 0 && strspn(arg,"0123456789") == slen ) {
-	int port;
-	char *end;
+	frwl->n_src_p=0;
+	frwl->n_dst_p=0;
 
-	port = strtol(arg,&end,10);
-	if ( *end != '\0' ) {
-	    fprintf(stderr,"ipfw: illegal port number (%s)\n",arg);
-	    exit(1);
-	}
-
-	if ( port <= 0 || port > 65535 ) {
-	    fprintf(stderr,"ipfw: port number out of range (%d)\n",port);
-	    exit(1);
-	}
-
-	return( port );
-
-    } else {
-
-	struct servent *sptr;
-
-	sptr = getservbyname(arg,proto_name);
-
-	if ( sptr == NULL ) {
-	    fprintf(stderr,"ipfw: unknown %s service \"%s\"\n",proto_name,arg);
-	    exit(1);
-	}
-
-	return( ntohs(sptr->s_port) );
-
-    }
-
-}
-
-int
-get_ports(char ***argv_ptr,u_short *ports,int min_ports,int max_ports,void (*usage)(int),int kind,const char *proto_name)
-{
-    int ix;
-    char *arg;
-    int sign;
-
-    ix = 0;
-    sign = 1;
-    while ( (arg = **argv_ptr) != NULL && strcmp(arg,"from") != 0 && strcmp(arg,"to") != 0 ) {
-
-	char *p;
-
-	/*
-	 * Check that we havn't found too many port numbers.
-	 * We do this here instead of with another condition on the while loop
-	 * so that the caller can assume that the next parameter is NOT a port number.
-	 */
-
-	if ( ix >= max_ports ) {
-	    fprintf(stderr,"ipfw: too many port numbers (max %d\n",max_ports);
-	    exit(1);
-	}
-
-	if ( (p = strchr(arg,':')) == NULL ) {
-
-	    ports[ix++] = get_one_port(arg,usage,kind,proto_name);
-
-	} else {
-
-	    if ( ix > 0 ) {
-
-		fprintf(stderr,"ipfw: port ranges are only allowed for the first port value pair (%s)\n",arg);
+	if (strncmp(*av,S_SEP1,strlen(S_SEP1))) {
+		show_usage();
 		exit(1);
+	}
 
-	    }
+	if (*(++av)==NULL) {
+			show_usage();
+			exit(1);
+	}
 
-	    if ( max_ports > 1 ) {
+	set_entry_ip(*av,&(frwl->src),&(frwl->src_mask));
 
-		char *tbuf;
+	if (*(++av)==NULL) {
+			show_usage();
+			exit(1);
+	}
 
-		tbuf = malloc( (p - arg) + 1 );
-		strncpy(tbuf,arg,p-arg);
-		tbuf[p-arg] = '\0';
+	if (!strncmp(*av,S_SEP2,strlen(S_SEP2))) 
+		goto no_src_ports;
 
-		ports[ix++] = get_one_port(tbuf,usage,kind,proto_name);
-		ports[ix++] = get_one_port(p+1,usage,kind,proto_name);
-		sign = -1;
+	if (ports_ok) {
+		frwl->n_src_p=
+			set_entry_ports(*av,frwl->ports,IP_FW_MAX_PORTS,&ir);
+		if (ir)
+			flags|=IP_FW_F_SRNG;
 
-	    } else {
+		if (*(++av)==NULL) {
+				show_usage();
+				exit(1);
+		}
+	}
 
-		fprintf(stderr,"ipfw:  port range not allowed here (%s)\n",arg);
+no_src_ports:
+
+	if (strncmp(*av,S_SEP2,strlen(S_SEP2))) {
+		show_usage();
 		exit(1);
-
-	    }
 	}
 
-	*argv_ptr += 1;
-    }
-
-    if ( ix < min_ports ) {
-	if ( min_ports == 1 ) {
-	    fprintf(stderr,"ipfw:  missing port number%s\n",max_ports == 1 ? "" : "(s)" );
-	} else {
-	    fprintf(stderr,"ipfw: not enough port numbers (expected %d)\n",min_ports);
+	if (*(++av)==NULL) {
+			show_usage();
+			exit(1);
 	}
-	exit(1);
-    }
+	
+	set_entry_ip(*av,&(frwl->dst),&(frwl->dst_mask));
 
-    return( sign * ix );
+	if (*(++av)==NULL) 
+		goto no_dst_ports;
+
+	if (ports_ok) {
+		frwl->n_dst_p=
+			set_entry_ports(*av,&(frwl->ports[frwl->n_src_p]),
+					(IP_FW_MAX_PORTS-frwl->n_src_p),&ir);
+		if (ir)
+			flags|=IP_FW_F_DRNG;
+	}
+no_dst_ports:
 
 }
 
-void
-check_usage(int kind)
+
+
+flush(av)
+char **av;
 {
-    fprintf(stderr,"usage: ipfw check%s <expression>\n",
-    kind == IPF_BLOCKING ? "blocking" : "forwarding");
-}
-
-void
-check(int kind, int socket_fd, char **argv)
-{
-    int protocol;
-    struct ip *packet;
-    char *proto_name;
-
-    packet = (struct ip *)malloc( sizeof(struct ip) + sizeof(struct tcphdr) );
-    packet->ip_v = IPVERSION;
-    packet->ip_hl = sizeof(struct ip) / sizeof(int);
-
-
-    proto_name = *argv++;
-    protocol = get_protocol(proto_name,check_usage,kind);
-    switch ( protocol ) {
-    case IP_FW_F_TCP: packet->ip_p = IPPROTO_TCP; break;
-    case IP_FW_F_UDP: packet->ip_p = IPPROTO_UDP; break;
-    default:
-	fprintf(stderr,"ipfw:  can only check TCP or UDP packets\n");
-	break;
-    }
-
-    if ( *argv == NULL ) {
-	fprintf(stderr,"ipfw:  missing \"from\" from keyword\n");
-	exit(1);
-    }
-    if ( strcmp(*argv,"from") == 0 ) {
-	argv += 1;
-	get_ipaddr(*argv++,&packet->ip_src,NULL,check_usage,kind);
-	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
-	    get_ports(&argv,&((struct tcphdr *)(&packet[1]))->th_sport,1,1,check_usage,kind,proto_name);
-	    ((struct tcphdr *)(&packet[1]))->th_sport = htons(
-		((struct tcphdr *)(&packet[1]))->th_sport
-	    );
+	if (*av==NULL) {
+ 		if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0)<0) {
+			fprintf(stderr,"%s: setsockopt failed.\n",progname);
+			exit(1);
+		} else {
+			printf("All firewall entries flushed.\n");
+		}
+ 		if (setsockopt(s,IPPROTO_IP,IP_ACCT_FLUSH,NULL,0)<0) {
+			fprintf(stderr,"%s: setsockopt failed.\n",progname);
+			exit(1);
+		} else {
+			printf("All accounting entries flushed.\n");
+		}
+		exit(0);
 	}
-    } else {
-	fprintf(stderr,"ipfw: expected \"from\" keyword, got \"%s\"\n",*argv);
-	exit(1);
-    }
-
-    if ( *argv == NULL ) {
-	fprintf(stderr,"ipfw: missing \"to\" from keyword\n");
-	exit(1);
-    }
-    if ( strcmp(*argv,"to") == 0 ) {
-	argv += 1;
-	get_ipaddr(*argv++,&packet->ip_dst,NULL,check_usage,kind);
-	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
-	    get_ports(&argv,&((struct tcphdr *)(&packet[1]))->th_dport,1,1,check_usage,kind,proto_name);
-	    ((struct tcphdr *)(&packet[1]))->th_dport = htons(
-		((struct tcphdr *)(&packet[1]))->th_dport
-	    );
+	if (!strncmp(*av,CH_FW,strlen(CH_FW))) {
+ 		if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0)<0) {
+			fprintf(stderr,"%s: setsockopt failed.\n",progname);
+			exit(1);
+		} else {
+			printf("All firewall entries flushed.\n");
+			exit(0);
+		}
 	}
-    } else {
-	fprintf(stderr,"ipfw: expected \"to\" keyword, got \"%s\"\n",*argv);
-	exit(1);
-    }
-
-    if ( *argv == NULL ) {
-
-
-	if ( do_setsockopt( 
-		socket_fd, IPPROTO_IP,
-		kind == IPF_BLOCKING ? IP_FW_CHK_BLK : IP_FW_CHK_FWD,
-		packet,
-		sizeof(struct ip) + sizeof(struct tcphdr),
-		EACCES
-	    ) == 0
-	) {
-	    printf("packet accepted by %s firewall\n",
-	    kind == IPF_BLOCKING ? "blocking" : "forwarding");
-	} else {
-	    printf("packet rejected by %s firewall\n",
-	    kind == IPF_BLOCKING ? "blocking" : "forwarding");
+	if (!strncmp(*av,CH_AC,strlen(CH_AC))) {
+ 		if (setsockopt(s,IPPROTO_IP,IP_ACCT_FLUSH,NULL,0)<0) {
+			fprintf(stderr,"%s: setsockopt failed.\n",progname);
+			exit(1);
+		} else {
+			printf("All accounting entries flushed.\n");
+			exit(0);
+		}
 	}
 
-	return;
-
-    } else {
-	fprintf(stderr,"ipfw: extra parameters at end of command (");
-	show_parms(argv);
-	fprintf(stderr,")\n");
-	exit(1);
-    }
-}
-
-void
-add_usage(int kind)
-{
-    fprintf(stderr,"usage: ipfw add%s [accept|deny] <expression>\n",
-    kind == IPF_BLOCKING ? "blocking" : "forwarding");
-}
-
-void
-add(int kind, int socket_fd, char **argv)
-{
-    int protocol, accept_firewall, src_range, dst_range;
-    struct ip_fw firewall;
-    char *proto_name;
-
-
-    if ( *argv == NULL ) {
-	add_usage(kind);
-	exit(1);
-    }
-
-    if ( strcmp(*argv,"deny") == 0 ) {
-	accept_firewall = 0;
-    } else if ( strcmp(*argv,"accept") == 0 ) {
-	accept_firewall = IP_FW_F_ACCEPT;
-    } else {
-	add_usage(kind);
-	exit(1);
-    }
-
-    argv += 1;
-    proto_name = *argv++;
-    protocol = get_protocol(proto_name,add_usage,kind);
-
-    if ( *argv == NULL ) {
-	fprintf(stderr,"ipfw: missing \"from\" keyword\n");
-	exit(1);
-    }
-    if ( strcmp(*argv,"from") == 0 ) {
-	argv++;
-	get_ipaddr(*argv++,&firewall.src,&firewall.src_mask,add_usage,kind);
-	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
-	    int cnt;
-	    cnt = get_ports(&argv,&firewall.ports[0],0,IP_FW_MAX_PORTS,add_usage,kind,proto_name);
-	    if ( cnt < 0 ) {
-		src_range = IP_FW_F_SRNG;
-		cnt = -cnt;
-	    } else {
-		src_range = 0;
-	    }
-	    firewall.n_src_p = cnt;
-	} else {
-	    firewall.n_src_p = 0;
-	    src_range = 0;
-	}
-    } else {
-	fprintf(stderr,"ipfw: expected \"from\", got \"%s\"\n",*argv);
-	exit(1);
-    }
-
-    if ( *argv == NULL ) {
-	fprintf(stderr,"ipfw: missing \"to\" keyword\n");
-	exit(1);
-    }
-    if ( strcmp(*argv,"to") == 0 ) {
-	argv++;
-	get_ipaddr(*argv++,&firewall.dst,&firewall.dst_mask,add_usage,kind);
-	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
-	    int cnt;
-	    cnt = get_ports(&argv,&firewall.ports[firewall.n_src_p],0,IP_FW_MAX_PORTS-firewall.n_src_p,add_usage,kind,proto_name);
-	    if ( cnt < 0 ) {
-		dst_range = IP_FW_F_DRNG;
-		cnt = -cnt;
-	    } else {
-		dst_range = 0;
-	    }
-	    firewall.n_dst_p = cnt;
-	} else {
-	    firewall.n_dst_p = 0;
-	    dst_range = 0;
-	}
-    } else {
-	fprintf(stderr,"ipfw:  expected \"to\", got \"%s\"\n",*argv);
-	exit(1);
-    }
-
-    if ( *argv == NULL ) {
-
-	firewall.flags = protocol | accept_firewall | src_range | dst_range;
-	if (do_verbose)
-		firewall.flags=firewall.flags | IP_FW_F_PRN;
-	(void)do_setsockopt( 
-	    socket_fd, IPPROTO_IP,
-	    kind == IPF_BLOCKING ? IP_FW_ADD_BLK : IP_FW_ADD_FWD,
-	    &firewall,
-	    sizeof(firewall),
-	    0
-	);
-
-    } else {
-	fprintf(stderr,"ipfw: extra parameters at end of command (");
-	show_parms(argv);
-	fprintf(stderr,")\n");
-	exit(1);
-    }
-}
-
-void
-del_usage(int kind)
-{
-    fprintf(stderr,"usage: ipfw del%s <expression>\n",
-    kind == IPF_BLOCKING ? "blocking" : "forwarding");
-}
-
-void
-del(int kind, int socket_fd, char **argv)
-{
-    int protocol, accept_firewall, src_range, dst_range;
-    struct ip_fw firewall;
-    char *proto_name;
-
-    if ( *argv == NULL ) {
-	fprintf(stderr,"ipfw: missing \"accept\" or \"deny\" keyword\n");
-	exit(1);
-    }
-
-    if ( strcmp(*argv,"deny") == 0 ) {
-	accept_firewall = 0;
-    } else if ( strcmp(*argv,"accept") == 0 ) {
-	accept_firewall = IP_FW_F_ACCEPT;
-    } else {
-	fprintf(stderr,"ipfw: expected \"accept\" or \"deny\", got \"%s\"\n",*argv);
-	exit(1);
-    }
-
-    argv += 1;
-    proto_name = *argv++;
-    protocol = get_protocol(proto_name,del_usage,kind);
-
-    if ( *argv == NULL ) {
-	fprintf(stderr,"ipfw: missing \"from\" keyword\n");
-	exit(1);
-    }
-    if ( strcmp(*argv,"from") == 0 ) {
-	argv++;
-	get_ipaddr(*argv++,&firewall.src,&firewall.src_mask,del_usage,kind);
-	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
-	    int cnt;
-	    cnt = get_ports(&argv,&firewall.ports[0],0,IP_FW_MAX_PORTS,del_usage,kind,proto_name);
-	    if ( cnt < 0 ) {
-		src_range = IP_FW_F_SRNG;
-		cnt = -cnt;
-	    } else {
-		src_range = 0;
-	    }
-	    firewall.n_src_p = cnt;
-	} else {
-	    firewall.n_src_p = 0;
-	    src_range = 0;
-	}
-    } else {
-	fprintf(stderr,"ipfw: expected \"from\", got \"%s\"\n",*argv);
-	exit(1);
-    }
-
-    if ( *argv == NULL ) {
-	fprintf(stderr,"ipfw: missing \"to\" keyword\n");
-	exit(1);
-    }
-    if ( strcmp(*argv,"to") == 0 ) {
-	argv++;
-	get_ipaddr(*argv++,&firewall.dst,&firewall.dst_mask,del_usage,kind);
-	if ( protocol == IP_FW_F_TCP || protocol == IP_FW_F_UDP ) {
-	    int cnt;
-	    cnt = get_ports(&argv,&firewall.ports[firewall.n_src_p],0,IP_FW_MAX_PORTS-firewall.n_src_p,del_usage,kind,proto_name);
-	    if ( cnt < 0 ) {
-		dst_range = IP_FW_F_DRNG;
-		cnt = -cnt;
-	    } else {
-		dst_range = 0;
-	    }
-	    firewall.n_dst_p = cnt;
-	} else {
-	    firewall.n_dst_p = 0;
-	    dst_range = 0;
-	}
-    } else {
-	fprintf(stderr,"ipfw: expected \"to\", got \"%s\"\n",*argv);
-	exit(1);
-    }
-
-    if ( *argv == NULL ) {
-
-	firewall.flags = protocol | accept_firewall | src_range | dst_range;
-	(void)do_setsockopt(
-	    socket_fd, IPPROTO_IP,
-	    kind == IPF_BLOCKING ? IP_FW_DEL_BLK : IP_FW_DEL_FWD,
-	    &firewall,
-	    sizeof(firewall),
-	    0
-	);
-
-    } else {
-	fprintf(stderr,"ipfw: extra parameters at end of command (");
-	show_parms(argv);
-	fprintf(stderr,")\n");
-        exit(1);
-        }
 }
 
 
-void
-policy(int socket_fd, char **argv)
+
+void policy(av)
+char **av;
 {
  int p;
  kvm_t *kd;
  static char errb[_POSIX2_LINE_MAX];
  int  b;
 
-if (argv[0]==NULL || strlen(argv[0])<=0) 
+if (*av==NULL || strlen(*av)<=0) 
  {
- if ( (kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb)) == NULL)
-    {
-     printf("kvm_openfiles: %s\n",kvm_geterr(kd));
+ if ( (kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb)) == NULL) {
+     fprintf(stderr,"%s: kvm_openfiles: %s\n",progname,kvm_geterr(kd));
      exit(1);
-    }
- if (kvm_nlist(kd,nl) < 0 || nl[0].n_type == 0)
-    {
-      printf("kvm_nlist: no namelist in %s\n",getbootfile());
+ }
+ if (kvm_nlist(kd,nlf) < 0 || nlf[0].n_type == 0) {
+      fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
+					progname,getbootfile()); 
       exit(1);
-    }
+}
 
-kvm_read(kd,(u_long)nl[N_POLICY].n_value,&b,sizeof(int));
+kvm_read(kd,(u_long)nlf[N_POLICY].n_value,&b,sizeof(int));
 
 if (b==1)
 	printf("Default policy: ACCEPT\n");
@@ -900,122 +698,270 @@ if (b!=0 && b!=1)
 exit(1);
 }
 
- if (!strncmp(argv[0],"deny",strlen(argv[0])))
+if (!strncmp(*av,P_DE,strlen(P_DE)))
 	p=0;
- else
- if (!strncmp(argv[0],"accept",strlen(argv[0])))
+else
+if (!strncmp(*av,P_AC,strlen(P_AC)))
 	p=1;
- else
-	{
-         fprintf(stderr,"usage: ipfw policy [deny|accept]\n");
-	 exit(1);
-	}
-
-	(void)do_setsockopt(
-	    socket_fd, IPPROTO_IP,
-	    IP_FW_POLICY,
-	    &p,
-	    sizeof(p),
-	    0
-	);
+else {
+	fprintf(stderr,"%s: bad policy value.\n",progname);
+	exit(1);
 }
-     
 
-main(argc,argv)
-int argc;
-char **argv;
+if (setsockopt(s,IPPROTO_IP,IP_FW_POLICY,&p,sizeof(p))<0) {
+	fprintf(stderr,"%s: setsockopt failed.\n",progname);
+	exit(1);
+} else {
+	if (p)
+		printf("Policy set to ACCEPT.\n");
+	else
+		printf("Policy set to DENY.\n");
+	exit(0);
+}
+}
+
+
+
+zero()
 {
-    int socket_fd;
-    struct ip_fw *data,*fdata;
-    char **str;
-    extern char *optarg;
-    extern int optind;
-    int ch;
+	if (setsockopt(s,IPPROTO_IP,IP_ACCT_ZERO,NULL,0)<0) {
+		fprintf(stderr,"%s: setsockopt failed.\n",progname);
+		exit(1);
+	} else {
+		printf("Accounting cleared.\n");
+		exit(0);
+	}
+}
 
-    socket_fd = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
+main(ac,av)
+int 	ac;
+char 	**av;
+{
 
-    if ( socket_fd < 0 ) {
-	printf("Can't open raw socket.Must be root to use this programm. \n");
-        exit(1);
-    }
+char 		ch;
+extern int 	optind;
+int 		ctl,int_t,is_check=0;
+struct ip_fw	frwl;
 
-    if ( argc == 1 ) {
+	strcpy(progname,*av);
+
+	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
+	if ( s < 0 ) {
+		fprintf(stderr,"%s: Can't open raw socket.Must be root to use this programm. \n",progname);	
+		exit(1);
+	}
+	   if ( ac == 1 ) {
 	show_usage();
 	exit(1);
     }
 
-     while ((ch = getopt(argc, argv, "vn")) != EOF)
-             switch(ch) {
-             case 'n':
-	 	     do_resolv=0;
-                     break;
-             case 'v':
-		     do_verbose=1;
-                     break;
-             case '?':
-             default:
-                     show_usage();                                      
-	     }
-
-	str=argv+optind;
-
-    if (str[0]==NULL)
-	{
-	show_usage();
-	exit(1);
+	while ((ch = getopt(ac, av ,"nv")) != EOF)
+	switch(ch) {
+		case 'n':
+	 		do_resolv=0;
+        		break;
+        	case 'v':
+		    	do_verbose=1;
+            		break;
+        	case '?':
+         	default:
+            		show_usage();
+            		exit(1);                                      
 	}
 
-    if ( strcmp(str[0],"list") == 0 ) {
-      
-      list_kernel_data();
+	if (*(av+=optind)==NULL) {
+		 show_usage();
+         	 exit(1);
+	}
 
-    } else if ( strcmp(str[0],"flush") == 0 ) {
+    switch(get_num(*av,action_tab)) {
+			case A_ADDB:
+				ctl=IP_FW_ADD_BLK;
+				int_t=FW;
+				break;
+			case A_DELB:
+				ctl=IP_FW_DEL_BLK;
+				int_t=FW;
+				break;
+			case A_CHKB:
+				ctl=IP_FW_CHK_BLK;
+				int_t=FW;
+				is_check=1;
+				break;
+			case A_ADDF:
+				ctl=IP_FW_ADD_FWD;
+				int_t=FW;
+				break;
+			case A_DELF:
+				ctl=IP_FW_DEL_FWD;
+				int_t=FW;
+				break;
+			case A_CHKF:
+				ctl=IP_FW_CHK_FWD;
+				int_t=FW;
+				is_check=1;
+				break;
+			case A_ADDA:
+				ctl=IP_ACCT_ADD;
+				int_t=AC;
+				break;
+			case A_DELA:
+				ctl=IP_ACCT_DEL;
+				int_t=AC;
+				break;
+			case A_FLUSH:
+				flush(++av); 
+				exit(0); /* successful exit */
+			case A_LIST:
+				list(++av); 
+				exit(0); /* successful exit */
+			case A_ZERO:
+				zero(); 
+				exit(0); /* successful exit */
+			case A_POLICY:
+				policy(++av);
+				exit(0); /* we never get here */
+			default:
+				show_usage();
+				exit(1);
+	} /*  main action switch  */
 
-	(void)do_setsockopt( socket_fd, IPPROTO_IP, 
-                             IP_FW_FLUSH, NULL, 0, 0 );
-	printf("All entries flushed.\n");
+	if (is_check)
+		goto proto_switch;
+	
+	if (*(++av)==NULL) {
+			show_usage();
+			exit(1);
+	}
 
-    } else if ( strlen(str[0]) >= strlen("checkb")
-    && strncmp(str[0],"checkblocking",strlen(str[0])) == 0 ) {
+	switch(get_num(*av,type_tab)) {
+			case T_DENY:
+				flags|=0; /* just to show it related to flags */
+				if (int_t!=FW) {
+					show_usage();
+					exit(1);
+				}
+				break;
+			case T_ACCEPT:
+				flags|=IP_FW_F_ACCEPT;
+				if (int_t!=FW) {
+					show_usage();
+					exit(1);
+				}
+				break;
+			case T_SINGLE:
+				flags|=0; /* just to show it related to flags */
+				if (int_t!=AC) {
+					show_usage();
+					exit(1);
+				}
+				break;
+			case T_BIDIR:
+				flags|=IP_FW_F_BIDIR;
+				if (int_t!=AC) {
+					show_usage();
+					exit(1);
+				}
+				break;
 
-	check(IPF_BLOCKING,socket_fd,&str[1]);
+	} /* type of switch */
 
-    } else if ( strlen(str[0]) >= strlen("checkf")
-    && strncmp(str[0],"checkforwarding",strlen(str[0])) == 0 ) {
+proto_switch:
 
-	check(IPF_FORWARDING,socket_fd,&str[1]);
+	if (*(++av)==NULL) {
+			show_usage();
+			exit(1);
+	}
 
-    } else if ( strlen(str[0]) >= strlen("addb")
-    && strncmp(str[0],"addblocking",strlen(str[0])) == 0 ) {
+	switch(get_num(*av,proto_tab)) {
+		case P_ALL:
+			flags|=IP_FW_F_ALL;
+			break;
+		case P_ICMP:
+			flags|=IP_FW_F_ICMP;
+			break;
+		case P_TCP:
+			flags|=IP_FW_F_TCP;
+			ports_ok=1;
+			strcpy(proto_name,"tcp");
+			break;
+		case P_UDP:
+			flags|=IP_FW_F_UDP;
+			ports_ok=1;
+			strcpy(proto_name,"udp");
+			break;
+		default:
+			show_usage();
+			exit(1);
+	}
 
-	add(IPF_BLOCKING,socket_fd,&str[1]);
+	if (*(++av)==NULL) {
+			show_usage();
+			exit(1);
+	}
 
-    } else if ( strlen(str[0]) >= strlen("addf")
-    && strncmp(str[0],"addforwarding",strlen(str[0])) == 0 ) {
+	set_entry(av,&frwl); 
+	if (do_verbose)
+		flags|=IP_FW_F_PRN;
+	frwl.flags=flags;
 
-	add(IPF_FORWARDING,socket_fd,&str[1]);
+	if (is_check) {
+		struct ip 		*pkt;
+		struct tcphdr 		*th;
+		int p_len=sizeof(struct ip)+sizeof(struct tcphdr);
 
-    } else if ( strlen(str[0]) >= strlen("delb")
-    && strncmp(str[0],"delblocking",strlen(str[0])) == 0 ) {
+		pkt=(struct ip*)malloc(p_len);
+		pkt->ip_v = IPVERSION;
+		pkt->ip_hl = sizeof(struct ip)/sizeof(int);
 
-	del(IPF_BLOCKING,socket_fd,&str[1]);
+		th=(struct tcphdr *)(pkt+1);
 
-    } else if ( strlen(str[0]) >= strlen("delf")
-    && strncmp(str[0],"delforwarding",strlen(str[0])) == 0 ) {
+		switch(get_num(proto_name,proto_tab)) {
+			case P_TCP:
+				pkt->ip_p = IPPROTO_TCP;
+				break;
+			case P_UDP:
+				pkt->ip_p = IPPROTO_UDP;
+				break;
+			default:
+				fprintf(stderr,"%s: can check TCP/UDP packets\
+							only.\n",progname);
+				exit(1);
+		}
+		if (frwl.n_src_p!=1 || frwl.n_dst_p!=1) {
+			fprintf(stderr,"%s: check needs one src/dst port.\n",
+							progname);
+			exit(1);
+		}
+		if (ntohl(frwl.src_mask.s_addr)!=ULONG_MAX ||
+		    ntohl(frwl.dst_mask.s_addr)!=ULONG_MAX) {
+			fprintf(stderr,"%s: can't check masked IP.\n",progname);
+			exit(1);
+		}
+		pkt->ip_src.s_addr=frwl.src.s_addr;
+		pkt->ip_dst.s_addr=frwl.dst.s_addr;
+	
+		th->th_sport=htons(frwl.ports[0]);
+		th->th_dport=htons(frwl.ports[frwl.n_src_p]);
+		
+		if (setsockopt(s,IPPROTO_IP,ctl,pkt,p_len))
+			printf("Packet DENYED.\n");
+		else
+			printf("Packet ACCEPTED.\n");
+		exit(0);
+	} else {
+		if (setsockopt(s,IPPROTO_IP,ctl,&frwl,sizeof(frwl))<0) {
+			fprintf(stderr,"%s: setsockopt failed.\n",progname);
+			exit(1);
+		}
+	}
 
-	del(IPF_FORWARDING,socket_fd,&str[1]);
-
-    } else if ( strlen(str[0]) >= strlen("poli")
-    && strncmp(str[0],"policy",strlen(str[0])) == 0 ) {
-
-	policy(socket_fd,&str[1]);
-
-    } else {
-
-	fprintf(stderr,"ipfw: unknown command \"%s\"\n",str[1]);
-	show_usage();
-	exit(1);
-    }
-
-    exit(0);
+			
+    /*
+     * Here the entry have to be added but not yet...
+     */
+	
+    close(s);
 }
+
+
