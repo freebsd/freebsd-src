@@ -27,7 +27,6 @@ SUBDIR=	3dfx \
 	fdc \
 	fxp \
 	gx \
-	hfa \
 	if_disc \
 	if_ef \
 	if_gif \
@@ -137,6 +136,8 @@ SUBDIR+=aac \
 	fe \
 	fpu \
 	gnufpu \
+	hea \
+	hfa \
 	ibcs2 \
 	iir \
 	linprocfs \
