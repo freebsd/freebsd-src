@@ -3810,29 +3810,24 @@ revoke(td, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (vp->v_type != VCHR) {
 		error = EINVAL;
-		goto putout;
+		goto out;
 	}
 #ifdef MAC
 	error = mac_check_vnode_revoke(td->td_ucred, vp);
 	if (error)
-		goto putout;
+		goto out;
 #endif
 	error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
 	if (error)
-		goto putout;
-	VOP_UNLOCK(vp, 0, td);
+		goto out;
 	if (td->td_ucred->cr_uid != vattr.va_uid) {
 		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 		if (error)
-			goto relout;
+			goto out;
 	}
 	if (vcount(vp) > 1)
 		VOP_REVOKE(vp, REVOKEALL);
-relout:
-	vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
-	return (error);
-putout:
+out:
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
