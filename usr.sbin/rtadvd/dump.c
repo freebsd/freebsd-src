@@ -215,6 +215,9 @@ void
 rtadvd_dump_file(dumpfile)
 	char *dumpfile;
 {
+	syslog(LOG_DEBUG, "<%s> dump current status to %s", __func__,
+	    dumpfile);
+
 	if ((fp = fopen(dumpfile, "w")) == NULL) {
 		syslog(LOG_WARNING, "<%s> open a dump file(%s)",
 		    __func__, dumpfile);
