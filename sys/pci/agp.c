@@ -493,6 +493,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 
 	if (mem->am_is_bound) {
 		device_printf(dev, "memory already bound\n");
+		lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
 		return EINVAL;
 	}
 	
@@ -501,6 +502,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	    || offset + mem->am_size > AGP_GET_APERTURE(dev)) {
 		device_printf(dev, "binding memory at bad offset %#x\n",
 			      (int) offset);
+		lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
 		return EINVAL;
 	}
 
@@ -596,6 +598,7 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 
 	if (!mem->am_is_bound) {
 		device_printf(dev, "memory is not bound\n");
+		lockmgr(&sc->as_lock, LK_RELEASE, 0, curthread);
 		return EINVAL;
 	}
 
