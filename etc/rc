@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.93 1996/06/24 19:00:28 pst Exp $
+#	$Id: rc,v 1.94 1996/07/13 17:27:39 pst Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -285,15 +285,6 @@ if [ "X${accounting}" = X"YES" -a -d /var/account ]; then
 	accton /var/account/acct
 fi
 
-# Now start up miscellaneous daemons that don't belong anywhere else
-#
-echo -n standard daemons:
-echo -n ' cron';		cron
-
-if [ "X${lpd}" != X"NO" -a -x /usr/sbin/lpd ]; then
-	echo -n ' printer';		lpd
-fi
-
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
 if [ -x /sbin/ldconfig ]; then
@@ -303,6 +294,15 @@ if [ -x /sbin/ldconfig ]; then
 	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
 	echo 'setting ldconfig path:' ${_LDC}
 	ldconfig ${_LDC}
+fi
+
+# Now start up miscellaneous daemons that don't belong anywhere else
+#
+echo -n standard daemons:
+echo -n ' cron';		cron
+
+if [ "X${lpd}" != X"NO" -a -x /usr/sbin/lpd ]; then
+	echo -n ' printer';		lpd
 fi
 
 # $sendmail_flags is imported from /etc/sysconfig;
