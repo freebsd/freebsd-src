@@ -1005,9 +1005,9 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 		PCIB_WRITE_CONFIG(pcib, b, s, f, PCIR_COMMAND, cmd, 2);
 	}
 #else
-        if (type == SYS_RES_IOPORT && !pci_porten(cfg))
+        if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f))
                 return 1;
-        if (type == SYS_RES_MEMORY && !pci_memen(cfg))
+        if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f))
 		return 1;
 #endif
 
