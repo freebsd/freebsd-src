@@ -1291,8 +1291,8 @@ avma1pp_init_linktab(struct l1_softc *sc)
 	/* avoid overwriting if already set */
 	if (ctrl_types[CTRL_PASSIVE].set_linktab == NULL)
 	{
-		ctrl_types[CTRL_PASSIVE].set_linktab = avma1pp_set_linktab;
-		ctrl_types[CTRL_PASSIVE].get_linktab = avma1pp_ret_linktab;
+		ctrl_types[CTRL_PASSIVE].set_linktab = i4b_l1_set_linktab;
+		ctrl_types[CTRL_PASSIVE].get_linktab = i4b_l1_ret_linktab;
 	}
 
 	/* local setup */
