@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.150 1997/04/27 03:59:12 jkh Exp $
+#	$Id: Makefile,v 1.151 1997/06/04 03:58:52 asami Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -20,7 +20,7 @@ BIN1=   aliases amd.map csh.cshrc csh.login csh.logout dm.conf \
 BIN2=	motd
 
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
-BIN3=	daily weekly monthly pccard_ether
+BIN3=	daily weekly monthly netstart pccard_ether
 
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 NAMEDB=	PROTO.localhost.rev named.boot named.root make-localhost
