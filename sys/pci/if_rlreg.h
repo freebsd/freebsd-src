@@ -432,15 +432,15 @@
 #define RL_ETHER_ALIGN	2
 
 struct rl_chain_data {
-	u_int16_t		cur_rx;
-	caddr_t			rl_rx_buf;
-	caddr_t			rl_rx_buf_ptr;
+	uint16_t		cur_rx;
+	uint8_t			*rl_rx_buf;
+	uint8_t			*rl_rx_buf_ptr;
 	bus_dmamap_t		rl_rx_dmamap;
 
 	struct mbuf		*rl_tx_chain[RL_TX_LIST_CNT];
 	bus_dmamap_t		rl_tx_dmamap[RL_TX_LIST_CNT];
-	u_int8_t		last_tx;
-	u_int8_t		cur_tx;
+	uint8_t			last_tx;
+	uint8_t			cur_tx;
 };
 
 #define RL_INC(x)		(x = (x + 1) % RL_TX_LIST_CNT)
@@ -454,25 +454,25 @@ struct rl_chain_data {
 #define RL_LAST_DMAMAP(x)	(x->rl_cdata.rl_tx_dmamap[x->rl_cdata.last_tx])
 
 struct rl_type {
-	u_int16_t		rl_vid;
-	u_int16_t		rl_did;
+	uint16_t		rl_vid;
+	uint16_t		rl_did;
 	int			rl_basetype;
 	char			*rl_name;
 };
 
 struct rl_hwrev {
-	u_int32_t		rl_rev;
+	uint32_t		rl_rev;
 	int			rl_type;
 	char			*rl_desc;
 };
 
 struct rl_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
+	uint8_t		mii_stdelim;
+	uint8_t		mii_opcode;
+	uint8_t		mii_phyaddr;
+	uint8_t		mii_regaddr;
+	uint8_t		mii_turnaround;
+	uint16_t	mii_data;
 };
 
 /*
@@ -506,10 +506,10 @@ struct rl_mii_frame {
  */
 
 struct rl_desc {
-	u_int32_t		rl_cmdstat;
-	u_int32_t		rl_vlanctl;
-	u_int32_t		rl_bufaddr_lo;
-	u_int32_t		rl_bufaddr_hi;
+	uint32_t		rl_cmdstat;
+	uint32_t		rl_vlanctl;
+	uint32_t		rl_bufaddr_lo;
+	uint32_t		rl_bufaddr_hi;
 };
 
 #define RL_TDESC_CMD_FRAGLEN	0x0000FFFF
@@ -585,22 +585,22 @@ struct rl_desc {
  * Statistics counter structure (8139C+ and 8169 only)
  */
 struct rl_stats {
-	u_int32_t		rl_tx_pkts_lo;
-	u_int32_t		rl_tx_pkts_hi;
-	u_int32_t		rl_tx_errs_lo;
-	u_int32_t		rl_tx_errs_hi;
-	u_int32_t		rl_tx_errs;
-	u_int16_t		rl_missed_pkts;
-	u_int16_t		rl_rx_framealign_errs;
-	u_int32_t		rl_tx_onecoll;
-	u_int32_t		rl_tx_multicolls;
-	u_int32_t		rl_rx_ucasts_hi;
-	u_int32_t		rl_rx_ucasts_lo;
-	u_int32_t		rl_rx_bcasts_lo;
-	u_int32_t		rl_rx_bcasts_hi;
-	u_int32_t		rl_rx_mcasts;
-	u_int16_t		rl_tx_aborts;
-	u_int16_t		rl_rx_underruns;
+	uint32_t		rl_tx_pkts_lo;
+	uint32_t		rl_tx_pkts_hi;
+	uint32_t		rl_tx_errs_lo;
+	uint32_t		rl_tx_errs_hi;
+	uint32_t		rl_tx_errs;
+	uint16_t		rl_missed_pkts;
+	uint16_t		rl_rx_framealign_errs;
+	uint32_t		rl_tx_onecoll;
+	uint32_t		rl_tx_multicolls;
+	uint32_t		rl_rx_ucasts_hi;
+	uint32_t		rl_rx_ucasts_lo;
+	uint32_t		rl_rx_bcasts_lo;
+	uint32_t		rl_rx_bcasts_hi;
+	uint32_t		rl_rx_mcasts;
+	uint16_t		rl_tx_aborts;
+	uint16_t		rl_rx_underruns;
 };
 
 #define RL_RX_DESC_CNT		64
@@ -614,8 +614,8 @@ struct rl_stats {
 #define RL_RXBYTES(x)		(le32toh((x)->rl_cmdstat) & sc->rl_rxlenmask)
 #define RL_PKTSZ(x)		((x)/* >> 3*/)
 
-#define RL_ADDR_LO(y)	((u_int64_t) (y) & 0xFFFFFFFF)
-#define RL_ADDR_HI(y)	((u_int64_t) (y) >> 32)
+#define RL_ADDR_LO(y)	((uint64_t) (y) & 0xFFFFFFFF)
+#define RL_ADDR_HI(y)	((uint64_t) (y) >> 32)
 
 #define RL_JUMBO_FRAMELEN	9018
 #define RL_JUMBO_MTU		(RL_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
@@ -626,7 +626,7 @@ struct rl_dmaload_arg {
 	struct rl_softc		*sc;
 	int			rl_idx;
 	int			rl_maxsegs;
-	u_int32_t		rl_flags;
+	uint32_t		rl_flags;
 	struct rl_desc		*rl_ring;
 };
 
@@ -664,10 +664,10 @@ struct rl_softc {
 	device_t		rl_miibus;
 	bus_dma_tag_t		rl_parent_tag;
 	bus_dma_tag_t		rl_tag;
-	u_int8_t		rl_unit;	/* interface number */
-	u_int8_t		rl_type;
+	uint8_t			rl_unit;	/* interface number */
+	uint8_t			rl_type;
 	int			rl_eecmd_read;
-	u_int8_t		rl_stats_no_timeout;
+	uint8_t			rl_stats_no_timeout;
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct rl_list_data	rl_ldata;
@@ -675,8 +675,8 @@ struct rl_softc {
 	struct mtx		rl_mtx;
 	struct mbuf		*rl_head;
 	struct mbuf		*rl_tail;
-	u_int32_t		rl_hwrev;
-	u_int32_t		rl_rxlenmask;
+	uint32_t		rl_hwrev;
+	uint32_t		rl_rxlenmask;
 	int			rl_testmode;
 	int			suspended;	/* 0 = normal  1 = suspended */
 #ifdef DEVICE_POLLING
