@@ -186,10 +186,12 @@ start_waiting:
 	jmp	poll_for_work;
 
 start_selection:
+.if ( TWIN_CHANNEL )
 	and	SINDEX,~SELBUSB,SBLKCTL;/* Clear the channel select bit */
 	and	A,SELBUSB,SCB_TCL;	/* Get new channel bit */
 	or	SINDEX,A;
 	mov	SBLKCTL,SINDEX;		/* select channel */
+.endif
 initialize_scsiid:
 	and	A, TID, SCB_TCL;	/* Get target ID */
 	and	SCSIID, OID;		/* Clear old target */
