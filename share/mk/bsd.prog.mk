@@ -25,6 +25,7 @@ PROG=	${PROG_CXX}
 .endif
 
 .if defined(PROG)
+.if !target(${PROG})
 .if defined(SRCS)
 
 # If there are Objective C sources, link with Objective C libraries.
@@ -37,7 +38,6 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .else !defined(SRCS)
 
-.if !target(${PROG})
 .if defined(PROG_CXX)
 SRCS=	${PROG}.cc
 .else
