@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)disklabel.5.5	8.1 (Berkeley) 6/5/93
-.\"	$Id$
+.\"	$Id: disklabel.5,v 1.4 1998/06/04 06:49:12 charnier Exp $
 .\"
 .Dd June 5, 1993
 .Dt DISKLABEL 5
@@ -142,7 +142,7 @@ struct disklabel {
 	* the disklabel is read off the disk or in-core copy.
 	* d_boot0 and d_boot1 are the (optional) names of the
 	* primary (block 0) and secondary (block 1-15) bootstraps
-	* as found in /usr/mdec.  These are returned when using
+	* as found in /boot.  These are returned when using
 	* getdiskbyname(3)
 	to retrieve the values from /etc/disktab.
 	*/
