@@ -271,7 +271,10 @@ empty:					(void)gp->scr_addstr(sp,
 		cols_per_screen = sp->cols;
 
 		/* Put starting info for this line in the cache. */
-		if (scno != skip_cols) {
+		if (offset_in_line >= len) {
+			smp->c_sboff = offset_in_line;
+			smp->c_scoff = 255;
+		} else if (scno != skip_cols) {
 			smp->c_sboff = offset_in_line;
 			smp->c_scoff =
 			    offset_in_char = chlen - (scno - skip_cols);
