@@ -136,6 +136,25 @@ Buf_GetAll(Buffer *bp, size_t *len)
 }
 
 /**
+ * Get the contents of a buffer and destroy the buffer. If the buffer
+ * is NULL, return NULL.
+ *
+ * Returns:
+ *	the pointer to the data.
+ */
+char *
+Buf_Peel(Buffer *bp)
+{
+	char *ret;
+
+	if (bp == NULL)
+		return (NULL);
+	ret = bp->buf;
+	free(bp);
+	return (ret);
+}
+
+/**
  * Initialize a buffer. If no initial size is given, a reasonable
  * default is used.
  *

@@ -82,6 +82,7 @@ size_t Buf_Size(const Buffer *);
 Buffer *Buf_Init(size_t);
 void Buf_Destroy(Buffer *, Boolean);
 void Buf_ReplaceLastByte(Buffer *, Byte);
+char *Buf_Peel(Buffer *);
 
 void Buf_Append(Buffer *, const char []);
 void Buf_AppendRange(Buffer *, const char [], const char *);
