@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.14 1998/12/21 19:28:13 sos Exp $
+	$Id: syscalls.master,v 1.15 1998/12/22 08:59:19 sos Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -119,8 +119,10 @@
 			    struct timezone *tzp); }
 79	NOPROTO	LINUX	{ int settimeofday(struct timeval *tp, \
 			    struct timezone *tzp); }
-80	NOPROTO	LINUX	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
-81	NOPROTO	LINUX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
+80	STD	LINUX	{ int linux_getgroups(u_int gidsetsize, \
+			    linux_gid_t *gidset); }
+81	STD	LINUX	{ int linux_setgroups(u_int gidsetsize, \
+			    linux_gid_t *gidset); }
 82	STD	LINUX	{ int linux_select(struct linux_select_argv *ptr); }
 83	STD	LINUX	{ int linux_symlink(char *path, char *to); }
 84	NOPROTO	LINUX	{ int ostat(char *path, struct ostat *up); }
