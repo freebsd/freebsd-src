@@ -1338,8 +1338,12 @@ link(td, uap)
 		char *link;
 	} */ *uap;
 {
+	int error;
 
-	return (kern_link(td, uap->path, uap->link, UIO_USERSPACE));
+	mtx_lock(&Giant);
+	error = kern_link(td, uap->path, uap->link, UIO_USERSPACE);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 SYSCTL_DECL(_security_bsd);
