@@ -2185,7 +2185,6 @@ pmap_remove_pages(pmap, sva, eva)
 	pt_entry_t *pte, tpte;
 	vm_page_t m;
 	pv_entry_t pv, npv;
-	int s;
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
 	if (!curthread || (pmap != vmspace_pmap(curthread->td_proc->p_vmspace))) {
@@ -2194,7 +2193,7 @@ pmap_remove_pages(pmap, sva, eva)
 	}
 #endif
 
-	s = splvm();
+	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	for(pv = TAILQ_FIRST(&pmap->pm_pvlist);
 		pv;
@@ -2240,9 +2239,9 @@ pmap_remove_pages(pmap, sva, eva)
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
 		free_pv_entry(pv);
 	}
-	splx(s);
 	pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
+	vm_page_unlock_queues();
 }
 
 /*
