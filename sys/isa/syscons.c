@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992-1995 Søren Schmidt
+ * Copyright (c) 1992-1996 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.150 1996/05/27 06:02:52 peter Exp $
+ *  $Id: syscons.c,v 1.151 1996/06/17 17:21:35 wpaul Exp $
  */
 
 #include "sc.h"
@@ -116,10 +116,7 @@ static  long        	scrn_blank_time = 0;    /* screen saver timeout value */
 static  long       	scrn_time_stamp;
 	u_char      	scr_map[256];
 static  char        	*video_mode_ptr = NULL;
-#if ASYNCH
-static  u_char      	kbd_reply = 0;
-#endif
-
+static	char *cut_buffer;
 static  u_short mouse_and_mask[16] = {
 	0xc000, 0xe000, 0xf000, 0xf800, 0xfc00, 0xfe00, 0xff00, 0xff80,
 	0xfe00, 0x1e00, 0x1f00, 0x0f00, 0x0f00, 0x0000, 0x0000, 0x0000
@@ -217,7 +214,7 @@ scprobe(struct isa_device *dev)
 
     /* flush any noise in the buffer */
     while (inb(KB_STAT) & KB_BUF_FULL) {
-	DELAY(10);
+	DELAY(25);
 	(void) inb(KB_DATA);
     }
 
@@ -225,8 +222,8 @@ scprobe(struct isa_device *dev)
     while (retries--) {
 	kbd_wait();
 	outb(KB_DATA, KB_RESET);
-	for (i=0; i<100000; i++) {
-	    DELAY(10);
+	for (i=0; i<10000; i++) {
+	    DELAY(100);
 	    val = inb(KB_DATA);
 	    if (val == KB_ACK || val == KB_ECHO)
 		goto gotres;
@@ -240,10 +237,10 @@ gotres:
     else {
 	i = 10;			/* At most 10 retries. */
 gotack:
-	DELAY(10);
-	j = 1000;		/* Wait at most 10 ms (supposedly). */
-	while ((inb(KB_STAT) & KB_BUF_FULL) == 0 && --j > 0) DELAY(10);
-	DELAY(10);
+	DELAY(25);
+	j = 1000;		/* Wait at most 50 ms (supposedly). */
+	while ((inb(KB_STAT) & KB_BUF_FULL) == 0 && --j > 0) DELAY(50);
+	DELAY(25);
 	val = inb(KB_DATA);
 	if (val == KB_ACK && --i > 0)
 	    goto gotack;
@@ -333,8 +330,14 @@ draw_cursor(scr_stat *scp, int show)
 static inline void
 move_crsr(scr_stat *scp, int x, int y)
 {
-    if (x < 0 || y < 0 || x >= scp->xsize || y >= scp->ysize)
-	return;
+    if (x < 0)
+	x = 0;
+    if (y < 0)
+	y = 0;
+    if (x >= scp->xsize)
+	x = scp->xsize-1;
+    if (y >= scp->ysize)
+	y = scp->ysize-1;
     scp->xpos = x;
     scp->ypos = y;
     mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
@@ -356,6 +359,7 @@ scattach(struct isa_device *dev)
     scp = console[0];
 
     if (crtc_vga) {
+    	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
 	font_8 = (char *)malloc(8*256, M_DEVBUF, M_NOWAIT);
 	font_14 = (char *)malloc(14*256, M_DEVBUF, M_NOWAIT);
 	font_16 = (char *)malloc(16*256, M_DEVBUF, M_NOWAIT);
@@ -686,8 +690,9 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     {
 	mouse_info_t *mouse = (mouse_info_t*)data;
 	int fontsize;
+	scr_stat *mscp = cur_console;
 
-	switch (scp->font) {
+	switch (mscp->font) {
 	default:
 	case FONT_8:
 	    fontsize = 8; break;
@@ -698,49 +703,117 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	}
 	switch (mouse->operation) {
 	case MOUSE_SHOW:
-	    if (!(scp->status & MOUSE_ENABLED)) {
-		scp->mouse_oldpos = Crtat + (scp->mouse_pos - scp->scr_buf);
-		scp->status |= (UPDATE_MOUSE | MOUSE_ENABLED);
+	    if (!(mscp->status & MOUSE_ENABLED)) {
+		mscp->mouse_oldpos = Crtat + (mscp->mouse_pos - mscp->scr_buf);
+		mscp->status |= MOUSE_ENABLED;
+		mark_all(mscp);
 	    }
 	    else
 		return EINVAL;
 	    break;
 
 	case MOUSE_HIDE:
-	    if (scp->status & MOUSE_ENABLED) {
-		scp->status &= ~MOUSE_ENABLED;
-		scp->status |= UPDATE_MOUSE;
+	    if (mscp->status & MOUSE_ENABLED) {
+		mscp->status &= ~MOUSE_ENABLED;
+		mark_all(mscp);
+	    }
+	    else
+		return EINVAL;
+	    break;
+
+	case MOUSE_CUT_START:
+	    if (mscp->status & MOUSE_ENABLED) {
+    		if (mscp->mouse_cut_start != NULL)
+		    reverse_mouse_cut(mscp, 0);
+		mscp->mouse_cut_start = mscp->mouse_cut_end = mscp->mouse_pos;
+		*mscp->mouse_cut_start = (*mscp->mouse_cut_start & 0x88ff) |
+				       (*mscp->mouse_cut_start & 0x7000) >> 4 |
+				       (*mscp->mouse_cut_start & 0x0700) << 4;
+		cut_buffer[0] = *mscp->mouse_cut_start & 0xff;
+		cut_buffer[1] = 0;
+		mscp->status |= MOUSE_CUTTING;
+		/* delete all other screens cut markings */
+		for (i=0; i<MAXCONS; i++) {
+		    if (console[i] == NULL || console[i] == mscp)
+			continue;
+		    reverse_mouse_cut(console[i], 0);
+		    console[i]->mouse_cut_start=console[i]->mouse_cut_end=NULL;
+		}
+		mark_for_update(mscp, mscp->mouse_cut_start - mscp->scr_buf);
+	    }
+	    else
+		return EINVAL;
+	    break;
+
+	case MOUSE_CUT_END:
+	    if (mscp->status & MOUSE_ENABLED) {
+		mscp->status &= ~MOUSE_CUTTING;
+	    }
+	    else
+		return EINVAL;
+	    break;
+
+	case MOUSE_CUT_RESET:
+	    if (mscp->status & MOUSE_ENABLED) {
+		mscp->status &= ~MOUSE_CUTTING;
+		reverse_mouse_cut(mscp, 0);
+		mscp->mouse_cut_start = mscp->mouse_cut_end = NULL;
+	    }
+	    else
+		return EINVAL;
+	    break;
+
+	case MOUSE_RETURN_CUTBUFFER:
+	    if (mscp->status & MOUSE_ENABLED) {
+		struct tty *tp;
+		char *ptr = cut_buffer;
+
+    		tp = VIRTUAL_TTY(get_scr_num());
+		while (*ptr)
+		    (*linesw[tp->t_line].l_rint)(*ptr++, tp);
 	    }
 	    else
 		return EINVAL;
 	    break;
 
 	case MOUSE_MOVEABS:
-	    scp->mouse_xpos = mouse->x;
-	    scp->mouse_ypos = mouse->y;
+	    mscp->mouse_xpos = mouse->x;
+	    mscp->mouse_ypos = mouse->y;
 	    goto set_mouse_pos;
 
 	case MOUSE_MOVEREL:
-	    scp->mouse_xpos += mouse->x;
-	    scp->mouse_ypos += mouse->y;
+	    mscp->mouse_xpos += mouse->x;
+	    mscp->mouse_ypos += mouse->y;
 set_mouse_pos:
-	    if (scp->mouse_xpos < 0)
-		scp->mouse_xpos = 0;
-	    if (scp->mouse_ypos < 0)
-		scp->mouse_ypos = 0;
-	    if (scp->mouse_xpos >= scp->xsize*8)
-		scp->mouse_xpos = (scp->xsize*8)-1;
-	    if (scp->mouse_ypos >= scp->ysize*fontsize)
-		scp->mouse_ypos = (scp->ysize*fontsize)-1;
-	    scp->mouse_pos = scp->scr_buf +
-		(scp->mouse_ypos/fontsize)*scp->xsize + scp->mouse_xpos/8;
-	    if (scp->status & MOUSE_ENABLED)
-		scp->status |= UPDATE_MOUSE;
+	    /* 
+	     * the margins imposed here are not ideal, we loose
+	     * a couble of pixels on the borders..
+	     */
+	    if (mscp->mouse_xpos < 0)
+		mscp->mouse_xpos = 0;
+	    if (mscp->mouse_ypos < 0)
+		mscp->mouse_ypos = 0;
+	    if (mscp->mouse_xpos > (mscp->xsize*8-2))
+		mscp->mouse_xpos = (mscp->xsize*8)-2;
+	    if (mscp->mouse_ypos > (mscp->ysize*fontsize)-2)
+		mscp->mouse_ypos = (mscp->ysize*fontsize)-2;
+
+	    mscp->mouse_pos = mscp->scr_buf + 
+		((mscp->mouse_ypos/fontsize)*mscp->xsize + mscp->mouse_xpos/8);
+
+	    if ((mscp->status&MOUSE_ENABLED) && (mscp->status&MOUSE_CUTTING)) {
+		int s = splclock();
+		reverse_mouse_cut(mscp, 0);
+		mscp->mouse_cut_end = mscp->mouse_pos;
+		reverse_mouse_cut(mscp, 1);
+    		mark_all(mscp);
+		splx(s);
+	    }
 	    break;
 
 	case MOUSE_GETPOS:
-	    mouse->x = scp->mouse_xpos;
-	    mouse->y = scp->mouse_ypos;
+	    mouse->x = mscp->mouse_xpos;
+	    mouse->y = mscp->mouse_ypos;
 	    return 0;
 
 	default:
@@ -830,10 +903,13 @@ set_mouse_pos:
 	    break;
 	}
 	scp->mode = cmd & 0xff;
-	scp->status &= ~UNKNOWN_MODE;   /* text mode */
+	scp->status &= ~UNKNOWN_MODE;
 	free(scp->scr_buf, M_DEVBUF);
 	scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
 					 M_DEVBUF, M_WAITOK);
+	free(cut_buffer, M_DEVBUF);
+    	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
+	cut_buffer[0] = 0x00;
 	if (scp == cur_console)
 	    set_mode(scp);
 	clear_screen(scp);
@@ -1280,7 +1356,7 @@ sccnputc(dev_t dev, int c)
     kernel_console = scp->term;
     current_default = &user_default;
     scp->term = save;
-    s = splclock();		/* XXX stop scrn_timer */
+    s = splclock();
     if (scp == cur_console) {
 	if (scp->scr_buf != Crtat && (scp->start <= scp->end)) {
 	    bcopyw(scp->scr_buf + scp->start, Crtat + scp->start,
@@ -1331,7 +1407,7 @@ scrn_timer()
 	    scp->end = 0;
 	}
 	/* update "pseudo" mouse arrow */
-	if ((scp->status & MOUSE_ENABLED) && (scp->status & UPDATE_MOUSE))
+	if (scp->status & MOUSE_ENABLED)
 	    draw_mouse_image(scp);
 
 	/* update cursor image */
@@ -1437,9 +1513,7 @@ exchange_scr(void)
 	shfts = ctls = alts = agrs = metas = 0;
     update_leds(new_scp->status);
     delayed_next_scr = FALSE;
-    bcopyw(new_scp->scr_buf, Crtat,
-	   (new_scp->xsize*new_scp->ysize)*sizeof(u_short));
-    new_scp->status &= ~CURSOR_SHOWN;
+    mark_all(new_scp);
 }
 
 static void
@@ -1693,8 +1767,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    if (n > scp->xsize - scp->xpos)
 		n = scp->xsize - scp->xpos;
 	    fillw(scp->term.cur_color | scr_map[0x20],
-		  scp->scr_buf + scp->xpos +
-		  ((scp->xsize*scp->ypos) * sizeof(u_short)), n);
+		  scp->cursor_pos, n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n);
 	    break;
@@ -2042,6 +2115,8 @@ outloop:
     }
     /* do we have to scroll ?? */
     if (scp->cursor_pos >= scp->scr_buf + scp->ysize * scp->xsize) {
+	reverse_mouse_cut(scp, 0);
+	scp->mouse_cut_start = scp->mouse_cut_end = NULL;
 	if (scp->history) {
 	    bcopyw(scp->scr_buf, scp->history_head,
 		   scp->xsize * sizeof(u_short));
@@ -2165,7 +2240,7 @@ static scr_stat
 
     scp = (scr_stat *)malloc(sizeof(scr_stat), M_DEVBUF, M_WAITOK);
     init_scp(scp);
-    scp->scr_buf = scp->cursor_pos = scp->scr_buf = scp->mouse_pos =
+    scp->scr_buf = scp->cursor_pos = scp->mouse_pos =
 	(u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
 			  M_DEVBUF, M_WAITOK);
     scp->history_head = scp->history_pos = scp->history =
@@ -2197,6 +2272,7 @@ init_scp(scr_stat *scp)
     scp->cursor_start = *(char *)pa_to_va(0x461);
     scp->cursor_end = *(char *)pa_to_va(0x460);
     scp->mouse_xpos = scp->mouse_ypos = 0;
+    scp->mouse_cut_start = scp->mouse_cut_end = NULL;
     scp->bell_pitch = BELL_PITCH;
     scp->bell_duration = BELL_DURATION;
     scp->status = (*(char *)pa_to_va(0x417) & 0x20) ? NLKED : 0;
@@ -2307,14 +2383,7 @@ next_code:
 
     if (cur_console->status & KBD_RAW_MODE)
 	return scancode;
-#if ASYNCH
-    if (scancode == KB_ACK || scancode == KB_RESEND) {
-	kbd_reply = scancode;
-	if (noblock)
-	    return(NOKEY);
-	goto next_code;
-    }
-#endif
+
     keycode = scancode & 0x7F;
     switch (esc_flag) {
     case 0x00:      /* normal scancode */
@@ -2723,38 +2792,27 @@ scmmap(dev_t dev, int offset, int nprot)
 static void
 kbd_wait(void)
 {
-    int i = 1000;
+    int i = 500;
 
     while (i--) {
 	if ((inb(KB_STAT) & KB_READY) == 0)
 	    break;
-	DELAY (10);
+	DELAY (25);
     }
 }
 
 static void
 kbd_cmd(u_char command)
 {
-    int retry = 5;
+    int i, retry = 5;
     do {
-	int i = 100000;
-
 	kbd_wait();
-#if ASYNCH
-	kbd_reply = 0;
 	outb(KB_DATA, command);
-	while (i--) {
-	    if (kbd_reply == KB_ACK)
-		return;
-	    if (kbd_reply == KB_RESEND)
-		break;
-	}
-#else
-	outb(KB_DATA, command);
+	i = 50000;
 	while (i--) {
 	    if (inb(KB_STAT) & KB_BUF_FULL) {
 		int val;
-		DELAY(10);
+		DELAY(25);
 		val = inb(KB_DATA);
 		if (val == KB_ACK)
 		    return;
@@ -2762,7 +2820,6 @@ kbd_cmd(u_char command)
 		    break;
 	    }
 	}
-#endif
     } while (retry--);
 }
 
@@ -3057,6 +3114,27 @@ set_destructive_cursor(scr_stat *scp, int force)
 }
 
 static void
+reverse_mouse_cut(scr_stat *scp, int cut)
+{
+    ushort *ptr;
+    int i = 0;
+
+    if (scp->mouse_cut_start != NULL) {
+	for (ptr = (scp->mouse_cut_start > scp->mouse_cut_end 
+		    ? scp->mouse_cut_end : scp->mouse_cut_start);
+	     ptr <= (scp->mouse_cut_start > scp->mouse_cut_end 
+		     ? scp->mouse_cut_start : scp->mouse_cut_end);
+	     ptr++) {
+	    *ptr = (*ptr & 0x88ff) | (*ptr & 0x7000)>>4 | (*ptr & 0x0700)<<4;
+	    if (cut)
+		cut_buffer[i++] = *ptr & 0xff;
+	}
+	if (cut)
+	    cut_buffer[i] = 0x00;
+    }
+}
+
+static void
 draw_mouse_image(scr_stat *scp)
 {
     caddr_t address;
@@ -3065,6 +3143,7 @@ draw_mouse_image(scr_stat *scp)
     u_short buffer[32];
     u_short xoffset, yoffset;
     u_short *crt_pos = Crtat + (scp->mouse_pos - scp->scr_buf);
+    u_short *ptr = scp->scr_buf + (scp->mouse_oldpos - Crtat);
 
     xoffset = scp->mouse_xpos % 8;
     switch (scp->font) {
@@ -3113,35 +3192,34 @@ draw_mouse_image(scr_stat *scp)
 	scp->mouse_cursor[i+64] = (buffer[i+font_size] & 0xff00) >> 8;
 	scp->mouse_cursor[i+96] = buffer[i+font_size] & 0xff;
     }
-    if (scp->status & UPDATE_MOUSE) {
-	u_short *ptr = scp->scr_buf + (scp->mouse_oldpos - Crtat);
 
-	if (crt_pos != scp->mouse_oldpos) {
-	    *(scp->mouse_oldpos) = scp->mouse_saveunder[0];
-	    *(scp->mouse_oldpos+1) = scp->mouse_saveunder[1];
-	    *(scp->mouse_oldpos+scp->xsize) = scp->mouse_saveunder[2];
-	    *(scp->mouse_oldpos+scp->xsize+1) = scp->mouse_saveunder[3];
-	}
-	scp->mouse_saveunder[0] = *(scp->mouse_pos);
-	scp->mouse_saveunder[1] = *(scp->mouse_pos+1);
-	scp->mouse_saveunder[2] = *(scp->mouse_pos+scp->xsize);
-	scp->mouse_saveunder[3] = *(scp->mouse_pos+scp->xsize+1);
-	if ((scp->cursor_pos == (ptr)) ||
-	    (scp->cursor_pos == (ptr+1)) ||
-	    (scp->cursor_pos == (ptr+scp->xsize)) ||
-	    (scp->cursor_pos == (ptr+scp->xsize+1)) ||
-	    (scp->cursor_pos == (scp->mouse_pos)) ||
-	    (scp->cursor_pos == (scp->mouse_pos+1)) ||
-	    (scp->cursor_pos == (scp->mouse_pos+scp->xsize)) ||
-	    (scp->cursor_pos == (scp->mouse_pos+scp->xsize+1)))
-	    scp->status &= ~CURSOR_SHOWN;
+    if (crt_pos != scp->mouse_oldpos) {
+	*(scp->mouse_oldpos) = scp->mouse_saveunder[0];
+	*(scp->mouse_oldpos+1) = scp->mouse_saveunder[1];
+	*(scp->mouse_oldpos+scp->xsize) = scp->mouse_saveunder[2];
+	*(scp->mouse_oldpos+scp->xsize+1) = scp->mouse_saveunder[3];
     }
+    scp->mouse_saveunder[0] = *(scp->mouse_pos);
+    scp->mouse_saveunder[1] = *(scp->mouse_pos+1);
+    scp->mouse_saveunder[2] = *(scp->mouse_pos+scp->xsize);
+    scp->mouse_saveunder[3] = *(scp->mouse_pos+scp->xsize+1);
+    if ((scp->cursor_pos == (ptr)) ||
+	(scp->cursor_pos == (ptr+1)) ||
+	(scp->cursor_pos == (ptr+scp->xsize)) ||
+	(scp->cursor_pos == (ptr+scp->xsize+1)) ||
+	(scp->cursor_pos == (scp->mouse_pos)) ||
+	(scp->cursor_pos == (scp->mouse_pos+1)) ||
+	(scp->cursor_pos == (scp->mouse_pos+scp->xsize)) ||
+	(scp->cursor_pos == (scp->mouse_pos+scp->xsize+1)))
+	scp->status &= ~CURSOR_SHOWN;
     scp->mouse_oldpos = crt_pos;
     while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
     *(crt_pos) = (*(scp->mouse_pos)&0xff00)|0xd0;
-    *(crt_pos+1) = (*(scp->mouse_pos+1)&0xff00)|0xd1;
     *(crt_pos+scp->xsize) = (*(scp->mouse_pos+scp->xsize)&0xff00)|0xd2;
-    *(crt_pos+scp->xsize+1) = (*(scp->mouse_pos+scp->xsize+1)&0xff00)|0xd3;
+    if (scp->mouse_xpos < (scp->xsize-1)*8) {
+    	*(crt_pos+1) = (*(scp->mouse_pos+1)&0xff00)|0xd1;
+    	*(crt_pos+scp->xsize+1) = (*(scp->mouse_pos+scp->xsize+1)&0xff00)|0xd3;
+    }
     set_font_mode();
     bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
     set_normal_mode();
