@@ -85,18 +85,6 @@
 #include "id.h"
 #include "arp.h"
 
-/*
- * When we set our MP socket buffer size, we need some extra space
- * for the kernel to use to transfer the file descriptors and their
- * control structure.  In practice, this seems to be
- *
- *    sizeof(struct msghdr) + sizeof(int) * SEND_MAXFD
- *
- * (see bundle.c for SEND_MAXFD), but as this isn't actually documented,
- * we just add ``a bit extra''
- */
-#define SOCKET_OVERHEAD	100
-
 void
 peerid_Init(struct peerid *peer)
 {
