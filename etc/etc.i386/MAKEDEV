@@ -473,26 +473,22 @@ ccd*)
 	umask $disk_umask
 	name=ccd
 	blk=21; chr=74
-	nccd=`expr $i : '...\(.*\)'`
-	unit=0
-	while [ $unit -le $nccd ]; do
-		case $unit in
-		[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
-			for part in 0 1 2 3 4 5 6 7
-			do
-				minor=`dkminor 0 $unit 0 $part` 
-				partname=`dkitop $part`
-				mknod  $name$unit$partname b $blk $minor
-				mknod r$name$unit$partname c $chr $minor
-			done
-			chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
-			;;
-		*)
-			echo bad unit for disk in: $i
-			;;
-		esac
-		unit=`expr $unit + 1`
-	done
+	unit=`expr $i : '...\(.*\)'`
+	case $unit in
+	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
+		for part in 0 1 2 3 4 5 6 7
+		do
+			minor=`dkminor 0 $unit 0 $part` 
+			partname=`dkitop $part`
+			mknod  $name$unit$partname b $blk $minor
+			mknod r$name$unit$partname c $chr $minor
+		done
+		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
 	umask 77
 	;;
 
