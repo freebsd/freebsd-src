@@ -85,8 +85,19 @@ the Sundance Technologies ST201 controller, including the D-Link DFE-550TX.
 
 Driver support has been added for the 3Com 3c905C-TX. [MERGED]
 
+User- and group-based IPFW firewalling has been added. [MERGED]
+
+Support for probabalistic rule matching has been added to IPFW. [MERGED]
+
+IPFW logging is now dynamic. IPFW logging counts can be reset, and any
+given rule can be given an arbitrary logging limit. [MERGED]
+
+The top-level category "security" has been added, and IPFW now uses
+syslog(3) to log all messages to /var/log/security.
+
 1.2. SECURITY FIXES
 -------------------
+
 A new jail(2) system call and admin command (jail(8)) have been added for
 additional flexibility in creating secure process execution environments.
 
