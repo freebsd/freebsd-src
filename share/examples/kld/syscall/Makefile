@@ -1,9 +1,7 @@
-# Makefile for sample syscall module
+# $FreeBSD$
 
 SUBDIR=	module test
 
-load: _SUBDIRUSE
-
-unload: _SUBDIRUSE
+load unload: _SUBDIR
 
 .include <bsd.subdir.mk>
