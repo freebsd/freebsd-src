@@ -1,7 +1,8 @@
-/*	$NetBSD: usb.c,v 1.67 2002/02/11 15:11:49 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.68 2002/02/20 20:30:12 christos Exp $	*/
 /*	$FreeBSD$	*/
 
 /* Also already merged from NetBSD:
+ *	$NetBSD: usb.c,v 1.70 2002/05/09 21:54:32 augustss Exp $
  *	$NetBSD: usb.c,v 1.73 2002/09/23 05:51:19 simonb Exp $
  */
 
