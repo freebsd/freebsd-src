@@ -14,11 +14,15 @@ CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
 CFLAGS+=-I${.CURDIR}/arch/${MACHINE_ARCH}/include
 CFLAGS+=-I${.CURDIR}/sys
+CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
+CFLAGS+=-fno-builtin
 
 # Uncomment this if you want libpthread to contain debug information for
 # thread locking.
 CFLAGS+=-D_LOCK_DEBUG
 #CFLAGS+= -g
+
+LDADD+= -Wl,--version-script=${.CURDIR}/pthread.map
 
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
@@ -28,5 +32,6 @@ PRECIOUSLIB=	yes
 
 .include "${.CURDIR}/thread/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
+.include "${.CURDIR}/support/Makefile.inc"
 
 .include <bsd.lib.mk>

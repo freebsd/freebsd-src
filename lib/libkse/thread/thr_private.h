@@ -794,6 +794,11 @@ struct pthread {
 	struct pthread_specific_elem	*specific;
 	int				specific_data_count;
 
+	/*
+	 * Current locks bitmap for rtld.
+	 */
+	int	rtld_bits;
+
 	/* Cleanup handlers Link List */
 	struct pthread_cleanup *cleanup;
 	char			*fname;	/* Ptr to source file name  */
@@ -1084,6 +1089,8 @@ int	_pthread_mutexattr_init(pthread_mutexattr_t *);
 int	_pthread_mutexattr_destroy(pthread_mutexattr_t *);
 int	_pthread_mutexattr_settype(pthread_mutexattr_t *, int);
 int	_pthread_once(pthread_once_t *, void (*) (void));
+int	_pthread_rwlock_init(pthread_rwlock_t *, const pthread_rwlockattr_t *);
+int	_pthread_rwlock_destroy (pthread_rwlock_t *);
 struct pthread *_pthread_self(void);
 int	_pthread_setspecific(pthread_key_t, const void *);
 struct pthread *_thr_alloc(struct pthread *);
@@ -1127,6 +1134,19 @@ void	_thr_enter_cancellation_point(struct pthread *);
 void	_thr_leave_cancellation_point(struct pthread *);
 int	_thr_setconcurrency(int new_level);
 int	_thr_setmaxconcurrency(void);
+
+/*
+ * Aliases for _pthread functions. Should be called instead of
+ * originals if PLT replocation is unwanted at runtme.
+ */
+int	_thr_cond_broadcast(pthread_cond_t *);
+int	_thr_cond_signal(pthread_cond_t *);
+int	_thr_cond_wait(pthread_cond_t *, pthread_mutex_t *);
+int	_thr_mutex_lock(pthread_mutex_t *);
+int	_thr_mutex_unlock(pthread_mutex_t *);
+int	_thr_rwlock_rdlock (pthread_rwlock_t *);
+int	_thr_rwlock_wrlock (pthread_rwlock_t *);
+int	_thr_rwlock_unlock (pthread_rwlock_t *);
 
 /* XXX - Stuff that goes away when my sources get more up to date. */
 /* #include <sys/kse.h> */
