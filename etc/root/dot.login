@@ -1,8 +1,6 @@
 # csh .login file
 #
 
-stty crt erase 
-# PATH und MANPATH Grundeinstellung
 set path = (/sbin /bin /usr/sbin /usr/bin /usr/games /usr/local/bin /usr/X11R6/bin $HOME/bin)
 setenv MANPATH "/usr/share/man:/usr/X11R6/man:/usr/local/man"
 
