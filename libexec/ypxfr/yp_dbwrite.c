@@ -53,10 +53,8 @@ static const char rcsid[] =
 /*
  * Open a DB database read/write
  */
-DB *yp_open_db_rw(domain, map, flags)
-	const char *domain;
-	const char *map;
-	const int flags;
+DB *
+yp_open_db_rw(const char *domain, const char *map, const int flags)
 {
 	DB *dbp;
 	char buf[1025];
@@ -91,11 +89,8 @@ DB *yp_open_db_rw(domain, map, flags)
 	return (dbp);
 }
 
-int yp_put_record(dbp,key,data,allow_overwrite)
-	DB *dbp;
-	DBT *key;
-	DBT *data;
-	int allow_overwrite;
+int
+yp_put_record(DB *dbp, DBT *key, DBT *data, int allow_overwrite)
 {
 	int rval;
 

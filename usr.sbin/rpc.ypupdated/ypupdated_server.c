@@ -66,8 +66,8 @@ int forked = 0;
 #define WINDOW (60*60)
 #endif
 
-static enum auth_stat yp_checkauth(svcreq)
-	struct svc_req *svcreq;
+static enum auth_stat
+yp_checkauth(struct svc_req *svcreq)
 {
 	struct authdes_cred *des_cred;
 
@@ -93,9 +93,8 @@ was too large -- possible spoof attempt");
 	}
 }
 
-unsigned int *ypu_change_1_svc(args, svcreq)
-	struct ypupdate_args *args;
-	struct svc_req *svcreq;
+unsigned int *
+ypu_change_1_svc(struct ypupdate_args *args, struct svc_req *svcreq)
 {
 	struct authdes_cred *des_cred;
 	static int res;
@@ -128,9 +127,8 @@ unsigned int *ypu_change_1_svc(args, svcreq)
 	return (&res);
 }
 
-unsigned int *ypu_insert_1_svc(args, svcreq)
-	struct ypupdate_args *args;
-	struct svc_req *svcreq;
+unsigned int *
+ypu_insert_1_svc(struct ypupdate_args *args, struct svc_req *svcreq)
 {
 	struct authdes_cred *des_cred;
 	static int res;
@@ -163,9 +161,8 @@ unsigned int *ypu_insert_1_svc(args, svcreq)
 	return (&res);
 }
 
-unsigned int *ypu_delete_1_svc(args, svcreq)
-	struct ypdelete_args *args;
-	struct svc_req *svcreq;
+unsigned int *
+ypu_delete_1_svc(struct ypdelete_args *args, struct svc_req *svcreq)
 {
 	struct authdes_cred *des_cred;
 	static int res;
@@ -198,9 +195,8 @@ unsigned int *ypu_delete_1_svc(args, svcreq)
 	return (&res);
 }
 
-unsigned int *ypu_store_1_svc(args, svcreq)
-	struct ypupdate_args *args;
-	struct svc_req *svcreq;
+unsigned int *
+ypu_store_1_svc(struct ypupdate_args *args, struct svc_req *svcreq)
 {
 	struct authdes_cred *des_cred;
 	static int res;

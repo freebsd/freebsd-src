@@ -52,9 +52,7 @@ static const char rcsid[] =
 #include "yppasswdd_extern.h"
 
 int
-pw_copy(ffd, tfd, pw)
-	int ffd, tfd;
-	struct passwd *pw;
+pw_copy(int ffd, int tfd, struct passwd *pw)
 {
 	FILE *from, *to;
 	int done;

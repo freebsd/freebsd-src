@@ -101,7 +101,7 @@ void _msgout(char* msg)
 pid_t	yp_pid;
 
 static void
-yp_svc_run()
+yp_svc_run(void)
 {
 #ifdef FD_SETSIZE
 	fd_set readfds;
@@ -152,14 +152,15 @@ yp_svc_run()
 	}
 }
 
-static void unregister()
+static void
+unregister(void)
 {
 	(void) pmap_unset(YPPROG, YPVERS);
 	(void) pmap_unset(YPPROG, YPOLDVERS);
 }
 
-static void reaper(sig)
-	int sig;
+static void
+reaper(int sig)
 {
 	int			status;
 	int			saved_errno;
@@ -186,7 +187,8 @@ static void reaper(sig)
 	return;
 }
 
-static void usage()
+static void
+usage(void)
 {
 	fprintf(stderr, "usage: ypserv [-h] [-d] [-n] [-p path]\n");
 	exit(1);
@@ -223,9 +225,7 @@ closedown(int sig)
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	register SVCXPRT *transp = NULL;
 	int sock;

@@ -48,15 +48,14 @@ static const char rcsid[] =
 #include <rpcsvc/ypclnt.h>
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: yppoll [-h host] [-d domainname] mapname\n");
 	exit(1);
 }
 
 int
-main(argc, argv)
-char **argv;
+main(int argc, char *argv[])
 {
 	char *domainname;
         char *hostname = "localhost";
