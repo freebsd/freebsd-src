@@ -59,9 +59,6 @@ cat >../isa/${1}.c <<DONE
 #include <i386/isa/isa.h>	/* ISA bus port definitions etc. */
 #include <i386/isa/isa_device.h>/* ISA bus configuration structures */
 #include <sys/${1}io.h>		/* ${1} IOCTL definitions */
-#ifdef DEVFS
-#include <sys/devfsext.h>	/* DEVFS defintitions */
-#endif /* DEVFS */
 
 
 
@@ -114,9 +111,6 @@ struct isa_driver ${1}driver = {
 struct ${1}_softc {
 	struct isa_device *dev;
 	char	buffer[BUFFERSIZE];
-#ifdef DEVFS
-	static void *devfs_token;
-#endif
 } ;
 
 typedef	struct ${1}_softc *sc_p;
@@ -194,10 +188,6 @@ ${1}attach (struct isa_device *dev)
 	 * Store whatever seems wise.
 	 */
 	scp->dev = dev;
-#if DEVFS
-    	scp->devfs_token = devfs_add_devswf(&${1}_cdevsw, unit, DV_CHR,
-	    UID_ROOT, GID_KMEM, 0600, "${1}%d", unit);
-#endif
 	return 1;
 }
 
