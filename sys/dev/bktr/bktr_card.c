@@ -80,6 +80,9 @@
 #define MSP3400C_WADDR          0x80
 #define MSP3400C_RADDR          0x81
  
+/* address of DPL3518A chip */
+#define DPL3518A_WADDR          0x84
+#define DPL3518A_RADDR          0x85
  
 /* EEProm (128 * 8) on an STB card */
 #define X24C01_WADDR            0xae
@@ -114,6 +117,7 @@ static const struct CARDTYPE cards[] = {
 	   0,					/* the tuner i2c address */
 	   0,					/* dbx unknown */
 	   0,
+	   0,
 	   0,					/* EEProm unknown */
 	   0,					/* EEProm unknown */
 	   { 0, 0, 0, 0, 0 },
@@ -124,6 +128,7 @@ static const struct CARDTYPE cards[] = {
 	   NULL,				/* the tuner */
 	   0,					/* the tuner i2c address */
 	   0,					/* dbx unknown */
+	   0,
 	   0,
 	   0,					/* EEProm unknown */
 	   0,					/* size unknown */
@@ -136,6 +141,7 @@ static const struct CARDTYPE cards[] = {
 	   0,					/* the tuner i2c address */
 	   0,					/* dbx is optional */
 	   0,
+	   0,
 	   PFC8582_WADDR,			/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
 	   { 0x00, 0x02, 0x01, 0x04, 1 },	/* audio MUX values */
@@ -146,6 +152,7 @@ static const struct CARDTYPE cards[] = {
 	   NULL,				/* the tuner */
 	   0,					/* the tuner i2c address */
 	   0,					/* dbx is optional */
+	   0,
 	   0,
 	   X24C01_WADDR,			/* EEProm type */
 	   (u_char)(128 / EEPROMBLOCKSIZE),	/* 128 bytes */
@@ -160,6 +167,7 @@ static const struct CARDTYPE cards[] = {
 	   0,
 	   0,
 	   0,
+	   0,
 	   { 0, 0, 0, 0, 0 }, 			/* audio MUX values */
 	   0x00 },				/* GPIO mask */
 
@@ -168,6 +176,7 @@ static const struct CARDTYPE cards[] = {
 	   NULL,				/* the tuner */
 	   0,					/* the tuner i2c address */
 	   0,					/* dbx is optional */
+	   0,
 	   0,
 	   PFC8582_WADDR,			/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
@@ -180,16 +189,18 @@ static const struct CARDTYPE cards[] = {
 	   0,					/* the tuner i2c address */
            0,                                   /* dbx is optional */
            0,
+	   0,
            0,                                   /* EEProm type */
            0,                                   /* EEProm size */
-           { 0x0c, 0x00, 0x0b, 0x0b, 1 },	/* audio MUX values */
-	   0x0f },				/* GPIO mask */
+           { 0x0c, 0x08, 0x04, 0x00, 1 },	/* audio MUX values */
+	   0x1f },				/* GPIO mask */
 
         {  CARD_OSPREY,				/* the card id */
           "MMAC Osprey",                   	/* the 'name' */
            NULL,                                /* the tuner */
 	   0,					/* the tuner i2c address */
            0,                                   /* dbx is optional */
+	   0,
            0,
 	   PFC8582_WADDR,			/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
@@ -201,6 +212,7 @@ static const struct CARDTYPE cards[] = {
            NULL,                                /* the tuner */
            0,                                   /* the tuner i2c address */
            0,                                   /* dbx is optional */
+	   0,
            0,
            0,                                   /* EEProm type */
            0,                                   /* EEProm size */
@@ -213,6 +225,7 @@ static const struct CARDTYPE cards[] = {
            0,                                   /* the tuner i2c address */
            0,                                   /* dbx is optional */
            0,
+	   0,
            0,                                   /* EEProm type */
            0,                                   /* EEProm size */
            { 0x00, 0x00, 0x00, 0x00, 1 },	/* Has special MUX handler */
@@ -224,6 +237,7 @@ static const struct CARDTYPE cards[] = {
            0,					/* the tuner i2c address */
            0,					/* dbx is optional */
            0,					/* msp34xx is optional */
+           0,					/* dpl3518a is optional */
 	   0xac,				/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
            { 0x000, 0x800, 0x400, 0x8dff00, 1 },/* audio MUX values */
@@ -235,6 +249,7 @@ static const struct CARDTYPE cards[] = {
            0,					/* the tuner i2c address */
            0,					/* dbx is optional */
            0,					/* msp34xx is optional */
+           0,					/* dpl3518a is optional */
 	   0,					/* EEProm type */
 	   0,					/* EEProm size */
 	   { 0x04, 0x01, 0x00, 0x0a, 1 },	/* audio MUX values */
@@ -246,6 +261,7 @@ static const struct CARDTYPE cards[] = {
            0,					/* the tuner i2c address */
            0,					/* dbx is optional */
            0,					/* msp34xx is optional */
+           0,					/* dpl3518a is optional */
 	   0,					/* EEProm type */
 	   0,					/* EEProm size */
 	   { 0x0c, 0x00, 0x0b, 0x0b, 1 },	/* audio MUX values */
@@ -254,6 +270,7 @@ static const struct CARDTYPE cards[] = {
 	{  CARD_VIDEO_HIGHWAY_XTREME,		/* the card id */
 	  "Video Highway Xtreme",		/* the 'name' */
            NULL,				/* the tuner */
+	   0,
 	   0,
 	   0,
 	   0,
@@ -268,6 +285,7 @@ static const struct CARDTYPE cards[] = {
 	   0,
 	   0,
 	   0,
+	   0,
 	   0,					/* EEProm type */
 	   0,					/* EEProm size */
 	   { 0x00, 0x00, 0x00, 0x00, 0 },	/* audio MUX values */
@@ -276,6 +294,7 @@ static const struct CARDTYPE cards[] = {
 	{  CARD_LEADTEK,			/* the card id */
 	  "Leadtek Winfast TV 2000",		/* the 'name' */
 	   NULL,				/* the tuner */
+	   0,
 	   0,
 	   0,
 	   0,
@@ -1035,6 +1054,20 @@ checkMSPEnd:
 
 	}
 
+/* Check for Dolby Surround Sound DPL3518A sound chip */
+	if ( i2cRead( bktr, DPL3518A_RADDR ) != ABSENT ) {
+		bktr->card.dpl3518a = 1;
+	}
+
+	if (bktr->card.dpl3518a) {
+		bktr->dpl_addr = DPL3518A_WADDR;
+/*		dpl_read_id( bktr );
+		printf("bktr%d: Detected a DPL%s at 0x%x\n", unit,
+				bktr->dpl_version_string,
+				bktr->dpl_addr);
+*/
+    
+	}
 
 /* Start of Check Remote */
         /* Check for the Hauppauge IR Remote Control */
@@ -1081,25 +1114,9 @@ checkMSPEnd:
 
 	/* Most (perhaps all) Bt878 cards need to be switched to PLL mode */
 	/* as they only fit the NTSC crystal to their cards */
+	/* Default to enabling PLL mode for all Bt878/879 cards */
 
-	/* Enable PLL mode for PAL/SECAM users on Hauppauge 878 cards */
-	if ((card == CARD_HAUPPAUGE) &&
-	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
-		bktr->xtal_pll_mode = BT848_USE_PLL;
-
-	/* Enable PLL mode for PAL/SECAM users on FlyVideo 878 cards */
-	if ((card == CARD_FLYVIDEO) &&
-	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
-		bktr->xtal_pll_mode = BT848_USE_PLL;
-
-	/* Enable PLL mode for Askey Dynalink users */
-	if ((card == CARD_ASKEY_DYNALINK_MAGIC_TVIEW) &&
-	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
-		bktr->xtal_pll_mode = BT848_USE_PLL;
-
-	/* Enable PLL mode for Leadtek users */
-	if ((card == CARD_LEADTEK) &&
-	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
+	if ((bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
 		bktr->xtal_pll_mode = BT848_USE_PLL;
 
 
@@ -1118,6 +1135,8 @@ checkPLLEnd:
 			printf( ", dbx stereo" );
 		if ( bktr->card.msp3400c )
 			printf( ", msp3400c stereo" );
+		if ( bktr->card.dpl3518a )
+			printf( ", dpl3518a dolby" );
                 if ( bktr->remote_control )
                         printf( ", remote control" );
 		printf( ".\n" );

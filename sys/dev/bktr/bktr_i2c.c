@@ -128,11 +128,23 @@ static device_method_t bti2c_methods[] = {
 	{ 0, 0 }
 };
 
+#if (__FreeBSD_version < 400000)
+/* FreeBSD 3.x needs DRIVER_TYPE_MISC */
 static driver_t bti2c_driver = {
 	"bti2c",
 	bti2c_methods,
+	DRIVER_TYPE_MISC,
 	sizeof(struct bti2c_softc),
 };
+#endif
+
+#if (__FreeBSD_version >=400000)
+	static driver_t bti2c_driver = {
+	"bti2c",
+	bti2c_methods,
+	sizeof(struct bti2c_softc),
+};      
+#endif
 
 /*
  * Call this to pass the base address of the bktr device to the
