@@ -117,6 +117,11 @@ static int safte_set_objstat(ses_softc_t *, ses_objstat *, int);
 #define	STRNCMP			strncmp
 #define	PRINTF			printf
 #define	SES_LOG			ses_log
+#ifdef	DEBUG
+#define	SES_DLOG		ses_log
+#else
+#define	SES_DLOG		if (0) ses_log
+#endif
 #define	SES_VLOG		if (bootverbose) ses_log
 #define	SES_MALLOC(amt)		malloc(amt, M_DEVBUF, M_NOWAIT)
 #define	SES_FREE(ptr, amt)	free(ptr, M_DEVBUF)
@@ -1728,26 +1733,15 @@ safte_softc_init(ses_softc_t *ssc, int doinit)
 int
 safte_init_enc(ses_softc_t *ssc)
 {
-	int err, amt;
-	char *sdata;
-	static char cdb0[10] = { SEND_DIAGNOSTIC };
-	static char cdb[10] =
-	    { WRITE_BUFFER , 1, 0, 0, 0, 0, 0, 0, SAFT_SCRATCH, 0 };
+	int err;
+	static char cdb0[6] = { SEND_DIAGNOSTIC };
 
-	sdata = SES_MALLOC(SAFT_SCRATCH);
-	if (sdata == NULL)
-		return (ENOMEM);
-
-	err = ses_runcmd(ssc, cdb0, 10, NULL, 0);
+	err = ses_runcmd(ssc, cdb0, 6, NULL, 0);
 	if (err) {
-		SES_FREE(sdata, SAFT_SCRATCH);
 		return (err);
 	}
-	sdata[0] = SAFTE_WT_GLOBAL;
-	MEMZERO(&sdata[1], SAFT_SCRATCH - 1);
-	amt = -SAFT_SCRATCH;
-	err = ses_runcmd(ssc, cdb, 10, sdata, &amt);
-	SES_FREE(sdata, SAFT_SCRATCH);
+	DELAY(5000);
+	err = wrbuf16(ssc, SAFTE_WT_GLOBAL, 0, 0, 0, 1);
 	return (err);
 }
 
@@ -1808,7 +1802,7 @@ safte_set_objstat(ses_softc_t *ssc, ses_objstat *obp, int slp)
 	struct scfg *cc;
 
 
-	SES_VLOG(ssc, "safte_set_objstat(%d): %x %x %x %x\n",
+	SES_DLOG(ssc, "safte_set_objstat(%d): %x %x %x %x\n",
 	    (int)obp->obj_id, obp->cstat[0], obp->cstat[1], obp->cstat[2],
 	    obp->cstat[3]);
 
@@ -2471,7 +2465,7 @@ wrbuf16(ses_softc_t *ssc, uint8_t op, uint8_t b1, uint8_t b2,
 	if (sdata == NULL)
 		return (ENOMEM);
 
-	SES_VLOG(ssc, "saf_wrbuf16 %x %x %x %x\n", op, b1, b2, b3);
+	SES_DLOG(ssc, "saf_wrbuf16 %x %x %x %x\n", op, b1, b2, b3);
 
 	sdata[0] = op;
 	sdata[1] = b1;
@@ -2501,7 +2495,7 @@ wrslot_stat(ses_softc_t *ssc, int slp)
 	if (cc == NULL)
 		return;
 
-	SES_VLOG(ssc, "saf_wrslot\n");
+	SES_DLOG(ssc, "saf_wrslot\n");
 	cdb[0] = WRITE_BUFFER;
 	cdb[1] = 1;
 	cdb[2] = 0;
@@ -2521,7 +2515,7 @@ wrslot_stat(ses_softc_t *ssc, int slp)
 	sdata[0] = SAFTE_WT_DSTAT;
 	for (i = 0; i < cc->Nslots; i++) {
 		ep = &ssc->ses_objmap[cc->slotoff + i];
-		SES_VLOG(ssc, "saf_wrslot %d <- %x\n", i, ep->priv & 0xff);
+		SES_DLOG(ssc, "saf_wrslot %d <- %x\n", i, ep->priv & 0xff);
 		sdata[1 + (3 * i)] = ep->priv & 0xff;
 	}
 	amt = -(cc->Nslots * 3 + 1);
@@ -2552,7 +2546,7 @@ perf_slotop(ses_softc_t *ssc, uint8_t slot, uint8_t opflag, int slp)
 	sdata[0] = SAFTE_WT_SLTOP;
 	sdata[1] = slot;
 	sdata[2] = opflag;
-	SES_VLOG(ssc, "saf_slotop slot %d op %x\n", slot, opflag);
+	SES_DLOG(ssc, "saf_slotop slot %d op %x\n", slot, opflag);
 	amt = -SAFT_SCRATCH;
 	err = ses_runcmd(ssc, cdb, 10, sdata, &amt);
 	SES_FREE(sdata, SAFT_SCRATCH);
