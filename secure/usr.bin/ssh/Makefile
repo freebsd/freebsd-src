@@ -12,8 +12,8 @@ SRCS=	ssh.c authfd.c hostfile.c msg.c readconf.c clientloop.c sshtty.c \
 
 .if !defined(NO_KERBEROS)
 CFLAGS+= -DKRB5 -DHEIMDAL
-LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken -lcrypt
-DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBASN1} ${LIBMD} ${LIBCRYPT}
+LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -lroken -lcrypt
+DPADD+=	 ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN} ${LIBCRYPT}
 .endif
 
 .if defined(X11BASE)
