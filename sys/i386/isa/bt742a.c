@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.13 1994/03/20 00:30:00 wollman Exp $
+ *      $Id: bt742a.c,v 1.14 1994/03/24 02:22:58 davidg Exp $
  */
 
 /*
@@ -1287,6 +1287,17 @@ bt_scsi_cmd(xs)
 					 * the the last, just extend the length 
 					 */
 				{
+
+					/* check it fits on the ISA bus */
+					if (thisphys > 0xFFFFFF)
+					{
+						printf("bt%d: DMA beyond"
+							" end Of ISA\n", unit);
+						xs->error = XS_DRIVER_STUFFUP;
+						bt_free_ccb(unit, ccb, flags);
+						return (HAD_ERROR);
+					}
+					/** how far to the end of the page ***/
 					/* how far to the end of the page */
 					nextphys = (thisphys & (~(PAGESIZ - 1)))
 					    + PAGESIZ;
