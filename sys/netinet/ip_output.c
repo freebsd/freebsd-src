@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.77 1998/07/06 05:00:53 julian Exp $
+ *	$Id: ip_output.c,v 1.78 1998/07/06 05:04:33 julian Exp $
  */
 
 #define _IP_VHL
@@ -980,7 +980,7 @@ ip_pcbopts(pcbopt, m)
 	}
 
 #ifndef	vax
-	if (m->m_len % sizeof(long))
+	if (m->m_len % sizeof(int32_t))
 		goto bad;
 #endif
 	/*
