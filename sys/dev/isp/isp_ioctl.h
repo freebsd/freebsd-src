@@ -143,6 +143,10 @@ struct isp_hba_device {
 		fc_scsi_supported	: 1,
 		fc_topology		: 3,
 		fc_loopid		: 8;
+	u_int8_t	fc_fw_major;
+	u_int8_t	fc_fw_minor;
+	u_int8_t	fc_fw_micro;
+	u_int8_t	reserved;
 	u_int64_t	nvram_node_wwn;
 	u_int64_t	nvram_port_wwn;
 	u_int64_t	active_node_wwn;
