@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.1.2.87
+    Original revision: 1.1.2.93
 -->
 
 <!-- 
@@ -51,6 +51,7 @@
       <year>2000</year>
       <year>2001</year>
       <year>2002</year>
+      <year>2003</year>
       <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
     </copyright>
   </articleinfo>
@@ -128,7 +129,34 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>セキュリティ勧告は発行されていません。</para>
+
+    <para>kadmind(8) および k5admin にあったバッファオーバフロー問題が修正されました。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">FreeBSD-SA-02:40</ulink> をご覧ください。</para>
+
+    <para>&man.smrsh.8; にあった、
+      実行可能なプログラムの制限をユーザから無効にすることができるという
+      プログラム上の誤りが修正されました。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:41.smrsh.asc">FreeBSD-SA-02:41</ulink> をご覧ください。</para>
+
+    <para>DNS リゾルバ (&man.resolver.3;) にあった、
+      アプリケーションを動作不能にする可能性のあるバッファオーバフロー問題が修正されました。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink> をご覧ください。</para>
+
+    <para><application>BIND</application>
+      における複数のセキュリティ上の弱点が修正されました。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink> をご覧ください。</para>
+
+    <para>&man.fpathconf.2; システムコールにあった、
+      ローカルユーザからシステムをクラッシュさせたり、
+      高い権限を不正に取得するために利用可能な、
+      ファイル記述子の漏洩問題が修正されました。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink> をご覧ください。</para>
+
 ]]>
   </sect1>
 
@@ -141,8 +169,11 @@
 
 <![ %release.type.snapshot [
 
-    <para>&os; &release.prev; のリリース作業の後にライセンス上の問題が判明したため、
-      &man.matcd.4; ドライバは削除されました。</para>
+    <para>&os; &release.prev; のリリース時点で、
+      &man.matcd.4; ドライバにライセンス上の問題が判明したため、
+      このドライバは削除されました。
+      現在この問題に取り組んでおり、&os; の将来のリリースで
+      再度このドライバが登場するかも知れません。</para>
 
     <para><filename>srelease</filename> 配布物の
       <filename>release/sysinstall</filename> ディレクトリに、
@@ -170,6 +201,17 @@
       &man.xargs.1; の <option>-J</option>
       オプションが廃止されたと書かれています。
       これは誤りであり、このオプションが削除される予定はありません。</para>
+
+    <para>&man.ftpd.8; のバーチャルホスト機能には、
+      次のようなバグが存在します。
+      <filename>/etc/ftphosts</filename> で逆引き可能な
+      IP アドレスを持つバーチャルホストを指定した場合、
+      &man.inetd.8; から起動した &man.ftpd.8; デーモンは
+      <literal>SIGSEGV</literal> (signal 11) で異常終了し、
+      スタンドアロンで実行している &man.ftpd.8;
+      は予期できない異常動作となります。
+      この問題は &os; &release.current; で修正されました。</para>
+
 ]]>
   </sect1>
 </article>
