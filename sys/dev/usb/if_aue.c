@@ -106,22 +106,23 @@ static const char rcsid[] =
  * Various supported device vendors/products.
  */
 Static struct aue_type aue_devs[] = {
-	{ USB_VENDOR_ADMTEK, USB_PRODUCT_ADMTEK_PEGASUS },
-	{ USB_VENDOR_BILLIONTON, USB_PRODUCT_BILLIONTON_USB100 },
-	{ USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUATX1 },
-	{ USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUATX5 },
-	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650 },
-	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650TX },
-	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650TX_PNA },
-	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2202USB },
-	{ USB_VENDOR_LINKSYS, USB_PRODUCT_LINKSYS_USB100TX },
-	{ USB_VENDOR_LINKSYS, USB_PRODUCT_LINKSYS_USB10TA },
-	{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB_TX },
-	{ USB_VENDOR_KINGSTON, USB_PRODUCT_KINGSTON_KNU101TX },
-	{ USB_VENDOR_ABOCOM, USB_PRODUCT_DLINK_DSB650TX_PNA },
-	{ USB_VENDOR_IODATA, USB_PRODUCT_IODATA_USBETTX },
-	{ USB_VENDOR_ACCTON, USB_PRODUCT_ACCTON_USB320_EC },
-	{ 0, 0 }
+    { USB_VENDOR_ADMTEK,	USB_PRODUCT_ADMTEK_PEGASUS,	  0 },
+    { USB_VENDOR_BILLIONTON,	USB_PRODUCT_BILLIONTON_USB100,	  0 },
+    { USB_VENDOR_MELCO,		USB_PRODUCT_MELCO_LUATX1,	  0 },
+    { USB_VENDOR_MELCO,		USB_PRODUCT_MELCO_LUATX5,	  0 },
+    { USB_VENDOR_MELCO,		USB_PRODUCT_MELCO_LUA2TX5,	  PII },
+    { USB_VENDOR_DLINK,		USB_PRODUCT_DLINK_DSB650,	  LSYS },
+    { USB_VENDOR_DLINK,		USB_PRODUCT_DLINK_DSB650TX,	  LSYS },
+    { USB_VENDOR_DLINK,		USB_PRODUCT_DLINK_DSB650TX_PNA,	  0 },
+    { USB_VENDOR_SMC,		USB_PRODUCT_SMC_2202USB,	  0 },
+    { USB_VENDOR_LINKSYS,	USB_PRODUCT_LINKSYS_USB100TX,	  LSYS },
+    { USB_VENDOR_LINKSYS,	USB_PRODUCT_LINKSYS_USB10TA,	  LSYS },
+    { USB_VENDOR_COREGA,	USB_PRODUCT_COREGA_FETHER_USB_TX, 0 },
+    { USB_VENDOR_KINGSTON,	USB_PRODUCT_KINGSTON_KNU101TX,	  0 },
+    { USB_VENDOR_ABOCOM,	USB_PRODUCT_DLINK_DSB650TX_PNA,	  0 },
+    { USB_VENDOR_IODATA,	USB_PRODUCT_IODATA_USBETTX,	  0 },
+    { USB_VENDOR_ACCTON,	USB_PRODUCT_ACCTON_USB320_EC,	  0 },
+    { 0, 0, 0 }
 };
 
 Static struct usb_qdat aue_qdat;
@@ -130,6 +131,7 @@ Static int aue_match		__P((device_t));
 Static int aue_attach		__P((device_t));
 Static int aue_detach		__P((device_t));
 
+Static void aue_reset_pegasus_II __P((struct aue_softc *));
 Static int aue_tx_list_init	__P((struct aue_softc *));
 Static int aue_rx_list_init	__P((struct aue_softc *));
 Static int aue_newbuf		__P((struct aue_softc *, struct aue_chain *,
@@ -487,14 +489,7 @@ Static void aue_miibus_statchg(dev)
 	 * This turns on the 'dual link LED' bin in the auxmode
 	 * register of the Broadcom PHY.
 	 */
-	if ((sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
-	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB100TX) ||
-	    (sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
-	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB10TA) ||
-	    (sc->aue_info->aue_vid == USB_VENDOR_DLINK &&
-	    sc->aue_info->aue_did == USB_PRODUCT_DLINK_DSB650TX) ||
-	    (sc->aue_info->aue_vid == USB_VENDOR_DLINK &&
-	    sc->aue_info->aue_did == USB_PRODUCT_DLINK_DSB650)) {
+	if (sc->aue_info->aue_flags & LSYS) {
 		u_int16_t		auxmode;
 		auxmode = aue_miibus_readreg(dev, 0, 0x1b);
 		aue_miibus_writereg(dev, 0, 0x1b, auxmode | 0x04);
@@ -553,6 +548,21 @@ Static void aue_setmulti(sc)
 	return;
 }
 
+Static void
+aue_reset_pegasus_II(sc)
+	struct aue_softc	*sc;
+{
+	/* Magic constants taken from Linux driver. */
+	csr_write_1(sc, AUE_REG_1D, 0);
+	csr_write_1(sc, AUE_REG_7B, 2);
+#if 0
+	if ((sc->aue_flags & HAS_HOME_PNA) && mii_mode)
+		csr_write_1(sc, AUE_REG_81, 6);
+	else
+#endif
+		csr_write_1(sc, AUE_REG_81, 2);
+}
+
 Static void aue_reset(sc)
 	struct aue_softc	*sc;
 {
@@ -581,18 +591,14 @@ Static void aue_reset(sc)
 	csr_write_1(sc, AUE_GPIO0, AUE_GPIO_OUT0|AUE_GPIO_SEL0|AUE_GPIO_SEL1);
 
 	/* Grrr. LinkSys has to be different from everyone else. */
-	if ((sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
-	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB100TX) ||
-	    (sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
-	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB10TA) ||
-	    (sc->aue_info->aue_vid == USB_VENDOR_DLINK &&
-	    sc->aue_info->aue_did == USB_PRODUCT_DLINK_DSB650TX) ||
-	    (sc->aue_info->aue_vid == USB_VENDOR_DLINK &&
-	    sc->aue_info->aue_did == USB_PRODUCT_DLINK_DSB650)) {
+	if (sc->aue_info->aue_flags & LSYS) {
 		csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1);
 		csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1|
 			AUE_GPIO_OUT0);
 	}
+
+	if (sc->aue_info->aue_flags & PII)
+                aue_reset_pegasus_II(sc);
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(10000);
