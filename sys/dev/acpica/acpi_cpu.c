@@ -103,8 +103,9 @@ static uint32_t		 cpu_duty_width;
 #define ACPI_CPU_NOTIFY_PERF_STATES	0x80	/* _PSS changed. */
 #define ACPI_CPU_NOTIFY_CX_STATES	0x81	/* _CST changed. */
 
-#define CPU_QUIRK_NO_C3		0x0001	/* C3-type states are not usable. */
-#define CPU_QUIRK_NO_THROTTLE	0x0002	/* Throttling is not usable. */
+#define CPU_QUIRK_NO_C3		(1<<0)	/* C3-type states are not usable. */
+#define CPU_QUIRK_NO_THROTTLE	(1<<1)	/* Throttling is not usable. */
+#define CPU_QUIRK_NO_BM_CTRL	(1<<2)	/* No bus mastering control. */
 
 #define PCI_VENDOR_INTEL	0x8086
 #define PCI_DEVICE_82371AB_3	0x7113	/* PIIX4 chipset for quirks. */
@@ -461,12 +462,16 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    /* Bus mastering arbitration control is needed for C3. */
+    /*
+     * Bus mastering arbitration control is needed to keep caches coherent
+     * while sleeping in C3.  If it's not present, we flush the caches before
+     * entering C3 instead.
+     */
     if (AcpiGbl_FADT->V1_Pm2CntBlk == 0 || AcpiGbl_FADT->Pm2CntLen == 0) {
-	cpu_quirks |= CPU_QUIRK_NO_C3;
+	cpu_quirks |= CPU_QUIRK_NO_BM_CTRL;
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			 "acpi_cpu%d: No BM control, C3 disabled\n",
-			 device_get_unit(sc->cpu_dev)));
+	    "acpi_cpu%d: no BM control, using flush cache method\n",
+	    device_get_unit(sc->cpu_dev)));
     }
 
     /*
@@ -852,15 +857,20 @@ acpi_cpu_idle()
      * Check for bus master activity.  If there was activity, clear
      * the bit and use the lowest non-C3 state.  Note that the USB
      * driver polling for new devices keeps this bit set all the
-     * time if USB is loaded.
+     * time if USB is loaded.  If bus mastering control is not available,
+     * flush caches.  This can be quite slow but may be useful since not
+     * all systems support BM control.
      */
-    AcpiGetRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active,
-		    ACPI_MTX_DO_NOT_LOCK);
-    if (bm_active != 0) {
-	AcpiSetRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1,
-			ACPI_MTX_DO_NOT_LOCK);
-	cx_next_idx = min(cx_next_idx, cpu_non_c3);
-    }
+    if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
+	AcpiGetRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active,
+	    ACPI_MTX_DO_NOT_LOCK);
+	if (bm_active != 0) {
+	    AcpiSetRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1,
+		ACPI_MTX_DO_NOT_LOCK);
+	    cx_next_idx = min(cx_next_idx, cpu_non_c3);
+	}
+    } else
+	ACPI_FLUSH_CPU_CACHE();
 
     /* Select the next state and update statistics. */
     cx_next = &sc->cpu_cx_states[cx_next_idx];
@@ -903,7 +913,8 @@ acpi_cpu_idle()
     AcpiHwLowLevelRead(32, &end_time, &AcpiGbl_FADT->XPmTmrBlk);
 
     /* Enable bus master arbitration and disable bus master wakeup. */
-    if (cx_next->type == ACPI_STATE_C3) {
+    if (cx_next->type == ACPI_STATE_C3 &&
+	(cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
 	AcpiSetRegister(ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_DO_NOT_LOCK);
 	AcpiSetRegister(ACPI_BITREG_BUS_MASTER_RLD, 0, ACPI_MTX_DO_NOT_LOCK);
     }
@@ -949,7 +960,7 @@ acpi_cpu_quirks(struct acpi_cpu_softc *sc)
      * flushing all caches which is currently too expensive.
      */
     if (mp_ncpus > 1)
-	cpu_quirks |= CPU_QUIRK_NO_C3;
+	cpu_quirks |= CPU_QUIRK_NO_BM_CTRL;
 
 #ifdef notyet
     /* Look for various quirks of the PIIX4 part. */
