@@ -132,7 +132,7 @@ devfs_unmount(mp, mntflags, p)
 	fmp = VFSTODEVFS(mp);
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	if (rootvp->v_usecount > 2)
+	if (rootvp->v_usecount > 1)
 		return (EBUSY);
 	devfs_purge(fmp->dm_rootdir);
 	error = vflush(mp, rootvp, flags);
