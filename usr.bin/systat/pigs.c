@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)pigs.c	8.2 (Berkeley) 9/23/93";
 
 #include <sys/param.h>
 #include <sys/dkstat.h>
+#include <sys/lock.h>
 #include <sys/time.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
