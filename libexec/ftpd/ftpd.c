@@ -2737,7 +2737,7 @@ send_file_list(char *whichf)
 	glob_t gl;
 
 	if (strpbrk(whichf, "~{[*?") != NULL) {
-		int flags = GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE;
+		int flags = GLOB_BRACE|GLOB_NOCHECK|GLOB_TILDE;
 
 		memset(&gl, 0, sizeof(gl));
 		gl.gl_matchc = MAXGLOBARGS;

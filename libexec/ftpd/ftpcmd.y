@@ -969,7 +969,7 @@ pathname
 			if (logged_in && $1) {
 				glob_t gl;
 				int flags =
-				 GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE;
+				 GLOB_BRACE|GLOB_NOCHECK|GLOB_TILDE;
 
 				memset(&gl, 0, sizeof(gl));
 				flags |= GLOB_MAXPATH;
