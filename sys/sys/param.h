@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.2 (Berkeley) 1/21/94
- * $Id: param.h,v 1.7 1995/02/07 03:33:05 davidg Exp $
+ * $Id: param.h,v 1.8 1995/05/14 03:00:05 davidg Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -181,7 +181,8 @@
 #define	howmany(x, y)	(((x)+((y)-1))/(y))
 #endif
 #define	rounddown(x, y)	(((x)/(y))*(y))
-#define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))
+#define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))  /* to any y */
+#define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
 #define powerof2(x)	((((x)-1)&(x))==0)
 
 /* Macros for min/max. */
