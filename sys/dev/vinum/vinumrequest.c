@@ -383,6 +383,7 @@ launch_requests(struct request *rq, int reviveok)
     }
 
     /* Now fire off the requests */
+    s = splbio();					    /* lock out the interrupt routines */
     for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
 	for (rqno = 0; rqno < rqg->count; rqno++) {
 	    rqe = &rqg->rqe[rqno];
@@ -419,11 +420,9 @@ launch_requests(struct request *rq, int reviveok)
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
 
-		if ((rqe->b.b_flags & B_READ) == 0) {
-		    s = splbio();
+		if ((rqe->b.b_flags & B_READ) == 0)
 		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
-		    splx(s);
-		}
+
 		rqe->b.b_flags |= B_ORDERED;		    /* stick to the request order */
 
 		/* fire off the request */
@@ -431,6 +430,7 @@ launch_requests(struct request *rq, int reviveok)
 	    }
 	}
     }
+    splx(s);
     return 0;
 }
 
