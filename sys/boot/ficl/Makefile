@@ -8,7 +8,7 @@ SRCS=		${BASE_SRCS} sysdep.c softcore.c
 CLEANFILES=	softcore.c testmain testmain.o
 CFLAGS+=	-ffreestanding
 .if ${MACHINE_ARCH} == "alpha"
-CFLAGS+=	-mno-fp-regs
+CFLAGS+=	-mno-fp-regs -Os
 .endif
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-mpreferred-stack-boundary=2
