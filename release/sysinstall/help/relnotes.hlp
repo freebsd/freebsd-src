@@ -34,6 +34,8 @@ o Secure RPC is now supported (and usable with NFS et al).
 
 o Sun's WEBNFS standard is now supported.
 
+o The MSDOS filesystem code now handles VFAT and FAT32 partitions.
+
 o Use the new if_multiaddrs list for multicast addresses rather than the
   previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
   abominable multi_kludge.
