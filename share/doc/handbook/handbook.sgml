@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.44 1996/05/01 20:10:55 phk Exp $ -->
+<!-- $Id: handbook.sgml,v 1.45 1996/05/09 23:04:40 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -140,6 +140,7 @@ name="FreeBSD FTP server"> or one of the numerous
     &submitters;
     &troubleshooting;
     &kerneldebug;
+    &linuxemu;
     <chapt><heading>FreeBSD internals</heading>
       &booting;
       &memoryuse;
