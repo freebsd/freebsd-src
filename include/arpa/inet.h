@@ -77,30 +77,30 @@ typedef	__uint32_t	uint32_t;
 #define	_UINT32_T_DECLARED
 #endif
 
-#ifndef	_IN_ADDR_T_DECLARED
+#ifndef _IN_ADDR_T_DECLARED
 typedef	uint32_t	in_addr_t;
 #define	_IN_ADDR_T_DECLARED
 #endif
 
-#ifndef	_IN_PORT_T_DECLARED
+#ifndef _IN_PORT_T_DECLARED
 typedef	uint16_t	in_port_t;
 #define	_IN_PORT_T_DECLARED
 #endif
 
-#ifndef _POSIX_SOURCE
-#ifdef	_BSD_SIZE_T_
+#if __BSD_VISIBLE
+#ifdef _BSD_SIZE_T_
 typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#undef _BSD_SIZE_T_
 #endif
-#endif /* !_POSIX_SOURCE */
+#endif
 
 /*
  * XXX socklen_t is used by a POSIX.1-2001 interface, but not required by
  * POSIX.1-2001.
  */
-#ifdef	_BSD_SOCKLEN_T_
+#ifdef _BSD_SOCKLEN_T_
 typedef	_BSD_SOCKLEN_T_	socklen_t;
-#undef	_BSD_SOCKLEN_T_
+#undef _BSD_SOCKLEN_T_
 #endif
 
 #ifndef _STRUCT_IN_ADDR_DECLARED
@@ -139,9 +139,9 @@ uint16_t	 ntohs(uint16_t);
 
 in_addr_t	 inet_addr(const char *);
 char		*inet_ntoa(struct in_addr);
-const char	*inet_ntop(int, const void *__restrict, char *__restrict,
-		     socklen_t);
-int		 inet_pton(int, const char *__restrict, void *__restrict);
+const char	*inet_ntop(int, const void * __restrict, char * __restrict,
+		    socklen_t);
+int		 inet_pton(int, const char * __restrict, void * __restrict);
 
 #if __BSD_VISIBLE
 int		 ascii2addr(int, const char *, void *);
