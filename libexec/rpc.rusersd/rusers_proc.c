@@ -32,19 +32,22 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rusers_proc.c,v 1.3 1994/11/18 23:36:18 ats Exp $";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <utmp.h>
-#include <stdio.h>
-#include <syslog.h>
+#include <err.h>
 #include <rpc/rpc.h>
-#include <sys/socket.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <syslog.h>
+#include <utmp.h>
 #ifdef XIDLE
 #include <setjmp.h>
 #include <X11/Xlib.h>
@@ -117,18 +120,18 @@ XqueryIdle(char *display)
                 }
                 if (XidleQueryExtension(dpy, &first_event, &first_error)) {
                         if (!XGetIdleTime(dpy, &IdleTime)) {
-                                syslog(LOG_ERR, "%s: Unable to get idle time.", display);
+                                syslog(LOG_ERR, "%s: unable to get idle time", display);
                                 return(-1);
                         }
                 }
                 else {
-                        syslog(LOG_ERR, "%s: Xidle extension not loaded.", display);
+                        syslog(LOG_ERR, "%s: Xidle extension not loaded", display);
                         return(-1);
                 }
                 XCloseDisplay(dpy);
         }
         else {
-                syslog(LOG_ERR, "%s: Server grabbed for over 10 seconds.", display);
+                syslog(LOG_ERR, "%s: server grabbed for over 10 seconds", display);
                 return(-1);
         }
         (void) signal (SIGALRM, SIG_DFL);
@@ -380,10 +383,8 @@ rusers_service(rqstp, transp)
 	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_argument, &argument)) {
-		(void)fprintf(stderr, "unable to free arguments\n");
-		exit(1);
-	}
+	if (!svc_freeargs(transp, xdr_argument, &argument))
+		errx(1, "unable to free arguments");
 leave:
         if (from_inetd)
                 exit(0);
