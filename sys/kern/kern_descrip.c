@@ -2042,6 +2042,7 @@ void
 fputsock(struct socket *so)
 {
 
+	NET_ASSERT_GIANT();
 	sorele(so);
 }
 
