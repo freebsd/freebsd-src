@@ -81,7 +81,7 @@ static void	vclean(struct vnode *vp, int flags, struct thread *td);
 static void	vlruvp(struct vnode *vp);
 static int	flushbuflist(struct buf *blist, int flags, struct vnode *vp,
 		    int slpflag, int slptimeo, int *errorp);
-static int	vcanrecycle(struct vnode *vp);
+static int	vcanrecycle(struct vnode *vp, struct mount **vnmpp);
 
 
 /*
@@ -797,11 +797,12 @@ SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &vnlru_kp)
  */
 
 /*
- * Check to see if a free vnode can be recycled.  If it can, return it locked
- * with the vn lock, but not interlock.  Otherwise indicate the error.
+ * Check to see if a free vnode can be recycled. If it can,
+ * return it locked with the vn lock, but not interlock. Also
+ * get the vn_start_write lock. Otherwise indicate the error.
  */
 static int
-vcanrecycle(struct vnode *vp)
+vcanrecycle(struct vnode *vp, struct mount **vnmpp)
 {
 	struct thread *td = curthread;
 	vm_object_t object;
@@ -813,8 +814,19 @@ vcanrecycle(struct vnode *vp)
 
 	/* We should be able to immediately acquire this */
 	/* XXX This looks like it should panic if it fails */
-	if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td) != 0)
+	if (vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td) != 0) {
+		if (VOP_ISLOCKED(vp, td))
+			panic("vcanrecycle: locked vnode");
 		return (EWOULDBLOCK);
+	}
+
+	/*
+	 * Don't recycle if its filesystem is being suspended.
+	 */
+	if (vn_start_write(vp, vnmpp, V_NOWAIT) != 0) {
+		error = EBUSY;
+		goto done;
+	}
 
 	/*
 	 * Don't recycle if we still have cached pages.
@@ -911,14 +923,7 @@ getnewvnode(tag, mp, vops, vpp)
 			 * order reversals with interlock.
 			 */
 			mtx_unlock(&vnode_free_list_mtx);
-			error = vcanrecycle(vp);
-			/*
-			 * Skip over it if its filesystem is being suspended.
-			 */
-			if (error == 0 &&
-			    vn_start_write(vp, &vnmp, V_NOWAIT) != 0)
-				error = EBUSY;
-
+			error = vcanrecycle(vp, &vnmp);
 			mtx_lock(&vnode_free_list_mtx);
 			if (error != 0)
 				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
