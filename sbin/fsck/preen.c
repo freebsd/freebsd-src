@@ -204,16 +204,15 @@ finddisk(name)
 {
 	register struct disk *dk, **dkp;
 	register char *p;
-	size_t len = 0;
+	size_t len;
 
-	for (p = name + strlen(name) - 1; p >= name; --p)
-		if (isdigit(*p)) {
-			len = p - name + 1;
-			break;
-		}
-	if (p < name)
-		len = strlen(name);
-
+	p = strrchr(name, '/');
+	p = p == NULL ? name : p + 1;
+	while (*p != '\0' && !isdigit((u_char)*p))
+		p++;
+	while (isdigit((u_char)*p))
+		p++;
+	len = (size_t)(p - name);
 	for (dk = disks, dkp = &disks; dk; dkp = &dk->next, dk = dk->next) {
 		if (strncmp(dk->name, name, len) == 0 &&
 		    dk->name[len] == 0)
