@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.45 1996/03/26 20:57:26 wollman Exp $
+#	$Id: Makefile,v 1.46 1996/07/04 00:42:09 mpp Exp $
 
 MAN4=   aha.4 ahb.4 ahc.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 dgb.4 \
 	ed.4 gsc.4 fdc.4 fe.4 ie.4 io.4 \
@@ -44,7 +44,7 @@ MLINKS+=	screen.4 ../screen.4
 MLINKS+=	sea.4 ../sea.4
 MLINKS+=	si.4 ../si.4
 MLINKS+=	sio.4 ../sio.4
-MLINKS+=	spkr.4 ../spkr.4
+MLINKS+=	spkr.4 ../spkr.4 spkr.4 speaker.4  spkr.4 ../speaker.4
 MLINKS+=	tw.4 ../tw.4
 MLINKS+=	uha.4 ../uha.4
 MLINKS+=	wd.4 ../wd.4
