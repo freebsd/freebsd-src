@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/03/12 02:55:25 jdp Exp $
+# $Id: Makefile,v 1.3 1998/03/12 05:14:09 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -17,6 +17,26 @@ NOPIC=		true
 INTERNALLIB=	true
 INTERNALSTATICLIB=true
 CLEANFILES+=	targmatch.h
+
+SELARCH=
+.for _a in ${ARCHS}
+.if ${SELARCH} == ""
+SELARCH+=&bfd_${_a}_arch
+.else
+SELARCH+=,&bfd_${_a}_arch
+.endif
+.endfor
+CFLAGS+=	-DSELECT_ARCHITECTURES="${SELARCH}"
+
+SELVEC=
+.for _v in ${VECS}
+.if ${SELVEC} == ""
+SELVEC+=&${_v}
+.else
+SELVEC+=,&${_v}
+.endif
+.endfor
+CFLAGS+=	-DSELECT_VECS="${SELVEC}"
 
 beforedepend: targmatch.h
 
