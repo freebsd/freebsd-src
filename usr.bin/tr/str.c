@@ -277,7 +277,7 @@ genseq(s)
 		++s->str;
 		break;
 	default:
-		if (isdigit(*s->str)) {
+		if (isdigit((u_char)*s->str)) {
 			s->cnt = strtol(s->str, &ep, 0);
 			if (*ep == ']') {
 				s->str = ep + 1;
@@ -302,7 +302,7 @@ backslash(s)
 	register int ch, cnt, val;
 
 	for (cnt = val = 0;;) {
-		ch = *++s->str;
+		ch = (u_char)*++s->str;
 		if (!isascii(ch) || !isdigit(ch))
 			break;
 		val = val * 8 + ch - '0';
