@@ -61,6 +61,7 @@ static const char rcsid[] =
 #include <signal.h>
 
 static int getstathz __P((void));
+static void humantime __P((FILE *, long, long));
 static void usage __P((void));
 
 int
@@ -69,18 +70,21 @@ main(argc, argv)
 	char **argv;
 {
 	register int pid;
-	int aflag, ch, lflag, status, pflag;
+	int aflag, ch, hflag, lflag, status, pflag;
 	struct timeval before, after;
 	struct rusage ru;
 	FILE *out = stderr;
 	char *ofn = NULL;
 	int exitonsig = 0; /* Die with same signal as child */
 
-	aflag = lflag = pflag = 0;
-	while ((ch = getopt(argc, argv, "alo:p")) != -1)
+	aflag = hflag = lflag = pflag = 0;
+	while ((ch = getopt(argc, argv, "ahlo:p")) != -1)
 		switch((char)ch) {
 		case 'a':
 			aflag = 1;
+			break;
+		case 'h':
+			hflag = 1;
 			break;
 		case 'l':
 			lflag = 1;
@@ -144,6 +148,13 @@ main(argc, argv)
 			ru.ru_utime.tv_sec, ru.ru_utime.tv_usec/10000);
 		fprintf(out, "sys %ld.%02ld\n",
 			ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
+	} else if (hflag) {
+		humantime(out, after.tv_sec, after.tv_usec/10000);
+		fprintf(out, " real%c", hflag ? '\t' : ' ');
+		humantime(out, ru.ru_utime.tv_sec, ru.ru_utime.tv_usec/10000);
+		fprintf(out, " user%c", hflag ? '\t' : ' ');
+		humantime(out, ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
+		fprintf(out, " sys\n");
 	} else {
 		fprintf(out, "%9ld.%02ld real ",
 			after.tv_sec, after.tv_usec/10000);
@@ -207,7 +218,7 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: time [-alp] [-o file] command\n");
+	fprintf(stderr, "usage: time [-al] [-h|-p] [-o file] command\n");
 	exit(1);
 }
 
@@ -227,4 +238,29 @@ getstathz()
 	if (sysctl(mib, 2, &clockrate, &size, NULL, 0) == -1)
 		err(1, "sysctl kern.clockrate");
 	return clockrate.stathz;
+}
+
+static void
+humantime(out, sec, usec)
+	FILE *out;
+	long sec;
+	long usec;
+{
+	long days, hrs, mins;
+
+	days = sec / (60L * 60 * 24);
+	sec %= (60L * 60 * 24);
+	hrs = sec / (60L * 60);
+	sec %= (60L * 60);
+	mins = sec / 60;
+	sec %= 60;
+
+	fprintf(out, "\t");
+	if (days)
+		fprintf(out, "%ldd", days);
+	if (hrs)
+		fprintf(out, "%ldh", hrs);
+	if (mins)
+		fprintf(out, "%ldm", mins);
+	fprintf(out, "%ld.%02lds", sec, usec);
 }
