@@ -119,11 +119,14 @@ char daytime[16];		/* timenow in human readable form */
 
 static struct conf_entry *get_worklist(char **files);
 static void parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
-		struct conf_entry **defconf_p);
+		struct conf_entry **glob_p, struct conf_entry **defconf_p);
 static char *sob(char *p);
 static char *son(char *p);
 static char *missing_field(char *p, char *errline);
 static void do_entry(struct conf_entry * ent);
+static void expand_globs(struct conf_entry **work_p,
+		struct conf_entry **glob_p);
+static void free_clist(struct conf_entry **firstent);
 static void free_entry(struct conf_entry *ent);
 static struct conf_entry *init_entry(const char *fname,
 		struct conf_entry *src_entry);
@@ -156,9 +159,6 @@ int
 main(int argc, char **argv)
 {
 	struct conf_entry *p, *q;
-	char *savglob;
-	glob_t pglob;
-	int i;
 
 	parse_args(argc, argv);
 	argc -= optind;
@@ -169,25 +169,7 @@ main(int argc, char **argv)
 	p = q = get_worklist(argv);
 
 	while (p) {
-		if ((p->flags & CE_GLOB) == 0) {
-			do_entry(p);
-		} else {
-			if (verbose > 2)
-				printf("\t+ Processing pattern %s\n", p->log);
-			if (glob(p->log, GLOB_NOCHECK, NULL, &pglob) != 0) {
-				warn("can't expand pattern: %s", p->log);
-			} else {
-				savglob = p->log;
-				for (i = 0; i < pglob.gl_matchc; i++) {
-					p->log = pglob.gl_pathv[i];
-					do_entry(p);
-				}
-				globfree(&pglob);
-				p->log = savglob;
-				if (verbose > 2)
-					printf("\t+ Done with pattern\n");
-			}
-		}
+		do_entry(p);
 		p = p->next;
 		free_entry(q);
 		q = p;
@@ -275,6 +257,24 @@ free_entry(struct conf_entry *ent)
 	}
 
 	free(ent);
+}
+
+static void
+free_clist(struct conf_entry **firstent)
+{
+	struct conf_entry *ent, *nextent;
+
+	if (firstent == NULL)
+		return;			/* There is nothing to do. */
+
+	ent = *firstent;
+	firstent = NULL;
+
+	while (ent) {
+		nextent = ent->next;
+		free_entry(ent);
+		ent = nextent;
+	}
 }
 
 static void
@@ -548,10 +548,10 @@ get_worklist(char **files)
 	const char *fname;
 	char **given;
 	struct conf_entry *defconf, *dupent, *ent, *firstnew;
-	struct conf_entry *newlist, *worklist;
-	int gmatch;
+	struct conf_entry *globlist, *lastnew, *worklist;
+	int gmatch, fnres;
 
-	defconf = worklist = NULL;
+	defconf = globlist = worklist = NULL;
 
 	fname = conf;
 	if (fname == NULL)
@@ -566,15 +566,19 @@ get_worklist(char **files)
 	if (!f)
 		err(1, "%s", conf);
 
-	parse_file(f, fname, &worklist, &defconf);
+	parse_file(f, fname, &worklist, &globlist, &defconf);
 	(void) fclose(f);
 
 	/*
 	 * All config-file information has been read in and turned into
-	 * a worklist.  If there were no specific files given on the run
-	 * command, then the work of this routine is done.
+	 * a worklist and a globlist.  If there were no specific files
+	 * given on the run command, then the only thing left to do is to
+	 * call a routine which finds all files matched by the globlist
+	 * and adds them to the worklist.  Then return the worklist.
 	 */
 	if (*files == NULL) {
+		expand_globs(&worklist, &globlist);
+		free_clist(&globlist);
 		if (defconf != NULL)
 			free_entry(defconf);
 		return (worklist);
@@ -607,23 +611,21 @@ get_worklist(char **files)
 	 *	we want to continue to allow it?  If so, it should
 	 *	probably be handled more intelligently.
 	 */
-	firstnew = newlist = NULL;
+	firstnew = lastnew = NULL;
 	for (given = files; *given; ++given) {
-		gmatch = 0;
 		/*
 		 * First try to find exact-matches for this given file.
 		 */
+		gmatch = 0;
 		for (ent = worklist; ent; ent = ent->next) {
-			if ((ent->flags & CE_GLOB) != 0)
-				continue;
 			if (strcmp(ent->log, *given) == 0) {
 				gmatch++;
 				dupent = init_entry(*given, ent);
 				if (!firstnew)
 					firstnew = dupent;
 				else
-					newlist->next = dupent;
-				newlist = dupent;
+					lastnew->next = dupent;
+				lastnew = dupent;
 			}
 		}
 		if (gmatch) {
@@ -636,18 +638,23 @@ get_worklist(char **files)
 		 * There was no exact-match for this given file, so look
 		 * for a "glob" entry which does match.
 		 */
-		for (ent = worklist; ent; ent = ent->next) {
-			if ((ent->flags & CE_GLOB) == 0)
-				continue;
-			if (fnmatch(ent->log, *given, FNM_PATHNAME) == 0) {
+		gmatch = 0;
+		if (verbose > 2 && globlist != NULL)
+			printf("\t+ Checking globs for %s\n", *given);
+		for (ent = globlist; ent; ent = ent->next) {
+			fnres = fnmatch(ent->log, *given, FNM_PATHNAME);
+			if (verbose > 2)
+				printf("\t+    = %d for pattern %s\n", fnres,
+				    ent->log);
+			if (fnres == 0) {
 				gmatch++;
 				dupent = init_entry(*given, ent);
 				if (!firstnew)
 					firstnew = dupent;
 				else
-					newlist->next = dupent;
-				newlist = dupent;
-				/* This work entry is *not* a glob! */
+					lastnew->next = dupent;
+				lastnew = dupent;
+				/* This new entry is not a glob! */
 				dupent->flags &= ~CE_GLOB;
 				/* Only allow a match to one glob-entry */
 				break;
@@ -671,24 +678,116 @@ get_worklist(char **files)
 		if (!firstnew)
 			firstnew = dupent;
 		else
-			newlist->next = dupent;
+			lastnew->next = dupent;
 		/* Mark that it was *not* found in a config file */
 		dupent->def_cfg = 1;
-		newlist = dupent;
+		lastnew = dupent;
 	}
 
 	/*
-	 * Free all the entries in the original work list, and then
-	 * return the new work list.
+	 * Free all the entries in the original work list, the list of
+	 * glob entries, and the default entry.
 	 */
-	while (worklist) {
-		ent = worklist->next;
-		free_entry(worklist);
-		worklist = ent;
+	free_clist(&worklist);
+	free_clist(&globlist);
+	free_entry(defconf);
+
+	/* And finally, return a worklist which matches the given files. */
+	return (firstnew);
+}
+
+/*
+ * Expand the list of entries with filename patterns, and add all files
+ * which match those glob-entries onto the worklist.
+ */
+static void
+expand_globs(struct conf_entry **work_p, struct conf_entry **glob_p)
+{
+	int gmatch, gres, i;
+	char *mfname;
+	struct conf_entry *dupent, *ent, *firstmatch, *globent;
+	struct conf_entry *lastmatch;
+	glob_t pglob;
+	struct stat st_fm;
+
+	if ((glob_p == NULL) || (*glob_p == NULL))
+		return;			/* There is nothing to do. */
+
+	/*
+	 * The worklist contains all fully-specified (non-GLOB) names.
+	 *
+	 * Now expand the list of filename-pattern (GLOB) entries into
+	 * a second list, which (by definition) will only match files
+	 * that already exist.  Do not add a glob-related entry for any
+	 * file which already exists in the fully-specified list.
+	 */
+	firstmatch = lastmatch = NULL;
+	for (globent = *glob_p; globent; globent = globent->next) {
+
+		gres = glob(globent->log, GLOB_NOCHECK, NULL, &pglob);
+		if (gres != 0) {
+			warn("cannot expand pattern (%d): %s", gres,
+			    globent->log);
+			continue;
+		}
+
+		if (verbose > 2)
+			printf("\t+ Expanding pattern %s\n", globent->log);
+		for (i = 0; i < pglob.gl_matchc; i++) {
+			mfname = pglob.gl_pathv[i];
+
+			/* See if this file already has a specific entry. */
+			gmatch = 0;
+			for (ent = *work_p; ent; ent = ent->next) {
+				if (strcmp(mfname, ent->log) == 0) {
+					gmatch++;
+					break;
+				}
+			}
+			if (gmatch)
+				continue;
+
+			/* Make sure the named matched is a file. */
+			gres = lstat(mfname, &st_fm);
+			if (gres != 0) {
+				/* Error on a file that glob() matched?!? */
+				warn("Skipping %s - lstat() error", mfname);
+				continue;
+			}
+			if (!S_ISREG(st_fm.st_mode)) {
+				/* We only rotate files! */
+				if (verbose > 2)
+					printf("\t+  . skipping %s (!file)\n",
+					    mfname);
+				continue;
+			}
+
+			if (verbose > 2)
+				printf("\t+  . add file %s\n", mfname);
+			dupent = init_entry(mfname, globent);
+			if (!firstmatch)
+				firstmatch = dupent;
+			else
+				lastmatch->next = dupent;
+			lastmatch = dupent;
+			/* This new entry is not a glob! */
+			dupent->flags &= ~CE_GLOB;
+		}
+		globfree(&pglob);
+		if (verbose > 2)
+			printf("\t+ Done with pattern %s\n", globent->log);
 	}
 
-	free_entry(defconf);
-	return (firstnew);
+	/* Add the list of matched files to the end of the worklist. */
+	if (!*work_p)
+		*work_p = firstmatch;
+	else {
+		ent = *work_p;
+		while (ent->next)
+			ent = ent->next;
+		ent->next = firstmatch;
+	}
+
 }
 
 /*
@@ -697,20 +796,20 @@ get_worklist(char **files)
  */
 static void
 parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
-    struct conf_entry **defconf_p)
+    struct conf_entry **glob_p, struct conf_entry **defconf_p)
 {
 	char line[BUFSIZ], *parse, *q;
 	char *cp, *errline, *group;
-	struct conf_entry *working, *worklist;
+	struct conf_entry *lastglob, *lastwork, *working;
 	struct passwd *pwd;
 	struct group *grp;
-	int eol;
+	int eol, special;
 
 	/*
 	 * XXX - for now, assume that only one config file will be read,
 	 *	ie, this routine is only called one time.
 	 */
-	worklist = NULL;
+	lastglob = lastwork = NULL;
 
 	while (fgets(line, BUFSIZ, cf)) {
 		if ((line[0] == '\n') || (line[0] == '#') ||
@@ -736,8 +835,10 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 			    errline);
 		*parse = '\0';
 
+		special = 0;
 		working = init_entry(q, NULL);
 		if (strcasecmp(DEFAULT_MARKER, q) == 0) {
+			special = 1;
 			if (defconf_p == NULL) {
 				warnx("Ignoring entry for %s in %s!", q,
 				    cfname);
@@ -749,12 +850,6 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 				continue;
 			}
 			*defconf_p = working;
-		} else {
-			if (!*work_p)
-				*work_p = working;
-			else
-				worklist->next = working;
-			worklist = working;
 		}
 
 		q = parse = missing_field(sob(++parse), errline);
@@ -991,6 +1086,26 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 			}
 			if (needroot)
 				working->pid_file = strdup(_PATH_SYSLOGPID);
+		}
+
+		/*
+		 * Add this entry to the appropriate list of entries, unless
+		 * it was some kind of special entry (eg: <default>).
+		 */
+		if (special) {
+			;			/* Do not add to any list */
+		} else if (working->flags & CE_GLOB) {
+			if (!*glob_p)
+				*glob_p = working;
+			else
+				lastglob->next = working;
+			lastglob = working;
+		} else {
+			if (!*work_p)
+				*work_p = working;
+			else
+				lastwork->next = working;
+			lastwork = working;
 		}
 
 		free(errline);
