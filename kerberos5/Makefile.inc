@@ -13,6 +13,13 @@ CFLAGS+=-I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
 
 CFLAGS+=-DINET6
 
+.if defined(USE_OPENLDAP)
+OPENLDAPBASE?=	/usr/local
+LDAPLIBS=-lldap -llber
+LDAPCFLAGS=-I${OPENLDAPBASE}/include -DOPENLDAP=1
+LDAPLDADD=-L${OPENLDAPBASE}/lib ${LDAPLIBS}
+.endif
+
 .if exists(${.OBJDIR}/../../include)
 INCLUDEOBJDIR=	${.OBJDIR}/../../include
 .else

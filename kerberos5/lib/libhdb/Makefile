@@ -8,7 +8,8 @@ CFLAGS+=-I${KRB5DIR}/include \
 	-I${KRB5DIR}/lib/asn1 \
 	-I${KRB5DIR}/lib/roken \
 	-I${.OBJDIR} \
-	-I${ASN1OBJDIR}
+	-I${ASN1OBJDIR} \
+	${LDAPCFLAGS}
 
 SRCS=	\
 	common.c				\
