@@ -24,6 +24,8 @@ FreeBSD.FAQ			The overall FreeBSD FAQ - posted regularly to
 
 FreeBSD-1.1.FAQ			FreeBSD FAQ for versions 1.1.5.1 and below.
 
+HW.TROUBLE			User feedback on finicky or broken hardware.
+
 MIRROR.SITES			A list of all sites mirroring FreeBSD 2.x.
 
 NFS.FAQ				Tips for users using NFS between FreeBSD
