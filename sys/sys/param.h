@@ -71,7 +71,7 @@
  */
 #include <sys/syslimits.h>
 
-#define	MAXCOMLEN	16		/* max command name remembered */
+#define	MAXCOMLEN	19		/* max command name remembered */
 #define	MAXINTERP	32		/* max interpreter file name length */
 #define	MAXLOGNAME	17		/* max login name length (incl. NUL) */
 #define	MAXUPRC		CHILD_MAX	/* max simultaneous processes */
