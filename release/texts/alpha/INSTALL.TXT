@@ -16,7 +16,8 @@
 +=====================================================================+
 
 Author:         Jordan K. Hubbard
-Last updated:   Wed Jun 14 11:12:25 PDT 2000
+Last updated:   Thu Jun 15 12:18:46 PDT 2000 
+By:		Wilko Bulte
 
 0.0     Quick Start
 ---     -----------
@@ -340,10 +341,7 @@ Ethernet
 FreeBSD supports most common Ethernet cards, a table of supported
 cards (and their required settings) being provided as part of the
 FreeBSD Hardware Guide (see the Documentation menu on the boot floppy
-or the top level directory of the CDROM).  If you are using one of the
-supported PCMCIA Ethernet cards, also be sure that it's plugged in
-BEFORE the laptop is powered on!  FreeBSD does not, unfortunately,
-currently support "hot insertion" of PCMCIA cards during installation.
+or the top level directory of the CDROM).  
 
 You will also need to know your IP address on the network, the
 "netmask" value for your address class and the name of your machine.
@@ -407,7 +405,7 @@ installation can continue over NFS or FTP.
         contain a hostname or an IP address, so the following would
         work in the absence of a name server:
 
-                ftp://192.216.191.11/pub/FreeBSD/3.2-RELEASE
+                ftp://192.216.191.11/pub/FreeBSD/4.0-RELEASE
 
         There are two FTP installation modes you can use:
 
