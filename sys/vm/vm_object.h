@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.13 1995/03/16 18:17:24 bde Exp $
+ * $Id: vm_object.h,v 1.14 1995/03/20 10:14:55 davidg Exp $
  */
 
 /*
@@ -175,7 +175,7 @@ void vm_object_enter __P((vm_object_t, vm_pager_t));
 void vm_object_init __P((vm_size_t));
 vm_object_t vm_object_lookup __P((vm_pager_t));
 boolean_t vm_object_page_clean __P((vm_object_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t));
-void vm_object_page_remove __P((vm_object_t, vm_offset_t, vm_offset_t));
+void vm_object_page_remove __P((vm_object_t, vm_offset_t, vm_offset_t, boolean_t));
 void vm_object_pmap_copy __P((vm_object_t, vm_offset_t, vm_offset_t));
 void vm_object_pmap_remove __P((vm_object_t, vm_offset_t, vm_offset_t));
 void vm_object_print __P((vm_object_t, boolean_t));

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.33 1995/03/20 02:06:09 davidg Exp $
+ * $Id: vm_object.c,v 1.34 1995/03/20 10:20:41 davidg Exp $
  */
 
 /*
@@ -1390,10 +1390,11 @@ vm_object_collapse(object)
  *	The object must be locked.
  */
 void
-vm_object_page_remove(object, start, end)
+vm_object_page_remove(object, start, end, clean_only)
 	register vm_object_t object;
 	register vm_offset_t start;
 	register vm_offset_t end;
+	boolean_t clean_only;
 {
 	register vm_page_t p, next;
 	vm_offset_t size;
@@ -1423,6 +1424,11 @@ again:
 					goto again;
 				}
 				splx(s);
+				if (clean_only) {
+					vm_page_test_dirty(p);
+					if (p->valid & p->dirty)
+						continue;
+				}
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_lock_queues();
 				PAGE_WAKEUP(p);
@@ -1445,6 +1451,11 @@ again:
 					goto again;
 				}
 				splx(s);
+				if (clean_only) {
+					vm_page_test_dirty(p);
+					if (p->valid & p->dirty)
+						continue;
+				}
 				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_lock_queues();
 				PAGE_WAKEUP(p);
@@ -1524,7 +1535,7 @@ vm_object_coalesce(prev_object, next_object,
 
 	vm_object_page_remove(prev_object,
 	    prev_offset + prev_size,
-	    prev_offset + prev_size + next_size);
+	    prev_offset + prev_size + next_size, FALSE);
 
 	/*
 	 * Extend the object if necessary.
