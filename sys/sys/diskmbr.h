@@ -42,6 +42,7 @@
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
 #define	DOSPARTOFF	446
 #define	NDOSPART	4
+#define	NEXTDOSPART	32
 #define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
 #define	DOSPTYP_LINSWP	0x82	/* Linux swap partition */
 #define	DOSPTYP_LINUX	0x83	/* Linux partition */
