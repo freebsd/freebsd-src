@@ -175,6 +175,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 		mtx_unlock_spin(&sched_lock);
 		if (rval != 0) {
 			sleepq_release(ident);
+			if (mtx != NULL && priority & PDROP)
+				mtx_unlock(mtx);
 			return (rval);
 		}
 	}
