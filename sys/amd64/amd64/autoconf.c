@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.86 1998/03/08 15:06:55 msmith Exp $
+ *	$Id: autoconf.c,v 1.87 1998/03/09 08:10:21 msmith Exp $
  */
 
 /*
@@ -456,7 +456,7 @@ setroot()
 	unit    = B_UNIT(bootdev);
 	slice   = B_SLICE(bootdev);
 	if ((slice < BASE_SLICE) || (slice > MAX_SLICES))
-		slice = 0;
+		slice = BASE_SLICE;
 	if (majdev > sizeof(devname) / sizeof(devname[0]))
 		return;
 	if (majdev == FDMAJOR) {
