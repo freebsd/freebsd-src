@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id: make.1,v 1.17 1999/04/19 07:30:03 imp Exp $
+.\"	$Id: make.1,v 1.18 1999/07/31 20:53:01 hoek Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -459,6 +459,21 @@ is set to the value of
 for all programs which
 .Nm make
 executes.
+.It Ev VPATH
+Directories in addition to
+.Ql Ev PATH
+through which
+.Nm make
+will search in order to find programs specified in the Makefile.
+.Pp
+.Ev VPATH
+exists
+solely
+for backward compatibility.
+It is
+.Em strongly recommended
+that you do not use this variable in your Makefiles.
+.Ef
 .El
 .Pp
 Variable expansion may be modified to select or modify each word of the
