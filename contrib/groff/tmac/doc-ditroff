@@ -11,8 +11,8 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
 .\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
+.\"      This product includes software developed by the University of
+.\"      California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -32,251 +32,317 @@
 .\"     @(#)doc-ditroff	8.1 (Berkeley) 06/08/93
 .\"	$FreeBSD$
 .\"
-.\" tmac.mdoc-ditroff
 .\"     %beginstrip%
-.\"
-.\" -rC1 numbers pages continuously; initialize to avoid warnings
-.if \n(.g .if !rC .nr C 0
-.ds aD \fI\s10
-.ds aR \f(CO\s10
-.ds cM \f(CB\s10
-.ds dF \fR\s10
-.ds eM \fI\s10
-.ds eR \fC\s10
-.ds eV \fC\s10
-.ds fA \f(CO\s10
-.ds fD \f(CB\s10
-.ds fL \f(CB\s10
-.ds fN \f(CB\s10
-.ds fP \fP\s0
-.ds fS \s0
-.ds fT \f(CO\s10
-.ds Hs \fR\s10
-.ds iC \f(CB\s10
-.ds lI \fC
-.ds lP \fR\|(\|\fP\s10
-.ds lp \fR(\fP\s10
-.ds rP \fR\|)\|\fP\s10
-.ds rp \fR)\fP\s10
-.ds lB \fR\^[\^\fP\s10
-.ds rB \fR\^]\fP\s10
-.ds mL \fB\s10
-.ds nM \f(CB\s10
-.ds nO \fR\s10
-.ds nT \s0
-.ds pA \fC\s10
-.ds Pu \fR{\ .\ ,\ :\ ;\ ?\ !\ (\ )\ [\ ]\ \fR}
-.ds rA \fR\s10
-.ds rT \f(CO\s10
-.ds sH \fB\s10
-.ds sP \s0
-.ds sY \fB\s10
-.ds sX \fR\s10
-.ds tF \fR
-.ds tN \s9
-.ds vA \fI\s10
-.ds Vs \fR\s10
-.ds vT \f(CB\s10
-.ds xR \fC\s10
-.tr *\(**
-.nr sI \w\fC,u*5
-.nr Ti \n(sIu
-.nr Pp .5v
-.ds lS \0
-.nr lS \w'\0'u
-.nr dI 6n
-.de pL
-.nr Hm .5i
-.nr Fm .5i
-.nr ll 6.5i
-.ll 6.5i
-.nr lt 6.5i
-.lt 6.5i
-.nr po 1i
-.po 1.i
-.nr dV .5v
-..
-.ds <= \(<=
-.ds >= \(>=
-.ie \n(.g \{\
-.	ds Lq \(lq
-.	ds Rq \(rq
+.
+.
+.eo
+.
+.\" use -rC=1 to number pages continuously
+.
+.if !r C .nr C 0
+.
+.\" use -rD=1 for double-sided printing
+.
+.if !r D .nr D 0
+.
+.\" use -rcR=1 to force the creation of a single, very long page
+.
+.if !r cR .nr cR 0
+.
+.\" use -rS={11,12} to change the font size from 10pt to 11pt or 12pt.
+.
+.if !r S .nr S 10
+.
+.
+.ec
+.
+.
+.ie        (\n[S] == 11) \{\
+.  ps 10.95z
+.  vs 13.6p
+.\}
+.el \{ .ie (\n[S] == 12) \{\
+.  ps 12z
+.  vs 14.5p
 .\}
 .el \{\
-.	ds Lq \&``
-.	ds Rq \&''
-.\}
-.ds ua \(ua
-.ds aa \(aa
-.ds ga \(ga
-.ds sR \&'
-.ds sL \&`
-.ds q \&"
-.\" Math stuff
-.ds Pi \(*p
-.ds Ne \(!=
-.ds Le \(<=
-.ds Ge \(>=
+.  ps 10z
+.  vs 12p
+.\}\}
+.
+.
+.\" the `doc-xx-font' strings must not be empty!
+.
+.ds doc-caption-font \f[R]\s[\n[.ps]u]
+.ds doc-caption-font2 \f[R]\s[\n[.ps]u]
+.ds doc-Ad-font \f[I]\s[\n[.ps]u]
+.ds doc-Ar-font \f[CO]\s[\n[.ps]u]
+.ds doc-Cm-font \f[CB]\s[\n[.ps]u]
+.ds doc-Em-font \f[I]\s[\n[.ps]u]
+.ds doc-Er-font \f[C]\s[\n[.ps]u]
+.ds doc-Ev-font \f[C]\s[\n[.ps]u]
+.ds doc-Fa-font \f[CO]\s[\n[.ps]u]
+.ds doc-Fd-font \f[CB]\s[\n[.ps]u]
+.ds doc-Fl-font \f[CB]\s[\n[.ps]u]
+.ds doc-Fn-font \f[CB]\s[\n[.ps]u]
+.ds doc-Ft-font \f[CO]\s[\n[.ps]u]
+.ds doc-Ic-font \f[CB]\s[\n[.ps]u]
+.ds doc-Li-font \f[C]
+.ds doc-Me-font \f[B]\s[\n[.ps]u]
+.ds doc-Nm-font \f[CB]\s[\n[.ps]u]
+.ds doc-No-font \f[R]\s[\n[.ps]u]
+.ds doc-Pa-font \f[C]\s[\n[.ps]u]
+.ds doc-Sh-font \f[B]\s[\n[.ps]u]
+.ds doc-Sy-font \f[B]\s[\n[.ps]u]
+.ds doc-Sx-font \f[B]\s[\n[.ps]u]
+.ds doc-Tn-font-shape \f[R]
+\# XXX: adapt to discrete LaTeX font sizes
+.ds doc-Tn-font-size \s[(\n[.ps]u - 1z)]
+.ds doc-Va-font \f[I]\s[\n[.ps]u]
+.ds doc-Xr-font \f[C]\s[\n[.ps]u]
+.
+.ds doc-left-parenthesis \f[R]\|(\|\f[P]\s[\n[.ps]u]
+.ds doc-right-parenthesis \f[R]\|)\|\f[P]\s[\n[.ps]u]
+.ds lp \f[R](\f[P]\s[\n[.ps]u]
+.ds rp \f[R])\f[P]\s[\n[.ps]u]
+.ds doc-left-bracket \f[R]\^[\^\f[P]\s[\n[.ps]u]
+.ds doc-right-bracket \f[R]\^]\f[P]\s[\n[.ps]u]
+.
+.tr *\[**]
+.
+.\" miscellaneous
+.nr doc-subheader-indent (\w\f[C],u * 5u)
+.nr doc-paragraph-space .5v
+.
+.nr doc-digit-width \w'\0'u
+.nr doc-fixed-width \w\f[C]0
+.
+.eo
+.
+.
+.\" NS doc-header-space global register
+.\" NS   the space between header and body
+.
+.nr doc-header-space 0
+.
+.
+.\" NS doc-footer-space global register
+.\" NS   the space between body and footer
+.
+.nr doc-footer-space 0
+.
+.
+.\" NS doc-display-vertical global register
+.\" NS   vertical space between list elements etc.
+.
+.nr doc-display-vertical 0
+.
+.
+.\" NS doc-setup-page-layout macro
+.\" NS   set up page layout
+.\" NS
+.\" NS modifies:
+.\" NS   doc-display-vertical
+.\" NS   doc-footer-space
+.\" NS   doc-header-space
+.
+.de doc-setup-page-layout
+.  nr doc-header-space .5i
+.  nr doc-footer-space .5i
+.
+.  ll 6.5i
+.  lt 6.5i
+.  po 1i
+.
+.  nr doc-display-vertical .5v
+..
+.
+.
+.ds doc-left-singlequote \[oq]
+.ds doc-right-singlequote \[cq]
+.
+.\" the following strings are `official'
+.ds <= \[<=]
+.ds >= \[>=]
+.ds Lq \[lq]
+.ds Rq \[rq]
+.ds ua \[ua]
+.ds aa \[aa]
+.ds ga \[ga]
+.ds q \[dq]
+.ds Pi \[*p]
+.ds Ne \[!=]
+.ds Le \[<=]
+.ds Ge \[>=]
 .ds Lt <
 .ds Gt >
-.ds Pm \(+-
-.ds If \(if
-.ds Na \fINaN\fP
-.ds Ba \fR\&|\fP
-.\"
+.ds Pm \[+-]
+.ds If \[if]
+.ds Na \f[I]NaN\f[P]
+.ds Ba \f[R]|\f[P]
+.
 .nr gX 0
-.de hK
-.ds hT \\*(dT
-.if !"\\*(cH"Null" \{\
-.       ie !"\\*(gP"Null" .as hT \|(\|\\*(cH\\*(gP\|)
-.       el .as hT \\|(\\|\\*(cH\\|)
-.\}
-.if "\\*(cH"Null" \{\
-.	if !"\\*(gP"Null" .as hT \&\|(\|\\*(gP\|)
-.\}
-.wh 0 hM
-.wh -1.25i fM
-.nr nL \\n(nl
-.ie \\n(gX==1 \{\
-.	rm n1
-.	bp
-.\}
-.el \{\
-'	bp
-.\}
-.\" Don't set the page number if this is the first page,
-.\" in case the user has used -n.
-.if \\n(nL>0 \{\
-.	if !\\nC \{\
-.		nr % 1
-.	\}
-.\}
-.nr gX 0
-.em lM
+.
+.
+.\" NS doc-header-string global string
+.\" NS   the final string used for the manual page header
+.
+.ds doc-header-string
+.
+.
+.\" NS doc-setup-header macro
+.\" NS   install and initialize header and footer support
+.\" NS
+.\" NS modifies:
+.\" NS   doc-header-string
+.
+.de doc-setup-header
+.  ds doc-header-string "\*[doc-document-title]
+.  if !"\*[doc-section]"Null" \
+.    as doc-header-string \|(\*[doc-section])
+.
+.  wh 0 doc-header
+.  wh -1.25i doc-footer
+.
+.  nr nL \n[nl]
+.  if \n[gX] \
+.    ds doc-command-name
+.
+.  br
+.
+.  \" Don't set the page number if this is the first page,
+.  \" in case the user has used -n.
+.  if \n[nL] \
+.    if !\n[C] \
+.      nr % 1
+.
+.  nr gX 0
+.  e@ doc-end-macro
 ..
-.\"
-.nr fW \w\fC0
-.de sW
-.nr sW \w\fC\\$1
-.ie \\n(sW>=\\n(fW \{\
-.       ie \\n(sW%\\n(fW .nr sW (\\n(sW/\\n(fW)+1
-.       el .nr sW \\n(sW/\\n(fW
-.\}
-.el \{\
-.	ie \\n(sW>0 .nr sW 1
-.	el .nr sW 0
-.\}
+.
+.
+.\" NS doc-get-width macro
+.\" NS   computes the width of a string as a multiple of `doc-fixed-width':
+.\" NS   `.doc-get-width string'
+.\" NS
+.\" NS modifies:
+.\" NS   doc-width
+.
+.de doc-get-width
+.  nr doc-width \w\f[C]\$1
+.  ie (\n[doc-width] >= \n[doc-fixed-width]) \{\
+.    ie (\n[doc-width] % \n[doc-fixed-width]) \
+.      nr doc-width ((\n[doc-width] / \n[doc-fixed-width]) + 1)
+.    el \
+.      nr doc-width (\n[doc-width] / \n[doc-fixed-width])
+.  \}
+.  el \{\
+.    ie \n[doc-width] \
+.      nr doc-width 1
+.    el \
+.      nr doc-width 0
+.  \}
 ..
-.\"
-.de aW
-.nr sW \w\fC\\*(A\\$1
-.ie \\n(sW>=\\n(fW \{\
-.       ie \\n(sW%\\n(fW .nr sW (\\n(sW/\\n(fW)+1
-.       el .nr sW \\n(sW/\\n(fW
-.\}
-.el \{\
-.	ie \\n(sW>0 .nr sW 1
-.	el .nr sW 0
-.\}
+.
+.
+.\" NS doc-get-arg-width macro
+.\" NS   computes the width of an argument as a multiple of
+.\" NS   `doc-fixed-width': `.doc-get-arg-width arg-index'
+.\" NS
+.\" NS modifies:
+.\" NS   doc-width
+.
+.de doc-get-arg-width
+.  nr doc-width \w\f[C]\*[doc-arg\$1]
+.  ie (\n[doc-width] >= \n[doc-fixed-width]) \{\
+.    ie (\n[doc-width] % \n[doc-fixed-width]) \
+.      nr doc-width ((\n[doc-width] / \n[doc-fixed-width]) + 1)
+.    el \
+.      nr doc-width (\n[doc-width] / \n[doc-fixed-width])
+.  \}
+.  el \{\
+.    ie \n[doc-width] \
+.      nr doc-width 1
+.    el \
+.      nr doc-width 0
+.  \}
 ..
-.\" NS Ql macro - Quoted literal define
+.
+.
+.\" NS Ql user macro
+.\" NS   quoted literal define
+.\" NS
+.\" NS modifies:
+.\" NS   doc-argXXX
+.\" NS   doc-arg-limit
+.\" NS   doc-arg-ptr
+.\" NS   doc-macro-name
+.\" NS   doc-spaceXXX
+.\" NS   doc-typeXXX
+.\" NS   doc-quote-left
+.\" NS   doc-quote-right
+.\" NS
+.\" NS local variables:
+.\" NS   doc-reg-Ql
+.\" NS   doc-reg-Ql1
+.\" NS   doc-reg-Ql2
+.\" NS
+.\" NS width register `Ql' set in doc-common
+.
 .de Ql
-.if \\n(aC==0  \{\
-.	ds mN Ql
-.       ds A1 \\$1
-.       ds A2 \\$2
-.       ds A3 \\$3
-.       ds A4 \\$4
-.       ds A5 \\$5
-.       ds A6 \\$6
-.       ds A7 \\$7
-.       ds A8 \\$8
-. 	nr fV \\n(.$
-. 	fV
-.\}
-.nr aP \\n(aP+1
-.aW \\n(aP
-.nr aP \\n(aP-1
-.if \\n(sW>2 .Li
-.if \\n(sW<=2 \{\
-.\" Db on
-.	if (\\n(aP>0) \{\
-.		ds A\\n(aP Li
-.		nr aP \\n(aP -1
-.	\}
-.	if (\\n(aP==0) \{\
-.		rm C0 C1 C2 C3 C4 C5 C6 C7 C8 C9
-.		rm S1 S2 S3 S4 S5 S6 S7 S8 S9
-.		rn A8 A9
-.		rn A7 A8
-.		rn A6 A7
-.		rn A5 A6
-.		rn A4 A5
-.		rn A3 A4
-.		rn A2 A3
-.		rn A1 A2
-.		ds A1 Li
-.	 	nr fV \\n(aC+1
-.		nr aC 0
-.		fV
-.	\}
-.	ds qL \&\\*(sL
-.	ds qR \&\\*(sR
-.	En
-.\" Db off
-.\}
+.  if !\n[doc-arg-limit] \{\
+.    ie \n[.$] \{\
+.      ds doc-macro-name Ql
+.      doc-parse-args \$@
+.    \}
+.    el \
+.      tm Usage: .Ql argument ... (#\n[.c])
+.  \}
+.
+.  nr doc-reg-Ql (\n[doc-arg-ptr] + 1)
+.  doc-get-arg-width \n[doc-reg-Ql]
+.
+.  \" don't use quotes if we have more than two succeeding string arguments
+.  nr doc-reg-Ql +1
+.  if (\n[doc-arg-limit] >= \n[doc-reg-Ql]) \
+.    if (\n[doc-type\n[doc-reg-Ql]] == 2) \
+.      nr doc-width 3
+.
+.  \" make a difference in quotation style for strings longer
+.  \" than two characters
+.  ie (\n[doc-width] > 2) \
+.    Li
+.  el \{\
+.    ie \n[doc-arg-ptr] \{\
+.      \" we replace `Ql' with `Li'
+.      ds doc-arg\n[doc-arg-ptr] Li
+.      nr doc-arg-ptr -1
+.    \}
+.    el \{\
+.      \" if .Ql has been called directly, we must shift all elements in
+.      \" the argument vector to the right so that we can insert `Li'
+.      nr doc-reg-Ql \n[doc-arg-limit]
+.      nr doc-reg-Ql1 (\n[doc-arg-limit] + 1)
+.      while \n[doc-reg-Ql] \{\
+.        rn doc-arg\n[doc-reg-Ql] doc-arg\n[doc-reg-Ql1]
+.        rnn doc-type\n[doc-reg-Ql] doc-type\n[doc-reg-Ql1]
+.        rn doc-space\n[doc-reg-Ql] doc-space\n[doc-reg-Ql1]
+.        nr doc-reg-Ql -1
+.        nr doc-reg-Ql1 -1
+.      \}
+.      ds doc-arg1 Li
+.      nr doc-type1 1
+.      ds doc-space1
+.      nr doc-arg-limit +1
+.    \}
+.
+.    ds doc-quote-left "\*[doc-left-singlequote]
+.    ds doc-quote-right "\*[doc-right-singlequote]
+.    doc-enclose-string
+.  \}
 ..
-.\" NS Sh macro - Section Headers
-.\" NS nS register - Section Header SYNOPSIS flag
-.\" NS nF register - Section Header FILES flag
-.\" NS nA register - Section Header SEE ALSO flag
-.\" NS nT register - Section Header STANDARDS flag
-.de Sh
-.nr nS 0
-.nr sE 0
-.nr iS 0
-'ad
-.ie "\\$1"NAME" \{\
-.       hK
-'       in 0
-.\}
-.el \{\
-.       nr nS 0
-.       nr nA 0
-.       nr nF 0
-.       nr nT 0
-.       nr nY 0
-.       nr oT 0
-.       if "\\$1"SYNOPSIS" \{\
-.		na
-.		nr nS 1
-.	\}
-.       if "\\$1"DESCRIPTION" \{\
-.		nr fY 0
-.		nr fZ 0
-.		nr fB 0
-.		nr Fb 0
-.		ds Fb
-.	\}
-.       if "\\$1"SEE" \{\
-.               nr nA 1
-.               na
-.       \}
-.       if "\\$1"FILES" .nr nF 1
-.       if "\\$1"STANDARDS" .nr nT 1
-.       if "\\$1"AUTHORS" .nr nY 1
-.	if "\\$1"SEE" .nr sE 1
-.       in 0
-.       nr aN 0
-.\}
-.pL
-'sp
-.ns
-.ta .5i 1i 1.5i 2i 2.5i 3i 3.5i 4i 4.5i 5i 5.5i 6i 6.5i
-.if !\\n(cR .ne 3
-'fi
-\&\\*(sH\\$1 \|\\$2 \|\\$3 \|\\$4 \|\\$5 \|\\$6 \|\\$7 \|\\$8 \|\\$9
-\&\fP\s0\&
-.in \\n(.iu+\\n(Tiu
-.ns
-..
+.
+.
+.ec
+.
+.\" EOF
