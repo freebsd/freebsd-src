@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.55 1998/10/12 11:32:35 bde Exp $
+ *	$Id: isa_device.h,v 1.56 1998/10/22 05:58:39 bde Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -129,65 +129,6 @@ void	isa_dma_release __P((int chan));
 int	isa_dmastatus __P((int chan));
 int	isa_dmastop __P((int chan));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
-
-/* XXX temporary hack for old config files. */
-#ifdef C
-#define	adintr		NULL
-#define	ahaintr		NULL
-#define	aicintr		NULL
-#define	alogintr	NULL
-#define	arintr		NULL
-#define	ascintr		NULL
-#ifdef PC98
-#define	bsintr		NULL
-#endif
-#define	csintr		NULL
-#define	cxintr		NULL
-#define	cyintr		NULL
-#define	edintr		NULL
-#define	egintr		NULL
-#define	elintr		NULL
-#define	epintr		NULL
-#define	exintr		NULL
-#define	fdintr		NULL
-#define	feintr		NULL
-#define	gusintr		NULL
-#define	ieintr		NULL
-#define	labpcintr	NULL
-#define	le_intr		NULL
-#define	lncintr		NULL
-#define	loranintr	NULL
-#define	lptintr		NULL
-#define	m6850intr	NULL
-#define	mcdintr		NULL
-#define	mseintr		NULL
-#define	ncaintr		NULL
-#define	npxintr		NULL
-#define	pasintr		NULL
-#define	pcmintr		NULL
-#define	pcrint		NULL
-#define	ppcintr		NULL
-#define	pcfintr		NULL
-#define	psmintr		NULL
-#define	rcintr		NULL
-#define	sbintr		NULL
-#define	scintr		NULL
-#define	seaintr		NULL
-#define	siointr		NULL
-#define	sndintr		NULL
-#define	spigintr	NULL
-#define	srintr		NULL
-#define	sscapeintr	NULL
-#define	stlintr		NULL
-#define	twintr		NULL
-#define	uhaintr		NULL
-#define	wdintr		NULL
-#define	wdsintr		NULL
-#define	wlintr		NULL
-#define	wtintr		NULL
-#define	zeintr		NULL
-#define	zpintr		NULL
-#endif /* C */
 
 #endif /* KERNEL */
 
