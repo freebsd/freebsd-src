@@ -140,7 +140,7 @@ sndstat_prepare(struct sbuf *s)
 	} else
 		sbuf_printf(s, "Installed devices:\n");
 
-    	for (i = 0; i <= devclass_get_maxunit(pcm_devclass); i++) {
+    	for (i = 0; i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
 		if (!d)
 			continue;

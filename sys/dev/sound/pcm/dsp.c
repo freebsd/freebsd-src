@@ -66,7 +66,7 @@ dsp_get_info(dev_t dev)
 	int unit;
 
 	unit = PCMUNIT(dev);
-	if (unit > devclass_get_maxunit(pcm_devclass))
+	if (unit >= devclass_get_maxunit(pcm_devclass))
 		return NULL;
 	d = devclass_get_softc(pcm_devclass, unit);
 
@@ -1024,7 +1024,7 @@ dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
 
 	return;
 gotit:
-	if (unit == -1 || unit > devclass_get_maxunit(pcm_devclass))
+	if (unit == -1 || unit >= devclass_get_maxunit(pcm_devclass))
 		return;
 
 	cont = 1;
