@@ -52,11 +52,12 @@ or referenced by
 .Fa fd
 to be truncated or extended to
 .Fa length
-bytes in size.  If the file previously
+bytes in size.  If the file
 was larger than this size, the extra data
 is lost.
 If the file was smaller than this size,
-extra zeros are appended.
+it will be extended as if by writing bytes
+with the value zero.
 With
 .Fn ftruncate ,
 the file must be open for writing.
