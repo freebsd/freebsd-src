@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.14.2.3 1997/09/16 06:57:09 charnier Exp $";
+	"$Id: main.c,v 1.14.2.4 1997/11/18 03:43:09 jdp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -65,7 +65,7 @@ static const char rcsid[] =
 #define FALSE	(0)
 #endif
 
-static char *PREFIX;
+char *PREFIX;
 static int no_config_clobber = FALSE;
 int old_config_present;
 

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.18.2.3 1997/09/16 06:57:10 charnier Exp $";
+	"$Id: mkmakefile.c,v 1.18.2.4 1998/06/07 13:38:16 thepish Exp $";
 #endif /* not lint */
 
 /*
@@ -193,7 +193,7 @@ makefile()
 			else
 				fprintf(ofp, " -D%s", op->op_name);
 			printf("%s:%d: unknown option \"%s\"\n",
-			PREFIX, op->op_line, op->op_name);
+				PREFIX, op->op_line, op->op_name);
 		}
 	}
 	fprintf(ofp, "\n");
