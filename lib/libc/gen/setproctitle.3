@@ -25,8 +25,7 @@
 .Dt SETPROCTITLE 3
 .Sh NAME
 .Nm setproctitle
-.Nd set the process title for
-.Xr ps 1
+.Nd set process title
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <unistd.h>
@@ -99,3 +98,17 @@ stole the idea from the
 .Sy "Sendmail 8.7.3"
 source code by
 .An Eric Allman Aq eric@sendmail.org .
+.Sh BUGS
+Never pass a string with user-supplied data as a format without using
+.Ql %s .
+An attacker can put format specifiers in the string to mangle your stack, 
+leading to a possible security hole.
+This holds true even if the string was built using a function like
+.Fn snprintf ,
+as the resulting string may still contain user-supplied conversion specifiers
+for later interpolation by
+.Fn setproctitle .
+.Pp
+Always use the proper secure idiom:
+.Pp
+.Dl setproctitle("%s", string);
