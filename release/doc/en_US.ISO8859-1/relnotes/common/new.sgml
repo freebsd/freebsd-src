@@ -440,7 +440,7 @@
       3.113.</para>
 
       <para><application>groff</application> and its related utilities
-      have been updated to FSF version 1.17. This import brings in a
+      have been updated to FSF version 1.17.2. This import brings in a
       new &man.mdoc.7; macro package (sometimes referred to as
       <literal>mdocNG</literal>), which removes many of the
       limitations of its predecessor.</para>
