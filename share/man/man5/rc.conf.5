@@ -1162,11 +1162,13 @@ NOTE:
 .Pa /usr/lib
 will always be added first, so it need not appear in this list.
 .It Ar ldconfig_insecure
-(bool) The ldconfig utility normally refuses to use directories
+(bool) The
+.Xr ldconfig 8
+utility normally refuses to use directories
 which are writable by anyone except root.
 Set this variable to
 .Ar YES
-if you want to disable that security check.
+if you want to disable that security check during system startup.
 .It Ar kern_securelevel_enable
 (bool) Set to 
 .Ar YES
