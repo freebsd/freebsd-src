@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: skey.3,v 1.7 1998/03/19 07:34:16 charnier Exp $
+.\"	$Id: skey.3,v 1.8 1998/08/05 23:42:10 jdp Exp $
 .\"
 .Dd December 22, 1996
 .Dt SKEY 3
@@ -51,7 +51,7 @@
 .Fn skeyaccess "char *user" "const char *port" "const char *host" "const char *addr"
 .Ft char *
 .Fn skey_getpass "const char *prompt" "struct passwd *pwd" "int pwok"
-.Ft char *
+.Ft const char *
 .Fn skey_crypt "char *pp" "char *salt" "struct passwd *pwd" "int pwok"
 .Sh DESCRIPTION
 These routes support the S/Key one time password system used for
