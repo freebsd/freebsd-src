@@ -86,9 +86,9 @@ init_screen(void)
 	
 	scrollok(lower_w, 1);
 
-	sprintf(buffer, "----- isdn controller channel state ------------- isdnd %02d.%02d.%d [pid %d] -", VERSION, REL, STEP, (int)getpid());	
+	snprintf(buffer, sizeof(buffer), "----- isdn controller channel state ------------- isdnd %02d.%02d.%d [pid %d] -", VERSION, REL, STEP, (int)getpid());	
 
-	while(strlen(buffer) < COLS)
+	while(strlen(buffer) < COLS && strlen(buffer) < sizeof(buffer) - 1)
 		strcat(buffer, "-");	
 
 	move(0, 0);
@@ -100,8 +100,8 @@ init_screen(void)
 	/*      01234567890123456789012345678901234567890123456789012345678901234567890123456789 */
 	addstr("c tei b remote                 iface  dir outbytes   obps inbytes    ibps  units");
 	
-	sprintf(buffer, "----- isdn userland interface state ------------------------------------------");	
-	while(strlen(buffer) < COLS)
+	snprintf(buffer, sizeof(buffer), "----- isdn userland interface state ------------------------------------------");	
+	while(strlen(buffer) < COLS && strlen(buffer) < sizeof(buffer) - 1)
 		strcat(buffer, "-");	
 
 	move(uheight+2, 0);
@@ -109,8 +109,8 @@ init_screen(void)
 	addstr(buffer);
 	standend();
 
-	sprintf(buffer, "----- isdnd logfile display --------------------------------------------------");
-	while(strlen(buffer) < COLS)
+	snprintf(buffer, sizeof(buffer), "----- isdnd logfile display --------------------------------------------------");
+	while(strlen(buffer) < COLS && strlen(buffer) < sizeof(buffer) - 1)
 		strcat(buffer, "-");	
 
 	move(uheight+4, 0);
@@ -344,16 +344,16 @@ display_connect(cfg_entry_t *cep)
 	if(aliasing)
 	{
 		if(cep->direction == DIR_IN)
-			sprintf(buffer, "%s", get_alias(cep->real_phone_incoming));
+			snprintf(buffer, sizeof(buffer), "%s", get_alias(cep->real_phone_incoming));
 		else
-			sprintf(buffer, "%s", get_alias(cep->remote_phone_dialout));
+			snprintf(buffer, sizeof(buffer), "%s", get_alias(cep->remote_phone_dialout));
 	}
 	else
 	{
 		if(cep->direction == DIR_IN)
-			sprintf(buffer, "%s/%s", cep->name, cep->real_phone_incoming);
+			snprintf(buffer, sizeof(buffer), "%s/%s", cep->name, cep->real_phone_incoming);
 		else
-			sprintf(buffer, "%s/%s", cep->name, cep->remote_phone_dialout);	
+			snprintf(buffer, sizeof(buffer), "%s/%s", cep->name, cep->remote_phone_dialout);	
 	}
 		
 	buffer[H_IFN - H_TELN - 1] = '\0';
@@ -566,7 +566,7 @@ display_chans(void)
 
 		if((ret_channel_state(i, CHAN_B1)) == CHAN_RUN)
 		{
-			sprintf(buffer, "%d - Controller %d channel %s", ncols, i, "B1");
+			snprintf(buffer, sizeof(buffer), "%d - Controller %d channel %s", ncols, i, "B1");
 			mvwaddstr(chan_w, nlines, 2, buffer);
 			cc[ncols - 1].cntl = i;
 			cc[ncols - 1].chn = CHAN_B1;
@@ -575,7 +575,7 @@ display_chans(void)
 		}
 		if((ret_channel_state(i, CHAN_B2)) == CHAN_RUN)
 		{
-			sprintf(buffer, "%d - Controller %d channel %s", ncols, i, "B2");
+			snprintf(buffer, sizeof(buffer), "%d - Controller %d channel %s", ncols, i, "B2");
 			mvwaddstr(chan_w, nlines, 2, buffer);
 			cc[ncols - 1].cntl = i;
 			cc[ncols - 1].chn = CHAN_B2;
