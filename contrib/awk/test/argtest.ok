@@ -1,0 +1,4 @@
+ARGV[0] = gawk
+ARGV[1] = -x
+ARGV[2] = -y
+ARGV[3] = abc

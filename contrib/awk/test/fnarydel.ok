@@ -1,0 +1,27 @@
+first loop
+4
+5
+6
+7
+8
+9
+1
+2
+3
+second loop
+third loop
+4
+5
+6
+7
+8
+9
+1
+2
+3
+call func
+fourth loop
+You should just see: 4 4
+4 4
+You should see nothing between this line
+And this one

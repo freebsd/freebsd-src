@@ -1,0 +1,1 @@
+BEGIN { print "Found it." }
