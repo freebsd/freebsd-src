@@ -17,6 +17,11 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030824:
+	ATAng has been committed. You need to build world as sys/ata.h 
+	has changed, and userland atacontrol depends on it.
+	If you use ATA SW raids you need "device ataraid" in your 			kernel config file, as it is no longer pulled in automatically.
+
 20030819:
 	The OFW_NEWPCI option has been turned on in the Sparc64 GENERIC kernel.
 	Among other things, this changes the device enumeration to be
