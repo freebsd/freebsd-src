@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
- * $Id: ansi.h,v 1.12 1997/02/22 09:33:53 peter Exp $
+ * $Id: ansi.h,v 1.13 1997/05/08 13:45:43 peter Exp $
  */
 
 #ifndef _MACHINE_ANSI_H_
@@ -55,6 +55,9 @@
 #define	_BSD_WCHAR_T_	_BSD_CT_RUNE_T_		/* wchar_t (see below) */
 #define	_BSD_CLOCKID_T_	int
 #define	_BSD_TIMER_T_	int
+#define	_BSD_UINT8_T_	unsigned char
+#define	_BSD_UINT16_T_	unsigned short
+#define	_BSD_UINT32_T_	unsigned int
 
 /*
  * Types which are fundamental to the implementation and must be used
