@@ -919,6 +919,44 @@ ath_initkeytable(struct ath_softc *sc)
 	}
 }
 
+/*
+ * Calculate the receive filter according to the
+ * operating mode and state:
+ *
+ * o always accept unicast, broadcast, and multicast traffic
+ * o maintain current state of phy error reception
+ * o probe request frames are accepted only when operating in
+ *   hostap, adhoc, or monitor modes
+ * o enable promiscuous mode according to the interface state
+ * o accept beacons:
+ *   - when operating in adhoc mode so the 802.11 layer creates
+ *     node table entries for peers,
+ *   - when operating in station mode for collecting rssi data when
+ *     the station is otherwise quiet, or
+ *   - when scanning
+ */
+static u_int32_t
+ath_calcrxfilter(struct ath_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ath_hal *ah = sc->sc_ah;
+	struct ifnet *ifp = &ic->ic_if;
+	u_int32_t rfilt;
+
+	rfilt = (ath_hal_getrxfilter(ah) & HAL_RX_FILTER_PHYERR)
+	      | HAL_RX_FILTER_UCAST | HAL_RX_FILTER_BCAST | HAL_RX_FILTER_MCAST;
+	if (ic->ic_opmode != IEEE80211_M_STA)
+		rfilt |= HAL_RX_FILTER_PROBEREQ;
+	if (ic->ic_opmode != IEEE80211_M_HOSTAP &&
+	    (ifp->if_flags & IFF_PROMISC))
+		rfilt |= HAL_RX_FILTER_PROM;
+	if (ic->ic_opmode == IEEE80211_M_STA ||
+	    ic->ic_opmode == IEEE80211_M_IBSS ||
+	    ic->ic_state == IEEE80211_S_SCAN)
+		rfilt |= HAL_RX_FILTER_BEACON;
+	return rfilt;
+}
+
 static void
 ath_mode_init(struct ath_softc *sc)
 {
@@ -929,21 +967,12 @@ ath_mode_init(struct ath_softc *sc)
 	u_int8_t pos;
 	struct ifmultiaddr *ifma;
 
+	/* configure rx filter */
+	rfilt = ath_calcrxfilter(sc);
+	ath_hal_setrxfilter(ah, rfilt);
+
 	/* configure operational mode */
 	ath_hal_setopmode(ah, ic->ic_opmode);
-
-	/* receive filter */
-	rfilt = (ath_hal_getrxfilter(ah) & HAL_RX_FILTER_PHYERR)
-	      | HAL_RX_FILTER_UCAST | HAL_RX_FILTER_BCAST | HAL_RX_FILTER_MCAST;
-	if (ic->ic_opmode != IEEE80211_M_STA)
-		rfilt |= HAL_RX_FILTER_PROBEREQ;
-	if (ic->ic_opmode != IEEE80211_M_HOSTAP &&
-	    (ifp->if_flags & IFF_PROMISC))
-		rfilt |= HAL_RX_FILTER_PROM;
-	if (ic->ic_opmode == IEEE80211_M_STA ||
-	    ic->ic_state == IEEE80211_S_SCAN)
-		rfilt |= HAL_RX_FILTER_BEACON;
-	ath_hal_setrxfilter(ah, rfilt);
 
 	/* calculate and install multicast filter */
 	if ((ifp->if_flags & IFF_ALLMULTI) == 0) {
@@ -2370,16 +2399,7 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	error = ath_chan_set(sc, ni->ni_chan);
 	if (error != 0)
 		goto bad;
-	rfilt = (ath_hal_getrxfilter(ah) & HAL_RX_FILTER_PHYERR)
-	      | HAL_RX_FILTER_UCAST | HAL_RX_FILTER_BCAST | HAL_RX_FILTER_MCAST;
-	if (ic->ic_opmode != IEEE80211_M_STA)
-		rfilt |= HAL_RX_FILTER_PROBEREQ;
-	if (ic->ic_opmode != IEEE80211_M_HOSTAP &&
-	    (ifp->if_flags & IFF_PROMISC))
-		rfilt |= HAL_RX_FILTER_PROM;
-	if (ic->ic_opmode == IEEE80211_M_STA ||
-	    ic->ic_state == IEEE80211_S_SCAN)
-		rfilt |= HAL_RX_FILTER_BEACON;
+	rfilt = ath_calcrxfilter(sc);
 	if (nstate == IEEE80211_S_SCAN) {
 		callout_reset(&sc->sc_scan_ch, (hz * ath_dwelltime) / 1000,
 			ath_next_scan, sc);
