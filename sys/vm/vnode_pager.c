@@ -530,7 +530,7 @@ vnode_pager_input_smlfs(object, m)
 
 
 /*
- * old style vnode pager output routine
+ * old style vnode pager input routine
  */
 static int
 vnode_pager_input_old(object, m)
@@ -1010,7 +1010,7 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	for (i = 0; i < count; i++)
 		rtvals[i] = VM_PAGER_AGAIN;
 
-	if ((int) m[0]->pindex < 0) {
+	if ((int64_t)m[0]->pindex < 0) {
 		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%lx(%lx)\n",
 			(long)m[0]->pindex, (u_long)m[0]->dirty);
 		rtvals[0] = VM_PAGER_BAD;
