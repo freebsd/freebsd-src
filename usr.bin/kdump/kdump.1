@@ -43,6 +43,7 @@
 .Op Fl dnlRT
 .Op Fl f Ar file
 .Op Fl m Ar maxdata
+.Op Fl p Ar pid
 .Op Fl t Op cnisuw
 .Sh DESCRIPTION
 The
@@ -83,6 +84,11 @@ values are replaced with the
 string.
 Suppressing this feature yields a more consistent output format and is
 easily amenable to further processing.
+.It Fl p Ar pid
+Display only trace events that correspond to the process
+.Ar pid .
+This may be useful when there are multiple processes recorded in the
+same trace file.
 .It Fl R
 Display relative timestamps (time since previous entry).
 .It Fl T
