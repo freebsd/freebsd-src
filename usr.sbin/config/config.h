@@ -48,6 +48,7 @@ struct file_list {
 	u_char	f_type;			/* see below */
 	u_char	f_flags;		/* see below */
 	char	*f_special;		/* special make rule if present */
+	char	*f_depends;		/* additional dependancies */
 	char	*f_needs;
 	/*
 	 * Random values:
@@ -94,6 +95,8 @@ struct file_list {
  * Attributes (flags).
  */
 #define	CONFIGDEP	1
+#define NO_IMPLCT_RULE	2
+#define NO_OBJ		4
 
 struct	idlst {
 	char	*id;

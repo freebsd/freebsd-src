@@ -228,9 +228,9 @@ read_files()
 	register struct device *dp;
 	struct device *save_dp;
 	register struct opt *op;
-	char *wd, *this, *needs, *special;
+	char *wd, *this, *needs, *special, *depends;
 	char fname[32];
-	int nreqs, first = 1, configdep, isdup, std, filetype;
+	int nreqs, first = 1, configdep, isdup, std, filetype, imp_rule, no_obj;
 
 	ftab = 0;
 	(void) strcpy(fname, "../../conf/files");
@@ -247,8 +247,9 @@ openit:
 next:
 	/*
 	 * filename	[ standard | optional ] [ config-dependent ]
-	 *	[ dev* | profiling-routine ] [ device-driver]
-	 *	[ compile-with "compile rule" ]
+	 *	[ dev* | profiling-routine ] [ device-driver] [ no-obj ]
+	 *	[ compile-with "compile rule" [no-implicit-rule] ] 
+	 *		       [ dependancy "dependancy-list"] 
 	 */
 	wd = get_word(fp);
 	if (wd == (char *)EOF) {
@@ -295,9 +296,12 @@ next:
 		    fname, this, tp->f_fn);
 	nreqs = 0;
 	special = 0;
+	depends = 0;
 	configdep = 0;
 	needs = 0;
 	std = 0;
+	imp_rule = 0;
+	no_obj = 0;
 	filetype = NORMAL;
 	if (eq(wd, "standard"))
 		std = 1;
@@ -311,6 +315,29 @@ nextparam:
 		goto doneparam;
 	if (eq(wd, "config-dependent")) {
 		configdep++;
+		goto nextparam;
+	}
+	if (eq(wd, "no-obj")) {
+		no_obj++;
+		goto nextparam;
+	}
+	if (eq(wd, "no-implicit-rule")) {
+		if (special == 0) {
+			printf("%s: alternate rule required when "
+			       "\"no-implicit-rule\" is specified.\n",
+			       fname);
+		}
+		imp_rule++;
+		goto nextparam;
+	}
+	if (eq(wd, "dependancy")) {
+		next_quoted_word(fp, wd);
+		if (wd == 0) {
+			printf("%s: %s missing compile command string.\n",
+			       fname);
+			exit(1);
+		}
+		depends = ns(wd);
 		goto nextparam;
 	}
 	if (eq(wd, "compile-with")) {
@@ -370,6 +397,7 @@ invis:
 	tp->f_needs = needs;
 	tp->f_flags = isdup;
 	tp->f_special = special;
+	tp->f_depends = depends;
 	goto next;
 
 doneparam:
@@ -394,8 +422,13 @@ save:
 	tp->f_flags = 0;
 	if (configdep)
 		tp->f_flags |= CONFIGDEP;
+	if (imp_rule)
+		tp->f_flags |= NO_IMPLCT_RULE;
+	if (no_obj)
+		tp->f_flags |= NO_OBJ;
 	tp->f_needs = needs;
 	tp->f_special = special;
+	tp->f_depends = depends;
 	if (pf && pf->f_type == INVISIBLE)
 		pf->f_flags = 1;		/* mark as duplicate */
 	goto next;
@@ -429,7 +462,7 @@ do_objs(fp)
 	fprintf(fp, "OBJS=");
 	lpos = 6;
 	for (tp = ftab; tp != 0; tp = tp->f_next) {
-		if (tp->f_type == INVISIBLE)
+		if (tp->f_type == INVISIBLE || tp->f_flags & NO_OBJ)
 			continue;
 		sp = tail(tp->f_fn);
 		for (fl = conf_list; fl; fl = fl->f_next) {
@@ -526,12 +559,26 @@ do_rules(f)
 			continue;
 		cp = (np = ftp->f_fn) + strlen(ftp->f_fn) - 1;
 		och = *cp;
-		*cp = '\0';
-		if (och == 'o') {
-			fprintf(f, "%so:\n\t-cp $S/%so .\n\n", tail(np), np);
-			continue;
+		if (ftp->f_flags & NO_IMPLCT_RULE) {
+			if (ftp->f_depends)
+				fprintf(f, "%s: %s\n", np, ftp->f_depends );
+			else
+				fprintf(f, "%s: \n", np );
 		}
-		fprintf(f, "%so: $S/%s%c\n", tail(np), np, och);
+		else {
+			*cp = '\0';
+			if (och == 'o') {
+				fprintf(f, "%so:\n\t-cp $S/%so .\n\n", 
+					tail(np), np);
+				continue;
+			}
+			if (ftp->f_depends)
+				fprintf(f, "%so: $S/%s%c %s\n", tail(np), 
+					np, och, ftp->f_depends);
+			else
+				fprintf(f, "%so: $S/%s%c\n", tail(np), 
+					np, och);
+		}
 		tp = tail(np);
 		special = ftp->f_special;
 		if (special == 0) {

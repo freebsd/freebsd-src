@@ -198,14 +198,25 @@ get_word(fp)
 	static char line[80];
 	register int ch;
 	register char *cp;
+	int escaped_nl = 0;
 
+begin:
 	while ((ch = getc(fp)) != EOF)
 		if (ch != ' ' && ch != '\t')
 			break;
 	if (ch == EOF)
 		return ((char *)EOF);
+	if (ch == '\\'){
+		escaped_nl = 1;
+		goto begin;
+	}
 	if (ch == '\n')
-		return (NULL);
+		if (escaped_nl){
+			escaped_nl = 0;
+			goto begin;
+		}
+		else
+			return (NULL);
 	cp = line;
 	*cp++ = ch;
 	while ((ch = getc(fp)) != EOF) {
@@ -232,14 +243,25 @@ get_quoted_word(fp)
 	static char line[256];
 	register int ch;
 	register char *cp;
+	int escaped_nl = 0;
 
+begin:
 	while ((ch = getc(fp)) != EOF)
 		if (ch != ' ' && ch != '\t')
 			break;
 	if (ch == EOF)
 		return ((char *)EOF);
+	if (ch == '\\'){
+		escaped_nl = 1;
+		goto begin;
+	}
 	if (ch == '\n')
-		return (NULL);
+		if (escaped_nl){
+			escaped_nl = 0;
+			goto begin;
+		}
+		else
+			return (NULL);
 	cp = line;
 	if (ch == '"' || ch == '\'') {
 		register int quote = ch;
