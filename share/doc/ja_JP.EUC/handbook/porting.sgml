@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.19 1997/03/11 03:04:03 hanai Exp $ -->
+<!-- $Id: porting.sgml,v 1.20 1997/05/18 12:16:02 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.70 -->
 
@@ -150,7 +150,7 @@ Portsコレクションについてのさらに細かい内部の働きについては, そちらのファイルを
 2.2-STABLE (texinfo-3.9 以後):   221001
 2.2-STABLE (top 導入以後):       221002
 2.2-RELEASE:                     222000
-3.0-curret (1997年5月現在):      300000  (リリースが出る毎に変わります)
+3.0-current (1997年5月現在):     300000
 </verb></tscreen>
 	見ての通り, これは年・月というフォーマットになっていましたが,
 	バージョン 2.2 から, より直接的にメジャー/マイナー番号を使う
