@@ -31,10 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.41 1998/03/01 22:46:53 msmith Exp $
+ * $Id: mfs_vfsops.c,v 1.42 1998/05/06 05:29:41 msmith Exp $
  */
 
+
 #include "opt_mfs.h"
+#include "opt_devfs.h"	/* for SLICE */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -102,6 +104,9 @@ static struct vfsops mfs_vfsops = {
 
 VFS_SET(mfs_vfsops, mfs, MOUNT_MFS, 0);
 
+#ifdef	SLICE
+	extern struct vnode	*root_device_vnode;
+#endif	/* SLICE */
 #ifdef MFS_ROOT
 
 static u_char mfs_root[MFS_ROOT*1024] = "MFS Filesystem goes here";
@@ -276,10 +281,14 @@ mfs_mount(mp, path, data, ndp, p)
 		rootdev = makedev(255, mfs_minor++);
 		printf("rootfs is %ld Kbyte compiled in MFS\n",
 		       mfs_rootsize/1024);
+#ifdef SLICE
+		rootvp=root_device_vnode;
+#else	/* !SLICE */
 		if ((err = bdevvp(rootdev, &rootvp))) {
 			printf("mfs_mountroot: can't find rootvp");
 			return (err);
 		}
+#endif	/* !SLICE */
 
 		/*
 		 * FS specific handling
