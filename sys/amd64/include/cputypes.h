@@ -68,7 +68,6 @@ struct cpu_nameclass {
 
 extern int	cpu;
 extern int	cpu_class;
-void init_AMD_Elan_sc520(void);
 #endif
 
 #endif /* !_MACHINE_CPUTYPES_H_ */

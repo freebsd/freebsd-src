@@ -42,6 +42,7 @@
 #include <machine/segments.h>
 #include <machine/cputypes.h>
 #include <machine/pc/bios.h>
+#include <machine/md_var.h>
 
 #include "pcib_if.h"
 
