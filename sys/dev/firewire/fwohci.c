@@ -600,6 +600,8 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 			break;
 	sc->fc.nisodma = i;
 	device_printf(dev, "No. of Isochronous channel is %d.\n", i);
+	if (i == 0)
+		return (ENXIO);
 
 	sc->fc.arq = &sc->arrq.xferq;
 	sc->fc.ars = &sc->arrs.xferq;
