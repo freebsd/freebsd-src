@@ -73,13 +73,18 @@ Pathname of the program which is to be executed.
 .Pp
 Jails are typically set up using one of two philosophies: either to
 constrain a specific application (possibly running with privilege), or
-to create a "virtual system image" running a variety of daemons and
-services.
-In both cases, a fairly complete file system install of FreeBSD is
+to create a
+.Dq "virtual system image"
+running a variety of daemons and services.
+In both cases, a fairly complete file system install of
+.Fx
+is
 required, so as to provide the necessary command line tools, daemons,
 libraries, application configuration files, etc.
 However, for a virtual server configuration, a fair amount of
-additional work is required so as to configure the "boot" process.
+additional work is required so as to configure the
+.Dq boot
+process.
 This manual page documents the configuration steps necessary to support
 either of these steps, although the configuration steps may be
 refined based on local requirements.
@@ -217,9 +222,8 @@ these daemons have been disabled or fixed in the host environment, it is
 best to reboot so that all daemons are in a known state, to reduce the
 potential for confusion later (such as finding that when you send mail
 to a jail, and its sendmail is down, the mail is delivered to the host,
-etc.)
-.Ss Configuring the Jail
-.Pp
+etc.).
+.Ss "Configuring the Jail"
 Start any jail for the first time without configuring the network
 interface so that you can clean it up a little and set up accounts.
 As
