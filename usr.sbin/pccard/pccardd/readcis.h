@@ -144,3 +144,5 @@ struct cis *readcis(int);
 
 char   *tuple_name(unsigned char);
 u_int   parse_num(int, u_char *, u_char **, int);
+
+int isdumpcisfile;
