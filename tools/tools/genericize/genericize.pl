@@ -30,8 +30,12 @@
 #
 
 use strict;
+use Getopt::Std;
 
 MAIN:{
+    my %opts;
+    getopts('c', \%opts);
+
     my %config;
     my $machine;
     my $ident;
@@ -62,6 +66,14 @@ MAIN:{
     while (<GENERIC>) {
 	my $line = $_;
 	chomp();
+	if ($opts{'c'} && m/^\#/) {
+	    if ($blank) {
+		print "\n";
+		$blank = 0;
+	    }
+	    print $line;
+	    next;
+	}
 	++$blank unless $_;
 	s/\s*(\#.*)?$//;
 	next unless $_;
@@ -69,10 +81,6 @@ MAIN:{
 	if ($keyword eq 'machine') {
 	    die("$generic is for $value, not $machine\n")
 		unless ($value eq $machine);
-	    if ($blank) {
-		print "\n";
-		$blank = 0;
-	    }
 	} elsif ($keyword eq 'ident') {
 	    $line =~ s/$value/$ident/;
 	} elsif ($config{$keyword}->{$value}) {
