@@ -76,7 +76,8 @@ The core image.
 .Dp
 .Sh HISTORY
 .Nm Gcore
-appeared in 4.2BSD.
+appeared in
+.Bx 4.2 .
 .Sh BUGS
 Context switches or paging activity that occur while
 .Nm gcore
@@ -84,7 +85,11 @@ is running may cause the program to become confused.
 For best results, use -s to temporarily stop the target process.
 .Pp
 .Nm Gcore
-is not compatible with the original 4.2BSD version.
-In particular, 4.4BSD requires the 
+is not compatible with the original
+.Bx 4.2 
+version.
+In particular,
+.Bx 4.4
+requires the 
 .Ar exec
 argument.
