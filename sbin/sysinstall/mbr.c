@@ -352,7 +352,7 @@ edit_mbr(int disk)
 	keypad(window, TRUE); 
 
 	dialog_clear_norefresh();
-	draw_box(window, 0, 0, 24, 79, dialog_attr, border_attr);
+	draw_box(window, 0, 0, LINES, COLS, dialog_attr, border_attr);
 
 	cur_field = 1;
 	ok = 0;
