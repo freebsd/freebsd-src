@@ -3575,6 +3575,7 @@ ahc_alloc_scbs(struct ahc_softc *ahc)
 		 * The first entry is embedded in the scb.
 		 */
 		next_scb->sg_list_phys = physaddr + sizeof(struct ahc_dma_seg);
+		next_scb->ahc_softc = ahc;
 		next_scb->flags = SCB_FREE;
 #ifndef __linux__
 		error = ahc_dmamap_create(ahc, ahc->buffer_dmat, /*flags*/0,
@@ -4646,8 +4647,11 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	struct	scb *scbp;
 	struct	scb *scbp_next;
 	u_int	active_scb;
-	int	i;
+	int	i, j;
 	int	maxtarget;
+	int	minlun;
+	int	maxlun;
+
 	int	found;
 
 	/*
@@ -4674,39 +4678,27 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 		maxtarget = i + 1;
 	}
 
+	if (lun == CAM_LUN_WILDCARD) {
+
+		/*
+		 * Unless we are using an SCB based
+		 * busy targets table, there is only
+		 * one table entry for all luns of
+		 * a target.
+		 */
+		minlun = 0;
+		maxlun = 1;
+		if ((ahc->flags & AHC_SCB_BTT) != 0)
+			maxlun = AHC_NUM_LUNS;
+	} else {
+		minlun = lun;
+		maxlun = lun + 1;
+	}
+
 	for (;i < maxtarget; i++) {
-		u_int scbid;
-
-		scbid = ahc_index_busy_tcl(ahc, BUILD_TCL(i << 4, 0),
-					   /*unbusy*/FALSE);
-		scbp = ahc_lookup_scb(ahc, scbid);
-		if (scbid < ahc->scb_data->numscbs
-		 && ahc_match_scb(ahc, scbp, target, channel, lun, tag, role)) {
-			u_int minlun;
-			u_int maxlun;
-
-			if (lun == CAM_LUN_WILDCARD) {
-
-				/*
-				 * Unless we are using an SCB based
-				 * busy targets table, there is only
-				 * one table entry for all luns of
-				 * a target.
-				 */
-				minlun = 0;
-				maxlun = 1;
-				if ((ahc->flags & AHC_SCB_BTT) != 0)
-					maxlun = AHC_NUM_LUNS;
-			} else {
-				minlun = lun;
-				maxlun = lun + 1;
-			}
-			while (minlun < maxlun) {
-				ahc_index_busy_tcl(ahc, BUILD_TCL(i << 4,
-						   minlun), /*unbusy*/TRUE);
-				minlun++;
-			}
-		}
+		for (j = minlun;j < maxlun; j++)
+			ahc_index_busy_tcl(ahc, BUILD_TCL(i << 4, j),
+					   /*unbusy*/TRUE);
 	}
 
 	/*
