@@ -99,6 +99,7 @@ init_lock(FILE *fp)
 		}
 		if (fp->_lock != NULL) {	/* lost the race */
 			free(p);
+			_pthread_mutex_unlock(&init_lock_mutex);
 			return (0);
 		}
 		fp->_lock = p;
