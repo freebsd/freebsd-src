@@ -172,6 +172,8 @@ struct acpi_ec_softc {
     bus_space_handle_t	ec_csr_handle;
 
     int			ec_locked;
+    int			ec_pendquery;
+    int			ec_csrvalue;
 };
 
 #define EC_LOCK_TIMEOUT	1000	/* 1ms */
@@ -296,6 +298,7 @@ acpi_ec_attach(device_t dev)
      * Fetch/initialise softc
      */
     sc = device_get_softc(dev);
+    bzero(sc, sizeof(*sc));
     sc->ec_dev = dev;
     sc->ec_handle = acpi_get_handle(dev);
 
@@ -400,7 +403,7 @@ acpi_ec_attach(device_t dev)
 }
 
 static void
-EcGpeHandler(void *Context)
+EcGpeQueryHandler(void *Context)
 {
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     UINT8			Data;
@@ -443,11 +446,42 @@ EcGpeHandler(void *Context)
 	 */
 	sprintf(qxx, "_Q%02x", Data);
 	strupr(qxx);
-	if ((Status - AcpiEvaluateObject(sc->ec_handle, qxx, NULL, NULL)) != AE_OK) {
+	if ((Status = AcpiEvaluateObject(sc->ec_handle, qxx, NULL, NULL)) != AE_OK) {
 	    device_printf(sc->ec_dev, "evaluation of GPE query method %s failed - %s\n", 
 			  qxx, acpi_strerror(Status));
 	}
     }
+        /* I know I request Level trigger cleanup */
+    if(AcpiClearEvent(sc->ec_gpebit,ACPI_EVENT_GPE) != AE_OK)
+	    printf("EcGpeQueryHandler:ClearEvent Failed\n");
+    if(AcpiEnableEvent(sc->ec_gpebit,ACPI_EVENT_GPE) != AE_OK)
+	    printf("EcGpeQueryHandler:EnableEvent Failed\n");
+    return;
+}
+static void EcGpeHandler(void *Context)
+{
+	struct acpi_ec_softc *sc = Context;
+	int csrvalue;
+	/* 
+	 * If EC is locked, the intr must process EcRead/Write wait only.
+	 * Query request must be pending.
+	 */
+	if(EcIsLocked(sc)){
+		csrvalue = EC_GET_CSR(sc);
+		if(csrvalue & EC_EVENT_SCI)
+			sc->ec_pendquery = 1;
+		if((csrvalue & EC_FLAG_OUTPUT_BUFFER)
+		   || !(csrvalue & EC_FLAG_INPUT_BUFFER)){
+			sc->ec_csrvalue=csrvalue;
+			wakeup((void *)&sc->ec_csrvalue);
+		}
+	}else{
+		/*Queue GpeQuery Handler*/
+		if(AcpiOsQueueForExecution(OSD_PRIORITY_GPE,
+		    EcGpeQueryHandler,Context) != AE_OK){
+			printf("QueryHandler Queuing Failed\n");
+		}
+	}
     return_VOID;
 }
 
@@ -500,6 +534,34 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UIN
         (*Value) = (UINT32)EcRequest.Data;
 
     return_ACPI_STATUS(Status);
+}
+static ACPI_STATUS
+EcWaitEventIntr(struct acpi_ec_softc *sc, EC_EVENT Event)
+{
+    EC_STATUS	EcStatus;
+    int i;
+    if(cold)
+	    return EcWaitEvent(sc, Event);
+    if (!EcIsLocked(sc))
+	    device_printf(sc->ec_dev, "EcWaitEventIntr called without EC lock!\n");
+    EcStatus = EC_GET_CSR(sc);
+    /*Too long?*/
+    for(i=0;i<10;i++){
+    	if ((Event == EC_EVENT_OUTPUT_BUFFER_FULL) &&
+		(EcStatus & EC_FLAG_OUTPUT_BUFFER))
+		return(AE_OK);
+      
+	if ((Event == EC_EVENT_INPUT_BUFFER_EMPTY) && 
+		!(EcStatus & EC_FLAG_INPUT_BUFFER))
+		return(AE_OK);
+	sc->ec_csrvalue = 0;
+	if(tsleep(&sc->ec_csrvalue, 0,"ECTRANS",1) != EWOULDBLOCK){
+		EcStatus = sc->ec_csrvalue;
+	}else{
+		EcStatus=EC_GET_CSR(sc);
+	}
+    }
+    return AE_ERROR;
 }
 
 static ACPI_STATUS
@@ -579,17 +641,6 @@ EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
 	return(Status);
 
     /*
-     * Disable EC GPE:
-     * ---------------
-     * Disable EC interrupts (GPEs) from occuring during this transaction.
-     * This is done here as EcTransaction() is also called by the EC GPE
-     * handler -- where disabling/re-enabling the EC GPE is automatically
-     * handled by the ACPI Core Subsystem.
-     */ 
-    if (AcpiDisableEvent(sc->ec_gpebit, ACPI_EVENT_GPE) != AE_OK)
-	device_printf(sc->ec_dev, "EcRequest: Unable to disable the EC GPE.\n");
-
-    /*
      * Perform the transaction.
      */
     switch (EcRequest->Command) {
@@ -615,6 +666,13 @@ EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
      * (EC-SCI) will still be high and thus should trigger the GPE
      * immediately after we re-enabling it.
      */
+    if (sc->ec_pendquery){
+	    if(AcpiOsQueueForExecution(OSD_PRIORITY_GPE,
+		EcGpeQueryHandler, sc) != AE_OK)
+		    printf("Pend Query Queuing Failed\n");
+	    sc->ec_pendquery = 0;
+    }
+
     if (AcpiClearEvent(sc->ec_gpebit, ACPI_EVENT_GPE) != AE_OK)
 	device_printf(sc->ec_dev, "EcRequest: Unable to clear the EC GPE.\n");
     if (AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE) != AE_OK)
@@ -640,13 +698,13 @@ EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     /*EcBurstEnable(EmbeddedController);*/
 
     EC_SET_CSR(sc, EC_COMMAND_READ);
-    if ((Status = EcWaitEvent(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
+    if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
 	device_printf(sc->ec_dev, "EcRead: Failed waiting for EC to process read command.\n");
 	return(Status);
     }
 
     EC_SET_DATA(sc, Address);
-    if ((Status = EcWaitEvent(sc, EC_EVENT_OUTPUT_BUFFER_FULL)) != AE_OK) {
+    if ((Status = EcWaitEventIntr(sc, EC_EVENT_OUTPUT_BUFFER_FULL)) != AE_OK) {
 	device_printf(sc->ec_dev, "EcRead: Failed waiting for EC to send data.\n");
 	return(Status);
     }
@@ -669,19 +727,19 @@ EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     /*EcBurstEnable(EmbeddedController);*/
 
     EC_SET_CSR(sc, EC_COMMAND_WRITE);
-    if ((Status = EcWaitEvent(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
+    if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
 	device_printf(sc->ec_dev, "EcWrite: Failed waiting for EC to process write command.\n");
 	return(Status);
     }
 
     EC_SET_DATA(sc, Address);
-    if ((Status = EcWaitEvent(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
+    if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
 	device_printf(sc->ec_dev, "EcRead: Failed waiting for EC to process address.\n");
 	return(Status);
     }
 
     EC_SET_DATA(sc, *Data);
-    if ((Status = EcWaitEvent(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
+    if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
 	device_printf(sc->ec_dev, "EcWrite: Failed waiting for EC to process data.\n");
 	return(Status);
     }
@@ -689,4 +747,4 @@ EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     /*EcBurstDisable(EmbeddedController);*/
 
     return(AE_OK);
-}    
+}
