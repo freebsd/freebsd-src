@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1998/03/01 23:41:02 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -31,13 +31,15 @@ beforedepend: eelf_i386.c ei386freebsd.c ldgram.c ldgram.h ldlex.c
 
 eelf_i386.c:	emulparams/elf_i386.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
-	sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
+	env LIB_PATH="/usr/lib" \
+	    sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
 	    ${HOST} ${TARGET} ${TARGET} ${EMULATION} "" \
 	    ${EMULATION} ${TARGET}
 
 ei386freebsd.c:	emulparams/elf_i386.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
-	sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
+	env LIB_PATH="/usr/lib" \
+	    sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
 	    ${HOST} ${TARGET} ${TARGET} ${EMULATION} "" \
 	    i386freebsd i386-unknown-freebsd
 
