@@ -72,6 +72,8 @@ struct kevent *ev;
 int action = USE_SLEEP;
 int kq;
 
+static const file_info_t *last;
+
 /*
  * forward -- display the file, from an offset, forward.
  *
@@ -238,16 +240,10 @@ rlines(fp, off, sbp)
 	}
 }
 
-/*
- * follow -- display the file, from an offset, forward.
- *
- */
-
 static void
 show(file_info_t *file)
 {
     int ch;
-    static file_info_t *last;
 
     while ((ch = getc(file->fp)) != EOF) {
 	if (last != file && no_files > 1) {
@@ -295,6 +291,10 @@ set_events(file_info_t *files)
 	}
 }
 
+/*
+ * follow -- display the file, from an offset, forward.
+ *
+ */
 void
 follow(file_info_t *files, enum STYLE style, off_t off)
 {
@@ -321,6 +321,8 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 	}
 	if (! active)
 		return;
+
+	last = --file;
 
 	kq = kqueue();
 	if (kq < 0)
