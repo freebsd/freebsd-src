@@ -23,15 +23,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: uc_scsi.c,v 1.1 1996/10/03 06:01:44 jkh Exp $
+ * $Id: uc_scsi.c,v 1.2 1996/10/04 13:33:46 jkh Exp $
  */
 
 #include <sys/types.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <nlist.h>
 #include <scsi/scsiconf.h>
-#include <tcl.h>
 
 #include "uc_main.h"
 
@@ -105,6 +105,7 @@ get_scsi_info(struct kernel *kp){
 
 	  sbpc=sbp+nscsibus;
 	  sbpc->bus_no=nscsibus;
+          nscsibus++;
 	  sscanf(spc->device, "%[a-z]%d", name, &sbpc->unit);
 	  asprintf(&sbpc->driver, "%s", name);
 
@@ -155,9 +156,16 @@ get_scsi_info(struct kernel *kp){
 	t=(u_int)sdev->next;
 	free(sdev);
       }
+	/* slap on the terminators */
       sp=(struct uc_scsi*)realloc(sp, (sizeof(struct uc_scsi)*(total+1)));
       spc=sp+total;
       bzero(spc, sizeof(struct uc_scsi));
+
+      sbp=(struct uc_scsibus *)realloc(sbp, sizeof(struct uc_scsibus)*
+                                       (nscsibus+1));
+      sbpc=sbp+nscsibus+1;
+      bzero(sbpc, sizeof(struct uc_scsibus));
+
       kp->scsi_devp=sp;
       kp->scsibus_devp=sbp;
     } else { /* no symbol, and incore, no scsi */
@@ -453,16 +461,14 @@ scsi_free(struct kernel *kp, int writeback){
   }
   free(kp->scsi_devp);
   kp->scsi_devp=(struct uc_scsi *)0;
-#define WANT_TO_COREDUMP 1
-#if WANT_TO_COREDUMP /* ugly hack until scsi_getdev() gets -incore
-			busses correctly */
   /* now free the bus info */
   if(kp->incore){
     for(sbp=kp->scsibus_devp;sbp->driver; sbp++){
+/*	fprintf(stderr, "sbp: 0x%x free(0x%x)\n", sbp, sbp->driver);*/
       free(sbp->driver);
     }
   }
-#endif
+
   if (kp->scsibus_devp)
     free(kp->scsibus_devp);
   kp->scsibus_devp=(struct uc_scsibus *)0;

@@ -23,15 +23,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uc_pci.c,v 1.1 1996/10/03 06:01:43 jkh Exp $
  */
 
 #include <sys/types.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <nlist.h>
 #include <pci/pcivar.h>
-#include <tcl.h>
 
 #include "uc_main.h"
 
