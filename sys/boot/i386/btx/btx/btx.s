@@ -28,7 +28,7 @@
 		.set MEM_DIR,0x4000		# Page directory
 		.set MEM_TBL,0x5000		# Page tables
 		.set MEM_ORG,0x9000		# BTX code
-		.set MEM_USR,0xb000		# Start of user memory
+		.set MEM_USR,0xa000		# Start of user memory
 #
 # Paging control.
 #

@@ -22,7 +22,7 @@
 		.set MEM_BUF,0x8c00		// Load area
 		.set MEM_BTX,0x9000		// BTX start
 		.set MEM_JMP,0x9010		// BTX entry point
-		.set MEM_USR,0xb000		// Client start
+		.set MEM_USR,0xa000		// Client start
 		.set BDA_BOOT,0x472		// Boot howto flag
 	
 // Partition Constants 
@@ -181,9 +181,9 @@ main.4: 	xor %dx,%dx			// Partition:drive
 // The second part is BTX, which is thus loaded into 0x9000, which is where
 // it also runs from.  The boot2.bin binary starts right after the end of
 // BTX, so we have to figure out where the start of it is and then move the
-// binary to 0xb000.  Normally, BTX clients start at MEM_USR, or 0xa000, but
-// when we use btxld to create boot2, we use an entry point of 0x1000.  That
-// entry point is relative to MEM_USR; thus boot2.bin starts at 0xb000.
+// binary to 0xc000.  Normally, BTX clients start at MEM_USR, or 0xa000, but
+// when we use btxld to create boot2, we use an entry point of 0x2000.  That
+// entry point is relative to MEM_USR; thus boot2.bin starts at 0xc000.
 // 
 main.5: 	mov %dx,MEM_ARG			// Save args
 		movb $NSECT,%dh			// Sector count
@@ -191,8 +191,8 @@ main.5: 	mov %dx,MEM_ARG			// Save args
 		mov $MEM_BTX,%bx		// BTX
 		mov 0xa(%bx),%si		// Get BTX length and set
 		add %bx,%si			//  %si to start of boot2.bin
-		mov $MEM_USR+SIZ_PAG,%di	// Client page 1
-		mov $MEM_BTX+(NSECT-2)*SIZ_SEC,%cx	// Byte
+		mov $MEM_USR+SIZ_PAG*2,%di	// Client page 2
+		mov $MEM_BTX+(NSECT-2)*SIZ_SEC,%cx // Byte
 		sub %si,%cx			//  count
 		rep				// Relocate
 		movsb				//  client

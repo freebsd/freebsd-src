@@ -166,7 +166,7 @@ ifdef(`BTXLDR_VERBOSE',`
 		call hexout			#  relocation
 		call putstr			#  message
 ')
-		addl $PAG_SIZ * 2,%ebp		# Display
+		addl $PAG_SIZ,%ebp		# Display
 ifdef(`BTXLDR_VERBOSE',`
 		movl $m_base,%esi		#  the
 		movl %ebp,%eax			#  user
