@@ -29,10 +29,16 @@
 #ifndef RTLD_MACHDEP_H
 #define RTLD_MACHDEP_H	1
 
+struct Struct_Obj_Entry;
+
 /* Return the address of the .dynamic section in the dynamic linker. */
 #define rtld_dynamic(obj)	(&_DYNAMIC)
 
-void reloc_jmpslot(Elf_Addr *, Elf_Addr);
+Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr,
+		       const struct Struct_Obj_Entry *obj);
+
+#define make_function_pointer(def, defobj) \
+	((defobj)->relocbase + (def)->st_value)
 
 /* Atomic operations. */
 int cmp0_and_store_int(volatile int *, int);

@@ -137,9 +137,9 @@ typedef struct Struct_Obj_Entry {
     const char *strtab;		/* String table */
     unsigned long strsize;	/* Size in bytes of string table */
 
-    const Elf_Addr *buckets;	/* Hash table buckets array */
+    const Elf_Hashelt *buckets;	/* Hash table buckets array */
     unsigned long nbuckets;	/* Number of buckets */
-    const Elf_Addr *chains;	/* Hash table chain array */
+    const Elf_Hashelt *chains;	/* Hash table chain array */
     unsigned long nchains;	/* Number of chains */
 
     const char *rpath;		/* Search path specified in object */
@@ -161,6 +161,7 @@ typedef struct Struct_Obj_Entry {
     Objlist dagmembers;		/* DAG has these members (%) */
     dev_t dev;			/* Object's filesystem's device */
     ino_t ino;			/* Object's inode number */
+    void *priv;			/* Platform-dependant */
 } Obj_Entry;
 
 #define RTLD_MAGIC	0xd550b87a

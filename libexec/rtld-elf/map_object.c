@@ -35,6 +35,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "debug.h"
 #include "rtld.h"
 
 static int protflags(int);	/* Elf flags -> mmap protection */
