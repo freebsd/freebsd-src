@@ -379,7 +379,7 @@ printit(struct printer *pp, char *file)
 	 */
 	if ((cfp = fopen(file, "r")) == NULL) {
 		syslog(LOG_INFO, "%s: %s: %m", pp->printer, file);
-		return(OK);
+		return (OK);
 	}
 	/*
 	 * Reset troff fonts.
@@ -539,7 +539,7 @@ printit(struct printer *pp, char *file)
 				break;
 			case REPRINT:
 				(void) fclose(cfp);
-				return(REPRINT);
+				return (REPRINT);
 			case FILTERERR:
 			case ACCESS:
 				bombed = i;
@@ -581,7 +581,7 @@ pass2:
 	 */
 	(void) fclose(cfp);
 	(void) unlink(file);
-	return(bombed == OK ? OK : ERROR);
+	return (bombed == OK ? OK : ERROR);
 }
 
 /*
@@ -608,7 +608,7 @@ print(struct printer *pp, int format, char *file)
 	if (lstat(file, &stb) < 0 || (fi = open(file, O_RDONLY)) < 0) {
 		syslog(LOG_INFO, "%s: unable to open %s ('%c' line)",
 		       pp->printer, file, format);
-		return(ERROR);
+		return (ERROR);
 	}
 	/*
 	 * Check to see if data file is a symbolic link. If so, it should
@@ -617,7 +617,7 @@ print(struct printer *pp, int format, char *file)
 	 */
 	if ((stb.st_mode & S_IFMT) == S_IFLNK && fstat(fi, &stb) == 0 &&
 	    (stb.st_dev != fdev || stb.st_ino != fino))
-		return(ACCESS);
+		return (ACCESS);
 
 	job_dfcnt++;		/* increment datafile counter for this job */
 	stopped = 0;		/* output filter is not stopped */
@@ -633,10 +633,10 @@ print(struct printer *pp, int format, char *file)
 		while ((n = read(fi, buf, BUFSIZ)) > 0)
 			if (write(ofd, buf, n) != n) {
 				(void) close(fi);
-				return(REPRINT);
+				return (REPRINT);
 			}
 		(void) close(fi);
-		return(OK);
+		return (OK);
 	}
 	switch (format) {
 	case 'p':	/* print file using 'pr' */
@@ -673,7 +673,7 @@ print(struct printer *pp, int format, char *file)
 		if (prchild < 0) {
 			prchild = 0;
 			(void) close(p[0]);
-			return(ERROR);
+			return (ERROR);
 		}
 		fi = p[0];			/* use pipe for input */
 	case 'f':	/* print plain text file */
@@ -755,14 +755,14 @@ print(struct printer *pp, int format, char *file)
 		(void) close(fi);
 		syslog(LOG_ERR, "%s: illegal format character '%c'",
 			pp->printer, format);
-		return(ERROR);
+		return (ERROR);
 	}
 	if (prog == NULL) {
 		(void) close(fi);
 		syslog(LOG_ERR,
 		   "%s: no filter found in printcap for format character '%c'",
 		   pp->printer, format);
-		return(ERROR);
+		return (ERROR);
 	}
 	if ((av[0] = strrchr(prog, '/')) != NULL)
 		av[0]++;
@@ -789,7 +789,7 @@ print(struct printer *pp, int format, char *file)
 			    "(pid=%d retcode=%d termsig=%d)",
 			    pp->printer, ofilter, WEXITSTATUS(wstatus),
 			    WTERMSIG(wstatus));
-			return(REPRINT);
+			return (REPRINT);
 		}
 		stopped++;
 	}
@@ -845,20 +845,20 @@ start:
 	if (wstatus_set && !WIFEXITED(wstatus)) {
 		syslog(LOG_WARNING, "%s: filter '%c' terminated (termsig=%d)",
 		    pp->printer, format, WTERMSIG(wstatus));
-		return(ERROR);
+		return (ERROR);
 	}
 	switch (retcode) {
 	case 0:
 		pp->tof = 1;
-		return(OK);
+		return (OK);
 	case 1:
-		return(REPRINT);
+		return (REPRINT);
 	case 2:
-		return(ERROR);
+		return (ERROR);
 	default:
 		syslog(LOG_WARNING, "%s: filter '%c' exited (retcode=%d)",
 			pp->printer, format, retcode);
-		return(FILTERERR);
+		return (FILTERERR);
 	}
 }
 
@@ -877,7 +877,7 @@ sendit(struct printer *pp, char *file)
 	 * open control file
 	 */
 	if ((cfp = fopen(file, "r")) == NULL)
-		return(OK);
+		return (OK);
 
 	/* initialize job-specific count of datafiles processed */
 	job_dfcnt = 0;
@@ -942,7 +942,7 @@ sendit(struct printer *pp, char *file)
 				break;
 			case REPRINT:
 				(void) fclose(cfp);
-				return(REPRINT);
+				return (REPRINT);
 			case ACCESS:
 				sendmail(pp, logname, ACCESS);
 			case ERROR:
@@ -953,7 +953,7 @@ sendit(struct printer *pp, char *file)
 	}
 	if (err == OK && sendfile(pp, '\2', file, '\0', 1) > 0) {
 		(void) fclose(cfp);
-		return(REPRINT);
+		return (REPRINT);
 	}
 	/*
 	 * pass 2
@@ -967,7 +967,7 @@ sendit(struct printer *pp, char *file)
 	 */
 	(void) fclose(cfp);
 	(void) unlink(file);
-	return(err);
+	return (err);
 }
 
 /*
@@ -1300,9 +1300,9 @@ response(const struct printer *pp)
 
 	if (read(pfd, &resp, 1) != 1) {
 		syslog(LOG_INFO, "%s: lost connection", pp->printer);
-		return(-1);
+		return (-1);
 	}
-	return(resp);
+	return (resp);
 }
 
 /*
@@ -1542,7 +1542,7 @@ dofork(const struct printer *pp, int action)
 				break;
 			}
 		}
-		return forkpid;
+		return (forkpid);
 	}
 
 	/*
@@ -1561,7 +1561,7 @@ error_ret:
 	sleep(1);		/* throttle errors, as a safety measure */
 	switch (action) {
 	case DORETURN:
-		return -1;
+		return (-1);
 	default:
 		syslog(LOG_ERR, "bad action (%d) to dofork", action);
 		/* FALLTHROUGH */
