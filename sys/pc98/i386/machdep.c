@@ -72,6 +72,7 @@
 #include <sys/msgbuf.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
+#include <sys/ucontext.h>
 #include <sys/vmmeter.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
@@ -719,7 +720,7 @@ int
 sigreturn(td, uap)
 	struct thread *td;
 	struct sigreturn_args /* {
-		ucontext_t *sigcntxp;
+		const __ucontext *sigcntxp;
 	} */ *uap;
 {
 	struct proc *p = td->td_proc;
