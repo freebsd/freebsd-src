@@ -231,6 +231,16 @@ static void
 doadump(void)
 {
 
+	/*
+	 * Sometimes people have to call this from the kernel debugger. 
+	 * (if 'panic' can not dump)
+	 * Give them a clue as to why they can't dump.
+	 */
+	if (dumper.dumper == NULL) {
+		printf("cannot dump. No dump device defined.\n");
+		return;
+	}
+
 	savectx(&dumppcb);
 	dumptid = curthread->td_tid;
 	dumping++;
@@ -378,8 +388,7 @@ boot(int howto)
 	 */
 	EVENTHANDLER_INVOKE(shutdown_post_sync, howto);
 	splhigh();
-	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP &&
-	    !cold && dumper.dumper != NULL && !dumping) 
+	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold && !dumping) 
 		doadump();
 
 	/* Now that we're going to really halt the system... */
