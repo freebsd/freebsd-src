@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)skeleton.c	5.7 (Berkeley) 5/24/93";
+static char sccsid[] = "@(#)skeleton.c	5.8 (Berkeley) 4/29/95";
 #endif /* not lint */
 
 #include "defs.h"
@@ -57,6 +57,7 @@ char *banner[] =
     "#ifndef lint",
     "static char const yysccsid[] = \"@(#)yaccpar	1.9 (Berkeley) 02/21/93\";",
     "#endif",
+    "#include <stdlib.h>",
     "#define YYBYACC 1",
     "#define YYMAJOR 1",
     "#define YYMINOR 9",
@@ -110,10 +111,11 @@ char *header[] =
     "#ifdef YYMAXDEPTH",
     "#define YYSTACKSIZE YYMAXDEPTH",
     "#else",
-    "#define YYSTACKSIZE 500",
-    "#define YYMAXDEPTH 500",
+    "#define YYSTACKSIZE 10000",
+    "#define YYMAXDEPTH 10000",
     "#endif",
     "#endif",
+    "#define YYINITSTACKSIZE 200",
     "int yydebug;",
     "int yynerrs;",
     "int yyerrflag;",
@@ -122,15 +124,43 @@ char *header[] =
     "YYSTYPE *yyvsp;",
     "YYSTYPE yyval;",
     "YYSTYPE yylval;",
-    "short yyss[YYSTACKSIZE];",
-    "YYSTYPE yyvs[YYSTACKSIZE];",
-    "#define yystacksize YYSTACKSIZE",
+    "short *yyss;",
+    "short *yysslim;",
+    "YYSTYPE *yyvs;",
+    "int yystacksize;",
     0
 };
 
 
 char *body[] =
 {
+    "/* allocate initial stack or double stack size, up to YYMAXDEPTH */",
+    "static int yygrowstack()",
+    "{",
+    "    int newsize, i;",
+    "    short *newss;",
+    "    YYSTYPE *newvs;",
+    "",
+    "    if ((newsize = yystacksize) == 0)",
+    "        newsize = YYINITSTACKSIZE;",
+    "    else if (newsize >= YYMAXDEPTH)",
+    "        return -1;",
+    "    else if ((newsize *= 2) > YYMAXDEPTH)",
+    "        newsize = YYMAXDEPTH;",
+    "    i = yyssp - yyss;",
+    "    if ((newss = realloc(yyss, newsize * sizeof *newss)) == NULL)",
+    "        return -1;",
+    "    yyss = newss;",
+    "    yyssp = newss + i;",
+    "    if ((newvs = realloc(yyvs, newsize * sizeof *newvs)) == NULL)",
+    "        return -1;",
+    "    yyvs = newvs;",
+    "    yyvsp = newvs + i;",
+    "    yystacksize = newsize;",
+    "    yysslim = yyss + newsize - 1;",
+    "    return 0;",
+    "}",
+    "",
     "#define YYABORT goto yyabort",
     "#define YYREJECT goto yyabort",
     "#define YYACCEPT goto yyaccept",
@@ -155,6 +185,7 @@ char *body[] =
     "    yyerrflag = 0;",
     "    yychar = (-1);",
     "",
+    "    if (yyss == NULL && yygrowstack()) goto yyoverflow;",
     "    yyssp = yyss;",
     "    yyvsp = yyvs;",
     "    *yyssp = yystate = 0;",
@@ -183,7 +214,7 @@ char *body[] =
     "            printf(\"%sdebug: state %d, shifting to state %d\\n\",",
     "                    YYPREFIX, yystate, yytable[yyn]);",
     "#endif",
-    "        if (yyssp >= yyss + yystacksize - 1)",
+    "        if (yyssp >= yysslim && yygrowstack())",
     "        {",
     "            goto yyoverflow;",
     "        }",
@@ -224,7 +255,7 @@ char *body[] =
     "                    printf(\"%sdebug: state %d, error recovery shifting\\",
     " to state %d\\n\", YYPREFIX, *yyssp, yytable[yyn]);",
     "#endif",
-    "                if (yyssp >= yyss + yystacksize - 1)",
+    "                if (yyssp >= yysslim && yygrowstack())",
     "                {",
     "                    goto yyoverflow;",
     "                }",
@@ -321,7 +352,7 @@ char *trailer[] =
     "        printf(\"%sdebug: after reduction, shifting from state %d \\",
     "to state %d\\n\", YYPREFIX, *yyssp, yystate);",
     "#endif",
-    "    if (yyssp >= yyss + yystacksize - 1)",
+    "    if (yyssp >= yysslim && yygrowstack())",
     "    {",
     "        goto yyoverflow;",
     "    }",
