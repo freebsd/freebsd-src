@@ -55,7 +55,7 @@ format_track(int fd, int cyl, int secs, int head, int rate,
 {
 	struct fd_formb f;
 	register int i,j;
-	int il[FD_MAX_NSEC];
+	int il[FD_MAX_NSEC + 1];
 
 	memset(il,0,sizeof il);
 	for(j = 0, i = 1; i <= secs; i++) {
