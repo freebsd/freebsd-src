@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.4 1994/01/31 10:27:01 davidg Exp $
+ *	$Id: sys_machdep.c,v 1.5 1994/08/13 03:49:46 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -119,7 +119,7 @@ set_user_ldt(struct pcb *pcb)
 {
 	gdt_segs[GUSERLDT_SEL].ssd_base = (unsigned)pcb->pcb_ldt;
 	gdt_segs[GUSERLDT_SEL].ssd_limit = (pcb->pcb_ldt_len * sizeof(union descriptor)) - 1;
-	ssdtosd(gdt_segs+GUSERLDT_SEL, gdt+GUSERLDT_SEL);
+	ssdtosd(&gdt_segs[GUSERLDT_SEL], &gdt[GUSERLDT_SEL].sd);
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	currentldt = GSEL(GUSERLDT_SEL, SEL_KPL);
 }
