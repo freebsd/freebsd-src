@@ -66,13 +66,13 @@ md5.ref:
 beforeinstall: md2.ref md4.ref md5.ref md2.3 md4.3 md5.3
 	@${ECHO} if any of these test fail, the code produces wrong results
 	@${ECHO} and should NOT be used.
-	${CC} ${CFLAGS} ${LDFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	${CC} -static ${CFLAGS} ${LDFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
 	./mddriver | cmp md2.ref -
 	@${ECHO} MD2 passed test
-	${CC} ${CFLAGS} ${LDFLAGS} -DMD=4 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	${CC} -static ${CFLAGS} ${LDFLAGS} -DMD=4 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
 	./mddriver | cmp md4.ref -
 	@${ECHO} MD4 passed test
-	${CC} ${CFLAGS} ${LDFLAGS} -DMD=5 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	${CC} -static ${CFLAGS} ${LDFLAGS} -DMD=5 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
 	./mddriver | cmp md5.ref -
 	@${ECHO} MD5 passed test
 	-rm -f mddriver
