@@ -73,16 +73,21 @@ struct hdlc {
     struct pppTimer timer;		/* When to send */
     int method;				/* bit-mask for LQM_* from lqr.h */
 
-    u_int32_t OutPackets;		/* Packets sent by me */
-    u_int32_t OutOctets;		/* Octets sent by me */
-    u_int32_t SaveInPackets;		/* Packets received from peer */
-    u_int32_t SaveInDiscards;		/* Discards */
-    u_int32_t SaveInErrors;		/* Errors */
-    u_int32_t SaveInOctets;		/* Octets received from peer */
+    u_int32_t ifOutUniPackets;		/* Packets sent by me */
+    u_int32_t ifOutOctets;		/* Octets sent by me */
+    u_int32_t ifInUniPackets;		/* Packets received from peer */
+    u_int32_t ifInDiscards;		/* Discards */
+    u_int32_t ifInErrors;		/* Errors */
+    u_int32_t ifInOctets;		/* Octets received from peer (unused) */
 
     struct {
+      u_int32_t InGoodOctets;		/* Good octets received from peer */
       u_int32_t OutLQRs;		/* LQRs sent by me */
-      u_int32_t SaveInLQRs;		/* LQRs received from peer */
+      u_int32_t InLQRs;			/* LQRs received from peer */
+
+      struct lqrsavedata Save;		/* Our last LQR */
+      struct lqrsavedata prevSave;	/* Our last-but-one LQR (analysis) */
+
       struct lqrdata peer;		/* Last LQR from peer */
       int peer_timeout;			/* peers max lqr timeout */
       int resent;			/* Resent last packet `resent' times */
