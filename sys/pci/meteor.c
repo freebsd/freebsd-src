@@ -147,6 +147,7 @@
 
 #if NMETEOR > 0
 #include "opt_devfs.h"
+#include "opt_meteor.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
