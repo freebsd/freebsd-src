@@ -307,7 +307,10 @@ checkremote()
 			"unable to get official name for local machine %s",
 			name);
 		    return errbuf;
-		} else (void) strcpy(name, hp->h_name);
+		} else {
+		    (void) strncpy(name, hp->h_name, sizeof(name));
+		    name[sizeof(name) - 1] = '\0';
+		}
 
 		/* get the official name of RM */
 		hp = gethostbyname(RM);
