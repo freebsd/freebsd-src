@@ -593,8 +593,11 @@ sendit(p, s, mp, flags)
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
-		if (error == EPIPE)
+		if (error == EPIPE) {
+			PROC_LOCK(p);
 			psignal(p, SIGPIPE);
+			PROC_UNLOCK(p);
+		}
 	}
 	if (error == 0)
 		p->p_retval[0] = len - auio.uio_resid;

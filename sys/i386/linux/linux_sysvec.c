@@ -246,13 +246,13 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
-		PROC_UNLOCK(p);
 #ifdef DEBUG
 		if (ldebug(sigreturn))
 			printf(LMSG("rt_sendsig: bad stack %p, oonstack=%x"),
 			    fp, oonstack);
 #endif
 		psignal(p, SIGILL);
+		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -320,6 +320,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+		PROC_LOCK(p);
 		sigexit(p, SIGILL);
 		/* NOTREACHED */
 	}
@@ -404,8 +405,8 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
-		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
+		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -454,6 +455,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+		PROC_LOCK(p);
 		sigexit(p, SIGILL);
 		/* NOTREACHED */
 	}

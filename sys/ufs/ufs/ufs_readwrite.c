@@ -440,7 +440,9 @@ WRITE(ap)
 	if (vp->v_type == VREG && p &&
 	    uio->uio_offset + uio->uio_resid >
 	    p->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
+		PROC_LOCK(p);
 		psignal(p, SIGXFSZ);
+		PROC_UNLOCK(p);
 		if (object)
 			vm_object_vndeallocate(object);
 		return (EFBIG);

@@ -2300,7 +2300,9 @@ signal_vt_rel(scr_stat *scp)
     if (scp->smode.mode != VT_PROCESS)
 	return FALSE;
     scp->status |= SWITCH_WAIT_REL;
+    PROC_LOCK(scp->proc);
     psignal(scp->proc, scp->smode.relsig);
+    PROC_UNLOCK(scp->proc);
     DPRINTF(5, ("sending relsig to %d\n", scp->pid));
     return TRUE;
 }
@@ -2313,7 +2315,9 @@ signal_vt_acq(scr_stat *scp)
     if (scp->sc->unit == sc_console_unit)
 	cons_unavail = TRUE;
     scp->status |= SWITCH_WAIT_ACQ;
+    PROC_LOCK(scp->proc);
     psignal(scp->proc, scp->smode.acqsig);
+    PROC_UNLOCK(scp->proc);
     DPRINTF(5, ("sending acqsig to %d\n", scp->pid));
     return TRUE;
 }

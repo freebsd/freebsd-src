@@ -1278,8 +1278,8 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
-		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
+		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -1418,8 +1418,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
-		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
+		PROC_UNLOCK(p);
 		return;
 	}
 
