@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: util.c,v 1.7 1998/08/07 09:23:10 grog Exp grog $
+ * $Id: util.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 /* This file contains utility routines used both in kernel and user context */

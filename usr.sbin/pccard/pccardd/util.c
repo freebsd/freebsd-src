@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: util.c,v 1.11 1997/11/19 02:31:41 nate Exp $";
+	"$Id: util.c,v 1.12 1998/03/09 05:18:59 hosokawa Exp $";
 #endif /* not lint */
 
 #include <err.h>

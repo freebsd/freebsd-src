@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: interrupt.c,v 1.1 1998/08/13 06:12:27 grog Exp grog $
+ * $Id: interrupt.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 #define REALLYKERNEL

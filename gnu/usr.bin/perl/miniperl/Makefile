@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.6 1998/09/26 16:17:05 markm Exp $
+# $Id: Makefile,v 1.7 1998/10/11 18:13:41 markm Exp $
 #
 
 PROG=	miniperl

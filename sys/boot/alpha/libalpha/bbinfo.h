@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: bbinfo.h,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  * From $NetBSD: bbinfo.h,v 1.2 1997/04/06 08:40:57 cgd Exp $ 
  */
 

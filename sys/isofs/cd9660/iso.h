@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.6 (Berkeley) 5/10/95
- * $Id: iso.h,v 1.15 1997/05/04 16:17:49 joerg Exp $
+ * $Id: iso.h,v 1.16 1997/05/07 13:23:04 joerg Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)

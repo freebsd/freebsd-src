@@ -1,6 +1,6 @@
 /*
- * $Header: /home/imp/FreeBSD/CVS/src/lib/libcom_err/init_et.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $
- * $Source: /home/imp/FreeBSD/CVS/src/lib/libcom_err/init_et.c,v $
+ * $Header: /home/ncvs/src/lib/libcom_err/init_et.c,v 1.2 1998/09/11 05:39:08 imp Exp $
+ * $Source: /home/ncvs/src/lib/libcom_err/init_et.c,v $
  * $Locker:  $
  *
  * Copyright 1986, 1987, 1988 by MIT Information Systems and
@@ -20,7 +20,7 @@
 
 #ifndef	lint
 static const char rcsid_init_et_c[] =
-    "$Header: /home/imp/FreeBSD/CVS/src/lib/libcom_err/init_et.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $";
+    "$Header: /home/ncvs/src/lib/libcom_err/init_et.c,v 1.2 1998/09/11 05:39:08 imp Exp $";
 #endif
 
 struct foobar {

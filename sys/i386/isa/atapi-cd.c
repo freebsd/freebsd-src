@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.2 1998/10/08 06:41:44 sos Exp $
+ *	$Id: atapi-cd.c,v 1.3 1998/10/15 08:11:54 sos Exp $
  */
 
 #include "wdc.h"

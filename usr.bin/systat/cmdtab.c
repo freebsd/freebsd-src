@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id: cmdtab.c,v 1.3 1997/09/25 00:37:31 wollman Exp $";
+	"$Id: cmdtab.c,v 1.4 1997/09/27 00:44:50 wollman Exp $";
 #endif /* not lint */
 
 #include "systat.h"

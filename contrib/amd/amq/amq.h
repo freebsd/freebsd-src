@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq.h,v 1.1 1996/01/13 23:23:39 ezk Exp ezk $
+ * $Id: amq.h,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

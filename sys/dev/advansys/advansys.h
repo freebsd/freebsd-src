@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  * All rights reserved.
  *
- *      $Id: advansys.h,v 1.3 1997/02/22 09:38:38 peter Exp $
+ *      $Id: advansys.h,v 1.1 1998/09/15 07:03:33 gibbs Exp $
  */
 
 #ifndef _ADVANSYS_H_

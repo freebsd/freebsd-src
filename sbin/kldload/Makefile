@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: Makefile,v 1.2 1997/10/19 11:15:41 jmg Exp $
+#	$Id: Makefile,v 1.3 1997/10/26 04:58:22 jmg Exp $
 #
 
 PROG=	kldload

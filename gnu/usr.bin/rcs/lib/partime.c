@@ -46,7 +46,7 @@ Report problems and direct all questions to:
 #include "partime.h"
 
 char const partimeId[]
-  = "$Id$";
+  = "$Id: partime.c,v 1.5 1997/02/22 15:47:33 peter Exp $";
 
 
 /* Lookup tables for names of months, weekdays, time zones.  */

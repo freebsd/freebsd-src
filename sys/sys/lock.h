@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.10 1997/09/21 04:24:02 dyson Exp $
+ * $Id: lock.h,v 1.11 1998/01/06 05:22:48 dyson Exp $
  */
 
 #ifndef	_LOCK_H_

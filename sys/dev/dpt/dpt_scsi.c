@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.19 1998/10/15 23:17:56 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.20 1998/10/15 23:46:24 gibbs Exp $"
 
 #define _DPT_C_
 

@@ -35,7 +35,7 @@
 %/* from @(#)ypupdate_prot.x	1.3 91/03/11 TIRPC 1.0 */
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$Id$";
+%static const char rcsid[] = "$Id: ypupdate_prot.x,v 1.2 1997/05/28 04:38:29 wpaul Exp $";
 %#endif
 #endif
 %

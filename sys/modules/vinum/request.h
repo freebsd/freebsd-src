@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.10 1998/08/03 07:15:26 grog Exp grog $
+ * $Id: request.h,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 /* Information needed to set up a transfer */

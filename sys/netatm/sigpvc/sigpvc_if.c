@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sigpvc_if.c,v 1.13 1998/07/30 22:32:42 mks Exp $
+ *	@(#) $Id: sigpvc_if.c,v 1.1 1998/09/15 08:23:02 phk Exp $
  *
  */
 
@@ -37,7 +37,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: sigpvc_if.c,v 1.13 1998/07/30 22:32:42 mks Exp $";
+static char *RCSid = "@(#) $Id: sigpvc_if.c,v 1.1 1998/09/15 08:23:02 phk Exp $";
 #endif
 
 #ifndef ATM_SIGPVC_MODULE

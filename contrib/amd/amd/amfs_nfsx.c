@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_linxx.c,v 5.2.2.3 1992/05/31 16:13:07 jsp Exp $
+ * $Id: amfs_nfsx.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

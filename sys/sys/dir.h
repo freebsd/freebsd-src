@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/4/94
- * $Id: dir.h,v 1.4 1997/02/22 09:45:01 peter Exp $
+ * $Id: dir.h,v 1.5 1997/04/10 13:54:19 bde Exp $
  */
 
 #ifndef _SYS_DIR_H_

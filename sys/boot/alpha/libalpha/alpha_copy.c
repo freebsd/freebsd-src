@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alpha_copy.c,v 1.2 1998/09/03 02:10:07 msmith Exp $
+ *	$Id: alpha_copy.c,v 1.3 1998/09/20 21:46:19 dfr Exp $
  */
 /*
  * MD primitives supporting placement of module data 

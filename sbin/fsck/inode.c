@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: inode.c,v 1.15 1998/06/28 19:23:02 bde Exp $";
+	"$Id: inode.c,v 1.16 1998/08/01 18:03:28 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1998/10/04 08:10:29 msmith Exp $
+# $Id: Makefile,v 1.6 1998/10/06 19:23:57 msmith Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #

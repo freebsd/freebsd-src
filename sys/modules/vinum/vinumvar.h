@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.15 1998/08/14 06:36:41 grog Exp grog $
+ * $Id: vinumvar.h,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 /* XXX gdb can't find our global pointers, so use this kludge to

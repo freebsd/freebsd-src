@@ -36,7 +36,7 @@
 #
 # Posix 1003.2 compliant print spooler interface.
 #
-# $Id$
+# $Id: lp.sh,v 1.5 1997/02/22 16:06:14 peter Exp $
 #
 
 ncopies=""

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id: Makefile,v 1.6 1997/03/07 03:28:12 jmg Exp $
+#	$Id: Makefile,v 1.7 1997/11/09 06:05:45 obrien Exp $
 
 #MISSING: eqnchar.7 man.7 ms.7 term.7
 MAN7=	ascii.7 clocks.7 environ.7 hier.7 hostname.7 intro.7 mailaddr.7 \

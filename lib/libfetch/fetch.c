@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fetch.c,v 1.3 1998/07/11 21:29:07 des Exp $
+ *	$Id: fetch.c,v 1.4 1998/08/17 09:30:19 des Exp $
  */
 
 #include <sys/param.h>

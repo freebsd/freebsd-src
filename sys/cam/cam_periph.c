@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.4 1998/10/13 21:41:32 ken Exp $
+ *      $Id: cam_periph.c,v 1.5 1998/10/15 17:46:18 ken Exp $
  */
 
 #include <sys/param.h>

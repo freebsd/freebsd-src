@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_var.h
  *
- * $Id: ipx_var.h,v 1.10 1998/06/07 17:12:20 dfr Exp $
+ * $Id: ipx_var.h,v 1.11 1998/08/23 03:07:15 wollman Exp $
  */
 
 #ifndef _NETIPX_IPX_VAR_H_

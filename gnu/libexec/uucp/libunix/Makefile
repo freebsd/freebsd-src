@@ -1,5 +1,5 @@
 # This subdirectory contains Unix specific support functions.
-# $Id$
+# $Id: Makefile,v 1.6 1997/02/22 15:27:07 peter Exp $
 
 LIB=		unix
 SRCS = access.c addbas.c app3.c app4.c basnam.c bytfre.c corrup.c \

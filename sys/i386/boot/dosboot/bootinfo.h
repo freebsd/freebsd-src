@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bootinfo.h,v 1.4 1997/02/22 09:30:37 peter Exp $
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_

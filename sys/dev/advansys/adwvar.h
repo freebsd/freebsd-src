@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  * All rights reserved.
  *
- *      $Id$
+ *      $Id: adwvar.h,v 1.1 1998/10/07 03:20:47 gibbs Exp $
  */
 
 #ifndef _ADWVAR_H_

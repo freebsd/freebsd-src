@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1997/02/22 16:14:17 peter Exp $
+# $Id: Makefile,v 1.5 1998/03/07 09:46:03 bde Exp $
 #
 
 PROG= propdelay

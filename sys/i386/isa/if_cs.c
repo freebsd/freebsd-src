@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.4 1998/08/27 22:41:18 msmith Exp $
+ * $Id: if_cs.c,v 1.5 1998/10/04 02:11:15 msmith Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997

@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot1.s,v 1.1.1.1 1998/10/12 21:16:26 rnordier Exp $
+#	$Id: boot1.s,v 1.2 1998/10/13 21:35:42 rnordier Exp $
 
 		.set MEM_REL,0x600		# Relocation address
 		.set MEM_ARG,0x800		# Arguments

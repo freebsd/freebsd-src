@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kbdio.h,v 1.8 1998/08/06 09:15:53 dfr Exp $
  * from: i386/isa kbdio.h,v 1.7
  */
 

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc0,v 1.9 1998/09/28 20:41:31 jb Exp $
+#	$Id: Makefile.inc0,v 1.10 1998/09/29 22:03:13 jkh Exp $
 #
 # This makefile ensures that the object directory is set according to the
 # object format to avoid mixing aout and elf formatted files during the

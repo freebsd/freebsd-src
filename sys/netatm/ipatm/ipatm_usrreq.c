@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm_usrreq.c,v 1.6 1998/05/18 19:14:04 mks Exp $
+ *	@(#) $Id: ipatm_usrreq.c,v 1.1 1998/09/15 08:23:01 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: ipatm_usrreq.c,v 1.6 1998/05/18 19:14:04 mks Exp $";
+static char *RCSid = "@(#) $Id: ipatm_usrreq.c,v 1.1 1998/09/15 08:23:01 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>

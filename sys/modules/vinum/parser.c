@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: parser.c,v 1.11 1998/08/10 08:50:42 grog Exp grog $
+ * $Id: parser.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 /* This file contains the parser for the configuration routines.  It's used

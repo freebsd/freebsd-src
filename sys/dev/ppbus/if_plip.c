@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.3 1998/08/17 01:05:23 bde Exp $
+ *	$Id: if_plip.c,v 1.4 1998/10/07 14:42:24 des Exp $
  */
 
 /*

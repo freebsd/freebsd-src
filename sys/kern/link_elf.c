@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.6 1998/10/15 17:16:24 peter Exp $
+ *	$Id: link_elf.c,v 1.7 1998/10/16 03:55:00 peter Exp $
  */
 
 #include <sys/param.h>

@@ -39,7 +39,7 @@
  *
  *	%W% (Berkeley) %G%
  *
- * $Id: conf_tok.l,v 5.2.2.1 1992/02/09 15:09:36 jsp beta $
+ * $Id: conf_tok.l,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

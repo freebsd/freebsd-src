@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.8 1997/02/22 14:03:27 peter Exp $
 
 SHELL=	/bin/sh
 ED=	${.OBJDIR}/ed

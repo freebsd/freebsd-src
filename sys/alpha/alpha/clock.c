@@ -1,4 +1,4 @@
-/* $Id: clock.c,v 1.3 1998/07/22 08:16:34 dfr Exp $ */
+/* $Id: clock.c,v 1.4 1998/10/06 08:40:18 dfr Exp $ */
 /* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.32 1998/09/07 13:17:00 bde Exp $
+ *	$Id: devfs_vfsops.c,v 1.33 1998/09/08 16:59:37 bde Exp $
  *
  */
 

@@ -44,7 +44,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: config.c,v 1.17 1998/08/14 04:49:26 grog Exp grog $
+ * $Id: config.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */

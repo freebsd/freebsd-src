@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic.h,v 1.11 1997/08/04 17:31:24 fsmp Exp $
+ *	$Id: apic.h,v 1.12 1998/09/06 22:41:40 tegge Exp $
  */
 
 #ifndef _MACHINE_APIC_H_

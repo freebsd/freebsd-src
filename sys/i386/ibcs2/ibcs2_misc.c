@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.29 1998/08/17 18:12:52 bde Exp $
+ * $Id: ibcs2_misc.c,v 1.30 1998/09/26 00:55:53 des Exp $
  */
 
 /*

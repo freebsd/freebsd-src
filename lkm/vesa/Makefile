@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1998/09/15 20:09:18 sos Exp $
+#	$Id: Makefile,v 1.2 1998/09/15 20:14:11 sos Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/isa
 KMOD	=	vesa_mod

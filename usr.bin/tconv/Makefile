@@ -1,5 +1,5 @@
 # Makefile for tconv
-# $Id$
+# $Id: Makefile,v 1.4 1997/02/22 19:57:22 peter Exp $
 
 PROG=   tconv
 SRCS=   tconv.c quit.c

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: iicbus_if.m,v 1.1.2.4 1998/08/13 17:10:43 son Exp $
+#	$Id: iicbus_if.m,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
 #
 
 INTERFACE iicbus

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)comreg.h	7.2 (Berkeley) 5/9/91
- *	$Id: sioreg.h,v 1.6 1997/06/04 10:27:53 kato Exp $
+ *	$Id: sioreg.h,v 1.7 1997/06/06 13:09:55 kato Exp $
  */
 
 

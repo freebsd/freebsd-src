@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sps.c,v 1.2 1998/07/17 07:55:47 abial Exp $
+ *	$Id: sps.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
  */
 
 /*

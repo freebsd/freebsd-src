@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.40 1998/04/15 17:45:12 bde Exp $
+ * $Id: aic6360.c,v 1.41 1998/06/21 14:53:09 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and

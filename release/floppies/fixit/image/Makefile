@@ -1,5 +1,5 @@
 ###
-#	$Id: Makefile,v 1.4 1997/07/16 12:24:27 julian Exp $
+#	$Id: Makefile,v 1.4 1997/07/22 02:51:02 julian Exp $
 #
 # What are we if we weren't told..
 CRUNCH?= fixit

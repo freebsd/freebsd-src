@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: i386_module.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: i386_module.c,v 1.2 1998/08/31 21:10:43 msmith Exp $
  */
 
 /*

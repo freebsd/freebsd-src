@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.25 1998/09/14 22:43:40 jdp Exp $
+ *	$Id: md_var.h,v 1.26 1998/09/25 17:34:49 peter Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_

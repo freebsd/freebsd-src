@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.7 1997/02/22 16:14:04 peter Exp $
 
 PROG=	tzsetup
 MAN8=	tzsetup.8

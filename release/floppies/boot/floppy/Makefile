@@ -1,5 +1,5 @@
 
-#	$Id: Makefile,v 1.6 1997/07/22 02:51:00 julian Exp $
+#	$Id: Makefile,v 1.7 1998/08/03 19:18:07 julian Exp $
 # If this is a RELEASE, then set
 
 # Things which without too much trouble can be considered variables

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_thread_rcsid[] = "$Id$";
+const char _uuconf_thread_rcsid[] = "$Id: thread.c,v 1.5 1997/02/22 15:27:53 peter Exp $";
 #endif
 
 #include <errno.h>

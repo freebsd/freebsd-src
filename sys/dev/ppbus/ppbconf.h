@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.8 1998/09/13 18:26:26 nsouch Exp $
+ *	$Id: ppbconf.h,v 1.9 1998/09/20 14:41:54 nsouch Exp $
  *
  */
 #ifndef __PPBCONF_H

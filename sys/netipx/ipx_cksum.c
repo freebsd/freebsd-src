@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_cksum.c
  *
- * $Id: ipx_cksum.c,v 1.6 1997/05/10 09:58:50 jhay Exp $
+ * $Id: ipx_cksum.c,v 1.7 1997/06/26 19:35:44 jhay Exp $
  */
 
 #include <sys/param.h>

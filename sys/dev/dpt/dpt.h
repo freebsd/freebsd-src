@@ -40,7 +40,7 @@
  */
 
 
-#ident "$Id: dpt.h,v 1.3 1998/09/20 07:19:52 gibbs Exp $"
+#ident "$Id: dpt.h,v 1.4 1998/09/22 04:55:07 gibbs Exp $"
 
 #ifndef _DPT_H
 #define _DPT_H

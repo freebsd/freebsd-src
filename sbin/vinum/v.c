@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: v.c,v 1.22 1998/08/11 07:44:54 grog Exp grog $ */
+/* $Id: v.c,v 1.1.1.1 1998/09/16 05:57:36 grog Exp $ */
 
 #include <ctype.h>
 #include <errno.h>

@@ -1,5 +1,5 @@
 :
-# $Id$
+# $Id: .profile,v 1.3 1997/02/22 14:11:07 peter Exp $
 PATH=/stand
 BLOCKSIZE=K
 PS1="Fixit# "

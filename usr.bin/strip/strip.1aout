@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)strip.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: strip.1,v 1.5 1997/02/22 19:57:13 peter Exp $
+.\"	$Id: strip.1aout,v 1.6 1997/08/12 06:44:56 charnier Exp $
 .\"
 .Dd June 6, 1993
 .Dt STRIP 1

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bt_pci.c,v 1.1 1998/09/15 07:32:57 gibbs Exp $
  */
 
 #include "pci.h"

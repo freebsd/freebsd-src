@@ -27,7 +27,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char pipe_rcsid[] = "$Id$";
+const char pipe_rcsid[] = "$Id: pipe.c,v 1.4 1997/02/22 15:27:11 peter Exp $";
 #endif
 
 #include "uudefs.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: console.c,v 1.2 1998/09/26 01:29:13 msmith Exp $
+ *	$Id: console.c,v 1.3 1998/10/11 10:19:11 peter Exp $
  */
 
 #include <stand.h>

@@ -1,4 +1,4 @@
-/* $Id: interrupt.c,v 1.4 1998/07/12 16:09:27 dfr Exp $ */
+/* $Id: interrupt.c,v 1.5 1998/08/10 07:53:58 dfr Exp $ */
 /* $NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $ */
 
 /*

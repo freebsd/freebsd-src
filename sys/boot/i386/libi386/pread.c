@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pread.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  * From: $NetBSD: pread.c,v 1.2 1997/03/22 01:48:38 thorpej Exp $
  */
 

@@ -1,7 +1,7 @@
 /*
  * extensions to ioctl_meteor.h for the bt848 cards
  *
- * $Id$
+ * $Id: ioctl_bt848.h,v 1.19 1998/09/30 21:06:55 sos Exp $
  */
 
 /*

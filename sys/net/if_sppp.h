@@ -16,7 +16,7 @@
  *
  * From: Version 2.0, Fri Oct  6 20:39:21 MSK 1995
  *
- * $Id: if_sppp.h,v 1.8 1997/10/11 11:25:20 joerg Exp $
+ * $Id: if_sppp.h,v 1.9 1998/08/15 21:58:09 bde Exp $
  */
 
 #ifndef _NET_IF_HDLC_H_

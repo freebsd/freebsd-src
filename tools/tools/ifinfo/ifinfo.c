@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ifinfo.c,v 1.3 1997/02/22 14:08:24 peter Exp $
+ *	$Id: ifinfo.c,v 1.4 1997/09/01 00:01:50 bde Exp $
  */
 #include <sys/types.h>
 #include <sys/socket.h>		/* for PF_LINK */

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1997/02/22 14:32:26 peter Exp $
+#	$Id: Makefile,v 1.6 1998/08/30 20:27:44 gpalmer Exp $
 
 SUBDIR=	comcontrol \
 	fdisk \

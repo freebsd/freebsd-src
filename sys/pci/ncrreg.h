@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrreg.h,v 1.11 1997/08/31 19:42:31 se Exp $
+**  $Id: ncrreg.h,v 1.12 1998/09/15 10:06:23 gibbs Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **

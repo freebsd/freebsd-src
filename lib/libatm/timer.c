@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: timer.c,v 1.4 1998/07/16 15:50:26 johnc Exp $
+ *	@(#) $Id: timer.c,v 1.1 1998/09/15 08:22:34 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: timer.c,v 1.4 1998/07/16 15:50:26 johnc Exp $";
+static char *RCSid = "@(#) $Id: timer.c,v 1.1 1998/09/15 08:22:34 phk Exp $";
 #endif
 
 #include <sys/types.h>

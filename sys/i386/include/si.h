@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.h,v 1.12 1998/03/23 16:27:43 peter Exp $
+ *	$Id: si.h,v 1.13 1998/06/13 19:36:18 steve Exp $
  */
 
 #include <sys/callout.h>

@@ -1,5 +1,5 @@
 /*	$NetBSD: krpc.h,v 1.4 1995/12/19 23:07:11 cgd Exp $	*/
-/*	$Id: krpc.h,v 1.4 1997/08/16 19:15:52 wollman Exp $	*/
+/*	$Id: krpc.h,v 1.5 1998/02/01 20:34:07 bde Exp $	*/
 
 #include <sys/cdefs.h>
 

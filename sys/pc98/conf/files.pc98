@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.71 1998/09/20 10:50:18 kato Exp $
+#	$Id: files.pc98,v 1.72 1998/10/11 15:02:49 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and

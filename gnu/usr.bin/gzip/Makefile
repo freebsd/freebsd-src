@@ -1,5 +1,5 @@
 #       @(#)Makefile    5.3 (Berkeley) 5/12/90
-#	$Id: Makefile,v 1.19 1998/01/25 09:52:32 jb Exp $
+#	$Id: Makefile,v 1.20 1998/03/08 17:25:10 peter Exp $
 
 PROG=	gzip
 SRCS=	gzip.c zip.c deflate.c trees.c bits.c unzip.c inflate.c util.c \

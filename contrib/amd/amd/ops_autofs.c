@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_autofs.c,v 5.2.2.3 1992/08/02 10:42:21 jsp Exp $
+ * $Id: ops_autofs.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

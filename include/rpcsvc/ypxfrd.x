@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfrd.x,v 1.5 1997/05/28 04:38:30 wpaul Exp $
+ *	$Id: ypxfrd.x,v 1.6 1998/01/16 12:17:55 bde Exp $
  */
 
 /*
@@ -68,7 +68,7 @@
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$Id: ypxfrd.x,v 1.5 1997/05/28 04:38:30 wpaul Exp $";
+%static const char rcsid[] = "$Id: ypxfrd.x,v 1.6 1998/01/16 12:17:55 bde Exp $";
 %#endif /* not lint */
 #endif
 

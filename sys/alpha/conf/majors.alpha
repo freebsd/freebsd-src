@@ -1,4 +1,4 @@
-$Id: majors.alpha,v 1.1 1998/06/10 10:54:12 dfr Exp $
+$Id: majors.alpha,v 1.2 1998/07/12 16:27:34 dfr Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.

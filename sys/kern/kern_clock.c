@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.79 1998/09/15 10:05:18 gibbs Exp $
+ * $Id: kern_clock.c,v 1.80 1998/10/06 23:17:44 alex Exp $
  */
 
 #include <sys/param.h>

@@ -105,7 +105,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(revId, "$Id$")
+libId(revId, "$Id: rcsrev.c,v 1.7 1997/02/22 15:47:40 peter Exp $")
 
 static char const *branchtip P((char const*));
 static char const *lookupsym P((char const*));

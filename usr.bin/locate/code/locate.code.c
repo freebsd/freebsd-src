@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: locate.code.c,v 1.9 1997/02/22 19:55:43 peter Exp $
+ * 	$Id: locate.code.c,v 1.10 1997/03/29 04:30:29 imp Exp $
  */
 
 #ifndef lint

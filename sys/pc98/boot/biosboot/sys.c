@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.14 1998/04/12 04:48:11 kato Exp $
+ *	$Id: sys.c,v 1.15 1998/05/02 02:06:08 kato Exp $
  */
 
 /*

@@ -34,7 +34,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char sccsid[] = "From: @(#)uname.c	8.1 (Berkeley) 1/4/94";*/
 static const char rcsid[] =
-	"$Id$";
+	"$Id: uname.c,v 1.6 1997/02/22 14:58:20 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

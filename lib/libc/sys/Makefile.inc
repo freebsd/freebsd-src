@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.54 1998/07/28 03:33:25 jlemon Exp $
+#	$Id: Makefile.inc,v 1.55 1998/08/17 03:41:28 jb Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_output.c,v 1.7 1998/02/19 20:10:34 mks Exp $
+ *	@(#) $Id: fore_output.c,v 1.1 1998/09/15 08:22:55 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: fore_output.c,v 1.7 1998/02/19 20:10:34 mks Exp $";
+static char *RCSid = "@(#) $Id: fore_output.c,v 1.1 1998/09/15 08:22:55 phk Exp $";
 #endif
 
 #include <dev/hfa/fore_include.h>

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1 1998/09/09 07:20:30 markm Exp $
+# $Id: Makefile,v 1.2 1998/09/22 12:00:58 markm Exp $
 #
 
 PROG=	perlbug

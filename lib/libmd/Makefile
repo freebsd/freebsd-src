@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.26 1998/08/30 01:50:04 jb Exp $
+#	$Id: Makefile,v 1.27 1998/09/11 05:41:29 imp Exp $
 
 LIB=	md
 .if ${OBJFORMAT} != elf

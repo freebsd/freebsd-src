@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: uc_eisa.c,v 1.4 1997/02/22 14:12:26 peter Exp $
+ * $Id: uc_eisa.c,v 1.5 1998/09/14 19:14:11 jkh Exp $
  */
 
 #include <sys/types.h>

@@ -1,6 +1,6 @@
 /* RCS compile-time configuration */
 
-	/* $Id$ */
+	/* $Id: conf.h,v 1.7 1997/02/22 15:47:30 peter Exp $ */
 
 /*
  * This file is generated automatically.

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fcntl.h	8.3 (Berkeley) 1/21/94
- * $Id: fcntl.h,v 1.6 1997/02/22 09:45:13 peter Exp $
+ * $Id: fcntl.h,v 1.7 1998/04/06 17:38:43 peter Exp $
  */
 
 #ifndef _SYS_FCNTL_H_

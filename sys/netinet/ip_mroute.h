@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_mroute.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_mroute.h,v 1.13 1997/02/22 09:41:35 peter Exp $
+ * $Id: ip_mroute.h,v 1.14 1998/08/23 03:07:14 wollman Exp $
  */
 
 #ifndef _NETINET_IP_MROUTE_H_

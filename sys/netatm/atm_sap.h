@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_sap.h,v 1.3 1998/02/19 19:59:38 mks Exp $
+ *	@(#) $Id: atm_sap.h,v 1.1 1998/09/15 08:22:58 phk Exp $
  *
  */
 

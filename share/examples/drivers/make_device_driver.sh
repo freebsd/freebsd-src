@@ -29,7 +29,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Id: make_device_driver.sh,v 1.2 1997/12/30 03:23:12 julian Exp $"
+# \$Id: make_device_driver.sh,v 1.3 1998/01/12 07:47:03 julian Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -45,7 +45,7 @@ cat >../isa/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$Id: make_device_driver.sh,v 1.2 1997/12/30 03:23:12 julian Exp $
+ * \$Id: make_device_driver.sh,v 1.3 1998/01/12 07:47:03 julian Exp $
  */
 
 

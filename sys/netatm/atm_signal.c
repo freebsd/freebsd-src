@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_signal.c,v 1.8 1998/03/24 20:45:37 mks Exp $
+ *	@(#) $Id: atm_signal.c,v 1.1 1998/09/15 08:22:58 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atm_signal.c,v 1.8 1998/03/24 20:45:37 mks Exp $";
+static char *RCSid = "@(#) $Id: atm_signal.c,v 1.1 1998/09/15 08:22:58 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>

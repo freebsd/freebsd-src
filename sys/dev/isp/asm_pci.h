@@ -1,4 +1,4 @@
-/* $Id: asm_pci.h,v 1.8 1998/09/14 23:24:59 mjacob Exp $ */
+/* $Id: asm_pci.h,v 1.2 1998/09/15 08:42:54 gibbs Exp $ */
 /*
  * Copyright (c) 1995, 1996, 1997, 1998 by Qlogic Corporation
  */

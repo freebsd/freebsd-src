@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: smc83c170.h,v 1.14 1998/07/03 23:59:09 galv Exp $
+ *      $Id: smc83c170.h,v 1.9 1998/07/04 08:02:46 semenu Exp $
  *
  */
 

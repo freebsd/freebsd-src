@@ -32,7 +32,7 @@
 static char sccsid[] = "@(#)newkey.c 1.8 91/03/11 Copyr 1986 Sun Micro";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: newkey.c,v 1.2 1997/07/29 06:54:16 charnier Exp $";
 #endif
 
 /*

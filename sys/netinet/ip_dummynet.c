@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c 1.2 1998/08/21 15:01:13 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.1 1998/09/12 22:03:20 luigi Exp $
  */
 
 /*

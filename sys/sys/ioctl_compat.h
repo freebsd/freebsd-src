@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioctl_compat.h	8.4 (Berkeley) 1/21/94
- * $Id$
+ * $Id: ioctl_compat.h,v 1.4 1997/02/22 09:45:23 peter Exp $
  */
 
 #ifndef _SYS_IOCTL_COMPAT_H_

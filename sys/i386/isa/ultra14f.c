@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.60 1998/06/08 09:47:37 bde Exp $
+ *      $Id: ultra14f.c,v 1.61 1998/06/21 15:49:39 bde Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ioctl_subr.c,v 1.2 1998/07/10 17:09:20 root Exp $
+ *	@(#) $Id: ioctl_subr.c,v 1.1 1998/09/15 08:22:34 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: ioctl_subr.c,v 1.2 1998/07/10 17:09:20 root Exp $";
+static char *RCSid = "@(#) $Id: ioctl_subr.c,v 1.1 1998/09/15 08:22:34 phk Exp $";
 #endif
 
 #include <sys/types.h>

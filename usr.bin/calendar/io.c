@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: io.c,v 1.10 1997/06/23 06:52:13 charnier Exp $
+ *	$Id: io.c,v 1.11 1998/10/13 15:05:00 des Exp $
  */
 
 #ifndef lint

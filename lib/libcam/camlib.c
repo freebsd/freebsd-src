@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camlib.c,v 1.1 1998/09/15 06:16:46 gibbs Exp $
+ *	$Id: camlib.c,v 1.2 1998/10/12 21:54:00 ken Exp $
  */
 
 #include <sys/types.h>

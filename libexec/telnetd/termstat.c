@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)termstat.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: termstat.c,v 1.8 1997/12/03 07:16:06 charnier Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.33 1998/09/28 05:38:22 grog Exp $
+#	$Id: Makefile,v 1.34 1998/10/16 04:30:41 peter Exp $
 
 # XXX present but broken: ip_mroute_mod
 # XXX not yet completed porting: pcic coda syscons/*

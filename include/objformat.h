@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: objformat.h,v 1.1 1998/09/09 01:21:20 jdp Exp $
  */
 
 #ifndef _OBJFORMAT_H_

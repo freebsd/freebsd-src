@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.86 1998/09/04 08:06:55 dfr Exp $
+ *	$Id: kern_exec.c,v 1.87 1998/10/16 03:55:00 peter Exp $
  */
 
 #include <sys/param.h>

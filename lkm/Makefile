@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.32 1998/09/25 17:51:44 rvb Exp $
+#	$Id: Makefile,v 1.33 1998/09/28 05:38:22 grog Exp $
 
 # XXX present but broken: ip_mroute_mod mfs
 .if	${MACHINE_ARCH} == "i386"

@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.70 1998/08/20 05:21:50 bde Exp $
+ *	$Id: cy.c,v 1.71 1998/08/23 08:26:40 bde Exp $
  */
 
 #include "opt_compat.h"

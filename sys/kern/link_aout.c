@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.13 1998/10/09 23:49:28 peter Exp $
+ *	$Id: link_aout.c,v 1.14 1998/10/16 03:45:35 peter Exp $
  */
 
 #ifndef __alpha__

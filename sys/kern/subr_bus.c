@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.5 1998/09/05 13:24:39 bde Exp $
+ *	$Id: subr_bus.c,v 1.6 1998/10/03 08:55:29 dfr Exp $
  */
 
 #include <sys/param.h>

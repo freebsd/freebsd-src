@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.127 1998/04/28 18:15:04 eivind Exp $
+ *	$Id: trap.c,v 1.128 1998/08/23 10:16:26 bde Exp $
  */
 
 /*

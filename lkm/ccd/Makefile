@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.5 1997/02/22 12:47:41 peter Exp $ 
+#       $Id: Makefile,v 1.6 1998/02/01 18:12:12 bde Exp $ 
 
 .PATH:  ${.CURDIR}/../../sys/dev/ccd
 KMOD=   ccd_mod

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.37 1998/05/31 20:08:52 peter Exp $
+ * $Id: nfs_nqlease.c,v 1.38 1998/09/05 15:17:33 bde Exp $
  */
 
 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_scan.l,v 1.5 1997/09/27 19:37:29 gibbs Exp $
+ *      $Id: aicasm_scan.l,v 1.6 1998/09/15 07:24:17 gibbs Exp $
  */
 
 #include <sys/types.h>

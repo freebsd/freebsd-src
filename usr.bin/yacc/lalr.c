@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lalr.c,v 1.6 1997/02/22 19:57:59 peter Exp $
  */
 
 #ifndef lint

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_base.c,v 1.4 1998/08/03 19:14:31 msmith Exp $
+ *	$Id: ppb_base.c,v 1.5 1998/09/13 18:26:26 nsouch Exp $
  *
  */
 #include <sys/param.h>

@@ -13,7 +13,7 @@
 */
 
 /*
- * $Id: simple_httpd.c,v 1.1 1998/08/19 16:24:06 abial Exp $
+ * $Id: simple_httpd.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
  */
 
 #include <stdio.h>

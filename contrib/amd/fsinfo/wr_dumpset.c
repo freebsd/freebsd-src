@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wr_dumpset.c,v 5.2.2.1 1992/02/09 15:09:47 jsp beta $
+ * $Id: wr_dumpset.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

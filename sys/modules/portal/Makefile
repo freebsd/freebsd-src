@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 12:48:47 peter Exp $
+#	$Id: Makefile,v 1.4 1998/10/16 04:30:48 peter Exp $
 
 .PATH:	${.CURDIR}/../../miscfs/portal
 KMOD=	portal

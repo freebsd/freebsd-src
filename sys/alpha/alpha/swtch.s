@@ -1,4 +1,4 @@
-/* $Id: swtch.s,v 1.4 1998/07/12 16:32:03 dfr Exp $ */
+/* $Id: swtch.s,v 1.5 1998/08/23 16:05:54 dfr Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*

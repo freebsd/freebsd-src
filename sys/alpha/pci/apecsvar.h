@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ciavar.h,v 1.1 1998/07/05 12:16:15 dfr Exp $
+ *	$Id: apecsvar.h,v 1.1 1998/08/10 07:53:59 dfr Exp $
  */
 
 extern void apecs_init(void);

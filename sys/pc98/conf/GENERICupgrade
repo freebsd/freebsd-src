@@ -8,7 +8,7 @@
 # being perfomed on a machine for which this config file is inappropriate,
 # it should be replaced with a suitable one prior to performing the upgrade.
 #
-#	$Id: GENERICupgrade,v 1.3 1998/09/22 16:10:40 kato Exp $
+#	$Id: GENERICupgrade,v 1.4 1998/10/13 08:14:33 kato Exp $
 #
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks

@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: procctl.c,v 1.4 1998/01/05 07:19:15 charnier Exp $";
 #endif /* not lint */
 
 /*

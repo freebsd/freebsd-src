@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.5 1998/10/07 02:38:26 msmith Exp $
+ *	$Id: interp.c,v 1.6 1998/10/09 07:09:22 msmith Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.

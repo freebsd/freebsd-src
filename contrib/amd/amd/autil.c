@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: autil.c,v 5.2.2.2 1992/03/07 17:52:06 jsp Exp $
+ * $Id: autil.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

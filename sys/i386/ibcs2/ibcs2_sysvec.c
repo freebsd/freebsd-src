@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_sysvec.c,v 1.7 1998/04/28 18:15:05 eivind Exp $
+ * $Id: ibcs2_sysvec.c,v 1.8 1998/09/14 05:36:47 jdp Exp $
  */
 
 #include <sys/param.h>

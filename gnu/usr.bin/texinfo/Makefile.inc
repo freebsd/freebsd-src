@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile.inc,v 1.7 1997/04/07 17:21:19 bde Exp $
 
 TXIDIR=	${.CURDIR}/../../../../contrib/texinfo
 

@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: vext.h,v 1.9 1998/08/11 03:06:02 grog Exp grog $ */
+/* $Id: vext.h,v 1.1.1.1 1998/09/16 05:57:36 grog Exp $ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
 #define PLEXINITSIZE MAXPHYS				    /* block size to write when initializing */

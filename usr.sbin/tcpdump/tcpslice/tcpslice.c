@@ -27,7 +27,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tcpslice.c,v 1.5 1998/01/20 07:30:27 charnier Exp $";
 #endif /* not lint */
 
 /*

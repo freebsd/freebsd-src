@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_xdr.c,v 5.2.2.1 1992/02/09 15:09:32 jsp beta $
+ * $Id: nfs_prot_xdr.c,v 1.1.1.1 1998/08/23 22:07:21 obrien Exp $
  *
  */
 

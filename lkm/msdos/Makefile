@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1998/02/04 21:56:36 eivind Exp $
+#	$Id: Makefile,v 1.6 1998/02/06 23:54:22 eivind Exp $
 
 .PATH:	${.CURDIR}/../../sys/msdosfs
 KMOD=	msdos_mod

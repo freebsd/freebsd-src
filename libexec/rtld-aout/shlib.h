@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *-
- * $Id: shlib.h,v 1.3 1997/02/22 15:46:24 peter Exp $
+ * $Id: shlib.h,v 1.4 1998/06/07 03:53:08 brian Exp $
  */
 
 /*

@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.58 1998/09/08 20:57:47 sos Exp $
+ * $Id: wcd.c,v 1.59 1998/09/15 08:15:29 gibbs Exp $
  */
 
 #include "wdc.h"

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.85 1998/10/02 00:49:43 ache Exp $
+#	$Id: Makefile,v 1.86 1998/10/02 13:00:58 ache Exp $
 #
 # Doing a make install builds /usr/include
 #

@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: savestr.h,v 1.1 97/04/22 13:30:21 leres Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/contrib/tcpdump/savestr.h,v 1.1.1.1 1998/09/15 19:36:31 fenner Exp $ (LBL)
  */
 
 extern char *savestr(const char *);

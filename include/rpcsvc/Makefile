@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.22 1998/02/13 03:10:28 bde Exp $
+#	$Id: Makefile,v 1.23 1998/09/17 19:51:40 obrien Exp $
 
 .SUFFIXES: .x
 

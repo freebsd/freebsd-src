@@ -30,7 +30,7 @@
 
 /* dpt_dm.c: Dump a DPT metrics structure */
 
-#ident "$Id: dpt_dm.c,v 1.1 1998/08/03 16:43:36 root Exp root $"
+#ident "$Id: dpt_dm.c,v 1.2 1998/08/05 00:54:38 eivind Exp $"
 
 #include <fcntl.h>
 #include <stdio.h>

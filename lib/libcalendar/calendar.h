@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: calendar.h,v 1.2 1997/12/07 19:04:11 helbig Exp $
+ *	$Id: calendar.h,v 1.3 1997/12/13 11:51:14 helbig Exp $
  */
 struct date {
 	int y;	/* year */

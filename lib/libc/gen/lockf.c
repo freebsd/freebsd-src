@@ -38,7 +38,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[]=
-	"$Id$";
+	"$Id: lockf.c,v 1.2 1998/07/08 15:38:06 dt Exp $";
 #endif
 
 #include <errno.h>

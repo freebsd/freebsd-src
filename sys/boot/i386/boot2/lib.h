@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id:$
+ *	$Id: lib.h,v 1.1 1998/10/15 20:04:21 rnordier Exp $
  */
 
 void sio_init(void);

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.5 1997/02/22 15:43:08 peter Exp $
 
 # Generated automatically from Makefile.in by configure.
 # Makefile for regex testing.

@@ -36,7 +36,7 @@
  *
  *	@(#)portald.h	8.1 (Berkeley) 6/5/93
  *
- * $Id$
+ * $Id: portald.h,v 1.3 1997/02/22 14:32:55 peter Exp $
  */
 
 #include <sys/cdefs.h>

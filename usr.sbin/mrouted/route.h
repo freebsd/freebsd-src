@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id$
+ * $Id: route.h,v 1.7 1997/02/22 16:07:07 peter Exp $
  */
 
 /*

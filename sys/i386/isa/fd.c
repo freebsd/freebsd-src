@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.122 1998/09/15 08:15:28 gibbs Exp $
+ *	$Id: fd.c,v 1.123 1998/09/15 22:07:24 gibbs Exp $
  *
  */
 

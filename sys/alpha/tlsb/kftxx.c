@@ -1,4 +1,4 @@
-/* $Id: kftxx.c,v 1.2 1998/06/14 13:45:24 dfr Exp $ */
+/* $Id: kftxx.c,v 1.3 1998/07/12 16:23:17 dfr Exp $ */
 /* $NetBSD: kftxx.c,v 1.9 1998/05/14 00:01:32 thorpej Exp $ */
 
 /*

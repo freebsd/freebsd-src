@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_proto.c,v 1.1 1998/09/15 08:23:03 phk Exp $
+ *	@(#) $Id: spans_proto.c,v 1.2 1998/09/17 09:35:00 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: spans_proto.c,v 1.1 1998/09/15 08:23:03 phk Exp $";
+static char *RCSid = "@(#) $Id: spans_proto.c,v 1.2 1998/09/17 09:35:00 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>

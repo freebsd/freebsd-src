@@ -43,7 +43,7 @@
   */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: xrealloc.c,v 1.5 1997/02/22 15:44:10 peter Exp $";
 #endif
 
 

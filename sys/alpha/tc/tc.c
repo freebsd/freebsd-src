@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: tc.c,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.

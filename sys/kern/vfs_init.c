@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.34 1998/10/05 11:10:55 obrien Exp $
+ * $Id: vfs_init.c,v 1.35 1998/10/16 03:55:00 peter Exp $
  */
 
 

@@ -29,7 +29,7 @@
  *
  *	BSDI bios.c,v 2.3 1996/04/08 19:32:19 bostic Exp
  *
- * $Id: bios.c,v 1.2 1997/08/15 23:41:23 jlemon Exp $
+ * $Id: bios.c,v 1.3 1998/06/29 17:20:47 bde Exp $
  */
 
 #include "doscmd.h"

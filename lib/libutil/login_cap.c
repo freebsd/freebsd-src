@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.c,v 1.13 1997/05/11 08:07:29 davidn Exp $
+ *	$Id: login_cap.c,v 1.14 1997/06/13 22:26:41 davidn Exp $
  */
 
 #include <stdio.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.73 1998/09/05 14:13:12 phk Exp $
+ * $Id: spec_vnops.c,v 1.74 1998/09/12 20:21:54 phk Exp $
  */
 
 #include <sys/param.h>

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_mib.h,v 1.5 1997/02/22 09:41:03 peter Exp $
  */
 
 #ifndef _NET_IF_MIB_H

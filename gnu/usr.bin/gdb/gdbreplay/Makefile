@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/04/26 17:34:04 pst Exp $
+#	$Id: Makefile,v 1.3 1998/05/01 14:48:04 bde Exp $
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .PATH:	${GDBDIR}/gdb/gdbserver

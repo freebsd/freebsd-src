@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filedesc.h	8.1 (Berkeley) 6/2/93
- * $Id: filedesc.h,v 1.12 1997/10/12 20:25:57 phk Exp $
+ * $Id: filedesc.h,v 1.13 1997/12/05 18:58:10 bde Exp $
  */
 
 #ifndef _SYS_FILEDESC_H_

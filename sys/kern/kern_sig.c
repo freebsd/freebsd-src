@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.46 1998/09/14 05:36:49 jdp Exp $
+ * $Id: kern_sig.c,v 1.47 1998/09/14 23:25:18 jdp Exp $
  */
 
 #include "opt_compat.h"

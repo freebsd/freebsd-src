@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.21 1998/05/21 21:47:53 brian Exp $
+ *	$Id: pred.c,v 1.22 1998/08/07 18:42:50 brian Exp $
  */
 
 #include <sys/types.h>

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: revive.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
+ * $Id: revive.c,v 1.2 1998/09/28 04:24:10 grog Exp $
  */
 
 #define REALLYKERNEL

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ieee.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
 /* From: NetBSD: ieee.h,v 1.2 1997/04/06 08:47:27 cgd Exp */
 
 /*

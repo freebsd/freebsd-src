@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wr_fstab.c,v 5.2.2.1 1992/02/09 15:09:49 jsp beta $
+ * $Id: wr_fstab.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.21 1998/08/24 06:17:01 bde Exp $
+ * $Id: cdefs.h,v 1.22 1998/09/20 03:24:55 jdp Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_

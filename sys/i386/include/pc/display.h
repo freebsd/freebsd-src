@@ -1,7 +1,7 @@
 /*
  * IBM PC display definitions
  *
- *	$Id$
+ *	$Id: display.h,v 1.4 1997/02/22 09:35:45 peter Exp $
  */
 
 /* Color attributes for foreground text */

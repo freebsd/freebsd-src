@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: icu_ipl.s,v 1.3 1997/09/02 19:40:13 fsmp Exp $
+ *	$Id: icu_ipl.s,v 1.4 1998/08/11 15:08:12 bde Exp $
  */
 
 	.data

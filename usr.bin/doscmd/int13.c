@@ -29,7 +29,7 @@
  *
  *	BSDI int13.c,v 2.3 1996/04/08 19:32:43 bostic Exp
  *
- * $Id: int13.c,v 1.1 1997/08/09 01:42:46 dyson Exp $
+ * $Id: int13.c,v 1.2 1998/07/01 19:56:15 imp Exp $
  */
 
 #include "doscmd.h"

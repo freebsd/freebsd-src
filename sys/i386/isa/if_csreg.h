@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_csreg.h,v 1.7 1998/07/19 16:13:39 root Exp root $
+ * $Id: if_csreg.h,v 1.1 1998/07/20 20:00:43 msmith Exp $
  */
 
 #define PP_ChipID 0x0000	/* offset   0h -> Corp -ID              */

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: udivdi3.c,v 1.5 1997/02/22 09:40:06 peter Exp $
  */
 
 #include <libkern/quad.h>

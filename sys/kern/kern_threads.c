@@ -46,7 +46,7 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $Id: kern_threads.c,v 1.7 1998/03/30 09:50:18 phk Exp $
+ * $Id: kern_threads.c,v 1.8 1998/06/02 05:39:11 dyson Exp $
  */
 
 #include <sys/param.h>

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)modes.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: modes.c,v 1.7 1998/05/18 06:48:14 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

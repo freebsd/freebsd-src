@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: coff.c,v 1.9 1997/04/06 10:47:39 dufault Exp $
+ *	$Id: coff.c,v 1.10 1998/08/24 05:31:57 jkh Exp $
  */
 
 #include <sys/param.h>

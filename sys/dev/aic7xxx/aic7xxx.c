@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.8 1998/10/15 18:21:47 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.9 1998/10/15 23:49:27 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.

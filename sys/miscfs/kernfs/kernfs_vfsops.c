@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
- * $Id: kernfs_vfsops.c,v 1.22 1998/05/06 05:29:33 msmith Exp $
+ * $Id: kernfs_vfsops.c,v 1.23 1998/09/07 13:17:01 bde Exp $
  */
 
 /*

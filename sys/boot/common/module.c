@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.c,v 1.5 1998/09/26 10:51:38 dfr Exp $
+ *	$Id: module.c,v 1.6 1998/10/09 23:12:34 peter Exp $
  */
 
 /*

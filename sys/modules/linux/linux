@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: linux,v 1.4 1997/02/22 12:48:25 peter Exp $
+# $Id: linux,v 1.5 1998/09/07 16:15:59 cracauer Exp $
 
 if modstat -n linux_mod > /dev/null ; then
 	echo Linux lkm already loaded

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.4 1998/09/26 10:51:38 dfr Exp $
+ *	$Id: misc.c,v 1.5 1998/10/05 05:40:58 msmith Exp $
  */
 
 #include <string.h>

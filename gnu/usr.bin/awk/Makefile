@@ -1,6 +1,6 @@
 # Makefile copyright James Raynard (jraynard@freebsd.org) 1997
 #
-# $Id: Makefile,v 1.10 1997/10/26 12:53:16 jraynard Exp $
+# $Id: Makefile,v 1.11 1998/05/04 16:18:57 bde Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 

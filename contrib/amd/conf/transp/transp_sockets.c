@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: transp_sockets.c,v 5.2.2.2 1992/07/18 18:57:03 jsp Exp jsp $
+ * $Id: transp_sockets.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  * Socket specific utilities.
  *      -Erez Zadok <ezk@cs.columbia.edu>

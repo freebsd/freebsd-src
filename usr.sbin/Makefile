@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.132 1998/09/17 08:55:02 dfr Exp $
+#	$Id: Makefile,v 1.133 1998/10/02 11:31:36 jkh Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac \

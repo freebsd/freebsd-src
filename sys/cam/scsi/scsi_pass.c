@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.2 1998/09/16 00:11:53 ken Exp $
+ *      $Id: scsi_pass.c,v 1.3 1998/10/15 17:46:26 ken Exp $
  */
 
 #include <sys/param.h>

@@ -43,7 +43,7 @@ the argument or 1 if no argument is specified.
 @ISA = qw(Exporter);
 @EXPORT = qw(getopt getopts);
 
-# $RCSfile: getopt.pl,v $$Revision: 4.1 $$Date: 92/08/07 18:23:58 $
+# $RCSfile: Std.pm,v $$Revision: 1.1.1.1 $$Date: 1998/09/09 06:59:55 $
 
 # Process single-character switches with switch clustering.  Pass one argument
 # which is a string containing all switches that take an argument.  For each

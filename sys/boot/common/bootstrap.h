@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.12 1998/10/09 07:09:22 msmith Exp $
+ *	$Id: bootstrap.h,v 1.13 1998/10/09 23:11:05 peter Exp $
  */
 
 #include <sys/types.h>

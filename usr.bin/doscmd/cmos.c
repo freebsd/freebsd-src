@@ -29,7 +29,7 @@
  *
  *	BSDI cmos.c,v 2.3 1996/04/08 19:32:20 bostic Exp
  *
- * $Id: cmos.c,v 1.2 1996/09/18 16:12:24 miff Exp $
+ * $Id: cmos.c,v 1.1 1997/08/09 01:42:35 dyson Exp $
  */
 
 #include "doscmd.h"

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: varargs.h,v 1.1 1998/01/10 22:09:53 jb Exp $ */
 /* From: NetBSD: varargs.h,v 1.7 1997/04/06 08:47:46 cgd Exp */
 
 /*-

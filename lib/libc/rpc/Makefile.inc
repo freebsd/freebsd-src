@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
-#	$Id: Makefile.inc,v 1.12 1997/10/21 08:41:09 bde Exp $
+#	$Id: Makefile.inc,v 1.13 1998/05/10 15:54:22 bde Exp $
 
 .PATH: ${.CURDIR}/../libc/rpc ${.CURDIR}/.
 

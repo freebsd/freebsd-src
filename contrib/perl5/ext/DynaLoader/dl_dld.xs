@@ -7,12 +7,15 @@
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
- * $Date: 1994/03/07 00:21:43 $
- * $Source: /home/rsanders/src/perl5alpha6/RCS/dld_dl.c,v $
- * $Revision: 1.4 $
+ * $Date: 1998/09/09 06:59:50 $
+ * $Source: /home/ncvs/src/contrib/perl5/ext/DynaLoader/dl_dld.xs,v $
+ * $Revision: 1.1.1.1 $
  * $State: Exp $
  *
- * $Log: dld_dl.c,v $
+ * $Log: dl_dld.xs,v $
+ * Revision 1.1.1.1  1998/09/09 06:59:50  markm
+ * Initial import of Perl5. The king is dead; long live the king!
+ *
  * Removed implicit link against libc.  1994/09/14 William Setzer.
  *
  * Integrated other DynaLoader changes. 1994/06/08 Tim Bunce.

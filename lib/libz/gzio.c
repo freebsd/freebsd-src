@@ -5,7 +5,7 @@
  * Compile this file with -DNO_DEFLATE to avoid the compression code.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libz/gzio.c,v 1.3 1998/02/28 06:08:08 steve Exp $ */
 
 #include <stdio.h>
 

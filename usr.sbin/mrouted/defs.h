@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id$
+ * $Id: defs.h,v 1.10 1997/02/22 16:06:51 peter Exp $
  */
 
 

@@ -39,7 +39,7 @@
 static char const sccsid[] = "@(#)mkpar.c	5.3 (Berkeley) 1/20/91";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkpar.c,v 1.7 1997/08/28 06:33:53 charnier Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>

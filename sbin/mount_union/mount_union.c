@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount_union.c	8.5 (Berkeley) 3/27/94";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_union.c,v 1.10 1997/08/23 21:25:24 steve Exp $";
 #endif
 #endif /* not lint */
 

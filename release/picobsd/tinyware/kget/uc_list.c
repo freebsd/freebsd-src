@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: uc_list.c,v 1.3 1997/02/22 14:12:29 peter Exp $
+ * $Id: uc_list.c,v 1.2 1998/10/15 21:40:07 abial Exp $
  */
 
 #include <sys/types.h>

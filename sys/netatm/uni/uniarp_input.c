@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp_input.c,v 1.10 1998/07/13 00:04:32 mks Exp $
+ *	@(#) $Id: uniarp_input.c,v 1.1 1998/09/15 08:23:09 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: uniarp_input.c,v 1.10 1998/07/13 00:04:32 mks Exp $";
+static char *RCSid = "@(#) $Id: uniarp_input.c,v 1.1 1998/09/15 08:23:09 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>

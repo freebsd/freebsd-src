@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkbad.h	8.2 (Berkeley) 7/10/94
- * $Id: dkbad.h,v 1.9 1997/02/22 09:45:07 peter Exp $
+ * $Id: dkbad.h,v 1.10 1998/02/01 20:08:36 bde Exp $
  */
 
 #ifndef _SYS_DKBAD_H_

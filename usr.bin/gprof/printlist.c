@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)printlist.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: printlist.c,v 1.2 1997/07/10 06:45:02 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>

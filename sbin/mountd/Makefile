@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/25/94
-#	$Id: Makefile,v 1.7 1997/03/11 12:43:42 peter Exp $
+#	$Id: Makefile,v 1.8 1998/01/20 10:40:08 bde Exp $
 
 PROG=	mountd
 CFLAGS+=-DNFS -DMFS -DCD9660 -DMSDOSFS

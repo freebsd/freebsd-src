@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.37 1998/06/10 21:21:28 dfr Exp $
+ * $Id: fdesc_vnops.c,v 1.38 1998/06/14 08:46:41 bde Exp $
  */
 
 /*

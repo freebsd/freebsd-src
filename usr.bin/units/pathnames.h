@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: pathnames.h,v 1.3 1997/02/22 19:57:31 peter Exp $	*/
 
 /*
  * Copyright (c) 1993 Christopher G. Demetriou

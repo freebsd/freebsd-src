@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.21 1998/06/21 14:53:10 bde Exp $
+ * $Id: if_ar.c,v 1.22 1998/08/24 02:28:15 bde Exp $
  */
 
 /*

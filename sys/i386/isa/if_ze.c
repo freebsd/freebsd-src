@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.53 1998/06/07 17:10:39 dfr Exp $
+ * $Id: if_ze.c,v 1.54 1998/06/21 17:08:08 bde Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */

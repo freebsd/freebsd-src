@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1998/05/09 13:32:37 bde Exp $
+#	$Id: Makefile,v 1.4 1998/09/16 01:50:04 wpaul Exp $
 
 PROG=	keyserv
 SRCS=	keyserv.c setkey.c keyserv_uid.c crypt_svc.c crypt_server.c crypt.h

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: table.c,v 1.10 1997/05/13 11:19:26 ache Exp $
+ * $Id: table.c,v 1.11 1997/05/14 00:11:02 ache Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

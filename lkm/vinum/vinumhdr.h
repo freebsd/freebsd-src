@@ -36,7 +36,7 @@
  */
 
 /* Header files used by all modules */
-/* $Id: vinumhdr.h,v 1.7 1998/08/07 04:41:18 grog Exp grog $ */
+/* $Id: vinumhdr.h,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $ */
 
 #ifdef KERNEL
 #define REALLYKERNEL

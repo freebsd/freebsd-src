@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.10 1998/08/03 19:14:31 msmith Exp $
+ * $Id: pps.c,v 1.11 1998/08/24 16:31:27 phk Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *

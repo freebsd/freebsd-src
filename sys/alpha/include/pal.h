@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: pal.h,v 1.1 1998/01/10 22:42:21 jb Exp $ */
 /* From: NetBSD: pal.h,v 1.1 1997/09/06 01:23:53 thorpej Exp */
 
 /* 

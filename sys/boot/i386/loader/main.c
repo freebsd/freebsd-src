@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.10 1998/10/03 18:27:50 rnordier Exp $
+ *	$Id: main.c,v 1.11 1998/10/04 09:12:54 msmith Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.10 1998/01/03 14:13:48 wosch Exp $
+#	$Id: Makefile,v 1.11 1998/01/04 10:42:29 wosch Exp $
 
 # reorder gives an editor command for most common terminals
 # (in reverse order from n'th to 1'st most commonly used)

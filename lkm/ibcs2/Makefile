@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.16 1998/02/04 21:56:35 eivind Exp $
+#	$Id: Makefile,v 1.17 1998/02/06 23:54:20 eivind Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/ibcs2
 KMOD=	ibcs2_mod

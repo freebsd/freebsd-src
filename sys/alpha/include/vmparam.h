@@ -1,4 +1,4 @@
-/* $Id: vmparam.h,v 1.2 1998/06/10 10:55:30 dfr Exp $ */
+/* $Id: vmparam.h,v 1.3 1998/06/14 13:45:15 dfr Exp $ */
 /* From: NetBSD: vmparam.h,v 1.6 1997/09/23 23:23:23 mjacob Exp */
 #ifndef	_ALPHA_VMPARAM_H
 #define	_ALPHA_VMPARAM_H

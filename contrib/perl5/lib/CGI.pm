@@ -18,7 +18,7 @@ require 5.004;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.32 1998/05/28 21:55:43 lstein Exp lstein $';
+$CGI::revision = '$Id: CGI.pm,v 1.1.1.1 1998/09/09 06:59:53 markm Exp $';
 $CGI::VERSION='2.42';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.

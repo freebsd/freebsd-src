@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: srvr_nfs.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+ * $Id: srvr_nfs.c,v 1.2 1998/09/14 08:20:37 obrien Exp $
  *
  */
 

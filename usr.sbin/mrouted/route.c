@@ -9,7 +9,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: route.c,v 1.10 1998/01/16 07:17:45 charnier Exp $";
 #endif /* not lint */
 
 #include "defs.h"

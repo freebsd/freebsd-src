@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.10 1997/02/22 09:45:37 peter Exp $
+ * $Id: mtio.h,v 1.11 1998/09/15 10:07:26 gibbs Exp $
  */
 
 #ifndef	_SYS_MTIO_H_

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.13 1998/07/11 07:45:52 bde Exp $
+ *	$Id: ide_pci.c,v 1.14 1998/07/15 02:32:26 bde Exp $
  */
 
 #include "pci.h"

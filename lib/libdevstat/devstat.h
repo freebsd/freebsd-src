@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devstat.h,v 1.1 1998/09/15 06:23:21 gibbs Exp $
+ *	$Id: devstat.h,v 1.2 1998/09/20 00:11:10 ken Exp $
  */
 
 #ifndef _DEVSTAT_H

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_extern.h,v 1.11 1997/02/22 16:15:11 peter Exp $
+ *	$Id: yp_extern.h,v 1.12 1997/10/29 07:25:03 charnier Exp $
  */
 
 #include <db.h>

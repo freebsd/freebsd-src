@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.12 1998/02/07 02:13:27 msmith Exp $
+ *  $Id: linux_socket.c,v 1.13 1998/03/28 10:33:04 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */

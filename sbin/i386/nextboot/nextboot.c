@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: nextboot.c,v 1.5 1998/06/30 06:28:18 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.8 1998/09/13 20:57:06 nsouch Exp $
+ *	$Id: ppc.c,v 1.9 1998/09/20 14:47:01 nsouch Exp $
  *
  */
 #include "ppc.h"

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.34 1998/02/09 06:08:09 eivind Exp $
+ *	$Id: eisaconf.c,v 1.35 1998/05/14 19:47:38 gibbs Exp $
  */
 
 #include "opt_eisa.h"

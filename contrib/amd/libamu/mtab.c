@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mtab.c,v 5.2.2.1 1992/02/09 15:08:45 jsp beta $
+ * $Id: mtab.c,v 1.1.1.1 1998/08/23 22:07:21 obrien Exp $
  *
  */
 

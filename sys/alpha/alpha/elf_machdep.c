@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: elf_machdep.c,v 1.1 1998/09/11 08:47:02 dfr Exp $
+ *      $Id: elf_machdep.c,v 1.2 1998/10/16 03:54:59 peter Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 /* MD2C.C - RSA Data Security, Inc., MD2 message-digest algorithm
- * $Id: md2c.c,v 1.5 1997/02/22 15:07:15 peter Exp $
+ * $Id: md2c.c,v 1.6 1998/03/27 10:21:47 phk Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All

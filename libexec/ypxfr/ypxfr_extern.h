@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ypxfr_extern.h,v 1.6 1997/02/22 14:22:48 peter Exp $
  */
 #include <sys/types.h>
 #include <limits.h>

@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.5 1998/01/08 23:50:23 eivind Exp $
+#       $Id: Makefile,v 1.6 1998/02/01 18:12:14 bde Exp $
 
 .PATH:  ${.CURDIR}/../../sys/net
 KMOD=   if_sl_mod

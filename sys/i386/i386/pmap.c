@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.208 1998/09/04 13:10:34 ache Exp $
+ *	$Id: pmap.c,v 1.209 1998/09/06 23:04:20 tegge Exp $
  */
 
 /*

@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.55 1998/08/10 14:27:32 bde Exp $
+ *	$Id: if_ie.c,v 1.56 1998/08/10 17:21:48 bde Exp $
  */
 
 /*

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cy_pcireg.h,v 1.3 1997/02/22 09:44:01 peter Exp $
  */
 
 #define CY_VENDORID_CYCLADES		0x120e

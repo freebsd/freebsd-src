@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fixmount.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+ * $Id: fixmount.c,v 1.2 1998/08/23 22:52:08 obrien Exp $
  *
  */
 

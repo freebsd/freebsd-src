@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.31 1998/01/17 09:16:52 dyson Exp $
+ * $Id: vm_map.h,v 1.32 1998/01/22 17:30:38 dyson Exp $
  */
 
 /*

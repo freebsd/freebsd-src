@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: poll.h,v 1.3 1997/12/15 03:09:48 wollman Exp $
+ *	$Id: poll.h,v 1.4 1998/02/03 22:32:23 bde Exp $
  */
 
 #ifndef _SYS_POLL_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unpcb.h	8.1 (Berkeley) 6/2/93
- * $Id: unpcb.h,v 1.6 1997/08/16 19:16:16 wollman Exp $
+ * $Id: unpcb.h,v 1.7 1998/05/15 20:11:40 wollman Exp $
  */
 
 #ifndef _SYS_UNPCB_H_

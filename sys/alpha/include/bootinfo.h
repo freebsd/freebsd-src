@@ -1,4 +1,4 @@
-/* $Id: bootinfo.h,v 1.3 1998/10/14 09:53:24 peter Exp $ */
+/* $Id: bootinfo.h,v 1.4 1998/10/14 10:04:32 peter Exp $ */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.

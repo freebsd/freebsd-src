@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pal.S,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  * From: $NetBSD: pal.s,v 1.12 1998/02/27 03:44:53 thorpej Exp $ 
  */
 

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: 93cx6.h,v 1.1 1998/09/15 07:24:16 gibbs Exp $
  */
 
 #include <sys/param.h>

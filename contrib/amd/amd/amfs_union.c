@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_union.c,v 1.1 1997-1998/06/30 19:22:30 ezk Exp ezk $
+ * $Id: amfs_union.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.9 1998/10/15 19:53:30 imp Exp $
+ *      $Id: aha.c,v 1.10 1998/10/15 23:46:33 gibbs Exp $
  */
 
 #include <sys/param.h>

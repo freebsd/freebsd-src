@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: btxv86.h,v 1.3 1998/10/02 16:22:54 msmith Exp $
+ *	$Id: btxv86.h,v 1.4 1998/10/02 20:52:26 msmith Exp $
  */
 
 #ifndef _BTXV86_H_

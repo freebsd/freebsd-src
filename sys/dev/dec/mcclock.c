@@ -1,4 +1,4 @@
-/* $Id: mcclock.c,v 1.1 1998/06/10 10:56:23 dfr Exp $ */
+/* $Id: mcclock.c,v 1.2 1998/06/14 13:45:41 dfr Exp $ */
 /* $NetBSD: mcclock.c,v 1.11 1998/04/19 07:50:25 jonathan Exp $ */
 
 /*

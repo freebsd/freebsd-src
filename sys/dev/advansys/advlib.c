@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.c,v 1.7 1998/10/07 03:32:57 gibbs Exp $
+ *      $Id: advlib.c,v 1.8 1998/10/09 21:40:50 gibbs Exp $
  */
 /*
  * Ported from:

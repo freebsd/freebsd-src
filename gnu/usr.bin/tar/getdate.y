@@ -1,5 +1,5 @@
 %{
-/* $Revision: 1.2 $
+/* $Revision: 1.3 $
 **
 **  Originally written by Steven M. Bellovin <smb@research.att.com> while
 **  at the University of North Carolina at Chapel Hill.  Later tweaked by
@@ -98,7 +98,7 @@ extern struct tm	*localtime();
 
 #if	!defined(lint) && !defined(SABER)
 static char RCS[] =
-	"$Header: /home/ncvs/src/gnu/usr.bin/tar/getdate.y,v 1.2 1994/11/04 02:12:22 jkh Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/tar/getdate.y,v 1.3 1998/01/05 11:32:38 danny Exp $";
 #endif	/* !defined(lint) && !defined(SABER) */
 
 

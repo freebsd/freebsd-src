@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tgcmp_rcsid[] = "$Id$";
+const char _uuconf_tgcmp_rcsid[] = "$Id: tgcmp.c,v 1.5 1997/02/22 15:27:52 peter Exp $";
 #endif
 
 /* A comparison function to pass to _uuconf_itime_parse.  This

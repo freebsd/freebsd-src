@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.56 1998/09/07 05:42:15 bde Exp $
+ * $Id: kern_lkm.c,v 1.57 1998/10/16 03:55:00 peter Exp $
  */
 
 #include "opt_devfs.h"

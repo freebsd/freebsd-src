@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.3 1998/03/07 09:47:52 bde Exp $
+#	$Id: Makefile.inc,v 1.4 1998/09/11 18:49:24 wollman Exp $
 
 CWARNFLAGS=	-Wall -Wnested-externs -Wmissing-prototypes -Wno-unused -Wredundant-decls -Wstrict-prototypes
 

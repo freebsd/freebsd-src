@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)limits.h	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: limits.h,v 1.11 1997/02/22 09:34:47 peter Exp $
  */
 
 #ifndef _MACHINE_LIMITS_H_

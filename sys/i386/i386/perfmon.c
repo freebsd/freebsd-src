@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.14 1997/12/28 17:33:01 phk Exp $
+ *	$Id: perfmon.c,v 1.15 1997/12/29 23:36:56 phk Exp $
  */
 
 #include <sys/param.h>

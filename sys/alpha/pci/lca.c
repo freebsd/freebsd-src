@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lca.c,v 1.2 1998/09/23 21:23:51 msmith Exp $
+ *	$Id: lca.c,v 1.3 1998/10/06 14:18:40 dfr Exp $
  */
 
 #include <sys/param.h>

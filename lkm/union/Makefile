@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.3 1997/02/22 12:49:27 peter Exp $
 
 .PATH:	${.CURDIR}/../../sys/miscfs/union
 KMOD=	union_mod

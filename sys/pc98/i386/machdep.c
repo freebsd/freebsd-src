@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.98 1998/10/09 12:36:25 kato Exp $
+ *	$Id: machdep.c,v 1.99 1998/10/11 15:04:38 kato Exp $
  */
 
 #include "apm.h"

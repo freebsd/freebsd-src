@@ -39,7 +39,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: activate.c,v 1.5 1998/07/06 07:19:23 charnier Exp $";
 #endif /* not lint */
 
 #include <errno.h>

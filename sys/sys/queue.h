@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.21 1998/05/12 03:55:25 gibbs Exp $
+ * $Id: queue.h,v 1.22 1998/06/24 20:51:09 phk Exp $
  */
 
 #ifndef _SYS_QUEUE_H_

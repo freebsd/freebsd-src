@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 5/31/93
-#	$Id$
+#	$Id: Makefile,v 1.5 1997/02/22 14:03:48 peter Exp $
 
 PROG=	ln
 MAN1=	ln.1

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: adv_eisa.c,v 1.1 1998/09/15 07:05:39 gibbs Exp $
  */
 
 #include "eisa.h"

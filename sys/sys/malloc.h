@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.36 1997/12/27 09:42:03 bde Exp $
+ * $Id: malloc.h,v 1.37 1998/03/08 09:58:26 julian Exp $
  */
 
 #ifndef _SYS_MALLOC_H_

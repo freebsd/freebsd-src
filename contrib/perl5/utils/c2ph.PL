@@ -256,7 +256,7 @@ Anyway, here it is.  Should run on perl v4 or greater.  Maybe less.
 
 =cut
 
-$RCSID = '$Id: c2ph,v 1.7 95/10/28 10:41:47 tchrist Exp Locker: tchrist $';
+$RCSID = '$Id: c2ph.PL,v 1.1.1.1 1998/09/09 07:00:03 markm Exp $';
 
 
 ######################################################################

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.6 (Berkeley) 5/8/95
-#	$Id: Makefile,v 1.6 1998/01/20 10:39:57 bde Exp $
+#	$Id: Makefile,v 1.7 1998/03/08 14:50:00 msmith Exp $
 
 PROG=	mount
 SRCS=	mount.c mount_ufs.c getmntopts.c vfslist.c

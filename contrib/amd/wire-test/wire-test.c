@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wire-test.c,v 1.1.1.1 1998/08/23 22:07:21 obrien Exp $
+ * $Id: wire-test.c,v 1.2 1998/08/23 22:52:09 obrien Exp $
  *
  */
 

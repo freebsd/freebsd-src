@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.55 1998/07/04 22:30:22 julian Exp $
+ *	$Id: devfs_tree.c,v 1.56 1998/07/05 23:10:21 julian Exp $
  */
 
 

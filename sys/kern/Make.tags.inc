@@ -1,5 +1,5 @@
 #	@(#)Make.tags.inc	8.1 (Berkeley) 6/11/93
-# $Id$
+# $Id: Make.tags.inc,v 1.4 1997/02/22 09:38:55 peter Exp $
 
 # Common files for "make tags".
 # Included by the Makefile for each architecture.

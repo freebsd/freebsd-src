@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: statd.c,v 1.3 1997/10/13 11:13:30 charnier Exp $";
 #endif /* not lint */
 
 /* main() function for status monitor daemon.  Some of the code in this	*/

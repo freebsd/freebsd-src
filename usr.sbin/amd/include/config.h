@@ -1,4 +1,4 @@
-/* $Id: config.h,v 1.6 1998/08/27 08:09:41 obrien Exp $ */
+/* $Id: config.h,v 1.7 1998/09/04 08:55:29 obrien Exp $ */
 /* portions derived from 
    $NetBSD: config.h,v 1.11 1998/08/08 22:33:37 christos Exp $	*/
 /* config.h.  Generated automatically by configure.  */

@@ -1,4 +1,4 @@
-# $Id: Makefile.inc,v 1.2 1998/08/08 02:25:46 jb Exp $
+# $Id: Makefile.inc,v 1.3 1998/08/17 03:36:16 jb Exp $
 
 MDASM+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S \
 	sbrk.S setlogin.S sigpending.S sigprocmask.S sigreturn.S \

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.111 1998/09/28 03:34:39 tegge Exp $
+ *	$Id: vm_machdep.c,v 1.112 1998/10/13 08:24:33 dg Exp $
  */
 
 #include "npx.h"

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.h,v 1.10 1998/08/10 05:46:19 grog Exp grog $
+ * $Id: vinumio.h,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 #define MAX_IOCTL_REPLY 256

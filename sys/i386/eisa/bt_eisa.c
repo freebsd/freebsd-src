@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bt_eisa.c,v 1.1 1998/09/15 07:32:52 gibbs Exp $
  */
 
 #include "eisa.h"

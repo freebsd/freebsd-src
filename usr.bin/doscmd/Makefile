@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.12 1998/05/31 11:32:38 bde Exp $
+# $Id: Makefile,v 1.13 1998/09/24 01:11:45 luoqi Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \

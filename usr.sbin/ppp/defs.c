@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.16 1998/06/15 19:06:41 brian Exp $
+ *	$Id: defs.c,v 1.17 1998/06/27 14:18:05 brian Exp $
  */
 
 

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.1 1998/05/30 18:28:11 phk Exp $
+ * $Id: xrpu.c,v 1.2 1998/08/18 00:32:48 bde Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and

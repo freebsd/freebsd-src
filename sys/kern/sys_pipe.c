@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.42 1998/06/07 17:11:39 dfr Exp $
+ * $Id: sys_pipe.c,v 1.43 1998/10/13 08:24:40 dg Exp $
  */
 
 /*

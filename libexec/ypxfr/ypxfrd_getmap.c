@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ypxfrd_getmap.c,v 1.6 1997/12/08 07:49:56 charnier Exp $";
 #endif /* not lint */
 
 #include <errno.h>

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)5.t	8.1 (Berkeley) 8/14/93
-.\"	$Id$
+.\"	$Id: 5.t,v 1.4 1997/02/22 13:04:44 peter Exp $
 .\"
 .\".ds RH "Advanced Topics
 .bp

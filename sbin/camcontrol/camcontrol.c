@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.4 1998/10/13 16:23:26 ken Exp $
+ *	$Id: camcontrol.c,v 1.5 1998/10/13 22:02:38 ken Exp $
  */
 
 #include <sys/ioctl.h>

@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: map_object.c,v 1.1.1.1 1998/03/07 19:24:35 jdp Exp $
+ *      $Id: map_object.c,v 1.2 1998/09/04 19:03:57 dfr Exp $
  */
 
 #include <sys/param.h>

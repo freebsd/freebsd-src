@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.115 1998/10/09 23:36:25 peter Exp $
+ *	$Id: locore.s,v 1.116 1998/10/10 13:37:16 kato Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *

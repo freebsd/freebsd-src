@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.8 1998/08/04 15:30:17 peter Exp $
+#	$Id: Makefile,v 1.9 1998/09/19 22:42:02 obrien Exp $
 
 .PATH:	${.CURDIR}/../../contrib/sendmail/mail.local \
 	${.CURDIR}/../../contrib/sendmail/src

@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_psdev.c,v 1.6 1998/09/28 20:52:58 rvb Exp $
+ *  $Id: coda_psdev.c,v 1.7 1998/09/29 20:19:45 rvb Exp $
  * 
  */
 
@@ -53,6 +53,11 @@
 /*
  * HISTORY
  * $Log: coda_psdev.c,v $
+ * Revision 1.7  1998/09/29 20:19:45  rvb
+ * Fixes for lkm:
+ * 1. use VFS_LKM vs ACTUALLY_LKM_NOT_KERNEL
+ * 2. don't pass -DCODA to lkm build
+ *
  * Revision 1.6  1998/09/28 20:52:58  rvb
  * Cleanup and fix THE bug
  *

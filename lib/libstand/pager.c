@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pager.c,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
+ *	$Id: pager.c,v 1.2 1998/09/18 22:58:00 msmith Exp $
  */
 /*
  * Simple paged-output and paged-viewing functions

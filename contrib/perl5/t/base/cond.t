@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile: cond.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:02 $
+# $RCSfile: cond.t,v $$Revision: 1.1.1.1 $$Date: 1998/09/09 06:59:59 $
 
 # make sure conditional operators work
 

@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id$
+ *	$Id: ether_addr.c,v 1.9 1997/02/22 15:00:04 peter Exp $
  */
 
 

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.3 1997/02/22 13:04:50 peter Exp $
 
 VOLUME=	psd/22.rpcgen
 SRCS=	rpcgen.ms

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_srregs.h,v 1.4 1997/02/22 09:36:36 peter Exp $
  */
 #ifndef _IF_SRREGS_H_
 #define _IF_SRREGS_H_

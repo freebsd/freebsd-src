@@ -4,7 +4,7 @@
  * Foundation.
  *
  *	from: @(#)symseg.h	5.4 (Berkeley) 4/30/91
- *	$Id$
+ *	$Id: symseg.h,v 1.6 1997/02/22 15:46:27 peter Exp $
  */
 
 /* GDB symbol table format definitions.

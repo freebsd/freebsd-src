@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.24 1997/10/11 18:31:31 phk Exp $
+ * $Id: igmp.c,v 1.25 1997/10/12 20:25:21 phk Exp $
  */
 
 /*

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.1 1998/09/15 07:25:33 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.2 1998/10/07 03:40:51 gibbs Exp $
  */
 
 #include <pci.h>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_proto.c,v 1.6 1998/02/19 19:52:06 mks Exp $
+ *	@(#) $Id: atm_proto.c,v 1.1 1998/09/15 08:22:58 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atm_proto.c,v 1.6 1998/02/19 19:52:06 mks Exp $";
+static char *RCSid = "@(#) $Id: atm_proto.c,v 1.1 1998/09/15 08:22:58 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdarg.h	8.1 (Berkeley) 6/10/93
- * $Id: stdarg.h,v 1.8 1997/02/22 09:35:17 peter Exp $
+ * $Id: stdarg.h,v 1.9 1997/06/21 15:45:13 bde Exp $
  */
 
 #ifndef _STDARG_H_

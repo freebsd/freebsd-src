@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.2 (Berkeley) 7/14/94
-#	$Id$
+#	$Id: Makefile.inc,v 1.2 1997/05/03 03:49:52 jb Exp $
 
 .PATH: ${.CURDIR}/../libc/db/btree
 

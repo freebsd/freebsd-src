@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: checkmount_bsd44.c,v 5.2.2.2 1992/05/31 16:35:45 jsp Exp $
+ * $Id: checkmount_bsd44.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

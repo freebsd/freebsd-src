@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: io.c,v 1.16 1998/08/10 23:47:21 grog Exp grog $
+ * $Id: io.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */

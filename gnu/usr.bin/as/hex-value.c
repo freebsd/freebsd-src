@@ -23,7 +23,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: hex-value.c,v 1.5 1997/02/22 15:43:37 peter Exp $";
 #endif
 
 #define __ (42)			/* blatently illegal digit value */

@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.9 (Berkeley) 5/14/95
  *
- * $Id: umap_subr.c,v 1.13 1998/02/09 06:09:48 eivind Exp $
+ * $Id: umap_subr.c,v 1.14 1998/08/16 01:21:51 bde Exp $
  */
 
 #include <sys/param.h>

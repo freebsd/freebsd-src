@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.81 1998/10/01 14:49:57 jkh Exp $
+#	$Id: Makefile,v 1.82 1998/10/13 16:48:43 bde Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:

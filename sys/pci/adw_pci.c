@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: adw_pci.c,v 1.1 1998/10/07 03:20:49 gibbs Exp $
  */
 
 #include <pci.h>

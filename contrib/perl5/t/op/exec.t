@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile: exec.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:49 $
+# $RCSfile: exec.t,v $$Revision: 1.1.1.1 $$Date: 1998/09/09 07:00:02 $
 
 $| = 1;				# flush stdout
 

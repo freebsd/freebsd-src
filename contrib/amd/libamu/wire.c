@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wire.c,v 5.2.2.2 1992/06/07 18:06:46 jsp Exp jsp $
+ * $Id: wire.c,v 1.1.1.1 1998/08/23 22:07:21 obrien Exp $
  *
  */
 

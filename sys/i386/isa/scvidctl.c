@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvidctl.c,v 1.4 1998/09/29 02:00:56 ache Exp $
+ * $Id: scvidctl.c,v 1.5 1998/10/01 11:39:18 yokota Exp $
  */
 
 #include "sc.h"

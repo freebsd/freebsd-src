@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cyreg.h,v 1.6 1998/08/13 13:54:10 bde Exp $
+ *	$Id: cyreg.h,v 1.7 1998/08/13 19:03:22 bde Exp $
  */
 
 /*

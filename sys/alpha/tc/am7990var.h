@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: am7990var.h,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
 /*	$NetBSD: am7990var.h,v 1.18 1998/01/12 09:23:16 thorpej Exp $	*/
 
 /*-

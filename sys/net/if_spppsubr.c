@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.44 1998/10/06 20:47:53 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.45 1998/10/06 21:12:45 joerg Exp $
  */
 
 #include <sys/param.h>

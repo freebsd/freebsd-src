@@ -1,5 +1,5 @@
 #	$NetBSD: mkconf,v 1.1.1.1 1997/07/24 21:20:12 christos Exp $
-#	$Id: newvers.sh,v 1.1 1998/08/27 08:09:41 obrien Exp $
+#	$Id: newvers.sh,v 1.2 1998/09/10 00:27:57 obrien Exp $
 # mkconf
 # Generate local configuration parameters for amd
 #

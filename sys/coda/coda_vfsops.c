@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.6 1998/09/25 17:38:32 rvb Exp $
+ *  $Id: coda_vfsops.c,v 1.7 1998/09/29 20:19:45 rvb Exp $
  * 
  */
 
@@ -47,6 +47,11 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.7  1998/09/29 20:19:45  rvb
+ * Fixes for lkm:
+ * 1. use VFS_LKM vs ACTUALLY_LKM_NOT_KERNEL
+ * 2. don't pass -DCODA to lkm build
+ *
  * Revision 1.6  1998/09/25 17:38:32  rvb
  * Put "stray" printouts under DIAGNOSTIC.  Make everything build
  * with DEBUG on.  Add support for lkm.  (The macro's don't work

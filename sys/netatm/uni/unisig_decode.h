@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_decode.h,v 1.5 1998/08/26 23:29:21 mks Exp $
+ *	@(#) $Id: unisig_decode.h,v 1.1 1998/09/15 08:23:10 phk Exp $
  *
  */
 

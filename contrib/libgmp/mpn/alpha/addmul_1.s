@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: addmul_1.s,v 1.2 1998/03/08 21:08:54 jb Exp $
  # Alpha 21064 __mpn_addmul_1 -- Multiply a limb vector with a limb and add
  # the result to a second limb vector.
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.3 1998/08/10 07:53:59 dfr Exp $
+ *	$Id: isa.c,v 1.4 1998/09/16 08:23:51 dfr Exp $
  */
 
 #include <sys/param.h>

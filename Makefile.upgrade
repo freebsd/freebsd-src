@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.5 1998/09/09 06:02:31 jb Exp $
+#	$Id: Makefile.upgrade,v 1.6 1998/09/23 01:46:25 jb Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.

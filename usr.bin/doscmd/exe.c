@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  *	BSDI exe.c,v 2.2 1996/04/08 19:32:34 bostic Exp
- * $Id: exe.c,v 1.3 1996/09/22 06:26:01 miff Exp $
+ * $Id: exe.c,v 1.1 1997/08/09 01:42:42 dyson Exp $
  */
 
 #include <stdio.h>

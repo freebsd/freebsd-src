@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.4 1997/07/20 08:46:30 bde Exp $
+#       $Id: Makefile,v 1.5 1997/08/26 13:49:26 bde Exp $
 
 .PATH:  ${.CURDIR}/../../sys/gnu/i386/fpemul
 KMOD=   gnufpu_mod

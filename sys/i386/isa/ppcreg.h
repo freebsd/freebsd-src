@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppcreg.h,v 1.3 1998/08/03 19:14:33 msmith Exp $
+ *	$Id: ppcreg.h,v 1.4 1998/09/13 18:26:44 nsouch Exp $
  *
  */
 #ifndef __PPCREG_H

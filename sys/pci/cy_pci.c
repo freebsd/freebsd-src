@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.5 1997/02/22 09:44:00 peter Exp $
+ *	$Id: cy_pci.c,v 1.6 1997/09/02 20:06:24 bde Exp $
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ptrace.h	8.1 (Berkeley) 6/11/93
- * $Id: ptrace.h,v 1.1 1998/06/10 10:55:24 dfr Exp $
+ * $Id: ptrace.h,v 1.2 1998/07/15 20:16:28 dfr Exp $
  */
 
 #ifndef _MACHINE_PTRACE_H_

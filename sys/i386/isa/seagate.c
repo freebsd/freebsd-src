@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.30 1998/07/15 09:38:10 bde Exp $
+ * $Id: seagate.c,v 1.31 1998/08/11 17:22:42 bde Exp $
  */
 
 /*

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.12 1998/08/15 22:29:43 bde Exp $
+ *  $Id: linux_signal.c,v 1.13 1998/10/11 04:54:16 jdp Exp $
  */
 
 #include <sys/param.h>

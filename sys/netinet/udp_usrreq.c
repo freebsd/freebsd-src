@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.47 1998/05/15 20:11:35 wollman Exp $
+ *	$Id: udp_usrreq.c,v 1.48 1998/08/24 07:47:39 dfr Exp $
  */
 
 #include <sys/param.h>

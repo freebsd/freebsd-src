@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $ 
+#       $Id: Makefile,v 1.2 1998/09/28 04:21:20 grog Exp $ 
 
 .PATH:  ${.CURDIR}/../../sys/dev/ccd
 KMOD=   vinum_mod

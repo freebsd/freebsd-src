@@ -21,7 +21,7 @@
 #
 # usage: xrs manpages ...
 #
-# $Id$
+# $Id: xrs.pl,v 1.4 1997/09/29 12:41:35 wosch Exp $
 
 sub mysort {
 

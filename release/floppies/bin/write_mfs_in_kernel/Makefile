@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1997/07/22 02:50:59 julian Exp $
+#	$Id: Makefile,v 1.2 1998/09/24 16:37:20 abial Exp $
 #
 PROG=write_mfs_in_kernel
 NOMAN=yes

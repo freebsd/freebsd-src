@@ -44,7 +44,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adv_isa.c,v 1.5 1998/10/10 00:44:12 imp Exp $
+ *      $Id: adv_isa.c,v 1.6 1998/10/12 18:53:33 imp Exp $
  */
 
 #include <sys/param.h>

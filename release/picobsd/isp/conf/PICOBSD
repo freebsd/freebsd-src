@@ -1,5 +1,5 @@
 #
-# $Id: PICOBSD,v 1.3 1998/09/19 21:44:57 abial Exp $
+# $Id: PICOBSD,v 1.4 1998/09/26 17:27:20 abial Exp $
 #
 
 machine		"i386"

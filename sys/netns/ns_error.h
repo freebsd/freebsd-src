@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_error.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ns_error.h,v 1.8 1997/02/22 09:42:17 peter Exp $
  */
 
 #ifndef _NETNS_NS_ERROR_H_

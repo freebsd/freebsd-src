@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1998/09/25 17:14:15 peter Exp $
+#	$Id: Makefile,v 1.5 1998/10/13 18:29:18 rnordier Exp $
 
 M4?=	m4
 

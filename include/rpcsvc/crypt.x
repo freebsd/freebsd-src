@@ -29,12 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: crypt.x,v 1.2 1997/05/28 04:38:13 wpaul Exp $
  */
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$Id$";
+%static const char rcsid[] = "$Id: crypt.x,v 1.2 1997/05/28 04:38:13 wpaul Exp $";
 %#endif
 #endif
 

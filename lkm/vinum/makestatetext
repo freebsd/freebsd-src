@@ -1,6 +1,6 @@
 #!/bin/sh
 # Make statetexts.h from vinumstate.h
-# $Id: makestatetext,v 1.4 1998/03/13 05:36:16 grog Exp grog $
+# $Id: makestatetext,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
 infile=vinumstate.h
 ofile=statetexts.h
 cat <COPYRIGHT > $ofile

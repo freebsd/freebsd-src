@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.25 1998/03/28 10:18:22 bde Exp $
+ * $Id: in_pcb.h,v 1.26 1998/05/15 20:11:33 wollman Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_

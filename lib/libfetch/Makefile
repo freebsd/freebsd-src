@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.5 1998/08/17 20:39:09 bde Exp $
 
 LIB=		fetch
 CFLAGS+=	-I. -Wall -pedantic -DNDEBUG

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.10 1998/05/01 14:08:30 bde Exp $
 
 INFO=	annotate gdb gdbint stabs
 

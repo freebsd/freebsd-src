@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.171 1998/09/13 23:05:46 brian Exp $
+#	$Id: Makefile,v 1.5 1998/09/13 23:14:20 brian Exp $
 
 default:
 .if exists(/etc/mail/ips.txt)

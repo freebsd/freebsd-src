@@ -7,7 +7,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $Id: icmp.c,v 1.3 1997/12/27 19:31:11 alex Exp $
+ * $Id: icmp.c,v 1.4 1997/12/30 00:38:56 alex Exp $
  */
 
 #include <stdlib.h>

@@ -39,7 +39,7 @@
  *
  *	%W% (Berkeley) %G%
  *
- * $Id: fsi_lex.l,v 5.2.2.1 1992/02/09 15:09:36 jsp beta $
+ * $Id: fsi_lex.l,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

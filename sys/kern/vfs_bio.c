@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.178 1998/09/26 00:12:35 dillon Exp $
+ * $Id: vfs_bio.c,v 1.179 1998/10/13 08:24:40 dg Exp $
  */
 
 /*

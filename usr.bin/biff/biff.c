@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biff.c,v 1.3 1997/06/23 06:45:38 charnier Exp $
+ *	$Id: biff.c,v 1.4 1997/12/29 00:08:50 alex Exp $
  */
 
 #ifndef lint

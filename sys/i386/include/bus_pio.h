@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bus_pio.h,v 1.1 1998/01/15 07:32:55 gibbs Exp $
  */
 
 #ifndef _I386_BUS_PIO_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.h,v 1.1.2.1 1998/07/17 00:54:01 son Exp $
+ *	$Id: iic.h,v 1.1 1998/09/03 21:00:08 nsouch Exp $
  *
  */
 #ifndef __IIC_H

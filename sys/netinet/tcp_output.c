@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.30 1998/05/24 18:41:04 fenner Exp $
+ *	$Id: tcp_output.c,v 1.31 1998/07/13 11:53:59 bde Exp $
  */
 
 #include "opt_tcpdebug.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intr.h,v 1.2 1998/07/12 16:09:30 dfr Exp $
+ *	$Id: intr.h,v 1.3 1998/08/10 07:53:58 dfr Exp $
  */
 
 #ifndef _MACHINE_INTR_H_

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.28 1998/08/31 10:53:33 jkh Exp $
+ *  $Id: linux_ioctl.c,v 1.29 1998/09/30 01:42:53 jfieber Exp $
  */
 
 #include <sys/param.h>

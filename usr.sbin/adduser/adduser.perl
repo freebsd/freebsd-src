@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.40 1998/06/07 18:38:32 wosch Exp $
+# $Id: adduser.perl,v 1.41 1998/08/17 18:50:29 wosch Exp $
 
 
 # read variables

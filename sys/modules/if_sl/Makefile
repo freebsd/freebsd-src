@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.6 1998/02/01 18:12:14 bde Exp $
+#       $Id: Makefile,v 1.7 1998/10/16 04:30:45 peter Exp $
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_sl

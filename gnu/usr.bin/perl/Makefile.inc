@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.6 1998/10/11 18:13:41 markm Exp $
+#	$Id: Makefile.inc,v 1.7 1998/10/12 06:00:30 markm Exp $
 
 PERL5SRC?= ${.CURDIR}/../../../../contrib/perl5
 

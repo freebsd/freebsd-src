@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: update.pl,v 1.3 1998/08/10 19:16:43 abial Exp $
+# $Id: update.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 pwd=`pwd`
 echo -n "Uaktualniam katalog /etc na dyskietce...  "
 mount /dev/fd0a /start_floppy

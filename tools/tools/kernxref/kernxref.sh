@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $Id: kernxref.sh,v 1.8 1997/02/22 14:08:32 peter Exp $
 #
 # This shellscript will make a cross reference of the symbols of the LINT 
 # kernel.

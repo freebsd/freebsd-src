@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.29 1998/05/28 09:30:20 phk Exp $
+ * $Id: subr_log.c,v 1.30 1998/06/07 17:11:38 dfr Exp $
  */
 
 /*

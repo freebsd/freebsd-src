@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.77 1998/08/30 20:33:27 jb Exp $
+#	$Id: bsd.prog.mk,v 1.78 1998/09/07 05:55:02 jb Exp $
 
 .if !target(__initialized__)
 __initialized__:

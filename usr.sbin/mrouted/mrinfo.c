@@ -61,7 +61,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id: mrinfo.c,v 1.14 1998/01/16 07:17:43 charnier Exp $";
+    "$Id: mrinfo.c,v 1.15 1998/06/09 05:01:34 imp Exp $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.4 1998/07/12 16:23:19 dfr Exp $
+ *	$Id: zs_tlsb.c,v 1.5 1998/07/31 09:20:01 dfr Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real

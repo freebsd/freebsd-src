@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: hash.h,v 1.4 1997/02/22 14:21:53 peter Exp $
  */
 
 /* Groupid entry hung off a member_entry node. */

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1997/02/22 15:45:24 peter Exp $
+# $Id: Makefile,v 1.9 1997/10/29 17:35:54 ache Exp $
 
 .PATH:  ${.CURDIR}/../../../contrib/diff
 

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: pipe.h,v 1.9 1997/04/09 16:53:45 bde Exp $
+ * $Id: pipe.h,v 1.10 1998/03/26 20:53:26 phk Exp $
  */
 
 #ifndef _SYS_PIPE_H_

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/05/28 15:52:07 wpaul Exp $
+#	$Id: Makefile,v 1.2 1997/12/16 17:43:15 bde Exp $
 
 PROG= newkey
 SRCS= newkey.c update.c generic.c

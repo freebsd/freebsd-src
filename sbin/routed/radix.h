@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.2 (Berkeley) 10/31/94
- *	$Id$
+ *	$Id: radix.h,v 1.2 1998/07/28 06:36:12 charnier Exp $
  */
 
 #ifndef __RADIX_H_

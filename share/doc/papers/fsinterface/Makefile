@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.3 (Berkeley) 6/8/93
-#	$Id$
+#	$Id: Makefile,v 1.5 1997/02/22 13:03:04 peter Exp $
 
 VOLUME=	papers
 DOC=	fsinterface

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_show.c,v 1.12 1998/07/24 16:20:34 johnc Exp $
+ *	@(#) $Id: atm_show.c,v 1.1 1998/09/15 08:22:46 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atm_show.c,v 1.12 1998/07/24 16:20:34 johnc Exp $";
+static char *RCSid = "@(#) $Id: atm_show.c,v 1.1 1998/09/15 08:22:46 phk Exp $";
 #endif
 
 #include <sys/types.h>  

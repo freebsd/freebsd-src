@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.12 1998/02/20 08:17:23 jb Exp $
+#	$Id: Makefile.inc,v 1.13 1998/08/15 12:51:38 phk Exp $
 
 # locale sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/locale ${.CURDIR}/../libc/locale

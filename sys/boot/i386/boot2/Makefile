@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1998/10/15 20:04:21 rnordier Exp $
+#	$Id: Makefile,v 1.7 1998/10/15 22:08:13 rnordier Exp $
 
 PROG=		boot2
 NOMAN=

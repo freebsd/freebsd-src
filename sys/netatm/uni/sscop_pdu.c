@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop_pdu.c,v 1.6 1998/04/07 23:21:36 mks Exp $
+ *	@(#) $Id: sscop_pdu.c,v 1.1 1998/09/15 08:23:07 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: sscop_pdu.c,v 1.6 1998/04/07 23:21:36 mks Exp $";
+static char *RCSid = "@(#) $Id: sscop_pdu.c,v 1.1 1998/09/15 08:23:07 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>

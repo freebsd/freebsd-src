@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumkw.h,v 1.7 1998/08/07 02:35:51 grog Exp grog $
+ * $Id: vinumkw.h,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 /* Command keywords that vinum knows.  These include both user-level

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.h	8.1 (Berkeley) 6/10/93
- *	$Id: tcp_timer.h,v 1.12 1997/02/22 09:41:42 peter Exp $
+ *	$Id: tcp_timer.h,v 1.13 1997/09/07 05:26:48 bde Exp $
  */
 
 #ifndef _NETINET_TCP_TIMER_H_

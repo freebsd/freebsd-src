@@ -20,7 +20,7 @@
  *
  * Login period parsing and comparison functions.
  *
- *	$Id: login_times.c,v 1.5 1997/05/10 18:55:38 davidn Exp $
+ *	$Id: login_times.c,v 1.6 1998/10/09 11:24:19 jkh Exp $
  */
 
 #include <stdlib.h>

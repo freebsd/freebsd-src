@@ -1,4 +1,4 @@
-#	$Id: options.alpha,v 1.6 1998/08/21 23:43:15 gpalmer Exp $
+#	$Id: options.alpha,v 1.7 1998/09/16 08:22:09 dfr Exp $
 
 EV5			opt_global.h
 EV4			opt_global.h

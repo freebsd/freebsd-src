@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.12 (Berkeley) 6/16/95
- * $Id: stat.h,v 1.14 1998/02/25 02:00:44 bde Exp $
+ * $Id: stat.h,v 1.15 1998/05/11 03:55:13 dyson Exp $
  */
 
 #ifndef _SYS_STAT_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcpip.h	8.1 (Berkeley) 6/10/93
- * $Id: tcpip.h,v 1.6 1997/02/22 09:41:43 peter Exp $
+ * $Id: tcpip.h,v 1.7 1998/09/26 14:26:59 dfr Exp $
  */
 
 #ifndef _NETINET_TCPIP_H_

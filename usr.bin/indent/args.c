@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)args.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: args.c,v 1.2 1997/07/15 09:50:58 charnier Exp $";
 #endif /* not lint */
 
 /*

@@ -8,7 +8,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tickadj.c,v 1.15 1998/01/22 07:28:26 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>

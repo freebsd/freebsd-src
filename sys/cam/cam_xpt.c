@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.23 1998/10/15 17:46:18 ken Exp $
+ *      $Id: cam_xpt.c,v 1.24 1998/10/15 19:08:52 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

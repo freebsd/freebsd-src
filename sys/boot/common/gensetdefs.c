@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: gensetdefs.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
+ *      $Id: gensetdefs.c,v 1.1 1998/09/17 23:52:01 msmith Exp $
  */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-# $Header$ 
+# $Header: /home/ncvs/src/contrib/perl5/lib/ExtUtils/typemap,v 1.1.1.1 1998/09/09 06:59:55 markm Exp $ 
 # basic C types
 int			T_IV
 unsigned		T_IV

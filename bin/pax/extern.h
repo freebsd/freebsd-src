@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/18/94
- *	$Id: extern.h,v 1.4 1997/02/22 14:04:25 peter Exp $
+ *	$Id: extern.h,v 1.5 1997/08/29 16:12:22 sos Exp $
  */
 
 /*

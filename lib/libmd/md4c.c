@@ -1,5 +1,5 @@
 /* MD4C.C - RSA Data Security, Inc., MD4 message-digest algorithm
- * $Id: md4c.c,v 1.5 1997/02/22 15:07:19 peter Exp $
+ * $Id: md4c.c,v 1.6 1998/03/27 10:21:56 phk Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.

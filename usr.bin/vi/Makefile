@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.22 1998/06/09 04:07:20 imp Exp $
+# $Id: Makefile,v 1.23 1998/09/05 12:25:54 asami Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.

@@ -29,7 +29,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(mapId, "$Id$")
+libId(mapId, "$Id: rcsmap.c,v 1.4 1997/02/22 15:47:40 peter Exp $")
 
 /* map of character types */
 /* ISO 8859/1 (Latin-1) */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.9 (Berkeley) 5/14/95
- * $Id: nfsnode.h,v 1.25 1998/03/06 09:46:52 msmith Exp $
+ * $Id: nfsnode.h,v 1.26 1998/05/31 18:32:23 peter Exp $
  */
 
 

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
+ * $Id: vinum.c,v 1.2 1998/10/16 04:30:51 peter Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id:$
+#	$Id: pccard_ether,v 1.9 1998/09/02 01:34:56 brian Exp $
 #
 # pccard_ether interfacename [ifconfig option]
 #

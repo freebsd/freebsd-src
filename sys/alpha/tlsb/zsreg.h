@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zsreg.h,v 1.1 1998/06/10 10:56:01 dfr Exp $
+ *	$Id: zsreg.h,v 1.2 1998/07/05 12:16:55 dfr Exp $
  */
 
 #define ZSC_CHANNELA	0x80

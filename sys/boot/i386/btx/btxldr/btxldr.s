@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btxldr.s,v 1.2 1998/10/06 06:13:36 msmith Exp $
+#	$Id: btxldr.s,v 1.3 1998/10/06 07:15:35 rnordier Exp $
 
 #
 # Prototype BTX loader program, written in a couple of hours.  The

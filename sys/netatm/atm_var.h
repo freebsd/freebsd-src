@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_var.h,v 1.9 1998/05/18 19:05:52 mks Exp $
+ *	@(#) $Id: atm_var.h,v 1.1 1998/09/15 08:22:59 phk Exp $
  *
  */
 

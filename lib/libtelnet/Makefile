@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id: Makefile,v 1.8 1998/08/30 13:07:16 markm Exp $
+#	$Id: Makefile,v 1.9 1998/10/11 16:33:02 bde Exp $
 
 LIB=	telnet
 SRCS=	genget.c getent.c misc.c

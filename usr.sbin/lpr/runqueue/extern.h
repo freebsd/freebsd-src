@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *      From: @(#)extern.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: extern.h,v 1.3 1997/12/02 20:45:53 wollman Exp $
  */
 
 #include <sys/cdefs.h>

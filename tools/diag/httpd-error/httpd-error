@@ -4,7 +4,7 @@
 #
 # httpd-error - check for Web files which does not exists on your host
 #
-# $Id$
+# $Id: httpd-error,v 1.1 1998/02/15 18:54:26 wosch Exp $
 
 mode=${1}
 

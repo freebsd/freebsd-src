@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_defs.h,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+ * $Id: am_defs.h,v 1.2 1998/08/27 07:33:23 obrien Exp $
  *
  */
 

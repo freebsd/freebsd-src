@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.1 1998/06/10 10:52:54 dfr Exp $
+ *	$Id: mem.c,v 1.2 1998/07/29 18:36:29 dfr Exp $
  */
 
 /*

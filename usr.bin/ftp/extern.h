@@ -1,4 +1,4 @@
-/*	$Id: extern.h,v 1.6 1997/12/13 20:38:15 pst Exp $	*/
+/*	$Id: extern.h,v 1.7 1998/07/26 18:49:36 imp Exp $	*/
 /*	$NetBSD: extern.h,v 1.17.2.1 1997/11/18 00:59:50 mellon Exp $	*/
 
 /*-

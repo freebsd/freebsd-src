@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfsiom.h	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: mfsiom.h,v 1.6 1997/02/22 09:47:33 peter Exp $
  */
 
 #ifndef _UFS_MFS_MFSIOM_H_

@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: xdr_func.c,v 5.2.2.1 1992/02/09 15:08:40 jsp beta $
+ * $Id: xdr_func.c,v 1.1.1.1 1998/08/23 22:07:21 obrien Exp $
  *
  */
 

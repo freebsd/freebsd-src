@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lstFirst.c,v 1.4 1997/02/22 19:27:38 peter Exp $
  */
 
 #ifndef lint

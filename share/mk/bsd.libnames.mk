@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.17 1998/09/15 10:27:20 gibbs Exp $
+#	$Id: bsd.libnames.mk,v 1.18 1998/09/17 09:34:57 phk Exp $
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.74 1998/09/11 18:50:16 rvb Exp $
+ * $Id: vnode.h,v 1.75 1998/10/16 03:55:01 peter Exp $
  */
 
 #ifndef _SYS_VNODE_H_

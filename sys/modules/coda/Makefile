@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/09/29 20:19:45 rvb Exp $
+#	$Id: Makefile,v 1.3 1998/10/16 04:30:42 peter Exp $
 
 .PATH:	${.CURDIR}/../../coda
 KMOD=	coda

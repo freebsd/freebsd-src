@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: setsignal.h,v 1.2 97/06/13 13:10:44 leres Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/contrib/tcpdump/setsignal.h,v 1.1.1.1 1998/09/15 19:36:31 fenner Exp $ (LBL)
  */
 #ifndef setsignal_h
 #define setsignal_h

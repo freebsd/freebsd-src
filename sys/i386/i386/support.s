@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.58 1997/12/14 02:11:09 dyson Exp $
+ *	$Id: support.s,v 1.59 1998/05/11 02:13:43 dyson Exp $
  */
 
 #include "npx.h"

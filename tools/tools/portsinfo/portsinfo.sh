@@ -3,7 +3,7 @@
 #
 # portsinfo - Generate list of new ports for last two weeks.
 #
-# $Id: portsinfo.sh,v 1.3 1997/09/29 18:16:38 wosch Exp $
+# $Id: portsinfo.sh,v 1.4 1997/10/04 12:20:16 wosch Exp $
 
 PATH=/bin:/usr/bin:/usr/local/bin:$PATH; export PATH
 

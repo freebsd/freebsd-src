@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.h,v 1.1.1.10 1998/08/13 17:10:43 son Exp $
+ *	$Id: iiconf.h,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
  */
 #ifndef __IICONF_H
 #define __IICONF_H

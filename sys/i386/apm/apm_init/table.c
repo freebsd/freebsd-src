@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id$
+ *	$Id: table.c,v 1.7 1997/02/22 09:29:55 peter Exp $
  */
 
 #include <apm_bios.h>

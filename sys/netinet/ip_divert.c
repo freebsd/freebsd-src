@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.33 1998/07/02 06:31:25 julian Exp $
+ *	$Id: ip_divert.c,v 1.34 1998/07/06 09:06:58 julian Exp $
  */
 
 #include "opt_inet.h"

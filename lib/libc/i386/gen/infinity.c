@@ -1,6 +1,6 @@
 /*
  * infinity.c
- *	$Id$
+ *	$Id: infinity.c,v 1.4 1997/02/22 14:58:37 peter Exp $
  */
 
 #include <math.h>

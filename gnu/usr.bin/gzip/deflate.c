@@ -68,7 +68,7 @@
 #include "lzw.h" /* just for consistency checking */
 
 #ifdef RCSID
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: deflate.c,v 1.6 1997/02/22 15:45:56 peter Exp $";
 #endif
 
 /* ===========================================================================

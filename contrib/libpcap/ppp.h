@@ -1,4 +1,4 @@
-/* @(#) $Header: ppp.h,v 1.7 95/05/04 17:52:46 mccanne Exp $ (LBL) */
+/* @(#) $Header: /home/ncvs/src/contrib/libpcap/ppp.h,v 1.1.1.1 1998/09/15 19:28:09 fenner Exp $ (LBL) */
 /*
  * Point to Point Protocol (PPP) RFC1331
  *

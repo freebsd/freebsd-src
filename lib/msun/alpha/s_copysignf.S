@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: s_copysignf.S,v 1.1 1998/01/10 22:17:24 jb Exp $ */
 /*	From: NetBSD: s_copysignf.S,v 1.3 1997/07/30 23:58:41 jtc Exp */
 
 /*-

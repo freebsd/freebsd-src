@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1997/03/04 18:21:06 wosch Exp $
+#	$Id: Makefile,v 1.2 1997/12/17 19:22:18 bde Exp $
 
 SRCS=	rcs_func.ms
 DOC=	rcs_func

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $Id: types.h,v 1.14 1998/07/10 02:27:15 bde Exp $
+ * $Id: types.h,v 1.15 1998/07/14 05:09:43 bde Exp $
  */
 
 #ifndef _MACHINE_TYPES_H_

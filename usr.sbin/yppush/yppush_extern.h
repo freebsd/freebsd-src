@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: yppush_extern.h,v 1.3 1997/02/22 16:15:01 peter Exp $
  */
 
 /* Privately defined error codes. */

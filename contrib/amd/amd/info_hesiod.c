@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: info_hesiod.c,v 1.1 1997-1998/07/11 08:34:52 danny Exp danny $
+ * $Id: info_hesiod.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsi_data.h,v 5.2.2.1 1992/02/09 15:09:53 jsp beta $
+ * $Id: fsi_data.h,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

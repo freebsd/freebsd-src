@@ -3,7 +3,7 @@
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.7 1997/03/18 19:37:21 mpp Exp $
+ * $Id: patchlevel.h,v 1.8 1998/01/28 07:36:24 charnier Exp $
  *
  */
 

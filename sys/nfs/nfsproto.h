@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsproto.h  8.2 (Berkeley) 3/30/95
- * $Id: nfsproto.h,v 1.5 1998/05/31 19:00:19 peter Exp $
+ * $Id: nfsproto.h,v 1.6 1998/05/31 20:08:57 peter Exp $
  */
 
 #ifndef _NFS_NFSPROTO_H_

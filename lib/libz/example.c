@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libz/example.c,v 1.3 1998/02/28 06:08:07 steve Exp $ */
 
 #include <stdio.h>
 #include "zlib.h"

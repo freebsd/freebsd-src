@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.36 1998/07/06 03:20:12 julian Exp $
+ * $Id: in.h,v 1.37 1998/08/23 03:07:14 wollman Exp $
  */
 
 #ifndef _NETINET_IN_H_

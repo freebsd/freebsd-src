@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.16 1998/02/06 12:13:41 eivind Exp $
+ *	$Id: procfs_map.c,v 1.17 1998/04/29 04:28:22 dyson Exp $
  */
 
 #include <sys/param.h>

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)locate.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: locate.h,v 1.6 1997/02/22 19:55:48 peter Exp $
  */
 
 /* Symbolic constants shared by locate.c and code.c */

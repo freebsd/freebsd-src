@@ -17,7 +17,7 @@
 
 /* config.h - configurables for Vixie Cron
  *
- * $Id$
+ * $Id: config.h,v 1.7 1997/02/22 16:04:39 peter Exp $
  */
 
 #if !defined(_PATH_SENDMAIL)

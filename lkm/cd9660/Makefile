@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1998/02/04 21:56:34 eivind Exp $
+#	$Id: Makefile,v 1.5 1998/02/06 23:54:19 eivind Exp $
 
 .PATH:	${.CURDIR}/../../sys/isofs/cd9660
 KMOD=	cd9660_mod

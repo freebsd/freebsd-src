@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: in_hostcache.h,v 1.1 1997/06/18 01:24:28 wollman Exp $
  */
 
 #ifndef _NETINET_IN_HOSTCACHE_H

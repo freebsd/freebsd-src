@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $Id: doscmd.c,v 1.7 1998/07/16 23:54:25 imp Exp $
+ * $Id: doscmd.c,v 1.8 1998/07/28 03:39:59 jlemon Exp $
  */
 
 #include <sys/types.h>

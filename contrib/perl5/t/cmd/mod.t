@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile: mod.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:11 $
+# $RCSfile: mod.t,v $$Revision: 1.1.1.1 $$Date: 1998/09/09 06:59:59 $
 
 print "1..12\n";
 

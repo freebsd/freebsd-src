@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_aout.c,v 1.9 1998/10/09 23:15:39 peter Exp $
+ *	$Id: load_aout.c,v 1.10 1998/10/12 09:05:12 peter Exp $
  */
 
 #include <sys/param.h>

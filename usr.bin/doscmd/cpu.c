@@ -1,7 +1,7 @@
 /*
 ** No copyright ?!
 **
-** $Id: cpu.c,v 1.5 1996/09/25 11:05:54 miff Exp $
+** $Id: cpu.c,v 1.1 1997/08/09 01:42:36 dyson Exp $
 */
 #include "doscmd.h"
 

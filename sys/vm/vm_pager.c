@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.37 1998/03/16 01:56:01 dyson Exp $
+ * $Id: vm_pager.c,v 1.38 1998/10/13 08:24:44 dg Exp $
  */
 
 /*

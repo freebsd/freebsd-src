@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ns_print.c,v 8.4 1998/02/13 01:16:37 halley Exp $";
+static char rcsid[] = "$Id: ns_print.c,v 1.1 1998/06/11 09:02:41 peter Exp $";
 #endif
 
 /* Import. */

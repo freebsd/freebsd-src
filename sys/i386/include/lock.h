@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lock.h,v 1.5 1997/12/15 02:18:27 tegge Exp $
+ *	$Id: lock.h,v 1.6 1998/04/06 11:38:17 phk Exp $
  */
 
 

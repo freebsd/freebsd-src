@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.h,v 1.11 1998/08/04 06:22:49 grog Exp grog $
+ * $Id: vinumstate.h,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 /* This file gets read by makestatetext to create text files

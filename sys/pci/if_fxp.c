@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.56 1998/10/10 19:26:40 dg Exp $
+ *	$Id: if_fxp.c,v 1.57 1998/10/11 06:28:54 dg Exp $
  */
 
 /*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.45 1998/08/24 02:28:15 bde Exp $
+ * $Id: if_lnc.c,v 1.46 1998/09/17 13:09:16 jkh Exp $
  */
 
 /*

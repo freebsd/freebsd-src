@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.5 1998/07/22 08:35:48 dfr Exp $
+ *	$Id: bus.h,v 1.6 1998/07/31 09:18:52 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_

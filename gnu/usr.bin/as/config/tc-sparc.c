@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: tc-sparc.c,v 1.7 1997/02/22 15:44:24 peter Exp $";
 #endif
 
 #define cypress 1234

@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id: bootpd.c,v 1.7 1997/05/11 14:27:03 phk Exp $
+	$Id: bootpd.c,v 1.8 1998/06/03 20:01:28 joerg Exp $
 
 ************************************************************************/
 

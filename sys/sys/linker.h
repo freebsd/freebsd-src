@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.8 1998/10/09 23:07:27 peter Exp $
+ *	$Id: linker.h,v 1.9 1998/10/16 03:55:01 peter Exp $
  */
 
 #ifndef _SYS_LINKER_H_

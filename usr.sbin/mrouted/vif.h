@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id$
+ * $Id: vif.h,v 1.8 1997/02/22 16:07:09 peter Exp $
  */
 
 /*

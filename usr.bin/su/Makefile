@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.20 1998/09/02 14:46:20 bde Exp $
+#	$Id: Makefile,v 1.21 1998/09/19 22:42:05 obrien Exp $
 
 PROG=	su
 SRCS=	su.c

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.9 1998/03/07 09:47:49 bde Exp $
 
 PROG=	crontab
 CFLAGS+=-I${.CURDIR}/../cron

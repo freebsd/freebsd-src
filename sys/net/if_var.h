@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if_var.h,v 1.8 1998/06/07 17:12:06 dfr Exp $
+ *	$Id: if_var.h,v 1.9 1998/06/12 03:48:09 julian Exp $
  */
 
 #ifndef	_NET_IF_VAR_H_

@@ -1,4 +1,4 @@
-/* $Id: ispreg.h,v 1.6 1998/09/08 01:09:46 mjacob Exp $ */
+/* $Id: ispreg.h,v 1.2 1998/09/15 08:42:56 gibbs Exp $ */
 /*
  * Machine Independent (well, as best as possible) register
  * definitions for Qlogic ISP SCSI adapters.

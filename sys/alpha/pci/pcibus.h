@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pcibus.h,v 1.1 1998/06/10 10:55:38 dfr Exp $
  */
 
 typedef int alpha_pci_maxdevs_t(pcicfgregs*);

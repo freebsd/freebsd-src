@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.16 1998/09/25 17:43:57 wpaul Exp wpaul $
+ *	$Id: if_xlreg.h,v 1.6 1998/10/09 03:59:24 wpaul Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */

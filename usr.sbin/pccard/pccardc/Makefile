@@ -1,7 +1,7 @@
 #
 #	pccardc Makefile
 #
-#	$Id: Makefile,v 1.6 1997/02/22 16:08:35 peter Exp $
+#	$Id: Makefile,v 1.7 1998/02/26 14:36:00 hosokawa Exp $
 #
 PROG=	pccardc
 NOMAN=	noman

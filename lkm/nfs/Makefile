@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.10 1998/07/07 02:27:09 bde Exp $
 
 .PATH: ${.CURDIR}/../../sys/nfs
 KMOD=	nfs_mod

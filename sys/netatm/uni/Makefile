@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $Id: Makefile,v 1.6 1998/08/26 23:29:17 mks Exp $
+#	@(#) $Id: Makefile,v 1.1 1998/09/15 08:23:04 phk Exp $
 #
 #
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.61 1998/07/20 13:21:56 dfr Exp $
+ *	$Id: if.c,v 1.62 1998/08/12 22:51:59 wpaul Exp $
  */
 
 #include "opt_compat.h"

@@ -37,7 +37,7 @@
 
 #ifndef lint
 /* from: static char sccsid[] = "@(#)des_crypt.c	2.2 88/08/10 4.0 RPCSRC; from 1.13 88/02/08 SMI"; */
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: des_crypt.c,v 1.2 1997/05/28 05:05:11 wpaul Exp $";
 #endif
 
 static int common_crypt	__P(( char *, char *, register unsigned, unsigned, struct desparams * ));

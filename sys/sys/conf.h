@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.44 1998/08/20 06:10:42 bde Exp $
+ * $Id: conf.h,v 1.45 1998/09/05 14:13:12 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_

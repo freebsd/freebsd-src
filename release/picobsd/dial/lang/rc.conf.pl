@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.conf.pl,v 1.3 1998/08/10 19:07:53 abial Exp $
+# $Id: rc.conf.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 ###  Network configuration sub-section  ######################
 ### Basic network options: ###
 hostname="pico.mydomain.org.pl"	# Set this!

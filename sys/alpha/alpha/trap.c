@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.4 1998/07/05 12:24:17 dfr Exp $ */
+/* $Id: trap.c,v 1.5 1998/07/15 20:16:27 dfr Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*

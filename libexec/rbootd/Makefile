@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.7 1997/02/22 14:21:57 peter Exp $
+#	$Id: Makefile,v 1.8 1997/06/29 18:59:59 steve Exp $
 
 PROG=	rbootd
 SRCS=	bpf.c conf.c parseconf.c rbootd.c rmpproto.c utils.c

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: immio.c,v 1.2 1998/09/20 14:41:54 nsouch Exp $
+ *	$Id: immio.c,v 1.3 1998/10/02 20:44:58 nsouch Exp $
  *
  */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- *	$Id: socketvar.h,v 1.28 1998/06/07 17:13:03 dfr Exp $
+ *	$Id: socketvar.h,v 1.29 1998/08/23 03:07:17 wollman Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_

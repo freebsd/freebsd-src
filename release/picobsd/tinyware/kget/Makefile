@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
+#	$Id: Makefile,v 1.2 1998/09/19 21:40:38 abial Exp $
 #
 PROG=kget
 CFLAGS+= -I/usr/src/sys -DUC_PRIVATE -DKERN_NO_SYMBOLS

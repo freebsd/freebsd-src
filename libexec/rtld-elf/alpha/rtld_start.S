@@ -1,4 +1,4 @@
-/*	$Id: rtld_start.S,v 1.1 1998/09/04 19:03:57 dfr Exp $	*/
+/*	$Id: rtld_start.S,v 1.2 1998/09/11 18:31:55 dfr Exp $	*/
 /*	From: NetBSD: rtld_start.S,v 1.1 1996/12/16 20:38:09 cgd Exp 	*/
 
 /*

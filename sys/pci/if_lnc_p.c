@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_lnc_p.c,v 1.5 1997/08/02 14:33:11 bde Exp $
+ *	$Id: if_lnc_p.c,v 1.6 1998/07/20 17:33:01 msmith Exp $
  */
 
 #include "pci.h"

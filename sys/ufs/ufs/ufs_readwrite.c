@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.52 1998/09/07 11:50:19 bde Exp $
+ * $Id: ufs_readwrite.c,v 1.53 1998/10/07 13:59:26 luoqi Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)

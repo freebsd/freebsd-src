@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: stubs.c,v 1.10 1993/09/13 15:11:00 ezk Exp $
+ * $Id: stubs.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>

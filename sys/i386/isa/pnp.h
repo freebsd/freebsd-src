@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.h,v 1.6 1998/01/10 07:41:43 kato Exp $
+ *      $Id: pnp.h,v 1.7 1998/09/13 22:15:44 eivind Exp $
  */
 
 #ifndef _I386_ISA_PNP_H_

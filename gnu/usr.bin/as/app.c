@@ -24,7 +24,7 @@
    pair.  This needs better error-handling.  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: app.c,v 1.6 1997/02/22 15:43:23 peter Exp $";
 #endif
 
 #include <stdio.h>

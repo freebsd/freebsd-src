@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kftxxvar.h,v 1.2 1998/06/10 20:48:03 dfr Exp $
+ *	$Id: kftxxvar.h,v 1.3 1998/06/14 13:45:25 dfr Exp $
  */
 
 /*

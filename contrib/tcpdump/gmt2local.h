@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: gmt2local.h,v 1.2 97/01/23 22:31:40 leres Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/contrib/tcpdump/gmt2local.h,v 1.1.1.1 1998/09/15 19:36:21 fenner Exp $ (LBL)
  */
 #ifndef gmt2local_h
 #define gmt2local_h

@@ -23,7 +23,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: elfh.h,v 1.1.1.1 1998/09/12 06:49:48 rnordier Exp $
  */
 
 #include <elf.h>

@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $Id: dev2c.sh,v 1.3 1997/02/22 14:11:20 peter Exp $
 #
 # During installation, we suffer badly of we have to run MAKEDEV.  MAKEDEV
 # need sh, ln, chown, mknod, awk, rm, test and probably emacs too when

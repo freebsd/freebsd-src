@@ -26,7 +26,7 @@
 #
 # killall - kill processes by name
 #
-# $Id: killall.pl,v 1.10 1998/08/30 16:54:58 wosch Exp $
+# $Id: killall.pl,v 1.11 1998/09/02 10:05:47 wosch Exp $
 
 
 $ENV{'PATH'} = '/bin:/usr/bin'; # security

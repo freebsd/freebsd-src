@@ -1,4 +1,4 @@
-;# $RCSfile: importenv.pl,v $$Revision: 4.1 $$Date: 92/08/07 18:24:02 $
+;# $RCSfile: importenv.pl,v $$Revision: 1.1.1.1 $$Date: 1998/09/09 06:59:54 $
 
 ;# This file, when interpreted, pulls the environment into normal variables.
 ;# Usage:

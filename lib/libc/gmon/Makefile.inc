@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.5 1997/10/15 16:15:29 bde Exp $
+#	$Id: Makefile.inc,v 1.6 1997/12/19 21:53:35 bde Exp $
 
 # gmon sources
 .PATH: ${.CURDIR}/../libc/gmon

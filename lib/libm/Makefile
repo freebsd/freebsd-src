@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.5 1997/02/22 15:07:03 peter Exp $
+#	$Id: Makefile,v 1.6 1998/09/05 08:35:53 jb Exp $
 #
 # ieee		- for most IEEE machines, we hope.
 # mc68881	- the, ahem, mc68881.

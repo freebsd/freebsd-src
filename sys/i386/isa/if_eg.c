@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.27 1998/03/28 13:23:56 bde Exp $
+ * $Id: if_eg.c,v 1.28 1998/06/07 17:10:27 dfr Exp $
  *
  * Support for 3Com 3c505 Etherlink+ card.
  */

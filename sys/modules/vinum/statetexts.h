@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: COPYRIGHT,v 1.1 1998/03/05 06:07:05 grog Exp grog $
+ * $Id: statetexts.h,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 /* Created by ./makestatetext on Tue 4 Aug 15:53:16 CST 1998. Do not edit */
 

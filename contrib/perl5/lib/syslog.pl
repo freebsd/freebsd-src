@@ -1,7 +1,10 @@
 #
 # syslog.pl
 #
-# $Log:	syslog.pl,v $
+# $Log: syslog.pl,v $
+# Revision 1.1.1.1  1998/09/09 06:59:54  markm
+# Initial import of Perl5. The king is dead; long live the king!
+#
 # 
 # tom christiansen <tchrist@convex.com>
 # modified to use sockets by Larry Wall <lwall@jpl-devvax.jpl.nasa.gov>

@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ip_flow.c,v 1.4 1998/05/19 17:47:11 jdp Exp $
+ * $Id: ip_flow.c,v 1.5 1998/06/21 14:53:29 bde Exp $
  */
 
 #include <sys/param.h>

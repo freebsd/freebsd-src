@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: elf_machdep.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $
 /* From: NetBSD: elf_machdep.h,v 1.3 1997/04/06 08:47:24 cgd Exp */
 
 #define	ELF32_MACHDEP_ENDIANNESS	XXX	/* break compilation */

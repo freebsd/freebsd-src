@@ -16,7 +16,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: aio.h,v 1.7 1998/03/28 11:50:34 dufault Exp $
+ * $Id: aio.h,v 1.8 1998/04/12 03:09:43 dyson Exp $
  */
 
 #include <sys/types.h>

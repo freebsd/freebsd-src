@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: globals.c,v 1.18 1997/02/22 14:11:43 peter Exp $
+ * $Id: globals.c,v 1.19 1997/04/20 16:46:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

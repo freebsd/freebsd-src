@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.73 1998/07/06 06:29:03 imp Exp $
+ *	$Id: apm.c,v 1.74 1998/09/28 03:41:12 jlemon Exp $
  */
 
 #include "opt_devfs.h"

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.3 1998/10/02 21:20:21 ken Exp $
+ *      $Id: scsi_ch.c,v 1.4 1998/10/15 17:46:26 ken Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.

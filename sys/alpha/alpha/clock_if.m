@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id$
+#	$Id: clock_if.m,v 1.1 1998/06/14 13:52:33 dfr Exp $
 #
 
 #include <machine/clockvar.h>

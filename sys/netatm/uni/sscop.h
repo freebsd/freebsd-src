@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop.h,v 1.4 1998/08/26 23:29:19 mks Exp $
+ *	@(#) $Id: sscop.h,v 1.1 1998/09/15 08:23:07 phk Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-/* $Id: param.h,v 1.6 1998/07/30 08:12:14 dfr Exp $ */
+/* $Id: param.h,v 1.7 1998/09/09 01:21:25 jdp Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*

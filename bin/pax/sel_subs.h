@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sel_subs.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: sel_subs.h,v 1.4 1997/02/22 14:04:42 peter Exp $
  */
 
 /*

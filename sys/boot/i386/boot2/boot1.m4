@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id:$
+#	$Id: boot1.m4,v 1.1.1.1 1998/10/12 21:16:26 rnordier Exp $
 
 define(_al,0x0)dnl
 define(_cl,0x1)dnl

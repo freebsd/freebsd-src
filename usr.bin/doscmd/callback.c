@@ -1,6 +1,6 @@
 /* No copyright?!
 **
-** $Id: callback.c,v 1.3 1996/09/24 00:02:25 miff Exp $
+** $Id: callback.c,v 1.1 1997/08/09 01:42:34 dyson Exp $
 */
 
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: demo.c,v 1.16 1997/08/17 20:46:55 sos Exp sos $
+ *  $Id: demo.c,v 1.1 1997/10/16 07:29:26 sos Exp $
  */
 
 #include <sys/types.h>

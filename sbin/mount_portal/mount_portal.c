@@ -45,7 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)mount_portal.c	8.6 (Berkeley) 4/26/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_portal.c,v 1.13 1998/07/06 07:19:25 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

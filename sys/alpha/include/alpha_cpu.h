@@ -1,4 +1,4 @@
-/* $Id: alpha_cpu.h,v 1.2 1998/06/10 10:54:21 dfr Exp $ */
+/* $Id: alpha_cpu.h,v 1.3 1998/06/14 13:45:10 dfr Exp $ */
 /* From: NetBSD: alpha_cpu.h,v 1.15 1997/09/20 19:02:34 mjacob Exp */
 
 /*

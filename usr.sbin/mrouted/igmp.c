@@ -9,7 +9,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: igmp.c,v 1.14 1998/01/16 07:17:41 charnier Exp $";
 #endif /* not lint */
 
 #include "defs.h"

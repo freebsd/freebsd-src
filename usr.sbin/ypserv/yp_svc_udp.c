@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yp_svc_udp.c,v 1.4 1997/10/29 07:25:04 charnier Exp $";
 #endif /* not lint */
 
 #include <rpc/rpc.h>

@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.23 1998/09/28 00:52:53 jkh Exp $
+# $Id: Makefile,v 1.24 1998/10/02 11:23:46 jkh Exp $
 
 LIB=    dialog
 MAN3=	dialog.3

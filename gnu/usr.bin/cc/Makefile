@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.9 1997/02/22 15:44:47 peter Exp $
 #
 
 # The order of some of these are rather important.  Some depend on previous

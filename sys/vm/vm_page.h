@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.45 1998/09/01 17:12:19 wollman Exp $
+ * $Id: vm_page.h,v 1.46 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*

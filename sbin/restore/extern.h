@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 1/7/94
- *	$Id$
+ *	$Id: extern.h,v 1.4 1998/07/28 06:20:07 charnier Exp $
  */
 
 struct entry	*addentry __P((char *, ino_t, int));

@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)tutorial.ms	8.1 (Berkeley) 8/18/93
-.\"	$Id: tutorial.ms,v 1.6 1997/02/22 19:27:31 peter Exp $
+.\"	$Id: tutorial.ms,v 1.7 1997/11/23 02:02:39 jraynard Exp $
 .\"
 .EH 'PSD:12-%''PMake \*- A Tutorial'
 .OH 'PMake \*- A Tutorial''PSD:12-%'

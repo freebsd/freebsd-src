@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1998/09/20 00:46:24 abial Exp $
+# $Id: Makefile,v 1.4 1998/09/22 15:41:05 abial Exp $
 #
 
 DESTDIR?=/mnt

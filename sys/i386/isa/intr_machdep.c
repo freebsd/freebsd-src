@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.13 1998/06/18 16:08:46 bde Exp $
+ *	$Id: intr_machdep.c,v 1.14 1998/09/06 22:41:41 tegge Exp $
  */
 
 #include "opt_auto_eoi.h"

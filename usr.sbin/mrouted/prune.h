@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id$
+ * $Id: prune.h,v 1.8 1997/02/22 16:07:04 peter Exp $
  */
 
 /*

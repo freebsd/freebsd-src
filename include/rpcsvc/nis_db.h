@@ -26,7 +26,7 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  *
- *	$Id$
+ *	$Id: nis_db.h,v 1.4 1998/01/16 12:39:20 bde Exp $
  */
 
 /*

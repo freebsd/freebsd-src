@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id: procfs.h,v 1.19 1998/05/19 00:00:13 tegge Exp $
+ *	$Id: procfs.h,v 1.20 1998/07/07 04:08:44 bde Exp $
  */
 
 /*

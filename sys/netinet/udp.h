@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: udp.h,v 1.6 1997/02/22 09:41:44 peter Exp $
  */
 
 #ifndef _NETINET_UDP_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.4 1998/08/17 08:05:55 dfr Exp $
+ *      $Id: elf.h,v 1.5 1998/09/14 20:30:08 jdp Exp $
  */
 
 #ifndef _MACHINE_ELF_H_

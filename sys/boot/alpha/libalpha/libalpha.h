@@ -1,4 +1,4 @@
-/* $Id: libalpha.h,v 1.3 1998/09/20 21:46:19 dfr Exp $ */
+/* $Id: libalpha.h,v 1.4 1998/09/26 10:51:37 dfr Exp $ */
 
 /*
  * Copyright (c) 1996

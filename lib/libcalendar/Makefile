@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/12/04 10:41:49 helbig Exp $
+#	$Id: Makefile,v 1.2 1997/12/07 19:04:05 helbig Exp $
 
 LIB=	calendar
 

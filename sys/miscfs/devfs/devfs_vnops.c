@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.60 1998/09/04 08:06:56 dfr Exp $
+ *	$Id: devfs_vnops.c,v 1.61 1998/09/30 20:33:46 sos Exp $
  */
 
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.50 1997/12/12 04:00:58 dyson Exp $
+ * $Id: kern_fork.c,v 1.51 1998/01/22 17:29:46 dyson Exp $
  */
 
 #include "opt_ktrace.h"

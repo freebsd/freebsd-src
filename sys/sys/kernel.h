@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.42 1998/10/09 23:03:27 peter Exp $
+ * $Id: kernel.h,v 1.43 1998/10/16 03:55:01 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_

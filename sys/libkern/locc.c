@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)locc.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: locc.c,v 1.5 1997/02/22 09:39:54 peter Exp $
  */
 
 #include <sys/libkern.h>

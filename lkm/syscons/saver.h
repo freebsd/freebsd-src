@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: saver.h,v 1.11 1998/09/15 18:16:38 sos Exp $
+ *	$Id: saver.h,v 1.12 1998/09/17 19:40:29 sos Exp $
  */
 #include <machine/apm_bios.h>
 #include <machine/console.h>

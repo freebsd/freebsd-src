@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1998/06/11 03:51:34 jb Exp $
+#	$Id: Makefile,v 1.6 1998/09/11 18:49:30 wollman Exp $
 
 PROG=	chkprintcap
 MAN8=	chkprintcap.8

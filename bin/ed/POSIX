@@ -1,4 +1,4 @@
-$Id$
+$Id: POSIX,v 1.6 1997/02/22 14:03:09 peter Exp $
 
 This version of ed(1) is not strictly POSIX compliant, as described in
 the POSIX 1003.2 document.  The following is a summary of the omissions,

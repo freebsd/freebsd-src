@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.3 1998/10/06 04:16:07 ken Exp $
+ *	$Id: subr_devstat.c,v 1.4 1998/10/14 20:44:05 ken Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/objformat/Makefile,v 1.11 1998/10/15 00:19:08 peter Exp $
 
 PROG=		objformat
 NOMAN=		not yet

@@ -1,4 +1,4 @@
-# $Id: Makefile.inc,v 1.4 1998/07/31 09:09:19 phk Exp $
+# $Id: Makefile.inc,v 1.5 1998/09/07 19:01:43 alex Exp $
 
 # POSIX thread man files
 

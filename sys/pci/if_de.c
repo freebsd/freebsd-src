@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.88 1998/10/13 09:05:57 peter Exp $ */
+/*	$Id: if_de.c,v 1.89 1998/10/14 08:31:26 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)

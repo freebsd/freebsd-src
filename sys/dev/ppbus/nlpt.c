@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.9 1998/08/03 19:14:31 msmith Exp $
+ *	$Id: nlpt.c,v 1.10 1998/09/20 14:41:54 nsouch Exp $
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)err.h	8.1 (Berkeley) 6/2/93
- *	$Id$
+ *	$Id: err.h,v 1.5 1998/09/12 21:02:15 wollman Exp $
  */
 
 #ifndef _ERR_H_

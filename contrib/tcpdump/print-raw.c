@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-raw.c,v 1.22 96/12/10 23:18:58 leres Locked $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/contrib/tcpdump/print-raw.c,v 1.1.1.1 1998/09/15 19:36:30 fenner Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

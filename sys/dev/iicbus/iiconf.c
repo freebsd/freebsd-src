@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.c,v 1.1.1.11 1998/08/29 17:02:05 son Exp $
+ *	$Id: iiconf.c,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
  *
  */
 #include <sys/param.h>

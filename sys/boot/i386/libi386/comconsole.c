@@ -24,7 +24,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: comconsole.c,v 1.3 1998/10/02 16:32:45 msmith Exp $
+ *	$Id: comconsole.c,v 1.4 1998/10/11 10:05:13 peter Exp $
  */
 
 #include <stand.h>

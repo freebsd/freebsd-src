@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1997/12/17 15:11:42 bde Exp $
+#	$Id: Makefile,v 1.7 1998/03/07 09:49:03 bde Exp $
 
 PROG=	map-mbone
 

@@ -1,7 +1,7 @@
 #!./perl
 
 
-# $RCSfile$
+# $RCSfile: inc.t,v $
 
 print "1..6\n";
 

@@ -1,4 +1,4 @@
-/* $Id: types.h,v 1.7 1998/07/10 02:34:50 bde Exp $ */
+/* $Id: types.h,v 1.8 1998/07/14 05:09:42 bde Exp $ */
 /* From: NetBSD: types.h,v 1.8 1997/04/06 08:47:45 cgd Exp */
 
 /*-

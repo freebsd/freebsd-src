@@ -30,7 +30,7 @@
 
 /* dpt_sig.c:  Dunp a DPT Signature */
 
-#ident "$Id: dpt_sig.c,v 1.1 1998/01/26 06:20:45 julian Exp $"
+#ident "$Id: dpt_sig.c,v 1.2 1998/08/06 21:19:10 eivind Exp $"
 
 #include <fcntl.h>
 #include <stdio.h>

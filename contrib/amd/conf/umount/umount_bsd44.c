@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: umount_bsd44.c,v 5.2.2.2 1993/01/27 07:32:45 jsp Exp $
+ * $Id: umount_bsd44.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 

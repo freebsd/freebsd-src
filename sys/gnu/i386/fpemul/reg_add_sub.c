@@ -55,7 +55,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_add_sub.c,v 1.6 1997/02/22 09:29:20 peter Exp $
+ *     $Id: reg_add_sub.c,v 1.7 1997/06/14 15:11:05 bde Exp $
  *
  */
 

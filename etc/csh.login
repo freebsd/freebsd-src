@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: csh.login,v 1.18 1998/09/02 01:34:55 brian Exp $
 #
 # System-wide .login file for csh(1).
 # Uncomment this to give you the default 4.2 behavior, where disk 

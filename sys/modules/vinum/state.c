@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: state.c,v 2.6 1998/08/19 08:04:47 grog Exp grog $
+ * $Id: state.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
 
 #define REALLYKERNEL

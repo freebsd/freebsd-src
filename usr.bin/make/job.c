@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: job.c,v 1.9 1998/06/04 05:48:57 bde Exp $
+ *	$Id: job.c,v 1.10 1998/08/24 10:15:53 cracauer Exp $
  */
 
 #ifndef lint

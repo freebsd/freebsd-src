@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.28 1998/08/23 03:07:17 wollman Exp $
+ * $Id: mbuf.h,v 1.29 1998/08/24 07:47:38 dfr Exp $
  */
 
 #ifndef _SYS_MBUF_H_

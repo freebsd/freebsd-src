@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.20 1998/03/08 09:58:59 julian Exp $
+ * $Id: ffs_subr.c,v 1.21 1998/03/28 10:33:26 bde Exp $
  */
 
 #include <sys/param.h>
