@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.9 1994/02/07 15:46:22 davidg Exp $
+ *	$Id: mcd.c,v 1.10 1994/02/22 08:44:28 rgrimes Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -98,6 +98,8 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #define MCDDSKCHNG	MCD_ST_DSKCHNG		/* sensed change of disk */
 #define MCDDSKIN	MCD_ST_DSKIN		/* sensed disk in drive */
 #define MCDDOOROPEN	MCD_ST_DOOROPEN		/* sensed door open */
+
+#define MCDEXISTS	0x0030			/* A real Mitsumi drive */
 
 /* toc */
 #define MCD_MAXTOCS	104	/* from the Linux driver */
@@ -602,7 +604,8 @@ mcd_probe(struct isa_device *dev)
 		return 0;	/* Timeout */
 	}
 	status = inb(port+MCD_DATA);
-
+	if (status != MCDEXISTS)
+		return 0;	/* Not actually a Mitsumi drive here */
 	/* Get version information */
 	outb(port+MCD_DATA, MCD_CMDCONTINFO);
 	for (j = 0; j < 3; j++) {
