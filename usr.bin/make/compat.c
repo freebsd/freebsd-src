@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: compat.c,v 1.8 1997/02/22 19:27:07 peter Exp $
+ *	$Id: compat.c,v 1.9 1998/05/12 11:54:12 wosch Exp $
  */
 
 #ifndef lint
@@ -149,12 +149,12 @@ static int
 shellneed (cmd)
 	char *cmd;
 {
-	char **av, *p;
+	char **av, **p;
 	int ac;
 
 	av = brk_string(cmd, &ac, TRUE);
-	for(p = *sh_builtin; p != 0; p++)
-		if (strcmp(av[1], p) == 0)
+	for(p = sh_builtin; *p != 0; p++)
+		if (strcmp(av[1], *p) == 0)
 			return (1);
 	return (0);
 }
