@@ -77,7 +77,7 @@ static char *Bread(int dosdev, int sector);
 int
 devopen(void)
 {
-	struct dos_partition *dptr;
+	struct pc98_partition *dptr;
 	struct disklabel *dl;
 	char *p;
 	int i, sector = 0, di, dosdev_copy;
@@ -99,7 +99,7 @@ devopen(void)
 #else	/* EMBEDDED_DISKLABEL */
 #ifdef PC98
 		p = Bread(dosdev_copy, 1);
-		dptr = (struct dos_partition *)p;
+		dptr = (struct pc98_partition *)p;
 		slice = WHOLE_DISK_SLICE;
 		for (i = 0; i < NDOSPART; i++, dptr++)
 			if (dptr->dp_mid == DOSPTYP_386BSD) {

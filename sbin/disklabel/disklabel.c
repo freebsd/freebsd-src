@@ -658,7 +658,17 @@ makebootarea(char *boot, struct disklabel *dp, int f)
 	if (read(b, boot, (int)dp->d_secsize) < 0)
 		err(4, "%s", xxboot);
 	(void)close(b);
-#ifdef __i386__
+#ifdef PC98
+	for (i = DOSPARTOFF, found = 0;
+	     !found && i < (int)(DOSPARTOFF + NDOSPART * sizeof(struct pc98_partition));
+	     i++)
+		found = tmpbuf[i] != 0;
+	if (found)
+		memcpy((void *)&boot[DOSPARTOFF],
+		       (void *)&tmpbuf[DOSPARTOFF],
+		       NDOSPART * sizeof(struct pc98_partition));
+	free(tmpbuf);
+#elif defined(__i386__)
 	for (i = DOSPARTOFF, found = 0;
 	     !found && i < (int)(DOSPARTOFF + NDOSPART*sizeof(struct dos_partition));
 	     i++)

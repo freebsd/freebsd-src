@@ -55,7 +55,7 @@
 #define PC98_CLASS_NAME "PC98"
 
 static void
-g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
+g_dec_pc98_partition(u_char *ptr, struct pc98_partition *d)
 {
 	u_int u;
 
@@ -83,7 +83,7 @@ struct g_pc98_softc {
 };
 
 static void
-g_pc98_print(int i, struct dos_partition *dp)
+g_pc98_print(int i, struct pc98_partition *dp)
 {
 	char sname[17];
 
@@ -103,7 +103,7 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
 {
 	int i, error;
 	off_t s[NDOSPART], l[NDOSPART];
-	struct dos_partition dp[NDOSPART];
+	struct pc98_partition dp[NDOSPART];
 
 	g_topology_assert();
 	
@@ -120,8 +120,8 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
 #endif
 
 	for (i = 0; i < NDOSPART; i++)
-		g_dec_dos_partition(
-			sec + 512 + i * sizeof(struct dos_partition), &dp[i]);
+		g_dec_pc98_partition(
+			sec + 512 + i * sizeof(struct pc98_partition), &dp[i]);
 
 	for (i = 0; i < NDOSPART; i++) {
 		/* If start and end are identical it's bogus */
@@ -255,16 +255,16 @@ g_pc98_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 {
 	struct g_pc98_softc *mp;
 	struct g_slicer *gsp;
-	struct dos_partition dp;
+	struct pc98_partition dp;
 	char sname[17];
 
 	gsp = gp->softc;
 	mp = gsp->softc;
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
 	if (pp != NULL) {
-		g_dec_dos_partition(
+		g_dec_pc98_partition(
 			mp->sec + 512 +
-			pp->index * sizeof(struct dos_partition), &dp);
+			pp->index * sizeof(struct pc98_partition), &dp);
 		strncpy(sname, dp.dp_name, 16);
 		sname[16] = '\0';
 		if (indent == NULL) {

@@ -44,7 +44,7 @@
 #define	NDOSPART	16
 #define	DOSPTYP_386BSD	0x94	/* 386BSD partition type */
 
-struct dos_partition {
+struct pc98_partition {
     	unsigned char	dp_mid;
 #define	DOSMID_386BSD		(0x14|0x80) /* 386bsd|bootable */
 	unsigned char	dp_sid;
@@ -63,7 +63,7 @@ struct dos_partition {
 	unsigned char	dp_name[16];
 };
 #ifdef CTASSERT
-CTASSERT(sizeof (struct dos_partition) == 32);
+CTASSERT(sizeof (struct pc98_partition) == 32);
 #endif
 
 #define DIOCGPC98	_IOR('M', 128, u_char[8192])
