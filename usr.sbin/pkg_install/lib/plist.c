@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.10 1994/12/06 00:51:50 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.11 1995/04/22 00:14:20 jkh Exp $";
 #endif
 
 /*
@@ -94,6 +94,20 @@ find_plist(Package *pkg, plist_t type)
     return NULL;
 }
  
+/* Look for a specific boolean option argument in the list */
+char *
+find_plist_option(Package *pkg, char *name)
+{
+    PackingList p = pkg->head;
+
+    while (p) {
+	if (p->type == PLIST_OPTION && !strcmp(p->name, name))
+	    return p->name;
+	p = p->next;
+    }
+    return NULL;
+}
+
 /*
  * Delete plist item 'type' in the list (if 'name' is non-null, match it
  * too.)  If 'all' is set, delete all items, not just the first occurance.
@@ -210,6 +224,8 @@ plist_cmd(char *s, char **arg)
 	return PLIST_MTREE;
     else if (!strcmp(cmd, "dirrm"))
 	return PLIST_DIR_RM;
+    else if (!strcmp(cmd, "option"))
+	return PLIST_OPTION;
     else
 	return FAIL;
 }
@@ -314,6 +330,10 @@ write_plist(Package *pkg, FILE *fp)
 	    fprintf(fp, "%cdirrm %s\n", CMD_CHAR, plist->name);
 	    break;
 
+	case PLIST_OPTION:
+	    fprintf(fp, "%coption %s\n", CMD_CHAR, plist->name);
+	    break;
+
 	default:
 	    barf("Unknown command type %d (%s)\n", plist->type, plist->name);
 	    break;
@@ -322,7 +342,12 @@ write_plist(Package *pkg, FILE *fp)
     }
 }
 
-/* Delete the results of a package installation, not the packaging itself */
+/*
+ * Delete the results of a package installation.
+ *
+ * This is here rather than in the pkg_delete code because pkg_add needs to
+ * run it too in cases of failure.
+ */
 int
 delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 {
@@ -334,16 +359,16 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	if (p->type == PLIST_CWD) {
 	    Where = p->name;
 	    if (Verbose)
-		printf("(CWD to %s)\n", Where);
+		printf("Change working directory to %s\n", CMD_CHAR, Where);
 	}
 	else if (p->type == PLIST_UNEXEC) {
 	    char cmd[FILENAME_MAX];
 
 	    format_cmd(cmd, p->name, Where, last_file);
 	    if (Verbose)
-		printf("unexec command: %s\n", cmd);
+		printf("Execute `%s'\n", cmd);
 	    if (!Fake && system(cmd)) {
-		whinge("unexec '%s' failed.", cmd);
+		whinge("unexec command for `%s' failed.", cmd);
 		fail = FAIL;
 	    }
 	}
@@ -354,7 +379,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 
 	    sprintf(full_name, "%s/%s", Where, p->name);
 	    if (Verbose)
-		printf("Delete%s: %s\n",
+		printf("Delete%s %s\n",
 		       p->type == PLIST_FILE ? "" : " directory", full_name);
 	    
 	    if (!Fake && delete_hierarchy(full_name, ign_err,
@@ -386,7 +411,7 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
     cp1 = cp2 = dir;
     if (!fexists(dir)) {
 	if (!ign_err)
-	    whinge("%s '%s' doesn't really exist.",
+	    whinge("%s `%s' doesn't really exist.",
 		   isdir(dir) ? "Directory" : "File", dir);
     } else if (nukedirs) {
 	if (vsystem("%s -r%s %s", REMOVE_CMD, (ign_err ? "f" : ""), dir))
@@ -408,7 +433,7 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
 	    return 0;
 	if (RMDIR(dir) && !ign_err)
 	    if (!fexists(dir))
-		whinge("Directory '%s' doesn't really exist.", dir);
+		whinge("Directory `%s' doesn't really exist.", dir);
 	    else
 		return 1;
 	/* back up the pathname one component */
