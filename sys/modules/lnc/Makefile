@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .PATH:	${.CURDIR}/../../dev/lnc
-KMOD	= lnc
+KMOD	= if_lnc
 SRCS	= if_lnc.c if_lnc_pci.c if_lnc_isa.c if_lnc_pc98.c
 SRCS	+= opt_inet.h device_if.h bus_if.h isa_if.h pci_if.h
 #SRCS	+= miibus_if.h
