@@ -6,11 +6,13 @@ LIBS=	\
 	libc.so.4 \
 	libc_r.so.4 \
 	libcrypto.so.1 \
+	libcrypto.so.2 \
 	libedit.so.3 \
 	libfetch.so.2 \
 	libpam.so.1 \
 	libperl.so.3 \
 	libssl.so.1 \
+	libssl.so.2 \
 	libstdc++.so.3 \
 	libusb.so.0 \
 	pam_cleartext_pass_ok.so \
