@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 SUBDIR=	async bpf cisco echo frame_relay hole iface ksocket lmi netgraph \
-	ppp pppoe rfc1490 socket tee tty UI vjc
+	ppp pppoe pptpgre rfc1490 socket tee tty UI vjc
 
 .include <bsd.subdir.mk>
