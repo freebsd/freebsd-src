@@ -255,6 +255,10 @@ int eflags;
 	for (;;) {
 		endp = fast(m, start, stop, gf, gl);
 		if (endp == NULL) {		/* a miss */
+			if (m->pmatch != NULL)
+				free((char *)m->pmatch);
+			if (m->lastpos != NULL)
+				free((char *)m->lastpos);
 			STATETEARDOWN(m);
 			return(REG_NOMATCH);
 		}
