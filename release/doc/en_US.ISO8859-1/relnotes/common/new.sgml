@@ -119,6 +119,13 @@
         &man.atkbd.4; registers an AT keyboard during console initialization
         has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
         is no longer needed when only a USB keyboard is connected.</para>
+
+      <para arch="i386">The &man.safe.4; driver has been added
+        to support SafeNet 1141, 1741-based crypto accelerators.
+
+        <note>
+          <para>The public key support is not implemented.</para>
+        </note></para>
     </sect3>
 
     <sect3 id="boot">
@@ -133,7 +140,7 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
-      <para></para>
+      <para>&man.bge.4; now supports Broadcom 5705 based Gigabit Ethernet NICs.</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
@@ -157,6 +164,10 @@
         by <command>ipfw flush</command> command.
         So this implements a flexible form of <quote>persistent
           rules</quote>.  More details can be found in &man.ipfw.8;.</para>
+
+      <para>The proatm driver has been added to
+        support IDT77252 based ATM interfaces.</para>
+
     </sect3>
 
     <sect3 id="disks">
