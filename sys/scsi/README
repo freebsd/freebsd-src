@@ -13,8 +13,13 @@ scsi/scsi_all.h
 scsi/scsi_disk.h
 scsi/sd.c
 
+sys/mtio.h (modified)
 scsi/scsi_tape.h
 scsi/st.c
+
+sys/sgio.h
+scsi/scsi_generic.h
+scsi/sg.c /* port not complete */
 
 sys/chio.h
 scsi/scsi_changer.h
@@ -52,15 +57,16 @@ AEG Character recognition devices *
 Calera Character recognition devices *
 Kodak IL900 scanner *
 Exabyte tape changer device.
+GENERIC SCSI DEVICES (user generated scsi commands) (port not complete)
 ----------------------------------------------------------------
 
 
 There are also working bottom end drivers for:
 ----------------------------------------------------------------
 adaptec 1542 (and 1742 in 1542 mode)
-bustec 742a
+bustec 742a (apparently works for VESA version)
 adaptec 174x 
-Ultrastore 14f				
+Ultrastore 14f (works for 34f (VESA version))				
 ----------------------------------------------------------------
 
 
@@ -89,6 +95,12 @@ e.g. the first tape found will become st0 (minor number 0)
 
 These devices could be on the same scsi bus or different scsi busses.
 That would not change their minor numbers.
+
+THE EXCEPTION  TO THIS IS IN THE GENERIC SCSI DRIVER. in which case
+the following mapping applies:
+
+BB LLL TTT  B= scsi bus number, T = target number, L = LUN.
+(yes I know it's strange but it's SGI compatible)
 
 It is possible to run two different TYPES of scsi adapters at the 
 same time and have st0 on one and st1 on another. (for example)
@@ -122,6 +134,7 @@ encoded into the minor number in some way, and
 this may be supported at some timein the future, using
 minor numbers greater than 128. (or maybe a different major number)
 
+
 I will also be writing (probably) a generic scsi-error
 handling routine that will be table driven, so that the routine can
 be removed from each individual driver. With enough care,
@@ -145,16 +158,17 @@ scsi-changer.h    	commands medium changer devices  --- CHAPTER 16
 
 ---------ioctl definitions-------------
 User accessable structures (e.g. ioctl definitions) have been
-placed in sys/cdio and sys/chio (based after sys/mtio for
+placed in sys/cdio, sys/sgio and sys/chio (based after sys/mtio for
 the ioctls for mag tapes (including st).
 
 -----------cd-rom-----------------
 The cd rom driver ha been tested by a number of people and
 grefen@wilbur.zdv.uni-mainz.de has completed the audio play
 functions.
-He tells me he has some Public Domain package that
-allows an control of the cd player from an Xwindow
-but I don't have it.
+(xcdplayer was available from the 'from_ref' directory on agate)
+
+At this time it is possible audio play is broken on cdroms and I will
+be unable to fix it until I get one to test.
 
 -------------media changer---------------
 Once again courtesy of grefen@wilbur.zdv.uni-mainz.de.
@@ -162,6 +176,8 @@ I have not tested this but he assures me it's ready for testing.
 If anyone has an exabyte tape changer or similar, 
 contact the author for information regarding the control interface
 and program.
+
+WARNING: This has not been tested for a LONG TIME!
 
 -----------booting from an AHA-174x---------
 For some reason I have not yet worked out,
@@ -173,3 +189,20 @@ mode during probe, so it can be left in standard mode during the boot.
 During the next reboot, the bios will place it back in standard mode
 ready for the NEXT boot.
 
+[Update: This has apparently been fixed in the newest NetBSD/FreeBSD
+releases ]
+
+
+
+---------recent changes-----------
+Removed all bitfields from machine independent sections to make
+it possible for them to be used on big-endian architectures.
+
+Removed scsi specific timeouts in favour of system timeout handling.
+
+Many structures (getting more all the time) now dynamically allocated.
+
+Addition of code in the tape driver to recognise models of drive that
+have particular problems so they can be handled specially.
+
+many bug-fixes and cleanups.

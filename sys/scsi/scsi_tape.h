@@ -16,14 +16,20 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
- *
- *	$Id$
  */
 
 /*
- * SCSI command format
+ * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
+ *
+ *	$Id: scsi_tape.h,v 1.7 93/08/26 21:09:32 julian Exp Locker: julian $
  */
+
+
+
+/*
+ * SCSI command formats
+ */
+
 
 struct scsi_rw_tape
 {
@@ -183,6 +189,7 @@ struct	blk_desc_cipher
 #define	HALFINCH_800	0x01
 #define	HALFINCH_1600	0x02
 #define	HALFINCH_6250	0x03
+#define	QIC_11		0x04	/* from Archive 150S Theory of Op. XXX	*/
 #define QIC_24		0x05	/* may be bad, works for CIPHER ST150S XXX */
 #define QIC_120		0x0f
 #define QIC_150		0x10

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id$
+ *	$Id: scsiconf.c,v 1.6 93/08/26 21:09:39 julian Exp Locker: julian $
  */
 
 #include <sys/types.h>
@@ -22,6 +22,7 @@
 #include "sd.h"
 #include "ch.h"
 #include "cd.h"
+#include "sg.h"
 
 #ifdef	MACH
 #include <i386/machparam.h>
@@ -231,12 +232,12 @@ struct	scsi_switch	*scsi_switch;
 		}
 		targ++;
 	}
-#if NGENSCSI > 0
+#if NSG > 0
 	/***************************************************************\
 	* If available hook up the generic scsi driver, letting it	*
 	* know which target is US. (i.e. illegal or at least special)	*
 	\***************************************************************/
-	genscsi_attach(unit,scsi_addr,0,scsi_switch);
+	sg_attach(unit,scsi_addr,scsi_switch);
 #endif
 	scsibus++;	/* next time we are on the NEXT scsi bus */
 }
@@ -449,7 +450,7 @@ int *maybe_more;
 		strncpy(model,"unknown",16);
 		strncpy(version,"????",4);
 	}
-	printf("%s%d targ %d lun %d: type %d(%s) %s <%s%s%s> SCSI%d\n"
+	printf("%s%d targ %d lun %d: type %d(%s) %s SCSI%d\n"
 		,scsi_switch->name
 		,unit
 		,target
@@ -457,14 +458,20 @@ int *maybe_more;
 		,type
 		,dtype
 		,remov?"removable":"fixed"
+		,inqbuf.version & SID_ANSII
+	);
+	printf("%s%d targ %d lun %d: <%s%s%s>\n"
+		,scsi_switch->name
+		,unit
+		,target
+		,lu
 		,manu
 		,model
 		,version
-		,inqbuf.version & SID_ANSII
 	);
 	if(qtype[0])
 	{
-		printf("%s%d targ %d lun %d: qulaifier %d(%s)\n"
+		printf("%s%d targ %d lun %d: qualifier %d(%s)\n"
 		,scsi_switch->name
 		,unit
 		,target
