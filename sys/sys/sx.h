@@ -60,9 +60,12 @@ void	sx_xunlock(struct sx *sx);
  */
 #define	SX_ASSERT_SLOCKED(sx) do {					\
 	mtx_lock(&(sx)->sx_lock);					\
+	_SX_ASSERT_SLOCKED((sx));					\
+	mtx_unlock(&(sx)->sx_lock);					\
+} while (0)
+#define	_SX_ASSERT_SLOCKED(sx) do {					\
 	KASSERT(((sx)->sx_cnt > 0), ("%s: lacking slock %s\n",		\
 	    __FUNCTION__, (sx)->sx_descr));				\
-	mtx_unlock(&(sx)->sx_lock);					\
 } while (0)
 
 /*
@@ -70,15 +73,20 @@ void	sx_xunlock(struct sx *sx);
  */
 #define	SX_ASSERT_XLOCKED(sx) do {					\
 	mtx_lock(&(sx)->sx_lock);					\
+	_SX_ASSERT_XLOCKED((sx));					\
+	mtx_unlock(&(sx)->sx_lock);					\
+} while (0)
+#define	_SX_ASSERT_XLOCKED(sx) do {					\
 	KASSERT(((sx)->sx_xholder == curproc),				\
 	    ("%s: thread %p lacking xlock %s\n", __FUNCTION__,		\
 	    curproc, (sx)->sx_descr));					\
-	mtx_unlock(&(sx)->sx_lock);					\
 } while (0)
 
 #else	/* INVARIANTS */
 #define	SX_ASSERT_SLOCKED(sx)
 #define	SX_ASSERT_XLOCKED(sx)
+#define	_SX_ASSERT_SLOCKED(sx)
+#define	_SX_ASSERT_XLOCKED(sx)
 #endif	/* INVARIANTS */
 
 #endif	/* _KERNEL */
