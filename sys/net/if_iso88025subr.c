@@ -350,9 +350,6 @@ iso88025_output(ifp, m, dst, rt0)
 		l->llc_snap.ether_type = htons(snap_type);
 	}
 
-	(void)memcpy((caddr_t)&gen_th.iso88025_dhost, (caddr_t)edst,
-		     ISO88025_ADDR_LEN);
-
 	/*
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
@@ -361,6 +358,7 @@ iso88025_output(ifp, m, dst, rt0)
 	if (m == 0)
 		senderr(ENOBUFS);
 	th = mtod(m, struct iso88025_header *);
+	bcopy((caddr_t)edst, (caddr_t)&gen_th.iso88025_dhost, ISO88025_ADDR_LEN);
 
 	/* Copy as much of the generic header as is needed into the mbuf */
 	memcpy(th, &gen_th, ISO88025_HDR_LEN + rif_len);
