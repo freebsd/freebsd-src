@@ -30,13 +30,14 @@
 
 #include <stdio.h>
 #include <pwd.h>
+#include <utmp.h>
 
 #include "top.local.h"
 #include "utils.h"
 
 struct hash_el {
     int  uid;
-    char name[9];
+    char name[UT_NAMESIZE + 1];
 };
 
 #define    is_empty_hash(x)	(hash_table[x].name[0] == 0)
@@ -125,7 +126,7 @@ int wecare;		/* 1 = enter it always, 0 = nice to have */
 
     /* empty or wrong slot -- fill it with new value */
     hash_table[hashindex].uid = uid;
-    (void) strncpy(hash_table[hashindex].name, name, 8);
+    (void) strncpy(hash_table[hashindex].name, name, UT_NAMESIZE);
     return(hashindex);
 }
 
