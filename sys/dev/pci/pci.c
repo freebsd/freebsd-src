@@ -176,7 +176,7 @@ are some peripherals that this causes problems with.");
 /* Find a device_t by bus/slot/function */
 
 device_t
-pci_find_bsf (u_int8_t bus, u_int8_t slot, u_int8_t func)
+pci_find_bsf(u_int8_t bus, u_int8_t slot, u_int8_t func)
 {
 	struct pci_devinfo *dinfo;
 
@@ -194,7 +194,7 @@ pci_find_bsf (u_int8_t bus, u_int8_t slot, u_int8_t func)
 /* Find a device_t by vendor/device ID */
 
 device_t
-pci_find_device (u_int16_t vendor, u_int16_t device)
+pci_find_device(u_int16_t vendor, u_int16_t device)
 {
 	struct pci_devinfo *dinfo;
 
