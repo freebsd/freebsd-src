@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.20 1995/05/26 21:37:53 jkh Exp $
+ * $Id: tcpip.c,v 1.21 1995/05/26 22:08:59 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -137,7 +137,7 @@ static Layout layout[] = {
 { NULL },
 };
 
-#define _validByte(b) ((b) > 0 && (b) < 255)
+#define _validByte(b) ((b) >= 0 && (b) < 255)
 
 /* whine */
 static void

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.2 1995/05/27 20:50:10 jkh Exp $
+ * $Id: ftp_strat.c,v 1.3 1995/05/27 21:18:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -118,113 +118,17 @@ mediaInitFTP(Device *dev)
     return TRUE;
 }
 
-static pid_t ftppid = 0;
-
 int
-mediaGetFTP(char *dist, char *path)
+mediaGetFTP(char *file)
 {
-    int 	fd;
-    char 	buf[512];
-    int		pfd[2], numchunks;
-    const char *tmp;
-    Attribs	*dist_attr;
-    
-    if (!path)
-	path = "";
-    msgNotify("Attempting to retreive `%s' over FTP", dist);
-    snprintf(buf, PATH_MAX, "/stand/info/%s%s.inf", path, dist);
-    if (!access(buf, R_OK)) {
-	msgDebug("Parsing attributes file for %s\n", dist);
-	dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	if (attr_parse(&dist_attr, buf) == 0) {
-	    msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
-	    return -1;
-	}
-   
-	msgDebug("Looking for attribute `pieces'\n");
-	tmp = attr_match(dist_attr, "pieces");
-	numchunks = atoi(tmp);
-    }
-    else
-	numchunks = 0;
-    msgDebug("Attempting to extract distribution from %u files\n", numchunks ? numchunks : 1);
-
-    /* Take the lack of an info file to mean we're a fully qualified name */
-    if (!numchunks) {
-	sprintf(buf, "%s%s", path, dist);
-	return(FtpGet(ftp, buf));
-    }
-    else if (numchunks == 1) {
-	snprintf(buf, 512, "%s%s.aa", path, dist);
-	return(FtpGet(ftp, buf));
-    }
-
-    /* reap the previous child corpse - yuck! */
-    if (ftppid) {
-	int i, j;
-
-	i = waitpid(ftppid, &j, 0);
-	if (i < 0 || WEXITSTATUS(j)) {
-	    msgConfirm("Previous FTP transaction returned status code %d - aborting\ntransfer.", WEXITSTATUS(j));
-	    ftppid = 0;
-	    return -1;
-	}
-	ftppid = 0;
-    }
-    pipe(pfd);
-    ftppid = fork();
-    if (!ftppid) {
-	int		chunk;
-	int		retval;
-	Boolean		needEOF = FALSE;
-
-	dup2(pfd[1], 1); close(pfd[1]);
-	close(pfd[0]);
-	
-	for (chunk = 0; chunk < numchunks; chunk++) {
-	    char buffer[10240];
-	    int n;
-
-	    if (needEOF) {
-		FtpEOF(ftp);
-		needEOF = FALSE;
-	    }
-	    snprintf(buf, 512, "%s%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
-	    fd = FtpGet(ftp, buf);
-
-	    if (fd < 0)
-	    {
-		msgConfirm("FtpGet failed to retreive piece `%s' in the %s distribution!\nAborting the transfer", chunk, dist);
-		exit(1);
-	    }
-	    else
-		needEOF = TRUE;
-	    while ((n = read(fd, buffer, 10240)) > 0)
-	    {
-		retval = write(1, buffer, n);
-		if (retval != n)
-		{
-		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
-		    exit(1);
-		}
-		
-	    }
-	    close(fd);
-	}
-	close(1);
-	msgDebug("Extract of %s finished with success!!!\n", dist);
-	exit(0);
-    }
-    close(pfd[1]);
-    return(pfd[0]);
+    return(FtpGet(ftp, file));
 }
 
 Boolean
 mediaCloseFTP(Device *dev, int fd)
 {
     FtpEOF(ftp);
-    close(fd);
-    return TRUE;
+    return (TRUE);
 }
 
 void
@@ -239,16 +143,7 @@ mediaShutdownFTP(Device *dev)
 	FtpClose(ftp);
 	ftp = NULL;
     }
-    if (ftppid) {
-	int i, j;
-
-	i = waitpid(ftppid, &j, 0);
-	if (i < 0 || WEXITSTATUS(j))
-	    msgConfirm("Warning: Last FTP transaction returned status code %d.", WEXITSTATUS(j));
-	ftppid = 0;
-    }
     if (netdev->shutdown)
 	(*netdev->shutdown)(netdev);
     ftpInitted = FALSE;
 }
-

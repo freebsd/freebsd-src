@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.18 1995/05/26 20:30:58 jkh Exp $
+ * $Id: media.c,v 1.19 1995/05/27 10:47:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -432,6 +432,80 @@ mediaSetFS(char *str)
 }
 
 Boolean
+mediaExtractDistBegin(char *distname, char *dir, int *fd, int *zpid, int *cpid)
+{
+    int i, pfd[2],qfd[2];
+
+    if (!dir)
+	dir = "/";
+    msgWeHaveOutput("Extracting %s into %s directory..", distname, dir);
+
+    Mkdir(dir, NULL);
+    chdir(dir);
+    pipe(pfd);
+    pipe(qfd);
+    *zpid = fork();
+    if (!*zpid) {
+	dup2(qfd[0], 0); close(qfd[0]);
+	dup2(pfd[1], 1); close(pfd[1]);
+	if (DebugFD != -1)
+	    dup2(DebugFD, 2);
+	else {
+	    close(2);
+	    open("/dev/null", O_WRONLY);
+	}
+	close(qfd[1]);
+	close(pfd[0]);
+	i = execl("/stand/gunzip", "/stand/gunzip", 0);
+	msgDebug("/stand/gunzip command returns %d status\n", i);
+	exit(i);
+    }
+    *fd = qfd[1];
+    close(qfd[0]);
+    *cpid = fork();
+    if (!*cpid) {
+	dup2(pfd[0], 0); close(pfd[0]);
+	close(pfd[1]);
+	close(qfd[1]);
+	if (DebugFD != -1) {
+	    dup2(DebugFD, 1);
+	    dup2(DebugFD, 2);
+	}
+	else {
+	    close(1); open("/dev/null", O_WRONLY);
+	    dup2(1, 2);
+	}
+	i = execl("/stand/cpio", "/stand/cpio", "-iduVm", "-H", "tar", 0);
+	msgDebug("/stand/cpio command returns %d status\n", i);
+	exit(i);
+    }
+    close(pfd[0]);
+    close(pfd[1]);
+    return TRUE;
+}
+
+Boolean
+mediaExtractDistEnd(int zpid, int cpid)
+{
+    int i,j;
+
+    i = waitpid(zpid, &j, 0);
+    if (i < 0) { /* Don't check status - gunzip seems to return a bogus one! */
+	dialog_clear();
+	msgDebug("wait for gunzip returned status of %d!\n", i);
+	return FALSE;
+    }
+    i = waitpid(cpid, &j, 0);
+    if (i < 0 || WEXITSTATUS(j)) {
+	dialog_clear();
+	msgDebug("cpio returned error status of %d!\n", WEXITSTATUS(j));
+	return FALSE;
+    }
+    return TRUE;
+}
+
+
+Boolean
 mediaExtractDist(char *distname, char *dir, int fd)
 {
     int i, j, zpid, cpid, pfd[2];
@@ -471,7 +545,7 @@ mediaExtractDist(char *distname, char *dir, int fd)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-iduvm", "-H", "tar", 0);
+	i = execl("/stand/cpio", "/stand/cpio", "-iduVm", "-H", "tar", 0);
 	msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
     }

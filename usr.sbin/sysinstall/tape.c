@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.28 1995/05/26 20:30:59 jkh Exp $
+ * $Id: tape.c,v 1.1 1995/05/27 10:39:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -59,7 +59,7 @@ mediaInitTape(Device *dev)
 }
 
 int
-mediaGetTape(char *dist, char *path)
+mediaGetTape(char *file)
 {
     return -1;
 }
