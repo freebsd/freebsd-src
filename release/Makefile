@@ -38,6 +38,12 @@ AUXRELEASETAG!=	echo ${RELEASETAG} | sed -e 's/^RELENG_/RELEASE_/' -e 's/_RELEAS
 
 KERNCONF=GENERIC
 
+# If you want to pass flags to the world build such as -j X, use
+# WORLD_FLAGS.  Similarly, you can specify make flags for kernel
+# builds via KERNEL_FLAGS.
+#WORLD_FLAGS=-j4
+#KERNEL_FLAGS=-j4
+
 # If you are using a local CVS repository with components stored in 
 # non-standard modules, override these on the make commandline or
 # in the environment.
@@ -286,6 +292,9 @@ rerelease release:
 .if defined(BOOT_CONFIG)
 	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
 .endif
+.if defined(KERNEL_FLAGS)
+	echo "export KERNEL_FLAGS=\"${KERNEL_FLAGS}\"" >> ${CHROOTDIR}/mk
+.endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
 	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}:${LOCALDIR}" >> ${CHROOTDIR}/mk
@@ -293,10 +302,10 @@ rerelease release:
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	echo "	(cd etc; make distrib-dirs distribution)" >> ${CHROOTDIR}/mk
-	echo "	make world && \\"		>> ${CHROOTDIR}/mk
+	echo "	make ${WORLD_FLAGS} world && \\"	>> ${CHROOTDIR}/mk
 .endif
 .if make(rerelease)
-	echo "	make all install && \\"		>> ${CHROOTDIR}/mk
+	echo "	make ${WORLD_FLAGS} all install && \\" >> ${CHROOTDIR}/mk
 .endif
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
@@ -757,8 +766,10 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make kernel-depend && \
-			make  ${KERNEL} && \
-			make kernel-reinstall DESTDIR=${RD}/kernels
+			make ${KERNEL_FLAGS} ${KERNEL} && \
+			make kernel-reinstall DESTDIR=${RD}/kernels && \
+			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
+			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
 
 #
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
@@ -767,27 +778,35 @@ doMFSKERN:
 	@echo "Running doMFSKERN for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
-	  sh ${.CURDIR}/scripts/dokern.sh ${BIGBOOT} < ${KERNCONF} > BOOTMFS
+	  sh ${.CURDIR}/scripts/dokern.sh ${BIGBOOT} < ${KERNCONF} > BOOTMFS && \
+	  [ -r ${KERNCONF}.hints ] && cp ${KERNCONF}.hints BOOTMFS.hints
 .if ${MACHINE_ARCH} == "i386"
 	@echo "options  INTRO_USERCONFIG" >> \
 	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
 .if defined(BIGBOOT)
-	@echo "options \"MD_ROOT_SIZE=`cat mfsroot.size`\"" >> \
+	@echo "options MD_ROOT_SIZE=`cat mfsroot.size`" >> \
 	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
 	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir  ${RD}/image.${FSIMAGE}
-	@chflags noschg ${RD}/kernels/BOOTMFS
-	@strip ${RD}/kernels/BOOTMFS
-	@cp ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
+	@cd ${RD}/kernels && \
+	  chflags noschg BOOTMFS && \
+	  strip BOOTMFS && \
+	  cp BOOTMFS BOOTMFS.${FSIMAGE} && \
+	  [ -r BOOTMFS.hints ] && mv BOOTMFS.hints BOOTMFS.${FSIMAGE}.hints
 	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 	@cp /boot/boot[12] /boot/loader ${RD}/image.${FSIMAGE}/boot
+	@[ -r ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints ] && \
+	  sed -e '/^hint/s/^/set /' -e '/^#/d' \
+	    ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints > \
+	    ${RD}/image.${FSIMAGE}/boot/device.hints && \
+	  echo "include /boot/device.hints" > ${RD}/image.${FSIMAGE}/boot/loader.rc
 .if !defined(BIGBOOT)
-	@echo "load /kernel" > ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "load /kernel" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
