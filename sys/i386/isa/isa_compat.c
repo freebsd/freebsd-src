@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.c,v 1.1 1999/04/16 21:22:23 peter Exp $
+ *	$Id: isa_compat.c,v 1.2 1999/04/17 09:56:35 bde Exp $
  */
 
 #include <sys/param.h>
@@ -34,6 +34,11 @@
 #include <sys/module.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+
+#include <machine/vmparam.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/pmap.h>
 
 #include <machine/resource.h>
 #include <isa/isavar.h>
@@ -152,11 +157,13 @@ isa_compat_probe(device_t dev)
 	 */
 	if (dvp->id_driver->probe) {
 		int portsize;
+		void *maddr;
 		isa_compat_alloc_resources(dev, &res);
 		if (res.memory)
-			dvp->id_maddr = rman_get_virtual(res.memory);
+			maddr = rman_get_virtual(res.memory);
 		else
-			dvp->id_maddr = 0;
+			maddr = 0;
+		dvp->id_maddr = maddr;
 		portsize = dvp->id_driver->probe(dvp);
 		isa_compat_release_resources(dev, &res);
 		if (portsize != 0) {
@@ -168,8 +175,9 @@ isa_compat_probe(device_t dev)
 				isa_set_irq(dev, ffs(dvp->id_irq) - 1);
 			if (dvp->id_drq != isa_get_drq(dev))
 				isa_set_drq(dev, dvp->id_drq);
-			if (dvp->id_maddr != (void *) isa_get_maddr(dev))
-				isa_set_maddr(dev, (int) dvp->id_maddr);
+			if (dvp->id_maddr != maddr)
+				isa_set_maddr(dev,
+					      (int) dvp->id_maddr - KERNBASE);
 			if (dvp->id_msize != isa_get_msize(dev))
 				isa_set_msize(dev, dvp->id_msize);
 			return 0;
