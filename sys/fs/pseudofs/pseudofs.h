@@ -239,8 +239,8 @@ int		 pfs_destroy	(struct pfs_node *pn);
 									\
 static struct pfs_info name##_info = {					\
 	#name,								\
-	&name##_init,							\
-	&name##_uninit,							\
+	name##_init,							\
+	name##_uninit,							\
 };									\
 									\
 static int								\
