@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: md.h,v 1.16 1997/02/22 15:46:34 peter Exp $
  */
 
 #ifndef __MD_H__
@@ -94,6 +94,8 @@
 #define md_got_reloc(r)			(0)
 
 #define md_get_rt_segment_addend(r,a)	md_get_addend(r,a)
+
+#define RELOC_INIT_SEGMENT_RELOC(r)	((r)->r_length = 2)
 
 /* Width of a Global Offset Table entry */
 #define GOT_ENTRY_SIZE	4
