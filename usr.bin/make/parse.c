@@ -729,14 +729,15 @@ ParseDoDependency (char *line)
 	    } else if (*cp == '!' || *cp == ':') {
 		/*
 		 * We don't want to end a word on ':' or '!' if there is a
-		 * better match later on in the string.  By "better" I mean
-		 * one that is followed by whitespace.	This allows the user
-		 * to have targets like:
+		 * better match later on in the string (greedy matching).
+		 * This allows the user to have targets like:
 		 *    fie::fi:fo: fum
-		 * where "fie::fi:fo" is the target.  In real life this is used
-		 * for perl5 library man pages where "::" separates an object
-		 * from its class.  Ie: "File::Spec::Unix".  This behaviour
-		 * is also consistent with other versions of make.
+		 *    foo::bar:
+		 * where "fie::fi:fo" and "foo::bar" are the targets.  In
+		 * real life this is used for perl5 library man pages where
+		 * "::" separates an object from its class.
+		 * Ie: "File::Spec::Unix".  This behaviour is also consistent
+		 * with other versions of make.
 		 */
 		char *p = cp + 1;
 
@@ -747,11 +748,7 @@ ParseDoDependency (char *line)
 		if (*p == '\0' || isspace(*p))
 		    break;
 
-		do {
-		    p += strcspn(p, "!:");
-		    if (*p == '\0')
-			break;
-		} while (!isspace(*++p));
+		p += strcspn(p, "!:");
 
 		/* No better match later on... */
 		if (*p == '\0')
