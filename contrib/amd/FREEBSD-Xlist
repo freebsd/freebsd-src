@@ -58,8 +58,10 @@ $FreeBSD$
 *conf/nfs_prot/nfs_prot_aix4.h
 *conf/nfs_prot/nfs_prot_aix4_2.h
 *conf/nfs_prot/nfs_prot_aix4_3.h
+*conf/nfs_prot/nfs_prot_aix5_1.h
 *conf/nfs_prot/nfs_prot_bsdi2.h
 *conf/nfs_prot/nfs_prot_bsdi3.h
+*conf/nfs_prot/nfs_prot_darwin.h
 *conf/nfs_prot/nfs_prot_default.h
 *conf/nfs_prot/nfs_prot_hpux.h
 *conf/nfs_prot/nfs_prot_hpux11.h
@@ -74,6 +76,7 @@ $FreeBSD$
 *conf/nfs_prot/nfs_prot_openbsd.h
 *conf/nfs_prot/nfs_prot_osf2.h
 *conf/nfs_prot/nfs_prot_osf4.h
+*conf/nfs_prot/nfs_prot_osf5.h
 *conf/nfs_prot/nfs_prot_osf5_1.h
 *conf/nfs_prot/nfs_prot_sunos3.h
 *conf/nfs_prot/nfs_prot_sunos4.h
