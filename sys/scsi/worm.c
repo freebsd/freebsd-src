@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.51 1998/01/24 02:54:53 eivind Exp $
+ *      $Id: worm.c,v 1.52 1998/02/09 06:11:02 eivind Exp $
  */
 
 #include "opt_bounce.h"
@@ -68,6 +68,7 @@
 #include <scsi/scsi_worm.h>
 #include <scsi/scsi_cd.h>
 #include <sys/dkstat.h>
+#include <sys/malloc.h>
 
 struct worm_quirks
 {
@@ -80,6 +81,8 @@ struct worm_quirks
 	errval	(*finalize_track)(struct scsi_link *);
 	errval	(*finalize_disk)(struct scsi_link *, int toc_type, int onp);
 	errval	(*write_session)(struct scsi_link *, struct wormio_write_session *);
+	errval	(*read_first_writable_address)(struct scsi_link *sc_link, 
+			   int track, int mode, int raw, int audio, int *addr);
 };
 
 
@@ -96,6 +99,7 @@ struct scsi_data
 
 	struct worm_quirks *quirks; /* model-specific functions */
 	struct wormio_prepare_track preptrack; /* scratch region */
+	struct wormio_write_session *write_session; /* scratch region */
 
 	u_int8_t dummy;		/* use dummy writes */
 	u_int8_t speed;		/* select drive speed */
@@ -154,6 +158,8 @@ static errval hp4020i_prepare_track(struct scsi_link *, struct  wormio_prepare_t
 static errval hp4020i_finalize_track(struct scsi_link *);
 static errval hp4020i_finalize_disk(struct scsi_link *, int toc_type, int onp);
 static errval hp4020i_write_session(struct scsi_link *, struct wormio_write_session *);
+static errval hp4020i_read_first_writable_address (struct scsi_link *sc_link, 
+			   int track, int mode, int raw, int audio, int *addr);
 
 static worm_devsw_installed = 0;
 
@@ -204,12 +210,12 @@ static struct scsi_device worm_switch =
 static struct worm_quirks worm_quirks_plasmon = {
     rf4100_prepare_disk, rf4100_prepare_track,
     rf4100_finalize_track, rf4100_finalize_disk,
-    0
+    0, hp4020i_read_first_writable_address
 };
 static struct worm_quirks worm_quirks_philips = {
     hp4020i_prepare_disk, hp4020i_prepare_track,
     hp4020i_finalize_track, hp4020i_finalize_disk,
-    hp4020i_write_session
+    hp4020i_write_session, hp4020i_read_first_writable_address
 };
 
 static inline void
@@ -348,7 +354,8 @@ wormstart(unit, flags)
 
 		if ((bp->b_flags & B_READ) == B_WRITE) {
 		    if ((worm->worm_flags & WORMFL_TRACK_PREPED) == 0) {
-			if ((worm->worm_flags & WORMFL_TRACK_PREP) == 0) {
+			if ((worm->worm_flags & WORMFL_TRACK_PREP) == 0 &&
+			    !worm->write_session) {
 			    SC_DEBUG(sc_link, SDEV_DB3, ("sequence error\n"));
 			    bp->b_error = EIO;
 			    bp->b_flags |= B_ERROR;
@@ -356,11 +363,18 @@ wormstart(unit, flags)
 			    biodone(bp);
 			    goto badnews;
 			} else {
-			    if (worm->quirks->prepare_track(sc_link, &worm->preptrack)
-				!= 0) {
-				biodone(bp);
-				goto badnews;
-			    }
+			    if (worm->write_session) {
+				if ((worm->quirks->write_session)
+				    (sc_link, worm->write_session)) {
+				    biodone(bp);
+				    goto badnews;
+				}
+			    } else
+				if (worm->quirks->prepare_track(sc_link, &worm->preptrack)
+				    != 0) {
+				    biodone(bp);
+				    goto badnews;
+				}
 			    worm->worm_flags |= WORMFL_TRACK_PREPED;
 			}
 		    }
@@ -594,9 +608,13 @@ worm_close(dev_t dev, int flags, int fmt, struct proc *p,
 		    }
 		}
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
-	} else
+	} else {
 	    worm->worm_flags &= ~WORMFL_IOCTL_ONLY;
-
+	    if (worm->write_session) {
+		free(worm->write_session, M_DEVBUF);
+		worm->write_session = 0;
+	    }
+	}
 	sc_link->flags &= ~SDEV_OPEN;
 
 	return error;
@@ -658,6 +676,10 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 		 */
 		worm->worm_flags |= WORMFL_TRACK_PREP;
 		worm->preptrack = *w;
+		if (worm->write_session) {
+		    free(worm->write_session, M_DEVBUF);
+		    worm->write_session = 0;
+		}
 	    }
 	}
 	break;
@@ -706,10 +728,39 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 
 	case WORMIOCWRITESESSION:
 	    if (worm->quirks->write_session) {
-		error = (worm->quirks->write_session)
-		    (sc_link, (struct wormio_write_session *) addr);
-		if (!error)
-		    worm->worm_flags |=	WORMFL_TRACK_PREPED | WORMFL_TRACK_PREP;
+		if ((worm->worm_flags & WORMFL_DISK_PREPED)==0) {
+		    error = EINVAL;
+		    worm->error = WORM_SEQUENCE_ERROR;
+		} else {
+		    worm->write_session = malloc(sizeof(struct wormio_write_session) +
+			       ((struct wormio_write_session *) addr)->length,
+			       M_DEVBUF, M_WAITOK);
+		    bcopy(addr, worm->write_session, sizeof(struct wormio_write_session));
+		    worm->write_session->track_desc = sizeof(struct wormio_write_session) + 
+			(u_char *) worm->write_session;
+		    bcopy(((struct wormio_write_session *) addr)->track_desc, 
+			  worm->write_session->track_desc, ((struct wormio_write_session *) addr)->length);
+		}
+	    } else
+		error = ENXIO;
+	    break;
+
+	case WORMIOCFIRSTWRITABLEADDR:
+	    if (worm->quirks->read_first_writable_address) {
+		int address;
+		struct wormio_first_writable_addr *a = 
+		    (struct wormio_first_writable_addr *) addr;
+		if ((a->audio & ~1) || (a->raw & ~1) || (a->mode & ~3)
+		    || (a->track & ~0x7f)) {
+		    error = EINVAL;
+		    break;
+		}
+		error = worm->quirks->read_first_writable_address(sc_link, a->track,
+							 a->mode, a->raw, 
+							 a->audio, &address);
+		if (error)
+		    break;
+		error = copyout(&address, a->addr, sizeof(int));
 	    } else
 		error = ENXIO;
 	    break;
@@ -1217,8 +1268,8 @@ rf4100_prepare_track(struct scsi_link *sc_link, struct wormio_prepare_track *t)
 	dat.page.pages.page_0x21.isrc_i3 = ascii_to_6bit(t->ISRC_owner[0]);
 	dat.page.pages.page_0x21.isrc_i4 = ascii_to_6bit(t->ISRC_owner[1]);
 	dat.page.pages.page_0x21.isrc_i5 = ascii_to_6bit(t->ISRC_owner[2]);
-	year = t->ISRC_year > 1900 ? t->ISRC_year - 1900 : t->ISRC_year;
-	if (year > 99 || year < 0)
+	year = t->ISRC_year % 100;
+	if (year < 0)
 	    return EINVAL;
 	dat.page.pages.page_0x21.isrc_i6_7 = bin2bcd(year);
 	if (t->ISRC_serial[0]) {
@@ -1515,8 +1566,8 @@ hp4020i_prepare_track(struct scsi_link *sc_link, struct wormio_prepare_track *t)
 	dat.page.pages.page_0x21.isrc_i3 = ascii_to_6bit(t->ISRC_owner[0]);
 	dat.page.pages.page_0x21.isrc_i4 = ascii_to_6bit(t->ISRC_owner[1]);
 	dat.page.pages.page_0x21.isrc_i5 = ascii_to_6bit(t->ISRC_owner[2]);
-	year = t->ISRC_year > 1900 ? t->ISRC_year - 1900 : t->ISRC_year;
-	if (year > 99 || year < 0)
+	year = t->ISRC_year % 100;
+	if (year < 0)
 	    return EINVAL;
 	dat.page.pages.page_0x21.isrc_i6_7 = bin2bcd(year);
 	if (t->ISRC_serial[0]) {
@@ -1684,6 +1735,34 @@ hp4020i_write_session(struct scsi_link *sc_link, struct wormio_write_session *ws
 			      SCSI_DATA_OUT);
     }
     return error;
+}
+
+static errval 
+hp4020i_read_first_writable_address (struct scsi_link *sc_link,
+			  int track, int mode, int raw, int audio, int *addr)
+{
+	struct scsi_first_writable_address cmd;
+	char data[6];
+	errval error;
+
+	SC_DEBUG(sc_link, SDEV_DB2, ("worm_read_first_writable_address"));
+
+	bzero(&cmd, sizeof(cmd));
+	cmd.op_code = FIRST_WRITEABLE_ADDR;
+	cmd.track_number = track;
+	cmd.mode = (raw << 3) | (audio << 2) | mode;
+	cmd.transfer_length = sizeof(data);
+	error = scsi_scsi_cmd(sc_link,
+			     (struct scsi_generic *) &cmd,
+			     sizeof(cmd),
+			     (u_char *) data,
+			     sizeof(data),
+			     /*WORMRETRY*/ 4,
+			     5000,
+			     NULL,
+			     SCSI_DATA_IN);
+	*addr = scsi_4btou (data+1);
+	return error;
 }
     
 /*

@@ -114,4 +114,15 @@ struct scsi_read_session_info
 	u_char	control;
 };
 
+struct scsi_first_writable_address
+{
+	u_char  op_code;
+	u_char  byte2;
+	u_char  track_number;
+	u_char  mode;
+	u_char  reserved[4];
+	u_char  transfer_length;
+	u_char	control;
+};
+
 #endif /* _SCSI_SCSI_WORM_H */
