@@ -54,10 +54,14 @@
 #define NSGPHY_STRAPOPT_SPDSEL  (NSGPHY_STRAPOPT_SPEED1|NSGPHY_STRAPOPT_SPEED0)
 
 #define NSGPHY_MII_PHYSUP	0x11	/* PHY support/current status */
+#define PHY_SUP_SPEED1		0x0010  /* speed bit 1 */
+#define PHY_SUP_SPEED0		0x0008  /* speed bit 1 */
 #define NSGPHY_PHYSUP_SPEED1	0x0010	/* speed status */
 #define NSGPHY_PHYSUP_SPEED0	0x0008	/* speed status */
 #define NSGPHY_PHYSUP_SPDSTS	(NSGPHY_PHYSUP_SPEED1|NSGPHY_PHYSUP_SPEED0)
 #define NSGPHY_PHYSUP_LNKSTS	0x0004	/* link status */
+#define PHY_SUP_LINK		0x0004	/* link status */
+#define PHY_SUP_DUPLEX		0x0002	/* 1 == full-duplex */
 #define NSGPHY_PHYSUP_DUPSTS	0x0002	/* duplex status 1 == full */
 #define NSGPHY_PHYSUP_10BT	0x0001	/* 10baseT resolved */
 
