@@ -56,7 +56,6 @@
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
-#include <dev/usb/usbdivar.h>
 #include <dev/usb/usbdi_util.h>
 
 #include <cam/cam.h>
@@ -87,13 +86,6 @@ typedef struct umass_softc {
 
 	struct cam_sim		*sim;		/* SCSI Interface Module */ 
 	struct cam_path		*path;		/* XPT path */
-
-	/* we count the number of soft retries that failed. If 5 have failed,
-	 * the device does not support them for example, we revert to hard
-	 * resets.
-	 */
-	int			soft_tries;	/* retries to do soft reset */
-#	define MAX_SOFT_TRIES		5
 } umass_softc_t;
 
 #define USBD_COMMAND_FAILED	USBD_INVAL	/* redefine some errors for */
@@ -109,8 +101,6 @@ typedef struct umass_softc {
 
 /* Bulk-Only specific request */
 #define	UR_RESET	0xff
-#define	URESET_HARD	0x00
-#define	URESET_SOFT	0x01
 
 /* Bulk-Only Mass Storage features */
 /* Command Block Wrapper */
@@ -151,7 +141,7 @@ usbd_status umass_usb_transfer __P((usbd_interface_handle iface,
 				int flags, int *xfer_size));
 
 /* Bulk-Only related functions */
-usbd_status umass_bulk_reset	__P((umass_softc_t *sc, int flag));
+usbd_status umass_bulk_reset	__P((umass_softc_t *sc));
 usbd_status umass_bulk_transfer	__P((umass_softc_t *sc, int lun,
 				void *cmd, int cmdlen,
 		    		void *data, int datalen,
@@ -197,7 +187,6 @@ USB_ATTACH(umass)
 	sc->sc_iface = uaa->iface;
 	sc->sc_bulkout_pipe = NULL;
 	sc->sc_bulkin_pipe = NULL;
-	sc->soft_tries = 0;
 
 	usbd_devinfo(uaa->device, 0, devinfo);
 	USB_ATTACH_SETUP;
@@ -336,83 +325,52 @@ umass_usb_transfer(usbd_interface_handle iface, usbd_pipe_handle pipe,
 
 
 
-/*
- * USB Mass Storage Bulk-Only specific request
- */
-
-/*
- * The Reset request shall be sent via the Control endpoint to the device.
- *
- * There are two types of Bulk-Only Mass Storage Resets; soft and hard.
- * Implementation of the soft is optional. If the soft one fails, the hard one
- * is immediately tried.
- *
- * Soft reset shall clear all buffers and reset the interface to the device
- * without affecting the state of the device itself.
- * Hard reset shall clear all buffers and reset the interface and the
- * device without changing STALL or toggle conditions.
- */
-
-/*
- * XXX Pat LaVarre <LAVARRE@iomega.com> says that soft reset has been removed
- * from current versions of the spec. We can remove it once that checks out.
- */
-
 usbd_status
-umass_bulk_reset(umass_softc_t *sc, int flag)
+umass_bulk_reset(umass_softc_t *sc)
 {
 	usbd_device_handle dev;
         usb_device_request_t req;
 	usbd_status err;
+	usb_interface_descriptor_t *id;
 
-	DPRINTF(UDMASS_BULK, ("%s: %s reset\n",
-		USBDEVNAME(sc->sc_dev),
-		(flag == URESET_SOFT? "Soft":"Hard")));
-
-	/* Avoid useless attempts at soft-resetting the drive
-	 * XXX Could be done with a quirk entry somewhere as well.
+	/*
+	 * Reset recovery (5.3.4 in Universal Serial Bus Mass Storage Class)
+	 *
+	 * For Reset Recovery the host shall issue in the following order:
+	 * a) a Bulk-Only Mass Storage Reset
+	 * b) a Clear Feature HALT to the Bulk-In endpoint
+	 * c) a Clear Feature HALT to the Bulk-Out endpoint
 	 */
-	if (flag == URESET_SOFT && sc->soft_tries > MAX_SOFT_TRIES)
-		flag = URESET_HARD;
+
+	DPRINTF(UDMASS_BULK, ("%s: Reset\n",
+		USBDEVNAME(sc->sc_dev)));
 
 	usbd_interface2device_handle(sc->sc_iface, &dev);
+	id = usbd_get_interface_descriptor(sc->sc_iface);
 
 	/* the reset command is a class specific interface request */
 	req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 	req.bRequest = UR_RESET;
-	USETW(req.wValue, flag);		/* type of reset: hard/soft */
-	USETW(req.wIndex, sc->sc_iface->idesc->bInterfaceNumber);
-	USETW(req.wLength, 0);			/* no data stage */
+	USETW(req.wValue, 0);
+	USETW(req.wIndex, id->bInterfaceNumber);
+	USETW(req.wLength, 0);
 
 	err = usbd_do_request(dev, &req, 0);
 	if (err) {
-		if (flag == URESET_SOFT) {
-			/* reset again, but now hard. Soft reset is optional in the
-			 * Bulk-Only spec.
-			 */
-			sc->soft_tries++;
-			DPRINTF(UDMASS_USB, ("%s: Soft reset failed (%d), %s\n",
-				USBDEVNAME(sc->sc_dev),
-				sc->soft_tries, usbd_errstr(err)));
-			return(umass_bulk_reset(sc, URESET_HARD));
-		} else {
-			printf("%s: Hard reset failed, %s\n",
-				USBDEVNAME(sc->sc_dev), usbd_errstr(err));
-			/* XXX we should port_reset the device */
-			return(err);
-		}
+		printf("%s: Reset failed, %s\n",
+			USBDEVNAME(sc->sc_dev), usbd_errstr(err));
+		/* XXX we should port_reset the device */
+		return(err);
 	}
 
-	/* we do not need to wait for the device to finish the reset.
-	 * From the Bulk-Only spec (5.3.3):
-	 * "For either Bulk-Only Mass Storage Reset, hard, or soft, the device
-	 * shall NAK the status stage of Control request until the reset is
-	 * complete."
-	 *
-	 * XXX (Iomega Zip 100) For some reason we get timeouts if we don't. :-(
-	 *                      The 2.5sec. is a guessed value.
+	usbd_clear_endpoint_stall(sc->sc_bulkout_pipe);
+	usbd_clear_endpoint_stall(sc->sc_bulkin_pipe);
+
+	/*
+	 * XXX we should convert this into a more friendly delay.
+	 * Perhaps a tsleep (or is this routine run from int context?)
 	 */
-	
+
 	DELAY(2500000 /*us*/);
 
 	return(USBD_NORMAL_COMPLETION);
@@ -513,11 +471,10 @@ umass_bulk_transfer(umass_softc_t *sc, int lun, void *cmd, int cmdlen,
 		DPRINTF(UDMASS_BULK, ("%s: failed to send CBW\n",
 		         USBDEVNAME(sc->sc_dev)));
 		/* If the device detects that the CBW is invalid, then the
-		 * device shall STALL both bulk endpoints and require a
-		 * Bulk-Only MS Reset (hard)
+		 * device may STALL both bulk endpoints and require a
+		 * Bulk-Only MS Reset
 		 */
-		umass_bulk_reset(sc, URESET_HARD);
-		usbd_clear_endpoint_stall(sc->sc_bulkout_pipe);
+		umass_bulk_reset(sc);
 		return(USBD_IOERROR);
 	}
 
@@ -573,8 +530,7 @@ umass_bulk_transfer(umass_softc_t *sc, int lun, void *cmd, int cmdlen,
 	 */
 
 	/* Invalid CSW: Wrong signature or wrong tag might indicate
-	 * that the device is confused -> reset it hard, to remove
-	 * all its state.
+	 * that the device is confused -> reset it.
 	 * Other fatal errors: STALL on read of CSW and Phase error
 	 * or unknown status.
 	 */
@@ -599,9 +555,7 @@ umass_bulk_transfer(umass_softc_t *sc, int lun, void *cmd, int cmdlen,
 				UGETDW(csw.dCSWSignature),
 				UGETDW(csw.dCSWTag), UGETDW(cbw.dCBWTag));
 		}
-		umass_bulk_reset(sc, URESET_HARD);
-		usbd_clear_endpoint_stall(sc->sc_bulkout_pipe);
-		usbd_clear_endpoint_stall(sc->sc_bulkin_pipe);
+		umass_bulk_reset(sc);
 		return(USBD_IOERROR);
 	}
 
@@ -610,17 +564,14 @@ umass_bulk_transfer(umass_softc_t *sc, int lun, void *cmd, int cmdlen,
 			"residue = %d, n = %d\n",
 			USBDEVNAME(sc->sc_dev),
 			UGETDW(csw.dCSWDataResidue), n));
-		/*
-		 * According to Pat LaVarre <LAVARRE@iomega.com> on the linux-usb
-		 * mailing list this reset is not necessary at all. It looks like
-		 * I have an old revision of the spec.
-		 */
-
-		/* umass_bulk_reset(sc, URESET_SOFT); */
-
 		*residue = UGETDW(csw.dCSWDataResidue);
 		return(USBD_COMMAND_FAILED);
 	}
+
+	/*
+	 * XXX a residue not equal to 0 might indicate that something
+	 * is wrong. Does CAM high level drivers check this for us?
+	 */
 
 	return(USBD_NORMAL_COMPLETION);
 }
@@ -782,7 +733,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		DPRINTF(UDMASS_CAM, ("%s: XPT_RESET_{BUS,DEV}\n",
 			USBDEVNAME(sc->sc_dev)));
 
-		err = umass_bulk_reset(sc, URESET_HARD);
+		err = umass_bulk_reset(sc);
 		if (err)
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		else
