@@ -1,6 +1,6 @@
-<!-- $Id: porting.sgml,v 1.9 1996/12/28 08:25:14 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.10 1996/12/30 22:02:55 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.52 -->
+<!-- Original revision: 1.56 -->
 
 <sect1><heading>フリーソフトウェアの移植<label id="porting"></heading>
 
@@ -959,6 +959,14 @@ MAN8=      baz.8
 	<p>なお, 普通 Imake を使ってコンパイルされる X アプリケーショ
 	  ンの場合はこの指定は必要ありません.
 
+	<p><tt>PREFIX</tt>以外のディレクトリの下にマニュアルを置く
+	  ようなportでは<tt>MANPREFIX</tt>を指定することが
+	  できます. さらに, 特定のセクションのマニュアルだけ, 標準では
+	  ない場所にインストールする場合(例えば多くの Perl のモ
+	  ジュールの ports の場合)には, 個々のマニュアルのパスを
+	  <tt>MAN<em>sect</em>PREFIX</tt> (<em>sect</em>は, 1 から 9
+	  または, L か N を表わします) によって指定できます.
+
       <sect3>
 	<heading>INSTALL_* マクロ</heading>
 	<p> あなた自身の *-install ターゲットでファイルの正しいモードと
@@ -1041,10 +1049,10 @@ MAN8=      baz.8
 	  <tt>NOPORTDOCS</tt>については気にしないでください.)
 
 	<p>(Packageの)インストールを行っているユーザに対してメッセージ
-	  を表示したい場合には, そのメッセージを <tt>pkg/DISPLAY</tt>
+	  を表示したい場合には, そのメッセージを <tt>pkg/MESSAGE</tt>
 	  に置くこともできます. この機能は, pkg_add したあとの
 	  追加のインストール手順や, ライセンス情報を表示するのに便利で
-	  す. (注意: DISPLAY ファイルは pkg/PLIST に加える必要はありま
+	  す. (注意: MESSAGE ファイルは pkg/PLIST に加える必要はありま
 	  せん.
 
       <sect3>
