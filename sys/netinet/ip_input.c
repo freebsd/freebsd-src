@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.8 1994/10/10 07:56:07 phk Exp $
+ * $Id: ip_input.c,v 1.9 1994/10/28 15:09:48 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -237,7 +237,7 @@ next:
 
 #ifdef IPFIREWALL
         if ( ((char *)&(ip->ip_dst.s_addr))[0] != 127
-        && !ip_firewall_check(ip,ip_fw_blk_chain) ) {
+        && !ip_fw_chk(ip,ip_fw_blk_chain) ) {
                 goto bad;
         }
 #endif                            
@@ -1037,7 +1037,7 @@ ip_forward(m, srcrt)
 
 #ifdef IPFIREWALL
 	if ( ((char *)&(ip->ip_dst.s_addr))[0] != 127
-	&& !ip_firewall_check(ip,ip_fw_fwd_chain) ) {
+	&& !ip_fw_chk(ip,ip_fw_fwd_chain) ) {
 		ipstat.ips_cantforward++;
 		m_freem(m);
 		return;
