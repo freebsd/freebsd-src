@@ -198,6 +198,8 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "Giant", &lock_class_mtx_sleep },
 	{ "proctree", &lock_class_sx },
 	{ "allproc", &lock_class_sx },
+	{ "filedesc structure", &lock_class_mtx_sleep },
+	{ "pipe mutex", &lock_class_mtx_sleep },
 	{ "sigio lock", &lock_class_mtx_sleep },
 	{ "process group", &lock_class_mtx_sleep },
 	{ "process lock", &lock_class_mtx_sleep },
