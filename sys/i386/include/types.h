@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $Id: types.h,v 1.11 1997/05/31 09:07:36 peter Exp $
+ * $Id: types.h,v 1.12 1998/06/14 14:08:21 bde Exp $
  */
 
 #ifndef _MACHINE_TYPES_H_
@@ -76,7 +76,7 @@ typedef	__uint64_t		uoff_t;		/* unsigned file offset */
 /* Interrupt mask (spl, xxx_imask, etc) */
 typedef u_int32_t		intrmask_t;
 
-/* Interrupt handler function type - arg should be "void *" one day */
-typedef	void			inthand2_t __P((int _unit));
+/* Interrupt handler function type. */
+typedef	void			inthand2_t __P((void *_cookie));
 
 #endif /* !_MACHINE_TYPES_H_ */

@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.60 1998/05/05 13:21:08 kato Exp $
+ *	$Id: pccard.c,v 1.61 1998/06/07 17:12:34 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -94,7 +94,7 @@ static void		disable_slot(struct slot *);
 static int		invalid_io_memory(unsigned long, int);
 static struct pccard_device *find_driver(char *);
 static void		remove_device(struct pccard_devinfo *);
-static void		slot_irq_handler(int);
+static inthand2_t	slot_irq_handler;
 static void		power_off_slot(void *);
 
 #if	NAPM > 0
@@ -708,7 +708,7 @@ pccard_event(struct slot *slt, enum card_event event)
  *	slot_irq_handler - Interrupt handler for shared irq devices.
  */
 static void
-slot_irq_handler(int arg)
+slot_irq_handler(void *arg)
 {
 	struct pccard_devinfo *devi;
 	struct slot *slt = (struct slot *)arg;

@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $Id: random.h,v 1.13 1997/09/14 03:19:03 peter Exp $
+ * $Id: random.h,v 1.14 1998/04/06 09:30:18 phk Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -61,7 +61,7 @@
 /* Interrupts to be used in the randomizing process */
 
 extern inthand2_t *sec_intr_handler[];
-extern int sec_intr_unit[];
+extern void *sec_intr_unit[];
 
 /* Exported functions */
 
