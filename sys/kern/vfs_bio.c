@@ -1865,6 +1865,7 @@ restart:
 
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
 			panic("getnewbuf: locked buf");
+		/* XXX bqlock needs to be held across bremfree() */
 		mtx_unlock(&bqlock);
 		bremfree(bp);
 
