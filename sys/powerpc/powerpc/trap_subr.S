@@ -76,8 +76,8 @@ GLOBAL(intr_depth)
  * traps when using IPKDB).
  */
 	.text
-	.globl	_C_LABEL(trapcode),_C_LABEL(trapsize)
-_C_LABEL(trapcode):
+	.globl	CNAME(trapcode),CNAME(trapsize)
+CNAME(trapcode):
 	mtsprg	1,1			/* save SP */
 	stmw	28,tempsave(0)		/* free r28-r31 */
 	mflr	28			/* save LR */
@@ -91,13 +91,13 @@ _C_LABEL(trapcode):
 	addi	1,1,USPACE		/* stack is top of user struct */
 1:
 	bla	s_trap
-_C_LABEL(trapsize) = .-_C_LABEL(trapcode)
+CNAME(trapsize) = .-CNAME(trapcode)
 
 /*
  * For ALI: has to save DSISR and DAR
  */
-	.globl	_C_LABEL(alitrap),_C_LABEL(alisize)
-_C_LABEL(alitrap):
+	.globl	CNAME(alitrap),CNAME(alisize)
+CNAME(alitrap):
 	mtsprg	1,1			/* save SP */
 	stmw	28,tempsave(0)		/* free r28-r31 */
 	mfdar	30
@@ -114,15 +114,15 @@ _C_LABEL(alitrap):
 	addi	1,1,USPACE		/* stack is top of user struct */
 1:
 	bla	s_trap
-_C_LABEL(alisize) = .-_C_LABEL(alitrap)
+CNAME(alisize) = .-CNAME(alitrap)
 
 /*
  * Similar to the above for DSI
  * Has to handle BAT spills
  * and standard pagetable spills
  */
-	.globl	_C_LABEL(dsitrap),_C_LABEL(dsisize)
-_C_LABEL(dsitrap):
+	.globl	CNAME(dsitrap),CNAME(dsisize)
+CNAME(dsitrap):
 	stmw	28,disisave(0)		/* free r28-r31 */
 	mfcr	29			/* save CR */
 	mfxer	30			/* save XER */
@@ -134,13 +134,13 @@ _C_LABEL(dsitrap):
 	rlwinm	31,31,7,25,28		/* get segment * 8 */
 
 	/* get batu */
-	addis	31,31,_C_LABEL(battable)@ha
-	lwz	30,_C_LABEL(battable)@l(31)
+	addis	31,31,CNAME(battable)@ha
+	lwz	30,CNAME(battable)@l(31)
 	mtcr	30
 	bc	4,30,1f			/* branch if supervisor valid is
 					   false */
 	/* get batl */
-	lwz	31,_C_LABEL(battable)+4@l(31)
+	lwz	31,CNAME(battable)+4@l(31)
 /* We randomly use the highest two bat registers here */
 	mftb	28
 	andi.	28,28,1
@@ -160,15 +160,15 @@ _C_LABEL(dsitrap):
 1:
 	mflr	28			/* save LR */
 	bla	s_dsitrap
-_C_LABEL(dsisize) = .-_C_LABEL(dsitrap)
+CNAME(dsisize) = .-CNAME(dsitrap)
 
 /*
  * Dedicated MPC601 version of the above.
  * Considers different BAT format and combined implementation
  * (being addressed as I-BAT).
  */
-	.globl	_C_LABEL(dsitrap601),_C_LABEL(dsi601size)
-_C_LABEL(dsitrap601):
+	.globl	CNAME(dsitrap601),CNAME(dsi601size)
+CNAME(dsitrap601):
 	stmw	28,disisave(0)		/* free r28-r31 */
 	mfcr	29			/* save CR */
 	mfxer	30			/* save XER */
@@ -180,14 +180,14 @@ _C_LABEL(dsitrap601):
 	rlwinm	31,31,12,20,28		/* get "segment" battable offset */
 
 	/* get batl */
-	addis	31,31,_C_LABEL(battable)@ha
-	lwz	30,_C_LABEL(battable)+4@l(31)
+	addis	31,31,CNAME(battable)@ha
+	lwz	30,CNAME(battable)+4@l(31)
 	mtcr	30
 	bc	4,25,1f			/* branch if Valid is is false,
 					   presently assumes supervisor only */
 
 	/* get batu */
-	lwz	31,_C_LABEL(battable)@l(31)
+	lwz	31,CNAME(battable)@l(31)
 /* We randomly use the highest two bat registers here */
 	mfspr	28,SPR_RTCL_R
 	andi.	28,28,128
@@ -207,13 +207,13 @@ _C_LABEL(dsitrap601):
 1:
 	mflr	28			/* save LR */
 	bla	s_dsitrap
-_C_LABEL(dsi601size) = .-_C_LABEL(dsitrap601)
+CNAME(dsi601size) = .-CNAME(dsitrap601)
 
 /*
  * Similar to the above for ISI
  */
-	.globl	_C_LABEL(isitrap),_C_LABEL(isisize)
-_C_LABEL(isitrap):
+	.globl	CNAME(isitrap),CNAME(isisize)
+CNAME(isitrap):
 	stmw	28,disisave(0)		/* free r28-r31 */
 	mflr	28			/* save LR */
 	mfcr	29			/* save CR */
@@ -224,15 +224,15 @@ _C_LABEL(isitrap):
 	rlwinm	31,31,7,25,28		/* get segment * 8 */
 
 	/* get batu */
-	addis	31,31,_C_LABEL(battable)@ha
-	lwz	30,_C_LABEL(battable)@l(31)
+	addis	31,31,CNAME(battable)@ha
+	lwz	30,CNAME(battable)@l(31)
 	mtcr	30
 	bc	4,30,1f			/* branch if supervisor valid is
 					   false */
 	mtibatu	3,30
 
 	/* get batl */
-	lwz	30,_C_LABEL(battable)+4@l(31)
+	lwz	30,CNAME(battable)+4@l(31)
 	mtibatl	3,30
 
 	mtcr	29			/* restore CR */
@@ -240,14 +240,14 @@ _C_LABEL(isitrap):
 	rfi				/* return to trapped code */
 1:
 	bla	s_isitrap
-_C_LABEL(isisize)= .-_C_LABEL(isitrap)
+CNAME(isisize)= .-CNAME(isitrap)
 
 /*
  * Dedicated MPC601 version of the above.
  * Considers different BAT format.
  */
-	.globl	_C_LABEL(isitrap601),_C_LABEL(isi601size)
-_C_LABEL(isitrap601):
+	.globl	CNAME(isitrap601),CNAME(isi601size)
+CNAME(isitrap601):
 	stmw	28,disisave(0)		/* free r28-r31 */
 	mflr	28			/* save LR */
 	mfcr	29			/* save CR */
@@ -258,13 +258,13 @@ _C_LABEL(isitrap601):
 	rlwinm	31,31,12,20,28		/* get "segment" battable offset */
 
 	/* get batl */
-	addis	31,31,_C_LABEL(battable)@ha
-	lwz	30,_C_LABEL(battable)+4@l(31)
+	addis	31,31,CNAME(battable)@ha
+	lwz	30,CNAME(battable)+4@l(31)
 	mtcr	30
 	bc	4,25,1f			/* branch if Valid is is false,
 					   presently assumes supervisor only */
 	/* get batu */
-	lwz	31,_C_LABEL(battable)@l(31)
+	lwz	31,CNAME(battable)@l(31)
 
 	mtibatu	3,31
 	mtibatl	3,30
@@ -274,13 +274,13 @@ _C_LABEL(isitrap601):
 	rfi				/* return to trapped code */
 1:
 	bla	s_isitrap
-_C_LABEL(isi601size)= .-_C_LABEL(isitrap601)
+CNAME(isi601size)= .-CNAME(isitrap601)
 
 /*
  * This one for the external interrupt handler.
  */
-	.globl	_C_LABEL(extint),_C_LABEL(extsize)
-_C_LABEL(extint):
+	.globl	CNAME(extint),CNAME(extsize)
+CNAME(extint):
 	mtsprg	1,1			/* save SP */
 	stmw	28,tempsave(0)		/* free r28-r31 */
 	mflr	28			/* save LR */
@@ -295,13 +295,13 @@ _C_LABEL(extint):
 	mfsprg	1,1			/* yes, get old SP */
 1:
 	ba	extintr
-_C_LABEL(extsize) = .-_C_LABEL(extint)
+CNAME(extsize) = .-CNAME(extint)
 
 /*
  * And this one for the decrementer interrupt handler.
  */
-	.globl	_C_LABEL(decrint),_C_LABEL(decrsize)
-_C_LABEL(decrint):
+	.globl	CNAME(decrint),CNAME(decrsize)
+CNAME(decrint):
 	mtsprg	1,1			/* save SP */
 	stmw	28,tempsave(0)		/* free r28-r31 */
 	mflr	28			/* save LR */
@@ -316,7 +316,7 @@ _C_LABEL(decrint):
 	mfsprg	1,1			/* yes, get old SP */
 1:
 	ba	decrintr
-_C_LABEL(decrsize) = .-_C_LABEL(decrint)
+CNAME(decrsize) = .-CNAME(decrint)
 
 /*
  * Now the tlb software load for 603 processors:
@@ -324,8 +324,8 @@ _C_LABEL(decrsize) = .-_C_LABEL(decrint)
  * corrected a lot.)
  */
 
-	.globl	_C_LABEL(tlbimiss),_C_LABEL(tlbimsize)
-_C_LABEL(tlbimiss):
+	.globl	CNAME(tlbimiss),CNAME(tlbimsize)
+CNAME(tlbimiss):
 #ifdef PMAPDEBUG
 	mfspr	2,SPR_IMISS		/* exception address */
 	li	1,24			/* get rid of the lower */
@@ -396,10 +396,10 @@ _C_LABEL(tlbimiss):
 	mtmsr	0			/* now with native gprs */
 	isync
 	ba	EXC_ISI
-_C_LABEL(tlbimsize) = .-_C_LABEL(tlbimiss)
+CNAME(tlbimsize) = .-CNAME(tlbimiss)
 
-	.globl	_C_LABEL(tlbdlmiss),_C_LABEL(tlbdlmsize)
-_C_LABEL(tlbdlmiss):
+	.globl	CNAME(tlbdlmiss),CNAME(tlbdlmsize)
+CNAME(tlbdlmiss):
 	mfspr	2,SPR_HASH1		/* get first pointer */
 	li	1,8
 	mfctr	0			/* save counter */
@@ -447,10 +447,10 @@ _C_LABEL(tlbdlmiss):
 	mtmsr	0			/* now with native gprs */
 	isync
 	ba	EXC_DSI
-_C_LABEL(tlbdlmsize) = .-_C_LABEL(tlbdlmiss)
+CNAME(tlbdlmsize) = .-CNAME(tlbdlmiss)
 
-	.globl	_C_LABEL(tlbdsmiss),_C_LABEL(tlbdsmsize)
-_C_LABEL(tlbdsmiss):
+	.globl	CNAME(tlbdsmiss),CNAME(tlbdsmsize)
+CNAME(tlbdsmiss):
 	mfspr	2,SPR_HASH1		/* get first pointer */
 	li	1,8
 	mfctr	0			/* save counter */
@@ -522,7 +522,7 @@ _C_LABEL(tlbdsmiss):
 	mtmsr	0			/* now with native gprs */
 	isync
 	ba	EXC_DSI
-_C_LABEL(tlbdsmsize) = .-_C_LABEL(tlbdsmiss)
+CNAME(tlbdsmsize) = .-CNAME(tlbdsmiss)
 
 #if defined(DDB) || defined(KGDB)
 #define	ddbsave	0xde0		/* primary save area for DDB */
@@ -532,8 +532,8 @@ _C_LABEL(tlbdsmsize) = .-_C_LABEL(tlbdsmiss)
 	.local	ddbstk
 	.comm	ddbstk,INTSTK,8		/* ddb stack */
 
-	.globl	_C_LABEL(ddblow),_C_LABEL(ddbsize)
-_C_LABEL(ddblow):
+	.globl	CNAME(ddblow),CNAME(ddbsize)
+CNAME(ddblow):
 	mtsprg	1,1			/* save SP */
 	stmw	28,ddbsave(0)		/* free r28-r31 */
 	mflr	28			/* save LR */
@@ -541,7 +541,7 @@ _C_LABEL(ddblow):
 	lis	1,ddbstk+INTSTK@ha	/* get new SP */
 	addi	1,1,ddbstk+INTSTK@l
 	bla	ddbtrap
-_C_LABEL(ddbsize) = .-_C_LABEL(ddblow)
+CNAME(ddbsize) = .-CNAME(ddblow)
 #endif	/* DDB | KGDB */
 
 #ifdef IPKDB
@@ -553,8 +553,8 @@ _C_LABEL(ddbsize) = .-_C_LABEL(ddblow)
 	.local	ipkdbstk
 	.comm	ipkdbstk,INTSTK,8		/* ipkdb stack */
 
-	.globl	_C_LABEL(ipkdblow),_C_LABEL(ipkdbsize)
-_C_LABEL(ipkdblow):
+	.globl	CNAME(ipkdblow),CNAME(ipkdbsize)
+CNAME(ipkdblow):
 	mtsprg	1,1			/* save SP */
 	stmw	28,ipkdbsave(0)		/* free r28-r31 */
 	mflr	28			/* save LR */
@@ -562,7 +562,7 @@ _C_LABEL(ipkdblow):
 	lis	1,ipkdbstk+INTSTK@ha	/* get new SP */
 	addi	1,1,ipkdbstk+INTSTK@l
 	bla	ipkdbtrap
-_C_LABEL(ipkdbsize) = .-_C_LABEL(ipkdblow)
+CNAME(ipkdbsize) = .-CNAME(ipkdblow)
 #endif	/* IPKDB */
 
 /*
@@ -720,9 +720,9 @@ s_trap:
 /* Call C trap code: */
 trapagain:
 	addi	3,1,8
-	bl	_C_LABEL(trap)
-	.globl	_C_LABEL(trapexit)
-_C_LABEL(trapexit):
+	bl	CNAME(trap)
+	.globl	CNAME(trapexit)
+CNAME(trapexit):
 /* Disable interrupts: */
 	mfmsr	3
 	andi.	3,3,~PSL_EE@l
@@ -731,8 +731,8 @@ _C_LABEL(trapexit):
 	lwz	5,FRAME_SRR1+8(1)
 	mtcr	5
 	bc	4,17,1f			/* branch if PSL_PR is false */
-	lis	3,_C_LABEL(astpending)@ha
-	lwz	4,_C_LABEL(astpending)@l(3)
+	lis	3,CNAME(astpending)@ha
+	lwz	4,CNAME(astpending)@l(3)
 	andi.	4,4,1
 	beq	1f
 	li	6,EXC_AST
@@ -769,7 +769,7 @@ s_dsitrap:
 	mfctr	31			/* & CTR */
 	mfdar	3
 s_pte_spill:
-	bl	_C_LABEL(pmap_pte_spill)	/* try a spill */
+	bl	CNAME(pmap_pte_spill)	/* try a spill */
 	or.	3,3,3
 	mtctr	31			/* restore CTR */
 	mtlr	30			/* and trap type */
@@ -847,8 +847,8 @@ s_isitrap:
 	stw	30,IFRAME_XER(1);	/* saved XER */			\
 	lmw	28,tempsave(0);		/* restore r28-r31 */		\
 	mfctr	6;							\
-	lis	5,_C_LABEL(intr_depth)@ha;				\
-	lwz	5,_C_LABEL(intr_depth)@l(5);				\
+	lis	5,CNAME(intr_depth)@ha;				\
+	lwz	5,CNAME(intr_depth)@l(5);				\
 	mfsrr0	4;							\
 	mfsrr1	3;							\
 	stw	6,IFRAME_CTR(1);					\
@@ -876,11 +876,11 @@ s_isitrap:
 	mtmsr	5;							\
 	isync
 
-	.globl	_C_LABEL(extint_call)
+	.globl	CNAME(extint_call)
 extintr:
 	INTRENTER
-_C_LABEL(extint_call):
-	bl	_C_LABEL(extint_call)	/* to be filled in later */
+CNAME(extint_call):
+	bl	CNAME(extint_call)	/* to be filled in later */
 
 intr_exit:
 /* Disable interrupts (should already be disabled) and MMU here: */
@@ -926,8 +926,8 @@ intr_exit:
 	mtsr	7,4			/* Restore SR7 */
 	lwz	3,PM_KERNELSR(3)
 	mtsr	KERNEL_SR,3		/* Restore kernel SR */
-	lis	3,_C_LABEL(astpending)@ha /* Test AST pending */
-	lwz	4,_C_LABEL(astpending)@l(3)
+	lis	3,CNAME(astpending)@ha /* Test AST pending */
+	lwz	4,CNAME(astpending)@l(3)
 	andi.	4,4,1
 	beq	1f
 /* Setup for entry to realtrap: */
@@ -943,10 +943,10 @@ intr_exit:
 	lwz	4,IFRAME_R4(1)
 	lwz	3,IFRAME_R3(1)
 	lwz	0,IFRAME_R0(1)
-	lis	30,_C_LABEL(intr_depth)@ha /* adjust reentrancy count */
-	lwz	31,_C_LABEL(intr_depth)@l(30)
+	lis	30,CNAME(intr_depth)@ha /* adjust reentrancy count */
+	lwz	31,CNAME(intr_depth)@l(30)
 	addi	31,31,-1
-	stw	31,_C_LABEL(intr_depth)@l(30)
+	stw	31,CNAME(intr_depth)@l(30)
 	b	realtrap
 1:
 /* Here is the normal exit of extintr: */
@@ -956,10 +956,10 @@ intr_exit:
 	mtlr	6
 	lwz	6,IFRAME_R6(1)
 	lwz	5,IFRAME_R5(1)
-	lis	3,_C_LABEL(intr_depth)@ha /* adjust reentrancy count */
-	lwz	4,_C_LABEL(intr_depth)@l(3)
+	lis	3,CNAME(intr_depth)@ha /* adjust reentrancy count */
+	lwz	4,CNAME(intr_depth)@l(3)
 	addi	4,4,-1
-	stw	4,_C_LABEL(intr_depth)@l(3)
+	stw	4,CNAME(intr_depth)@l(3)
 	lwz	4,IFRAME_R4(1)
 	lwz	3,IFRAME_R3(1)
 	lwz	0,IFRAME_R0(1)
@@ -972,15 +972,15 @@ intr_exit:
 decrintr:
 	INTRENTER
 	addi	3,1,8			/* intr frame -> clock frame */
-	bl	_C_LABEL(decr_intr)
+	bl	CNAME(decr_intr)
 	b	intr_exit
 
 #if defined(DDB)
 /*
  * Deliberate entry to ddbtrap
  */
-	.globl	_C_LABEL(ddb_trap)
-_C_LABEL(ddb_trap):
+	.globl	CNAME(ddb_trap)
+CNAME(ddb_trap):
 	mtsprg	1,1
 	mfmsr	3
 	mtsrr1	3
@@ -1003,7 +1003,7 @@ ddbtrap:
 	FRAME_SETUP(ddbsave)
 /* Call C trap code: */
 	addi	3,1,8
-	bl	_C_LABEL(ddb_trap_glue)
+	bl	CNAME(ddb_trap_glue)
 	or.	3,3,3
 	bne	ddbleave
 /* This wasn't for DDB, so switch to real trap: */
@@ -1026,8 +1026,8 @@ ddbleave:
 /*
  * Deliberate entry to ipkdbtrap
  */
-	.globl	_C_LABEL(ipkdb_trap)
-_C_LABEL(ipkdb_trap):
+	.globl	CNAME(ipkdb_trap)
+CNAME(ipkdb_trap):
 	mtsprg	1,1
 	mfmsr	3
 	mtsrr1	3
@@ -1048,7 +1048,7 @@ ipkdbtrap:
 	FRAME_SETUP(ipkdbsave)
 /* Call C trap code: */
 	addi	3,1,8
-	bl	_C_LABEL(ipkdb_trap_glue)
+	bl	CNAME(ipkdb_trap_glue)
 	or.	3,3,3
 	bne	ipkdbleave
 /* This wasn't for IPKDB, so switch to real trap: */
@@ -1078,16 +1078,16 @@ _ipkdbfault:
 /*
  * int ipkdbfbyte(unsigned char *p)
  */
-	.globl	_C_LABEL(ipkdbfbyte)
-_C_LABEL(ipkdbfbyte):
+	.globl	CNAME(ipkdbfbyte)
+CNAME(ipkdbfbyte):
 	li	9,EXC_DSI		/* establish new fault routine */
 	lwz	5,0(9)
 	lis	6,ipkdbfault@ha
 	lwz	6,ipkdbfault@l(6)
 	stw	6,0(9)
 #ifdef	IPKDBUSERHACK
-	lis	8,_C_LABEL(ipkdbsr)@ha
-	lwz	8,_C_LABEL(ipkdbsr)@l(8)
+	lis	8,CNAME(ipkdbsr)@ha
+	lwz	8,CNAME(ipkdbsr)@l(8)
 	mtsr	USER_SR,8
 	isync
 #endif
@@ -1104,16 +1104,16 @@ _C_LABEL(ipkdbfbyte):
 /*
  * int ipkdbsbyte(unsigned char *p, int c)
  */
-	.globl	_C_LABEL(ipkdbsbyte)
-_C_LABEL(ipkdbsbyte):
+	.globl	CNAME(ipkdbsbyte)
+CNAME(ipkdbsbyte):
 	li	9,EXC_DSI		/* establish new fault routine */
 	lwz	5,0(9)
 	lis	6,ipkdbfault@ha
 	lwz	6,ipkdbfault@l(6)
 	stw	6,0(9)
 #ifdef	IPKDBUSERHACK
-	lis	8,_C_LABEL(ipkdbsr)@ha
-	lwz	8,_C_LABEL(ipkdbsr)@l(8)
+	lis	8,CNAME(ipkdbsr)@ha
+	lwz	8,CNAME(ipkdbsr)@l(8)
 	mtsr	USER_SR,8
 	isync
 #endif
