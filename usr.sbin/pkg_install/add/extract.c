@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.7.6.3 1997/02/25 07:19:32 jkh Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.7.6.4 1997/06/29 10:42:13 jkh Exp $";
 #endif
 
 /*
@@ -123,7 +123,7 @@ extract_plist(char *home, Package *pkg)
 
 		/* first try to rename it into place */
 		sprintf(try, "%s/%s", Directory, p->name);
-		if (preserve) {
+		if (preserve && fexists(try)) {
 		    char pf[FILENAME_MAX];
 
 		    if (!PkgName) {
