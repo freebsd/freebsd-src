@@ -32,10 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)sh.1	8.4 (Berkeley) 4/18/94
-.\"	$Id: sh.1,v 1.5 1995/10/21 00:47:32 joerg Exp $
-.\"
-.\"
+.\"	@(#)sh.1	8.6 (Berkeley) 5/4/95
+.\"	$Id: sh.1,v 1.6 1996/08/29 18:06:10 wosch Exp $
 .\"
 .na
 .TH SH 1
@@ -1035,6 +1033,12 @@ to these, there are several other commands that may
 be builtin for efficiency (e.g. printf(1), echo(1), test(1),
 etc).
 .TP
+:
+A null command that returns a 0 (true) exit value.
+.TP
+\&. file
+The commands in the specified file are read and executed by the shell.
+.TP
 alias  [ name[=string] ...  ]
 If name=string is specified, the shell defines the
 alias ``name'' with value ``string''.  If just ``name''
@@ -1063,9 +1067,6 @@ the directory that it actually switched to if this is
 different from the name that the user gave.  These
 may be different either because the CDPATH mechanism
 was used or because a symbolic link was crossed.
-.TP
-\&. file
-The commands in the specified file are read and executed by the shell.
 .TP
 eval string...
 Concatenate all the arguments with spaces.  Then
@@ -1182,7 +1183,8 @@ table.  Entries which have not been looked at since
 the last cd command are marked with an asterisk; it
 is possible for these entries to be invalid.
 .sp
-With arguments, the hash command removes the specified commands from the hash table (unless they are
+With arguments, the hash command removes the specified
+commands from the hash table (unless they are
 functions) and then locates them.   With the -v
 option, hash prints the locations of the commands as
 it finds them.  The -r option causes the hash command

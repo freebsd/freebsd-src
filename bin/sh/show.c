@@ -33,40 +33,56 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: show.c,v 1.2 1994/09/24 02:58:16 davidg Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)show.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)show.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <stdio.h>
+#if __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+
 #include "shell.h"
 #include "parser.h"
 #include "nodes.h"
 #include "mystring.h"
+#include "show.h"
 
 
 #ifdef DEBUG
-static shtree(), shcmd(), sharg(), indent();
+static void shtree __P((union node *, int, char *, FILE*));
+static void shcmd __P((union node *, FILE *));
+static void sharg __P((union node *, FILE *));
+static void indent __P((int, char *, FILE *));
+static void trstring __P((char *));
 
 
+void
 showtree(n)
 	union node *n;
-	{
+{
 	trputs("showtree called\n");
 	shtree(n, 1, NULL, stdout);
 }
 
 
-static
+static void
 shtree(n, ind, pfx, fp)
 	union node *n;
+	int ind;
 	char *pfx;
 	FILE *fp;
-	{
+{
 	struct nodelist *lp;
 	char *s;
+
+	if (n == NULL)
+		return;
 
 	indent(ind, pfx, fp);
 	switch(n->type) {
@@ -110,11 +126,11 @@ binop:
 
 
 
-static
+static void
 shcmd(cmd, fp)
 	union node *cmd;
 	FILE *fp;
-	{
+{
 	union node *np;
 	int first;
 	char *s;
@@ -136,6 +152,7 @@ shcmd(cmd, fp)
 			case NTOFD:	s = ">&"; dftfd = 1; break;
 			case NFROM:	s = "<";  dftfd = 0; break;
 			case NFROMFD:	s = "<&"; dftfd = 0; break;
+			default:  	s = "*error*"; dftfd = 0; break;
 		}
 		if (np->nfile.fd != dftfd)
 			fprintf(fp, "%d", np->nfile.fd);
@@ -151,7 +168,7 @@ shcmd(cmd, fp)
 
 
 
-static
+static void
 sharg(arg, fp)
 	union node *arg;
 	FILE *fp;
@@ -175,10 +192,15 @@ sharg(arg, fp)
 			putc('$', fp);
 			putc('{', fp);
 			subtype = *++p;
+			if (subtype == VSLENGTH)
+				putc('#', fp);
+
 			while (*p != '=')
 				putc(*p++, fp);
+
 			if (subtype & VSNUL)
 				putc(':', fp);
+
 			switch (subtype & VSTYPE) {
 			case VSNORMAL:
 				putc('}', fp);
@@ -194,6 +216,22 @@ sharg(arg, fp)
 				break;
 			case VSASSIGN:
 				putc('=', fp);
+				break;
+			case VSTRIMLEFT:
+				putc('#', fp);
+				break;
+			case VSTRIMLEFTMAX:
+				putc('#', fp);
+				putc('#', fp);
+				break;
+			case VSTRIMRIGHT:
+				putc('%', fp);
+				break;
+			case VSTRIMRIGHTMAX:
+				putc('%', fp);
+				putc('%', fp);
+				break;
+			case VSLENGTH:
 				break;
 			default:
 				printf("<subtype %d>", subtype);
@@ -217,11 +255,12 @@ sharg(arg, fp)
 }
 
 
-static
+static void
 indent(amount, pfx, fp)
+	int amount;
 	char *pfx;
 	FILE *fp;
-	{
+{
 	int i;
 
 	for (i = 0 ; i < amount ; i++) {
@@ -248,7 +287,10 @@ int debug = 0;
 #endif
 
 
-trputc(c) {
+void
+trputc(c) 
+	int c;
+{
 #ifdef DEBUG
 	if (tracefile == NULL)
 		return;
@@ -258,23 +300,37 @@ trputc(c) {
 #endif
 }
 
-
-trace(fmt, a1, a2, a3, a4, a5, a6, a7, a8)
-	char *fmt;
-	{
+void
+#if __STDC__
+shtrace(const char *fmt, ...)
+#else
+shtrace(va_alist)
+	va_dcl
+#endif
+{
 #ifdef DEBUG
-	if (tracefile == NULL)
-		return;
-	fprintf(tracefile, fmt, a1, a2, a3, a4, a5, a6, a7, a8);
-	if (strchr(fmt, '\n'))
-		fflush(tracefile);
+	va_list va;
+#if __STDC__
+	va_start(va, fmt);
+#else
+	char *fmt;
+	va_start(va);
+	fmt = va_arg(va, char *);
+#endif
+	if (tracefile != NULL) {
+		(void) vfprintf(tracefile, fmt, va);
+		if (strchr(fmt, '\n'))
+			(void) fflush(tracefile);
+	}
+	va_end(va);
 #endif
 }
 
 
+void
 trputs(s)
 	char *s;
-	{
+{
 #ifdef DEBUG
 	if (tracefile == NULL)
 		return;
@@ -285,9 +341,10 @@ trputs(s)
 }
 
 
+static void
 trstring(s)
 	char *s;
-	{
+{
 	register char *p;
 	char c;
 
@@ -327,9 +384,10 @@ backslash:	  putc('\\', tracefile);
 }
 
 
+void
 trargs(ap)
 	char **ap;
-	{
+{
 #ifdef DEBUG
 	if (tracefile == NULL)
 		return;
@@ -345,24 +403,29 @@ trargs(ap)
 }
 
 
+void
 opentrace() {
 	char s[100];
-	char *p;
 	char *getenv();
+#ifdef O_APPEND
 	int flags;
+#endif
 
 #ifdef DEBUG
 	if (!debug)
 		return;
 #ifdef not_this_way
-	if ((p = getenv("HOME")) == NULL) {
-		if (geteuid() == 0)
-			p = "/";
-		else
-			p = "/tmp";
+	{
+		char *p;
+		if ((p = getenv("HOME")) == NULL) {
+			if (geteuid() == 0)
+				p = "/";
+			else
+				p = "/tmp";
+		}
+		scopy(p, s);
+		strcat(s, "/trace");
 	}
-	scopy(p, s);
-	strcat(s, "/trace");
 #else
 	scopy("./trace", s);
 #endif /* not_this_way */

@@ -33,27 +33,30 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: trap.c,v 1.2 1994/09/24 02:58:18 davidg Exp $
+ *	$Id: trap.c,v 1.3 1995/05/30 00:07:23 rgrimes Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)trap.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif /* not lint */
+
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 #include "shell.h"
 #include "main.h"
 #include "nodes.h"	/* for other headers */
 #include "eval.h"
 #include "jobs.h"
+#include "show.h"
 #include "options.h"
 #include "syntax.h"
-#include "signames.h"
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
 #include "trap.h"
 #include "mystring.h"
-#include <signal.h>
 
 
 /*
@@ -71,22 +74,28 @@ static char sccsid[] = "@(#)trap.c	8.1 (Berkeley) 5/31/93";
 
 extern char nullstr[1];		/* null string */
 
-char *trap[MAXSIG+1];		/* trap handler commands */
-MKINIT char sigmode[MAXSIG];	/* current value of signal */
-char gotsig[MAXSIG];		/* indicates specified signal received */
+char *trap[NSIG+1];		/* trap handler commands */
+MKINIT char sigmode[NSIG];	/* current value of signal */
+char gotsig[NSIG];		/* indicates specified signal received */
 int pendingsigs;			/* indicates some signal received */
+
+static int getsigaction __P((int, sig_t *));
 
 /*
  * The trap builtin.
  */
 
-trapcmd(argc, argv)  char **argv; {
+int
+trapcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	char *action;
 	char **ap;
 	int signo;
 
 	if (argc <= 1) {
-		for (signo = 0 ; signo <= MAXSIG ; signo++) {
+		for (signo = 0 ; signo <= NSIG ; signo++) {
 			if (trap[signo] != NULL)
 				out1fmt("%d: %s\n", signo, trap[signo]);
 		}
@@ -98,7 +107,7 @@ trapcmd(argc, argv)  char **argv; {
 	else
 		action = *ap++;
 	while (*ap) {
-		if ((signo = number(*ap)) < 0 || signo > MAXSIG)
+		if ((signo = number(*ap)) < 0 || signo > NSIG)
 			error("%s: bad trap", *ap);
 		INTOFF;
 		if (action)
@@ -124,7 +133,7 @@ void
 clear_traps() {
 	char **tp;
 
-	for (tp = trap ; tp <= &trap[MAXSIG] ; tp++) {
+	for (tp = trap ; tp <= &trap[NSIG] ; tp++) {
 		if (*tp && **tp) {	/* trap not NULL or SIG_IGN */
 			INTOFF;
 			ckfree(*tp);
@@ -143,13 +152,14 @@ clear_traps() {
  * out what it should be set to.
  */
 
-int
-setsignal(signo) {
+long
+setsignal(signo) 
+	int signo;
+{
 	int action;
-	sig_t sigact;
+	sig_t sigact = SIG_DFL;
 	char *t;
 	extern void onsig();
-	extern sig_t getsigaction();
 
 	if ((t = trap[signo]) == NULL)
 		action = S_DFL;
@@ -186,12 +196,20 @@ setsignal(signo) {
 #endif
 		}
 	}
+
 	t = &sigmode[signo - 1];
 	if (*t == 0) {
 		/*
 		 * current setting unknown
 		 */
-		sigact = getsigaction(signo);
+		if (!getsigaction(signo, &sigact)) {
+			/*
+			 * Pretend it worked; maybe we should give a warning
+			 * here, but other shells don't. We don't alter
+			 * sigmode, so that we retry every time.
+			 */
+			return 0;
+		}
 		if (sigact == SIG_IGN) {
 			if (mflag && (signo == SIGTSTP ||
 			     signo == SIGTTIN || signo == SIGTTOU)) {
@@ -210,20 +228,23 @@ setsignal(signo) {
 		case S_IGN:	sigact = SIG_IGN;	break;
 	}
 	*t = action;
-	return (int)signal(signo, sigact);
+	return (long)signal(signo, sigact);
 }
 
 /*
  * Return the current setting for sig w/o changing it.
  */
-sig_t
-getsigaction(signo) {
+static int
+getsigaction(signo, sigact) 
+	int signo;
+	sig_t *sigact;
+{
 	struct sigaction sa;
 
 	if (sigaction(signo, (struct sigaction *)0, &sa) == -1)
-		error("Sigaction system call failed");
-
-	return sa.sa_handler;
+		return 0;
+	*sigact = (sig_t) sa.sa_handler;
+	return 1;
 }
 
 /*
@@ -231,7 +252,9 @@ getsigaction(signo) {
  */
 
 void
-ignoresig(signo) {
+ignoresig(signo) 
+	int signo;
+{
 	if (sigmode[signo - 1] != S_IGN && sigmode[signo - 1] != S_HARD_IGN) {
 		signal(signo, SIG_IGN);
 	}
@@ -240,14 +263,14 @@ ignoresig(signo) {
 
 
 #ifdef mkinit
-INCLUDE "signames.h"
+INCLUDE <signal.h>
 INCLUDE "trap.h"
 
 SHELLPROC {
 	char *sm;
 
 	clear_traps();
-	for (sm = sigmode ; sm < sigmode + MAXSIG ; sm++) {
+	for (sm = sigmode ; sm < sigmode + NSIG ; sm++) {
 		if (*sm == S_IGN)
 			*sm = S_HARD_IGN;
 	}
@@ -261,7 +284,9 @@ SHELLPROC {
  */
 
 void
-onsig(signo) {
+onsig(signo) 
+	int signo;
+{
 	signal(signo, onsig);
 	if (signo == SIGINT && trap[SIGINT] == NULL) {
 		onint();
@@ -287,7 +312,7 @@ dotrap() {
 		for (i = 1 ; ; i++) {
 			if (gotsig[i - 1])
 				break;
-			if (i >= MAXSIG)
+			if (i >= NSIG)
 				goto done;
 		}
 		gotsig[i - 1] = 0;
@@ -307,7 +332,9 @@ done:
 
 
 void
-setinteractive(on) {
+setinteractive(on)
+	int on;
+{
 	static int is_interactive;
 
 	if (on == is_interactive)
@@ -325,7 +352,9 @@ setinteractive(on) {
  */
 
 void
-exitshell(status) {
+exitshell(status) 
+	int status;
+{
 	struct jmploc loc1, loc2;
 	char *p;
 

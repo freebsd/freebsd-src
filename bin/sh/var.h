@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)var.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	@(#)var.h	8.2 (Berkeley) 5/4/95
+ *	$Id: var.h,v 1.2 1994/09/24 02:58:23 davidg Exp $
  */
 
 /*
@@ -101,28 +101,19 @@ extern struct var vterm;
 #endif
 #define mpathset()	((vmpath.flags & VUNSET) == 0)
 
-
-#ifdef __STDC__
-void initvar();
-void setvar(char *, char *, int);
-void setvareq(char *, int);
+void initvar __P((void));
+void setvar __P((char *, char *, int));
+void setvareq __P((char *, int));
 struct strlist;
-void listsetvar(struct strlist *);
-char *lookupvar(char *);
-char *bltinlookup(char *, int);
-char **environment();
-int showvarscmd(int, char **);
-void mklocal(char *);
-void poplocalvars(void);
-#else
-void initvar();
-void setvar();
-void setvareq();
-void listsetvar();
-char *lookupvar();
-char *bltinlookup();
-char **environment();
-int showvarscmd();
-void mklocal();
-void poplocalvars();
-#endif
+void listsetvar __P((struct strlist *)); 
+char *lookupvar __P((char *));
+char *bltinlookup __P((char *, int));
+char **environment __P((void));
+void shprocvar __P((void));
+int showvarscmd __P((int, char **));
+int exportcmd __P((int, char **));
+int localcmd __P((int, char **));
+void mklocal __P((char *));   
+void poplocalvars __P((void));
+int setvarcmd __P((int, char **));
+int unsetcmd __P((int, char **));

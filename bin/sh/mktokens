@@ -35,7 +35,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mktokens	8.1 (Berkeley) 5/31/93
-#	$Id$
+#	$Id: mktokens,v 1.2 1994/09/24 02:57:58 davidg Exp $
 
 # The following is a list of tokens.  The second column is nonzero if the
 # token marks the end of a list.  The third column is the name to print in
@@ -72,7 +72,7 @@ TESAC	1	"esac"
 TNOT	0	"!"
 !
 nl=`wc -l /tmp/ka$$`
-exec > token.def
+exec > token.h
 awk '{print "#define " $1 " " NR-1}' /tmp/ka$$
 echo '
 /* Array indicating which tokens mark the end of a list */

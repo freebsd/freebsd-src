@@ -34,18 +34,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith_lex.l,v 1.2 1994/09/24 02:57:22 davidg Exp $
+ *	$Id: arith_lex.l,v 1.4 1996/06/02 17:06:40 phk Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)arith_lex.l	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)arith_lex.l	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
+#include <unistd.h>
 #include "y.tab.h"
+#include "error.h"
 
 extern yylval;
 extern char *arith_buf, *arith_startbuf;
-int arith_wasoper;
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max) \
 	result = (*buf = *arith_buf++) ? 1 : YY_NULL;
@@ -53,36 +54,33 @@ int arith_wasoper;
 
 %%
 [ \t\n]	{ ; }
-[0-9]+	{ arith_wasoper = 0; yylval = atol(yytext); return(ARITH_NUM); }
-"("	{ arith_wasoper = 1; return(ARITH_LPAREN); }
-")"	{ arith_wasoper = 0; return(ARITH_RPAREN); }
-"||"	{ arith_wasoper = 1; return(ARITH_OR); }
-"&&"	{ arith_wasoper = 1; return(ARITH_AND); }
-"=="	{ arith_wasoper = 1; return(ARITH_EQ); }
-">"	{ arith_wasoper = 1; return(ARITH_GT); }
-">="	{ arith_wasoper = 1; return(ARITH_GEQ); }
-"<"	{ arith_wasoper = 1; return(ARITH_LT); }
-"<="	{ arith_wasoper = 1; return(ARITH_LEQ); }
-"!="	{ arith_wasoper = 1; return(ARITH_NEQ); }
-"*"	{ arith_wasoper = 1; return(ARITH_MULT); }
-"/"	{ arith_wasoper = 1; return(ARITH_DIV); }
-"%"	{ arith_wasoper = 1; return(ARITH_REM); }
-"+"	{ if (!arith_wasoper) {	/* ignore unary plus */
-		arith_wasoper = 1; 
-		return(ARITH_ADD);
-	 } 
-	}	
-"-"	{ if (arith_wasoper) {
-		return(ARITH_UNARYMINUS);
-	  } else {
-		arith_wasoper = 1;
-		return(ARITH_SUBT);
-	  }
-	}
-"!"	{ arith_wasoper = 1; return(ARITH_NOT); }
+[0-9]+	{ yylval = atol(yytext); return(ARITH_NUM); }
+"("	{ return(ARITH_LPAREN); }
+")"	{ return(ARITH_RPAREN); }
+"||"	{ return(ARITH_OR); }
+"&&"	{ return(ARITH_AND); }
+"|"	{ return(ARITH_BOR); }
+"^"	{ return(ARITH_BXOR); }
+"&"	{ return(ARITH_BAND); }
+"=="	{ return(ARITH_EQ); }
+"!="	{ return(ARITH_NE); }
+">"	{ return(ARITH_GT); }
+">="	{ return(ARITH_GE); }
+"<"	{ return(ARITH_LT); }
+"<="	{ return(ARITH_LE); }
+"<<"	{ return(ARITH_LSHIFT); }
+">>"	{ return(ARITH_RSHIFT); }
+"*"	{ return(ARITH_MUL); }
+"/"	{ return(ARITH_DIV); }
+"%"	{ return(ARITH_REM); }
+"+"	{ return(ARITH_ADD); } 
+"-"	{ return(ARITH_SUB); }
+"~"	{ return(ARITH_BNOT); }
+"!"	{ return(ARITH_NOT); }
 .	{ error("arith: syntax error: \"%s\"\n", arith_startbuf); }
 %%
 
+void
 arith_lex_reset() {
 	YY_NEW_FILE;
 }

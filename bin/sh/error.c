@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: error.c,v 1.2 1994/09/24 02:57:27 davidg Exp $
+ *	$Id: error.c,v 1.3 1995/05/30 00:07:10 rgrimes Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)error.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -49,12 +49,9 @@ static char sccsid[] = "@(#)error.c	8.1 (Berkeley) 5/31/93";
 #include "options.h"
 #include "output.h"
 #include "error.h"
+#include "show.h"
 #include <signal.h>
-#ifdef __STDC__
-#include "stdarg.h"
-#else
-#include <varargs.h>
-#endif
+#include <unistd.h>
 #include <errno.h>
 
 
@@ -76,7 +73,9 @@ char *commandname;
  */
 
 void
-exraise(e) {
+exraise(e) 
+	int e;
+{
 	if (handler == NULL)
 		abort();
 	exception = e;
@@ -96,14 +95,15 @@ exraise(e) {
 
 void
 onint() {
+	sigset_t sigset;
+
 	if (suppressint) {
 		intpending++;
 		return;
 	}
 	intpending = 0;
-#ifdef BSD
-	sigsetmask(0);
-#endif
+	sigemptyset(&sigset);
+	sigprocmask(SIG_SETMASK, &sigset, NULL);
 	if (rootshell && iflag)
 		exraise(EXINT);
 	else
@@ -126,21 +126,23 @@ error2(a, b)
  * formatting.  It then raises the error exception.
  */
 
-#ifdef __STDC__
+#if __STDC__
 void
-error(char *msg, ...) {
+error(char *msg, ...)
 #else
 void
 error(va_alist)
 	va_dcl
-	{
+#endif
+{
+#if !__STDC__
 	char *msg;
 #endif
 	va_list ap;
-
 	CLEAR_PENDING_INT;
 	INTOFF;
-#ifdef __STDC__
+
+#if __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);
@@ -179,55 +181,57 @@ struct errname {
 #define ALL (E_OPEN|E_CREAT|E_EXEC)
 
 STATIC const struct errname errormsg[] = {
-	EINTR, ALL,	"interrupted",
-	EACCES, ALL,	"permission denied",
-	EIO, ALL,		"I/O error",
-	ENOENT, E_OPEN,	"no such file",
-	ENOENT, E_CREAT,	"directory nonexistent",
-	ENOENT, E_EXEC,	"not found",
-	ENOTDIR, E_OPEN,	"no such file",
-	ENOTDIR, E_CREAT,	"directory nonexistent",
-	ENOTDIR, E_EXEC,	"not found",
-	EISDIR, ALL,	"is a directory",
-/*    EMFILE, ALL,	"too many open files", */
-	ENFILE, ALL,	"file table overflow",
-	ENOSPC, ALL,	"file system full",
+	{ EINTR,	ALL,	"interrupted" },
+	{ EACCES,	ALL,	"permission denied" },
+	{ EIO,		ALL,	"I/O error" },
+	{ ENOENT,	E_OPEN,	"no such file" },
+	{ ENOENT,	E_CREAT,"directory nonexistent" },
+	{ ENOENT,	E_EXEC,	"not found" },
+	{ ENOTDIR,	E_OPEN,	"no such file" },
+	{ ENOTDIR,	E_CREAT,"directory nonexistent" },
+	{ ENOTDIR,	E_EXEC,	"not found" },
+	{ EISDIR,	ALL,	"is a directory" },
+#ifdef notdef
+	{ EMFILE,	ALL,	"too many open files" },
+#endif
+	{ ENFILE,	ALL,	"file table overflow" },
+	{ ENOSPC,	ALL,	"file system full" },
 #ifdef EDQUOT
-	EDQUOT, ALL,	"disk quota exceeded",
+	{ EDQUOT,	ALL,	"disk quota exceeded" },
 #endif
 #ifdef ENOSR
-	ENOSR, ALL,	"no streams resources",
+	{ ENOSR,	ALL,	"no streams resources" },
 #endif
-	ENXIO, ALL,	"no such device or address",
-	EROFS, ALL,	"read-only file system",
-	ETXTBSY, ALL,	"text busy",
+	{ ENXIO,	ALL,	"no such device or address" },
+	{ EROFS,	ALL,	"read-only file system" },
+	{ ETXTBSY,	ALL,	"text busy" },
 #ifdef SYSV
-	EAGAIN, E_EXEC,	"not enough memory",
+	{ EAGAIN,	E_EXEC,	"not enough memory" },
 #endif
-	ENOMEM, ALL,	"not enough memory",
+	{ ENOMEM,	ALL,	"not enough memory" },
 #ifdef ENOLINK
-	ENOLINK, ALL,	"remote access failed",
+	{ ENOLINK,	ALL,	"remote access failed" },
 #endif
 #ifdef EMULTIHOP
-	EMULTIHOP, ALL,	"remote access failed",
+	{ EMULTIHOP,	ALL,	"remote access failed" },
 #endif
 #ifdef ECOMM
-	ECOMM, ALL,	"remote access failed",
+	{ ECOMM,	ALL,	"remote access failed" },
 #endif
 #ifdef ESTALE
-	ESTALE, ALL,	"remote access failed",
+	{ ESTALE,	ALL,	"remote access failed" },
 #endif
 #ifdef ETIMEDOUT
-	ETIMEDOUT, ALL,	"remote access failed",
+	{ ETIMEDOUT,	ALL,	"remote access failed" },
 #endif
 #ifdef ELOOP
-	ELOOP, ALL,	"symbolic link loop",
+	{ ELOOP,	ALL,	"symbolic link loop" },
 #endif
-	E2BIG, E_EXEC,	"argument list too long",
+	{ E2BIG,	E_EXEC,	"argument list too long" },
 #ifdef ELIBACC
-	ELIBACC, E_EXEC,	"shared library missing",
+	{ ELIBACC,	E_EXEC,	"shared library missing" },
 #endif
-	0, 0,		NULL
+	{ 0,		0,	NULL },
 };
 
 
@@ -238,7 +242,10 @@ STATIC const struct errname errormsg[] = {
  */
 
 char *
-errmsg(e, action) {
+errmsg(e, action) 
+	int e;
+	int action;
+{
 	struct errname const *ep;
 	static char buf[12];
 

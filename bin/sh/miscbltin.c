@@ -4,7 +4,6 @@
  *
  * This code is derived from software contributed to Berkeley by
  * Kenneth Almquist.
- * The ulimit() builtin has been contributed by Joerg Wunsch.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,16 +33,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: miscbltin.c,v 1.3 1995/10/19 18:42:10 joerg Exp $
+ *	$Id: miscbltin.c,v 1.4 1995/10/21 00:47:30 joerg Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)miscbltin.c	8.2 (Berkeley) 4/16/94";
+static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
  * Miscelaneous builtins.
  */
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <unistd.h>
+#include <ctype.h>
 
 #include "shell.h"
 #include "options.h"
@@ -52,18 +58,6 @@ static char sccsid[] = "@(#)miscbltin.c	8.2 (Berkeley) 4/16/94";
 #include "memalloc.h"
 #include "error.h"
 #include "mystring.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-
-#if BSD
-#include <limits.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#endif
 
 #undef eflag
 
@@ -77,7 +71,11 @@ extern char **argptr;		/* argument list for builtin command */
  * This uses unbuffered input, which may be avoidable in some cases.
  */
 
-readcmd(argc, argv)  char **argv; {
+int
+readcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	char **ap;
 	int backslash;
 	char c;
@@ -157,225 +155,235 @@ readcmd(argc, argv)  char **argv; {
 
 
 
-umaskcmd(argc, argv)  char **argv; {
+int
+umaskcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
+	char *ap;
 	int mask;
-	char *p;
 	int i;
+	int symbolic_mode = 0;
 
-	if ((p = argv[1]) == NULL) {
-		INTOFF;
-		mask = umask(0);
-		umask(mask);
-		INTON;
-		out1fmt("%.4o\n", mask);	/* %#o might be better */
+	while ((i = nextopt("S")) != '\0') {
+		symbolic_mode = 1;
+	}
+
+	INTOFF;
+	mask = umask(0);
+	umask(mask);
+	INTON;
+
+	if ((ap = *argptr) == NULL) {
+		if (symbolic_mode) {
+			char u[4], g[4], o[4];
+
+			i = 0;
+			if ((mask & S_IRUSR) == 0)
+				u[i++] = 'r';
+			if ((mask & S_IWUSR) == 0)
+				u[i++] = 'w';
+			if ((mask & S_IXUSR) == 0)
+				u[i++] = 'x';
+			u[i] = '\0';
+
+			i = 0;
+			if ((mask & S_IRGRP) == 0)
+				g[i++] = 'r';
+			if ((mask & S_IWGRP) == 0)
+				g[i++] = 'w';
+			if ((mask & S_IXGRP) == 0)
+				g[i++] = 'x';
+			g[i] = '\0';
+
+			i = 0;
+			if ((mask & S_IROTH) == 0)
+				o[i++] = 'r';
+			if ((mask & S_IWOTH) == 0)
+				o[i++] = 'w';
+			if ((mask & S_IXOTH) == 0)
+				o[i++] = 'x';
+			o[i] = '\0';
+
+			out1fmt("u=%s,g=%s,o=%s\n", u, g, o);
+		} else {
+			out1fmt("%.4o\n", mask);
+		}
 	} else {
-		mask = 0;
-		do {
-			if ((unsigned)(i = *p - '0') >= 8)
-				error("Illegal number: %s", argv[1]);
-			mask = (mask << 3) + i;
-		} while (*++p != '\0');
-		umask(mask);
+		if (isdigit(*ap)) {
+			mask = 0;
+			do {
+				if (*ap >= '8' || *ap < '0')
+					error("Illegal number: %s", argv[1]);
+				mask = (mask << 3) + (*ap - '0');
+			} while (*++ap != '\0');
+			umask(mask);
+		} else {
+			void *set; 
+			if ((set = setmode (ap)) == 0)
+					error("Illegal number: %s", ap);
+
+			mask = getmode (set, ~mask & 0777);
+			umask(~mask & 0777);
+		}
 	}
 	return 0;
 }
 
+/*
+ * ulimit builtin
+ *
+ * This code, originally by Doug Gwyn, Doug Kingston, Eric Gisin, and
+ * Michael Rendell was ripped from pdksh 5.0.8 and hacked for use with
+ * ash by J.T. Conklin.
+ *
+ * Public domain.
+ */
 
-#if BSD
-struct restab {
-	int resource;
-	int scale;
-	char *descript;
+struct limits {
+	const char *name;
+	int	cmd;
+	int	factor;	/* multiply by to get rlim_{cur,max} values */
+	char	option;
 };
 
-/* multi-purpose */
-#define RLIMIT_UNSPEC (-2)
-
-/* resource */
-#define RLIMIT_ALL (-1)
-
-/* mode */
-#define RLIMIT_SHOW 0
-#define RLIMIT_SET 1
-
-/* what */
-#define RLIMIT_SOFT 1
-#define RLIMIT_HARD 2
-
-static struct restab restab[] = {
-	{RLIMIT_CORE,     512,  "coredump(512-blocks)    "},
-	{RLIMIT_CPU,      1,    "time(seconds)           "},
-	{RLIMIT_DATA,     1024, "datasize(kilobytes)     "},
-	{RLIMIT_FSIZE,    512,  "filesize(512-blocks)    "},
-	{RLIMIT_MEMLOCK,  1024, "lockedmem(kilobytes)    "},
-	{RLIMIT_NOFILE,   1,    "nofiles(descriptors)    "},
-	{RLIMIT_NPROC,    1,    "userprocs(max)          "},
-	{RLIMIT_RSS,      1024, "memoryuse(kilobytes)    "},
-	{RLIMIT_STACK,    1024, "stacksize(kilobytes)    "}
+static const struct limits limits[] = {
+#ifdef RLIMIT_CPU
+	{ "time(seconds)",		RLIMIT_CPU,	   1, 't' },
+#endif
+#ifdef RLIMIT_FSIZE
+	{ "file(512-blocks)",		RLIMIT_FSIZE,	 512, 'f' },
+#endif
+#ifdef RLIMIT_DATA
+	{ "data(kbytes)",		RLIMIT_DATA,	1024, 'd' },
+#endif
+#ifdef RLIMIT_STACK
+	{ "stack(kbytes)",		RLIMIT_STACK,	1024, 's' },
+#endif
+#ifdef  RLIMIT_CORE
+	{ "coredump(512-blocks)",	RLIMIT_CORE,	 512, 'c' },
+#endif
+#ifdef RLIMIT_RSS
+	{ "memory(kbytes)",		RLIMIT_RSS,	1024, 'm' },
+#endif
+#ifdef RLIMIT_MEMLOCK
+	{ "lockedmem(kbytes)",		RLIMIT_MEMLOCK, 1024, 'l' },
+#endif
+#ifdef RLIMIT_NPROC
+	{ "process(processes)",		RLIMIT_NPROC,      1, 'u' },
+#endif
+#ifdef RLIMIT_NOFILE
+	{ "nofiles(descriptors)",	RLIMIT_NOFILE,     1, 'n' },
+#endif
+#ifdef RLIMIT_VMEM
+	{ "vmemory(kbytes)",		RLIMIT_VMEM,	1024, 'v' },
+#endif
+#ifdef RLIMIT_SWAP
+	{ "swap(kbytes)",		RLIMIT_SWAP,	1024, 'w' },
+#endif
+	{ (char *) 0,			0,		   0,  '\0' }
 };
 
-/* get entry into above table */
-static struct restab *
-find_resource(resource) {
-	int i;
-	struct restab *rp;
-
-	for(i = 0, rp = restab;
-	    i < sizeof restab / sizeof(struct restab);
-	    i++, rp++)
-		if(rp->resource == resource)
-			return rp;
-	error("internal error: resource not in table");
-	return 0;
-}
-
-static void
-print_resource(rp, what, with_descript) struct restab *rp; {
-	struct rlimit rlim;	
+int
+ulimitcmd(argc, argv)
+	int argc;
+	char **argv;
+{
+	register int	c;
 	quad_t val;
+	enum { SOFT = 0x1, HARD = 0x2 }
+			how = SOFT | HARD;
+	const struct limits	*l;
+	int		set, all = 0;
+	int		optc, what;
+	struct rlimit	limit;
 
-	(void)getrlimit(rp->resource, &rlim);
-	val = (what == RLIMIT_SOFT)?
-		rlim.rlim_cur: rlim.rlim_max;
-	if(with_descript)
-		out1str(rp->descript);
-	if(val == RLIM_INFINITY)
-		out1str("unlimited\n");
-	else {
-		val /= (quad_t)rp->scale;
-		if(val > (quad_t)ULONG_MAX)
-			out1fmt("> %lu\n", (unsigned long)ULONG_MAX);
-		else
-			out1fmt("%lu\n", (unsigned long)val);
-	}
-}
-
-ulimitcmd(argc, argv)  char **argv; {
-	struct rlimit rlim;
-	char *p;
-	int i;
-	int resource = RLIMIT_UNSPEC;
-	quad_t val;
-	int what = RLIMIT_UNSPEC;
-	int mode = RLIMIT_UNSPEC;
-	int errs = 0, arg = 1;
-	struct restab *rp;
-	extern int optreset;	/* XXX should be declared in <stdlib.h> */
-
-	opterr = 0;		/* use own error processing */
-	optreset = 1;
-	optind = 1;
-	while ((i = getopt(argc, argv, "HSacdfnstmlu")) != EOF) {
-		arg++;
-		switch(i) {
+	what = 'f';
+	while ((optc = nextopt("HSatfdsmcnpl")) != '\0')
+		switch (optc) {
 		case 'H':
-			if(what == RLIMIT_UNSPEC) what = 0;
-			what |= RLIMIT_HARD;
+			how = HARD;
 			break;
 		case 'S':
-			if(what == RLIMIT_UNSPEC) what = 0;
-			what |= RLIMIT_SOFT;
+			how = SOFT;
 			break;
 		case 'a':
-			if(resource != RLIMIT_UNSPEC) errs++;
-			resource = RLIMIT_ALL;
-			mode = RLIMIT_SHOW;
+			all = 1;
 			break;
-		case 'c':
-			if(resource != RLIMIT_UNSPEC) errs++;
-			resource = RLIMIT_CORE;
-			break;
-		case 'd':
-			if(resource != RLIMIT_UNSPEC) errs++;
-			resource = RLIMIT_DATA;
-			break;
-		case 'f':
-			if(resource != RLIMIT_UNSPEC) errs++;
-			resource = RLIMIT_FSIZE;
-			break;
-		case 'n':
-			if(resource != RLIMIT_UNSPEC) errs++;
-			resource = RLIMIT_NOFILE;
-			break;
-		case 's':
-			if(resource != RLIMIT_UNSPEC) errs++;
-			resource = RLIMIT_STACK;
-			break;
-		case 't':
-			if(resource != RLIMIT_UNSPEC) errs++;
-			resource = RLIMIT_CPU;
-			break;
-		case 'm':
-			if(resource != RLIMIT_UNSPEC) errs++;
-			resource = RLIMIT_RSS;
-			break;
-		case 'l':
-			if(resource != RLIMIT_UNSPEC) errs++;
-			resource = RLIMIT_MEMLOCK;
-			break;
-		case 'u':
-			if(resource != RLIMIT_UNSPEC) errs++;
-			resource = RLIMIT_NPROC;
-			break;
-		case '?':
-			error("illegal option -%c", optopt);
+		default:
+			what = optc;
 		}
-	}
 
-	argc -= optind;
-	argv += optind;
-	if(argc > 1)
-		error("too many arguments");
-	if(argc == 0)
-		mode = RLIMIT_SHOW;
-	else if (resource == RLIMIT_ALL)
-		errs++;
-	else
-		mode = RLIMIT_SET;
-	if(mode == RLIMIT_UNSPEC)
-		mode = RLIMIT_SHOW;
-	if(resource == RLIMIT_UNSPEC)
-		resource = RLIMIT_FSIZE;
-	if(what == RLIMIT_UNSPEC)
-		what = (mode == RLIMIT_SHOW)?
-			RLIMIT_SOFT: (RLIMIT_SOFT|RLIMIT_HARD);
-	if(mode == RLIMIT_SHOW && what == (RLIMIT_SOFT|RLIMIT_HARD))
-		errs++;
-	if(errs)
-		error("Wrong option combination");
-	
-	if(resource == RLIMIT_ALL)
-		for(i = 0; i < sizeof restab / sizeof(struct restab); i++)
-			print_resource(restab + i, what, 1);
-	else if(mode == RLIMIT_SHOW)
-		print_resource(find_resource(resource), what, 0);
-	else {
-		rp = find_resource(resource);
-		if(strcmp(argv[0], "unlimited") == 0)
+	for (l = limits; l->name && l->option != what; l++)
+		;
+	if (!l->name)
+		error("ulimit: internal error (%c)\n", what);
+
+	set = *argptr ? 1 : 0;
+	if (set) {
+		char *p = *argptr;
+
+		if (all || argptr[1])
+			error("ulimit: too many arguments\n");
+		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;
 		else {
-			val = 0;
-			p = argv[0];
-			do {
-				if((i = *p - '0') < 0 || i > 9)
-					error("Illegal number: %s", argv[0]);
-				val = (10 * val) + (quad_t)i;
-			} while (*++p != '\0');
-			val *= (quad_t)rp->scale;
+			val = (quad_t) 0;
+
+			while ((c = *p++) >= '0' && c <= '9')
+			{
+				val = (val * 10) + (long)(c - '0');
+				if (val < (quad_t) 0)
+					break;
+			}
+			if (c)
+				error("ulimit: bad number\n");
+			val *= l->factor;
 		}
-		(void)getrlimit(resource, &rlim);
-		if(what & RLIMIT_HARD)
-			rlim.rlim_max = val;
-		if(what & RLIMIT_SOFT)
-			rlim.rlim_cur = val;
-		if(setrlimit(resource, &rlim) == -1) {
-			outfmt(&errout, "ulimit: bad limit: %s\n",
-			       strerror(errno));
-			return 1;
+	}
+	if (all) {
+		for (l = limits; l->name; l++) {
+			getrlimit(l->cmd, &limit);
+			if (how & SOFT)
+				val = limit.rlim_cur;
+			else if (how & HARD)
+				val = limit.rlim_max;
+
+			out1fmt("%-20s ", l->name);
+			if (val == RLIM_INFINITY)
+				out1fmt("unlimited\n");
+			else
+			{
+				val /= l->factor;
+				out1fmt("%ld\n", (long) val);
+			}
+		}
+		return 0;
+	}
+
+	getrlimit(l->cmd, &limit);
+	if (set) {
+		if (how & SOFT)
+			limit.rlim_cur = val;
+		if (how & HARD)
+			limit.rlim_max = val;
+		if (setrlimit(l->cmd, &limit) < 0)
+			error("ulimit: bad limit\n");
+	} else {
+		if (how & SOFT)
+			val = limit.rlim_cur;
+		else if (how & HARD)
+			val = limit.rlim_max;
+	}
+
+	if (!set) {
+		if (val == RLIM_INFINITY)
+			out1fmt("unlimited\n");
+		else
+		{
+			val /= l->factor;
+			out1fmt("%ld\n", (long) val);
 		}
 	}
 	return 0;
 }
-#else /* !BSD */
-#error ulimit() not implemented
-#endif /* BSD */
