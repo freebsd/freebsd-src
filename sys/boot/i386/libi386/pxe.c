@@ -40,6 +40,8 @@
 
 #include <net.h>
 #include <netif.h>
+#include <nfsv2.h>
+#include <iodesc.h>
 
 #include <bootstrap.h>
 #include "btxv86.h"
@@ -75,6 +77,7 @@ static int	pxe_open(struct open_file *f, ...);
 static int	pxe_close(struct open_file *f);
 static void	pxe_print(int verbose);
 static void	pxe_cleanup(void);
+static void	pxe_setnfshandle(char *rootpath);
 
 static void	pxe_perror(int error);
 static int	pxe_netif_match(struct netif *nif, void *machdep_hint);
@@ -296,11 +299,15 @@ pxe_open(struct open_file *f, ...)
 		printf("pxe_open: server path: %s\n", rootpath);
 		printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
 
-		setenv("boot.pxe.server_addr", inet_ntoa(rootip), 1);
-		setenv("boot.pxe.rootpath", rootpath, 1);
-		setenv("boot.pxe.gateway", inet_ntoa(gateip), 1);
-		setenv("boot.pxe.myip", inet_ntoa(myip), 1);
-		setenv("boot.pxe.netmask", intoa(netmask), 1);
+		setenv("boot.netif.ip", inet_ntoa(myip), 1);
+		setenv("boot.netif.netmask", intoa(netmask), 1);
+		setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
+		if (bootplayer.Hardware == ETHER_TYPE) {
+		    sprintf(temp, "%6D", bootplayer.CAddr, ":");
+		    setenv("boot.netif.hwaddr", temp, 1);
+		}
+		setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
+		setenv("boot.nfsroot.path", rootpath, 1);
 	}
     }
     pxe_opens++;
@@ -327,7 +334,11 @@ pxe_close(struct open_file *f)
     if (pxe_opens > 0)
 	return(0);
 
+    /* get an NFS filehandle for our root filesystem */
+    pxe_setnfshandle(rootpath);
+
     if (pxe_sock >= 0) {
+
 #ifdef PXE_DEBUG
 	if (debug)
 	    printf("pxe_close: calling netif_close()\n");
@@ -387,6 +398,34 @@ void
 pxe_perror(int err)
 {
 	return;
+}
+
+/*
+ * Reach inside the libstand NFS code and dig out an NFS handle
+ * for the root filesystem.
+ */
+struct nfs_iodesc {
+	struct	iodesc	*iodesc;
+	off_t	off;
+	u_char	fh[NFS_FHSIZE];
+	/* structure truncated here */
+};
+extern struct	nfs_iodesc nfs_root_node;
+
+static void
+pxe_setnfshandle(char *rootpath)
+{
+	int	i;
+	u_char	*fh;
+	char	buf[2 * NFS_FHSIZE + 3], *cp;
+
+	fh = &nfs_root_node.fh[0];
+	buf[0] = 'X';
+	cp = &buf[1];
+	for (i = 0; i < NFS_FHSIZE; i++, cp += 2)
+		sprintf(cp, "%02x", fh[i]);
+	sprintf(cp, "X");
+	setenv("boot.nfsroot.nfshandle", buf, 1);
 }
 
 void
