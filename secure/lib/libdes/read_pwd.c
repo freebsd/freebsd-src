@@ -105,7 +105,7 @@
 #define TTY_set(tty,data)	ioctl(tty,TIOCSETP,data)
 #endif
 
-#if !defined(_LIBC) && !defined(MSDOS)
+#if !defined(_LIBC) && !defined(MSDOS) && !defined(VMS)
 #include <sys/ioctl.h>
 #endif
 

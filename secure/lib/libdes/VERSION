@@ -1,7 +1,15 @@
-Version 3.24 20/04/95
+Version 3.25 17/07/96
+	des_init_random_number_generator() shortened due to VMS linker
+	limits.
+	Added RSA's DESX cbc mode.  It is a form of cbc encryption, with 2
+	8 byte quantites xored before and after encryption.
+	des_xcbc_encryption() - the name is funny to preserve the des_
+	prefix on all functions.
+
+Version 3.24 20/04/96
 	The DES_PTR macro option checked and used by SSLeay configuration
 
-Version 3.23 11/04/95
+Version 3.23 11/04/96
 	Added DES_LONG.  If defined to 'unsigned int' on the DEC Alpha,
 	it gives a %20 speedup :-)
 	Fixed the problem with des.pl under perl5.  The patches were
