@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id$
+ * $Id: proc.h,v 1.32 1997/02/22 09:45:41 peter Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -57,7 +57,7 @@ struct	session {
 	struct	proc *s_leader;		/* Session leader. */
 	struct	vnode *s_ttyvp;		/* Vnode of controlling terminal. */
 	struct	tty *s_ttyp;		/* Controlling terminal. */
-	char	s_login[MAXLOGNAME];	/* Setlogin() name. */
+	char	s_login[roundup(MAXLOGNAME, sizeof(long))];	/* Setlogin() name. */
 };
 
 /*
