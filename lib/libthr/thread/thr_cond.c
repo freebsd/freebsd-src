@@ -43,6 +43,7 @@
 static pthread_t	cond_queue_deq(pthread_cond_t);
 static void		cond_queue_remove(pthread_cond_t, pthread_t);
 static void		cond_queue_enq(pthread_cond_t, pthread_t);
+static int		cond_signal(pthread_cond_t *, int);
 static int		cond_wait_common(pthread_cond_t *,
 			    pthread_mutex_t *, const struct timespec *);
 
@@ -195,6 +196,8 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 	_thread_enter_cancellation_point();
 	
+	if (cond == NULL)
+		return (EINVAL);
 	/*
 	 * If the condition variable is statically initialized, perform dynamic
 	 * initialization.
@@ -238,17 +241,17 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			COND_UNLOCK(*cond);
 			break;
 		}
-		COND_UNLOCK(*cond);
 
 		/*
-		 * We need giant for the queue operations.  It also 
-		 * protects seqno and the pthread flag fields.  This is
-		 * dropped and reacquired in _thread_suspend().
+		 * We need to protect the queue operations.  It also 
+		 * protects c_seqno and the pthread flag fields.  This is
+		 * dropped before calling _thread_suspend() and reaquired
+		 * when we return.
 		 */
 
-		GIANT_LOCK(curthread);
+		_thread_critical_enter(curthread);
 		/*
-		 * c_seqno is protected by giant.
+		 * c_seqno is protected.
 		 */
 		seqno = (*cond)->c_seqno;
 
@@ -264,24 +267,32 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				 * POSIX Says that we must relock the mutex
 				 * even if we're being canceled.
 				 */
-				GIANT_UNLOCK(curthread);
+				_thread_critical_exit(curthread);
+				COND_UNLOCK(*cond);
 				_mutex_cv_lock(mutex);
 				pthread_testcancel();
 				PANIC("Shouldn't have come back.");
 			}
 
 			PTHREAD_SET_STATE(curthread, PS_COND_WAIT);
-			GIANT_UNLOCK(curthread);
+			_thread_critical_exit(curthread);
+			COND_UNLOCK(*cond);
 			rval = _thread_suspend(curthread, (struct timespec *)abstime);
 			if (rval == -1) {
 				printf("foo");
 				fflush(stdout);
 				abort();
 			}
-			GIANT_LOCK(curthread);
+			COND_LOCK(*cond);
+			_thread_critical_enter(curthread);
 
 			done = (seqno != (*cond)->c_seqno);
 
+			/*
+			 * If we timed out, this will remove us from the
+			 * queue. Otherwise, if we were signaled it does
+			 * nothing because this thread won't be on the queue.
+			 */
 			cond_queue_remove(*cond, curthread);
 
 		} while ((done == 0) && (rval == 0));
@@ -297,7 +308,8 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			} else
 				rval = 0;
 		}
-		GIANT_UNLOCK(curthread);
+		_thread_critical_exit(curthread);
+		COND_UNLOCK(*cond);
 
 		mtxrval = _mutex_cv_lock(mutex);
 
@@ -322,12 +334,6 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		break;
 	}
 
-	/*
-	 * See if we have to cancel before we retry.  We could be
-	 * canceled with the mutex held here!
-	 */
-	pthread_testcancel();
-
 	_thread_leave_cancellation_point();
 
 	return (rval);
@@ -336,52 +342,17 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 int
 _pthread_cond_signal(pthread_cond_t * cond)
 {
-	int             rval = 0;
-	pthread_t       pthread;
-
-	if (cond == NULL)
-		return (EINVAL);
-       /*
-        * If the condition variable is statically initialized, perform dynamic
-        * initialization.
-        */
-	if (*cond == NULL && (rval = pthread_cond_init(cond, NULL)) != 0)
-		return (rval);
-
-
-	COND_LOCK(*cond);
-
-	/* Process according to condition variable type: */
-	switch ((*cond)->c_type) {
-	/* Fast condition variable: */
-	case COND_TYPE_FAST:
-		GIANT_LOCK(curthread);
-		(*cond)->c_seqno++;
-
-		if ((pthread = cond_queue_deq(*cond)) != NULL) {
-			/*
-			 * Wake up the signaled thread:
-			 */
-			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
-		}
-
-		GIANT_UNLOCK(curthread);
-		break;
-
-	/* Trap invalid condition variable types: */
-	default:
-		rval = EINVAL;
-		break;
-	}
-
-
-	COND_UNLOCK(*cond);
-
-	return (rval);
+	return (cond_signal(cond, 0));
 }
 
 int
 _pthread_cond_broadcast(pthread_cond_t * cond)
+{
+	return (cond_signal(cond, 1));
+}
+
+static int
+cond_signal(pthread_cond_t * cond, int broadcast)
 {
 	int             rval = 0;
 	pthread_t       pthread;
@@ -401,23 +372,22 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 	switch ((*cond)->c_type) {
 	/* Fast condition variable: */
 	case COND_TYPE_FAST:
-		GIANT_LOCK(curthread);
 		(*cond)->c_seqno++;
 
 		/*
-		 * Enter a loop to bring all threads off the
+		 * Enter a loop to bring all (or only one) threads off the
 		 * condition queue:
 		 */
-		while ((pthread = cond_queue_deq(*cond)) != NULL) {
+		do {
 			/*
-			 * Wake up the signaled thread:
+			 * Wake up the signaled thread. It will be returned
+			 * to us locked, and with signals disabled.
 			 */
-			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
-		}
-		GIANT_UNLOCK(curthread);
-
-		/* There are no more waiting threads: */
-		(*cond)->c_mutex = NULL;
+			if ((pthread = cond_queue_deq(*cond)) != NULL) {
+				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
+				_thread_critical_exit(pthread);
+			}
+		} while (broadcast && pthread != NULL);
 
 		break;
 
@@ -448,11 +418,11 @@ _cond_wait_backout(pthread_t pthread)
 	switch (cond->c_type) {
 	/* Fast condition variable: */
 	case COND_TYPE_FAST:
-		GIANT_LOCK(curthread);
+		_thread_critical_enter(curthread);
 
 		cond_queue_remove(cond, pthread);
 
-		GIANT_UNLOCK(curthread);
+		_thread_critical_exit(curthread);
 		break;
 
 	default:
@@ -472,6 +442,7 @@ cond_queue_deq(pthread_cond_t cond)
 	pthread_t pthread;
 
 	while ((pthread = TAILQ_FIRST(&cond->c_queue)) != NULL) {
+		_thread_critical_enter(pthread);
 		TAILQ_REMOVE(&cond->c_queue, pthread, sqe);
 		cond_queue_remove(cond, pthread);
 		if ((pthread->cancelflags & PTHREAD_CANCELLING) == 0 &&
@@ -483,6 +454,8 @@ cond_queue_deq(pthread_cond_t cond)
 			 * need their run state changed.
 			 */
 			break;
+		else
+			_thread_critical_exit(pthread);
 	}
 
 	return(pthread);
