@@ -59,6 +59,10 @@
 #include <net/route.h>
 #include <net/netisr.h>
 #include <net/if_llc.h>
+#ifdef BRIDGE
+#include <net/ethernet.h>
+#include <net/bridge.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -526,14 +530,16 @@ in_arpinput(m)
 		 * of the receive interface. (This will change slightly
 		 * when we have clusters of interfaces).
 		 */
-		{
+		if (!do_bridge) {
 #else
-		if (ia->ia_ifp == &ac->ac_if) {
+		{
 #endif
-			maybe_ia = ia;
-			if ((itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) ||
-			     (isaddr.s_addr == ia->ia_addr.sin_addr.s_addr))
-				break;
+			if (ia->ia_ifp == &ac->ac_if) {
+				maybe_ia = ia;
+				if ((itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) ||
+				     (isaddr.s_addr == ia->ia_addr.sin_addr.s_addr))
+					break;
+			}
 		}
 	if (maybe_ia == 0) {
 		m_freem(m);
@@ -562,17 +568,21 @@ in_arpinput(m)
 	}
 	la = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
-#ifndef BRIDGE /* the following is not an error when doing bridging */
-		if (rt->rt_ifp != &ac->ac_if) {
-			if (log_arp_wrong_iface)
-			log(LOG_ERR, "arp: %s is on %s%d but got reply from %6D on %s%d\n",
-			    inet_ntoa(isaddr),
-			    rt->rt_ifp->if_name, rt->rt_ifp->if_unit,
-			    ea->arp_sha, ":",
-			    ac->ac_if.if_name, ac->ac_if.if_unit);
-			goto reply;
-		}
+#ifdef BRIDGE 
+		if (!do_bridge) { /* the following is not an error when doing bridging */
+#else
+		{
 #endif
+			if (rt->rt_ifp != &ac->ac_if) {
+				if (log_arp_wrong_iface)
+				log(LOG_ERR, "arp: %s is on %s%d but got reply from %6D on %s%d\n",
+				    inet_ntoa(isaddr),
+				    rt->rt_ifp->if_name, rt->rt_ifp->if_unit,
+				    ea->arp_sha, ":",
+				    ac->ac_if.if_name, ac->ac_if.if_unit);
+				goto reply;
+			}
+		}
 		if (sdl->sdl_alen &&
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen)) {
 			if (rt->rt_expire)
