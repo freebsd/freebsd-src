@@ -184,12 +184,11 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
-	if (gp == NULL || cp == NULL)
-		return(ENXIO);
+	if (gp == NULL || cp == NULL || gp->softc != dev)
+		return(ENXIO);		/* g_dev_taste() not done yet */
+
 	g_trace(G_T_ACCESS, "g_dev_open(%s, %d, %d, %p)",
 	    gp->name, flags, fmt, td);
-	DROP_GIANT();
-	g_topology_lock();
 	r = flags & FREAD ? 1 : 0;
 	w = flags & FWRITE ? 1 : 0;
 #ifdef notyet
@@ -197,11 +196,17 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 #else
 	e = 0;
 #endif
-	error = g_access_rel(cp, r, w, e);
+	DROP_GIANT();
+	g_topology_lock();
+	if (dev->si_devsw == NULL)
+		error = ENXIO;		/* We were orphaned */
+	else
+		error = g_access_rel(cp, r, w, e);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	g_waitidle();
-	dev->si_bsize_phys = cp->provider->sectorsize;
+	if (!error)
+		dev->si_bsize_phys = cp->provider->sectorsize;
 	return(error);
 }
 
@@ -218,8 +223,6 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 		return(ENXIO);
 	g_trace(G_T_ACCESS, "g_dev_close(%s, %d, %d, %p)",
 	    gp->name, flags, fmt, td);
-	DROP_GIANT();
-	g_topology_lock();
 	r = flags & FREAD ? -1 : 0;
 	w = flags & FWRITE ? -1 : 0;
 #ifdef notyet
@@ -227,13 +230,26 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 #else
 	e = 0;
 #endif
-	error = g_access_rel(cp, r, w, e);
+	DROP_GIANT();
+	g_topology_lock();
+	if (dev->si_devsw == NULL)
+		error = ENXIO;		/* We were orphaned */
+	else
+		error = g_access_rel(cp, r, w, e);
+	KASSERT((cp->acr || cp->acw) || (cp->nstart == cp->nend),
+	    ("final g_dev_close() with outstanding bios"));
 	g_topology_unlock();
 	PICKUP_GIANT();
 	g_waitidle();
 	return (error);
 }
 
+/*
+ * XXX: Until we have unmessed the ioctl situation, there is a race against
+ * XXX: a concurrent orphanization.  We cannot close it by holding topology
+ * XXX: since that would prevent us from doing our job, and stalling events
+ * XXX: will break (actually: stall) the BSD disklabel hacks.
+ */
 static int
 g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
@@ -252,6 +268,8 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	gio = NULL;
 
 	error = 0;
+	KASSERT(cp->acr || cp->acw,
+	    ("Consumer with zero access count in g_dev_ioctl"));
 	DROP_GIANT();
 
 	gio = NULL;
@@ -377,6 +395,9 @@ g_dev_strategy(struct bio *bp)
 	dev = bp->bio_dev;
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
+	KASSERT(cp->acr || cp->acw,
+	    ("Consumer with zero access count in g_dev_strategy"));
+
 	bp2 = g_clone_bio(bp);
 	KASSERT(bp2 != NULL, ("XXX: ENOMEM in a bad place"));
 	bp2->bio_offset = (off_t)bp->bio_blkno << DEV_BSHIFT;
@@ -390,6 +411,9 @@ g_dev_strategy(struct bio *bp)
 	    bp, bp2, (intmax_t)bp->bio_offset, (intmax_t)bp2->bio_length,
 	    bp2->bio_data, bp2->bio_cmd);
 	g_io_request(bp2, cp);
+	KASSERT(cp->acr || cp->acw,
+	    ("g_dev_strategy raced with g_dev_close and lost"));
+
 }
 
 /*
@@ -425,7 +449,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Wait for the cows to come home */
 	while (cp->nstart != cp->nend)
-		msleep(&dev, NULL, PRIBIO, "gdevorphan", 1);
+		msleep(&dev, NULL, PRIBIO, "gdevorphan", hz / 10);
 
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access_rel(cp, -cp->acr, -cp->acw, -cp->ace);
