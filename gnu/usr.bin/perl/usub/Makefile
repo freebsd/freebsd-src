@@ -21,7 +21,7 @@ PERL=${.OBJDIR}/../perl/perl
 .elif !defined(PERL) && exists(${.CURDIR}/../perl/perl)
 PERL=${.CURDIR}/../perl/perl
 .else
-PERL=	/usr/bin/perl
+PERL=	${DESTDIR}/usr/bin/perl
 .endif
 
 curses.c: curses.mus
