@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.108 1999/02/17 21:03:14 luoqi Exp $
+ * $Id: init_main.c,v 1.109 1999/02/19 14:25:34 luoqi Exp $
  */
 
 #include "opt_devfs.h"
@@ -490,14 +490,13 @@ proc0_post(dummy)
 	struct timespec ts;
 
 	/*
-	 * Now can look at time, having had a chance to verify the time
-	 * from the file system.  Reset p->p_runtime as it may have been
-	 * munched in mi_switch() after the time got set.  Set
-	 * p->p_switchtime to be consistent with this unmunching.
+	 * Now we can look at the time, having had a chance to verify the
+	 * time from the file system.  Pretend that proc0 started now.
 	 */
 	microtime(&proc0.p_stats->p_start);
 	proc0.p_runtime = 0;
 	microuptime(&proc0.p_switchtime);
+	switchticks = ticks;
 
 	/*
 	 * Give the ``random'' number generator a thump.

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.39 1999/01/30 06:25:00 newton Exp $
+ * $Id: kern_resource.c,v 1.40 1999/01/31 03:15:13 newton Exp $
  */
 
 #include "opt_compat.h"
@@ -532,9 +532,10 @@ calcru(p, up, sp, ip)
 		 * mi_switch(), so `switchtime' doesn't get set in the normal
 		 * way.  We set it here instead of more cleanly in exit1()
 		 * to avoid losing track of the time between the calls to
-		 * microuptime().
+		 * microuptime().  Similarly for `switchticks'.
 		 */
 		switchtime = tv;
+		switchticks = ticks;
 	}
 	if (totusec < 0) {
 		/* XXX no %qd in kernel.  Truncate. */
