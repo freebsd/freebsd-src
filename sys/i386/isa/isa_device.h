@@ -48,6 +48,10 @@
  */
 
 #ifdef COMPAT_OLDISA
+
+/* Interrupt handler function type. */
+typedef	void	ointhand2_t(int _device_id);
+
 /*
  * Per device structure.
  */
