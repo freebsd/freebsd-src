@@ -118,10 +118,12 @@ struct listinfo {
 };
 
 static int needuser, needcomm, needenv;
-#if defined(LAZY_PS)
-static int forceuread=0;
+#ifdef LAZY_PS
+static int forceuread = 0;
+#define	OPT_LAZY_f	"f"
 #else
-static int forceuread=1;
+static int forceuread = 1;
+#define	OPT_LAZY_f		/* I.e., the `-f' option is not added. */
 #endif
 
 static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
@@ -155,11 +157,7 @@ static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,%cpu,%mem,com
 
 static kvm_t *kd;
 
-#if defined(LAZY_PS)
-#define	PS_ARGS	"AaCcefG:ghjLlM:mN:O:o:p:rSTt:U:uvwXx"
-#else
-#define	PS_ARGS	"AaCceG:ghjLlM:mN:O:o:p:rSTt:U:uvwXx"
-#endif
+#define	PS_ARGS	"AaCce" OPT_LAZY_f "G:ghjLlM:mN:O:o:p:rSTt:U:uvwXx"
 
 int
 main(int argc, char *argv[])
@@ -241,6 +239,12 @@ main(int argc, char *argv[])
 		case 'e':			/* XXX set ufmt */
 			needenv = 1;
 			break;
+#ifdef LAZY_PS
+		case 'f':
+			if (getuid() == 0 || getgid() == 0)
+				forceuread = 1;
+			break;
+#endif
 		case 'G':
 			add_list(&gidlist, optarg);
 			xkeep_implied = 1;
@@ -307,12 +311,6 @@ main(int argc, char *argv[])
 			parsefmt(optarg, 1);
 			_fmt = 1;
 			break;
-#if defined(LAZY_PS)
-		case 'f':
-			if (getuid() == 0 || getgid() == 0)
-			    forceuread = 1;
-			break;
-#endif
 		case 'p':
 			add_list(&pidlist, optarg);
 			/*
@@ -1126,9 +1124,10 @@ kludge_oldps_options(char *s)
 static void
 usage(void)
 {
+#define	SINGLE_OPTS	"[-aCc" OPT_LAZY_f "hjlmrSTuvwXx]"
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
-	    "usage: ps [-aChjlmrSTuvwXx] [-G gid[,gid]] [-O|o fmt]",
+	    "usage: ps " SINGLE_OPTS " [-G gid[,gid]] [-O|o fmt]",
 	    "          [-p pid[,pid]] [-t tty[,tty]] [-U user[,user]]",
 	    "          [-M core] [-N system]",
 	    "       ps [-L]");
