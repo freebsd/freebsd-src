@@ -61,8 +61,8 @@ __FBSDID("$FreeBSD$");
 	while (!((FLD_D | REC_D_F) & l_d_mask[*++pos]));	\
 }
 		
-static u_char *enterfield __P((u_char *, u_char *, struct field *, int));
-static u_char *number __P((u_char *, u_char *, u_char *, u_char *, int));
+static u_char *enterfield(u_char *, u_char *, struct field *, int);
+static u_char *number(u_char *, u_char *, u_char *, u_char *, int);
 
 extern struct coldesc clist[(ND+1)*2];
 extern int ncols;
