@@ -178,6 +178,7 @@ TcpMonitorOut(struct ip *pip, struct alias_link *link)
 
     IcmpAliasIn(), IcmpAliasIn1(), IcmpAliasIn2(), IcmpAliasIn3()
     IcmpAliasOut(), IcmpAliasOut1(), IcmpAliasOut2(), IcmpAliasOut3()
+    ProtoAliasIn(), ProtoAliasOut()
     UdpAliasIn(), UdpAliasOut()
     TcpAliasIn(), TcpAliasOut()
 
@@ -223,6 +224,9 @@ static int IcmpAliasOut1(struct ip *);
 static int IcmpAliasOut2(struct ip *);
 static int IcmpAliasOut3(struct ip *);
 static int IcmpAliasOut (struct ip *);
+
+static int ProtoAliasIn(struct ip *);
+static int ProtoAliasOut(struct ip *);
 
 static int UdpAliasOut(struct ip *);
 static int UdpAliasIn (struct ip *);
@@ -653,10 +657,10 @@ IcmpAliasOut(struct ip *pip)
 
 
 static int
-PptpAliasIn(struct ip *pip)
+ProtoAliasIn(struct ip *pip)
 {
 /*
-  Handle incoming PPTP packets. The
+  Handle incoming IP packets. The
   only thing which is done in this case is to alias
   the dest IP address of the packet to our inside
   machine.
@@ -667,10 +671,7 @@ PptpAliasIn(struct ip *pip)
     if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
         return PKT_ALIAS_OK;
 
-    if (packetAliasMode & PKT_ALIAS_DENY_PPTP)
-        return PKT_ALIAS_IGNORED;
-
-    link = FindPptpIn(pip->ip_src, pip->ip_dst);
+    link = FindProtoIn(pip->ip_src, pip->ip_dst, pip->ip_p);
     if (link != NULL)
     {
         struct in_addr original_address;
@@ -691,10 +692,10 @@ PptpAliasIn(struct ip *pip)
 
 
 static int
-PptpAliasOut(struct ip *pip)
+ProtoAliasOut(struct ip *pip)
 {
 /*
-  Handle outgoing PPTP packets. The
+  Handle outgoing IP packets. The
   only thing which is done in this case is to alias
   the source IP address of the packet.
 */
@@ -704,10 +705,7 @@ PptpAliasOut(struct ip *pip)
     if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
         return PKT_ALIAS_OK;
 
-    if (packetAliasMode & PKT_ALIAS_DENY_PPTP)
-        return PKT_ALIAS_IGNORED;
-
-    link = FindPptpOut(pip->ip_src, pip->ip_dst);
+    link = FindProtoOut(pip->ip_src, pip->ip_dst, pip->ip_p);
     if (link != NULL)
     {
         struct in_addr alias_address;
@@ -1303,10 +1301,8 @@ PacketAliasIn(char *ptr, int maxpacketsize)
             case IPPROTO_TCP:
                 iresult = TcpAliasIn(pip);
                 break;
-            case IPPROTO_GRE:
-            case IPPROTO_ESP:
-            case IPPROTO_AH:
-		iresult = PptpAliasIn(pip);
+	    default:
+		iresult = ProtoAliasIn(pip);
                 break;
         }
 
@@ -1411,10 +1407,8 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
             case IPPROTO_TCP:
                 iresult = TcpAliasOut(pip, maxpacketsize);
                 break;
-            case IPPROTO_GRE:
-            case IPPROTO_ESP:
-            case IPPROTO_AH:
-		iresult = PptpAliasOut(pip);
+	    default:
+		iresult = ProtoAliasOut(pip);
                 break;
         }
     }

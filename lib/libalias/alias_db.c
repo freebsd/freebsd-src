@@ -147,7 +147,7 @@
 /* Timeouts (in seconds) for different link types */
 #define ICMP_EXPIRE_TIME             60
 #define UDP_EXPIRE_TIME              60
-#define PPTP_EXPIRE_TIME             60
+#define PROTO_EXPIRE_TIME            60
 #define FRAGMENT_ID_EXPIRE_TIME      10
 #define FRAGMENT_PTR_EXPIRE_TIME     30
 
@@ -256,16 +256,15 @@ struct alias_link                /* Main data structure */
     u_short proxy_port;
     struct server *server;
 
-    int link_type;               /* Type of link: TCP, UDP, ICMP, PPTP, frag */
+    int link_type;               /* Type of link: TCP, UDP, ICMP, proto, frag */
 
 /* values for link_type */
-#define LINK_ICMP                     1
-#define LINK_UDP                      2
-#define LINK_TCP                      3
-#define LINK_FRAGMENT_ID              4
-#define LINK_FRAGMENT_PTR             5
-#define LINK_ADDR                     6
-#define LINK_PPTP                     7
+#define LINK_ICMP                     IPPROTO_ICMP
+#define LINK_UDP                      IPPROTO_UDP
+#define LINK_TCP                      IPPROTO_TCP
+#define LINK_FRAGMENT_ID              (IPPROTO_MAX + 1)
+#define LINK_FRAGMENT_PTR             (IPPROTO_MAX + 2)
+#define LINK_ADDR                     (IPPROTO_MAX + 3)
 
     int flags;                   /* indicates special characteristics   */
 
@@ -329,7 +328,7 @@ linkTableIn[LINK_TABLE_IN_SIZE];     /*   into input and output lookup  */
 static int icmpLinkCount;            /* Link statistics                 */
 static int udpLinkCount;
 static int tcpLinkCount;
-static int pptpLinkCount;
+static int protoLinkCount;
 static int fragmentIdLinkCount;
 static int fragmentPtrLinkCount;
 static int sockCount;
@@ -455,18 +454,18 @@ ShowAliasStats(void)
 
    if (monitorFile)
    {
-      fprintf(monitorFile, "icmp=%d, udp=%d, tcp=%d, pptp=%d, frag_id=%d frag_ptr=%d",
+      fprintf(monitorFile, "icmp=%d, udp=%d, tcp=%d, proto=%d, frag_id=%d frag_ptr=%d",
               icmpLinkCount,
               udpLinkCount,
               tcpLinkCount,
-              pptpLinkCount,
+              protoLinkCount,
               fragmentIdLinkCount,
               fragmentPtrLinkCount);
 
       fprintf(monitorFile, " / tot=%d  (sock=%d)\n",
               icmpLinkCount + udpLinkCount
                             + tcpLinkCount
-                            + pptpLinkCount
+                            + protoLinkCount
                             + fragmentIdLinkCount
                             + fragmentPtrLinkCount,
               sockCount);
@@ -738,17 +737,6 @@ IncrementalCleanup(void)
         idelta = timeStamp - link->timestamp;
         switch (link->link_type)
         {
-            case LINK_ICMP:
-            case LINK_UDP:
-            case LINK_FRAGMENT_ID:
-            case LINK_FRAGMENT_PTR:
-            case LINK_PPTP:
-                if (idelta > link->expire_time)
-                {
-                    DeleteLink(link);
-                    icount++;
-                }
-                break;
             case LINK_TCP:
                 if (idelta > link->expire_time)
                 {
@@ -761,6 +749,13 @@ IncrementalCleanup(void)
                         DeleteLink(link);
                         icount++;
                     }
+                }
+                break;
+            default:
+                if (idelta > link->expire_time)
+                {
+                    DeleteLink(link);
+                    icount++;
                 }
                 break;
         }
@@ -842,9 +837,6 @@ DeleteLink(struct alias_link *link)
             if (link->data.tcp != NULL)
                 free(link->data.tcp);
             break;
-        case LINK_PPTP:
-            pptpLinkCount--;
-            break;
         case LINK_FRAGMENT_ID:
             fragmentIdLinkCount--;
             break;
@@ -852,6 +844,11 @@ DeleteLink(struct alias_link *link)
             fragmentPtrLinkCount--;
             if (link->data.frag_ptr != NULL)
                 free(link->data.frag_ptr);
+            break;
+	case LINK_ADDR:
+	    break;
+        default:
+            protoLinkCount--;
             break;
     }
 
@@ -908,14 +905,16 @@ AddLink(struct in_addr  src_addr,
         case LINK_TCP:
             link->expire_time = TCP_EXPIRE_INITIAL;
             break;
-        case LINK_PPTP:
-            link->expire_time = PPTP_EXPIRE_TIME;
-            break;
         case LINK_FRAGMENT_ID:
             link->expire_time = FRAGMENT_ID_EXPIRE_TIME;
             break;
         case LINK_FRAGMENT_PTR:
             link->expire_time = FRAGMENT_PTR_EXPIRE_TIME;
+            break;
+	case LINK_ADDR:
+	    break;
+        default:
+            link->expire_time = PROTO_EXPIRE_TIME;
             break;
         }
 
@@ -994,14 +993,16 @@ AddLink(struct in_addr  src_addr,
 #endif
                 }
                 break;
-            case LINK_PPTP:
-                pptpLinkCount++;
-                break;
             case LINK_FRAGMENT_ID:
                 fragmentIdLinkCount++;
                 break;
             case LINK_FRAGMENT_PTR:
                 fragmentPtrLinkCount++;
+                break;
+	    case LINK_ADDR:
+		break;
+            default:
+                protoLinkCount++;
                 break;
         }
     }
@@ -1303,7 +1304,7 @@ FindLinkIn(struct in_addr dst_addr,
     FindIcmpIn(), FindIcmpOut()
     FindFragmentIn1(), FindFragmentIn2()
     AddFragmentPtrLink(), FindFragmentPtr()
-    FindPptpIn(), FindPptpOut()
+    FindProtoIn(), FindProtoOut()
     FindUdpTcpIn(), FindUdpTcpOut()
     FindOriginalAddress(), FindAliasAddress()
 
@@ -1400,14 +1401,15 @@ FindFragmentPtr(struct in_addr dst_addr,
 
 
 struct alias_link *
-FindPptpIn(struct in_addr dst_addr,
-           struct in_addr alias_addr)
+FindProtoIn(struct in_addr dst_addr,
+            struct in_addr alias_addr,
+	    u_char proto)
 {
     struct alias_link *link;
 
     link = FindLinkIn(dst_addr, alias_addr,
                       NO_DEST_PORT, 0,
-                      LINK_PPTP, 1);
+                      proto, 1);
 
     if (link == NULL && !(packetAliasMode & PKT_ALIAS_DENY_INCOMING))
     {
@@ -1416,7 +1418,7 @@ FindPptpIn(struct in_addr dst_addr,
         target_addr = FindOriginalAddress(alias_addr);
         link = AddLink(target_addr, dst_addr, alias_addr,
                        NO_SRC_PORT, NO_DEST_PORT, 0,
-                       LINK_PPTP);
+                       proto);
     }
 
     return (link);
@@ -1424,14 +1426,15 @@ FindPptpIn(struct in_addr dst_addr,
 
 
 struct alias_link *
-FindPptpOut(struct in_addr src_addr,
-            struct in_addr dst_addr)
+FindProtoOut(struct in_addr src_addr,
+             struct in_addr dst_addr,
+             u_char proto)
 {
     struct alias_link *link;
 
     link = FindLinkOut(src_addr, dst_addr,
                        NO_SRC_PORT, NO_DEST_PORT,
-                       LINK_PPTP, 1);
+                       proto, 1);
 
     if (link == NULL)
     {
@@ -1440,7 +1443,7 @@ FindPptpOut(struct in_addr src_addr,
         alias_addr = FindAliasAddress(src_addr);
         link = AddLink(src_addr, dst_addr, alias_addr,
                        NO_SRC_PORT, NO_DEST_PORT, 0,
-                       LINK_PPTP);
+                       proto);
     }
 
     return (link);
@@ -2063,7 +2066,7 @@ UninitPacketAliasLog(void)
 
     PacketAliasRedirectPort()
     PacketAliasAddServer()
-    PacketAliasRedirectPptp()
+    PacketAliasRedirectProto()
     PacketAliasRedirectAddr()
     PacketAliasRedirectDelete()
     PacketAliasSetAddress()
@@ -2151,32 +2154,32 @@ PacketAliasAddServer(struct alias_link *link, struct in_addr addr, u_short port)
 }
 
 /* Translate PPTP packets to a machine on the inside
- * XXX This function is made obsolete by PacketAliasRedirectPptp().
+ * XXX This function is made obsolete by PacketAliasRedirectProto().
  */
 int
 PacketAliasPptp(struct in_addr src_addr)
 {
 
-    if (src_addr.s_addr == INADDR_NONE)
-	packetAliasMode |= PKT_ALIAS_DENY_PPTP;
-    else
-	(void)PacketAliasRedirectPptp(src_addr, nullAddress, nullAddress);
+    if (src_addr.s_addr != INADDR_NONE)
+	(void)PacketAliasRedirectProto(src_addr, nullAddress, nullAddress,
+				       IPPROTO_GRE);
 
     return 1;
 }
 
-/* Redirect PPTP packets from a specific
+/* Redirect packets of a given IP protocol from a specific
    public address to a private address */
 struct alias_link *
-PacketAliasRedirectPptp(struct in_addr src_addr,
-                        struct in_addr dst_addr,
-                        struct in_addr alias_addr)
+PacketAliasRedirectProto(struct in_addr src_addr,
+                         struct in_addr dst_addr,
+                         struct in_addr alias_addr,
+                         u_char proto)
 {
     struct alias_link *link;
 
     link = AddLink(src_addr, dst_addr, alias_addr,
                    NO_SRC_PORT, NO_DEST_PORT, 0,
-                   LINK_PPTP);
+                   proto);
 
     if (link != NULL)
     {
@@ -2185,7 +2188,7 @@ PacketAliasRedirectPptp(struct in_addr src_addr,
 #ifdef DEBUG
     else
     {
-        fprintf(stderr, "PacketAliasRedirectPptp(): " 
+        fprintf(stderr, "PacketAliasRedirectProto(): " 
                         "call to AddLink() failed\n");
     }
 #endif
@@ -2286,7 +2289,7 @@ PacketAliasInit(void)
     icmpLinkCount = 0;
     udpLinkCount = 0;
     tcpLinkCount = 0;
-    pptpLinkCount = 0;
+    protoLinkCount = 0;
     fragmentIdLinkCount = 0;
     fragmentPtrLinkCount = 0;
     sockCount = 0;
