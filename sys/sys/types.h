@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.4 (Berkeley) 1/21/94
- * $Id: types.h,v 1.4 1994/09/25 15:56:25 davidg Exp $
+ * $Id: types.h,v 1.5 1995/06/28 01:39:50 bde Exp $
  */
 
 #ifndef _SYS_TYPES_H_
@@ -74,6 +74,11 @@ typedef	_BSD_PID_T_	pid_t;		/* process id */
 typedef	long		segsz_t;	/* segment size */
 typedef	long		swblk_t;	/* swap offset */
 typedef	unsigned long	uid_t;		/* user id */
+
+#ifdef KERNEL
+struct vm_page;
+typedef struct vm_page	*vm_page_t;
+#endif
 
 /*
  * This belongs in unistd.h, but is placed here to ensure that programs
