@@ -5,6 +5,11 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000621:
+	Scott Flatman <sf@aracnet.com> sent in a decent writeup on
+	the config file update proceedure.
+		http://people.freebsd.org/~imp/config-upd.hmtl
+
 20000620:
 	Binutils 2.10 have hit the tree, or will shortly.  As soon
 	as they do, the problem noted in 20000522 will be resolved and
@@ -31,11 +36,6 @@ ITEMS:'
 
 	More details to follow.  A better howto would be warmly
 	accepted by the author of UPDATING.
-
-20000606:
-	Kernel debug symbols now occupy core space on the intel port.
-	This may change the amount of available memory after booting
-	newer kernels.
 
 20000522:
 	A new set of binutils went into the tree today.  Anybody
