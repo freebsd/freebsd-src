@@ -30,11 +30,11 @@
 .\" If you integrate this manpage in another OS, I'd appreciate a note 
 .\"	- eivind@freebsd.org
 .\"
-.\" $Id: namei.9,v 1.2 1999/03/06 17:07:29 bde Exp $
+.\" $Id: namei.9,v 1.3 1999/05/29 13:00:40 nik Exp $
 .\"
 .Dd September 26th, 1998
 .Os
-.Dt namei 9
+.Dt NAMEI 9
 .Sh NAME
 .Nm namei ,
 .Nm NDINIT
@@ -154,8 +154,8 @@ for each component in the pathname, instead of
 handing the actual names onwards to the stacking layers.  This hinders
 the implementation of stacking layers that do full namespace escapes.
 .Sh SEE ALSO
-.Xr vnode 9 ,
 .Xr VFS 9 ,
+.Xr vnode 9 ,
 src/sys/kern/vfs_lookup.c
 .Sh AUTHORS
 This man page was written by
