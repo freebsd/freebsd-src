@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.22 1997/09/15 06:37:09 charnier Exp $";
+	"$Id: mkmakefile.c,v 1.23 1997/10/22 00:38:48 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -285,7 +285,7 @@ read_files()
 	char *wd, *this, *needs, *special, *depends, *clean;
 	char fname[80];
 	int nreqs, first = 1, configdep, isdup, std, filetype,
-	    imp_rule, no_obj, before_depend;
+	    imp_rule, no_obj, before_depend, mandatory;
 
 	ftab = 0;
 	(void) snprintf(fname, sizeof fname, "../../conf/files");
@@ -299,7 +299,7 @@ openit:
 	}
 next:
 	/*
-	 * filename	[ standard | optional ] [ config-dependent ]
+	 * filename    [ standard | mandatory | optional ] [ config-dependent ]
 	 *	[ dev* | profiling-routine ] [ device-driver] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
@@ -354,15 +354,23 @@ next:
 	clean = 0;
 	configdep = 0;
 	needs = 0;
-	std = 0;
+	std = mandatory = 0;
 	imp_rule = 0;
 	no_obj = 0;
 	before_depend = 0;
 	filetype = NORMAL;
 	if (eq(wd, "standard"))
 		std = 1;
+	/*
+	 * If an entry is marked "mandatory", config will abort if it's
+	 * not called by a configuration line in the config file.  Apart
+	 * from this, the device is handled like one marked "optional".
+	 */
+	else if (eq(wd, "mandatory"))
+		mandatory = 1;
 	else if (!eq(wd, "optional")) {
-		printf("%s: %s must be optional or standard\n", fname, this);
+		printf("%s: %s must be optional, mandatory or standard\n",
+		       fname, this);
 		exit(1);
 	}
 nextparam:
@@ -440,6 +448,11 @@ nextparam:
 				dp->d_slave = 1;
 			goto nextparam;
 		}
+	if (mandatory) {
+		printf("%s: mandatory device \"%s\" not found\n",
+		       fname, wd);
+		exit(1);
+	}
 	if (std) {
 		dp = (struct device *) malloc(sizeof *dp);
 		bzero(dp, sizeof *dp);
