@@ -38,7 +38,9 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)passwd.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <err.h>
@@ -47,13 +49,15 @@ static char sccsid[] = "@(#)passwd.c	8.3 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <unistd.h>
 
+#ifdef KERBEROS
+#include "krb.h"
+#endif
+
 #include "extern.h"
 
 void	usage __P((void));
 
-#ifdef KERBEROS
-int use_kerberos = 1;
-#endif
+int use_local_passwd = 0;
 
 int
 main(argc, argv)
@@ -62,18 +66,36 @@ main(argc, argv)
 {
 	int ch;
 	char *uname;
+	char *iflag = 0, *rflag = 0, *uflag = 0;
 
-	while ((ch = getopt(argc, argv, "l")) != EOF)
-		switch (ch) {
 #ifdef KERBEROS
-		case 'l':		/* change local password file */
-			use_kerberos = 0;
-			break;
+	char realm[REALM_SZ];
+#define OPTIONS "li:r:u:"
+#else
+#define OPTIONS "l"
 #endif
+	while ((ch = getopt(argc, argv, OPTIONS)) != EOF) {
+		switch (ch) {
+		case 'l':		/* change local password file */
+			use_local_passwd = 1;
+			break;
+#ifdef KERBEROS
+		case 'i':
+			iflag = optarg;
+			break;
+		case 'r':
+			rflag = optarg;
+			break;
+		case 'u':
+			uflag = optarg;
+			break;
+#endif /* KERBEROS */
+
 		default:
 		case '?':
 			usage();
 		}
+	}
 
 	argc -= optind;
 	argv += optind;
@@ -85,23 +107,20 @@ main(argc, argv)
 	case 0:
 		break;
 	case 1:
-#ifdef	KERBEROS
-		if (use_kerberos && strcmp(argv[0], uname))
-			errx(1,"%s\n\t%s\n%s\n",
-		"to change another user's Kerberos password, do",
-		"\"kinit user; passwd; kdestroy\";",
-		"to change a user's local passwd, use \"passwd -l user\"");
-#endif
 		uname = argv[0];
 		break;
 	default:
 		usage();
 	}
 
+	if (!use_local_passwd) {
 #ifdef	KERBEROS
-	if (use_kerberos)
-		exit(krb_passwd());
+		if(krb_get_lrealm(realm, 0) == KSUCCESS) {
+			fprintf(stderr, "realm %s\n", realm);
+			exit(krb_passwd(argv[0], iflag, rflag, uflag));
+		}
 #endif
+	}
 	exit(local_passwd(uname));
 }
 
@@ -110,7 +129,8 @@ usage()
 {
 
 #ifdef	KERBEROS
-	(void)fprintf(stderr, "usage: passwd [-l] user\n");
+	fprintf(stderr,
+	 "usage: passwd [-l] [-i instance] [-r realm] [-u fullname] [user]\n");
 #else
 	(void)fprintf(stderr, "usage: passwd user\n");
 #endif
