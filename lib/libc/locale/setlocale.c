@@ -43,12 +43,48 @@ static char sccsid[] = "@(#)setlocale.c	8.1 (Berkeley) 7/4/93";
 #include <rune.h>
 #include <stdlib.h>
 #include <string.h>
-#include "common_setlocale.h"
-#include "common_rune.h"
+#include "collate.h"
 
+/*
+ * Category names for getenv()
+ */
+static char *categories[_LC_LAST] = {
+    "LC_ALL",
+    "LC_COLLATE",
+    "LC_CTYPE",
+    "LC_MONETARY",
+    "LC_NUMERIC",
+    "LC_TIME",
+};
+
+/*
+ * Current locales for each category
+ */
+static char current_categories[_LC_LAST][32] = {
+    "C",
+    "C",
+    "C",
+    "C",
+    "C",
+    "C",
+};
+
+/*
+ * The locales we are going to try and load
+ */
+static char new_categories[_LC_LAST][32];
+
+static char current_locale_string[_LC_LAST * 33];
 char *_PathLocale;
 
+static char	*currentlocale __P((void));
 static char	*loadlocale __P((int));
+
+extern int __time_load_locale __P((const char *)); /* strftime.c */
+
+#ifdef XPG4
+extern int _xpg4_setrunelocale __P((char *));
+#endif
 
 char *
 setlocale(category, locale)
@@ -58,8 +94,8 @@ setlocale(category, locale)
 	int found, i, len;
 	char *env, *r;
 
-	if (!PathLocale && !(PathLocale = getenv("PATH_LOCALE")))
-		PathLocale = _PATH_LOCALE;
+	if (!_PathLocale && !(_PathLocale = getenv("PATH_LOCALE")))
+		_PathLocale = _PATH_LOCALE;
 
 	if (category < 0 || category >= _LC_LAST)
 		return (NULL);
@@ -139,6 +175,47 @@ setlocale(category, locale)
 	return (NULL);
 }
 
+#ifndef XPG4
+/* To be compatible with old binaries */
+void
+_startup_setlocale(category, locale)
+	int category;
+	const char *locale;
+{
+	(void) setlocale(category, locale);
+}
+#endif
+
+static char *
+currentlocale()
+{
+	int i, len;
+
+	(void)strcpy(current_locale_string, current_categories[1]);
+
+	for (i = 2; i < _LC_LAST; ++i)
+		if (strcmp(current_categories[1], current_categories[i])) {
+			len = strlen(current_categories[1]) + 1 +
+			      strlen(current_categories[2]) + 1 +
+			      strlen(current_categories[3]) + 1 +
+			      strlen(current_categories[4]) + 1 +
+			      strlen(current_categories[5]) + 1;
+			if (len > sizeof(current_locale_string))
+				return NULL;
+			(void) strcpy(current_locale_string, current_categories[1]);
+			(void) strcat(current_locale_string, "/");
+			(void) strcat(current_locale_string, current_categories[2]);
+			(void) strcat(current_locale_string, "/");
+			(void) strcat(current_locale_string, current_categories[3]);
+			(void) strcat(current_locale_string, "/");
+			(void) strcat(current_locale_string, current_categories[4]);
+			(void) strcat(current_locale_string, "/");
+			(void) strcat(current_locale_string, current_categories[5]);
+			break;
+		}
+	return (current_locale_string);
+}
+
 static char *
 loadlocale(category)
 	int category;
@@ -151,7 +228,11 @@ loadlocale(category)
 		return (current_categories[category]);
 
 	if (category == LC_CTYPE) {
+#ifdef XPG4
+		if (_xpg4_setrunelocale(new_categories[LC_CTYPE]))
+#else
 		if (setrunelocale(new_categories[LC_CTYPE]))
+#endif
 			return (NULL);
 		(void)strcpy(current_categories[LC_CTYPE],
 		    new_categories[LC_CTYPE]);
@@ -191,7 +272,7 @@ loadlocale(category)
 	 * Some day we will actually look at this file.
 	 */
 	(void)snprintf(name, sizeof(name), "%s/%s/%s",
-	    PathLocale, new_categories[category], categories[category]);
+	    _PathLocale, new_categories[category], categories[category]);
 #endif
 	switch (category) {
 		case LC_MONETARY:

@@ -34,25 +34,85 @@
  * SUCH DAMAGE.
  */
 
-#include <stdio.h>
 #include <rune.h>
+#include <errno.h>
+#include <limits.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-_BSD_RUNE_T_
-___toupper(c)
-	_BSD_RUNE_T_ c;
+char *_PathLocale;
+
+extern int		_none_init __P((_RuneLocale *));
+#ifdef XPG4
+extern int		_UTF2_init __P((_RuneLocale *));
+extern int		_EUC_init __P((_RuneLocale *));
+#endif
+extern _RuneLocale      *_Read_RuneMagi __P((FILE *));
+
+#ifdef XPG4
+int
+setrunelocale(encoding)
+	char *encoding;
 {
-	int x;
-	_RuneRange *rr = &_CurrentRuneLocale->mapupper_ext;
-	_RuneEntry *re = rr->ranges;
+	return _xpg4_setrunelocale(encoding);
+}
+#endif
 
-	if (c == EOF)
-		return(EOF);
-	for (x = 0; x < rr->nranges; ++x, ++re) {
-		if (c < re->min)
-			return(c);
-		if (c <= re->max)
-			return(re->map + c - re->min);
+int
+#ifndef XPG4
+setrunelocale(encoding)
+#else
+_xpg4_setrunelocale(encoding)
+#endif
+	char *encoding;
+{
+	FILE *fp;
+	char name[PATH_MAX];
+	_RuneLocale *rl;
+
+	if (!encoding)
+	    return(EFAULT);
+
+	/*
+	 * The "C" and "POSIX" locale are always here.
+	 */
+	if (!strcmp(encoding, "C") || !strcmp(encoding, "POSIX")) {
+		_CurrentRuneLocale = &_DefaultRuneLocale;
+		return(0);
 	}
-	return(c);
+
+	if (!_PathLocale && !(_PathLocale = getenv("PATH_LOCALE")))
+		_PathLocale = _PATH_LOCALE;
+
+	(void) strcpy(name, _PathLocale);
+	(void) strcat(name, "/");
+	(void) strcat(name, encoding);
+	(void) strcat(name, "/LC_CTYPE");
+
+	if ((fp = fopen(name, "r")) == NULL)
+		return(ENOENT);
+
+	if ((rl = _Read_RuneMagi(fp)) == 0) {
+		fclose(fp);
+		return(EFTYPE);
+	}
+	fclose(fp);
+
+#ifdef XPG4
+	if (!rl->encoding[0] || !strcmp(rl->encoding, "UTF2")) {
+		return(_UTF2_init(rl));
+#else
+	if (!rl->encoding[0]) {
+		return(EINVAL);
+#endif
+	} else if (!strcmp(rl->encoding, "NONE")) {
+		return(_none_init(rl));
+#ifdef XPG4
+	} else if (!strcmp(rl->encoding, "EUC")) {
+		return(_EUC_init(rl));
+#endif
+	} else
+		return(EINVAL);
 }
 
