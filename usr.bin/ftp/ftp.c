@@ -749,7 +749,7 @@ recvrequest(cmd, local, remote, lmode, printnames)
 			}
 			if (dir != NULL)
 				*dir = 0;
-			d = access(dir ? local : ".", 2);
+			d = access(dir == local ? "/" : dir ? local : ".", 2);
 			if (dir != NULL)
 				*dir = '/';
 			if (d < 0) {
@@ -1445,7 +1445,7 @@ gunique(local)
 
 	if (cp)
 		*cp = '\0';
-	d = access(cp ? local : ".", 2);
+	d = access(cp == local ? "/" : cp ? local : ".", 2);
 	if (cp)
 		*cp = '/';
 	if (d < 0) {

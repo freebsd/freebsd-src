@@ -220,6 +220,8 @@ tail(filename)
 			break;
 		if (s[1])
 			return (s + 1);
+		if (s == filename)
+			break;	XXX
 		*s = '\0';
 	}
 	return (filename);
