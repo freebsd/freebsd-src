@@ -195,19 +195,11 @@ inphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
-#if 0
-			/*
-			 * XXX
-			 * we need to differentiate between 'auto media'
-			 * and "NWAY autonegotiate enabled".  For now,
-			 * just re-start full autodetect again.
-			 */
 			/*
 			 * If we're already in auto mode, just return.
 			 */
 			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
 				return (0);
-#endif
 			(void) mii_phy_auto(sc, 0);
 			break;
 		case IFM_100_T4:
@@ -220,9 +212,7 @@ inphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			 * BMCR data is stored in the ifmedia entry.
 			 */
 			PHY_WRITE(sc, MII_ANAR, mii_anar(ife->ifm_media));
-			PHY_WRITE(sc, MII_BMCR, ife->ifm_data |
-			    (sc->mii_capabilities & BMSR_ANEG ?
-			    BMCR_AUTOEN | BMCR_STARTNEG : 0));
+			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
 		}
 		break;
 
