@@ -89,7 +89,6 @@ static void svc_vc_ops(SVCXPRT *);
 static bool_t svc_vc_control(SVCXPRT *xprt, const u_int rq, void *in);
 static bool_t svc_vc_rendezvous_control (SVCXPRT *xprt, const u_int rq,
 				   	     void *in);
-static int __msgwrite(int, void *, size_t);
 
 struct cf_rendezvous { /* kept in xprt->xp_p1 for rendezvouser */
 	u_int sendsize;
