@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.183 1996/04/25 06:20:10 phk Exp $
+ *	$Id: machdep.c,v 1.184 1996/04/26 13:47:39 phk Exp $
  */
 
 #include "npx.h"
@@ -245,6 +245,7 @@ cpu_startup(dummy)
 	 * Good {morning,afternoon,evening,night}.
 	 */
 	printf(version);
+	cpu_class = i386_cpus[cpu].cpu_class;
 	startrtclock();
 	identifycpu();
 	printf("real memory  = %d (%dK bytes)\n", ptoa(Maxmem), ptoa(Maxmem) / 1024);
@@ -491,20 +492,8 @@ static void
 identifycpu()
 {
 	printf("CPU: ");
-	if (cpu >= 0
-	    && cpu < (sizeof i386_cpus/sizeof(struct cpu_nameclass))) {
-		cpu_class = i386_cpus[cpu].cpu_class;
-		strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
-	} else {
-		printf("unknown cpu type %d\n", cpu);
-		panic("startup: bad cpu id");
-	}
+	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
 
-#if defined(I586_CPU) || defined(I686_CPU)
-	if (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686) {
-		calibrate_cyclecounter();
-	}
-#endif
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	if (!strcmp(cpu_vendor,"GenuineIntel")) {
 		if ((cpu_id & 0xf00) > 3) {
