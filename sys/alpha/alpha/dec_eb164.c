@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: dec_eb164.c,v 1.1 1998/07/05 12:10:10 dfr Exp $ */
 /* $NetBSD: dec_eb164.c,v 1.26 1998/04/17 02:45:19 mjacob Exp $ */
 
 /*
@@ -30,6 +30,8 @@
 /*
  * Additional Copyright (c) 1997 by Matthew Jacob for NASA/Ames Research Center
  */
+
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
