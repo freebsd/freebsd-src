@@ -45,11 +45,11 @@
 #include <sys/msgbuf.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <sys/syslog.h>
 #include <sys/cons.h>
 #include <sys/uio.h>
-#include <sys/sysctl.h>
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
@@ -123,7 +123,7 @@ uprintf(const char *fmt, ...)
 		retval = kvprintf(fmt, putchar, &pca, 10, ap);
 		va_end(ap);
 	}
-	return retval;
+	return (retval);
 }
 
 /*
@@ -177,7 +177,7 @@ ttyprintf(struct tty *tp, const char *fmt, ...)
 	pca.flags = TOTTY;
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
-	return retval;
+	return (retval);
 }
 
 /*
@@ -264,7 +264,7 @@ printf(const char *fmt, ...)
 	if (!panicstr)
 		msgbuftrigger = 1;
 	consintr = savintr;		/* reenable interrupts */
-	return retval;
+	return (retval);
 }
 
 int
@@ -283,7 +283,7 @@ vprintf(const char *fmt, va_list ap)
 	if (!panicstr)
 		msgbuftrigger = 1;
 	consintr = savintr;		/* reenable interrupts */
-	return retval;
+	return (retval);
 }
 
 /*
@@ -325,7 +325,7 @@ sprintf(char *buf, const char *cfmt, ...)
 	retval = kvprintf(cfmt, NULL, (void *)buf, 10, ap);
 	buf[retval] = '\0';
 	va_end(ap);
-	return retval;
+	return (retval);
 }
 
 /*
@@ -338,7 +338,7 @@ vsprintf(char *buf, const char *cfmt, va_list ap)
 
 	retval = kvprintf(cfmt, NULL, (void *)buf, 10, ap);
 	buf[retval] = '\0';
-	return retval;
+	return (retval);
 }
 
 /*
@@ -370,7 +370,7 @@ vsnprintf(char *str, size_t size, const char *format, va_list ap)
 	retval = kvprintf(format, snprintf_func, &info, 10, ap);
 	if (info.remain >= 1)
 		*info.str++ = '\0';
-	return retval;
+	return (retval);
 }
 
 static void
@@ -485,7 +485,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 		width = 0;
 		while ((ch = (u_char)*fmt++) != '%') {
 			if (ch == '\0') 
-				return retval;
+				return (retval);
 			PCHAR(ch);
 		}
 		qflag = 0; lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
