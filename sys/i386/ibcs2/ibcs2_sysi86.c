@@ -79,7 +79,7 @@ ibcs2_sysi86(struct thread *td, struct ibcs2_sysi86_args *args)
 		name[0] = CTL_KERN;
 		name[1] = KERN_HOSTNAME;
 		return (userland_sysctl(td, name, 2, 0, 0, 0, 
-			args->arg, 7, 0));
+			args->arg, 7, 0, 0));
 	}
 
 	case SI86_MEM:	/* size of physical memory */
