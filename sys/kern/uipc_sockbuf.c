@@ -427,7 +427,7 @@ sbreserve(sb, cc, so, p)
 	 */
 	if ((u_quad_t)cc > (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES))
 		return (0);
-	if (!chgsbsize(so->so_cred->cr_uid, &sb->sb_hiwat, cc,
+	if (!chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, cc,
 	    p ? p->p_rlimit[RLIMIT_SBSIZE].rlim_cur : RLIM_INFINITY)) {
 		return (0);
 	}
@@ -447,7 +447,8 @@ sbrelease(sb, so)
 {
 
 	sbflush(sb);
-	(void)chgsbsize(so->so_cred->cr_uid, &sb->sb_hiwat, 0, RLIM_INFINITY);
+	(void)chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, 0,
+	    RLIM_INFINITY);
 	sb->sb_mbmax = 0;
 }
 

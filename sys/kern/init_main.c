@@ -302,9 +302,11 @@ proc0_init(void *dummy __unused)
 
 	/* Create credentials. */
 	cred0.p_refcnt = 1;
+	cred0.p_uidinfo = uifind(0);
 	p->p_cred = &cred0;
 	p->p_ucred = crget();
 	p->p_ucred->cr_ngroups = 1;	/* group 0 */
+	p->p_ucred->cr_uidinfo = uifind(0);
 
 	/* Don't jail it */
 	p->p_prison = 0;
@@ -360,7 +362,7 @@ proc0_init(void *dummy __unused)
 	/*
 	 * Charge root for one process.
 	 */
-	(void)chgproccnt(0, 1, 0);
+	(void)chgproccnt(cred0.p_uidinfo, 1, 0);
 
 	/*
 	 * Initialize the current process pointer (curproc) before
