@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.27 1995/02/22 10:00:16 davidg Exp $
+ * $Id: vm_object.c,v 1.28 1995/03/01 23:29:57 davidg Exp $
  */
 
 /*
@@ -259,11 +259,16 @@ vm_object_deallocate(object)
 		 * Lose the reference
 		 */
 		vm_object_lock(object);
-		if (--(object->ref_count) != 0) {
-			if (object->ref_count == 1) {
+
+		object->ref_count--;
+
+		if (object->ref_count != 0) {
+			if ((object->ref_count == 1) &&
+			    (object->flags & OBJ_INTERNAL)) {
 				vm_object_t robject;
 				robject = object->reverse_shadow_head.tqh_first;
-				if( robject) {
+				if ((robject != NULL) &&
+				    (robject->flags & OBJ_INTERNAL)) {
 					int s;
 					robject->ref_count += 2;
 					object->ref_count += 2;
@@ -313,6 +318,12 @@ vm_object_deallocate(object)
 		 */
 		if ((object->flags & OBJ_CANPERSIST) &&
 		    (object->resident_page_count != 0)) {
+			vm_pager_t pager = object->pager;
+			vn_pager_t vnp = (vn_pager_t) pager->pg_data;
+
+			if (pager->pg_type == PG_VNODE) {
+				vnp->vnp_vp->v_flag &= ~VTEXT;
+			}
 
 			TAILQ_INSERT_TAIL(&vm_object_cached_list, object,
 			    cached_list);
@@ -363,10 +374,10 @@ vm_object_terminate(object)
 		vm_object_lock(shadow_object);
 		if (shadow_object->copy == object)
 			shadow_object->copy = NULL;
-/*
+#if 0
 		else if (shadow_object->copy != NULL)
 			panic("vm_object_terminate: copy/shadow inconsistency");
-*/
+#endif
 		vm_object_unlock(shadow_object);
 	}
 	if (object->pager && (object->pager->pg_type == PG_VNODE)) {
@@ -442,6 +453,8 @@ vm_object_terminate(object)
 	while ((p = object->memq.tqh_first) != NULL) {
 		VM_PAGE_CHECK(p);
 		vm_page_lock_queues();
+		if (p->flags & PG_BUSY)
+			printf("vm_object_terminate: freeing busy page\n");
 		PAGE_WAKEUP(p);
 		vm_page_free(p);
 		cnt.v_pfree++;
