@@ -9,8 +9,7 @@ CLEANFILES= kgzldr.o
 
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
 OBJS=	${SRCS:N*.h:R:S/$/.o/g}
-CFLAGS=	-ffreestanding
-CFLAGS+=-Os
+CFLAGS=	-Os
 CFLAGS+=-DKZIP
 LDFLAGS=-nostdlib -static -Wl,-r
 .PATH:	${.CURDIR}/../../../kern
