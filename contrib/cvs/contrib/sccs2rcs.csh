@@ -69,7 +69,7 @@ endif
 if (-d RCS) then
     echo "Warning: RCS directory exists"
     if (`ls -a RCS | wc -l` > 2) then
-        echo "Error: RCS directory not empty
+        echo "Error: RCS directory not empty"
         exit 1
     endif
 else
