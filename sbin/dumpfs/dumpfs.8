@@ -32,7 +32,7 @@
 .\"     @(#)dumpfs.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd January 19, 2003
 .Dt DUMPFS 8
 .Os
 .Sh NAME
@@ -40,16 +40,25 @@
 .Nd dump file system information
 .Sh SYNOPSIS
 .Nm
+.Op Fl m
 .Op Ar filesys No \&| Ar device
 .Sh DESCRIPTION
 The
 .Nm
 utility prints out the super block and cylinder group information
-for the file system or special device specified.
+for the file system or special device specified, unless
+.Fl m
+is specified.
 The listing is very long and detailed.  This
 command is useful mostly for finding out certain file system
 information such as the file system block size and minimum
 free space percentage.
+.Pp
+If
+.Fl m
+is specified, the filesystem is marshalled in terms of a
+.Xr newfs 8
+command to generate the filesystem.
 .Sh SEE ALSO
 .Xr disktab 5 ,
 .Xr fs 5 ,
