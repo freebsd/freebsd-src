@@ -23,10 +23,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 /*
- * Intel EtherExpress Pro/10 Ethernet driver
+ * Intel EtherExpress Pro/10, Pro/10+ Ethernet driver
  *
  * Revision history:
  *
@@ -91,6 +93,8 @@ struct ex_softc {
 	u_int iobase;	/* I/O base address. */
 	u_short connector;	/* Connector type. */
 	u_short irq_no; /* IRQ number. */
+	char *irq2ee; /* irq <-> internal representation conversion */
+	u_char *ee2irq;
 	u_int mem_size;	/* Total memory size, in bytes. */
 	u_int rx_mem_size;	/* Rx memory size (by default, first 3/4 of total memory). */
   u_int rx_lower_limit, rx_upper_limit; /* Lower and upper limits of receive buffer. */
@@ -103,8 +107,10 @@ struct ex_softc {
 
 static struct ex_softc ex_sc[NEX]; /* XXX would it be better to malloc(3) the memory? */
 
-static char irq2eemap[] = { -1, -1, -1, 0, 1, 2, -1, 3, -1, 4, 5, 6, 7, -1, -1, -1 };
-static u_char ee2irqmap[] = { 3, 4, 5, 7, 9, 10, 11, 12 };
+static char irq2eemap[] = { -1, -1, 0, 1, -1, 2, -1, -1, -1, 0, 3, 4, -1, -1, -1, -1 };
+static u_char ee2irqmap[] = { 9, 3, 5, 10, 11, 0, 0, 0 };
+static char plus_irq2eemap[] = { -1, -1, -1, 0, 1, 2, -1, 3, -1, 4, 5, 6, 7, -1, -1, -1 };
+static u_char plus_ee2irqmap[] = { 3, 4, 5, 7, 9, 10, 11, 12 };
 
 static int ex_probe __P((struct isa_device *));
 static int ex_attach __P((struct isa_device *));
@@ -196,13 +202,25 @@ int ex_probe(struct isa_device *dev)
 	sc->arpcom.ac_enaddr[1] = eaddr_tmp & 0xff;
 	sc->arpcom.ac_enaddr[0] = eaddr_tmp >> 8;
 	tmp = eeprom_read(iobase, EE_IRQ_No) & IRQ_No_Mask;
+
+	/* work out which set of irq <-> internal tables to use */
+	if (sc->arpcom.ac_enaddr[0] == 0x00 &&
+	    sc->arpcom.ac_enaddr[1] == 0xA0 &&
+	    sc->arpcom.ac_enaddr[2] == 0xC9) {    /* it's a 10+ */
+		sc->irq2ee = plus_irq2eemap;
+		sc->ee2irq = plus_ee2irqmap;
+	} else {                                  /* it's an ordinary 10 */
+		sc->irq2ee = irq2eemap;
+		sc->ee2irq = ee2irqmap;
+	}
+
 	if (dev->id_irq > 0) {
-		if (ee2irqmap[tmp] != ffs(dev->id_irq) - 1)
-			printf("ex%d: WARNING: board's EEPROM is configured for IRQ %d, using %d\n", unit, ee2irqmap[tmp], ffs(dev->id_irq) - 1);
+		if (sc->ee2irq[tmp] != ffs(dev->id_irq) - 1)
+			printf("ex%d: WARNING: board's EEPROM is configured for IRQ %d, using %d\n", unit, sc->ee2irq[tmp], ffs(dev->id_irq) - 1);
 		sc->irq_no = ffs(dev->id_irq) - 1;
 	}
 	else {
-		sc->irq_no = ee2irqmap[tmp];
+		sc->irq_no = sc->ee2irq[tmp];
 		dev->id_irq = 1 << sc->irq_no;
 	}
 	if (sc->irq_no == 0) {
@@ -316,7 +334,7 @@ void ex_init(void *xsc)
 	outb(iobase + REG2, inb(iobase + REG2) | No_SA_Ins | RX_CRC_InMem);
 	outb(iobase + REG3, inb(iobase + REG3) & 0x3f /* XXX constants. */ );
 	outb(iobase + CMD_REG, Bank1_Sel);
-	outb(iobase + INT_NO_REG, (inb(iobase + INT_NO_REG) & 0xf8) | irq2eemap[sc->irq_no]);
+	outb(iobase + INT_NO_REG, (inb(iobase + INT_NO_REG) & 0xf8) | sc->irq2ee[sc->irq_no]);
 
 	/*
 	 * Divide the available memory in the card into rcv and xmt buffers.
