@@ -133,17 +133,17 @@ disc_clone_destroy(struct ifnet *ifp)
 }
 
 static int
-disc_modevent(module_t mod, int type, void *data) 
+disc_modevent(module_t mod, int type, void *data)
 {
 	struct disc_softc *sc;
 
-	switch (type) { 
-	case MOD_LOAD: 
+	switch (type) {
+	case MOD_LOAD:
 		mtx_init(&disc_mtx, "disc_mtx", NULL, MTX_DEF);
 		LIST_INIT(&disc_softc_list);
 		if_clone_attach(&disc_cloner);
-		break; 
-	case MOD_UNLOAD: 
+		break;
+	case MOD_UNLOAD:
 		if_clone_detach(&disc_cloner);
 
 		mtx_lock(&disc_mtx);
@@ -156,15 +156,15 @@ disc_modevent(module_t mod, int type, void *data)
 		mtx_unlock(&disc_mtx);
 		mtx_destroy(&disc_mtx);
 		break;
-	} 
-	return 0; 
-} 
+	}
+	return (0);
+}
 
-static moduledata_t disc_mod = { 
-	"if_disc", 
-	disc_modevent, 
+static moduledata_t disc_mod = {
+	"if_disc",
+	disc_modevent,
 	NULL
-}; 
+};
 
 DECLARE_MODULE(if_disc, disc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
@@ -172,7 +172,9 @@ static int
 discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
     struct rtentry *rt)
 {
+
 	M_ASSERTPKTHDR(m);
+
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {
 		dst->sa_family = *(mtod(m, int *));
@@ -191,7 +193,7 @@ discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	ifp->if_obytes += m->m_pkthdr.len;
 
 	m_freem(m);
-	return 0;
+	return (0);
 }
 
 /* ARGSUSED */
