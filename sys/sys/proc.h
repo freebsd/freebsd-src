@@ -448,6 +448,15 @@ struct proc {
 #define	SWAIT	6		/* Waiting for interrupt. */
 #define	SMTX	7		/* Blocked on a mutex. */
 
+/* Stop events */
+#define	S_EXEC		0x00001	/* stop on exec */
+#define	S_SIG		0x00002	/* stop on signal */
+#define	S_SCE		0x00004	/* stop on syscall entry */
+#define	S_SCX		0x00008	/* stop on syscall exit */
+#define	S_CORE		0x00010	/* stop on coredump */
+#define	S_EXIT		0x00020	/* stop on exit */
+#define	S_ALLSTOPS	0x0003f	/* all of the above */
+
 /* These flags are kept in p_flag. */
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
