@@ -197,7 +197,6 @@ static struct ng_type mntypestruct = {
 	NULL,
 	ngmn_connect,
 	ngmn_rcvdata,
-	ngmn_rcvdata,
 	ngmn_disconnect,
 	NULL
 };
