@@ -1785,17 +1785,17 @@ void
 cred_update_thread(struct thread *td)
 {
 	struct proc *p;
+	struct ucred *cred;
 
 	p = td->td_proc;
-	if (td->td_ucred != NULL) {
-		mtx_lock(&Giant);
-		crfree(td->td_ucred);
-		mtx_unlock(&Giant);
-		td->td_ucred = NULL;
-	}
+	cred = td->td_ucred;
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	td->td_ucred = crhold(p->p_ucred);
 	PROC_UNLOCK(p);
+	if (cred != NULL)
+		crfree(cred);
+	mtx_unlock(&Giant);
 }
 
 /*
