@@ -28,9 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
-#ifdef __i386__
-#include "opt_agp.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
