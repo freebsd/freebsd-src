@@ -128,6 +128,10 @@
 #include <sys/bus.h>		/* used by smbus and newbus */
 #endif
 
+#if (__FreeBSD_version < 500000)
+#include <machine/clock.h>              /* for DELAY */
+#endif
+
 #include <pci/pcivar.h>
 
 #if (__FreeBSD_version >=300000)
@@ -564,20 +568,25 @@ bktr_store_address(unit, BKTR_MEM_BUF,          buf);
  
 	/* using the pci device id and revision id */
 	/* and determine the card type            */
-	switch (pci_id) {
-	case BROOKTREE_848_PCI_ID:
-		if (rev == 0x12) bktr->id = BROOKTREE_848A;
-		else             bktr->id = BROOKTREE_848;
-		break;
-        case BROOKTREE_849_PCI_ID:
-		bktr->id = BROOKTREE_849A;
-		break;
-        case BROOKTREE_878_PCI_ID:
-		bktr->id = BROOKTREE_878;
-		break;
-        case BROOKTREE_879_PCI_ID:
-		bktr->id = BROOKTREE_879;
-		break;
+	if (PCI_VENDOR(pci_id) == PCI_VENDOR_BROOKTREE)
+	{
+		switch (PCI_PRODUCT(pci_id)) {
+		case PCI_PRODUCT_BROOKTREE_BT848:
+			if (rev == 0x12)
+				bktr->id = BROOKTREE_848A;
+			else
+				bktr->id = BROOKTREE_848;
+			break;
+		case PCI_PRODUCT_BROOKTREE_BT849:
+			bktr->id = BROOKTREE_849A;
+			break;
+		case PCI_PRODUCT_BROOKTREE_BT878:
+			bktr->id = BROOKTREE_878;
+			break;
+		case PCI_PRODUCT_BROOKTREE_BT879:
+			bktr->id = BROOKTREE_879;
+			break;
+		}
 	};
 
 	bktr->clr_on_start = FALSE;

@@ -502,3 +502,11 @@
                   Alexander Langer <alex@cichlids.com> fixed some FreeBSD newbus
                   resource allocation problems (FreeBSD PR kern/18744).
 
+2.16  19 Sep 2000 Merge in NetBSD changes from Thomas Klausner <wiz@netbsd.org>
+
+2.17   3 Oct 2000 Alexander Langer <alex@big.endian.de> and
+                  someone else
+                  both submitted fixes to devfs code.
+                  Fix PHK's commit so we only include machine/clock.h in
+                  FreeBSD 2.x, 3.x and 4.x systems
+
