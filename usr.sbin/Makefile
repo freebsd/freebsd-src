@@ -202,7 +202,7 @@ SUBDIR+=i4b
 # mptable: broken (not 64 bit clean)
 # pnpinfo: crashes (not really useful anyway)
 .if ${MACHINE_ARCH} == "amd64"
-SUBDIR+=acpi \   
+SUBDIR+=acpi \
 	boot0cfg \
 	btxld \
 	lptcontrol \
