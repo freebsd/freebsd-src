@@ -1066,10 +1066,10 @@ thread_statclock(int user)
 	if (user) {
 		/* Current always do via ast() */
 		td->td_flags |= (TDF_ASTPENDING|TDF_USTATCLOCK);
-		td->td_uuticks += ticks;
+		td->td_uuticks++;
 	} else {
 		if (td->td_mailbox != NULL)
-			td->td_usticks += ticks;
+			td->td_usticks++;
 		else {
 			/* XXXKSE
 		 	 * We will call thread_user_enter() for every
