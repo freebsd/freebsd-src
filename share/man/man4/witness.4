@@ -62,7 +62,7 @@ If any of these checks fail, then the kernel will panic.
 The flag that controls whether or not the kernel debugger is entered when a
 lock order violation is detected can be set in a variety of ways.
 By default, the flag is off, but if the
-.Qq Dv WITNESS_DDB
+.Dv WITNESS_DDB
 kernel option is
 specified, then the flag will default to on.
 It can also be set from the
@@ -80,7 +80,7 @@ The
 code can also be configured to skip all checks on spin mutexes.
 By default, this flag defaults to off, but it can be turned on by
 specifying the
-.Qq Dv WITNESS_SKIPSPIN
+.Dv WITNESS_SKIPSPIN
 kernel option.
 The flag can also be set via the
 .Xr loader 8
