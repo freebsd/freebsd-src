@@ -38,6 +38,7 @@
 #define	_UFS_FFS_EXTERN_H
 
 struct buf;
+struct cg;
 struct fid;
 struct fs;
 struct inode;
