@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.22 1995/10/21 18:28:07 jkh Exp $
+ * $Id: options.c,v 1.23 1995/10/22 01:32:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -117,6 +117,8 @@ static Option Options[] = {
       OPT_IS_VAR,	NULL,			VAR_NO_CONFIRM,		varCheck	},
 { "FTP OnError",	"What to do when FTP requests fail:  abort, retry, reselect.",
       OPT_IS_FUNC,	mediaSetFtpOnError,	VAR_FTP_ONERROR,	varCheck	},
+{ "FTP Retries",	"If FTP OnError == retry, this is the number of times to try.",
+      OPT_IS_VAR,	NULL,			VAR_FTP_RETRIES,	varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
       OPT_IS_FUNC,	mediaSetFtpUserPass,	VAR_FTP_USER,		varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",

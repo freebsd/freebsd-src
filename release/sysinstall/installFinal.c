@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.9 1995/10/22 21:38:10 jkh Exp $
+ * $Id: installFinal.c,v 1.10 1995/10/23 13:19:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -94,7 +94,7 @@ installNetworking(char *unused)
 
     /* Set up anonymous FTP access to this machine? */
     if (variable_get("anon_ftp")) {
-	tptr = msgGetInput("/u", "What directory should the ftp home be in?");
+	tptr = msgGetInput("/u", "What directory should the anonymous ftp's home be under?");
 	if (tptr && *tptr && (tptr[0] == '/')) {
 	    int len = strlen(tbuf);
 
@@ -230,8 +230,10 @@ installNetworking(char *unused)
 		   "the /etc/exports file.  You must configure this information before\n"
 		   "other hosts will be able to mount file systems from your machine.\n"
 		   "Press [ENTER] now to invoke an editor on /etc/exports");
-	vsystem("echo '#The following example exports /usr to 3 machines named after ducks.' > /etc/exports");
+	vsystem("echo '#The following example exports /usr to 3 machines named after ducks:' > /etc/exports");
 	vsystem("echo '#/usr	huey louie dewie' >> /etc/exports");
+	vsystem("echo '#' >> /etc/exports");
+	vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
 	vsystem("echo >> /etc/exports");
 	systemExecute("ee /etc/exports");
     }
