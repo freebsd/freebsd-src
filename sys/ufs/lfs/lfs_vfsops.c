@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id: lfs_vfsops.c,v 1.6 1994/09/21 03:47:39 wollman Exp $
+ * $Id: lfs_vfsops.c,v 1.7 1994/10/28 12:42:05 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,6 @@
 #include <sys/buf.h>
 #include <sys/mbuf.h>
 #include <sys/file.h>
-#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
