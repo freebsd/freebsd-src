@@ -85,9 +85,11 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 			di->bas.bst = IA64_BUS_SPACE_IO;
 			di->bas.bst = (ent->address.addr_space == 0)
 			    ? IA64_BUS_SPACE_MEM : IA64_BUS_SPACE_IO;
-			di->bas.bsh = ent->address.addr_high;
-			di->bas.bsh = (di->bas.bsh << 32) +
-			    ent->address.addr_low;
+			if (bus_space_map(di->bas.bst,
+					  (ent->address.addr_high << 32) +
+					  ent->address.addr_low,
+					  8, 0, &di->bas.bsh) != 0)
+				return (ENXIO);
 			di->bas.regshft = 0;
 			di->bas.rclk = ent->pclock << 4;
 			/* We don't deal with 64-bit baud rates. */
@@ -130,7 +132,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		 */
 		di->ops = uart_ns8250_ops;
 		di->bas.bst = IA64_BUS_SPACE_IO;
-		di->bas.bsh = ivar;
+		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
+			return (ENXIO);
 		di->bas.regshft = 0;
 		di->bas.rclk = 0;
 		if (resource_int_value("uart", i, "baud", &ivar) != 0)
