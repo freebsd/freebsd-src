@@ -196,49 +196,17 @@ static int have_read_stdin;
 static struct keyfield keyhead;
 
 #ifdef __FreeBSD__
-static int collates[UCHAR_LIM];
-
-#define COLLDIFF(A, B) (collates[UCHAR (A)] - collates[UCHAR (B)])
-
 static int
-collate_range_cmp (a, b)
+COLLDIFF (a, b)
 	int a, b;
 {
-	int r;
 	static char s[2][2];
 
 	if ((unsigned char)a == (unsigned char)b)
 		return 0;
 	s[0][0] = a;
 	s[1][0] = b;
-	if ((r = strcoll(s[0], s[1])) == 0)
-		r = (unsigned char)a - (unsigned char)b;
-	return r;
-}
-
-static int
-collcompare (const void *sa, const void *sb)
-{
-	return collate_range_cmp (*((int *)sa), *((int *)sb));
-}
-
-static void
-init_collates(void)
-{
-	register int i, j;
-	int reverse[UCHAR_LIM];
-
-	for (i = 0; i < UCHAR_LIM; i++)
-		reverse[i] = i;
-	qsort(reverse, UCHAR_LIM, sizeof(reverse[0]), collcompare);
-	for (i = 0; i < UCHAR_LIM; i++) {
-		for (j = 0; j < UCHAR_LIM; j++) {
-			if (reverse[j] == i) {
-				collates[i] = j;
-				break;
-			}
-		}
-	}
+	return strcoll(s[0], s[1]);
 }
 #endif /* __FreeBSD__ */
 
@@ -501,9 +469,6 @@ inittables (void)
       else
 	fold_toupper[i] = i;
     }
-#ifdef __FreeBSD__
-    init_collates();
-#endif
 }
 
 /* Initialize BUF, allocating ALLOC bytes initially. */
