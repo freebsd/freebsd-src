@@ -36,10 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.20 1997/08/26 00:24:25 bde Exp $
+ * $Id: kern_shutdown.c,v 1.21 1997/08/26 18:36:15 peter Exp $
  */
 
 #include "opt_ddb.h"
+#include "opt_panic.h"
+#include "opt_show_busybufs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
