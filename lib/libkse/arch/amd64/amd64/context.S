@@ -79,10 +79,10 @@ __FBSDID("$FreeBSD$");
  * Where do we define these?
  */
 #define	MC_SIZE			800	/* sizeof mcontext_t */
-#define	MC_LEN_OFFSET		(24*8)	/* offset to mc_len from mcontext */
-#define	MC_FPFMT_OFFSET		(25*8)	/* offset to mc_fpformat from mcontext */
-#define MC_FPFMT_NODEV		0x10000
-#define	MC_OWNEDFP_OFFSET	(26*8)	/* offset to mc_ownedfp from mcontext */
+#define	MC_LEN_OFFSET		(25*8)	/* offset to mc_len from mcontext */
+#define	MC_FPFMT_OFFSET		(26*8)	/* offset to mc_fpformat from mcontext */
+#define	MC_FPFMT_NODEV		0x10000
+#define	MC_OWNEDFP_OFFSET	(27*8)	/* offset to mc_ownedfp from mcontext */
 #define	MC_OWNEDFP_NONE 	0x20000
 #define	MC_OWNEDFP_FPU		0x20001
 #define	MC_OWNEDFP_PCB		0x20002
@@ -104,9 +104,10 @@ __FBSDID("$FreeBSD$");
 #define	MC_R13		(13 * 8)
 #define	MC_R14		(14 * 8)
 #define	MC_R15		(15 * 8)
-#define	MC_RIP		(19 * 8)
-#define	MC_RFLAGS	(21 * 8)
-#define	MC_RSP		(22 * 8)
+#define	MC_FLAGS	(18 * 8)
+#define	MC_RIP		(20 * 8)
+#define	MC_RFLAGS	(22 * 8)
+#define	MC_RSP		(23 * 8)
 
 /*
  * _amd64_ctx_save(mcontext_t *mcp)
