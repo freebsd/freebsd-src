@@ -416,8 +416,6 @@ lmc_watchdog(lmc_softc_t * const sc)
 		       LMC_PRINTF_ARGS);
 		if (sc->lmc_flags & LMC_IFUP)
 			lmc_ifup(sc);
-		sc->lmc_flags |= LMC_MODEMOK;
-		lmc_led_on(sc, LMC_MII16_LED1); 
 		return;
 	}
 
@@ -448,7 +446,6 @@ lmc_ifup(lmc_softc_t * const sc)
 	sc->lmc_media->set_status(sc, NULL);
 
 	sc->lmc_flags |= LMC_IFUP;
-	lmc_led_on(sc, LMC_MII16_LED1);
 
 	/*
 	 * select what interrupts we want to get
@@ -471,6 +468,14 @@ lmc_ifup(lmc_softc_t * const sc)
 	untimeout(ng_lmc_watchdog_frame, sc, sc->lmc_handle);
 	sc->lmc_handle = timeout(ng_lmc_watchdog_frame, sc, hz);
 	sc->lmc_running = 1;
+
+	/*
+	 * check if the physical link is up
+	 */
+	if (sc->lmc_media->get_link_status(sc)) {
+		sc->lmc_flags |= LMC_MODEMOK;
+		lmc_led_on(sc, LMC_MII16_LED1);
+	}
 }
 
 /*
