@@ -24,7 +24,7 @@ with the human necessity for convenience.
 .Ux
 systems,
 in general, are capable of running a huge number of simultaneous processes
-and many of these processes operate as servers - meaning that external entities
+and many of these processes operate as servers \(em meaning that external entities
 can connect and talk to them.  As yesterday's mini-computers and mainframes
 become today's desktops, and as computers become networked and internetworked,
 security becomes an ever bigger issue.
@@ -40,9 +40,9 @@ flags
 (see
 .Xr chflags 1 )
 on every system binary because while this may temporarily protect the
-binaries, it prevents a hacker who has broken in from making an
+binaries, it prevents an attacker who has broken in from making an
 easily detectable change that may result in your security mechanisms not
-detecting the hacker at all.
+detecting the attacker at all.
 .Pp
 System security also pertains to dealing with various forms of attack,
 including attacks that attempt to crash or otherwise make a system unusable
@@ -103,11 +103,11 @@ program that allows the attacker to break root once he has broken into a
 user's account.  If an attacker has found a way to break root on a machine,
 the attacker may not have a need to install a backdoor.
 Many of the root holes found and closed to date involve a considerable amount
-of work by the hacker to cleanup after himself, so most hackers do install
-backdoors.  This gives you a convenient way to detect the hacker.  Making
-it impossible for a hacker to install a backdoor may actually be detrimental
-to your security because it will not close off the hole the hacker found to
-break in the first place.
+of work by the attacker to cleanup after himself, so most attackers do install
+backdoors.  This gives you a convenient way to detect the attacker.  Making
+it impossible for an attacker to install a backdoor may actually be detrimental
+to your security because it will not close off the hole the attacker used to
+break in in the first place.
 .Pp
 Security remedies should always be implemented with a multi-layered
 .Sq onion peel
@@ -116,7 +116,7 @@ approach and can be categorized as follows:
 .It
 Securing root and staff accounts
 .It
-Securing root - root-run servers and suid/sgid binaries
+Securing root \(em root-run servers and suid/sgid binaries
 .It
 Securing user accounts
 .It
@@ -145,7 +145,7 @@ in the
 file
 so that direct root logins via telnet or rlogin are disallowed.  If using
 other login services such as sshd, make sure that direct root logins are
-disabled there as well.  Consider every access method - services such as
+disabled there as well.  Consider every access method \(em services such as
 ftp often fall through the cracks.  Direct root logins should only be allowed
 via the system console.
 .Pp
@@ -180,8 +180,9 @@ option.
 An indirect way to secure the root account is to secure your staff accounts
 by using an alternative login access method and *'ing out the crypted password
 for the staff accounts.  This way an intruder may be able to steal the password
-file but will not be able to break into any staff accounts (or, indirectly,
-root, even if root has a crypted password associated with it).  Staff members
+file but will not be able to break into any staff accounts or root, even if
+root has a crypted password associated with it (assuming, of course, that
+you've limited root access to the console).  Staff members
 get into their staff accounts through a secure login mechanism such as
 .Xr kerberos 1
 or
@@ -218,7 +219,7 @@ servers.
 .Pp
 Using something like kerberos also gives you the ability to disable or
 change the password for a staff account in one place and have it immediately
-effect all the machine the staff member may have an account on.  If a staff
+affect all the machines the staff member may have an account on.  If a staff
 member's account gets compromised, the ability to instantly change his
 password on all machines should not be underrated.  With discrete passwords,
 changing a password on N machines can be a mess.  You can also impose
@@ -226,7 +227,7 @@ re-passwording restrictions with kerberos:  not only can a kerberos ticket
 be made to timeout after a while, but the kerberos system can require that
 the user choose a new password after a certain period of time
 (say, once a month).
-.Sh SECURING ROOT - ROOT-RUN SERVERS AND SUID/SGID BINARIES
+.Sh SECURING ROOT \(em  ROOT-RUN SERVERS AND SUID/SGID BINARIES
 The prudent sysadmin only runs the servers he needs to, no more, no less.  Be
 aware that third party servers are often the most bug-prone.  For example,
 running an old version of imapd or popper is like giving a universal root
@@ -352,7 +353,7 @@ will be enforced.  You must also ensure
 that the
 .Sq schg
 flag is set on critical startup binaries, directories, and
-script files - everything that gets run up to the point where the securelevel
+script files \(em everything that gets run up to the point where the securelevel
 is set.  This might be overdoing it, and upgrading the system is much more
 difficult when you operate at a higher secure level.  You may compromise and
 run the system at a higher secure level but not set the schg flag for every
@@ -366,11 +367,11 @@ configuration and control files so much before the convenience factor
 rears its ugly head.  For example, using chflags to set the schg bit
 on most of the files in / and /usr is probably counterproductive because
 while it may protect the files, it also closes a detection window.  The
-last layer of your security onion is perhaps the most important - detection.
+last layer of your security onion is perhaps the most important \(em detection.
 The rest of your security is pretty much useless (or, worse, presents you with
 a false sense of safety) if you cannot detect potential incursions.  Half
 the job of the onion is to slow down the attacker rather then stop him
-in order to give the detection side of the equation a chance to catch him in
+in order to give the detection layer a chance to catch him in
 the act.
 .Pp
 The best way to detect an incursion is to look for modified, missing, or
@@ -378,13 +379,13 @@ unexpected files.  The best
 way to look for modified files is from another (often centralized)
 limited-access system.
 Writing your security scripts on the extra-secure limited-access system
-makes them mostly invisible to potential hackers, and this is important.
+makes them mostly invisible to potential attackers, and this is important.
 In order to take maximum advantage you generally have to give the
 limited-access box significant access to the other machines in the business,
 usually either by doing a read-only NFS export of the other machines to the
 limited-access box, or by setting up ssh keypairs to allow the limit-access
 box to ssh to the other machines.  Except for its network traffic, NFS is
-the least visible method - allowing you to monitor the filesystems on each
+the least visible method \(em allowing you to monitor the filesystems on each
 client box virtually undetected.  If your
 limited-access server is connected to the client boxes through a switch,
 the NFS method is often the better choice.  If your limited-access server
@@ -441,7 +442,7 @@ options
 .Xr mount 8 )
 are what you want to look into.  I would scan them anyway at least once a
 week, since the object of this layer is to detect a break-in whether or
-not the breakin is effective.
+not the break-in is effective.
 .Pp
 Process accounting
 (see
@@ -453,7 +454,7 @@ actually broken into a system, assuming the file is still intact after
 the break-in occurs.
 .Pp
 Finally, security scripts should process the log files and the logs themselves
-should be generated in as secure a manner as possible - remote syslog can be
+should be generated in as secure a manner as possible \(em remote syslog can be
 very useful.  An intruder tries to cover his tracks, and log files are critical
 to the sysadmin trying to track down the time and method of the initial
 break-in.  One way to keep a permanent record of the log files is to run
@@ -461,12 +462,12 @@ the system console to a serial port and collect the information on a
 continuing basis through a secure machine monitoring the consoles.
 .Sh PARANOIA
 A little paranoia never hurts.  As a rule, a sysadmin can add any number
-of security features as long as they do not effect convenience, and
-can add security features that do effect convenience with some added
+of security features as long as they do not affect convenience, and
+can add security features that do affect convenience with some added
 thought.  Even more importantly, a security administrator should mix it up
-a bit - if you use recommendations such as those given by this manual
+a bit \(em if you use recommendations such as those given by this manual
 page verbatim, you give away your methodologies to the prospective
-hacker who also has access to this manual page.
+attacker who also has access to this manual page.
 .Sh SPECIAL SECTION ON D.O.S. ATTACKS
 This section covers Denial of Service attacks.  A DOS attack is typically
 a packet attack.  While there isn't much you can do about modern spoofed
@@ -541,7 +542,9 @@ saturation attacks from outside your LAN, not so much to protect internal
 services from network-based root compromise.  Always configure an exclusive
 firewall, i.e.\&
 .So
-firewall everything *except* ports A, B, C, D, and M-Z
+firewall everything
+.Em except
+ports A, B, C, D, and M-Z
 .Sc .
 This
 way you can firewall off all of your low ports except for certain specific
@@ -550,7 +553,7 @@ services such as named
 ntalkd, sendmail,
 and other internet-accessible services.
 If you try to configure the firewall the other
-way - as an inclusive or permissive firewall, there is a good chance that you
+way \(em as an inclusive or permissive firewall, there is a good chance that you
 will forget to
 .Sq close
 a couple of services or that you will add a new internal
@@ -569,7 +572,7 @@ block everything under 4000 off in my firewall
 (except for certain specific
 internet-accessible ports, of course).
 .Pp
-Another common DOS attack is called a springboard attack - to attack a server
+Another common DOS attack is called a springboard attack \(em to attack a server
 in a manner that causes the server to generate responses which then overload
 the server, the local network, or some other machine.  The most common attack
 of this nature is the ICMP PING BROADCAST attack.  The attacker spoofs ping
@@ -633,7 +636,7 @@ What this means is that if you have a secure workstation holding
 keys that give you access to the rest of the system, and you ssh to an
 unsecure machine, your keys become exposed.  The actual keys themselves are
 not exposed, but ssh installs a forwarding port for the duration of your
-login and if a hacker has broken root on the unsecure machine he can utilize
+login and if an attacker has broken root on the unsecure machine he can utilize
 that port to use your keys to gain access to any other machine that your
 keys unlock.
 .Pp
