@@ -428,9 +428,9 @@ arattach(struct ar_hardc *hc)
 	struct ar_softc *sc;
 #ifndef	NETGRAPH
 	struct ifnet *ifp;
+	char *iface;
 #endif	/* NETGRAPH */
 	int unit;
-	char *iface;
 
 	printf("arc%d: %uK RAM, %u ports, rev %u.\n",
 		hc->cunit,
@@ -1129,7 +1129,7 @@ arc_init(struct ar_hardc *hc)
 	MALLOC(sc, struct ar_softc *,
 		hc->numports * sizeof(struct ar_softc), M_DEVBUF, M_WAITOK);
 	if (sc == NULL)
-		return (ENOMEM);
+		return;
 	bzero(sc, hc->numports * sizeof(struct ar_softc));
 	hc->sc = sc;
 
