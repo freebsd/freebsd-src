@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.57 1996/09/08 20:44:37 dyson Exp $
+ * $Id: vm_fault.c,v 1.58 1996/11/30 22:41:46 dyson Exp $
  */
 
 /*
@@ -200,6 +200,32 @@ RetryFault:;
 	if (entry->nofault) {
 		panic("vm_fault: fault on nofault entry, addr: %lx",
 			vaddr);
+	}
+
+	/*
+	 * If we are user-wiring a r/w segment, and it is COW, then
+	 * we need to do the COW operation.  Note that we don't COW
+	 * currently RO sections now, because there it is NOT desireable
+	 * to COW .text.  We simply keep .text from ever being COW'ed
+	 * and take the heat that one cannot debug wired .text sections.
+	 */
+	if ((change_wiring == VM_FAULT_USER_WIRE) && entry->needs_copy) {
+		if(entry->protection & VM_PROT_WRITE) {
+			int tresult;
+			vm_map_lookup_done(map, entry);
+
+			tresult = vm_map_lookup(&map, vaddr, VM_PROT_READ|VM_PROT_WRITE,
+				&entry, &first_object, &first_pindex, &prot, &wired, &su);
+			if (tresult != KERN_SUCCESS)
+				return tresult;
+		} else {
+			/*
+			 * If we don't COW now, on a user wire, the user will never
+			 * be able to write to the mapping.  If we don't make this
+			 * restriction, the bookkeeping would be nearly impossible.
+			 */
+			entry->max_protection &= ~VM_PROT_WRITE;
+		}
 	}
 
 	vp = vnode_pager_lock(first_object);
@@ -839,7 +865,48 @@ vm_fault_wire(map, start, end)
 	 */
 
 	for (va = start; va < end; va += PAGE_SIZE) {
-		rv = vm_fault(map, va, VM_PROT_READ|VM_PROT_WRITE, TRUE);
+		rv = vm_fault(map, va, VM_PROT_READ|VM_PROT_WRITE,
+			VM_FAULT_CHANGE_WIRING);
+		if (rv) {
+			if (va != start)
+				vm_fault_unwire(map, start, va);
+			return (rv);
+		}
+	}
+	return (KERN_SUCCESS);
+}
+
+/*
+ *	vm_fault_user_wire:
+ *
+ *	Wire down a range of virtual addresses in a map.  This
+ *	is for user mode though, so we only ask for read access
+ *	on currently read only sections.
+ */
+int
+vm_fault_user_wire(map, start, end)
+	vm_map_t map;
+	vm_offset_t start, end;
+{
+
+	register vm_offset_t va;
+	register pmap_t pmap;
+	int rv;
+
+	pmap = vm_map_pmap(map);
+
+	/*
+	 * Inform the physical mapping system that the range of addresses may
+	 * not fault, so that page tables and such can be locked down as well.
+	 */
+	pmap_pageable(pmap, start, end, FALSE);
+
+	/*
+	 * We simulate a fault to get the page and enter it in the physical
+	 * map.
+	 */
+	for (va = start; va < end; va += PAGE_SIZE) {
+		rv = vm_fault(map, va, VM_PROT_READ, VM_FAULT_USER_WIRE);
 		if (rv) {
 			if (va != start)
 				vm_fault_unwire(map, start, va);

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.60 1996/12/07 06:19:37 dyson Exp $
+ * $Id: vm_map.c,v 1.61 1996/12/07 07:44:05 dyson Exp $
  */
 
 /*
@@ -1349,6 +1349,137 @@ vm_map_inherit(map, start, end, new_inheritance)
 	vm_map_simplify_entry(map, temp_entry);
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
+}
+
+/*
+ * Implement the semantics of mlock
+ */
+int
+vm_map_user_pageable(map, start, end, new_pageable)
+	register vm_map_t map;
+	register vm_offset_t start;
+	register vm_offset_t end;
+	register boolean_t new_pageable;
+{
+	register vm_map_entry_t entry;
+	vm_map_entry_t start_entry;
+	register vm_offset_t failed = 0;
+	int rv;
+
+	vm_map_lock(map);
+	VM_MAP_RANGE_CHECK(map, start, end);
+
+	if (vm_map_lookup_entry(map, start, &start_entry) == FALSE) {
+		vm_map_unlock(map);
+		return (KERN_INVALID_ADDRESS);
+	}
+
+	if (new_pageable) {
+
+		entry = start_entry;
+		vm_map_clip_start(map, entry, start);
+
+		/*
+		 * Now decrement the wiring count for each region. If a region
+		 * becomes completely unwired, unwire its physical pages and
+		 * mappings.
+		 */
+		lock_set_recursive(&map->lock);
+
+		entry = start_entry;
+		while ((entry != &map->header) && (entry->start < end)) {
+			if (entry->user_wired) {
+				vm_map_clip_end(map, entry, end);
+				entry->user_wired = 0;
+				entry->wired_count--;
+				if (entry->wired_count == 0)
+					vm_fault_unwire(map, entry->start, entry->end);
+			}
+			entry = entry->next;
+		}
+		vm_map_simplify_entry(map, start_entry);
+		lock_clear_recursive(&map->lock);
+	} else {
+
+		/*
+		 * Because of the possiblity of blocking, etc.  We restart
+		 * through the process's map entries from beginning so that
+		 * we don't end up depending on a map entry that could have
+		 * changed.
+		 */
+	rescan:
+
+		entry = start_entry;
+
+		while ((entry != &map->header) && (entry->start < end)) {
+
+			if (entry->user_wired != 0) {
+				entry = entry->next;
+				continue;
+			}
+			
+			if (entry->wired_count != 0) {
+				entry->wired_count++;
+				entry->user_wired = 1;
+				entry = entry->next;
+				continue;
+			}
+
+			/* Here on entry being newly wired */
+
+			if (!entry->is_a_map && !entry->is_sub_map) {
+				int copyflag = entry->needs_copy;
+				if (copyflag && ((entry->protection & VM_PROT_WRITE) != 0)) {
+
+					vm_object_shadow(&entry->object.vm_object,
+					    &entry->offset,
+					    OFF_TO_IDX(entry->end
+						- entry->start));
+					entry->needs_copy = FALSE;
+
+				} else if (entry->object.vm_object == NULL) {
+
+					entry->object.vm_object =
+					    vm_object_allocate(OBJT_DEFAULT,
+						OFF_TO_IDX(entry->end - entry->start));
+					entry->offset = (vm_offset_t) 0;
+
+				}
+				default_pager_convert_to_swapq(entry->object.vm_object);
+			}
+
+			vm_map_clip_start(map, entry, start);
+			vm_map_clip_end(map, entry, end);
+
+			entry->wired_count++;
+			entry->user_wired = 1;
+
+			/* First we need to allow map modifications */
+			lock_set_recursive(&map->lock);
+			lock_write_to_read(&map->lock);
+
+			rv = vm_fault_user_wire(map, entry->start, entry->end);
+			if (rv) {
+
+				entry->wired_count--;
+				entry->user_wired = 0;
+
+				lock_clear_recursive(&map->lock);
+				vm_map_unlock(map);
+				
+				(void) vm_map_user_pageable(map, start, entry->start, TRUE);
+				return rv;
+			}
+
+			lock_clear_recursive(&map->lock);
+			vm_map_unlock(map);
+			vm_map_lock(map);
+
+			goto rescan;
+		}
+	}
+	vm_map_unlock(map);
+	return KERN_SUCCESS;
 }
 
 /*

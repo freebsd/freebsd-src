@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.52 1996/10/24 02:56:23 dyson Exp $
+ * $Id: vm_mmap.c,v 1.53 1996/10/29 22:07:11 dyson Exp $
  */
 
 /*
@@ -785,7 +785,7 @@ mlock(p, uap, retval)
 		return (error);
 #endif
 
-	error = vm_map_pageable(&p->p_vmspace->vm_map, addr, addr + size, FALSE);
+	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr, addr + size, FALSE);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -823,7 +823,7 @@ munlock(p, uap, retval)
 		return (error);
 #endif
 
-	error = vm_map_pageable(&p->p_vmspace->vm_map, addr, addr + size, TRUE);
+	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr, addr + size, TRUE);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
