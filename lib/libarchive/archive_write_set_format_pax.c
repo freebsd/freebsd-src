@@ -414,7 +414,7 @@ archive_write_pax_header(struct archive *a,
 	}
 
 	/* If numeric GID is too large, add 'gid' to pax extended attrs. */
-	if (st_main->st_gid >= (1 << 20)) {
+	if (st_main->st_gid >= (1 << 18)) {
 		add_pax_attr_int(&(pax->pax_header), "gid", st_main->st_gid);
 		need_extension = 1;
 	}
@@ -429,7 +429,7 @@ archive_write_pax_header(struct archive *a,
 	}
 
 	/* If numeric UID is too large, add 'uid' to pax extended attrs. */
-	if (st_main->st_uid >= (1 << 20)) {
+	if (st_main->st_uid >= (1 << 18)) {
 		add_pax_attr_int(&(pax->pax_header), "uid", st_main->st_uid);
 		need_extension = 1;
 	}
@@ -636,7 +636,11 @@ archive_write_pax_header(struct archive *a,
 		archive_entry_set_pathname(pax_attr_entry, pax_attr_name);
 		st.st_size = archive_strlen(&(pax->pax_header));
 		st.st_uid = st_main->st_uid;
+		if (st.st_uid >= 1 << 18)
+			st.st_uid = (1 << 18) - 1;
 		st.st_gid = st_main->st_gid;
+		if (st.st_gid >= 1 << 18)
+			st.st_gid = (1 << 18) - 1;
 		st.st_mode = st_main->st_mode;
 		archive_entry_copy_stat(pax_attr_entry, &st);
 
