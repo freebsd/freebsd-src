@@ -32,7 +32,7 @@
 .Nd merge configuration files, et al during an upgrade
 .Sh SYNOPSIS
 .Nm
-.Op Fl scrvahi
+.Op Fl scrvahipC
 .Op Fl m Ar /path/to/sources
 .Op Fl t Ar /path/to/temp/root
 .Op Fl d
@@ -185,6 +185,17 @@ Display usage and help information.
 .It Fl i
 Automatically install any files that do not exist in the
 destination directory.
+.It Fl p
+Pre-buildworld mode.
+Compares only files known to be essential to the sucess of
+{build|install}world,
+including
+.Pa /etc/make.conf .
+.It Fl C
+After a standard
+.Nm
+run,
+compares your rc.conf[.local] options to the defaults.
 .It Fl m Ar /path/to/sources
 Specify the path to the directory where you want to do the
 .Xr make 1 .
