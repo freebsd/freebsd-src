@@ -428,7 +428,8 @@ cleanheaders(char *p)
 	 * Scan the build directory and clean out stuff that looks like
 	 * it might have been a leftover NFOO header, etc.
 	 */
-	dirp = opendir(p);
+	if ((dirp = opendir(p)) == NULL)
+		err(EX_OSERR, "opendir %s", p);
 	while ((dp = readdir(dirp)) != NULL) {
 		i = dp->d_namlen - 2;
 		/* Skip non-headers */
@@ -447,7 +448,8 @@ cleanheaders(char *p)
 		if (hl)
 			continue;
 		printf("Removing stale header: %s\n", dp->d_name);
-		unlink(path(dp->d_name));
+		if (unlink(path(dp->d_name)) == -1)
+			warn("unlink %s", dp->d_name);
 	}
 	(void)closedir(dirp);
 }
