@@ -313,6 +313,39 @@ wi_generic_attach(device_t dev)
 	sc->wi_channel = gen.wi_val;
 
 	/*
+	 * Set flags based on firmware version.
+	 */
+	switch (sc->sc_firmware_type) {
+	case WI_LUCENT:
+		sc->wi_flags |= WI_FLAGS_HAS_ROAMING;
+		if (sc->sc_sta_firmware_ver >= 60000)
+			sc->wi_flags |= WI_FLAGS_HAS_MOR;
+		if (sc->sc_sta_firmware_ver >= 60006) {
+			sc->wi_flags |= WI_FLAGS_HAS_IBSS;
+			sc->wi_flags |= WI_FLAGS_HAS_CREATE_IBSS;
+		}
+		sc->wi_ibss_port = htole16(1);
+		break;
+	case WI_INTERSIL:
+		sc->wi_flags |= WI_FLAGS_HAS_ROAMING;
+		if (sc->sc_sta_firmware_ver >= 800) {
+			sc->wi_flags |= WI_FLAGS_HAS_IBSS;
+			sc->wi_flags |= WI_FLAGS_HAS_CREATE_IBSS;
+		}
+		sc->wi_ibss_port = htole16(0);
+		break;
+	case WI_SYMBOL:
+		sc->wi_flags |= WI_FLAGS_HAS_DIVERSITY;
+		if (sc->sc_sta_firmware_ver >= 20000)
+			sc->wi_flags |= WI_FLAGS_HAS_IBSS;
+		/* Older Symbol firmware does not support IBSS creation. */
+		if (sc->sc_sta_firmware_ver >= 25000)
+			sc->wi_flags |= WI_FLAGS_HAS_CREATE_IBSS;
+		sc->wi_ibss_port = htole16(4);
+		break;
+	}
+
+	/*
 	 * Find out if we support WEP on this card.
 	 */
 	gen.wi_type = WI_RID_WEP_AVAIL;
@@ -326,10 +359,13 @@ wi_generic_attach(device_t dev)
 	/* 
 	 * Find supported rates.
 	 */
-	gen.wi_type = WI_RID_TX_RATE;
+	gen.wi_type = WI_RID_DATA_RATES;
 	gen.wi_len = 2;
-	wi_read_record(sc, &gen);
-	sc->wi_supprates = gen.wi_val;
+	if (wi_read_record(sc, &gen))
+		sc->wi_supprates = WI_SUPPRATES_1M | WI_SUPPRATES_2M |
+		    WI_SUPPRATES_5M | WI_SUPPRATES_11M;
+	else
+		sc->wi_supprates = gen.wi_val;
 
 	bzero((char *)&sc->wi_stats, sizeof(sc->wi_stats));
 
@@ -337,36 +373,76 @@ wi_generic_attach(device_t dev)
 	wi_stop(sc);
 
 	ifmedia_init(&sc->ifmedia, 0, wi_media_change, wi_media_status);
-	/* XXX: Should read from card capabilities */
 #define ADD(m, c)       ifmedia_add(&sc->ifmedia, (m), (c), NULL)
-	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1,
-	    IFM_IEEE80211_ADHOC, 0), 0);
-	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1, 0, 0), 0);
-	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2,
-	    IFM_IEEE80211_ADHOC, 0), 0);
-	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2, 0, 0), 0);
-	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5,
-	    IFM_IEEE80211_ADHOC, 0), 0);
-	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5, 0, 0), 0);
-	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11,
-	    IFM_IEEE80211_ADHOC, 0), 0);
-	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11, 0, 0), 0);
-	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, 
-		IFM_IEEE80211_ADHOC, 0), 0);
-	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, 0, 0), 0);
-	if (sc->sc_firmware_type == WI_INTERSIL) {
+	if (sc->wi_supprates & WI_SUPPRATES_1M) {
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1, 0, 0), 0);
 		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1,
-		    IFM_IEEE80211_HOSTAP, 0), 0);
-		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2,
-		    IFM_IEEE80211_HOSTAP, 0), 0);
-		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5,
-		    IFM_IEEE80211_HOSTAP, 0), 0);
-		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11,
-		    IFM_IEEE80211_HOSTAP, 0), 0);
-		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, 
-		    IFM_IEEE80211_HOSTAP, 0), 0);
+		    IFM_IEEE80211_ADHOC, 0), 0);
+		if (sc->wi_flags & WI_FLAGS_HAS_IBSS)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1,
+			    IFM_IEEE80211_IBSS, 0), 0);
+		if (sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1,
+			    IFM_IEEE80211_IBSSMASTER, 0), 0);
+		if (sc->sc_firmware_type == WI_INTERSIL)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1,
+			    IFM_IEEE80211_HOSTAP, 0), 0);
 	}
-#undef	ADD
+	if (sc->wi_supprates & WI_SUPPRATES_2M) {
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2, 0, 0), 0);
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2,
+		    IFM_IEEE80211_ADHOC, 0), 0);
+		if (sc->wi_flags & WI_FLAGS_HAS_IBSS)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2,
+			    IFM_IEEE80211_IBSS, 0), 0);
+		if (sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2,
+			    IFM_IEEE80211_IBSSMASTER, 0), 0);
+		if (sc->sc_firmware_type == WI_INTERSIL)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2,
+			    IFM_IEEE80211_HOSTAP, 0), 0);
+	}
+	if (sc->wi_supprates & WI_SUPPRATES_5M) {
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5, 0, 0), 0);
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5,
+		    IFM_IEEE80211_ADHOC, 0), 0);
+		if (sc->wi_flags & WI_FLAGS_HAS_IBSS)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5,
+			    IFM_IEEE80211_IBSS, 0), 0);
+		if (sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5,
+			    IFM_IEEE80211_IBSSMASTER, 0), 0);
+		if (sc->sc_firmware_type == WI_INTERSIL)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5,
+			    IFM_IEEE80211_HOSTAP, 0), 0);
+	}
+	if (sc->wi_supprates & WI_SUPPRATES_11M) {
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11, 0, 0), 0);
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11,
+		    IFM_IEEE80211_ADHOC, 0), 0);
+		if (sc->wi_flags & WI_FLAGS_HAS_IBSS)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11,
+			    IFM_IEEE80211_IBSS, 0), 0);
+		if (sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11,
+			    IFM_IEEE80211_IBSSMASTER, 0), 0);
+		if (sc->sc_firmware_type == WI_INTERSIL)
+			ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11,
+			    IFM_IEEE80211_HOSTAP, 0), 0);
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_MANUAL, 0, 0), 0);
+	}
+	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, IFM_IEEE80211_ADHOC, 0), 0);
+	if (sc->wi_flags & WI_FLAGS_HAS_IBSS)
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, IFM_IEEE80211_IBSS,
+		    0), 0);
+	if (sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS)
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO,
+		    IFM_IEEE80211_IBSSMASTER, 0), 0);
+	if (sc->sc_firmware_type == WI_INTERSIL)
+		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO,
+		    IFM_IEEE80211_HOSTAP, 0), 0);
+	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, 0, 0), 0);
+#undef ADD
 	ifmedia_set(&sc->ifmedia, IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO,
 	    0, 0));
 
@@ -1065,7 +1141,15 @@ wi_read_record(sc, ltv)
 	for (i = 0; i < ltv->wi_len - 1; i++)
 		ptr[i] = CSR_READ_2(sc, WI_DATA1);
 
-	if (sc->sc_firmware_type != WI_LUCENT) {
+	if (ltv->wi_type == WI_RID_PORTTYPE && sc->wi_ptype == WI_PORTTYPE_IBSS
+	    && ltv->wi_val == sc->wi_ibss_port) {
+		/*
+		 * Convert vendor IBSS port type to WI_PORTTYPE_IBSS.
+		 * Since Lucent uses port type 1 for BSS *and* IBSS we
+		 * have to rely on wi_ptype to distinguish this for us.
+		 */
+		ltv->wi_val = htole16(WI_PORTTYPE_IBSS);
+	} else if (sc->sc_firmware_type != WI_LUCENT) {
 		switch (oltv->wi_type) {
 		case WI_RID_TX_RATE:
 		case WI_RID_CUR_TX_RATE:
@@ -1116,7 +1200,14 @@ wi_write_record(sc, ltv)
 	int			i;
 	struct wi_ltv_gen	p2ltv;
 
-	if (sc->sc_firmware_type != WI_LUCENT) {
+	if (ltv->wi_type == WI_RID_PORTTYPE &&
+	    le16toh(ltv->wi_val) == WI_PORTTYPE_IBSS) {
+		/* Convert WI_PORTTYPE_IBSS to vendor IBSS port type. */
+		p2ltv.wi_type = WI_RID_PORTTYPE;
+		p2ltv.wi_len = 2;
+		p2ltv.wi_val = sc->wi_ibss_port;
+		ltv = &p2ltv;
+	} else if (sc->sc_firmware_type != WI_LUCENT) {
 		switch (ltv->wi_type) {
 		case WI_RID_TX_RATE:
 			p2ltv.wi_type = WI_RID_TX_RATE;
@@ -1935,11 +2026,11 @@ wi_init(xsc)
 	/* Program max data length. */
 	WI_SETVAL(WI_RID_MAX_DATALEN, sc->wi_max_data_len);
 
-	/* Enable/disable IBSS creation. */
-	WI_SETVAL(WI_RID_CREATE_IBSS, sc->wi_create_ibss);
-
 	/* Set the port type. */
 	WI_SETVAL(WI_RID_PORTTYPE, sc->wi_ptype);
+
+	/* Enable/disable IBSS creation. */
+	WI_SETVAL(WI_RID_CREATE_IBSS, sc->wi_create_ibss);
 
 	/* Program the RTS/CTS threshold. */
 	WI_SETVAL(WI_RID_RTS_THRESH, sc->wi_rts_thresh);
@@ -2725,13 +2816,37 @@ wi_media_change(ifp)
 	struct wi_softc		*sc = ifp->if_softc;
 	int			otype = sc->wi_ptype;
 	int			orate = sc->wi_tx_rate;
+	int			ocreate_ibss = sc->wi_create_ibss;
 
-	if ((sc->ifmedia.ifm_cur->ifm_media & IFM_IEEE80211_ADHOC) != 0)
-		sc->wi_ptype = WI_PORTTYPE_ADHOC;
-	else if ((sc->ifmedia.ifm_cur->ifm_media & IFM_IEEE80211_HOSTAP) != 0)
-		sc->wi_ptype = WI_PORTTYPE_AP;
-	else
+	if ((sc->ifmedia.ifm_cur->ifm_media & IFM_IEEE80211_HOSTAP) &&
+	    sc->sc_firmware_type != WI_INTERSIL)
+		return (EINVAL);
+
+	sc->wi_create_ibss = 0;
+
+	switch (sc->ifmedia.ifm_cur->ifm_media & IFM_OMASK) {
+	case 0:
 		sc->wi_ptype = WI_PORTTYPE_BSS;
+		break;
+	case IFM_IEEE80211_ADHOC:
+		sc->wi_ptype = WI_PORTTYPE_ADHOC;
+		break;
+	case IFM_IEEE80211_HOSTAP:
+		sc->wi_ptype = WI_PORTTYPE_AP;
+		break;
+	case IFM_IEEE80211_IBSSMASTER:
+	case IFM_IEEE80211_IBSSMASTER|IFM_IEEE80211_IBSS:
+		if (!(sc->wi_flags & WI_FLAGS_HAS_CREATE_IBSS))
+			return (EINVAL);
+		sc->wi_create_ibss = 1;
+		/* FALLTHROUGH */
+	case IFM_IEEE80211_IBSS:
+		sc->wi_ptype = WI_PORTTYPE_IBSS;
+		break;
+	default:
+		/* Invalid combination. */
+		return (EINVAL);
+	}
 
 	switch (IFM_SUBTYPE(sc->ifmedia.ifm_cur->ifm_media)) {
 	case IFM_IEEE80211_DS1:
@@ -2751,7 +2866,7 @@ wi_media_change(ifp)
 		break;
 	}
 
-	if (otype != sc->wi_ptype ||
+	if (ocreate_ibss != sc->wi_create_ibss || otype != sc->wi_ptype ||
 	    orate != sc->wi_tx_rate)
 		wi_init(sc);
 
@@ -2772,6 +2887,12 @@ wi_media_status(ifp, imr)
 			imr->ifm_active |= IFM_IEEE80211_ADHOC;
 		else if (sc->wi_ptype == WI_PORTTYPE_AP)
 			imr->ifm_active |= IFM_IEEE80211_HOSTAP;
+		else if (sc->wi_ptype == WI_PORTTYPE_IBSS) {
+			if (sc->wi_create_ibss)
+				imr->ifm_active |= IFM_IEEE80211_IBSSMASTER;
+			else
+				imr->ifm_active |= IFM_IEEE80211_IBSS;
+		}
 		wreq.wi_type = WI_RID_CUR_TX_RATE;
 		wreq.wi_len = WI_MAX_DATALEN;
 		if (wi_read_record(sc, (struct wi_ltv_gen *)&wreq) == 0) {
@@ -2795,7 +2916,8 @@ wi_media_status(ifp, imr)
 	}
 
 	imr->ifm_status = IFM_AVALID;
-	if (sc->wi_ptype == WI_PORTTYPE_ADHOC)
+	if (sc->wi_ptype == WI_PORTTYPE_ADHOC ||
+	    sc->wi_ptype == WI_PORTTYPE_IBSS)
 		/*
 		 * XXX: It would be nice if we could give some actually
 		 * useful status like whether we joined another IBSS or
