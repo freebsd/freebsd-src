@@ -659,6 +659,8 @@ includes:
 	cd ${.CURDIR}/kerberosIV/lib/libkdb;	${MAKE} beforeinstall
 	cd ${.CURDIR}/kerberosIV/lib/libkrb;	${MAKE} beforeinstall
 	cd ${.CURDIR}/kerberosIV/lib/libtelnet; ${MAKE} beforeinstall
+.elif exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+	cd ${.CURDIR}/secure/lib/libtelnet;	${MAKE} beforeinstall
 .else
 	cd ${.CURDIR}/lib/libtelnet;		${MAKE} beforeinstall
 .endif
