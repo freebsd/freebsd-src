@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.43 1995/11/14 09:17:32 phk Exp $
+ * $Id: kern_sysctl.c,v 1.44 1995/11/14 09:22:15 phk Exp $
  */
 
 /*
@@ -374,7 +374,6 @@ sysctl_old_kernel(struct sysctl_req *req, void *p, int l)
 static int
 sysctl_new_kernel(struct sysctl_req *req, void *p, int l)
 {
-	int i;
 	if (!req->newptr)
 		return 0;
 	if (req->newlen - req->newidx < l)
@@ -408,7 +407,7 @@ sysctl_old_user(struct sysctl_req *req, void *p, int l)
 static int
 sysctl_new_user(struct sysctl_req *req, void *p, int l)
 {
-	int error, i;
+	int error;
 
 	if (!req->newptr)
 		return 0;
@@ -418,10 +417,6 @@ sysctl_new_user(struct sysctl_req *req, void *p, int l)
 	req->newidx += l;
 	return (error);
 }
-
-#ifdef DEBUG
-static sysctlfn debug_sysctl;
-#endif
 
 /*
  * Locking and stats
@@ -544,12 +539,14 @@ static sysctlfn kern_sysctl;
 int
 userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, int *retval)
 {
-	int error = 0, dolock = 1, i, oldlen = 0;
+	int error = 0, dolock = 1, oldlen = 0;
 	u_int savelen = 0;
 	sysctlfn *fn;
 	struct sysctl_req req;
 
 	bzero(&req, sizeof req);
+
+	req.p = p;
 
 	if (new != NULL && (error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
