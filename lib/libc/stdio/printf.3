@@ -176,6 +176,16 @@ After the
 the following appear in sequence:
 .Bl -bullet
 .It
+An optional field, consisting of a decimal digit string followed by a
+.Cm $ ,
+specifying the next argument to access .
+If this field is not provided, the argument following the last
+argument accessed will be used.
+Arguments are numbered starting at
+.Cm 1 .
+If unaccessed arguments in the format string are interspersed with ones that
+are accessed the results will be indeterminate.
+.It
 Zero or more of the following flags:
 .Bl -hyphen
 .It
@@ -394,6 +404,8 @@ A character that specifies the type of conversion to be applied.
 A field width or precision, or both, may be indicated by
 an asterisk
 .Ql *
+or an asterisk followed by one or more decimal digits and a
+.Ql $
 instead of a
 digit string.
 In this case, an
@@ -402,6 +414,8 @@ argument supplies the field width or precision.
 A negative field width is treated as a left adjustment flag followed by a
 positive field width; a negative precision is treated as though it were
 missing.
+If a single format directive mixes positional (nn$)
+and non-positional arguments, the results are undefined.
 .Pp
 The conversion specifiers and their meanings are:
 .Bl -tag -width "diouxX"
