@@ -780,7 +780,7 @@ bs_setup_ctrl(ti, quirks, flags)
 	period = BS_SCSI_PERIOD(flags);
 	offset = (flags & BS_SCSI_SYNC) ? BS_SCSI_OFFSET(flags) : 0;
 
-	maxperiod = (bsc->sc_cspeed & IDR_FS_15_20) ? 100 : 50;
+	maxperiod = (bsc->sc_cspeed & IDR_FS_16_20) ? 100 : 50;
 	if (period > maxperiod)
 		period = maxperiod;
 
