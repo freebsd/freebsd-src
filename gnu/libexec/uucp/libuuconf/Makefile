@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 LIB=		uuconf
-SRCS = addblk.c addstr.c allblk.c alloc.c base.c bool.c callin.c \
+SRCS=	addblk.c addstr.c allblk.c alloc.c base.c bool.c callin.c \
 	calout.c chatc.c cmdarg.c cmdfil.c cmdlin.c debfil.c deblev.c \
 	diacod.c dial.c diasub.c dnams.c errno.c errstr.c filnam.c \
 	freblk.c fredia.c free.c freprt.c fresys.c grdcmp.c hdial.c \
