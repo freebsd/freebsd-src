@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.h,v 1.21 2001/05/22 07:29:23 grog Exp grog $
+ * $Id: vinumio.h,v 1.22 2003/04/24 07:36:09 grog Exp $
  * $FreeBSD$
  */
 
@@ -114,8 +114,9 @@ struct vinum_rename_msg {
 #define VINUM_SAVECONFIG	_IOW(L, 72, int)	    /* write config to disk */
 #define VINUM_RESETCONFIG	_IOC(0, L, 73, 0)	    /* trash config on disk */
 #define VINUM_INIT		_IOC(0, L, 74, 0)	    /* read config from disk */
+#define VINUM_READCONFIG	_IOC(IOC_IN | IOC_OUT, L, 75, BUFSIZE) /* read config from disk */
 #ifdef VINUMDEBUG
-#define VINUM_DEBUG		_IOWR(L, 75, struct debuginfo) /* call the debugger from ioctl () */
+#define VINUM_DEBUG		_IOWR(L, 127, struct debuginfo)	/* call the debugger from ioctl () */
 #endif
 
 /*
