@@ -42,15 +42,7 @@
 MALLOC_DECLARE(M_SMBTEMP);
 #endif
 
-#if __FreeBSD_version > 500000
 #define	FB_CURRENT
-#else
-#  if __FreeBSD_version > 400000
-#  define	FB_RELENG4
-#  else
-#  error "Unsupported version of FreeBSD"
-#  endif
-#endif
 
 #define SMBERROR(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
 #define SMBPANIC(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
@@ -73,41 +65,16 @@ void m_dumpm(struct mbuf *m);
 #define m_dumpm(m)
 #endif
 
-#if __FreeBSD_version > 400009
 #define	SMB_SIGMASK(set) 						\
 	(SIGISMEMBER(set, SIGINT) || SIGISMEMBER(set, SIGTERM) ||	\
 	 SIGISMEMBER(set, SIGHUP) || SIGISMEMBER(set, SIGKILL) ||	\
 	 SIGISMEMBER(set, SIGQUIT))
 
 #define	smb_suser(cred)	suser_xxx(cred, NULL, 0)
-#else
-#define	SMB_SIGMASK	(sigmask(SIGINT)|sigmask(SIGTERM)|sigmask(SIGKILL)| \
-			 sigmask(SIGHUP)|sigmask(SIGQUIT))
-
-#define	smb_suser(cred)	suser((cred), NULL)
-#endif
 
 /*
  * Compatibility wrappers for simple locks
  */
-#if __FreeBSD_version < 500000
-
-#include <sys/lock.h>
-
-#define	lockdestroy(lock)
-#define	smb_slock			simplelock
-#define	smb_sl_init(mtx, desc)		simple_lock_init(mtx)
-#define	smb_sl_destroy(mtx)
-#define	smb_sl_lock(mtx)		simple_lock(mtx)
-#define	smb_sl_unlock(mtx)		simple_unlock(mtx)
-/*
-#define	mtx				lock
-#define	mtx_init(mtx, desc, flags)	lockinit(mtx, PWAIT, desc, 0, 0)
-#define	mtx_lock(mtx)			lockmgr(mtx, LK_EXCLUSIVE, NULL, curproc)
-#define	mtx_unlock(mtx)			lockmgr(mtx, LK_RELEASE, NULL, curproc)
-#define	mtx_destroy(mtx)
-*/
-#else
 
 #include <sys/mutex.h>
 
@@ -117,7 +84,6 @@ void m_dumpm(struct mbuf *m);
 #define	smb_sl_lock(mtx)		mtx_lock(mtx)
 #define	smb_sl_unlock(mtx)		mtx_unlock(mtx)
 
-#endif
 
 #define SMB_STRFREE(p)	do { if (p) smb_strfree(p); } while(0)
 

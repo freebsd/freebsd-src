@@ -70,13 +70,6 @@ smb_makescred(struct smb_cred *scred, struct proc *p, struct ucred *cred)
 int
 smb_proc_intr(struct proc *p)
 {
-#if __FreeBSD_version < 400009
-
-	if (p && p->p_siglist &&
-	    (((p->p_siglist & ~p->p_sigmask) & ~p->p_sigignore) & SMB_SIGMASK))
-		return EINTR;
-	return 0;
-#else
 	sigset_t tmpset;
 
 	if (p == NULL)
@@ -87,7 +80,6 @@ smb_proc_intr(struct proc *p)
 	if (SIGNOTEMPTY(p->p_siglist) && SMB_SIGMASK(tmpset))
                 return EINTR;
 	return 0;
-#endif
 }
 
 char *

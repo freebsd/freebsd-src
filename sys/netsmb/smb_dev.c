@@ -179,13 +179,9 @@ nsmb_dev_close(dev_t dev, int flag, int fmt, struct proc *p)
 	smb_flushq(&sdp->sd_rqlist);
 	smb_flushq(&sdp->sd_rplist);
 */
-#if __FreeBSD_version > 400001
 	dev->si_drv1 = NULL;
 	free(sdp, M_NSMBDEV);
 	destroy_dev(dev);
-#else
-	sdp->sd_flags &= ~NSMBFL_OPEN;
-#endif
 	splx(s);
 	return 0;
 }
@@ -368,24 +364,16 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 			smb_sm_done();
 			break;
 		}
-#if __FreeBSD_version > 400001
 		cdevsw_add(&nsmb_cdevsw);
-#endif
-#if __FreeBSD_version > 500000
 		nsmb_dev_tag = EVENTHANDLER_REGISTER(dev_clone, nsmb_dev_clone, 0, 1000);
-#endif
 		printf("netsmb_dev: loaded\n");
 		break;
 	    case MOD_UNLOAD:
 		smb_iod_done();
 		error = smb_sm_done();
 		error = 0;
-#if __FreeBSD_version > 500000
 		EVENTHANDLER_DEREGISTER(dev_clone, nsmb_dev_tag);
-#endif
-#if __FreeBSD_version > 400001
 		cdevsw_remove(&nsmb_cdevsw);
-#endif
 		printf("netsmb_dev: unloaded\n");
 		break;
 	    default:
@@ -395,12 +383,7 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 	return error;
 }
 
-#if __FreeBSD_version > 400000
 DEV_MODULE (dev_netsmb, nsmb_dev_load, 0);
-#else
-CDEV_MODULE(dev_netsmb, NSMB_MAJOR, nsmb_cdevsw, nsmb_dev_load, 0);
-#endif
-
 
 /*
  * Convert a file descriptor to appropriate smb_share pointer
