@@ -38,7 +38,7 @@
 .Nm symorder
 .Nd rearrange name list
 .Sh SYNOPSIS
-.Nm symorder
+.Nm
 .Fl c
 .Fl m
 .Fl t
@@ -49,7 +49,7 @@
 The file
 .Ar symlist
 contains a list of symbols to be found in
-.Ar file,
+.Ar file ,
 one symbol per line.
 .Pp
 The symbol table of
@@ -76,10 +76,10 @@ Exit with status zero, even if some symbols are missing.
 .Pp
 This program was specifically designed to cut down on the
 overhead of getting symbols from
-.Pa /kernel.
+.Pa /kernel .
 .Sh DIAGNOSTICS
 The
-.Nm symorder
+.Nm
 utility exits 0 on success, 1 if a symbol
 listed in the
 .Ar symlist
