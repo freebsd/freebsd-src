@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.52 1998/04/15 17:45:20 bde Exp $
+ *	$Id: if_ie.c,v 1.53 1998/06/07 17:10:32 dfr Exp $
  */
 
 /*
@@ -653,7 +653,7 @@ ee16_probe(struct isa_device *dvp)
 	dvp->id_msize = 0x8000;
 	if (kvtop(dvp->id_maddr) != bd_maddr) {
 		printf("ie%d: kernel configured maddr %lx "
-		       "doesn't match board configured maddr %x\n",
+		       "doesn't match board configured maddr %lx\n",
 		       unit, kvtop(dvp->id_maddr), bd_maddr);
 	}
 	sc->iomembot = dvp->id_maddr;
@@ -695,8 +695,8 @@ ee16_probe(struct isa_device *dvp)
 
 	if ((kvtop(dvp->id_maddr) < 0xC0000) ||
 	    (kvtop(dvp->id_maddr) + sc->iosize > 0xF0000)) {
-		printf("ie%d: mapped memory location %x out of range\n", unit,
-		       dvp->id_maddr);
+		printf("ie%d: mapped memory location %p out of range\n", unit,
+		       (void *)dvp->id_maddr);
 		return (0);
 	}
 	pg = (kvtop(dvp->id_maddr) & 0x3C000) >> 14;
@@ -733,8 +733,8 @@ ee16_probe(struct isa_device *dvp)
 	if (dvp->id_irq > 0) {
 		if (irq != dvp->id_irq) {
 			printf("ie%d: WARNING: board configured "
-			       "at irq %d, using %d\n",
-			       dvp->id_unit, irq);
+			       "at irq %u, using %u\n",
+			       dvp->id_unit, dvp->id_irq, irq);
 			irq = dvp->id_unit;
 		}
 	} else {
@@ -2414,11 +2414,12 @@ setflag:
 static void
 print_rbd(volatile struct ie_recv_buf_desc * rbd)
 {
-	printf("RBD at %08lx:\n"
-	       "actual %04x, next %04x, buffer %08x\n"
+	printf("RBD at %8p:\n"
+	       "actual %04x, next %04x, buffer %8p\n"
 	       "length %04x, mbz %04x\n",
-	       (unsigned long) rbd,
-	       rbd->ie_rbd_actual, rbd->ie_rbd_next, rbd->ie_rbd_buffer,
+	       (void *) rbd,
+	       rbd->ie_rbd_actual, rbd->ie_rbd_next,
+	       (void *) rbd->ie_rbd_buffer,
 	       rbd->ie_rbd_length, rbd->mbz);
 }
 
