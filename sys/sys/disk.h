@@ -34,17 +34,12 @@ struct g_geom;
 
 struct disk {
 	/* Fields which are private to geom_disk */
-	struct cdevsw		*d_devsw;
-	d_open_t		*d_copen;	/* Compat */
-	d_close_t		*d_cclose;	/* Compat */
-	d_ioctl_t		*d_cioctl;	/* Compat */
 	struct g_geom		*d_geom;
 
 	/* Shared fields */
 	u_int			d_flags;
 	const char		*d_name;
 	u_int			d_unit;
-	dev_t			d_dev;		/* Compat */
 
 	/* Disk methods  */
 	disk_open_t		*d_open;
@@ -70,7 +65,7 @@ struct disk {
 #define DISKFLAG_OPEN		0x2
 #define DISKFLAG_CANDELETE	0x4
 
-dev_t disk_create(int unit, struct disk *disk, int flags, struct cdevsw *cdevsw, void *unused);
+void disk_create(int unit, struct disk *disk, int flags, void *unused, void *unused2);
 void disk_destroy(struct disk *disk);
 struct disk *disk_enumerate(struct disk *disk);
 void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
