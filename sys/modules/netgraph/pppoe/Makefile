@@ -3,6 +3,6 @@
 
 KMOD=		ng_pppoe
 SRCS= 		ng_pppoe.c
-MAN8=		ng_pppoe.8
+MAN4=		ng_pppoe.4
 
 .include "${.CURDIR}/../../../conf/kmod.mk"

@@ -3,6 +3,6 @@
 
 KMOD=		ng_socket
 SRCS= 		ng_socket.c
-MAN8=		ng_socket.8
+MAN4=		ng_socket.4
 
 .include "${.CURDIR}/../../../conf/kmod.mk"

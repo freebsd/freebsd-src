@@ -3,6 +3,6 @@
 
 KMOD=		ng_frame_relay
 SRCS= 		ng_frame_relay.c
-MAN8=		ng_frame_relay.8
+MAN4=		ng_frame_relay.4
 
 .include "${.CURDIR}/../../../conf/kmod.mk"

@@ -36,7 +36,7 @@
 .\" $Whistle: ng_cisco.8,v 1.5 1999/01/25 23:46:26 archie Exp $
 .\"
 .Dd January 19, 1999
-.Dt NG_CISCO 8
+.Dt NG_CISCO 4
 .Os FreeBSD
 .Sh NAME
 .Nm ng_cisco
@@ -68,7 +68,7 @@ and
 hooks, which transmit and receive raw IP, AppleTalk, and IPX packets,
 respectively.  Typically these hooks would connect to the corresponding
 hooks on an
-.Xr ng_iface 8
+.Xr ng_iface 4
 type node.
 .Sh IP Configuration
 In order to function properly for IP traffic, the node must be informed
@@ -96,9 +96,9 @@ If the
 hook is connected to the
 .Dv inet
 hook of an
-.Xr ng_iface 8
+.Xr ng_iface 4
 node, as is usually the case, then configuration is automatic as the 
-.Xr ng_iface 8
+.Xr ng_iface 4
 understands the
 .Dv NGM_CISCO_GET_IPADDR
 message.
@@ -151,8 +151,8 @@ the node does not support querying the remote end for its IP address
 and netmask.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
-.Xr ng_iface 8 ,
-.Xr ngctl 8 .
+.Xr ng_iface 4 ,
+.Xr ngctl 8
 .Rs
 .%A D. Perkins
 .%T "Requirements for an Internet Standard Point-to-Point Protocol"

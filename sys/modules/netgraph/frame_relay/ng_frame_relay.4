@@ -36,7 +36,7 @@
 .\" $Whistle: ng_frame_relay.8,v 1.4 1999/01/25 23:46:26 archie Exp $
 .\"
 .Dd January 19, 1999
-.Dt NG_FRAME_RELAY 8
+.Dt NG_FRAME_RELAY 4
 .Os FreeBSD
 .Sh NAME
 .Nm ng_frame_relay
@@ -49,7 +49,7 @@ The
 node type performs encapsulation, de-encapsulation, and multiplexing
 of packets using the frame relay protocol. It supports up to 1024 DLCI's.
 The LMI protocol is handled by a separate node type (see
-.Xr ng_lmi 8 ).
+.Xr ng_lmi 4 ).
 .Pp
 The
 .Dv downstream
@@ -87,8 +87,8 @@ on a DLCI hook to
 Instead, it should query the LMI node first.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
-.Xr ng_lmi 8 ,
-.Xr ngctl 8 .
+.Xr ng_lmi 4 ,
+.Xr ngctl 8
 .Sh HISTORY
 The
 .Nm

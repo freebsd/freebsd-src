@@ -36,7 +36,7 @@
 .\" $Whistle: ng_tty.8,v 1.5 1999/01/25 23:46:28 archie Exp $
 .\"
 .Dd January 19, 1999
-.Dt NG_TTY 8
+.Dt NG_TTY 4
 .Os FreeBSD
 .Sh NAME
 .Nm ng_tty
@@ -74,7 +74,7 @@ but introduces potentially infinite latency.
 The default hot character is 0x7e, consistent with
 .Dv hook
 being connected to a
-.Xr ng_async 8
+.Xr ng_async 4
 type node. The hot character has no effect on the transmission of data.
 .Pp
 The node will attempt to give itself the same netgraph name as the name
@@ -128,8 +128,8 @@ serial driver, and sub-optimal performance may result.
 .Xr ioctl 2 ,
 .Xr netgraph 4 ,
 .Xr tty 4 ,
-.Xr ng_async 8 ,
-.Xr ngctl 8 .
+.Xr ng_async 4 ,
+.Xr ngctl 8
 .Sh HISTORY
 The
 .Nm

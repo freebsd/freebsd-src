@@ -3,6 +3,6 @@
 
 KMOD=		ng_tty
 SRCS= 		ng_tty.c
-MAN8=		ng_tty.8
+MAN4=		ng_tty.4
 
 .include "${.CURDIR}/../../../conf/kmod.mk"
