@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.22 1997/08/05 00:01:43 dyson Exp $
+ * $Id: malloc.h,v 1.23 1997/08/16 19:16:10 wollman Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -322,7 +322,7 @@ struct kmembuckets {
 #define FREE(addr, type) free((addr), type)
 
 #else /* do not collect statistics */
-#define	MALLOC(space, cast, size, type, flags) { \
+#define	MALLOC(space, cast, size, type, flags) do { \
 	register struct kmembuckets *kbp = &bucket[BUCKETINDX(size)]; \
 	long s = splimp(); \
 	if (kbp->kb_next == NULL) { \
@@ -332,9 +332,9 @@ struct kmembuckets {
 		kbp->kb_next = *(caddr_t *)(space); \
 	} \
 	splx(s); \
-}
+} while (0)
 
-#define FREE(addr, type) { \
+#define	FREE(addr, type) do { \
 	register struct kmembuckets *kbp; \
 	register struct kmemusage *kup = btokup(addr); \
 	long s = splimp(); \
@@ -350,13 +350,12 @@ struct kmembuckets {
 		kbp->kb_last = (caddr_t)(addr); \
 	} \
 	splx(s); \
-}
-#endif /* do not collect statistics */
+} while (0)
 
-extern struct kmemstats kmemstats[];
 extern struct kmemusage *kmemusage;
 extern char *kmembase;
 extern struct kmembuckets bucket[];
+#endif /* do not collect statistics */
 
 void	*contigmalloc __P((unsigned long size, int type, int flags,
 			   unsigned long low, unsigned long high,
