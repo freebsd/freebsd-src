@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.19 1994/09/25 21:31:47 davidg Exp $
+ *	$Id: support.s,v 1.20 1995/02/12 09:13:27 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -1108,3 +1108,15 @@ ENTRY(longjmp)
 	xorl	%eax,%eax			/* return(1); */
 	incl	%eax
 	ret
+
+/*
+ * Here for doing BB-profiling (gcc -a).
+ * We rely on the "bbset" instead, but need a dummy function.
+ */
+	.text
+	.align 2
+.globl	___bb_init_func
+___bb_init_func:
+        movl 4(%esp),%eax
+        movl $1,(%eax)
+        ret 
