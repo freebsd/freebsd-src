@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)newfs.8	8.3 (Berkeley) 3/27/94
+.\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\"
-.Dd March 27, 1994
+.Dd May 3, 1995
 .Dt NEWFS 8
 .Os BSD 4.2
 .Sh NAME
@@ -42,6 +42,7 @@
 .Nm newfs
 .Op Fl NO
 .Op Fl S Ar sector-size
+.Op Fl T Ar disktype
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar cylinders
@@ -52,6 +53,7 @@
 .Op Fl k Ar skew
 .Op Fl l Ar interleave
 .Op Fl m Ar free space
+.Op Fl n Ar rotational positions
 .Op Fl o Ar optimization
 .Op Fl p Ar sectors
 .Op Fl r Ar revolutions
@@ -72,6 +74,7 @@
 .Op Fl f Ar frag-size
 .Op Fl i Ar bytes
 .Op Fl m Ar free space
+.Op Fl n Ar rotational positions
 .Op Fl o Ar options
 .Op Fl s Ar size
 .Ar special node
@@ -108,7 +111,10 @@ The parameters to
 .Nm mount_mfs
 are the same as those to
 .Nm newfs .
-The special file is only used to read the disk label which provides
+If the
+.Fl T
+flag is specified (see below), the special file is unused.
+Otherwise, it is only used to read the disk label which provides
 a set of configuration parameters for the memory based file system.
 The special file is typically that of the primary swap area,
 since that is where the file system will be backed up when
@@ -132,6 +138,10 @@ without really creating the file system.
 Creates a 4.3BSD format filesystem.
 This options is primarily used to build root filesystems
 that can be understood by older boot ROMs.
+.It Fl T
+Uses information for the specified disk from
+.Pa /etc/disktab
+instead of trying to get the information from a disklabel.
 .It Fl a Ar maxcontig
 This specifies the maximum number of contiguous blocks that will be
 laid out before forcing a rotational delay (see the
@@ -153,6 +163,7 @@ The default is 0 milliseconds.
 See
 .Xr tunefs 8
 for more details on how to set this option.
+.ne 1i
 .It Fl e Ar maxbpg
 This indicates the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
@@ -190,7 +201,7 @@ The file system can either be instructed to try to minimize the time spent
 allocating blocks, or to try to minimize the space fragmentation on the disk.
 If the value of minfree (see above) is less than 8%,
 the default is to optimize for space;
-if the value of minfree is greater than or equal to 8%.
+if the value of minfree is greater than or equal to 8%,
 the default is to optimize for time.
 See
 .Xr tunefs 8
@@ -234,6 +245,7 @@ They are not counted as part of the sectors/track
 since they are not available to the file system for data allocation.
 .It Fl r Ar revolutions/minute
 The speed of the disk in revolutions per minute.
+.ne 1i
 .It Fl t Ar #tracks/cylinder
 The number of tracks/cylinder available for data allocation by the file
 system.
@@ -277,9 +289,9 @@ man page for possible options and their meanings.
 .El
 .Sh EXAMPLES
 .Pp
-.Dl mount_mfs -s=20480 -o nosuid,nodev /dev/sd0b /tmp
+.Dl mount_mfs -s 131072 -o nosuid,nodev /dev/sd0s1b /tmp
 .Pp
-Mount a 10240 KB large memory file system on /tmp, with
+Mount a 64 MB large memory file system on /tmp, with
 .Xr mount 8
 options nosuid and nodev.
 .Sh SEE ALSO
