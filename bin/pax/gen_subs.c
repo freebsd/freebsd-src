@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: gen_subs.c,v 1.2 1994/09/24 02:56:22 davidg Exp $
+ *	$Id: gen_subs.c,v 1.3 1995/03/19 13:28:49 joerg Exp $
  */
 
 #ifndef lint
@@ -203,7 +203,7 @@ ls_tty(arcn)
 /*
  * zf_strncpy()
  *	copy src to dest up to len chars (stopping at first '\0'), when src is
- *	shorter than len, pads to len with '\0'. big performance win (and 
+ *	shorter than len, pads to len with '\0'. big performance win (and
  *	a lot easier to code) over strncpy(), then a strlen() then a
  *	bzero(). (or doing the bzero() first).
  */
@@ -335,7 +335,7 @@ ul_asc(val, str, len, base)
 {
 	register char *pt;
 	u_long digit;
-	
+
 	/*
 	 * WARNING str is not '\0' terminated by this routine
 	 */
@@ -350,7 +350,7 @@ ul_asc(val, str, len, base)
 		while (pt >= str) {
 			if ((digit = (val & 0xf)) < 10)
 				*pt-- = '0' + (char)digit;
-			else 
+			else
 				*pt-- = 'a' + (char)(digit - 10);
 			if ((val = (val >> 4)) == (u_long)0)
 				break;
@@ -449,7 +449,7 @@ uqd_asc(val, str, len, base)
 {
 	register char *pt;
 	u_quad_t digit;
-	
+
 	/*
 	 * WARNING str is not '\0' terminated by this routine
 	 */
@@ -464,7 +464,7 @@ uqd_asc(val, str, len, base)
 		while (pt >= str) {
 			if ((digit = (val & 0xf)) < 10)
 				*pt-- = '0' + (char)digit;
-			else 
+			else
 				*pt-- = 'a' + (char)(digit - 10);
 			if ((val = (val >> 4)) == (u_quad_t)0)
 				break;

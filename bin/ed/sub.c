@@ -1,4 +1,4 @@
-/* sub.c: This file contains the substitution routines for the ed 
+/* sub.c: This file contains the substitution routines for the ed
    line editor */
 /*-
  * Copyright (c) 1993 Andrew Moore, Talke Studio.
@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sub.c,v 1.4 1995/01/14 11:47:16 alm Exp $
+ *	$Id: sub.c,v 1.5 1995/03/19 13:28:38 joerg Exp $
  */
 
 #ifndef lint
@@ -188,7 +188,7 @@ substitute_matching_text(pat, lp, gflag, kth)
 
 	if ((txt = get_sbuf_line(lp)) == NULL)
 		return ERR;
-	if (isbinary) 
+	if (isbinary)
 		NUL_TO_NEWLINE(txt, lp->len);
 	eot = txt + lp->len;
 	if (!regexec(pat, txt, SE_MAX, rm, 0)) {
@@ -213,7 +213,7 @@ substitute_matching_text(pat, lp, gflag, kth)
 				off += i;
 			}
 			txt += rm[0].rm_eo;
-		} while (*txt && 
+		} while (*txt &&
                         (!changed || ((gflag & GSG) && rm[0].rm_eo)) &&
 		        !regexec(pat, txt, SE_MAX, rm, REG_NOTBOL));
 		i = eot - txt;

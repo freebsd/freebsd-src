@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: func.c,v 1.2 1994/09/24 02:54:04 davidg Exp $
  */
 
 #ifndef lint
@@ -860,12 +860,12 @@ wfree()
 	if (wp->w_end.type != I_SEEK && wp->w_start.type == wp->w_end.type &&
 	    wp->w_start.type == o.type) {
 	    if (wp->w_end.type == F_SEEK) {
-		if (o.f_seek >= wp->w_start.f_seek && 
+		if (o.f_seek >= wp->w_start.f_seek &&
 		    (wp->w_end.f_seek == 0 || o.f_seek < wp->w_end.f_seek))
 		    break;
 	    }
 	    else {
-		if (o.a_seek >= wp->w_start.a_seek && 
+		if (o.a_seek >= wp->w_start.a_seek &&
 		    (wp->w_end.a_seek == 0 || o.a_seek < wp->w_end.a_seek))
 		    break;
 	    }

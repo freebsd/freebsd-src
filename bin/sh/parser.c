@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parser.c,v 1.4 1995/01/09 20:00:54 paul Exp $
+ *	$Id: parser.c,v 1.5 1995/01/11 07:07:00 paul Exp $
  */
 
 #ifndef lint
@@ -472,7 +472,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 
 
 STATIC union node *
-simplecmd(rpp, redir) 
+simplecmd(rpp, redir)
 	union node **rpp, *redir;
 	{
 	union node *args, **app;
@@ -486,10 +486,10 @@ simplecmd(rpp, redir)
 
 	args = NULL;
 	app = &args;
-	/* 
+	/*
 	 * We save the incoming value, because we need this for shell
 	 * functions.  There can not be a redirect or an argument between
-	 * the function name and the open parenthesis.  
+	 * the function name and the open parenthesis.
 	 */
 	orig_rpp = rpp;
 
@@ -630,7 +630,7 @@ readtoken() {
 #ifdef DEBUG
 	int alreadyseen = tokpushback;
 #endif
-	
+
 	top:
 	t = xxreadtoken();
 
@@ -926,7 +926,7 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 						} else
 							USTPUTC(')', out);
 					} else {
-						/* 
+						/*
 						 * unbalanced parens
 						 *  (don't 2nd guess - no error)
 						 */
@@ -1176,7 +1176,7 @@ parsebackq: {
                 register c;
                 int savelen;
                 char *str;
- 
+
                 STARTSTACKSTR(out);
                 while ((c = pgetc ()) != '`') {
                        if (c == '\\') {

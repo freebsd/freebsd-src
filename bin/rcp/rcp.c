@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rcp.c,v 1.2 1994/09/24 02:56:56 davidg Exp $
+ *	$Id: rcp.c,v 1.3 1995/03/19 13:29:14 joerg Exp $
  */
 
 #ifndef lint
@@ -366,10 +366,10 @@ tolocal(argc, argv)
 		if ((bp = malloc(len)) == NULL)
 			err(1, NULL);
 		(void)snprintf(bp, len, "%s -f %s", cmd, src);
-		rem = 
+		rem =
 #ifdef KERBEROS
-		    use_kerberos ? 
-			kerberos(&host, bp, pwd->pw_name, suser) : 
+		    use_kerberos ?
+			kerberos(&host, bp, pwd->pw_name, suser) :
 #endif
 			rcmd(&host, port, pwd->pw_name, suser, bp, 0);
 		(void)free(bp);
@@ -714,7 +714,7 @@ bad:			run_err("%s: %s", np, strerror(errno));
 					j = write(ofd, bp->buf, count);
 					if (j != count) {
 						wrerr = YES;
-						wrerrno = j >= 0 ? EIO : errno; 
+						wrerrno = j >= 0 ? EIO : errno;
 					}
 				}
 				count = 0;
@@ -724,7 +724,7 @@ bad:			run_err("%s: %s", np, strerror(errno));
 		if (count != 0 && wrerr == NO &&
 		    (j = write(ofd, bp->buf, count)) != count) {
 			wrerr = YES;
-			wrerrno = j >= 0 ? EIO : errno; 
+			wrerrno = j >= 0 ? EIO : errno;
 		}
 		if (ftruncate(ofd, size)) {
 			run_err("%s: truncate: %s", np, strerror(errno));
@@ -780,9 +780,9 @@ again:
 		errno = 0;
 		if (dest_realm == NULL)
 			dest_realm = krb_realmofhost(*host);
-		rem = 
+		rem =
 #ifdef CRYPT
-		    doencrypt ? 
+		    doencrypt ?
 			krcmd_mutual(host,
 			    port, user, bp, 0, dest_realm, &cred, schedule) :
 #endif

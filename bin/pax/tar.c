@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: tar.c,v 1.2 1994/09/24 02:56:37 davidg Exp $
  */
 
 #ifndef lint
@@ -182,7 +182,7 @@ ul_oct(val, str, len, term)
 #endif
 {
 	register char *pt;
-	
+
 	/*
 	 * term selects the appropriate character(s) for the end of the string
 	 */
@@ -246,7 +246,7 @@ uqd_oct(val, str, len, term)
 #endif
 {
 	register char *pt;
-	
+
 	/*
 	 * term selects the appropriate character(s) for the end of the string
 	 */
@@ -315,8 +315,8 @@ tar_chksm(blk, len)
 	 */
 	pt = blk;
 	stop = blk + CHK_OFFSET;
-	while (pt < stop)	
-		chksm += (u_long)(*pt++ & 0xff);	
+	while (pt < stop)
+		chksm += (u_long)(*pt++ & 0xff);
 	/*
 	 * move past the checksum field and keep going, spec counts the
 	 * checksum field as the sum of 8 blanks (which is pre-computed as
@@ -327,7 +327,7 @@ tar_chksm(blk, len)
 	pt += CHK_LEN;
 	stop = blk + len;
 	while (pt < stop)
-		chksm += (u_long)(*pt++ & 0xff);	
+		chksm += (u_long)(*pt++ & 0xff);
 	return(chksm);
 }
 
@@ -532,7 +532,7 @@ tar_rd(arcn, buf)
 	 * strip off any trailing slash.
 	 */
 	if (*pt == '/') {
-		*pt = '\0'; 
+		*pt = '\0';
 		--arcn->nlen;
 	}
 	return(0);
@@ -1013,7 +1013,7 @@ ustar_wr(arcn)
 	 */
 	zf_strncpy(hd->name, pt, sizeof(hd->name));
 
-	/* 
+	/*
 	 * set the fields in the header that are type dependent
 	 */
 	switch(arcn->type) {

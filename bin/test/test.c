@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: test.c,v 1.9 1994/11/05 20:48:06 ache Exp $
+ *	$Id: test.c,v 1.10 1995/03/19 13:29:28 joerg Exp $
  */
 
 #ifndef lint
@@ -238,13 +238,13 @@ main(argc, argv)
 						get_int(valsp->u.string,
 						    &valsp->u.num);
 					valsp->type = INTEGER;
-				} else if (c >= OP_STRING) {	
+				} else if (c >= OP_STRING) {
 					            /* OP_STRING or OP_FILE */
 					if (valsp->type == INTEGER) {
 						if ((p = malloc(32)) == NULL)
 							err(2, NULL);
 #ifdef SHELL
-						fmtstr(p, 32, "%d", 
+						fmtstr(p, 32, "%d",
 						    valsp->u.num);
 #else
 						(void)sprintf(p,
@@ -253,7 +253,7 @@ main(argc, argv)
 						valsp->u.string = p;
 					} else if (valsp->type == BOOLEAN) {
 						if (valsp->u.num)
-							valsp->u.string = 
+							valsp->u.string =
 						            "true";
 						else
 							valsp->u.string = "";
@@ -262,8 +262,8 @@ main(argc, argv)
 					if (c == OP_FILE && (fs.name == NULL ||
 					    strcmp(fs.name, valsp->u.string))) {
 						fs.name = valsp->u.string;
-						fs.rcode = 
-						    stat(valsp->u.string, 
+						fs.rcode =
+						    stat(valsp->u.string,
                                                     &fs.stat);
 					}
 				}

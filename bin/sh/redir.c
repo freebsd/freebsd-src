@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: redir.c,v 1.2 1994/09/24 02:58:10 davidg Exp $
  */
 
 #ifndef lint
@@ -72,10 +72,10 @@ struct redirtab {
 
 MKINIT struct redirtab *redirlist;
 
-/* 
+/*
  * We keep track of whether or not fd0 has been redirected.  This is for
  * background commands, where we want to redirect fd0 to /dev/null only
- * if it hasn't already been redirected.  
+ * if it hasn't already been redirected.
 */
 int fd0_redirected = 0;
 

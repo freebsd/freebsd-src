@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: gfmt.c,v 1.2 1994/09/24 02:58:57 davidg Exp $
+ *	$Id: gfmt.c,v 1.3 1995/03/19 13:29:23 joerg Exp $
  */
 
 #ifndef lint
@@ -72,7 +72,7 @@ gprint(tp, wp, ldisc)
 }
 
 void
-gread(tp, s) 
+gread(tp, s)
 	struct termios *tp;
 	char *s;
 {

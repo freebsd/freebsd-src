@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: set.c,v 1.2 1994/09/24 02:54:16 davidg Exp $
  */
 
 #ifndef lint
@@ -664,7 +664,7 @@ exportpath(val)
 			       "Warning: ridiculously long PATH truncated\n");
 		break;
 	    }
-	    if ((**val != '/' || **val == '\0') && (euid == 0 || uid == 0)) 
+	    if ((**val != '/' || **val == '\0') && (euid == 0 || uid == 0))
 		    (void) fprintf(csherr,
 		    "Warning: exported path contains relative components.\n");
 	    (void) Strcat(exppath, *val++);

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alloc.c,v 1.2 1994/09/24 02:53:45 davidg Exp $
+ *	$Id: alloc.c,v 1.3 1995/03/19 13:28:10 joerg Exp $
  */
 
 #ifndef lint
@@ -122,6 +122,6 @@ showall(v, t)
 {
     memtop = (char *) sbrk(0);
     (void) fprintf(cshout, "Allocated memory from 0x%lx to 0x%lx (%ld).\n",
-	    (unsigned long) membot, (unsigned long) memtop, 
+	    (unsigned long) membot, (unsigned long) memtop,
                 (unsigned long) (memtop - membot));
 }

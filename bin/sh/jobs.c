@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: jobs.c,v 1.2 1994/09/24 02:57:41 davidg Exp $
  */
 
 #ifndef lint
@@ -488,7 +488,7 @@ makejob(node, nprocs)
 	INTON;
 	TRACE(("makejob(0x%x, %d) returns %%%d\n", (int)node, nprocs, jp - jobtab + 1));
 	return jp;
-}	
+}
 
 
 /*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: csh.c,v 1.2 1994/09/24 02:53:51 davidg Exp $
  */
 
 #ifndef lint
@@ -618,7 +618,7 @@ importpath(cp)
 	for (;;) {
 	    if ((c = *dp) == ':' || c == 0) {
 		*dp = 0;
-		if ((*cp != '/' || *cp == '\0') && (euid == 0 || uid == 0)) 
+		if ((*cp != '/' || *cp == '\0') && (euid == 0 || uid == 0))
 		    (void) fprintf(csherr,
 	    "Warning: imported path contains relative components\n");
 		pv[i++] = Strsave(*cp ? cp : STRdot);
@@ -809,7 +809,7 @@ rechist()
   	    (void) Strcat(buf, STRsldthist);
   	}
 
-  	if ((fp = creat(short2str(hfile), 0600)) == -1) 
+  	if ((fp = creat(short2str(hfile), 0600)) == -1)
   	    return;
 
 	oldidfds = didfds;
@@ -873,14 +873,14 @@ int sig;
 
     /*
      * We kill the last foreground process group. It then becomes
-     * responsible to propagate the SIGHUP to its progeny. 
+     * responsible to propagate the SIGHUP to its progeny.
      */
     {
 	struct process *pp, *np;
 
 	for (pp = proclist.p_next; pp; pp = pp->p_next) {
 	    np = pp;
-	    /* 
+	    /*
 	     * Find if this job is in the foreground. It could be that
 	     * the process leader has exited and the foreground flag
 	     * is cleared for it.
@@ -888,7 +888,7 @@ int sig;
 	    do
 		/*
 		 * If a process is in the foreground; we try to kill
-		 * it's process group. If we succeed, then the 
+		 * it's process group. If we succeed, then the
 		 * whole job is gone. Otherwise we keep going...
 		 * But avoid sending HUP to the shell again.
 		 */
@@ -1267,9 +1267,9 @@ vis_fputc(ch, fp)
 {
     char uenc[5];	/* 4 + NULL */
 
-    if (ch & QUOTE) 
+    if (ch & QUOTE)
 	return fputc(ch & TRIM, fp);
-    /* 
+    /*
      * XXX: When we are in AsciiOnly we want all characters >= 0200 to
      * be encoded, but currently there is no way in vis to do that.
      */

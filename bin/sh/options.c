@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: options.c,v 1.2 1994/09/24 02:58:04 davidg Exp $
  */
 
 #ifndef lint
@@ -201,7 +201,7 @@ minus_o(name, val)
 		error("Illegal option -o %s", name);
 	}
 }
-			
+
 
 STATIC void
 setoption(flag, val)

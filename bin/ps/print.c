@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.5 1994/10/02 14:11:32 ache Exp $
+ *	$Id: print.c,v 1.6 1995/03/19 13:29:01 joerg Exp $
  */
 
 #ifndef lint
@@ -410,7 +410,7 @@ wchan(k, ve)
 	v = ve->var;
 	if (KI_PROC(k)->p_wchan) {
 		if (KI_PROC(k)->p_wmesg)
-			(void)printf("%-*.*s", v->width, v->width, 
+			(void)printf("%-*.*s", v->width, v->width,
 				      KI_EPROC(k)->e_wmesg);
 		else
 			(void)printf("%-*x", v->width,
@@ -599,7 +599,7 @@ pagein(k, ve)
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%*ld", v->width, 
+	(void)printf("%*ld", v->width,
 	    k->ki_u.u_valid ? k->ki_u.u_ru.ru_majflt : 0);
 }
 
