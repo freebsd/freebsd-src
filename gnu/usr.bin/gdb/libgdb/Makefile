@@ -37,9 +37,8 @@ SRCS=	annotate.c arch-utils.c auxv.c ax-gdb.c ax-general.c \
 	p-exp.y p-lang.c p-typeprint.c p-valprint.c parse.c printcmd.c \
 	regcache.c reggroups.c remote-fileio.c remote-utils.c remote.c \
 	scm-exp.c scm-lang.c scm-valprint.c sentinel-frame.c ser-pipe.c \
-	ser-tcp.c ser-unix.c serial.c signals.c solib.c solib-svr4.c \
-	source.c stabsread.c stack.c std-regs.c symfile.c symmisc.c \
-	symtab.c \
+	ser-tcp.c ser-unix.c serial.c signals.c source.c stabsread.c \
+	stack.c std-regs.c symfile.c symmisc.c symtab.c \
 	target.c thread.c top.c tracepoint.c trad-frame.c tui-command.c \
 	tui-data.c tui-disasm.c tui-file.c tui-hooks.c tui-interp.c \
 	tui-io.c tui-layout.c tui-out.c tui-regs.c tui-source.c \
