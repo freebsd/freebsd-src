@@ -223,7 +223,9 @@ This option is incompatible with the
 option.
 .It X
 Rather than return failure for any allocation function,
-display a diagnostic message on stderr and cause the program to drop
+display a diagnostic message on
+.Dv stderr
+and cause the program to drop
 core (using
 .Xr abort 3 ) .
 This option should be set at compile time by including the following in
@@ -390,7 +392,9 @@ The
 .Va _malloc_message
 variable allows the programmer to override the function which emits
 the text strings forming the errors and warnings if for some reason
-the stderr filedescriptor is not suitable for this.
+the
+.Dv stderr
+file descriptor is not suitable for this.
 Please note that doing anything which tries to allocate memory in
 this function will assure death of the process.
 .Pp
