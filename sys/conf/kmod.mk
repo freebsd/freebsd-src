@@ -213,7 +213,7 @@ _kmodinstall:
 
 .include <bsd.links.mk>
 
-.if !defined(NO_XREF)
+.if !defined(NO_XREF) && ${MACHINE_ARCH} != "sparc64"
 afterinstall: _kldxref
 .ORDER: realinstall _kldxref
 .ORDER: _installlinks _kldxref
