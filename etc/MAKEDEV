@@ -1351,7 +1351,7 @@ gsc*)
 
 apm)
 	mknod apm c 39 0 root:operator
-	chmod 660 apm
+	chmod 664 apm
 	;;
 
 apmctl)
