@@ -7,7 +7,9 @@ SUBMITTERS=	current-users
 RELEASE!=	uname -rsm
 CLEANFILES+=	send-pr send-pr.el
 
-all: send-pr
+SUBDIR+= doc
+
+all: send-pr _PROGSUBDIR
 
 send-pr:	send-pr.sh Makefile
 	sed -e 's,@DATADIR@,/etc,g' \
