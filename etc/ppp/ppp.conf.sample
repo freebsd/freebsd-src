@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.28.2.5 1998/04/30 23:54:38 brian Exp $
+# $Id: ppp.conf.sample,v 1.28.2.6 1998/05/05 23:31:45 brian Exp $
 #
 #################################################################
 
@@ -340,6 +340,20 @@ loop-in:
  set log phase lcp ipcp command
  allow mode direct
 
+# If you wish to connect to a server that will dial back, take advantage
+# of the fact that ppp doesn't look for carrier 'till `set login' is
+# complete:
+#
+# Here, we expect the server to say DIALBACK then disconnect after
+# we've authenticated ourselves.  When this has happened, we wait
+# 60 seconds for a RING.
+#
+dialback:
+ set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" ATZ OK-ATZ-OK \
+           ATDT\\T TIMEOUT 60 CONNECT"
+ set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp TIMEOUT 15 DIALBACK \
+           \"\" NO\\sCARRIER \"\" TIMEOUT 60 RING ATA CONNECT"
+
 # Multilink mode is available (rfc1990).
 # To enable multilink capabilities, you must specify a MRRU.  1500 is
 # a reasonable value.  To create new links, use the ``clone'' command
@@ -366,3 +380,4 @@ mloop-in:
  set timeout 0
  set log tun phase
  allow mode direct
+ set mrru 1500
