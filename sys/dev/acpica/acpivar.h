@@ -125,6 +125,7 @@ struct acpi_device {
 #define	ACPI_PROCESSOR		0x00140000
 #define	ACPI_THERMAL		0x00180000
 #define	ACPI_FAN		0x00200000
+#define	ACPI_TOSHIBA		0x00400000
 
 /*
  * Constants for different interrupt models used with acpi_SetIntrModel().
