@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.74 1996/05/24 05:17:21 dyson Exp $
+ * $Id: vm_object.c,v 1.75 1996/05/31 00:38:02 dyson Exp $
  */
 
 /*
@@ -397,8 +397,7 @@ vm_object_terminate(object)
 		vm_object_page_clean(object, 0, 0, TRUE, FALSE);
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
 		VOP_UNLOCK(vp);
-	}
-
+	} 
 	/*
 	 * Now free the pages. For internal objects, this also removes them
 	 * from paging queues.
@@ -577,9 +576,6 @@ rescan:
 		}
 		runlen = maxb + maxf + 1;
 		splx(s);
-/*
-		printf("maxb: %d, maxf: %d, runlen: %d, offset: %d\n", maxb, maxf, runlen, ma[0]->pindex);
-*/
 		vm_pageout_flush(ma, runlen, 0);
 		goto rescan;
 	}
@@ -652,7 +648,9 @@ vm_object_pmap_copy(object, start, end)
 	if (object == NULL || (object->flags & OBJ_WRITEABLE) == 0)
 		return;
 
-	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = TAILQ_NEXT(p, listq)) {
+	for (p = TAILQ_FIRST(&object->memq);
+		p != NULL;
+		p = TAILQ_NEXT(p, listq)) {
 		vm_page_protect(p, VM_PROT_READ);
 	}
 
@@ -676,7 +674,9 @@ vm_object_pmap_remove(object, start, end)
 	register vm_page_t p;
 	if (object == NULL)
 		return;
-	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = TAILQ_NEXT(p, listq)) {
+	for (p = TAILQ_FIRST(&object->memq);
+		p != NULL;
+		p = TAILQ_NEXT(p, listq)) {
 		if (p->pindex >= start && p->pindex < end)
 			vm_page_protect(p, VM_PROT_NONE);
 	}
@@ -720,42 +720,17 @@ vm_object_madvise(object, pindex, count, advise)
 				vm_page_activate(m);
 		} else if ((advise == MADV_DONTNEED) ||
 			((advise == MADV_FREE) &&
-				((object->type != OBJT_DEFAULT) && (object->type != OBJT_SWAP)))) {
-			/*
-			 * If the upper level VM system doesn't think that
-			 * the page is dirty, check the pmap layer.
-			 */
-			if (m->dirty == 0) {
-				vm_page_test_dirty(m);
-			}
-			/*
-			 * If the page is not dirty, then we place it onto
-			 * the cache queue.  When on the cache queue, it is
-			 * available for immediate reuse.
-			 */
-			if (m->dirty == 0) {
-				vm_page_cache(m);
-			} else {
-			/*
-			 * If the page IS dirty, then we remove it from all
-			 * pmaps and deactivate it.
-			 */
-				vm_page_protect(m, VM_PROT_NONE);
-				vm_page_deactivate(m);
-			}
+				((object->type != OBJT_DEFAULT) &&
+					(object->type != OBJT_SWAP)))) {
+			vm_page_deactivate(m);
 		} else if (advise == MADV_FREE) {
 			/*
 			 * Force a demand-zero on next ref
 			 */
 			if (object->type == OBJT_SWAP)
 				swap_pager_dmzspace(object, m->pindex, 1);
-/*
 			vm_page_protect(m, VM_PROT_NONE);
 			vm_page_free(m);
-*/
-			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-			m->dirty = 0;
-			vm_page_cache(m);
 		}
 	}	
 }
@@ -1400,11 +1375,6 @@ vm_object_in_map( object)
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if( !p->p_vmspace /* || (p->p_flag & (P_SYSTEM|P_WEXIT)) */)
 			continue;
-/*
-		if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
-			continue;
-		}
-*/
 		if( _vm_object_in_map(&p->p_vmspace->vm_map, object, 0))
 			return 1;
 	}
