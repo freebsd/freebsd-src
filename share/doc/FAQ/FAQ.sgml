@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.37 1997/03/13 01:00:32 joerg Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.13.2.7 1997/03/15 23:29:02 jkh Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/03/13 01:00:32 $
+<date>$Date: 1997/03/15 23:29:02 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1614,8 +1614,17 @@ options		"CMD640"
       <sect1>
         <heading>Is there an easy way to get hold of applications?</heading>
 
-        <p>
-          Yes.  We support the concept of a ``package'', which is
+	<p>
+          Yes.  Please take a look at <url
+          url="http://www.FreeBSD.ORG/ports/" name="the ports page">
+          for software ported to FreeBSD.  The list is growing daily,
+          so come back to check often.  All ports here should work for
+          systems on either the 2.2 or 3.0 branch, and most of them
+          work for 2.1.x systems as well.  CDROM people will have a
+          snapshot of this tree at the time of release in the
+          <tt>ports/</tt> directory on the CD.
+
+          We also support the concept of a ``package'', which is
           essentially a gzipped binary distribution with a little extra
           intelligence embedded in it for doing any custom installation
           work required.  Packages can also be installed or uninstalled
@@ -1623,15 +1632,33 @@ options		"CMD640"
           people will have a <tt>packages/</tt> directory on their CD,
           others can get the currently available packages from:
 
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages"
-            name="FreeBSD's packages"> 
- 
+          <descrip>
+          <tag>for 2.1.x-release</tag>
+            <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages-2.1.7/"
+              name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages-2.1.7/">
+          <tag>for 2.2.1-release/2.2-stable</tag>
+            <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages-2.2/"
+              name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages-2.2/">
+          <tag>for 3.0-current</tag>
+            <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages-3.0/"
+              name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages-3.0/">
+          </descrip>
+
+          or your nearest mirror site.
+
           Note that all ports may not be available as packages, and that
           new packages are constantly being added.  It is always a good
           idea to check periodically to see which packages are available.
           A <tt/README/ file in the packages directory provides more
           details on the care and feeding of the package software, so no
           explicit details will be given here.
+
+      <sect1>
+	<heading>Where do I find libc.so.3.0?</heading>
+	<p>
+	  You are trying to run a package for 2.2/3.0 on a 2.1.x
+	  system.  Please take a look at the previous section and get
+	  the correct port/package for your system.
 
       <sect1>
         <heading>When I run a SCO/iBCS2 application, it bombs on <tt/socksys/.</heading>
