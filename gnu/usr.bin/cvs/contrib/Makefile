@@ -1,11 +1,11 @@
-#	$Id$
+#	$Id: Makefile,v 1.9 1997/02/22 15:45:11 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH:	${CVSDIR}/contrib
 .PATH:	${CVSDIR}/man
 
-SCRIPTS= rcs2log clmerge cln_hist commit_prep cvs_acls cvscheck \
+SCRIPTS= clmerge cln_hist commit_prep cvs2vendor cvs_acls cvscheck \
 	 log log_accum mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs \
 	 easy-import
 
