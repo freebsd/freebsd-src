@@ -211,7 +211,6 @@ ar_attach_raid(struct ar_softc *rdp, int update)
 	    else
 		printf(" %d FREE  ", disk);
 	    ad_print(AD_SOFTC(rdp->disks[disk]));
-	    ata_enclosure_print(AD_SOFTC(rdp->disks[disk])->device);
 	}
 	else if (rdp->disks[disk].flags & AR_DF_ASSIGNED)
 	    printf(" %d DOWN\n", disk);
