@@ -273,6 +273,7 @@ SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
 
 /*
  * Recompute process priorities, every hz ticks.
+ * MP-safe, called without the Giant mutex.
  */
 /* ARGSUSED */
 static void
@@ -745,6 +746,7 @@ out:
  * If process hasn't been awakened (wchan non-zero),
  * set timeout flag and undo the sleep.  If proc
  * is stopped, just unsleep so it will remain stopped.
+ * MP-safe, called without the Giant mutex.
  */
 static void
 endtsleep(arg)
