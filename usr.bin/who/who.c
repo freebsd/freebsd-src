@@ -70,7 +70,7 @@ main(int argc, char *argv[])
 
 	setlocale(LC_TIME, "");
 
-	while ((ch = getopt(argc, argv, "HTabdlmpqrstu")) != -1) {
+	while ((ch = getopt(argc, argv, "HTmqsu")) != -1) {
 		switch (ch) {
 		case 'H':		/* Write column headings */
 			Hflag = 1;
