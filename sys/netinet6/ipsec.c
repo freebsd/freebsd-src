@@ -3126,7 +3126,6 @@ ipsec4_splithdr(m)
 		}
 		M_MOVE_PKTHDR(mh, m);
 		MH_ALIGN(mh, hlen);
-		m->m_flags &= ~M_PKTHDR;
 		m->m_len -= hlen;
 		m->m_data += hlen;
 		mh->m_next = m;
@@ -3163,7 +3162,6 @@ ipsec6_splithdr(m)
 		}
 		M_MOVE_PKTHDR(mh, m);
 		MH_ALIGN(mh, hlen);
-		m->m_flags &= ~M_PKTHDR;
 		m->m_len -= hlen;
 		m->m_data += hlen;
 		mh->m_next = m;
