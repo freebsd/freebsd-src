@@ -68,7 +68,7 @@ bad_mask:	.asciz	"bad mask"
 #endif
 
 /*
- * (soon to be) MP-safe function to clear ONE INT mask bit.
+ * MP-safe function to clear ONE INT mask bit.
  * The passed arg is a 32bit u_int MASK.
  * It sets the associated bit in _apic_imen.
  * It sets the mask bit of the associated IO APIC register.
@@ -100,7 +100,7 @@ ENTRY(INTREN)
 	ret
 
 /*
- * (soon to be) MP-safe function to set ONE INT mask bit.
+ * MP-safe function to set ONE INT mask bit.
  * The passed arg is a 32bit u_int MASK.
  * It clears the associated bit in _apic_imen.
  * It clears the mask bit of the associated IO APIC register.
