@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.25 1994/10/25 22:35:12 se Exp $
+ *	$Id: clock.c,v 1.26 1994/11/05 23:55:07 bde Exp $
  */
 
 /*
@@ -490,7 +490,7 @@ inittodr(time_t base)
 	/* sec now contains the	number of seconds, since Jan 1 1970,
 	   in the local	time zone */
 
-	sec += tz.tz_minuteswest * 60;
+	sec += tz.tz_minuteswest * 60 + adjkerntz;
 
 	s = splclock();
 	time.tv_sec = sec;
