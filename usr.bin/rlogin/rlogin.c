@@ -101,7 +101,7 @@ u_char escapechar = '~';
 
 char *speeds[] = {
 	"0", "50", "75", "110", "134", "150", "200", "300", "600", "1200",
-	"1800", "2400", "4800", "9600", "19200", "38400", "57600", "115200"
+	"1800", "2400", "4800", "9600", "19200", "38400"
 };
 
 #ifdef OLDSUN
@@ -262,6 +262,8 @@ main(argc, argv)
 	(void)strcpy(term, (p = getenv("TERM")) ? p : "network");
 	if (ioctl(0, TIOCGETP, &ttyb) == 0) {
 		(void)strcat(term, "/");
+		if (ttyb.sg_ospeed > EXTB)
+			ttyb.sg_ospeed = EXTB;  /* 38400 */
 		(void)strcat(term, speeds[(int)ttyb.sg_ospeed]);
 	}
 
