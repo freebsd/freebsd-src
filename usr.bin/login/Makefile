@@ -10,7 +10,7 @@ MAN=	login.1 login.access.5
 .if !defined(NO_SETUID_LOGIN)
 BINOWN=	root
 BINMODE=4555
-INSTALLFLAGS=-fschg
+PRECIOUSPROG=
 .endif
 
 .include <bsd.prog.mk>

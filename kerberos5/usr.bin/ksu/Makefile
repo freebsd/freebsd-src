@@ -3,7 +3,7 @@
 PROG=	ksu
 .if defined(ENABLE_SUID_K5SU)
 BINMODE=4555
-INSTALLFLAGS=-fschg
+PRECIOUSPROG=
 .endif
 NOMAN=
 SRCS=	su.c

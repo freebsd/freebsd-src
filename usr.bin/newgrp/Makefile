@@ -6,7 +6,7 @@ LDADD=	-lcrypt -lutil
 
 .if defined(ENABLE_SUID_NEWGRP)
 BINMODE=	4555
-INSTALLFLAGS=	-fschg
+PRECIOUSPROG=
 .endif
 
 .include <bsd.prog.mk>
