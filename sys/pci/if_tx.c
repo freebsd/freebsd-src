@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_tx.c,v 1.10 1998/04/15 17:47:05 bde Exp $
+ *	$Id: if_tx.c,v 1.11 1998/06/07 17:12:38 dfr Exp $
  *
  */
 
@@ -879,7 +879,7 @@ epic_pci_attach(
 	i=epic_read_phy_register( sc, DP83840_BMSR );
 
 	if( !(i & BMSR_LINK_STATUS) )
-		printf("tx%d: WARNING! no link estabilished\n",sc->unit);
+		printf("tx%d: WARNING! no link established\n",sc->unit);
 
 	/* Set shut down routine to stop DMA processes on reboot */
 	at_shutdown(epic_shutdown, sc, SHUTDOWN_POST_SYNC);
