@@ -256,15 +256,35 @@ ahc_list_unlock(unsigned long *flags)
 {
 }
 
+/************************* Initialization/Teardown ****************************/
+int	  ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg);
+void	  ahc_platform_free(struct ahc_softc *ahc);
+int	  ahc_map_int(struct ahc_softc *ahc);
+int	  ahc_attach(struct ahc_softc *);
+int	  ahc_softc_comp(struct ahc_softc *lahc, struct ahc_softc *rahc);
+int	  ahc_detach(device_t);
+
 /********************************** PCI ***************************************/
 #ifdef AIC_PCI_CONFIG
 int ahc_pci_map_registers(struct ahc_softc *ahc);
-int ahc_pci_map_int(struct ahc_softc *ahc);
+#define ahc_pci_map_int ahc_map_int
 #endif /*AIC_PCI_CONFIG*/
 
 /******************************** VL/EISA *************************************/
 int aic7770_map_registers(struct ahc_softc *ahc, u_int port);
-int aic7770_map_int(struct ahc_softc *ahc, int irq);
+static __inline int aic7770_map_int(struct ahc_softc *, int);
+
+static __inline int
+aic7770_map_int(struct ahc_softc *ahc, int irq)
+{
+	/*
+	 * The IRQ is unused in the FreeBSD
+	 * implementation since the EISA and
+	 * ISA attachments register the IRQ
+	 * with newbus before the core is called.
+	 */
+	return ahc_map_int(ahc);
+}
 
 /********************************* Debug **************************************/
 static __inline void	ahc_print_path(struct ahc_softc *, struct scb *);
@@ -286,14 +306,6 @@ void	  ahc_notify_xfer_settings_change(struct ahc_softc *,
 					  struct ahc_devinfo *);
 void	  ahc_platform_set_tags(struct ahc_softc *, struct ahc_devinfo *,
 				int /*enable*/);
-
-/************************* Initialization/Teardown ****************************/
-int	  ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg);
-void	  ahc_platform_free(struct ahc_softc *ahc);
-int	  ahc_map_int(struct ahc_softc *ahc);
-int	  ahc_attach(struct ahc_softc *);
-int	  ahc_softc_comp(struct ahc_softc *lahc, struct ahc_softc *rahc);
-int	  ahc_detach(device_t);
 
 /****************************** Interrupts ************************************/
 void			ahc_platform_intr(void *);

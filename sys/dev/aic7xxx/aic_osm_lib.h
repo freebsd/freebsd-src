@@ -223,7 +223,8 @@ static __inline void
 aic_scb_timer_start(struct scb *scb)
 {
 	
-	if (scb->io_ctx->ccb_h.timeout != CAM_TIME_INFINITY) {
+	if (AIC_SCB_DATA(scb->aic_softc)->recovery_scbs == 0
+	 && scb->io_ctx->ccb_h.timeout != CAM_TIME_INFINITY) {
 		uint64_t time;
 
 		time = scb->io_ctx->ccb_h.timeout;
