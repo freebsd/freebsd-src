@@ -1,4 +1,4 @@
-	$Id$
+	$Id: syscalls.master,v 1.1 1996/03/02 19:04:15 peter Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -63,7 +63,7 @@
 27	STD	LINUX	{ int linux_alarm(unsigned int secs); }
 28	STD	LINUX	{ int linux_fstat(int fd, struct ostat *up); }
 29	STD	LINUX	{ int linux_pause(void); }
-30	STD	LINUX	{ int linux_utime(char *fname, struct linux_time_t *timeptr); }
+30	STD	LINUX	{ int linux_utime(char *fname, struct linux_utimbuf *times); }
 31	STD	LINUX	{ int linux_stty(void); }
 32	STD	LINUX	{ int linux_gtty(void); }
 33	STD	LINUX	{ int linux_access(char *path, int flags); }
@@ -107,7 +107,8 @@
 69	STD	LINUX	{ int linux_sigsetmask(linux_sigset_t mask); }
 70	NOPROTO	LINUX	{ int setreuid(int ruid, int euid); }
 71	NOPROTO	LINUX	{ int setregid(int rgid, int egid); }
-72	STD	LINUX	{ int linux_sigsuspend(linux_sigset_t mask); }
+72	STD	LINUX	{ int linux_sigsuspend(int restart, \
+			    linux_sigset_t oldmask, linux_sigset_t mask); }
 73	STD	LINUX	{ int linux_sigpending(linux_sigset_t *mask); }
 74	NOPROTO	LINUX	{ int osethostname(char *hostname, \
 			    u_int len);}
