@@ -73,27 +73,21 @@ EFIPART=efipart.sys
 # system partition. Since we already made that on the boot floppy,
 # we sneakily extract that.
 if [ $bootable = yes ]; then
-    if [ -f $BASE/floppies/boot.flp ]; then
-	md=`mdconfig -a -t vnode -f $BASE/floppies/boot.flp`
-	dd if=/dev/${md}p1 of=$BASE/$EFIPART
-	mdconfig -d -u $md
-    else
-	EFISZ=20480
-	MNT=/mnt
-	dd if=/dev/zero of=$BASE/$EFIPART count=$EFISZ
-	md=`mdconfig -a -t vnode -f $BASE/$EFIPART`
-	newfs_msdos -F 12 -S 512 -h 4 -o 0 -s $EFISZ -u 16 $md
-	mount -t msdos /dev/$md $MNT
-	mkdir -p $MNT/efi/boot $MNT/boot $MNT/boot/kernel
-	cp -R $BASE/boot/defaults $MNT/boot
-	cp $BASE/boot/kernel/kernel $MNT/boot/kernel
-	cp $BASE/boot/device.hints $MNT/boot
-	cp $BASE/boot/loader.* $MNT/boot
-	cp $BASE/boot/support.4th $MNT/boot
-	mv $MNT/boot/loader.efi $MNT/efi/boot/bootia64.efi
-	umount $MNT
-	mdconfig -d -u $md
-    fi
+    EFISZ=20480
+    MNT=/mnt
+    dd if=/dev/zero of=$BASE/$EFIPART count=$EFISZ
+    md=`mdconfig -a -t vnode -f $BASE/$EFIPART`
+    newfs_msdos -F 12 -S 512 -h 4 -o 0 -s $EFISZ -u 16 $md
+    mount -t msdos /dev/$md $MNT
+    mkdir -p $MNT/efi/boot $MNT/boot $MNT/boot/kernel
+    cp -R $BASE/boot/defaults $MNT/boot
+    cp $BASE/boot/kernel/kernel $MNT/boot/kernel
+    cp $BASE/boot/device.hints $MNT/boot
+    cp $BASE/boot/loader.* $MNT/boot
+    cp $BASE/boot/support.4th $MNT/boot
+    mv $MNT/boot/loader.efi $MNT/efi/boot/bootia64.efi
+    umount $MNT
+    mdconfig -d -u $md
     BOOTOPTS="-b $EFIPART -no-emul-boot"
 fi
 
