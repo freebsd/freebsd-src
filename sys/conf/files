@@ -1324,6 +1324,7 @@ mixer_if.h		optional pcm					\
 
 #
 dev/sound/pcm/ac97.c	optional pcm
+dev/sound/pcm/ac97_patch.c	optional pcm
 dev/sound/pcm/buffer.c	optional pcm
 dev/sound/pcm/channel.c	optional pcm
 dev/sound/pcm/dsp.c	optional pcm
