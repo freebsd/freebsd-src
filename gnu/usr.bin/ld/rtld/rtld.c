@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.39 1996/10/10 23:16:50 jdp Exp $
+ *	$Id: rtld.c,v 1.40 1996/10/24 16:24:19 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -1697,6 +1697,10 @@ findhint(name, major, minorp)
 		 */
 		if (strcmp(name, hstrtab + bp->hi_namex) == 0 &&
 		    bp->hi_major == major) {
+			struct stat s;
+
+			if (stat(hstrtab + bp->hi_pathx, &s) == -1)
+				return NULL;  /* Doesn't actually exist */
 			*minorp = bp->hi_ndewey >= 2 ? bp->hi_minor : -1;
 			return strdup(hstrtab + bp->hi_pathx);
 		}
