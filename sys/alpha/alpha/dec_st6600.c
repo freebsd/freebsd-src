@@ -67,7 +67,7 @@ extern int sccnattach __P((void));
 void
 st6600_init()
 {
-	platform.family = "Compaq Professional Workstation (Monet)";
+	platform.family = "ST6600";
 
 	if ((platform.model = alpha_dsr_sysname()) == NULL) {
 		/* XXX Don't know the system variations, yet. */
