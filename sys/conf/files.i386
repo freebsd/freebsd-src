@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.191 1998/02/18 13:43:42 msmith Exp $
+#	$Id: files.i386,v 1.192 1998/02/20 16:35:00 phk Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -130,6 +130,7 @@ i386/isa/joy.c			optional        joy     device-driver
 i386/isa/kbdio.c		optional        psm     device-driver
 i386/isa/kbdio.c		optional        sc      device-driver
 i386/isa/kbdio.c		optional        vt      device-driver
+i386/isa/loran.c		optional	loran	device-driver
 i386/isa/lpt.c			optional	lpt	device-driver
 i386/isa/labpc.c		optional	labpc	device-driver
 i386/isa/mcd.c			optional	mcd	device-driver
