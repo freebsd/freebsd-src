@@ -65,6 +65,17 @@ softclockpending(void)
 	return (ipending & SWI_CLOCK_PENDING);
 }
 
+#ifdef INVARIANT_SUPPORT
+#define	GENSPLASSERT(NAME, MODIFIER)			\
+int							\
+is_##NAME(void)						\
+{							\
+	return ((cpl & (MODIFIER)) == (MODIFIER));	\
+}
+#else
+#define GENSPLASSERT(NAME, MODIFIER)
+#endif
+
 #ifndef SMP
 
 #define	GENSPL(NAME, OP, MODIFIER, PC)			\
@@ -76,11 +87,7 @@ unsigned NAME(void)					\
 	cpl OP MODIFIER;				\
 	return (x);					\
 }							\
-int							\
-is_##NAME(void)						\
-{							\
-	return ((cpl & (MODIFIER)) == (MODIFIER));	\
-}
+GENSPLASSERT(NAME, MODIFIER)
 
 void
 spl0(void)
@@ -192,11 +199,7 @@ unsigned NAME(void)							\
 									\
 	return (x);							\
 }									\
-int									\
-is_##NAME(void)								\
-{									\
-	return ((cpl & (MODIFIER)) == (MODIFIER));			\
-}
+GENSPLASSERT(NAME, MODIFIER)
 
 
 #else /* INTR_SPL */
@@ -213,12 +216,7 @@ unsigned NAME(void)					\
 							\
 	return (x);					\
 }							\
-int							\
-is_##NAME(void)						\
-{							\
-	return ((cpl & (MODIFIER)) == (MODIFIER));	\
-}
-
+GENSPLASSERT(NAME, MODIFIER)
 
 #endif /* INTR_SPL */
 
