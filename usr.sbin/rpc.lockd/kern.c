@@ -291,7 +291,8 @@ test_request(LOCKD_MSG *msg)
 
 		set_auth(cli, &msg->lm_cred);
 		(void)clnt_call(cli, NLM_TEST_MSG,
-		    xdr_nlm4_testargs, &arg4, xdr_void, &dummy, timeout);
+		    (xdrproc_t)xdr_nlm4_testargs, &arg4,
+		    (xdrproc_t)xdr_void, &dummy, timeout);
 	} else {
 		struct nlm_testargs arg;
 
@@ -314,7 +315,8 @@ test_request(LOCKD_MSG *msg)
 
 		set_auth(cli, &msg->lm_cred);
 		(void)clnt_call(cli, NLM_TEST_MSG,
-		    xdr_nlm_testargs, &arg, xdr_void, &dummy, timeout);
+		    (xdrproc_t)xdr_nlm_testargs, &arg,
+		    (xdrproc_t)xdr_void, &dummy, timeout);
 	}
 	return (0);
 }
@@ -361,7 +363,8 @@ lock_request(LOCKD_MSG *msg)
 
 		set_auth(cli, &msg->lm_cred);
 		(void)clnt_call(cli, NLM_LOCK_MSG,
-		    xdr_nlm4_lockargs, &arg4, xdr_void, &dummy, timeout);
+		    (xdrproc_t)xdr_nlm4_lockargs, &arg4,
+		    (xdrproc_t)xdr_void, &dummy, timeout);
 	} else {
 		arg.cookie.n_bytes = (char *)&msg->lm_msg_ident;
 		arg.cookie.n_len = sizeof(msg->lm_msg_ident);
@@ -385,7 +388,8 @@ lock_request(LOCKD_MSG *msg)
 
 		set_auth(cli, &msg->lm_cred);
 		(void)clnt_call(cli, NLM_LOCK_MSG,
-		    xdr_nlm_lockargs, &arg, xdr_void, &dummy, timeout);
+		    (xdrproc_t)xdr_nlm_lockargs, &arg,
+		    (xdrproc_t)xdr_void, &dummy, timeout);
 	}
 	return (0);
 }
@@ -427,7 +431,8 @@ unlock_request(LOCKD_MSG *msg)
 
 		set_auth(cli, &msg->lm_cred);
 		(void)clnt_call(cli, NLM_UNLOCK_MSG,
-		    xdr_nlm4_unlockargs, &arg4, xdr_void, &dummy, timeout);
+		    (xdrproc_t)xdr_nlm4_unlockargs, &arg4,
+		    (xdrproc_t)xdr_void, &dummy, timeout);
 	} else {
 		arg.cookie.n_bytes = (char *)&msg->lm_msg_ident;
 		arg.cookie.n_len = sizeof(msg->lm_msg_ident);
@@ -447,7 +452,8 @@ unlock_request(LOCKD_MSG *msg)
 
 		set_auth(cli, &msg->lm_cred);
 		(void)clnt_call(cli, NLM_UNLOCK_MSG,
-		    xdr_nlm_unlockargs, &arg, xdr_void, &dummy, timeout);
+		    (xdrproc_t)xdr_nlm_unlockargs, &arg,
+		    (xdrproc_t)xdr_void, &dummy, timeout);
 	}
 
 	return (0);
@@ -588,11 +594,12 @@ show(LOCKD_MSG *mp)
 	}
 	*t = '\0';
 
-	syslog(LOG_DEBUG, "fh_len %d, fh %s\n", mp->lm_fh_len, buf);
+	syslog(LOG_DEBUG, "fh_len %d, fh %s\n", (int)mp->lm_fh_len, buf);
 
 	/* Show flock structure. */
 	syslog(LOG_DEBUG, "start %qu; len %qu; pid %lu; type %d; whence %d\n",
-	    mp->lm_fl.l_start, mp->lm_fl.l_len, (u_long)mp->lm_fl.l_pid,
+	    (unsigned long long)mp->lm_fl.l_start,
+	    (unsigned long long)mp->lm_fl.l_len, (u_long)mp->lm_fl.l_pid,
 	    mp->lm_fl.l_type, mp->lm_fl.l_whence);
 
 	/* Show wait flag. */
