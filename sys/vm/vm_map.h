@@ -361,7 +361,7 @@ int vm_map_protect __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t
 int vm_map_remove __P((vm_map_t, vm_offset_t, vm_offset_t));
 void vm_map_startup __P((void));
 int vm_map_submap __P((vm_map_t, vm_offset_t, vm_offset_t, vm_map_t));
-void vm_map_madvise __P((vm_map_t, vm_offset_t, vm_offset_t, int));
+int vm_map_madvise __P((vm_map_t, vm_offset_t, vm_offset_t, int));
 void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
 void vm_init2 __P((void));
 int vm_uiomove __P((vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *));
