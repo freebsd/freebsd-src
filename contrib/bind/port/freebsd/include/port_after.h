@@ -11,6 +11,7 @@
 #define RLIMIT_TYPE rlim_t
 #define RLIMIT_LONGLONG
 #define RLIMIT_FILE_INFINITY
+#define HAVE_MINIMUM_IFREQ
 #define HAVE_CHROOT
 #define CAN_CHANGE_ID
 
