@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.27 1995/08/11 11:31:15 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.28 1995/08/28 09:19:10 julian Exp $
  */
 
 #include <sys/param.h>
@@ -603,16 +603,16 @@ int
 ffs_oldfscompat(fs)
 	struct fs *fs;
 {
-	int i;
 
 	fs->fs_npsect = max(fs->fs_npsect, fs->fs_nsect);	/* XXX */
 	fs->fs_interleave = max(fs->fs_interleave, 1);		/* XXX */
 	if (fs->fs_postblformat == FS_42POSTBLFMT)		/* XXX */
 		fs->fs_nrpos = 8;				/* XXX */
 	if (fs->fs_inodefmt < FS_44INODEFMT) {			/* XXX */
+#if 0
+		int i;						/* XXX */
 		quad_t sizepb = fs->fs_bsize;			/* XXX */
 								/* XXX */
-#if 0
 		fs->fs_maxfilesize = fs->fs_bsize * NDADDR - 1;	/* XXX */
 		for (i = 0; i < NIADDR; i++) {			/* XXX */
 			sizepb *= NINDIR(fs);			/* XXX */
