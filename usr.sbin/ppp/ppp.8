@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.96 1998/01/20 22:47:46 brian Exp $
+.\" $Id: ppp.8,v 1.97 1998/01/27 23:14:53 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2315,22 +2315,22 @@ is taken before dialing each number.  A pause of
 is taken before starting at the first number again.  A value of
 .Ar random
 may be used here too.
-.It set stopped [LCPseconds [IPCPseconds [CCPseconds]]]
+.It set stopped [LCPseconds [CCPseconds]]
 If this option is set,
 .Nm
 will time out after the given FSM (Finite State Machine) has been in
 the stopped state for the given number of
 .Dq seconds .
-This option may be useful if you see
-.Nm
-failing to respond in the stopped state, or if you wish to
+This option may be useful if the peer sends a terminate request,
+but never actually closes the connection despite our sending a terminate
+acknowledgement.  This is also useful if you wish to
 .Dq set openmode passive
 and time out if the peer doesn't send a Configure Request within the
 given time.  Use
-.Dq set log +lcp +ipcp +ccp
+.Dq set log +lcp +ccp
 to make
 .Nm
-log all state transitions.
+log the appropriate state transitions.
 .Pp
 The default value is zero, where
 .Nm

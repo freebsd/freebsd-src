@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.9 1998/02/16 19:09:40 brian Exp $
+ *	$Id: chat.c,v 1.44.2.10 1998/02/18 00:28:06 brian Exp $
  */
 
 #include <sys/param.h>
@@ -400,7 +400,7 @@ chat_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static void
-chat_Write(struct descriptor *d, const fd_set *fdset)
+chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct chat *c = descriptor2chat(d);
 

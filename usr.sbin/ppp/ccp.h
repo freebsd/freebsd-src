@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.14.2.9 1998/02/18 19:36:11 brian Exp $
+ * $Id: ccp.h,v 1.14.2.10 1998/02/21 01:45:03 brian Exp $
  *
  *	TODO:
  */
@@ -57,8 +57,6 @@ struct ccp {
   u_long uncompin, compin;
 };
 
-extern struct ccp CcpInfo;
-
 #define fsm2ccp(fp) (fp->proto == PROTO_CCP ? (struct ccp *)fp : NULL)
 
 struct ccp_algorithm {
@@ -71,8 +69,8 @@ struct ccp_algorithm {
     int (*Init)(void);
     void (*Term)(void);
     void (*Reset)(void);
-    struct mbuf *(*Read)(u_short *, struct mbuf *);
-    void (*DictSetup)(u_short, struct mbuf *);
+    struct mbuf *(*Read)(struct ccp *, u_short *, struct mbuf *);
+    void (*DictSetup)(struct ccp *, u_short, struct mbuf *);
   } i;
   struct {
     void (*Get)(struct lcp_opt *);
@@ -80,7 +78,7 @@ struct ccp_algorithm {
     int (*Init)(void);
     void (*Term)(void);
     void (*Reset)(void);
-    int (*Write)(struct link *, int, u_short, struct mbuf *);
+    int (*Write)(struct ccp *, struct link *, int, u_short, struct mbuf *);
   } o;
 };
 
@@ -88,9 +86,9 @@ extern void ccp_Init(struct ccp *, struct bundle *, struct link *);
 extern void ccp_Setup(struct ccp *);
 
 extern void CcpSendResetReq(struct fsm *);
-extern void CcpInput(struct bundle *, struct mbuf *);
-extern void CcpUp(void);
-extern void CcpOpen(void);
+extern void CcpInput(struct ccp *, struct bundle *, struct mbuf *);
+extern void CcpUp(struct ccp *);
+extern void CcpOpen(struct ccp *);
 extern int ccp_ReportStatus(struct cmdargs const *);
 extern int ccp_Output(struct ccp *, struct link *, int, u_short, struct mbuf *);
 extern struct mbuf *ccp_Decompress(struct ccp *, u_short *, struct mbuf *);

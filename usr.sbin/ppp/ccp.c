@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.11 1998/02/19 19:56:53 brian Exp $
+ * $Id: ccp.c,v 1.30.2.12 1998/02/21 01:45:00 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -76,8 +76,6 @@ static struct fsm_callbacks ccp_Callbacks = {
   CcpRecvResetReq,
   CcpRecvResetAck
 };
-
-struct ccp CcpInfo;
 
 static char const *cftypes[] = {
   /* Check out the latest ``Compression Control Protocol'' rfc (rfc1962.txt) */
@@ -139,7 +137,7 @@ void
 ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l)
 {
   /* Initialise ourselves */
-  fsm_Init(&CcpInfo.fsm, "CCP", PROTO_CCP, CCP_MAXCODE, 10, LogCCP,
+  fsm_Init(&ccp->fsm, "CCP", PROTO_CCP, CCP_MAXCODE, 10, LogCCP,
            bundle, l, &ccp_Callbacks);
   ccp_Setup(ccp);
 }
@@ -290,31 +288,31 @@ CcpLayerUp(struct fsm *fp)
 }
 
 void
-CcpUp()
+CcpUp(struct ccp *ccp)
 {
   /* Lower layers are ready.... go */
-  FsmUp(&CcpInfo.fsm);
   LogPrintf(LogCCP, "CCP Up event!!\n");
+  FsmUp(&ccp->fsm);
 }
 
 void
-CcpOpen()
+CcpOpen(struct ccp *ccp)
 {
   /* Start CCP please */
   int f;
 
   for (f = 0; f < NALGORITHMS; f++)
     if (Enabled(algorithm[f]->Conf)) {
-      CcpInfo.fsm.open_mode = 0;
-      FsmOpen(&CcpInfo.fsm);
+      ccp->fsm.open_mode = 0;
+      FsmOpen(&ccp->fsm);
       break;
     }
 
   if (f == NALGORITHMS)
     for (f = 0; f < NALGORITHMS; f++)
       if (Acceptable(algorithm[f]->Conf)) {
-        CcpInfo.fsm.open_mode = OPEN_PASSIVE;
-        FsmOpen(&CcpInfo.fsm);
+        ccp->fsm.open_mode = OPEN_PASSIVE;
+        FsmOpen(&ccp->fsm);
         break;
       }
 }
@@ -408,11 +406,11 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 }
 
 void
-CcpInput(struct bundle *bundle, struct mbuf *bp)
+CcpInput(struct ccp *ccp, struct bundle *bundle, struct mbuf *bp)
 {
   /* Got PROTO_CCP from link */
   if (bundle_Phase(bundle) == PHASE_NETWORK)
-    FsmInput(&CcpInfo.fsm, bp);
+    FsmInput(&ccp->fsm, bp);
   else if (bundle_Phase(bundle) < PHASE_NETWORK) {
     LogPrintf(LogCCP, "Error: Unexpected CCP in phase %s (ignored)\n",
               bundle_PhaseName(bundle));
@@ -424,24 +422,26 @@ static void
 CcpRecvResetAck(struct fsm *fp, u_char id)
 {
   /* Got a reset ACK, reset incoming dictionary */
-  if (CcpInfo.reset_sent != -1) {
-    if (id != CcpInfo.reset_sent) {
+  struct ccp *ccp = fsm2ccp(fp);
+
+  if (ccp->reset_sent != -1) {
+    if (id != ccp->reset_sent) {
       LogPrintf(LogWARN, "CCP: Incorrect ResetAck (id %d, not %d) ignored\n",
-                id, CcpInfo.reset_sent);
+                id, ccp->reset_sent);
       return;
     }
     /* Whaddaya know - a correct reset ack */
-  } else if (id == CcpInfo.last_reset)
+  } else if (id == ccp->last_reset)
     LogPrintf(LogCCP, "Duplicate ResetAck (resetting again)\n");
   else {
     LogPrintf(LogWARN, "CCP: Unexpected ResetAck (id %d) ignored\n", id);
     return;
   }
 
-  CcpInfo.last_reset = CcpInfo.reset_sent;
-  CcpInfo.reset_sent = -1;
-  if (CcpInfo.in_init)
-    (*algorithm[CcpInfo.in_algorithm]->i.Reset)();
+  ccp->last_reset = ccp->reset_sent;
+  ccp->reset_sent = -1;
+  if (ccp->in_init)
+    (*algorithm[ccp->in_algorithm]->i.Reset)();
 }
 
 int
@@ -450,7 +450,7 @@ ccp_Output(struct ccp *ccp, struct link *l, int pri, u_short proto,
 {
   /* Compress outgoing Network Layer data */
   if ((proto & 0xfff1) == 0x21 && ccp->fsm.state == ST_OPENED && ccp->out_init)
-    return (*algorithm[ccp->out_algorithm]->o.Write)(l, pri, proto, m);
+    return (*algorithm[ccp->out_algorithm]->o.Write)(ccp, l, pri, proto, m);
   return 0;
 }
 
@@ -469,12 +469,12 @@ ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
         LogPrintf(LogCCP, "ReSendResetReq(%d)\n", ccp->reset_sent);
         FsmOutput(&ccp->fsm, CODE_RESETREQ, ccp->reset_sent, NULL, 0);
       } else if (ccp->in_init)
-        return (*algorithm[ccp->in_algorithm]->i.Read)(proto, bp);
+        return (*algorithm[ccp->in_algorithm]->i.Read)(ccp, proto, bp);
       pfree(bp);
       bp = NULL;
     } else if ((*proto & 0xfff1) == 0x21 && ccp->in_init)
       /* Add incoming Network Layer traffic to our dictionary */
-      (*algorithm[ccp->in_algorithm]->i.DictSetup)(*proto, bp);
+      (*algorithm[ccp->in_algorithm]->i.DictSetup)(ccp, *proto, bp);
 
   return bp;
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.6 1998/02/17 19:28:12 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.7 1998/02/17 19:28:35 brian Exp $
  */
 
 #include <sys/param.h>
@@ -58,6 +58,7 @@
 #include "link.h"
 #include "physical.h"
 #include "chat.h"
+#include "ccp.h"
 #include "datalink.h"
 
 static int prompt_nonewline = 1;
@@ -215,9 +216,10 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static void
-prompt_Write(struct descriptor *d, const fd_set *fdset)
+prompt_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
-  /* We don't set the write descriptor (yet) */
+  /* We never want to write here ! */
+  LogPrintf(LogERROR, "prompt_Write: Internal error: Bad call !\n");
 }
 
 struct prompt prompt = {

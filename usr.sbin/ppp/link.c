@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.6 1998/02/16 00:00:22 brian Exp $
+ *  $Id: link.c,v 1.1.2.7 1998/02/18 19:35:51 brian Exp $
  *
  */
 
@@ -115,9 +115,9 @@ link_Write(struct link *l, int pri, const char *ptr, int count)
 }
 
 void
-link_StartOutput(struct link *l)
+link_StartOutput(struct link *l, struct bundle *bundle)
 {
-  (*l->StartOutput)(l);
+  (*l->StartOutput)(l, bundle);
 }
 
 void
@@ -133,7 +133,6 @@ link_Output(struct link *l, int pri, struct mbuf *bp)
   wp = mballoc(len, MB_LINK);
   mbread(bp, MBUF_CTOP(wp), len);
   Enqueue(l->Queue + pri, wp);
-  link_StartOutput(l);
 }
 
 int

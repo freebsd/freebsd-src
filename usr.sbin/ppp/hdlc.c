@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.12 1998/02/18 19:36:13 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.13 1998/02/21 01:45:09 brian Exp $
  *
  *	TODO:
  */
@@ -139,9 +139,6 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   struct lqrdata *lqr;
   u_char *cp;
   u_short fcs;
-
-  if (ccp_Output(l->ccp, l, pri, proto, bp))
-    return;
 
   if (!p) {
     /*
@@ -410,7 +407,7 @@ DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
     IpcpInput(bp);
     break;
   case PROTO_CCP:
-    CcpInput(bundle, bp);
+    CcpInput(ccp, bundle, bp);
     break;
   default:
     LogPrintf(LogPHASE, "Unknown protocol 0x%04x (%s)\n",

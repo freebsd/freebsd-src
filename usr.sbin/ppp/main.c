@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.26 1998/02/18 00:27:49 brian Exp $
+ * $Id: main.c,v 1.121.2.27 1998/02/21 01:45:19 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -505,7 +505,6 @@ DoLoop(struct bundle *bundle)
   int pri, i, n, nfds;
   int qlen;
   struct tun_data tun;
-#define rbuff tun.data
 
   if (mode & (MODE_DIRECT|MODE_DEDICATED|MODE_BACKGROUND))
     bundle_Open(bundle, NULL);
@@ -523,18 +522,6 @@ DoLoop(struct bundle *bundle)
     bundle_UpdateSet(bundle, &rfds, &wfds, &efds, &nfds);
     descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
 
-#ifndef SIGALRM
-    /*
-     * *** IMPORTANT ***
-     * CPU is serviced every TICKUNIT micro seconds. This value must be chosen
-     * with great care. If this values is too big, it results in loss of
-     * characters from the modem and poor response.  If this value is too
-     * small, ppp eats too much CPU time.
-     */
-    usleep(TICKUNIT);
-    TimerService();
-#endif
-
     /* If there are aren't many packets queued, look for some more. */
     if (qlen < 20 && bundle->tun_fd >= 0) {
       if (bundle->tun_fd + 1 > nfds)
@@ -543,6 +530,10 @@ DoLoop(struct bundle *bundle)
     }
 
     descriptor_UpdateSet(&prompt.desc, &rfds, &wfds, &efds, &nfds);
+
+    if (CleaningUp && bundle_Phase(SignalBundle) == PHASE_DEAD)
+      /* Don't select - we'll be here forever */
+      break;
 
     i = select(nfds, &rfds, &wfds, &efds, NULL);
 
@@ -572,7 +563,7 @@ DoLoop(struct bundle *bundle)
 
     /* XXX FIX ME ! */
     if (descriptor_IsSet(&bundle2datalink(bundle, NULL)->desc, &wfds))
-      descriptor_Write(&bundle2datalink(bundle, NULL)->desc, &wfds);
+      descriptor_Write(&bundle2datalink(bundle, NULL)->desc, bundle, &wfds);
     if (descriptor_IsSet(&bundle2datalink(bundle, NULL)->desc, &rfds))
       descriptor_Read(&bundle2datalink(bundle, NULL)->desc, bundle, &rfds);
 
@@ -590,21 +581,21 @@ DoLoop(struct bundle *bundle)
       }
       if (!tun_check_header(tun, AF_INET))
           continue;
-      if (((struct ip *) rbuff)->ip_dst.s_addr == IpcpInfo.my_ip.s_addr) {
+      if (((struct ip *)tun.data)->ip_dst.s_addr == IpcpInfo.my_ip.s_addr) {
 	/* we've been asked to send something addressed *to* us :( */
 	if (VarLoopback) {
-	  pri = PacketCheck(rbuff, n, FL_IN);
+	  pri = PacketCheck(tun.data, n, FL_IN);
 	  if (pri >= 0) {
 	    struct mbuf *bp;
 
 #ifndef NOALIAS
 	    if (mode & MODE_ALIAS) {
-	      VarPacketAliasIn(rbuff, sizeof rbuff);
-	      n = ntohs(((struct ip *) rbuff)->ip_len);
+	      VarPacketAliasIn(tun.data, sizeof tun.data);
+	      n = ntohs(((struct ip *)tun.data)->ip_len);
 	    }
 #endif
 	    bp = mballoc(n, MB_IPIN);
-	    memcpy(MBUF_CTOP(bp), rbuff, n);
+	    memcpy(MBUF_CTOP(bp), tun.data, n);
 	    IpInput(bundle, bp);
 	    LogPrintf(LogDEBUG, "Looped back packet addressed to myself\n");
 	  }
@@ -618,18 +609,18 @@ DoLoop(struct bundle *bundle)
        * device until IPCP is opened.
        */
       if (LcpInfo.fsm.state <= ST_CLOSED && (mode & MODE_AUTO) &&
-	  (pri = PacketCheck(rbuff, n, FL_DIAL)) >= 0)
+	  (pri = PacketCheck(tun.data, n, FL_DIAL)) >= 0)
         bundle_Open(bundle, NULL);
 
-      pri = PacketCheck(rbuff, n, FL_OUT);
+      pri = PacketCheck(tun.data, n, FL_OUT);
       if (pri >= 0) {
 #ifndef NOALIAS
 	if (mode & MODE_ALIAS) {
-	  VarPacketAliasOut(rbuff, sizeof rbuff);
-	  n = ntohs(((struct ip *) rbuff)->ip_len);
+	  VarPacketAliasOut(tun.data, sizeof tun.data);
+	  n = ntohs(((struct ip *)tun.data)->ip_len);
 	}
 #endif
-	IpEnqueue(pri, rbuff, n);
+	IpEnqueue(pri, tun.data, n);
       }
     }
   }

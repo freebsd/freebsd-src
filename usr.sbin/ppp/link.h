@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.1.2.4 1998/02/16 00:00:25 brian Exp $
+ *  $Id: link.h,v 1.1.2.5 1998/02/21 01:45:18 brian Exp $
  *
  */
 
@@ -35,7 +35,6 @@
 #define NPROTOSTAT 11
 
 struct bundle;
-struct ccp;
 
 struct link {
   int type;                               /* _LINK type */
@@ -44,13 +43,12 @@ struct link {
   struct pppThroughput throughput;        /* Link throughput statistics */
   struct pppTimer Timer;                  /* inactivity timeout */
   struct mqueue Queue[LINK_QUEUES];       /* Our output queue of mbufs */
-  struct ccp *ccp;                        /* Link compression */
 
   u_long proto_in[NPROTOSTAT];            /* outgoing protocol stats */
   u_long proto_out[NPROTOSTAT];           /* incoming protocol stats */
 
   /* Implementation routines for use by link_ routines */
-  void (*StartOutput)(struct link *);     /* send the queued data */
+  void (*StartOutput)(struct link *, struct bundle *); /* send queued data */
   int (*IsActive)(struct link *);         /* Are we active ? */
   void (*Close)(struct link *, int);      /* Close the link */
   void (*Destroy)(struct link *);         /* Destructor */
@@ -63,7 +61,7 @@ extern void link_SequenceQueue(struct link *);
 extern int link_QueueLen(struct link *);
 extern struct mbuf *link_Dequeue(struct link *);
 extern void link_Write(struct link *, int, const char *, int);
-extern void link_StartOutput(struct link *);
+extern void link_StartOutput(struct link *, struct bundle *);
 extern void link_Output(struct link *, int, struct mbuf *);
 
 #define PROTO_IN  1                       /* third arg to link_ProtocolRecord */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.6 1998/02/17 19:28:28 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.7 1998/02/17 19:28:46 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -68,8 +68,8 @@ struct datalink {
 
 #ifdef soon
   struct lcp lcp;		/* Our line control FSM */
-  struct ccp ccp;		/* Our compression FSM */
 #endif
+  struct ccp ccp;		/* Our compression FSM */
 
   struct bundle *bundle;	/* for the moment */
   struct datalink *next;	/* Next in the list */

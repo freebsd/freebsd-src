@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.6 1998/02/16 00:01:03 brian Exp $
+ *	$Id: server.c,v 1.16.2.7 1998/02/18 20:39:08 brian Exp $
  */
 
 #include <sys/param.h>
@@ -132,7 +132,7 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static void
-server_Write(struct descriptor *d, const fd_set *fdset)
+server_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
   LogPrintf(LogERROR, "server_Write: Internal error: Bad call !\n");

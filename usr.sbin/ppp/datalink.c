@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.11 1998/02/18 00:27:47 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.12 1998/02/21 01:45:05 brian Exp $
  */
 
 #include <sys/param.h>
@@ -52,8 +52,8 @@
 #include "physical.h"
 #include "bundle.h"
 #include "chat.h"
-#include "datalink.h"
 #include "ccp.h"
+#include "datalink.h"
 #include "main.h"
 #include "modem.h"
 #include "iplist.h"
@@ -144,7 +144,7 @@ datalink_LoginDone(struct datalink *dl)
     dl->state = DATALINK_OPEN;
 
     lcp_Setup(&LcpInfo, dl->state == DATALINK_READY ? 0 : VarOpenMode);
-    ccp_Setup(&CcpInfo);
+    ccp_Setup(&dl->ccp);
 
     FsmUp(&LcpInfo.fsm);
     FsmOpen(&LcpInfo.fsm);
@@ -291,7 +291,7 @@ datalink_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static void
-datalink_Write(struct descriptor *d, const fd_set *fdset)
+datalink_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct datalink *dl = descriptor2datalink(d);
 
@@ -303,12 +303,12 @@ datalink_Write(struct descriptor *d, const fd_set *fdset)
     case DATALINK_HANGUP:
     case DATALINK_DIAL:
     case DATALINK_LOGIN:
-      descriptor_Write(&dl->chat.desc, fdset);
+      descriptor_Write(&dl->chat.desc, bundle, fdset);
       break;
 
     case DATALINK_READY:
     case DATALINK_OPEN:
-      descriptor_Write(&dl->physical->desc, fdset);
+      descriptor_Write(&dl->physical->desc, bundle, fdset);
       break;
   }
 }
@@ -352,7 +352,7 @@ datalink_Create(const char *name, struct bundle *bundle)
   dl->cfg.reconnect_timeout = RECONNECT_TIMEOUT;
 
   dl->name = strdup(name);
-  if ((dl->physical = modem_Create(dl->name, &CcpInfo)) == NULL) {
+  if ((dl->physical = modem_Create(dl->name)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
@@ -361,7 +361,7 @@ datalink_Create(const char *name, struct bundle *bundle)
 
   ipcp_Init(&IpcpInfo, dl->bundle, &dl->physical->link);
   lcp_Init(&LcpInfo, dl->bundle, dl->physical);
-  ccp_Init(&CcpInfo, dl->bundle, &dl->physical->link);
+  ccp_Init(&dl->ccp, dl->bundle, &dl->physical->link);
 
   LogPrintf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
 
@@ -440,7 +440,7 @@ datalink_Close(struct datalink *dl, int stay)
 {
   /* Please close */
   if (dl->state == DATALINK_OPEN) {
-    FsmClose(&CcpInfo.fsm);
+    FsmClose(&dl->ccp.fsm);
     FsmClose(&LcpInfo.fsm);
     if (stay) {
       dl->dial_tries = -1;
@@ -455,13 +455,13 @@ datalink_Down(struct datalink *dl, int stay)
 {
   /* Carrier is lost */
   if (dl->state == DATALINK_OPEN) {
-    FsmDown(&CcpInfo.fsm);
-    FsmClose(&CcpInfo.fsm);
+    FsmDown(&dl->ccp.fsm);
+    FsmClose(&dl->ccp.fsm);
     FsmDown(&LcpInfo.fsm);
     if (stay)
       FsmClose(&LcpInfo.fsm);
     else
-      FsmOpen(&CcpInfo.fsm);
+      FsmOpen(&dl->ccp.fsm);
   }
 
   datalink_ComeDown(dl, stay);

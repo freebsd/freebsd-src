@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.16.2.3 1998/01/30 19:46:06 brian Exp $
+ * $Id: vjcomp.c,v 1.16.2.4 1998/02/21 01:45:26 brian Exp $
  *
  *  TODO:
  */
@@ -41,6 +41,10 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "ipcp.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "link.h"
+#include "bundle.h"
 #include "vjcomp.h"
 
 #define MAX_VJHEADER 16		/* Maximum size of compressed header */
@@ -54,11 +58,12 @@ VjInit(int max_state)
 }
 
 void
-SendPppFrame(struct link *l, struct mbuf * bp)
+SendPppFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
 {
   int type;
   u_short proto;
   u_short cproto = IpcpInfo.peer_compproto >> 16;
+  struct ccp *ccp = bundle2ccp(bundle, l->name);
 
   LogPrintf(LogDEBUG, "SendPppFrame: proto = %x\n", IpcpInfo.peer_compproto);
   if (((struct ip *) MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
@@ -83,7 +88,9 @@ SendPppFrame(struct link *l, struct mbuf * bp)
     }
   } else
     proto = PROTO_IP;
-  HdlcOutput(l, PRI_NORMAL, proto, bp);
+
+  if (!ccp_Output(ccp, l, PRI_NORMAL, proto, bp))
+    HdlcOutput(l, PRI_NORMAL, proto, bp);
 }
 
 static struct mbuf *

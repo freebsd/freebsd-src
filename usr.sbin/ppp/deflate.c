@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.4 1998/01/31 02:48:17 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.5 1998/02/18 19:35:35 brian Exp $
  */
 
 #include <sys/param.h>
@@ -74,7 +74,8 @@ DeflateResetOutput(void)
 }
 
 static int
-DeflateOutput(struct link *l, int pri, u_short proto, struct mbuf *mp)
+DeflateOutput(struct ccp *ccp, struct link *l, int pri, u_short proto,
+              struct mbuf *mp)
 {
   u_char *wp, *rp;
   int olen, ilen, len, res, flush;
@@ -160,8 +161,8 @@ DeflateOutput(struct link *l, int pri, u_short proto, struct mbuf *mp)
     mbfree(mi_head);
     LogPrintf(LogDEBUG, "DeflateOutput: %d => %d: Uncompressible (0x%04x)\n",
               ilen, olen, proto);
-    CcpInfo.uncompout += ilen;
-    CcpInfo.compout += ilen;	/* We measure this stuff too */
+    ccp->uncompout += ilen;
+    ccp->compout += ilen;	/* We measure this stuff too */
     return 0;
   }
 
@@ -180,8 +181,8 @@ DeflateOutput(struct link *l, int pri, u_short proto, struct mbuf *mp)
     mo->next = NULL;
   }
 
-  CcpInfo.uncompout += ilen;
-  CcpInfo.compout += olen;
+  ccp->uncompout += ilen;
+  ccp->compout += olen;
 
   LogPrintf(LogDEBUG, "DeflateOutput: %d => %d bytes, proto 0x%04x\n",
             ilen, olen, proto);
@@ -200,7 +201,7 @@ DeflateResetInput(void)
 }
 
 static struct mbuf *
-DeflateInput(u_short *proto, struct mbuf *mi)
+DeflateInput(struct ccp *ccp, u_short *proto, struct mbuf *mi)
 {
   struct mbuf *mo, *mo_head, *mi_head;
   u_char *wp;
@@ -227,7 +228,7 @@ DeflateInput(u_short *proto, struct mbuf *mi)
       LogPrintf(LogERROR, "DeflateInput: Seq error: Got %d, expected %d\n",
                 seq, InputState.seqno);
       pfree(mi_head);
-      CcpSendResetReq(&CcpInfo.fsm);
+      CcpSendResetReq(&ccp->fsm);
       return NULL;
     }
   }
@@ -264,7 +265,7 @@ DeflateInput(u_short *proto, struct mbuf *mi)
                 res, InputState.cx.msg ? InputState.cx.msg : "");
       pfree(mo_head);
       pfree(mi);
-      CcpSendResetReq(&CcpInfo.fsm);
+      CcpSendResetReq(&ccp->fsm);
       return NULL;
     }
 
@@ -305,7 +306,7 @@ DeflateInput(u_short *proto, struct mbuf *mi)
   if (first) {
     LogPrintf(LogERROR, "DeflateInput: Length error\n");
     pfree(mo_head);
-    CcpSendResetReq(&CcpInfo.fsm);
+    CcpSendResetReq(&ccp->fsm);
     return NULL;
   }
 
@@ -316,8 +317,8 @@ DeflateInput(u_short *proto, struct mbuf *mi)
   mo_head->cnt -= 2;
   olen -= 2;
 
-  CcpInfo.compin += ilen;
-  CcpInfo.uncompin += olen;
+  ccp->compin += ilen;
+  ccp->uncompin += olen;
 
   LogPrintf(LogDEBUG, "DeflateInput: %d => %d bytes, proto 0x%04x\n",
             ilen, olen, *proto);
@@ -336,7 +337,7 @@ DeflateInput(u_short *proto, struct mbuf *mi)
 }
 
 static void
-DeflateDictSetup(u_short proto, struct mbuf *mi)
+DeflateDictSetup(struct ccp *ccp, u_short proto, struct mbuf *mi)
 {
   int res, flush, expect_error;
   u_char *rp;
@@ -387,7 +388,7 @@ DeflateDictSetup(u_short proto, struct mbuf *mi)
                 res, InputState.cx.msg ? InputState.cx.msg : "");
       LogPrintf(LogERROR, "DeflateDictSetup: avail_in %d, avail_out %d\n",
                 InputState.cx.avail_in, InputState.cx.avail_out);
-      CcpSendResetReq(&CcpInfo.fsm);
+      CcpSendResetReq(&ccp->fsm);
       mbfree(mi_head);		/* lose our allocated ``head'' buf */
       return;
     }
@@ -423,8 +424,8 @@ DeflateDictSetup(u_short proto, struct mbuf *mi)
     }
   }
 
-  CcpInfo.compin += len;
-  CcpInfo.uncompin += len;
+  ccp->compin += len;
+  ccp->uncompin += len;
 
   InputState.seqno++;
   InputState.uncomp_rec++;

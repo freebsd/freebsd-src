@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.27 1998/02/18 19:35:32 brian Exp $
+ * $Id: command.c,v 1.131.2.28 1998/02/21 01:45:04 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -460,21 +460,14 @@ ShowStopped(struct cmdargs const *arg)
     prompt_Printf(&prompt, "Disabled");
   else
     prompt_Printf(&prompt, "%ld secs",
-            LcpInfo.fsm.StoppedTimer.load / SECTICKS);
-
-  prompt_Printf(&prompt, ", IPCP: ");
-  if (!IpcpInfo.fsm.StoppedTimer.load)
-    prompt_Printf(&prompt, "Disabled");
-  else
-    prompt_Printf(&prompt, "%ld secs",
-            IpcpInfo.fsm.StoppedTimer.load / SECTICKS);
+                  LcpInfo.fsm.StoppedTimer.load / SECTICKS);
 
   prompt_Printf(&prompt, ", CCP: ");
-  if (!CcpInfo.fsm.StoppedTimer.load)
+  if (!arg->cx->ccp.fsm.StoppedTimer.load)
     prompt_Printf(&prompt, "Disabled");
   else
     prompt_Printf(&prompt, "%ld secs",
-            CcpInfo.fsm.StoppedTimer.load / SECTICKS);
+                  arg->cx->ccp.fsm.StoppedTimer.load / SECTICKS);
 
   prompt_Printf(&prompt, "\n");
 
@@ -620,7 +613,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show routing table", "show route"},
   {"timeout", NULL, ShowTimeout, LOCAL_AUTH,
   "Show Idle timeout", "show timeout"},
-  {"stopped", NULL, ShowStopped, LOCAL_AUTH,
+  {"stopped", NULL, ShowStopped, LOCAL_AUTH | LOCAL_CX,
   "Show STOPPED timeout", "show stopped"},
   {"version", NULL, ShowVersion, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Show version string", "show version"},
@@ -944,16 +937,12 @@ static int
 SetStoppedTimeout(struct cmdargs const *arg)
 {
   LcpInfo.fsm.StoppedTimer.load = 0;
-  IpcpInfo.fsm.StoppedTimer.load = 0;
-  CcpInfo.fsm.StoppedTimer.load = 0;
-  if (arg->argc <= 3) {
+  arg->cx->ccp.fsm.StoppedTimer.load = 0;
+  if (arg->argc <= 2) {
     if (arg->argc > 0) {
       LcpInfo.fsm.StoppedTimer.load = atoi(arg->argv[0]) * SECTICKS;
-      if (arg->argc > 1) {
-	IpcpInfo.fsm.StoppedTimer.load = atoi(arg->argv[1]) * SECTICKS;
-	if (arg->argc > 2)
-	  CcpInfo.fsm.StoppedTimer.load = atoi(arg->argv[2]) * SECTICKS;
-      }
+      if (arg->argc > 1)
+        arg->cx->ccp.fsm.StoppedTimer.load = atoi(arg->argv[1]) * SECTICKS;
     }
     return 0;
   }
@@ -1463,8 +1452,8 @@ static struct cmdtab const SetCommands[] = {
   "Set Reconnect timeout", "set reconnect value ntries"},
   {"redial", NULL, SetRedialTimeout, LOCAL_AUTH | LOCAL_CX,
   "Set Redial timeout", "set redial value|random[.value|random] [attempts]"},
-  {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH, "Set STOPPED timeouts",
-  "set stopped [LCPseconds [IPCPseconds [CCPseconds]]]"},
+  {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH | LOCAL_CX,
+  "Set STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
   {"server", "socket", SetServer, LOCAL_AUTH,
   "Set server port", "set server|socket TcpPort|LocalName|none [mask]"},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.6 1998/02/07 20:49:38 brian Exp $
+ * $Id: ip.c,v 1.38.2.7 1998/02/16 00:00:11 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -497,25 +497,20 @@ IpEnqueue(int pri, char *ptr, int count)
   Enqueue(&IpOutputQueues[pri], bp);
 }
 
-#if 0
 int
-IsIpEnqueued()
+ip_QueueLen()
 {
   struct mqueue *queue;
-  int exist = 0;
+  int result = 0;
 
-  for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--) {
-    if (queue->qlen > 0) {
-      exist = 1;
-      break;
-    }
-  }
-  return (exist);
+  for (queue = &IpOutputQueues[PRI_MAX]; queue >= IpOutputQueues; queue--)
+    result += queue->qlen;
+
+  return result;
 }
-#endif
 
 void
-IpStartOutput(struct link *l)
+IpStartOutput(struct link *l, struct bundle *bundle)
 {
   struct mqueue *queue;
   struct mbuf *bp;
@@ -528,7 +523,7 @@ IpStartOutput(struct link *l)
       bp = Dequeue(queue);
       if (bp) {
 	cnt = plength(bp);
-	SendPppFrame(l, bp);
+	SendPppFrame(l, bp, bundle);
 	RestartIdleTimer();
         IpcpAddOutOctets(cnt);
 	break;

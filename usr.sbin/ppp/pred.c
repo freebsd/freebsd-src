@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.20.2.2 1998/01/30 19:46:04 brian Exp $
+ *	$Id: pred.c,v 1.20.2.3 1998/01/31 02:48:29 brian Exp $
  */
 
 #include <sys/param.h>
@@ -184,7 +184,8 @@ Pred1InitOutput(void)
 }
 
 static int
-Pred1Output(struct link *l, int pri, u_short proto, struct mbuf * bp)
+Pred1Output(struct ccp *ccp, struct link *l, int pri, u_short proto,
+            struct mbuf *bp)
 {
   struct mbuf *mwp;
   u_char *cp, *wp, *hp;
@@ -206,15 +207,15 @@ Pred1Output(struct link *l, int pri, u_short proto, struct mbuf * bp)
 
   len = compress(bufp + 2, wp, orglen);
   LogPrintf(LogDEBUG, "Pred1Output: orglen (%d) --> len (%d)\n", orglen, len);
-  CcpInfo.uncompout += orglen;
+  ccp->uncompout += orglen;
   if (len < orglen) {
     *hp |= 0x80;
     wp += len;
-    CcpInfo.compout += len;
+    ccp->compout += len;
   } else {
     memcpy(wp, bufp + 2, orglen);
     wp += orglen;
-    CcpInfo.compout += orglen;
+    ccp->compout += orglen;
   }
 
   *wp++ = fcs & 0377;
@@ -225,7 +226,7 @@ Pred1Output(struct link *l, int pri, u_short proto, struct mbuf * bp)
 }
 
 static struct mbuf *
-Pred1Input(u_short *proto, struct mbuf *bp)
+Pred1Input(struct ccp *ccp, u_short *proto, struct mbuf *bp)
 {
   u_char *cp, *pp;
   int len, olen, len1;
@@ -241,14 +242,14 @@ Pred1Input(u_short *proto, struct mbuf *bp)
   len = *cp++ << 8;
   *pp++ = *cp;
   len += *cp++;
-  CcpInfo.uncompin += len & 0x7fff;
+  ccp->uncompin += len & 0x7fff;
   if (len & 0x8000) {
     len1 = decompress(cp, pp, olen - 4);
-    CcpInfo.compin += olen;
+    ccp->compin += olen;
     len &= 0x7fff;
     if (len != len1) {		/* Error is detected. Send reset request */
       LogPrintf(LogCCP, "Pred1: Length error\n");
-      CcpSendResetReq(&CcpInfo.fsm);
+      CcpSendResetReq(&ccp->fsm);
       pfree(bp);
       pfree(wp);
       return NULL;
@@ -256,7 +257,7 @@ Pred1Input(u_short *proto, struct mbuf *bp)
     cp += olen - 4;
     pp += len1;
   } else {
-    CcpInfo.compin += len;
+    ccp->compin += len;
     SyncTable(cp, pp, len);
     cp += len;
     pp += len;
@@ -285,7 +286,7 @@ Pred1Input(u_short *proto, struct mbuf *bp)
     return wp;
   } else {
     LogDumpBp(LogHDLC, "Bad FCS", wp);
-    CcpSendResetReq(&CcpInfo.fsm);
+    CcpSendResetReq(&ccp->fsm);
     pfree(wp);
   }
   pfree(bp);
@@ -293,7 +294,7 @@ Pred1Input(u_short *proto, struct mbuf *bp)
 }
 
 static void
-Pred1DictSetup(u_short proto, struct mbuf * bp)
+Pred1DictSetup(struct ccp *ccp, u_short proto, struct mbuf * bp)
 {
 }
 

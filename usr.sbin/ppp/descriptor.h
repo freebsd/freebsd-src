@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: descriptor.h,v 1.1.2.5 1998/02/13 05:10:15 brian Exp $
+ *	$Id: descriptor.h,v 1.1.2.6 1998/02/16 00:00:03 brian Exp $
  */
 
 #define PHYSICAL_DESCRIPTOR (1)
@@ -39,10 +39,10 @@ struct descriptor {
   int (*UpdateSet)(struct descriptor *, fd_set *, fd_set *, fd_set *, int *);
   int (*IsSet)(struct descriptor *, fd_set *);
   void (*Read)(struct descriptor *, struct bundle *, const fd_set *);
-  void (*Write)(struct descriptor *, const fd_set *);
+  void (*Write)(struct descriptor *, struct bundle *, const fd_set *);
 };
 
 #define descriptor_UpdateSet(d, r, w, e, n) ((*(d)->UpdateSet)(d, r, w, e, n))
 #define descriptor_IsSet(d, s) ((*(d)->IsSet)(d, s))
 #define descriptor_Read(d, b, f) ((*(d)->Read)(d, b, f))
-#define descriptor_Write(d, f) ((*(d)->Write)(d, f))
+#define descriptor_Write(d, b, f) ((*(d)->Write)(d, b, f))

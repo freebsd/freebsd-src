@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.14 1998/02/18 00:27:44 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.15 1998/02/21 01:44:58 brian Exp $
  */
 
 #include <sys/param.h>
@@ -92,6 +92,8 @@ bundle_PhaseName(struct bundle *bundle)
 void
 bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
 {
+  struct datalink *dl;
+
   if (new == bundle->phase)
     return;
 
@@ -129,8 +131,12 @@ bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
     ipcp_Setup(&IpcpInfo);
     IpcpUp();
     IpcpOpen();
-    CcpUp();
-    CcpOpen();
+    /* XXX: The datalink should be doing this ... */
+    for (dl = bundle->links; dl; dl = dl->next)
+      if (dl->state == DATALINK_OPEN) {
+        CcpUp(&dl->ccp);
+        CcpOpen(&dl->ccp);
+      }
     /* Fall through */
 
   case PHASE_TERMINATE:
@@ -195,7 +201,9 @@ bundle_LayerUp(struct bundle *bundle, struct fsm *fp)
 {
   /*
    * The given fsm is now up
+   * If it's an lcp, tell the datalink
    * If it's the first datalink, bring all NCPs up.
+   * If it's an NCP, tell our background mode parent to go away.
    */
   if (fp == &LcpInfo.fsm)
     bundle_NewPhase(bundle, link2physical(fp->link), PHASE_AUTHENTICATE);
@@ -595,11 +603,12 @@ bundle_LayerFinish(struct bundle *bundle, struct fsm *fp)
    * If it's the last NCP, FsmClose all LCPs and enter TERMINATE phase.
    */
 
-  if (fp == &CcpInfo.fsm) {
-    FsmDown(&CcpInfo.fsm);
-    FsmOpen(&CcpInfo.fsm);
+  if (fp->proto == PROTO_CCP) {
+    FsmDown(fp);
+    FsmOpen(fp);
   } else if (fp == &LcpInfo.fsm) {
-    FsmDown(&CcpInfo.fsm);
+    /* XXX fix me */
+    FsmDown(&bundle->links->ccp.fsm);
 
     FsmDown(&IpcpInfo.fsm);		/* You've lost your underlings */
     FsmClose(&IpcpInfo.fsm);		/* ST_INITIAL please */
@@ -661,7 +670,10 @@ bundle2physical(struct bundle *bundle, const char *name)
 struct ccp *
 bundle2ccp(struct bundle *bundle, const char *name)
 {
-  return &CcpInfo;
+  struct datalink *dl = bundle2datalink(bundle, name);
+  if (dl)
+    return &dl->ccp;
+  return NULL;
 }
 
 struct link *
@@ -694,11 +706,12 @@ bundle_FillQueues(struct bundle *bundle)
   for (dl = bundle->links; dl; dl = dl->next) {
     packets = link_QueueLen(&dl->physical->link);
     if (packets == 0) {
-      IpStartOutput(&dl->physical->link);
+      IpStartOutput(&dl->physical->link, bundle);
       packets = link_QueueLen(&dl->physical->link);
     }
     total += packets;
   }
+  total += ip_QueueLen();
 
   return total;
 }

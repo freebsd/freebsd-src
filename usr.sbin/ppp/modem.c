@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.23 1998/02/19 02:08:51 brian Exp $
+ * $Id: modem.c,v 1.77.2.24 1998/02/21 01:45:21 brian Exp $
  *
  *  TODO:
  */
@@ -65,6 +65,7 @@
 #include "physical.h"
 #include "prompt.h"
 #include "chat.h"
+#include "ccp.h"
 #include "datalink.h"
 
 
@@ -74,7 +75,7 @@
 #endif
 #endif
 
-static void modem_StartOutput(struct link *);
+static void modem_StartOutput(struct link *, struct bundle *);
 static int modem_IsActive(struct link *);
 static void modem_Hangup(struct link *, int);
 static void modem_Destroy(struct link *);
@@ -84,7 +85,7 @@ static int modem_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,
                            int *);
 
 struct physical *
-modem_Create(const char *name, struct ccp *ccp)
+modem_Create(const char *name)
 {
   struct physical *p;
 
@@ -98,7 +99,6 @@ modem_Create(const char *name, struct ccp *ccp)
   memset(&p->link.throughput, '\0', sizeof p->link.throughput);
   memset(&p->link.Timer, '\0', sizeof p->link.Timer);
   memset(p->link.Queue, '\0', sizeof p->link.Queue);
-  p->link.ccp = ccp;
   memset(p->link.proto_in, '\0', sizeof p->link.proto_in);
   memset(p->link.proto_out, '\0', sizeof p->link.proto_out);
   p->link.StartOutput = modem_StartOutput;
@@ -869,14 +869,14 @@ modem_LogicalClose(struct physical *modem)
 }
 
 static void
-modem_StartOutput(struct link *l)
+modem_StartOutput(struct link *l, struct bundle *bundle)
 {
   struct physical *modem = (struct physical *)l;
   int nb, nw;
 
   if (modem->out == NULL) {
     if (link_QueueLen(l) == 0)
-      IpStartOutput(l);
+      IpStartOutput(l, bundle);
 
     modem->out = link_Dequeue(l);
   }

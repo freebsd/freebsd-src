@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.12 1998/02/19 19:56:54 brian Exp $
+ * $Id: fsm.c,v 1.27.2.13 1998/02/21 01:45:07 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -709,7 +709,7 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
       LogPrintf(LogERROR, "FsmRecvProtoRej: Not a physical link !\n");
     break;
   case PROTO_CCP:
-    fp = &CcpInfo.fsm;
+    fp = &bundle2ccp(fp->bundle, fp->link->name)->fsm;
     (*fp->fn->LayerFinish)(fp);
     switch (fp->state) {
     case ST_CLOSED:
