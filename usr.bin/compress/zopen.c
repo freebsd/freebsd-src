@@ -254,7 +254,7 @@ zwrite(cookie, wbp, num)
 		goto middle;
 	state = S_MIDDLE;
 
-	maxmaxcode = 1L << BITS;
+	maxmaxcode = 1L << maxbits;
 	if (fwrite(magic_header,
 	    sizeof(char), sizeof(magic_header), fp) != sizeof(magic_header))
 		return (-1);
@@ -707,7 +707,7 @@ zopen(fname, mode, bits)
 		return (NULL);
 
 	maxbits = bits ? bits : BITS;	/* User settable max # bits/code. */
-	maxmaxcode = 1 << BITS;		/* Should NEVER generate this code. */
+	maxmaxcode = 1L << maxbits;	/* Should NEVER generate this code. */
 	hsize = HSIZE;			/* For dynamic table sizing. */
 	free_ent = 0;			/* First unused entry. */
 	block_compress = BLOCK_MASK;
