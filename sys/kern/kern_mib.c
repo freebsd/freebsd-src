@@ -251,13 +251,12 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 
 	/*
 	 * If the process is in jail, return the maximum of the global and
-	 * local levels; otherwise, return the global level.
+	 * local levels; otherwise, return the global level.  Perform a
+	 * lockless read since the securelevel is an interger.
 	 */
-	if (pr != NULL) {
-		mtx_lock(&pr->pr_mtx);
+	if (pr != NULL)
 		level = imax(securelevel, pr->pr_securelevel);
-		mtx_unlock(&pr->pr_mtx);
-	} else
+	else
 		level = securelevel;
 	error = sysctl_handle_int(oidp, &level, 0, req);
 	if (error || !req->newptr)
