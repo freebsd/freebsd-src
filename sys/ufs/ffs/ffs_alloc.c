@@ -225,7 +225,7 @@ retry:
 	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0)
 		goto nospace;
 	if ((bprev = DIP(ip, i_db[lbprev])) == 0) {
-		printf("dev = %s, bsize = %ld, bprev = %lld, fs = %s\n",
+		printf("dev = %s, bsize = %ld, bprev = %jd, fs = %s\n",
 		    devtoname(ip->i_dev), (long)fs->fs_bsize, (intmax_t)bprev,
 		    fs->fs_fsmnt);
 		panic("ffs_realloccg: bad bprev");
@@ -1692,7 +1692,7 @@ ffs_blkfree(fs, devvp, bno, size, inum)
 	}
 #endif
 	if ((u_int)bno >= fs->fs_size) {
-		printf("bad block %lld, ino %lu\n", (intmax_t)bno,
+		printf("bad block %jd, ino %lu\n", (intmax_t)bno,
 		    (u_long)inum);
 		ffs_fserr(fs, inum, "bad block");
 		return;
@@ -1718,7 +1718,7 @@ ffs_blkfree(fs, devvp, bno, size, inum)
 				brelse(bp);
 				return;
 			}
-			printf("dev = %s, block = %lld, fs = %s\n",
+			printf("dev = %s, block = %jd, fs = %s\n",
 			    devtoname(dev), (intmax_t)bno, fs->fs_fsmnt);
 			panic("ffs_blkfree: freeing free block");
 		}
@@ -1740,7 +1740,7 @@ ffs_blkfree(fs, devvp, bno, size, inum)
 		frags = numfrags(fs, size);
 		for (i = 0; i < frags; i++) {
 			if (isset(blksfree, cgbno + i)) {
-				printf("dev = %s, block = %lld, fs = %s\n",
+				printf("dev = %s, block = %jd, fs = %s\n",
 				    devtoname(dev), (intmax_t)(bno + i),
 				    fs->fs_fsmnt);
 				panic("ffs_blkfree: freeing free frag");

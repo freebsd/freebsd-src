@@ -200,7 +200,7 @@ ffs_checkoverlap(bp, ip)
 		    ep->b_blkno + btodb(ep->b_bcount) <= start)
 			continue;
 		vprint("Disk overlap", vp);
-		printf("\tstart %llu, end %llu overlap start %llu, end %llu\n",
+		printf("\tstart %jd, end %jd overlap start %jd, end %jd\n",
 		    (intmax_t)start, (intmax_t)last, (intmax_t)ep->b_blkno,
 		    (intmax_t)(ep->b_blkno + btodb(ep->b_bcount) - 1));
 		panic("ffs_checkoverlap: Disk buffer overlap");
