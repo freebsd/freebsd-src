@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.19 1996/09/17 19:34:56 wosch Exp $
+# $Id: adduser.perl,v 1.20 1996/11/20 01:07:46 wosch Exp $
 
 
 # read variables
@@ -1186,8 +1186,8 @@ sub message_create {
 
 \$fullname,
 
-your account ``\$name'' was created. Your password is ``\$password''.
-Please expire your password. Have fun!
+your account ``\$name'' was created.
+Have fun!
 
 See also chpass(1), finger(1), passwd(1)
 EOF
