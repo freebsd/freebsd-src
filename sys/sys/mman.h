@@ -159,8 +159,8 @@ typedef	__size_t	size_t;
 
 __BEGIN_DECLS
 /*
- * XXX not yet implemented: posix_madvise(), posix_mem_offset(),
- * posix_typed_mem_get_info(), posix_typed_mem_open().
+ * XXX not yet implemented: mlockall(), munlockall(), posix_madvise(),
+ * posix_mem_offset(), posix_typed_mem_get_info(), posix_typed_mem_open().
  */
 #if __BSD_VISIBLE
 int	madvise(void *, size_t, int);
@@ -168,9 +168,6 @@ int	mincore(const void *, size_t, char *);
 int	minherit(void *, size_t, int);
 #endif
 int	mlock(const void *, size_t);
-#if __POSIX_VISIBLE >= 199309
-int	mlockall(int);
-#endif
 #ifndef _MMAP_DECLARED
 #define	_MMAP_DECLARED
 void *	mmap(void *, size_t, int, int, int, off_t);
@@ -178,9 +175,6 @@ void *	mmap(void *, size_t, int, int, int, off_t);
 int	mprotect(const void *, size_t, int);
 int	msync(void *, size_t, int);
 int	munlock(const void *, size_t);
-#if __POSIX_VISIBLE >= 199309
-int	munlockall(void);
-#endif
 int	munmap(void *, size_t);
 #if __POSIX_VISIBLE >= 199309
 int	shm_open(const char *, int, mode_t);
