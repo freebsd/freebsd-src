@@ -13,12 +13,18 @@
 # your name on top after doing something trivial like reindenting it, just
 # to make it look like you wrote it!).
 #
-DIALOG=${DIALOG=/usr/bin/dialog}
+
+# Some useful constants.
+PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
+export PATH
+TAR=tar
+TAR_FLAGS=xvf
 
 set_defaults() {
 	media_type="" ;
 	media_device="" ;
-	inst_dir="/usr/tmp" ;
+	tmp_dir="/usr/tmp" ;
+	installing=1 ;
 }
 
 handle_rval() {
@@ -36,39 +42,47 @@ handle_rval() {
 	esac
 }
 
+confirm() {
+	dialog --title "Please Confirm" --msgbox "$*" 10 72
+}
+
+error() {
+	dialog --title "Error!" --msgbox "$*" 10 72
+}
+
 not_supported() {
-	$DIALOG --title "Sorry!" \
+	dialog --title "Sorry!" \
         --msgbox "This feature is not supported in the current version of the \
 installation tools but will be in the release, barring \
 some sort of fatal accident.  Please press RETURN to go on." 10 60
 }
 
 welcome() {
-	$DIALOG --title "Welcome to FreeBSD" --clear \
+	dialog --title "Welcome to FreeBSD" --clear \
 --msgbox "Hi!  Nice to see you've made it this far.  We're now ready to
 install one or more packed distribution sets onto your machine.  At
-the minimum, you need a bindist installation. A secrdist is also useful
-if you want your system to have any kind of effective security.
-The secrdist is a bit of a special case since it cannot be legally
-obtained from the U.S. due to export restrictions, but non-U.S.
-versions are also available.  See the release notes for more information
-on where to obtain a secrdist for your part of the world.  In the menus
-and dialogs that follow, you may use your arrow keys to move up and down,
-as well as your PageUp and PageDown keys to scroll.  If you wish to abort
-while in a dialog, hit ESC twice." 15 77
+the minimum, you need a bindist installation. A secrdist is also
+useful if you want your system to have any kind of effective
+security.  The secrdist is a bit of a special case since it cannot
+be legally obtained from the U.S. due to export restrictions, but
+non-U.S. versions are also available.  See the release notes for more
+information on where to obtain a secrdist for your part of the world.
+In the menus and dialogs that follow, you may use your arrow keys to
+move up and down, as well as your PageUp and PageDown keys to scroll.
+If you wish to abort while in a dialog, hit ESC twice." 15 72
 	if ! handle_rval $?; then return 1; fi
 }
 
 choose_media() {
 	while [ "$media_device" = "" ]; do
 
-	$DIALOG --clear --title "Chose installation media" \
+	dialog --clear --title "Chose installation media" \
 --menu "Before we begin the installation, we need to chose and possibly \n\
 configure your method of installation.  Please pick from one of \n\
 the following options.  If your option isn't listed here, your \n\
 best bet may be to simply select CANCEL to get a shell and proceed \n\
 manually on your own. \n\n\
-	Please choose one of the following:" 20 70 5 \
+	Please choose one of the following:" 20 72 5 \
 	"Tape" "Load installation from SCSI or QIC tape" \
 	"CDROM" "Load installation from SCSI or Mitsumi CDROM" \
         "DOS" "Load from DOS floppies or a DOS hard disk partition" \
@@ -82,10 +96,10 @@ manually on your own. \n\n\
 
 	case $choice in
 	Tape)
-		$DIALOG --clear --title "Chose tape type" \
+		dialog --clear --title "Chose tape type" \
 --menu "Which type of tape drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n\n\
-		Choose one of the following:" 20 70 2 \
+		Choose one of the following:" 20 72 2 \
 		"SCSI" "SCSI tape drive attached to standard SCSI controller" \
 		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
 			2> /tmp/menu.tmp.$$
@@ -104,17 +118,39 @@ system?  FreeBSD supports the following types:\n\n\
 		esac
 	;;
 	CDROM)
-		not_supported
+		dialog --clear --title "Chose CDROM type" \
+--menu "Which type of CDROM drive do you have attached to your \n\
+system?  FreeBSD supports the following types:\n\n\
+		Choose one of the following:" 15 72 2 \
+		"SCSI" "SCSI CDROM drive attached to standard SCSI controller" \
+		"Mitsumi" "Mitsumi CDROM drive" \
+			2> /tmp/menu.tmp.$$
+		retval=$?
+		choice=`cat /tmp/menu.tmp.$$`
+		rm -f /tmp/menu.tmp.$$
+		if ! handle_rval $retval; then continue; fi
+		media_type=cdrom;
+		case $choice in
+			SCSI)
+				media_device=/dev/cd0d
+			;;
+			Mitsumi)
+				media_device=/dev/mcd0d
+			;;
+		esac
 	;;
 	DOS)
 		not_supported
 	;;
 	FTP)
-		$DIALOG --title "FTP Installation Information" --clear \
+		dialog --title "FTP Installation Information" --clear \
 --inputbox "Please specify the machine and directory location of the
-distribution you wish to load.  This should be a \"URL style\"
-specification (e.g. something like ftp://ftp.freeBSD.org/pub/...)\n\n" \
-16 70 'ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist/' 2> /tmp/inputbox.tmp.$$
+distribution you wish to load.  This should be either a \"URL style\"
+specification (e.g. something like ftp://ftp.freeBSD.org/pub/...) or
+simply the name of a host to connect to.  If only a host name is
+specified, the installation assumes that you will properly connect
+and \"mget\" the files yourself.\n\n" \
+16 72 "ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA/bindist/" 2> /tmp/inputbox.tmp.$$
 		if ! handle_rval $?; then continue; fi
 		media_type=ftp
 		media_device=`cat /tmp/inputbox.tmp.$$`
@@ -126,18 +162,107 @@ specification (e.g. something like ftp://ftp.freeBSD.org/pub/...)\n\n" \
 	done
 }
 
+set_tmpdir()
+{
+	dialog --title "Chose temporary directory" --clear \
+--inputbox "Please specify the name of a directory containing enough
+free space to hold the temporary files for this distribution.
+At minimum, a binary distribution will require around 10MB.
+At maximum, a srcdist may take 60MB or more.  If the directory
+you specify does not exist, it will be created for you.\n\n" \
+16 72 "/usr/tmp" 2> /tmp/inputbox.tmp.$$
+		if ! handle_rval $?; then continue; fi
+	tmp_dir=`cat /tmp/inputbox.tmp.$$`
+	mkdir -p $tmp_dir
+	return 0
+}
+
+cd_tmpdir()
+{
+	if ! cd $tmp_dir 2> /dev/null; then
+		error "No such file or directory for ${tmp_dir}, sorry!  Please fix this and try again."
+		return
+	fi
+	return 0
+}
+
+rm_tmpdir()
+{
+	if dialog --title "Delete contents?" --clear \
+        --yesno "Do you wish to delete the contents of ${tmp_dir}?" 5 72; then
+		rm -rf $tmp_dir/*
+	fi
+}
+
 install_set()
 {
-	echo Installing from $media_type on $media_device
+	case $media_type in
+	tape)
+		if ! set_tmpdir; then return 1; fi
+		if ! cd_tmpdir; then return 1; fi
+		confirm "Please mount tape for ${media_device}."
+		dialog --title "Extract from tape" --clear \
+			--prgbox "$TAR $TAR_FLAGS $media_device" 10 72
+		if [ -f extract.sh ]; then
+			sh ./extract.sh
+		else
+			error "This isn't a proper distribution.  No installation script found."
+		fi
+		rm_tmpdir
+	;;
+
+	cdrom)
+		not_supported
+		return
+	;;
+
+	dos)
+		if ! set_tmpdir; then return 1; fi
+		if ! cd_tmpdir; then return 1; fi
+		not_supported
+		return
+	;;
+	ftp)
+		if ! set_tmpdir; then return 1; fi
+		if ! cd_tmpdir; then return 1; fi
+		if ! echo $media_device | grep -v 'ftp://'; then
+			if ! ncftp $media_device/* 2>/dev/null; then
+				error "Couldn't fetch distribution from ${media_device}!"
+			else
+				if [ -f extract.sh ]; then
+					sh ./extract.sh
+				else
+					error "This isn't a proper distribution.  No installation script found."
+				fi
+			fi
+		else
+			ftp $media_device
+			if [ -f extract.sh ]; then
+				sh ./extract.sh
+			else
+				error "No installation script found.  Please grab the right bits."
+			fi
+		fi
+		rm_tmpdir
+		return
+	;;
+
+	nfs)
+		not_supported
+		return
+	;;
+	esac
 }
 
 welcome
+set_defaults
 
-while :; do
+while [ $installing -eq 1 ]; do
 	if choose_media; then
 		install_set
+		media_device=""; media_type=""
 	else
-		echo "Exiting per user request.";
-		exit 0;
+		confirm "Exiting per user request.";
+		installing=0
 	fi
 done
