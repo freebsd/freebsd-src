@@ -37,10 +37,10 @@
 .\"
 .Dd January 19, 1999
 .Dt NG_FRAME_RELAY 8
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm ng_frame_relay
-.Nd Frame relay netgraph node type
+.Nd frame relay netgraph node type
 .Sh SYNOPSIS
 .Fd #include <netgraph/ng_frame_relay.h>
 .Sh DESCRIPTION
@@ -80,7 +80,7 @@ control message, or when all hooks have been disconnected.
 Technically, frames on DLCI X should not be transmitted to the switch
 until the LMI protocol entity on both ends has configured DLCI X as active.
 The
-.Nm frame_relay
+.Nm
 node type ignores this restriction, and will always pass data received
 on a DLCI hook to
 .Dv downstream .
@@ -89,5 +89,10 @@ Instead, it should query the LMI node first.
 .Xr netgraph 4 ,
 .Xr ng_lmi 8 ,
 .Xr ngctl 8 .
-.Sh AUTHOR
-Julian Elischer <julian@whistle.com>
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq julian@whistle.com
