@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_send.c,v 1.7 2001/02/22 07:28:25 mellon Exp $";
+static const char rcsid[] = "$Id: res_send.c,v 1.7.2.1 2002/11/03 04:34:24 dhankins Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Rename the I/O functions in case we're tracing. */
@@ -600,7 +600,7 @@ res_nsend(res_state statp,
 							   (unsigned)len);
 					}
 					Dprint(statp->options & RES_DEBUG,
-					       (stdout, ";; new DG socket\n"))
+					       (stdout, ";; new DG socket\n"));
 #endif /* CAN_RECONNECT */
 					statp->_flags &= ~RES_F_CONN;
 					errno = 0;
