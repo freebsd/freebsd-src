@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -32,12 +33,28 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)localeconv.c	8.1 (Berkeley) 6/4/93";
+#endif
 static char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <locale.h>
+#include "lmonetary.h"
+#include "lnumeric.h"
+ 
+/* 
+ * The localeconv() function constructs a struct lconv from the current
+ * monetary and numeric locales.
+ *
+ * Because localeconv() may be called many times (especially by library
+ * routines like printf() & strtod()), the approprate members of the 
+ * lconv structure are computed only when the monetary or numeric 
+ * locale has been changed.
+ */
+int __mlocale_changed = 1;
+int __nlocale_changed = 1;
 
 /*
  * Return the current locale conversion.
@@ -45,7 +62,46 @@ static char rcsid[] =
 struct lconv *
 localeconv()
 {
-	extern struct lconv *__lconv;
+    static struct lconv ret;
 
-	return (__lconv);
+    if (__mlocale_changed) {
+	/* LC_MONETARY part */
+        struct lc_monetary_T * mptr; 
+
+#define M_ASSIGN_STR(NAME) (ret.NAME = (char*)mptr->NAME)
+#define M_ASSIGN_CHAR(NAME) (ret.NAME = mptr->NAME[0])
+
+	mptr = __get_current_monetary_locale();
+	M_ASSIGN_STR(int_curr_symbol);
+	M_ASSIGN_STR(currency_symbol);
+	M_ASSIGN_STR(mon_decimal_point);
+	M_ASSIGN_STR(mon_thousands_sep);
+	M_ASSIGN_STR(mon_grouping);
+	M_ASSIGN_STR(positive_sign);
+	M_ASSIGN_STR(negative_sign);
+	M_ASSIGN_CHAR(int_frac_digits);
+	M_ASSIGN_CHAR(frac_digits);
+	M_ASSIGN_CHAR(p_cs_precedes);
+	M_ASSIGN_CHAR(p_sep_by_space);
+	M_ASSIGN_CHAR(n_cs_precedes);
+	M_ASSIGN_CHAR(n_sep_by_space);
+	M_ASSIGN_CHAR(p_sign_posn);
+	M_ASSIGN_CHAR(n_sign_posn);
+	__mlocale_changed = 0;
+    }
+
+    if (__nlocale_changed) {
+	/* LC_NUMERIC part */
+        struct lc_numeric_T * nptr; 
+
+#define N_ASSIGN_STR(NAME) (ret.NAME = (char*)nptr->NAME)
+
+	nptr = __get_current_numeric_locale();
+	N_ASSIGN_STR(decimal_point);
+	N_ASSIGN_STR(thousands_sep);
+	N_ASSIGN_STR(grouping);
+	__nlocale_changed = 0;
+    }
+
+    return (&ret);
 }

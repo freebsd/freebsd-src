@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/syslimits.h>
@@ -34,7 +33,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "un-namespace.h"
 
 #include "setlocale.h"
 #include "ldpart.h"
