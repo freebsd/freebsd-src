@@ -60,26 +60,6 @@
 /* device configuration flags */
 #define KB_CONF_FAIL_IF_NO_KBD	(1 << 0) /* don't install if no kbd is found */
 
-/* some macros */
-#define PC98KBD_UNIT(dev)	minor(dev)
-#define PC98KBD_MKMINOR(unit)	(unit)
-
-/* cdev driver declaration */
-
-typedef struct pckbd_softc {
-	short		flags;
-#define	PC98KBD_ATTACHED	(1 << 0)
-	keyboard_t	*kbd;
-#ifdef KBD_INSTALL_CDEV
-	genkbd_softc_t	gensc;
-#endif
-} pckbd_softc_t;
-
-#define PC98KBD_SOFTC(unit)		\
-	(((unit) >= NPCKBD) ? NULL : pckbd_softc[(unit)])
-
-static pckbd_softc_t	*pckbd_softc[NPCKBD];
-
 static int		pckbdprobe(struct isa_device *dev);
 static int		pckbdattach(struct isa_device *dev);
 
@@ -95,26 +75,11 @@ struct isa_driver pckbddriver = {
 
 static int		pckbd_probe_unit(int unit, int port, int irq,
 					 int flags);
-static int		pckbd_attach_unit(int unit, pckbd_softc_t *sc,
+static int		pckbd_attach_unit(int unit, keyboard_t **kbd,
 					  int port, int irq, int flags);
 static timeout_t	pckbd_timeout;
 
-#ifdef KBD_INSTALL_CDEV
-
-static d_open_t		pckbdopen;
-static d_close_t	pckbdclose;
-static d_read_t		pckbdread;
-static d_ioctl_t	pckbdioctl;
-static d_poll_t		pckbdpoll;
-
-static struct  cdevsw pckbd_cdevsw = {
-	pckbdopen,	pckbdclose,	pckbdread,	nowrite,
-	pckbdioctl,	nostop,		nullreset,	nodevtotty,
-	pckbdpoll,	nommap,		NULL,		DRIVER_NAME,
-	NULL,		-1,
-};
-
-#endif /* KBD_INSTALL_CDEV */
+static keyboard_t *pckbd[NPCKBD];
 
 static int
 pckbdprobe(struct isa_device *dev)
@@ -126,28 +91,17 @@ pckbdprobe(struct isa_device *dev)
 static int
 pckbdattach(struct isa_device *dev)
 {
-	pckbd_softc_t *sc;
-
-	if (dev->id_unit >= sizeof(pckbd_softc)/sizeof(pckbd_softc[0]))
-		return 0;
-	sc = pckbd_softc[dev->id_unit]
-	   = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL)
-		return 0;
-	bzero(sc, sizeof(*sc));
-
 	dev->id_ointr = pckbd_isa_intr;
-	return ((pckbd_attach_unit(dev->id_unit, sc, dev->id_iobase,
-				   dev->id_irq, dev->id_flags)) ? 0 : 1);
+
+	return ((pckbd_attach_unit(dev->id_unit, &pckbd[dev->id_unit],
+				   dev->id_iobase, dev->id_irq,
+				   dev->id_flags)) ? 0 : 1);
 }
 
 static void
 pckbd_isa_intr(int unit)
 {
-	keyboard_t *kbd;
-
-	kbd = pckbd_softc[unit]->kbd;
-	(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
+	(*kbdsw[pckbd[unit]->kb_index]->intr)(pckbd[unit], NULL);
 }
 
 static int
@@ -170,14 +124,11 @@ pckbd_probe_unit(int unit, int port, int irq, int flags)
 }
 
 static int
-pckbd_attach_unit(int unit, pckbd_softc_t *sc, int port, int irq, int flags)
+pckbd_attach_unit(int unit, keyboard_t **kbd, int port, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
 	int error;
-
-	if (sc->flags & PC98KBD_ATTACHED)
-		return 0;
 
 	sw = kbd_get_switch(DRIVER_NAME);
 	if (sw == NULL)
@@ -186,19 +137,18 @@ pckbd_attach_unit(int unit, pckbd_softc_t *sc, int port, int irq, int flags)
 	/* reset, initialize and enable the device */
 	args[0] = port;
 	args[1] = irq;
-	sc->kbd = NULL;
+	*kbd = NULL;
 	error = (*sw->probe)(unit, args, flags);
 	if (error)
 		return error;
-	error = (*sw->init)(unit, &sc->kbd, args, flags);
+	error = (*sw->init)(unit, kbd, args, flags);
 	if (error)
 		return error;
-	(*sw->enable)(sc->kbd);
+	(*sw->enable)(*kbd);
 
 #ifdef KBD_INSTALL_CDEV
 	/* attach a virtual keyboard cdev */
-	error = kbd_attach(makedev(0, PC98KBD_MKMINOR(unit)), sc->kbd,
-			   &pckbd_cdevsw);
+	error = kbd_attach(*kbd);
 	if (error)
 		return error;
 #endif /* KBD_INSTALL_CDEV */
@@ -207,12 +157,11 @@ pckbd_attach_unit(int unit, pckbd_softc_t *sc, int port, int irq, int flags)
 	 * This is a kludge to compensate for lost keyboard interrupts.
 	 * A similar code used to be in syscons. See below. XXX
 	 */
-	pckbd_timeout(sc->kbd);
+	pckbd_timeout(*kbd);
 
 	if (bootverbose)
-		(*sw->diag)(sc->kbd, bootverbose);
+		(*sw->diag)(*kbd, bootverbose);
 
-	sc->flags |= PC98KBD_ATTACHED;
 	return 0;
 }
 
@@ -251,63 +200,6 @@ pckbd_timeout(void *arg)
 	splx(s);
 	timeout(pckbd_timeout, arg, hz/10);
 }
-
-/* cdev driver functions */
-
-#ifdef KBD_INSTALL_CDEV
-
-static int
-pckbdopen(dev_t dev, int flag, int mode, struct proc *p)
-{
-	pckbd_softc_t *sc;
-
-	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
-	if (sc == NULL)
-		return ENXIO;
-	if (mode & (FWRITE | O_CREAT | O_APPEND | O_TRUNC))
-		return ENODEV;
-
-	/* FIXME: set the initial input mode (K_XLATE?) and lock state? */
-	return genkbdopen(&sc->gensc, sc->kbd, flag, mode, p);
-}
-
-static int
-pckbdclose(dev_t dev, int flag, int mode, struct proc *p)
-{
-	pckbd_softc_t *sc;
-
-	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
-	return genkbdclose(&sc->gensc, sc->kbd, flag, mode, p);
-}
-
-static int
-pckbdread(dev_t dev, struct uio *uio, int flag)
-{
-	pckbd_softc_t *sc;
-
-	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
-	return genkbdread(&sc->gensc, sc->kbd, uio, flag);
-}
-
-static int
-pckbdioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
-{
-	pckbd_softc_t *sc;
-
-	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
-	return genkbdioctl(&sc->gensc, sc->kbd, cmd, arg, flag, p);
-}
-
-static int
-pckbdpoll(dev_t dev, int event, struct proc *p)
-{
-	pckbd_softc_t *sc;
-
-	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
-	return genkbdpoll(&sc->gensc, sc->kbd, event, p);
-}
-
-#endif /* KBD_INSTALL_CDEV */
 
 /* LOW-LEVEL */
 
