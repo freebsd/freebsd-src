@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.51 1996/12/05 03:30:59 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.52 1996/12/09 10:59:36 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -320,7 +320,7 @@ Slippery when wet.  Beware of dog.
   <sect2><heading>* Pentium Pro class</heading>
   <sect2><heading>Pentium class</heading>
      <sect3><heading>Clock speeds</heading>
-     <p><em>Contributed by &a.rgrimes;.<newline>1 Octomber 1996.</em></p>
+     <p><em>Contributed by &a.rgrimes;.<newline>1 October 1996.</em></p>
        <p>Pentium class machines use different clock speeds for the various
          parts of the system.  These being the speed of the CPU, external
 	 memory bus, and the PCI bus.  It is not always true that a "faster"
