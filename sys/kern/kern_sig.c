@@ -89,8 +89,6 @@ static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, int prop);
-static int	do_sigprocmask(struct thread *td, int how,
-				sigset_t *set, sigset_t *oset, int old);
 static int	kern_sigtimedwait(struct thread *td, sigset_t set,
 				siginfo_t *info, struct timespec *timeout);
 
@@ -590,12 +588,12 @@ execsigs(p)
 }
 
 /*
- * do_sigprocmask()
+ * kern_sigprocmask()
  *
  *	Manipulate signal mask.
  */
-static int
-do_sigprocmask(td, how, set, oset, old)
+int
+kern_sigprocmask(td, how, set, oset, old)
 	struct thread *td;
 	int how;
 	sigset_t *set, *oset;
@@ -636,7 +634,7 @@ do_sigprocmask(td, how, set, oset, old)
 }
 
 /*
- * sigprocmask() - MP SAFE (XXXKSE not under KSE it isn't)
+ * sigprocmask() - MP SAFE
  */
 
 #ifndef _SYS_SYSPROTO_H_
@@ -662,7 +660,7 @@ sigprocmask(td, uap)
 		if (error)
 			return (error);
 	}
-	error = do_sigprocmask(td, uap->how, setp, osetp, 0);
+	error = kern_sigprocmask(td, uap->how, setp, osetp, 0);
 	if (osetp && !error) {
 		error = copyout(osetp, uap->oset, sizeof(oset));
 	}
@@ -688,7 +686,7 @@ osigprocmask(td, uap)
 	int error;
 
 	OSIG2SIG(uap->mask, set);
-	error = do_sigprocmask(td, uap->how, &set, &oset, 1);
+	error = kern_sigprocmask(td, uap->how, &set, &oset, 1);
 	SIG2OSIG(oset, td->td_retval[0]);
 	return (error);
 }
