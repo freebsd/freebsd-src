@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.18 1996/04/08 19:40:54 smpatel Exp $
+ * $Id: asc.c,v 1.19 1996/04/13 12:18:43 bde Exp $
  */
 
 #include "asc.h"
@@ -48,7 +48,6 @@
 #include "kernel.h"
 #include "ioctl.h"
 
-#include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 #include "i386/isa/ascreg.h"
 

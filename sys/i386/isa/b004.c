@@ -62,9 +62,7 @@
 #include <machine/clock.h>
 
 #include <i386/isa/b004.h>
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-
 
 static struct kern_devconf kdc_bqu[NBQU] = { {
 	0, 0, 0,		/* filled in by dev_attach */

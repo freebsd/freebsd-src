@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.104 1996/06/12 06:52:12 dyson Exp $
+ *	$Id: pmap.c,v 1.105 1996/06/17 03:35:23 dyson Exp $
  */
 
 /*
@@ -92,8 +92,6 @@
 #include <machine/pcb.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
-
-#include <i386/isa/isa.h>
 
 #define PMAP_KEEP_PDIRS
 

@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.22 1996/01/26 09:27:19 phk Exp $
+ * $Id: if_el.c,v 1.23 1996/02/06 18:50:40 wollman Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -61,9 +61,7 @@
 
 #include <machine/clock.h>
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 #include <i386/isa/if_elreg.h>
 
 #define ETHER_MIN_LEN	64
