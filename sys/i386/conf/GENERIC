@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.46 1995/06/11 19:31:11 rgrimes Exp $
+#	$Id: GENERIC,v 1.47 1995/08/18 11:26:16 jkh Exp $
 #
 
 machine		"i386"
@@ -69,7 +69,7 @@ device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 device		mcd1	at isa? port 0x340 bio irq 11 vector mcdintr
 
-controller	matcd0	at isa? port ? bio
+controller	matcd0	at isa? port 0x230 bio
 
 device		scd0	at isa? port 0x230 bio
 
