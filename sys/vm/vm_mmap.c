@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.55 1996/12/22 23:17:09 joerg Exp $
+ * $Id: vm_mmap.c,v 1.56 1996/12/28 22:40:44 dyson Exp $
  */
 
 /*
@@ -475,6 +475,10 @@ mprotect(p, uap, retval)
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
 	prot = uap->prot & VM_PROT_ALL;
+#if defined(VM_PROT_READ_IS_EXEC)
+	if (prot & VM_PROT_READ)
+		prot |= VM_PROT_EXECUTE;
+#endif
 
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
@@ -926,6 +930,14 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	if ((flags & (MAP_ANON|MAP_SHARED)) == 0) {
 		docow = MAP_COPY_ON_WRITE | MAP_COPY_NEEDED;
 	}
+
+#if defined(VM_PROT_READ_IS_EXEC)
+	if (prot & VM_PROT_READ)
+		prot |= VM_PROT_EXECUTE;
+
+	if (maxprot & VM_PROT_READ)
+		maxprot |= VM_PROT_EXECUTE;
+#endif
 
 	rv = vm_map_find(map, object, foff, addr, size, fitit,
 			prot, maxprot, docow);
