@@ -27,7 +27,8 @@
 #define DIST_CATPAGES		0x10000
 #define DIST_PORTS		0x20000
 #define DIST_LOCAL		0x40000
-#define DIST_ALL		0x7FFFF
+#define DIST_PERL		0x80000
+#define DIST_ALL		0xFFFFF
 
 /* Subtypes for CRYPTO distribution */
 #define DIST_CRYPTO_CRYPTO	0x0001
@@ -124,7 +125,7 @@
 
 /* Canned distribution sets */
 #define _DIST_USER \
-	( DIST_BASE | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_CRYPTO )
+	( DIST_BASE | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_CRYPTO | DIST_PERL )
 
 #define _DIST_DEVELOPER \
 	( _DIST_USER | DIST_PROFLIBS | DIST_INFO | DIST_SRC )
