@@ -34,6 +34,7 @@ options 	DEC_AXPPCI_33		# UDB, Multia, AXPpci33, Noname
 options 	DEC_EB164		# EB164, PC164, PC164LX, PC164SX
 options 	DEC_EB64PLUS		# EB64+, Aspen Alpine, etc
 options 	DEC_2100_A50		# AlphaStation 200, 250, 255, 400
+options 	DEC_2100_A500		# AlphaServer 2000, 2100, 2100A
 options 	DEC_KN20AA		# AlphaStation 500, 600
 options 	DEC_ST550		# Personal Workstation 433, 500, 600
 options 	DEC_ST6600		# xp1000, dp264, ds20, ds10, family
