@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mouse.h,v 1.11 1998/08/06 09:15:52 dfr Exp $
  *	from: i386/include mouse.h,v 1.10
  */
 
@@ -114,6 +114,7 @@ typedef struct mousehw {
 #define MOUSE_MODEL_THINK		5
 #define MOUSE_MODEL_EASYSCROLL		6
 #define MOUSE_MODEL_MOUSEMANPLUS	7
+#define MOUSE_MODEL_KIDSPAD		8
 
 typedef struct mousemode {
 	int protocol;		/* MOUSE_PROTO_XXX */
@@ -141,6 +142,7 @@ typedef struct mousemode {
 #define MOUSE_PROTO_THINK	11	/* Kensignton Thinking Mouse, 3/4 bytes */
 #define MOUSE_PROTO_SYSMOUSE	12	/* /dev/sysmouse */
 #define MOUSE_PROTO_X10MOUSEREM	13	/* X10 MouseRemote, 3 bytes */
+#define MOUSE_PROTO_KIDSPAD	14	/* Genius Kidspad */
 
 #define MOUSE_RES_UNKNOWN	(-1)
 #define MOUSE_RES_DEFAULT	0
