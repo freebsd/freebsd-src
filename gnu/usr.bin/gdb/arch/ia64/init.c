@@ -124,12 +124,14 @@ initialize_all_files (void)
   _initialize_ser_hardwire ();
   _initialize_ser_pipe ();
   _initialize_ser_tcp ();
+#ifndef CROSS_DEBUGGER
   _initialize_fbsd_proc ();
   _initialize_gcore ();
   _initialize_ia64_fbsd_nat ();
   _initialize_kernel_u_addr ();
   _initialize_infptrace ();
   _initialize_inftarg ();
+#endif
   _initialize_remote ();
   _initialize_dcache ();
   _initialize_sr_support ();
