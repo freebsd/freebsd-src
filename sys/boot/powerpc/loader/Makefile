@@ -4,15 +4,26 @@ BASE=		loader
 PROG=		${BASE}
 NOMAN=
 MAN1=
+STRIP=
 NEWVERSWHAT=	"bootstrap loader" OpenFirmware/PowerPC
 BINDIR?=	/boot
 
-NOGCCERROR=	YES
+LOADER_DISK_SUPPORT?=	yes
+LOADER_NET_SUPPORT?=	yes
 
 # architecture-specific loader code
 SRCS=		conf.c
 
+# Pull in common loader code
+.PATH:		${.CURDIR}/../../ofw/common
+.include	<${.CURDIR}/../../ofw/common/Makefile.inc>
+
+.if defined(LOADER_DISK_SUPPORT)
 CFLAGS+=	-DLOADER_DISK_SUPPORT
+.endif
+.if defined(LOADER_NET_SUPPORT)
+CFLAGS+=	-DLOADER_NET_SUPPORT
+.endif
 
 .if !defined(NOFORTH)
 # Enable BootForth
@@ -26,9 +37,10 @@ LIBFICL=	${.CURDIR}/../../ficl/libficl.a
 .endif
 
 # Always add MI sources 
-.PATH: ${.CURDIR}/../../common
-.include <${.CURDIR}/../../common/Makefile.inc>
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
+.PATH:		${.CURDIR}/../../common
+.include	<${.CURDIR}/../../common/Makefile.inc>
+CFLAGS+=	-I${.CURDIR}/../../common
+CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
 CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym ${BASE}.help
 
@@ -56,13 +68,16 @@ CFLAGS+=	-elf
 # New linker set code
 #CFLAGS+=	-DNEW_LINKER_SET
 
+# Debug me!
+CFLAGS+=	-g
+LDFLAGS+=	-g
+
 vers.o:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
 ${BASE}.help: help.common help.ofw
-	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk \
-	    > ${.TARGET}
+	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 beforeinstall:
 .if exists(${DESTDIR}/boot/loader)
@@ -70,45 +85,40 @@ beforeinstall:
 .endif
 .if exists(${.OBJDIR}/loader.help)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
+		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
 .else
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/${BASE}.help ${DESTDIR}/boot
+		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
 .endif
 .if !exists(${DESTDIR}/boot/loader.rc)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
+		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
 .endif
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
+		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
+		${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
+		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
 
-${PROG}: ${OBJS} ${LIBOFW} ${LIBSTAND} ${LIBFICL} powerpc.o vers.o setdef0.o \
-    setdef1.o
-	${LD} ${LDFLAGS} -o ${.TARGET} setdef0.o powerpc.o ${OBJS} setdef1.o \
-	    vers.o ${LIBFICL} ${LIBOFW} ${LIBSTAND}
+${PROG}: ${OBJS} ${LIBOFW} ${LIBSTAND} ${LIBFICL} start.o vers.o setdef0.o setdef1.o
+	${LD} ${LDFLAGS} -o ${.TARGET} setdef0.o start.o ${OBJS} setdef1.o \
+		vers.o ${LIBFICL} ${LIBOFW} ${LIBSTAND}
 
-setdef0.o: setdefs.h
+setdef0.o:	setdefs.h
 
-setdef1.o: setdefs.h
+setdef1.o:	setdefs.h
+
+machine:
+	ln -sf ${.CURDIR}/../../../powerpc/include machine
 
 # Cannot use ${OBJS} above this line
 .include <bsd.prog.mk>
 
-# If it's not there, don't consider it a target
-.if exists(${.CURDIR}/../../../ofw/include)
 beforedepend ${OBJS}: machine
 
-machine:
-	ln -sf ${.CURDIR}/../../../ofw/include machine
-
-.endif
-
 CLEANFILES+=	machine setdefs.h setdef0.c setdef1.c setdef0.o setdef1.o \
-		powerpc.o
+		start.o
 
 .ORDER: setdefs.h setdef0.c setdef1.c
 setdefs.h setdef0.c setdef1.c: ${OBJS}

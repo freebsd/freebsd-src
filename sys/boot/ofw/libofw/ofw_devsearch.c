@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#include <stand.h>
+
+#include "libofw.h"
 #include "openfirm.h"
 
 static phandle_t	curnode;
@@ -106,4 +109,28 @@ ofw_devsearch(const char *type, char *path)
 			}
 		}
 	}
+}
+
+/*
+ * Get the device_type of a node.
+ * Return DEVT_DISK, DEVT_NET or DEVT_NONE.
+ */
+int
+ofw_devicetype(char *path)
+{
+	phandle_t	node;
+	char		type[16];
+
+	node = OF_finddevice(path);
+	if (node == -1)
+		return DEVT_NONE;
+
+	OF_getprop(node, "device_type", type, 16);
+
+	if (strncmp(type, "block", 16) == 0)
+		return DEVT_DISK;
+	else if (strncmp(type, "network", 16) == 0)
+		return DEVT_NET;
+	else
+		return DEVT_NONE;
 }

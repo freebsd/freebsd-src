@@ -184,3 +184,44 @@ ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
     free(idev);
     return(err);
 }
+
+char *
+ofw_fmtdev(void *vdev)
+{
+	struct ofw_devdesc	*dev = (struct ofw_devdesc *)vdev;
+	static char		buf[128];
+	char			*cp;
+
+	switch(dev->d_type) {
+	case DEVT_NONE:
+		strcpy(buf, "(no device)");
+		break;
+
+	case DEVT_DISK:
+		/* XXX Insert stuff here */
+		sprintf(buf, "%s%d:", dev->d_dev->dv_name,
+		    dev->d_kind.ofwdisk.unit);
+		break;
+
+	case DEVT_NET:
+		sprintf(buf, "%s%d:", dev->d_dev->dv_name,
+		    dev->d_kind.netif.unit);
+		break;
+	}
+
+	return buf;
+}
+
+int
+ofw_setcurrdev(struct env_var *ev, int flags, void *value)
+{
+	struct ofw_devdesc	*ncurr;
+	int			rv;
+
+	if ((rv = ofw_parsedev(&ncurr, value, NULL)) != 0)
+		return rv;
+
+	free(ncurr);
+	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
+	return 0;
+}
