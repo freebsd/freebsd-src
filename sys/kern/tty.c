@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.73 1995/12/13 15:13:11 julian Exp $
+ * $Id: tty.c,v 1.74 1995/12/14 08:31:56 phk Exp $
  */
 
 /*-
@@ -1250,6 +1250,32 @@ ttyunblock(tp)
 		SET(tp->t_state, TS_TBLOCK);	/* try again later */
 	ttstart(tp);
 }
+
+#ifdef notyet
+/* Not used by any current (i386) drivers. */
+/*
+ * Restart after an inter-char delay.
+ */
+void
+ttrstrt(tp_arg)
+	void *tp_arg;
+{
+	struct tty *tp;
+	int s;
+
+#ifdef DIAGNOSTIC
+	if (tp_arg == NULL)
+		panic("ttrstrt");
+#endif
+	tp = tp_arg;
+	s = spltty();
+
+	CLR(tp->t_state, TS_TIMEOUT);
+	ttstart(tp);
+
+	splx(s);
+}
+#endif
 
 int
 ttstart(tp)
