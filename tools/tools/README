@@ -12,3 +12,5 @@ ifinfo		Uses the interface MIB to print out all the information
 kernxref	Shellscript to cross reference symbols in the LINT kernel.
 epfe 		extract printing filter examples from printing.sgml
 tcl_bmake	generates a bmake Makefile for src/lib/libtcl
+kdrv		KernelDriver; add/list/remove third-party kernel driver
+		source to/in/from a kernel source tree.
