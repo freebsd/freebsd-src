@@ -1,0 +1,5 @@
+-- $Id: README,v 1.1 1999/04/18 01:41:31 tom Exp $
+
+The 'tack' program is distributed with ncurses, but is not an integral
+part of ncurses (the two are licensed differently, and the tack directory
+may be removed without causing ncurses to configure or build properly).
