@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.12 1997/10/06 04:27:32 nate Exp $
+ * $Id: kern_intr.c,v 1.13 1998/02/10 17:10:23 eivind Exp $
  *
  */
 
@@ -61,7 +61,7 @@ typedef struct intrec {
 #ifndef SMP
 #include <machine/ipl.h>
 
-static inline intrmask_t
+static __inline intrmask_t
 splq(intrmask_t mask)
 {
 	intrmask_t tmp = cpl;
