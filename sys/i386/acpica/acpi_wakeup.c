@@ -199,7 +199,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	AcpiSetFirmwareWakingVector(sc->acpi_wakephys);
 
 	ef = read_eflags();
-	disable_intr();
+	ACPI_DISABLE_IRQS();
 
 	/* Create Identity Mapping */
 	if ((p = curproc) == NULL)
@@ -254,13 +254,10 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			acpi_printcpu();
 
 		/* Call ACPICA to enter the desired sleep state */
-		ACPI_DISABLE_IRQS();
-		ACPI_FLUSH_CPU_CACHE(); 
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
 			status = AcpiEnterSleepStateS4bios();
 		else
 			status = AcpiEnterSleepState(state);
-		ACPI_ENABLE_IRQS();
 
 		if (status != AE_OK) {
 			device_printf(sc->acpi_dev,
