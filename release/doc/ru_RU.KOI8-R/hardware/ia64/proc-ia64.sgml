@@ -2,9 +2,9 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/ia64/proc-ia64.sgml,v 1.1 2004/05/27 06:09:43 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/ia64/proc-ia64.sgml,v 1.2 2004/08/03 12:53:39 den Exp $
 
-     Original revision: 1.8
+     Original revision: 1.9
 -->
 
 <sect1 id="proc-ia64">
@@ -21,7 +21,7 @@
          <ulink url="http://perforce.FreeBSD.org/">Perforce repository</ulink>)</para>
      </listitem>
      <listitem>
-       <para>HP i2000
+       <para>HP i2000</para>
      </listitem>
      <listitem>
        <para>Intel 460GX</para>

@@ -2,9 +2,9 @@
 The FreeBSD Russian Documentation Project
 
 $FreeBSD$
-$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/install.sgml,v 1.2 2004/06/28 13:35:10 den Exp $
+$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/install.sgml,v 1.3 2004/08/03 12:53:40 den Exp $
 
-Original revision: 1.25
+Original revision: 1.26
 
 install.sgml
 
@@ -68,6 +68,7 @@ from {alpha,i386}/INSTALL.TXT.
 	последнему меню установки &os; до тех пор, пока не
 	было выполнено резервное копирование важных данных.</para>
     </important>
+  </sect2>
 
   <sect2>
     <title>Требования к аппаратному обеспечению</title>
@@ -113,7 +114,7 @@ from {alpha,i386}/INSTALL.TXT.
 
 <!-- amd64 text starts here -->
     <para arch="amd64">&os; для &arch.print; работает с процессорами
-      Athlon64, Athlon64-FX, Opteron или выше.
+      Athlon64, Athlon64-FX, Opteron или выше.</para>
 
     <para arch="amd64">Если ваш компьютер основан на
       nVidia nForce3 Pro-150, вам НЕОБХОДИМО использовать BIOS setup для
@@ -819,6 +820,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 		это номер порта FTP прокси сервера.</para>
 	    </listitem>
 	  </itemizedlist>
+	</para>
 
       </sect4>
     </sect3>
