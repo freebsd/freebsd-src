@@ -64,17 +64,17 @@ struct fs_ops splitfs_fsops = {
 static void
 split_file_destroy(struct split_file *sf)
 {
-     int i;
+    int i;
 
-     if (sf->filesc > 0) {
+    if (sf->filesc > 0) {
 	for (i = 0; i < sf->filesc; i++) {
 	    free(sf->filesv[i]);
 	    free(sf->descsv[i]);
 	}
 	free(sf->filesv);
 	free(sf->descsv);
-     }
-     free(sf);
+    }
+    free(sf);
 }
 
 static int
