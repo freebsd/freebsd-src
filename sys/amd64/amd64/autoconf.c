@@ -81,9 +81,6 @@ static void	configure_first __P((void *));
 static void	configure __P((void *));
 static void	configure_final __P((void *));
 
-static void	configure_finish __P((void));
-static void	configure_start __P((void));
-
 #if defined(FFS) && defined(FFS_ROOT)
 static void	setroot __P((void));
 #endif
