@@ -1128,7 +1128,8 @@ free(void *ptr)
 void *
 realloc(void *ptr, size_t size)
 {
-    register void *r;
+    void *r;
+    int err = 0;
 
     THREAD_LOCK();
     malloc_func = " in realloc():";
@@ -1154,13 +1155,15 @@ realloc(void *ptr, size_t size)
 	r = ZEROSIZEPTR;
     } else if (!ptr) {
 	r = imalloc(size);
+	err = (r == NULL);
     } else {
         r = irealloc(ptr, size);
+	err = (r == NULL);
     }
     UTRACE(ptr, size, r);
     malloc_active--;
     THREAD_UNLOCK();
-    if (malloc_xmalloc && !r)
+    if (malloc_xmalloc && err)
 	wrterror("out of memory\n");
     return (r);
 }
