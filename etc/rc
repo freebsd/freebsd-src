@@ -137,7 +137,7 @@ adjkerntz -i
 clean_var() {
 	if [ ! -f /var/run/clean_var ]; then
 		rm -rf /var/run/*
-		rm -f /var/spool/lock/*
+		find /var/spool/lock ! -type d -delete
 		rm -rf /var/spool/uucp/.Temp/*
 		# Keep a copy of the boot messages around
 		dmesg >/var/run/dmesg.boot
