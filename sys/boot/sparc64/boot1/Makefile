@@ -13,10 +13,10 @@ CFLAGS=	-W -Wall -I../../ -I../../common/ -Os -ffreestanding -mno-app-regs \
 	-mcmodel=medlow
 
 boot1.elf: _start.o boot1.o
-	${LD} -N -Ttext ${BOOTBLOCKBASE} -o ${.TARGET} _start.o boot1.o
+	${LD} -N -Ttext ${BOOTBLOCKBASE} -o ${.TARGET} ${.ALLSRC}
 
 boot1.aout: boot1.elf
-	/usr/local/bin/elftoaout -o ${.TARGET} boot1.elf
+	elf2aout -o ${.TARGET} ${.ALLSRC}
 
 # Construct boot1. disklabel expects it to contain zeroed-out space for the
 # label, and to be of the correct size.
