@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $P4: //depot/projects/openpam/doc/man/pam_chauthtok.3#8 $
 .\"
-.Dd February 22, 2002
+.Dd March 5, 2002
 .Dt PAM_CHAUTHTOK 3
 .Os
 .Sh NAME
@@ -70,8 +70,12 @@ Conversation failure.
 Permission denied.
 .It Bq Er PAM_SERVICE_ERR
 Error in service module.
+.It Bq Er PAM_SYMBOL_ERR
+Invalid symbol.
 .It Bq Er PAM_SYSTEM_ERR
 System error.
+.It Bq Er PAM_TRY_AGAIN
+Try again.
 .El
 .Sh SEE ALSO
 .Xr pam 3 ,

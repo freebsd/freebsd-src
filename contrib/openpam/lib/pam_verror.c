@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $P4: //depot/projects/openpam/lib/pam_verror.c#4 $
  */
 
 #include <stdarg.h>
@@ -70,7 +70,7 @@ pam_verror(pam_handle_t *pamh,
 
 /**
  * The =pam_verror function passes its arguments to =pam_vprompt with a
- * =style argument of =PAM_ERROR_MSG, and discards the response.
+ * style argument of =PAM_ERROR_MSG, and discards the response.
  *
  * >pam_error
  * >pam_vinfo
