@@ -4,6 +4,7 @@ LIB=	disk
 SRCS=	blocks.c chunk.c disk.c change.c \
 	create_chunk.c rules.c write_disk.c
 INCS=	libdisk.h
+
 WARNS=	2
 
 .if ${MACHINE} == "pc98"
