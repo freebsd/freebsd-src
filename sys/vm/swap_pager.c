@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.34 1995/04/16 13:58:42 davidg Exp $
+ * $Id: swap_pager.c,v 1.35 1995/04/19 10:32:11 davidg Exp $
  */
 
 /*
@@ -1263,23 +1263,15 @@ swap_pager_output(swp, m, count, flags, rtvals)
 					break;
 			}
 
-
 			ntoget = (i == SWB_NPAGES) ? SWB_NPAGES : 1;
 			/*
 			 * this code is alittle conservative, but works (the
 			 * intent of this code is to allocate small chunks for
 			 * small objects)
 			 */
-			if (ntoget * PAGE_SIZE > object->size) {
-				ntoget = (object->size + (PAGE_SIZE - 1)) / PAGE_SIZE;
-				/*
-				 * make sure that we include the needed page
-				 */
-				if (ntoget <= off) {
-					printf("swap_pager_output: page outside of object -- %d, %d\n",
-					   m[j]->offset, object->size);
-					ntoget = off + 1;
-				}
+			if ((i != 1) &&
+				(foff + ntoget * PAGE_SIZE) > object->size) {
+				ntoget = ((object->size + (PAGE_SIZE - 1)) - foff) / PAGE_SIZE;
 			}
 	retrygetspace:
 			if (!swap_pager_full && ntoget > 1 &&
