@@ -858,6 +858,8 @@ getnewvnode(tag, mp, vops, vpp)
 	mac_init_vnode(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
 		mac_associate_vnode_singlelabel(mp, vp);
+	else if (mp == NULL)
+		printf("NULL mp in getnewvnode()\n");
 #endif
 	delmntque(vp);
 	if (mp != NULL) {
