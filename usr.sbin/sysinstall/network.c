@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.18 1996/12/09 06:02:30 jkh Exp $
+ * $Id: network.c,v 1.19 1996/12/09 06:37:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -94,7 +94,7 @@ mediaInitNetwork(Device *dev)
 	if (!val)
 	    return FALSE;
 	else
-	    strcpy(attach, val);
+	    strncpy(attach, val, 256);
 	/*
 	 * Doing this with vsystem() is actually bogus since we should be storing the pid of slattach
 	 * for later killing.  It's just too convenient to call vsystem(), however, rather than
@@ -206,7 +206,7 @@ startPPP(Device *devp)
     strncpy(provider, val ? val : "0", 16);
 
     if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
-	strcpy(myaddr, ((DevInfo *)devp->private)->ipaddr);
+	strncpy(myaddr, ((DevInfo *)devp->private)->ipaddr, 16);
     else
 	strcpy(myaddr, "0");
 
