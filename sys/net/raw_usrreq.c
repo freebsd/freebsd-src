@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: raw_usrreq.c,v 1.3 1994/08/18 22:35:21 wollman Exp $
+ * $Id: raw_usrreq.c,v 1.4 1994/10/08 22:38:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -187,7 +187,6 @@ raw_usrreq(so, req, m, nam, control)
 		raw_detach(rp);
 		break;
 
-#ifdef notdef
 	/*
 	 * If a socket isn't bound to a single address,
 	 * the raw input routine will hand it anything
@@ -195,6 +194,8 @@ raw_usrreq(so, req, m, nam, control)
 	 * nothing else around it should go to). 
 	 */
 	case PRU_CONNECT:
+		error = EINVAL;
+#if 0
 		if (rp->rcb_faddr) {
 			error = EISCONN;
 			break;
@@ -202,16 +203,19 @@ raw_usrreq(so, req, m, nam, control)
 		nam = m_copym(nam, 0, M_COPYALL, M_WAIT);
 		rp->rcb_faddr = mtod(nam, struct sockaddr *);
 		soisconnected(so);
+#endif
 		break;
 
 	case PRU_BIND:
+		error = EINVAL;
+#if 0
 		if (rp->rcb_laddr) {
 			error = EINVAL;			/* XXX */
 			break;
 		}
 		error = raw_bind(so, nam);
-		break;
 #endif
+		break;
 
 	case PRU_CONNECT2:
 		error = EOPNOTSUPP;
