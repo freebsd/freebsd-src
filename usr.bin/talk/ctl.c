@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)ctl.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -43,10 +47,7 @@ static char sccsid[] = "@(#)ctl.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <protocols/talkd.h>
-#include <netinet/in.h>
 #include "talk.h"
-#include "talk_ctl.h"
 
 struct	sockaddr_in daemon_addr = { sizeof(daemon_addr), AF_INET };
 struct	sockaddr_in ctl_addr = { sizeof(ctl_addr), AF_INET };

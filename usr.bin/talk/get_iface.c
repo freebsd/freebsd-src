@@ -28,15 +28,14 @@
  *
  * From:
  *  Id: find_interface.c,v 1.1 1995/08/14 16:08:39 wollman Exp
- *
- * $Id$
  */
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
+#include <errno.h>
 #include "talk.h"
 
 /*
