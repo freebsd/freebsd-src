@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.18 1995/11/06 12:49:24 jkh Exp $
+ * $Id: index.c,v 1.19 1995/11/06 22:26:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -62,12 +62,13 @@ _strdup(char *ptr)
 
 static char *descrs[] = {
     "Package Selection", "To mark a package or select a category, move to it and press SPACE.\n"
-	"To unmark a package, press SPACE again.  When you want to commit your\n"
-	    "marks, press [ENTER].  To go to a previous menu, select UP item or Cancel.\n"
-		"To search for a package by name, press ESC.",
+    "To unmark a package, press SPACE again.  When you want to commit your\n"
+    "marks, press [ENTER].  To go to a previous menu, select UP item or Cancel.\n"
+    "To search for a package by name, press ESC.  To extract packages, you\n"
+    "should Cancel all the way out of any submenus and finally this menu.",
     "Package Targets", "These are the packages you've selected for extraction.\n\n"
-	"If you're sure of these choices, select OK.\n"
-	    "If not, select Cancel to go back to the package selection menu.\n",
+    "If you're sure of these choices, select OK.\n"
+    "If not, select Cancel to go back to the package selection menu.\n",
     "All", "All available packages in all categories.",
     "applications", "User application software.",
     "archivers", "Utilities for archiving and unarchiving data.",

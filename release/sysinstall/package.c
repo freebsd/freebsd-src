@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.25 1995/11/10 15:10:07 jkh Exp $
+ * $Id: package.c,v 1.26 1995/11/12 11:02:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -145,8 +145,10 @@ package_extract(Device *dev, char *name)
 		    if (!variable_get(VAR_NO_CONFIRM))
 			msgConfirm("The package specified (%s) has no CONTENTS file.  This means\n"
 				   "that there was either a media error of some sort or the package\n"
-				   "file itself is corrupted.\n"
-				   "You may wish to look into this and try again.", name);
+				   "file itself is corrupted.  It is also possible that you simply\n"
+				   "ran out of temporary space and need to go to the options editor\n"
+				   "to select a package temp directory with more space.  Either way,\n"
+				   "you may wish to look into the problem and try again.", name);
 		    else
 			msgNotify("The package specified (%s) has no CONTENTS file.  Skipping.", name);
 		}
