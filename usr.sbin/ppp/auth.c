@@ -117,7 +117,7 @@ auth_SetPhoneList(const char *name, char *phone, int phonelen)
         continue;
       buff[strlen(buff) - 1] = '\0';
       memset(vector, '\0', sizeof vector);
-      if ((n = MakeArgs(buff, vector, VECSIZE(vector), 1)) < 0)
+      if ((n = MakeArgs(buff, vector, VECSIZE(vector), PARSE_REDUCE)) < 0)
         log_Printf(LogWARN, "%s: %d: Invalid line\n", SECRETFILE, lineno);
       if (n < 5)
         continue;
@@ -168,7 +168,7 @@ auth_Select(struct bundle *bundle, const char *name)
         continue;
       buff[strlen(buff) - 1] = '\0';
       memset(vector, '\0', sizeof vector);
-      if ((n = MakeArgs(buff, vector, VECSIZE(vector), 1)) < 0)
+      if ((n = MakeArgs(buff, vector, VECSIZE(vector), PARSE_REDUCE)) < 0)
         log_Printf(LogWARN, "%s: %d: Invalid line\n", SECRETFILE, lineno);
       if (n < 2)
         continue;
@@ -227,7 +227,7 @@ auth_Validate(struct bundle *bundle, const char *name,
         continue;
       buff[strlen(buff) - 1] = 0;
       memset(vector, '\0', sizeof vector);
-      if ((n = MakeArgs(buff, vector, VECSIZE(vector), 1)) < 0)
+      if ((n = MakeArgs(buff, vector, VECSIZE(vector), PARSE_REDUCE)) < 0)
         log_Printf(LogWARN, "%s: %d: Invalid line\n", SECRETFILE, lineno);
       if (n < 2)
         continue;
@@ -271,7 +271,7 @@ auth_GetSecret(struct bundle *bundle, const char *name, int len,
     if (buff[n] == '\n')
       buff[n] = '\0';	/* Trim the '\n' */
     memset(vector, '\0', sizeof vector);
-    if ((n = MakeArgs(buff, vector, VECSIZE(vector), 1)) < 0)
+    if ((n = MakeArgs(buff, vector, VECSIZE(vector), PARSE_REDUCE)) < 0)
       log_Printf(LogWARN, "%s: %d: Invalid line\n", SECRETFILE, lineno);
     if (n < 2)
       continue;

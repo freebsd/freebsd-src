@@ -91,6 +91,11 @@
 #define PHYS_FOREGROUND		64 /* Pseudo mode, same as background */
 #define PHYS_ALL		127
 
+/* flags passed to findblank() and MakeArgs() */
+#define PARSE_NORMAL	0
+#define PARSE_REDUCE	1
+#define PARSE_NOHASH	2
+
 extern void randinit(void);
 extern ssize_t fullread(int, void *, size_t);
 extern const char *mode2Nam(int);
