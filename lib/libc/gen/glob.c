@@ -75,6 +75,7 @@ static char sccsid[] = "@(#)glob.c	8.3 (Berkeley) 10/13/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "collate.h"
 
 #define	DOLLAR		'$'
 #define	DOT		'.'
@@ -147,7 +148,6 @@ static int	 match __P((Char *, Char *, Char *));
 #ifdef DEBUG
 static void	 qprintf __P((const char *, Char *));
 #endif
-static int       collcmp __P((int, int));
 
 int
 glob(pattern, flags, errfunc, pglob)
@@ -669,38 +669,6 @@ globextend(path, pglob)
 	return(copy == NULL ? GLOB_NOSPACE : 0);
 }
 
-static int
-collcmp (c1, c2)
-	int c1, c2;
-{
-	static char s1[2], s2[2];
-
-	if (c1 == c2)
-		return (0);
-	if (   (isascii(c1) && isascii(c2))
-	    || (!isalpha(c1) && !isalpha(c2))
-	   )
-		return (c1 - c2);
-	if (isalpha(c1) && !isalpha(c2)) {
-		if (isupper(c1))
-			return ('A' - c2);
-		else
-			return ('a' - c2);
-	} else if (isalpha(c2) && !isalpha(c1)) {
-		if (isupper(c2))
-			return (c1 - 'A');
-		else
-			return (c1 - 'a');
-	}
-	if (isupper(c1) && islower(c2))
-		return (-1);
-	else if (islower(c1) && isupper(c2))
-		return (1);
-	s1[0] = c1;
-	s2[0] = c2;
-	return strcoll(s1, s2);
-}
-
 /*
  * pattern matching function for filenames.  Each occurrence of the *
  * pattern causes a recursion level.
@@ -735,8 +703,8 @@ match(name, pat, patend)
 				++pat;
 			while (((c = *pat++) & M_MASK) != M_END)
 				if ((*pat & M_MASK) == M_RNG) {
-					if (   collcmp(CHAR(c), CHAR(k)) <= 0
-					    && collcmp(CHAR(k), CHAR(pat[1])) <= 0
+					if (   __collcmp(CHAR(c), CHAR(k)) <= 0
+					    && __collcmp(CHAR(k), CHAR(pat[1])) <= 0
 					   )
 						ok = 1;
 					pat += 2;
