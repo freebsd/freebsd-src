@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.79 1998/12/14 05:47:28 dillon Exp $
+**  $Id: pcisupport.c,v 1.80 1998/12/14 09:46:31 n_hibma Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -120,6 +120,7 @@ generic_pci_bridge (pcici_t tag)
  * XXX Both fixbushigh_orion() and fixbushigh_i1225() are bogus in that way,
  * that they store the highest bus number to scan in this device's config 
  * data, though it is about PCI buses attached to the CPU independently!
+ * The same goes for fixbushigh_450nx.
  */
 
 static void
@@ -138,6 +139,57 @@ fixbushigh_i1225(pcici_t tag)
 	if (sublementarybus != 0xff)
 		tag->secondarybus = tag->subordinatebus = sublementarybus +1;
 }
+
+
+/*
+ * This reads the PCI config space for the 82451NX MIOC in the 450NX
+ * chipset to determine the PCI bus configuration.
+ *
+ * Assuming the BIOS has set up the MIOC properly, this will correctly
+ * report the number of PCI busses in the system.
+ *
+ * A small problem is that the Host to PCI bridge control is in the MIOC,
+ * while the host-pci bridges are separate PCI devices.  So it really
+ * isn't easily possible to set up the subordinatebus mappings as the
+ * 82454NX PCI expander bridges are probed, although that makes the
+ * most sense.
+ */
+static void
+fixbushigh_450nx(pcici_t tag)
+{
+	int subordinatebus;
+	unsigned long devmap;
+
+	/*
+	 * Read the DEVMAP field, so we know which fields to check.
+	 * If the Host-PCI bridge isn't marked as present by the BIOS,
+	 * we have to assume it doesn't exist.
+	 * If this doesn't find all the PCI busses, complain to the
+	 * BIOS vendor.  There is nothing more we can do.
+	 */
+	devmap = pci_cfgread(tag, 0xd6, 2) & 0x3c;
+	if (!devmap)
+		panic("450NX MIOC: No host to PCI bridges marked present.\n");
+	/*
+	 * Since the buses are configured in order, we just have to
+	 * find the highest bus, and use those numbers.
+	 */
+	if (devmap & 0x20) {			/* B1 */
+		subordinatebus = pci_cfgread(tag, 0xd5, 1);
+	} else if (devmap & 0x10) {		/* A1 */
+		subordinatebus = pci_cfgread(tag, 0xd4, 1);
+	} else if (devmap & 0x8) {		/* B0 */
+		subordinatebus = pci_cfgread(tag, 0xd2, 1);
+	} else /* if (devmap & 0x4) */ {	/* A0 */
+		subordinatebus = pci_cfgread(tag, 0xd1, 1);
+	}
+	if (bootverbose)
+		printf("fixbushigh_450nx: subordinatebus is %d\n",
+			subordinatebus);
+
+	tag->secondarybus = tag->subordinatebus = subordinatebus;
+}
+
 
 static void
 fixwsc_natoma(pcici_t tag)
@@ -233,6 +285,7 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x84c58086:
 		return ("Intel 82453KX/GX (Orion) PCI memory controller");
 	case 0x84ca8086:
+		fixbushigh_450nx(tag);
 		return ("Intel 82451NX Memory and I/O Controller");
 	case 0x84cb8086:
 		return ("Intel 82454NX PCI Expander Bridge");
