@@ -64,6 +64,17 @@
 #define	SECYR	((unsigned)(365*SECDAY))	/* seconds per common year */
 
 /*
+ * According to OSF/1's /usr/sys/include/arch/alpha/clock.h,
+ * the console adjusts the RTC years 13..19 to 93..99 and
+ * 20..40 to 00..20. (historical reasons?)
+ * DEC Unix uses an offset to the year to stay outside
+ * the dangerous area for the next couple of years.
+ */
+#define UNIX_YEAR_OFFSET 52 /* 41=>1993, 12=>2064 */
+
+static int clock_year_offset = 0;
+
+/*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
  * can use a simple formula for leap years.
  */
@@ -304,7 +315,7 @@ inittodr(base)
 	register int days, yr;
 	struct clocktime ct;
 	time_t deltat;
-	int badbase;
+	int badbase, clock_compat_osf1;
 	int s;
 	struct timespec ts;
 
@@ -316,9 +327,22 @@ inittodr(base)
 	} else
 		badbase = 0;
 
+	if (getenv_int("clock_compat_osf1", &clock_compat_osf1)) {
+		if (clock_compat_osf1)
+			clock_year_offset = UNIX_YEAR_OFFSET;
+	}
+
 	CLOCK_GET(clockdev, base, &ct);
 	clockinitted = 1;
 
+#ifdef DEBUG
+	printf("readclock: %d/%d/%d/%d/%d/%d\n", ct.year, ct.mon, ct.day,
+		ct.hour, ct.min, ct.sec);
+#endif
+	ct.year += clock_year_offset;
+	if (ct.year < 70)
+		ct.year += 100;
+	
 	/* simple sanity checks */
 	if (ct.year < 70 || ct.mon < 1 || ct.mon > 12 || ct.day < 1 ||
 	    ct.day > 31 || ct.hour > 23 || ct.min > 59 || ct.sec > 59) {
@@ -427,6 +451,7 @@ resettodr()
 	ct.min = t / SECMIN;
 	ct.sec = t % SECMIN;
 
+	ct.year = (ct.year - clock_year_offset) % 100;
 	CLOCK_SET(clockdev, &ct);
 }
 
