@@ -225,8 +225,10 @@ ad_attach(struct ata_device *atadev)
     if (ata_raiddisk_attach(adp))
 	adp->flags |= AD_F_RAID_SUBDISK;
     else {
-	if (atadev->driver)
+	if (atadev->driver) {
 	    ad_print(adp);
+	    ata_enclosure_print(atadev);
+	}
     }
 }
 
