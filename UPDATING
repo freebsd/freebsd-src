@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20030924:       p9	FreeBSD-SA-03:15.openssh
+	Fix PAM-related bugs in OpenSSH's challenge/response code.
+
 20030923:	p8	FreeBSD-SA-03:14.arp
 	Fix a bug in arplookup(), whereby a hostile party on a locally
 	attached network could exhaust kernel memory, and cause a system
