@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.2 1998/06/14 13:45:28 dfr Exp $
+ *	$Id: zs_tlsb.c,v 1.3 1998/07/05 12:16:54 dfr Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -404,7 +404,8 @@ static device_method_t zsc_tlsb_methods[] = {
 	DEVMETHOD(bus_print_child,	zsc_tlsb_print_child),
 	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_map_intr,		bus_generic_map_intr),
+	DEVMETHOD(bus_create_intr,	bus_generic_create_intr),
+	DEVMETHOD(bus_connect_intr,	bus_generic_connect_intr),
 
 	{ 0, 0 }
 };
@@ -453,6 +454,7 @@ static int
 zsc_tlsb_attach(device_t dev)
 {
 	struct zsc_softc* sc = device_get_softc(dev);
+	device_t parent = device_get_parent(dev);
 
 	bus_generic_attach(dev);
 	
@@ -460,7 +462,9 @@ zsc_tlsb_attach(device_t dev)
 	sc->sc_a = ZS_SOFTC(0);
 	sc->sc_b = ZS_SOFTC(1);
 
-	BUS_MAP_INTR(device_get_parent(dev), dev, zsc_tlsb_intr, sc);
+	BUS_CONNECT_INTR(parent,
+			 BUS_CREATE_INTR(parent, dev,
+					 1, zsc_tlsb_intr, sc));
 
 	return 0;
 }
