@@ -1831,10 +1831,11 @@ psmtimeout(void *arg)
 
     unit = (int)arg;
     sc = devclass_get_softc(psm_devclass, unit);
-    if (sc->watchdog) {
+    if (sc->watchdog && kbdc_lock(sc->kbdc, TRUE)) {
 	if (verbose >= 4)
 	    log(LOG_DEBUG, "psm%d: lost interrupt?\n", unit);
 	psmintr(sc);
+	kbdc_lock(sc->kbdc, FALSE);
     }
     sc->watchdog = TRUE;
     sc->callout = timeout(psmtimeout, (void *)unit, hz);
@@ -1881,18 +1882,6 @@ psmintr(void *arg)
         if ((sc->state & PSM_OPEN) == 0)
             continue;
     
-        /* 
-	 * Check sync bits. We check for overflow bits and the bit 3
-	 * for most mice. True, the code doesn't work if overflow 
-	 * condition occurs. But we expect it rarely happens...
-	 */
-	if ((sc->inputbytes == 0) 
-		&& ((c & sc->mode.syncmask[0]) != sc->mode.syncmask[1])) {
-            log(LOG_DEBUG, "psmintr: out of sync (%04x != %04x).\n", 
-		c & sc->mode.syncmask[0], sc->mode.syncmask[1]);
-            continue;
-	}
-
         sc->ipacket[sc->inputbytes++] = c;
         if (sc->inputbytes < sc->mode.packetsize) 
 	    continue;
@@ -1904,6 +1893,13 @@ psmintr(void *arg)
 #endif
 
 	c = sc->ipacket[0];
+
+	if ((c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
+            log(LOG_DEBUG, "psmintr: out of sync (%04x != %04x).\n", 
+		c & sc->mode.syncmask[0], sc->mode.syncmask[1]);
+	    sc->inputbytes = 0;
+            continue;
+	}
 
 	/* 
 	 * A kludge for Kensington device! 
