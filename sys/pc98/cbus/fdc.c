@@ -62,6 +62,7 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/devicestat.h>
+#include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/fcntl.h>
 #include <sys/fdcio.h>

@@ -49,6 +49,7 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/disk.h>
 #include <sys/disklabel.h>
 #ifndef PC98
 #define	DOSPTYP_EXTENDED	5
