@@ -13,12 +13,10 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.45 1994/08/18 22:34:52 wollman Exp $
+ * $Id: if_ed.c,v 1.46 1994/08/22 08:21:51 davidg Exp $
  */
 
 #include "ed.h"
-#if	NED > 0
-/* bpfilter included here in case it is needed in future net includes */
 #include "bpfilter.h"
 
 #include <sys/param.h>
@@ -81,6 +79,7 @@ struct ed_softc {
  *	being write-only. It's sort of a prototype/shadow of the real thing.
  */
 	u_char  wd_laar_proto;
+	u_char	cr_proto;
 	u_char  isa16bit;	/* width of access to card 0=8 or 1=16 */
 	int     is790;		/* set by the probe code if the card is 790
 				 * based */
@@ -114,10 +113,7 @@ void    ed_start(struct ifnet *);
 void    ed_reset(int);
 void    ed_watchdog(int);
 
-#ifdef MULTICAST
 void    ds_getmcaf();
-
-#endif
 
 static void ed_get_packet(struct ed_softc *, char *, int /* u_short */ , int);
 static void ed_stop(int);
@@ -466,26 +462,8 @@ ed_probe_WD80x3(isa_dev)
 		  inb(isa_dev->id_iobase + ED_WD790_ICR) | ED_WD790_ICR_EIL);
 	}
 	sc->isa16bit = isa16bit;
-
-/* XXX - I'm not sure if PIO mode is even possible on WD/SMC boards */
-#ifdef notyet
-
-	/*
-	 * The following allows the WD/SMC boards to be used in Programmed I/O
-	 * mode - without mapping the NIC memory shared. ...Not the prefered
-	 * way, but it might be the only way.
-	 */
-	if (isa_dev->id_flags & ED_FLAGS_FORCE_PIO) {
-		sc->mem_shared = 0;
-		isa_dev->id_maddr = 0;
-	} else {
-		sc->mem_shared = 1;
-	}
-#else
 	sc->mem_shared = 1;
-#endif
 	isa_dev->id_msize = memsize;
-
 	sc->mem_start = (caddr_t) isa_dev->id_maddr;
 
 	/*
@@ -511,91 +489,91 @@ ed_probe_WD80x3(isa_dev)
 	for (i = 0; i < ETHER_ADDR_LEN; ++i)
 		sc->arpcom.ac_enaddr[i] = inb(sc->asic_addr + ED_WD_PROM + i);
 
-	if (sc->mem_shared) {
-
-		/*
-		 * Set upper address bits and 8/16 bit access to shared memory
-		 */
-		if (isa16bit) {
-			if (sc->is790) {
-				sc->wd_laar_proto = inb(sc->asic_addr + ED_WD_LAAR);
-				outb(sc->asic_addr + ED_WD_LAAR, ED_WD_LAAR_M16EN);
-			} else {
-				outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
-					ED_WD_LAAR_L16EN | ED_WD_LAAR_M16EN |
-								  ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
-			}
+	/*
+	 * Set upper address bits and 8/16 bit access to shared memory
+	 */
+	if (isa16bit) {
+		if (sc->is790) {
+			sc->wd_laar_proto = inb(sc->asic_addr + ED_WD_LAAR);
+			outb(sc->asic_addr + ED_WD_LAAR, ED_WD_LAAR_M16EN);
 		} else {
-			if ((sc->type & ED_WD_SOFTCONFIG) ||
-#ifdef TOSH_ETHER
-			    (sc->type == ED_TYPE_TOSHIBA1) || (sc->type == ED_TYPE_TOSHIBA4) ||
-#endif
-			    (sc->type == ED_TYPE_WD8013EBT) && (!sc->is790)) {
-				outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
-								  ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
-			}
+			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
+			    ED_WD_LAAR_L16EN | ED_WD_LAAR_M16EN |
+			    ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
 		}
-
-		/*
-		 * Set address and enable interface shared memory.
-		 */
-		if (!sc->is790) {
+	} else {
+		if ((sc->type & ED_WD_SOFTCONFIG) ||
 #ifdef TOSH_ETHER
-			outb(sc->asic_addr + ED_WD_MSR + 1, ((kvtop(sc->mem_start) >> 8) & 0xe0) | 4);
-			outb(sc->asic_addr + ED_WD_MSR + 2, ((kvtop(sc->mem_start) >> 16) & 0x0f));
-			outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB | ED_WD_MSR_POW);
+		    (sc->type == ED_TYPE_TOSHIBA1) || (sc->type == ED_TYPE_TOSHIBA4) ||
+#endif
+		    (sc->type == ED_TYPE_WD8013EBT) && (!sc->is790)) {
+			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
+			    ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
+		}
+	}
+
+	/*
+	 * Set address and enable interface shared memory.
+	 */
+	if (!sc->is790) {
+#ifdef TOSH_ETHER
+		outb(sc->asic_addr + ED_WD_MSR + 1, ((kvtop(sc->mem_start) >> 8) & 0xe0) | 4);
+		outb(sc->asic_addr + ED_WD_MSR + 2, ((kvtop(sc->mem_start) >> 16) & 0x0f));
+		outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB | ED_WD_MSR_POW);
 
 #else
-			outb(sc->asic_addr + ED_WD_MSR, ((kvtop(sc->mem_start) >> 13) &
-					   ED_WD_MSR_ADDR) | ED_WD_MSR_MENB);
+		outb(sc->asic_addr + ED_WD_MSR, ((kvtop(sc->mem_start) >> 13) &
+		    ED_WD_MSR_ADDR) | ED_WD_MSR_MENB);
 #endif
-		} else {
-			outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
-			outb(sc->asic_addr + 0x04, (inb(sc->asic_addr + 0x04) | 0x80));
-			outb(sc->asic_addr + 0x0b, ((kvtop(sc->mem_start) >> 13) & 0x0f) |
-			     ((kvtop(sc->mem_start) >> 11) & 0x40) |
-			     (inb(sc->asic_addr + 0x0b) & 0xb0));
-			outb(sc->asic_addr + 0x04, (inb(sc->asic_addr + 0x04) & ~0x80));
-		}
+		sc->cr_proto = ED_CR_RD2;
+	} else {
+		outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
+		outb(sc->asic_addr + 0x04, (inb(sc->asic_addr + 0x04) | 0x80));
+		outb(sc->asic_addr + 0x0b, ((kvtop(sc->mem_start) >> 13) & 0x0f) |
+		     ((kvtop(sc->mem_start) >> 11) & 0x40) |
+		     (inb(sc->asic_addr + 0x0b) & 0xb0));
+		outb(sc->asic_addr + 0x04, (inb(sc->asic_addr + 0x04) & ~0x80));
+		sc->cr_proto = 0;
+	}
 
-		/*
-		 * Now zero memory and verify that it is clear
-		 */
-		bzero(sc->mem_start, memsize);
+	/*
+	 * Now zero memory and verify that it is clear
+	 */
+	bzero(sc->mem_start, memsize);
 
-		for (i = 0; i < memsize; ++i)
-			if (sc->mem_start[i]) {
-				printf("ed%d: failed to clear shared memory at %x - check configuration\n",
-				 isa_dev->id_unit, kvtop(sc->mem_start + i));
+	for (i = 0; i < memsize; ++i) {
+		if (sc->mem_start[i]) {
+			printf("ed%d: failed to clear shared memory at %x - check configuration\n",
+			    isa_dev->id_unit, kvtop(sc->mem_start + i));
 
-				/*
-				 * Disable 16 bit access to shared memory
-				 */
-				if (isa16bit) {
-					if (sc->is790) {
-						outb(sc->asic_addr + ED_WD_MSR, 0x00);
-					}
-					outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto &=
-							 ~ED_WD_LAAR_M16EN));
+			/*
+			 * Disable 16 bit access to shared memory
+			 */
+			if (isa16bit) {
+				if (sc->is790) {
+					outb(sc->asic_addr + ED_WD_MSR, 0x00);
 				}
-				return (0);
+				outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto &=
+				    ~ED_WD_LAAR_M16EN));
 			}
-
-		/*
-		 * Disable 16bit access to shared memory - we leave it
-		 * disabled so that 1) machines reboot properly when the board
-		 * is set 16 bit mode and there are conflicting 8bit
-		 * devices/ROMS in the same 128k address space as this boards
-		 * shared memory. and 2) so that other 8 bit devices with
-		 * shared memory can be used in this 128k region, too.
-		 */
-		if (isa16bit) {
-			if (sc->is790) {
-				outb(sc->asic_addr + ED_WD_MSR, 0x00);
-			}
-			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto &=
-							  ~ED_WD_LAAR_M16EN));
+			return (0);
 		}
+	}
+
+	/*
+	 * Disable 16bit access to shared memory - we leave it
+	 * disabled so that 1) machines reboot properly when the board
+	 * is set 16 bit mode and there are conflicting 8bit
+	 * devices/ROMS in the same 128k address space as this boards
+	 * shared memory. and 2) so that other 8 bit devices with
+	 * shared memory can be used in this 128k region, too.
+	 */
+	if (isa16bit) {
+		if (sc->is790) {
+			outb(sc->asic_addr + ED_WD_MSR, 0x00);
+		}
+		outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto &=
+		    ~ED_WD_LAAR_M16EN));
 	}
 	return (ED_WD_IO_PORTS);
 }
@@ -708,8 +686,8 @@ ed_probe_3Com(isa_dev)
 
 	sc->vendor = ED_VENDOR_3COM;
 	sc->type_str = "3c503";
-
 	sc->mem_shared = 1;
+	sc->cr_proto = ED_CR_RD2;
 
 	/*
 	 * Hmmm...a 16bit 3Com board has 16k of memory, but only an 8k window
@@ -918,6 +896,7 @@ ed_probe_Novell(isa_dev)
 
 	sc->vendor = ED_VENDOR_NOVELL;
 	sc->mem_shared = 0;
+	sc->cr_proto = ED_CR_RD2;
 	isa_dev->id_maddr = 0;
 
 	/*
@@ -1114,13 +1093,11 @@ ed_attach(isa_dev)
 	 * for AUI operation), based on compile-time config option.
 	 */
 	if (isa_dev->id_flags & ED_FLAGS_DISABLE_TRANCEIVER)
-		ifp->if_flags =
-		    (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS | IFF_ALTPHYS);
+		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS |
+		    IFF_MULTICAST | IFF_ALTPHYS);
 	else
-		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS);
-#ifdef MULTICAST
-	ifp->if_flags |= IFF_MULTICAST;
-#endif
+		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS |
+		    IFF_MULTICAST);
 
 	/*
 	 * Attach the interface
@@ -1185,11 +1162,7 @@ ed_stop(unit)
 	/*
 	 * Stop everything on the interface, and select page 0 registers.
 	 */
-	if (sc->is790) {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_STP);
-	} else {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
-	}
+	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
 	/*
 	 * Wait for interface to enter stopped state, but limit # of checks to
@@ -1254,11 +1227,8 @@ ed_init(unit)
 	/*
 	 * Set interface for page 0, Remote DMA complete, Stopped
 	 */
-	if (sc->is790) {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_STP);
-	} else {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
-	}
+	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
+
 	if (sc->isa16bit) {
 
 		/*
@@ -1323,11 +1293,7 @@ ed_init(unit)
 	/*
 	 * Program Command Register for page 1
 	 */
-	if (sc->is790) {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1 | ED_CR_STP);
-	} else {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1 | ED_CR_RD2 | ED_CR_STP);
-	}
+	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STP);
 
 	/*
 	 * Copy out our station address
@@ -1392,11 +1358,7 @@ ed_xmit(ifp)
 	/*
 	 * Set NIC for page 0 register access
 	 */
-	if (sc->is790) {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_STA);
-	} else {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
-	}
+	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
 
 	/*
 	 * Set TX buffer start page
@@ -1413,11 +1375,7 @@ ed_xmit(ifp)
 	/*
 	 * Set page 0, Remote DMA complete, Transmit Packet, and *Start*
 	 */
-	if (sc->is790) {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_TXP | ED_CR_STA);
-	} else {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_TXP | ED_CR_STA);
-	}
+	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_TXP | ED_CR_STA);
 	sc->xmit_busy = 1;
 
 	/*
@@ -1664,11 +1622,7 @@ ed_rint(unit)
 	/*
 	 * Set NIC to page 1 registers to get 'current' pointer
 	 */
-	if (sc->is790) {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1 | ED_CR_STA);
-	} else {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1 | ED_CR_RD2 | ED_CR_STA);
-	}
+	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STA);
 
 	/*
 	 * 'sc->next_packet' is the logical beginning of the ring-buffer -
@@ -1734,22 +1688,15 @@ ed_rint(unit)
 		/*
 		 * Set NIC to page 0 registers to update boundry register
 		 */
-		if (sc->is790) {
-			outb(sc->nic_addr + ED_P0_CR, ED_CR_STA);
-		} else {
-			outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
-		}
+		outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
+
 		outb(sc->nic_addr + ED_P0_BNRY, boundry);
 
 		/*
 		 * Set NIC to page 1 registers before looping to top (prepare
 		 * to get 'CURR' current pointer)
 		 */
-		if (sc->is790) {
-			outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1 | ED_CR_STA);
-		} else {
-			outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1 | ED_CR_RD2 | ED_CR_STA);
-		}
+		outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STA);
 	}
 }
 
@@ -1766,11 +1713,7 @@ edintr(unit)
 	/*
 	 * Set NIC to page 0 registers
 	 */
-	if (sc->is790) {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_STA);
-	} else {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
-	}
+	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
 
 	/*
 	 * loop until there are no more new interrupts
@@ -1952,11 +1895,7 @@ edintr(unit)
 		 * set in the transmit routine, is *okay* - it is 'edge'
 		 * triggered from low to high)
 		 */
-		if (sc->is790) {
-			outb(sc->nic_addr + ED_P0_CR, ED_CR_STA);
-		} else {
-			outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
-		}
+		outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
 
 		/*
 		 * If the Network Talley Counters overflow, read them to reset
@@ -2089,10 +2028,9 @@ ed_ioctl(ifp, command, data)
 			}
 		}
 		break;
-#ifdef MULTICAST
+
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-
 		/*
 		 * Update out multicast list.
 		 */
@@ -2110,9 +2048,8 @@ ed_ioctl(ifp, command, data)
 			error = 0;
 		}
 		break;
-#endif
-	case SIOCSIFMTU:
 
+	case SIOCSIFMTU:
 		/*
 		 * Set the interface MTU.
 		 */
@@ -2582,11 +2519,7 @@ ed_setrcr(ifp, sc)
 	int     i;
 
 	/* set page 1 registers */
-	if (sc->is790) {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1 | ED_CR_STP);
-	} else {
-		outb(sc->nic_addr + ED_P0_CR, ED_CR_PAGE_1 | ED_CR_RD2 | ED_CR_STP);
-	}
+	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STP);
 
 	if (ifp->if_flags & IFF_PROMISC) {
 
@@ -2601,32 +2534,11 @@ ed_setrcr(ifp, sc)
 		 * runts and packets with CRC & alignment errors.
 		 */
 		/* Set page 0 registers */
-		if (sc->is790) {
-			outb(sc->nic_addr + ED_P0_CR, ED_CR_STP);
-		} else {
-			outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
-		}
+		outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
+
 		outb(sc->nic_addr + ED_P0_RCR, ED_RCR_PRO | ED_RCR_AM |
 		     ED_RCR_AB | ED_RCR_AR | ED_RCR_SEP);
 	} else {
-#ifndef MULTICAST
-
-		/*
-		 * Initialize multicast address hashing registers to not
-		 * accept multicasts.
-		 */
-		for (i = 0; i < 8; ++i)
-			outb(sc->nic_addr + ED_P1_MAR0 + i, 0x00);
-
-		/* Set page 0 registers */
-		if (sc->is790) {
-			outb(sc->nic_addr + ED_P0_CR, ED_CR_STP);
-		} else {
-			outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
-		}
-
-		outb(sc->nic_addr + ED_P0_RCR, ED_RCR_AB);
-#else
 		/* set up multicast addresses and filter modes */
 		if (ifp->if_flags & IFF_MULTICAST) {
 			u_long  mcaf[2];
@@ -2644,11 +2556,7 @@ ed_setrcr(ifp, sc)
 				outb(sc->nic_addr + ED_P1_MAR0 + i, ((u_char *) mcaf)[i]);
 
 			/* Set page 0 registers */
-			if (sc->is790) {
-				outb(sc->nic_addr + ED_P0_CR, ED_CR_STP);
-			} else {
-				outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
-			}
+			outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
 			outb(sc->nic_addr + ED_P0_RCR, ED_RCR_AM | ED_RCR_AB);
 		} else {
@@ -2661,19 +2569,13 @@ ed_setrcr(ifp, sc)
 				outb(sc->nic_addr + ED_P1_MAR0 + i, 0x00);
 
 			/* Set page 0 registers */
-			if (sc->is790) {
-				outb(sc->nic_addr + ED_P0_CR, ED_CR_STP);
-			} else {
-				outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
-			}
+			outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
 			outb(sc->nic_addr + ED_P0_RCR, ED_RCR_AB);
 		}
-#endif	/* MULTICAST */
 	}
 }
 
-#ifdef MULTICAST
 /*
  * Compute crc for ethernet address
  */
@@ -2730,5 +2632,3 @@ ds_getmcaf(sc, mcaf)
 		ETHER_NEXT_MULTI(step, enm);
 	}
 }
-#endif
-#endif
