@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.18 1997/10/10 04:03:17 peter Exp $
+#	$Id: Makefile,v 1.19 1997/12/17 15:11:41 bde Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -21,8 +21,8 @@ SRCS=	add.c admin.c buffer.c checkin.c checkout.c classify.c client.c \
 
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../lib -I${CVSDIR}/src -I${CVSDIR}/lib -DHAVE_CONFIG_H
 
-DPADD+=	${LIBCVS} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
-LDADD+=	-L${LIBDESTDIR} -lcvs -lgnuregex -lmd -lcrypt -lz
+DPADD+=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
+LDADD+=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
 CFLAGS+=-DHAVE_KERBEROS -DHAVE_KRB_GET_ERR_TEXT
