@@ -85,6 +85,18 @@ display(win, text, size)
 			text++;
 			continue;
 		}
+		if (*text == 004 && win == &my_win) {
+			/* control-D clears the screen */
+			werase(my_win.x_win);
+			getyx(my_win.x_win, my_win.x_line, my_win.x_col);
+			wrefresh(my_win.x_win);
+			werase(his_win.x_win);
+			getyx(his_win.x_win, his_win.x_line, his_win.x_col);
+			wrefresh(his_win.x_win);
+			text++;
+			continue;
+		}
+		
 		/* erase character */
 		if (   *text == win->cerase
 		    || *text == 010     /* BS */

@@ -74,6 +74,7 @@ main(argc, argv)
 	(void) setlocale(LC_CTYPE, "");
 
 	get_names(argc, argv);
+	setproctitle("");
 	check_writeable();
 	init_display();
 	open_ctl();
