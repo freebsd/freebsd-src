@@ -1,0 +1,21 @@
+// $Id$
+// sm's bastardised csg_sun3
+// note that no /var/spool/rwho is mounted as we now expect amd to do this as /vol/rwho
+
+#define HOST	whoops
+#define DOMAIN	doc.ic.ac.uk
+#define BOOT	gould.doc.ic.ac.uk
+#define EXEC	gould.doc.ic.ac.uk
+#define MAIL	tsunfs.doc.ic.ac.uk
+
+// a sun3
+host HOST.DOMAIN
+
+mount /vol/export/roots/HOST as / from BOOT opts rw,grpid,hard,intr
+mount /vol/export/swaps/HOST fstype swap as swap from BOOT opts swap
+mount /vol/export/exec/sun3 as /usr from EXEC opts ro,grpid,hard,intr
+mount /vol/export/misc/crash/HOST as /var/crash/HOST from EXEC opts rw,nosuid,grpid,hard,intr
+mount /vol/export/misc/tmp/HOST as /tmp from EXEC opts rw,nosuid,grpid,hard,intr
+mount /vol/export/misc/usr.tmp/HOST as /var/tmp from EXEC opts rw,nosuid,grpid,hard,intr
+mount /var/mmdf from MAIL opts rw,nosuid,grpid,hard,intr
+

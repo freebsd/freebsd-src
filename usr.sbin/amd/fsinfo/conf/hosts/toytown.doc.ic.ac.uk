@@ -1,0 +1,116 @@
+host toytown.doc.ic.ac.uk
+
+fs /dev/xy0a {
+	fstype = 4.2
+	opts = rw,noquota,grpid
+	freq = 25
+	passno = 1
+	mount / {
+	}
+}
+
+fs /dev/xy0g {
+	fstype = 4.2
+	opts = rw,noquota,grpid
+	freq = 25
+	passno = 2
+	mount /usr {
+		exportfs "-access=toytown_clients:hangers_on:pythagoras,ro"
+		sun3 { }
+		local { }
+	}
+}
+
+fs /dev/xy1g {
+	fstype = 4.2
+	opts = rw,grpid,nosuid
+	freq = 6
+	passno = 2
+	mount /home/toytown {
+		exportfs "-access=toytown_clients:hangers_on,root=achilles"
+	}
+}
+
+fs /dev/xy0f {
+	fstype = 4.2
+	opts = rw,noquota,grpid,nosuid
+	freq = 25
+	passno = 4
+	mount /var {
+		spool {
+			exportfs "-access=toytown_clients:hangers_on"
+			mail { }
+			rwho { volname /vol/rwho sel "byte==big" }
+/*
+			mail { exportfs "-access=toytown_clients:hangers_on" }
+			rwho { exportfs "ro" volname /vol/rwho sel "byte==big" }
+*/
+		}
+		clients {
+			archimedes { exportfs "-access=archimedes,root=archimedes" }
+			archimedes.tmp { exportfs "-access=archimedes,root=archimedes" }
+			aver { exportfs "-access=aver,root=aver" }
+			aver.tmp { exportfs "-access=aver,root=aver" }
+			bigears { exportfs "-access=bigears,root=bigears" }
+			bigears.tmp { exportfs "-access=bigears,root=bigears" }
+			diadem { exportfs "-access=diadem,root=diadem" }
+			diadem.tmp { exportfs "-access=diadem,root=diadem" }
+			montague { exportfs "-access=montague,root=montague" }
+			montague.tmp { exportfs "-access=montague,root=montague" }
+			noddy { exportfs "-access=noddy,root=noddy" }
+			noddy.tmp { exportfs "-access=noddy,root=noddy" }
+			pcplod { exportfs "-access=pcplod,root=pcplod" }
+			pcplod.tmp { exportfs "-access=pcplod,root=pcplod" }
+			samson { exportfs "-access=samson,root=samson" }
+			samson.tmp { exportfs "-access=samson,root=samson" }
+			turing { exportfs "-access=turing,root=turing" }
+			turing.tmp { exportfs "-access=turing,root=turing" }
+		}
+	}
+}
+
+fs /dev/xy0d {
+	fstype = 4.2
+	opts = rw,noquota,grpid,nosuid
+	freq = 25
+	passno = 3
+	mount /export {
+		exec {
+			sun3 { exportfs "-access=toytown_clients:hangers_on:pythagoras" }
+		}
+		root {
+			archimedes { exportfs "-access=archimedes,root=archimedes" }
+			aver { exportfs "-access=aver,root=aver" }
+			bigears { exportfs "-access=bigears,root=bigears" }
+			diadem { exportfs "-access=diadem,root=diadem" }
+			montague { exportfs "-access=montague,root=montague" }
+			noddy { exportfs "-access=noddy,root=noddy" }
+			pcplod { exportfs "-access=pcplod,root=pcplod" }
+			samson { exportfs "-access=samson,root=samson" }
+			turing { exportfs "-access=turing,root=turing" }
+		}
+		swap {
+			archimedes { exportfs "-access=archimedes,root=archimedes" }
+			aver { exportfs "-access=aver,root=aver" }
+			bigears { exportfs "-access=bigears,root=bigears" }
+			diadem { exportfs "-access=diadem,root=diadem" }
+			montague { exportfs "-access=montague,root=montague" }
+			noddy { exportfs "-access=noddy,root=noddy" }
+			pcplod { exportfs "-access=pcplod,root=pcplod" }
+			samson { exportfs "-access=samson,root=samson" }
+			turing { exportfs "-access=turing,root=turing" }
+		}
+	}
+}
+
+fs /dev/xy0b {
+	fstype = swap
+}
+
+fs /dev/xy1b {
+	fstype = swap
+}
+
+mount /home/ganymede opts rw,grpid,nosuid,bg,intr
+mount /home/achilles opts rw,grpid,nosuid,bg,intr
+mount /usr/src from achilles.doc.ic.ac.uk opts rw,grpid,nosuid,bg,intr

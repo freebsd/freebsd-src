@@ -1,0 +1,122 @@
+.\" Copyright (c) 1983, 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt SYSLOGD 8
+.Os BSD 4.2
+.Sh NAME
+.Nm syslogd
+.Nd log systems messages
+.Sh SYNOPSIS
+.Nm syslogd
+.Op Fl f Ar config_file
+.Op Fl m Ar mark_interval
+.Op Fl p Ar log_socket
+.Sh DESCRIPTION
+.Nm Syslogd
+reads and logs messages to the system console, log files, other
+machines and/or users as specified by its configuration file.
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl f
+Specify the pathname of an alternate configuration file;
+the default is
+.Pa /etc/syslog.conf .
+.It Fl m
+Select the number of minutes between ``mark'' messages;
+the default is 20 minutes.
+.It Fl p
+Specify the pathname of an alternate log socket;
+the default is
+.Pa /dev/log .
+.El
+.Pp
+.Nm Syslogd
+reads its configuration file when it starts up and whenever it
+receives a hangup signal.
+For information on the format of the configuration file,
+see
+.Xr syslog.conf 5 .
+.Pp
+.Nm Syslogd
+reads messages from the
+.Tn UNIX
+domain socket
+.Pa /dev/log ,
+from an Internet domain socket specified in
+.Pa /etc/services ,
+and from the special device
+.Pa /dev/klog
+(to read kernel messages).
+.Pp
+.Nm Syslogd
+creates the file
+.Pa /var/run/syslog.pid ,
+and stores its process
+id there.
+This can be used to kill or reconfigure
+.Nm syslogd .
+.Pp
+The message sent to
+.Nm syslogd
+should consist of a single line.
+The message can contain a priority code, which should be a preceding
+decimal number in angle braces, for example,
+.Sq Aq 5.
+This priority code should map into the priorities defined in the
+include file
+.Aq Pa sys/syslog.h .
+.Sh FILES
+.Bl -tag -width /var/run/syslog.pid -compact
+.It Pa /etc/syslog.conf
+The configuration file.
+.It Pa /var/run/syslog.pid
+The process id of current
+.Nm syslogd .
+.It Pa /dev/log
+Name of the
+.Tn UNIX
+domain datagram log socket.
+.It Pa /dev/klog
+The kernel log device.
+.El
+.Sh SEE ALSO
+.Xr logger 1 ,
+.Xr syslog 3 ,
+.Xr services 5 ,
+.Xr syslog.conf 5
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .

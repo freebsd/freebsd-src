@@ -1,0 +1,9 @@
+host truth.doc.ic.ac.uk
+
+mount /export/exec/sun4 from achilles.doc.ic.ac.uk as /usr opts "rw,grpid,intr"
+mount /export/root/truth from achilles.doc.ic.ac.uk as / opts "rw,grpid,intr"
+mount /export/swap/truth from achilles.doc.ic.ac.uk fstype swap as swap opts swap
+mount /var/clients/truth.tmp from achilles.doc.ic.ac.uk as /tmp opts "rw,nosuid,grpid,intr"
+mount /var/clients/truth from achilles.doc.ic.ac.uk as /var opts "rw,nosuid,grpid,intr"
+mount /var/spool/mail from achilles.doc.ic.ac.uk as /var/spool/mail opts "rw,nosuid,grpid,intr"
+mount /usr/src from achilles.doc.ic.ac.uk as /usr/src opts "rw,nosuid,grpid,intr,bg"

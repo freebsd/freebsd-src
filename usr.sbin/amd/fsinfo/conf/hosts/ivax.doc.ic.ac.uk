@@ -1,0 +1,84 @@
+// $Id$
+// ivax
+
+#define FSTYPE_UFS	4.2
+#define DEFAULT_OPTS	rw
+
+host {
+	config "NFS_SERVER=true"
+	config "NFS_CLIENT=true"
+	config "YP_SERVER=false"
+	config "YP_CLIENT=false"
+
+	arch = vax
+	os = xinu43
+	cluster = teach.doc.ic.ac.uk
+	netif il0 { hwaddr = "08:08:08:08:08:08" netmask = 0xfffffe00 inaddr = 129.31.80.36 }
+
+} ivax.doc.ic.ac.uk
+
+// root
+fs /dev/hp0a {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 1
+	mount / {}
+}
+
+// swap
+fs /dev/hp0b {
+	fstype = swap
+}
+
+// usr
+fs /dev/hp0e {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 2
+	mount /usr {
+		exportfs "\
+			sky.doc.ic.ac.uk\
+			svax.doc.ic.ac.uk\
+			rvax.doc.ic.ac.uk\
+			ivax.doc.ic.ac.uk\
+		"
+	}
+}
+
+// var
+fs /dev/hp0d {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 3
+	mount /var {}
+}
+
+// home directories
+fs /dev/hp0f {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 3
+	mount default {
+		volname /home/ivax
+		exportfs "\
+			sky.doc.ic.ac.uk\
+		"
+	}
+}
+
+// sources which are used by the gould for the infoserver
+fs /dev/hp2c {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 3
+	mount /public {
+		exportfs "\
+			gould\
+		"
+	}
+}

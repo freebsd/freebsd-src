@@ -1,0 +1,142 @@
+.\" Copyright (c) 1985, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)iostat.8	8.1 (Berkeley) 6/6/93
+.\"
+.Dd June 6, 1993
+.Dt IOSTAT 8
+.Os BSD 4
+.Sh NAME
+.Nm iostat
+.Nd report
+.Tn I/O
+statistics
+.Sh SYNOPSIS
+.Nm iostat
+.Op Fl c Ar count
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar wait
+.Op Ar drives
+.Sh DESCRIPTION
+.Nm Iostat
+displays kernel
+.Tn I/O
+statistics on terminal, disk and cpu
+operations.
+.Pp
+The options are as follows:
+.Bl -tag -width flag
+.It Fl c
+Repeat the display
+.Ar count
+times.
+The first display is for the time since a reboot and each subsequent
+report is for the time period since the last display.
+If no
+.Ar wait
+interval is specified, the default is 1 second.
+.It Fl M
+Extract values associated with the name list from the specified core
+instead of the default
+.Dq Pa /dev/kmem .
+.It Fl N
+Extract the name list from the specified system instead of the default
+.Dq Pa /vmunix .
+.It Fl w
+Pause
+.Ar wait
+seconds between each display.
+If no repeat
+.Ar count
+is specified, the default is infinity.
+.El
+.Pp
+.Nm Iostat
+displays its information in the following format:
+.Bl -tag -width flag
+.It tty
+.Bl -tag -width indent -compact
+.It tin
+characters read from terminals
+.It tout
+characters written to terminals
+.El
+.It disks
+Disk operations (this field is system dependent). 
+The header of the field is the disk name and unit number.
+If more than four disk drives are configured in the system,
+.Nm iostat
+displays only the first four drives.
+To force
+.Nm iostat
+to display specific drives, their names may be supplied on the command
+line.
+.Pp
+.Bl -tag -width indent -compact
+.It sps
+sectors transferred per second
+.It tps
+transfers per second
+.It msps
+milliseconds per average seek (including implied
+seeks and rotational latency)
+.El
+.It cpu
+.Bl -tag -width indent -compact
+.It \&us
+% of cpu time in user mode
+.It \&ni
+% of cpu time in user mode running niced processes
+.It \&sy
+% of cpu time in system mode
+.It \&id
+% of cpu time in idle mode
+.El
+.El
+.Sh FILES
+.Bl -tag -width /dev/kmem -compact
+.It Pa /vmunix
+Default kernel namelist.
+.It Pa /dev/kmem
+Default memory file.
+.El
+.Sh SEE ALSO
+.Xr fstat 1 ,
+.Xr netstat 1 ,
+.Xr nfsstat 1 ,
+.Xr \&ps 1 ,
+.Xr systat 1 ,
+.Xr vmstat 1 ,
+.Xr pstat 8
+.Pp
+The sections starting with ``Interpreting system activity'' in
+.%T "Installing and Operating 4.3BSD" .

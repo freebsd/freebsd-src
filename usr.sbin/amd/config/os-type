@@ -1,0 +1,128 @@
+#!/bin/sh
+#
+# Copyright (c) 1989 Jan-Simon Pendry
+# Copyright (c) 1989 Imperial College of Science, Technology & Medicine
+# Copyright (c) 1989, 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# This code is derived from software contributed to Berkeley by
+# Jan-Simon Pendry at Imperial College, London.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Berkeley and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)os-type	8.1 (Berkeley) 6/6/93
+#
+# $Id: os-type,v 5.2.2.2 1992/05/31 16:45:46 jsp Exp $
+#
+
+#
+# Take a pot-shot at your os type
+#
+echo "#	... No OS= option specified; dynamically determining OS type" >&2
+
+#
+# First try poking around in /etc/motd
+#
+
+case "`exec 2>/dev/null; head -2 /etc/motd`" in
+*"Sun UNIX 4.2 Release 3."*)	OS=sos3;;
+*"SunOS Release 4."*)		OS=sos4;;
+*"HP-UX on the HP"*)		OS=hpux;;
+*"Ultrix V2."*)			OS=u2_2;;
+*"Ultrix V3."*)			OS=u3_0;;
+*"Ultrix-32 V3."*)		OS=u3_0;;
+*"Ultrix Worksystem V2."*)	OS=u3_0;;
+*"ULTRIX V4.2"*)		OS=u4_2;;
+*"ULTRIX V4."*)			OS=u4_0;;
+*"HLH OTS Version 1."*)		OS=hlh42;;
+*"RISC iX release 1."*)		OS=riscix;;
+*"FPX 4."*)			OS=fpx4;;
+*"HCX/UX"*)			OS=hcx;;
+*"4.4 BSD UNIX"*)		OS=bsd44;;
+*"4.3 BSD Reno UNIX"*)		OS=bsd44;;
+*"4.3 BSD UNIX"*)		if [ -f /etc/minidisk ]; then
+					OS=acis43
+				elif [ -f /sbin/nfsiod ]; then
+					OS=bsd44	# prototype
+				else
+					OS=xinu43
+				fi;;
+*"Alliant Concentrix"*)		OS=concentrix;;
+*"Umax 4.3"*)			OS=umax43;;
+*)
+#
+# Well, that didn't work so apply some heuristics
+# to the filesystem name space...
+#
+				echo "#	... inspecting File system ..." >&2
+				if [ -f /etc/comply ]; then
+					OS=utek
+				elif [ -d /usr/lib/methods -o -d /etc/methods ]; then
+					OS=aix3
+				elif [ -f /usr/bin/cat ]; then
+					OS=sos4
+				elif [ -f /etc/nd ]; then
+					OS=sos3
+				elif [ -f /etc/elcsd ]; then
+					echo "#	... Ultrix - assuming U4.0 ..." >&2
+					OS=u4_0
+				elif [ -f /hp-ux ]; then
+					OS=hpux
+				elif [ -f /etc/ttylocal ]; then
+					OS=xinu43
+				elif [ -f /etc/minidisk ]; then
+					OS=acis43
+				elif [ -f /etc/toolboxdaemon ]; then
+					OS=aux
+				elif [ -f /sbin/nfsiod ]; then
+					OS=bsd44
+				elif [ -d /vrm ]; then
+					OS=aix2
+				elif [ -f /bin/pyr ] && /bin/pyr; then
+					OS=pyrOSx
+				elif [ -d /NextApps ]; then
+					OS=next
+				elif [ -f /etc/gl/ucode ]; then
+					OS=irix3
+				elif [ -f /usr/gfx/ucode ]; then
+					OS=irix4
+				elif [ -f /stellix ]; then
+					OS=stellix
+				else
+					case "`(sh ../config/arch)2>/dev/null`" in
+					ibm032)    OS=acis43;;
+					aviion)    OS=dgux;;
+					*)	   OS=unknown;;
+					esac
+				fi;;
+esac
+
+echo "#	... OS appears to be \"${OS}\"" >&2
+echo "${OS}"
+exit 0
