@@ -135,7 +135,6 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
     { &vop_lock_desc, coda_lock },		/* lock */
     { &vop_unlock_desc, coda_unlock },		/* unlock */
     { &vop_bmap_desc, coda_bmap },		/* bmap */
-    { &vop_strategy_desc, coda_strategy },	/* strategy */
     { &vop_print_desc, coda_vop_error },	/* print */
     { &vop_islocked_desc, coda_islocked },	/* islocked */
     { &vop_pathconf_desc, coda_pathconf },	/* pathconf */
@@ -1719,28 +1718,6 @@ coda_bmap(v)
 #endif
 		return(EOPNOTSUPP);
 	}
-}
-
-/*
- * I don't think the following two things are used anywhere, so I've
- * commented them out 
- * 
- * struct buf *async_bufhead; 
- * int async_daemon_count;
- */
-int
-coda_strategy(v)
-    void *v;
-{
-/* true args */
-    struct vop_strategy_args *ap = v;
-    register struct buf *bp __attribute__((unused)) = ap->a_bp;
-    struct thread *td __attribute__((unused)) = curthread;
-/* upcall decl */
-/* locals */
-
-	printf("coda_strategy: called ???\n");
-	return(EOPNOTSUPP);
 }
 
 int
