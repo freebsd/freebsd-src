@@ -50,8 +50,9 @@ If successful, the
 function will return zero, otherwise an error number will be returned
 to indicate the error.
 .Sh ERRORS
+The
 .Fn pthread_cond_broadcast
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The value specified by
@@ -65,6 +66,7 @@ is invalid.
 .Xr pthread_cond_timedwait 3 ,
 .Xr pthread_cond_wait 3
 .Sh STANDARDS
+The
 .Fn pthread_cond_broadcast
-conforms to
+function conforms to
 .St -p1003.1-96 .
