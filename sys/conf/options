@@ -185,10 +185,17 @@ SCSI_ISP_PREFER_MEM_MAP	opt_isp.h
 SCSI_ISP_FABRIC		opt_isp.h
 SCSI_ISP_SCCLUN		opt_isp.h
 SCSI_ISP_FCDUPLEX	opt_isp.h
+SCSI_ISP_WWN		opt_isp.h
 ISP_DISABLE_1020_SUPPORT	opt_isp.h
 ISP_DISABLE_1080_SUPPORT	opt_isp.h
 ISP_DISABLE_2100_SUPPORT	opt_isp.h
 ISP_DISABLE_2200_SUPPORT	opt_isp.h
+ISP_COMPILE_FW			opt_isp.h
+ISP_COMPILE_1020_FW		opt_isp.h
+ISP_COMPILE_1080_FW		opt_isp.h
+ISP_COMPILE_2100_FW		opt_isp.h
+ISP_COMPILE_2200_FW		opt_isp.h
+ISP_TARGET_MODE		opt_isp.h
 
 # Options used in the 'ata' ATA/ATAPI driver
 ATA_STATIC_ID		opt_ata.h
