@@ -115,7 +115,7 @@ int Maxmem;
 struct mtx Giant;
 struct mtx sched_lock;
 
-char pcpu0[PAGE_SIZE];
+char pcpu0[PCPU_PAGES * PAGE_SIZE];
 char uarea0[UAREA_PAGES * PAGE_SIZE];
 struct trapframe frame0;
 
@@ -140,7 +140,7 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 CTASSERT((1 << INT_SHIFT) == sizeof(int));
 CTASSERT((1 << PTR_SHIFT) == sizeof(char *));
 
-CTASSERT(sizeof(struct pcpu) <= (PAGE_SIZE / 2));
+CTASSERT(sizeof(struct pcpu) <= ((PCPU_PAGES * PAGE_SIZE) / 2));
 
 static void
 cpu_startup(void *arg)
@@ -291,7 +291,7 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 	 * stack, so don't pass the real size (PAGE_SIZE) to pcpu_init or
 	 * it'll zero it out from under us.
 	 */
-	pc = (struct pcpu *)(pcpu0 + PAGE_SIZE) - 1;
+	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
 	pc->pc_curpcb = thread0.td_pcb;
