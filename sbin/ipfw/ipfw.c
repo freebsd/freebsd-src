@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.50 1998/01/06 00:11:57 alex Exp $
+ * $Id: ipfw.c,v 1.51 1998/01/07 02:23:04 alex Exp $
  *
  */
 
@@ -434,7 +434,7 @@ list(ac, av)
 			rulenum = strtoul(*av++, &endptr, 10);
 			if (*endptr) {
 				exitval = EX_USAGE;
-				warn("invalid rule number: %s", av - 1);
+				warn("invalid rule number: %s", *(av - 1));
 				continue;
 			}
 			seen = 0;
