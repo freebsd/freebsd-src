@@ -3,6 +3,14 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19990929:
+	The sigset_t datatype has been changed from an integral type
+	to a compound type and can hold 128 signals. Syscalls directly
+	or indirectly using the new sigset_t have been added as to
+	maintain compatible with existing binaries. A new kernel must
+	be made and installed and booted with before a make world can
+	be done.
+
 19990919:
 	New jail syscall format requires recompilation of jail(8) with
 	fresh headers installed (or a make world will do it for you).
@@ -12,14 +20,6 @@ directly to him.  See end of file for further details.
 	to -current urging caution and to report vm problems to him.
 	As of the 19th, no killer problems have been reported, but you
 	have been warned.
-
-19990929:
-       The sigset_t datatype has been changed from an integral type
-       to a compound type and can hold 128 signals. Syscalls directly
-       or indirectly using the new sigset_t have been added as to
-       maintain compatible with existing binaries. A new kernel must
-       be made and installed and booted with before a make world can
-       be done.
 
 19990908:
 	The new miibus has been added to the system.  If you are using
