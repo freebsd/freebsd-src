@@ -31,9 +31,9 @@ INCS+=		stdbool.h
 INCS+=		langinfo.h
 .endif
 
-# gnu/usr.bin/binutils/libiberty needs basename(3).
-.if ( ${BOOTSTRAPPING} < 440000 || \
-    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500022 ))
+# Some tools need basename(3).
+.if !exists(/usr/include/libgen.h)
+INCS+=		libgen.h
 .PATH: ${.CURDIR}/../../lib/libc/gen
 SRCS+=		basename.c
 .endif
