@@ -13,21 +13,35 @@ fi
 
 case "$daily_status_mailq_enable" in
     [Yy][Ee][Ss])
-	if [ -x /usr/bin/mailq -a -d /var/spool/mqueue ]
+	if [ ! -x /usr/bin/mailq ]
 	then
+	    echo '$daily_status_mailq_enable is set but /usr/bin/mailq' \
+		"isn't executable"
+	    rc=2
+	elif [ ! -d /var/spool/mqueue ]
+	then
+	    echo '$daily_status_mailq_enable is set but /var/spool/mqueue' \
+		"doesn't exist"
+	    rc=2
+	else
 	    echo ""
 	    echo "Mail in local queue:"
 
-	    case "$daily_status_mailq_shorten" in
+	    rc=$(case "$daily_status_mailq_shorten" in
 		[Yy][Ee][Ss])
-		    mailq |
+		    rc=$(mailq |
 			perl -ne  'print if /^\s+\S+@/' |
 			sort |
 			uniq -c |
 			sort -nr |
-			awk '$1 > 1 {print $1, $2}';;
+			awk '$1 > 1 {print $1, $2}');;
 		*)
 		    mailq;;
-	    esac
+	    esac | tee /dev/stderr | fgrep -v 'mqueue is empty' | wc -l)
+	    [ $rc -gt 1 ] && rc=1
 	fi;;
+
+    *)  rc=0;;
 esac
+
+exit $rc

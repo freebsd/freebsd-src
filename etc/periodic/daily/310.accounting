@@ -13,26 +13,35 @@ fi
 
 case "$daily_accounting_enable" in
     [Yy][Ee][Ss])
-	if [ -f /var/account/acct ]
+	if [ ! -f /var/account/acct ]
 	then
+	    echo '$daily_accounting_enable is set but /var/account/acct' \
+		"doesn't exist"
+	    rc=2
+	else
 	    echo ""
 	    echo "Rotating accounting logs and gathering statistics:"
 
 	    cd /var/account
+	    rc=0
 
-	    rm -f acct.3.gz acct.3
-	    [ -f acct.2.gz ] && mv -f acct.2.gz acct.3.gz
-	    [ -f acct.2 ] && mv -f acct.2 acct.3
-	    [ -f acct.1.gz ] && mv -f acct.1.gz acct.2.gz
-	    [ -f acct.1 ] && mv -f acct.1 acct.2
-	    [ -f acct.0.gz ] && mv -f acct.0.gz acct.1.gz
-	    [ -f acct.0 ] && mv -f acct.0 acct.1
-	    cp -pf acct acct.0
-	    sa -s >/dev/null
+	    rm -f acct.3.gz acct.3 || rc=3
+	    [ -f acct.2.gz ] && { mv -f acct.2.gz acct.3.gz || rc=3; }
+	    [ -f acct.2 ] &&    { mv -f acct.2 acct.3 || rc=3; }
+	    [ -f acct.1.gz ] && { mv -f acct.1.gz acct.2.gz || rc=3; }
+	    [ -f acct.1 ] &&    { mv -f acct.1 acct.2 || rc=3; }
+	    [ -f acct.0.gz ] && { mv -f acct.0.gz acct.1.gz || rc=3; }
+	    [ -f acct.0 ] &&    { mv -f acct.0 acct.1 || rc=3; }
+	    cp -pf acct acct.0 || rc=3
+	    sa -s >/dev/null || rc=3
 
 	    case "$daily_accounting_compress" in
 		[Yy][Ee][Ss])
-		    gzip -f acct.0;;
+		    gzip -f acct.0 || rc=3;;
 	    esac
 	fi;;
+
+    *)  rc=0;;
 esac
+
+exit $rc

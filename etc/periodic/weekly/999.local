@@ -11,6 +11,7 @@ then
     source_periodic_confs
 fi
 
+rc=0
 for script in $weekly_local
 do
     case "$script" in
@@ -20,7 +21,15 @@ do
 		echo ""
 		echo "Running $script:"
 
-		sh $script
+		sh $script || rc=3
+	    else
+		echo "$script: No such file"
+		[ $rc -lt 2 ] && rc=2
 	    fi;;
+	*)
+	    echo "$script: Not an absolute path"
+	    [ $rc -lt 2 ] && rc=2;;
     esac
 done
+
+exit $rc
