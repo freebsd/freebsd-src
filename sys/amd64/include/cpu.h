@@ -50,9 +50,10 @@
 #undef	COPY_SIGCODE		/* don't copy sigcode above user stack in exec */
 
 #define	cpu_exec(p)	/* nothing */
-#define cpu_swapin(p)	/* nothing */
+#define	cpu_swapin(p)	/* nothing */
 #define	cpu_getstack(td)		((td)->td_frame->tf_rsp)
-#define cpu_setstack(td, ap)		((td)->td_frame->tf_rsp = (ap))
+#define	cpu_setstack(td, ap)		((td)->td_frame->tf_rsp = (ap))
+#define	cpu_spinwait()			ia32_pause()
 
 #define	TRAPF_USERMODE(framep) \
 	(ISPL((framep)->tf_cs) == SEL_UPL)

@@ -93,6 +93,7 @@ struct clockframe {
 #ifdef _KERNEL
 
 #define	cpu_getstack(td)	(alpha_pal_rdusp())
+#define	cpu_spinwait()		/* nothing */
 #define	get_cyclecount		alpha_rpcc
 
 void	cpu_halt(void);
