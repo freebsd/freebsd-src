@@ -67,8 +67,9 @@ g_slice_init(unsigned nslice, unsigned scsize)
 
 	gsp = g_malloc(sizeof *gsp + nslice * sizeof(struct g_slice) + scsize,
 	    M_WAITOK | M_ZERO);
-	gsp->softc = gsp + 1;
-	gsp->slices = (struct g_slice *)((u_char *)gsp->softc + scsize);
+	gsp = g_malloc(sizeof *gsp, M_WAITOK | M_ZERO);
+	gsp->softc = g_malloc(scsize, M_WAITOK | M_ZERO);
+	gsp->slices = g_malloc(nslice * sizeof(struct g_slice), M_WAITOK | M_ZERO);
 	gsp->nslice = nslice;
 	return (gsp);
 }
@@ -237,6 +238,7 @@ g_slice_new(struct g_method *mp, int slices, struct g_provider *pp, struct g_con
 	if (error) {
 		g_dettach(cp);
 		g_destroy_consumer(cp);
+		g_free(gsp->slices);
 		g_free(gp->softc);
 		g_destroy_geom(gp);
 		return (NULL);
@@ -265,14 +267,5 @@ g_slice_orphan(struct g_consumer *cp, struct thread *tp __unused)
 	LIST_FOREACH(pp, &gp->provider, provider)
 		g_orphan_provider(pp, error);
 
-	return;
-	if (cp->biocount > 0)
-		return;
-
-	/* Then selfdestruct */
-	if (cp->acr != 0 || cp->acw != 0 || cp->ace != 0)
-		g_access_abs(cp, 0, 0, 0);
-	g_dettach(cp);
-	g_destroy_consumer(cp);
 	return;
 }
