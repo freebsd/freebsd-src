@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.11.2.1 1997/02/22 19:31:23 joerg Exp $
+ *	$Id: expand.c,v 1.11.2.2 1997/06/06 23:09:11 ache Exp $
  */
 
 #ifndef lint
@@ -1350,6 +1350,8 @@ cvtnum(num, buf)
 
 	temp[31] = '\0';
 
+	if (neg)
+		num = -num;
 	do {
 		*--p = num % 10 + '0';
 	} while ((num /= 10) != 0);
