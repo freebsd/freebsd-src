@@ -37,10 +37,10 @@
 .\" $FreeBSD$
 .\"
 .Dd May 1, 1995
-.Dt MOUNT_UMAP 8
-.Os BSD 4.4
+.Dt MOUNT_UMAPFS 8
+.Os
 .Sh NAME
-.Nm mount_umap
+.Nm mount_umapfs
 .Nd sample file system layer
 .Sh SYNOPSIS
 .Nm
@@ -110,7 +110,7 @@ at most 16 groups can be mapped by a given subtree.
 .Pp
 The mapfiles can be located anywhere in the file hierarchy, but they
 must be owned by root, and they must be writable only by root.  
-.Nm Mount_umap
+.Nm Mount_umapfs
 will refuse to map the sub-tree if the ownership or permissions on
 these files are improper.  It will also balk if the count of mappings
 in the first line of the map files is not correct.
@@ -122,7 +122,7 @@ It is not meant for production use.  The implementation is not very
 sophisticated.
 .Sh SEE ALSO
 .Xr mount 8 ,
-.Xr mount_null 8
+.Xr mount_nullfs 8
 .Sh BUGS
 THIS FILESYSTEM TYPE IS NOT YET FULLY SUPPORTED (READ: IT DOESN'T WORK) 
 AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.  USE AT YOUR

@@ -155,6 +155,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-		"usage: mount_union [-br] [-o options] target_fs mount_point\n");
+		"usage: mount_unionfs [-br] [-o options] target_fs mount_point\n");
 	exit(EX_USAGE);
 }
