@@ -716,8 +716,6 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
     *out = '\0';
     return;
   }
-  command_Expand(argv, argc, (char const *const *)vector,
-                 physical->dl->bundle, 0, getpid());
 
   if (pipe(fids) < 0) {
     log_Printf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
@@ -726,6 +724,8 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
     return;
   }
   if ((pid = fork()) == 0) {
+    command_Expand(argv, argc, (char const *const *)vector,
+                   physical->dl->bundle, 0, getpid());
     close(fids[0]);
     timer_TermService();
     if (fids[1] == STDIN_FILENO)
