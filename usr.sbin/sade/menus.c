@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.83 1996/07/16 17:11:43 jkh Exp $
+ * $Id: menus.c,v 1.84 1996/07/31 06:41:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -406,8 +406,8 @@ of the following CDROM drives as your installation drive.",
 DMenu MenuMediaFloppy = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a Floppy drive",
-    "You have more than one floppy drive.  Please chose the drive\n\
-you would like to use for this operation",
+    "You have more than one floppy drive.  Please chose which drive\n\
+you would like to use.",
     NULL,
     NULL,
     { { NULL } },
@@ -1143,9 +1143,6 @@ the other keymaps below.",
   { "German ISO", "German ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=german.iso" },
   { "Italian", "Italian ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=it.iso" },
   { "Japanese 106", "Japanese 106 keymap",  dmenuVarCheck, dmenuSetVariable, NULL, "keymap=jp.106" },
-  { "Russian CP866", "Russian Code Page 866 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=ru.cp866" },
-  { "Russian KOI8", "Russian koi8 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=ru.koi8-r" },
-  { "Russian s-KOI8", "Russian shifted koi8 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=ru.koi8-r.shift" },
   { "Swedish CP850", "Swedish Code Page 850 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=swedish.cp850" },
   { "Swedish ISO", "Swedish ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=swedish.iso" },
   { "U.K. CP850", "United Kingdom Code Page 850 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=uk.cp850" },
