@@ -90,6 +90,8 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 
 #define WANT_ENV_MKLVL	1
+#define	MKLVL_MAXVAL	500
+#define	MKLVL_ENVVAR	"__MKLVL__"
 
 #define	MAKEFLAGS	".MAKEFLAGS"
 
@@ -404,6 +406,31 @@ catch_child(int sig __unused)
 {
 }
 
+/*
+ * In lieu of a good way to prevent every possible looping in
+ * make(1), stop there from being more than MKLVL_MAXVAL processes forked
+ * by make(1), to prevent a forkbomb from happening, in a dumb and
+ * mechanical way.
+ */
+static void
+check_make_level(void)
+{
+#ifdef WANT_ENV_MKLVL
+	char	*value = getenv(MKLVL_ENVVAR);
+	int	level = (value == NULL) ? 0 : atoi(value);
+
+	if (level < 0) {
+		errc(2, EAGAIN, "Invalid value for recursion level (%d).", level);
+	} else if (level > MKLVL_MAXVAL) {
+		errc(2, EAGAIN, "Max recursion level (%d) exceeded.", MKLVL_MAXVAL);
+	} else {
+		char new_value[32];
+		sprintf(new_value, "%d", level + 1);
+		setenv(MKLVL_ENVVAR, new_value, 1);
+	}
+#endif /* WANT_ENV_MKLVL */
+}
+
 /*-
  * main --
  *	The main function, for obvious reasons. Initializes variables
@@ -428,12 +455,6 @@ main(int argc, char **argv)
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
 	struct stat sa;
 	char *p, *p1, *path, *pathp;
-#ifdef WANT_ENV_MKLVL
-#define	MKLVL_MAXVAL	500
-#define	MKLVL_ENVVAR	"__MKLVL__"
-	int iMkLvl = 0;
-	char *szMkLvl = getenv(MKLVL_ENVVAR);
-#endif	/* WANT_ENV_MKLVL */
 	char mdpath[MAXPATHLEN];
 	char obpath[MAXPATHLEN];
 	char cdpath[MAXPATHLEN];
@@ -461,18 +482,7 @@ main(int argc, char **argv)
 	sigaction(SIGCHLD, &sa, NULL);
 	}
 
-#ifdef WANT_ENV_MKLVL
-	if ((iMkLvl = szMkLvl ? atoi(szMkLvl) : 0) < 0) {
-	  iMkLvl = 0;
-	}
-	if (iMkLvl++ > MKLVL_MAXVAL) {
-	  errc(2, EAGAIN, 
-	       "Max recursion level (%d) exceeded.", MKLVL_MAXVAL);
-	}
-	bzero(szMkLvl = emalloc(32), 32);
-	sprintf(szMkLvl, "%d", iMkLvl);
-	setenv(MKLVL_ENVVAR, szMkLvl, 1);
-#endif /* WANT_ENV_MKLVL */
+	check_make_level();
 
 #if DEFSHELL == 2
 	/*
