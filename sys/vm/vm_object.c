@@ -160,6 +160,9 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	vm_object_t object;
 
 	object = (vm_object_t)mem;
+	KASSERT(TAILQ_EMPTY(&object->memq),
+	    ("object %p has resident pages",
+	    object));
 	KASSERT(object->paging_in_progress == 0,
 	    ("object %p paging_in_progress = %d",
 	    object, object->paging_in_progress));
@@ -1585,23 +1588,16 @@ vm_object_collapse(vm_object_t object)
 			if (backing_object->backing_object) {
 				VM_OBJECT_LOCK(backing_object->backing_object);
 				LIST_REMOVE(backing_object, shadow_list);
-				backing_object->backing_object->shadow_count--;
+				LIST_INSERT_HEAD(
+				    &backing_object->backing_object->shadow_head,
+				    object, shadow_list);
+				/*
+				 * The shadow_count has not changed.
+				 */
 				backing_object->backing_object->generation++;
 				VM_OBJECT_UNLOCK(backing_object->backing_object);
 			}
 			object->backing_object = backing_object->backing_object;
-			if (object->backing_object) {
-				VM_OBJECT_LOCK(object->backing_object);
-				LIST_INSERT_HEAD(
-				    &object->backing_object->shadow_head,
-				    object, 
-				    shadow_list
-				);
-				object->backing_object->shadow_count++;
-				object->backing_object->generation++;
-				VM_OBJECT_UNLOCK(object->backing_object);
-			}
-
 			object->backing_object_offset +=
 			    backing_object->backing_object_offset;
 /* XXX */		VM_OBJECT_UNLOCK(object);
@@ -1614,7 +1610,6 @@ vm_object_collapse(vm_object_t object)
 			 * necessary is to dispose of it.
 			 */
 			KASSERT(backing_object->ref_count == 1, ("backing_object %p was somehow re-referenced during collapse!", backing_object));
-			KASSERT(TAILQ_FIRST(&backing_object->memq) == NULL, ("backing_object %p somehow has left over pages during collapse!", backing_object));
 			VM_OBJECT_UNLOCK(backing_object);
 
 			mtx_lock(&vm_object_list_mtx);
