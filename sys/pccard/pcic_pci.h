@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997 Ted Faber
- * All rights reserved.
+ * Copyright (c) 2001 M. Warner Losh. All rights reserved.
+ * Copyright (c) 1997 Ted Faber. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,35 +29,9 @@
  * $FreeBSD$
  */
 
-/* PCI/CardBus Device IDs */
-#define	PCI_DEVICE_ID_PCIC_OZ6729	0x67291217ul
-#define	PCI_DEVICE_ID_PCIC_OZ6730	0x673A1217ul
-#define	PCI_DEVICE_ID_PCIC_OZ6832	0x68321217ul
-#define	PCI_DEVICE_ID_PCIC_CLPD6729	0x11001013ul
-#define	PCI_DEVICE_ID_PCIC_CLPD6832	0x11101013ul
-#define PCI_DEVICE_ID_PCIC_TI1031	0xac13104cul
-#define	PCI_DEVICE_ID_PCIC_TI1130	0xac12104cul
-#define	PCI_DEVICE_ID_PCIC_TI1131	0xac15104cul
-#define	PCI_DEVICE_ID_PCIC_TI1211	0xac1e104cul
-#define	PCI_DEVICE_ID_PCIC_TI1220	0xac17104cul
-#define	PCI_DEVICE_ID_PCIC_TI1221	0xac19104cul
-#define	PCI_DEVICE_ID_PCIC_TI1225	0xac1c104cul
-#define	PCI_DEVICE_ID_PCIC_TI1250	0xac16104cul
-#define	PCI_DEVICE_ID_PCIC_TI1251	0xac1d104cul
-#define	PCI_DEVICE_ID_PCIC_TI1251B	0xac1f104cul
-#define	PCI_DEVICE_ID_PCIC_TI1410	0xac50104cul
-#define	PCI_DEVICE_ID_PCIC_TI1420	0xac51104cul
-#define	PCI_DEVICE_ID_PCIC_TI1450	0xac1b104cul
-#define	PCI_DEVICE_ID_PCIC_TI1451	0xac52104cul
-#define	PCI_DEVICE_ID_TOSHIBA_TOPIC95	0x060a1179ul
-#define	PCI_DEVICE_ID_TOSHIBA_TOPIC97	0x060f1179ul
-#define	PCI_DEVICE_ID_TOSHIBA_TOPIC100	0x06171179ul
-#define	PCI_DEVICE_ID_RICOH_RL5C465	0x04651180ul
-#define	PCI_DEVICE_ID_RICOH_RL5C466	0x04661180ul
-#define	PCI_DEVICE_ID_RICOH_RL5C475	0x04751180ul
-#define	PCI_DEVICE_ID_RICOH_RL5C476	0x04761180ul
-#define	PCI_DEVICE_ID_RICOH_RL5C478	0x04781180ul
-  
+/* Share the devid database with NEWCARD */
+#include <dev/pccbb/pccbbdevid.h>
+
 /* CL-PD6832 CardBus defines */
 #define	CLPD6832_IO_BASE0		0x002c
 #define	CLPD6832_IO_LIMIT0		0x0030
