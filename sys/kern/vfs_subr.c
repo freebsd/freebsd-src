@@ -3643,8 +3643,8 @@ extattr_check_cred(struct vnode *vp, int attrnamespace,
  */
 #define	IGNORE_LOCK(vp) ((vp)->v_type == VCHR || (vp)->v_type == VBAD)
 
-int vfs_badlock_mutex = 1;	/* Check for interlock across VOPs. */
 int vfs_badlock_ddb = 1;	/* Drop into debugger on violation. */
+int vfs_badlock_mutex = 1;	/* Check for interlock across VOPs. */
 int vfs_badlock_print = 1;	/* Print lock violations. */
 
 static void
@@ -3654,7 +3654,7 @@ vfs_badlock(const char *msg, const char *str, struct vnode *vp)
 	if (vfs_badlock_print)
 		printf("%s: %p %s\n", str, (void *)vp, msg);
 	if (vfs_badlock_ddb)
-		Debugger("Lock violation");
+		Debugger("lock violation");
 }
 
 void
@@ -3673,12 +3673,11 @@ assert_vi_unlocked(struct vnode *vp, const char *str)
 		vfs_badlock("interlock is locked but should not be", str, vp);
 }
 
-
 void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
 
-	if (vp && !IGNORE_LOCK(vp) && !VOP_ISLOCKED(vp, NULL))
+	if (vp && !IGNORE_LOCK(vp) && VOP_ISLOCKED(vp, NULL) == 0)
 		vfs_badlock("is not locked but should be", str, vp);
 }
 
@@ -3747,9 +3746,10 @@ vop_rename_pre(void *ap)
 void
 vop_strategy_pre(void *ap)
 {
-	struct vop_strategy_args *a = ap;
+	struct vop_strategy_args *a;
 	struct buf *bp;
 
+	a = ap;
 	bp = a->a_bp;
 
 	/*
@@ -3761,20 +3761,20 @@ vop_strategy_pre(void *ap)
 	if (BUF_REFCNT(bp) < 1) {
 		if (vfs_badlock_print)
 			printf(
-			    "VOP_STRATEGY: bp is not locked but should be.\n");
+			    "VOP_STRATEGY: bp is not locked but should be\n");
 		if (vfs_badlock_ddb)
-			Debugger("Lock violation");
+			Debugger("lock violation");
 	}
 }
 
 void
 vop_lookup_pre(void *ap)
 {
-	struct vop_lookup_args *a = ap;
+	struct vop_lookup_args *a;
 	struct vnode *dvp;
 
+	a = ap;
 	dvp = a->a_dvp;
-
 	ASSERT_VI_UNLOCKED(dvp, "VOP_LOOKUP");
 	ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP");
 }
@@ -3782,18 +3782,20 @@ vop_lookup_pre(void *ap)
 void
 vop_lookup_post(void *ap, int rc)
 {
-	struct vop_lookup_args *a = ap;
+	struct vop_lookup_args *a;
 	struct componentname *cnp;
 	struct vnode *dvp;
 	struct vnode *vp;
 	int flags;
 
+	a = ap;
 	dvp = a->a_dvp;
 	cnp = a->a_cnp;
 	vp = *(a->a_vpp);
 	flags = cnp->cn_flags;
 
 	ASSERT_VI_UNLOCKED(dvp, "VOP_LOOKUP");
+
 	/*
 	 * If this is the last path component for this lookup and LOCKPARENT
 	 * is set, OR if there is an error the directory has to be locked.
@@ -3804,7 +3806,6 @@ vop_lookup_post(void *ap, int rc)
 		ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP (error)");
 	else if (dvp != vp)
 		ASSERT_VOP_UNLOCKED(dvp, "VOP_LOOKUP (dvp)");
-
 	if (flags & PDIRUNLOCK)
 		ASSERT_VOP_UNLOCKED(dvp, "VOP_LOOKUP (PDIRUNLOCK)");
 }
@@ -3823,9 +3824,7 @@ vop_lock_pre(void *ap)
 void
 vop_lock_post(void *ap, int rc)
 {
-	struct vop_lock_args *a;
-
-	a = ap;
+	struct vop_lock_args *a = ap;
 
 	ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
 	if (rc == 0)
@@ -3839,7 +3838,6 @@ vop_unlock_pre(void *ap)
 
 	if (a->a_flags & LK_INTERLOCK)
 		ASSERT_VI_LOCKED(a->a_vp, "VOP_UNLOCK");
-
 	ASSERT_VOP_LOCKED(a->a_vp, "VOP_UNLOCK");
 }
 
