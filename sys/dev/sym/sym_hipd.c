@@ -700,10 +700,11 @@ out_err:
 		bus_dmamap_unload(mp->dmat, vbp->dmamap);
 	if (vaddr)
 		bus_dmamem_free(mp->dmat, vaddr, vbp->dmamap);
-	if (vbp->dmamap)
-		bus_dmamap_destroy(mp->dmat, vbp->dmamap);
-	if (vbp)
+	if (vbp) {
+		if (vbp->dmamap)
+			bus_dmamap_destroy(mp->dmat, vbp->dmamap);
 		__sym_mfree(&mp0, vbp, sizeof(*vbp), "VTOB");
+	}
 	return 0;
 }
 
