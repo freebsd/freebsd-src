@@ -51,7 +51,7 @@ fork(void)
 	_lock_thread_list();
 
 	/* Fork a new process: */
-	if ((ret = _thread_sys_fork()) <= 0) {
+	if ((ret = _thread_sys_fork()) != 0) {
 		/* Parent process or error. Nothing to do here. */
 	} else {
 		/* Close the pthread kernel pipe: */
@@ -64,7 +64,7 @@ fork(void)
 		/*
 		 * Create a pipe that is written to by the signal handler to
 		 * prevent signals being missed in calls to
-		 * _select: 
+		 * _thread_sys_select: 
 		 */
 		if (_thread_sys_pipe(_thread_kern_pipe) != 0) {
 			/* Cannot create pipe, so abort: */
