@@ -1,5 +1,5 @@
 /*
- * sctarg: Processor Type driver.
+ * sctarg: Target mode user interface
  *
  * Copyright (C) 1995, HD Associates, Inc.
  * PO Box 276
@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.7 1995/11/29 10:49:01 julian Exp $
+ *      $Id: sctarg.c,v 1.8 1995/11/29 14:41:00 julian Exp $
  */
 
 /*
@@ -50,17 +50,14 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <scsi/scsi_all.h>
-#include <scsi/scsiconf.h>
-
-#ifdef JREMOD
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 65
-#endif /*JREMOD*/
+#include <scsi/scsi_all.h>
+#include <scsi/scsiconf.h>
+
 
 #define OPEN 0x01
 
@@ -75,6 +72,17 @@ void sctargstart(u_int32 unit, u_int32 unused_flags);
 errval sctarg_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
 void sctarg_strategy(struct buf *bp, struct scsi_link *sc_link);
+
+static	d_open_t	sctargopen;
+static	d_close_t	sctargclose;
+static	d_ioctl_t	sctargioctl;
+static	d_strategy_t	sctargstrategy;
+
+#define CDEV_MAJOR 65
+struct cdevsw sctarg_cdevsw = 
+	{ sctargopen,	sctargclose,	rawread,	rawwrite,	/*65*/
+	  sctargioctl,	nostop,		nullreset,	nodevtotty,/* sctarg */
+	  seltrue,	nommap,		sctargstrategy,	"sctarg", NULL,	-1 };
 
 SCSI_DEVICE_ENTRIES(sctarg)
 
@@ -276,35 +284,25 @@ sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 	return;
 }
 
-#ifdef JREMOD
-struct cdevsw sctarg_cdevsw = 
-	{ sctargopen,	sctargclose,	rawread,	rawwrite,	/*65*/
-	  sctargioctl,	nostop,		nullreset,	nodevtotty,/* sctarg */
-	  seltrue,	nommap,		sctargstrategy };
-
 static sctarg_devsw_installed = 0;
 
 static void 	sctarg_drvinit(void *unused)
 {
 	dev_t dev;
+	void	*x;
 
 	if( ! sctarg_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&sctarg_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&sctarg_cdevsw, NULL);
 		sctarg_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"sctarg",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
+		/* XXX should be in ADAPTER code */
+		x=devfs_add_devsw( "/scsi", "sctarg", &sctarg_cdevsw, 0,
+					DV_CHR, 0,  0, 0600);
 #endif
     	}
 }
 
 SYSINIT(sctargdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sctarg_drvinit,NULL)
 
-#endif /* JREMOD */
 

@@ -83,19 +83,35 @@
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/stat.h>
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <miscfs/specfs/specdev.h>
 
 #include <sys/vnioctl.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
+static	d_open_t	vnopen;
+static	d_close_t	vnclose;
+static	d_ioctl_t	vnioctl;
+static	d_dump_t	vndump;
+static	d_psize_t	vnsize;
+static	d_strategy_t	vnstrategy;
+
 #define CDEV_MAJOR 43
 #define BDEV_MAJOR 15
-#endif /*JREMOD */
+extern	struct cdevsw vn_cdevsw;
+struct bdevsw vn_bdevsw = 
+	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
+	  vndump,	vnsize,		0,	"vn",	&vn_cdevsw,	-1 };
+
+struct cdevsw vn_cdevsw = 
+	{ vnopen,	vnclose,	rawread,	rawwrite,	/*43*/
+	  vnioctl,	nostop,		nullreset,	nodevtotty,/* vn */
+	  seltrue,	nommap,		vnstrategy,	"vn",
+	  &vn_bdevsw,	-1 };
+
 
 
 #ifdef DEBUG
@@ -141,7 +157,7 @@ int	vnsetcred __P((struct vn_softc *vn, struct ucred *cred));
 void	vnshutdown __P((void));
 void	vnclear __P((struct vn_softc *vn));
 
-int
+static	int
 vnclose(dev_t dev, int flags, int mode, struct proc *p)
 {
 	struct vn_softc *vn = vn_softc[vnunit(dev)];
@@ -152,7 +168,7 @@ vnclose(dev_t dev, int flags, int mode, struct proc *p)
 	return (0);
 }
 
-int
+static	int
 vnopen(dev_t dev, int flags, int mode, struct proc *p)
 {
 	int unit = vnunit(dev);
@@ -212,7 +228,7 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
  * and the pageout daemon gets really unhappy (and so does the rest of the
  * system) when it runs out of memory.
  */
-void
+static	void
 vnstrategy(struct buf *bp)
 {
 	int unit = vnunit(bp->b_dev);
@@ -379,7 +395,7 @@ vniodone( struct buf *bp) {
 }
 
 /* ARGSUSED */
-int
+static	int
 vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct vn_softc *vn = vn_softc[vnunit(dev)];
@@ -580,7 +596,7 @@ vnclear(struct vn_softc *vn)
 			dsgone(&vn->sc_slices);
 }
 
-int
+static	int
 vnsize(dev_t dev)
 {
 	int unit = vnunit(dev);
@@ -591,44 +607,33 @@ vnsize(dev_t dev)
 	return(vn_softc[unit]->sc_size);
 }
 
-int
+static	int
 vndump(dev_t dev)
 {
 	return (ENODEV);
 }
-#ifdef JREMOD
-struct bdevsw vn_bdevsw = 
-	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
-	  vndump,	vnsize,		0 };
-
-struct cdevsw vn_cdevsw = 
-	{ vnopen,	vnclose,	rawread,	rawwrite,	/*43*/
-	  vnioctl,	nostop,		nullreset,	nodevtotty,/* vn */
-	  seltrue,	nommap,		vnstrategy };
-
 static vn_devsw_installed = 0;
 
-static void 	vn_drvinit(void *unused)
+static void 
+vn_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! vn_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&vn_cdevsw,NULL);
-		dev_chr = dev;
 		dev = makedev(BDEV_MAJOR,0);
 		bdevsw_add(&dev,&vn_bdevsw,NULL);
 		vn_devsw_installed = 1;
 #ifdef DEVFS
 		{
-			int x;
+			void *x;
 /* default for a simple device with no probe routine (usually delete this) */
 			x=devfs_add_devsw(
 /*	path	name	major		minor	type   uid gid perm*/
-	"/",	"rvn",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
+	"/",	"rvn",	&vn_cdevsw,	0,	DV_CHR,	0,  0, 0600);
 			x=devfs_add_devsw(
-	"/",	"vn",	major(dev),	0,	DV_BLK,	0,  0, 0600);
+	"/",	"vn",	&vn_bdevsw,	0,	DV_BLK,	0,  0, 0600);
 		}
 #endif
     	}
@@ -636,6 +641,5 @@ static void 	vn_drvinit(void *unused)
 
 SYSINIT(vndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,vn_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif

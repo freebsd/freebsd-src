@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.21 1995/12/06 23:50:27 bde Exp $
+ *	$Id: si.c,v 1.22 1995/12/07 12:46:06 davidg Exp $
  */
 
 #ifndef lint
@@ -53,6 +53,9 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 #include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/devconf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -84,12 +87,8 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 
 enum si_mctl { GET, SET, BIS, BIC };
 
-#ifdef JREMOD
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 68
-#endif /*JREMOD*/
+static	const char devchar[] = "ABCDEFGHIJK";
+static	const char portchar[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 
 static void si_command __P((struct si_port *, int, int));
@@ -109,6 +108,25 @@ extern	void	si_registerdev __P((struct isa_device *id));
 extern	int	siprobe __P((struct isa_device *id));
 extern	int	siattach __P((struct isa_device *id));
 static	void	si_modem_state __P((struct si_port *pp, struct tty *tp, int hi_ip));
+
+struct isa_driver sidriver =
+	{ siprobe, siattach, "si" };
+
+
+static	d_open_t	siopen;
+static	d_close_t	siclose;
+static	d_read_t	siread;
+static	d_write_t	siwrite;
+static	d_ioctl_t	siioctl;
+static	d_stop_t	sistop;
+static	d_ttycv_t	sidevtotty;
+
+#define CDEV_MAJOR 68
+struct cdevsw si_cdevsw = 
+	{ siopen,	siclose,	siread,		siwrite,	/*68*/
+	  siioctl,	sistop,		nxreset,	sidevtotty,/* si */
+	  ttselect,	nxmmap,		NULL,	"si",	NULL,	-1 };
+
 
 #ifdef SI_DEBUG		/* use: ``options "SI_DEBUG"'' in your config file */
 /* XXX: should be varargs, I know.. but where's vprintf()? */
@@ -142,6 +160,16 @@ struct si_softc {
 	int		sc_eisa_iobase;	/* EISA io port address */
 	int		sc_eisa_irqbits;
 	struct kern_devconf sc_kdc;
+#ifdef	DEVFS
+	struct {
+		void	*ttyd;
+		void	*ttyl;
+		void	*ttyi;
+		void	*cuaa;
+		void	*cual;
+		void	*cuai;
+	} devfs_token[32]; /* what is the max per card? */
+#endif
 };
 struct si_softc si_softc[NSI];		/* up to 4 elements */
 
@@ -460,6 +488,7 @@ siattach(id)
 	struct speedtab *spt;
 	int nmodule, nport, x, y;
 	int uart_type;
+	char	name[32];
 
 	DPRINT((0, DBG_AUTOBOOT, "si%d: siattach\n", id->id_unit));
 
@@ -663,14 +692,39 @@ mem_fail:
 		done_chartimes = 1;
 	}
 
+#ifdef DEVFS
+/*	path	name	devsw		minor	type   uid gid perm*/
+	for ( x = 0; x < nport; x++ ) {
+		sprintf(name,"tty%c%c",devchar[unit],portchar[x + 1]);
+		sc->devfs_token[x].ttyd = devfs_add_devsw(
+			"/", name, &si_cdevsw, unit,
+			DV_CHR, 0, 0, 0600);
+		sprintf(name,"ttyi%c%c",devchar[unit],portchar[x + 1]);
+		sc->devfs_token[x].ttyi = devfs_add_devsw(
+			"/", name, &si_cdevsw, unit + 32,
+			DV_CHR, 0, 0, 0600);
+		sprintf(name,"ttyl%c%c",devchar[unit],portchar[x + 1]);
+		sc->devfs_token[x].ttyl = devfs_add_devsw(
+			"/", name, &si_cdevsw, unit + 64,
+			DV_CHR, 0, 0, 0600);
+		sprintf(name,"cua%c%c",devchar[unit],portchar[x + 1]);
+		sc->devfs_token[x].cuaa = devfs_add_devsw(
+			"/", name, &si_cdevsw, unit + 128,
+			DV_CHR, 0, 0, 0600);
+		sprintf(name,"cuai%c%c",devchar[unit],portchar[x + 1]);
+		sc->devfs_token[x].cuai = devfs_add_devsw(
+			"/", name, &si_cdevsw, unit + 160,
+			DV_CHR, 0, 0, 0600);
+		sprintf(name,"cual%c%c",devchar[unit],portchar[x + 1]);
+		sc->devfs_token[x].cual = devfs_add_devsw(
+			"/", name, &si_cdevsw, unit + 192,
+			DV_CHR, 0, 0, 0600);
+	}
+#endif
 	return (1);
 }
 
-struct isa_driver sidriver =
-	{ siprobe, siattach, "si" };
-
-
-int
+static	int
 siopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -841,7 +895,7 @@ out:
 	return(error);
 }
 
-int
+static	int
 siclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -961,7 +1015,7 @@ sidtrwakeup(chan)
 /*
  * User level stuff - read and write
  */
-int
+static	int
 siread(dev, uio, flag)
 	register dev_t dev;
 	struct uio *uio;
@@ -981,7 +1035,7 @@ siread(dev, uio, flag)
 }
 
 
-int
+static	int
 siwrite(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -1020,7 +1074,7 @@ out:
 }
 
 
-struct tty *
+static	struct tty *
 sidevtotty(dev_t dev)
 {
 	struct si_port *pp;
@@ -1035,7 +1089,7 @@ sidevtotty(dev_t dev)
 	return (pp->sp_tty);
 }
 
-int
+static	int
 siioctl(dev, cmd, data, flag, p)
 	dev_t dev;
 	int cmd;
@@ -2305,40 +2359,19 @@ si_mctl2str(cmd)
 #endif	/* DEBUG */
 
 
-#ifdef JREMOD
-struct cdevsw si_cdevsw = 
-	{ siopen,	siclose,	siread,		siwrite,	/*68*/
-	  siioctl,	sistop,		nxreset,	sidevtotty,/* si */
-	  ttselect,	nxmmap,		NULL };
 
 static si_devsw_installed = 0;
 
 static void 	si_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! si_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&si_cdevsw,NULL);
-		dev_chr = dev;
-#if defined(BDEV_MAJOR)
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&si_bdevsw,NULL);
-#endif /*BDEV_MAJOR*/
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&si_cdevsw, NULL);
 		si_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"si",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,si_drvinit,NULL)
 
-#endif /* JREMOD */

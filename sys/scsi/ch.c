@@ -2,7 +2,7 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.24 1995/11/29 14:40:54 julian Exp $
+ *      $Id: ch.c,v 1.25 1995/12/06 23:44:14 bde Exp $
  */
 
 #include	<sys/types.h>
@@ -10,27 +10,23 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/chio.h>
 #include <sys/malloc.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/devconf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_changer.h>
 #include <scsi/scsiconf.h>
-#include <sys/devconf.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 17
-#endif /*JREMOD*/
 
 
 errval ch_getelem __P((u_int32 unit, short *stat, int type, u_int32 from,
@@ -64,6 +60,9 @@ struct scsi_data {
 	u_long  op_matrix;		/* possible opertaions */
 	u_int16 lsterr;			/* details of lasterror */
 	u_char  stor;			/* posible Storage locations */
+#ifdef	DEVFS
+	void	*devfs_token;
+#endif
 };
 
 static int chunit(dev_t dev) { return CHUNIT(dev); }
@@ -75,6 +74,16 @@ errval ch_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
 		struct proc *p, struct scsi_link *sc_link);
 errval ch_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
+
+static	d_open_t	chopen;
+static	d_close_t	chclose;
+static	d_ioctl_t	chioctl;
+
+#define CDEV_MAJOR 17
+struct cdevsw ch_cdevsw = 
+	{ chopen,	chclose,	noread,		nowrite,	/*17*/
+	  chioctl,	nostop,		nullreset,	nodevtotty,/* ch */
+	  noselect,	nommap,		nostrat,	"ch",	NULL,	-1 };
 
 SCSI_DEVICE_ENTRIES(ch)
 
@@ -139,6 +148,7 @@ errval
 chattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
+	char	name[32];
 
 	struct scsi_data *ch = sc_link->sd;
 
@@ -157,6 +167,11 @@ chattach(struct scsi_link *sc_link)
 	}
 	ch_registerdev(unit);
 
+#ifdef DEVFS
+	sprintf(name,"ch%d",unit);
+	ch->devfs_token = devfs_add_devsw( "/", name, &ch_cdevsw, unit << 4,
+					DV_CHR, 0,  0, 0600);
+#endif
 	return 0;
 }
 
@@ -511,11 +526,6 @@ ch_mode_sense(unit, flags)
 	return (0);
 }
 
-#ifdef JREMOD
-struct cdevsw ch_cdevsw = 
-	{ chopen,	chclose,	noread,		nowrite,	/*17*/
-	  chioctl,	nostop,		nullreset,	nodevtotty,/* ch */
-	  noselect,	nommap,		nostrat };
 
 static ch_devsw_installed = 0;
 
@@ -524,22 +534,12 @@ static void 	ch_drvinit(void *unused)
 	dev_t dev;
 
 	if( ! ch_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&ch_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&ch_cdevsw, NULL);
 		ch_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"ch",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(chdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ch_drvinit,NULL)
 
-#endif /* JREMOD */
 

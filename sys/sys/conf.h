@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.23 1995/11/29 14:41:17 julian Exp $
+ * $Id: conf.h,v 1.24 1995/12/05 19:53:14 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -58,6 +58,7 @@ typedef int d_close_t __P((dev_t, int, int, struct proc *));
 typedef int d_ioctl_t __P((dev_t, int, caddr_t, int, struct proc *));
 typedef int d_dump_t __P((dev_t));
 typedef int d_psize_t __P((dev_t));
+typedef int d_size_t __P((dev_t));
 
 typedef int d_read_t __P((dev_t, struct uio *, int));
 typedef int d_write_t __P((dev_t, struct uio *, int));
@@ -87,6 +88,9 @@ struct bdevsw {
 	d_dump_t	*d_dump;
 	d_psize_t	*d_psize;
 	int		d_flags;
+	char 		*d_name;	/* name of the driver e.g. audio */
+	struct cdevsw	*d_cdev; 	/* cross pointer to the cdev */
+	int		d_maj;		/* the major number we were assigned */
 };
 
 #ifdef KERNEL
@@ -105,6 +109,9 @@ struct cdevsw {
 	d_select_t	*d_select;
 	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
+	char		*d_name;
+	struct bdevsw	*d_bdev; 	/* cross pointer to the bdev */
+	int		d_maj;		/* the major number we were assigned */
 };
 
 #ifdef KERNEL
@@ -153,12 +160,10 @@ d_devtotty_t	nodevtotty;
 d_select_t	noselect;
 d_mmap_t	nommap;
 
-#ifdef JREMOD
 /* Bogus defines for compatibility. */
 #define	noioc		noioctl
 #define	nostrat		nostrategy
 #define zerosize	nopsize
-#endif /*JREMOD*/
 /*
  * XXX d_strategy seems to be unused for cdevs that aren't associated with
  * bdevs and called without checking for it being non-NULL for bdevs.
@@ -197,10 +202,8 @@ d_rdwr_t	rawwrite;
 l_read_t	l_noread;
 l_write_t	l_nowrite;
 
-#ifdef JREMOD
 int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw *old));
 int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw *old));
-#endif
 dev_t	chrtoblk __P((dev_t dev));
 int	getmajorbyname __P((const char *name));
 int	isdisk __P((dev_t dev, int type));

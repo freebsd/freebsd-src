@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.74 1995/11/29 14:41:02 julian Exp $
+ *      $Id: sd.c,v 1.75 1995/12/07 12:47:48 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -30,6 +30,10 @@
 #include <sys/dkstat.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
@@ -39,17 +43,7 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>
-#include <i386/i386/cons.h>		/* XXX */
-
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 13
-#define BDEV_MAJOR 4
-#endif /*JREMOD */
+#include <i386/i386/cons.h>		/* XXX *//* for aborting dump */
 
 u_int32 sdstrats, sdqueues;
 
@@ -84,6 +78,10 @@ struct scsi_data {
 	struct diskslices *dk_slices;	/* virtual drives */
 	struct buf_queue_head buf_queue;
 	int dkunit;		/* disk stats unit number */
+#ifdef	DEVFS
+	void	*c_devfs_token;
+	void	*b_devfs_token;
+#endif
 };
 
 static int sdunit(dev_t dev) { return SDUNIT(dev); }
@@ -96,6 +94,27 @@ static errval sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
 static errval sd_close __P((dev_t dev, int fflag, int fmt, struct proc *p,
 		     struct scsi_link *sc_link));
 static void sd_strategy(struct buf *bp, struct scsi_link *sc_link);
+
+static	d_open_t	sdopen;
+static	d_close_t	sdclose;
+static	d_ioctl_t	sdioctl;
+static	d_dump_t	sddump;
+static	d_psize_t	sdsize;
+static	d_strategy_t	sdstrategy;
+
+#define CDEV_MAJOR 13
+#define BDEV_MAJOR 4
+extern struct cdevsw sd_cdevsw; /* hold off the complaints for a second */
+struct bdevsw sd_bdevsw = 
+	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
+	  sddump,	sdsize,		0,	"sd",	&sd_cdevsw,	-1 };
+
+struct cdevsw sd_cdevsw = 
+	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
+	  sdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		sdstrategy,	"sd",
+	  &sd_bdevsw,	-1 };
+
 
 SCSI_DEVICE_ENTRIES(sd)
 
@@ -169,6 +188,7 @@ sdattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
 	struct disk_parms *dp;
+	char	name[32];
 
 	struct scsi_data *sd = sc_link->sd;
 
@@ -209,6 +229,15 @@ sdattach(struct scsi_link *sc_link)
 	sd->flags |= SDINIT;
 	sd_registerdev(unit);
 
+#ifdef DEVFS
+/* Fix minor numbers */
+	sprintf(name,"rsd%d",unit);
+	sd->c_devfs_token = devfs_add_devsw( "/", name, &sd_cdevsw, 0,
+					DV_CHR, 0, 0, 0600);
+	sprintf(name,"sd%d",unit);
+	sd->b_devfs_token = devfs_add_devsw( "/", name, &sd_bdevsw, 0,
+					DV_BLK, 0, 0, 0600);
+#endif
 	return 0;
 }
 
@@ -963,45 +992,20 @@ sddump(dev_t dev)
 	return (0);
 }
 
-#ifdef JREMOD
-struct bdevsw sd_bdevsw = 
-	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
-	  sddump,	sdsize,		0 };
-
-struct cdevsw sd_cdevsw = 
-	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
-	  sdioctl,	nostop,		nullreset,	nodevtotty,/* sd */
-	  seltrue,	nommap,		sdstrategy };
-
 static sd_devsw_installed = 0;
 
 static void 	sd_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! sd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&sd_cdevsw,NULL);
-		dev_chr = dev;
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&sd_bdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&sd_cdevsw, NULL);
+		dev = makedev(BDEV_MAJOR, 0);
+		bdevsw_add(&dev,&sd_bdevsw, NULL);
 		sd_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rsd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-			x=devfs_add_devsw(
-	"/",	"sd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(sddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sd_drvinit,NULL)
-
-#endif /* JREMOD */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.12 1995/11/29 14:40:35 julian Exp $
+ * $Id: subr_log.c,v 1.13 1995/12/02 18:58:52 bde Exp $
  */
 
 /*
@@ -47,20 +47,27 @@
 #include <sys/msgbuf.h>
 #include <sys/file.h>
 #include <sys/signalvar.h>
-
-#ifdef JREMOD
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#define CDEV_MAJOR 7
-#endif /*JREMOD*/
 
 #define LOG_RDPRI	(PZERO + 1)
 
 #define LOG_ASYNC	0x04
 #define LOG_RDWAIT	0x08
+
+static	d_open_t	logopen;
+static	d_close_t	logclose;
+static	d_read_t	logread;
+static	d_ioctl_t	logioctl;
+static	d_select_t	logselect;
+
+#define CDEV_MAJOR 7
+struct cdevsw log_cdevsw = 
+	{ logopen,	logclose,	logread,	nowrite,	/*7*/
+	  logioctl,	nostop,		nullreset,	nodevtotty,/* klog */
+	  logselect,	nommap,		NULL,	"log",	NULL,	-1 };
 
 struct logsoftc {
 	int	sc_state;		/* see above for possibilities */
@@ -71,7 +78,7 @@ struct logsoftc {
 int	log_open;			/* also used in log() */
 
 /*ARGSUSED*/
-int
+static	int
 logopen(dev, flags, mode, p)
 	dev_t dev;
 	int flags, mode;
@@ -85,7 +92,7 @@ logopen(dev, flags, mode, p)
 }
 
 /*ARGSUSED*/
-int
+static	int
 logclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -98,7 +105,7 @@ logclose(dev, flag, mode, p)
 }
 
 /*ARGSUSED*/
-int
+static	int
 logread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -144,7 +151,7 @@ logread(dev, uio, flag)
 }
 
 /*ARGSUSED*/
-int
+static	int
 logselect(dev, rw, p)
 	dev_t dev;
 	int rw;
@@ -187,7 +194,7 @@ logwakeup()
 }
 
 /*ARGSUSED*/
-int
+static	int
 logioctl(dev, com, data, flag, p)
 	dev_t dev;
 	int com;
@@ -234,15 +241,11 @@ logioctl(dev, com, data, flag, p)
 	return (0);
 }
 
-#ifdef JREMOD
-struct cdevsw log_cdevsw = 
-	{ logopen,	logclose,	logread,	nowrite,	/*7*/
-	  logioctl,	nostop,		nullreset,	nodevtotty,/* klog */
-	  logselect,	nommap,		NULL };
-
 static log_devsw_installed = 0;
+static	void	*log_devfs_token;
 
-static void 	log_drvinit(void *unused)
+static void
+log_drvinit(void *unused)
 {
 	dev_t dev;
 
@@ -251,18 +254,12 @@ static void 	log_drvinit(void *unused)
 		cdevsw_add(&dev,&log_cdevsw,NULL);
 		log_devsw_installed = 1;
 #ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"log",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
+		log_devfs_token = devfs_add_devsw(
+			"/", "log", &log_cdevsw, 0, DV_CHR, 0, 0, 0600);
 #endif
     	}
 }
 
 SYSINIT(logdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,log_drvinit,NULL)
 
-#endif /* JREMOD */
 

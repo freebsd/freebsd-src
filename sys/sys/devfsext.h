@@ -1,14 +1,14 @@
 /* usual BSD style copyright here */
 /* Written by Julian Elischer (julian@dialix.oz.au)*/
 /*
- * $Id: devfsext.h,v 1.2 1995/09/08 04:46:04 julian Exp $
+ * $Id: devfsext.h,v 1.3 1995/11/29 10:49:13 julian Exp $
  */
 
 #ifndef _SYS_DEVFSECT_H_
 #define _SYS_DEVFSECT_H_ 1
 void *devfs_add_devsw(char *path,
 		char *name,
-		int major,
+		void *devsw,
 		int minor,
 		int chrblk,
 		uid_t uid,

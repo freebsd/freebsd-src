@@ -36,25 +36,21 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.35 1995/11/29 10:47:17 julian Exp $
+ *	$Id: cons.c,v 1.36 1995/11/29 14:39:24 julian Exp $
  */
 
 #include <sys/param.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
 
 #include <machine/cons.h>
 #include <machine/stdarg.h>
-
-#ifdef JREMOD
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 0
-#endif /*JREMOD*/
 
 /* XXX this should be config(8)ed. */
 #include "sc.h"
@@ -73,6 +69,19 @@ static struct consdev constab[] = {
 	{ 0 },
 };
 
+static	d_open_t	cnopen;
+static	d_close_t	cnclose;
+static	d_read_t	cnread;
+static	d_write_t	cnwrite;
+static	d_ioctl_t	cnioctl;
+static	d_select_t	cnselect;
+
+#define CDEV_MAJOR 0
+struct cdevsw cn_cdevsw = 
+	{ cnopen,	cnclose,	cnread,		cnwrite,	/*0*/
+	  cnioctl,	nullstop,	nullreset,	nodevtotty,/* console */
+	  cnselect,	nommap,		NULL,	"console",	NULL,	-1 };
+
 struct	tty *constty = 0;	/* virtual console output device */
 struct	tty *cn_tty;		/* XXX: console tty struct for tprintf */
 int	cons_unavail = 0;	/* XXX:
@@ -86,6 +95,9 @@ static d_close_t *cn_phys_close;	/* physical device close function */
 static d_open_t *cn_phys_open;	/* physical device open function */
 static struct consdev *cn_tab;	/* physical console device info */
 static struct tty *cn_tp;	/* physical console tty struct */
+#ifdef DEVFS
+void *cn_devfs_token;		/* represents the devfs entry */
+#endif /* DEVFS */
 
 void
 cninit()
@@ -148,7 +160,7 @@ cninit_finish()
 	cn_tty = cn_tp;
 }
 
-int
+static int
 cnopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -171,7 +183,7 @@ cnopen(dev, flag, mode, p)
 	return (retval);
 }
 
-int
+static int
 cnclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -204,7 +216,7 @@ cnclose(dev, flag, mode, p)
 	return ((*cn_phys_close)(dev, flag, mode, p));
 }
 
-int
+static int
 cnread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -216,7 +228,7 @@ cnread(dev, uio, flag)
 	return ((*cdevsw[major(dev)].d_read)(dev, uio, flag));
 }
 
-int
+static int
 cnwrite(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -231,7 +243,7 @@ cnwrite(dev, uio, flag)
 	return ((*cdevsw[major(dev)].d_write)(dev, uio, flag));
 }
 
-int
+static int
 cnioctl(dev, cmd, data, flag, p)
 	dev_t dev;
 	int cmd;
@@ -258,7 +270,7 @@ cnioctl(dev, cmd, data, flag, p)
 	return ((*cdevsw[major(dev)].d_ioctl)(dev, cmd, data, flag, p));
 }
 
-int
+static int
 cnselect(dev, rw, p)
 	dev_t dev;
 	int rw;
@@ -312,18 +324,11 @@ pg(const char *p, ...) {
   return(cngetc());
 }
 
-
-#ifdef JREMOD
-struct cdevsw cn_cdevsw = 
-	{ cnopen,	cnclose,	cnread,		cnwrite,	/*0*/
-	  cnioctl,	nullstop,	nullreset,	nodevtotty,/* console */
-	  cnselect,	nommap,		NULL };
-
 static cn_devsw_installed = 0;
 
-static void 	cn_drvinit(void *unused)
+static void
+cn_drvinit(void *unused)
 {
-  	void * x;
 	dev_t dev;
 
 	if( ! cn_devsw_installed ) {
@@ -331,13 +336,19 @@ static void 	cn_drvinit(void *unused)
 		cdevsw_add(&dev,&cn_cdevsw,NULL);
 		cn_devsw_installed = 1;
 #ifdef DEVFS
-	/*                path,name,major,minor,type,uid,gid,perm */
-		x=devfs_add_devsw("/","console",major(dev),0,DV_CHR,0,0,0640);
+		cn_devfs_token = devfs_add_devsw(
+			 	"/",
+				"console",
+				&cn_cdevsw,
+				0,
+				DV_CHR,
+				0,
+				0,
+				0640);
 #endif
 	}
 }
 
 SYSINIT(cndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cn_drvinit,NULL)
 
-#endif /* JREMOD */
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.10 1995/09/10 18:57:26 bde Exp $
+ *	$Id: cons.h,v 1.11 1995/09/10 21:34:50 bde Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
@@ -105,14 +105,6 @@ extern	struct tty *cn_tty;
 extern	int cons_unavail;
 
 struct proc; struct uio;
-
-/* cdevsw[] entries */
-extern int cnopen(dev_t, int, int, struct proc *);
-extern int cnclose(dev_t, int, int, struct proc *);
-extern int cnread(dev_t, struct uio *, int);
-extern int cnwrite(dev_t, struct uio *, int);
-extern int cnioctl(dev_t, int, caddr_t, int, struct proc *);
-extern int cnselect(dev_t, int, struct proc *);
 
 /* other kernel entry points */
 extern void cninit(void);

@@ -33,6 +33,9 @@
 #ifdef __FreeBSD__
 #include <sys/kernel.h>
 #endif
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #include <sys/conf.h>
 
 #include <machine/cpu.h>
@@ -67,12 +70,6 @@ static void tunattach __P((void *));
 PSEUDO_SET(tunattach, if_tun);
 #endif
 
-#ifdef JREMOD
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 52
-#endif /*JREMOD*/
 
 #define TUNDEBUG	if (tundebug) printf
 int	tundebug = 0;
@@ -82,15 +79,27 @@ struct tun_softc tunctl[NTUN];
 int	tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
 	    struct rtentry *rt));
 int	tunifioctl __P((struct ifnet *, int, caddr_t));
+static int tuninit __P((int));
 
-static struct cdevsw tuncdevsw = {
+static	d_open_t	tunopen;
+static	d_close_t	tunclose;
+static	d_read_t	tunread;
+static	d_write_t	tunwrite;
+static	d_ioctl_t	tunioctl;
+static	d_select_t	tunselect;
+
+#define CDEV_MAJOR 52
+static struct cdevsw tun_cdevsw = {
 	tunopen,	tunclose,	tunread,	tunwrite,
 	tunioctl,	nullstop,	noreset,	nodevtotty,
-	tunselect,	nommap,		nostrategy
+	tunselect,	nommap,		nostrategy,	"tun",	NULL,	-1
 };
-extern dev_t tuncdev;
 
-static int tuninit __P((int));
+
+static tun_devsw_installed = 0;
+#ifdef	DEVFS
+static	void	*tun_devfs_token[NTUN];
+#endif
 
 static void
 tunattach(dummy)
@@ -98,13 +107,20 @@ tunattach(dummy)
 {
 	register int i;
 	struct ifnet *ifp;
+	dev_t dev;
+	char	name[32];
 
-	/*
-	 * In case we are an LKM, set up device switch.
-	 */
-	cdevsw[major(tuncdev)] = tuncdevsw;
-
-	for (i = 0; i < NTUN; i++) {
+	if( tun_devsw_installed ) return;
+	dev = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&dev,&tun_cdevsw, NULL);
+	tun_devsw_installed = 1;
+	for ( i = 0; i < NTUN; i++ ) {
+#ifdef DEVFS
+		sprintf(name, "tun%d", i );
+		tun_devfs_token[i] = devfs_add_devsw(
+			"/", name, &tun_cdevsw , i,
+			DV_CHR, 0, 0, 0600);
+#endif
 		tunctl[i].tun_flags = TUN_INITED;
 
 		ifp = &tunctl[i].tun_if;
@@ -131,7 +147,7 @@ tunattach(dummy)
  * tunnel open - must be superuser & the device must be
  * configured in
  */
-int
+static	int
 tunopen(dev, flag, mode, p)
 	dev_t	dev;
 	int	flag, mode;
@@ -159,7 +175,7 @@ tunopen(dev, flag, mode, p)
  * tunclose - close the device - mark i/f down & delete
  * routing info
  */
-int
+static	int
 tunclose(dev_t dev, int foo, int bar, struct proc *p)
 {
 	register int	unit = minor(dev), s;
@@ -370,7 +386,7 @@ tunoutput(ifp, m0, dst, rt)
 /*
  * the cdevsw interface is now pretty minimal.
  */
-int
+static	int
 tunioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
 	int		cmd;
@@ -437,7 +453,7 @@ tunioctl(dev, cmd, data, flag, p)
  * The cdevsw read interface - reads a packet at a time, or at
  * least as much of a packet as can be read.
  */
-int
+static	int
 tunread(dev_t dev, struct uio *uio, int flag)
 {
 	int		unit = minor(dev);
@@ -488,7 +504,7 @@ tunread(dev_t dev, struct uio *uio, int flag)
 /*
  * the cdevsw write interface - an atomic write is a packet - or else!
  */
-int
+static	int
 tunwrite(dev_t dev, struct uio *uio, int flag)
 {
 	int		unit = minor (dev);
@@ -576,7 +592,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
  * really. The write detect always returns true, write never blocks
  * anyway, it either accepts the packet or drops it.
  */
-int
+static	int
 tunselect(dev_t dev, int rw, struct proc *p)
 {
 	int		unit = minor(dev), s;
@@ -605,36 +621,5 @@ tunselect(dev_t dev, int rw, struct proc *p)
 	return 0;
 }
 
-#ifdef JREMOD
-struct cdevsw tun_cdevsw = 
-	{ tunopen,      tunclose,       tunread,        tunwrite,       /*52*/
-	  tunioctl,     nostop,         nullreset,      nodevtotty,/* tunnel */
-	  tunselect,    nommap,         NULL };
-
-static tun_devsw_installed = 0;
-
-static void 	tun_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! tun_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&tun_cdevsw,NULL);
-		tun_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"tun",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
-    	}
-}
-
-SYSINIT(tundev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,tun_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif  /* NTUN */

@@ -44,27 +44,41 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.7 1995/11/29 10:49:06 julian Exp $
+ *      $Id: su.c,v 1.8 1995/11/29 14:41:06 julian Exp $
  *
  * Tabstops 4
+ * XXX devfs entries for this device should be handled by generic scsiconfig
+ * Add a bdevsw interface.. ?
  */
 
 #include <sys/types.h>
 #include <sys/conf.h>
-#include <scsi/scsiconf.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/systm.h>
-
-#ifdef JREMOD
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+#include <scsi/scsiconf.h>
 #define CDEV_MAJOR 18
-#endif /*JREMOD*/
+
+
+	d_open_t	suopen; /* these three used by ssc */
+	d_close_t	suclose;
+	d_ioctl_t	suioctl;
+static	d_read_t	suread;
+static	d_write_t	suwrite;
+static	d_select_t	suselect;
+static	d_strategy_t	sustrategy;
+
+struct cdevsw su_cdevsw = 
+	{ suopen,	suclose,	suread,		suwrite,	/*18*/
+	  suioctl,	nostop,		nullreset,	nodevtotty,/* scsi */
+	  suselect,	nxmmap,		sustrategy, "su",	NULL,	-1 };
+
 
 /* Build an old style device number (unit encoded in the minor number)
  * from a base old one (no flag bits) and a full new one
@@ -88,7 +102,10 @@ static struct bdevsw bnxio = {
 	nxioctl,
 	nxdump,
 	nxpsize,
-	0
+	0,
+	"NON",
+	NULL,
+	-1
 };
 
 static struct cdevsw cnxio = {
@@ -102,7 +119,10 @@ static struct cdevsw cnxio = {
 	nxdevtotty,
 	nxselect,
 	nxmmap,
-	nxstrategy
+	nxstrategy,
+	"NON",
+	NULL,
+	-1
 };
 
 /* getsws: Look up the base dev switch for a given "by minor number" style
@@ -192,7 +212,8 @@ suopen(dev_t dev, int flag, int type, struct proc *p)
 		return (*bdev->d_open)(base, flag, S_IFBLK, p);
 }
 
-int suclose(dev_t dev, int fflag, int type, struct proc *p)
+int
+suclose(dev_t dev, int fflag, int type, struct proc *p)
 {
 	struct cdevsw *cdev;
 	struct bdevsw *bdev;
@@ -206,7 +227,8 @@ int suclose(dev_t dev, int fflag, int type, struct proc *p)
 		return (*bdev->d_open)(base, fflag, S_IFBLK, p);
 }
 
-void sustrategy(struct buf *bp)
+static	void
+sustrategy(struct buf *bp)
 {
 	dev_t base;
 	struct bdevsw *bdev;
@@ -224,7 +246,8 @@ void sustrategy(struct buf *bp)
 	bp->b_dev = dev;
 }
 
-int suioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
+int
+suioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 {
 	struct cdevsw *cdev;
 	dev_t base;
@@ -237,7 +260,8 @@ int suioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 	return (*cdev->d_ioctl)(base, cmd, data, fflag, p);
 }
 
-int sudump(dev_t dev)
+static	int
+sudump(dev_t dev)
 {
 	dev_t base;
 	struct bdevsw *bdev;
@@ -247,7 +271,8 @@ int sudump(dev_t dev)
 	return (*bdev->d_dump)(base);
 }
 
-int supsize(dev_t dev)
+static	int
+supsize(dev_t dev)
 {
 	dev_t base;
 	struct bdevsw *bdev;
@@ -257,7 +282,8 @@ int supsize(dev_t dev)
 	return (*bdev->d_psize)(base);
 }
 
-int suread(dev_t dev, struct uio *uio, int ioflag)
+static	int
+suread(dev_t dev, struct uio *uio, int ioflag)
 {
 	dev_t base;
 	struct cdevsw *cdev;
@@ -267,7 +293,8 @@ int suread(dev_t dev, struct uio *uio, int ioflag)
 	return (*cdev->d_read)(base, uio, ioflag);
 }
 
-int suwrite(dev_t dev, struct uio *uio, int ioflag)
+static	int
+suwrite(dev_t dev, struct uio *uio, int ioflag)
 {
 	dev_t base;
 	struct cdevsw *cdev;
@@ -277,7 +304,8 @@ int suwrite(dev_t dev, struct uio *uio, int ioflag)
 	return (*cdev->d_write)(base, uio, ioflag);
 }
 
-int suselect(dev_t dev, int which, struct proc *p)
+static	int
+suselect(dev_t dev, int which, struct proc *p)
 {
 	dev_t base;
 	struct cdevsw *cdev;
@@ -287,35 +315,20 @@ int suselect(dev_t dev, int which, struct proc *p)
 	return (*cdev->d_select)(base, which, p);
 }
 
-#ifdef JREMOD
-struct cdevsw su_cdevsw = 
-	{ suopen,	suclose,	suread,		suwrite,	/*18*/
-	  suioctl,	nostop,		nullreset,	nodevtotty,/* scsi */
-	  suselect,	nxmmap,		sustrategy };		/* 'generic' */
-
 static su_devsw_installed = 0;
 
-static void 	su_drvinit(void *unused)
+static void
+su_drvinit(void *unused)
 {
 	dev_t dev;
 
 	if( ! su_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&su_cdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&su_cdevsw, NULL);
 		su_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"su",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(sudev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,su_drvinit,NULL)
 
-#endif /* JREMOD */
 

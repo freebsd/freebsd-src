@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.11 1995/11/29 10:47:50 julian Exp $ */
+/* $Id: scd.c,v 1.12 1995/11/29 14:39:53 julian Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -64,6 +64,10 @@
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/devconf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/clock.h>
 #include <machine/stdarg.h>
@@ -72,14 +76,6 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/scdreg.h>
 
-#ifdef JREMOD
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 45
-#define BDEV_MAJOR 16
-#endif /*JREMOD */
 
 #define scd_part(dev)	((minor(dev)) & 7)
 #define scd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
@@ -148,6 +144,12 @@ static struct scd_data {
 	short	audio_status;
 	struct buf head;		/* head of buf queue */
 	struct scd_mbx mbx;
+#ifdef	DEVFS
+	void	*ra_devfs_token;
+	void	*rc_devfs_token;
+	void	*a_devfs_token;
+	void	*c_devfs_token;
+#endif
 } scd_data[NSCD];
 
 /* prototypes */
@@ -184,11 +186,29 @@ static int scd_toc_header(int unit, struct ioc_toc_header *th);
 static int scd_toc_entrys(int unit, struct ioc_read_toc_entry *te);
 #define SCD_LASTPLUS1 170 /* don't ask, xcdplayer passes this in */
 
-extern	int	hz;
-
 static int	scd_probe(struct isa_device *dev);
 static int	scd_attach(struct isa_device *dev);
 struct	isa_driver	scddriver = { scd_probe, scd_attach, "scd" };
+
+static	d_open_t	scdopen;
+static	d_close_t	scdclose;
+static	d_ioctl_t	scdioctl;
+static	d_psize_t	scdsize;
+static	d_strategy_t	scdstrategy;
+
+#define CDEV_MAJOR 45
+#define BDEV_MAJOR 16
+extern	struct cdevsw scd_cdevsw;
+struct bdevsw scd_bdevsw = 
+	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
+	  nxdump,	scdsize,	0, "scd",	&scd_cdevsw,	-1 };
+
+struct cdevsw scd_cdevsw = 
+	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
+	  scdioctl,	nostop,		nullreset,	nodevtotty,/* sony cd */
+	  seltrue,	nommap,		scdstrategy,	"scd",
+	  &scd_bdevsw,	-1 };
+
 
 static struct kern_devconf kdc_scd[NSCD] = { {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -213,7 +233,9 @@ scd_registerdev(struct isa_device *id)
 
 int scd_attach(struct isa_device *dev)
 {
-	struct scd_data *cd = scd_data + dev->id_unit;
+	int	unit = dev->id_unit;
+	struct scd_data *cd = scd_data + unit;
+	char	name[32];
 
 	cd->iobase = dev->id_iobase;	/* Already set by probe, but ... */
 
@@ -227,10 +249,33 @@ int scd_attach(struct isa_device *dev)
 	cd->flags = SCDINIT;
 	cd->audio_status = CD_AS_AUDIO_INVALID;
 
+#ifdef DEVFS
+#define SCD_UID 0
+#define SCD_GID 13
+	sprintf(name, "rscd%da",unit);
+	cd->ra_devfs_token = devfs_add_devsw(
+		"/", name, &scd_cdevsw, (unit * 8 ) + 0,
+		DV_CHR,	SCD_UID,  SCD_GID, 0600);
+
+	sprintf(name, "rscd%dc",unit);
+	cd->rc_devfs_token = devfs_add_devsw(
+		"/", name, &scd_cdevsw, (unit * 8 ) + RAW_PART,
+		DV_CHR,	SCD_UID,  SCD_GID, 0600);
+
+	sprintf(name, "scd%da",unit);
+	cd->a_devfs_token = devfs_add_devsw(
+		"/", name, &scd_bdevsw, (unit * 8 ) + 0,
+		DV_BLK,	SCD_UID,  SCD_GID, 0600);
+
+	sprintf(name, "scd%dc",unit);
+	cd->c_devfs_token = devfs_add_devsw(
+		"/", name, &scd_bdevsw, (unit * 8 ) + RAW_PART,
+		DV_BLK,	SCD_UID,  SCD_GID, 0600);
+#endif
 	return 1;
 }
 
-int
+static	int
 scdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int unit,part,phys;
@@ -283,7 +328,7 @@ scdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	return 0;
 }
 
-int
+static	int
 scdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int unit,part,phys;
@@ -313,7 +358,7 @@ scdclose(dev_t dev, int flags, int fmt, struct proc *p)
 	return 0;
 }
 
-void
+static	void
 scdstrategy(struct buf *bp)
 {
 	struct scd_data *cd;
@@ -416,7 +461,7 @@ scd_start(int unit)
 	return;
 }
 
-int
+static	int
 scdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 {
 	struct scd_data *cd;
@@ -492,7 +537,7 @@ scdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 	}
 }
 
-int
+static	int
 scdsize(dev_t dev)
 {
 	return -1;
@@ -1529,46 +1574,22 @@ scd_toc_entrys (int unit, struct ioc_read_toc_entry *te)
 }
 
 
-#ifdef JREMOD
-struct bdevsw scd_bdevsw = 
-	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
-	  nxdump,	scdsize,	0 };
-
-struct cdevsw scd_cdevsw = 
-	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
-	  scdioctl,	nostop,		nullreset,	nodevtotty,/* sony cd */
-	  seltrue,	nommap,		scdstrategy };
-
 static scd_devsw_installed = 0;
 
 static void 	scd_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! scd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&scd_cdevsw,NULL);
-		dev_chr = dev;
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&scd_bdevsw,NULL);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&scd_cdevsw, NULL);
+		dev = makedev(BDEV_MAJOR, 0);
+		bdevsw_add(&dev,&scd_bdevsw, NULL);
 		scd_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rscd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-			x=devfs_add_devsw(
-	"/",	"scd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(scddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,scd_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NSCD > 0 */

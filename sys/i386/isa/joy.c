@@ -34,21 +34,17 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/joystick.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
-
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 51
-#endif /*JREMOD*/
 
 /* The game port can manage 4 buttons and 4 variable resistors (usually 2
  * joysticks, each with 2 buttons and 2 pots.) via the port at address 0x201.
@@ -77,6 +73,9 @@ static struct {
     int port;
     int x_off[2], y_off[2];
     int timeout[2];
+#ifdef	DEVFS
+    void	*devfs_token;
+#endif
 } joy[NJOY];
 
 
@@ -85,6 +84,17 @@ extern int timer0_max_count;
 int joyprobe (struct isa_device *), joyattach (struct isa_device *);
 
 struct isa_driver joydriver = {joyprobe, joyattach, "joy"};
+
+#define CDEV_MAJOR 51
+static	d_open_t	joyopen;
+static	d_close_t	joyclose;
+static	d_read_t	joyread;
+static	d_ioctl_t	joyioctl;
+
+struct cdevsw joy_cdevsw = 
+	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
+	  joyioctl,	nostop,		nullreset,	nodevtotty,/*joystick */
+	  seltrue,	nommap,		NULL,	"joy",	NULL,	-1 };
 
 static int get_tick ();
 
@@ -104,14 +114,22 @@ joyprobe (struct isa_device *dev)
 int
 joyattach (struct isa_device *dev)
 {
-    joy[dev->id_unit].port = dev->id_iobase;
-    joy[dev->id_unit].timeout[0] = joy[dev->id_unit].timeout[1] = 0;
-    printf("joy%d: joystick\n", dev->id_unit);
+    int	unit = dev->id_unit;
+    char name[32];
 
+    joy[unit].port = dev->id_iobase;
+    joy[unit].timeout[0] = joy[unit].timeout[1] = 0;
+    printf("joy%d: joystick\n", unit);
+#ifdef	DEVFS
+    sprintf(name, "joy%d", unit);
+    joy[dev->id_unit].devfs_token = devfs_add_devsw( "/", "joy",
+						&joy_cdevsw, 0,
+						DV_CHR, 0, 0, 0600);
+#endif
     return 1;
 }
 
-int
+static	int
 joyopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
     int unit = UNIT (dev);
@@ -123,7 +141,7 @@ joyopen (dev_t dev, int flags, int fmt, struct proc *p)
     joy[unit].timeout[i] = JOY_TIMEOUT;
     return 0;
 }
-int
+static	int
 joyclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
     int unit = UNIT (dev);
@@ -133,7 +151,7 @@ joyclose (dev_t dev, int flags, int fmt, struct proc *p)
     return 0;
 }
 
-int
+static	int
 joyread (dev_t dev, struct uio *uio, int flag)
 {
     int unit = UNIT(dev);
@@ -169,7 +187,9 @@ joyread (dev_t dev, struct uio *uio, int flag)
     c.b2 = ~(state >> 1) & 1;
     return uiomove ((caddr_t)&c, sizeof(struct joystick), uio);
 }
-int joyioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+
+static	int
+joyioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
     int unit = UNIT (dev);
     int i = joypart (dev);
@@ -202,6 +222,7 @@ int joyioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     }
     return 0;
 }
+
 static int
 get_tick ()
 {
@@ -215,12 +236,6 @@ get_tick ()
 }
 
 
-#ifdef JREMOD
-struct cdevsw joy_cdevsw = 
-	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
-	  joyioctl,	nostop,		nullreset,	nodevtotty,/*joystick */
-	  seltrue,	nommap,		NULL};
-
 static joy_devsw_installed = 0;
 
 static void 	joy_drvinit(void *unused)
@@ -231,20 +246,9 @@ static void 	joy_drvinit(void *unused)
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&joy_cdevsw,NULL);
 		joy_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"joy",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(joydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,joy_drvinit,NULL)
-
-#endif /* JREMOD */
 
 #endif /* NJOY > 0 */

@@ -53,20 +53,17 @@
 #include <sys/errno.h>
 #include <sys/buf.h>
 #include <sys/dataacq.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/devconf.h>
 #include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 66
-#endif /*JREMOD*/
 
 
 /* Miniumum timeout:
@@ -151,6 +148,9 @@ struct ctlr
 	/* Device configuration structure:
 	 */
 	struct kern_devconf kdc;
+#ifdef DEVFS
+	void *devfs_token;
+#endif
 };
 
 #ifdef LOUTB
@@ -282,6 +282,17 @@ extern int labpcdetach(struct isa_device *dev);
 extern int labpcprobe(struct isa_device *dev);
 struct isa_driver labpcdriver =
 	{ labpcprobe, labpcattach, "labpc", 0 /* , labpcdetach */ };
+
+static	d_open_t	labpcopen;
+static	d_close_t	labpcclose;
+static	d_ioctl_t	labpcioctl;
+static	d_strategy_t	labpcstrategy;
+
+#define CDEV_MAJOR 66
+struct cdevsw labpc_cdevsw = 
+	{ labpcopen,	labpcclose,	rawread,	rawwrite,	/*66*/
+	  labpcioctl,	nostop,		nullreset,	nodevtotty,/* labpc */
+	  seltrue,	nommap,		labpcstrategy, "labpc",	NULL,	-1 };
 
 static void start(struct ctlr *ctlr);
 
@@ -495,6 +506,8 @@ int labpcprobe(struct isa_device *dev)
 int labpcattach(struct isa_device *dev)
 {
 	struct ctlr *ctlr = labpcs[dev->id_unit];
+	char	name[32];
+
 	ctlr->sample_us = (1000000.0 / (double)LABPC_DEFAULT_HERZ) + .50;
 	reset(ctlr);
     labpc_registerdev(dev);
@@ -505,6 +518,13 @@ int labpcattach(struct isa_device *dev)
 	ctlr->dcr_is = 0x80;
 	loutb(DCR(ctlr), ctlr->dcr_val);
 
+#ifdef DEVFS
+	sprintf(name, "labpc%d",dev->id_unit);
+	/*                                  path  name   devsw       minor */
+	ctlr->devfs_token = devfs_add_devsw( "/", name, &labpc_cdevsw, 0,
+                              /* what  UID GID PERM */
+				DV_CHR, 0, 0, 0600);
+#endif
 	return 1;
 }
 
@@ -734,7 +754,7 @@ lockout_multiple_open(dev_t current, dev_t next)
 	return ! (DIGITAL(current) && DIGITAL(next));
 }
 
-int
+static	int
 labpcopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	u_short unit = UNIT(dev);
@@ -772,7 +792,7 @@ labpcopen(dev_t dev, int flags, int fmt, struct proc *p)
 	return 0;
 }
 
-int
+static	int
 labpcclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct ctlr *ctlr = labpcs[UNIT(dev)];
@@ -1007,7 +1027,7 @@ digital_in_strategy(struct buf *bp, struct ctlr *ctlr)
 }
 
 
-void
+static	void
 labpcstrategy(struct buf *bp)
 {
 	struct ctlr *ctlr = labpcs[UNIT(bp->b_dev)];
@@ -1045,7 +1065,7 @@ labpcstrategy(struct buf *bp)
 	}
 }
 
-int
+static	int
 labpcioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc *p)
 {
 	struct ctlr *ctlr = labpcs[UNIT(dev)];
@@ -1107,12 +1127,6 @@ labpcioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc *p)
 }
 
 
-#ifdef JREMOD
-struct cdevsw labpc_cdevsw = 
-	{ labpcopen,	labpcclose,	rawread,	rawwrite,	/*66*/
-	  labpcioctl,	nostop,		nullreset,	nodevtotty,/* labpc */
-	  seltrue,	nommap,		labpcstrategy };
-
 static labpc_devsw_installed = 0;
 
 static void 	labpc_drvinit(void *unused)
@@ -1123,19 +1137,9 @@ static void 	labpc_drvinit(void *unused)
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&labpc_cdevsw,NULL);
 		labpc_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-			x=devfs_add_devsw(
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"labpc",	major(dev),	0,	DV_CHR,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(labpcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,labpc_drvinit,NULL)
 
-#endif /* JREMOD */
 

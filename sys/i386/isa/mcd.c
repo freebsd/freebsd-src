@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.50 1995/11/29 10:47:44 julian Exp $
+ *	$Id: mcd.c,v 1.51 1995/11/29 14:39:46 julian Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -61,6 +61,10 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/devconf.h>
+#include <sys/kernel.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -70,15 +74,6 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <i386/isa/isa_device.h>
 #include <i386/isa/mcdreg.h>
 
-#ifdef JREMOD
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
-#define CDEV_MAJOR 29
-#define BDEV_MAJOR 7
-#endif /*JREMOD */
 
 #define	MCD_TRACE(format, args...)						\
 {									\
@@ -164,6 +159,12 @@ struct mcd_data {
 	short	debug;
 	struct buf head;		/* head of buf queue */
 	struct mcd_mbx mbx;
+#ifdef	DEVFS
+	void *ra_devfs_token;		/* store the devfs handle here */
+	void *rc_devfs_token;		/* store the devfs handle here */
+	void *a_devfs_token;		/* store the devfs handle here */
+	void *c_devfs_token;		/* store the devfs handle here */
+#endif
 } mcd_data[NMCD];
 
 /* reader state machine */
@@ -208,10 +209,28 @@ static	int	mcd_resume(int unit);
 static  int     mcd_lock_door(int unit, int lock);
 static  int     mcd_close_tray(int unit);
 
-extern	int	hz;
 static	int	mcd_probe(struct isa_device *dev);
 static	int	mcd_attach(struct isa_device *dev);
 struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
+
+static	d_open_t	mcdopen;
+static	d_close_t	mcdclose;
+static	d_ioctl_t	mcdioctl;
+static	d_psize_t	mcdsize;
+static	d_strategy_t	mcdstrategy;
+
+#define CDEV_MAJOR 29
+#define BDEV_MAJOR 7
+extern	struct cdevsw mcd_cdevsw;
+struct bdevsw mcd_bdevsw = 
+	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
+	  nxdump,	mcdsize,	0,	"mcd",	&mcd_cdevsw,	-1 };
+
+struct cdevsw mcd_cdevsw = 
+	{ mcdopen,	mcdclose,	rawread,	nowrite,	/*29*/
+	  mcdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		mcdstrategy,	"mcd",
+	  &mcd_bdevsw,	-1 };
 
 #define mcd_put(port,byte)	outb(port,byte)
 
@@ -253,20 +272,44 @@ mcd_registerdev(struct isa_device *id)
 
 int mcd_attach(struct isa_device *dev)
 {
-	struct mcd_data *cd = mcd_data + dev->id_unit;
+	int	unit = dev->id_unit;
+	struct mcd_data *cd = mcd_data + unit;
+	char	name[32];
 
 	cd->iobase = dev->id_iobase;
 	cd->flags |= MCDINIT;
-	mcd_soft_reset(dev->id_unit);
+	mcd_soft_reset(unit);
 
 #ifdef NOTYET
 	/* wire controller for interrupts and dma */
 	mcd_configure(cd);
 #endif
-	kdc_mcd[dev->id_unit].kdc_state = DC_IDLE;
+	kdc_mcd[unit].kdc_state = DC_IDLE;
 	/* name filled in probe */
-	kdc_mcd[dev->id_unit].kdc_description = mcd_data[dev->id_unit].name;
+	kdc_mcd[unit].kdc_description = mcd_data[unit].name;
+#ifdef DEVFS
+#define MCD_UID 0
+#define MCD_GID 13
+	sprintf(name, "rmcd%da",unit);
+	cd->ra_devfs_token = devfs_add_devsw(
+		"/", name, &mcd_cdevsw, (unit * 8 ) + 0,
+		DV_CHR,	MCD_UID,  MCD_GID, 0600);
 
+	sprintf(name, "rmcd%dc",unit);
+	cd->rc_devfs_token = devfs_add_devsw(
+		"/", name, &mcd_cdevsw, (unit * 8 ) + RAW_PART,
+		DV_CHR,	MCD_UID,  MCD_GID, 0600);
+
+	sprintf(name, "mcd%da",unit);
+	cd->a_devfs_token = devfs_add_devsw(
+		"/", name, &mcd_bdevsw, (unit * 8 ) + 0,
+		DV_BLK,	MCD_UID,  MCD_GID, 0600);
+
+	sprintf(name, "mcd%dc",unit);
+	cd->c_devfs_token = devfs_add_devsw(
+		"/", name, &mcd_bdevsw, (unit * 8 ) + RAW_PART,
+		DV_BLK,	MCD_UID,  MCD_GID, 0600);
+#endif
 	return 1;
 }
 
@@ -1670,45 +1713,23 @@ mcd_resume(int unit)
 	return mcd_play(unit, &cd->lastpb);
 }
 
-#ifdef JREMOD
-struct bdevsw mcd_bdevsw = 
-	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
-	  nxdump,	mcdsize,	0 };
-
-struct cdevsw mcd_cdevsw = 
-	{ mcdopen,	mcdclose,	rawread,	nowrite,	/*29*/
-	  mcdioctl,	nostop,		nullreset,	nodevtotty,/* mitsumi cd */
-	  seltrue,	nommap,		mcdstrategy };
 
 static mcd_devsw_installed = 0;
 
 static void 	mcd_drvinit(void *unused)
 {
 	dev_t dev;
-	dev_t dev_chr;
 
 	if( ! mcd_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR,0);
 		cdevsw_add(&dev,&mcd_cdevsw,NULL);
-		dev_chr = dev;
 		dev = makedev(BDEV_MAJOR,0);
 		bdevsw_add(&dev,&mcd_bdevsw,NULL);
 		mcd_devsw_installed = 1;
-#ifdef DEVFS
-		{
-			int x;
-/* default for a simple device with no probe routine (usually delete this) */
-/*	path	name	devsw		minor	type   uid gid perm*/
-	"/",	"rmcd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
-			x=devfs_add_devsw(
-	"/",	"mcd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
-		}
-#endif
     	}
 }
 
 SYSINIT(mcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mcd_drvinit,NULL)
 
-#endif /* JREMOD */
 
 #endif /* NMCD > 0 */

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.4 1995/11/29 12:38:46 julian Exp $
+ * $Id: kern_conf.c,v 1.5 1995/11/30 05:59:09 julian Exp $
  */
 
 #include <sys/param.h>
@@ -70,6 +70,7 @@ int TTYPE##_add(dev_t *descrip,						\
         if (oldentry) {							\
 		bcopy(&TTYPE[i], oldentry, sizeof(struct TTYPE));	\
 	}								\
+	newentry->d_maj = i;						\
 	/* replace with new */						\
 	bcopy(newentry, &TTYPE[i], sizeof(struct TTYPE));		\
 									\
