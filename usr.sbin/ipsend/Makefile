@@ -19,4 +19,6 @@ CFLAGS+=-DDOSOCKET -DIPL_NAME=\"/dev/ipl\" \
 DPADD=	${LIBL}
 LDADD=	-ll
 
+MAINTAINER=	guido@freebsd.org
+
 .include <bsd.prog.mk>
