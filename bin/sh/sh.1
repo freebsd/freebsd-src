@@ -947,12 +947,16 @@ The
 .Ic set
 built-in command can also be used to set or reset them.
 .Ss Special Parameters
-A special parameter is a parameter denoted by one of the following
-special characters.
-The value of the parameter is listed
-next to its character.
+A special parameter is a parameter denoted by a special one-character
+name.
+The special parameters recognized by the
+.Nm
+shell of
+.Fx
+are shown in the following list, exactly as they would appear in input
+typed by the user or in the source of a shell script.
 .Bl -hang
-.It Li *
+.It Li $*
 Expands to the positional parameters, starting from one.
 When
 the expansion occurs within a double-quoted string
@@ -965,7 +969,7 @@ or by a
 if
 .Ev IFS
 is unset.
-.It Li @
+.It Li $@
 Expands to the positional parameters, starting from one.
 When
 the expansion occurs within double-quotes, each positional
@@ -988,26 +992,26 @@ the two arguments:
 .Bd -literal -offset indent
 "abc"   "def ghi"
 .Ed
-.It Li #
+.It Li $#
 Expands to the number of positional parameters.
-.It Li \&?
+.It Li $\&?
 Expands to the exit status of the most recent pipeline.
-.It Li -
+.It Li $-
 (hyphen) Expands to the current option flags (the single-letter
 option names concatenated into a string) as specified on
 invocation, by the set built-in command, or implicitly
 by the shell.
-.It Li $
+.It Li $$
 Expands to the process ID of the invoked shell.
 A subshell
 retains the same value of $ as its parent.
-.It Li \&!
+.It Li $\&!
 Expands to the process ID of the most recent background
 command executed from the current shell.
 For a
 pipeline, the process ID is that of the last command in the
 pipeline.
-.It Li 0
+.It Li $0
 (zero) Expands to the name of the shell or shell script.
 .El
 .Ss Word Expansions
