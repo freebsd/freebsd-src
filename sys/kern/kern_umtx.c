@@ -525,12 +525,12 @@ do_lock(struct thread *td, struct umtx *umtx, long id,
 			timespecsub(&ts1, &ts2);
 			TIMESPEC_TO_TIMEVAL(&tv, &ts1);
 			if (tv.tv_sec < 0) {
-				error = ETIMEDOUT;
+				error = EWOULDBLOCK;
 				break;
 			}
 			timo = tvtohz(&tv);
 			error = _do_lock(td, umtx, id, timo);
-			if (error != ETIMEDOUT) {
+			if (error != EWOULDBLOCK) {
 				if (error == ERESTART)
 					error = EINTR;
 				break;
@@ -689,22 +689,20 @@ do_unlock_and_wait(struct thread *td, struct umtx *umtx, long id, void *uaddr,
 			timespecsub(&ts1, &ts2);
 			TIMESPEC_TO_TIMEVAL(&tv, &ts1);
 			if (tv.tv_sec < 0) {
-				error = ETIMEDOUT;
+				error = EWOULDBLOCK;
 				break;
 			}
 			timo = tvtohz(&tv);
 			umtxq_lock(&uq.uq_key);
 			if (td->td_flags & TDF_UMTXQ) {
 				error = umtxq_sleep(td, &uq.uq_key,
-						td->td_priority | PCATCH,
-						"ucond", timo);
+					    td->td_priority | PCATCH | PDROP,
+					    "ucond", timo);
 				if (!(td->td_flags & TDF_UMTXQ)) {
-					umtxq_unlock(&uq.uq_key);
 					error = 0;
 					break;
 				}
-				if (error != 0 && error != ETIMEDOUT) {
-					umtxq_unlock(&uq.uq_key);
+				if (error != 0 && error != EWOULDBLOCK) {
 					if (error == ERESTART)
 						error = EINTR;
 					break;
