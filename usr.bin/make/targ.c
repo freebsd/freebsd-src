@@ -286,10 +286,7 @@ Targ_FindList(Lst *names, int flags)
 
     nodes = Lst_Init();
 
-    if (Lst_Open(names) == FAILURE) {
-	return (nodes);
-    }
-    while ((ln = Lst_Next(names)) != NULL) {
+    for (ln = Lst_First(names); ln != NULL; ln = Lst_Succ(ln)) {
 	name = Lst_Datum(ln);
 	gn = Targ_FindNode(name, flags);
 	if (gn != NULL) {
@@ -306,7 +303,6 @@ Targ_FindList(Lst *names, int flags)
 	    Error("\"%s\" -- target unknown.", name);
 	}
     }
-    Lst_Close(names);
     return (nodes);
 }
 

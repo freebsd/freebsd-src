@@ -1021,11 +1021,7 @@ Arch_MemMTime(GNode *gn)
     char    	  *nameStart,
 		  *nameEnd;
 
-    if (Lst_Open(gn->parents) != SUCCESS) {
-	gn->mtime = 0;
-	return (0);
-    }
-    while ((ln = Lst_Next(gn->parents)) != NULL) {
+    for (ln = Lst_First(gn->parents); ln != NULL; ln = Lst_Succ(ln)) {
 	pgn = Lst_Datum(ln);
 
 	if (pgn->type & OP_ARCHV) {
@@ -1052,9 +1048,6 @@ Arch_MemMTime(GNode *gn)
 	    break;
 	}
     }
-
-    Lst_Close(gn->parents);
-
     return (gn->mtime);
 }
 
