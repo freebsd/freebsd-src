@@ -1311,6 +1311,7 @@ issignal(p)
 				PROCTREE_LOCK(PT_SHARED);
 			} while (!trace_req(p)
 				 && p->p_flag & P_TRACED);
+			PROCTREE_LOCK(PT_RELEASE);
 
 			/*
 			 * If the traced bit got turned off, go back up
