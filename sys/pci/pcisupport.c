@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.40.2.5 1997/10/10 11:53:38 asami Exp $
+**  $Id: pcisupport.c,v 1.40.2.6 1998/03/01 10:12:00 asami Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -51,6 +51,8 @@
 #include <pci/pcireg.h>
 
 static void config_orion (pcici_t tag);
+static void config_i1225 (pcici_t tag);
+static void config_Ross (pcici_t tag);
 
 /*---------------------------------------------------------
 **
@@ -170,6 +172,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82450KX (Orion) PCI memory controller");
 	case 0x84c58086:
 		return ("Intel 82454GX (Orion) host to PCI bridge");
+	case 0x00051166:
+		return ("Ross (?) host to PCI bridge");
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
 	case 0x00011011:
@@ -699,6 +703,17 @@ config_i1225(pcici_t tag)
 }
 
 static void
+config_Ross(pcici_t tag)
+{
+	int secondarybus;
+
+	/* just guessing the secondary bus register number ... */
+	secondarybus = (pci_conf_read(tag, 0x44) >> 8) & 0xff;
+	if (secondarybus != 0)
+		pciroots++;
+}
+
+static void
 chipset_attach (pcici_t config_id, int unit)
 {
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
@@ -708,6 +723,9 @@ chipset_attach (pcici_t config_id, int unit)
 		break;
 	case 0x12258086: /* unidentified Intel host bridge, dev ID == 0x1225 */
 		config_i1225 (config_id);
+		break;
+	case 0x00051166: /* Ross ??? */
+		config_Ross (config_id);
 		break;
 	}
 #ifndef PCI_QUIET
