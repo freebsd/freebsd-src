@@ -5,6 +5,10 @@
 
 /set type=dir uname=root gname=wheel mode=0755
 .
+/set type=dir uname=operator gname=operator mode=0700
+    .entropy
+    ..
+/set type=dir uname=root gname=wheel mode=0755
     bin
     ..
     boot
