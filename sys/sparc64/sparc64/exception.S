@@ -482,18 +482,6 @@ END(rsf_fatal)
 	.endr
 	.endm
 
-	.macro	tl0_fp_restore
-	wr	%g0, FPRS_FEF, %fprs
-	wr	%g0, ASI_BLK_S, %asi
-	ldda	[PCB_REG + PCB_FPSTATE + FP_FB0] %asi, %f0
-	ldda	[PCB_REG + PCB_FPSTATE + FP_FB1] %asi, %f16
-	ldda	[PCB_REG + PCB_FPSTATE + FP_FB2] %asi, %f32
-	ldda	[PCB_REG + PCB_FPSTATE + FP_FB3] %asi, %f48
-	membar	#Sync
-	done
-	.align	32
-	.endm
-
 	.macro	tl0_insn_excptn
 	wrpr	%g0, PSTATE_ALT, %pstate
 	wr	%g0, ASI_IMMU, %asi
@@ -1187,6 +1175,23 @@ END(tl0_sftrap)
 	 mov	T_SYSCALL, %o0
 	.align	32
 	.endm
+
+	.macro	tl0_fp_restore
+	ba,a	%xcc, tl0_fp_restore
+	 nop
+	.align	32
+	.endm
+
+ENTRY(tl0_fp_restore)
+	wr	%g0, FPRS_FEF, %fprs
+	wr	%g0, ASI_BLK_S, %asi
+	ldda	[PCB_REG + PCB_UFP + (0 * 64)] %asi, %f0
+	ldda	[PCB_REG + PCB_UFP + (1 * 64)] %asi, %f16
+	ldda	[PCB_REG + PCB_UFP + (2 * 64)] %asi, %f32
+	ldda	[PCB_REG + PCB_UFP + (3 * 64)] %asi, %f48
+	membar	#Sync
+	done
+END(tl0_fp_restore)
 
 	.macro	tl1_insn_excptn
 	wrpr	%g0, PSTATE_ALT, %pstate

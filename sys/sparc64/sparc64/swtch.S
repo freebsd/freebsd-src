@@ -68,10 +68,10 @@ ENTRY(cpu_switch)
 	 nop
 	wr	%g0, FPRS_FEF, %fprs
 	wr	%g0, ASI_BLK_S, %asi
-	stda	%f0, [%l1 + PCB_FPSTATE + FP_FB0] %asi
-	stda	%f16, [%l1 + PCB_FPSTATE + FP_FB1] %asi
-	stda	%f32, [%l1 + PCB_FPSTATE + FP_FB2] %asi
-	stda	%f48, [%l1 + PCB_FPSTATE + FP_FB3] %asi
+	stda	%f0, [%l1 + PCB_UFP + (0 * 64)] %asi
+	stda	%f16, [%l1 + PCB_UFP + (1 * 64)] %asi
+	stda	%f32, [%l1 + PCB_UFP + (2 * 64)] %asi
+	stda	%f48, [%l1 + PCB_UFP + (3 * 64)] %asi
 	membar	#Sync
 	wr	%g0, 0, %fprs
 	andn	%l3, FPRS_FEF, %l3
@@ -278,31 +278,16 @@ ENTRY(savectx)
 END(savectx)
 
 /*
- * void savefpctx(struct fpstate *);
+ * void savefpctx(uint32_t *);
  */
 ENTRY(savefpctx)
 	wr	%g0, FPRS_FEF, %fprs
 	wr	%g0, ASI_BLK_S, %asi
-	stda	%f0, [%o0 + PCB_FPSTATE + FP_FB0] %asi
-	stda	%f16, [%o0 + PCB_FPSTATE + FP_FB1] %asi
-	stda	%f32, [%o0 + PCB_FPSTATE + FP_FB2] %asi
-	stda	%f48, [%o0 + PCB_FPSTATE + FP_FB3] %asi
+	stda	%f0, [%o0 + (0 * 64)] %asi
+	stda	%f16, [%o0 + (1 * 64)] %asi
+	stda	%f32, [%o0 + (2 * 64)] %asi
+	stda	%f48, [%o0 + (3 * 64)] %asi
 	membar	#Sync
 	retl
 	 wr	%g0, 0, %fprs
 END(savefpctx)
-
-/*
- * void restorefpctx(struct fpstate *);
- */	
-ENTRY(restorefpctx)
-	wr	%g0, FPRS_FEF, %fprs
-	wr	%g0, ASI_BLK_S, %asi
-	ldda	[%o0 + PCB_FPSTATE + FP_FB0] %asi, %f0
-	ldda	[%o0 + PCB_FPSTATE + FP_FB1] %asi, %f16
-	ldda	[%o0 + PCB_FPSTATE + FP_FB2] %asi, %f32
-	ldda	[%o0 + PCB_FPSTATE + FP_FB3] %asi, %f48
-	membar	#Sync
-	retl
-	 wr	%g0, 0, %fprs
-END(restorefpctx)

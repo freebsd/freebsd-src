@@ -29,14 +29,13 @@
 #ifndef	_MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
-#include <machine/fp.h>
 #include <machine/frame.h>
 
 #define	MAXWIN	8
 
-/* NOTE: pcb_fpstate must be aligned on a 64 byte boundary. */
+/* NOTE: pcb_ufp must be aligned on a 64 byte boundary. */
 struct pcb {
-	struct	fpstate	pcb_fpstate;
+	uint32_t pcb_ufp[64];
 	u_long	pcb_sp;
 	u_long	pcb_pc;
 	u_long	pcb_nsaved;
