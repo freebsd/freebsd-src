@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2.c,v 1.4 1995/10/10 08:20:28 swallace Exp $
+ *	$Id: ibcs2.c,v 1.5 1995/10/28 12:35:03 peter Exp $
  */
 
 #include <sys/param.h>
@@ -59,5 +59,5 @@ ibcs2_unload(struct lkm_table *lkmtp, int cmd)
 int
 ibcs2_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, ibcs2_load, ibcs2_unload, nosys);
+	DISPATCH(lkmtp, cmd, ver, ibcs2_load, ibcs2_unload, lkm_nullcmd);
 }
