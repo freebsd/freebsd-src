@@ -69,4 +69,3 @@ thread_sim(void *ptr __unused)
 	done();
 	return (0);
 }
-

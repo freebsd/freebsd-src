@@ -40,6 +40,8 @@
 pthread_cond_t ptc_up, ptc_down, ptc_event;
 pthread_mutex_t ptm_up, ptm_down, ptm_event;
 
+#define CTASSERT(foo)
+
 /* bio.h */
 
 struct bio {
@@ -102,7 +104,8 @@ void new_thread(void *(*func)(void *arg), char *name);
 extern int bootverbose;
 #define KASSERT(cond, txt) do {if (!(cond)) {printf txt; conff("err"); abort();}} while(0)
 #define M_WAITOK 0
-#define M_ZERO 1
+#define M_NOWAIT 1
+#define M_ZERO 2
 
 extern struct mtx Giant;
 void *g_malloc(int size, int flags);
