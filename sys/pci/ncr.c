@@ -10,6 +10,7 @@
 **	Stefan Esser		<se@mi.Uni-Koeln.de>
 **
 **-------------------------------------------------------------------------
+*/
 /*-
 ** Copyright (c) 1994 Wolfgang Stanglmeier.  All rights reserved.
 **
