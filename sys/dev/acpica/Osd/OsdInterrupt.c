@@ -66,7 +66,7 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
     if (ServiceRoutine == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
-    if (InterruptHandler != NULL) {
+    if (InterruptHandler != NULL && InterruptHandler != ServiceRoutine) {
 	device_printf(sc->acpi_dev, "can't register more than one ACPI interrupt\n");
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
