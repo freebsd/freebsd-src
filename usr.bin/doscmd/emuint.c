@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
  * To call emuint from VM86 space do:
  *	push ax		   Save original ax value (*must be done* !)
  *	mov  ah, funcnum   Emuint function number to ah
- *	mov  al, subfunc   Subfunction number, optional, depening on func
+ *	mov  al, subfunc   Subfunction number, optional, depending on func
  *	int  0xff		
  *	..
  *	..

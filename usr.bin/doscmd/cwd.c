@@ -271,7 +271,7 @@ dos_makepath(u_char *where, u_char *newpath)
 
 /*
  * Set DOS's idea of the CWD for drive to be where.
- * Returns DOS errno on failuer.
+ * Returns DOS errno on failure.
  */
 int
 dos_setcwd(u_char *where)
@@ -954,7 +954,7 @@ printf("find_next: found %s\n",name);
 }
 
 /*
- * perfrom hokey DOS pattern matching.  pattern may contain the wild cards
+ * perform hokey DOS pattern matching.  pattern may contain the wild cards
  * '*' and '?' only.  Follow the DOS convention that '?*', '*?' and '**' all
  * are the same as '*'.  Also, allow '?' to match the blank padding in a
  * name (hence, ???? matchs all of "a", "ab", "abc" and "abcd" but not "abcde")

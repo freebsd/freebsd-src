@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
  * is ems_entry(..). The emulator needs to be initialized before the first
  * call. The first step of the initialization is done during program startup
  * the second part is done during DOS boot, from a call of the DOS driver.
- * The DOS driver is neccessary because DOS programs look for it to
+ * The DOS driver is necessary because DOS programs look for it to
  * determine if EMS is available.
  *
  * To emulate a configurable amount of EMS memory we use a file created
@@ -109,7 +109,7 @@ struct copydesc {
     short     copytype;		/* Type of source and destination memory */
     EMS_addr  src_addr;		/* Combined pointer for source */
     EMS_addr  dst_addr;		/* Combined pointer for destination */
-    u_long  rest_len;		/* Lenght to copy */
+    u_long  rest_len;		/* Length to copy */
 };
 
 
@@ -1529,7 +1529,7 @@ copy_block_up(struct copydesc *cdp)
     void *dstp;
 
     /* If source or both memory types are EMS, source determines the
-     * block lenght, else destination determines the block lenght
+     * block length, else destination determines the block length
      */
     if (cdp->copytype & SRC_EMS)
 	size = EMS_PAGESIZE - cdp->EMS_OFFS(src_addr);
