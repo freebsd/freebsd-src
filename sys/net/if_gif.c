@@ -86,6 +86,14 @@
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 static LIST_HEAD(, gif_softc) gif_softc_list;
 
+/*
+ * XXX: gif_called is a recursion counter to prevent misconfiguration to
+ * cause unbounded looping in the network stack.  However, this is a flawed
+ * approach as it assumes non-reentrance in the stack.  This should be
+ * changed to use packet tags to track recusion..
+ */
+static int gif_called = 0;
+
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
 void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
 void	(*ng_gif_attach_p)(struct ifnet *ifp);
@@ -314,7 +322,6 @@ gif_output(ifp, m, dst, rt)
 {
 	struct gif_softc *sc = (struct gif_softc*)ifp;
 	int error = 0;
-	static int called = 0;	/* XXX: MUTEX */
 
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
@@ -331,10 +338,10 @@ gif_output(ifp, m, dst, rt)
 	 *      mutual exclusion of the variable CALLED, especially if we
 	 *      use kernel thread.
 	 */
-	if (++called > max_gif_nesting) {
+	if (++gif_called > max_gif_nesting) {
 		log(LOG_NOTICE,
 		    "gif_output: recursively called too many times(%d)\n",
-		    called);
+		    gif_called);
 		m_freem(m);
 		error = EIO;	/* is there better errno? */
 		goto end;
@@ -378,7 +385,7 @@ gif_output(ifp, m, dst, rt)
 	}
 
   end:
-	called = 0;		/* reset recursion counter */
+	gif_called = 0;		/* reset recursion counter */
 	if (error)
 		ifp->if_oerrors++;
 	return error;
