@@ -122,6 +122,9 @@ retry:
 	td->td_flags |= TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
 	mtx_unlock(&sellock);
+
+	/* XXX: Should be done when the thread is initialized. */
+	TAILQ_INIT(&td->td_selq);
 	error = nb_poll(nbp, events, td);
 	mtx_lock(&sellock);
 	if (error) {
