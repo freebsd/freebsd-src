@@ -83,7 +83,7 @@ userret(td, frame, oticks)
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	if (SIGPENDING(p) && ((p->p_sflag & PS_NEEDSIGCHK) == 0 ||
-	    (ke->ke_flags & KEF_ASTPENDING) == 0))
+	    (td->td_kse->ke_flags & KEF_ASTPENDING) == 0))
 		printf("failed to set signal flags properly for ast()\n");
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
@@ -169,7 +169,6 @@ ast(struct trapframe *framep)
 	td = curthread;
 	p = td->td_proc;
 	kg = td->td_ksegrp;
-	ke = td->td_kse;
 
 	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, p->p_pid,
             p->p_comm);
@@ -190,6 +189,7 @@ ast(struct trapframe *framep)
 	 * ast() will be called again.
 	 */
 	mtx_lock_spin(&sched_lock);
+	ke = td->td_kse;
 	sticks = ke->ke_sticks;
 	flags = ke->ke_flags;
 	sflag = p->p_sflag;
