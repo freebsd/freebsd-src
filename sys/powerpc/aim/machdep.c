@@ -57,13 +57,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
 #include "opt_compat.h"
 #include "opt_kstack_pages.h"
 #include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/eventhandler.h>
 #include <sys/imgact.h>
 #include <sys/sysproto.h>
@@ -110,9 +110,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/powerpc.h>
 #include <dev/ofw/openfirm.h>
-#include <ddb/ddb.h>
 #include <sys/vnode.h>
 #include <machine/sigframe.h>
+
+#include <ddb/ddb.h>
 
 int cold = 1;
 
@@ -132,11 +133,6 @@ SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
 static int cacheline_size = CACHELINESIZE;
 SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
-
-#ifdef DDB
-/* start and end of kernel symbol table */
-void		*ksym_start, *ksym_end;
-#endif /* DDB */
 
 static void	cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
@@ -239,7 +235,7 @@ extern void	*alitrap, *alisize;
 extern void	*dsitrap, *dsisize;
 extern void	*decrint, *decrsize;
 extern void     *extint, *extsize;
-extern void	*ddblow, *ddbsize;
+extern void	*dblow, *dbsize;
 
 void
 powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
@@ -305,12 +301,14 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 		printf("powerpc_init: no loader metadata.\n");
 	}
 
-#ifdef DDB
 	kdb_init();
-#endif
+
 	/*
 	 * XXX: Initialize the interrupt tables.
+	 *      Disable translation in case the vector area
+	 *      hasn't been mapped (G5)
 	 */
+	mtmsr(mfmsr() & ~(PSL_IR | PSL_DR));
 	bcopy(&trapcode, (void *)EXC_RST,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_MCHK, (size_t)&trapsize);
 	bcopy(&dsitrap,  (void *)EXC_DSI,  (size_t)&dsisize);
@@ -325,10 +323,12 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	bcopy(&trapcode, (void *)EXC_FPA,  (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_THRM, (size_t)&trapsize);
 	bcopy(&trapcode, (void *)EXC_BPT,  (size_t)&trapsize);
-#ifdef DDB
-	bcopy(&ddblow,   (void *)EXC_PGM,  (size_t)&ddbsize);
-	bcopy(&ddblow,   (void *)EXC_TRC,  (size_t)&ddbsize);
-	bcopy(&ddblow,   (void *)EXC_BPT,  (size_t)&ddbsize);
+#ifdef KDB
+	bcopy(&dblow,	 (void *)EXC_RST,  (size_t)&dbsize);
+	bcopy(&dblow,	 (void *)EXC_MCHK, (size_t)&dbsize);
+	bcopy(&dblow,   (void *)EXC_PGM,  (size_t)&dbsize);
+	bcopy(&dblow,   (void *)EXC_TRC,  (size_t)&dbsize);
+	bcopy(&dblow,   (void *)EXC_BPT,  (size_t)&dbsize);
 #endif
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
@@ -360,6 +360,11 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
 		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
+
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter("Boot flags requested debugger");
+#endif
 }
 
 void
@@ -571,6 +576,21 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 #endif
 
 /*
+ * Construct a PCB from a trapframe. This is called from kdb_trap() where
+ * we want to start a backtrace from the function that caused us to enter
+ * the debugger. We have the context in the trapframe, but base the trace
+ * on the PCB. The PCB doesn't have to be perfect, as long as it contains
+ * enough for a backtrace.
+ */
+void
+makectx(struct trapframe *tf, struct pcb *pcb)
+{
+
+	pcb->pcb_lr = tf->srr0;
+	pcb->pcb_sp = tf->fixreg[1];
+}
+
+/*
  * get_mcontext/sendsig helper routine that doesn't touch the
  * proc lock
  */
@@ -741,15 +761,6 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	td->td_pcb->pcb_flags = 0;
 }
 
-#if !defined(DDB)
-void
-Debugger(const char *msg)
-{
-
-	printf("Debugger(\"%s\") called.\n", msg);
-}
-#endif /* !defined(DDB) */
-
 /* XXX: dummy {fill,set}_[fp]regs */
 int
 fill_regs(struct thread *td, struct reg *regs)
@@ -852,4 +863,24 @@ void
 asm_panic(char *pstr)
 {
 	panic(pstr);
+}
+
+int db_trap_glue(struct trapframe *);		/* Called from trap_subr.S */
+
+int
+db_trap_glue(struct trapframe *frame)
+{
+	if (!(frame->srr1 & PSL_PR)
+	    && (frame->exc == EXC_TRC || frame->exc == EXC_RUNMODETRC
+		|| (frame->exc == EXC_PGM
+		    && (frame->srr1 & 0x20000))
+		|| frame->exc == EXC_BPT)) {
+		int type = frame->exc;
+		if (type == EXC_PGM && (frame->srr1 & 0x20000)) {
+			type = T_BREAKPOINT;
+		}
+		return (kdb_trap(type, 0, frame));
+	}
+
+	return (0);
 }
