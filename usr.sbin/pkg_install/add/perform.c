@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.19 1995/04/22 13:58:20 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.20 1995/04/26 06:56:05 jkh Exp $";
 #endif
 
 /*
@@ -69,6 +69,7 @@ pkg_do(char *pkg)
     if (Plist.head)
 	free_plist(&Plist);
     LogDir[0] = '\0';
+
     if (AddMode == SLAVE) {
 	char tmp_dir[FILENAME_MAX];
 
@@ -121,7 +122,7 @@ pkg_do(char *pkg)
 		printf("Doing in-place extraction for %s\n", pkg_fullname);
 	    p = find_plist(&Plist, PLIST_CWD);
 	    if (p) {
-		if (!isdir(p->name) && !NoInstall) {
+		if (!isdir(p->name) && !Fake) {
 		    if (Verbose)
 			printf("Desired prefix of %s does not exist, creating..\n", p->name);
 		    vsystem("mkdir -p %s", p->name);
@@ -161,7 +162,7 @@ pkg_do(char *pkg)
 	}
 
 	/* If this is a direct extract and we didn't want it, stop now */
-	if (where_to != PlayPen && NoInstall)
+	if (where_to != PlayPen && Fake)
 	    goto success;
 
 	setenv(PKG_PREFIX_VNAME,
@@ -180,12 +181,64 @@ pkg_do(char *pkg)
 	    goto success;	/* close enough for government work */
         }
 
+	/* Now check the packing list for dependencies */
+	for (p = Plist.head; p ; p = p->next) {
+	    if (p->type != PLIST_PKGDEP)
+		continue;
+	    if (Verbose)
+		printf("Package `%s' depends on `%s'", pkg, p->name);
+	    if (!Fake && vsystem("pkg_info -e %s", p->name)) {
+		char *cp, tmp[FILENAME_MAX], path[FILENAME_MAX*2];
+
+		if (Verbose)
+		    printf(" which is not currently loaded");
+		cp = getenv("PKG_PATH");
+		if (!cp)
+		    cp = Home;
+		strcpy(path, cp);
+		cp = path;
+		while (cp) {
+		    char *cp2 = strsep(&cp, ":");
+
+		    sprintf(tmp, "%s/%s.tgz", cp2 ? cp2 : cp, p->name);
+		    if (fexists(tmp))
+			break;
+		}
+		if (fexists(tmp)) {
+		    if (Verbose)
+			printf(" but was found - loading:\n");
+		    if (vsystem("pkg_add %s", tmp)) {
+			whinge("Autoload of dependency package `%s' failed!%s",
+			       p->name, Force ? " (proceeding anyway)" : "");
+			if (!Force)
+			    ++code;
+		    }
+		    else if (Verbose)
+			printf("\t`%s' loaded successfully.\n", p->name);
+		}
+		else {
+		    if (Verbose)
+			printf("and was not found%s.\n",
+			       Force ? " (proceeding anyway)" : "");
+		    else
+			printf("Package dependency %s for %s not found%s\n",
+			       p->name, pkg,
+			       Force ? " (proceeding anyway)" : "");
+		    if (!Force)
+			++code;
+		}
+	    }
+	    else if (Verbose)
+		printf(" - already installed.\n");
+	}
+
 	/* Finally unpack the whole mess */
 	if (unpack(pkg_fullname, NULL)) {
 	    whinge("Unable to extract `%s'!", pkg_fullname);
 	    goto bomb;
 	}
 
+	/* Check for sanity and dependencies */
 	if (sanity_check(pkg_fullname))
 	    goto bomb;
 
@@ -196,58 +249,8 @@ pkg_do(char *pkg)
 	    return 0;
 	}
     }
-    for (p = Plist.head; p ; p = p->next) {
-	if (p->type != PLIST_PKGDEP)
-	    continue;
-	if (Verbose)
-	    printf("Package `%s' depends on `%s'", PkgName, p->name);
-	if (!Fake && vsystem("pkg_info -e %s", p->name)) {
-	    char *cp, tmp[FILENAME_MAX], path[FILENAME_MAX*2];
 
-	    if (Verbose)
-		printf(" which is not currently loaded");
-	    cp = getenv("PKG_PATH");
-	    if (!cp)
-		cp = Home;
-	    strcpy(path, cp);
-	    cp = path;
-	    while (cp) {
-		char *cp2 = strsep(&cp, ":");
-
-		sprintf(tmp, "%s/%s.tgz", cp2 ? cp2 : cp, p->name);
-		if (fexists(tmp))
-		    break;
-	    }
-	    if (fexists(tmp)) {
-		if (Verbose)
-		    printf(" but was found - loading:\n");
-		if (vsystem("pkg_add %s", tmp)) {
-		    whinge("Autoload of dependency package `%s' failed!%s",
-			   p->name, Force ? " (proceeding anyway)" : "");
-		    if (!Force)
-			code++;
-		}
-		else if (Verbose)
-		    printf("\t`%s' loaded successfully.\n", p->name);
-	    }
-	    else {
-		if (Verbose)
-	    	    printf("and was not found%s.\n",
-	    	       Force ? " (proceeding anyway)" : "");
-		else
-		    printf("Package dependency on %s from %s not found%s\n",
-			   p->name, PkgName,
-			   Force ? " (proceeding anyway)" : "");
-	    	if (!Force)
-		    code++;
-	    }
-	}
-        else if (Verbose)
-	    printf(" - already installed.\n");
-    }
-    if (code != 0)
-	goto success;	/* close enough for government work */
-
+    /* Look for the requirements file */
     if (fexists(REQUIRE_FNAME)) {
 	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
 	if (Verbose)
@@ -262,6 +265,8 @@ pkg_do(char *pkg)
 	    }
 	}
     }
+
+    /* If we're really installing, and have an installation file, run it */
     if (!NoInstall && fexists(INSTALL_FNAME)) {
 	vsystem("chmod +x %s", INSTALL_FNAME);	/* make sure */
 	if (Verbose)
@@ -273,8 +278,12 @@ pkg_do(char *pkg)
 	    goto success;		/* nothing to uninstall yet */
 	}
     }
-    extract_plist(home, &Plist);
-    if (!NoInstall && fexists(MTREE_FNAME)) {
+
+    /* Now finally extract the entire show if we're not going direct */
+    if (where_to == PlayPen && !Fake)
+	extract_plist(home, &Plist);
+
+    if (!Fake && fexists(MTREE_FNAME)) {
 	if (Verbose)
 	    printf("Running mtree for %s..\n", PkgName);
 	p = find_plist(&Plist, PLIST_CWD);
@@ -291,6 +300,7 @@ pkg_do(char *pkg)
 	}
 	unlink(MTREE_FNAME);
     }
+
     if (!NoInstall && fexists(INSTALL_FNAME)) {
 	if (Verbose)
 	    printf("Running install with POST-INSTALL for %s..\n", PkgName);
@@ -302,6 +312,7 @@ pkg_do(char *pkg)
 	}
 	unlink(INSTALL_FNAME);
     }
+
     if (!NoRecord && !Fake) {
 	char contents[FILENAME_MAX];
 	FILE *cfile;
@@ -403,19 +414,22 @@ pkg_do(char *pkg)
 static int
 sanity_check(char *pkg)
 {
+    PackingList p;
+    int code = 0;
+
     if (!fexists(CONTENTS_FNAME)) {
 	whinge("Package %s has no CONTENTS file!", pkg);
-	return 1;
+	code = 1;
     }
-    if (!fexists(COMMENT_FNAME)) {
+    else if (!fexists(COMMENT_FNAME)) {
 	whinge("Package %s has no COMMENT file!", pkg);
-	return 1;
+	code = 1;
     }
-    if (!fexists(DESC_FNAME)) {
+    else if (!fexists(DESC_FNAME)) {
 	whinge("Package %s has no DESC file!", pkg);
-	return 1;
+	code = 1;
     }
-    return 0;
+    return code;
 }
 
 void
