@@ -198,11 +198,9 @@ rpcbs_rmtcall(rpcvers_t rtype, rpcproc_t rpcbproc, rpcprog_t prog,
 	return;
 }
 
-/*
- */
 void *
-rpcbproc_getstat(void *arg, struct svc_req *req, SVCXPRT *xprt,
-		 rpcvers_t versnum)
+rpcbproc_getstat(void *arg __unused, struct svc_req *req __unused,
+    SVCXPRT *xprt __unused, rpcvers_t versnum __unused)
 {
 	return (void *)&inf;
 }

@@ -262,7 +262,7 @@ done:
 /* ARGSUSED */
 static void *
 rpcbproc_getaddr_4_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
-			 rpcvers_t rpcbversnum)
+			 rpcvers_t rpcbversnum __unused)
 {
 	RPCB *regp = (RPCB *)arg;
 #ifdef RPCBIND_DEBUG
@@ -292,7 +292,7 @@ rpcbproc_getaddr_4_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
 /* ARGSUSED */
 static void *
 rpcbproc_getversaddr_4_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
-			     rpcvers_t versnum)
+			     rpcvers_t versnum __unused)
 {
 	RPCB *regp = (RPCB *)arg;
 #ifdef RPCBIND_DEBUG
@@ -319,8 +319,8 @@ rpcbproc_getversaddr_4_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
  */
 /* ARGSUSED */
 static void *
-rpcbproc_getaddrlist_4_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
-			     rpcvers_t versnum)
+rpcbproc_getaddrlist_4_local(void *arg, struct svc_req *rqstp __unused,
+			     SVCXPRT *transp, rpcvers_t versnum __unused)
 {
 	RPCB *regp = (RPCB *)arg;
 	static rpcb_entry_list_ptr rlist;
@@ -448,8 +448,8 @@ free_rpcb_entry_list(rpcb_entry_list_ptr *rlistp)
 
 /* ARGSUSED */
 static void *
-rpcbproc_dump_4_local(void *arg, struct svc_req *req, SVCXPRT *xprt,
-		      rpcvers_t versnum)
+rpcbproc_dump_4_local(void *arg __unused, struct svc_req *req __unused,
+    		      SVCXPRT *xprt __unused, rpcvers_t versnum __unused)
 {
 	return ((void *)&list_rbl);
 }

@@ -204,8 +204,8 @@ done:
  */
 /* ARGSUSED */
 static void *
-rpcbproc_getaddr_3_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
-			 rpcvers_t versnum)
+rpcbproc_getaddr_3_local(void *arg, struct svc_req *rqstp __unused,
+			 SVCXPRT *transp __unused, rpcvers_t versnum __unused)
 {
 	RPCB *regp = (RPCB *)arg;
 #ifdef RPCBIND_DEBUG
@@ -226,8 +226,8 @@ rpcbproc_getaddr_3_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
 
 /* ARGSUSED */
 static void *
-rpcbproc_dump_3_local(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
-		      rpcvers_t versnum)
+rpcbproc_dump_3_local(void *arg __unused, struct svc_req *rqstp __unused,
+		      SVCXPRT *transp __unused, rpcvers_t versnum __unused)
 {
 	return ((void *)&list_rbl);
 }
