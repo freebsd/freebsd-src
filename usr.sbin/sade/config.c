@@ -524,8 +524,6 @@ skip:
     dp = variable_get(VAR_DOMAINNAME);
     cp = variable_get(VAR_IPADDR);
     hp = variable_get(VAR_HOSTNAME);
-    if ((!dp || !cp || !hp) && file_readable("/etc/hosts"))
-	return;
     /* Tack ourselves into /etc/hosts */
     fp = fopen("/etc/hosts", "w");
     if (!fp)
