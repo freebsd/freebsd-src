@@ -1,4 +1,4 @@
-/*	$OpenBSD: vasprintf.c,v 1.4 1998/06/21 22:13:47 millert Exp $	*/
+/*	$OpenBSD: vasprintf.c,v 1.6 1998/10/16 16:11:56 millert Exp $	*/
 
 /*
  * Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>
@@ -44,25 +44,32 @@ vasprintf(str, fmt, ap)
 	int ret;
 	FILE f;
 	struct __sFILEX ext;
+	unsigned char *_base;
 
 	f._file = -1;
 	f._flags = __SWR | __SSTR | __SALC;
 	f._bf._base = f._p = (unsigned char *)malloc(128);
-	if (f._bf._base == NULL) {
-		*str = NULL;
-		errno = ENOMEM;
-		return (-1);
-	}
+	if (f._bf._base == NULL)
+		goto err;
 	f._bf._size = f._w = 127;		/* Leave room for the NUL */
 	f._extra = &ext;
 	INITEXTRA(&f);
 	ret = __vfprintf(&f, fmt, ap);
+	if (ret == -1)
+		goto err;
 	*f._p = '\0';
-	f._bf._base = reallocf(f._bf._base, f._bf._size + 1);
-	if (f._bf._base == NULL) {
-		errno = ENOMEM;
-		ret = -1;
-	}
-	*str = (char *)f._bf._base;
+	_base = realloc(f._bf._base, ret + 1);
+	if (_base == NULL)
+		goto err;
+	*str = (char *)_base;
 	return (ret);
+
+err:
+	if (f._bf._base != NULL) {
+		free(f._bf._base);
+		f._bf._base = NULL;
+	}
+	*str = NULL;
+	errno = ENOMEM;
+	return (-1);
 }
