@@ -81,6 +81,7 @@ static HASHINFO openinfo = {
 int force_old = 0;
 int _use_yp = 0;
 int suser_override = 0;
+int yp_in_pw_file = 0;
 char *yp_domain = NULL;
 char *yp_server = NULL;
 
@@ -278,8 +279,8 @@ int use_yp (user, uid, which)
 	bf[0] = _PW_KEYYPENABLED;
 	key.data = (u_char *)bf;
 	key.size = 1;
-	if ((!(dbp->get)(dbp,&key,&data,0) && _yp_check(NULL)) ||
-						(yp_domain && yp_server)) {
+	yp_in_pw_file = !(dbp->get)(dbp,&key,&data,0);
+	if (_yp_check(NULL) || (yp_domain && yp_server)) {
 		server = get_yp_master(0);
 
 		/* Is the user in the NIS passwd map */
@@ -324,6 +325,7 @@ int use_yp (user, uid, which)
 		return(USER_LOCAL_ONLY);
 	else if (!user_exists)
 		return(USER_UNKNOWN);
+
 	return(-1);
 }
 
