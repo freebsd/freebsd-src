@@ -868,8 +868,10 @@ ahc_ext_scbram_present(struct ahc_softc *ahc)
 
 	if ((ahc->features & AHC_ULTRA2) != 0)
 		ramps = (ahc_inb(ahc, DSCOMMAND0) & RAMPS) != 0;
-	else 
+	else if ((ahc->chip & AHC_CHIPID_MASK) >= AHC_AIC7870)
 		ramps = (devconfig & RAMPSM) != 0;
+	else
+		ramps = 0;
 
 	if (ramps && single_user)
 		return (1);
@@ -898,9 +900,9 @@ ahc_ext_scbram_config(struct ahc_softc *ahc, int enable, int pcheck, int fast)
 
 		dscommand0 = ahc_inb(ahc, DSCOMMAND0);
 		if (enable)
-			dscommand0 |= INTSCBRAMSEL;
-		else
 			dscommand0 &= ~INTSCBRAMSEL;
+		else
+			dscommand0 |= INTSCBRAMSEL;
 		ahc_outb(ahc, DSCOMMAND0, dscommand0);
 	} else {
 		if (fast)
@@ -958,6 +960,8 @@ ahc_probe_ext_scbram(struct ahc_softc *ahc)
 	 || (ahc_inb(ahc, ERROR) & MPARERR) == 0)
 		pcheck = TRUE;
 
+	ahc_outb(ahc, CLRINT, CLRPARERR);
+
 	/* Now see if we can do fast timing */
 	ahc_ext_scbram_config(ahc, enable, pcheck, /*fast*/TRUE);
 	test_num_scbs = ahc_probe_scbs(ahc);
@@ -965,7 +969,9 @@ ahc_probe_ext_scbram(struct ahc_softc *ahc)
 	 && ((ahc_inb(ahc, INTSTAT) & BRKADRINT) == 0
 	  || (ahc_inb(ahc, ERROR) & MPARERR) == 0))
 		fast = TRUE;
+
 done:
+	ahc_outb(ahc, CLRINT, CLRPARERR);
 	if (bootverbose && enable) {
 		printf("%s: External SRAM, %dns access%s\n",
 		       ahc_name(ahc), fast ? 10 : 20,
