@@ -558,7 +558,9 @@ panic(const char *fmt, ...)
 #ifdef SMP
 	/* two seperate prints in case of an unmapped page and trap */
 	printf("cpuid = %d; ", cpuid);
+#ifdef APIC_IO
 	printf("lapic.id = %08x\n", lapic.id);
+#endif
 #endif
 
 #if defined(DDB)
