@@ -337,8 +337,12 @@ PCCARD_ACCESSOR(vendor_str,	VENDOR_STR,		char *)
 PCCARD_ACCESSOR(product_str,	PRODUCT_STR,		char *)
 PCCARD_ACCESSOR(cis3_str,	CIS3_STR,		char *)
 
+/* shared memory flags */
 enum {
-	PCCARD_A_MEM_ATTR = 0x1
+	PCCARD_A_MEM_COM,       /* common */
+	PCCARD_A_MEM_ATTR,      /* attribute */
+	PCCARD_A_MEM_8BIT,      /* 8 bit */
+	PCCARD_A_MEM_16BIT      /* 16 bit */
 };
 
 #define PCCARD_SOFTC(d) (struct pccard_softc *) device_get_softc(d)
