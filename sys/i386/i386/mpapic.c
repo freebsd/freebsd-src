@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.12 1997/07/15 02:51:19 fsmp Exp $
+ *	$Id: mpapic.c,v 1.13 1997/07/18 19:45:41 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -31,9 +31,9 @@
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 
+#include <machine/smptests.h>	/** TEST_LOPRIO, TEST_IPI, TEST_ALTTIMER */
 #include <machine/smp.h>
 #include <machine/mpapic.h>
-#include <machine/smptests.h>	/** TEST_LOPRIO, TEST_IPI, TEST_CPUSTOP, TEST_ALTTIMER */
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
 
