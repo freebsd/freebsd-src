@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.14 1996/08/15 11:20:14 asami Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.15 1996/08/21 07:28:50 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -194,6 +194,7 @@
 		<item>I386_CPU
 		<item>I486_CPU 
 		<item>I586_CPU
+		<item>I686_CPU
 	      </itemize>
 	      and multiple instances of the <tt>cpu</tt> line may
 	      be present with different values of
