@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  * Posix rand_r function added May 1999 by Wes Peters <wes@softweyr.com>.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
