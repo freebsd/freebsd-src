@@ -37,7 +37,6 @@
 
 #ifdef _KERNEL
 #include <sys/ktr.h>
-#include <sys/systm.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/globals.h>
@@ -49,25 +48,21 @@
 #ifdef _KERNEL
 
 /*
- * Mutex types and options stored in mutex->mtx_flags 
+ * Mutex types and options passed to mtx_init().  MTX_QUIET can also be
+ * passed in.
  */
 #define	MTX_DEF		0x00000000	/* DEFAULT (sleep) lock */ 
 #define MTX_SPIN	0x00000001	/* Spin lock (disables interrupts) */
-#define MTX_RECURSE	0x00000002	/* Option: lock allowed to recurse */
+#define MTX_RECURSE	0x00000004	/* Option: lock allowed to recurse */
+#define	MTX_NOWITNESS	0x00000008	/* Don't do any witness checking. */
+#define	MTX_SLEEPABLE	0x00000010	/* We can sleep with this lock. */
 
 /*
  * Option flags passed to certain lock/unlock routines, through the use
  * of corresponding mtx_{lock,unlock}_flags() interface macros.
- *
- * XXX: The only reason we make these bits not interfere with the above "types
- *	and options" bits is because we have to pass both to the witness
- *	routines right now; if/when we clean up the witness interface to
- *	not check for mutex type from the passed in flag, but rather from
- *	the mutex lock's mtx_flags field, then we can change these values to
- *	0x1, 0x2, ... 
  */
-#define	MTX_NOSWITCH	0x00000004	/* Do not switch on release */
-#define	MTX_QUIET	0x00000008	/* Don't log a mutex event */
+#define	MTX_NOSWITCH	LOP_NOSWITCH	/* Do not switch on release */
+#define	MTX_QUIET	LOP_QUIET	/* Don't log a mutex event */
 
 /*
  * State bits kept in mutex->mtx_lock, for the DEFAULT lock type. None of this,
@@ -82,22 +77,19 @@
 
 #ifndef LOCORE
 
-struct mtx_debug;
-
 /*
  * Sleep/spin mutex
  */
-struct mtx {
+
+struct lock_object;
+
+struct	mtx {
+	struct	lock_object mtx_object;	/* Common lock properties. */
 	volatile uintptr_t mtx_lock;	/* owner (and state for sleep locks) */
-	volatile u_int	mtx_recurse;	/* number of recursive holds */
-	u_int		mtx_savecrit;	/* saved flags (for spin locks) */
-	int		mtx_flags;	/* flags passed to mtx_init() */
-	const char	*mtx_description;
+	volatile u_int mtx_recurse;	/* number of recursive holds */
+	critical_t mtx_savecrit;	/* saved flags (for spin locks) */
 	TAILQ_HEAD(, proc) mtx_blocked;	/* threads blocked on this lock */
 	LIST_ENTRY(mtx)	mtx_contested;	/* list of all contested locks */
-	struct mtx	*mtx_next;	/* all existing locks 	*/
-	struct mtx	*mtx_prev;	/*  in system...	*/
-	struct mtx_debug *mtx_debug;	/* debugging information... */
 };
 
 /*
@@ -109,20 +101,12 @@ struct mtx {
 #ifdef _KERNEL
 
 /*
- * Strings for KTR_LOCK tracing.
- */
-extern char	STR_mtx_lock_slp[];
-extern char	STR_mtx_lock_spn[];
-extern char	STR_mtx_unlock_slp[];
-extern char	STR_mtx_unlock_spn[]; 
-
-/*
  * Prototypes
  *
  * NOTE: Functions prepended with `_' (underscore) are exported to other parts
  *	 of the kernel via macros, thus allowing us to use the cpp __FILE__
  *	 and __LINE__. These functions should not be called directly by any
- *	 code using the IPI. Their macros cover their functionality.
+ *	 code using the API. Their macros cover their functionality.
  *
  * [See below for descriptions]
  *
@@ -143,6 +127,9 @@ void	_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file,
 			     int line);
 #ifdef INVARIANT_SUPPORT
 void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
+#endif
+#ifdef WITNESS
+void	_mtx_update_flags(struct mtx *m, int locking);
 #endif
 
 /*
@@ -231,6 +218,15 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #endif
 
 /*
+ * Update the lock object flags based on the current mutex state.
+ */
+#ifdef WITNESS
+#define mtx_update_flags(m, locking)	_mtx_update_flags((m), (locking))
+#else
+#define	mtx_update_flags(m, locking)
+#endif
+
+/*
  * Exported lock manipulation interface.
  *
  * mtx_lock(m) locks MTX_DEF mutex `m'
@@ -254,6 +250,8 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  *
  * mtx_trylock_flags(m, opts) is used the same way as mtx_trylock() but accepts
  *     relevant option flags `opts.'
+ *
+ * mtx_initialized(m) returns non-zero if the lock `m' has been initialized.
  *
  * mtx_owned(m) returns non-zero if the current thread owns the lock `m'
  *
@@ -290,47 +288,45 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 	KASSERT(((opts) & MTX_NOSWITCH) == 0,				\
 	    ("MTX_NOSWITCH used at %s:%d", (file), (line)));		\
 	_get_sleep_lock((m), curproc, (opts), (file), (line));		\
-	if (((opts) & MTX_QUIET) == 0)					\
-		CTR5(KTR_LOCK, STR_mtx_lock_slp,			\
-		    (m)->mtx_description, (m), (m)->mtx_recurse, 	\
-		    (file), (line));					\
-	WITNESS_ENTER((m), ((m)->mtx_flags | (opts)), (file), (line));	\
+	LOCK_LOG_LOCK("LOCK", &(m)->mtx_object, opts, m->mtx_recurse,	\
+	    (file), (line));						\
+	mtx_update_flags((m), 1);					\
+	WITNESS_LOCK(&(m)->mtx_object, (opts), (file), (line));		\
 } while (0)
 
 #define __mtx_lock_spin_flags(m, opts, file, line) do {			\
 	MPASS(curproc != NULL);						\
 	_get_spin_lock((m), curproc, (opts), (file), (line));		\
-	if (((opts) & MTX_QUIET) == 0)					\
-		CTR5(KTR_LOCK, STR_mtx_lock_spn,			\
-		    (m)->mtx_description, (m), (m)->mtx_recurse, 	\
-		    (file), (line));					\
-	WITNESS_ENTER((m), ((m)->mtx_flags | (opts)), (file), (line));	\
+	LOCK_LOG_LOCK("LOCK", &(m)->mtx_object, opts, m->mtx_recurse,	\
+	    (file), (line));						\
+	mtx_update_flags((m), 1);					\
+	WITNESS_LOCK(&(m)->mtx_object, (opts), (file), (line));		\
 } while (0)
 
 #define __mtx_unlock_flags(m, opts, file, line) do {			\
 	MPASS(curproc != NULL);						\
 	mtx_assert((m), MA_OWNED);					\
-	WITNESS_EXIT((m), ((m)->mtx_flags | (opts)), (file), (line));	\
+	mtx_update_flags((m), 0);					\
+	WITNESS_UNLOCK(&(m)->mtx_object, (opts), (file), (line));	\
 	_rel_sleep_lock((m), curproc, (opts), (file), (line));		\
-	if (((opts) & MTX_QUIET) == 0)					\
-		CTR5(KTR_LOCK, STR_mtx_unlock_slp,			\
-		    (m)->mtx_description, (m), (m)->mtx_recurse, 	\
-		    (file), (line));					\
+	LOCK_LOG_LOCK("UNLOCK", &(m)->mtx_object, (opts),		\
+	    (m)->mtx_recurse, (file), (line));				\
 } while (0)
 
 #define __mtx_unlock_spin_flags(m, opts, file, line) do {		\
 	MPASS(curproc != NULL);						\
 	mtx_assert((m), MA_OWNED);					\
-	WITNESS_EXIT((m), ((m)->mtx_flags | (opts)), (file), (line));	\
+	mtx_update_flags((m), 0);					\
+	WITNESS_UNLOCK(&(m)->mtx_object, (opts), (file), (line));	\
 	_rel_spin_lock((m));						\
-	if (((opts) & MTX_QUIET) == 0)					\
-		CTR5(KTR_LOCK, STR_mtx_unlock_spn,			\
-		    (m)->mtx_description, (m), (m)->mtx_recurse, 	\
-		    (file), (line));					\
+	LOCK_LOG_LOCK("UNLOCK", &(m)->mtx_object, (opts),		\
+	    (m)->mtx_recurse, (file), (line));				\
 } while (0)
 
 #define mtx_trylock_flags(m, opts)					\
 	_mtx_trylock((m), (opts), __FILE__, __LINE__)
+
+#define	mtx_initialized(m)	((m)->mtx_object.lo_flags & LO_INITIALIZED)
 
 #define mtx_owned(m)	(((m)->mtx_lock & MTX_FLAGMASK) == (uintptr_t)curproc)
 
@@ -354,7 +350,7 @@ do {									\
 	WITNESS_SAVE_DECL(Giant);					\
 									\
 	if (mtx_owned(&Giant))						\
-		WITNESS_SAVE(&Giant, Giant);				\
+		WITNESS_SAVE(&Giant.mtx_object, Giant);			\
 	for (_giantcnt = 0; mtx_owned(&Giant); _giantcnt++)		\
 		mtx_unlock_flags(&Giant, MTX_NOSWITCH)
 
@@ -364,7 +360,7 @@ do {									\
 	WITNESS_SAVE_DECL(Giant);					\
 									\
 	if (mtx_owned(&Giant))						\
-		WITNESS_SAVE(&Giant, Giant);				\
+		WITNESS_SAVE(&Giant.mtx_object, Giant);			\
 	for (_giantcnt = 0; mtx_owned(&Giant); _giantcnt++)		\
 		mtx_unlock(&Giant)
 
@@ -373,7 +369,7 @@ do {									\
 	while (_giantcnt--)						\
 		mtx_lock(&Giant);					\
 	if (mtx_owned(&Giant))						\
-		WITNESS_RESTORE(&Giant, Giant);				\
+		WITNESS_RESTORE(&Giant.mtx_object, Giant);		\
 } while (0)
 
 #define PARTIAL_PICKUP_GIANT()						\
@@ -381,7 +377,7 @@ do {									\
 	while (_giantcnt--)						\
 		mtx_lock(&Giant);					\
 	if (mtx_owned(&Giant))						\
-		WITNESS_RESTORE(&Giant, Giant)
+		WITNESS_RESTORE(&Giant.mtx_object, Giant)
 
 /*
  * The INVARIANTS-enabled mtx_assert() functionality.
@@ -404,58 +400,6 @@ do {									\
 #else	/* INVARIANTS */
 #define mtx_assert(m, what)
 #endif	/* INVARIANTS */
-
-#define MPASS(ex)		MPASS4(ex, #ex, __FILE__, __LINE__)
-#define MPASS2(ex, what)	MPASS4(ex, what, __FILE__, __LINE__)
-#define MPASS3(ex, file, line)	MPASS4(ex, #ex, file, line)
-#define MPASS4(ex, what, file, line)					\
-	KASSERT((ex), ("Assertion %s failed at %s:%d", what, file, line))
-
-/*
- * Exported WITNESS-enabled functions and corresponding wrapper macros.
- */
-#ifdef	WITNESS
-void	witness_save(struct mtx *, const char **, int *);
-void	witness_restore(struct mtx *, const char *, int);
-void	witness_enter(struct mtx *, int, const char *, int);
-void	witness_try_enter(struct mtx *, int, const char *, int);
-void	witness_exit(struct mtx *, int, const char *, int);
-int	witness_list(struct proc *);
-int	witness_sleep(int, struct mtx *, const char *, int);
-
-#define WITNESS_ENTER(m, t, f, l)					\
-	witness_enter((m), (t), (f), (l))
-
-#define WITNESS_EXIT(m, t, f, l)					\
-	witness_exit((m), (t), (f), (l))
-
-#define	WITNESS_SLEEP(check, m) 					\
-	witness_sleep(check, (m), __FILE__, __LINE__)
-
-#define	WITNESS_SAVE_DECL(n)						\
-	const char * __CONCAT(n, __wf);					\
-	int __CONCAT(n, __wl)
-
-#define	WITNESS_SAVE(m, n) 						\
-	witness_save(m, &__CONCAT(n, __wf), &__CONCAT(n, __wl))
-
-#define	WITNESS_RESTORE(m, n) 						\
-	witness_restore(m, __CONCAT(n, __wf), __CONCAT(n, __wl))
-
-#else	/* WITNESS */
-#define witness_enter(m, t, f, l)
-#define witness_tryenter(m, t, f, l)
-#define witness_exit(m, t, f, l)
-#define	witness_list(p)
-#define	witness_sleep(c, m, f, l)
-
-#define WITNESS_ENTER(m, t, f, l)
-#define WITNESS_EXIT(m, t, f, l)
-#define	WITNESS_SLEEP(check, m)
-#define	WITNESS_SAVE_DECL(n)
-#define	WITNESS_SAVE(m, n)
-#define	WITNESS_RESTORE(m, n)
-#endif	/* WITNESS */
 
 #endif	/* _KERNEL */
 #endif	/* !LOCORE */

@@ -46,43 +46,68 @@
 #include <sys/systm.h>
 #include <sys/ktr.h>
 #include <sys/condvar.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
+
+/*
+ * XXX: We don't implement the LO_RECURSED flag for this lock yet.
+ * We could do this by walking p_sleeplocks if we really wanted to.
+ */
+struct lock_class lock_class_sx = {
+	"sx",
+	LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE
+};
 
 void
 sx_init(struct sx *sx, const char *description)
 {
+	struct lock_object *lock;
 
-	mtx_init(&sx->sx_lock, description, MTX_DEF);
+	bzero(sx, sizeof(*sx));
+	lock = &sx->sx_object;
+	lock->lo_class = &lock_class_sx;
+	lock->lo_name = description;
+	lock->lo_flags = LO_WITNESS | LO_SLEEPABLE;
+	mtx_init(&sx->sx_lock, "sx backing lock",
+	    MTX_DEF | MTX_NOWITNESS | MTX_QUIET);
 	sx->sx_cnt = 0;
 	cv_init(&sx->sx_shrd_cv, description);
 	sx->sx_shrd_wcnt = 0;
 	cv_init(&sx->sx_excl_cv, description);
-	sx->sx_descr = description;
 	sx->sx_excl_wcnt = 0;
 	sx->sx_xholder = NULL;
+
+	LOCK_LOG_INIT(lock, 0);
+
+	WITNESS_INIT(lock);
 }
 
 void
 sx_destroy(struct sx *sx)
 {
 
+	LOCK_LOG_DESTROY(&sx->sx_object, 0);
+
 	KASSERT((sx->sx_cnt == 0 && sx->sx_shrd_wcnt == 0 && sx->sx_excl_wcnt ==
-	    0), ("%s (%s): holders or waiters\n", __FUNCTION__, sx->sx_descr));
+	    0), ("%s (%s): holders or waiters\n", __FUNCTION__,
+	    sx->sx_object.lo_name));
 
 	mtx_destroy(&sx->sx_lock);
 	cv_destroy(&sx->sx_shrd_cv);
 	cv_destroy(&sx->sx_excl_cv);
+
+	WITNESS_DESTROY(&sx->sx_object);
 }
 
 void
-sx_slock(struct sx *sx)
+_sx_slock(struct sx *sx, const char *file, int line)
 {
 
 	mtx_lock(&sx->sx_lock);
 	KASSERT(sx->sx_xholder != curproc,
 	    ("%s (%s): trying to get slock while xlock is held\n", __FUNCTION__,
-	    sx->sx_descr));
+	    sx->sx_object.lo_name));
 
 	/*
 	 * Loop in case we lose the race for lock acquisition.
@@ -96,11 +121,17 @@ sx_slock(struct sx *sx)
 	/* Acquire a shared lock. */
 	sx->sx_cnt++;
 
+#ifdef WITNESS
+	sx->sx_object.lo_flags |= LO_LOCKED;
+#endif
+	LOCK_LOG_LOCK("SLOCK", &sx->sx_object, 0, 0, file, line);
+	WITNESS_LOCK(&sx->sx_object, 0, file, line);
+
 	mtx_unlock(&sx->sx_lock);
 }
 
 void
-sx_xlock(struct sx *sx)
+_sx_xlock(struct sx *sx, const char *file, int line)
 {
 
 	mtx_lock(&sx->sx_lock);
@@ -113,7 +144,8 @@ sx_xlock(struct sx *sx)
 	 * INVARIANTS.
 	 */
 	KASSERT(sx->sx_xholder != curproc,
-	    ("%s (%s): xlock already held", __FUNCTION__, sx->sx_descr));
+	    ("%s (%s): xlock already held @ %s:%d", __FUNCTION__,
+	    sx->sx_object.lo_name, file, line));
 
 	/* Loop in case we lose the race for lock acquisition. */
 	while (sx->sx_cnt != 0) {
@@ -128,15 +160,27 @@ sx_xlock(struct sx *sx)
 	sx->sx_cnt--;
 	sx->sx_xholder = curproc;
 
+#ifdef WITNESS
+	sx->sx_object.lo_flags |= LO_LOCKED;
+#endif
+	LOCK_LOG_LOCK("XLOCK", &sx->sx_object, 0, 0, file, line);
+	WITNESS_LOCK(&sx->sx_object, 0, file, line);
+
 	mtx_unlock(&sx->sx_lock);
 }
 
 void
-sx_sunlock(struct sx *sx)
+_sx_sunlock(struct sx *sx, const char *file, int line)
 {
 
 	mtx_lock(&sx->sx_lock);
 	_SX_ASSERT_SLOCKED(sx);
+
+#ifdef WITNESS
+	if (sx->sx_cnt == 0)
+		sx->sx_object.lo_flags &= ~LO_LOCKED;
+#endif
+	WITNESS_UNLOCK(&sx->sx_object, 0, file, line);
 
 	/* Release. */
 	sx->sx_cnt--;
@@ -153,16 +197,23 @@ sx_sunlock(struct sx *sx)
 	} else if (sx->sx_shrd_wcnt > 0)
 		cv_broadcast(&sx->sx_shrd_cv);
 
+	LOCK_LOG_LOCK("SUNLOCK", &sx->sx_object, 0, 0, file, line);
+
 	mtx_unlock(&sx->sx_lock);
 }
 
 void
-sx_xunlock(struct sx *sx)
+_sx_xunlock(struct sx *sx, const char *file, int line)
 {
 
 	mtx_lock(&sx->sx_lock);
 	_SX_ASSERT_XLOCKED(sx);
 	MPASS(sx->sx_cnt == -1);
+
+#ifdef WITNESS
+	sx->sx_object.lo_flags &= ~LO_LOCKED;
+#endif
+	WITNESS_UNLOCK(&sx->sx_object, 0, file, line);
 
 	/* Release. */
 	sx->sx_cnt++;
@@ -175,6 +226,8 @@ sx_xunlock(struct sx *sx)
 		cv_broadcast(&sx->sx_shrd_cv);
 	else if (sx->sx_excl_wcnt > 0)
 		cv_signal(&sx->sx_excl_cv);
+
+	LOCK_LOG_LOCK("XUNLOCK", &sx->sx_object, 0, 0, file, line);
 
 	mtx_unlock(&sx->sx_lock);
 }

@@ -2268,6 +2268,7 @@ ap_init(void)
 	 * something unique to lock with.
 	 */
 	PCPU_SET(curproc, PCPU_GET(idleproc));
+	PCPU_SET(spinlocks, NULL);
 
 	/* lock against other AP's that are waking up */
 	mtx_lock_spin(&ap_boot_mtx);

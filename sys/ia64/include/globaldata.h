@@ -58,7 +58,7 @@ struct globaldata {
 	u_int32_t	gd_current_asngen;	/* ASN rollover check */
 
 	SLIST_ENTRY(globaldata) gd_allcpu;
-	int		gd_witness_spin_check;
+	struct lock_list_entry *gd_spinlocks;
 #ifdef KTR_PERCPU
 	volatile int	gd_ktr_idx;		/* Index into trace table */
 	char		*gd_ktr_buf;
