@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
+# $FreeBSD$
 
 LIB=		resolv
 INTERNALLIB=	yes		# Do not build or install ${LIB}*.a
@@ -22,7 +23,7 @@ NOPIC=		true
 # libresolv on FreeBSD-2.x **never did anything**!!
 #
 beforeinstall:
-	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.a \
+	-rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.a \
 	 ${DESTDIR}${LIBDIR}/lib${LIB}_p.a \
 	 ${DESTDIR}${ORIG_SHLIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	 ${DESTDIR}/usr/lib/compat/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
