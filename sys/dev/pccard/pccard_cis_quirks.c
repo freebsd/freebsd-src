@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pccard/pccarddevs.h>
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccard_cis.h>
 
 /* There are cards out there whose CIS flat-out lies.  This file
    contains struct pccard_function chains for those devices. */
