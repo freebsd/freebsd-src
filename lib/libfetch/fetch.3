@@ -28,11 +28,12 @@
 .Dt FETCH 3
 .Os
 .Sh NAME
+.Nm fetchParseURL ,
+.Nm fetchFreeURL ,
 .Nm fetchGetURL ,
 .Nm fetchPutURL ,
 .Nm fetchStatURL ,
 .Nm fetchListURL ,
-.Nm fetchParseURL ,
 .Nm fetchGet ,
 .Nm fetchPut ,
 .Nm fetchStat ,
@@ -56,6 +57,10 @@
 .Fd #include <sys/param.h>
 .Fd #include <stdio.h>
 .Fd #include <fetch.h>
+.Ft struct url *
+.Fn fetchParseURL "char *URL"
+.Ft void
+.Fn fetchFreeURL "struct url *URL"
 .Ft FILE *
 .Fn fetchGetURL "char *URL" "char *flags"
 .Ft FILE *
@@ -64,8 +69,6 @@
 .Fn fetchStatURL "char *URL" "struct url_stat *us" "char *flags"
 .Ft struct url_ent *
 .Fn fetchListURL "char *URL" "char *flags"
-.Ft struct url *
-.Fn fetchParseURL "char *URL"
 .Ft FILE *
 .Fn fetchGet "struct url *URL" "char *flags"
 .Ft FILE *
@@ -102,6 +105,25 @@
 .Pp
 These functions implement a high-level library for retrieving and
 uploading files using Uniform Resource Locators (URLs).
+.Pp
+.Fn fetchParseURL
+takes a URL in the form of a null-terminated string and splits it into
+its components function according to the Common Internet Scheme Syntax
+detailed in RFC1738. A regular expression which produces this syntax
+is:
+.Bd -literal
+    <scheme>:(//(<user>(:<pwd>)?@)?<host>(:<port>)?)?/(<document>)?
+.Ed
+.Pp
+Note that some components of the URL are not necessarily relevant to
+all URL schemes.
+For instance, the file scheme only needs the <scheme>
+and <document> components.
+.Pp
+The pointer returned by
+.Fn fetchParseURL
+should be freed using
+.Fn fetchFreeURL .
 .Pp
 .Fn fetchGetURL
 and
@@ -155,25 +177,6 @@ The list is terminated by an entry with an empty name.
 .Pp
 The pointer returned by
 .Fn fetchListURL
-should be freed using
-.Fn free .
-.Pp
-.Fn fetchParseURL
-takes a URL in the form of a null-terminated string and splits it into
-its components function according to the Common Internet Scheme Syntax
-detailed in RFC1738. A regular expression which produces this syntax
-is:
-.Bd -literal
-    <scheme>:(//(<user>(:<pwd>)?@)?<host>(:<port>)?)?/(<document>)?
-.Ed
-.Pp
-Note that some components of the URL are not necessarily relevant to
-all URL schemes.
-For instance, the file scheme only needs the <scheme>
-and <document> components.
-.Pp
-The pointer returned by
-.Fn fetchParseURL
 should be freed using
 .Fn free .
 .Pp
@@ -414,7 +417,6 @@ Some parts of the library are not yet implemented.
 The most notable
 examples of this are
 .Fn fetchPutHTTP ,
-.Fn fetchStatHTTP ,
 .Fn fetchListHTTP ,
 .Fn fetchListFTP
 and FTP proxy support.
