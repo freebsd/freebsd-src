@@ -46,6 +46,7 @@
  * Xircom X3201 (www.xircom.com)
  * Abocom FE2500
  * Conexant LANfinity (www.conexant.com)
+ * 3Com OfficeConnect 10/100B 3CSOHO100B (www.3com.com)
  *
  * Datasheets for the 21143 are available at developer.intel.com.
  * Datasheets for the clone parts can be found at their respective sites.
@@ -196,6 +197,8 @@ static struct dc_type dc_devs[] = {
 		"Hawking CB102 CardBus 10/100" },
 	{ DC_VENDORID_PLANEX, DC_DEVICEID_FNW3602T,
 		"PlaneX FNW-3602-T CardBus 10/100" },
+	{ DC_VENDORID_3COM, DC_DEVICEID_3CSOHOB,
+		"3Com OfficeConnect 10/100B" },
 	{ 0, 0, NULL }
 };
 
@@ -1987,6 +1990,7 @@ dc_attach(dev)
 	case DC_DEVICEID_FE2500:
 	case DC_DEVICEID_EN2242:
 	case DC_DEVICEID_HAWKING_PN672TX:
+	case DC_DEVICEID_3CSOHOB:
 		sc->dc_type = DC_TYPE_AN985;
 		sc->dc_flags |= DC_64BIT_HASH;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;

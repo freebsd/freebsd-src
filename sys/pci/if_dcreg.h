@@ -868,6 +868,16 @@ struct dc_softc {
 #define DC_DEVICEID_AN985	0x0985
 
 /*
+ * 3COM PCI vendor ID
+ */
+#define DC_VENDORID_3COM	0x10b7
+
+/*
+ * 3COM OfficeConnect 10/100B (3CSOHO100B-TX)
+ */
+#define DC_DEVICEID_3CSOHOB	0x9300
+
+/*
  * ASIX vendor ID.
  */
 #define DC_VENDORID_ASIX	0x125B
