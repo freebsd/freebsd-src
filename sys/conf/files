@@ -161,6 +161,7 @@ dev/ex/if_ex_isa.c	optional ex isa
 dev/ex/if_ex_pccard.c	optional ex card
 dev/fe/if_fe.c		optional fe
 dev/fe/if_fe_pccard.c	optional fe card
+dev/fxp/if_fxp.c	optional fxp
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
 dev/hea/eni_globals.c	optional hea
@@ -205,6 +206,7 @@ dev/mii/brgphy.c	optional miibus
 dev/mii/dcphy.c		optional miibus
 dev/mii/e1000phy.c	optional miibus
 dev/mii/exphy.c		optional miibus
+dev/mii/inphy.c		optional miibus
 dev/mii/mlphy.c		optional miibus
 dev/mii/nsphy.c		optional miibus
 dev/mii/pnphy.c		optional miibus
@@ -947,7 +949,7 @@ pci/if_ar_p.c		optional ar pci
 pci/if_dc.c		optional dc
 pci/if_de.c		optional de
 pci/if_en_pci.c		optional en pci
-pci/if_fxp.c		optional fxp
+#pci/if_fxp.c		optional fxp
 pci/if_lnc_p.c		optional lnc pci
 pci/if_pcn.c		optional pcn
 pci/if_mn.c		optional mn
