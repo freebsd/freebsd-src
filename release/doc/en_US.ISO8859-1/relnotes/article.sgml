@@ -228,6 +228,12 @@
         <para>The public key support is not implemented.</para>
       </note></para>
 
+    <para arch="sparc64">The &man.syscons.4; driver now has support
+      for &os;/sparc64.  Installation on the system console should now
+      be supported, and systems with Creator3D graphics cards
+      (e.g. Ultra 30) can now run
+      <application>XFree86</application>.</para>
+
     <para>A kernel software watchdog facility has been implemented.
       For more information, see &man.watchdog.4; and
       &man.watchdogd.8;.</para>
@@ -630,7 +636,7 @@
       to be unmounted even when two or more file systems share
       the same device and mount point names.</para>
 
-    <para>The &man.mount.cd9660.8; and &man.mount.ntfs.8; utilities
+    <para>The &man.mount.cd9660.8;, &man.mount.ntfs.8;, and &man.mount.udf.8; utilities
       now support a <option>-C</option> option to specify local
       character sets to convert Unicode filenames. It is possible to
       specify multi-byte character sets using this option.</para>
