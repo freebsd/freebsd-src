@@ -1,6 +1,5 @@
-INFO = history readline
+# $Id$
 
-history.info: hstech.texinfo hsuser.texinfo
-readline.info: rltech.texinfo rluser.texinfo
+SUBDIR = history readline
 
-.include <bsd.info.mk>
+.include <bsd.subdir.mk>
