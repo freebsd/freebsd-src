@@ -1151,7 +1151,6 @@ after_listen:
 			     ((tcp_do_newreno || tp->sack_enable) &&
 			      !IN_FASTRECOVERY(tp)))) {
 				KASSERT(headlocked, ("headlocked"));
-				INP_INFO_WUNLOCK(&tcbinfo);
 				/*
 				 * this is a pure ack for outstanding data.
 				 */
@@ -1239,7 +1238,6 @@ after_listen:
 		    LIST_EMPTY(&tp->t_segq) &&
 		    tlen <= sbspace(&so->so_rcv)) {
 			KASSERT(headlocked, ("headlocked"));
-			INP_INFO_WUNLOCK(&tcbinfo);
 			/*
 			 * this is a pure, in-sequence data packet
 			 * with nothing on the reassembly queue and
@@ -2371,7 +2369,6 @@ dodata:							/* XXX */
 			break;
 		}
 	}
-	INP_INFO_WUNLOCK(&tcbinfo);
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp, (void *)tcp_saveipgen,
@@ -2385,6 +2382,7 @@ dodata:							/* XXX */
 		(void) tcp_output(tp);
 
 check_delack:
+	KASSERT(headlocked == 1, ("headlocked should be 1"));
 	INP_LOCK_ASSERT(inp);
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
@@ -2392,6 +2390,7 @@ check_delack:
 		    tcp_timer_delack, tp);
 	}
 	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
 	return;
 
 dropafterack:
@@ -2422,11 +2421,11 @@ dropafterack:
 			  &tcp_savetcp, 0);
 #endif
 	KASSERT(headlocked, ("headlocked should be 1"));
-	INP_INFO_WUNLOCK(&tcbinfo);
-	m_freem(m);
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
 	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
+	m_freem(m);
 	return;
 
 dropwithreset:
@@ -2491,9 +2490,9 @@ drop:
 #endif
 	if (tp)
 		INP_UNLOCK(inp);
-	m_freem(m);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
+	m_freem(m);
 	return;
 }
 
