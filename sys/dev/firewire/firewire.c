@@ -248,8 +248,8 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	}
 
 	if (info->flag & FWTI_TLABEL) {
-		if((tl = fw_get_tlabel(fc, xfer)) == -1 )
-			return EIO;
+		if ((tl = fw_get_tlabel(fc, xfer)) == -1)
+			return EAGAIN;
 		fp->mode.hdr.tlrt = tl << 2;
 	}
 
@@ -1739,7 +1739,8 @@ fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 	}
 	splx(s);
 
-	printf("fw_get_tlabel: no free tlabel\n");
+	if (firewire_debug > 1)
+		printf("fw_get_tlabel: no free tlabel\n");
 	return(-1);
 }
 
