@@ -424,7 +424,7 @@ struct pr_usrreqs natm_usrreqs = {
 	natm_usr_detach, natm_usr_disconnect, pru_listen_notsupp,
 	natm_usr_peeraddr, pru_rcvd_notsupp, pru_rcvoob_notsupp,
 	natm_usr_send, pru_sense_null, natm_usr_shutdown,
-	natm_usr_sockaddr, sosend, soreceive, soselect
+	natm_usr_sockaddr, sosend, soreceive, sopoll
 };
 
 #else  /* !FREEBSD_USRREQS */

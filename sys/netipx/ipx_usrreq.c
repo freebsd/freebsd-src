@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.15 1997/06/26 19:35:58 jhay Exp $
+ * $Id: ipx_usrreq.c,v 1.16 1997/08/16 19:15:45 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -87,7 +87,7 @@ struct	pr_usrreqs ipx_usrreqs = {
 	ipx_connect, pru_connect2_notsupp, ipx_control, ipx_detach,
 	ipx_disconnect, pru_listen_notsupp, ipx_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, ipx_send, pru_sense_null, ipx_shutdown,
-	ipx_sockaddr, sosend, soreceive, soselect
+	ipx_sockaddr, sosend, soreceive, sopoll
 };
 
 struct	pr_usrreqs ripx_usrreqs = {
@@ -95,7 +95,7 @@ struct	pr_usrreqs ripx_usrreqs = {
 	ipx_connect, pru_connect2_notsupp, ipx_control, ipx_detach,
 	ipx_disconnect, pru_listen_notsupp, ipx_peeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, ipx_send, pru_sense_null, ipx_shutdown,
-	ipx_sockaddr, sosend, soreceive, soselect
+	ipx_sockaddr, sosend, soreceive, sopoll
 };
 
 /*

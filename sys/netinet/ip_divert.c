@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.13 1997/08/02 14:32:50 bde Exp $
+ *	$Id: ip_divert.c,v 1.14 1997/09/13 15:40:55 peter Exp $
  */
 
 #include <sys/param.h>
@@ -358,5 +358,5 @@ struct pr_usrreqs div_usrreqs = {
 	pru_connect_notsupp, pru_connect2_notsupp, in_control, div_detach,
 	div_disconnect, pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, div_send, pru_sense_null, div_shutdown,
-	in_setsockaddr, sosend, soreceive, soselect
+	in_setsockaddr, sosend, soreceive, sopoll
 };
