@@ -1134,7 +1134,7 @@ ip6_savecontrol(in6p, mp, ip6, m)
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 {
-#if __FreeBSD__ >= 5
+#if __FreeBSD_version >= 500000
 	struct thread *td = curthread;	/* XXX */
 #else
 	struct proc *td = curproc;	/* XXX */
