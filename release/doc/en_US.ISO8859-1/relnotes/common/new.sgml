@@ -208,6 +208,11 @@
       to support SafeNet 1141, 1741-based crypto accelerators.
       &merged;
 
+      <warning>
+	<para>This driver should be considered experimental and
+	  and should be used with some caution.</para>
+      </warning>
+
       <note>
         <para>The public key support is not implemented.</para>
       </note></para>
