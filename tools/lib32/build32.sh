@@ -60,7 +60,7 @@ make -s -DNO_BIND -DNOMAN -DNODOC -DNOINFO -k libraries
 # an alternate install directory.
 unset CC
 export CC="cc -I/tmp/i386/root/usr/include/gnu $CCARGS"
-(cd gnu/lib/libregex; make -k -DNOMAN -DNODOC -DNOINFOall install)
+(cd gnu/lib/libregex; make -k -DNOMAN -DNODOC -DNOINFO all install)
 
 # and now that we have enough libraries, build ld-elf32.so.1
 cd libexec/rtld-elf
