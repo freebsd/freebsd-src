@@ -1,0 +1,46 @@
+'\"
+'\" Copyright (c) 1995-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) FindExec.3 1.3 96/03/25 20:03:17
+'\" 
+.so man.macros
+.TH Tcl_FindExecutable 3 7.5 Tcl "Tcl Library Procedures"
+.BS
+.SH NAME
+Tcl_FindExecutable \- identify the binary file containing the application
+.SH SYNOPSIS
+.nf
+\fB#include <tcl.h>\fR
+.sp
+char *
+\fBTcl_FindExecutable\fR(\fIargv0\fR)
+.SH ARGUMENTS
+.AS char *argv0 in
+.AP char *argv0 in
+The first command-line argument to the program, which gives the
+application's name.
+.BE
+
+.SH DESCRIPTION
+.PP
+This procedure computes the full path name of the executable file
+from which the application was invoked and saves it for Tcl's
+internal use.
+The executable's path name is needed for several purposes in
+Tcl.  For example, is is needed on some platforms in the
+implementation of the \fBload\fR command.
+It is also returned by the \fBinfo nameofexecutable\fR command.
+.PP
+On UNIX platforms this procedure is typically invoked as the very
+first thing in the application's main program;  it must be passed
+\fIargv[0]\fR as its argument.  \fBTcl_FindExecutable\fR uses \fIargv0\fR
+along with the \fBPATH\fR environment variable to find the
+application's executable, if possible.  If it fails to find
+the binary, then future calls to \fBinfo nameofexecutable\fR
+will return an empty string.
+
+.SH KEYWORDS
+binary, executable file

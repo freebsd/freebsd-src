@@ -1,0 +1,220 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) format.n 1.10 96/03/25 20:15:25
+'\" 
+.so man.macros
+.TH format n "" Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+format \- Format a string in the style of sprintf
+.SH SYNOPSIS
+\fBformat \fIformatString \fR?\fIarg arg ...\fR?
+.BE
+
+.SH INTRODUCTION
+.PP
+This command generates a formatted string in the same way as the
+ANSI C \fBsprintf\fR procedure (it uses \fBsprintf\fR in its
+implementation).
+\fIFormatString\fR indicates how to format the result, using
+\fB%\fR conversion specifiers as in \fBsprintf\fR, and the additional
+arguments, if any, provide values to be substituted into the result.
+The return value from \fBformat\fR is the formatted string.
+
+.SH "DETAILS ON FORMATTING"
+.PP
+The command operates by scanning \fIformatString\fR from left to right. 
+Each character from the format string is appended to the result
+string unless it is a percent sign.
+If the character is a \fB%\fR then it is not copied to the result string.
+Instead, the characters following the \fB%\fR character are treated as
+a conversion specifier.
+The conversion specifier controls the conversion of the next successive
+\fIarg\fR to a particular format and the result is appended to 
+the result string in place of the conversion specifier.
+If there are multiple conversion specifiers in the format string,
+then each one controls the conversion of one additional \fIarg\fR.
+The \fBformat\fR command must be given enough \fIarg\fRs to meet the needs
+of all of the conversion specifiers in \fIformatString\fR.
+.PP
+Each conversion specifier may contain up to six different parts:
+.VS
+an XPG3 position specifier,
+.VE
+a set of flags, a minimum field width, a precision, a length modifier,
+and a conversion character.
+Any of these fields may be omitted except for the conversion character.
+The fields that are present must appear in the order given above.
+The paragraphs below discuss each of these fields in turn.
+.PP
+.VS
+If the \fB%\fR is followed by a decimal number and a \fB$\fR, as in
+``\fB%2$d\fR'', then the value to convert is not taken from the
+next sequential argument.
+Instead, it is taken from the argument indicated by the number,
+where 1 corresponds to the first \fIarg\fR.
+If the conversion specifier requires multiple arguments because
+of \fB*\fR characters in the specifier then
+successive arguments are used, starting with the argument
+given by the number.
+This follows the XPG3 conventions for positional specifiers.
+If there are any positional specifiers in \fIformatString\fR
+then all of the specifiers must be positional.
+.VE
+.PP
+The second portion of a conversion specifier may contain any of the
+following flag characters, in any order:
+.TP 10
+\fB\-\fR
+Specifies that the converted argument should be left-justified 
+in its field (numbers are normally right-justified with leading 
+spaces if needed).
+.TP 10
+\fB+\fR
+Specifies that a number should always be printed with a sign, 
+even if positive.
+.TP 10
+\fIspace\fR
+Specifies that a space should be added to the beginning of the 
+number if the first character isn't a sign.
+.TP 10
+\fB0\fR
+Specifies that the number should be padded on the left with 
+zeroes instead of spaces.
+.TP 10
+\fB#\fR
+Requests an alternate output form. For \fBo\fR and \fBO\fR
+conversions it guarantees that the first digit is always \fB0\fR.
+For \fBx\fR or \fBX\fR conversions, \fB0x\fR or \fB0X\fR (respectively)
+will be added to the beginning of the result unless it is zero.
+For all floating-point conversions (\fBe\fR, \fBE\fR, \fBf\fR,
+\fBg\fR, and \fBG\fR) it guarantees that the result always 
+has a decimal point.
+For \fBg\fR and \fBG\fR conversions it specifies that 
+trailing zeroes should not be removed.
+.PP
+The third portion of a conversion specifier is a number giving a
+minimum field width for this conversion.
+It is typically used to make columns line up in tabular printouts.
+If the converted argument contains fewer characters than the
+minimum field width then it will be padded so that it is as wide
+as the minimum field width.
+Padding normally occurs by adding extra spaces on the left of the
+converted argument, but the \fB0\fR and \fB\-\fR flags 
+may be used to specify padding with zeroes on the left or with
+spaces on the right, respectively.
+If the minimum field width is specified as \fB*\fR rather than
+a number, then the next argument to the \fBformat\fR command
+determines the minimum field width; it must be a numeric string.
+.PP
+The fourth portion of a conversion specifier is a precision,
+which consists of a period followed by a number.
+The number is used in different ways for different conversions.
+For \fBe\fR, \fBE\fR, and \fBf\fR conversions it specifies the number
+of digits to appear to the right of the decimal point.
+For \fBg\fR and \fBG\fR conversions it specifies the total number
+of digits to appear, including those on both sides of the decimal
+point (however, trailing zeroes after the decimal point will still
+be omitted unless the \fB#\fR flag has been specified).
+For integer conversions, it specifies a minimum number of digits
+to print (leading zeroes will be added if necessary).
+For \fBs\fR conversions it specifies the maximum number of characters to be 
+printed; if the string is longer than this then the trailing characters will be dropped.
+If the precision is specified with \fB*\fR rather than a number
+then the next argument to the \fBformat\fR command determines the precision;
+it must be a numeric string.
+.PP
+The fifth part of a conversion specifier is a length modifier,
+which must be \fBh\fR or \fBl\fR.
+If it is \fBh\fR it specifies that the numeric value should be
+truncated to a 16-bit value before converting.
+This option is rarely useful.
+The \fBl\fR modifier is ignored.
+.PP
+The last thing in a conversion specifier is an alphabetic character
+that determines what kind of conversion to perform.
+The following conversion characters are currently supported:
+.TP 10
+\fBd\fR
+Convert integer to signed decimal string.
+.TP 10
+\fBu\fR
+Convert integer to unsigned decimal string.
+.TP 10
+\fBi\fR
+Convert integer to signed decimal string;  the integer may either be
+in decimal, in octal (with a leading \fB0\fR) or in hexadecimal
+(with a leading \fB0x\fR).
+.TP 10
+\fBo\fR
+Convert integer to unsigned octal string.
+.TP 10
+\fBx\fR or \fBX\fR
+Convert integer to unsigned hexadecimal string, using digits
+``0123456789abcdef'' for \fBx\fR and ``0123456789ABCDEF'' for \fBX\fR).
+.TP 10
+\fBc\fR
+Convert integer to the 8-bit character it represents.
+.TP 10
+\fBs\fR
+No conversion; just insert string.
+.TP 10
+\fBf\fR
+Convert floating-point number to signed decimal string of 
+the form \fIxx.yyy\fR, where the number of \fIy\fR's is determined by 
+the precision (default: 6).
+If the precision is 0 then no decimal point is output.
+.TP 10
+\fBe\fR or \fBe\fR
+Convert floating-point number to scientific notation in the 
+form \fIx.yyy\fBe\(+-\fIzz\fR, where the number of \fIy\fR's is determined 
+by the precision (default: 6).
+If the precision is 0 then no decimal point is output.
+If the \fBE\fR form is used then \fBE\fR is 
+printed instead of \fBe\fR.
+.TP 10
+\fBg\fR or \fBG\fR
+If the exponent is less than \-4 or greater than or equal to the 
+precision, then convert floating-point number as for \fB%e\fR or 
+\fB%E\fR.
+Otherwise convert as for \fB%f\fR.
+Trailing zeroes and a trailing decimal point are omitted.
+.TP 10
+\fB%\fR
+No conversion: just insert \fB%\fR.
+.LP
+For the numerical conversions the argument being converted must
+be an integer or floating-point string; format converts the argument
+to binary and then converts it back to a string according to 
+the conversion specifier.
+
+.SH "DIFFERENCES FROM ANSI SPRINTF"
+.PP
+.VS
+The behavior of the format command is the same as the
+ANSI C \fBsprintf\fR procedure except for the following
+differences:
+.IP [1]
+\fB%p\fR and \fB%n\fR specifiers are not currently supported.
+.VE
+.IP [2]
+For \fB%c\fR conversions the argument must be a decimal string,
+which will then be converted to the corresponding character value.
+.IP [3]
+.VS
+The \fBl\fR modifier is ignored;  integer values are always converted
+as if there were no modifier present and real values are always
+converted as if the \fBl\fR modifier were present (i.e. type
+\fBdouble\fR is used for the internal representation).
+If the \fBh\fR modifier is specified then integer values are truncated
+to \fBshort\fR before conversion.
+.VE
+
+.SH KEYWORDS
+conversion specifier, format, sprintf, string, substitution

@@ -1,0 +1,44 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) for.n 1.5 96/03/25 20:15:01
+'\" 
+.so man.macros
+.TH for n "" Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+for \- ``For'' loop
+.SH SYNOPSIS
+\fBfor \fIstart test next body\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+\fBFor\fR is a looping command, similar in structure to the C
+\fBfor\fR statement.  The \fIstart\fR, \fInext\fR, and
+\fIbody\fR arguments must be Tcl command strings, and \fItest\fR
+is an expression string.
+The \fBfor\fR command first invokes the Tcl interpreter to
+execute \fIstart\fR.  Then it repeatedly evaluates \fItest\fR as
+an expression; if the result is non-zero it invokes the Tcl
+interpreter on \fIbody\fR, then invokes the Tcl interpreter on \fInext\fR,
+then repeats the loop.  The command terminates when \fItest\fR evaluates
+to 0.  If a \fBcontinue\fR command is invoked within \fIbody\fR then
+any remaining commands in the current execution of \fIbody\fR are skipped;
+processing continues by invoking the Tcl interpreter on \fInext\fR, then
+evaluating \fItest\fR, and so on.  If a \fBbreak\fR command is invoked
+within \fIbody\fR
+or \fInext\fR,
+then the \fBfor\fR command will
+return immediately.
+The operation of \fBbreak\fR and \fBcontinue\fR are similar to the
+corresponding statements in C.
+\fBFor\fR returns an empty string.
+
+.SH KEYWORDS
+for, iteration, looping
