@@ -1031,7 +1031,6 @@ targinit(void)
 {
 	mtx_init(&targ_mtx, "targ global", NULL, MTX_DEF);
 	EVENTHANDLER_REGISTER(dev_clone, targclone, 0, 1000);
-	cdevsw_add(&targ_cdevsw);
 }
 
 static void
