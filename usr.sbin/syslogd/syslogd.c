@@ -107,7 +107,9 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <unistd.h>
 #include <utmp.h>
+
 #include "pathnames.h"
+#include "ttymsg.h"
 
 #define SYSLOG_NAMES
 #include <sys/syslog.h>
@@ -129,7 +131,7 @@ const char	ctty[] = _PATH_CONSOLE;
 #define MAXFUNIX       20
 
 int nfunix = 1;
-char *funixn[MAXFUNIX] = { _PATH_LOG };
+const char *funixn[MAXFUNIX] = { _PATH_LOG };
 int funix[MAXFUNIX];
 
 /*
@@ -178,7 +180,7 @@ struct filed {
 	int	f_prevpri;			/* pri of f_prevline */
 	int	f_prevlen;			/* length of f_prevline */
 	int	f_prevcount;			/* repetition cnt of prevline */
-	int	f_repeatcount;			/* number of "repeated" msgs */
+	u_int	f_repeatcount;			/* number of "repeated" msgs */
 };
 
 /*
@@ -247,7 +249,7 @@ int	repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 #define F_WALL		6		/* everyone logged on */
 #define F_PIPE		7		/* pipe to program */
 
-char	*TypeNames[8] = {
+const char *TypeNames[8] = {
 	"UNUSED",	"FILE",		"TTY",		"CONSOLE",
 	"FORW",		"USERS",	"WALL",		"PIPE"
 };
@@ -258,7 +260,7 @@ struct	filed consfile;
 int	Debug;			/* debug flag */
 int	resolve = 1;		/* resolve hostname */
 char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
-char	*LocalDomain;		/* our local domain name */
+const char	*LocalDomain;		/* our local domain name */
 int	*finet = NULL;		/* Internet datagram socket */
 int	fklog = -1;		/* /dev/klog */
 int	Initialized = 0;	/* set when we have initialized ourselves */
@@ -285,27 +287,26 @@ int	KeepKernFac = 0;	/* Keep remotely logged kernel facility */
 volatile sig_atomic_t MarkSet, WantDie;
 
 int	allowaddr __P((char *));
-void	cfline __P((char *, struct filed *, char *, char *));
-char   *cvthname __P((struct sockaddr *));
+void	cfline __P((const char *, struct filed *, const char *, const char *));
+const char	*cvthname __P((struct sockaddr *));
 void	deadq_enter __P((pid_t, const char *));
 int	deadq_remove __P((pid_t));
 int	decode __P((const char *, CODE *));
 void	die __P((int));
 void	dodie __P((int));
 void	domark __P((int));
-void	fprintlog __P((struct filed *, int, char *));
+void	fprintlog __P((struct filed *, int, const char *));
 int*	socksetup __P((int, const char *));
 void	init __P((int));
 void	logerror __P((const char *));
-void	logmsg __P((int, char *, char *, int));
+void	logmsg __P((int, const char *, const char *, int));
 void	log_deadchild __P((pid_t, int, const char *));
 void	markit __P((void));
-void	printline __P((char *, char *));
+void	printline __P((const char *, char *));
 void	printsys __P((char *));
-int	p_open __P((char *, pid_t *));
+int	p_open __P((const char *, pid_t *));
 void	readklog __P((void));
 void	reapchild __P((int));
-char   *ttymsg __P((struct iovec *, int, char *, int));
 static void	usage __P((void));
 int	validate __P((struct sockaddr *, const char *));
 static void	unmapped __P((struct sockaddr *));
@@ -323,8 +324,8 @@ main(argc, argv)
 	struct sockaddr_storage frominet;
 	fd_set *fdsr = NULL;
 	FILE *fp;
-	char *hname, line[MAXLINE + 1];
-	const char *bindhostname;
+	char line[MAXLINE + 1];
+	const char *bindhostname, *hname;
 	struct timeval tv, *tvp;
 	struct sigaction sact;
 	sigset_t mask;
@@ -591,25 +592,25 @@ unmapped(sa)
 	struct sockaddr *sa;
 {
 	struct sockaddr_in6 *sin6;
-	struct sockaddr_in sin;
+	struct sockaddr_in sin4;
 
 	if (sa->sa_family != AF_INET6)
 		return;
 	if (sa->sa_len != sizeof(struct sockaddr_in6) ||
-	    sizeof(sin) > sa->sa_len)
+	    sizeof(sin4) > sa->sa_len)
 		return;
 	sin6 = (struct sockaddr_in6 *)sa;
 	if (!IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
 		return;
 
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_len = sizeof(struct sockaddr_in);
-	memcpy(&sin.sin_addr, &sin6->sin6_addr.s6_addr[12],
-	       sizeof(sin.sin_addr));
-	sin.sin_port = sin6->sin6_port;
+	memset(&sin4, 0, sizeof(sin4));
+	sin4.sin_family = AF_INET;
+	sin4.sin_len = sizeof(struct sockaddr_in);
+	memcpy(&sin4.sin_addr, &sin6->sin6_addr.s6_addr[12],
+	       sizeof(sin4.sin_addr));
+	sin4.sin_port = sin6->sin6_port;
 
-	memcpy(sa, &sin, sin.sin_len);
+	memcpy(sa, &sin4, sin4.sin_len);
 }
 
 static void
@@ -629,7 +630,7 @@ usage()
  */
 void
 printline(hname, msg)
-	char *hname;
+	const char *hname;
 	char *msg;
 {
 	int c, pri;
@@ -752,12 +753,12 @@ time_t	now;
 void
 logmsg(pri, msg, from, flags)
 	int pri;
-	char *msg, *from;
+	const char *msg, *from;
 	int flags;
 {
 	struct filed *f;
 	int i, fac, msglen, omask, prilev;
-	char *timestamp;
+	const char *timestamp;
  	char prog[NAME_MAX+1];
 	char buf[MAXLINE+1];
 
@@ -904,14 +905,14 @@ void
 fprintlog(f, flags, msg)
 	struct filed *f;
 	int flags;
-	char *msg;
+	const char *msg;
 {
 	struct iovec iov[7];
 	struct iovec *v;
 	struct addrinfo *r;
 	int i, l, lsent = 0;
-	char line[MAXLINE + 1], repbuf[80], greetings[200];
-	char *msgret;
+	char line[MAXLINE + 1], repbuf[80], greetings[200], *wmsg;
+	const char *msgret;
 
 	v = iov;
 	if (f->f_type == F_WALL) {
@@ -983,7 +984,8 @@ fprintlog(f, flags, msg)
 	v++;
 
 	if (msg) {
-		v->iov_base = msg;
+		wmsg = strdup(msg); /* XXX iov_base needs a `const' sibling. */
+		v->iov_base = wmsg;
 		v->iov_len = strlen(msg);
 	} else if (f->f_prevcount > 1) {
 		v->iov_base = repbuf;
@@ -1114,6 +1116,7 @@ fprintlog(f, flags, msg)
 		break;
 	}
 	f->f_prevcount = 0;
+	free(wmsg);
 }
 
 /*
@@ -1131,7 +1134,7 @@ wallmsg(f, iov)
 	FILE *uf;
 	struct utmp ut;
 	int i;
-	char *p;
+	const char *p;
 	char line[sizeof(ut.ut_line) + 1];
 
 	if (reenter++)
@@ -1174,7 +1177,7 @@ wallmsg(f, iov)
 
 void
 reapchild(signo)
-	int signo;
+	int signo __unused;
 {
 	int status;
 	pid_t pid;
@@ -1207,7 +1210,7 @@ reapchild(signo)
 /*
  * Return a printable representation of a host address.
  */
-char *
+const char *
 cvthname(f)
 	struct sockaddr *f;
 {
@@ -1256,7 +1259,7 @@ dodie(signo)
 
 void
 domark(signo)
-	int signo;
+	int signo __unused;
 {
 
 	MarkSet = 1;
@@ -1511,14 +1514,15 @@ init(signo)
  */
 void
 cfline(line, f, prog, host)
-	char *line;
+	const char *line;
 	struct filed *f;
-	char *prog;
-	char *host;
+	const char *prog;
+	const char *host;
 {
 	struct addrinfo hints, *res;
 	int error, i, pri;
-	char *bp, *p, *q;
+	const char *p, *q;
+	char *bp;
 	char buf[MAXLINE], ebuf[100];
 
 	dprintf("cfline(\"%s\", f, \"%s\", \"%s\")\n", line, prog, host);
@@ -2036,7 +2040,7 @@ validate(sa, hname)
 	size_t l1, l2;
 	char *cp, name[NI_MAXHOST], ip[NI_MAXHOST], port[NI_MAXSERV];
 	struct allowedpeer *ap;
-	struct sockaddr_in *sin, *a4p = NULL, *m4p = NULL;
+	struct sockaddr_in *sin4, *a4p = NULL, *m4p = NULL;
 	struct sockaddr_in6 *sin6, *a6p = NULL, *m6p = NULL;
 	struct addrinfo hints, *res;
 	u_short sport;
@@ -2076,10 +2080,10 @@ validate(sa, hname)
 				continue;
 			}
 			if (ap->a_addr.ss_family == AF_INET) {
-				sin = (struct sockaddr_in *)sa;
+				sin4 = (struct sockaddr_in *)sa;
 				a4p = (struct sockaddr_in *)&ap->a_addr;
 				m4p = (struct sockaddr_in *)&ap->a_mask;
-				if ((sin->sin_addr.s_addr & m4p->sin_addr.s_addr)
+				if ((sin4->sin_addr.s_addr & m4p->sin_addr.s_addr)
 				    != a4p->sin_addr.s_addr) {
 					dprintf("rejected in rule %d due to IP mismatch.\n", i);
 					continue;
@@ -2145,7 +2149,7 @@ validate(sa, hname)
  */
 int
 p_open(prog, pid)
-	char *prog;
+	const char *prog;
 	pid_t *pid;
 {
 	int pfd[2], nulldesc, i;
@@ -2170,9 +2174,9 @@ p_open(prog, pid)
 		return -1;
 
 	case 0:
-		argv[0] = "sh";
-		argv[1] = "-c";
-		argv[2] = prog;
+		argv[0] = strdup("sh");
+		argv[1] = strdup("-c");
+		argv[2] = strdup(prog);
 		argv[3] = NULL;
 
 		alarm(0);
