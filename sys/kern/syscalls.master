@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.51 1998/05/14 11:28:11 peter Exp $
+	$Id: syscalls.master,v 1.52 1998/06/07 17:11:40 dfr Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -37,8 +37,8 @@
 0	STD	NOHIDE	{ int nosys(void); } syscall nosys_args int
 1	STD	NOHIDE	{ void exit(int rval); } exit rexit_args void
 2	STD	POSIX	{ int fork(void); }
-3	STD	POSIX	{ int read(int fd, char *buf, u_int nbyte); }
-4	STD	POSIX	{ int write(int fd, char *buf, u_int nbyte); }
+3	STD	POSIX	{ ssize_t read(int fd, void *buf, size_t nbyte); }
+4	STD	POSIX	{ ssize_t write(int fd, const void *buf, size_t nbyte); }
 5	STD	POSIX	{ int open(char *path, int flags, int mode); }
 ; XXX should be		{ int open(const char *path, int flags, ...); }
 ; but we're not ready for `const' or varargs.
@@ -88,8 +88,8 @@
 41	STD	POSIX	{ int dup(u_int fd); }
 42	STD	POSIX	{ int pipe(void); }
 43	STD	POSIX	{ gid_t getegid(void); }
-44	STD	BSD	{ int profil(caddr_t samples, u_int size, \
-			    u_int offset, u_int scale); }
+44	STD	BSD	{ int profil(caddr_t samples, size_t size, \
+			    size_t offset, u_int scale); }
 45	STD	BSD	{ int ktrace(char *fname, int ops, int facs, \
 			    int pid); }
 46	STD	POSIX	{ int sigaction(int signum, struct sigaction *nsa, \
@@ -114,7 +114,7 @@
 60	STD	POSIX	{ int umask(int newmask); } umask umask_args int
 61	STD	BSD	{ int chroot(char *path); }
 62	COMPAT	POSIX	{ int fstat(int fd, struct ostat *sb); }
-63	COMPAT	BSD	{ int getkerninfo(int op, char *where, int *size, \
+63	COMPAT	BSD	{ int getkerninfo(int op, char *where, size_t *size, \
 			    int arg); } getkerninfo getkerninfo_args int
 64	COMPAT	BSD	{ int getpagesize(void); } \
 			    getpagesize getpagesize_args int
