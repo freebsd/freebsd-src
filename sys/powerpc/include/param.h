@@ -76,10 +76,6 @@
 #endif
 #define	MID_MACHINE	MID_POWERPC
 
-#if !defined(LOCORE)
-#include <machine/cpu.h>
-#endif
-
 #ifdef SMP
 #define	MAXCPU		2
 #else
@@ -93,9 +89,6 @@
 #define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
 #define	PAGE_MASK	(PAGE_SIZE - 1)
 #define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
-
-#define	KERNBASE	0x100000	/* start of kernel virtual */
-#define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
 
 #ifndef KSTACK_PAGES
 #define	KSTACK_PAGES		4		/* includes pcb */
@@ -119,29 +112,6 @@
 #define	powerpc_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
-
-/* XXX: NetBSD defines that we're using for the moment */
-#define	USER_SR		13
-#define	KERNEL_SR	14
-#define	KERNEL_VSIDBITS	0xfffff
-#define	KERNEL_SEGMENT	(0xfffff0 + KERNEL_SR)
-#define	EMPTY_SEGMENT	0xfffff0
-#define	USER_ADDR	((void *)(USER_SR << ADDR_SR_SHFT))
-#define	SEGMENT_LENGTH	0x10000000
-#define	SEGMENT_MASK	0xf0000000
-
-#if !defined(NPMAPS)
-#define	NPMAPS		32768
-#endif /* !defined(NPMAPS) */
-
-#if !defined(MSGBUFSIZE)
-#define	MSGBUFSIZE	PAGE_SIZE
-#endif /* !defined(MSGBUFSIZE) */
-
-/*
- * XXX: Stop NetBSD msgbuf_paddr code from happening.
- */
-#define	MSGBUFADDR
 
 #endif /* !_MACHINE_PARAM_H_ */
 #endif /* !_NO_NAMESPACE_POLLUTION */

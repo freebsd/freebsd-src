@@ -41,4 +41,14 @@
 #define	SR_N		0x10000000	/* No-execute protection */
 #define	SR_VSID_MASK	0x00ffffff	/* Virtual Segment ID mask */
 
+/* Kernel segment register usage */
+#define	USER_SR		13
+#define	KERNEL_SR	14
+#define	KERNEL_VSIDBITS	0xfffff
+#define	KERNEL_SEGMENT	(0xfffff0 + KERNEL_SR)
+#define	EMPTY_SEGMENT	0xfffff0
+#define	USER_ADDR	((void *)(USER_SR << ADDR_SR_SHFT))
+#define	SEGMENT_LENGTH	0x10000000
+#define	SEGMENT_MASK	0xf0000000
+
 #endif /* !_MACHINE_SR_H_ */

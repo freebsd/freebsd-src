@@ -96,6 +96,8 @@
 #define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)(KERNEL_SR << ADDR_SR_SHFT))
 #define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + SEGMENT_LENGTH - 1)
 
+#define	KERNBASE	0x100000	/* start of kernel virtual */
+
 /* XXX max. amount of KVM to be used by buffers. */
 #ifndef VM_MAX_KERNEL_BUF
 #define	VM_MAX_KERNEL_BUF	(SEGMENT_LENGTH * 7 / 10)
