@@ -387,6 +387,7 @@ static device_method_t cardbus_methods[] = {
 	DEVMETHOD(pci_disable_io,	pci_disable_io_method),
 	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
 	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
+	DEVMETHOD(pci_assign_interrupt, pci_assign_interrupt_method),
 
 	{0,0}
 };
