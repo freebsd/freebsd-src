@@ -74,6 +74,7 @@ jail(td, uap)
 		goto done2;
 	}
 	MALLOC(pr, struct prison *, sizeof *pr , M_PRISON, M_WAITOK | M_ZERO);
+	pr->pr_securelevel = securelevel;
 	error = copyinstr(j.hostname, &pr->pr_host, sizeof pr->pr_host, 0);
 	if (error) 
 		goto bail;
