@@ -319,6 +319,10 @@
     <application>bzip2</application>-compressed kernels and
     modules. &merged;</para>
 
+    <para>The kernel now has support for multiple low-level console
+    devices.  The new &man.conscontrol.8; utility helps to manage the
+    different consoles.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -442,6 +446,12 @@
 
       <para>The &man.fxp.4; driver now requires a <literal>device
       miibus</literal> entry in the kernel configuration file. &merged;</para>
+
+      <para>The &man.fxp.4; driver now supports Intel's loadable
+      microcode to implement receive-side interrupt coalescing and
+      packet bundling, on NICs that support these features.  This
+      support can be activated by the use of the
+      <option>link0</option> option to &man.ifconfig.8;.</para>
 
       <para>The &man.gx.4; driver has been added to support NICs based
       on the Intel 82542 and 82543 Gigabit Ethernet controller chips.
