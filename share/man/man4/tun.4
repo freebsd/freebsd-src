@@ -2,7 +2,7 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd March 10, 1996
+.Dd June 5, 2001
 .Dt TUN 4
 .Os
 .Sh NAME
@@ -39,9 +39,46 @@ interface.
 The network interfaces are named
 .Sy tun Ns Ar 0 ,
 .Sy tun Ns Ar 1 ,
-etc, as many as were made by
-.Xr MAKEDEV 8 .
-Each one supports the usual network-interface
+etc, one for each control device that has been opened.
+These network interfaces persist until the
+.Pa if_tun.ko
+module is unloaded (if
+.Nm
+is built into your kernel, the network interfaces cannot be removed).
+.Pp
+On older systems without
+.Xr devfs 5
+support,
+.Xr MAKEDEV 8
+should be used to create the initial control devices and the task
+of locating an unused device is left up to the opener (a
+.Nm
+device is usually obtained by attempting to open
+.Pa /dev/tun0 ,
+and if that fails
+.Pa /dev/tun1
+etc, until an errno of
+.Dv EBUSY
+is not received).
+.Pp
+On systems with
+.Xr devfs 5
+support,
+.Nm
+permits opens on the special control device
+.Pa /dev/tun .
+When this device is opened,
+.Nm
+will return a handle for the lowest unused
+.Nm
+device (use
+.Xr devname 3
+to determine which).
+Control devices (once successfully opened) persist until
+.Pa if_tun.ko
+is unloaded in the same way that network interfaces persist (see above).
+.Pp
+Each interface supports the usual network-interface
 .Xr ioctl 2 Ns s ,
 such as
 .Dv SIOCSIFADDR
@@ -49,10 +86,12 @@ and
 .Dv SIOCSIFNETMASK ,
 and thus can be used with
 .Xr ifconfig 8
-like any other interface.  At boot time, they are
+like any other interface.
+At boot time, they are
 .Dv POINTOPOINT
 interfaces, but this can be changed; see the description of the control
-device, below.  When the system chooses to transmit a packet on the
+device, below.
+When the system chooses to transmit a packet on the
 network interface, the packet can be read from the control device
 (it appears as
 .Dq input
@@ -62,11 +101,10 @@ packet on the network interface, as if the
 .Pq non-existent
 hardware had just received it.
 .Pp
-The tunnel device, normally
-.Pa /dev/tun Ns Sy N ,
+The tunnel device
+.Pq Pa /dev/tun Ns Sy N
 is exclusive-open
-(it cannot be opened if it is already open)
-and is restricted to the super-user.
+(it cannot be opened if it is already open).
 A
 .Fn read
 call will return an error
@@ -75,49 +113,61 @@ if the interface is not
 .Dq ready
 (which means that the control device is open and the interface's
 address has been set).
+.Pp
 Once the interface is ready,
-.Fn read
+.Xr read 2
 will return a packet if one is available; if not, it will either block
 until one is or return
 .Er EWOULDBLOCK ,
-depending on whether non-blocking I/O has been enabled.  If the packet
-is longer than is allowed for in the buffer passed to
+depending on whether non-blocking I/O has been enabled.
+If the packet is longer than is allowed for in the buffer passed to
 .Fn read ,
 the extra data will be silently dropped.
 .Pp
-Packets can be optionally prepended with the destination address as presented
-to the network interface output routine
+If the
+.Dv TUNSLMODE
+ioctl has been set, packets read from the control device will be prepended
+with the destination address as presented to the network interface output
+routine
 .Pq Sq Li tunoutput .
 The destination address is in
 .Sq Li struct sockaddr
 format.
 The actual length of the prepended address is in the member
 .Sq Li sa_len .
-The packet data follows immediately.
+If the
+.Dv TUNSIFHEAD
+ioctl has been set, packets will be prepended with a four byte address
+family in network byte order.
+.Dv TUNSLMODE
+and
+.Dv TUNSIFHEAD
+are mutually exclusive.
+In any case, the packet data follows immediately.
+.Pp
 A
 .Xr write 2
 call passes a packet in to be
 .Dq received
-on the pseudo-interface.  Each
+on the pseudo-interface.
+If the
+.Dv TUNSIFHEAD
+ioctl has been set, the address family must be prepended, otherwise the
+packet is assumed to be of type
+.Dv AF_INET .
+Each
 .Fn write
 call supplies exactly one packet; the packet length is taken from the
 amount of data provided to
-.Fn write .
+.Fn write
+.Pq minus any supplied address family .
 Writes will not block; if the packet cannot be accepted for a
 transient reason
 .Pq e.g., no buffer space available ,
 it is silently dropped; if the reason is not transient
 .Pq e.g., packet too large ,
 an error is returned.
-If
-.Dq link-layer mode
-is on
-.Pq see Dv TUNSLMODE No below ,
-the actual packet data must be preceded by a
-.Sq Li struct sockaddr .
-The driver currently only inspects the
-.Sq Li sa_family
-field.
+.Pp
 The following
 .Xr ioctl 2
 calls are supported
@@ -126,9 +176,9 @@ calls are supported
 .It Dv TUNSDEBUG
 The argument should be a pointer to an
 .Va int ;
-this sets the internal debugging variable to that value.  What, if
-anything, this variable controls is not documented here; see the source
-code.
+this sets the internal debugging variable to that value.
+What, if anything, this variable controls is not documented here; see
+the source code.
 .It Dv TUNGDEBUG
 The argument should be a pointer to an
 .Va int ;
@@ -142,6 +192,8 @@ The
 .Va struct tuninfo
 is declared in
 .Aq Pa net/if_tun.h .
+.Pp
+The use of this ioctl is restricted to the super-user.
 .It Dv TUNGIFINFO
 The argument should be a pointer to an
 .Va struct tuninfo ,
@@ -155,19 +207,22 @@ or
 .Dv IFF_BROADCAST .
 The type of the corresponding
 .Em tun Ns Sy n
-interface is set to the supplied type.  If the value is anything else,
-an
+interface is set to the supplied type.
+If the value is anything else, an
 .Er EINVAL
-error occurs.  The interface must be down at the time; if it is up, an
+error occurs.
+The interface must be down at the time; if it is up, an
 .Er EBUSY
 error occurs.
 .It Dv TUNSLMODE
 The argument should be a pointer to an
 .Va int ;
-a non-zero value turns on
+a non-zero value turns off
+.Dq multi-af
+mode and turns on
 .Dq link-layer
 mode, causing packets read from the tunnel device to be prepended with
-network destination address.
+the network destination address (see above).
 .It Dv TUNSIFPID
 Will set the pid owning the tunnel device to the current process's pid.
 .It Dv TUNSIFHEAD
@@ -175,13 +230,15 @@ The argument should be a pointer to an
 .Va int ;
 a non-zero value turns off
 .Dq link-layer
-mode, and enables multi-af mode, where every packet is preceded with a
-four byte address family.
+mode, and enables
+.Dq multi-af
+mode, where every packet is preceded with a four byte address family.
 .It Dv TUNGIFHEAD
 The argument should be a pointer to an
 .Va int ;
-this stores one if the device is in multi-af mode, and zero otherwise
-in it.
+the ioctl sets the value to one if the device is in
+.Dq multi-af
+mode, and zero otherwise.
 .It Dv FIONBIO
 Turn non-blocking I/O for reads off or on, according as the argument
 .Va int Ns 's
@@ -222,14 +279,23 @@ writes are always non-blocking.
 On the last close of the data device, by default, the interface is
 brought down
 (as if with
-.Dq ifconfig tun Ns Sy n No down ) .
+.Dq ifconfig tun Ns Sy N No down ) .
 All queued packets are thrown away.
 If the interface is up when the data device is not open
 output packets are always thrown away rather than letting
 them pile up.
 .Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr read 2 ,
+.Xr select 2 ,
+.Xr write 2 ,
+.Xr devname 3 ,
 .Xr inet 4 ,
-.Xr intro 4
+.Xr intro 4 ,
+.Xr pty 4 ,
+.Xr devfs 5 ,
+.Xr MAKEDEV 8 ,
+.Xr ifconfig 8
 .Sh AUTHORS
-This man page has been obtained from
+This manual page was originally obtained from
 .Bx Net .
