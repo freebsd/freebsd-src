@@ -65,10 +65,7 @@ gctl_dump(struct gctl_req *req, FILE *f)
 		fprintf(f, "  error:\tNULL\n");
 	for (i = 0; i < req->narg; i++) {
 		ap = &req->arg[i];
-		if (ap->name != NULL)
-			fprintf(f, "  param:\t\"%s\"", ap->name);
-		else
-			fprintf(f, "  meta:\t@%jd", (intmax_t)ap->offset);
+		fprintf(f, "  param:\t\"%s\"", ap->name);
 		fprintf(f, " [%s%s",
 		    ap->flag & GCTL_PARAM_RD ? "R" : "",
 		    ap->flag & GCTL_PARAM_WR ? "W" : "");
@@ -203,38 +200,6 @@ gctl_rw_param(struct gctl_req *req, const char *name, int len, void* value)
 		ap->len = len;
 	else if (len < 0)
 		ap->len = strlen(value) + 1;	
-}
-
-void
-gctl_ro_meta(struct gctl_req *req, off_t offset, u_int len, const void* value)
-{
-	struct gctl_req_arg *ap;
-
-	if (req == NULL || req->error != NULL)
-		return;
-	ap = gctl_new_arg(req);
-	if (ap == NULL)
-		return;
-	ap->value = __DECONST(void *, value);
-	ap->flag = GCTL_PARAM_RD;
-	ap->offset = offset;
-	ap->len = len;
-}
-
-void
-gctl_rw_meta(struct gctl_req *req, off_t offset, u_int len, void* value)
-{
-	struct gctl_req_arg *ap;
-
-	if (req == NULL || req->error != NULL)
-		return;
-	ap = gctl_new_arg(req);
-	if (ap == NULL)
-		return;
-	ap->value = value;
-	ap->flag = GCTL_PARAM_RW;
-	ap->offset = offset;
-	ap->len = len;
 }
 
 const char *
