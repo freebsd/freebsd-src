@@ -1,6 +1,8 @@
 /*
  *    Dug Song <dugsong@UMICH.EDU>
  *    Kerberos v4 authentication and ticket-passing routines.
+ * 
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -114,7 +116,7 @@ auth_krb4_password(struct passwd * pw, const char *password)
 kerberos_auth_failure:
 		krb4_cleanup_proc(NULL);
 
-		if (!options.kerberos_or_local_passwd)
+		if (!options.krb4_or_local_passwd)
 			return 0;
 	} else {
 		/* Logging in as root or no local Kerberos realm. */
@@ -242,7 +244,7 @@ auth_krb4(const char *server_user, KTEXT auth, char **client)
 	/* Clear session key. */
 	memset(&adat.session, 0, sizeof(&adat.session));
 
-	packet_start(SSH_SMSG_AUTH_KERBEROS_RESPONSE);
+	packet_start(SSH_SMSG_AUTH_KRB4_RESPONSE);
 	packet_put_string((char *) reply.dat, reply.length);
 	packet_send();
 	packet_write_wait();
@@ -252,7 +254,7 @@ auth_krb4(const char *server_user, KTEXT auth, char **client)
 
 #ifdef AFS
 int 
-auth_kerberos_tgt(struct passwd *pw, const char *string)
+auth_krb4_tgt(struct passwd *pw, const char *string)
 {
 	CREDENTIALS creds;
 

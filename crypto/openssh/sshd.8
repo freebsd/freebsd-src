@@ -9,7 +9,7 @@
 .\"
 .\" Created: Sat Apr 22 21:55:14 1995 ylo
 .\"
-.\" $Id: sshd.8,v 1.33 2000/02/21 14:19:09 deraadt Exp $
+.\" $Id: sshd.8,v 1.34 2000/02/24 18:22:16 markus Exp $
 .\" $FreeBSD$
 .\"
 .Dd September 25, 1999
@@ -284,13 +284,16 @@ Note that
 .Nm
 does not start if this file is group/world-accessible.
 .It Cm IgnoreRhosts
-Specifies that rhosts and shosts files will not be used in
-authentication.
+Specifies that
+.Pa .rhosts
+and 
+.Pa .shosts
+files will not be used in authentication.
 .Pa /etc/hosts.equiv
 and
 .Pa /etc/shosts.equiv 
 are still used.  The default is 
-.Dq no .
+.Dq yes .
 .It Cm IgnoreUserKnownHosts
 Specifies whether
 .Nm
@@ -378,7 +381,7 @@ The default is
 When password authentication is allowed, it specifies whether the
 server allows login to accounts with empty password strings.  The default
 is
-.Dq yes .
+.Dq no .
 .It Cm PermitRootLogin
 Specifies whether the root can log in using
 .Xr ssh 1 .
@@ -429,7 +432,7 @@ The default is
 .It Cm RhostsRSAAuthentication
 Specifies whether rhosts or /etc/hosts.equiv authentication together
 with successful RSA host authentication is allowed.  The default is
-.Dq yes .
+.Dq no .
 .It Cm RSAAuthentication
 Specifies whether pure RSA authentication is allowed.  The default is
 .Dq yes .
@@ -468,6 +471,7 @@ Specifies the first display number available for
 X11 forwarding.  This prevents
 .Nm
 from interfering with real X11 servers.
+The default is 10.
 .It Cm X11Forwarding
 Specifies whether X11 forwarding is permitted.  The default is
 .Dq yes .

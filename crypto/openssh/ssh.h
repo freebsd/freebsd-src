@@ -182,10 +182,13 @@
 #define SSH_AUTH_PASSWORD	3
 #define SSH_AUTH_RHOSTS_RSA	4
 #define SSH_AUTH_TIS		5
-#define SSH_AUTH_KERBEROS	6
-#define SSH_PASS_KERBEROS_TGT	7
+#define SSH_AUTH_KRB4		6
+#define SSH_PASS_KRB4_TGT	7
 				/* 8 to 15 are reserved */
 #define SSH_PASS_AFS_TOKEN	21
+
+#define SSH_AUTH_KRB5		29
+#define SSH_PASS_KRB5_TGT	30
 
 /* Protocol flags.  These are bit masks. */
 #define SSH_PROTOFLAG_SCREEN_NUMBER	1	/* X11 forwarding includes screen */
@@ -240,10 +243,14 @@
 #define SSH_CMSG_AUTH_TIS			39	/* we use this for s/key */
 #define SSH_SMSG_AUTH_TIS_CHALLENGE		40	/* challenge (string) */
 #define SSH_CMSG_AUTH_TIS_RESPONSE		41	/* response (string) */
-#define SSH_CMSG_AUTH_KERBEROS			42	/* (KTEXT) */
-#define SSH_SMSG_AUTH_KERBEROS_RESPONSE		43	/* (KTEXT) */
-#define SSH_CMSG_HAVE_KERBEROS_TGT		44	/* credentials (s) */
+#define SSH_CMSG_AUTH_KRB4			42	/* (KTEXT) */
+#define SSH_SMSG_AUTH_KRB4_RESPONSE		43	/* (KTEXT) */
+#define SSH_CMSG_HAVE_KRB4_TGT			44	/* credentials (s) */
 #define SSH_CMSG_HAVE_AFS_TOKEN			65	/* token (s) */
+
+#define SSH_CMSG_AUTH_KRB5			110
+#define SSH_SMSG_AUTH_KRB5_RESPONSE		111
+#define	SSH_CMSG_HAVE_KRB5_TGT			112
 
 /*------------ definitions for login.c -------------*/
 
@@ -690,6 +697,15 @@ struct envstring {
  */
 ssize_t	atomicio(ssize_t (*f)(), int fd, void *s, size_t n);
 
+#ifdef KRB5
+#include <krb5.h>
+int	auth_krb5();  /* XXX Doplnit prototypy */
+int	auth_krb5_tgt();
+int	krb5_init();
+void	krb5_cleanup_proc(void *ignore);
+int	auth_krb5_password(struct passwd *pw, const char *password);
+#endif /* KRB5 */
+
 #ifdef KRB4
 #include <krb.h>
 /*
@@ -706,7 +722,7 @@ int	auth_krb4_password(struct passwd * pw, const char *password);
 #include <kafs.h>
 
 /* Accept passed Kerberos v4 ticket-granting ticket and AFS tokens. */
-int     auth_kerberos_tgt(struct passwd * pw, const char *string);
+int     auth_krb4_tgt(struct passwd * pw, const char *string);
 int     auth_afs_token(struct passwd * pw, const char *token_string);
 
 int     creds_to_radix(CREDENTIALS * creds, unsigned char *buf);
