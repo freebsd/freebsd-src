@@ -252,8 +252,8 @@ uhci_pci_attach(device_t self)
 		err = device_probe_and_attach(sc->sc_bus.bdev);
 
 	if (err) {
-		device_printf(self, "init failed\n");
-		err = EIO;	/* XXX arbitrary value */
+		device_printf(self, "USB init failed\n");
+		err = EIO;
 		goto bad4;
 	}
 
@@ -261,7 +261,7 @@ uhci_pci_attach(device_t self)
 
 bad4:
 	/* disable interrupts that might have been switched on
-	 * in uhci_init
+	 * in uhci_init.
 	 */
 	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
@@ -274,11 +274,9 @@ bad4:
 bad3:
 	device_delete_child(self, sc->sc_bus.bdev);
 bad2:
-	rid = 0;
-	bus_delete_resource(self, SYS_RES_IRQ, rid);
+	bus_delete_resource(self, SYS_RES_IRQ, 0);
 bad1:
-	rid = PCI_UHCI_BASE_REG;
-	bus_delete_resource(self, SYS_RES_IOPORT, rid);
+	bus_delete_resource(self, SYS_RES_IOPORT, PCI_UHCI_BASE_REG);
 	return err;
 }
 
