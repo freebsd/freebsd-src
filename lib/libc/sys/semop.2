@@ -38,7 +38,7 @@
 .In sys/ipc.h
 .In sys/sem.h
 .Ft int
-.Fn semop "int semid" "struct sembuf *array" "unsigned nops"
+.Fn semop "int semid" "struct sembuf *array" "size_t nops"
 .Sh DESCRIPTION
 The
 .Fn semop
