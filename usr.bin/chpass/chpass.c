@@ -38,7 +38,9 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)chpass.c	8.4 (Berkeley) 4/2/94";
+static char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
+static char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -76,13 +78,13 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	enum { NEWSH, LOADENTRY, EDITENTRY } op;
+	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW } op;
 	struct passwd *pw, lpw;
 	int ch, pfd, tfd;
 	char *arg;
 
 	op = EDITENTRY;
-	while ((ch = getopt(argc, argv, "a:s:")) != EOF)
+	while ((ch = getopt(argc, argv, "a:p:s:")) != EOF)
 		switch(ch) {
 		case 'a':
 			op = LOADENTRY;
@@ -90,6 +92,10 @@ main(argc, argv)
 			break;
 		case 's':
 			op = NEWSH;
+			arg = optarg;
+			break;
+		case 'p':
+			op = NEWPW;
 			arg = optarg;
 			break;
 		case '?':
@@ -101,7 +107,7 @@ main(argc, argv)
 
 	uid = getuid();
 
-	if (op == EDITENTRY || op == NEWSH)
+	if (op == EDITENTRY || op == NEWSH || op == NEWPW)
 		switch(argc) {
 		case 0:
 			if (!(pw = getpwuid(uid)))
@@ -131,6 +137,16 @@ main(argc, argv)
 		pw = &lpw;
 		if (!pw_scan(arg, pw))
 			exit(1);
+	}
+
+	if (op == NEWPW) {
+		if (uid)
+			baduser();
+
+		if(strchr(arg, ':')) {
+			errx(1, "invalid format for password");
+		}
+		pw->pw_passwd = arg;
 	}
 
 	/*
@@ -179,7 +195,6 @@ main(argc, argv)
 void
 baduser()
 {
-
 	errx(1, "%s", strerror(EACCES));
 }
 
@@ -187,6 +202,7 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: chpass [-a list] [-s shell] [user]\n");
+	(void)fprintf(stderr,
+		"usage: chpass [-a list] [-p encpass] [-s shell] [user]\n");
 	exit(1);
 }
