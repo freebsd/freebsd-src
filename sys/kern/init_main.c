@@ -39,10 +39,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.103.2.2 1999/01/30 19:47:54 msmith Exp $
+ * $Id: init_main.c,v 1.103.2.3 1999/02/25 14:36:29 bde Exp $
  */
 
 #include "opt_devfs.h"
+#include "opt_init_path.h"
 
 #include <sys/param.h>
 #include <sys/file.h>
@@ -591,16 +592,16 @@ kthread_init(dummy)
 /*
  * List of paths to try when searching for "init".
  */
-static char *initpaths[] = {
-	"/sbin/init",
-	"/sbin/oinit",
-	"/sbin/init.bak",
-	"/stand/sysinstall",
-	NULL,
-};
+static char init_path[MAXPATHLEN] =
+#ifdef	INIT_PATH
+    __XSTRING(INIT_PATH);
+#else
+    "/sbin/init:/sbin/oinit:/sbin/init.bak:/stand/sysinstall";
+#endif
+SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0, "");
 
 /*
- * Start the initial user process; try exec'ing each pathname in "initpaths".
+ * Start the initial user process; try exec'ing each pathname in init_path.
  * The program is invoked with one argument containing the boot flags.
  */
 static void
@@ -609,8 +610,9 @@ start_init(p)
 {
 	vm_offset_t addr;
 	struct execve_args args;
-	int options, i, error;
-	char **pathp, *path, *ucp, **uap, *arg0, *arg1;
+	int options, error;
+	char *var, *path, *next, *s;
+	char *ucp, **uap, *arg0, *arg1;
 
 	initproc = p;
 
@@ -618,12 +620,27 @@ start_init(p)
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
 	 */
 	addr = trunc_page(USRSTACK - PAGE_SIZE);
-	if (vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr, PAGE_SIZE, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0) != 0)
+	if (vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr, PAGE_SIZE,
+			FALSE, VM_PROT_ALL, VM_PROT_ALL, 0) != 0)
 		panic("init: couldn't allocate argument space");
 	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;
 	p->p_vmspace->vm_ssize = 1;
 
-	for (pathp = &initpaths[0]; (path = *pathp) != NULL; pathp++) {
+	if ((var = getenv("init_path")) != NULL) {
+		strncpy(init_path, var, sizeof init_path);
+		init_path[sizeof init_path - 1] = 0;
+	}
+	
+	for (path = init_path; *path != '\0'; path = next) {
+		while (*path == ':')
+			path++;
+		if (*path == '\0')
+			break;
+		for (next = path; *next != '\0' && *next != ':'; next++)
+			/* nothing */ ;
+		if (bootverbose)
+			printf("start_init: trying %.*s\n", next-path, path);
+			
 		/*
 		 * Move out the boot flag argument.
 		 */
@@ -653,8 +670,9 @@ start_init(p)
 		/*
 		 * Move out the file name (also arg 0).
 		 */
-		for (i = strlen(path) + 1; i >= 0; i--)
-			(void)subyte(--ucp, path[i]);
+		(void)subyte(--ucp, 0);
+		for (s = next - 1; s >= path; s--)
+			(void)subyte(--ucp, *s);
 		arg0 = ucp;
 
 		/*
@@ -682,7 +700,7 @@ start_init(p)
 		if ((error = execve(p, &args)) == 0)
 			return;
 		if (error != ENOENT)
-			printf("exec %s: error %d\n", path, error);
+			printf("exec %.*s: error %d\n", next-path, path, error);
 	}
 	printf("init: not found\n");
 	panic("no init");

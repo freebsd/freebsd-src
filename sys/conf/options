@@ -1,4 +1,4 @@
-#	$Id: options,v 1.121.2.4 1999/04/24 02:24:27 obrien Exp $
+#	$Id: options,v 1.121.2.5 1999/05/11 05:35:28 mjacob Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -346,3 +346,6 @@ VINUMDEBUG		opt_vinum.h
 
 # Include LKM compatability module
 LKM
+
+# Embedded system options
+INIT_PATH		opt_init_path.h
