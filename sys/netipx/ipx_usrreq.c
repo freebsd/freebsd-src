@@ -509,7 +509,7 @@ ipx_peeraddr(so, nam)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	ipx_setpeeraddr(ipxp, nam); /* XXX what if alloc fails? */
+	ipx_setpeeraddr(ipxp, nam);
 	return (0);
 }
 
@@ -577,7 +577,7 @@ ipx_sockaddr(so, nam)
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	ipx_setsockaddr(ipxp, nam); /* XXX what if alloc fails? */
+	ipx_setsockaddr(ipxp, nam);
 	return (0);
 }
 
