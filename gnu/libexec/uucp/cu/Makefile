@@ -1,9 +1,10 @@
 # Makefile for cu
-# $Id: Makefile,v 1.2 1993/08/05 16:14:45 jtc Exp $
+# $Id: Makefile,v 1.1 1993/08/05 18:23:27 conklin Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)
-BINMODE=	4555
+BINGRP=         dialer
+BINMODE=        4550
 
 PROG=		cu
 SRCS=		cu.c prot.c log.c chat.c conn.c tcp.c tli.c copy.c
