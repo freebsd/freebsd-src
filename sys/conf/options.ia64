@@ -2,6 +2,7 @@
 # Options specific to the ia64 platform kernels
 
 ITANIUM			opt_global.h
+ITANIUM2		opt_global.h
 
 IA32			opt_ia32.h
 
