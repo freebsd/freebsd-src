@@ -48,11 +48,11 @@
 #include <netinet/in.h>
 #ifndef __NetBSD__
 # ifdef	__FreeBSD__
-#  define	KERNEL
+#  define	_KERNEL
 # endif
 # include <netinet/if_ether.h>
 # ifdef	__FreeBSD__
-#  undef	KERNEL
+#  undef	_KERNEL
 # endif
 #else
 # include <net/if_ether.h>
