@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: vmstat.8,v 1.11 1999/02/10 00:46:26 ken Exp $
+.\"	$Id: vmstat.8,v 1.12 1999/02/13 09:59:24 dillon Exp $
 .\"
 .Dd June 6, 1996
 .Dt VMSTAT 8
@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm vmstat
 .\" .Op Fl fimst
-.Op Fl imzs
+.Op Fl imsz
 .Op Fl c Ar count
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -88,8 +88,6 @@ instead of the default
 .It Fl m
 Report on the usage of kernel dynamic memory listed first by size of
 allocation and then by type of usage.
-.It Fl z
-Report on memory used by the kernel zone allocator, by zone.
 .It Fl n
 Change the maximum number of disks to display from the default of 2.
 .It Fl p
@@ -192,6 +190,8 @@ in run queue
 blocked for resources (i/o, paging, etc.)
 .It w
 runnable or short sleeper (< 20 secs) but swapped
+.It Fl z
+Report on memory used by the kernel zone allocator, by zone.
 .El
 .It memory
 Information about the usage of virtual and real memory.
