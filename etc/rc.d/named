@@ -29,19 +29,40 @@ extra_commands="reload"
 #
 chroot_autoupdate()
 {
-	# Copy devices if necessary. Preserve everything (perms,
-	# ownership, mod times).
+	# Create (or update) the chroot directory structure
 	#
-	if [ ! -c "${named_chrootdir}/dev/null" ]; then
-	rm -f "${named_chrootdir}/dev/null"
-		( cd /dev ; /bin/pax -rw -pe null "${named_chrootdir}/dev" )
-	fi
-	if [ ! -c "${named_chrootdir}/dev/random" ]; then
-	rm -f "${named_chrootdir}/dev/random"
-		( cd /dev ; /bin/pax -rw -pe random "${named_chrootdir}/dev" )
+	if [ -f /etc/mtree/BIND.chroot.dist ]; then
+		mtree -deU -f /etc/mtree/BIND.chroot.dist \
+		    -p ${named_chrootdir}
+	else
+		warn "/etc/mtree/BIND.chroot.dist missing,"
+		warn "chroot directory structure not updated"
 	fi
 
-	# Copy local timezone information if it's not up-to-date.
+	# Create /etc/namedb symlink
+	#
+	if [ ! -L /etc/namedb ]; then
+		if [ -d /etc/namedb ]; then
+			warn "named chroot: /etc/namedb is a directory!"
+		elif [ -e /etc/namedb ]; then
+			warn "named chroot: /etc/namedb exists!"
+		else
+			ln -s ${named_chrootdir}/etc/namedb /etc/namedb
+		fi
+	fi
+
+	# Mount a devfs in the chroot directory if needed
+	#
+	if [ ! -c ${named_chrootdir}/dev/random -o \
+	    ! -c ${named_chrootdir}/dev/null ]; then
+		umount ${named_chrootdir}/dev 2>/dev/null
+		mount_devfs devfs ${named_chrootdir}/dev
+	fi
+	devfs -m ${named_chrootdir}/dev rule apply hide
+	devfs -m ${named_chrootdir}/dev rule apply path null unhide
+	devfs -m ${named_chrootdir}/dev rule apply path random unhide
+
+	# Copy local timezone information if it is not up to date.
 	#
 	if [ -f /etc/localtime ]; then
 		cmp -s /etc/localtime "${named_chrootdir}/etc/localtime" || \
@@ -62,20 +83,20 @@ named_precmd()
 	local confgen_chroot
 
 	# Is the user using a sandbox?
+	#
 	if [ -n "$named_chrootdir" ]; then
 		rc_flags="$rc_flags -t $named_chrootdir"
-		confgen_chroot="-t${named_chrootdir}"
+		confgen_chroot="-t${named_chrootdir} -u bind"
 		checkyesno named_chroot_autoupdate && chroot_autoupdate
 	else
 		named_symlink_enable=NO
 	fi
 
 	# Create an rndc.key file for the user if none exists
+	#
 	if [ ! -f "${named_chrootdir}/etc/namedb/rndc.key" -a \
 	    ! -f "${named_chrootdir}/etc/namedb/rndc.conf" ]; then
 		rndc-confgen -a -b256 ${confgen_chroot}
-		chown root:bind "${named_chrootdir}/etc/namedb/rndc.key"
-		chmod 0640 "${named_chrootdir}/etc/namedb/rndc.key"
 	fi
 }
 

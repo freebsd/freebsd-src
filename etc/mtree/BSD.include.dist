@@ -9,10 +9,6 @@
     ..
     arpa
     ..
-    bind
-    ..
-    bind9
-    ..
     bsnmp
     ..
     c++
@@ -56,10 +52,6 @@
         ..
         wi
         ..
-    ..
-    dns
-    ..
-    dst
     ..
     fs
         devfs
@@ -108,12 +100,6 @@
     gnu
         posix
         ..
-    ..
-    isc
-    ..
-    isccc
-    ..
-    isccfg
     ..
     isofs
         cd9660

@@ -8,6 +8,56 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20040928:
+	If enabled, the default is now to run named in a chroot
+	"sandbox." For users with existing configurations in
+	/etc/namedb the migration should be simple. Upgrade your
+	world as usual, then after installworld but before
+	mergemaster do the following:
+
+	If named is running: /etc/rc.d/named stop
+	cd /etc
+	mv namedb namedb.bak
+	mkdir -p /var/named/etc/namedb
+	cp -Rp namedb.bak/* /var/named/etc/namedb/
+	mergemaster (with your usual options)
+	If using the generated localhost* files:
+		cd /var/named/etc/namedb
+		/bin/sh make-localhost
+		rm -f localhost-v6.rev localhost.rev
+	/etc/rc.d/syslogd restart
+	/etc/rc.d/named start
+
+	If you are using a custom configuration, or if you have
+	customised the named_* variables in /etc/rc.conf[.local]
+	then you may have to adjust the instructions accordingly.
+	It is suggested that you carefully examine the new named
+	variables in /etc/defaults/rc.conf and the options in
+	/var/named/etc/namedb/named.conf to see if they might
+	now be more suitable.
+
+20040925:
+	BIND 9 has been imported into the base, and is now fully
+	functional. BIND 8 has now been removed. There are numerous
+	differences between BIND 8 and 9, and users with critical
+	named installations should read the migration documentation
+	in /usr/share/doc/bind9/misc/migration. There is also a
+	new instruction manual in /usr/share/doc/bind9/arm.
+
+	The key differences that most users will experience are in
+	how picky BIND 9 is about zone file format. If you are using
+	named as a resolving (caching) name server, you will likely
+	not have trouble.
+
+	The following files are part of the old BIND 8 installation
+	and should be removed:
+	/usr/bin/dnskeygen /usr/bin/dnsquery /usr/libexec/named-xfer
+	/usr/sbin/named.restart /usr/sbin/ndc
+
+	The following files have moved to /usr/bin, and should be
+	removed from their old locations:
+	/usr/sbin/nslookup /usr/sbin/nsupdate
+
 20040922:
 	PFIL_HOOKS are a fixed part of the network stack now and do not
 	need to be specified in the kernel configuration file anymore.

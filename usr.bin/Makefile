@@ -233,7 +233,7 @@ _truss=		truss
 _atm=		atm
 .endif
 
-.if !defined(NO_BIND)
+.if !defined(NO_BIND) && !defined(NO_BIND_UTILS)
 _dig=		dig
 _host=		host
 _nslookup=	nslookup

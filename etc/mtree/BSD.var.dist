@@ -47,6 +47,8 @@
     ..
     msgs            uname=daemon
     ..
+    named           uname=root
+    ..
     preserve
     ..
     run

@@ -40,9 +40,17 @@ MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 .if !defined(NO_SENDMAIL)
 MTREE+=	BSD.sendmail.dist
 .endif
+.if !defined(NO_BIND)
+MTREE+=	BIND.chroot.dist
+.if defined(WITH_BIND_LIBS)
+MTREE+=	BIND.include.dist
+.endif
+.endif
 
+.if !defined(NO_BIND_ETC) && !defined(NO_BIND)
 NAMEDB=	PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
 	make-localhost
+.endif
 
 PPPCNF=	ppp.conf
 
@@ -114,8 +122,10 @@ distribution:
 	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
+.if !defined(NO_BIND_ETC) && !defined(NO_BIND)
 	cd ${.CURDIR}/namedb; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${NAMEDB} ${DESTDIR}/etc/namedb
+	    ${NAMEDB} ${DESTDIR}/var/named/etc/namedb
+.endif
 	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
@@ -169,6 +179,15 @@ distrib-dirs:
 	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
+.if !defined(NO_BIND)
+.if defined(WITH_BIND_LIBS)
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.include.dist \
+	    -p ${DESTDIR}/usr/include
+.endif
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.chroot.dist \
+	    -p ${DESTDIR}/var/named
+	ln -fhs ${DESTDIR}/var/named/etc/namedb ${DESTDIR}/etc/namedb
+.endif
 .if !defined(NO_SENDMAIL)
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/
 .endif

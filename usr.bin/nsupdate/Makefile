@@ -19,4 +19,6 @@ LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
 MAN=		nsupdate.8
 
+MANFILTER=	sed -e "s@/etc/named\.conf@/etc/namedb/named.conf@g"
+
 .include <bsd.prog.mk>

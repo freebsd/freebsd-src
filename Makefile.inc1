@@ -276,6 +276,10 @@ _worldtmp:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
+.if defined(WITH_BIND_LIBS) && !defined(NO_BIND)
+	mtree -deU -f ${.CURDIR}/etc/mtree/BIND.include.dist \
+	    -p ${WORLDTMP}/usr/include >/dev/null
+.endif
 _legacy:
 	@echo
 	@echo "--------------------------------------------------------------"

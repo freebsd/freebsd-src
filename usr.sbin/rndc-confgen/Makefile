@@ -22,4 +22,8 @@ LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
 MAN=		rndc-confgen.8
 
+MANFILTER=	sed -e 's@fI/etc\\fR.*@fI/etc/namedb\\fR@' \
+		-e '/^sysconfdir$$/d' \
+		-e '/was specified as when BIND was built)/d'
+
 .include <bsd.prog.mk>

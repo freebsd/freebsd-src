@@ -29,6 +29,8 @@ LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
 MAN=		named.8 lwresd.8 named.conf.5
 
+MANFILTER=	sed -e "s@/etc/named\.conf@/etc/namedb/named.conf@g"
+
 LINKS=		${BINDIR}/named ${BINDIR}/lwresd
 
 .include <bsd.prog.mk>
