@@ -151,6 +151,7 @@ struct cd_softc {
 	dev_t			dev;
 	eventhandler_tag	clonetag;
 	int			minimum_command_size;
+	int			outstanding_cmds;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 	STAILQ_HEAD(, cd_mode_params)	mode_queue;
@@ -1088,7 +1089,7 @@ cdshorttimeout(void *arg)
 	 * this device.  If not, move it out of the active slot.
 	 */
 	if ((bioq_first(&changer->cur_device->bio_queue) == NULL)
-	 && (changer->cur_device->device_stats->busy_count == 0)) {
+	 && (changer->cur_device->outstanding_cmds == 0)) {
 		changer->flags |= CHANGER_MANUAL_CALL;
 		cdrunchangerqueue(changer);
 	}
@@ -1187,10 +1188,10 @@ cdrunchangerqueue(void *arg)
 	 */
 	if (changer->devq.qfrozen_cnt > 0) {
 
-		if (changer->cur_device->device_stats->busy_count > 0) {
+		if (changer->cur_device->outstanding_cmds > 0) {
 			changer->cur_device->flags |= CD_FLAG_SCHED_ON_COMP;
 			changer->cur_device->bufs_left = 
-				changer->cur_device->device_stats->busy_count;
+				changer->cur_device->outstanding_cmds;
 			if (called_from_timeout) {
 				changer->long_handle =
 					timeout(cdrunchangerqueue, changer,
@@ -1297,7 +1298,7 @@ cdchangerschedule(struct cd_softc *softc)
 				cdrunchangerqueue(softc->changer);
 			}
 		} else if ((bioq_first(&softc->bio_queue) == NULL)
-		        && (softc->device_stats->busy_count == 0)) {
+		        && (softc->outstanding_cmds == 0)) {
 			softc->changer->flags |= CHANGER_MANUAL_CALL;
 			cdrunchangerqueue(softc->changer);
 		}
@@ -1533,6 +1534,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 			oldspl = splcam();
 			LIST_INSERT_HEAD(&softc->pending_ccbs,
 					 &start_ccb->ccb_h, periph_links.le);
+			softc->outstanding_cmds++;
 			splx(oldspl);
 
 			/* We expect a unit attention from this device */
@@ -1661,6 +1663,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		oldspl = splcam();
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
+		softc->outstanding_cmds--;
 		splx(oldspl);
 
 		if (softc->flags & CD_FLAG_CHANGER)
