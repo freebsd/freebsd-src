@@ -109,14 +109,15 @@ ip6_forward(m, srcrt)
 	int srcrt;
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
-	struct sockaddr_in6 *dst;
-	struct rtentry *rt;
+	struct sockaddr_in6 *dst = NULL;
+	struct rtentry *rt = NULL;
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
 	struct ifnet *origifp;	/* maybe unnecessary */
 	u_int32_t srczone, dstzone;
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
+	int ipsecrt = 0;
 #endif
 
 #ifdef IPSEC
@@ -253,7 +254,22 @@ ip6_forward(m, srcrt)
 	}
 
     {
+	struct ipsecrequest *isr = NULL;
 	struct ipsec_output_state state;
+
+	/*
+	 * when the kernel forwards a packet, it is not proper to apply
+	 * IPsec transport mode to the packet is not proper.  this check
+	 * avoid from this.
+	 * at present, if there is even a transport mode SA request in the
+	 * security policy, the kernel does not apply IPsec to the packet.
+	 * this check is not enough because the following case is valid.
+	 *      ipsec esp/tunnel/xxx-xxx/require esp/transport//require;
+	 */
+	for (isr = sp->req; isr; isr = isr->next) {
+		if (isr->saidx.mode == IPSEC_MODE_TRANSPORT)
+			goto skip_ipsec;
+	}
 
 	/*
 	 * All the extension headers will become inaccessible
@@ -300,9 +316,21 @@ ip6_forward(m, srcrt)
 		m_freem(m);
 		return;
 	}
+
+	/* adjust pointer */
+	ip6 = mtod(m, struct ip6_hdr *);
+	dst = (struct sockaddr_in6 *)state.dst;
+	rt = state.ro ? state.ro->ro_rt : NULL;
+	if (dst != NULL && rt != NULL)
+		ipsecrt = 1;
     }
     skip_ipsec:
 #endif /* IPSEC */
+
+#ifdef IPSEC
+	if (ipsecrt)
+		goto skip_routing;
+#endif
 
 	dst = (struct sockaddr_in6 *)&ip6_forward_rt.ro_dst;
 	if (!srcrt) {
@@ -353,6 +381,9 @@ ip6_forward(m, srcrt)
 		}
 	}
 	rt = ip6_forward_rt.ro_rt;
+#ifdef IPSEC
+    skip_routing:;
+#endif
 
 	/*
 	 * Scope check: if a packet can't be delivered to its destination
@@ -362,8 +393,18 @@ ip6_forward(m, srcrt)
 	 * [draft-ietf-ipngwg-icmp-v3-02.txt, Section 3.1]
 	 */
 	if (in6_addr2zoneid(m->m_pkthdr.rcvif, &ip6->ip6_src, &srczone) ||
-	    in6_addr2zoneid(rt->rt_ifp, &ip6->ip6_src, &dstzone) ||
-		srczone != dstzone) {
+	    in6_addr2zoneid(rt->rt_ifp, &ip6->ip6_src, &dstzone)) {
+		/* XXX: this should not happen */
+		ip6stat.ip6s_cantforward++;
+		ip6stat.ip6s_badscope++;
+		m_freem(m);
+		return;
+	}
+	if (srczone != dstzone
+#ifdef IPSEC
+	    && !ipsecrt
+#endif
+	    ) {
 		ip6stat.ip6s_cantforward++;
 		ip6stat.ip6s_badscope++;
 		in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard);
@@ -399,7 +440,7 @@ ip6_forward(m, srcrt)
 #ifdef IPSEC
 			/*
 			 * When we do IPsec tunnel ingress, we need to play
-			 * with if_mtu value (decrement IPsec header size
+			 * with the link value (decrement IPsec header size
 			 * from mtu value).  The code is much simpler than v4
 			 * case, as we have the outgoing interface for
 			 * encapsulated packet as "rt->rt_ifp".
@@ -439,6 +480,9 @@ ip6_forward(m, srcrt)
 	 * modified by a redirect.
 	 */
 	if (rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
+#ifdef IPSEC
+	    !ipsecrt &&
+#endif
 	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0) {
 		if ((rt->rt_ifp->if_flags & IFF_POINTOPOINT) != 0) {
 			/*

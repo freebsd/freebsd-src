@@ -1,4 +1,4 @@
-/*	$KAME: key.c,v 1.191 2001/06/27 10:46:49 sakane Exp $	*/
+/*	$KAME: key.c,v 1.308 2003/09/07 20:35:59 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -131,7 +131,6 @@ u_int32_t key_debug_level = 0;
 static u_int key_spi_trycnt = 1000;
 static u_int32_t key_spi_minval = 0x100;
 static u_int32_t key_spi_maxval = 0x0fffffff;	/* XXX */
-static u_int32_t policy_id = 0;
 static u_int key_int_random = 60;	/*interval to initialize randseed,1(m)*/
 static u_int key_larval_lifetime = 30;	/* interval to expire acquiring, 30(s)*/
 static int key_blockacq_count = 10;	/* counter for blocking SADB_ACQUIRE.*/
@@ -141,10 +140,17 @@ static int key_preferred_oldsa = 1;	/* preferred old sa rather than new sa.*/
 static u_int32_t acq_seq = 0;
 static int key_tick_init_random = 0;
 
-static LIST_HEAD(_sptree, secpolicy) sptree[IPSEC_DIR_MAX];	/* SPD */
+struct _satailq satailq;		/* list of all SAD entry */
+struct _sptailq sptailq;		/* SPD table + pcb */
+static LIST_HEAD(_sptree, secpolicy) sptree[IPSEC_DIR_MAX];	/* SPD table */
 static LIST_HEAD(_sahtree, secashead) sahtree;			/* SAD */
 static LIST_HEAD(_regtree, secreg) regtree[SADB_SATYPE_MAX + 1];
 							/* registed list */
+
+#define SPIHASHSIZE	128
+#define	SPIHASH(x)	(((x) ^ ((x) >> 16)) % SPIHASHSIZE)
+static LIST_HEAD(_spihash, secasvar) spihash[SPIHASHSIZE];
+
 #ifndef IPSEC_NONBLOCK_ACQUIRE
 static LIST_HEAD(_acqtree, secacq) acqtree;		/* acquiring list */
 #endif
@@ -217,9 +223,7 @@ static int ipsec_esp_keymin = 256;
 static int ipsec_esp_auth = 0;
 static int ipsec_ah_keymin = 128;
 
-#ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_key);
-#endif
 
 SYSCTL_INT(_net_key, KEYCTL_DEBUG_LEVEL,	debug,	CTLFLAG_RW, \
 	&key_debug_level,	0,	"");
@@ -252,10 +256,6 @@ SYSCTL_INT(_net_key, KEYCTL_BLOCKACQ_COUNT,	blockacq_count,	CTLFLAG_RW, \
 SYSCTL_INT(_net_key, KEYCTL_BLOCKACQ_LIFETIME,	blockacq_lifetime, CTLFLAG_RW, \
 	&key_blockacq_lifetime,	0,	"");
 
-/* ESP auth */
-SYSCTL_INT(_net_key, KEYCTL_ESP_AUTH,	esp_auth, CTLFLAG_RW, \
-	&ipsec_esp_auth,	0,	"");
-
 /* minimum ESP key length */
 SYSCTL_INT(_net_key, KEYCTL_ESP_KEYMIN,	esp_keymin, CTLFLAG_RW, \
 	&ipsec_esp_keymin,	0,	"");
@@ -268,10 +268,6 @@ SYSCTL_INT(_net_key, KEYCTL_AH_KEYMIN,	ah_keymin, CTLFLAG_RW, \
 SYSCTL_INT(_net_key, KEYCTL_PREFERED_OLDSA,	preferred_oldsa, CTLFLAG_RW,\
 	&key_preferred_oldsa,	0,	"");
 
-#ifndef LIST_FOREACH
-#define LIST_FOREACH(elm, head, field)                                     \
-	for (elm = LIST_FIRST(head); elm; elm = LIST_NEXT(elm, field))
-#endif
 #define __LIST_CHAINED(elm) \
 	(!((elm)->chain.le_next == NULL && (elm)->chain.le_prev == NULL))
 #define LIST_INSERT_TAIL(head, elm, type, field) \
@@ -308,7 +304,7 @@ do { \
 #define KMALLOC(p, t, n)                                                     \
 	((p) = (t) malloc((unsigned long)(n), M_SECA, M_NOWAIT))
 #define KFREE(p)                                                             \
-	free((caddr_t)(p), M_SECA);
+	free((caddr_t)(p), M_SECA)
 #else
 #define KMALLOC(p, t, n) \
 do { \
@@ -328,15 +324,14 @@ do { \
  * set parameters into secpolicyindex buffer.
  * Must allocate secpolicyindex buffer passed to this function.
  */
-#define KEY_SETSECSPIDX(_dir, s, d, ps, pd, ulp, idx) \
+#define KEY_SETSECSPIDX(s, d, ps, pd, ulp, idx) \
 do { \
 	bzero((idx), sizeof(struct secpolicyindex));                             \
-	(idx)->dir = (_dir);                                                 \
 	(idx)->prefs = (ps);                                                 \
 	(idx)->prefd = (pd);                                                 \
 	(idx)->ul_proto = (ulp);                                             \
-	bcopy((s), &(idx)->src, ((const struct sockaddr *)(s))->sa_len);     \
-	bcopy((d), &(idx)->dst, ((const struct sockaddr *)(d))->sa_len);     \
+	bcopy((s), &(idx)->src, ((struct sockaddr *)(s))->sa_len);           \
+	bcopy((d), &(idx)->dst, ((struct sockaddr *)(d))->sa_len);           \
 } while (/*CONSTCOND*/ 0)
 
 /*
@@ -349,8 +344,8 @@ do { \
 	(idx)->proto = (p);                                                  \
 	(idx)->mode = (m);                                                   \
 	(idx)->reqid = (r);                                                  \
-	bcopy((s), &(idx)->src, ((const struct sockaddr *)(s))->sa_len);     \
-	bcopy((d), &(idx)->dst, ((const struct sockaddr *)(d))->sa_len);     \
+	bcopy((s), &(idx)->src, ((struct sockaddr *)(s))->sa_len);           \
+	bcopy((d), &(idx)->dst, ((struct sockaddr *)(d))->sa_len);           \
 } while (/*CONSTCOND*/ 0)
 
 /* key statistics */
@@ -366,18 +361,16 @@ struct sadb_msghdr {
 };
 
 static struct secasvar *key_allocsa_policy(struct secasindex *);
-static void key_freesp_so(struct secpolicy **);
 static struct secasvar *key_do_allocsa_policy(struct secashead *, u_int);
 static void key_delsav(struct secasvar *);
 static void key_delsp(struct secpolicy *);
-static struct secpolicy *key_getsp(struct secpolicyindex *);
+static struct secpolicy *key_getsp(struct secpolicyindex *, int);
 static struct secpolicy *key_getspbyid(u_int32_t);
 static u_int32_t key_newreqid(void);
 static struct mbuf *key_gather_mbuf(struct mbuf *,
 	const struct sadb_msghdr *, int, int, ...);
 static int key_spdadd(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
-static u_int32_t key_getnewspid(void);
 static int key_spddelete(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static int key_spddelete2(struct socket *, struct mbuf *,
@@ -398,6 +391,7 @@ static struct secasvar *key_newsav(struct mbuf *,
 	const struct sadb_msghdr *, struct secashead *, int *);
 static struct secashead *key_getsah(struct secasindex *);
 static struct secasvar *key_checkspidup(struct secasindex *, u_int32_t);
+static void key_setspi(struct secasvar *, u_int32_t);
 static struct secasvar *key_getsavbyspi(struct secashead *, u_int32_t);
 static int key_setsaval(struct secasvar *, struct mbuf *,
 	const struct sadb_msghdr *);
@@ -414,9 +408,12 @@ static struct mbuf *key_setsadbident(u_int16_t, u_int16_t, caddr_t,
 	int, u_int64_t);
 #endif
 static struct mbuf *key_setsadbxsa2(u_int8_t, u_int32_t, u_int32_t);
+static struct mbuf *key_setsadblifetime(u_int16_t, u_int32_t,
+	u_int64_t, u_int64_t, u_int64_t);
 static struct mbuf *key_setsadbxpolicy(u_int16_t, u_int8_t,
 	u_int32_t);
 static void *key_newbuf(const void *, u_int);
+static int key_ismyaddr(struct sockaddr *);
 #ifdef INET6
 static int key_ismyaddr6(struct sockaddr_in6 *);
 #endif
@@ -424,18 +421,14 @@ static int key_ismyaddr6(struct sockaddr_in6 *);
 /* flags for key_cmpsaidx() */
 #define CMP_HEAD	1	/* protocol, addresses. */
 #define CMP_MODE_REQID	2	/* additionally HEAD, reqid, mode. */
-#define CMP_REQID	3	/* additionally HEAD, reaid. */
+#define CMP_REQID	3	/* additionally HEAD, reqid. not used */
 #define CMP_EXACTLY	4	/* all elements. */
-static int key_cmpsaidx
-	(struct secasindex *, struct secasindex *, int);
+static int key_cmpsaidx(struct secasindex *, struct secasindex *, int);
 
-static int key_cmpspidx_exactly
-	(struct secpolicyindex *, struct secpolicyindex *);
-static int key_cmpspidx_withmask
-	(struct secpolicyindex *, struct secpolicyindex *);
 static int key_sockaddrcmp(struct sockaddr *, struct sockaddr *, int);
 static int key_bbcmp(caddr_t, caddr_t, u_int);
 static void key_srandom(void);
+static u_long key_random(void);
 static u_int16_t key_satype2proto(u_int8_t);
 static u_int8_t key_proto2satype(u_int16_t);
 
@@ -487,13 +480,15 @@ static int key_dump(struct socket *, struct mbuf *,
 static int key_promisc(struct socket *, struct mbuf *,
 	const struct sadb_msghdr *);
 static int key_senderror(struct socket *, struct mbuf *, int);
-static int key_validate_ext(const struct sadb_ext *, int);
+static int key_validate_ext(struct sadb_ext *, int);
 static int key_align(struct mbuf *, struct sadb_msghdr *);
 #if 0
 static const char *key_getfqdn(void);
 static const char *key_getuserfqdn(void);
 #endif
 static void key_sa_chgstate(struct secasvar *, u_int8_t);
+static void key_sp_dead(struct secpolicy *);
+static void key_sp_unlink(struct secpolicy *);
 static struct mbuf *key_alloc_mbuf(int);
 
 /* %%% IPsec policy management */
@@ -504,17 +499,13 @@ static struct mbuf *key_alloc_mbuf(int);
  *	others:	found and return the pointer.
  */
 struct secpolicy *
-key_allocsp(spidx, dir)
+key_allocsp(tag, spidx, dir)
+	u_int16_t tag;
 	struct secpolicyindex *spidx;
 	u_int dir;
 {
 	struct secpolicy *sp;
-	struct timeval tv;
 	int s;
-
-	/* sanity check */
-	if (spidx == NULL)
-		panic("key_allocsp: NULL pointer is passed.");
 
 	/* check direction */
 	switch (dir) {
@@ -527,19 +518,26 @@ key_allocsp(spidx, dir)
 
 	/* get a SP entry */
 	s = splnet();	/*called from softclock()*/
-	KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-		printf("*** objects\n");
-		kdebug_secpolicyindex(spidx));
+	if (spidx) {
+		KEYDEBUG(KEYDEBUG_IPSEC_DATA,
+			printf("*** objects\n");
+			kdebug_secpolicyindex(spidx));
+	}
 
 	LIST_FOREACH(sp, &sptree[dir], chain) {
-		KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-			printf("*** in SPD\n");
-			kdebug_secpolicyindex(&sp->spidx));
-
 		if (sp->state == IPSEC_SPSTATE_DEAD)
 			continue;
-		if (key_cmpspidx_withmask(&sp->spidx, spidx))
-			goto found;
+		if (sp->spidx) {
+			if (!spidx)
+				continue;
+
+			KEYDEBUG(KEYDEBUG_IPSEC_DATA,
+				printf("*** in SPD\n");
+				kdebug_secpolicyindex(sp->spidx));
+
+			if (key_cmpspidx_withmask(sp->spidx, spidx))
+				goto found;
+		}
 	}
 
 	splx(s);
@@ -547,11 +545,10 @@ key_allocsp(spidx, dir)
 
 found:
 	/* sanity check */
-	KEY_CHKSPDIR(sp->spidx.dir, dir, "key_allocsp");
+	KEY_CHKSPDIR(sp->dir, dir, "key_allocsp");
 
 	/* found a SPD entry */
-	microtime(&tv);
-	sp->lastused = tv.tv_sec;
+	sp->lastused = time_second;
 	sp->refcnt++;
 	splx(s);
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
@@ -571,7 +568,6 @@ key_gettunnel(osrc, odst, isrc, idst)
 {
 	struct secpolicy *sp;
 	const int dir = IPSEC_DIR_INBOUND;
-	struct timeval tv;
 	int s;
 	struct ipsecrequest *r1, *r2, *p;
 	struct sockaddr *os, *od, *is, *id;
@@ -597,15 +593,22 @@ key_gettunnel(osrc, odst, isrc, idst)
 			r2 = p;
 
 			if (!r1) {
-				/* here we look at address matches only */
-				spidx = sp->spidx;
-				if (isrc->sa_len > sizeof(spidx.src) ||
-				    idst->sa_len > sizeof(spidx.dst))
-					continue;
-				bcopy(isrc, &spidx.src, isrc->sa_len);
-				bcopy(idst, &spidx.dst, idst->sa_len);
-				if (!key_cmpspidx_withmask(&sp->spidx, &spidx))
-					continue;
+				if (sp->spidx) {
+					/*
+					 * here we look at address matches
+					 * only
+					 */
+					spidx = *sp->spidx;
+					if (isrc->sa_len > sizeof(spidx.src) ||
+					    idst->sa_len > sizeof(spidx.dst))
+						continue;
+					bcopy(isrc, &spidx.src, isrc->sa_len);
+					bcopy(idst, &spidx.dst, idst->sa_len);
+					if (!key_cmpspidx_withmask(sp->spidx,
+					    &spidx))
+						continue;
+				} else
+					; /* can't check for tagged policy */
 			} else {
 				is = (struct sockaddr *)&r1->saidx.src;
 				id = (struct sockaddr *)&r1->saidx.dst;
@@ -627,8 +630,7 @@ key_gettunnel(osrc, odst, isrc, idst)
 	return NULL;
 
 found:
-	microtime(&tv);
-	sp->lastused = tv.tv_sec;
+	sp->lastused = time_second;
 	sp->refcnt++;
 	splx(s);
 	return sp;
@@ -663,7 +665,7 @@ key_checkrequest(isr, saidx)
 	}
 
 	/* get current level */
-	level = ipsec_get_reqlevel(isr);
+	level = ipsec_get_reqlevel(isr, saidx->src.ss_family);
 
 #if 0
 	/*
@@ -673,8 +675,8 @@ key_checkrequest(isr, saidx)
 	if (isr->sav != NULL) {
 		if (isr->sav->sah == NULL)
 			panic("key_checkrequest: sah is null.");
-		if (isr->sav == (struct secasvar *)LIST_FIRST(
-			    &isr->sav->sah->savtree[SADB_SASTATE_DEAD])) {
+		if (isr->sav ==
+		    LIST_FIRST(&isr->sav->sah->savtree[SADB_SASTATE_DEAD])) {
 			KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 				printf("DP checkrequest calls free SA:%p\n",
 					isr->sav));
@@ -837,12 +839,13 @@ key_do_allocsa_policy(sah, state)
 		 * permanent.
 		 */
 		if (d->lft_c->sadb_lifetime_addtime != 0) {
-			struct mbuf *m, *result;
+			struct mbuf *m, *result = NULL;
 
 			key_sa_chgstate(d, SADB_SASTATE_DEAD);
 
 			m = key_setsadbmsg(SADB_DELETE, 0,
-			    d->sah->saidx.proto, 0, 0, d->refcnt - 1);
+			    key_proto2satype(d->sah->saidx.proto),
+			    0, 0, d->refcnt - 1);
 			if (!m)
 				goto msgfail;
 			result = m;
@@ -850,17 +853,15 @@ key_do_allocsa_policy(sah, state)
 			/* set sadb_address for saidx's. */
 			m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC,
 				(struct sockaddr *)&d->sah->saidx.src,
-				d->sah->saidx.src.ss_len << 3,
-				IPSEC_ULPROTO_ANY);
+				FULLMASK, IPSEC_ULPROTO_ANY);
 			if (!m)
 				goto msgfail;
 			m_cat(result, m);
 
 			/* set sadb_address for saidx's. */
 			m = key_setsadbaddr(SADB_EXT_ADDRESS_DST,
-				(struct sockaddr *)&d->sah->saidx.src,
-				d->sah->saidx.src.ss_len << 3,
-				IPSEC_ULPROTO_ANY);
+				(struct sockaddr *)&d->sah->saidx.dst,
+				FULLMASK, IPSEC_ULPROTO_ANY);
 			if (!m)
 				goto msgfail;
 			m_cat(result, m);
@@ -887,7 +888,12 @@ key_do_allocsa_policy(sah, state)
 			if (key_sendup_mbuf(NULL, result,
 					KEY_SENDUP_REGISTERED))
 				goto msgfail;
+
+			result = NULL;
+
 		 msgfail:
+			if (result != NULL)
+				m_freem(result);
 			key_freesav(d);
 		}
 	}
@@ -923,9 +929,8 @@ key_allocsa(family, src, dst, proto, spi)
 	caddr_t src, dst;
 	u_int32_t spi;
 {
-	struct secashead *sah;
-	struct secasvar *sav;
-	u_int stateidx, state;
+	struct secasvar *sav, *match;
+	u_int stateidx, state, tmpidx, matchidx;
 	struct sockaddr_in sin;
 	struct sockaddr_in6 sin6;
 	int s;
@@ -955,114 +960,120 @@ key_allocsa(family, src, dst, proto, spi)
 	 * encrypted so we can't check internal IP header.
 	 */
 	s = splnet();	/*called from softclock()*/
-	LIST_FOREACH(sah, &sahtree, chain) {
-		/*
-		 * search a valid state list for inbound packet.
-	 	 * the search order is not important.
-		 */
-		for (stateidx = 0; stateidx < arraysize; stateidx++) {
+	/*
+	 * search a valid state list for inbound packet.
+	 * the search order is not important.
+	 */
+	match = NULL;
+	matchidx = arraysize;
+	LIST_FOREACH(sav, &spihash[SPIHASH(spi)], spihash) {
+		if (sav->spi != spi)
+			continue;
+		if (proto != sav->sah->saidx.proto)
+			continue;
+		if (family != sav->sah->saidx.src.ss_family ||
+		    family != sav->sah->saidx.dst.ss_family)
+			continue;
+		tmpidx = arraysize;
+		for (stateidx = 0; stateidx < matchidx; stateidx++) {
 			state = saorder_state_valid[stateidx];
-			LIST_FOREACH(sav, &sah->savtree[state], chain) {
-				/* sanity check */
-				KEY_CHKSASTATE(sav->state, state, "key_allocsav");
-				if (proto != sav->sah->saidx.proto)
-					continue;
-				if (spi != sav->spi)
-					continue;
-				if (family != sav->sah->saidx.src.ss_family ||
-				    family != sav->sah->saidx.dst.ss_family)
-					continue;
-
-#if 0	/* don't check src */
-				/* check src address */
-				switch (family) {
-				case AF_INET:
-					bzero(&sin, sizeof(sin));
-					sin.sin_family = AF_INET;
-					sin.sin_len = sizeof(sin);
-					bcopy(src, &sin.sin_addr,
-					    sizeof(sin.sin_addr));
-					if (key_sockaddrcmp((struct sockaddr*)&sin,
-					    (struct sockaddr *)&sav->sah->saidx.src, 0) != 0)
-						continue;
-
-					break;
-				case AF_INET6:
-					bzero(&sin6, sizeof(sin6));
-					sin6.sin6_family = AF_INET6;
-					sin6.sin6_len = sizeof(sin6);
-					bcopy(src, &sin6.sin6_addr,
-					    sizeof(sin6.sin6_addr));
-					if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr)) {
-						/* kame fake scopeid */
-						sin6.sin6_scope_id =
-						    ntohs(sin6.sin6_addr.s6_addr16[1]);
-						sin6.sin6_addr.s6_addr16[1] = 0;
-					}
-					if (key_sockaddrcmp((struct sockaddr*)&sin6,
-					    (struct sockaddr *)&sav->sah->saidx.src, 0) != 0)
-						continue;
-					break;
-				default:
-					ipseclog((LOG_DEBUG, "key_allocsa: "
-					    "unknown address family=%d.\n",
-					    family));
-					continue;
-				}
-
-#endif
-				/* check dst address */
-				switch (family) {
-				case AF_INET:
-					bzero(&sin, sizeof(sin));
-					sin.sin_family = AF_INET;
-					sin.sin_len = sizeof(sin);
-					bcopy(dst, &sin.sin_addr,
-					    sizeof(sin.sin_addr));
-					if (key_sockaddrcmp((struct sockaddr*)&sin,
-					    (struct sockaddr *)&sav->sah->saidx.dst, 0) != 0)
-						continue;
-
-					break;
-				case AF_INET6:
-					bzero(&sin6, sizeof(sin6));
-					sin6.sin6_family = AF_INET6;
-					sin6.sin6_len = sizeof(sin6);
-					bcopy(dst, &sin6.sin6_addr,
-					    sizeof(sin6.sin6_addr));
-					if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr)) {
-						/* kame fake scopeid */
-						sin6.sin6_scope_id =
-						    ntohs(sin6.sin6_addr.s6_addr16[1]);
-						sin6.sin6_addr.s6_addr16[1] = 0;
-					}
-					if (key_sockaddrcmp((struct sockaddr*)&sin6,
-					    (struct sockaddr *)&sav->sah->saidx.dst, 0) != 0)
-						continue;
-					break;
-				default:
-					ipseclog((LOG_DEBUG, "key_allocsa: "
-					    "unknown address family=%d.\n",
-					    family));
-					continue;
-				}
-
-				goto found;
+			if (sav->state == state) {
+				tmpidx = stateidx;
+				break;
 			}
 		}
+		if (tmpidx >= matchidx)
+			continue;
+
+#if 0	/* don't check src */
+		/* check src address */
+		switch (family) {
+		case AF_INET:
+			bzero(&sin, sizeof(sin));
+			sin.sin_family = AF_INET;
+			sin.sin_len = sizeof(sin);
+			bcopy(src, &sin.sin_addr,
+			    sizeof(sin.sin_addr));
+			if (key_sockaddrcmp((struct sockaddr*)&sin,
+			    (struct sockaddr *)&sav->sah->saidx.src, 0) != 0)
+				continue;
+
+			break;
+		case AF_INET6:
+			bzero(&sin6, sizeof(sin6));
+			sin6.sin6_family = AF_INET6;
+			sin6.sin6_len = sizeof(sin6);
+			bcopy(src, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
+			if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr)) {
+				/* kame fake scopeid */
+				sin6.sin6_scope_id =
+				    ntohs(sin6.sin6_addr.s6_addr16[1]);
+				sin6.sin6_addr.s6_addr16[1] = 0;
+			}
+			if (key_sockaddrcmp((struct sockaddr *)&sin6,
+			    (struct sockaddr *)&sav->sah->saidx.src, 0) != 0)
+				continue;
+			break;
+		default:
+			ipseclog((LOG_DEBUG, "key_allocsa: "
+			    "unknown address family=%d.\n",
+			    family));
+			continue;
+		}
+
+#endif
+		/* check dst address */
+		switch (family) {
+		case AF_INET:
+			bzero(&sin, sizeof(sin));
+			sin.sin_family = AF_INET;
+			sin.sin_len = sizeof(sin);
+			bcopy(dst, &sin.sin_addr,
+			    sizeof(sin.sin_addr));
+			if (key_sockaddrcmp((struct sockaddr*)&sin,
+			    (struct sockaddr *)&sav->sah->saidx.dst, 0) != 0)
+				continue;
+
+			break;
+		case AF_INET6:
+			bzero(&sin6, sizeof(sin6));
+			sin6.sin6_family = AF_INET6;
+			sin6.sin6_len = sizeof(sin6);
+			bcopy(dst, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
+			if (IN6_IS_SCOPE_LINKLOCAL(&sin6.sin6_addr)) {
+				/* kame fake scopeid */
+				sin6.sin6_scope_id =
+				    ntohs(sin6.sin6_addr.s6_addr16[1]);
+				sin6.sin6_addr.s6_addr16[1] = 0;
+			}
+			if (key_sockaddrcmp((struct sockaddr *)&sin6,
+			    (struct sockaddr *)&sav->sah->saidx.dst, 0) != 0)
+				continue;
+			break;
+		default:
+			ipseclog((LOG_DEBUG, "key_allocsa: "
+			    "unknown address family=%d.\n", family));
+			continue;
+		}
+
+		match = sav;
+		matchidx = tmpidx;
 	}
+
+	if (match)
+		goto found;
 
 	/* not found */
 	splx(s);
 	return NULL;
 
 found:
-	sav->refcnt++;
+	match->refcnt++;
 	splx(s);
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 		printf("DP allocsa cause refcnt++:%d SA:%p\n",
-			sav->refcnt, sav));
-	return sav;
+			match->refcnt, match));
+	return match;
 }
 
 /*
@@ -1084,79 +1095,6 @@ key_freesp(sp)
 
 	if (sp->refcnt == 0)
 		key_delsp(sp);
-
-	return;
-}
-
-/*
- * Must be called after calling key_allocsp().
- * For the packet with socket.
- */
-void
-key_freeso(so)
-	struct socket *so;
-{
-	/* sanity check */
-	if (so == NULL)
-		panic("key_freeso: NULL pointer is passed.");
-
-	switch (so->so_proto->pr_domain->dom_family) {
-#ifdef INET
-	case PF_INET:
-	    {
-		struct inpcb *pcb = sotoinpcb(so);
-
-		/* Does it have a PCB ? */
-		if (pcb == NULL)
-			return;
-		key_freesp_so(&pcb->inp_sp->sp_in);
-		key_freesp_so(&pcb->inp_sp->sp_out);
-	    }
-		break;
-#endif
-#ifdef INET6
-	case PF_INET6:
-	    {
-		struct in6pcb *pcb  = sotoin6pcb(so);
-
-		/* Does it have a PCB ? */
-		if (pcb == NULL)
-			return;
-		key_freesp_so(&pcb->in6p_sp->sp_in);
-		key_freesp_so(&pcb->in6p_sp->sp_out);
-	    }
-		break;
-#endif /* INET6 */
-	default:
-		ipseclog((LOG_DEBUG, "key_freeso: unknown address family=%d.\n",
-		    so->so_proto->pr_domain->dom_family));
-		return;
-	}
-
-	return;
-}
-
-static void
-key_freesp_so(sp)
-	struct secpolicy **sp;
-{
-	/* sanity check */
-	if (sp == NULL || *sp == NULL)
-		panic("key_freesp_so: sp == NULL");
-
-	switch ((*sp)->policy) {
-	case IPSEC_POLICY_IPSEC:
-		KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-			printf("DP freeso calls free SP:%p\n", *sp));
-		key_freesp(*sp);
-		*sp = NULL;
-		break;
-	case IPSEC_POLICY_ENTRUST:
-	case IPSEC_POLICY_BYPASS:
-		return;
-	default:
-		panic("key_freesp_so: Invalid policy found %d", (*sp)->policy);
-	}
 
 	return;
 }
@@ -1185,13 +1123,12 @@ key_freesav(sav)
 	key_delsav(sav);
 }
 
-/*
- * free() SA variable entry.
- */
 static void
 key_delsav(sav)
 	struct secasvar *sav;
 {
+	int s;
+
 	/* sanity check */
 	if (sav == NULL)
 		panic("key_delsav: NULL pointer is passed.");
@@ -1199,9 +1136,13 @@ key_delsav(sav)
 	if (sav->refcnt > 0)
 		panic("key_delsav: called with positive refcnt");
 
-	/* remove from SA header */
+	s = splnet();
+
 	if (__LIST_CHAINED(sav))
 		LIST_REMOVE(sav, chain);
+
+	if (sav->spihash.le_prev || sav->spihash.le_next)
+		LIST_REMOVE(sav, spihash);
 
 	if (sav->key_auth != NULL) {
 		bzero(_KEYBUF(sav->key_auth), _KEYLEN(sav->key_auth));
@@ -1241,7 +1182,7 @@ key_delsav(sav)
 
 	keydb_delsecasvar(sav);
 
-	return;
+	splx(s);
 }
 
 /* %%% SPD management */
@@ -1258,15 +1199,10 @@ key_delsp(sp)
 	if (sp == NULL)
 		panic("key_delsp: NULL pointer is passed.");
 
-	sp->state = IPSEC_SPSTATE_DEAD;
-
 	if (sp->refcnt > 0)
 		panic("key_delsp: called with positive refcnt");
 
 	s = splnet();	/*called from softclock()*/
-	/* remove from SP index */
-	if (__LIST_CHAINED(sp))
-		LIST_REMOVE(sp, chain);
 
     {
 	struct ipsecrequest *isr = sp->req, *nextisr;
@@ -1299,8 +1235,9 @@ key_delsp(sp)
  *	others	: found, pointer to a SP.
  */
 static struct secpolicy *
-key_getsp(spidx)
+key_getsp(spidx, dir)
 	struct secpolicyindex *spidx;
+	int dir;
 {
 	struct secpolicy *sp;
 
@@ -1308,10 +1245,12 @@ key_getsp(spidx)
 	if (spidx == NULL)
 		panic("key_getsp: NULL pointer is passed.");
 
-	LIST_FOREACH(sp, &sptree[spidx->dir], chain) {
+	LIST_FOREACH(sp, &sptree[dir], chain) {
 		if (sp->state == IPSEC_SPSTATE_DEAD)
 			continue;
-		if (key_cmpspidx_exactly(spidx, &sp->spidx)) {
+		if (!sp->spidx)
+			continue;
+		if (key_cmpspidx_exactly(spidx, sp->spidx)) {
 			sp->refcnt++;
 			return sp;
 		}
@@ -1331,18 +1270,7 @@ key_getspbyid(id)
 {
 	struct secpolicy *sp;
 
-	LIST_FOREACH(sp, &sptree[IPSEC_DIR_INBOUND], chain) {
-		if (sp->state == IPSEC_SPSTATE_DEAD)
-			continue;
-		if (sp->id == id) {
-			sp->refcnt++;
-			return sp;
-		}
-	}
-
-	LIST_FOREACH(sp, &sptree[IPSEC_DIR_OUTBOUND], chain) {
-		if (sp->state == IPSEC_SPSTATE_DEAD)
-			continue;
+	TAILQ_FOREACH(sp, &sptailq, tailq) {
 		if (sp->id == id) {
 			sp->refcnt++;
 			return sp;
@@ -1353,14 +1281,41 @@ key_getspbyid(id)
 }
 
 struct secpolicy *
-key_newsp()
+key_newsp(id)
+	u_int32_t id;
 {
-	struct secpolicy *newsp = NULL;
+	struct secpolicy *newsp = NULL, *sp;
+	u_int32_t newid;
+
+	if (id > IPSEC_MANUAL_POLICYID_MAX) {
+		ipseclog((LOG_DEBUG,
+		    "key_newsp: policy_id=%u range "
+		    "violation, updated by kernel.\n", id));
+		id = 0;
+	}
+
+	if (id == 0) {
+		if ((newid = keydb_newspid()) == 0) {
+			ipseclog((LOG_DEBUG, 
+			    "key_newsp: new policy_id allocation failed."));
+			return NULL;
+		}
+	} else {
+		sp = key_getspbyid(id);
+		if (sp != NULL) {
+			ipseclog((LOG_DEBUG,
+			    "key_newsp: policy_id(%u) has been used.\n", id));
+			key_freesp(sp);
+			return NULL;
+		}
+		newid = id;
+	}
 
 	newsp = keydb_newsecpolicy();
 	if (!newsp)
 		return newsp;
 
+	newsp->id = newid;
 	newsp->refcnt = 1;
 	newsp->req = NULL;
 
@@ -1391,12 +1346,12 @@ key_msg2sp(xpl0, len, error)
 		return NULL;
 	}
 
-	if ((newsp = key_newsp()) == NULL) {
+	if ((newsp = key_newsp(xpl0->sadb_x_policy_id)) == NULL) {
 		*error = ENOBUFS;
 		return NULL;
 	}
 
-	newsp->spidx.dir = xpl0->sadb_x_policy_dir;
+	newsp->dir = xpl0->sadb_x_policy_dir;
 	newsp->policy = xpl0->sadb_x_policy_type;
 
 	/* check policy */
@@ -1638,7 +1593,7 @@ key_sp2msg(sp)
 	xpl->sadb_x_policy_len = PFKEY_UNIT64(tlen);
 	xpl->sadb_x_policy_exttype = SADB_X_EXT_POLICY;
 	xpl->sadb_x_policy_type = sp->policy;
-	xpl->sadb_x_policy_dir = sp->spidx.dir;
+	xpl->sadb_x_policy_dir = sp->dir;
 	xpl->sadb_x_policy_id = sp->id;
 	p = (caddr_t)xpl + sizeof(*xpl);
 
@@ -1753,6 +1708,7 @@ key_gather_mbuf(m, mhp, ndeep, nitem, va_alist)
 	return result;
 
 fail:
+	va_end(ap);
 	m_freem(result);
 	return NULL;
 }
@@ -1779,26 +1735,34 @@ key_spdadd(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	struct sadb_address *src0, *dst0;
+	struct sadb_address *src0 = NULL, *dst0 = NULL;
 	struct sadb_x_policy *xpl0, *xpl;
 	struct sadb_lifetime *lft = NULL;
 	struct secpolicyindex spidx;
 	struct secpolicy *newsp;
-	struct timeval tv;
+	struct ipsecrequest *isr;
 	int error;
+	int spidxmode;
 
 	/* sanity check */
 	if (so == NULL || m == NULL || mhp == NULL || mhp->msg == NULL)
 		panic("key_spdadd: NULL pointer is passed.");
 
-	if (mhp->ext[SADB_EXT_ADDRESS_SRC] == NULL ||
-	    mhp->ext[SADB_EXT_ADDRESS_DST] == NULL ||
-	    mhp->ext[SADB_X_EXT_POLICY] == NULL) {
+	if (mhp->ext[SADB_EXT_ADDRESS_SRC] != NULL &&
+	    mhp->ext[SADB_EXT_ADDRESS_DST] != NULL) {
+		;
+	} else {
 		ipseclog((LOG_DEBUG, "key_spdadd: invalid message is passed.\n"));
 		return key_senderror(so, m, EINVAL);
 	}
-	if (mhp->extlen[SADB_EXT_ADDRESS_SRC] < sizeof(struct sadb_address) ||
-	    mhp->extlen[SADB_EXT_ADDRESS_DST] < sizeof(struct sadb_address) ||
+	if (mhp->ext[SADB_X_EXT_POLICY] == NULL) {
+		ipseclog((LOG_DEBUG, "key_spdadd: invalid message is passed.\n"));
+		return key_senderror(so, m, EINVAL);
+	}
+	if ((mhp->extlen[SADB_EXT_ADDRESS_SRC] &&
+	     mhp->extlen[SADB_EXT_ADDRESS_SRC] < sizeof(struct sadb_address)) ||
+	    (mhp->extlen[SADB_EXT_ADDRESS_DST] &&
+	     mhp->extlen[SADB_EXT_ADDRESS_DST] < sizeof(struct sadb_address)) ||
 	    mhp->extlen[SADB_X_EXT_POLICY] < sizeof(struct sadb_x_policy)) {
 		ipseclog((LOG_DEBUG, "key_spdadd: invalid message is passed.\n"));
 		return key_senderror(so, m, EINVAL);
@@ -1812,19 +1776,19 @@ key_spdadd(so, m, mhp)
 		lft = (struct sadb_lifetime *)mhp->ext[SADB_EXT_LIFETIME_HARD];
 	}
 
-	src0 = (struct sadb_address *)mhp->ext[SADB_EXT_ADDRESS_SRC];
-	dst0 = (struct sadb_address *)mhp->ext[SADB_EXT_ADDRESS_DST];
-	xpl0 = (struct sadb_x_policy *)mhp->ext[SADB_X_EXT_POLICY];
+	/* spidx mode, or tag mode */
+	spidxmode = (mhp->ext[SADB_EXT_ADDRESS_SRC] != NULL);
 
-	/* make secindex */
-	/* XXX boundary check against sa_len */
-	KEY_SETSECSPIDX(xpl0->sadb_x_policy_dir,
-	                src0 + 1,
-	                dst0 + 1,
-	                src0->sadb_address_prefixlen,
-	                dst0->sadb_address_prefixlen,
-	                src0->sadb_address_proto,
-	                &spidx);
+	if (spidxmode) {
+		src0 = (struct sadb_address *)mhp->ext[SADB_EXT_ADDRESS_SRC];
+		dst0 = (struct sadb_address *)mhp->ext[SADB_EXT_ADDRESS_DST];
+		/* make secindex */
+		/* XXX boundary check against sa_len */
+		KEY_SETSECSPIDX(src0 + 1, dst0 + 1,
+		    src0->sadb_address_prefixlen, dst0->sadb_address_prefixlen,
+		    src0->sadb_address_proto, &spidx);
+	}
+	xpl0 = (struct sadb_x_policy *)mhp->ext[SADB_X_EXT_POLICY];
 
 	/* checking the direciton. */
 	switch (xpl0->sadb_x_policy_dir) {
@@ -1859,11 +1823,25 @@ key_spdadd(so, m, mhp)
 	 * If the type is either SPDADD or SPDSETIDX AND a SP is found,
 	 * then error.
 	 */
-	newsp = key_getsp(&spidx);
+	if (xpl0->sadb_x_policy_id != 0)
+		newsp = key_getspbyid(xpl0->sadb_x_policy_id);
+	else if (spidxmode)
+		newsp = key_getsp(&spidx, xpl0->sadb_x_policy_dir);
+	else
+		newsp = NULL;
+
+	if (newsp && (newsp->readonly || newsp->persist)) {
+		ipseclog((LOG_DEBUG,
+		    "key_spdadd: tried to alter readonly/persistent SP.\n"));
+		return key_senderror(so, m, EPERM);
+	}
+
 	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
 		if (newsp) {
-			newsp->state = IPSEC_SPSTATE_DEAD;
-			key_freesp(newsp);
+			key_sp_dead(newsp);
+			key_freesp(newsp);	/* ref gained by key_getsp */
+			key_sp_unlink(newsp);
+			newsp = NULL;
 		}
 	} else {
 		if (newsp != NULL) {
@@ -1878,70 +1856,116 @@ key_spdadd(so, m, mhp)
 		return key_senderror(so, m, error);
 	}
 
-	if ((newsp->id = key_getnewspid()) == 0) {
-		keydb_delsecpolicy(newsp);
-		return key_senderror(so, m, ENOBUFS);
-	}
+	if (spidxmode) {
+		error = keydb_setsecpolicyindex(newsp, &spidx);
+		if (error) {
+			keydb_delsecpolicy(newsp);
+			return key_senderror(so, m, error);
+		}
 
-	/* XXX boundary check against sa_len */
-	KEY_SETSECSPIDX(xpl0->sadb_x_policy_dir,
-	                src0 + 1,
-	                dst0 + 1,
-	                src0->sadb_address_prefixlen,
-	                dst0->sadb_address_prefixlen,
-	                src0->sadb_address_proto,
-	                &newsp->spidx);
-
-	/* sanity check on addr pair */
-	if (((struct sockaddr *)(src0 + 1))->sa_family !=
-			((struct sockaddr *)(dst0+ 1))->sa_family) {
-		keydb_delsecpolicy(newsp);
-		return key_senderror(so, m, EINVAL);
-	}
-	if (((struct sockaddr *)(src0 + 1))->sa_len !=
-			((struct sockaddr *)(dst0+ 1))->sa_len) {
-		keydb_delsecpolicy(newsp);
-		return key_senderror(so, m, EINVAL);
-	}
-#if 1
-	if (newsp->req && newsp->req->saidx.src.ss_family) {
-		struct sockaddr *sa;
-		sa = (struct sockaddr *)(src0 + 1);
-		if (sa->sa_family != newsp->req->saidx.src.ss_family) {
+		/* sanity check on addr pair */
+		if (((struct sockaddr *)(src0 + 1))->sa_family !=
+				((struct sockaddr *)(dst0 + 1))->sa_family) {
+			keydb_delsecpolicy(newsp);
+			return key_senderror(so, m, EINVAL);
+		}
+		if (((struct sockaddr *)(src0 + 1))->sa_len !=
+				((struct sockaddr *)(dst0 + 1))->sa_len) {
 			keydb_delsecpolicy(newsp);
 			return key_senderror(so, m, EINVAL);
 		}
 	}
-	if (newsp->req && newsp->req->saidx.dst.ss_family) {
+
+	for (isr = newsp->req; isr; isr = isr->next) {
 		struct sockaddr *sa;
-		sa = (struct sockaddr *)(dst0 + 1);
-		if (sa->sa_family != newsp->req->saidx.dst.ss_family) {
-			keydb_delsecpolicy(newsp);
-			return key_senderror(so, m, EINVAL);
+
+		/*
+		 * port spec is not permitted for tunnel mode
+		 */
+		if (isr->saidx.mode == IPSEC_MODE_TUNNEL && src0 && dst0) {
+			sa = (struct sockaddr *)(src0 + 1);
+			switch (sa->sa_family) {
+			case AF_INET:
+				if (((struct sockaddr_in *)sa)->sin_port) {
+					keydb_delsecpolicy(newsp);
+					return key_senderror(so, m, EINVAL);
+				}
+				break;
+			case AF_INET6:
+				if (((struct sockaddr_in6 *)sa)->sin6_port) {
+					keydb_delsecpolicy(newsp);
+					return key_senderror(so, m, EINVAL);
+				}
+				break;
+			default:
+				break;
+			}
+			sa = (struct sockaddr *)(dst0 + 1);
+			switch (sa->sa_family) {
+			case AF_INET:
+				if (((struct sockaddr_in *)sa)->sin_port) {
+					keydb_delsecpolicy(newsp);
+					return key_senderror(so, m, EINVAL);
+				}
+				break;
+			case AF_INET6:
+				if (((struct sockaddr_in6 *)sa)->sin6_port) {
+					keydb_delsecpolicy(newsp);
+					return key_senderror(so, m, EINVAL);
+				}
+				break;
+			default:
+				break;
+			}
 		}
 	}
-#endif
 
-	microtime(&tv);
-	newsp->created = tv.tv_sec;
-	newsp->lastused = tv.tv_sec;
+	/*
+	 * bark if we have different address family on tunnel address
+	 * specification.  applies only if we decapsulate in RFC2401
+	 * IPsec (implementation limitation).
+	 */
+	for (isr = newsp->req; isr; isr = isr->next) {
+		struct sockaddr *sa;
+
+		if (isr->saidx.src.ss_family && src0) {
+			sa = (struct sockaddr *)(src0 + 1);
+			if (sa->sa_family != isr->saidx.src.ss_family) {
+				keydb_delsecpolicy(newsp);
+				return key_senderror(so, m, EINVAL);
+			}
+		}
+		if (isr->saidx.dst.ss_family && dst0) {
+			sa = (struct sockaddr *)(dst0 + 1);
+			if (sa->sa_family != isr->saidx.dst.ss_family) {
+				keydb_delsecpolicy(newsp);
+				return key_senderror(so, m, EINVAL);
+			}
+		}
+	}
+
+	newsp->created = time_second;
+	newsp->lastused = time_second;
 	newsp->lifetime = lft ? lft->sadb_lifetime_addtime : 0;
 	newsp->validtime = lft ? lft->sadb_lifetime_usetime : 0;
 
 	newsp->refcnt = 1;	/* do not reclaim until I say I do */
 	newsp->state = IPSEC_SPSTATE_ALIVE;
-	LIST_INSERT_TAIL(&sptree[newsp->spidx.dir], newsp, secpolicy, chain);
+	LIST_INSERT_TAIL(&sptree[newsp->dir], newsp, secpolicy, chain);
 
 	/* delete the entry in spacqtree */
-	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
+	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE &&
+	    mhp->ext[SADB_EXT_ADDRESS_SRC]) {
 		struct secspacq *spacq;
 		if ((spacq = key_getspacq(&spidx)) != NULL) {
 			/* reset counter in order to deletion by timehandler. */
-			microtime(&tv);
-			spacq->created = tv.tv_sec;
+			spacq->created = time_second;
 			spacq->count = 0;
 		}
     	}
+
+	/* invalidate all cached SPD pointers on pcb */
+	ipsec_invalpcbcacheall();
 
     {
 	struct mbuf *n, *mpolicy;
@@ -1990,37 +2014,6 @@ key_spdadd(so, m, mhp)
 }
 
 /*
- * get new policy id.
- * OUT:
- *	0:	failure.
- *	others: success.
- */
-static u_int32_t
-key_getnewspid()
-{
-	u_int32_t newid = 0;
-	int count = key_spi_trycnt;	/* XXX */
-	struct secpolicy *sp;
-
-	/* when requesting to allocate spi ranged */
-	while (count--) {
-		newid = (policy_id = (policy_id == ~0 ? 1 : policy_id + 1));
-
-		if ((sp = key_getspbyid(newid)) == NULL)
-			break;
-
-		key_freesp(sp);
-	}
-
-	if (count == 0 || newid == 0) {
-		ipseclog((LOG_DEBUG, "key_getnewspid: to allocate policy id is failed.\n"));
-		return 0;
-	}
-
-	return newid;
-}
-
-/*
  * SADB_SPDDELETE processing
  * receive
  *   <base, address(SD), policy(*)>
@@ -2066,8 +2059,7 @@ key_spddelete(so, m, mhp)
 
 	/* make secindex */
 	/* XXX boundary check against sa_len */
-	KEY_SETSECSPIDX(xpl0->sadb_x_policy_dir,
-	                src0 + 1,
+	KEY_SETSECSPIDX(src0 + 1,
 	                dst0 + 1,
 	                src0->sadb_address_prefixlen,
 	                dst0->sadb_address_prefixlen,
@@ -2085,16 +2077,28 @@ key_spddelete(so, m, mhp)
 	}
 
 	/* Is there SP in SPD ? */
-	if ((sp = key_getsp(&spidx)) == NULL) {
+	if ((sp = key_getsp(&spidx, xpl0->sadb_x_policy_dir)) == NULL) {
 		ipseclog((LOG_DEBUG, "key_spddelete: no SP found.\n"));
 		return key_senderror(so, m, EINVAL);
+	}
+
+	if (sp->persist) {
+		ipseclog((LOG_DEBUG,
+		    "key_spddelete2: attempt to remove persistent SP:%u.\n",
+		    sp->id));
+		return key_senderror(so, m, EPERM);
 	}
 
 	/* save policy id to be returned. */
 	xpl0->sadb_x_policy_id = sp->id;
 
-	sp->state = IPSEC_SPSTATE_DEAD;
-	key_freesp(sp);
+	key_sp_dead(sp);
+	key_freesp(sp);	/* ref gained by key_getsp */
+	key_sp_unlink(sp);
+	sp = NULL;
+
+	/* invalidate all cached SPD pointers on pcb */
+	ipsec_invalpcbcacheall();
 
     {
 	struct mbuf *n;
@@ -2123,7 +2127,7 @@ key_spddelete(so, m, mhp)
  * and send,
  *   <base, policy(*)>
  * to the ikmpd.
- * policy(*) including direction of policy.
+ * policy(*) including the policy id.
  *
  * m will always be freed.
  */
@@ -2143,8 +2147,7 @@ key_spddelete2(so, m, mhp)
 	if (mhp->ext[SADB_X_EXT_POLICY] == NULL ||
 	    mhp->extlen[SADB_X_EXT_POLICY] < sizeof(struct sadb_x_policy)) {
 		ipseclog((LOG_DEBUG, "key_spddelete2: invalid message is passed.\n"));
-		key_senderror(so, m, EINVAL);
-		return 0;
+		return key_senderror(so, m, EINVAL);
 	}
 
 	id = ((struct sadb_x_policy *)mhp->ext[SADB_X_EXT_POLICY])->sadb_x_policy_id;
@@ -2153,11 +2156,23 @@ key_spddelete2(so, m, mhp)
 	if ((sp = key_getspbyid(id)) == NULL) {
 		ipseclog((LOG_DEBUG, "key_spddelete2: no SP found id:%u.\n",
 		    id));
-		key_senderror(so, m, EINVAL);
+		return key_senderror(so, m, EINVAL);
 	}
 
-	sp->state = IPSEC_SPSTATE_DEAD;
-	key_freesp(sp);
+	if (sp->persist) {
+		ipseclog((LOG_DEBUG,
+		    "key_spddelete2: attempt to remove persistent SP:%u.\n",
+		    id));
+		return key_senderror(so, m, EPERM);
+	}
+
+	key_sp_dead(sp);
+	key_freesp(sp);	/* ref gained by key_getsp */
+	key_sp_unlink(sp);
+	sp = NULL;
+
+	/* invalidate all cached SPD pointers on pcb */
+	ipsec_invalpcbcacheall();
 
     {
 	struct mbuf *n, *nn;
@@ -2213,7 +2228,7 @@ key_spddelete2(so, m, mhp)
 }
 
 /*
- * SADB_X_GET processing
+ * SADB_X_SPDGET processing
  * receive
  *   <base, policy(*)>
  * from the user(?),
@@ -2280,8 +2295,10 @@ key_spdacquire(sp)
 	struct secpolicy *sp;
 {
 	struct mbuf *result = NULL, *m;
+#ifndef IPSEC_NONBLOCK_ACQUIRE
 	struct secspacq *newspacq;
-	int error;
+#endif
+	int error = -1;
 
 	/* sanity check */
 	if (sp == NULL)
@@ -2290,9 +2307,14 @@ key_spdacquire(sp)
 		panic("key_spdacquire: called but there is request.");
 	if (sp->policy != IPSEC_POLICY_IPSEC)
 		panic("key_spdacquire: policy mismathed. IPsec is expected.");
+	if (!sp->spidx) {
+		error = EOPNOTSUPP;
+		goto fail;
+	}
 
+#ifndef IPSEC_NONBLOCK_ACQUIRE
 	/* get an entry to check whether sent message or not. */
-	if ((newspacq = key_getspacq(&sp->spidx)) != NULL) {
+	if ((newspacq = key_getspacq(sp->spidx)) != NULL) {
 		if (key_blockacq_count < newspacq->count) {
 			/* reset counter and do send message. */
 			newspacq->count = 0;
@@ -2303,12 +2325,13 @@ key_spdacquire(sp)
 		}
 	} else {
 		/* make new entry for blocking to send SADB_ACQUIRE. */
-		if ((newspacq = key_newspacq(&sp->spidx)) == NULL)
+		if ((newspacq = key_newspacq(sp->spidx)) == NULL)
 			return ENOBUFS;
 
 		/* add to acqtree */
 		LIST_INSERT_HEAD(&spacqtree, newspacq, chain);
 	}
+#endif
 
 	/* create new sadb_msg to reply. */
 	m = key_setsadbmsg(SADB_X_SPDACQUIRE, 0, 0, 0, 0, 0);
@@ -2318,6 +2341,16 @@ key_spdacquire(sp)
 	}
 	result = m;
 
+	/* set sadb_x_policy */
+	if (sp) {
+		m = key_setsadbxpolicy(sp->policy, sp->dir, sp->id);
+		if (!m) {
+			error = ENOBUFS;
+			goto fail;
+		}
+		m_cat(result, m);
+	}
+
 	result->m_pkthdr.len = 0;
 	for (m = result; m; m = m->m_next)
 		result->m_pkthdr.len += m->m_len;
@@ -2325,7 +2358,7 @@ key_spdacquire(sp)
 	mtod(result, struct sadb_msg *)->sadb_msg_len =
 	    PFKEY_UNIT64(result->m_pkthdr.len);
 
-	return key_sendup_mbuf(NULL, m, KEY_SENDUP_REGISTERED);
+	return key_sendup_mbuf(NULL, result, KEY_SENDUP_REGISTERED);
 
 fail:
 	if (result)
@@ -2352,8 +2385,7 @@ key_spdflush(so, m, mhp)
 	const struct sadb_msghdr *mhp;
 {
 	struct sadb_msg *newmsg;
-	struct secpolicy *sp;
-	u_int dir;
+	struct secpolicy *sp, *nextsp;
 
 	/* sanity check */
 	if (so == NULL || m == NULL || mhp == NULL || mhp->msg == NULL)
@@ -2362,11 +2394,19 @@ key_spdflush(so, m, mhp)
 	if (m->m_len != PFKEY_ALIGN8(sizeof(struct sadb_msg)))
 		return key_senderror(so, m, EINVAL);
 
-	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
-		LIST_FOREACH(sp, &sptree[dir], chain) {
-			sp->state = IPSEC_SPSTATE_DEAD;
-		}
+	for (sp = TAILQ_FIRST(&sptailq); sp; sp = nextsp) {
+		nextsp = TAILQ_NEXT(sp, tailq);
+		if (sp->persist)
+			continue;
+		if (sp->state == IPSEC_SPSTATE_DEAD)
+			continue;
+		key_sp_dead(sp);
+		key_sp_unlink(sp);
+		sp = NULL;
 	}
+
+	/* invalidate all cached SPD pointers on pcb */
+	ipsec_invalpcbcacheall();
 
 	if (sizeof(struct sadb_msg) > m->m_len + M_TRAILINGSPACE(m)) {
 		ipseclog((LOG_DEBUG, "key_spdflush: No more memory.\n"));
@@ -2449,21 +2489,35 @@ key_setdumpsp(sp, type, seq, pid)
 		goto fail;
 	result = m;
 
-	m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC,
-	    (struct sockaddr *)&sp->spidx.src, sp->spidx.prefs,
-	    sp->spidx.ul_proto);
-	if (!m)
-		goto fail;
-	m_cat(result, m);
+	if (sp->spidx) {
+		m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC,
+		    (struct sockaddr *)&sp->spidx->src, sp->spidx->prefs,
+		    sp->spidx->ul_proto);
+		if (!m)
+			goto fail;
+		m_cat(result, m);
 
-	m = key_setsadbaddr(SADB_EXT_ADDRESS_DST,
-	    (struct sockaddr *)&sp->spidx.dst, sp->spidx.prefd,
-	    sp->spidx.ul_proto);
-	if (!m)
-		goto fail;
-	m_cat(result, m);
+		m = key_setsadbaddr(SADB_EXT_ADDRESS_DST,
+		    (struct sockaddr *)&sp->spidx->dst, sp->spidx->prefd,
+		    sp->spidx->ul_proto);
+		if (!m)
+			goto fail;
+		m_cat(result, m);
+	}
 
 	m = key_sp2msg(sp);
+	if (!m)
+		goto fail;
+	m_cat(result, m);
+
+	m = key_setsadblifetime(SADB_EXT_LIFETIME_CURRENT,
+		0, 0, (u_int64_t)sp->created, (u_int64_t)sp->lastused);
+	if (!m)
+		goto fail;
+	m_cat(result, m);
+
+	m = key_setsadblifetime(SADB_EXT_LIFETIME_HARD,
+		0, 0, (u_int64_t)sp->lifetime, (u_int64_t)sp->validtime);
 	if (!m)
 		goto fail;
 	m_cat(result, m);
@@ -2524,7 +2578,7 @@ key_getspreqmsglen(sp)
 }
 
 /*
- * SADB_SPDEXPIRE processing
+ * SADB_X_SPDEXPIRE processing
  * send
  *   <base, address(SD), lifetime(CH), policy>
  * to KMD by PF_KEY.
@@ -2584,24 +2638,26 @@ key_spdexpire(sp)
 	m_cat(result, m);
 
 	/* set sadb_address for source */
-	m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC,
-	    (struct sockaddr *)&sp->spidx.src,
-	    sp->spidx.prefs, sp->spidx.ul_proto);
-	if (!m) {
-		error = ENOBUFS;
-		goto fail;
-	}
-	m_cat(result, m);
+	if (sp->spidx) {
+		m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC,
+		    (struct sockaddr *)&sp->spidx->src,
+		    sp->spidx->prefs, sp->spidx->ul_proto);
+		if (!m) {
+			error = ENOBUFS;
+			goto fail;
+		}
+		m_cat(result, m);
 
-	/* set sadb_address for destination */
-	m = key_setsadbaddr(SADB_EXT_ADDRESS_DST,
-	    (struct sockaddr *)&sp->spidx.dst,
-	    sp->spidx.prefd, sp->spidx.ul_proto);
-	if (!m) {
-		error = ENOBUFS;
-		goto fail;
+		/* set sadb_address for destination */
+		m = key_setsadbaddr(SADB_EXT_ADDRESS_DST,
+		    (struct sockaddr *)&sp->spidx->dst,
+		    sp->spidx->prefd, sp->spidx->ul_proto);
+		if (!m) {
+			error = ENOBUFS;
+			goto fail;
+		}
+		m_cat(result, m);
 	}
-	m_cat(result, m);
 
 	/* set secpolicy */
 	m = key_sp2msg(sp);
@@ -2693,7 +2749,7 @@ key_delsah(sah)
 	     stateidx++) {
 
 		state = saorder_state_any[stateidx];
-		for (sav = (struct secasvar *)LIST_FIRST(&sah->savtree[state]);
+		for (sav = LIST_FIRST(&sah->savtree[state]);
 		     sav != NULL;
 		     sav = nextsav) {
 
@@ -2772,7 +2828,7 @@ key_newsav(m, mhp, sah, errp)
 
 	switch (mhp->msg->sadb_msg_type) {
 	case SADB_GETSPI:
-		newsav->spi = 0;
+		key_setspi(newsav, 0);
 
 #ifdef IPSEC_DOSEQCHECK
 		/* sync sequence number */
@@ -2793,7 +2849,7 @@ key_newsav(m, mhp, sah, errp)
 			return NULL;
 		}
 		xsa = (const struct sadb_sa *)mhp->ext[SADB_EXT_SA];
-		newsav->spi = xsa->sadb_sa_spi;
+		key_setspi(newsav, xsa->sadb_sa_spi);
 		newsav->seq = mhp->msg->sadb_msg_seq;
 		break;
 	default:
@@ -2812,11 +2868,7 @@ key_newsav(m, mhp, sah, errp)
 	}
 
 	/* reset created */
-    {
-	struct timeval tv;
-	microtime(&tv);
-	newsav->created = tv.tv_sec;
-    }
+	newsav->created = time_second;
 
 	newsav->pid = mhp->msg->sadb_msg_pid;
 
@@ -2845,7 +2897,7 @@ key_getsah(saidx)
 	LIST_FOREACH(sah, &sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
-		if (key_cmpsaidx(&sah->saidx, saidx, CMP_REQID))
+		if (key_cmpsaidx(&sah->saidx, saidx, CMP_MODE_REQID))
 			return sah;
 	}
 
@@ -2864,8 +2916,8 @@ key_checkspidup(saidx, spi)
 	struct secasindex *saidx;
 	u_int32_t spi;
 {
-	struct secashead *sah;
 	struct secasvar *sav;
+	u_int stateidx, state;
 
 	/* check address family */
 	if (saidx->src.ss_family != saidx->dst.ss_family) {
@@ -2874,15 +2926,35 @@ key_checkspidup(saidx, spi)
 	}
 
 	/* check all SAD */
-	LIST_FOREACH(sah, &sahtree, chain) {
-		if (!key_ismyaddr((struct sockaddr *)&sah->saidx.dst))
+	LIST_FOREACH(sav, &spihash[SPIHASH(spi)], spihash) {
+		if (sav->spi != spi)
 			continue;
-		sav = key_getsavbyspi(sah, spi);
-		if (sav != NULL)
-			return sav;
+		for (stateidx = 0;
+		     stateidx < _ARRAYLEN(saorder_state_alive);
+		     stateidx++) {
+			state = saorder_state_alive[stateidx];
+			if (sav->state == state &&
+			    key_ismyaddr((struct sockaddr *)&sav->sah->saidx.dst))
+				return sav;
+		}
 	}
 
 	return NULL;
+}
+
+static void
+key_setspi(sav, spi)
+	struct secasvar *sav;
+	u_int32_t spi;
+{
+	int s;
+
+	s = splnet();
+	sav->spi = spi;
+	if (sav->spihash.le_prev || sav->spihash.le_next)
+		LIST_REMOVE(sav, spihash);
+	LIST_INSERT_HEAD(&spihash[SPIHASH(spi)], sav, spihash);
+	splx(s);
 }
 
 /*
@@ -2896,31 +2968,27 @@ key_getsavbyspi(sah, spi)
 	struct secashead *sah;
 	u_int32_t spi;
 {
-	struct secasvar *sav;
-	u_int stateidx, state;
+	struct secasvar *sav, *match;
+	u_int stateidx, state, matchidx;
 
-	/* search all status */
-	for (stateidx = 0;
-	     stateidx < _ARRAYLEN(saorder_state_alive);
-	     stateidx++) {
-
-		state = saorder_state_alive[stateidx];
-		LIST_FOREACH(sav, &sah->savtree[state], chain) {
-
-			/* sanity check */
-			if (sav->state != state) {
-				ipseclog((LOG_DEBUG, "key_getsavbyspi: "
-				    "invalid sav->state (queue: %d SA: %d)\n",
-				    state, sav->state));
-				continue;
+	match = NULL;
+	matchidx = _ARRAYLEN(saorder_state_alive);
+	LIST_FOREACH(sav, &spihash[SPIHASH(spi)], spihash) {
+		if (sav->spi != spi)
+			continue;
+		if (sav->sah != sah)
+			continue;
+		for (stateidx = 0; stateidx < matchidx; stateidx++) {
+			state = saorder_state_alive[stateidx];
+			if (sav->state == state) {
+				match = sav;
+				matchidx = stateidx;
+				break;
 			}
-
-			if (sav->spi == spi)
-				return sav;
 		}
 	}
 
-	return NULL;
+	return match;
 }
 
 /*
@@ -2941,7 +3009,6 @@ key_setsaval(sav, m, mhp)
 	const struct esp_algorithm *algo;
 #endif
 	int error = 0;
-	struct timeval tv;
 
 	/* sanity check */
 	if (m == NULL || mhp == NULL || mhp->msg == NULL)
@@ -3096,8 +3163,7 @@ key_setsaval(sav, m, mhp)
 	}
 
 	/* reset created */
-	microtime(&tv);
-	sav->created = tv.tv_sec;
+	sav->created = time_second;
 
 	/* make lifetime for CURRENT */
 	KMALLOC(sav->lft_c, struct sadb_lifetime *,
@@ -3108,14 +3174,12 @@ key_setsaval(sav, m, mhp)
 		goto fail;
 	}
 
-	microtime(&tv);
-
 	sav->lft_c->sadb_lifetime_len =
 	    PFKEY_UNIT64(sizeof(struct sadb_lifetime));
 	sav->lft_c->sadb_lifetime_exttype = SADB_EXT_LIFETIME_CURRENT;
 	sav->lft_c->sadb_lifetime_allocations = 0;
 	sav->lft_c->sadb_lifetime_bytes = 0;
-	sav->lft_c->sadb_lifetime_addtime = tv.tv_sec;
+	sav->lft_c->sadb_lifetime_addtime = time_second;
 	sav->lft_c->sadb_lifetime_usetime = 0;
 
 	/* lifetimes for HARD and SOFT */
@@ -3135,7 +3199,12 @@ key_setsaval(sav, m, mhp)
 			error = ENOBUFS;
 			goto fail;
 		}
-		/* to be initialize ? */
+		/* we no longer support byte lifetime */
+		if (sav->lft_h->sadb_lifetime_bytes) {
+			error = EINVAL;
+			goto fail;
+		}
+		/* initialize? */
 	}
 
 	lft0 = (struct sadb_lifetime *)mhp->ext[SADB_EXT_LIFETIME_SOFT];
@@ -3151,7 +3220,12 @@ key_setsaval(sav, m, mhp)
 			error = ENOBUFS;
 			goto fail;
 		}
-		/* to be initialize ? */
+		/* we no longer support byte lifetime */
+		if (sav->lft_s->sadb_lifetime_bytes) {
+			error = EINVAL;
+			goto fail;
+		}
+		/* initialize? */
 	}
     }
 
@@ -3164,14 +3238,17 @@ key_setsaval(sav, m, mhp)
 		sav->replay = NULL;
 	}
 	if (sav->key_auth != NULL) {
+		bzero(_KEYBUF(sav->key_auth), _KEYLEN(sav->key_auth));
 		KFREE(sav->key_auth);
 		sav->key_auth = NULL;
 	}
 	if (sav->key_enc != NULL) {
+		bzero(_KEYBUF(sav->key_enc), _KEYLEN(sav->key_enc));
 		KFREE(sav->key_enc);
 		sav->key_enc = NULL;
 	}
 	if (sav->sched) {
+		bzero(sav->sched, sav->schedlen);
 		KFREE(sav->sched);
 		sav->sched = NULL;
 	}
@@ -3411,7 +3488,7 @@ key_setdumpsa(sav, type, satype, seq, pid)
 
 		case SADB_X_EXT_SA2:
 			m = key_setsadbxsa2(sav->sah->saidx.mode,
-			    sav->replay ? sav->replay->count : 0,
+			    sav->replay ? (sav->replay->count & 0xffffffff) : 0,
 			    sav->sah->saidx.reqid);
 			if (!m)
 				goto fail;
@@ -3727,6 +3804,40 @@ key_setsadbxsa2(mode, seq, reqid)
 }
 
 /*
+ * set data into sadb_lifetime
+ */
+static struct mbuf *
+key_setsadblifetime(type, alloc, bytes, addtime, usetime)
+	u_int16_t type;
+	u_int32_t alloc;
+	u_int64_t bytes, addtime, usetime;
+{
+	struct mbuf *m;
+	struct sadb_lifetime *p;
+	size_t len;
+
+	len = PFKEY_ALIGN8(sizeof(struct sadb_lifetime));
+	m = key_alloc_mbuf(len);
+	if (!m || m->m_next) {	/*XXX*/
+		if (m)
+			m_freem(m);
+		return NULL;
+	}
+
+	p = mtod(m, struct sadb_lifetime *);
+
+	bzero(p, len);
+	p->sadb_lifetime_len = PFKEY_UNIT64(len);
+	p->sadb_lifetime_exttype = type;
+	p->sadb_lifetime_allocations = alloc;
+	p->sadb_lifetime_bytes = bytes;
+	p->sadb_lifetime_addtime = addtime;
+	p->sadb_lifetime_usetime = usetime;
+
+	return m;
+}
+
+/*
  * set data into sadb_x_policy
  */
 static struct mbuf *
@@ -3784,7 +3895,7 @@ key_newbuf(src, len)
  * OUT:	1: true, i.e. my address.
  *	0: false
  */
-int
+static int
 key_ismyaddr(sa)
 	struct sockaddr *sa;
 {
@@ -3846,7 +3957,6 @@ key_ismyaddr6(sin6)
 		 * XXX Multicast
 		 * XXX why do we care about multlicast here while we don't care
 		 * about IPv4 multicast??
-		 * XXX scope
 		 */
 		in6m = NULL;
 		IN6_LOOKUP_MULTI(sin6->sin6_addr, ia->ia_ifp, in6m);
@@ -3899,8 +4009,8 @@ key_cmpsaidx(saidx0, saidx1, flag)
 			return 0;
 	} else {
 
-		/* CMP_MODE_REQID, CMP_REQID, CMP_HEAD */
-		if (flag == CMP_MODE_REQID || flag == CMP_REQID) {
+		/* CMP_MODE_REQID, CMP_HEAD */
+		if (flag == CMP_MODE_REQID) {
 			/*
 			 * If reqid of SPD is non-zero, unique SA is required.
 			 * The result must be of same reqid in this case.
@@ -3937,7 +4047,7 @@ key_cmpsaidx(saidx0, saidx1, flag)
  *	1 : equal
  *	0 : not equal
  */
-static int
+int
 key_cmpspidx_exactly(spidx0, spidx1)
 	struct secpolicyindex *spidx0, *spidx1;
 {
@@ -3973,7 +4083,7 @@ key_cmpspidx_exactly(spidx0, spidx1)
  *	1 : equal
  *	0 : not equal
  */
-static int
+int
 key_cmpspidx_withmask(spidx0, spidx1)
 	struct secpolicyindex *spidx0, *spidx1;
 {
@@ -4160,7 +4270,8 @@ key_bbcmp(p1, p2, bits)
  * XXX: year 2038 problem may remain.
  */
 void
-key_timehandler(void)
+key_timehandler(arg)
+	void *arg;
 {
 	u_int dir;
 	int s;
@@ -4181,7 +4292,8 @@ key_timehandler(void)
 			nextsp = LIST_NEXT(sp, chain);
 
 			if (sp->state == IPSEC_SPSTATE_DEAD) {
-				key_freesp(sp);
+				key_sp_unlink(sp);	/*XXX*/
+				sp = NULL;
 				continue;
 			}
 
@@ -4193,7 +4305,7 @@ key_timehandler(void)
 			     tv.tv_sec - sp->created > sp->lifetime) ||
 			    (sp->validtime &&
 			     tv.tv_sec - sp->lastused > sp->validtime)) {
-				sp->state = IPSEC_SPSTATE_DEAD;
+				key_sp_dead(sp);
 				key_spdexpire(sp);
 				continue;
 			}
@@ -4412,10 +4524,11 @@ key_timehandler(void)
 		key_srandom();
 	}
 
-#ifndef IPSEC_DEBUG2
-	/* do exchange to tick time !! */
-	(void)timeout((void *)key_timehandler, (void *)0, hz);
-#endif /* IPSEC_DEBUG2 */
+	/*
+	 * should set timeout based on the most closest timer expiration.
+	 * we don't bother to do that yet.
+	 */
+	(void)timeout(key_timehandler, (void *)0, hz);
 
 	splx(s);
 	return;
@@ -4430,7 +4543,7 @@ key_srandom()
 	return;
 }
 
-u_long
+static u_long
 key_random()
 {
 	u_long value;
@@ -4635,7 +4748,7 @@ key_getspi(so, m, mhp)
 	}
 
 	/* set spi */
-	newsav->spi = htonl(spi);
+	key_setspi(newsav, htonl(spi));
 
 #ifndef IPSEC_NONBLOCK_ACQUIRE
 	/* delete the entry in acqtree */
@@ -4643,9 +4756,7 @@ key_getspi(so, m, mhp)
 		struct secacq *acq;
 		if ((acq = key_getacqbyseq(mhp->msg->sadb_msg_seq)) != NULL) {
 			/* reset counter in order to deletion by timehandler. */
-			struct timeval tv;
-			microtime(&tv);
-			acq->created = tv.tv_sec;
+			acq->created = time_second;
 			acq->count = 0;
 		}
     	}
@@ -5513,9 +5624,9 @@ key_getcomb_setlifetime(comb)
 	comb->sadb_comb_soft_bytes = 0;
 	comb->sadb_comb_hard_bytes = 0;
 	comb->sadb_comb_hard_addtime = 86400;	/* 1 day */
-	comb->sadb_comb_soft_addtime = comb->sadb_comb_soft_addtime * 80 / 100;
-	comb->sadb_comb_soft_usetime = 28800;	/* 8 hours */
-	comb->sadb_comb_hard_usetime = comb->sadb_comb_hard_usetime * 80 / 100;
+	comb->sadb_comb_soft_addtime = comb->sadb_comb_hard_addtime * 80 / 100;
+	comb->sadb_comb_hard_usetime = 28800;	/* 8 hours */
+	comb->sadb_comb_soft_usetime = comb->sadb_comb_hard_usetime * 80 / 100;
 }
 
 #ifdef IPSEC_ESP
@@ -5854,7 +5965,7 @@ key_acquire(saidx, sp)
 
 	/* set sadb_x_policy */
 	if (sp) {
-		m = key_setsadbxpolicy(sp->policy, sp->spidx.dir, sp->id);
+		m = key_setsadbxpolicy(sp->policy, sp->dir, sp->id);
 		if (!m) {
 			error = ENOBUFS;
 			goto fail;
@@ -5960,7 +6071,6 @@ key_newacq(saidx)
 	struct secasindex *saidx;
 {
 	struct secacq *newacq;
-	struct timeval tv;
 
 	/* get new entry */
 	KMALLOC(newacq, struct secacq *, sizeof(struct secacq));
@@ -5973,8 +6083,7 @@ key_newacq(saidx)
 	/* copy secindex */
 	bcopy(saidx, &newacq->saidx, sizeof(newacq->saidx));
 	newacq->seq = (acq_seq == ~0 ? 1 : ++acq_seq);
-	microtime(&tv);
-	newacq->created = tv.tv_sec;
+	newacq->created = time_second;
 	newacq->count = 0;
 
 	return newacq;
@@ -6014,7 +6123,9 @@ key_newspacq(spidx)
 	struct secpolicyindex *spidx;
 {
 	struct secspacq *acq;
-	struct timeval tv;
+
+	if (!spidx)
+		return NULL;
 
 	/* get new entry */
 	KMALLOC(acq, struct secspacq *, sizeof(struct secspacq));
@@ -6026,9 +6137,8 @@ key_newspacq(spidx)
 
 	/* copy secindex */
 	bcopy(spidx, &acq->spidx, sizeof(acq->spidx));
-	microtime(&tv);
-	acq->created = tv.tv_sec;
-	acq->count = 0;
+	acq->created = time_second;
+	acq->count = 1;
 
 	return acq;
 }
@@ -6038,6 +6148,9 @@ key_getspacq(spidx)
 	struct secpolicyindex *spidx;
 {
 	struct secspacq *acq;
+
+	if (!spidx)
+		return NULL;
 
 	LIST_FOREACH(acq, &spacqtree, chain) {
 		if (key_cmpspidx_exactly(spidx, &acq->spidx))
@@ -6067,7 +6180,7 @@ key_acquire2(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	const struct sadb_address *src0, *dst0;
+	struct sadb_address *src0, *dst0;
 	struct secasindex saidx;
 	struct secashead *sah;
 	u_int16_t proto;
@@ -6086,7 +6199,6 @@ key_acquire2(so, m, mhp)
 	if (mhp->msg->sadb_msg_len == PFKEY_UNIT64(sizeof(struct sadb_msg))) {
 #ifndef IPSEC_NONBLOCK_ACQUIRE
 		struct secacq *acq;
-		struct timeval tv;
 
 		/* check sequence number */
 		if (mhp->msg->sadb_msg_seq == 0) {
@@ -6105,8 +6217,7 @@ key_acquire2(so, m, mhp)
 		}
 
 		/* reset acq counter in order to deletion by timehander. */
-		microtime(&tv);
-		acq->created = tv.tv_sec;
+		acq->created = time_second;
 		acq->count = 0;
 #endif
 		m_freem(m);
@@ -6422,7 +6533,7 @@ key_expire(sav)
 
 	/* create SA extension */
 	m = key_setsadbxsa2(sav->sah->saidx.mode,
-	    sav->replay ? sav->replay->count : 0,
+	    sav->replay ? (sav->replay->count & 0xffffffff) : 0,
 	    sav->sah->saidx.reqid);
 	if (!m) {
 		error = ENOBUFS;
@@ -6604,7 +6715,6 @@ key_dump(so, m, mhp)
 	u_int8_t satype;
 	u_int8_t state;
 	int cnt;
-	struct sadb_msg *newmsg;
 	struct mbuf *n;
 
 	/* sanity check */
@@ -6638,7 +6748,6 @@ key_dump(so, m, mhp)
 		return key_senderror(so, m, ENOENT);
 
 	/* send this to the userland, one at a time. */
-	newmsg = NULL;
 	LIST_FOREACH(sah, &sahtree, chain) {
 		if (mhp->msg->sadb_msg_satype != SADB_SATYPE_UNSPEC &&
 		    proto != sah->saidx.proto)
@@ -7143,12 +7252,12 @@ key_align(m, mhp)
 
 static int
 key_validate_ext(ext, len)
-	const struct sadb_ext *ext;
+	struct sadb_ext *ext;
 	int len;
 {
-	const struct sockaddr *sa;
+	struct sockaddr *sa;
 	enum { NONE, ADDR } checktype = NONE;
-	int baselen;
+	int baselen = 0;
 	const int sal = offsetof(struct sockaddr, sa_len) + sizeof(sa->sa_len);
 
 	if (len != PFKEY_UNUNIT64(ext->sadb_ext_len))
@@ -7173,17 +7282,14 @@ key_validate_ext(ext, len)
 		break;
 	case SADB_EXT_IDENTITY_SRC:
 	case SADB_EXT_IDENTITY_DST:
-		if (((const struct sadb_ident *)ext)->sadb_ident_type ==
+		if (((struct sadb_ident *)ext)->sadb_ident_type ==
 		    SADB_X_IDENTTYPE_ADDR) {
 			baselen = PFKEY_ALIGN8(sizeof(struct sadb_ident));
 			checktype = ADDR;
-		} else {
-			baselen = 0;	/* XXX pacify gcc-3.1 */
+		} else
 			checktype = NONE;
-		}
 		break;
 	default:
-		baselen = 0;		/* XXX pacify gcc-3.1 */
 		checktype = NONE;
 		break;
 	}
@@ -7192,7 +7298,7 @@ key_validate_ext(ext, len)
 	case NONE:
 		break;
 	case ADDR:
-		sa = (struct sockaddr *)((uintptr_t)ext + baselen);
+		sa = (struct sockaddr *)((caddr_t)ext + baselen);
 		if (len < baselen + sal)
 			return EINVAL;
 		if (baselen + PFKEY_ALIGN8(sa->sa_len) != len)
@@ -7218,24 +7324,40 @@ key_init()
 	for (i = 0; i <= SADB_SATYPE_MAX; i++)
 		LIST_INIT(&regtree[i]);
 
+	for (i = 0; i < SPIHASHSIZE; i++)
+		LIST_INIT(&spihash[i]);
+
 #ifndef IPSEC_NONBLOCK_ACQUIRE
 	LIST_INIT(&acqtree);
 #endif
 	LIST_INIT(&spacqtree);
 
+	TAILQ_INIT(&satailq);
+	TAILQ_INIT(&sptailq);
+
 	/* system default */
 #ifdef INET
-	ip4_def_policy.policy = IPSEC_POLICY_NONE;
-	ip4_def_policy.refcnt++;	/*never reclaim this*/
+	ip4_def_policy = key_newsp(0);
+	if (!ip4_def_policy)
+		panic("could not initialize IPv4 default security policy");
+	ip4_def_policy->state = IPSEC_SPSTATE_ALIVE;
+	ip4_def_policy->policy = IPSEC_POLICY_NONE;
+	ip4_def_policy->dir = IPSEC_DIR_ANY;
+	ip4_def_policy->readonly = 1;
+	ip4_def_policy->persist = 1;
 #endif
 #ifdef INET6
-	ip6_def_policy.policy = IPSEC_POLICY_NONE;
-	ip6_def_policy.refcnt++;	/*never reclaim this*/
+	ip6_def_policy = key_newsp(0);
+	if (!ip6_def_policy)
+		panic("could not initialize IPv6 default security policy");
+	ip6_def_policy->state = IPSEC_SPSTATE_ALIVE;
+	ip6_def_policy->policy = IPSEC_POLICY_NONE;
+	ip6_def_policy->dir = IPSEC_DIR_ANY;
+	ip6_def_policy->readonly = 1;
+	ip6_def_policy->persist = 1;
 #endif
 
-#ifndef IPSEC_DEBUG2
-	timeout((void *)key_timehandler, (void *)0, hz);
-#endif /*IPSEC_DEBUG2*/
+	timeout(key_timehandler, (void *)0, hz);
 
 	/* initialize key statistics */
 	keystat.getspi_count = 1;
@@ -7270,8 +7392,6 @@ key_checktunnelsanity(sav, family, src, dst)
 }
 
 #if 0
-#define hostnamelen	strlen(hostname)
-
 /*
  * Get FQDN for the host.
  * If the administrator configured hostname (by hostname(1)) without
@@ -7283,6 +7403,7 @@ key_getfqdn()
 	int i;
 	int hasdot;
 	static char fqdn[MAXHOSTNAMELEN + 1];
+	int hostnamelen = strlen(hostname);
 
 	if (!hostnamelen)
 		return NULL;
@@ -7314,22 +7435,20 @@ key_getuserfqdn()
 	struct proc *p = curproc;
 	char *q;
 
-	if (p == NULL)
-		return NULL;
-	bzero(userfqdn, sizeof(userfqdn));
-	if (!(host = key_getfqdn())) {
+	PROC_LOCK(p);
+	if (!p || !p->p_pgrp || !p->p_pgrp->pg_session) {
 		PROC_UNLOCK(p);
 		return NULL;
 	}
-	PROC_LOCK(p);
-	if (!p->p_pgrp || !p->p_pgrp->pg_session) {
+	if (!(host = key_getfqdn())) {
 		PROC_UNLOCK(p);
 		return NULL;
 	}
 
 	/* NOTE: s_login may not be-NUL terminated. */
+	bzero(userfqdn, sizeof(userfqdn));
 	SESS_LOCK(p->p_session);
-	bcopy(p->p_session->s_login, userfqdn, MAXLOGNAME);
+	bcopy(p->p_pgrp->pg_session->s_login, userfqdn, MAXLOGNAME);
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
 	userfqdn[MAXLOGNAME] = '\0';	/* safeguard */
@@ -7383,9 +7502,7 @@ key_sa_recordxfer(sav, m)
 	 *	<-----> SOFT
 	 */
     {
-	struct timeval tv;
-	microtime(&tv);
-	sav->lft_c->sadb_lifetime_usetime = tv.tv_sec;
+	sav->lft_c->sadb_lifetime_usetime = time_second;
 	/* XXX check for expires? */
     }
 
@@ -7438,6 +7555,26 @@ key_sa_stir_iv(sav)
 	if (!sav->iv)
 		panic("key_sa_stir_iv called with sav == NULL");
 	key_randomfill(sav->iv, sav->ivlen);
+}
+
+static void
+key_sp_dead(sp)
+	struct secpolicy *sp;
+{
+
+	/* mark the SP dead */
+	sp->state = IPSEC_SPSTATE_DEAD;
+}
+
+static void
+key_sp_unlink(sp)
+	struct secpolicy *sp;
+{
+
+	/* remove from SP index */
+	if (__LIST_CHAINED(sp))
+		LIST_REMOVE(sp, chain);
+	key_freesp(sp);
 }
 
 /* XXX too much? */

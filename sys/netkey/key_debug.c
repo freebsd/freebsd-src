@@ -1,4 +1,4 @@
-/*	$KAME: key_debug.c,v 1.26 2001/06/27 10:46:50 sakane Exp $	*/
+/*	$KAME: key_debug.c,v 1.38 2003/09/06 05:15:44 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -562,10 +562,11 @@ kdebug_secpolicy(sp)
 	if (sp == NULL)
 		panic("kdebug_secpolicy: NULL pointer was passed.");
 
-	printf("secpolicy{ refcnt=%u state=%u policy=%u\n",
-		sp->refcnt, sp->state, sp->policy);
+	printf("secpolicy{ refcnt=%u state=%u policy=%u dir=%u\n",
+		sp->refcnt, sp->state, sp->policy, sp->dir);
 
-	kdebug_secpolicyindex(&sp->spidx);
+	if (sp->spidx)
+		kdebug_secpolicyindex(sp->spidx);
 
 	switch (sp->policy) {
 	case IPSEC_POLICY_DISCARD:
@@ -611,8 +612,8 @@ kdebug_secpolicyindex(spidx)
 	if (spidx == NULL)
 		panic("kdebug_secpolicyindex: NULL pointer was passed.");
 
-	printf("secpolicyindex{ dir=%u prefs=%u prefd=%u ul_proto=%u\n",
-		spidx->dir, spidx->prefs, spidx->prefd, spidx->ul_proto);
+	printf("secpolicyindex{ prefs=%u prefd=%u ul_proto=%u\n",
+	    spidx->prefs, spidx->prefd, spidx->ul_proto);
 
 	ipsec_hexdump((caddr_t)&spidx->src,
 		((struct sockaddr *)&spidx->src)->sa_len);
@@ -632,8 +633,7 @@ kdebug_secasindex(saidx)
 	if (saidx == NULL)
 		panic("kdebug_secpolicyindex: NULL pointer was passed.");
 
-	printf("secasindex{ mode=%u proto=%u\n",
-		saidx->mode, saidx->proto);
+	printf("secasindex{ mode=%u proto=%u\n", saidx->mode, saidx->proto);
 
 	ipsec_hexdump((caddr_t)&saidx->src,
 		((struct sockaddr *)&saidx->src)->sa_len);
@@ -697,8 +697,9 @@ kdebug_secreplay(rpl)
 	if (rpl == NULL)
 		panic("kdebug_secreplay: NULL pointer was passed.");
 
-	printf(" secreplay{ count=%u wsize=%u seq=%u lastseq=%u",
-	    rpl->count, rpl->wsize, rpl->seq, rpl->lastseq);
+	printf(" secreplay{ count=%llu wsize=%u seq=%llu lastseq=%llu",
+	    (unsigned long long)rpl->count, rpl->wsize,
+	    (unsigned long long)rpl->seq, (unsigned long long)rpl->lastseq);
 
 	if (rpl->bitmap == NULL) {
 		printf(" }\n");
@@ -736,9 +737,9 @@ kdebug_mbufhdr(m)
 
 	if (m->m_flags & M_EXT) {
 		printf("  m_ext{ ext_buf:%p ext_free:%p "
-		       "ext_size:%u ref_cnt:%p }\n",
+		       "ext_size:%u }\n",
 			m->m_ext.ext_buf, m->m_ext.ext_free,
-			m->m_ext.ext_size, m->m_ext.ref_cnt);
+			m->m_ext.ext_size);
 	}
 
 	return;

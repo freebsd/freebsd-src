@@ -492,7 +492,7 @@ tooshort:
 	/*
 	 * Bypass packet filtering for packets from a tunnel (gif).
 	 */
-	if (ipsec_gethist(m, NULL))
+	if (ipsec_getnhist(m))
 		goto pass;
 #endif
 #if defined(FAST_IPSEC) && !defined(IPSEC_FILTERGIF)

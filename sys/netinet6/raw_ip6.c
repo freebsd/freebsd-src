@@ -180,7 +180,7 @@ rip6_input(mp, offp, proto)
 			/*
 			 * Check AH/ESP integrity.
 			 */
-			if (n && ipsec6_in_reject(n, last)) {
+			if (n && ipsec6_in_reject_so(n, last->inp_socket)) {
 				m_freem(n);
 				ipsec6stat.in_polvio++;
 				/* do not inject data into pcb */
@@ -219,7 +219,7 @@ rip6_input(mp, offp, proto)
 	/*
 	 * Check AH/ESP integrity.
 	 */
-	if (last && ipsec6_in_reject(m, last)) {
+	if (last && ipsec6_in_reject_so(m, last->inp_socket)) {
 		m_freem(m);
 		ipsec6stat.in_polvio++;
 		ip6stat.ip6s_delivered--;
@@ -469,6 +469,13 @@ rip6_output(m, va_alist)
 		*p = 0;
 		*p = in6_cksum(m, ip6->ip6_nxt, sizeof(*ip6), plen);
 	}
+
+#ifdef IPSEC
+	if (ipsec_setsocket(m, so) != 0) {
+		error = ENOBUFS;
+		goto bad;
+	}
+#endif /*IPSEC*/
 
 	error = ip6_output(m, in6p->in6p_outputopts, &in6p->in6p_route, 0,
 			   in6p->in6p_moptions, &oifp, in6p);
