@@ -316,6 +316,7 @@ MAN=	aac.4 \
 	uvisor.4 \
 	uvscom.4 \
 	vga.4 \
+	vge.4 \
 	vinum.4 \
 	vinumdebug.4 \
 	vlan.4 \

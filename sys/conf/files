@@ -549,6 +549,7 @@ dev/mem/memdev.c	optional mem
 dev/mii/amphy.c		optional miibus
 dev/mii/bmtphy.c	optional miibus
 dev/mii/brgphy.c	optional miibus
+dev/mii/ciphy.c		optional miibus
 dev/mii/dcphy.c		optional miibus pci
 dev/mii/e1000phy.c	optional miibus
 dev/mii/exphy.c		optional miibus
@@ -841,6 +842,7 @@ dev/vinum/vinumrequest.c	optional vinum
 dev/vinum/vinumrevive.c		optional vinum
 dev/vinum/vinumstate.c		optional vinum
 dev/vinum/vinumutil.c		optional vinum
+dev/vge/if_vge.c		optional vge
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci

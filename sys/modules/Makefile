@@ -238,6 +238,7 @@ SUBDIR=	${_3dfx} \
 	uvisor \
 	uvscom \
 	${_vesa} \
+	vge \
 	vinum \
 	vpo \
 	vr \
