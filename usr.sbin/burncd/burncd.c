@@ -126,9 +126,13 @@ main(int argc, char **argv)
 		}
 		if (!strcmp(argv[arg], "msinfo")) {
 		        struct ioc_read_toc_single_entry entry;
+			struct ioc_toc_header header;
 
+			if (ioctl(fd, CDIOREADTOCHEADER, &header) < 0)
+				err(EX_IOERR, "ioctl(CDIOREADTOCHEADER)");
 			bzero(&entry, sizeof(struct ioc_read_toc_single_entry));
 			entry.address_format = CD_LBA_FORMAT;
+			entry.track = header.ending_track;
 			if (ioctl(fd, CDIOREADTOCENTRY, &entry) < 0) 
 				err(EX_IOERR, "ioctl(CDIOREADTOCENTRY)");
 			if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
