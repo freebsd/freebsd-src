@@ -47,8 +47,6 @@
 #include <machine/frame.h>
 #include <machine/segments.h>
 #include <machine/globals.h>
-#include <machine/md_var.h>
-#include <machine/specialreg.h>
 
 /*
  * definitions of cpu-dependent requirements
@@ -145,9 +143,10 @@ static __inline u_int64_t
 get_cyclecount(void)
 {
 #if defined(I386_CPU) || defined(I486_CPU)
+	extern u_int   tsc_present;
 	struct timespec tv;
 
-	if ((cpu_feature & CPUID_TSC) == 0) {
+	if (!tsc_present) {
 		nanotime(&tv);
 		return (tv.tv_sec * (u_int64_t)1000000000 + tv.tv_nsec);
 	}
