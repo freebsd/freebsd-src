@@ -32,17 +32,17 @@
  * $FreeBSD$
  */
 
+#include <unistd.h>
+
 #include "doscmd.h"
 #include "mouse.h"
+#include "tty.h"
+#include "video.h"
 
-/*
- * 0040:0060 contains the start and end of the cursor
- */                 
-#define	curs_end BIOSDATA[0x60]
-#define	curs_start BIOSDATA[0x61]
+static int cursoremu = 1;
 
 void
-int10(REGISTERS)
+int10(regcontext_t *REGS)
 {
 	char *addr;
 	int i, j;
@@ -55,113 +55,256 @@ int10(REGISTERS)
 	reset_poll();
 
 	switch (R_AH) {
-	case 0x00: /* Set display mode */
-		debug(D_HALF, "Set video mode to %02x\n", R_AL);
+	case 0x00:		/* Set display mode */
+		init_mode(R_AL);
 		break;
-	case 0x01: /* Define cursor */
-		curs_start = R_CH;
-		curs_end = R_CL;
+	case 0x01:		/* Define cursor */
+	{
+		int start, end;
+		
+		start = R_CH;
+		end = R_CL;
+		if (cursoremu == 0)
+			goto out;
+		/* Cursor emulation */
+		if (start <= 3 && end <= 3)
+			goto out;
+		if (start + 2 >= end) {
+			/* underline cursor */
+			start = CharHeight - 3;
+			end = CharHeight - 2;
+			goto out;
+		}
+		if (start <= 2 || end < start) {
+			/* block cursor */
+			start = 0;
+			end = CharHeight - 2;
+			goto out;
+		}
+		if (start > CharHeight / 2) {
+			/* half block cursor */
+			start = CharHeight / 2;
+			end = 0;
+		}
+ out:		CursStart = start;
+		CursEnd = end;
 		break;
-	case 0x02: /* Position cursor */
+	}
+	case 0x02:		/* Position cursor */
 		if (!xmode)
 			goto unsupported;
 		tty_move(R_DH, R_DL);
 		break;
-	case 0x03: /* Read cursor position */
+	case 0x03:		/* Read cursor position */
 		if (!xmode)
 			goto unsupported;
 		tty_report(&i, &j);
 		R_DH = i;
 		R_DL = j;
-		R_CH = curs_start;
-		R_CL = curs_end;
+		R_CH = CursStart;
+		R_CL = CursEnd;
 		break;
 	case 0x05:
-		debug(D_HALF, "Select current display page %d\n", R_AL);
+		debug(D_VIDEO, "Select current display page %d\n", R_AL);
 		break;
-	case 0x06: /* initialize window/scroll text upward */
+	case 0x06:		/* initialize window/scroll text upward */
 		if (!xmode)
 			goto unsupported;
+		if (R_AL == 0)		/* clear screen */
+			R_AL = DpyRows + 1;
 		tty_scroll(R_CH, R_CL,
-			   R_DH, R_DL,
-			   R_AL, R_BH << 8);
+		    R_DH, R_DL,
+		    R_AL, R_BH << 8);
 		break;
-	case 0x07: /* initialize window/scroll text downward */
+	case 0x07:		/* initialize window/scroll text downward */
 		if (!xmode)
 			goto unsupported;
+		if (R_AL == 0)		/* clear screen */
+			R_AL = DpyRows + 1;
 		tty_rscroll(R_CH, R_CL,
-			    R_DH, R_DL,
-			    R_AL, R_BH << 8);
+		    R_DH, R_DL,
+		    R_AL, R_BH << 8);
 		break;
-	case 0x08: /* read character/attribute */
+	case 0x08:		/* read character/attribute */
 		if (!xmode)
 			goto unsupported;
 		i = tty_char(-1, -1);
 		R_AX = i;
 		break;
-	case 0x09: /* write character/attribute */
+	case 0x09:		/* write character/attribute */
 		if (!xmode)
 			goto unsupported;
 		tty_rwrite(R_CX, R_AL, R_BL << 8);
 		break;
-	case 0x0a: /* write character */
+	case 0x0a:		/* write character */
 		if (!xmode)
 			goto unsupported;
+		debug(D_HALF, "Int 10:0a: Write char: %02x\n", R_AL);
 		tty_rwrite(R_CX, R_AL, -1);
 		break;
-	case 0x0b: /* set border color */
+	case 0x0b:		/* set border color */
 		if (!xmode)
 			goto unsupported;
 		video_setborder(R_BL);
 		break;
-	case 0x0e: /* write character */
+	case 0x0c:		/* write graphics pixel */
+		debug(D_VIDEO, "Write graphics pixel at %d, %d\n", R_CX, R_DX);
+		break;
+	case 0x0d:		/* read graphics pixel */
+		debug(D_VIDEO, "Read graphics pixel at %d, %d\n", R_CX, R_DX);
+		break;
+	case 0x0e:		/* write character */
 		tty_write(R_AL, -1);
 		break;
-	case 0x0f: /* get display mode */
-		R_AH = 80; /* number of columns */
-		R_AL = 3; /* color */
-		R_BH = 0; /* display page */
+	case 0x0f:		/* get current video mode */
+		R_AH = DpyCols;		/* number of columns */
+		R_AL = VideoMode;	/* active mode */
+		R_BH = 0;/*ActivePage *//* display page */
 		break;
 	case 0x10:
+		if (!xmode)
+			goto unsupported;
 		switch (R_AL) {
-		case 0x01:
-			video_setborder(R_BH & 0x0f);
+		case 0x00:		/* Set single palette register */
+			palette[R_BL] = R_BH;
+			update_pixels();
 			break;
-		case 0x02:		/* Set pallete registers */
-			debug(D_HALF, "INT 10 10:02 Set all palette registers\n");
+		case 0x01:		/* Set overscan register */
+			VGA_ATC[ATC_OverscanColor] = R_BH;
+			break;
+		case 0x02:		/* Set all palette registers */
+			addr = (char *)MAKEPTR(R_ES, R_DX);
+			for (i = 0; i < 16; i++)
+				palette[i] = *addr++;
+			VGA_ATC[ATC_OverscanColor] = *addr;
+			update_pixels();
 			break;
 		case 0x03:		/* Enable/Disable blinking mode */
-			video_blink(R_BL ? 1 : 0);
+			video_blink((R_BL & 1) ? 1 : 0);
 			break;
-		case 0x13:
+		case 0x07:		/* Get individual palette register */
+			R_BH = palette[R_BL];
+			break;
+		case 0x08:		/* Read overscan register */
+			R_BH = VGA_ATC[ATC_OverscanColor];
+			break;
+		case 0x09:		/* Read all palette registers */
+			addr = (char *)MAKEPTR(R_ES, R_DX);
+			for (i = 0; i < 16; i++)
+				*addr++ = palette[i];
+			*addr = VGA_ATC[ATC_OverscanColor];
+			break;
+		case 0x10:		/* Set individual DAC register */
+			dac_rgb[R_BX].red   = R_DH & 0x3f;
+			dac_rgb[R_BX].green = R_CH & 0x3f;
+			dac_rgb[R_BX].blue  = R_CL & 0x3f;
+			update_pixels();
+			break;
+		case 0x12:		/* Set block of DAC registers */
+			addr = (char *)MAKEPTR(R_ES, R_DX);
+			for (i = R_BX; i < R_BX + R_CX; i++) {
+				dac_rgb[i].red   = *addr++;
+				dac_rgb[i].green = *addr++;
+				dac_rgb[i].blue  = *addr++;
+			}
+			update_pixels();
+			break;
+		case 0x13:		/* Select video DAC color page */
+			switch (R_BL) {
+			case 0:
+				VGA_ATC[ATC_ModeCtrl] |= (R_BH & 0x01) << 7;
+				break;
+			case 1:
+				VGA_ATC[ATC_ColorSelect] = R_BH & 0x0f;
+				break;
+			default:
+				debug(D_VIDEO, "INT 10 10:13 "
+				    "Bad value for BL: 0x%02x\n", R_BL);
+				break;
+			}
+		case 0x15:		/* Read individual DAC register */
+			R_DH = dac_rgb[R_BX].red;
+			R_CH = dac_rgb[R_BX].green;
+			R_CL = dac_rgb[R_BX].blue;
+			break;
+		case 0x17:		/* Read block of DAC registers */
+			addr = (char *)MAKEPTR(R_ES, R_DX);
+			for (i = R_BX; i < R_BX + R_CX; i++) {
+				*addr++ = dac_rgb[i].red;
+				*addr++ = dac_rgb[i].green;
+				*addr++ = dac_rgb[i].blue;
+			}
+			break;
+		case 0x18:		/* Set PEL mask */
 			debug(D_HALF,
-			      "INT 10 10:13 Select color or DAC (%02x, %02x)\n",
-				      R_BL, R_BH);
+			    "INT 10 10:18 Set PEL mask (%02x)\n", R_BL);
 			break;
-		case 0x1a: /* get video dac color-page state */
-			R_BH = 0;		/* Current page */
-			R_BL = 0;		/* four pages of 64... */
+		case 0x19:		/* Read PEL mask */
+			debug(D_HALF, "INT 10 10:19 Read PEL mask\n");
+			break;
+		case 0x1a:		/* Get video dac color-page state */
+			R_BH = (VGA_ATC[ATC_ModeCtrl] & 0x80) >> 7;
+			R_BL = VGA_ATC[ATC_ColorSelect];
+			break;
+		case 0x1b:		/* Perform gray-scale summing */
+			debug(D_HALF, "Perform gray-scale summing\n");
 			break;
 		default:
 			unknown_int3(0x10, 0x10, R_AL, REGS);
 			break;
 		}
 		break;
-#if 1
 	case 0x11:
 		switch (R_AL) {
-		case 0x00: printf("Tried to load user defined font.\n"); break;
-		case 0x01: printf("Tried to load 8x14 font.\n"); break;
-		case 0x02: printf("Tried to load 8x8 font.\n"); break;
-		case 0x03: printf("Tried to activate character set\n"); break;
-		case 0x04: printf("Tried to load 8x16 font.\n"); break;
-		case 0x10: printf("Tried to load and activate user defined font\n"); break;
-		case 0x11: printf("Tried to load and activate 8x14 font.\n"); break;
-		case 0x12: printf("Tried to load and activate 8x8 font.\n"); break;
-		case 0x14: printf("Tried to load and activate 8x16 font.\n"); break;
+		case 0x00:
+			debug(D_VIDEO, "Tried to load user defined font.\n");
+			break;
+		case 0x01:
+			debug(D_VIDEO, "Tried to load 8x14 font.\n");
+			break;
+		case 0x02:
+			debug(D_VIDEO, "Tried to load 8x8 font.\n");
+			break;
+		case 0x03:
+			debug(D_VIDEO, "Tried to activate character set\n");
+			break;
+		case 0x04:
+			debug(D_VIDEO, "Tried to load 8x16 font.\n");
+			break;
+		case 0x10:
+			debug(D_VIDEO,
+			    "Tried to load and activate user defined font\n");
+			break;
+		case 0x11:
+			debug(D_VIDEO,
+			    "Tried to load and activate 8x14 font.\n");
+			break;
+		case 0x12:
+			debug(D_VIDEO,
+			    "Tried to load and activate 8x8 font.\n");
+			break;
+		case 0x14:
+			debug(D_VIDEO,
+			    "Tried to load and activate 8x16 font.\n");
+			break;
+		case 0x20:
+			debug(D_VIDEO, "Load second half of 8x8 char set\n");
+			break;
+		case 0x21:
+			debug(D_VIDEO, "Install user defined char set\n");
+			break;
+		case 0x22:
+			debug(D_VIDEO, "Install 8x14 char set\n");
+			break;
+		case 0x23:
+			debug(D_VIDEO, "Install 8x8 char set\n");
+			break;
+		case 0x24:
+			debug(D_VIDEO, "Install 8x16 char set\n");
+			break;
 		case 0x30:
-			R_CX = 14;
-			R_DL = 24;
+			R_CX = CharHeight;
+			R_DL = DpyRows;
 			switch(R_BH) {
 			case 0:
 				PUTVEC(R_ES, R_BP, ivec[0x1f]);
@@ -177,9 +320,9 @@ int10(REGISTERS)
 			case 7:
 				R_ES = 0;
 				R_BP = 0;
-				debug(D_HALF,
-				      "INT 10 11:30 Request font address %02x",
-				      R_BH);
+				debug(D_VIDEO,
+				    "INT 10 11:30 Request font address %02x",
+				    R_BH);
 				break;
 			default:
 				unknown_int4(0x10, 0x11, 0x30, R_BH, REGS);
@@ -191,16 +334,24 @@ int10(REGISTERS)
 			break;
 		}
 		break;
-#endif
 	case 0x12: /* Load multiple DAC color register */
 		if (!xmode)
 			goto unsupported;
 		switch (R_BL) {
 		case 0x10:	/* Read EGA/VGA config */
-			R_BH = 0;	/* Color */
-			R_BL = 0;	/* 64K */
+			R_BH = NumColors > 1 ? 0 : 1;	/* Color */
+			R_BL = 3; 			/* 256 K */
+			break;
+		case 0x34:	/* Cursor emulation */
+			if (R_AL == 0)
+				cursoremu = 1;
+			else
+				cursoremu = 0;
+			R_AL = 0x12;
 			break;
 		default:
+			if (vflag)
+				dump_regs(REGS);
 			unknown_int3(0x10, 0x12, R_BL, REGS);
 			break;
 		}
@@ -243,29 +394,34 @@ int10(REGISTERS)
 	case 0x1a:
 		if (!xmode)
 			goto unsupported;
-		R_AL = 0x1a;	/* I am VGA */
+		R_AL = 0x1a;		/* I am VGA */
 		R_BL = 8;		/* Color VGA */
 		R_BH = 0;		/* No other card */
 		break;
-
+	case 0x1b:	/* Video Functionality/State information */
+		if (R_BX == 0) {
+			addr = (char *)MAKEPTR(R_ES, R_DI);
+			memcpy(addr, vga_status, 64);
+			R_AL = 0x1b;
+		}
+		break;
+	case 0x1c:	/* Save/Restore video state */
+		debug(D_VIDEO, "Save/restore video state\n");
+		R_AL = 0;
+		break;
 	case 0x4f:	/* get VESA information */
-	    R_AH = 0x01;		/* no VESA support */
-	    break;
-
-	case 0x1b:	/* Functionality state information */
-	    break;
-
+		R_AH = 0x01;		/* no VESA support */
+		break;
 	case 0x6f:
-	    switch (R_AL) {
-	    case 0x00:	/* HP-Vectra or Video7 installation check */
-		R_BX = 0;		/* nope, none of that */
+		switch (R_AL) {
+		case 0x00:	/* HP-Vectra or Video7 installation check */
+			R_BX = 0;		/* nope, none of that */
+			break;
+		default:
+			unknown_int3(0x10, 0x6f, R_AL, REGS);
+			break;
+		}
 		break;
-	    default:
-		unknown_int3(0x10, 0x6f, R_AL, REGS);
-		break;
-	    }
-	    break;
-	    
 	case 0xef:
 	case 0xfe:	/* Get video buffer */
 		break;
@@ -277,13 +433,14 @@ int10(REGISTERS)
 		/* XXX - we should allow secondary buffer here and then
 			 update it as the user requests. */
 		break;
-
     	unsupported:
-		if (vflag) dump_regs(REGS);
-		fatal ("int10 function 0x%02x:%02x only available in X mode\n",
-			R_AH, R_AL);
-    	unknown:
+		if (vflag)
+			dump_regs(REGS);
+		fatal("int10 function 0x%02x:%02x only available in X mode\n",
+		    R_AH, R_AL);
 	default:
+		if (vflag)
+			dump_regs(REGS);
 		unknown_int3(0x10, R_AH, R_AL, REGS);
 		break;
 	}
