@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: command.c,v 1.32 1997/02/22 16:10:08 peter Exp $
  *
  */
 #include <sys/types.h>
@@ -145,7 +145,6 @@ char **argv;
     modem = OpenModem(mode);
     if (modem < 0) {
       printf("failed to open modem.\n");
-      modem = 0;
       break;
     }
     if (DialModem()) {
@@ -440,7 +439,7 @@ struct cmdtab const ShowCommands[] = {
 	"Show Redial timeout value", StrNull},
 #ifdef MSEXT
   { "msext", 	NULL,	  ShowMSExt,		LOCAL_AUTH,
-	"Show MS PPP extention values", StrNull},
+	"Show MS PPP extentions", StrNull},
 #endif /* MSEXT */
   { "version",  NULL,	  ShowVersion,		LOCAL_NO_AUTH | LOCAL_AUTH,
 	"Show version string", StrNull},
@@ -575,7 +574,6 @@ TerminalCommand()
   modem = OpenModem(mode);
   if (modem < 0) {
     printf("failed to open modem.\n");
-    modem = 0;
     return(1);
   }
   printf("Enter to terminal mode.\n");

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: modem.c,v 1.29 1997/02/22 16:10:36 peter Exp $
  *
  *  TODO:
  */
@@ -382,7 +382,7 @@ int mode;
   if (mode & MODE_DIRECT) {
     if (isatty(0))
       modem = open(ctermid(NULL), O_RDWR|O_NONBLOCK);
-  } else if (modem == 0) {
+  } else if (modem < 0) {
     if (strncmp(VarDevice, "/dev", 4) == 0) {
       strncpy(uucplock, rindex(VarDevice, '/')+1,sizeof(uucplock)-1);
       uucplock[sizeof(uucplock)-1] = '\0';
@@ -506,7 +506,7 @@ int modem;
 
   if (!isatty(modem) || DEV_IS_SYNC)
     return(0);
-  if (!(mode & MODE_DIRECT) && modem && !Online) {
+  if (!(mode & MODE_DIRECT) && modem >= 0 && !Online) {
 #ifdef DEBUG
     logprintf("mode = %d, modem = %d, mbits = %x\n", mode, modem, mbits);
 #endif
@@ -557,11 +557,11 @@ int flag;
   if (!isatty(modem)) {
     mbits &= ~TIOCM_DTR;
     close(modem);
-    modem = 0;			/* Mark as modem has closed */
+    modem = -1;                  /* Mark as modem has closed */
     return;
   }
 
-  if (modem && Online) {
+  if (modem >= 0 && Online) {
     mbits &= ~TIOCM_DTR;
 #ifdef __bsdi__ /* not a POSIX way */
     ioctl(modem, TIOCMSET, &mbits);
@@ -579,22 +579,22 @@ int flag;
    * If we are working as dedicated mode, never close it
    * until we are directed to quit program.
    */
-  if (modem && (flag || !(mode & MODE_DEDICATED))) {
+  if (modem >= 0 && (flag || !(mode & MODE_DEDICATED))) {
     ModemTimeout();			/* XXX */
     StopTimer(&ModemTimer);		/* XXX */
 
     /* ModemTimeout() may call DownConection() to close the modem
      * resulting in modem == 0.
     */
-    if (modem)
+    if (modem >= 0)
     {
 	tcflush(modem, TCIOFLUSH);
 	UnrawModem(modem);
 	close(modem);
     }
+    modem = -1;                 /* Mark as modem has closed */
     (void) uu_unlock(uucplock);
-    modem = 0;			/* Mark as modem has closed */
-  } else if (modem) {
+  } else if (modem >= 0) {
     mbits |= TIOCM_DTR;
 #ifndef notyet
     ioctl(modem, TIOCMSET, &mbits);
@@ -612,7 +612,7 @@ CloseModem()
   if (modem >= 3)
   {
       close(modem);
-      modem = 0;
+      modem = -1;
   }
   (void) uu_unlock(uucplock);
 }
