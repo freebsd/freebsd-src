@@ -300,7 +300,7 @@ AliasVerifyPptp(struct ip *pip, u_int16_t * ptype)
 		return (NULL);
 
 	/* Move up to PPTP message header */
-	hptr = (PptpMsgHead) ip_next(pip);
+	hptr = (PptpMsgHead) tcp_next(tc);
 
 	/* Return the control message type */
 	*ptype = ntohs(hptr->type);
