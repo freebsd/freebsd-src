@@ -84,6 +84,7 @@ main(int argc, char *argv[])
 	int ch;
 
 	setup_get();
+	flags = 0;
 
 	while ((ch = getopt(argc, argv, "amnprsv")) != -1)
 		switch(ch) {
@@ -169,99 +170,53 @@ print_uname(u_int flags)
 	printf("\n");
 }
 
-void
-native_sysname(void)
-{
-	int mib[2];
-	size_t len;
-	static char buf[1024];
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_OSTYPE;
-	len = sizeof(buf);
-	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
+#define	NATIVE_SYSCTL2_GET(var,mib0,mib1)	\
+void						\
+native_##var(void)				\
+{						\
+	int mib[] = { (mib0), (mib1) };		\
+	size_t len;				\
+	static char buf[1024];			\
+	char **varp = &(var);			\
+						\
+	len = sizeof buf;			\
+	if (sysctl(mib, sizeof mib / sizeof mib[0],	\
+	   &buf, &len, NULL, 0) == -1)		\
 		err(1, "sysctl");
-	sysname = buf;
-}
 
-void
-native_hostname(void)
-{
-	int mib[2];
-	size_t len;
-	static char buf[1024];
+#define	NATIVE_SET				\
+	*varp = buf;				\
+	return;					\
+}	struct __hack
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_HOSTNAME;
-	len = sizeof(buf);
-	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-		err(1, "sysctl");
-	hostname = buf;
-}
+#define	NATIVE_BUFFER	(buf)
+#define	NATIVE_LENGTH	(len)
 
-void
-native_release(void)
-{
-	int mib[2];
-	size_t len;
-	static char buf[1024];
+NATIVE_SYSCTL2_GET(sysname, CTL_KERN, KERN_OSTYPE) {
+} NATIVE_SET;
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_OSRELEASE;
-	len = sizeof(buf);
-	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-		err(1, "sysctl");
-	release = buf;
-}
+NATIVE_SYSCTL2_GET(hostname, CTL_KERN, KERN_HOSTNAME) {
+} NATIVE_SET;
 
-void
-native_version(void)
-{
-	int mib[2];
-	size_t len, tlen;
+NATIVE_SYSCTL2_GET(release, CTL_KERN, KERN_OSRELEASE) {
+} NATIVE_SET;
+
+NATIVE_SYSCTL2_GET(version, CTL_KERN, KERN_VERSION) {
+	size_t n;
 	char *p;
-	static char buf[1024];
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_VERSION;
-	len = sizeof(buf);
-	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-		err(1, "sysctl");
-	for (p = buf, tlen = len; tlen--; ++p)
+	p = NATIVE_BUFFER;
+	n = NATIVE_LENGTH;
+	for (; n--; ++p)
 		if (*p == '\n' || *p == '\t')
 			*p = ' ';
-	version = buf;
-}
+} NATIVE_SET;
 
-void
-native_platform(void)
-{
-	int mib[2];
-	size_t len;
-	static char buf[1024];
+NATIVE_SYSCTL2_GET(platform, CTL_HW, HW_MACHINE) {
+} NATIVE_SET;
 
-	mib[0] = CTL_HW;
-	mib[1] = HW_MACHINE;
-	len = sizeof(buf);
-	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-		err(1, "sysctl");
-	platform = buf;
-}
-
-void
-native_arch(void)
-{
-	int mib[2];
-	size_t len;
-	static char buf[1024];
-
-	mib[0] = CTL_HW;
-	mib[1] = HW_MACHINE_ARCH;
-	len = sizeof(buf);
-	if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
-		err(1, "sysctl");
-	arch = buf;
-}
+NATIVE_SYSCTL2_GET(arch, CTL_HW, HW_MACHINE_ARCH) {
+} NATIVE_SET;
 
 void
 usage(void)
