@@ -5,6 +5,7 @@
 @c 2. Specific target machines
 @set H8300
 @set I960
+@set TICOFF
 
 @c 3. Properties of this configuration
 @clear SingleFormat

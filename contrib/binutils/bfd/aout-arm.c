@@ -1,7 +1,7 @@
 /* BFD back-end for raw ARM a.out binaries.
    Copyright (C) 1994, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
-   
+
 This file is part of BFD, the Binary File Descriptor library.
 
 This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
-
 
 #define N_TXTADDR(x) \
   ((N_MAGIC(x) == NMAGIC) ? 0x8000 : \
@@ -44,7 +43,7 @@ reloc_howto_type 	*MYARM(bfd_reloc_type_lookup)
 				PARAMS((bfd *, bfd_reloc_code_real_type));
 static boolean 		MYARM(write_object_contents)	PARAMS((bfd *));
 
-/* Avoid multiple defininitions from aoutx if supporting standarad a.out 
+/* Avoid multiple defininitions from aoutx if supporting standarad a.out
    as well as our own.  */
 #define NAME(x,y) CAT3(aoutarm,_32_,y)
 
@@ -63,7 +62,7 @@ MY(fix_pcrel_26)	 PARAMS ((bfd *, arelent *, asymbol *, PTR,
 static void MY(swap_std_reloc_in) PARAMS ((bfd *, struct reloc_std_external *,
 					   arelent *, asymbol **,
 					   bfd_size_type));
-void MY(swap_std_reloc_out) PARAMS ((bfd *, arelent *, 
+void MY(swap_std_reloc_out) PARAMS ((bfd *, arelent *,
 				     struct reloc_std_external *));
 
 reloc_howto_type MY(howto_table)[] =
@@ -98,7 +97,7 @@ reloc_howto_type MY(howto_table)[] =
 #define RELOC_ARM_BITS_NEG_LITTLE   ((unsigned int) 0x10)
 
 reloc_howto_type *
-MY(reloc_howto)(abfd, rel, r_index, r_extern, r_pcrel)
+MY(reloc_howto) (abfd, rel, r_index, r_extern, r_pcrel)
      bfd *abfd;
      struct reloc_std_external *rel;
      int *r_index;
@@ -139,12 +138,12 @@ MY(reloc_howto)(abfd, rel, r_index, r_extern, r_pcrel)
 
   return MY(howto_table) + index;
 }
- 
+
 #define MY_reloc_howto(BFD, REL, IN, EX, PC) \
 	MY(reloc_howto) (BFD, REL, &IN, &EX, &PC)
 
 void
-MY(put_reloc)(abfd, r_extern, r_index, value, howto, reloc)
+MY(put_reloc) (abfd, r_extern, r_index, value, howto, reloc)
      bfd *abfd;
      int r_extern;
      int r_index;
@@ -159,7 +158,7 @@ MY(put_reloc)(abfd, r_extern, r_index, value, howto, reloc)
   PUT_WORD (abfd, value, reloc->r_address);
   r_length = howto->size ;	/* Size as a power of two */
 
-  /* Special case for branch relocations. */
+  /* Special case for branch relocations.  */
   if (howto->type == 3 || howto->type == 7)
     r_length = 3;
 
@@ -188,12 +187,12 @@ MY(put_reloc)(abfd, r_extern, r_index, value, howto, reloc)
 	 | (r_length <<  RELOC_STD_BITS_LENGTH_SH_LITTLE));
     }
 }
- 
+
 #define MY_put_reloc(BFD, EXT, IDX, VAL, HOWTO, RELOC) \
-  MY(put_reloc)(BFD, EXT, IDX, VAL, HOWTO, RELOC)
+  MY(put_reloc) (BFD, EXT, IDX, VAL, HOWTO, RELOC)
 
 void
-MY(relocatable_reloc)(howto, abfd, reloc, amount, r_addr)
+MY(relocatable_reloc) (howto, abfd, reloc, amount, r_addr)
      reloc_howto_type *howto;
      bfd *abfd;
      struct reloc_std_external *reloc;
@@ -202,11 +201,11 @@ MY(relocatable_reloc)(howto, abfd, reloc, amount, r_addr)
 {
   if (howto->type == 3)
     {
-      if (reloc->r_type[0] 
+      if (reloc->r_type[0]
 	  & (bfd_header_big_endian (abfd)
 	     ? RELOC_STD_BITS_EXTERN_BIG : RELOC_STD_BITS_EXTERN_LITTLE))
 	{
-	  /* The reloc is still external, so don't modify anything. */
+	  /* The reloc is still external, so don't modify anything.  */
 	  *amount = 0;
 	}
       else
@@ -225,7 +224,7 @@ MY(relocatable_reloc)(howto, abfd, reloc, amount, r_addr)
 }
 
 #define MY_relocatable_reloc(HOW, BFD, REL, AMOUNT, ADDR) \
-  MY(relocatable_reloc)(HOW, BFD, REL, &(AMOUNT), ADDR)
+  MY(relocatable_reloc) (HOW, BFD, REL, &(AMOUNT), ADDR)
 
 static bfd_reloc_status_type
 MY(fix_pcrel_26_done) (abfd, reloc_entry, symbol, data, input_section,
@@ -257,7 +256,7 @@ MY(fix_pcrel_26) (abfd, reloc_entry, symbol, data, input_section,
   bfd_size_type addr = reloc_entry->address;
   long target = bfd_get_32 (abfd, (bfd_byte *) data + addr);
   bfd_reloc_status_type flag = bfd_reloc_ok;
-  
+
   /* If this is an undefined symbol, return error */
   if (symbol->section == &bfd_und_section
       && (symbol->flags & BSF_WEAK) == 0)
@@ -297,12 +296,12 @@ MY(fix_pcrel_26) (abfd, reloc_entry, symbol, data, input_section,
   /* Now the ARM magic... Change the reloc type so that it is marked as done.
      Strictly this is only necessary if we are doing a partial relocation.  */
   reloc_entry->howto = &MY(howto_table)[7];
-  
+
   return flag;
 }
 
 reloc_howto_type *
-MY(bfd_reloc_type_lookup)(abfd,code)
+MY(bfd_reloc_type_lookup) (abfd,code)
      bfd *abfd;
      bfd_reloc_code_real_type code;
 {
@@ -392,11 +391,10 @@ MY_swap_std_reloc_out (abfd, g, natptr)
       r_pcrel = 0;
     }
   else if (g->howto->type == 7)
-    { 
+    {
       r_length = 3;
       r_pcrel = 1;
     }
-  
 
 #if 0
   /* For a standard reloc, the addend is in the object file.  */
@@ -506,7 +504,7 @@ const bfd_target aout_arm_little_vec =
      BFD_JUMP_TABLE_DYNAMIC (MY),
 
   & aout_arm_big_vec,
-  
+
   (PTR) MY_backend_data,
 };
 
@@ -547,6 +545,6 @@ const bfd_target aout_arm_big_vec =
      BFD_JUMP_TABLE_DYNAMIC (MY),
 
   & aout_arm_little_vec,
-  
+
   (PTR) MY_backend_data,
 };

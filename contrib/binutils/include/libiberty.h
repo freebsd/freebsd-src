@@ -16,6 +16,13 @@ extern "C" {
 
 #include "ansidecl.h"
 
+#ifdef ANSI_PROTOTYPES
+/* Get a definition for size_t.  */
+#include <stddef.h>
+/* Get a definition for va_list.  */
+#include <stdarg.h>
+#endif
+
 /* Build an argument vector from a string.  Allocates memory using
    malloc.  Use freeargv to free the vector.  */
 
@@ -36,10 +43,17 @@ extern char **dupargv PARAMS ((char **)) ATTRIBUTE_MALLOC;
    across different systems, sometimes as "char *" and sometimes as
    "const char *" */
 
-#if defined (__GNU_LIBRARY__ ) || defined (__linux__) || defined (__FreeBSD__) || defined (__OpenBSD__) || defined (__CYGWIN__) || defined (__CYGWIN32__)
+/* HAVE_DECL_* is a three-state macro: undefined, 0 or 1.  If it is
+   undefined, we haven't run the autoconf check so provide the
+   declaration without arguments.  If it is 0, we checked and failed
+   to find the declaration so provide a fully prototyped one.  If it
+   is 1, we found it so don't provide any declaration at all.  */
+#if defined (__GNU_LIBRARY__ ) || defined (__linux__) || defined (__FreeBSD__) || defined (__OpenBSD__) || defined (__CYGWIN__) || defined (__CYGWIN32__) || (defined (HAVE_DECL_BASENAME) && !HAVE_DECL_BASENAME)
 extern char *basename PARAMS ((const char *));
 #else
+# if !defined (HAVE_DECL_BASENAME)
 extern char *basename ();
+# endif
 #endif
 
 /* Concatenate an arbitrary number of strings, up to (char *) NULL.
@@ -123,16 +137,13 @@ extern void xexit PARAMS ((int status)) ATTRIBUTE_NORETURN;
 
 extern void xmalloc_set_program_name PARAMS ((const char *));
 
+/* Report an allocation failure.  */
+extern void xmalloc_failed PARAMS ((size_t)) ATTRIBUTE_NORETURN;
+
 /* Allocate memory without fail.  If malloc fails, this will print a
    message to stderr (using the name set by xmalloc_set_program_name,
    if any) and then call xexit.  */
 
-#ifdef ANSI_PROTOTYPES
-/* Get a definition for size_t.  */
-#include <stddef.h>
-/* Get a definition for va_list.  */
-#include <stdarg.h>
-#endif
 extern PTR xmalloc PARAMS ((size_t)) ATTRIBUTE_MALLOC;
 
 /* Reallocate memory without fail.  This works like xmalloc.  Note,
@@ -192,6 +203,8 @@ extern int asprintf PARAMS ((char **, const char *, ...)) ATTRIBUTE_PRINTF_2;
 
 extern int vasprintf PARAMS ((char **, const char *, va_list))
   ATTRIBUTE_PRINTF(2,0);
+
+#define ARRAY_SIZE(a) (sizeof (a) / sizeof ((a)[0]))
 
 #ifdef __cplusplus
 }

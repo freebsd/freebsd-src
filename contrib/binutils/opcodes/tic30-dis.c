@@ -1,5 +1,5 @@
 /* Disassembly routines for TMS320C30 architecture
-   Copyright (C) 1998, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This program is free software; you can redistribute it and/or modify
@@ -27,10 +27,10 @@
 #define PARALLEL_INSN 2
 
 /* Gets the type of instruction based on the top 2 or 3 bits of the
-   instruction word. */
+   instruction word.  */
 #define GET_TYPE(insn) (insn & 0x80000000 ? insn & 0xC0000000 : insn & 0xE0000000)
 
-/* Instruction types. */
+/* Instruction types.  */
 #define TWO_OPERAND_1 0x00000000
 #define TWO_OPERAND_2 0x40000000
 #define THREE_OPERAND 0x20000000
@@ -38,14 +38,14 @@
 #define MUL_ADDS      0x80000000
 #define BRANCHES      0x60000000
 
-/* Specific instruction id bits. */
+/* Specific instruction id bits.  */
 #define NORMAL_IDEN    0x1F800000
 #define PAR_STORE_IDEN 0x3E000000
 #define MUL_ADD_IDEN   0x2C000000
 #define BR_IMM_IDEN    0x1F000000
 #define BR_COND_IDEN   0x1C3F0000
 
-/* Addressing modes. */
+/* Addressing modes.  */
 #define AM_REGISTER 0x00000000
 #define AM_DIRECT   0x00200000
 #define AM_INDIRECT 0x00400000
@@ -56,15 +56,15 @@
 #define REG_AR0 0x08
 #define LDP_INSN 0x08700000
 
-/* TMS320C30 program counter for current instruction. */
+/* TMS320C30 program counter for current instruction.  */
 static unsigned int _pc;
 
 struct instruction
-  {
-    int type;
-    template *tm;
-    partemplate *ptm;
-  };
+{
+  int type;
+  template *tm;
+  partemplate *ptm;
+};
 
 int get_tic30_instruction PARAMS ((unsigned long, struct instruction *));
 int print_two_operand
@@ -85,15 +85,14 @@ print_insn_tic30 (pc, info)
      disassemble_info *info;
 {
   unsigned long insn_word;
-  struct instruction insn =
-  {0, NULL, NULL};
+  struct instruction insn = { 0, NULL, NULL };
   bfd_vma bufaddr = pc - info->buffer_vma;
-  /* Obtain the current instruction word from the buffer. */
+  /* Obtain the current instruction word from the buffer.  */
   insn_word = (*(info->buffer + bufaddr) << 24) | (*(info->buffer + bufaddr + 1) << 16) |
     (*(info->buffer + bufaddr + 2) << 8) | *(info->buffer + bufaddr + 3);
   _pc = pc / 4;
   /* Get the instruction refered to by the current instruction word
-     and print it out based on its type. */
+     and print it out based on its type.  */
   if (!get_tic30_instruction (insn_word, &insn))
     return -1;
   switch (GET_TYPE (insn_word))
@@ -249,7 +248,7 @@ print_two_operand (info, insn_word, insn)
   if (insn->tm->opcode_modifier == AddressMode)
     {
       int src_op, dest_op;
-      /* Determine whether instruction is a store or a normal instruction. */
+      /* Determine whether instruction is a store or a normal instruction.  */
       if ((insn->tm->operand_types[1] & (Direct | Indirect)) == (Direct | Indirect))
 	{
 	  src_op = 1;
@@ -260,14 +259,14 @@ print_two_operand (info, insn_word, insn)
 	  src_op = 0;
 	  dest_op = 1;
 	}
-      /* Get the destination register. */
+      /* Get the destination register.  */
       if (insn->tm->operands == 2)
 	get_register_operand ((insn_word & 0x001F0000) >> 16, operand[dest_op]);
-      /* Get the source operand based on addressing mode. */
+      /* Get the source operand based on addressing mode.  */
       switch (insn_word & AddressMode)
 	{
 	case AM_REGISTER:
-	  /* Check for the NOP instruction before getting the operand. */
+	  /* Check for the NOP instruction before getting the operand.  */
 	  if ((insn->tm->operand_types[0] & NotReq) == 0)
 	    get_register_operand ((insn_word & 0x0000001F), operand[src_op]);
 	  break;
@@ -278,7 +277,7 @@ print_two_operand (info, insn_word, insn)
 	  get_indirect_operand ((insn_word & 0x0000FFFF), 2, operand[src_op]);
 	  break;
 	case AM_IMM:
-	  /* Get the value of the immediate operand based on variable type. */
+	  /* Get the value of the immediate operand based on variable type.  */
 	  switch (insn->tm->imm_arg_type)
 	    {
 	    case Imm_Float:
@@ -294,7 +293,7 @@ print_two_operand (info, insn_word, insn)
 	    default:
 	      return 0;
 	    }
-	  /* Handle special case for LDP instruction. */
+	  /* Handle special case for LDP instruction.  */
 	  if ((insn_word & 0xFFFFFF00) == LDP_INSN)
 	    {
 	      strcpy (name, "ldp");
@@ -303,7 +302,7 @@ print_two_operand (info, insn_word, insn)
 	    }
 	}
     }
-  /* Handle case for stack and rotate instructions. */
+  /* Handle case for stack and rotate instructions.  */
   else if (insn->tm->operands == 1)
     {
       if (insn->tm->opcode_modifier == StackOp)
@@ -311,7 +310,7 @@ print_two_operand (info, insn_word, insn)
 	  get_register_operand ((insn_word & 0x001F0000) >> 16, operand[0]);
 	}
     }
-  /* Output instruction to stream. */
+  /* Output instruction to stream.  */
   info->fprintf_func (info->stream, "   %s %s%c%s", name,
 		      operand[0][0] ? operand[0] : "",
 		      operand[1][0] ? ',' : ' ',
@@ -385,7 +384,7 @@ print_par_insn (info, insn_word, insn)
   if (insn->ptm == NULL)
     return 0;
   /* Parse out the names of each of the parallel instructions from the
-     q_insn1_insn2 format. */
+     q_insn1_insn2 format.  */
   name1 = (char *) strdup (insn->ptm->name + 2);
   name2 = "";
   len = strlen (name1);
@@ -398,7 +397,7 @@ print_par_insn (info, insn_word, insn)
 	  break;
 	}
     }
-  /* Get the operands of the instruction based on the operand order. */
+  /* Get the operands of the instruction based on the operand order.  */
   switch (insn->ptm->oporder)
     {
     case OO_4op1:
@@ -500,14 +499,14 @@ print_branch (info, insn_word, insn)
 
   if (insn->tm == NULL)
     return 0;
-  /* Get the operands for 24-bit immediate jumps. */
+  /* Get the operands for 24-bit immediate jumps.  */
   if (insn->tm->operand_types[0] & Imm24)
     {
       address = insn_word & 0x00FFFFFF;
       sprintf (operand[0], "0x%lX", address);
       print_label = 1;
     }
-  /* Get the operand for the trap instruction. */
+  /* Get the operand for the trap instruction.  */
   else if (insn->tm->operand_types[0] & IVector)
     {
       address = insn_word & 0x0000001F;
@@ -516,7 +515,7 @@ print_branch (info, insn_word, insn)
   else
     {
       address = insn_word & 0x0000FFFF;
-      /* Get the operands for the DB instructions. */
+      /* Get the operands for the DB instructions.  */
       if (insn->tm->operands == 2)
 	{
 	  get_register_operand (((insn_word & 0x01C00000) >> 22) + REG_AR0, operand[0]);
@@ -528,7 +527,7 @@ print_branch (info, insn_word, insn)
 	  else
 	    get_register_operand (insn_word & 0x0000001F, operand[1]);
 	}
-      /* Get the operands for the standard branches. */
+      /* Get the operands for the standard branches.  */
       else if (insn->tm->operands == 1)
 	{
 	  if (insn_word & PCRel)
@@ -545,7 +544,7 @@ print_branch (info, insn_word, insn)
 		      operand[0][0] ? operand[0] : "",
 		      operand[1][0] ? ',' : ' ',
 		      operand[1][0] ? operand[1] : "");
-  /* Print destination of branch in relation to current symbol. */
+  /* Print destination of branch in relation to current symbol.  */
   if (print_label && info->symbols)
     {
       asymbol *sym = *info->symbols;
@@ -553,7 +552,7 @@ print_branch (info, insn_word, insn)
       if ((insn->tm->opcode_modifier == PCRel) && (insn_word & PCRel))
 	{
 	  address = (_pc + 1 + (short) address) - ((sym->section->vma + sym->value) / 4);
-	  /* Check for delayed instruction, if so adjust destination. */
+	  /* Check for delayed instruction, if so adjust destination.  */
 	  if (insn_word & 0x00200000)
 	    address += 2;
 	}
@@ -583,8 +582,8 @@ get_indirect_operand (fragment, size, buffer)
 
   if (buffer == NULL)
     return 0;
-  /* Determine which bits identify the sections of the indirect operand based on the
-     size in bytes. */
+  /* Determine which bits identify the sections of the indirect
+     operand based on the size in bytes.  */
   switch (size)
     {
     case 1:
@@ -614,14 +613,15 @@ get_indirect_operand (fragment, size, buffer)
 	      {
 		size_t i, len;
 		int bufcnt;
-		
+
 		len = strlen (current_ind->syntax);
 		for (i = 0, bufcnt = 0; i < len; i++, bufcnt++)
 		  {
 		    buffer[bufcnt] = current_ind->syntax[i];
 		    if (buffer[bufcnt - 1] == 'a' && buffer[bufcnt] == 'r')
 		      buffer[++bufcnt] = arnum + '0';
-		    if (buffer[bufcnt] == '(' && current_ind->displacement == DISP_REQUIRED)
+		    if (buffer[bufcnt] == '('
+			&& current_ind->displacement == DISP_REQUIRED)
 		      {
 			sprintf (&buffer[bufcnt + 1], "%u", disp);
 			bufcnt += strlen (&buffer[bufcnt + 1]);

@@ -4,13 +4,13 @@ OUTPUT_FORMAT("elf32-v850", "elf32-v850",
 OUTPUT_ARCH(v850)
 ENTRY(_start)
 SEARCH_DIR(.);
-/*/critters/slug/grossman/install/sun4/v850-elf/lib*/
 SECTIONS
 {
   /* This saves a little space in the ELF file, since the zda starts
      at a higher location that the ELF headers take up.  */
 
-  .zdata ${ZDATA_START_ADDR} : {
+  .zdata ${ZDATA_START_ADDR} :
+  {
 	*(.zdata)
 	*(.zbss)
 	*(reszdata)
@@ -23,13 +23,14 @@ SECTIONS
      section.  Specifically it prevents the zdata
      section from being marked READONLY.  */
 
-  .rozdata ${ROZDATA_START_ADDR} : {
+  .rozdata ${ROZDATA_START_ADDR} :
+  {
 	*(.rozdata)
 	*(romzdata)
 	*(romzbss)
   }
 
-  /* Read-only sections, merged into text segment: */
+  /* Read-only sections, merged into text segment.  */
   . = ${TEXT_START_ADDR};
   .interp	: { *(.interp) }
   .hash		: { *(.hash) }
@@ -58,9 +59,11 @@ SECTIONS
   .init		: { KEEP (*(.init)) } =0
   .plt		: { *(.plt) }
 
-  .text		: {
+  .text		:
+  {
     *(.text)
     ${RELOCATING+*(.text.*)}
+    
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
     *(.gnu.linkonce.t*)
@@ -73,45 +76,51 @@ SECTIONS
       It contains a small lookup table at the start followed by the
       code pointed to by entries in the lookup table.  */
 
-  .call_table_data ${CALL_TABLE_START_ADDR} : {
+  .call_table_data ${CALL_TABLE_START_ADDR} :
+  {
     ${RELOCATING+PROVIDE(__ctbp = .);}
     *(.call_table_data)
-  } = 0xff   /* fill gaps with 0xff */
-  .call_table_text : {
+  } = 0xff   /* Fill gaps with 0xff.  */
+  
+  .call_table_text :
+  {
     *(.call_table_text)
   }
 
-  .fini		: { KEEP (*(.fini))    } =0
+  .fini		: { KEEP (*(.fini)) } =0
   .rodata	: { *(.rodata) ${RELOCATING+*(.rodata.*)} *(.gnu.linkonce.r*) }
   .rodata1	: { *(.rodata1) }
 
-  .data		: {
+  .data		:
+  {
     *(.data)
     ${RELOCATING+*(.data.*)}
     *(.gnu.linkonce.d*)
     CONSTRUCTORS
   }
   .data1	: { *(.data1) }
-  .ctors	: {
-    ${RELOCATING+___ctors = .;}
+  .ctors	:
+  {
+    ${CONSTRUCTING+___ctors = .;}
     KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
     KEEP (*(SORT(.ctors.*)))
     KEEP (*crtend(.ctors))
-    ${RELOCATING+___ctors_end = .;}
+    ${CONSTRUCTING+___ctors_end = .;}
   }
-
-  .dtors	: {
-    ${RELOCATING+___dtors = .;}
+  .dtors	:
+  {
+    ${CONSTRUCTING+___dtors = .;}
     KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
     KEEP (*(SORT(.dtors.*)))
     KEEP (*crtend.o(.dtors))
-    ${RELOCATING+___dtors_end = .;}
+    ${CONSTRUCTING+___dtors_end = .;}
   }
 
   .got		: { *(.got.plt) *(.got) }
   .dynamic	: { *(.dynamic) }
 
-  .tdata ${TDATA_START_ADDR} : {
+  .tdata ${TDATA_START_ADDR} :
+  {
 	${RELOCATING+PROVIDE (__ep = .);}
 	*(.tbyte)
 	*(.tcommon_byte)
@@ -123,21 +132,26 @@ SECTIONS
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
-  .sdata ${SDATA_START_ADDR} : {
+     
+  .sdata ${SDATA_START_ADDR} :
+  {
 	${RELOCATING+PROVIDE (__gp = . + 0x8000);}
 	*(.sdata)
    }
 
   /* See comment about .rozdata. */
-  .rosdata ${ROSDATA_START_ADDR} : {
+  .rosdata ${ROSDATA_START_ADDR} :
+  {
 	*(.rosdata)
   }
 
   /* We place the .sbss data section AFTER the .rosdata section, so that
      it can directly preceed the .bss section.  This allows runtime startup
      code to initialise all the zero-data sections by simply taking the
-     value of '_edata' and zeroing until it reaches '_end'  */
-  .sbss : {
+     value of '_edata' and zeroing until it reaches '_end'.  */
+     
+  .sbss :
+  {
 	${RELOCATING+__sbss_start = .;}
 	*(.sbss)
 	*(.scommon)
@@ -184,7 +198,7 @@ SECTIONS
   .debug_pubnames 0	: { *(.debug_pubnames) }
 
   /* DWARF 2 */
-  .debug_info     0	: { *(.debug_info) }
+  .debug_info     0	: { *(.debug_info) *(.gnu.linkonce.wi.*) }
   .debug_abbrev   0	: { *(.debug_abbrev) }
   .debug_line     0	: { *(.debug_line) }
   .debug_frame    0	: { *(.debug_frame) }
@@ -192,17 +206,17 @@ SECTIONS
   .debug_loc      0	: { *(.debug_loc) }
   .debug_macinfo  0	: { *(.debug_macinfo) }
 
-  /* SGI/MIPS DWARF 2 extensions */
+  /* SGI/MIPS DWARF 2 extensions.  */
   .debug_weaknames 0	: { *(.debug_weaknames) }
   .debug_funcnames 0	: { *(.debug_funcnames) }
   .debug_typenames 0	: { *(.debug_typenames) }
   .debug_varnames  0	: { *(.debug_varnames) }
 
-  /* User stack */
-  .stack 0x200000	: {
+  /* User stack.  */
+  .stack 0x200000	:
+  {
 	${RELOCATING+__stack = .;}
 	*(.stack)
   }
-  /* These must appear regardless of  .  */
 }
 EOF

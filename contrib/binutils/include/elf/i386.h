@@ -1,5 +1,5 @@
 /* ix86 ELF support for BFD.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright (C) 1998, 99, 2000 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -40,10 +40,9 @@ START_RELOC_NUMBERS (elf_i386_reloc_type)
      RELOC_NUMBER (R_386_PC16,     21)
      RELOC_NUMBER (R_386_8,	   22)
      RELOC_NUMBER (R_386_PC8,      23)
-     RELOC_NUMBER (R_386_max,	   24)
      /* These are GNU extensions to enable C++ vtable garbage collection.  */
      RELOC_NUMBER (R_386_GNU_VTINHERIT, 250)
      RELOC_NUMBER (R_386_GNU_VTENTRY, 251)
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_386_max)
 
 #endif

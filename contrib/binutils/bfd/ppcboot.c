@@ -234,7 +234,7 @@ ppcboot_get_section_contents (abfd, section, location, offset, count)
      file_ptr offset;
      bfd_size_type count;
 {
-  if (bfd_seek (abfd, offset + sizeof(ppcboot_hdr_t), SEEK_SET) != 0
+  if (bfd_seek (abfd, offset + sizeof (ppcboot_hdr_t), SEEK_SET) != 0
       || bfd_read (location, 1, count, abfd) != count)
     return false;
   return true;
@@ -536,6 +536,6 @@ const bfd_target ppcboot_vec =
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
   NULL,
-  
+
   NULL
 };

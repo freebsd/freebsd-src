@@ -4,7 +4,7 @@
 
 s!@INCDIR@!$(INCDIR)!g
 s!@SRCDIR@/!!g
-s!\.\./bfd/hosts/[^ ]*\.h ! !g
+s! \.\./bfd/hosts/[^ ]*\.h! !g
 
 s/\\\n */ /g
 

@@ -86,7 +86,7 @@ subdirs=
 target_alias=NOTARGET
 target_makefile_frag=
 undefs=NOUNDEFS
-version="$Revision: 1.5 $"
+version="$Revision: 1.11 $"
 x11=default
 bindir='${exec_prefix}/bin'
 sbindir='${exec_prefix}/sbin'
@@ -237,7 +237,7 @@ do
 		esac
 
 		enableopt=`echo ${option} | sed 's:^--::;s:=.*$::;s:-:_:g'`
-		eval "$enableopt='$optarg'"
+		eval "$enableopt=\$optarg"
 		enableoptions="$enableoptions '$option'"
 		;;
 	--exec-prefix* | --ex*)
@@ -370,7 +370,7 @@ do
 		esac
 
 		withopt=`echo ${option} | sed 's:^--::;s:=.*$::;s:-:_:g'`
-		eval $withopt="$optarg"
+		eval $withopt="\$optarg"
 		withoptions="$withoptions $option"
 		;;
 	--without-*)
@@ -518,7 +518,8 @@ fi
 
 configsub=`echo ${progname} | sed 's/configure$/config.sub/'`
 moveifchange=`echo ${progname} | sed 's/configure$/move-if-change/'`
-topsrcdir=`cd \`dirname ${progname}\`; pwd`
+## the sed command below emulates the dirname command
+topsrcdir=`cd \`echo ${progname} | sed -e 's,[^/]*$,,;s,/$,,;s,^$,.,'\`; pwd`
 
 
 # this is a hack.  sun4 must always be a valid host alias or this will fail.
@@ -575,7 +576,6 @@ case "${srcdir}" in
                 exit 1
         fi
 esac
-
 
 # default exec_prefix
 case "${exec_prefixoption}" in
@@ -902,9 +902,6 @@ do
   test -n "$DEFAULT_LEX" && break
 done
 
-# BINUTILS LOCAL: This is included in the default CFLAGS when using gcc.
-warn_cflags="-W -Wall"
-
 if [ "${build}" != "${host}" ]; then
   # If we are doing a Canadian Cross, in which the host and build systems
   # are not the same, we set reasonable default values for the tools.
@@ -915,9 +912,10 @@ if [ "${build}" != "${host}" ]; then
   tools="${tools} HOST_PREFIX_1 LD LD_FOR_TARGET LEX MAKEINFO NM"
   tools="${tools} NM_FOR_TARGET RANLIB RANLIB_FOR_TARGET"
   tools="${tools} WINDRES WINDRES_FOR_TARGET YACC"
+  tools="${tools} OBJCOPY OBJDUMP"
 
   for var in ${tools}; do
-    if [ -z "`eval 'echo $'"${var}"`" ] && [ -r Makefile ]; then
+    if eval [ -z \"\$${var}\" ] && [ -r Makefile ]; then
       sed -n -e ':loop
 /\\$/ N
 s/\\\n//g
@@ -926,7 +924,7 @@ t loop
 	< Makefile > Makefile.v
       t=`tail -1 Makefile.v`
       if [ -n "${t}" ]; then
-	eval "${var}='${t}'"
+	eval "${var}=\${t}"
       fi
       rm -f Makefile.v
     fi
@@ -938,7 +936,7 @@ t loop
   AS_FOR_TARGET=${AS_FOR_TARGET-${target_alias}-as}
   BISON=${BISON-bison}
   CC=${CC-${host_alias}-gcc}
-  CFLAGS=${CFLAGS-"-g -O2 ${warn_cflags}"}
+  CFLAGS=${CFLAGS-"-g -O2"}
   CXX=${CXX-${host_alias}-c++}
   CXXFLAGS=${CXXFLAGS-"-g -O2"}
   CC_FOR_BUILD=${CC_FOR_BUILD-gcc}
@@ -958,6 +956,8 @@ t loop
   RANLIB_FOR_TARGET=${RANLIB_FOR_TARGET-${target_alias}-ranlib}
   WINDRES=${WINDRES-${host_alias}-windres}
   WINDRES_FOR_TARGET=${WINDRES_FOR_TARGET-${target_alias}-windres}
+  OBJCOPY=${OBJCOPY-${host_alias}-objcopy}
+  OBJDUMP=${OBJDUMP-${host_alias}-objdump}
 
   if [ -z "${YACC}" ]; then
     IFS="${IFS= 	}"; save_ifs="$IFS"; IFS="${IFS}:"
@@ -1008,6 +1008,8 @@ t loop
   export NM
   export RANLIB
   export WINDRES
+  export OBJCOPY
+  export OBJDUMP
 else
   # If CC is still not set, try to get gcc.
   if [ -z "${CC}" ]; then
@@ -1018,10 +1020,10 @@ else
 	CC="gcc"
 	echo 'void f(){}' > conftest.c
 	if test -z "`${CC} -g -c conftest.c 2>&1`"; then
-	  CFLAGS=${CFLAGS-"-g -O2 ${warn_cflags}"}
+	  CFLAGS=${CFLAGS-"-g -O2"}
 	  CXXFLAGS=${CXXFLAGS-"-g -O2"}
 	else
-	  CFLAGS=${CFLAGS-"-O2 ${warn_cflags}"}
+	  CFLAGS=${CFLAGS-"-O2"}
 	  CXXFLAGS=${CXXFLAGS-"-O2"}
 	fi
 	rm -f conftest*
@@ -1038,10 +1040,10 @@ else
       *gcc)
 	echo 'void f(){}' > conftest.c
 	if test -z "`${CC} -g -c conftest.c 2>&1`"; then
-	  CFLAGS=${CFLAGS-"-g -O2 ${warn_cflags}"}
+	  CFLAGS=${CFLAGS-"-g -O2"}
 	  CXXFLAGS=${CXXFLAGS-"-g -O2"}
 	else
-	  CFLAGS=${CFLAGS-"-O2 ${warn_cflags}"}
+	  CFLAGS=${CFLAGS-"-O2"}
 	  CXXFLAGS=${CXXFLAGS-"-O2"}
 	fi
 	rm -f conftest*
@@ -1411,6 +1413,7 @@ EOF
                     -e "s:^program_suffix[ 	]*=.*$:program_suffix = ${program_suffix}:" \
                     -e "s:^program_transform_name[ 	]*=.*$:program_transform_name = ${program_transform_name}:" \
                     -e "s|^tooldir[ 	]*=.*$|tooldir = ${tooldir}|" \
+                    -e "s|^build_tooldir[ 	]*=.*$|build_tooldir = ${tooldir}|" \
 		    -e "s:^DEFAULT_YACC[	 ]*=.*$:DEFAULT_YACC = ${DEFAULT_YACC}:" \
 		    -e "s:^DEFAULT_LEX[	 ]*=.*$:DEFAULT_LEX = ${DEFAULT_LEX}:" \
 		    -e "s:^DEFAULT_M4[  ]*=.*$:DEFAULT_M4 = ${DEFAULT_M4}:" \
@@ -1423,7 +1426,7 @@ EOF
 	    # tools.
 	    if [ "${build}" != "${host}" ]; then
 		for var in ${tools}; do
-		    val=`eval 'echo $'"${var}"`
+		    eval val=\$${var}
 		    sed -e "/^${var}[ 	]*=/{
 			   :loop1
 			   /\\\\$/ N

@@ -250,7 +250,7 @@ usage (help)
   if (! is_ranlib)
     {
       /* xgettext:c-format */
-      fprintf (s, _("Usage: %s [-]{dmpqrstx}[abcfilNoPsSuvV] [member-name] [count] archive-file file...\n"),
+      fprintf (s, _("Usage: %s [-X32_64] [-]{dmpqrstx}[abcfilNoPsSuvV] [member-name] [count] archive-file file...\n"),
 	       program_name);
       /* xgettext:c-format */
       fprintf (s, _("       %s -M [<mri-script]\n"), program_name);
@@ -276,6 +276,7 @@ usage (help)
       fprintf (s, _("  [S]          - do not build a symbol table\n"));
       fprintf (s, _("  [v]          - be verbose\n"));
       fprintf (s, _("  [V]          - display the version number\n"));
+      fprintf (s, _("  [-X32_64]    - (ignored)\n"));
     }
   else
     /* xgettext:c-format */
@@ -307,10 +308,10 @@ normalize (file, abfd)
   {
     /* We could have foo/bar\\baz, or foo\\bar, or d:bar.  */
     char *bslash = strrchr (file, '\\');
-    if (bslash > filename)
+    if (filename == NULL || (bslash != NULL && bslash > filename))
       filename = bslash;
     if (filename == NULL && file[0] != '\0' && file[1] == ':')
-	filename = file + 1;
+      filename = file + 1;
   }
 #endif
   if (filename != (char *) NULL)
@@ -392,7 +393,7 @@ main (argc, argv)
 	{
 	  /* We could have foo/bar\\baz, or foo\\bar, or d:bar.  */
 	  char *bslash = strrchr (program_name, '\\');
-	  if (bslash > temp)
+	  if (temp == NULL || (bslash != NULL && bslash > temp))
 	    temp = bslash;
 	  if (temp == NULL && program_name[0] != '\0' && program_name[1] == ':')
 	    temp = program_name + 1;
@@ -430,6 +431,17 @@ main (argc, argv)
   show_version = 0;
 
   xatexit (remove_output);
+
+  /* Ignored for (partial) AIX compatibility.  On AIX,
+     the -X option can be used to ignore certain kinds
+     of object files in the archive (the 64-bit objects
+     or the 32-bit objects).  GNU ar always looks at all
+     kinds of objects in an archive.  */
+  while (argc > 1 && strcmp (argv[1], "-X32_64") == 0)
+    {
+      argv++;
+      argc--;
+    }
 
   if (is_ranlib)
     {
@@ -812,7 +824,8 @@ print_contents (abfd)
     fatal (_("internal stat error on %s"), bfd_get_filename (abfd));
 
   if (verbose)
-    printf ("\n<%s>\n\n", bfd_get_filename (abfd));
+    /* xgettext:c-format */
+    printf (_("\n<member %s>\n\n"), bfd_get_filename (abfd));
 
   bfd_seek (abfd, 0, SEEK_SET);
 

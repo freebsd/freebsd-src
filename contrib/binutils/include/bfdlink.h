@@ -179,6 +179,8 @@ struct bfd_link_info
   const struct bfd_link_callbacks *callbacks;
   /* true if BFD should generate a relocateable object file.  */
   boolean relocateable;
+  /* true if BFD should generate relocation information in the final executable.  */
+  boolean emitrelocations;
   /* true if BFD should generate a "task linked" object file,
      similar to relocatable but also with globals converted to statics. */
   boolean task_link;
@@ -199,6 +201,19 @@ struct bfd_link_info
   /* true if BFD should generate errors for undefined symbols
      even if generating a shared object.  */
   boolean no_undefined;
+  /* true if BFD should allow undefined symbols in shared objects even
+     when no_undefined is set to disallow undefined symbols.  The net
+     result will be that undefined symbols in regular objects will
+     still trigger an error, but undefined symbols in shared objects
+     will be ignored.  The implementation of no_undefined makes the
+     assumption that the runtime linker will choke on undefined
+     symbols.  However there is at least one system (BeOS) where
+     undefined symbols in shared libraries is normal since the kernel
+     patches them at load time to select which function is most
+     appropriate for the current architecture.  I.E. dynamically
+     select an appropriate memset function.  Apparently it is also
+     normal for HPPA shared libraries to have undefined symbols.  */
+  boolean allow_shlib_undefined;
   /* Which symbols to strip.  */
   enum bfd_link_strip strip;
   /* Which local symbols to discard.  */
@@ -244,6 +259,15 @@ struct bfd_link_info
   /* The function to call when the executable or shared object is
      unloaded.  */
   const char *fini_function;
+
+  /* true if the new ELF dynamic tags are enabled. */ 
+  boolean new_dtags;
+
+  /* May be used to set DT_FLAGS for ELF. */
+  bfd_vma flags;
+
+  /* May be used to set DT_FLAGS_1 for ELF. */
+  bfd_vma flags_1;
 };
 
 /* This structures holds a set of callback functions.  These are

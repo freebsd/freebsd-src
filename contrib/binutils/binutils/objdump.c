@@ -255,7 +255,9 @@ usage (stream, status)
   -EL --endian=little            Assume little endian format when disassembling\n\
       --file-start-context       Include context from start of file (with -S)\n\
   -l, --line-numbers             Include line numbers and filenames in output\n\
-  -C, --demangle                 Decode mangled/processed symbol names\n\
+  -C, --demangle[=STYLE]         Decode mangled/processed symbol names\n\
+                                  The STYLE, if specified, can be `auto', 'gnu',\n\
+                                  'lucid', 'arm', 'hp', 'edg', or 'gnu-new-abi'\n\
   -w, --wide                     Format output for more than 80 columns\n\
   -z, --disassemble-zeroes       Do not skip blocks of zeroes when disassembling\n\
       --start-address=ADDR       Only process data whoes address is >= ADDR\n\
@@ -288,7 +290,7 @@ static struct option long_options[]=
   {"architecture", required_argument, NULL, 'm'},
   {"archive-headers", no_argument, NULL, 'a'},
   {"debugging", no_argument, NULL, 'g'},
-  {"demangle", no_argument, NULL, 'C'},
+  {"demangle", optional_argument, NULL, 'C'},
   {"disassemble", no_argument, NULL, 'd'},
   {"disassemble-all", no_argument, NULL, 'D'},
   {"disassembler-options", required_argument, NULL, 'M'},
@@ -371,6 +373,8 @@ dump_section_header (abfd, section, ignored)
   PF (SEC_NEVER_LOAD, "NEVER_LOAD");
   PF (SEC_EXCLUDE, "EXCLUDE");
   PF (SEC_SORT_ENTRIES, "SORT_ENTRIES");
+  PF (SEC_BLOCK, "BLOCK");
+  PF (SEC_CLINK, "CLINK");
   PF (SEC_SMALL_DATA, "SMALL_DATA");
   PF (SEC_SHARED, "SHARED");
 
@@ -1354,13 +1358,15 @@ disassemble_bytes (info, disassemble_fn, insns, data,
 	      info->bytes_per_line = 0;
 	      info->bytes_per_chunk = 0;
 
+#ifdef DISASSEMBLER_NEEDS_RELOCS
 	      /* FIXME: This is wrong.  It tests the number of octets
                  in the last instruction, not the current one.  */
 	      if (*relppp < relppend
 		  && (**relppp)->address >= addr_offset
-		  && (**relppp)->address < addr_offset + octets / opb)
+		  && (**relppp)->address <= addr_offset + octets / opb)
 		info->flags = INSN_HAS_RELOC;
 	      else
+#endif
 		info->flags = 0;
 
 	      octets = (*disassemble_fn) (section->vma + addr_offset, info);
@@ -1500,12 +1506,20 @@ disassemble_bytes (info, disassemble_fn, insns, data,
 	    need_nl = true;
 	}
 
-      if (dump_reloc_info
-	  && (section->flags & SEC_RELOC) != 0)
+      if ((section->flags & SEC_RELOC) != 0
+#ifndef DISASSEMBLER_NEEDS_RELOCS	  
+  	  && dump_reloc_info
+#endif
+	  )
 	{
 	  while ((*relppp) < relppend
 		 && ((**relppp)->address >= (bfd_vma) addr_offset
 		     && (**relppp)->address < (bfd_vma) addr_offset + octets / opb))
+#ifdef DISASSEMBLER_NEEDS_RELOCS
+	    if (! dump_reloc_info)
+	      ++(*relppp);
+	    else
+#endif
 	    {
 	      arelent *q;
 
@@ -1661,8 +1675,11 @@ disassemble_data (abfd)
       if (only != (char *) NULL && strcmp (only, section->name) != 0)
 	continue;
 
-      if (dump_reloc_info
-	  && (section->flags & SEC_RELOC) != 0)
+      if ((section->flags & SEC_RELOC) != 0
+#ifndef DISASSEMBLER_NEEDS_RELOCS	  
+	  && dump_reloc_info
+#endif
+	  ) 
 	{
 	  long relsize;
 
@@ -2631,7 +2648,7 @@ display_target_list ()
   char *dummy_name;
   int t;
 
-  dummy_name = choose_temp_base ();
+  dummy_name = make_temp_file (NULL);
   for (t = 0; bfd_target_vector[t]; t++)
     {
       bfd_target *p = bfd_target_vector[t];
@@ -2685,7 +2702,7 @@ display_info_table (first, last)
     printf ("%s ", bfd_target_vector[t]->name);
   putchar ('\n');
 
-  dummy_name = choose_temp_base ();
+  dummy_name = make_temp_file (NULL);
   for (a = (int) bfd_arch_obscure + 1; a < (int) bfd_arch_last; a++)
     if (strcmp (bfd_printable_arch_mach (a, 0), "UNKNOWN!") != 0)
       {
@@ -2831,6 +2848,17 @@ main (argc, argv)
 	  break;
 	case 'C':
 	  do_demangle = true;
+	  if (optarg != NULL)
+	    {
+	      enum demangling_styles style;
+	      
+	      style = cplus_demangle_name_to_style (optarg);
+	      if (style == unknown_demangling) 
+		fatal (_("unknown demangling style `%s'"),
+		       optarg);
+	      
+	      cplus_demangle_set_style (style);
+           }
 	  break;
 	case 'w':
 	  wide_output = true;

@@ -14,8 +14,6 @@ debug.h
 dlltool.c
 dlltool.h
 dllwrap.c
-dyn-string.c
-dyn-string.h
 filemode.c
 ieee.c
 ieee.c
