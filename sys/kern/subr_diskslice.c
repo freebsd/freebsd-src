@@ -89,7 +89,9 @@ static void set_ds_bad __P((struct diskslices *ssp, int slice,
 static void set_ds_label __P((struct diskslices *ssp, int slice,
 			      struct disklabel *lp));
 static void set_ds_labeldevs __P((dev_t dev, struct diskslices *ssp));
+#ifdef DEVFS
 static void set_ds_labeldevs_unaliased __P((dev_t dev, struct diskslices *ssp));
+#endif
 static void set_ds_wlabel __P((struct diskslices *ssp, int slice,
 			       int wlabel));
 
@@ -1111,12 +1113,12 @@ set_ds_labeldevs(dev, ssp)
 #endif /* DEVFS */
 }
 
+#ifdef DEVFS
 static void
 set_ds_labeldevs_unaliased(dev, ssp)
 	dev_t	dev;
 	struct diskslices *ssp;
 {
-#ifdef DEVFS
 	struct disklabel *lp;
 	int	mynor;
 	int	part;
@@ -1155,8 +1157,8 @@ set_ds_labeldevs_unaliased(dev, ssp)
 						 "r%s%s", sname, partname);
 		}
 	}
-#endif /* DEVFS */
 }
+#endif /* DEVFS */
 
 static void
 set_ds_wlabel(ssp, slice, wlabel)
