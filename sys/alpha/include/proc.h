@@ -52,7 +52,8 @@ struct mdthread {
 	u_int64_t	md_hae;		/* user HAE register value */
 	void            *osf_sigtramp;  /* user-level signal trampoline */
 	u_int		md_kernnest;	/* nesting level in the kernel */
-	register_t	md_savecrit;	/* save PSL for critical section */
+	register_t	md_saved_ipl;	/* save IPL for critical section */
+	u_int		md_spinlock_count;
 };
 
 #define	MDP_UAC_NOPRINT	0x0010		/* Don't print unaligned traps */

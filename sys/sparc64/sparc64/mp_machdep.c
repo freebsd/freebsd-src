@@ -309,9 +309,7 @@ cpu_mp_unleash(void *v)
 			continue;
 		KASSERT(pc->pc_idlethread != NULL,
 		    ("cpu_mp_unleash: idlethread"));
-		KASSERT(pc->pc_curthread == pc->pc_idlethread,
-		    ("cpu_mp_unleash: curthread"));
-	
+		pc->pc_curthread = pc->pc_idlethread;	
 		pc->pc_curpcb = pc->pc_curthread->td_pcb;
 		for (i = 0; i < PCPU_PAGES; i++) {
 			va = pc->pc_addr + i * PAGE_SIZE;
@@ -347,6 +345,7 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	tick_start_ap();
 
 	smp_cpus++;
+	KASSERT(curthread != NULL, ("cpu_mp_bootstrap: curthread"));
 	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
 	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
@@ -356,11 +355,11 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	while (csa->csa_count != 0)
 		;
 
-	binuptime(PCPU_PTR(switchtime));
-	PCPU_SET(switchticks, ticks);
-
 	/* ok, now grab sched_lock and enter the scheduler */
 	mtx_lock_spin(&sched_lock);
+	spinlock_exit();
+	binuptime(PCPU_PTR(switchtime));
+	PCPU_SET(switchticks, ticks);
 	cpu_throw(NULL, choosethread());	/* doesn't return */
 }
 

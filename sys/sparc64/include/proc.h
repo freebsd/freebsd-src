@@ -42,7 +42,8 @@ struct md_utrap {
 };
 
 struct mdthread {
-	register_t md_savecrit;
+	int	md_spinlock_count;	/* (k) */
+	register_t md_saved_pil;	/* (k) */
 };
 
 struct mdproc {

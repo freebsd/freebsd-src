@@ -78,7 +78,6 @@ amd64/amd64/autoconf.c		standard
 amd64/amd64/bios.c		standard
 amd64/amd64/busdma_machdep.c	standard
 amd64/amd64/cpu_switch.S	standard
-amd64/amd64/critical.c		standard
 amd64/amd64/db_disasm.c		optional	ddb
 amd64/amd64/db_interface.c	optional	ddb
 amd64/amd64/db_trace.c		optional	ddb

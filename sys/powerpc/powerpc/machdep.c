@@ -907,6 +907,30 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 
 }
 
+void
+spinlock_enter(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	if (td->td_md.md_spinlock_count == 0)
+		td->td_md.md_saved_msr = intr_disable();
+	td->td_md.md_spinlock_count++;
+	critical_enter();
+}
+
+void
+spinlock_exit(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	critical_exit();
+	td->td_md.md_spinlock_count--;
+	if (td->td_md.md_spinlock_count == 0)
+		intr_restore(td->td_md.md_saved_msr);
+}
+
 /*
  * kcopy(const void *src, void *dst, size_t len);
  *

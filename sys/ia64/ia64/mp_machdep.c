@@ -111,16 +111,32 @@ ia64_ap_startup(void)
 	ia64_mca_save_state(SAL_INFO_MCA);
 	ia64_mca_save_state(SAL_INFO_CMC);
 
+	/* Initialize curthread. */
+	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
+	PCPU_SET(curthread, PCPU_GET(idlethread));
+
 	ap_awake++;
 	while (!smp_started)
 		/* spin */;
 
 	CTR1(KTR_SMP, "SMP: cpu%d launched", PCPU_GET(cpuid));
 
+	mtx_lock_spin(&sched_lock);
+
+	/*
+	 * Correct spinlock nesting.  The idle thread context that we are
+	 * borrowing was created so that it would start out with a single
+	 * spin lock (sched_lock) held in fork_trampoline().  Since we've
+	 * explicitly acquired locks in this function, the nesting count
+	 * is now 2 rather than 1.  Since we are nested, calling
+	 * spinlock_exit() will simply adjust the counts without allowing
+	 * spin lock using code to interrupt us.
+	 */
+	spinlock_exit();
+	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
+
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
-
-	mtx_lock_spin(&sched_lock);
 
 	ia64_set_tpr(0);
 
