@@ -5,10 +5,10 @@
 PROG=	pod2html
 
 ${PROG}: ${PROG}.PL
-	miniperl ${MINIPERLOPT} ${PROG}.PL
+	${MINIPERL} ${MINIPERLOPT} ${PROG}.PL
 
 ${PROG}.1: ${PROG}.PL
-	miniperl ${MINIPERLOPT} ${.OBJDIR}/../pod2man/pod2man ${PROG}.PL > ${PROG}.1
+	${MINIPERL} ${MINIPERLOPT} ${.OBJDIR}/../pod2man/pod2man ${PROG}.PL > ${PROG}.1
 
 .include <bsd.prog.mk>
 

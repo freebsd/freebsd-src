@@ -1,7 +1,10 @@
 # $FreeBSD$
 
-SUBDIR= B ByteLoader DB_File Dumper DProf Errno Peek Fcntl Glob IO SysV \
-	NDBM_File Opcode POSIX SDBM_File Socket Hostname Syslog attrs re
+SUBDIR=	B DB_File Dumper Errno Fcntl IO SysV NDBM_File Opcode POSIX \
+	SDBM_File Socket attrs re
+.if defined(${PERL_THREADED}) && ${PERL_THREADED} == "yes"
+SUBDIR+=Thread
+.endif
 
 all:	man3pages
 	
@@ -21,6 +24,8 @@ beforeinstall:
 	@cd ${.OBJDIR} ;\
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		Config.pm ${DESTDIR}/usr/libdata/perl/${VERSION}/mach
+
+CLEANFILES= ext.libs autosplit pod2man pod2man.PL man3pages
 
 .include <bsd.prog.mk>
 

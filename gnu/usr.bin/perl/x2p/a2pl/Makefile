@@ -24,4 +24,4 @@ temp:
 .SUFFIXES: .c .h .o
 
 ${PROG}.1: ${PROG}.pod
-	miniperl ${MINIPERLOPT} ${.OBJDIR}/../../pod/pod2man/pod2man ${.OODATE} > ${.TARGET}
+	${MINIPERL} ${MINIPERLOPT} ${.OBJDIR}/../../pod/pod2man/pod2man ${.OODATE} > ${.TARGET}
