@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.12 1995/07/21 16:30:52 bde Exp $
+ * $Id: tty_pty.c,v 1.13 1995/07/21 20:52:40 bde Exp $
  */
 
 /*
@@ -373,13 +373,7 @@ ptcread(dev, uio, flag)
 			break;
 		error = uiomove(buf, cc, uio);
 	}
-	if (tp->t_outq.c_cc <= tp->t_lowat) {
-		if (tp->t_state&TS_ASLEEP) {
-			tp->t_state &= ~TS_ASLEEP;
-			wakeup((caddr_t)&tp->t_outq);
-		}
-		selwakeup(&tp->t_wsel);
-	}
+	ttwwakeup(tp);
 	return (error);
 }
 
