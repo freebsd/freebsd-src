@@ -57,6 +57,8 @@ SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 static void sched_setup(void *dummy);
 SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
 
+#define	SCHED_STRICT_RESCHED 1
+
 /*
  * These datastructures are allocated within their parent datastructure but
  * are scheduler specific.
