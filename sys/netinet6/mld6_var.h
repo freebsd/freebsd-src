@@ -35,13 +35,13 @@
 
 #ifdef _KERNEL
 
-#define MLD6_RANDOM_DELAY(X) (arc4random() % (X) + 1)
+#define MLD_RANDOM_DELAY(X) (arc4random() % (X) + 1)
 
 /*
  * States for MLD stop-listening processing
  */
-#define MLD6_OTHERLISTENER			0
-#define MLD6_IREPORTEDLAST			1
+#define MLD_OTHERLISTENER			0
+#define MLD_IREPORTEDLAST			1
 
 void	mld6_init(void);
 void	mld6_input(struct mbuf *, int);
