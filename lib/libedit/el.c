@@ -333,25 +333,6 @@ el_get(EditLine *el, int op, void *ret)
 			break;
 		}
 		break;
-}
-
-public void
-el_data_set (el, data)
-    EditLine *el;
-    void *data;
-{
-    el->data = data;
-
-    return;
-}
-
-public void *
-el_data_get (el)
-    EditLine *el;
-{
-    if (el->data)
-	return (el->data);
-    return (NULL);
 	}
 
 	case EL_ADDFN:
@@ -380,6 +361,30 @@ el_data_get (el)
 	return (rv);
 }
 
+/* el_data_get():
+ *	Set user private data.
+ */
+public void
+el_data_set (el, data)
+    EditLine *el;
+    void *data;
+{
+    el->data = data;
+
+    return;
+}
+
+/* el_data_get():
+ *	Return user private data.
+ */
+public void *
+el_data_get (el)
+    EditLine *el;
+{
+    if (el->data)
+	return (el->data);
+    return (NULL);
+}
 
 /* el_line():
  *	Return editing info
