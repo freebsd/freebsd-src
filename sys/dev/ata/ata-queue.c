@@ -53,12 +53,13 @@ ata_queue_request(struct ata_request *request)
 {
     /* mark request as virgin */
     request->result = request->status = request->error = 0;
-    if (!request->callback)
+    if (!request->callback && !(request->flags & ATA_R_REQUEUE))
 	sema_init(&request->done, 0, "ATA request done");
 
-    if (request->device->channel->flags & ATA_IMMEDIATE_MODE) {
-
-	// request->flags |= ATA_R_DEBUG;
+    /* in IMMEDIATE_MODE we dont queue but call HW directly */
+    /* used only during reinit for getparm and config */
+    if ((request->device->channel->flags & ATA_IMMEDIATE_MODE) &&
+	(request->flags & (ATA_R_CONTROL | ATA_R_IMMEDIATE))) {
 
 	/* arm timeout */
 	if (!request->timeout_handle.callout && !dumping) {
@@ -67,16 +68,16 @@ ata_queue_request(struct ata_request *request)
 	}
 
 	/* kick HW into action */
-	if (request->device->channel->hw.transaction(request) ==
-	    ATA_OP_CONTINUES) {
-	    ATA_DEBUG_RQ(request, "wait for completition");
-	    sema_wait(&request->done);
+	if (request->device->channel->hw.transaction(request)==ATA_OP_FINISHED){
+	    if (!request->callback) 
+		sema_destroy(&request->done);
+	    return;
 	}
     }
     else  {
 	/* put request on the locked queue at the specified location */
 	mtx_lock(&request->device->channel->queue_mtx);
-	if (request->flags & ATA_R_AT_HEAD)
+	if (request->flags & ATA_R_IMMEDIATE)
 	    TAILQ_INSERT_HEAD(&request->device->channel->ata_queue,
 			      request, chain);
 	else
@@ -86,21 +87,21 @@ ata_queue_request(struct ata_request *request)
 
 	ATA_DEBUG_RQ(request, "queued");
 
-	/* should we skip start ? */
+	/* should we skip start to avoid lock recursion ? */
 	if (!(request->flags & ATA_R_SKIPSTART))
 	    ata_start(request->device->channel);
-
-	/* if this is a requeued request callback/sleep is already setup */
-	if (request->flags & ATA_R_REQUEUE)
-	    return;
-	/* if this is not a callback wait until request is completed */
-	if (!request->callback) {
-	    ATA_DEBUG_RQ(request, "wait for completition");
-	    sema_wait(&request->done);
-	}
     }
-    if (!request->callback)
+
+    /* if this is a requeued request callback/sleep has been setup */
+    if (request->flags & ATA_R_REQUEUE)
+	return;
+
+    /* if this is not a callback wait until request is completed */
+    if (!request->callback) {
+	ATA_DEBUG_RQ(request, "wait for completition");
+	sema_wait(&request->done);
 	sema_destroy(&request->done);
+    }
 }
 
 int
@@ -231,7 +232,7 @@ ata_completed(void *context, int pending)
 	/* if retries still permit, reinject this request */
 	if (request->retries-- > 0) {
 	    request->flags &= ~(ATA_R_TIMEOUT | ATA_R_SKIPSTART);
-	    request->flags |= (ATA_R_AT_HEAD | ATA_R_REQUEUE);
+	    request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
 	    ata_queue_request(request);
 	    return;
 	}
@@ -269,6 +270,7 @@ ata_completed(void *context, int pending)
 		    printf(" LBA=%llu", (unsigned long long)request->u.ata.lba);
 		printf("\n");
 		request->flags &= ~ATA_R_SKIPSTART;
+		request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
 		ata_queue_request(request);
 		return;
 	    }

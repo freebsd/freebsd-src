@@ -565,7 +565,7 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 	if (request) {
 	    request->device = atadev;
 	    request->u.ata.command = command;
-	    request->flags = (ATA_R_READ | ATA_R_AT_HEAD | ATA_R_QUIET);
+	    request->flags = (ATA_R_READ | ATA_R_IMMEDIATE | ATA_R_QUIET);
 	    request->data = (caddr_t)atadev->param;
 	    request->timeout = 2;
 	    request->retries = 3;
@@ -576,6 +576,7 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 		if (!(error = request->result))
 		    break;
 		request->retries--;
+		request->flags |= ATA_R_REQUEUE;
 	    }
 	    ata_free_request(request);
 	}
