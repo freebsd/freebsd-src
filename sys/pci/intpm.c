@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intpm.c,v 1.5 1999/04/21 07:26:29 peter Exp $
+ *	$Id: intpm.c,v 1.6 1999/04/24 20:14:02 peter Exp $
  */
 
 #include "pci.h"
@@ -668,7 +668,6 @@ static struct intpm_pci_softc *intpm_alloc(int unit){
 /*Same as pci_map_int but this ignores INTPIN*/
 static int force_pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 {
-        int error;
 #ifdef APIC_IO
         int nextpin, muxcnt;
 #endif
@@ -709,7 +708,7 @@ static int force_pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsign
         nextpin = next_apic_irq(irq);
         while (nextpin >= 0) {
                 idesc = inthand_add(NULL, nextpin, func, arg, maskptr, 0);
-                if (error != 0)
+                if (idesc == 0)
                         return 0;
                 printf("Registered extra interrupt handler for int %d (in addition to int %d)\n", nextpin, irq);
                 nextpin = next_apic_irq(nextpin);
