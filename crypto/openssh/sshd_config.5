@@ -305,6 +305,10 @@ To disable keepalives, the value should be set to
 .It Cm KerberosAuthentication
 Specifies whether Kerberos authentication is allowed.
 This can be in the form of a Kerberos ticket, or if
+.It Cm PAMAuthenticationViaKbdInt
+Specifies whether PAM challenge response authentication is allowed. This
+allows the use of most PAM challenge response authentication modules, but
+it will allow password authentication regardless of whether
 .Cm PasswordAuthentication
 is yes, the password provided by the user will be validated through
 the Kerberos KDC.

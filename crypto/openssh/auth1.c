@@ -94,6 +94,8 @@ do_authloop(Authctxt *authctxt)
 	packet_send();
 	packet_write_wait();
 
+	client_user = NULL;
+
 	for (;;) {
 		/* default to fail */
 		authenticated = 0;
@@ -127,7 +129,6 @@ do_authloop(Authctxt *authctxt)
 						snprintf(info, sizeof(info),
 						    " tktuser %.100s",
 						    client_user);
-						xfree(client_user);
 					}
 #endif /* KRB4 */
 				} else {
@@ -141,7 +142,6 @@ do_authloop(Authctxt *authctxt)
 						snprintf(info, sizeof(info),
 						    " tktuser %.100s",
 						    client_user);
-						xfree(client_user);
 					}
 #endif /* KRB5 */
 				}
@@ -180,7 +180,6 @@ do_authloop(Authctxt *authctxt)
 			authenticated = auth_rhosts(pw, client_user);
 
 			snprintf(info, sizeof info, " ruser %.100s", client_user);
-			xfree(client_user);
 			break;
 
 		case SSH_CMSG_AUTH_RHOSTS_RSA:
@@ -212,7 +211,6 @@ do_authloop(Authctxt *authctxt)
 			key_free(client_host_key);
 
 			snprintf(info, sizeof info, " ruser %.100s", client_user);
-			xfree(client_user);
 			break;
 
 		case SSH_CMSG_AUTH_RSA:
@@ -294,19 +292,45 @@ do_authloop(Authctxt *authctxt)
 			fatal("INTERNAL ERROR: authenticated invalid user %s",
 			    authctxt->user);
 
+#ifdef HAVE_CYGWIN
+		if (authenticated &&
+		    !check_nt_auth(type == SSH_CMSG_AUTH_PASSWORD, pw)) {
+			packet_disconnect("Authentication rejected for uid %d.",
+			pw == NULL ? -1 : pw->pw_uid);
+			authenticated = 0;
+		}
+#else
 		/* Special handling for root */
 		if (authenticated && authctxt->pw->pw_uid == 0 &&
 		    !auth_root_allowed(get_authname(type)))
 			authenticated = 0;
+#endif
+#ifdef USE_PAM
+		if (!use_privsep && authenticated && 
+		    !do_pam_account(pw->pw_name, client_user))
+			authenticated = 0;
+#endif
 
 		/* Log before sending the reply */
 		auth_log(authctxt, authenticated, get_authname(type), info);
 
+		if (client_user != NULL) {
+			xfree(client_user);
+			client_user = NULL;
+		}
+
 		if (authenticated)
 			return;
 
-		if (authctxt->failures++ > AUTH_FAIL_MAX)
+		if (authctxt->failures++ > AUTH_FAIL_MAX) {
+#ifdef WITH_AIXAUTHENTICATE
+			/* XXX: privsep */
+			loginfailed(authctxt->user,
+			    get_canonical_hostname(options.verify_reverse_mapping),
+			    "ssh");
+#endif /* WITH_AIXAUTHENTICATE */
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
+		}
 
 		packet_start(SSH_SMSG_FAILURE);
 		packet_send();
@@ -358,13 +382,19 @@ do_authentication(void)
 	setproctitle("%s%s", authctxt->pw ? user : "unknown",
 	    use_privsep ? " [net]" : "");
 
+#ifdef USE_PAM
+	PRIVSEP(start_pam(authctxt->pw == NULL ? "NOUSER" : user));
+#endif
+
 	/*
 	 * If we are not running as root, the user must have the same uid as
-	 * the server.
+	 * the server. (Unless you are running Windows)
 	 */
+#ifndef HAVE_CYGWIN
 	if (!use_privsep && getuid() != 0 && authctxt->pw &&
 	    authctxt->pw->pw_uid != getuid())
 		packet_disconnect("Cannot change user when server not running as root.");
+#endif
 
 	/*
 	 * Loop until the user has been authenticated or the connection is

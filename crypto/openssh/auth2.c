@@ -85,6 +85,10 @@ do_authentication2(void)
 	/* challenge-response is implemented via keyboard interactive */
 	if (options.challenge_response_authentication)
 		options.kbd_interactive_authentication = 1;
+	if (options.pam_authentication_via_kbd_int)
+		options.kbd_interactive_authentication = 1;
+	if (use_privsep)
+		options.pam_authentication_via_kbd_int = 0;
 
 	dispatch_init(&dispatch_protocol_error);
 	dispatch_set(SSH2_MSG_SERVICE_REQUEST, &input_service_request);
@@ -152,8 +156,14 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 		if (authctxt->pw && strcmp(service, "ssh-connection")==0) {
 			authctxt->valid = 1;
 			debug2("input_userauth_request: setting up authctxt for %s", user);
+#ifdef USE_PAM
+			PRIVSEP(start_pam(authctxt->pw->pw_name));
+#endif
 		} else {
 			log("input_userauth_request: illegal user %s", user);
+#ifdef USE_PAM
+			PRIVSEP(start_pam("NOUSER"));
+#endif
 		}
 		setproctitle("%s%s", authctxt->pw ? user : "unknown",
 		    use_privsep ? " [net]" : "");
@@ -199,6 +209,12 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 	    !auth_root_allowed(method))
 		authenticated = 0;
 
+#ifdef USE_PAM
+	if (!use_privsep && authenticated && authctxt->user && 
+	    !do_pam_account(authctxt->user, NULL))
+		authenticated = 0;
+#endif /* USE_PAM */
+
 	/* Log before sending the reply */
 	auth_log(authctxt, authenticated, method, " ssh2");
 
@@ -215,8 +231,15 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		/* now we can break out */
 		authctxt->success = 1;
 	} else {
-		if (authctxt->failures++ > AUTH_FAIL_MAX)
+		if (authctxt->failures++ > AUTH_FAIL_MAX) {
+#ifdef WITH_AIXAUTHENTICATE
+			/* XXX: privsep */
+			loginfailed(authctxt->user,
+			    get_canonical_hostname(options.verify_reverse_mapping),
+			    "ssh");
+#endif /* WITH_AIXAUTHENTICATE */
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
+		}
 		methods = authmethods_get();
 		packet_start(SSH2_MSG_USERAUTH_FAILURE);
 		packet_put_cstring(methods);

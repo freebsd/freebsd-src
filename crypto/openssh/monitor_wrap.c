@@ -197,7 +197,9 @@ mm_getpwnamallow(const char *login)
 	pw->pw_name = buffer_get_string(&m, NULL);
 	pw->pw_passwd = buffer_get_string(&m, NULL);
 	pw->pw_gecos = buffer_get_string(&m, NULL);
+#ifdef HAVE_PW_CLASS_IN_PASSWD
 	pw->pw_class = buffer_get_string(&m, NULL);
+#endif
 	pw->pw_dir = buffer_get_string(&m, NULL);
 	pw->pw_shell = buffer_get_string(&m, NULL);
 	buffer_free(&m);
@@ -646,6 +648,23 @@ mm_session_pty_cleanup2(void *session)
 	/* unlink pty from session */
 	s->ttyfd = -1;
 }
+
+#ifdef USE_PAM
+void
+mm_start_pam(char *user)
+{
+	Buffer m;
+
+	debug3("%s entering", __func__);
+
+	buffer_init(&m);
+	buffer_put_cstring(&m, user);
+
+	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_PAM_START, &m);
+
+	buffer_free(&m);
+}
+#endif /* USE_PAM */
 
 /* Request process termination */
 

@@ -130,6 +130,7 @@ typedef struct {
 
 	char   *authorized_keys_file;	/* File containing public keys */
 	char   *authorized_keys_file2;
+	int	pam_authentication_via_kbd_int;
 }       ServerOptions;
 
 void	 initialize_server_options(ServerOptions *);
