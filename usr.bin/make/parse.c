@@ -2534,6 +2534,9 @@ Parse_File(char *name, FILE *stream)
 
 	    free(line);
 	}
+	if (curFile.F != NULL)
+		ParseFinishLine();
+
 	/*
 	 * Reached EOF, but it may be just EOF of an include file...
 	 */
