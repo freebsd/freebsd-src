@@ -236,12 +236,15 @@ remove_drive(int driveno)
     struct drive *drive = &vinum_conf.drive[driveno];
     long long int nomagic = VINUM_NOMAGIC;		    /* no magic number */
 
-    write_drive(drive,					    /* obliterate the magic, but leave a hint */
-	(char *) &nomagic,
-	8,
-	VINUM_LABEL_OFFSET);
-    free_drive(drive);					    /* close it and free resources */
-    save_config();					    /* and save the updated configuration */
+    if (drive->state > drive_referenced) {		    /* real drive */
+	if (drive->state == drive_up)
+	    write_drive(drive,				    /* obliterate the magic, but leave a hint */
+		(char *) &nomagic,
+		8,
+		VINUM_LABEL_OFFSET);
+	free_drive(drive);				    /* close it and free resources */
+	save_config();					    /* and save the updated configuration */
+    }
 }
 
 /*
@@ -596,11 +599,11 @@ format_config(char *config, int len)
     bzero(config, len);
 
     /* First, the volume configuration */
-    for (i = 0; i < vinum_conf.volumes_used; i++) {
+    for (i = 0; i < vinum_conf.volumes_allocated; i++) {
 	struct volume *vol;
 
 	vol = &vinum_conf.volume[i];
-	if ((vol->state != volume_unallocated)
+	if ((vol->state > volume_uninit)
 	    && (vol->name[0] != '\0')) {		    /* paranoia */
 	    if (vol->preferred_plex >= 0)		    /* preferences, */
 		sprintf(s,
@@ -624,11 +627,11 @@ format_config(char *config, int len)
     }
 
     /* Then the plex configuration */
-    for (i = 0; i < vinum_conf.plexes_used; i++) {
+    for (i = 0; i < vinum_conf.plexes_allocated; i++) {
 	struct plex *plex;
 
 	plex = &vinum_conf.plex[i];
-	if ((plex->state != plex_unallocated)
+	if ((plex->state != plex_referenced)
 	    && (plex->name[0] != '\0')) {		    /* paranoia */
 	    sprintf(s, "plex name %s state %s org %s ",
 		plex->name,
@@ -658,9 +661,11 @@ format_config(char *config, int len)
     }
 
     /* And finally the subdisk configuration */
-    for (i = 0; i < vinum_conf.subdisks_used; i++) {
-	struct sd *sd = &vinum_conf.sd[i];		    /* XXX */
-	if ((sd->state != sd_unallocated)
+    for (i = 0; i < vinum_conf.subdisks_allocated; i++) {
+	struct sd *sd;
+
+	sd = &SD[i];
+	if ((sd->state != sd_referenced)
 	    && (sd->name[0] != '\0')) {			    /* paranoia */
 	    sprintf(s,
 		"sd name %s drive %s plex %s state %s len ",
@@ -724,72 +729,74 @@ daemon_save_config(void)
 
     format_config(config, MAXCONFIG);
     error = 0;						    /* no errors yet */
-    for (driveno = 0; driveno < vinum_conf.drives_used; driveno++) {
+    for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	drive = &vinum_conf.drive[driveno];		    /* point to drive */
-	lockdrive(drive);				    /* don't let it change */
+	if (drive->state > drive_referenced) {
+	    lockdrive(drive);				    /* don't let it change */
 
-	/*
-	 * First, do some drive consistency checks.  Some
-	 * of these are kludges, others require a process
-	 * context and couldn't be done before 
-	 */
-	if ((drive->devicename[0] == '\0')		    /* XXX we keep getting these nameless drives */
-	||(drive->label.name[0] == '\0')) {		    /* XXX we keep getting these nameless drives */
-	    unlockdrive(drive);
-	    log(LOG_WARNING,
-		"Removing incomplete drive, index %d\n",
-		driveno);
-	    if (drive->vp)				    /* how can it be open without a name? */
-		close_drive(drive);
-	    free_drive(drive);				    /* get rid of it */
-	    break;
-	}
-	if ((drive->vp == NULL)				    /* drive not open */
-	&&(drive->state > drive_down)) {		    /* and it thinks it's not down */
-	    unlockdrive(drive);
-	    set_drive_state(driveno, drive_down, setstate_force); /* tell it what's what */
-	}
-	if ((drive->state == drive_down)		    /* it's down */
-	&&(drive->vp != NULL)) {			    /* but open, */
-	    unlockdrive(drive);
-	    close_drive(drive);				    /* close it */
-	} else if (drive->state > drive_down) {
-	    getmicrotime(&drive->label.last_update);	    /* time of last update is now */
-	    bcopy((char *) &drive->label,		    /* and the label info from the drive structure */
-		(char *) &vhdr->label,
-		sizeof(vhdr->label));
-	    if ((drive->state != drive_unallocated)
-		&& (drive->state != drive_referenced)) {    /* and it's a real drive */
-		wlabel_on = 1;				    /* enable writing the label */
-		error = VOP_IOCTL(drive->vp,		    /* make the label writeable */
-		    DIOCWLABEL,
-		    (caddr_t) & wlabel_on,
-		    FWRITE,
-		    NOCRED,
-		    curproc);
-		if (error == 0)
-		    error = write_drive(drive, (char *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
-		if (error == 0)
-		    error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET);	/* first config copy */
-		if (error == 0)
-		    error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET + MAXCONFIG); /* second copy */
-		wlabel_on = 0;				    /* enable writing the label */
-		if (error == 0)
-		    VOP_IOCTL(drive->vp,		    /* make the label non-writeable again */
+	    /*
+	     * First, do some drive consistency checks.  Some
+	     * of these are kludges, others require a process
+	     * context and couldn't be done before 
+	     */
+	    if ((drive->devicename[0] == '\0')		    /* XXX we keep getting these nameless drives */
+	    ||(drive->label.name[0] == '\0')) {		    /* XXX we keep getting these nameless drives */
+		unlockdrive(drive);
+		log(LOG_WARNING,
+		    "Removing incomplete drive, index %d\n",
+		    driveno);
+		if (drive->vp)				    /* how can it be open without a name? */
+		    close_drive(drive);
+		free_drive(drive);			    /* get rid of it */
+		break;
+	    }
+	    if ((drive->vp == NULL)			    /* drive not open */
+	    &&(drive->state > drive_down)) {		    /* and it thinks it's not down */
+		unlockdrive(drive);
+		set_drive_state(driveno, drive_down, setstate_force); /* tell it what's what */
+	    }
+	    if ((drive->state == drive_down)		    /* it's down */
+	    &&(drive->vp != NULL)) {			    /* but open, */
+		unlockdrive(drive);
+		close_drive(drive);			    /* close it */
+	    } else if (drive->state > drive_down) {
+		getmicrotime(&drive->label.last_update);    /* time of last update is now */
+		bcopy((char *) &drive->label,		    /* and the label info from the drive structure */
+		    (char *) &vhdr->label,
+		    sizeof(vhdr->label));
+		if ((drive->state != drive_unallocated)
+		    && (drive->state != drive_referenced)) { /* and it's a real drive */
+		    wlabel_on = 1;			    /* enable writing the label */
+		    error = VOP_IOCTL(drive->vp,	    /* make the label writeable */
 			DIOCWLABEL,
 			(caddr_t) & wlabel_on,
 			FWRITE,
 			NOCRED,
 			curproc);
-		unlockdrive(drive);
-		if (error) {
-		    log(LOG_ERR,
-			"vinum: Can't write config to %s, error %d\n",
-			drive->devicename,
-			error);
-		    set_drive_state(drive->driveno, drive_down, setstate_force);
-		} else
-		    written_config = 1;			    /* we've written it on at least one drive */
+		    if (error == 0)
+			error = write_drive(drive, (char *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
+		    if (error == 0)
+			error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET); /* first config copy */
+		    if (error == 0)
+			error = write_drive(drive, config, MAXCONFIG, VINUM_CONFIG_OFFSET + MAXCONFIG);	/* second copy */
+		    wlabel_on = 0;			    /* enable writing the label */
+		    if (error == 0)
+			VOP_IOCTL(drive->vp,		    /* make the label non-writeable again */
+			    DIOCWLABEL,
+			    (caddr_t) & wlabel_on,
+			    FWRITE,
+			    NOCRED,
+			    curproc);
+		    unlockdrive(drive);
+		    if (error) {
+			log(LOG_ERR,
+			    "vinum: Can't write config to %s, error %d\n",
+			    drive->devicename,
+			    error);
+			set_drive_state(drive->driveno, drive_down, setstate_force);
+		    } else
+			written_config = 1;		    /* we've written it on at least one drive */
+		}
 	    }
 	}
     }
@@ -870,12 +877,14 @@ write_volume_label(int volno)
     if (lp == 0)
 	return ENOMEM;
 
-    if ((unsigned) (volno) >= (unsigned) vinum_conf.volumes_used) /* invalid volume */
+    if ((unsigned) (volno) >= (unsigned) vinum_conf.volumes_allocated) /* invalid volume */
 	return ENOENT;
 
     vol = &VOL[volno];					    /* volume in question */
-    if (vol->state == volume_unallocated)		    /* nothing there */
-	return ENOENT;
+    if (vol->state <= volume_uninit)			    /* nothing there */
+	return ENXIO;
+    else if (vol->state < volume_up)			    /* not accessible */
+	return EIO;					    /* I/O error */
 
     get_volume_label(vol, lp);				    /* get the label */
 
@@ -1011,6 +1020,7 @@ vinum_scandisk(char *drivename[], int drives)
 	 * data on the drive 
 	 */
 	else {
+	    vinum_conf.drives_used++;			    /* another drive in use */
 	    /* Parse the configuration, and add it to the global configuration */
 	    for (cptr = config_text; *cptr != '\0';) {	    /* love this style(9) */
 		volatile int parse_status;		    /* return value from parse_config */
