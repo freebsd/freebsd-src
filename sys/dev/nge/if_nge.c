@@ -1467,7 +1467,8 @@ static void nge_rxeof(sc)
 		 * to vlan_input() instead of ether_input().
 		 */
 		if (extsts & NGE_RXEXTSTS_VLANPKT) {
-			VLAN_INPUT_TAG(eh, m, extsts & NGE_RXEXTSTS_VTCI);
+			VLAN_INPUT_TAG(eh, m,
+			    ntohs(extsts & NGE_RXEXTSTS_VTCI));
                         continue;
                 }
 
@@ -1787,7 +1788,7 @@ static int nge_encap(sc, m_head, txidx)
 
 	if (ifv != NULL) {
 		sc->nge_ldata->nge_tx_list[cur].nge_extsts |=
-			(NGE_TXEXTSTS_VLANPKT|ifv->ifv_tag);
+			(NGE_TXEXTSTS_VLANPKT|htons(ifv->ifv_tag));
 	}
 
 	sc->nge_ldata->nge_tx_list[cur].nge_mbuf = m_head;
