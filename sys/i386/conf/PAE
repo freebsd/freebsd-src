@@ -10,10 +10,6 @@ ident		PAE-GENERIC
 # To make a PAE kernel, the next option is needed
 options		PAE			# Physical Address Extensions Kernel
 
-# To make an SMP kernel, the next two are needed
-#options 	SMP			# Symmetric MultiProcessor Kernel
-#options 	APIC_IO			# Symmetric (APIC) I/O
-
 # Compile acpi in statically since the module isn't built properly.  Most
 # machines which support large amounts of memory require acpi.
 device		acpi
