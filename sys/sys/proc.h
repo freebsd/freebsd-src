@@ -347,14 +347,14 @@ struct thread {
 #define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
-#define	TDI_SUSPENDED	0x01	/* On suspension queue. */
-#define	TDI_SLEEPING	0x02	/* Actually asleep! (tricky). */
-#define	TDI_SWAPPED	0x04	/* Stack not in mem.. bad juju if run. */
-#define	TDI_LOCK	0x08	/* Stopped on a lock. */
-#define	TDI_IWAIT	0x10	/* Awaiting interrupt. */
-#define	TDI_LOAN	0x20	/* bound thread's KSE is lent */
-#define	TDI_IDLE	0x40	/* kse_release() made us surplus */
-#define	TDI_EXITING	0x80	/* Thread is in exit processing */
+#define	TDI_SUSPENDED	0x0001	/* On suspension queue. */
+#define	TDI_SLEEPING	0x0002	/* Actually asleep! (tricky). */
+#define	TDI_SWAPPED	0x0004	/* Stack not in mem.. bad juju if run. */
+#define	TDI_LOCK	0x0008	/* Stopped on a lock. */
+#define	TDI_IWAIT	0x0010	/* Awaiting interrupt. */
+#define	TDI_LOAN	0x0020	/* bound thread's KSE is lent */
+#define	TDI_IDLE	0x0040	/* kse_release() made us surplus */
+#define	TDI_EXITING	0x0080	/* Thread is in exit processing */
 
 #define	TD_IS_UNBOUND(td)	((td)->td_flags & TDF_UNBOUND)
 #define	TD_IS_BOUND(td)		(!TD_IS_UNBOUND(td))
@@ -478,6 +478,7 @@ struct kse {
 #define	KEF_ONLOANQ	0x01000 /* KSE is on loan queue. */
 #define	KEF_DIDRUN	0x02000	/* KSE actually ran. */
 #define	KEF_EXIT	0x04000	/* KSE is being killed. */
+#define	KEF_DOUPCALL	0x08000 /* KSE should do upcall now. */
 
 /*
  * (*) A bound KSE with a bound thread in a KSE process may be lent to

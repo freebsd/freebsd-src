@@ -362,20 +362,22 @@ kse_release(struct thread * td, struct kse_release_args * uap)
 		return (EINVAL);
 
 	PROC_LOCK(p);
+	mtx_lock_spin(&sched_lock);
 	/* Change OURSELF to become an upcall. */
 	td->td_flags = TDF_UPCALLING; /* BOUND */
-	if (kg->kg_completed == NULL) {
+	if (!(td->td_kse->ke_flags & KEF_DOUPCALL) &&
+	    (kg->kg_completed == NULL)) {
 	/* XXXKSE also look for waiting signals etc. */
 		/*
 		 * The KSE will however be lendable.
 		 */
-		mtx_lock_spin(&sched_lock);
 		TD_SET_IDLE(td);
 		PROC_UNLOCK(p);
 		p->p_stats->p_ru.ru_nvcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 	} else {
+		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	}
 	return (0);
@@ -397,21 +399,17 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	/* KSE-enabled processes only, please. */
 	if (!(p->p_flag & P_KSES))
 		return EINVAL;
-	PROC_LOCK(p);
+
+	mtx_lock_spin(&sched_lock);
 	if (uap->mbx) {
 		FOREACH_KSEGRP_IN_PROC(p, kg) {
 			FOREACH_KSE_IN_GROUP(kg, ke) {
 				if (ke->ke_mailbox != uap->mbx) 
 					continue;
-				td2 = ke->ke_owner ;
+				td2 = ke->ke_owner;
 				KASSERT((td2 != NULL),("KSE with no owner"));
-				if (!TD_IS_IDLE(td2)) {
-					/* Return silently if no longer idle */
-					PROC_UNLOCK(p);
-					return (0);
-				}
 				break;
-			}	
+			}
 			if (td2) {
 				break;
 			}
@@ -421,24 +419,26 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 		 * look for any idle KSE to resurrect.
 		 */
 		kg = td->td_ksegrp;
-		mtx_lock_spin(&sched_lock);
 		FOREACH_KSE_IN_GROUP(kg, ke) {
 			td2 = ke->ke_owner;
 			KASSERT((td2 != NULL),("KSE with no owner2"));
 			if (TD_IS_IDLE(td2)) 
 				break;
 		}
+		KASSERT((td2 != NULL), ("no thread(s)"));
 	}
 	if (td2) {
-		mtx_lock_spin(&sched_lock);
-		PROC_UNLOCK(p);
-		TD_CLR_IDLE(td2);
-		setrunnable(td2);
+		if (TD_IS_IDLE(td2)) {
+			TD_CLR_IDLE(td2);
+			setrunnable(td2);
+		} else if (td != td2) {
+			/* guarantee do an upcall ASAP */
+			td2->td_kse->ke_flags |= KEF_DOUPCALL;
+		}
 		mtx_unlock_spin(&sched_lock);
 		return (0);
-	}	
+	}
 	mtx_unlock_spin(&sched_lock);
-	PROC_UNLOCK(p);
 	return (ESRCH);
 }
 
@@ -1368,7 +1368,8 @@ thread_userret(struct thread *td, struct trapframe *frame)
 
 	if (TD_CAN_UNBIND(td)) {
 		td->td_flags &= ~(TDF_UNBOUND|TDF_CAN_UNBIND);
-		if (!worktodo && (kg->kg_completed == NULL)) {
+		if (!worktodo && (kg->kg_completed == NULL) &&
+		    !(td->td_kse->ke_flags & KEF_DOUPCALL)) {
 			/*
 			 * This thread has not started any upcall.
 			 * If there is no work to report other than
@@ -1477,11 +1478,13 @@ justreturn:
 			 * when there is no more work to do.
 			 * kse_reassign() will do that for us.
 			 */
-			TD_SET_LOAN(td);  /* XXXKSE may not be needed */
+			TD_SET_LOAN(td);
 			p->p_stats->p_ru.ru_nvcsw++;
 			mi_switch(); /* kse_reassign() will (re)find worktodo */
 		}
 		td->td_flags &= ~TDF_UPCALLING;
+		if (ke->ke_flags & KEF_DOUPCALL)
+			ke->ke_flags &= ~KEF_DOUPCALL;
 		mtx_unlock_spin(&sched_lock);
 
 		/* 
