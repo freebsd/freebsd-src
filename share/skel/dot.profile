@@ -1,11 +1,8 @@
-PATH=$HOME/bin:/bin:/usr/bin:/usr/games:/usr/X11R6/bin:/usr/local/bin
+#	$Id: dot.profile,v 1.8 1994/10/27 05:27:00 phk Exp $
+#
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
+echo 'erase ^H, kill ^U, intr ^C'
+stty crt erase ^H kill ^U intr ^C
 export PATH
-
-EDITOR=vi
-export EDITOR
-EXINIT='set autoindent'
-export EXINIT
-PAGER=more
-export PAGER
-
-umask 2
+TERM=cons25
+export TERM
