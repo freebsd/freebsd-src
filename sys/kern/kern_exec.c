@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.30 1995/12/14 08:31:20 phk Exp $
+ *	$Id: kern_exec.c,v 1.31 1996/01/04 20:28:45 wollman Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -356,10 +356,8 @@ exec_new_vmspace(imgp)
 	imgp->vmspace_destroyed = 1;
 
 	/* Blow away entire process VM */
-#ifdef SYSVSHM
 	if (vmspace->vm_shm)
 		shmexit(imgp->proc);
-#endif
 	vm_map_remove(&vmspace->vm_map, 0, USRSTACK);
 
 	/* Allocate a new stack */
