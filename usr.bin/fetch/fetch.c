@@ -502,11 +502,10 @@ fetch(char *URL, char *path)
 void
 usage(void)
 {
-    /* XXX badly out of synch */
     fprintf(stderr,
-	    "Usage: fetch [-1AFHMPRabdlmnpqrstv] [-o outputfile] [-S bytes]\n"
+	    "Usage: fetch [-146AFMPRUadlmnpqrsv] [-o outputfile] [-S bytes]\n"
 	    "             [-B bytes] [-T seconds] [-w seconds]\n"
-	    "             [-f file -h host [-c dir] | URL ...]\n"
+	    "             [-h host -f file [-c dir] | URL ...]\n"
 	);
 }
 
