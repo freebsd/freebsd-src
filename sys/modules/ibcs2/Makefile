@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.18 1998/10/16 04:30:43 peter Exp $
+#	$Id: Makefile,v 1.19 1998/11/05 04:22:51 peter Exp $
 
 .PATH:	${.CURDIR}/../../i386/ibcs2
 KMOD=	ibcs2
-SRCS=	ibcs2.c ibcs2_errno.c ibcs2_ipc.c ibcs2_stat.c ibcs2_misc.c \
+SRCS=	ibcs2_errno.c ibcs2_ipc.c ibcs2_stat.c ibcs2_misc.c \
 	ibcs2_fcntl.c ibcs2_signal.c ibcs2_sysent.c ibcs2_ioctl.c \
 	ibcs2_socksys.c ibcs2_util.c ibcs2_xenix.c ibcs2_xenix_sysent.c \
 	ibcs2_isc.c ibcs2_isc_sysent.c \
