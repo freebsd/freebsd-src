@@ -1418,8 +1418,7 @@ xl_attach(dev)
 		rid = XL_PCI_LOMEM;
 		res = SYS_RES_MEMORY;
 
-		sc->xl_res = bus_alloc_resource(dev, res, &rid,
-		    0, ~0, 1, RF_ACTIVE);
+		sc->xl_res = bus_alloc_resource_any(dev, res, &rid, RF_ACTIVE);
 	}
 
 	if (sc->xl_res != NULL) {
@@ -1429,8 +1428,7 @@ xl_attach(dev)
 	} else {
 		rid = XL_PCI_LOIO;
 		res = SYS_RES_IOPORT;
-		sc->xl_res = bus_alloc_resource(dev, res, &rid,
-		    0, ~0, 1, RF_ACTIVE);
+		sc->xl_res = bus_alloc_resource_any(dev, res, &rid, RF_ACTIVE);
 		if (sc->xl_res == NULL) {
 			printf ("xl%d: couldn't map ports/memory\n", unit);
 			error = ENXIO;
@@ -1445,8 +1443,8 @@ xl_attach(dev)
 
 	if (sc->xl_flags & XL_FLAG_FUNCREG) {
 		rid = XL_PCI_FUNCMEM;
-		sc->xl_fres = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-		    0, ~0, 1, RF_ACTIVE);
+		sc->xl_fres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+		    RF_ACTIVE);
 
 		if (sc->xl_fres == NULL) {
 			printf ("xl%d: couldn't map ports/memory\n", unit);
@@ -1460,7 +1458,7 @@ xl_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->xl_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->xl_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->xl_irq == NULL) {
 		printf("xl%d: couldn't map interrupt\n", unit);

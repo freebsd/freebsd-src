@@ -103,7 +103,7 @@ joy_attach(device_t dev)
 	struct joy_softc *joy = device_get_softc(dev);
 
 	joy->rid = 0;
-	joy->res = bus_alloc_resource(dev, SYS_RES_IOPORT, &joy->rid, 0, ~0, 1,
+	joy->res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &joy->rid,
 	    RF_ACTIVE);
 	if (joy->res == NULL)
 		return ENXIO;

@@ -164,18 +164,21 @@ mlx_pci_attach(device_t dev)
     case MLX_IFTYPE_3:
 	sc->mlx_mem_type = SYS_RES_MEMORY;
 	sc->mlx_mem_rid = MLX_CFG_BASE1;
-	sc->mlx_mem = bus_alloc_resource(dev, sc->mlx_mem_type, &sc->mlx_mem_rid, 0, ~0, 1, RF_ACTIVE);
+	sc->mlx_mem = bus_alloc_resource_any(dev, sc->mlx_mem_type,
+		&sc->mlx_mem_rid, RF_ACTIVE);
 	if (sc->mlx_mem == NULL) {
 	    sc->mlx_mem_type = SYS_RES_IOPORT;
 	    sc->mlx_mem_rid = MLX_CFG_BASE0;
-	    sc->mlx_mem = bus_alloc_resource(dev, sc->mlx_mem_type, &sc->mlx_mem_rid, 0, ~0, 1, RF_ACTIVE);
+	    sc->mlx_mem = bus_alloc_resource_any(dev, sc->mlx_mem_type,
+		&sc->mlx_mem_rid, RF_ACTIVE);
 	}
 	break;
     case MLX_IFTYPE_4:
     case MLX_IFTYPE_5:
 	sc->mlx_mem_type = SYS_RES_MEMORY;
 	sc->mlx_mem_rid = MLX_CFG_BASE0;
-	sc->mlx_mem = bus_alloc_resource(dev, sc->mlx_mem_type, &sc->mlx_mem_rid, 0, ~0, 1, RF_ACTIVE);
+	sc->mlx_mem = bus_alloc_resource_any(dev, sc->mlx_mem_type,
+		&sc->mlx_mem_rid, RF_ACTIVE);
 	break;
     }
     if (sc->mlx_mem == NULL) {

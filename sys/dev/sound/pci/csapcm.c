@@ -660,17 +660,20 @@ csa_allocres(struct csa_info *csa, device_t dev)
 
 	resp = &csa->res;
 	if (resp->io == NULL) {
-		resp->io = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->io_rid, 0, ~0, 1, RF_ACTIVE);
+		resp->io = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+			&resp->io_rid, RF_ACTIVE);
 		if (resp->io == NULL)
 			return (1);
 	}
 	if (resp->mem == NULL) {
-		resp->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->mem_rid, 0, ~0, 1, RF_ACTIVE);
+		resp->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+			&resp->mem_rid, RF_ACTIVE);
 		if (resp->mem == NULL)
 			return (1);
 	}
 	if (resp->irq == NULL) {
-		resp->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &resp->irq_rid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+		resp->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+			&resp->irq_rid, RF_ACTIVE | RF_SHAREABLE);
 		if (resp->irq == NULL)
 			return (1);
 	}

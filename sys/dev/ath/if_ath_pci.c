@@ -144,8 +144,8 @@ ath_pci_attach(device_t dev)
 	 * Setup memory-mapping of PCI registers.
 	 */
 	rid = BS_BAR;
-	psc->sc_sr = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-				        0, ~0, 1, RF_ACTIVE);
+	psc->sc_sr = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+					    RF_ACTIVE);
 	if (psc->sc_sr == NULL) {
 		device_printf(dev, "cannot map register space\n");
 		goto bad;
@@ -162,8 +162,8 @@ ath_pci_attach(device_t dev)
 	 * Arrange interrupt line.
 	 */
 	rid = 0;
-	psc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-					 0, ~0, 1, RF_SHAREABLE|RF_ACTIVE);
+	psc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					     RF_SHAREABLE|RF_ACTIVE);
 	if (psc->sc_irq == NULL) {
 		device_printf(dev, "could not map interrupt\n");
 		goto bad1;

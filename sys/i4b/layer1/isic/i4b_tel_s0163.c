@@ -135,9 +135,9 @@ isic_probe_s0163(device_t dev)
 	/* see if an io base was supplied */
 	
 	if(!(sc->sc_resources.io_base[0] =
-			bus_alloc_resource(dev, SYS_RES_IOPORT,
-	                                   &sc->sc_resources.io_rid[0],
-	                                   0ul, ~0ul, 1, RF_ACTIVE)))
+			bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+					       &sc->sc_resources.io_rid[0],
+					       RF_ACTIVE)))
 	{
 		printf("isic%d: Could not get iobase for Teles S0/16.3.\n",
 				unit);
@@ -182,9 +182,9 @@ isic_probe_s0163(device_t dev)
 	sc->sc_resources.io_rid[0] = 0;	
 	bus_set_resource(dev, SYS_RES_IOPORT, 0, sc->sc_port, 0x20);
 	sc->sc_resources.io_base[0] =
-		bus_alloc_resource(dev, SYS_RES_IOPORT,
-				   &sc->sc_resources.io_rid[0],
-				   0ul, ~0ul, 1, RF_ACTIVE);
+		bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+				       &sc->sc_resources.io_rid[0],
+				       RF_ACTIVE);
 	if(!sc->sc_resources.io_base[0])
 	{
 		printf("isic%d: Error allocating io at 0x%x for Teles S0/16.3!\n",
@@ -196,9 +196,9 @@ isic_probe_s0163(device_t dev)
 	bus_set_resource(dev, SYS_RES_IOPORT, 1,
 		sc->sc_port-ISAC_OFFS, 0x20);
 	sc->sc_resources.io_base[1] =
-		bus_alloc_resource(dev, SYS_RES_IOPORT,
-				   &sc->sc_resources.io_rid[1],
-				   0ul, ~0ul, 1, RF_ACTIVE);
+		bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+				       &sc->sc_resources.io_rid[1],
+				       RF_ACTIVE);
 	if(!sc->sc_resources.io_base[1])
 	{
 		printf("isic%d: Error allocating io at 0x%x for Teles S0/16.3!\n",
@@ -211,9 +211,9 @@ isic_probe_s0163(device_t dev)
 	bus_set_resource(dev, SYS_RES_IOPORT, 2,
 		sc->sc_port-HSCXA_OFFS, 0x20);
 	sc->sc_resources.io_base[2] =
-		bus_alloc_resource(dev, SYS_RES_IOPORT,
-				   &sc->sc_resources.io_rid[2],
-				   0ul, ~0ul, 1, RF_ACTIVE);
+		bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+				       &sc->sc_resources.io_rid[2],
+				       RF_ACTIVE);
 	if(!sc->sc_resources.io_base[2])
 	{
 		printf("isic%d: Error allocating io at 0x%x for Teles S0/16.3!\n",
@@ -226,9 +226,9 @@ isic_probe_s0163(device_t dev)
 	bus_set_resource(dev, SYS_RES_IOPORT, 3,
 		sc->sc_port-HSCXB_OFFS, 0x20);
 	sc->sc_resources.io_base[3] =
-		bus_alloc_resource(dev, SYS_RES_IOPORT,
-				   &sc->sc_resources.io_rid[3],
-				   0ul, ~0ul, 1, RF_ACTIVE);
+		bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+				       &sc->sc_resources.io_rid[3],
+				       RF_ACTIVE);
 	if(!sc->sc_resources.io_base[3])
 	{
 		printf("isic%d: Error allocating io at 0x%x for Teles S0/16.3!\n",
@@ -307,9 +307,9 @@ isic_probe_s0163(device_t dev)
 	/* get our irq */
 
 	if(!(sc->sc_resources.irq =
-		bus_alloc_resource(dev, SYS_RES_IRQ,
-		&sc->sc_resources.irq_rid,
-		0ul, ~0ul, 1, RF_ACTIVE)))
+		bus_alloc_resource_any(dev, SYS_RES_IRQ,
+				       &sc->sc_resources.irq_rid,
+				       RF_ACTIVE)))
 	{
 		printf("isic%d: Could not get IRQ for Teles S0/16.3.\n",unit);
 		isic_detach_common(dev);

@@ -175,7 +175,7 @@ isp_sbus_attach(device_t dev)
 
 	rid = 0;
 	regs =
-	    bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, RF_ACTIVE);
+	    bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (regs == 0) {
 		device_printf(dev, "unable to map registers\n");
 		goto bad;
@@ -259,8 +259,8 @@ isp_sbus_attach(device_t dev)
 	}
 
 	iqd = 0;
-	sbs->sbus_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &iqd, 0, ~0,
-	    1, RF_ACTIVE | RF_SHAREABLE);
+	sbs->sbus_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sbs->sbus_ires == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		goto bad;

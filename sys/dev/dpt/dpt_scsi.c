@@ -1225,16 +1225,16 @@ dpt_alloc_resources (device_t dev)
 
 	dpt = device_get_softc(dev);
 
-	dpt->io_res = bus_alloc_resource(dev, dpt->io_type, &dpt->io_rid,
-					 0, ~0, 1, RF_ACTIVE);
+	dpt->io_res = bus_alloc_resource_any(dev, dpt->io_type, &dpt->io_rid,
+					     RF_ACTIVE);
 	if (dpt->io_res == NULL) {
 		device_printf(dev, "No I/O space?!\n");
 		error = ENOMEM;
 		goto bad;
 	}
 
-	dpt->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &dpt->irq_rid,
-					  0, ~0, 1, RF_ACTIVE);
+	dpt->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &dpt->irq_rid,
+					      RF_ACTIVE);
 	if (dpt->irq_res == NULL) {
 		device_printf(dev, "No IRQ!\n");
 		error = ENOMEM;

@@ -1350,8 +1350,7 @@ mn_attach (device_t self)
 	sprintf(sc->name, "mn%d", sc->unit);
 
         rid = PCIR_BAR(0);
-        res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
-            0, ~0, 1, RF_ACTIVE);
+        res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
         if (res == NULL) {
                 device_printf(self, "Could not map memory\n");
 		free(sc, M_MN);
@@ -1361,8 +1360,7 @@ mn_attach (device_t self)
         sc->m0p = rman_get_start(res);
 
         rid = PCIR_BAR(1);
-        res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
-            0, ~0, 1, RF_ACTIVE);
+        res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
         if (res == NULL) {
                 device_printf(self, "Could not map memory\n");
 		free(sc, M_MN);
@@ -1373,8 +1371,8 @@ mn_attach (device_t self)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->irq = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0,
-	    1, RF_SHAREABLE | RF_ACTIVE);
+	sc->irq = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->irq == NULL) {
 		printf("couldn't map interrupt\n");

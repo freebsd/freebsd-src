@@ -253,8 +253,7 @@ epic_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = EPIC_RID;
-	sc->res = bus_alloc_resource(dev, EPIC_RES, &rid, 0, ~0, 1,
-	    RF_ACTIVE);
+	sc->res = bus_alloc_resource_any(dev, EPIC_RES, &rid, RF_ACTIVE);
 	if (sc->res == NULL) {
 		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
@@ -266,7 +265,7 @@ epic_attach(dev)
 
 	/* Allocate interrupt. */
 	rid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");

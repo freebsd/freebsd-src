@@ -414,7 +414,7 @@ atpic_attach(device_t dev)
 
 	/* Try to allocate our IRQ and then free it. */
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, 0);
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, 0);
 	if (res != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, rid, res);
 	return (0);

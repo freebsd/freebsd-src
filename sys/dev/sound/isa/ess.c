@@ -316,24 +316,20 @@ ess_alloc_resources(struct ess_info *sc, device_t dev)
 
 	rid = 0;
 	if (!sc->io_base)
-    		sc->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						 &rid, 0, ~0, 1,
-						 RF_ACTIVE);
+    		sc->io_base = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+						     &rid, RF_ACTIVE);
 	rid = 0;
 	if (!sc->irq)
-    		sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ,
-					     &rid, 0, ~0, 1,
-					     RF_ACTIVE);
+    		sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+						 &rid, RF_ACTIVE);
 	rid = 0;
 	if (!sc->drq1)
-    		sc->drq1 = bus_alloc_resource(dev, SYS_RES_DRQ,
-					      &rid, 0, ~0, 1,
-					      RF_ACTIVE);
+    		sc->drq1 = bus_alloc_resource_any(dev, SYS_RES_DRQ,
+						  &rid, RF_ACTIVE);
 	rid = 1;
 	if (!sc->drq2)
-        	sc->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ,
-					      &rid, 0, ~0, 1,
-					      RF_ACTIVE);
+        	sc->drq2 = bus_alloc_resource_any(dev, SYS_RES_DRQ,
+						  &rid, RF_ACTIVE);
 
     	if (sc->io_base && sc->drq1 && sc->irq) {
   		isa_dma_acquire(rman_get_start(sc->drq1));
@@ -968,7 +964,7 @@ esscontrol_attach(device_t dev)
 	int rid, i, x;
 
 	rid = 0;
-    	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+    	io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	x = 0;
 	for (i = 0; i < 0x100; i++) {
 		port_wr(io, 0, i);

@@ -227,8 +227,8 @@ alpm_attach(device_t dev)
 	}
 
 	rid = SMBBA;
-	alpm->res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	alpm->res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+	    RF_ACTIVE);
 
 	if (alpm->res == NULL) {
 		device_printf(dev,"Could not allocate Bus space\n");

@@ -130,8 +130,7 @@ smbios_probe (device_t dev)
 
 	error = 0;
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-		0ul, ~0ul, 1, RF_ACTIVE);
+	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev, "Unable to allocate memory resource.\n");
 		error = ENOMEM;
@@ -161,8 +160,8 @@ smbios_attach (device_t dev)
 
 	sc->dev = dev;
 	sc->rid = 0;
-	sc->res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->rid,
-		0ul, ~0ul, 1, RF_ACTIVE);
+	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
+		RF_ACTIVE);
 	if (sc->res == NULL) {
 		device_printf(dev, "Unable to allocate memory resource.\n");
 		error = ENOMEM;

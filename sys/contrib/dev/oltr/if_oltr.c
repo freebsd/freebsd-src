@@ -378,7 +378,7 @@ oltr_pci_attach(device_t dev)
 	 * Allocate interrupt and DMA channel
 	 */
 	rid = 0;
-	sc->oltr_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->oltr_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		(sc->config.mode & TRLLD_MODE_SHARE_INTERRUPT ? RF_ACTIVE | RF_SHAREABLE : RF_ACTIVE));
 	if (sc->oltr_irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");

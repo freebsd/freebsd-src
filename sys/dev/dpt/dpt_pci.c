@@ -90,17 +90,15 @@ dpt_pci_attach (device_t dev)
 	if ((command & PCIM_CMD_MEMEN) != 0) {
 		dpt->io_rid = DPT_PCI_MEMADDR;
 		dpt->io_type = SYS_RES_MEMORY;
-		dpt->io_res = bus_alloc_resource(dev, dpt->io_type,
-						 &dpt->io_rid,
-						 0, ~0, 1, RF_ACTIVE);
+		dpt->io_res = bus_alloc_resource_any(dev, dpt->io_type,
+						     &dpt->io_rid, RF_ACTIVE);
 	}
 #endif
 	if (dpt->io_res == NULL && (command &  PCIM_CMD_PORTEN) != 0) {
 		dpt->io_rid = DPT_PCI_IOADDR;
 		dpt->io_type = SYS_RES_IOPORT;
-		dpt->io_res = bus_alloc_resource(dev, dpt->io_type,
-						 &dpt->io_rid,
-						 0, ~0, 1, RF_ACTIVE);
+		dpt->io_res = bus_alloc_resource_any(dev, dpt->io_type,
+						     &dpt->io_rid, RF_ACTIVE);
 	}
 
 	if (dpt->io_res == NULL) {
@@ -111,8 +109,8 @@ dpt_pci_attach (device_t dev)
 	dpt->io_offset = 0x10;
 
 	dpt->irq_rid = 0;
-	dpt->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &dpt->irq_rid,
-					  0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	dpt->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &dpt->irq_rid,
+					      RF_ACTIVE | RF_SHAREABLE);
 	if (dpt->irq_res == NULL) {
 		device_printf(dev, "No irq?!\n");
 		error = ENOMEM;

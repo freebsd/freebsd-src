@@ -487,7 +487,8 @@ static int
 gusmidi_allocres(sc_p scp, device_t dev)
 {
 	if (scp->io == NULL) {
-		scp->io = bus_alloc_resource(dev, SYS_RES_IOPORT, &scp->io_rid, 0, ~0, 2, RF_ACTIVE);
+		scp->io = bus_alloc_resource(dev, SYS_RES_IOPORT, 
+			&scp->io_rid, 0, ~0, 2, RF_ACTIVE);
 		if (scp->io == NULL)
 			return (1);
 	}
@@ -496,7 +497,8 @@ gusmidi_allocres(sc_p scp, device_t dev)
 #else
 	if (scp->irq == NULL) {
 #endif /* notdef */
-		scp->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &scp->irq_rid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+		scp->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
+			&scp->irq_rid, RF_ACTIVE | RF_SHAREABLE);
 		if (scp->irq == NULL)
 			return (1);
 	}

@@ -123,8 +123,7 @@ bt_eisa_alloc_resources(device_t dev)
 	 * order.
 	 */
 	rid = 0;
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				  0, ~0, 1, RF_ACTIVE);
+	port = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (!port)
 		return (ENOMEM);
 
@@ -133,8 +132,8 @@ bt_eisa_alloc_resources(device_t dev)
 	if (eisa_get_irq(dev) != -1) {
 		shared = bt->level_trigger_ints ? RF_SHAREABLE : 0;
 		rid = 0;
-		irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-					 0, ~0, 1, shared | RF_ACTIVE);
+		irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					     shared | RF_ACTIVE);
 		if (!irq) {
 			if (port)
 				bus_release_resource(dev, SYS_RES_IOPORT,

@@ -892,8 +892,7 @@ fe_alloc_irq(device_t dev, int flags)
 	int rid;
 
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0ul, ~0ul, 1, RF_ACTIVE | flags);
+	res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE | flags);
 	if (res) {
 		sc->irq_res = res;
 		return (0);

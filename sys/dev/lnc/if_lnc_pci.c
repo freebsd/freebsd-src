@@ -102,8 +102,8 @@ lnc_pci_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, command, 4);
 
 	sc->portrid = PCIR_BAR(0);
-	sc->portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->portrid, 0, ~0, 1,
-	                                 RF_ACTIVE);
+	sc->portres = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->portrid,
+					     RF_ACTIVE);
 
 	if (! sc->portres) {
 		device_printf(dev, "Cannot allocate I/O ports\n");
@@ -111,8 +111,8 @@ lnc_pci_attach(device_t dev)
 		return (ENXIO);
 	}
 	
-	sc->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqrid, 0, ~0, 1,
-	                                RF_ACTIVE|RF_SHAREABLE);
+	sc->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqrid,
+					    RF_ACTIVE|RF_SHAREABLE);
 
 	if (! sc->irqres) {
 		device_printf(dev, "Cannot allocate irq\n");

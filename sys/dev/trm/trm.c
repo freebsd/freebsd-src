@@ -3397,8 +3397,8 @@ trm_init(u_int16_t unit, device_t dev)
 		printf("trm%d: cannot allocate ACB !\n", unit);
 		return (NULL);
 	}
-	pACB->iores = bus_alloc_resource(dev, SYS_RES_IOPORT, 
-	    &rid, 0, ~0, 1, RF_ACTIVE);
+	pACB->iores = bus_alloc_resource_any(dev, SYS_RES_IOPORT, 
+	    &rid, RF_ACTIVE);
     	if (pACB->iores == NULL) {
 		printf("trm_init: bus_alloc_resource failed!\n");
 		return (NULL);
@@ -3577,8 +3577,8 @@ trm_attach(device_t dev)
 	 * Create device queue of SIM(s)
 	 * (MAX_START_JOB - 1) : max_sim_transactions
 	 */
-	pACB->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0,
-	    ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	pACB->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
     	if (pACB->irq == NULL ||
 	    bus_setup_intr(dev, pACB->irq, 
 	    INTR_TYPE_CAM, trm_Interrupt, pACB, &pACB->ih)) {

@@ -319,8 +319,8 @@ mpt_attach(device_t dev)
 
 	/* Get a handle to the interrupt */
 	iqd = 0;
-	mpt->pci_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &iqd, 0, ~0,
-	    1, RF_ACTIVE | RF_SHAREABLE);
+	mpt->pci_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (mpt->pci_irq == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		goto bad;

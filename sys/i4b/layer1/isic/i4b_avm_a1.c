@@ -142,9 +142,9 @@ isic_alloc_port(device_t dev, int rid, u_int base, u_int len)
 	bus_set_resource(dev, SYS_RES_IOPORT, rid, base, len);
 
 	if(!(sc->sc_resources.io_base[rid] =
-		bus_alloc_resource(dev, SYS_RES_IOPORT,
-				   &sc->sc_resources.io_rid[rid],
-				   0ul, ~0ul, 1, RF_ACTIVE)))
+		bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+				       &sc->sc_resources.io_rid[rid],
+				       RF_ACTIVE)))
 	{
 		printf("isic%d: Error, failed to reserve io #%d!\n", unit, rid);
 		isic_detach_common(dev);
@@ -182,9 +182,9 @@ isic_probe_avma1(device_t dev)
 	/* see if an io base was supplied */
 	
 	if(!(sc->sc_resources.io_base[0] =
-			bus_alloc_resource(dev, SYS_RES_IOPORT,
-	                                   &sc->sc_resources.io_rid[0],
-	                                   0ul, ~0ul, 1, RF_ACTIVE)))
+			bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+					       &sc->sc_resources.io_rid[0],
+					       RF_ACTIVE)))
 	{
 		printf("isic%d: Could not get iobase for AVM A1/Fritz!\n",
 				unit);
@@ -239,9 +239,8 @@ isic_probe_avma1(device_t dev)
 	/* get our irq */
 
 	if(!(sc->sc_resources.irq =
-		bus_alloc_resource(dev, SYS_RES_IRQ,
-				   &sc->sc_resources.irq_rid,
-				   0ul, ~0ul, 1, RF_ACTIVE)))
+		bus_alloc_resource_any(dev, SYS_RES_IRQ,
+				       &sc->sc_resources.irq_rid, RF_ACTIVE)))
 	{
 		printf("isic%d: Could not get an irq for AVM A1/Fritz!\n",unit);
 		isic_detach_common(dev);

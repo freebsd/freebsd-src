@@ -218,8 +218,8 @@ ata_acard_chipinit(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     int rid = ATA_IRQ_RID;
 
-    if (!(ctlr->r_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					   RF_SHAREABLE | RF_ACTIVE))) {
+    if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					       RF_SHAREABLE | RF_ACTIVE))) {
 	device_printf(dev, "unable to map interrupt\n");
 	return ENXIO;
     }
@@ -660,8 +660,8 @@ ata_highpoint_chipinit(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     int rid = ATA_IRQ_RID;
 
-    if (!(ctlr->r_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					   RF_SHAREABLE | RF_ACTIVE))) {
+    if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					       RF_SHAREABLE | RF_ACTIVE))) {
 	device_printf(dev, "unable to map interrupt\n");
 	return ENXIO;
     }
@@ -1136,8 +1136,8 @@ ata_promise_chipinit(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     int rid = ATA_IRQ_RID;
 
-    if (!(ctlr->r_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					   RF_SHAREABLE | RF_ACTIVE))) {
+    if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					       RF_SHAREABLE | RF_ACTIVE))) {
 	device_printf(dev, "unable to map interrupt\n");
 	return ENXIO;
     }
@@ -1173,8 +1173,8 @@ ata_promise_chipinit(device_t dev)
 	ctlr->r_type2 = SYS_RES_MEMORY;
 	ctlr->r_rid2 = 0x1c;
 	if (!(ctlr->r_res2 =
-	      bus_alloc_resource(dev, ctlr->r_type2, &ctlr->r_rid2,
-				 0, ~0, 1, RF_ACTIVE)))
+	      bus_alloc_resource_any(dev, ctlr->r_type2, &ctlr->r_rid2,
+				     RF_ACTIVE)))
 	    return ENXIO;
 
 	ctlr->dmainit = ata_promise_mio_dmainit;
@@ -1619,8 +1619,8 @@ ata_sii_chipinit(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     int rid = ATA_IRQ_RID;
 
-    if (!(ctlr->r_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					   RF_SHAREABLE | RF_ACTIVE))) {
+    if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					       RF_SHAREABLE | RF_ACTIVE))) {
 	device_printf(dev, "unable to map interrupt\n");
 	return ENXIO;
     }
@@ -1635,8 +1635,8 @@ ata_sii_chipinit(device_t dev)
 	ctlr->r_type2 = SYS_RES_MEMORY;
 	ctlr->r_rid2 = 0x24;
 	if (!(ctlr->r_res2 =
-	      bus_alloc_resource(dev, ctlr->r_type2, &ctlr->r_rid2,
-				 0, ~0, 1, RF_ACTIVE)))
+	      bus_alloc_resource_any(dev, ctlr->r_type2, &ctlr->r_rid2,
+				     RF_ACTIVE)))
 	    return ENXIO;
 
 	if (ctlr->chip->cfg2 & SIISETCLK) {
@@ -2330,8 +2330,8 @@ ata_setup_interrupt(device_t dev)
     int rid = ATA_IRQ_RID;
 
     if (!ATA_MASTERDEV(dev)) {
-	if (!(ctlr->r_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					       RF_SHAREABLE | RF_ACTIVE))) {
+	if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+						   RF_SHAREABLE | RF_ACTIVE))) {
 	    device_printf(dev, "unable to map interrupt\n");
 	    return ENXIO;
 	}

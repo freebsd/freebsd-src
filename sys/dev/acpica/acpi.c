@@ -882,7 +882,7 @@ acpi_bus_alloc_gas(device_t dev, int *rid, ACPI_GENERIC_ADDRESS *gas)
     }
 
     bus_set_resource(dev, type, *rid, gas->Address, gas->RegisterBitWidth / 8);
-    return (bus_alloc_resource(dev, type, rid, 0, ~0, 1, RF_ACTIVE));
+    return (bus_alloc_resource_any(dev, type, rid, RF_ACTIVE));
 }
 
 /*

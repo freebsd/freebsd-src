@@ -345,9 +345,8 @@ bktr_attach( device_t dev )
 	 * Map control/status registers.
 	 */
 	bktr->mem_rid = PCIR_BAR(0);
-	bktr->res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &bktr->mem_rid,
-					0, ~0, 1, RF_ACTIVE);
-
+	bktr->res_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
+					&bktr->mem_rid, RF_ACTIVE);
 
 	if (!bktr->res_mem) {
 		device_printf(dev, "could not map memory\n");
@@ -377,8 +376,8 @@ bktr_attach( device_t dev )
 	 * Allocate our interrupt.
 	 */
 	bktr->irq_rid = 0;
-	bktr->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &bktr->irq_rid,
-				0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	bktr->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
+				&bktr->irq_rid, RF_SHAREABLE | RF_ACTIVE);
 	if (bktr->res_irq == NULL) {
 		device_printf(dev, "could not map interrupt\n");
 		error = ENXIO;

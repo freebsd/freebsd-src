@@ -251,8 +251,8 @@ uhci_pci_attach(device_t self)
 	pci_enable_busmaster(self);
 
 	rid = PCI_UHCI_BASE_REG;
-	sc->io_res = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->io_res = bus_alloc_resource_any(self, SYS_RES_IOPORT, &rid,
+	    RF_ACTIVE);
 	if (!sc->io_res) {
 		device_printf(self, "Could not map ports\n");
 		return ENXIO;
@@ -264,8 +264,7 @@ uhci_pci_attach(device_t self)
 	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
 	rid = 0;
-	sc->irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid,
-	    0, ~0, 1,
+	sc->irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");

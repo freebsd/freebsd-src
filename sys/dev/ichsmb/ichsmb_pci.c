@@ -176,8 +176,8 @@ ichsmb_pci_attach(device_t dev)
 
 	/* Allocate interrupt */
 	sc->irq_rid = 0;
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-	    &sc->irq_rid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &sc->irq_rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irq_res == NULL) {
 		log(LOG_ERR, "%s: can't get IRQ\n", device_get_nameunit(dev));
 		error = ENXIO;

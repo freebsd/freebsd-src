@@ -402,8 +402,8 @@ ar_allocate_irq(device_t device, int rid, u_long size)
 	struct ar_hardc *hc = device_get_softc(device);
 
 	hc->rid_irq = rid;
-	hc->res_irq = bus_alloc_resource(device, SYS_RES_IRQ,
-			&hc->rid_irq, 0ul, ~0ul, 1, RF_SHAREABLE|RF_ACTIVE);
+	hc->res_irq = bus_alloc_resource_any(device, SYS_RES_IRQ,
+			&hc->rid_irq, RF_SHAREABLE|RF_ACTIVE);
 	if (hc->res_irq == NULL) {
 		goto errexit;
 	}

@@ -3383,8 +3383,8 @@ ncr_attach (device_t dev)
 	*/
 
 	np->reg_rid = 0x14;
-	np->reg_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &np->reg_rid,
-					 0, ~0, 1, RF_ACTIVE);
+	np->reg_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+					     &np->reg_rid, RF_ACTIVE);
 	if (!np->reg_res) {
 		device_printf(dev, "could not map memory\n");
 		return ENXIO;
@@ -3580,9 +3580,9 @@ ncr_attach (device_t dev)
 	*/
 	if ((np->features & FE_RAM) && sizeof(struct script) <= 4096) {
 		np->sram_rid = 0x18;
-		np->sram_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-						  &np->sram_rid,
-						  0, ~0, 1, RF_ACTIVE);
+		np->sram_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+						      &np->sram_rid,
+						      RF_ACTIVE);
 	}
 
 	/*
@@ -3760,8 +3760,8 @@ ncr_attach (device_t dev)
 	*/
 
 	rid = 0;
-	np->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					 RF_SHAREABLE | RF_ACTIVE);
+	np->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					     RF_SHAREABLE | RF_ACTIVE);
 	if (np->irq_res == NULL) {
 		device_printf(dev,
 			      "interruptless mode: reduced performance.\n");

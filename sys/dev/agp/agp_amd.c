@@ -229,8 +229,8 @@ agp_amd_attach(device_t dev)
 		return error;
 
 	rid = AGP_AMD751_REGISTERS;
-	sc->regs = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-				      0, ~0, 1, RF_ACTIVE);
+	sc->regs = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+					  RF_ACTIVE);
 	if (!sc->regs) {
 		agp_generic_detach(dev);
 		return ENOMEM;

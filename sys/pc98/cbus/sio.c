@@ -851,8 +851,8 @@ sioprobe(dev, xrid, rclk, noprobe)
 	rid = xrid;
 #ifdef PC98
 	if (IS_8251(iod.if_type)) {
-		port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					  0, ~0, 1, RF_ACTIVE);
+		port = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+					      RF_ACTIVE);
 	} else if (iod.if_type == COM_IF_MODEM_CARD ||
 		   iod.if_type == COM_IF_RSA98III ||
 		   isa_get_vendorid(dev)) {
@@ -1442,8 +1442,8 @@ sioattach(dev, xrid, rclk)
 	rid = xrid;
 #ifdef PC98
 	if (IS_8251(if_type)) {
-		port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					  0, ~0, 1, RF_ACTIVE);
+		port = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+					      RF_ACTIVE);
 	} else if (if_type == COM_IF_MODEM_CARD ||
 		   if_type == COM_IF_RSA98III ||
 		   isa_get_vendorid(dev)) {
@@ -1831,8 +1831,8 @@ determined_type: ;
 	pps_init(&com->pps);
 
 	rid = 0;
-	com->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0ul, ~0ul, 1,
-	    RF_ACTIVE);
+	com->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+					     RF_ACTIVE);
 	if (com->irqres) {
 		ret = BUS_SETUP_INTR(device_get_parent(dev), dev, com->irqres,
 				     INTR_TYPE_TTY | INTR_FAST,

@@ -1146,8 +1146,8 @@ tl_attach(dev)
 #ifdef TL_USEIOSPACE
 
 	rid = TL_PCI_LOIO;
-	sc->tl_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-		0, ~0, 1, RF_ACTIVE);
+	sc->tl_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+		RF_ACTIVE);
 
 	/*
 	 * Some cards have the I/O and memory mapped address registers
@@ -1155,17 +1155,17 @@ tl_attach(dev)
 	 */
 	if (sc->tl_res == NULL) {
 		rid = TL_PCI_LOMEM;
-		sc->tl_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-		    0, ~0, 1, RF_ACTIVE);
+		sc->tl_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+		    RF_ACTIVE);
 	}
 #else
 	rid = TL_PCI_LOMEM;
-	sc->tl_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->tl_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
 	if (sc->tl_res == NULL) {
 		rid = TL_PCI_LOIO;
-		sc->tl_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-		    0, ~0, 1, RF_ACTIVE);
+		sc->tl_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+		    RF_ACTIVE);
 	}
 #endif
 
@@ -1192,7 +1192,7 @@ tl_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->tl_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->tl_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->tl_irq == NULL) {

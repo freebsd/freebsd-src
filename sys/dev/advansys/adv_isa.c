@@ -158,8 +158,8 @@ adv_isa_probe(device_t dev)
 			continue;
 
 		/* XXX what is the real portsize? */
-		iores = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
-					   RF_ACTIVE);
+		iores = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+					       RF_ACTIVE);
 		if (iores == NULL)
 			continue;
 
@@ -327,8 +327,8 @@ adv_isa_probe(device_t dev)
 		else
 			adv_set_chip_irq(adv, irq);
 
-		irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-					    RF_ACTIVE);
+		irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+						RF_ACTIVE);
 		if (irqres == NULL ||
 		    bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY,
 				   adv_intr, adv, &ih)) {

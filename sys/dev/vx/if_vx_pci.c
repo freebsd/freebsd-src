@@ -131,8 +131,7 @@ vx_pci_attach(
     sc = device_get_softc(dev);
 
     rid = PCIR_BAR(0);
-    sc->vx_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-	0, ~0, 1, RF_ACTIVE);
+    sc->vx_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 
     if (sc->vx_res == NULL)
 	goto bad;
@@ -141,7 +140,7 @@ vx_pci_attach(
     sc->bsh = rman_get_bushandle(sc->vx_res);
 
     rid = 0;
-    sc->vx_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+    sc->vx_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	RF_SHAREABLE | RF_ACTIVE);
 
     if (sc->vx_irq == NULL)

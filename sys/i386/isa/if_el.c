@@ -241,7 +241,7 @@ el_attach(device_t dev)
 		return(ENXIO);
 
 	rid = 0;
-	sc->el_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->el_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
             RF_SHAREABLE | RF_ACTIVE);
 
         if (sc->el_irq == NULL) {

@@ -773,8 +773,7 @@ vr_attach(dev)
 	sc->vr_revid = pci_read_config(dev, VR_PCI_REVID, 4) & 0x000000FF;
 
 	rid = VR_RID;
-	sc->vr_res = bus_alloc_resource(dev, VR_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->vr_res = bus_alloc_resource_any(dev, VR_RES, &rid, RF_ACTIVE);
 
 	if (sc->vr_res == NULL) {
 		printf("vr%d: couldn't map ports/memory\n", unit);
@@ -787,7 +786,7 @@ vr_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->vr_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->vr_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->vr_irq == NULL) {

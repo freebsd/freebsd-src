@@ -90,8 +90,8 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 	    InterruptNumber = InterruptOverride;
     }
     bus_set_resource(sc->acpi_dev, SYS_RES_IRQ, 0, InterruptNumber, 1);
-    if ((sc->acpi_irq = bus_alloc_resource(sc->acpi_dev, SYS_RES_IRQ, &sc->acpi_irq_rid, 0, ~0, 1, 
-					   RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+    if ((sc->acpi_irq = bus_alloc_resource_any(sc->acpi_dev, SYS_RES_IRQ,
+	&sc->acpi_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 	device_printf(sc->acpi_dev, "could not allocate SCI interrupt\n");
 	return_ACPI_STATUS(AE_ALREADY_EXISTS);
     }

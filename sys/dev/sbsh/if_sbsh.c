@@ -238,7 +238,7 @@ sbsh_attach(device_t dev)
 	}
 
 	rid = 0;
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 						RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->irq_res == NULL) {

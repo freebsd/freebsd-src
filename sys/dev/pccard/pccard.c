@@ -450,8 +450,8 @@ pccard_function_init(struct pccard_function *pf)
 		}
 		if (cfe->irqmask) {
 			cfe->irqrid = 0;
-			r = cfe->irqres = bus_alloc_resource(bus, SYS_RES_IRQ,
-			    &cfe->irqrid, 0, ~0, 1, 0);
+			r = cfe->irqres = bus_alloc_resource_any(bus,
+				SYS_RES_IRQ, &cfe->irqrid, 0);
 			if (cfe->irqres == NULL)
 				goto not_this_one;
 			resource_list_add(rl, SYS_RES_IRQ, cfe->irqrid,

@@ -176,7 +176,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
       ? SYS_RES_IOPORT : SYS_RES_MEMORY;
     rstart = AcpiGbl_FADT->XPmTmrBlk.Address;
     bus_set_resource(dev, rtype, rid, rstart, rlen);
-    acpi_timer_reg = bus_alloc_resource(dev, rtype, &rid, 0, ~0, 1, RF_ACTIVE);
+    acpi_timer_reg = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
     if (acpi_timer_reg == NULL) {
 	device_printf(dev, "couldn't allocate I/O resource (%s 0x%lx)\n",
 		      rtype == SYS_RES_IOPORT ? "port" : "mem", rstart);
