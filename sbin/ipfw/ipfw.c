@@ -2363,7 +2363,7 @@ main(ac, av)
 	 * directory, things will fail miserably.
 	 */
 
-	if (ac > 1 && access(av[ac - 1], R_OK) == 0) {
+	if (ac > 1 && av[ac - 1][0] == '/' && access(av[ac - 1], R_OK) == 0) {
 		qflag = pflag = i = 0;
 		lineno = 0;
 
