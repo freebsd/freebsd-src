@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.21 1996/03/11 06:03:26 hsu Exp $
+ * $Id: kern_sig.c,v 1.22 1996/03/15 08:01:28 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -124,12 +124,10 @@ sigaction(p, uap, retval)
 			sa->sa_flags |= SA_RESTART;
 		if ((ps->ps_sigreset & bit) != 0)
 			sa->sa_flags |= SA_RESETHAND;
-		if (signum == SIGCHLD) {
-			if (p->p_flag & P_NOCLDSTOP)
-				sa->sa_flags |= SA_NOCLDSTOP;
-		}
-		if ((sa->sa_mask & bit) == 0)
+		if ((ps->ps_signodefer & bit) != 0)
 			sa->sa_flags |= SA_NODEFER;
+		if (signum == SIGCHLD && p->p_flag & P_NOCLDSTOP)
+			sa->sa_flags |= SA_NOCLDSTOP;
 		if ((error = copyout((caddr_t)sa, (caddr_t)uap->osa,
 		    sizeof (vec))))
 			return (error);
@@ -158,8 +156,6 @@ setsigvec(p, signum, sa)
 	 */
 	(void) splhigh();
 	ps->ps_sigact[signum] = sa->sa_handler;
-	if ((sa->sa_flags & SA_NODEFER) == 0)
-		sa->sa_mask |= sigmask(signum);
 	ps->ps_catchmask[signum] = sa->sa_mask &~ sigcantmask;
 	if ((sa->sa_flags & SA_RESTART) == 0)
 		ps->ps_sigintr |= bit;
@@ -173,6 +169,10 @@ setsigvec(p, signum, sa)
 		ps->ps_sigreset |= bit;
 	else
 		ps->ps_sigreset &= ~bit;
+	if (sa->sa_flags & SA_NODEFER)
+		ps->ps_signodefer |= bit;
+	else
+		ps->ps_signodefer &= ~bit;
 #ifdef COMPAT_SUNOS
 	if (sa->sa_flags & SA_USERTRAMP)
 		ps->ps_usertramp |= bit;
@@ -357,9 +357,13 @@ osigvec(p, uap, retval)
 			sv->sv_flags |= SV_ONSTACK;
 		if ((ps->ps_sigintr & bit) != 0)
 			sv->sv_flags |= SV_INTERRUPT;
+		if ((ps->ps_sigreset & bit) != 0)
+			sv->sv_flags |= SV_RESETHAND;
+		if ((ps->ps_signodefer & bit) != 0)
+			sv->sv_flags |= SV_NODEFER;
 #ifndef COMPAT_SUNOS
-		if (p->p_flag & P_NOCLDSTOP)
-			sv->sv_flags |= SA_NOCLDSTOP;
+		if (signum == SIGCHLD && p->p_flag & P_NOCLDSTOP)
+			sv->sv_flags |= SV_NOCLDSTOP;
 #endif
 		if ((error = copyout((caddr_t)sv, (caddr_t)uap->osv,
 		    sizeof (vec))))
@@ -695,8 +699,12 @@ trapsignal(p, signum, code)
 #endif
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[signum], signum,
 						p->p_sigmask, code);
-		p->p_sigmask |= ps->ps_catchmask[signum];
+		p->p_sigmask |= ps->ps_catchmask[signum] |
+				(mask & ~ps->ps_signodefer);
 		if ((ps->ps_sigreset & mask) != 0) {
+			/*
+			 * See setsigvec() for origin of this code.
+			 */
 			p->p_sigcatch &= ~mask;
 			if (signum != SIGCONT && sigprop[signum] & SA_IGNORE)
 				p->p_sigignore |= mask;
@@ -1136,8 +1144,12 @@ postsig(signum)
 			ps->ps_flags &= ~SAS_OLDMASK;
 		} else
 			returnmask = p->p_sigmask;
-		p->p_sigmask |= ps->ps_catchmask[signum];
+		p->p_sigmask |= ps->ps_catchmask[signum] |
+				(mask & ~ps->ps_signodefer);
 		if ((ps->ps_sigreset & mask) != 0) {
+			/*
+			 * See setsigvec() for origin of this code.
+			 */
 			p->p_sigcatch &= ~mask;
 			if (signum != SIGCONT && sigprop[signum] & SA_IGNORE)
 				p->p_sigignore |= mask;
