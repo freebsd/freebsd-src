@@ -1,5 +1,5 @@
 <articleinfo>
-  <title>&os; &release.current; &arch; Release Notes</title>
+  <title>&os;/&arch; &release.current; Release Notes</title>
 
   <pubdate>$FreeBSD$</pubdate>
 
@@ -24,7 +24,7 @@
   <title>Introduction</title>
 
   <para>This document contains the release notes for &os; &release.current; on
-  the &arch; hardware platform.  It describes new features of &os;
+  the &arch.print; hardware platform.  It describes new features of &os;
   that have been added (or changed) since &release.prev;.  It also
   provides some notes on upgrading from previous versions of &os;.</para>
 

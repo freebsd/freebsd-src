@@ -74,7 +74,7 @@ from {alpha,i386}/INSTALL.TXT.
   <sect2>
     <title>Hardware Requirements</title>
 
-    <para arch="i386">&os; for the &arch; requires an 80386 or better
+    <para arch="i386">&os; for the &arch.print; requires an 80386 or better
     processor.  The &man.sysinstall.8 installation program requires
     16MB of RAM; after installation, &os; itself can be run in 
     4&ndash;8MB of RAM with a pared-down kernel.
@@ -83,7 +83,7 @@ from {alpha,i386}/INSTALL.TXT.
     order of 250&ndash;350MB.  See below for ways of shrinking
     existing DOS partitions in order to install &os;.</para>
 
-    <para arch="alpha">&os; for the &arch; supports the alpha platforms
+    <para arch="alpha">&os; for the &arch.print; supports the platforms
     described in <filename>HARDWARE.TXT</filename>.</para>
 
     <para arch="alpha">You will need a dedicated disk for
@@ -719,7 +719,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
   </sect2>
 
   <sect2>
-    <title>Question and Answer Section for &arch; Architecture Users</title>
+    <title>Question and Answer Section for &arch.print; Architecture Users</title>
 
     <qandaset arch="i386">
       <qandaentry>
