@@ -126,9 +126,9 @@ dump_line(void)
 		    s++;
 		if (s < e_lab)
 		    fprintf(output, s[0]=='/' && s[1]=='*' ? "\t%.*s" : "\t/* %.*s */",
-			    e_lab - s, s);
+			    (int)(e_lab - s), s);
 	    }
-	    else fprintf(output, "%.*s", e_lab - s_lab, s_lab);
+	    else fprintf(output, "%.*s", (int)(e_lab - s_lab), s_lab);
 	    cur_col = count_spaces(cur_col, s_lab);
 	}
 	else
@@ -539,7 +539,7 @@ count_spaces(int current, char *buffer)
 int	found_err;
 
 void
-diag4(int level, char *msg, int a, int b)
+diag4(int level, const char *msg, int a, int b)
 {
     if (level)
 	found_err = 1;
@@ -556,7 +556,7 @@ diag4(int level, char *msg, int a, int b)
 }
 
 void
-diag3(int level, char *msg, int a)
+diag3(int level, const char *msg, int a)
 {
     if (level)
 	found_err = 1;
@@ -573,7 +573,7 @@ diag3(int level, char *msg, int a)
 }
 
 void
-diag2(int level, char *msg)
+diag2(int level, const char *msg)
 {
     if (level)
 	found_err = 1;
@@ -627,9 +627,9 @@ chfont(struct fstate *of, struct fstate *nf, char *s)
 }
 
 void
-parsefont(struct fstate *f, char *s0)
+parsefont(struct fstate *f, const char *s0)
 {
-    register char *s = s0;
+    const char *s = s0;
     int         sizedelta = 0;
 
     bzero(f, sizeof *f);
