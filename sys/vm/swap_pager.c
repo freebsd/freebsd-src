@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.121 1999/07/16 05:11:35 alc Exp $
+ * $Id: swap_pager.c,v 1.122 1999/08/17 04:02:32 alc Exp $
  */
 
 #include <sys/param.h>
@@ -1656,7 +1656,7 @@ swp_pager_async_iodone(bp)
 			 */
 			vm_page_protect(m, VM_PROT_READ);
 			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-			m->dirty = 0;
+			vm_page_undirty(m);
 			vm_page_io_finish(m);
 		}
 	}
