@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.15.1.3 1996/05/06 15:14:57 shun Exp $
+ *	$Id: od.c,v 1.18 1996/06/16 19:58:24 joerg Exp $
  */
 
 /*
@@ -150,16 +150,11 @@ static	d_strategy_t	odstrategy;
 
 #define CDEV_MAJOR 70
 #define BDEV_MAJOR 20
-extern	struct cdevsw od_cdevsw;
+static struct cdevsw od_cdevsw;
 static struct bdevsw od_bdevsw = 
 	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
 	  nodump,	nopsize,	0,	"od",	&od_cdevsw,	-1 };
 
-static struct cdevsw od_cdevsw = 
-	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/
-	  odioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		odstrategy,	"od",
-	  &od_bdevsw,	-1 };
 
 /*
  * Actually include the interface routines
@@ -983,13 +978,9 @@ static od_devsw_installed = 0;
 
 static void 	od_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! od_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&od_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&od_bdevsw, NULL);
+		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &od_bdevsw);
 		od_devsw_installed = 1;
     	}
 }

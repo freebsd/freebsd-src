@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.89 1996/05/02 22:20:52 phk Exp $
+ *      $Id: sd.c,v 1.90 1996/06/14 11:02:20 asami Exp $
  */
 
 #include "opt_bounce.h"
@@ -115,16 +115,11 @@ static	d_strategy_t	sdstrategy;
 
 #define CDEV_MAJOR 13
 #define BDEV_MAJOR 4
-extern struct cdevsw sd_cdevsw; /* hold off the complaints for a second */
+static struct cdevsw sd_cdevsw;
 static struct bdevsw sd_bdevsw = 
 	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
 	  sddump,	sdsize,		0,	"sd",	&sd_cdevsw,	-1 };
 
-static struct cdevsw sd_cdevsw = 
-	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
-	  sdioctl,	nostop,		nullreset,	nodevtotty,
-	  seltrue,	nommap,		sdstrategy,	"sd",
-	  &sd_bdevsw,	-1 };
 
 
 SCSI_DEVICE_ENTRIES(sd)
@@ -1055,13 +1050,9 @@ static sd_devsw_installed = 0;
 
 static void 	sd_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! sd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&sd_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&sd_bdevsw, NULL);
+		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &sd_bdevsw);
 		sd_devsw_installed = 1;
     	}
 }

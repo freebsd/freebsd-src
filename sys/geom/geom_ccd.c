@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.13 1996/06/12 04:58:03 gpalmer Exp $ */
+/* $Id: ccd.c,v 1.14 1996/07/21 09:28:03 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -182,18 +182,11 @@ d_write_t ccdwrite;
 #define CDEV_MAJOR 74
 #define BDEV_MAJOR 21
 
-extern struct cdevsw ccd_cdevsw;
+static struct cdevsw ccd_cdevsw;
 static struct bdevsw ccd_bdevsw = {
   ccdopen, ccdclose, ccdstrategy, ccdioctl,
   ccddump, ccdsize, 0,
   "ccd", &ccd_cdevsw, -1
-};
-
-static struct cdevsw ccd_cdevsw = {
-  ccdopen, ccdclose, rawread, rawwrite,
-  ccdioctl, nostop, nullreset, nodevtotty,
-  seltrue, nommap, ccdstrategy,
-  "ccd", &ccd_bdevsw, -1
 };
 
 /* Called by main() during pseudo-device attachment */
@@ -250,7 +243,6 @@ ccdattach(dummy)
 {
 	int i;
 	int num = NCCD;
-	dev_t dev;
 
 	if (num > 1)
 		printf("ccd0-%d: Concatenated disk drivers\n", num-1);
@@ -278,10 +270,7 @@ ccdattach(dummy)
 		ccddevs[i].ccd_dk = -1;
 
 	if( ! ccd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&ccd_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&ccd_bdevsw, NULL);
+		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &ccd_bdevsw);
 		ccd_devsw_installed = 1;
     	}
 	else {
