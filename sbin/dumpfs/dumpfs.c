@@ -83,7 +83,7 @@ union {
 struct uufsd disk;
 
 int	dumpfs(const char *);
-int	dumpcg(const char *, int, int);
+int	dumpcg(int);
 void	pbits(void *, int);
 void	usage(void) __dead2;
 
@@ -123,7 +123,8 @@ dumpfs(const char *name)
 	if (ufs_disk_fillout(&disk, name) == -1)
 			goto err;
 
-	if (afs.fs_magic == FS_UFS2_MAGIC) {
+	switch (disk.d_ufs) {
+	case 2:
 		fssize = afs.fs_size;
 		time = afs.fs_time;
 		printf("magic\t%x (UFS2)\ttime\t%s",
@@ -132,13 +133,17 @@ dumpfs(const char *name)
 		    afs.fs_sblockloc, afs.fs_id[0], afs.fs_id[1]);
 		printf("ncg\t%d\tsize\t%qd\tblocks\t%d\n",
 		    afs.fs_ncg, fssize, afs.fs_dsize);
-	} else {
+		break;
+	case 1:
 		fssize = afs.fs_old_size;
 		printf("magic\t%x (UFS1)\ttime\t%s",
 		    afs.fs_magic, ctime(&afs.fs_old_time));
 		printf("id\t[ %x %x ]\n", afs.fs_id[0], afs.fs_id[1]);
 		printf("ncg\t%d\tsize\t%qd\tblocks\t%d\n",
 		    afs.fs_ncg, fssize, afs.fs_dsize);
+		break;
+	default:
+		break;
 	}
 	printf("bsize\t%d\tshift\t%d\tmask\t0x%08x\n",
 	    afs.fs_bsize, afs.fs_bshift, afs.fs_bmask);
@@ -149,7 +154,8 @@ dumpfs(const char *name)
 	printf("minfree\t%d%%\toptim\t%s\tsymlinklen %d\n",
 	    afs.fs_minfree, afs.fs_optim == FS_OPTSPACE ? "space" : "time",
 	    afs.fs_maxsymlinklen);
-	if (afs.fs_magic == FS_UFS2_MAGIC) {
+	switch (disk.d_ufs) {
+	case 2:
 		printf("%s %d\tmaxbpg\t%d\tmaxcontig %d\tcontigsumsize %d\n",
 		    "maxbsize", afs.fs_maxbsize, afs.fs_maxbpg,
 		    afs.fs_maxcontig, afs.fs_contigsumsize);
@@ -162,7 +168,8 @@ dumpfs(const char *name)
 		    afs.fs_nindir, afs.fs_inopb, afs.fs_maxfilesize);
 		printf("sbsize\t%d\tcgsize\t%d\tcsaddr\t%d\tcssize\t%d\n",
 		    afs.fs_sbsize, afs.fs_cgsize, afs.fs_csaddr, afs.fs_cssize);
-	} else {
+		break;
+	case 1:
 		printf("maxbpg\t%d\tmaxcontig %d\tcontigsumsize %d\n",
 		    afs.fs_maxbpg, afs.fs_maxcontig, afs.fs_contigsumsize);
 		printf("nbfree\t%d\tndir\t%d\tnifree\t%d\tnffree\t%d\n",
@@ -184,6 +191,9 @@ dumpfs(const char *name)
 		    afs.fs_old_interleave);
 		printf("nsect\t%d\tnpsect\t%d\tspc\t%d\n",
 		    afs.fs_old_nsect, afs.fs_old_npsect, afs.fs_old_spc);
+		break;
+	default:
+		break;
 	}
 	printf("sblkno\t%d\tcblkno\t%d\tiblkno\t%d\tdblkno\t%d\n",
 	    afs.fs_sblkno, afs.fs_cblkno, afs.fs_iblkno, afs.fs_dblkno);
@@ -208,11 +218,7 @@ dumpfs(const char *name)
 	putchar('\n');
 	printf("\ncs[].cs_(nbfree,ndir,nifree,nffree):\n\t");
 	afs.fs_csp = calloc(1, afs.fs_cssize);
-	if (lseek(disk.d_fd,
-	    (off_t)(fsbtodb(&afs, afs.fs_csaddr)) * (off_t)disk.d_bsize,
-	    SEEK_SET) == (off_t)-1)
-		goto err;
-	if (read(disk.d_fd, (char *)afs.fs_csp, afs.fs_cssize) != afs.fs_cssize)
+	if (bread(&disk, fsbtodb(&afs, afs.fs_csaddr), afs.fs_csp, afs.fs_cssize) == -1)
 		goto err;
 	for (i = 0; i < afs.fs_ncg; i++) {
 		struct csum *cs = &afs.fs_cs(&afs, i);
@@ -223,7 +229,7 @@ dumpfs(const char *name)
 	}
 	printf("\n");
 	if (fssize % afs.fs_fpg) {
-		if (afs.fs_magic == FS_UFS1_MAGIC)
+		if (disk.d_ufs == 1)
 			printf("cylinders in last group %d\n",
 			    howmany(afs.fs_old_size % afs.fs_fpg,
 			    afs.fs_old_spc / afs.fs_old_nspf));
@@ -231,7 +237,7 @@ dumpfs(const char *name)
 		    (fssize % afs.fs_fpg) / afs.fs_frag);
 	}
 	for (i = 0; i < afs.fs_ncg; i++)
-		if (dumpcg(name, disk.d_fd, i))
+		if (dumpcg(i))
 			goto err;
 	ufs_disk_close(&disk);
 	return (0);
@@ -242,32 +248,33 @@ err:	ufs_disk_close(&disk);
 }
 
 int
-dumpcg(const char *name, int fd, int c)
+dumpcg(int c)
 {
 	time_t time;
 	off_t cur;
 	int i, j;
 
 	printf("\ncg %d:\n", c);
-	if ((cur = lseek(fd, (off_t)(fsbtodb(&afs, cgtod(&afs, c))) *
-	    (off_t)disk.d_bsize, SEEK_SET)) == (off_t)-1)
+	cur = fsbtodb(&afs, cgtod(&afs, c)) * disk.d_bsize;
+	if (bread(&disk, fsbtodb(&afs, cgtod(&afs, c)), &acg, afs.fs_bsize) == -1)
 		return (1);
-	if (read(disk.d_fd, &acg, afs.fs_bsize) != afs.fs_bsize) {
-		warnx("%s: error reading cg", name);
-		return (1);
-	}
-	if (afs.fs_magic == FS_UFS2_MAGIC) {
+	switch (disk.d_ufs) {
+	case 2:
 		time = acg.cg_time;
 		printf("magic\t%x\ttell\t%qx\ttime\t%s",
 		    acg.cg_magic, cur, ctime(&time));
 		printf("cgx\t%d\tndblk\t%d\tniblk\t%d\tinitiblk %d\n",
 		    acg.cg_cgx, acg.cg_ndblk, acg.cg_niblk, acg.cg_initediblk);
-	} else {
+		break;
+	case 1:
 		printf("magic\t%x\ttell\t%qx\ttime\t%s",
 		    acg.cg_magic, cur, ctime(&acg.cg_old_time));
 		printf("cgx\t%d\tncyl\t%d\tniblk\t%d\tndblk\t%d\n",
 		    acg.cg_cgx, acg.cg_old_ncyl, acg.cg_old_niblk,
 		    acg.cg_ndblk);
+		break;
+	default:
+		break;
 	}
 	printf("nbfree\t%d\tndir\t%d\tnifree\t%d\tnffree\t%d\n",
 	    acg.cg_cs.cs_nbfree, acg.cg_cs.cs_ndir,
