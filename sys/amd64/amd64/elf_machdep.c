@@ -68,7 +68,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 			if (sym == NULL)
 				return -1;
 			addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
-			if (addr == NULL)
+			if (addr == 0)
 				return -1;
 			addr += addend;
 			if (*where != addr)
@@ -79,7 +79,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 			if (sym == NULL)
 				return -1;
 			addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
-			if (addr == NULL)
+			if (addr == 0)
 				return -1;
 			addr += addend - (Elf_Addr)where;
 			if (*where != addr)
@@ -99,7 +99,7 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 			if (sym == NULL)
 				return -1;
 			addr = (Elf_Addr)linker_file_lookup_symbol(lf, sym, 1);
-			if (addr == NULL)
+			if (addr == 0)
 				return -1;
 			if (*where != addr)
 				*where = addr;

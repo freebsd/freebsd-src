@@ -1106,7 +1106,7 @@ ffs_clusteralloc(ip, cg, bpref, len)
 
 	fs = ip->i_fs;
 	if (fs->fs_maxcluster[cg] < len)
-		return (NULL);
+		return (0);
 	if (bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize,
 	    NOCRED, &bp))
 		goto fail;

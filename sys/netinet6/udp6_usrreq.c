@@ -226,7 +226,7 @@ udp6_input(mp, offp, proto)
 		 */
 		last = NULL;
 		LIST_FOREACH(in6p, &udb, inp_list) {
-			if ((in6p->inp_vflag & INP_IPV6) == NULL)
+			if ((in6p->inp_vflag & INP_IPV6) == 0)
 				continue;
 			if (in6p->in6p_lport != uh->uh_dport)
 				continue;
@@ -407,6 +407,7 @@ udp6_ctlinput(cmd, sa, d)
 	    sa->sa_len != sizeof(struct sockaddr_in6))
 		return;
 
+	off = 0;
 	if (!PRC_IS_REDIRECT(cmd) &&
 	    ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0))
 		return;
@@ -665,7 +666,7 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
-	if (ip6_mapped_addr_on && (inp->inp_flags & IN6P_BINDV6ONLY) == NULL) {
+	if (ip6_mapped_addr_on && (inp->inp_flags & IN6P_BINDV6ONLY) == 0) {
 		struct sockaddr_in6 *sin6_p;
 
 		sin6_p = (struct sockaddr_in6 *)nam;
@@ -714,7 +715,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 			s = splnet();
 			error = in_pcbconnect(inp, (struct sockaddr *)&sin, p);
 			splx(s);
-			if (error == NULL) {
+			if (error == 0) {
 				inp->inp_vflag |= INP_IPV4;
 				inp->inp_vflag &= ~INP_IPV6;
 				soisconnected(so);
@@ -733,7 +734,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 			(htonl(ip6_flow_seq++) & IPV6_FLOWLABEL_MASK);
 	}
 	splx(s);
-	if (error == NULL) {
+	if (error == 0) {
 		if (ip6_mapped_addr_on) { /* should be non mapped addr */
 			inp->inp_vflag &= ~INP_IPV4;
 			inp->inp_vflag |= INP_IPV6;

@@ -58,7 +58,7 @@
 	{ MGETHDR((m),M_DONTWAIT,MT_DATA); \
 	  if (m) { \
 	    MCLGET((m),M_DONTWAIT); \
-	    if( NULL == ((m)->m_flags & M_EXT) ){ \
+	    if( 0 == ((m)->m_flags & M_EXT) ){ \
 	      m_freem(m); \
 	      (m) = NULL; \
 	    } \

@@ -1070,7 +1070,7 @@ icmp6_rip6_input(mp, off)
 
 	LIST_FOREACH(in6p, &ripcb, inp_list)
 	{
-		if ((in6p->inp_vflag & INP_IPV6) == NULL)
+		if ((in6p->inp_vflag & INP_IPV6) == 0)
 			continue;
 		if (in6p->in6p_ip6_nxt != IPPROTO_ICMPV6)
 			continue;

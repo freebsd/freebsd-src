@@ -662,7 +662,7 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
 	s = splnet();
 	for (inp = head->lh_first; inp != NULL;) {
 #ifdef INET6
-		if ((inp->inp_vflag & INP_IPV4) == NULL) {
+		if ((inp->inp_vflag & INP_IPV4) == 0) {
 			inp = LIST_NEXT(inp, inp_list);
 			continue;
 		}
@@ -759,7 +759,7 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
 		for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
 #ifdef INET6
-			if ((inp->inp_vflag & INP_IPV4) == NULL)
+			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
 #endif
 			if (inp->inp_faddr.s_addr == INADDR_ANY &&
@@ -800,7 +800,7 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 			    inp = inp->inp_portlist.le_next) {
 				wildcard = 0;
 #ifdef INET6
-				if ((inp->inp_vflag & INP_IPV4) == NULL)
+				if ((inp->inp_vflag & INP_IPV4) == 0)
 					continue;
 #endif
 				if (inp->inp_faddr.s_addr != INADDR_ANY)
@@ -849,7 +849,7 @@ in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard,
 	head = &pcbinfo->hashbase[INP_PCBHASH(faddr.s_addr, lport, fport, pcbinfo->hashmask)];
 	for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
 #ifdef INET6
-		if ((inp->inp_vflag & INP_IPV4) == NULL)
+		if ((inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 #endif
 		if (inp->inp_faddr.s_addr == faddr.s_addr &&
@@ -871,7 +871,7 @@ in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard,
 		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
 		for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
 #ifdef INET6
-			if ((inp->inp_vflag & INP_IPV4) == NULL)
+			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
 #endif
 			if (inp->inp_faddr.s_addr == INADDR_ANY &&

@@ -467,7 +467,7 @@ link_aout_lookup_symbol(linker_file_t file, const char* name,
     char* cp;
 
     if (LD_BUCKETS(af->dynamic) == 0)
-	return NULL;
+	return 0;
 
     hashbase = AOUT_RELOC(af, struct rrs_hash, LD_HASH(af->dynamic));
     symbolbase = AOUT_RELOC(af, struct nzlist, LD_SYMBOL(af->dynamic));
