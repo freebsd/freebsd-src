@@ -142,6 +142,10 @@ iomem and and with 0xffff.
 
 #include <net/bpf.h>
 
+#ifndef COMPAT_OLDISA
+#error "The ie device requires the old isa compatibility shims"
+#endif
+
 #ifdef DEBUG
 #define IED_RINT	0x01
 #define IED_TINT	0x02
