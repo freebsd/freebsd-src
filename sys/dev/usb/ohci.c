@@ -1462,10 +1462,12 @@ ohci_softintr(void *v)
 		}
 	}
 
+#ifdef USB_USE_SOFTINTR
 	if (sc->sc_softwake) {
 		sc->sc_softwake = 0;
 		wakeup(&sc->sc_softwake);
 	}
+#endif /* USB_USE_SOFTINTR */
 
 	sc->sc_bus.intr_context--;
 	DPRINTFN(10,("ohci_softintr: done:\n"));
@@ -2228,9 +2230,13 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	 */
 	usb_delay_ms(opipe->pipe.device->bus, 20); /* Hardware finishes in 1ms */
 	s = splusb();
+#ifdef USB_USE_SOFTINTR
 	sc->sc_softwake = 1;
+#endif /* USB_USE_SOFTINTR */
 	usb_schedsoftintr(&sc->sc_bus);
+#ifdef USB_USE_SOFTINTR
 	tsleep(&sc->sc_softwake, PZERO, "ohciab", 0);
+#endif /* USB_USE_SOFTINTR */
 	splx(s);
 
 	/*
