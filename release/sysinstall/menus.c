@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.12 1995/06/03 09:49:48 jkh Exp $
+ * $Id: menus.c,v 1.41.2.13 1995/06/03 23:44:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -676,7 +676,7 @@ Record to remain untouched, then select \"none\".",
       { "Standard", "Use a standard MBR (no boot manager)",	/* S */
 	DMENU_SET_VALUE,	&BootMgr, 1, 0, dmenuRadioCheck		},
       { "None", "Leave the Master Boot Record untouched",	/* N */
-	DMENU_SET_VARIABLE,	&BootMgr, 2, 0, dmenuRadioCheck	},
+	DMENU_SET_VALUE,	&BootMgr, 2, 0, dmenuRadioCheck	},
       { NULL } },
 };
 
