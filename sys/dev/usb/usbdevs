@@ -875,8 +875,8 @@ product LINKSYS USB100TX	0x2203	USB100TX Ethernet
 product LINKSYS USB100H1	0x2204	USB100H1 Ethernet/HPNA
 product LINKSYS USB10TA		0x2206	USB10TA Ethernet
 product LINKSYS USB10TX2	0x400b	USB10TX
-product LINKSYS USB200M		0x2226  USB 2.0 10/100 ethernet controller
 product LINKSYS2 WUSB11		0x2219	WUSB11 Wireless adapter
+product LINKSYS2 USB200M	0x2226  USB 2.0 10/100 ethernet controller
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
