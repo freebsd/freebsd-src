@@ -238,6 +238,7 @@ reinstall reinstall.debug: modules-reinstall
 .endif
 
 MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules
+MKMODULESENV+=	COPTS="-include ${.OBJDIR}/opt_global.h"
 .if defined(MODULES_OVERRIDE)
 MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
 .endif
