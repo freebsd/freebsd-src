@@ -199,8 +199,12 @@ restart:
 	 */
 	if (vn_canvmio(vp) == TRUE) {
 		if ((error = vfs_object_create(vp, td, cred)) != 0) {
+			VOP_UNLOCK(vp, 0, td);
 			VOP_CLOSE(vp, fmode, cred, td);
-			goto bad;
+			NDFREE(ndp, NDF_ONLY_PNBUF);
+			vrele(vp);
+			*flagp = fmode;
+			return (error);
 		}
 	}
 
