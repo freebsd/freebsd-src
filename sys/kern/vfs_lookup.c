@@ -117,6 +117,9 @@ namei(ndp)
 	    ("namei: nameiop contaminated with flags"));
 	KASSERT((cnp->cn_flags & OPMASK) == 0,
 	    ("namei: flags contaminated with nameiops"));
+#ifndef LOOKUP_SHARED
+	cnp->cn_flags &= ~LOCKSHARED;
+#endif
 	fdp = p->p_fd;
 
 	/*
