@@ -71,6 +71,9 @@ IPv4 socket on port 3333 of localhost.  The current flags (F=) are:
 	R		Reject connection if filter unavailable
 	T		Temporary fail connection if filter unavailable
 
+If neither F=R nor F=T is specified, the message is passed through sendmail
+as if the filter were not present.
+
 Finally, you can override the default timeouts used by sendmail when
 talking to the filters using the T= equate.  There are three fields inside
 of the T= equate:
@@ -88,13 +91,17 @@ T=S:10s;R:10s;E:5m
 
 where 's' is seconds and 'm' is minutes.
 
-Actual sequencing is handled by the InputMailFilters option which is set
-automatically according to the order of the INPUT_MAIL_FILTER commands
-in your .mc file.  Alternatively, you can reset its value by setting
-confINPUT_MAIL_FILTERS in your .mc file.  This options causes the three
-filters to be called in the same order they were specified.  It allows
-for possible future filtering on output (although this is not intended
-for this release).
+Which filters are invoked and their sequencing is handled by the 
+InputMailFilters option.
+
+	O InputMailFilters=filter1, filter2, filter3
+
+This is is set automatically according to the order of the
+INPUT_MAIL_FILTER commands in your .mc file.  Alternatively, you can
+reset its value by setting confINPUT_MAIL_FILTERS in your .mc file.
+This options causes the three filters to be called in the same order
+they were specified.  It allows for possible future filtering on output
+(although this is not intended for this release).
 
 Also note that a filter can be defined without adding it to the input
 filter list by using MAIL_FILTER() instead of INPUT_MAIL_FILTER() in your
@@ -134,7 +141,7 @@ connected via one of these options, the session can be continued through
 the use of standard SMTP commands.
 
 % sendmail -bs
-220 test.sendmail.com ESMTP Sendmail 8.10.0.Beta8/8.10.0.Beta8; Mon, 6 Dec 1999 19:34:23 -0800 (PST)
+220 test.sendmail.com ESMTP Sendmail 8.11.0/8.11.0; Tue, 10 Nov 1970 13:05:23 -0500 (EST)
 HELO localhost
 250 test.sendmail.com Hello testy@localhost, pleased to meet you
 MAIL From:<testy>
@@ -405,4 +412,4 @@ main(argc, argv)
 
 /* eof */
 
-$Revision: 8.9.2.1.2.8 $, Last updated $Date: 2000/07/18 15:43:26 $
+$Revision: 8.9.2.1.2.12 $, Last updated $Date: 2000/09/19 19:40:13 $
