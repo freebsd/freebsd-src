@@ -53,8 +53,6 @@
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
-#include <sys/timetc.h>
-#include <sys/timepps.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -218,7 +216,6 @@ hardclock(frame)
 	if (stathz == 0)
 		statclock(frame);
 
-	tc_windup();
 #ifdef DEVICE_POLLING
 	hardclock_device_poll();	/* this is very short and quick */
 #endif /* DEVICE_POLLING */
