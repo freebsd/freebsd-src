@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.99 1997/11/12 02:10:05 brian Exp $
+ * $Id: command.c,v 1.100 1997/11/12 16:34:50 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -183,10 +183,14 @@ static int
 SetLoopback(struct cmdtab const * cmdlist, int argc, char **argv)
 {
   if (argc == 1)
-    if (!strcasecmp(*argv, "on"))
+    if (!strcasecmp(*argv, "on")) {
       VarLoopback = 1;
-    else if (!strcasecmp(*argv, "off"))
+      return 0;
+    }
+    else if (!strcasecmp(*argv, "off")) {
       VarLoopback = 0;
+      return 0;
+    }
   return -1;
 }
 
