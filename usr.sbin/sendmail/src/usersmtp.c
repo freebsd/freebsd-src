@@ -36,9 +36,9 @@
 
 #ifndef lint
 #ifdef SMTP
-static char sccsid[] = "@(#)usersmtp.c	8.65 (Berkeley) 9/28/95 (with SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.65.1.2 (Berkeley) 9/16/96 (with SMTP)";
 #else
-static char sccsid[] = "@(#)usersmtp.c	8.65 (Berkeley) 9/28/95 (without SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.65.1.2 (Berkeley) 9/16/96 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -332,6 +332,7 @@ smtpmailfrom(m, mci, e)
 	ENVELOPE *e;
 {
 	int r;
+	int l;
 	char *bufp;
 	char *bodytype;
 	char buf[MAXNAME + 1];
@@ -342,9 +343,10 @@ smtpmailfrom(m, mci, e)
 
 	/* set up appropriate options to include */
 	if (bitset(MCIF_SIZE, mci->mci_flags) && e->e_msgsize > 0)
-		sprintf(optbuf, " SIZE=%ld", e->e_msgsize);
+		snprintf(optbuf, sizeof optbuf, " SIZE=%ld", e->e_msgsize);
 	else
 		strcpy(optbuf, "");
+	l = sizeof optbuf - strlen(optbuf) - 1;
 
 	bodytype = e->e_bodytype;
 	if (bitset(MCIF_8BITMIME, mci->mci_flags))
@@ -359,6 +361,7 @@ smtpmailfrom(m, mci, e)
 		{
 			strcat(optbuf, " BODY=");
 			strcat(optbuf, bodytype);
+			l -= strlen(optbuf);
 		}
 	}
 	else if (bitnset(M_8BITS, m->m_flags) ||
@@ -387,20 +390,22 @@ smtpmailfrom(m, mci, e)
 
 	if (bitset(MCIF_DSN, mci->mci_flags))
 	{
-		if (e->e_envid != NULL)
+		if (e->e_envid != NULL && strlen(e->e_envid) < (SIZE_T) l)
 		{
 			strcat(optbuf, " ENVID=");
 			strcat(optbuf, e->e_envid);
+			l -= strlen(optbuf);
 		}
 
 		/* RET= parameter */
-		if (bitset(EF_RET_PARAM, e->e_flags))
+		if (bitset(EF_RET_PARAM, e->e_flags) && l >= 9)
 		{
 			strcat(optbuf, " RET=");
 			if (bitset(EF_NO_BODY_RETN, e->e_flags))
 				strcat(optbuf, "HDRS");
 			else
 				strcat(optbuf, "FULL");
+			l -= 9;
 		}
 	}
 
@@ -516,10 +521,12 @@ smtprcpt(to, m, mci, e)
 	ENVELOPE *e;
 {
 	register int r;
+	int l;
 	char optbuf[MAXLINE];
 	extern char *smtptodsn();
 
 	strcpy(optbuf, "");
+	l = sizeof optbuf - 1;
 	if (bitset(MCIF_DSN, mci->mci_flags))
 	{
 		/* NOTIFY= parameter */
@@ -550,13 +557,15 @@ smtprcpt(to, m, mci, e)
 			}
 			if (firstone)
 				strcat(optbuf, "NEVER");
+			l -= strlen(optbuf);
 		}
 
 		/* ORCPT= parameter */
-		if (to->q_orcpt != NULL)
+		if (to->q_orcpt != NULL && strlen(to->q_orcpt) + 7 < l)
 		{
 			strcat(optbuf, " ORCPT=");
 			strcat(optbuf, to->q_orcpt);
+			l -= strlen(optbuf);
 		}
 	}
 
@@ -921,14 +930,19 @@ reply(m, mci, e, timeout, pfunc)
 			{
 				char wbuf[MAXLINE];
 				char *p = wbuf;
+				int wbufleft = sizeof wbuf;
 
 				if (e->e_to != NULL)
 				{
-					sprintf(p, "%s... ",
+					int plen;
+
+					snprintf(p, wbufleft, "%s... ",
 						shortenstring(e->e_to, 203));
-					p += strlen(p);
+					plen = strlen(p);
+					p += plen;
+					wbufleft -= plen;
 				}
-				sprintf(p, "reply(%.100s) during %s",
+				snprintf(p, wbufleft, "reply(%.100s) during %s",
 					mci->mci_host, SmtpPhase);
 				checkfd012(wbuf);
 			}
@@ -992,7 +1006,7 @@ reply(m, mci, e, timeout, pfunc)
 
 	/* save temporary failure messages for posterity */
 	if (SmtpReplyBuffer[0] == '4' && SmtpError[0] == '\0')
-		(void) strcpy(SmtpError, SmtpReplyBuffer);
+		snprintf(SmtpError, sizeof SmtpError, "%s", SmtpReplyBuffer);
 
 	/* reply code 421 is "Service Shutting Down" */
 	if (r == SMTPCLOSING && mci->mci_state != MCIS_SSD)
