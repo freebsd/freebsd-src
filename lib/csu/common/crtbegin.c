@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crtbegin.c,v 1.1.1.1 1998/03/07 20:27:10 jdp Exp $
+ *      $Id: crtbegin.c,v 1.2 1999/03/12 17:33:27 jdp Exp $
  */
 
 #include <sys/cdefs.h>
@@ -41,6 +41,8 @@ do_ctors(void)
     fptr *fpp;
 
     for(fpp = ctor_list + 1;  *fpp != 0;  ++fpp)
+	;
+    while(--fpp > ctor_list)
 	(**fpp)();
 }
 
@@ -50,8 +52,6 @@ do_dtors(void)
     fptr *fpp;
 
     for(fpp = dtor_list + 1;  *fpp != 0;  ++fpp)
-	;
-    while(--fpp > dtor_list)
 	(**fpp)();
 }
 
