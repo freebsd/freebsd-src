@@ -1,0 +1,4 @@
+HDEFINES=-DHAVE_GETRUSAGE
+CC=i386-go32-gcc -O2 -fno-omit-frame-pointer
+AR=i386-go32-ar
+RANLIB=i386-go32-ranlib

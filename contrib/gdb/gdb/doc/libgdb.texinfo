@@ -1,0 +1,878 @@
+\input texinfo   @c -*-texinfo-*-
+@c %**start of header
+@setfilename libgdb.info
+@settitle Libgdb
+@setchapternewpage off
+@c %**end of header
+
+@ifinfo
+This file documents libgdb, the GNU symbolic debugger in a library.
+
+This is Edition 0.3, Oct 1993, of @cite{Libgdb}.
+Copyright 1993 Cygnus Support
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions.
+@end ifinfo
+
+@c  This title page illustrates only one of the
+@c  two methods of forming a title page.
+
+@titlepage
+@title Libgdb
+@subtitle Version 0.3
+@subtitle Oct 1993
+@author Thomas Lord
+
+@c  The following two commands
+@c  start the copyright page.
+@page
+@vskip 0pt plus 1filll
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Copyright @copyright{} 1993 Cygnus Support
+@end titlepage
+
+@ifinfo
+@node Top, Overview, (dir), (dir)
+
+This info file documents libgdb: an API for GDB, the GNU symbolic debugger.
+
+@menu
+* Overview::	             The basics of libgdb and this document.
+* Interpreter::              Libgdb is an Interpreter-Based Server.
+* Top Level::                You Provide the Top Level for the Libgdb
+                                Command Interpreter .
+* I/O::                      How the Server's I/O Can be Used.
+* Invoking::                 Invoking the Interpreter, Executing
+                                Commands. 
+* Defining Commands::        How New Commands are Created.
+* Variables::                How Builtin Variables are Defined.
+* Asynchronous::             Scheduling Asynchronous Computations.
+* Commands::                 Debugger Commands for Libgdb Applications
+@end menu
+
+@end ifinfo
+@node    Overview, Interpreter, top,      top
+@comment node-name,     next,           previous, up
+@chapter Overview
+@cindex overview
+@cindex definitions
+
+@heading Function and Purpose
+
+Libgdb is a package which provides an API to the functionality of GDB,
+the GNU symbolic debugger.  It is specifically intended to support the
+development of a symbolic debugger with a graphic interface.
+
+
+@heading This Document
+
+This document is a specification of the libgdb API.  It is written in
+the form of a programmer's manual.  So the goal of this document is to
+explain what functions make up the API, and how they can be used in a
+running application.
+
+
+@heading Terminology
+
+In this document, @dfn{libgdb} refers to a library containing the
+functions defined herein, @dfn{application} refers to any program built
+with that library.
+
+
+@heading Dependencies
+
+Programs which are linked with libgdb must be linked with libbfd,
+libopcodes, libiberty, and libmmalloc.
+
+@heading Acknowledgments
+
+Essential contributions to this design were made by Stu Grossman, Jim
+Kingdon, and Rich Pixley.
+
+@node Interpreter, Top Level, Overview, Top
+@comment  node-name,  next,  previous,  up
+@chapter Libgdb is an Interpreter Based Server
+@cindex interpreter
+@cindex server
+
+To understand libgdb, it is necessary to understand how the library is
+structured.  Historically, GDB is written as a small interpreter for a
+simple command language.  The commands of the language perform useful
+debugging functions.
+
+Libgdb is built from GDB by turning the interpreter into a debugging
+server.  The server reads debugging commands from any source and
+interprets them, directing the output arbitrarily.
+
+In addition to changing GDB from a tty-based program to a server, a
+number of new GDB commands have been added to make the server more
+useful for a program with a graphic interface.
+
+Finally, libgdb includes provisions for asynchronous processing within
+the application.
+
+Most operations that can be carried out with libgdb involve the GDB
+command interpreter.  The usual mode of operation is that the operation
+is expressed as a string of GDB commands, which the interpreter is then
+invoked to carry out.  The output from commands executed in this manner
+can be redirected in a variety of useful ways for further processing by
+the application.
+
+The command interpreter provides an extensive system of hooks so an
+application can monitor any aspect of the debugging library's state.  An
+application can set its own breakpoints and attach commands and
+conditions to those.  It is possible to attach hooks to any debugger
+command; the hooks are invoked whenever that command is about to be
+invoked.  By means of these, the displays of a graphical interface can
+be kept fully up to date at all times.
+
+We show you how to define new primitives in the command language.  By
+defining new primitives and using them in breakpoint scripts and command
+hooks, an application can schedule the execution of arbitrary C-code at
+almost any point of interest in the operation of libgdb.
+
+We show you how to define new GDB convenience variables for which your
+code computes a value on demand.  Referring to such variables in a
+breakpoint condition is a convenient way to conditionalize breakpoints
+in novel ways.
+
+To summarize: in libgdb, the gdb command language is turned into a
+debugging server.  The server takes commands as input, and the server's
+output is redirectable.  An application uses libgdb by formatting
+debugging commands and invoking the interpreter.  The application might
+maintain breakpoints, watchpoints and many kinds of hooks.  An application
+can define new primitives for the interpreter.
+
+@node Top Level, I/O, Interpreter, Top
+@chapter You Provide the Top Level for the Libgdb Command Interpreter
+@cindex {top level}
+
+When you use libgdb, your code is providing a @dfn{top level} for the
+command language interpreter.  The top level is significant because it
+provides commands for the the interpreter to execute.  In addition, the
+top level is responsible for handling some kinds of errors, and
+performing certain cleanup operations on behalf of the interpreter.
+
+@heading Initialization
+
+Before calling any other libgdb functions, call this:
+
+@deftypefun void gdb_init (void)
+Perform one-time initialization for libgdb.
+@end deftypefun
+
+An application may wish to evaluate specific gdb commands as part of its
+own initialization.  The details of how this can be accomplished are
+explained below.
+
+@heading The Top-Level Loop
+
+There is a strong presumption in libgdb that the application has
+the form of a loop.  Here is what such a loop might look like:
+
+@example
+while (gdb_still_going ())
+  @{
+    if (!GDB_TOP_LEVEL ())
+      @{
+        char * command;
+        gdb_start_top_loop ();
+        command = process_events ();
+        gdb_execute_command (command);
+        gdb_finish_top_loop ();
+      @}
+    @}
+@end example
+
+The function @code{gdb_still_going} returns 1 until the gdb command
+`quit' is run.
+
+The macro @code{GDB_TOP_LEVEL} invokes setjmp to set the top level error
+handler.  When a command results in an error, the interpreter exits with
+a longjmp. There is nothing special libgdb requires of the top level
+error handler other than it be present and that it restart the top level
+loop.  Errors are explained in detail in a later chapter.
+
+Each time through the top level loop two important things happen: a
+debugger command is constructed on the basis of user input, and the
+interpreter is invoked to execute that command.  In the sample code, the
+call to the imaginary function @code{process_events} represents the
+point at which a graphical interface should read input events until
+ready to execute a debugger command.  The call to
+@code{gdb_execute_command} invokes the command interpreter (what happens
+to the output from the command will be explained later).
+
+Libgdb manages some resources using the top-level loop.  The primary
+reason for this is error-handling: even if a command terminates with an
+error, it may already have allocated resources which need to be freed.
+The freeing of such resources takes place at the top-level, regardless
+of how the the command exits.  The calls to @code{gdb_start_top_loop}
+and @code{gdb_finish_top_loop} let libgdb know when it is safe to
+perform operations associated with these resources.
+
+@heading Breakpoint Commands
+
+Breakpoint commands are scripts of GDB operations associated with 
+particular breakpoints.  When a breakpoint is reached, its associated
+commands are executed.
+
+Breakpoint commands are invoked by the libgdb function
+@code{gdb_finish_top_loop}.  
+
+Notice that if control returns to the top-level error handler, the
+execution of breakpoint commands is bypassed.  This can happen as a
+result of errors during either @code{gdb_execute_command} or
+@code{gdb_finish_top_loop}.
+
+@heading Application Initialization
+
+Sometimes it is inconvenient to execute commands via a command loop for
+example, the commands an application uses to initialize itself.  An
+alternative to @code{execute_command} is @code{execute_catching_errors}.
+When @code{execute_catching_errors} is used, no top level error handler
+need be in effect, and it is not necessary to call
+@code{gdb_start_top_loop} or @code{gdb_finish_top_loop}.
+
+
+@heading Cleanup
+
+The debugger command ``quit'' performs all necessary cleanup for libgdb.
+After it has done so, it changes the return value of
+@code{gdb_still_going} to 0 and returns to the top level error handler.
+
+
+@node I/O, Invoking, Top Level, Top
+@comment  node-name,  next,  previous,  up
+@chapter How the Server's I/O Can be Used
+@cindex I/O
+
+In the last chapter it was pointed out that a libgdb application is
+responsible for providing commands for the interpreter to execute.
+However some commands require further input (for example, the ``quit''
+command might ask for confirmation).  Almost all commands produce output
+of some kind.  The purpose of this section is to explain how libgdb
+performs its I/O, and how an application can take advantage of
+this.
+
+
+@heading I/O Vectors
+
+Libgdb has no fixed strategy for I/O.  Instead, all operations are
+performed by functions called via structures of function pointers.
+Applications supply theses structures and can change them at any
+time.
+
+@deftp Type {struct gdb_input_vector}
+@deftpx Type {struct gdb_output_vector}
+These structures contain a set of function pointers.  Each function
+determines how a particular type of i/o is performed.  The details of
+these strucutres are explained below.
+
+The application allocates these structures, initializes them to all bits
+zero, fills in the function pointers, and then registers names for them
+them with libgdb.
+@end deftp
+
+@deftypefun void gdb_name_input_vector (@var{name}, @var{vec})
+@deftypefunx void gdb_remove_input_vector (@var{name}, @var{vec})
+@deftypefunx void gdb_name_output_vector (@var{name}, @var{vec})
+@deftypefunx void gdb_remove_input_vector (@var{name}, @var{vec})
+@example
+  char * @var{name};
+  struct gdb_output_vector * @var{vec};
+@end example
+These functions are used to give and remove names to i/o vectors.  Note
+that if a name is used twice, the most recent definition applies.
+@end deftypefun
+
+
+
+@subheading Output
+
+An output vector is a structure with at least these fields: 
+
+@example
+struct gdb_output_vector
+@{
+  /* output */
+  void (*put_string) (struct gdb_output_vector *, char * str);
+@}
+@end example
+
+Use the function @code{memset} or something equivalent to initialize an
+output vector to all bits zero.  Then fill in the function pointer with
+your function.
+
+A debugger command can produce three kinds of output: error messages
+(such as when trying to delete a non-existent breakpoint), informational
+messages (such as the notification printed when a breakpoint is hit),
+and the output specifically requested by a command (for example, the
+value printed by the ``print'' command).  At any given time, then,
+libgdb has three output vectors.  These are called the @dfn{error},
+@dfn{info}, @dfn{value} vector respectively.  
+
+@subheading Input
+
+@example
+struct gdb_input_vector
+@{
+  int (*query) (struct gdb_input_vector *,
+                char * prompt,
+                int quit_allowed);
+  int * (*selection) (struct gdb_input_vector *,
+                      char * prompt,
+                      char ** choices);
+  char * (*read_string) (struct gdb_input_vector *,
+                         char * prompt);
+  char ** (*read_strings) (struct gdb_input_vector *,
+                           char * prompt);
+@}
+@end example
+
+Use the function @code{memset} or something equivalent to initialize an
+input vector to all bits zero.  Then fill in the function pointers with
+your functions.
+
+There are four kinds of input requests explicitly made by libgdb.
+
+A @dfn{query} is a yes or no question.  The user can respond to a query
+with an affirmative or negative answer, or by telling gdb to abort the
+command (in some cases an abort is not permitted).  Query should return
+'y' or 'n' or 0 to abort.
+
+A @dfn{selection} is a list of options from which the user selects a subset.
+Selections should return a NULL terminated array of integers, which are
+indexes into the array of choices.  It can return NULL instead to abort
+the command.  The array returned by this function will be passed to
+@code{free} by libgdb.
+
+A @dfn{read_string} asks the user to supply an arbitrary string.  It may
+return NULL to abort the command.  The string returned by @code{read_string}
+should be allocated by @code{malloc}; it will be freed by libgdb.
+
+A @dfn{read_strings} asks the user to supply multiple lines of input
+(for example, the body of a command created using `define').  It, too,
+may return NULL to abort.  The array and the strings returned by this
+function will be freed by libgdb.
+
+@heading I/O Redirection from the Application Top-Level
+
+@deftypefun struct gdb_io_vecs gdb_set_io (struct gdb_io_vecs *)
+@example
+
+struct gdb_io_vecs
+@{
+  struct gdb_input_vector * input;
+  struct gdb_output_vector * error;
+  struct gdb_output_vector * info;
+  struct gdb_output_vector * value;
+@}
+@end example
+
+This establishes a new set of i/o vectors, and returns the old setting.
+Any of the pointers in this structure may be NULL, indicating that the
+current value should be used.
+
+This function is useful for setting up i/o vectors before any libgdb
+commands have been invoked (hence before any input or output has taken
+place).
+@end deftypefun
+
+It is explained in a later chapter how to redirect output temporarily.
+(@xref{Invoking}.)
+
+@heading I/O Redirection in Debugger Commands
+
+A libgdb application creates input and output vectors and assigns them names.
+Which input and output vectors are used by libgdb is established by
+executing these debugger commands: 
+
+@defun {set input-vector} name
+@defunx {set error-output-vector} name
+@defunx {set info-output-vector} name
+@defunx {set value-output-vector} name
+Choose an I/O vector by name.
+@end defun
+
+
+A few debugger commands are for use only within commands defined using
+the debugger command `define' (they have no effect at other times).
+These commands exist so that an application can maintain hooks which
+redirect output without affecting the global I/O vectors.
+
+@defun with-input-vector name
+@defunx with-error-output-vector name
+@defunx with-info-output-vector name
+@defunx with-value-output-vector name
+Set an I/O vector, but only temporarily.  The setting has effect only
+within the command definition in which it occurs.
+@end defun
+
+
+@heading Initial Conditions
+
+When libgdb is initialized, a set of default I/O vectors is put in
+place.  The default vectors are called @code{default-input-vector},
+@code{default-output-vector}, &c.  
+
+The default query function always returns `y'.  Other input functions
+always abort.  The default output functions discard output silently.
+
+
+@node Invoking, Defining Commands, I/O, Top
+@chapter Invoking the Interpreter, Executing Commands
+@cindex {executing commands}
+@cindex {invoking the interpreter}
+
+This section introduces the libgdb functions which invoke the command
+interpreter. 
+
+@deftypefun void gdb_execute_command (@var{command})
+@example
+char * @var{command};
+@end example
+Interpret the argument debugger command.  An error handler must be set
+when this function is called. (@xref{Top Level}.)
+@end deftypefun
+
+It is possible to override the current I/O vectors for the duration of a
+single command:
+
+@deftypefun void gdb_execute_with_io (@var{command}, @var{vecs})
+@example 
+char * @var{command};
+struct gdb_io_vecs * @var{vecs};
+
+struct gdb_io_vecs
+@{
+  struct gdb_input_vector * input;
+  struct gdb_output_vector * error;
+  struct gdb_output_vector * info;
+  struct gdb_output_vector * value;
+@}
+@end example
+
+Execute @var{command}, temporarily using the i/o vectors in @var{vecs}.
+
+Any of the vectors may be NULL, indicating that the current value should
+be used.  An error handler must be in place when this function is used.
+@end deftypefun
+
+@deftypefun {struct gdb_str_output} gdb_execute_for_strings (@var{cmd})
+@example
+char * cmd;
+@end example
+@deftypefunx {struct gdb_str_output} gdb_execute_for_strings2 (@var{cmd}, @var{input})
+@example
+char * cmd;
+struct gdb_input_vector * input;
+@end example
+@page
+@example
+struct gdb_str_output
+@{
+  char * error;
+  char * info;
+  char * value;
+@};
+@end example
+
+Execute @var{cmd}, collecting its output as strings.  If no error
+occurs, all three strings will be present in the structure, the
+empty-string rather than NULL standing for no output of a particular
+kind. 
+
+If the command aborts with an error, then the @code{value} field will be
+NULL, though the other two strings will be present.
+
+In all cases, the strings returned are allocated by malloc and should be
+freed by the caller.
+
+The first form listed uses the current input vector, but overrides the
+current output vector.  The second form additionally allows the input
+vector to be overridden.
+
+This function does not require that an error handler be installed.
+@end deftypefun
+
+@deftypefun void execute_catching_errors (@var{command})
+@example
+char * @var{command};
+@end example
+Like @code{execute_command} except that no error handler is required.
+@end deftypefun
+
+@deftypefun void execute_with_text (@var{command}, @var{text})
+@example
+char * @var{command};
+char ** @var{text};
+@end example
+Like @code{execute_catching_errors}, except that the input vector is
+overridden.  The new input vector handles only calls to @code{query} (by
+returning 'y') and calls to @code{read_strings} by returning a copy of
+@var{text} and the strings it points to.
+
+This form of execute_command is useful for commands like @code{define},
+@code{document}, and @code{commands}.
+@end deftypefun
+
+
+
+@node Defining Commands, Variables, Invoking, Top
+@comment  node-name,  next,  previous,  up
+@chapter How New Commands are Created
+@cindex {commands, defining}
+
+Applications are, of course, free to take advantage of the existing GDB
+macro definition capability (the @code{define} and @code{document}
+functions).  
+
+In addition, an application can add new primitives to the GDB command
+language.
+
+@deftypefun void gdb_define_app_command (@var{name}, @var{fn}, @var{doc})
+@example
+char * @var{name};
+gdb_cmd_fn @var{fn};
+char * @var{doc};
+
+typedef void (*gdb_cmd_fn) (char * args);
+@end example
+
+Create a new command call @var{name}.  The new command is in the
+@code{application} help class.  When invoked, the command-line arguments
+to the command are passed as a single string.
+
+Calling this function twice with the same name replaces an earlier
+definition, but application commands can not replace builtin commands of
+the same name.
+
+The documentation string of the command is set to a copy the string
+@var{doc}.
+@end deftypefun
+
+@node Variables, Asynchronous, Defining Commands, Top
+@comment  node-name,  next,  previous,  up
+@chapter How Builtin Variables are Defined
+@cindex {variables, defining}
+
+Convenience variables provide a way for values maintained by libgdb to
+be referenced in expressions (e.g. @code{$bpnum}).  Libgdb includes a
+means by which the application can define new, integer valued
+convenience variables:
+@page
+@deftypefun void gdb_define_int_var (@var{name}, @var{fn}, @var{fn_arg})
+@example
+char * @var{name};
+int (*@var{fn}) (void *);
+void * @var{fn_arg};
+@end example
+This function defines (or undefines) a convenience variable called @var{name}.
+If @var{fn} is NULL, the variable becomes undefined.  Otherwise,
+@var{fn} is a function which, when passed @var{fn_arg} returns the value
+of the newly defined variable.
+
+No libgdb functions should be called by @var{fn}.
+@end deftypefun
+
+One use for this function is to create breakpoint conditions computed in
+novel ways.  This is done by defining a convenience variable and
+referring to that variable in a breakpoint condition expression.
+
+
+@node Asynchronous, Commands, Variables, Top
+@chapter Scheduling Asynchronous Computations
+@cindex asynchronous
+
+
+A running libgdb function can take a long time.  Libgdb includes a hook
+so that an application can run intermittently during long debugger
+operations.
+
+@deftypefun void gdb_set_poll_fn (@var{fn}, @var{fn_arg})
+@example
+void (*@var{fn})(void * fn_arg, int (*gdb_poll)());
+void * @var{fn_arg};
+@end example
+Arrange to call @var{fn} periodically during lengthy debugger operations.
+If @var{fn} is NULL, polling is turned off.  @var{fn} should take two
+arguments: an opaque pointer passed as @var{fn_arg} to
+@code{gdb_set_poll_fn}, and a function pointer.  The function pointer
+passed to @var{fn} is provided by libgdb and points to a function that
+returns 0 when the poll function should return.  That is, when
+@code{(*gdb_poll)()} returns 0, libgdb is ready to continue @var{fn}
+should return quickly.
+
+It is possible that @code{(*gdb_poll)()} will return 0 the first time it
+is called, so it is reasonable for an application to do minimal processing
+before checking whether to return.
+
+No libgdb functions should be called from an application's poll function,
+with one exception: @code{gdb_request_quit}.
+@end deftypefun
+
+
+@deftypefun void gdb_request_quit (void)
+This function, if called from a poll function, requests that the
+currently executing libgdb command be interrupted as soon as possible,
+and that control be returned to the top-level via an error.
+
+The quit is not immediate.  It will not occur until at least after the
+application's poll function returns.
+@end deftypefun 
+
+@node Commands, Top, Asynchronous, Top
+@comment  node-name,  next,  previous,  up
+@chapter Debugger Commands for Libgdb Applications
+
+The debugger commands available to libgdb applications are the same commands
+available interactively via GDB.  This section is an overview of the
+commands newly created as part of libgdb.
+
+This section is not by any means a complete reference to the GDB command
+language.  See the GDB manual for such a reference.
+
+@menu
+* Command Hooks::    Setting Hooks to Execute With Debugger Commands.
+* View Commands::    View Commands Mirror Show Commands
+* Breakpoints::      The Application Can Have Its Own Breakpoints
+@end menu
+
+@node Command Hooks, View Commands, Commands, Commands
+@comment  node-name,  next,  previous,  up
+@section Setting Hooks to Execute With Debugger Commands.
+
+Debugger commands support hooks.  A command hook is executed just before
+the interpreter invokes the hooked command.
+
+There are two hooks allowed for every command.  By convention, one hook
+is for use by users, the other is for use by the application.
+
+A user hook is created for a command XYZZY by using
+@code{define-command} to create a command called @code{hook-XYZZY}.
+
+An application hook is created for a command XYZZY by using
+@code{define-command} to create a command called @code{apphook-XYZZY}.
+
+Application hooks are useful for interfaces which wish to continuously
+monitor certain aspects of debugger state.  The application can set a
+hook on all commands that might modify the watched state.  When the hook
+is executed, it can use i/o redirection to notify parts of the
+application that previous data may be out of date.  After the top-level loop
+resumes, the application can recompute any values that may have changed.
+(@xref{I/O}.)
+
+@node View Commands, Breakpoints, Command Hooks, Commands
+@comment  node-name,  next,  previous,  up
+@section View Commands Mirror Show Commands
+
+The GDB command language contains many @code{set} and @code{show}
+commands.  These commands are used to modify or examine parameters to
+the debugger.
+
+It is difficult to get the current state of a parameter from the
+@code{show} command because @code{show} is very verbose.
+
+@example
+(gdb) show check type
+Type checking is "auto; currently off".
+(gdb) show width
+Number of characters gdb thinks are in a line is 80.
+@end example
+
+For every @code{show} command, libgdb includes a @code{view} command.
+@code{view} is like @code{show} without the verbose commentary:
+
+@example
+(gdb) view check type
+auto; currently off
+(gdb) view width
+80
+@end example
+
+(The precise format of the ouput from @code{view} is subject to change.
+In particular, @code{view} may one-day print values which can be used as
+arguments to the corresponding @code{set} command.)
+
+@node Breakpoints, Structured Output, View Commands, Commands
+@comment  node-name,  next,  previous,  up
+@section The Application Can Have Its Own Breakpoints
+
+The GDB breakpoint commands were written with a strong presumption that
+all breakpoints are managed by a human user.  Therefore, the command
+language contains commands like `delete' which affect all breakpoints
+without discrimination.
+
+In libgdb, there is added support for breakpoints and watchpoints which
+are set by the application and which should not be affected by ordinary,
+indiscriminate commands.  These are called @dfn{protected} breakpoints.
+
+@deffn {Debugger Command} break-protected ...
+@deffnx {Debugger Command} watch-protected ...
+These work like @code{break} and @code{watch} except that the resulting
+breakpoint is given a negative number.  Negative numbered breakpoints do
+not appear in the output of @code{info breakpoints} but do in that of
+@code{info all-breakpoints}.  Negative numbered breakpoints are not
+affected by commands which ordinarily affect `all' breakpoints (e.g.
+@code{delete} with no arguments).
+
+Note that libgdb itself creates protected breakpoints, so programs
+should not rely on being able to allocate particular protected
+breakpoint numbers for themselves.
+@end deffn
+
+More than one breakpoint may be set at a given location.  Libgdb adds
+the concept of @dfn{priority} to breakpoints.  A priority is an integer,
+assigned to each breakpoint.  When a breakpoint is reached, the
+conditions of all breakpoints at the same location are evaluated in
+order of ascending priority.  When breakpoint commands are executed,
+they are also executed in ascending priority (until all have been
+executed, an error occurs, or one set of commands continues the
+target).
+
+@deffn {Debugger Command} priority n bplist
+Set the priority for breakpoints @var{bplist} to @var{n}.
+By default, breakpoints are assigned a priority of zero.
+@end deffn
+
+@node Structured Output, Commands, Breakpoints, Commands
+@comment  node-name,  next,  previous,  up
+@section  Structured Output, The @code{Explain} Command
+
+(This section may be subject to considerable revision.)
+
+When GDB prints a the value of an expression, the printed representation
+contains information that can be usefully fed back into future commands
+and expressions.  For example, 
+
+@example
+(gdb) print foo
+$16 = @{v = 0x38ae0, v_length = 40@}
+@end example
+
+On the basis of this output, a user knows, for example, that
+@code{$16.v} refers to a pointer valued @code{0x38ae0}
+
+A new output command helps to make information like this available to
+the application.
+
+@deffn {Debugger Command} explain expression
+@deffnx {Debugger Command} explain /format expression
+Print the value of @var{expression} in the manner of the @code{print}
+command, but embed that output in a list syntax containing information
+about the structure of the output.
+@end deffn
+
+As an example, @code{explain argv} might produce this output:
+
+@example
+(exp-attribute
+   ((expression "$19")
+    (type "char **")
+    (address "48560")
+    (deref-expression "*$19"))
+   "$19 = 0x3800\n")
+@end example
+
+The syntax of output from @code{explain} is:
+
+@example
+<explanation> :=    <quoted-string>
+                  | (exp-concat <explanation> <explanation>*)
+                  | (exp-attribute <property-list> <explanation>)
+
+<property-list> := ( <property-pair>* )
+
+<property-pair> := ( <property-name> <quoted-string> )
+@end example
+
+The string-concatenation of all of the @code{<quoted-string>} (except
+those in property lists) yields the output generated by the equivalent
+@code{print} command.  Quoted strings may contain quotes and backslashes
+if they are escaped by backslash.  "\n" in a quoted string stands for
+newline; unescaped newlines do not occur within the strings output by
+@code{explain}.
+
+Property names are made up of alphabetic characters, dashes, and
+underscores.
+
+The set of properties is open-ended.  As GDB acquires support for new
+source languages and other new capabilities, new property types may be
+added to the output of this command.  Future commands may offer
+applications some selectivity concerning which properties are reported.
+
+The initial set of properties defined includes: 
+
+@itemize @bullet
+@item @code{expression}
+
+This is an expression, such as @code{$42} or @code{$42.x}.  The
+expression can be used to refer to the value printed in the attributed
+part of the string.
+
+@item @code{type}
+
+This is a user-readable name for the type of the attributed value.
+
+@item @code{address}
+
+If the value is stored in a target register, this is a register number.
+If the value is stored in a GDB convenience variable, this is an integer
+that is unique among all the convenience variables.  Otherwise, this is
+the address in the target where the value is stored.
+
+@item @code{deref-expression}
+
+If the attributed value is a pointer type, this is an expression that
+refers to the dereferenced value.
+@end itemize
+
+Here is a larger example, using the same object passed to @code{print}
+in an earlier example of this section.
+
+@example
+(gdb) explain foo
+(exp-attribute
+  ( (expression "$16")
+    (type "struct bytecode_vector")
+    (address 14336) )
+  (exp-concat
+    "$16 = @{"
+    (exp-attribute
+      ( (expression "$16.v")
+        (type "char *")
+        (address 14336)
+        (deref-expression "*$16.v") )
+      "v = 0x38ae0")
+    (exp-attribute
+      ( (expression "$16.v_length")
+        (type "int")
+        (address 14340) )
+      ", v_length = 40")
+     "@}\n"))
+@end example
+
+It is undefined how libgdb will indent these lines of output or 
+where newlines will be included.
+
+@bye
