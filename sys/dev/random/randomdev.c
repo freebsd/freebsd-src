@@ -136,6 +136,9 @@ SYSCTL_PROC(_kern_random_sys_harvest, OID_AUTO, point_to_point,
 SYSCTL_PROC(_kern_random_sys_harvest, OID_AUTO, interrupt,
 	CTLTYPE_INT|CTLFLAG_RW, &harvest.interrupt, 0,
 	random_check_boolean, "I", "Harvest IRQ entropy");
+SYSCTL_PROC(_kern_random_sys_harvest, OID_AUTO, swi,
+	CTLTYPE_INT|CTLFLAG_RW, &harvest.swi, 0,
+	random_check_boolean, "I", "Harvest SWI entropy");
 
 /* ARGSUSED */
 static int
