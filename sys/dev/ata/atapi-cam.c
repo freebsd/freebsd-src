@@ -252,7 +252,9 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	strncpy(cpi->dev_name, cam_sim_name(sim), sizeof cpi->dev_name);
 	cpi->unit_number = cam_sim_unit(sim);
 	cpi->bus_id = cam_sim_bus(sim);
-	if (softc->ata_ch && ccb_h->target_id >= 0) {
+	cpi->base_transfer_speed = 3300;
+
+	if (softc->ata_ch && ccb_h->target_id != CAM_TARGET_WILDCARD) {
 	    switch (softc->ata_ch->device[ccb_h->target_id].mode) {
 	    case ATA_PIO1:
 		cpi->base_transfer_speed = 5200;
@@ -280,7 +282,8 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    case ATA_UDMA6:
 		cpi->base_transfer_speed = 133000;
 		break;
-	    default: cpi->base_transfer_speed = 3300;
+	    default:
+		break;
 	    }
 	}
 	ccb->ccb_h.status = CAM_REQ_CMP;
