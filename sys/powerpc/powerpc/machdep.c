@@ -425,7 +425,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	thread0->td_kstack = proc0kstack;
 	thread0->td_pcb = (struct pcb *)
 	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	enable_fpu(thread0->td_pcb);
 
 	globalp = pmap_steal_memory(round_page(sizeof(struct globaldata)));
 
