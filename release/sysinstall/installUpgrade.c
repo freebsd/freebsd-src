@@ -120,6 +120,8 @@ static HitList etc_files [] = {
 void
 traverseHitlist(HitList *h)
 {
+    system("rm -rf /etc/upgrade");
+    Mkdir("/etc/upgrade");
     while (h->name) {
 	if (!file_readable(h->name)) {
 	    if (!h->optional)
@@ -129,7 +131,7 @@ traverseHitlist(HitList *h)
 	else {
 	    if (h->action == JUST_COPY) {
 		/* Move the just-loaded copy aside */
-		vsystem("mv /etc/%s /etc/%s.upgrade", h->name, h->name);
+		vsystem("mv /etc/%s /etc/upgrade/%s", h->name, h->name);
 
 		/* Copy the old one into its place */
 		msgNotify("Resurrecting %s..", h->name);
@@ -293,7 +295,7 @@ media:
 	systemShutdown(1);
     }
     else if (Dists) {
-	if (extractingBin && !(Dists & DIST_BIN)) {
+	if (!extractingBin || !(Dists & DIST_BIN)) {
 	    msgNotify("The extraction process seems to have had some problems, but we got most\n"
 		       "of the essentials.  We'll treat this as a warning since it may have been\n"
 		       "only non-essential distributions which failed to load.");
@@ -319,7 +321,7 @@ media:
 	}
     }
     
-    msgConfirm("First stage of upgrade completed successfully!\n\n"
+    msgNotify("First stage of upgrade completed successfully!\n\n"
 	       "Next comes stage 2, where we attempt to resurrect your /etc\n"
 	       "directory!");
 
@@ -334,11 +336,11 @@ media:
 	traverseHitlist(etc_files);
     }
 
-    msgConfirm("OK!  At this stage, we've resurrected all the /etc files we could\n"
-	       "and moved the new copies over to <file>.update in case you want to\n"
-	       "see what the new version looks like.  If you want to wander over\n"
-	       "to the Emergency Holographic Shell [ALT-F4] at this point to check\n"
-	       "on that, you may do so now.  When you're ready to reboot into\n"
+    msgConfirm("OK!  At this stage, we've resurrected all the /etc files\n"
+	       "and moved each new copy over to /etc/update/<file> in case you want\n"
+	       "to see what the new versions look like.  If you want to wander over\n"
+	       "to the Emergency Holographic Shell [ALT-F4] at this point to do\n"
+	       "that, now would be a good time.  When you're ready to reboot into\n"
 	       "the new system, just exit the installation.");
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
