@@ -11,7 +11,7 @@
  * Jordan K. Hubbard
  * 29 August 1998
  *
- *	$Id: interp_parse.c,v 1.1 1998/09/01 00:41:24 msmith Exp $
+ *	$Id: interp_parse.c,v 1.2 1998/09/03 06:14:41 jkh Exp $
  * 
  * The meat of the simple parser.
  */
@@ -147,7 +147,7 @@ parse(int *argc, char ***argv, char *str)
 		int len = strlen(val);
 
 		strncpy(buf + i, val, PARSE_BUFSIZE - (i + 1));
-		i += min(len, sizeof(buf) - 1);
+		i += min(len, PARSE_BUFSIZE - 1);
 	    }
 	    *q = tmp;	/* restore value */
 	    p = q + (token ? 1 : 0);
