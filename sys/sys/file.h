@@ -166,14 +166,13 @@ extern struct fileops badfileops;
 extern struct fileops socketops;
 extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
-extern int nfiles;		/* (fl) actual number of open files */
-extern struct sx filelist_lock; /* sx to protect filelist and nfiles */
+extern int openfiles;		/* (fl) actual number of open files */
+extern struct sx filelist_lock; /* sx to protect filelist and openfiles */
 
 int fget(struct thread *td, int fd, struct file **fpp);
 int fget_read(struct thread *td, int fd, struct file **fpp);
 int fget_write(struct thread *td, int fd, struct file **fpp);
 int fdrop(struct file *fp, struct thread *td);
-int fdrop_locked(struct file *fp, struct thread *td);
 
 /*
  * The socket operations are used a couple of places.
@@ -210,7 +209,7 @@ void fputsock(struct socket *sp);
 #define	fhold(fp)							\
 	do {								\
 		FILE_LOCK(fp);						\
-		fhold_locked(fp);					\
+		(fp)->f_count++;					\
 		FILE_UNLOCK(fp);					\
 	} while (0)
 
