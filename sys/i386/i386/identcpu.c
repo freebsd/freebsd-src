@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.22 1997/05/31 08:45:23 kato Exp $
+ *	$Id: identcpu.c,v 1.23 1997/06/02 08:19:02 dfr Exp $
  */
 
 #include "opt_cpu.h"
@@ -387,12 +387,28 @@ printcpuinfo(void)
 			"\010MCE"
 			"\011CX8"
 			"\012APIC"
-			"\013<b10>"
-			"\014<b11>"
+			"\013oldMTRR"
+			"\014SEP"
 			"\015MTRR"
 			"\016PGE"
 			"\017MCA"
 			"\020CMOV"
+			"\021<b16>"
+			"\022<b17>"
+			"\023<b18>"
+			"\024<b19>"
+			"\025<b20>"
+			"\026<b21>"
+			"\027<b22>"
+			"\030MMX"
+			"\031<b24>"
+			"\032<b25>"
+			"\033<b26>"
+			"\034<b27>"
+			"\035<b28>"
+			"\036<b29>"
+			"\037<b30>"
+			"\040<b31>"
 			);
 		}
 	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
