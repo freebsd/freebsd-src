@@ -33,12 +33,8 @@
  *
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <sched.h>
-#include <pthread.h>
-#include <unistd.h>
+#include <sys/types.h>
+#include <machine/atomic.h>
 
 #include <libc_private.h>
 #include "spinlock.h"
@@ -52,7 +48,12 @@
 void
 _spinunlock(spinlock_t *lck)
 {
-	lck->access_lock = 0;
+	kse_critical_t crit;
+
+	crit = (kse_critical_t)lck->fname;
+	atomic_store_rel_long(&lck->access_lock, 0);
+	if (crit != NULL)
+		_kse_critical_leave(crit);
 }
 
 
@@ -65,14 +66,21 @@ _spinunlock(spinlock_t *lck)
 void
 _spinlock(spinlock_t *lck)
 {
+	kse_critical_t crit;
+
 	/*
 	 * Try to grab the lock and loop if another thread grabs
 	 * it before we do.
 	 */
+	if (_kse_isthreaded())
+		crit = _kse_critical_enter();
+	else
+		crit = NULL;
 	while(_atomic_lock(&lck->access_lock)) {
 		while (lck->access_lock)
 			;
 	}
+	lck->fname = (char *)crit;
 }
 
 /*
@@ -88,12 +96,5 @@ _spinlock(spinlock_t *lck)
 void
 _spinlock_debug(spinlock_t *lck, char *fname, int lineno)
 {
-	/*
-	 * Try to grab the lock and loop if another thread grabs
-	 * it before we do.
-	 */
-	while(_atomic_lock(&lck->access_lock)) {
-		while (lck->access_lock)
-			;
-	}
+	_spinlock(lck);
 }

@@ -28,6 +28,8 @@
  */
 #include <errno.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 
 #include "thr_private.h"
 
@@ -52,13 +54,7 @@ _pthread_getconcurrency(void)
 int
 _pthread_setconcurrency(int new_level)
 {
-	struct pthread *curthread;
-	struct kse *newkse;
-	kse_critical_t crit;
-	int kse_count;
-	int i;
 	int ret;
-
 
 	if (new_level < 0)
 		ret = EINVAL;
@@ -71,50 +67,72 @@ _pthread_setconcurrency(int new_level)
 		DBG_MSG("Can't enable threading.\n");
 		ret = EAGAIN;
 	} else {
-		ret = 0;
-		curthread = _get_curthread();
-		/* Race condition, but so what. */
-		kse_count = _kse_initial->k_kseg->kg_ksecount;
-		for (i = kse_count; i < new_level; i++) {
-			newkse = _kse_alloc(curthread);
-			if (newkse == NULL) {
-				DBG_MSG("Can't alloc new KSE.\n");
-				ret = EAGAIN;
-				break;
-			}
-			newkse->k_kseg = _kse_initial->k_kseg;
-			newkse->k_schedq = _kse_initial->k_schedq;
-			newkse->k_curthread = NULL;
-			crit = _kse_critical_enter();
-			KSE_SCHED_LOCK(curthread->kse, newkse->k_kseg);
-			TAILQ_INSERT_TAIL(&newkse->k_kseg->kg_kseq,
-			    newkse, k_kgqe);
-			newkse->k_kseg->kg_ksecount++;
-			KSE_SCHED_UNLOCK(curthread->kse, newkse->k_kseg);
-			if (_ksd_setprivate(&_kse_initial->k_ksd) != 0) {
-				/* This should never happen. */
-				PANIC("pthread_setconcurrency: Unable to "
-				    "set KSE specific data");
-			}
-			newkse->k_flags |= KF_INITIALIZED;
-			if (kse_create(&newkse->k_mbx, 0) != 0) {
-				_ksd_setprivate(&curthread->kse->k_ksd);
-				KSE_SCHED_LOCK(curthread->kse, newkse->k_kseg);
-				TAILQ_REMOVE(&newkse->k_kseg->kg_kseq,
-				    newkse, k_kgqe);
-				newkse->k_kseg->kg_ksecount--;
-				KSE_SCHED_UNLOCK(curthread->kse, newkse->k_kseg);
-				_kse_critical_leave(crit);
-				_kse_free(curthread, newkse);
-				DBG_MSG("kse_create syscall failed.\n");
-				ret = EAGAIN;
-				break;
-			}
-			_ksd_setprivate(&curthread->kse->k_ksd);
-			_kse_critical_leave(crit);
-		}
+		ret = _thr_setconcurrency(new_level);
 		if (ret == 0)
 			level = new_level;
 	}
 	return (ret);
 }
+
+int
+_thr_setconcurrency(int new_level)
+{
+	struct pthread *curthread;
+	struct kse *newkse;
+	kse_critical_t crit;
+	int kse_count;
+	int i;
+	int ret;
+
+	ret = 0;
+	curthread = _get_curthread();
+	/* Race condition, but so what. */
+	kse_count = _kse_initial->k_kseg->kg_ksecount;
+	for (i = kse_count; i < new_level; i++) {
+		newkse = _kse_alloc(curthread);
+		if (newkse == NULL) {
+			DBG_MSG("Can't alloc new KSE.\n");
+			ret = EAGAIN;
+			break;
+		}
+		newkse->k_kseg = _kse_initial->k_kseg;
+		newkse->k_schedq = _kse_initial->k_schedq;
+		newkse->k_curthread = NULL;
+		crit = _kse_critical_enter();
+		KSE_SCHED_LOCK(curthread->kse, newkse->k_kseg);
+		TAILQ_INSERT_TAIL(&newkse->k_kseg->kg_kseq,
+		    newkse, k_kgqe);
+		newkse->k_kseg->kg_ksecount++;
+		KSE_SCHED_UNLOCK(curthread->kse, newkse->k_kseg);
+		if (kse_create(&newkse->k_mbx, 0) != 0) {
+			KSE_SCHED_LOCK(curthread->kse, newkse->k_kseg);
+			TAILQ_REMOVE(&newkse->k_kseg->kg_kseq,
+			    newkse, k_kgqe);
+			newkse->k_kseg->kg_ksecount--;
+			KSE_SCHED_UNLOCK(curthread->kse, newkse->k_kseg);
+			_kse_critical_leave(crit);
+			_kse_free(curthread, newkse);
+			DBG_MSG("kse_create syscall failed.\n");
+			ret = EAGAIN;
+			break;
+		} else {
+			_kse_critical_leave(crit);
+		}
+	}
+	return (ret);
+}
+
+int
+_thr_setmaxconcurrency(void)
+{
+	int vcpu;
+	int len;
+	int ret;
+
+	len = sizeof(vcpu);
+	ret = sysctlbyname("kern.threads.virtual_cpu", &vcpu, &len, NULL, NULL);
+	if (ret == 0 && vcpu > 0)
+		ret = _thr_setconcurrency(vcpu);
+	return (ret);
+}
+
