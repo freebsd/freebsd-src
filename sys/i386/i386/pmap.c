@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.68 1995/12/10 13:36:28 phk Exp $
+ *	$Id: pmap.c,v 1.69 1995/12/11 04:54:58 dyson Exp $
  */
 
 /*
@@ -108,14 +108,6 @@
 
 #include <i386/isa/isa.h>
 
-static void	init_pv_entries __P((int));
-extern void	pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
-					 vm_object_t object, vm_offset_t offset,
-					 vm_offset_t size));
-static void	pmap_remove_all __P((vm_offset_t pa));
-static void	pmap_remove_entry __P((struct pmap *pmap, pv_entry_t pv,
-				       vm_offset_t va));
-
 /*
  * Get PDEs and PTEs for user/kernel address space
  */
@@ -172,11 +164,20 @@ static pt_entry_t *
 static pv_entry_t
 		get_pv_entry __P((void));
 static void	i386_protection_init __P((void));
+static void	init_pv_entries __P((int npg));
 static void	pmap_alloc_pv_entry __P((void));
 static void	pmap_changebit __P((vm_offset_t pa, int bit, boolean_t setem));
 static void	pmap_enter_quick __P((pmap_t pmap, vm_offset_t va,
 				      vm_offset_t pa));
 static int	pmap_is_managed __P((vm_offset_t pa));
+extern void	pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
+					 vm_object_t object, vm_offset_t offset,
+					 vm_offset_t size));
+static void	pmap_remove_all __P((vm_offset_t pa));
+static void	pmap_remove_entry __P((struct pmap *pmap, pv_entry_t pv,
+				       vm_offset_t va));
+static vm_page_t
+		pmap_pte_vm_page __P((pmap_t pmap, vm_offset_t pt));
 static boolean_t
 		pmap_testbit __P((vm_offset_t pa, int bit));
 
