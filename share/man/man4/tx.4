@@ -45,16 +45,16 @@ The
 .Nm
 driver supports the following media types (depending on card's capabilities):
 .Pp
-.Bl -tag -width xxxxxxxxxxxxxxx
+.Bl -tag -width ".Cm 10baseT/UTP"
 .It autoselect
 Enable autonegotiation (default)
-.It 100baseFX
+.It Cm 100baseFX
 Set 100Mbps (fast ethernet) fiber optic operation
-.It 100baseTX
+.It Cm 100baseTX
 Set 100Mbps (fast ethernet) twisted pair operation
-.It 10baseT/UTP
+.It Cm 10baseT/UTP
 Set 10Mbps on 10baseT port
-.It 10base2/BNC
+.It Cm 10base2/BNC
 Set 10Mbps on 10base2 port
 .El
 .Pp
@@ -62,8 +62,8 @@ The
 .Nm
 driver supports the following media options:
 .Pp
-.Bl -tag -width xxxxxxxxxxxxxxx
-.It full-duplex
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
 Set full-duplex operation
 .El
 .Pp
@@ -72,7 +72,9 @@ Refer to the
 .Xr ifconfig 8
 man page on setting the interface's MTU.
 .Pp
-The old ``ifconfig tx0 linkN'' method of configuration is not supported.
+The old
+.Dq Li "ifconfig tx0 linkN"
+method of configuration is not supported.
 .Ss "VLAN (IEEE 802.1Q) support"
 The
 .Nm
@@ -97,7 +99,7 @@ Packet thrown away.
 While reseting, driver failed to stop device correctly.
 .El
 .Sh BUGS
-The auto-negotiation doesn't work very well.
+The auto-negotiation does not work very well.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
