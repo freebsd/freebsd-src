@@ -37,7 +37,6 @@
 #define FUNCTION_ALIGNMENT 32
 
 typedef u_long	fptrdiff_t;
-typedef u_long	uintfptr_t;
 
 #define	MCOUNT \
 void \
