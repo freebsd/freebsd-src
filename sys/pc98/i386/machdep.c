@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.52 1997/08/21 10:12:42 kato Exp $
+ *	$Id: machdep.c,v 1.53 1997/08/27 08:43:18 kato Exp $
  */
 
 #include "apm.h"
@@ -43,7 +43,7 @@
 #include "opt_sysvipc.h"
 #include "opt_ddb.h"
 #include "opt_bounce.h"
-#include "opt_machdep.h"
+#include "opt_maxmem.h"
 #include "opt_perfmon.h"
 #include "opt_smp.h"
 #include "opt_userconfig.h"
@@ -858,6 +858,9 @@ struct region_descriptor r_gdt, r_idt;
 
 #ifdef SMP
 extern struct i386tss common_tss;	/* One tss per cpu */
+#ifdef VM86
+extern struct segment_descriptor common_tssd;
+#endif /* VM86 */
 #else
 struct i386tss common_tss;
 #ifdef VM86
