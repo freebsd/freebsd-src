@@ -164,7 +164,7 @@ main(int argc, char **argv)
 			if (!strncmp(optarg, MD_NAME, sizeof(MD_NAME) - 1))
 				optarg += sizeof(MD_NAME) - 1;
 			mdio.md_unit = strtoul(optarg, &p, 0);
-			if ((unsigned)mdio.md_unit == ULONG_MAX || *p != '\0')
+			if (mdio.md_unit == (unsigned)ULONG_MAX || *p != '\0')
 				errx(1, "bad unit: %s", optarg);
 			mdio.md_options &= ~MD_AUTOUNIT;
 			break;
