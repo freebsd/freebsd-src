@@ -1,4 +1,4 @@
-/* $Id: param.h,v 1.8 1999/02/19 19:34:47 luoqi Exp $ */
+/* $Id: param.h,v 1.9 1999/03/01 06:10:16 imp Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*
@@ -128,13 +128,6 @@
 #endif	/* MCLSHIFT */
 #define	MCLBYTES	(1 << MCLSHIFT)	/* size of a m_buf cluster */
 #define	MCLOFSET	(MCLBYTES - 1)
-#ifndef NMBCLUSTERS
-#ifdef GATEWAY
-#define	NMBCLUSTERS	512		/* map size, max cluster allocation */
-#else
-#define	NMBCLUSTERS	256		/* map size, max cluster allocation */
-#endif
-#endif
 
 /*
  * Size of kernel malloc arena in CLBYTES-sized logical pages
