@@ -153,6 +153,24 @@ Ingress filter can be turned off by
 .Dv IFF_LINK2
 bit.
 .\"
+.Pp
+.Ss Miscellaneous
+By default
+.Nm
+tunnels may not be nested.
+This behavior may be modified at runtime by setting the
+.Xr sysctl 8
+variable
+.Va net.link.gif.max_nesting
+to the desired level of nesting.
+Additionally,
+.Nm
+tunnels are restricted to one per pair of end points.
+Parallel tunnels may be enabled by setting the
+.Xr sysctl 8
+variable
+.Va net.link.gif.parallel_tunnels
+to 1.
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr inet6 4 ,
