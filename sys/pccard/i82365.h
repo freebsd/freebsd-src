@@ -118,7 +118,8 @@
 #define PCIC_IBM3	0x8a	/* IBM KING PCIC clone; Both Memory and I/O */
 
 /* For Interface Status register (PCIC_STATUS) */
-#define PCIC_VPPV	0x80	/* Vpp_valid */
+#define PCIC_VPPV	0x80	/* Vpp_valid or reserved*/
+#define PCIC_RICOH_5VCARD 0x80	/* 5V card detected */
 #define PCIC_POW	0x40	/* PC Card power active */
 #define PCIC_READY	0x20	/* Ready/~Busy */
 #define PCIC_MWP	0x10	/* Memory Write Protect */
