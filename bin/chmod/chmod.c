@@ -134,8 +134,8 @@ done:	argv += optind;
 	if (argc < 2)
 		usage();
 
-	fts_options = FTS_PHYSICAL;
 	if (Rflag) {
+		fts_options = FTS_PHYSICAL;
 		if (hflag)
 			errx(1,
 		"the -R and -h options may not be specified together.");
@@ -145,7 +145,8 @@ done:	argv += optind;
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
 		}
-	}
+	} else
+		fts_options = FTS_LOGICAL;
 
 	mode = *argv;
 	if (*mode >= '0' && *mode <= '7') {
