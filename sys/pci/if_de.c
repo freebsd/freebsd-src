@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.31 1995/09/29 19:52:10 davidg Exp $
+ * $Id: if_de.c,v 1.32 1995/10/02 14:04:33 davidg Exp $
  *
  */
 
@@ -1914,6 +1914,12 @@ tulip_ioctl(
 		    break;
 		}
 	    }
+	    break;
+	}
+	case SIOCGIFADDR: {
+	    bcopy((caddr_t) sc->tulip_ac.ac_enaddr,
+		  (caddr_t) ((struct sockaddr *)&ifr->ifr_data)->sa_data,
+		  6);
 	    break;
 	}
 
