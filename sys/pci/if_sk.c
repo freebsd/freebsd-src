@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sk.c,v 1.2 1999/07/09 17:36:23 wpaul Exp $
+ *	$Id: if_sk.c,v 1.3 1999/07/14 18:57:32 wpaul Exp $
  */
 
 /*
@@ -99,7 +99,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sk.c,v 1.2 1999/07/09 17:36:23 wpaul Exp $";
+	"$Id: if_sk.c,v 1.3 1999/07/14 18:57:32 wpaul Exp $";
 #endif
 
 static struct sk_type sk_devs[] = {
@@ -1220,9 +1220,6 @@ sk_attach(config_id, unit)
 		printf("skc%d: couldn't map interrupt\n", unit);
 		goto fail;
 	}
-
-	/* Save cache line size. */
-	sc->sk_cachesize = pci_conf_read(config_id, SK_PCI_CACHELEN) & 0xFF;
 
 	/* Reset the adapter. */
 	sk_reset(sc);

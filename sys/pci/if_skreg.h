@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_skreg.h,v 1.1 1999/07/09 04:29:51 wpaul Exp $
+ *	$Id: if_skreg.h,v 1.2 1999/07/09 17:36:23 wpaul Exp $
  */
 
 /*
@@ -908,7 +908,7 @@
 
 /*
  * The default FIFO threshold on the XMAC II is 4 bytes. On
- * dual port NICs, this often leats to transmit underruns, so we
+ * dual port NICs, this often leads to transmit underruns, so we
  * bump the threshold a little.
  */
 #define SK_XM_TX_FIFOTHRESH	512
@@ -935,7 +935,6 @@
 /* device specific PCI registers */
 #define SK_PCI_OURREG1		0x0040
 #define SK_PCI_OURREG2		0x0044
-#define SK_PCI_
 #define SK_PCI_CAPID		0x0048 /* 8 bits */
 #define SK_PCI_NEXTPTR		0x0049 /* 8 bits */
 #define SK_PCI_PWRMGMTCAP	0x004A /* 16 bits */
@@ -1128,10 +1127,8 @@ struct sk_if_softc;
 struct sk_softc {
 	bus_space_handle_t	sk_bhandle;	/* bus space handle */
 	bus_space_tag_t		sk_btag;	/* bus space tag */
-	struct sk_type		*sk_info;	/* Starfire adapter info */
 	u_int8_t		sk_unit;	/* controller number */
 	u_int8_t		sk_type;
-	u_int8_t		sk_cachesize;
 	char			*sk_vpd_prodname;
 	char			*sk_vpd_readonly;
 	u_int32_t		sk_rboff;	/* RAMbuffer offset */
