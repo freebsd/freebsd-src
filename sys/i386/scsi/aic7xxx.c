@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.29 1995/06/11 19:31:29 rgrimes Exp $
+ *      $Id: aic7xxx.c,v 1.30 1995/07/04 21:14:44 gibbs Exp $
  */
 /*
  * TODO:
@@ -218,7 +218,7 @@ struct scsi_device ahc_dev =
 /*
  * SCSI Transfer Count (pp. 3-19,20)
  * These registers count down the number of bytes transfered
- * across the SCSI bus.  The counter is decrimented only once
+ * across the SCSI bus.  The counter is decremented only once
  * the data has been safely transfered.  SDONE in SSTAT0 is
  * set when STCNT goes to 0
  */ 
