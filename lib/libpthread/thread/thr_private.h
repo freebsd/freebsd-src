@@ -55,6 +55,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/cdefs.h>
+#include <sys/kse.h>
 #include <sched.h>
 #include <spinlock.h>
 #include <ucontext.h>
@@ -67,18 +68,8 @@
 
 
 /* Output debug messages like this: */
-#define stdout_debug(args...)	do {		\
-	char buf[128];				\
-	snprintf(buf, sizeof(buf), ##args);	\
-	__sys_write(1, buf, strlen(buf));	\
-} while (0)
-#define stderr_debug(args...)	do {		\
-	char buf[128];				\
-	snprintf(buf, sizeof(buf), ##args);	\
-	__sys_write(2, buf, strlen(buf));	\
-} while (0)
-
-
+#define stdout_debug(args...)	_thread_printf(STDOUT_FILENO, args)
+#define stderr_debug(args...)	_thread_printf(STDOUT_FILENO, args)
 
 /*
  * Priority queue manipulation macros (using pqe link):
@@ -511,7 +502,7 @@ struct pthread {
 	/*
 	 * Machine context, including signal state.
 	 */
-	ucontext_t		ctx;
+	struct kse_thr_mailbox	mailbox;
 
 	/*
 	 * Cancelability flags - the lower 2 bits are used by cancel
@@ -703,13 +694,6 @@ SCLASS TAILQ_HEAD(, pthread)	_thread_list
 ;
 #endif
 
-SCLASS int              _thread_kern_in_sched
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= 0;
-#else
-;
-#endif
-
 /* Time of day at last scheduling timer signal: */
 SCLASS struct timeval volatile	_sched_tod
 #ifdef GLOBAL_PTHREAD_PRIVATE
@@ -817,7 +801,7 @@ SCLASS pthread_switch_routine_t _sched_switch_hook
 /*
  * Declare the kernel scheduler jump buffer and stack:
  */
-SCLASS ucontext_t	_thread_kern_sched_ctx;
+SCLASS struct kse_mailbox	_thread_kern_kse_mailbox;
 
 SCLASS void *		_thread_kern_sched_stack
 #ifdef GLOBAL_PTHREAD_PRIVATE
@@ -890,15 +874,18 @@ void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
 void    _thread_init(void);
 void    _thread_kern_sched(void);
-void 	_thread_kern_scheduler(void);
+void 	_thread_kern_scheduler(struct kse_mailbox *);
 void    _thread_kern_sched_state(enum pthread_state, char *fname, int lineno);
 void	_thread_kern_sched_state_unlock(enum pthread_state state,
 	    spinlock_t *lock, char *fname, int lineno);
 void    _thread_kern_set_timeout(const struct timespec *);
 void    _thread_kern_sig_defer(void);
 void    _thread_kern_sig_undefer(void);
+void	_thread_printf(int fd, const char *, ...);
 void    _thread_start(void);
 void	_thread_seterrno(pthread_t, int);
+int	_thread_enter_uts(struct kse_thr_mailbox *tm, struct kse_mailbox *km);
+int	_thread_switch(struct kse_thr_mailbox *, struct kse_thr_mailbox **);
 pthread_addr_t _thread_gc(pthread_addr_t);
 void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);
@@ -1012,4 +999,4 @@ ssize_t	__sys_write(int, const void *, size_t);
 
 __END_DECLS
 
-#endif  /* !_THR_PRIVATE_H */
+#endif  /* !_PTHREAD_PRIVATE_H */

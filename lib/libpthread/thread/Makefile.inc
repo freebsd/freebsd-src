@@ -62,6 +62,7 @@ SRCS+= \
 	thr_open.c \
 	thr_pause.c \
 	thr_poll.c \
+	thr_printf.c \
 	thr_priority_queue.c \
 	thr_pselect.c \
 	thr_read.c \
