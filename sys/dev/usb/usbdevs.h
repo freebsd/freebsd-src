@@ -717,13 +717,17 @@
 #define	USB_PRODUCT_MUSTEK_600CU	0x0002		/* 600 CU scanner */
 #define	USB_PRODUCT_MUSTEK_1200USB	0x0003		/* 1200 USB scanner */
 #define	USB_PRODUCT_MUSTEK_1200UB	0x0006		/* 1200 UB scanner */
+#define	USB_PRODUCT_MUSTEK_1200USBPLUS	0x0007		/* 1200 USB Plus scanner */
+#define	USB_PRODUCT_MUSTEK_BEARPAW1200F	0x0010		/* BearPaw 1200F scanner */
+#define	USB_PRODUCT_MUSTEK_600USB	0x0873		/* 600 USB scanner */
 #define	USB_PRODUCT_MUSTEK_MDC800	0xa800		/* MDC-800 digital camera */
 
 /* M-Systems products */
 #define	USB_PRODUCT_MSYSTEMS_DISKONKEY	0x0010		/* DiskOnKey */
 
 /* National Semiconductor */
-#define	USB_PRODUCT_NATIONAL_BEARPAW	0x1000		/* BearPaw 1200 */
+#define	USB_PRODUCT_NATIONAL_BEARPAW1200	0x1000		/* BearPaw 1200 scanner */
+#define	USB_PRODUCT_NATIONAL_BEARPAW2400	0x1001		/* BearPaw 2400 scanner */
 
 /* NEC products */
 #define	USB_PRODUCT_NEC_HUB	0x55aa		/* hub */
