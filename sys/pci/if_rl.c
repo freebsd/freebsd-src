@@ -881,7 +881,7 @@ static int rl_attach(dev)
 	    rl_intr, sc, &sc->rl_intrhand);
 
 	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 		printf("rl%d: couldn't set up irq\n", unit);
 		goto fail;
@@ -896,7 +896,7 @@ static int rl_attach(dev)
 	rl_reset(sc);
 	sc->rl_eecmd_read = RL_EECMD_READ_6BIT;
 	rl_read_eeprom(sc, (caddr_t)&rl_did, 0, 1, 0);
-	if (rl_did != 8129)
+	if (rl_did != 0x8129)
 		sc->rl_eecmd_read = RL_EECMD_READ_8BIT;
 
 	/*
@@ -927,7 +927,7 @@ static int rl_attach(dev)
 	else {
 		printf("rl%d: unknown device ID: %x\n", unit, rl_did);
 		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 		error = ENXIO;
 		goto fail;
@@ -939,7 +939,7 @@ static int rl_attach(dev)
 	if (sc->rl_cdata.rl_rx_buf == NULL) {
 		printf("rl%d: no memory for list buffers!\n", unit);
 		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 		error = ENXIO;
 		goto fail;
@@ -954,7 +954,7 @@ static int rl_attach(dev)
 	    rl_ifmedia_upd, rl_ifmedia_sts)) {
 		printf("rl%d: MII without any phy!\n", sc->rl_unit);
 		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 		free(sc->rl_cdata.rl_rx_buf, M_DEVBUF);
 		error = ENXIO;
@@ -1005,7 +1005,7 @@ static int rl_detach(dev)
 	device_delete_child(dev, sc->rl_miibus);
 
 	bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_res);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 	bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 
 	contigfree(sc->rl_cdata.rl_rx_buf, RL_RXBUFLEN + 32, M_DEVBUF);
