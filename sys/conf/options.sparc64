@@ -2,6 +2,10 @@
 
 SUN4U			opt_global.h
 
+GFB_DEBUG		opt_gfb.h
+GFB_NO_FONT_LOADING	opt_gfb.h
+GFB_NO_MODE_CHANGE	opt_gfb.h
+
 EBUS_DEBUG		opt_ebus.h
 PSYCHO_DEBUG		opt_psycho.h
 DEBUGGER_ON_POWERFAIL	opt_psycho.h
@@ -12,3 +16,5 @@ IOMMU_DEBUG		opt_iommu.h
 # Debug IOMMU inserts/removes using diagnostic accesses. Very loud.
 IOMMU_DIAG		opt_iommu.h
 PMAP_STATS		opt_pmap.h
+
+DEV_CREATOR		opt_creator.h
