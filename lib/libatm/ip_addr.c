@@ -73,18 +73,18 @@ get_ip_addr(p)
 	char	*p;
 {
 	struct hostent			*ip_host;
-	static struct sockaddr_in	sin;
+	static struct sockaddr_in	s;
 
 	/*
 	 * Get IP address of specified host name
 	 */
-	bzero(&sin, sizeof(sin));
-	sin.sin_family = AF_INET;
+	bzero(&s, sizeof(s));
+	s.sin_family = AF_INET;
 	if (p[0] >= '0' && p[0] <= '9') {
 		/*
 		 * IP address is in dotted decimal format
 		 */
-		if ((sin.sin_addr.s_addr = inet_addr(p)) == -1) {
+		if ((s.sin_addr.s_addr = inet_addr(p)) == INADDR_NONE) {
 			return((struct sockaddr_in *)0);
 		}
 	} else {
@@ -96,9 +96,9 @@ get_ip_addr(p)
 				ip_host->h_addrtype != AF_INET) {
 			return((struct sockaddr_in *)0);
 		}
-		sin.sin_addr.s_addr = *(u_long *)ip_host->h_addr_list[0];
+		s.sin_addr.s_addr = *(u_long *)ip_host->h_addr_list[0];
 	}
-	return(&sin);
+	return(&s);
 }
 
 
@@ -115,7 +115,7 @@ get_ip_addr(p)
  *	char *	pointer to a text-formatted string
  *
  */
-char *
+const char *
 format_ip_addr(addr)
 	struct in_addr	*addr;
 {

@@ -72,7 +72,7 @@ int		harp_timer_exec;
  *
  */
 static void
-timer_tick()
+timer_tick(void)
 {
 	/*
 	 * Bump the timer flag
@@ -96,10 +96,10 @@ timer_tick()
  *
  */
 void
-timer_proc()
+timer_proc(void)
 {
 	Harp_timer	*htp;
-	void		(*f)();
+	void		(*f)(Harp_timer *);
 
 	/*
 	 * Reset marks in all timers on the queue
@@ -188,7 +188,7 @@ init_timer()
 	/*
 	 * Set up signal handler
 	 */
-	if (signal(SIGALRM, timer_tick) == SIG_ERR) {
+	if (signal(SIGALRM, (sig_t)timer_tick) == SIG_ERR) {
 		return(errno);
 	}
 
