@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)rexecd.8	8.2 (Berkeley) 12/11/93
 .\"
-.Dd December 11, 1993
+.Dd September 23, 1994
 .Dt REXECD 8
 .Os BSD 4.2
 .Sh NAME
@@ -96,6 +96,14 @@ shell inherits the network connections established
 by
 .Nm rexecd .
 .El
+.Sh CAVEATS
+.Nm Rexecd
+will no longer allow root logins, access for users listed in /etc/ftpusers,
+or access for users with no passwords, which were all serious security holes.
+The entire concept of rexec/rexecd is a major security hole and an example
+of how not to do things.
+.Nm Rexecd
+is disabled by default in /etc/inetd.conf.
 .Sh DIAGNOSTICS
 Except for the last one listed below,
 all diagnostic messages are returned on the initial socket,
@@ -135,10 +143,6 @@ and is not preceded by a flag byte.
 .Sh SEE ALSO
 .Xr rexec 3
 .Sh BUGS
-Indicating ``Login incorrect'' as opposed to ``Password incorrect''
-is a security breach which allows people to probe a system for users
-with null passwords.
-.Pp
 A facility to allow all data and password exchanges to be encrypted should be
 present.
 .Sh HISTORY
