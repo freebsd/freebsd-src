@@ -39,23 +39,21 @@
 
 struct thread;
 
-#if ELF_TARG_CLASS == ELFCLASS32
-
 /*
  * Structure used to pass infomation from the loader to the
  * stack fixup routine.
  */
 typedef struct {
-	Elf32_Sword	execfd;
-	Elf32_Word	phdr;
-	Elf32_Word	phent;
-	Elf32_Word	phnum;
-	Elf32_Word	pagesz;
-	Elf32_Word	base;
-	Elf32_Word	flags;
-	Elf32_Word	entry;
-	Elf32_Word	trace;
-} Elf32_Auxargs;
+	Elf_Sword	execfd;
+	Elf_Word	phdr;
+	Elf_Word	phent;
+	Elf_Word	phnum;
+	Elf_Word	pagesz;
+	Elf_Word	base;
+	Elf_Word	flags;
+	Elf_Word	entry;
+	Elf_Word	trace;
+} __ElfN(Auxargs);
 
 typedef struct {
 	int brand;
@@ -64,52 +62,20 @@ typedef struct {
 	const char *emul_path;
 	const char *interp_path;
         struct sysentvec *sysvec;
-} Elf32_Brandinfo;
+} __ElfN(Brandinfo);
+
+__ElfType(Auxargs);
+__ElfType(Brandinfo);
 
 #define MAX_BRANDS      8
 
-int	elf32_brand_inuse(Elf32_Brandinfo *entry);
-int	elf32_insert_brand_entry(Elf32_Brandinfo *entry);
-int	elf32_remove_brand_entry(Elf32_Brandinfo *entry);
-int	elf32_freebsd_fixup(register_t **, struct image_params *);
-int	elf32_coredump(struct thread *, struct vnode *, off_t);
+int	__elfN(brand_inuse)(Elf_Brandinfo *entry);
+int	__elfN(insert_brand_entry)(Elf_Brandinfo *entry);
+int	__elfN(remove_brand_entry)(Elf_Brandinfo *entry);
+int	__elfN(freebsd_fixup)(register_t **, struct image_params *);
+int	__elfN(coredump)(struct thread *, struct vnode *, off_t);
 
-#else /* !(ELF_TARG_CLASS == ELFCLASS32) */
-
-/*
- * Structure used to pass infomation from the loader to the
- * stack fixup routine.
- */
-typedef struct {
-	Elf64_Sword	execfd;
-	Elf64_Addr	phdr;
-	Elf64_Word	phent;
-	Elf64_Word	phnum;
-	Elf64_Word	pagesz;
-	Elf64_Addr	base;
-	Elf64_Word	flags;
-	Elf64_Addr	entry;
-	Elf64_Word	trace;
-} Elf64_Auxargs;
-
-typedef struct {
-	int brand;
-	int machine;
-	const char *compat_3_brand;	/* pre Binutils 2.10 method (FBSD 3) */
-	const char *emul_path;
-	const char *interp_path;
-        struct sysentvec *sysvec;
-} Elf64_Brandinfo;
-
-#define MAX_BRANDS      8
-
-int	elf64_brand_inuse(Elf64_Brandinfo *entry);
-int	elf64_insert_brand_entry(Elf64_Brandinfo *entry);
-int	elf64_remove_brand_entry(Elf64_Brandinfo *entry);
-int	elf64_freebsd_fixup(register_t **, struct image_params *);
-int	elf64_coredump(struct thread *, struct vnode *, off_t);
-
-#endif /* ELF_TARG_CLASS == ELFCLASS32 */
+extern	int __elfN(fallback_brand);
 
 #endif /* _KERNEL */
 
