@@ -93,7 +93,7 @@ init_lock(FILE *fp)
 		p->fl_mutex = PTHREAD_MUTEX_INITIALIZER;
 		p->fl_owner = NULL;
 		p->fl_count = 0;
-		if (pthread_mutex_lock(&init_lock_mutex) != 0) {
+		if (_pthread_mutex_lock(&init_lock_mutex) != 0) {
 			free(p);
 			return (-1);
 		}
@@ -102,7 +102,7 @@ init_lock(FILE *fp)
 			return (0);
 		}
 		fp->_lock = p;
-		pthread_mutex_unlock(&init_lock_mutex);
+		_pthread_mutex_unlock(&init_lock_mutex);
 		ret = 0;
 	}
 	return (ret);
