@@ -558,6 +558,7 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 	struct pps_kcbind_args *kapi;
 #endif
 
+	KASSERT(pps != NULL, ("NULL pps pointer in pps_ioctl"));
 	switch (cmd) {
 	case PPS_IOC_CREATE:
 		return (0);
@@ -621,6 +622,7 @@ pps_capture(struct pps_state *pps)
 {
 	struct timehands *th;
 
+	KASSERT(pps != NULL, ("NULL pps pointer in pps_capture"));
 	th = timehands;
 	pps->capgen = th->th_generation;
 	pps->capth = th;
@@ -638,6 +640,7 @@ pps_event(struct pps_state *pps, int event)
 	int foff, fhard;
 	pps_seq_t *pseq;
 
+	KASSERT(pps != NULL, ("NULL pps pointer in pps_event"));
 	/* If the timecounter was wound up underneath us, bail out. */
 	if (pps->capgen == 0 || pps->capgen != pps->capth->th_generation)
 		return;
