@@ -279,7 +279,7 @@ behavior now is to close disks as single-session).  A -l option to
 take a list of image files from a filename was also added; '-' can be
 used as a filename for stdin.
 
-tar(1) now supports the TAR_SSH variable, principally to enable the
+tar(1) now supports the TAR_RSH variable, principally to enable the
 use of ssh(1) as a transport.
 
 make(1) has received a number of bugfixes.
