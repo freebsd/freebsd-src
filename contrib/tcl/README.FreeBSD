@@ -18,3 +18,11 @@ Tcl 8.0 beta 2
 	cd tcl8.0b2
 	rm -rf win mac compat
 	cvs import src/contrib/tcl TCL tcl8_0_b2
+
+Tcl 8.0 patch 2
+	Imported with the commands:
+
+	tar zxvf tcl8.0p2.tar.gz
+	cd tcl8.0p2
+	rm -rf win mac compat
+	cvs import src/contrib/tcl TCL tcl8_0_p2
