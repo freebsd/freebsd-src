@@ -31,6 +31,7 @@
  *	btreeop.c				21-Apr-97
  *
  */
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -41,7 +42,6 @@
 #include <fcntl.h>
 
 char    *dbdefault = "btree";   	/* default database name */
-char    *progname  = "btreeop";	   	/* command name */
 char    *dbname;
 char	buf[BUFSIZ+1];
 
@@ -53,7 +53,7 @@ char	buf[BUFSIZ+1];
 #endif
 #endif
 void	die __P((char *));
-void	usage __P((void));
+static void	usage __P((void));
 void	entab __P((char *));
 void	main __P((int, char **));
 int	dbwrite __P((DB *));
@@ -74,15 +74,15 @@ void
 die(s)
 char	*s;
 {
-	fprintf(stderr, "%s: %s\n", progname, s);
-	exit(1);
+	errx(1, "%s", s);
 }
 
-void
-usage() {
-	fprintf(stderr,
-		"usage: %s [-A][-C][-D key][-K key][-b][-c cachesize][-l][-p psize][dbname]\n",
-		progname);
+static void
+usage()
+{
+	fprintf(stderr, "%s\n%s\n",
+		"usage: btreeop [-A][-C][-D key][-K key][-b][-c cachesize]",
+		"               [-l][-p psize][dbname]");
 	exit(1);
 }
 
@@ -123,7 +123,6 @@ char	*buf;
 	buf[dst] = 0;
 }
 
-#include <errno.h>
 void
 main(argc, argv)
 int	argc;
@@ -147,7 +146,7 @@ char	*argv[];
 	info.prefix = NULL;
 	info.lorder = LITTLE_ENDIAN;
 
-	while ((c = getopt(argc, argv, "ACD:K:bc:lp:")) != EOF) {
+	while ((c = getopt(argc, argv, "ACD:K:bc:lp:")) != -1) {
 		switch (c) {
 		case 'K':
 		case 'D':
