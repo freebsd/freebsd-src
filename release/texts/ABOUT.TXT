@@ -21,9 +21,11 @@ environment that extends far beyond what's provided by many commercial
 versions of UNIX.
 
 For more documentation on this system it is recommended that you
-purchase the 4.4BSD Document Set from O'Reilly Associates and the
-USENIX Association, ISBN 1-56592-082-1.  We have no connection with
-O'Reilly, we're just satisfied customers!
+purchase The Complete FreeBSD, available from local bookstores
+and from the FreeBSD Mall (http://www.freebsdmall.com), as well
+as the 4.4BSD Document Set from O'Reilly Associates and the USENIX
+Association, ISBN 1-56592-082-1.  We have no connection with O'Reilly,
+we're just satisfied customers!
 
 If you're new to FreeBSD then you should also read EVERYTHING listed
 in the Documentation menu on the boot floppy.  It may seem like a lot

@@ -94,11 +94,11 @@ ed0     280     10      dyn     d8000   WD & SMC 80xx; Novell NE1000 &
 eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509
 ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
-fe0     300     dyn     n/a     n/a     Allied-Telesis AT1700, RE2000 and
+fe0     300     dyn     n/a     n/a     Allied-Telesyn AT1700, RE2000 and
                                         Fujitsu FMV-180 series cards.
 fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
 ie0     300     10      dyn     d0000   AT&T StarLAN 10 and EN100;
-                                        3Com 3C507; NI5210;
+                                        3Com 3C507; NI5210; 
                                         Intel EtherExpress (8/16,16[TP]) cards
 le0     300     5       dyn     d0000   Digital Equipment EtherWorks
                                         2 and EtherWorks 3
@@ -329,7 +329,7 @@ ATA
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
-Adaptec 274X/284X/2920C/2930U2/294x/2950/3940/3950 (Narrow/Wide/Twin) series
+Adaptec 274X/284X/2920C/294x/2950/3940/3950 (Narrow/Wide/Twin) series
 EISA/VLB/PCI SCSI controllers.
 Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
 
@@ -366,6 +366,7 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
         Symbios cards (all)
         Tekram DC390W, 390U and 390F
         Tyan S1365
+
 
 QLogic 1020, 1040, 1040B and 2100 SCSI and Fibre Channel Adapters
 
@@ -428,7 +429,7 @@ AIC-6915 fast ethernet controller chip, including the following:
   ANA-69011 32-bit single port 10/100baseTX adapter
   ANA-62020 64-bit single port 100baseFX adapter
 
-Allied-Telesis AT1700 and RE2000 cards
+Allied-Telesyn AT1700 and RE2000 cards
 
 Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
 chipsets, including the following:
@@ -462,7 +463,7 @@ Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
   NetGear FA310-TX Rev. D1
   Matrox FastNIC 10/100
   Kingston KNE110TX
-  
+
 Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
   NDC Communications SFA100A (98713A)
   CNet Pro120A (98713 or 98713A)
@@ -478,7 +479,11 @@ Winbond W89C840F fast ethernet NICs including the following:
 VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
 NICs including the following:
   Hawking Technologies PN102TX
-  D-Link DFE530TX
+  D-Link DFE-530TX
+
+Sundance Technologies ST201 PCI fast ethernet NICs including
+the following:
+  D-Link DFE-550TX
 
 SysKonnect SK-984x PCI gigabit ethernet cards including the following:
   SK-9841 1000baseLX single mode fiber, single port
@@ -549,7 +554,135 @@ still waiting for someone to donate a driver for one of them.  Any
 takers?
 
 
-4.3.    Misc
+4.3.    USB
+----    ---
+
+A range of USB peripherals are supported.  Owing to the generic nature
+of most USB devices, with some exceptions any device of a given class
+will be supported even if not explicitly listed here.
+
+USB keyboards.
+
+USB mice.
+
+USB printers and USB to parallel printer conversion cables.
+
+USB hubs.
+
+
+Motherboards chipsets:
+
+ALi Aladdin-V.
+
+Intel 82371SB (PIIX3).
+Intel 82371AB and EB chipsets (PIIX4).
+
+NEC uPD 9210 Host Controller.
+
+VIA 83C572 USB Host Controller
+
+and any other UHCI or OHCI compliant motherboard chipset (no exceptions
+known).
+
+
+PCI plug-in USB host controllers:
+
+ADS Electronics PCI plug-in card (2 ports).
+
+Entrega PCI plug-in card (4 ports).
+
+
+Specific devices reported to be working:
+
+Agiler Mouse 29UO.
+
+Andromeda hub.
+
+Apple iMac mouse.
+Apple iMac keyboard.
+
+ATen parallel printer adapter.
+
+Belkin F5U002 parallel printer adapter.
+Belkin Mouse.
+
+BTC BTC7935 keyboard with mouse port.
+
+Cherry G81-3504 keyboard.
+
+Chic mouse.
+
+Cypress mouse.
+
+Entrega USB-to-parallel printer adapter.
+
+Genius Niche mouse.
+
+Iomega USB Zip 100Mb.
+
+Kensington Mouse-in-a-Box.
+
+Logitech M2452 keyboard.
+Logitech wheel mouse (3 buttons).
+Logitech PS/2 / USB mouse (3 buttons).
+
+MacAlly mouse (3 buttons).
+MacAlly self powered hub (4 ports).
+
+Microsoft IntelliMouse (3 buttons).
+Microsoft keyboard.
+
+NEC hub.
+
+Trust Ami Mouse (3 buttons).
+
+
+4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
+----    -------------------------------------------
+
+Asuscom I-IN100-ST-DV (experimental, may work)
+Asuscom ISDNlink 128K PnP
+
+AVM A1
+AVM Fritz!Card classic
+AVM Fritz!Card PnP
+AVM Fritz!Card PCI
+AVM Fritz!Card PCMCIA
+
+Creatix ISDN-S0/8
+Creatix ISDN-S0/16
+Creatix ISDN-S0 PnP
+
+Dr.Neuhaus Niccy 1008
+Dr.Neuhaus Niccy 1016
+Dr.Neuhaus Niccy GO@ (ISA PnP)
+
+Dynalink IS64PH (no longer maintained)
+
+ELSA 1000pro ISA
+ELSA 1000pro PCI
+ELSA PCC-16
+
+ITK ix1 micro
+ITK ix1 micro PnP
+
+Sagem Cybermod (ISA PnP, may work)
+
+Sedlbauer Win Speed
+
+Siemens I-Surf 2.0
+
+Stollmann Tina-pp (under development)
+
+Teles S0/8
+Teles S0/16
+Teles S0/16.3 (the "c" Versions - like 16.3c - are unsupported !)
+Teles S0 PnP (experimental, may work)
+
+3Com/USRobotics Sportster ISDN TA intern (non-PnP version)
+
+
+4.5.    Misc
 ----    ----
 
 AST 4 port serial card using shared IRQ.

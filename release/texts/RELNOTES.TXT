@@ -146,7 +146,7 @@ ATA
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
-Adaptec 274X/284X/2920C/2930U2/294x/2950/3940/3950 (Narrow/Wide/Twin) series
+Adaptec 274X/284X/2920C/294x/2950/3940/3950 (Narrow/Wide/Twin) series
 EISA/VLB/PCI SCSI controllers.
 Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
 
@@ -183,6 +183,7 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
         Symbios cards (all)
         Tekram DC390W, 390U and 390F
         Tyan S1365
+
 
 QLogic 1020, 1040, 1040B, 1080 and 1240 SCSI Host Adapters.
 QLogic 2100 Fibre Channel Adapters (private loop only).
@@ -335,6 +336,7 @@ Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
 
 Novell NE1000, NE2000, and NE2100 ethernet interface.
+
 PCI network cards emulating the NE2000: RealTek 8029, NetVin 5000,
 Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
@@ -431,7 +433,7 @@ Cortex1 frame grabber
 Hauppauge Wincast/TV boards (PCI)
 STB TV PCI
 Intel Smart Video Recorder III
-Various Frame grabbers based on Brooktree Bt848 and Bt878 chip.
+Various Frame grabbers based on Brooktree Bt848 / Bt878 chip.
 
 HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
 
@@ -452,7 +454,7 @@ Support for Dave Mills experimental Loran-C receiver.
 
 Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
-(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS).  Note: the
+(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
 ISA versions of these adapters are actually PCMCIA cards combined with
 an ISA to PCMCIA bridge card, so both kinds of devices work with
 the same driver.
