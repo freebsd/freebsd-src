@@ -1,5 +1,7 @@
+
+#------------------------------------------------------------------------------
+# diff:  file(1) magic for diff(1) output
 #
-# magic file lines for output from "diff"...
 0	string		diff\ 	'diff' output text
 0	string		***\ 		'diff' output text
 0	string		Only\ in\ 	'diff' output text

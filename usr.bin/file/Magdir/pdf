@@ -1,0 +1,7 @@
+
+#------------------------------------------------------------------------------
+# pdf:  file(1) magic for Portable Document Format
+#
+
+0	string		%PDF-		PDF document
+>5	string		x		\b, version %.3s

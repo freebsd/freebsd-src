@@ -1,7 +1,8 @@
+
+#------------------------------------------------------------------------------
+# ncr:  file(1) magic for NCR Tower objects
 #
-# magic.tower:
-#
-# NCR Tower objects, contributed by
+# contributed by
 # Michael R. Wayne  ***  TMC & Associates  ***  INTERNET: wayne@ford-vax.arpa
 # uucp: {philabs | pyramid} !fmsrl7!wayne   OR   wayne@fmsrl7.UUCP
 #

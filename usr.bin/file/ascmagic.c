@@ -1,5 +1,5 @@
 /*
- * Ascii magic -- file types that we know based on keywords
+ * ASCII magic -- file types that we know based on keywords
  * that can appear anywhere in the file.
  *
  * Copyright (c) Ian F. Darwin, 1987.
@@ -36,7 +36,7 @@
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: ascmagic.c,v 1.17 1994/01/21 01:25:30 christos Exp $";
+	"@(#)$Id: ascmagic.c,v 1.20 1995/05/20 22:09:21 christos Exp $";
 #endif	/* lint */
 
 			/* an optimisation over plain strcmp() */
@@ -47,13 +47,24 @@ ascmagic(buf, nbytes)
 unsigned char *buf;
 int nbytes;	/* size actually read */
 {
-	int i, isblock, has_escapes = 0;
+	int i, has_escapes = 0;
 	unsigned char *s;
 	char nbuf[HOWMANY+1];	/* one extra for terminating '\0' */
 	char *token;
 	register struct names *p;
 
-	/* these are easy, do them first */
+	/*
+	 * Do the tar test first, because if the first file in the tar
+	 * archive starts with a dot, we can confuse it with an nroff file.
+	 */
+	switch (is_tar(buf, nbytes)) {
+	case 1:
+		ckfputs("tar archive", stdout);
+		return 1;
+	case 2:
+		ckfputs("POSIX tar archive", stdout);
+		return 1;
+	}
 
 	/*
 	 * for troff, look for . + letter + letter or .\";
@@ -66,13 +77,13 @@ int nbytes;	/* size actually read */
 		while (isascii(*tp) && isspace(*tp))
 			++tp;	/* skip leading whitespace */
 		if ((isascii(*tp) && (isalnum(*tp) || *tp=='\\') &&
-		    isascii(*(tp+1)) && (isalnum(*(tp+1)) || *tp=='"'))) {
+		    isascii(tp[1]) && (isalnum(tp[1]) || tp[1] == '"'))) {
 			ckfputs("troff or preprocessor input text", stdout);
 			return 1;
 		}
 	}
 	if ((*buf == 'c' || *buf == 'C') && 
-	    isascii(*(buf + 1)) && isspace(*(buf + 1))) {
+	    isascii(buf[1]) && isspace(buf[1])) {
 		ckfputs("fortran program text", stdout);
 		return 1;
 	}
@@ -82,7 +93,7 @@ int nbytes;	/* size actually read */
 	s = (unsigned char*) memcpy(nbuf, buf, nbytes);
 	s[nbytes] = '\0';
 	has_escapes = (memchr(s, '\033', nbytes) != NULL);
-	while ((token = strtok((char*)s, " \t\n\r\f")) != NULL) {
+	while ((token = strtok((char *) s, " \t\n\r\f")) != NULL) {
 		s = NULL;	/* make strtok() keep on tokin' */
 		for (p = names; p < names + NNAMES; p++) {
 			if (STREQ(p->name, token)) {
@@ -95,22 +106,14 @@ int nbytes;	/* size actually read */
 		}
 	}
 
-	switch (is_tar(buf, nbytes)) {
-	case 1:
-		ckfputs("tar archive", stdout);
-		return 1;
-	case 2:
-		ckfputs("POSIX tar archive", stdout);
-		return 1;
-	}
 
 	for (i = 0; i < nbytes; i++) {
-		if (!isascii(*(buf+i)))
-			return 0;	/* not all ascii */
+		if (!isascii(buf[i]))
+			return 0;	/* not all ASCII */
 	}
 
-	/* all else fails, but it is ascii... */
-	ckfputs("ascii text", stdout);
+	/* all else fails, but it is ASCII... */
+	ckfputs("ASCII text", stdout);
 	if (has_escapes) {
 		ckfputs(" (with escape sequences)", stdout);
 	}

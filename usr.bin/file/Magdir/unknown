@@ -1,5 +1,6 @@
-#
-# magic.unknown: Unknown machine magic
+
+#------------------------------------------------------------------------------
+# unknown:  file(1) magic for unknown machines
 #
 # XXX - this probably should be pruned, as it'll match PDP-11 and
 # VAX image formats.

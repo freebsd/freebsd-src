@@ -29,56 +29,92 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #include "file.h"
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: apprentice.c,v 1.19 1994/05/03 17:58:23 christos Exp $";
+	"@(#)$Id: apprentice.c,v 1.23 1995/10/27 23:12:01 christos Exp $";
 #endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \
 		      isspace((unsigned char) *l))  ++l;}
+#define LOWCASE(l) (isupper((unsigned char) (l)) ? \
+			tolower((unsigned char) (l)) : (l))
 
 
 static int getvalue	__P((struct magic *, char **));
 static int hextoint	__P((int));
 static char *getstr	__P((char *, char *, int, int *));
 static int parse	__P((char *, int *, int));
+static void eatsize	__P((char **));
 
 static int maxmagic = 0;
 
+static int apprentice_1	__P((char *, int));
+
 int
 apprentice(fn, check)
-char *fn;			/* name of magic file */
+char *fn;			/* list of magic files */
 int check;			/* non-zero? checking-only run. */
 {
-	FILE *f;
-	char line[BUFSIZ+1];
-	int errs = 0;
-
-	f = fopen(fn, "r");
-	if (f==NULL) {
-		(void) fprintf(stderr, "%s: can't read magic file %s\n",
-		progname, fn);
-		if (check)
-			return -1;
-		else
-			exit(1);
-	}
+	char *p, *mfn;
+	int file_err, errs = -1;
 
         maxmagic = MAXMAGIS;
-	if ((magic = (struct magic *) calloc(sizeof(struct magic), maxmagic))
-	    == NULL) {
+	magic = (struct magic *) calloc(sizeof(struct magic), maxmagic);
+	mfn = malloc(strlen(fn)+1);
+	if (magic == NULL || mfn == NULL) {
 		(void) fprintf(stderr, "%s: Out of memory.\n", progname);
 		if (check)
 			return -1;
 		else
 			exit(1);
 	}
+	fn = strcpy(mfn, fn);
   
+	while (fn) {
+		p = strchr(fn, ':');
+		if (p)
+			*p++ = '\0';
+		file_err = apprentice_1(fn, check);
+		if (file_err > errs)
+			errs = file_err;
+		fn = p;
+	}
+	if (errs == -1)
+		(void) fprintf(stderr, "%s: couldn't find any magic files!\n",
+			       progname);
+	if (!check && errs)
+		exit(1);
+
+	free(mfn);
+	return errs;
+}
+
+static int
+apprentice_1(fn, check)
+char *fn;			/* name of magic file */
+int check;			/* non-zero? checking-only run. */
+{
+	static const char hdr[] =
+		"cont\toffset\ttype\topcode\tmask\tvalue\tdesc";
+	FILE *f;
+	char line[BUFSIZ+1];
+	int errs = 0;
+
+	f = fopen(fn, "r");
+	if (f==NULL) {
+		if (errno != ENOENT)
+			(void) fprintf(stderr,
+			"%s: can't read magic file %s (%s)\n", 
+			progname, fn, strerror(errno));
+		return -1;
+	}
+
 	/* parse it */
 	if (check)	/* print silly verbose header for USG compat. */
-		(void) printf("cont\toffset\ttype\topcode\tmask\tvalue\tdesc\n");
+		(void) printf("%s\n", hdr);
 
 	for (lineno = 1;fgets(line, BUFSIZ, f) != NULL; lineno++) {
 		if (line[0]=='#')	/* comment, do not parse */
@@ -87,11 +123,11 @@ int check;			/* non-zero? checking-only run. */
 			continue;
 		line[strlen(line)-1] = '\0'; /* delete newline */
 		if (parse(line, &nmagic, check) != 0)
-			++errs;
+			errs = 1;
 	}
 
 	(void) fclose(f);
-	return errs ? -1 : 0;
+	return errs;
 }
 
 /*
@@ -147,8 +183,9 @@ int *ndx, check;
 	struct magic *m;
 	char *t, *s;
 
+#define ALLOC_INCR	20
 	if (nd+1 >= maxmagic){
-	    maxmagic += 20;
+	    maxmagic += ALLOC_INCR;
 	    if ((magic = (struct magic *) realloc(magic, 
 						  sizeof(struct magic) * 
 						  maxmagic)) == NULL) {
@@ -158,6 +195,7 @@ int *ndx, check;
 		else
 			exit(1);
 	    }
+	    memset(&magic[*ndx], 0, sizeof(struct magic) * ALLOC_INCR);
 	}
 	m = &magic[*ndx];
 	m->flag = 0;
@@ -174,7 +212,7 @@ int *ndx, check;
 	}
 
 	/* get offset, then skip over it */
-	m->offset = (int) strtol(l,&t,0);
+	m->offset = (int) strtoul(l,&t,0);
         if (l == t)
 		magwarn("offset %s invalid", l);
         l = t;
@@ -186,13 +224,16 @@ int *ndx, check;
 		 * read [.lbs][+-]nnnnn)
 		 */
 		if (*l == '.') {
-			switch (*++l) {
+			l++;
+			switch (LOWCASE(*l)) {
 			case 'l':
 				m->in.type = LONG;
 				break;
+			case 'h':
 			case 's':
 				m->in.type = SHORT;
 				break;
+			case 'c':
 			case 'b':
 				m->in.type = BYTE;
 				break;
@@ -205,7 +246,7 @@ int *ndx, check;
 		s = l;
 		if (*l == '+' || *l == '-') l++;
 		if (isdigit((unsigned char)*l)) {
-			m->in.offset = strtol(l, &t, 0);
+			m->in.offset = strtoul(l, &t, 0);
 			if (*s == '-') m->in.offset = - m->in.offset;
 		}
 		else
@@ -278,7 +319,8 @@ int *ndx, check;
 	/* New-style anding: "0 byte&0x80 =0x80 dynamically linked" */
 	if (*l == '&') {
 		++l;
-		m->mask = signextend(m, strtol(l, &l, 0));
+		m->mask = signextend(m, strtoul(l, &l, 0));
+		eatsize(&l);
 	} else
 		m->mask = ~0L;
 	EATAB;
@@ -360,8 +402,10 @@ char **p;
 		*p = getstr(*p, m->value.s, sizeof(m->value.s), &slen);
 		m->vallen = slen;
 	} else
-		if (m->reln != 'x')
-			m->value.l = signextend(m, strtol(*p, p, 0));
+		if (m->reln != 'x') {
+			m->value.l = signextend(m, strtoul(*p, p, 0));
+			eatsize(p);
+		}
 	return 0;
 }
 
@@ -548,4 +592,31 @@ int len;
 			}
 		}
 	}
+}
+
+/*
+ * eatsize(): Eat the size spec from a number [eg. 10UL]
+ */
+static void
+eatsize(p)
+char **p;
+{
+	char *l = *p;
+
+	if (LOWCASE(*l) == 'u') 
+		l++;
+
+	switch (LOWCASE(*l)) {
+	case 'l':    /* long */
+	case 's':    /* short */
+	case 'h':    /* short */
+	case 'b':    /* char/byte */
+	case 'c':    /* char/byte */
+		l++;
+		/*FALLTHROUGH*/
+	default:
+		break;
+	}
+
+	*p = l;
 }

@@ -46,7 +46,7 @@
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: fsmagic.c,v 1.22 1993/02/19 12:09:04 ian Exp $";
+	"@(#)$Id: fsmagic.c,v 1.23 1995/01/21 21:03:35 christos Exp $";
 #endif	/* lint */
 
 int
@@ -151,9 +151,11 @@ struct stat *sb;
 		return 1;
 #endif
 #ifdef	S_IFSOCK
+#ifndef __COHERENT__
 	case S_IFSOCK:
 		ckfputs("socket", stdout);
 		return 1;
+#endif
 #endif
 	case S_IFREG:
 		break;

@@ -1,7 +1,6 @@
-#
-# magic.rs6000:
-#
-# RS/6000 and the RT PC.
+
+#------------------------------------------------------------------------------
+# ibm6000:  file(1) magic for RS/6000 and the RT PC.
 #
 0	beshort		0x01df		executable (RISC System/6000 V3.1) or obj module
 >12	belong		>0		not stripped
