@@ -52,10 +52,11 @@ bool	Debug,			/* set if debugging code on		*/
 	Order,			/* set if hand should be sorted		*/
 	Saved;			/* set if game just saved		*/
 
-char	*C_fmt = "%-18.18s",	/* format for printing cards		*/
-	*Fromfile = NULL,	/* startup file for game		*/
-	Initstr[100],		/* initial string for error field	*/
-	*_cn[NUM_CARDS] = {	/* Card name buffer			*/
+char	*Fromfile = NULL,	/* startup file for game		*/
+	Initstr[100];		/* initial string for error field	*/
+
+const char	*C_fmt = "%-18.18s",	/* format for printing cards	*/
+		*_cn[NUM_CARDS] = {	/* Card name buffer		*/
 		"",
 		"25",
 		"50",
@@ -76,8 +77,8 @@ char	*C_fmt = "%-18.18s",	/* format for printing cards		*/
 		"Puncture Proof",
 		"Driving Ace",
 		"Right of Way"
-	},
-	**C_name = &_cn[1];	/* Card names				*/
+		},
+		**C_name = &_cn[1];	/* Card names			*/
 
 int	Card_no,		/* Card number for current move		*/
 	End,			/* End value for current hand		*/

@@ -67,11 +67,11 @@ typedef	struct stat	STAT;
  */
 
 bool
-save() {
-
+save(void)
+{
 	extern int	errno;
 	char		*sp;
-	int		outf;
+	int		loutf;
 	time_t		*tp;
 	char		buf[80];
 	time_t		tme;
@@ -122,7 +122,7 @@ over:
 	    && getyn(OVERWRITEFILEPROMPT) == FALSE))
 		return FALSE;
 
-	if ((outf = creat(buf, 0644)) < 0) {
+	if ((loutf = creat(buf, 0644)) < 0) {
 		error(strerror(errno));
 		return FALSE;
 	}
@@ -134,8 +134,8 @@ over:
 	for (; *sp != '\n'; sp++)
 		continue;
 	*sp = '\0';
-	varpush(outf, write);
-	close(outf);
+	varpush(loutf, write);
+	close(loutf);
 	wprintw(Score, " [%s]", buf);
 	wclrtoeol(Score);
 	wrefresh(Score);
@@ -148,9 +148,8 @@ over:
  * be cleaned up before the game starts.
  */
 bool
-rest_f(file)
-char	*file; {
-
+rest_f(char *file)
+{
 	char	*sp;
 	int		inf;
 	char		buf[80];

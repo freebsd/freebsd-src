@@ -59,7 +59,7 @@ static const char rcsid[] =
 
 /* VARARGS1 */
 bool
-error(char *str, ...)
+error(const char *str, ...)
 {
 	va_list arg;
 
@@ -76,7 +76,7 @@ error(char *str, ...)
 }
 
 CARD
-getcard()
+getcard(void)
 {
 	int		c, c1;
 
@@ -125,9 +125,8 @@ cont:		;
 }
 
 bool
-check_ext(forcomp)
-bool	forcomp; {
-
+check_ext(bool forcomp)
+{
 
 	if (End == 700)
 		if (Play == PLAYER) {
@@ -180,9 +179,8 @@ done:
  * also allowed.  Return TRUE if the answer was yes, FALSE if no.
  */
 bool
-getyn(promptno)
-int	promptno; {
-
+getyn(int promptno)
+{
 	char	c;
 
 	Saved = FALSE;
@@ -225,7 +223,7 @@ int	promptno; {
  * it.  Exit appropriately.
  */
 void
-check_more()
+check_more(void)
 {
 
 	On_exit = TRUE;
@@ -253,7 +251,7 @@ check_more()
 }
 
 char
-readch()
+readch(void)
 {
 	int		cnt;
 	static char	c;

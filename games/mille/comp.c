@@ -48,7 +48,7 @@ static const char rcsid[] =
 # define	V_VALUABLE	40
 
 void
-calcmove()
+calcmove(void)
 {
 	CARD		card;
 	int		*value;
@@ -404,8 +404,7 @@ play_it:
  * Return true if the given player could conceivably win with his next card.
  */
 bool
-onecard(pp)
-PLAY	*pp;
+onecard(PLAY *pp)
 {
 	CARD	bat, spd, card;
 
@@ -437,9 +436,7 @@ PLAY	*pp;
 }
 
 bool
-canplay(pp, op, card)
-PLAY	*pp, *op;
-CARD	card;
+canplay(PLAY *pp, PLAY *op, CARD card)
 {
 	switch (card) {
 	  case C_200:

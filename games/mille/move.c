@@ -66,7 +66,7 @@ static int haspicked(PLAY *);
 static bool playcard(PLAY *);
 
 void
-domove()
+domove(void)
 {
 	PLAY	*pp;
 	int		i, j;
@@ -170,8 +170,8 @@ acc:
  * the game is over
  */
 static void
-check_go() {
-
+check_go(void)
+{
 	CARD	card;
 	PLAY	*pp, *op;
 	int		i;
@@ -201,8 +201,7 @@ check_go() {
 }
 
 static bool
-playcard(pp)
-PLAY	*pp;
+playcard(PLAY *pp)
 {
 	int		v;
 	CARD	card;
@@ -351,7 +350,7 @@ protected:
 }
 
 static void
-getmove()
+getmove(void)
 {
 	char	c;
 #ifdef DEBUG
@@ -407,7 +406,7 @@ getmove()
 		  case 'W':		/* Window toggle */
 			Window = nextwin(Window);
 			newscore();
-			prscore(TRUE);
+			prscore();
 			wrefresh(Score);
 			break;
 		  case 'R':		/* Redraw screen */
@@ -485,9 +484,8 @@ ret:
  * return whether or not the player has picked
  */
 static int
-haspicked(pp)
-PLAY	*pp; {
-
+haspicked(PLAY *pp)
+{
 	int	card;
 
 	if (Topcard <= Deck)
@@ -505,9 +503,8 @@ PLAY	*pp; {
 }
 
 void
-account(card)
-CARD	card; {
-
+account(CARD card)
+{
 	CARD	oppos;
 
 	if (card == C_INIT)
@@ -531,10 +528,9 @@ CARD	card; {
 }
 
 void
-prompt(promptno)
-int	promptno;
+prompt(int promptno)
 {
-	static char	*names[] = {
+	static const char	*names[] = {
 				">>:Move:",
 				"Really?",
 				"Another hand?",
@@ -563,8 +559,7 @@ int	promptno;
 }
 
 void
-sort(hand)
-CARD	*hand;
+sort(CARD *hand)
 {
 	CARD	*cp, *tp;
 	CARD	temp;
