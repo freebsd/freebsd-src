@@ -100,7 +100,7 @@ struct i4b_l1mux_func ihfc_l1mux_func = {
  *	NOTE: We may get called here from ihfc_hdlc_Dread or isac_hdlc_Dread
  *	via the upper layers.
  *---------------------------------------------------------------------------*/
-int
+static int
 ihfc_ph_data_req(int unit, struct mbuf *m, int freeflag)
 {
 	ihfc_sc_t *sc = &ihfc_softc[unit];
@@ -148,7 +148,7 @@ ihfc_ph_data_req(int unit, struct mbuf *m, int freeflag)
 /*---------------------------------------------------------------------------*
  *	L2 -> L1: PH-ACTIVATE-REQUEST (B-channel and D-channel)
  *---------------------------------------------------------------------------*/
-int
+static int
 ihfc_ph_activate_req(int unit)
 {
 	ihfc_sc_t *sc = &ihfc_softc[unit];
@@ -172,7 +172,7 @@ ihfc_ph_activate_req(int unit)
 /*---------------------------------------------------------------------------*
  *	T3 timeout - persistant deactivation
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_T3_expired(ihfc_sc_t *sc)
 {
 	u_char chan = 0;
@@ -198,7 +198,7 @@ ihfc_T3_expired(ihfc_sc_t *sc)
 /*---------------------------------------------------------------------------*
  *	Command from the upper layers (B-channel and D-channel)
  *---------------------------------------------------------------------------*/
-int
+static int
 ihfc_mph_command_req(int unit, int command, void *parm)
 {
 	ihfc_sc_t *sc = &ihfc_softc[unit];
@@ -407,7 +407,7 @@ ihfc_B_setup(int unit, int chan, int bprot, int activate)
  *	NOTE: if "chan" variable is corrupted, it will not cause any harm,
  *	but data may be lost and there may be software sync. errors.
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_B_start(int unit, int chan)
 {
 	ihfc_sc_t *sc = &ihfc_softc[unit];
@@ -434,7 +434,7 @@ ihfc_B_start(int unit, int chan)
 /*---------------------------------------------------------------------------*
  *	Fill statistics struct (B-channel)
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_B_stat(int unit, int chan, bchan_statistics_t *bsp)
 {
 	ihfc_sc_t *sc = &ihfc_softc[unit];
@@ -458,7 +458,7 @@ ihfc_B_stat(int unit, int chan, bchan_statistics_t *bsp)
 /*---------------------------------------------------------------------------*
  *	Return the address of IHFC linktab to I4B (B-channel)
  *---------------------------------------------------------------------------*/
-isdn_link_t *
+static isdn_link_t *
 ihfc_B_ret_linktab(int unit, int channel)
 {
 	ihfc_sc_t *sc = &ihfc_softc[unit];
@@ -472,7 +472,7 @@ ihfc_B_ret_linktab(int unit, int channel)
 /*---------------------------------------------------------------------------*
  *	Set the I4B driver linktab for IHFC use (B-channel)
  *---------------------------------------------------------------------------*/
-void
+static void
 ihfc_B_set_linktab(int unit, int channel, drvr_link_t *B_linktab)
 {
 	ihfc_sc_t *sc = &ihfc_softc[unit];

@@ -132,7 +132,7 @@ DRIVER_MODULE(isicpnp, isa, isic_pnp_driver, isic_devclass, 0, 0);
 /*---------------------------------------------------------------------------*
  *      probe for ISA PnP cards
  *---------------------------------------------------------------------------*/
-int
+static int
 isic_pnp_probe(device_t dev)
 {
 	struct isic_pnp_ids *ids;			/* pnp id's */
@@ -164,7 +164,7 @@ isic_pnp_probe(device_t dev)
 /*---------------------------------------------------------------------------*
  *      attach for ISA PnP cards
  *---------------------------------------------------------------------------*/
-int
+static int
 isic_pnp_attach(device_t dev)
 {
 	u_int32_t vend_id = isa_get_vendorid(dev);	/* vendor id */
