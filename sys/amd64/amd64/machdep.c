@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.142 1995/09/10 21:34:52 bde Exp $
+ *	$Id: machdep.c,v 1.143 1995/09/15 08:31:14 davidg Exp $
  */
 
 #include "npx.h"
@@ -43,6 +43,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
@@ -126,14 +127,16 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/rtc.h>
 
-/*
- * System initialization
- */
+extern void diediedie __P((void));
+extern void init386 __P((int first));
+extern int ptrace_set_pc __P((struct proc *p, unsigned int addr));
+extern int ptrace_single_step __P((struct proc *p));
+extern int ptrace_getregs __P((struct proc *p, unsigned int *addr));
+extern int ptrace_setregs __P((struct proc *p, unsigned int *addr));
+extern int ptrace_write_u __P((struct proc *p, vm_offset_t off, int data));
 
 static void cpu_startup __P((void *));
-
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
-
 
 static void identifycpu(void);
 
@@ -195,10 +198,9 @@ extern struct linker_set netisr_set;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
-/* ARGSUSED*/
 static void
-cpu_startup(udata)
-	void *udata;	/* not used*/
+cpu_startup(dummy)
+	void *dummy;
 {
 	register unsigned i;
 	register caddr_t v;
@@ -405,19 +407,33 @@ again:
 	vm_pager_bufferinit();
 
 	/*
-	 * if we need it, print out the Bios's idea of geometry
+	 * In verbose mode, print out the BIOS's idea of the disk geometries.
 	 */
 	if (bootverbose) {
 		printf("BIOS Geometries:\n");
-		for (i=0; i < N_BIOS_GEOM; i++) {
-			int j = bootinfo.bi_bios_geom[i];
-			if (j == 0x4f010f)
+		for (i = 0; i < N_BIOS_GEOM; i++) {
+			unsigned long bios_geom;
+			int max_cylinder, max_head, max_sector;
+
+			bios_geom = bootinfo.bi_bios_geom[i];
+
+			/*
+			 * XXX the bootstrap punts a 1200K floppy geometry
+			 * when the get-disk-geometry interrupt fails.  Skip
+			 * drives that have this geometry.
+			 */
+			if (bios_geom == 0x4f010f)
 				continue;
-			printf(" %x:%08x ", i, j);
-			printf("0..%d=%d cyl, 0..%d=%d heads, 1..%d=%d sects\n",
-				(j >> 16),(j >> 16)+1,
-				((j >> 8) & 0xff),((j >> 8) & 0xff)+1,
-				(j & 0xff), (j & 0xff));
+
+			printf(" %x:%08x ", i, bios_geom);
+			max_cylinder = bios_geom >> 16;
+			max_head = (bios_geom >> 8) & 0xff;
+			max_sector = bios_geom & 0xff;
+			printf(
+		"0..%d=%d cylinders, 0..%d=%d heads, 1..%d=%d sectors\n",
+			       max_cylinder, max_cylinder + 1,
+			       max_head, max_head + 1,
+			       max_sector, max_sector);
 		}
 		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
 	}
@@ -725,14 +741,12 @@ sendsig(catcher, sig, mask, code)
  * make sure that the user has not modified the
  * state to gain improper privileges.
  */
-struct sigreturn_args {
-	struct sigcontext *sigcntxp;
-};
-
 int
 sigreturn(p, uap, retval)
 	struct proc *p;
-	struct sigreturn_args *uap;
+	struct sigreturn_args /* {
+		struct sigcontext *sigcntxp;
+	} */ *uap;
 	int *retval;
 {
 	register struct sigcontext *scp;
