@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.42 1997/10/12 20:23:45 phk Exp $
+ * $Id: kern_descrip.c,v 1.43 1997/11/06 19:29:07 phk Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@
 #endif /*DEVFS*/
 
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
-static MALLOC_DEFINE(M_FILE, "file", "Open file structure");
+MALLOC_DEFINE(M_FILE, "file", "Open file structure");
 
 
 static	 d_open_t  fdopen;

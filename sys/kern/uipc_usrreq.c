@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.28 1997/10/12 20:24:18 phk Exp $
+ *	$Id: uipc_usrreq.c,v 1.29 1997/11/07 08:53:02 phk Exp $
  */
 
 #include <sys/param.h>
@@ -39,9 +39,9 @@
 #include <sys/kernel.h>
 #include <sys/domain.h>
 #include <sys/fcntl.h>
+#include <sys/malloc.h>		/* XXX must be before <sys/file.h> */
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
@@ -52,8 +52,6 @@
 #include <sys/sysctl.h>
 #include <sys/un.h>
 #include <sys/vnode.h>
-
-MALLOC_DEFINE(M_FILE, "file", "Open file structure");
 
 /*
  * Unix communications domain.
