@@ -749,7 +749,7 @@ no_kernend:
 	movl	%esi,R(KPTphys)
 
 /* Allocate Page Table Directory */
-	ALLOCPAGES(1)
+	ALLOCPAGES(NPGPTD)
 	movl	%esi,R(IdlePTD)
 
 /* Allocate UPAGES */
@@ -805,7 +805,7 @@ no_kernend:
 
 /* Map page directory. */
 	movl	R(IdlePTD), %eax
-	movl	$1, %ecx
+	movl	$NPGPTD, %ecx
 	fillkptphys($PG_RW)
 
 /* Map proc0's UPAGES in the physical way ... */
