@@ -125,8 +125,15 @@ file_open(struct archive *a, void *client_data)
 		return (ARCHIVE_FATAL);
 	}
 
-	a->skip_file_dev = pst->st_dev;
-	a->skip_file_ino = pst->st_ino;
+	/*
+	 * If the output file is a regular file, don't add it to
+	 * itself.  If it's a device file, it's okay to add the device
+	 * entry to the output archive.
+	 */
+	if (S_ISREG(pst->st_mode)) {
+		a->skip_file_dev = pst->st_dev;
+		a->skip_file_ino = pst->st_ino;
+	}
 
 	return (ARCHIVE_OK);
 }
