@@ -1781,6 +1781,9 @@ osf1_table(td, uap)
 }
 
 
+/*
+ * MPSAFE
+ */
 int
 osf1_sysinfo(td, uap)
 	struct thread *td;
@@ -1804,8 +1807,10 @@ osf1_sysinfo(td, uap)
 		len = uap->count;
 		name[0] = CTL_KERN;
 		name[1] = KERN_HOSTNAME;
+		mtx_lock(&Giant);
 		retval = userland_sysctl(td, name, 2, uap->buf, &len,
 					1, 0, 0, &bytes);
+		mtx_unlock(&Giant);
 		td->td_retval[0] =  bytes;
 		return(retval);
 		break;
