@@ -531,6 +531,7 @@ struct mcntfree_lst {
  */
 #define	MFREE(m, n) do {						\
 	struct mbuf *_mm = (m);						\
+	struct mbuf *_aux;						\
 									\
 	KASSERT(_mm->m_type != MT_FREE, ("freeing free mbuf"));		\
 	if (_mm->m_flags & M_EXT)					\
@@ -538,8 +539,10 @@ struct mcntfree_lst {
 	mtx_lock(&mbuf_mtx);						\
 	mbtypes[_mm->m_type]--;						\
 	if ((_mm->m_flags & M_PKTHDR) != 0 && _mm->m_pkthdr.aux) {	\
-		m_freem(_mm->m_pkthdr.aux);				\
+		_aux = _mm->m_pkthdr.aux;				\
 		_mm->m_pkthdr.aux = NULL;				\
+	} else {							\
+		_aux = NULL;						\
 	}								\
 	_mm->m_type = MT_FREE;						\
 	mbtypes[MT_FREE]++;						\
@@ -548,6 +551,8 @@ struct mcntfree_lst {
 	mmbfree.m_head = _mm;						\
 	MBWAKEUP(m_mballoc_wid, &mmbfree.m_starved);			\
 	mtx_unlock(&mbuf_mtx); 						\
+	if (_aux)							\
+		m_freem(_aux);						\
 } while (0)
 
 /*
