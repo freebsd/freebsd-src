@@ -426,49 +426,98 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		ERROUT(EINVAL);
 	};
 
-	/* increase counters */
+	/* Increase counters. */
 	iface->info.ifinfo_packets++;
+
+	/*
+	 * Depending on interface data link type and packet contents
+	 * we pullup enough data, so that ng_netflow_flow_add() does not
+	 * need to know about mbuf at all. We keep current length of data
+	 * needed to be contiguous in pullup_len. mtod() is done at the
+	 * very end one more time, since m can had changed after pulluping.
+	 *
+	 * In case of unrecognized data we don't return error, but just
+	 * pass data to downstream hook, if it is available.
+	 */
+
+#define	M_CHECK(length)	do {					\
+	pullup_len += length;					\
+	if ((m)->m_pkthdr.len < (pullup_len)) {			\
+		error = EINVAL;					\
+		goto done;					\
+	} 							\
+	if ((m)->m_len < (pullup_len) &&			\
+	   (((m) = m_pullup((m),(pullup_len))) == NULL)) {	\
+		error = ENOBUFS;				\
+		goto done;					\
+	}							\
+} while (0)
 
 	switch (iface->info.ifinfo_dlt) {
 	case DLT_EN10MB:	/* Ethernet */
-	{
+	    {
 		struct ether_header *eh;
 		uint16_t etype;
 
-		if (CHECK_MLEN(m, (sizeof(struct ether_header))))
-			ERROUT(EINVAL);
-
-		if (CHECK_PULLUP(m, (sizeof(struct ether_header))))
-			ERROUT(ENOBUFS);
-
+		M_CHECK(sizeof(struct ether_header));
 		eh = mtod(m, struct ether_header *);
 
-		/* make sure this is IP frame */
+		/* Make sure this is IP frame. */
 		etype = ntohs(eh->ether_type);
 		switch (etype) {
 		case ETHERTYPE_IP:
-			m_adj(m, sizeof(struct ether_header));
+			M_CHECK(sizeof(struct ip));
+			eh = mtod(m, struct ether_header *);
+			ip = (struct ip *)(eh + 1);
 			break;
 		default:
-			ERROUT(EINVAL);	/* ignore this frame */
+			goto done;	/* pass this frame */
 		}
-
 		break;
-	}
-	case DLT_RAW:
+	    }
+	case DLT_RAW:		/* IP packets */
+		M_CHECK(sizeof(struct ip));
+		ip = mtod(m, struct ip *);
 		break;
 	default:
-		ERROUT(EINVAL);
+		goto done;
 		break;
 	}
 
-	if (CHECK_MLEN(m, sizeof(struct ip)))
-		ERROUT(EINVAL);
+	/*
+	 * In case of IP header with options, we haven't pulled
+	 * up enough, yet.
+	 */
+	pullup_len += (ip->ip_hl << 2) - sizeof(struct ip);
 
-	if (CHECK_PULLUP(m, sizeof(struct ip)))
-		ERROUT(ENOBUFS);
+	switch (ip->ip_p) {
+	case IPPROTO_TCP:
+		M_CHECK(sizeof(struct tcphdr));
+		break;
+	case IPPROTO_UDP:
+		M_CHECK(sizeof(struct udphdr));
+		break;
+	}
 
-	error = ng_netflow_flow_add(priv, &m, iface);
+	switch (iface->info.ifinfo_dlt) {
+	case DLT_EN10MB:
+	    {
+		struct ether_header *eh;
+
+		eh = mtod(m, struct ether_header *);
+		ip = (struct ip *)(eh + 1);
+		break;
+	     }
+	case DLT_RAW:
+		ip = mtod(m, struct ip *);
+		break;
+	default:
+		panic("ng_netflow entered deadcode");
+	}
+
+#undef	M_CHECK
+
+	error = ng_netflow_flow_add(priv, ip, iface, m->m_pkthdr.rcvif);
 
 done:
 	if (item)
