@@ -53,15 +53,15 @@
 #define DK_NAMELEN	8
 #ifdef KERNEL
 extern long cp_time[CPUSTATES];
-extern long dk_seek[DK_NDRIVE];
-extern long dk_time[DK_NDRIVE];
-extern long dk_wds[DK_NDRIVE];
-extern long dk_wpms[DK_NDRIVE];
-extern long dk_xfer[DK_NDRIVE];
-extern char dk_names[DK_NDRIVE][DK_NAMELEN];
+extern long dk_seek[DK_NDRIVE];	/* # seeks */
+extern long dk_time[DK_NDRIVE];	/* time busy */
+extern long dk_wds[DK_NDRIVE];	/* # 16-bit words transferred */
+extern long dk_wpms[DK_NDRIVE];	/* 16-bit words per msec */
+extern long dk_xfer[DK_NDRIVE];	/* # transfers */
+extern char dk_names[DK_NDRIVE][DK_NAMELEN]; /* name of drive */
 
-extern int dk_busy;
-extern int dk_ndrive;
+extern int dk_busy;		/* bit field of busy drives */
+extern int dk_ndrive;		/* number of installed drives */
 
 extern long tk_cancc;
 extern long tk_nin;
