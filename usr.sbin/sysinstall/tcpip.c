@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.77 1999/05/06 11:05:19 jkh Exp $
+ * $Id: tcpip.c,v 1.78 1999/05/07 05:15:17 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -264,23 +264,26 @@ reenter:
     cancelbutton = okbutton = 0;
     while (layoutDialogLoop(ds_win, layout, &obj, &n, max, &cancelbutton, &cancel)) {
 	/* Prevent this from being irritating if user really means NO */
-	if (!filled) {
-	    filled = 1;
+	if (filled < 3) {
 	    /* Insert a default value for the netmask, 0xffffff00 is
-	       the most appropriate one (entire class C, or subnetted
-	       class A/B network). */
+	     * the most appropriate one (entire class C, or subnetted
+	     * class A/B network).
+	     */
 	    if (netmask[0] == '\0') {
 		strcpy(netmask, "255.255.255.0");
 		RefreshStringObj(layout[LAYOUT_NETMASK].obj);
+		++filled;
 	    }
 	    if (!index(hostname, '.') && domainname[0]) {
 		strcat(hostname, ".");
 		strcat(hostname, domainname);
 		RefreshStringObj(layout[LAYOUT_HOSTNAME].obj);
+		++filled;
 	    }
 	    else if (((tmp = index(hostname, '.')) != NULL) && !domainname[0]) {
-		    SAFE_STRCPY(domainname, tmp + 1);
-		    RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
+		SAFE_STRCPY(domainname, tmp + 1);
+		RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
+		++filled;
 	    }
 	}
     }
