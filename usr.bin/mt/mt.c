@@ -709,11 +709,12 @@ st_status(struct mtget *bp)
 			break;
 		}
 	}
-	if (bp->mt_fileno == (daddr_t) -1 || bp->mt_blkno == (daddr_t) -1)
+	if (bp->mt_resid == 0 && bp->mt_fileno == (daddr_t) -1 &&
+	    bp->mt_blkno == (daddr_t) -1)
 		return;
 	printf("---------------------------------\n");
-	printf("File Number: %ld\tRecord Number: %ld\n", bp->mt_fileno,
-	    bp->mt_blkno);
+	printf("File Number: %ld\tRecord Number: %ld\tResidual Count %d\n",
+	    bp->mt_fileno, bp->mt_blkno, bp->mt_resid);
 }
 
 void
