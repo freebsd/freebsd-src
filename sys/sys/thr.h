@@ -30,11 +30,6 @@
 #ifndef _SYS_THR_H_
 #define	_SYS_THR_H_
 
-/*
- * Globally unique thread id type.
- */
-typedef void * thr_id_t;
-
 #define	THR_SUSPENDED	0x0001	/* Create the thread in the suspended state. */
 
 /* 
@@ -42,12 +37,12 @@ typedef void * thr_id_t;
  */
 #ifndef _KERNEL
 
-int thr_create(ucontext_t *ctx, thr_id_t *id, int flags);
-int thr_self(thr_id_t *id);
+int thr_create(ucontext_t *ctx, long *id, int flags);
+int thr_self(long *id);
 void thr_exit(void);
-int thr_kill(thr_id_t id, int sig);
+int thr_kill(long id, int sig);
 int thr_suspend(const struct timespec *timeout);
-int thr_wake(thr_id_t id);
+int thr_wake(long id);
 
 #endif /* !_KERNEL */
 
