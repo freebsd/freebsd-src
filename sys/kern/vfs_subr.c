@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.64.2.1 1996/11/12 11:28:36 phk Exp $
+ * $Id: vfs_subr.c,v 1.64.2.2 1997/02/28 11:11:50 bde Exp $
  */
 
 /*
@@ -502,9 +502,10 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 				error = tsleep((caddr_t) bp,
 				    slpflag | (PRIBIO + 1), "vinvalbuf",
 				    slptimeo);
-				splx(s);
-				if (error)
+				if (error) {
+					splx(s);
 					return (error);
+				}
 				break;
 			}
 			bremfree(bp);
@@ -523,13 +524,12 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 			brelse(bp);
 		}
 	}
-	splx(s);
 
-	s = splbio();
 	while (vp->v_numoutput > 0) {
 		vp->v_flag |= VBWAIT;
 		tsleep(&vp->v_numoutput, PVM, "vnvlbv", 0);
 	}
+
 	splx(s);
 
 	/*
