@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 int
-vprintf(const char *__restrict fmt, __va_list ap)
+vprintf(const char * __restrict fmt, __va_list ap)
 {
 
 	return (vfprintf(stdout, fmt, ap));

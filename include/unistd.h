@@ -190,7 +190,7 @@ int	 seteuid(uid_t);
  * course has been in BSD practically forever.
  */
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE >= 402 || __BSD_VISIBLE
-int	 symlink(const char *__restrict, const char *__restrict);
+int	 symlink(const char * __restrict, const char * __restrict);
 #endif
 
 /* X/Open System Interfaces */
@@ -210,7 +210,7 @@ ssize_t	 pwrite(int, const void *, size_t, off_t);
 int	 setpgrp(pid_t _pid, pid_t _pgrp); /* obsoleted by setpgid() */
 int	 setregid(gid_t, gid_t);
 int	 setreuid(uid_t, uid_t);
-/* void	 swab(const void *__restrict, void *__restrict, ssize_t); */
+/* void	 swab(const void * __restrict, void * __restrict, ssize_t); */
 void	 sync(void);
 unsigned int	 ualarm(unsigned int, unsigned int);
 int	 usleep(unsigned int);

@@ -1191,9 +1191,9 @@ static double tinytens[] = { 1e-16, 1e-32 };
  double
 strtod
 #ifdef KR_headers
-	(s00, se) CONST char *__restrict s00; char **__restrict se;
+	(s00, se) CONST char * __restrict s00; char ** __restrict se;
 #else
-	(CONST char *__restrict s00, char **__restrict se)
+	(CONST char * __restrict s00, char ** __restrict se)
 #endif
 {
 	int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c, dsign,

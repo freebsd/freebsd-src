@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 int
-fputws(const wchar_t *__restrict ws, FILE *__restrict fp)
+fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
 {
 
 	ORIENTLOCK(fp, 1);

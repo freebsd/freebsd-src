@@ -64,12 +64,12 @@
 .Ft const char *
 .Fo inet_ntop
 .Fa "int af"
-.Fa "const void *restrict src"
-.Fa "char *restrict dst"
+.Fa "const void * restrict src"
+.Fa "char * restrict dst"
 .Fa "socklen_t size"
 .Fc
 .Ft int
-.Fn inet_pton "int af" "const char *restrict src" "void *restrict dst"
+.Fn inet_pton "int af" "const char * restrict src" "void * restrict dst"
 .Ft struct in_addr
 .Fn inet_makeaddr "in_addr_t net" "in_addr_t lna"
 .Ft in_addr_t

@@ -44,14 +44,14 @@ static char *	_add(const char *, char *, const char *);
 static char *	_conv(int, const char *, char *, const char *);
 static char *	_fmt(const char *, const struct tm *, char *, const char *);
 
-size_t strftime(char *__restrict, size_t, const char *__restrict,
-    const struct tm *__restrict);
+size_t strftime(char * __restrict, size_t, const char * __restrict,
+    const struct tm * __restrict);
 
 extern char *	tzname[];
 
 size_t
-strftime(char *__restrict s, size_t maxsize, const char *__restrict format,
-    const struct tm *__restrict t)
+strftime(char * __restrict s, size_t maxsize, const char * __restrict format,
+    const struct tm * __restrict t)
 {
 	char *p;
 

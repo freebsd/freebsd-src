@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
  * compar: function to carry out node comparisons
  */
 void *
-tdelete(const void *__restrict vkey, void **__restrict vrootp,
+tdelete(const void * __restrict vkey, void ** __restrict vrootp,
     int (*compar)(const void *, const void *))
 {
 	node_t **rootp = (node_t **)vrootp;

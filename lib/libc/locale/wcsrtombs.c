@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 size_t
-wcsrtombs(char *__restrict dst, const wchar_t **__restrict src, size_t len,
-    mbstate_t *__restrict ps __unused)
+wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t len,
+    mbstate_t * __restrict ps __unused)
 {
 	char buf[MB_LEN_MAX];
 	const wchar_t *s;

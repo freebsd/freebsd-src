@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 wchar_t *
-fgetws(wchar_t *__restrict ws, int n, FILE *__restrict fp)
+fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 {
 	wchar_t *wsp;
 	long r;
