@@ -40,6 +40,6 @@ strtold(const char * __restrict s, char ** __restrict sp)
 {
 	long double result;
 
-	strtopx(s, sp, result);
+	strtopx(s, sp, &result);
 	return result;
 }
