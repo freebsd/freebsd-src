@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: style.9,v 1.19 1997/11/12 06:29:10 obrien Exp $
+.\"	$Id: style.9,v 1.20 1997/12/07 19:53:44 wollman Exp $
 .\"
 .Dd December 14, 1995
 .Dt STYLE 9
@@ -90,14 +90,23 @@ If they are an inline expansion of a function, the function is defined
 all in lowercase, the macro has the same name all in uppercase. If the
 macro needs more than a single line, use braces.  Right-justify the
 backslashes, it makes it easier to read.
+If the macro encapsulates a compound statement, enclose it in a
+.Dq Li do
+loop,
+so that it can safely be used in 
+.Dq Li if
+statements.
+is required.  Any final statement-terminating semicolon should be
+supplied by the macro invocation rather than the macro, to make parsing easier
+for pretty-printers and editors.
 .Bd -literal -offset 0i
-#define	MACRO(x, y) {							\e
+#define	MACRO(x, y) do {						\e
 	variable = (x) + (y);						\e
 	(y) += 2;							\e
-}
+} while(0)
 .Ed
 .Pp
-Enum types are capitalized.
+Enumeration values are all uppercase.
 .Bd -literal -offset 0i
 enum enumtype { ONE, TWO } et;
 .Ed
@@ -122,6 +131,7 @@ struct foo {
 };
 struct foo *foohead;		/* Head of global foo list */
 .Ed
+.Pp
 Use
 .Xr queue 3
 macros rather than rolling your own lists, whenever possible.  Thus,
@@ -307,7 +317,7 @@ characters.
 .Ed
 .Pp
 Unary operators don't require spaces, binary operators do. Don't
-use parenthesis unless they're required for precedence, or the
+use parentheses unless they're required for precedence, or the
 statement is really confusing without them.
 .Bd -literal -offset 0i
 	a = b->c[0] + ~d == (e || f) || g && h ? i : j >> 1;
