@@ -1081,8 +1081,11 @@ probe_keyboard(KBDC kbdc, int flags)
 		return ENXIO;
 	}
 
+	/* temporarily block data transmission from the keyboard */
+	write_controller_command(kbdc, KBDC_DISABLE_KBD_PORT);
+
 	/* flush any noise in the buffer */
-	empty_both_buffers(kbdc, 10);
+	empty_both_buffers(kbdc, 100);
 
 	/* save the current keyboard controller command byte */
 	m = kbdc_get_device_mask(kbdc) & ~KBD_KBD_CONTROL_BITS;
@@ -1108,9 +1111,8 @@ probe_keyboard(KBDC kbdc, int flags)
 	if (err == 0) {
 		kbdc_set_device_mask(kbdc, m | KBD_KBD_CONTROL_BITS);
 	} else {
-		if (c != -1)
-			/* try to restore the command byte as before */
-			set_controller_command_byte(kbdc, 0xff, c);
+		/* try to restore the command byte as before */
+		set_controller_command_byte(kbdc, 0xff, c);
 		kbdc_set_device_mask(kbdc, m);
 	}
 
@@ -1129,6 +1131,9 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 		/* driver error? */
 		return EIO;
 	}
+
+	/* temporarily block data transmission from the keyboard */
+	write_controller_command(kbdc, KBDC_DISABLE_KBD_PORT);
 
 	/* save the current controller command byte */
 	empty_both_buffers(kbdc, 200);
