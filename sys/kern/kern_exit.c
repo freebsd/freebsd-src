@@ -103,6 +103,7 @@ sys_exit(struct thread *td, struct sys_exit_args *uap)
 void
 exit1(struct thread *td, int rv)
 {
+ 	struct bintime new_switchtime;
 	struct proc *p, *nq, *q;
 	struct tty *tp;
 	struct vnode *ttyvp;
@@ -517,9 +518,15 @@ retry:
 
 	mtx_lock_spin(&sched_lock);
 	critical_exit();
-	cnt.v_swtch++;
-	binuptime(PCPU_PTR(switchtime));
+
+	/* Do the same timestamp bookkeeping that mi_switch() would do. */
+	binuptime(&new_switchtime);
+	bintime_add(&p->p_runtime, &new_switchtime);
+	bintime_sub(&p->p_runtime, PCPU_PTR(switchtime));
+	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
+
+	cnt.v_swtch++;
 
 	/*
 	 * Allow the scheduler to adjust the priority of the
