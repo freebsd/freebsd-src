@@ -383,6 +383,19 @@ extern int	whichqs;	/* Bit mask summary of non-empty Q's. */
 extern int	whichrtqs;	/* Bit mask summary of non-empty Q's. */
 extern int	whichidqs;	/* Bit mask summary of non-empty Q's. */
 
+/*
+ * XXX macros for scheduler.  Shouldn't be here, but currently needed for
+ * bounding the dubious p_estcpu inheritance in wait1().
+ * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
+ * the range 100-256 Hz (approximately).
+ */
+#define	ESTCPULIM(e) \
+    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * PRIO_MAX - PPQ) + \
+	     INVERSE_ESTCPU_WEIGHT - 1)
+#define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level) */
+#define	NICE_WEIGHT	2		/* priorities per nice level */
+#define	PPQ		(128 / NQS)	/* priorities per queue */
+
 extern	u_long ps_arg_cache_limit;
 extern	int ps_argsopen;
 
