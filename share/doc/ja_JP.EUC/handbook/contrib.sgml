@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.18 1996/12/18 09:15:55 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.19 1997/01/12 13:32:48 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.188 -->
+<!-- Original revision: 1.189 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -350,6 +350,7 @@
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
+	  <item>Simon Marlow &lt;simonm@dcs.gla.ac.uk&gt;
 	  <item>Soren Dayton &lt;csdayton@midway.uchicago.edu&gt;
 	  <item>Stefan Moeding &lt;moeding@bn.DeTeMobil.de&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
