@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.1 1997/05/24 17:02:04 smp Exp smp $
+ *	$Id: apic_ipl.s,v 1.1 1997/07/18 22:54:17 smp Exp smp $
  */
 
 	.data
@@ -33,20 +33,23 @@
 _Xintr8254:
 	.long	_Xintr7
 
-/* this allows us to change the RTC clock APIC pin# assignment */
-	.globl _XintrRTC
-_XintrRTC:
-	.long	_Xintr7
-
 /* used by this file, microtime.s and clock.c */
 	.globl _mask8254
 _mask8254:
 	.long	0
 
+#ifdef DO_RTC_VEC
+/** XXX FIXME: remove me after several weeks of no problems */
+/* this allows us to change the RTC clock APIC pin# assignment */
+	.globl _XintrRTC
+_XintrRTC:
+	.long	_Xintr7
+
 /* used by this file and clock.c */
 	.globl _maskRTC
 _maskRTC:
 	.long	0
+#endif /* DO_RTC_VEC */
 
 /*  */
 	.globl _vec
@@ -91,6 +94,8 @@ _vec8254:
  * generic vector function for RTC clock
  */
 	ALIGN_TEXT
+#ifdef DO_RTC_VEC
+
 	.globl	_vecRTC
 _vecRTC:
 	popl	%eax	
@@ -100,10 +105,25 @@ _vecRTC:
 	cli
 	movl	_maskRTC,%eax		/* lazy masking */
 	notl	%eax
-	andl	%eax,iactive
+	andl	%eax, iactive
 	MEXITCOUNT
 	movl	_XintrRTC, %eax
 	jmp	%eax			/* XXX might need _Xfastintr# */
+
+#else /* DO_RTC_VEC */
+
+vec8:
+	popl	%eax	
+	pushfl
+	pushl	$KCSEL
+	pushl	%eax
+	cli
+	andl	$~IRQ_BIT(8), iactive ;	/* lazy masking */
+	MEXITCOUNT
+	jmp	_Xintr8			/* XXX might need _Xfastintr8 */
+
+#endif /* DO_RTC_VEC */
+
 
 /*
  * The 'generic' vector stubs.
@@ -117,7 +137,7 @@ __CONCAT(vec,irq_num): ;						\
 	pushl	$KCSEL ;						\
 	pushl	%eax ;							\
 	cli ;								\
-	andl	$~IRQ_BIT(irq_num),iactive ;	/* lazy masking */	\
+	andl	$~IRQ_BIT(irq_num), iactive ;	/* lazy masking */	\
 	MEXITCOUNT ;							\
 	jmp	__CONCAT(_Xintr,irq_num)
 
@@ -130,7 +150,9 @@ __CONCAT(vec,irq_num): ;						\
 	BUILD_VEC(5)
 	BUILD_VEC(6)
 	BUILD_VEC(7)
-	BUILD_VEC(8)			/* NOT specific in IO APIC hardware */
+#ifdef DO_RTC_VEC
+	BUILD_VEC(8)
+#endif /* DO__RTC_VEC */
 	BUILD_VEC(9)
 	BUILD_VEC(10)
 	BUILD_VEC(11)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.7 1997/07/18 19:47:13 smp Exp smp $
+ *	$Id: intr_machdep.h,v 1.5 1997/07/18 21:27:14 fsmp Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -51,7 +51,7 @@
     APIC TPR priority vector levels:
 
 	0xff (255) +------------+
-		   |		| 15 (highest)
+		   |		| 15 (IPIs: Xspuriousint)
 	0xf0 (240) +------------+
 		   |		| 14
 	0xe0 (224) +------------+
@@ -61,51 +61,53 @@
 	0xc0 (192) +------------+
 		   |		| 11
 	0xb0 (176) +------------+
-		   |		| 10
+		   |		| 10 (IPIs: Xcpustop)
 	0xa0 (160) +------------+
-		   |		|  9
+		   |		|  9 (IPIs: Xinvltlb)
 	0x90 (144) +------------+
-		   |		|  8
+		   |		|  8 (linux compat @ vector 0x80)
 	0x80 (128) +------------+
 		   |		|  7
 	0x70 (112) +------------+
-		   |		|  6 (IPIs: Xspuriousint)
+		   |		|  6
 	0x60 (96)  +------------+
-		   |		|  5 (IPIs: Xcpustop)
+		   |		|  5
 	0x50 (80)  +------------+
-		   |		|  4 (IPIs: Xinvltlb)
+		   |		|  4
 	0x40 (64)  +------------+
-		   |		|  3 (extended APIC hardware INTs: PCI)
+		   |		|  3 (upper APIC hardware INTs: PCI)
 	0x30 (48)  +------------+
 		   |		|  2 (start of hardware INTs: ISA)
 	0x20 (32)  +------------+
-		   |		|  1 (lowest)
+		   |		|  1 (exceptions, traps, etc.)
 	0x10 (16)  +------------+
-		   |		|  0
+		   |		|  0 (exceptions, traps, etc.)
 	0x00 (0)   +------------+
  */
 
-#define TPR_BLOCK_HWI		0x3f	/* block hardware INTs via APIC TPR */
-#define TPR_BLOCK_XINVLTLB	0x4f	/* block ? via APIC TPR */
-#define TPR_BLOCK_XCPUSTOP	0x5f	/* block ? via APIC TPR */
+/* blocking values for local APIC Task Priority Register */
+#define TPR_BLOCK_HWI		0x3f		/* hardware INTs */
+#define TPR_BLOCK_XINVLTLB	0x9f		/*  */
+#define TPR_BLOCK_XCPUSTOP	0xaf		/*  */
+#define TPR_BLOCK_ALL		0xff		/* all INTs */
 
-
-/*
- * Note: this vector MUST be xxxx1111, 32 + 79 = 111 = 0x6f:
- * also remember i386/include/segments.h: #define	NIDT	129
- */
-#define XSPURIOUSINT_OFFSET	(ICU_OFFSET + 79)
-
-/* TLB shootdowns */
-#define XINVLTLB_OFFSET		(ICU_OFFSET + 32)
-
-/* IPI to signal CPUs to stop and wait for another CPU to restart them */
-#define XCPUSTOP_OFFSET		(ICU_OFFSET + 48)
 
 #ifdef TEST_TEST1
 /* put a 'fake' HWI in top of APIC prio 0x3x, 32 + 31 = 63 = 0x3f */
 #define XTEST1_OFFSET		(ICU_OFFSET + 31)
 #endif /** TEST_TEST1 */
+
+/* TLB shootdowns */
+#define XINVLTLB_OFFSET		(ICU_OFFSET + 112)
+
+/* IPI to signal CPUs to stop and wait for another CPU to restart them */
+#define XCPUSTOP_OFFSET		(ICU_OFFSET + 128)
+
+/*
+ * Note: this vector MUST be xxxx1111, 32 + 223 = 255 = 0xff:
+ */
+#define XSPURIOUSINT_OFFSET	(ICU_OFFSET + 223)
+
 
 #ifndef	LOCORE
 
@@ -151,12 +153,12 @@ inthand_t
 
 inthand_t
 	Xinvltlb,	/* TLB shootdowns */
-	Xspuriousint,	/* handle APIC "spurious INTs" */
-	Xcpustop;	/* stop & wait for another CPU to restart it */
+	Xcpustop,	/* CPU stops & waits for another CPU to restart it */
+	Xspuriousint;	/* handle APIC "spurious INTs" */
 
 #ifdef TEST_TEST1
 inthand_t
-	Xtest1;		/* 'fake' HWI in top of APIC prio 0x3x, 32+31 = 0x3f */
+	Xtest1;		/* 'fake' HWI at top of APIC prio 0x3x, 32+31 = 0x3f */
 #endif /** TEST_TEST1 */
 
 struct isa_device;
