@@ -135,5 +135,6 @@ struct winsize {
 #define	TABLDISC	3		/* tablet discipline */
 #define	SLIPDISC	4		/* serial IP discipline */
 #define	PPPDISC		5		/* PPP discipline */
+#define	NETGRAPHDISC	6		/* Netgraph tty node discipline */
 
 #endif /* !_SYS_TTYCOM_H_ */
