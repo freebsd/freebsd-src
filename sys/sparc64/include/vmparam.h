@@ -77,11 +77,27 @@
  */
 #define	MAXSLP			20
 
-#define	VM_MAXUSER_ADDRESS	(0x7fe00000000)
+/*
+ * Highest user address.  Also address of initial user stack.  This is
+ * arbitrary, neither the structure or size of the user page table (tsb)
+ * nor the location or size of the kernel virtual address space have any
+ * bearing on what we use for user addresses.  We want something relatively
+ * high to give a large address space, but we also have to take the out of
+ * range va hole into account.  So we pick an address just before the start
+ * of the hole, which gives a user address space of just under 8TB.  Note
+ * that if this moves above the va hole, we will have to deal with sign
+ * extension of virtual addresses.
+ */
+#define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x7fe00000000)
 
+#define	VM_MIN_ADDRESS		((vm_offset_t)0)
+#define	VM_MAX_ADDRESS		(VM_MAXUSER_ADDRESS)
+
+/*
+ * Initial user stack address for 64 bit processes.  Should be highest user
+ * virtual address.
+ */
 #define	USRSTACK		VM_MAXUSER_ADDRESS
-
-#define	VM_MIN_ADDRESS		(0x100000)
 
 /*
  * Virtual size (bytes) for various kernel submaps.
@@ -101,7 +117,7 @@
  * Range of kernel virtual addresses.  max = min + range.
  */
 #define	KVA_RANGE \
-	((KVA_PAGES * PAGE_SIZE_4M) << (PAGE_SHIFT - STTE_SHIFT))
+	((KVA_PAGES * PAGE_SIZE_4M) << (PAGE_SHIFT - TTE_SHIFT))
 
 /*
  * Lowest kernel virtual address, where the kernel is loaded.
@@ -123,7 +139,7 @@
  *	kernbase		0x0
  *
  * There are at least 4 pages of dynamic linker junk before kernel text begins,
- * so starting at zero is fairly safe.
+ * so starting at zero is fairly safe (if the firmware will let us).
  */
 #if KVA_PAGES < 4
 #define	VM_MIN_KERNEL_ADDRESS	((1UL << 32) - KVA_RANGE)
@@ -132,7 +148,6 @@
 #endif
 
 #define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + KVA_RANGE - PAGE_SIZE)
-#define	UPT_MIN_ADDRESS		(VM_MIN_KERNEL_ADDRESS + KVA_RANGE)
 #define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
 
 /*
