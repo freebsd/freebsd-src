@@ -16,7 +16,10 @@
  * Description: PowerMACH Works header file
  *
  *---------------------------------------------------------------------------
- * $Log:   O:/USR/PROJECT/trlld/libsrc/include/trlld.h_v  $
+ * $Log:   J:/usr/project/trlld/libsrc/include/trlld.h_v  $
+ * 
+ *    Rev 1.9   25 Jan 1999 09:56:28   EGS
+ * Added 3150
  * 
  *    Rev 1.8   10 Dec 1998 12:24:52   JHM
  * version 1.2.0,prominfo structure with shorts.
@@ -96,7 +99,7 @@
 
 extern unsigned char TRlldMacCode[];       /* 3115,17,18,29,33,36,37 */
 extern unsigned char TRlldHawkeyeMac[];    /* 3139,3140,3141,3250    */
-extern unsigned char TRlldBullseyeMac[];   /* 3540                   */
+extern unsigned char TRlldBullseyeMac[];   /* 3150,3540              */
 
 /*****************************************************************************/
 /*                                                                           */
@@ -490,6 +493,7 @@ typedef struct TRlldAdapterConfig {
 #define TRLLD_ADAPTER_PCI5         14        /* OC-3140 id 108d0004 rev 3 */
 #define TRLLD_ADAPTER_PCI6         15        /* OC-3141 id 108d0007 rev 1 */
 #define TRLLD_ADAPTER_PCI7         19        /* OC-3540 id 108d0008 rev 1 */
+#define TRLLD_ADAPTER_PCI8         20        /* OC-3150 id 108d000a rev 1 */
 #ifdef PCMCIA
 #define TRLLD_ADAPTER_PCCARD1      16        /* OC-3220                   */
 #define TRLLD_ADAPTER_PCCARD2      17        /* OC-3221,OC-3230,OC-3232   */
@@ -558,7 +562,7 @@ extern TRlldAdapterType_t CDECL TRlld3133;    /* EISA adapters */
 extern TRlldAdapterType_t CDECL TRlld3136;    /* PCI adapters */
 extern TRlldAdapterType_t CDECL TRlld3137;
 extern TRlldAdapterType_t CDECL TRlld3139;    /* Hawkeye adapters */
-extern TRlldAdapterType_t CDECL TRlld3540;    /* BUllseye adapter */
+extern TRlldAdapterType_t CDECL TRlld3540;    /* Bullseye adapters */
 
 #define T3115   &TRlld3115
 #define T3117   &TRlld3117
@@ -580,7 +584,9 @@ extern TRlldAdapterType_t CDECL TRlld3133Boot;    /* EISA adapters */
 extern TRlldAdapterType_t CDECL TRlld3136Boot;    /* PCI adapters */
 extern TRlldAdapterType_t CDECL TRlld3137Boot;
 extern TRlldAdapterType_t CDECL TRlld3139Boot;    /* Hawkeye adapters */
-extern TRlldAdapterType_t CDECL TRlld3540Boot;    /* Bullseye adapters */
+extern TRlldAdapterType_t CDECL TRlld3150Boot;
+extern TRlldAdapterType_t CDECL TRlld3250Boot;
+extern TRlldAdapterType_t CDECL TRlld3540Boot;    /* Bullseye adapter */
 
 #define B3115   &TRlld3115Boot
 #define B3117   &TRlld3117Boot
@@ -590,6 +596,8 @@ extern TRlldAdapterType_t CDECL TRlld3540Boot;    /* Bullseye adapters */
 #define B3136   &TRlld3136Boot
 #define B3137   &TRlld3137Boot
 #define B3139   &TRlld3139Boot
+#define B3150   &TRlld3150Boot
+#define B3250   &TRlld3250Boot
 #define B3540   &TRlld3540Boot
 
 #define TRLLD_INIT_OK           0
@@ -775,6 +783,7 @@ int CDECL TRlldFind(TRlldDriver_t * driver,
 #define OC_3140            0x0200
 #define OC_3141            0x0400
 #define OC_3540            0x0800
+#define OC_3150            0x1000
 
 #ifdef PCMCIA
 #define OC_3220            0x0800
