@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.74 1999/06/26 02:46:29 mckusick Exp $
+ * $Id: nfs_bio.c,v 1.75 1999/08/12 18:04:39 dt Exp $
  */
 
 
@@ -185,7 +185,7 @@ nfs_getpages(ap)
 			 * Read operation filled an entire page
 			 */
 			m->valid = VM_PAGE_BITS_ALL;
-			m->dirty = 0;
+			vm_page_undirty(m);
 		} else if (size > toff) {
 			/*
 			 * Read operation filled a partial page.
@@ -313,7 +313,7 @@ nfs_putpages(ap)
 		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
 		for (i = 0; i < nwritten; i++) {
 			rtvals[i] = VM_PAGER_OK;
-			pages[i]->dirty = 0;
+			vm_page_undirty(pages[i]);
 		}
 		if (must_commit)
 			nfs_clearcommit(vp->v_mount);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.75 1999/06/26 02:46:17 mckusick Exp $
+ *	$Id: devfs_vnops.c,v 1.76 1999/08/08 18:42:50 phk Exp $
  */
 
 
@@ -2004,13 +2004,13 @@ devfs_getpages(struct vop_getpages_args *ap)
 
 		if (nextoff <= nread) {
 			m->valid = VM_PAGE_BITS_ALL;
-			m->dirty = 0;
+			vm_page_undirty(m);
 		} else if (toff < nread) {
 			int nvalid = ((nread + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
 			vm_page_set_validclean(m, 0, nvalid);
 		} else {
 			m->valid = 0;
-			m->dirty = 0;
+			vm_page_undirty(m);
 		}
 
 		if (i != ap->a_reqpage) {

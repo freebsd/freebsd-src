@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.111 1999/06/26 02:46:50 mckusick Exp $
+ *	$Id: vnode_pager.c,v 1.112 1999/07/01 19:53:43 peter Exp $
  */
 
 /*
@@ -511,7 +511,7 @@ vnode_pager_input_old(object, m)
 		vm_pager_unmap_page(kva);
 	}
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-	m->dirty = 0;
+	vm_page_undirty(m);
 	vm_page_flag_clear(m, PG_ZERO);
 	if (!error)
 		m->valid = VM_PAGE_BITS_ALL;
@@ -773,7 +773,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 * Read filled up entire page.
 			 */
 			mt->valid = VM_PAGE_BITS_ALL;
-			mt->dirty = 0;
+			vm_page_undirty(mt);	/* should be an assert? XXX */
 			pmap_clear_modify(VM_PAGE_TO_PHYS(mt));
 		} else {
 			/*
