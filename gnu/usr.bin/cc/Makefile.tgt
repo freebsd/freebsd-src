@@ -6,7 +6,7 @@ TARGET_ARCH?=	${MACHINE_ARCH}
 GCC_CPU=	alpha
 .elif ${TARGET_ARCH} == "arm"
 GCC_CPU=	arm
-.elif ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "x86-64"
+.elif ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "x86_64"
 GCC_CPU=	i386
 .elif ${TARGET_ARCH} == "ia64"
 GCC_CPU=	ia64
