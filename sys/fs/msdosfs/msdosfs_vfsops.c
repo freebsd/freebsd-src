@@ -364,6 +364,8 @@ mountmsdosfs(devvp, mp, td, argp)
 	struct g_consumer *cp;
 	struct bufobj *bo;
 
+	if (mp->mnt_flag & MNT_ROOTFS)
+		return (EOPNOTSUPP);
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	/* XXX: use VOP_ACCESS to check FS perms */
 	DROP_GIANT();
