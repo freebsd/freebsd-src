@@ -61,13 +61,12 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.79 1996/08/21 21:56:19 dyson Exp $
+ * $Id: vm_object.c,v 1.80 1996/09/08 20:44:41 dyson Exp $
  */
 
 /*
  *	Virtual memory object module.
  */
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -93,16 +92,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
-#ifdef DDB
-static void	DDB_vm_object_check __P((void));
-#endif
-
 static void	_vm_object_allocate __P((objtype_t, vm_size_t, vm_object_t));
-#ifdef DDB
-static int	_vm_object_in_map __P((vm_map_t map, vm_object_t object,
-				       vm_map_entry_t entry));
-static int	vm_object_in_map __P((vm_object_t object));
-#endif
 static void	vm_object_qcollapse __P((vm_object_t object));
 #ifdef not_used
 static void	vm_object_deactivate_pages __P((vm_object_t));
@@ -1334,7 +1324,17 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 	return (TRUE);
 }
 
+#include "opt_ddb.h"
 #ifdef DDB
+#include <sys/kernel.h>
+
+#include <machine/cons.h>
+
+#include <ddb/ddb.h>
+
+static int	_vm_object_in_map __P((vm_map_t map, vm_object_t object,
+				       vm_map_entry_t entry));
+static int	vm_object_in_map __P((vm_object_t object));
 
 static int
 _vm_object_in_map(map, object, entry)
@@ -1408,10 +1408,7 @@ vm_object_in_map( object)
 	return 0;
 }
 
-
-#ifdef DDB
-static void
-DDB_vm_object_check()
+DB_SHOW_COMMAND(vmochk, vm_object_check)
 {
 	vm_object_t object;
 
@@ -1425,11 +1422,11 @@ DDB_vm_object_check()
 		if (object->handle == NULL &&
 		    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
 			if (object->ref_count == 0) {
-				printf("vmochk: internal obj has zero ref count: %d\n",
+				db_printf("vmochk: internal obj has zero ref count: %d\n",
 					object->size);
 			}
 			if (!vm_object_in_map(object)) {
-				printf("vmochk: internal obj is not in a map: "
+				db_printf("vmochk: internal obj is not in a map: "
 		"ref: %d, size: %d: 0x%x, backing_object: 0x%x\n",
 				    object->ref_count, object->size, 
 				    object->size, object->backing_object);
@@ -1437,61 +1434,74 @@ DDB_vm_object_check()
 		}
 	}
 }
-#endif /* DDB */
 
 /*
  *	vm_object_print:	[ debug ]
  */
-void
-vm_object_print(iobject, full, dummy3, dummy4)
-	/* db_expr_t */ int iobject;
-	boolean_t full;
-	/* db_expr_t */ int dummy3;
-	char *dummy4;
+DB_SHOW_COMMAND(object, vm_object_print_static)
 {
-	vm_object_t object = (vm_object_t)iobject;	/* XXX */
+	/* XXX convert args. */
+	vm_object_t object = (vm_object_t)addr;
+	boolean_t full = have_addr;
+
 	register vm_page_t p;
+
+	/* XXX count is an (unused) arg.  Avoid shadowing it. */
+#define	count	was_count
 
 	register int count;
 
 	if (object == NULL)
 		return;
 
-	iprintf("Object 0x%x: size=0x%x, res=%d, ref=%d, ",
+	db_iprintf("Object 0x%x: size=0x%x, res=%d, ref=%d, ",
 	    (int) object, (int) object->size,
 	    object->resident_page_count, object->ref_count);
-	printf("offset=0x%x, backing_object=(0x%x)+0x%x\n",
+	db_printf("offset=0x%x, backing_object=(0x%x)+0x%x\n",
 	    (int) object->paging_offset,
 	    (int) object->backing_object, (int) object->backing_object_offset);
-	printf("cache: next=%p, prev=%p\n",
+	db_printf("cache: next=%p, prev=%p\n",
 	    TAILQ_NEXT(object, cached_list), TAILQ_PREV(object, cached_list));
 
 	if (!full)
 		return;
 
-	indent += 2;
+	db_indent += 2;
 	count = 0;
 	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = TAILQ_NEXT(p, listq)) {
 		if (count == 0)
-			iprintf("memory:=");
+			db_iprintf("memory:=");
 		else if (count == 6) {
-			printf("\n");
-			iprintf(" ...");
+			db_printf("\n");
+			db_iprintf(" ...");
 			count = 0;
 		} else
-			printf(",");
+			db_printf(",");
 		count++;
 
-		printf("(off=0x%lx,page=0x%lx)",
+		db_printf("(off=0x%lx,page=0x%lx)",
 		    (u_long) p->pindex, (u_long) VM_PAGE_TO_PHYS(p));
 	}
 	if (count != 0)
-		printf("\n");
-	indent -= 2;
+		db_printf("\n");
+	db_indent -= 2;
 }
 
+/* XXX. */
+#undef count
+
+/* XXX need this non-static entry for calling from vm_map_print. */
 void
-vm_object_print_pages()
+vm_object_print(addr, have_addr, count, modif)
+	db_expr_t addr;
+	boolean_t have_addr;
+	db_expr_t count;
+	char *modif;
+{
+	vm_object_print_static(addr, have_addr, count, modif);
+}
+
+DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 {
 	vm_object_t object;
 	int nl = 0;
@@ -1577,5 +1587,4 @@ vm_object_print_pages()
 		}
 	}
 }
-
 #endif /* DDB */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.24 1996/02/23 18:49:23 peter Exp $
+ * $Id: vm_extern.h,v 1.25 1996/05/02 09:34:50 phk Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -45,7 +45,6 @@ struct mount;
 struct vnode;
 
 #ifdef KERNEL
-extern int indent;
 
 #ifdef TYPEDEF_FOR_UAP
 int getpagesize __P((struct proc * p, void *, int *));
@@ -59,7 +58,6 @@ int sbrk __P((struct proc *, void *, int *));
 int smmap __P((struct proc *, void *, int *));
 int sstk __P((struct proc *, void *, int *));
 int swapon __P((struct proc *, void *, int *));
-
 #endif
 
 void faultin __P((struct proc *p));
@@ -84,7 +82,6 @@ void vm_fault_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t
 void vm_fault_unwire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fault_wire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fork __P((struct proc *, struct proc *));
-void vm_map_print __P((/* db_expr_t */ int, boolean_t, /* db_expr_t */ int, char *));
 int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, caddr_t, vm_ooffset_t));
 vm_offset_t vm_page_alloc_contig __P((vm_offset_t, vm_offset_t, vm_offset_t, vm_offset_t));
 void vm_set_page_size __P((void));
