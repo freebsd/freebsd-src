@@ -187,6 +187,17 @@ and
 .Fa end
 of an acceptable range, as well as
 alignment, and the code will attempt to find a free segment which fits.
+The 
+.Fa start
+argument is the lowest acceptable starting value of the resource.
+The
+.Fa end
+argument is the highest acceptable ending value of the resource.
+Therefore,
+.Fa start + count - 1
+must be <=
+.Fa end
+for any allocation to happen.
 The default behavior is to allocate an exclusive segment, unless the
 .Dv RF_SHAREABLE
 or
