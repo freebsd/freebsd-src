@@ -97,6 +97,13 @@ Step Pre-4:  For sparc64 machines which need DHCP:
 	     that port and make sure you can get it working *before* you
 	     make the change to use 64-bit time_t's.
 
+Step Pre-4:  For people using database-related ports:
+	     Ports like PostgreSQL may change how they store data after
+	     they are recompiled for 64-bTT.  So, you may have to do a
+	     full dump of your data while you still have a 32-bTT system,
+	     and do a matching initdb/restore of your data after the port
+	     has been recompiled on the upgraded 64-bTT system.
+
 After you have built and installed that src-snapshot with 32-bit time_t's,
      edit the file  /usr/src/sys/sparc64/include/_types.h 
      find the line:
