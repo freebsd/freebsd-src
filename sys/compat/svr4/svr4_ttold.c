@@ -39,7 +39,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
-
+#include <svr4/svr4.h>
 #include <svr4/svr4_types.h>
 #include <svr4/svr4_util.h>
 #include <svr4/svr4_signal.h>
