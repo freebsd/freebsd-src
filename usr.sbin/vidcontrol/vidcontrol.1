@@ -13,34 +13,31 @@
 .\"     @(#)vidcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd June 30, 1999
+.Dd May 27, 2001
 .Dt VIDCONTROL 1
 .Os
 .Sh NAME
 .Nm vidcontrol
-.Nd "a utility for manipulating the syscons console driver"
+.Nd system console control and configuration utility
 .Sh SYNOPSIS
 .Nm
+.Op Fl CdLPpx
 .Op Fl b Ar color
 .Op Fl c Ar appearance
-.Op Fl d
 .Oo
 .Fl f
 .Op Ar size
 .Ar file
 .Oc
 .Op Fl g Ar geometry
+.Op Fl h Ar size
 .Op Fl i Cm adapter | mode
 .Op Fl l Ar screen_map
-.Op Fl L
 .Op Fl M Ar char
 .Op Fl m Cm on | off
-.Op Fl p
-.Op Fl P
 .Op Fl r Ar foreground Ar background
 .Op Fl s Ar number
 .Op Fl t Ar N | Cm off
-.Op Fl x
 .Op Ar mode
 .Op Ar foreground Op Ar background
 .Op Cm show
@@ -110,13 +107,15 @@ See the supported colors on a given platform.
 Set border color to 
 .Ar color .
 This option may not be always supported by the video driver.
+.It Fl C
+Clear the history buffer.
 .It Fl c Cm normal | blink | destructive
 Change the cursor appearance.
 The cursor is either an inverting block 
 .Pq Cm normal
-that eventually can 
-.Cm blink .
-Or it can be like the old hardware cursor
+that can optionally
+.Cm blink ,
+or it can be like the old hardware cursor
 .Pq Cm destructive .
 The latter is actually a simulation.
 .It Fl d
@@ -166,6 +165,10 @@ See also
 and
 .Sx EXAMPLES
 below.
+.It Fl h Cm size
+Set the size of the history (scrollback) buffer to
+.Cm size
+lines.
 .It Fl i Cm adapter
 Shows info about the current video adapter.
 .It Fl i Cm mode
