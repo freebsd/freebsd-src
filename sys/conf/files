@@ -20,13 +20,13 @@ device_if.o			standard				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 device_if.c			standard				\
-	dependency	"$S/kern/makedevops.sh $S/kern/device_if.m"	\
-	compile-with	"sh $S/kern/makedevops.sh -c $S/kern/device_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/kern/device_if.m"	\
+	compile-with	"perl $S/kern/makedevops.pl -c $S/kern/device_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"device_if.c"
 device_if.h			standard				\
-	dependency	"$S/kern/makedevops.sh $S/kern/device_if.m"	\
-	compile-with	"sh $S/kern/makedevops.sh -h $S/kern/device_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/kern/device_if.m"	\
+	compile-with	"perl $S/kern/makedevops.pl -h $S/kern/device_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"device_if.h"
 bus_if.o			standard				\
@@ -34,13 +34,13 @@ bus_if.o			standard				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 bus_if.c			standard				\
-	dependency	"$S/kern/makedevops.sh $S/kern/bus_if.m"	\
-	compile-with	"sh $S/kern/makedevops.sh -c $S/kern/bus_if.m"	\
+	dependency	"$S/kern/makedevops.pl $S/kern/bus_if.m"	\
+	compile-with	"perl $S/kern/makedevops.pl -c $S/kern/bus_if.m"	\
 	no-obj no-implicit-rule before-depend local			\
 	clean		"bus_if.c"
 bus_if.h			standard				\ 
-	dependency	"$S/kern/makedevops.sh $S/kern/bus_if.m"	\
-	compile-with	"sh $S/kern/makedevops.sh -h $S/kern/bus_if.m"	\
+	dependency	"$S/kern/makedevops.pl $S/kern/bus_if.m"	\
+	compile-with	"perl $S/kern/makedevops.pl -h $S/kern/bus_if.m"	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"bus_if.h"
 coda/coda_namecache.c	optional vcoda
@@ -144,13 +144,13 @@ smbus_if.o		optional smbus					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 smbus_if.c		optional smbus					\ 
-	dependency	"$S/kern/makedevops.sh $S/dev/smbus/smbus_if.m" \
-	compile-with	"sh $S/kern/makedevops.sh -c $S/dev/smbus/smbus_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/dev/smbus/smbus_if.m" \
+	compile-with	"perl $S/kern/makedevops.pl -c $S/dev/smbus/smbus_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"smbus_if.c"
 smbus_if.h		optional smbus					\ 
-	dependency	"$S/kern/makedevops.sh $S/dev/smbus/smbus_if.m" \
-	compile-with	"sh $S/kern/makedevops.sh -h $S/dev/smbus/smbus_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/dev/smbus/smbus_if.m" \
+	compile-with	"perl $S/kern/makedevops.pl -h $S/dev/smbus/smbus_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"smbus_if.h"
 dev/smbus/smbconf.c	optional smbus
@@ -162,13 +162,13 @@ iicbb_if.o		optional iicbb					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 iicbb_if.c		optional iicbb					\ 
-	dependency	"$S/kern/makedevops.sh $S/dev/iicbus/iicbb_if.m" \
-	compile-with	"sh $S/kern/makedevops.sh -c $S/dev/iicbus/iicbb_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbb_if.m" \
+	compile-with	"perl $S/kern/makedevops.pl -c $S/dev/iicbus/iicbb_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"iicbb_if.c"
 iicbb_if.h		optional iicbb					\ 
-	dependency	"$S/kern/makedevops.sh $S/dev/iicbus/iicbb_if.m" \
-	compile-with	"sh $S/kern/makedevops.sh -h $S/dev/iicbus/iicbb_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbb_if.m" \
+	compile-with	"perl $S/kern/makedevops.pl -h $S/dev/iicbus/iicbb_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"iicbb_if.h"
 dev/iicbus/iicsmb.c	optional iicsmb					\
@@ -178,13 +178,13 @@ iicbus_if.o		optional iicbus					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 iicbus_if.c		optional iicbus					\ 
-	dependency	"$S/kern/makedevops.sh $S/dev/iicbus/iicbus_if.m" \
-	compile-with	"sh $S/kern/makedevops.sh -c $S/dev/iicbus/iicbus_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbus_if.m" \
+	compile-with	"perl $S/kern/makedevops.pl -c $S/dev/iicbus/iicbus_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"iicbus_if.c"
 iicbus_if.h		optional iicbus					\ 
-	dependency	"$S/kern/makedevops.sh $S/dev/iicbus/iicbus_if.m" \
-	compile-with	"sh $S/kern/makedevops.sh -h $S/dev/iicbus/iicbus_if.m" \
+	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbus_if.m" \
+	compile-with	"perl $S/kern/makedevops.pl -h $S/dev/iicbus/iicbus_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"iicbus_if.h"
 dev/iicbus/iiconf.c	optional iicbus
