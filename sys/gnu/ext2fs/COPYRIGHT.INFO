@@ -1,3 +1,5 @@
+$FreeBSD$
+
 Most of the files in this directory are written by Godmar Back or modified
 by him using the CSRG sources.  Those files are covered by the Berkeley-style
 copyright.  However the following files are covered by GPL.  Since the policy
@@ -8,11 +10,14 @@ that only the files below are under the GPL.  In the eventuality that these
 files are redesigned or rewritten, this tree can be moved back into the less
 restrictive FreeBSD tree.
 
+	ext2_bitmap.c		(in the cvs attic)
 	ext2_fs.h
 	ext2_fs_i.h
 	ext2_fs_sb.h
 	ext2_linux_balloc.c
 	ext2_linux_ialloc.c
+	ext2_super.c		(in the cvs attic)
+	ext2_vfsops.c		(has some GPL'ed code from ext2_super.c)
 	i386-bitops.h
 
 PS.
