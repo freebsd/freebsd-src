@@ -156,6 +156,7 @@ ptyinit(dev_t devc)
 
 	devs->si_drv1 = devc->si_drv1 = pt;
 	devs->si_tty = devc->si_tty = &pt->pt_tty;
+	pt->pt_tty.t_dev = devs;
 	ttyregister(&pt->pt_tty);
 	return (devc);
 }
