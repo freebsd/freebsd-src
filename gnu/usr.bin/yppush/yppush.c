@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: yppush.c,v 1.2 1995/02/05 21:48:00 wpaul Exp $
+	$Id: yppush.c,v 1.3 1995/04/02 01:10:13 wpaul Exp $
 */
 
 #include <stdio.h>
@@ -28,7 +28,7 @@
 #include <signal.h>
 #include <rpc/rpc.h>
 #include <paths.h>
-#include "yp.h"
+#include <rpcsvc/yp.h>
 /*
  * ypclnt.h does not have a definition for struct dom_binding,
  * although it is used there. It is defined in yp_prot.h, but
