@@ -523,7 +523,11 @@ snpioctl(dev, cmd, data, flags, td)
 	snp = dev->si_drv1;
 	switch (cmd) {
 	case SNPSTTY:
+#if 0
 		tdev = findcdev(*((dev_t *)data));
+#else
+		tdev = NULL;
+#endif
 		if (tdev == NULL)
 			return (snp_down(snp));
 
