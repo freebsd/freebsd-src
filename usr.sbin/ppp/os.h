@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.h,v 1.12 1997/11/22 03:37:42 brian Exp $
+ * $Id: os.h,v 1.13 1997/12/13 02:37:30 brian Exp $
  *
  *	TODO:
  */
@@ -29,3 +29,4 @@ extern int  OpenTunnel(int *);
 extern void OsLinkup(void);
 extern int  OsLinkIsUp(void);
 extern void OsLinkdown(void);
+extern int  CleanInterface(const char *);

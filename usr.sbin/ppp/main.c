@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.114 1997/12/28 21:55:04 brian Exp $
+ * $Id: main.c,v 1.115 1997/12/30 23:22:29 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -428,6 +428,7 @@ main(int argc, char **argv)
     LogPrintf(LogWARN, "OpenTunnel: %s\n", strerror(errno));
     return EX_START;
   }
+  CleanInterface(IfDevName);
   if (mode & MODE_INTER)
     fprintf(VarTerm, "Interactive mode\n");
   else if ((mode & MODE_OUTGOING_DAEMON) && !(mode & MODE_DEDICATED))
