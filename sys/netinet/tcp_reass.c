@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- * $Id: tcp_input.c,v 1.13 1995/02/14 06:23:56 phk Exp $
+ *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
+ *	$Id: tcp_input.c,v 1.14 1995/02/16 00:55:39 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -935,36 +935,26 @@ trimthenstep6:
 				tiflags &= ~TH_URG;
 			todrop--;
 		}
-		if (todrop >= ti->ti_len) {
-			tcpstat.tcps_rcvduppack++;
-			tcpstat.tcps_rcvdupbyte += ti->ti_len;
+		/*
+		 * Following if statement from Stevens, vol. 2, p. 960.
+		 */
+		if (todrop > ti->ti_len
+		    || (todrop == ti->ti_len && (tiflags & TH_FIN) == 0)) {
 			/*
-			 * If segment is just one to the left of the window,
-			 * check two special cases:
-			 * 1. Don't toss RST in response to 4.2-style keepalive.
-			 * 2. If the only thing to drop is a FIN, we can drop
-			 *    it, but check the ACK or we will get into FIN
-			 *    wars if our FINs crossed (both CLOSING).
-			 * In either case, send ACK to resynchronize,
-			 * but keep on processing for RST or ACK.
+			 * Any valid FIN must be to the left of the window.
+			 * At this point the FIN must be a duplicate or out
+			 * of sequence; drop it.
 			 */
-			if ((tiflags & TH_FIN && todrop == ti->ti_len + 1)
-#ifdef TCP_COMPAT_42
-			  || (tiflags & TH_RST && ti->ti_seq == tp->rcv_nxt - 1)
-#endif
-			   ) {
-				todrop = ti->ti_len;
-				tiflags &= ~TH_FIN;
-				tp->t_flags |= TF_ACKNOW;
-			} else {
-				/*
-				 * Handle the case when a bound socket connects
-				 * to itself. Allow packets with a SYN and
-				 * an ACK to continue with the processing.
-				 */
-				if (todrop != 0 || (tiflags & TH_ACK) == 0)
-					goto dropafterack;
-			}
+			tiflags &= ~TH_FIN;
+
+			/*
+			 * Send an ACK to resynchronize and drop any data.
+			 * But keep on processing for RST or ACK.
+			 */
+			tp->t_flags |= TF_ACKNOW;
+			todrop = ti->ti_len;
+			tcpstat.tcps_rcvduppack++;
+			tcpstat.tcps_rcvdupbyte += todrop;
 		} else {
 			tcpstat.tcps_rcvpartduppack++;
 			tcpstat.tcps_rcvpartdupbyte += todrop;
