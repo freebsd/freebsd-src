@@ -626,11 +626,6 @@ cd9660_statfs(mp, sbp, td)
 	sbp->f_bavail = 0; /* blocks free for non superuser */
 	sbp->f_files =	0; /* total files */
 	sbp->f_ffree = 0; /* free file nodes */
-	if (sbp != &mp->mnt_stat) {
-		sbp->f_type = mp->mnt_vfc->vfc_typenum;
-		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
-		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
-	}
 	return 0;
 }
 

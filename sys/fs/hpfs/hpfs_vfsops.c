@@ -398,12 +398,6 @@ hpfs_statfs(
 	sbp->f_bfree = sbp->f_bavail = hpmp->hpm_bavail;
 	sbp->f_ffree = 0;
 	sbp->f_files = 0;
-	if (sbp != &mp->mnt_stat) {
-		bcopy((caddr_t)mp->mnt_stat.f_mntonname,
-			(caddr_t)&sbp->f_mntonname[0], MNAMELEN);
-		bcopy((caddr_t)mp->mnt_stat.f_mntfromname,
-			(caddr_t)&sbp->f_mntfromname[0], MNAMELEN);
-	}
 	sbp->f_flags = mp->mnt_flag;
 	
 	return (0);
