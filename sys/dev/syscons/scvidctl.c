@@ -224,13 +224,6 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     if ((*vidsw[scp->ad]->get_info)(scp->adp, scp->mode, &info))
 	return ENODEV;		/* this shouldn't happen */
 
-#ifdef SC_VIDEO_DEBUG
-    if (scp->scr_buf != NULL) {
-	printf("set_pixel_mode(): mode:%x, col:%d, row:%d, font:%d\n",
-	       scp->mode, xsize, ysize, fontsize);
-    }
-#endif
-
     /* adjust argument values */
     if (fontsize <= 0)
 	fontsize = info.vi_cheight;
@@ -251,17 +244,6 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 	xsize = info.vi_width/8;
     if (ysize <= 0)
 	ysize = info.vi_height/fontsize;
-
-#ifdef SC_VIDEO_DEBUG
-    if (scp->scr_buf != NULL) {
-	printf("set_pixel_mode(): mode:%x, col:%d, row:%d, font:%d\n",
-	       scp->mode, xsize, ysize, fontsize);
-	printf("set_pixel_mode(): window:%x, %dx%d, xoff:%d, yoff:%d\n",
-	       scp->adp->va_window, info.vi_width, info.vi_height, 
-	       (info.vi_width/8 - xsize)/2,
-	       (info.vi_height/fontsize - ysize)/2);
-    }
-#endif
 
     if ((info.vi_width < xsize*8) || (info.vi_height < ysize*fontsize))
 	return EINVAL;
@@ -310,10 +292,6 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 	set_border(scp, scp->border);
 
     scp->status &= ~UNKNOWN_MODE;
-
-#ifdef SC_VIDEO_DEBUG
-    printf("set_pixel_mode(): status:%x\n", scp->status);
-#endif
 
     if (tp == NULL)
 	return 0;
