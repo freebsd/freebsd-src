@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)sys_term.c	8.2 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: sys_term.c,v 1.18 1997/12/03 07:16:03 charnier Exp $";
+	"$Id: sys_term.c,v 1.19 1997/12/24 19:21:09 imp Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -1375,7 +1375,6 @@ startslave(host, autologin, autoname)
 	char *autoname;
 {
 	register int i;
-	long time();
 #ifdef	NEWINIT
 	extern char *ptyip;
 	struct init_request request;
@@ -1766,14 +1765,14 @@ addarg(argv, val)
 	}
 	for (cpp = argv; *cpp; cpp++)
 		;
-	if (cpp == &argv[(int)argv[-1]]) {
+	if (cpp == &argv[(long)argv[-1]]) {
 		--argv;
-		*argv = (char *)((int)(*argv) + 10);
-		argv = (char **)realloc(argv, (int)(*argv) + 2);
+		*argv = (char *)((long)(*argv) + 10);
+		argv = (char **)realloc(argv, (long)(*argv) + 2);
 		if (argv == NULL)
 			return(NULL);
 		argv++;
-		cpp = &argv[(int)argv[-1] - 10];
+		cpp = &argv[(long)argv[-1] - 10];
 	}
 	*cpp++ = val;
 	*cpp = 0;
