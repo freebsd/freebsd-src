@@ -45,12 +45,11 @@
 
 /* Type name and cookie */
 #define NG_ASYNC_NODE_TYPE	"async"
-#define NGM_ASYNC_COOKIE	886473715
+#define NGM_ASYNC_COOKIE	886473716
 
 /* Hook names */
-#define NG_ASYNC_HOOK_SYNC	"sync"	/* Normal encoding */
-#define NG_ASYNC_HOOK_SYNC2	"sync2"	/* Full ACCM, no ACF comp. */
-#define NG_ASYNC_HOOK_ASYNC	"async"	/* Normal decoding */
+#define NG_ASYNC_HOOK_SYNC	"sync"	/* Sync frames */
+#define NG_ASYNC_HOOK_ASYNC	"async"	/* Async-encoded frames */
 
 /* Maximum receive size bounds (for both sync and async sides) */
 #define NG_ASYNC_MIN_MRU	1
