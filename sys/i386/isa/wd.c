@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.111 1996/07/21 09:28:50 phk Exp $
+ *	$Id: wd.c,v 1.112 1996/07/23 21:51:46 phk Exp $
  */
 
 /* TODO:
@@ -1444,6 +1444,29 @@ wdsetctlr(struct disk *du)
 		wderror((struct buf *)NULL, du, "wdsetctlr failed");
 		return (1);
 	}
+
+	/*
+	 * The config option flags low 8 bits define the maximum multi-block
+	 * transfer size.  If the user wants the maximum that the drive
+	 * is capable of, just set the low bits of the config option to
+	 * 0x00ff.
+	 */
+	if ((du->cfg_flags & WDOPT_MULTIMASK) != 0 && (du->dk_multi > 1)) {
+		if (du->dk_multi > (du->cfg_flags & WDOPT_MULTIMASK))
+			du->dk_multi = du->cfg_flags & WDOPT_MULTIMASK;
+		if (wdcommand(du, 0, 0, 0, du->dk_multi, WDCC_SET_MULTI)) {
+			du->dk_multi = 1;
+		}
+	} else {
+		du->dk_multi = 1;
+	}
+
+#ifdef NOTYET
+/* set read caching and write caching */
+	wdcommand(du, 0, 0, 0, WDFEA_RCACHE, WDCC_FEATURES);
+	wdcommand(du, 0, 0, 0, WDFEA_WCACHE, WDCC_FEATURES);
+#endif
+
 	return (0);
 }
 
@@ -1641,33 +1664,6 @@ failed:
 	/* better ... */
 	du->dk_dd.d_type = DTYPE_ESDI;
 	du->dk_dd.d_subtype |= DSTYPE_GEOMETRY;
-#endif
-
-	/*
-	 * find out the drives maximum multi-block transfer capability
-	 */
-	du->dk_multi = wp->wdp_nsecperint & 0xff;
-
-	/*
-	 * The config option flags low 8 bits define the maximum multi-block
-	 * transfer size.  If the user wants the maximum that the drive
-	 * is capable of, just set the low bits of the config option to
-	 * 0x00ff.
-	 */
-	if ((flags & WDOPT_MULTIMASK) != 0 && (du->dk_multi > 1)) {
-		if (du->dk_multi > (flags & WDOPT_MULTIMASK))
-			du->dk_multi = flags & WDOPT_MULTIMASK;
-		if (wdcommand(du, 0, 0, 0, du->dk_multi, WDCC_SET_MULTI)) {
-			du->dk_multi = 1;
-		}
-	} else {
-		du->dk_multi = 1;
-	}
-
-#ifdef NOTYET
-/* set read caching and write caching */
-	wdcommand(du, 0, 0, 0, WDFEA_RCACHE, WDCC_FEATURES);
-	wdcommand(du, 0, 0, 0, WDFEA_WCACHE, WDCC_FEATURES);
 #endif
 
 	return (0);
