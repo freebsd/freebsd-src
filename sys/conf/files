@@ -235,7 +235,6 @@ dev/aac/aac_pci.c	optional aac pci
 dev/aac/aac_cam.c	optional aacp aac
 dev/aac/aac_linux.c		optional aac compat_linux
 dev/acpica/acpi.c		optional acpi
-dev/acpica/acpica_support.c	optional acpi
 dev/acpica/acpi_acad.c		optional acpi
 dev/acpica/acpi_battery.c	optional acpi
 dev/acpica/acpi_button.c	optional acpi
