@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.21 1997/10/26 12:42:10 brian Exp $
+ * $Id: hdlc.c,v 1.22 1997/11/22 03:37:32 brian Exp $
  *
  *	TODO:
  */
@@ -46,7 +46,6 @@
 #include "lqr.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "pred.h"
 #include "modem.h"
 #include "ccp.h"
 
@@ -140,6 +139,26 @@ HdlcFcs(u_short fcs, u_char * cp, int len)
   return (fcs);
 }
 
+inline u_short
+HdlcFcsBuf(u_short fcs, struct mbuf *m)
+{
+  int len;
+  u_char *pos, *end;
+
+  len = plength(m);
+  pos = MBUF_CTOP(m);
+  end = pos + m->cnt;
+  while (len--) {
+    fcs = (fcs >> 8) ^ fcstab[(fcs ^ *pos++) & 0xff];
+    if (pos == end && len) {
+      m = m->next;
+      pos = MBUF_CTOP(m);
+      end = pos + m->cnt;
+    }
+  }
+  return (fcs);
+}
+
 void
 HdlcOutput(int pri, u_short proto, struct mbuf * bp)
 {
@@ -149,18 +168,16 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
   u_char *cp;
   u_short fcs;
 
-  if ((proto & 0xfff1) == 0x21) {	/* Network Layer protocol */
-    if (CcpFsm.state == ST_OPENED) {
-      if (CcpInfo.want_proto == TY_PRED1) {
-        Pred1Output(pri, proto, bp);
+  if ((proto & 0xfff1) == 0x21)		/* Network Layer protocol */
+    if (CcpFsm.state == ST_OPENED)
+      if (CcpOutput(pri, proto, bp))
         return;
-      }
-    }
-  }
+
   if (DEV_IS_SYNC)
     mfcs = NULLBUFF;
   else
     mfcs = mballoc(2, MB_HDLCOUT);
+
   mhp = mballoc(4, MB_HDLCOUT);
   mhp->cnt = 0;
   cp = MBUF_CTOP(mhp);
@@ -182,7 +199,10 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
     mhp->cnt += 2;
   }
   mhp->next = bp;
+  while (bp->next != NULL)
+    bp = bp->next;
   bp->next = mfcs;
+  bp = mhp->next;
 
   lqr = &MyLqrData;
   lqr->PeerOutPackets = ifOutPackets++;
@@ -216,6 +236,9 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
     if (statp->number == proto)
       break;
   statp->out_count++;
+
+  LogPrintf(LogDEBUG, "HdlcOutput: proto = 0x%04x\n", proto);
+
   if (DEV_IS_SYNC)
     ModemOutput(pri, mhp);
   else
@@ -227,7 +250,18 @@ DecodePacket(u_short proto, struct mbuf * bp)
 {
   u_char *cp;
 
-  LogPrintf(LogDEBUG, "DecodePacket: proto = %04x\n", proto);
+  LogPrintf(LogDEBUG, "DecodePacket: proto = 0x%04x\n", proto);
+
+  /*
+   * If proto isn't PROTO_COMPD, we still want to pass it to the
+   * decompression routines so that the dictionary's updated
+   */
+  if (proto == PROTO_COMPD) {
+    if ((bp = CompdInput(&proto, bp)) == NULL)
+      return;
+  } else if ((proto & 0xfff1) == 0x21)		/* Network Layer protocol */
+    if (CcpFsm.state == ST_OPENED)
+      CcpDictSetup(proto, bp);
 
   switch (proto) {
   case PROTO_LCP:
@@ -258,9 +292,6 @@ DecodePacket(u_short proto, struct mbuf * bp)
     break;
   case PROTO_CCP:
     CcpInput(bp);
-    break;
-  case PROTO_COMPD:
-    Pred1Input(bp);
     break;
   default:
     LogPrintf(LogPHASE, "Unknown protocol 0x%04x\n", proto);

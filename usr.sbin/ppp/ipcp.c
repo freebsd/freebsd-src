@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.37 1997/11/18 14:52:04 brian Exp $
+ * $Id: ipcp.c,v 1.38 1997/11/22 03:37:34 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -145,10 +145,10 @@ ReportIpcpStatus(struct cmdargs const *arg)
   if (!VarTerm)
     return 1;
   fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
-  fprintf(VarTerm, " his side: %s, %lx\n",
-	  inet_ntoa(icp->his_ipaddr), icp->his_compproto);
-  fprintf(VarTerm, " my  side: %s, %lx\n",
-	  inet_ntoa(icp->want_ipaddr), icp->want_compproto);
+  fprintf(VarTerm, " his side: %s, %s\n",
+	  inet_ntoa(icp->his_ipaddr), vj2asc(icp->his_compproto));
+  fprintf(VarTerm, " my  side: %s, %s\n",
+	  inet_ntoa(icp->want_ipaddr), vj2asc(icp->want_compproto));
 
   fprintf(VarTerm, "Defaults:\n");
   fprintf(VarTerm, " My Address:  %s/%d\n",
@@ -228,18 +228,31 @@ IpcpSendConfigReq(struct fsm * fp)
 {
   u_char *cp;
   struct ipcpstate *icp = &IpcpInfo;
+  struct lcp_opt o;
 
   cp = ReqBuff;
   LogPrintf(LogIPCP, "IpcpSendConfigReq\n");
-  if (!DEV_IS_SYNC || !REJECTED(icp, TY_IPADDR))
-    PutConfValue(LogIPCP, &cp, cftypes, TY_IPADDR, 6,
-		 ntohl(icp->want_ipaddr.s_addr));
+  if (!DEV_IS_SYNC || !REJECTED(icp, TY_IPADDR)) {
+    o.id = TY_IPADDR;
+    o.len = 6;
+    *(u_long *)o.data = icp->want_ipaddr.s_addr;
+    cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id],
+                     inet_ntoa(icp->want_ipaddr));
+  }
+
   if (icp->want_compproto && !REJECTED(icp, TY_COMPPROTO)) {
-    if (icp->heis1172)
-      PutConfValue(LogIPCP, &cp, cftypes, TY_COMPPROTO, 4,
-		   icp->want_compproto >> 16);
-    else
-      PutConfValue(LogIPCP, &cp, cftypes, TY_COMPPROTO, 6, icp->want_compproto);
+    const char *args;
+    o.id = TY_COMPPROTO;
+    if (icp->heis1172) {
+      o.len = 4;
+      *(u_short *)o.data = htons(PROTO_VJCOMP);
+      args = "";
+    } else {
+      o.len = 6;
+      *(u_long *)o.data = htonl(icp->want_compproto);
+      args = vj2asc(icp->want_compproto);
+    }
+    cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id], args);
   }
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
 }
@@ -403,7 +416,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
     case TY_COMPPROTO:
       lp = (u_long *) (cp + 2);
       compproto = htonl(*lp);
-      LogPrintf(LogIPCP, "%s %08x\n", tbuff, compproto);
+      LogPrintf(LogIPCP, "%s %s\n", tbuff, vj2asc(compproto));
 
       switch (mode_type) {
       case MODE_REQ:

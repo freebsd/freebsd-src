@@ -1,5 +1,5 @@
 /*
- * $Id: server.c,v 1.10 1997/11/11 22:58:13 brian Exp $
+ * $Id: server.c,v 1.11 1997/11/22 03:37:45 brian Exp $
  */
 
 #include <sys/param.h>
@@ -69,7 +69,6 @@ ServerLocalOpen(const char *name, mode_t mask)
     if (errno == EADDRINUSE && VarTerm)
       fprintf(VarTerm, "Wait for a while, then try again.\n");
     close(s);
-    ID0unlink(name);
     return 4;
   }
   if (mask != (mode_t)-1)

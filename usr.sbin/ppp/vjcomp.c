@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.12 1997/11/09 06:22:49 brian Exp $
+ * $Id: vjcomp.c,v 1.13 1997/11/22 03:37:54 brian Exp $
  *
  *  TODO:
  */
@@ -55,14 +55,14 @@ void
 SendPppFrame(struct mbuf * bp)
 {
   int type;
-  int proto;
-  int cproto = IpcpInfo.his_compproto >> 16;
+  u_short proto;
+  u_short cproto = IpcpInfo.his_compproto >> 16;
 
   LogPrintf(LogDEBUG, "SendPppFrame: proto = %x\n", IpcpInfo.his_compproto);
   if (((struct ip *) MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
       && cproto == PROTO_VJCOMP) {
-    type = sl_compress_tcp(bp, (struct ip *) MBUF_CTOP(bp), &cslc, IpcpInfo.his_compproto & 0xff);
-
+    type = sl_compress_tcp(bp, (struct ip *)MBUF_CTOP(bp), &cslc,
+                           IpcpInfo.his_compproto & 0xff);
     LogPrintf(LogDEBUG, "SendPppFrame: type = %x\n", type);
     switch (type) {
     case TYPE_IP:
@@ -152,4 +152,14 @@ VjCompInput(struct mbuf * bp, int proto)
   }
   bp = VjUncompressTcp(bp, type);
   return (bp);
+}
+
+const char *
+vj2asc(u_long val)
+{
+  static char asc[50];
+
+  sprintf(asc, "%ld VJ slots %s slot compression",
+          ((val>>8)&15)+1, val & 1 ?  "with" : "without");
+  return asc;
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.47 1997/11/18 14:52:05 brian Exp $
+ * $Id: lcp.c,v 1.48 1997/11/22 03:37:35 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -36,6 +36,7 @@
 #include <net/if_tun.h>
 
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,6 +69,14 @@
 #include "modem.h"
 #include "tun.h"
 
+/* for received LQRs */
+struct lqrreq {
+  u_char type;
+  u_char length;
+  u_short proto;		/* Quality protocol */
+  u_long period;		/* Reporting interval */
+};
+
 struct lcpstate LcpInfo;
 
 static void LcpSendConfigReq(struct fsm *);
@@ -79,8 +88,6 @@ static void LcpLayerUp(struct fsm *);
 static void LcpLayerDown(struct fsm *);
 static void LcpLayerStart(struct fsm *);
 static void LcpLayerFinish(struct fsm *);
-
-#define	REJECTED(p, x)	(p->his_reject & (1<<x))
 
 static const char *cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
@@ -223,78 +230,122 @@ LcpInitRestartCounter(struct fsm * fp)
   fp->restart = 5;
 }
 
-void
-PutConfValue(int level, u_char ** cpp, const char **types, u_char type,
-             int len, u_long val)
+int
+LcpPutConf(int log, u_char *tgt, const struct lcp_opt *o, const char *nm,
+           const char *arg, ...)
 {
-  u_char *cp;
-  struct in_addr ina;
+  va_list ap;
+  char buf[30];
 
-  cp = *cpp;
-  *cp++ = type;
-  *cp++ = len;
-  if (len == 6) {
-    if (type == TY_IPADDR) {
-      ina.s_addr = htonl(val);
-      LogPrintf(level, " %s [%d] %s\n",
-		types[type], len, inet_ntoa(ina));
-    } else
-      LogPrintf(level, " %s [%d] %08x\n", types[type], len, val);
-    *cp++ = (val >> 24) & 0377;
-    *cp++ = (val >> 16) & 0377;
-  } else
-    LogPrintf(level, " %s [%d] %d\n", types[type], len, val);
-  *cp++ = (val >> 8) & 0377;
-  *cp++ = val & 0377;
-  *cpp = cp;
+  va_start(ap, arg);
+  memcpy(tgt, o, o->len);
+  if (arg == NULL || *arg == '\0')
+    LogPrintf(log, " %s[%d]\n", nm, o->len);
+  else {
+    vsnprintf(buf, sizeof buf, arg, ap);
+    LogPrintf(log, " %s[%d] %s\n", nm, o->len, buf);
+  }
+  va_end(ap);
+
+  return o->len;
 }
 
+#define PUTN(ty)						\
+do {								\
+  o.id = ty;							\
+  o.len = 2;							\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], NULL);	\
+} while (0)
+
+#define PUTHEXL(ty, arg)					\
+do {								\
+  o.id = ty;							\
+  o.len = 6;							\
+  *(u_long *)o.data = htonl(arg);				\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "0x%08x", (u_int)arg);\
+} while (0)
+
+#define PUTACCMAP(arg) PUTHEXL(TY_ACCMAP, arg)
+#define PUTMAGIC(arg) PUTHEXL(TY_MAGICNUM, arg)
+
+#define PUTMRU(arg)						\
+do {								\
+  o.id = TY_MRU;						\
+  o.len = 4;							\
+  *(u_short *)o.data = htons(arg);				\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "%lu", arg);	\
+} while (0)
+
+#define PUTLQR(period)						\
+do {								\
+  o.id = TY_QUALPROTO;						\
+  o.len = 8;							\
+  *(u_short *)o.data = htons(PROTO_LQR);			\
+  *(u_long *)(o.data+2) = period;				\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "period %ld", period);\
+} while (0)
+
+#define PUTPAP()						\
+do {								\
+  o.id = TY_AUTHPROTO;						\
+  o.len = 4;							\
+  *(u_short *)o.data = PROTO_PAP;				\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "PAP REQ");	\
+} while (0)
+  
+#define PUTCHAP(val)						\
+do {								\
+  o.id = TY_AUTHPROTO;						\
+  o.len = 5;							\
+  *(u_short *)o.data = PROTO_CHAP;				\
+  o.data[4] = val;						\
+  cp += LcpPutConf(LogLCP, cp, &o, cftypes[o.id], "CHAP REQ (0x%02x)", val);\
+} while (0)
+
+#define PUTMD5CHAP() PUTCHAP(0x05)
+#define PUTMSCHAP()  PUTCHAP(0x80)
+  
 static void
 LcpSendConfigReq(struct fsm * fp)
 {
   u_char *cp;
   struct lcpstate *lcp = &LcpInfo;
-  struct lqrreq *req;
+  struct lcp_opt o;
 
   LogPrintf(LogLCP, "LcpSendConfigReq\n");
   cp = ReqBuff;
   if (!DEV_IS_SYNC) {
-    if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP)) {
-      *cp++ = TY_ACFCOMP;
-      *cp++ = 2;
-      LogPrintf(LogLCP, " %s\n", cftypes[TY_ACFCOMP]);
-    }
-    if (lcp->want_protocomp && !REJECTED(lcp, TY_PROTOCOMP)) {
-      *cp++ = TY_PROTOCOMP;
-      *cp++ = 2;
-      LogPrintf(LogLCP, " %s\n", cftypes[TY_PROTOCOMP]);
-    }
+    if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP))
+      PUTN(TY_ACFCOMP);
+
+    if (lcp->want_protocomp && !REJECTED(lcp, TY_PROTOCOMP))
+      PUTN(TY_PROTOCOMP);
+
     if (!REJECTED(lcp, TY_ACCMAP))
-      PutConfValue(LogLCP, &cp, cftypes, TY_ACCMAP, 6, lcp->want_accmap);
+      PUTACCMAP(lcp->want_accmap);
   }
+
   if (!REJECTED(lcp, TY_MRU))
-    PutConfValue(LogLCP, &cp, cftypes, TY_MRU, 4, lcp->want_mru);
+    PUTMRU(lcp->want_mru);
+
   if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM))
-    PutConfValue(LogLCP, &cp, cftypes, TY_MAGICNUM, 6, lcp->want_magic);
-  if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO)) {
-    req = (struct lqrreq *) cp;
-    req->type = TY_QUALPROTO;
-    req->length = sizeof(struct lqrreq);
-    req->proto = htons(PROTO_LQR);
-    req->period = htonl(lcp->want_lqrperiod);
-    cp += sizeof(struct lqrreq);
-    LogPrintf(LogLCP, " %s (%d)\n", cftypes[TY_QUALPROTO], lcp->want_lqrperiod);
-  }
+    PUTMAGIC(lcp->want_magic);
+
+  if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO))
+    PUTLQR(lcp->want_lqrperiod);
+
   switch (lcp->want_auth) {
   case PROTO_PAP:
-    PutConfValue(LogLCP, &cp, cftypes, TY_AUTHPROTO, 4, lcp->want_auth);
+    PUTPAP();
     break;
+
   case PROTO_CHAP:
-    PutConfValue(LogLCP, &cp, cftypes, TY_AUTHPROTO, 5, lcp->want_auth);
 #ifdef HAVE_DES
-    *cp++ = VarMSChap ? 0x80 : 0x05;	/* Use MSChap vs. RFC 1994 (MD5) */
+    if (VarMSChap)
+      PUTMSCHAP();			/* Use MSChap */
+    else
 #else
-    *cp++ = 0x05;			/* Use MD5 */
+      PUTMD5CHAP();			/* Use MD5 */
 #endif
     break;
   }
@@ -420,13 +471,13 @@ LcpClose()
  *	XXX: Should validate option length
  */
 static void
-LcpDecodeConfig(u_char * cp, int plen, int mode_type)
+LcpDecodeConfig(u_char *cp, int plen, int mode_type)
 {
-  const char *request;
-  int type, length, mru, mtu;
+  int type, length, mru, mtu, sz, pos;
   u_long *lp, magic, accmap;
   u_short *sp, proto;
   struct lqrreq *req;
+  char request[20], desc[22];
 
   ackp = AckBuff;
   nakp = NakBuff;
@@ -435,16 +486,17 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
     length = cp[1];
-    if (type < NCFTYPES)
-      request = cftypes[type];
+
+    if (type < 0 || type >= NCFTYPES)
+      snprintf(request, sizeof request, " <%d>[%d]", type, length);
     else
-      request = "???";
+      snprintf(request, sizeof request, " %s[%d]", cftypes[type], length);
 
     switch (type) {
     case TY_MRU:
       sp = (u_short *) (cp + 2);
       mru = htons(*sp);
-      LogPrintf(LogLCP, " %s %d\n", request, mru);
+      LogPrintf(LogLCP, "%s %d\n", request, mru);
 
       switch (mode_type) {
       case MODE_REQ:
@@ -474,10 +526,11 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	break;
       }
       break;
+
     case TY_ACCMAP:
       lp = (u_long *) (cp + 2);
       accmap = htonl(*lp);
-      LogPrintf(LogLCP, " %s %08x\n", request, accmap);
+      LogPrintf(LogLCP, "%s 0x%08x\n", request, accmap);
 
       switch (mode_type) {
       case MODE_REQ:
@@ -493,17 +546,18 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	break;
       }
       break;
+
     case TY_AUTHPROTO:
       sp = (u_short *) (cp + 2);
       proto = ntohs(*sp);
-      LogPrintf(LogLCP, " %s proto = %04x\n", request, proto);
+      LogPrintf(LogLCP, "%s 0x%04x\n", request, proto);
 
       switch (mode_type) {
       case MODE_REQ:
 	switch (proto) {
 	case PROTO_PAP:
 	  if (length != 4) {
-	    LogPrintf(LogLCP, " %s bad length (%d)\n", request, length);
+	    LogPrintf(LogLCP, " Bad length!\n");
 	    goto reqreject;
 	  }
 	  if (Acceptable(ConfPap)) {
@@ -519,9 +573,10 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	  } else
 	    goto reqreject;
 	  break;
+
 	case PROTO_CHAP:
 	  if (length < 5) {
-	    LogPrintf(LogLCP, " %s bad length (%d)\n", request, length);
+	    LogPrintf(LogLCP, " Bad length!\n");
 	    goto reqreject;
 	  }
 #ifdef HAVE_DES
@@ -544,8 +599,9 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	  } else
 	    goto reqreject;
 	  break;
+
 	default:
-	  LogPrintf(LogLCP, " %s not implemented, NAK.\n", request);
+	  LogPrintf(LogLCP, " proto %d not implemented, NAK.\n", proto);
 	  memcpy(nakp, cp, length);
 	  nakp += length;
 	  break;
@@ -558,10 +614,11 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	break;
       }
       break;
+
     case TY_QUALPROTO:
       req = (struct lqrreq *) cp;
-      LogPrintf(LogLCP, " %s proto: %x, interval: %dms\n",
-		request, ntohs(req->proto), ntohl(req->period) * 10);
+      LogPrintf(LogLCP, "%s proto %x, interval %dms\n",
+                request, ntohs(req->proto), ntohl(req->period) * 10);
       switch (mode_type) {
       case MODE_REQ:
 	if (ntohs(req->proto) != PROTO_LQR || !Acceptable(ConfLqr))
@@ -582,10 +639,11 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	break;
       }
       break;
+
     case TY_MAGICNUM:
       lp = (u_long *) (cp + 2);
       magic = ntohl(*lp);
-      LogPrintf(LogLCP, " %s %08x\n", request, magic);
+      LogPrintf(LogLCP, "%s 0x%08x\n", request, magic);
 
       switch (mode_type) {
       case MODE_REQ:
@@ -611,18 +669,19 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	}
 	break;
       case MODE_NAK:
-	LogPrintf(LogLCP, " %s magic %08x has NAKed\n", request, magic);
+	LogPrintf(LogLCP, " Magic 0x%08x is NAKed!\n", magic);
 	LcpInfo.want_magic = GenerateMagic();
 	break;
       case MODE_REJ:
-	LogPrintf(LogLCP, " %s magic has REJected\n", request);
+	LogPrintf(LogLCP, " Magic 0x%80x is REJected!\n", magic);
 	LcpInfo.want_magic = 0;
 	LcpInfo.his_reject |= (1 << type);
 	break;
       }
       break;
+
     case TY_PROTOCOMP:
-      LogPrintf(LogLCP, " %s\n", request);
+      LogPrintf(LogLCP, "%s\n", request);
 
       switch (mode_type) {
       case MODE_REQ:
@@ -651,8 +710,9 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	break;
       }
       break;
+
     case TY_ACFCOMP:
-      LogPrintf(LogLCP, " %s\n", request);
+      LogPrintf(LogLCP, "%s\n", request);
       switch (mode_type) {
       case MODE_REQ:
 	if (Acceptable(ConfAcfcomp)) {
@@ -680,8 +740,9 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	break;
       }
       break;
+
     case TY_SDP:
-      LogPrintf(LogLCP, " %s\n", request);
+      LogPrintf(LogLCP, "%s\n", request);
       switch (mode_type) {
       case MODE_REQ:
       case MODE_NAK:
@@ -689,13 +750,30 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	break;
       }
       break;
+
     default:
-      LogPrintf(LogLCP, " %s[02x]\n", request, type);
+      sz = (sizeof(desc)-2)/2;
+      if (sz > length - 2)
+        sz = length - 2;
+      pos = 0;
+      desc[0] = sz ? ' ' : '\0';
+      for (pos = 0; sz--; pos++)
+        sprintf(desc+(pos<<1)+1, "%02x", cp[pos+2]);
+
+      LogPrintf(LogLCP, "%s%s\n", request, desc);
+
       if (mode_type == MODE_REQ) {
-    reqreject:
+reqreject:
+        if (length > sizeof(RejBuff) - (rejp - RejBuff)) {
+          length = sizeof(RejBuff) - (rejp - RejBuff);
+          LogPrintf(LogLCP, "Can't REJ length %d - trunating to %d\n",
+		    cp[1], length);
+        }
 	memcpy(rejp, cp, length);
 	rejp += length;
 	LcpInfo.my_reject |= (1 << type);
+        if (length != cp[1])
+          return;
       }
       break;
     }
