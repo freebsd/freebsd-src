@@ -220,7 +220,9 @@ main(argc, argv)
 		dvname = devicename;
 	else
 		dvname++;
-	sprintf(pidfile, PIDFILE, _PATH_VARRUN, dvname);
+	if (snprintf(pidfile, sizeof(pidfile), PIDFILE, _PATH_VARRUN, dvname) >= sizeof(pidfile))
+		usage();
+
 	if ((pfd = fopen(pidfile, "r")) != NULL) {
 		pid = 0;
 		fscanf(pfd, "%ld\n", &pid);
