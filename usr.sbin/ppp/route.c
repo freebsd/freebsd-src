@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.40 1998/01/11 04:45:36 brian Exp $
+ * $Id: route.c,v 1.41 1998/01/19 02:59:33 brian Exp $
  *
  */
 
@@ -27,7 +27,6 @@
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/if.h>
-#include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if_dl.h>
@@ -252,7 +251,7 @@ p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
   fprintf(VarTerm, "%-*s ", width-1, buf);
 }
 
-struct bits {
+static struct bits {
   u_long b_mask;
   char b_val;
 } bits[] = {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.14 1997/12/21 12:11:08 brian Exp $
+ *	$Id: server.c,v 1.15 1997/12/24 09:29:14 brian Exp $
  */
 
 #include <sys/param.h>
@@ -31,7 +31,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
-#include <netinet/ip.h>
 
 #include <errno.h>
 #include <stdio.h>

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.53 1998/01/11 17:53:19 brian Exp $
+ * $Id: lcp.c,v 1.54 1998/01/20 22:47:40 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -25,12 +25,11 @@
  */
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/select.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <net/if.h>
 #include <net/if_tun.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <signal.h>
 #include <stdarg.h>
@@ -123,7 +122,6 @@ struct fsm LcpFsm = {
   1,				/* Open mode delay */
   ST_INITIAL,			/* State of machine */
   0, 0, 0,
-  0,
   {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
   {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
   {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
