@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "pckbd.h"
 #include "opt_kbd.h"
 
 #include <sys/param.h>
@@ -889,7 +888,7 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 
 /* local variables */
 
-static struct kbdc_softc kbdc_softc[NPCKBD] = { { 0 }, };
+static struct kbdc_softc kbdc_softc[1] = { { 0 }, };
 
 /* associate a port number with a KBDC */
 
@@ -899,13 +898,10 @@ kbdc_open(int port)
 	if (port <= 0)
 		port = IO_KBD;
 
-	if (NPCKBD) {
-		/* PC-98 has only one keyboard I/F */
-		kbdc_softc[0].port = port;
-		kbdc_softc[0].lock = FALSE;
-		return (KBDC)&kbdc_softc[0];
-	}
-	return NULL;	/* You didn't include sc driver in your config file */
+	/* PC-98 has only one keyboard I/F */
+	kbdc_softc[0].port = port;
+	kbdc_softc[0].lock = FALSE;
+	return (KBDC)&kbdc_softc[0];
 }
 
 /* set/reset polling lock */
