@@ -156,18 +156,15 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	uint64_t stack;
 
 	tf = td->td_frame;
-	KASSERT(tf->tf_flags & FRAME_SYSCALL, ("foo"));
-	bzero(&tf->tf_special, sizeof(tf->tf_special));
-	/*
-	 * ku->ku_func of course points to a function descriptor. Fetch the
-	 * code address and GP value from userland.
-	 */
+
+	KASSERT((tf->tf_special.ndirty & ~PAGE_MASK) == 0,
+	    ("Whoa there! We have more than 8KB of dirty registers!"));
+
 	fd = ku->ku_func;
-	tf->tf_special.rp = fuword(&fd->func);
-	tf->tf_special.gp = fuword(&fd->gp);
-	tf->tf_special.pfs = (3UL<<62) | (1UL<<7) | 1UL;
 	stack = (uint64_t)ku->ku_stack.ss_sp;
-	tf->tf_special.bspstore = stack + 8;
+
+	bzero(&tf->tf_special, sizeof(tf->tf_special));
+	tf->tf_special.gp = fuword(&fd->gp);
 	tf->tf_special.sp = (stack + ku->ku_stack.ss_size - 16) & ~15;
 	tf->tf_special.rsc = 0xf;
 	tf->tf_special.fpsr = IA64_FPSR_DEFAULT;
@@ -175,8 +172,18 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	    IA64_PSR_DT | IA64_PSR_RT | IA64_PSR_DFH | IA64_PSR_BN |
 	    IA64_PSR_CPL_USER;
 
-	/* XXX assumes that (bspstore & 0x1f8) < 0x1e0. */
-	suword((caddr_t)tf->tf_special.bspstore - 8, (uint64_t)ku->ku_mailbox);
+	if (tf->tf_flags & FRAME_SYSCALL) {
+		tf->tf_special.rp = fuword(&fd->func);
+		tf->tf_special.pfs = (3UL<<62) | (1UL<<7) | 1UL;
+		tf->tf_special.bspstore = stack + 8;
+		suword((caddr_t)stack, (uint64_t)ku->ku_mailbox);
+	} else {
+		tf->tf_special.iip = fuword(&fd->func);
+                tf->tf_special.cfm = (1UL<<63) | (1UL<<7) | 1UL;
+                tf->tf_special.bspstore = stack;
+                tf->tf_special.ndirty = 8;
+                *(uint64_t*)stack = (uint64_t)ku->ku_mailbox;
+	}
 }
 
 /*
