@@ -22,9 +22,10 @@ MKOBJ=${.CURDIR}/../tools/mkastosc
 
 astosc.o: astosc.OUT
 astosc.OUT: ${.CURDIR}/../ctlr/hostctlr.h ${.CURDIR}/../ctlr/function.h
-astosc.OUT: ${.CURDIR}/../ctlr/${KBD} ${MKOBJ}/mkastosc ${MKOBJ}/mkastosc
-	    ${.CURDIR}/../ctlr/hostctlr.h ${.CURDIR}/../ctlr/function.h \
-	    < ${.CURDIR}/../ctlr/${KBD} > ${.TARGET}
+astosc.OUT: ${.CURDIR}/../ctlr/${KBD} ${MKOBJ}/mkastosc
+	${MKOBJ}/mkastosc ${.CURDIR}/../ctlr/hostctlr.h \
+	   ${.CURDIR}/../ctlr/function.h \
+	   < ${.CURDIR}/../ctlr/${KBD} > ${.TARGET}
 	rm -f astosc.out; ln -s astosc.OUT astosc.out
 
 # astosc.out
