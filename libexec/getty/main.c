@@ -56,7 +56,6 @@ static char sccsid[] = "@(#)main.c	5.16 (Berkeley) 3/27/91";
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/utsname.h>
 #include "gettytab.h"
 #include "pathnames.h"
 
@@ -455,7 +454,6 @@ putf(cp)
 			break;
 
 		case 'h':
-		case 'n':
 			puts(editedhost);
 			break;
 
@@ -466,32 +464,8 @@ putf(cp)
 			(void)time(&t);
 			(void)strftime(db, sizeof(db), fmt, localtime(&t));
 			puts(db);
+			break;
 		}
-		break;
-
-		case 's': {
-			struct utsname name;
-
-			if (uname(&name) != -1)
-			    puts(name.sysname);
-		}
-		break;
-
-		case 'r': {
-			struct utsname name;
-
-			if (uname(&name) != -1)
-			    puts(name.release);
-		}
-		break;
-
-		case 'm': {
-			struct utsname name;
-
-			if (uname(&name) != -1)
-			    puts(name.machine);
-		}
-		break;
 
 		case '%':
 			putchr('%');
