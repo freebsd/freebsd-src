@@ -25,6 +25,7 @@
  *
  * $FreeBSD$
  */
+
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -143,7 +144,7 @@
 #ifdef SMP
 	/*
 	 * Secondary processors start executing here. They will have their
-	 * unique value set to point at the per-cpu structure and will 
+	 * unique value set to point at the per-cpu structure and will
 	 * be executing on their private idle stack.
 	 */
 	NESTED(smp_init_secondary_glue, 1, 0, ra, 0, 0)
