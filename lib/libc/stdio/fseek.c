@@ -256,17 +256,13 @@ _fseeko(fp, offset, whence, ltest)
 				fp->_p -= curoff;
 				fp->_r += curoff;
 				curoff = 0;
-			} else {
-				errno = EBADF;
-				return (-1);
-			}
+			} else
+				goto dumb;
 		}
 		if (HASUB(fp)) {
 			curoff -= fp->_ur;
-			if (curoff < 0) {
-				errno = EBADF;
-				return (-1);
-			}
+			if (curoff < 0)
+				goto dumb;
 		}
 	}
 
