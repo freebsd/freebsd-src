@@ -113,6 +113,7 @@ struct {
 	char *name;
 	u_int32_t *mcode;
 } ds_devs[] = {
+/* Beware, things know the indexes here */
 	{0x00041073, 0, 		"Yamaha DS-1 (YMF724)", CntrlInst},
 	{0x000d1073, 0, 		"Yamaha DS-1E (YMF724F)", CntrlInst1E},
 	{0x00051073, 0, 		"Yamaha DS-1? (YMF734)", CntrlInst},
@@ -121,8 +122,10 @@ struct {
 	{0x00061073, 0, 		"Yamaha DS-1? (YMF738_TEG)", CntrlInst},
 	{0x000a1073, 0x00041073, 	"Yamaha DS-1 (YMF740)", CntrlInst},
 	{0x000a1073, 0x000a1073,  	"Yamaha DS-1 (YMF740B)", CntrlInst},
+/*8*/	{0x000a1073, 0x53328086,	"Yamaha DS-1 (YMF740I)", CntrlInst},
+	{0x000a1073, 0, 		"Yamaha DS-1 (YMF740?)", CntrlInst},
 	{0x000c1073, 0, 		"Yamaha DS-1E (YMF740C)", CntrlInst1E},
-	{0x00101073, 0, 		"Yamaha DS-1E (YMF744)", CntrlInst1E},
+/*11*/	{0x00101073, 0, 		"Yamaha DS-1E (YMF744)", CntrlInst1E},
 	{0x00121073, 0, 		"Yamaha DS-1E (YMF754)", CntrlInst1E},
 	{0, 0, NULL, NULL}
 };
@@ -247,6 +250,15 @@ ds_initcd(void *devinfo)
 		pci_write_config(sc->dev, PCIR_DSXGCTRL, x & ~0x03, 1);
 		pci_write_config(sc->dev, PCIR_DSXGCTRL, x | 0x03, 1);
 		pci_write_config(sc->dev, PCIR_DSXGCTRL, x & ~0x03, 1);
+		/*
+		 * The YMF740 on some Intel motherboards requires a pretty
+		 * hefty delay after this reset for some reason...  Otherwise:
+		 * "pcm0: ac97 codec init failed"
+		 * Maybe this is needed for all YMF740's?
+		 * 400ms and 500ms here seem to work, 300ms does not.
+		 */
+		if (sc->type == 8)
+			DELAY(400000);
 	}
 
 	return ds_cdbusy(sc, 0);
@@ -272,7 +284,7 @@ ds_rdcd(void *devinfo, int regno)
 	if (ds_cdbusy(sc, sec))
 		return 0xffffffff;
 
-	if (sc->type == 9 && sc->rev < 2)
+	if (sc->type == 11 && sc->rev < 2)
 		for (i = 0; i < 600; i++)
 			ds_rd(sc, reg, 2);
 
