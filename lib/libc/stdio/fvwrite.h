@@ -50,8 +50,4 @@ struct __suio {
 	int	uio_resid;
 };
 
-#if __STDC__ || c_plusplus
 extern int __sfvwrite(FILE *, struct __suio *);
-#else
-extern int __sfvwrite();
-#endif

@@ -40,11 +40,7 @@
 #if defined(vax)||defined(tahoe)
 
 /* Deal with different ways to concatenate in cpp */
-#  ifdef __STDC__
 #    define	cat3(a,b,c) a ## b ## c
-#  else
-#    define	cat3(a,b,c) a/**/b/**/c
-#  endif
 
 /* Deal with vax/tahoe byte order issues */
 #  ifdef vax

@@ -80,11 +80,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const double
-#else
-static double
-#endif
 one	= 1.0,
 halF[2]	= {0.5,-0.5,},
 huge	= 1.0e+300,
@@ -103,12 +99,8 @@ P4   = -1.65339022054652515390e-06, /* 0xBEBBBD41, 0xC5D26BF1 */
 P5   =  4.13813679705723846039e-08; /* 0x3E663769, 0x72BEA4D0 */
 
 
-#ifdef __STDC__
-	double __generic___ieee754_exp(double x)	/* default IEEE double exp */
-#else
-	double __generic___ieee754_exp(x)	/* default IEEE double exp */
-	double x;
-#endif
+double
+__generic___ieee754_exp(double x)	/* default IEEE double exp */
 {
 	double y,hi=0.0,lo=0.0,c,t;
 	int32_t k=0,xsb;

@@ -48,34 +48,19 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <paths.h>
 
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "un-namespace.h"
 
 extern char **environ;
 
 int
-#if __STDC__
 execl(const char *name, const char *arg, ...)
-#else
-execl(name, arg, va_alist)
-	const char *name;
-	const char *arg;
-	va_dcl
-#endif
 {
 	va_list ap;
 	char **argv;
 	int n;
 
-#if __STDC__
 	va_start(ap, arg);
-#else
-	va_start(ap);
-#endif
 	n = 1;
 	while (va_arg(ap, char *) != NULL)
 		n++;
@@ -85,11 +70,7 @@ execl(name, arg, va_alist)
 		errno = ENOMEM;
 		return (-1);
 	}
-#if __STDC__
 	va_start(ap, arg);
-#else
-	va_start(ap);
-#endif
 	n = 1;
 	argv[0] = (char *)arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
@@ -99,24 +80,13 @@ execl(name, arg, va_alist)
 }
 
 int
-#if __STDC__
 execle(const char *name, const char *arg, ...)
-#else
-execle(name, arg, va_alist)
-	const char *name;
-	const char *arg;
-	va_dcl
-#endif
 {
 	va_list ap;
 	char **argv, **envp;
 	int n;
 
-#if __STDC__
 	va_start(ap, arg);
-#else
-	va_start(ap);
-#endif
 	n = 1;
 	while (va_arg(ap, char *) != NULL)
 		n++;
@@ -126,11 +96,7 @@ execle(name, arg, va_alist)
 		errno = ENOMEM;
 		return (-1);
 	}
-#if __STDC__
 	va_start(ap, arg);
-#else
-	va_start(ap);
-#endif
 	n = 1;
 	argv[0] = (char *)arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
@@ -141,25 +107,14 @@ execle(name, arg, va_alist)
 }
 
 int
-#if __STDC__
 execlp(const char *name, const char *arg, ...)
-#else
-execlp(name, arg, va_alist)
-	const char *name;
-	const char *arg;
-	va_dcl
-#endif
 {
 	va_list ap;
 	int sverrno;
 	char **argv;
 	int n;
 
-#if __STDC__
 	va_start(ap, arg);
-#else
-	va_start(ap);
-#endif
 	n = 1;
 	while (va_arg(ap, char *) != NULL)
 		n++;
@@ -169,11 +124,7 @@ execlp(name, arg, va_alist)
 		errno = ENOMEM;
 		return (-1);
 	}
-#if __STDC__
 	va_start(ap, arg);
-#else
-	va_start(ap);
-#endif
 	n = 1;
 	argv[0] = (char *)arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)

@@ -40,15 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
-#if __STDC__
 int
 sethostname(const char *name, int namelen)
-#else
-int
-sethostname(name, namelen)
-	char *name;
-	int namelen;
-#endif
 {
 	int mib[2];
 

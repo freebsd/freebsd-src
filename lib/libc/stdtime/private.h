@@ -107,19 +107,6 @@ static char	privatehid[] = "@(#)private.h	7.43";
 #define is_digit(c) ((unsigned)(c) - '0' <= 9)
 
 /*
-** Workarounds for compilers/systems.
-*/
-
-#ifndef P
-#ifdef __STDC__
-#define P(x)	x
-#endif /* defined __STDC__ */
-#ifndef __STDC__
-#define P(x)	()
-#endif /* !defined __STDC__ */
-#endif /* !defined P */
-
-/*
 ** SunOS 4.1.1 headers lack FILENAME_MAX.
 */
 
