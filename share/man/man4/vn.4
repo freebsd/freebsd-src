@@ -44,9 +44,15 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides a disk-like interface to a file.  This is useful for
-a variety of applications, including swap files and building mini-root
-or floppy disk images.
+driver uses swap or a file as backing store to abstract-out a character and
+block device which may then be used like a disk.  The
+.Nm
+driver supports both labeled and unlabeled pseudo-disks and is useful for
+a variety of applications, including swap files and building mini-root,
+floppy, or CDRom disk images.
+.Nm
+may also be used to create temporary swap-backed filesystems, such as /tmp,
+in a somewhat less memory-hungry manner then MFS.
 .Pp
 This document assumes that you're familiar with how to generate kernels,
 how to properly configure disks and pseudo-devices in a kernel
@@ -67,6 +73,9 @@ argument is how many
 memory is allocated for a boot time.  In this example, no more than 4
 .Nm vn Ns 's
 may be configured.
+.Nm
+may also exist as a kernel module to be automatically loaded into the 
+system when you run the vnconfig command for the first time.
 .Pp
 There is a run-time utility that is used for configuring
 .Nm vn Ns 's .
@@ -82,7 +91,8 @@ driver does not work if the file does not reside in a local filesystem.
 .Pp
 .Sh HISTORY
 The vnode disk driver was originally written at the University of
-Utah.
+Utah and was substantially modified by FreeBSD developers to add 
+swap-backed support.
 .Sh SEE ALSO
 .Xr config 8 ,
 .Xr fsck 8 ,
