@@ -58,8 +58,6 @@ done
 yesterday=`date -v-1d "+%b %e "`
 
 host=`hostname`
-[ $sflag = FALSE ] && echo "To: root@${host}"
-[ $sflag = FALSE ] && echo "Subject: ${host} security check output"
 
 umask 027
 
