@@ -127,7 +127,7 @@ osf1_statfs(td, uap)
 	struct osf1_statfs osfs;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
 	if ((error = namei(&nd)))
 		return (error);
 	mp = nd.ni_vp->v_mount;
@@ -142,8 +142,8 @@ osf1_statfs(td, uap)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	bsd2osf_statfs(sp, &osfs);
-	return copyout(&osfs, uap->buf, min(sizeof osfs,
-	    uap->len));
+	return copyout(&osfs, SCARG(uap, buf), min(sizeof osfs,
+	    SCARG(uap, len)));
 }
 
 int
@@ -157,7 +157,7 @@ osf1_fstatfs(td, uap)
 	struct statfs *sp;
 	struct osf1_statfs osfs;
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)))
+	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)))
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 #ifdef MAC
@@ -174,8 +174,8 @@ osf1_fstatfs(td, uap)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	bsd2osf_statfs(sp, &osfs);
-	return copyout(&osfs, uap->buf, min(sizeof osfs,
-	    uap->len));
+	return copyout(&osfs, SCARG(uap, buf), min(sizeof osfs,
+	    SCARG(uap, len)));
 }
 
 int
@@ -189,11 +189,11 @@ osf1_getfsstat(td, uap)
 	struct statfs *sp;
 	struct osf1_statfs osfs;
 
-	if (uap->flags & ~OSF1_GETFSSTAT_FLAGS)
+	if (SCARG(uap, flags) & ~OSF1_GETFSSTAT_FLAGS)
 		return (EINVAL);
 
-	maxcount = uap->bufsize / sizeof(struct osf1_statfs);
-	osf_sfsp = (caddr_t)uap->buf;
+	maxcount = SCARG(uap, bufsize) / sizeof(struct osf1_statfs);
+	osf_sfsp = (caddr_t)SCARG(uap, buf);
 	for (count = 0, mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		if (osf_sfsp && count < maxcount) {
@@ -208,8 +208,8 @@ osf1_getfsstat(td, uap)
 			 * fsstat cache.  OSF1_MNT_WAIT overrides
 			 * OSF1_MNT_NOWAIT.
 			 */
-			if (((uap->flags & OSF1_MNT_NOWAIT) == 0 ||
-			    (uap->flags & OSF1_MNT_WAIT)) &&
+			if (((SCARG(uap, flags) & OSF1_MNT_NOWAIT) == 0 ||
+			    (SCARG(uap, flags) & OSF1_MNT_WAIT)) &&
 			    (error = VFS_STATFS(mp, sp, td)))
 				continue;
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
@@ -236,14 +236,14 @@ osf1_unmount(td, uap)
 {
 	struct unmount_args a;
 
-	a.path = uap->path;
+	SCARG(&a, path) = SCARG(uap, path);
 
-	if (uap->flags & ~OSF1_UNMOUNT_FLAGS)
+	if (SCARG(uap, flags) & ~OSF1_UNMOUNT_FLAGS)
 		return (EINVAL);
-	a.flags = 0;
-	if ((uap->flags & OSF1_MNT_FORCE) &&
-	    (uap->flags & OSF1_MNT_NOFORCE) == 0)
-		a.flags |= MNT_FORCE;
+	SCARG(&a, flags) = 0;
+	if ((SCARG(uap, flags) & OSF1_MNT_FORCE) &&
+	    (SCARG(uap, flags) & OSF1_MNT_NOFORCE) == 0)
+		SCARG(&a, flags) |= MNT_FORCE;
 
 	return unmount(td, &a);
 }
@@ -256,13 +256,13 @@ osf1_mount(td, uap)
 	int error;
 	struct mount_args a;
 
-	a.path = uap->path;
+	SCARG(&a, path) = SCARG(uap, path);
 
-	if (uap->flags & ~OSF1_MOUNT_FLAGS)
+	if (SCARG(uap, flags) & ~OSF1_MOUNT_FLAGS)
 		return (EINVAL);
-	a.flags = uap->flags;		/* XXX - xlate */
+	SCARG(&a, flags) = SCARG(uap, flags);		/* XXX - xlate */
 
-	switch (uap->type) {
+	switch (SCARG(uap, type)) {
 	case OSF1_MOUNT_UFS:				/* XXX */
 		return (EINVAL);
 		break;
@@ -319,7 +319,7 @@ osf1_mount_mfs(td, osf_argp, bsd_argp)
 
 	sg = stackgap_init();
 
-	if ((error = copyin(osf_argp->data, &osf_ma, sizeof osf_ma)))
+	if ((error = copyin(SCARG(osf_argp, data), &osf_ma, sizeof osf_ma)))
 		return error;
 
 	bzero(&bsd_ma, sizeof bsd_ma);
@@ -328,13 +328,13 @@ osf1_mount_mfs(td, osf_argp, bsd_argp)
 	bsd_ma.base = osf_ma.base;
 	bsd_ma.size = osf_ma.size;
 
-	bsd_argp->data = stackgap_alloc(&sg, sizeof bsd_ma);
-	if ((error = copyout(&bsd_ma, bsd_argp->data, sizeof bsd_ma)))
+	SCARG(bsd_argp, data) = stackgap_alloc(&sg, sizeof bsd_ma);
+	if ((error = copyout(&bsd_ma, SCARG(bsd_argp, data), sizeof bsd_ma)))
 		return error;
 
 	len = strlen(mfs_name) + 1;
-	bsd_argp->type = stackgap_alloc(&sg, len);
-	if ((error = copyout(mfs_name, (void *)bsd_argp->type, len)))
+	SCARG(bsd_argp, type) = stackgap_alloc(&sg, len);
+	if ((error = copyout(mfs_name, (void *)SCARG(bsd_argp, type), len)))
 		return error;
 #endif
 	return 0;
@@ -354,7 +354,7 @@ osf1_mount_nfs(td, osf_argp, bsd_argp)
 
 	sg = stackgap_init();
 
-	if ((error = copyin(osf_argp->data, &osf_na, sizeof osf_na)))
+	if ((error = copyin(SCARG(osf_argp, data), &osf_na, sizeof osf_na)))
 		return error;
 
 	bzero(&bsd_na, sizeof bsd_na);
@@ -391,13 +391,13 @@ osf1_mount_nfs(td, osf_argp, bsd_argp)
 	if (osf_na.flags & OSF1_NFSMNT_NOCONN)
 		bsd_na.flags |= NFSMNT_NOCONN;
 
-	bsd_argp->data = stackgap_alloc(&sg, sizeof bsd_na);
-	if ((error = copyout(&bsd_na, bsd_argp->data, sizeof bsd_na)))
+	SCARG(bsd_argp, data) = stackgap_alloc(&sg, sizeof bsd_na);
+	if ((error = copyout(&bsd_na, SCARG(bsd_argp, data), sizeof bsd_na)))
 		return error;
 
 	len = strlen(nfs_name) + 1;
-	bsd_argp->type = stackgap_alloc(&sg, len);
-	if ((error = copyout(nfs_name, (void *)bsd_argp->type, len)))
+	SCARG(bsd_argp, type) = stackgap_alloc(&sg, len);
+	if ((error = copyout(nfs_name, (void *)SCARG(bsd_argp, type), len)))
 		return error;
 
 	return 0;

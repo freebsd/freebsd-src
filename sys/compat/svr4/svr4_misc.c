@@ -132,25 +132,25 @@ svr4_sys_wait(td, uap)
 {
 	struct wait_args w4;
 	int error, *retval = td->td_retval, st, sig;
-	size_t sz = sizeof(*w4.status);
+	size_t sz = sizeof(*SCARG(&w4, status));
 
-	w4.rusage = NULL;
-	w4.options = 0;
+	SCARG(&w4, rusage) = NULL;
+	SCARG(&w4, options) = 0;
 
-	if (uap->status == NULL) {
+	if (SCARG(uap, status) == NULL) {
 		caddr_t sg = stackgap_init();
 
-		w4.status = stackgap_alloc(&sg, sz);
+		SCARG(&w4, status) = stackgap_alloc(&sg, sz);
 	}
 	else
-		w4.status = uap->status;
+		SCARG(&w4, status) = SCARG(uap, status);
 
-	w4.pid = WAIT_ANY;
+	SCARG(&w4, pid) = WAIT_ANY;
 
 	if ((error = wait4(td, &w4)) != 0)
 		return error;
       
-	if ((error = copyin(w4.status, &st, sizeof(st))) != 0)
+	if ((error = copyin(SCARG(&w4, status), &st, sizeof(st))) != 0)
 		return error;
 
 	if (WIFSIGNALED(st)) {
@@ -169,8 +169,8 @@ svr4_sys_wait(td, uap)
 	 */
 	retval[1] = st;
 
-	if (uap->status)
-		if ((error = copyout(&st, uap->status, sizeof(st))) != 0)
+	if (SCARG(uap, status))
+		if ((error = copyout(&st, SCARG(uap, status), sizeof(st))) != 0)
 			return error;
 
 	return 0;
@@ -185,11 +185,11 @@ svr4_sys_execv(td, uap)
 	caddr_t sg;
 
 	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 
-	ap.fname = uap->path;
-	ap.argv = uap->argp;
-	ap.envv = NULL;
+	SCARG(&ap, fname) = SCARG(uap, path);
+	SCARG(&ap, argv) = SCARG(uap, argp);
+	SCARG(&ap, envv) = NULL;
 
 	return execve(td, &ap);
 }
@@ -205,9 +205,9 @@ svr4_sys_execve(td, uap)
 	sg = stackgap_init();
 	CHECKALTEXIST(td, &sg, uap->path);
 
-	ap.fname = uap->path;
-	ap.argv = uap->argp;
-	ap.envv = uap->envp;
+	SCARG(&ap, fname) = SCARG(uap, path);
+	SCARG(&ap, argv) = SCARG(uap, argp);
+	SCARG(&ap, envv) = SCARG(uap, envp);
 
 	return execve(td, &ap);
 }
@@ -222,9 +222,9 @@ svr4_sys_time(td, v)
 	struct timeval tv;
 
 	microtime(&tv);
-	if (uap->t)
-		error = copyout(&tv.tv_sec, uap->t,
-				sizeof(*(uap->t)));
+	if (SCARG(uap, t))
+		error = copyout(&tv.tv_sec, SCARG(uap, t),
+				sizeof(*(SCARG(uap, t))));
 	td->td_retval[0] = (int) tv.tv_sec;
 
 	return error;
@@ -261,8 +261,8 @@ svr4_sys_getdents64(td, uap)
 	int ncookies;
 
 	DPRINTF(("svr4_sys_getdents64(%d, *, %d)\n",
-		uap->fd, uap->nbytes));
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0) {
+		SCARG(uap, fd), SCARG(uap, nbytes)));
+	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0) {
 		return (error);
 	}
 
@@ -283,7 +283,7 @@ svr4_sys_getdents64(td, uap)
 		return error;
 	}
 
-	nbytes = uap->nbytes;
+	nbytes = SCARG(uap, nbytes);
 	if (nbytes == 1) {
 		nbytes = sizeof (struct svr4_dirent64);
 		justone = 1;
@@ -326,7 +326,7 @@ again:
 	}
 
 	inp = buf;
-	outp = (caddr_t) uap->dp;
+	outp = (caddr_t) SCARG(uap, dp);
 	resid = nbytes;
 	if ((len = buflen - auio.uio_resid) <= 0) {
 		goto eof;
@@ -404,7 +404,7 @@ again:
 			break;
     	}
 
-	if (outp == (caddr_t) uap->dp)
+	if (outp == (caddr_t) SCARG(uap, dp))
 		goto again;
 	fp->f_offset = off;
 
@@ -443,7 +443,7 @@ svr4_sys_getdents(td, uap)
 	u_long *cookiebuf = NULL, *cookie;
 	int ncookies = 0, *retval = td->td_retval;
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
 
 	if ((fp->f_flag & FREAD) == 0) {
@@ -457,7 +457,7 @@ svr4_sys_getdents(td, uap)
 		return (EINVAL);
 	}
 
-	buflen = min(MAXBSIZE, uap->nbytes);
+	buflen = min(MAXBSIZE, SCARG(uap, nbytes));
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	off = fp->f_offset;
@@ -489,8 +489,8 @@ again:
 	}
 
 	inp = buf;
-	outp = uap->buf;
-	resid = uap->nbytes;
+	outp = SCARG(uap, buf);
+	resid = SCARG(uap, nbytes);
 	if ((len = buflen - auio.uio_resid) == 0)
 		goto eof;
 
@@ -534,12 +534,12 @@ again:
 	}
 
 	/* if we squished out the whole block, try again */
-	if (outp == uap->buf)
+	if (outp == SCARG(uap, buf))
 		goto again;
 	fp->f_offset = off;	/* update the vnode offset */
 
 eof:
-	*retval = uap->nbytes - resid;
+	*retval = SCARG(uap, nbytes) - resid;
 out:
 	VOP_UNLOCK(vp, 0, td);
 	fdrop(fp, td);
@@ -563,18 +563,18 @@ svr4_sys_mmap(td, uap)
 	/*
          * Verify the arguments.
          */
-	if (uap->prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC))
+	if (SCARG(uap, prot) & ~(PROT_READ | PROT_WRITE | PROT_EXEC))
 		return EINVAL;	/* XXX still needed? */
 
-	if (uap->len == 0)
+	if (SCARG(uap, len) == 0)
 		return EINVAL;
 
-	mm.prot = uap->prot;
-	mm.len = uap->len;
-	mm.flags = uap->flags & ~_MAP_NEW;
-	mm.fd = uap->fd;
-	mm.addr = uap->addr;
-	mm.pos = uap->pos;
+	SCARG(&mm, prot) = SCARG(uap, prot);
+	SCARG(&mm, len) = SCARG(uap, len);
+	SCARG(&mm, flags) = SCARG(uap, flags) & ~_MAP_NEW;
+	SCARG(&mm, fd) = SCARG(uap, fd);
+	SCARG(&mm, addr) = SCARG(uap, addr);
+	SCARG(&mm, pos) = SCARG(uap, pos);
 
 	return mmap(td, &mm);
 }
@@ -591,23 +591,23 @@ svr4_sys_mmap64(td, uap)
 	/*
          * Verify the arguments.
          */
-	if (uap->prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC))
+	if (SCARG(uap, prot) & ~(PROT_READ | PROT_WRITE | PROT_EXEC))
 		return EINVAL;	/* XXX still needed? */
 
-	if (uap->len == 0)
+	if (SCARG(uap, len) == 0)
 		return EINVAL;
 
-	mm.prot = uap->prot;
-	mm.len = uap->len;
-	mm.flags = uap->flags & ~_MAP_NEW;
-	mm.fd = uap->fd;
-	mm.addr = uap->addr;
-	mm.pos = uap->pos;
+	SCARG(&mm, prot) = SCARG(uap, prot);
+	SCARG(&mm, len) = SCARG(uap, len);
+	SCARG(&mm, flags) = SCARG(uap, flags) & ~_MAP_NEW;
+	SCARG(&mm, fd) = SCARG(uap, fd);
+	SCARG(&mm, addr) = SCARG(uap, addr);
+	SCARG(&mm, pos) = SCARG(uap, pos);
 
 	rp = (void *) round_page((vm_offset_t)(td->td_proc->p_vmspace->vm_daddr + maxdsiz));
-	if ((mm.flags & MAP_FIXED) == 0 &&
-	    mm.addr != 0 && (void *)mm.addr < rp)
-		mm.addr = rp;
+	if ((SCARG(&mm, flags) & MAP_FIXED) == 0 &&
+	    SCARG(&mm, addr) != 0 && (void *)SCARG(&mm, addr) < rp)
+		SCARG(&mm, addr) = rp;
 
 	return mmap(td, &mm);
 }
@@ -625,7 +625,7 @@ svr4_sys_fchroot(td, uap)
 
 	if ((error = suser(td)) != 0)
 		return error;
-	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
+	if ((error = getvnode(fdp, SCARG(uap, fd), &fp)) != 0)
 		return error;
 	vp = (struct vnode *) fp->f_data;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
@@ -664,14 +664,14 @@ svr4_mknod(td, retval, path, mode, dev)
 
 	if (S_ISFIFO(mode)) {
 		struct mkfifo_args ap;
-		ap.path = path;
-		ap.mode = mode;
+		SCARG(&ap, path) = path;
+		SCARG(&ap, mode) = mode;
 		return mkfifo(td, &ap);
 	} else {
 		struct mknod_args ap;
-		ap.path = path;
-		ap.mode = mode;
-		ap.dev = dev;
+		SCARG(&ap, path) = path;
+		SCARG(&ap, mode) = mode;
+		SCARG(&ap, dev) = dev;
 		return mknod(td, &ap);
 	}
 }
@@ -684,8 +684,8 @@ svr4_sys_mknod(td, uap)
 {
         int *retval = td->td_retval;
 	return svr4_mknod(td, retval,
-			  uap->path, uap->mode,
-			  (svr4_dev_t)svr4_to_bsd_odev_t(uap->dev));
+			  SCARG(uap, path), SCARG(uap, mode),
+			  (svr4_dev_t)svr4_to_bsd_odev_t(SCARG(uap, dev)));
 }
 
 
@@ -696,8 +696,8 @@ svr4_sys_xmknod(td, uap)
 {
         int *retval = td->td_retval;
 	return svr4_mknod(td, retval,
-			  uap->path, uap->mode,
-			  (svr4_dev_t)svr4_to_bsd_dev_t(uap->dev));
+			  SCARG(uap, path), SCARG(uap, mode),
+			  (svr4_dev_t)svr4_to_bsd_dev_t(SCARG(uap, dev)));
 }
 
 
@@ -719,7 +719,7 @@ svr4_sys_sysconfig(td, uap)
 
 	retval = &(td->td_retval[0]);
 
-	switch (uap->name) {
+	switch (SCARG(uap, name)) {
 	case SVR4_CONFIG_UNUSED:
 		*retval = 0;
 		break;
@@ -823,7 +823,7 @@ svr4_sys_break(td, uap)
 	int rv;
 
 	base = round_page((vm_offset_t) vm->vm_daddr);
-	ns = (vm_offset_t)uap->nsize;
+	ns = (vm_offset_t)SCARG(uap, nsize);
 	new = round_page(ns);
 	/* For p_rlimit. */
 	mtx_assert(&Giant, MA_OWNED);
@@ -890,8 +890,8 @@ svr4_sys_times(td, uap)
 	caddr_t sg = stackgap_init();
 	ru = stackgap_alloc(&sg, sizeof(struct rusage));
 
-	ga.who = RUSAGE_SELF;
-	ga.rusage = ru;
+	SCARG(&ga, who) = RUSAGE_SELF;
+	SCARG(&ga, rusage) = ru;
 
 	error = getrusage(td, &ga);
 	if (error)
@@ -903,7 +903,7 @@ svr4_sys_times(td, uap)
 	tms.tms_utime = timeval_to_clock_t(&r.ru_utime);
 	tms.tms_stime = timeval_to_clock_t(&r.ru_stime);
 
-	ga.who = RUSAGE_CHILDREN;
+	SCARG(&ga, who) = RUSAGE_CHILDREN;
 	error = getrusage(td, &ga);
 	if (error)
 		return error;
@@ -917,7 +917,7 @@ svr4_sys_times(td, uap)
 	microtime(&t);
 	*retval = timeval_to_clock_t(&t);
 
-	return copyout(&tms, uap->tp, sizeof(tms));
+	return copyout(&tms, SCARG(uap, tp), sizeof(tms));
 }
 
 
@@ -928,7 +928,7 @@ svr4_sys_ulimit(td, uap)
 {
         int *retval = td->td_retval;
 
-	switch (uap->cmd) {
+	switch (SCARG(uap, cmd)) {
 	case SVR4_GFILLIM:
 		/* For p_rlimit below. */
 		mtx_assert(&Giant, MA_OWNED);
@@ -946,7 +946,7 @@ svr4_sys_ulimit(td, uap)
 			struct rlimit *url = (struct rlimit *) 
 				stackgap_alloc(&sg, sizeof *url);
 
-			krl.rlim_cur = uap->newlimit * 512;
+			krl.rlim_cur = SCARG(uap, newlimit) * 512;
 			mtx_assert(&Giant, MA_OWNED);
 			krl.rlim_max = td->td_proc->p_rlimit[RLIMIT_FSIZE].rlim_max;
 
@@ -954,8 +954,8 @@ svr4_sys_ulimit(td, uap)
 			if (error)
 				return error;
 
-			srl.which = RLIMIT_FSIZE;
-			srl.rlp = url;
+			SCARG(&srl, which) = RLIMIT_FSIZE;
+			SCARG(&srl, rlp) = url;
 
 			error = setrlimit(td, &srl);
 			if (error)
@@ -1020,7 +1020,7 @@ svr4_sys_pgrpsys(td, uap)
         int *retval = td->td_retval;
 	struct proc *p = td->td_proc;
 
-	switch (uap->cmd) {
+	switch (SCARG(uap, cmd)) {
 	case 1:			/* setpgrp() */
 		/*
 		 * SVR4 setpgrp() (which takes no arguments) has the
@@ -1039,9 +1039,9 @@ svr4_sys_pgrpsys(td, uap)
 		return 0;
 
 	case 2:			/* getsid(pid) */
-		if (uap->pid == 0)
+		if (SCARG(uap, pid) == 0)
 			PROC_LOCK(p);
-		else if ((p = svr4_pfind(uap->pid)) == NULL)
+		else if ((p = svr4_pfind(SCARG(uap, pid))) == NULL)
 			return ESRCH;
 		/*
 		 * This has already been initialized to the pid of
@@ -1056,9 +1056,9 @@ svr4_sys_pgrpsys(td, uap)
 
 	case 4:			/* getpgid(pid) */
 
-		if (uap->pid == 0)
+		if (SCARG(uap, pid) == 0)
 			PROC_LOCK(p);
-		else if ((p = svr4_pfind(uap->pid)) == NULL)
+		else if ((p = svr4_pfind(SCARG(uap, pid))) == NULL)
 			return ESRCH;
 
 		*retval = (int) p->p_pgrp->pg_id;
@@ -1069,8 +1069,8 @@ svr4_sys_pgrpsys(td, uap)
 		{
 			struct setpgid_args sa;
 
-			sa.pid = uap->pid;
-			sa.pgid = uap->pgid;
+			SCARG(&sa, pid) = SCARG(uap, pid);
+			SCARG(&sa, pgid) = SCARG(uap, pgid);
 			return setpgid(td, &sa);
 		}
 
@@ -1096,7 +1096,7 @@ svr4_hrtcntl(td, uap, retval)
 	struct svr4_hrtcntl_args *uap;
 	register_t *retval;
 {
-	switch (uap->fun) {
+	switch (SCARG(uap, fun)) {
 	case SVR4_HRT_CNTL_RES:
 		DPRINTF(("htrcntl(RES)\n"));
 		*retval = SVR4_HRT_USEC;
@@ -1107,11 +1107,11 @@ svr4_hrtcntl(td, uap, retval)
 		{
 			struct timeval tv;
 			svr4_hrt_time_t t;
-			if (uap->clk != SVR4_HRT_CLK_STD) {
-				DPRINTF(("clk == %d\n", uap->clk));
+			if (SCARG(uap, clk) != SVR4_HRT_CLK_STD) {
+				DPRINTF(("clk == %d\n", SCARG(uap, clk)));
 				return EINVAL;
 			}
-			if (uap->ti == NULL) {
+			if (SCARG(uap, ti) == NULL) {
 				DPRINTF(("ti NULL\n"));
 				return EINVAL;
 			}
@@ -1119,7 +1119,7 @@ svr4_hrtcntl(td, uap, retval)
 			t.h_sec = tv.tv_sec;
 			t.h_rem = tv.tv_usec;
 			t.h_res = SVR4_HRT_USEC;
-			return copyout(&t, uap->ti, sizeof(t));
+			return copyout(&t, SCARG(uap, ti), sizeof(t));
 		}
 
 	case SVR4_HRT_CNTL_START:
@@ -1130,7 +1130,7 @@ svr4_hrtcntl(td, uap, retval)
 		DPRINTF(("htrcntl(GET)\n"));
 		return ENOSYS;
 	default:
-		DPRINTF(("Bad htrcntl command %d\n", uap->fun));
+		DPRINTF(("Bad htrcntl command %d\n", SCARG(uap, fun)));
 		return ENOSYS;
 	}
 }
@@ -1143,7 +1143,7 @@ svr4_sys_hrtsys(td, uap)
 {
         int *retval = td->td_retval;
 
-	switch (uap->cmd) {
+	switch (SCARG(uap, cmd)) {
 	case SVR4_HRT_CNTL:
 		return svr4_hrtcntl(td, (struct svr4_hrtcntl_args *) uap,
 				    retval);
@@ -1161,7 +1161,7 @@ svr4_sys_hrtsys(td, uap)
 		return ENOSYS;
 
 	default:
-		DPRINTF(("Bad hrtsys command %d\n", uap->cmd));
+		DPRINTF(("Bad hrtsys command %d\n", SCARG(uap, cmd)));
 		return EINVAL;
 	}
 }
@@ -1235,18 +1235,18 @@ svr4_sys_waitsys(td, uap)
 	struct proc *q, *t;
 
 
-	switch (uap->grp) {
+	switch (SCARG(uap, grp)) {
 	case SVR4_P_PID:	
 		break;
 
 	case SVR4_P_PGID:
 		PROC_LOCK(td->td_proc);
-		uap->id = -td->td_proc->p_pgid;
+		SCARG(uap, id) = -td->td_proc->p_pgid;
 		PROC_UNLOCK(td->td_proc);
 		break;
 
 	case SVR4_P_ALL:
-		uap->id = WAIT_ANY;
+		SCARG(uap, id) = WAIT_ANY;
 		break;
 
 	default:
@@ -1254,37 +1254,37 @@ svr4_sys_waitsys(td, uap)
 	}
 
 	DPRINTF(("waitsys(%d, %d, %p, %x)\n", 
-	         uap->grp, uap->id,
-		 uap->info, uap->options));
+	         SCARG(uap, grp), SCARG(uap, id),
+		 SCARG(uap, info), SCARG(uap, options)));
 
 loop:
 	nfound = 0;
 	sx_slock(&proctree_lock);
 	LIST_FOREACH(q, &td->td_proc->p_children, p_sibling) {
 		PROC_LOCK(q);
-		if (uap->id != WAIT_ANY &&
-		    q->p_pid != uap->id &&
-		    q->p_pgid != -uap->id) {
+		if (SCARG(uap, id) != WAIT_ANY &&
+		    q->p_pid != SCARG(uap, id) &&
+		    q->p_pgid != -SCARG(uap, id)) {
 			PROC_UNLOCK(q);
 			DPRINTF(("pid %d pgid %d != %d\n", q->p_pid,
-				 q->p_pgid, uap->id));
+				 q->p_pgid, SCARG(uap, id)));
 			continue;
 		}
 		nfound++;
 		mtx_lock_spin(&sched_lock);
 		if ((q->p_state == PRS_ZOMBIE) && 
-		    ((uap->options & (SVR4_WEXITED|SVR4_WTRAPPED)))) {
+		    ((SCARG(uap, options) & (SVR4_WEXITED|SVR4_WTRAPPED)))) {
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(q);
 			sx_sunlock(&proctree_lock);
 			*retval = 0;
 			DPRINTF(("found %d\n", q->p_pid));
-			error = svr4_setinfo(q, q->p_xstat, uap->info);
+			error = svr4_setinfo(q, q->p_xstat, SCARG(uap, info));
 			if (error != 0)
 				return error;
 
 
-		        if ((uap->options & SVR4_WNOWAIT)) {
+		        if ((SCARG(uap, options) & SVR4_WNOWAIT)) {
 				DPRINTF(("Don't wait\n"));
 				return 0;
 			}
@@ -1391,15 +1391,15 @@ loop:
 		/* XXXKSE this needs clarification */
 		if (P_SHOULDSTOP(q) && ((q->p_flag & P_WAITED) == 0) &&
 		    (q->p_flag & P_TRACED ||
-		     (uap->options & (SVR4_WSTOPPED|SVR4_WCONTINUED)))) {
+		     (SCARG(uap, options) & (SVR4_WSTOPPED|SVR4_WCONTINUED)))) {
 			mtx_unlock_spin(&sched_lock);
 			DPRINTF(("jobcontrol %d\n", q->p_pid));
-		        if (((uap->options & SVR4_WNOWAIT)) == 0)
+		        if (((SCARG(uap, options) & SVR4_WNOWAIT)) == 0)
 				q->p_flag |= P_WAITED;
 			PROC_UNLOCK(q);
 			*retval = 0;
 			return svr4_setinfo(q, W_STOPCODE(q->p_xstat),
-					    uap->info);
+					    SCARG(uap, info));
 		}
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(q);
@@ -1408,9 +1408,9 @@ loop:
 	if (nfound == 0)
 		return ECHILD;
 
-	if (uap->options & SVR4_WNOHANG) {
+	if (SCARG(uap, options) & SVR4_WNOHANG) {
 		*retval = 0;
-		if ((error = svr4_setinfo(NULL, 0, uap->info)) != 0)
+		if ((error = svr4_setinfo(NULL, 0, SCARG(uap, info))) != 0)
 			return error;
 		return 0;
 	}
@@ -1485,9 +1485,9 @@ svr4_sys_statvfs(td, uap)
 	struct svr4_statvfs sfs;
 	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	fs_args.path = uap->path;
-	fs_args.buf = fs;
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
+	SCARG(&fs_args, path) = SCARG(uap, path);
+	SCARG(&fs_args, buf) = fs;
 
 	if ((error = statfs(td, &fs_args)) != 0)
 		return error;
@@ -1497,7 +1497,7 @@ svr4_sys_statvfs(td, uap)
 
 	bsd_statfs_to_svr4_statvfs(&bfs, &sfs);
 
-	return copyout(&sfs, uap->fs, sizeof(sfs));
+	return copyout(&sfs, SCARG(uap, fs), sizeof(sfs));
 }
 
 
@@ -1513,8 +1513,8 @@ svr4_sys_fstatvfs(td, uap)
 	struct svr4_statvfs sfs;
 	int error;
 
-	fs_args.fd = uap->fd;
-	fs_args.buf = fs;
+	SCARG(&fs_args, fd) = SCARG(uap, fd);
+	SCARG(&fs_args, buf) = fs;
 
 	if ((error = fstatfs(td, &fs_args)) != 0)
 		return error;
@@ -1524,7 +1524,7 @@ svr4_sys_fstatvfs(td, uap)
 
 	bsd_statfs_to_svr4_statvfs(&bfs, &sfs);
 
-	return copyout(&sfs, uap->fs, sizeof(sfs));
+	return copyout(&sfs, SCARG(uap, fs), sizeof(sfs));
 }
 
 
@@ -1540,9 +1540,9 @@ svr4_sys_statvfs64(td, uap)
 	struct svr4_statvfs64 sfs;
 	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	fs_args.path = uap->path;
-	fs_args.buf = fs;
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
+	SCARG(&fs_args, path) = SCARG(uap, path);
+	SCARG(&fs_args, buf) = fs;
 
 	if ((error = statfs(td, &fs_args)) != 0)
 		return error;
@@ -1552,7 +1552,7 @@ svr4_sys_statvfs64(td, uap)
 
 	bsd_statfs_to_svr4_statvfs64(&bfs, &sfs);
 
-	return copyout(&sfs, uap->fs, sizeof(sfs));
+	return copyout(&sfs, SCARG(uap, fs), sizeof(sfs));
 }
 
 
@@ -1568,8 +1568,8 @@ svr4_sys_fstatvfs64(td, uap)
 	struct svr4_statvfs64 sfs;
 	int error;
 
-	fs_args.fd = uap->fd;
-	fs_args.buf = fs;
+	SCARG(&fs_args, fd) = SCARG(uap, fd);
+	SCARG(&fs_args, buf) = fs;
 
 	if ((error = fstatfs(td, &fs_args)) != 0)
 		return error;
@@ -1579,7 +1579,7 @@ svr4_sys_fstatvfs64(td, uap)
 
 	bsd_statfs_to_svr4_statvfs64(&bfs, &sfs);
 
-	return copyout(&sfs, uap->fs, sizeof(sfs));
+	return copyout(&sfs, SCARG(uap, fs), sizeof(sfs));
 }
 
 int
@@ -1595,12 +1595,12 @@ svr4_sys_alarm(td, uap)
         itp = stackgap_alloc(&sg, sizeof(*itp));
 	oitp = stackgap_alloc(&sg, sizeof(*oitp));
         timevalclear(&itp->it_interval);
-        itp->it_value.tv_sec = uap->sec;
+        itp->it_value.tv_sec = SCARG(uap, sec);
         itp->it_value.tv_usec = 0;
 
-	sa.which = ITIMER_REAL;
-	sa.itv = itp;
-	sa.oitv = oitp;
+	SCARG(&sa, which) = ITIMER_REAL;
+	SCARG(&sa, itv) = itp;
+	SCARG(&sa, oitv) = oitp;
         error = setitimer(td, &sa);
 	if (error)
 		return error;
@@ -1616,11 +1616,11 @@ svr4_sys_gettimeofday(td, uap)
 	struct thread *td;
 	struct svr4_sys_gettimeofday_args *uap;
 {
-	if (uap->tp) {
+	if (SCARG(uap, tp)) {
 		struct timeval atv;
 
 		microtime(&atv);
-		return copyout(&atv, uap->tp, sizeof (atv));
+		return copyout(&atv, SCARG(uap, tp), sizeof (atv));
 	}
 
 	return 0;
@@ -1636,14 +1636,14 @@ svr4_sys_facl(td, uap)
 	retval = td->td_retval;
 	*retval = 0;
 
-	switch (uap->cmd) {
+	switch (SCARG(uap, cmd)) {
 	case SVR4_SYS_SETACL:
 		/* We don't support acls on any filesystem */
 		return ENOSYS;
 
 	case SVR4_SYS_GETACL:
-		return copyout(retval, &uap->num,
-		    sizeof(uap->num));
+		return copyout(retval, &SCARG(uap, num),
+		    sizeof(SCARG(uap, num)));
 
 	case SVR4_SYS_GETACLCNT:
 		return 0;
@@ -1679,14 +1679,14 @@ svr4_sys_memcntl(td, uap)
 	struct thread *td;
 	struct svr4_sys_memcntl_args *uap;
 {
-	switch (uap->cmd) {
+	switch (SCARG(uap, cmd)) {
 	case SVR4_MC_SYNC:
 		{
 			struct msync_args msa;
 
-			msa.addr = uap->addr;
-			msa.len = uap->len;
-			msa.flags = (int)uap->arg;
+			SCARG(&msa, addr) = SCARG(uap, addr);
+			SCARG(&msa, len) = SCARG(uap, len);
+			SCARG(&msa, flags) = (int)SCARG(uap, arg);
 
 			return msync(td, &msa);
 		}
@@ -1694,9 +1694,9 @@ svr4_sys_memcntl(td, uap)
 		{
 			struct madvise_args maa;
 
-			maa.addr = uap->addr;
-			maa.len = uap->len;
-			maa.behav = (int)uap->arg;
+			SCARG(&maa, addr) = SCARG(uap, addr);
+			SCARG(&maa, len) = SCARG(uap, len);
+			SCARG(&maa, behav) = (int)SCARG(uap, arg);
 
 			return madvise(td, &maa);
 		}
@@ -1719,9 +1719,9 @@ svr4_sys_nice(td, uap)
 	struct setpriority_args ap;
 	int error;
 
-	ap.which = PRIO_PROCESS;
-	ap.who = 0;
-	ap.prio = uap->prio;
+	SCARG(&ap, which) = PRIO_PROCESS;
+	SCARG(&ap, who) = 0;
+	SCARG(&ap, prio) = SCARG(uap, prio);
 
 	if ((error = setpriority(td, &ap)) != 0)
 		return error;
@@ -1742,17 +1742,17 @@ svr4_sys_resolvepath(td, uap)
 	int error, *retval = td->td_retval;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | SAVENAME, UIO_USERSPACE,
-	    uap->path, td);
+	    SCARG(uap, path), td);
 
 	if ((error = namei(&nd)) != 0)
 		return error;
 
-	if ((error = copyout(nd.ni_cnd.cn_pnbuf, uap->buf,
-	    uap->bufsiz)) != 0)
+	if ((error = copyout(nd.ni_cnd.cn_pnbuf, SCARG(uap, buf),
+	    SCARG(uap, bufsiz))) != 0)
 		goto bad;
 
-	*retval = strlen(nd.ni_cnd.cn_pnbuf) < uap->bufsiz ? 
-	  strlen(nd.ni_cnd.cn_pnbuf) + 1 : uap->bufsiz;
+	*retval = strlen(nd.ni_cnd.cn_pnbuf) < SCARG(uap, bufsiz) ? 
+	  strlen(nd.ni_cnd.cn_pnbuf) + 1 : SCARG(uap, bufsiz);
 bad:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);

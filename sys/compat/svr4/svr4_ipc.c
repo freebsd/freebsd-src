@@ -221,55 +221,55 @@ svr4_semctl(p, v, retval)
 	struct semid_ds bs, *bsp;
 	caddr_t sg = stackgap_init();
 
-	ap.semid = uap->semid;
-	ap.semnum = uap->semnum;
+	SCARG(&ap, semid) = SCARG(uap, semid);
+	SCARG(&ap, semnum) = SCARG(uap, semnum);
 
-	switch (uap->cmd) {
+	switch (SCARG(uap, cmd)) {
 	case SVR4_SEM_GETZCNT:
 	case SVR4_SEM_GETNCNT:
 	case SVR4_SEM_GETPID:
 	case SVR4_SEM_GETVAL:
-		switch (uap->cmd) {
+		switch (SCARG(uap, cmd)) {
 		case SVR4_SEM_GETZCNT:
-			ap.cmd = GETZCNT;
+			SCARG(&ap, cmd) = GETZCNT;
 			break;
 		case SVR4_SEM_GETNCNT:
-			ap.cmd = GETNCNT;
+			SCARG(&ap, cmd) = GETNCNT;
 			break;
 		case SVR4_SEM_GETPID:
-			ap.cmd = GETPID;
+			SCARG(&ap, cmd) = GETPID;
 			break;
 		case SVR4_SEM_GETVAL:
-			ap.cmd = GETVAL;
+			SCARG(&ap, cmd) = GETVAL;
 			break;
 		}
 		return sys___semctl(p, &ap, retval);
 
 	case SVR4_SEM_SETVAL:
-		error = svr4_setsemun(&sg, &ap.arg, &uap->arg);
+		error = svr4_setsemun(&sg, &SCARG(&ap, arg), &SCARG(uap, arg));
 		if (error)
 			return error;
-		ap.cmd = SETVAL;
+		SCARG(&ap, cmd) = SETVAL;
 		return sys___semctl(p, &ap, retval);
 
 	case SVR4_SEM_GETALL:
-		error = svr4_setsemun(&sg, &ap.arg, &uap->arg);
+		error = svr4_setsemun(&sg, &SCARG(&ap, arg), &SCARG(uap, arg));
 		if (error)
 			return error;
-		ap.cmd = GETVAL;
+		SCARG(&ap, cmd) = GETVAL;
 		return sys___semctl(p, &ap, retval);
 
 	case SVR4_SEM_SETALL:
-		error = svr4_setsemun(&sg, &ap.arg, &uap->arg);
+		error = svr4_setsemun(&sg, &SCARG(&ap, arg), &SCARG(uap, arg));
 		if (error)
 			return error;
-		ap.cmd = SETVAL;
+		SCARG(&ap, cmd) = SETVAL;
 		return sys___semctl(p, &ap, retval);
 
 	case SVR4_IPC_STAT:
-                ap.cmd = IPC_STAT;
+                SCARG(&ap, cmd) = IPC_STAT;
 		bsp = stackgap_alloc(&sg, sizeof(bs));
-		error = svr4_setsemun(&sg, &ap.arg,
+		error = svr4_setsemun(&sg, &SCARG(&ap, arg),
 				      (union semun *)&bsp);
 		if (error)
 			return error;
@@ -279,16 +279,16 @@ svr4_semctl(p, v, retval)
                 if (error)
                         return error;
                 bsd_to_svr4_semid_ds(&bs, &ss);
-		return copyout(&ss, uap->arg.buf, sizeof(ss));
+		return copyout(&ss, SCARG(uap, arg).buf, sizeof(ss));
 
 	case SVR4_IPC_SET:
-		ap.cmd = IPC_SET;
+		SCARG(&ap, cmd) = IPC_SET;
 		bsp = stackgap_alloc(&sg, sizeof(bs));
-		error = svr4_setsemun(&sg, &ap.arg,
+		error = svr4_setsemun(&sg, &SCARG(&ap, arg),
 				      (union semun *)&bsp);
 		if (error)
 			return error;
-		error = copyin(uap->arg.buf, (caddr_t) &ss, sizeof ss);
+		error = copyin(SCARG(uap, arg).buf, (caddr_t) &ss, sizeof ss);
                 if (error)
                         return error;
                 svr4_to_bsd_semid_ds(&ss, &bs);
@@ -298,13 +298,13 @@ svr4_semctl(p, v, retval)
 		return sys___semctl(p, &ap, retval);
 
 	case SVR4_IPC_RMID:
-		ap.cmd = IPC_RMID;
+		SCARG(&ap, cmd) = IPC_RMID;
 		bsp = stackgap_alloc(&sg, sizeof(bs));
-		error = svr4_setsemun(&sg, &ap.arg,
+		error = svr4_setsemun(&sg, &SCARG(&ap, arg),
 				      (union semun *)&bsp);
 		if (error)
 			return error;
-		error = copyin(uap->arg.buf, &ss, sizeof ss);
+		error = copyin(SCARG(uap, arg).buf, &ss, sizeof ss);
                 if (error)
                         return error;
                 svr4_to_bsd_semid_ds(&ss, &bs);
@@ -334,9 +334,9 @@ svr4_semget(p, v, retval)
 	struct svr4_sys_semget_args *uap = v;
 	struct sys_semget_args ap;
 
-	ap.key = uap->key;
-	ap.nsems = uap->nsems;
-	ap.semflg = uap->semflg;
+	SCARG(&ap, key) = SCARG(uap, key);
+	SCARG(&ap, nsems) = SCARG(uap, nsems);
+	SCARG(&ap, semflg) = SCARG(uap, semflg);
 
 	return sys_semget(p, &ap, retval);
 }
@@ -357,10 +357,10 @@ svr4_semop(p, v, retval)
 	struct svr4_sys_semop_args *uap = v;
 	struct sys_semop_args ap;
 
-	ap.semid = uap->semid;
+	SCARG(&ap, semid) = SCARG(uap, semid);
 	/* These are the same */
-	ap.sops = (struct sembuf *) uap->sops;
-	ap.nsops = uap->nsops;
+	SCARG(&ap, sops) = (struct sembuf *) SCARG(uap, sops);
+	SCARG(&ap, nsops) = SCARG(uap, nsops);
 
 	return sys_semop(p, &ap, retval);
 }
@@ -373,9 +373,9 @@ svr4_sys_semsys(p, v, retval)
 {
 	struct svr4_sys_semsys_args *uap = v;
 
-	DPRINTF(("svr4_semsys(%d)\n", uap->what));
+	DPRINTF(("svr4_semsys(%d)\n", SCARG(uap, what)));
 
-	switch (uap->what) {
+	switch (SCARG(uap, what)) {
 	case SVR4_semctl:
 		return svr4_semctl(p, v, retval);
 	case SVR4_semget:
@@ -462,10 +462,10 @@ svr4_msgsnd(p, v, retval)
 	struct svr4_sys_msgsnd_args *uap = v;
 	struct sys_msgsnd_args ap;
 
-	ap.msqid = uap->msqid;
-	ap.msgp = uap->msgp;
-	ap.msgsz = uap->msgsz;
-	ap.msgflg = uap->msgflg;
+	SCARG(&ap, msqid) = SCARG(uap, msqid);
+	SCARG(&ap, msgp) = SCARG(uap, msgp);
+	SCARG(&ap, msgsz) = SCARG(uap, msgsz);
+	SCARG(&ap, msgflg) = SCARG(uap, msgflg);
 
 	return sys_msgsnd(p, &ap, retval);
 }
@@ -488,11 +488,11 @@ svr4_msgrcv(p, v, retval)
 	struct svr4_sys_msgrcv_args *uap = v;
 	struct sys_msgrcv_args ap;
 
-	ap.msqid = uap->msqid;
-	ap.msgp = uap->msgp;
-	ap.msgsz = uap->msgsz;
-	ap.msgtyp = uap->msgtyp;
-	ap.msgflg = uap->msgflg;
+	SCARG(&ap, msqid) = SCARG(uap, msqid);
+	SCARG(&ap, msgp) = SCARG(uap, msgp);
+	SCARG(&ap, msgsz) = SCARG(uap, msgsz);
+	SCARG(&ap, msgtyp) = SCARG(uap, msgtyp);
+	SCARG(&ap, msgflg) = SCARG(uap, msgflg);
 
 	return sys_msgrcv(p, &ap, retval);
 }
@@ -512,8 +512,8 @@ svr4_msgget(p, v, retval)
 	struct svr4_sys_msgget_args *uap = v;
 	struct sys_msgget_args ap;
 
-	ap.key = uap->key;
-	ap.msgflg = uap->msgflg;
+	SCARG(&ap, key) = SCARG(uap, key);
+	SCARG(&ap, msgflg) = SCARG(uap, msgflg);
 
 	return sys_msgget(p, &ap, retval);
 }
@@ -538,39 +538,39 @@ svr4_msgctl(p, v, retval)
 	struct msqid_ds bs;
 	caddr_t sg = stackgap_init();
 
-	ap.msqid = uap->msqid;
-	ap.cmd = uap->cmd;
-	ap.buf = stackgap_alloc(&sg, sizeof(bs));
+	SCARG(&ap, msqid) = SCARG(uap, msqid);
+	SCARG(&ap, cmd) = SCARG(uap, cmd);
+	SCARG(&ap, buf) = stackgap_alloc(&sg, sizeof(bs));
 
-	switch (uap->cmd) {
+	switch (SCARG(uap, cmd)) {
 	case SVR4_IPC_STAT:
-		ap.cmd = IPC_STAT;
+		SCARG(&ap, cmd) = IPC_STAT;
 		if ((error = sys_msgctl(p, &ap, retval)) != 0)
 			return error;
-		error = copyin(&bs, ap.buf, sizeof bs);
+		error = copyin(&bs, SCARG(&ap, buf), sizeof bs);
 		if (error)
 			return error;
 		bsd_to_svr4_msqid_ds(&bs, &ss);
-		return copyout(&ss, uap->buf, sizeof ss);
+		return copyout(&ss, SCARG(uap, buf), sizeof ss);
 
 	case SVR4_IPC_SET:
-		ap.cmd = IPC_SET;
-		error = copyin(uap->buf, &ss, sizeof ss);
+		SCARG(&ap, cmd) = IPC_SET;
+		error = copyin(SCARG(uap, buf), &ss, sizeof ss);
 		if (error)
 			return error;
 		svr4_to_bsd_msqid_ds(&ss, &bs);
-		error = copyout(&bs, ap.buf, sizeof bs);
+		error = copyout(&bs, SCARG(&ap, buf), sizeof bs);
 		if (error)
 			return error;
 		return sys_msgctl(p, &ap, retval);
 
 	case SVR4_IPC_RMID:
-		ap.cmd = IPC_RMID;
-		error = copyin(uap->buf, &ss, sizeof ss);
+		SCARG(&ap, cmd) = IPC_RMID;
+		error = copyin(SCARG(uap, buf), &ss, sizeof ss);
 		if (error)
 			return error;
 		svr4_to_bsd_msqid_ds(&ss, &bs);
-		error = copyout(&bs, ap.buf, sizeof bs);
+		error = copyout(&bs, SCARG(&ap, buf), sizeof bs);
 		if (error)
 			return error;
 		return sys_msgctl(p, &ap, retval);
@@ -588,9 +588,9 @@ svr4_sys_msgsys(p, v, retval)
 {
 	struct svr4_sys_msgsys_args *uap = v;
 
-	DPRINTF(("svr4_msgsys(%d)\n", uap->what));
+	DPRINTF(("svr4_msgsys(%d)\n", SCARG(uap, what)));
 
-	switch (uap->what) {
+	switch (SCARG(uap, what)) {
 	case SVR4_msgsnd:
 		return svr4_msgsnd(p, v, retval);
 	case SVR4_msgrcv:
@@ -660,9 +660,9 @@ svr4_shmat(p, v, retval)
 	struct svr4_sys_shmat_args *uap = v;
 	struct sys_shmat_args ap;
 
-	ap.shmid = uap->shmid;
-	ap.shmaddr = uap->shmaddr;
-	ap.shmflg = uap->shmflg;
+	SCARG(&ap, shmid) = SCARG(uap, shmid);
+	SCARG(&ap, shmaddr) = SCARG(uap, shmaddr);
+	SCARG(&ap, shmflg) = SCARG(uap, shmflg);
 
 	return sys_shmat(p, &ap, retval);
 }
@@ -681,7 +681,7 @@ svr4_shmdt(p, v, retval)
 	struct svr4_sys_shmdt_args *uap = v;
 	struct sys_shmdt_args ap;
 
-	ap.shmaddr = uap->shmaddr;
+	SCARG(&ap, shmaddr) = SCARG(uap, shmaddr);
 
 	return sys_shmdt(p, &ap, retval);
 }
@@ -702,9 +702,9 @@ svr4_shmget(p, v, retval)
 	struct svr4_sys_shmget_args *uap = v;
 	struct sys_shmget_args ap;
 
-	ap.key = uap->key;
-	ap.size = uap->size;
-	ap.shmflg = uap->shmflg;
+	SCARG(&ap, key) = SCARG(uap, key);
+	SCARG(&ap, size) = SCARG(uap, size);
+	SCARG(&ap, shmflg) = SCARG(uap, shmflg);
 
 	return sys_shmget(p, &ap, retval);
 }
@@ -729,21 +729,21 @@ svr4_shmctl(p, v, retval)
 	struct shmid_ds bs;
 	struct svr4_shmid_ds ss;
 
-	ap.shmid = uap->shmid;
+	SCARG(&ap, shmid) = SCARG(uap, shmid);
 
-	if (uap->buf != NULL) {
-		ap.buf = stackgap_alloc(&sg, sizeof (struct shmid_ds));
-		switch (uap->cmd) {
+	if (SCARG(uap, buf) != NULL) {
+		SCARG(&ap, buf) = stackgap_alloc(&sg, sizeof (struct shmid_ds));
+		switch (SCARG(uap, cmd)) {
 		case SVR4_IPC_SET:
 		case SVR4_IPC_RMID:
 		case SVR4_SHM_LOCK:
 		case SVR4_SHM_UNLOCK:
-			error = copyin(uap->buf, (caddr_t) &ss,
+			error = copyin(SCARG(uap, buf), (caddr_t) &ss,
 			    sizeof ss);
 			if (error)
 				return error;
 			svr4_to_bsd_shmid_ds(&ss, &bs);
-			error = copyout(&bs, ap.buf, sizeof bs);
+			error = copyout(&bs, SCARG(&ap, buf), sizeof bs);
 			if (error)
 				return error;
 			break;
@@ -752,38 +752,38 @@ svr4_shmctl(p, v, retval)
 		}
 	}
 	else
-		ap.buf = NULL;
+		SCARG(&ap, buf) = NULL;
 
 
-	switch (uap->cmd) {
+	switch (SCARG(uap, cmd)) {
 	case SVR4_IPC_STAT:
-		ap.cmd = IPC_STAT;
+		SCARG(&ap, cmd) = IPC_STAT;
 		if ((error = sys_shmctl(p, &ap, retval)) != 0)
 			return error;
-		if (uap->buf == NULL)
+		if (SCARG(uap, buf) == NULL)
 			return 0;
-		error = copyin(&bs, ap.buf, sizeof bs);
+		error = copyin(&bs, SCARG(&ap, buf), sizeof bs);
 		if (error)
 			return error;
 		bsd_to_svr4_shmid_ds(&bs, &ss);
-		return copyout(&ss, uap->buf, sizeof ss);
+		return copyout(&ss, SCARG(uap, buf), sizeof ss);
 
 	case SVR4_IPC_SET:
-		ap.cmd = IPC_SET;
+		SCARG(&ap, cmd) = IPC_SET;
 		return sys_shmctl(p, &ap, retval);
 
 	case SVR4_IPC_RMID:
 	case SVR4_SHM_LOCK:
 	case SVR4_SHM_UNLOCK:
-		switch (uap->cmd) {
+		switch (SCARG(uap, cmd)) {
 		case SVR4_IPC_RMID:
-			ap.cmd = IPC_RMID;
+			SCARG(&ap, cmd) = IPC_RMID;
 			break;
 		case SVR4_SHM_LOCK:
-			ap.cmd = SHM_LOCK;
+			SCARG(&ap, cmd) = SHM_LOCK;
 			break;
 		case SVR4_SHM_UNLOCK:
-			ap.cmd = SHM_UNLOCK;
+			SCARG(&ap, cmd) = SHM_UNLOCK;
 			break;
 		default:
 			return EINVAL;
@@ -803,9 +803,9 @@ svr4_sys_shmsys(p, v, retval)
 {
 	struct svr4_sys_shmsys_args *uap = v;
 
-	DPRINTF(("svr4_shmsys(%d)\n", uap->what));
+	DPRINTF(("svr4_shmsys(%d)\n", SCARG(uap, what)));
 
-	switch (uap->what) {
+	switch (SCARG(uap, what)) {
 	case SVR4_shmat:
 		return svr4_shmat(p, v, retval);
 	case SVR4_shmdt:
