@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.71 1998/03/15 16:15:47 jkh Exp $
+ * $Id: devices.c,v 1.72 1998/03/16 14:33:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -302,12 +302,13 @@ skipif:
 		if (fd >= 0 && RunningAsInit) {
 		    dev_t d;
 		    int s, fail;
-		    char slice[80];
+		    char unit[80], slice[80];
 
 		    close(fd);
 		    /* Make associated slice entries */
 		    for (s = 1; s < 33; s++) {
-			snprintf(slice, sizeof slice, "/dev/%ss%d", device_names[i].name, s);
+			snprintf(unit, sizeof unit, device_names[i].name, i);
+			snprintf(slice, sizeof slice, "/dev/%ss%d", unit, s);
 			d = makedev(device_names[i].major, device_names[i].minor +
 				    (j * device_names[i].delta) + (s * SLICE_DELTA));
 			fail = mknod(slice, 0640 | S_IFBLK, d);
