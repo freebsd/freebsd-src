@@ -288,6 +288,8 @@ void	nfs_clearcommit(struct mount *);
 int	nfs_writebp(struct buf *, int, struct thread *);
 int	nfs_fsinfo(struct nfsmount *, struct vnode *, struct ucred *,
 	    struct thread *);
+int	nfs_meta_setsize (struct vnode *, struct ucred *,
+	    struct thread *, u_quad_t);
 
 #endif	/* _KERNEL */
 
