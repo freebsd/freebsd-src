@@ -139,6 +139,7 @@ struct vn_softc {
 	int		 sc_maxactive;	/* max # of active requests 	*/
 	struct buf	 sc_tab;	/* transfer queue 		*/
 	u_long		 sc_options;	/* options 			*/
+	dev_t		 sc_devlist;	/* devices that refer to this unit */
 	SLIST_ENTRY(vn_softc) sc_list;
 };
 
@@ -181,6 +182,8 @@ vnfindvn(dev_t dev)
 	if (!vn) {
 		SLIST_FOREACH(vn, &vn_list, sc_list) {
 			if (vn->sc_unit == unit) {
+				dev->si_drv2 = vn->sc_devlist;
+				vn->sc_devlist = dev;
 				dev->si_drv1 = vn;
 				break;
 			}
@@ -193,8 +196,14 @@ vnfindvn(dev_t dev)
 		bzero(vn, sizeof *vn);
 		vn->sc_unit = unit;
 		dev->si_drv1 = vn;
-		make_dev(&vn_cdevsw, 0, 
+		vn->sc_devlist = make_dev(&vn_cdevsw, 0,
 		    UID_ROOT, GID_OPERATOR, 0640, "vn%d", unit);
+		vn->sc_devlist->si_drv1 = vn;
+		vn->sc_devlist->si_drv2 = NULL;
+		if (vn->sc_devlist != dev) {
+			dev->si_drv2 = vn->sc_devlist;
+			vn->sc_devlist = dev;
+		}
 		SLIST_INSERT_HEAD(&vn_list, vn, sc_list);
 	}
 	return (vn);
@@ -758,6 +767,7 @@ static int
 vn_modevent(module_t mod, int type, void *data)
 {
 	struct vn_softc *vn;
+	dev_t dev;
 
 	switch (type) {
 	case MOD_LOAD:
@@ -774,8 +784,17 @@ vn_modevent(module_t mod, int type, void *data)
 			SLIST_REMOVE_HEAD(&vn_list, sc_list);
 			if (vn->sc_flags & VNF_INITED)
 				vnclear(vn);
+			/* Cleanup all dev_t's that refer to this unit */
+			while ((dev = vn->sc_devlist) != NULL) {
+				vn->sc_devlist = dev->si_drv2;
+				dev->si_drv1 = dev->si_drv2 = NULL;
+				/* If the last one, destroy it. */
+				if (vn->sc_devlist == NULL)
+					destroy_dev(dev);
+			}
 			free(vn, M_DEVBUF);
 		}
+		cdevsw_remove(&vn_cdevsw);
 		break;
 	default:
 		break;
