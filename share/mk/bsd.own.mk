@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.6 1996/05/25 23:09:49 wosch Exp $
+#	$Id: bsd.own.mk,v 1.7 1996/06/24 04:24:08 jkh Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
@@ -17,6 +17,11 @@
 #		building our own install script so that the entire system
 #		can either be installed with copies, or with moves using
 #		a single knob. [-c]
+#
+# COMPRESS_CMD	Program to compress documents. 
+#		Output is to stdout. [gzip -c]
+#
+# COMPRESS_EXT	File name extension of ${COMPRESS_CMD} command. [.gz]
 #
 # STRIP		The flag passed to the install program to cause the binary
 #		to be stripped.  This is to be used when building your
@@ -158,3 +163,5 @@ STRIP?=		-s
 .endif
 
 COPY?=		-c
+COMPRESS_CMD?=	gzip -c
+COMPRESS_EXT?=	.gz

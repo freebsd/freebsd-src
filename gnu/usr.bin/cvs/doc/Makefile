@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1996/08/21 00:35:53 peter Exp $
+# $Id: Makefile,v 1.5 1996/08/21 00:57:26 peter Exp $
 
 BINDIR?=	${INFODIR}
 
@@ -9,6 +9,10 @@ BINDIR?=	${INFODIR}
 MAKEINFOFLAGS+=	-I ${CVSDIR}/doc
 
 INFO=	cvs cvsclient
+INFOSECTION= "Programming & development tools."
+INFOENTRY_cvs= "* CVS: (cvs).			CVS Reference Manual."
+INFOENTRY_cvsclient= "* CVS-CLIENT: (cvsclient).	CVS client/server Reference Manual."
+
 
 cvs.info cvsclient.info:	CVSvn.texi
 
