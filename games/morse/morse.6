@@ -46,6 +46,7 @@
 .Op Fl e
 .Op Fl w Ar speed
 .Op Fl f Ar frequency
+.Op Fl l
 .Op Fl s
 .Op Ar string ...
 .Sh DESCRIPTION
@@ -56,6 +57,10 @@ Acceptable input are command line arguments or the standard input.
 .Pp
 Available options:
 .Bl -tag -width flag
+.It Fl l
+The
+.Fl l
+option produces output suitable for led(4) devices.
 .It Fl s
 The
 .Fl s

@@ -202,11 +202,11 @@ void            show(const char *), play(const char *), morse(char);
 void		ttyout(const char *);
 void		sighandler(int);
 
-#define GETOPTOPTS "d:ef:sw:"
+#define GETOPTOPTS "d:ef:lsw:"
 #define USAGE \
-"usage: morse [-s] [-e] [-d device] [-w speed] [-f frequency] [string ...]\n"
+"usage: morse [-els] [-d device] [-w speed] [-f frequency] [string ...]\n"
 
-static int      pflag, sflag, eflag;
+static int      pflag, lflag, sflag, eflag;
 static int      wpm = 20;	/* words per minute */
 #define FREQUENCY 600
 static int      freq = FREQUENCY;
@@ -223,7 +223,7 @@ int		olflags;
 #ifdef SPEAKER
 tone_t          sound;
 #undef GETOPTOPTS
-#define GETOPTOPTS "d:ef:psw:"
+#define GETOPTOPTS "d:ef:lpsw:"
 #undef USAGE
 #define USAGE \
 "usage: morse [-s] [-p] [-e] [-d device] [-w speed] [-f frequency] [string ...]\n"
@@ -249,6 +249,9 @@ main(int argc, char **argv)
 		case 'f':
 			freq = atoi(optarg);
 			break;
+		case 'l':
+			lflag = 1;
+			break;
 #ifdef SPEAKER
 		case 'p':
 			pflag = 1;
@@ -265,8 +268,12 @@ main(int argc, char **argv)
 			fputs(USAGE, stderr);
 			exit(1);
 		}
-	if ((pflag || device) && sflag) {
-		fputs("morse: only one of -p, -d and -s allowed\n", stderr);
+	if (sflag && lflag) {
+		fputs("morse: only one of -l and -s allowed\n", stderr);
+		exit(1);
+	}
+	if ((pflag || device) && (sflag || lflag)) {
+		fputs("morse: only one of -p, -d and -l, -s allowed\n", stderr);
 		exit(1);
 	}
 	if ((pflag || device) && ((wpm < 1) || (wpm > 60))) {
@@ -328,6 +335,8 @@ main(int argc, char **argv)
 			hightab = iso8859tab;
 	}
 
+	if (lflag)
+		printf("m");
 	if (*argv) {
 		do {
 			for (p = *argv; *p; ++p) {
@@ -361,16 +370,15 @@ morse(char c)
 	if ((c == '\r') || (c == '\n'))
 		c = ' ';
 	if (c == ' ') {
-		if (pflag) {
+		if (pflag)
 			play(" ");
-			return;
-		} else if (device) {
+		else if (device)
 			ttyout(" ");
-			return;
-		} else {
+		else if (lflag)
+			printf("\n");
+		else
 			show("");
-			return;
-		}
+		return;
 	}
 	for (m = ((unsigned char)c < 0x80? mtab: hightab);
 	     m != NULL && m->inchar != '\0';
@@ -389,12 +397,15 @@ morse(char c)
 void
 show(const char *s)
 {
-	if (sflag)
-		printf(" %s", s);
-	else
+	if (lflag) {
+		printf("%s ", s);
+	} else if (sflag) {
+		printf(" %s\n", s);
+	} else {
 		for (; *s; ++s)
 			printf(" %s", *s == '.' ? "dit" : "dah");
-	printf("\n");
+		printf("\n");
+	}
 }
 
 void
