@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.8 1995/01/16 17:03:24 joerg Exp $
+ * $Id: cd9660_node.c,v 1.9 1995/02/21 18:41:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -79,8 +79,6 @@ union iso_dhead {
 	struct iso_dnode *dh_chain[2];
 } iso_dhead[DNOHSZ];
 #endif
-
-int prtactive;	/* 1 => print out reclaim of active vnodes */
 
 /*
  * Initialize hash links for inodes and dnodes.
@@ -289,11 +287,8 @@ loop:
 	vp->v_type = IFTOVT(ip->inode.iso_mode);
 	
 	if ( vp->v_type == VFIFO ) {
-		extern int (**cd9660_fifoop_p)();
 		vp->v_op = cd9660_fifoop_p;
 	} else if ( vp->v_type == VCHR || vp->v_type == VBLK ) {
-		extern int (**cd9660_specop_p)();
-
 		/*
 		 * if device, look at device number table for translation
 		 */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.10 1994/10/16 03:52:12 wollman Exp $
+ * $Id: kern_clock.c,v 1.11 1994/12/12 11:58:46 bde Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -415,8 +415,6 @@ hardclock(frame)
 	register struct callout *p1;
 	register struct proc *p;
 	register int needsoft;
-	extern int tickdelta;
-	extern long timedelta;
 
 	/*
 	 * Update real-time timeout queue.

@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.10 1994/11/06 21:57:16 ats Exp $
+# $Id: makesyscalls.sh,v 1.11 1995/02/14 19:22:29 sos Exp $
 
 set -e
 
@@ -55,7 +55,6 @@ awk < $1 "
 	NR == 1 {
 		printf " * created from%s\n */\n\n", $0 > sysdcl
 		printf "#include <sys/param.h>\n" > sysdcl
-		printf "#include <sys/systm.h>\n" > sysdcl
 		printf "#include <sys/sysent.h>\n\n" > sysdcl
 
 		printf "struct sysent sysent[] = {\n" > sysent

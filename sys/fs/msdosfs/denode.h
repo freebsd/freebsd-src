@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.2 1994/12/12 12:35:40 bde Exp $ */
+/*	$Id: denode.h,v 1.3 1994/12/27 12:37:33 bde Exp $ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-
@@ -224,6 +224,8 @@ struct defid {
 
 	/* u_long	defid_gen;	 generation number */
 };
+
+extern int (**msdosfs_vnodeop_p)();
 
 /*
  * Prototypes for MSDOSFS vnode operations

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.13 1994/10/10 00:58:35 phk Exp $
+ * $Id: systm.h,v 1.14 1995/02/14 06:15:25 phk Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -72,6 +72,8 @@
  * patched by a stalking hacker.
  */
 extern int securelevel;		/* system security level */
+
+extern int cold;		/* nonzero if we are doing a cold boot */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
@@ -174,9 +176,19 @@ extern void cpu_initclocks(void);
 extern void vntblinit(void);
 extern void nchinit(void);
 
+/* Finalize the world. */
+void	shutdown_nice __P((void));
+
 extern __dead void vm_pageout(void) __dead2; /* pagedaemon, called in proc 2 */
 extern __dead void vfs_update(void) __dead2; /* update, called in proc 3 */
 extern __dead void scheduler(void) __dead2; /* sched, called in process 0 */
+
+/*
+ * Kernel to clock driver interface.
+ */
+void	inittodr __P((time_t base));
+void	resettodr __P((void));
+void	startrtclock __P((void));
 
 /* Timeouts */
 typedef void (timeout_t)(void *); /* actual timeout function type */
@@ -185,5 +197,31 @@ typedef timeout_t *timeout_func_t; /* a pointer to this type */
 void timeout(timeout_func_t, void *, int);
 void untimeout(timeout_func_t, void *);
 void	logwakeup __P((void));
+
+/* Syscalls that are called internally. */
+struct execve_args {
+	char	*fname;
+	char	**argv;
+	char	**envv;
+};
+int	execve __P((struct proc *, struct execve_args *, int *retval));
+struct fork_args {
+	int	dummy;
+};
+int	fork __P((struct proc *, struct fork_args *, int retval[]));
+struct sync_args {
+	int	dummy;
+};
+int	sync __P((struct proc *, struct sync_args *, int *retval));
+struct wait_args {
+	int	pid;
+	int	*status;
+	int	options;
+	struct	rusage *rusage;
+#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
+	int	compat;		/* pseudo */
+#endif
+};
+int	wait1 __P((struct proc *, struct wait_args *, int retval[]));
 
 #endif /* !_SYS_SYSTM_H_ */

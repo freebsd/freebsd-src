@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.21 1994/12/28 06:15:08 davidg Exp $
+ * $Id: kern_sysctl.c,v 1.22 1995/02/20 19:42:35 guido Exp $
  */
 
 /*
@@ -192,7 +192,6 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	struct proc *p;
 {
 	int error, level, inthostid;
-	extern char ostype[], osrelease[];
 
 	/* all sysctl names at this level are terminal */
 	if (namelen != 1 && !(name[0] == KERN_PROC || name[0] == KERN_PROF
@@ -313,9 +312,6 @@ hw_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	size_t newlen;
 	struct proc *p;
 {
-	extern char machine[], cpu_model[];
-	extern int hw_float;
-
 	/* almost all sysctl names at this level are terminal */
 	if (namelen != 1 && name[0] != HW_DEVCONF)
 		return (ENOTDIR);		/* overloaded */

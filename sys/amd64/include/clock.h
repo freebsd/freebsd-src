@@ -49,13 +49,6 @@
 #include <machine/frame.h>
 
 /*
- * Kernel to clock driver interface.
- */
-void	inittodr __P((time_t base));
-void	resettodr __P((void));
-void	startrtclock __P((void));
-
-/*
  * i386 to clock driver interface.
  * XXX almost all of it is misplaced.  i586 stuff is done in isa/clock.c
  * and isa stuff is done in i386/microtime.s and i386/support.s.

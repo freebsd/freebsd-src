@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.2 (Berkeley) 2/2/94
- * $Id: fifo.h,v 1.3 1994/09/22 19:38:05 wollman Exp $
+ * $Id: fifo.h,v 1.4 1995/02/14 06:30:18 phk Exp $
  */
+
+extern int	(**fifo_vnodeop_p)();
 
 /*
  * Prototypes for fifo operations on vnodes.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_var.h,v 1.7 1995/02/14 06:25:17 phk Exp $
+ * $Id: ip_var.h,v 1.8 1995/03/16 16:25:42 wollman Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -156,8 +156,10 @@ extern struct	ipstat	ipstat;
 extern struct	ipq	ipq;			/* ip reass. queue */
 extern u_short	ip_id;				/* ip packet ctr, for ids */
 extern int	ip_defttl;			/* default IP ttl */
+extern u_char	ip_protox[];
 extern struct socket *ip_rsvpd;	/* reservation protocol daemon */
 extern struct socket *ip_mrouter; /* multicast routing daemon */
+extern int	(*legal_vif_num) __P((int));
 
 int	 ip_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 void	 ip_deq __P((struct ipasfrag *));

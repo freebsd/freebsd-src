@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.15 1995/02/21 01:13:05 davidg Exp $
+ * $Id: vm_map.c,v 1.16 1995/03/01 23:29:56 davidg Exp $
  */
 
 /*
@@ -71,6 +71,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -2608,7 +2609,6 @@ vm_map_print(map, full)
 	boolean_t full;
 {
 	register vm_map_entry_t entry;
-	extern int indent;
 
 	iprintf("%s map 0x%x: pmap=0x%x,ref=%d,nentries=%d,version=%d\n",
 	    (map->is_main_map ? "Task" : "Share"),

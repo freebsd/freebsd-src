@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.4 1994/10/09 01:52:17 phk Exp $
+ * $Id: vm_pager.h,v 1.5 1995/01/09 16:05:56 davidg Exp $
  */
 
 /*
@@ -108,6 +108,7 @@ extern struct pagerops *dfltpagerops;
 
 vm_pager_t vm_pager_allocate __P((int, caddr_t, vm_size_t, vm_prot_t, vm_offset_t));
 vm_page_t vm_pager_atop __P((vm_offset_t));
+void vm_pager_bufferinit __P((void));
 void vm_pager_deallocate __P((vm_pager_t));
 int vm_pager_get_pages __P((vm_pager_t, vm_page_t *, int, int, boolean_t));
 boolean_t vm_pager_has_page __P((vm_pager_t, vm_offset_t));

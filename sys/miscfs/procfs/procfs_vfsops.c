@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_vfsops.c,v 1.6 1994/10/10 07:55:39 phk Exp $
+ *	$Id: procfs_vfsops.c,v 1.7 1995/02/20 15:53:33 davidg Exp $
  */
 
 /*
@@ -104,7 +104,6 @@ procfs_unmount(mp, mntflags, p)
 	struct proc *p;
 {
 	int error;
-	extern int doforce;
 	int flags = 0;
 
 	if (mntflags & MNT_FORCE) {

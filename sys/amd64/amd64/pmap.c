@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.51 1995/03/01 22:08:35 davidg Exp $
+ *	$Id: pmap.c,v 1.52 1995/03/10 08:05:00 davidg Exp $
  */
 
 /*
@@ -96,6 +96,7 @@
 #include <vm/vm_page.h>
 
 #include <machine/cputypes.h>
+#include <machine/md_var.h>
 
 #include <i386/isa/isa.h>
 
@@ -159,6 +160,7 @@ extern int cpu_class;
  * All those kernel PT submaps that BSD is so fond of
  */
 pt_entry_t *CMAP1, *CMAP2, *ptmmap;
+pv_entry_t pv_table;
 caddr_t CADDR1, CADDR2, ptvmmap;
 pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp;
@@ -392,8 +394,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	 * buffer (contiguous virtual *and* physical memory).
 	 */
 	{
-		extern vm_offset_t isaphysmem;
-
 		isaphysmem = va;
 
 		virtual_avail = pmap_map(va, firstaddr,

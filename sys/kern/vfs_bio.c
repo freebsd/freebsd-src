@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.34 1995/03/04 15:16:07 davidg Exp $
+ * $Id: vfs_bio.c,v 1.35 1995/03/07 19:53:27 davidg Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <vm/vm.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
@@ -55,12 +56,9 @@ int nbuf;			/* number of buffer headers calculated
 				 * elsewhere */
 struct swqueue bswlist;
 
-extern vm_map_t buffer_map, io_map, kernel_map, pager_map;
-
 void vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
 void vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
 void vfs_dirty_pages(struct buf * bp);
-void vfs_busy_pages(struct buf *, int clear_modify);
 
 int needsbuffer;
 

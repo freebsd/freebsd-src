@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.34 1995/02/28 00:21:03 pst Exp $
+ * $Id: tty.c,v 1.35 1995/02/28 23:20:11 ache Exp $
  */
 
 #include "snp.h"
@@ -195,7 +195,6 @@ int
 ttyclose(tp)
 	register struct tty *tp;
 {
-	extern struct tty *constty;	/* Temporary virtual console. */
 	int s;
 
 	s = spltty();
@@ -662,8 +661,6 @@ ttioctl(tp, cmd, data, flag)
 	int cmd, flag;
 	void *data;
 {
-	extern struct tty *constty;	/* Temporary virtual console. */
-	extern int nlinesw;
 	register struct proc *p;
 	int s, error;
 

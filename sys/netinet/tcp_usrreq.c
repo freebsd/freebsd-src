@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.10 1995/02/16 01:42:45 wollman Exp $
+ *	$Id: tcp_usrreq.c,v 1.11 1995/02/17 00:29:42 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,8 @@
 #include <sys/protosw.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+#include <vm/vm.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -52,6 +54,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
@@ -673,11 +676,6 @@ tcp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	void *newp;
 	size_t newlen;
 {
-	extern	int tcp_do_rfc1323; /* XXX */
-	extern	int tcp_do_rfc1644; /* XXX */
-	extern	int tcp_mssdflt; /* XXX */
-	extern	int tcp_rttdflt; /* XXX */
-
 	/* All sysctl names at this level are terminal. */
 	if (namelen != 1)
 		return (ENOTDIR);

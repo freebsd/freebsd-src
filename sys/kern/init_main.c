@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.17 1994/11/25 07:58:16 davidg Exp $
+ * $Id: init_main.c,v 1.18 1995/02/20 22:23:09 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,9 @@
 #include <sys/errno.h>
 #include <sys/exec.h>
 #include <sys/kernel.h>
+#ifdef GPROF
+#include <sys/gmon.h>
+#endif
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
@@ -64,6 +67,7 @@
 #include <machine/cpu.h>
 
 #include <vm/vm.h>
+#include <vm/vm_pageout.h>
 
 #ifdef HPFPLIB
 char	copyright[] =
@@ -125,10 +129,6 @@ main(framep)
 	register struct filedesc0 *fdp;
 	register int i;
 	int s, rval[2];
-	extern int (*mountroot) __P((void));
-	extern void roundrobin __P((void *));
-	extern void schedcpu __P((void *));
-	extern struct sysentvec aout_sysvec;
 
 	/*
 	 * Initialize the current process pointer (curproc) before
@@ -445,7 +445,7 @@ start_init(p, framep)
 		 * Now try to exec the program.  If can't for any reason
 		 * other than it doesn't exist, complain.
 		 */
-		if ((error = execve(p, &args, &retval)) == 0)
+		if ((error = execve(p, &args, &retval[0])) == 0)
 			return;
 		if (error != ENOENT)
 			printf("exec %s: error %d\n", path, error);

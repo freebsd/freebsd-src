@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.5 1994/09/23 19:07:41 wollman Exp $
+ * $Id: kernel.h,v 1.6 1994/10/05 21:23:38 wollman Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -63,7 +63,10 @@ extern int tick;			/* usec per tick (1000000 / hz) */
 extern int hz;				/* system clock's frequency */
 extern int stathz;			/* statistics clock's frequency */
 extern int profhz;			/* profiling clock's frequency */
+extern int ticks;
 extern int lbolt;			/* once a second sleep address */
+extern int tickdelta;
+extern long timedelta;
 
 /*
  * The following macros are used to declare global sets of objects, which
@@ -86,5 +89,7 @@ struct linker_set {
 	int ls_length;
 	caddr_t ls_items[1];	/* really ls_length of them, trailing NULL */
 };
+
+extern const struct linker_set execsw_set;
 
 #endif

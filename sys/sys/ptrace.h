@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ptrace.h	8.2 (Berkeley) 1/4/94
- * $Id: ptrace.h,v 1.2 1994/08/02 07:53:24 davidg Exp $
+ * $Id: ptrace.h,v 1.3 1994/08/08 13:00:27 davidg Exp $
  */
 
 #ifndef	_SYS_PTRACE_H_
@@ -58,6 +58,9 @@
 
 #ifdef KERNEL
 void	proc_reparent __P((struct proc *child, struct proc *newparent));
+int	ptrace_set_pc __P((struct proc *p, unsigned int addr));
+int	ptrace_single_step __P((struct proc *p));
+int	ptrace_write_u __P((struct proc *p, vm_offset_t off, int data));
 #else /* !KERNEL */
 
 #include <sys/cdefs.h>

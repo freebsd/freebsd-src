@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.19 1994/11/14 13:59:09 bde Exp $
+ * $Id: sysctl.h,v 1.20 1995/02/20 19:42:40 guido Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -344,6 +344,12 @@ extern struct ctldebug debug10, debug11, debug12, debug13, debug14;
 extern struct ctldebug debug15, debug16, debug17, debug18, debug19;
 #endif	/* DEBUG */
 
+extern char	cpu_model[];
+extern int	hw_float;
+extern char	machine[];
+extern char	osrelease[];
+extern char	ostype[];
+
 /*
  * Internal sysctl function calling convention:
  *
@@ -370,12 +376,14 @@ int sysctl_rdint __P((void *, size_t *, void *, int));
 int sysctl_string __P((void *, size_t *, void *, size_t, char *, int));
 int sysctl_rdstring __P((void *, size_t *, void *, char *));
 int sysctl_rdstruct __P((void *, size_t *, void *, void *, int));
+int sysctl_struct __P((void *oldp, size_t *, void *, size_t, void *, int));
 void fill_eproc __P((struct proc *, struct eproc *));
 
 int	sysctl_clockrate __P((char *, size_t*));
 int	sysctl_vnode __P((char *, size_t*));
 int	sysctl_file __P((char *, size_t*));
 int	sysctl_doproc __P((int *, u_int, char *, size_t*));
+int	sysctl_doprof __P((int *, u_int, void *, size_t *, void *, size_t));
 
 #else	/* !KERNEL */
 #include <sys/cdefs.h>

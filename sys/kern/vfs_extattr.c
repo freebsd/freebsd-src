@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.17 1995/02/13 13:45:04 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.18 1995/02/28 02:52:48 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,10 @@
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
+
+#ifdef UNION
+#include <miscfs/union/union.h>
+#endif
 
 #include <vm/vm.h>
 #include <sys/sysctl.h>
@@ -308,9 +312,6 @@ int syncprt = 0;
 struct ctldebug debug0 = { "syncprt", &syncprt };
 #endif
 
-struct sync_args {
-	int	dummy;
-};
 /* ARGSUSED */
 int
 sync(p, uap, retval)
@@ -622,7 +623,6 @@ open(p, uap, retval)
 	int type, indx, error;
 	struct flock lf;
 	struct nameidata nd;
-	extern struct fileops vnops;
 
 	error = falloc(p, &nfp, &indx);
 	if (error)
@@ -2126,9 +2126,6 @@ unionread:
 
 #ifdef UNION
 {
-	extern int (**union_vnodeop_p)();
-	extern struct vnode *union_lowervp __P((struct vnode *));
-
 	if ((uap->count == auio.uio_resid) &&
 	    (vp->v_op == union_vnodeop_p)) {
 		struct vnode *tvp = vp;

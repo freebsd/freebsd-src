@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.4 1994/11/24 14:29:38 davidg Exp $
+ * $Id: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -82,7 +82,6 @@ extern struct ifqueue pkintrq;
 #endif
 
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-extern	struct ifnet loif;
 #define senderr(e) { error = (e); goto bad;}
 
 /*

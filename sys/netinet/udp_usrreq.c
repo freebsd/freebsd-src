@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.4 (Berkeley) 1/21/94
- * $Id: udp_usrreq.c,v 1.6 1995/02/16 01:25:06 wollman Exp $
+ * $Id: udp_usrreq.c,v 1.7 1995/02/16 01:47:36 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,8 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+#include <vm/vm.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -51,6 +53,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
@@ -364,8 +367,6 @@ udp_ctlinput(cmd, sa, ip)
 	register struct ip *ip;
 {
 	register struct udphdr *uh;
-	extern struct in_addr zeroin_addr;
-	extern u_char inetctlerrmap[];
 
 	if (!PRC_IS_REDIRECT(cmd) &&
 	    ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0))

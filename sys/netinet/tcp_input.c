@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.14 1995/02/16 00:55:39 wollman Exp $
+ *	$Id: tcp_input.c,v 1.15 1995/02/16 01:39:19 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -1881,8 +1881,6 @@ tcp_mss(tp, offer)
 	struct socket *so;
 	struct rmxp_tao *taop;
 	int origoffer = offer;
-	extern int tcp_do_rfc1644;
-	extern int tcp_mssdflt;
 
 	inp = tp->t_inpcb;
 	if ((rt = tcp_rtlookup(inp)) == NULL) {
@@ -2040,7 +2038,6 @@ tcp_mssopt(tp)
 	struct tcpcb *tp;
 {
 	struct rtentry *rt;
-	extern int tcp_mssdflt;
 
 	rt = tcp_rtlookup(tp->t_inpcb);
 	if (rt == NULL)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_input.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_input.c,v 1.2 1994/08/02 07:49:39 davidg Exp $
+ * $Id: clnp_input.c,v 1.3 1994/11/15 14:26:11 bde Exp $
  */
 
 /***********************************************************
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_input.c,v 1.2 1994/08/02 07:49:39 davidg Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_input.c,v 1.3 1994/11/15 14:26:11 bde Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_input.c,v $ */
 
 #include <sys/param.h>
@@ -152,6 +152,7 @@ clnp_init()
  *
  * NOTES:			
  */
+void
 clnlintr()
 {
 	register struct mbuf		*m;		/* ptr to first mbuf of pkt */

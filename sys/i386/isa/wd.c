@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.67 1995/02/27 06:42:35 davidg Exp $
+ *	$Id: wd.c,v 1.68 1995/03/06 05:40:44 davidg Exp $
  */
 
 /* TODO:
@@ -81,6 +81,8 @@ static int wdtest = 0;
 #include <sys/devconf.h>
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
+#include <machine/md_var.h>
+#include <i386/i386/cons.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wdreg.h>
@@ -1616,9 +1618,7 @@ wddump(dev_t dev)
 	long	cylin, head, sector;
 	long	secpertrk, secpercyl, nblocks;
 	char   *addr;
-	extern int Maxmem;
 	static int wddoingadump = 0;
-	extern caddr_t CADDR1;
 
 	/* Toss any characters present prior to dump. */
 	while (cncheckc())

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.15 1995/01/09 16:05:14 davidg Exp $
+ * $Id: proc.h,v 1.16 1995/02/21 00:37:31 davidg Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -265,6 +265,8 @@ struct proc *pfind __P((pid_t));	/* Find process by id. */
 struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
 void	mi_switch __P((void));
 void	resetpriority __P((struct proc *));
+void	roundrobin __P((void *));
+void	schedcpu __P((void *));
 void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
 void	remrq __P((struct proc *));

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.h,v 1.3 1994/09/15 19:46:00 bde Exp $
+ * $Id: cd9660_node.h,v 1.4 1995/01/16 17:03:25 joerg Exp $
  */
 
 /*
@@ -110,6 +110,9 @@ struct iso_node {
 
 #define ISO_ILOCK(ip)	iso_ilock(ip)
 #define ISO_IUNLOCK(ip)	iso_iunlock(ip)
+
+extern int	(**cd9660_fifoop_p)();
+extern int	(**cd9660_specop_p)();
 
 /*
  * Prototypes for ISOFS vnode operations

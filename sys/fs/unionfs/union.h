@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union.h	8.2 (Berkeley) 2/17/94
- * $Id$
+ * $Id: union.h,v 1.2 1994/08/02 07:45:42 davidg Exp $
  */
 
 struct union_args {
@@ -93,11 +93,14 @@ extern int union_allocvp __P((struct vnode **, struct mount *,
 				struct vnode *, struct vnode *,
 				struct componentname *, struct vnode *,
 				struct vnode *));
+extern int union_freevp __P((struct vnode *));
 extern int union_copyfile __P((struct proc *, struct ucred *,
 				struct vnode *, struct vnode *));
 extern int union_mkshadow __P((struct union_mount *, struct vnode *,
 				struct componentname *, struct vnode **));
 extern int union_vn_create __P((struct vnode **, struct union_node *,
+				struct proc *));
+extern int union_vn_close __P((struct vnode *, int, struct ucred *,
 				struct proc *));
 extern int union_cn_close __P((struct vnode *, int, struct ucred *,
 				struct proc *));

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.8 1994/10/18 06:55:39 davidg Exp $
+ * $Id: kern_synch.c,v 1.9 1994/12/12 06:04:27 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,8 @@
 
 u_char	curpriority;		/* usrpri of curproc */
 int	lbolt;			/* once a second sleep address */
+
+void	endtsleep __P((void *));
 
 /*
  * Force switch among equal priority processes every 100ms.
@@ -287,8 +289,6 @@ tsleep(ident, priority, wmesg, timo)
 	register struct slpque *qp;
 	register s;
 	int sig, catch = priority & PCATCH;
-	extern int cold;
-	void endtsleep __P((void *));
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_CSW))
@@ -415,7 +415,6 @@ sleep(ident, priority)
 	register struct proc *p = curproc;
 	register struct slpque *qp;
 	register s;
-	extern int cold;
 
 #ifdef DIAGNOSTIC
 	if (priority > PZERO) {

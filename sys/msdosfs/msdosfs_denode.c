@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.7 1995/01/09 16:04:59 davidg Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.8 1995/01/29 01:27:58 ats Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -168,7 +168,6 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 	int error;
 	dev_t dev = pmp->pm_dev;
 	struct mount *mntp = pmp->pm_mountp;
-	extern int (**msdosfs_vnodeop_p)();
 	struct denode *ldep;
 	struct vnode *nvp;
 	struct buf *bp;
@@ -614,7 +613,6 @@ msdosfs_reclaim(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
-	extern int prtactive;
 	
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_reclaim(): dep %p, file %s, refcnt %ld\n",
@@ -655,7 +653,6 @@ msdosfs_inactive(ap)
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
 	int error = 0;
-	extern int prtactive;
 	struct timespec ts;
 	
 #ifdef MSDOSFS_DEBUG

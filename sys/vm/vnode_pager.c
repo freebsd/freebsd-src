@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.28 1995/03/07 19:04:10 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.29 1995/03/12 07:56:06 davidg Exp $
  */
 
 /*
@@ -85,7 +85,6 @@
 int vnode_pager_putmulti();
 
 void vnode_pager_init();
-vm_pager_t vnode_pager_alloc(caddr_t, vm_offset_t, vm_prot_t, vm_offset_t);
 void vnode_pager_dealloc();
 int vnode_pager_getpage();
 int vnode_pager_getmulti();
