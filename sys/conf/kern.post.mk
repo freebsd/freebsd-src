@@ -57,7 +57,7 @@ install.debug reinstall.debug: gdbinit
 
 gdbinit:
 	sed < ${S}/../tools/debugscripts/dot.gdbinit > .gdbinit \
-		"s:MODPATH:modules${S}/modules:"
+		"s:MODPATH:${.OBJDIR}/modules:"
 	cp ${S}/../tools/debugscripts/gdbinit.kernel \
 		${S}/../tools/debugscripts/gdbinit.vinum ${.CURDIR}
 	cp ${S}/../tools/debugscripts/gdbinit.${MACHINE_ARCH} \
