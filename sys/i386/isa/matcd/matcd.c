@@ -1199,10 +1199,7 @@ matcd_probe(struct isa_device *dev)
 	int	i,cdrive;
 	unsigned char	y;
 	int port = dev->id_iobase;	/*Take port hint from config file*/
-	static int once;
 
-	if (!once++)
-		cdevsw_add(&matcd_cdevsw);
 	cdrive=nextcontroller;		/*Controller defined by pass for now*/
 	if (nextcontroller==NUMCTRLRS) {
 		printf("matcd%d: - Too many interfaces specified in config\n",
