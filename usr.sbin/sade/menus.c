@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.160 1998/03/13 11:30:44 jkh Exp $
+ * $Id: menus.c,v 1.161 1998/03/15 17:10:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -254,7 +254,7 @@ DMenu MenuIndex = {
       { "Network Interfaces",	"Configure network interfaces",		NULL, tcpMenuSelect },
       { "Networking Services",	"The network services menu.",		NULL, dmenuSubmenu, NULL, &MenuNetworking },
       { "NFS, client",		"Set NFS client flag.",			dmenuVarCheck, dmenuToggleVariable, NULL, "nfs_client_enable=YES" },
-      { "NFS, server",		"Set NFS server flag.",			dmenuVarCheck, configNFSServer, NULL, "nfs_server_enable" },
+      { "NFS, server",		"Set NFS server flag.",			dmenuVarCheck, configNFSServer, NULL, "nfs_server_enable=YES" },
       { "NTP Menu",		"The NTP configuration menu.",		NULL, dmenuSubmenu, NULL, &MenuNTP },
       { "Options",		"The options editor.",			NULL, optionsEditor },
       { "Packages",		"The packages collection",		NULL, configPackages },
@@ -1109,7 +1109,7 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSubmenu, NULL, &MenuMouse, NULL },
       { "6 Networking",	"Configure additional network services",
 	NULL,	dmenuSubmenu, NULL, &MenuNetworking },
-      { "7 Startup",	"Configure system startup services",
+      { "7 Startup",	"Configure system startup options",
 	NULL,	dmenuSubmenu, NULL, &MenuStartup },
       { "8 Options",	"View/Set various installation options",
 	NULL, optionsEditor },
@@ -1190,7 +1190,7 @@ DMenu MenuNetworking = {
       { "NFS client",	"This machine will be an NFS client",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "nfs_client_enable=YES" },
       { "NFS server",	"This machine will be an NFS server",
-	dmenuVarCheck, configNFSServer, NULL, "nfs_server_enable" },
+	dmenuVarCheck, configNFSServer, NULL, "nfs_server_enable=YES" },
       { "AMD",	"This machine wants to run the auto-mounter service",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "amd_enable=YES" },
       { "AMD Flags",	"Set flags to AMD service (if enabled)",
