@@ -2673,9 +2673,14 @@ options 	SHMSEG=9
 # Note that documenting these are not considered an affront.
 
 options 	CAM_DEBUG_DELAY
+
+# VFS cluster debugging.
 options 	CLUSTERDEBUG
 options 	COMPAT_LINUX
+
+# Eliminate unneeded cache flush instruction(s).
 options 	CPU_UPGRADE_HW_CACHE
+
 options 	DEBUG
 options 	DEBUG_LINUX
 #options 	DISABLE_PSE
@@ -2689,7 +2694,10 @@ options 	KBD_RESETDELAY=201
 
 # Enable the PF_KEY Key Management API.
 options 	KEY
+
+# Kernel filelock debugging.
 options 	LOCKF_DEBUG
+
 options 	MSGMNB=2049
 options 	MSGMNI=41
 options 	MSGSEG=2049
