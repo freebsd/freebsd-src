@@ -688,8 +688,14 @@ USB_DETACH(ugen)
 	mn = self->dv_unit * USB_MAX_ENDPOINTS;
 	vdevgone(maj, mn, mn + USB_MAX_ENDPOINTS - 1, VCHR);
 #elif defined(__FreeBSD__)
+	/* destroy the device for the control endpoint */
 	dev = makedev(UGEN_CDEV_MAJOR, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0));
+	vp = SLIST_FIRST(&dev->si_hlist);
+	if (vp)
+		VOP_REVOKE(vp, REVOKEALL);
 	destroy_dev(dev);
+
+	/* destroy all devices for the other (existing) endpoints as well */
 	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
 		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
 		    sc->sc_endpoints[endptno][OUT].sc != NULL ) {
