@@ -28,21 +28,16 @@
 .Dt KTR 9
 .Os
 .Sh NAME
-.Nm CTR0 ,
-.Nm CTR1 ,
-.Nm CTR2 ,
-.Nm CTR3 ,
-.Nm CTR4 ,
-.Nm CTR5
+.Nm CTR0 , CTR1 , CTR2 , CTR3 , CTR4 , CTR5
 .Nd kernel tracing facility
 .Sh SYNOPSIS
-.Fd #include <sys/ktr.h>
-.Vt "extern	int ktr_cpumask" ;
-.Vt "extern	int ktr_entries" ;
-.Vt "extern	int ktr_extend" ;
-.Vt "extern	int ktr_mask" ;
-.Vt "extern	int ktr_verbose" ;
-.Vt "extern	struct ktr_entry ktr_buf[]" ;
+.In sys/ktr.h
+.Vt "extern int ktr_cpumask" ;
+.Vt "extern int ktr_entries" ;
+.Vt "extern int ktr_extend" ;
+.Vt "extern int ktr_mask" ;
+.Vt "extern int ktr_verbose" ;
+.Vt "extern struct ktr_entry ktr_buf[]" ;
 .Ft void
 .Fn CTR0 "u_int mask" "char *format"
 .Ft void
@@ -56,7 +51,9 @@
 .Ft void
 .Fn CTR5 "u_int mask" "char *format" "arg1" "arg2" "arg3" "arg4" "arg5"
 .Sh DESCRIPTION
-KTR provides a circular buffer of events that can be logged in a printf style
+KTR provides a circular buffer of events that can be logged in a
+.Xr printf 9
+style
 fashion.
 These events can then be dumped either via
 .Xr ddb 4
@@ -64,7 +61,7 @@ or
 .Xr gdb 1 .
 .Pp
 Events are created and logged in the kernel via the
-.Dv CTRx
+.Dv CTR Ns Ar x
 macros.
 The first parameter is a mask of event types
 .Pq Dv KTR_*
