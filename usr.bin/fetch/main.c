@@ -24,25 +24,33 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.20 1996/08/31 22:03:05 jkh Exp $ */
+/* $Id: main.c,v 1.21 1996/09/10 19:49:41 jkh Exp $ */
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+
 #include <netinet/in.h>
+
 #include <arpa/inet.h>
+
+#include <err.h>
+#include <errno.h>
 #include <netdb.h>
-#include <sys/time.h>
+#include <pwd.h>
 #include <regex.h>
 #include <signal.h>
-#include <sys/stat.h>
-#include <sys/errno.h>
-#include <err.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <ftpio.h>
 
@@ -52,7 +60,7 @@
 
 char buffer[BUFFER_SIZE];
 
-char *progname;
+extern char *__progname;		/* from crt0.o */
 
 int verbose = 1;
 int ftp_verbose = 0;
@@ -76,7 +84,7 @@ int timeout_ival = 0;
 void usage(void), die(int), rm(void), timeout(int), ftpget(void),
     httpget(void), fileget(void),
     display(int, int), parse(char *), output_file_name(void),
-    f_size(char *, int *, time_t *), ftperr(FILE* ftp, char *, ...),
+    f_size(char *, off_t *, time_t *), ftperr(FILE* ftp, char *, ...),
     filter(unsigned char *, int),
     setup_http_proxy(void);
 
@@ -85,7 +93,7 @@ int match(char *, char *), http_open(void);
 void
 usage()
 {
-    fprintf(stderr, "usage: %s [-DHINPMTVLqlmnprv] [-o outputfile] <-f file -h host [-c dir]| URL>\n", progname);
+    fprintf(stderr, "usage: %s [-DHINPMTVLqlmnprv] [-o outputfile] <-f file -h host [-c dir]| URL>\n", __progname);
     exit(1);
 }
 
@@ -96,9 +104,9 @@ die(int sig)
     
     rm();
     if (!sig)
-	fprintf (stderr, "%s: %s\n", progname, sys_errlist[e]);
+	fprintf (stderr, "%s: %s\n", __progname, strerror(e));
     else
-	fprintf (stderr, "%s: Interrupted by signal %d\n", progname, sig);
+	warnx ("Interrupted by signal %d", sig);
     exit(1);
 }
 
@@ -132,11 +140,8 @@ int
 main(int argc, char **argv)
 {
     int c;
-    char *s = strrchr (argv[0], '/');
-    
-    progname = s ? s+1 : argv[0];
-    
-    while ((c = getopt (argc, argv, "D:HINPMT:V:Lqc:f:h:o:plmnrv")) != EOF) {
+
+    while ((c = getopt (argc, argv, "D:HINPMT:V:Lqc:f:h:o:plmnrv")) != -1) {
 	switch (c) {
 	case 'D': case 'H': case 'I': case 'N': case 'L': case 'V': 
 	    break;	/* ncftp compatibility */
@@ -228,7 +233,7 @@ main(int argc, char **argv)
 void
 timeout(int sig)
 {
-    fprintf(stderr, "\n%s: Timeout\n", progname);
+    fprintf (stderr, "\n%s: Timeout\n", __progname);
     rm();
     exit(1);
 }
@@ -276,7 +281,7 @@ ftpget()
     FILE *ftp, *fp;
     char *cp, *lp;
     int status, n;
-    ssize_t size, size0, seekloc;
+    off_t size, size0, seekloc;
     char ftp_pw[200];
     time_t t;
     struct itimerval timer;
@@ -454,7 +459,7 @@ parse (char *s)
 	s += 6;
 	p = strchr(s, '/');
 	if (!p) {
-	    fprintf(stderr, "%s: no filename??\n", progname);
+	    warnx("no filename??");
 	    usage();
 	}
 	ftp = 1;
@@ -465,7 +470,7 @@ parse (char *s)
 	s += 7;
 	p = strchr(s, '/');
 	if (!p) {
-	    fprintf (stderr, "%s: no filename??\n", progname);
+	    warnx ("no filename??");
 	    usage ();
 	}
 	*p++ = 0;
@@ -483,7 +488,7 @@ parse (char *s)
 	/* assume /host.name:/file/name */
 	p = strchr (s, ':');
 	if (!p) {
-	    fprintf (stderr, "%s: no filename??\n", progname);
+	    warnx ("no filename??");
 	    usage ();
 	}
     }
@@ -516,7 +521,7 @@ output_file_name ()
 }
 
 void
-f_size (char *name, int *size, time_t *time)
+f_size (char *name, off_t *size, time_t *time)
 {
     struct stat s;
     
@@ -584,7 +589,7 @@ httpget ()
 	i = select (s+1, &fdset, 0, 0, &tout); 
 	switch (i) {
 	case 0:
-	    fprintf (stderr, "%s: Timeout\n", progname);
+	    warnx ("Timeout");
 	    rm ();
 	    exit (1);
 	case 1:
@@ -711,7 +716,7 @@ http_open()
     }
     sin.sin_port = htons (http_port);
     if ((s = socket (sin.sin_family, SOCK_STREAM, 0)) < 0) 
-	err (1, 0);
+	err (1, "socket");
     bzero ((char *)&sin2, sizeof (sin2));
     sin2.sin_family = AF_INET;
     sin2.sin_port = 0;
@@ -720,7 +725,7 @@ http_open()
 	err (1, "could not bind to socket.");
     
     if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-	err (1, "connection failed.");
+	err (1, "connection failed");
     return s;
 }
 
