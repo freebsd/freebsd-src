@@ -533,8 +533,6 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	imgp->auxarg_size = sizeof(struct pecoff_args);
 	imgp->interpreted = 0;
 
-	mp_fixme("Unlocked vflag access.");
-	imgp->vp->v_vflag |= VV_TEXT;
 	if (sh != NULL)
 		free(sh, M_TEMP);
 	return 0;
@@ -628,21 +626,26 @@ imgact_pecoff(struct image_params * imgp)
 	imgp->image_header;
 	struct coff_filehdr *fp;
 	int             error, peofs;
+	struct thread *td = curthread;
+
 	error = pecoff_signature(FIRST_THREAD_IN_PROC(imgp->proc),
 	    imgp->vp, dp);
 	if (error) {
 		return -1;
 	}
+	VOP_UNLOCK(imgp->vp, 0, td);
+
 	peofs = dp->d_peofs + sizeof(signature) - 1;
 	fp = malloc(PECOFF_HDR_SIZE, M_TEMP, M_WAITOK);
 	error = pecoff_read_from(FIRST_THREAD_IN_PROC(imgp->proc),
 	     imgp->vp, peofs, (caddr_t) fp, PECOFF_HDR_SIZE);
-	if (error) {
-		free(fp, M_TEMP);
-		return error;
-	}
+	if (error)
+		goto fail;
+
 	error = exec_pecoff_coff_makecmds(imgp, fp, peofs);
+fail:   
 	free(fp, M_TEMP);
+        vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
 	return error;
 }
 

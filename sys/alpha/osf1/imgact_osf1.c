@@ -146,12 +146,11 @@ exec_osf1_imgact(struct image_params *imgp)
 			return(error);
 		} 
 		if (imgp->vp) {
-			vrele(imgp->vp);
+			vput(imgp->vp);
 		/* leaking in the nameizone ??? XXX */
 		}
 		imgp->vp = ndp->ni_vp;
 		error = exec_map_first_page(imgp);
-		VOP_UNLOCK(imgp->vp, 0, FIRST_THREAD_IN_PROC(imgp->proc));
 		osf_auxargs->loader = "/compat/osf1/sbin/loader";
 	}
 
@@ -187,17 +186,6 @@ exec_osf1_imgact(struct image_params *imgp)
 
 	imgp->interpreted = 0;
 	imgp->proc->p_sysent = &osf1_sysvec;
-
-	mp_fixme("Unlocked writecount and v_vflag access.");
-	if ((eap->tsize != 0 || eap->dsize != 0) &&
-	    imgp->vp->v_writecount != 0) {
-#ifdef DIAGNOSTIC
-		if (imgp->vp->v_vflag & VV_TEXT)
-			panic("exec: a VV_TEXT vnode has writecount != 0\n");
-#endif
-		return ETXTBSY;
-	}
-	imgp->vp->v_vflag |= VV_TEXT;
 
 	/* set up text segment */
 	if ((error = vm_mmap(&vmspace->vm_map, &taddr, tsize,

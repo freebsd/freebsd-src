@@ -67,6 +67,7 @@ exec_svr4_imgact(imgp)
     vm_offset_t buffer;
     unsigned long bss_size;
     int error;
+    struct thread *td = curthread;
 
     if (((a_out->a_magic >> 16) & 0xff) != 0x64)
 	return -1;
@@ -111,10 +112,12 @@ exec_svr4_imgact(imgp)
 	a_out->a_data + bss_size > imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
 	return (ENOMEM);
 
+    VOP_UNLOCK(imgp->vp, 0, td);
+
     /* copy in arguments and/or environment from old process */
     error = exec_extract_strings(imgp);
     if (error)
-	return (error);
+	goto fail;
 
     /*
      * Destroy old process VM and create a new one (with a new stack)
@@ -139,14 +142,14 @@ exec_svr4_imgact(imgp)
 		    	    a_out->a_text + a_out->a_data + bss_size, FALSE,
 			    VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
-	    return error;
+	    goto fail;
 
 	error = vm_mmap(kernel_map, &buffer,
 			round_page(a_out->a_text + a_out->a_data + file_offset),
 			VM_PROT_READ, VM_PROT_READ, 0,
 			(caddr_t) imgp->vp, trunc_page(file_offset));
 	if (error)
-	    return error;
+	    goto fail;
 
 	error = copyout((caddr_t)(buffer + file_offset), (caddr_t)vmaddr, 
 			a_out->a_text + a_out->a_data);
@@ -155,7 +158,7 @@ exec_svr4_imgact(imgp)
 		      buffer + round_page(a_out->a_text + a_out->a_data + file_offset));
 
 	if (error)
-	    return error;
+	    goto fail;
 
 	/*
 	 * remove write enable on the 'text' part
@@ -166,7 +169,7 @@ exec_svr4_imgact(imgp)
 		   	       VM_PROT_EXECUTE|VM_PROT_READ,
 		   	       TRUE);
 	if (error)
-	    return error;
+	    goto fail;
     }
     else {
 #ifdef DEBUG
@@ -183,7 +186,7 @@ exec_svr4_imgact(imgp)
 	    		MAP_PRIVATE | MAP_FIXED,
 	    		(caddr_t)imgp->vp, file_offset);
 	if (error)
-	    return (error);
+	    goto fail;
     
 #ifdef DEBUG
 	printf("imgact: startaddr=%08lx, length=%08lx\n", (u_long)vmaddr,
@@ -198,7 +201,7 @@ exec_svr4_imgact(imgp)
 			       VM_PROT_ALL,
 			       FALSE);
 	if (error)
-	    return (error);
+	    goto fail;
     
 	/*
 	 * Allocate anon demand-zeroed area for uninitialized data
@@ -208,16 +211,13 @@ exec_svr4_imgact(imgp)
 	    error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr, 
 				bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	    if (error)
-		return (error);
+		goto fail;
 #ifdef DEBUG
 	    printf("imgact: bssaddr=%08lx, length=%08lx\n",
 	        (u_long)vmaddr, bss_size);
 #endif
 
 	}
-	/* Indicate that this file should not be modified */
-	mp_fixme("Unlocked vflag access.");
-	imgp->vp->v_vflag |= VV_TEXT;
     }
     /* Fill in process VM information */
     vmspace->vm_tsize = round_page(a_out->a_text) >> PAGE_SHIFT;
@@ -230,7 +230,9 @@ exec_svr4_imgact(imgp)
     imgp->entry_addr = a_out->a_entry;
     
     imgp->proc->p_sysent = &svr4_sysvec;
-    return (0);
+fail:
+    vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+    return (error);
 }
 
 /*
