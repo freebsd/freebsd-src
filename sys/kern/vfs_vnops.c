@@ -60,11 +60,12 @@ static int vn_read __P((struct file *fp, struct uio *uio,
 		struct ucred *cred, int flags, struct proc *p));
 static int vn_poll __P((struct file *fp, int events, struct ucred *cred,
 		struct proc *p));
+static int vn_statfile __P((struct file *fp, struct stat *sb, struct proc *p));
 static int vn_write __P((struct file *fp, struct uio *uio, 
 		struct ucred *cred, int flags, struct proc *p));
 
 struct 	fileops vnops =
-	{ vn_read, vn_write, vn_ioctl, vn_poll, vn_closefile };
+	{ vn_read, vn_write, vn_ioctl, vn_poll, vn_statfile, vn_closefile };
 
 /*
  * Common code for vnode open operations.
@@ -371,6 +372,17 @@ vn_write(fp, uio, cred, flags, p)
 /*
  * File table vnode stat routine.
  */
+static int
+vn_statfile(fp, sb, p)
+	struct file *fp;
+	struct stat *sb;
+	struct proc *p;
+{
+	struct vnode *vp = (struct vnode *)fp->f_data;
+
+	return vn_stat(vp, sb, p);
+}
+
 int
 vn_stat(vp, sb, p)
 	struct vnode *vp;
