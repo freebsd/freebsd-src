@@ -87,7 +87,7 @@ char	f_mntfromname[MNAMELEN];  /* mounted filesystem */
 };
 .Ed
 The flags that may be returned include:
-.Bl -tag -width MNT_ASYNCHRONOUS
+.Bl -tag -width MNT_SYNCHRONOUS
 .It Dv MNT_RDONLY
 The filesystem is mounted read-only;
 Even the super-user may not write on it.
@@ -99,7 +99,7 @@ Setuid and setgid bits on files are not honored when they are executed.
 Special files in the filesystem may not be opened.
 .It Dv MNT_SYNCHRONOUS
 All I/O to the filesystem is done synchronously.
-.It Dv MNT_ASYNCHRONOUS
+.It Dv MNT_ASYNC
 No filesystem I/O is done synchronously.
 .It Dv MNT_LOCAL
 The filesystem resides locally.
