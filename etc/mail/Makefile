@@ -25,5 +25,8 @@ install:
 .if exists(/etc/mail/denyip.local)
 	makemap -o hash /etc/mail/denyip < /etc/mail/denyip.local
 .endif
+.if exists(/etc/mail/fakenames)
+	makemap hash /etc/mail/fakenames < /etc/mail/fakenames
+.endif
 
 all: default install
