@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.80 1999/03/03 10:40:27 kato Exp $
+#	$Id: options.pc98,v 1.81 1999/03/10 14:01:59 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -85,6 +85,7 @@ PSM_DEBUG		opt_psm.h
 
 PCIC_RESUME_RESET	opt_pcic.h
 
+KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
 KBD_INSTALL_CDEV	opt_kbd.h
 KBD_MAXRETRY		opt_kbd.h
 KBD_MAXWAIT		opt_kbd.h

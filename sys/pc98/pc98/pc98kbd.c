@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98kbd.c,v 1.3 1999/01/19 12:41:26 kato Exp $
+ *	$Id: pc98kbd.c,v 1.4 1999/01/19 14:08:04 kato Exp $
  */
 
 #include "pckbd.h"
@@ -75,7 +75,8 @@ typedef struct pckbd_softc {
 #endif
 } pckbd_softc_t;
 
-#define PC98KBD_SOFTC(unit)	pckbd_softc[(unit)]
+#define PC98KBD_SOFTC(unit)		\
+	(((unit) >= NPCKBD) ? NULL : pckbd_softc[(unit)])
 
 static pckbd_softc_t	*pckbd_softc[NPCKBD];
 
@@ -92,9 +93,10 @@ struct isa_driver pckbddriver = {
 	0,
 };
 
-static int		pckbd_probe_unit(int unit, pckbd_softc_t *sc,
-					 int port, int irq, int flags);
-static int		pckbd_attach_unit(int unit, pckbd_softc_t *sc);
+static int		pckbd_probe_unit(int unit, int port, int irq,
+					 int flags);
+static int		pckbd_attach_unit(int unit, pckbd_softc_t *sc,
+					  int port, int irq, int flags);
 static timeout_t	pckbd_timeout;
 
 #ifdef KBD_INSTALL_CDEV
@@ -117,30 +119,8 @@ static struct  cdevsw pckbd_cdevsw = {
 static int
 pckbdprobe(struct isa_device *dev)
 {
-	pckbd_softc_t *sc;
-	int error;
-
-	if (dev->id_unit >= sizeof(pckbd_softc)/sizeof(pckbd_softc[0]))
-		return 0;
-	sc = pckbd_softc[dev->id_unit];
-	if (sc == NULL) {
-		sc = pckbd_softc[dev->id_unit]
-		   = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
-		if (sc == NULL)
-			return 0;
-		bzero(sc, sizeof(*sc));
-	}
-
-	/* try to find a keyboard */
-	error = pckbd_probe_unit(dev->id_unit, sc, dev->id_iobase,
-				 dev->id_irq, dev->id_flags);
-	if (error)
-		return 0;
-
-	/* declare our interrupt handler */
-	dev->id_ointr = pckbd_isa_intr;
-
-	return IO_KBDSIZE;
+	return ((pckbd_probe_unit(dev->id_unit, dev->id_iobase, dev->id_irq,
+				  dev->id_flags)) ? 0 : IO_KBDSIZE);
 }
 
 static int
@@ -150,11 +130,15 @@ pckbdattach(struct isa_device *dev)
 
 	if (dev->id_unit >= sizeof(pckbd_softc)/sizeof(pckbd_softc[0]))
 		return 0;
-	sc = pckbd_softc[dev->id_unit];
+	sc = pckbd_softc[dev->id_unit]
+	   = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
 	if (sc == NULL)
 		return 0;
+	bzero(sc, sizeof(*sc));
 
-	return ((pckbd_attach_unit(dev->id_unit, sc)) ? 0 : 1);
+	dev->id_ointr = pckbd_isa_intr;
+	return ((pckbd_attach_unit(dev->id_unit, sc, dev->id_iobase,
+				   dev->id_irq, dev->id_flags)) ? 0 : 1);
 }
 
 static void
@@ -163,17 +147,15 @@ pckbd_isa_intr(int unit)
 	keyboard_t *kbd;
 
 	kbd = pckbd_softc[unit]->kbd;
-	(*kbdsw[kbd->kb_index]->intr)(kbd);
+	(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
 }
 
 static int
-pckbd_probe_unit(int unit, pckbd_softc_t *sc, int port, int irq, int flags)
+pckbd_probe_unit(int unit, int port, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
-
-	if (sc->flags & PC98KBD_ATTACHED)
-		return 0;
+	int error;
 
 	sw = kbd_get_switch(DRIVER_NAME);
 	if (sw == NULL)
@@ -181,13 +163,17 @@ pckbd_probe_unit(int unit, pckbd_softc_t *sc, int port, int irq, int flags)
 
 	args[0] = port;
 	args[1] = irq;
-	return (*sw->probe)(unit, &sc->kbd, args, flags);
+	error = (*sw->probe)(unit, args, flags);
+	if (error)
+		return error;
+	return 0;
 }
 
 static int
-pckbd_attach_unit(int unit, pckbd_softc_t *sc)
+pckbd_attach_unit(int unit, pckbd_softc_t *sc, int port, int irq, int flags)
 {
 	keyboard_switch_t *sw;
+	int args[2];
 	int error;
 
 	if (sc->flags & PC98KBD_ATTACHED)
@@ -198,9 +184,15 @@ pckbd_attach_unit(int unit, pckbd_softc_t *sc)
 		return ENXIO;
 
 	/* reset, initialize and enable the device */
-	error = (*sw->init)(sc->kbd);
+	args[0] = port;
+	args[1] = irq;
+	sc->kbd = NULL;
+	error = (*sw->probe)(unit, args, flags);
 	if (error)
-		return ENXIO;
+		return error;
+	error = (*sw->init)(unit, &sc->kbd, args, flags);
+	if (error)
+		return error;
 	(*sw->enable)(sc->kbd);
 
 #ifdef KBD_INSTALL_CDEV
@@ -254,7 +246,7 @@ pckbd_timeout(void *arg)
 		 */
 		(*kbdsw[kbd->kb_index]->lock)(kbd, FALSE);
 		if ((*kbdsw[kbd->kb_index]->check_char)(kbd))
-			(*kbdsw[kbd->kb_index]->intr)(kbd);
+			(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
 	}
 	splx(s);
 	timeout(pckbd_timeout, arg, hz/10);
@@ -268,10 +260,9 @@ static int
 pckbdopen(dev_t dev, int flag, int mode, struct proc *p)
 {
 	pckbd_softc_t *sc;
-	int unit;
 
-	unit = PC98KBD_UNIT(dev);
-	if ((unit >= NPCKBD) || ((sc = PC98KBD_SOFTC(unit)) == NULL))
+	sc = PC98KBD_SOFTC(PC98KBD_UNIT(dev));
+	if (sc == NULL)
 		return ENXIO;
 	if (mode & (FWRITE | O_CREAT | O_APPEND | O_TRUNC))
 		return ENODEV;
@@ -356,6 +347,7 @@ static kbd_lock_t	pckbd_lock;
 static kbd_clear_state_t pckbd_clear_state;
 static kbd_get_state_t	pckbd_get_state;
 static kbd_set_state_t	pckbd_set_state;
+static kbd_poll_mode_t	pckbd_poll;
 
 keyboard_switch_t pckbdsw = {
 	pckbd_probe,
@@ -375,6 +367,7 @@ keyboard_switch_t pckbdsw = {
 	pckbd_get_state,
 	pckbd_set_state,
 	genkbd_get_fkeystr,
+	pckbd_poll,
 	genkbd_diag,
 };
 
@@ -420,46 +413,66 @@ static int
 pckbd_configure(int flags)
 {
 	keyboard_t *kbd;
-	KBDC kbdc;
 	int arg[2];
 	struct isa_device *dev;
+	int i;
 
 	/* XXX: a kludge to obtain the device configuration flags */
 	dev = find_isadev(isa_devtab_tty, &pckbddriver, 0);
-	if (dev != NULL)
+	if (dev != NULL) {
 		flags |= dev->id_flags;
+		/* if the driver is disabled, unregister the keyboard if any */
+		if (!dev->id_enabled) {
+			i = kbd_find_keyboard(DRIVER_NAME, PC98KBD_DEFAULT);
+			if (i >= 0) {
+				kbd = kbd_get_keyboard(i);
+				kbd_unregister(kbd);
+				kbd->kb_flags &= ~KB_REGISTERED;
+				return 0;
+			}
+		}
+	}
 
 	/* probe the default keyboard */
 	arg[0] = -1;
 	arg[1] = -1;
-	if (pckbd_probe(PC98KBD_DEFAULT, &kbd, arg, flags))
+	kbd = NULL;
+	if (pckbd_probe(PC98KBD_DEFAULT, arg, flags))
+		return 0;
+	if (pckbd_init(PC98KBD_DEFAULT, &kbd, arg, flags))
 		return 0;
 
-	/* initialize it */
-	kbdc = ((pckbd_state_t *)kbd->kb_data)->kbdc;
-	if (!(flags & KB_CONF_PROBE_ONLY) && !KBD_IS_PROBED(kbd)) {
-		if (KBD_HAS_DEVICE(kbd)
-		    && init_keyboard(kbdc, &kbd->kb_type, flags)
-		    && (flags & KB_CONF_FAIL_IF_NO_KBD))
-			return 0;
-		KBD_INIT_DONE(kbd);
-	}
-
-	/* and register */
-	if (!KBD_IS_CONFIGURED(kbd)) {
-		if (kbd_register(kbd) < 0)
-			return 0;
-		KBD_CONFIG_DONE(kbd);
-	}
-
-	return 1;	/* return the number of found keyboards */
+	/* return the number of found keyboards */
+	return 1;
 }
 
 /* low-level functions */
 
-/* initialize the keyboard_t structure and try to detect a keyboard */
+/* detect a keyboard */
 static int
-pckbd_probe(int unit, keyboard_t **kbdp, void *arg, int flags)
+pckbd_probe(int unit, void *arg, int flags)
+{
+	KBDC kbdc;
+	int *data = (int *)arg;
+
+	if (unit != PC98KBD_DEFAULT)
+		return ENXIO;
+	if (KBD_IS_PROBED(&default_kbd))
+		return 0;
+
+	kbdc = kbdc_open(data[0]);
+	if (kbdc == NULL)
+		return ENXIO;
+	if (probe_keyboard(kbdc, flags)) {
+		if (flags & KB_CONF_FAIL_IF_NO_KBD)
+			return ENXIO;
+	}
+	return 0;
+}
+
+/* reset and initialize the device */
+static int
+pckbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 {
 	keyboard_t *kbd;
 	pckbd_state_t *state;
@@ -467,65 +480,48 @@ pckbd_probe(int unit, keyboard_t **kbdp, void *arg, int flags)
 	accentmap_t *accmap;
 	fkeytab_t *fkeymap;
 	int fkeymap_size;
-	KBDC kbdc;
 	int *data = (int *)arg;
 
-	if (unit != PC98KBD_DEFAULT)
+	if (unit != PC98KBD_DEFAULT)			/* shouldn't happen */
 		return ENXIO;
 
 	*kbdp = kbd = &default_kbd;
-	if (KBD_IS_PROBED(kbd))
-		return 0;
 	state = &default_kbd_state;
-	keymap = &default_keymap;
-	accmap = &default_accentmap;
-	fkeymap = default_fkeytab;
-	fkeymap_size = sizeof(default_fkeytab)/sizeof(default_fkeytab[0]);
+	if (!KBD_IS_PROBED(kbd)) {
+		keymap = &default_keymap;
+		accmap = &default_accentmap;
+		fkeymap = default_fkeytab;
+		fkeymap_size =
+			sizeof(default_fkeytab)/sizeof(default_fkeytab[0]);
 
-	state->kbdc = kbdc = kbdc_open(data[0]);
-	if (kbdc == NULL)
-		return ENXIO;
-	kbd_init_struct(kbd, DRIVER_NAME, KB_OTHER, unit, flags, data[0],
-			IO_KBDSIZE);
-	bcopy(&key_map, keymap, sizeof(key_map));
-	bcopy(&accent_map, accmap, sizeof(accent_map));
-	bcopy(fkey_tab, fkeymap,
-	      imin(fkeymap_size*sizeof(fkeymap[0]), sizeof(fkey_tab)));
-	kbd_set_maps(kbd, keymap, accmap, fkeymap, fkeymap_size);
-	kbd->kb_data = (void *)state;
-
-	if (probe_keyboard(kbdc, flags)) {
-		if (flags & KB_CONF_FAIL_IF_NO_KBD)
+		state->kbdc = kbdc_open(data[0]);
+		if (state->kbdc == NULL)
 			return ENXIO;
-	} else {
-		KBD_FOUND_DEVICE(kbd);
+		kbd_init_struct(kbd, DRIVER_NAME, KB_OTHER, unit, flags,
+				data[0], IO_KBDSIZE);
+		bcopy(&key_map, keymap, sizeof(key_map));
+		bcopy(&accent_map, accmap, sizeof(accent_map));
+		bcopy(fkey_tab, fkeymap,
+		      imin(fkeymap_size*sizeof(fkeymap[0]), sizeof(fkey_tab)));
+		kbd_set_maps(kbd, keymap, accmap, fkeymap, fkeymap_size);
+		kbd->kb_data = (void *)state;
+
+		if (probe_keyboard(state->kbdc, flags)) {/* shouldn't happen */
+			if (flags & KB_CONF_FAIL_IF_NO_KBD)
+				return ENXIO;
+		} else {
+			KBD_FOUND_DEVICE(kbd);
+		}
+		pckbd_clear_state(kbd);
+		state->ks_mode = K_XLATE;
+		KBD_PROBE_DONE(kbd);
 	}
-	pckbd_clear_state(kbd);
-	state->ks_mode = K_XLATE;
-
-	KBD_PROBE_DONE(kbd);
-	return 0;
-}
-
-/* reset and initialize the device */
-static int
-pckbd_init(keyboard_t *kbd)
-{
-	KBDC kbdc;
-
-	if ((kbd == NULL) || !KBD_IS_PROBED(kbd))
-		return ENXIO;		/* shouldn't happen */
-	kbdc = ((pckbd_state_t *)kbd->kb_data)->kbdc;
-	if (kbdc == NULL)
-		return ENXIO;		/* shouldn't happen */
-
-	if (!KBD_IS_INITIALIZED(kbd)) {
+	if (!KBD_IS_INITIALIZED(kbd) && !(flags & KB_CONF_PROBE_ONLY)) {
 		if (KBD_HAS_DEVICE(kbd)
-		    && init_keyboard(kbdc, &kbd->kb_type, kbd->kb_config)
+		    && init_keyboard(state->kbdc, &kbd->kb_type, kbd->kb_config)
 		    && (kbd->kb_config & KB_CONF_FAIL_IF_NO_KBD))
 			return ENXIO;
-		pckbd_ioctl(kbd, KDSETLED,
-			(caddr_t)&((pckbd_state_t *)(kbd->kb_data))->ks_state);
+		pckbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
 		KBD_INIT_DONE(kbd);
 	}
 	if (!KBD_IS_CONFIGURED(kbd)) {
@@ -547,7 +543,7 @@ pckbd_term(keyboard_t *kbd)
 
 /* keyboard interrupt routine */
 static int
-pckbd_intr(keyboard_t *kbd)
+pckbd_intr(keyboard_t *kbd, void *arg)
 {
 	int c;
 
@@ -818,7 +814,9 @@ pckbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		/* set LEDs and quit */
 		return pckbd_ioctl(kbd, KDSETLED, arg);
 
-	case KDSETRAD:		/* set keyboard repeat rate */
+	case KDSETRAD:		/* set keyboard repeat rate (old interface)*/
+		break;
+	case KDSETREPEAT:	/* set keyboard repeat rate (new interface) */
 		break;
 
 	case PIO_KEYMAP:	/* set keyboard translation table */
@@ -877,6 +875,13 @@ pckbd_set_state(keyboard_t *kbd, void *buf, size_t len)
 		!= ((pckbd_state_t *)buf)->kbdc)
 		return ENOMEM;
 	bcopy(buf, kbd->kb_data, sizeof(pckbd_state_t));
+	return 0;
+}
+
+/* set polling mode */
+static int
+pckbd_poll(keyboard_t *kbd, int on)
+{
 	return 0;
 }
 
