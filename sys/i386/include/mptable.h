@@ -287,9 +287,6 @@ extern pt_entry_t *SMPpt;
 
 struct pcb stoppcbs[MAXCPU];
 
-int invltlb_ok = 0;	/* throttle smp_invltlb() till safe */
-SYSCTL_INT(_machdep, OID_AUTO, invltlb_ok, CTLFLAG_RW, &invltlb_ok, 0, "");
-
 /*
  * Local data and functions.
  */
@@ -2191,7 +2188,7 @@ void
 smp_invltlb(void)
 {
 #if defined(APIC_IO)
-	if (smp_started && invltlb_ok)
+	if (smp_started)
 		ipi_all_but_self(IPI_INVLTLB);
 #endif  /* APIC_IO */
 }
@@ -2236,28 +2233,12 @@ ap_init(void)
 	while (!aps_ready)
 		/* spin */ ;
 
-	/*
-	 * Set curproc to our per-cpu idleproc so that mutexes have
-	 * something unique to lock with.
-	 */
-	PCPU_SET(curthread, PCPU_GET(idlethread));
-
-	/* lock against other AP's that are waking up */
-	mtx_lock_spin(&ap_boot_mtx);
-
-	/* BSP may have changed PTD while we're waiting for the lock */
+	/* BSP may have changed PTD while we were waiting */
 	cpu_invltlb();
-
-	smp_cpus++;
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 	lidt(&r_idt);
 #endif
-
-	/* Build our map of 'other' CPUs. */
-	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
-
-	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
 	/* set up CPU registers and state */
 	cpu_setregs();
@@ -2283,18 +2264,22 @@ ap_init(void)
 	/* Set memory range attributes for this CPU to match the BSP */
 	mem_range_AP_init();
 
-	/*
-	 * Activate smp_invltlb, although strictly speaking, this isn't
-	 * quite correct yet.  We should have a bitfield for cpus willing
-	 * to accept TLB flush IPI's or something and sync them.
-	 */
+	mtx_lock_spin(&ap_boot_mtx);
+
+	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
+
+	smp_cpus++;
+
+	/* Build our map of 'other' CPUs. */
+	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
+
+	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
+
 	if (smp_cpus == mp_ncpus) {
-		invltlb_ok = 1;
 		smp_started = 1; /* enable IPI's, tlb shootdown, freezes etc */
 		smp_active = 1;	 /* historic */
 	}
 
-	/* let other AP's wake up now */
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* wait until all the AP's are up */
@@ -2305,11 +2290,10 @@ ap_init(void)
 	PCPU_SET(switchticks, ticks);
 
 	/* ok, now grab sched_lock and enter the scheduler */
-	enable_intr();
 	mtx_lock_spin(&sched_lock);
 	cpu_throw();	/* doesn't return */
 
-	panic("scheduler returned us to ap_init");
+	panic("scheduler returned us to %s", __func__);
 }
 
 /*
@@ -2332,7 +2316,7 @@ forward_statclock(void)
 
 	CTR0(KTR_SMP, "forward_statclock");
 
-	if (!smp_started || !invltlb_ok || cold || panicstr)
+	if (!smp_started || cold || panicstr)
 		return;
 
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
@@ -2363,7 +2347,7 @@ forward_hardclock(void)
 
 	CTR0(KTR_SMP, "forward_hardclock");
 
-	if (!smp_started || !invltlb_ok || cold || panicstr)
+	if (!smp_started || cold || panicstr)
 		return;
 
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
