@@ -685,13 +685,26 @@ findpcb:
 #endif
 			so2 = sonewconn(so, 0);
 			if (so2 == 0) {
+				/*
+				 * If we were unable to create a new socket
+				 * for this SYN, we call sodropablereq to
+				 * see if there are any other sockets we
+				 * can kick out of the listen queue.  If
+				 * so, we'll silently drop the socket
+				 * sodropablereq told us to drop and
+				 * create a new one.
+				 *
+				 * If sodropablereq returns 0, we'll
+				 * simply drop the incoming SYN, as we
+				 * can not allocate a socket for it.
+				 */
 				tcpstat.tcps_listendrop++;
 				so2 = sodropablereq(so);
 				if (so2) {
 					if (tcp_lq_overflow)
 						sototcpcb(so2)->t_flags |= 
 						    TF_LQ_OVERFLOW;
-					tcp_drop(sototcpcb(so2), ETIMEDOUT);
+					tcp_close(sototcpcb(so2));
 					so2 = sonewconn(so, 0);
 				}
 				if (!so2)
