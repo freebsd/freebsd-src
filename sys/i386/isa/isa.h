@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.15 1995/06/14 07:38:31 bde Exp $
+ *	$Id: isa.h,v 1.16 1995/09/08 03:14:00 julian Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
@@ -79,45 +79,49 @@
 #define	IO_WD1		0x1F0		/* Primary Fixed Disk Controller */
 #define	IO_GAME		0x201		/* Game Controller */
 
-					/* 0x202 (?) - 0x26F Open */
+					/* 0x202 - 0x22A Open */
+
 #define	IO_ASC2		0x22B		/* AmiScan addr.grp. 2 */
 
+					/* 0x230 - 0x26A Open */
+
+#define	IO_ASC3		0x26B		/* AmiScan addr.grp. 3 */
 #define	IO_GSC1		0x270 /* -- 0x27B! GeniScan GS-4500 addr.grp. 1 */
 #define	IO_LPT2		0x278		/* Parallel Port #2 */
-#define	IO_ASC3		0x26B		/* AmiScan addr.grp. 3 */
+
+					/* 0x280 - 0x2AA Open */
+
 #define	IO_ASC4		0x2AB		/* AmiScan addr.grp. 4 */
 
-					/* 0x280 - 0x2DF Open */
+					/* 0x2B0 - 0x2DF Open */
 
 #define	IO_GSC2		0x2E0		/* GeniScan GS-4500 addr.grp. 2 */
 #define	IO_COM4		0x2E8		/* COM4 i/o address */
-					/* 0x2F0 - 0x2F7 Open */
-
 #define	IO_ASC5		0x2EB		/* AmiScan addr.grp. 5 */
+
+					/* 0x2F0 - 0x2F7 Open */
 
 #define	IO_COM2		0x2F8		/* COM2 i/o address */
 
+					/* 0x300 - 0x32A Open */
+
 #define	IO_ASC6		0x32B		/* AmiScan addr.grp. 6 */
-
-
-					/* 0x300 - 0x32F Open */
-
 #define	IO_AHA0		0x330		/* adaptec 1542 default addr. */
 #define	IO_BT0		0x330		/* bustek 742a default addr. */
 #define	IO_UHA0		0x330		/* ultrastore 14f default addr. */
 #define	IO_AHA1		0x334		/* adaptec 1542 default addr. */
 #define	IO_BT1		0x334		/* bustek 742a default addr. */
 
-					/* 0x340 - 0x36F Open */
-#define	IO_ASC7		0x36B		/* AmiScan addr.grp. 7 */
+					/* 0x340 - 0x36A Open */
 
+#define	IO_ASC7		0x36B		/* AmiScan addr.grp. 7 */
 #define	IO_GSC3		0x370		/* GeniScan GS-4500 addr.grp. 3 */
 #define	IO_FD2		0x370		/* secondary base i/o address */
 #define	IO_LPT1		0x378		/* Parallel Port #1 */
 
-					/* 0x380 - 0x3AF Open */
-#define	IO_ASC8		0x3AB		/* AmiScan addr.grp. 8 */
+					/* 0x380 - 0x3AA Open */
 
+#define	IO_ASC8		0x3AB		/* AmiScan addr.grp. 8 */
 #define	IO_MDA		0x3B0		/* Monochome Adapter */
 #define	IO_LPT3		0x3BC		/* Monochome Adapter Printer Port */
 #define	IO_VGA		0x3C0		/* E/VGA Ports */
@@ -129,7 +133,7 @@
 #define	IO_COM1		0x3F8		/* COM1 i/o address */
 
 #define	IO_ISAEND	0x3FF		/* End (actually Max) of I/O Regs */
-#endif /* IO_ISABEGIN */
+#endif /* !IO_ISABEGIN */
 
 /*
  * Input / Output Port Sizes - these are from several sources, and tend
@@ -138,25 +142,27 @@
 #ifndef	IO_ISASIZES
 #define	IO_ISASIZES
 
-#define	IO_COMSIZE	8		/* 8250, 16x50 com controllers */
+#define	IO_ASCSIZE	5		/* AmiScan GI1904-based hand scanner */
 #define	IO_CGASIZE	16		/* CGA controllers */
+#define	IO_COMSIZE	8		/* 8250, 16x50 com controllers */
 #define	IO_DMASIZE	16		/* 8237 DMA controllers */
 #define	IO_DPGSIZE	32		/* 74LS612 DMA page reisters */
+#define	IO_EISASIZE	256		/* EISA controllers */
 #define	IO_FDCSIZE	8		/* Nec765 floppy controllers */
-#define	IO_WDCSIZE	8		/* WD compatible disk controllers */
 #define	IO_GAMSIZE	16		/* AT compatible game controllers */
+#define	IO_GSCSIZE	8		/* GeniScan GS-4500G hand scanner */
 #define	IO_ICUSIZE	16		/* 8259A interrupt controllers */
 #define	IO_KBDSIZE	16		/* 8042 Keyboard controllers */
 #define	IO_LPTSIZE	8		/* LPT controllers, some use only 4 */
 #define	IO_MDASIZE	16		/* Monochrome display controllers */
+#define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
+#define	IO_PMPSIZE	2		/* 82347 power management peripheral */
 #define	IO_RTCSIZE	16		/* CMOS real time clock, NMI control */
 #define	IO_TMRSIZE	16		/* 8253 programmable timers */
-#define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
 #define	IO_VGASIZE	16		/* VGA controllers */
-#define	IO_EISASIZE	256		/* EISA controllers */
-#define	IO_PMPSIZE	2		/* 82347 power management peripheral */
+#define	IO_WDCSIZE	8		/* WD compatible disk controllers */
 
-#endif /* IO_ISASIZES */
+#endif /* !IO_ISASIZES */
 
 /*
  * Input / Output Memory Physical Addresses
@@ -165,7 +171,7 @@
 #define	IOM_BEGIN	0x0A0000	/* Start of I/O Memory "hole" */
 #define	IOM_END		0x100000	/* End of I/O Memory "hole" */
 #define	IOM_SIZE	(IOM_END - IOM_BEGIN)
-#endif /* IOM_BEGIN */
+#endif /* !IOM_BEGIN */
 
 /*
  * RAM Physical Address Space (ignoring the above mentioned "hole")
@@ -174,7 +180,7 @@
 #define	RAM_BEGIN	0x0000000	/* Start of RAM Memory */
 #define	RAM_END		0x1000000	/* End of RAM Memory */
 #define	RAM_SIZE	(RAM_END - RAM_BEGIN)
-#endif /* RAM_BEGIN */
+#endif /* !RAM_BEGIN */
 
 /*
  * Oddball Physical Memory Addresses
@@ -184,6 +190,6 @@
 #define	COMPAQ_RAMSETUP	0x80C00002	/* Compaq RAM setup */
 #define	WEITEK_FPU	0xC0000000	/* WTL 2167 */
 #define	CYRIX_EMC	0xC0000000	/* Cyrix EMC */
-#endif /* COMPAQ_RAMRELOC */
+#endif /* !COMPAQ_RAMRELOC */
 
 #endif /* !_I386_ISA_ISA_H_ */
