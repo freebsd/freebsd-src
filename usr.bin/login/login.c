@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.37 1998/07/31 07:22:31 bde Exp $";
+	"$Id: login.c,v 1.38 1998/08/17 03:25:07 jkoshy Exp $";
 #endif /* not lint */
 
 /*
@@ -63,6 +63,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <setjmp.h>
@@ -175,6 +176,9 @@ main(argc, argv)
 #ifdef SKEY
 	int permit_passwd = 0;
 #endif /* SKEY */
+#ifdef KERBEROS
+	char *k;
+#endif
 
 	(void)signal(SIGALRM, timedout);
 	(void)alarm(timeout);
@@ -472,7 +476,10 @@ main(argc, argv)
 				rval = 1;		/* failed */
 			} else
 #endif /* SKEY */
-			rval = klogin(pwd, instance, localhost, p);
+			rval = 1;
+			k = auth_getval("auth_list");
+			if (k && strstr(k, "kerberos"))
+				rval = klogin(pwd, instance, localhost, p);
 			if (rval != 0 && rootlogin && pwd->pw_uid != 0)
 				rootlogin = 0;
 			if (rval == 0)

@@ -42,11 +42,14 @@ static const char copyright[] =
 static char sccsid[] = "@(#)passwd.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: passwd.c,v 1.13 1997/07/31 06:57:47 charnier Exp $";
+	"$Id: passwd.c,v 1.14 1998/03/23 14:14:24 bde Exp $";
 #endif /* not lint */
+
+#include <sys/types.h>
 
 #include <err.h>
 #include <errno.h>
+#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,6 +83,7 @@ main(argc, argv)
 	char *uname;
 #ifdef KERBEROS
 	char *iflag = 0, *rflag = 0, *uflag = 0;
+	char *k;
 #endif
 
 #ifdef YP
@@ -209,6 +213,8 @@ main(argc, argv)
 
 	if (!use_local_passwd) {
 #ifdef	KERBEROS
+		k = auth_getval("auth_list");
+		if (k && strstr(k, "kerberos"))
 		if(krb_get_lrealm(realm, 0) == KSUCCESS) {
 			fprintf(stderr, "realm %s\n", realm);
 			exit(krb_passwd(argv[0], iflag, rflag, uflag));
