@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.116.2.1 1999/03/23 04:38:33 alc Exp $
+ *	$Id: vm_page.c,v 1.116.2.2 1999/07/29 05:38:58 alc Exp $
  */
 
 /*
@@ -179,7 +179,7 @@ vm_set_page_size()
 {
 
 	if (cnt.v_page_size == 0)
-		cnt.v_page_size = DEFAULT_PAGE_SIZE;
+		cnt.v_page_size = PAGE_SIZE;
 	page_mask = cnt.v_page_size - 1;
 	if ((page_mask & cnt.v_page_size) != 0)
 		panic("vm_set_page_size: page size not a power of two");
