@@ -41,7 +41,6 @@ MAN=	aac.4 \
 	cm.4 \
 	cnw.4 \
 	crypto.4 \
-	csa.4 \
 	cue.4 \
 	cy.4 \
 	da.4 \
@@ -81,7 +80,6 @@ MAN=	aac.4 \
 	geom.4 \
 	gif.4 \
 	gre.4 \
-	gusc.4 \
 	gx.4 \
 	harp.4 \
 	hatm.4 \
@@ -137,7 +135,6 @@ MAN=	aac.4 \
 	mac_seeotheruids.4 \
 	mac_stub.4 \
 	mac_test.4 \
-	maestro3.4 \
 	md.4 \
 	mem.4 \
 	meteor.4 \
@@ -240,7 +237,6 @@ MAN=	aac.4 \
 	sa.4 \
 	sab.4 \
 	safe.4 \
-	sbc.4 \
 	sbp.4 \
 	sbp_targ.4 \
 	sbsh.4 \
@@ -258,6 +254,19 @@ MAN=	aac.4 \
 	smbus.4 \
 	smp.4 \
 	sn.4 \
+	snd_ad1816.4 \
+	snd_als4000.4 \
+	snd_cmi.4 \
+	snd_cs4281.4 \
+	snd_csa.4 \
+	snd_ds1.4 \
+	snd_emu10k1.4 \
+	snd_es137x.4 \
+	snd_gusc.4 \
+	snd_maestro3.4 \
+	snd_sbc.4 \
+	snd_solo.4 \
+	snd_uaudio.4 \
 	snp.4 \
 	spic.4 \
 	splash.4 \
@@ -286,7 +295,6 @@ MAN=	aac.4 \
 	tx.4 \
 	txp.4 \
 	uart.4 \
-	uaudio.4 \
 	ubsa.4 \
 	ubsec.4 \
 	ubser.4 \
@@ -387,9 +395,8 @@ MLINKS+=nge.4 if_nge.4
 MLINKS+=oldcard.4 card.4
 MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
-MLINKS+=pcm.4 als4000.4 \
-	pcm.4 emu10k1.4 \
-	pcm.4 snd.4
+MLINKS+=pcm.4 snd.4 \
+	pcm.4 sound.4
 MLINKS+=pcn.4 if_pcn.4
 MLINKS+=pcvt.4 vt.4
 MLINKS+=ppp.4 if_ppp.4

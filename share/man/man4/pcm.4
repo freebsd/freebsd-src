@@ -25,10 +25,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2004
-.Dt PCM 4
+.Dd August 28, 2004
+.Dt SOUND 4
 .Os
 .Sh NAME
+.Nm sound ,
 .Nm pcm ,
 .Nm snd
 .Nd
@@ -36,7 +37,7 @@
 PCM audio device infrastructure
 .Sh SYNOPSIS
 For a card with bridge driver support, and a PnP card:
-.Cd "device pcm"
+.Cd "device sound"
 .Pp
 For a card without bridge driver support, and a non-PnP card,
 the following lines may be required in
@@ -46,6 +47,16 @@ the following lines may be required in
 .Cd hint.pcm.0.drq="1"
 .Cd hint.pcm.0.flags="0x0"
 .Sh DESCRIPTION
+.Bf -emphasis
+Note: There exists some ambiguity in the naming at the moment
+.Pq Nm sound , pcm , snd .
+It will be resolved soon by renaming
+.Cd "device sound"
+to
+.Cd "device snd" ,
+and doing associated changes.
+.Ef
+.Pp
 The
 .Nm
 driver provides support for
@@ -109,7 +120,7 @@ in
 In general, the module
 .Pa snd_foo
 corresponds to
-.Cd "device foo"
+.Cd "device snd_foo"
 and can be
 loaded by the boot
 .Xr loader 8
@@ -338,6 +349,8 @@ The
 .Nm
 device driver first appeared in
 .Fx 2.2.6
+as
+.Nm pcm ,
 written by
 .An Luigi Rizzo .
 It was later
@@ -348,9 +361,9 @@ by
 The API evolved from the VOXWARE
 standard which later became OSS standard.
 .Sh SEE ALSO
-.Xr csa 4 ,
-.Xr gusc 4 ,
-.Xr sbc 4 ,
+.Xr snd_csa 4 ,
+.Xr snd_gusc 4 ,
+.Xr snd_sbc 4 ,
 .Xr devfs 5 ,
 .Xr loader.conf 5 ,
 .Xr dmesg 8 ,
@@ -364,7 +377,7 @@ standard which later became OSS standard.
 .An -nosplit
 .An Luigi Rizzo Aq luigi@iet.unipi.it
 initially wrote the
-.Nm
+.Nm pcm
 device driver and this manual page.
 .An Cameron Grant Aq gandalf@vilnya.demon.co.uk
 later revised the device driver for
