@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.22 1998/05/09 20:50:35 wollman Exp $
+.\" $Id: fetch.1,v 1.23 1998/05/09 21:39:49 wollman Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os FreeBSD 2.2
@@ -8,11 +8,13 @@
 .Sh SYNOPSIS
 .Nm fetch
 .Op Fl MPabmnpqr
+.Op Fl S Ar size
 .Op Fl o Ar file
 .Ar URL
 .Op Ar ...
 .Nm fetch
 .Op Fl MPRmnpqr
+.Op Fl S Ar size
 .Op Fl o Ar file
 .Op Fl c Ar dir
 .Fl f Ar file
@@ -99,6 +101,19 @@ The filenames specified are ``precious'', and should not be deleted
 under any circumstances, even if the transfer failed or was incomplete.
 .It Fl r
 Restart a previously interrupted transfer.
+.It Fl S Ar bytes
+Require file size reported by 
+.Tn FTP
+or 
+.Tn HTTP
+server to match the value specified with this option. 
+On mismatch, a message is printed and the file will not be fetched.
+If the server does not support reporting of file sizes, the option
+will be ignored and the file will be retrieved anyway. 
+This option is useful to prevent
+.Nm fetch
+from downloading a file that is either incomplete or the wrong version,
+given the correct size of the file in advance.
 .It Fl t
 Work around a different set of buggy
 .Tn TCP
