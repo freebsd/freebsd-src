@@ -29,11 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: modstat.c,v 1.6 1997/02/22 19:56:15 peter Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <err.h>
 #include <string.h>
 #include <a.out.h>
