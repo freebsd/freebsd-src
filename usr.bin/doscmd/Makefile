@@ -26,8 +26,8 @@ EXEGRP=		bin
 #BINMODE=	2555
 EXEMODE=	444
 
-.if !defined(NO_X11SUPPORT) && !defined(DESTDIR) \
-    && exists(${X11BASE}/include/X11/X.h) && exists(${XLIBDIR}/libX11.a)
+.if !defined(NO_X) && !defined(DESTDIR) && exists(${X11BASE}/include/X11/X.h) \
+    && exists(${XLIBDIR}/libX11.a)
 CFLAGS+=	-I${X11BASE}/include
 LDADD+=		-L${XLIBDIR} -lX11
 DPADD+=		${XLIBDIR}/libX11.a
