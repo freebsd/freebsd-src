@@ -295,14 +295,13 @@ fwe_init(void *arg)
 	fc = fwe->fd.fc;
 #define START 0
 	if (fwe->dma_ch < 0) {
-		xferq = NULL;
 		for (i = START; i < fc->nisodma; i ++) {
 			xferq = fc->ir[i];
 			if ((xferq->flag & FWXFERQ_OPEN) == 0)
 				break;
 		}
 
-		if (xferq == NULL) {
+		if (i >= fc->nisodma) {
 			printf("no free dma channel\n");
 			return;
 		}
