@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.57 1999/04/04 21:41:16 dt Exp $
+	$Id: syscalls.master,v 1.58 1999/04/28 11:28:49 phk Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -90,7 +90,7 @@
 43	STD	POSIX	{ gid_t getegid(void); }
 44	STD	BSD	{ int profil(caddr_t samples, size_t size, \
 			    size_t offset, u_int scale); }
-45	STD	BSD	{ int ktrace(char *fname, int ops, int facs, \
+45	STD	BSD	{ int ktrace(const char *fname, int ops, int facs, \
 			    int pid); }
 46	STD	POSIX	{ int sigaction(int signum, struct sigaction *nsa, \
 			    struct sigaction *osa); }
@@ -469,7 +469,7 @@
 332     STD     POSIX   { int sched_get_priority_max (int policy); }
 333     STD     POSIX   { int sched_get_priority_min (int policy); }
 334     STD     POSIX   { int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
-335	STD	BSD	{ int utrace(caddr_t addr, size_t len); }
+335	STD	BSD	{ int utrace(const void *addr, size_t len); }
 336	STD	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
 				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
 337	STD	BSD	{ int kldsym(int fileid, int cmd, void *data); }
