@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.59 1996/11/09 19:25:59 jkh Exp $
+ * $Id: config.c,v 1.60 1996/11/27 22:52:31 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -434,7 +434,7 @@ configRouter(dialogMenuItem *self)
 			     "will attempt to load if you select gated.  Any other\n"
 			     "choice of routing daemon will be assumed to be something\n"
 			     "the user intends to install themselves before rebooting\n"
-			     "the system.  If you don't want any routing daemon, say NO") ?
+			     "the system.  If you don't want any routing daemon, choose NO") ?
 	DITEM_SUCCESS : DITEM_FAILURE;
 
     if (ret == DITEM_SUCCESS) {
@@ -444,8 +444,8 @@ configRouter(dialogMenuItem *self)
 	if (strcmp(cp, "NO")) {
 	    if (!strcmp(cp, "gated")) {
 		if (package_add(PACKAGE_GATED) != DITEM_SUCCESS) {
-		    msgConfirm("Unable to load gated package.  Falling back to routed.");
-		    variable_set2(VAR_ROUTER, "routed");
+		    msgConfirm("Unable to load gated package.  Falling back to no router.");
+		    variable_set2(VAR_ROUTER, "NO");
 		}
 	    }
 	    /* Now get the flags, if they chose a router */
