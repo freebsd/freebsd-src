@@ -315,6 +315,7 @@ device_t	devclass_get_device(devclass_t dc, int unit);
 void	*devclass_get_softc(devclass_t dc, int unit);
 int	devclass_get_devices(devclass_t dc, device_t **listp, int *countp);
 int	devclass_get_maxunit(devclass_t dc);
+int	devclass_find_free_unit(devclass_t dc, int unit);
 
 /*
  * Access functions for device resources.
