@@ -724,6 +724,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 		LIST_REMOVE(tmps, us_link);
 		uma_boot_free--;
 		mem = tmps->us_data;
+		flags = tmps->us_flags;
 	}
 
 	/* Point the slab into the allocated memory */
