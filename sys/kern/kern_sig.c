@@ -1552,6 +1552,7 @@ issignal(td)
 
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	WITNESS_SLEEP(1, &p->p_mtx.mtx_object);
 	for (;;) {
 		int traced = (p->p_flag & P_TRACED) || (p->p_stops & S_SIG);
 
@@ -1651,7 +1652,6 @@ issignal(td)
 			 * process group, ignore tty stop signals.
 			 */
 			if (prop & SA_STOP) {
-				WITNESS_SLEEP(1, &p->p_mtx.mtx_object);
 				if (p->p_flag & P_TRACED ||
 		    		    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
