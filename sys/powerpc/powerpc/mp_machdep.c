@@ -43,7 +43,6 @@
 #include <sys/dkstat.h>
 
 #include <machine/smp.h>
-#include <machine/lock.h>
 #include <machine/atomic.h>
 #include <machine/globaldata.h>
 #include <machine/pmap.h>

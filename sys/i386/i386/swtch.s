@@ -48,7 +48,6 @@
 #include <machine/pmap.h>
 #include <machine/apic.h>
 #include <machine/smptests.h>		/** GRAB_LOPRIO */
-#include <machine/lock.h>
 #endif /* SMP */
 
 #include "assym.s"

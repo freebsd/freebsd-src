@@ -43,9 +43,6 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#ifndef SMP
-#include <machine/lock.h>
-#endif
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
