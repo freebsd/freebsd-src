@@ -91,6 +91,11 @@ _UTF2_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 
 	us = (_UTF2State *)ps;
 
+	if (us->count < 0 || us->count > sizeof(us->bytes)) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
+
 	if (s == NULL) {
 		s = "";
 		n = 1;
@@ -142,11 +147,18 @@ _UTF2_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 }
 
 size_t
-_UTF2_wcrtomb(char * __restrict s, wchar_t wc,
-    mbstate_t * __restrict ps __unused)
+_UTF2_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
+	_UTF2State *us;
 	unsigned char lead;
 	int i, len;
+
+	us = (_UTF2State *)ps;
+
+	if (us->count != 0) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
 
 	if (s == NULL)
 		/* Reset to initial conversion state. */

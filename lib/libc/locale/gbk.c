@@ -38,6 +38,7 @@
 #include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <runetype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -97,6 +98,11 @@ _GBK_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 
 	gs = (_GBKState *)ps;
 
+	if (gs->count < 0 || gs->count > sizeof(gs->bytes)) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
+
 	if (s == NULL) {
 		s = "";
 		n = 1;
@@ -124,9 +130,16 @@ _GBK_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 }
 
 size_t
-_GBK_wcrtomb(char * __restrict s, wchar_t wc,
-    mbstate_t * __restrict ps __unused)
+_GBK_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
+	_GBKState *gs;
+
+	gs = (_GBKState *)ps;
+
+	if (gs->count != 0) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
 
 	if (s == NULL)
 		/* Reset to initial shift state (no-op) */

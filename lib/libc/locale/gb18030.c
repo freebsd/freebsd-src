@@ -85,6 +85,11 @@ _GB18030_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
 
 	gs = (_GB18030State *)ps;
 
+	if (gs->count < 0 || gs->count > sizeof(gs->bytes)) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
+
 	if (s == NULL) {
 		s = "";
 		n = 1;
@@ -154,11 +159,18 @@ ilseq:
 }
 
 size_t
-_GB18030_wcrtomb(char * __restrict s, wchar_t wc,
-    mbstate_t * __restrict ps __unused)
+_GB18030_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
+	_GB18030State *gs;
 	size_t len;
 	int c;
+
+	gs = (_GB18030State *)ps;
+
+	if (gs->count != 0) {
+		errno = EINVAL;
+		return ((size_t)-1);
+	}
 
 	if (s == NULL)
 		/* Reset to initial shift state (no-op) */
