@@ -80,7 +80,6 @@ static driver_t snc_pccard_driver = {
 
 DRIVER_MODULE(snc, pccard, snc_pccard_driver, snc_devclass, 0, 0);
 MODULE_DEPEND(snc, ether, 1, 1, 1);
-MODULE_DEPEND(snc, pccard, 1, 1, 1);
 
 /*
  *      snc_pccard_detach - unload the driver and clear the table.

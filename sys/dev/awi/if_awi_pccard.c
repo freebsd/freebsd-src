@@ -301,4 +301,3 @@ extern devclass_t awi_devclass;
 
 DRIVER_MODULE(awi, pccard, awi_pccard_driver, awi_devclass, 0, 0);
 MODULE_DEPEND(awi, wlan, 1, 1, 1);
-MODULE_DEPEND(awi, pccard, 1, 1, 1);
