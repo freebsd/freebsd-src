@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mknod.8	8.2 (Berkeley) 12/11/93
+.\"	$Id$
 .\"
 .Dd December 11, 1993
 .Dt MKNOD 8
@@ -49,13 +50,13 @@ command creates device special files.
 Normally the shell script
 .Pa /dev/MAKEDEV
 is used to create special files for commonly known devices; it executes
-.Nm mknod
+.Nm
 with the appropriate arguments and can make all the files required for the
 device.
 .Pp
 To make nodes manually, the four required arguments are:
 .Pp
-.Bl -tag -width majorx
+.Bl -tag -width indent
 .It Ar name
 Device name, for example
 .Dq sd
