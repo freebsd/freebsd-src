@@ -1,4 +1,4 @@
-# Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
+# Copyright (C) 1989-2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 #      Written by James Clark (jjc@jclark.com)
 # 
 # This file is part of groff.
@@ -21,6 +21,7 @@ srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 VPATH=@srcdir@
 top_builddir=@groff_top_builddir@
+SEP=@PATH_SEPARATOR@
 
 version=`cat $(top_srcdir)/VERSION`
 # No additional number if revision is zero.
@@ -120,7 +121,7 @@ localfontdir=$(dataprogramdir)/site-font
 legacyfontdir=/usr/lib/font
 
 # `fontpath' says where to look for dev*/*.
-fontpath=$(localfontdir):$(fontdir):$(legacyfontdir)
+fontpath=$(localfontdir)$(SEP)$(fontdir)$(SEP)$(legacyfontdir)
 
 # `tmacdir' says where to install macros.
 tmacdir=$(datasubdir)/tmac
@@ -136,10 +137,15 @@ localtmacdir=$(dataprogramdir)/site-tmac
 # directory will be always added.
 # `troffrc' and `troffrc-end' (and `eqnrc') are searched neither in the
 # current nor in the home directory.
-tmacpath=$(systemtmacdir):$(localtmacdir):$(tmacdir)
+tmacpath=$(systemtmacdir)$(SEP)$(localtmacdir)$(SEP)$(tmacdir)
 
 # `sys_tmac_prefix' is prefix (if any) for system macro packages.
 sys_tmac_prefix=@sys_tmac_prefix@
+
+# `pnmtops_nosetpage' is the command to be run to generate an eps
+# file.  Some versions of pnmtops provide the -nosetpage option.
+# We detect this and use it if present.
+pnmtops_nosetpage=@pnmtops_nosetpage@
 
 # `tmac_wrap' is list of system macro packages that should be made
 # available to groff by creating a corresponding macro package
@@ -214,7 +220,7 @@ make_install_html=@make_install_html@
 # -DHAVE_CC_LIMITS_H		if you have a C++ <limits.h>
 # -DHAVE_MATH_H			if you have <math.h>
 # -DHAVE_CC_OSFCN_H		if you have a C++ <osfcn.h>
-# -DHAVE_STDINT_H		if you have <stdint.h>
+# -DHAVE_CC_STDINT_H		if you have a C++ <stdint.h>
 # -DHAVE_STDLIB_H		if you have <stdlib.h>
 # -DHAVE_STRING_H		if you have <string.h>
 # -DHAVE_STRINGS_H		if you have <strings.h>
@@ -230,6 +236,7 @@ make_install_html=@make_install_html@
 # -DHAVE_MMAP			if you have mmap()
 # -DHAVE_PUTENV			if you have putenv()
 # -DHAVE_RENAME			if you have rename()
+# -DHAVE_SETLOCALE		if you have setlocale()
 # -DHAVE_SNPRINTF		if you have snprintf()
 # -DHAVE_STRCASECMP		if you have strcasecmp()
 # -DHAVE_STRNCASECMP		if you have strncasecmp()
@@ -244,6 +251,9 @@ make_install_html=@make_install_html@
 # -DNEED_DECLARATION_PCLOSE	if your C++ <stdio.h> doesn't declare pclose()
 # -DNEED_DECLARATION_POPEN	if your C++ <stdio.h> doesn't declare popen()
 # -DNEED_DECLARATION_PUTENV	if your C++ <stdlib.h> doesn't declare putenv()
+# -DNEED_DECLARATION_RAND	if your C++ <stdlib.h> doesn't declare rand()
+# -DNEED_DECLARATION_SNPRINTF	if your C++ <stdio.h> doesn't declare snprintf()
+# -DNEED_DECLARATION_SRAND	if your C++ <stdlib.h> doesn't declare srand()
 # -DNEED_DECLARATION_STRCASECMP if your C++ <string.h> doesn't declare
 #				strcasecmp()
 # -DNEED_DECLARATION_STRNCASECMP
@@ -265,12 +275,13 @@ DEFINES=@DEFS@
 
 # Include
 #
-#   {fmod,getcwd,mkstemp,putenv,snprintf,strerror,strtol}.$(OBJEXT)
+#   {fmod,getcwd,mkstemp,putenv,snprintf,strcasecmp,
+#    strerror,strncasecmp,strtol}.$(OBJEXT)
 #
 # in LIBOBJS if your C library is missing the corresponding function.
 LIBOBJS=@LIBOBJS@
 
-# `CCC' is the compiler for C++ (.cc) files.
+# `CCC' is the compiler for C++ (.cpp) files.
 CCC=@CXX@
 CC=@CC@
 # CCDEFINES are definitions for C++ compilations.
@@ -286,6 +297,8 @@ YACCFLAGS=-v
 
 EXEEXT=@EXEEXT@
 OBJEXT=@OBJEXT@
+# a simple heuristic assumption
+LIBEXT=`case $(OBJEXT) in obj) echo lib;; *) echo a;; esac`
 LIBS=@LIBS@
 LIBM=@LIBM@
 RANLIB=@RANLIB@
@@ -317,85 +330,88 @@ PURIFYCCFLAGS=
 # copy of $(MDEFINES) when making individual directories; this could
 # cause the argument list to become too long on some systems.
 MDEFINES= \
-  "MAKEOVERRIDES=$(MAKEOVERRIDES)" \
-  "PAGE=$(PAGE)" \
+  "AR=$(AR)" \
   "BROKEN_SPOOLER_FLAGS=$(BROKEN_SPOOLER_FLAGS)" \
+  "CC=$(CC)" \
+  "CCC=$(CCC)" \
+  "CCDEFINES=$(CCDEFINES)" \
+  "CCFLAGS=$(CCFLAGS)" \
+  "CDEFINES=$(CDEFINES)" \
+  "CFLAGS=$(CFLAGS)" \
   "DEVICE=$(DEVICE)" \
-  "TTYDEVDIRS=$(TTYDEVDIRS)" \
-  "OTHERDEVDIRS=$(OTHERDEVDIRS)" \
-  "PSPRINT=$(PSPRINT)" \
   "DVIPRINT=$(DVIPRINT)" \
-  "version=$(version)" \
-  "revision=$(revision)" \
-  "top_srcdir=$(top_srcdir)" \
-  "top_builddir=$(top_builddir)" \
-  "prefix=$(prefix)" \
-  "exec_prefix=$(exec_prefix)" \
-  "g=$(g)" \
+  "ETAGS=$(ETAGS)" \
+  "ETAGSCCFLAG=$(ETAGSCCFLAG)" \
+  "ETAGSFLAGS=$(ETAGSFLAGS)" \
+  "EXEEXT=$(EXEEXT)" \
+  "INSTALL_DATA=$(INSTALL_DATA)" \
+  "INSTALL_INFO=$(INSTALL_INFO)" \
+  "INSTALL_PROGRAM=$(INSTALL_PROGRAM)" \
+  "INSTALL_SCRIPT=$(INSTALL_SCRIPT)" \
+  "LDFLAGS=$(LDFLAGS)" \
+  "LIBEXT=$(LIBEXT)" \
+  "LIBM=$(LIBM)" \
+  "LIBOBJS=$(LIBOBJS)" \
+  "LIBS=$(LIBS)" \
+  "MAKEOVERRIDES=$(MAKEOVERRIDES)" \
+  "OBJEXT=$(OBJEXT)" \
+  "OTHERDEVDIRS=$(OTHERDEVDIRS)" \
+  "PAGE=$(PAGE)" \
+  "PERLPATH=$(PERLPATH)" \
+  "PSPRINT=$(PSPRINT)" \
+  "PURIFY=$(PURIFY)" \
+  "PURIFYCCFLAGS=$(PURIFYCCFLAGS)" \
+  "RANLIB=$(RANLIB)" \
+  "SEP=$(SEP)" \
+  "SH_SCRIPT_SED_CMD=$(SH_SCRIPT_SED_CMD)" \
+  "TTYDEVDIRS=$(TTYDEVDIRS)" \
+  "YACC=$(YACC)" \
+  "YACCFLAGS=$(YACCFLAGS)" \
+  "bindir=$(bindir)" \
+  "common_words_file=$(common_words_file)" \
   "datadir=$(datadir)" \
   "dataprogramdir=$(dataprogramdir)" \
   "datasubdir=$(datasubdir)" \
-  "infodir=$(infodir)" \
   "docdir=$(docdir)" \
   "exampledir=$(exampledir)" \
+  "exec_prefix=$(exec_prefix)" \
+  "fontdir=$(fontdir)" \
+  "fontpath=$(fontpath)" \
+  "g=$(g)" \
   "htmldocdir=$(htmldocdir)" \
+  "indexdir=$(indexdir)" \
+  "indexext=$(indexext)" \
+  "indexname=$(indexname)" \
+  "infodir=$(infodir)" \
+  "legacyfontdir=$(legacyfontdir)" \
   "libdir=$(libdir)" \
   "libprogramdir=$(libprogramdir)" \
-  "bindir=$(bindir)" \
-  "fontdir=$(fontdir)" \
   "localfontdir=$(localfontdir)" \
-  "legacyfontdir=$(legacyfontdir)" \
-  "fontpath=$(fontpath)" \
-  "tmacdir=$(tmacdir)" \
-  "systemtmacdir=$(systemtmacdir)" \
   "localtmacdir=$(localtmacdir)" \
-  "tmacpath=$(tmacpath)" \
-  "indexext=$(indexext)" \
-  "indexdir=$(indexdir)" \
-  "indexname=$(indexname)" \
-  "common_words_file=$(common_words_file)" \
-  "manroot=$(manroot)" \
-  "man1ext=$(man1ext)" \
-  "man1dir=$(man1dir)" \
-  "man5ext=$(man5ext)" \
-  "man5dir=$(man5dir)" \
-  "man7ext=$(man7ext)" \
-  "man7dir=$(man7dir)" \
   "make_html=$(make_html)" \
   "make_install_html=$(make_install_html)" \
+  "man1dir=$(man1dir)" \
+  "man1ext=$(man1ext)" \
+  "man5dir=$(man5dir)" \
+  "man5ext=$(man5ext)" \
+  "man7dir=$(man7dir)" \
+  "man7ext=$(man7ext)" \
+  "manroot=$(manroot)" \
   "mkinstalldirs=$(mkinstalldirs)" \
-  "tmac_wrap=$(tmac_wrap)" \
+  "prefix=$(prefix)" \
+  "revision=$(revision)" \
   "sys_tmac_prefix=$(sys_tmac_prefix)" \
+  "pnmtops_nosetpage=$(pnmtops_nosetpage)" \
+  "systemtmacdir=$(systemtmacdir)" \
   "tmac_an_prefix=$(tmac_an_prefix)" \
-  "tmac_s_prefix=$(tmac_s_prefix)" \
   "tmac_m_prefix=$(tmac_m_prefix)" \
-  "EXEEXT=$(EXEEXT)" \
-  "OBJEXT=$(OBJEXT)" \
-  "CCC=$(CCC)" \
-  "CC=$(CC)" \
-  "CCDEFINES=$(CCDEFINES)" \
-  "CDEFINES=$(CDEFINES)" \
-  "CCFLAGS=$(CCFLAGS)" \
-  "CFLAGS=$(CFLAGS)" \
-  "LDFLAGS=$(LDFLAGS)" \
-  "YACC=$(YACC)" \
-  "YACCFLAGS=$(YACCFLAGS)" \
-  "LIBM=$(LIBM)" \
-  "LIBS=$(LIBS)" \
-  "LIBOBJS=$(LIBOBJS)" \
-  "RANLIB=$(RANLIB)" \
-  "AR=$(AR)" \
-  "INSTALL_PROGRAM=$(INSTALL_PROGRAM)" \
-  "INSTALL_SCRIPT=$(INSTALL_SCRIPT)" \
-  "INSTALL_DATA=$(INSTALL_DATA)" \
-  "INSTALL_INFO=$(INSTALL_INFO)" \
-  "ETAGS=$(ETAGS)" \
-  "ETAGSFLAGS=$(ETAGSFLAGS)" \
-  "ETAGSCCFLAG=$(ETAGSCCFLAG)" \
-  "PERLPATH=$(PERLPATH)" \
-  "SH_SCRIPT_SED_CMD=$(SH_SCRIPT_SED_CMD)" \
-  "PURIFY=$(PURIFY)" \
-  "PURIFYCCFLAGS=$(PURIFYCCFLAGS)"
+  "tmac_s_prefix=$(tmac_s_prefix)" \
+  "tmac_wrap=$(tmac_wrap)" \
+  "tmacdir=$(tmacdir)" \
+  "tmacpath=$(tmacpath)" \
+  "top_builddir=$(top_builddir)" \
+  "top_srcdir=$(top_srcdir)" \
+  "version=$(version)"
 
 SHELL=/bin/sh
 INCDIRS=src/include

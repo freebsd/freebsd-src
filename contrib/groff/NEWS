@@ -1,6 +1,227 @@
 This file describes recent user-visible changes in groff.  Bug fixes are not
 described.  There are more details in the man and info pages.
 
+VERSION 1.19
+============
+
+Troff
+-----
+
+o Input encoding files for latin-9 (a.k.a. latin-0 and ISO 8859-15) and
+  latin-2 (ISO 8859-2) have been added.  Example use:
+
+    groff -Tdvi -mlatin9 my_file > my_file.dvi
+
+  You still need proper fonts with the necessary glyphs.  Out of the box,
+  the groff package supports latin-9 only for -Tps, -Tdvi, and -Tutf8,
+  and latin-2 only for -Tdvi and -Tutf8.
+
+o Composite glyphs are now supported.  To do this, a subset of the Adobe
+  Glyph List (AGL) Algorithm as described in 
+
+    http://partners.adobe.com/asn/developer/typeforum/unicodegn.html
+
+  is used to construct glyph names based on Unicode character codes.  The
+  existing groff glyph names are frozen; no glyph names which can't be
+  constructed algorithmically will be added in the future.
+
+  The \[...] escape sequence has been extended to specify multiple glyph
+  components.  Example:
+
+    \[A ho]
+
+  this accesses a glyph with the name `u0041_0328'.
+
+  Some groff glyphs which are useful as composites map to `wrong' Unicode
+  code points.  For example, `ho' maps to U+02DB which is a spacing
+  ogonek, whereas a non-spacing ogonek U+0328 is needed for composite
+  glyphs.  The new request
+
+    .composite from to
+
+  will change the mapping while a composite glyph name is constructed.
+  To make \[A ho] yield the expected result,
+
+    .composite ho u0328
+
+  is needed.  [The new file `composite.tmac' loaded at start-up already
+  contains proper calls to `.composite'.]
+
+  Please refer to the info pages of groff and to the groff_char man page
+  for more details.
+
+o A new request `fschar' has been added to define font-specific fallback
+  characters.  They are searched after the list of fonts declared with the
+  `fspecial' request but before the list of fonts declared with `special'.
+
+o Fallback characters defined with `fschar' can be removed with the
+  new `rfschar' request.
+
+o A new request `schar' has been added to define global fallback
+  characters.  They are searched after the list of fonts declared with the
+  `special' request but before the already mounted special fonts.
+
+o In groff versions 1.18 and 1.18.1, \D'f ...' didn't move the current
+  point horizontally.  Despite of being silly, this change has been
+  reverted for backwards compatibility.  Consequently, the intermediate
+  output command `Df' also moves the position horizontally again.
+
+  \D'f ...' is deprecated since it depends on the horizontal resolution of
+  the output device (given with the `hor' parameter in the DESC file).
+  Use the new \D'Fg ...' escape instead.
+
+o For orthogonality, new \D subcommands to change the fill color are
+  available:
+
+    \D'Fr ...' (rgb)
+    \D'Fc ...' (cmy)
+    \D'Fg ...' (gray)
+    \D'Fk ...' (cmyk)
+    \D'Fd'     (default color)
+
+  The arguments are the same as with the `defcolor' request.  The current
+  position is *not* changed.
+
+o The values set with \H and \S are now available in number registers
+  \n[.height] and \n[.slant], respectively.
+
+o The `.pe' number register isn't new but hasn't been documented before.
+  It is set to 1 during a page ejection caused by the `bp' request.
+
+o The new glyph symbol `tno' is a textual variant of `no'.
+
+o The new glyph symbol `+e' represents U+03F5, GREEK LUNATE EPSILON SYMBOL.
+  (Well, it is not really new since it has been previously supported by
+  grolj4.)  The mapping for both the dvi and lj4 symbol font has been
+  changed accordingly so that Greek small letter epsilon, `*e', has the
+  same glyph shape as with other devices.
+
+Grops
+-----
+
+o The font `freeeuro.pfa' has been added to provide various default glyph
+  shapes for `eu' and `Eu'.
+
+o It is now possible to access all glyphs in a Type 1 font, not only 256
+  (provided the font file created by afmtodit has proper entries).  grops
+  constructs additional encoding vectors on the fly if necessary.
+
+o The paper size is now emitted via the %%DocumentMedia and PageSize
+  mechanisms so that it is no longer required to tell `gv' or `ps2pdf'
+  about the paper size.  The `broken' flag value 16 omits this feature
+  (the used PostScript command `setpagedevice' is a LanguageLevel 2
+  extension).  Patch by Egil Kvaleberg <egil@kvaleberg.no>.
+
+o Non-slanted PostScript metrics have been changed again; they no longer
+  contain negative left italic correction values.  This assures correct
+  spacing with eqn.
+
+Grodvi
+------
+
+o The font cmtex10 has been added as the special font `SC' to the DVI fonts.
+  It is used as a font-specific special font for CW and CWI.
+
+o New options -l and -p to set landscape orientation and the paper size.
+  grodvi now emits a `papersize' special which is understood by DVI drivers
+  like dvips.
+
+  Consequently, the DESC file should contain a `papersize' keyword.
+
+o The glyph shapes for \[*f] and \[*e] have been exchanged with \[+f] and
+  \[+e], respectively, to be in sync with all other devices.
+
+o Glyphs \[HE] and \[DI] have been replaced with \[u2662] and \[u2661],
+  respectively, since the former two glyphs have a black (filled) shape
+  which grodvi doesn't provide by default (it never has actually).
+
+Grolj4
+------
+
+o The glyphs \[*e] and \[+e] have been exchanged to be in sync with
+  all other devices.
+
+o The glyph \[~=] is now called \[|=].  Similar to other devices, \[~=]
+  is now another name for glyph \[~~].
+
+Grotty
+------
+
+o New option `-r'.  It is similar to the -i option except it tells grotty to
+  use the `reverse video' attribute to render italic fonts.
+
+Pic
+---
+
+o New command `figname' to set the name of a picture's output box in TeX
+  mode.
+
+Refer
+-----
+
+o The environment variable `REFER' to override the name of the default
+  database isn't new but hasn't been documented before.
+
+Soelim
+------
+
+o New option `-r' to avoid emission of `.lf' lines.
+
+o New option `-t' to emit TeX comment lines (giving current file and the
+  line number) instead of `.lf' lines.
+
+Afmtodit
+--------
+
+o Unencoded glyphs in an AFM file are output also (since grops can now emit
+  multiple encoding vectors for a single font).
+
+o New option `-m' to prevent negative left italic correction values.
+
+o The mapping and encoding file together with file `DESC' are now searched
+  in the default font directory also.  Please refer to the man page of
+  afmtodit for more details.
+
+Macro Packages
+--------------
+
+o Larry Kollar <kollar@alltel.net> and others made the man macros more
+  customizable.
+
+  . New command line options -rFT, -rIN, and -rSN to set the vertical
+    location of the footer line, the body text indentation, and the
+    sub-subheading indentation.
+
+  . New command line option -rHY (similar to the ms macros) to control
+    hyphenation.
+
+  . New macros `.PT' and `.BT' to print the header and footer strings.
+    They can be replaced with a customized version in `man.local'.
+
+  . The string `HF' now holds the typeface to print headings and
+    subheadings.
+
+  . Similar to the ms macros, the LT register now defaults to LL if not
+    explicitly specified on the command line.
+
+o troff's start-up file `troffrc' now includes `papersize.tmac' to set
+  the paper size with the command line option `-dpaper=<size>'.
+
+  Possible values for `<size>' are the same as the predefined `papersize'
+  values in the DESC file (only lowercase; see the groff_font man page)
+  except a7-d7.  An appended `l' (ell) character denotes landscape
+  orientation.  Examples: `a4', `c3l', `letterl'.
+
+  Most output drivers need additional command line switches `-p' and
+  `-l' to override the default paper length and orientation as set in
+  the driver specific DESC file.
+
+  For example, use the following for PS output on A4 paper in landscape
+  orientation:
+
+    groff -Tps -dpaper=a4l -P-pa4 -P-l -ms foo.ms > foo.ps
+
+
 VERSION 1.18.1
 ==============
 
@@ -8,11 +229,11 @@ Troff
 -----
 
 o The non-slanted PostScript font definition files have been regenerated to
-  include left and right italic correction values. Applying those to a glyph
-  (this is, prepending the glyph with `\,' and appending `\/' to the glyph)
-  sets the glyph width to the real value given by the horizontal bounding
-  box values. Without those escapes, the advance width for the particular
-  glyph is used (which can differ considerably).
+  include left and right italic correction values.  Applying those to a
+  glyph (this is, prepending the glyph with `\,' and appending `\/' to the
+  glyph) sets the glyph width to the real value given by the horizontal
+  bounding box values.  Without those escapes, the advance width for the
+  particular glyph is used (which can differ considerably).
 
   Most users will neither need this feature nor notice a difference in
   existing documents (provided \, and \/ is used as advertised, namely for

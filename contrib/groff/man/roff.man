@@ -1,11 +1,11 @@
 .ig
 roff.man
 
-Last update: 22 Apr 2002
+Last update: 3 Apr 2003
 
 This file is part of groff, the GNU roff type-setting system.
 
-Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 written by Bernd Warken <bwarken@mayn.de>
 maintained by Werner Lemberg <wl@gnu.org>
 
@@ -269,7 +269,7 @@ operating system
 .RI ( "Compatible Time Sharing System" )
 as early as 1961.
 .
-When CTTS was further developed into the operating system
+When CTSS was further developed into the operating system
 .URL http://\:www.multicians.org "Multics" ,
 the famous predecessor of Unix from 1963,
 .I runoff
@@ -1104,9 +1104,6 @@ aspects of groff are documented in great detail.
 troff.org
 .URL http://\:www.troff.org "The historical troff site"
 provides an overview and pointers to all historical aspects of roff.
-.
-This web site is under construction; once, it will be the major source
-for roff history.
 .
 .TP
 Multics

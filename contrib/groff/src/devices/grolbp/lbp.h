@@ -1,5 +1,5 @@
 // -*- C -*-
-/* Copyright (C) 1994, 2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1994, 2000, 2001, 2003 Free Software Foundation, Inc.
      Written by Francisco Andrés Verdú <pandres@dragonet.es>
 
 groff is free software; you can redistribute it and/or modify it under
@@ -52,7 +52,7 @@ lbpputs(const char *data)
 };
 
 static inline void
-lbpputc(char c)
+lbpputc(unsigned char c)
 {
 	fputc(c,lbpoutput);
 };

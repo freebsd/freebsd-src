@@ -283,7 +283,8 @@ Must be followed either by a
 width expression in parentheses or a unitless integer.
 If no unit is given, en units are used.
 Also used as the default line length for included text blocks.
-If used multiple times, the last entry takes effect.
+If used multiple times to specify the width for a particular column,
+the last entry takes effect.
 .
 .TP
 e,E
@@ -336,8 +337,8 @@ above spans downward over this row.
 A text block can be used to enter data as a single entry which would be
 too long as a simple string between tabs.
 It is started with `T{' and closed with `T}'.
-The latter must start a line, probably followed by other data columns
-(separated with tabs).
+The former must end a line, and the latter must start a line, probably
+followed by other data columns (separated with tabs).
 .LP
 To change the data format within a table, use the
 .B .T&

@@ -2,7 +2,7 @@
 .ig
 troff.man
 
-Last update : 9 Jan 2002
+Last update : 09 Dec 2002
 
 This file is part of groff, the GNU roff type-setting system.
 
@@ -272,7 +272,10 @@ and
 Prepare output for device
 .IR name ,
 rather than the default
-.BR @DEVICE@ .
+.BR @DEVICE@ ;
+see
+.BR groff (@MAN1EXT@)
+for a more detailed description.
 .
 .TP
 .B \-U
