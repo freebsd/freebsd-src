@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.11 1994/10/11 20:42:01 sos Exp $
+ * $Id: kern_exit.c,v 1.12 1994/10/27 05:21:39 phk Exp $
  */
 
 #include <sys/param.h>
@@ -264,8 +264,10 @@ done:
 	 * Other substructures are freed from wait().
 	 */
 	curproc = NULL;
-	if (--p->p_limit->p_refcnt == 0)
+	if (--p->p_limit->p_refcnt == 0) {
 		FREE(p->p_limit, M_SUBPROC);
+		p->p_limit = NULL;
+	}
 
 	/*
 	 * Finally, call machine-dependent code to release the remaining
@@ -404,6 +406,7 @@ loop:
 			p->p_xstat = 0;
 			ruadd(&q->p_stats->p_cru, p->p_ru);
 			FREE(p->p_ru, M_ZOMBIE);
+			p->p_ru = NULL;
 
 			/*
 			 * Decrement the count of procs running with this uid.
@@ -416,6 +419,7 @@ loop:
 			if (--p->p_cred->p_refcnt == 0) {
 				crfree(p->p_cred->pc_ucred);
 				FREE(p->p_cred, M_SUBPROC);
+				p->p_cred = NULL;
 			}
 
 			/*
