@@ -100,7 +100,7 @@ char	*exit_cmd = 0;		/* command to exec before exiting. */
 
 static char usage_str[] = "\
 usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] \\\n\
-	  [-K timeout] [-O timeout] [-U unit] device\n\
+	  [-K timeout] [-O timeout] [-S unit] device\n\
   -a      -- autoenable VJ compression\n\
   -c      -- enable VJ compression\n\
   -e ECMD -- run ECMD before exiting\n\
@@ -114,7 +114,7 @@ usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] \\\n\
   -z      -- run RCMD upon startup irrespective of carrier\n\
   -K #    -- set SLIP \"keep alive\" timeout (default 0)\n\
   -O #    -- set SLIP \"out fill\" timeout (default 0)\n\
-  -U #    -- set SLIP unit number (default is dynamic)\n\
+  -S #    -- set SLIP unit number (default is dynamic)\n\
 ";
 
 int main(int argc, char **argv)
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
 	extern int optind;
 	char *cp;
 
-	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zK:O:U:")) != EOF) {
+	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zK:O:S:")) != EOF) {
 		switch (option) {
 		case 'a':
 			slflags |= IFF_LINK2;
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
 		case 'O':
 			outfill = atoi(optarg);
 			break;
-		case 'U':
+		case 'S':
 			sl_unit = atoi(optarg);
 			break;
 		default:
