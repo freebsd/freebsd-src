@@ -362,6 +362,10 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	if (!(flags & PAM_ESTABLISH_CRED))
 		return (PAM_SERVICE_ERR);
 
+	/* If a persistent cache isn't desired, stop now. */
+	if (openpam_get_option(pamh, PAM_OPT_NO_CCACHE))
+		return (PAM_SUCCESS);
+
 	PAM_LOG("Establishing credentials");
 
 	/* Get username */
