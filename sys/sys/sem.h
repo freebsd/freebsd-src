@@ -1,4 +1,4 @@
-/* $Id: sem.h,v 1.12 1997/02/22 09:45:51 peter Exp $ */
+/* $Id: sem.h,v 1.13 1997/09/07 05:27:21 bde Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*
@@ -171,7 +171,7 @@ typedef enum {
 
 __BEGIN_DECLS
 int semsys __P((int, ...));
-int semctl __P((int, int, int, union semun));
+int semctl __P((int, int, int, ...));
 int semget __P((key_t, int, int));
 int semop __P((int, struct sembuf *,unsigned));
 __END_DECLS
