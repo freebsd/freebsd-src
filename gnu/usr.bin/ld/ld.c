@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.44 1997/04/25 19:43:19 bde Exp $
+ *	$Id: ld.c,v 1.45 1997/05/13 10:23:46 dfr Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -3495,8 +3495,8 @@ write_syms()
 					nl.n_type = sp->defined;
 				if (nl.n_type == (N_INDR|N_EXT) &&
 							sp->value != 0)
-					errx(1, "%s: N_INDR has value %#x",
-							demangle(sp->name), sp->value);
+					errx(1, "%s: N_INDR has value %#lx",
+						demangle(sp->name), sp->value);
 				nl.n_value = sp->value;
 				if (sp->def_lsp)
 				    bind = N_BIND(&sp->def_lsp->nzlist.nlist);
@@ -3596,7 +3596,7 @@ printf("writesym(#%d): %s, type %x\n", syms_written, demangle(sp->name), sp->def
 
 	if (symtab_offset + symtab_len != strtab_offset)
 		errx(1,
-		"internal error: inconsistent symbol table length: %d vs %s",
+		"internal error: inconsistent symbol table length: %d vs %d",
 		symtab_offset + symtab_len, strtab_offset);
 
 	if (fseek(outstream, strtab_offset, SEEK_SET) != 0)
