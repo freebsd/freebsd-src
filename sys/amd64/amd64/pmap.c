@@ -774,19 +774,23 @@ pmap_extract(pmap, va)
 
 	if (pmap == 0)
 		return 0;
+	PMAP_LOCK(pmap);
 	pdep = pmap_pde(pmap, va);
 	if (pdep) {
 		pde = *pdep;
 		if (pde) {
 			if ((pde & PG_PS) != 0) {
 				rtval = (pde & ~PDRMASK) | (va & PDRMASK);
+				PMAP_UNLOCK(pmap);
 				return rtval;
 			}
 			pte = pmap_pte(pmap, va);
 			rtval = ((*pte & PG_FRAME) | (va & PAGE_MASK));
+			PMAP_UNLOCK(pmap);
 			return rtval;
 		}
 	}
+	PMAP_UNLOCK(pmap);
 	return 0;
 
 }
@@ -1540,6 +1544,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 {
 	pt_entry_t *pte;
 
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	pte = pmap_pte(pmap, va);
 	if (pte == NULL || (*pte & PG_V) == 0)
 		return;
@@ -1566,8 +1571,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap == NULL)
 		return;
 
+	/*
+	 * Perform an unsynchronized read.  This is, however, safe.
+	 */
 	if (pmap->pm_stats.resident_count == 0)
 		return;
+	PMAP_LOCK(pmap);
 
 	/*
 	 * special handling of removing one page.  a very
@@ -1578,6 +1587,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		pde = pmap_pde(pmap, sva);
 		if (pde && (*pde & PG_PS) == 0) {
 			pmap_remove_page(pmap, sva);
+			PMAP_UNLOCK(pmap);
 			return;
 		}
 	}
@@ -1648,6 +1658,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	if (anyvalid)
 		pmap_invalidate_all(pmap);
+	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -2791,12 +2802,12 @@ pmap_mincore(pmap, addr)
 	vm_page_t m;
 	int val = 0;
 	
+	PMAP_LOCK(pmap);
 	ptep = pmap_pte(pmap, addr);
-	if (ptep == 0) {
-		return 0;
-	}
+	pte = (ptep != NULL) ? *ptep : 0;
+	PMAP_UNLOCK(pmap);
 
-	if ((pte = *ptep) != 0) {
+	if (pte != 0) {
 		vm_paddr_t pa;
 
 		val = MINCORE_INCORE;
