@@ -124,13 +124,14 @@ typedef enum {
 	AHC_DT		= 0x0800,	/* Double Transition transfers */
 	AHC_NEW_TERMCTL	= 0x1000,
 	AHC_MULTI_FUNC	= 0x2000,	/* Multi-Function Twin Channel Device */
-	AHC_AIC7770_FE	= AHC_FENONE,
-	AHC_AIC7850_FE	= AHC_SPIOCAP,
+	AHC_TARG_DMABUG	= 0x4000,	/* WideOdd Data-In bug in TMODE */
+	AHC_AIC7770_FE	= AHC_TARG_DMABUG,
+	AHC_AIC7850_FE	= AHC_TARG_DMABUG|AHC_SPIOCAP,
 	AHC_AIC7855_FE	= AHC_AIC7850_FE,
 	AHC_AIC7859_FE	= AHC_AIC7850_FE|AHC_ULTRA,
 	AHC_AIC7860_FE	= AHC_AIC7859_FE,
-	AHC_AIC7870_FE	= AHC_FENONE,
-	AHC_AIC7880_FE	= AHC_ULTRA,
+	AHC_AIC7870_FE	= AHC_TARG_DMABUG,
+	AHC_AIC7880_FE	= AHC_TARG_DMABUG|AHC_ULTRA,
 	AHC_AIC7890_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2|AHC_QUEUE_REGS
 			  |AHC_SG_PRELOAD|AHC_MULTI_TID|AHC_HS_MAILBOX
 			  |AHC_NEW_TERMCTL,
@@ -571,6 +572,7 @@ struct ahc_softc {
 	bus_dma_tag_t		 shared_data_dmat;
 	bus_dmamap_t		 shared_data_dmamap;
 	bus_addr_t		 shared_data_busaddr;
+	bus_addr_t		 dma_bug_buf;
 
 	/* Number of enabled target mode device on this card */
 	u_int			 enabled_luns;

@@ -54,10 +54,10 @@
 
 reset:
 	clr	SCSISIGO;		/* De-assert BSY */
+	mvi	MSG_OUT, MSG_NOOP;	/* No message to send */
 	and	SXFRCTL1, ~BITBUCKET;
 	/* Always allow reselection */
 	and	SCSISEQ, ENSELI|ENRSELI|ENAUTOATNP, SCSISEQ_TEMPLATE;
-
 	if ((ahc->features & AHC_CMD_CHAN) != 0) {
 		/* Ensure that no DMA operations are in progress */
 		clr	CCSGCTL;
@@ -413,7 +413,6 @@ initiator_reselect:
 						 * the kernel driver if it
 						 * happens.
 						 */
-	mvi	MSG_OUT, MSG_NOOP;		/* No message to send */
 	jmp	ITloop;
 }
 
@@ -506,6 +505,7 @@ target_busfree_wait:
 		test	SCSISIGI, ACKI jnz .;
 target_busfree:
 		clr	SCSISIGO;
+		mvi	LASTPHASE, P_BUSFREE;
 		call	complete_target_cmd;
 		jmp	poll_for_work;
 
@@ -767,6 +767,10 @@ data_phase_inbounds:
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 		or	SG_CACHEPTR, LAST_SEG;
 	} else {
+		if ((ahc->flags & AHC_TARGETMODE) != 0) {
+			test	SSTAT0, TARGET jz . + 2;
+			test	DMAPARAMS, DIRECTION jz data_phase_wideodd;
+		}
 		and	DMAPARAMS, ~WIDEODD;
 	}
 data_phase_wideodd:
@@ -977,6 +981,13 @@ p_command:
 		}
 		add	NONE, -17, SCB_CMDLEN;
 		jc	dma_cmd_data;
+		/*
+		 * The data fifo seems to require 4 byte alligned
+		 * transfers from the sequencer.  Force this to
+		 * be the case by clearing HADDR[0] even though
+		 * we aren't going to touch host memeory.
+		 */
+		bmov	HADDR[0], ALLZEROS, 1;
 		if ((ahc->features & AHC_ULTRA2) != 0) {
 			mvi	DFCNTRL, (PRELOADEN|SCSIEN|DIRECTION);
 		} else {
@@ -1136,7 +1147,7 @@ p_mesgin:
 
 /*
  * Pushed message loop to allow the kernel to
- * RUN IT's own message state engine.  To avoid an
+ * run it's own message state engine.  To avoid an
  * extra nop instruction after signaling the kernel,
  * we perform the phase_lock before checking to see
  * if we should exit the loop and skip the phase_lock
@@ -1380,7 +1391,9 @@ mk_mesg:
  * and that REQ is already set when inb_first is called.  inb_{first,next}
  * use the same calling convention as inb.
  */
-
+inb_next_wait_perr:
+	mvi	INTSTAT, PERR_DETECTED;
+	jmp	inb_next_wait;
 inb_next:
 	mov	NONE,SCSIDATL;		/*dummy read from latch to ACK*/
 inb_next_wait:
@@ -1390,7 +1403,8 @@ inb_next_wait:
 	 * before continuing.
 	 */
 	test	SSTAT1, REQINIT	jz inb_next_wait;
-	test	SSTAT1, SCSIPERR jnz inb_next_wait;
+	test	SSTAT1, SCSIPERR jnz inb_next_wait_perr;
+inb_next_check_phase:
 	and	LASTPHASE, PHASE_MASK, SCSISIGI;
 	cmp	LASTPHASE, P_MESGIN jne mesgin_phasemis;
 inb_first:
@@ -1651,9 +1665,17 @@ get_SCBID_from_host:
 	mvi	UNTAGGEDSCB_OFFSET call fetch_byte;
 	mov	RETURN_1,  RETURN_2 ret;
 
+phase_lock_perr:
+	mvi	INTSTAT, PERR_DETECTED;
 phase_lock:     
+	/*
+	 * If there is a parity error, wait for the kernel to
+	 * see the interrupt and prepare our message response
+	 * before continuing.
+	 */
 	test	SSTAT1, REQINIT jz phase_lock;
-	test	SSTAT1, SCSIPERR jnz phase_lock;
+	test	SSTAT1, SCSIPERR jnz phase_lock_perr;
+phase_lock_latch_phase:
 	and	SCSISIGO, PHASE_MASK, SCSISIGI;
 	and	LASTPHASE, PHASE_MASK, SCSISIGI ret;
 
@@ -1803,9 +1825,11 @@ dma_finish:
 add_scb_to_free_list:
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
 		mov	SCB_NEXT, FREE_SCBH;
-		mov	FREE_SCBH, SCBPTR;
+		mvi	SCB_TAG, SCB_LIST_NULL;
+		mov	FREE_SCBH, SCBPTR ret;
+	} else {
+		mvi	SCB_TAG, SCB_LIST_NULL ret;
 	}
-	mvi	SCB_TAG, SCB_LIST_NULL ret;
 
 if ((ahc->flags & AHC_PAGESCBS) != 0) {
 get_free_or_disc_scb:
