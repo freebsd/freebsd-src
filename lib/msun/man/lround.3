@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003, Steven G. Kargl
+.\" Copyright (c) 2005 David Schultz <das@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -10,10 +10,10 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 .\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 .\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 .\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -24,51 +24,71 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2003
-.Dt ROUND 3
+.Dd January 11, 2005
+.Dt LROUND 3
 .Os
 .Sh NAME
-.Nm round ,
-.Nm roundf
-.Nd round to nearest integral value
+.Nm llround ,
+.Nm llroundf ,
+.Nm lround ,
+.Nm lroundf
+.Nd convert to nearest integral value
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
 .In math.h
-.Ft double
-.Fn round "double x"
-.Ft float
-.Fn roundf "float x"
+.Ft long long
+.Fn llround "double x"
+.Ft long long
+.Fn llroundf "float x"
+.Ft long
+.Fn lround "double x"
+.Ft long
+.Fn lroundf "float x"
 .Sh DESCRIPTION
 The
-.Fn round
-and
-.Fn roundf
-functions return the nearest integral value to
-.Fa x ;
-if
+.Fn lround
+function returns the integer nearest to its argument
+.Fa x ,
+rounding away from zero in halfway cases.
+If the rounded result is too large to be represented as a
+.Ft long
+value, an invalid exception is raised and the return value is undefined.
+Otherwise, if
 .Fa x
-lies halfway between two integral values, then these
-functions return the integral value with the larger
-absolute value (i.e., they round away from zero).
+is not an integer,
+.Fn lround
+may raise an inexact exception.
+When the rounded result is representable as a
+.Ft long ,
+the expression
+.Li lround(x)
+is equivalent to
+.Li (long)round(x)
+(although the former may be more efficient.)
+.Pp
+The
+.Fn llround ,
+.Fn llroundf ,
+and
+.Fn lroundf
+functions differ from
+.Fn lround
+only in their input and output types.
 .Sh SEE ALSO
-.Xr ceil 3 ,
-.Xr floor 3 ,
-.Xr ieee 3 ,
 .Xr lrint 3 ,
-.Xr lround 3 ,
 .Xr math 3 ,
 .Xr rint 3 ,
-.Xr trunc 3
+.Xr round 3
 .Sh STANDARDS
 The
-.Fn round
-function conforms to
+.Fn llround ,
+.Fn llroundf ,
+.Fn lround ,
+and
+.Fn lroundf
+functions conform to
 .St -isoC-99 .
 .Sh HISTORY
-The
-.Fn round
-and
-.Fn roundf
-functions appeared in
-.Fx 5.3 .
+These routines first appeared in
+.Fx 5.4 .
