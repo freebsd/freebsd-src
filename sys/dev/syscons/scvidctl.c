@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: scvidctl.c,v 1.9 1999/06/22 14:13:29 yokota Exp $
  */
 
 #include "sc.h"
@@ -132,6 +132,7 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
     video_info_t info;
     sc_rndr_sw_t *rndr;
     u_char *font;
+    int prev_ysize;
     int error;
     int s;
 
@@ -188,6 +189,7 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
     }
 
     /* set up scp */
+    prev_ysize = scp->ysize;
     /*
      * This is a kludge to fend off scrn_update() while we
      * muck around with scp. XXX
@@ -210,7 +212,7 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
     sc_alloc_cut_buffer(scp, FALSE);
 #endif
 #ifndef SC_NO_HISTORY
-    sc_alloc_history_buffer(scp, 0, FALSE);
+    sc_alloc_history_buffer(scp, 0, prev_ysize, FALSE);
 #endif
     scp->rndr = rndr;
     splx(s);
@@ -221,6 +223,8 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 
     if (tp == NULL)
 	return 0;
+    DPRINTF(5, ("ws_*size (%d,%d), size (%d,%d)\n",
+	tp->t_winsize.ws_col, tp->t_winsize.ws_row, scp->xsize, scp->ysize));
     if (tp->t_winsize.ws_col != scp->xsize
 	|| tp->t_winsize.ws_row != scp->ysize) {
 	tp->t_winsize.ws_col = scp->xsize;
@@ -239,6 +243,7 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 #else
     video_info_t info;
     sc_rndr_sw_t *rndr;
+    int prev_ysize;
     int error;
     int s;
 
@@ -259,6 +264,7 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
     }
 
     /* set up scp */
+    prev_ysize = scp->ysize;
     scp->status |= (UNKNOWN_MODE | GRAPHICS_MODE);
     scp->status &= ~PIXEL_MODE;
     scp->mode = mode;
@@ -273,6 +279,9 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 #ifndef SC_NO_SYSMOUSE
     /* move the mouse cursor at the center of the screen */
     sc_mouse_move(scp, scp->xpixel / 2, scp->ypixel / 2);
+#endif
+#ifndef SC_NO_HISTORY
+    sc_free_history_buffer(scp, prev_ysize);
 #endif
     scp->rndr = rndr;
     splx(s);
@@ -305,6 +314,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     video_info_t info;
     sc_rndr_sw_t *rndr;
     u_char *font;
+    int prev_ysize;
     int error;
     int s;
 
@@ -394,6 +404,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     }
 
     /* set up scp */
+    prev_ysize = scp->ysize;
     scp->status |= (UNKNOWN_MODE | PIXEL_MODE);
     scp->status &= ~GRAPHICS_MODE;
     scp->xsize = xsize;
@@ -409,7 +420,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     sc_alloc_cut_buffer(scp, FALSE);
 #endif
 #ifndef SC_NO_HISTORY
-    sc_alloc_history_buffer(scp, 0, FALSE);
+    sc_alloc_history_buffer(scp, 0, prev_ysize, FALSE);
 #endif
     scp->rndr = rndr;
     splx(s);
