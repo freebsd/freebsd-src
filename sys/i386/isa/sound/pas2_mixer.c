@@ -33,7 +33,7 @@
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_PAS)
 
-#include <i386/isa/sound/pas.h>
+#include <i386/isa/sound/pas_defs.h>
 
 extern void mix_write __P((unsigned char data, int ioaddr));
 static int pas_mixer_ioctl __P((int dev, unsigned int cmd, unsigned int arg));

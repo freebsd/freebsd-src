@@ -33,7 +33,7 @@
 
 #if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_MIDI)
 
-#include <i386/isa/sound/sb.h>
+#include <i386/isa/sound/sb_defs.h>
 
 #ifdef PC98
 #define	DATAPORT   (sb16midi_base)
