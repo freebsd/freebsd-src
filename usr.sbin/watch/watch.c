@@ -288,7 +288,6 @@ main(ac, av)
 	char          **av;
 {
 	int             res, nread, b_size = MIN_SIZE;
-	extern int      optind;
 	char            ch, *buf, chb[READB_LEN];
 	fd_set          fd_s;
 
@@ -426,5 +425,6 @@ main(ac, av)
 				fatal(EX_IOERR, "write failed");
 		}
 	}			/* While */
+	return(0);
 }
 
