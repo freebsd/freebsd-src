@@ -649,7 +649,7 @@ main(argc, argv)
 #ifdef SO_TIMESTAMP
 			if (cmsg->cmsg_level == SOL_SOCKET &&
 			    cmsg->cmsg_type == SCM_TIMESTAMP &&
-			    cmsg->cmsg_len == (sizeof *cmsg + sizeof *t)) {
+			    cmsg->cmsg_len == CMSG_LEN(sizeof *t)) {
 				/* Copy to avoid alignment problems: */
 				memcpy(&now,CMSG_DATA(cmsg),sizeof(now));
 				t = &now;
