@@ -1337,7 +1337,8 @@ pci_chip_match(device_t dev)
 
 	/* Lucent -- Vendor 0x11c1 */
 	case 0x044011c1:
-		return ("LUCENT K56Flex DSVD LTMODEM (winmodem, unsupported)");
+	case 0x044811c1:
+		return ("Lucent K56Flex DSVD LTModem (Win Modem, unsupported)");
 
 	/* CCUBE -- Vendor 0x123f */
 	case 0x8888123f:
