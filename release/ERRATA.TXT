@@ -1,0 +1,21 @@
+This file contains post-release ERRATA for 3.0 and should always
+be considered the definitive place to look *first* before reporting
+a problem with this release.  This file will also be periodically
+updated as new issues are reported so even if you've checked this
+file recently, check it again before filing a bug report.  Any
+changes to this file are also automatically emailed to:
+
+	freebsd-stable@freebsd.org
+
+For 3.0 security advisories, see:
+
+	ftp://ftp.freebsd.org/pub/FreeBSD/CERT/
+
+For the latest information.
+
+---- Security Advisories:
+
+Current active security advisories for 3.0:	None
+
+---- System Update Information:
+
