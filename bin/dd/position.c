@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: position.c,v 1.5 1997/02/22 14:02:48 peter Exp $
  */
 
 #ifndef lint
@@ -67,7 +67,7 @@ pos_in()
 
 	/* If not a character, pipe or tape device, try to seek on it. */
 	if (!(in.flags & (ISCHR|ISPIPE|ISTAPE))) {
-		if (lseek(in.fd, (off_t)(in.offset * in.dbsz), SEEK_CUR) == -1)
+		if (lseek(in.fd, (off_t)in.offset * in.dbsz, SEEK_CUR) == -1)
 			err(1, "%s", in.name);
 		return;
 	}
