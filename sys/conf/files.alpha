@@ -38,6 +38,7 @@ alpha/alpha/dec_st6600.c	optional	dec_st6600
 alpha/alpha/dec_axppci_33.c	optional	dec_axppci_33
 alpha/alpha/dec_3000_300.c	optional	dec_3000_300
 alpha/alpha/dec_3000_500.c	optional	dec_3000_500
+alpha/alpha/dec_kn300.c		optional	dec_kn300
 alpha/alpha/mountroot.c		optional	slice
 alpha/alpha/ipl_funcs.c		standard
 alpha/alpha/pal.s		standard
@@ -74,6 +75,10 @@ alpha/alpha/userconfig.c	optional	userconfig
 alpha/alpha/vm_machdep.c	standard
 alpha/alpha/clock.c		standard
 alpha/alpha/clock_if.m		standard
+alpha/mcbus/mcbus.c		optional	dec_kn300
+alpha/mcbus/mcmem.c		optional	dec_kn300
+alpha/mcbus/mcpcia.c		optional	dec_kn300
+alpha/pci/mcpcia_pci.c		optional	dec_kn300
 alpha/tlsb/tlsb.c		optional	dec_kn8ae
 alpha/tlsb/tlsbmem.c		optional	dec_kn8ae
 alpha/tlsb/tlsbcpu.c		optional	dec_kn8ae

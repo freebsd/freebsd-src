@@ -2,6 +2,7 @@
 
 EV5			opt_global.h
 EV4			opt_global.h
+DEC_KN300		opt_cpu.h
 DEC_KN8AE		opt_cpu.h
 DEC_EB164		opt_cpu.h
 DEC_EB64PLUS		opt_cpu.h
