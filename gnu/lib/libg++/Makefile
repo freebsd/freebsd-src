@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.8 1995/03/20 09:38:21 rgrimes Exp $
+# $Id: Makefile,v 1.9 1995/05/08 16:10:34 ache Exp $
 #
 SRCS=	bitand.c bitany.c bitblt.c bitclear.c bitcopy.c bitcount.c \
 	bitinvert.c bitlcomp.c bitset1.c bitxor.c cleanup.c except.c \
@@ -24,11 +24,12 @@ SRCS+=	ACG.cc AllocRing.cc Binomial.cc BitSet.cc BitString.cc Complex.cc \
 LIB=	g++
 SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
+CPLUSPLUSLIB= 1		# include c++rt0.o for constructors
 NOMAN=	noman
 CFLAGS+=	-nostdinc -I${.CURDIR}/include -I/usr/include
 CXXFLAGS+=	-I${.CURDIR}/include -I/usr/include/g++ -I/usr/include \
 		-nostdinc++
-LDADD+= -lcurses -lcompat
+LDADD+= -lcurses -lcompat -lgcc_pic
 DPADD+=	${LIBCURSES} ${LIBCOMPAT}
 .PATH:	${.CURDIR}/libiberty ${.CURDIR}/libio ${.CURDIR}/libg++ ${.CURDIR}/librx
 
