@@ -336,9 +336,9 @@ IVT_ENTRY(Dirty_Bit, 0x2000)
 (p1)	br.cond.sptk.few 2f		// if not, read next in chain
 	;;
 	ld8	r21=[r20]		// read pte
-	mov	r22=PTE_D
+	mov	r22=PTE_D|PTE_A
 	;;
-	or	r21=r22,r21		// set dirty bit
+	or	r21=r22,r21		// set dirty & access bit
 	;;
 	st8	[r20]=r21		// store back
 	;; 
