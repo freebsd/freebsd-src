@@ -77,7 +77,6 @@ static void
 Farewell(int sig)
 {
   ReceivedSignal = sig;
-  signal(sig, SIG_DFL);		/* If something makes us block... */
 }
 
 static int
@@ -469,6 +468,7 @@ main(int argc, char **argv)
   unsigned char response[1024];
   const char *prog, *provider, *acname;
   struct ngm_connect ngc;
+  struct sigaction act;
   int ch, cs, ds, ret, optF, optd, optn, sz, f;
   const char *pidfile;
 
@@ -591,10 +591,14 @@ main(int argc, char **argv)
   if (!optF && optn)
     NgSetErrLog(nglog, nglogx);
 
-  signal(SIGHUP, Farewell);
-  signal(SIGINT, Farewell);
-  signal(SIGQUIT, Farewell);
-  signal(SIGTERM, Farewell);
+  memset(&act, '\0', sizeof act);
+  act.sa_handler = Farewell;
+  act.sa_flags = SA_RESETHAND;
+  sigemptyset(&act.sa_mask);
+  sigaction(SIGHUP, &act, NULL);
+  sigaction(SIGINT, &act, NULL);
+  sigaction(SIGQUIT, &act, NULL);
+  sigaction(SIGTERM, &act, NULL);
 
   while (!ReceivedSignal) {
     if (*provider)
