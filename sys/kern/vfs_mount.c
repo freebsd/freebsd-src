@@ -761,6 +761,7 @@ vfs_domount(
 		if (mp->mnt_opt != NULL)
 			vfs_freeopts(mp->mnt_opt);
 		mp->mnt_opt = mp->mnt_optnew;
+		VFS_STATFS(mp, &mp->mnt_stat, td);
 	}
 	/*
 	 * Prevent external consumers of mount options from reading
