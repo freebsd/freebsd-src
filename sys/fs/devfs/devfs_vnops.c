@@ -297,8 +297,9 @@ devfs_lookupx(ap)
 	struct vnode *dvp, **vpp;
 	struct thread *td;
 	struct devfs_dirent *de, *dd;
+	struct devfs_dirent **dde;
 	struct devfs_mount *dmp;
-	dev_t cdev, *cpdev;
+	dev_t cdev;
 	int error, flags, nameiop;
 	char specname[SPECNAMELEN + 1], *pname;
 
@@ -382,13 +383,11 @@ devfs_lookupx(ap)
 		goto notfound;
 
 	devfs_populate(dmp);
-	dd = dvp->v_data;
 
-	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
-		cpdev = devfs_itod(de->de_inode);
-		if (cpdev != NULL && cdev == *cpdev)
-			goto found;
-		continue;
+	dde = devfs_itode(dmp, cdev->si_inode);
+	if (dde != NULL && *dde != DE_DELETED && *dde != NULL) {
+		de = *dde;
+		goto found;
 	}
 
 notfound:
