@@ -504,7 +504,7 @@ pmap_bootstrap()
  *	way, discontiguous physical memory.
  */
 void
-pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
+pmap_init(void)
 {
 	int i;
 	int initial_pvs;

@@ -615,8 +615,7 @@ uma_small_free(void *mem, int size, u_int8_t flags)
  *	way, discontiguous physical memory.
  */
 void
-pmap_init(phys_start, phys_end)
-	vm_offset_t phys_start, phys_end;
+pmap_init(void)
 {
 	int i;
 	int initial_pvs;

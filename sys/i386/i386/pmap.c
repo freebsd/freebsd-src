@@ -458,8 +458,7 @@ pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
  *	way, discontiguous physical memory.
  */
 void
-pmap_init(phys_start, phys_end)
-	vm_paddr_t phys_start, phys_end;
+pmap_init(void)
 {
 	int i;
 

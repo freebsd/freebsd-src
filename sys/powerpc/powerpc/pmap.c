@@ -1086,7 +1086,7 @@ pmap_growkernel(vm_offset_t addr)
 }
 
 void
-pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
+pmap_init(void)
 {
 
 	CTR0(KTR_PMAP, "pmap_init");
