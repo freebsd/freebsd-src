@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.80 1996/05/02 14:19:35 phk Exp $
+#	$Id: Makefile.i386,v 1.81 1996/05/02 21:40:50 joerg Exp $
 #
 # Makefile for FreeBSD
 #
@@ -142,7 +142,7 @@ depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	MKDEP_CPP="${CPP}" ; export MKDEP_CPP ; \
 	mkdep -a -f .newdep -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .depend
-	mv .newdep .depend
+	mv -f .newdep .depend
 
 links:
 	egrep '#if' ${CFILES:Nswapkernel.c} | sed -f $S/conf/defines | \

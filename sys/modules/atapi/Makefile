@@ -1,3 +1,5 @@
+#	$Id: $
+
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = atapi_mod
 SRCS            = atapi.c wdc.h #wcd.h
@@ -27,6 +29,6 @@ wcd.h:
 .c.o:
 		-@$(LN) /sys/i386/include machine
 		$(CC) $(CFLAGS) -c $<
-		-@rm machine
+		-@rm -f machine
 
 .include <bsd.kmod.mk>
