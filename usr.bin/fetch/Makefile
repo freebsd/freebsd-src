@@ -4,7 +4,7 @@ MAINTAINER=	des@freebsd.org
 PROG=		fetch
 DPADD=		${LIBFETCH}
 LDADD=		-lfetch
-.if !defined(NOCRYPTO)
+.if !defined(NOCRYPT)
 DPADD+=		${LIBCRYPTO} ${LIBSSL}
 LDADD+=		-lcrypto -lssl
 .endif
