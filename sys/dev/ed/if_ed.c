@@ -37,6 +37,11 @@
  *
  */
 
+#include "card.h"
+#if NCARD > 0
+#include <i386/isa/if_ed.c>	/* PCCARD version */
+#else
+
 #include "bpf.h"
 
 #include <sys/param.h>
@@ -72,8 +77,8 @@
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
-#include <i386/isa/if_edreg.h>
-#include <i386/isa/if_edvar.h>
+#include <dev/ed/if_edreg.h>
+#include <dev/ed/if_edvar.h>
 
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
@@ -108,7 +113,7 @@ int ed_attach_NE2000_pci	__P((device_t, int));
 #endif
 
 #include "card.h"
-#if NCARDxx > 0
+#if NCARD > 0	/* broken pending pccard newbus fixes */
 static int ed_probe_pccard	__P((struct isa_device *, u_char *));
 #endif
 
@@ -137,7 +142,7 @@ static void	ed_setrcr	__P((struct ed_softc *));
 
 static u_long	ds_crc		__P((u_char *ep));
 
-#if NCARDxx > 0
+#if NCARD > 0
 #include <sys/select.h>
 #include <sys/module.h>
 #include <pccard/cardinfo.h>
@@ -1304,7 +1309,7 @@ ed_probe_Novell(dev)
 	return ed_probe_Novell_generic(dev, 0, device_get_flags(dev));
 }
 
-#if NCARDxx > 0
+#if NCARD > 0
 /*
  * Probe framework for pccards.  Replicates the standard framework, 
  * minus the pccard driver registration and ignores the ether address
@@ -3599,3 +3604,4 @@ static driver_t ed_isa_driver = {
 static devclass_t ed_isa_devclass;
 
 DRIVER_MODULE(ed, isa, ed_isa_driver, ed_isa_devclass, 0, 0);
+#endif	/* NCARD */

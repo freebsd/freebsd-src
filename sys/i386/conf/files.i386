@@ -195,7 +195,6 @@ i386/isa/gsc.c			optional	gsc
 i386/isa/if_ar.c		optional	ar
 i386/isa/if_cs.c		optional	cs
 i386/isa/if_cx.c		optional	cx
-i386/isa/if_ed.c		optional	ed
 i386/isa/if_el.c		optional	el
 i386/isa/if_ep.c		optional	ep
 i386/isa/if_ex.c		optional	ex
