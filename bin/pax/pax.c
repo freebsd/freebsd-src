@@ -33,8 +33,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: pax.c,v 1.9 1997/08/29 16:12:28 sos Exp $
  */
 
 #ifndef lint
@@ -44,7 +42,11 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char const sccsid[] = "@(#)pax.c	8.2 (Berkeley) 4/18/94";
+#if 0
+static char sccsid[] = "@(#)pax.c	8.2 (Berkeley) 4/18/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>

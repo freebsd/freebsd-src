@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: nlist.c,v 1.8 1997/02/22 14:05:04 peter Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)nlist.c	8.4 (Berkeley) 4/2/94";
+#if 0
+static char sccsid[] = "@(#)nlist.c	8.4 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
