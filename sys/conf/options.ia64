@@ -29,10 +29,6 @@ PSM_DEBUG		opt_psm.h
 # Atkbd options
 ATKBD_DFLT_KEYMAP	opt_atkbd.h
 
-# Clock options
-CLK_USE_I8254_CALIBRATION	opt_clock.h
-TIMER_FREQ			opt_clock.h
-
 # SKI emulator options
 SKI			opt_ski.h
 SKI_ROOT_FILESYSTEM	opt_ski.h
