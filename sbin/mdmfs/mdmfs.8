@@ -50,7 +50,7 @@ driver
 .Op Fl o Ar mount-options
 .Op Fl p Ar permissions
 .Op Fl s Ar size
-.Op Fl w Ar user Ns | Ns Ar group
+.Op Fl w Ar user : Ns Ar group
 .Ar md-device
 .Ar mount-point
 .Sh DESCRIPTION
@@ -101,7 +101,7 @@ Where possible,
 the option letter matches the one used by
 .Xr mount_mfs 8
 for the same thing.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a Ar maxcontig
 Specify the maximum number of contiguous blocks that will be laid
 out before forcing a rotational delay
@@ -114,7 +114,7 @@ The block size of the filesystem, in bytes.
 The number of cylinders per cylinder group in the filesystem.
 .It Fl D
 If not using auto-unit,
-don't run
+do not run
 .Xr mdconfig 8
 to try to detach the unit before attaching it.
 .It Fl d Ar rotdelay
@@ -150,7 +150,7 @@ instead of a swap-backed disk.
 .It Fl m Ar percent-free
 The percentage of space reserved for the superuser.
 .It Fl N
-Don't actually run the helper programs.
+Do not actually run the helper programs.
 This is most useful in conjunction with
 .Fl X .
 .It Fl n Ar rotational-positions
@@ -158,9 +158,9 @@ The default number of rotational positions to distinguish.
 .It Fl O Ar optimization
 Select the optimization preference;
 valid choices are
-.Ar space
+.Cm space
 and
-.Ar time ,
+.Cm time ,
 which will optimize for minimum space fragmentation and
 minimum time spent allocating blocks,
 respectively.
@@ -175,7 +175,7 @@ Set the file (directory) permissions of the mount point
 to
 .Ar permissions .
 .It Fl S
-Don't enable soft-updates on the filesystem.
+Do not enable soft-updates on the filesystem.
 .It Fl s Ar size
 Specify the size of the disk to create.
 This only makes sense if
@@ -192,15 +192,19 @@ and the optional
 .Xr malloc 9
 backed disks
 .Pq Dv MD_MALLOC .
-.It Fl w Ar user Ns | Ns Ar group
-Set the owner user and group to
+.It Fl w Ar user : Ns Ar group
+Set the owner and group to
 .Ar user
 and
 .Ar group ,
 respectively.
 The arguments have the same semantics as with
 .Xr chown 8 ,
-but specifying just a user or just a group is not supported.
+but specifying just a
+.Ar user
+or just a
+.Ar group
+is not supported.
 .El
 .Pp
 The
@@ -215,14 +219,7 @@ and
 .Fl s ,
 respectively.
 The
-.Fl a ,
-.Fl b ,
-.Fl c ,
-.Fl d ,
-.Fl e ,
-.Fl f ,
-.Fl i ,
-.FL m
+.Fl a , b , c , d , e , f , i , m
 and
 .Fl n
 options are passed to
@@ -245,7 +242,7 @@ on their semantics.
 Create and mount a 32 megabyte swap-backed filesystem on
 .Pa /tmp :
 .Pp
-.Dl mdmfs -s 32m md /tmp
+.Dl "mdmfs -s 32m md /tmp"
 .Pp
 Create and mount a 16 megabyte malloc-backed filesystem on
 .Pa /tmp
@@ -253,10 +250,10 @@ using the
 .Pa /dev/md1
 device;
 furthermore,
-don't use soft-updates it and mount it
+do not use soft-updates it and mount it
 .Cm async :
 .Pp
-.Dl mdmfs -M -S -o async -s 16m md1 /tmp
-.Sh AUTHOR
+.Dl "mdmfs -M -S -o async -s 16m md1 /tmp"
+.Sh AUTHORS
 .An Dima Dorfman
 .Aq dd@FreeBSD.org
