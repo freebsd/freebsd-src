@@ -65,8 +65,13 @@ static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <utmp.h>
+#include <syslog.h>
 #include "pathnames.h"
 
+#define	SCPYN(a, b)	strncpy(a, b, sizeof (a))
+
+struct	utmp utmp;
 struct	sockaddr_in hisctladdr;
 int hisaddrlen = sizeof hisctladdr;
 struct	sockaddr_in myctladdr;
@@ -78,194 +83,33 @@ char *nenv[] = {
 	NULL,
 };
 extern char **environ;
+extern void logwtmp(char *line, char *name, char *host);
+extern void login(struct utmp *ut);
 
-main(argc, argv)
-int argc;
-char **argv;
+void doit(struct sockaddr_in *sinp);
+void dologout(void);
+int readline(char start[], int num, int passw);
+void dologin(struct passwd *pw, struct sockaddr_in *sin);
+
+void main(int argc, char **argv)
 {
-#ifndef BSDINETD
-	register int s, tcp_socket;
-	struct servent *sp;
-#endif !BSDINETD
-	extern int errno;
-	int dologout();
-
 	environ = nenv;
-#ifdef BSDINETD
 	close(1); close(2);
 	dup(0); dup(0);
 	hisaddrlen = sizeof (hisctladdr);
+	openlog("uucpd", LOG_PID, LOG_DAEMON);
 	if (getpeername(0, (struct sockaddr *)&hisctladdr, &hisaddrlen) < 0) {
-		fprintf(stderr, "%s: ", argv[0]);
-		perror("getpeername");
+		syslog(LOG_ERR, "getpeername: %m");
 		_exit(1);
 	}
-	if (fork() == 0)
-		doit(&hisctladdr);
+	doit(&hisctladdr);
 	dologout();
-	exit(1);
-#else !BSDINETD
-	sp = getservbyname("uucp", "tcp");
-	if (sp == NULL){
-		perror("uucpd: getservbyname");
-		exit(1);
-	}
-	if (fork())
-		exit(0);
-	if ((s=open(_PATH_TTY, 2)) >= 0){
-		ioctl(s, TIOCNOTTY, (char *)0);
-		close(s);
-	}
-
-	bzero((char *)&myctladdr, sizeof (myctladdr));
-	myctladdr.sin_family = AF_INET;
-	myctladdr.sin_port = sp->s_port;
-#ifdef BSD4_2
-	tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (tcp_socket < 0) {
-		perror("uucpd: socket");
-		exit(1);
-	}
-	if (bind(tcp_socket, (char *)&myctladdr, sizeof (myctladdr)) < 0) {
-		perror("uucpd: bind");
-		exit(1);
-	}
-	listen(tcp_socket, 3);	/* at most 3 simultaneuos uucp connections */
-	signal(SIGCHLD, dologout);
-
-	for(;;) {
-		s = accept(tcp_socket, &hisctladdr, &hisaddrlen);
-		if (s < 0){
-			if (errno == EINTR) 
-				continue;
-			perror("uucpd: accept");
-			exit(1);
-		}
-		if (fork() == 0) {
-			close(0); close(1); close(2);
-			dup(s); dup(s); dup(s);
-			close(tcp_socket); close(s);
-			doit(&hisctladdr);
-			exit(1);
-		}
-		close(s);
-	}
-#endif BSD4_2
-
-#endif	!BSDINETD
+	exit(0);
 }
 
-doit(sinp)
-struct sockaddr_in *sinp;
+void badlogin(char *name, struct sockaddr_in *sin)
 {
-	char user[64], passwd[64];
-	char *xpasswd, *crypt();
-	struct passwd *pw, *getpwnam();
-
-	alarm(60);
-	printf("login: "); fflush(stdout);
-	if (readline(user, sizeof user) < 0) {
-		fprintf(stderr, "user read\n");
-		return;
-	}
-	/* truncate username to 8 characters */
-	user[8] = '\0';
-	pw = getpwnam(user);
-	if (pw == NULL) {
-		fprintf(stderr, "user unknown\n");
-		return;
-	}
-	if (strcmp(pw->pw_shell, _PATH_UUCICO)) {
-		fprintf(stderr, "Login incorrect.");
-		return;
-	}
-	if (pw->pw_passwd && *pw->pw_passwd != '\0') {
-		printf("Password: "); fflush(stdout);
-		if (readline(passwd, sizeof passwd) < 0) {
-			fprintf(stderr, "passwd read\n");
-			return;
-		}
-		xpasswd = crypt(passwd, pw->pw_passwd);
-		if (strcmp(xpasswd, pw->pw_passwd)) {
-			fprintf(stderr, "Login incorrect.");
-			return;
-		}
-	}
-	alarm(0);
-	sprintf(Username, "USER=%s", user);
-	dologin(pw, sinp);
-	setgid(pw->pw_gid);
-#ifdef BSD4_2
-	initgroups(pw->pw_name, pw->pw_gid);
-#endif BSD4_2
-	chdir(pw->pw_dir);
-	setuid(pw->pw_uid);
-#ifdef BSD4_2
-	execl(_PATH_UUCICO, "uucico", (char *)0);
-#endif BSD4_2
-	perror("uucico server: execl");
-}
-
-readline(p, n)
-register char *p;
-register int n;
-{
-	char c;
-
-	while (n-- > 0) {
-		if (read(0, &c, 1) <= 0)
-			return(-1);
-		c &= 0177;
-		if (c == '\n' || c == '\r') {
-			*p = '\0';
-			return(0);
-		}
-		*p++ = c;
-	}
-	return(-1);
-}
-
-#include <utmp.h>
-#ifdef BSD4_2
-#include <fcntl.h>
-#endif BSD4_2
-
-#define	SCPYN(a, b)	strncpy(a, b, sizeof (a))
-
-struct	utmp utmp;
-
-dologout()
-{
-	union wait status;
-	int pid, wtmp;
-
-#ifdef BSDINETD
-	while ((pid=wait((int *)&status)) > 0) {
-#else  !BSDINETD
-	while ((pid=wait3((int *)&status,WNOHANG,0)) > 0) {
-#endif !BSDINETD
-		wtmp = open(_PATH_WTMP, O_WRONLY|O_APPEND);
-		if (wtmp >= 0) {
-			sprintf(utmp.ut_line, "uucp%.4d", pid);
-			SCPYN(utmp.ut_name, "");
-			SCPYN(utmp.ut_host, "");
-			(void) time(&utmp.ut_time);
-			(void) write(wtmp, (char *)&utmp, sizeof (utmp));
-			(void) close(wtmp);
-		}
-	}
-}
-
-/*
- * Record login in wtmp file.
- */
-dologin(pw, sin)
-struct passwd *pw;
-struct sockaddr_in *sin;
-{
-	char line[32];
 	char remotehost[32];
-	int wtmp, f;
 	struct hostent *hp = gethostbyaddr((char *)&sin->sin_addr,
 		sizeof (struct in_addr), AF_INET);
 
@@ -275,26 +119,148 @@ struct sockaddr_in *sin;
 	} else
 		strncpy(remotehost, inet_ntoa(sin->sin_addr),
 		    sizeof (remotehost));
-	wtmp = open(_PATH_WTMP, O_WRONLY|O_APPEND);
-	if (wtmp >= 0) {
-		/* hack, but must be unique and no tty line */
-		sprintf(line, "uucp%.4d", getpid());
-		SCPYN(utmp.ut_line, line);
-		SCPYN(utmp.ut_name, pw->pw_name);
-		SCPYN(utmp.ut_host, remotehost);
-		time(&utmp.ut_time);
-		(void) write(wtmp, (char *)&utmp, sizeof (utmp));
-		(void) close(wtmp);
+
+	syslog(LOG_NOTICE, "LOGIN FAILURE FROM %s", remotehost);
+	syslog(LOG_AUTHPRIV|LOG_NOTICE,
+	    "LOGIN FAILURE FROM %s, %s", remotehost, name);
+
+	fprintf(stderr, "Login incorrect.\n");
+	exit(1);
+}
+
+void login_incorrect(char *name, struct sockaddr_in *sinp)
+{
+	char passwd[64];
+
+	printf("Password: "); fflush(stdout);
+	if (readline(passwd, sizeof passwd, 1) < 0) {
+		syslog(LOG_WARNING, "passwd read: %m");
+		_exit(1);
 	}
+	badlogin(name, sinp);
+}
+
+void doit(struct sockaddr_in *sinp)
+{
+	char user[64], passwd[64], ubuf[64];
+	char *xpasswd, *crypt();
+	struct passwd *pw;
+	pid_t s;
+
+	alarm(60);
+	printf("login: "); fflush(stdout);
+	if (readline(user, sizeof user, 0) < 0) {
+		syslog(LOG_WARNING, "login read: %m");
+		_exit(1);
+	}
+	/* truncate username to 8 characters */
+	user[8] = '\0';
+	pw = getpwnam(user);
+	if (pw == NULL)
+		login_incorrect(user, sinp);
+	if (strcmp(pw->pw_shell, _PATH_UUCICO))
+		login_incorrect(user, sinp);
+	if (pw->pw_passwd && *pw->pw_passwd != '\0') {
+		printf("Password: "); fflush(stdout);
+		if (readline(passwd, sizeof passwd, 1) < 0) {
+			syslog(LOG_WARNING, "passwd read: %m");
+			_exit(1);
+		}
+		xpasswd = crypt(passwd, pw->pw_passwd);
+		if (strcmp(xpasswd, pw->pw_passwd))
+			badlogin(user, sinp);
+	}
+	alarm(0);
+	sprintf(Username, "USER=%s", pw->pw_name);
+	sprintf(ubuf, "-u%s", pw->pw_name);
+	if ((s = fork()) < 0)
+		syslog(LOG_ERR, "fork: %m");
+	else if (s == 0) {
+		dologin(pw, sinp);
+		setgid(pw->pw_gid);
+		initgroups(pw->pw_name, pw->pw_gid);
+		chdir(pw->pw_dir);
+		setuid(pw->pw_uid);
+		execl(pw->pw_shell, "uucico", ubuf, NULL);
+		syslog(LOG_ERR, "execl: %m");
+	}
+	_exit(1);
+}
+
+int readline(char start[], int num, int passw)
+{
+	char c;
+	register char *p = start;
+	register int n = num;
+
+	while (n-- > 0) {
+		if (read(0, &c, 1) <= 0)
+			return(-1);
+		c &= 0177;
+		if (c == '\n' || c == '\r' || c == '\0') {
+			if (p == start && passw) {
+				n++;
+				continue;
+			}
+			*p = '\0';
+			return(0);
+		}
+		if (c == 025) {
+			n = num;
+			p = start;
+			continue;
+		}
+		*p++ = c;
+	}
+	return(-1);
+}
+
+void dologout(void)
+{
+	union wait status;
+	pid_t pid;
+	char line[32];
+
+	while ((pid=wait((int *)&status)) > 0) {
+		sprintf(line, "uucp%ld", pid);
+		logwtmp(line, "", "");
+	}
+}
+
+/*
+ * Record login in wtmp file.
+ */
+void dologin(struct passwd *pw, struct sockaddr_in *sin)
+{
+	char line[32];
+	char remotehost[32];
+	int f;
+	time_t cur_time;
+	struct hostent *hp = gethostbyaddr((char *)&sin->sin_addr,
+		sizeof (struct in_addr), AF_INET);
+
+	if (hp) {
+		strncpy(remotehost, hp->h_name, sizeof (remotehost));
+		endhostent();
+	} else
+		strncpy(remotehost, inet_ntoa(sin->sin_addr),
+		    sizeof (remotehost));
+	/* hack, but must be unique and no tty line */
+	sprintf(line, "uucp%ld", getpid());
+	time(&cur_time);
 	if ((f = open(_PATH_LASTLOG, O_RDWR)) >= 0) {
 		struct lastlog ll;
 
-		time(&ll.ll_time);
-		lseek(f, (long)pw->pw_uid * sizeof(struct lastlog), 0);
-		strcpy(line, remotehost);
+		ll.ll_time = cur_time;
+		lseek(f, (off_t)pw->pw_uid * sizeof(struct lastlog), L_SET);
 		SCPYN(ll.ll_line, line);
 		SCPYN(ll.ll_host, remotehost);
 		(void) write(f, (char *) &ll, sizeof ll);
 		(void) close(f);
 	}
+	utmp.ut_time = cur_time;
+	SCPYN(utmp.ut_line, line);
+	SCPYN(utmp.ut_name, pw->pw_name);
+	SCPYN(utmp.ut_host, remotehost);
+	login(&utmp);
 }
