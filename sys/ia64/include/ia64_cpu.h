@@ -418,7 +418,7 @@ ia64_get_itc(void)
 }
 
 /*
- * Read the value of ar.itm.
+ * Read the value of cr.itm.
  */
 static __inline u_int64_t
 ia64_get_itm(void)
@@ -429,7 +429,7 @@ ia64_get_itm(void)
 }
 
 /*
- * Write the value of ar.itm.
+ * Write the value of cr.itm.
  */
 static __inline void
 ia64_set_itm(u_int64_t v)
@@ -438,12 +438,23 @@ ia64_set_itm(u_int64_t v)
 }
 
 /*
- * Write the value of ar.itv.
+ * Write the value of cr.itv.
  */
 static __inline void
 ia64_set_itv(u_int64_t v)
 {
 	__asm __volatile("mov cr.itv=%0" :: "r" (v));
+}
+
+/*
+ * Read the value of cr.lid.
+ */
+static __inline u_int64_t
+ia64_get_lid(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=cr.lid" : "=r" (result));
+	return result;
 }
 
 /*
