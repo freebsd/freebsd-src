@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.38 1998/11/04 03:18:10 peter Exp $
+ * $Id: vfs_init.c,v 1.39 1998/11/10 09:04:09 peter Exp $
  */
 
 
@@ -439,7 +439,7 @@ vfs_unregister(struct vfsconf *vfc)
 }
 
 int
-vfs_modevent(module_t mod, modeventtype_t type, void *data)
+vfs_modevent(module_t mod, int type, void *data)
 {
 	struct vfsconf *vfc;
 	struct vnodeopv_desc *opv;
