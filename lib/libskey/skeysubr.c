@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +23,7 @@ const char *passwd;   /* Password, any length */
 {
 	char *buf;
 	MDX_CTX md;
-	u_long results[4];
+	u_int32_t results[4];
 	unsigned int buflen;
 
 	buflen = strlen(seed) + strlen(passwd);
@@ -51,7 +53,7 @@ f(x)
 char *x;
 {
 	MDX_CTX md;
-	u_long results[4];
+	u_int32_t results[4];
 
 	MDXInit(&md);
 	MDXUpdate(&md,(unsigned char *)x,8);
