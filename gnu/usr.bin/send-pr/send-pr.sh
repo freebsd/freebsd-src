@@ -73,12 +73,6 @@ fi
 
 #
 
-[ -z "$TMPDIR" ] && TMPDIR=/tmp
-
-TEMP=$TMPDIR/p$$
-BAD=$TMPDIR/pbad$$
-REF=$TMPDIR/pf$$
-
 if [ -z "$LOGNAME" -a -n "$USER" ]; then
   LOGNAME=$USER
 fi
@@ -93,19 +87,21 @@ elif [ -f $HOME/.fullname ]; then
   ORIGINATOR="`sed -e '1q' $HOME/.fullname`"
 elif [ -f /bin/domainname ]; then
   if [ "`/bin/domainname`" != "" -a -f /usr/bin/ypcat ]; then
+    PTEMP=`mktemp -t p` || exit 1
     # Must use temp file due to incompatibilities in quoting behavior
     # and to protect shell metacharacters in the expansion of $LOGNAME
     /usr/bin/ypcat passwd 2>/dev/null | cat - /etc/passwd | grep "^$LOGNAME:" |
-      cut -f5 -d':' | sed -e 's/,.*//' > $TEMP
-    ORIGINATOR="`cat $TEMP`"
-    rm -f $TEMP
+      cut -f5 -d':' | sed -e 's/,.*//' > $PTEMP
+    ORIGINATOR="`cat $PTEMP`"
+    rm -f $PTEMP
   fi
 fi
 
 if [ "$ORIGINATOR" = "" ]; then
-  grep "^$LOGNAME:" /etc/passwd | cut -f5 -d':' | sed -e 's/,.*//' > $TEMP
-  ORIGINATOR="`cat $TEMP`"
-  rm -f $TEMP
+  PTEMP=`mktemp -t p` || exit 1
+  grep "^$LOGNAME:" /etc/passwd | cut -f5 -d':' | sed -e 's/,.*//' > $PTEMP
+  ORIGINATOR="`cat $PTEMP`"
+  rm -f $PTEMP
 fi
 
 if [ -n "$ORGANIZATION" ]; then
@@ -251,6 +247,9 @@ DESCRIPTION_C='<Precise description of the problem (multiple lines)>'
 HOW_TO_REPEAT_C='<Code/input/activities to reproduce the problem (multiple lines)>'
 FIX_C='<How to correct or work around the problem, if known (multiple lines)>'
 
+# Create temporary files, safely
+REF=`mktemp -t pf` || exit 1
+TEMP=`mktemp -t pf` || exit 1
 # Catch some signals. ($xs kludge needed by Sun /bin/sh)
 xs=0
 trap 'rm -f $REF $TEMP; exit $xs' 0
@@ -482,6 +481,7 @@ while [ -z "$REQUEST_ID" ]; do
     case "$input" in
       a*)
 	if [ -z "$BATCH" ]; then
+	  BAD=`mktemp -t pbad`
 	  echo "$COMMAND: the problem report remains in $BAD and is not sent."
 	  mv $TEMP $BAD
         else
@@ -542,6 +542,7 @@ if $MAIL_AGENT < $REF; then
 else
   echo "$COMMAND: mysterious mail failure."
   if [ -z "$BATCH" ]; then
+    BAD=`mktemp -t pbad`
     echo "$COMMAND: the problem report remains in $BAD and is not sent."
     mv $REF $BAD
   else
