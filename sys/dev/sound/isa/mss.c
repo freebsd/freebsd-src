@@ -36,6 +36,8 @@
 
 #define MSS_BUFFSIZE (65536 - 256)
 #define	abs(x)	(((x) < 0) ? -(x) : (x))
+#define MSS_INDEXED_REGS 0x20
+#define OPL_INDEXED_REGS 0x19
 
 struct mss_info;
 
@@ -60,6 +62,8 @@ struct mss_info {
     int		     drq2_rid;
     bus_dma_tag_t    parent_dmat;
 
+    char mss_indexed_regs[MSS_INDEXED_REGS];
+    char opl_indexed_regs[OPL_INDEXED_REGS];
     int pdma, rdma;
     int bd_id;      /* used to hold board-id info, eg. sb version,
 		     * mss codec type, etc. etc.
@@ -944,10 +948,79 @@ mss_attach(device_t dev)
     	return mss_doattach(dev, mss);
 }
 
+/*
+ * mss_resume() is the code to allow a laptop to resume using the sound
+ * card.
+ *
+ * This routine re-sets the state of the board to the state before going
+ * to sleep.  According to the yamaha docs this is the right thing to do,
+ * but getting DMA restarted appears to be a bit of a trick, so the device
+ * has to be closed and re-opened to be re-used, but there is no skipping
+ * problem, and volume, bass/treble and most other things are restored
+ * properly.
+ *
+ */
+
+static int
+mss_resume(device_t dev)
+{
+    	/*
+     	 * Restore the state taken below.
+     	 */
+    	struct mss_info *mss;
+    	int i;
+
+    	mss = pcm_getdevinfo(dev);
+
+    	if (mss->bd_id == MD_YM0020)
+    	{
+		/* This works on a Toshiba Libretto 100CT. */
+		for (i = 0; i < MSS_INDEXED_REGS; i++)
+    			ad_write(mss, i, mss->mss_indexed_regs[i]);
+		for (i = 0; i < OPL_INDEXED_REGS; i++)
+    			conf_wr(mss, i, mss->opl_indexed_regs[i]);
+		mss_intr(mss);
+    	}
+    	return 0;
+
+}
+
+/*
+ * mss_suspend() is the code that gets called right before a laptop
+ * suspends.
+ *
+ * This code saves the state of the sound card right before shutdown
+ * so it can be restored above.
+ *
+ */
+
+static int
+mss_suspend(device_t dev)
+{
+    	int i;
+    	struct mss_info *mss;
+
+    	mss = pcm_getdevinfo(dev);
+
+    	if(mss->bd_id == MD_YM0020)
+    	{
+		/* this stops playback. */
+		conf_wr(mss, 0x12, 0x0c);
+		for(i = 0; i < MSS_INDEXED_REGS; i++)
+    			mss->mss_indexed_regs[i] = ad_read(mss, i);
+		for(i = 0; i < OPL_INDEXED_REGS; i++)
+    			mss->opl_indexed_regs[i] = conf_rd(mss, i);
+		mss->opl_indexed_regs[0x12] = 0x0;
+    	}
+    	return 0;
+}
+
 static device_method_t mss_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		mss_probe),
 	DEVMETHOD(device_attach,	mss_attach),
+	DEVMETHOD(device_suspend,       mss_suspend),
+	DEVMETHOD(device_resume,        mss_resume),
 
 	{ 0, 0 }
 };
@@ -1443,6 +1516,8 @@ static device_method_t pnpmss_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pnpmss_probe),
 	DEVMETHOD(device_attach,	pnpmss_attach),
+	DEVMETHOD(device_suspend,       mss_suspend),
+	DEVMETHOD(device_resume,        mss_resume),
 
 	{ 0, 0 }
 };
