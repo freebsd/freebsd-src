@@ -82,6 +82,13 @@ scan operation at IO address 0x110.
 Beware!
 Avoid placing other cards at that address!
 .Pp
+Furthermore,
+the 3c509 should only
+be configured in EISA mode
+when installed in a computer that has actual EISA slots
+(and an EISA-aware BIOS).
+The normal driver auto-detection support
+is sufficient for non-EISA systems.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It ep0: reset (status: %x)
