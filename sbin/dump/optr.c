@@ -192,11 +192,14 @@ timeest(void)
 	time_t	tnow, tdone;
 	int deltat, hours, mins;
 
+	(void)time(&tnow);
 	if (blockswritten > tapesize) {
 		setproctitle("%s: 99.99%% done, finished soon", disk);
-		msg("99.99%% done, finished soon\n");
+		if (tnow >= tschedule) {
+			tschedule = tnow + 300;
+			msg("99.99%% done, finished soon\n");
+		}
 	} else {
-		(void) time(&tnow);
 		deltat = (blockswritten == 0) ? 0 : tstart_writing - tnow +
 		    (double)(tnow - tstart_writing) / blockswritten * tapesize;
 		tdone = tnow + deltat;
