@@ -99,7 +99,7 @@ double
 __ieee754_pow(double x, double y)
 {
 	double z,ax,z_h,z_l,p_h,p_l;
-	double y1,t1,t2,r,s,t,u,v,w;
+	double y1,t1,t2,r,s,sn,t,u,v,w;
 	int32_t i,j,k,yisint,n;
 	int32_t hx,hy,ix,iy;
 	u_int32_t lx,ly;
@@ -172,12 +172,17 @@ __ieee754_pow(double x, double y)
 	    }
 	}
 
-    /* (x<0)**(non-int) is NaN */
-    /* CYGNUS LOCAL: This used to be
-	if((((hx>>31)+1)|yisint)==0) return (x-x)/(x-x);
+    /* CYGNUS LOCAL + fdlibm-5.3 fix: This used to be
+	n = (hx>>31)+1;
        but ANSI C says a right shift of a signed negative quantity is
        implementation defined.  */
-	if(((((u_int32_t)hx>>31)-1)|yisint)==0) return (x-x)/(x-x);
+	n = ((u_int32_t)hx>>31)-1;
+
+    /* (x<0)**(non-int) is NaN */
+	if((n|yisint)==0) return (x-x)/(x-x);
+
+	sn = one; /* s (sign of result -ve**odd) = -1 else = 1 */
+	if((n|(yisint-1))==0) sn = -one;/* (-ve)**(odd int) */
 
     /* |y| is huge */
 	if(iy>0x41e00000) { /* if |y| > 2**31 */
@@ -186,8 +191,8 @@ __ieee754_pow(double x, double y)
 		if(ix>=0x3ff00000) return (hy>0)? huge*huge:tiny*tiny;
 	    }
 	/* over/underflow if x is not close to one */
-	    if(ix<0x3fefffff) return (hy<0)? huge*huge:tiny*tiny;
-	    if(ix>0x3ff00000) return (hy>0)? huge*huge:tiny*tiny;
+	    if(ix<0x3fefffff) return (hy<0)? sn*huge*huge:sn*tiny*tiny;
+	    if(ix>0x3ff00000) return (hy>0)? sn*huge*huge:sn*tiny*tiny;
 	/* now |1-x| is tiny <= 2**-20, suffice to compute
 	   log(x) by x-x^2/2+x^3/3-x^4/4 */
 	    t = ax-1;		/* t has 20 trailing zeros */
@@ -247,10 +252,6 @@ __ieee754_pow(double x, double y)
 	    t2 = z_l-(((t1-t)-dp_h[k])-z_h);
 	}
 
-	s = one; /* s (sign of result -ve**odd) = -1 else = 1 */
-	if(((((u_int32_t)hx>>31)-1)|(yisint-1))==0)
-	    s = -one;/* (-ve)**(odd int) */
-
     /* split up y into y1+y2 and compute (y1+y2)*(t1+t2) */
 	y1  = y;
 	SET_LOW_WORD(y1,0);
@@ -260,15 +261,15 @@ __ieee754_pow(double x, double y)
 	EXTRACT_WORDS(j,i,z);
 	if (j>=0x40900000) {				/* z >= 1024 */
 	    if(((j-0x40900000)|i)!=0)			/* if z > 1024 */
-		return s*huge*huge;			/* overflow */
+		return sn*huge*huge;			/* overflow */
 	    else {
-		if(p_l+ovt>z-p_h) return s*huge*huge;	/* overflow */
+		if(p_l+ovt>z-p_h) return sn*huge*huge;	/* overflow */
 	    }
 	} else if((j&0x7fffffff)>=0x4090cc00 ) {	/* z <= -1075 */
-	    if(((j-0xc090cc00)|i)!=0) 		/* z < -1075 */
-		return s*tiny*tiny;		/* underflow */
+	    if(((j-0xc090cc00)|i)!=0) 			/* z < -1075 */
+		return sn*tiny*tiny;			/* underflow */
 	    else {
-		if(p_l<=z-p_h) return s*tiny*tiny;	/* underflow */
+		if(p_l<=z-p_h) return sn*tiny*tiny;	/* underflow */
 	    }
 	}
     /*
@@ -300,5 +301,5 @@ __ieee754_pow(double x, double y)
 	j += (n<<20);
 	if((j>>20)<=0) z = scalbn(z,n);	/* subnormal output */
 	else SET_HIGH_WORD(z,j);
-	return s*z;
+	return sn*z;
 }
