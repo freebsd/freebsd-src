@@ -50,6 +50,11 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#ifndef NO_UDOM_SUPPORT
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <errno.h>
+#endif
 
 #include <ctype.h>
 #include <err.h>
@@ -59,16 +64,21 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stddef.h>
 
 int bflag, eflag, nflag, sflag, tflag, vflag;
 int rval;
 const char *filename;
 
-void cook_args __P((char *argv[]));
-void cook_buf __P((FILE *));
 int main __P((int argc, char *argv[]));
-void raw_args __P((char *argv[]));
-void raw_cat __P((int));
+
+static void scanfiles __P((char **argv, int cooked));
+static void cook_cat __P((FILE *));
+static void raw_cat __P((int));
+
+#ifndef NO_UDOM_SUPPORT
+static int udom_open __P((const char *path, int flags, int modes));
+#endif
 
 int
 main(argc, argv)
@@ -110,42 +120,55 @@ main(argc, argv)
 	argv += optind;
 
 	if (bflag || eflag || nflag || sflag || tflag || vflag)
-		cook_args(argv);
+		scanfiles(argv, 1);
 	else
-		raw_args(argv);
+		scanfiles(argv, 0);
 	if (fclose(stdout))
 		err(1, "stdout");
 	exit(rval);
 }
 
 void
-cook_args(argv)
-	char **argv;
+scanfiles(argv, cooked)
+    char **argv;
+    int cooked;
 {
-	register FILE *fp;
+	int i = 0;
+	char *path;
 
-	fp = stdin;
-	filename = "stdin";
-	do {
-		if (*argv) {
-			if (!strcmp(*argv, "-"))
-				fp = stdin;
-			else if ((fp = fopen(*argv, "r")) == NULL) {
-				warn("%s", *argv);
-				rval = 1;
-				++argv;
-				continue;
-			}
-			filename = *argv++;
+	while ((path = argv[i]) != NULL || i == 0) {
+		int fd;
+
+		if (path == NULL || strcmp(path, "-") == 0) {
+			filename = "stdin";
+			fd = 0;
+		} else {
+			filename = path;
+			fd = open(path, O_RDONLY);
+#ifndef NO_UDOM_SUPPORT
+			if (fd < 0 && errno == EOPNOTSUPP)
+				fd = udom_open(path, O_RDONLY, 0);
+#endif
 		}
-		cook_buf(fp);
-		if (fp != stdin)
-			(void)fclose(fp);
-	} while (*argv);
+		if (fd < 0) {
+			warn("%s", path);
+			rval = 1;
+		} else if (cooked) {
+			FILE *fp = fdopen(fd, "r");
+			cook_cat(fp);
+			fclose(fp);
+		} else {
+			raw_cat(fd);
+			close(fd);
+		}
+		if (path == NULL)
+			break;
+		++i;
+	}
 }
 
-void
-cook_buf(fp)
+static void
+cook_cat(fp)
 	register FILE *fp;
 {
 	register int ch, gobble, line, prev;
@@ -208,33 +231,7 @@ cook_buf(fp)
 		err(1, "stdout");
 }
 
-void
-raw_args(argv)
-	char **argv;
-{
-	register int fd;
-
-	fd = fileno(stdin);
-	filename = "stdin";
-	do {
-		if (*argv) {
-			if (!strcmp(*argv, "-"))
-				fd = fileno(stdin);
-			else if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
-				warn("%s", *argv);
-				rval = 1;
-				++argv;
-				continue;
-			}
-			filename = *argv++;
-		}
-		raw_cat(fd);
-		if (fd != fileno(stdin))
-			(void)close(fd);
-	} while (*argv);
-}
-
-void
+static void
 raw_cat(rfd)
 	register int rfd;
 {
@@ -261,3 +258,53 @@ raw_cat(rfd)
 		rval = 1;
 	}
 }
+
+#ifndef NO_UDOM_SUPPORT
+
+static int
+udom_open(path, flags, modes)
+    const char *path;
+    int flags;
+    int modes;
+{
+	struct sockaddr_un sou;
+	int fd;
+	int len;
+
+	bzero(&sou, sizeof(sou));
+
+	/*
+	 * Construct the unix domain socket address and attempt to connect
+	 */
+	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0) {
+		sou.sun_family = AF_UNIX;
+		snprintf(sou.sun_path, sizeof(sou.sun_path), "%s", path);
+		len = strlen(sou.sun_path);
+		len = offsetof(struct sockaddr_un, sun_path[len+1]);
+
+		if (connect(fd, (void *)&sou, len) < 0) {
+			close(fd);
+			fd = -1;
+		}
+	}
+
+	/*
+	 * handle the open flags by shutting down appropriate directions
+	 */
+	if (fd >= 0) {
+		switch(flags & O_ACCMODE) {
+		case O_RDONLY:
+			shutdown(fd, SHUT_WR);
+			break;
+		case O_WRONLY:
+			shutdown(fd, SHUT_RD);
+			break;
+		default:
+			break;
+		}
+	}
+	return(fd);
+}
+
+#endif
+
