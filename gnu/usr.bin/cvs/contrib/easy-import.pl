@@ -8,6 +8,7 @@
 #
 # Written by Jörg Wunsch, 95/03/07, and placed in the public domain.
 #
+# $Id$
 
 require "complete.pl";
 require "getopts.pl";
@@ -15,15 +16,24 @@ require "getopts.pl";
 
 sub scan_opts
 {
-    &Getopts("n");
+    local($status);
+
+    $status = &Getopts("nv");
 
     $dont_do_it = "-n" if $opt_n;
+    if($opt_v) {
+	print STDERR '$Source$ $Revision$' . "\n"; # 'emacs kludge
+	exit 0;
+    }
+    die "usage: $0 [-v] [-n] [moduledir]\n" .
+	"       -n: don't do any commit, show only\n" .
+	"       -v: show program version\n"
+	    unless $status && $#ARGV <= 0;
 
-    die "usage: $0 [-n] [moduledir]\n" .
-	"       -n: don't do any commit, show only\n"
-	unless $#ARGV <= 0;
-
-    $moduledir = $ARGV[0] if $#ARGV == 0;
+    if($#ARGV == 0) {
+	$moduledir = $ARGV[0];
+	shift;
+    }
 }
 
 sub lsdir
@@ -172,8 +182,25 @@ sub lsmodules
 sub checktag
 {
     # check a given string for tag rules
-    local($s) = @_;
-    return 0 if($s !~ /^[A-Za-z][A-Za-z0-9_]*$/);
+    local($s, $name) = @_;
+    local($regexp);
+
+    if($name eq "vendor") { $regexp = '^[A-Z][A-Z0-9_]*$'; }
+    elsif($name eq "release") { $regexp = '^[a-z][a-z0-9_]*$'; }
+    else {
+	print STDERR "Internal error: unknown tag name $name\n";
+	exit(2);
+    }
+
+    if($s !~ /$regexp/) {
+	print "\a${us}Valid $name tags must match the regexp " .
+	    "$regexp.${ue}\n";
+	return 0;
+    }
+    if($s =~ /^RELENG/) {
+	print "\a${us}Tags must not start with the word \"RELENG\".${ue}\n";
+	return 0;
+    }
 
     return 1;
 }
@@ -288,9 +315,7 @@ for(;;) {
     $| = 0;
     $vtag = <>;
     chop $vtag;
-    last if &checktag($vtag);
-    print "\a${us}Valid tags must match the regexp " .
-	"^[A-Za-z][A-Za-z0-9_]*\$.${ue}\n";
+    last if &checktag($vtag, "vendor");
 }
 
 for(;;) {
@@ -299,9 +324,7 @@ for(;;) {
     $| = 0;
     $rtag = <>;
     chop $rtag;
-    last if &checktag($rtag);
-    print "\a${us}Valid tags must match the regexp " .
-	"^[A-Za-z][A-Za-z0-9_]*\$.${ue}\n";
+    last if &checktag($rtag, "release");
 }
 
 
