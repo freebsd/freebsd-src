@@ -887,7 +887,6 @@ soreceive_rcvoob(so, uio, flags)
 	do {
 #ifdef ZERO_COPY_SOCKETS
 		if (so_zero_copy_receive) {
-			vm_page_t pg;
 			int disposable;
 
 			if ((m->m_flags & M_EXT)
@@ -895,10 +894,6 @@ soreceive_rcvoob(so, uio, flags)
 				disposable = 1;
 			else
 				disposable = 0;
-
-			pg = PHYS_TO_VM_PAGE(vtophys(mtod(m, caddr_t)));
-			if (uio->uio_offset == -1)
-				uio->uio_offset =IDX_TO_OFF(pg->pindex);
 
 			error = uiomoveco(mtod(m, void *),
 					  min(uio->uio_resid, m->m_len),
@@ -1229,7 +1224,6 @@ dontblock:
 			SOCKBUF_UNLOCK(&so->so_rcv);
 #ifdef ZERO_COPY_SOCKETS
 			if (so_zero_copy_receive) {
-				vm_page_t pg;
 				int disposable;
 
 				if ((m->m_flags & M_EXT)
@@ -1237,12 +1231,6 @@ dontblock:
 					disposable = 1;
 				else
 					disposable = 0;
-
-				pg = PHYS_TO_VM_PAGE(vtophys(mtod(m, caddr_t) +
-					moff));
-
-				if (uio->uio_offset == -1)
-					uio->uio_offset =IDX_TO_OFF(pg->pindex);
 
 				error = uiomoveco(mtod(m, char *) + moff,
 						  (int)len, uio,
