@@ -53,8 +53,10 @@
  */
 void mark_buffer_dirty(struct buf *bh)
 {
-	numdirtybuffers++;
-	bh->b_flags |= B_DELWRI;
+	if (!(bh->b_flags & B_DELWRI)) {
+		numdirtybuffers++;
+		bh->b_flags |= B_DELWRI;
+	}
 	bh->b_flags &= ~(B_READ | B_ERROR);
 } 
 
