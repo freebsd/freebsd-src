@@ -404,6 +404,7 @@ route_output(struct mbuf *m, struct socket *so)
 					info.rti_info[RTAX_IFP] =
 					    ifaddr_byindex(ifp->if_index)->ifa_addr;
 					if (jailed(so->so_cred)) {
+						memset(&jail, 0, sizeof(jail));
 						jail.sin_family = PF_INET;
 						jail.sin_len = sizeof(jail);
 						jail.sin_addr.s_addr =
