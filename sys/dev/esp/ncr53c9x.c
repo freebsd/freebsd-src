@@ -667,7 +667,7 @@ ncr53c9x_select(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	 * always possible that the interrupt may never happen.
 	 */
 	ecb->ccb->ccb_h.timeout_ch =
-	    timeout(ncr53c9x_timeout, sc, mstohz(ecb->timeout));
+	    timeout(ncr53c9x_timeout, ecb, mstohz(ecb->timeout));
 
 	/*
 	 * The docs say the target register is never reset, and I
@@ -1217,7 +1217,7 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	lun = ccb->ccb_h.target_lun;
 	li  = TINFO_LUN(ti, lun);
 
-	untimeout(ncr53c9x_timeout, sc, ccb->ccb_h.timeout_ch);
+	untimeout(ncr53c9x_timeout, ecb, ccb->ccb_h.timeout_ch);
 
 	/*
 	 * Now, if we've come here with no error code, i.e. we've kept the
@@ -2331,7 +2331,7 @@ again:
 					goto reset;
 				}
 				printf("sending REQUEST SENSE\n");
-				untimeout(ncr53c9x_timeout, sc,
+				untimeout(ncr53c9x_timeout, ecb,
 					  ecb->ccb->ccb_h.timeout_ch);
 				ncr53c9x_sense(sc, ecb);
 				goto out;
@@ -2400,7 +2400,7 @@ again:
 			 */
 			if (sc->sc_state == NCR_SELECTING) {
 				NCR_INTS(("backoff selector "));
-				untimeout(ncr53c9x_timeout, sc,
+				untimeout(ncr53c9x_timeout, ecb,
 					  ecb->ccb->ccb_h.timeout_ch);
 				ncr53c9x_dequeue(sc, ecb);
 				TAILQ_INSERT_HEAD(&sc->ready_list, ecb, chain);
@@ -2855,7 +2855,7 @@ ncr53c9x_abort(sc, ecb)
 		 * Reschedule timeout.
 		 */
 		ecb->ccb->ccb_h.timeout_ch =
-		    timeout(ncr53c9x_timeout, sc, mstohz(ecb->timeout));
+		    timeout(ncr53c9x_timeout, ecb, mstohz(ecb->timeout));
 	} else {
 		/*
 		 * Just leave the command where it is.
