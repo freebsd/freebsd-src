@@ -176,8 +176,7 @@ fileGetURL(const char *base, const char *spec)
 		*(cp + 1) = '\0';
 		strcat(cp, "All/");
 		strcat(cp, spec);
-		/* XXX: need to handle .tgz also */
-		strcat(cp, ".tbz");
+		strcat(cp, ".tgz");
 	    }
 	    else
 		return NULL;
@@ -189,8 +188,7 @@ fileGetURL(const char *base, const char *spec)
 	     */
 	    strcpy(fname, hint);
 	    strcat(fname, spec);
-	    /* XXX: need to handle .tgz also */
-            strcat(fname, ".tbz");
+            strcat(fname, ".tgz");
 	}
     }
     else
@@ -224,8 +222,7 @@ fileGetURL(const char *base, const char *spec)
 	dup2(pfd[0], 0);
 	for (fd = getdtablesize() - 1; fd >= 3; --fd)
 	    close(fd);
-	/* XXX: need to handle .tgz also */
-	execl("/usr/bin/tar", "tar", Verbose ? "-xjvf" : "-xjf", "-",
+	execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-",
 	    (char *)0);
 	_exit(2);
     }
