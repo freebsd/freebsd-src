@@ -208,14 +208,15 @@ loop:
 			continue;
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 			continue;
+		VI_UNLOCK(vp);
 		if (!wait && LIST_FIRST(&bp->b_dep) != NULL &&
 		    (bp->b_flags & B_DEFERRED) == 0 &&
 		    buf_countdeps(bp, 0)) {
 			bp->b_flags |= B_DEFERRED;
 			BUF_UNLOCK(bp);
+			VI_LOCK(vp);
 			continue;
 		}
-		VI_UNLOCK(vp);
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
 		/*

@@ -219,7 +219,7 @@ struct buf {
 #define B_RAM		0x10000000	/* Read ahead mark (flag) */
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
-#define B_80000000	0x80000000	/* Available flag. */
+#define B_REMFREE	0x80000000	/* Delayed bremfree */
 
 #define PRINT_BUF_FLAGS "\20\40b31\37cluster\36vmio\35ram\34b27" \
 	"\33paging\32b25\31b24\30b23\27relbuf\26dirty\25b20" \
@@ -485,6 +485,7 @@ void	bufinit(void);
 void	bwillwrite(void);
 int	buf_dirty_count_severe(void);
 void	bremfree(struct buf *);
+void	bremfreef(struct buf *);	/* XXX Force bremfree, only for nfs. */
 int	bread(struct vnode *, daddr_t, int, struct ucred *, struct buf **);
 int	breadn(struct vnode *, daddr_t, int, daddr_t *, int *, int,
 	    struct ucred *, struct buf **);

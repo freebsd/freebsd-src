@@ -645,24 +645,49 @@ bfreekva(struct buf *bp)
 /*
  *	bremfree:
  *
- *	Remove the buffer from the appropriate free list.
+ *	Mark the buffer for removal from the appropriate free list in brelse.
+ *	
  */
 void
 bremfree(struct buf *bp)
 {
 
+	KASSERT(BUF_REFCNT(bp), ("bremfree: buf must be locked."));
+	KASSERT((bp->b_flags & B_REMFREE) == 0 && bp->b_qindex != QUEUE_NONE,
+	    ("bremfree: buffer not on a queue."));
+
+	bp->b_flags |= B_REMFREE;
+	/* Fixup numfreebuffers count.  */
+	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0)
+		atomic_subtract_int(&numfreebuffers, 1);
+}
+
+/*
+ *	bremfreef:
+ *
+ *	Force an immediate removal from a free list.  Used only in nfs when
+ *	it abuses the b_freelist pointer.
+ */
+void
+bremfreef(struct buf *bp)
+{
 	mtx_lock(&bqlock);
 	bremfreel(bp);
 	mtx_unlock(&bqlock);
 }
 
+/*
+ *	bremfreel:
+ *
+ *	Removes a buffer from the free list, must be called with the
+ *	bqlock held.
+ */
 void
 bremfreel(struct buf *bp)
 {
 	int s = splbio();
-	int old_qindex = bp->b_qindex;
 
-	GIANT_REQUIRED;
+	mtx_assert(&bqlock, MA_OWNED);
 
 	if (bp->b_qindex != QUEUE_NONE) {
 		KASSERT(BUF_REFCNT(bp) == 1, ("bremfree: bp %p not locked",bp));
@@ -672,24 +697,22 @@ bremfreel(struct buf *bp)
 		if (BUF_REFCNT(bp) <= 1)
 			panic("bremfree: removing a buffer not on a queue");
 	}
-
+	/*
+	 * If this was a delayed bremfree() we only need to remove the buffer
+	 * from the queue and return the stats are already done.
+	 */
+	if (bp->b_flags & B_REMFREE) {
+		bp->b_flags &= ~B_REMFREE;
+		splx(s);
+		return;
+	}
 	/*
 	 * Fixup numfreebuffers count.  If the buffer is invalid or not
-	 * delayed-write, and it was on the EMPTY, LRU, or AGE queues,
-	 * the buffer was free and we must decrement numfreebuffers.
+	 * delayed-write, the buffer was free and we must decrement
+	 * numfreebuffers.
 	 */
-	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0) {
-		switch(old_qindex) {
-		case QUEUE_DIRTY:
-		case QUEUE_CLEAN:
-		case QUEUE_EMPTY:
-		case QUEUE_EMPTYKVA:
-			atomic_subtract_int(&numfreebuffers, 1);
-			break;
-		default:
-			break;
-		}
-	}
+	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0)
+		atomic_subtract_int(&numfreebuffers, 1);
 	splx(s);
 }
 
@@ -1105,7 +1128,7 @@ bdirty(struct buf *bp)
 {
 
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
-	KASSERT(bp->b_qindex == QUEUE_NONE,
+	KASSERT(bp->b_flags & B_REMFREE || bp->b_qindex == QUEUE_NONE,
 	    ("bdirty: buffer %p still on queue %d", bp, bp->b_qindex));
 	bp->b_flags &= ~(B_RELBUF);
 	bp->b_iocmd = BIO_WRITE;
@@ -1135,7 +1158,7 @@ bundirty(struct buf *bp)
 {
 
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
-	KASSERT(bp->b_qindex == QUEUE_NONE,
+	KASSERT(bp->b_flags & B_REMFREE || bp->b_qindex == QUEUE_NONE,
 	    ("bundirty: buffer %p still on queue %d", bp, bp->b_qindex));
 
 	if (bp->b_flags & B_DELWRI) {
@@ -1398,8 +1421,6 @@ brelse(struct buf *bp)
 
 	}
 			
-	if (bp->b_qindex != QUEUE_NONE)
-		panic("brelse: free buffer onto another queue???");
 	if (BUF_REFCNT(bp) > 1) {
 		/* do not release to free list */
 		BUF_UNLOCK(bp);
@@ -1409,6 +1430,11 @@ brelse(struct buf *bp)
 
 	/* enqueue */
 	mtx_lock(&bqlock);
+	/* Handle delayed bremfree() processing. */
+	if (bp->b_flags & B_REMFREE)
+		bremfreel(bp);
+	if (bp->b_qindex != QUEUE_NONE)
+		panic("brelse: free buffer onto another queue???");
 
 	/* buffers with no memory */
 	if (bp->b_bufsize == 0) {
@@ -1502,8 +1528,6 @@ bqrelse(struct buf *bp)
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
 	    ("bqrelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
 
-	if (bp->b_qindex != QUEUE_NONE)
-		panic("bqrelse: free buffer onto another queue???");
 	if (BUF_REFCNT(bp) > 1) {
 		/* do not release to free list */
 		BUF_UNLOCK(bp);
@@ -1511,6 +1535,11 @@ bqrelse(struct buf *bp)
 		return;
 	}
 	mtx_lock(&bqlock);
+	/* Handle delayed bremfree() processing. */
+	if (bp->b_flags & B_REMFREE)
+		bremfreel(bp);
+	if (bp->b_qindex != QUEUE_NONE)
+		panic("bqrelse: free buffer onto another queue???");
 	/* buffers with stale but valid contents */
 	if (bp->b_flags & B_DELWRI) {
 		bp->b_qindex = QUEUE_DIRTY;
@@ -1854,18 +1883,6 @@ restart:
 		}
 
 		/*
-		 * Sanity Checks
-		 */
-		KASSERT(bp->b_qindex == qindex, ("getnewbuf: inconsistant queue %d bp %p", qindex, bp));
-
-		/*
-		 * Note: we no longer distinguish between VMIO and non-VMIO
-		 * buffers.
-		 */
-
-		KASSERT((bp->b_flags & B_DELWRI) == 0, ("delwri buffer %p found in queue %d", bp, qindex));
-
-		/*
 		 * If we are defragging then we need a buffer with 
 		 * b_kvasize != 0.  XXX this situation should no longer
 		 * occur, if defrag is non-zero the buffer's b_kvasize
@@ -1880,9 +1897,20 @@ restart:
 		 * Start freeing the bp.  This is somewhat involved.  nbp
 		 * remains valid only for QUEUE_EMPTY[KVA] bp's.
 		 */
-
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
-			panic("getnewbuf: locked buf");
+			continue;
+		/*
+		 * Sanity Checks
+		 */
+		KASSERT(bp->b_qindex == qindex, ("getnewbuf: inconsistant queue %d bp %p", qindex, bp));
+
+		/*
+		 * Note: we no longer distinguish between VMIO and non-VMIO
+		 * buffers.
+		 */
+
+		KASSERT((bp->b_flags & B_DELWRI) == 0, ("delwri buffer %p found in queue %d", bp, qindex));
+
 		bremfreel(bp);
 		mtx_unlock(&bqlock);
 
