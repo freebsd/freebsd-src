@@ -1081,7 +1081,8 @@ vm_fault_unwire(map, start, end)
 
 	pmap = vm_map_pmap(map);
 
-	mtx_lock(&Giant);
+	if (pmap != kernel_pmap)
+		mtx_lock(&Giant);
 	/*
 	 * Since the pages are wired down, we must be able to get their
 	 * mappings from the physical map system.
@@ -1095,7 +1096,8 @@ vm_fault_unwire(map, start, end)
 			vm_page_unlock_queues();
 		}
 	}
-	mtx_unlock(&Giant);
+	if (pmap != kernel_pmap)
+		mtx_unlock(&Giant);
 }
 
 /*
