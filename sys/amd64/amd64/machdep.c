@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.45 1994/08/03 02:45:26 davidg Exp $
+ *	$Id: machdep.c,v 1.46 1994/08/04 06:10:27 davidg Exp $
  */
 
 #include "npx.h"
@@ -248,8 +248,8 @@ again:
 	freebufspace = bufpages * NBPG;
 	if (nswbuf == 0) {
 		nswbuf = (nbuf / 2) &~ 1;	/* force even */
-		if (nswbuf > 256)
-			nswbuf = 256;		/* sanity */
+		if (nswbuf > 64)
+			nswbuf = 64;		/* sanity */
 	}
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
@@ -284,19 +284,21 @@ again:
 		panic("startup: table size inconsistency");
 
 	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
-			(nbuf*MAXBSIZE) + VM_PHYS_SIZE + maxbkva + pager_map_size, TRUE);
-
-	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva, FALSE);
-	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
-				  pager_map_size, TRUE);
-
+			(nbuf*MAXBSIZE) + (nswbuf*MAXPHYS) +
+				maxbkva + pager_map_size, TRUE);
 	buffer_map = kmem_suballoc(clean_map, &buffer_sva, &buffer_eva,
-				(nbuf * MAXBSIZE), TRUE);
+				(nbuf*MAXBSIZE), TRUE);
+	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
+				(nswbuf*MAXPHYS) + pager_map_size, TRUE);
+	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva, FALSE);
+
+#if 0
 	/*
 	 * Allocate a submap for physio
 	 */
 	phys_map = kmem_suballoc(clean_map, &minaddr, &maxaddr,
 				 VM_PHYS_SIZE, TRUE);
+#endif
 
 	/*
 	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
@@ -334,6 +336,7 @@ again:
 	 * Set up buffers, so they can be used to read disk labels.
 	 */
 	bufinit();
+	vm_pager_bufferinit();
 
 	/*
 	 * Configure the system.

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id$
+ * $Id: buf.h,v 1.4 1994/08/02 07:52:39 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -79,7 +79,6 @@ struct buf {
 	int	b_validend;		/* Offset of end of valid region. */
 	daddr_t	b_pblkno;               /* physical block number */
 	caddr_t	b_savekva;              /* saved kva for transfer while bouncing */
-	TAILQ_HEAD(b_clusterhd,buf) b_cluster;	/* low level clustering */
 	void	*b_driver1;		/* for private use by the driver */
 	void	*b_driver2;		/* for private use by the driver */
 	void	*b_spc;

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id$
+ * $Id: kern_physio.c,v 1.3 1994/08/02 07:42:05 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -38,10 +38,12 @@ physio(strategy, bp, dev, rw, minp, uio)
 	struct uio *uio;
 {
 	int i;
-	int bp_alloc = (bp == 0);
 	int bufflags = rw?B_READ:0;
 	int error;
 	int spl;
+	caddr_t sa;
+	int bp_alloc = (bp == 0);
+	struct buf *bpa;
 
 /*
  * keep the process from being swapped
@@ -49,10 +51,8 @@ physio(strategy, bp, dev, rw, minp, uio)
 	curproc->p_flag |= P_PHYSIO;
 
 	/* create and build a buffer header for a transfer */
-
-	if (bp_alloc) {
-		bp = (struct buf *)getpbuf();
-	} else {
+	bpa = (struct buf *)getpbuf();
+	if (!bp_alloc) {
 		spl = splbio();
 		while (bp->b_flags & B_BUSY) {
 			bp->b_flags |= B_WANTED;
@@ -60,8 +60,14 @@ physio(strategy, bp, dev, rw, minp, uio)
 		}
 		bp->b_flags |= B_BUSY;
 		splx(spl);
+	} else {
+		bp = bpa;
 	}
 
+	/*
+	 * get a copy of the kva from the physical buffer
+	 */
+	sa = bpa->b_data;
 	bp->b_proc = curproc;
 	bp->b_dev = dev;
 	error = bp->b_error = 0;
@@ -76,6 +82,11 @@ physio(strategy, bp, dev, rw, minp, uio)
 			bp->b_flags = B_BUSY | B_PHYS | B_CALL | bufflags;
 			bp->b_iodone = physwakeup;
 			bp->b_data = uio->uio_iov[i].iov_base;
+			/*
+			 * pass in the kva from the physical buffer
+			 * for the temporary kernel mapping.
+			 */
+			bp->b_saveaddr = sa;
 			bp->b_blkno = btodb(uio->uio_offset);
 
 			
@@ -123,9 +134,8 @@ physio(strategy, bp, dev, rw, minp, uio)
 
 
 doerror:
-	if (bp_alloc) {
-		relpbuf(bp);
-	} else {
+	relpbuf(bpa);
+	if (!bp_alloc) {
 		bp->b_flags &= ~(B_BUSY|B_PHYS);
 		if( bp->b_flags & B_WANTED) {
 			bp->b_flags &= ~B_WANTED;
