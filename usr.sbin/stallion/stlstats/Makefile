@@ -3,7 +3,7 @@
 PROG=	stlstats
 MAN8=	stlstats.8
 
-DPADD=	${LIBNCURSES} ${LIBMYTINFO}
-LDADD=	-lncurses -lmytinfo
+DPADD=	${LIBNCURSES}
+LDADD=	-lncurses
 
 .include <bsd.prog.mk>
