@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.45 1998/11/15 18:07:35 dfr Exp $";
+	"$Id: mkioconf.c,v 1.46 1999/02/04 10:24:45 markm Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -734,7 +734,7 @@ isa_biotab(fp, table)
 			dp->d_flags, dp->d_drive, !dp->d_disabled,
 			dp->d_conflicts);
 	}
-	fprintf(fp, "0\n};\n");
+	fprintf(fp, "{ 0 }\n};\n");
 }
 
 /*
@@ -773,7 +773,7 @@ isa_devtab(fp, table, dev_idp)
 			dp->d_msize, dp->d_unit,
 			dp->d_flags, !dp->d_disabled, dp->d_conflicts);
 	}
-	fprintf(fp, "0\n};\n");
+	fprintf(fp, "{ 0 }\n};\n");
 }
 
 static char *
