@@ -133,6 +133,7 @@
 #include <sys/rman.h>
 #include <sys/timetc.h>
 #include <sys/timepps.h>
+#include <sys/uio.h>
 
 #include <isa/isavar.h>
 
@@ -163,8 +164,10 @@
 #define	CONTROL_INIT_STATE	0x20
 #define	CONTROL_LOCK_STATE	0x40
 #define	DEV_TO_UNIT(dev)	(MINOR_TO_UNIT(minor(dev)))
-#define	MINOR_MAGIC_MASK	(CALLOUT_MASK | CONTROL_MASK)
-#define	MINOR_TO_UNIT(mynor)	((mynor) & ~MINOR_MAGIC_MASK)
+#define	MINOR_TO_UNIT(mynor)	((((mynor) & ~0xffffU) >> (8 + 3)) \
+				 | ((mynor) & 0x1f))
+#define	UNIT_TO_MINOR(unit)	((((unit) & ~0x1fU) << (8 + 3)) \
+				 | ((unit) & 0x1f))
 
 #ifdef COM_MULTIPORT
 /* checks in flags for multiport and which is multiport "master chip"
@@ -1414,6 +1417,7 @@ sioattach(dev, xrid, rclk)
 	Port_t		*espp;
 #endif
 	Port_t		iobase;
+	int		minorbase;
 	int		unit;
 	u_int		flags;
 	int		rid;
@@ -1791,19 +1795,20 @@ determined_type: ;
 		swi_add(&clk_ithd, "tty:sio", siopoll, NULL, SWI_TTY, 0,
 		    &sio_slow_ih);
 	}
-	com->devs[0] = make_dev(&sio_cdevsw, unit,
+	minorbase = UNIT_TO_MINOR(unit);
+	com->devs[0] = make_dev(&sio_cdevsw, minorbase,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyd%r", unit);
-	com->devs[1] = make_dev(&sio_cdevsw, unit | CONTROL_INIT_STATE,
+	com->devs[1] = make_dev(&sio_cdevsw, minorbase | CONTROL_INIT_STATE,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyid%r", unit);
-	com->devs[2] = make_dev(&sio_cdevsw, unit | CONTROL_LOCK_STATE,
+	com->devs[2] = make_dev(&sio_cdevsw, minorbase | CONTROL_LOCK_STATE,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyld%r", unit);
-	com->devs[3] = make_dev(&sio_cdevsw, unit | CALLOUT_MASK,
+	com->devs[3] = make_dev(&sio_cdevsw, minorbase | CALLOUT_MASK,
 	    UID_UUCP, GID_DIALER, 0660, "cuaa%r", unit);
 	com->devs[4] = make_dev(&sio_cdevsw,
-	    unit | CALLOUT_MASK | CONTROL_INIT_STATE,
+	    minorbase | CALLOUT_MASK | CONTROL_INIT_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuaia%r", unit);
 	com->devs[5] = make_dev(&sio_cdevsw,
-	    unit | CALLOUT_MASK | CONTROL_LOCK_STATE,
+	    minorbase | CALLOUT_MASK | CONTROL_LOCK_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 	com->flags = flags;
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
@@ -2520,6 +2525,39 @@ siointr(arg)
 #endif /* COM_MULTIPORT */
 }
 
+static struct timespec siots[8192];
+static int siotso;
+static int volatile siotsunit = -1;
+
+static int
+sysctl_siots(SYSCTL_HANDLER_ARGS)
+{
+	char buf[128];
+	long long delta;
+	size_t len;
+	int error, i;
+
+	for (i = 1; i < siotso; i++) {
+		delta = (long long)(siots[i].tv_sec - siots[i - 1].tv_sec) *
+		    1000000000 +
+		    (siots[i].tv_nsec - siots[i - 1].tv_nsec);
+		len = sprintf(buf, "%lld\n", delta);
+		if (delta >= 110000)
+			len += sprintf(buf + len - 1, ": *** %ld.%09ld\n",
+			    (long)siots[i].tv_sec, siots[i].tv_nsec);
+		if (i == siotso - 1)
+			buf[len - 1] = '\0';
+		error = SYSCTL_OUT(req, buf, len);
+		if (error != 0)
+			return (error);
+		uio_yield();
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, siots, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, sysctl_siots, "A", "sio timestamps");
+
 static void
 siointr1(com)
 	struct com_s	*com;
@@ -2789,7 +2827,7 @@ cont:
 #endif
 
 			ioptr = com->obufq.l_head;
-			if (com->tx_fifo_size > 1) {
+			if (com->tx_fifo_size > 1 && com->unit != siotsunit) {
 				u_int	ocount;
 
 				ocount = com->obufq.l_tail - ioptr;
@@ -2820,6 +2858,11 @@ cont:
 				outb(com->data_port, *ioptr++);
 #endif
 				++com->bytes_out;
+				if (com->unit == siotsunit) {
+					nanouptime(&siots[siotso]);
+					siotso = (siotso + 1) %
+					    (sizeof siots / sizeof siots[0]);
+				}
 			}
 #ifdef PC98
 			if (IS_8251(com->pc98_if_type))
@@ -3299,7 +3342,8 @@ comparam(tp, t)
 		 * is delayed.  At high speeds, FIFO_RX_HIGH does not
 		 * leave enough slots free.
 		 */
-		com->fifo_image = t->c_ospeed <= 4800
+		com->fifo_image = com->unit == siotsunit ? 0
+				  : t->c_ospeed <= 4800
 				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_MEDH;
 #ifdef COM_ESP
 		/*
