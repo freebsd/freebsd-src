@@ -1,4 +1,4 @@
-                QUICK INSTALLATION GUIDE FOR FREEBSD 2.1.5
+                QUICK INSTALLATION GUIDE FOR FREEBSD 2.2
 
 This manual documents the process of installing FreeBSD on your
 machine.  Please also see the Hardware Guide for hardware-specific
@@ -28,7 +28,7 @@ Table of Contents:
 
 3.1     Repairing an existing FreeBSD installation.
 
-3.2     Upgrading from FreeBSD 2.1 or 2.0.5
+3.2     Upgrading from FreeBSD 2.1
 
 
 1.0     DOS user's Question and Answer section
@@ -87,11 +87,10 @@ mount -t msdos /dev/sd0s5 /dos_d
 Not yet!  We'd like to add support for this someday, but are still
 lacking anyone to actually do the work.  Ongoing work with Linux's
 DOSEMU utility may bring this much closer to being a reality sometime
-soon, as perhaps will the BSDI `rundos' emulator which BSDI has been
-kind enough to donate to the BSD community.  Send mail to
-emulation@freebsd.org if you're interested in joining this effort!
+soon.  Send mail to hackers@freebsd.org if you're interested in
+joining this effort!
 
-For now there is, however, a neat utility called "pcemu" in the ports
+There is, however, a neat utility called "pcemu" in the ports
 collection which emulates an 8088 and enough BIOS services to run DOS
 text mode applications.  It requires the X Window System (provided as
 XFree86 3.1.2) to operate.
@@ -112,7 +111,8 @@ CDROM distributions may work as well, though we cannot say for certain
 as we have no hand or say in how they're created).  You can either
 boot into the CD installation directly from DOS using Walnut Creek's
 supplied ``install.bat'' batch file or you can make a boot floppy with
-the ``makeflp.bat'' command.
+the ``makeflp.bat'' command [NOTE: If you're using an IDE CDROM, use
+the inst_ide.bat or atapiflp.bat batch files instead].
 
 For the easiest interface of all (from DOS), type "view".  This will
 bring up a DOS menu utility that leads you through all the available
@@ -122,12 +122,6 @@ If you're creating the boot floppy from a UNIX machine, you may find
 that ``dd if=floppies/boot.flp of=/dev/rfd0'' or
 ``dd if=floppies/boot.flp of=/dev/floppy'' works well, depending on
 your hardware and operating system environment.
-
-IMPORTANT NOTE:  If you have a 4MB machine then you will need to use
-the ``boot4.flp'' image and use dd or rawrite directly in creating
-it since the supplied batch files assume the default boot.flp (which
-requires at least 5MB to run).
-
 
 Once you've booted from DOS or floppy, you should then be able to
 select CDROM as the media type in the Media menu and load the entire
@@ -139,7 +133,7 @@ hard disk, you can mount the cdrom at any time by typing: ``mount /cdrom''
 Before removing the CD again, also note that it's necessary to first
 type ``umount /cdrom''.  Don't just remove it from the drive!
 
-IMPORTANT NOTE: Before invoking the installation, be sure that the CDROM
+SPECIAL NOTE: Before invoking the installation, be sure that the CDROM
 is in the drive so that the "probe" can find it!  This is also true if
 you wish the CDROM to be added to the default system configuration
 automatically during the install (whether or not you actually use it
@@ -236,7 +230,7 @@ installation requires quite a bit of temporary storage!  You should
 expect to require as much temporary storage as you have stuff written
 on tape.
 
-IMPORTANT NOTE:  When going to do the installation, the tape must be in
+SPECIAL NOTE:  When going to do the installation, the tape must be in
 the drive *before* booting from the boot floppy.  The installation
 "probe" may otherwise fail to find it.
 
@@ -315,7 +309,7 @@ installation can continue over NFS or FTP.
         Options flag.
 
         In order for NFS installation to work, the server must also support
-        "subdir mounts", e.g. if your FreeBSD 2.1.5 distribution directory
+        "subdir mounts", e.g. if your FreeBSD 2.1 distribution directory
         lives on:  ziggy:/usr/archive/stuff/FreeBSD
         Then ziggy will have to allow the direct mounting of
         /usr/archive/stuff/FreeBSD, not just /usr or /usr/archive/stuff.
@@ -330,7 +324,7 @@ installation can continue over NFS or FTP.
 2.5.2   Preparing for FTP Installation
 
         FTP installation may be done from any mirror site containing a
-        reasonably up-to-date version of FreeBSD 2.1.5.  A full menu of
+        reasonably up-to-date version of FreeBSD 2.1.  A full menu of
         reasonable choices for almost any location in the world is
         provided in the FTP site menu.
 
@@ -341,7 +335,7 @@ installation can continue over NFS or FTP.
         contain a hostname or an IP address, so the following would
         work in the absence of a name server:
 
-                ftp://192.216.191.11/pub/FreeBSD/2.1.5-RELEASE
+                ftp://192.216.191.11/pub/FreeBSD/2.1.0-RELEASE
         
         There are two FTP installation modes you can use:
 
@@ -520,7 +514,7 @@ mailing list - questions@FreeBSD.org.  We'll do our best to help you!
 3.1     Repairing an existing FreeBSD installation.
 ---     -------------------------------------------
 
-FreeBSD 2.1.5 features a "Fixit" option in the top menu of the boot
+FreeBSD 2.1 now features a "Fixit" option in the top menu of the boot
 floppy.  To use it, you will also need a fixit.flp image floppy,
 generated in the same fashion as the boot floppy.
 
