@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.78 1995/03/29 19:05:13 ache Exp $
+ *	$Id: sio.c,v 1.79 1995/03/29 20:20:01 ache Exp $
  */
 
 #include "sio.h"
@@ -1104,7 +1104,9 @@ siointr1(com)
 				  this hack allows "raw" tty optimization
 				  works even if IGN* is set.
 				*/
-				if (   (line_status & (LSR_PE|LSR_FE))
+				if (   com->tp == NULL
+				    || !(com->tp->t_state & TS_ISOPEN)
+				    || (line_status & (LSR_PE|LSR_FE))
 				    &&  (com->tp->t_iflag & IGNPAR)
 				    || (line_status & LSR_BI)
 				    &&  (com->tp->t_iflag & IGNBRK))
@@ -1116,7 +1118,8 @@ siointr1(com)
 #ifdef KGDB
 			/* trap into kgdb? (XXX - needs testing and optim) */
 			if (recv_data == FRAME_END
-			    && !(com->tp->t_state & TS_ISOPEN)
+			    && (   com->tp == NULL
+				|| !(com->tp->t_state & TS_ISOPEN))
 			    && kgdb_dev == makedev(commajor, unit)) {
 				kgdb_connect(0);
 				continue;
