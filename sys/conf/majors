@@ -119,7 +119,7 @@ chrdev	name		comments
 99	ct		Cronyx/Tau serial adaptor
 100	xrpu		Xilinx Reprogrammable Processing Unit
 101	was:dgm		was: Digiboard PC/Xem in <= RELENG_4
-102	fla		M-Systems DiskOnChip(r)
+102
 103	streams		SVR4 Streams emulation <newton@atdot.dotat.org>
 104	xpt		CAM Transport Layer Services
 105	iic		I2C bus generic i/o
