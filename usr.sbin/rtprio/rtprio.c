@@ -30,18 +30,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/rtprio.h>
 #include <sys/errno.h>
 
+#include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <unistd.h>
 
 static void usage();
@@ -72,10 +76,8 @@ main(argc, argv)
 						 * arg! */
 		/* FALLTHROUGH */
 	case 1:
-		if (rtprio(RTP_LOOKUP, proc, &rtp) != 0) {
-			perror(argv[0]);
-			exit (1);
-		}
+		if (rtprio(RTP_LOOKUP, proc, &rtp) != 0)
+			err(1, "%s", argv[0]);
 		printf("%s: ", p);
 		switch (rtp.type) {
 		case RTP_PRIO_REALTIME:
@@ -99,44 +101,40 @@ main(argc, argv)
 					rtp.type = RTP_PRIO_NORMAL;
 					rtp.prio = 0;
 				} else {
-					usage(p);
+					usage();
 					break;
 				}
 			} else {
 				rtp.prio = atoi(argv[1]);
 			}
 		} else {
-			usage(p);
+			usage();
 			break;
 		}
 
 		if (argv[2][0] == '-')
 			proc = -atoi(argv[2]);
 
-		if (rtprio(RTP_SET, proc, &rtp) != 0) {
-			perror(argv[0]);
-			exit (1);
-		}
+		if (rtprio(RTP_SET, proc, &rtp) != 0)
+			err(1, "%s", argv[0]);
 
 		if (proc == 0) {
 			execvp(argv[2], &argv[2]);
-			perror(argv[0]);
-			exit (1);
+			err(1, "%s", argv[0]);
 		}
 	}
 	exit (1);
 }
 
 static void
-usage(basename)
-	char   *basename;
+usage()
 {
-	(void) fprintf(stderr, "usage: %s\n", basename);
-	(void) fprintf(stderr, "usage: %s [-]pid\n", basename);
-	(void) fprintf(stderr, "usage: %s priority command [ args ] \n", basename);
-	(void) fprintf(stderr, "usage: %s priority -pid \n", basename);
-	(void) fprintf(stderr, "usage: %s -t command [ args ] \n", basename);
-	(void) fprintf(stderr, "usage: %s -t -pid \n", basename);
-
-	exit(-1);
+	(void) fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
+		"usage: [id|rt]prio",
+		"       [id|rt]prio [-]pid",
+		"       [id|rt]prio priority command [args]",
+		"       [id|rt]prio priority -pid",
+		"       [id|rt]prio -t command [args]",
+		"       [id|rt]prio -t -pid");
+	exit(1);
 }
