@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.16 1996/06/12 15:10:30 joerg Exp $
+ *	$Id: swapgeneric.c,v 1.17 1996/10/30 21:40:12 julian Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,6 @@
 #include <sys/reboot.h>
 #include <sys/disklabel.h>
 #include <sys/kernel.h>
-#include <sys/devconf.h>
 
 #include <i386/i386/cons.h>
 #include <machine/md_var.h>
@@ -119,7 +118,7 @@ struct	genericconf {
 void setconf(void)
 {
 	register struct genericconf *gc;
-	register struct kern_devconf *kdc;
+	int bd;
 	int unit, swaponroot = 0;
 
 	if (rootdev != NODEV)
@@ -161,14 +160,11 @@ bad:
 #endif
 	unit = 0;
 	for (gc = genericconf; gc->gc_name; gc++) {
-		kdc = dc_list;
-		while (kdc->kdc_next) {
-			if (!strcmp(kdc->kdc_name, gc->gc_name) &&
-				kdc->kdc_unit == 0) {
-				printf("root on %s0\n", kdc->kdc_name);
+		for (bd = 0; bd < nblkdev; bd++) {
+			if (!strcmp(bdevsw[bd]->d_name, gc->gc_name)) {
+				printf("root on %s0\n", bdevsw[bd]->d_name);
 				goto found;
 			}
-			kdc = kdc->kdc_next;
 		}
 	}
 	printf("no suitable root -- press any key to reboot\n\n");
