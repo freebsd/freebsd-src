@@ -262,7 +262,7 @@ struct g_ioctl {
 	int		fflag;
 	struct thread	*td;
 	d_ioctl_t	*func;
-	dev_t		dev;
+	void		*dev;
 };
 
 #ifdef _KERNEL
