@@ -513,18 +513,15 @@ grackle_disable_config(struct grackle_softc *sc)
 
 /*
  * Driver to swallow Grackle host bridges from the PCI bus side.
- * Same as the UniNorth 'swallower', so whoever probes first will win out.
- * Maybe the UniNorth/Grackle code should be consolidated.
  */
 static int
 grackle_hb_probe(device_t dev)
 {
 
-	if (pci_get_class(dev) == PCIC_BRIDGE &&
-	    pci_get_subclass(dev) == PCIS_BRIDGE_HOST) {
-		device_set_desc(dev, "Host to PCI bridge");
+	if (pci_get_devid(dev) == 0x00021057) {
+		device_set_desc(dev, "Grackle Host to PCI bridge");
 		device_quiet(dev);
-		return (-10000);
+		return (0);
 	}
 
 	return (ENXIO);
