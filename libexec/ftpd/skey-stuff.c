@@ -3,7 +3,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: skey-stuff.c,v 1.10 1997/11/21 07:38:43 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -24,8 +24,9 @@ int    pwok;
 
     /* Display s/key challenge where appropriate. */
 
+    *buf = '\0';
     if (pwd == NULL || skeychallenge(&skey, pwd->pw_name, buf))
-	sprintf(buf, "Password required for %s.", name);
+	snprintf(buf, sizeof(buf), "Password required for %s.", name);
     else if (!pwok)
 	strcat(buf, " (s/key required)");
     return (buf);
