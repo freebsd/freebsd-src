@@ -289,7 +289,8 @@ product NEWMEDIA LANSURFER	0x0021 NewMedia LANSurfer
 product NEWMEDIA LIVEWIRE	0x1004 NewMedia LiveWire Ethernet LAN Adapter
 product NEWMEDIA MULTIMEDIA	0x100b NewMedia Multimedia
 product NEWMEDIA BUSTOASTER2	0xa002 New Media SCSI Bus Toaster
-product NEWMEDIA BUSTOASTER	0xc102 New Media BusToaster SCSI Host Adapter
+product NEWMEDIA BUSTOASTER	0xc102 New Media SCSI Bus Toaster
+product NEWMEDIA BUSTOASTER3	0xd302 New Media SCSI Bus Toaster
 product NEWMEDIA WAVJAMMER	0xe005 NewMedia .WAVjammer
 product NEWMEDIA2 BUSTOASTER	0x0001 NewMedia BusToaster
 
