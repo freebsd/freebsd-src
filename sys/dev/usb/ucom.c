@@ -1,5 +1,5 @@
 /*	$NetBSD: ucom.c,v 1.6 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: ucom.c,v 1.6 1999/01/08 17:25:37 eivind Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -72,7 +72,7 @@
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (ucomdebug) printf x
 #define DPRINTFN(n,x)	if (ucomdebug>(n)) printf x
-int	ucomdebug = 0;
+int	ucomdebug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

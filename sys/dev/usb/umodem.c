@@ -68,7 +68,7 @@
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (umodemdebug) printf x
 #define DPRINTFN(n,x)	if (umodemdebug>(n)) printf x
-int	umodemdebug = 0;
+int	umodemdebug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
