@@ -301,6 +301,23 @@ phase.
 This option is to be used as a last resort as its use can cause a
 symbol conflict, however in certain instances it may be the only way to
 have a symbol resolve.
+.It Ic special Ar progname Ic ident Ar identifier
+Set the
+.Pa Makefile Ns / Ns Tn C
+identifier for
+.Ar progname .
+This is normally generated from a
+.Ar progname ,
+mapping
+.Ql -
+to
+.Ql _
+and ignoring all other non-identifier characters.
+This leads to programs named
+.Qq Li foo.bar
+and
+.Qq Li foobar
+to map to the same identifier.
 .El
 .Pp
 Only the
