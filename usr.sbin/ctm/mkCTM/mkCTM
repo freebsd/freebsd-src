@@ -30,15 +30,15 @@ proc CTMadd {t n m u g b s h} {
 # Type Name Mode User Group Barf Size Hash
 
 proc CTMdel {t n m u g b s h} {
-    global fo_del fo_rmdir changes damage max_damage
+    global fo_del fo_rmdir changes damage max_damage CTMlock
 
     puts stderr "D $b  $t  $n"
     incr damage 
     incr changes
 
     if {$damage > $max_damage} {
-	puts "Too much damage"
-	exit 0
+	exec rm -f $CTMlock
+	return
     }
     if {$t == "d"} {
 	puts $fo_rmdir "CTMDR $n"
@@ -131,7 +131,9 @@ set CTMdest  {}
 set CTMprefix  .
 set CTMtest 0
 set CTMspecial 0
-set max_damage 100
+set CTMscan .
+set CTMfirst 0
+set max_damage 1200
 
 set damage 0
 set changes 0
@@ -153,9 +155,10 @@ if {$CTMdest == ""} {
 set CTMlock Lck.${CTMname}.${CTMdate}.[id process]
 exec rm -f ${CTMlock}
 exec echo starting > ${CTMlock}
-if {[catch "ln $CTMlock LCK.$CTMname" a]} {
+if {[catch "exec ln $CTMlock LCK.$CTMname" a]} {
 	puts "Not going, lock exists..."
 	exec rm -f $CTMlock
+	exit 0
 }
 exec rm -f $CTMlock
 set CTMlock LCK.$CTMname
@@ -164,9 +167,13 @@ set CTMscratch ${CTMtmp}.tmp
 
 while 1 {
     if { ! $CTMspecial} {
-	set CTMnbr [lindex [exec cat $CTMcopy/.ctm_status] 1]
+	if {$CTMfirst} {
+		set CTMnbr 0
+	} else {
+		set CTMnbr [lindex [exec cat $CTMcopy/.ctm_status] 1]
+	}
 
-	if {![find_delta $CTMnbr]} {
+	if {$CTMnbr > 0 && ![find_delta $CTMnbr]} {
 	    puts "$CTMname delta $CTMnbr doesn't exist..."
 	    exec rm -f $CTMlock
 	    exit 0
@@ -192,14 +199,14 @@ while 1 {
     if {"$CTMcopy" == "" } { 
 	set f1 [open /dev/null]
     } else {
-	set f1 [open "| ./ctm_scan $CTMcopy"]
+	set f1 [open "| ./ctm_scan $CTMcopy $CTMscan"]
     }
 
     puts "Doing CTMname $CTMname CTMnbr $CTMnbr$CTMsuff CTMdate $CTMdate"
     flush stdout
     exec sh -c "rm -f ${CTMtmp}.* ${CTMtmp}:*" >&@ stdout
 
-    set f2 [open "| ./ctm_scan $CTMref"]
+    set f2 [open "| ./ctm_scan $CTMref $CTMscan"]
 
     set fo_del   [open $CTMtmp.del w]
     set fo_rmdir [open $CTMtmp.rmdir w]
@@ -327,7 +334,7 @@ while 1 {
     if {$CTMsuff != ""} break
 
     # Make a absolute delta (!) every 100 deltas
-    if {$CTMnbr % 100} break
+    if {$CTMnbr == 0 || ($CTMnbr % 100)} break
 
     # Make an absolute delta too...
     set CTMref $CTMcopy
@@ -336,6 +343,7 @@ while 1 {
     set CTMmail ""
     set CTMapply 0
     set CTMspecial 1
+    exec rm -f $CTMlock
 }
 puts "done."
 exec rm -f $CTMlock
