@@ -1,4 +1,4 @@
-/* $Id: isp_pci.c,v 1.13.2.4 1999/07/05 20:27:41 mjacob Exp $ */
+/* $Id: isp_pci.c,v 1.13.2.5 1999/07/05 22:05:10 mjacob Exp $ */
 /* release_6_2_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
@@ -321,6 +321,16 @@ isp_pci_attach(pcici_t cfid, int unit)
 		return;
 	}
 	bzero(pcs, sizeof (struct isp_pcisoftc));
+
+	/*
+	 * Figure out if we're supposed to skip this one.
+	 */
+	if (getenv_int("isp_disable", &bitmap)) {
+		if (bitmap & (1 << unit)) {
+			printf("isp%d: not configuring\n", unit);
+			return;
+		}
+	}
 
 	/*
 	 * Figure out which we should try first - memory mapping or i/o mapping?
