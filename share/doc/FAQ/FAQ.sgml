@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.43 1997/04/10 10:20:46 brian Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.44 1997/04/10 12:06:53 asami Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-Last updated: <date>$Date: 1997/04/10 10:20:46 $</date>
+Last updated: <date>$Date: 1997/04/10 12:06:53 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -1306,6 +1306,21 @@ options   PSM_CHECKSYNC      #checks the header byte for sync.
 
 	  Some of the early 8-mm drives are not quite compatible with
 	  SCSI-2, and may not work well with FreeBSD.
+      </sect1>
+
+      <sect1>
+        <heading>How about tape changers?</heading>
+
+          FreeBSD 2.2 supports SCSI changers using the <tt/ch/ device and the
+          <tt/chio/ command.  The details of how you actually control the
+          changer can be found in the <tt/chio(1)/ man page.
+
+          If you're not using <tt/AMANDA/ or some other product that already
+          understands changers, remember that they're only know how to move a
+          tape from one point to another, so you need to keep track of which
+          slot a tape is in, and which slot the tape currently in the drive
+          needs to go back to.
+      </sect1>
 
       <sect1>
 	<heading>What sound cards are supported by FreeBSD?</heading>
@@ -1566,9 +1581,8 @@ options		"CMD640"
 
       <sect1>
 	<heading>Where can I get Motif for FreeBSD?</heading>
-        <p>Contact <url url="http://www.xig.com" name="Xi Graphics">
-          for a Motif v2.0 distribution for FreeBSD 2.1 (tested also with
-	  2.2-current as of May 10, 1996).
+        <p>Contact <ref id="xig" name="Xi Graphics"> for a Motif 2.0
+           distribution for FreeBSD.
 
 	  This distribution includes:
           <itemize>
@@ -1581,12 +1595,22 @@ options		"CMD640"
 
 	  <p>Be sure to specify that you want the FreeBSD version of Motif
 	  when ordering!  Versions for BSDI and Linux are also sold by
-	  <em>X Inside.</em></p>
+	  <em>Xi Graphics</em>.</p>
 
       <sect1>
-        <heading>Are there any commercial high-performance X servers?<label id="xinside"></heading>
+	<heading>Where can I get CDE for FreeBSD?</heading>
+        <p>Contact <ref id="xig" name="Xi Graphics"> for a CDE 1.0.10
+           distribution for FreeBSD.  This includes Motif 1.2.5, and can
+           be used with Motif 2.0.
+
+	  <p>Be sure to specify that you want the FreeBSD version of CDE
+	  when ordering!  Versions for BSDI and Linux are also sold by
+	  <em>Xi Graphics</em>.</p>
+
+      <sect1>
+        <heading>Are there any commercial high-performance X servers?<label id="xig"></heading>
         <p>
-          Yes, <url url="http://www.xinside.com" name="X Inside, Inc.">
+          Yes, <url url="http://www.xig.com" name="Xi Graphics">
           sells their Accelerated-X product for FreeBSD and other Intel
           based systems.
 
@@ -1594,22 +1618,19 @@ options		"CMD640"
           for multiple concurrent video boards and is distributed in binary
           form only.
 
-          Price is &dollar;99.50 (promotional price for Linux/FreeBSD
-          version) for the 1.1 version, which is available now.
+          There is a free "compatibility demo" of version 3.1 available.
 
-          This product is for FreeBSD 1.1 and runs under 2.0 with the
-          FreeBSD 1.1 compatibility libs (``<tt/compat1xdist/'').
-
+          Xi Graphics also sells Motif and CDE for FreeBSD (see above).
+          
           <descrip>
             <tag/More info/
-              <url url="http://www.xinside.com/" name="X inside WWW page">
+              <url url="http://www.xig.com/" name="Xi Graphics WWW page">
             <tag/or/
-              <url url="ftp://ftp.xinside.com/accelx/1.1/prodinfo.txt"
-              name="Products information">
+              <url url="mailto:sales@xig.com" name="Sales"> or
+              <url url="mailto:support@xig.com" name="Support">
+              email addresses.
             <tag/or/
-              <url url="mailto:info@xinside.com" name="Info E-mail address">
-            <tag/or/
-              phone +1 (303) 298-7478.
+              phone (800) 946 7433  or +1 303 298-7478.
           </descrip>
 
       <sect1>
@@ -1668,7 +1689,7 @@ options		"CMD640"
 
           You may also wish to investigate the Xaccel server, which is
           available at a very reasonable price.  See section
-          <ref id="xinside" name="on Xaccel"> for more details.
+          <ref id="xig" name="on Xi Graphics"> for more details.
 
       <sect1>
         <heading>Why doesn't my mouse work with X</heading>
@@ -1777,21 +1798,21 @@ options		"CMD640"
         <p>
           You first need to edit the <tt>/etc/sysconfig</tt> in the last
           section to change the following variable to <tt/YES/:
-          <code>
+          <verb>
             # Set to YES if you want ibcs2 (SCO) emulation loaded at startup
             ibcs2=NO
-          </code>
+          </verb>
           It will load the <tt/ibcs2/ kernel module at startup.
 
           You'll then need to set up /compat/ibcs2/dev to look like:
 
-          <code>
+          <verb>
 lrwxr-xr-x  1 root  wheel         9 Oct 15 22:20 X0R@ -> /dev/null
 lrwxr-xr-x  1 root  wheel         7 Oct 15 22:20 nfsd@ -> socksys
 -rw-rw-r--  1 root  wheel         0 Oct 28 12:02 null
 lrwxr-xr-x  1 root  wheel         9 Oct 15 22:20 socksys@ -> /dev/null
 crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
-          </code>
+          </verb>
           You just need socksys to go to <tt>/dev/null</tt> to fake the
           open &amp; close. The code in -current will handle the rest.
           This is much cleaner than the way it was done before.  If you
@@ -1886,6 +1907,19 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           With the trailing slash, <tt/chmod/ will follow the symlink,
           ``<tt/foo/'', to change the permissions of the directory,
           ``<tt/bar/''.
+      </sect1>
+
+      <sect1>
+        <heading>Why are login names <bf/still/ resticted to 8 characters</heading>
+
+        You'd think it'd be easy enough to change <bf/UT_NAMESIZE/ and rebuild
+        the whole world, and everything would just work. Unfortunately there's
+        scads of applications and utilities (including system tools) that have
+        hard-coded small numbers (not always "8" or "9", but oddball ones
+        like "15" and "20") in structures and buffers... and it would break
+        Sun's NIS clients and no doubt cause other problems in interacting
+        with other UNIX systems.
+      </sect1>
  
       <sect1>
         <heading>When I mount a CDROM, I get ``Incorrect super block''.</heading>
@@ -2711,9 +2745,10 @@ disk        fd1   at fdc0 drive 1
           memory information...but for now we're stuck with the kernel
           option.
 
-          <code>
+          <tt>
             options "MAXMEM=<n>"
-          </code>
+          </tt>
+
           Where <tt/n/ is your memory in Kilobytes. For a 128 MB machine,
           you'd want to use <tt/131072/
 
@@ -2727,9 +2762,9 @@ disk        fd1   at fdc0 drive 1
           network buffers (specifically, mbuf clusters). You can increase
           the amount of VM available for mbuf clusters by adding:
 
-          <code>
+          <tt>
             options "NMBCLUSTERS=<n>"
-          </code>
+          </tt>
 
           to your kernel config file, where &lt;n&gt; is a number in the
           range 512-4096, depending on the number of concurrent TCP
@@ -3175,7 +3210,7 @@ vat_nv_record	Recording tools for vat ftp.sics.se:archive/vat_nv_record.tar.Z
         <p>
           Here is a list compiled by Glen Foster
           <tt/&lt;gfoster@driver.nsta.org&gt;/:
-<code>
+<verb>
 Vendor          Model
 - --------------------------------------------------------
 ASUS            PCI-L101-TB
@@ -3192,7 +3227,7 @@ SMC             EtherPower 10/100 (Model 9332)
 SMC             EtherPower (Model 8432)
 TopWare         TE-3500P
 Zynx            ZX342
-</code>
+</verb>
       </sect1>
       <sect1>
         <heading>Why do I have to use the FQDN for hosts on my site?</heading>
@@ -3875,14 +3910,14 @@ domain foo.bar.edu
       <heading>ACKNOWLEDGMENTS</heading>
 
       <p>
-        <code>
+        <verb>
           If you see a problem with this FAQ, or wish to submit an entry,
           please mail us at <FAQ@FreeBSD.ORG>.  We appreciate your
           feedback, and cannot make this a better FAQ without your help!
 
 
                                               FreeBSD Core Team
-        </code>
+        </verb>
 
         <descrip>
           <tag/Gary Clark II/
