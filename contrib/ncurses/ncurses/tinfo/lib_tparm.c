@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 #include <term.h>
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tparm.c,v 1.52 2001/03/11 15:12:48 tom Exp $")
+MODULE_ID("$Id: lib_tparm.c,v 1.53 2001/06/02 22:53:59 tom Exp $")
 
 /*
  *	char *
@@ -301,7 +301,7 @@ parse_format(const char *s, char *format, int *len)
 	    }
 	    break;
 	default:
-	    if (isdigit(CharOf(*s))) {
+	    if (isdigit(UChar(*s))) {
 		value = (value * 10) + (*s - '0');
 		if (value > 10000)
 		    err = TRUE;

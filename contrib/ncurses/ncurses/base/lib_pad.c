@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,13 +40,13 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_pad.c,v 1.32 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_pad.c,v 1.36 2002/05/18 21:28:44 Kriang.Lerdsuwanakij Exp $")
 
 NCURSES_EXPORT(WINDOW *)
 newpad(int l, int c)
 {
     WINDOW *win;
-    chtype *ptr;
+    NCURSES_CH_T *ptr;
     int i;
 
     T((T_CALLED("newpad(%d, %d)"), l, c));
@@ -59,12 +59,12 @@ newpad(int l, int c)
 
     for (i = 0; i < l; i++) {
 	if_USE_SCROLL_HINTS(win->_line[i].oldindex = _NEWINDEX);
-	if ((win->_line[i].text = typeCalloc(chtype, ((size_t) c))) == 0) {
+	if ((win->_line[i].text = typeCalloc(NCURSES_CH_T, ((size_t) c))) == 0) {
 	    (void) _nc_freewin(win);
 	    returnWin(0);
 	}
-	for (ptr = win->_line[i].text; ptr < win->_line[i].text + c;)
-	    *ptr++ = ' ';
+	for (ptr = win->_line[i].text; ptr < win->_line[i].text + c; ptr++)
+	    SetChar(*ptr, BLANK_TEXT, BLANK_ATTR);
     }
 
     returnWin(win);
@@ -193,9 +193,23 @@ pnoutrefresh
 	 i++, m++) {
 	register struct ldat *nline = &newscr->_line[m];
 	register struct ldat *oline = &win->_line[i];
+	NCURSES_CH_T ch;
 
-	for (j = pmincol, n = smincol; j <= pmaxcol; j++, n++) {
-	    if (oline->text[j] != nline->text[n]) {
+	/*
+	 * Special case for leftmost character of the displayed area.
+	 * Only half of a double-width character may be visible.
+	 */
+	ch = oline->text[pmincol];
+	if_WIDEC(isnac(ch)) {
+	    SetChar(ch, L(' '), AttrOf(oline->text[pmincol - 1]));
+	}
+	if (!CharEq(ch, nline->text[smincol])) {
+	    nline->text[smincol] = ch;
+	    CHANGED_CELL(nline, smincol);
+	}
+
+	for (j = pmincol + 1, n = smincol + 1; j <= pmaxcol; j++, n++) {
+	    if (!CharEq(oline->text[j], nline->text[n])) {
 		nline->text[n] = oline->text[j];
 		CHANGED_CELL(nline, n);
 	    }

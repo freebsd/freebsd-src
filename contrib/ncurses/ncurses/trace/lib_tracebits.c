@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_tracebits.c,v 1.10 2001/03/24 21:58:23 tom Exp $")
+MODULE_ID("$Id: lib_tracebits.c,v 1.11 2001/10/20 22:44:32 tom Exp $")
 
 #if SVR4_TERMIO && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
@@ -238,10 +238,5 @@ _nc_tracebits(void)
     return (buf);
 }
 #else
-NCURSES_EXPORT(char *)
-_nc_tracebits(void)
-{
-    static char tmp[] = "";
-    return tmp;
-}
+empty_module(_nc_tracebits)
 #endif /* TRACE */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -70,7 +70,7 @@ AUTHOR
 #include <curses.priv.h>
 #include <term.h>		/* for back_color_erase */
 
-MODULE_ID("$Id: hashmap.c,v 1.36 2000/12/10 03:04:30 tom Exp $")
+MODULE_ID("$Id: hashmap.c,v 1.45 2001/12/19 01:06:49 tom Exp $")
 
 #ifdef HASHDEBUG
 
@@ -97,47 +97,56 @@ static chtype oldtext[MAXLINES][TEXTWIDTH], newtext[MAXLINES][TEXTWIDTH];
 
 #endif /* !HASHDEBUG */
 
-#define oldhash	(SP->oldhash)
-#define newhash	(SP->newhash)
+#define oldhash		(SP->oldhash)
+#define newhash		(SP->newhash)
+#define hashtab		(SP->hashtab)
+#define lines_alloc	(SP->hashtab_len)
+
+#if USE_WIDEC_SUPPORT
+#define HASH_VAL(ch) (ch.chars[0])
+#else
+#define HASH_VAL(ch) (ch)
+#endif
 
 static inline unsigned long
-hash(chtype * text)
+hash(NCURSES_CH_T * text)
 {
     int i;
-    chtype ch;
+    NCURSES_CH_T ch;
     unsigned long result = 0;
     for (i = TEXTWIDTH; i > 0; i--) {
 	ch = *text++;
-	result += (result << 5) + ch;
+	result += (result << 5) + HASH_VAL(ch);
     }
     return result;
 }
 
 /* approximate update cost */
 static int
-update_cost(chtype * from, chtype * to)
+update_cost(NCURSES_CH_T * from, NCURSES_CH_T * to)
 {
     int cost = 0;
     int i;
 
     for (i = TEXTWIDTH; i > 0; i--)
-	if (*from++ != *to++)
+	if (!(CharEq(*from++, *to++)))
 	    cost++;
 
     return cost;
 }
+
 static int
-update_cost_from_blank(chtype * to)
+update_cost_from_blank(NCURSES_CH_T * to)
 {
     int cost = 0;
     int i;
-    chtype blank = BLANK;
+    NCURSES_CH_T blank = NewChar2(BLANK_TEXT, BLANK_ATTR);
 
     if (back_color_erase)
-	blank |= (stdscr->_bkgd & A_COLOR);
+	AddAttr(blank, (AttrOf(stdscr->_nc_bkgd) & A_COLOR));
 
     for (i = TEXTWIDTH; i > 0; i--)
-	if (blank != *to++)
+	if (!(CharEq(blank, *to++)))
 	    cost++;
 
     return cost;
@@ -170,15 +179,6 @@ cost_effective(const int from, const int to, const bool blank)
 		 : update_cost(OLDTEXT(new_from), NEWTEXT(from)))
 		+ update_cost(OLDTEXT(from), NEWTEXT(to)))) ? TRUE : FALSE;
 }
-
-typedef struct {
-    unsigned long hashval;
-    int oldcount, newcount;
-    int oldindex, newindex;
-} sym;
-
-static sym *hashtab = 0;
-static int lines_alloc = 0;
 
 static void
 grow_hunks(void)
@@ -267,14 +267,14 @@ grow_hunks(void)
 NCURSES_EXPORT(void)
 _nc_hash_map(void)
 {
-    sym *sp;
+    HASHMAP *sp;
     register int i;
     int start, shift, size;
 
     if (screen_lines > lines_alloc) {
 	if (hashtab)
 	    free(hashtab);
-	hashtab = typeMalloc(sym, (screen_lines + 1) * 2);
+	hashtab = typeMalloc(HASHMAP, (screen_lines + 1) * 2);
 	if (!hashtab) {
 	    if (oldhash) {
 		FreeAndNull(oldhash);
@@ -387,11 +387,6 @@ _nc_hash_map(void)
 
     /* After clearing invalid hunks, try grow the rest. */
     grow_hunks();
-
-#if NO_LEAKS
-    FreeAndNull(hashtab);
-    lines_alloc = 0;
-#endif
 }
 
 NCURSES_EXPORT(void)
@@ -404,7 +399,7 @@ _nc_make_oldhash(int i)
 NCURSES_EXPORT(void)
 _nc_scroll_oldhash(int n, int top, int bot)
 {
-    int size;
+    size_t size;
     int i;
 
     if (!oldhash)

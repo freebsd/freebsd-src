@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2001 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_spacing.3x,v 1.5 1998/11/29 01:10:51 Rick.Ohnemus Exp $
+.\" $Id: menu_spacing.3x,v 1.6 2001/08/04 20:36:16 William.Setzer Exp $
 .TH menu_spacing 3X ""
 .SH NAME
 \fBmenu_spacing\fR - Control spacing between menu items.
@@ -35,12 +35,12 @@
 \fB#include <menu.h>\fR
 .br
 int set_menu_spacing(MENU *menu,
-                     int spc_description
+                     int spc_description,
                      int spc_rows,
                      int spc_columns);
 .br
 int menu_spacing(const MENU *menu,
-                 int* spc_description
+                 int* spc_description,
                  int* spc_rows,
                  int* spc_columns);
 .br

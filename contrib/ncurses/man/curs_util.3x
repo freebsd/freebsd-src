@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,22 +26,33 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_util.3x,v 1.6 1998/03/11 21:12:53 juergen Exp $
+.\" $Id: curs_util.3x,v 1.8 2002/02/23 22:55:47 tom Exp $
 .TH curs_util 3X ""
 .SH NAME
-\fBunctrl\fR, \fBkeyname\fR, \fBfilter\fR,
-\fBuse_env\fR, \fBputwin\fR, \fBgetwin\fR, \fBdelay_output\fR,
-\fBflushinp\fR - miscellaneous \fBcurses\fR utility routines
+\fBdelay_output\fR,
+\fBfilter\fR,
+\fBflushinp\fR,
+\fBgetwin\fR,
+\fBkey_name\fR,
+\fBkeyname\fR,
+\fBputwin\fR,
+\fBunctrl\fR,
+\fBuse_env\fR,
+\fBwunctrl\fR - miscellaneous \fBcurses\fR utility routines
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 
 \fBchar *unctrl(chtype c);\fR
 .br
+\fBchar *wunctrl(wchar_t w);\fR
+.br
 \fBchar *keyname(int c);\fR
+.br
+\fBchar *key_name(wchar_t w);\fR
 .br
 \fBvoid filter(void);\fR
 .br
-\fBvoid use_env(char bool);\fR
+\fBvoid use_env(bool f);\fR
 .br
 \fBint putwin(WINDOW *win, FILE *filep);\fR
 .br
@@ -52,12 +63,22 @@
 \fBint flushinp(void);\fR
 .br
 .SH DESCRIPTION
-The \fBunctrl\fR macro expands to a character string which is a printable
-representation of the character \fIc\fR.  Control characters are displayed in
-the \fB^\fR\fIX\fR notation.  Printing characters are displayed as is.
+The \fBunctrl\fR routine returns a character string which is a printable
+representation of the character \fIc\fR, ignoring attributes.
+Control characters are displayed in the \fB^\fR\fIX\fR notation.
+Printing characters are displayed as is.
+The corresponding \fBwunctrl\fR returns a printable representation of
+a wide-character.
 
-The \fBkeyname\fR routine returns a character string corresponding to
-the key \fIc\fR.
+The \fBkeyname\fR routine returns a character string corresponding to the key \fIc\fR.
+Control characters are displayed in the \fB^\fR\fIX\fR notation.
+Values above 128 are either meta characters, shown in the \fBM-\fR\fIX\fR notation,
+or the names of function keys, or
+"UNKNOWN STRING".
+The corresponding \fBkey_name\fR returns a character string corresponding
+to the wide-character value \fIw\fR.
+The two functions do not return the same set of strings;
+the latter returns "UNKNOWN STRING" where the former would display a meta character.
 
 The \fBfilter\fR routine, if used, must be called before \fBinitscr\fR or
 \fBnewterm\fR are called.  The effect is that, during those calls, \fBLINES\fR
@@ -98,12 +119,12 @@ upon failure and \fBOK\fR (SVr4 specifies only "an integer value other than
 Routines that return pointers return \fBNULL\fR on error.
 .SH PORTABILITY
 The XSI Curses standard, Issue 4 describes these functions.
+It states that \fBunctrl\fR and \fBwunctrl\fR will return a null pointer if
+unsuccessful, but does not define any error conditions.
 
 The SVr4 documentation describes the action of \fBfilter\fR only in the vaguest
 terms.  The description here is adapted from the XSI Curses standard (which
 erroneously fails to describe the disabling of \fBcuu\fR).
-.SH NOTES
-Note that \fBunctrl\fR is a macro, which is defined in <\fBunctrl.h\fR>.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_scr_dump\fR(3X).
 .\"#

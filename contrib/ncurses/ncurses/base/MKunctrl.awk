@@ -1,6 +1,6 @@
-# $Id: MKunctrl.awk,v 1.8 2000/12/10 02:25:37 tom Exp $
+# $Id: MKunctrl.awk,v 1.9 2001/06/02 23:59:20 skimo Exp $
 ##############################################################################
-# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -64,6 +64,6 @@ END	{
 		}
 		print "};"
 		print ""
-		print "\treturn (NCURSES_CONST char *)table[TextOf(ch)];"
+		print "\treturn (NCURSES_CONST char *)table[ChCharOf(ch)];"
 		print "}"
 	}

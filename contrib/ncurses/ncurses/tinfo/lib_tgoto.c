@@ -35,7 +35,7 @@
 #include <ctype.h>
 #include <termcap.h>
 
-MODULE_ID("$Id: lib_tgoto.c,v 1.7 2001/03/24 22:25:55 tom Exp $")
+MODULE_ID("$Id: lib_tgoto.c,v 1.8 2001/06/02 22:44:42 tom Exp $")
 
 #if !PURE_TERMINFO
 static bool
@@ -112,7 +112,7 @@ tgoto_internal(const char *string, int x, int y)
 		*value %= 1000;
 		break;
 	    case '+':
-		*value += CharOf(*++string);
+		*value += UChar(*++string);
 		/* FALLTHRU */
 	    case '.':
 		/*

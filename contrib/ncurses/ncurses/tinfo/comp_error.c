@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,16 +40,14 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: comp_error.c,v 1.21 2000/12/10 02:55:07 tom Exp $")
+MODULE_ID("$Id: comp_error.c,v 1.23 2001/09/23 00:58:30 tom Exp $")
 
 NCURSES_EXPORT_VAR(bool) _nc_suppress_warnings = FALSE;
-NCURSES_EXPORT_VAR(int)
-_nc_curr_line = 0;		/* current line # in input */
-NCURSES_EXPORT_VAR(int)
-_nc_curr_col = 0;		/* current column # in input */
+NCURSES_EXPORT_VAR(int) _nc_curr_line = 0; /* current line # in input */
+NCURSES_EXPORT_VAR(int) _nc_curr_col = 0; /* current column # in input */
 
-     static const char *sourcename;
-     static char termtype[MAX_NAME_SIZE + 1];
+static const char *sourcename;
+static char *termtype;
 
 NCURSES_EXPORT(void)
 _nc_set_source(const char *const name)
@@ -60,15 +58,17 @@ _nc_set_source(const char *const name)
 NCURSES_EXPORT(void)
 _nc_set_type(const char *const name)
 {
+    if (termtype == 0)
+	termtype = _nc_doalloc(termtype, MAX_NAME_SIZE + 1);
     termtype[0] = '\0';
     if (name)
-	strncat(termtype, name, sizeof(termtype) - 1);
+	strncat(termtype, name, MAX_NAME_SIZE);
 }
 
 NCURSES_EXPORT(void)
 _nc_get_type(char *name)
 {
-    strcpy(name, termtype);
+    strcpy(name, termtype != 0 ? termtype : "");
 }
 
 static inline void
@@ -79,7 +79,7 @@ where_is_problem(void)
 	fprintf(stderr, ", line %d", _nc_curr_line);
     if (_nc_curr_col >= 0)
 	fprintf(stderr, ", col %d", _nc_curr_col);
-    if (termtype[0])
+    if (termtype != 0 && termtype[0] != '\0')
 	fprintf(stderr, ", terminal '%s'", termtype);
     fputc(':', stderr);
     fputc(' ', stderr);

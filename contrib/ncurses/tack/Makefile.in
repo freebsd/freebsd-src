@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.25 2001/03/24 19:49:06 tom Exp $
+# $Id: Makefile.in,v 1.27 2001/12/08 18:48:01 tom Exp $
 # Makefile for tack
 #
 # The variable 'srcdir' refers to the source-distribution, and can be set with
@@ -101,7 +101,7 @@ uninstall.tack:
 
 $(DESTDIR)$(bindir) \
 $(DESTDIR)$(mandir) :
-	$(srcdir)/../mkinstalldirs $@
+	sh $(srcdir)/../mkinstalldirs $@
 
 #
 # Rules for building tack
@@ -139,7 +139,7 @@ tags:
 @MAKE_UPPER_TAGS@	etags *.[ch]
 
 mostlyclean ::
-	-rm -f tags TAGS *.i do.tic *~
+	-rm -f core tags TAGS *~ *.bak *.i *.atac trace
 
 clean :: mostlyclean
 	-rm -f $(PROGS)

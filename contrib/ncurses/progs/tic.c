@@ -44,7 +44,7 @@
 #include <term_entry.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tic.c,v 1.90 2001/04/15 00:21:31 tom Exp $")
+MODULE_ID("$Id: tic.c,v 1.92 2001/06/18 18:44:01 tom Exp $")
 
 const char *_nc_progname = "tic";
 
@@ -293,12 +293,12 @@ put_translate(int c)
 static char *
 stripped(char *src)
 {
-    while (isspace(CharOf(*src)))
+    while (isspace(UChar(*src)))
 	src++;
     if (*src != '\0') {
 	char *dst = strcpy(malloc(strlen(src) + 1), src);
 	size_t len = strlen(dst);
-	while (--len != 0 && isspace(CharOf(dst[len])))
+	while (--len != 0 && isspace(UChar(dst[len])))
 	    dst[len] = '\0';
 	return dst;
     }
@@ -445,7 +445,7 @@ main(int argc, char *argv[])
 
     log_fp = stderr;
 
-    _nc_progname = _nc_basename(argv[0]);
+    _nc_progname = _nc_rootname(argv[0]);
 
     if ((infodump = (strcmp(_nc_progname, PROG_CAPTOINFO) == 0)) != FALSE) {
 	outform = F_TERMINFO;

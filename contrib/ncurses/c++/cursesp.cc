@@ -35,7 +35,7 @@
 #include "cursesp.h"
 #include <string.h>
 
-MODULE_ID("$Id: cursesp.cc,v 1.18 2001/03/24 20:04:04 tom Exp $")
+MODULE_ID("$Id: cursesp.cc,v 1.19 2001/07/14 20:54:43 juergen Exp $")
 
 NCursesPanel* NCursesPanel::dummy = (NCursesPanel*)0;
 
@@ -121,4 +121,9 @@ NCursesPanel::centertext(int row,const char *label) {
       x=0;
     OnError(addstr(row, x, label, width()));
   }
+}
+
+int
+NCursesPanel::getKey(void) {
+  return getch();
 }

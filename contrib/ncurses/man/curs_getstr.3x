@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getstr.3x,v 1.9 2000/07/01 17:39:31 tom Exp $
+.\" $Id: curs_getstr.3x,v 1.11 2002/04/13 22:14:30 tom Exp $
 .TH curs_getstr 3X ""
 .SH NAME
 \fBgetstr\fR,
@@ -82,11 +82,11 @@ completion.
 .SH NOTES
 Note that \fBgetstr\fR, \fBmvgetstr\fR, and \fBmvwgetstr\fR may be macros.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.  They read
-single-byte characters only.  The standard specifies that they return \fBERR\fR
-on failure, but the single error condition \fBEOVERFLOW\fR associated with
-extended-level conformance is not yet returned (the XSI curses support for
-multi-byte characters is not yet present).
+These functions are described in the XSI Curses standard, Issue 4.
+They read single-byte characters only.
+The standard does not define any error conditions.
+This implementation returns ERR if the window pointer is null,
+or if the lower-level \fBwgetch\fR call returns an ERR.
 
 SVr3 and early SVr4 curses implementations did not reject function keys;
 the SVr4.0 documentation claimed that "special keys" (such as function

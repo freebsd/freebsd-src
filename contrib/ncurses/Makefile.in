@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.20 2000/08/19 19:11:56 tom Exp $
+# $Id: Makefile.in,v 1.22 2001/10/27 18:17:22 tom Exp $
 ##############################################################################
 # Copyright (c) 1998 Free Software Foundation, Inc.                          #
 #                                                                            #
@@ -69,7 +69,7 @@ preinstall :
 	@ echo '      lib directory: '$(libdir)
 	@ echo '  include directory: '$(includedir)
 	@ echo '      man directory: '$(mandir)
-	@ echo ' terminfo directory: '$(ticdir)
+@MAKE_TERMINFO@	@ echo ' terminfo directory: '$(ticdir)
 	@ echo ''
 	@ test "$(includedir)" = "$(prefix)/include" || \
 		echo '** Include-directory is not in a standard location'
@@ -87,6 +87,7 @@ clean \
 distclean \
 mostlyclean \
 realclean \
+depend \
 sources \
 uninstall \
 install ::

@@ -30,13 +30,13 @@
 #ifndef NCURSES_CURSESW_H_incl
 #define NCURSES_CURSESW_H_incl 1
 
-// $Id: cursesw.h,v 1.25 2001/04/07 22:44:07 tom Exp $
+// $Id: cursesw.h,v 1.28 2001/07/15 01:17:56 tom Exp $
 
 #include <etip.h>
 #include <stdio.h>
 #include <stdarg.h>
 
-#if HAVE_STRSTREAM_H && USE_STRSTREAM_VSCAN
+#if HAVE_STRSTREAM_H && (USE_STRSTREAM_VSCAN||USE_STRSTREAM_VSCAN_CAST)
 #include <strstream.h>
 #endif
 
@@ -752,7 +752,7 @@ public:
 		int cols,          // number of columns
 		int begin_y,       // absolute or relative
 		int begin_x,       //   origins:
-		char absrel = 'a');// if `a', by & bx are
+		char absrel = 'a');// if `a', begin_y & begin_x are
   // absolute screen pos, else if `r', they are relative to par origin
 
   NCursesWindow(NCursesWindow& par,// parent window
@@ -778,7 +778,7 @@ public:
   // lowlevel ripoffline() function because it uses the internal
   // implementation that allows to remove more than just a single line.
   // This function must be called before any other ncurses function. The
-  // creation of the window is defered until ncurses gets initialized.
+  // creation of the window is deferred until ncurses gets initialized.
   // The initialization function is then called.
 
   // -------------------------------------------------------------------------
@@ -796,7 +796,7 @@ public:
   static int     NumberOfColors();
   // Number of available colors
 
-  int     colors() const { return NumberOfColors(); }
+  int            colors() const { return NumberOfColors(); }
   // Number of available colors
 
   // -------------------------------------------------------------------------
@@ -820,25 +820,25 @@ public:
   int            maxy() const { return w->_maxy; }
   // Largest y coord in window
 
-  short  getcolor() const;
+  short          getcolor() const;
   // Actual color pair
 
-  short  foreground() const { return getcolor(0); }
+  short          foreground() const { return getcolor(0); }
   // Actual foreground color
 
-  short  background() const { return getcolor(1); }
+  short          background() const { return getcolor(1); }
   // Actual background color
 
-  int    setpalette(short fore, short back);
+  int            setpalette(short fore, short back);
   // Set color palette entry
 
-  int    setcolor(short pair);
+  int            setcolor(short pair);
   // Set actually used palette entry
 
   // -------------------------------------------------------------------------
   // window positioning
   // -------------------------------------------------------------------------
-  virtual int  mvwin(int begin_y, int begin_x) {
+  virtual int    mvwin(int begin_y, int begin_x) {
     return ::mvwin(w,begin_y,begin_x); }
   // Move window to new position with the new position as top left corner.
   // This is virtual because it is redefined in NCursesPanel.
@@ -887,8 +887,7 @@ public:
   // as described above.
 
   int            scanw(const char* fmt, ...)
-    // Perform a scanw function from the window. This only works if you're
-    // using the GNU C++ compiler.
+    // Perform a scanw function from the window.
 #if __GNUG__ >= 2
     __attribute__ ((format (scanf, 2, 3)));
 #else
@@ -897,7 +896,7 @@ public:
 
   int            scanw(int y, int x, const char* fmt, ...)
     // Move the cursor to the requested position and then perform a scanw
-    // from the window. This nly works if you're using the GNU C++ compiler.
+    // from the window.
 #if __GNUG__ >= 2
     __attribute__ ((format (scanf, 4, 5)));
 #else
@@ -930,7 +929,7 @@ public:
 
   int            printw(const char* fmt, ...)
     // Do a formatted print to the window.
-#if __GNUG__ >= 2
+#if (__GNUG__ >= 2) && !defined(printf)
     __attribute__ ((format (printf, 2, 3)));
 #else
   ;
@@ -938,7 +937,7 @@ public:
 
   int            printw(int y, int x, const char * fmt, ...)
     // Move the cursor and then do a formatted print to the window.
-#if __GNUG__ >= 2
+#if (__GNUG__ >= 2) && !defined(printf)
     __attribute__ ((format (printf, 4, 5)));
 #else
   ;
@@ -1021,7 +1020,7 @@ public:
   int            box(chtype vert=0, chtype  hor=0) {
     return ::wborder(w, vert, vert, hor, hor, 0, 0 ,0, 0); }
   // Draw a box around the window with the given vertical and horizontal
-  // drawing characters. If you specifiy a zero as character, curses will try
+  // drawing characters. If you specify a zero as character, curses will try
   // to find a "nice" character.
 
   int            border(chtype left=0, chtype right=0,

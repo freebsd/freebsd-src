@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-/* $Id: panel.priv.h,v 1.18 2001/03/24 21:38:45 tom Exp $ */
+/* $Id: panel.priv.h,v 1.19 2001/06/02 23:31:05 tom Exp $ */
 
 #ifndef NCURSES_PANEL_PRIV_H
 #define NCURSES_PANEL_PRIV_H 1
@@ -47,6 +47,7 @@
 #  include <dbmalloc.h>   /* Conor Cahill's library */
 #endif
 
+#include "curses.priv.h"
 #include "panel.h"
 #include <nc_panel.h>
 
@@ -100,15 +101,6 @@
 #define Is_Bottom(p)  (((p)!=(PANEL*)0) && !EMPTY_STACK() && (_nc_bottom_panel->above==(p))) 
 #define Is_Top(p) (((p)!=(PANEL*)0) && !EMPTY_STACK() && (_nc_top_panel==(p)))
 #define Is_Pseudo(p) ((p) && ((p)==_nc_bottom_panel))
-
-/* borrowed from curses.priv.h */
-#define CHANGED_RANGE(line,start,end) \
-	if (line->firstchar == _NOCHANGE \
-	 || line->firstchar > (start)) \
-		line->firstchar = start; \
-	if (line->lastchar == _NOCHANGE \
-	 || line->lastchar < (end)) \
-		line->lastchar = end
 
 /*+-------------------------------------------------------------------------
 	IS_LINKED(pan) - check to see if panel is in the stack

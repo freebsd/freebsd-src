@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2000,2002 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_attr.3x,v 1.22 2000/07/08 11:59:58 tom Exp $
+.\" $Id: curs_attr.3x,v 1.24 2002/02/16 22:38:32 tom Exp $
 .TH curs_attr 3X ""
 .SH NAME
 \fBattroff\fR, \fBwattroff\fR, \fBattron\fR, \fBwattron\fR,
@@ -159,10 +159,10 @@ l l .
 
 The following macro is the reverse of \fBCOLOR_PAIR(\fR\fIn\fR\fB)\fR:
 
-.DS C
+.br
 \fBPAIR_NUMBER(\fR\fIattrs\fR) Returns the pair number associated
                    with the \fBCOLOR_PAIR(\fR\fIn\fR\fB)\fR attribute.
-.DE
+.br
 
 The return values of many of these routines are not meaningful (they are
 implemented as macro-expanded assignments and simply return their argument).

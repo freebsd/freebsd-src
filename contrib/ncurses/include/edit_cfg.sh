@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: edit_cfg.sh,v 1.10 2000/09/09 20:29:58 tom Exp $
+# $Id: edit_cfg.sh,v 1.12 2001/12/23 00:52:40 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -48,18 +48,20 @@ do
 	mv $2 $BAK
 	if ( grep "[ 	]$name[ 	]" $1 2>&1 >$TMP )
 	then
-		sed -e 's@#define '$name'.*$@'"`cat $TMP`@" $BAK >$2
-	elif test "$name" = "NCURSES_CONST" ; then
-		sed -e 's/define '$name'.*$/define '$name' \/\*nothing\*\//' $BAK >$2
+		value=1
 	else
-		sed -e 's/define '$name'.*$/define '$name' 0/' $BAK >$2
+		value=0
 	fi
+	echo '** edit: '$name $value
+	sed \
+		-e "s@#define ${name}.*\$@#define $name $value@" \
+		-e "s@#if $name\$@#if $value /* $name */@" \
+		-e "s@#if !$name\$@#if $value /* !$name */@" \
+		$BAK >$2
 	if (cmp -s $2 $BAK)
 	then
-		echo '** same: '$name
 		mv $BAK $2
 	else
-		echo '** edit: '$name
 		rm -f $BAK
 	fi
 done

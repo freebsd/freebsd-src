@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2002 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: term.5,v 1.10 2000/08/13 01:56:45 tom Exp $
+.\" $Id: term.5,v 1.13 2002/04/20 16:49:17 tom Exp $
 .TH TERM 5
 .ds n 5
 .ds d @TERMINFO@
@@ -164,7 +164,7 @@ adm3a|lsi adm3a,
         am, 
         cols#80, lines#24, 
         bel=^G, clear=\032$<1>, cr=^M, cub1=^H, cud1=^J, 
-        cuf1=^L, cup=\E=%p1%{32}%+%c%p2%{32}%+%c, cuu1=^K, 
+        cuf1=^L, cup=\\E=%p1%{32}%+%c%p2%{32}%+%c, cuu1=^K, 
         home=^^, ind=^J, 
 .sp
 .ft CW
@@ -198,7 +198,7 @@ Some limitations: total compiled entries cannot exceed 4096 bytes.
 The name field cannot exceed 128 bytes.
 .SH FILES
 \*d/*/*	compiled terminal capability data base
-.SH "SEE ALSO"
+.SH SEE ALSO
 \fBcurses\fR(3X), \fBterminfo\fR(\*n).
 .\"#
 .\"# The following sets edit modes for GNU EMACS

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,39 +41,34 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: resizeterm.c,v 1.9 2000/12/10 02:43:28 tom Exp $")
+MODULE_ID("$Id: resizeterm.c,v 1.13 2002/02/02 19:26:27 tom Exp $")
+
+NCURSES_EXPORT(bool)
+is_term_resized(int ToLines, int ToCols)
+{
+    return (ToLines != screen_lines
+	    || ToCols != screen_columns);
+}
 
 /*
- * This function reallocates NCURSES window structures.  It is invoked in
- * response to a SIGWINCH interrupt.  Other user-defined windows may also need
- * to be reallocated.
- *
- * Because this performs memory allocation, it should not (in general) be
- * invoked directly from the signal handler.
+ * This function reallocates NCURSES window structures, with no side-effects
+ * such as ungetch().
  */
 NCURSES_EXPORT(int)
-resizeterm(int ToLines, int ToCols)
+resize_term(int ToLines, int ToCols)
 {
     int stolen = screen_lines - SP->_lines_avail;
     int bottom = screen_lines + SP->_topstolen - stolen;
 
-    T((T_CALLED("resizeterm(%d,%d) old(%d,%d)"),
+    T((T_CALLED("resize_term(%d,%d) old(%d,%d)"),
        ToLines, ToCols,
        screen_lines, screen_columns));
 
-    SP->_sig_winch = FALSE;
-
-    if (ToLines != screen_lines
-	|| ToCols != screen_columns) {
+    if (is_term_resized(ToLines, ToCols)) {
 	WINDOWLIST *wp;
 
-#if USE_SIGWINCH
-	ungetch(KEY_RESIZE);	/* so application can know this */
-	clearok(curscr, TRUE);	/* screen contents are unknown */
-#endif
-
 	for (wp = _nc_windows; wp != 0; wp = wp->next) {
-	    WINDOW *win = wp->win;
+	    WINDOW *win = &(wp->win);
 	    int myLines = win->_maxy + 1;
 	    int myCols = win->_maxx + 1;
 
@@ -121,4 +116,36 @@ resizeterm(int ToLines, int ToCols)
     COLS = ToCols;
 
     returnCode(OK);
+}
+
+/*
+ * This function reallocates NCURSES window structures.  It is invoked in
+ * response to a SIGWINCH interrupt.  Other user-defined windows may also need
+ * to be reallocated.
+ *
+ * Because this performs memory allocation, it should not (in general) be
+ * invoked directly from the signal handler.
+ */
+NCURSES_EXPORT(int)
+resizeterm(int ToLines, int ToCols)
+{
+    int result = OK;
+
+    SP->_sig_winch = FALSE;
+
+    T((T_CALLED("resizeterm(%d,%d) old(%d,%d)"),
+       ToLines, ToCols,
+       screen_lines, screen_columns));
+
+    if (is_term_resized(ToLines, ToCols)) {
+
+#if USE_SIGWINCH
+	ungetch(KEY_RESIZE);	/* so application can know this */
+	clearok(curscr, TRUE);	/* screen contents are unknown */
+#endif
+
+	result = resize_term(ToLines, ToCols);
+    }
+
+    returnCode(result);
 }
