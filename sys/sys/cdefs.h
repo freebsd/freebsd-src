@@ -211,11 +211,17 @@
 #define	__RCSID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
 #endif
 
+/*
+ * Embed the rcs id of a source file in the resulting library.  Note that in
+ * more recent ELF binutils, we use .ident allowing the ID to be stripped.
+ * Usage:
+ *	__FBSDID("$FreeBSD$");
+ */
 #ifndef	__FBSDID
 #if !defined(lint) && !defined(STRIP_FBSDID)
 #define	__FBSDID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
 #else
-#define	__FBSDID(s)
+#define	__FBSDID(s)	struct __hack
 #endif
 #endif
 
