@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quad.h	8.1 (Berkeley) 6/4/93
- *	$Id: quad.h,v 1.6 1997/02/22 09:39:58 peter Exp $
+ *	$Id: quad.h,v 1.7 1999/05/14 05:05:32 gibbs Exp $
  */
 
 /*
@@ -100,7 +100,6 @@ union uu {
 quad_t		__divdi3 __P((quad_t a, quad_t b));
 quad_t		__moddi3 __P((quad_t a, quad_t b));
 u_quad_t	__qdivrem __P((u_quad_t u, u_quad_t v, u_quad_t *rem));
-int		__ucmpdi2 __P((u_quad_t a, u_quad_t b));
 u_quad_t	__udivdi3 __P((u_quad_t a, u_quad_t b));
 u_quad_t	__umoddi3 __P((u_quad_t a, u_quad_t b));
 
