@@ -258,6 +258,8 @@ doit(f, fromp)
 		pwd->pw_shell = _PATH_BSHELL;
 	if (f > 2)
 		(void) close(f);
+	if (setlogin(pwd->pw_name) < 0)
+		syslog(LOG_ERR, "setlogin() failed: %m");
 	(void) setgid((gid_t)pwd->pw_gid);
 	initgroups(pwd->pw_name, pwd->pw_gid);
 	(void) setuid((uid_t)pwd->pw_uid);
