@@ -48,6 +48,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <machine/pcb.h>
 #include <machine/tss.h>
 #include <machine/frame.h>
+#include <machine/globaldata.h>
 
 static void kcore_files_info PARAMS ((struct target_ops *));
 
@@ -97,6 +98,8 @@ static int kvm_uread PARAMS ((int core_kd, struct proc *p,
 static int kernel_core_file_hook PARAMS ((int fd, CORE_ADDR addr,
 					  char *buf, int len));
 
+static CORE_ADDR kvm_getpcpu PARAMS ((int cfd, int cpuid));
+
 static struct kinfo_proc * kvm_getprocs PARAMS ((int cfd, int op,
 						CORE_ADDR proc, int *cnt));
 
@@ -111,11 +114,16 @@ static int core_kd = -1;
 static struct proc *cur_proc;
 static CORE_ADDR kernel_start;
 
-static int ncpus;
-static int cpuid;
-static CORE_ADDR prv_space;	/* per-cpu private space */
-static int prv_space_size;
-#define prv_start	(prv_space + cpuid * prv_space_size)
+static CORE_ADDR pcpu;
+#define	PCPU_OFFSET(name)						\
+	offsetof(struct globaldata, gd_ ## name)
+
+/*
+ * Symbol names of kernel entry points.  Use special frames.
+ */
+#define	KSYM_TRAP	"calltrap"
+#define	KSYM_INTERRUPT	"Xresume"
+#define	KSYM_SYSCALL	"Xsyscall"
 
 /*
  * Read the "thing" at kernel address 'addr' into the space pointed to
@@ -147,11 +155,11 @@ struct frame_info *fr;
        sym = lookup_minimal_symbol_by_pc (this_saved_pc);
        frametype = tf_normal;
        if (sym != NULL) {
-               if (strcmp (SYMBOL_NAME(sym), "calltrap") == 0)
+               if (strcmp (SYMBOL_NAME(sym), KSYM_TRAP) == 0)
                        frametype = tf_trap;
-               else if (strncmp (SYMBOL_NAME(sym), "Xresume", 7) == 0)
+               else if (strncmp (SYMBOL_NAME(sym), KSYM_INTERRUPT, 7) == 0)
                        frametype = tf_interrupt;
-               else if (strcmp (SYMBOL_NAME(sym), "Xsyscall") == 0)
+               else if (strcmp (SYMBOL_NAME(sym), KSYM_SYSCALL) == 0)
                        frametype = tf_syscall;
        }
 
@@ -190,7 +198,7 @@ static struct proc *
 curProc ()
 {
   struct proc *p;
-  CORE_ADDR addr = ksym_lookup ("gd_curproc") + prv_start;
+  CORE_ADDR addr = pcpu + PCPU_OFFSET (curproc);
 
   if (kvread (addr, &p))
     error ("cannot read proc pointer at %x\n", addr);
@@ -482,6 +490,7 @@ set_cpu_cmd (arg, from_tty)
      int from_tty;
 {
   CORE_ADDR paddr;
+  CORE_ADDR pcaddr;
   struct kinfo_proc *kp;
   int cpu, cfd;
 
@@ -489,16 +498,14 @@ set_cpu_cmd (arg, from_tty)
     error_no_arg ("cpu number");
   if (!kernel_debugging)
     error ("not debugging kernel");
-  if (!ncpus)
-    error ("not debugging SMP kernel");
-
-  cpu = (int)parse_and_eval_address (arg);
-  if (cpu < 0 || cpu > ncpus)
-    error ("cpu number out of range");
-  cpuid = cpu;
 
   cfd = core_kd;
-  curpcb = kvtophys(cfd, ksym_lookup ("gd_curpcb") + prv_start);
+  cpu = (int)parse_and_eval_address (arg);
+  if ((pcaddr = kvm_getpcpu (cfd, cpu)) == NULL)
+    error ("cpu number out of range");
+
+  pcpu = pcaddr;
+  curpcb = kvtophys(cfd, pcpu + PCPU_OFFSET (curpcb));
   physrd (cfd, curpcb, (char*)&curpcb, sizeof curpcb);
 
   if (!devmem)
@@ -538,6 +545,9 @@ kvm_open (efile, cfile, sfile, perm, errout)
   if ((cfd = open (cfile, perm, 0)) < 0)
     return (cfd);
 
+  if ((pcpu = kvm_getpcpu (cfd, 0)) == NULL)
+    return (-1);
+
   fstat (cfd, &stb);
   if ((stb.st_mode & S_IFMT) == S_IFCHR
       && stb.st_rdev == makedev (2, 0))
@@ -546,22 +556,9 @@ kvm_open (efile, cfile, sfile, perm, errout)
       kfd = open (_PATH_KMEM, perm, 0);
     }
 
-  if (lookup_minimal_symbol("mp_ncpus", NULL, NULL)) {
-    physrd(cfd, ksym_lookup("mp_ncpus") - KERNOFF,
-	   (char*)&ncpus, sizeof(ncpus));
-    prv_space = ksym_lookup("SMP_prvspace");
-    prv_space_size = (int)ksym_lookup("gd_idlestack_top");
-    printf ("SMP %d cpus\n", ncpus);
-  } else {
-    ncpus = 0;
-    prv_space = ksym_lookup("__globaldata");
-    prv_space_size = 0;
-  }
-  cpuid = 0;
-
   physrd (cfd, ksym_lookup ("IdlePTD") - KERNOFF, (char*)&sbr, sizeof sbr);
   printf ("IdlePTD %lu\n", (unsigned long)sbr);
-  curpcb = kvtophys(cfd, ksym_lookup ("gd_curpcb") + prv_start);
+  curpcb = kvtophys(cfd, pcpu + PCPU_OFFSET (curpcb));
   physrd (cfd, curpcb, (char*)&curpcb, sizeof curpcb);
 
   found_pcb = 1; /* for vtophys */
@@ -736,6 +733,27 @@ int cfd, pid, *cnt;
        kvm_proclist (cfd, pid, p, cnt);
   }
   return (&kp);
+}
+
+static CORE_ADDR
+kvm_getpcpu (cfd, cpuid)
+int cfd, cpuid;
+{
+  SLIST_HEAD(, globaldata) pcpu_head;
+  struct globaldata lgd;
+  struct globaldata *gd;
+
+  physrd (cfd, ksym_lookup ("cpuhead") - KERNOFF, (char*)&pcpu_head,
+    sizeof pcpu_head);
+  gd = SLIST_FIRST (&pcpu_head);
+  for (; gd != NULL; gd = SLIST_NEXT (&lgd, gd_allcpu))
+    {
+      kvm_read (cfd, (CORE_ADDR)gd, (char*)&lgd, sizeof lgd);
+      if (lgd.gd_cpuid == cpuid)
+        break;
+    }
+
+  return ((CORE_ADDR)gd);
 }
 
 /*
