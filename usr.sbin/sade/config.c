@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.121 1999/02/09 22:18:08 jkh Exp $
+ * $Id: config.c,v 1.122 1999/02/14 05:52:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -329,7 +329,7 @@ configEnvironmentRC_conf(void)
 	int marked;
     } configs[] = {
 	{ "/etc/defaults/rc.conf", 0 },
-	{ "/etc/rc.conf", 1 },
+	{ "/etc/rc.conf", 0 },
 	{ "/etc/rc.conf.local", 0 },
 	{ NULL, 0 },
     };
