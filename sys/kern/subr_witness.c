@@ -151,15 +151,20 @@ struct witness_order_list_entry {
 	struct	lock_class *w_class;
 };
 
-static struct	witness *enroll(const char *description,
-				struct lock_class *lock_class);
-static int	itismychild(struct witness *parent, struct witness *child);
-static void	removechild(struct witness *parent, struct witness *child);
-static int	isitmychild(struct witness *parent, struct witness *child);
-static int	isitmydescendant(struct witness *parent, struct witness *child);
 #ifdef BLESSING
 static int	blessed(struct witness *, struct witness *);
 #endif
+static int	depart(struct witness *w);
+static struct	witness *enroll(const char *description,
+				struct lock_class *lock_class);
+static int	insertchild(struct witness *parent, struct witness *child);
+static int	isitmychild(struct witness *parent, struct witness *child);
+static int	isitmydescendant(struct witness *parent, struct witness *child);
+static int	itismychild(struct witness *parent, struct witness *child);
+static int	rebalancetree(struct witness_list *list);
+static void	removechild(struct witness *parent, struct witness *child);
+static int	reparentchildren(struct witness *newparent,
+		    struct witness *oldparent);
 static void	witness_displaydescendants(void(*)(const char *fmt, ...),
 					   struct witness *);
 static const char *fixup_filename(const char *file);
@@ -376,7 +381,8 @@ witness_initialize(void *dummy __unused)
 			if (w1 == NULL)
 				continue;
 			w1->w_file = "order list";
-			itismychild(w, w1);
+			if (!itismychild(w, w1))
+				panic("Not enough memory for static orders!");
 			w = w1;
 		}
 	}
@@ -453,7 +459,13 @@ witness_destroy(struct lock_object *lock)
 		mtx_lock_spin(&w_mtx);
 		MPASS(w->w_refcount > 0);
 		w->w_refcount--;
-		mtx_unlock_spin(&w_mtx);
+
+		/*
+		 * Lock is already released if we have an allocation failure
+		 * and depart() fails.
+		 */
+		if (w->w_refcount != 0 || depart(w))
+			mtx_unlock_spin(&w_mtx);
 	}
 
 	mtx_lock(&all_mtx);
@@ -775,15 +787,15 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	 * Giant if it is the wrong direction.  The real lock order is that
 	 * sleepable locks come before Giant.
 	 */
-	if (lock1->li_lock == &Giant.mtx_object &&
-	    (lock->lo_flags & LO_SLEEPABLE) != 0)
-		mtx_unlock_spin(&w_mtx);
-	else {
+	if (!(lock1->li_lock == &Giant.mtx_object &&
+	    (lock->lo_flags & LO_SLEEPABLE) != 0)) {
 		CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
 		    lock->lo_type, lock1->li_lock->lo_type);
 		if (!itismychild(lock1->li_lock->lo_witness, w))
-			mtx_unlock_spin(&w_mtx);
+			/* Witness is dead. */
+			return;
 	} 
+	mtx_unlock_spin(&w_mtx);
 
 out:
 #ifdef DDB
@@ -1109,20 +1121,91 @@ enroll(const char *description, struct lock_class *lock_class)
 	return (w);
 }
 
+/* Don't let the door bang you on the way out... */
 static int
-itismychild(struct witness *parent, struct witness *child)
+depart(struct witness *w)
 {
-	static int recursed;
-	struct witness_child_list_entry **wcl;
+	struct witness_child_list_entry *wcl, *nwcl;
 	struct witness_list *list;
+	struct witness *parent;
+
+	MPASS(w->w_refcount == 0);
+	if (w->w_class->lc_flags & LC_SLEEPLOCK)
+		list = &w_sleep;
+	else
+		list = &w_spin;
+	/*
+	 * First, we run through the entire tree looking for any
+	 * witnesses that the outgoing witness is a child of.  For
+	 * each parent that we find, we reparent all the direct
+	 * children of the outgoing witness to its parent.
+	 */
+	STAILQ_FOREACH(parent, list, w_typelist) {
+		if (!isitmychild(parent, w))
+			continue;
+		removechild(parent, w);
+		if (!reparentchildren(parent, w))
+			return (0);
+	}
+
+	/*
+	 * Now we go through and free up the child list of the
+	 * outgoing witness.
+	 */
+	for (wcl = w->w_children; wcl != NULL; wcl = nwcl) {
+		nwcl = wcl->wcl_next;
+		witness_child_free(wcl);
+	}
+
+	/*
+	 * Detach from various lists and free.
+	 */
+	STAILQ_REMOVE(list, w, witness, w_typelist);
+	STAILQ_REMOVE(&w_all, w, witness, w_list);
+	witness_free(w);
+
+	/* Finally, fixup the tree. */
+	return (rebalancetree(list));
+}
+
+
+/*
+ * Prune an entire lock order tree.  We look for cases where a lock
+ * is now both a descendant and a direct child of a given lock.  In
+ * that case, we want to remove the direct child link from the tree.
+ *
+ * Returns false if insertchild() fails.
+ */
+static int
+rebalancetree(struct witness_list *list)
+{
+	struct witness *child, *parent;
+
+	STAILQ_FOREACH(child, list, w_typelist) {
+		STAILQ_FOREACH(parent, list, w_typelist) {
+			if (!isitmychild(parent, child))
+				continue;
+			removechild(parent, child);
+			if (isitmydescendant(parent, child))
+				continue;
+			if (!insertchild(parent, child))
+				return (0);
+		}
+	}
+	witness_levelall();
+	return (1);
+}
+
+/*
+ * Add "child" as a direct child of "parent".  Returns false if
+ * we fail due to out of memory.
+ */
+static int
+insertchild(struct witness *parent, struct witness *child)
+{
+	struct witness_child_list_entry **wcl;
 
 	MPASS(child != NULL && parent != NULL);
-	if ((parent->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)) !=
-	    (child->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)))
-		panic(
-		"%s: parent (%s) and child (%s) are not the same lock type",
-		    __func__, parent->w_class->lc_name,
-		    child->w_class->lc_name);
 
 	/*
 	 * Insert "child" after "parent"
@@ -1133,35 +1216,54 @@ itismychild(struct witness *parent, struct witness *child)
 	if (*wcl == NULL) {
 		*wcl = witness_child_get();
 		if (*wcl == NULL)
-			return (1);
+			return (0);
 	}
 	(*wcl)->wcl_children[(*wcl)->wcl_count++] = child;
 
-	/*
-	 * Now prune whole tree.  We look for cases where a lock is now
-	 * both a descendant and a direct child of a given lock.  In that
-	 * case, we want to remove the direct child link from the tree.
-	 */
-	if (recursed)
+	return (1);
+}
+
+/*
+ * Make all the direct descendants of oldparent be direct descendants
+ * of newparent.
+ */
+static int
+reparentchildren(struct witness *newparent, struct witness *oldparent)
+{
+	struct witness_child_list_entry *wcl;
+	int i;
+
+	/* Avoid making a witness a child of itself. */
+	MPASS(!isitmychild(oldparent, newparent));
+	
+	for (wcl = oldparent->w_children; wcl != NULL; wcl = wcl->wcl_next)
+		for (i = 0; i < wcl->wcl_count; i++)
+			if (!insertchild(newparent, wcl->wcl_children[i]))
+				return (0);
+	return (1);
+}
+
+static int
+itismychild(struct witness *parent, struct witness *child)
+{
+	struct witness_list *list;
+
+	MPASS(child != NULL && parent != NULL);
+	if ((parent->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)) !=
+	    (child->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)))
+		panic(
+		"%s: parent (%s) and child (%s) are not the same lock type",
+		    __func__, parent->w_class->lc_name,
+		    child->w_class->lc_name);
+
+	if (!insertchild(parent, child))
 		return (0);
-	recursed = 1;
+
 	if (parent->w_class->lc_flags & LC_SLEEPLOCK)
 		list = &w_sleep;
 	else
 		list = &w_spin;
-	STAILQ_FOREACH(child, list, w_typelist) {
-		STAILQ_FOREACH(parent, list, w_typelist) {
-			if (!isitmychild(parent, child))
-				continue;
-			removechild(parent, child);
-			if (isitmydescendant(parent, child))
-				continue;
-			itismychild(parent, child);
-		}
-	}
-	recursed = 0;
-	witness_levelall();
-	return (0);
+	return (rebalancetree(list));
 }
 
 static void
