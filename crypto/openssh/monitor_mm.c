@@ -30,7 +30,6 @@ RCSID("$OpenBSD: monitor_mm.c,v 1.8 2002/08/02 14:43:15 millert Exp $");
 #include <sys/mman.h>
 #endif
 
-#include "openbsd-compat/xmmap.h"
 #include "ssh.h"
 #include "xmalloc.h"
 #include "log.h"

@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh-com.sh,v 1.4 2002/07/16 08:58:16 markus Exp $
+#	$OpenBSD: ssh-com.sh,v 1.5 2003/05/14 22:08:27 markus Exp $
 #	Placed in the Public Domain.
 
 tid="connect to ssh.com server"
@@ -18,6 +18,8 @@ VERSIONS="
 	3.0.0
 	3.1.0
 	3.2.0
+	3.2.2
+	3.2.3
 	3.3.0"
 # 2.0.10 does not support UserConfigDirectory
 # 2.3.1 requires a config in $HOME/.ssh2
@@ -65,7 +67,7 @@ done
 
 # convert and append DSA hostkey
 (
-	echo -n 'ssh2-localhost-with-alias,127.0.0.1,::1 '
+	echon 'ssh2-localhost-with-alias,127.0.0.1,::1 '
 	${SSHKEYGEN} -if ${SRC}/dsa_ssh2.pub
 ) >> $OBJ/known_hosts
 

@@ -19,7 +19,7 @@ else
 		fail "ssh-add -l did not fail with exit code 1"
 	fi
 	trace "overwrite authorized keys"
-	echo -n > $OBJ/authorized_keys_$USER
+	echon > $OBJ/authorized_keys_$USER
 	for t in rsa rsa1; do
 		# generate user key for agent
 		rm -f $OBJ/$t-agent

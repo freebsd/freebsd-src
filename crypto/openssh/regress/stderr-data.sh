@@ -3,7 +3,7 @@
 
 tid="stderr data transfer"
 
-DATA=/bin/ls
+DATA=/bin/ls${EXEEXT}
 COPY=${OBJ}/copy
 rm -f ${COPY}
 

@@ -52,26 +52,27 @@ auth_sia_password(Authctxt *authctxt, char *pass)
 	SIAENTITY *ent = NULL;
 	const char *host;
 
-	host = get_canonical_hostname(options.verify_reverse_mapping);
+	host = get_canonical_hostname(options.use_dns);
 
-	if (!authctxt->user || !pass || pass[0] == '\0')
-		return(0);
+	if (!authctxt->user || pass == NULL || pass[0] == '\0')
+		return (0);
 
 	if (sia_ses_init(&ent, saved_argc, saved_argv, host, authctxt->user,
 	    NULL, 0, NULL) != SIASUCCESS)
-		return(0);
+		return (0);
 
 	if ((ret = sia_ses_authent(NULL, pass, ent)) != SIASUCCESS) {
-		error("Couldn't authenticate %s from %s", authctxt->user,
-		    host);
+		error("Couldn't authenticate %s from %s",
+		    authctxt->user, host);
 		if (ret & SIASTOP)
 			sia_ses_release(&ent);
-		return(0);
+
+		return (0);
 	}
 
 	sia_ses_release(&ent);
 
-	return(1);
+	return (1);
 }
 
 void
@@ -80,10 +81,10 @@ session_setup_sia(struct passwd *pw, char *tty)
 	SIAENTITY *ent = NULL;
 	const char *host;
 
-	host = get_canonical_hostname(options.verify_reverse_mapping);
+	host = get_canonical_hostname(options.use_dns);
 
-	if (sia_ses_init(&ent, saved_argc, saved_argv, host, pw->pw_name, tty,
-	    0, NULL) != SIASUCCESS)
+	if (sia_ses_init(&ent, saved_argc, saved_argv, host, pw->pw_name, 
+	    tty, 0, NULL) != SIASUCCESS)
 		fatal("sia_ses_init failed");
 
 	if (sia_make_entity_pwd(pw, ent) != SIASUCCESS) {
@@ -97,8 +98,8 @@ session_setup_sia(struct passwd *pw, char *tty)
 		    pw->pw_name, host);
 
 	if (sia_ses_launch(sia_collect_trm, ent) != SIASUCCESS)
-		fatal("Couldn't launch session for %s from %s", pw->pw_name,
-		    host);
+		fatal("Couldn't launch session for %s from %s",
+		    pw->pw_name, host);
 	
 	sia_ses_release(&ent);
 
