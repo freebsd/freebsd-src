@@ -23,9 +23,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <rune.h>
 #include <stdio.h>
@@ -34,68 +35,116 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sysexits.h>
+
 #include "collate.h"
 #include "setlocale.h"
+#include "ldpart.h"
 
 int __collate_load_error = 1;
 int __collate_substitute_nontrivial;
-char __collate_version[STR_LEN];
+
 u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
 struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
 struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
 
-#define FREAD(a, b, c, d) \
-	do { \
-		if (fread(a, b, c, d) != c) { \
-			fclose(d); \
-			return -1; \
-		} \
-	} while(0)
-
 void __collate_err(int ex, const char *f) __dead2;
 
 int
-__collate_load_tables(encoding)
-	char *encoding;
+__collate_load_tables(const char *encoding)
 {
-	char buf[PATH_MAX];
 	FILE *fp;
-	int i, save_load_error;
+	int i, saverr;
+	char collate_version[STR_LEN];
+	char buf[PATH_MAX];
+	char *TMP_substitute_table, *TMP_char_pri_table, *TMP_chain_pri_table;
+	static char collate_encoding[ENCODING_LEN + 1];
 
-	save_load_error = __collate_load_error;
-	__collate_load_error = 1;
-	if (!encoding) {
-		__collate_load_error = save_load_error;
-		return -1;
+	/* 'encoding' must be already checked. */
+	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
+		__collate_load_error = 1;
+		return (_LDP_CACHE);
 	}
-	if (!strcmp(encoding, "C") || !strcmp(encoding, "POSIX"))
-		return 0;
-	if (!_PathLocale) {
-		__collate_load_error = save_load_error;
-		return -1;
+
+	/*
+	 * If the locale name is the same as our cache, use the cache.
+	 */
+	if (strcmp(encoding, collate_encoding) == 0) {
+		__collate_load_error = 0;
+		return (_LDP_CACHE);
 	}
+
+	/*
+	 * Slurp the locale file into the cache.
+	 */
+
+	/* 'PathLocale' must be already set & checked. */
 	/* Range checking not needed, encoding has fixed size */
-	(void) strcpy(buf, _PathLocale);
-	(void) strcat(buf, "/");
-	(void) strcat(buf, encoding);
-	(void) strcat(buf, "/LC_COLLATE");
-	if ((fp = fopen(buf, "r")) == NULL) {
-		__collate_load_error = save_load_error;
-		return -1;
+	(void)strcpy(buf, _PathLocale);
+	(void)strcat(buf, "/");
+	(void)strcat(buf, encoding);
+	(void)strcat(buf, "/LC_COLLATE");
+	if ((fp = fopen(buf, "r")) == NULL)
+		return (_LDP_ERROR);
+
+	if ((TMP_substitute_table =
+	     malloc(sizeof(__collate_substitute_table))) == NULL) {
+		(void)fclose(fp);
+		errno = ENOMEM;
+		return (_LDP_ERROR);
 	}
-	FREAD(__collate_version, sizeof(__collate_version), 1, fp);
-	if (strcmp(__collate_version, COLLATE_VERSION) != 0) {
-		fclose(fp);
-		return -1;
+	if ((TMP_char_pri_table =
+	     malloc(sizeof(__collate_char_pri_table))) == NULL) {
+		free(TMP_substitute_table);
+		(void)fclose(fp);
+		errno = ENOMEM;
+		return (_LDP_ERROR);
 	}
-	FREAD(__collate_substitute_table, sizeof(__collate_substitute_table),
-	      1, fp);
-	FREAD(__collate_char_pri_table, sizeof(__collate_char_pri_table), 1,
-	      fp);
-	FREAD(__collate_chain_pri_table, sizeof(__collate_chain_pri_table), 1,
-	      fp);
-	fclose(fp);
-	__collate_load_error = 0;
+	if ((TMP_chain_pri_table =
+	     malloc(sizeof(__collate_chain_pri_table))) == NULL) {
+		free(TMP_substitute_table);
+		free(TMP_char_pri_table);
+		(void)fclose(fp);
+		errno = ENOMEM;
+		return (_LDP_ERROR);
+	}
+
+#define FREAD(a, b, c, d) \
+{ \
+	if (fread(a, b, c, d) != c) { \
+		saverr = errno; \
+		free(TMP_substitute_table); \
+		free(TMP_char_pri_table); \
+		free(TMP_chain_pri_table); \
+		(void)fclose(d); \
+		errno = saverr; \
+		return (_LDP_ERROR); \
+	} \
+}
+
+	FREAD(collate_version, sizeof(collate_version), 1, fp);
+	if (strcmp(collate_version, COLLATE_VERSION) != 0) {
+		free(TMP_substitute_table);
+		free(TMP_char_pri_table);
+		free(TMP_chain_pri_table);
+		(void)fclose(fp);
+		errno = EFTYPE;
+		return (_LDP_ERROR);
+	}
+	FREAD(TMP_substitute_table, sizeof(__collate_substitute_table), 1, fp);
+	FREAD(TMP_char_pri_table, sizeof(__collate_char_pri_table), 1, fp);
+	FREAD(TMP_chain_pri_table, sizeof(__collate_chain_pri_table), 1, fp);
+	(void)fclose(fp);
+
+	(void)strcpy(collate_encoding, encoding);
+	(void)memcpy(__collate_substitute_table, TMP_substitute_table,
+		     sizeof(__collate_substitute_table));
+	(void)memcpy(__collate_char_pri_table, TMP_char_pri_table,
+		     sizeof(__collate_char_pri_table));
+	(void)memcpy(__collate_chain_pri_table, TMP_chain_pri_table,
+		     sizeof(__collate_chain_pri_table));
+	free(TMP_substitute_table);
+	free(TMP_char_pri_table);
+	free(TMP_chain_pri_table);
 	
 	__collate_substitute_nontrivial = 0;
 	for (i = 0; i < UCHAR_MAX + 1; i++) {
@@ -105,8 +154,9 @@ __collate_load_tables(encoding)
 			break;
 		}
 	}
+	__collate_load_error = 0;
 
-	return 0;
+	return (_LDP_LOADED);
 }
 
 u_char *
@@ -117,24 +167,24 @@ __collate_substitute(s)
 	int delta = strlen(s);
 	u_char *dest_str = NULL;
 
-	if(s == NULL || *s == '\0')
-		return __collate_strdup("");
+	if (s == NULL || *s == '\0')
+		return (__collate_strdup(""));
 	delta += delta / 8;
 	dest_str = malloc(dest_len = delta);
-	if(dest_str == NULL)
+	if (dest_str == NULL)
 		__collate_err(EX_OSERR, __FUNCTION__);
 	len = 0;
-	while(*s) {
+	while (*s) {
 		nlen = len + strlen(__collate_substitute_table[*s]);
 		if (dest_len <= nlen) {
 			dest_str = reallocf(dest_str, dest_len = nlen + delta);
-			if(dest_str == NULL)
+			if (dest_str == NULL)
 				__collate_err(EX_OSERR, __FUNCTION__);
 		}
-		strcpy(dest_str + len, __collate_substitute_table[*s++]);
+		(void)strcpy(dest_str + len, __collate_substitute_table[*s++]);
 		len = nlen;
 	}
-	return dest_str;
+	return (dest_str);
 }
 
 void
@@ -146,8 +196,8 @@ __collate_lookup(t, len, prim, sec)
 
 	*len = 1;
 	*prim = *sec = 0;
-	for(p2 = __collate_chain_pri_table; p2->str[0]; p2++) {
-		if(strncmp(t, p2->str, strlen(p2->str)) == 0) {
+	for (p2 = __collate_chain_pri_table; p2->str[0]; p2++) {
+		if (strncmp(t, p2->str, strlen(p2->str)) == 0) {
 			*len = strlen(p2->str);
 			*prim = p2->prim;
 			*sec = p2->sec;
@@ -166,7 +216,7 @@ __collate_strdup(s)
 
 	if (t == NULL)
 		__collate_err(EX_OSERR, __FUNCTION__);
-	return t;
+	return (t);
 }
 
 void

@@ -32,13 +32,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)euc.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -49,8 +49,8 @@ static char sccsid[] = "@(#)euc.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 #include <string.h>
 
-rune_t	_EUC_sgetrune __P((const char *, size_t, char const **));
-int	_EUC_sputrune __P((rune_t, char *, size_t, char **));
+rune_t	_EUC_sgetrune(const char *, size_t, char const **);
+int	_EUC_sputrune(rune_t, char *, size_t, char **);
 
 typedef struct {
 	int	count[4];
@@ -63,37 +63,36 @@ _EUC_init(rl)
 	_RuneLocale *rl;
 {
 	_EucInfo *ei;
-	int x;
+	int x, new__mb_cur_max;
 	char *v, *e;
 
 	rl->sgetrune = _EUC_sgetrune;
 	rl->sputrune = _EUC_sputrune;
 
-	if (!rl->variable) {
-		free(rl);
+	if (rl->variable == NULL)
 		return (EFTYPE);
-	}
-	v = (char *) rl->variable;
+
+	v = (char *)rl->variable;
 
 	while (*v == ' ' || *v == '\t')
 		++v;
 
-	if ((ei = malloc(sizeof(_EucInfo))) == NULL) {
-		free(rl);
-		return (ENOMEM);
-	}
+	if ((ei = malloc(sizeof(_EucInfo))) == NULL)
+		return (errno == 0 ? ENOMEM : errno);
+
+	new__mb_cur_max = 0;
 	for (x = 0; x < 4; ++x) {
-		ei->count[x] = (int) strtol(v, &e, 0);
+		ei->count[x] = (int)strtol(v, &e, 0);
 		if (v == e || !(v = e)) {
-			free(rl);
 			free(ei);
 			return (EFTYPE);
 		}
+		if (new__mb_cur_max < ei->count[x])
+			new__mb_cur_max = ei->count[x];
 		while (*v == ' ' || *v == '\t')
 			++v;
-		ei->bits[x] = (int) strtol(v, &e, 0);
+		ei->bits[x] = (int)strtol(v, &e, 0);
 		if (v == e || !(v = e)) {
-			free(rl);
 			free(ei);
 			return (EFTYPE);
 		}
@@ -102,19 +101,13 @@ _EUC_init(rl)
 	}
 	ei->mask = (int)strtol(v, &e, 0);
 	if (v == e || !(v = e)) {
-		free(rl);
 		free(ei);
 		return (EFTYPE);
 	}
-	if (sizeof(_EucInfo) <= rl->variable_len) {
-		memcpy(rl->variable, ei, sizeof(_EucInfo));
-		free(ei);
-	} else {
-		rl->variable = &ei;
-	}
+	rl->variable = ei;
 	rl->variable_len = sizeof(_EucInfo);
 	_CurrentRuneLocale = rl;
-	__mb_cur_max = 3;
+	__mb_cur_max = new__mb_cur_max;
 	return (0);
 }
 
@@ -122,6 +115,8 @@ _EUC_init(rl)
 
 #define	_SS2	0x008e
 #define	_SS3	0x008f
+
+#define	GR_BITS	0x80808080 /* XXX: to be fixed */
 
 static inline int
 _euc_set(c)
@@ -202,6 +197,8 @@ CodeSet1:
 				}
 				*string++ = _SS2;
 				--i;
+				/* SS2 designates G2 into GR */
+				nm |= GR_BITS;
 			} else
 				if (m == CEI->bits[3]) {
 					i = len = CEI->count[3];
@@ -212,6 +209,8 @@ CodeSet1:
 					}
 					*string++ = _SS3;
 					--i;
+					/* SS3 designates G3 into GR */
+					nm |= GR_BITS;
 				} else
 					goto CodeSet1;	/* Bletch */
 		while (i-- > 0)

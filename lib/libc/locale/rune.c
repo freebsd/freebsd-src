@@ -32,14 +32,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)rune.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
+#include <arpa/inet.h>
+#include <errno.h>
 #include <rune.h>
 #include <stdio.h>
 #include <string.h>
@@ -56,22 +58,33 @@ _Read_RuneMagi(fp)
 	_RuneLocale *rl;
 	_RuneEntry *rr;
 	struct stat sb;
-	int x;
+	int x, saverr;
 
-	if (fstat(fileno(fp), &sb) < 0)
-		return(0);
+	if (_fstat(fileno(fp), &sb) < 0)
+		return (NULL);
 
-	if (sb.st_size < sizeof(_RuneLocale))
-		return(0);
+	if (sb.st_size < sizeof(_RuneLocale)) {
+		errno = EFTYPE;
+		return (NULL);
+	}
 
 	if ((data = malloc(sb.st_size)) == NULL)
-		return(0);
+		return (NULL);
 
+	errno = 0;
 	rewind(fp); /* Someone might have read the magic number once already */
+	if (errno) {
+		saverr = errno;
+		free(data);
+		errno = saverr;
+		return (NULL);
+	}
 
 	if (fread(data, sb.st_size, 1, fp) != 1) {
+		saverr = errno;
 		free(data);
-		return(0);
+		errno = saverr;
+		return (NULL);
 	}
 
 	rl = (_RuneLocale *)data;
@@ -81,7 +94,8 @@ _Read_RuneMagi(fp)
 
 	if (memcmp(rl->magic, _RUNE_MAGIC_1, sizeof(rl->magic))) {
 		free(data);
-		return(0);
+		errno = EFTYPE;
+		return (NULL);
 	}
 
 	rl->invalid_rune = ntohl(rl->invalid_rune);
@@ -100,21 +114,24 @@ _Read_RuneMagi(fp)
 	rl->variable = rl->runetype_ext.ranges + rl->runetype_ext.nranges;
 	if (rl->variable > lastp) {
 		free(data);
-		return(0);
+		errno = EFTYPE;
+		return (NULL);
 	}
 
 	rl->maplower_ext.ranges = (_RuneEntry *)rl->variable;
 	rl->variable = rl->maplower_ext.ranges + rl->maplower_ext.nranges;
 	if (rl->variable > lastp) {
 		free(data);
-		return(0);
+		errno = EFTYPE;
+		return (NULL);
 	}
 
 	rl->mapupper_ext.ranges = (_RuneEntry *)rl->variable;
 	rl->variable = rl->mapupper_ext.ranges + rl->mapupper_ext.nranges;
 	if (rl->variable > lastp) {
 		free(data);
-		return(0);
+		errno = EFTYPE;
+		return (NULL);
 	}
 
 	for (x = 0; x < rl->runetype_ext.nranges; ++x) {
@@ -128,7 +145,8 @@ _Read_RuneMagi(fp)
 			rl->variable = rr[x].types + len;
 			if (rl->variable > lastp) {
 				free(data);
-				return(0);
+				errno = EFTYPE;
+				return (NULL);
 			}
 			while (len-- > 0)
 				rr[x].types[len] = ntohl(rr[x].types[len]);
@@ -153,7 +171,8 @@ _Read_RuneMagi(fp)
 	}
 	if (((char *)rl->variable) + rl->variable_len > (char *)lastp) {
 		free(data);
-		return(0);
+		errno = EFTYPE;
+		return (NULL);
 	}
 
 	/*
@@ -171,5 +190,5 @@ _Read_RuneMagi(fp)
 	if (!rl->mapupper_ext.nranges)
 		rl->mapupper_ext.ranges = 0;
 
-	return(rl);
+	return (rl);
 }

@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef COLLATE_H_INCLUDED
-#define COLLATE_H_INCLUDED
+#ifndef _COLLATE_H_
+#define	_COLLATE_H_
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -48,20 +48,19 @@ struct __collate_st_chain_pri {
 
 extern int __collate_load_error;
 extern int __collate_substitute_nontrivial;
-extern char __collate_version[STR_LEN];
 extern u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
 extern struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
 extern struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
 
 __BEGIN_DECLS
-u_char *__collate_strdup __P((u_char *));
-u_char *__collate_substitute __P((const u_char *));
-int __collate_load_tables __P((char *));
-void __collate_lookup __P((const u_char *, int *, int *, int *));
-int  __collate_range_cmp __P((int, int));
+u_char	*__collate_strdup(u_char *);
+u_char	*__collate_substitute(const u_char *);
+int	__collate_load_tables(const char *);
+void	__collate_lookup(const u_char *, int *, int *, int *);
+int	__collate_range_cmp(int, int);
 #ifdef COLLATE_DEBUG
-void __collate_print_tables __P((void));
+void	__collate_print_tables(void);
 #endif
 __END_DECLS
 
-#endif /* not COLLATE_H_INCLUDED */
+#endif /* !_COLLATE_H_ */
