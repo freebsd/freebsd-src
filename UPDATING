@@ -20,6 +20,10 @@ ITEMS:'
 	details.
 
 20000704:
+	With the new sys/modules/sound/drivers/*, you will need to
+	set SYSDIR until you do an installworld after July 7th.
+
+20000704:
 	rc.shutdown and rc will now call the rc.d scripts with start
 	or stop.  This may cause some harmless warnings from older
 	rc.d scripts that haven't been updated.
