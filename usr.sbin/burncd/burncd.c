@@ -693,7 +693,7 @@ void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: %s [-delmnpqtv] [-f device] [-s speed] [command]"
+	    "usage: %s [-deFlmnpqtv] [-f device] [-s speed] [command]"
 	    " [command file ...]\n", getprogname());
 	exit(EX_USAGE);
 }
