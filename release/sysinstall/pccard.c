@@ -165,8 +165,10 @@ pccardInitialize(void)
     strcat(pccardd_cmd, card_irq);
     strcat(pccardd_cmd, " -z");
 
-    strcpy(pccardd_flags, card_irq);
+    variable_set2("pccard_enable", "YES", 1);
+
     variable_set2("pccardd_flags", card_irq, 1);
+    strcpy(pccardd_flags, card_irq);
 
     vsystem(pccardd_cmd);
     restorescr(w);
