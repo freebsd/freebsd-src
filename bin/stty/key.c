@@ -263,7 +263,7 @@ f_sane(struct info *ip)
 	ip->t.c_iflag |= ICRNL;
 	/* preserve user-preference flags in lflag */
 #define	LKEEP	(ECHOKE|ECHOE|ECHOK|ECHOPRT|ECHOCTL|ALTWERASE|TOSTOP|NOFLSH)
-	ip->t.c_lflag = TTYDEF_LFLAG_ECHO | (ip->t.c_lflag & LKEEP);
+	ip->t.c_lflag = TTYDEF_LFLAG | (ip->t.c_lflag & LKEEP);
 	ip->t.c_oflag = TTYDEF_OFLAG;
 	ip->set = 1;
 }
