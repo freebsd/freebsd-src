@@ -29,6 +29,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
+u_long tick_increment;
+u_long tick_freq;
+u_long tick_MHz;
+
 void
 cpu_initclocks(void)
 {
@@ -38,7 +42,14 @@ cpu_initclocks(void)
 void
 DELAY(int n)
 {
-	/* XXX */
+	u_long start, end;
+
+	start = rd(tick);
+	if (n < 0)
+		return;
+	end = start + (u_long)n * tick_MHz;
+	while (rd(tick) < end)
+		;
 }
 
 void
