@@ -62,6 +62,9 @@ struct kt {
 	{ "cpu",	CPU },
 	{ "csr",	CSR },
 	{ "device",	DEVICE },
+#if MACHINE_I386
+	{ "disable",	DISABLE },
+#endif
 	{ "disk",	DISK },
 	{ "drive",	DRIVE },
 #if	MACHINE_I386
@@ -77,7 +80,7 @@ struct kt {
 	{ "iomem",	IOMEM },
 	{ "iosiz",	IOSIZ },
 	{ "irq",	IRQ },
-#endif MACHINE_I386
+#endif
 	{ "machine",	MACHINE },
 	{ "major",	MAJOR },
 	{ "makeoptions", MAKEOPTIONS },
