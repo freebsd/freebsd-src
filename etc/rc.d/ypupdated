@@ -5,7 +5,6 @@
 
 # PROVIDE: ypupdated
 # REQUIRE: rpcbind ypserv
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

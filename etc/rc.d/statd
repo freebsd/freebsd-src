@@ -7,7 +7,7 @@
 # PROVIDE: nfslocking
 # REQUIRE: nfsserver nfsclient nfsd
 # BEFORE:  DAEMON
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

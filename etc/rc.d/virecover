@@ -7,7 +7,6 @@
 # PROVIDE: virecover
 # REQUIRE: mountcritremote ldconfig
 # BEFORE:  DAEMON
-# KEYWORD: FreeBSD
 #
 # XXX: should require `mail'!
 

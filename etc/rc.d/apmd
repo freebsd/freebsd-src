@@ -7,7 +7,7 @@
 # PROVIDE: apmd
 # REQUIRE: DAEMON apm
 # BEFORE:  LOGIN
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

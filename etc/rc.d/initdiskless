@@ -28,7 +28,7 @@
 #
 # REQUIRE: preseedrandom
 # PROVIDE: initdiskless
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 # BEFORE: ipfw
 
 

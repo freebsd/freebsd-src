@@ -6,7 +6,6 @@
 
 # PROVIDE: mail
 # REQUIRE: LOGIN
-# KEYWORD: FreeBSD
 #	we make mail start late, so that things like .forward's are not
 #	processed until the system is fully operational
 

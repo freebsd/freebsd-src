@@ -7,7 +7,7 @@
 # PROVIDE: accounting
 # REQUIRE: mountcritremote
 # BEFORE: DAEMON
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

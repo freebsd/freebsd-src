@@ -5,7 +5,7 @@
 
 # PROVIDE: disks
 # REQUIRE: initrandom
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

@@ -29,7 +29,6 @@
 # PROVIDE: nisdomain
 # REQUIRE: SERVERS rpcbind
 # BEFORE:  ypbind ypserv ypxfrd
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

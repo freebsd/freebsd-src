@@ -6,7 +6,7 @@
 # PROVIDE: sppp
 # REQUIRE: root
 # BEFORE: netif
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

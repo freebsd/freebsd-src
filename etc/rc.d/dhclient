@@ -7,7 +7,7 @@
 # PROVIDE: dhclient
 # REQUIRE: netif ipfw ipfilter mountcritlocal
 # BEFORE:  NETWORKING
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 #
 #	Note that there no syslog logging of dhclient messages at boot because
 #	dhclient needs to start before services that syslog depends upon do.

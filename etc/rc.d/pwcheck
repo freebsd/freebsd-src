@@ -7,7 +7,6 @@
 # PROVIDE: pwcheck
 # REQUIRE: mountcritremote syslogd
 # BEFORE:  DAEMON
-# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 

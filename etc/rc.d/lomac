@@ -6,7 +6,7 @@
 # PROVIDE: lomac
 # REQUIRE: mountcritremote
 # BEFORE: syslogd
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

@@ -6,7 +6,7 @@
 
 # PROVIDE: mountcritlocal
 # REQUIRE: root
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

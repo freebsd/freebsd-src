@@ -7,7 +7,7 @@
 # PROVIDE: savecore
 # REQUIRE: syslogd
 # BEFORE:  SERVERS
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

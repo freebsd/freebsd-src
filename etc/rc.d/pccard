@@ -29,7 +29,7 @@
 
 # PROVIDE: pccard
 # REQUIRE: mountcritlocal
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 

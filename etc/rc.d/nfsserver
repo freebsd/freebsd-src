@@ -5,7 +5,7 @@
 
 # PROVIDE: nfsserver
 # REQUIRE: NETWORKING mountcritremote
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 
