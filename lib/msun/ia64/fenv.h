@@ -61,7 +61,7 @@ extern const fenv_t	__fe_dfl_env;
 #define	_FPUSW_SHIFT	13
 
 #define	__stfpsr(__r)	__asm __volatile("mov %0=ar.fpsr" : "=r" (*(__r)))
-#define	__ldfpsr(__r)	__asm __volatile("mov ar.fpsr=%0" : : "r" (__r))
+#define	__ldfpsr(__r)	__asm __volatile("mov ar.fpsr=%0;;" : : "r" (__r))
 
 static __inline int
 feclearexcept(int __excepts)
