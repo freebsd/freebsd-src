@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.2 1998/08/02 12:23:17 abial Exp $
+#	$Id: PICOBSD,v 1.1.1.1 1998/08/27 17:38:43 abial Exp $
 #
 
 machine		"i386"
@@ -28,6 +28,9 @@ options		IPDIVERT
 options		PCI_QUIET
 options		DEVFS
 options		SLICE
+# Support for bridging and bandwidth limiting
+#options	DUMMYNET
+#options	BRIDGE
 
 config		kernel	root on fd0
 
