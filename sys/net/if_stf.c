@@ -86,6 +86,7 @@
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <machine/cpu.h>

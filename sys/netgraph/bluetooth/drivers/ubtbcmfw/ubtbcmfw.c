@@ -36,6 +36,7 @@
 #include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>

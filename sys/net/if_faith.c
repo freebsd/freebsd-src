@@ -46,6 +46,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/sockio.h>

@@ -97,6 +97,7 @@
 #include <sys/socket.h> /* for net/if.h */
 #include <sys/ctype.h>	/* string functions */
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 
 #include <net/ethernet.h>
