@@ -87,7 +87,7 @@
 .Fn mtx_recursed "struct mtx *mutex"
 .Ft void
 .Fn mtx_assert "struct mtx *mutex" "int what"
-.Fn MTX_SYSINIT "name" "mtx" "description" "opts"
+.Fn MTX_SYSINIT "name" "struct mutex *mtx" "const char *description" "int opts"
 .Sh DESCRIPTION
 Mutexes are the most basic and primary method of process synchronization.
 The major design considerations for mutexes are:
