@@ -23,13 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.5 1999/05/05 10:14:06 jkh Exp $
+ * $Id: kget.c,v 1.6 1999/05/05 11:34:03 jkh Exp $
  */
 
 #include "sysinstall.h"
 #include <sys/sysctl.h>
-#include <isa/isa_device.h>
-#include <isa/pnp.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/pnp.h>
 
 int
 kget(char *out)
