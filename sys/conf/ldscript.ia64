@@ -7,7 +7,7 @@ kernel_text = 0xe000000000500000;
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = 0xe000000000500000;
+  . = kernel_text + SIZEOF_HEADERS;
 
   .text      :
   {
