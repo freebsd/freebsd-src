@@ -450,6 +450,19 @@ This breaks the link between the
 .Xr vlan 4
 interface and its parent,
 clears its VLAN tag, flags and its link address and shuts the interface down.
+.It Cm vlanmtu , vlanhwtag
+If the driver offers user-configurable VLAN support, enable
+reception of extended frames or tag processing in hardware,
+respectively.
+Note that this must be issued on a physical interface associated with
+.Xr vlan 4 ,
+not on a
+.Xr vlan 4
+interface itself.
+.It Fl vlanmtu , Fl vlanhwtag
+If the driver offers user-configurable VLAN support, disable
+reception of extended frames or tag processing in hardware,
+respectively.
 .It Cm metric Ar n
 Set the routing metric of the interface to
 .Ar n ,
