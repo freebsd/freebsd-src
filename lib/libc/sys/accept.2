@@ -115,6 +115,10 @@ request and not implying confirmation.
 Confirmation can be implied by a normal read or write on the new
 file descriptor, and rejection can be implied by closing the
 new socket.
+.Pp
+For some applications, performance may be enhanced by using an
+.Xr accept_filter 9
+to pre-process incoming connections.
 .Sh RETURN VALUES
 The call returns \-1 on error.  If it succeeds, it returns a non-negative
 integer that is a descriptor for the accepted socket.
@@ -151,6 +155,7 @@ A connection arrived, but it was closed while waiting
 on the listen queue.
 .El
 .Sh SEE ALSO
+.Xr accept_filter 9 ,
 .Xr bind 2 ,
 .Xr connect 2 ,
 .Xr getpeername 2 ,
