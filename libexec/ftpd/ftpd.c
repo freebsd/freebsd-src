@@ -657,10 +657,12 @@ sigquit(signo)
 static void
 inithosts()
 {
+	int insert;
 	size_t len;
 	FILE *fp;
 	char *cp, *mp, *line;
 	char *hostname;
+	char *vhost, *anonuser, *statfile, *welcome, *loginmsg;
 	struct ftphost *hrp, *lhrp;
 	struct addrinfo hints, *res, *ai;
 
@@ -680,8 +682,7 @@ inithosts()
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_CANONNAME;
 	hints.ai_family = AF_UNSPEC;
-	getaddrinfo(hrp->hostname, NULL, &hints, &res);
-	if (res)
+	if (getaddrinfo(hrp->hostname, NULL, &hints, &res) == 0)
 		hrp->hostinfo = res;
 	hrp->statfile = _PATH_FTPDSTATFILE;
 	hrp->welcome  = _PATH_FTPWELCOME;
@@ -690,7 +691,7 @@ inithosts()
 	hrp->next = NULL;
 	thishost = firsthost = lhrp = hrp;
 	if ((fp = fopen(_PATH_FTPHOSTS, "r")) != NULL) {
-		int addrsize, error, gothost;
+		int addrsize, gothost;
 		void *addr;
 		struct hostent *hp;
 
@@ -714,12 +715,46 @@ inithosts()
 			/* skip empty lines */
 			if (cp == NULL)
 				goto nextline;
+			vhost = cp;
+
+			/* set defaults */
+			anonuser = "ftp";
+			statfile = _PATH_FTPDSTATFILE;
+			welcome  = _PATH_FTPWELCOME;
+			loginmsg = _PATH_FTPLOGINMESG;
+
+			/*
+			 * Preparse the line so we can use its info
+			 * for all the addresses associated with
+			 * the virtual host name.
+			 * Field 0, the virtual host name, is special:
+			 * it's already parsed off and will be strdup'ed
+			 * later, after we know its canonical form.
+			 */
+			for (i = 1; i < 5 && (cp = strtok(NULL, " \t")); i++)
+				if (*cp != '-' && (cp = strdup(cp)))
+					switch (i) {
+					case 1:	/* anon user permissions */
+						anonuser = cp;
+						break;
+					case 2: /* statistics file */
+						statfile = cp;
+						break;
+					case 3: /* welcome message */
+						welcome  = cp;
+						break;
+					case 4: /* login message */
+						loginmsg = cp;
+						break;
+					default: /* programming error */
+						abort();
+						/* NOTREACHED */
+					}
 
 			hints.ai_flags = 0;
 			hints.ai_family = AF_UNSPEC;
 			hints.ai_flags = AI_PASSIVE;
-			error = getaddrinfo(cp, NULL, &hints, &res);
-			if (error != NULL)
+			if (getaddrinfo(vhost, NULL, &hints, &res) != 0)
 				goto nextline;
 			for (ai = res; ai != NULL && ai->ai_addr != NULL;
 			     ai = ai->ai_next) {
@@ -743,15 +778,13 @@ inithosts()
 			if (hrp == NULL) {
 				if ((hrp = malloc(sizeof(struct ftphost))) == NULL)
 					goto nextline;
-				/* defaults */
-				hrp->statfile = _PATH_FTPDSTATFILE;
-				hrp->welcome  = _PATH_FTPWELCOME;
-				hrp->loginmsg = _PATH_FTPLOGINMESG;
-				hrp->anonuser = "ftp";
-				hrp->next     = NULL;
-				lhrp->next = hrp;
-				lhrp = hrp;
-			}
+				hrp->hostname = NULL;
+				hrp->hostinfo = NULL;
+				insert = 1;
+			} else
+				insert = 0; /* host already in the chain */
+			if (hrp->hostinfo)
+				freeaddrinfo(hrp->hostinfo);
 			hrp->hostinfo = res;
 
 			/*
@@ -780,44 +813,38 @@ inithosts()
 			if ((hp = getipnodebyaddr(addr, addrsize,
 						  hrp->hostinfo->ai_family,
 						  &hp_error)) != NULL) {
-				if (strcmp(cp, hp->h_name) != 0) {
+				if (strcmp(vhost, hp->h_name) != 0) {
 					if (hp->h_aliases == NULL)
-						cp = hp->h_name;
+						vhost = hp->h_name;
 					else {
 						i = 0;
 						while (hp->h_aliases[i] &&
-						       strcmp(cp, hp->h_aliases[i]) != 0)
+						       strcmp(vhost, hp->h_aliases[i]) != 0)
 							++i;
 						if (hp->h_aliases[i] == NULL)
-							cp = hp->h_name;
+							vhost = hp->h_name;
 					}
 				}
 			}
-			hrp->hostname = strdup(cp);
-			freehostent(hp);
-			/* ok, now we now peel off the rest */
-			i = 0;
-			while (i < 4 && (cp = strtok(NULL, " \t")) != NULL) {
-				if (*cp != '-' && (cp = strdup(cp)) != NULL) {
-					switch (i) {
-					case 0:	/* anon user permissions */
-						hrp->anonuser = cp;
-						break;
-					case 1: /* statistics file */
-						hrp->statfile = cp;
-						break;
-					case 2: /* welcome message */
-						hrp->welcome  = cp;
-						break;
-					case 3: /* login message */
-						hrp->loginmsg = cp;
-						break;
-					}
-				}
-				++i;
+			if (hrp->hostname &&
+			    strcmp(hrp->hostname, vhost) != 0) {
+				free(hrp->hostname);
+				hrp->hostname = NULL;
 			}
-			/* XXX: re-initialization for getaddrinfo() loop */
-			cp = strtok(line, " \t");
+			if (hrp->hostname == NULL &&
+			    (hrp->hostname = strdup(vhost)) == NULL)
+				goto nextline;
+			hrp->anonuser = anonuser;
+			hrp->statfile = statfile;
+			hrp->welcome  = welcome;
+			hrp->loginmsg = loginmsg;
+			if (insert) {
+				hrp->next  = NULL;
+				lhrp->next = hrp;
+				lhrp = hrp;
+			}
+			if (hp)
+				freehostent(hp);
 		      }
 nextline:
 			if (mp)
