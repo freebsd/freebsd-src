@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.6 1998/02/01 21:57:49 bde Exp $
+ *      $Id: wfd.c,v 1.7 1998/02/09 06:08:44 eivind Exp $
  */
 
 /*
@@ -58,7 +58,7 @@ static	d_ioctl_t	wfdioctl;
 static	d_strategy_t	wfdstrategy;
 
 #define CDEV_MAJOR 87
-#define BDEV_MAJOR 24
+#define BDEV_MAJOR 1
 static struct cdevsw wfd_cdevsw;
 static struct bdevsw wfd_bdevsw = 
 	{ wfdbopen,	wfdbclose,	wfdstrategy,	wfdioctl,
