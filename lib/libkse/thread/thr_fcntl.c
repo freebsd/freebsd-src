@@ -152,14 +152,14 @@ fcntl(int fd, int cmd,...)
 		case F_DUPFD:
 		case F_SETFD:
 		case F_SETFL:
-			ret = fcntl(fd, cmd, va_arg(ap, int));
+			ret = _fcntl(fd, cmd, va_arg(ap, int));
 			break;
 		case F_GETFD:
 		case F_GETFL:
-			ret = fcntl(fd, cmd);
+			ret = _fcntl(fd, cmd);
 			break;
 		default:
-			ret = fcntl(fd, cmd, va_arg(ap, void *));
+			ret = _fcntl(fd, cmd, va_arg(ap, void *));
 	}
 	va_end(ap);
 
