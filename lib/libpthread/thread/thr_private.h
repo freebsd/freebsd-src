@@ -809,6 +809,17 @@ SCLASS void *		_thread_kern_sched_stack
 #endif
 ;
 
+/*
+ * Delcare the idle context.
+ */
+SCLASS struct kse_thr_mailbox	_idle_thr_mailbox;
+
+SCLASS void *		_idle_thr_stack
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= NULL
+#endif
+;
+
 
 /* Used for _PTHREADS_INVARIANTS checking. */
 SCLASS int	_thread_kern_new_state
@@ -873,6 +884,7 @@ void    *_thread_cleanup(pthread_t);
 void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
 void    _thread_init(void);
+void    _thread_kern_idle(void);
 void    _thread_kern_sched(void);
 void 	_thread_kern_scheduler(struct kse_mailbox *);
 void    _thread_kern_sched_state(enum pthread_state, char *fname, int lineno);
