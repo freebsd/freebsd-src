@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.9 1995/10/16 15:14:19 jkh Exp $
+ * $Id: options.c,v 1.10 1995/10/16 23:02:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -92,19 +92,19 @@ static Option Options[] = {
 { "FTP Reselect",	"On transfer failure, ask for another host and try to resume",
       OPT_IS_FLAG,	&OptFlags,	(void *)OPT_FTP_RESELECT,	ftpFlagCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
-      OPT_IS_FUNC,	mediaSetFtpUserPass,	FTP_USER,	varCheck	},
+      OPT_IS_FUNC,	mediaSetFtpUserPass,	FTP_USER,		varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
-      OPT_IS_FUNC,	mediaSetTapeBlocksize,	TAPE_BLOCKSIZE,	varCheck	},
+      OPT_IS_FUNC,	mediaSetTapeBlocksize,	TAPE_BLOCKSIZE,		varCheck	},
 { "Detail Level",	"How to display filenames on debug screen as CPIO extracts them",
-      OPT_IS_FUNC,	mediaSetCPIOVerbosity,	CPIO_VERBOSITY_LEVEL, varCheck	},
+      OPT_IS_FUNC,	mediaSetCPIOVerbosity,	CPIO_VERBOSITY_LEVEL,	varCheck	},
 { "Release Name",	"Which release to attempt to load from installation media",
-      OPT_IS_FUNC,	installSelectRelease,	RELNAME,	varCheck	},
-{ "Browser Package",	"This is the browser package that will be used for viewing HTML",
-      OPT_IS_FUNC,	docSelectBrowserPkg,	BROWSER_PACKAGE, varCheck	},
-{ "Browser Binary",	"This is the path to the main binary from the browser package",
-      OPT_IS_FUNC,	docSelectBrowserBin,	BROWSER_BINARY,	varCheck	},
+      OPT_IS_FUNC,	installSelectRelease,	RELNAME,		varCheck	},
+{ "Browser Pkg",	"This is the browser package that will be used for viewing HTML",
+      OPT_IS_FUNC,	docSelectBrowserPkg,	BROWSER_PACKAGE,	varCheck	},
+{ "Browser Exec",	"This is the path to the main binary of the browser package",
+      OPT_IS_FUNC,	docSelectBrowserBin,	BROWSER_BINARY,		varCheck	},
 { "Reset Flags",	"Reset all flag values to defaults",
-      OPT_IS_FUNC,	resetFlags,	0,			resetLogo	},
+      OPT_IS_FUNC,	resetFlags,	0,				resetLogo	},
 { NULL },
 };
 
