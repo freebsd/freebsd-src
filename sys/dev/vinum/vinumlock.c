@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumlock.c,v 1.14 2001/01/10 04:10:30 grog Exp grog $
+ * $Id: vinumlock.c,v 1.13 2000/05/02 23:25:02 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -152,15 +152,13 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 	    if (lock->stripe) {				    /* in use */
 		foundlocks++;				    /* found another one in use */
 		if ((lock->stripe == stripe)		    /* it's our stripe */
-		    &&(lock->plexno == plex->plexno)	    /* and our plex */
-		    &&(lock->bp != bp)) {		    /* but not our request */
+		&&(lock->bp != bp)) {			    /* but not our request */
 #ifdef VINUMDEBUG
 		    if (debug & DEBUG_LASTREQS) {
 			struct rangelock info;
 
 			info.stripe = stripe;
 			info.bp = bp;
-			info.plexno = plex->plexno;
 			logrq(loginfo_lockwait, (union rqinfou) &info, bp);
 		    }
 #endif
@@ -188,7 +186,6 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
      */
     pos->stripe = stripe;
     pos->bp = bp;
-    pos->plexno = plex->plexno;
     plex->usedlocks++;					    /* one more lock */
     mtx_exit(&plex->lockmtx, MTX_DEF);
 #ifdef VINUMDEBUG
