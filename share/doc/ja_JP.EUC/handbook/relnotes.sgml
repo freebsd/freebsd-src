@@ -1,6 +1,6 @@
-<!-- $Id: relnotes.sgml,v 1.1.1.1 1996/11/15 05:14:41 asami Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.2 1996/11/24 22:19:50 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.17 -->
+<!-- Original revision: 1.18 -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
@@ -34,7 +34,7 @@
 
 	  FreeBSD では基本配布セットに加え, 移植されたソフトウェア集
 	  として 数百の人気の高いプログラムを提供しています. 96年11月
-	  終わりの時点で 710 の ports (移植ソフトウェア) が存在します.
+	  終わりの時点で 690 の ports (移植ソフトウェア) が存在します.
 	  ports には http (WWW) サーバから, ゲーム, 言語,
 	  エディタまでありとあらゆるものが含まれています. portsはオリジナル
 	  ソースに対する「差分」という形で表現されており, すべての portsを
