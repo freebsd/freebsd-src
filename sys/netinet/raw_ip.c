@@ -511,7 +511,7 @@ u_long	rip_recvspace = RIPRCVQ;
 SYSCTL_INT(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
     &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
 SYSCTL_INT(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
-    &rip_recvspace, 0, "Maximum incoming raw IP datagram size");
+    &rip_recvspace, 0, "Maximum space for incoming raw IP datagrams");
 
 static int
 rip_attach(struct socket *so, int proto, struct thread *td)
