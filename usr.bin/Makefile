@@ -167,6 +167,7 @@ SUBDIR=	alias \
 	talk \
 	tcopy \
 	tee \
+	telnet \
 	tftp \
 	time \
 	tip \
@@ -216,13 +217,6 @@ SUBDIR=	alias \
 	ypcat \
 	ypmatch \
 	ypwhich
-
-.if defined(RELEASEDIR) || \
-    (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberos5)) || \
-    defined(NOCRYPT) || defined(NO_OPENSSL) || defined(NO_KERBEROS)
-# make release needs both
-SUBDIR+=telnet
-.endif
 
 .if !defined(NO_BIND)
 SUBDIR+=dig \

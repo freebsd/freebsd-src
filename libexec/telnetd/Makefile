@@ -3,6 +3,9 @@
 # Do not define -DKLUDGELINEMODE, as it does not interact well with many
 # telnet implementations.
 
+TELNETDIR=	${.CURDIR}/../../contrib/telnet
+.PATH:		${TELNETDIR}/telnetd
+
 PROG=		telnetd
 MAN=		telnetd.8
 
@@ -11,7 +14,7 @@ SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 
 CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 		-DENV_HACK \
-		-I${.CURDIR}/../../lib -DINET6
+		-I${TELNETDIR} -DINET6
 
 WARNS?=		2
 WFORMAT?=	0
@@ -25,13 +28,16 @@ LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
 DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
 LDADD=		-lutil -ltermcap ${LIBTELNET}
 
-unifdef:
-	-cd ${.CURDIR} ; \
-	( for i in *.[ch] ; do \
-		unifdef -UAUTHENTICATION -UENCRYPTION \
-			${.CURDIR}/../../crypto/telnet/telnetd/$$i \
-				> ${.CURDIR}/$$i ; \
-		echo $$i ; \
-	done )
+.if !defined(NO_CRYPTO)
+SRCS+=		authenc.c
+CFLAGS+=	-DAUTHENTICATION -DENCRYPTION
+DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBPAM}
+LDADD+=		-lmp -lcrypto -lcrypt ${MINUSLPAM}
+.if !defined(NO_KERBEROS)
+CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
+DPADD+=		${LIBKRB5} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR}
+LDADD+=		-lkrb5 -lasn1 -lroken -lcom_err
+.endif
+.endif
 
 .include <bsd.prog.mk>

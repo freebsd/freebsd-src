@@ -6,26 +6,12 @@
 
 SUBDIR= lib libexec usr.bin usr.sbin
 
-SDIR= ${.CURDIR}/..
-
-CODAI=	${MAKE} ${MFLAGS} cleandir; \
-	${MAKE} ${MFLAGS} obj; \
-	${MAKE} ${MFLAGS} depend all install
-
-CODAD=	${MAKE} ${MFLAGS} cleandir; \
-	${MAKE} ${MFLAGS} obj; \
-	${MAKE} ${MFLAGS} depend all distribute
-
-# These are the programs which depend on secure libs
-sprog:
-	cd ${SDIR}/bin/ed; ${CODAI}
-	cd ${SDIR}/sbin/init; ${CODAI}
-
-bootstrap:
-	( cd include; ${MAKE} ${MFLAGS} install )
-	( cd lib; ${MAKE} ${MFLAGS} depend all install )
-	${MAKE} ${MFLAGS} cleandir
-	${MAKE} ${MFLAGS} obj
-	${MAKE} ${MFLAGS} depend all install sprog
+# These are programs which depend on crypto, but not Kerberos.
+SPROGS=	bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump \
+	lib/libfetch usr.bin/fetch \
+	lib/libtelnet libexec/telnetd usr.bin/telnet
+.if !defined(NO_SENDMAIL)
+SPROGS+=usr.sbin/sendmail
+.endif
 
 .include <bsd.subdir.mk>
