@@ -160,8 +160,9 @@ clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 	struct timespec ats;
 
 	if (uap->clock_id != CLOCK_REALTIME)
-		return (EINVAL);
-	nanotime(&ats);
+		nanotime(&ats);
+	else if (uap->clock_id != CLOCK_MONOTONIC)
+		nanouptime(&ats);
 	return (copyout(&ats, uap->tp, sizeof(ats)));
 }
 
