@@ -103,6 +103,8 @@ uipc_abort(struct socket *so)
 	if (unp == 0)
 		return EINVAL;
 	unp_drop(unp, ECONNABORTED);
+	unp_detach(unp);
+	sotryfree(so);
 	return 0;
 }
 
@@ -932,16 +934,6 @@ unp_drop(unp, errno)
 
 	so->so_error = errno;
 	unp_disconnect(unp);
-	if (so->so_head) {
-		LIST_REMOVE(unp, unp_link);
-		unp->unp_gencnt = ++unp_gencnt;
-		unp_count--;
-		so->so_pcb = (caddr_t) 0;
-		if (unp->unp_addr)
-			FREE(unp->unp_addr, M_SONAME);
-		zfree(unp_zone, unp);
-		sotryfree(so);
-	}
 }
 
 #ifdef notdef
