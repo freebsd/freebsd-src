@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.9 1998/12/10 04:14:50 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.10 1998/12/15 08:22:42 gibbs Exp $
  */
 
 /*
@@ -676,7 +676,6 @@ register INTSTAT {
 	mask	NO_IDENT	0x20|SEQINT	/* no IDENTIFY after reconnect*/
 	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
 	mask	ABORT_REQUESTED 0x50|SEQINT	/* Reconect of aborted SCB */
-	mask	REJECT_MSG	0x60|SEQINT	/* Reject message received */
 	mask	BAD_STATUS	0x70|SEQINT	/* Bad status from target */
 	mask	RESIDUAL	0x80|SEQINT	/* Residual byte count != 0 */
 	mask	HOST_MSG_LOOP	0xa0|SEQINT	/*
