@@ -397,7 +397,7 @@ ipcp_Show(struct cmdargs const *arg)
                   inet_ntoa(ipcp->ns.dns[1]));
   prompt_Printf(arg->prompt, "\n NetBIOS NS:      %s, ",
 	        inet_ntoa(ipcp->cfg.ns.nbns[0]));
-  prompt_Printf(arg->prompt, "%s\n",
+  prompt_Printf(arg->prompt, "%s\n\n",
                 inet_ntoa(ipcp->cfg.ns.nbns[1]));
 
   throughput_disp(&ipcp->throughput, arg->prompt);
