@@ -780,7 +780,7 @@ static int sorted_state[] =
 } while (0)
 
 #define ORDERKEY_CPTICKS(a, b) do { \
-	int64_t diff = (b)->ki_runtime - (a)->ki_runtime; \
+	int64_t diff = (int64_t)(b)->ki_runtime - (int64_t)(a)->ki_runtime; \
 	if (diff != 0) \
 		return (diff > 0 ? 1 : -1); \
 } while (0)
@@ -792,19 +792,19 @@ static int sorted_state[] =
 } while (0)
 
 #define ORDERKEY_PRIO(a, b) do { \
-	int diff = (b)->ki_pri.pri_level - (a)->ki_pri.pri_level; \
+	int diff = (int)(b)->ki_pri.pri_level - (int)(a)->ki_pri.pri_level; \
 	if (diff != 0) \
 		return (diff > 0 ? 1 : -1); \
 } while (0)
 
 #define ORDERKEY_RSSIZE(a, b) do { \
-	long diff = (b)->ki_rssize - (a)->ki_rssize; \
+	long diff = (long)(b)->ki_rssize - (long)(a)->ki_rssize; \
 	if (diff != 0) \
 		return (diff > 0 ? 1 : -1); \
 } while (0)
 
 #define ORDERKEY_MEM(a, b) do { \
-	long diff = PROCSIZE((b)) - PROCSIZE((a)); \
+	long diff = (long)PROCSIZE((b)) - (long)PROCSIZE((a)); \
 	if (diff != 0) \
 		return (diff > 0 ? 1 : -1); \
 } while (0)
