@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.33 1996/04/28 03:27:22 jkh Exp $
+ * $Id: package.c,v 1.34 1996/04/30 05:40:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -107,6 +107,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    char buf[BUFSIZ];
 	    WINDOW *w = savescr();
 
+	    close(pfd[0]);
 	    tot = 0;
 	    while ((i = read(fd, buf, BUFSIZ)) > 0) {
 		char line[80];
@@ -123,8 +124,8 @@ package_extract(Device *dev, char *name, Boolean depended)
 		clrtoeol();
 		refresh();
 	    }
-	    close(fd);
 	    close(pfd[1]);
+	    dev->close(dev, fd);
 	    mvprintw(0, 0, "Package %s read successfully - waiting for pkg_add", name);
 	    refresh();
 	    i = waitpid(pid, &tot, 0);
