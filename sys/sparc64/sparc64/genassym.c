@@ -218,6 +218,7 @@ ASSYM(IV_FUNC, offsetof(struct intr_vector, iv_func));
 ASSYM(IV_ARG, offsetof(struct intr_vector, iv_arg));
 ASSYM(IV_PRI, offsetof(struct intr_vector, iv_pri));
 
+ASSYM(IV_NAMLEN, IV_NAMLEN);
 ASSYM(IV_MAX, IV_MAX);
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);

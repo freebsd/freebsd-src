@@ -33,6 +33,7 @@
 
 #define	PIL_MAX		(1 << 4)
 #define	IV_MAX		(1 << 11)
+#define IV_NAMLEN	1024
 
 #define	IR_FREE		(PIL_MAX * 2)
 
