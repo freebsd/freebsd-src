@@ -1332,7 +1332,7 @@ int StrToPort (char* str, char* proto)
 
 	port = strtol (str, &end, 10);
 	if (end != str)
-		return htons (port);
+		return htonl (port);
 
 	sp = getservbyname (str, proto);
 	if (!sp)
