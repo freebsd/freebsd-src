@@ -37,9 +37,13 @@
 .Os
 .Sh NAME
 .Nm lgamma ,
+.Nm lgamma_r ,
 .Nm lgammaf ,
+.Nm lgammaf_r ,
 .Nm gamma ,
+.Nm gamma_r ,
 .Nm gammaf ,
+.Nm gammaf_r ,
 .Nm tgamma
 .Nd log gamma functions, gamma function
 .Sh LIBRARY
@@ -51,12 +55,20 @@
 .sp
 .Ft double
 .Fn lgamma "double x"
+.Ft double
+.Fn lgamma_r "double x, int *signgamp"
 .Ft float
 .Fn lgammaf "float x"
+.Ft float
+.Fn lgammaf_r "float x, int *signgamp"
 .Ft double
 .Fn gamma "double x"
+.Ft double
+.Fn gamma_r "double x, int *signgamp"
 .Ft float
 .Fn gammaf "float x"
+.Ft float
+.Fn gammaf_r "float x, int *signgamp"
 .Ft double
 .Fn tgamma "double x"
 .Sh DESCRIPTION
@@ -78,13 +90,26 @@ The external integer
 .Fa signgam
 returns the sign of \(*G(x).
 .Pp
-.Fn gamma
+.Fn lgamma_r x signgamp
 and
-.Fn gammaf
+.Fn lgammaf_r x signgamp
+provide the same functionality as
+.Fn lgamma x
+and
+.Fn lgammaf x
+but the caller must provide an integer to store the sign of \(*G(x)
+.Pp
+.Fn gamma ,
+.Fn gammaf ,
+.Fn gamma_r ,
+and
+.Fn gammaf_r
 are deprecated aliases for
-.Fn lgamma
-and
+.Fn lgamma ,
 .Fn lgammaf ,
+.Fn lgamma_r ,
+and
+.Fn lgammaf_r ,
 respectively.
 .Fn tgamma x
 returns \(*G(x), with no effect on
@@ -113,10 +138,14 @@ Exponentiation of
 will lose up to 10 significant bits.
 .Sh RETURN VALUES
 .Fn gamma ,
+.Fn gamma_r,
 .Fn gammaf ,
+.Fn gammaf_r ,
 .Fn lgamma ,
+.Fn lgamma_r ,
+.Fn lgammaf,
 and
-.Fn lgammaf
+.Fn lgammaf_r
 return appropriate values unless an argument is out of range.
 Overflow will occur for sufficiently large positive values, and
 non-positive integers.

@@ -249,10 +249,10 @@ double	log1p(double) __pure2;
  * Reentrant version of gamma & lgamma; passes signgam back by reference
  * as the second argument; user must allocate space for signgam.
  */
-#ifdef _REENTRANT
+#ifdef __BSD_VISIBLE
 double	gamma_r(double, int *);
 double	lgamma_r(double, int *);
-#endif /* _REENTRANT */
+#endif /* __BSD_VISIBLE */
 
 /* float versions of ANSI/POSIX functions */
 float	acosf(float);
@@ -330,10 +330,10 @@ float	log1pf(float) __pure2;
  * signgam back by reference as the second argument; user must
  * allocate space for signgam.
  */
-#ifdef _REENTRANT
+#ifdef __BSD_VISIBLE
 float	gammaf_r(float, int *);
 float	lgammaf_r(float, int *);
-#endif	/* _REENTRANT */
+#endif	/* __BSD_VISIBLE */
 
 #endif /* !_XOPEN_SOURCE */
 #endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
