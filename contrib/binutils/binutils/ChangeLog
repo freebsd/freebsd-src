@@ -1,3 +1,99 @@
+2000-11-01  Philip Blundell  <philb@gnu.org>
+
+	From 2000-06-15  H.J. Lu  <hjl@gnu.org>
+	* dyn-string.c: Removed. Not needed with dyn-string.c in
+	libiberty.
+	* dyn-string.h: Likewise.
+	* Makefile.am: Remove references to dyn-string.c and
+	dyn-string.h. Rebuild dependency.
+	* Makefile.in: Rebuild.
+
+2000-10-16  Philip Blundell  <pb@futuretv.com>
+
+	* configure.in: Set version number to 2.10.1.
+	* configure: Regenerate.
+
+2000-10-14  Philip Blundell  <philb@gnu.org>
+
+	* config.sub, config.guess: Update from mainline sources.
+
+	From 2000-09-07  H.J. Lu  <hjl@gnu.org>
+
+	* configure.in (AC_ISC_POSIX): Put after AC_CANONICAL_SYSTEM.
+	* configure: Rebuild.
+
+	From 2000-08-17  Nick Clifton  <nickc@redhat.com>
+
+	* readelf.c (display_debug_pubnames): Only issue warning
+	message once.  Terminate message with a new line.
+	(display_debug_aranges): Only display version 2 debug info.
+	
+	From 2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* readelf.c (get_dynamic_type): Change "AUXILARY" to
+	"AUXILIARY".
+	(process_dynamic_segment): Print out strings for DT_CONFIG,
+	DT_DEPAUDIT, DT_AUDIT and DT_RUNPATH.
+
+	From 2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* readelf.c (process_dynamic_segment): Change DF_1_NODEPLIB
+	to DF_1_NODEFLIB.
+
+	From 2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* readelf.c (get_dynamic_type): Fix DT_CHECKSUM.
+
+	From 2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* readelf.c (get_dynamic_type): Change DT_FEATURE_1 to
+	DT_FEATURE.
+	(process_dynamic_segment): Likewise.
+
+	* readelf.c (get_dynamic_type): Handle DT_CONFIG, DT_DEPAUDIT,
+	DT_AUDIT, DT_PLTPAD, DT_MOVETAB and DT_CHECKSUM.
+	(process_dynamic_segment): Handle DTF_1_CONFEXP, DF_1_NODEPLIB,
+	DF_1_NODUMP and DF_1_CONLFAT.
+
+	From 2000-07-01  Alexander Aganichev <AAganichev@hypercom.com>
+	
+	* stabs.c (parse_stab_type): Divide size in bits by 8 as binutils
+	struct debug_type stores size in bytes.
+
+	From 2000-08-17  Christopher C. Chimelis <chris@debian.org>
+
+	* objdump.c (LONGEST_ARCH): Set to sizeof("powerpc:common").
+
+	From 2000-07-11  Mark Kettenis  <kettenis@gnu.org>
+
+	* objdump.c (usage): Make output of `objdump --help' more
+	consistent with the rest of the GNU world.  Add a line describing
+	the purpose of the program.
+	
+	From 2000-06-24  Nick Clifton  <nickc@cygnus.com>
+
+	* objdump.c (usage): Fix description of --stabs switch.
+
+	From 2000-07-18  Nick Clifton  <nickc@cygnus.com>
+
+	* binutils.texi (readelf): Fix spelling typo.
+
+	From 2000-07-19  Mark Kettenis  <kettenis@gnu.org>
+
+	* nm.c (usage): Change output of `nm --help' to include a
+	description of the purpose of the program and a detailed
+	description of the accepted options.
+
+2000-09-05  Todd Vierling <tv@wasabisystems.com>
+
+	From 2000-08-14  Todd Vierling <tv@wasabisystems.com>
+	* objcopy.c (strip_main): Silently accept -d as an alias for -g
+	for compatability with old BSD systems.
+
+2000-09-04  Todd Vierling  <tv@wasabisystems.com>
+
+	* strip.1: Fix stray '\' in -o formatting.
+
 2000-05-30  Alan Modra  <alan@linuxcare.com.au>
 
 	* objdump.c (display_target_list): Use bfd_close_all_done, not

@@ -1372,7 +1372,7 @@ md_undefined_symbol(name)
 	  else
 	    break;
 
-	  if (!alpha_noat_on && num == AXP_REG_AT)
+	  if (!alpha_noat_on && (num + is_float) == AXP_REG_AT)
 	    as_warn(_("Used $at without \".set noat\""));
 	  return alpha_register_table[num + is_float];
 
