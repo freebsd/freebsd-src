@@ -38,7 +38,7 @@
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 6/6/93
 #
-# $Id: newvers.sh,v 5.2.2.1 1992/02/09 15:11:19 jsp beta $
+# $Id: newvers.sh,v 1.1.1.1 1994/05/26 05:22:06 rgrimes Exp $
 #
 PATH=/usr/ucb:/bin:/usr/bin:$PATH
 if [ $# -ne 3 ]; then echo "Usage: newvers program arch os" >&2; exit 1; fi
@@ -48,7 +48,7 @@ v=`cat $version`
 u=${USER-${LOGNAME-root}}
 h=`hostname`
 #h=`expr "$h" : '\([^.]*\)'`
-t=`date`
+t=`LC_TIME=C date`
 if [ ! -s "$d../config/RELEASE"  -o ! -s "$d../text/COPYRIGHT" ]; then
 	echo ERROR: config file missing >&2
 	exit 1
