@@ -44,6 +44,7 @@ static const char rcsid[] =
 int
 foldit(chunk, col, max)
 	char *chunk;
+	int col, max;
 {
 	register char *cp;
 
@@ -60,7 +61,7 @@ again:
 			col = 0;
 			break;
 		case '\t':
-			col = col + 8 &~ 07;
+			col = (col + 8) &~ 07;
 			break;
 		case '\b':
 			col = col ? col - 1 : 0;
