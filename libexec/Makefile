@@ -43,9 +43,6 @@ _named-xfer=	named-xfer
 _ftp-proxy=	ftp-proxy
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64"
-NOPIC=yes
-.endif
 .if !defined(NOPIC)
 _rtld-elf=	rtld-elf
 .endif
