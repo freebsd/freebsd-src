@@ -1,0 +1,105 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Documentation Project -->
+
+<sect><heading>PC DMA<label id="dma"></heading>
+
+<p><em>Contributed by &a.uhclem;.<newline>
+  31 August 1995.</em>
+
+Posted to <htmlurl url="mailto:hackers@freebsd.org"
+      name="freebsd-hackers@freebsd.org">:
+<quote>
+<p><em>Yes, as long as `single mode' is appropriate for you, there's no need
+to worry about TC.  TC is intented for continuous mode.  Well, i've
+just noticed that the PC DMAC cannot even generate an interrupt when
+ready...  hmm, go figure, the Z80 DMAC did it.</em>
+<p><em>And yes, for `single mode', the masking trick will do it.  The
+peripheral device will issue a DRQ signal for each transfered
+byte/word, and masking would prevent the DMAC from accepting new DRQs
+for this channel.  Aborting a continuous mode transfer would not be so
+easy (or even impossible at all).</em>
+</quote>
+
+Actually, masking is the correct procedure for all transfer modes on the
+8237, even autoinit mode, which is frequently used for audio operations
+since it allows seamless DMA transfers with no under/overruns.
+
+You are generally correct about TC.  All the TC signal does is
+when the counter on any channel in the DMA controller goes from
+one to zero, TC is asserted.  What the peripherals are supposed
+to if they want to generate an interrupt when the transfer is
+through, is that peripheral device is supposed to look at
+<tt>(-DACK%d &amp;&amp; TC &amp;&amp; DEVICE_DMA_ACTIVE)</tt> and then
+latch an <tt>IRQ%d</tt> for the 8259 interrupt controller.  Since there is
+only one TC signal, it is important that only the peripheral who
+is transferring data at that moment honor the TC signal.
+
+The host CPU will eventually investigate the interrupt by having some driver
+poll the hardware associated with the peripheral, NOT the DMA controller.
+If a peripheral doesn't want an interrupt associated with the DMA counter
+reaching zero, it doesn't implement the circuitry to monitor TC.
+
+Some sound cards realize that when the TC hits zero it means the DMA
+is now idle and that is really too late, so they don't use TC and
+instead allow the driver to program in a local counter value, which
+is usually set lower than the value programmed into the DMA.  This means
+the peripheral can interrupt the CPU in advance of the DMA "running dry",
+allowing the CPU to be ready to reprogram the DMA the instant it finishes
+what it is doing, rather than incurring the latency later.
+
+This also means that two or more different devices could share a
+DMA channel, by tristating <tt>DRQ%d</tt> when idle and only
+honoring <tt>-DACK%d</tt> when the device knows it is expecting
+the DMA to go active.  (Iomega PC2B boards forgot this minor
+point and will transfer data even if they are not supposed to.)
+
+
+So, if you want to abort a 8237 DMA transfer of any kind, simply mask the
+bit for that DMA channel in the 8237.  Note: You can't interrupt an individual
+transfer (byte or burst) in progress.  Think about it...  if the DMA is
+running, how is your OUT instruction going to be performed?  
+The CPU has to be bus master for the OUT to be performed.
+
+Since the 8237 DMA re-evaluates DMA channel priorities constantly, even if
+the DMA had already asserted HOLD (to request the bus from the CPU) when
+the OUT actually took place, the processor would still grant the bus to the
+DMA controller.  The DMA controller would look for the highest-priority
+DMA source remaining (your interrupt is masked now) at that instant,
+and if none remained, the DMA will release HOLD and the processor will
+get the bus back after a few clocks.   
+
+There is a deadly race condition in this area, but if I remember right,
+you can't get into it via mis-programming the DMA, UNLESS you cause the DMA
+controller to be RESET.  You should not do this.   Effectively the CPU
+can give up the bus and the DMA doesn't do anything, including giving the
+bus back.  Very annoying and after 16msec or so, all is over since
+refresh on main memory has started failing.
+
+So, mask the DMA controller, then go do what you have to do to get the
+transfer aborted in the peripheral hardware.  In some extremely stupid
+hardware (I could mention a few), you may have to program the DMA to
+transfer one more byte to a garbage target to get the peripheral hardware
+to go back to an idle state.   Most hardware these days isn't that
+stupid.
+
+Technically, you are supposed to mask the DMA channel, program the other
+settings (direction, address, length, etc), issue commands to the
+peripheral and then unmask the DMA channel once the peripheral commands have
+been accepted.  The last two steps can be done out of order without
+harm, but you must always program the DMA channel while it is masked to
+avoid spraying data all over the place in the event the peripheral
+unexpected asserts <tt>DRQ%d</tt>.
+
+If you need to pad-out an aborted buffer, once you have masked the
+DMA, you can ask it how many bytes it still had to go and what
+address it was to write to next.  Your driver can then fill in the
+remaining area or do what needs to be done.
+
+
+Don't forget that the 8237 was designed for use with the 8085 and
+really isn't suited to the job that IBM gave it in the original PC.
+That's why the upper eight bits of DMA addressing appear to be lashed-on.
+They are.  Look at the schematics of the original PC and you will
+the upper bits are kept in external latches that are enabled whenever
+the DMA is too.  Very kludgy.
+

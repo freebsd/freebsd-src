@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.26 1995/09/01 04:54:12 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.27 1995/09/03 21:12:27 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -24,7 +24,7 @@
       <author>
 	<name>The FreeBSD Documentation Project</name>
       </author>
-      <date>August 31, 1995</date>
+      <date>September 24, 1995</date>
 
 <abstract>Welcome to FreeBSD!  This handbook covers the
 installation and day to day use of <bf>FreeBSD Release
@@ -37,6 +37,9 @@ you are interested in helping with this project, send
 email to &a.jfieber; or to the FreeBSD Documentation
 Project mailing list <tt><htmlurl url="mailto:doc@freebsd.org"
 name="&lt;doc@freebsd.org&gt;"></tt>.
+The latest version of this document is always available from
+the <url url="http://www.freebsd.org/" name="FreeBSD World Wide
+Web server">.
 </abstract>
 	
       <toc>
@@ -72,7 +75,7 @@ name="&lt;doc@freebsd.org&gt;"></tt>.
      <!--    &kernelconfig; -->
 
     <chapt><heading>Users, groups and security</heading>
-      <sect><heading>* DES, MD5 and Crypt</heading>
+      &crypt;
       <sect><heading>* S/Key</heading>
       &kerberos;
       <sect><heading>* Firewalls</heading>
@@ -88,8 +91,9 @@ name="&lt;doc@freebsd.org&gt;"></tt>.
          name="The XFree86 Project, Inc">.
 
     <chapt><heading>Managing hardware</heading>
-      &scsi;
       <sect><heading>* Adding and reconfiguring disks</heading>
+      &scsi;
+      &esdi;
       <sect><heading>* Tapes and backups</heading>
       <sect><heading>* Serial ports</heading>
       <sect><heading>* Sound cards</heading>
@@ -127,8 +131,8 @@ name="&lt;doc@freebsd.org&gt;"></tt>.
          name="&lt;gryphon@healer.com&gt;"> for more information.
 
       &nfs;
-      <sect><heading>* Yellow Pages/NIS</heading>
       &diskless;
+      <sect><heading>* Yellow Pages/NIS</heading>
       <sect><heading>* ISDN</heading>
 
     <chapt><heading>* Mail</heading>
@@ -143,9 +147,8 @@ name="&lt;doc@freebsd.org&gt;"></tt>.
       &sup;
     &kerneldebug;
     &submitters;
-    &booting;
-    &memoryuse;
     &troubleshooting;
+
 
 <!-- ************************************************************ -->	      
 
@@ -154,6 +157,10 @@ name="&lt;doc@freebsd.org&gt;"></tt>.
     &bibliography;
     &eresources;
     &hw;
+    <chapt><heading>Assorted technical topics</heading>
+      &booting;
+      &memoryuse;
+      &dma;
     &contrib;
     &glossary;
    
