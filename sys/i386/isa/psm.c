@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.42 1997/09/14 03:19:13 peter Exp $
+ * $Id: psm.c,v 1.43 1997/10/19 10:44:29 yokota Exp $
  */
 
 /*
@@ -342,7 +342,6 @@ static int
 get_mouse_buttons(KBDC kbdc)
 {
     int c = 2;		/* assume two buttons by default */
-    int res;
     int status[3];
 
     /*
@@ -373,12 +372,12 @@ get_mouse_buttons(KBDC kbdc)
 static int
 is_a_mouse(int id)
 {
+#if 0
     static int valid_ids[] = {
         PSM_MOUSE_ID,		/* mouse */
         PSM_BALLPOINT_ID,	/* ballpoint device */
         -1			/* end of table */
     };
-#if 0
     int i;
 
     for (i = 0; valid_ids[i] >= 0; ++i)

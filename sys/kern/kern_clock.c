@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.41 1997/09/21 22:00:07 gibbs Exp $
+ * $Id: kern_clock.c,v 1.42 1997/09/24 16:39:16 gibbs Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -454,7 +454,6 @@ void
 hardclock(frame)
 	register struct clockframe *frame;
 {
-	register struct callout *p1;
 	register struct proc *p;
 
 	p = curproc;
@@ -809,7 +808,6 @@ untimeout(ftn, arg, handle)
 	void *arg;
 	struct callout_handle handle;
 {
-	register struct callout *p, *t;
 	register int s;
 
 	/*

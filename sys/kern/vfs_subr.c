@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.110 1997/10/12 20:24:26 phk Exp $
+ * $Id: vfs_subr.c,v 1.111 1997/10/26 20:55:07 phk Exp $
  */
 
 /*
@@ -650,7 +650,6 @@ void
 pbrelvp(bp)
 	register struct buf *bp;
 {
-	struct vnode *vp;
 
 #if defined(DIAGNOSTIC)
 	if (bp->b_vp == (struct vnode *) 0)
@@ -1626,6 +1625,7 @@ sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
 int kinfo_vdebug = 1;
 int kinfo_vgetfailed;
 
+#if 0
 #define KINFO_VNODESLOP	10
 /*
  * Dump vnode list (via sysctl).
@@ -1686,6 +1686,7 @@ again:
 
 	return (0);
 }
+#endif
 
 /*
  * XXX

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.30 1997/10/28 15:59:11 bde Exp $
+ * $Id: nfs_syscalls.c,v 1.31 1997/11/06 19:29:42 phk Exp $
  */
 
 #include <sys/param.h>
@@ -604,7 +604,6 @@ nfssvc_nfsd(nsd, argp, p)
 		    } else if (nfs_privport) {
 			/* Check if source port is privileged */
 			u_short port;
-			u_long  addr;
 			struct sockaddr *nam = nd->nd_nam;
 			struct sockaddr_in *sin;
 
@@ -757,11 +756,10 @@ static int
 nfssvc_iod(p)
 	struct proc *p;
 {
-	register struct buf *bp, *nbp;
+	register struct buf *bp;
 	register int i, myiod;
-	struct vnode *vp;
 	struct nfsmount *nmp;
-	int error = 0, s;
+	int error = 0;
 
 	/*
 	 * Assign my position or return error if too many already running
@@ -842,7 +840,6 @@ nfsrv_zapsock(slp)
 	register struct nfsrv_descript *nwp, *nnwp;
 	struct socket *so;
 	struct file *fp;
-	struct mbuf *m;
 	struct nfsrv_rec *rec;
 	int s;
 

@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.93 1997/07/20 14:10:06 bde Exp $
+ *	$Id: mcd.c,v 1.94 1997/09/21 21:41:26 gibbs Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -187,7 +187,9 @@ static	int	mcd_subchan(int unit, struct ioc_read_subchannel *sc);
 static	int	mcd_toc_header(int unit, struct ioc_toc_header *th);
 static	int	mcd_read_toc(int unit);
 static  int     mcd_toc_entrys(int unit, struct ioc_read_toc_entry *te);
+#if 0
 static  int     mcd_toc_entry(int unit, struct ioc_read_toc_single_entry *te);
+#endif
 static	int	mcd_stop(int unit);
 static  int     mcd_eject(int unit);
 static  int     mcd_inject(int unit);
@@ -1421,6 +1423,7 @@ mcd_read_toc(int unit)
 	return 0;
 }
 
+#if 0
 static int
 mcd_toc_entry(int unit, struct ioc_read_toc_single_entry *te)
 {
@@ -1471,6 +1474,7 @@ mcd_toc_entry(int unit, struct ioc_read_toc_single_entry *te)
 	}
 	return 0;
 }
+#endif
 
 static int
 mcd_toc_entrys(int unit, struct ioc_read_toc_entry *te)

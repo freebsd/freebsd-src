@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: wd82371.c,v 1.5.2.1 1996/11/16 21:19:51 phk Exp $
+ *	$Id: ide_pci.c,v 1.4 1997/09/20 07:41:55 dyson Exp $
  */
 
 #include "pci.h"
@@ -157,7 +157,6 @@ static int ide_pci_dmasetup(void *, char *, u_long, int);
 static void ide_pci_dmastart(void *);
 static int ide_pci_dmadone(void *);
 static int ide_pci_status(void *);
-static int ide_pci_timing(void *, int);
 static int ide_pci_iobase(void *xcp);
 static int ide_pci_altiobase(void *xcp);
 
@@ -484,7 +483,7 @@ static void
 promise_status(struct ide_pci_cookie *cookie)
 {
     pcici_t tag;
-    int i,j;
+    int i;
     u_int32_t port0_command, port0_altstatus;
     u_int32_t port1_command, port1_altstatus;
     u_int32_t dma_block;
@@ -930,7 +929,6 @@ ide_pci_probe(pcici_t tag, pcidi_t type)
 static void
 ide_pci_attach(pcici_t tag, int unit)
 {
-	u_long idetm;
 	u_long class, cmd;
 	int bmista_1, bmista_2;
 	int iobase_wd_1, iobase_wd_2, iobase_bm_1, iobase_bm_2;
@@ -1031,7 +1029,7 @@ ide_pci:  giving up\n");
 	 * addresses, from a PCI device to an ISA probe.  Sorry :-).
 	 */
 	if (iobase_wd_1 != IO_WD1) {
-	    struct isa_device *dvp, *dvp1, *dvup, *dvup1;
+	    struct isa_device *dvp, *dvp1, *dvup;
 	    for( dvp = isa_devtab_bio;
 			dvp->id_id != 0;
 			dvp++) {
@@ -1261,8 +1259,6 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 	u_long prd_base, prd_count;
 	u_long nbase, ncount, nend;
 	int iobase_bm;
-	static int trashmore = 0xdeadbeef;
-	static int *trashmore_p = 0;
 	u_long count, checkcount;
 
 	prd = cp->prd;

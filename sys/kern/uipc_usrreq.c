@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.27 1997/09/14 02:52:18 peter Exp $
+ *	$Id: uipc_usrreq.c,v 1.28 1997/10/12 20:24:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -450,7 +450,6 @@ static int
 unp_attach(so)
 	struct socket *so;
 {
-	register struct mbuf *m;
 	register struct unpcb *unp;
 	int error;
 

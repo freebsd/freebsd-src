@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_ex.c,v 1.7 1997/09/26 17:17:43 msmith Exp $
  */
 
 /*
@@ -249,8 +249,6 @@ int ex_attach(struct isa_device *dev)
 	int unit = dev->id_unit;
 	struct ex_softc *sc = &ex_sc[unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 
 	DODEBUG(Start_End, printf("ex_attach%d: start\n", unit););
 
@@ -393,7 +391,7 @@ void ex_start(struct ifnet *ifp)
   register struct ex_softc *sc = &ex_sc[unit];
   register int iobase = sc->iobase;
   int i, s, len, data_len, avail, dest, next;
-  unsigned char tmp16[2], *cP;
+  unsigned char tmp16[2];
   struct mbuf *opkt;
   register struct mbuf *m;
 
@@ -570,7 +568,7 @@ void exintr(int unit)
   struct ex_softc *sc = &ex_sc[unit];
   struct ifnet *ifp = &sc->arpcom.ac_if;
   int iobase = sc->iobase;
-  int s, int_status, send_pkts;
+  int int_status, send_pkts;
 
   DODEBUG(Start_End, printf("exintr%d: start\n", unit););
 
@@ -871,7 +869,6 @@ int ex_ioctl(register struct ifnet *ifp, int cmd, caddr_t data)
 void ex_reset(int unit)
 {
   struct ex_softc *sc = &ex_sc[unit];
-  struct ifnet *ifp = &sc->arpcom.ac_if;
   int s;
 
   DODEBUG(Start_End, printf("ex_reset%d: start\n", unit););
@@ -889,7 +886,6 @@ void ex_reset(int unit)
 
 void ex_watchdog(struct ifnet *ifp)
 {
-  struct ex_softc *sc = &ex_sc[ifp->if_unit];
 
   DODEBUG(Start_End, printf("ex_watchdog%d: start\n", ifp->if_unit););
 

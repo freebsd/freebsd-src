@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.30 1997/10/12 20:25:41 phk Exp $
+ * $Id: nfs_nqlease.c,v 1.31 1997/10/28 15:59:03 bde Exp $
  */
 
 
@@ -644,7 +644,6 @@ nqnfs_serverd()
 	register struct nqhost *lph;
 	struct nqlease *nextlp;
 	struct nqm *lphnext, *olphnext;
-	struct mbuf *n;
 	int i, len, ok;
 
 	for (lp = nqtimerhead.cqh_first; lp != (void *)&nqtimerhead;

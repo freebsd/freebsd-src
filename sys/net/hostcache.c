@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hostcache.c,v 1.1 1997/06/18 01:24:21 wollman Exp $
+ *	$Id: hostcache.c,v 1.2 1997/10/12 20:25:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -182,7 +182,6 @@ int
 hc_delete(struct hcentry *hc)
 {
 	struct hctable *hct;
-	u_long hash;
 	int error, s;
 
 	if (hc->hc_refcnt > 0)

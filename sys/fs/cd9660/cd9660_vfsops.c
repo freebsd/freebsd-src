@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.30 1997/10/12 20:23:38 phk Exp $
+ * $Id: cd9660_vfsops.c,v 1.31 1997/10/16 10:47:43 phk Exp $
  */
 
 #include <sys/param.h>
@@ -269,7 +269,7 @@ iso_mountfs(devvp, mp, p, argp)
 	int ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	int iso_bsize;
 	int iso_blknum;
-	struct iso_volume_descriptor *vdp;
+	struct iso_volume_descriptor *vdp = 0;
 	struct iso_primary_descriptor *pri;
 	struct iso_sierra_primary_descriptor *pri_sierra;
 	struct iso_directory_record *rootp;

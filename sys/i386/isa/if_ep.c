@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.64 1997/10/26 21:08:40 nate Exp $
+ *  $Id: if_ep.c,v 1.65 1997/10/27 00:02:33 fenner Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -568,9 +568,7 @@ int
 ep_attach(sc)
     struct ep_softc *sc;
 {
-    struct ifaddr *ifa;
     struct ifnet *ifp = &sc->arpcom.ac_if;
-    struct sockaddr_dl *sdl;
     u_short *p;
     int i;
     int attached;
@@ -1032,7 +1030,6 @@ epread(sc)
     int lenthisone;
 
     short rx_fifo2, status;
-    register short delta;
     register short rx_fifo;
 
     ifp = &sc->arpcom.ac_if;
@@ -1129,7 +1126,6 @@ read_again:
 	outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | RX_NEXT_EARLY_THRESH);
 	return;
     }
-all_pkt:
     outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
     ++ifp->if_ipackets;
     ep_fset(F_RX_FIRST);
