@@ -190,9 +190,10 @@ ISDN cards has been added to the isic(4) isdn4bsd driver.
 Support for Fujitsu MB86960A/MB86965A based Ethernet PC-Cards is back.
 [MERGED]
 
-devfs, which allows entries in the /dev directory to be built
-automatically and supports more flexible attachment of devices,
-has been largely reworked.
+devfs(5), which allows entries in the /dev directory to be built
+automatically and supports more flexible attachment of devices, has
+been largely reworked.  devfs(5) is configured into the GENERIC
+kernel.
 
 Preliminary Cardbus support under NEWCARD has been added.  This supports
 TI113X, TI12XX, TI125X, Ricoh 5C46/5C47, Topic 95/97/100 and
@@ -775,6 +776,8 @@ build a bogus kernel without a human to read the errors. [MERGED]
 
 pkg_create(1) and pkg_install(1) can now work with packages that have
 been compressed using bzip2(1).
+
+libc is now thread-safe by default; libc_r contains only thread functions.
 
 
 2. Supported Configurations
