@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.70 1994/06/22 08:33:28 jkh Exp $
+#	$Id: Makefile,v 1.71 1994/06/22 08:37:28 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -85,7 +85,7 @@ CPIO_FILES=	${COPYRIGHT}
 CPIO_CPIO=	bin/dd bin/ps bin/pwd bin/stty
 CPIO_CPIO+=	etc/protocols etc/remote etc/services
 CPIO_CPIO+=	etc/termcap
-CPIO_CPIO+=	sbin/dmesg
+#CPIO_CPIO+=	sbin/dmesg
 CPIO_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod sbin/mount_isofs
 CPIO_CPIO+=	sbin/mount_procfs
 CPIO_CPIO+=	sbin/reboot sbin/route sbin/slattach
@@ -386,10 +386,18 @@ cpio.flp:
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
 		ls ${CPIO_FILES} | cpio -pdamuv ${MOUNT})
+	# This ugliness is because the default termcap file is simply too
+	# big and we don't need such a hugh one for the initial installation,
+	# yet we want the symlink in /etc to point to the right place so we
+	# need to install the smaller one in the same location.
+	mv ${DESTDIR}/usr/share/misc/termcap ${DESTDIR}/usr/share/misc/otermcap
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${.CURDIR}/termcap.small ${DESTDIR}/usr/share/misc/termcap
 	(cd ${DESTDIR}/; \
 	    (find ${CPIO_CPIO}; ls -d ${CPIO_CPIO_DIRS}) | \
 		cpio -H newc --block-size=16 -oav | \
 		gzip -9 >${MOUNT}/inst2.cpio.gz)
+	mv ${DESTDIR}/usr/share/misc/otermcap ${DESTDIR}/usr/share/misc/termcap
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/cpio.rc ${MOUNT}/rc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
@@ -568,7 +576,7 @@ floppies:	kcopy_ah.flp kcopy_bt.flp filesyst.flp cpio.flp \
 		cdins_ah.flp cdins_bt.flp
 
 release:	release-dirs distribution crunch extract kcopy-kernels \
-		floppies bin-tarball des-tarball
+		floppies bin-tarball des-tarball clean
 
 release-dirs:
 	rm -rf ${RELEASEDIR}/filesys
