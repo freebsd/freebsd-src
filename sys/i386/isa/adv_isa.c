@@ -44,7 +44,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adv_isa.c,v 1.8 1998/12/22 18:14:12 gibbs Exp $
+ *      $Id: adv_isa.c,v 1.9 1999/04/11 03:06:06 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -99,7 +99,7 @@ static	void	adv_set_isapnp_wait_for_key(void);
 static	int	adv_get_isa_dma_channel(struct adv_softc *adv);
 static	int	adv_set_isa_dma_settings(struct adv_softc *adv);
 
-void	adv_isa_intr(void *unit);
+static void	adv_isa_intr(void *unit);
 
 struct isa_driver advdriver =
 {
