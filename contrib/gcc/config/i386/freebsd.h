@@ -135,7 +135,7 @@ Boston, MA 02111-1307, USA.  */
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
   do {									\
     if (flag_pic)							\
-      fprintf ((FILE), "\tcall *.mcount%s@GOT(%%ebx)\n");		\
+      fprintf ((FILE), "\tcall *.mcount@GOT(%%ebx)\n");			\
     else								\
       fprintf ((FILE), "\tcall .mcount\n");				\
   } while (0)
