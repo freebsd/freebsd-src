@@ -1144,7 +1144,7 @@ ata_intr(void *data)
     case 0x4d69105a:    /* Promise ATA133 */
 	outb(rman_get_start(scp->r_bmio) + 0x01, 0x0b);
 	if (!(inb(rman_get_start(scp->r_bmio) + 0x03) & 0x20))
-	    return 1;
+	    return;
 
     	/* FALLTHROUGH */
 out:
