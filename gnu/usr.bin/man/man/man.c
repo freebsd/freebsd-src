@@ -448,6 +448,41 @@ man_getopt (argc, argv)
 	}
     }
 
+#ifdef __FreeBSD__
+  if (!use_original && (locale = setlocale(LC_CTYPE, NULL)) != NULL) {
+	char *tmp;
+	struct ltable *pltable;
+
+	if ((tmp = strchr(locale, '_')) == NULL
+	    || tmp != locale + 2
+	    || strlen(tmp + 1) < 4
+	    || tmp[3] != '.') {
+		if (debug) {
+			errno = EINVAL;
+			perror ("ctype locale env");
+		}
+		locale = NULL;
+	} else {
+		if ((short_locale = strdup(locale)) == NULL) {
+			perror ("ctype locale strdup");
+			exit (1);
+		}
+		tmp = short_locale + 3;
+		tmp[0] = short_locale[0];
+		tmp[1] = short_locale[1];
+		short_locale = tmp;
+
+		tmp = short_locale + 3;
+		for (pltable = ltable; pltable->lcode != NULL; pltable++) {
+			if (strcmp(pltable->lcode, tmp) == 0) {
+				locale_nroff = pltable->nroff;
+				break;
+			}
+		}
+	}
+  }
+#endif
+
   if (pager == NULL || *pager == '\0')
     if ((pager = getenv ("PAGER")) == NULL)
       pager = strdup (PAGER);
@@ -465,40 +500,6 @@ man_getopt (argc, argv)
 		 "\nsearch path for pages determined by manpath is\n%s\n\n",
 		 manp);
     }
-
-#ifdef __FreeBSD__
-  if (!use_original && (locale = setlocale(LC_CTYPE, NULL)) != NULL) {
-	char *tmp;
-	struct ltable *pltable;
-
-	if ((short_locale = strdup(locale)) == NULL) {
-		perror ("ctype locale strdup");
-		exit (1);
-	}
-	if ((tmp = strchr(short_locale, '_')) == NULL
-	    || tmp != short_locale + 2
-	    || strlen(tmp + 1) < 4
-	    || tmp[3] != '.') {
-		if (debug) {
-			errno = EINVAL;
-			perror ("ctype locale env");
-		}
-		free(short_locale);
-		locale = NULL;
-	} else {
-		tmp[1] = short_locale[0];
-		tmp[2] = short_locale[1];
-		short_locale = tmp + 1;
-		tmp = short_locale + 3;
-		for (pltable = ltable; pltable->lcode != NULL; pltable++) {
-			if (strcmp(pltable->lcode, tmp) == 0) {
-				locale_nroff = pltable->nroff;
-				break;
-			}
-		}
-	}
-  }
-#endif
 
 #ifdef ALT_SYSTEMS
   if (alt_system_name == NULL || *alt_system_name == '\0')
