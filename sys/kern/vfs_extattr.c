@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.79 1997/10/28 10:29:55 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.80 1997/11/06 19:29:30 phk Exp $
  */
 
 /*
@@ -110,7 +110,7 @@ mount(p, uap)
 	struct vnode *vp;
 	struct mount *mp;
 	struct vfsconf *vfsp;
-	int error, flag = 0;
+	int error, flag = 0, flag2 = 0;
 	struct vattr va;
 	u_long fstypenum;
 	struct nameidata nd;
@@ -134,6 +134,7 @@ mount(p, uap)
 		}
 		mp = vp->v_mount;
 		flag = mp->mnt_flag;
+		flag2 = mp->mnt_kern_flag;
 		/*
 		 * We only allow the filesystem to be reloaded if it
 		 * is currently mounted read-only.
@@ -257,7 +258,7 @@ update:
 	if (SCARG(uap, flags) & MNT_RDONLY)
 		mp->mnt_flag |= MNT_RDONLY;
 	else if (mp->mnt_flag & MNT_RDONLY)
-		mp->mnt_flag |= MNT_WANTRDWR;
+		mp->mnt_kern_flag |= MNTK_WANTRDWR;
 	mp->mnt_flag &=~ (MNT_NOSUID | MNT_NOEXEC | MNT_NODEV |
 	    MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_NOATIME |
 	    MNT_NOCLUSTERR | MNT_NOCLUSTERW);
@@ -270,12 +271,13 @@ update:
 	error = VFS_MOUNT(mp, SCARG(uap, path), SCARG(uap, data), &nd, p);
 	if (mp->mnt_flag & MNT_UPDATE) {
 		vrele(vp);
-		if (mp->mnt_flag & MNT_WANTRDWR)
+		if (mp->mnt_kern_flag & MNTK_WANTRDWR)
 			mp->mnt_flag &= ~MNT_RDONLY;
-		mp->mnt_flag &=~
-		    (MNT_UPDATE | MNT_RELOAD | MNT_FORCE | MNT_WANTRDWR);
+		mp->mnt_flag &=~ (MNT_UPDATE | MNT_RELOAD | MNT_FORCE);
+		mp->mnt_kern_flag &=~ (MNTK_WANTRDWR);
 		if (error)
 			mp->mnt_flag = flag;
+			mp->mnt_kern_flag = flag2;
 		vfs_unbusy(mp, p);
 		return (error);
 	}
@@ -415,7 +417,7 @@ dounmount(mp, flags, p)
 	int error;
 
 	simple_lock(&mountlist_slock);
-	mp->mnt_flag |= MNT_UNMOUNT;
+	mp->mnt_kern_flag |= MNTK_UNMOUNT;
 	lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK, &mountlist_slock, p);
 
 	if (mp->mnt_flag & MNT_EXPUBLIC)
@@ -431,7 +433,7 @@ dounmount(mp, flags, p)
 		error = VFS_UNMOUNT(mp, flags, p);
 	simple_lock(&mountlist_slock);
 	if (error) {
-		mp->mnt_flag &= ~MNT_UNMOUNT;
+		mp->mnt_kern_flag &= ~MNTK_UNMOUNT;
 		lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK | LK_REENABLE,
 		    &mountlist_slock, p);
 		return (error);
@@ -445,7 +447,7 @@ dounmount(mp, flags, p)
 	if (mp->mnt_vnodelist.lh_first != NULL)
 		panic("unmount: dangling vnode");
 	lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK, &mountlist_slock, p);
-	if (mp->mnt_flag & MNT_MWAIT)
+	if (mp->mnt_kern_flag & MNTK_MWAIT)
 		wakeup((caddr_t)mp);
 	free((caddr_t)mp, M_MOUNT);
 	return (0);

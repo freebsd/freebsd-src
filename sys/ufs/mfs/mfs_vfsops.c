@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.36 1997/10/12 20:26:19 phk Exp $
+ * $Id: mfs_vfsops.c,v 1.37 1997/11/01 20:19:43 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -343,7 +343,7 @@ mfs_mount(mp, path, data, ndp, p)
 			if (err)
 				goto error_1;
 		}
-		if (fs->fs_ronly && (mp->mnt_flag & MNT_WANTRDWR))
+		if (fs->fs_ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR))
 			fs->fs_ronly = 0;
 #ifdef EXPORTMFS
 		/* if not updating name...*/
