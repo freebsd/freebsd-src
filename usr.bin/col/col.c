@@ -49,13 +49,15 @@ static char sccsid[] = "@(#)col.c	8.5 (Berkeley) 5/4/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <ctype.h>
 #include <err.h>
+#include <locale.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <locale.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #define	BS	'\b'		/* backspace */
 #define	TAB	'\t'		/* tab */
@@ -80,7 +82,8 @@ typedef struct char_str {
 #define	CS_ALTERNATE	2
 	short		c_column;	/* column character is in */
 	CSET		c_set;		/* character set (currently only 2) */
-	char		c_char;		/* character in question */
+	wchar_t		c_char;		/* character in question */
+	int		c_width;	/* character width */
 } CHAR;
 
 typedef struct line_str LINE;
@@ -113,14 +116,14 @@ int	pass_unknown_seqs;	/* pass unknown control sequences */
 
 #define	PUTC(ch) \
 	do {					\
-		if (putchar(ch) == EOF)		\
+		if (putwchar(ch) == WEOF)	\
 			errx(1, "write error");	\
 	} while (0)
 
 int
 main(int argc, char **argv)
 {
-	int ch;
+	wint_t ch;
 	CHAR *c;
 	CSET cur_set;			/* current character set */
 	LINE *l;			/* current line */
@@ -130,7 +133,7 @@ main(int argc, char **argv)
 	int max_line;			/* max value of cur_line */
 	int this_line;			/* line l points to */
 	int nflushd_lines;		/* number of lines that were flushed */
-	int adjust, opt, warned;
+	int adjust, opt, warned, width;
 
 	(void)setlocale(LC_CTYPE, "");
 
@@ -173,8 +176,8 @@ main(int argc, char **argv)
 	cur_set = last_set = CS_NORMAL;
 	lines = l = alloc_line();
 
-	while ((ch = getchar()) != EOF) {
-		if (!isgraph(ch)) {
+	while ((ch = getwchar()) != WEOF) {
+		if (!iswgraph(ch)) {
 			switch (ch) {
 			case BS:		/* can't go back further */
 				if (cur_col == 0)
@@ -185,7 +188,7 @@ main(int argc, char **argv)
 				cur_col = 0;
 				continue;
 			case ESC:		/* just ignore EOF */
-				switch(getchar()) {
+				switch(getwchar()) {
 				case RLF:
 					cur_line -= 2;
 					break;
@@ -219,6 +222,11 @@ main(int argc, char **argv)
 				continue;
 			case VT:
 				cur_line -= 2;
+				continue;
+			}
+			if (iswspace(ch)) {
+				if ((width = wcwidth(ch)) > 0)
+					cur_col += width;
 				continue;
 			}
 			if (!pass_unknown_seqs)
@@ -294,6 +302,7 @@ main(int argc, char **argv)
 		c->c_char = ch;
 		c->c_set = cur_set;
 		c->c_column = cur_col;
+		c->c_width = wcwidth(ch);
 		/*
 		 * If things are put in out of order, they will need sorting
 		 * when it is flushed.
@@ -302,8 +311,11 @@ main(int argc, char **argv)
 			l->l_needs_sort = 1;
 		else
 			l->l_max_col = cur_col;
-		cur_col++;
+		if (c->c_width > 0)
+			cur_col += c->c_width;
 	}
+	if (ferror(stdin))
+		err(1, NULL);
 	if (max_line == 0)
 		exit(0);	/* no lines, so just exit */
 
@@ -386,7 +398,7 @@ void
 flush_line(LINE *l)
 {
 	CHAR *c, *endc;
-	int nchars, last_col, this_col;
+	int i, nchars, last_col, this_col;
 
 	last_col = 0;
 	nchars = l->l_line_len;
@@ -438,8 +450,12 @@ flush_line(LINE *l)
 		} while (--nchars > 0 && this_col == endc->c_column);
 
 		/* if -b only print last character */
-		if (no_backspaces)
+		if (no_backspaces) {
 			c = endc - 1;
+			if (nchars > 0 &&
+			    this_col + c->c_width > endc->c_column)
+				continue;
+		}
 
 		if (this_col > last_col) {
 			int nspace = this_col - last_col;
@@ -464,7 +480,6 @@ flush_line(LINE *l)
 				PUTC(' ');
 			last_col = this_col;
 		}
-		last_col++;
 
 		for (;;) {
 			if (c->c_set != last_set) {
@@ -478,10 +493,13 @@ flush_line(LINE *l)
 				last_set = c->c_set;
 			}
 			PUTC(c->c_char);
+			if ((c + 1) < endc)
+				for (i = 0; i < c->c_width; i++)
+					PUTC('\b');
 			if (++c >= endc)
 				break;
-			PUTC('\b');
 		}
+		last_col += (c - 1)->c_width;
 	}
 }
 
