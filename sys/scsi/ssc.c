@@ -1,4 +1,4 @@
-/* "superscsi" pseudo device.  This requires options SCSISUPER.
+/* "superscsi" pseudo device.
  * "superscsi" supports general SCSI utilities that can iterate
  * over all SCSI targets, including those without device entry
  * points.
@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id:$
+ * $Id: ssc.c,v 1.2 1995/01/08 15:56:09 dufault Exp $
  */
 
 #include <sys/types.h>
@@ -85,8 +85,7 @@ int sscioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 	if (cmd == SCIOCADDR)
 	{
 		struct scsi_addr *sca = (struct scsi_addr *) data;
-		dev_t newdev =
-		 SCSI_MKSUPER(SCSI_MKDEV(sca->scbus,sca->lun,sca->target));
+		dev_t newdev = SCSI_MKFIXED(sca->scbus,sca->target,sca->lun);
 		int ret;
 
 		if (sscdev != NODEV)
