@@ -535,18 +535,18 @@
       (with <literal>deflate</literal> and <literal>none</literal>
       compression). &merged;</para>
 
+    <para>The <filename>libgpib</filename> library has been added to
+      give userland access to GPIB devices (using the the pcii driver)
+      via the
+      <function>ib<replaceable>foo</replaceable></function>
+      API.</para>
+
     <para>The default stack sizes in <filename>libpthread</filename>
       and <filename>libc_r</filename> have been increased.  On 32-bit
       platforms, the main thread receives a 2MB stack size by default,
       with other threads receiving a 1MB stack size by default.  On
       64-bit platforms, the default stack sizes are 4MB and 2MB
       respectively.</para>
-
-    <para>A number of new functions have been implemented in the
-      &man.math.3; library.  These include &man.ceill.3;,
-      &man.floorl.3;, &man.ilogbl.3;, &man.fma.3; and variants,
-      &man.lrint.3; and variants, and &man.lround.3; and
-      variants. &merged;</para>
 
     <para>The <filename>libxpg4</filename> library has been removed
       because all of its functionality was long ago merged into
@@ -555,22 +555,26 @@
       must be recompiled or use &man.libmap.conf.5;.
       Note that the &os; base system has no such binaries.</para>
 
-    <para>The &man.newfs.8; utility now supports a <option>-n</option>
-      flag to suppress the creation of a <filename>.snap</filename>
-      directory on new file systems.  This feature is intended for use
-      on memory or vnode file systems that will not require snapshot
-      support. &merged;</para>
+    <para>A number of new functions have been implemented in the
+      &man.math.3; library.  These include &man.ceill.3;,
+      &man.floorl.3;, &man.ilogbl.3;, &man.fma.3; and variants,
+      &man.lrint.3; and variants, and &man.lround.3; and
+      variants. &merged;</para>
 
-    <para>The <literal>NO_NIS</literal> compile-time knob for userland
-      has been added.  As its name implies, enabling this
-      <filename>Makefile</filename> variable will cause NIS support to
-      be excluded from various programs and will cause the NIS
-      utilities to not be built. &merged;</para>
+    <para>The &man.mknod.8; utility is now deprecated.
+      Device nodes have been managed by the &man.devfs.5; device file
+      system since &os; 5.0.</para>
 
     <para arch="i386">The &man.mkuzip.8; utility, which
       compresses file system images for use with
       <literal>GEOM_UZIP</literal> &man.geom.4; module,
       has been added. &merged;</para>
+
+    <para>The &man.moused.8; daemon now supports <quote>virtual
+      scrolling</quote>, in which mouse motions made while holding
+      down the middle mouse button are interpreted as scrolling.  This
+      feature is enabled with the <option>-V</option>
+      flag. &merged;</para>
 
     <para>A separate directory has been added for &man.named.8;
       dynamic zones which is owned by the <username>bind</username> user
@@ -578,31 +582,27 @@
       For more detail, see an example dynamic zone in the sample
       &man.named.conf.5;.  &merged;</para>
 
+    <para>The &man.ncal.1; utility now supports a <option>-m</option>
+      flag to generate a calendar for a specified month in the current
+      year. &merged;</para>
+
+    <para>The &man.newfs.8; utility now supports a <option>-n</option>
+      flag to suppress the creation of a <filename>.snap</filename>
+      directory on new file systems.  This feature is intended for use
+      on memory or vnode file systems that will not require snapshot
+      support. &merged;</para>
+
     <para>The &man.newsyslog.8; utility now supports
 	a <option>-d</option> option to specify an alternate root for log files
 	similar to <varname>DESTDIR</varname> in the BSD make process.
 	This only affects log file paths, not configuration file (<option>-f</option>)
 	or archive directory (<option>-a</option>) paths.</para>
 
-    <para>The &man.ncal.1; utility now supports a <option>-m</option>
-      flag to generate a calendar for a specified month in the current
-      year. &merged;</para>
-
-    <para>The <filename>libgpib</filename> library has been added to
-      give userland access to GPIB devices (using the the pcii driver)
-      via the
-      <function>ib<replaceable>foo</replaceable></function>
-      API.</para>
-
-    <para>The &man.mknod.8; utility is now deprecated.
-      Device nodes have been managed by the &man.devfs.5; device file
-      system since &os; 5.0.</para>
-
-    <para>The &man.moused.8; daemon now supports <quote>virtual
-      scrolling</quote>, in which mouse motions made while holding
-      down the middle mouse button are interpreted as scrolling.  This
-      feature is enabled with the <option>-V</option>
-      flag. &merged;</para>
+    <para>The <literal>NO_NIS</literal> compile-time knob for userland
+      has been added.  As its name implies, enabling this
+      <filename>Makefile</filename> variable will cause NIS support to
+      be excluded from various programs and will cause the NIS
+      utilities to not be built. &merged;</para>
 
     <para>For years, &os; has used <filename>Makefile</filename>
       variables of the form
