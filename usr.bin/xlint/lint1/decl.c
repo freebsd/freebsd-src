@@ -1782,7 +1782,7 @@ decl1ext(sym_t *dsym, int initflg)
 	if ((rdsym = dcs->d_rdcsym) != NULL) {
 
 		/*
-		 * If the old symbol stems from a old style function definition
+		 * If the old symbol stems from an old style function definition
 		 * we have remembered the params in rdsmy->s_args and compare
 		 * them with the params of the prototype.
 		 */
@@ -2524,7 +2524,7 @@ decl1loc(sym_t *dsym, int initflg)
 	}
 
 	/*
-	 * Before we can check the size we must wait for a initialisation
+	 * Before we can check the size we must wait for an initialisation
 	 * which may follow.
 	 */
 }

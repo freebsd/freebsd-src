@@ -31,6 +31,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "lint.h"
 #include "op.h"
@@ -221,7 +223,7 @@ typedef	struct sym {
 				   definition */
 	u_int	s_rimpl : 1;	/* return value of function implizit decl. */
 	u_int	s_osdef : 1;	/* symbol stems from old style function def. */
-	u_int	s_inline : 1;	/* true if this is a inline function */
+	u_int	s_inline : 1;	/* true if this is an inline function */
 	struct	sym *s_xsym;	/* for local declared external symbols pointer
 				   to external symbol with same name */
 	def_t	s_def;		/* declared, tentative defined, defined */
@@ -232,7 +234,7 @@ typedef	struct sym {
 	val_t	s_value;	/* value (if enumcon) */
 	union {
 		str_t	*_s_st;	/* tag, if it is a struct/union member */
-		enum_t	*_s_et;	/* tag, if it is a enumerator */
+		enum_t	*_s_et;	/* tag, if it is an enumerator */
 		tspec_t	_s_tsp;	/* type (only for keywords) */
 		tqual_t	_s_tqu;	/* qualifier (only for keywords) */
 		struct	sym *_s_args; /* arguments in old style function
