@@ -121,10 +121,10 @@ get_real_pos:
 				fp->_r += pos;
 				pos = 0;
 			} else {
-				if (spos == -1)
-					goto get_real_pos;
 				fp->_p = fp->_bf._base;
 				fp->_r = 0;
+				if (spos == -1)
+					goto get_real_pos;
 				pos = spos;
 			}
 		}
@@ -136,11 +136,11 @@ get_real_pos:
 					fp->_r += pos;
 					pos = 0;
 				} else {
-					if (spos == -1)
-						goto get_real_pos;
 					fp->_p = fp->_bf._base;
 					fp->_r = 0;
 					FREEUB(fp);
+					if (spos == -1)
+						goto get_real_pos;
 					pos = spos;
 				}
 			}
