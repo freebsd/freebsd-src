@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: sgmlfmt.pl,v 1.10 1996/05/15 17:05:17 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.11 1996/09/08 20:40:52 jfieber Exp $
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.
@@ -53,7 +53,7 @@ $decl = "$dtdbase/linuxdoc.dcl";
 sub usage {
     print "Usage:\n";
     print "sgmlfmt -f <format> [-i <namea> ...] [-links] [-ssi] file\n";
-    print "where <format> is one of: html, latex, ascii, roff\n";
+    print "where <format> is one of: ascii, html, koi8-r, latex, latin1, ps, roff\n";
 }
 
 #
