@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tireg.h,v 1.46 1999/07/05 19:20:31 wpaul Exp $
+ *	$Id: if_tireg.h,v 1.1.2.4 1999/07/05 20:20:36 wpaul Exp $
  */
 
 /*
@@ -801,17 +801,10 @@ struct ti_tx_desc {
  * boundary.
  */
 
-#ifdef __alpha__
 #define ETHER_ALIGN 2
-#endif
-
-#ifdef __i386__
-#define ETHER_ALIGN 0
-#endif
-
 
 #define TI_FRAMELEN		1518
-#define TI_JUMBO_FRAMELEN	9018 + ETHER_ALIGN
+#define TI_JUMBO_FRAMELEN	9018
 #define TI_JUMBO_MTU		(TI_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define TI_PAGE_SIZE		PAGE_SIZE
 #define TI_MIN_FRAMELEN		60
@@ -1035,7 +1028,7 @@ struct ti_event_desc {
 #define TI_MSLOTS	256
 #define TI_JSLOTS	256
 
-#define TI_JRAWLEN (TI_JUMBO_FRAMELEN + sizeof(u_int64_t))
+#define TI_JRAWLEN (TI_JUMBO_FRAMELEN + ETHER_ALIGN + sizeof(u_int64_t))
 #define TI_JLEN (TI_JRAWLEN + (sizeof(u_int64_t) - \
 	(TI_JRAWLEN % sizeof(u_int64_t))))
 #define TI_JPAGESZ PAGE_SIZE
