@@ -91,10 +91,7 @@ int listaps;
  * (ripped screaming from ifconfig/ifconfig.c)
  */
 void
-printb(s, v, bits)
-	char *s;
-	char *bits;
-	unsigned short v;
+printb(char *s, uint32_t v, char *bits)
 {
 	int i, any = 0;
 	char c;
