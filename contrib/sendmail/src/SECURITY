@@ -1,11 +1,11 @@
-# Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-#	$Id: SECURITY,v 1.47 2001/09/23 02:29:05 ca Exp $
+#	$Id: SECURITY,v 1.50 2002/03/29 19:45:48 ca Exp $
 #
 
 This file gives some hints how to configure and run sendmail for
@@ -60,6 +60,9 @@ drwxrwx---	smmsp  smmsp	... /var/spool/clientmqueue
 drwx------	root   wheel	... /var/spool/mqueue
 -r--r--r--	root   wheel	... /etc/mail/sendmail.cf
 -r--r--r--	root   wheel	... /etc/mail/submit.cf
+
+[Notice: On some OS "wheel" is not used but "bin" or "root" instead,
+however, this is not important here.]
 
 That is, the owner of sendmail is root, the group is smmsp, and
 the binary is set-group-ID.  The client mail queue is owned by
@@ -186,7 +189,14 @@ sm-mta.
 Set-User-Id
 -----------
 
-If you really have to install sendmail set-user-ID root, you can use
+If you really have to install sendmail set-user-ID root, first build
+the sendmail package normally using
+
+	sh ./Build
+
+Then you can use
 
 	sh ./Build install-set-user-id
 
+to install the package in the old (pre-8.12) way.  Make sure that
+no submit.cf file is installed.

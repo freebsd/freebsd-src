@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.237 2001/12/10 19:56:03 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.241 2002/03/15 01:32:47 gshapiro Exp $")
 
 static void	collecttimeout __P((time_t));
 static void	dferror __P((SM_FILE_T *volatile, char *, ENVELOPE *));
@@ -103,10 +103,6 @@ collect_doheader(e)
 
 	if (GrabTo && e->e_sendqueue == NULL)
 		usrerr("No recipient addresses found in header");
-
-	/* collect statistics */
-	if (OpMode != MD_VERIFY)
-		markstats(e, (ADDRESS *) NULL, STATS_NORMAL);
 
 	/*
 	**  If we have a Return-Receipt-To:, turn it into a DSN.
@@ -431,10 +427,12 @@ collect(fp, smtpmode, hdrp, e)
 					istate = IS_DOTCR;
 					continue;
 				}
-				else if (c != '.' ||
-					 (OpMode != MD_SMTP &&
+				else if (ignrdot ||
+					 (c != '.' &&
+					  OpMode != MD_SMTP &&
 					  OpMode != MD_DAEMON &&
 					  OpMode != MD_ARPAFTP))
+
 				{
 					*pbp++ = c;
 					c = '.';
@@ -448,8 +446,15 @@ collect(fp, smtpmode, hdrp, e)
 				{
 					/* push back the ".\rx" */
 					*pbp++ = c;
-					*pbp++ = '\r';
-					c = '.';
+					if (OpMode != MD_SMTP &&
+					    OpMode != MD_DAEMON &&
+					    OpMode != MD_ARPAFTP)
+					{
+						*pbp++ = '\r';
+						c = '.';
+					}
+					else
+						c = '\r';
 				}
 				break;
 
@@ -851,6 +856,10 @@ readerr:
 	}
 	else
 		e->e_dfp = df;
+
+	/* collect statistics */
+	if (OpMode != MD_VERIFY)
+		markstats(e, (ADDRESS *) NULL, STATS_NORMAL);
 }
 
 static void

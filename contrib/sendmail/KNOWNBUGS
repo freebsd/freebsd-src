@@ -41,6 +41,25 @@ This list is not guaranteed to be complete.
   characters then no header check is done even if one is configured for
   the header.
 
+* Sender addresses whose domain part cause a temporary A record lookup
+  failure but have a valid MX record will be temporarily rejected in
+  the default configuration.  Solution: fix the DNS at the sender side.
+  If that's not easy to achieve, possible workarounds are:
+  - add an entry to the access map:
+	dom.ain	OK
+  - (only for advanced users) replace
+
+# Resolve map (to check if a host exists in check_mail)
+Kresolve host -a<OKR> -T<TEMP>
+
+   with
+
+# Resolve map (to check if a host exists in check_mail)
+Kcanon host -a<OKR> -T<TEMP>
+Kdnsmx dns -R MX -a<OKR> -T<TEMP>
+Kresolve sequence dnsmx canon
+
+
 * Duplicate error messages.
 
   Sometimes identical, duplicate error messages can be generated.  As
@@ -216,4 +235,4 @@ This list is not guaranteed to be complete.
   the file.  This is unavoidable as sendmail must verify the file is safe
   to open before opening it.  A file can not be locked until it is open.
 
-$Revision: 8.54 $, Last updated $Date: 2001/12/17 16:07:51 $
+$Revision: 8.55 $, Last updated $Date: 2002/03/05 00:45:54 $

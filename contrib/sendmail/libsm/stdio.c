@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: stdio.c,v 1.52 2001/09/18 21:45:23 gshapiro Exp $")
+SM_RCSID("@(#)$Id: stdio.c,v 1.56 2002/04/03 21:55:15 ca Exp $")
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -338,24 +338,31 @@ sm_stdgetinfo(fp, what, valp)
 	  case SM_IO_WHAT_FD:
 		return fp->f_file;
 
-	  case SM_IO_IS_READABLE:
-		{
-			fd_set readfds;
-			struct timeval timeout;
+	  case SM_IO_WHAT_SIZE:
+	  {
+		  struct stat st;
 
-			FD_ZERO(&readfds);
-			SM_FD_SET(fp->f_file, &readfds);
-			timeout.tv_sec = 0;
-			timeout.tv_usec = 0;
-			if (select(fp->f_file + 1,
-				   FDSET_CAST &readfds,
-				   NULL,
-				   NULL,
-				   &timeout) > 0 &&
-			    SM_FD_ISSET(fp->f_file, &readfds))
-				return 1;
-			return 0;
-		}
+		  if (fstat(fp->f_file, &st) == 0)
+			  return st.st_size;
+		  else
+			  return -1;
+	  }
+
+	  case SM_IO_IS_READABLE:
+	  {
+		  fd_set readfds;
+		  struct timeval timeout;
+
+		  FD_ZERO(&readfds);
+		  SM_FD_SET(fp->f_file, &readfds);
+		  timeout.tv_sec = 0;
+		  timeout.tv_usec = 0;
+		  if (select(fp->f_file + 1, FDSET_CAST &readfds,
+			     NULL, NULL, &timeout) > 0 &&
+		      SM_FD_ISSET(fp->f_file, &readfds))
+			  return 1;
+		  return 0;
+	  }
 
 	  default:
 		errno = EINVAL;
@@ -364,19 +371,19 @@ sm_stdgetinfo(fp, what, valp)
 }
 
 /*
-**  SM_STDFDOPEN -- open file by primative 'fd' rather than pathname
+**  SM_STDFDOPEN -- open file by primitive 'fd' rather than pathname
 **
 **	I/O function to handle fdopen() stdio equivalence. The rest of
 **	the functions are the same as the sm_stdopen() above.
 **
 **	Parameters:
 **		fp -- the file pointer to be associated with the open
-**		name -- the primative file descriptor for association
+**		name -- the primitive file descriptor for association
 **		flags -- indicates type of access methods
 **		rpool -- ignored
 **
 **	Results:
-**		Success: primative file descriptor value
+**		Success: primitive file descriptor value
 **		Failure: -1 and sets errno
 */
 

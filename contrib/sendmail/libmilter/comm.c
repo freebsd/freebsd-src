@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: comm.c,v 8.48 2001/11/07 17:43:04 ca Exp $")
+SM_RCSID("@(#)$Id: comm.c,v 8.54 2002/03/06 16:03:26 ca Exp $")
 
 #include "libmilter.h"
 #include <sm/errstring.h>
@@ -206,6 +206,39 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 **		MI_SUCCESS/MI_FAILURE
 */
 
+/*
+**  we don't care much about the timeout here, it's very long anyway
+**  FD_SETSIZE is only checked in mi_rd_cmd.
+**  XXX l == 0 ?
+*/
+
+#define MI_WR(data)	\
+	while (sl > 0)							\
+	{								\
+		FD_ZERO(&wrtset);					\
+		FD_SET((unsigned int) sd, &wrtset);			\
+		ret = select(sd + 1, NULL, &wrtset, NULL, timeout);	\
+		if (ret == 0)						\
+			return MI_FAILURE;				\
+		if (ret < 0)						\
+		{							\
+			if (errno == EINTR)				\
+				continue;				\
+			else						\
+				return MI_FAILURE;			\
+		}							\
+		l = MI_SOCK_WRITE(sd, (void *) ((data) + i), sl);	\
+		if (l < 0)						\
+		{							\
+			if (errno == EINTR)				\
+				continue;				\
+			else						\
+				return MI_FAILURE;			\
+		}							\
+		i += l;							\
+		sl -= l;						\
+	}
+
 int
 mi_wr_cmd(sd, timeout, cmd, buf, len)
 	socket_t sd;
@@ -229,48 +262,15 @@ mi_wr_cmd(sd, timeout, cmd, buf, len)
 	i = 0;
 	sl = MILTER_LEN_BYTES + 1;
 
-	do
-	{
-		FD_ZERO(&wrtset);
-		FD_SET((unsigned int) sd, &wrtset);
-		if ((ret = select(sd + 1, NULL, &wrtset, NULL, timeout)) == 0)
-			return MI_FAILURE;
-	} while (ret < 0 && errno == EINTR);
-	if (ret < 0)
-		return MI_FAILURE;
-
 	/* use writev() instead to send the whole stuff at once? */
-	while ((l = MI_SOCK_WRITE(sd, (void *) (data + i),
-				  sl - i)) < (ssize_t) sl)
-	{
-		if (l < 0)
-			return MI_FAILURE;
-		i += l;
-		sl -= l;
-	}
 
+	MI_WR(data);
 	if (len > 0 && buf == NULL)
 		return MI_FAILURE;
 	if (len == 0 || buf == NULL)
 		return MI_SUCCESS;
 	i = 0;
 	sl = len;
-	do
-	{
-		FD_ZERO(&wrtset);
-		FD_SET((unsigned int) sd, &wrtset);
-		if ((ret = select(sd + 1, NULL, &wrtset, NULL, timeout)) == 0)
-			return MI_FAILURE;
-	} while (ret < 0 && errno == EINTR);
-	if (ret < 0)
-		return MI_FAILURE;
-	while ((l = MI_SOCK_WRITE(sd, (void *) (buf + i),
-				  sl - i)) < (ssize_t) sl)
-	{
-		if (l < 0)
-			return MI_FAILURE;
-		i += l;
-		sl -= l;
-	}
+	MI_WR(buf);
 	return MI_SUCCESS;
 }

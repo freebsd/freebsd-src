@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: strio.c,v 1.40 2001/09/11 04:04:49 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: strio.c,v 1.42 2002/02/11 23:05:50 gshapiro Exp $")
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -31,11 +31,12 @@ SM_IDSTR(id, "@(#)$Id: strio.c,v 1.40 2001/09/11 04:04:49 gshapiro Exp $")
 
 struct sm_str_obj
 {
-	char	*strio_base;
-	char	*strio_end;
-	size_t	strio_size;
-	size_t	strio_offset;
-	int	strio_flags;
+	char		*strio_base;
+	char		*strio_end;
+	size_t		strio_size;
+	size_t		strio_offset;
+	int		strio_flags;
+	const void	*strio_rpool;
 };
 
 typedef struct sm_str_obj SM_STR_OBJ_T;
@@ -109,7 +110,7 @@ sm_strread(fp, buf, n)
 **
 **	Parameters:
 **		fp -- the file pointer
-**		buf -- location of data for writting
+**		buf -- location of data for writing
 **		n -- number of bytes to write
 **
 **	Returns:
@@ -200,8 +201,8 @@ reseek:
 **
 **	Parameters:
 **		fp -- file pointer open to be associated with
-**		info -- flags for methods of access (was mode)
-**		flags -- ignored
+**		info -- initial contents (NULL for none)
+**		flags -- flags for methods of access (was mode)
 **		rpool -- resource pool to use memory from (if applicable)
 **
 **	Results:
@@ -217,24 +218,23 @@ sm_stropen(fp, info, flags, rpool)
 	const void *rpool;
 {
 	register SM_STR_OBJ_T *s;
-	int *strmode = (int *) info;
 
 #if SM_RPOOL
 	s = sm_rpool_malloc_x(rpool, sizeof(SM_STR_OBJ_T));
 #else /* SM_RPOOL */
 	s = sm_malloc(sizeof(SM_STR_OBJ_T));
 	if (s == NULL)
-	{
-		errno = ENOMEM;
 		return -1;
-	}
 #endif /* SM_RPOOL */
 
 	fp->f_cookie = s;
+	s->strio_rpool = rpool;
 	s->strio_offset = 0;
-	s->strio_base = 0;
+	s->strio_size = 0;
+	s->strio_base = NULL;
 	s->strio_end = 0;
-	switch (*strmode)
+
+	switch (flags)
 	{
 	  case SM_IO_RDWR:
 		s->strio_flags = SMRW;
@@ -246,10 +246,31 @@ sm_stropen(fp, info, flags, rpool)
 		s->strio_flags = SMWR;
 		break;
 	  case SM_IO_APPEND:
-		return -1;
-	  default:
+		if (s->strio_rpool == NULL)
+			sm_free(s);
 		errno = EINVAL;
 		return -1;
+	  default:
+		if (s->strio_rpool == NULL)
+			sm_free(s);
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (info != NULL)
+	{
+		s->strio_base = sm_strdup_x(info);
+		if (s->strio_base == NULL)
+		{
+			int save_errno = errno;
+
+			if (s->strio_rpool == NULL)
+				sm_free(s);
+			errno = save_errno;
+			return -1;
+		}
+		s->strio_size = strlen(info);
+		s->strio_end = s->strio_base + s->strio_size;
 	}
 	return 0;
 }
