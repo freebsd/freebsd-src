@@ -899,19 +899,19 @@ ibcs2_stime(td, uap)
 	struct thread *td;
 	struct ibcs2_stime_args *uap;
 {
+	struct timeval tv;
+	long secs;
 	int error;
-	struct settimeofday_args sa;
-	caddr_t sg = stackgap_init();
 
-	sa.tv = stackgap_alloc(&sg, sizeof(*sa.tv));
-	sa.tzp = NULL;
-	if ((error = copyin((caddr_t)uap->timep,
-			   &(sa.tv->tv_sec), sizeof(long))) != 0)
-		return error;
-	sa.tv->tv_usec = 0;
-	if ((error = settimeofday(td, &sa)) != 0)
-		return EPERM;
-	return 0;
+	error = copyin(uap->timep, &secs, sizeof(long));
+	if (error)
+		return (error);
+	tv.tv_sec = secs;
+	tv.tv_usec = 0;
+	error = kern_settimeofday(td, &tv, NULL);
+	if (error)
+		error = EPERM;
+	return (error);
 }
 
 int
