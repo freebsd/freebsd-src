@@ -50,6 +50,12 @@ static const char rcsid[] =
 #define IPC_TO_STRING(x) (x == 'Q' ? "message queue" : \
 	(x == 'M' ? "shared memory segment" : "semaphore"))
 
+void usage(void);
+int msgrm(key_t, int);
+int shmrm(key_t, int);
+int semrm(key_t, int);
+void not_configured(int);
+
 int signaled;
 
 void usage(void);
