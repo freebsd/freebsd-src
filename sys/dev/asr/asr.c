@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * Copyright (c) 1996-2000 Distributed Processing Technology Corporation
  * Copyright (c) 2000-2001 Adaptec Corporation
@@ -103,6 +102,8 @@
  *                      stopped using fordriver for holding on to the TID
  *                      use proprietary packet creation instead of scsi_inquire
  *                      CAM layer sends synchronize commands.
+ *
+ * $FreeBSD$
  */
 
 #define ASR_VERSION     1
@@ -363,11 +364,11 @@ typedef struct Asr_softc {
 #               define HA_OFF_LINE          2
 #               define HA_OFF_LINE_RECOVERY 3
         /* Configuration information */
-        /* The target id maximums we take     */
-        u_int8_t                ha_MaxBus;     /* Maximum bus              */
-        u_int8_t                ha_MaxId;      /* Maximum target ID        */
-        u_int8_t                ha_MaxLun;     /* Maximum target LUN            */
-        u_int8_t                ha_SgSize;     /* Max SG elements          */
+        /* The target id maximums we take */
+        u_int8_t                ha_MaxBus;     /* Maximum bus */
+        u_int8_t                ha_MaxId;      /* Maximum target ID */
+        u_int8_t                ha_MaxLun;     /* Maximum target LUN */
+        u_int8_t                ha_SgSize;     /* Max SG elements */
         u_int8_t                ha_pciBusNum;
         u_int8_t                ha_pciDeviceNum;
         u_int8_t                ha_adapter_target[MAX_CHANNEL+1];
@@ -375,14 +376,14 @@ typedef struct Asr_softc {
         u_int16_t               ha_Msgs_Count;
 
         /* Links into other parents and HBAs */
-        struct Asr_softc      * ha_next;       /* HBA list                 */
+        struct Asr_softc      * ha_next;       /* HBA list */
 
 #ifdef ASR_MEASURE_PERFORMANCE
-#define MAX_TIMEQ_SIZE  256 // assumes MAX 256 scsi commands sent
+#define MAX_TIMEQ_SIZE  256	/* assumes MAX 256 scsi commands sent */
         asr_perf_t              ha_performance;
         u_int32_t               ha_submitted_ccbs_count;
 
-        // Queueing macros for a circular queue
+        /* Queueing macros for a circular queue */
 #define TIMEQ_FREE_LIST_EMPTY(head, tail) (-1 == (head) && -1 == (tail))
 #define TIMEQ_FREE_LIST_FULL(head, tail) ((((tail) + 1) % MAX_TIMEQ_SIZE) == (head))
 #define ENQ_TIMEQ_FREE_LIST(item, Q, head, tail) \
@@ -407,7 +408,7 @@ typedef struct Asr_softc {
                 debug_asr_printf("asr: Dequeueing when TimeQ Free List is empty... This should not happen!\n"); \
         }
 
-        // Circular queue of time stamps
+        /* Circular queue of time stamps */
         struct timeval          ha_timeQ[MAX_TIMEQ_SIZE];
         u_int32_t               ha_timeQFreeList[MAX_TIMEQ_SIZE];
         int                     ha_timeQFreeHead;
@@ -2855,7 +2856,7 @@ asr_attach (ATTACH_ARGS)
                 {
                         u_int32_t i;
 
-                        // initialize free list for timeQ
+                        /* initialize free list for timeQ */
                         sc->ha_timeQFreeHead = 0;
                         sc->ha_timeQFreeTail = MAX_TIMEQ_SIZE - 1;
                         for (i = 0; i < MAX_TIMEQ_SIZE; i++) {

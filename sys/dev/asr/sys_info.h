@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * Copyright (c) 1996-1999 Distributed Processing Technology Corporation
  * All rights reserved.
@@ -19,6 +18,7 @@
  * arising in any way out of the use of this driver software, even if advised
  * of the possibility of such damage.
  *
+ * $FreeBSD$
  */
 
 #ifndef         __SYS_INFO_H
@@ -94,12 +94,12 @@
 
 #ifdef  __cplusplus
 
-//---------- Portability Additions ----------- in sp_sinfo.cpp
+/*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
 #endif /* DPT PORTABLE */
-//--------------------------------------------
+/*--------------------------------------------*/
 
    };
 #else
@@ -172,12 +172,12 @@
 
 #ifdef  __cplusplus
 
-//---------- Portability Additions ----------- in sp_sinfo.cpp
+/*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
 #endif /* DPT PORTABLE */
-//--------------------------------------------
+/*--------------------------------------------*/
 
    };
 #else
@@ -213,12 +213,12 @@
 
 #ifdef  __cplusplus
 
-//---------- Portability Additions ----------- in sp_sinfo.cpp
+/*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
 #endif /* DPT PORTABLE */
-//--------------------------------------------
+/*--------------------------------------------*/
 
    };
 #else
@@ -261,12 +261,12 @@
 
 #ifdef  __cplusplus
 
-//---------- Portability Additions ----------- in sp_sinfo.cpp
+/*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
 #endif /* DPT PORTABLE */
-//--------------------------------------------
+/*--------------------------------------------*/
 
    };
 #else
@@ -295,12 +295,12 @@
 
 #ifdef  __cplusplus
 
-//---------- Portability Additions ----------- in sp_sinfo.cpp
+/*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
 #endif /* DPT PORTABLE */
-//--------------------------------------------
+/*--------------------------------------------*/
 
    };
 #else
@@ -329,12 +329,12 @@
 
 #ifdef  __cplusplus
 
-//---------- Portability Additions ----------- in sp_sinfo.cpp
+/*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
 #endif /* DPT PORTABLE */
-//--------------------------------------------
+/*--------------------------------------------*/
 
    };
 #else
@@ -363,12 +363,12 @@
 
 #ifdef  __cplusplus
 
-//---------- Portability Additions ----------- in sp_sinfo.cpp
+/*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
 #endif /* DPT PORTABLE */
-//--------------------------------------------
+/*--------------------------------------------*/
 
    };
 #else
@@ -397,12 +397,12 @@
 
 #ifdef  __cplusplus
 
-//---------- Portability Additions ----------- in sp_sinfo.cpp
+/*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
 	uSHORT		netInsert(dptBuffer_S *buffer);
 	uSHORT		netExtract(dptBuffer_S *buffer);
 #endif /* DPT PORTABLE */
-//--------------------------------------------
+/*--------------------------------------------*/
 
    };
 #else

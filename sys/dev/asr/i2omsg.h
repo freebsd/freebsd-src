@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /****************************************************************
  * Copyright (c) 1996-2000 Distributed Processing Technology Corporation
  * Copyright (c) 2000 Adaptec Corporation.
@@ -76,6 +75,9 @@
  * header file at the I2O SIG Web site.  Furthermore, to become a Registered
  * Developer of the I2O SIG, sign up at the Web site or call 415.750.8352
  * (United States).
+ *
+ * $FreeBSD$
+ *
  ****************************************************************/
 
 /*********************************************************************
@@ -417,12 +419,11 @@ typedef struct _I2O_FAILURE_REPLY_MESSAGE_FRAME {
 #   else
         U8                      LowestVersion;
         U8                      HighestVersion;
-/*      BF                      Severity:I2O_FAILCODE_SEVERITY_SZ;
-//      BF                      FailureCode:I2O_FAILCODE_CODE_SZ;
-//
-// Due to our compiler padding this structure and making it larger than
-// it really is (4 bytes larger), we are re-defining these two fields
-*/
+/*      BF                      Severity:I2O_FAILCODE_SEVERITY_SZ; */
+/*      BF                      FailureCode:I2O_FAILCODE_CODE_SZ; */
+/* Due to our compiler padding this structure and making it larger than
+ * it really is (4 bytes larger), we are re-defining these two fields
+ */
         U8                      Severity;
         U8                      FailureCode;
         BF                      reserved:I2O_RESERVED_4BITS;
@@ -937,7 +938,7 @@ typedef struct _I2O_SG_ELEMENT {
        /* Transport Detail Element */
        I2O_SGE_TRANSPORT_ELEMENT           Transport;
 #if (defined(sun) && defined(u))
-// there is a macro defined in Solaris sys/user.h for u, rename this to uSG
+/* there is a macro defined in Solaris sys/user.h for u, rename this to uSG */
    } uSG ;
 #else
    } u ;
