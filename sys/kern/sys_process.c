@@ -227,16 +227,8 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		tmap = map;
 		error = vm_map_lookup(&tmap, pageno, reqprot, &out_entry,
 		    &object, &pindex, &out_prot, &wired);
-
 		if (error) {
 			error = EFAULT;
-
-			/*
-			 * Make sure that there is no residue in 'object' from
-			 * an error return on vm_map_lookup.
-			 */
-			object = NULL;
-
 			break;
 		}
 		VM_OBJECT_LOCK(object);
@@ -253,32 +245,21 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		}
 		VM_OBJECT_UNLOCK(object);
 		if (m == NULL) {
-			error = EFAULT;
-
-			/*
-			 * Make sure that there is no residue in 'object' from
-			 * an error return on vm_map_lookup.
-			 */
-			object = NULL;
-
 			vm_map_lookup_done(tmap, out_entry);
-
+			error = EFAULT;
 			break;
 		}
 
 		/*
-		 * Wire the page into memory
+		 * Hold the page in memory.
 		 */
 		vm_page_lock_queues();
-		vm_page_wire(m);
+		vm_page_hold(m);
 		vm_page_unlock_queues();
 
 		/*
 		 * We're done with tmap now.
-		 * But reference the object first, so that we won't loose
-		 * it.
 		 */
-		vm_object_reference(object);
 		vm_map_lookup_done(tmap, out_entry);
 
 		pmap_qenter(kva, &m, 1);
@@ -291,19 +272,13 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		pmap_qremove(kva, 1);
 
 		/*
-		 * release the page and the object
+		 * Release the page.
 		 */
 		vm_page_lock_queues();
-		vm_page_unwire(m, 1);
+		vm_page_unhold(m);
 		vm_page_unlock_queues();
-		vm_object_deallocate(object);
-
-		object = NULL;
 
 	} while (error == 0 && uio->uio_resid > 0);
-
-	if (object)
-		vm_object_deallocate(object);
 
 	kmem_free(kernel_map, kva, PAGE_SIZE);
 	vmspace_free(vm);
