@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#ifdef __alpha__
+#ifndef __i386__
 int
 kget(char *out)
 {
