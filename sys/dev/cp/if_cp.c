@@ -368,7 +368,7 @@ static int cp_attach (device_t dev)
 #else
 	bd->board = b;
 	b->sys = bd;
-	rid = PCIR_MAPS;
+	rid = PCIR_BAR(0);
 	bd->cp_res = bus_alloc_resource (dev, SYS_RES_MEMORY, &rid,
 			0, ~0, 1, RF_ACTIVE);
 	if (! bd->cp_res) {
@@ -384,7 +384,7 @@ static int cp_attach (device_t dev)
 	if (res) {
 		printf ("cp%d: can't init, error code:%x\n", unit, res);
 #if __FreeBSD_version >= 400000
-		bus_release_resource (dev, SYS_RES_MEMORY, PCIR_MAPS, bd->cp_res);
+		bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->cp_res);
 #endif
 		free (b, M_DEVBUF);
 		splx (s);
@@ -418,7 +418,7 @@ static int cp_attach (device_t dev)
        	if (! bd->cp_irq) {
 		printf ("cp%d: cannot map interrupt\n", unit);
 		bus_release_resource (dev, SYS_RES_MEMORY,
-				PCIR_MAPS, bd->cp_res);
+				PCIR_BAR(0), bd->cp_res);
 		free (b, M_DEVBUF);
 		splx (s);
 		return (ENXIO);
@@ -428,7 +428,7 @@ static int cp_attach (device_t dev)
 	if (error) {
 		printf ("cp%d: cannot set up irq\n", unit);
 		bus_release_resource (dev, SYS_RES_MEMORY,
-				PCIR_MAPS, bd->cp_res);
+				PCIR_BAR(0), bd->cp_res);
 		bus_release_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
 		free (b, M_DEVBUF);
 		splx (s);
@@ -601,7 +601,7 @@ static int cp_detach (device_t dev)
 	bus_teardown_intr (dev, bd->cp_irq, bd->cp_intrhand);
 	bus_deactivate_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
 	bus_release_resource (dev, SYS_RES_IRQ, 0, bd->cp_irq);
-	bus_release_resource (dev, SYS_RES_MEMORY, PCIR_MAPS, bd->cp_res);
+	bus_release_resource (dev, SYS_RES_MEMORY, PCIR_BAR(0), bd->cp_res);
 	cp_led_off (b);
 	if (led_timo[b->num].callout)
 		untimeout (cp_led_off, b, led_timo[b->num]);
