@@ -167,23 +167,14 @@ ENTRY(tl_ipi_tlb_page_demap)
 	cmp	%g1, %g2
 	movne	%xcc, TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE, %g3
 
-	ldx	[%g5 + ITA_TLB], %g1
 	ldx	[%g5 + ITA_VA], %g2
 	or	%g2, %g3, %g2
 
-	andcc	%g1, TLB_DTLB, %g0
-	bz,a,pn	%xcc, 1f
-	 nop
 	stxa	%g0, [%g2] ASI_DMMU_DEMAP
-	membar	#Sync
-
-1:	andcc	%g1, TLB_ITLB, %g0
-	bz,a,pn	%xcc, 2f
-	 nop
 	stxa	%g0, [%g2] ASI_IMMU_DEMAP
 	membar	#Sync
 
-2:	IPI_WAIT(%g5, %g1, %g2, %g3)
+	IPI_WAIT(%g5, %g1, %g2, %g3)
 	retry
 END(tl_ipi_tlb_page_demap)
 

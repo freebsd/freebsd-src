@@ -163,7 +163,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
 		TSB_STATS_INC(tsb_nrepl);
 		ova = TTE_GET_VA(tp);
 		pmap_remove_tte(pm, NULL, tp, ova);
-		tlb_page_demap(TLB_DTLB | TLB_ITLB, pm, ova);
+		tlb_page_demap(pm, ova);
 	}
 
 enter:
