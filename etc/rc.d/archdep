@@ -56,7 +56,7 @@ ibcs2_compat()
 _arch=`${SYSCTL_N} hw.machine`
 echo -n "Initial $_arch initialization:"
 case $_arch in
-i386|amd64)
+i386)
 	ibcs2_compat
 	;;
 alpha)
