@@ -1,5 +1,5 @@
 /*	$NetBSD: ifconfig.c,v 1.34 1997/04/21 01:17:58 lukem Exp $	*/
-/*	$Id: ifmedia.c,v 1.1 1997/05/04 06:22:27 peter Exp $ */
+/*	$Id: ifmedia.c,v 1.2 1997/05/10 14:47:35 peter Exp $ */
 
 /*
  * Copyright (c) 1997 Jason R. Thorpe.
@@ -97,8 +97,9 @@ static int	lookup_media_word __P((struct ifmedia_description *, const char *));
 static void	print_media_word __P((int));
 
 void
-media_status(s)
+media_status(s, info)
 	int s;
+	struct rt_addrinfo *info __unused;
 {
 	struct ifmediareq ifmr;
 	int *media_list, i;
