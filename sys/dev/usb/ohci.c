@@ -569,7 +569,7 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		cur->td.td_cbp = htole32(dataphys);
 		cur->nexttd = next;
 		cur->td.td_nexttd = htole32(next->physaddr);
-		cur->td.td_be = htole32(DMAADDR(dma, curlen - 1));
+		cur->td.td_be = htole32(DMAADDR(dma, offset + curlen - 1));
 		cur->len = curlen;
 		cur->flags = OHCI_ADD_LEN;
 		cur->xfer = xfer;
