@@ -11,6 +11,8 @@ then
     source_periodic_confs
 fi
 
+oldmask=$(umask)
+umask 066
 case "$monthly_accounting_enable" in
     [Yy][Ee][Ss])
 	W=/var/log/wtmp
@@ -45,4 +47,5 @@ case "$monthly_accounting_enable" in
     *)  rc=0;;
 esac
 
+umask $oldmask
 exit $rc
