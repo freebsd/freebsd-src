@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id$
+#	$Id: bsd.port.subdir.mk,v 1.19 1997/03/09 23:10:56 wosch Exp $
 #
 # The include file <bsd.port.subdir.mk> contains the default targets
 # for building ports subdirectories. 
@@ -79,7 +79,7 @@ ${SUBDIR}::
 	${MAKE} all
 
 .for __target in all fetch fetch-list package extract configure \
-		 build clean depend describe reinstall tags checksum
+		 build clean depend describe distclean reinstall tags checksum
 .if !target(__target)
 ${__target}: _SUBDIRUSE
 .endif
