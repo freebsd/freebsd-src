@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.117 1998/02/25 03:55:49 dyson Exp $
+ * $Id: vm_map.c,v 1.118 1998/03/07 21:36:58 dyson Exp $
  */
 
 /*
@@ -1744,22 +1744,31 @@ vm_map_delete(map, start, end)
 {
 	register vm_map_entry_t entry;
 	vm_map_entry_t first_entry;
+	vm_object_t object;
+	int orig_obj_ref;
 
 	/*
 	 * Find the start of the region, and clip it
 	 */
 
-	if (!vm_map_lookup_entry(map, start, &first_entry))
+	orig_obj_ref = 0;
+	if (!vm_map_lookup_entry(map, start, &first_entry)) {
 		entry = first_entry->next;
-	else {
+		object = entry->object.vm_object;
+		if (object) {
+			orig_obj_ref = object->ref_count;
+		}
+	} else {
 		entry = first_entry;
+		object = entry->object.vm_object;
+		if (object) {
+			orig_obj_ref = object->ref_count;
+		}
 		vm_map_clip_start(map, entry, start);
-
 		/*
 		 * Fix the lookup hint now, rather than each time though the
 		 * loop.
 		 */
-
 		SAVE_HINT(map, entry->prev);
 	}
 
@@ -1769,8 +1778,9 @@ vm_map_delete(map, start, end)
 
 	if (entry == &map->header) {
 		map->first_free = &map->header;
-	} else if (map->first_free->start >= start)
+	} else if (map->first_free->start >= start) {
 		map->first_free = entry->prev;
+	}
 
 	/*
 	 * Step through all entries in this region
@@ -1779,7 +1789,7 @@ vm_map_delete(map, start, end)
 	while ((entry != &map->header) && (entry->start < end)) {
 		vm_map_entry_t next;
 		vm_offset_t s, e;
-		vm_object_t object;
+		vm_pindex_t offidxstart, offidxend;
 		vm_ooffset_t offset;
 
 		vm_map_clip_end(map, entry, end);
@@ -1789,12 +1799,14 @@ vm_map_delete(map, start, end)
 		e = entry->end;
 		offset = entry->offset;
 
+		offidxstart = OFF_TO_IDX(offset);
+		offidxend = OFF_TO_IDX(offset + (e - s));
+
 		/*
 		 * Unwire before removing addresses from the pmap; otherwise,
 		 * unwiring will put the entries back in the pmap.
 		 */
 
-		object = entry->object.vm_object;
 		if (entry->wired_count != 0)
 			vm_map_entry_unwire(map, entry);
 
@@ -1805,14 +1817,19 @@ vm_map_delete(map, start, end)
 		 */
 
 		if (object == kernel_object || object == kmem_object) {
-			vm_object_page_remove(object, OFF_TO_IDX(offset),
-			    OFF_TO_IDX(offset + (e - s)), FALSE);
+			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
 		} else if (!map->is_main_map) {
-			vm_object_pmap_remove(object,
-			    OFF_TO_IDX(offset),
-			    OFF_TO_IDX(offset + (e - s)));
+			vm_object_pmap_remove(object, offidxstart, offidxend);
 		} else {
 			pmap_remove(map->pmap, s, e);
+			if (object && (orig_obj_ref == 1) &&
+				(object->type == OBJT_SWAP || object->type == OBJT_DEFAULT)) {
+				vm_object_collapse(object);
+				vm_object_page_remove(object, offidxstart, offidxend, FALSE);
+				if (object->type == OBJT_SWAP) {
+					swap_pager_freespace(object, offidxstart, offidxend);
+				}
+			}
 		}
 
 		/*
@@ -1821,9 +1838,13 @@ vm_map_delete(map, start, end)
 		 * (Otherwise, its page frames may be reallocated, and any
 		 * modify bits will be set in the wrong object!)
 		 */
-
 		vm_map_entry_delete(map, entry);
 		entry = next;
+
+		object = entry->object.vm_object;
+		if (object) {
+			orig_obj_ref = object->ref_count;
+		}
 	}
 	return (KERN_SUCCESS);
 }
