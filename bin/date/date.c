@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.21 1997/10/03 12:49:28 danny Exp $
+ *	$Id: date.c,v 1.22 1997/12/11 02:38:56 brian Exp $
  */
 
 #ifndef lint
@@ -187,9 +187,9 @@ setthetime(fmt, p)
 			lt = localtime(&tval);
 			return;
 		} else if (*t != '\0')
-			fprintf(stderr, "Warning: Ignoring %d extraneous"
+			fprintf(stderr, "Warning: Ignoring %ld extraneous"
 				" characters in date string (%s)\n",
-				strlen(t), t);
+				(long) strlen(t), t);
 	} else {
 		for (t = p, dot = NULL; *t; ++t) {
 			if (isdigit(*t))
