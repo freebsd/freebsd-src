@@ -68,7 +68,7 @@ void
 bioq_init(struct bio_queue_head *head)
 {
 	TAILQ_INIT(&head->queue);
-	head->last_pblkno = 0;
+	head->last_offset = 0;
 	head->insert_point = NULL;
 	head->switch_point = NULL;
 }
@@ -81,9 +81,9 @@ bioq_remove(struct bio_queue_head *head, struct bio *bp)
 	if (bp == head->insert_point) {
 		head->insert_point = TAILQ_PREV(bp, bio_queue, bio_queue);
 		if (head->insert_point == NULL)
-			head->last_pblkno = 0;
+			head->last_offset = 0;
 	} else if (bp == TAILQ_FIRST(&head->queue))
-		head->last_pblkno = bp->bio_pblkno;
+		head->last_offset = bp->bio_offset;
 	TAILQ_REMOVE(&head->queue, bp, bio_queue);
 	if (TAILQ_FIRST(&head->queue) == head->switch_point)
 		head->switch_point = NULL;
@@ -167,7 +167,7 @@ bioq_disksort(bioq, bp)
 		 * "locked" portion of the list, then we must add ourselves
 		 * to the second request list.
 		 */
-		if (bp->bio_pblkno < bioq->last_pblkno) {
+		if (bp->bio_offset < bioq->last_offset) {
 
 			bq = bioq->switch_point;
 			/*
@@ -184,7 +184,7 @@ bioq_disksort(bioq, bp)
 			 * insert us before the switch point and move
 			 * the switch point.
 			 */
-			if (bp->bio_pblkno < bq->bio_pblkno) {
+			if (bp->bio_offset < bq->bio_offset) {
 				bioq->switch_point = bp;
 				TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
 				return;
@@ -194,10 +194,10 @@ bioq_disksort(bioq, bp)
 				be = TAILQ_PREV(bioq->switch_point,
 						bio_queue, bio_queue);
 			/*
-			 * If we lie between last_pblkno and bq,
+			 * If we lie between last_offset and bq,
 			 * insert before bq.
 			 */
-			if (bp->bio_pblkno < bq->bio_pblkno) {
+			if (bp->bio_offset < bq->bio_offset) {
 				TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
 				return;
 			}
@@ -208,7 +208,7 @@ bioq_disksort(bioq, bp)
 	 * Request is at/after our current position in the list.
 	 * Optimize for sequential I/O by seeing if we go at the tail.
 	 */
-	if (bp->bio_pblkno > be->bio_pblkno) {
+	if (bp->bio_offset > be->bio_offset) {
 		TAILQ_INSERT_AFTER(&bioq->queue, be, bp, bio_queue);
 		return;
 	}
@@ -222,7 +222,7 @@ bioq_disksort(bioq, bp)
 		 * larger cylinder than our request.
 		 */
 		if (bn == bioq->switch_point
-		 || bp->bio_pblkno < bn->bio_pblkno)
+		 || bp->bio_offset < bn->bio_offset)
 			break;
 		bq = bn;
 	}
