@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.8 1995/08/07 19:17:39 wollman Exp $
+ *	$Id: print.c,v 1.9 1995/09/04 01:22:41 peter Exp $
  */
 
 #ifndef lint
@@ -322,12 +322,12 @@ tname(k, ve)
 	v = ve->var;
 	dev = KI_EPROC(k)->e_tdev;
 	if (dev == NODEV || (ttname = devname(dev, S_IFCHR)) == NULL)
-		(void)printf("%-*s", v->width, "??");
+		(void)printf("%*s ", v->width-1, "??");
 	else {
 		if (strncmp(ttname, "tty", 3) == 0 ||
 		    strncmp(ttname, "cua", 3) == 0)
 			ttname += 3;
-		(void)printf("%-*.*s%c", v->width-1, v->width-1, ttname,
+		(void)printf("%*.*s%c", v->width-1, v->width-1, ttname,
 			KI_EPROC(k)->e_flag & EPROC_CTTY ? ' ' : '-');
 	}
 }
