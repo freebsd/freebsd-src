@@ -39,7 +39,7 @@
 
     <note>
       <para>You will see references to DEC, Digital Equipment Corporation and 
-      Compaq used more or less interchangeably. Now that Compaq has acquired 
+      Compaq used more or less interchangably. Now that Compaq has acquired 
       Digital Equipment it would be more correct to refer to Compaq only.</para>
     </note>
 
@@ -266,8 +266,7 @@
         <itemizedlist>
           <listitem>
 	    <para>21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz
-	    (21068 CPUs are also possible, but are even slower. Never
-	    seen/used one)</para>
+	    21068 CPUs are also possible, but are even slower.</para>
 	  </listitem>
 	  <listitem>
 	    <para>on-board Bcache / L2 cache: 0, 256k or 1 Mbyte (uses
@@ -336,7 +335,7 @@
       <para>NoNames can either have SRM <emphasis>or</emphasis> ARC console
       firmware in their Flash ROM.  The Flash ROM is not big enough to
       hold both ARC and SRM at the same time and allow software
-      selection of alternate console code. But you need SRM-only
+      selection of alternate console code. But you only need SRM
       anyway.</para>
 
       <para>Cache for the NoNames are 15 or 20 ns DIL chips. For a 256
@@ -356,7 +355,8 @@
       <programlisting>device ata0 at isa? port IO_WD1 irq 14</programlisting>
 
       <para>The SRM console unfortunately cannot <emphasis>boot</emphasis>
-      from IDE disks.</para>
+      from IDE disks. This means you will have to use a SCSI disk as
+      the boot device.</para>
 
       <para>Make sure you use true 36 bit SIMMs, and only FPM (Fast
       Page Mode). EDO RAM or SIMMs with fake parity <emphasis>will not
@@ -526,8 +526,8 @@ cpu	EV4</programlisting>
       disks. A 3.5&quot; IDE disk would not fit in the case anyway. At
       least not without sacrificing your only PCI slot.</para>
 
-      <para>The SRM console does not know how to boot from IDE 
-      disks unfortunately.</para>
+      <para>The SRM console unfortunately does not know how to boot from IDE 
+      disks. You will need to use a SCSI disk as the bootdisk.</para>
 
       <para>In case you want to change the internal hard drive: the
       internal flat cable running from the PCI riser board to the 
@@ -607,7 +607,7 @@ cpu	EV4</programlisting></para>
 		<para>6 DIMM sockets</para>
 	      </listitem>
 	      <listitem>
-		<para>maximum memory 1.5 Gbytes</para>
+		<para>maximum memory 1.5 GBytes</para>
 	      </listitem>
 	    </itemizedlist></para>
 	  </listitem>
@@ -703,9 +703,9 @@ cpu	EV4</programlisting></para>
       <para>This disables PCI ID checking altogether, so that you
       can install any PCI card without its ID getting
       checked. For this to work you need a reasonable current SRM version.
-      <important><para>Do this on your own risk.</para></important></para>
+      <important><para>Do this on your own risk..</para></important></para>
 
-      <para>The kernel reports it when it sees a buggy Pyxis chip:
+      <para>The &os; kernel reports it when it sees a buggy Pyxis chip:
 <screen>Sep 16 18:39:43 miata /kernel: cia0: Pyxis, pass 1
 Sep 16 18:39:43 miata /kernel: cia0: extended capabilities: 1&lt;BWEN&gt;
 Sep 16 18:39:43 miata /kernel: cia0: WARNING: Pyxis pass 1 DMA bug; no bets...</screen></para>
@@ -724,7 +724,7 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       and will complain about unknown cards as before. So does the
       &os; kernel by the way.</para>
 
-      <para>The Miata SRM can boot from IDE CDROM drives. Hard disk
+      <para>The Miata SRM can boot from IDE CDROM drives. IDE harddisk
       boot is known to work for both MiataGL and MX5 disks, so you
       can root &os; from an IDE disk. Speeds on MX5 are around 14
       Mbytes/sec assuming a suitable drive. Miata's CMD646 chip will
@@ -744,7 +744,7 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       <para>Both MX5 and MiataGL have an on-board sound chip, an
       ESS1888. It emulates a SoundBlaster and can be enabled by
       putting
-      <programlisting>	device	pcm0
+<programlisting>	device	pcm0
 	device	sbc0</programlisting>
       in your kernel configuration file.</para>
 
@@ -880,7 +880,7 @@ cpu	EV5</programlisting></para>
 	    MHz)</para>
 	  </listitem>
 	  <listitem>
-	    <para>memory:
+	    <para>memory DEC3000/500 class:
 	    <itemizedlist>
 	      <listitem>
 		<para>bus width: 256 bit, with ECC</para>
@@ -889,15 +889,12 @@ cpu	EV5</programlisting></para>
 		<para>proprietary 100pin SIMMs</para>
 	      </listitem>
 	      <listitem>
-		<para>installed in sets of 8 [DEC3000/500-class]</para>
+		<para>installed in sets of 8</para>
 	      </listitem>
 	    </itemizedlist></para>
 	   </listitem>
 	   <listitem>
-	    <para><emphasis>or</emphasis></para>
-	   </listitem>
-	   <listitem>
-	     <para><itemizedlist> 
+	     <para>memory DEC3000/300 class:<itemizedlist> 
 	      <listitem>
 		<para>bus width: 64 bit, with ECC</para>
 	      </listitem>
@@ -905,7 +902,7 @@ cpu	EV5</programlisting></para>
 		<para>PS/2 style 72pin 36 bit FPM SIMMs 70ns or better</para>
 	      </listitem>
 	      <listitem>
-		<para>used in pairs of 2 [DEC3000/300-class]</para>
+		<para>used in pairs of 2</para>
 	      </listitem>
 	     </itemizedlist></para>
 	  </listitem>
@@ -959,7 +956,7 @@ cpu	EV5</programlisting></para>
       to the other 3000 machines. Some TC expansion cards have
       troubles with the half-speed bus. Caveat emptor.</para>
 
-      <para>ISDN does not work on &os;.</para>
+      <para>The embedded ISDN interface is not supported on &os;.</para>
 
       <para>DEC3000/300-class uses standard 36 bit, 72 pin Fast Page
       Mode SIMMs.  EDO SIMMs, 32 or 33 bit SIMMs all will not work in
@@ -1166,7 +1163,7 @@ cpu	EV4</programlisting>
       jumpers to select the use of 60, 70 or 80ns SIMM speeds.</para>
 
       <para>36 bits SIMMs work fine, 3 bits simply remain unused. Note
-      the systems use Fast Page Mode memory, no EDO.</para>
+      the systems use Fast Page Mode memory, not EDO memory.</para>
 
       <para>The SRM console code is housed in an UV-erasable EPROM. No 
       easy flash SRM upgrades for the EB64+ The latest SRM version available 
@@ -1185,8 +1182,8 @@ cpu	EV4</programlisting>
       boot from.</para>
 
       <para>For the EB64+ class machines the kernel config file must contain:
-      <programlisting>options         DEC_EB64PLUS            
-cpu		EV4</programlisting></para>
+      <programlisting>options	DEC_EB64PLUS            
+cpu	EV4</programlisting></para>
 
    </sect3>
 
@@ -1217,9 +1214,9 @@ cpu		EV4</programlisting></para>
           <para>memory bus: 128 bit / 256 bit</para>
         </listitem>
         <listitem>
-          <para><itemizedlist>
+          <para>memory:<itemizedlist>
 	    <listitem>
-              <para>memory:  PS/2 style SIMMs in sets of 4 or 8</para>
+              <para>PS/2 style SIMMs in sets of 4 or 8</para>
             </listitem>
 	    <listitem>
 	      <para>36 bit, Fast Page Mode, uses ECC, [EB164 / PC164]</para>
@@ -1284,8 +1281,10 @@ cpu		EV4</programlisting></para>
       <para>On PC164 the SRM sometimes seems to loose its variable settings. 
       "For PC164, current superstition says that, to avoid losing settings,
       you want to first downgrade to SRM 4.x and then upgrade to a 5.x"
-      One sample error that was observed was: "ERROR: ISA table corrupt!".
-      A sequence of a downgrade to SRM4.9, an 'isacfg -init' and an 'init'
+      One sample error that was observed was: 
+      <screen>ERROR: ISA table corrupt!"</screen>.
+      A sequence of a downgrade to SRM4.9, an <userinput>isacfg -init
+      </userinput> and an <userinput>init</userinput>
       made the problem go away. Some PC164 owners report they have never seen 
       the problem. </para>
 
@@ -1349,7 +1348,7 @@ cpu             EV5</programlisting></para>
 	    <para>in two quads, so banks of four. (250 series)</para>
           </listitem>
 	  <listitem>
-	     <para>memory subsystem uses parity</para>
+	     <para>the memory subsystem uses parity</para>
 	  </listitem>
         </itemizedlist></para>
       </listitem>
@@ -1409,8 +1408,9 @@ cpu             EV5</programlisting></para>
     <para>AlphaStation 400 series have an SRM variable that controls 
     termination. In case you have external SCSI devices connected you 
     must set this SRM variable using <prompt>&gt;&gt;&gt; </prompt>
-    <userinput> SET CONTROL_SCSI_TERM EXTERNAL</userinput>. 
-    If only internal SCSI devices are present use: 
+    <userinput> SET CONTROL_SCSI_TERM EXTERNAL</userinput>. </para>
+
+    <para>If only internal SCSI devices are present use: 
     <prompt>&gt;&gt;&gt;</prompt>
     <userinput> SET CONTROL_SCSI_TERM INTERNAL</userinput></para>
 
@@ -1470,7 +1470,7 @@ cpu	EV4</programlisting></para>
 	      <para>installed in sets of 4</para>
             </listitem>
             <listitem>
-	      <para>maximum memory is 1 Gb (512 Mb max on 333 MHz CPUs)</para>
+	      <para>maximum memory is 1 GB (512 Mb max on 333 MHz CPUs)</para>
             </listitem>
             <listitem>
 	      <para>uses ECC </para>
@@ -1488,7 +1488,7 @@ cpu	EV4</programlisting></para>
               <para>installed in sets of 8</para>
             </listitem>
             <listitem>
-	      <para>maximum memory is 1 Gb</para>
+	      <para>maximum memory is 1 GB</para>
             </listitem>
             <listitem>
 	      <para>uses ECC</para>
@@ -1558,7 +1558,7 @@ cpu	EV4</programlisting></para>
     have problems getting the Qlogic SCSI adapters to work, add the following 
     option to <filename>/boot/loader.rc</filename>: 
 
-    <programlisting>set isp_mem_map=0xff</programlisting> 
+    <userinput>set isp_mem_map=0xff</userinput> 
         
     This may need to be typed at the boot loader prompt before booting the
     installation kernel.</para>
@@ -1597,15 +1597,25 @@ cpu	EV5</programlisting></para>
         21164 EV5[6] CPU at 300, 333 or 400 MHz (or 500 MHz for AS800 only)</para>
        </listitem>
        <listitem>
-         <itemizedlist>
-          <listitem>
-           <para>memory buswidth: 128 bit with ECC</para>
+         <para>memory:<itemizedlist>
+	  <listitem>
+	    <para>buswidth: 128 bit with ECC</para>
           </listitem>
-          <listitem>
-           <para>AS1000[A]-systems:
-             Use 72pin 36 bit Fast Page Mode SIMMs, 70ns or better
-             16 or 20 SIMM slots, max memory is 1 Gb
-	     uses ECC</para>
+          <listitem><para>AS1000[A]:
+	    <itemizedlist>
+	      <listitem>
+		<para>72pin 36 bit Fast Page Mode SIMMs, 70ns or better</para>
+	      </listitem>
+	      <listitem>
+		<para>16 (EV5 machines) or 20 (EV4 machines) SIMM slots</para>
+	      </listitem>
+	      <listitem>
+		<para>max memory is 1 GB</para>
+	      </listitem>
+	      <listitem>
+		<para>uses ECC</para>
+	      </listitem>
+	    </itemizedlist>
           </listitem>
 	  <listitem>
 	   <para>AS800: Uses SDRAM DIMMs</para>
@@ -1644,25 +1654,27 @@ cpu	EV5</programlisting></para>
       <para> AS800 machines use DIMMs in sets of 4. DIMM installation must 
       start in slots marked bank 0. A bank is four physically adjacent slots. 
       The biggest size DIMMs must be installed in bank 0 in case 2 banks 
-      of different DIMM sizes are used. Max memory size is 2Gb.</para>
+      of different DIMM sizes are used. Max memory size is 2GB.</para>
 
       <para>The AS1000/800 are somewhat stubborn when it comes to serial
-      consoles. They need &gt;&gt;&gt; SET CONSOLE SERIAL before they go for
+      consoles. They need &gt;&gt;&gt; <userinput>SET CONSOLE SERIAL 
+      </userinput>before they go for
       a serial console. Pulling the keyboard from the machine is not sufficient,
       like it is on most other Alpha models. Going back to a graphical console
       needs &gt;&gt;&gt; <userinput>SET CONSOLE GRAPHICS</userinput> at 
       the serial console.</para>
 
       <para>For AS800 you want to check if your Ultra-Wide SCSI is indeed 
-      in Ultra mode. This can be done using the EEROMCFG.EXE utility that is 
+      in Ultra mode. This can be done using the 
+      <filename>EEROMCFG.EXE</filename> utility that is 
       on the Console Firmware Upgrade CDROM.</para>
  
       <para>For the AlphaServer1000/1000A/800 machines the kernel config 
       file must contain:
 
       <programlisting>options	DEC_1000A
-cpu	EV4	# depends on the CPU model installed
-cpu	EV5	# depends on the CPU model installed</programlisting>
+cpu	EV4		# depends on the CPU model installed
+cpu	EV5		# depends on the CPU model installed</programlisting>
       </para>
 
     </sect3>
@@ -1679,9 +1691,6 @@ cpu	EV5	# depends on the CPU model installed</programlisting>
       is a DS10 based machine in a 1U high rackmount enclosure. DS10L is 
       intended for ISPs and for HPTC clusters (e.g. Beowulf)</para>
 
-      <para>Monet has, by 1999 standards, *stunning* (the words of a satisfied
-      user) memory and I/O system bandwidth.</para>
-
       <sect4>
         <title><quote>Webbrick / Slate</quote></title>
 
@@ -1697,10 +1706,23 @@ cpu	EV5	# depends on the CPU model installed</programlisting>
 	    bandwith</para>
 	  </listitem>
 	  <listitem>
-	    <para>industry standard 200 pin 83 MHz buffered ECC SDRAM DIMMs
-	    4 DIMM slots (2 for DS10L)
-	    installed in pairs of 2
-	    max memory is 2 Gb (1Gb for DS10L)</para>
+	    <para>memory:
+	      <itemizedlist>
+		<listitem>
+		  <para>industry standard 200 pin 83 MHz buffered 
+		  ECC SDRAM DIMMs</para>
+		</listitem>
+		<listitem>
+	          <para>4 DIMM slots for DS10; 2GB max memory</para>
+		</listitem>
+		<listitem>
+		  <para>2 DIMM slots for DS10L; 1GB max memory</para>
+		</listitem>
+		<listitem>
+		  <para>DIMMs are installed in pairs of 2</para>
+		</listitem>
+	      </itemizedlist>
+	    </para>
 	  </listitem>
 	  <listitem>
 	    <para>21271 Core Logic chipset ("Tsunami")</para>
@@ -1880,7 +1902,7 @@ cpu	EV5</programlisting></para>
 
       <para>For 500 MHz CPUs 83 MHz DIMMs will do. Compaq specifies PC100 
       DIMMs for all CPU speeds. DIMMs are installed in sets of 4, starting 
-      with the DIMM slots marked '0'. Memory capacity is max 4 Gb. 
+      with the DIMM slots marked '0'. Memory capacity is max 4 GB. 
       DIMMs are installed 'physically interleaved', note the markings of the
       slots. Memory bandwidth of Monet is twice that of Webbrick. The DIMMs 
       live on the CPU daughter-card. Note that the system uses ECC RAM so you 
@@ -1901,13 +1923,13 @@ cpu	EV5</programlisting></para>
       not-yet-found &os; bug that prevents this from working 
       correctly.</para></important>
 
-      <important><para>Not all VGA cards will work behind the PCI-PCI bridge (so 
-      in slots 4 and 5). Only cards that implement VGA-legacy addressing 
+      <important><para>Not all VGA cards will work behind the PCI-PCI 
+      bridge (so in slots 4 and 5). Only cards that implement 
+      VGA-legacy addressing 
       correctly will work. Workaround is to put the VGA card 
       <quote>before</quote> the bridge.</para></important>
 
-      <para>The sound chip is not currently supported with &os;. There 
-      is work in progress in this area.</para>
+      <para>The sound chip is not currently supported with &os;. </para>
   
       <para>The kernel config file must contain:
       <programlisting>options	DEC_ST6600    
@@ -1939,8 +1961,22 @@ cpu	EV5</programlisting></para>
 	    <para>memory bus: dual 256 bit wide with crossbar switch</para>
 	  </listitem>
 	  <listitem>
-	    <para>memory: SDRAM DIMMs, installed in sets of 4, uses
-	    ECC, 16 DIMM slots, max. 4Gb</para>
+	    <para>memory:
+	      <itemizedlist>
+		<listitem>
+		  <para>SDRAM DIMMs</para>
+		</listitem>
+		<listitem>
+		  <para>installed in sets of 4</para>
+		</listitem>
+		<listitem>
+		  <para>16 DIMM slots, max. 4GB</para>
+		</listitem>
+		<listitem>
+		  <para>uses ECC</para>
+		</listitem>
+	      </itemizedlist>
+	    </para>
 	  </listitem>
 	  <listitem>
 	    <para>21271 Core Logic chip-set
@@ -1950,18 +1986,30 @@ cpu	EV5</programlisting></para>
 	    <para>embedded Adaptec ? Wide Ultra SCSI</para>
 	  </listitem>
 	  <listitem>
-	    <para>expansion: 2 independent PCI buses, driven by high-speed I/O
-            channels called <quote>hoses</quote>, 6 64-bit PCI slots
-            (3 per hose), 1 ISA slot</para>
+	    <para>expansion:
+	      <itemizedlist>
+		<listitem>
+		  <para>2 independent PCI buses, driven 
+		  by high-speed I/O channels called <quote>hoses</quote></para>
+		</listitem>
+		<listitem>
+		  <para>6 64-bit PCI slots, 3 per hose</para>
+		</listitem>
+		<listitem>
+                  <para>1 ISA slot</para>
+		</listitem>
+	      </itemizedlist>
+	    </para>
 	  </listitem>
 	</itemizedlist>
       </para>
 
-      <para>DS20 needs <userinput>SET CONSOLE SERIAL</userinput>
+      <para>DS20 needs &gt;&gt;&gt; <userinput>SET CONSOLE SERIAL</userinput>
       before it goes for a serial console.  Pulling the keyboard from
       the machine is not sufficient. Going back to a graphical console
-      needs <userinput>SET CONSOLE GRAPHICS</userinput> at the serial
-      console.  Confusing is the fact that you will get SRM console
+      needs &gt;&gt;&gt; <userinput>SET CONSOLE GRAPHICS</userinput> 
+      at the serial console.  
+      Confusing is the fact that you will get SRM console
       output on the graphics console with the console set to serial,
       but when &os; boots it honors the <literal>CONSOLE</literal>
       variable setting and all the boot messages as well as the login
@@ -1969,8 +2017,8 @@ cpu	EV5</programlisting></para>
 
       <para>The DS20 is housed in a fat cube-like enclosure. The
       enclosure also contains a StorageWorks SCSI hot-swap shelf for a
-      maximum of 7 3.5&quot; SCSI devices.  The DS20E is in a sleeker
-      case, without the StorageWorks shelf.</para>
+      maximum of seven 3.5&quot; SCSI devices.  The DS20E is in a sleeker
+      case, and lacks the StorageWorks shelf.</para>
 
       <para>The embedded Adaptec SCSI chip on the DS20 is disabled and
       is therefore not usable under &os;.</para>
@@ -1993,9 +2041,8 @@ cpu	EV5</programlisting></para>
       you can install/boot &os; on it.</para>
 
       <para>The kernel config file must contain:
-
-      <programlisting>options         DEC_ST6600    
-cpu		EV5</programlisting>
+      <programlisting>options	DEC_ST6600    
+cpu	EV5</programlisting>
       </para>
 
       <note><para>Contrary to expectation there is no <literal>cpu EV6</literal>
@@ -2006,6 +2053,8 @@ cpu		EV5</programlisting>
 
     <sect3>
       <title>AlphaPC 264DP / UP2000</title>
+
+      <para>UP2000 is built by Alpha Processor Inc.</para>
 
       <para>Features:
         <itemizedlist>
@@ -2023,7 +2072,7 @@ cpu		EV5</programlisting>
 	  </listitem>
 	  <listitem>
 	    <para>memory: SDRAM DIMMs installed in sets of 4, uses
-	    ECC, 16 DIMM slots, max. 4Gb</para>
+	    ECC, 16 DIMM slots, max. 4GB</para>
 	  </listitem>
 	  <listitem>
 	    <para>21272 Core Logic chip-set (<quote>Tsunami</quote>)</para>
@@ -2038,14 +2087,25 @@ cpu		EV5</programlisting>
 	    <para>embedded USB via Cypress 82C693</para>
 	  </listitem>
 	  <listitem>
-	    <para>expansion: 2 independent PCI buses driven by high-speed I/O
-            channels called <quote>hoses</quote>, 6 64-bit PCI slots
-            (3 per hose), 1 ISA slot</para>
+	    <para>expansion:
+	      <itemizedlist>
+		<listitem>
+		  <para>2 independent PCI buses, driven 
+		  by high-speed I/O channels called <quote>hoses</quote></para>
+		</listitem>
+		<listitem>
+		  <para>6 64-bit PCI slots, 3 per hose</para>
+		</listitem>
+		<listitem>
+                  <para>1 ISA slot</para>
+		</listitem>
+	      </itemizedlist>
+	    </para>
 	  </listitem>
 	</itemizedlist>
       </para>
 
-      <para>A maximum of 2Gb memory is supported by &os;.</para>
+      <para>Currently a maximum of 2GB memory is supported by &os;.</para>
 
       <para>The on-board Adaptec is not bootable but works with &os;
       4.0 and later as a datadisk-only SCSI bus.</para>
@@ -2054,15 +2114,14 @@ cpu		EV5</programlisting>
       only.</para>
 
       <para>The kernel config file must contain:
-
       <programlisting>options	DEC_ST6600    
 cpu	EV5</programlisting>
       </para>
 
-      <para>Contrary to expectation there is no <literal>cpu
+      <note><para>Contrary to expectation there is no <literal>cpu
       EV6</literal> defined for inclusion in the kernel config
       file. The <literal>cpu EV5</literal> is mandatory to keep
-      &man.config.8; happy.</para>
+      &man.config.8; happy.</para></note>
     </sect3>
 
     <sect3>
@@ -2119,7 +2178,7 @@ cpu	EV5</programlisting>
 
       <para>The machines use dedicated memory boards. These boards live on 
       a 128 bit C-bus shared with the CPU boards. DemiSable supports up 
-      to 1Gb, Sable up to 2Gb. One of the memory bus slots can either 
+      to 1GB, Sable up to 2GB. One of the memory bus slots can either 
       hold a CPU or a memory card. A 4 CPU machine can have a maximum of 
       2 memory boards.</para>
 
@@ -2216,376 +2275,536 @@ cpu	EV5</programlisting>
 
       <para>The kernel config file must contain:
 
-<programlisting>	options	DEC_2100_A500
-	cpu	EV4	#dependent on CPU model installed
-	cpu	EV5	#dependent on CPU model installed</programlisting>
+<programlisting>options	DEC_2100_A500
+cpu	EV4	#dependent on CPU model installed
+cpu	EV5	#dependent on CPU model installed</programlisting>
       </para>
 
     </sect3>
 
     <sect3>
-      <title>AlphaServer 4100 (<quote>Rawhide</quote>)</title>
+      <title>AlphaServer 4x00 (<quote>Rawhide</quote>)</title>
 
-<programlisting>
-The AlphaServer 4100 machine is aimed as an enterprise server.
-Expect a 30&quot; high pedestal cabinet or alternatively the same system box in a
-19&quot; rack. This is medium iron, not a hobbyist system. 
-These are multi-CPU machines, up to 4 CPUs can be in a single
-machine.  Basic disk storage is housed in one or two StorageWorks shelves
-at the bottom of the pedestal. The Rawhides intended for the NT market are
-designated DIGITAL Server 7300 (5/400 CPU), DIGITAL Server 7305 (5/533 CPU).
-A trailing R on the part-number means a rackmount variant.
+      <para>The AlphaServer 4x00 machines are intended as small enterprise
+      servers. Expect a 30&quot; high pedestal cabinet or alternatively 
+      the same system box in a 19&quot; rack. This is medium iron, not 
+      a typical hobbyist system. Rawhides are multi-CPU machines, up to 
+      4 CPUs can be in a single machine.  Basic disk storage is housed in 
+      one or two StorageWorks shelves at the bottom of the pedestal. The 
+      Rawhides intended for the NT market are designated DIGITAL 
+      Server 7300 (5/400 CPU), DIGITAL Server 7305 (5/533 CPU). A 
+      trailing R on the part-number means a rackmount variant.</para>
 
-Features:
-- 21164 EV5 CPUs at 266, 300 MHz
-  21164A EV56 CPUs at 400, 466, 533, 600 and 666 Mhz
-- cache: 4 Mbytes per CPU (EV5 300 MHz was also available cache-less)
-	 8 Mbytes (EV5 600Mhz only)
-- memory bus: 128 bit with ECC
-- embedded floppy controller
-- 2 serial ports
-- 1 parallel port
-- PS/2 style keyboard & mouse port
+      <para>Features:
+        <itemizedlist>
+	  <listitem>
+	    <para>21164 EV5 CPUs at 266, 300 MHz or 21164A EV56 
+	    CPUs at 400, 466, 533, 600 and 666 Mhz</para>
+	  </listitem>
+	  <listitem>
+            <para>cache: 4 Mbytes per CPU. EV5 300 MHz was also 
+	    available cache-less. 8 Mbytes for EV5 600Mhz</para>
+	  </listitem>
+	  <listitem>
+	    <para>memory bus: 128 bit with ECC</para>
+	  </listitem>
+	  <listitem>
+            <para>embedded floppy controller</para>
+	  </listitem>
+	  <listitem>
+            <para>2 serial ports</para>
+	  </listitem>
+	  <listitem>
+            <para>1 parallel port</para>
+	  </listitem>
+	  <listitem>
+            <para>PS/2 style keyboard & mouse port</para>
+	  </listitem>
+        </itemizedlist>
+      </para>
 
-Memory:
-Rawhide uses a maximum of 8 RAM modules. These modules are used in pairs
-and supply 72 bits to the bus (this includes ECC bits). Memory can be EDO
-RAM or synchronous DRAM. A fully populated Rawhide has 4 pairs of memory
-modules. Given the choice use SDRAM for best performance. The highest 
-capacity memory board must be in memory slot 0. A mix of memory board sizes
-is allowed. A mix of EDO and SDRAM is also reported as working (assuming you
-don't try to mix EDO and SDRAM in one module pair).
+     <para>Rawhide uses a maximum of 8 RAM modules. These modules are used 
+     in pairs and supply 72 bits to the bus (this includes ECC bits). 
+     Memory can be EDO RAM or synchronous DRAM. A fully populated Rawhide 
+     has 4 pairs of memory modules. Given the choice use SDRAM for 
+     best performance. The highest capacity memory board must be in 
+     memory slot 0. A mix of memory board sizes is allowed. A mix 
+     of EDO and SDRAM is also reported as working (assuming you don't 
+     try to mix EDO and SDRAM in one module pair). A mix of EDO and SDRAM
+     results in the <emphasis>entire</emphasis> memory subsystem running at
+     the slower EDO timing</para>
 
-Embedded SCSI:
-Rawhide has an embedded Symbios 810 Fast SCSI bus.
+     <para>Rawhide has an embedded Symbios 810 chip that gives you a
+     narrow fast-SCSI bus. Generally only the SCSI CDROM is driven by
+     this interface.</para>
 
-Expansion:
-Rawhides are available with a 8 64-bit PCI / 3 EISA slot expansion backplanes
-(called 'Saddle' modules). There are 2 separate PCI buses, PCI0 and PCI1.
-PCI0 has 1 dedicated PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
-PCI/EISA bridge that drives things like the serial and parallel ports,
-keyboard/mouse etc. PCI1 has 4 PCI slots and an Symbios 810 SCSI chip. VGA
-console cards must be installed in a slot connected to PCI0.
+     <para>Rawhides are available with a 8 64-bit PCI / 3 EISA 
+     slot expansion backplanes (called 'Saddle' modules). There 
+     are 2 separate PCI buses, PCI0 and PCI1. PCI0 has 1 dedicated 
+     PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
+     PCI/EISA bridge that drives things like the serial and 
+     parallel ports, keyboard/mouse etc. PCI1 has 4 PCI slots 
+     and an Symbios 810 SCSI chip. VGA console cards must be installed 
+     in a slot connected to PCI0.</para>
 
-The current implementation has problems in handling PCI bridges. There is
-currently a limited fix in place which allows for single level, single device
-PCI bridges. The fix allows for the Digital supplied Qlogic SCSI card which
-sits behind a 21054 PCI bridge chip.
+     <para>The current &os; implementation has problems in handling 
+     PCI bridges. There is currently a limited fix in place which allows 
+     for single level, single device PCI bridges. The fix allows the use of
+     the Digital supplied Qlogic SCSI card which sits behind 
+     a 21054 PCI bridge chip.<para>
 
-	NOTE: EISA slots are currently unsupported, but the Compaq Qvision
-	      EISA VGA adapter is treated as an ISA device. It therefore
-	      works OK as a console.
+     <note><para>EISA slots are currently unsupported, but the Compaq Qvision
+     EISA VGA adapter is treated as an ISA device. It therefore works 
+     OK as a console.<para></note>
 
-Power:
-The system employs an I2C based power controller system. If you want to be
-sure all power is removed from the system pull the mains cables from the
-system.
+     <para>Rawhide employs an I2C based power controller system. If 
+     you want to be sure all power is removed from the system remove the 
+     mains cables from the system.</para>
 
-The kernel config file must contain:
-       options         DEC_KN300
-       cpu             EV5
-</programlisting>
+     <para>The kernel config file must contain:
+<programlisting>options	DEC_KN300
+cpu	EV5</programlisting></para>
+
     </sect3>
 
     <sect3>
       <title>AlphaServer 1200 (<quote>Tincup</quote>) and AlphaStation
       1200 (<quote>DaVinci</quote>)</title>
 
-<programlisting>
-The AlphaServer 1200 machine is the successor to the AlphaServer 1000A.
-It uses the same enclosure the 1000A uses, but the logic is based on the
-AlphaServer 4000 design. These are multi-CPU machines, up to 2 CPUs can 
-be in a single machine.  Basic disk storage is housed in a StorageWorks shelves
-The AS1200 intended for the NT market are designated DIGITAL Server 5300 
-(5/400 CPU) and DIGITAL Server 5305 (5/533 CPU).
+      <para>The AlphaServer 1200 machine is the successor to the 
+      AlphaServer 1000A. It uses the same enclosure the 1000A uses, 
+      but the logic is based on the AlphaServer 4000 design. These 
+      are multi-CPU machines, up to 2 CPUs can be in a single machine.  
+      Basic disk storage is housed in a StorageWorks shelves
+      The AS1200 intended for the NT market were designated DIGITAL 
+      Server 5300 (5/400 CPU) and DIGITAL Server 5305 (5/533 CPU).</para>
 
-Features:
-- 21164A EV56 CPUs at 400 or 533 Mhz
-- cache: 4 Mbytes per CPU 
-- memory bus: 128 bit with ECC
-	      DIMM memory on two memory daughter boards
-- embedded floppy controller
-- 2 serial ports
-- 1 parallel port
-- PS/2 style keyboard & mouse port 
+      <para>Features:
+	<itemizedlist>
+	  <listitem>
+	    <para>21164A EV56 CPUs at 400 or 533 Mhz</para>
+	  </listitem>
+	  <listitem>
+            <para>cache: 4 Mbytes per CPU</para>
+	  </listitem>
+	  <listitem>
+            <para>memory bus: 128 bit with ECC, DIMM memory on two 
+	    memory daughter boards</para>
+	  </listitem>
+	  <listitem>
+            <para>embedded floppy controller</para>
+	  </listitem>
+	  <listitem>
+            <para>2 serial ports</para>
+	  </listitem>
+	  <listitem>
+            <para>1 parallel port</para>
+	  </listitem>
+	  <listitem>
+            <para>PS/2 style keyboard & mouse port</para>
+	  </listitem>
+        </itemizedlist>
+      </para>
 
-Memory:
-AS1200 uses 2 memory daughter cards. On each of these cards are 8 DIMM slots. 
-DIMMs must be installed in pairs. The maximum memory size is 4 Gbytes. 
-Slots must be filled in order and slot 0 must contain the largest size 
-DIMM if different sized DIMMs are used. AS1200 employs fixed starting 
-addresses for DIMMs, each DIMM pair starts at a 512 Mbyte boundary.
-This means that if DIMMs smaller than 256 Mbyte are used the system's
-physical memory map will contain 'holes'. Supported DIMM sizes are 64 Mbytes 
-and 256 Mbytes. The DIMMs are 72 bit SDRAM based, as the system employs ECC.
+      <para>AS1200 uses 2 memory daughter cards. On each of these cards 
+      are 8 DIMM slots. DIMMs must be installed in pairs. The maximum 
+      memory size is 4 GBytes. Slots must be filled in order and slot 
+      0 must contain the largest size DIMM if different sized DIMMs are 
+      used. AS1200 employs fixed starting addresses for DIMMs, each 
+      DIMM pair starts at a 512 Mbyte boundary. This means that if 
+      DIMMs smaller than 256 Mbyte are used the system's physical memory 
+      map will contain 'holes'. Supported DIMM sizes are 64 Mbytes 
+      and 256 Mbytes. The DIMMs are 72 bit SDRAM based, as the 
+      system employs ECC.</para>
 
-Embedded SCSI:
-AS1200 has an embedded Symbios 810 Fast SCSI bus.
+      <note><para>&os; currently supports up to 2GBytes</para></note>
 
-Expansion:
-AS1200 has 5 64-bit PCI slots, one 1 32-bit PCI slot and one EISA slot
-(which is physically shared with one of the 64-bit PCI slots).
-There are 2 separate PCI buses, PCI0 and PCI1. PCI0 has the 32-bit PCI 
-slot and the 2 top-most 64-bit PCI slots. PCI0 also has an Intel 82375EB
-PCI/EISA bridge that drives things like the serial and parallel ports, 
-keyboard/mouse etc. PCI1 has 4 64-bit PCI slots and an Symbios 810 SCSI chip. 
-VGA console cards must be installed in a slot connected to PCI0.
+      <para>AS1200 has an embedded Symbios 810 drive Fast SCSI bus.</para>
 
-Power:
-The system employs an I2C based power controller system. If you want to be
-sure all power is removed from the system pull the mains cables from the
-system. Tincup uses dual power supplies in load-sharing mode and not 
-as a redundancy pair.
+      <para>Tincup has 5 64-bit PCI slots, one 1 32-bit PCI slot and one 
+      EISA slot (which is physically shared with one of the 64-bit PCI slots).
+      There are 2 separate PCI buses, PCI0 and PCI1. PCI0 has the 32-bit PCI 
+      slot and the 2 top-most 64-bit PCI slots. PCI0 also has an Intel 82375EB
+      PCI/EISA bridge that drives things like the serial and parallel ports, 
+      keyboard/mouse etc. PCI1 has 4 64-bit PCI slots and an Symbios 810 
+      SCSI chip. VGA console cards must be installed in a slot 
+      connected to PCI0.</para>
 
-The kernel config file must contain:
-       options         DEC_KN300
-       cpu             EV5
-</programlisting>
+      <para>The system employs an I2C based power controller system. 
+      If you want to be sure all power is removed from the system remove
+      the mains cables from the system. Tincup uses dual power supplies 
+      in load-sharing mode and not as a redundancy pair.</para>
+
+      <para>The kernel config file must contain:
+<programlisting>options	DEC_KN300
+cpu	EV5</programlisting>
+      </para>
     </sect3>
 
     <sect3>
       <title>AlphaServer 8200 and 8400 (<quote>TurboLaser</quote>)</title>
 
-<programlisting>
-The AlphaServer 8200 and 8400 machines are aimed as enterprise servers.
-Expect a tall 19&quot; cabinet (8200) or fat (8400) 19&quot; rack. This is big iron,
-not a hobbyist system. These are multi-CPU machines, up to 12 CPUs can be in
-a single machine. The TurboLaser System Bus (TLSB) allows 9 nodes on the
-AS8400 and 5 nodes on the AS8200. TLSB is 256 bit data, 40 bit address
-allowing 2.1 Gbytes/sec. Nodes on the TLSB can be CPUs, memory or I/O. A 
-maximum of 3 I/O ports are supported on a TLSB. Basic disk storage is housed
-in a StorageWorks shelf.
+      <para>The AlphaServer 8200 and 8400 machines are enterprise servers.
+      Expect a tall 19&quot; cabinet (8200) or fat (8400) 19&quot; rack. 
+      This is big iron, not a hobbyist system. TurboLasers are multi-CPU 
+      machines, up to 12 CPUs can be in a single machine. The TurboLaser 
+      System Bus (TLSB) allows 9 nodes on the AS8400 and 5 nodes on 
+      the AS8200. TLSB is 256 bit data, 40 bit address allowing 2.1 
+      GBytes/sec. Nodes on the TLSB can be CPUs, memory or I/O. A 
+      maximum of 3 I/O ports are supported on a TLSB.</para>
 
-Features: 
-- 21164 EV5 CPUs at up to 467 MHz
-  21264 EV67 CPUs at up to 625 MHz
-  one or two CPUs per CPU module
-- cache: 4Mbytes per CPU
-- memory bus: 256 bit with ECC
-- memory:
-	uses big memory modules that plug into the TLSB, which in turn
-	hold special SIMM modules.
-	memory modules come in varying sizes, up to 2 Gbytes a piece.
-	uses ECC (8 bites per 64 bits of data)
-	7 modules max for AS8400, 3 modules max for AS8200
-	maximum memory is 14 Gbytes
-- expansion:
-	3 system 'I/O ports' that allow up to 12 I/O channels
-	each I/O channel can connect to XMI, Futurebus+ or PCI boxes
+      <para>Basic disk storage is housed in a StorageWorks shelf. 
+      AS8400 uses 3 phase power, AS8200 uses single phase power.</para>
+
+      <para>Features:
+	<itemizedlist>
+	  <listitem>
+	    <para>21164 EV5 CPUs at up to 467 MHz or 21264 EV67 CPUs at 
+	    up to 625 MHz</para>
+	  </listitem>
+	  <listitem>
+            <para>one or two CPUs per CPU module</para>
+	  </listitem>
+	  <listitem>
+            <para>cache: 4Mbytes per CPU</para>
+	  </listitem>
+	  <listitem>
+            <para>memory bus: 256 bit with ECC</para>
+	  </listitem>
+	  <listitem>
+            <para>memory: big memory modules that plug into the TLSB, 
+	    which in turn hold special SIMM modules. Memory modules come 
+	    in varying sizes, up to 4 GBytes a piece. Uses ECC (8 bits 
+	    per 64 bits of data) 7 memory modules max for AS8400, 
+	    3 modules max for AS8200. Maximum memory is 14 GBytes.</para>
+	  </listitem>
+	  <listitem>
+            <para>expansion: 3 system 'I/O ports' that allow up to 
+	    12 I/O channels each I/O channel can connect to 
+	    XMI, Futurebus+ or PCI boxes
+	  </listitem>
+	</itemizedlist>
+      </para>
        
-Memory:
-&os; supports (and has been tested with) up to 2 Gbytes of memory on 
-TurboLaser.
+      <para>&os; supports (and has been tested with) up to 2 GBytes 
+      of memory on TurboLaser.</para>
 
-Expansion:
-Only PCI expansion is supported on &os;. XMI or Futurebus+ (which 
-are AS8400 only) are both unsupported.
+      <para>Only PCI expansion is supported on &os;. XMI or 
+      Futurebus+ (which are AS8400 only) are both unsupported.</para>
 
-The I/O port modules are designated KFTIA or KFTHA. The I/O port modules
-supply so called 'hoses' that connect to up to 4 (KFTHA) PCI buses or 1
-PCI bus (KFTIA). KFTIA has embedded dual 10baseT Ethernet, single FDDI,
-3 SCSI Fast Wide Differential SCSI buses and a single Fast Wide Single Ended
-SCSI bus. The FWSE SCSI is intended for the systems CDROM.
+      <para>The I/O port modules are designated KFTIA or KFTHA. The 
+      I/O port modules supply so called 'hoses' that connect to 
+      up to 4 (KFTHA) PCI buses or 1 PCI bus (KFTIA). KFTIA has 
+      embedded dual 10baseT Ethernet, single FDDI, 3 SCSI Fast 
+      Wide Differential SCSI buses and a single Fast Wide Single Ended
+      SCSI bus. The FWSE SCSI is intended for the CDROM.</para>
 
-KFTHA can drive via each of its 4 hoses a DWLPA or DWLPB box. The DWLPx
-house a 12 slots 32 bit PCI backplane. Physically the 12 slots are 3 4-slot
-buses but to the software it appears as a single 12 slots PCI bus. A fully
-expanded AS8x00 can have 3 (I/O ports) times 4 (hoses) times 12 (PCI
-slots/DWLPx) = 144 PCI slots. The maximum bandwidth per KFTHA is 500
-Mbytes/second. DWLPA can also house 8 EISA cards, 2 slots are PCI-only, 2
-slots are EISA only. Of the 12 slots 2 are always occupied by an I/O and
-connector module.
+      <para>KFTHA can drive via each of its 4 hoses a DWLPA or DWLPB 
+      box. The DWLPx house a 12 slots 32 bit PCI backplane. Physically 
+      the 12 slots are 3 4-slot buses but to the software it appears 
+      as a single 12 slots PCI bus. A fully expanded AS8x00 can have 
+      3 (I/O ports) times 4 (hoses) times 12 (PCI slots/DWLPx) = 
+      144 PCI slots. The maximum bandwidth per KFTHA is 500
+      Mbytes/second. DWLPA can also house 8 EISA cards, 2 slots 
+      are PCI-only, 2 slots are EISA only. Of the 12 slots 2 
+      are always occupied by an I/O and connector module. DWLPB are the
+      prefered I/O boxes.</para>
 
-For best performance distribute high bandwidth (FibreChannel, Gigabit Ethernet)
-over multiple hoses and/or multiple KFTHA/KFTIA.
+      <para>For best performance distribute high bandwidth 
+      (FibreChannel, Gigabit Ethernet) over multiple hoses and/or 
+      multiple KFTHA/KFTIA.</para>
 
-Currently PCI expansion cards containing PCI bridges are not usable. Don't
-use them at this time.
+      <para>Currently PCI expansion cards containing PCI bridges are 
+      not usable with &os;. Don't use them at this time.</para>
 
-Embedded SCSI:
-The single ended SCSI bus on the KFTIA will turn up as the fourth (!) 
-SCSI bus. The 3 differential SCSI buses of the KFTIA precede it. 
+      <para>The single ended SCSI bus on the KFTIA will turn up as 
+      the <emphasis>fourth</emphasis> SCSI bus. The 3 
+      differential SCSI buses of the KFTIA precede it. </para>
 
-Console:
-AS8x00 are generally run with serial consoles. Some newer machines might
-have a graphical console of some sorts but &os; has only been tested on
-a serial console.
+      <para>AS8x00 are generally run with serial consoles. Some 
+      newer machines might have a graphical console of some sorts 
+      but &os; has only been tested on a serial console.</para>
 
-For serial console usage either change /etc/ttys to have:
+      <para>For serial console usage either change 
+      <filename>/etc/ttys</filename> to have:
 
-        console "/usr/libexec/getty std.9600"   unknown   on secure
+	<programlisting>console "/usr/libexec/getty std.9600"   unknown   on secure</programlisting>
 
 as the console entry, or add
 
-        zs0     "/usr/libexec/getty std.9600"   unknown   on secure
+        <programlisting>zs0     "/usr/libexec/getty std.9600"   unknown   on secure</programlisting>
 
 and make the zs node:
 
-        mknod  /dev/zs0  c 135 0
+	<userinput>mknod  /dev/zs0  c 135 0</userinput>
+      </para>
 
-For the AlphaServer 8x00 machines the kernel config file must
-contain:
-	options         DEC_KN8AE	# Alpha 8200/8400 (Turbolaser)
-        cpu             EV5 
-</programlisting>
+      <para>For the AlphaServer 8x00 machines the kernel config file 
+      must contain:
+	<programlisting>options	DEC_KN8AE	# Alpha 8200/8400 (Turbolaser)
+cpu	EV5</programlisting></para>
+
+      <para>Contrary to expectation there is no <literal>cpu
+      EV6</literal> defined for inclusion in the kernel config
+      file. The <literal>cpu EV5</literal> is mandatory to keep
+      &man.config.8; happy.</para>
     </sect3>
 
     <sect3>
       <title>Alpha Processor Inc. UP1000</title>
 
-<programlisting>
-The UP1000 is an ATX mainboard based on the 21264a CPU which itself lives in
-a Slot B module. It is normally housed in a ATX [mini]tower enclosure.
+      <para>The UP1000 is an ATX mainboard based on the 21264a 
+      CPU which itself lives in a Slot B module. It is normally housed 
+      in an ATX tower enclosure.</para>
 
-Features:
-- 21264a Alpha CPU at 600 or 700 MHz in a Slot B module (includes cooling fans)
-- memory bus: 128 bits to the L2 cache, 64 bits from Slot B to the AMD-751
-- on-board Bcache / L2 cache: 2Mb (600Mhz) or 4Mb (700Mhz) cache
-- AMD AMD-751 ('Irongate') system controller chip
-- Acer Labs M1543C PCI-ISA bridge controller / super-IO chip
-- PS/2 mouse & keyboard port 
-- memory: 168-pin PC100 unbuffered SDRAM DIMMS
-	  3 DIMM slots
-	  DIMM sizes supported are 64, 128 or 256 Mb in size
-- 2x 16550A serial port
-- 1x ECP/EPP parallel port
-- floppy interface
-- 2x embedded Ultra DMA33 IDE interface
-- 2x USB port
-- expansion: 4 32 bit PCI slots 
-             2 ISA slots 
-	     1 AGP slot
+      <para>Features:
+	<itemizedlist>
+	  <listitem>
+	    <para>21264a Alpha CPU at 600 or 700 MHz in a Slot B 
+	    module (includes cooling fans)</para>
+	  </listitem>
+	  <listitem>
+            <para>memory bus: 128 bits to the L2 cache, 
+	    64 bits from Slot B to the AMD-751</para>
+	  </listitem>
+	  <listitem>
+            <para>on-board Bcache / L2 cache: 2MB (600Mhz) or 
+	    4MB (700Mhz)</para>
+	  </listitem>
+	  <listitem>
+            <para>AMD AMD-751 ('Irongate') system controller chip</para>
+	  </listitem>
+	  <listitem>
+            <para>Acer Labs M1543C PCI-ISA bridge controller / 
+	    super-IO chip</para>
+	  </listitem>
+	  <listitem>
+            <para>PS/2 mouse & keyboard port</para>
+	  </listitem>
+	  <listitem>
+            <para>memory: 168-pin PC100 unbuffered SDRAM DIMMS, 3 DIMM slots
+	    DIMM sizes supported are 64, 128 or 256 Mb in size</para>
+	  </listitem>
+	  <listitem>
+            <para>2x 16550A serial port</para>
+	  </listitem>
+	  <listitem>
+            <para>1x ECP/EPP parallel port</para>
+	  </listitem>
+	  <listitem>
+            <para>floppy interface</para>
+	  </listitem>
+	  <listitem>
+            <para>2x embedded Ultra DMA33 IDE interface</para>
+	  </listitem>
+	  <listitem>
+            <para>2x USB ports</para>
+	  </listitem>
+	  <listitem>
+            <para>expansion:
+	      <itemizedlist>
+		<listitem>
+		  <para>4 32 bit PCI slots</para>
+		</listitem>
+		<listitem>
+                  <para>2 ISA slots</para>
+		</listitem>
+		<listitem>
+	          <para>1 AGP slot</para>
+		</listitem>
+	       </itemizedlist>
+          </listitem>
+	</itemizedlist>
+       </para>
 
-Slot B:
-Slot B is a box-like enclosure that houses a daughter-board for the CPU and
-cache. It has 2 small fans for cooling. Loud ones too..
+       <para>Slot B is a box-like enclosure that houses a 
+       daughter-board for the CPU and cache. It has 2 small fans for 
+       cooling. Loud fans..</para>
 
-Memory:
-The machine needs ECC capable DIMMs, so 72 bit ones. This does not appear to
-be documented in the UP1000 docs. The system accesses the serial EEPROM on
-the DIMMs via the SM bus. Note that if only a single DIMM is used it must be
-installed in slot *2*. This is a bit counter-intuitive.
+       <para>The machine needs ECC capable DIMMs, so 72 bit ones. 
+       This does not appear to be documented in the UP1000 docs. The 
+       system accesses the serial EEPROM on the DIMMs via the SM bus. 
+       Note that if only a single DIMM is used it must be installed in 
+       slot *2*. This is a bit counter-intuitive.</para>
 
-Power
-The UP1000 needs a 400Watt ATX power supply according to the manufacturer. 
-This might be a bit overly conservative/pessimistic judging from the power
-consumption of the board & cpu. But as always you will have to take your
-expansion cards and peripherals into account. The M1543C chip contains power 
-management functionality & temperature monitoring (via I2C / SM bus).
+       <para>The UP1000 needs a 400Watt ATX power supply according 
+       to the manufacturer. This might be a bit overly 
+       conservative/pessimistic judging from the power consumption of 
+       the board & cpu. But as always you will have to take your
+       expansion cards and peripherals into account. The M1543C chip 
+       contains power management functionality & temperature monitoring 
+       (via I2C / SM bus).</para>
 
-Console
-Chances are that your UP1000 comes by default with AlphaBios only. The SRM
-console firmware is available from the Alpha Processor Inc. website. It is
-currently available in a beta version which was successfully used during the 
-port of &os; to the UP1000.
+       <para>Chances are that your UP1000 comes by default with 
+       AlphaBios only. The SRM console firmware is available from 
+       the Alpha Processor Inc. website. It is currently available in 
+       a beta version which was successfully used during the port of &os; 
+       to the UP1000. </para>
 
-EIDE:
-The embedded Ultra DMA EIDE ports are bootable by the SRM console.
+       <para>The embedded Ultra DMA EIDE ports are bootable by the 
+       SRM console.</para>
 
-SCSI:
-UP1000 SRM can boot off an Adaptec 294x adapter. Under high I/O load conditions
-machine lockups have been observed using the Adaptec 294x. A Symbios 875 
-based card works just fine, using either the ncr or sym driver. The sym driver 
-is the newest and most actively maintained one. Most likely other cards 
-based on the Symbios chips that the sym driver supports will work as well.
+       <para>UP1000 SRM can boot off an Adaptec 294x adapter. Under high 
+       I/O load conditions machine lockups have been observed using 
+       the Adaptec 294x. A Symbios 875 based card works just fine, 
+       using the sym driver. Most likely other cards based on the Symbios 
+       chips that the sym driver supports will work as well.</para>
 
-USB:
-Is disabled by the SRM console and has not (yet) been tested with &os;.
+      <para>The USB interfaces are disabled by the SRM console and 
+      have not (yet) been tested with &os;.</para>
 
-For the UP1000 the kernel config file must contain:
-	cpu		EV5
-	options         API_UP1000              # UP1000, UP1100 (Nautilus)
-</programlisting>
+      <para>For the UP1000 the kernel config file must contain:
+	<programlisting>options	API_UP1000	# UP1000, UP1100 (Nautilus)
+cpu	EV5</programlisting>
+      </para>
+
     </sect3>
 
     <sect3>
       <title>Alpha Processor Inc. UP1100</title>
 
-<programlisting>
-The UP1100 is an ATX mainboard based on the 21264a CPU running at 600 MHz.
-It is normally housed in a ATX [mini]tower enclosure.
+      <para>The UP1100 is an ATX mainboard based on the 21264a CPU running 
+      at 600 MHz.  It is normally housed in an ATX tower enclosure.</para>
 
-Features:
-- 21264a Alpha EV6 CPU at 600 or 700 MHz
-- memory bus: 100MHz 64-bit (PC-100 SDRAM)
-  800 MB/s memory bandwidth
-- on-board Bcache / L2 cache: 2Mb 
-- AMD AMD-751 ('Irongate') system controller chip
-- Acer Labs M1535D PCI-ISA bridge controller / super-IO chip
-- PS/2 mouse & keyboard port
-- memory: 168-pin PC100 unbuffered SDRAM DIMMS
-          3 DIMM slots
-          DIMM sizes supported are 64, 128 or 256 Mb in size
-- 2x 16550A serial port
-- 1x ECP/EPP parallel port
-- floppy interface
-- 2x embedded Ultra DMA66 IDE interface
-- 2x USB port
-- expansion: 3 32 bit PCI slots
-             1 AGP2x slot
+      <para>Features:
+	<itemizedlist>
+	  <listitem>
+            <para>21264a Alpha EV6 CPU at 600 or 700 MHz</para>
+	  </listitem>
+	  <listitem>
+            <para>memory bus: 100MHz 64-bit (PC-100 SDRAM), 800 MB/s memory 
+	    bandwidth</para>
+	  </listitem>
+	  <listitem>
+            <para>on-board Bcache / L2 cache: 2Mb</para>
+	  </listitem>
+	  <listitem>
+            <para>AMD AMD-751 (<quote>Irongate</quote>) system controller 
+	    chip</para>
+	  </listitem>
+	  <listitem>
+            <para>Acer Labs M1535D PCI-ISA bridge controller / 
+	    super-IO chip</para>
+	  </listitem>
+	  <listitem>
+            <para>PS/2 mouse & keyboard port</para>
+	  </listitem>
+	  <listitem>
+            <para>memory: 168-pin PC100 unbuffered SDRAM DIMMS, 3 DIMM slots
+            DIMM sizes supported are 64, 128 or 256 Mb in size</para>
+	  </listitem>
+	  <listitem>
+            <para>2x 16550A serial port</para>
+	  </listitem>
+	  <listitem>
+            <para>1x ECP/EPP parallel port</para>
+	  </listitem>
+	  <listitem>
+            <para>floppy interface</para>
+	  </listitem>
+	  <listitem>
+            <para>2x embedded Ultra DMA66 IDE interface</para>
+	  </listitem>
+	  <listitem>
+            <para>2x USB port</para>
+	  </listitem>
+	  <listitem>
+             <para>expansion: 3 32 bit PCI slots and 1 AGP2x slot</para>
+	  </listitem>
+        </itemizedlist>
+      </para>
 
-Console:
-SRM console code comes standard with the UP1100. The SRM lives in 2Mbytes of
-flash ROM.
+      <para>SRM console code comes standard with the UP1100. The SRM lives 
+      in 2Mbytes of flash ROM.</para>
 
-Memory:
-The machine needs ECC capable DIMMs, so 72 bit ones. This does not appear to
-be documented in the UP1100 docs. The system accesses the serial EEPROM on
-the DIMMs via the SM bus. Note that if only a single DIMM is used it must be
-installed in slot *2*. This is a bit counter-intuitive.
+      <para>The machine needs ECC capable DIMMs, so 72 bit ones. 
+      This does not appear to be documented in the UP1100 docs. The 
+      system accesses the serial EEPROM on the DIMMs via the SM bus. 
+      Note that if only a single DIMM is used it must be installed in 
+      slot *2*. This is a bit counter-intuitive.</para>
 
-Power
-The UP1100 needs a 400Watt ATX power supply according to the manufacturer.
-This might be a bit overly conservative/pessimistic judging from the power
-consumption of the board & cpu. But as always you will have to take your
-expansion cards and peripherals into account. The M1535D chip contains power
-management functionality & temperature monitoring (via I2C / SM bus using
-a LM75 thermal sensor).
+      <para>The UP1100 needs a 400Watt ATX power supply according to 
+      the manufacturer. This might be a bit overly conservative/pessimistic 
+      judging from the power consumption of the board & cpu. But as 
+      always you will have to take your expansion cards and 
+      peripherals into account. The M1535D chip contains power
+      management functionality & temperature monitoring 
+      (via I2C / SM bus using a LM75 thermal sensor).</para>
 
-Network:
-The UP1100 has an on-board 21143 10/100Mbit Ethernet interface.
+      <para>The UP1100 has an on-board 21143 10/100Mbit Ethernet 
+      interface.</para>
 
-Sound:
-The UP1100 is equipped with a SoundBlaster compatible audio interface.
-Whether this works with &os; is as of yet unknown.
+      <para>The UP1100 is equipped with a SoundBlaster compatible audio 
+      interface. Whether it works with &os; is as of yet unknown.</para>
 
-EIDE:
-The embedded Ultra DMA EIDE ports are bootable by the SRM console.
+      <para>The embedded Ultra DMA EIDE ports are bootable by 
+      the SRM console.</para>
 
-USB:
-The UP1100 has 3 USB ports, 2 going external and one connected to the 
-AGP port.
+      <para>The UP1100 has 3 USB ports, 2 going external and one connected 
+      to the AGP port.</para>
 
-For the UP1100 the kernel config file must contain:
-	cpu		EV5
-	options         API_UP1000              # UP1000, UP1100 (Nautilus)
-</programlisting>
+      <para>For the UP1100 the kernel config file must contain:
+        <programlisting>options	API_UP1000	# UP1000, UP1100 (Nautilus)
+cpu	EV5</programlisting>
+      </para>
+
+      <para>Contrary to expectation there is no <literal>cpu
+      EV6</literal> defined for inclusion in the kernel config
+      file. The <literal>cpu EV5</literal> is mandatory to keep
+      &man.config.8; happy.</para>
+
     </sect3>
 
     <sect3>
       <title>Alpha Processor Inc. CS20</title>
 
-<programlisting>
-The CS20 is a 19&quot;, 1U high rackmount server based on the 21264[ab] CPU. It can
-have a maximum of 2 CPUs.
+      <para>The CS20 is a 19&quot;, 1U high rackmount server based 
+      on the 21264[ab] CPU. It can have a maximum of 2 CPUs.</para>
 
-Features:
-- 21264a Alpha CPU at 667 MHz or 21264b 833 MHz (max. 2 CPUs)
-- memory bus: 100MHz 256-bit wide
-- 21271 Core Logic chipset ("Tsunami")
-- Acer Labs M1533 PCI-ISA bridge controller / super-IO chip
-- PS/2 mouse & keyboard port
-- memory: 168-pin PC100 PLL buffered/registered SDRAM DIMMS
-          8 DIMM slots 
-	  uses ECC memory
-	  min 256 Mbytes / max 2 Gbytes of memory
-- 2x 16550A serial port
-- 1x ECP/EPP parallel port
-- ALI M1543C Ultra DMA66 IDE interface
-- embedded dual Intel 82559 10/100Mbit Ethernet
-- embedded Symbios 53C1000 Ultra160 SCSI controller
-- expansion: 2 64 bit PCI slots (2/3 length)
-</programlisting>
+      <para>Features:
+	<itemizedlist>
+	  <listitem>
+	    <para>21264a Alpha CPU at 667 MHz or 21264b 833 MHz 
+	    (max. 2 CPUs)</para>
+	  </listitem>
+	  <listitem>
+            <para>memory bus: 100MHz 256-bit wide</para>
+	  </listitem>
+	  <listitem>
+            <para>21271 Core Logic chipset (<quote>Tsunami</quote>)</para>
+	  </listitem>
+	  <listitem>
+            <para>Acer Labs M1533 PCI-ISA bridge controller / super-IO chip
+	    </para>
+	  </listitem>
+	  <listitem>
+            <para>PS/2 mouse & keyboard port</para>
+	  </listitem>
+	  <listitem>
+            <para>memory: 168-pin PC100 PLL buffered/registered SDRAM DIMMS,
+            8 DIMM slots, uses ECC memory, min 256 Mbytes / 
+	    max 2 GBytes of memory</para>
+	  </listitem>
+	  <listitem>
+            <para>2x 16550A serial port</para>
+	  </listitem>
+	  <listitem>
+            <para>1x ECP/EPP parallel port</para>
+	  </listitem>
+	  <listitem>
+            <para>ALI M1543C Ultra DMA66 IDE interface</para>
+	  </listitem>
+	  <listitem>
+            <para>embedded dual Intel 82559 10/100Mbit Ethernet</para>
+	  </listitem>
+	  <listitem>
+            <para>embedded Symbios 53C1000 Ultra160 SCSI controller</para>
+	  </listitem>
+	  <listitem>
+            <para>expansion: 2 64 bit PCI slots (2/3 length)</para>
+	  </listitem>
+	</itemizedlist>
+      </para>
 
       <para>SRM console code comes standard with the CS20. The SRM 
       lives in 2Mbytes of flash ROM.</para>
@@ -2629,7 +2848,7 @@ cpu	EV5</programlisting></para>
     variation of PCI/ISA expansion cards out there has much less
     chance of having been tested on alpha than on Intel. This is not
     to imply they are doomed to fail, just that the chance of running
-    into something never tested before is much greater.
+    into something never tested before is much higher.
     <filename>GENERIC</filename>
     contains things that are known to work on Alpha only.</para>
 
@@ -2700,46 +2919,46 @@ cpu	EV5</programlisting></para>
     <para>People who kindly helped me create this section:
       <itemizedlist>
       <listitem>
-        <para>Nick Maniscalco <email>nmanisca@vt.edu</email></para>
+        <para>&a.gallatin;</para>
       </listitem>
       <listitem>
-        <para>Andrew Gallatin <email>gallatin@cs.duke.edu</email></para>
+        <para>&a.chuckr;</para>
       </listitem>
       <listitem>
-        <para>Christian Weisgerber <email>naddy@mips.rhein-neckar.de</email></para>
-      </listitem>
-      <listitem>
-        <para>David O'Brien <email>obrien@NUXI.com</email></para>
-      </listitem>
-      <listitem>
-        <para>Wim Lemmers, ex-Compaq</para>
-      </listitem>
-      <listitem>
-        <para>Matthew Jacob <email>mjacob@feral.com</email></para>
-      </listitem>
-      <listitem>
-        <para>Eric Schnoebelen <email>eric@cirr.com</email></para>
-      </listitem>
-      <listitem>
-        <para>Chuck Robey <email>chuckr@picnic.mat.net</email></para>
+        <para>&a.mjacob;</para>
       </listitem>
       <listitem>
         <para>&a.msmith;</para>
       </listitem>
       <listitem>
-        <para>Peter Jeremy <email>peter.jeremy@alcatel.com.au</email></para>
+        <para>&a.obrien;</para>
       </listitem>
       <listitem>
-        <para>Dolf de Waal <email>l.j.de.waal@kader.hobby.nl</email></para>
+        <para>Christian Weisgerber</para>
+      </listitem>
+      <listitem>
+        <para>Kazutaka YOKOTA</para>
+      </listitem>
+      <listitem>
+        <para>Nick Maniscalco</para>
+      </listitem>
+      <listitem>
+        <para>Eric Schnoebelen</para>
+      </listitem>
+      <listitem>
+        <para>Peter van Dijk</para>
+      </listitem>
+      <listitem>
+        <para>Peter Jeremy</para>
+      </listitem>
+      <listitem>
+        <para>Dolf de Waal</para>
+      </listitem>
+      <listitem>
+        <para>Wim Lemmers, ex-Compaq</para>
       </listitem>
       <listitem>
         <para>Wouter Brackman, Compaq</para>
-      </listitem>
-      <listitem>
-        <para>Kazutaka YOKOTA <email>yokota@zodiac.mech.utsunomiya-u.ac.jp</email></para>
-      </listitem>
-      <listitem>
-        <para>Peter van Dijk <email>petervd@vuurwerk.nl</email></para>
       </listitem>
       <listitem>
         <para>Lodewijk van den Berg, Compaq</para>
