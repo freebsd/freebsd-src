@@ -457,6 +457,7 @@ nfssvc_nfsd(struct thread *td)
 			nfsrvstats.srvrpccnt[nd->nd_procnum]++;
 			nfsrv_updatecache(nd, TRUE, mreq);
 			nd->nd_mrep = NULL;
+			/* FALLTHROUGH */
 		    case RC_REPLY:
 			siz = m_length(mreq, NULL);
 			if (siz <= 0 || siz > NFS_MAXPACKET) {
