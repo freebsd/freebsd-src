@@ -1203,6 +1203,8 @@ ng_ksocket_finish_accept(priv_p priv)
 
 	/* XXX KNOTE(&head->so_rcv.sb_sel.si_note, 0); */
 
+	soref(so);
+
 	so->so_state &= ~SS_COMP;
 	so->so_state |= SS_NBIO;
 	so->so_head = NULL;
