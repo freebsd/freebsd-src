@@ -1,12 +1,22 @@
 #ifndef lint
-static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
+static char const yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #endif
+#include <stdlib.h>
 #define YYBYACC 1
 #define YYMAJOR 1
 #define YYMINOR 9
-#define yyclearin (yychar=(-1))
+#define YYLEX yylex()
+#define YYEMPTY -1
+#define yyclearin (yychar=(YYEMPTY))
 #define yyerrok (yyerrflag=0)
 #define YYRECOVERING (yyerrflag!=0)
+#if defined(c_plusplus) || defined(__cplusplus)
+#include <stdlib.h>
+#else
+extern char *getenv();
+extern void *realloc();
+#endif
+static int yygrowstack();
 #define YYPREFIX "yy"
 #line 26 "ftp.y"
 
@@ -56,7 +66,7 @@ char	cbuf[512];
 char	*fromname;
 
 char	*index();
-#line 60 "ftp.tab.c"
+#line 70 "ftp.tab.c"
 #define A 257
 #define B 258
 #define C 259
@@ -121,7 +131,7 @@ char	*index();
 #define CHMOD 318
 #define LEXERR 319
 #define YYERRCODE 256
-short yylhs[] = {                                        -1,
+const short yylhs[] = {                                        -1,
     0,    0,    0,    1,    1,    1,    1,    1,    1,    1,
     1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
     1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
@@ -131,7 +141,7 @@ short yylhs[] = {                                        -1,
     6,    6,    6,    7,    7,    7,    8,    8,    8,   10,
    14,   11,    9,
 };
-short yylen[] = {                                         2,
+const short yylen[] = {                                         2,
     0,    2,    2,    4,    4,    4,    2,    4,    4,    4,
     4,    8,    5,    5,    5,    3,    5,    3,    5,    5,
     2,    5,    4,    2,    3,    5,    2,    4,    2,    5,
@@ -141,7 +151,7 @@ short yylen[] = {                                         2,
     1,    3,    2,    1,    1,    1,    1,    1,    1,    1,
     1,    1,    0,
 };
-short yydefred[] = {                                      1,
+const short yydefred[] = {                                      1,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
    73,   73,   73,    0,   73,    0,    0,   73,   73,   73,
    73,    0,    0,    0,    0,   73,   73,   73,   73,   73,
@@ -163,11 +173,11 @@ short yydefred[] = {                                      1,
     0,   35,   72,    0,   40,    0,    0,    0,   37,    0,
     0,   12,    0,    0,   38,    0,    0,    0,   52,
 };
-short yydgoto[] = {                                       1,
+const short yydgoto[] = {                                       1,
    34,   35,   71,   73,   75,   80,   84,   88,   45,   95,
   184,  125,  157,   96,
 };
-short yysindex[] = {                                      0,
+const short yysindex[] = {                                      0,
  -224, -247, -239, -236, -232, -222, -204, -200, -181, -177,
     0,    0,    0, -166,    0, -161, -199,    0,    0,    0,
     0, -160, -159, -264, -158,    0,    0,    0,    0,    0,
@@ -189,7 +199,7 @@ short yysindex[] = {                                      0,
   -97,    0,    0,  -95,    0,  -96,  -94,  -92,    0, -152,
   -93,    0,  -91,  -90,    0,  -88,  -87,  -86,    0,
 };
-short yyrindex[] = {                                      0,
+const short yyrindex[] = {                                      0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,  -83,    0,    0,    0,    0,    0,    0,    0,
@@ -211,12 +221,12 @@ short yyrindex[] = {                                      0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,
 };
-short yygindex[] = {                                      0,
+const short yygindex[] = {                                      0,
     0,    0,    0,    0,    0,    0,    0,    0,   16,  -89,
   -25,   35,   47,    0,
 };
 #define YYTABLESIZE 190
-short yytable[] = {                                     129,
+const short yytable[] = {                                     129,
   130,  131,  104,  134,   59,   60,   76,  136,  137,   77,
   138,   78,   79,  105,  106,  107,   98,   99,  146,  123,
   148,  149,   36,  124,  150,  151,  152,   46,   47,   37,
@@ -237,7 +247,7 @@ short yytable[] = {                                     129,
   183,  185,  190,  187,  189,  188,  191,  192,  195,  194,
   196,    0,    0,  198,  197,   73,  199,   49,   56,   58,
 };
-short yycheck[] = {                                      89,
+const short yycheck[] = {                                      89,
    90,   91,  305,   93,  269,  270,  257,   97,   98,  260,
   100,  262,  263,  316,  317,  318,  269,  270,  108,  269,
   110,  111,  270,  273,  114,  115,  116,   12,   13,  269,
@@ -261,10 +271,12 @@ short yycheck[] = {                                      89,
 #define YYFINAL 1
 #ifndef YYDEBUG
 #define YYDEBUG 0
+#elif YYDEBUG
+#include <stdio.h>
 #endif
 #define YYMAXTOKEN 319
 #if YYDEBUG
-char *yyname[] = {
+const char * const yyname[] = {
 "end-of-file",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -278,7 +290,7 @@ char *yyname[] = {
 "DELE","CWD","LIST","NLST","SITE","STAT","HELP","NOOP","MKD","RMD","PWD","CDUP",
 "STOU","SMNT","SYST","SIZE","MDTM","UMASK","IDLE","CHMOD","LEXERR",
 };
-char *yyrule[] = {
+const char * const yyrule[] = {
 "$accept : cmd_list",
 "cmd_list :",
 "cmd_list : cmd_list cmd",
@@ -365,10 +377,11 @@ typedef int YYSTYPE;
 #ifdef YYMAXDEPTH
 #define YYSTACKSIZE YYMAXDEPTH
 #else
-#define YYSTACKSIZE 500
-#define YYMAXDEPTH 500
+#define YYSTACKSIZE 10000
+#define YYMAXDEPTH 10000
 #endif
 #endif
+#define YYINITSTACKSIZE 200
 int yydebug;
 int yynerrs;
 int yyerrflag;
@@ -377,9 +390,10 @@ short *yyssp;
 YYSTYPE *yyvsp;
 YYSTYPE yyval;
 YYSTYPE yylval;
-short yyss[YYSTACKSIZE];
-YYSTYPE yyvs[YYSTACKSIZE];
-#define yystacksize YYSTACKSIZE
+short *yyss;
+short *yysslim;
+YYSTYPE *yyvs;
+int yystacksize;
 #line 658 "ftp.y"
 
 extern jmp_buf errcatch;
@@ -904,20 +918,47 @@ char *filename;
 		reply(504, "SIZE not implemented for Type %c.", "?AEIL"[type]);
 	}
 }
-#line 908 "ftp.tab.c"
+#line 920 "ftp.tab.c"
+/* allocate initial stack or double stack size, up to YYMAXDEPTH */
+static int yygrowstack()
+{
+    int newsize, i;
+    short *newss;
+    YYSTYPE *newvs;
+
+    if ((newsize = yystacksize) == 0)
+        newsize = YYINITSTACKSIZE;
+    else if (newsize >= YYMAXDEPTH)
+        return -1;
+    else if ((newsize *= 2) > YYMAXDEPTH)
+        newsize = YYMAXDEPTH;
+    i = yyssp - yyss;
+    if ((newss = (short *)realloc(yyss, newsize * sizeof *newss)) == NULL)
+        return -1;
+    yyss = newss;
+    yyssp = newss + i;
+    if ((newvs = (YYSTYPE *)realloc(yyvs, newsize * sizeof *newvs)) == NULL)
+        return -1;
+    yyvs = newvs;
+    yyvsp = newvs + i;
+    yystacksize = newsize;
+    yysslim = yyss + newsize - 1;
+    return 0;
+}
+
 #define YYABORT goto yyabort
 #define YYREJECT goto yyabort
 #define YYACCEPT goto yyaccept
 #define YYERROR goto yyerrlab
+
 int
 yyparse()
 {
     register int yym, yyn, yystate;
 #if YYDEBUG
-    register char *yys;
-    extern char *getenv();
+    register const char *yys;
 
-    if (yys = getenv("YYDEBUG"))
+    if ((yys = getenv("YYDEBUG")))
     {
         yyn = *yys;
         if (yyn >= '0' && yyn <= '9')
@@ -929,12 +970,13 @@ yyparse()
     yyerrflag = 0;
     yychar = (-1);
 
+    if (yyss == NULL && yygrowstack()) goto yyoverflow;
     yyssp = yyss;
     yyvsp = yyvs;
     *yyssp = yystate = 0;
 
 yyloop:
-    if (yyn = yydefred[yystate]) goto yyreduce;
+    if ((yyn = yydefred[yystate])) goto yyreduce;
     if (yychar < 0)
     {
         if ((yychar = yylex()) < 0) yychar = 0;
@@ -957,7 +999,7 @@ yyloop:
             printf("%sdebug: state %d, shifting to state %d\n",
                     YYPREFIX, yystate, yytable[yyn]);
 #endif
-        if (yyssp >= yyss + yystacksize - 1)
+        if (yyssp >= yysslim && yygrowstack())
         {
             goto yyoverflow;
         }
@@ -974,12 +1016,12 @@ yyloop:
         goto yyreduce;
     }
     if (yyerrflag) goto yyinrecovery;
-#ifdef lint
+#if defined(lint) || defined(__GNUC__)
     goto yynewerror;
 #endif
 yynewerror:
     yyerror("syntax error");
-#ifdef lint
+#if defined(lint) || defined(__GNUC__)
     goto yyerrlab;
 #endif
 yyerrlab:
@@ -998,7 +1040,7 @@ yyinrecovery:
                     printf("%sdebug: state %d, error recovery shifting\
  to state %d\n", YYPREFIX, *yyssp, yytable[yyn]);
 #endif
-                if (yyssp >= yyss + yystacksize - 1)
+                if (yyssp >= yysslim && yygrowstack())
                 {
                     goto yyoverflow;
                 }
@@ -1196,7 +1238,7 @@ break;
 case 17:
 #line 222 "ftp.y"
  {
-			if (yyvsp[-3] && yyvsp[-1] != NULL)
+			if (yyvsp[-3] && yyvsp[-1] != NULL) 
 				send_file_list((char *) yyvsp[-1]);
 			if (yyvsp[-1] != NULL)
 				free((char *) yyvsp[-1]);
@@ -1467,8 +1509,8 @@ case 44:
 					struct tm *gmtime();
 					t = gmtime(&stbuf.st_mtime);
 					reply(213,
-					    "19%02d%02d%02d%02d%02d%02d",
-					    t->tm_year, t->tm_mon+1, t->tm_mday,
+					    "%d%02d%02d%02d%02d%02d",
+					    t->tm_year+1900, t->tm_mon+1, t->tm_mday,
 					    t->tm_hour, t->tm_min, t->tm_sec);
 				}
 			}
@@ -1684,7 +1726,7 @@ case 73:
 		}
 	}
 break;
-#line 1688 "ftp.tab.c"
+#line 1728 "ftp.tab.c"
     }
     yyssp -= yym;
     yystate = *yyssp;
@@ -1727,7 +1769,7 @@ break;
         printf("%sdebug: after reduction, shifting from state %d \
 to state %d\n", YYPREFIX, *yyssp, yystate);
 #endif
-    if (yyssp >= yyss + yystacksize - 1)
+    if (yyssp >= yysslim && yygrowstack())
     {
         goto yyoverflow;
     }
