@@ -36,6 +36,7 @@
 .Nm ftpPut ,
 .Nm ftpBinary ,
 .Nm ftpPassive ,
+.Nm ftpVerbose ,
 .Nm ftpGetURL ,
 .Nm ftpPutURL
 .Nd FTPIO User library
@@ -61,6 +62,8 @@
 .Fn ftpBinary "FILE *stream"
 .Ft int
 .Fn ftpPassive "FILE *stream, int status"
+.Ft void
+.Fn ftpVerbose "FILE *stream, int status"
 .Ft FILE *
 .Fn ftpGetURL "char *url, char *user, char *passwd"
 .Ft FILE *
@@ -140,6 +143,12 @@ sets binary mode for the current server connection named by
 .Pp
 .Fn ftpPassive
 sets passive mode (for firewalls) for the current server connection named by
+.Fa stream
+to boolean value
+.Fa status .
+.Pp
+.Fn ftpVerbose
+sets the verbosity mode for the current server connection named by
 .Fa stream
 to boolean value
 .Fa status .
