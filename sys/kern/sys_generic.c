@@ -394,11 +394,12 @@ pwrite(td, uap)
 	struct file *fp;
 	int error;
 
-	mtx_lock(&Giant);
 	if ((error = fget_write(td, uap->fd, &fp)) == 0) {
 		if (fp->f_type == DTYPE_VNODE) {
+			mtx_lock(&Giant);
 			error = dofilewrite(td, fp, uap->fd, uap->buf,
 				    uap->nbyte, uap->offset, FOF_OFFSET);
+			mtx_unlock(&Giant);
 		} else {
 			error = ESPIPE;
 		}
