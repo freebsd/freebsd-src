@@ -582,7 +582,7 @@ _share=	share/syscons/scrnmaps
 _fortran= gnu/usr.bin/cc/f771
 .endif
 
-.if !defined(NOPERL) || defined(NO_PERL)
+.if !defined(NOPERL) && !defined(NO_PERL)
 _perl=	gnu/usr.bin/perl/miniperl
 .endif
 
@@ -768,7 +768,7 @@ _kerberos5_lib=	kerberos5/lib
 _libkeycap=	usr.sbin/pcvt/keycap
 .endif
 
-.if !defined(NOPERL) || defined(NO_PERL)
+.if !defined(NOPERL) && !defined(NO_PERL)
 _libperl=	gnu/usr.bin/perl/libperl
 .endif
 
