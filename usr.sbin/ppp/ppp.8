@@ -1984,11 +1984,11 @@ enable dns
 Do
 .Em NOT
 do this if you are running a local DNS unless you also either use
-.Dq resolv readonly ,
+.Dq resolv readonly
 or have
 .Dq resolv restore
 in
-.Pa /etc/ppp/ppp.linkdown
+.Pa /etc/ppp/ppp.linkdown ,
 as
 .Nm
 will simply circumvent its use by entering some nameserver lines in
