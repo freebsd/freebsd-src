@@ -5,7 +5,8 @@ SUBDIR=			\
 	atmbase		\
 	atmpif		\
 	sscfu		\
-	sscop
+	sscop		\
+	uni
 
 .include <bsd.subdir.mk>
 
