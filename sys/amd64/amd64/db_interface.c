@@ -33,6 +33,8 @@
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/cons.h>
+#include <sys/linker_set.h>
+#include <sys/ktr.h>
 
 #include <machine/cpu.h>
 #ifdef SMP
@@ -44,6 +46,9 @@
 #include <vm/pmap.h>
 
 #include <ddb/ddb.h>
+#include <ddb/db_access.h>
+#include <ddb/db_sym.h>
+#include <ddb/db_variables.h>
 
 #include <setjmp.h>
 
@@ -137,14 +142,14 @@ kdb_trap(type, code, regs)
 #ifdef CPUSTOP_ON_DDBBREAK
 
 #if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf("\nCPU%d stopping CPUs: 0x%08x\n", cpuid, other_cpus);
+	db_printf("\nCPU%d stopping CPUs: 0x%08x...", cpuid, other_cpus);
 #endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
 
 	/* We stop all CPUs except ourselves (obviously) */
 	stop_cpus(other_cpus);
 
 #if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf(" stopped\n");
+	db_printf(" stopped.\n");
 #endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
 
 #endif /* CPUSTOP_ON_DDBBREAK */
@@ -166,7 +171,7 @@ kdb_trap(type, code, regs)
 #ifdef CPUSTOP_ON_DDBBREAK
 
 #if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf("\nCPU%d restarting CPUs: 0x%08x\n", cpuid, stopped_cpus);
+	db_printf("\nCPU%d restarting CPUs: 0x%08x...", cpuid, stopped_cpus);
 #endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
 
 	/* Restart all the CPUs we previously stopped */
@@ -178,7 +183,7 @@ kdb_trap(type, code, regs)
 	restart_cpus(stopped_cpus);
 
 #if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf(" restarted\n");
+	db_printf(" restarted.\n");
 #endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
 
 #endif /* CPUSTOP_ON_DDBBREAK */
@@ -301,8 +306,8 @@ void
 Debugger(msg)
 	const char *msg;
 {
-	static volatile u_char in_Debugger;
-
+	static volatile	u_char in_Debugger;
+	int		flags;
 	/*
 	 * XXX
 	 * Do nothing if the console is in graphics mode.  This is
@@ -313,9 +318,113 @@ Debugger(msg)
 	    return;
 
 	if (!in_Debugger) {
+	    flags = save_intr();
+	    disable_intr();
 	    in_Debugger = 1;
 	    db_printf("Debugger(\"%s\")\n", msg);
 	    breakpoint();
 	    in_Debugger = 0;
+            restore_intr(flags);
 	}
 }
+
+#if defined(KTR)
+
+struct tstate {
+	int	cur;
+	int	first;
+};
+static struct tstate tstate;
+static struct timespec lastt;
+static int db_mach_vtrace(void);
+
+DB_COMMAND(tbuf, db_mach_tbuf)
+{
+	struct ktr_entry	*k1, *ck, *kend;
+	struct timespec		newk;
+
+	k1 = ktr_buf;
+	ck = k1;
+	timespecclear(&newk);
+	kend = ktr_buf + KTR_ENTRIES;
+	while (k1 != kend) {
+		if (timespecisset(&k1->ktr_tv) &&
+		    timespeccmp(&k1->ktr_tv, &newk, >)) {
+			newk = k1->ktr_tv;
+			ck = k1;
+		}
+		k1++;
+	}
+	tstate.cur = ck - ktr_buf;
+	tstate.first = tstate.cur | 0x80000000;
+	timespecclear(&lastt);
+	db_mach_vtrace();
+
+	return;
+}
+
+DB_COMMAND(tall, db_mach_tall)
+{
+	int	c;
+
+	db_mach_tbuf(addr, have_addr, count, modif);
+	while (db_mach_vtrace()) {
+		c = cncheckc();
+		if (c != -1)
+			break;
+	}
+
+	return;
+}
+
+DB_COMMAND(tnext, db_mach_tnext)
+{
+	db_mach_vtrace();
+}
+
+static int
+db_mach_vtrace(void)
+{
+	struct ktr_entry	*kp;
+	struct timespec		ts;
+	char			*d;
+
+	kp = NULL;
+	if (tstate.cur != tstate.first)
+		kp = ktr_buf + tstate.cur;
+	else
+		kp = NULL;
+
+	if (!kp) {
+		db_printf("--- End of trace buffer ---\n");
+		return (0);
+	}
+
+	d = kp->ktr_desc;
+	if (d == NULL) 
+		d = "*** Empty ***";
+	else if (lastt.tv_sec == 0) {
+		db_printf("Newest entry at clock %ld.%06ld\n",
+			  kp->ktr_tv.tv_sec,
+			  kp->ktr_tv.tv_nsec / 1000);
+		lastt = kp->ktr_tv;
+	}
+	ts = lastt;
+	db_printf("%4ld.%06ld: ", ts.tv_sec, ts.tv_nsec / 1000);
+	lastt = kp->ktr_tv;
+#ifdef KTR_EXTEND
+	db_printf("cpu%d %s.%d\t%s", kp->ktr_cpu, kp->ktr_filename,
+		  kp->ktr_line, kp->ktr_desc);
+#else
+	db_printf(d, kp->ktr_parm1, kp->ktr_parm2, kp->ktr_parm3,
+		    kp->ktr_parm4, kp->ktr_parm5);
+#endif
+	db_printf("\n");
+	tstate.first &= ~0x80000000;
+	if (--tstate.cur < 0)
+		tstate.cur = KTR_ENTRIES - 1;
+
+	return (1);
+}
+
+#endif
