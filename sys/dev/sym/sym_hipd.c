@@ -57,22 +57,33 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.5.3-20000506"
+#define SYM_DRIVER_NAME	"sym-1.6.2-20000614"
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
-
 #include <sys/param.h>
+
 /*
  *  Only use the BUS stuff for PCI under FreeBSD 4 and later versions.
  *  Note that the old BUS stuff also works for FreeBSD 4 and spares 
- *  about 1.5KB for the driver object file.
+ *  about 1 KB for the driver object file.
  */
 #if 	__FreeBSD_version >= 400000
-#define	FreeBSD_Bus_Io_Abstraction
 #define	FreeBSD_Bus_Dma_Abstraction
+#define	FreeBSD_Bus_Io_Abstraction
+#define	FreeBSD_Bus_Space_Abstraction
+#endif
+
+/*
+ *  Driver configuration options.
+ */
+#include "opt_sym.h"
+#include <dev/sym/sym_conf.h>
+
+#ifndef FreeBSD_Bus_Io_Abstraction
+#include "ncr.h"	/* To know if the ncr has been configured */
 #endif
 
 #include <sys/systm.h>
@@ -88,9 +99,19 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+#ifdef	FreeBSD_Bus_Space_Abstraction
 #include <machine/bus_memio.h>
+/*
+ *  Only include bus_pio if needed.
+ *  This avoids bus space primitives to be uselessly bloated 
+ *  by out-of-age PIO operations.
+ */
+#ifdef	SYM_CONF_IOMAPPED
 #include <machine/bus_pio.h>
+#endif
+#endif
 #include <machine/bus.h>
+
 #ifdef FreeBSD_Bus_Io_Abstraction
 #include <machine/resource.h>
 #include <sys/rman.h>
@@ -110,12 +131,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#if 0
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <vm/vm_extern.h>
-#endif
-
 /* Short and quite clear integer types */
 typedef int8_t    s8;
 typedef int16_t   s16;
@@ -124,38 +139,74 @@ typedef u_int8_t  u8;
 typedef u_int16_t u16;
 typedef	u_int32_t u32;
 
-/* Driver configuration and definitions */
-#if 1
-#include "opt_sym.h"
-#include <dev/sym/sym_conf.h>
+/*
+ *  Driver definitions.
+ */
 #include <dev/sym/sym_defs.h>
 #include <dev/sym/sym_fw.h>
+
+/*
+ *  IA32 architecture does not reorder STORES and prevents
+ *  LOADS from passing STORES. It is called `program order' 
+ *  by Intel and allows device drivers to deal with memory 
+ *  ordering by only ensuring that the code is not reordered  
+ *  by the compiler when ordering is required.
+ *  Other architectures implement a weaker ordering that 
+ *  requires memory barriers (and also IO barriers when they 
+ *  make sense) to be used.
+ */
+
+#if	defined	__i386__
+#define MEMORY_BARRIER()	do { ; } while(0)
+#elif	defined	__alpha__
+#define MEMORY_BARRIER()	alpha_mb()
+#elif	defined	__powerpc__
+#define MEMORY_BARRIER()	__asm__ volatile("eieio; sync" : : : "memory")
+#elif	defined	__ia64__
+#define MEMORY_BARRIER()	__asm__ volatile("mf.a; mf" : : : "memory")
+#elif	defined	__sparc64__
+#error	"Sorry, but maintainer is ignorant about sparc64 :)"
 #else
-#include "ncr.h"	/* To know if the ncr has been configured */
-#include <pci/sym_conf.h>
-#include <pci/sym_defs.h>
-#include <pci/sym_fw.h>
+#error	"Not supported platform"
 #endif
 
 /*
- *  On x86 architecture, write buffers management does not 
- *  reorder writes to memory. So, preventing compiler from  
- *  optimizing the code is enough to guarantee some ordering 
- *  when the CPU is writing data accessed by the PCI chip.
- *  On Alpha architecture, explicit barriers are to be used.
- *  By the way, the *BSD semantic associates the barrier 
- *  with some window on the BUS and the corresponding verbs 
- *  are for now unused. What a strangeness. The driver must 
- *  ensure that accesses from the CPU to the start and done 
- *  queues are not reordered by either the compiler or the 
- *  CPU and uses 'volatile' for this purpose.
+ *  Portable but silly implemented byte order primitives.
+ *  We define the primitives we need, since FreeBSD doesn't 
+ *  seem to have them yet.
  */
+#if	BYTE_ORDER == BIG_ENDIAN
 
-#ifdef	__alpha__
-#define MEMORY_BARRIER()	alpha_mb()
-#else /*__i386__*/
-#define MEMORY_BARRIER()	do { ; } while(0)
-#endif
+#define __revb16(x) (	(((u16)(x) & (u16)0x00ffU) << 8) | \
+			(((u16)(x) & (u16)0xff00U) >> 8) 	)
+#define __revb32(x) (	(((u32)(x) & 0x000000ffU) << 24) | \
+			(((u32)(x) & 0x0000ff00U) <<  8) | \
+			(((u32)(x) & 0x00ff0000U) >>  8) | \
+			(((u32)(x) & 0xff000000U) >> 24)	)
+
+#define __htole16(v)	__revb16(v)
+#define __htole32(v)	__revb32(v)
+#define __le16toh(v)	__htole16(v)
+#define __le32toh(v)	__htole32(v)
+
+static __inline__ u16	_htole16(u16 v) { return __htole16(v); }
+static __inline__ u32	_htole32(u32 v) { return __htole32(v); }
+#define _le16toh	_htole16
+#define _le32toh	_htole32
+
+#else	/* LITTLE ENDIAN */
+
+#define __htole16(v)	(v)
+#define __htole32(v)	(v)
+#define __le16toh(v)	(v)
+#define __le32toh(v)	(v)
+
+#define _htole16(v)	(v)
+#define _htole32(v)	(v)
+#define _le16toh(v)	(v)
+#define _le32toh(v)	(v)
+
+#endif	/* BYTE_ORDER */
 
 /*
  *  A la VMS/CAM-3 queue management.
@@ -220,7 +271,7 @@ static __inline void sym_que_splice(struct sym_quehead *list,
 }
 
 #define sym_que_entry(ptr, type, member) \
-	((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
+	((type *)((char *)(ptr)-(unsigned int)(&((type *)0)->member)))
 
 
 #define sym_insque(new, pos)		__sym_que_add(new, pos, (pos)->flink)
@@ -377,19 +428,10 @@ static int sym_debug = 0;
 #define sym_verbose	(np->verbose)
 
 /*
- *  Copy from main memory to PCI memory space.
- */
-#ifdef	__alpha__
-#define memcpy_to_pci(d, s, n)	memcpy_toio((u32)(d), (void *)(s), (n))
-#else /*__i386__*/
-#define memcpy_to_pci(d, s, n)	bcopy((s), (void *)(d), (n))
-#endif
-
-/*
  *  Insert a delay in micro-seconds and milli-seconds.
  */
-static void UDELAY(long us) { DELAY(us); }
-static void MDELAY(long ms) { while (ms--) UDELAY(1000); }
+static void UDELAY(int us) { DELAY(us); }
+static void MDELAY(int ms) { while (ms--) UDELAY(1000); }
 
 /*
  *  Simple power of two buddy-like allocator.
@@ -881,7 +923,7 @@ static char *sym_scsi_bus_mode(int mode)
 }
 
 /*
- *  Some poor sync table that refers to Tekram NVRAM layout.
+ *  Some poor and bogus sync table that refers to Tekram NVRAM layout.
  */
 #ifdef SYM_CONF_NVRAM_SUPPORT
 static u_char Tekram_sync[16] =
@@ -918,29 +960,73 @@ struct sym_nvram {
 #endif
 
 /*
- *  Some provision for a possible big endian support.
- *  By the way some Symbios chips also may support some kind 
- *  of big endian byte ordering.
+ *  Some provision for a possible big endian mode supported by 
+ *  Symbios chips (never seen, by the way).
  *  For now, this stuff does not deserve any comments. :)
  */
 
 #define sym_offb(o)	(o)
 #define sym_offw(o)	(o)
 
+/*
+ *  Some provision for support for BIG ENDIAN CPU.
+ *  Btw, FreeBSD does not seem to be ready yet for big endian.
+ */
+
+#if	BYTE_ORDER == BIG_ENDIAN
+#define cpu_to_scr(dw)	_htole32(dw)
+#define scr_to_cpu(dw)	_le32toh(dw)
+#else
 #define cpu_to_scr(dw)	(dw)
 #define scr_to_cpu(dw)	(dw)
+#endif
 
 /*
- *  Access to the controller chip.
- *
- *  If SYM_CONF_IOMAPPED is defined, the driver will use 
- *  normal IOs instead of the MEMORY MAPPED IO method  
- *  recommended by PCI specifications.
+ *  Access to the chip IO registers and on-chip RAM.
+ *  We use the `bus space' interface under FreeBSD-4 and 
+ *  later kernel versions.
+ */
+
+#ifdef	FreeBSD_Bus_Space_Abstraction
+
+#if defined(SYM_CONF_IOMAPPED)
+
+#define INB_OFF(o)	bus_space_read_1(np->io_tag, np->io_bsh, o)
+#define INW_OFF(o)	bus_space_read_2(np->io_tag, np->io_bsh, o)
+#define INL_OFF(o)	bus_space_read_4(np->io_tag, np->io_bsh, o)
+
+#define OUTB_OFF(o, v)	bus_space_write_1(np->io_tag, np->io_bsh, o, (v))
+#define OUTW_OFF(o, v)	bus_space_write_2(np->io_tag, np->io_bsh, o, (v))
+#define OUTL_OFF(o, v)	bus_space_write_4(np->io_tag, np->io_bsh, o, (v))
+
+#else	/* Memory mapped IO */
+
+#define INB_OFF(o)	bus_space_read_1(np->mmio_tag, np->mmio_bsh, o)
+#define INW_OFF(o)	bus_space_read_2(np->mmio_tag, np->mmio_bsh, o)
+#define INL_OFF(o)	bus_space_read_4(np->mmio_tag, np->mmio_bsh, o)
+
+#define OUTB_OFF(o, v)	bus_space_write_1(np->mmio_tag, np->mmio_bsh, o, (v))
+#define OUTW_OFF(o, v)	bus_space_write_2(np->mmio_tag, np->mmio_bsh, o, (v))
+#define OUTL_OFF(o, v)	bus_space_write_4(np->mmio_tag, np->mmio_bsh, o, (v))
+
+#endif	/* SYM_CONF_IOMAPPED */
+
+#define OUTRAM_OFF(o, a, l)	\
+	bus_space_write_region_1(np->ram_tag, np->ram_bsh, o, (a), (l))
+
+#else	/* not defined FreeBSD_Bus_Space_Abstraction */
+
+#if	BYTE_ORDER == BIG_ENDIAN
+#error	"BIG ENDIAN support requires bus space kernel interface"
+#endif
+
+/*
+ *  Access to the chip IO registers and on-chip RAM.
+ *  We use legacy MMIO and IO interface for FreeBSD 3.X versions.
  */
 
 /*
- *  Define some understable verbs so we will not suffer of 
- *  having to deal with the stupid PC tokens for IO.
+ *  Define some understable verbs for IO and MMIO.
  */
 #define io_read8(p)	 scr_to_cpu(inb((p)))
 #define	io_read16(p)	 scr_to_cpu(inw((p)))
@@ -957,6 +1043,7 @@ struct sym_nvram {
 #define mmio_write8(a, b)    writeb(a, b)
 #define mmio_write16(a, b)   writew(a, b)
 #define mmio_write32(a, b)   writel(a, b)
+#define memcpy_to_pci(d, s, n)	memcpy_toio((u32)(d), (void *)(s), (n))
 
 #else /*__i386__*/
 
@@ -966,6 +1053,7 @@ struct sym_nvram {
 #define mmio_write8(a, b)   (*(volatile unsigned char *) (a)) = cpu_to_scr(b)
 #define mmio_write16(a, b)  (*(volatile unsigned short *) (a)) = cpu_to_scr(b)
 #define mmio_write32(a, b)  (*(volatile unsigned int *) (a)) = cpu_to_scr(b)
+#define memcpy_to_pci(d, s, n)	bcopy((s), (void *)(d), (n))
 
 #endif
 
@@ -996,8 +1084,12 @@ struct sym_nvram {
 
 #endif
 
+#define OUTRAM_OFF(o, a, l) memcpy_to_pci(np->ram_va + (o), (a), (l))
+
+#endif	/* FreeBSD_Bus_Space_Abstraction */
+
 /*
- *  Common to both normal IO and MMIO.
+ *  Common definitions for both bus space and legacy IO methods.
  */
 #define INB(r)		INB_OFF(offsetof(struct sym_reg,r))
 #define INW(r)		INW_OFF(offsetof(struct sym_reg,r))
@@ -1013,6 +1105,23 @@ struct sym_nvram {
 #define OUTOFFW(r, m)	OUTW(r, INW(r) & ~(m))
 #define OUTONL(r, m)	OUTL(r, INL(r) | (m))
 #define OUTOFFL(r, m)	OUTL(r, INL(r) & ~(m))
+
+/*
+ *  We normally want the chip to have a consistent view
+ *  of driver internal data structures when we restart it.
+ *  Thus these macros.
+ */
+#define OUTL_DSP(v)				\
+	do {					\
+		MEMORY_BARRIER();		\
+		OUTL (nc_dsp, (v));		\
+	} while (0)
+
+#define OUTONB_STD()				\
+	do {					\
+		MEMORY_BARRIER();		\
+		OUTONB (nc_dcntl, (STD|NOCOM));	\
+	} while (0)
 
 /*
  *  Command control block states.
@@ -1521,7 +1630,7 @@ struct sym_ccb {
 	/*
 	 *  Other fields.
 	 */
-	u_long	ccb_ba;		/* BUS address of this CCB	*/
+	u32	ccb_ba;		/* BUS address of this CCB	*/
 	u_short	tag;		/* Tag for this transfer	*/
 				/*  NO_TAG means no tag		*/
 	u_char	target;
@@ -1718,8 +1827,8 @@ struct sym_hcb {
 	u_char	maxoffs_dt;	/* Max scsi offset        (DT)	*/
 	u_char	multiplier;	/* Clock multiplier (1,2,4)	*/
 	u_char	clock_divn;	/* Number of clock divisors	*/
-	u_long	clock_khz;	/* SCSI clock frequency in KHz	*/
-
+	u32	clock_khz;	/* SCSI clock frequency in KHz	*/
+	u32	pciclk_khz;	/* Estimated PCI clock  in KHz	*/
 	/*
 	 *  Start queue management.
 	 *  It is filled up by the host processor and accessed by the 
@@ -1967,11 +2076,14 @@ sym_fw2_patch(hcb_p np)
 	 *  Remove a couple of work-arounds specific to C1010 if 
 	 *  they are not desirable. See `sym_fw2.h' for more details.
 	 */
-	if ((np->features & (FE_C10|FE_PCI66)) != (FE_C10|FE_PCI66)) {
+	if (!(np->device_id == PCI_ID_LSI53C1010_2 &&
+	      /* np->revision_id < 0xff */ 1 &&
+	      np->pciclk_khz < 60000)) {
 		scripta0->datao_phase[0] = cpu_to_scr(SCR_NO_OP);
 		scripta0->datao_phase[1] = cpu_to_scr(0);
 	}
-	if ((np->features & (FE_C10|FE_PCI66)) != FE_C10) {
+	if (!(np->device_id == PCI_ID_LSI53C1010 &&
+	      /* np->revision_id < 0xff */ 1)) {
 		scripta0->sel_done[0] = cpu_to_scr(SCR_NO_OP);
 		scripta0->sel_done[1] = cpu_to_scr(0);
 	}
@@ -2337,7 +2449,7 @@ static void sym_int_sir (hcb_p np);
 static void sym_free_ccb (hcb_p np, ccb_p cp);
 static ccb_p sym_get_ccb (hcb_p np, u_char tn, u_char ln, u_char tag_order);
 static ccb_p sym_alloc_ccb (hcb_p np);
-static ccb_p sym_ccb_from_dsa (hcb_p np, u_long dsa);
+static ccb_p sym_ccb_from_dsa (hcb_p np, u32 dsa);
 static lcb_p sym_alloc_lcb (hcb_p np, u_char tn, u_char ln);
 static void sym_alloc_lcb_tags (hcb_p np, u_char tn, u_char ln);
 static int  sym_snooptest (hcb_p np);
@@ -2489,8 +2601,7 @@ static void sym_xpt_done2(hcb_p np, union ccb *ccb, int cam_status)
  *  calculations more simple.
  */
 #define _5M 5000000
-static u_long div_10M[] =
-	{2*_5M, 3*_5M, 4*_5M, 6*_5M, 8*_5M, 12*_5M, 16*_5M};
+static u32 div_10M[] = {2*_5M, 3*_5M, 4*_5M, 6*_5M, 8*_5M, 12*_5M, 16*_5M};
 
 /*
  *  SYMBIOS chips allow burst lengths of 2, 4, 8, 16, 32, 64,
@@ -2597,7 +2708,7 @@ static void sym_save_initial_setting (hcb_p np)
 static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 {
 	u_char	burst_max;
-	u_long	period;
+	u32	period;
 	int i;
 
 	/*
@@ -2698,7 +2809,8 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	 *  In dual channel mode, contention occurs if internal cycles
 	 *  are used. Disable internal cycles.
 	 */
-	if (np->device_id == PCI_ID_LSI53C1010 && np->revision_id < 0x45)
+	if (np->device_id == PCI_ID_LSI53C1010 &&
+	    /* np->revision_id < 0xff */ 1)
 		np->rv_ccntl0	|=  DILS;
 
 	/*
@@ -2848,11 +2960,15 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 		sym_nvram_setup_target (np, i, nvram);
 
 		/*
-		 *  For now, guess PPR support from the period.
+		 *  For now, guess PPR/DT support from the period 
+		 *  and BUS width.
 		 */
-		if (tp->tinfo.user.period <= 9) {
-			tp->tinfo.user.options |= PPR_OPT_DT;
-			tp->tinfo.user.offset   = np->maxoffs_dt;
+		if (np->features & FE_ULTRA3) {
+			if (tp->tinfo.user.period <= 9	&&
+			    tp->tinfo.user.width == BUS_16_BIT) {
+				tp->tinfo.user.options |= PPR_OPT_DT;
+				tp->tinfo.user.offset   = np->maxoffs_dt;
+			}
 		}
 
 		if (!tp->usrtags)
@@ -3154,7 +3270,7 @@ static int sym_wakeup_done (hcb_p np)
 {
 	ccb_p cp;
 	int i, n;
-	u_long dsa;
+	u32 dsa;
 
 	n = 0;
 	i = np->dqueueget;
@@ -3172,8 +3288,8 @@ static int sym_wakeup_done (hcb_p np)
 			++n;
 		}
 		else
-			printf ("%s: bad DSA (%lx) in done queue.\n",
-				sym_name(np), dsa);
+			printf ("%s: bad DSA (%x) in done queue.\n",
+				sym_name(np), (u_int) dsa);
 	}
 	np->dqueueget = i;
 
@@ -3206,7 +3322,7 @@ static void sym_flush_busy_queue (hcb_p np, int cam_status)
 static void sym_init (hcb_p np, int reason)
 {
  	int	i;
-	u_long	phys;
+	u32	phys;
 
  	/*
 	 *  Reset chip if asked, otherwise just clear fifos.
@@ -3292,13 +3408,20 @@ static void sym_init (hcb_p np, int reason)
 	OUTB (nc_stime0, 0x0c);			/* HTH disabled  STO 0.25 sec */
 
 	/*
+	 *  For now, disable AIP generation on C1010-66.
+	 */
+	if (np->device_id == PCI_ID_LSI53C1010_2)
+		OUTB (nc_aipcntl1, DISAIP);
+
+	/*
 	 *  C10101 Errata.
 	 *  Errant SGE's when in narrow. Write bits 4 & 5 of
 	 *  STEST1 register to disable SGE. We probably should do 
 	 *  that from SCRIPTS for each selection/reselection, but 
 	 *  I just don't want. :)
 	 */
-	if (np->device_id == PCI_ID_LSI53C1010 && np->revision_id < 0x45)
+	if (np->device_id == PCI_ID_LSI53C1010 &&
+	    /* np->revision_id < 0xff */ 1)
 		OUTB (nc_stest1, INB(nc_stest1) | 0x30);
 
 	/*
@@ -3389,8 +3512,7 @@ static void sym_init (hcb_p np, int reason)
 			printf ("%s: Downloading SCSI SCRIPTS.\n",
 				sym_name(np));
 		if (np->ram_ws == 8192) {
-			memcpy_to_pci(np->ram_va + 4096,
-					np->scriptb0, np->scriptb_sz);
+			OUTRAM_OFF(4096, np->scriptb0, np->scriptb_sz);
 			OUTL (nc_mmws, np->scr_ram_seg);
 			OUTL (nc_mmrs, np->scr_ram_seg);
 			OUTL (nc_sfs,  np->scr_ram_seg);
@@ -3398,16 +3520,15 @@ static void sym_init (hcb_p np, int reason)
 		}
 		else
 			phys = SCRIPTA_BA (np, init);
-		memcpy_to_pci(np->ram_va, np->scripta0, np->scripta_sz);
+		OUTRAM_OFF(0, np->scripta0, np->scripta_sz);
 	}
 	else
 		phys = SCRIPTA_BA (np, init);
 
 	np->istat_sem = 0;
 
-	MEMORY_BARRIER();
 	OUTL (nc_dsa, np->hcb_ba);
-	OUTL (nc_dsp, phys);
+	OUTL_DSP (phys);
 
 	/*
 	 *  Notify the XPT about the RESET condition.
@@ -3659,7 +3780,7 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	 *  Set misc. ultra enable bits.
 	 */
 	if (np->features & FE_C10) {
-		uval = uval & ~U3EN;
+		uval = uval & ~(U3EN|AIPCKEN);
 		if (dt)	{
 			assert(np->features & FE_U3EN);
 			uval |= U3EN;
@@ -3946,7 +4067,7 @@ static void sym_intr1 (hcb_p np)
 		if	(sist & PAR)	sym_int_par (np, sist);
 		else if (sist & MA)	sym_int_ma (np);
 		else if (dstat & SIR)	sym_int_sir (np);
-		else if (dstat & SSI)	OUTONB (nc_dcntl, (STD|NOCOM));
+		else if (dstat & SSI)	OUTONB_STD ();
 		else			goto unknown_int;
 		return;
 	};
@@ -4077,14 +4198,14 @@ static void sym_recover_scsi_int (hcb_p np, u_char hsts)
 		 */
 		if (cp) {
 			cp->host_status = hsts;
-			OUTL (nc_dsp, SCRIPTA_BA (np, complete_error));
+			OUTL_DSP (SCRIPTA_BA (np, complete_error));
 		}
 		/*
 		 *  Otherwise just restart the SCRIPTS.
 		 */
 		else {
 			OUTL (nc_dsa, 0xffffff);
-			OUTL (nc_dsp, SCRIPTA_BA (np, start));
+			OUTL_DSP (SCRIPTA_BA (np, start));
 		}
 	}
 	else
@@ -4229,18 +4350,18 @@ static void sym_int_par (hcb_p np, u_short sist)
 	if (phase == 1) {
 		/* Phase mismatch handled by SCRIPTS */
 		if (dsp == SCRIPTB_BA (np, pm_handle))
-			OUTL (nc_dsp, dsp);
+			OUTL_DSP (dsp);
 		/* Phase mismatch handled by the C code */
 		else if (sist & MA)
 			sym_int_ma (np);
 		/* No phase mismatch occurred */
 		else {
 			OUTL (nc_temp, dsp);
-			OUTL (nc_dsp, SCRIPTA_BA (np, dispatch));
+			OUTL_DSP (SCRIPTA_BA (np, dispatch));
 		}
 	}
 	else 
-		OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+		OUTL_DSP (SCRIPTA_BA (np, clrack));
 	return;
 
 reset_all:
@@ -4518,7 +4639,7 @@ static void sym_int_ma (hcb_p np)
 	 *  Restart the SCRIPTS processor.
 	 */
 	OUTL (nc_temp, newcmd);
-	OUTL (nc_dsp,  nxtdsp);
+	OUTL_DSP (nxtdsp);
 	return;
 
 	/*
@@ -4591,7 +4712,7 @@ unexpected_phase:
 	}
 
 	if (nxtdsp) {
-		OUTL (nc_dsp, nxtdsp);
+		OUTL_DSP (nxtdsp);
 		return;
 	}
 
@@ -4757,7 +4878,7 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 		 *  and restart the SCRIPTS processor immediately.
 		 */
 		(void) sym_dequeue_from_squeue(np, i, cp->target, cp->lun, -1);
-		OUTL (nc_dsp, SCRIPTA_BA (np, start));
+		OUTL_DSP (SCRIPTA_BA (np, start));
 
  		/*
 		 *  Save some info of the actual IO.
@@ -5019,7 +5140,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 			np->abrt_sel.sel_scntl3 = tp->head.wval;
 			np->abrt_sel.sel_sxfer  = tp->head.sval;
 			OUTL(nc_dsa, np->hcb_ba);
-			OUTL (nc_dsp, SCRIPTB_BA (np, sel_for_abort));
+			OUTL_DSP (SCRIPTB_BA (np, sel_for_abort));
 			return;
 		}
 
@@ -5275,7 +5396,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 	/*
 	 *  Let the SCRIPTS processor continue.
 	 */
-	OUTONB (nc_dcntl, (STD|NOCOM));
+	OUTONB_STD ();
 }
 
 /*
@@ -5499,11 +5620,11 @@ static void sym_modify_dp(hcb_p np, tcb_p tp, ccb_p cp, int ofs)
 
 out_ok:
 	OUTL (nc_temp, dp_scr);
-	OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+	OUTL_DSP (SCRIPTA_BA (np, clrack));
 	return;
 
 out_reject:
-	OUTL (nc_dsp, SCRIPTB_BA (np, msg_bad));
+	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 }
 
 
@@ -5574,7 +5695,7 @@ static int sym_compute_residual(hcb_p np, ccb_p cp)
 	dp_sgmin = SYM_CONF_MAX_SG - cp->segments;
 	resid = -cp->ext_ofs;
 	for (dp_sg = cp->ext_sg; dp_sg < SYM_CONF_MAX_SG; ++dp_sg) {
-		u_long tmp = scr_to_cpu(cp->phys.data[dp_sg].size);
+		u_int tmp = scr_to_cpu(cp->phys.data[dp_sg].size);
 		resid += (tmp & 0xffffff);
 	}
 
@@ -5719,7 +5840,7 @@ static void sym_sync_nego(hcb_p np, tcb_p tp, ccb_p cp)
 		if (chg) 	/* Answer wasn't acceptable. */
 			goto reject_it;
 		sym_setsync (np, cp, ofs, per, div, fak);
-		OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+		OUTL_DSP (SCRIPTA_BA (np, clrack));
 		return;
 	}
 
@@ -5743,11 +5864,11 @@ static void sym_sync_nego(hcb_p np, tcb_p tp, ccb_p cp)
 
 	np->msgin [0] = M_NOOP;
 
-	OUTL (nc_dsp, SCRIPTB_BA (np, sdtr_resp));
+	OUTL_DSP (SCRIPTB_BA (np, sdtr_resp));
 	return;
 reject_it:
 	sym_setsync (np, cp, 0, 0, 0, 0);
-	OUTL (nc_dsp, SCRIPTB_BA (np, msg_bad));
+	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 }
 
 /*
@@ -5845,7 +5966,7 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 		if (chg) 	/* Answer wasn't acceptable */
 			goto reject_it;
 		sym_setpprot (np, cp, dt, ofs, per, wide, div, fak);
-		OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+		OUTL_DSP (SCRIPTA_BA (np, clrack));
 		return;
 	}
 
@@ -5872,11 +5993,11 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 
 	np->msgin [0] = M_NOOP;
 
-	OUTL (nc_dsp, SCRIPTB_BA (np, ppr_resp));
+	OUTL_DSP (SCRIPTB_BA (np, ppr_resp));
 	return;
 reject_it:
 	sym_setpprot (np, cp, 0, 0, 0, 0, 0, 0);
-	OUTL (nc_dsp, SCRIPTB_BA (np, msg_bad));
+	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 }
 
 /*
@@ -5951,11 +6072,11 @@ static void sym_wide_nego(hcb_p np, tcb_p tp, ccb_p cp)
 
 			cp->nego_status = NS_SYNC;
 			OUTB (HS_PRT, HS_NEGOTIATE);
-			OUTL (nc_dsp, SCRIPTB_BA (np, sdtr_resp));
+			OUTL_DSP (SCRIPTB_BA (np, sdtr_resp));
 			return;
 		}
 
-		OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+		OUTL_DSP (SCRIPTA_BA (np, clrack));
 		return;
 	};
 
@@ -5978,10 +6099,10 @@ static void sym_wide_nego(hcb_p np, tcb_p tp, ccb_p cp)
 		sym_print_msg(cp, "wide msgout", np->msgout);
 	}
 
-	OUTL (nc_dsp, SCRIPTB_BA (np, wdtr_resp));
+	OUTL_DSP (SCRIPTB_BA (np, wdtr_resp));
 	return;
 reject_it:
-	OUTL (nc_dsp, SCRIPTB_BA (np, msg_bad));
+	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 }
 
 /*
@@ -6028,7 +6149,7 @@ static void sym_nego_rejected(hcb_p np, tcb_p tp, ccb_p cp)
 void sym_int_sir (hcb_p np)
 {
 	u_char	num	= INB (nc_dsps);
-	u_long	dsa	= INL (nc_dsa);
+	u32	dsa	= INL (nc_dsa);
 	ccb_p	cp	= sym_ccb_from_dsa(np, dsa);
 	u_char	target	= INB (nc_sdid) & 0x0f;
 	tcb_p	tp	= &np->target[target];
@@ -6253,7 +6374,7 @@ void sym_int_sir (hcb_p np)
 	 */
 	case SIR_MSG_WEIRD:
 		sym_print_msg(cp, "WEIRD message received", np->msgin);
-		OUTL (nc_dsp, SCRIPTB_BA (np, msg_weird));
+		OUTL_DSP (SCRIPTB_BA (np, msg_weird));
 		return;
 	/*
 	 *  Negotiation failed.
@@ -6272,13 +6393,13 @@ void sym_int_sir (hcb_p np)
 	};
 
 out:
-	OUTONB (nc_dcntl, (STD|NOCOM));
+	OUTONB_STD ();
 	return;
 out_reject:
-	OUTL (nc_dsp, SCRIPTB_BA (np, msg_bad));
+	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 	return;
 out_clrack:
-	OUTL (nc_dsp, SCRIPTA_BA (np, clrack));
+	OUTL_DSP (SCRIPTA_BA (np, clrack));
 	return;
 out_stuck:
 }
@@ -6582,7 +6703,7 @@ out_free:
 /*
  *  Look up a CCB from a DSA value.
  */
-static ccb_p sym_ccb_from_dsa(hcb_p np, u_long dsa)
+static ccb_p sym_ccb_from_dsa(hcb_p np, u32 dsa)
 {
 	int hcode;
 	ccb_p cp;
@@ -6800,7 +6921,7 @@ static int sym_snooptest (hcb_p np)
 	 *  Start script (exchange values)
 	 */
 	OUTL (nc_dsa, np->hcb_ba);
-	OUTL (nc_dsp, pc);
+	OUTL_DSP (pc);
 	/*
 	 *  Wait 'til done (with timeout)
 	 */
@@ -7046,14 +7167,20 @@ static void sym_getclock (hcb_p np, int mult)
  */
 static int sym_getpciclock (hcb_p np)
 {
-	static int f = 0;
+	int f = 0;
 
-	/* For the C10, this will not work */
-	if (!f && !(np->features & FE_C10)) {
+	/*
+	 *  For the C1010-33, this doesn't work.
+	 *  For the C1010-66, this will be tested when I'll have 
+	 *  such a beast to play with.
+	 */
+	if (!(np->features & FE_C10)) {
 		OUTB (nc_stest1, SCLK);	/* Use the PCI clock as SCSI clock */
 		f = (int) sym_getfreq (np);
 		OUTB (nc_stest1, 0);
 	}
+	np->pciclk_khz = f;
+
 	return f;
 }
 
@@ -7233,7 +7360,7 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 	/*
 	 *  Restart the SCRIPTS processor.
 	 */
-	OUTL (nc_dsp, SCRIPTA_BA (np, start));
+	OUTL_DSP (SCRIPTA_BA (np, start));
 
 #ifdef	FreeBSD_Bus_Dma_Abstraction
 	/*
@@ -9456,7 +9583,7 @@ sym_Tekram_setup_target(hcb_p np, int target, Tekram_nvram *nvram)
 /*
  *  Dump Symbios format NVRAM for debugging purpose.
  */
-void sym_display_Symbios_nvram(hcb_p np, Symbios_nvram *nvram)
+static void sym_display_Symbios_nvram(hcb_p np, Symbios_nvram *nvram)
 {
 	int i;
 
@@ -9488,8 +9615,8 @@ void sym_display_Symbios_nvram(hcb_p np, Symbios_nvram *nvram)
 /*
  *  Dump TEKRAM format NVRAM for debugging purpose.
  */
-static u_char Tekram_boot_delay[7] __initdata = {3, 5, 10, 20, 30, 60, 120};
-void sym_display_Tekram_nvram(hcb_p np, Tekram_nvram *nvram)
+static u_char Tekram_boot_delay[7] = {3, 5, 10, 20, 30, 60, 120};
+static void sym_display_Tekram_nvram(hcb_p np, Tekram_nvram *nvram)
 {
 	int i, tags, boot_delay;
 	char *rem;
@@ -9555,11 +9682,19 @@ int sym_read_nvram(hcb_p np, struct sym_nvram *nvp)
 	 *  Try to read TEKRAM nvram if Symbios nvram not found.
 	 */
 	if	(SYM_SETUP_SYMBIOS_NVRAM &&
-		 !sym_read_Symbios_nvram (np, &nvp->data.Symbios))
+		 !sym_read_Symbios_nvram (np, &nvp->data.Symbios)) {
 		nvp->type = SYM_SYMBIOS_NVRAM;
+#ifdef SYM_CONF_DEBUG_NVRAM
+		sym_display_Symbios_nvram(np, &nvp->data.Symbios);
+#endif
+	}
 	else if	(SYM_SETUP_TEKRAM_NVRAM &&
-		 !sym_read_Tekram_nvram (np, &nvp->data.Tekram))
+		 !sym_read_Tekram_nvram (np, &nvp->data.Tekram)) {
 		nvp->type = SYM_TEKRAM_NVRAM;
+#ifdef SYM_CONF_DEBUG_NVRAM
+		sym_display_Tekram_nvram(np, &nvp->data.Tekram);
+#endif
+	}
 	else
 		nvp->type = 0;
 #else

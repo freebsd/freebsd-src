@@ -551,12 +551,12 @@ static struct SYM_FWA_SCR SYM_FWA_SCR = {
 }/*-------------------------< DATAO_PHASE >----------------------*/,{
 	/*
 	 *  C1010-66 errata work-around.
-	 *  SCNTL4 to be written prior to any DATA_OUT 
-	 *  phase if 33 MHz PCI BUS.
+	 *  Extra clocks of data hold must be inserted 
+	 *  in DATA OUT phase on 33 MHz PCI BUS.
 	 *  Patched with a NOOP for other chips.
 	 */
-	SCR_LOAD_REL (scntl4, 1),
-		offsetof(struct sym_dsb, select.sel_scntl4),
+	SCR_REG_REG (scntl4, SCR_OR, (XCLKH_DT|XCLKH_ST)),
+		0,
 	SCR_RETURN,
 		0,
 }/*-------------------------< MSG_IN >---------------------------*/,{
