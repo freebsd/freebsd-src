@@ -82,6 +82,16 @@ static u_long		ticks_per_sec = 12500000;
 static long		ticks_per_intr;
 static volatile u_long	lasttb;
 
+static int sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS);
+
+int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
+SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
+	CTLFLAG_RW, &wall_cmos_clock, 0, "");
+
+int	adjkerntz;		/* local offset from GMT in seconds */
+SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
+	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
+
 #define	SECDAY		86400
 #define	DIFF19041970	2082844800
 
@@ -96,6 +106,17 @@ static struct timecounter	decr_timecounter = {
 	0,			/* frequency */
 	"decrementer"		/* name */
 };
+
+static int
+sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (!error && req->newptr)
+		resettodr();
+	return (error);
+}
 
 void
 inittodr(time_t base)
