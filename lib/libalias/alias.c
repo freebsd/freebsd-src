@@ -884,6 +884,7 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 
 /* Restore original IP address */
 		accumulate = twowords(&pip->ip_dst);
+		pip->ip_dst = original_address;
 		accumulate -= twowords(&pip->ip_dst);
 
 /* If this is a transparent proxy packet, then modify the source
