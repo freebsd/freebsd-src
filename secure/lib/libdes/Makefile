@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.4 (Berkeley) 5/7/91
-#	$Id$
+#	$Id: Makefile,v 1.1 1996/02/10 23:49:27 markm Exp $
 
 LIB=	des
 SRCS=	cbc3_enc.c cbc_cksm.c cbc_enc.c  cfb64enc.c cfb_enc.c  \
@@ -13,6 +13,7 @@ SHLIB_MAJOR=	2
 SHLIB_MINOR=	1
 
 CFLAGS+=	-Wall
+CLEANFILES+=	des_crypt.3
 
 MAN3=	des_crypt.3
 
