@@ -91,6 +91,7 @@ struct sigcontext {
 	long	sc_r15;
 	long	sc_trapno;
 	long	sc_addr;
+	long	sc_flags;
 	long	sc_err;
 	long	sc_rip;
 	long	sc_cs;
@@ -104,9 +105,8 @@ struct sigcontext {
 	 */
 	long	sc_fpformat;
 	long	sc_ownedfp;
-	long	sc_spare1[1];
 	long	sc_fpstate[64] __aligned(16);
-	long	sc_spare2[8];
+	long	sc_spare[8];
 };
 #endif /* __BSD_VISIBLE */
 
