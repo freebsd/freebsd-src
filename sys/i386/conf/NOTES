@@ -443,6 +443,9 @@ options 	ACPI_MAX_THREADS=1
 # ACPI Asus Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_asus
 
+# ACPI Fujitsu Extras (Buttons)
+device		acpi_fujitsu
+
 # ACPI Panasonic Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_panasonic
 
