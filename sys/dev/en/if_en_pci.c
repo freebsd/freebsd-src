@@ -66,6 +66,9 @@
 #include <dev/en/midwayreg.h>
 #include <dev/en/midwayvar.h>
 
+MODULE_DEPEND(en, pci, 1, 1, 1);
+MODULE_DEPEND(en, atm, 1, 1, 1);
+
 /*
  * local structures
  */
@@ -262,7 +265,7 @@ en_pci_attach(device_t dev)
 	    en_intr, sc, &scp->ih);
 	if (error) {
 		en_reset(sc);
-		if_detach(&sc->enif);
+		atm_ifdetach(&sc->enif);
 		device_printf(dev, "could not setup irq\n");
 		bus_release_resource(dev, SYS_RES_IRQ, 0, scp->irq);
 		bus_release_resource(dev, SYS_RES_MEMORY, PCI_CBMA, scp->res);
@@ -297,7 +300,7 @@ en_pci_detach(device_t dev)
 	 * Close down routes etc.
 	 */
 	en_reset(sc);
-	if_detach(&sc->enif);
+	atm_ifdetach(&sc->enif);
 
 	/*
 	 * Deallocate resources.

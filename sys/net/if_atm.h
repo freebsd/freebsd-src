@@ -99,6 +99,7 @@ struct atmllc {
 
 #ifdef _KERNEL
 void	atm_ifattach(struct ifnet *);
+void	atm_ifdetach(struct ifnet *);
 void	atm_input(struct ifnet *, struct atm_pseudohdr *,
 		struct mbuf *, void *);
 int	atm_output(struct ifnet *, struct mbuf *, struct sockaddr *, 
