@@ -47,6 +47,8 @@
 #include <unistd.h>
 #ifndef __FreeBSD__
 #include <getopt.h>
+#else
+#include <locale.h>
 #endif
 
 /* Local headers */
@@ -82,7 +84,7 @@ enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: at.c,v 1.3 1995/08/08 15:24:51 ig25 Exp $";
+static char rcsid[] = "$Id: at.c,v 1.6 1995/08/21 12:32:45 ache Exp $";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"
@@ -203,6 +205,10 @@ writefile(time_t runtimer, char queue)
     mode_t cmask;
     struct flock lock;
     
+#ifdef __FreeBSD__
+    (void) setlocale(LC_TIME, "");
+#endif
+
 /* Install the signal handler for SIGINT; terminate after removing the
  * spool file if necessary
  */
