@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 10, 2001
+.Dd May 13, 2004
 .Dt DEVICE_IDENTIFY 9
 .Os
 .Sh NAME
@@ -60,12 +60,12 @@ Since the device tree and the device driver tree are disjoint, the
 routine needs to take this into account.
 If you load and unload your device driver that has the identify
 routine, the child node has the potential for adding the same node
-multiple times.
+multiple times unless specific measure are taken to preclude that
+possibility.
 .Sh EXAMPLES
 The following pseudo-code shows an example of a function that
 probes for a piece of hardware and registers it and its resource
 (an I/O port) with the kernel.
-It also sets the description of the device.
 .Bd -literal
 void
 foo_identify(driver_t *driver, device_t parent)
@@ -73,10 +73,9 @@ foo_identify(driver_t *driver, device_t parent)
 	device_t child;
 
 	retrieve_device_information;
-	if (devices matches one of your supported devices) {
+	if (devices matches one of your supported devices &&
+	    not already in device tree) {
 		child = BUS_ADD_CHILD(parent, 0, "foo", -1);
-		device_set_desc_copy(child, "foo chip ver.123");
-		device_set_driver(child, driver);
 		bus_set_resource(child, SYS_RES_IOPORT, 0, FOO_IOADDR, 1);
 	}
 }
@@ -89,8 +88,6 @@ foo_identify(driver_t *driver, device_t parent)
 .Xr DEVICE_ATTACH 9 ,
 .Xr DEVICE_DETACH 9 ,
 .Xr DEVICE_PROBE 9 ,
-.Xr device_set_desc_copy 9 ,
-.Xr device_set_driver 9 ,
 .Xr DEVICE_SHUTDOWN 9
 .Sh AUTHORS
 This man page was written by
