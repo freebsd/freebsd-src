@@ -2,7 +2,7 @@
  * Copyright (c) 1995, David Greenman
  * All rights reserved.
  *
- * Modifications to support NetBSD and media selection:
+ * Modifications to support media selection:
  * Copyright (c) 1997 Jason R. Thorpe.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,34 +51,6 @@
 #endif
 
 #include <net/bpf.h>
-
-#if defined(__NetBSD__)
-
-#include <sys/ioctl.h>
-#include <sys/errno.h>
-#include <sys/device.h>
-
-#include <net/if_dl.h>
-#include <net/if_ether.h>
-
-#include <netinet/if_inarp.h>
-
-#include <vm/vm.h>
-
-#include <machine/cpu.h>
-#include <machine/bus.h>
-#include <machine/intr.h>
-
-#include <dev/pci/if_fxpreg.h>
-#include <dev/pci/if_fxpvar.h>
-
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcidevs.h>
-
-
-#else /* __FreeBSD__ */
-
 #include <sys/sockio.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -98,8 +70,6 @@
 #include <pci/pcireg.h>		/* for PCIM_CMD_xxx */
 #include <pci/if_fxpreg.h>
 #include <pci/if_fxpvar.h>
-
-#endif /* __NetBSD__ */
 
 #ifdef __alpha__		/* XXX */
 /* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
@@ -222,10 +192,10 @@ static void fxp_mediastatus	__P((struct ifnet *, struct ifmediareq *));
 static void fxp_set_media	__P((struct fxp_softc *, int));
 static __inline void fxp_scb_wait __P((struct fxp_softc *));
 static __inline void fxp_dma_wait __P((volatile u_int16_t *, struct fxp_softc *sc));
-static FXP_INTR_TYPE fxp_intr	__P((void *));
+static void fxp_intr		__P((void *));
 static void fxp_start		__P((struct ifnet *));
 static int fxp_ioctl		__P((struct ifnet *,
-				     FXP_IOCTLCMD_TYPE, caddr_t));
+				     u_long, caddr_t));
 static void fxp_init		__P((void *));
 static void fxp_stop		__P((struct fxp_softc *));
 static void fxp_watchdog	__P((struct ifnet *));
@@ -294,7 +264,7 @@ fxp_scb_wait(sc)
 	while (CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) && --i)
 		DELAY(2);
 	if (i == 0)
-		printf(FXP_FORMAT ": SCB timeout\n", FXP_ARGS(sc));
+		printf("fxp%d: SCB timeout\n", FXP_UNIT(sc));
 }
 
 static __inline void
@@ -307,206 +277,8 @@ fxp_dma_wait(status, sc)
 	while (!(*status & FXP_CB_STATUS_C) && --i)
 		DELAY(2);
 	if (i == 0)
-		printf(FXP_FORMAT ": DMA timeout\n", FXP_ARGS(sc));
+		printf("fxp%d: DMA timeout\n", FXP_UNIT(sc));
 }
-
-/*************************************************************
- * Operating system-specific autoconfiguration glue
- *************************************************************/
-
-#if defined(__NetBSD__)
-
-#ifdef __BROKEN_INDIRECT_CONFIG
-static int fxp_match __P((struct device *, void *, void *));
-#else
-static int fxp_match __P((struct device *, struct cfdata *, void *));
-#endif
-static void fxp_attach __P((struct device *, struct device *, void *));
-
-static void	fxp_shutdown __P((void *));
-
-/* Compensate for lack of a generic ether_ioctl() */
-static int	fxp_ether_ioctl __P((struct ifnet *,
-				    FXP_IOCTLCMD_TYPE, caddr_t));
-#define	ether_ioctl	fxp_ether_ioctl
-
-struct cfattach fxp_ca = {
-	sizeof(struct fxp_softc), fxp_match, fxp_attach
-};
-
-struct cfdriver fxp_cd = {
-	NULL, "fxp", DV_IFNET
-};
-
-/*
- * Check if a device is an 82557.
- */
-static int
-fxp_match(parent, match, aux)
-	struct device *parent;
-#ifdef __BROKEN_INDIRECT_CONFIG
-	void *match;
-#else
-	struct cfdata *match;
-#endif
-	void *aux;
-{
-	struct pci_attach_args *pa = aux;
-
-	if (PCI_VENDOR(pa->pa_id) != PCI_VENDOR_INTEL)
-		return (0);
-
-	switch (PCI_PRODUCT(pa->pa_id)) {
-	case PCI_PRODUCT_INTEL_82557:
-		return (1);
-	}
-
-	return (0);
-}
-
-static void
-fxp_attach(parent, self, aux)
-	struct device *parent, *self;
-	void *aux;
-{
-	struct fxp_softc *sc = (struct fxp_softc *)self;
-	struct pci_attach_args *pa = aux;
-	pci_chipset_tag_t pc = pa->pa_pc;
-	pci_intr_handle_t ih;
-	const char *intrstr = NULL;
-	u_int8_t enaddr[6];
-	struct ifnet *ifp;
-
-	/*
-	 * Map control/status registers.
-	 */
-	if (pci_mapreg_map(pa, FXP_PCI_MMBA, PCI_MAPREG_TYPE_MEM, 0,
-	    &sc->sc_st, &sc->sc_sh, NULL, NULL)) {
-		printf(": can't map registers\n");
-		return;
-	}
-	printf(": Intel EtherExpress Pro 10/100B Ethernet\n");
-
-	/*
-	 * Allocate our interrupt.
-	 */
-	if (pci_intr_map(pc, pa->pa_intrtag, pa->pa_intrpin,
-	    pa->pa_intrline, &ih)) {
-		printf("%s: couldn't map interrupt\n", sc->sc_dev.dv_xname);
-		return;
-	}
-	intrstr = pci_intr_string(pc, ih);
-	sc->sc_ih = pci_intr_establish(pc, ih, IPL_NET, fxp_intr, sc);
-	if (sc->sc_ih == NULL) {
-		printf("%s: couldn't establish interrupt",
-		    sc->sc_dev.dv_xname);
-		if (intrstr != NULL)
-			printf(" at %s", intrstr);
-		printf("\n");
-		return;
-	}
-	printf("%s: interrupting at %s\n", sc->sc_dev.dv_xname, intrstr);
-
-	/* Do generic parts of attach. */
-	if (fxp_attach_common(sc, enaddr)) {
-		/* Failed! */
-		return;
-	}
-
-	printf("%s: Ethernet address %s%s\n", sc->sc_dev.dv_xname,
-	    ether_sprintf(enaddr), sc->phy_10Mbps_only ? ", 10Mbps" : "");
-
-	ifp = &sc->sc_ethercom.ec_if;
-	bcopy(sc->sc_dev.dv_xname, ifp->if_xname, IFNAMSIZ);
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = fxp_ioctl;
-	ifp->if_start = fxp_start;
-	ifp->if_watchdog = fxp_watchdog;
-
-	/*
-	 * Attach the interface.
-	 */
-	if_attach(ifp);
-	/*
-	 * Let the system queue as many packets as we have available
-	 * TX descriptors.
-	 */
-	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
-	ether_ifattach(ifp, enaddr);
-	bpfattach(&sc->sc_ethercom.ec_if.if_bpf, ifp, DLT_EN10MB,
-	    sizeof(struct ether_header));
-
-	/*
-	 * Add shutdown hook so that DMA is disabled prior to reboot. Not
-	 * doing do could allow DMA to corrupt kernel memory during the
-	 * reboot before the driver initializes.
-	 */
-	shutdownhook_establish(fxp_shutdown, sc);
-}
-
-/*
- * Device shutdown routine. Called at system shutdown after sync. The
- * main purpose of this routine is to shut off receiver DMA so that
- * kernel memory doesn't get clobbered during warmboot.
- */
-static void
-fxp_shutdown(sc)
-	void *sc;
-{
-	fxp_stop((struct fxp_softc *) sc);
-}
-
-static int
-fxp_ether_ioctl(ifp, cmd, data)
-	struct ifnet *ifp;
-	FXP_IOCTLCMD_TYPE cmd;
-	caddr_t data;
-{
-	struct ifaddr *ifa = (struct ifaddr *) data;
-	struct fxp_softc *sc = ifp->if_softc;
-
-	switch (cmd) {
-	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			fxp_init(sc);
-			arp_ifinit(ifp, ifa);
-			break;
-#endif
-#ifdef NS
-		case AF_NS:
-		    {
-			 register struct ns_addr *ina = &IA_SNS(ifa)->sns_addr;
-
-			 if (ns_nullhost(*ina))
-				ina->x_host = *(union ns_host *)
-				    LLADDR(ifp->if_sadl);
-			 else
-				bcopy(ina->x_host.c_host, LLADDR(ifp->if_sadl),
-				    ifp->if_addrlen);
-			 /* Set new address. */
-			 fxp_init(sc);
-			 break;
-		    }
-#endif
-		default:
-			fxp_init(sc);
-			break;
-		}
-		break;
-
-	default:
-		return (EINVAL);
-	}
-
-	return (0);
-}
-
-#else /* __FreeBSD__ */
 
 /*
  * Return identification string if this is device is ours.
@@ -540,16 +312,13 @@ fxp_attach(device_t dev)
 	int error = 0;
 	struct fxp_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
-	FXP_SPLVAR(s)
 	u_long val;
 	int rid;
 
-#if !defined(__NetBSD__)
 	mtx_init(&sc->sc_mtx, "fxp", MTX_DEF);
-#endif
 	callout_handle_init(&sc->stat_ch);
 
-	FXP_LOCK(sc, s);
+	FXP_LOCK(sc);
 
 	/*
 	 * Enable bus mastering.
@@ -627,11 +396,11 @@ fxp_attach(device_t dev)
 	 */
 	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
 
-	FXP_UNLOCK(sc, s);
+	FXP_UNLOCK(sc);
 	return 0;
 
  fail:
-	FXP_UNLOCK(sc, s);
+	FXP_UNLOCK(sc);
 	mtx_destroy(&sc->sc_mtx);
 	return error;
 }
@@ -643,9 +412,8 @@ static int
 fxp_detach(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
-	FXP_SPLVAR(s)
 
-	FXP_LOCK(sc, s);
+	FXP_LOCK(sc);
 
 	/*
 	 * Close down routes etc.
@@ -682,7 +450,7 @@ fxp_detach(device_t dev)
 	free(sc->fxp_stats, M_DEVBUF);
 	free(sc->mcsp, M_DEVBUF);
 
-	FXP_UNLOCK(sc, s);
+	FXP_UNLOCK(sc);
 
 	return 0;
 }
@@ -714,9 +482,8 @@ fxp_suspend(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
 	int i;
-	FXP_SPLVAR(s)
 
-	FXP_LOCK(sc, s);
+	FXP_LOCK(sc);
 
 	fxp_stop(sc);
 	
@@ -729,7 +496,7 @@ fxp_suspend(device_t dev)
 
 	sc->suspended = 1;
 
-	FXP_UNLOCK(sc, s);
+	FXP_UNLOCK(sc);
 
 	return 0;
 }
@@ -746,9 +513,8 @@ fxp_resume(device_t dev)
 	struct ifnet *ifp = &sc->sc_if;
 	u_int16_t pci_command;
 	int i;
-	FXP_SPLVAR(s)
 
-	FXP_LOCK(sc, s);
+	FXP_LOCK(sc);
 
 	/* better way to do this? */
 	for (i=0; i<5; i++)
@@ -772,7 +538,7 @@ fxp_resume(device_t dev)
 
 	sc->suspended = 0;
 
-	FXP_UNLOCK(sc, s);
+	FXP_UNLOCK(sc);
 
 	return 0;
 }
@@ -798,12 +564,6 @@ static driver_t fxp_driver = {
 static devclass_t fxp_devclass;
 
 DRIVER_MODULE(if_fxp, pci, fxp_driver, fxp_devclass, 0, 0);
-
-#endif /* __NetBSD__ */
-
-/*************************************************************
- * End of operating system-specific autoconfiguration glue
- *************************************************************/
 
 /*
  * Do generic parts of attach.
@@ -892,7 +652,7 @@ fxp_attach_common(sc, enaddr)
 	return (0);
 
  fail:
-	printf(FXP_FORMAT ": Failed to malloc memory\n", FXP_ARGS(sc));
+	printf("fxp%d: Failed to malloc memory\n", FXP_UNIT(sc));
 	if (sc->cbl_base)
 		free(sc->cbl_base, M_DEVBUF);
 	if (sc->fxp_stats)
@@ -1056,18 +816,15 @@ fxp_start(ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct fxp_cb_tx *txp;
-	FXP_SPLVAR(s)
 
-#if !defined(__NetBSD__)
-	FXP_LOCK(sc, s);
-#endif
+	FXP_LOCK(sc);
 	/*
 	 * See if we need to suspend xmit until the multicast filter
 	 * has been reprogrammed (which can only be done at the head
 	 * of the command chain).
 	 */
 	if (sc->need_mcsetup) {
-		FXP_UNLOCK(sc, s);
+		FXP_UNLOCK(sc);
 		return;
 	}
 
@@ -1186,7 +943,7 @@ tbdinit:
 		 * Pass packet to bpf if there is a listener.
 		 */
 		if (ifp->if_bpf)
-			bpf_mtap(FXP_BPFTAP_ARG(ifp), mb_head);
+			bpf_mtap(ifp, mb_head);
 	}
 
 	/*
@@ -1197,37 +954,28 @@ tbdinit:
 		fxp_scb_wait(sc);
 		CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_RESUME);
 	}
-#if !defined(__NetBSD__)
-	FXP_UNLOCK(sc, s);
-#endif
+	FXP_UNLOCK(sc);
 }
 
 /*
  * Process interface interrupts.
  */
-static FXP_INTR_TYPE
+static void
 fxp_intr(arg)
 	void *arg;
 {
 	struct fxp_softc *sc = arg;
 	struct ifnet *ifp = &sc->sc_if;
 	u_int8_t statack;
-	FXP_SPLVAR(s)
-#if defined(__NetBSD__)
-	int claimed = 0;
-#endif
 
-	FXP_LOCK(sc, s);
+	FXP_LOCK(sc);
 
 	if (sc->suspended) {
-		FXP_UNLOCK(sc, s);
+		FXP_UNLOCK(sc);
 		return;
 	}
 
 	while ((statack = CSR_READ_1(sc, FXP_CSR_SCB_STATACK)) != 0) {
-#if defined(__NetBSD__)
-		claimed = 1;
-#endif
 		/*
 		 * First ACK all the interrupts in this pass.
 		 */
@@ -1328,11 +1076,7 @@ rcvloop:
 			}
 		}
 	}
-#if defined(__NetBSD__)
-	return (claimed);
-#else
-	FXP_UNLOCK(sc, s);
-#endif
+	FXP_UNLOCK(sc);
 }
 
 /*
@@ -1354,7 +1098,6 @@ fxp_stats_update(arg)
 	struct ifnet *ifp = &sc->sc_if;
 	struct fxp_stats *sp = sc->fxp_stats;
 	struct fxp_cb_tx *txp;
-	FXP_SPLVAR(s)
 
 	ifp->if_opackets += sp->tx_good;
 	ifp->if_collisions += sp->tx_total_collisions;
@@ -1381,7 +1124,7 @@ fxp_stats_update(arg)
 		if (tx_threshold < 192)
 			tx_threshold += 64;
 	}
-	FXP_LOCK(sc, s);
+	FXP_LOCK(sc);
 	/*
 	 * Release any xmit buffers that have completed DMA. This isn't
 	 * strictly necessary to do here, but it's advantagous for mbufs
@@ -1439,7 +1182,7 @@ fxp_stats_update(arg)
 		sp->rx_rnr_errors = 0;
 		sp->rx_overrun_errors = 0;
 	}
-	FXP_UNLOCK(sc, s);
+	FXP_UNLOCK(sc);
 	/*
 	 * Schedule another timeout one second from now.
 	 */
@@ -1457,11 +1200,8 @@ fxp_stop(sc)
 	struct ifnet *ifp = &sc->sc_if;
 	struct fxp_cb_tx *txp;
 	int i;
-	FXP_SPLVAR(s)
 
-#if !defined(__NetBSD__)
-	FXP_LOCK(sc, s);
-#endif
+	FXP_LOCK(sc);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	ifp->if_timer = 0;
@@ -1509,9 +1249,7 @@ fxp_stop(sc)
 		}
 	}
 
-#if !defined(__NetBSD__)
-	FXP_UNLOCK(sc, s);
-#endif
+	FXP_UNLOCK(sc);
 }
 
 /*
@@ -1526,7 +1264,7 @@ fxp_watchdog(ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 
-	printf(FXP_FORMAT ": device timeout\n", FXP_ARGS(sc));
+	printf("fxp%d: device timeout\n", FXP_UNIT(sc));
 	ifp->if_oerrors++;
 
 	fxp_init(sc);
@@ -1542,9 +1280,8 @@ fxp_init(xsc)
 	struct fxp_cb_ias *cb_ias;
 	struct fxp_cb_tx *txp;
 	int i, prm;
-	FXP_SPLVAR(s)
 
-	FXP_LOCK(sc, s);
+	FXP_LOCK(sc);
 	/*
 	 * Cancel any pending I/O
 	 */
@@ -1636,13 +1373,9 @@ fxp_init(xsc)
 	cb_ias->cb_status = 0;
 	cb_ias->cb_command = FXP_CB_COMMAND_IAS | FXP_CB_COMMAND_EL;
 	cb_ias->link_addr = -1;
-#if defined(__NetBSD__)
-	bcopy(LLADDR(ifp->if_sadl), (void *)cb_ias->macaddr, 6);
-#else
 	bcopy(sc->arpcom.ac_enaddr,
 	    (void *)(uintptr_t)(volatile void *)cb_ias->macaddr,
 	    sizeof(sc->arpcom.ac_enaddr));
-#endif /* __NetBSD__ */
 
 	/*
 	 * Start the IAS (Individual Address Setup) command/DMA.
@@ -1691,7 +1424,7 @@ fxp_init(xsc)
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
-	FXP_UNLOCK(sc, s);
+	FXP_UNLOCK(sc);
 
 	/*
 	 * Start stats updater.
@@ -1745,9 +1478,8 @@ fxp_set_media(sc, media)
 	case FXP_PHY_80C24:
 		break;
 	default:
-		printf(FXP_FORMAT
-		    ": warning: unsupported PHY, type = %d, addr = %d\n",
-		     FXP_ARGS(sc), sc->phy_primary_device,
+		printf("fxp%d: warning: unsupported PHY, type = %d, addr = %d\n",
+		     FXP_UNIT(sc), sc->phy_primary_device,
 		     sc->phy_primary_addr);
 	}
 }
@@ -1948,8 +1680,7 @@ fxp_mdi_read(sc, phy, reg)
 		DELAY(10);
 
 	if (count <= 0)
-		printf(FXP_FORMAT ": fxp_mdi_read: timed out\n",
-		    FXP_ARGS(sc));
+		printf("fxp%d: fxp_mdi_read: timed out\n", FXP_UNIT(sc));
 
 	return (value & 0xffff);
 }
@@ -1972,30 +1703,26 @@ fxp_mdi_write(sc, phy, reg, value)
 		DELAY(10);
 
 	if (count <= 0)
-		printf(FXP_FORMAT ": fxp_mdi_write: timed out\n",
-		    FXP_ARGS(sc));
+		printf("fxp%d: fxp_mdi_write: timed out\n", FXP_UNIT(sc));
 }
 
 static int
 fxp_ioctl(ifp, command, data)
 	struct ifnet *ifp;
-	FXP_IOCTLCMD_TYPE command;
+	u_long command;
 	caddr_t data;
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	FXP_SPLVAR(s)
 	int error = 0;
 
-	FXP_LOCK(sc, s);
+	FXP_LOCK(sc);
 
 	switch (command) {
 
 	case SIOCSIFADDR:
-#if !defined(__NetBSD__)
 	case SIOCGIFADDR:
 	case SIOCSIFMTU:
-#endif
 		error = ether_ioctl(ifp, command, data);
 		break;
 
@@ -2019,27 +1746,6 @@ fxp_ioctl(ifp, command, data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		sc->all_mcasts = (ifp->if_flags & IFF_ALLMULTI) ? 1 : 0;
-#if defined(__NetBSD__)
-		error = (command == SIOCADDMULTI) ?
-		    ether_addmulti(ifr, &sc->sc_ethercom) :
-		    ether_delmulti(ifr, &sc->sc_ethercom);
-
-		if (error == ENETRESET) {
-			/*
-			 * Multicast list has changed; set the hardware
-			 * filter accordingly.
-			 */
-			if (!sc->all_mcasts)
-				fxp_mc_setup(sc);
-			/*
-			 * fxp_mc_setup() can turn on all_mcasts if we run
-			 * out of space, so check it again rather than else {}.
-			 */
-			if (sc->all_mcasts)
-				fxp_init(sc);
-			error = 0;
-		}
-#else /* __FreeBSD__ */
 		/*
 		 * Multicast list has changed; set the hardware filter
 		 * accordingly.
@@ -2053,7 +1759,6 @@ fxp_ioctl(ifp, command, data)
 		if (sc->all_mcasts)
 			fxp_init(sc);
 		error = 0;
-#endif /* __NetBSD__ */
 		break;
 
 	case SIOCSIFMEDIA:
@@ -2064,7 +1769,7 @@ fxp_ioctl(ifp, command, data)
 	default:
 		error = EINVAL;
 	}
-	FXP_UNLOCK(sc, s);
+	FXP_UNLOCK(sc);
 	return (error);
 }
 
@@ -2178,7 +1883,7 @@ fxp_mc_setup(sc)
 	    FXP_SCB_CUS_ACTIVE && --count)
 		DELAY(10);
 	if (count == 0) {
-		printf(FXP_FORMAT ": command queue timeout\n", FXP_ARGS(sc));
+		printf("fxp%d: command queue timeout\n", FXP_UNIT(sc));
 		return;
 	}
 
