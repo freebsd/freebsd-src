@@ -22,7 +22,7 @@
 
 #ifndef _LCPPROTO_H_
 #define _LCPPROTO_H_
-#include <sys/cdefs.h>
+#include "cdefs.h"
 
 /*
  *  Definition of protocol numbers

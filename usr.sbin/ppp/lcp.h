@@ -22,7 +22,7 @@
 
 #ifndef _LCP_H_
 #define _LPC_H_
-#include <sys/cdefs.h>
+#include "cdefs.h"
 
 struct lcpstate {
   u_long  his_mru;

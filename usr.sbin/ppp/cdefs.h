@@ -15,36 +15,19 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timeout.h,v 1.2 1995/02/26 12:18:00 amurai Exp $
+ * $Id:$
  *
  *	TODO:
  */
 
-#ifndef _TIMEOUT_H_
-#define	_TIMEOUT_H_
-#include "cdefs.h"
-
-#define	TICKUNIT	100000			/* Unit in usec */
-#define	SECTICKS	(1000000/TICKUNIT)
-
-struct pppTimer {
-  int     state;
-  u_long  rest;			/* Ticks to expire */
-  u_long  load;			/* Initial load value */
-  void	  (*func)();		/* Function called when timer is expired */
-  void    *arg;			/* Argument passed to timeout function */
-  struct pppTimer *next;	/* Link to next timer */
-  struct pppTimer *enext;	/* Link to next expired timer */
-};
-
-#define	TIMER_STOPPED	0
-#define	TIMER_RUNNING	1
-#define	TIMER_EXPIRED	2
-
-struct pppTimer *TimerList;
-
-extern void StartTimer __P((struct pppTimer *));
-extern void StopTimer __P((struct pppTimer *));
-extern void TimerService __P((void));
-extern void StartIdleTimer __P((void));
-#endif	/* _TIMEOUT_H_ */
+#ifndef __P
+#ifdef __bsdi__
+#include <sys/cdefs.h>
+#else
+#ifdef __STDC__
+#define __P(arg) arg
+#else
+#define __P(arg) ()
+#endif /* __STDC__ */
+#endif /* __bsdi__ */
+#endif /* __P */
