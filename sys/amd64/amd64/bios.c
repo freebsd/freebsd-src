@@ -138,7 +138,7 @@ bios32_init(void *junk)
     if (bootverbose) {
 	    /* look for other know signatures */
 	    printf("Other BIOS signatures found:\n");
-	    printf("ACPI: %08x\n", bios_sigsearch(0, "RST PTR", 8, 16, 0));
+	    printf("ACPI: %08x\n", bios_sigsearch(0, "RSD PTR ", 8, 16, 0));
     }
 }
 
