@@ -31,6 +31,7 @@
 
 #if NSC > 0
 
+#include <limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -952,6 +953,23 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		break;
 	    }
 #endif /* SC_NO_CUTPASTE */
+	    break;
+
+	case MOUSE_MOUSECHAR:
+	    if (mouse->u.mouse_char < 0) {
+		mouse->u.mouse_char = scp->sc->mouse_char;
+	    } else {
+		if (mouse->u.mouse_char >= UCHAR_MAX - 4)
+		    return EINVAL;
+	    	s = spltty();
+		sc_remove_all_mouse(scp->sc);
+#ifndef SC_NO_FONT_LOADING
+		if (ISTEXTSC(cur_scp) && (cur_scp->font_size != FONT_NONE))
+		    copy_font(cur_scp, LOAD, cur_scp->font_size, cur_scp->font);
+#endif
+		scp->sc->mouse_char = mouse->u.mouse_char;
+		splx(s);
+	    }
 	    break;
 
 	default:

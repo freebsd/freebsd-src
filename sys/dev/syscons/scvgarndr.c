@@ -46,10 +46,6 @@
 
 #include <isa/isareg.h>
 
-#ifndef SC_MOUSE_CHAR
-#define SC_MOUSE_CHAR		(0xd0)
-#endif
-
 #ifndef SC_RENDER_DEBUG
 #define SC_RENDER_DEBUG		0
 #endif
@@ -286,6 +282,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 #ifndef SC_ALT_MOUSE_IMAGE
 	u_char font_buf[128];
 	u_short cursor[32];
+	u_char c;
 	int pos;
 	int xoffset, yoffset;
 	int crtc_addr;
@@ -328,17 +325,18 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 	crtc_addr = scp->sc->adp->va_crtc_addr;
 	while (!(inb(crtc_addr + 6) & 0x08)) /* idle */ ;
 #endif
+	c = scp->sc->mouse_char;
 	(*vidsw[scp->sc->adapter]->load_font)(scp->sc->adp, 0, 32, font_buf,
-					      SC_MOUSE_CHAR, 4); 
+					      c, 4); 
 
-	sc_vtb_putc(&scp->scr, pos, SC_MOUSE_CHAR, sc_vtb_geta(&scp->scr, pos));
+	sc_vtb_putc(&scp->scr, pos, c, sc_vtb_geta(&scp->scr, pos));
 	/* FIXME: may be out of range! */
-	sc_vtb_putc(&scp->scr, pos + scp->xsize, SC_MOUSE_CHAR + 2,
+	sc_vtb_putc(&scp->scr, pos + scp->xsize, c + 2,
 		    sc_vtb_geta(&scp->scr, pos + scp->xsize));
 	if (x < (scp->xsize - 1)*8) {
-		sc_vtb_putc(&scp->scr, pos + 1, SC_MOUSE_CHAR + 1,
+		sc_vtb_putc(&scp->scr, pos + 1, c + 1,
 			    sc_vtb_geta(&scp->scr, pos + 1));
-		sc_vtb_putc(&scp->scr, pos + scp->xsize + 1, SC_MOUSE_CHAR + 3,
+		sc_vtb_putc(&scp->scr, pos + scp->xsize + 1, c + 3,
 			    sc_vtb_geta(&scp->scr, pos + scp->xsize + 1));
 	}
 #else /* SC_ALT_MOUSE_IMAGE */
