@@ -247,6 +247,7 @@ after_sack_rexmit:
 	if (tp->t_flags & TF_NEEDSYN)
 		flags |= TH_SYN;
 
+	SOCKBUF_LOCK(&so->so_snd);
 	/*
 	 * If in persist timeout with window of 0, send 1 byte.
 	 * Otherwise, if window is small but nonzero
@@ -310,7 +311,7 @@ after_sack_rexmit:
 			tcp_hc_gettao(&tp->t_inpcb->inp_inc, &tao);
 		if (len > 0 && tp->t_state == TCPS_SYN_SENT &&
 		     tao.tao_ccsent == 0)
-			return 0;
+			goto just_return;
 	}
 
 	/*
@@ -455,7 +456,7 @@ after_sack_rexmit:
 	    !callout_active(tp->tt_persist)) {
 		callout_reset(tp->tt_rexmt, tp->t_rxtcur,
 			      tcp_timer_rexmt, tp);
-		return (0);
+		goto just_return;
 	} 
 	/*
 	 * TCP window updates are not reliable, rather a polling protocol
@@ -488,9 +489,12 @@ after_sack_rexmit:
 	/*
 	 * No reason to send a segment, just return.
 	 */
+just_return:
+	SOCKBUF_UNLOCK(&so->so_snd);
 	return (0);
 
 send:
+	SOCKBUF_LOCK_ASSERT(&so->so_snd);
 	/*
 	 * Before ESTABLISHED, force sending of initial options
 	 * unless TCP set not to do any options.
@@ -740,6 +744,7 @@ send:
 #ifdef notyet
 		if ((m = m_copypack(so->so_snd.sb_mb, off,
 		    (int)len, max_linkhdr + hdrlen)) == 0) {
+			SOCKBUF_UNLOCK(&so->so_snd);
 			error = ENOBUFS;
 			goto out;
 		}
@@ -751,6 +756,7 @@ send:
 #else
 		MGETHDR(m, M_DONTWAIT, MT_HEADER);
 		if (m == NULL) {
+			SOCKBUF_UNLOCK(&so->so_snd);
 			error = ENOBUFS;
 			goto out;
 		}
@@ -758,6 +764,7 @@ send:
 		if (MHLEN < hdrlen + max_linkhdr) {
 			MCLGET(m, M_DONTWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
+				SOCKBUF_UNLOCK(&so->so_snd);
 				m_freem(m);
 				error = ENOBUFS;
 				goto out;
@@ -773,6 +780,7 @@ send:
 		} else {
 			m->m_next = m_copy(so->so_snd.sb_mb, off, (int) len);
 			if (m->m_next == 0) {
+				SOCKBUF_UNLOCK(&so->so_snd);
 				(void) m_free(m);
 				error = ENOBUFS;
 				goto out;
@@ -787,7 +795,9 @@ send:
 		 */
 		if (off + len == so->so_snd.sb_cc)
 			flags |= TH_PUSH;
+		SOCKBUF_UNLOCK(&so->so_snd);
 	} else {
+		SOCKBUF_UNLOCK(&so->so_snd);
 		if (tp->t_flags & TF_ACKNOW)
 			tcpstat.tcps_sndacks++;
 		else if (flags & (TH_SYN|TH_FIN|TH_RST))
@@ -811,6 +821,7 @@ send:
 		m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
 	}
+	SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef MAC
 	mac_create_mbuf_from_inpcb(tp->t_inpcb, m);
@@ -1102,6 +1113,7 @@ timer:
 		}
 
 out:
+		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);	/* Check gotos. */
 		if (error == ENOBUFS) {
 	                if (!callout_active(tp->tt_rexmt) &&
 			    !callout_active(tp->tt_persist))
