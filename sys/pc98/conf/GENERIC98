@@ -269,7 +269,6 @@ device		an
 
 # requires PCCARD (PCMCIA) support to be activated
 device		sn
-#device		xe0	at isa?
 
 #device	snd
 #device	sb0	at isa? port 0x20d2 irq 10 drq 3
