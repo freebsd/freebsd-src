@@ -41,8 +41,11 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
+#include <fcntl.h>
 #include <string.h>
 #include <termios.h>
+#include <unistd.h>
 #include "mille.h"
 
 #include <unctrl.h>
@@ -58,14 +61,11 @@ static const char rcsid[] =
 
 typedef	struct stat	STAT;
 
-char	*ctime();
-
-int	read(), write();
-
 /*
  *	This routine saves the current game for use at a later date
  */
 
+bool
 save() {
 
 	extern int	errno;
@@ -76,6 +76,7 @@ save() {
 	time_t		tme;
 	STAT		junk;
 
+	sp = NULL;
 	tp = &tme;
 	if (Fromfile && getyn(SAMEFILEPROMPT))
 		strcpy(buf, Fromfile);
@@ -128,7 +129,8 @@ over:
 	wrefresh(Score);
 	time(tp);			/* get current time		*/
 	strcpy(buf, ctime(tp));
-	for (sp = buf; *sp != '\n'; sp++)
+	sp = buf;
+	for (; *sp != '\n'; sp++)
 		continue;
 	*sp = '\0';
 	varpush(outf, write);
@@ -144,6 +146,7 @@ over:
  * backup was made on exiting, in which case certain things must
  * be cleaned up before the game starts.
  */
+bool
 rest_f(file)
 char	*file; {
 
