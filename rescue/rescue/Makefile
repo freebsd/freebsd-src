@@ -256,7 +256,10 @@ $(CONF): Makefile
 	echo special $(P) srcdir $(.CURDIR)/../../$(D)/$(P) >>$(.TARGET)
 .endif
 .ifdef CRUNCH_BUILDOPTS_${P}
-	echo special $(P) buildopts $(CRUNCH_BUILDOPTS_${P}) >>$(.TARGET)
+	echo special $(P) buildopts DIRPRFX=${DIRPRFX}${P}/ \
+	    $(CRUNCH_BUILDOPTS_${P}) >>$(.TARGET)
+.else
+	echo special $(P) buildopts DIRPRFX=${DIRPRFX}${P}/ >>$(.TARGET)
 .endif
 .for A in $(CRUNCH_ALIAS_$(P))
 	echo ln $(P) $(A) >>$(.TARGET)
@@ -281,7 +284,7 @@ objs: $(OUTMK)
 build-tools:
 .for _tool in bin/csh bin/sh 
 	cd $(.CURDIR)/../../${_tool}; \
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} DIRPRFX=rescue/${_tool} build-tools
+	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} build-tools
 .endfor
 
 # Use a separate build tree to hold files compiled for this crunchgen binary
@@ -293,10 +296,12 @@ cleandepend cleandir obj objlink:
 .for P in $(CRUNCH_PROGS_$(D))
 .ifdef CRUNCH_SRCDIR_${P}
 	cd ${CRUNCH_SRCDIR_$(P)} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
+	    DIRPRFX=${DIRPRFX}${P}/ ${.TARGET}
 .else
 	cd $(.CURDIR)/../../${D}/${P} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
+	    DIRPRFX=${DIRPRFX}${P}/ ${.TARGET}
 .endif
 .endfor
 .endfor
@@ -310,10 +315,12 @@ clean:
 .for P in $(CRUNCH_PROGS_$(D))
 .ifdef CRUNCH_SRCDIR_${P}
 	cd ${CRUNCH_SRCDIR_$(P)} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
+	    DIRPRFX=${DIRPRFX}${P}/ ${.TARGET}
 .else
 	cd $(.CURDIR)/../../${D}/${P} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} ${.TARGET}
+	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
+	    DIRPRFX=${DIRPRFX}${P}/ ${.TARGET}
 .endif
 .endfor
 .endfor
