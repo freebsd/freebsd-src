@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.32 1997/02/25 03:54:28 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.33 1997/03/18 19:27:58 gibbs Exp $
  */
 /*
  * TODO:
@@ -812,8 +812,7 @@ ahc_intr(arg)
 							 scb->xs->error);
 					ahc_run_done_queue(ahc);
 				}
-				if (scb->hscb->status != SCSI_QUEUE_FULL)
-					ahc_done(ahc, scb);
+				ahc_done(ahc, scb);
 			}
 			ahc_outb(ahc, CLRINT, CLRCMDINT);
 			int_cleared++;
@@ -1334,13 +1333,8 @@ ahc_handle_seqint(ahc, intstat)
 				/*
 				 * XXX requeue this unconditionally.
 				 */
-				STAILQ_INSERT_TAIL(&ahc->waiting_scbs, scb,
-						   links);
-				scb->flags |= SCB_WAITINGQ;
-				/* Give the command a new lease on life */
-				untimeout(ahc_timeout, (caddr_t)scb);
-				timeout(ahc_timeout, (caddr_t)scb,
-					(scb->xs->timeout * hz) / 1000);
+				scb->xs->retries++;
+				scb->xs->error = XS_BUSY;
 				break;
 			}
 			/* Else treat as if it is a BUSY condition */
@@ -2566,7 +2560,12 @@ ahc_run_waiting_queue(ahc)
 {
 	struct scb *scb;
 
-	pause_sequencer(ahc);
+	/*
+	 * On aic78X0 chips, we rely on Auto Access Pause (AAP)
+	 * instead of doing an explicit pause/unpause.
+	 */
+	if ((ahc->type & AHC_AIC78X0) == 0)
+		pause_sequencer(ahc);
 
 	while ((scb = ahc->waiting_scbs.stqh_first) != NULL) {
 
@@ -2588,7 +2587,8 @@ ahc_run_waiting_queue(ahc)
 			 */
 			ahc->curqincnt++;
 	}
-	unpause_sequencer(ahc, /*Unpause always*/FALSE);
+	if ((ahc->type & AHC_AIC78X0) == 0)
+		unpause_sequencer(ahc, /*Unpause always*/FALSE);
 }
 
 /*
