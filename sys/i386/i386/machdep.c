@@ -441,8 +441,6 @@ again:
 	SLIST_INIT(&cpuhead);
 	SLIST_INSERT_HEAD(&cpuhead, GLOBALDATA, gd_allcpu);
 
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-
 #ifdef SMP
 	/*
 	 * OK, enough kmem_alloc/malloc state should be up, lets get on with it!
@@ -478,6 +476,7 @@ osendsig(catcher, sig, mask, code)
 	int oonstack;
 
 	p = curproc;
+	PROC_LOCK(p);
 	psp = p->p_sigacts;
 	regs = p->p_md.md_regs;
 	oonstack = sigonstack(regs->tf_esp);
@@ -492,6 +491,7 @@ osendsig(catcher, sig, mask, code)
 #endif
 	} else
 		fp = (struct osigframe *)regs->tf_esp - 1;
+	PROC_UNLOCK(p);
 
 	/*
 	 * grow_stack() will return 0 if *fp does not fit inside the stack
@@ -504,10 +504,12 @@ osendsig(catcher, sig, mask, code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+		PROC_LOCK(p);
 		SIGACTION(p, SIGILL) = SIG_DFL;
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
+		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
 		return;
 	}
@@ -519,6 +521,7 @@ osendsig(catcher, sig, mask, code)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_scp = (register_t)&fp->sf_siginfo.si_sc;
+	PROC_LOCK(p);
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_arg2 = (register_t)&fp->sf_siginfo;
@@ -531,6 +534,7 @@ osendsig(catcher, sig, mask, code)
 		sf.sf_addr = regs->tf_err;
 		sf.sf_ahu.sf_handler = catcher;
 	}
+	PROC_UNLOCK(p);
 
 	/* Save most if not all of trap frame. */
 	sf.sf_siginfo.si_sc.sc_eax = regs->tf_eax;
@@ -615,8 +619,10 @@ sendsig(catcher, sig, mask, code)
 	int oonstack;
 
 	p = curproc;
+	PROC_LOCK(p);
 	psp = p->p_sigacts;
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
+		PROC_UNLOCK(p);
 		osendsig(catcher, sig, mask, code);
 		return;
 	}
@@ -643,6 +649,7 @@ sendsig(catcher, sig, mask, code)
 #endif
 	} else
 		sfp = (struct sigframe *)regs->tf_esp - 1;
+	PROC_UNLOCK(p);
 
 	/*
 	 * grow_stack() will return 0 if *sfp does not fit inside the stack
@@ -658,10 +665,12 @@ sendsig(catcher, sig, mask, code)
 #ifdef DEBUG
 		printf("process %d has trashed its stack\n", p->p_pid);
 #endif
+		PROC_LOCK(p);
 		SIGACTION(p, SIGILL) = SIG_DFL;
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
+		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
 		return;
 	}
@@ -673,6 +682,7 @@ sendsig(catcher, sig, mask, code)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
+	PROC_LOCK(p);
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (register_t)&sfp->sf_si;
@@ -688,6 +698,7 @@ sendsig(catcher, sig, mask, code)
 		sf.sf_addr = regs->tf_err;
 		sf.sf_ahu.sf_handler = catcher;
 	}
+	PROC_UNLOCK(p);
 
 	/*
 	 * If we're a vm86 process, we want to save the segment registers.
@@ -841,6 +852,7 @@ osigreturn(p, uap)
 	regs->tf_ss = scp->sc_ss;
 	regs->tf_isp = scp->sc_isp;
 
+	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (scp->sc_onstack & 1)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
@@ -850,6 +862,7 @@ osigreturn(p, uap)
 
 	SIGSETOLD(p->p_sigmask, scp->sc_mask);
 	SIG_CANTMASK(p->p_sigmask);
+	PROC_UNLOCK(p);
 	regs->tf_ebp = scp->sc_fp;
 	regs->tf_esp = scp->sc_sp;
 	regs->tf_eip = scp->sc_pc;
@@ -954,6 +967,7 @@ sigreturn(p, uap)
 		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(*regs));
 	}
 
+	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
@@ -963,6 +977,7 @@ sigreturn(p, uap)
 
 	p->p_sigmask = ucp->uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
+	PROC_UNLOCK(p);
 	return (EJUSTRETURN);
 }
 
@@ -1877,6 +1892,17 @@ init386(first)
 	/* setup curproc so that mutexes work */
 	PCPU_SET(curproc, &proc0);
 
+	LIST_INIT(&proc0.p_heldmtx);
+	LIST_INIT(&proc0.p_contested);
+
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
+
+	/*
+	 * Giant is used early for at least debugger traps and unexpected traps.
+	 */
+	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
+	mtx_enter(&Giant, MTX_DEF);
+
 	/* make ldt memory segments */
 	/*
 	 * The data segment limit must not cover the user area because we
@@ -1950,11 +1976,6 @@ init386(first)
 #if	NISA >0
 	isa_defaultirq();
 #endif
-
-	/*
-	 * Giant is used early for at least debugger traps and unexpected traps.
-	 */
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 
 #ifdef DDB
 	kdb_init();
@@ -2279,7 +2300,7 @@ set_dbregs(p, dbregs)
 	 * from within kernel mode?
 	 */
 
-	if (p->p_ucred->cr_uid != 0) {
+	if (suser(p) != 0) {
 		if (dbregs->dr7 & 0x3) {
 			/* dr0 is enabled */
 			if (dbregs->dr0 >= VM_MAXUSER_ADDRESS)
