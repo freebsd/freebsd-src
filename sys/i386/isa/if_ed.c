@@ -20,11 +20,23 @@
  */
 
 /*
- * $Id: if_ed.c,v 2.8 1993/10/15 10:59:56 davidg Exp davidg $
+ * $Id: if_ed.c,v 2.11 1993/10/23 04:21:03 davidg Exp davidg $
  */
 
 /*
  * Modification history
+ *
+ * Revision 2.11  1993/10/23  04:21:03  davidg
+ * Novell probe changed to be invasive because of too many complaints
+ * about some clone boards not being reset properly and thus not
+ * found on a warmboot. Yuck.
+ *
+ * Revision 2.10  1993/10/23  04:07:12  davidg
+ * increment output errors if the device times out (done via watchdog)
+ *
+ * Revision 2.9  1993/10/23  04:01:45  davidg
+ * increment input error counter if a packet with a bad length is
+ * detected.
  *
  * Revision 2.8  1993/10/15  10:59:56  davidg
  * increase maximum time to wait for transmit DMA to complete to 120us.
@@ -810,6 +822,7 @@ ed_probe_Novell(isa_dev)
 	/* Reset the board */
 	tmp = inb(sc->asic_addr + ED_NOVELL_RESET);
 
+#if 0
 	/*
 	 * This total and completely screwy thing is to work around braindamage
 	 *	in some NE compatible boards. Why it works, I have *no* idea.
@@ -817,27 +830,32 @@ ed_probe_Novell(isa_dev)
 	 *	will lock up the ISA bus if they see an inb first. Weird.
 	 */
 	outb(0x84, 0);
+#endif
+
+	/*
+	 * I don't know if this is necessary; probably cruft leftover from
+	 *	Clarkson packet driver code. Doesn't do a thing on the boards
+	 *	I've tested. -DG [note that a outb(0x84, 0) seems to work
+	 *	here, and is non-invasive...but some boards don't seem to reset
+	 *	and I don't have complete documentation on what the 'right'
+	 *	thing to do is...so we do the invasive thing for now. Yuck.]
+	 */
+	outb(sc->asic_addr + ED_NOVELL_RESET, tmp);
+	DELAY(5000);
+
+	/*
+	 * This is needed because some NE clones apparently don't reset the
+	 *	NIC properly (or the NIC chip doesn't reset fully on power-up)
+	 * XXX - this makes the probe invasive! ...Done against my better
+	 *	judgement. -DLG
+	 */
+	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STP);
+
 	DELAY(5000);
 
 	/* Make sure that we really have an 8390 based board */
 	if (!ed_probe_generic8390(sc))
 		return(0);
-
-#if 0
-	/*
-	 * I don't know if this is necessary; probably cruft leftover from
-	 *	Clarkson packet driver code. Doesn't do a thing on the boards
-	 *	I've tested. -DG
-	 */
-	outb(sc->asic_addr + ED_NOVELL_RESET, tmp);
-	DELAY(5000);
-#endif
-
-	/*
-	 * This is needed because some NE clones apparently don't reset the
-	 *	NIC properly (or the NIC chip doesn't reset fully on power-up)
-	 */
-	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STP);
 
 	sc->vendor = ED_VENDOR_NOVELL;
 	sc->mem_shared = 0;
@@ -1082,7 +1100,10 @@ int
 ed_watchdog(unit)
 	int unit;
 {
+	struct ed_softc *sc = &ed_softc[unit];
+
 	log(LOG_ERR, "ed%d: device timeout\n", unit);
+	++sc->arpcom.ac_if.if_oerrors;
 
 	ed_reset(unit);
 }
@@ -1552,6 +1573,7 @@ ed_rint(unit)
 			log(LOG_ERR,
 				"ed%d: NIC memory corrupt - invalid packet length %d\n",
 				unit, len);
+			++sc->arpcom.ac_if.if_ierrors;
 			ed_reset(unit);
 			return;
 		}
