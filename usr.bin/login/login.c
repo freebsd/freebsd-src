@@ -82,6 +82,7 @@ static const char rcsid[] =
 #include <security/pam_misc.h>
 #include <sys/wait.h>
 
+#include "login.h"
 #include "pathnames.h"
 
 /* wrapper for KAME-special getnameinfo() */
@@ -89,19 +90,18 @@ static const char rcsid[] =
 #define	NI_WITHSCOPEID	0
 #endif
 
-void	 badlogin __P((char *));
-void	 dolastlog __P((int));
-void	 getloginname __P((void));
-void	 motd __P((char *));
-int	 rootterm __P((char *));
-void	 sigint __P((int));
-void	 sleepexit __P((int));
-void	 refused __P((char *,char *,int));
-char	*stypeof __P((char *));
-void	 timedout __P((int));
-int	 login_access __P((char *, char *));
-void     login_fbtab __P((char *, uid_t, gid_t));
+static void	 badlogin __P((char *));
+static void	 dolastlog __P((int));
+static void	 getloginname __P((void));
+static void	 motd __P((const char *));
+static int	 rootterm __P((char *));
+static void	 sigint __P((int));
+static void	 sleepexit __P((int));
+static void	 refused __P((const char *,const char *,int));
+static const char	*stypeof __P((char *));
+static void	 timedout __P((int));
 
+#ifndef NO_PAM
 static int auth_pam __P((void));
 static int export_pam_environment __P((void));
 static int ok_to_export __P((const char *));
@@ -117,16 +117,20 @@ static char **environ_pam;
 	if ((e = pam_end(pamh, e)) != PAM_SUCCESS) \
 		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e)); \
 }
+#endif /* NO_PAM */
 
 static int auth_traditional __P((void));
-extern void login __P((struct utmp *));
 static void usage __P((void));
 
-#define	TTYGRPNAME	"tty"		/* name of group to own ttys */
-#define	DEFAULT_BACKOFF	3
-#define	DEFAULT_RETRIES	10
+#define	TTYGRPNAME		"tty"			/* group to own ttys */
+#define	DEFAULT_BACKOFF		3
+#define	DEFAULT_RETRIES		10
 #define	DEFAULT_PROMPT		"login: "
 #define	DEFAULT_PASSWD_PROMPT	"Password:"
+#define	INVALID_HOST		"invalid hostname"
+#define	UNKNOWN			"su"
+#define	DEFAULT_WARN		(2L * 7L * 86400L)	/* Two weeks */
+#define	NBUFSIZ			UT_NAMESIZE + 64
 
 /*
  * This bounds the time given to login.  Not a define so it can
@@ -147,7 +151,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char **environ;
 	struct group *gr;
 	struct stat st;
 	struct timeval tp;
@@ -161,9 +164,14 @@ main(argc, argv)
 	char tbuf[MAXPATHLEN + 2];
 	char tname[sizeof(_PATH_TTY) + 10];
 	char *shell = NULL;
+	static char default_prompt[] = DEFAULT_PROMPT;
+	static char default_passwd_prompt[] = DEFAULT_PASSWD_PROMPT;
+	static char invalid_host[] = INVALID_HOST;
 	login_cap_t *lc = NULL;
+#ifndef NO_PAM
 	pid_t pid;
 	int e;
+#endif /* NO_PAM */
 
 	(void)signal(SIGQUIT, SIG_IGN);
 	(void)signal(SIGINT, SIG_IGN);
@@ -234,7 +242,7 @@ main(argc, argv)
 						sleepexit(1);
 					}
 				} else
-					optarg = "invalid hostname";
+					optarg = invalid_host;
 				if (res != NULL)
 					freeaddrinfo(res);
 			}
@@ -275,9 +283,9 @@ main(argc, argv)
 	 * Get "login-retries" & "login-backoff" from default class
 	 */
 	lc = login_getclass(NULL);
-	prompt = login_getcapstr(lc, "prompt", DEFAULT_PROMPT, DEFAULT_PROMPT);
+	prompt = login_getcapstr(lc, "prompt", default_prompt, default_prompt);
 	passwd_prompt = login_getcapstr(lc, "passwd_prompt",
-	    DEFAULT_PASSWD_PROMPT, DEFAULT_PASSWD_PROMPT);
+	    default_passwd_prompt, default_passwd_prompt);
 	retries = login_getcapnum(lc, "login-retries", DEFAULT_RETRIES,
 	    DEFAULT_RETRIES);
 	backoff = login_getcapnum(lc, "login-backoff", DEFAULT_BACKOFF,
@@ -336,12 +344,14 @@ main(argc, argv)
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
+#ifndef NO_PAM
 		/*
 		 * Try to authenticate using PAM.  If a PAM system error
 		 * occurs, perhaps because of a botched configuration,
 		 * then fall back to using traditional Unix authentication.
 		 */
 		if ((rval = auth_pam()) == -1)
+#endif /* NO_PAM */
 			rval = auth_traditional();
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
@@ -410,7 +420,11 @@ main(argc, argv)
 			refused("Cannot find root directory", "ROOTDIR", 1);
 		if (!quietlog || *pwd->pw_dir)
 			printf("No home directory.\nLogging in with home = \"/\".\n");
-		pwd->pw_dir = "/";
+		pwd->pw_dir = strdup("/");
+		if (pwd->pw_dir == NULL) {
+			syslog(LOG_NOTICE, "strdup(): %m");
+			sleepexit(1);
+		}
 	}
 	(void)seteuid(euid);
 	(void)setegid(egid);
@@ -419,8 +433,6 @@ main(argc, argv)
 
 	if (pwd->pw_change || pwd->pw_expire)
 		(void)gettimeofday(&tp, (struct timezone *)NULL);
-
-#define	DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 
 	warntime = login_getcaptime(lc, "warnexpire", DEFAULT_WARN,
 	    DEFAULT_WARN);
@@ -469,7 +481,11 @@ main(argc, argv)
 	}
         shell = login_getcapstr(lc, "shell", pwd->pw_shell, pwd->pw_shell);
 	if (*pwd->pw_shell == '\0')
-		pwd->pw_shell = _PATH_BSHELL;
+		pwd->pw_shell = strdup(_PATH_BSHELL);
+	if (pwd->pw_shell == NULL) {
+		syslog(LOG_NOTICE, "strdup(): %m");
+		sleepexit(1);
+	}
 	if (*shell == '\0')   /* Not overridden */
 		shell = pwd->pw_shell;
 	if ((shell = strdup(shell)) == NULL) {
@@ -574,6 +590,7 @@ main(argc, argv)
 		exit(1);
 	}
 
+#ifndef NO_PAM
 	if (pamh) {
 		if ((e = pam_open_session(pamh, 0)) != PAM_SUCCESS) {
 			syslog(LOG_ERR, "pam_open_session: %s",
@@ -616,6 +633,7 @@ main(argc, argv)
 				    pam_strerror(pamh, e));
 		}
 	}
+#endif /* NO_PAM */
 
 	/*
 	 * We don't need to be root anymore, so
@@ -643,7 +661,7 @@ main(argc, argv)
 	(void)setenv("PATH", rootlogin ? _PATH_STDPATH : _PATH_DEFPATH, 0);
 
 	if (!quietlog) {
-		char	*cw;
+		const char	*cw;
 
 		cw = login_getcapstr(lc, "copyright", NULL, NULL);
 		if (cw != NULL && access(cw, F_OK) == 0)
@@ -685,7 +703,7 @@ main(argc, argv)
 	/*
 	 * Login shells have a leading '-' in front of argv[0]
 	 */
-	if (snprintf(tbuf, sizeof(tbuf), "-%s",
+	if ((size_t)snprintf(tbuf, sizeof(tbuf), "-%s",
 	    (p = strrchr(pwd->pw_shell, '/')) ? p + 1 : pwd->pw_shell) >=
 	    sizeof(tbuf)) {
 		syslog(LOG_ERR, "user: %s: shell exceeds maximum pathname size",
@@ -698,12 +716,12 @@ main(argc, argv)
 }
 
 static int
-auth_traditional()
+auth_traditional(void)
 {
 	int rval;
 	char *p;
-	char *ep;
-	char *salt;
+	const char *ep;
+	const char *salt;
 
 	rval = 1;
 	salt = pwd != NULL ? pwd->pw_passwd : "xx";
@@ -723,6 +741,7 @@ auth_traditional()
 	return rval;
 }
 
+#ifndef NO_PAM
 /*
  * Attempt to authenticate the user using PAM.  Returns 0 if the user is
  * authenticated, or 1 if not authenticated.  If some sort of PAM system
@@ -731,7 +750,7 @@ auth_traditional()
  * fall back to a different authentication mechanism.
  */
 static int
-auth_pam()
+auth_pam(void)
 {
 	const char *tmpl_user;
 	const void *item;
@@ -822,7 +841,7 @@ auth_pam()
 }
 
 static int
-export_pam_environment()
+export_pam_environment(void)
 {
 	char	**pp;
 
@@ -863,9 +882,10 @@ ok_to_export(s)
 	}
 	return 1;
 }
+#endif /* NO_PAM */
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "usage: login [-fp] [-h hostname] [username]\n");
@@ -876,10 +896,8 @@ usage()
  * Allow for authentication style and/or kerberos instance
  */
 
-#define	NBUFSIZ		UT_NAMESIZE + 64
-
 void
-getloginname()
+getloginname(void)
 {
 	int ch;
 	char *p;
@@ -928,7 +946,7 @@ sigint(signo)
 
 void
 motd(motdfile)
-	char *motdfile;
+	const char *motdfile;
 {
 	int fd, nchars;
 	sig_t oldint;
@@ -1014,10 +1032,7 @@ badlogin(name)
 	failures = 0;
 }
 
-#undef	UNKNOWN
-#define	UNKNOWN	"su"
-
-char *
+const char *
 stypeof(ttyid)
 	char *ttyid;
 {
@@ -1033,8 +1048,8 @@ stypeof(ttyid)
 
 void
 refused(msg, rtype, lout)
-	char *msg;
-	char *rtype;
+	const char *msg;
+	const char *rtype;
 	int lout;
 {
 
