@@ -166,8 +166,7 @@ __xfputwc(wchar_t wc, FILE *fp)
 	char buf[MB_LEN_MAX];
 	struct __suio uio;
 	struct __siov iov;
-	size_t i, len;
-	int ret;
+	size_t len;
 
 	if ((fp->_flags & __SSTR) == 0)
 		return (__fputwc(wc, fp));
