@@ -72,8 +72,10 @@ static void		power_off_slot(void *);
  *	The driver interface for read/write uses a block
  *	of memory in the ISA I/O memory space allocated via
  *	an ioctl setting.
+ *
+ *	Now that we have different bus attachments, we should really
+ *	use a better algorythm to allocate memory.
  */
-/* XXX this should be in pcic */
 static unsigned long pccard_mem;	/* Physical memory */
 static unsigned char *pccard_kmem;	/* Kernel virtual address */
 static struct resource *pccard_mem_res;
@@ -133,7 +135,6 @@ power_off_slot(void *arg)
 static void
 disable_slot(struct slot *slt)
 {
-	/* XXX Need to store pccarddev in slt. */
 	device_t pccarddev;
 	device_t *kids;
 	int nkids;
