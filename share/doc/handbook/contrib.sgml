@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.106 1996/07/23 07:32:55 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.107 1996/07/23 19:46:35 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -259,6 +259,7 @@
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
+	  <item>Randall Hopper &lt;rhh@stealth.ct.picker.com&gt;
 	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
 	  <item>Richard Wiwatowski &lt;rjwiwat@adelaide.on.neti&gt;
 	  <item>Rob Shady &lt;rls@id.net&gt;
