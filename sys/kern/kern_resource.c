@@ -88,7 +88,7 @@ getpriority(curp, uap)
 			p = pfind(uap->who);
 		if (p == 0)
 			break;
-		if (!PRISON_CHECK(curp, p))
+		if (p_can(curp, p, P_CAN_SEE, NULL))
 			break;
 		low = p->p_nice;
 		break;
@@ -101,7 +101,7 @@ getpriority(curp, uap)
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
-			if ((PRISON_CHECK(curp, p) && p->p_nice < low))
+			if (!p_can(curp, p, P_CAN_SEE, NULL) && p->p_nice < low)
 				low = p->p_nice;
 		}
 		break;
@@ -111,7 +111,7 @@ getpriority(curp, uap)
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
 		LIST_FOREACH(p, &allproc, p_list)
-			if (PRISON_CHECK(curp, p) &&
+			if (!p_can(curp, p, P_CAN_SEE, NULL) &&
 			    p->p_ucred->cr_uid == uap->who &&
 			    p->p_nice < low)
 				low = p->p_nice;
@@ -151,7 +151,7 @@ setpriority(curp, uap)
 			p = pfind(uap->who);
 		if (p == 0)
 			break;
-		if (!PRISON_CHECK(curp, p))
+		if (p_can(curp, p, P_CAN_SEE, NULL))
 			break;
 		error = donice(curp, p, uap->prio);
 		found++;
@@ -165,7 +165,7 @@ setpriority(curp, uap)
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
-			if (PRISON_CHECK(curp, p)) {
+			if (!p_can(curp, p, P_CAN_SEE, NULL)) {
 				error = donice(curp, p, uap->prio);
 				found++;
 			}
@@ -178,7 +178,7 @@ setpriority(curp, uap)
 			uap->who = curp->p_ucred->cr_uid;
 		LIST_FOREACH(p, &allproc, p_list)
 			if (p->p_ucred->cr_uid == uap->who &&
-			    PRISON_CHECK(curp, p)) {
+			    !p_can(curp, p, P_CAN_SEE, NULL)) {
 				error = donice(curp, p, uap->prio);
 				found++;
 			}
@@ -197,9 +197,10 @@ donice(curp, chgp, n)
 	register struct proc *curp, *chgp;
 	register int n;
 {
+	int	error;
 
-	if (p_trespass(curp, chgp) != 0)
-		return (EPERM);
+	if ((error = p_can(curp, chgp, P_CAN_SCHED, NULL)))
+		return (error);
 	if (n > PRIO_MAX)
 		n = PRIO_MAX;
 	if (n < PRIO_MIN)
@@ -250,8 +251,8 @@ rtprio(curp, uap)
 	case RTP_LOOKUP:
 		return (copyout(&p->p_rtprio, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
-		if (p_trespass(curp, p) != 0)
-		        return (EPERM);
+		if ((error = p_can(curp, p, P_CAN_SCHED, NULL)))
+		        return (error);
 		/* disallow setting rtprio in most cases if not superuser */
 		if (suser(curp) != 0) {
 			/* can't set someone else's */

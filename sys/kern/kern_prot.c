@@ -945,15 +945,15 @@ SYSCTL_INT(_kern, OID_AUTO, suser_permitted, CTLFLAG_RW, &suser_permitted, 0,
  */
 int
 suser(p)
-	struct proc *p;
+	const struct proc *p;
 {
 	return suser_xxx(0, p, 0);
 }
 
 int
 suser_xxx(cred, proc, flag)
-	struct ucred *cred;
-	struct proc *proc;
+	const struct ucred *cred;
+	const struct proc *proc;
 	int flag;
 {
 	if (!suser_permitted)
@@ -971,30 +971,164 @@ suser_xxx(cred, proc, flag)
 	return (0);
 }
 
-/*
- * Return zero if p1 can fondle p2, return errno (EPERM/ESRCH) otherwise.
- */
-
-int
-p_trespass(struct proc *p1, struct proc *p2)
+static int
+p_cansee(const struct proc *p1, const struct proc *p2, int *privused)
 {
+
+	if (privused != NULL)
+		*privused = 0;
+
+	if (!PRISON_CHECK(p1, p2))
+		return (ESRCH);
+
+	if (!ps_showallprocs && (p1->p_ucred->cr_uid != p2->p_ucred->cr_uid) &&
+	    suser_xxx(NULL, p1, PRISON_ROOT))
+		return (ESRCH);
+
+	return (0);
+}
+
+static int
+p_cankill(const struct proc *p1, const struct proc *p2, int *privused)
+{
+
+	if (privused != NULL)
+		*privused = 0;
 
 	if (p1 == p2)
 		return (0);
+
 	if (!PRISON_CHECK(p1, p2))
 		return (ESRCH);
+
 	if (p1->p_cred->p_ruid == p2->p_cred->p_ruid)
 		return (0);
 	if (p1->p_ucred->cr_uid == p2->p_cred->p_ruid)
 		return (0);
+	/*
+	 * XXX should a process be able to affect another process
+	 * acting as the same uid (i.e., a userland nfsd or the like?)
+	 */
 	if (p1->p_cred->p_ruid == p2->p_ucred->cr_uid)
 		return (0);
 	if (p1->p_ucred->cr_uid == p2->p_ucred->cr_uid)
 		return (0);
-	if (!suser_xxx(0, p1, PRISON_ROOT))
+
+	if (!suser_xxx(0, p1, PRISON_ROOT)) {
+		if (privused != NULL)
+			*privused = 1;
 		return (0);
+	}
+
+#ifdef CAPABILITIES
+	if (!cap_check_xxx(0, p1, CAP_KILL, PRISON_ROOT)) {
+		if (privused != NULL)
+			*privused = 1;
+		return (0);
+	}
+#endif
+
 	return (EPERM);
 }
+
+static int
+p_cansched(const struct proc *p1, const struct proc *p2, int *privused)
+{
+
+	if (privused != NULL)
+		*privused = 0;
+
+	if (p1 == p2)
+		return (0);
+
+	if (!PRISON_CHECK(p1, p2))
+		return (ESRCH);
+
+	if (p1->p_cred->p_ruid == p2->p_cred->p_ruid)
+		return (0);
+	if (p1->p_ucred->cr_uid == p2->p_cred->p_ruid)
+		return (0);
+	/*
+	 * XXX should a process be able to affect another process
+	 * acting as the same uid (i.e., a userland nfsd or the like?)
+	 */
+	if (p1->p_cred->p_ruid == p2->p_ucred->cr_uid)
+		return (0);
+	if (p1->p_ucred->cr_uid == p2->p_ucred->cr_uid)
+		return (0);
+
+	if (!suser_xxx(0, p1, PRISON_ROOT)) {
+		if (privused != NULL)
+			*privused = 1;
+		return (0);
+	}
+
+#ifdef CAPABILITIES
+	if (!cap_check_xxx(0, p1, CAP_SYS_NICE, PRISON_ROOT)) {
+		if (privused != NULL)
+			*privused = 1;
+		return (0);
+	}
+#endif
+
+	return (EPERM);
+}
+
+static int
+p_candebug(const struct proc *p1, const struct proc *p2, int *privused)
+{
+	int	error;
+
+	if (privused != NULL)
+		*privused = 0;
+
+	/* XXX it is authorized, but semantics don't permit it */
+	if (p1 == p2)
+		return (0);
+
+	if (!PRISON_CHECK(p1, p2))
+		return (ESRCH);
+
+	/* not owned by you, has done setuid (unless you're root) */
+	/* add a CAP_SYS_PTRACE here? */
+	if ((p1->p_cred->p_ruid != p2->p_cred->p_ruid) ||
+	    (p2->p_flag & P_SUGID)) {
+		if ((error = suser_xxx(0, p1, PRISON_ROOT)))
+			return (error);
+		if (privused != NULL)
+			*privused = 1;
+	}
+
+	/* can't trace init when securelevel > 0 */
+	if (securelevel > 0 && p2->p_pid == 1)
+		return (EPERM);
+
+	return (0);
+}
+
+int
+p_can(const struct proc *p1, const struct proc *p2, int operation,
+    int *privused)
+{
+
+	switch(operation) {   
+	case P_CAN_SEE:
+		return (p_cansee(p1, p2, privused));
+  
+	case P_CAN_KILL:
+		return (p_cankill(p1, p2, privused));
+ 
+	case P_CAN_SCHED:
+		return (p_cansched(p1, p2, privused));
+
+	case P_CAN_DEBUG:
+		return (p_candebug(p1, p2, privused));
+
+	default:
+		panic("p_can: invalid operation");
+	}
+}
+
 
 /*
  * Allocate a zeroed cred structure.
