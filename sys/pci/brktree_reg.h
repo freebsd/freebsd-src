@@ -321,7 +321,8 @@ struct TUNER {
 struct CARDTYPE {
 	char*			name;
 	const struct TUNER*	tuner;
-	u_char			dbx;
+	u_char			dbx;		/* Has DBX chip? */
+	u_char			msp3400c;	/* Has msp3400c chip? */
 	u_char			eepromAddr;
 	u_char			eepromSize;	/* bytes / EEPROMBLOCKSIZE */
 	u_char			audiomuxs[ 5 ];	/* tuner, ext, int/unused,
@@ -337,6 +338,10 @@ struct format_params {
   int  horizontal, vertical;
 /* frame rate . for ntsc is 30 frames per second */
   int frame_rate;
+/* A-delay and B-delay */
+  u_char adelay, bdelay;
+/* Iform XTSEL value */
+  int iform_xtsel;
 };
 
 
