@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.33 1997/07/01 03:50:41 jkh Exp $
+ * $Id: dist.c,v 1.73.2.34 1997/09/09 16:28:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -390,13 +390,14 @@ distSetByName(Distribution *dist, char *name)
 	/* This is shorthand for "dist currently disabled" */
 	if (!dist[i].my_dir)
 	    continue;
-	else if (!strcmp(dist[i].my_name, name)) {
+	if (!strcmp(dist[i].my_name, name)) {
 	    *(dist[i].my_mask) |= dist[i].my_bit;
 	    status = TRUE;
 	}
-	else if (dist[i].my_dist) {
-	    if (distSetByName(dist[i].my_dist, name))
+	if (dist[i].my_dist) {
+	    if (distSetByName(dist[i].my_dist, name)) {
 		status = TRUE;
+	    }
 	}
     }
     return status;
