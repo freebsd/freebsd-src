@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.106 1999/03/07 01:41:27 brian Exp $
+ * $Id: modem.c,v 1.107 1999/03/07 20:58:48 brian Exp $
  *
  *  TODO:
  */
@@ -122,7 +122,7 @@ modem_Create(struct datalink *dl, int type)
   p->out = NULL;
   p->connect_count = 0;
   p->dl = dl;
-
+  p->input.sz = 0;
   *p->name.full = '\0';
   p->name.base = p->name.full;
 
@@ -489,6 +489,7 @@ modem_Found(struct physical *modem, struct bundle *bundle)
   throughput_start(&modem->link.throughput, "modem throughput",
                    Enabled(bundle, OPT_THROUGHPUT));
   modem->connect_count++;
+  modem->input.sz = 0;
   log_Printf(LogPHASE, "%s: Connected!\n", modem->link.name);
 }
 
@@ -852,16 +853,15 @@ modem_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
                       const fd_set *fdset)
 {
   struct physical *modem = descriptor2physical(d);
-  int nb, nw, result = 0;
+  int nw, result = 0;
 
   if (modem->out == NULL)
     modem->out = link_Dequeue(&modem->link);
 
   if (modem->out) {
-    nb = modem->out->cnt;
-    nw = physical_Write(modem, MBUF_CTOP(modem->out), nb);
+    nw = physical_Write(modem, MBUF_CTOP(modem->out), modem->out->cnt);
     log_Printf(LogDEBUG, "%s: DescriptorWrite: wrote %d(%d) to %d\n",
-               modem->link.name, nw, nb, modem->fd);
+               modem->link.name, nw, modem->out->cnt, modem->fd);
     if (nw > 0) {
       modem->out->cnt -= nw;
       modem->out->offset += nw;
@@ -963,13 +963,16 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
                      const fd_set *fdset)
 {
   struct physical *p = descriptor2physical(d);
-  u_char rbuff[MAX_MRU], *cp;
-  int n;
+  u_char *rbuff;
+  int n, found;
+  size_t sz;
+
+  rbuff = p->input.buf + p->input.sz;
 
   /* something to read from modem */
-  n = physical_Read(p, rbuff, sizeof rbuff);
-  log_Printf(LogDEBUG, "%s: DescriptorRead: read %d from %d\n",
-             p->link.name, n, p->fd);
+  n = physical_Read(p, rbuff, sizeof p->input.buf - p->input.sz);
+  log_Printf(LogDEBUG, "%s: DescriptorRead: read %d/%d from %d\n",
+             p->link.name, n, (int)(sizeof p->input.buf - p->input.sz), p->fd);
   if (n <= 0) {
     if (n < 0)
       log_Printf(LogPHASE, "%s: read (%d): %s\n", p->link.name, p->fd,
@@ -980,23 +983,32 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     datalink_Down(p->dl, CLOSE_NORMAL);
     return;
   }
+
   log_DumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
+  rbuff -= p->input.sz;
+  n += p->input.sz;
 
   if (p->link.lcp.fsm.state <= ST_CLOSED) {
-    /* In -dedicated mode, we just discard input until LCP is started */
     if (p->type != PHYS_DEDICATED) {
-      cp = hdlc_Detect(p, rbuff, n);
-      if (cp) {
+      found = hdlc_Detect((u_char const **)&rbuff, n, physical_IsSync(p));
+      if (rbuff != p->input.buf)
+        log_WritePrompts(p->dl, "%.*s", (int)(rbuff - p->input.buf),
+                         p->input.buf);
+      p->input.sz = n - (rbuff - p->input.buf);
+
+      if (found) {
         /* LCP packet is detected. Turn ourselves into packet mode */
-        if (cp != rbuff)
-          /* Get rid of the bit before the HDLC header */
-          log_WritePrompts(p->dl, "%.*s\r\n", (int)(cp - rbuff), rbuff);
         log_Printf(LogPHASE, "%s: PPP packet detected, coming up\n",
                    p->link.name);
+        log_SetTtyCommandMode(p->dl);
         datalink_Up(p->dl, 0, 1);
+        async_Input(bundle, rbuff, p->input.sz, p);
+        p->input.sz = 0;
       } else
-        log_WritePrompts(p->dl, "%.*s", n, rbuff);
-    }
+        bcopy(rbuff, p->input.buf, p->input.sz);
+    } else
+      /* In -dedicated mode, we just discard input until LCP is started */
+      p->input.sz = 0;
   } else if (n > 0)
     async_Input(bundle, rbuff, n, p);
 }
@@ -1062,6 +1074,7 @@ iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
 
   throughput_start(&p->link.throughput, "modem throughput",
                    Enabled(dl->bundle, OPT_THROUGHPUT));
+  p->input.sz = 0;
   if (p->Timer.state != TIMER_STOPPED) {
     p->Timer.state = TIMER_STOPPED;	/* Special - see modem2iov() */
     modem_StartTimer(dl->bundle, p);	/* XXX: Should we set cd.required ? */
