@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.8 1995/05/26 17:35:54 jkh Exp $
+.\" $Id: ppp.8,v 1.9 1995/06/26 08:04:16 bde Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -316,6 +316,8 @@ o A filter definition has the following syntax:
 
    d) proto must be one of icmp, udp or tcp.
 
+   e) port number can be specify by number and service name in /etc/service.
+
 .TP
 o Each filter can hold up to 20 rules, starting from rule 0.
 The entire rule set is not effective until rule 0 is defined.
@@ -587,8 +589,12 @@ Logging and debugging information file.
 .B /var/spool/lock/Lck..* 
 tty port locking file.
 
+.TP
+.B /etc/service
+Get port number if port number is using service name.
+
 .SH HISTORY
-This program was submitted in FreeBSD-2.0.5 by Atsushi Murai (amurai@spec.co.jp).
+This program was submitted in FreeBSD-2.0.5 Atsushi Murai (amurai@spec.co.jp).
 
 .SH AUTHORS
 Toshiharu OHNO (tony-o@iij.ad.jp)

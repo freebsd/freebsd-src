@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.6 1995/07/06 02:58:57 asami Exp $
+ * $Id: main.c,v 1.8 1995/09/02 17:20:52 amurai Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -737,7 +737,7 @@ DoLoop()
     }
 
     if ((mode & MODE_INTER) && FD_ISSET(netfd, &rfds) &&
-	pgroup == tcgetpgrp(0)) {
+	((mode & MODE_AUTO) || pgroup == tcgetpgrp(0))) {
       /* something to read from tty */
       ReadTty();
     }
