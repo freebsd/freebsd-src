@@ -34,6 +34,11 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+/* XXX make this work as an i386/amd64 cross-tool */
+#include <machine/exec.h>
+#undef __LDPGSZ
+#define __LDPGSZ	4096
+
 #include <a.out.h>
 #include <err.h>
 #include <errno.h>
