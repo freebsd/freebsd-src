@@ -2,27 +2,26 @@
 
     Copyright (C) 2000  Cesar Miquel  (miquel@df.uba.ar)
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted under any licence of your choise which
+    meets the open source licence definiton
+    http://www.opensource.org/opd.html such as the GNU licence or the
+    BSD licence.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    General Public License or the BSD license for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+    ----------------------------------------------------------------------
+
+    Modified for FreeBSD by Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
 
     ---------------------------------------------------------------------- */
 
-/* modified for FreeBSD by Iwasa Kazmi <kzmi@ca2.so-net.ne.jp> */
+/*  $FreeBSD$ */
 
-/* $FreeBSD$ */
-
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/ioccom.h>
 #ifndef USB_VENDOR_DIAMOND
 #define USB_VENDOR_DIAMOND 0x841
@@ -34,7 +33,7 @@
 
 struct RioCommand
 {
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
   u_int16_t  length;
 #else
   short length;
@@ -47,7 +46,7 @@ struct RioCommand
   int  timeout;
 };
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #define RIO_SEND_COMMAND	_IOWR('U', 200, struct RioCommand)
 #define RIO_RECV_COMMAND	_IOWR('U', 201, struct RioCommand)
 #else
@@ -57,5 +56,3 @@ struct RioCommand
 
 #define RIO_DIR_OUT               	        0x0
 #define RIO_DIR_IN				0x1
-
-
