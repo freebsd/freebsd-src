@@ -2349,18 +2349,11 @@ mode.
 These signals tell
 .Nm
 to exit.
-.It USR1
-This signal, tells
-.Nm
-to re-open any existing server socket, dropping all existing diagnostic
-connections.  Sockets that couldn't previously be opened will be retried.
 .It USR2
 This signal, tells
 .Nm
 to close any existing server socket, dropping all existing diagnostic
 connections.
-.Dv SIGUSR1
-can still be used to re-open the socket.
 .El
 .Pp
 .Sh MULTI-LINK PPP
@@ -5142,7 +5135,7 @@ If
 .Ar value
 is unspecified or zero, the default kernel controlled value is used.
 .It "set server|socket" Ar TcpPort Ns No \&| Ns Xo
-.Ar LocalName Ns No |none|open|closed
+.Ar LocalName Ns No |none
 .Op password Op Ar mask
 .Xc
 This command tells
@@ -5156,16 +5149,6 @@ The word
 instructs
 .Nm
 to close any existing socket and clear the socket configuration.
-The word
-.Dq open
-instructs
-.Nm
-to attempt to re-open the port.
-The word
-.Dq closed
-instructs
-.Nm
-to close the open port.
 .Pp
 If you wish to specify a local domain socket,
 .Ar LocalName
@@ -5210,10 +5193,8 @@ can also be used, but link encryption may be implemented in the future, so
 should be avoided.
 .Pp
 Note;
-.Dv SIGUSR1
-and
 .Dv SIGUSR2
-interact with the diagnostic socket.
+also interacts with the diagnostic socket.
 .It set speed Ar value
 This sets the speed of the serial device.
 If speed is specified as
