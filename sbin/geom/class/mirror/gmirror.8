@@ -273,6 +273,17 @@ gmirror deactivate data da1
 dd if=/dev/da1 of=/backup/data.img bs=1m
 gmirror activate data da1
 .Ed
+.Sh NOTES
+If you are using swap-on-mirror configuration be sure to put:
+.Bd -literal -offset indent
+swapoff="YES"
+.Ed
+.Pp
+into your
+.Pa /etc/rc.conf
+and use
+.Xr shutdown 8
+command to reboot/shutdown your system.
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh SEE ALSO

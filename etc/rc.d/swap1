@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="swap1"
+stop_precmd='checkyesno swapoff || [ -n "$rc_force" ]'
 start_cmd='swapon -a'
 stop_cmd='swapoff -a'
 
