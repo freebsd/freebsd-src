@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: ns_maint.c,v 8.131 2001/11/12 04:49:32 marka Exp $";
+static const char rcsid[] = "$Id: ns_maint.c,v 8.135 2002/04/25 05:27:10 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -132,7 +132,6 @@ static int		nxfers(struct zoneinfo *),
 
 static void		startxfer(struct zoneinfo *),
 			abortxfer(struct zoneinfo *),
-			tryxfer(void),
 			purge_z_2(struct hashbuf *, int);
 static int		purge_nonglue_2(const char *, struct hashbuf *,
 					int, int, int);
@@ -453,9 +452,10 @@ ns_heartbeat(evContext ctx, void *uap, struct timespec due,
 		 * Trigger a refresh query while the link is up by
 		 * sending a notify.
 		 */
-		if (((zp->z_notify == znotify_yes) ||
-		     ((zp->z_notify == znotify_use_default) &&
-		      !NS_OPTION_P(OPTION_NONOTIFY))) &&
+		if (((zp->z_notify == notify_yes) ||
+		     (zp->z_notify == notify_explicit) ||
+		     ((zp->z_notify == notify_use_default) &&
+		      server_options->notify != notify_no)) &&
 		    (zt == z_master || zt == z_slave) && !loading &&
 		    ((zp->z_flags & Z_AUTH) != 0))
 			ns_notify(zp->z_origin, zp->z_class, ns_t_soa);
@@ -1199,6 +1199,22 @@ remove_zone(struct zoneinfo *zp, const char *verb) {
 		xfers_deferred--;
 	}
 	ns_stopxfrs(zp);
+	if ((zp->z_flags & Z_XFER_RUNNING) != 0) {
+		int i;
+		/* Kill and abandon the current transfer. */
+		for (i = 0; i < MAX_XFERS_RUNNING; i++) {
+			if (xferstatus[i].xfer_pid == zp->z_xferpid) {
+				xferstatus[i].xfer_pid = 0;
+				xferstatus[i].xfer_state = XFER_IDLE;
+				xfers_running--;
+				break;
+			}
+		}
+		(void)kill(zp->z_xferpid, SIGTERM);
+		zp->z_flags &= ~(Z_XFER_RUNNING|Z_XFER_ABORTED|Z_XFER_GONE);
+		zp->z_xferpid = 0;
+		ns_need(main_need_tryxfer);
+	}
 	do_reload(zp->z_origin, zp->z_type, zp->z_class, 1);
 	ns_notice(ns_log_config, "%s zone \"%s\" (%s) %s",
 		  zoneTypeString(zp->z_type), zp->z_origin,
@@ -1692,7 +1708,7 @@ endxfer() {
 /*
  * Try to start some xfers - new "fair scheduler" by Bob Halley @DEC (1995)
  */
-static void
+void
 tryxfer() {
 	static struct zoneinfo *zp = NULL;
 	static struct zoneinfo *lastzones = NULL;

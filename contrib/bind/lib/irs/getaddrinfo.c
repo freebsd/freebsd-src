@@ -172,13 +172,6 @@ static const struct explore explore[] = {
 
 #define PTON_MAX	16
 
-#define MAXPACKET	(1024*64)
-
-typedef union {
-	HEADER hdr;
-	u_char buf[MAXPACKET];
-} querybuf;
-
 static int str_isnumber __P((const char *));
 static int explore_fqdn __P((const struct addrinfo *, const char *,
 	const char *, struct addrinfo **));
@@ -320,7 +313,7 @@ getaddrinfo(hostname, servname, hints, res)
 	struct addrinfo sentinel;
 	struct addrinfo *cur;
 	int error = 0;
-	struct addrinfo ai, ai0, *afai;
+	struct addrinfo ai, ai0, *afai = NULL;
 	struct addrinfo *pai;
 	const struct explore *ex;
 

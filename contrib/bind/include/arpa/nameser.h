@@ -49,7 +49,7 @@
  */
 
 /*
- *	$Id: nameser.h,v 8.46 2001/11/16 05:37:33 marka Exp $
+ *	$Id: nameser.h,v 8.47 2002/04/30 03:43:53 marka Exp $
  */
 
 #ifndef _ARPA_NAMESER_H_
@@ -497,7 +497,9 @@ typedef enum __ns_cert_types {
 #define	ns_name_skip		__ns_name_skip
 #define	ns_name_rollback	__ns_name_rollback
 #define	ns_sign			__ns_sign
+#define	ns_sign2		__ns_sign2
 #define	ns_sign_tcp		__ns_sign_tcp
+#define	ns_sign_tcp2		__ns_sign_tcp2
 #define	ns_sign_tcp_init	__ns_sign_tcp_init
 #define ns_find_tsig		__ns_find_tsig
 #define	ns_verify		__ns_verify
@@ -542,8 +544,14 @@ void		ns_name_rollback __P((const u_char *, const u_char **,
 				      const u_char **));
 int		ns_sign __P((u_char *, int *, int, int, void *,
 			     const u_char *, int, u_char *, int *, time_t));
+int		ns_sign2 __P((u_char *, int *, int, int, void *,
+			      const u_char *, int, u_char *, int *, time_t,
+			      u_char **, u_char **));
 int		ns_sign_tcp __P((u_char *, int *, int, int,
 				 ns_tcp_tsig_state *, int));
+int		ns_sign_tcp2 __P((u_char *, int *, int, int,
+				  ns_tcp_tsig_state *, int,
+				  u_char **, u_char **));
 int		ns_sign_tcp_init __P((void *, const u_char *, int,
 					ns_tcp_tsig_state *));
 u_char		*ns_find_tsig __P((u_char *, u_char *));
