@@ -1141,7 +1141,7 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 	STAILQ_INIT(&dbch->db_trq);
 	db_tr = (struct fwohcidb_tr *)
 		malloc(sizeof(struct fwohcidb_tr) * dbch->ndb,
-		M_DEVBUF, M_DONTWAIT | M_ZERO);
+		M_DEVBUF, M_NOWAIT | M_ZERO);
 	if(db_tr == NULL){
 		printf("fwohci_db_init: malloc(1) failed\n");
 		return;
@@ -1159,7 +1159,7 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 	}
 	for (i = 0; i < dbch->npages; i++) {
 		dbch->pages[i] = malloc(PAGE_SIZE, M_DEVBUF,
-						M_DONTWAIT | M_ZERO);
+						M_NOWAIT | M_ZERO);
 		if (dbch->pages[i] == NULL) {
 			printf("fwohci_db_init: malloc(2) failed\n");
 			for (j = 0; j < i; j ++)
@@ -1552,7 +1552,7 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 				sc->ir[dmach].xferq.bnchunk;
 		sc->ir[dmach].dummy =
 			malloc(sizeof(u_int32_t) * sc->ir[dmach].ndb, 
-			   M_DEVBUF, M_DONTWAIT);
+			   M_DEVBUF, M_NOWAIT);
 		if(sc->ir[dmach].dummy == NULL){
 			err = ENOMEM;
 			return err;
