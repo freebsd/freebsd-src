@@ -381,7 +381,7 @@
 #define RL_GMEDIASTAT_LINK	0x02	/* link up */
 #define RL_GMEDIASTAT_10MBPS	0x04	/* 10mps link */
 #define RL_GMEDIASTAT_100MBPS	0x08	/* 100mbps link */
-#define RL_GMEDIASTAT_1000MPS	0x10	/* gigE link */
+#define RL_GMEDIASTAT_1000MBPS	0x10	/* gigE link */
 #define RL_GMEDIASTAT_RXFLOW	0x20	/* RX flow control on */
 #define RL_GMEDIASTAT_TXFLOW	0x40	/* TX flow control on */
 #define RL_GMEDIASTAT_TBI	0x80	/* TBI enabled */
