@@ -37,7 +37,7 @@
 
 RCSID("$FreeBSD$")
 
-ENTRY(__ieee754_log10)
+ENTRY(log10)
 	fldlg2
 	fldl	4(%esp)
 	fyl2x

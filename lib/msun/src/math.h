@@ -150,53 +150,12 @@ extern int signgam;
 #endif /* __BSD_VISIBLE || __XSI_VISIBLE */
 
 #if __BSD_VISIBLE
-enum fdversion {fdlibm_ieee = -1, fdlibm_svid, fdlibm_xopen, fdlibm_posix};
-
-#define _LIB_VERSION_TYPE enum fdversion
-#define _LIB_VERSION _fdlib_version
-
-/* if global variable _LIB_VERSION is not desirable, one may
- * change the following to be a constant by:
- *	#define _LIB_VERSION_TYPE const enum version
- * In that case, after one initializes the value _LIB_VERSION (see
- * s_lib_version.c) during compile time, it cannot be modified
- * in the middle of a program
- */
-extern  _LIB_VERSION_TYPE  _LIB_VERSION;
-
-#define _IEEE_  fdlibm_ieee
-#define _SVID_  fdlibm_svid
-#define _XOPEN_ fdlibm_xopen
-#define _POSIX_ fdlibm_posix
-
-/* We have a problem when using C++ since `exception' is a reserved
-   name in C++.  */
-#ifndef __cplusplus
-struct exception {
-	int type;
-	char *name;
-	double arg1;
-	double arg2;
-	double retval;
-};
-#endif
-
 #if 0
 /* Old value from 4.4BSD-Lite math.h; this is probably better. */
 #define	HUGE		HUGE_VAL
 #else
 #define	HUGE		MAXFLOAT
 #endif
-
-#define X_TLOSS		1.41484755040568800000e+16	/* pi*2**52 */
-
-#define	DOMAIN		1
-#define	SING		2
-#define	OVERFLOW	3
-#define	UNDERFLOW	4
-#define	TLOSS		5
-#define	PLOSS		6
-
 #endif /* __BSD_VISIBLE */
 
 /*
@@ -325,10 +284,6 @@ double	lgamma_r(double, int *);
  * IEEE Test Vector
  */
 double	significand(double);
-
-#ifndef __cplusplus
-int	matherr(struct exception *);
-#endif
 #endif /* __BSD_VISIBLE */
 
 /* float versions of ANSI/POSIX functions */

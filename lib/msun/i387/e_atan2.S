@@ -37,7 +37,7 @@
 
 RCSID("$FreeBSD$")
 
-ENTRY(__ieee754_atan2)
+ENTRY(atan2)
 	fldl	 4(%esp)
 	fldl	12(%esp)
 	fpatan
