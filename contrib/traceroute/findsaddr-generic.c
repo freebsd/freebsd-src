@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1993
+ * Copyright (c) 2000
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,11 +12,11 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ *	This product includes software developed by the Computer Systems
+ *	Engineering Group at Lawrence Berkeley Laboratory.
+ * 4. Neither the name of the University nor of the Laboratory may be used
+ *    to endorse or promote products derived from this software without
+ *    specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -31,44 +31,67 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char sccsid[] = "@(#)strerror.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
+#ifndef lint
+static const char rcsid[] =
+    "@(#) $Id: findsaddr-generic.c,v 1.1 2000/11/23 20:17:12 leres Exp $ (LBL)";
+#endif
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#ifdef HAVE_SYS_SOCKIO_H
+#include <sys/sockio.h>
+#endif
+#include <sys/time.h>				/* concession to AIX */
 
+#if __STDC__
+struct mbuf;
+struct rtentry;
+#endif
+
+#include <net/if.h>
+#include <netinet/in.h>
+
+#include <arpa/inet.h>
+
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
 
-char *
-strerror(num)
-	int num;
+#include "findsaddr.h"
+#include "ifaddrlist.h"
+#include "traceroute.h"
+
+/*
+ * Return the source address for the given destination address
+ */
+const char *
+findsaddr(register const struct sockaddr_in *to,
+    register struct sockaddr_in *from)
 {
-	extern int sys_nerr;
-	extern char *sys_errlist[];
-#define	UPREFIX	"Unknown error: "
-	static char ebuf[40] = UPREFIX;		/* 64-bit number + slop */
-	register unsigned int errnum;
-	register char *p, *t;
-	char tmp[40];
+	register int n;
+	struct ifaddrlist *al;
+	static char errbuf[132];
 
-	errnum = num;				/* convert to unsigned */
-	if (errnum < sys_nerr)
-		return(sys_errlist[errnum]);
+        /* Get the interface address list */
+	if ((n = ifaddrlist(&al, errbuf)) < 0)
+		return (errbuf);
 
-	/* Do this by hand, so we don't include stdio(3). */
-	t = tmp;
-	do {
-		*t++ = "0123456789"[errnum % 10];
-	} while (errnum /= 10);
-	for (p = ebuf + sizeof(UPREFIX) - 1;;) {
-		*p++ = *--t;
-		if (t <= tmp)
-			break;
-	}
-	return(ebuf);
+	if (n == 0)
+		return ("Can't find any network interfaces");
+
+	setsin(from, al->addr);
+	if (n > 1)
+		fprintf(stderr,
+		    "%s: Warning: Multiple interfaces found; using %s @ %s\n",
+		    prog, inet_ntoa(from->sin_addr), al->device);
+	return (NULL);
 }
