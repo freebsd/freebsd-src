@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.36 1997/09/22 12:20:42 kato Exp $
+ *	$Id: trap.c,v 1.37 1997/10/12 11:57:23 kato Exp $
  */
 
 /*
@@ -954,7 +954,7 @@ syscall(frame)
 	struct proc *p = curproc;
 	u_quad_t sticks;
 	int error;
-	int args[8], rval[2];
+	int args[8];
 	u_int code;
 
 	sticks = p->p_sticks;
@@ -1006,10 +1006,10 @@ syscall(frame)
 	if (KTRPOINT(p, KTR_SYSCALL))
 		ktrsyscall(p->p_tracep, code, callp->sy_narg, args);
 #endif
-	rval[0] = 0;
-	rval[1] = frame.tf_edx;
+	p->p_retval[0] = 0;
+	p->p_retval[1] = frame.tf_edx;
 
-	error = (*callp->sy_call)(p, args, rval);
+	error = (*callp->sy_call)(p, args);
 
 	switch (error) {
 
@@ -1019,8 +1019,8 @@ syscall(frame)
 		 * if this is a child returning from fork syscall.
 		 */
 		p = curproc;
-		frame.tf_eax = rval[0];
-		frame.tf_edx = rval[1];
+		frame.tf_eax = p->p_retval[0];
+		frame.tf_edx = p->p_retval[1];
 		frame.tf_eflags &= ~PSL_C;
 		break;
 
@@ -1057,7 +1057,7 @@ bad:
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET))
-		ktrsysret(p->p_tracep, code, error, rval[0]);
+		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
 #endif
 }
 
