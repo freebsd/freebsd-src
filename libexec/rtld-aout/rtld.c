@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.31.1.5 1995/11/28 01:15:45 jdp Exp jdp $
+ *	$Id: rtld.c,v 1.32 1996/01/13 00:15:25 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -163,6 +163,7 @@ static char		*main_progname = __main_progname;
 static char		us[] = "/usr/libexec/ld.so";
 static int		anon_fd = -1;
 static char		*ld_library_path;
+static char		*ld_preload;
 static int		tracing;
 
 struct so_map		*link_map_head;
@@ -183,6 +184,7 @@ static struct ld_entry	ld_entry = {
 static struct so_map	*map_object __P((	char *,
 						struct sod *,
 						struct so_map *));
+static int		map_preload __P((void));
 static int		map_sods __P((struct so_map *));
 static int		reloc_and_init __P((struct so_map *));
 static void		unmap_object __P((struct so_map	*, int));
@@ -200,6 +202,7 @@ static void		init_sods __P((struct so_list *));
 static int		call_map __P((struct so_map *, char *));
 static char		*findhint __P((char *, int, int *));
 static char		*rtfindlib __P((char *, int, int));
+static char		*rtfindfile __P((char *));
 void			binder_entry __P((void));
 long			binder __P((jmpslot_t *));
 static struct nzlist	*lookup __P((char *, struct so_map **, int));
@@ -280,8 +283,10 @@ struct _dynamic		*dp;
 	if (careful) {
 		unsetenv("LD_LIBRARY_PATH");
 		unsetenv("LD_PRELOAD");
-	} else
+	} else {
 		ld_library_path = getenv("LD_LIBRARY_PATH");
+	        ld_preload = getenv("LD_PRELOAD");
+	}
 
 	tracing = getenv("LD_TRACE_LOADED_OBJECTS") != NULL;
 
@@ -311,6 +316,13 @@ struct _dynamic		*dp;
 	/* Fill in some fields in main's __DYNAMIC structure */
 	crtp->crt_dp->d_entry = &ld_entry;
 	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
+
+	/* Map in LD_PRELOADs before the main program's shared objects so we
+	   can intercept those calls */
+	if (ld_preload != NULL && *ld_preload != '\0') {
+	        if(map_preload() == -1)			/* Failed */
+			return -1;
+	}
 
 	/* Map all the shared objects that the main program depends upon */
 	if(map_sods(main_map) == -1)
@@ -592,6 +604,48 @@ map_object(path, sodp, parent)
 	}
 
 	return smp;
+}
+
+/*
+ * Map all the shared libraries named in the LD_PRELOAD environment
+ * variable.
+ *
+ * Returns 0 on success, -1 on failure.  On failure, an error message can
+ * be gotten via dlerror().
+ */
+        static int
+map_preload __P((void)) {
+	char    *ld_name = ld_preload;
+	char	*name;
+
+	while ((name = strsep(&ld_name, ":")) != NULL) {
+		char		*path = NULL;
+		struct so_map	*smp = NULL;
+
+		if (*name != '\0') {
+			path = (strchr(name, '/') != NULL) ?  strdup(name) :
+				rtfindfile(name);
+		}
+		if (path == NULL) {
+			generror("Can't find LD_PRELOAD shared"
+				" library \"%s\"", name);
+		} else {
+			smp = map_object(path, (struct sod *) NULL,
+				(struct so_map *) NULL);
+			free(path);
+		}
+		if (ld_name != NULL)
+			*(ld_name - 1) = ':';
+		if (smp == NULL) {
+			/*
+			 * We don't bother to unmap already-loaded libraries
+			 * on failure, because in that case the program is
+			 * about to die anyway.
+			 */
+			return -1;
+		}
+	}
+	return 0;
 }
 
 /*
@@ -1531,8 +1585,8 @@ rtfindlib(name, major, minor)
 
 		while (path == NULL && (dir = strsep(&ld_path, ":")) != NULL) {
 			path = search_lib_dir(dir, name, &major, &realminor, 0);
-			if (ld_path)
-				*(ld_path-1) = ':';
+			if (ld_path != NULL)
+				*(ld_path - 1) = ':';
 		}
 	}
 
@@ -1549,6 +1603,50 @@ rtfindlib(name, major, minor)
 		      " older than expected %d, using it anyway",
 		      path, realminor, minor);
 	}
+
+	return path;
+}
+
+/*
+ * Search for the given shared library file.  This is similar to rtfindlib,
+ * except that the argument is the actual name of the desired library file.
+ * Thus there is no need to worry about version numbers.  The return value
+ * is a string containing the full pathname for the library.  This string
+ * is always dynamically allocated on the heap.
+ *
+ * Returns NULL if the library cannot be found.
+ */
+	static char *
+rtfindfile(name)
+	char	*name;
+{
+	char	*ld_path = ld_library_path;
+	char	*path = NULL;
+
+	if (ld_path != NULL) {	/* First, search the directories in ld_path */
+		char	*dir;
+
+		while (path == NULL && (dir = strsep(&ld_path, ":")) != NULL) {
+			struct stat	sb;
+
+			path = concat(dir, "/", name);
+			if (lstat(path, &sb) == -1) {	/* Does not exist */
+				free(path);
+				path = NULL;
+			}
+			if (ld_path != NULL)
+				*(ld_path - 1) = ':';
+		}
+	}
+
+	/*
+	 * We don't search the hints file.  It is organized around major
+	 * and minor version numbers, so it is not suitable for finding
+	 * a specific file name.
+	 */
+
+	if (path == NULL)	/* Search the standard directories */
+		path = find_lib_file(name);
 
 	return path;
 }
