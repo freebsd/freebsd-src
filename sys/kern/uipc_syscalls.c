@@ -1625,7 +1625,8 @@ retry_lookup:
 		/*
 		 * Setup external storage for mbuf.
 		 */
-		MEXTADD(m, sf->kva, PAGE_SIZE, sf_buf_free, NULL);
+		MEXTADD(m, sf->kva, PAGE_SIZE, sf_buf_free, NULL, M_RDONLY,
+		    EXT_SFBUF);
 		m->m_data = (char *) sf->kva + pgoff;
 		m->m_pkthdr.len = m->m_len = xfsize;
 		/*
