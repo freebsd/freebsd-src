@@ -1,6 +1,5 @@
 /* $FreeBSD$ */
 
-#include <stddef.h>
 #include <sys/param.h>
 #include <sys/assym.h>
 
