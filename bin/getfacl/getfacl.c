@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 int	more_than_one = 0;
@@ -198,7 +199,7 @@ print_acl_from_stdin(acl_type_t type)
 	int	carried_error = 0;
 
 	pathname[sizeof(pathname) - 1] = '\0';
-	while (fgets(pathname, sizeof(pathname), stdin)) {
+	while (fgets(pathname, (int)sizeof(pathname), stdin)) {
 		/* remove the \n */
 		pathname[strlen(pathname) - 1] = '\0';
 		if (print_acl(pathname, type) == -1) {
