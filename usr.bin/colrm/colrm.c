@@ -50,10 +50,12 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 #define	TAB	8
 
@@ -64,8 +66,10 @@ int
 main(int argc, char *argv[])
 {
 	u_long column, start, stop;
-	int ch;
+	int ch, width;
 	char *p;
+
+	setlocale(LC_ALL, "");
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
@@ -98,8 +102,8 @@ main(int argc, char *argv[])
 		errx(1, "illegal start and stop columns");
 
 	for (column = 0;;) {
-		switch (ch = getchar()) {
-		case EOF:
+		switch (ch = getwchar()) {
+		case WEOF:
 			check(stdin);
 			break;
 		case '\b':
@@ -113,12 +117,13 @@ main(int argc, char *argv[])
 			column = (column + TAB) & ~(TAB - 1);
 			break;
 		default:
-			++column;
+			if ((width = wcwidth(ch)) > 0)
+				column += width;
 			break;
 		}
 
 		if ((!start || column < start || (stop && column > stop)) &&
-		    putchar(ch) == EOF)
+		    putwchar(ch) == WEOF)
 			check(stdout);
 	}
 }
