@@ -105,7 +105,7 @@ main(argc, argv)
 	struct portal_args args;
 	struct sockaddr_un un;
 	char *conf;
-	char *mountpt;
+	char mountpt[MAXPATHLEN];
 	int mntflags = 0;
 	char tag[32];
 	struct vfsconf vfc;
@@ -142,7 +142,9 @@ main(argc, argv)
 	 * Get config file and mount point
 	 */
 	conf = argv[optind];
-	mountpt = argv[optind+1];
+
+	/* resolve the mountpoint with realpath(3) */
+	(void)checkpath(argv[optind+1], mountpt);
 
 	/*
 	 * Construct the listening socket
