@@ -35,6 +35,8 @@
 #ifndef _MACHINE_ASM_H_
 #define	_MACHINE_ASM_H_
 
+#include <sys/cdefs.h>
+
 #ifdef PIC
 #define	PIC_PROLOGUE	XXX
 #define	PIC_EPILOGUE	XXX
