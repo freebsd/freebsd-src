@@ -579,7 +579,7 @@ hpfs_inactive(ap)
 
 	if (hp->h_flag & H_INVAL) {
 		VOP_UNLOCK(vp,0,ap->a_td);
-		vrecycle(vp, ap->a_td);
+		vrecycle(vp, NULL, ap->a_td);
 		return (0);
 	}
 

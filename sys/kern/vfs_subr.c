@@ -2601,9 +2601,11 @@ vop_revoke(ap)
  * Release the passed interlock if the vnode will be recycled.
  */
 int
-vrecycle(struct vnode *vp, struct thread *td)
+vrecycle(struct vnode *vp, void *dummyarg, struct thread *td)
 {
 
+	KASSERT(dummyarg == NULL,
+	    ("vrecycle with non-dummy arg %p", dummyarg));
 	VI_LOCK(vp);
 	if (vp->v_usecount == 0) {
 		vgonel(vp, td);

@@ -643,7 +643,7 @@ int	vinvalbuf(struct vnode *vp, int save, struct ucred *cred,
 int	vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
 	    off_t length, int blksize);
 void	vprint(char *label, struct vnode *vp);
-int	vrecycle(struct vnode *vp, struct thread *td);
+int	vrecycle(struct vnode *vp, void *dummyarg, struct thread *td);
 int	vn_close(struct vnode *vp,
 	    int flags, struct ucred *file_cred, struct thread *td);
 void	vn_finished_write(struct mount *mp);

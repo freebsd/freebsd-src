@@ -505,7 +505,7 @@ out:
 	 * so that it can be reused immediately.
 	 */
 	if (ip->i_mode == 0)
-		vrecycle(vp, td);
+		vrecycle(vp, NULL, td);
 	return (error);
 }
 

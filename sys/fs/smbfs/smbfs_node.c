@@ -378,7 +378,7 @@ smbfs_inactive(ap)
 	}
 	VOP_UNLOCK(vp, 0, td);
 	if (np->n_flag & NGONE)
-		vrecycle(vp, td);
+		vrecycle(vp, NULL, td);
 	return (0);
 }
 /*

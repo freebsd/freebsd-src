@@ -190,7 +190,7 @@ cd9660_inactive(ap)
 	 * so that it can be reused immediately.
 	 */
 	if (ip->inode.iso_mode == 0)
-		vrecycle(vp, td);
+		vrecycle(vp, NULL, td);
 	return error;
 }
 
