@@ -81,6 +81,7 @@ static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
   
 static int accept1(struct thread *td, struct accept_args *uap, int compat);
+static int do_sendfile(struct thread *td, struct sendfile_args *uap, int compat);
 static int getsockname1(struct thread *td, struct getsockname_args *uap,
 			int compat);
 static int getpeername1(struct thread *td, struct getpeername_args *uap,
@@ -1637,6 +1638,31 @@ sf_buf_free(void *addr, void *args)
 int
 sendfile(struct thread *td, struct sendfile_args *uap)
 {
+
+	return (do_sendfile(td, uap, 0));
+}
+
+#ifdef COMPAT_FREEBSD4
+int
+freebsd4_sendfile(struct thread *td, struct freebsd4_sendfile_args *uap)
+{
+	struct sendfile_args args;
+
+	args.fd = uap->fd;
+	args.s = uap->s;
+	args.offset = uap->offset;
+	args.nbytes = uap->nbytes;
+	args.hdtr = uap->hdtr;
+	args.sbytes = uap->sbytes;
+	args.flags = uap->flags;
+
+	return (do_sendfile(td, &args, 1));
+}
+#endif /* COMPAT_FREEBSD4 */
+
+static int
+do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
+{
 	struct vnode *vp;
 	struct vm_object *obj;
 	struct socket *so = NULL;
@@ -1694,7 +1720,10 @@ sendfile(struct thread *td, struct sendfile_args *uap)
 			error = writev(td, &nuap);
 			if (error)
 				goto done;
-			hdtr_size += td->td_retval[0];
+			if (compat)
+				sbytes += td->td_retval[0];
+			else
+				hdtr_size += td->td_retval[0];
 		}
 	}
 
@@ -1921,7 +1950,10 @@ retry_space:
 			error = writev(td, &nuap);
 			if (error)
 				goto done;
-			hdtr_size += td->td_retval[0];
+			if (compat)
+				sbytes += td->td_retval[0];
+			else
+				hdtr_size += td->td_retval[0];
 	}
 
 done:
@@ -1933,7 +1965,8 @@ done:
 		td->td_retval[0] = 0;
 	}
 	if (uap->sbytes != NULL) {
-		sbytes += hdtr_size;
+		if (!compat)
+			sbytes += hdtr_size;
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
 	}
 	if (vp)
