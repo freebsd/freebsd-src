@@ -276,6 +276,7 @@ finish:
 	/* Someone may be waiting for the last nfsiod to terminate. */
 	if (--nfs_numasync == 0)
 		wakeup(&nfs_numasync);
+	mtx_unlock(&Giant);
 	if ((error == 0) || (error == EWOULDBLOCK))
 		kthread_exit(0);
 	/* Abnormal termination */
