@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.9 2000/10/12 00:15:52 imp Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.10 2001/03/12 02:27:10 jlemon Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -74,6 +74,9 @@
 /* in the 79c873, AMD uses another OUI (which matches Davicom!) */
 #define	MII_OUI_xxAMD	0x00606e	/* Advanced Micro Devices */
 
+/* Intel 82553 A/B steppings */
+#define	MII_OUI_xxINTEL	0x00f800	/* Intel */
+
 /* some vendors have the bits swapped within bytes
 	(ie, ordered as on the wire) */
 #define	MII_OUI_xxALTIMA	0x000895	/* Altima Communications */
@@ -123,6 +126,10 @@
 #define	MII_STR_xxICS_1890	"ICS1890 10/100 media interface"
 
 /* Intel PHYs */
+#define	MII_MODEL_xxINTEL_I82553AB	0x0000
+#define	MII_STR_xxINTEL_I82553AB	"i83553 10/100 media interface"
+#define	MII_MODEL_INTEL_I82553C	0x0035
+#define	MII_STR_INTEL_I82553C	"i82553 10/100 media interface"
 #define	MII_MODEL_INTEL_I82555	0x0015
 #define	MII_STR_INTEL_I82555	"i82555 10/100 media interface"
 
