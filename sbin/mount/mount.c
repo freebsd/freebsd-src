@@ -262,7 +262,6 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	pid_t pid;
 	int argc, i, status;
 	char *optbuf, execname[MAXPATHLEN + 1], mntpath[MAXPATHLEN];
-	char specpath[MAXPATHLEN];
 
 	if (realpath(name, mntpath) != NULL && stat(mntpath, &sb) == 0) {
 		if (!S_ISDIR(sb.st_mode)) {
@@ -272,27 +271,6 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	} else {
 		warn("%s", mntpath);
 		return (1);
-	}
-
-	/*
-	 * The following check is a kludge to prevent the caller from
-	 * accidently using the file as the special device file and
-	 * the mount point.  This will cause a panic due to a recursive
-	 * vnode lock.  After some of the planned reworking of the
-	 * file system code is done, the kernel can be fixed properly
-	 * and this stupid check can be removed.
-	 */
-	if (realpath(spec, specpath) == NULL) {
-		warn("%s", specpath);
-		return (1);
-	}
-	if (strcmp(vfstype, "ufs") == 0 || strcmp(vfstype, "msdos") == 0 ||
-	    strcmp(vfstype, "cd9660") == 0) {
-		if (strcmp(mntpath, specpath) == 0) {
-			warnx("%s: Special device file and mount point may not be the same",
-		    	    specpath);
-			return (1);
-		}
 	}
 
 	if (mntopts == NULL)
