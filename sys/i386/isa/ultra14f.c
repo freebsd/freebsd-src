@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.43 1995/12/15 00:11:27 bde Exp $
+ *      $Id: ultra14f.c,v 1.44 1996/01/07 19:22:39 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -79,7 +79,7 @@ extern int hz;
 #define UHA_NSEG        33	/* number of dma segments supported */
 
 /************************** board definitions *******************************/
-static struct uha_reg
+struct uha_reg
 {
 	int id;			/* product id reg		*/
 	int type;		/* product type reg		*/
@@ -93,9 +93,9 @@ static struct uha_reg
 	int ogmptr;		/* outgoing mail ptr		*/
 	int icmcmd;		/* incoming mail command	*/
 	int icmptr;		/* incoming mail ptr		*/
-} *uhareg[NUHA];
+};
 
-static struct uha_bits
+struct uha_bits
 {
 	/* uha_lint (read) */
 	unsigned char ldip;
@@ -115,7 +115,7 @@ static struct uha_bits
 	/* uha_sint (write) */
 	unsigned char abort_ack;
 	unsigned char icm_ack;
-} *uhabits[NUHA];
+};
 
 
 /*
@@ -373,7 +373,6 @@ main()
 static void
 uha_send_mbox(struct uha_data *uha, struct mscp *mscp)
 {
-	int     port = uha->baseport;
 	int     spincount = 100000;	/* 1s should be enough */
 	struct uha_reg *ur = uha->ur;
 	struct uha_bits *ub = uha->ub;
@@ -401,7 +400,6 @@ uha_send_mbox(struct uha_data *uha, struct mscp *mscp)
 int
 uha_abort(struct uha_data *uha, struct mscp *mscp)
 {
-	int	port = uha->baseport;
 	int	spincount = 100;	/* 1 mSec */
 	int	abortcount = 200000;	/*2 secs */
 	struct	uha_reg *ur = uha->ur;
@@ -449,12 +447,10 @@ uha_abort(struct uha_data *uha, struct mscp *mscp)
 static int
 uha_poll(struct uha_data *uha, int wait)
 {
-	int	port = uha->baseport;
 	struct	uha_reg *ur = uha->ur;
 	struct	uha_bits *ub = uha->ub;
 	int	stport = ur->sint;
 
-      retry:
 	while (--wait) {
 		if (inb(stport) & ub->sintp)
 			break;
@@ -713,7 +709,6 @@ uha_done(uha, mscp)
 		xs->resid = 0;
 		xs->error = 0;
 	}
-    done:
 	xs->flags |= ITSDONE;
 	uha_free_mscp(uha, mscp, xs->flags);
 	scsi_done(xs);
@@ -833,7 +828,6 @@ int
 uha_init(uha)
 	struct	uha_data *uha;
 {
-	unsigned char ad[4];
 	volatile unsigned char model;
 	volatile unsigned char submodel;
 	unsigned char config_reg1;
@@ -842,7 +836,6 @@ uha_init(uha)
 	unsigned char irq_ch;
 	unsigned char uha_id;
 	int     port = uha->baseport;
-	int     i;
 	int     resetcount = 4000;	/* 4 secs? */
 	struct uha_reg *ur = uha->ur;
 	struct uha_bits *ub = uha->ub;
@@ -957,7 +950,7 @@ uha24_init(uha)
 {
   unsigned char p0, p1, p2, p3, p5, p7;
   unsigned char id[7], rev, haid;
-  int port = 0, irq, i;
+  int port = 0, irq;
   int resetcount = 4000;
   struct uha_reg *ur = uha->ur;
   struct uha_bits *ub = uha->ub;
@@ -1014,9 +1007,9 @@ uha24_init(uha)
 	id[0] = 0x40 + ((p0 >> 2) & 0x1f);
 	id[1] = 0x40 + (((p0 & 0x03) << 3) | ((p1 >> 5) & 0x07));
 	id[2] = 0x40 + (p1 & 0x1f);
-	id[3] = "0123456789abcdef"[(p2 >> 4) & 0x0f];
-	id[4] = "0123456789abcdef"[p2 & 0x0f];
-	id[5] = "0123456789abcdef"[(p3 >> 4) & 0x0f];
+	id[3] = hex2ascii((p2 >> 4) & 0x0f);
+	id[4] = hex2ascii(p2 & 0x0f);
+	id[5] = hex2ascii((p3 >> 4) & 0x0f);
 	id[6] = '\0';
 	rev = p3 & 0xf;
 
@@ -1084,20 +1077,14 @@ static int32
 uha_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
-	struct	scsi_sense_data *s1, *s2;
 	struct	mscp *mscp;
 	struct	uha_dma_seg *sg;
 	int	seg;		/* scatter gather seg being worked on */
-	int	i = 0;
-	int     rc = 0;
 	int     thiskv;
 	unsigned long int thisphys, nextphys;
 	int     bytes_this_seg, bytes_this_page, datalen, flags;
-	struct	iovec *iovp;
 	struct	uha_data *uha;
 	int     s;
-	unsigned int stat;
-	int     port = uha->baseport;
 	unsigned long int templen;
 
 	uha = (struct uha_data *)xs->sc_link->adapter_softc;
