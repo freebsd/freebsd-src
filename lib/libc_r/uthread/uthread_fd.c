@@ -58,8 +58,10 @@ do {							\
 static	spinlock_t	fd_table_lock	= _SPINLOCK_INITIALIZER;
 
 /* Prototypes: */
+#ifdef _FDLOCKS_ENABLED
 static inline pthread_t fd_next_reader(int fd);
 static inline pthread_t fd_next_writer(int fd);
+#endif
 
 
 /*
@@ -180,6 +182,7 @@ _thread_fd_table_init(int fd)
 	return (ret);
 }
 
+#ifdef _FDLOCKS_ENABLED
 void
 _thread_fd_unlock(int fd, int lock_type)
 {
@@ -991,3 +994,40 @@ fd_next_writer(int fd)
 
 	return (pthread);
 }
+
+#else
+
+void
+_thread_fd_unlock(int fd, int lock_type)
+{
+}
+
+int
+_thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
+{
+	return (0);
+}
+
+void
+_thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
+{
+}
+
+int
+_thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
+		char *fname, int lineno)
+{
+	return (0);
+}
+
+void
+_thread_fd_unlock_owned(pthread_t pthread)
+{
+}
+
+void
+_fd_lock_backout(pthread_t pthread)
+{
+}
+
+#endif
