@@ -542,7 +542,7 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 		return (ENOBUFS);
 	}
 	/* If nsegs is wrong then the stack is corrupt */
-	KASSERT(nsegs == 1, "Too many segments returned!");
+	KASSERT(nsegs == 1, ("Too many segments returned!"));
 	if (unmap) {
 		bus_dmamap_sync(sc->sc_rdmatag, rd->hrx_dmamap,
 		    BUS_DMASYNC_POSTREAD);
