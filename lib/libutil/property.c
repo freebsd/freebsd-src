@@ -90,11 +90,14 @@ properties_read(int fd)
 	}
 	switch(state) {
 	case FILL:
-	    if ((max = read(fd, buf, sizeof buf)) <= 0) {
+	    if ((max = read(fd, buf, sizeof buf)) < 0) {
+		properties_free(head);
+		return (NULL);
+	    }
+	    if (max == 0) {
 		state = STOP;
 		break;
-	    }
-	    else {
+	    } else {
 		state = LOOK;
 		ch = buf[0];
 		bp = 1;
