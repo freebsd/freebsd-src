@@ -21,7 +21,9 @@ SRCS+=	strtod.c
 .endif
 
 # machine-dependent stdlib sources
+.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib/Makefile.inc)
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib/Makefile.inc"
+.endif
 
 .if ${LIB} == "c"
 MAN+=	abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
