@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: md5.c,v 1.10 1997/02/22 14:32:37 peter Exp $
  *
  * Derived from:
  */
@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "global.h"
 
@@ -40,6 +41,7 @@ static void MDString PROTO_LIST((char *));
 static void MDTimeTrial PROTO_LIST((void));
 static void MDTestSuite PROTO_LIST((void));
 static void MDFilter PROTO_LIST((int));
+static void usage PROTO_LIST((void));
 
 /* Main driver.
 
@@ -59,24 +61,34 @@ main(argc, argv)
 	char   *p;
 	char	buf[33];
 
-	if (argc > 1)
-		for (i = 1; i < argc; i++)
-			if (argv[i][0] == '-' && argv[i][1] == 's')
-				MDString(argv[i] + 2);
-			else if (strcmp(argv[i], "-t") == 0)
-				MDTimeTrial();
-			else if (strcmp(argv[i], "-p") == 0)
+	if (argc > 1) {
+		while ((i = getopt(argc, argv, "ps:tx")) != EOF) {
+			switch (i) {
+			case 'p':
 				MDFilter(1);
-			else if (strcmp(argv[i], "-x") == 0)
+				break;
+			case 's':
+				MDString(optarg);
+				break;
+			case 't':
+				MDTimeTrial();
+				break;
+			case 'x':
 				MDTestSuite();
-			else {
-				p = MD5File(argv[i],buf);
-				if (!p)
-					perror(argv[i]);
-				else
-					printf("MD5 (%s) = %s\n", argv[i], p);
+				break;
+			default:
+				usage();
 			}
-	else
+		}
+		while (optind < argc) {
+			p = MD5File(argv[optind], buf);
+			if (!p)
+				perror(argv[optind]);
+			else
+				printf("MD5 (%s) = %s\n", argv[optind], p);
+			optind++;
+		}
+	} else
 		MDFilter(0);
 
 	return (0);
@@ -162,11 +174,11 @@ MDFilter(int pipe)
 {
 	MD5_CTX context;
 	int     len;
-	unsigned char buffer[BUFSIZ], digest[16];
+	unsigned char buffer[BUFSIZ];
 	char buf[33];
 
 	MD5Init(&context);
-	while (len = fread(buffer, 1, BUFSIZ, stdin)) {
+	while ((len = fread(buffer, 1, BUFSIZ, stdin))) {
 		if(pipe && (len != fwrite(buffer, 1, len, stdout))) {
 			perror("stdout");
 			exit(1);
@@ -174,4 +186,15 @@ MDFilter(int pipe)
 		MD5Update(&context, buffer, len);
 	}
 	printf("%s\n", MD5End(&context,buf));
+}
+
+/*
+ * Displays a usage summary.
+ */
+static void
+usage(void)
+{
+	(void)fprintf(stderr,
+		"usage: md5 [-ptx] [-s string] [file ...]\n");
+	exit(1);
 }
