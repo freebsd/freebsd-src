@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)slattach.8	6.4 (Berkeley) 3/16/91
 .\"
-.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.9 1996/01/29 23:52:39 mpp Exp $
+.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.10 1996/02/17 19:21:40 ache Exp $
 .\"
 .Dd April 4, 1993
 .Dt SLATTACH 8
@@ -99,7 +99,13 @@ to prevent slow lines being saturated by ICMP responses.
 .It Fl r Ar redial-command
 Specifies a command to be invoked within a shell
 .Ql sh \-c Ar redial-command
-whenever carrier is lost on the line.
+whenever carrier is lost on the modem line.
+Empty
+.Ar redial-command
+i.e.
+.Fl r Qq ""
+cause connection reestablishing on leased line
+without any external command invoked.
 .It Fl s Ar baudrate
 Specifies the speed of the connection. If not specified, the
 default of 9600 is used.
