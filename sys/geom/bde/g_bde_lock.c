@@ -88,7 +88,8 @@ g_bde_encode_lock(struct g_bde_key *gl, u_char *ptr)
 	g_enc_le8(ptr +  64, gl->lsector[2]);
 	g_enc_le8(ptr +  72, gl->lsector[3]);
 	bcopy(gl->spare, ptr +  80, sizeof gl->spare);
-	bcopy(gl->key, ptr + 128, sizeof gl->key);
+	bcopy(gl->salt, ptr + 112, sizeof gl->salt);
+	bcopy(gl->mkey, ptr + 128, sizeof gl->mkey);
 }
 
 void
@@ -105,7 +106,8 @@ g_bde_decode_lock(struct g_bde_key *gl, u_char *ptr)
 	gl->lsector[2] = g_dec_le8(ptr +  64);
 	gl->lsector[3] = g_dec_le8(ptr +  72);
 	bcopy(ptr +  80, gl->spare, sizeof gl->spare);
-	bcopy(ptr + 128, gl->key, sizeof gl->key);
+	bcopy(ptr + 112, gl->salt, sizeof gl->salt);
+	bcopy(ptr + 128, gl->mkey, sizeof gl->mkey);
 }
 
 /*
@@ -303,8 +305,8 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *sbox, u_char *meta, off_t me
 	g_free(buf);
 
 	off[1] = 0;
-	for (i = 0; i < (int)sizeof(gl->key); i++)
-		off[1] += gl->key[i];
+	for (i = 0; i < (int)sizeof(gl->mkey); i++)
+		off[1] += gl->mkey[i];
 
 	if (off[1] == 0) {
 		off[0] = 0;
