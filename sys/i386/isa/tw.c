@@ -1083,7 +1083,7 @@ int unit;
     twputpkt(sc, pkt);
     untimeout(twabortrcv, (caddr_t)sc, sc->abortrcv_ch);
     if(sc->sc_flags & TW_RCV_ERROR) {
-      log(LOG_ERR, "TWRCV: invalid packet: (%d, %x) %c %d\n",
+      log(LOG_ERR, "TWRCV: invalid packet: (%d, %x) %c %s\n",
 	  sc->sc_rcount, sc->sc_bits, 'A' + pkt[1], X10_KEY_LABEL[pkt[2]]);
       twdebugtimes(sc);
     } else {

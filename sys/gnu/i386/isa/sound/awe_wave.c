@@ -3306,7 +3306,7 @@ awe_load_guspatch(const char *addr, int offs, int size, int pmgr_flag)
 	COPY_FROM_USER(((char*)&patch) + offs, addr, offs, sizeof_patch - offs);
 	size -= sizeof_patch;
 	if (size < patch.len) {
-		printk("AWE32 Warning: Patch record too short (%d<%d)\n",
+		printk("AWE32 Warning: Patch record too short (%d<%ld)\n",
 		       size, patch.len);
 		return RET_ERROR(EINVAL);
 	}
@@ -3369,7 +3369,7 @@ awe_load_guspatch(const char *addr, int offs, int size, int pmgr_flag)
 	rec->tune = -(note % 100);
 	rec->low = freq_to_note(patch.low_note) / 100;
 	rec->high = freq_to_note(patch.high_note) / 100;
-	DEBUG(1,printk("AWE32: [gus base offset=%d, note=%d, range=%d-%d(%d-%d)]\n",
+	DEBUG(1,printk("AWE32: [gus base offset=%d, note=%d, range=%d-%d(%lu-%lu)]\n",
 		       rec->rate_offset, note,
 		       rec->low, rec->high,
 	      patch.low_note, patch.high_note));

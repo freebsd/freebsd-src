@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.8 1998/01/08 23:40:33 eivind Exp $
+ * $Id: if_fea.c,v 1.9 1998/02/20 13:11:46 bde Exp $
  */
 
 /*
@@ -228,19 +228,19 @@ pdq_eisa_attach(
     sc->sc_iobase = (pdq_bus_ioport_t) iospace->addr;
     sc->sc_membase = (pdq_bus_memaddr_t) pmap_mapdev(mspace->addr, mspace->size);
     if (sc->sc_membase == NULL) {
-	printf("fea%d: failed to map memory 0x%x-0x%x!\n",
+	printf("fea%d: failed to map memory 0x%lx-0x%lx!\n",
 	       sc->sc_if.if_unit, mspace->addr, mspace->addr + mspace->size - 1);
 	return -1;
     }
 
     eisa_reg_start(ed);
     if (eisa_reg_iospace(ed, iospace)) {
-	printf("fea%d: failed to register iospace 0x%x-0x%x!\n",
+	printf("fea%d: failed to register iospace 0x%lx-0x%lx!\n",
 	       sc->sc_if.if_unit, iospace->addr, iospace->addr + iospace->size - 1);
 	return -1;
     }
     if (eisa_reg_mspace(ed, mspace)) {
-	printf("fea%d: failed to register memory 0x%x-0x%x!\n",
+	printf("fea%d: failed to register memory 0x%lx-0x%lx!\n",
 	       sc->sc_if.if_unit, mspace->addr, mspace->addr + mspace->size - 1);
 	return -1;
     }
