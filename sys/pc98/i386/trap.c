@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.8.2.8 1998/05/06 19:11:45 gibbs Exp $
+ *	$Id: trap.c,v 1.8.2.9 1998/05/31 17:29:53 kato Exp $
  */
 
 /*
@@ -143,7 +143,7 @@ extern struct gate_descriptor *t_idt;
 extern int has_f00f_bug;
 #endif
 
-static inline void
+static __inline void
 userret(p, frame, oticks)
 	struct proc *p;
 	struct trapframe *frame;
@@ -218,7 +218,7 @@ restart:
 	 */
 	va = (vm_offset_t)(rcr2());
 	if( type == T_PAGEFLT && ( frame.tf_eflags & PSL_I ) )
-		asm("sti");
+		__asm("sti");
 #endif	/* CPU_BUGGY_CYRIX */
 
 	if (ISPL(frame.tf_cs) == SEL_UPL) {

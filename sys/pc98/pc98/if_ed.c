@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.14 1998/04/18 23:27:02 nate Exp $
+ *	$Id: if_ed.c,v 1.11.2.15 1998/05/31 17:31:49 kato Exp $
  */
 
 /*
@@ -2733,7 +2733,7 @@ ed_init(xsc)
 /*
  * This routine actually starts the transmission on the interface
  */
-static inline void
+static __inline void
 ed_xmit(sc)
 	struct ed_softc *sc;
 {
@@ -2945,7 +2945,7 @@ outloop:
 /*
  * Ethernet interface receiver interrupt.
  */
-static inline void
+static __inline void
 ed_rint(sc)
 	struct ed_softc *sc;
 {
@@ -3429,7 +3429,7 @@ ed_ioctl(ifp, command, data)
  *	the ring buffer into a linear destination buffer. Takes into account
  *	ring-wrap.
  */
-static inline char *
+static __inline char *
 ed_ring_copy(sc, src, dst, amount)
 	struct ed_softc *sc;
 	char   *src;

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.8.2.4 1997/02/13 12:22:35 kato Exp $
+ *	$Id: npx.c,v 1.8.2.5 1998/03/15 15:23:04 kato Exp $
  */
 
 #include "npx.h"
@@ -154,7 +154,7 @@ static	volatile u_int		npx_traps_while_probing;
  * latch stuff in probeintr() can be moved to npxprobe().
  */
 inthand_t probeintr;
-asm
+__asm
 ("
 	.text
 _probeintr:
@@ -180,7 +180,7 @@ _probeintr:
 ");
 
 inthand_t probetrap;
-asm
+__asm
 ("
 	.text
 _probetrap:
