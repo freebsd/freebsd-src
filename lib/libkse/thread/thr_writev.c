@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_writev.c,v 1.7 1998/05/27 00:44:58 jb Exp $
+ * $Id: uthread_writev.c,v 1.8 1998/06/09 23:21:05 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -48,6 +48,7 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 {
 	int	blocking;
 	int	idx = 0;
+	int	type;
 	ssize_t cnt;
 	ssize_t n;
 	ssize_t num = 0;
@@ -71,6 +72,17 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 
 	/* Lock the file descriptor for write: */
 	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
+		/* Get the read/write mode type: */
+		type = _thread_fd_table[fd]->flags & O_ACCMODE;
+
+		/* Check if the file is not open for write: */
+		if (type != O_WRONLY && type != O_RDWR) {
+			/* File is not open for write: */
+			errno = EBADF;
+			_FD_UNLOCK(fd, FD_WRITE);
+			return (-1);
+		}
+
 		/* Check if file operations are to block */
 		blocking = ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0);
 
