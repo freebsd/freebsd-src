@@ -33,13 +33,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lpd.c	8.7 (Berkeley) 5/10/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -603,8 +607,9 @@ again:
 	/*NOTREACHED*/
 }
 
-void
+static void
 usage()
 {
-	errx(EX_USAGE, "usage: lpd [-dl] [port#]");
+	fprintf(stderr, "usage: lpd [-dl] [port#]\n");
+	exit(EX_USAGE);
 }
