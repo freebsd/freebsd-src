@@ -288,6 +288,15 @@ device		sn
 
 #device	joy0	at isa? port 0x04d2
 
+# The newpcm driver (use INSTEAD of snd0 and all VOXWARE drivers!).
+#
+# Windows Sound System
+#device	pcm0	at isa? port 0xf40 irq 12 drq 1 flags 0x10000
+#
+# Sound Blaster 16 (This device need the bridge driver.)
+#device	pcm
+#device	sbc0	at isa? port 0x20d2 irq 10 drq 3
+
 # Pseudo devices - the number indicates how many units to allocated.
 pseudo-device	loop		# Network loopback
 pseudo-device	ether		# Ethernet support
