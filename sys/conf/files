@@ -61,6 +61,7 @@ cam/scsi/scsi_ch.c	optional ch
 cam/scsi/scsi_pass.c	optional pass
 cam/scsi/scsi_scan.c	optional scan
 cam/scsi/scsi_target.c	optional targ
+cam/scsi/scsi_targ_bh.c	optional targbh
 ddb/db_access.c		optional ddb
 ddb/db_kld.c		optional ddb
 ddb/db_aout.c		optional ddb
