@@ -90,7 +90,7 @@ static struct entropyfifo emptyfifo;
 #define EMPTYBUFFERS	1024
 
 /* Harvested entropy */
-static struct entropyfifo harvestfifo[ENTROPYSOURCE + 1];
+static struct entropyfifo harvestfifo[ENTROPYSOURCE];
 
 /* <0 to end the kthread, 0 to let it run */
 static int random_kthread_control = 0;
@@ -302,7 +302,7 @@ random_harvest_internal(u_int64_t somecounter, const void *entropy,
 	KASSERT(origin == RANDOM_START || origin == RANDOM_WRITE ||
             origin == RANDOM_KEYBOARD || origin == RANDOM_MOUSE ||
             origin == RANDOM_NET || origin == RANDOM_INTERRUPT ||
-            origin == RANDOM_PURE || origin == ENTROPYSOURCE,
+            origin == RANDOM_PURE,
 	    ("random_harvest_internal: origin %d invalid\n", origin));
 
 	/* Lockless read to avoid lock operations if fifo is full. */
