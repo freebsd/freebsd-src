@@ -718,8 +718,10 @@ sbcompress(sb, m, n)
 			m = m_free(m);
 			continue;
 		}
-		if (n && (n->m_flags & (M_EXT | M_EOR)) == 0 &&
-		    (n->m_data + n->m_len + m->m_len) < &n->m_dat[MLEN] &&
+		if (n && (n->m_flags & M_EOR) == 0 &&
+		    M_WRITABLE(n) &&
+		    m->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
+		    m->m_len <= M_TRAILINGSPACE(n) &&
 		    n->m_type == m->m_type) {
 			bcopy(mtod(m, caddr_t), mtod(n, caddr_t) + n->m_len,
 			    (unsigned)m->m_len);
