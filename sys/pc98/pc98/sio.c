@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.8.2.7 1997/02/11 14:24:52 kato Exp $
+ *	$Id: sio.c,v 1.8.2.8 1997/03/06 15:09:27 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -226,6 +226,7 @@
 #define	CS_DTR_OFF	0x10	/* DTR held off */
 #define	CS_ODONE	4	/* output completed */
 #define	CS_RTS_IFLOW	8	/* use RTS input flow control */
+#define	CSE_BUSYCHECK	1	/* siobusycheck() scheduled */
 
 static	char const * const	error_desc[] = {
 #define	CE_OVERRUN			0
@@ -259,6 +260,7 @@ struct com_s {
 #ifdef COM_ESP
 	bool_t	esp;		/* is this unit a hayes esp board? */
 #endif
+	u_char	extra_state;	/* more flag bits, separate for order trick */
 	u_char	fifo_image;	/* copy of value written to FIFO */
 	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
 	bool_t	loses_outints;	/* nonzero if device loses output interrupts */
@@ -1632,7 +1634,7 @@ comhardclose(com)
 			else
 #endif
 			(void)commctl(com, TIOCM_DTR, DMBIC);
-			if (com->dtr_wait != 0) {
+			if (com->dtr_wait != 0 && !(com->state & CS_DTR_OFF)) {
 				timeout(siodtrwakeup, com, com->dtr_wait);
 				com->state |= CS_DTR_OFF;
 			}
@@ -1719,14 +1721,14 @@ siobusycheck(chan)
 	/*
 	 * Clear TS_BUSY if low-level output is complete.
 	 * spl locking is sufficient because siointr1() does not set CS_BUSY.
-	 * If siointr() clears CS_BUSY after we look at it, then we'll get
+	 * If siointr1() clears CS_BUSY after we look at it, then we'll get
 	 * called again.  Reading the line status port outside of siointr1()
 	 * is safe because CS_BUSY is clear so there are no output interrupts
 	 * to lose.
 	 */
 	s = spltty();
 	if (com->state & CS_BUSY)
-		;		/* False alarm. */
+		com->extra_state &= ~CSE_BUSYCHECK;	/* False alarm. */
 #ifdef	PC98
 	else if (IS_8251(com->pc98_if_type) &&
 		 (inb(com->sts_port) & (STS8251_TxRDY | STS8251_TxEMP))
@@ -1739,6 +1741,7 @@ siobusycheck(chan)
 #endif
 		com->tp->t_state &= ~TS_BUSY;
 		ttwwakeup(com->tp);
+		com->extra_state &= ~CSE_BUSYCHECK;
 	} else
 		timeout(siobusycheck, com, hz / 100);
 	splx(s);
@@ -2384,8 +2387,11 @@ repeat:
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
 			enable_intr();
-			if (!(com->state & CS_BUSY))
+			if (!(com->state & CS_BUSY)
+			    && !(com->extra_state & CSE_BUSYCHECK)) {
 				timeout(siobusycheck, com, hz / 100);
+				com->extra_state |= CSE_BUSYCHECK;
+			}
 			(*linesw[tp->t_line].l_start)(tp);
 		}
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN) ||
