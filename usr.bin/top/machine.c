@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.2 1997/04/19 20:28:50 peter Exp $
+ * $Id: machine.c,v 1.3 1997/04/21 13:53:47 ache Exp $
  */
 
 
@@ -53,6 +53,7 @@ static int check_nlist __P((struct nlist *));
 static int getkval __P((unsigned long, int *, int, char *));
 extern char* printable __P((char *));
 int swapmode __P((int *retavail, int *retfree));
+static int smpmode;
 
 
 
@@ -119,27 +120,22 @@ static struct nlist nlst[] = {
  *  These definitions control the format of the per-process area
  */
 
-#ifdef P_IDLEPROC	/* FreeBSD SMP kernel */
-
-static char header[] =
+static char smp_header[] =
   "  PID X                PRI NICE SIZE   RES STATE C   TIME   WCPU    CPU COMMAND";
 /* 0123456   -- field to fill in starts at header+6 */
-#define UNAME_START 6
+#define SMP_UNAME_START 6
 
-#define Proc_format \
+#define smp_Proc_format \
 	"%5d %-16.16s%3d%3d%7s %6s %-6.6s%1x%7s %5.2f%% %5.2f%% %.6s"
 
-#else			/* Standard kernel */
-
-static char header[] =
+static char up_header[] =
   "  PID X                PRI NICE SIZE    RES STATE    TIME   WCPU    CPU COMMAND";
 /* 0123456   -- field to fill in starts at header+6 */
-#define UNAME_START 6
+#define UP_UNAME_START 6
 
-#define Proc_format \
-	"%5d %-16.16s%3d %3d%7s %6s %-6.6s%7s %5.2f%% %5.2f%% %.6s"
+#define up_Proc_format \
+	"%5d %-16.16s%3d %3d%7s %6s %-6.6s%.0d%7s %5.2f%% %5.2f%% %.6s"
 
-#endif
 
 
 /* process state names for the "STATE" column of the display */
@@ -238,6 +234,12 @@ struct statics *statics;
 {
     register int i = 0;
     register int pagesize;
+    int modelen;
+
+    modelen = sizeof(smpmode);
+    if (sysctlbyname("kern.smp_active", &smpmode, &modelen, NULL, 0) < 0 ||
+	modelen != sizeof(smpmode))
+	    smpmode = 0;
 
     if ((kd = kvm_open(NULL, NULL, NULL, O_RDONLY, "kvm_open")) == NULL)
 	return -1;
@@ -310,13 +312,17 @@ register char *uname_field;
 {
     register char *ptr;
 
-    ptr = header + UNAME_START;
+    if (smpmode)
+	ptr = smp_header + SMP_UNAME_START;
+    else
+	ptr = up_header + UP_UNAME_START;
+
     while (*uname_field != '\0')
     {
 	*ptr++ = *uname_field++;
     }
 
-    return(header);
+    return(smpmode ? smp_header : up_header);
 }
 
 static int swappgsin = -1;
@@ -560,11 +566,9 @@ char *(*get_userid)();
     /* generate "STATE" field */
     switch (PP(pp, p_stat)) {
 	case SRUN:
-#ifdef P_IDLEPROC	/* FreeBSD SMP kernel */
-	    if (PP(pp, p_oncpu) >= 0)
+	    if (smpmode && PP(pp, p_oncpu) >= 0)
 		sprintf(status, "CPU%d", PP(pp, p_oncpu));
 	    else
-#endif
 		strcpy(status, "RUN");
 	    break;
 	case SSLEEP:
@@ -580,7 +584,7 @@ char *(*get_userid)();
 
     /* format this entry */
     sprintf(fmt,
-	    Proc_format,
+	    smpmode ? smp_Proc_format : up_Proc_format,
 	    PP(pp, p_pid),
 	    (*get_userid)(EP(pp, e_pcred.p_ruid)),
 	    PP(pp, p_priority) - PZERO,
@@ -588,9 +592,7 @@ char *(*get_userid)();
 	    format_k2(pagetok(PROCSIZE(pp))),
 	    format_k2(pagetok(VP(pp, vm_rssize))),
 	    status,
-#ifdef P_IDLEPROC	/* FreeBSD SMP kernel */
-	    PP(pp, p_lastcpu),
-#endif
+	    smpmode ? PP(pp, p_lastcpu) : 0,
 	    format_time(cputime),
 	    10000.0 * weighted_cpu(pct, pp) / hz,
 	    10000.0 * pct / hz,
