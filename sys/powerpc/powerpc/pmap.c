@@ -531,7 +531,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	phandle_t	chosen, mmu;
 	int		sz;
 	int		i, j;
-	vm_size_t	size;
+	vm_size_t	size, physsz;
 	vm_offset_t	pa, va, off;
 	u_int		batl, batu;
 
@@ -571,6 +571,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	CTR0(KTR_PMAP, "pmap_bootstrap: physical memory");
 	qsort(regions, sz, sizeof(*regions), mr_cmp);
 	phys_avail_count = 0;
+	physsz = 0;
 	for (i = 0, j = 0; i < sz; i++, j += 2) {
 		CTR3(KTR_PMAP, "region: %#x - %#x (%#x)", regions[i].mr_start,
 		    regions[i].mr_start + regions[i].mr_size,
@@ -578,7 +579,9 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 		phys_avail[j] = regions[i].mr_start;
 		phys_avail[j + 1] = regions[i].mr_start + regions[i].mr_size;
 		phys_avail_count++;
+		physsz += regions[i].mr_size;
 	}
+	physmem = btoc(physsz);
 
 	/*
 	 * Allocate PTEG table.
