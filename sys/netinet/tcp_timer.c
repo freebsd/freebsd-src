@@ -246,6 +246,12 @@ tcp_timer_2msl(xtp)
 	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
+/*
+ * The timed wait lists contain references to each of the TCP sessions
+ * currently TIME_WAIT state.  The list pointers, including the list pointers
+ * in each tcptw structure, are protected using the global tcbinfo lock,
+ * which must be held over list iteration and modification.
+ */
 struct twlist {
 	LIST_HEAD(, tcptw)	tw_list;
 	struct tcptw	tw_tail;
@@ -273,6 +279,7 @@ tcp_timer_2msl_reset(struct tcptw *tw, int timeo)
 	int i;
 	struct tcptw *tw_tail;
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	if (tw->tw_time != 0)
 		LIST_REMOVE(tw, tw_2msl);
 	tw->tw_time = timeo + ticks;
@@ -285,6 +292,7 @@ void
 tcp_timer_2msl_stop(struct tcptw *tw)
 {
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	if (tw->tw_time != 0)
 		LIST_REMOVE(tw, tw_2msl);
 }
@@ -296,6 +304,7 @@ tcp_timer_2msl_tw(int reuse)
 	struct twlist *twl;
 	int i;
 
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	for (i = 0; i < 2; i++) {
 		twl = tw_2msl_list[i];
 		tw_tail = &twl->tw_tail;

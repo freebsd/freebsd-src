@@ -3062,6 +3062,10 @@ tcp_timewait(tw, to, th, m, tlen)
 	const int isipv6 = 0;
 #endif
 
+	/* tcbinfo lock required for tcp_twclose(), tcp_2msl_reset. */
+	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	INP_LOCK_ASSERT(tw->tw_inpcb);
+
 	thflags = th->th_flags;
 
 	/*
