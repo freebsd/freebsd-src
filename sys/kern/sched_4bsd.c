@@ -150,20 +150,20 @@ roundrobin(void *arg)
 
 /*
  * Constants for digital decay and forget:
- *	90% of (p_estcpu) usage in 5 * loadav time
- *	95% of (p_pctcpu) usage in 60 seconds (load insensitive)
+ *	90% of (kg_estcpu) usage in 5 * loadav time
+ *	95% of (ke_pctcpu) usage in 60 seconds (load insensitive)
  *          Note that, as ps(1) mentions, this can let percentages
  *          total over 100% (I've seen 137.9% for 3 processes).
  *
- * Note that schedclock() updates p_estcpu and p_cpticks asynchronously.
+ * Note that schedclock() updates kg_estcpu and p_cpticks asynchronously.
  *
- * We wish to decay away 90% of p_estcpu in (5 * loadavg) seconds.
+ * We wish to decay away 90% of kg_estcpu in (5 * loadavg) seconds.
  * That is, the system wants to compute a value of decay such
  * that the following for loop:
  * 	for (i = 0; i < (5 * loadavg); i++)
- * 		p_estcpu *= decay;
+ * 		kg_estcpu *= decay;
  * will compute
- * 	p_estcpu *= 0.1;
+ * 	kg_estcpu *= 0.1;
  * for all values of loadavg:
  *
  * Mathematically this loop can be expressed by saying:
@@ -216,7 +216,7 @@ roundrobin(void *arg)
 #define	loadfactor(loadav)	(2 * (loadav))
 #define	decay_cpu(loadfac, cpu)	(((loadfac) * (cpu)) / ((loadfac) + FSCALE))
 
-/* decay 95% of `p_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
+/* decay 95% of `ke_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
 static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
 SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 
@@ -247,22 +247,26 @@ schedcpu(void *arg)
 	struct proc *p;
 	struct kse *ke;
 	struct ksegrp *kg;
-	int realstathz;
-	int awake;
+	int awake, realstathz;
 
 	realstathz = stathz ? stathz : hz;
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
+		/*
+		 * Prevent state changes and protect run queue.
+		 */
 		mtx_lock_spin(&sched_lock);
+		/*
+		 * Increment time in/out of memory.  We ignore overflow; with
+		 * 16-bit int's (remember them?) overflow takes 45 days.
+		 */
 		p->p_swtime++;
 		FOREACH_KSEGRP_IN_PROC(p, kg) { 
 			awake = 0;
 			FOREACH_KSE_IN_GROUP(kg, ke) {
 				/*
-				 * Increment time in/out of memory and sleep
-				 * time (if sleeping).  We ignore overflow;
-				 * with 16-bit int's (remember them?)
-				 * overflow takes 45 days.
+				 * Increment sleep time (if sleeping).  We
+				 * ignore overflow, as above.
 				 */
 				/*
 				 * The kse slptimes are not touched in wakeup
@@ -281,12 +285,11 @@ schedcpu(void *arg)
 				}
 
 				/*
-				 * pctcpu is only for ps?
-				 * Do it per kse.. and add them up at the end?
+				 * ke_pctcpu is only for ps and ttyinfo().
+				 * Do it per kse, and add them up at the end?
 				 * XXXKSE
 				 */
-				ke->ke_pctcpu
-				    = (ke->ke_pctcpu * ccpu) >>
+				ke->ke_pctcpu = (ke->ke_pctcpu * ccpu) >>
 				    FSHIFT;
 				/*
 				 * If the kse has been idle the entire second,
@@ -326,9 +329,8 @@ schedcpu(void *arg)
 					updatepri(kg);
 				}
 				kg->kg_slptime = 0;
-			} else {
+			} else
 				kg->kg_slptime++;
-			}
 			if (kg->kg_slptime > 1)
 				continue;
 			kg->kg_estcpu = decay_cpu(loadfac, kg->kg_estcpu);
@@ -347,20 +349,21 @@ schedcpu(void *arg)
 
 /*
  * Recalculate the priority of a process after it has slept for a while.
- * For all load averages >= 1 and max p_estcpu of 255, sleeping for at
- * least six times the loadfactor will decay p_estcpu to zero.
+ * For all load averages >= 1 and max kg_estcpu of 255, sleeping for at
+ * least six times the loadfactor will decay kg_estcpu to zero.
  */
 static void
 updatepri(struct ksegrp *kg)
 {
+	register fixpt_t loadfac;
 	register unsigned int newcpu;
-	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
 
-	newcpu = kg->kg_estcpu;
+	loadfac = loadfactor(averunnable.ldavg[0]);
 	if (kg->kg_slptime > 5 * loadfac)
 		kg->kg_estcpu = 0;
 	else {
-		kg->kg_slptime--;	/* the first time was done in schedcpu */
+		newcpu = kg->kg_estcpu;
+		kg->kg_slptime--;	/* was incremented in schedcpu() */
 		while (newcpu && --kg->kg_slptime)
 			newcpu = decay_cpu(loadfac, newcpu);
 		kg->kg_estcpu = newcpu;
@@ -395,6 +398,7 @@ resetpriority(struct ksegrp *kg)
 static void
 sched_setup(void *dummy)
 {
+
 	if (sched_quantum == 0)
 		sched_quantum = SCHED_QUANTUM;
 	hogticks = 2 * sched_quantum;
@@ -425,8 +429,8 @@ sched_rr_interval(void)
 /*
  * We adjust the priority of the current process.  The priority of
  * a process gets worse as it accumulates CPU time.  The cpu usage
- * estimator (p_estcpu) is increased here.  resetpriority() will
- * compute a different priority each time p_estcpu increases by
+ * estimator (kg_estcpu) is increased here.  resetpriority() will
+ * compute a different priority each time kg_estcpu increases by
  * INVERSE_ESTCPU_WEIGHT
  * (until MAXPRI is reached).  The cpu usage estimator ramps up
  * quite quickly when the process is running (linearly), and decays
@@ -454,6 +458,7 @@ sched_clock(struct kse *ke)
 			td->td_priority = kg->kg_user_pri;
 	}
 }
+
 /*
  * charge childs scheduling cpu usage to parent.
  *
