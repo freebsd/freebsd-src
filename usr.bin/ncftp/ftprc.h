@@ -30,7 +30,7 @@ void AddNewSitePtr(char *word);
 int ruserpass2(char *host, char **user, char **pass, char **acct);
 void GetFullSiteName(char *host, char *lastdir);
 void ReadRecentSitesFile(void);
-void WriteRecentSitesFile(void);
+int  WriteRecentSitesFile(void);
 void AddRecentSite(char *host, char *lastdir);
 void UpdateRecentSitesList(char *host, char *lastdir);
 void PrintSiteList(void);
