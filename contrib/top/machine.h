@@ -59,6 +59,7 @@ struct process_select
     int idle;		/* show idle processes */
     int self;		/* show self */
     int system;		/* show system processes */
+    int thread;		/* show threads */
     int uid;		/* only this uid (unless uid == -1) */
     char *command;	/* only this command (unless == NULL) */
 };

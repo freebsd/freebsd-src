@@ -414,7 +414,8 @@ int (*compare)();
     int show_command;
 
     
-    pbase = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nproc);
+    pbase = kvm_getprocs(kd, sel->thread ? KERN_PROC_ALL : KERN_PROC_PROC,
+	0, &nproc);
     if (nproc > onproc)
 	pref = (struct kinfo_proc **) realloc(pref, sizeof(struct kinfo_proc *)
 		* (onproc = nproc));

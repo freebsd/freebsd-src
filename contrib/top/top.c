@@ -192,9 +192,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIuto";
+    static char command_chars[] = "\f qh?en#sdkriIutHo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIut";
+    static char command_chars[] = "\f qh?en#sdkriIutH";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -214,8 +214,9 @@ char *argv[];
 #define CMD_idletog2    13
 #define CMD_user	14
 #define CMD_selftog	15
+#define CMD_thrtog	16
 #ifdef ORDER
-#define CMD_order       16
+#define CMD_order       17
 #endif
 
     /* set the buffer for stdout */
@@ -245,6 +246,7 @@ char *argv[];
     ps.self    = -1;
     ps.system  = No;
     ps.uid     = -1;
+    ps.thread  = No;
     ps.command = NULL;
 
     /* get preset options from the environment */
@@ -270,7 +272,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "SIbinquvs:d:U:o:t")) != EOF)
+	while ((i = getopt(ac, av, "SIHbinquvs:d:U:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -365,10 +367,14 @@ char *argv[];
 		ps.self = (ps.self == -1) ? getpid() : -1;
 		break;
 		
+	      case 'H':
+		ps.thread = !ps.thread;
+		break;
+		
 	      default:
 		fprintf(stderr, "\
 Top version %s\n\
-Usage: %s [-ISbinqut] [-d x] [-s x] [-o field] [-U username] [number]\n",
+Usage: %s [-HISbinqut] [-d x] [-s x] [-o field] [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
 	    }
@@ -955,6 +961,13 @@ restart:
 				}
 				break;
 	    
+			    case CMD_thrtog:
+				ps.thread = !ps.thread;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying threads.",
+				    ps.thread ? "D" : "Not d");
+				putchar('\r');
+				break;
 #ifdef ORDER
 			    case CMD_order:
 				new_message(MT_standout,
