@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.33 1999/07/29 01:51:49 mdodd Exp $
+ *	$Id: subr_bus.c,v 1.34 1999/08/11 22:05:17 peter Exp $
  */
 
 #include <sys/param.h>
@@ -128,8 +128,8 @@ register_method(struct device_op_desc *desc)
 	    desc->offset = m->offset;
 	    desc->method = m;
 	    m->refs++;
-	    PDEBUG(("methods %x has the same name, %s, with offset %d",
-		    m, desc->name, desc->offset));
+	    PDEBUG(("methods %p has the same name, %s, with offset %d",
+		    (void *)m, desc->name, desc->offset));
 	    return;
 	}
     }
@@ -2231,7 +2231,7 @@ print_device_short(device_t dev, int indent)
 	if (!dev)
 		return;
 
-	indentprintf(("device %d: <%s> %sparent,%schildren,%s%s%s%sivars,%ssoftc,busy=%d\n",
+	indentprintf(("device %d: <%s> %sparent,%schildren,%s%s%s%s,%sivars,%ssoftc,busy=%d\n",
 		dev->unit, dev->desc,
 		(dev->parent? "":"no "),
 		(TAILQ_EMPTY(&dev->children)? "no ":""),
@@ -2321,11 +2321,11 @@ print_driver(driver_t *driver, int indent)
 static void
 print_driver_list(driver_list_t drivers, int indent)
 {
-	driver_t *driver;
+	driverlink_t driver;
 
 	for (driver = TAILQ_FIRST(&drivers); driver;
 	     driver = TAILQ_NEXT(driver, link))
-		print_driver(driver, indent);
+		print_driver(driver->driver, indent);
 }
 
 static void
