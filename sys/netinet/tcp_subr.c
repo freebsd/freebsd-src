@@ -1924,6 +1924,14 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 /*
  * Compute TCP-MD5 hash of a TCPv4 segment. (RFC2385)
  *
+ * Parameters:
+ * m		pointer to head of mbuf chain
+ * off0		offset to TCP header within the mbuf chain
+ * len		length of TCP segment data, excluding options
+ * optlen	length of TCP segment options
+ * buf		pointer to storage for computed MD5 digest
+ * direction	direction of flow (IPSEC_DIR_INBOUND or OUTBOUND)
+ *
  * We do this over ip, tcphdr, segment data, and the key in the SADB.
  * When called from tcp_input(), we can be sure that th_sum has been
  * zeroed out and verified already.
@@ -1940,13 +1948,8 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
  * specify per-application flows but it is unstable.
  */
 int
-tcpsignature_compute(
-	struct mbuf *m,		/* mbuf chain */
-	int off0,		/* offset to TCP header */
-	int len,		/* length of TCP data */
-	int optlen,		/* length of TCP options */
-	u_char *buf,		/* storage for MD5 digest */
-	u_int direction)	/* direction of flow */
+tcpsignature_compute(struct mbuf *m, int off0, int len, int optlen,
+    u_char *buf, u_int direction)
 {
 	union sockaddr_union dst;
 	struct ippseudo ippseudo;
@@ -1958,32 +1961,30 @@ tcpsignature_compute(
 	struct tcphdr *th;
 	u_short savecsum;
 
-	KASSERT(m != NULL, ("passed NULL mbuf. Game over."));
-	KASSERT(buf != NULL, ("passed NULL storage pointer for MD5 signature"));
-	/*
-	 * Extract the destination from the IP header in the mbuf.
-	 */
+	KASSERT(m != NULL, ("NULL mbuf chain"));
+	KASSERT(buf != NULL, ("NULL signature pointer"));
+
+	/* Extract the destination from the IP header in the mbuf. */
 	ip = mtod(m, struct ip *);
 	bzero(&dst, sizeof(union sockaddr_union));
 	dst.sa.sa_len = sizeof(struct sockaddr_in);
 	dst.sa.sa_family = AF_INET;
 	dst.sin.sin_addr = (direction == IPSEC_DIR_INBOUND) ?
 	    ip->ip_src : ip->ip_dst;
-	/*
-	 * Look up an SADB entry which matches the address found in
-	 * the segment.
-	 */
+
+	/* Look up an SADB entry which matches the address of the peer. */
 	sav = KEY_ALLOCSA(&dst, IPPROTO_TCP, htonl(TCP_SIG_SPI));
 	if (sav == NULL) {
 		printf("%s: SADB lookup failed for %s\n", __func__,
 		    inet_ntoa(dst.sin.sin_addr));
 		return (EINVAL);
 	}
-	MD5Init(&ctx);
 
+	MD5Init(&ctx);
 	ipovly = (struct ipovly *)ip;
 	th = (struct tcphdr *)((u_char *)ip + off0);
 	doff = off0 + sizeof(struct tcphdr) + optlen;
+
 	/*
 	 * Step 1: Update MD5 hash with IP pseudo-header.
 	 *
@@ -1999,6 +2000,7 @@ tcpsignature_compute(
 	ippseudo.ippseudo_p = IPPROTO_TCP;
 	ippseudo.ippseudo_len = htons(len + sizeof(struct tcphdr) + optlen);
 	MD5Update(&ctx, (char *)&ippseudo, sizeof(struct ippseudo));
+
 	/*
 	 * Step 2: Update MD5 hash with TCP header, excluding options.
 	 * The TCP checksum must be set to zero.
@@ -2007,17 +2009,20 @@ tcpsignature_compute(
 	th->th_sum = 0;
 	MD5Update(&ctx, (char *)th, sizeof(struct tcphdr));
 	th->th_sum = savecsum;
+
 	/*
 	 * Step 3: Update MD5 hash with TCP segment data.
 	 *         Use m_apply() to avoid an early m_pullup().
 	 */
 	if (len > 0)
 		m_apply(m, doff, len, tcpsignature_apply, &ctx);
+
 	/*
 	 * Step 4: Update MD5 hash with shared secret.
 	 */
 	MD5Update(&ctx, _KEYBUF(sav->key_auth), _KEYLEN(sav->key_auth));
 	MD5Final(buf, &ctx);
+
 	key_sa_recordxfer(sav, m);
 	KEY_FREESAV(&sav);
 	return (0);

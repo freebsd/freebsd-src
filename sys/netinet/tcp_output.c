@@ -548,9 +548,8 @@ send:
 	if (tp->t_flags & TF_SIGNATURE) {
 		int i;
 		u_char *bp;
-		/*
-		 * Initialize TCP-MD5 option (RFC2385)
-		 */
+
+		/* Initialize TCP-MD5 option (RFC2385) */
 		bp = (u_char *)opt + optlen;
 		*bp++ = TCPOPT_SIGNATURE;
 		*bp++ = TCPOLEN_SIGNATURE;
@@ -558,9 +557,8 @@ send:
 		for (i = 0; i < TCP_SIGLEN; i++)
 			*bp++ = 0;
 		optlen += TCPOLEN_SIGNATURE;
-		/*
-		 * Terminate options list and maintain 32-bit alignment.
-		 */
+
+		/* Terminate options list and maintain 32-bit alignment. */
 		*bp++ = TCPOPT_NOP;
 		*bp++ = TCPOPT_EOL;
 		optlen += 2;
