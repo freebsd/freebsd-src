@@ -96,7 +96,6 @@ int \
 _Qp_f ## name(u_int *a, u_int *b) \
 { \
 	struct fpemu fe; \
-	struct fpn *r; \
 	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :); \
 	fe.fe_f1.fp_sign = a[0] >> 31; \
 	fe.fe_f1.fp_sticky = 0; \
