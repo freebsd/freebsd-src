@@ -176,6 +176,8 @@ apecs_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
 		cfg.slot = s;
 		cfg.func = f;
 		cfg.intline = 255;
+		cfg.intpin =
+		    apecs_pcib_read_config(dev, b, s, f, PCIR_INTPIN, 1);
 		platform.pci_intr_map((void *)&cfg);
 		if (cfg.intline != 255)
 			return cfg.intline;
