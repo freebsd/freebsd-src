@@ -431,7 +431,7 @@ print_all_resources(device_t dev)
 	struct resource_list *rl = &cbdev->cbdev_resources;
 	int retval = 0;
 
-	if (SLIST_FIRST(rl))
+	if (STAILQ_FIRST(rl))
 		retval += printf(" at");
 
 	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
