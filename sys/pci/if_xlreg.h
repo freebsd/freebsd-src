@@ -607,6 +607,9 @@ struct xl_softc {
 	bus_space_handle_t	xl_fhandle;
 	bus_space_tag_t		xl_ftag;
 	struct mtx		xl_mtx;
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif
 };
 
 #define XL_LOCK(_sc)		mtx_lock(&(_sc)->xl_mtx)
