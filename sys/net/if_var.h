@@ -477,7 +477,6 @@ void	if_up(struct ifnet *);
 int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
-struct	ifnet *if_withname(struct sockaddr *);
 
 int	if_poll_recv_slow(struct ifnet *ifp, int *quotap);
 void	if_poll_xmit_slow(struct ifnet *ifp, int *quotap);
