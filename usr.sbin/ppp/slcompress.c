@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.20 1998/08/26 17:39:37 brian Exp $
+ * $Id: slcompress.c,v 1.21 1999/01/28 01:56:34 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -447,13 +447,14 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
   case TYPE_COMPRESSED_TCP:
     break;
   }
+
   /* We've got a compressed packet. */
   slstat->sls_compressedin++;
   cp = *bufp;
   changes = *cp++;
   log_Printf(LogDEBUG, "compressed: changes = %02x\n", changes);
-  if (changes & NEW_C) {
 
+  if (changes & NEW_C) {
     /*
      * Make sure the state index is in range, then grab the state. If we have
      * a good state index, clear the 'discard' flag.
@@ -465,7 +466,6 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
     comp->flags &= ~SLF_TOSS;
     comp->last_recv = *cp++;
   } else {
-
     /*
      * this packet has an implicit state index.  If we've had a line error
      * since the last time we got an explicit state index, we have to toss
@@ -529,29 +529,19 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
 	    cs->cs_ip.ip_id, (u_long)ntohl(th->th_seq));
 
   /*
-   * At this point, cp points to the first byte of data in the packet.  If
-   * we're not aligned on a 4-byte boundary, copy the data down so the ip &
-   * tcp headers will be aligned.  Then back up cp by the tcp/ip header
-   * length to make room for the reconstructed header (we assume the packet
-   * we were handed has enough space to prepend 128 bytes of header).  Adjust
-   * the length to account for the new header & fill in the IP total length.
+   * At this point, cp points to the first byte of data in the packet.
+   * Back up cp by the tcp/ip header length to make room for the
+   * reconstructed header (we assume the packet we were handed has enough
+   * space to prepend 128 bytes of header).  Adjust the length to account
+   * for the new header & fill in the IP total length.
    */
   len -= (cp - *bufp);
   if (len < 0)
-
     /*
      * we must have dropped some characters (crc should detect this but the
      * old slip framing won't)
      */
     goto bad;
-
-#ifdef notdef
-  if ((int) cp & 3) {
-    if (len > 0)
-      (void) bcopy(cp, (caddr_t) ((int) cp & ~3), len);
-    cp = (u_char *) ((int) cp & ~3);
-  }
-#endif
 
   cp -= cs->cs_hlen;
   len += cs->cs_hlen;
@@ -561,7 +551,7 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
 
   /* recompute the ip header checksum */
   {
-    register u_short *bp = (u_short *) cp;
+    register u_short *bp = (u_short *)&cs->cs_ip;
 
     for (changes = 0; hlen > 0; hlen -= 2)
       changes += *bp++;
