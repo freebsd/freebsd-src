@@ -1,12 +1,12 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.48 1997/05/01 22:07:51 jkh Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.49 1997/05/03 04:46:42 jkh Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
-<date>$Date: 1997/05/01 22:07:51 $</date>
+<date>$Date: 1997/05/03 04:46:42 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -2867,40 +2867,87 @@ disk        fd1   at fdc0 drive 1
     <sect>
       <heading>System Administration</heading>
 
-<sect1>
+      <sect1>
+	<heading>What's with all these SNAPshot, RELENG and RELEASE releases?</heading>
+
+	<p>
+	There are currently three active/semi-active branches in the FreeBSD
+	<url url="http://www.freebsd.org/cgi/cvsweb.cgi" name="CVS Repository">:
+
+	<itemize>
+	<item><bf/RELENG_2_1_0/    AKA 2.1-stable AKA "2.1 branch"</item>
+	<item><bf/RELENG_2_2/      AKA 2.2-stable AKA "2.2 branch"</item>
+	<item><bf/HEAD/            AKA -current AKA 3.0-current</item>
+	</itemize>
+
+	<p><bf/HEAD/ is not an branch actual tag, like the other two, it's
+	simply a symbolic constant for "the current, non-branched development
+	stream" which we, of course, map to whatever's "-current" at the time.
+
+	Right now, -current is the 3.0 development stream and the 2.2 branch
+	forked off of -current in November 1996. 2.1.0 departed -current in
+	September of 1994, IIRC.
+
+	Now SNAPs are made from -current, that is to say 3.0, and they happen
+	infrequently, basically whenever I feel like doing one (e.g. I or
+	someone else wants something tested), and this generally doesn't
+	happen more than 3-4 times a year.
+
+	The ftp://releng22.freebsd.org/pub/FreeBSD machine is a special case,
+	created just for the 2.2 branch and used to build a full 2.2 branch
+	release *every day* from wherever the RELENG_2_2 tag happens to be
+	pointing at the time.  If the release build succeeds, the release is
+	moved into the anonymous FTP area there.  If it fails, jkh gets a
+	mail telling him "Hey, somebody broke the 2.2 branch! Bad
+	hacker! No cola!" and he goes to investigate.  The 2.2 branch is not
+	supposed to break since people are only supposed to be committing bug
+	fixes and well-tested enhancements to that branch, nothing experimental
+	or untried (sometimes they do anyway, but hey - this is a
+	volunteer-driven project and we try to take that in stride :-).
+      </sect1>
+
+      <sect1>
         <heading>Where are the system start-up configuration files?</heading>
 
         <p>
-          As of 2.0.5R, the primary configuration file is
+          From 2.0.5R to 2.2.1R, the primary configuration file is
           <tt>/etc/sysconfig</tt>. All the options are to be specified in
-          this one and the other one (<tt>/etc/rc</tt> and
-          <tt>/etc/netstart</tt>) just include it.
+          this file and other files such as <tt>/etc/rc</tt> and
+          <tt>/etc/netstart</tt> just include it.
 
           Look in the <tt>/etc/sysconfig</tt> file and change the value to
           match your system. This file is filled with comments to show what
           to put in there.
 
-          The <tt>/etc/rc.local</tt> is here as always and is the place to
-          put additional services like <tt/INN/ or a <tt/http/ server.
+	  In post-2.2.1 and 3.0, <tt>/etc/sysconfig</tt> was renamed
+	  to a more self-describing <tt>rc.conf</tt> file and the syntax
+	  cleaned up a bit in the process.  <tt>/etc/netstart</tt> was also
+	  renamed to <tt>/etc/rc.network</tt> so that all files could be
+	  copied with a <tt>cp /usr/src/etc/rc* /etc</tt> command.
+
+          <tt>/etc/rc.local</tt> is here as always and is the place to
+          start up additional local services like <tt/INN/ or set custom
+	  options.
 
           The <tt>/etc/rc.serial</tt> is for serial port initialization
           (e.g. locking the port characteristics, and so on.).
 
-          The <tt>/etc/rc.i386</tt> is for Intel-specifics setting like the
-          iBCS2 emulation.
+          The <tt>/etc/rc.i386</tt> is for Intel-specifics settings, such
+	  as iBCS2 emulation or the PC system console configuration.
 
-          Starting with 2.1.0R, you can have "local" startup files in a
-          directory specified in <tt>/etc/sysconfig</tt>:
+          Starting with 2.1.0R, you can also have "local" startup files in a
+          directory specified in <tt>/etc/sysconfig</tt> (or
+	  <tt>/etc/rc.conf</tt>):
           <verb>
             # Location of local startup files.
             local_startup=/usr/local/etc/rc.local.d
           </verb>
-          Each file ending in <tt/.sh/ will be executed in alphabetic
+          Each file ending in <tt/.sh/ will be executed in alphabetical
           order.
 
-          If you want to have a proper order without changing all the file
-          names, you can use a scheme similar to the following with digits
-          prepended to each file name to insure order:
+          If you want to ensure a certain execution order without changing all
+	  the file names, you can use a scheme similar to the following with
+	  digits prepended to each file name to insure the ordering:
           <verb>
             10news.sh
             15httpd.sh
@@ -2919,7 +2966,9 @@ disk        fd1   at fdc0 drive 1
           There is another package called ``<tt/new-account/'' also written
           in Perl by Ollivier Robert. Ask
           <tt>&lt;roberto@FreeBSD.ORG&gt;</tt> about it.  It is currently
-          under further development.
+          undergoing further development.
+
+          To remove the user again, use the <tt/rmuser/ command.
 
       <sect1>
         <heading>I'm having problems setting up my printer.</heading>
