@@ -63,6 +63,10 @@ send-pr \- send problem report (PR) to a central support site
 .B \-c
 .I address
 ]
+[
+.B \-a
+.I file
+]
 .SH DESCRIPTION
 .B send-pr
 is a tool used to submit 
@@ -133,6 +137,14 @@ Put
 in the 
 .B Cc:
 header of the message.
+.TP
+.BI \-a " file"
+Copy the specified
+.I file
+into the
+.B Fix:
+section.
+Binary files are uuencoded.
 .TP
 .B \-P
 print the form specified by the environment variable 
