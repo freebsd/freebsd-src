@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.43.2.2 1995/05/31 10:34:28 jkh Exp $
+ * $Id: system.c,v 1.43.2.3 1995/05/31 20:55:39 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -34,13 +34,6 @@ handle_intr(int sig)
 {
     if (!msgYesNo("Are you sure you want to abort the installation?"))
 	systemShutdown();
-}
-
-/* Welcome the user to the system */
-void
-systemWelcome(void)
-{
-    printf("Installation system initializing..\n");
 }
 
 /* Initialize system defaults */
