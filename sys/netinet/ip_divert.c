@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.20 1998/02/06 12:13:50 eivind Exp $
+ *	$Id: ip_divert.c,v 1.21 1998/03/24 18:06:15 wollman Exp $
  */
 
 #include "opt_inet.h"
@@ -47,6 +47,7 @@
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+
 #include <vm/vm_zone.h>
 
 #include <net/if.h>
@@ -118,7 +119,7 @@ div_init(void)
 	divcbinfo.hashbase = hashinit(1, M_PCB, &divcbinfo.hashmask);
 	divcbinfo.porthashbase = hashinit(1, M_PCB, &divcbinfo.porthashmask);
 	divcbinfo.ipi_zone = zinit("divcb", sizeof(struct inpcb),
-				   nmbclusters/4, ZONE_INTERRUPT, 0);
+				   nmbclusters / 4, ZONE_INTERRUPT, 0);
 }
 
 /*
