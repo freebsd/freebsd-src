@@ -267,6 +267,10 @@ to expect null-terminated names; disables
 .It Fl -totals
 Prints total bytes written with
 .Fl -create.
+.It Fl U
+.It Fl -unlink
+.It Fl -unlink-first
+Unlink files before creating them.
 .It Fl v
 .It Fl -verbose
 Lists files written to archive with
@@ -319,9 +323,14 @@ Block the output of compression program for tapes or floppies
 (otherwise writes will be of odd length, which device drivers may reject).
 .It Fl [0-7][lmh]
 Specify tape drive and density.
-.It Fl -unlink
-Unlink files before creating them.
 .El
+.Sh ENVIRONMENT
+The environment variable
+.Ev TAR_OPTIONS
+can hold a set of default options for
+.Nm .
+These options are interpreted first and can be overwritten by explicit command
+line parameters.
 .Sh EXAMPLES
 To create an archive on tape drive /dev/rsa0 with a block size of 20
 blocks, containing files named "bert" and "ernie", you can enter
