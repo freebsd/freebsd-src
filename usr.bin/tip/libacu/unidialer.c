@@ -52,7 +52,7 @@ static char sccsid[] = "@(#)unidialer.c	8.1 (Berkeley) 6/6/93";
 #include "acucommon.h"
 #include "tod.h"
 
-/* #define DEBUG /**/
+/* #define DEBUG */
 #define	MAXRETRY	5
 
 typedef enum
