@@ -100,7 +100,7 @@ pccard_ccr_write(pf, ccr, val)
 	}
 }
 
-static int
+int
 pccard_card_attach(device_t dev)
 {
 	struct pccard_softc *sc = (struct pccard_softc *) 
@@ -185,7 +185,7 @@ pccard_card_attach(device_t dev)
 	return (attached ? 0 : 1);
 }
 
-static void
+void
 pccard_card_detach(device_t dev, int flags)
 {
 	struct pccard_softc *sc = (struct pccard_softc *) 
@@ -217,7 +217,7 @@ pccard_card_detach(device_t dev, int flags)
 	}
 }
 
-static void
+void
 pccard_card_deactivate(device_t dev)
 {
 	struct pccard_softc *sc = (struct pccard_softc *) 
@@ -242,7 +242,7 @@ pccard_card_deactivate(device_t dev)
 	}
 }
 
-static int 
+int 
 pccard_card_gettype(device_t dev)
 {
 	struct pccard_softc *sc = (struct pccard_softc *)

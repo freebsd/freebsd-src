@@ -1,4 +1,4 @@
-/*	$NetBSD: i82365_isasubr.c,v 1.1 1998/06/07 18:28:31 sommerfe Exp $	*/
+/*	$NetBSD: i82365_isasubr.c,v 1.3 1999/10/15 06:07:27 haya Exp $	*/
 /* $FreeBSD$ */
 
 /*
@@ -232,8 +232,10 @@ pcic_isa_chip_intr_establish(pch, pf, ipl, fct, arg)
 {
 #define IST_LEVEL 1
 #define IST_PULSE 2
+#define IST_EDGE  3
 	struct pcic_handle *h = (struct pcic_handle *) pch;
-	isa_chipset_tag_t ic = h->sc->intr_est;
+	struct pcic_softc *sc = (struct pcic_softc *)(h->ph_parent);
+	isa_chipset_tag_t ic = sc->intr_est;
 	int irq, ist;
 	void *ih;
 	int reg;
@@ -243,7 +245,7 @@ pcic_isa_chip_intr_establish(pch, pf, ipl, fct, arg)
 	else if (pf->cfe->flags & PCCARD_CFE_IRQPULSE)
 		ist = IST_PULSE;
 	else
-		ist = IST_LEVEL;
+		ist = IST_EDGE;
 
 #if XXX
 	if (isa_intr_alloc(ic,
@@ -255,7 +257,7 @@ pcic_isa_chip_intr_establish(pch, pf, ipl, fct, arg)
 #endif
 
 	reg = pcic_read(h, PCIC_INTR);
-	reg &= ~PCIC_INTR_IRQ_MASK;
+	reg &= ~(PCIC_INTR_IRQ_MASK | PCIC_INTR_ENABLE);
 	reg |= irq;
 	pcic_write(h, PCIC_INTR, reg);
 
@@ -272,7 +274,8 @@ pcic_isa_chip_intr_disestablish(pch, ih)
 	void *ih;
 {
 	struct pcic_handle *h = (struct pcic_handle *) pch;
-	isa_chipset_tag_t ic = h->sc->intr_est;
+	struct pcic_softc *sc = (struct pcic_softc *)(h->ph_parent);
+	isa_chipset_tag_t ic = sc->intr_est;
 	int reg;
 
 	h->ih_irq = 0;
