@@ -63,17 +63,19 @@ for write permission and
 .Dv X_OK
 for execute/search permission) or the existence test,
 .Dv F_OK .
-All components of the pathname
-.Fa path
-are checked for access permissions (including
-.Dv F_OK ) .
+.Pp
+For additional information, see the
+.Dq File Access Permission
+section of
+.Xr intro 2 .
 .Pp
 The real user ID is used in place of the effective user ID
 and the real group access list
 (including the real group ID) are
 used in place of the effective ID for verifying permission.
 .Pp
-Even if a process has appropriate privileges and indicates success for
+Even if a process's real user has appropriate privileges
+and indicates success for
 .Dv X_OK ,
 the file may not actually have execute permission bits set.
 Likewise for
@@ -106,12 +108,7 @@ file presently being executed.
 .It Bq Er EACCES
 Permission bits of the file mode do not permit the requested
 access, or search permission is denied on a component of the
-path prefix.  The owner of a file has permission checked with
-respect to the ``owner'' read, write, and execute mode bits,
-members of the file's group other than the owner have permission
-checked with respect to the ``group'' mode bits, and all
-others have permissions checked with respect to the ``other''
-mode bits.
+path prefix.
 .It Bq Er EFAULT
 .Fa Path
 points outside the process's allocated address space.
