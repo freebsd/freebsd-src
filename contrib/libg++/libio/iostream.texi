@@ -10,7 +10,7 @@
 @ifinfo
 @format
 START-INFO-DIR-ENTRY
-* iostream: (iostream).                    The C++ input/output facility.
+* iostream: (iostream).		The C++ input/output facility.
 END-INFO-DIR-ENTRY
 @end format
 
