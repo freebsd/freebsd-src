@@ -252,7 +252,7 @@ main(argc, argv)
 		    "\t[ metric n ]\n",
 		    "\t[ mtu n ]\n",
 		    "\t[ arp | -arp ]\n",
-		    "\t[ link0 | -link0 ] [ link1 | -link1 ] [ link2 | -link2 ] \n"
+		    "\t[ link0 | -link0 ] [ link1 | -link1 ] [ link2 | -link2 ] \n",
 		    "\t[ -a ] [ -ad ] [ -au ]\n");
 		exit(1);
 	}
