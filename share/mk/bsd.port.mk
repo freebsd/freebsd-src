@@ -456,15 +456,14 @@ do-fetch:
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${MASTER_SITES}; do \
 			    ${ECHO_MSG} ">> Attempting to fetch from $${site}"; \
-				if ${NCFTP} ${NCFTPFLAGS} $${site}$${file}; then \
-					break; \
+				(${NCFTP} ${NCFTPFLAGS} $${site}$${file} || true); \
+				if [ -f $$file -o -f `/usr/bin/basename $$file` ]; then \
+					continue 2; \
 				fi \
 			done; \
-			if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
-				${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
-				${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
-				exit 1; \
-			fi; \
+			${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
+			${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
+			exit 1; \
 	    fi \
 	 done)
 .if defined(PATCHFILES)
@@ -475,15 +474,14 @@ do-fetch:
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${PATCH_SITES}; do \
 			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
-				if ${NCFTP} ${NCFTPFLAGS} $${site}$${file}; then \
-					break; \
+				(${NCFTP} ${NCFTPFLAGS} $${site}$${file} || true); \
+				if [ -f $$file -o -f `/usr/bin/basename $$file` ]; then \
+					continue 2; \
 				fi \
 			done; \
-			if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
-				${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
-				${ECHO_MSG} ">> port manually into ${PATCHDIST} and try again."; \
-				exit 1; \
-			fi; \
+			${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
+			${ECHO_MSG} ">> port manually into ${PATCHDIST} and try again."; \
+			exit 1; \
 	    fi \
 	 done)
 .endif
