@@ -144,7 +144,8 @@ dsp_close(snddev_info *d, int chan, int devtype)
 	pcm_channel *rdch, *wrch;
 
 	d->flags &= ~SD_F_TRANSIENT;
-	getchns(d, chan, &rdch, &wrch);
+	rdch = d->arec[chan];
+	wrch = d->aplay[chan];
 
 	if (rdch) {
 		chn_abort(rdch);
