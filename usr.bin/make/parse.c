@@ -2018,7 +2018,7 @@ ParseSkipLine(int skip, int keep_newline)
     buf = Buf_Init(MAKE_BSIZE);
 
     do {
-        Buf_Discard(buf, lineLength);
+        Buf_Clear(buf);
         lastc = '\0';
 
         while (((c = ParseReadc()) != '\n' || lastc == '\\')
