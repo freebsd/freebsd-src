@@ -725,6 +725,14 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * Find out what hardware we're on, and do basic initialization.
 	 */
 	cputype = hwrpb->rpb_type;
+	if (cputype < 0) {
+		/*
+		 * At least some white-box (NT) systems have SRM which
+		 * reports a systype that's the negative of their
+		 * blue-box (UNIX/OVMS) counterpart.
+		 */
+		cputype = -cputype;
+	}
 	if (cputype >= ncpuinit) {
 		platform_not_supported(cputype);
 		/* NOTREACHED */
