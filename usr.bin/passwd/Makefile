@@ -6,8 +6,10 @@ BINOWN	 = root
 BINMODE	 = 4555
 DPADD	 = ${LIBPAM}
 LDADD	 = ${MINUSLPAM}
+.if !defined(NO_NIS)
 LINKS	 = ${BINDIR}/passwd ${BINDIR}/yppasswd
 MLINKS	 = passwd.1 yppasswd.1
+.endif
 WARNS	?= 4
 
 beforeinstall:
