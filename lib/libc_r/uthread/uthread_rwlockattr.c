@@ -81,16 +81,13 @@ pthread_rwlockattr_init (pthread_rwlockattr_t *rwlockattr)
 }
 
 int
-pthread_rwlockattr_setpshared (pthread_rwlockattr_t *rwlockattr,
-	int *pshared)
+pthread_rwlockattr_setpshared (pthread_rwlockattr_t *rwlockattr, int pshared)
 {
-	int ps = *pshared;
-
-	/* only PTHREAD_PROCESS_PRIVATE is supported */
-	if (ps != PTHREAD_PROCESS_PRIVATE)
+	/* Only PTHREAD_PROCESS_PRIVATE is supported. */
+	if (pshared != PTHREAD_PROCESS_PRIVATE)
 		return(EINVAL);
 
-	(*rwlockattr)->pshared = ps;
+	(*rwlockattr)->pshared = pshared;
 
 	return(0);
 }
