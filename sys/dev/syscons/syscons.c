@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.269 1998/08/03 09:15:36 yokota Exp $
+ *  $Id: syscons.c,v 1.270 1998/08/03 09:17:06 yokota Exp $
  */
 
 #include "sc.h"
@@ -146,6 +146,7 @@ static  int		sc_port = IO_KBD;
 static  KBDC		sc_kbdc = NULL;
 static  char        	init_done = COLD;
 static  u_short		sc_buffer[ROW*COL];
+static  char		shutdown_in_progress = FALSE;
 static  char        	font_loading_in_progress = FALSE;
 static  char        	switch_in_progress = FALSE;
 static  char        	write_in_progress = FALSE;
@@ -244,6 +245,7 @@ static int sckbdprobe(int unit, int flags);
 static void scstart(struct tty *tp);
 static void scmousestart(struct tty *tp);
 static void scinit(void);
+static void scshutdown(int howto, void *arg);
 static void map_mode_table(char *map[], char *table, int max);
 static u_char map_mode_num(u_char mode);
 static char *get_mode_param(scr_stat *scp, u_char mode);
@@ -812,6 +814,8 @@ scattach(struct isa_device *dev)
     scp->r_hook.ah_order = APM_MID_ORDER;
     apm_hook_establish(APM_HOOK_RESUME , &scp->r_hook);
 #endif
+
+    at_shutdown(scshutdown, NULL, SHUTDOWN_PRE_SYNC);
 
     cdevsw_add(&cdev, &scdevsw, NULL);
 
@@ -2380,7 +2384,7 @@ scrn_timer(void *arg)
 
     /* should we stop the screen saver? */
     getmicrouptime(&tv);
-    if (panicstr)
+    if (panicstr || shutdown_in_progress)
 	scrn_time_stamp = tv;
     if (tv.tv_sec <= scrn_time_stamp.tv_sec + scrn_blank_time)
 	if (scrn_blanked > 0)
@@ -3421,6 +3425,16 @@ scinit(void)
      */
     toggle_splash_screen(cur_console);
 #endif
+}
+
+static void
+scshutdown(int howto, void *arg)
+{
+    getmicrouptime(&scrn_time_stamp);
+    if (!cold && cur_console->smode.mode == VT_AUTO 
+	&& console[0]->smode.mode == VT_AUTO)
+	switch_scr(cur_console, 0);
+    shutdown_in_progress = TRUE;
 }
 
 static void
@@ -5135,7 +5149,7 @@ load_palette(char *palette)
 static void
 do_bell(scr_stat *scp, int pitch, int duration)
 {
-    if (cold)
+    if (cold || shutdown_in_progress)
 	return;
 
     if (scp != cur_console && (flags & QUIET_BELL))
