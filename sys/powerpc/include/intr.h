@@ -69,7 +69,7 @@
  * the list.  The handler is called with its (single) argument.
  */
 struct intrhand {
-	int	(*ih_fun) __P((void *));
+	int	(*ih_fun)(void *);
 	void	*ih_arg;
 	u_long	ih_count;
 	struct	intrhand *ih_next;
@@ -78,14 +78,14 @@ struct intrhand {
 };
 #endif
 
-void	setsoftclock __P((void));
-void	clearsoftclock __P((void));
-void	setsoftnet   __P((void));
-void	clearsoftnet __P((void));
+void	setsoftclock(void);
+void	clearsoftclock(void);
+void	setsoftnet(void);
+void	clearsoftnet(void);
 
-void	do_pending_int __P((void));
+void	do_pending_int(void);
 
-static __inline void softintr __P((int));
+static __inline void softintr(int);
 
 extern u_int cpl, ipending, tickspending;
 extern int imask[];

@@ -59,7 +59,7 @@ extern char bootpath[];
 #define	CACHELINESIZE	32
 #endif
 
-extern void __syncicache __P((void *, int));
+extern void __syncicache(void *, int);
 
 /*
  * CTL_MACHDEP definitions.
@@ -91,7 +91,7 @@ get_cyclecount(void)
 
 #define	cpu_getstack(td)	((td)->td_frame->fixreg[1])
 
-void	savectx __P((struct pcb *));
+void	savectx(struct pcb *);
 void	fork_trampoline(void);
 
 #endif	/* _MACHINE_CPU_H_ */
