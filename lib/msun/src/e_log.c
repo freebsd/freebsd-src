@@ -91,9 +91,9 @@ static double zero   =  0.0;
 #endif
 
 #ifdef __STDC__
-	double __ieee754_log(double x)
+	double __generic___ieee754_log(double x)
 #else
-	double __ieee754_log(x)
+	double __generic___ieee754_log(x)
 	double x;
 #endif
 {

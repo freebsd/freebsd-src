@@ -71,9 +71,9 @@ qS3 = -6.88283971605453293030e-01, /* 0xBFE6066C, 0x1B8D0159 */
 qS4 =  7.70381505559019352791e-02; /* 0x3FB3B8C5, 0xB12E9282 */
 
 #ifdef __STDC__
-	double __ieee754_asin(double x)
+	double __generic___ieee754_asin(double x)
 #else
-	double __ieee754_asin(x)
+	double __generic___ieee754_asin(x)
 	double x;
 #endif
 {
