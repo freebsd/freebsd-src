@@ -278,6 +278,9 @@ Int_Open_Disk(const char *name)
 			case 0x0e:
 				i = Add_Chunk(d, off, len, n, fat, ty, 0, 0);
 				break;
+			case 0xef:	/* EFI */
+				i = Add_Chunk(d, off, len, n, efi, ty, 0, 0);
+				break;
 			default:
 				i = Add_Chunk(d, off, len, n, mbr, ty, 0, 0);
 				break;

@@ -259,6 +259,7 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 			subtype = 0xa5;
 			/* FALL THROUGH */
 		case fat:
+		case efi:
 		case mbr:
 			c1 = Find_Mother_Chunk(d->chunks, offset, end, whole);
 			break;
