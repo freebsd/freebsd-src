@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.60 1996/06/14 11:02:16 asami Exp $
+ *      $Id: scsiconf.c,v 1.61 1996/07/12 04:12:05 bde Exp $
  */
 
 #include "opt_scsi.h"
@@ -27,7 +27,6 @@
 #include <sys/stat.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
-#include <sys/devconf.h>
 #include <sys/conf.h>
 #ifdef PC98
 #include <sys/device.h>
@@ -409,25 +408,6 @@ static struct scsi_device probe_switch =
     "probe",
 };
 
-/*
- * XXX
- * This is BOGUS.
- * We do this because it was easier than adding the requisite information
- * to the scsi_link structure and modifying everything to use that.
- * Someday, we will do just that, and users will be able to nail down their
- * preferred SCSI ids.
- *
- */
-struct kern_devconf kdc_scbus0 = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"scbus", 0, MDDC_SCBUS,
-	0, 0, 0, 0,		/* no external data */
-	0,			/* no parent */
-	0,			/* no parentdata */
-	DC_BUSY,		/* busses are always busy */
-	"SCSI subsystem"
-};
-
 static int free_bus;			/* First bus not wired down */
 
 static struct scsi_device *device_list;
@@ -512,8 +492,6 @@ scsi_init(void)
 		done = 1;
 
 		scbusses = extend_new();
-
-		dev_attach(&kdc_scbus0);
 
 		/* First call all type initialization functions.
 		 */

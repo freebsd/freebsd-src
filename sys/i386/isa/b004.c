@@ -52,7 +52,6 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
-#include <sys/devconf.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
@@ -63,17 +62,6 @@
 
 #include <i386/isa/b004.h>
 #include <i386/isa/isa_device.h>
-
-static struct kern_devconf kdc_bqu[NBQU] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"bqu", 0, { MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* always start here */
-	"B004-compatible Transputer board",
-	DC_CLS_MISC
-} };
 
 #define IOCTL_OUT(arg, ret)             *(int*)arg = ret
 
@@ -455,7 +443,6 @@ bquopen(dev_t dev, int flags, int fmt, struct proc *p)
 	return EBUSY;
     }
     B004_F(dev_min) |= B004_BUSY;
-    kdc_bqu[dev_min].kdc_state = DC_BUSY;
     B004_TIMEOUT(dev_min) = 0;
     DEB(printf( "B004 opened, minor = %d.\n", dev_min );)
     return 0;
@@ -476,7 +463,6 @@ bquclose(dev_t dev, int flags, int fmt, struct proc *p)
 	return ENXIO;
     }
     B004_F(dev_min) &= ~B004_BUSY;
-    kdc_bqu[dev_min].kdc_state = DC_IDLE;
     DEB(printf("B004(%d) released.\n", dev_min );)
     return 0;
 }
@@ -542,25 +528,12 @@ bquioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 } /* bquioctl() */
 
 
-static inline void
-bqu_registerdev(struct isa_device *id)
-{
-	int unit = id->id_unit;
-
-	kdc_bqu[unit] = kdc_bqu[0]; /* XXX */ /* ??Eh?? */
-	kdc_bqu[unit].kdc_unit = unit;
-	kdc_bqu[unit].kdc_parentdata = id;
-	dev_attach(&kdc_bqu[unit]);
-}
-
 static int
 bquattach(struct isa_device *idp)
 {
 	int unit = idp->id_unit;
 	struct b004_struct *bp;
 	int	i;
-
-	kdc_bqu[unit].kdc_state = DC_IDLE;
 
 #ifdef DEVFS
 #define BQU_UID 66
@@ -619,10 +592,6 @@ bquprobe(struct isa_device *idp)
     if(dev_min >= NBQU) return (0);	/* No more descriptors */
     if ((idp->id_iobase < 0x100) || (idp->id_iobase >= 0x1000))
 	idp->id_iobase=0;		/* Dangerous isa addres ) */
-#ifndef DEV_LKM
-    bqu_registerdev(idp);
-#endif /* not DEV_LKM */
-
 
     for (test = 0; (test < B004_CHANCE); test++) {
 	if((idp->id_iobase==0)&&((!b004_base_addresses[test])||

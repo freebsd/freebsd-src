@@ -62,7 +62,6 @@
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
-#include <sys/devconf.h>
 
 #include <machine/clock.h>
 
@@ -71,17 +70,6 @@
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
-
-static struct kern_devconf kdc_wds[NWDS] = { {
-  0, 0, 0,
-  "wds", 0, {MDDT_ISA, 0, "bio"},
-  isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-  &kdc_isa0,
-  0,
-  DC_UNCONFIGURED,		/* state */
-  "Western Digital WD-7000 SCSI host adapter",
-  DC_CLS_MISC			/* class */
-} };
 
 static struct scsi_device wds_dev =
 {
@@ -262,12 +250,6 @@ wdsprobe(struct isa_device *dev)
 
   dev->id_unit = wdsunit;	/* XXX WRONG! */
   wds[wdsunit].addr = dev->id_iobase;
-
-  if(dev->id_unit)
-    kdc_wds[dev->id_unit] = kdc_wds[0];
-  kdc_wds[dev->id_unit].kdc_unit = dev->id_unit;
-  kdc_wds[dev->id_unit].kdc_parentdata = dev;
-  dev_attach(&kdc_wds[dev->id_unit]);
 
   if(wds_init(dev) != 0)
     return 0;
@@ -640,8 +622,6 @@ wdsattach(struct isa_device *dev)
   if(!scbus)
     return 0;
   scbus->adapter_link = &wds[unit].sc_link;
-
-  kdc_wds[unit].kdc_state = DC_BUSY;
 
   scsi_attachdevs(scbus);
 

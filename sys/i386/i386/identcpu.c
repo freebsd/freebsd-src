@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.3 1996/08/10 06:35:35 peter Exp $
+ *	$Id: identcpu.c,v 1.4 1996/08/10 08:04:24 peter Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,6 @@
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/devconf.h>
 
 #include <machine/cpu.h>
 #include <machine/reg.h>
@@ -51,7 +50,6 @@
 #include <machine/clock.h>
 #include <machine/specialreg.h>
 #include <machine/sysarch.h>
-#include <machine/devconf.h>
 #include <machine/md_var.h>
 
 /* XXX - should be in header file */
@@ -68,17 +66,6 @@ SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
 static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
-
-struct kern_devconf kdc_cpu0 = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"cpu", 0, { MDDT_CPU },
-	0, 0, 0, CPU_EXTERNALLEN,
-	0,			/* CPU has no parent */
-	0,			/* no parentdata */
-	DC_BUSY,		/* the CPU is always busy */
-	cpu_model,		/* no sense in duplication */
-	DC_CLS_CPU		/* class */
-};
 
 static struct cpu_nameclass i386_cpus[] = {
 	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */
@@ -273,7 +260,6 @@ identifycpu(void)
 	default:
 		break;
 	}
-	dev_attach(&kdc_cpu0);
 }
 
 /*

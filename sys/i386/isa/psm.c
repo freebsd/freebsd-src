@@ -55,7 +55,6 @@
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
-#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -140,27 +139,6 @@ static	struct	cdevsw psm_cdevsw =
 	  psmioctl,	nostop,		nullreset,	nodevtotty,
 	  psmselect,	nommap,		NULL,	"psm",	NULL,	-1 };
 
-static struct kern_devconf kdc_psm[NPSM] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"psm", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"PS/2 Mouse",
-	DC_CLS_MISC		/* class */
-} };
-
-static inline void
-psm_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_psm[id->id_unit] = kdc_psm[0];
-	kdc_psm[id->id_unit].kdc_unit = id->id_unit;
-	kdc_psm[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_psm[id->id_unit]);
-}
-
 static void
 psm_write_dev(int ioport, u_char value)
 {
@@ -184,8 +162,6 @@ psmprobe(struct isa_device *dvp)
 {
 	/* XXX: Needs a real probe routine. */
 	int ioport, c, unit;
-
-	psm_registerdev(dvp);
 
 	ioport=dvp->id_iobase;
 	unit=dvp->id_unit;
@@ -239,7 +215,6 @@ psmattach(struct isa_device *dvp)
 
 	/* Setup initial state */
 	sc->state = 0;
-	kdc_psm[unit].kdc_state = DC_IDLE;
 
 	/* Done */
 	return (0); /* XXX eh? usually 1 indicates success */
@@ -269,7 +244,6 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 		return (EBUSY);
 
 	/* Initialize state */
-	kdc_psm[unit].kdc_state = DC_BUSY;
 	sc->state |= PSM_OPEN;
 	sc->rsel.si_flags = 0;
 	sc->rsel.si_pid = 0;
@@ -333,7 +307,6 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 
 	/* Complete the close */
 	sc->state &= ~PSM_OPEN;
-	kdc_psm[unit].kdc_state = DC_IDLE;
 
 	/* close is almost always successful */
 	return (0);

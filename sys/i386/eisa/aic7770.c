@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.29 1996/05/30 07:18:52 gibbs Exp $
+ *	$Id: aic7770.c,v 1.30 1996/08/28 18:00:25 bde Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -39,9 +39,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if defined(__FreeBSD__)
-#include <sys/devconf.h>
-#endif
 #include <sys/kernel.h>
 
 #if defined(__NetBSD__)
@@ -95,18 +92,6 @@ static struct eisa_driver ahc_eisa_driver = {
 				      };
 
 DATA_SET (eisadriver_set, ahc_eisa_driver);
-
-static struct kern_devconf kdc_aic7770 = {
-	0, 0, 0,                /* filled in by dev_attach */
-	"ahc", 0, { MDDT_EISA, 0, "bio" },
-	eisa_generic_externalize, 0, 0, EISA_EXTERNALLEN,
-	&kdc_eisa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* always start out here */
-	NULL,
-	DC_CLS_MISC		/* host adapters aren't special */
-};
-
 
 static char	*aic7770_match __P((eisa_id_t type));
 
@@ -174,12 +159,7 @@ aic7770probe(void)
 				continue;
 		}
 		eisa_add_intr(e_dev, irq);
-		eisa_registerdev(e_dev, &ahc_eisa_driver, &kdc_aic7770);
-		if(e_dev->id == EISA_DEVICE_ID_ADAPTEC_284xB
-		   || e_dev->id == EISA_DEVICE_ID_ADAPTEC_284x) {
-			/* Our real parent is the isa bus.  Say so. */
-			e_dev->kdc->kdc_parent = &kdc_isa0;
-		}
+		eisa_registerdev(e_dev, &ahc_eisa_driver);
 		count++;
 	}
 	return count;
@@ -488,7 +468,6 @@ ahc_eisa_attach(parent, self, aux)
 		return -1;
 	}
 
-	e_dev->kdc->kdc_state = DC_BUSY; /* host adapters always busy */
 #elif defined(__NetBSD__)
 	intrstr = eisa_intr_string(ec, ih);
 	/*

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.71 1996/07/14 10:46:54 joerg Exp $
+ * $Id: st.c,v 1.72 1996/07/23 21:52:31 phk Exp $
  */
 
 /*
@@ -51,7 +51,6 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_tape.h>
 #include <scsi/scsiconf.h>
-#include <sys/devconf.h>
 
 
 
@@ -218,34 +217,6 @@ static struct scsi_device st_switch =
 			ST_FIXEDBLOCKS | ST_READONLY | \
 			ST_FM_WRITTEN | ST_2FM_AT_EOD | ST_PER_ACTION)
 
-static int
-st_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
-{
-	return scsi_externalize(SCSI_LINK(&st_switch, kdc->kdc_unit), req);
-}
-
-static struct kern_devconf kdc_st_template = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"st", 0, MDDC_SCSI,
-	st_externalize, 0, scsi_goaway, SCSI_EXTERNALLEN,
-	&kdc_scbus0,		/* XXX parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
-};
-
-static inline void
-st_registerdev(int unit)
-{
-	struct kern_devconf *kdc;
-
-	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
-	if(!kdc) return;
-	*kdc = kdc_st_template;
-	kdc->kdc_unit = unit;
-	kdc->kdc_description = st_switch.desc;
-	dev_attach(kdc);
-}
-
 /*
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver
@@ -295,7 +266,6 @@ stattach(struct scsi_link *sc_link)
 	 * Set up the buf queue for this device
 	 */
 	st->flags |= ST_INITIALIZED;
-	st_registerdev(unit);
 #ifdef	DEVFS
 	for(ii=0; ii<4; ii++) {
 		st->devfs_token.rst_[ii] = 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.3 1996/08/22 03:50:20 julian Exp $
+ * $Id: kern_shutdown.c,v 1.4 1996/08/26 21:47:56 julian Exp $
  */
 
 #include "opt_ddb.h"
@@ -53,7 +53,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/devconf.h>
 #include <sys/conf.h>
 #include <sys/sysproto.h>
 

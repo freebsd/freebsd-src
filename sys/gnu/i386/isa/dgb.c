@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.18 1996/06/12 04:59:14 gpalmer Exp $
+ *  dgb.c $Id: dgb.c,v 1.19 1996/06/18 01:21:40 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -40,7 +40,6 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -175,7 +174,6 @@ static void	dgbpoll		__P((void *unit_c));
 
 static	int	dgbattach	__P((struct isa_device *dev));
 static	int	dgbprobe	__P((struct isa_device *dev));
-static	void	dgbregisterdev	__P((struct isa_device *id));
 
 static void fepcmd(struct dgb_p *port, int cmd, int op1, int op2,
 	int ncmds, int bytecmd);
@@ -399,35 +397,6 @@ dgbprobe(dev)
 
 	return 4; /* we need I/O space of 4 ports */
 }
-
-static struct kern_devconf kdc_dgb[NDGB];
-static struct kern_devconf kdc_dgb_init =  {
-	0, 0, 0,		/* filled in by dev_attach */
-	"dgb", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,
-	"DigiBoard multiport card",
-	DC_CLS_SERIAL,
-};
-
-static void
-dgbregisterdev(id)
-	struct isa_device *id;
-{
-	int	unit;
-
-	unit = id->id_unit;
-	kdc_dgb[unit] = kdc_dgb_init;
-	kdc_dgb[unit].kdc_unit = unit;
-	kdc_dgb[unit].kdc_isa = id;
-
-	/* no ports are open yet */
-	kdc_dgb[unit].kdc_state = DC_IDLE;
-	dev_attach(&kdc_dgb[unit]);
-}
-
 
 static int
 dgbattach(dev)
@@ -871,8 +840,6 @@ load_fep:
 
 	hidewin(sc);
 
-	dgbregisterdev(dev);
-
 	/* register the polling function */
 	timeout(dgbpoll, (void *)unit, hz/25);
 
@@ -1040,8 +1007,6 @@ open_top:
 	 * the device is busy
 	 */
 
-	kdc_dgb[unit].kdc_state = DC_BUSY;
-	
 out:
 	splx(s);
 
@@ -1097,9 +1062,6 @@ dgbclose(dev, flag, mode, p)
 	for(i=0; i<sc->numports; i++)
 		if(sc->ports[i].used)
 			break;
-
-	if(i>= sc->numports)
-		kdc_dgb[unit].kdc_state = DC_IDLE;
 
 	splx(s);
 

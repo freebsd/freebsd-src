@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.16 1996/06/16 19:54:02 joerg Exp $
+ * $Id: scsi_driver.c,v 1.17 1996/07/14 10:46:50 joerg Exp $
  *
  */
 
@@ -46,7 +46,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/devconf.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
 
@@ -59,10 +58,8 @@
 				: (minor((DEV)) & ~SCSI_CONTROL_MASK)
 
 int
-scsi_goaway(struct kern_devconf *kdc, int force) /* XXX should do a lot more */
+scsi_goaway(int force) /* XXX should do a lot more */
 {
-	dev_detach(kdc);
-	FREE(kdc, M_TEMP);
 	return 0;
 }
 

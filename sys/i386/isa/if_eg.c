@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.16 1996/08/04 20:04:11 phk Exp $
+ * $Id: if_eg.c,v 1.17 1996/08/06 21:14:03 phk Exp $
  *
  * Support for 3Com 3c505 Etherlink+ card.
  */
@@ -47,7 +47,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -107,7 +106,6 @@ static struct eg_softc {
 	u_char  eg_incount;		/* Number of buffers currently used */
 	u_char  *eg_inbuf;		/* Incoming packet buffer */
 	u_char	*eg_outbuf;		/* Outgoing packet buffer */
-	struct	kern_devconf kdc;	/* kernel configuration database */
 } eg_softc[NEG];
 
 static int egprobe (struct isa_device *);
@@ -116,27 +114,6 @@ static int egattach (struct isa_device *);
 struct isa_driver egdriver = {
 	egprobe, egattach, "eg", 0
 };
-
-static struct kern_devconf kdc_eg_template = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"eg", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,
-	"",			/* description */
-	DC_CLS_NETIF		/* class */
-};
-static void
-eg_registerdev(struct isa_device *id, const char *descr)
-{
-	struct kern_devconf *kdc = &eg_softc[id->id_unit].kdc;
-	*kdc = kdc_eg_template;
-	kdc->kdc_unit = id->id_unit;
-	kdc->kdc_parentdata = id;
-	kdc->kdc_description = descr;
-	dev_attach(kdc);
-}
 
 static void egprintpcb __P((struct eg_softc *sc));
 static void egprintstat __P((int b));
@@ -394,8 +371,6 @@ egattach(struct isa_device *id)
 	    id->id_unit, sc->sc_arpcom.ac_enaddr, ":",
 	    sc->eg_rom_major, sc->eg_rom_minor, sc->eg_ram);
 
-	sc->kdc.kdc_description = "Ethernet adapter: 3Com 3C505";
-
 	sc->eg_pcb[0] = EG_CMD_SETEADDR; /* Set station address */
 	if (egwritePCB(sc) != 0) {
 		dprintf(("eg#: write error2\n"));
@@ -428,9 +403,6 @@ egattach(struct isa_device *id)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-	/* device attach does transition from UNCONFIGURED to IDLE state */
-	sc->kdc.kdc_state = DC_IDLE;
-	
 #if NBPFILTER > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif

@@ -43,7 +43,6 @@
 #include	<sys/ioctl.h>
 #include	<sys/uio.h>
 #include	<sys/malloc.h>
-#include	<sys/devconf.h>
 #include	<sys/errno.h>
 #ifdef DEVFS
 #include	<sys/devfsext.h>
@@ -115,42 +114,6 @@ static struct qcam_softc qcam_softc[NQCAM];
 
 #define	UNIT(dev)		minor(dev)
 
-static struct kern_devconf kdc_qcam_template = {
-	0, 0, 0,			/* filled in by dev_attach() */
-	"qcam",				/* kdc_name */
-	0, 				/* kdc_unit */
-	{ 				/* kdc_md */
-  	   MDDT_ISA,			/* mddc_devtype */
-	   0,				/* mddc_flags */
-	   "tty"			/* mddc_imask[4] */
-	},
-	isa_generic_externalize,	/* kdc_externalize */
-	0,				/* kdc_internalize */
-	0,				/* kdc_goaway */
-	ISA_EXTERNALLEN,		/* kdc_datalen */
-	&kdc_isa0,			/* kdc_parent */
-	0,				/* kdc_parentdata */
-	DC_UNCONFIGURED,		/* kdc_state */
-	"QuickCam video input", 	/* kdc_description */
-	DC_CLS_MISC			/* class */
-};
-
-static void
-qcam_registerdev (struct isa_device *id)
-{
-	struct kern_devconf *kdc = &qcam_softc[id->id_unit].kdc;
-
-	*kdc = kdc_qcam_template;		/* byte-copy template */
-
-	kdc->kdc_unit = id->id_unit;
-	kdc->kdc_parentdata = id;
-
-#ifndef	QCAM_MODULE			/* there's a bug in dev_attach
-					   when running from an LKM */
-	dev_attach(kdc);
-#endif
-}
-
 static int
 qcam_probe (struct isa_device *devp)
 {
@@ -176,7 +139,6 @@ qcam_probe (struct isa_device *devp)
 	    if (!qcam_detect(devp->id_iobase))
 		return 0;	/* failure */
 
-	qcam_registerdev(devp);
 	return 1;		/* found */
 }
 
@@ -187,7 +149,6 @@ qcam_attach (struct isa_device *devp)
 
 	qs->iobase	 = devp->id_iobase;
 	qs->unit	 = devp->id_unit;
-	qs->kdc.kdc_state = DC_IDLE;
 	qs->flags |= QC_ALIVE;
 
 	/* force unidirectional parallel port mode? */
@@ -228,7 +189,6 @@ qcam_open (dev_t dev, int flags, int fmt, struct proc *p)
 	qs->init_req = 1;	/* request initialization before scan */
 
 	qs->flags |= QC_OPEN;
-	qs->kdc.kdc_state = DC_BUSY;
 
 	return 0;
 }
@@ -245,7 +205,6 @@ qcam_close (dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	qs->flags &= ~QC_OPEN;
-	qs->kdc.kdc_state = DC_IDLE;
 	return 0;
 }
 

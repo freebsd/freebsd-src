@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.200 1996/09/01 02:16:07 nate Exp $
+ *	$Id: machdep.c,v 1.201 1996/09/03 18:50:36 nate Exp $
  */
 
 #include "npx.h"
@@ -64,7 +64,6 @@
 #include <sys/sysent.h>
 #include <sys/tty.h>
 #include <sys/sysctl.h>
-#include <sys/devconf.h>
 #include <sys/vmmeter.h>
 
 #ifdef SYSVSHM
@@ -106,7 +105,6 @@
 #include <machine/specialreg.h>
 #include <machine/sysarch.h>
 #include <machine/cons.h>
-#include <machine/devconf.h>
 #include <machine/bootinfo.h>
 #include <machine/md_var.h>
 #ifdef PERFMON
@@ -1534,10 +1532,4 @@ bounds_check_with_label(struct buf *bp, struct disklabel *lp, int wlabel)
 bad:
         bp->b_flags |= B_ERROR;
         return(-1);
-}
-
-int
-disk_externalize(int drive, struct sysctl_req *req)
-{
-	return SYSCTL_OUT(req, &drive, sizeof drive);
 }
