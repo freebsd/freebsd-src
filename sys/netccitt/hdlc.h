@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)hdlc.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: hdlc.h,v 1.2 1994/08/02 07:47:12 davidg Exp $
  */
+
+#ifndef _NETCCITT_HDLC_H_
+#define _NETCCITT_HDLC_H_
 
 #ifndef ORDER4
 #define FALSE   0
@@ -155,3 +158,5 @@ struct	Hdlc_frame {
 bool	range_check ();
 bool	valid_nr ();
 struct	mbuf *hd_remove ();
+
+#endif
