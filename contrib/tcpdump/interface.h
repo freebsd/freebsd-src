@@ -132,8 +132,16 @@ extern int snaplen;
 extern const u_char *packetp;
 extern const u_char *snapend;
 
-/* True if  "l" bytes of "var" were captured */
-#define TTEST2(var, l) ((u_char *)&(var) <= snapend - (l))
+/*
+ * True if  "l" bytes of "var" were captured.
+ *
+ * The "snapend - (l) <= snapend" checks to make sure "l" isn't so large
+ * that "snapend - (l)" underflows.
+ *
+ * The check is for <= rather than < because "l" might be 0.
+ */
+#define TTEST2(var, l) (snapend - (l) <= snapend && \
+			(const u_char *)&(var) <= snapend - (l))
 
 /* True if "var" was captured */
 #define TTEST(var) TTEST2(var, sizeof(var))
