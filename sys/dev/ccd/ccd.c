@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.8 1996/03/21 04:13:25 asami Exp $ */
+/* $Id: ccd.c,v 1.9 1996/03/26 02:29:11 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -226,7 +226,7 @@ struct	ccd_softc *ccd_softc;
 struct	ccddevice *ccddevs;
 int	numccd = 0;
 
-static ccd_devsw_installed = 0;
+static int ccd_devsw_installed = 0;
 
 /*
  * Called by main() during pseudo-device attachment.  All we need
