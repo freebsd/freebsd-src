@@ -452,7 +452,6 @@ extern u_long pgrphash;
 extern struct proc *curproc;		/* Current running proc. */
 extern struct proc *prevproc;		/* Previously running proc. */
 extern struct proc *idleproc;		/* Current idle proc. */
-extern u_int astpending;		/* software interrupt pending */
 extern int switchticks;			/* `ticks' at last context switch. */
 extern struct timeval switchtime;	/* Uptime at last context switch */
 #endif
