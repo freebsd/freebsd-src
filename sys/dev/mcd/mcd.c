@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.32 1994/11/14 19:32:11 ache Exp $
+ *	$Id: mcd.c,v 1.33 1994/12/21 15:12:41 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -668,10 +668,6 @@ mcd_probe(struct isa_device *dev)
 	outb(port+MCD_DATA, MCD_CMDGETSTAT);
 	if (!twiddle_thumbs(port, unit, 1000000, "getting status"))
 		return 0;	/* Timeout */
-	status = inb(port+MCD_DATA);
-	if (status != MCDCDABSENT && status != MCDCDPRESENT &&
-		status != MCDSOPEN && status != MCDSCLOSED)
-		return 0;	/* Not actually a Mitsumi drive here */
 	/* Get version information */
 	outb(port+MCD_DATA, MCD_CMDCONTINFO);
 	for (j = 0; j < 3; j++) {
@@ -679,6 +675,8 @@ mcd_probe(struct isa_device *dev)
 			return 0;
 		stbytes[j] = (inb(port+MCD_DATA) & 0xFF);
 	}
+	if (stbytes[1] == stbytes[2])
+		return 0;
 	printf("mcd%d: version information is %c %x\n", unit,
 		stbytes[1], stbytes[2]);
 	if (stbytes[2] >= 4) {
