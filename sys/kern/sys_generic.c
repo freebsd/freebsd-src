@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.10 1994/10/13 21:41:36 sos Exp $
+ * $Id: sys_generic.c,v 1.11 1995/04/13 15:27:51 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -539,11 +539,13 @@ select(p, uap, retval)
 	register struct select_args *uap;
 	int *retval;
 {
-	fd_set ibits[3] = {0,0,0}, obits[3] = {0,0,0};
+	fd_set ibits[3], obits[3];
 	struct timeval atv;
 	int s, ncoll, error = 0, timo;
 	u_int ni;
 
+	bzero((caddr_t)ibits, sizeof(ibits));
+	bzero((caddr_t)obits, sizeof(obits));
 	if (uap->nd > FD_SETSIZE)
 		return (EINVAL);
 	if (uap->nd > p->p_fd->fd_nfiles)
