@@ -514,19 +514,10 @@ _checkstate_need_ast:
 	.long	0
 _checkstate_pending_ast:
 	.long	0
-	.globl CNAME(forward_irq_misscnt)
-	.globl CNAME(forward_irq_toodeepcnt)
-	.globl CNAME(forward_irq_hitcnt)
 	.globl CNAME(resched_cpus)
 	.globl CNAME(want_resched_cnt)
 	.globl CNAME(cpuast_cnt)
 	.globl CNAME(cpustop_restartfunc)
-CNAME(forward_irq_misscnt):	
-	.long 0
-CNAME(forward_irq_hitcnt):	
-	.long 0
-CNAME(forward_irq_toodeepcnt):
-	.long 0
 CNAME(resched_cpus):
 	.long 0
 CNAME(want_resched_cnt):
