@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .\"
-.Dd November 8, 2002
+.Dd December 14, 2004
 .Dt FWE 4
 .Os
 .Sh NAME
@@ -37,13 +37,12 @@
 .Pp
 or
 .Pp
-.Cd "device fwe"
 .Cd "device firewire"
-.Cd "device fwohci"
+.Cd "device fwe"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides non-standard ethernet emulation over FireWire (IEEE 1394).
+driver provides non-standard Ethernet emulation over FireWire (IEEE 1394).
 .Pp
 .Xr firewire 4
 and
@@ -68,7 +67,7 @@ The
 device driver first appeared in
 .Fx 5.0 .
 .Sh BUGS
-This driver emulates ethernet in a very adhoc way and it does not reserve a
+This driver emulates Ethernet in a very adhoc way and it does not reserve a
 stream channel using an isochronous manager.
 Note that this driver uses a protocol which is very different from RFC 2734
 (IPv4 over IEEE 1394).
