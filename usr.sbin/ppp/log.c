@@ -194,6 +194,8 @@ static int
 syslogLevel(int lev)
 {
   switch (lev) {
+  case LogLOG:
+    return LOG_INFO;
   case LogDEBUG:
   case LogTIMER:
     return LOG_DEBUG;
@@ -210,6 +212,8 @@ syslogLevel(int lev)
 const char *
 log_Name(int id)
 {
+  if (id == LogLOG)
+    return "LOG";
   return id < LogMIN || id > LogMAX ? "Unknown" : LogNames[id - 1];
 }
 
@@ -261,6 +265,8 @@ log_DiscardAllLocal(u_long *mask)
 int
 log_IsKept(int id)
 {
+  if (id == LogLOG)
+    return LOG_KEPT_SYSLOG;
   if (id < LogMIN || id > LogMAX)
     return 0;
   if (id > LogMAXCONF)
