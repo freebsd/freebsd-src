@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.35 1996/06/12 14:20:16 jkh Exp $
+ * $Id: config.c,v 1.36 1996/06/13 17:36:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -587,8 +587,10 @@ configPCNFSD(dialogMenuItem *self)
 	variable_unset(VAR_PCNFSD);
     else {
 	ret = package_add("pcnfsd-93.02.16");
-	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
+	if (DITEM_STATUS(ret) == DITEM_SUCCESS) {
 	    variable_set2(VAR_PCNFSD, "YES");
+	    variable_set2("weak_mountd_authentication", "YES");
+	}
     }
     return ret;
 }
