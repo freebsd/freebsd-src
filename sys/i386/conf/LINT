@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.19 1996/06/23 23:24:27 peter Exp $
+#	$Id: LINT,v 1.184.4.20 1996/06/26 19:43:19 gpalmer Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -428,6 +428,8 @@ device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.0.5
 options		XSERVER			# include code for XFree86
 options		FAT_CURSOR		# start with block cursor
+# This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
+options		PCVT_SCANSET=2		# IBM keyboards are non-std
 
 # The syscons console driver (sco color console compatible) - default.
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
