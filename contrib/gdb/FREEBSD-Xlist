@@ -1,3 +1,13 @@
+*/install-sh
+*/install.sh
+*/ltconfig
+*/ltmain.sh
+*/missing
+*/mkinstalldirs
+*/move-if-change
+*/mpw-*-if-change
+*/symlink-tree
+*/ylwrap
 */bfd/*
 */config/*
 */etc/*
