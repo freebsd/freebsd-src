@@ -94,7 +94,7 @@ typedef enum {
 /* Host target Mode flags */
 	CAM_TERM_IO		= 0x20000000,/* Terminate I/O Message sup.    */
 	CAM_DISCONNECT		= 0x40000000,/* Disconnects are mandatory     */
-	CAM_SEND_STATUS		= 0x80000000,/* Send status after data phase  */
+	CAM_SEND_STATUS		= 0x80000000 /* Send status after data phase  */
 } ccb_flags;
 
 /* XPT Opcodes for xpt_action */
@@ -480,7 +480,7 @@ typedef enum {
 	PI_SDTR_ABLE	= 0x10,	/* Supports SDTR message */
 	PI_LINKED_CDB	= 0x08, /* Supports linked CDBs */
 	PI_TAG_ABLE	= 0x02,	/* Supports tag queue messages */
-	PI_SOFT_RST	= 0x01,	/* Supports soft reset alternative */
+	PI_SOFT_RST	= 0x01	/* Supports soft reset alternative */
 } pi_inqflag;
 
 typedef enum {
@@ -489,14 +489,14 @@ typedef enum {
 	PIT_DISCONNECT	= 0x20,	/* Disconnects supported in target mode */
 	PIT_TERM_IO	= 0x10,	/* Terminate I/O message supported in TM */
 	PIT_GRP_6	= 0x08,	/* Group 6 commands supported */
-	PIT_GRP_7	= 0x04,	/* Group 7 commands supported */
+	PIT_GRP_7	= 0x04	/* Group 7 commands supported */
 } pi_tmflag;
 
 typedef enum {
 	PIM_SCANHILO	= 0x80,	/* Bus scans from high ID to low ID */
 	PIM_NOREMOVE	= 0x40,	/* Removeable devices not included in scan */
 	PIM_NOINITIATOR	= 0x20,	/* Initiator role not supported. */
-	PIM_NOBUSRESET  = 0x10, /* User has disabled initial BUS RESET */
+	PIM_NOBUSRESET  = 0x10  /* User has disabled initial BUS RESET */
 } pi_miscflag;
 
 /* Path Inquiry CCB */
@@ -739,7 +739,7 @@ typedef enum {
 	EAD_VUNIQUE,	/* Engine algorithm ID: vendor unique */
 	EAD_LZ1V1,	/* Engine algorithm ID: LZ1 var.1 */
 	EAD_LZ2V1,	/* Engine algorithm ID: LZ2 var.1 */
-	EAD_LZ2V2,	/* Engine algorithm ID: LZ2 var.2 */
+	EAD_LZ2V2	/* Engine algorithm ID: LZ2 var.2 */
 } ei_algo;
 
 struct ccb_eng_inq {
