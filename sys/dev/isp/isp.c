@@ -805,9 +805,8 @@ isp_scsi_init(isp)
 	 *
 	 * Ultra2 F/W always has had fast posting (and LVD transitions)
 	 *
-	 * Ultra and older (i.e., SBus) cards may not. Assume SBus cards
-	 * do not, and only guess that 4.55.0 <= x < 5.0.0 (initiator
-	 * only) and x >= 7.55 (initiator/target) has fast posting.
+	 * Ultra and older (i.e., SBus) cards may not. It's just safer
+	 * to assume not for them.
 	 */
 
 	mbs.param[0] = MBOX_SET_FW_FEATURES;
@@ -816,13 +815,6 @@ isp_scsi_init(isp)
 		mbs.param[1] |= FW_FEATURE_LVD_NOTIFY;
 	if (IS_ULTRA2(isp) || IS_1240(isp))
 		mbs.param[1] |= FW_FEATURE_FAST_POST;
-#ifndef	ISP_NO_FASTPOST_SCSI
-	else if ((ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(4, 55, 0) &&
-	    (ISP_FW_REVX(isp->isp_fwrev) < ISP_FW_REV(5, 0, 0))) ||
-	    (ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(7, 55, 0))) {
-		mbs.param[1] |= FW_FEATURE_FAST_POST;
-	}
-#endif
 	if (mbs.param[1] != 0) {
 		u_int16_t sfeat = mbs.param[1];
 		isp_mboxcmd(isp, &mbs);
@@ -1878,13 +1870,15 @@ ispscsicmd(xs)
 	}
 
 	/*
-	 * We *could* do the different sequence type that has close
-	 * to the whole Queue Entry for the command...
+	 * Check command CDB length, etc.. We really are limited to 16 bytes
+	 * for Fibre Channel, but can do up to 44 bytes in parallel SCSI,
+	 * but probably only if we're running fairly new firmware (we'll
+	 * let the old f/w choke on an extended command queue entry).
 	 */
 
-	if (XS_CDBLEN(xs) > (IS_FC(isp) ? 16 : 12) || XS_CDBLEN(xs) == 0) {
+	if (XS_CDBLEN(xs) > (IS_FC(isp)? 16 : 44) || XS_CDBLEN(xs) == 0) {
 		PRINTF("%s: unsupported cdb length (%d, CDB[0]=0x%x)\n",
-		    isp->isp_name, XS_CDBLEN(xs), XS_CDBP(xs)[0]);
+		    isp->isp_name, XS_CDBLEN(xs), XS_CDBP(xs)[0] & 0xff);
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_COMPLETE);
 	}
@@ -2034,7 +2028,10 @@ ispscsicmd(xs)
 	if (IS_FC(isp)) {
 		reqp->req_header.rqs_entry_type = RQSTYPE_T2RQS;
 	} else {
-		reqp->req_header.rqs_entry_type = RQSTYPE_REQUEST;
+		if (XS_CDBLEN(xs) > 12)
+			reqp->req_header.rqs_entry_type = RQSTYPE_CMDONLY;
+		else
+			reqp->req_header.rqs_entry_type = RQSTYPE_REQUEST;
 	}
 	reqp->req_header.rqs_flags = 0;
 	reqp->req_header.rqs_seqno = 0;
