@@ -72,10 +72,29 @@ such a function would not restart after signals, but would not interfere
 with other uses of
 .Xr setitimer 2 .
 .Sh RETURN VALUES
+The
+.Fn sleep
+function returns the number of seconds remaining to complete the operation. If
+sleep is interrupted or cannot allocate a timer it may will return the value
+needed to be passed to a subsequent sleep to complete the necessary delay.
+.Fn sleep
+repeatedly until it returns zero may busy-wait until a timer
+is available.
 .Sh SEE ALSO
 .Xr setitimer 2 ,
 .Xr sigpause 2 ,
 .Xr usleep 3
+.Sh CAVEAT
+In practice the FreeBSD implementation will not be interrupted: it will
+always return the original argument or zero. Code that depends on
+sleep being interrupted (using it as a timed pause, for example) needs
+to be recoded to use
+.Xr select 2
+or some other delay mechanism. Code that
+calls
+.Fn sleep
+repeatedly until it returns zero may busy-wait until a timer
+is available.
 .Sh HISTORY
 A
 .Fn sleep
