@@ -642,7 +642,7 @@ exec_map_first_page(imgp)
 				vm_page_free(ma[0]);
 				vm_page_unlock_queues();
 			}
-			return EIO;
+			return (EIO);
 		}
 	}
 	vm_page_lock_queues();
@@ -653,7 +653,7 @@ exec_map_first_page(imgp)
 	pmap_qenter((vm_offset_t)imgp->image_header, ma, 1);
 	imgp->firstpage = ma[0];
 
-	return 0;
+	return (0);
 }
 
 void
@@ -744,7 +744,7 @@ exec_new_vmspace(imgp, minuser, maxuser, stack_addr)
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
 	vmspace->vm_maxsaddr = (char *)USRSTACK - maxssiz;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -781,7 +781,7 @@ exec_extract_strings(imgp)
 				if ((error = copyinstr(argp, imgp->stringp,
 				    imgp->stringspace, &length))) {
 					if (error == ENAMETOOLONG)
-						return(E2BIG);
+						return (E2BIG);
 					return (error);
 				}
 				imgp->stringspace -= length;
@@ -806,7 +806,7 @@ exec_extract_strings(imgp)
 			if ((error = copyinstr(envp, imgp->stringp,
 			    imgp->stringspace, &length))) {
 				if (error == ENAMETOOLONG)
-					return(E2BIG);
+					return (E2BIG);
 				return (error);
 			}
 			imgp->stringspace -= length;
@@ -1012,7 +1012,7 @@ exec_register(execsw_arg)
 			count++;
 	newexecsw = malloc(count * sizeof(*es), M_TEMP, M_WAITOK);
 	if (newexecsw == NULL)
-		return ENOMEM;
+		return (ENOMEM);
 	xs = newexecsw;
 	if (execsw)
 		for (es = execsw; *es; es++)
@@ -1022,7 +1022,7 @@ exec_register(execsw_arg)
 	if (execsw)
 		free(execsw, M_TEMP);
 	execsw = newexecsw;
-	return 0;
+	return (0);
 }
 
 int
@@ -1040,13 +1040,13 @@ exec_unregister(execsw_arg)
 			break;
 	}
 	if (*es == NULL)
-		return ENOENT;
+		return (ENOENT);
 	for (es = execsw; *es; es++)
 		if (*es != execsw_arg)
 			count++;
 	newexecsw = malloc(count * sizeof(*es), M_TEMP, M_WAITOK);
 	if (newexecsw == NULL)
-		return ENOMEM;
+		return (ENOMEM);
 	xs = newexecsw;
 	for (es = execsw; *es; es++)
 		if (*es != execsw_arg)
@@ -1055,7 +1055,7 @@ exec_unregister(execsw_arg)
 	if (execsw)
 		free(execsw, M_TEMP);
 	execsw = newexecsw;
-	return 0;
+	return (0);
 }
 
 int
@@ -1092,7 +1092,7 @@ rm_at_exec(function)
 		if (ep->function == function) {
 			TAILQ_REMOVE(&exec_list, ep, next);
 			free(ep, M_ATEXEC);
-			return(1);
+			return (1);
 		}
 	}	
 	return (0);

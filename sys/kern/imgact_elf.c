@@ -100,8 +100,8 @@ __elfN(insert_brand_entry)(Elf_Brandinfo *entry)
 		}
 	}
 	if (i == MAX_BRANDS)
-		return -1;
-	return 0;
+		return (-1);
+	return (0);
 }
 
 int
@@ -116,8 +116,8 @@ __elfN(remove_brand_entry)(Elf_Brandinfo *entry)
 		}
 	}
 	if (i == MAX_BRANDS)
-		return -1;
-	return 0;
+		return (-1);
+	return (0);
 }
 
 int
@@ -147,7 +147,7 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 	    hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
 	    hdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
 	    hdr->e_ident[EI_VERSION] != EV_CURRENT)
-		return ENOEXEC;
+		return (ENOEXEC);
 
 	/*
 	 * Make sure we have at least one brand for this machine.
@@ -158,12 +158,12 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 			break;
 	}
 	if (i == MAX_BRANDS)
-		return ENOEXEC;
+		return (ENOEXEC);
 
 	if (hdr->e_version != ELF_TARG_VER)
-		return ENOEXEC;
+		return (ENOEXEC);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -199,18 +199,18 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 				 MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL);
 		if (rv != KERN_SUCCESS) {
 			vm_object_deallocate(object);
-			return rv;
+			return (rv);
 		}
 
 		off = offset - trunc_page(offset);
 		error = copyout((caddr_t)data_buf+off, (caddr_t)start, end - start);
 		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
 		if (error) {
-			return KERN_FAILURE;
+			return (KERN_FAILURE);
 		}
 	}
 
-	return KERN_SUCCESS;
+	return (KERN_SUCCESS);
 }
 
 static int
@@ -224,7 +224,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		rv = __elfN(map_partial)(map, object, offset,
 				       start, round_page(start), prot, max);
 		if (rv)
-			return rv;
+			return (rv);
 		offset += round_page(start) - start;
 		start = round_page(start);
 	}
@@ -233,7 +233,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 				       offset + trunc_page(end) - start,
 				       trunc_page(end), end, prot, max);
 		if (rv)
-			return rv;
+			return (rv);
 		end = trunc_page(end);
 	}
 	if (end > start) {
@@ -250,7 +250,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 					 &start, end - start,
 					 FALSE, prot, max, 0);
 			if (rv)
-				return rv;
+				return (rv);
 			while (start < end) {
 				vm_object_reference(object);
 				rv = vm_map_find(exec_map,
@@ -265,7 +265,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 						  | MAP_PREFAULT_PARTIAL));
 				if (rv != KERN_SUCCESS) {
 					vm_object_deallocate(object);
-					return rv;
+					return (rv);
 				}
 				off = offset - trunc_page(offset);
 				sz = end - start;
@@ -276,7 +276,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 				vm_map_remove(exec_map, data_buf,
 					      data_buf + 2*PAGE_SIZE);
 				if (error) {
-					return KERN_FAILURE;
+					return (KERN_FAILURE);
 				}
 				start += sz;
 			}
@@ -287,9 +287,9 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 					    prot, max, cow);
 			vm_map_unlock(map);
 		}
-		return rv;
+		return (rv);
 	} else {
-		return KERN_SUCCESS;
+		return (KERN_SUCCESS);
 	}
 }
 
@@ -354,12 +354,12 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 				      MAP_COPY_ON_WRITE | MAP_PREFAULT);
 		if (rv != KERN_SUCCESS) {
 			vm_object_deallocate(object);
-			return EINVAL;
+			return (EINVAL);
 		}
 
 		/* we can stop now if we've covered it all */
 		if (memsz == filsz) {
-			return 0;
+			return (0);
 		}
 	}
 
@@ -380,7 +380,7 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 			map_addr, map_addr + map_len,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
-			return EINVAL;
+			return (EINVAL);
 		}
 	}
 
@@ -398,7 +398,7 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 				 MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL);
 		if (rv != KERN_SUCCESS) {
 			vm_object_deallocate(object);
-			return EINVAL;
+			return (EINVAL);
 		}
 
 		/* send the page fragment to user space */
@@ -419,7 +419,7 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	vm_map_protect(&vmspace->vm_map, trunc_page(map_addr),
 	    round_page(map_addr + map_len),  prot, FALSE);
 
-	return error;
+	return (error);
 }
 
 /*
@@ -578,7 +578,7 @@ fail:
 
 	free(tempdata, M_TEMP);
 
-	return error;
+	return (error);
 }
 
 extern int fallback_elf_brand;
@@ -607,7 +607,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * Do we have a valid ELF header ?
 	 */
 	if (__elfN(check_header)(hdr) != 0 || hdr->e_type != ET_EXEC)
-		return -1;
+		return (-1);
 
 	/*
 	 * From here on down, we return an errno, not -1, as we've
@@ -617,7 +617,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if ((hdr->e_phoff > PAGE_SIZE) ||
 	    (hdr->e_phoff + hdr->e_phentsize * hdr->e_phnum) > PAGE_SIZE) {
 		/* Only support headers in first page for now */
-		return ENOEXEC;
+		return (ENOEXEC);
 	}
 	phdr = (const Elf_Phdr*)(imgp->image_header + hdr->e_phoff);
 
@@ -839,7 +839,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 fail:
 	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
-	return error;
+	return (error);
 }
 
 #if __ELF_WORD_SIZE == 32
@@ -881,7 +881,7 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	base--;
 	suword(base, (long) imgp->argc);
 	*stack_base = (register_t *)base;
-	return 0;
+	return (0);
 }
 
 /*
@@ -951,7 +951,7 @@ __elfN(coredump)(td, vp, limit)
 	 */
 	hdr = malloc(hdrsize, M_TEMP, M_WAITOK);
 	if (hdr == NULL) {
-		return EINVAL;
+		return (EINVAL);
 	}
 	error = __elfN(corehdr)(td, vp, cred, seginfo.count, hdr, hdrsize);
 
@@ -977,7 +977,7 @@ __elfN(coredump)(td, vp, limit)
 	}
 	free(hdr, M_TEMP);
 
-	return error;
+	return (error);
 }
 
 /*
@@ -1131,9 +1131,9 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 	free(tempdata, M_TEMP);
 
 	/* Write it to the core file. */
-	return vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
+	return (vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
 	    UIO_SYSSPACE, IO_UNIT | IO_DIRECT, cred, NOCRED, NULL,
-	    td); /* XXXKSE */
+	    td)); /* XXXKSE */
 }
 
 static void
