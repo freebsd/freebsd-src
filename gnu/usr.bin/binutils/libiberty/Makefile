@@ -2,14 +2,6 @@
 
 .include "../Makefile.inc0"
 
-# Get __FreeBSD_version
-.if exists(/sbin/sysctl)
-SYSCTL=	/sbin/sysctl
-.else
-SYSCTL=	/usr/sbin/sysctl
-.endif
-OSVERSION!=	${SYSCTL} -n kern.osreldate
-
 .PATH: ${SRCDIR}/libiberty
 
 LIB=	iberty
@@ -18,7 +10,8 @@ SRCS=	argv.c choose-temp.c concat.c cp-demangle.c cplus-dem.c \
 	hex.c floatformat.c lbasename.c objalloc.c obstack.c safe-ctype.c \
 	xatexit.c xexit.c xmalloc.c \
 	xstrdup.c xstrerror.c
-.if ${OSVERSION} < 420000
+LIBC_BASENAME!=	ar tv /usr/lib/libc.a | grep basename
+.if ${LIBC_BASENAME} == ""
 SRCS+=	basename.c
 .endif
 CFLAGS+=	-DHAVE_CONFIG_H
