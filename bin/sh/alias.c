@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: alias.c,v 1.7 1997/02/22 13:58:20 peter Exp $
  */
 
 #ifndef lint
@@ -251,7 +251,7 @@ unaliascmd(argc, argv)
 
 STATIC struct alias **
 hashalias(p)
-	register char *p;
+	char *p;
 	{
 	unsigned int hashval;
 

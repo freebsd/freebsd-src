@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mail.c,v 1.6 1997/02/22 13:58:31 peter Exp $
  */
 
 #ifndef lint
@@ -72,10 +72,10 @@ void
 chkmail(silent)
 	int silent;
 {
-	register int i;
+	int i;
 	char *mpath;
 	char *p;
-	register char *q;
+	char *q;
 	struct stackmark smark;
 	struct stat statb;
 
