@@ -202,6 +202,24 @@ This is adjustable through the sysctl setting:
 and
 .Sy net.inet.ip.portrange.lowlast .
 .El
+.Pp
+The range of privileged ports which only may be opened by
+root-owned processes may be modified by the
+.Sy net.inet.ip.portrange.reservedlow
+and
+.Sy net.inet.ip.portrange.reservedhigh
+sysctl settings.
+The values default to the traditional range,
+0 through
+.Dv IPPORT_RESERVED - 1
+(0 through 1023), respectively.
+Note that these settings do not affect and are not accounted for in the
+use or calculation of the other
+.Sy net.inet.ip.portrange
+values above.
+Changing these values departs from Unix tradition and has security
+concequences that the administrator should carefully evaluate before
+modifying these settings.
 .Ss "Multicast Options"
 .Pp
 .Tn IP
