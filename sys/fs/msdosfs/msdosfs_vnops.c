@@ -74,6 +74,8 @@
 #include <msdosfs/msdosfsmount.h>
 #include <msdosfs/fat.h>
 
+#define	DOS_FILESIZE_MAX	0xffffffff
+
 /*
  * Prototypes for MSDOSFS vnode operations
  */
@@ -545,12 +547,12 @@ msdosfs_read(ap)
 	} */ *ap;
 {
 	int error = 0;
-	off_t diff;
 	int blsize;
 	int isadir;
 	int orig_resid;
-	long n;
-	long on;
+	u_int n;
+	u_long diff;
+	u_long on;
 	daddr_t lbn;
 	daddr_t rablock;
 	int rasize;
@@ -564,6 +566,8 @@ msdosfs_read(ap)
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 
+	if (uio->uio_offset > DOS_FILESIZE_MAX)
+                return (EFBIG);
 	/*
 	 * If they didn't ask for any data, then we are done.
 	 */
@@ -578,41 +582,42 @@ msdosfs_read(ap)
 		if (uio->uio_offset >= dep->de_FileSize)
 			break;
 		lbn = de_cluster(pmp, uio->uio_offset);
-		on = uio->uio_offset & pmp->pm_crbomask;
-		n = min((u_long) (pmp->pm_bpcluster - on), uio->uio_resid);
-		diff = dep->de_FileSize - uio->uio_offset;
-		if (diff < n)
-			n = diff;
-		/* convert cluster # to block # if a directory */
-		if (isadir) {
-			error = pcbmap(dep, lbn, &lbn, 0, &blsize);
-			if (error)
-				break;
-		}
 		/*
 		 * If we are operating on a directory file then be sure to
 		 * do i/o with the vnode for the filesystem instead of the
 		 * vnode for the directory.
 		 */
 		if (isadir) {
+			/* convert cluster # to block # */
+			error = pcbmap(dep, lbn, &lbn, 0, &blsize);
+			if (error)
+				break;
 			error = bread(pmp->pm_devvp, lbn, blsize, NOCRED, &bp);
 		} else {
+			blsize = pmp->pm_bpcluster;
 			rablock = lbn + 1;
 			if (seqcount > 1 &&
 			    de_cn2off(pmp, rablock) < dep->de_FileSize) {
 				rasize = pmp->pm_bpcluster;
-				error = breadn(vp, lbn, pmp->pm_bpcluster,
+				error = breadn(vp, lbn, blsize,
 				    &rablock, &rasize, 1, NOCRED, &bp); 
 			} else {
-				error = bread(vp, lbn, pmp->pm_bpcluster, 
-				    NOCRED, &bp);
+				error = bread(vp, lbn, blsize, NOCRED, &bp);
 			}
 		}
-		n = min(n, pmp->pm_bpcluster - bp->b_resid);
 		if (error) {
 			brelse(bp);
 			break;
 		}
+		on = uio->uio_offset & pmp->pm_crbomask;
+		diff = pmp->pm_bpcluster - on;
+		n = diff > uio->uio_resid ? uio->uio_resid : diff;
+		diff = dep->de_FileSize - uio->uio_offset;
+		if (diff < n)
+			n = diff;
+		diff = blsize - bp->b_resid;
+		if (diff < n)
+			n = diff;
 		error = uiomove(bp->b_data + on, (int) n, uio);
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
@@ -675,6 +680,9 @@ msdosfs_write(ap)
 
 	if (uio->uio_resid == 0)
 		return (0);
+
+	if (uio->uio_offset + uio->uio_resid > DOS_FILESIZE_MAX)
+                return (EFBIG);
 
 	/*
 	 * If they've exceeded their filesize limit, tell them about it.
