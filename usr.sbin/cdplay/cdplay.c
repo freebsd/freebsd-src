@@ -156,6 +156,7 @@ stop ()
 int
 eject ()
 {
+    (void) ioctl (cd_fd, CDIOCALLOW);
     return ioctl (cd_fd, CDIOCEJECT);
 }
 int
