@@ -361,6 +361,7 @@ MLINKS+=bfe.4 if_bfe.4
 MLINKS+=bge.4 if_bge.4
 MLINKS+=bktr.4 brooktree.4
 MLINKS+=cnw.4 if_cnw.4
+MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=dc.4 if_dc.4
 MLINKS+=de.4 if_de.4
