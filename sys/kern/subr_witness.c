@@ -531,7 +531,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		if (w->w_same_squawked || dup_ok(w))
 			goto out;
 		w->w_same_squawked = 1;
-		printf("acquring duplicate lock of same type: \"%s\"\n", 
+		printf("acquiring duplicate lock of same type: \"%s\"\n", 
 			lock->lo_name);
 		printf(" 1st @ %s:%d\n", w->w_file, w->w_line);
 		printf(" 2nd @ %s:%d\n", file, line);
