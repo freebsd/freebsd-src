@@ -36,6 +36,10 @@
 #define	PCI_GETBUSDEVINFO(sc) (sc)->lmc_pci_busno = (config_id->bus), \
 			      (sc)->lmc_pci_devno = (config_id->slot) 
 
+#ifndef COMPAT_OLDPCI
+#error "The lmc device requires the old pci compatibility shims"
+#endif
+
 #if 0
 static void lmc_shutdown(int howto, void * arg);
 #endif

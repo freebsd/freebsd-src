@@ -166,7 +166,9 @@ struct fore_unit {
 	Fore_reg	*fu_ctlreg;	/* Device control register */
 	Fore_reg	*fu_imask;	/* Interrupt mask register */
 	Fore_reg	*fu_psr;	/* PCI specific register */
+#ifdef COMPAT_OLDPCI
 	pcici_t		fu_pcitag;	/* PCI tag */
+#endif
 	Fore_mem	*fu_ram;	/* Device RAM */
 	u_int		fu_ramsize;	/* Size of device RAM */
 	Mon960		*fu_mon;	/* Monitor program interface */

@@ -35,6 +35,10 @@
  *
  */
 
+#ifdef COMPILING_LINT
+#warning "The eni driver is broken and is not compiled with LINT"
+#else
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -60,6 +64,10 @@
 
 #ifndef	lint
 __RCSID("@(#) $FreeBSD$");
+#endif
+
+#ifndef COMPAT_OLDPCI
+#error "The eni device requires the old pci compatibility shims"
 #endif
 
 /*
@@ -678,3 +686,4 @@ eni_pci_shutdown ( eup, howto )
 
 }
 #endif	/* BSD < 199506 */
+#endif
