@@ -1,4 +1,4 @@
-.\" $Id$
+.\" $Id: at.man,v 1.6 1997/02/22 19:54:05 peter Exp $
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os "FreeBSD 2.1"
@@ -263,6 +263,8 @@ resources.
 If this is the case for your site, you might want to consider another
 batch system, such as
 .Nm nqs .
-.Sh AUTHOR
-At was mostly written by Thomas Koenig, ig25@rz.uni-karlsruhe.de.
-The time parsing routines are by David Parsons, orc@pell.chi.il.us.
+.Sh AUTHORS
+At was mostly written by
+.An Thomas Koenig Aq ig25@rz.uni-karlsruhe.de .
+The time parsing routines are by
+.An David Parsons Aq orc@pell.chi.il.us .
