@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rcp.c,v 1.15 1997/09/28 08:32:59 markm Exp $
+ *	$Id: rcp.c,v 1.16 1997/12/07 20:49:39 wosch Exp $
  */
 
 #ifndef lint
@@ -344,7 +344,7 @@ tolocal(argc, argv)
 			if (!(bp = malloc(len)))
 				err(1, NULL);
 			(void)snprintf(bp, len, "exec %s%s%s %s %s", _PATH_CP,
-			    iamrecursive ? " -R" : "", pflag ? " -p" : "",
+			    iamrecursive ? " -PR" : "", pflag ? " -p" : "",
 			    argv[i], argv[argc - 1]);
 			if (susystem(bp, userid))
 				++errs;
