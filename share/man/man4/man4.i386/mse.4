@@ -1,0 +1,33 @@
+.\" Copyright 1992 by the University of Guelph
+.\"
+.\" Permission to use, copy and modify this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation.
+.\" University of Guelph makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.Dd Aug 16, 1992
+.Dt MSE 4
+.Os
+.Sh NAME
+.Nm mse
+.Nd bus mouse driver
+.Sh DESCRIPTION
+This is a simple driver for the Logitech and ATI Inport bus mouse interfaces
+designed to be used with the X386 X11R5 X server. The minor device number is
+made up of:
+.Bd -literal -offset indent
+minor = ('unit' << 1) | 'non-blocking'
+.Ed
+.Pp
+where 'unit' is the device number (usually 0) and the 'non-blocking' bit
+is set to indicate "don't block waiting for mouse input, return 0 instead".
+The 'non-blocking' bit should be set for X386, therefore the minor device
+number usually used for X386 is 1.
+.Sh Caveats
+Most bus mice generate N interrupts/second when enabled, whether or not the
+mouse state is changing.
