@@ -1,10 +1,13 @@
 #	@(#)slip.hosts	8.1 (Berkeley) 6/6/93
 #
-# login		local-addr	remote-addr	mask		option(s)
-#
 # option(s) consist of the following: (see the sliplogin man page)
-#   (normal,compress,noicmp,autocomp)
+#   normal - no header compression
+#   compress - compress headers
+#   autocomp - compress heades if remote end allows it
+#   noicmp - disable ICMP packets (such as 'ping' or 'traceroute' packets)
 # 
+#login		local-address	remote-address	netmask		option(s)
+#------		----------	-----------	-------		---------
 Schez		vangogh		chez		0xffffff00	compress
 Sjun		vangogh		128.32.130.36	0xffffff00	normal
 Sleconte	vangogh		leconte		0xffffff00	compress
