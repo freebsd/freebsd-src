@@ -499,6 +499,10 @@ loop:
 	return (0);
 }
 
+#include <sys/sysctl.h>
+int bigcgs = 0;
+SYSCTL_INT(_debug, OID_AUTO, bigcgs, CTLFLAG_RW, &bigcgs, 0, "");
+
 /*
  * Common code for mount and mountroot
  */
@@ -701,6 +705,11 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	maxfilesize = (u_int64_t)0x40000000 * fs->fs_bsize - 1;	/* XXX */
 	if (fs->fs_maxfilesize > maxfilesize)			/* XXX */
 		fs->fs_maxfilesize = maxfilesize;		/* XXX */
+	if (bigcgs) {
+		if (fs->fs_sparecon[0] <= 0)
+			fs->fs_sparecon[0] = fs->fs_cgsize;
+		fs->fs_cgsize = fs->fs_bsize;
+	}
 	if (ronly == 0) {
 		if ((fs->fs_flags & FS_DOSOFTDEP) &&
 		    (error = softdep_mount(devvp, mp, fs, cred)) != 0) {
@@ -806,6 +815,10 @@ ffs_unmount(mp, mntflags, p)
 			return (error);
 	}
 	fs = ump->um_fs;
+	if (bigcgs) {
+		fs->fs_cgsize = fs->fs_sparecon[0];
+		fs->fs_sparecon[0] = 0;
+	}
 	if (fs->fs_ronly == 0) {
 		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT);

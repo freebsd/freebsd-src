@@ -604,6 +604,10 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
  * or in biodone() since the I/O is synchronous.  We put it
  * here.
  */
+
+int dobkgrdwrite = 1;
+SYSCTL_INT(_debug, OID_AUTO, dobkgrdwrite, CTLFLAG_RW, &dobkgrdwrite, 0, "");
+
 int
 bwrite(struct buf * bp)
 {
@@ -648,7 +652,7 @@ bwrite(struct buf * bp)
 	 * This optimization eats a lot of memory.  If we have a page
 	 * or buffer shortfall we can't do it.
 	 */
-	if ((bp->b_xflags & BX_BKGRDWRITE) && 
+	if (dobkgrdwrite && (bp->b_xflags & BX_BKGRDWRITE) && 
 	    (bp->b_flags & B_ASYNC) &&
 	    !vm_page_count_severe() &&
 	    !buf_dirty_count_severe()) {
