@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.40 1998/08/18 02:10:05 jb Exp $";
+	"$Id: inetd.c,v 1.41 1998/11/04 19:39:46 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -431,20 +431,42 @@ main(argc, argv, envp)
 		(void)setenv("inetd_dummy", dummy, 1);
 	}
 
+	(void) sigblock(SIGBLOCK);
+
 	for (;;) {
 	    int n, ctrl;
 	    fd_set readable;
+	    struct timeval tv = { 5, 0 };
+
+
+	    /*
+	     * Handle signal masking and select.  Signals are unmasked and
+	     * we pause if we have no active descriptors.  If we do have 
+	     * active descriptors, leave signals unmasked through the select()
+	     * call.  The select() call is inclusive of a timeout in order
+	     * to handle the race condition where a signal occurs just prior
+	     * to the select() call and potentially changes the allsock
+	     * fd_set, to prevent select() from potentially blocking forever.
+	     *
+	     * Signals are masked at all other times.
+	     */
 
 	    if (nsock == 0) {
-		(void) sigblock(SIGBLOCK);
 		while (nsock == 0)
 		    sigpause(0L);
-		(void) sigsetmask(0L);
 	    }
+
+	    (void) sigsetmask(0L);
+
+
 	    readable = allsock;
-	    if ((n = select(maxsock + 1, &readable, (fd_set *)0,
-		(fd_set *)0, (struct timeval *)0)) <= 0) {
-		    if (n < 0 && errno != EINTR) {
+	    errno = 0;
+	    n = select(maxsock + 1, &readable, NULL, NULL, &tv);
+
+	    (void) sigblock(SIGBLOCK);
+
+	    if (n <= 0) {
+		    if (n < 0 && errno && errno != EINTR) {
 			syslog(LOG_WARNING, "select: %m");
 			sleep(1);
 		    }
@@ -490,7 +512,7 @@ main(argc, argv, envp)
 			    }
 		    } else
 			    ctrl = sep->se_fd;
-		    (void) sigblock(SIGBLOCK);
+		    /* (void) sigblock(SIGBLOCK); */
 		    pid = 0;
 		    dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
 		    if (dofork) {
@@ -509,7 +531,7 @@ main(argc, argv, envp)
 			"%s/%s server failing (looping), service terminated",
 					    sep->se_service, sep->se_proto);
 					close_sep(sep);
-					sigsetmask(0L);
+					/* sigsetmask(0L); */
 					if (!timingout) {
 						timingout = 1;
 						alarm(RETRYTIME);
@@ -524,13 +546,13 @@ main(argc, argv, envp)
 			    if (sep->se_accept &&
 				sep->se_socktype == SOCK_STREAM)
 				    close(ctrl);
-			    sigsetmask(0L);
+			    /* sigsetmask(0L); */
 			    sleep(1);
 			    continue;
 		    }
 		    if (pid)
 			addchild(sep, pid);
-		    sigsetmask(0L);
+		    /* sigsetmask(0L); */
 		    if (pid == 0) {
 			    if (dofork) {
 				if (debug)
@@ -713,7 +735,7 @@ config(signo)
 	int signo;
 {
 	struct servtab *sep, *new, **sepp;
-	long omask;
+	/* long omask; */
 
 	if (!setconfig()) {
 		syslog(LOG_ERR, "%s: %m", CONFIG);
@@ -751,7 +773,7 @@ config(signo)
 			int i;
 
 #define SWAP(a, b) { typeof(a) c = a; a = b; b = c; }
-			omask = sigblock(SIGBLOCK);
+			/* omask = sigblock(SIGBLOCK); */
 			/* copy over outstanding child pids */
 			if (sep->se_maxchild && new->se_maxchild) {
 				new->se_numchild = sep->se_numchild;
@@ -784,7 +806,7 @@ config(signo)
 			SWAP(sep->se_server, new->se_server);
 			for (i = 0; i < MAXARGV; i++)
 				SWAP(sep->se_argv[i], new->se_argv[i]);
-			sigsetmask(omask);
+			/* sigsetmask(omask); */
 			freeconfig(new);
 			if (debug)
 				print_service("REDO", sep);
@@ -839,7 +861,7 @@ config(signo)
 	/*
 	 * Purge anything not looked at above.
 	 */
-	omask = sigblock(SIGBLOCK);
+	/* omask = sigblock(SIGBLOCK); */
 	sepp = &servtab;
 	while ((sep = *sepp)) {
 		if (sep->se_checked) {
@@ -856,7 +878,7 @@ config(signo)
 		freeconfig(sep);
 		free((char *)sep);
 	}
-	(void) sigsetmask(omask);
+	/* (void) sigsetmask(omask); */
 }
 
 void
@@ -865,9 +887,9 @@ unregisterrpc(sep)
 {
         int i;
         struct servtab *sepp;
-	long omask;
+	/* long omask; */
 
-	omask = sigblock(SIGBLOCK);
+	/* omask = sigblock(SIGBLOCK); */
         for (sepp = servtab; sepp; sepp = sepp->se_next) {
                 if (sepp == sep)
                         continue;
@@ -884,7 +906,7 @@ unregisterrpc(sep)
         if (sep->se_fd != -1)
                 (void) close(sep->se_fd);
         sep->se_fd = -1;
-	(void) sigsetmask(omask);
+	/* (void) sigsetmask(omask); */
 }
 
 void
@@ -997,7 +1019,7 @@ enter(cp)
 	struct servtab *cp;
 {
 	struct servtab *sep;
-	long omask;
+	/* long omask; */
 
 	sep = (struct servtab *)malloc(sizeof (*sep));
 	if (sep == (struct servtab *)0) {
@@ -1006,10 +1028,10 @@ enter(cp)
 	}
 	*sep = *cp;
 	sep->se_fd = -1;
-	omask = sigblock(SIGBLOCK);
+	/* omask = sigblock(SIGBLOCK); */
 	sep->se_next = servtab;
 	servtab = sep;
-	sigsetmask(omask);
+	/* sigsetmask(omask); */
 	return (sep);
 }
 
@@ -1783,6 +1805,9 @@ print_service(action, sep)
 /*
  *  Based on TCPMUX.C by Mark K. Lottor November 1988
  *  sri-nic::ps:<mkl>tcpmux.c
+ *
+ *  signals are masked on call, we have to unmask SIGALRM for the 
+ *  duration of the read.
  */
 
 
@@ -1793,27 +1818,38 @@ getline(fd, buf, len)
 	int len;
 {
 	int count = 0, n;
+	int not_done = 1;
 	struct sigaction sa;
+	long omask;
 
 	sa.sa_flags = 0;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_handler = SIG_DFL;
 	sigaction(SIGALRM, &sa, (struct sigaction *)0);
+
+	omask = sigsetmask(SIGBLOCK & ~sigmask(SIGALRM));
+
 	do {
 		alarm(10);
 		n = read(fd, buf, len-count);
 		alarm(0);
 		if (n == 0)
-			return (count);
-		if (n < 0)
-			return (-1);
+			break;
+		if (n < 0) {
+			count = -1;
+			break;
+		}
 		while (--n >= 0) {
-			if (*buf == '\r' || *buf == '\n' || *buf == '\0')
-				return (count);
+			if (*buf == '\r' || *buf == '\n' || *buf == '\0') {
+				not_done = 0;
+				break;
+			}
 			count++;
 			buf++;
 		}
-	} while (count < len);
+	} while (not_done && count < len);
+
+	sigsetmask(omask);
 	return (count);
 }
 
