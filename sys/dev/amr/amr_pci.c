@@ -253,7 +253,7 @@ amr_pci_attach(device_t dev)
 			   NULL, NULL, 			/* filter, filterarg */
 			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			   BUS_DMA_ALLOCNOW,		/* flags */
+			   0,				/* flags */
 			   NULL, NULL,			/* lockfunc, lockarg */
 			   &sc->amr_parent_dmat)) {
 	device_printf(dev, "can't allocate parent DMA tag\n");
@@ -265,12 +265,12 @@ amr_pci_attach(device_t dev)
      */
     if (bus_dma_tag_create(sc->amr_parent_dmat,		/* parent */
 			   1, 0,			/* alignment, boundary */
-			   BUS_SPACE_MAXADDR,		/* lowaddr */
+			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR,		/* highaddr */
 			   NULL, NULL,			/* filter, filterarg */
 			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
-			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			   0,				/* flags */
+			   MAXBSIZE,			/* maxsegsize */
+			   BUS_DMA_ALLOCNOW,		/* flags */
 			   busdma_lock_mutex, &Giant,	/* lockfunc, lockarg */
 			   &sc->amr_buffer_dmat)) {
         device_printf(sc->amr_dev, "can't allocate buffer DMA tag\n");
@@ -506,7 +506,7 @@ amr_sglist_map(struct amr_softc *sc)
     segsize = sizeof(struct amr_sgentry) * AMR_NSEG * AMR_MAXCMD;
     error = bus_dma_tag_create(sc->amr_parent_dmat, 	/* parent */
 			       1, 0, 			/* alignment, boundary */
-			       BUS_SPACE_MAXADDR,	/* lowaddr */
+			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
 			       segsize, 1,		/* maxsize, nsegments */
@@ -578,7 +578,7 @@ amr_setup_mbox(struct amr_softc *sc)
      */
     error = bus_dma_tag_create(sc->amr_parent_dmat,	/* parent */
 			       16, 0,			/* alignment, boundary */
-			       BUS_SPACE_MAXADDR,	/* lowaddr */
+			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
 			       sizeof(struct amr_mailbox) + 16, 1, /* maxsize, nsegments */

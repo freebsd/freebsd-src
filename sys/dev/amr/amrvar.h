@@ -188,6 +188,7 @@ struct amr_softc
 #define AMR_STATE_INTEN		(1<<2)
 #define AMR_STATE_SHUTDOWN	(1<<3)
 #define AMR_STATE_CRASHDUMP	(1<<4)
+#define AMR_STATE_QUEUE_FRZN	(1<<5)
 
     /* per-controller queues */
     struct bio_queue_head 	amr_bioq;		/* pending I/O with no commands */
@@ -214,6 +215,7 @@ struct amr_softc
     int				(* amr_submit_command)(struct amr_softc *sc);
     int				(* amr_get_work)(struct amr_softc *sc, struct amr_mailbox *mbsave);
     int				(*amr_poll_command)(struct amr_command *ac);
+    int				(*amr_poll_command1)(struct amr_softc *sc, struct amr_command *ac);
     int 			support_ext_cdb;	/* greater than 10 byte cdb support */
 
     /* misc glue */
