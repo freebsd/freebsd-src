@@ -19,8 +19,8 @@ SUBDIR=	adjkerntz \
 	dumpon \
 	ffsinfo \
 	fsck \
-	fsck_ifs \
 	fsck_ffs \
+	fsck_ifs \
 	fsck_msdosfs \
 	fsdb \
 	fsirand \
