@@ -308,6 +308,7 @@ archive_compressor_gzip_finish(struct archive *a)
 	/* Write the last block */
 	ret = (a->client_writer)(a, a->client_data, state->compressed,
 	    block_length);
+	a->raw_position += ret;
 
 	/* Cleanup: shut down compressor, release memory, etc. */
 cleanup:
