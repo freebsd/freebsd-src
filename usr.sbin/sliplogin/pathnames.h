@@ -40,6 +40,7 @@
 #endif
 
 #define	_PATH_ACCESS	"/etc/sliphome/slip.hosts"
+#define _PATH_SLPARMS   "/etc/sliphome/slip.slparms"
 #define	_PATH_LOGIN	"/etc/sliphome/slip.login"
 #define	_PATH_LOGOUT	"/etc/sliphome/slip.logout"
 #define	_PATH_DEBUG	"/tmp/sliplogin.XXXXXX"
