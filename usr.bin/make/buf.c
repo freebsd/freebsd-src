@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #define	BufExpand(bp, nb) do {						\
  	if ((bp)->left < (nb) + 1) {					\
 		int newSize = (bp)->size + max((nb) + 1, BUF_ADD_INC);	\
-		Byte  *newBuf = erealloc((bp)->buffer, newSize);	\
+		Byte *newBuf = erealloc((bp)->buffer, newSize);		\
 									\
 		(bp)->inPtr = newBuf + ((bp)->inPtr - (bp)->buffer);	\
 		(bp)->outPtr = newBuf + ((bp)->outPtr - (bp)->buffer);	\
