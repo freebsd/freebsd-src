@@ -41,11 +41,13 @@
 #include <sys/uio.h>
 #include <termios.h>
 #include <unistd.h>
+#ifndef NONETGRAPH
 #include <netgraph.h>
 #include <netgraph/ng_async.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_ppp.h>
 #include <netgraph/ng_tty.h>
+#endif
 
 #include "layer.h"
 #include "defs.h"
