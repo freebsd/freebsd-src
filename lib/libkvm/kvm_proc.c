@@ -122,6 +122,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	kp = &kinfo_proc;
 	kp->ki_structsize = sizeof(kinfo_proc);
 	for (; cnt < maxcnt && p != NULL; p = LIST_NEXT(&proc, p_list)) {
+		memset(kp, 0, sizeof *kp);
 		if (KREAD(kd, (u_long)p, &proc)) {
 			_kvm_err(kd, kd->program, "can't read proc at %x", p);
 			return (-1);
@@ -196,11 +197,6 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			    pstats.p_cru.ru_utime.tv_usec +
 			    pstats.p_cru.ru_stime.tv_usec;
 		}
-		if (KREAD(kd, (u_long)proc.p_pgrp, &pgrp)) {
-			_kvm_err(kd, kd->program, "can't read pgrp at %x",
-				 proc.p_pgrp);
-			return (-1);
-		}
 		if (proc.p_oppid)
 			kp->ki_ppid = proc.p_oppid;
 		else if (proc.p_pptr) {
@@ -212,6 +208,13 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			kp->ki_ppid = pproc.p_pid;
 		} else 
 			kp->ki_ppid = 0;
+		if (proc.p_pgrp == NULL)
+			goto nopgrp;
+		if (KREAD(kd, (u_long)proc.p_pgrp, &pgrp)) {
+			_kvm_err(kd, kd->program, "can't read pgrp at %x",
+				 proc.p_pgrp);
+			return (-1);
+		}
 		kp->ki_pgid = pgrp.pg_id;
 		kp->ki_jobc = pgrp.pg_jobc;
 		if (KREAD(kd, (u_long)pgrp.pg_session, &sess)) {
@@ -251,8 +254,10 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 				}
 				kp->ki_tsid = sess.s_sid;
 			}
-		} else
+		} else {
+nopgrp:
 			kp->ki_tdev = NODEV;
+		}
 		if (proc.p_wmesg)
 			(void)kvm_read(kd, (u_long)proc.p_wmesg,
 			    kp->ki_wmesg, WMESGLEN);
