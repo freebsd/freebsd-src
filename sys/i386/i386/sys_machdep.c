@@ -409,8 +409,9 @@ i386_set_ldt(td, args)
 	struct mdproc *mdp = &td->td_proc->p_md;
 	struct proc_ldt *pldt = mdp->md_ldt;
 	struct i386_ldt_args ua, *uap = &ua;
+	union descriptor *descs;
 	caddr_t old_ldt_base;
-	int old_ldt_len;
+	int descs_size, old_ldt_len;
 	register_t savecrit;
 
 	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
@@ -465,17 +466,23 @@ i386_set_ldt(td, args)
 #endif
 	}
 
+	descs_size = uap->num * sizeof(union descriptor);
+	descs = (union descriptor *)kmem_alloc(kernel_map, descs_size);
+	if (descs == NULL)
+		return (ENOMEM);
+	error = copyin(&uap->descs[0], descs, descs_size);
+	if (error) {
+		kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
+		return (error);
+	}
 	/* Check descriptors for access violations */
 	for (i = 0, n = uap->start; i < uap->num; i++, n++) {
-		union descriptor desc, *dp;
-		dp = &uap->descs[i];
-		error = copyin(dp, &desc, sizeof(union descriptor));
-		if (error)
-			return(error);
+		union descriptor *dp;
+		dp = &descs[i];
 
-		switch (desc.sd.sd_type) {
+		switch (dp->sd.sd_type) {
 		case SDT_SYSNULL:	/* system null */ 
-			desc.sd.sd_p = 0;
+			dp->sd.sd_p = 0;
 			break;
 		case SDT_SYS286TSS: /* system 286 TSS available */
 		case SDT_SYSLDT:    /* system local descriptor table */
@@ -496,6 +503,7 @@ i386_set_ldt(td, args)
 			 * to create a segment of these types.  They are
 			 * for OS use only.
 			 */
+			kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
 			return EACCES;
 			/*NOTREACHED*/
 
@@ -505,8 +513,11 @@ i386_set_ldt(td, args)
 		case SDT_MEMERC:  /* memory execute read conforming */
 		case SDT_MEMERAC: /* memory execute read accessed conforming */
 			 /* Must be "present" if executable and conforming. */
-			if (desc.sd.sd_p == 0)
+			if (dp->sd.sd_p == 0) {
+				kmem_free(kernel_map, (vm_offset_t)descs,
+				    descs_size);
 				return (EACCES);
+			}
 			break;
 		case SDT_MEMRO:   /* memory read only */
 		case SDT_MEMROA:  /* memory read only accessed */
@@ -522,23 +533,25 @@ i386_set_ldt(td, args)
 		case SDT_MEMERA:  /* memory execute read accessed */
 			break;
 		default:
+			kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
 			return(EINVAL);
 			/*NOTREACHED*/
 		}
 
 		/* Only user (ring-3) descriptors may be present. */
-		if ((desc.sd.sd_p != 0) && (desc.sd.sd_dpl != SEL_UPL))
+		if ((dp->sd.sd_p != 0) && (dp->sd.sd_dpl != SEL_UPL)) {
+			kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
 			return (EACCES);
+		}
 	}
 
 	/* Fill in range */
 	savecrit = intr_disable();
-	error = copyin(uap->descs, 
+	bcopy(uap->descs, 
 	    &((union descriptor *)(pldt->ldt_base))[uap->start],
 	    uap->num * sizeof(union descriptor));
-	if (!error)
-		td->td_retval[0] = uap->start;
+	td->td_retval[0] = uap->start;
 	intr_restore(savecrit);
-
-	return(error);
+	kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
+	return (0);
 }
