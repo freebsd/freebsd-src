@@ -53,8 +53,8 @@ MALLOC_DECLARE(M_PRISON);
  * delete the struture when the last inmate is dead.
  *
  * Lock key:
- *   (a) allprison_mutex
- *   (p) locked by pr_mutex
+ *   (a) allprison_mtx
+ *   (p) locked by pr_mtx
  *   (c) set only during creation before the structure is shared, no mutex
  *       required to read
  *   (d) set only during destruction of jail, no mutex needed
