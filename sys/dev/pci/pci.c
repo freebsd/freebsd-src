@@ -190,6 +190,41 @@ struct devlist pci_devq;
 u_int32_t pci_generation;
 u_int32_t pci_numdevs = 0;
 
+/* Find a device_t by bus/slot/function */
+
+device_t
+pci_find_bsf (u_int8_t bus, u_int8_t slot, u_int8_t func)
+{
+	struct pci_devinfo *dinfo;
+
+	STAILQ_FOREACH(dinfo, &pci_devq, pci_links) {
+		if ((dinfo->cfg.bus == bus) &&
+		    (dinfo->cfg.slot == slot) &&
+		    (dinfo->cfg.func == func)) {
+			return (dinfo->cfg.dev);
+		}
+	}
+
+	return (NULL);
+}
+
+/* Find a device_t by vendor/device ID */
+
+device_t
+pci_find_device (u_int16_t vendor, u_int16_t device)
+{
+	struct pci_devinfo *dinfo;
+
+	STAILQ_FOREACH(dinfo, &pci_devq, pci_links) {
+		if ((dinfo->cfg.vendor == vendor) &&
+		    (dinfo->cfg.device == device)) {
+			return (dinfo->cfg.dev);
+		}
+	}
+
+	return (NULL);
+}
+
 /* return base address of memory or port map */
 
 static u_int32_t
