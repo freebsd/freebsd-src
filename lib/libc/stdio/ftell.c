@@ -110,7 +110,7 @@ _ftello(fp, offset)
 	if (fp->_flags & __SOFF)
 		pos = fp->_offset;
 	else {
-		pos = (*fp->_seek)(fp->_cookie, (fpos_t)0, SEEK_CUR);
+		pos = _sseek(fp, (fpos_t)0, SEEK_CUR);
 		if (pos == -1)
 			return (1);
 	}

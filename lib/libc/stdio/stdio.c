@@ -45,7 +45,6 @@ static const char rcsid[] =
 #include "namespace.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
 #include "un-namespace.h"
@@ -53,7 +52,6 @@ static const char rcsid[] =
 
 /*
  * Small standard I/O/seek/close functions.
- * These maintain the `known seek offset' for seek optimisation.
  */
 int
 __sread(cookie, buf, n)
@@ -62,24 +60,8 @@ __sread(cookie, buf, n)
 	int n;
 {
 	register FILE *fp = cookie;
-	register int ret;
 
-	ret = _read(fp->_file, buf, (size_t)n);
-	/* if the read succeeded, update the current offset */
-	if (ret >= 0) {
-		if (fp->_flags & __SOFF) {
-			if (fp->_offset > OFF_MAX - ret) {
-				errno = EOVERFLOW;
-				ret = -1;
-			} else {
-				fp->_offset += ret;
-				return (ret);
-			}
-		} else
-			return (ret);
-	}
-	fp->_flags &= ~__SOFF;
-	return (ret);
+	return(_read(fp->_file, buf, (size_t)n));
 }
 
 int
@@ -90,9 +72,6 @@ __swrite(cookie, buf, n)
 {
 	register FILE *fp = cookie;
 
-	if (fp->_flags & __SAPP)
-		(void) lseek(fp->_file, (off_t)0, SEEK_END);
-	fp->_flags &= ~__SOFF;	/* in case FAPPEND mode is set */
 	return (_write(fp->_file, buf, (size_t)n));
 }
 
@@ -103,32 +82,8 @@ __sseek(cookie, offset, whence)
 	int whence;
 {
 	register FILE *fp = cookie;
-	register off_t ret;
-	int serrno, errret;
 
-	serrno = errno;
-	errno = 0;
-	ret = lseek(fp->_file, (off_t)offset, whence);
-	errret = errno;
-	if (errno == 0)
-		errno = serrno;
-	/*
-	 * Disallow negative seeks per POSIX.
-	 * It is needed here to help upper level caller
-	 * (fseek) in the cases it can't detect.
-	 */
-	if (ret < 0) {
-		if (errret == 0) {
-			fp->_flags |= __SERR;
-			errno = EINVAL;
-		}
-		fp->_flags &= ~__SOFF;
-		ret = -1;
-	} else {
-		fp->_flags |= __SOFF;
-		fp->_offset = ret;
-	}
-	return (ret);
+	return (lseek(fp->_file, (off_t)offset, whence));
 }
 
 int
