@@ -1,4 +1,4 @@
-/*	$NetBSD: ntfs.h,v 1.2 1999/05/06 15:43:17 christos Exp $	*/
+/*	$NetBSD: ntfs.h,v 1.9 1999/10/31 19:45:26 jdolecek Exp $	*/
 
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko
@@ -29,6 +29,9 @@
  */
 
 /*#define NTFS_DEBUG 1*/
+#if defined(__NetBSD__) && defined(_KERNEL) && !defined(_LKM)
+#include "opt_ntfs.h"
+#endif
 
 typedef u_int64_t cn_t;
 typedef u_int16_t wchar;
@@ -239,12 +242,11 @@ struct bootfile {
 
 #define	NTFS_SYSNODESNUM	0x0B
 struct ntfsmount {
-	struct mount   *ntm_mountp;
+	struct mount   *ntm_mountp;	/* filesystem vfs structure */
 	struct bootfile ntm_bootfile;
-	dev_t           ntm_dev;
-	struct vnode   *ntm_devvp;
+	dev_t           ntm_dev;	/* device mounted */
+	struct vnode   *ntm_devvp;	/* block device mounted vnode */
 	struct vnode   *ntm_sysvn[NTFS_SYSNODESNUM];
-	wchar          *ntm_upcase;
 	u_int32_t       ntm_bpmftrec;
 	uid_t           ntm_uid;
 	gid_t           ntm_gid;
@@ -253,6 +255,7 @@ struct ntfsmount {
 	cn_t		ntm_cfree;
 	struct ntvattrdef *ntm_ad;
 	int		ntm_adnum;
+	struct netexport ntm_export;	/* export information */
 };
 
 #define ntm_mftcn	ntm_bootfile.bf_mftcn
@@ -290,29 +293,33 @@ MALLOC_DECLARE(M_NTFSNTHASH);
 
 #ifdef __NetBSD__
 #define MALLOC_DEFINE(a, b, c)
-#define M_NTFSNTHASH	M_TEMP
-#define M_NTFSNTVATTR	M_TEMP
-#define M_NTFSRDATA	M_TEMP
-#define M_NTFSRUN	M_TEMP
-#define M_NTFSDECOMP	M_TEMP
-#define M_NTFSMNT	M_TEMP
-#define M_NTFSNTNODE	M_TEMP
-#define M_NTFSFNODE	M_TEMP
-#define M_NTFSDIR	M_TEMP
+#define M_NTFSNTHASH	M_NTFS
+#define M_NTFSNTVATTR	M_NTFS
+#define M_NTFSRDATA	M_NTFS
+#define M_NTFSRUN	M_NTFS
+#define M_NTFSDECOMP	M_NTFS
+#define M_NTFSMNT	M_NTFS
+#define M_NTFSNTNODE	M_NTFS
+#define M_NTFSFNODE	M_NTFS
+#define M_NTFSDIR	M_NTFS
 typedef int (vop_t) __P((void *));
 #define HASHINIT(a, b, c, d)	hashinit((a), (b), (c), (d))
 #define bqrelse(bp)		brelse(bp)
-#define VOP__LOCK(a, b, c)	VOP_LOCK((a), (b) ? LK_EXCLUSIVE : LK_SHARED)
-#define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), 0)
-#define VGET(a, b, c)		vget((a), LK_EXCLUSIVE)
-#define VN_LOCK(a, b, c)	vn_lock((a), LK_EXCLUSIVE)
-#else
+#define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), (b))
+#define VGET(a, b, c)		vget((a), (b))
+#define VN_LOCK(a, b, c)	vn_lock((a), (b))
+#define	LOCKMGR(a, b, c)	lockmgr((a), (b), (c))
+#else /* !NetBSD */
 #define HASHINIT(a, b, c, d)	hashinit((a), (b), (d))
-#define VOP__LOCK(a, b, c)	VOP_LOCK((a), (b), (c))
 #define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), (b), (c))
 #define VGET(a, b, c)		vget((a), (b), (c))
 #define VN_LOCK(a, b, c)	vn_lock((a), (b), (c))
-#endif
+#define	LOCKMGR(a, b, c)	lockmgr((a), (b), (c), NULL)
+
+/* PDIRUNLOCK is used by NetBSD to mark if vfs_lookup() unlocked parent dir;
+ * on FreeBSD, it's not defined and nothing similar exists */
+#define PDIRUNLOCK		0
+#endif /* NetBSD */
 
 #if defined(NTFS_DEBUG)
 #define dprintf(a) printf a

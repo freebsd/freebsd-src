@@ -1,4 +1,4 @@
-/*	$NetBSD: ntfs_subr.h,v 1.2 1999/05/06 15:43:20 christos Exp $	*/
+/*	$NetBSD: ntfs_subr.h,v 1.8 1999/10/10 14:48:37 jdolecek Exp $	*/
 
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko
@@ -70,34 +70,17 @@ struct ntvattr {
 #define va_a_iroot	va_d.iroot
 #define va_a_ialloc	va_d.ialloc
 
-
-#define uastrcmp(a,b,c,d)	ntfs_uastrcmp(ntmp,a,b,c,d)
-
-#ifndef NTFS_DEBUG
-#define ntfs_ntref(i)	(i)->i_usecount++
-#else
-#define ntfs_ntref(i)   {						\
-	printf("ntfs_ntref: ino %d, usecount: %d\n",			\
-		(i)->i_number, (i)->i_usecount++);			\
-}
-#endif
-
 int ntfs_procfixups __P(( struct ntfsmount *, u_int32_t, caddr_t, size_t ));
 int ntfs_parserun __P(( cn_t *, cn_t *, u_int8_t *, u_long, u_long *));
 int ntfs_runtocn __P(( cn_t *, struct ntfsmount *, u_int8_t *, u_long, cn_t));
-int ntfs_readntvattr_plain __P(( struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *,size_t *));
-int ntfs_readattr_plain __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *,size_t *));
-int ntfs_readattr __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *));
+int ntfs_readntvattr_plain __P(( struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *,size_t *, struct uio *));
+int ntfs_readattr_plain __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *,size_t *, struct uio *));
+int ntfs_readattr __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *, struct uio *));
 int ntfs_filesize __P(( struct ntfsmount *, struct fnode *, u_int64_t *, u_int64_t *));
 int ntfs_times __P(( struct ntfsmount *, struct ntnode *, ntfs_times_t *));
 struct timespec	ntfs_nttimetounix __P(( u_int64_t ));
 int ntfs_ntreaddir __P(( struct ntfsmount *, struct fnode *, u_int32_t, struct attr_indexentry **));
-wchar ntfs_toupper __P(( struct ntfsmount *, wchar ));
-int ntfs_uustricmp __P(( struct ntfsmount *, wchar *, int, wchar *, int ));
-int ntfs_uastricmp __P(( struct ntfsmount *, const wchar *, int, const char *,
-    int ));
-int ntfs_uastrcmp __P(( struct ntfsmount *, const wchar *, int, const char *,
-    int ));
+char ntfs_u28 __P((wchar));
 int ntfs_runtovrun __P(( cn_t **, cn_t **, u_long *, u_int8_t *));
 int ntfs_attrtontvattr __P(( struct ntfsmount *, struct ntvattr **, struct attr * ));
 void ntfs_freentvattr __P(( struct ntvattr * ));
@@ -106,12 +89,17 @@ struct ntvattr * ntfs_findntvattr __P(( struct ntfsmount *, struct ntnode *, u_i
 int ntfs_ntlookupfile __P((struct ntfsmount *, struct vnode *, struct componentname *, struct vnode **));
 int ntfs_isnamepermitted __P((struct ntfsmount *, struct attr_indexentry * ));
 int ntfs_ntvattrrele __P((struct ntvattr * ));
-int ntfs_ntvattrget __P((struct ntfsmount *, struct ntnode *, u_int32_t, char *, cn_t , struct ntvattr **));
+int ntfs_ntvattrget __P((struct ntfsmount *, struct ntnode *, u_int32_t, const char *, cn_t , struct ntvattr **));
 int ntfs_ntlookup __P((struct ntfsmount *, ino_t, struct ntnode **));
 int ntfs_ntget __P((struct ntnode *));
+void ntfs_ntref __P((struct ntnode *));
 void ntfs_ntrele __P((struct ntnode *));
 void ntfs_ntput __P((struct ntnode *));
 int ntfs_loadntnode __P(( struct ntfsmount *, struct ntnode * ));
-int ntfs_ntlookupattr(struct ntfsmount *, const char *, int, int *, char **);
-int ntfs_writentvattr_plain(struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *, size_t *);
-int ntfs_writeattr_plain(struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *, size_t *);
+int ntfs_writentvattr_plain __P((struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *, size_t *, struct uio *));
+int ntfs_writeattr_plain __P((struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *, size_t *, struct uio *));
+void ntfs_toupper_init __P((void));
+int ntfs_toupper_use __P((struct mount *, struct ntfsmount *));
+void ntfs_toupper_unuse __P((void));
+int ntfs_fget __P((struct ntfsmount *, struct ntnode *, int, char *, struct fnode **));
+void ntfs_frele __P((struct fnode *));
