@@ -22,7 +22,7 @@ CFLAGS+=	-I${.CURDIR}/../../.. -I.
 CLEANFILES+=	${PROG}
 
 CFLAGS+=	-W -Wall
-LDFLAGS=	-X -N -Ttext ${LOADERBASE} -e _start -static
+LDFLAGS=	-X -Ttext ${LOADERBASE} -e _start -static
 
 # where to get libstand from
 #XXX need a better way to do this
