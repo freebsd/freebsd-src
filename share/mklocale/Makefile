@@ -11,7 +11,7 @@ LOCALES=        el_GR.ISO_8859-7 \
 		la_LN.ISO_8859-1 \
 		la_LN.ISO_8859-2 \
 		la_LN.ISO_8859-4 \
-		la_LN.DIS_8859-15 \
+		la_LN.ISO_8859-15 \
 		ru_RU.CP866 \
 		ru_RU.ISO_8859-5 \
 		ru_RU.KOI8-R \
@@ -47,8 +47,8 @@ afterinstall:
 		       ${LOCALEDIR}/${link}.ISO_8859-1/LC_CTYPE
 .endfor
 .for link in ${LATIN1LINKS}
-	ln -fs ../la_LN.DIS_8859-15/LC_CTYPE \
-		       ${LOCALEDIR}/${link}.DIS_8859-15/LC_CTYPE
+	ln -fs ../la_LN.ISO_8859-15/LC_CTYPE \
+		       ${LOCALEDIR}/${link}.ISO_8859-15/LC_CTYPE
 .endfor
 .for link in ${LATIN2LINKS}
 	ln -fs ../la_LN.ISO_8859-2/LC_CTYPE \

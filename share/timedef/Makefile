@@ -63,7 +63,7 @@ afterinstall:
 	done
 	for l in ${8859_15_LINKS}; do \
 		ln -fs ../$$l.ISO_8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+		       ${LOCALEDIR}/$$l.ISO_8859-15/LC_TIME; \
 	done
 	for l in ${DE_LINKS}; do \
 		ln -fs ../de_DE.ISO_8859-1/LC_TIME \
@@ -71,7 +71,7 @@ afterinstall:
 	done
 	for l in ${DE_LINKS}; do \
 		ln -fs ../de_DE.ISO_8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+		       ${LOCALEDIR}/$$l.ISO_8859-15/LC_TIME; \
 	done
 	for l in ${IT_LINKS}; do \
 		ln -fs ../it_IT.ISO_8859-1/LC_TIME \
@@ -79,7 +79,7 @@ afterinstall:
 	done
 	for l in ${IT_LINKS}; do \
 		ln -fs ../it_IT.ISO_8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+		       ${LOCALEDIR}/$$l.ISO_8859-15/LC_TIME; \
 	done
 	for l in ${FR_LINKS}; do \
 		ln -fs ../fr_FR.ISO_8859-1/LC_TIME \
@@ -87,7 +87,7 @@ afterinstall:
 	done
 	for l in ${FR_LINKS}; do \
 		ln -fs ../fr_FR.ISO_8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+		       ${LOCALEDIR}/$$l.ISO_8859-15/LC_TIME; \
 	done
 	for l in ${LN_LINKS}; do \
 		ln -fs ../la_LN.ISO_8859-1/LC_TIME \
@@ -99,7 +99,7 @@ afterinstall:
 	done
 	for l in ${NL_LINKS}; do \
 		ln -fs ../nl_NL.ISO_8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+		       ${LOCALEDIR}/$$l.ISO_8859-15/LC_TIME; \
 	done
 	for l in ${US_LINKS}; do \
 		ln -fs ../en_US.ISO_8859-1/LC_TIME \
@@ -107,7 +107,7 @@ afterinstall:
 	done
 	for l in ${US_LINKS}; do \
 		ln -fs ../en_US.ISO_8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+		       ${LOCALEDIR}/$$l.ISO_8859-15/LC_TIME; \
 	done
 	for l in ${GB_LINKS}; do \
 		ln -fs ../en_GB.ISO_8859-1/LC_TIME \
@@ -115,7 +115,7 @@ afterinstall:
 	done
 	for l in ${GB_LINKS}; do \
 		ln -fs ../en_GB.ISO_8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.DIS_8859-15/LC_TIME; \
+		       ${LOCALEDIR}/$$l.ISO_8859-15/LC_TIME; \
 	done
 	for l in ${JP_LINKS}; do \
 		ln -fs ../ja_JP.SJIS/LC_TIME \
