@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.81 1998/04/04 17:18:09 kato Exp $
+ *  $Id: syscons.c,v 1.82 1998/04/06 03:37:55 kato Exp $
  */
 
 #include "sc.h"
@@ -2588,13 +2588,6 @@ scrn_timer(void *arg)
 	    scintr(0);
     }
 
-    /* should we just return ? */
-    if ((scp->status&UNKNOWN_MODE) || blink_in_progress || switch_in_progress) {
-	timeout(scrn_timer, NULL, hz / 10);
-	splx(s);
-	return;
-    }
-
     /* should we stop the screen saver? */
     getmicroruntime(&tv);
     if (panicstr)
@@ -2602,9 +2595,19 @@ scrn_timer(void *arg)
     if (tv.tv_sec <= scrn_time_stamp.tv_sec + scrn_blank_time)
 	if (scrn_blanked > 0)
             stop_scrn_saver(current_saver);
+
+    /* should we just return ? */
+    if ((scp->status&UNKNOWN_MODE) || blink_in_progress || switch_in_progress) {
+	timeout(scrn_timer, NULL, hz / 10);
+	splx(s);
+	return;
+    }
+
+    /* Update the screen */
     scp = cur_console;
     if (scrn_blanked <= 0)
 	scrn_update(scp, TRUE);
+
     /* should we activate the screen saver? */
     if ((scrn_blank_time != 0) 
 	    && (tv.tv_sec > scrn_time_stamp.tv_sec + scrn_blank_time))
