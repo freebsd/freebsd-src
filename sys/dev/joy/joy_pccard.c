@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccarddevs.h>
+#include "pccarddevs.h"
 
 static int
 joy_pccard_match(device_t dev)

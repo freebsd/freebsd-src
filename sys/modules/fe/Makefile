@@ -11,6 +11,6 @@ SRCS+=	if_fe_cbus.c
 SRCS+=	if_fe_isa.c
 .endif
 
-SRCS+=	bus_if.h card_if.h device_if.h isa_if.h
+SRCS+=	bus_if.h card_if.h device_if.h isa_if.h pccarddevs.h
 
 .include <bsd.kmod.mk>

@@ -13,7 +13,7 @@ SRCS=	fd.c
 SRCS=	fdc.c
 .endif
 SRCS+=	opt_fdc.h card.h \
-	bus_if.h card_if.h device_if.h isa_if.h
+	bus_if.h card_if.h device_if.h isa_if.h pccarddevs.h
 
 FDC_DEBUG?=	0	# 0/1
 FDC_PCCARD?=	1	# 0/1  whether pccard support (i. e. Y-E DATA PCMCIA

@@ -7,7 +7,7 @@ CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include \
 		-I${.CURDIR}/../../../../netgraph/bluetooth/drivers/bt3c
 
 KMOD=		ng_bt3c
-SRCS=		ng_bt3c_pccard.c bus_if.h card_if.h device_if.h
+SRCS=		ng_bt3c_pccard.c bus_if.h card_if.h device_if.h pccarddevs.h
 
 .include <bsd.kmod.mk>
 
