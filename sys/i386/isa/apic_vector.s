@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.14 1997/07/23 20:18:14 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.15 1997/07/25 22:20:11 smp Exp smp $
  */
 
 
@@ -16,7 +16,38 @@
 /*
  * 'lazy masking' code suggested by Bruce Evans <bde@zeta.org.au>
  */
-#if 1
+
+#ifdef PEND_INTS
+
+#define MAYBE_MASK_IRQ(irq_num)						\
+	lock ;					/* MP-safe */		\
+	btsl	$(irq_num),iactive ;		/* lazy masking */	\
+	jnc	8f ;				/* NOT active */	\
+7: ;									\
+	IMASK_LOCK ;				/* enter critical reg */\
+	orl	$IRQ_BIT(irq_num),_apic_imen ;	/* set the mask bit */	\
+	movl	_ioapic,%ecx ;			/* ioapic[0] addr */	\
+	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
+	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
+	orl	$IOART_INTMASK,%eax ;		/* set the mask */	\
+	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
+	orl	$IRQ_BIT(irq_num), _ipending ;	/* set _ipending bit */	\
+	IMASK_UNLOCK ;				/* exit critical reg */	\
+	movl	$0, lapic_eoi ;			/* do the EOI */	\
+	popl	%es ;							\
+	popl	%ds ;							\
+	popal ;								\
+	addl	$4+4,%esp ;						\
+	iret ;								\
+;									\
+	ALIGN_TEXT ;							\
+8: ;									\
+	call	_try_mplock ;						\
+	testl	%eax, %eax ;						\
+	jz	7b				/* can't enter kernel */
+
+#else /* PEND_INTS */
+
 #define MAYBE_MASK_IRQ(irq_num)						\
 	lock ;					/* MP-safe */		\
 	btsl	$(irq_num),iactive ;		/* lazy masking */	\
@@ -38,67 +69,28 @@
 	iret ;								\
 ;									\
 	ALIGN_TEXT ;							\
-1:	GET_MPLOCK				/* SMP Spin lock */
-#else
-#define MAYBE_MASK_IRQ(irq_num)						\
-	GET_MPLOCK ;				/* SMP Spin lock */	\
-	lock ;					/* MP-safe */		\
-	btsl	$(irq_num),iactive ;		/* lazy masking */	\
-	jnc	1f ;				/* NOT active */	\
-	/* XXX atomic access */						\
-	orl	$IRQ_BIT(irq_num),_apic_imen ;	/* set the mask bit */	\
-	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
-	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
-	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
-	orl	$IOART_INTMASK,%eax ;		/* set the mask */	\
-	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-	movl	$0, lapic_eoi ;			/* do the EOI */	\
-	orl	$IRQ_BIT(irq_num), _ipending ;	/* set _ipending bit */	\
-	REL_MPLOCK ;				/* release SMP GL */	\
-	popl	%es ;							\
-	popl	%ds ;							\
-	popal ;								\
-	addl	$4+4,%esp ;						\
-	iret ;								\
-;									\
-	ALIGN_TEXT ;							\
-1:
-#endif
+1: ;									\
+	GET_MPLOCK				/* SMP Spin lock */
 
-#if 1
+#endif /* PEND_INTS */
+
+
 #define MAYBE_UNMASK_IRQ(irq_num)					\
 	cli ;	/* must unmask _apic_imen and IO APIC atomically */	\
 	lock ;					/* MP-safe */		\
 	andl	$~IRQ_BIT(irq_num),iactive ;				\
 	IMASK_LOCK ;				/* enter critical reg */\
 	testl	$IRQ_BIT(irq_num),_apic_imen ;				\
-	je	2f ;							\
+	je	9f ;							\
 	andl	$~IRQ_BIT(irq_num),_apic_imen ;	/* clear mask bit */	\
 	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
 	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
 	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
 	andl	$~IOART_INTMASK,%eax ;		/* clear the mask */	\
 	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-2: ;									\
+9: ;									\
 	IMASK_UNLOCK ;				/* exit critical reg */	\
 	sti	/* XXX _doreti repeats the cli/sti */
-#else
-#define MAYBE_UNMASK_IRQ(irq_num)					\
-	cli ;	/* must unmask _apic_imen and IO APIC atomically */	\
-	lock ;					/* MP-safe */		\
-	andl	$~IRQ_BIT(irq_num),iactive ;				\
-	/* XXX atomic access */						\
-	testl	$IRQ_BIT(irq_num),_apic_imen ;				\
-	je	2f ;							\
-	andl	$~IRQ_BIT(irq_num),_apic_imen ;	/* clear mask bit */	\
-	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
-	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
-	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
-	andl	$~IOART_INTMASK,%eax ;		/* clear the mask */	\
-	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-2: ;									\
-	sti ;	/* XXX _doreti repeats the cli/sti */
-#endif
 
 
 /*
@@ -118,7 +110,7 @@ IDTVEC(vec_name) ;							\
 	movl	%ax,%ds ;						\
 	MAYBE_MOVW_AX_ES ;						\
 	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ;			\
-	GET_MPLOCK ;		/* SMP Spin lock */			\
+	GET_MPLOCK ;							\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	movl	$0, lapic_eoi ;						\
