@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000,2001 Søren Schmidt
+ * Copyright (c) 2000, 2001 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,78 +24,104 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <stdio.h>
-#include <fcntl.h>
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
+#include <sys/types.h>
 #include <sys/ata.h>
 
-char *
+#include <err.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "pathnames.h"
+
+struct mode2str {
+	int mode;
+	const char *str;
+};
+
+struct mode2str mode_str[] = {
+	{ ATA_PIO, "BIOSPIO" },
+	{ ATA_PIO0, "PIO0" },
+	{ ATA_PIO1, "PIO1" },
+	{ ATA_PIO2, "PIO2" },
+	{ ATA_PIO3, "PIO3" },
+	{ ATA_PIO4, "PIO4" },
+	{ ATA_WDMA2, "WDMA2" },
+	{ ATA_UDMA2, "UDMA33" },
+	{ ATA_UDMA4, "UDMA66" },
+	{ ATA_UDMA5, "UDMA100" },
+	{ ATA_DMA, "BIOSDMA" },
+	{ -1, NULL }
+};
+
+const char	*mode2str(int);
+int		 str2mode(char *);
+int		 version(int);
+void		 param_print(struct ata_params *);
+void		 info_print(int, int);
+void		 usage(void);
+
+const char *
 mode2str(int mode)
 {
-    switch (mode) {
-    case ATA_PIO: return "BIOSPIO";
-    case ATA_PIO0: return "PIO0";
-    case ATA_PIO1: return "PIO1";
-    case ATA_PIO2: return "PIO2";
-    case ATA_PIO3: return "PIO3";
-    case ATA_PIO4: return "PIO4";
-    case ATA_WDMA2: return "WDMA2";
-    case ATA_UDMA2: return "UDMA33";
-    case ATA_UDMA4: return "UDMA66";
-    case ATA_UDMA5: return "UDMA100";
-    case ATA_DMA: return "BIOSDMA";
-    default: return "???";
-    }
+	int m;
+
+	for (m = 0; mode_str[m].mode != -1; m++)
+		if (mode_str[m].mode == mode)
+			return (mode_str[m].str);
+
+	return "???";
 }
 
 int
 str2mode(char *str)
 {
-    if (!strcasecmp(str, "BIOSPIO")) return ATA_PIO;
-    if (!strcasecmp(str, "PIO0")) return ATA_PIO0;
-    if (!strcasecmp(str, "PIO1")) return ATA_PIO1;
-    if (!strcasecmp(str, "PIO2")) return ATA_PIO2;
-    if (!strcasecmp(str, "PIO3")) return ATA_PIO3;
-    if (!strcasecmp(str, "PIO4")) return ATA_PIO4;
-    if (!strcasecmp(str, "WDMA2")) return ATA_WDMA2;
-    if (!strcasecmp(str, "UDMA2")) return ATA_UDMA2;
-    if (!strcasecmp(str, "UDMA33")) return ATA_UDMA2;
-    if (!strcasecmp(str, "UDMA4")) return ATA_UDMA4;
-    if (!strcasecmp(str, "UDMA66")) return ATA_UDMA4;
-    if (!strcasecmp(str, "UDMA5")) return ATA_UDMA5;
-    if (!strcasecmp(str, "UDMA100")) return ATA_UDMA5;
-    if (!strcasecmp(str, "BIOSDMA")) return ATA_DMA;
-    return -1;
+	int m;
+
+	for (m = 0; mode_str[m].mode != -1; m++)
+		if (!strcasecmp(mode_str[m].str, str))
+			return (mode_str[m].mode);
+
+	return -1;
 }
 
 
 void
-usage()
+usage(void)
 {
-	printf("usage: atacontrol <command> channel [args]\n");
+
+	fprintf(stderr, "usage: atacontrol <command> channel [args]\n");
+	exit(1);
 }
 
 int
-version(int version)
+version(int vers)
 {
-    int bit;
-    
-    if (version == 0xffff)
-        return 0;
-    for (bit = 15; bit >= 0; bit--)
-        if (version & (1<<bit))
-            return bit;
-    return 0;
+	int bit;
+
+	if (vers == 0xffff)
+		return 0;
+
+	for (bit = 15; bit >= 0; bit--)
+		if (vers & (1 << bit))
+			return bit;
+
+	return 0;
 }
 
 void
 param_print(struct ata_params *parm)
 {
 	printf("<%.40s/%.8s> ATA/ATAPI rev %d\n",
-		parm->model, parm->revision, version(parm->versmajor)); 
+		parm->model, parm->revision, version(parm->versmajor));
 }
 
 void
@@ -105,7 +131,10 @@ info_print(int fd, int channel)
 
 	bzero(&param, sizeof(struct ata_param));
 	param.channel = channel;
-	ioctl(fd, ATAGPARM, &param);
+
+	if (ioctl(fd, ATAGPARM, &param) == -1)
+		err(1, "ioctl(ATAGPARM)");
+
 	printf("Master slot: ");
 	if (param.type[0]) {
 		printf("%4.4s: ", param.name[0]);
@@ -113,6 +142,7 @@ info_print(int fd, int channel)
 	}
 	else
 		printf(" no device present\n");
+
 	printf("Slave  slot: ");
 	if (param.type[1]) {
 		printf("%4.4s: ", param.name[1]);
@@ -125,31 +155,39 @@ info_print(int fd, int channel)
 int
 main(int argc, char **argv)
 {
-	int unit;
-	int fd = open("/dev/ata", O_RDWR);
+	int fd, unit;
 
-	if (fd < 0)
-		errx(1, "/dev/ata not found - exiting\n");
+	fd = open(_PATH_ATA, O_RDWR);
+	if (fd == -1)
+		err(1, _PATH_ATA);
+
+	if (argc < 3)
+		usage();
 
 	if (!strcmp(argv[1], "detach")) {
 		if (argc != 3)
 			usage();
 		unit = atoi(argv[2]);
-		ioctl(fd, ATADETACH, &unit);
+		if (ioctl(fd, ATADETACH, &unit) == -1)
+			err(1, "ioctl(ATADETACH)");
 	}
 	else if (!strcmp(argv[1], "attach")) {
 		if (argc != 3)
 			usage();
 		unit = atoi(argv[2]);
-		ioctl(fd, ATAATTACH, &unit);
-		info_print(fd, unit);
+		if (ioctl(fd, ATAATTACH, &unit) == -1)
+			err(1, "ioctl(ATAATTACH)");
+		else
+			info_print(fd, unit);
 	}
 	else if (!strcmp(argv[1], "reinit")) {
 		if (argc != 3)
 			usage();
 		unit = atoi(argv[2]);
-		ioctl(fd, ATAREINIT, &unit);
-		info_print(fd, unit);
+		if (ioctl(fd, ATAREINIT, &unit) == -1)
+			err(1, "ioctl(ATAREINIT)");
+		else
+			info_print(fd, unit);
 	}
 	else if (!strcmp(argv[1], "mode")) {
 		struct ata_modes modes;
@@ -157,19 +195,25 @@ main(int argc, char **argv)
 		bzero(&modes, sizeof(struct ata_modes));
 		if (argc == 3) {
 			modes.channel = atoi(argv[2]);
-			ioctl(fd, ATAGMODE, &modes);
-			printf("Master = %s \nSlave  = %s\n",
-				mode2str(modes.mode[0]), 
-				mode2str(modes.mode[1]));
+			if (ioctl(fd, ATAGMODE, &modes) == -1)
+				err(1, "ioctl(ATAGMODE)");
+			else
+				printf("Master = %s \nSlave  = %s\n",
+					mode2str(modes.mode[0]),
+					mode2str(modes.mode[1]));
 		}
 		else if (argc == 5) {
 			modes.channel = atoi(argv[2]);
 			modes.mode[0] = str2mode(argv[3]);
 			modes.mode[1] = str2mode(argv[4]);
-			ioctl(fd, ATASMODE, &modes);
-			printf("Master = %s \nSlave  = %s\n",
-				mode2str(modes.mode[0]),
-				mode2str(modes.mode[1]));
+			if (modes.mode[0] == -1 || modes.mode[1] == -1)
+				usage();
+			if (ioctl(fd, ATASMODE, &modes) == -1)
+				err(1, "ioctl(ATASMODE)");
+			else
+				printf("Master = %s \nSlave  = %s\n",
+					mode2str(modes.mode[0]),
+					mode2str(modes.mode[1]));
 		}
 		else
 			usage();
@@ -181,4 +225,6 @@ main(int argc, char **argv)
 	}
 	else
 	    	usage();
+
+	exit(0);
 }
