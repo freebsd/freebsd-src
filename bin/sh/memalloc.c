@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: memalloc.c,v 1.2 1994/09/24 02:57:50 davidg Exp $
+ *	$Id: memalloc.c,v 1.3 1996/09/01 10:20:42 peter Exp $
  */
 
 #ifndef lint
@@ -207,7 +207,7 @@ popstackmark(mark)
 void
 growstackblock() {
 	char *p;
-	int newlen = stacknleft * 2 + 100;
+	int newlen = ALIGN(stacknleft * 2 + 100);
 	char *oldspace = stacknxt;
 	int oldlen = stacknleft;
 	struct stack_block *sp;
@@ -226,7 +226,7 @@ growstackblock() {
 		p = stalloc(newlen);
 		memcpy(p, oldspace, oldlen);
 		stacknxt = p;			/* free the space */
-		stacknleft += ALIGN(newlen);	/* we just allocated */
+		stacknleft += newlen;		/* we just allocated */
 	}
 }
 
