@@ -1,9 +1,10 @@
-# $Id: Makefile,v 1.6 1998/09/25 17:14:16 peter Exp $
+# $Id: Makefile,v 1.7 1998/09/26 01:31:10 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
 NOMAN=
 NEWVERSWHAT=	"bootstrap loader"
+BINDIR?=	/boot
 
 # architecture-specific loader code
 SRCS=		main.c conf.c
