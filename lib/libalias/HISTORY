@@ -139,3 +139,7 @@ Version 3.1: May, 2000 (Erik Salander, erik@whistle.com)
     - Added support to alias 227 replies, allows aliasing for
       FTP servers in passive mode.
     - Added support for PPTP aliasing.
+
+Version 3.2: July, 2000 (Erik Salander, erik@whistle.com and 
+      Junichi Satoh, junichi@junichi.org)
+    - Added support for streaming media (RTSP and PNA) aliasing.
