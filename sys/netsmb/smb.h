@@ -324,6 +324,7 @@ enum smb_dialects {
 #define ERRbadshare	32	/* Share mode can't be granted */
 #define ERRlock		33	/* A lock request conflicts with existing lock */
 #define ERRfilexists	80	/* The file named in the request already exists */
+#define	ERRquota	112	/* W2K returns this if quota space exceeds */
 
 /*
  * Error codes for the ERRSRV class
@@ -353,6 +354,11 @@ enum smb_dialects {
 #define ERRusempx	250	/* Temporarily unable to support Raw, use MPX mode */
 #define ERRusestd	251	/* Temporarily unable to support Raw, use standard r/w */
 #define ERRcontmpx	252	/* Continue in MPX mode */
+#define ERRbadPassword	254
+#define	ERRaccountExpired 2239
+#define	ERRbadClient	2240	/* Cannot access the server from this workstation */
+#define	ERRbadLogonTime	2241	/* Cannot access the server at this time **/
+#define	ERRpasswordExpired 2242
 #define ERRnosupport	65535	/* Invalid function */
 
 /*
