@@ -116,7 +116,7 @@ device		dpt		# DPT Smartcache - See LINT for options!
 device		ida		# Compaq Smart RAID
 device		amr		# AMI MegaRAID
 device		mlx		# Mylex DAC960 family
-device		twe		# 3ware Escalade
+#device		twe		# 3ware Escalade
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc0	at isa? port IO_KBD
