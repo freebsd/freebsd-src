@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.20 1998/11/23 07:34:37 kato Exp $
+#	$Id: Makefile,v 1.21 1999/01/03 05:03:46 kato Exp $
 #
 
 PROG=	boot
@@ -6,9 +6,8 @@ PROG=	boot
 SRCS=	start.S table.c boot2.S boot.c asm.S bios.S serial.S
 SRCS+=	probe_keyboard.c io.c disk.c sys.c
 
-BINDIR=		/usr/mdec
 BINMODE=	444
-CFLAGS=         -aout -O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
+CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-mno-486 \
 		-DPC98 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
@@ -87,19 +86,11 @@ boot2:		boot.nohdr
 all:		boot1 boot2
 
 install:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
-		boot1 ${DESTDIR}${BINDIR}/boot1
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
-		boot2 ${DESTDIR}${BINDIR}/boot2
-	for i in da fd wd od vn wfd ; do \
-		( cd ${DESTDIR}${BINDIR} ; \
-		rm -f boot$${i} $${i}boot ; \
-		ln -s boot1 $${i}boot ; \
-		ln -s boot2 boot$${i} ; ) \
-	done
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		boot1 boot2 ${DESTDIR}${BINDIR}/
 
 install-boothelp:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 		${.CURDIR}/boot.help ${DESTDIR}/
 
 .include <bsd.kern.mk>
