@@ -79,6 +79,8 @@
  */
 
 
+#include "opt_ktrace.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -93,6 +95,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#ifdef KTRACE
+#include <sys/uio.h>
+#include <sys/ktrace.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -227,28 +233,38 @@ data_abort_handler(trapframe_t *tf)
 	/* Grab FAR/FSR before enabling interrupts */
 	far = cpu_faultaddress();
 	fsr = cpu_faultstatus();
-
 #if 0
+	printf("data abort: %p (from %p %p)\n", (void*)far, (void*)tf->tf_pc,
+	    (void*)tf->tf_svc_lr);
+#endif
+
 	/* Update vmmeter statistics */
+#if 0
 	vmexp.traps++;
 #endif
-	/* Re-enable interrupts if they were enabled previously */
-	if (__predict_true((tf->tf_spsr & I32_bit) == 0))
-		enable_interrupts(I32_bit);
 
-	/* Get the current lwp structure or lwp0 if there is none */
-	td = (curthread != NULL) ? curthread : &thread0;
+	td = curthread;
 
 	/* Data abort came from user mode? */
 	user = TRAP_USERMODE(tf);
 
+	if (user) {
+		if (td->td_ucred != td->td_proc->p_ucred)
+			cred_update_thread(td);
+		
+	}
 	/* Grab the current pcb */
 	pcb = td->td_pcb;
+	/* Re-enable interrupts if they were enabled previously */
+	if (td->td_critnest == 0 && __predict_true(tf->tf_spsr & I32_bit) == 0)
+		enable_interrupts(I32_bit);
+
 	/* Invoke the appropriate handler, if necessary */
 	if (__predict_false(data_aborts[fsr & FAULT_TYPE_MASK].func != NULL)) {
 		if ((data_aborts[fsr & FAULT_TYPE_MASK].func)(tf, fsr, far,
-		    td, &ksig))
+		    td, &ksig)) {
 			goto do_trapsignal;
+		}
 		goto out;
 	}
 
@@ -277,7 +293,6 @@ data_abort_handler(trapframe_t *tf)
 		sticks = td->td_sticks;
 		td->td_frame = tf;
 	}
-
 	/*
 	 * Make sure the Program Counter is sane. We could fall foul of
 	 * someone executing Thumb code, in which case the PC might not
@@ -386,7 +401,8 @@ data_abort_handler(trapframe_t *tf)
 #ifdef DEBUG
 	last_fault_code = fsr;
 #endif
-	if (pmap_fault_fixup(map->pmap, va, ftype, user)) {
+	if (pmap_fault_fixup(user ? vmspace_pmap(td->td_proc->p_vmspace) :
+	    kernel_pmap, va, ftype, user)) {
 		goto out;
 	}
 
@@ -670,14 +686,24 @@ prefetch_abort_handler(trapframe_t *tf)
 	/* Update vmmeter statistics */
 	uvmexp.traps++;
 #endif
-	/*
-	 * Enable IRQ's (disabled by the abort) This always comes
-	 * from user mode so we know interrupts were not disabled.
-	 * But we check anyway.
-	 */
-	if (__predict_true((tf->tf_spsr & I32_bit) == 0))
+#if 0
+	printf("prefetch abort handler: %p %p\n", (void*)tf->tf_pc,
+	    (void*)tf->tf_usr_lr);
+#endif
+	
+ 	td = curthread;
+
+	if (TRAP_USERMODE(tf)) {
+		if (td->td_ucred != td->td_proc->p_ucred)
+			cred_update_thread(td);
+		
+	}
+	fault_pc = tf->tf_pc;
+	if (td->td_critnest == 0 &&
+	    __predict_true((tf->tf_spsr & I32_bit) == 0))
 		enable_interrupts(I32_bit);
 
+		       
 	/* See if the cpu state needs to be fixed up */
 	switch (prefetch_abort_fixup(tf, &ksig)) {
 	case ABORT_FIXUP_RETURN:
@@ -686,7 +712,6 @@ prefetch_abort_handler(trapframe_t *tf)
 		/* Deliver a SIGILL to the process */
 		ksig.signb = SIGILL;
 		ksig.code = 0;
-		td = curthread;
 		td->td_frame = tf;
 		goto do_trapsignal;
 	default:
@@ -696,12 +721,10 @@ prefetch_abort_handler(trapframe_t *tf)
 	/* Prefetch aborts cannot happen in kernel mode */
 	if (__predict_false(!TRAP_USERMODE(tf)))
 		dab_fatal(tf, 0, tf->tf_pc, NULL, &ksig);
-
 	/* Get fault address */
-	fault_pc = tf->tf_pc;
-	td = curthread;
 	td->td_frame = tf;
 	sticks = td->td_sticks;
+
 
 	/* Ok validate the address, can only execute in USER space */
 	if (__predict_false(fault_pc >= VM_MAXUSER_ADDRESS ||
@@ -723,7 +746,7 @@ prefetch_abort_handler(trapframe_t *tf)
 	if (pmap_fault_fixup(map->pmap, va, VM_PROT_READ, 1))
 		goto out;
 
-	error = vm_fault(map, va, VM_PROT_READ /*| VM_PROT_EXECUTE*/,
+	error = vm_fault(map, va, VM_PROT_READ | VM_PROT_EXECUTE,
 	    VM_FAULT_NORMAL);
 	if (__predict_true(error == 0))
 		goto out;
@@ -744,6 +767,7 @@ do_trapsignal:
 
 out:
 	userret(td, tf, sticks);
+
 }
 
 extern int badaddr_read_1(const uint8_t *, uint8_t *);
@@ -804,7 +828,11 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	register_t *ap, *args, copyargs[MAXARGS];
 	struct sysent *callp;
 	int locked = 0;
+	u_int sticks = 0;
 
+	sticks = td->td_sticks;
+	if (td->td_ucred != td->td_proc->p_ucred)
+		cred_update_thread(td);
 	switch (insn & SWI_OS_MASK) {
 	case 0: /* XXX: we need our own one. */
 		nap = 4;
@@ -815,6 +843,7 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		return;
 	}
 	code = insn & 0x000fffff;                
+	sticks = td->td_sticks;
 	ap = &frame->tf_r0;
 	if (code == SYS_syscall) {
 		code = *ap++;
@@ -842,8 +871,12 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 			goto bad;
 		args = copyargs;
 	}
-			
 	error = 0;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_SYSCALL))
+		ktrsyscall(code, nargs, args);
+#endif
+		
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_lock(&Giant);
 	locked = 1;
@@ -852,9 +885,6 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		td->td_retval[1] = 0;
 		error = (*callp->sy_call)(td, args);
 	}
-#if 0
-	printf("code %d error %d\n", code, error);
-#endif
 	  switch (error) {
 	  case 0: 
 		  frame->tf_r0 = td->td_retval[0];
@@ -882,10 +912,13 @@ bad:
 		  mtx_unlock(&Giant);
 	  
 	  
-	  userret(td, frame, td->td_sticks);
+	  userret(td, frame, sticks);
+#ifdef KTRACE
+	  if (KTRPOINT(td, KTR_SYSRET))
+		  ktrsysret(code, error, td->td_retval[0]);
+#endif
 	  mtx_assert(&sched_lock, MA_NOTOWNED);
 	  mtx_assert(&Giant, MA_NOTOWNED);
-		  
 }
 
 void
@@ -898,8 +931,9 @@ swi_handler(trapframe_t *frame)
 	 * Enable interrupts if they were enabled before the exception.
 	 * Since all syscalls *should* come from user mode it will always
 	 * be safe to enable them, but check anyway. 
-	 *                                     */                 
-	if (!(frame->tf_spsr & I32_bit))
+	 */                 
+	
+	if (td->td_critnest == 0 && !(frame->tf_spsr & I32_bit))
 		enable_interrupts(I32_bit);
 	/*
       	 * Make sure the program counter is correctly aligned so we
