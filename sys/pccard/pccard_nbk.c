@@ -82,13 +82,13 @@ devclass_t	pccard_devclass;
 
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
-static u_long pcic_mem_start = IOM_BEGIN;
-static u_long pcic_mem_end = IOM_END;
+static u_long mem_start = IOM_BEGIN;
+static u_long mem_end = IOM_END;
 
-SYSCTL_ULONG(_machdep_pccard, OID_AUTO, pcic_mem_start, CTLFLAG_RW,
-    &pcic_mem_start, 0, "");
-SYSCTL_ULONG(_machdep_pccard, OID_AUTO, pcic_mem_end, CTLFLAG_RW,
-    &pcic_mem_end, 0, "");
+SYSCTL_ULONG(_machdep_pccard, OID_AUTO, mem_start, CTLFLAG_RW,
+    &mem_start, 0, "");
+SYSCTL_ULONG(_machdep_pccard, OID_AUTO, mem_end, CTLFLAG_RW,
+    &mem_end, 0, "");
 
 /*
  * glue for NEWCARD/OLDCARD compat layer
@@ -244,8 +244,8 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource *res;
 
 	if (start == 0 && end == ~0 && type == SYS_RES_MEMORY && count != 1) {
-		start = pcic_mem_start;
-		end = pcic_mem_end;
+		start = mem_start;
+		end = mem_end;
 	}
 	isdefault = (start == 0UL && end == ~0UL);
 	if (!passthrough && !isdefault) {
@@ -302,8 +302,6 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	}
 	return ENOENT;
 }
-
-/* Pass card requests up to pcic.  This may mean a bad design XXX */
 
 static int
 pccard_set_res_flags(device_t bus, device_t child, int restype, int rid,
