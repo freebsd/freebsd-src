@@ -800,7 +800,8 @@ static const char *unimem_names[UNIMEM_TYPES] = {
 static void
 uni_init(void)
 {
-	mtx_init(&nguni_unilist_mtx, "netgraph UNI structure lists", NULL, 0);
+	mtx_init(&nguni_unilist_mtx, "netgraph UNI structure lists", NULL,
+	    MTX_DEF);
 }
 
 static void
