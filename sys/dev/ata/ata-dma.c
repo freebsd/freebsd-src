@@ -103,12 +103,13 @@ ata_dmainit(struct ata_softc *scp, int device,
     /* DMA engine address alignment is usually 1 word (2 bytes) */
     scp->alignment = 0x1;
 
+#if 1
     if (udmamode > 2 && !ATA_PARAM(scp, device)->hwres_cblid) {
 	ata_printf(scp, device,
 		   "DMA limited to UDMA33, non-ATA66 compliant cable\n");
 	udmamode = 2;
     }
-
+#endif
     switch (scp->chiptype) {
 
     case 0x244a8086:	/* Intel ICH2 mobile */ 
@@ -725,17 +726,18 @@ via_82c586:
 
     case 0x4d68105a:	/* Promise TX2 ATA100 controllers */
     case 0x6268105a:	/* Promise TX2v2 ATA100 controllers */
+    case 0x4d69105a:	/* Promise ATA133 controllers */
 	ATA_OUTB(scp->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
 	if (udmamode >= 4 && !(ATA_INB(scp->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
-				ATA_UDMA + max(udmamode, 5), ATA_C_F_SETXFER,
+				ATA_UDMA + udmamode, ATA_C_F_SETXFER,
 				ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device, "%s setting %s on Promise chip\n",
 			   (error) ? "failed" : "success", 
-			   ata_mode2str(ATA_UDMA + max(udmamode, 5)));
+			   ata_mode2str(ATA_UDMA + udmamode));
 	    if (!error) {
-		scp->mode[ATA_DEV(device)] = ATA_UDMA + (max(udmamode, 5));
+		scp->mode[ATA_DEV(device)] = ATA_UDMA + udmamode;
 		return;
 	    }
 	}
