@@ -100,17 +100,6 @@ typedef uint8_t ndis_kirql;
 #define NDIS_STATUS_REQUEST_ABORTED	0xC001000C
 #define NDIS_STATUS_RESET_IN_PROGRESS	0xC001000D
 #define NDIS_STATUS_CLOSING_INDICATING	0xC001000E
-#define NDIS_STATUS_BAD_VERSION		0xC0010004
-#define NDIS_STATUS_BAD_CHARACTERISTICS	0xC0010005
-#define NDIS_STATUS_ADAPTER_NOT_FOUND	0xC0010006
-#define NDIS_STATUS_OPEN_FAILED		0xC0010007
-#define NDIS_STATUS_DEVICE_FAILED	0xC0010008
-#define NDIS_STATUS_MULTICAST_FULL	0xC0010009
-#define NDIS_STATUS_MULTICAST_EXISTS	0xC001000A
-#define NDIS_STATUS_MULTICAST_NOT_FOUND	0xC001000B
-#define NDIS_STATUS_REQUEST_ABORTED	0xC001000C
-#define NDIS_STATUS_RESET_IN_PROGRESS	0xC001000D
-#define NDIS_STATUS_CLOSING_INDICATING	0xC001000E
 #define NDIS_STATUS_NOT_SUPPORTED	0xC00000BB
 #define NDIS_STATUS_INVALID_PACKET	0xC001000F
 #define NDIS_STATUS_OPEN_LIST_FULL	0xC0010010
@@ -192,134 +181,141 @@ typedef uint8_t ndis_kirql;
  */
 
 /* Required OIDs */
-#define OID_GEN_SUPPORTED_LIST                  0x00010101
-#define OID_GEN_HARDWARE_STATUS                 0x00010102
-#define OID_GEN_MEDIA_SUPPORTED                 0x00010103
-#define OID_GEN_MEDIA_IN_USE                    0x00010104
-#define OID_GEN_MAXIMUM_LOOKAHEAD               0x00010105
-#define OID_GEN_MAXIMUM_FRAME_SIZE              0x00010106
-#define OID_GEN_LINK_SPEED                      0x00010107
-#define OID_GEN_TRANSMIT_BUFFER_SPACE           0x00010108
-#define OID_GEN_RECEIVE_BUFFER_SPACE            0x00010109
-#define OID_GEN_TRANSMIT_BLOCK_SIZE             0x0001010A
-#define OID_GEN_RECEIVE_BLOCK_SIZE              0x0001010B
-#define OID_GEN_VENDOR_ID                       0x0001010C
-#define OID_GEN_VENDOR_DESCRIPTION              0x0001010D
-#define OID_GEN_CURRENT_PACKET_FILTER           0x0001010E
-#define OID_GEN_CURRENT_LOOKAHEAD               0x0001010F
-#define OID_GEN_DRIVER_VERSION                  0x00010110
-#define OID_GEN_MAXIMUM_TOTAL_SIZE              0x00010111
-#define OID_GEN_PROTOCOL_OPTIONS                0x00010112
-#define OID_GEN_MAC_OPTIONS                     0x00010113
-#define OID_GEN_MEDIA_CONNECT_STATUS            0x00010114
-#define OID_GEN_MAXIMUM_SEND_PACKETS            0x00010115
-#define OID_GEN_VENDOR_DRIVER_VERSION           0x00010116
-#define OID_GEN_SUPPORTED_GUIDS                 0x00010117
-#define OID_GEN_NETWORK_LAYER_ADDRESSES         0x00010118  /* Set only */
-#define OID_GEN_TRANSPORT_HEADER_OFFSET         0x00010119  /* Set only */
-#define OID_GEN_MACHINE_NAME                    0x0001021A
-#define OID_GEN_RNDIS_CONFIG_PARAMETER          0x0001021B  /* Set only */
-#define OID_GEN_VLAN_ID                         0x0001021C
+#define OID_GEN_SUPPORTED_LIST			0x00010101
+#define OID_GEN_HARDWARE_STATUS			0x00010102
+#define OID_GEN_MEDIA_SUPPORTED			0x00010103
+#define OID_GEN_MEDIA_IN_USE			0x00010104
+#define OID_GEN_MAXIMUM_LOOKAHEAD		0x00010105
+#define OID_GEN_MAXIMUM_FRAME_SIZE		0x00010106
+#define OID_GEN_LINK_SPEED			0x00010107
+#define OID_GEN_TRANSMIT_BUFFER_SPACE		0x00010108
+#define OID_GEN_RECEIVE_BUFFER_SPACE		0x00010109
+#define OID_GEN_TRANSMIT_BLOCK_SIZE		0x0001010A
+#define OID_GEN_RECEIVE_BLOCK_SIZE		0x0001010B
+#define OID_GEN_VENDOR_ID			0x0001010C
+#define OID_GEN_VENDOR_DESCRIPTION		0x0001010D
+#define OID_GEN_CURRENT_PACKET_FILTER		0x0001010E
+#define OID_GEN_CURRENT_LOOKAHEAD		0x0001010F
+#define OID_GEN_DRIVER_VERSION			0x00010110
+#define OID_GEN_MAXIMUM_TOTAL_SIZE		0x00010111
+#define OID_GEN_PROTOCOL_OPTIONS		0x00010112
+#define OID_GEN_MAC_OPTIONS			0x00010113
+#define OID_GEN_MEDIA_CONNECT_STATUS		0x00010114
+#define OID_GEN_MAXIMUM_SEND_PACKETS		0x00010115
+#define OID_GEN_VENDOR_DRIVER_VERSION		0x00010116
+#define OID_GEN_SUPPORTED_GUIDS			0x00010117
+#define OID_GEN_NETWORK_LAYER_ADDRESSES		0x00010118	/* Set only */
+#define OID_GEN_TRANSPORT_HEADER_OFFSET		0x00010119	/* Set only */
+#define OID_GEN_MACHINE_NAME			0x0001021A
+#define OID_GEN_RNDIS_CONFIG_PARAMETER		0x0001021B	/* Set only */
+#define OID_GEN_VLAN_ID				0x0001021C
 
 /* Optional OIDs. */
-#define OID_GEN_MEDIA_CAPABILITIES              0x00010201
-#define OID_GEN_PHYSICAL_MEDIUM                 0x00010202
+#define OID_GEN_MEDIA_CAPABILITIES		0x00010201
+#define OID_GEN_PHYSICAL_MEDIUM			0x00010202
 
 /* Required statistics OIDs. */
-#define OID_GEN_XMIT_OK                         0x00020101
-#define OID_GEN_RCV_OK                          0x00020102
-#define OID_GEN_XMIT_ERROR                      0x00020103
-#define OID_GEN_RCV_ERROR                       0x00020104
-#define OID_GEN_RCV_NO_BUFFER                   0x00020105
+#define OID_GEN_XMIT_OK				0x00020101
+#define OID_GEN_RCV_OK				0x00020102
+#define OID_GEN_XMIT_ERROR			0x00020103
+#define OID_GEN_RCV_ERROR			0x00020104
+#define OID_GEN_RCV_NO_BUFFER			0x00020105
 
 /* Optional OID statistics */
-#define OID_GEN_DIRECTED_BYTES_XMIT             0x00020201
-#define OID_GEN_DIRECTED_FRAMES_XMIT            0x00020202
-#define OID_GEN_MULTICAST_BYTES_XMIT            0x00020203
-#define OID_GEN_MULTICAST_FRAMES_XMIT           0x00020204
-#define OID_GEN_BROADCAST_BYTES_XMIT            0x00020205
-#define OID_GEN_BROADCAST_FRAMES_XMIT           0x00020206
-#define OID_GEN_DIRECTED_BYTES_RCV              0x00020207
-#define OID_GEN_DIRECTED_FRAMES_RCV             0x00020208
-#define OID_GEN_MULTICAST_BYTES_RCV             0x00020209
-#define OID_GEN_MULTICAST_FRAMES_RCV            0x0002020A
-#define OID_GEN_BROADCAST_BYTES_RCV             0x0002020B
-#define OID_GEN_BROADCAST_FRAMES_RCV            0x0002020C
-#define OID_GEN_RCV_CRC_ERROR                   0x0002020D
-#define OID_GEN_TRANSMIT_QUEUE_LENGTH           0x0002020E
-#define OID_GEN_GET_TIME_CAPS                   0x0002020F
-#define OID_GEN_GET_NETCARD_TIME                0x00020210
-#define OID_GEN_NETCARD_LOAD                    0x00020211
-#define OID_GEN_DEVICE_PROFILE                  0x00020212
+#define OID_GEN_DIRECTED_BYTES_XMIT		0x00020201
+#define OID_GEN_DIRECTED_FRAMES_XMIT		0x00020202
+#define OID_GEN_MULTICAST_BYTES_XMIT		0x00020203
+#define OID_GEN_MULTICAST_FRAMES_XMIT		0x00020204
+#define OID_GEN_BROADCAST_BYTES_XMIT		0x00020205
+#define OID_GEN_BROADCAST_FRAMES_XMIT		0x00020206
+#define OID_GEN_DIRECTED_BYTES_RCV		0x00020207
+#define OID_GEN_DIRECTED_FRAMES_RCV		0x00020208
+#define OID_GEN_MULTICAST_BYTES_RCV		0x00020209
+#define OID_GEN_MULTICAST_FRAMES_RCV		0x0002020A
+#define OID_GEN_BROADCAST_BYTES_RCV		0x0002020B
+#define OID_GEN_BROADCAST_FRAMES_RCV		0x0002020C
+#define OID_GEN_RCV_CRC_ERROR			0x0002020D
+#define OID_GEN_TRANSMIT_QUEUE_LENGTH		0x0002020E
+#define OID_GEN_GET_TIME_CAPS			0x0002020F
+#define OID_GEN_GET_NETCARD_TIME		0x00020210
+#define OID_GEN_NETCARD_LOAD			0x00020211
+#define OID_GEN_DEVICE_PROFILE			0x00020212
 
 /* 802.3 (ethernet) OIDs */
-#define OID_802_3_PERMANENT_ADDRESS             0x01010101
-#define OID_802_3_CURRENT_ADDRESS               0x01010102
-#define OID_802_3_MULTICAST_LIST                0x01010103
-#define OID_802_3_MAXIMUM_LIST_SIZE             0x01010104
-#define OID_802_3_MAC_OPTIONS                   0x01010105
-#define NDIS_802_3_MAC_OPTION_PRIORITY          0x00000001
-#define OID_802_3_RCV_ERROR_ALIGNMENT           0x01020101
-#define OID_802_3_XMIT_ONE_COLLISION            0x01020102
-#define OID_802_3_XMIT_MORE_COLLISIONS          0x01020103
-#define OID_802_3_XMIT_DEFERRED                 0x01020201
-#define OID_802_3_XMIT_MAX_COLLISIONS           0x01020202
-#define OID_802_3_RCV_OVERRUN                   0x01020203
-#define OID_802_3_XMIT_UNDERRUN                 0x01020204
-#define OID_802_3_XMIT_HEARTBEAT_FAILURE        0x01020205
-#define OID_802_3_XMIT_TIMES_CRS_LOST           0x01020206
-#define OID_802_3_XMIT_LATE_COLLISIONS          0x01020207
+#define OID_802_3_PERMANENT_ADDRESS		0x01010101
+#define OID_802_3_CURRENT_ADDRESS		0x01010102
+#define OID_802_3_MULTICAST_LIST		0x01010103
+#define OID_802_3_MAXIMUM_LIST_SIZE		0x01010104
+#define OID_802_3_MAC_OPTIONS			0x01010105
+#define NDIS_802_3_MAC_OPTION_PRIORITY		0x00000001
+#define OID_802_3_RCV_ERROR_ALIGNMENT		0x01020101
+#define OID_802_3_XMIT_ONE_COLLISION		0x01020102
+#define OID_802_3_XMIT_MORE_COLLISIONS		0x01020103
+#define OID_802_3_XMIT_DEFERRED			0x01020201
+#define OID_802_3_XMIT_MAX_COLLISIONS		0x01020202
+#define OID_802_3_RCV_OVERRUN			0x01020203
+#define OID_802_3_XMIT_UNDERRUN			0x01020204
+#define OID_802_3_XMIT_HEARTBEAT_FAILURE	0x01020205
+#define OID_802_3_XMIT_TIMES_CRS_LOST		0x01020206
+#define OID_802_3_XMIT_LATE_COLLISIONS		0x01020207
 
 /* PnP and power management OIDs */
-#define OID_PNP_CAPABILITIES                    0xFD010100
-#define OID_PNP_SET_POWER                       0xFD010101
-#define OID_PNP_QUERY_POWER                     0xFD010102
-#define OID_PNP_ADD_WAKE_UP_PATTERN             0xFD010103
-#define OID_PNP_REMOVE_WAKE_UP_PATTERN          0xFD010104
-#define OID_PNP_WAKE_UP_PATTERN_LIST            0xFD010105
-#define OID_PNP_ENABLE_WAKE_UP                  0xFD010106
+#define OID_PNP_CAPABILITIES			0xFD010100
+#define OID_PNP_SET_POWER			0xFD010101
+#define OID_PNP_QUERY_POWER			0xFD010102
+#define OID_PNP_ADD_WAKE_UP_PATTERN		0xFD010103
+#define OID_PNP_REMOVE_WAKE_UP_PATTERN		0xFD010104
+#define OID_PNP_WAKE_UP_PATTERN_LIST		0xFD010105
+#define OID_PNP_ENABLE_WAKE_UP			0xFD010106
 
 /* PnP/PM Statistics (Optional). */
-#define OID_PNP_WAKE_UP_OK                      0xFD020200
-#define OID_PNP_WAKE_UP_ERROR                   0xFD020201
+#define OID_PNP_WAKE_UP_OK			0xFD020200
+#define OID_PNP_WAKE_UP_ERROR			0xFD020201
 
 /* The following bits are defined for OID_PNP_ENABLE_WAKE_UP */
-#define NDIS_PNP_WAKE_UP_MAGIC_PACKET           0x00000001
-#define NDIS_PNP_WAKE_UP_PATTERN_MATCH          0x00000002
-#define NDIS_PNP_WAKE_UP_LINK_CHANGE            0x00000004
+#define NDIS_PNP_WAKE_UP_MAGIC_PACKET		0x00000001
+#define NDIS_PNP_WAKE_UP_PATTERN_MATCH		0x00000002
+#define NDIS_PNP_WAKE_UP_LINK_CHANGE		0x00000004
 
 /* 802.11 OIDs */
-#define OID_802_11_BSSID                        0x0D010101
-#define OID_802_11_SSID                         0x0D010102
-#define OID_802_11_NETWORK_TYPES_SUPPORTED      0x0D010203
-#define OID_802_11_NETWORK_TYPE_IN_USE          0x0D010204
-#define OID_802_11_TX_POWER_LEVEL               0x0D010205
-#define OID_802_11_RSSI                         0x0D010206
-#define OID_802_11_RSSI_TRIGGER                 0x0D010207
-#define OID_802_11_INFRASTRUCTURE_MODE          0x0D010108
-#define OID_802_11_FRAGMENTATION_THRESHOLD      0x0D010209
-#define OID_802_11_RTS_THRESHOLD                0x0D01020A
-#define OID_802_11_NUMBER_OF_ANTENNAS           0x0D01020B
-#define OID_802_11_RX_ANTENNA_SELECTED          0x0D01020C
-#define OID_802_11_TX_ANTENNA_SELECTED          0x0D01020D
-#define OID_802_11_SUPPORTED_RATES              0x0D01020E
-#define OID_802_11_DESIRED_RATES                0x0D010210
-#define OID_802_11_CONFIGURATION                0x0D010211
-#define OID_802_11_STATISTICS                   0x0D020212
-#define OID_802_11_ADD_WEP                      0x0D010113
-#define OID_802_11_REMOVE_WEP                   0x0D010114
-#define OID_802_11_DISASSOCIATE                 0x0D010115
-#define OID_802_11_POWER_MODE                   0x0D010216
-#define OID_802_11_BSSID_LIST                   0x0D010217
-#define OID_802_11_AUTHENTICATION_MODE          0x0D010118
-#define OID_802_11_PRIVACY_FILTER               0x0D010119
-#define OID_802_11_BSSID_LIST_SCAN              0x0D01011A
-#define OID_802_11_WEP_STATUS                   0x0D01011B
-#define OID_802_11_RELOAD_DEFAULTS              0x0D01011C
+#define OID_802_11_BSSID			0x0D010101
+#define OID_802_11_SSID				0x0D010102
+#define OID_802_11_NETWORK_TYPES_SUPPORTED	0x0D010203
+#define OID_802_11_NETWORK_TYPE_IN_USE		0x0D010204
+#define OID_802_11_TX_POWER_LEVEL		0x0D010205
+#define OID_802_11_RSSI				0x0D010206
+#define OID_802_11_RSSI_TRIGGER			0x0D010207
+#define OID_802_11_INFRASTRUCTURE_MODE		0x0D010108
+#define OID_802_11_FRAGMENTATION_THRESHOLD	0x0D010209
+#define OID_802_11_RTS_THRESHOLD		0x0D01020A
+#define OID_802_11_NUMBER_OF_ANTENNAS		0x0D01020B
+#define OID_802_11_RX_ANTENNA_SELECTED		0x0D01020C
+#define OID_802_11_TX_ANTENNA_SELECTED		0x0D01020D
+#define OID_802_11_SUPPORTED_RATES		0x0D01020E
+#define OID_802_11_DESIRED_RATES		0x0D010210
+#define OID_802_11_CONFIGURATION		0x0D010211
+#define OID_802_11_STATISTICS			0x0D020212
+#define OID_802_11_ADD_WEP			0x0D010113
+#define OID_802_11_REMOVE_WEP			0x0D010114
+#define OID_802_11_DISASSOCIATE			0x0D010115
+#define OID_802_11_POWER_MODE			0x0D010216
+#define OID_802_11_BSSID_LIST			0x0D010217
+#define OID_802_11_AUTHENTICATION_MODE		0x0D010118
+#define OID_802_11_PRIVACY_FILTER		0x0D010119
+#define OID_802_11_BSSID_LIST_SCAN		0x0D01011A
+#define OID_802_11_WEP_STATUS			0x0D01011B
+#define OID_802_11_ENCRYPTION_STATUS		OID_802_11_WEP_STATUS
+#define OID_802_11_RELOAD_DEFAULTS		0x0D01011C
+#define OID_802_11_ADD_KEY			0x0D01011D
+#define OID_802_11_REMOVE_KEY			0x0D01011E
+#define OID_802_11_ASSOCIATION_INFORMATION	0x0D01011F
+#define OID_802_11_TEST				0x0D010120
 
 /* structures/definitions for 802.11 */
 #define NDIS_80211_NETTYPE_11FH		0x00000000
 #define NDIS_80211_NETTYPE_11DS		0x00000001
+#define NDIS_80211_NETTYPE_11OFDM5	0x00000002
+#define NDIS_80211_NETTYPE_11OFDM24	0x00000003
 
 struct ndis_80211_nettype_list {
 	uint32_t		ntl_items;
@@ -376,10 +372,13 @@ struct ndis_80211_wep {
 	uint32_t		nw_length;
 	uint32_t		nw_keyidx;
 	uint32_t		nw_keylen;
-	uint32_t		nw_keydata[1];
+	uint8_t			nw_keydata[256];
 };
 
 typedef struct ndis_80211_wep ndis_80211_wep;
+
+#define NDIS_80211_WEPKEY_TX		0x80000000
+#define NDIS_80211_WEPKEY_PERCLIENT	0x40000000
 
 #define NDIS_80211_NET_INFRA_IBSS	0x00000000
 #define NDIS_80211_NET_INFRA_BSS	0x00000001
@@ -388,8 +387,12 @@ typedef struct ndis_80211_wep ndis_80211_wep;
 #define NDIS_80211_AUTHMODE_OPEN	0x00000000
 #define NDIS_80211_AUTHMODE_SHARED	0x00000001
 #define NDIS_80211_AUTHMODE_AUTO	0x00000002
+#define NDIS_80211_AUTHMODE_WPA		0x00000003
+#define NDIS_80211_AUTHMODE_WPAPSK	0x00000004
+#define NDIS_80211_AUTHMODE_WPANONE	0x00000005
 
 typedef uint8_t ndis_80211_rates[8];
+typedef uint8_t ndis_80211_rates_ex[16];
 typedef uint8_t ndis_80211_macaddr[6];
 
 struct ndis_80211_ssid {
@@ -421,6 +424,42 @@ struct ndis_80211_bssid_list {
 
 typedef struct ndis_80211_bssid_list ndis_80211_bssid_list;
 
+struct ndis_wlan_bssid_ex {
+	uint32_t		nwbx_len;
+	ndis_80211_macaddr	nwbx_macaddr;
+	uint8_t			nwbx_rsvd[2];
+	ndis_80211_ssid		nwbx_ssid;
+	uint32_t		nwbx_privacy;
+	ndis_80211_rssi		nwbx_rssi;
+	uint32_t		nwbx_nettype;
+	ndis_80211_config	nwbx_config;
+	uint32_t		nwbx_netinfra;
+	ndis_80211_rates_ex	nwbx_supportedrates;
+	uint32_t		nwbx_ielen;
+	uint32_t		nwbx_ies[1];
+};
+
+typedef struct ndis_wlan_bssid_ex ndis_wlan_bssid_ex;
+
+struct ndis_80211_bssid_list_ex {
+	uint32_t		nblx_items;
+	ndis_wlan_bssid		nblx_bssid[1];
+};
+
+typedef struct ndis_80211_bssid_list_ex ndis_80211_bssid_list_ex;
+
+struct ndis_80211_fixed_ies {
+	uint8_t			nfi_tstamp[8];
+	uint16_t		nfi_beaconint;
+	uint16_t		nfi_caps;
+};
+
+struct ndis_80211_variable_ies {
+	uint8_t			nvi_elemid;
+	uint8_t			nvi_len;
+	uint8_t			nvi_data[1];
+};
+
 typedef uint32_t ndis_80211_fragthresh;
 typedef uint32_t ndis_80211_rtsthresh;
 typedef uint32_t ndis_80211_antenna;
@@ -429,11 +468,110 @@ typedef uint32_t ndis_80211_antenna;
 #define NDIS_80211_PRIVFILT_8021XWEP	0x00000001
 
 #define NDIS_80211_WEPSTAT_ENABLED	0x00000000
+#define NDIS_80211_WEPSTAT_ENC1ENABLED	NDIS_80211_WEPSTAT_ENABLED
 #define NDIS_80211_WEPSTAT_DISABLED	0x00000001
+#define NDIS_80211_WEPSTAT_ENCDISABLED	NDIS_80211_WEPSTAT_DISABLED
 #define NDIS_80211_WEPSTAT_KEYABSENT	0x00000002
+#define NDIS_80211_WEPSTAT_ENC1KEYABSENT	NDIS_80211_WEPSTAT_KEYABSENT
 #define NDIS_80211_WEPSTAT_NOTSUPPORTED	0x00000003
+#define NDIS_80211_WEPSTAT_ENCNOTSUPPORTED	NDIS_80211_WEPSTAT_NOTSUPPORTED
+#define NDIS_80211_WEPSTAT_ENC2ENABLED	0x00000004
+#define NDIS_80211_WEPSTAT_ENC2KEYABSENT	0x00000005
+#define NDIS_80211_WEPSTAT_ENC3ENABLED	0x00000006
+#define NDIS_80211_WEPSTAT_ENC3KEYABSENT	0x00000007
 
 #define NDIS_80211_RELOADDEFAULT_WEP	0x00000000
+
+#define NDIS_80211_STATUSTYPE_AUTH	0x00000000
+
+struct ndis_80211_status_indication {
+	uint32_t		nsi_type;
+};
+
+typedef struct ndis_80211_status_indication ndis_80211_status_indication;
+
+struct ndis_80211_auth_request {
+	uint32_t		nar_len;
+	ndis_80211_macaddr	nar_bssid;
+	uint32_t		nar_flags;
+};
+
+typedef struct ndis_80211_auth_request ndis_80211_auth_request;
+
+struct ndis_80211_key {
+	uint32_t		nk_len;
+	uint32_t		nk_keyidx;
+	uint32_t		nk_keylen;
+	ndis_80211_macaddr	nk_bssid;
+	uint64_t		nk_keyrsc;
+	uint8_t			nk_keydata[256];
+};
+
+typedef struct ndis_80211_key ndis_80211_key;
+
+struct ndis_80211_remove_key {
+	uint32_t		nk_len;
+	uint32_t		nk_keyidx;
+	ndis_80211_macaddr	nk_bssid;
+};
+
+typedef struct ndis_80211_remove_key ndis_80211_remove_key;
+
+#define NDIS_80211_AI_REQFI_CAPABILITIES	0x00000001
+#define NDIS_80211_AI_REQFI_LISTENINTERVAL	0x00000002
+#define NDIS_80211_AI_REQFI_CURRENTAPADDRESS	0x00000004
+
+#define NDIS_80211_AI_RESFI_CAPABILITIES	0x00000001
+#define NDIS_80211_AI_RESFI_STATUSCODE		0x00000002
+#define NDIS_80211_AI_RESFI_ASSOCIATIONID	0x00000004
+
+struct ndis_80211_ai_reqfi {
+	uint16_t		naq_caps;
+	uint16_t		naq_listentint;
+	ndis_80211_macaddr	naq_currentapaddr;
+};
+
+typedef struct ndis_80211_ai_reqfi ndis_80211_ai_reqfi;
+
+struct ndis_80211_ai_resfi {
+	uint16_t		nas_caps;
+	uint16_t		nas_statuscode;
+	uint16_t		nas_associd;
+};
+
+typedef struct ndis_80211_ai_resfi ndis_80211_ai_resfi;
+
+struct ndis_80211_assoc_info {
+	uint32_t		nai_len;
+	uint16_t		nai_avail_req_fixed_ies;
+	ndis_80211_ai_reqfi	nai_req_fixed_ies;
+	uint32_t		nai_req_ielen;
+	uint32_t		nai_offset_req_ies;
+	uint16_t		nai_avail_resp_fixed_ies;
+	ndis_80211_ai_resfi	nai_resp_fixed_iex;
+	uint32_t		nai_resp_ielen;
+	uint32_t		nai_offset_resp_ies;
+};
+
+typedef struct ndis_80211_assoc_info ndis_80211_assoc_info;
+
+struct ndis_80211_auth_event {
+	ndis_80211_status_indication	nae_status;
+	ndis_80211_auth_request		nae_request[1];
+};
+
+typedef struct ndis_80211_auth_event ndis_80211_auth_event;
+
+struct ndis_80211_test {
+	uint32_t		nt_len;
+	uint32_t		nt_type;
+	union {
+		ndis_80211_auth_event	nt_authevent;
+		uint32_t		nt_rssitrigger;
+	} u;
+};
+
+typedef struct ndis_80211_test ndis_80211_test;
 
 /*
  * Attribures of NDIS drivers. Not all drivers support
