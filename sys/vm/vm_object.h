@@ -71,6 +71,9 @@
 #ifndef	_VM_OBJECT_
 #define	_VM_OBJECT_
 
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 
 enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_PHYS,
@@ -171,6 +174,9 @@ extern vm_object_t kmem_object;
 #endif				/* _KERNEL */
 
 #ifdef _KERNEL
+#define	vm_object_lock(object)		mtx_lock(&Giant)
+#define	vm_object_unlock(object)	mtx_unlock(&Giant)
+
 void vm_freeze_copyopts(vm_object_t, vm_pindex_t, vm_pindex_t);
 
 void vm_object_set_flag(vm_object_t object, u_short bits);
