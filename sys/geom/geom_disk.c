@@ -104,6 +104,8 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	w += pp->acw;
 	e += pp->ace;
 	dp = pp->geom->softc;
+	if (dp == NULL)
+		return (ENXIO);
 	error = 0;
 	if ((pp->acr + pp->acw + pp->ace) == 0 && (r + w + e) > 0) {
 		if (dp->d_open != NULL) {
@@ -193,6 +195,8 @@ g_disk_start(struct bio *bp)
 	off_t off;
 
 	dp = bp->bio_to->geom->softc;
+	if (dp == NULL)
+		g_io_deliver(bp, ENXIO);
 	error = EJUSTRETURN;
 	switch(bp->bio_cmd) {
 	case BIO_DELETE:
