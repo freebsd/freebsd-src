@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] =
-  "$Id$";
+  "$Id: ntp_gettime.c,v 1.1 1994/09/18 20:29:46 wollman Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -42,7 +42,7 @@ static const char rcsid[] =
 #include <sys/timex.h>
 
 int
-gethostname(struct ntptimeval *ntv)
+ntp_gettime(struct ntptimeval *ntv)
 {
 	int mib[3];
 	struct ntptimeval tv;
