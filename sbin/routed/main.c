@@ -390,7 +390,7 @@ usage:
 				/* It is desirable to send routing updates
 				 * regularly.  So schedule the next update
 				 * 30 seconds after the previous one was
-				 * secheduled, instead of 30 seconds after
+				 * scheduled, instead of 30 seconds after
 				 * the previous update was finished.
 				 * Even if we just started after discovering
 				 * a 2nd interface or were otherwise delayed,
