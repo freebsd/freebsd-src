@@ -201,6 +201,11 @@ intrmask_t splq __P((intrmask_t mask));
 
 #define	INTR_FAST		0x00000001 /* fast interrupt handler */
 #define INTR_EXCL		0x00010000 /* excl. intr, default is shared */
+
+/*
+ * WARNING: These are internal functions and not to be used by device drivers!
+ * They are subject to change without notice. 
+ */
 struct intrec *inthand_add(const char *name, int irq, inthand2_t handler,
 			   void *arg, intrmask_t *maskptr, int flags);
 
