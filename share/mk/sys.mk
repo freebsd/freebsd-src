@@ -245,7 +245,6 @@ HTAGSFLAGS=
 .endif
 
 .if exists(/etc/defaults/make.conf)
-.error Error, /etc/defaults/make.conf has been moved to /usr/share/examples/etc/make.conf and is not included any more.
 .include </etc/defaults/make.conf>
 .endif
 
