@@ -49,12 +49,6 @@
  */
 typedef u_int16_t comp_t;
 
-#ifdef _KERNEL
-#define __dev_t udev_t
-#else
-#define __dev_t dev_t
-#endif
-
 #define AC_COMM_LEN 16
 struct acct {
 	char	  ac_comm[AC_COMM_LEN];	/* command name */
@@ -66,7 +60,7 @@ struct acct {
 	gid_t	  ac_gid;		/* group id */
 	u_int16_t ac_mem;		/* average memory usage */
 	comp_t	  ac_io;		/* count of IO blocks */
-	__dev_t	  ac_tty;		/* controlling tty */
+	__udev_t  ac_tty;		/* controlling tty */
 
 #define	AFORK	0x01			/* forked but not exec'ed */
 /* ASU is no longer supported */
@@ -76,7 +70,6 @@ struct acct {
 #define	AXSIG	0x10			/* killed by a signal */
 	u_int8_t  ac_flag;		/* accounting flags */
 };
-#undef __dev_t
 
 /*
  * 1/AHZ is the granularity of the data encoded in the comp_t fields.
