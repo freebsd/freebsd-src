@@ -101,6 +101,7 @@
  */
 
 #include "opt_userconfig.h"
+#define COMPAT_OLDISA	/* get the definitions */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -115,8 +116,7 @@
 #include <machine/md_var.h>
 #include <machine/limits.h>
 
-
-#include <i386/isa/isa_device.h>
+#define _I386_ISA_ISA_DEVICE_H_
 
 #undef NPNP
 #define NPNP 0
@@ -125,11 +125,11 @@
 #include <i386/isa/pnp.h>
 #endif
 
-static MALLOC_DEFINE(M_DEVL, "isa_devlist", "isa_device lists in userconfig()");
+static MALLOC_DEFINE(M_DEVL, "uc_devlist", "uc_device lists in userconfig()");
 
-static struct isa_device *isa_devlist;	/* list read by kget to extract changes */
-static struct isa_device *isa_devtab;	/* fake isa_device table */
-static struct isa_driver *isa_drvtab;	/* fake driver list */
+#include <machine/uc_device.h>
+static struct uc_device *uc_devlist;	/* list read by kget to extract changes */
+static struct uc_device *uc_devtab;	/* fake uc_device table */
 
 static int userconfig_boot_parsing;	/* set if we are reading from the boot instructions */
 
@@ -137,34 +137,34 @@ static int userconfig_boot_parsing;	/* set if we are reading from the boot instr
 
 static void load_devtab(void);
 static void free_devtab(void);
-static void save_resource(struct isa_device *);
+static void save_resource(struct uc_device *);
 
 static int
 sysctl_machdep_uc_devlist SYSCTL_HANDLER_ARGS
 {
-	struct isa_device *id;
+	struct uc_device *id;
 	int error=0;
 	char name[8];
 
 	if(!req->oldptr) {
 		/* Only sizing */
-		id=isa_devlist;
+		id=uc_devlist;
 		while(id) {
-			error+=sizeof(struct isa_device)+8;
+			error+=sizeof(struct uc_device)+8;
 			id=id->id_next;
 		}
 		return(SYSCTL_OUT(req,0,error));
 	} else {
 		/* Output the data. The buffer is filled with consecutive
-		 * struct isa_device and char buf[8], containing the name
+		 * struct uc_device and char buf[8], containing the name
 		 * (not guaranteed to end with '\0').
 		 */
-		id=isa_devlist;
+		id=uc_devlist;
 		while(id) {
 			error=sysctl_handle_opaque(oidp,id,
-				sizeof(struct isa_device),req);
+				sizeof(struct uc_device),req);
 			if(error) return(error);
-			strncpy(name,id->id_driver->name,8);
+			strncpy(name,id->id_name,8);
 			error=sysctl_handle_opaque(oidp,name,
 				8,req);
 			if(error) return(error);
@@ -446,7 +446,7 @@ typedef struct _devlist_struct
     int		comment;		/* 0 = device, 1 = comment, 2 = collapsed comment */
     int		conflicts;		/* set/reset by findconflict, count of conflicts */
     int		changed;		/* nonzero if the device has been edited */
-    struct isa_device	*device;
+    struct uc_device	*device;
     struct _devlist_struct *prev,*next;
 } DEV_LIST;
 
@@ -522,13 +522,13 @@ static void
 getdevs(void)
 {
     int 		i;
-    struct isa_device	*ap;
+    struct uc_device	*ap;
 
-	ap = isa_devtab;				/* pointer to array of devices */
+	ap = uc_devtab;				/* pointer to array of devices */
 	for (i = 0; ap[i].id_id; i++)			/* for each device in this table */
 	{
 	    scratch.unit = ap[i].id_unit;		/* device parameters */
-	    strcpy(scratch.dev,ap[i].id_driver->name);
+	    strcpy(scratch.dev,ap[i].id_name);
 	    scratch.iobase = ap[i].id_iobase;
 	    scratch.irq = ffs(ap[i].id_irq)-1;
 	    scratch.drq = ap[i].id_drq;
@@ -763,59 +763,51 @@ initlist(DEV_LIST **list)
  **
  ** The device's active field is set according to (active).
  **
- ** Builds the isa_devlist used by kget to extract the changed device information.
+ ** Builds the uc_devlist used by kget to extract the changed device information.
  ** The code for this was taken almost verbatim from the original module.
  **/
 static void
 savelist(DEV_LIST *list, int active)
 {
-    struct isa_device	*id_p,*id_pn;
-    struct isa_driver	*isa_drv;
+    struct uc_device	*id_p,*id_pn;
     char *name;
 
     while (list)
     {
 	if ((list->comment == DEV_DEVICE) &&		/* is a device */
 	    (list->changed) &&				/* has been changed */
-	    (list->device != NULL)) {			/* has an isa_device structure */
+	    (list->device != NULL)) {			/* has an uc_device structure */
 
 	    setdev(list,active);			/* set the device itself */
 
 	    id_pn = NULL;
-	    for (id_p=isa_devlist; id_p; id_p=id_p->id_next) 
+	    for (id_p=uc_devlist; id_p; id_p=id_p->id_next) 
 	    {						/* look on the list for it */
 		if (id_p->id_id == list->device->id_id) 
 		{
-		    name = list->device->id_driver->name;
+		    name = list->device->id_name;
 		    id_pn = id_p->id_next;
-		    isa_drv = id_p->id_driver;
-		    if (isa_drv && isa_drv->name)
-			    free(isa_drv->name, M_DEVL);
-		    if (isa_drv)
-			    free(isa_drv, M_DEVL);
-		    bcopy(list->device,id_p,sizeof(struct isa_device));
+		    if (id_p->id_name)
+			    free(id_p->id_name, M_DEVL);
+		    bcopy(list->device,id_p,sizeof(struct uc_device));
 		    save_resource(list->device);
-		    isa_drv = malloc(sizeof(struct isa_driver),M_DEVL,M_WAITOK);
-		    isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
-		    strcpy(isa_drv->name, name);
-		    id_p->id_driver = isa_drv;
-		    id_pn->id_next = isa_devlist;
+		    id_p->id_name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+		    strcpy(id_p->id_name, name);
+		    id_pn->id_next = uc_devlist;
 		    id_p->id_next = id_pn;
 		    break;
 		}
 	    }
 	    if (!id_pn)					/* not already on the list */
 	    {
-		name = list->device->id_driver->name;
-		id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
-		bcopy(list->device,id_pn,sizeof(struct isa_device));
+		name = list->device->id_name;
+		id_pn = malloc(sizeof(struct uc_device),M_DEVL,M_WAITOK);
+		bcopy(list->device,id_pn,sizeof(struct uc_device));
 		save_resource(list->device);
-		isa_drv = malloc(sizeof(struct isa_driver),M_DEVL, M_WAITOK);
-		isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
-		strcpy(isa_drv->name, name);
-		id_pn->id_driver = isa_drv;
-		id_pn->id_next = isa_devlist;
-		isa_devlist = id_pn;			/* park at top of list */
+		id_pn->id_name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+		strcpy(id_pn->id_name, name);
+		id_pn->id_next = uc_devlist;
+		uc_devlist = id_pn;			/* park at top of list */
 	    }
 	}
 	list = list->next;
@@ -2467,7 +2459,7 @@ visuserconfig(void)
 typedef struct _cmdparm {
     int type;
     union {
-	struct isa_device *dparm;
+	struct uc_device *dparm;
 	int iparm;
 	union {
 		void *aparm;
@@ -2490,13 +2482,13 @@ static void lsscsi(void);
 static int list_scsi(CmdParm *);
 #endif
 
-static int lsdevtab(struct isa_device *);
-static struct isa_device *find_device(char *, int);
-static struct isa_device *search_devtable(struct isa_device *, char *, int);
+static int lsdevtab(struct uc_device *);
+static struct uc_device *find_device(char *, int);
+static struct uc_device *search_devtable(struct uc_device *, char *, int);
 static void cngets(char *, int);
 static Cmd *parse_cmd(char *);
 static int parse_args(const char *, CmdParm *);
-static int save_dev(struct isa_device *);
+static int save_dev(struct uc_device *);
 
 static int list_devices(CmdParm *);
 static int set_device_ioaddr(CmdParm *);
@@ -2738,7 +2730,7 @@ static int
 list_devices(CmdParm *parms)
 {
     lineno = 0;
-    if (lsdevtab(isa_devtab)) return 0;
+    if (lsdevtab(uc_devtab)) return 0;
 #if NPNP > 0
     if (lspnp()) return 0;
 #endif
@@ -3223,7 +3215,7 @@ lspnp ()
 #endif /* NPNP */
 		
 static int
-lsdevtab(struct isa_device *dt)
+lsdevtab(struct uc_device *dt)
 {
     for (; dt->id_id != 0; dt++) {
 	char dname[80];
@@ -3245,7 +3237,7 @@ lsdevtab(struct isa_device *dt)
 		    );
 		++lineno;
 	}
-	sprintf(dname, "%s%d", dt->id_driver->name, dt->id_unit);
+	sprintf(dname, "%s%d", dt->id_name, dt->id_unit);
 	printf("%-9.9s%-#11x%-6d%-6d%-8p%-9d%-6d%-#11x%-5s\n",
 	    dname, /* dt->id_id, dt->id_driver(by name), */ dt->id_iobase,
 	    ffs(dt->id_irq) - 1, dt->id_drq, dt->id_maddr, dt->id_msize,
@@ -3266,32 +3258,29 @@ load_devtab(void)
     char *name;
     int unit;
 
-    isa_devtab = malloc(sizeof(struct isa_device)*(count + 1),M_DEVL,M_WAITOK);
-    isa_drvtab = malloc(sizeof(struct isa_driver)*(count + 1),M_DEVL,M_WAITOK);
-    bzero(isa_devtab, sizeof(struct isa_device) * (count + 1));
-    bzero(isa_drvtab, sizeof(struct isa_driver) * (count + 1));
+    uc_devtab = malloc(sizeof(struct uc_device)*(count + 1),M_DEVL,M_WAITOK);
+    bzero(uc_devtab, sizeof(struct uc_device) * (count + 1));
     dt = 0;
     for (i = 0; i < count; i++) {
 	name = resource_query_name(i);
 	unit = resource_query_unit(i);
 	if (unit < 0)
 	    continue;	/* skip wildcards */
-	isa_devtab[dt].id_id = id++;
-	isa_devtab[dt].id_driver = &isa_drvtab[dt];
-	resource_int_value(name, unit, "port", &isa_devtab[dt].id_iobase);
+	uc_devtab[dt].id_id = id++;
+	resource_int_value(name, unit, "port", &uc_devtab[dt].id_iobase);
 	val = 0;
 	resource_int_value(name, unit, "irq", &val);
-	isa_devtab[dt].id_irq = (1 << val);
-	resource_int_value(name, unit, "drq", &isa_devtab[dt].id_drq);
-	resource_int_value(name, unit, "maddr",(int *)&isa_devtab[dt].id_maddr);
-	resource_int_value(name, unit, "msize", &isa_devtab[dt].id_msize);
-	isa_devtab[dt].id_unit = unit;
-	resource_int_value(name, unit, "flags", &isa_devtab[dt].id_flags);
+	uc_devtab[dt].id_irq = (1 << val);
+	resource_int_value(name, unit, "drq", &uc_devtab[dt].id_drq);
+	resource_int_value(name, unit, "maddr",(int *)&uc_devtab[dt].id_maddr);
+	resource_int_value(name, unit, "msize", &uc_devtab[dt].id_msize);
+	uc_devtab[dt].id_unit = unit;
+	resource_int_value(name, unit, "flags", &uc_devtab[dt].id_flags);
 	val = 0;
 	resource_int_value(name, unit, "disabled", &val);
-	isa_devtab[dt].id_enabled = !val;
-	isa_drvtab[dt].name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
-	strcpy(isa_drvtab[dt].name, name);
+	uc_devtab[dt].id_enabled = !val;
+	uc_devtab[dt].id_name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+	strcpy(uc_devtab[dt].id_name, name);
 	dt++;
     }
 }
@@ -3303,29 +3292,28 @@ free_devtab(void)
     int count = resource_count();
 
     for (i = 0; i < count; i++)
-	if (isa_drvtab[i].name)
-	    free(isa_drvtab[i].name, M_DEVL);
-    free(isa_drvtab, M_DEVL);
-    free(isa_devtab, M_DEVL);
+	if (uc_devtab[i].id_name)
+	    free(uc_devtab[i].id_name, M_DEVL);
+    free(uc_devtab, M_DEVL);
 }
     
-static struct isa_device *
+static struct uc_device *
 find_device(char *devname, int unit)
 {
-    struct isa_device *ret;
+    struct uc_device *ret;
 
-    if ((ret = search_devtable(isa_devtab, devname, unit)) != NULL)
+    if ((ret = search_devtable(uc_devtab, devname, unit)) != NULL)
         return ret;
     return NULL;
 }
 
-static struct isa_device *
-search_devtable(struct isa_device *dt, char *devname, int unit)
+static struct uc_device *
+search_devtable(struct uc_device *dt, char *devname, int unit)
 {
     int i;
 
     for (i = 0; dt->id_id != 0; dt++)
-        if (!strcmp(dt->id_driver->name, devname) && dt->id_unit == unit)
+        if (!strcmp(dt->id_name, devname) && dt->id_unit == unit)
 	    return dt;
     return NULL;
 }
@@ -3440,12 +3428,12 @@ list_scsi(CmdParm *parms)
 #endif
 
 static void
-save_resource(struct isa_device *idev)
+save_resource(struct uc_device *idev)
 {
     char *name;
     int unit;
 
-    name = idev->id_driver->name;
+    name = idev->id_name;
     unit = idev->id_unit;
     resource_set_int(name, unit, "port", idev->id_iobase);
     resource_set_int(name, unit, "irq", ffs(idev->id_irq) - 1);
@@ -3458,42 +3446,31 @@ save_resource(struct isa_device *idev)
 
 static int
 save_dev(idev)
-struct isa_device 	*idev;
+struct uc_device 	*idev;
 {
-	struct isa_device	*id_p,*id_pn;
-	struct isa_driver	*isa_drv;
-	char *name = idev->id_driver->name;
+	struct uc_device	*id_p,*id_pn;
+	char *name = idev->id_name;
 
-	for (id_p=isa_devlist;
-	id_p;
-	id_p=id_p->id_next) {
+	for (id_p = uc_devlist; id_p; id_p = id_p->id_next) {
 		if (id_p->id_id == idev->id_id) {
 			id_pn = id_p->id_next;
-			isa_drv = id_p->id_driver;
-			if (isa_drv && isa_drv->name)
-				free(isa_drv->name, M_DEVL);
-			if (isa_drv)
-				free(isa_drv, M_DEVL);
-			bcopy(idev,id_p,sizeof(struct isa_device));
+			if (id_p->id_name)
+				free(id_p->id_name, M_DEVL);
+			bcopy(idev,id_p,sizeof(struct uc_device));
 			save_resource(idev);
-			isa_drv = malloc(sizeof(struct isa_driver),M_DEVL,
-				M_WAITOK);
-			isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
-			strcpy(isa_drv->name, name);
-			id_p->id_driver = isa_drv;
+			id_p->id_name = malloc(strlen(name)+1, M_DEVL,M_WAITOK);
+			strcpy(id_p->id_name, name);
 			id_p->id_next = id_pn;
 			return 1;
 		}
 	}
-	id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
-	bcopy(idev,id_pn,sizeof(struct isa_device));
+	id_pn = malloc(sizeof(struct uc_device),M_DEVL,M_WAITOK);
+	bcopy(idev,id_pn,sizeof(struct uc_device));
 	save_resource(idev);
-	isa_drv = malloc(sizeof(struct isa_driver),M_DEVL, M_WAITOK);
-	isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
-	strcpy(isa_drv->name, name);
-	id_pn->id_driver = isa_drv;
-	id_pn->id_next = isa_devlist;
-	isa_devlist = id_pn;
+	id_pn->id_name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+	strcpy(id_pn->id_name, name);
+	id_pn->id_next = uc_devlist;
+	uc_devlist = id_pn;
 	return 0;
 }
 
