@@ -310,17 +310,18 @@ Selectively disables portions of ACPI for debugging purposes.
 .It Va hint.acpi.0.disabled
 Disables all of ACPI.
 .It Va hw.acpi.ec.poll_timeout
-Delay in milliseconds to wait for the EC to respond.  Try increasing this
+Delay in milliseconds to wait for the EC to respond.
+Try increasing this
 number if you get the error 
 .Er AE_NO_HARDWARE_RESPONSE .
-.It Va hw.acpi.no_reset_video
-Disables calling the VESA reset BIOS vector on the resume path.  Some
-graphic chips have problems such as LCD white-out after resume.  Try
-setting this to 1 if necessary.
+.It Va hw.acpi.reset_video
+Enables calling the VESA reset BIOS vector on the resume path.
+Some graphic chips have problems such as LCD white-out after resume.
+Try setting this to 0 if this causes problems for you.
 .It Va hw.acpi.os_name
 Some systems' ASL may have problems because they look for names 
-of Microsoft operating systems.  This tunable overrides the
-default value of "FreeBSD".
+of Microsoft operating systems.  
+This tunable overrides the default value of "FreeBSD".
 .It Va hw.acpi.pci.link.%d.%d.%d.irq
 Override the interrupt to use.
 .It Va hw.acpi.verbose
