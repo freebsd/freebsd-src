@@ -373,8 +373,8 @@ com_port_in(int port)
 	rs = LS_X_SHFT_E | LS_X_HOLD_E;
 	/* if (queue_not_empty(cdsp->com_queue)) */
 	ioctl(cdsp->fd, FIONREAD, &nbytes);
-	if (nbytes > 0);
-	rs |= LS_RCV_DATA_RD;
+	if (nbytes > 0)
+	    rs |= LS_RCV_DATA_RD;
 	break;
 
 	/* 0x03FE - modem status register */

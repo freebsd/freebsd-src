@@ -160,8 +160,8 @@ extern int	debug_flags;
 void	unknown_int2(int, int, regcontext_t *);
 void	unknown_int3(int, int, int, regcontext_t *);
 void	unknown_int4(int, int, int, int, regcontext_t *);
-void	fatal(char *, ...) __printflike(1, 2);
-void	debug(int, char *, ...) __printflike(2, 3);
+void	fatal(const char *, ...) __printflike(1, 2);
+void	debug(int, const char *, ...) __printflike(2, 3);
 void	dump_regs(regcontext_t *);
 void	debug_set(int);
 void	debug_unset(int);
@@ -186,6 +186,7 @@ void	call_on_quit(void (*)(void *), void *);
 void	done(regcontext_t *, int);
 void	iomap_port(int, int);
 int 	open_prog(char *);
+void	put_dosenv(const char *);
 void 	quit(int);
 int	squirrel_fd(int);
 
@@ -305,5 +306,3 @@ extern u_long	pending[];		/* pending interrupts */
 extern int	n_pending;
 
 extern int nmice;
-
-void put_dosenv(char *value);

@@ -309,9 +309,9 @@ static u_char magic[0x7e] = {
 	0x0f, 0x0f, 0x0f, 0x0f, 0x04, 0x0f,
 };
 
-#define	isvalid(x)	((magic[x] & 0x01) != 0)
-#define	issep(x)	((magic[x] & 0x02) == 0)
-#define	iswhite(x)	((magic[x] & 0x04) == 0)
+#define	isvalid(x)	((magic[(int)(x)] & 0x01) != 0)
+#define	issep(x)	((magic[(int)(x)] & 0x02) == 0)
+#define	iswhite(x)	((magic[(int)(x)] & 0x04) == 0)
 
 static char *
 skipwhite(char *p)
@@ -2429,7 +2429,7 @@ static struct intfunc_table int21_table [] = {
 
 static int int21_fastlookup[256];
 
-char *dos_return[] = {
+const char *dos_return[] = {
     "OK",
     "FUNC_NUM_IVALID",
     "FILE_NOT_FOUND",
