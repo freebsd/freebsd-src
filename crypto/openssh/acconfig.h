@@ -1,4 +1,4 @@
-/* $Id: acconfig.h,v 1.177 2004/04/15 23:22:40 dtucker Exp $ */
+/* $Id: acconfig.h,v 1.180 2004/08/16 13:12:06 dtucker Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -104,6 +104,9 @@
 
 /* Work around problematic Linux PAM modules handling of PAM_TTY */
 #undef PAM_TTY_KLUDGE
+
+/* Define if pam_chauthtok wants real uid set to the unpriv'ed user */
+#undef SSHPAM_CHAUTHTOK_NEEDS_RUID
 
 /* Use PIPES instead of a socketpair() */
 #undef USE_PIPES
@@ -438,6 +441,12 @@
 /* Define if cmsg_type is not passed correctly */
 #undef BROKEN_CMSG_TYPE
 
+/*
+ * Define to whatever link() returns for "not supported" if it doesn't
+ * return EOPNOTSUPP.
+ */
+#undef LINK_OPNOTSUPP_ERRNO
+
 /* Strings used in /etc/passwd to denote locked account */
 #undef LOCKED_PASSWD_STRING
 #undef LOCKED_PASSWD_PREFIX
@@ -451,6 +460,9 @@
 
 /* Define if your resolver libs need this for getrrsetbyname */
 #undef BIND_8_COMPAT
+
+/* Define if you have /proc/$pid/fd */
+#undef HAVE_PROC_PID
 
 @BOTTOM@
 

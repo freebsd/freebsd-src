@@ -158,8 +158,8 @@
 #include "log.h"
 #include "atomicio.h"
 
+RCSID("$Id: loginrec.c,v 1.58 2004/08/15 09:12:52 djm Exp $");
 RCSID("$FreeBSD$");
-RCSID("$Id: loginrec.c,v 1.54 2004/02/10 05:49:35 dtucker Exp $");
 
 #ifdef HAVE_UTIL_H
 #  include <util.h>
@@ -435,6 +435,11 @@ login_write (struct logininfo *li)
 #endif
 #ifdef USE_WTMPX
 	wtmpx_write_entry(li);
+#endif
+#ifdef CUSTOM_SYS_AUTH_RECORD_LOGIN
+	if (li->type == LTYPE_LOGIN && 
+	   !sys_auth_record_login(li->username,li->hostname,li->line))
+		logit("Writing login record failed for %s", li->username);
 #endif
 	return 0;
 }
@@ -815,8 +820,8 @@ utmp_write_direct(struct logininfo *li, struct utmp *ut)
 	endttyent();
 
 	if((struct ttyent *)0 == ty) {
-		logit("utmp_write_entry: tty not found");
-		return(1);
+		logit("%s: tty not found", __func__);
+		return (0);
 	}
 #else /* FIXME */
 
@@ -825,7 +830,18 @@ utmp_write_direct(struct logininfo *li, struct utmp *ut)
 #endif /* HAVE_GETTTYENT */
 
 	if (tty > 0 && (fd = open(UTMP_FILE, O_RDWR|O_CREAT, 0644)) >= 0) {
-		(void)lseek(fd, (off_t)(tty * sizeof(struct utmp)), SEEK_SET);
+		off_t pos, ret;
+
+		pos = (off_t)tty * sizeof(struct utmp);
+		if ((ret = lseek(fd, pos, SEEK_SET)) == -1) {
+			logit("%s: llseek: %s", strerror(errno));
+			return (0);
+		}
+		if (ret != pos) {
+			logit("%s: Couldn't seek to tty %s slot in %s", tty,
+			    UTMP_FILE);
+			return (0);
+		}
 		/*
 		 * Prevent luser from zero'ing out ut_host.
 		 * If the new ut_line is empty but the old one is not
@@ -838,9 +854,17 @@ utmp_write_direct(struct logininfo *li, struct utmp *ut)
 			(void)memcpy(ut->ut_host, old_ut.ut_host, sizeof(ut->ut_host));
 		}
 
-		(void)lseek(fd, (off_t)(tty * sizeof(struct utmp)), SEEK_SET);
+		if ((ret = lseek(fd, pos, SEEK_SET)) == -1) {
+			logit("%s: llseek: %s", __func__, strerror(errno));
+			return (0);
+		}
+		if (ret != pos) {
+			logit("%s: Couldn't seek to tty %s slot in %s",
+			    __func__, tty, UTMP_FILE);
+			return (0);
+		}
 		if (atomicio(vwrite, fd, ut, sizeof(*ut)) != sizeof(*ut))
-			logit("utmp_write_direct: error writing %s: %s",
+			logit("%s: error writing %s: %s", __func__,
 			    UTMP_FILE, strerror(errno));
 
 		(void)close(fd);

@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth.c,v 1.51 2003/11/21 11:57:02 djm Exp $");
+RCSID("$OpenBSD: auth.c,v 1.56 2004/07/28 09:40:29 markus Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef HAVE_LOGIN_H
@@ -48,7 +48,6 @@ RCSID("$FreeBSD$");
 #include "buffer.h"
 #include "bufaux.h"
 #include "uidswap.h"
-#include "tildexpand.h"
 #include "misc.h"
 #include "bufaux.h"
 #include "packet.h"
@@ -205,31 +204,10 @@ allowed_user(struct passwd * pw)
 		ga_free();
 	}
 
-#ifdef WITH_AIXAUTHENTICATE
-	/*
-	 * Don't check loginrestrictions() for root account (use
-	 * PermitRootLogin to control logins via ssh), or if running as
-	 * non-root user (since loginrestrictions will always fail).
-	 */
-	if ((pw->pw_uid != 0) && (geteuid() == 0)) {
-		char *msg;
-
-		if (loginrestrictions(pw->pw_name, S_RLOGIN, NULL, &msg) != 0) {
-			int loginrestrict_errno = errno;
-
-			if (msg && *msg) {
-				buffer_append(&loginmsg, msg, strlen(msg));
-				aix_remove_embedded_newlines(msg);
-				logit("Login restricted for %s: %.100s",
-				    pw->pw_name, msg);
-			}
-			/* Don't fail if /etc/nologin  set */
-			if (!(loginrestrict_errno == EPERM &&
-			    stat(_PATH_NOLOGIN, &st) == 0))
-				return 0;
-		}
-	}
-#endif /* WITH_AIXAUTHENTICATE */
+#ifdef CUSTOM_SYS_AUTH_ALLOWED_USER
+	if (!sys_auth_allowed_user(pw))
+		return 0;
+#endif
 
 	/* We found no reason not to let this user try to log on... */
 	return 1;
@@ -244,7 +222,7 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
 	/* Raise logging level */
 	if (authenticated == 1 ||
 	    !authctxt->valid ||
-	    authctxt->failures >= AUTH_FAIL_LOG ||
+	    authctxt->failures >= options.max_authtries / 2 ||
 	    strcmp(method, "password") == 0)
 		authlog = logit;
 
@@ -256,7 +234,7 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
 	authlog("%s %s for %s%.100s from %.200s port %d%s",
 	    authmsg,
 	    method,
-	    authctxt->valid ? "" : "illegal user ",
+	    authctxt->valid ? "" : "invalid user ",
 	    authctxt->user,
 	    get_remote_ipaddr(),
 	    get_remote_port(),
@@ -485,7 +463,7 @@ getpwnamallow(const char *user)
 
 	pw = getpwnam(user);
 	if (pw == NULL) {
-		logit("Illegal user %.100s from %.100s",
+		logit("Invalid user %.100s from %.100s",
 		    user, get_remote_ipaddr());
 #ifdef CUSTOM_FAILED_LOGIN
 		record_failed_login(user, "ssh");
@@ -564,8 +542,8 @@ fakepw(void)
 	fake.pw_passwd =
 	    "$2a$06$r3.juUaHZDlIbQaO2dS9FuYxL1W9M81R1Tc92PoSNmzvpEqLkLGrK";
 	fake.pw_gecos = "NOUSER";
-	fake.pw_uid = -1;
-	fake.pw_gid = -1;
+	fake.pw_uid = (uid_t)-1;
+	fake.pw_gid = (gid_t)-1;
 #ifdef HAVE_PW_CLASS_IN_PASSWD
 	fake.pw_class = "";
 #endif

@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: cipher.c,v 1.68 2004/01/23 19:26:33 hshoexer Exp $");
+RCSID("$OpenBSD: cipher.c,v 1.71 2004/07/28 09:40:29 markus Exp $");
 
 #include "xmalloc.h"
 #include "log.h"
@@ -76,19 +76,19 @@ struct Cipher {
 	u_int	key_len;
 	const EVP_CIPHER	*(*evptype)(void);
 } ciphers[] = {
-	{ "none", 		SSH_CIPHER_NONE, 8, 0, EVP_enc_null },
-	{ "des", 		SSH_CIPHER_DES, 8, 8, EVP_des_cbc },
-	{ "3des", 		SSH_CIPHER_3DES, 8, 16, evp_ssh1_3des },
-	{ "blowfish", 		SSH_CIPHER_BLOWFISH, 8, 32, evp_ssh1_bf },
+	{ "none",		SSH_CIPHER_NONE, 8, 0, EVP_enc_null },
+	{ "des",		SSH_CIPHER_DES, 8, 8, EVP_des_cbc },
+	{ "3des",		SSH_CIPHER_3DES, 8, 16, evp_ssh1_3des },
+	{ "blowfish",		SSH_CIPHER_BLOWFISH, 8, 32, evp_ssh1_bf },
 
-	{ "3des-cbc", 		SSH_CIPHER_SSH2, 8, 24, EVP_des_ede3_cbc },
-	{ "blowfish-cbc", 	SSH_CIPHER_SSH2, 8, 16, EVP_bf_cbc },
-	{ "cast128-cbc", 	SSH_CIPHER_SSH2, 8, 16, EVP_cast5_cbc },
-	{ "arcfour", 		SSH_CIPHER_SSH2, 8, 16, EVP_rc4 },
+	{ "3des-cbc",		SSH_CIPHER_SSH2, 8, 24, EVP_des_ede3_cbc },
+	{ "blowfish-cbc",	SSH_CIPHER_SSH2, 8, 16, EVP_bf_cbc },
+	{ "cast128-cbc",	SSH_CIPHER_SSH2, 8, 16, EVP_cast5_cbc },
+	{ "arcfour",		SSH_CIPHER_SSH2, 8, 16, EVP_rc4 },
 #if OPENSSL_VERSION_NUMBER < 0x00907000L
-	{ "aes128-cbc", 	SSH_CIPHER_SSH2, 16, 16, evp_rijndael },
-	{ "aes192-cbc", 	SSH_CIPHER_SSH2, 16, 24, evp_rijndael },
-	{ "aes256-cbc", 	SSH_CIPHER_SSH2, 16, 32, evp_rijndael },
+	{ "aes128-cbc",		SSH_CIPHER_SSH2, 16, 16, evp_rijndael },
+	{ "aes192-cbc",		SSH_CIPHER_SSH2, 16, 24, evp_rijndael },
+	{ "aes256-cbc",		SSH_CIPHER_SSH2, 16, 32, evp_rijndael },
 	{ "rijndael-cbc@lysator.liu.se",
 				SSH_CIPHER_SSH2, 16, 32, evp_rijndael },
 #else
@@ -99,14 +99,14 @@ struct Cipher {
 				SSH_CIPHER_SSH2, 16, 32, EVP_aes_256_cbc },
 #endif
 #if OPENSSL_VERSION_NUMBER >= 0x00905000L
-	{ "aes128-ctr", 	SSH_CIPHER_SSH2, 16, 16, evp_aes_128_ctr },
-	{ "aes192-ctr", 	SSH_CIPHER_SSH2, 16, 24, evp_aes_128_ctr },
-	{ "aes256-ctr", 	SSH_CIPHER_SSH2, 16, 32, evp_aes_128_ctr },
+	{ "aes128-ctr",		SSH_CIPHER_SSH2, 16, 16, evp_aes_128_ctr },
+	{ "aes192-ctr",		SSH_CIPHER_SSH2, 16, 24, evp_aes_128_ctr },
+	{ "aes256-ctr",		SSH_CIPHER_SSH2, 16, 32, evp_aes_128_ctr },
 #endif
 #if defined(EVP_CTRL_SET_ACSS_MODE)
 	{ "acss@openssh.org",	SSH_CIPHER_SSH2, 16, 5, EVP_acss },
 #endif
-	{ NULL,			SSH_CIPHER_ILLEGAL, 0, 0, NULL }
+	{ NULL,			SSH_CIPHER_INVALID, 0, 0, NULL }
 };
 
 /*--*/
@@ -166,25 +166,25 @@ int
 ciphers_valid(const char *names)
 {
 	Cipher *c;
-	char *ciphers, *cp;
+	char *cipher_list, *cp;
 	char *p;
 
 	if (names == NULL || strcmp(names, "") == 0)
 		return 0;
-	ciphers = cp = xstrdup(names);
+	cipher_list = cp = xstrdup(names);
 	for ((p = strsep(&cp, CIPHER_SEP)); p && *p != '\0';
 	    (p = strsep(&cp, CIPHER_SEP))) {
 		c = cipher_by_name(p);
 		if (c == NULL || c->number != SSH_CIPHER_SSH2) {
 			debug("bad cipher %s [%s]", p, names);
-			xfree(ciphers);
+			xfree(cipher_list);
 			return 0;
 		} else {
 			debug3("cipher ok: %s [%s]", p, names);
 		}
 	}
 	debug3("ciphers ok: [%s]", names);
-	xfree(ciphers);
+	xfree(cipher_list);
 	return 1;
 }
 
@@ -213,7 +213,7 @@ cipher_name(int id)
 void
 cipher_init(CipherContext *cc, Cipher *cipher,
     const u_char *key, u_int keylen, const u_char *iv, u_int ivlen,
-    int encrypt)
+    int do_encrypt)
 {
 	static int dowarn = 1;
 #ifdef SSH_OLD_EVP
@@ -252,10 +252,10 @@ cipher_init(CipherContext *cc, Cipher *cipher,
 		type->key_len = keylen;
 	}
 	EVP_CipherInit(&cc->evp, type, (u_char *)key, (u_char *)iv,
-	    (encrypt == CIPHER_ENCRYPT));
+	    (do_encrypt == CIPHER_ENCRYPT));
 #else
 	if (EVP_CipherInit(&cc->evp, type, NULL, (u_char *)iv,
-	    (encrypt == CIPHER_ENCRYPT)) == 0)
+	    (do_encrypt == CIPHER_ENCRYPT)) == 0)
 		fatal("cipher_init: EVP_CipherInit failed for %s",
 		    cipher->name);
 	klen = EVP_CIPHER_CTX_key_length(&cc->evp);
@@ -302,7 +302,7 @@ cipher_cleanup(CipherContext *cc)
 
 void
 cipher_set_key_string(CipherContext *cc, Cipher *cipher,
-    const char *passphrase, int encrypt)
+    const char *passphrase, int do_encrypt)
 {
 	MD5_CTX md;
 	u_char digest[16];
@@ -311,7 +311,7 @@ cipher_set_key_string(CipherContext *cc, Cipher *cipher,
 	MD5_Update(&md, (const u_char *)passphrase, strlen(passphrase));
 	MD5_Final(digest, &md);
 
-	cipher_init(cc, cipher, digest, 16, NULL, 0, encrypt);
+	cipher_init(cc, cipher, digest, 16, NULL, 0, do_encrypt);
 
 	memset(digest, 0, sizeof(digest));
 	memset(&md, 0, sizeof(md));
