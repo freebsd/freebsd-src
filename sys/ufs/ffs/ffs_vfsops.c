@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.24 1995/07/21 03:52:40 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.25 1995/07/21 16:20:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -698,11 +698,6 @@ loop:
 		if (VOP_ISLOCKED(vp))
 			continue;
 		ip = VTOI(vp);
-		if (vp->v_object &&
-		   (((vm_object_t) vp->v_object)->flags & OBJ_WRITEABLE)) {
-			vm_object_page_clean(vp->v_object, 0, 0, 0, TRUE);
-		}
-
 		if ((((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)) &&
 		    vp->v_dirtyblkhd.lh_first == NULL)
