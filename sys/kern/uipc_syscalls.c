@@ -50,6 +50,7 @@
 #include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/filio.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -199,6 +200,7 @@ accept1(p, uap, compat)
 	struct socket *head, *so;
 	int fd;
 	u_int fflag;		/* type must match fp->f_flag */
+	int tmp;
 
 	if (uap->name) {
 		error = copyin((caddr_t)uap->anamelen, (caddr_t)&namelen,
@@ -282,6 +284,11 @@ accept1(p, uap, compat)
 	nfp->f_flag = fflag;
 	nfp->f_ops = &socketops;
 	nfp->f_type = DTYPE_SOCKET;
+	/* Sync socket nonblocking/async state with file flags */
+	tmp = fflag & FNONBLOCK;
+	(void) fo_ioctl(nfp, FIONBIO, (caddr_t)&tmp, p);
+	tmp = fflag & FASYNC;
+	(void) fo_ioctl(nfp, FIOASYNC, (caddr_t)&tmp, p);
 	sa = 0;
 	error = soaccept(so, &sa);
 	if (error) {
