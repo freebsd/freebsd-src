@@ -110,6 +110,8 @@ ENTRY(cpu_switch)
 	stx	%o0, [PCPU(CURTHREAD)]
 	stx	%o1, [PCPU(CURPCB)]
 
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+	mov	%o1, PCB_REG
 	wrpr	%g0, PSTATE_ALT, %pstate
 	mov	%o1, PCB_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
