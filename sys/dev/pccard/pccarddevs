@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.111 2001/01/20 01:56:16 imp Exp $ */
+/* $NetBSD: pcmciadevs,v 1.131 2001/06/29 14:56:22 christos Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -54,12 +54,14 @@ vendor SOCKET			0x0104	Socket Communications
 vendor TDK			0x0105	TDK Corporation
 vendor XIRCOM			0x0105	Xircom
 vendor SMC			0x0108	Standard Microsystems Corporation
+vendor NI			0x010b	National Instruments
 vendor USROBOTICS		0x0115	US Robotics Corporation
 vendor MEGAHERTZ2		0x0128	Megahertz Corporation
 vendor OLICOM			0x0121	Olicom
 vendor ADAPTEC			0x012f	Adaptec Corporation
 vendor COMPAQ			0x0138	Compaq
 vendor LINKSYS			0x0149	Linksys Corporation
+vendor DLINK_2			0x0143	D-Link
 vendor SIMPLETECH		0x014d	Simple Technology
 vendor LUCENT			0x0156	Lucent Technologies
 vendor AIRONET			0x015f	Aironet Wireless Communications
@@ -73,6 +75,8 @@ vendor FARALLON			0x0200  Farallon Communications
 vendor TELECOMDEVICE		0x021b  Telecom Device
 vendor NOKIA			0x023d	Nokia Communications
 vendor SAMSUNG			0x0250	Samsung
+vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
+vendor IODATA2			0x028a	I-O DATA
 vendor LASAT			0x3401	Lasat Communications A/S
 vendor LEXARMEDIA		0x4e01	Lexar Media
 vendor COMPEX			0x8a01	Compex Corporation
@@ -108,6 +112,7 @@ product 3COM 3CCFEM556BI	0x0556 3Com/Megahertz 3CCFEM556BI Ethernet/Modem
 
 /* Compaq Products */
 product COMPAQ2 CPQ_10_100	0x010a Compaq Netelligent 10/100 Ethernet
+product COMPAQ NC5004		0x0002 Compaq Agency NC5004 Wireless Card
 
 /* Compex Products */
 product COMPEX LINKPORT_ENET_B	0x0100 Compex Linkport ENET-B Ethernet
@@ -121,6 +126,9 @@ product DAYNA COMMUNICARD_E_2	0x002f Dayna CommuniCard E
 
 /* DIGITAL Products */
 product DIGITAL MOBILE_MEDIA_CDROM 0x0d00 Digital Mobile Media CD-ROM
+
+/* D-Link Products */
+product DLINK_2 DMF560TX	0xc0ab D-Link DMF-650TX
 
 /* ELSA Products */
 product ELSA MC2_IEEE		0x0001 AirLancer MC-2 IEEE
@@ -153,9 +161,11 @@ product IBM ETHERJET		0x003f IBM EtherJet Ethernet
 
 /* Intel Products */
 product INTEL EEPRO100		0x010a Intel EtherExpress PRO/100
+product INTEL PRO_WLAN_2011	0x0001 Intel PRO/Wireless 2011 LAN PC Card
 
 /* I-O DATA */
 product IODATA PCLATE		0x2216 I-O DATA PCLA/TE
+product IODATA2 WNB11PCM	0x0002 I-O DATA WN-B11/PCM
 
 /* Farallon */
 product FARALLON SKYLINE	0x0a01 SkyLINE Wireless
@@ -179,6 +189,9 @@ product MEGAHERTZ XJEM3336 	0x0006 Megahertz X-JACK Ethernet Modem
 /* Melco Products */
 product MELCO LPC3_TX	 	0xc1ab Melco LPC3-TX
 
+/* National Instruments */
+product NI PCMCIA_GPIB	 	0x4882 National Instruments PCMCIA-GPIB
+
 /* Nokia Products */
 product NOKIA C020_WLAN		0x20c0 Nokia C020 WLAN Card
 
@@ -201,6 +214,7 @@ product SIMPLETECH COMMUNICATOR288 0x0100 Simple Technology 28.8 Communicator
 product SIMPLETECH SPECTRUM24 0x801 Symbol Spectrum24 WLAN Adapter
 
 /* Socket Communications Products */
+product SOCKET EA_ETHER		0x0000 Socket Communications EA
 product SOCKET PAGECARD		0x0003 Socket Communications PageCard
 product SOCKET DUAL_RS232	0x0006 Socket Communications Dual RS232
 product SOCKET LP_ETHER_CF	0x0075 Socket Communications LP-E CF
@@ -210,11 +224,13 @@ product SOCKET LP_ETHER		0x000d Socket Communications LP-E
 product TDK LAK_CD021BX		0x0200 TDK LAK-CD021BX Ethernet
 product TDK DFL9610		0x0d0a TDK DFL9610 Ethernet & Digital Cellular
 product TDK LAK_CF010		0x0900 TDK LAC-CF010
+product TDK LAK_CD011WL		0x0000 TDK LAK-CD011WL
 
 /* Xircom Products */
 product XIRCOM CE		0x0108 Xircom CreditCard Ethernet
 product XIRCOM CE2		0x010b Xircom CreditCard Ethernet II
 product XIRCOM CE3		0x010a Xircom CreditCard 10/100 Ethernet
+product XIRCOM CT2		0x1101 Xircom CreditCard Token Ring II
 product XIRCOM CEM		0x110a Xircom CreditCard Ethernet + Modem
 product XIRCOM CEM28		0x110b Xircom CreditCard Ethernet + Modem 28
 product XIRCOM CEM33		0x110b Xircom CreditCard Ethernet + Modem 33
@@ -233,6 +249,7 @@ product SMC EZCARD		0x8022 SMC EZCard 10 PCMCIA
 
 /* Contec C-NET(PC) */
 product CONTEC CNETPC		0x0000 Contec C-NET(PC)C
+product	CONTEC FX_DS110_PCC	0x0008 Contec FLEXLAN/FX-DS110-PCC
 
 /* Roland */
 product ROLAND SCP55		0x0001 Roland SCP-55
@@ -240,15 +257,13 @@ product ROLAND SCP55		0x0001 Roland SCP-55
 /* Allied Telesis K.K. */
 product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
 
-/* RATOC System Inc. Products */
-product RATOC REX_R280		0x0001 RATOC REX-R280
-
 /* Lucent WaveLAN/IEEE */
 product LUCENT WAVELAN_IEEE	0x0002 WaveLAN/IEEE
 
 /* Aironet */
 product AIRONET PC4500		0x0005 Aironet PC4500 Wireless LAN Adapter
 product AIRONET PC4800		0x0007 Aironet PC4800 Wireless LAN Adapter
+product AIRONET 350		0x000a Aironet 350 Wireless LAN Adapter
 
 /* Bay Networks */
 product BAY STACK_650		0x0804 BayStack 650 Wireless LAN
@@ -270,6 +285,9 @@ product MACNICA ME1_JEIDA	0x3300	MACNICA ME1 for JEIDA
 /* EMTAC */
 product EMTAC WLAN		0x0002	EMTAC A2424i 11Mbps WLAN Card
 
+/* BUFFALO */
+product BUFFALO WLI_PCM_S11	0x0305	BUFFALO AirStation 11Mbps WLAN
+
 /* Cards we know only by their cis */
 vendor PREMAX			-1 	Premax
 vendor PLANET			-1 	Planet
@@ -289,6 +307,8 @@ vendor ICOM			-1	ICOM Inc
 vendor BILLIONTON		-1	Billionton Systems Inc.
 vendor AMD			-1	AMD
 vendor INTERSIL			-1	Intersil
+vendor SYNERGY21		-1	Synergy 21
+vendor CNET			-1	CNet
 
 product MEGAHERTZ XJ2288 	{ "MEGAHERTZ", "MODEM&spXJ2288", NULL, NULL } Megahertz XJ2288 Modem
 product PREMAX PE200		{ "PMX&sp&sp&sp", "PE-200", NULL, NULL } PreMax PE-200
@@ -311,7 +331,10 @@ product LINKSYS ECARD_2		{ "LINKSYS", "E-CARD", NULL, NULL } Linksys E-Card
 product COREGA ETHER_PCC_T	{ "corega&spK.K.", "corega&spEther&spPCC-T", NULL, NULL } Corega Ether PCC-T
 product COREGA ETHER_II_PCC_T	{ "corega&spK.K.", "corega&spEtherII&spPCC-T", NULL, NULL } Corega EtherII PCC-T
 product COREGA FAST_ETHER_PCC_TX	{ "corega&spK.K.", "corega&spFastEther&spPCC-TX", NULL, NULL } Corega FastEther PCC-TX
+product COREGA FETHER_PCC_TXD	{ "corega&spK.K.", "corega&spFEther&spPCC-TXD", NULL, NULL } Corega FEther PCC-TXD
+product COREGA FETHER_PCC_TXF	{ "corega", "FEther&spPCC-TXF", NULL, NULL } Corega FEther PCC-TXF
 product COREGA WIRELESS_LAN_PCC_11	{ "corega&spK.K.", "Wireless&spLAN&spPCC-11", NULL, NULL } Corega Wireless LAN PCC-11
+product COREGA WIRELESS_LAN_PCCA_11	{ "corega&spK.K.", "Wireless&spLAN&spPCCA-11", NULL, NULL } Corega Wireless LAN PCCA-11
 product SVEC COMBOCARD	{ "Ethernet", "Adapter", NULL, NULL } SVEC/Hawking Tech. Combo Card
 product SVEC LANCARD	{ "SVEC", "FD605&spPCMCIA&spEtherNet&spCard", "V1-1", NULL } SVEC PCMCIA Lan Card
 /*
@@ -334,4 +357,8 @@ product INTERSIL PRISM2		{ "INTERSIL", "HFA384x/IEEE", "Version&sp01.02", NULL }
 product MELCO LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
 product SMC 2632W		{ "SMC", "SMC2632W", "Version&sp01.02", NULL } SMC 2632 EZ Connect Wireless PC Card
 product NANOSPEED PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version&sp01.02", NULL } NANOSPEED ROOT-RZ2000 WLAN Card
+product NEC CMZ_RT_WP		{ "NEC", "Wireless&spCard&spCMZ-RT-WP", "Version&sp01.01", NULL } NEC Wireless Card CMZ-RT-WP
+product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NULL } NTT-ME 11Mbps Wireless LAN PC Card
+product SYNERGY21 S21810	{ "PCMCIA", "Ethernet", "A", "004743118001" } Synergy 21 S21810+ NE2000 Compatible Card
+product CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
 product ZOOM AIR_4000		{ "Zoom", "Air-4000", NULL, NULL } Zoom Air-4000
