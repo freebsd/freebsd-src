@@ -7,7 +7,7 @@
 PROG=		as
 .if	${MACHINE_ARCH} != "sparc"
 NOMAN=		1
-BINDIR=		/usr/libexec/cross/sparc-freebsdelf
+BINDIR=		/usr/libexec/cross/sparc-freebsd
 .endif
 SRCS+=		obj-elf.c tc-sparc.c
 
