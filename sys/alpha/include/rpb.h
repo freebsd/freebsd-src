@@ -76,6 +76,7 @@ struct rpb {
 #define	ST_DEC_550		30		/* "Miata" (PCI/ISA) */
 #define	ST_DEC_EV56_PBP		32		/* "Takara" (?) */
 #define	ST_DEC_ALPHAVME_320	33		/* "Yukon" (VME?) */
+#define	ST_DEC_6600		34		/* "Monet/Goldrush" */
 
 	u_int64_t	rpb_type;		/*  50: */
 
