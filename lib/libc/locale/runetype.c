@@ -38,7 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
-#include <rune.h>
+#include <runetype.h>
 
 unsigned long
 ___runetype(c)
