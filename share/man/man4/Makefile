@@ -111,6 +111,7 @@ MAN=	aac.4 \
 	orm.4 \
 	pass.4 \
 	pci.4 \
+	pcic.4 \
 	pcm.4 \
 	pcn.4 \
 	pcvt.4 \
