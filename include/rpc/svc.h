@@ -70,7 +70,14 @@
  */
 #define SVCGET_VERSQUIET	1
 #define SVCSET_VERSQUIET	2
+#define SVCGET_CONNMAXREC	3
+#define SVCSET_CONNMAXREC	4
 
+/*
+ * Operations for rpc_control().
+ */
+#define RPC_SVC_CONNMAXREC_SET  0	/* set max rec size, enable nonblock */
+#define RPC_SVC_CONNMAXREC_GET  1
 
 enum xprt_stat {
 	XPRT_DIED,
