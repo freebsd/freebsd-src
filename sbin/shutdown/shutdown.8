@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
-.\"	$Id: shutdown.8,v 1.8 1998/12/11 10:35:38 bde Exp $
+.\"	$Id: shutdown.8,v 1.9 1999/01/11 09:07:42 asami Exp $
 .\"
 .Dd Dec 11, 1998
 .Dt SHUTDOWN 8
@@ -71,6 +71,9 @@ system multi-user with logins disabled (for all but super-user).
 Prevent the normal
 .Xr sync 2
 before stopping.
+This option is ignored if
+.Fl k
+is specified.
 .It Fl p
 The system will turn the power off after shutdown if it can.
 .It Fl r 
@@ -104,6 +107,14 @@ If
 is supplied as an option, the warning message is read from the standard
 input.
 .El
+.Pp
+Only one of 
+.Fl h ,
+.Fl k ,
+.Fl p ,
+and
+.Fl r
+can be specified at a time.
 .Pp
 At intervals, becoming more frequent as apocalypse approaches
 and starting at ten hours before shutdown, warning messages are displayed
