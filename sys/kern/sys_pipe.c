@@ -179,6 +179,7 @@ pipe(p, uap)
 	if (pipe_zone == NULL)
 		pipe_zone = zinit("PIPE", sizeof (struct pipe), 0, 0, 4);
 
+	rpipe = wpipe = NULL;
 	if (pipe_create(&rpipe) || pipe_create(&wpipe)) {
 		pipeclose(rpipe); 
 		pipeclose(wpipe); 
