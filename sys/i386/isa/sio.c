@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.226 1999/01/30 12:17:34 phk Exp $
+ *	$Id: sio.c,v 1.227 1999/02/04 13:45:14 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -517,8 +517,9 @@ siounload(struct pccard_devinfo *devi)
 		ttwwakeup(com->tp);
 	} else {
 		com_addr(com->unit) = NULL;
-		bzero(com, sizeof *com);
-		free(com,M_TTYS);
+		if (com->ibuf != NULL)
+			free(com->ibuf, M_DEVBUF);
+		free(com, M_DEVBUF);
 		printf("sio%d: unload,gone\n", devi->isahd.id_unit);
 	}
 }
@@ -861,7 +862,7 @@ sioattach(isdp)
 	isdp->id_ri_flags |= RI_FAST;
 	iobase = isdp->id_iobase;
 	unit = isdp->id_unit;
-	com = malloc(sizeof *com, M_TTYS, M_NOWAIT);
+	com = malloc(sizeof *com, M_DEVBUF, M_NOWAIT);
 	if (com == NULL)
 		return (0);
 
@@ -919,7 +920,7 @@ sioattach(isdp)
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
 		enable_intr();
-		free(com, M_TTYS);
+		free(com, M_DEVBUF);
 		return (0);
 	}
 	enable_intr();
@@ -1289,10 +1290,11 @@ sioclose(dev, flag, mode, p)
 	if (com->gone) {
 		printf("sio%d: gone\n", com->unit);
 		s = spltty();
-		com_addr(com->unit) = 0;
-		bzero(tp,sizeof *tp);
-		bzero(com,sizeof *com);
-		free(com,M_TTYS);
+		com_addr(com->unit) = NULL;
+		if (com->ibuf != NULL)
+			free(com->ibuf, M_DEVBUF);
+		bzero(tp, sizeof *tp);
+		free(com, M_DEVBUF);
 		splx(s);
 	}
 	return (0);
@@ -2144,7 +2146,7 @@ comparam(tp, t)
 	splx(s);
 	comstart(tp);
 	if (com->ibufold != NULL) {
-		free(com->ibufold, M_TTYS);
+		free(com->ibufold, M_DEVBUF);
 		com->ibufold = NULL;
 	}
 	return (0);
@@ -2178,7 +2180,7 @@ siosetwater(com, speed)
 	 * Allocate input buffer.  The extra factor of 2 in the size is
 	 * to allow for an error byte for each input byte.
 	 */
-	ibuf = malloc(2 * ibufsize, M_TTYS, M_NOWAIT);
+	ibuf = malloc(2 * ibufsize, M_DEVBUF, M_NOWAIT);
 	if (ibuf == NULL) {
 		disable_intr();
 		return (ENOMEM);
