@@ -60,6 +60,7 @@ static	int connected = 0;
 static	jmp_buf timeoutbuf, intbuf;
 static	int coursync(), cour_connect(), cour_swallow();
 void	cour_nap();
+static void cour_write(int fd, char *cp, int n);
 
 void cour_disconnect(void);
 

@@ -95,6 +95,7 @@ getfl(c)
 		return;
 	}
 	transfer(buf, sfd, value(EOFREAD));
+	return;
 }
 
 /*
@@ -202,7 +203,7 @@ transfer(buf, fd, eofchars)
  *   send remote input to local process via pipe
  */
 void
-pipefile()
+pipefile(char c)
 {
 	int cpid, pdes[2];
 	char buf[256];
@@ -473,7 +474,7 @@ timeout()
  *	Identical to consh() except for where stdout goes.
  */
 void
-pipeout(c)
+pipeout(char c)
 {
 	char buf[256];
 	int cpid, status, p;
@@ -525,7 +526,7 @@ pipeout(c)
  *  2 <-> local tty out
  */
 void
-consh(c)
+consh(char c)
 {
 	char buf[256];
 	int cpid, status, p;
@@ -575,7 +576,7 @@ consh(c)
  * Escape to local shell
  */
 void
-shell()
+shell(char c)
 {
 	int shpid, status;
 	char *cp;
@@ -633,7 +634,7 @@ setscript()
  *   local portion of tip
  */
 void
-chdirectory()
+chdirectory(char c)
 {
 	char dirname[PATH_MAX];
 	char *cp = dirname;
@@ -665,7 +666,7 @@ tipabort(msg)
 }
 
 void
-finish()
+finish(char c)
 {
 	char *dismsg;
 
@@ -745,7 +746,7 @@ prtime(s, a)
 }
 
 void
-variable()
+variable(char c)
 {
 	char	buf[256];
 
@@ -789,7 +790,7 @@ variable()
 }
 
 void
-listvariables()
+listvariables(char c)
 {
 	value_t *p;
 	char *buf;
@@ -853,7 +854,7 @@ tandem(option)
  * Send a break.
  */
 void
-genbrk()
+genbrk(char c)
 {
 
 	ioctl(FD, TIOCSBRK, NULL);

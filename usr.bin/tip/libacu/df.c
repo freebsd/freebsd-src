@@ -52,6 +52,7 @@ static char rcsid[] = "$OpenBSD: df.c,v 1.5 2001/10/24 18:38:58 millert Exp $";
 
 static jmp_buf Sjbuf;
 static void timeout();
+static void df_disconnect(void);
 
 int
 df02_dialer(num, acu)
@@ -123,8 +124,8 @@ df_dialer(num, acu, df03)
 	return (c == 'A');
 }
 
-void
-df_disconnect()
+static void
+df_disconnect(void)
 {
 	write(FD, "\001", 1);
 	sleep(1);
