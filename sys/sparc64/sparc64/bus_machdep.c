@@ -725,10 +725,10 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
 	if (!(flags & BUS_SPACE_MAP_CACHEABLE))
 		pm_flags |= TD_E;
 
-	if (vaddr != NULL)
+	if (vaddr != 0L)
 		sva = trunc_page(vaddr);
 	else {
-		if ((sva = kmem_alloc_nofault(kernel_map, size)) == NULL)
+		if ((sva = kmem_alloc_nofault(kernel_map, size)) == 0)
 			panic("sparc64_bus_map: cannot allocate virtual "
 			    "memory");
 	}
