@@ -196,6 +196,7 @@ in_control(so, cmd, data, ifp, p)
 	register struct ifreq *ifr = (struct ifreq *)data;
 	register struct in_ifaddr *ia = 0, *iap;
 	register struct ifaddr *ifa;
+	struct in_addr dst;
 	struct in_ifaddr *oia;
 	struct in_aliasreq *ifra = (struct in_aliasreq *)data;
 	struct sockaddr_in oldaddr;
@@ -217,22 +218,25 @@ in_control(so, cmd, data, ifp, p)
 	 * Find address for this interface, if it exists.
 	 *
 	 * If an alias address was specified, find that one instead of
-	 * the first one on the interface.
+	 * the first one on the interface, if possible
 	 */
-	if (ifp)
-		for (iap = in_ifaddrhead.tqh_first; iap; 
-		     iap = iap->ia_link.tqe_next)
-			if (iap->ia_ifp == ifp) {
-				if (((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr.s_addr ==
-				    iap->ia_addr.sin_addr.s_addr) {
+	if (ifp) {
+		dst = ((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr;
+		LIST_FOREACH(iap, INADDR_HASH(dst.s_addr), ia_hash)
+			if (iap->ia_ifp == ifp &&
+			    iap->ia_addr.sin_addr.s_addr == dst.s_addr) {
+				ia = iap;
+				break;
+			}
+		if (ia == NULL)
+			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+				iap = ifatoia(ifa);
+				if (iap->ia_addr.sin_family == AF_INET) {
 					ia = iap;
 					break;
-				} else if (ia == NULL) {
-					ia = iap;
-					if (ifr->ifr_addr.sa_family != AF_INET)
-						break;
 				}
 			}
+	}
 
 	switch (cmd) {
 
@@ -429,9 +433,9 @@ in_control(so, cmd, data, ifp, p)
 
 		ifa = &ia->ia_ifa;
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		oia = ia;
-		TAILQ_REMOVE(&in_ifaddrhead, oia, ia_link);
-		IFAFREE(&oia->ia_ifa);
+		TAILQ_REMOVE(&in_ifaddrhead, ia, ia_link);
+		LIST_REMOVE(ia, ia_hash);
+		IFAFREE(&ia->ia_ifa);
 		splx(s);
 		break;
 
@@ -667,6 +671,11 @@ in_ifinit(ifp, ia, sin, scrub)
 		ia->ia_addr = oldaddr;
 		return (error);
 	}
+	if (oldaddr.sin_family == AF_INET)
+		LIST_REMOVE(ia, ia_hash);
+	if (ia->ia_addr.sin_family == AF_INET)
+		LIST_INSERT_HEAD(INADDR_HASH(ia->ia_addr.sin_addr.s_addr),
+		    ia, ia_hash);
 	splx(s);
 	if (scrub) {
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&oldaddr;
