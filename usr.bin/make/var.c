@@ -1108,6 +1108,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		 * when dynamic sources are expanded.
 		 */
 		/* XXX: It looks like $% and $! are reversed here */
+		*freePtr = FALSE;
 		switch (str[1]) {
 		    case '@':
 			return ("$(.TARGET)");
