@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include "header.h"
 #include <pwd.h>
-static char copyright[]="\nLarn is copyrighted 1986 by Noah Morgan.\n";
+static const char copyright[]="\nLarn is copyrighted 1986 by Noah Morgan.\n";
 int srcount=0;	/* line counter for showstr()	*/
 int dropflag=0; /* if 1 then don't lookforobject() next round */
 int rmst=80;	/*	random monster creation counter		*/

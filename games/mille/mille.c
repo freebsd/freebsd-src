@@ -42,9 +42,10 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)mille.c	8.1 (Berkeley) 5/31/93";
-#endif
+#else
 static const char rcsid[] =
   "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 # include	"mille.h"
