@@ -58,6 +58,13 @@ This file contains sparc64-specific installation instructions.
 	the main &os; FTP server.  Please use a mirror site instead if
 	possible.
 
+      <important>
+	<para>The URLs in this section are provisional and subject to
+	  change.  Please see the archives of the &a.sparc; for the
+	  most recent locations of files.  This notice will be removed
+	  when more permanent URLs have been determined.</para>
+      </important>
+
       <sect4>
         <title>Required Files for CDROM Installation</title>
 
