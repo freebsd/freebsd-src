@@ -223,8 +223,10 @@ lFOUND_CTCP:
 				 struct in_addr alias_address;	/* Address from aliasing */
 				 u_short alias_port;	/* Port given by aliasing */
 
+#ifndef NO_FW_PUNCH
 				 /* Generate firewall hole as appropriate */
 				 PunchFWHole(dcc_link);
+#endif
 
 				 alias_address = GetAliasAddress(link);
 				 iCopy += snprintf(&newpacket[iCopy],
