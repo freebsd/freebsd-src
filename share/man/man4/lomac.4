@@ -31,29 +31,34 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd November 20, 2001
 .Dt LOMAC 4
-.Os FreeBSD 5.0
+.Os
 .Sh NAME
 .Nm LOMAC
 .Nd Low-Watermark Mandatory Access Control security facility
-.Sh USAGE
-.Dl # /sbin/kldload lomac
+.Sh SYNOPSIS
+.Li "kldload lomac"
 .Sh DESCRIPTION
 The
 .Nm
 module provides a drop-in security mechanism in addition to the traditional
-POSIX uid-based security facilities, requiring no additional configuration
+\*[Px] UID-based security facilities, requiring no additional configuration
 from the administrator.
 .Nm
 aims to be two things: it is non-intrusive, so that the system with
 .Nm
 will not feel largely different from the system without it, and will not
-require much modification to intialize;  it is also comprehensive enough
+require much modification to initialize; it is also comprehensive enough
 that a majority of attacks to compromise a system should fail.
 .Pp
 To this end, each process on the system will have a label of several
-attributes, including a "high" or "low" security level, attached to it,
+attributes, including a
+.Dq high
+or
+.Dq low
+security level, attached to it,
 and these labels of integrity will be managed with a system cognizant
 of IPC (signals, debugging, sockets, pipes), path-based filesystem
 labels, virtual memory objects, and privileged system calls.
@@ -77,20 +82,24 @@ or
 operation performed after it has been initialized.
 Pre-existing jail or chroot environments may not necessarily work
 completely.
-.Nm 's
+.Nm Ns 's
 filesystem should correctly respect the caching behavior of any of the
-system's filesystems, and so work for any "normal" or "synthetic"
+system's filesystems, and so work for any
+.Dq normal
+or
+.Dq synthetic
 fileystems.
 After loaded, another root
 .Xr mount 8
-will exist on the system and appear as type "lomacfs".
+will exist on the system and appear as type
+.Dq lomacfs .
 .Sh FILES
 See
 .Pa /sys/security/lomac/policy_plm.h
 for specific information on exactly how
 .Nm
 has been compiled to control access to the filesystem.
-.Sh  COMPATIBILITY
+.Sh COMPATIBILITY
 Some programs, for example
 .Xr syslogd 8 ,
 may need to be restarted after
@@ -110,17 +119,14 @@ Since then, this implementation was created via funding from the
 United States DARPA.
 See the copyright for details.
 .Sh AUTHORS
-.Bl -item
-.Li An Brian Fundakowski Feldman Aq bfeldman@tislabs.com
-.Li An Timothy Fraser Aq tfraser@tislabs.com
-.El
+.An Brian Fundakowski Feldman Aq bfeldman@tislabs.com
+.An Timothy Fraser Aq tfraser@tislabs.com
 .Sh BUGS
 .Nm
 has not gone through widespread testing yet, so many problems may still exist.
 There is still yet one unfixed panic which is reproduceable under load
-(
-.Xr vrele 9
-begin called too many times).
+.Xr ( vrele 9
+being called too many times).
 The operation of
 .Xr mount 2
 and
