@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.9 1997/12/02 21:06:53 phk Exp $
+ *    $Id: spkr.c,v 1.10 1998/01/24 02:54:39 eivind Exp $
  */
 
 /*
@@ -34,7 +34,7 @@
 
 #ifdef	DEVFS
 #include <sys/devfsext.h>
-void	*devfs_token;
+static void	*devfs_token;
 #endif
 
 static	d_open_t	spkropen;
