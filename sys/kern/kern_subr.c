@@ -105,8 +105,10 @@ vm_pgmoveco(mapa, srcobj,  kaddr, uaddr)
 	if ((user_pg = vm_page_lookup(uobject, upindex)) != NULL) {
 		vm_page_sleep_busy(user_pg, 1, "vm_pgmoveco");
 		pmap_remove(map->pmap, uaddr, uaddr+PAGE_SIZE);
+		vm_page_lock_queues();
 		vm_page_busy(user_pg);
 		vm_page_free(user_pg);
+		vm_page_unlock_queues();
 	}
 
 	if (kern_pg->busy || ((kern_pg->queue - kern_pg->pc) == PQ_FREE) ||
