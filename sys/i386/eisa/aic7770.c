@@ -19,136 +19,192 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.15 1995/07/04 21:14:16 gibbs Exp $
+ *	$Id: aic7770.c,v 1.16 1995/09/05 23:39:31 gibbs Exp $
  */
+
+#include "eisa.h"
+#if NEISA > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
+#include <sys/devconf.h>
+#include <sys/kernel.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
-#include <sys/devconf.h>
-#include <machine/cpufunc.h>
+#include <machine/clock.h>
+#include <i386/eisa/eisaconf.h>
 #include <i386/scsi/aic7xxx.h>
+#include <dev/aic7xxx/aic7xxx_reg.h>
 
-int	aic7770probe __P((struct isa_device *dev));
-int	aic7770_attach __P((struct isa_device *dev));
+#define EISA_DEVICE_ID_ADAPTEC_AIC7770	0x04907770
+#define EISA_DEVICE_ID_ADAPTEC_274x	0x04907771
+#define EISA_DEVICE_ID_ADAPTEC_284xB	0x04907756 /* BIOS enabled */
+#define EISA_DEVICE_ID_ADAPTEC_284x	0x04907757 /* BIOS disabled*/
 
-/*
- * Standard EISA Host ID regs  (Offset from slot base)
- */
+#define AHC_EISA_IOSIZE	0x100
+#define INTDEF		0x5cul		/* Interrupt Definition Register */
 
-#define HID0		0xC80	/* 0,1: msb of ID2, 2-7: ID1      */
-#define HID1		0xC81	/* 0-4: ID3, 5-7: LSB ID2         */
-#define HID2		0xC82	/* product                        */
-#define HID3		0xC83	/* firmware revision              */
+int	aic7770probe __P((void));
+int	aic7770_attach __P((struct eisa_device *e_dev));
 
-#define CHAR1(B1,B2) (((B1>>2) & 0x1F) | '@')
-#define CHAR2(B1,B2) (((B1<<3) & 0x18) | ((B2>>5) & 0x7)|'@')
-#define CHAR3(B1,B2) ((B2 & 0x1F) | '@')
+struct eisa_driver ahc_eisa_driver = {
+					"ahc",
+					aic7770probe,
+					aic7770_attach,
+					/*shutdown*/NULL,
+					&ahc_unit
+				      };
 
-#define	EISA_MAX_SLOTS	16	/* XXX should be defined in a common header */
-static	ahc_slot = 0;		/* slot last board was found in */
+DATA_SET (eisadriver_set, ahc_eisa_driver);
 
-struct isa_driver ahcdriver = {aic7770probe, aic7770_attach, "ahc"};
-
-typedef struct
-{
-  ahc_type type;
-  unsigned char id; /* The Last EISA Host ID reg */
-} aic7770_sig;
-
-static struct kern_devconf kdc_aic7770[NAHC] = { {
+static struct kern_devconf kdc_aic7770 = {
 	0, 0, 0,                /* filled in by dev_attach */
-	"ahc", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
+	"ahc", 0, { MDDT_EISA, 0, "bio" },
+	eisa_generic_externalize, 0, 0, EISA_EXTERNALLEN,
+	&kdc_eisa0,		/* parent */
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* always start out here */
-	"Adaptec aic7770 based SCSI host adapter",
+	NULL,
 	DC_CLS_MISC		/* host adapters aren't special */
-} };
+};
 
-static inline void
-aic7770_registerdev(struct isa_device *id)
+static  char*
+aic7770_match(type)
+	eisa_id_t type;
 {
-	if(id->id_unit)
-		kdc_aic7770[id->id_unit] = kdc_aic7770[0];
-	kdc_aic7770[id->id_unit].kdc_unit = id->id_unit;
-	kdc_aic7770[id->id_unit].kdc_parentdata = id;
-	dev_attach(&kdc_aic7770[id->id_unit]);
+	switch(type) {
+		case EISA_DEVICE_ID_ADAPTEC_AIC7770:
+			return ("Adaptec aic7770 SCSI host adapter");
+			break;
+		case EISA_DEVICE_ID_ADAPTEC_274x:
+			return ("Adaptec 274X SCSI host adapter");
+			break;
+		case EISA_DEVICE_ID_ADAPTEC_284xB:
+		case EISA_DEVICE_ID_ADAPTEC_284x:
+			return ("Adaptec 284X SCSI host adapter");
+			break;
+		default:
+			break;
+	}
+	return (NULL);
 }
 
 int
-aic7770probe(struct isa_device *dev)
+aic7770probe(void)
 {
-        u_long  port;
-	int	i;
-        u_char  sig_id[4];
+	u_long iobase;
+	char intdef;
+	u_long irq;
+	struct eisa_device *e_dev = NULL;
+	int count;
 
-	aic7770_sig valid_ids[] = {
-	/* Entries of other tested adaptors should be added here */
-		{ AHC_274,	0x71 }, /*274x*/
-		{ AHC_AIC7770,	0x70 }, /*aic7770 on Motherboard*/
-		{ AHC_284,	0x56 }, /*284x, BIOS enabled*/
-		{ AHC_284,	0x57 }  /*284x, BIOS disabled*/
-	};
+	count = 0;
+	while ((e_dev = eisa_match_dev(e_dev, aic7770_match))) {
+		iobase = e_dev->ioconf.iobase;
+		ahc_reset(iobase);
 
-
-        ahc_slot++;
-        while (ahc_slot < EISA_MAX_SLOTS) {
-                port = 0x1000 * ahc_slot;
-		for( i = 0; i < sizeof(sig_id); i++ )
-		{
-		       /*
-			* An outb is required to prime these registers on
-			* VL cards
-			*/
-		        outb( port + HID0, HID0 + i );
-                        sig_id[i] = inb(port + HID0 + i);
+		eisa_add_iospace(e_dev, iobase, AHC_EISA_IOSIZE);
+		intdef = inb(INTDEF + iobase);
+		switch (intdef & 0xf) {
+			case 9: 
+				irq = 9;
+				break;
+			case 10:
+				irq = 10;
+				break;
+			case 11:
+				irq = 11;
+				break;  
+			case 12:
+				irq = 12;
+				break;
+			case 14:
+				irq = 14;
+				break;
+			case 15:
+				irq = 15;
+				break;
+			default:
+				printf("aic7770 at slot %d: illegal "
+				       "irq setting %d\n", e_dev->ioconf.slot,
+					intdef);
+				DELAY(10000000);
+				continue;
 		}
-                if (sig_id[0] == 0xff) {
-                        ahc_slot++;
-                        continue;
-                }
-		/* Check manufacturer's ID. */
-		if ((CHAR1(sig_id[0], sig_id[1]) == 'A')
-		    && (CHAR2(sig_id[0], sig_id[1]) == 'D')
-		    && (CHAR3(sig_id[0], sig_id[1]) == 'P')
-		    && (sig_id[2] == 0x77)) {
-			for(i=0; i < sizeof(valid_ids)/sizeof(aic7770_sig);i++)
-                        	if ( sig_id[3] == valid_ids[i].id ) {
-					int unit = dev->id_unit;
-		                        dev->id_iobase = port;
-#ifndef DEV_LKM
-					aic7770_registerdev(dev);
-#endif /* DEV_LKM */
-               			        if(ahcprobe(unit, port,
-						valid_ids[i].type, AHC_FNONE)){
-					        /*
-					         * If it's there, put in it's
-						 * interrupt vectors
-					         */
-					        dev->id_irq = (1 <<
-							ahcdata[unit]->vect);
-					        dev->id_drq = -1; /* EISA dma */
-				        	ahc_unit++;
-					        return IO_EISASIZE;
-	                   		}
-				}
-		}
-                ahc_slot++;
-        }
-        return 0;
+		eisa_add_intr(e_dev, irq);
+		eisa_registerdev(e_dev, &ahc_eisa_driver, &kdc_aic7770);
+		count++;
+	}
+	return count;
 }
 
 int
-aic7770_attach(dev)
-        struct isa_device *dev;
+aic7770_attach(e_dev)
+	struct eisa_device *e_dev;
 {
-        int     unit = dev->id_unit;
-	kdc_aic7770[unit].kdc_state = DC_BUSY; /* host adapters always busy */
-	return ahc_attach(unit);
+	ahc_type type;
+	struct ahc_data *ahc;
+	int unit = e_dev->unit;
+	int irq = ffs(e_dev->ioconf.irq) - 1;
+
+	switch(e_dev->id) {
+		case EISA_DEVICE_ID_ADAPTEC_AIC7770:
+			type = AHC_AIC7770;
+			break;
+		case EISA_DEVICE_ID_ADAPTEC_274x:
+			type = AHC_274;
+			break;          
+		case EISA_DEVICE_ID_ADAPTEC_284xB:
+		case EISA_DEVICE_ID_ADAPTEC_284x:
+			type = AHC_284;
+			break;
+		default: 
+			printf("aic7770_attach: Unknown device type!\n");
+			return -1;
+			break;
+	}
+
+	if(!(ahc = ahc_alloc(unit, e_dev->ioconf.iobase, type, AHC_FNONE)))
+		return -1;
+
+	eisa_reg_start(e_dev);
+	if(eisa_reg_iospace(e_dev, e_dev->ioconf.iobase, AHC_EISA_IOSIZE)) {
+		ahc_free(ahc);
+		return -1;
+	}
+
+	/*
+	 * The IRQMS bit enables level sensitive interrupts only allow
+	 * IRQ sharing if its set.
+	 */
+	if(eisa_reg_intr(e_dev, irq, ahc_eisa_intr, (void *)ahc, &bio_imask,
+			 /*shared ==*/ahc->pause & IRQMS)) {
+		ahc_free(ahc);
+		return -1;
+	}
+	eisa_reg_end(e_dev);
+
+	/*
+	 * Now that we know we own the resources we need, do the full
+	 * card initialization.
+	 */
+	if(ahc_init(unit)){
+		ahc_free(ahc);
+		/*
+		 * The board's IRQ line will not be left enabled
+		 * if we can't intialize correctly, so its safe
+		 * to release the irq.
+		 */
+		eisa_release_intr(e_dev, irq, ahc_eisa_intr);
+		return -1;
+	}
+
+	e_dev->kdc->kdc_state = DC_BUSY; /* host adapters always busy */
+
+	/* Attach sub-devices - always succeeds */
+	ahc_attach(unit);
+
+	return(eisa_enable_intr(e_dev, irq));
 }
 
+#endif /* NEISA > 0 */
