@@ -206,8 +206,9 @@ sem_open(const char *name, int oflag, ...)
 	*sem = sem_alloc(value, semid, 1);
 	if ((*sem) == NULL)
 		goto err;
-	_pthread_mutex_unlock(&named_sems_mtx);
+	LIST_INSERT_HEAD(&named_sems, *sem, entry);
 	(*sem)->backpointer = sem;
+	_pthread_mutex_unlock(&named_sems_mtx);
 	return (sem);
 err:
 	_pthread_mutex_unlock(&named_sems_mtx);
