@@ -76,9 +76,6 @@ enabled by the ATA_ENABLE_TAGS option.
 The ata(4) driver now has support for ATA "pseudo" RAID controllers as
 the Promise Fasttrak and HighPoint HPT370 controllers.
 
-The mly(4) driver has been added, providing support for Mylex
-PCI RAID controllers with 6.x and later firmware.
-
 The amr(4) driver has been updated with support for new AMI
 MegaRAID models.
 
