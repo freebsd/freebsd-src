@@ -118,6 +118,7 @@ struct puc_softc {
 	const struct puc_device_description *sc_desc;
 
 	/* card-global dynamic data */
+	int			fastintr;
 	int			barmuxed;
 	int			irqrid;
 	struct resource		*irqres;
