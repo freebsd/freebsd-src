@@ -57,7 +57,7 @@ int maxvfsconf = VFS_GENERIC + 1;
  * Single-linked list of configured VFSes.
  * New entries are added/deleted by vfs_register()/vfs_unregister()
  */
-struct vfsconf *vfsconf;
+struct vfsconfhead vfsconf = TAILQ_HEAD_INITIALIZER(vfsconf);
 
 /*
  * vfs_init.c
@@ -349,6 +349,17 @@ vfs_rm_vnodeops(const void *data)
  */
 struct vattr va_null;
 
+struct vfsconf *
+vfs_byname(const char *name)
+{
+	struct vfsconf *vfsp;
+
+	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list)
+		if (!strcmp(name, vfsp->vfc_name))
+			return (vfsp);
+	return (NULL);
+}
+
 /*
  * Initialize the vnode structures and initialize each filesystem type.
  */
@@ -366,22 +377,13 @@ int
 vfs_register(struct vfsconf *vfc)
 {
 	struct sysctl_oid *oidp;
-	struct vfsconf *vfsp;
-
 	struct vfsops *vfsops;
 	
-	vfsp = NULL;
-	if (vfsconf)
-		for (vfsp = vfsconf; vfsp->vfc_next; vfsp = vfsp->vfc_next)
-			if (strcmp(vfc->vfc_name, vfsp->vfc_name) == 0)
-				return EEXIST;
+	if (vfs_byname(vfc->vfc_name) != NULL)
+		return EEXIST;
 
 	vfc->vfc_typenum = maxvfsconf++;
-	if (vfsp)
-		vfsp->vfc_next = vfc;
-	else
-		vfsconf = vfc;
-	vfc->vfc_next = NULL;
+	TAILQ_INSERT_TAIL(&vfsconf, vfc, vfc_list);
 
 	/*
 	 * If this filesystem has a sysctl node under vfs
@@ -474,17 +476,12 @@ vfs_register(struct vfsconf *vfc)
 int
 vfs_unregister(struct vfsconf *vfc)
 {
-	struct vfsconf *vfsp, *prev_vfsp;
+	struct vfsconf *vfsp;
 	int error, i, maxtypenum;
 
 	i = vfc->vfc_typenum;
 
-	prev_vfsp = NULL;
-	for (vfsp = vfsconf; vfsp;
-			prev_vfsp = vfsp, vfsp = vfsp->vfc_next) {
-		if (!strcmp(vfc->vfc_name, vfsp->vfc_name))
-			break;
-	}
+	vfsp = vfs_byname(vfc->vfc_name);
 	if (vfsp == NULL)
 		return EINVAL;
 	if (vfsp->vfc_refcount)
@@ -494,12 +491,9 @@ vfs_unregister(struct vfsconf *vfc)
 		if (error)
 			return (error);
 	}
-	if (prev_vfsp)
-		prev_vfsp->vfc_next = vfsp->vfc_next;
-	else
-		vfsconf = vfsp->vfc_next;
+	TAILQ_REMOVE(&vfsconf, vfsp, vfc_list);
 	maxtypenum = VFS_GENERIC;
-	for (vfsp = vfsconf; vfsp != NULL; vfsp = vfsp->vfc_next)
+	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list)
 		if (maxtypenum < vfsp->vfc_typenum)
 			maxtypenum = vfsp->vfc_typenum;
 	maxvfsconf = maxtypenum + 1;
