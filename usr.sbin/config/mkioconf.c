@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.40 1998/09/04 07:48:53 ache Exp $";
+	"$Id: mkioconf.c,v 1.41 1998/09/15 10:29:32 gibbs Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -1270,70 +1270,6 @@ alpha_ioconf()
 	fprintf(fp1, "#ifndef IOCONF_H\n");
 	fprintf(fp1, "#define\tIOCONF_H\n");
 
-#if 0
-	/* print controller initialization structures */
-	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if (dp->d_type == PSEUDO_DEVICE)
-			continue;
-		fprintf(fp, "extern struct driver %sdriver;\n", dp->d_name);
-	}
-	fprintf(fp, "\nstruct alpha_ctlr alpha_cinit[] = {\n");
-	fprintf(fp, "/*\tdriver,\t\tunit,\taddr,\t\tpri,\tflags */\n");
-	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if (dp->d_type != CONTROLLER && dp->d_type != MASTER)
-			continue;
-		if (dp->d_conn != TO_NEXUS) {
-			printf("%s%s must be attached to a nexus (internal bus)\n",
-				dp->d_name, wnum(dp->d_unit));
-			continue;
-		}
-		if (dp->d_drive != UNKNOWN || dp->d_slave != UNKNOWN) {
-			printf("can't specify drive/slave for %s%s\n",
-				dp->d_name, wnum(dp->d_unit));
-			continue;
-		}
-		if (dp->d_unit == UNKNOWN || dp->d_unit == QUES)
-			dp->d_unit = 0;
-		fprintf(fp,
-			"\t{ &%sdriver,\t%d,\tC 0x%x,\t%d,\t0x%x },\n",
-			dp->d_name, dp->d_unit, dp->d_addr, dp->d_pri,
-			dp->d_flags);
-	}
-	fprintf(fp, "\t0\n};\n");
-
-	/* print devices connected to other controllers */
-	fprintf(fp, "\nstruct scsi_device scsi_dinit[] = {\n");
-	fprintf(fp,
-	   "/*driver,\tcdriver,\tunit,\tctlr,\tdrive,\tslave,\tdk,\tflags*/\n");
-	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if (dp->d_type == CONTROLLER || dp->d_type == MASTER ||
-		    dp->d_type == PSEUDO_DEVICE)
-			continue;
-		mp = dp->d_conn;
-		if (mp == 0 ||
-		    (!eq(mp->d_name, "asc") && !eq(mp->d_name, "sii"))) {
-			printf("%s%s: devices must be attached to a SCSI (asc or sii) controller\n",
-				dp->d_name, wnum(dp->d_unit));
-			continue;
-		}
-		if ((unsigned)dp->d_drive > 6) {
-			printf("%s%s: SCSI drive must be in the range 0..6\n",
-				dp->d_name, wnum(dp->d_unit));
-			continue;
-		}
-		/* may want to allow QUES later */
-		if ((unsigned)dp->d_slave > 7) {
-			printf("%s%s: SCSI slave (LUN) must be in the range 0..7\n",
-				dp->d_name, wnum(dp->d_unit));
-			continue;
-		}
-		fprintf(fp, "{ &%sdriver,\t&%sdriver,", dp->d_name, mp->d_name);
-		fprintf(fp, "\t%d,\t%d,\t%d,\t%d,\t%d,\t0x%x },\n",
-			dp->d_unit, mp->d_unit, dp->d_drive, dp->d_slave,
-			dp->d_dk, dp->d_flags);
-	}
-	fprintf(fp, "0\n};\n");
-#endif
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		if (dp->d_type != CONTROLLER && dp->d_type != MASTER
 		    && dp->d_type != DEVICE)
