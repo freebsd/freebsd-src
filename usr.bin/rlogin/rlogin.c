@@ -83,18 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#ifdef KERBEROS
-#include <openssl/des.h>
-#include <krb.h>
-
-#include "krb.h"
-
-CREDENTIALS cred;
-Key_schedule schedule;
-int use_kerberos = 1, doencrypt;
-char dst_realm_buf[REALM_SZ], *dest_realm = NULL;
-#endif
-
 #ifndef TIOCPKT_WINDOW
 #define	TIOCPKT_WINDOW	0x80
 #endif
@@ -124,7 +112,7 @@ void		copytochild(int);
 void		doit(long) __dead2;
 void		done(int) __dead2;
 void		echo(char);
-u_int		getescape(char *);
+u_int		getescape(const char *);
 void		lostpeer(int);
 void		mode(int);
 void		msg(const char *);
@@ -145,11 +133,9 @@ main(int argc, char *argv[])
 	struct servent *sp;
 	struct sgttyb ttyb;
 	long omask;
-	int argoff, ch, dflag, Dflag, one, uid;
+	int argoff, ch, dflag, Dflag, one;
+	uid_t uid;
 	char *host, *localname, *p, *user, term[1024];
-#ifdef KERBEROS
-	char *k;
-#endif
 	struct sockaddr_storage ss;
 	int sslen;
 
@@ -171,11 +157,7 @@ main(int argc, char *argv[])
 		argoff = 1;
 	}
 
-#ifdef KERBEROS
-#define	OPTIONS	"468DEKLde:i:k:l:x"
-#else
 #define	OPTIONS	"468DEKLde:i:l:"
-#endif
 	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 		switch(ch) {
 		case '4':
@@ -195,11 +177,6 @@ main(int argc, char *argv[])
 		case 'E':
 			noescape = 1;
 			break;
-		case 'K':
-#ifdef KERBEROS
-			use_kerberos = 0;
-#endif
-			break;
 		case 'L':
 			litout = 1;
 			break;
@@ -215,22 +192,9 @@ main(int argc, char *argv[])
 				errx(1, "-i user: permission denied");
 			localname = optarg;
 			break;
-#ifdef KERBEROS
-		case 'k':
-			dest_realm = dst_realm_buf;
-			(void)strncpy(dest_realm, optarg, REALM_SZ);
-			break;
-#endif
 		case 'l':
 			user = optarg;
 			break;
-#ifdef CRYPT
-#ifdef KERBEROS
-		case 'x':
-			doencrypt = 1;
-			break;
-#endif
-#endif
 		case '?':
 		default:
 			usage();
@@ -252,21 +216,7 @@ main(int argc, char *argv[])
 		localname = pw->pw_name;
 
 	sp = NULL;
-#ifdef KERBEROS
-	k = auth_getval("auth_list");
-	if (k && !strstr(k, "kerberos"))
-	    use_kerberos = 0;
-	if (use_kerberos) {
-		sp = getservbyname((doencrypt ? "eklogin" : "klogin"), "tcp");
-		if (sp == NULL) {
-			use_kerberos = 0;
-			warn("can't get entry for %s/tcp service",
-			    doencrypt ? "eklogin" : "klogin");
-		}
-	}
-#endif
-	if (sp == NULL)
-		sp = getservbyname("login", "tcp");
+	sp = getservbyname("login", "tcp");
 	if (sp == NULL)
 		errx(1, "login/tcp: unknown service");
 
@@ -294,56 +244,7 @@ main(int argc, char *argv[])
 	(void)signal(SIGURG, copytochild);
 	(void)signal(SIGUSR1, writeroob);
 
-#ifdef KERBEROS
-	if (use_kerberos) {
-		setuid(getuid());
-		rem = KSUCCESS;
-		errno = 0;
-		if (dest_realm == NULL)
-			dest_realm = krb_realmofhost(host);
-
-#ifdef CRYPT
-		if (doencrypt) {
-			rem = krcmd_mutual(&host, sp->s_port, user, term, 0,
-			    dest_realm, &cred, schedule);
-			des_set_key(&cred.session, schedule);
-		} else
-#endif /* CRYPT */
-			rem = krcmd(&host, sp->s_port, user, term, 0,
-			    dest_realm);
-		if (rem < 0) {
-			int i;
-			char **newargv;
-
-			sp = getservbyname("login", "tcp");
-			if (sp == NULL)
-				errx(1, "login/tcp: unknown service");
-			if (errno == ECONNREFUSED)
-				warn("remote host doesn't support Kerberos");
-			if (errno == ENOENT)
-				warn("can't provide Kerberos auth data");
-			newargv = malloc((argc + 2) * sizeof(*newargv));
-			if (newargv == NULL)
-				err(1, "malloc");
-			newargv[0] = argv[0];
-			newargv[1] = "-K";
-			for(i = 1; i < argc; ++i)
-			newargv[i + 1] = argv[i];
-			newargv[argc + 1] = NULL;
-			execv(_PATH_RLOGIN, newargv);
-			err(1, "can't exec %s", _PATH_RLOGIN);
-		}
-	} else {
-#ifdef CRYPT
-		if (doencrypt)
-			errx(1, "the -x flag requires Kerberos authentication");
-#endif /* CRYPT */
-		rem = rcmd_af(&host, sp->s_port, localname, user, term, 0,
-			      family);
-	}
-#else
 	rem = rcmd_af(&host, sp->s_port, localname, user, term, 0, family);
-#endif /* KERBEROS */
 
 	if (rem < 0)
 		exit(1);
@@ -459,6 +360,7 @@ int dosigwinch;
  * This is called when the reader process gets the out-of-band (urgent)
  * request to turn on the window-changing protocol.
  */
+/* ARGSUSED */
 void
 writeroob(int signo __unused)
 {
@@ -469,6 +371,7 @@ writeroob(int signo __unused)
 	dosigwinch = 1;
 }
 
+/* ARGSUSED */
 void
 catch_child(int signo __unused)
 {
@@ -533,32 +436,13 @@ writer(void)
 				continue;
 			}
 			if (c != escapechar)
-#ifdef CRYPT
-#ifdef KERBEROS
-				if (doencrypt)
-					(void)des_enc_write(rem,
-					    (char *)&escapechar, 1,
-						schedule, &cred.session);
-				else
-#endif
-#endif
-					(void)write(rem, &escapechar, 1);
+				(void)write(rem, &escapechar, 1);
 		}
 
-#ifdef CRYPT
-#ifdef KERBEROS
-		if (doencrypt) {
-			if (des_enc_write(rem, &c, 1, schedule, &cred.session) == 0) {
-				msg("line gone");
-				break;
-			}
-		} else
-#endif
-#endif
-			if (write(rem, &c, 1) == 0) {
-				msg("line gone");
-				break;
-			}
+		if (write(rem, &c, 1) == 0) {
+			msg("line gone");
+			break;
+		}
 		bol = c == defkill || c == deftc.t_eofc ||
 		    c == deftc.t_intrc || c == defltc.t_suspc ||
 		    c == '\r' || c == '\n';
@@ -598,6 +482,7 @@ stop(char cmdc)
 	sigwinch(0);			/* check for size changes */
 }
 
+/* ARGSUSED */
 void
 sigwinch(int signo __unused)
 {
@@ -629,15 +514,7 @@ sendwindow(void)
 	wp->ws_xpixel = htons(winsize.ws_xpixel);
 	wp->ws_ypixel = htons(winsize.ws_ypixel);
 
-#ifdef CRYPT
-#ifdef KERBEROS
-	if(doencrypt)
-		(void)des_enc_write(rem, obuf, sizeof(obuf),
-			schedule, &cred.session);
-	else
-#endif
-#endif
-		(void)write(rem, obuf, sizeof(obuf));
+	(void)write(rem, obuf, sizeof(obuf));
 }
 
 /*
@@ -647,9 +524,11 @@ sendwindow(void)
 #define	WRITING	2
 
 jmp_buf rcvtop;
-int ppid, rcvcnt, rcvstate;
+int rcvcnt, rcvstate;
+pid_t ppid;
 char rcvbuf[8 * 1024];
 
+/* ARGSUSED */
 void
 oob(int signo __unused)
 {
@@ -743,14 +622,11 @@ oob(int signo __unused)
 int
 reader(int omask)
 {
-	int pid, n, remaining;
+	int n, remaining;
 	char *bufp;
+	pid_t pid;
 
-#if BSD >= 43 || defined(SUNOS4)
-	pid = getpid();		/* modern systems use positives for pid */
-#else
-	pid = -getpid();	/* old broken systems use negatives */
-#endif
+	pid = getpid();
 	(void)signal(SIGTTOU, SIG_IGN);
 	(void)signal(SIGURG, oob);
 	(void)signal(SIGUSR1, oob); /* When propogating SIGURG from parent */
@@ -774,15 +650,7 @@ reader(int omask)
 		rcvcnt = 0;
 		rcvstate = READING;
 
-#ifdef CRYPT
-#ifdef KERBEROS
-		if (doencrypt)
-			rcvcnt = des_enc_read(rem, rcvbuf, sizeof(rcvbuf),
-				schedule, &cred.session);
-		else
-#endif
-#endif
-			rcvcnt = read(rem, rcvbuf, sizeof (rcvbuf));
+		rcvcnt = read(rem, rcvbuf, sizeof (rcvbuf));
 		if (rcvcnt == 0)
 			return (0);
 		if (rcvcnt < 0) {
@@ -835,6 +703,7 @@ mode(int f)
 	(void)ioctl(0, TIOCLSET, (char *)&lflags);
 }
 
+/* ARGSUSED */
 void
 lostpeer(int signo __unused)
 {
@@ -844,6 +713,7 @@ lostpeer(int signo __unused)
 }
 
 /* copy SIGURGs to the child process via SIGUSR1. */
+/* ARGSUSED */
 void
 copytochild(int signo __unused)
 {
@@ -861,23 +731,15 @@ usage(void)
 {
 	(void)fprintf(stderr,
 	"usage: rlogin [-46%s]%s[-e char] [-i localname] [-l username] host\n",
-#ifdef KERBEROS
-#ifdef CRYPT
-	    "8DEKLdx", " [-k realm] ");
-#else
-	    "8DEKLd", " [-k realm] ");
-#endif
-#else
 	    "8DEKLd", " ");
-#endif
 	exit(1);
 }
 
 u_int
-getescape(char *p)
+getescape(const char *p)
 {
 	long val;
-	int len;
+	size_t len;
 
 	if ((len = strlen(p)) == 1)	/* use any single char, including '\' */
 		return ((u_int)*p);
