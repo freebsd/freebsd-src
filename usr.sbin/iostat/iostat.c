@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iostat.c,v 1.10 1998/09/16 18:03:44 dillon Exp $
+ *	$Id: iostat.c,v 1.11 1998/09/16 23:14:47 ken Exp $
  */
 /*
  * Parts of this program are derived from the original FreeBSD iostat
@@ -155,7 +155,7 @@ usage(void)
 	 * This isn't mentioned in the man page, or the usage statement,
 	 * but it is supported.
 	 */
-	fprintf(stderr, "usage: iostat [-CdhIoT?] [-c count] [-M core]"
+	fprintf(stderr, "usage: iostat [-CdhIKoT?] [-c count] [-M core]"
 		" [-n devs] [-N system]\n"
 		"\t      [-t type,if,pass] [-w wait] [drives]\n");
 }
@@ -175,9 +175,10 @@ main(int argc, char **argv)
 	kvm_t	 *kd;
 	int hz, stathz;
 	int headercount;
-	int generation;
+	long generation;
 	int num_devices_specified;
-	int num_selected, num_selections, select_generation;
+	int num_selected, num_selections;
+	long select_generation;
 	char **specified_devices;
 	devstat_select_mode select_mode;
 

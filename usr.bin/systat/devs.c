@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: devs.c,v 1.1 1998/09/15 08:16:40 gibbs Exp $
  */
 /*
  * Some code and ideas taken from the old disks.c.
@@ -81,8 +81,10 @@ typedef enum {
 
 last_match_type last_type;
 struct device_selection *dev_select;
-int generation, num_devices, num_selected;
-int num_selections, select_generation;
+long generation;
+int num_devices, num_selected;
+int num_selections;
+long select_generation;
 struct devstat_match *matches = NULL;
 int num_matches = 0;
 char **specified_devices;
