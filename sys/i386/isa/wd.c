@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.24 1994/02/01 05:58:02 nate Exp $
+ *	$Id: wd.c,v 1.25 1994/02/06 02:56:11 rgrimes Exp $
  */
 
 /* TODO:
@@ -176,7 +176,7 @@ static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
 static int wdreset(struct disk *du);
 static void wdsleep(int ctrlr, char *wmesg);
-static int wdtimeout(caddr_t cdu, int ticks);
+static void wdtimeout(caddr_t cdu, int ticks);
 static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted);
 
@@ -615,7 +615,7 @@ loop:
 
 	/* then send it! */
 	outsw(du->dk_port + wd_data,
-	      (int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE,
+	      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
 	      DEV_BSIZE / sizeof(short));
 	du->dk_bc -= DEV_BSIZE;
 }
@@ -707,7 +707,8 @@ oops:
 
 		/* suck in data */
 		insw(du->dk_port + wd_data,
-		     (int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE, chk);
+		     (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+				chk);
 		du->dk_bc -= chk * sizeof(short);
 
 		/* XXX for obsolete fractional sector reads. */
@@ -834,7 +835,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		save_label = du->dk_dd;
 #define WDSTRATEGY	((int (*)(struct buf *)) wdstrategy)	/* XXX */
 		msg = readdisklabel(makewddev(major(dev), lunit, WDRAW),
-				    WDSTRATEGY, &du->dk_dd,
+				    (d_strategy_t *) WDSTRATEGY, &du->dk_dd,
 				    du->dk_dospartitions, &du->dk_bad,
 				    (struct buf **)NULL);
 		du->dk_flags &= ~DKFL_LABELLING;
@@ -1270,8 +1271,8 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			du->dk_openpart |= (1 << 0);	/* XXX */
 			wlab = du->dk_wlabel;
 			du->dk_wlabel = 1;
-			error = writedisklabel(dev, WDSTRATEGY, &du->dk_dd,
-					       du->dk_dospartitions);
+			error = writedisklabel(dev, (d_strategy_t *) WDSTRATEGY,
+					&du->dk_dd, du->dk_dospartitions);
 			du->dk_openpart = du->dk_copenpart | du->dk_bopenpart;
 			du->dk_wlabel = wlab;
 		}
@@ -1607,8 +1608,7 @@ wdsleep(int ctrlr, char *wmesg)
 		tsleep((caddr_t)&wdtab[ctrlr].b_active, PZERO - 1, wmesg, 1);
 }
 
-/* XXX void */
-static int
+static void
 wdtimeout(caddr_t cdu, int ticks)
 {
 	struct disk *du;
@@ -1626,7 +1626,6 @@ wdtimeout(caddr_t cdu, int ticks)
 	}
 	timeout(wdtimeout, cdu, hz);
 	splx(x);
-	return (0);
 }
 
 /*
