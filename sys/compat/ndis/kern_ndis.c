@@ -66,9 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ioctl.h>
 
-#include <dev/pccard/pccardvar.h>
-#include "card_if.h"
-
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/resource_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
@@ -534,50 +531,6 @@ ndis_resetdone_func(adapter, status, addressingreset)
 	if (block->nmb_ifp->if_flags & IFF_DEBUG)
 		device_printf (block->nmb_dev, "reset done...\n");
 	return;
-}
-
-#define NDIS_AM_RID	3
-
-int
-ndis_alloc_amem(arg)
-	void			*arg;
-{
-	struct ndis_softc	*sc;
-	int			error, rid;
-
-	if (arg == NULL)
-		return(EINVAL);
-
-	sc = arg;
-	rid = NDIS_AM_RID;
-	sc->ndis_res_am = bus_alloc_resource(sc->ndis_dev, SYS_RES_MEMORY,
-	    &rid, 0UL, ~0UL, 0x1000, RF_ACTIVE);
-
-	if (sc->ndis_res_am == NULL) {
-		device_printf(sc->ndis_dev,
-		    "failed to allocate attribute memory\n");
-		return(ENXIO);
-	}
-
-	error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->ndis_dev),
-	    sc->ndis_dev, rid, 0, NULL);
-
-	if (error) {
-		device_printf(sc->ndis_dev,
-		    "CARD_SET_MEMORY_OFFSET() returned 0x%x\n", error);
-		return(error);
-	}
-
-	error = CARD_SET_RES_FLAGS(device_get_parent(sc->ndis_dev),
-	    sc->ndis_dev, SYS_RES_MEMORY, rid, PCCARD_A_MEM_ATTR);
-
-	if (error) {
-		device_printf(sc->ndis_dev,
-		    "CARD_SET_RES_FLAGS() returned 0x%x\n", error);
-		return(error);
-	}
-
-	return(0);
 }
 
 int
