@@ -1184,7 +1184,7 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	 */
 	if (VOP_GETVOBJECT(vp, &object) == 0) {
 		VM_OBJECT_LOCK(object);
-		vm_object_page_remove(object, 0, 0,
+		vm_object_page_remove(object, 0, object->size,
 			(flags & V_SAVE) ? TRUE : FALSE);
 		VM_OBJECT_UNLOCK(object);
 	}
