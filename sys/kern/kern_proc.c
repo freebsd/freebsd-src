@@ -1106,9 +1106,14 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (!p)
 		return (ESRCH);
 
-	if ((!ps_argsopen) && (error = p_cansee(curthread, p))) {
+	if ((error = p_cansee(curthread, p)) != 0) {
 		PROC_UNLOCK(p);
 		return (error);
+	}
+
+	if (!ps_argsopen) {
+		PROC_UNLOCK(p);
+		return (EPERM);
 	}
 
 	if (req->newptr && curproc != p) {
