@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-/* MODE SENSE parameter header */ 
-struct afd_header {
+/* ATAPI Rewriteable drive Capabilities and Mechanical Status Page */
+struct afd_cappage {
     u_int16_t	data_length;
     u_int8_t	medium_type;
 #define MFD_2DD_UN		0x10
@@ -48,10 +48,8 @@ struct afd_header {
     u_int8_t	reserved0	:7;
     u_int8_t	wp		:1;		/* write protect */
     u_int8_t	unused[4];
-};
 
-/* ATAPI Rewriteable drive Capabilities and Mechanical Status Page */
-struct afd_cappage {
+    /* capabilities page */
     u_int8_t	page_code	:6;
 #define ATAPI_REWRITEABLE_CAP_PAGE	  0x05
 
@@ -71,11 +69,10 @@ struct afd_cappage {
 };
 
 struct afd_softc {
-    struct atapi_softc		*atp;		/* controller structure */
+    struct ata_device		*device;	/* device softc */
     int				lun;		/* logical device unit */
     int				transfersize;	/* max size of each transfer */
-    struct buf_queue_head	bio_queue;	/* queue of i/o requests */
-    struct afd_header		header;		/* capabilities page info */
+    struct buf_queue_head	queue;		/* queue of i/o requests */
     struct afd_cappage		cap;		/* capabilities page info */
     struct disk			disk;		/* virtual drives */
     struct devstat		stats;

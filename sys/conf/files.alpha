@@ -172,14 +172,6 @@ alpha/pci/tsunami.c		optional	dec_st6600
 alpha/pci/tsunami_pci.c		optional	dec_st6600
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
-dev/ata/ata-all.c		optional	ata
-dev/ata/ata-dma.c		optional	ata
-dev/ata/ata-disk.c		optional	atadisk
-dev/ata/ata-raid.c		optional	atadisk
-dev/ata/atapi-all.c		optional	ata
-dev/ata/atapi-cd.c		optional	atapicd
-dev/ata/atapi-fd.c		optional	atapifd
-dev/ata/atapi-tape.c		optional	atapist
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash

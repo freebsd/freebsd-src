@@ -35,6 +35,13 @@ struct toc {
     struct cd_toc_entry		tab[MAXTRK + 1];
 };
 
+/* DVD CSS authentication */
+struct dvd_miscauth {
+    u_int16_t	length;
+    u_int16_t	reserved;
+    u_int8_t	data[2048];
+};
+
 /* CDROM Audio Control Parameters Page */
 struct audiopage {
     /* mode page data header */
@@ -167,8 +174,8 @@ struct cappage {
     u_int8_t			:3;
     u_int16_t	max_write_speed;	/* max raw data rate in bytes/1000 */
     u_int16_t	cur_write_speed;	/* current data rate in bytes/1000  */
-    u_int16_t   copy_protect_rev;
-    u_int16_t   reserved4;
+    u_int16_t	copy_protect_rev;
+    u_int16_t	reserved4;
 };
 
 /* CDROM Changer mechanism status structure */
@@ -291,29 +298,25 @@ struct acd_track_info {
     u_int	track_length;		/* length of this track */
 };
 
+struct acd_devlist {
+    dev_t	dev;
+    TAILQ_ENTRY(acd_devlist)	chain;		/* list management */  
+};
+
 /* Structure describing an ATAPI CDROM device */
 struct acd_softc {
-    struct atapi_softc		*atp;		/* controller structure */
+    struct ata_device		*device;	/* device softc */
     int				lun;		/* logical device unit */
     int				flags;		/* device state flags */
-#define 	F_LOCKED		0x0001	/* this unit is locked */
+#define		F_LOCKED		0x0001	/* this unit is locked */
 
-    struct buf_queue_head	bio_queue;	/* Queue of i/o requests */
+    struct buf_queue_head	queue;		/* queue of i/o requests */
+    TAILQ_HEAD(, acd_devlist)	dev_list;	/* list of "track" devices */
     struct toc			toc;		/* table of disc contents */
     struct audiopage		au;		/* audio page info */
     struct audiopage		aumask;		/* audio page mask */
     struct cappage		cap;		/* capabilities page info */
-    struct {					/* subchannel info */
-	u_int8_t	void0;
-	u_int8_t	audio_status;
-	u_int16_t	data_length;
-	u_int8_t	data_format;
-	u_int8_t	control;
-	u_int8_t	track;
-	u_int8_t	indx;
-	u_int32_t	abslba;
-	u_int32_t	rellba;
-    } subchan;
+    struct cd_sub_channel_info	subchan;	/* subchannel info */
     struct changer		*changer_info;	/* changer info */
     struct acd_softc		**driver;	/* softc's of changer slots */
     int				slot;		/* this instance slot number */
@@ -322,5 +325,5 @@ struct acd_softc {
     int				block_size;	/* blocksize currently used */
     struct disklabel		disklabel;	/* fake disk label */
     struct devstat		*stats;		/* devstat entry */
-    dev_t			dev1, dev2;	/* device place holders */
+    dev_t			dev;		/* device place holders */
 };
