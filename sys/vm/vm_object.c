@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.11 1994/11/25 07:58:27 davidg Exp $
+ * $Id: vm_object.c,v 1.12 1994/12/11 01:36:53 davidg Exp $
  */
 
 /*
@@ -1170,8 +1170,10 @@ vm_object_rcollapse(object, sobject)
 
 	backing_offset = object->shadow_offset;
 	size = object->size;
-	while (p = backing_object->memq.tqh_first) {
+	p = backing_object->memq.tqh_first;
+	while (p) {
 		vm_page_t next;
+		next = p->listq.tqe_next;
 			
 		new_offset = (p->offset - backing_offset);
 		if (p->offset < backing_offset ||
@@ -1193,9 +1195,11 @@ vm_object_rcollapse(object, sobject)
 				vm_page_free(p);
 				vm_page_unlock_queues();
 		    } else {
-				vm_page_rename(p, object, new_offset);
+				if (!backing_object->pager || !vm_pager_has_page(backing_object->pager, backing_object->paging_offset + p->offset))
+					vm_page_rename(p, object, new_offset);
 		    }
 		}
+		p = next;
 	}
 }
 
@@ -1256,7 +1260,8 @@ vm_object_qcollapse(object)
 				vm_page_free(p);
 				vm_page_unlock_queues();
 		    } else {
-				vm_page_rename(p, object, new_offset);
+				if (!backing_object->pager || !vm_pager_has_page(backing_object->pager, backing_object->paging_offset + p->offset))
+					vm_page_rename(p, object, new_offset);
 		    }
 		}
 		p = next;
