@@ -103,8 +103,8 @@ pass2(void)
 			exit(EEXIT);
 		}
 		dp = ginode(ROOTINO);
-		DIP(dp, di_mode) &= ~IFMT;
-		DIP(dp, di_mode) |= IFDIR;
+		DIP_SET(dp, di_mode, DIP(dp, di_mode) & ~IFMT);
+		DIP_SET(dp, di_mode, DIP(dp, di_mode) | IFDIR);
 		inodirty();
 		break;
 
@@ -149,7 +149,7 @@ pass2(void)
 			inp->i_isize = roundup(MINDIRSIZE, DIRBLKSIZ);
 			if (reply("FIX") == 1) {
 				dp = ginode(inp->i_number);
-				DIP(dp, di_size) = inp->i_isize;
+				DIP_SET(dp, di_size, inp->i_isize);
 				inodirty();
 			}
 		} else if ((inp->i_isize & (DIRBLKSIZ - 1)) != 0) {
@@ -167,22 +167,22 @@ pass2(void)
 			inp->i_isize = roundup(inp->i_isize, DIRBLKSIZ);
 			if (preen || reply("ADJUST") == 1) {
 				dp = ginode(inp->i_number);
-				DIP(dp, di_size) =
-				    roundup(inp->i_isize, DIRBLKSIZ);
+				DIP_SET(dp, di_size,
+				    roundup(inp->i_isize, DIRBLKSIZ));
 				inodirty();
 			}
 		}
 		dp = &dino;
 		memset(dp, 0, sizeof(struct ufs2_dinode));
-		DIP(dp, di_mode) = IFDIR;
-		DIP(dp, di_size) = inp->i_isize;
+		DIP_SET(dp, di_mode, IFDIR);
+		DIP_SET(dp, di_size, inp->i_isize);
 		for (i = 0;
 		     i < (inp->i_numblks<NDADDR ? inp->i_numblks : NDADDR);
 		     i++)
-			DIP(dp, di_db[i]) = inp->i_blks[i];
+			DIP_SET(dp, di_db[i], inp->i_blks[i]);
 		if (inp->i_numblks > NDADDR)
 			for (i = 0; i < NIADDR; i++)
-				DIP(dp, di_ib[i]) = inp->i_blks[NDADDR + i];
+				DIP_SET(dp, di_ib[i], inp->i_blks[NDADDR + i]);
 		curino.id_number = inp->i_number;
 		curino.id_parent = inp->i_parent;
 		(void)ckinode(dp, &curino);
