@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.36 1995/05/27 10:47:42 jkh Exp $
+ * $Id: sysinstall.h,v 1.37 1995/05/27 23:39:32 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -357,7 +357,6 @@ extern const u_char	koi8_r2cp866[];
 extern u_char		default_scrnmap[];
 
 /* media.c */
-extern int	genericGetDist(char *path, Attribs *dist_attrib, Boolean prompt);
 extern int	mediaSetCDROM(char *str);
 extern int	mediaSetFloppy(char *str);
 extern int	mediaSetDOS(char *str);
