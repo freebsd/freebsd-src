@@ -255,36 +255,21 @@ typedef	__timer_t	timer_t;
 #define	_TIMER_T_DECLARED
 #endif
 
+/*
+ * The following are all things that really shouldn't exist in this header,
+ * since its purpose is to provide typedefs, not miscellaneous doodads.
+ */
 #if __BSD_VISIBLE
+
+#include <sys/select.h>
+
+/* XXX should be moved to <sys/param.h>. */
 #define	NBBY	8		/* number of bits in a byte */
 
-/*
- * Select uses bit masks of file descriptors in longs.  These macros
- * manipulate such bit fields (the filesystem macros use chars).
- * FD_SETSIZE may be defined by the user, but the default here should
- * be enough for most uses.
- */
-#ifndef	FD_SETSIZE
-#define	FD_SETSIZE	1024U
-#endif
-
-typedef	unsigned long	fd_mask;
-#define	NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask */
-
+/* XXX should be removed, since <sys/param.h> has this. */
 #ifndef howmany
 #define	howmany(x, y)	(((x) + ((y) - 1U)) / (y))
 #endif
-
-typedef	struct fd_set {
-	fd_mask	fds_bits[howmany(FD_SETSIZE, NFDBITS)];
-} fd_set;
-
-#define	_fdset_mask(n)	((fd_mask)1 << ((n) % NFDBITS))
-#define	FD_SET(n, p)	((p)->fds_bits[(n)/NFDBITS] |= _fdset_mask(n))
-#define	FD_CLR(n, p)	((p)->fds_bits[(n)/NFDBITS] &= ~_fdset_mask(n))
-#define	FD_ISSET(n, p)	((p)->fds_bits[(n)/NFDBITS] & _fdset_mask(n))
-#define	FD_COPY(f, t)	bcopy(f, t, sizeof(*(f)))
-#define	FD_ZERO(p)	bzero(p, sizeof(*(p)))
 
 /*
  * These declarations belong elsewhere, but are repeated here and in
