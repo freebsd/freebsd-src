@@ -320,7 +320,7 @@ ip6_input(m)
 		MGETHDR(n, M_DONTWAIT, MT_HEADER);
 		if (n)
 			M_MOVE_PKTHDR(n, m);
-		if (n && m->m_pkthdr.len > MHLEN) {
+		if (n && n->m_pkthdr.len > MHLEN) {
 			MCLGET(n, M_DONTWAIT);
 			if ((n->m_flags & M_EXT) == 0) {
 				m_freem(n);
@@ -332,8 +332,8 @@ ip6_input(m)
 			return;	/*ENOBUFS*/
 		}
 
-		m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
-		n->m_len = m->m_pkthdr.len;
+		m_copydata(m, 0, n->m_pkthdr.len, mtod(n, caddr_t));
+		n->m_len = n->m_pkthdr.len;
 		m_freem(m);
 		m = n;
 	}
