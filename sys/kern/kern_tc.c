@@ -35,6 +35,7 @@ static __inline unsigned tco_delta __P((struct timecounter *tc));
 
 time_t time_second;
 
+struct	bintime boottimebin;
 struct	timeval boottime;
 SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD,
     &boottime, timeval, "System boottime");
@@ -102,6 +103,24 @@ tco_delta(struct timecounter *tc)
  */
 
 void
+binuptime(struct bintime *bt)
+{
+	struct timecounter *tc;
+
+	tc = timecounter;
+	*bt = tc->tc_offset;
+	bintime_addx(bt, tc->tc_scale * tco_delta(tc));
+}
+
+void
+bintime(struct bintime *bt)
+{
+
+	binuptime(bt);
+	bintime_add(bt, &boottimebin);
+}
+
+void
 getmicrotime(struct timeval *tvp)
 {
 	struct timecounter *tc;
@@ -124,43 +143,21 @@ getnanotime(struct timespec *tsp)
 void
 microtime(struct timeval *tv)
 {
-	struct timecounter *tc;
+	struct bintime bt;
 
 	nmicrotime++;
-	tc = timecounter;
-	tv->tv_sec = tc->tc_offset_sec;
-	tv->tv_usec = tc->tc_offset_micro;
-	tv->tv_usec += ((u_int64_t)tco_delta(tc) * tc->tc_scale_micro) >> 32;
-	tv->tv_usec += boottime.tv_usec;
-	tv->tv_sec += boottime.tv_sec;
-	while (tv->tv_usec >= 1000000) {
-		tv->tv_usec -= 1000000;
-		tv->tv_sec++;
-	}
+	bintime(&bt);
+	bintime2timeval(&bt, tv);
 }
 
 void
 nanotime(struct timespec *ts)
 {
-	unsigned count;
-	u_int64_t delta;
-	struct timecounter *tc;
+	struct bintime bt;
 
 	nnanotime++;
-	tc = timecounter;
-	ts->tv_sec = tc->tc_offset_sec;
-	count = tco_delta(tc);
-	delta = tc->tc_offset_nano;
-	delta += ((u_int64_t)count * tc->tc_scale_nano_f);
-	delta >>= 32;
-	delta += ((u_int64_t)count * tc->tc_scale_nano_i);
-	delta += boottime.tv_usec * 1000;
-	ts->tv_sec += boottime.tv_sec;
-	while (delta >= 1000000000) {
-		delta -= 1000000000;
-		ts->tv_sec++;
-	}
-	ts->tv_nsec = delta;
+	bintime(&bt);
+	bintime2timespec(&bt, ts);
 }
 
 void
@@ -170,8 +167,7 @@ getmicrouptime(struct timeval *tvp)
 
 	ngetmicrouptime++;
 	tc = timecounter;
-	tvp->tv_sec = tc->tc_offset_sec;
-	tvp->tv_usec = tc->tc_offset_micro;
+	bintime2timeval(&tc->tc_offset, tvp);
 }
 
 void
@@ -181,46 +177,27 @@ getnanouptime(struct timespec *tsp)
 
 	ngetnanouptime++;
 	tc = timecounter;
-	tsp->tv_sec = tc->tc_offset_sec;
-	tsp->tv_nsec = tc->tc_offset_nano >> 32;
+	bintime2timespec(&tc->tc_offset, tsp);
 }
 
 void
 microuptime(struct timeval *tv)
 {
-	struct timecounter *tc;
+	struct bintime bt;
 
 	nmicrouptime++;
-	tc = timecounter;
-	tv->tv_sec = tc->tc_offset_sec;
-	tv->tv_usec = tc->tc_offset_micro;
-	tv->tv_usec += ((u_int64_t)tco_delta(tc) * tc->tc_scale_micro) >> 32;
-	while (tv->tv_usec >= 1000000) {
-		tv->tv_usec -= 1000000;
-		tv->tv_sec++;
-	}
+	binuptime(&bt);
+	bintime2timeval(&bt, tv);
 }
 
 void
 nanouptime(struct timespec *ts)
 {
-	unsigned count;
-	u_int64_t delta;
-	struct timecounter *tc;
+	struct bintime bt;
 
 	nnanouptime++;
-	tc = timecounter;
-	ts->tv_sec = tc->tc_offset_sec;
-	count = tco_delta(tc);
-	delta = tc->tc_offset_nano;
-	delta += ((u_int64_t)count * tc->tc_scale_nano_f);
-	delta >>= 32;
-	delta += ((u_int64_t)count * tc->tc_scale_nano_i);
-	while (delta >= 1000000000) {
-		delta -= 1000000000;
-		ts->tv_sec++;
-	}
-	ts->tv_nsec = delta;
+	binuptime(&bt);
+	bintime2timespec(&bt, ts);
 }
 
 static void
@@ -228,12 +205,11 @@ tco_setscales(struct timecounter *tc)
 {
 	u_int64_t scale;
 
-	scale = 1000000000LL << 32;
-	scale += tc->tc_adjustment;
+	/* Sacrifice the lower bit to the deity for code clarity */
+	scale = 1ULL << 63;
+	scale += (tc->tc_adjustment * 4295LL) / 1000LL;
 	scale /= tc->tc_tweak->tc_frequency;
-	tc->tc_scale_micro = scale / 1000;
-	tc->tc_scale_nano_f = scale & 0xffffffff;
-	tc->tc_scale_nano_i = scale >> 32;
+	tc->tc_scale = scale * 2;
 }
 
 void
@@ -245,7 +221,6 @@ tc_update(struct timecounter *tc)
 void
 tc_init(struct timecounter *tc)
 {
-	struct timespec ts1;
 	struct timecounter *t1, *t2, *t3;
 	int i;
 
@@ -279,10 +254,7 @@ tc_init(struct timecounter *tc)
 
 	/* XXX: For now always start using the counter. */
 	tc->tc_offset_count = tc->tc_get_timecount(tc);
-	nanouptime(&ts1);
-	tc->tc_offset_nano = (u_int64_t)ts1.tv_nsec << 32;
-	tc->tc_offset_micro = ts1.tv_nsec / 1000;
-	tc->tc_offset_sec = ts1.tv_sec;
+	binuptime(&tc->tc_offset);
 	timecounter = tc;
 }
 
@@ -298,6 +270,7 @@ tc_setclock(struct timespec *ts)
 		boottime.tv_usec += 1000000;
 		boottime.tv_sec--;
 	}
+	timeval2bintime(&boottime, &boottimebin);
 	/* fiddle all the little crinkly bits around the fiords... */
 	tc_windup();
 }
@@ -307,7 +280,6 @@ switch_timecounter(struct timecounter *newtc)
 {
 	int s;
 	struct timecounter *tc;
-	struct timespec ts;
 
 	s = splclock();
 	tc = timecounter;
@@ -316,10 +288,7 @@ switch_timecounter(struct timecounter *newtc)
 		return;
 	}
 	newtc = newtc->tc_tweak->tc_other;
-	nanouptime(&ts);
-	newtc->tc_offset_sec = ts.tv_sec;
-	newtc->tc_offset_nano = (u_int64_t)ts.tv_nsec << 32;
-	newtc->tc_offset_micro = ts.tv_nsec / 1000;
+	binuptime(&newtc->tc_offset);
 	newtc->tc_offset_count = newtc->tc_get_timecount(newtc);
 	tco_setscales(newtc);
 	timecounter = newtc;
@@ -340,8 +309,7 @@ sync_other_counter(void)
 	delta = tco_delta(tc);
 	tc->tc_offset_count += delta;
 	tc->tc_offset_count &= tc->tc_counter_mask;
-	tc->tc_offset_nano += (u_int64_t)delta * tc->tc_scale_nano_f;
-	tc->tc_offset_nano += (u_int64_t)delta * tc->tc_scale_nano_i << 32;
+	bintime_addx(&tc->tc_offset, tc->tc_scale * delta);
 	return (tc);
 }
 
@@ -349,7 +317,9 @@ void
 tc_windup(void)
 {
 	struct timecounter *tc, *tco;
+	struct bintime bt;
 	struct timeval tvt;
+	int i;
 
 	tco = timecounter;
 	tc = sync_other_counter();
@@ -375,30 +345,19 @@ tc_windup(void)
 			tvt.tv_usec += 1000000;
 		}
 		boottime = tvt;
+		timeval2bintime(&boottime, &boottimebin);
 		timedelta -= tickdelta;
 	}
-
-	while (tc->tc_offset_nano >= 1000000000ULL << 32) {
-		tc->tc_offset_nano -= 1000000000ULL << 32;
-		tc->tc_offset_sec++;
+	for (i = tc->tc_offset.sec - tco->tc_offset.sec; i > 0; i--) {
 		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
 		tco_setscales(tc);
 	}
 
-	tc->tc_offset_micro = (tc->tc_offset_nano / 1000) >> 32;
-
-	/* Figure out the wall-clock time */
-	tc->tc_nanotime.tv_sec = tc->tc_offset_sec + boottime.tv_sec;
-	tc->tc_nanotime.tv_nsec = 
-	    (tc->tc_offset_nano >> 32) + boottime.tv_usec * 1000;
-	tc->tc_microtime.tv_usec = tc->tc_offset_micro + boottime.tv_usec;
-	if (tc->tc_nanotime.tv_nsec >= 1000000000) {
-		tc->tc_nanotime.tv_nsec -= 1000000000;
-		tc->tc_microtime.tv_usec -= 1000000;
-		tc->tc_nanotime.tv_sec++;
-	}
-	time_second = tc->tc_microtime.tv_sec = tc->tc_nanotime.tv_sec;
-
+	bt = tc->tc_offset;
+	bintime_add(&bt, &boottimebin);
+	bintime2timeval(&bt, &tc->tc_microtime);
+	bintime2timespec(&bt, &tc->tc_nanotime);
+	time_second = tc->tc_microtime.tv_sec;
 	timecounter = tc;
 }
 
@@ -504,8 +463,8 @@ void
 pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int event)
 {
 	struct timespec ts, *tsp, *osp;
-	u_int64_t delta;
 	unsigned tcount, *pcount;
+	struct bintime bt;
 	int foff, fhard;
 	pps_seq_t	*pseq;
 
@@ -542,20 +501,11 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 	*pcount = count;
 
 	/* Convert the count to timespec */
-	ts.tv_sec = tc->tc_offset_sec;
 	tcount = count - tc->tc_offset_count;
 	tcount &= tc->tc_counter_mask;
-	delta = tc->tc_offset_nano;
-	delta += ((u_int64_t)tcount * tc->tc_scale_nano_f);
-	delta >>= 32;
-	delta += ((u_int64_t)tcount * tc->tc_scale_nano_i);
-	delta += boottime.tv_usec * 1000;
-	ts.tv_sec += boottime.tv_sec;
-	while (delta >= 1000000000) {
-		delta -= 1000000000;
-		ts.tv_sec++;
-	}
-	ts.tv_nsec = delta;
+	bt = tc->tc_offset;
+	bintime_addx(&bt, tc->tc_scale * tcount);
+	bintime2timespec(&bt, &ts);
 
 	(*pseq)++;
 	*tsp = ts;
@@ -569,14 +519,16 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 	}
 #ifdef PPS_SYNC
 	if (fhard) {
+		u_int64_t delta;
 		/* magic, at its best... */
 		tcount = count - pps->ppscount[2];
 		pps->ppscount[2] = count;
 		tcount &= tc->tc_counter_mask;
-		delta = ((u_int64_t)tcount * tc->tc_tweak->tc_scale_nano_f);
-		delta >>= 32;
-		delta += ((u_int64_t)tcount * tc->tc_tweak->tc_scale_nano_i);
-		hardpps(tsp, delta);
+		bt.sec = 0;
+		bt.frac = 0;
+		bintime_addx(&bt, tc->tc_scale * tcount);
+		bintime2timespec(&bt, &ts);
+		hardpps(tsp, ts.tv_nsec + 1000000000 * ts.tv_sec);
 	}
 #endif
 }
