@@ -166,8 +166,9 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="i386">A bug that even when no AT keyboard is connected,
-      &man.atkbd.4; registers an AT keyboard during console initialization
+    <para arch="i386">A bug that caused
+      &man.atkbd.4; to register an AT keyboard during console initialization,
+      even when no AT keyboard was connected,
       has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
       is no longer needed when only a USB keyboard is connected.</para>
 
@@ -175,7 +176,7 @@
       symmetric crypto for the 7955 and 7956 chipsets.</para>
 
     <para arch="i386">The &man.safe.4; driver has been added
-      to support SafeNet 1141, 1741-based crypto accelerators.
+      to support SafeNet 1141- and 1741-based crypto accelerators.
 
       <warning>
 	<para>This driver should be considered experimental and
@@ -198,7 +199,8 @@
 	(PAE) capability on Intel Pentium Pro and higher processors
 	has been added.  This allows the use of up to 64GB of RAM in a
 	machine, although the amount of memory usable by any single
-	process (or the &os; kernel) is unchanged.</para>
+	process (or the &os; kernel) is unchanged.  The &man.pae.4;
+	manual page has more details on this feature.</para>
     </sect3>
 
     <sect3 id="boot">
