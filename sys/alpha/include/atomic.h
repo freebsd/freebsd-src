@@ -44,15 +44,149 @@ void atomic_clear_16(volatile u_int16_t *, u_int16_t);
 void atomic_add_16(volatile u_int16_t *, u_int16_t);
 void atomic_subtract_16(volatile u_int16_t *, u_int16_t);
 
-void atomic_set_32(volatile u_int32_t *, u_int32_t);
-void atomic_clear_32(volatile u_int32_t *, u_int32_t);
-void atomic_add_32(volatile u_int32_t *, u_int32_t);
-void atomic_subtract_32(volatile u_int32_t *, u_int32_t);
+static __inline void atomic_set_32(volatile u_int32_t *p, u_int32_t v)
+{
+	u_int32_t temp;
 
-void atomic_set_64(volatile u_int64_t *, u_int64_t);
-void atomic_clear_64(volatile u_int64_t *, u_int64_t);
-void atomic_add_64(volatile u_int64_t *, u_int64_t);
-void atomic_subtract_64(volatile u_int64_t *, u_int64_t);
+	__asm __volatile (
+		"1:\tldl_l %0, %2\n\t"		/* load old value */
+		"bis %0, %3, %0\n\t"		/* calculate new value */
+		"stl_c %0, %1\n\t"		/* attempt to store */
+		"beq %0, 2f\n\t"		/* spin if failed */
+		"mb\n\t"			/* drain to memory */
+		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		"2:\tbr 1b\n"			/* try again */
+		".previous\n"
+		: "=&r" (temp), "=m" (*p)
+		: "m" (*p), "r" (v)
+		: "memory");
+}
+
+static __inline void atomic_clear_32(volatile u_int32_t *p, u_int32_t v)
+{
+	u_int32_t temp;
+
+	__asm __volatile (
+		"1:\tldl_l %0, %2\n\t"		/* load old value */
+		"bic %0, %3, %0\n\t"		/* calculate new value */
+		"stl_c %0, %1\n\t"		/* attempt to store */
+		"beq %0, 2f\n\t"		/* spin if failed */
+		"mb\n\t"			/* drain to memory */
+		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		"2:\tbr 1b\n"			/* try again */
+		".previous\n"
+		: "=&r" (temp), "=m" (*p)
+		: "m" (*p), "r" (v)
+		: "memory");
+}
+
+static __inline void atomic_add_32(volatile u_int32_t *p, u_int32_t v)
+{
+	u_int32_t temp;
+
+	__asm __volatile (
+		"1:\tldl_l %0, %2\n\t"		/* load old value */
+		"addl %0, %3, %0\n\t"		/* calculate new value */
+		"stl_c %0, %1\n\t"		/* attempt to store */
+		"beq %0, 2f\n\t"		/* spin if failed */
+		"mb\n\t"			/* drain to memory */
+		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		"2:\tbr 1b\n"			/* try again */
+		".previous\n"
+		: "=&r" (temp), "=m" (*p)
+		: "m" (*p), "r" (v)
+		: "memory");
+}
+
+static __inline void atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
+{
+	u_int32_t temp;
+
+	__asm __volatile (
+		"1:\tldl_l %0, %2\n\t"		/* load old value */
+		"subl %0, %3, %0\n\t"		/* calculate new value */
+		"stl_c %0, %1\n\t"		/* attempt to store */
+		"beq %0, 2f\n\t"		/* spin if failed */
+		"mb\n\t"			/* drain to memory */
+		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		"2:\tbr 1b\n"			/* try again */
+		".previous\n"
+		: "=&r" (temp), "=m" (*p)
+		: "m" (*p), "r" (v)
+		: "memory");
+}
+
+static __inline void atomic_set_64(volatile u_int64_t *p, u_int64_t v)
+{
+	u_int64_t temp;
+
+	__asm __volatile (
+		"1:\tldq_l %0, %2\n\t"		/* load old value */
+		"bis %0, %3, %0\n\t"		/* calculate new value */
+		"stq_c %0, %1\n\t"		/* attempt to store */
+		"beq %0, 2f\n\t"		/* spin if failed */
+		"mb\n\t"			/* drain to memory */
+		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		"2:\tbr 1b\n"			/* try again */
+		".previous\n"
+		: "=&r" (temp), "=m" (*p)
+		: "m" (*p), "r" (v)
+		: "memory");
+}
+
+static __inline void atomic_clear_64(volatile u_int64_t *p, u_int64_t v)
+{
+	u_int64_t temp;
+
+	__asm __volatile (
+		"1:\tldq_l %0, %2\n\t"		/* load old value */
+		"bic %0, %3, %0\n\t"		/* calculate new value */
+		"stq_c %0, %1\n\t"		/* attempt to store */
+		"beq %0, 2f\n\t"		/* spin if failed */
+		"mb\n\t"			/* drain to memory */
+		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		"2:\tbr 1b\n"			/* try again */
+		".previous\n"
+		: "=&r" (temp), "=m" (*p)
+		: "m" (*p), "r" (v)
+		: "memory");
+}
+
+static __inline void atomic_add_64(volatile u_int64_t *p, u_int64_t v)
+{
+	u_int64_t temp;
+
+	__asm __volatile (
+		"1:\tldq_l %0, %2\n\t"		/* load old value */
+		"addq %0, %3, %0\n\t"		/* calculate new value */
+		"stq_c %0, %1\n\t"		/* attempt to store */
+		"beq %0, 2f\n\t"		/* spin if failed */
+		"mb\n\t"			/* drain to memory */
+		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		"2:\tbr 1b\n"			/* try again */
+		".previous\n"
+		: "=&r" (temp), "=m" (*p)
+		: "m" (*p), "r" (v)
+		: "memory");
+}
+
+static __inline void atomic_subtract_64(volatile u_int64_t *p, u_int64_t v)
+{
+	u_int64_t temp;
+
+	__asm __volatile (
+		"1:\tldq_l %0, %2\n\t"		/* load old value */
+		"subq %0, %3, %0\n\t"		/* calculate new value */
+		"stq_c %0, %1\n\t"		/* attempt to store */
+		"beq %0, 2f\n\t"		/* spin if failed */
+		"mb\n\t"			/* drain to memory */
+		".section .text3,\"ax\"\n"	/* improve branch prediction */
+		"2:\tbr 1b\n"			/* try again */
+		".previous\n"
+		: "=&r" (temp), "=m" (*p)
+		: "m" (*p), "r" (v)
+		: "memory");
+}
 
 #define atomic_set_char		atomic_set_8
 #define atomic_clear_char	atomic_clear_8
@@ -82,20 +216,20 @@ void atomic_subtract_64(volatile u_int64_t *, u_int64_t);
 static __inline u_int32_t
 atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 {
-	u_int32_t ret, temp;
+	u_int32_t ret;
 
 	__asm __volatile (
-		"1:\tldl_l %1, %5\n\t"		/* load old value */
-		"cmpeq %1, %3, %0\n\t"		/* compare */
+		"1:\tldl_l %0, %4\n\t"		/* load old value */
+		"cmpeq %0, %2, %0\n\t"		/* compare */
 		"beq %0, 2f\n\t"		/* exit if not equal */
-		"mov %4, %1\n\t"		/* value to store */
-		"stl_c %1, %2\n\t"		/* attempt to store */
-		"beq %1, 3f\n\t"		/* if it failed, spin */
+		"mov %3, %0\n\t"		/* value to store */
+		"stl_c %0, %1\n\t"		/* attempt to store */
+		"beq %0, 3f\n\t"		/* if it failed, spin */
 		"2:\n"				/* done */
 		".section .text3,\"ax\"\n"	/* improve branch prediction */
 		"3:\tbr 1b\n"			/* try again */
 		".previous\n"
-		: "=&r" (ret), "=r" (temp), "=m" (*p)
+		: "=&r" (ret), "=m" (*p)
 		: "r" (cmpval), "r" (newval), "m" (*p)
 		: "memory");
 
@@ -110,20 +244,20 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 static __inline u_int64_t
 atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 {
-	u_int64_t ret, temp;
+	u_int64_t ret;
 
 	__asm __volatile (
-		"1:\tldq_l %1, %5\n\t"		/* load old value */
-		"cmpeq %1, %3, %0\n\t"		/* compare */
+		"1:\tldq_l %0, %4\n\t"		/* load old value */
+		"cmpeq %0, %2, %0\n\t"		/* compare */
 		"beq %0, 2f\n\t"		/* exit if not equal */
-		"mov %4, %1\n\t"		/* value to store */
-		"stq_c %1, %2\n\t"		/* attempt to store */
-		"beq %1, 3f\n\t"		/* if it failed, spin */
+		"mov %3, %0\n\t"		/* value to store */
+		"stq_c %0, %1\n\t"		/* attempt to store */
+		"beq %0, 3f\n\t"		/* if it failed, spin */
 		"2:\n"				/* done */
 		".section .text3,\"ax\"\n"	/* improve branch prediction */
 		"3:\tbr 1b\n"			/* try again */
 		".previous\n"
-		: "=&r" (ret), "=r" (temp), "=m" (*p)
+		: "=&r" (ret), "=m" (*p)
 		: "r" (cmpval), "r" (newval), "m" (*p)
 		: "memory");
 
