@@ -351,14 +351,16 @@
 /* HAS_SETEGID
  *	This symbol, if defined, indicates that the setegid routine is available
  *	to change the effective gid of the current program.
+ *	Do not use on systems with _POSIX_SAVED_IDS support.
  */
-#define	HAS_SETEGID		/**/
+/*#undef	HAS_SETEGID		/**/
 
 /* HAS_SETEUID
  *	This symbol, if defined, indicates that the seteuid routine is available
  *	to change the effective uid of the current program.
+ *	Do not use on systems with _POSIX_SAVED_IDS support.
  */
-#define	HAS_SETEUID		/**/
+/*#undef	HAS_SETEUID		/**/
 
 /* HAS_SETPGRP
  *	This symbol, if defined, indicates that the setpgrp() routine is

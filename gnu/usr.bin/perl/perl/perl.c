@@ -1,4 +1,4 @@
-char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.3 $$Date: 1995/05/28 19:21:54 $\nPatch level: ###\n";
+char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.4 $$Date: 1995/05/30 05:03:10 $\nPatch level: ###\n";
 /*
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.3 $$Date: 1995/05/28 19:21:54 $
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: perl.c,v $
+ * Revision 1.4  1995/05/30 05:03:10  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.3  1995/05/28  19:21:54  ache
  * Fix $] variable value (version number), close PR 449
  * Submitted by: Bill Fenner <fenner@parc.xerox.com>
@@ -588,7 +591,7 @@ FIX YOUR KERNEL, PUT A C WRAPPER AROUND THIS SCRIPT, OR USE -u AND UNDUMP!\n");
 	    (void)setegid(statbuf.st_gid);
 #else
 #ifdef HAS_SETREGID
-	    (void)setregid((GIDTYPE)-1,statbuf.st_gid);
+	    (void)setregid((GIDTYPE)gid,statbuf.st_gid);
 #else
 	    setgid(statbuf.st_gid);
 #endif
@@ -602,7 +605,7 @@ FIX YOUR KERNEL, PUT A C WRAPPER AROUND THIS SCRIPT, OR USE -u AND UNDUMP!\n");
 		(void)seteuid(statbuf.st_uid);	/* all that for this */
 #else
 #ifdef HAS_SETREUID
-		(void)setreuid((UIDTYPE)-1,statbuf.st_uid);
+		(void)setreuid((UIDTYPE)uid,statbuf.st_uid);
 #else
 		setuid(statbuf.st_uid);
 #endif
@@ -615,7 +618,7 @@ FIX YOUR KERNEL, PUT A C WRAPPER AROUND THIS SCRIPT, OR USE -u AND UNDUMP!\n");
 	    (void)seteuid((UIDTYPE)uid);
 #else
 #ifdef HAS_SETREUID
-	    (void)setreuid((UIDTYPE)-1,(UIDTYPE)uid);
+	    (void)setreuid((UIDTYPE)uid,(UIDTYPE)uid);
 #else
 	    setuid((UIDTYPE)uid);
 #endif
