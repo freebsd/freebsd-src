@@ -11,7 +11,7 @@ NO_MAN=
 SHLIB_MAJOR= 1
 .else
 # XXX is this still correct?
-NOPIC=	# works but method lookup slowdown is significant
+NO_PIC=	# works but method lookup slowdown is significant
 .endif
 
 SRCS=   archive.c class.c encoding.c gc.c hash.c init.c misc.c \

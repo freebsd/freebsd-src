@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NOLINT=
+NO_LINT=
 
 KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
 

@@ -3,7 +3,7 @@
 LIB=		ssl
 SHLIB_MAJOR=	3
 
-NOLINT=
+NO_LINT=
 
 .if exists(Makefile.man)
 .include "Makefile.man"
