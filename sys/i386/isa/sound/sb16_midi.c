@@ -25,6 +25,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
+ * $FreeBSD$
+ *
  */
 
 #include <i386/isa/sound/sound_config.h>
@@ -34,9 +36,15 @@
 
 #include "sb.h"
 
+#ifdef PC98
+#define DATAPORT   (sb16midi_base)
+#define COMDPORT   (sb16midi_base+0x100)
+#define STATPORT   (sb16midi_base+0x100)
+#else
 #define	DATAPORT   (sb16midi_base)
 #define	COMDPORT   (sb16midi_base+1)
 #define	STATPORT   (sb16midi_base+1)
+#endif
 
 extern sound_os_info *sb_osp;
 
@@ -54,7 +62,11 @@ extern sound_os_info *sb_osp;
 #define	UART_MODE_ON	0x3F
 
 static int      sb16midi_opened = 0;
+#ifdef PC98
+static int      sb16midi_base = 0x80d2;
+#else
 static int      sb16midi_base = 0x330;
+#endif
 static int      sb16midi_detected = 0;
 static int      my_dev;
 extern int      sbc_base;
