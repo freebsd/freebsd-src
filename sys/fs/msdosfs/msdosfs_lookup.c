@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.15 1998/02/18 09:28:41 jkh Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.16 1998/02/22 15:09:42 ache Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -255,7 +255,9 @@ msdosfs_lookup(ap)
 					chksum = winChkName((const u_char *)cnp->cn_nameptr,
 							    cnp->cn_namelen,
 							    (struct winentry *)dep,
-							    chksum);
+							    chksum,
+							    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
+							    pmp->pm_u2w);
 					continue;
 				}
 
