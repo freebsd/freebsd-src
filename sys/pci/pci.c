@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 2.12 94/10/11 22:20:37 wolf Oct11 $
+**  $Id: pci.c,v 1.7 1994/10/12 02:33:21 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -91,6 +91,7 @@ typedef void inthand2_t __P((int unit));
 **	Unfortunately, the mptr argument is _no_ pointer in 2.0 FreeBSD.
 **	We would prefer a pointer because it enables us to install
 **	new interrupt handlers at any time.
+**	(This is just going to be changed ... <se> :)
 **	In 2.0 FreeBSD later installed interrupt handlers may change
 **	the xyz_imask, but this would not be recognized by handlers
 **	which are installed before.
@@ -469,11 +470,7 @@ int pci_map_int (pcici_t tag, int(*func)(), void* arg, unsigned* maskptr)
 		0,		/* deviced??	*/
 		0,		/* flags?	*/
 		(inthand2_t*) func, /* handler	*/
-#ifdef __FreeBSD2__
-		*maskptr,	/* mask		*/
-#else
 		maskptr,	/* mask pointer	*/
-#endif
 		(int) arg);	/* handler arg	*/
 
 #ifdef __FreeBSD2__
