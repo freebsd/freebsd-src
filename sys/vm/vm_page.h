@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.37 1998/03/01 04:18:26 dyson Exp $
+ * $Id: vm_page.h,v 1.38 1998/03/07 21:37:15 dyson Exp $
  */
 
 /*
@@ -126,12 +126,21 @@ struct vm_page {
 /* Each of PQ_FREE, PQ_ZERO and PQ_CACHE have PQ_HASH_SIZE entries */
 
 /* Define one of the following */
+#if defined(PQ_HUGECACHE)
+#define PQ_PRIME1 31	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME3 17	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_L2_SIZE 256	/* A number of colors opt for 1M cache */
+#define PQ_L1_SIZE 4	/* Four page L1 cache */
+#endif
+
+/* Define one of the following */
 #if defined(PQ_LARGECACHE)
 #define PQ_PRIME1 31	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME3 17	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 128	/* A number of colors opt for 512K cache */
-#define PQ_L1_SIZE 2	/* Two page L1 cache */
+#define PQ_L1_SIZE 4	/* Four page L1 cache (for PII) */
 #endif
 
 
