@@ -256,8 +256,7 @@ mount(p, uap)
 	/*
 	 * Allocate and initialize the filesystem.
 	 */
-	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK);
-	bzero((char *)mp, (u_long)sizeof(struct mount));
+	mp = malloc(sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, p);
 	mp->mnt_op = vfsp->vfc_vfsops;

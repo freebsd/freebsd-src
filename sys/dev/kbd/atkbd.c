@@ -356,17 +356,14 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		fkeymap_size =
 			sizeof(default_fkeytab)/sizeof(default_fkeytab[0]);
 	} else if (*kbdp == NULL) {
-		*kbdp = kbd = malloc(sizeof(*kbd), M_DEVBUF, M_NOWAIT);
-		if (kbd == NULL)
-			return ENOMEM;
-		bzero(kbd, sizeof(*kbd));
-		state = malloc(sizeof(*state), M_DEVBUF, M_NOWAIT);
+		*kbdp = kbd = malloc(sizeof(*kbd), M_DEVBUF, M_NOWAIT | M_ZERO);
+		state = malloc(sizeof(*state), M_DEVBUF, M_NOWAIT | M_ZERO);
 		keymap = malloc(sizeof(key_map), M_DEVBUF, M_NOWAIT);
 		accmap = malloc(sizeof(accent_map), M_DEVBUF, M_NOWAIT);
 		fkeymap = malloc(sizeof(fkey_tab), M_DEVBUF, M_NOWAIT);
 		fkeymap_size = sizeof(fkey_tab)/sizeof(fkey_tab[0]);
-		if ((state == NULL) || (keymap == NULL) || (accmap == NULL)
-		     || (fkeymap == NULL)) {
+		if ((kbd == NULL) || (state == NULL) || (keymap == NULL)
+		     || (accmap == NULL) || (fkeymap == NULL)) {
 			if (state != NULL)
 				free(state, M_DEVBUF);
 			if (keymap != NULL)
@@ -375,10 +372,10 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 				free(accmap, M_DEVBUF);
 			if (fkeymap != NULL)
 				free(fkeymap, M_DEVBUF);
-			free(kbd, M_DEVBUF);
+			if (kbd == NULL)
+				free(kbd, M_DEVBUF);
 			return ENOMEM;
 		}
-		bzero(state, sizeof(*state));
 	} else if (KBD_IS_INITIALIZED(*kbdp) && KBD_IS_CONFIGURED(*kbdp)) {
 		return 0;
 	} else {

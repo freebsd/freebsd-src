@@ -859,8 +859,7 @@ falloc(p, resultfp, resultfd)
 	 * the list of open files.
 	 */
 	nfiles++;
-	MALLOC(fp, struct file *, sizeof(struct file), M_FILE, M_WAITOK);
-	bzero(fp, sizeof(struct file));
+	MALLOC(fp, struct file *, sizeof(struct file), M_FILE, M_WAITOK | M_ZERO);
 
 	/*
 	 * wait until after malloc (which may have blocked) returns before
@@ -915,8 +914,7 @@ fdinit(p)
 	register struct filedesc *fdp = p->p_fd;
 
 	MALLOC(newfdp, struct filedesc0 *, sizeof(struct filedesc0),
-	    M_FILEDESC, M_WAITOK);
-	bzero(newfdp, sizeof(struct filedesc0));
+	    M_FILEDESC, M_WAITOK | M_ZERO);
 	newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
 	if (newfdp->fd_fd.fd_cdir)
 		VREF(newfdp->fd_fd.fd_cdir);

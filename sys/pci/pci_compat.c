@@ -317,10 +317,9 @@ compat_pci_handler(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		driver = malloc(sizeof(driver_t), M_DEVBUF, M_NOWAIT);
+		driver = malloc(sizeof(driver_t), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (!driver)
 			return ENOMEM;
-		bzero(driver, sizeof(driver_t));
 		driver->name = dvp->pd_name;
 		driver->methods = pci_compat_methods;
 		driver->size = sizeof(struct pci_devinfo *);

@@ -818,10 +818,9 @@ fdc_add_child(device_t dev, const char *name, int unit)
 	struct fdc_ivars *ivar;
 	device_t child;
 
-	ivar = malloc(sizeof *ivar, M_DEVBUF /* XXX */, M_NOWAIT);
+	ivar = malloc(sizeof *ivar, M_DEVBUF /* XXX */, M_NOWAIT | M_ZERO);
 	if (ivar == NULL)
 		return;
-	bzero(ivar, sizeof *ivar);
 	if (resource_int_value(name, unit, "drive", &ivar->fdunit) != 0)
 		ivar->fdunit = 0;
 	child = device_add_child(dev, name, unit);

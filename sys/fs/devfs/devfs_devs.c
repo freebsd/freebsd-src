@@ -149,15 +149,13 @@ devfs_attemptoverflow(int insist)
 	or = NULL;
 	n = devfs_noverflowwant;
 	nb = sizeof (struct dev_t *) * n;
-	MALLOC(ot, dev_t **, nb, M_DEVFS, insist ? M_WAITOK : M_NOWAIT);
+	MALLOC(ot, dev_t **, nb, M_DEVFS, (insist ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (ot == NULL)
 		goto bail;
-	bzero(ot, nb);
 	nb = sizeof (int) * n;
-	MALLOC(or, int *, nb, M_DEVFS, insist ? M_WAITOK : M_NOWAIT);
+	MALLOC(or, int *, nb, M_DEVFS, (insist ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (or == NULL)
 		goto bail;
-	bzero(or, nb);
 	if (!atomic_cmpset_ptr(&devfs_overflow, NULL, ot))
 		goto bail;
 	devfs_refoverflow = or;
@@ -198,8 +196,7 @@ devfs_newdirent(char *name, int namelen)
 
 	d.d_namlen = namelen;
 	i = sizeof (*de) + GENERIC_DIRSIZ(&d);
-	MALLOC(de, struct devfs_dirent *, i, M_DEVFS, M_WAITOK);
-	bzero(de, i);
+	MALLOC(de, struct devfs_dirent *, i, M_DEVFS, M_WAITOK | M_ZERO);
 	de->de_dirent = (struct dirent *)(de + 1);
 	de->de_dirent->d_namlen = namelen;
 	de->de_dirent->d_reclen = GENERIC_DIRSIZ(&d);
@@ -287,8 +284,7 @@ devfs_populate(struct devfs_mount *dm)
 	if (devfs_noverflow && dm->dm_overflow == NULL) {
 		i = devfs_noverflow * sizeof (struct devfs_dirent *);
 		MALLOC(dm->dm_overflow, struct devfs_dirent **, i,
-			M_DEVFS, M_WAITOK);
-		bzero(dm->dm_overflow, i);
+			M_DEVFS, M_WAITOK | M_ZERO);
 	}
 	while (dm->dm_generation != devfs_generation) {
 		dm->dm_generation = devfs_generation;

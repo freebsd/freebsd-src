@@ -1421,8 +1421,8 @@ sf_buf_init(void *arg)
 	mtx_enter(&sf_freelist.sf_lock, MTX_DEF);
 	SLIST_INIT(&sf_freelist);
 	sf_base = kmem_alloc_pageable(kernel_map, nsfbufs * PAGE_SIZE);
-	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP, M_NOWAIT);
-	bzero(sf_bufs, nsfbufs * sizeof(struct sf_buf));
+	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
+	    M_NOWAIT | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
 		SLIST_INSERT_HEAD(&sf_freelist, &sf_bufs[i], free_list);

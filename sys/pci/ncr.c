@@ -6533,13 +6533,13 @@ ncr_alloc_nccb (ncb_p np, u_long target, u_long lun)
 		/*
 		**	Allocate a lcb
 		*/
-		lp = (lcb_p) malloc (sizeof (struct lcb), M_DEVBUF, M_NOWAIT);
+		lp = (lcb_p) malloc (sizeof (struct lcb), M_DEVBUF,
+			M_NOWAIT | M_ZERO);
 		if (!lp) return(NULL);
 
 		/*
 		**	Initialize it
 		*/
-		bzero (lp, sizeof (*lp));
 		lp->jump_lcb.l_cmd   = (SCR_JUMP ^ IFFALSE (DATA (lun)));
 		lp->jump_lcb.l_paddr = tp->jump_lcb.l_paddr;
 
@@ -6562,7 +6562,7 @@ ncr_alloc_nccb (ncb_p np, u_long target, u_long lun)
 	/*
 	**	Allocate a nccb
 	*/
-	cp = (nccb_p) malloc (sizeof (struct nccb), M_DEVBUF, M_NOWAIT);
+	cp = (nccb_p) malloc (sizeof (struct nccb), M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	if (!cp)
 		return (NULL);
@@ -6570,11 +6570,6 @@ ncr_alloc_nccb (ncb_p np, u_long target, u_long lun)
 	if (DEBUG_FLAGS & DEBUG_ALLOC) { 
 		printf ("new nccb @%p.\n", cp);
 	}
-
-	/*
-	**	Initialize it
-	*/
-	bzero (cp, sizeof (*cp));
 
 	/*
 	**	Fill in physical addresses

@@ -522,10 +522,9 @@ isa_add_child(device_t dev, int order, const char *name, int unit)
 	device_t child;
 	struct	isa_device *idev;
 
-	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT);
+	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT | M_ZERO);
 	if (!idev)
 		return 0;
-	bzero(idev, sizeof *idev);
 
 	resource_list_init(&idev->id_resources);
 	TAILQ_INIT(&idev->id_configs);

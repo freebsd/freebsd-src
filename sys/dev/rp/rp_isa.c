@@ -173,23 +173,20 @@ rp_probe(device_t dev)
 
 	/* The IO ports of AIOPs for an ISA controller are discrete. */
 	ctlp->io_num = 1;
-	ctlp->io_rid = malloc(sizeof(*(ctlp->io_rid)) * MAX_AIOPS_PER_BOARD, M_DEVBUF, M_NOWAIT);
-	ctlp->io = malloc(sizeof(*(ctlp->io)) * MAX_AIOPS_PER_BOARD, M_DEVBUF, M_NOWAIT);
+	ctlp->io_rid = malloc(sizeof(*(ctlp->io_rid)) * MAX_AIOPS_PER_BOARD, M_DEVBUF, M_NOWAIT | M_ZERO);
+	ctlp->io = malloc(sizeof(*(ctlp->io)) * MAX_AIOPS_PER_BOARD, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (ctlp->io_rid == NULL || ctlp->io == NULL) {
 		device_printf(dev, "rp_attach: Out of memory.\n");
 		retval = ENOMEM;
 		goto nogo;
 	}
-	bzero(ctlp->io_rid, sizeof(*(ctlp->io_rid)) * MAX_AIOPS_PER_BOARD);
-	bzero(ctlp->io, sizeof(*(ctlp->io)) * MAX_AIOPS_PER_BOARD);
 
-	ctlp->bus_ctlp = malloc(sizeof(ISACONTROLLER_t) * 1, M_DEVBUF, M_NOWAIT);
+	ctlp->bus_ctlp = malloc(sizeof(ISACONTROLLER_t) * 1, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (ctlp->bus_ctlp == NULL) {
 		device_printf(dev, "rp_attach: Out of memory.\n");
 		retval = ENOMEM;
 		goto nogo;
 	}
-	bzero(ctlp->bus_ctlp, sizeof(ISACONTROLLER_t) * 1);
 
 	ctlp->io_rid[0] = 0;
 	if (rp_controller != NULL) {

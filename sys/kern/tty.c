@@ -2423,8 +2423,7 @@ ttymalloc(tp)
 
 	if (tp)
 		return(tp);
-        tp = malloc(sizeof *tp, M_TTYS, M_WAITOK);
-        bzero(tp, sizeof *tp);
+        tp = malloc(sizeof *tp, M_TTYS, M_WAITOK | M_ZERO);
 	ttyregister(tp);
         return (tp);
 }

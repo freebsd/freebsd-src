@@ -394,10 +394,9 @@ ntfs_ntlookup(
 		}
 	} while (LOCKMGR(&ntfs_hashlock, LK_EXCLUSIVE | LK_SLEEPFAIL, NULL));
 
-	MALLOC(ip, struct ntnode *, sizeof(struct ntnode),
-	       M_NTFSNTNODE, M_WAITOK);
+	MALLOC(ip, struct ntnode *, sizeof(struct ntnode), M_NTFSNTNODE,
+		M_WAITOK | M_ZERO);
 	ddprintf(("ntfs_ntlookup: allocating ntnode: %d: %p\n", ino, ip));
-	bzero((caddr_t) ip, sizeof(struct ntnode));
 
 	/* Generic initialization */
 	ip->i_devvp = ntmp->ntm_devvp;
@@ -544,8 +543,7 @@ ntfs_attrtontvattr(
 	*rvapp = NULL;
 
 	MALLOC(vap, struct ntvattr *, sizeof(struct ntvattr),
-		M_NTFSNTVATTR, M_WAITOK);
-	bzero(vap, sizeof(struct ntvattr));
+		M_NTFSNTVATTR, M_WAITOK | M_ZERO);
 	vap->va_ip = NULL;
 	vap->va_flag = rap->a_hdr.a_flag;
 	vap->va_type = rap->a_hdr.a_type;
@@ -737,8 +735,8 @@ ntfs_fget(
 	if (*fpp)
 		return (0);
 
-	MALLOC(fp, struct fnode *, sizeof(struct fnode), M_NTFSFNODE, M_WAITOK);
-	bzero(fp, sizeof(struct fnode));
+	MALLOC(fp, struct fnode *, sizeof(struct fnode), M_NTFSFNODE,
+		M_WAITOK | M_ZERO);
 	dprintf(("ntfs_fget: allocating fnode: %p\n",fp));
 
 	fp->f_ip = ip;

@@ -269,10 +269,9 @@ compat_isa_handler(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		driver = malloc(sizeof(driver_t), M_DEVBUF, M_NOWAIT);
+		driver = malloc(sizeof(driver_t), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (!driver)
 			return ENOMEM;
-		bzero(driver, sizeof(driver_t));
 		driver->name = id->name;
 		driver->methods = isa_compat_methods;
 		driver->size = sizeof(struct isa_device);

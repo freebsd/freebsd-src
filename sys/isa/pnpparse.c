@@ -62,12 +62,11 @@ pnp_parse_resources(device_t dev, u_char *resources, int len, u_int32_t vendor_i
 
 	id = isa_get_logicalid(dev);
 	configs = (struct isa_config *)malloc(sizeof(*configs) * (1 + MAXDEP),
-						M_DEVBUF, M_NOWAIT);
+						M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (configs == NULL) {
 		device_printf(dev, "No memory to parse PNP data\n");
 		return;
 	}
-	bzero(configs, sizeof(*configs) * (1 + MAXDEP));
 	config = &configs[0];
 	priorities[0] = 0;
 	resp = resources;

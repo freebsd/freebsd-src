@@ -317,12 +317,11 @@ isp_pci_attach(device_t dev)
 		}
 	}
 
-	pcs = malloc(sizeof (struct isp_pcisoftc), M_DEVBUF, M_NOWAIT);
+	pcs = malloc(sizeof (struct isp_pcisoftc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (pcs == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return (ENOMEM);
 	}
-	bzero(pcs, sizeof (struct isp_pcisoftc));
 
 	/*
 	 * Figure out which we should try first - memory mapping or i/o mapping?
@@ -443,12 +442,11 @@ isp_pci_attach(device_t dev)
 		    PCI_MBOX_REGS2100_OFF;
 	}
 	isp = &pcs->pci_isp;
-	isp->isp_param = malloc(psize, M_DEVBUF, M_NOWAIT);
+	isp->isp_param = malloc(psize, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (isp->isp_param == NULL) {
 		device_printf(dev, "cannot allocate parameter data\n");
 		goto bad;
 	}
-	bzero(isp->isp_param, psize);
 	isp->isp_mdvec = mdvp;
 	isp->isp_type = basetype;
 	isp->isp_revision = pci_get_revid(dev);
@@ -850,12 +848,11 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	}
 
 	len = sizeof (XS_T **) * isp->isp_maxcmds;
-	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK);
+	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (isp->isp_xflist == NULL) {
 		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
 		return (1);
 	}
-	bzero(isp->isp_xflist, len);
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
 	pci->dmaps = (bus_dmamap_t *) malloc(len, M_DEVBUF,  M_WAITOK);
 	if (pci->dmaps == NULL) {

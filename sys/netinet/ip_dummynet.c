@@ -751,12 +751,11 @@ create_queue(struct dn_flow_set *fs, int i)
 	if ( fs->rq[i] != NULL )
 	    return fs->rq[i] ;
     }
-    q = malloc(sizeof(*q), M_IPFW, M_DONTWAIT) ;
+    q = malloc(sizeof(*q), M_IPFW, M_DONTWAIT | M_ZERO); /* M_ZERO needed */
     if (q == NULL) {
 	printf("sorry, cannot allocate queue for new flow\n");
 	return NULL ;
     }
-    bzero(q, sizeof(*q) );     /* needed */
     q->fs = fs ;
     q->hash_slot = i ;
     q->next = fs->rq[i] ;
@@ -1011,11 +1010,11 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
     if ( fs->flags_fs & DN_IS_RED && red_drops(fs, q, len) )
 	goto dropit ;
 
-    pkt = (struct dn_pkt *)malloc(sizeof (*pkt), M_IPFW, M_NOWAIT) ;
+    /* XXX expensive to zero, see if we can remove it*/
+    pkt = (struct dn_pkt *)malloc(sizeof (*pkt), M_IPFW, M_NOWAIT | M_ZERO);
     if ( pkt == NULL )
 	goto dropit ;		/* cannot allocate packet header	*/
     /* ok, i can handle the pkt now... */
-    bzero(pkt, sizeof(*pkt) ); /* XXX expensive, see if we can remove it*/
     /* build and enqueue packet + parameters */
     pkt->hdr.mh_type = MT_DUMMYNET ;
     (struct ip_fw_chain *)pkt->hdr.mh_data = rule ;
@@ -1322,12 +1321,11 @@ alloc_hash(struct dn_flow_set *x, struct dn_flow_set *pfs)
     } else                  /* one is enough for null mask */
 	x->rq_size = 1;
     x->rq = malloc((1 + x->rq_size) * sizeof(struct dn_flow_queue *),
-	    M_IPFW, M_DONTWAIT);
+	    M_IPFW, M_DONTWAIT | M_ZERO);
     if (x->rq == NULL) {
 	printf("sorry, cannot allocate queue\n");
 	return ENOSPC;
     }
-    bzero(x->rq, (1+x->rq_size) * sizeof(struct dn_flow_queue *));
     x->rq_elements = 0;
     return 0 ;
 }
@@ -1382,12 +1380,11 @@ config_pipe(struct dn_pipe *p)
 		 a = b , b = b->next) ;
 
 	if (b == NULL || b->pipe_nr != p->pipe_nr) { /* new pipe */
-	    x = malloc(sizeof(struct dn_pipe), M_IPFW, M_DONTWAIT) ;
+	    x = malloc(sizeof(struct dn_pipe), M_IPFW, M_DONTWAIT | M_ZERO);
 	    if (x == NULL) {
 		printf("ip_dummynet.c: no memory for new pipe\n");
 		return ENOSPC;
 	    }
-	    bzero(x, sizeof(struct dn_pipe));
 	    x->pipe_nr = p->pipe_nr;
 	    x->fs.pipe = x ;
 	    x->backlogged_heap.size = x->backlogged_heap.elements = 0 ;
@@ -1427,12 +1424,11 @@ config_pipe(struct dn_pipe *p)
 	if (b == NULL || b->fs_nr != pfs->fs_nr) { /* new  */
 	    if (pfs->parent_nr == 0)	/* need link to a pipe */
 		return EINVAL ;
-	    x = malloc(sizeof(struct dn_flow_set), M_IPFW, M_DONTWAIT);
+	    x = malloc(sizeof(struct dn_flow_set), M_IPFW, M_DONTWAIT | M_ZERO);
 	    if (x == NULL) {
 		printf("ip_dummynet.c: no memory for new flow_set\n");
 		return ENOSPC;
 	    }
-	    bzero(x, sizeof(struct dn_flow_set));
 	    x->fs_nr = pfs->fs_nr;
 	    x->parent_nr = pfs->parent_nr;
 	    x->weight = pfs->weight ;

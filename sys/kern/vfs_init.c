@@ -119,10 +119,10 @@ vfs_opv_recalc(void)
 		if (*opv_desc_vector_p)
 			FREE(*opv_desc_vector_p, M_VNODE);
 		MALLOC(*opv_desc_vector_p, vop_t **,
-		       vfs_opv_numops * sizeof(vop_t *), M_VNODE, M_WAITOK);
+			vfs_opv_numops * sizeof(vop_t *), M_VNODE,
+			M_WAITOK | M_ZERO);
 		if (*opv_desc_vector_p == NULL)
 			panic("no memory for vop_t ** vector");
-		bzero(*opv_desc_vector_p, vfs_opv_numops * sizeof(vop_t *));
 
 		/* Fill in, with slot 0 being to return EOPNOTSUPP */
 		opv_desc_vector = *opv_desc_vector_p;

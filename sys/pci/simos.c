@@ -107,9 +107,8 @@ simos_attach(pcici_t config_id, int unit)
 	struct simos_softc* sc;
 	struct cam_devq *devq;
 
-	sc = malloc(sizeof(struct simos_softc), M_DEVBUF, M_WAITOK);
+	sc = malloc(sizeof(struct simos_softc), M_DEVBUF, M_WAITOK | M_ZERO);
 	simosp[unit] = sc;
-	bzero(sc, sizeof *sc);
 
 	sc->sc_unit = unit;
 	sc->sc_regs = (SimOS_SCSI*) SIMOS_SCSI_ADDR;

@@ -120,10 +120,9 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 {
 	struct resource *r, *s;
 
-	r = malloc(sizeof *r, M_RMAN, M_NOWAIT);
+	r = malloc(sizeof *r, M_RMAN, M_NOWAIT | M_ZERO);
 	if (r == 0)
 		return ENOMEM;
-	bzero(r, sizeof *r);
 	r->r_sharehead = 0;
 	r->r_start = start;
 	r->r_end = end;
@@ -247,10 +246,9 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 			 * split it in two.  The first case requires
 			 * two new allocations; the second requires but one.
 			 */
-			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT);
+			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT | M_ZERO);
 			if (rv == 0)
 				goto out;
-			bzero(rv, sizeof *rv);
 			rv->r_start = rstart;
 			rv->r_end = rstart + count - 1;
 			rv->r_flags = flags | RF_ALLOCATED;
@@ -267,13 +265,12 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 				/*
 				 * We are allocating in the middle.
 				 */
-				r = malloc(sizeof *r, M_RMAN, M_NOWAIT);
+				r = malloc(sizeof *r, M_RMAN, M_NOWAIT|M_ZERO);
 				if (r == 0) {
 					free(rv, M_RMAN);
 					rv = 0;
 					goto out;
 				}
-				bzero(r, sizeof *r);
 				r->r_start = rv->r_end + 1;
 				r->r_end = s->r_end;
 				r->r_flags = s->r_flags;
@@ -326,10 +323,9 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 		rend = min(s->r_end, max(start + count, end));
 		if (s->r_start >= start && s->r_end <= end
 		    && (s->r_end - s->r_start + 1) == count) {
-			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT);
+			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT | M_ZERO);
 			if (rv == 0)
 				goto out;
-			bzero(rv, sizeof *rv);
 			rv->r_start = s->r_start;
 			rv->r_end = s->r_end;
 			rv->r_flags = s->r_flags & 
@@ -338,13 +334,12 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 			rv->r_rm = rm;
 			if (s->r_sharehead == 0) {
 				s->r_sharehead = malloc(sizeof *s->r_sharehead,
-							M_RMAN, M_NOWAIT);
+						M_RMAN, M_NOWAIT | M_ZERO);
 				if (s->r_sharehead == 0) {
 					free(rv, M_RMAN);
 					rv = 0;
 					goto out;
 				}
-				bzero(s->r_sharehead, sizeof *s->r_sharehead);
 				LIST_INIT(s->r_sharehead);
 				LIST_INSERT_HEAD(s->r_sharehead, s, 
 						 r_sharelink);

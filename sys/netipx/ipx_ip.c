@@ -101,10 +101,9 @@ ipxipattach()
 		ifp->if_flags = IFF_POINTOPOINT;
 	}
 
-	MALLOC((m), struct ifnet_en *, sizeof(*m), M_PCB, M_NOWAIT);
+	MALLOC((m), struct ifnet_en *, sizeof(*m), M_PCB, M_NOWAIT | M_ZERO);
 	if (m == NULL)
 		return (NULL);
-	bzero(m, sizeof(*m));
 	m->ifen_next = ipxip_list;
 	ipxip_list = m;
 	ifp = &m->ifen_ifnet;

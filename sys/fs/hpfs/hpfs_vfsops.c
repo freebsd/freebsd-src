@@ -371,8 +371,7 @@ hpfs_mountfs(devvp, mp, argsp, p)
 	/*
 	 * Do actual mount
 	 */
-	hpmp = malloc(sizeof(struct hpfsmount), M_HPFSMNT, M_WAITOK);
-	bzero(hpmp, sizeof(struct hpfsmount));
+	hpmp = malloc(sizeof(struct hpfsmount), M_HPFSMNT, M_WAITOK | M_ZERO);
 
 	/* Read in SuperBlock */
 	error = bread(devvp, SUBLOCK, SUSIZE, NOCRED, &bp);

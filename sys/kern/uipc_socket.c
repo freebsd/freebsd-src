@@ -1045,8 +1045,7 @@ do_setopt_accept_filter(so, sopt)
 		error = ENOENT;
 		goto out;
 	}
-	MALLOC(af, struct so_accf *, sizeof(*af), M_ACCF, M_WAITOK);
-	bzero(af, sizeof(*af));
+	MALLOC(af, struct so_accf *, sizeof(*af), M_ACCF, M_WAITOK | M_ZERO);
 	if (afp->accf_create != NULL) {
 		if (afap->af_name[0] != '\0') {
 			int len = strlen(afap->af_name) + 1;
@@ -1310,8 +1309,7 @@ sogetopt(so, sopt)
 			if ((so->so_options & SO_ACCEPTCONN) == 0)
 				return (EINVAL);
 			MALLOC(afap, struct accept_filter_arg *, sizeof(*afap),
-				M_TEMP, M_WAITOK);
-			bzero(afap, sizeof(*afap));
+				M_TEMP, M_WAITOK | M_ZERO);
 			if ((so->so_options & SO_ACCEPTFILTER) != 0) {
 				strcpy(afap->af_name, so->so_accf->so_accept_filter->accf_name);
 				if (so->so_accf->so_accept_filter_str != NULL)

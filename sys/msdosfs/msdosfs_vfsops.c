@@ -176,8 +176,7 @@ msdosfs_mountroot()
 	if (bdevvp(rootdev, &rootvp))
 		panic("msdosfs_mountroot: can't setup rootvp");
 
-	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
-	bzero((char *)mp, (u_long)sizeof(struct mount));
+	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
 	mp->mnt_op = &msdosfs_vfsops;
 	mp->mnt_flag = 0;
 	LIST_INIT(&mp->mnt_vnodelist);
@@ -464,8 +463,7 @@ mountmsdosfs(devvp, mp, p, argp)
 	}
 #endif
 
-	pmp = malloc(sizeof *pmp, M_MSDOSFSMNT, M_WAITOK);
-	bzero((caddr_t)pmp, sizeof *pmp);
+	pmp = malloc(sizeof *pmp, M_MSDOSFSMNT, M_WAITOK | M_ZERO);
 	pmp->pm_mountp = mp;
 
 	/*

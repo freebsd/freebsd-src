@@ -262,8 +262,7 @@ nqsrv_getlease(vp, duration, flags, slp, procp, nam, cachablep, frev, cred)
 			if (!ok) {
 				*lphp = (struct nqm *)
 					malloc(sizeof (struct nqm),
-						M_NQMHOST, M_WAITOK);
-				bzero((caddr_t)*lphp, sizeof (struct nqm));
+						M_NQMHOST, M_WAITOK | M_ZERO);
 				lph = (*lphp)->lpm_hosts;
 			}
 			nqsrv_addhost(lph, slp, nam);
@@ -307,8 +306,8 @@ doreply:
 					"nqsrvnuml", 0);
 		} while (nfsstats.srvnqnfs_leases > nqsrv_maxnumlease);
 	}
-	MALLOC(lp, struct nqlease *, sizeof (struct nqlease), M_NQLEASE, M_WAITOK);
-	bzero((caddr_t)lp, sizeof (struct nqlease));
+	MALLOC(lp, struct nqlease *, sizeof (struct nqlease), M_NQLEASE,
+	    M_WAITOK | M_ZERO);
 	if (flags & ND_WRITE)
 		lp->lc_flag |= (LC_WRITE | LC_WRITTEN);
 	nqsrv_addhost(&lp->lc_host, slp, nam);
