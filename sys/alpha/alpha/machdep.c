@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.38 1999/04/19 14:14:11 peter Exp $
+ *	$Id: machdep.c,v 1.39 1999/04/23 19:53:37 dt Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -234,13 +234,11 @@ SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
-static void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
 static void identifycpu __P((void));
 
 static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 static vm_offset_t pager_sva, pager_eva;
-extern struct linker_set netisr_set;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
@@ -295,11 +293,6 @@ cpu_startup(dummy)
 			    phys_avail[indx + 1] - 1, size1, size1 / PAGE_SIZE);
 		}
 	}
-
-	/*
-	 * Quickly wire in netisrs.
-	 */
-	setup_netisrs(&netisr_set);
 
 	/*
 	 * Calculate callout wheel size
@@ -464,17 +457,14 @@ register_netisr(num, handler)
 	return (0);
 }
 
-static void
-setup_netisrs(ls)
-	struct linker_set *ls;
+void
+netisr_sysinit(data)
+	void *data;
 {
-	int i;
 	const struct netisrtab *nit;
 
-	for(i = 0; ls->ls_items[i]; i++) {
-		nit = (const struct netisrtab *)ls->ls_items[i];
-		register_netisr(nit->nit_num, nit->nit_isr);
-	}
+	nit = (const struct netisrtab *)data;
+	register_netisr(nit->nit_num, nit->nit_isr);
 }
 
 /*
