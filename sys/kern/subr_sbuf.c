@@ -399,6 +399,7 @@ sbuf_cpy(struct sbuf *s, const char *str)
 int
 sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 {
+	va_list ap_copy;
 	int len;
 
 	assert_sbuf_integrity(s);
@@ -411,8 +412,10 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 		return (-1);
 
 	do {
+		va_copy(ap_copy, ap);
 		len = vsnprintf(&s->s_buf[s->s_len], SBUF_FREESPACE(s) + 1,
-		    fmt, ap);
+		    fmt, ap_copy);
+		va_end(ap_copy);
 	} while (len > SBUF_FREESPACE(s) &&
 	    sbuf_extend(s, len - SBUF_FREESPACE(s)) == 0);
 
