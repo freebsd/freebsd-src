@@ -106,19 +106,29 @@ Output escape sequence for the terminal type
 .Ar type .
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width indent
-.It Ev TERM
-Terminal type unless overridden by the
-.Fl T
-option.
-If the
+The
+.Ev LANG ,
+.Ev LC_ALL ,
+.Ev LC_CTYPE
+and
 .Ev TERM
-environment variable is unset and the
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Pp
+The
 .Fl T
-option is not given,
+option overrides the setting of the
+.Ev TERM
+environment variable.
+If neither
+.Ev TERM
+nor the
+.Fl T
+option are present,
 .Nm
 will fail.
-.El
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
