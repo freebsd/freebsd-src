@@ -1704,6 +1704,7 @@ nfs_link(ap)
 
 	if (vp->v_mount != tdvp->v_mount) {
 		VOP_ABORTOP(tdvp, cnp);
+		vput(tdvp);
 		return (EXDEV);
 	}
 
