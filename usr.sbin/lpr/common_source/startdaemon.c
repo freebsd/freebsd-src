@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)startdaemon.c	8.2 (Berkeley) 4/17/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 
@@ -41,16 +45,14 @@ static char sccsid[] = "@(#)startdaemon.c	8.2 (Berkeley) 4/17/94";
 #include <sys/un.h>
 
 #include <dirent.h>
-#include <errno.h>
+#include <err.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #include "lp.h"
 #include "pathnames.h"
 
 extern uid_t	uid, euid;
-
-static void perr __P((char *));
 
 /*
  * Tell the printer daemon that there are new files in the spool directory.
@@ -66,7 +68,7 @@ startdaemon(printer)
 
 	s = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (s < 0) {
-		perr("socket");
+		warn("socket");
 		return(0);
 	}
 	memset(&un, 0, sizeof(un));
@@ -78,7 +80,7 @@ startdaemon(printer)
 	seteuid(euid);
 	if (connect(s, (struct sockaddr *)&un, SUN_LEN(&un)) < 0) {
 		seteuid(uid);
-		perr("connect");
+		warn("connect");
 		(void) close(s);
 		return(0);
 	}
@@ -89,7 +91,7 @@ startdaemon(printer)
 	}
 	n = strlen(buf);
 	if (write(s, buf, n) != n) {
-		perr("write");
+		warn("write");
 		(void) close(s);
 		return(0);
 	}
@@ -104,11 +106,4 @@ startdaemon(printer)
 		fwrite(buf, 1, n, stdout);
 	(void) close(s);
 	return(0);
-}
-
-static void
-perr(msg)
-	char *msg;
-{
-	(void)printf("%s: %s: %s\n", name, msg, strerror(errno));
 }

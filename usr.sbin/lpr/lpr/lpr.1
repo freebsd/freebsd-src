@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From @(#)lpr.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: lpr.1,v 1.7 1997/02/22 16:06:19 peter Exp $
 .\" "
 .Dd June 6, 1993
 .Dt LPR 1
@@ -226,7 +226,7 @@ Temporary copies of "cf" files.
 .Xr lpd 8
 .Sh HISTORY
 The
-.Nm lpr
+.Nm
 command appeared in
 .Bx 3 .
 .Sh DIAGNOSTICS
@@ -234,12 +234,12 @@ If you try to spool too large a file, it will be truncated.
 .Nm Lpr
 will object to printing binary files.
 If a user other than root prints a file and spooling is disabled,
-.Nm lpr
+.Nm
 will print a message saying so and will not put jobs in the queue.
 If a connection to
 .Xr lpd 8
 on the local machine cannot be made,
-.Nm lpr
+.Nm
 will say that the daemon cannot be started.
 Diagnostics may be printed in the daemon's log file
 regarding missing spool files by
