@@ -23,26 +23,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: interrupt.h,v 1.1 1997/05/26 14:37:31 se Exp $
  *
  */
 
-#if ICU_LEN > 32
-#error adjust type of intrmask for ICU_LEN of more than 32
-#endif
-/* XXX adjust size if more than 32 interrupts are supported ! */
-typedef u_int32_t intrmask;
-
-/* XXX inthand2_typ should be defined here, not in isa_device.h */
-
 typedef struct intrec {
-	intrmask	mask;
+	intrmask_t	mask;
 	inthand2_t	*handler;
 	void		*argument;
 	struct intrec	*next;
 	void		*devdata;
 	int		intr;
-	intrmask	*maskptr;
+	intrmask_t	*maskptr;
 	int		flags;
 #define	INTR_FAST		0x00000001 /* fast interrupt handler */
 #define INTR_EXCL		0x00010000 /* excl. intr, default is shared */
@@ -50,7 +42,7 @@ typedef struct intrec {
 
 /* XXX currently dev_instance must be set to the ISA device_id or -1 for PCI */
 intrec *intr_create(void *dev_instance, int irq, inthand2_t handler,
-		    void *arg, intrmask *maskptr, int flags);
+		    void *arg, intrmask_t *maskptr, int flags);
 int intr_destroy(intrec *idesc);
 
 int intr_connect(intrec *idesc);
