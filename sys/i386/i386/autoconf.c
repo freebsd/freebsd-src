@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.42 1995/11/20 12:09:54 phk Exp $
+ *	$Id: autoconf.c,v 1.43 1995/11/28 03:15:53 peter Exp $
  */
 
 /*
@@ -53,27 +53,39 @@
 #include <sys/dmap.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
-#include <sys/mount.h>	/* mountrootvfsops, struct vfsops*/
+#include <sys/mount.h>
 
 #include <machine/cons.h>
 #include <machine/md_var.h>
 #include <machine/pte.h>
 
-static void configure __P((void *));
+#include "isa.h"
+#if NISA > 0
+#include <i386/isa/isa_device.h>
+#endif
+
+#include "eisa.h"
+#if NEISA > 0
+#include <i386/eisa/eisaconf.h>
+#endif
+
+#include "pci.h"
+#if NPCI > 0
+#include <pci/pcivar.h>
+#endif
+
+#include "crd.h"
+#if NCRD > 0
+#include <pccard/driver.h>
+#endif
+
+#include "scbus.h"
+#if NSCBUS > 0
+#include <scsi/scsiconf.h>
+#endif
+
+static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
-
-int find_cdrom_root __P((void *));
-void configure_start __P((void));
-void configure_finish __P((void));
-
-static void setroot(void);
-
-/*
- * The following several variables are related to
- * the configuration process, and are used in initializing
- * the machine.
- */
-int	dkn;		/* number of iostat dk numbers assigned so far */
 
 #ifdef MFS_ROOT
 extern struct vfsops	mfs_vfsops;
@@ -85,33 +97,13 @@ extern struct vfsops	ufs_vfsops;
 extern struct vfsops	lfs_vfsops;
 #endif
 #ifdef NFS
-int nfs_mountroot __P((void *));
+extern int	nfs_mountroot __P((void *));
 #endif
 #ifdef CD9660
-int cd9660_mountroot __P((void *));
+extern int	cd9660_mountroot __P((void *));
 #endif
 #ifdef MSDOSFS
-int msdosfs_mountroot __P((void *));
-#endif
-
-#include "eisa.h"
-#include "isa.h"
-#if NISA > 0
-      #include <i386/isa/isa_device.h>
-#endif
-
-#if NEISA > 0
-void	eisa_configure();
-#endif
-
-#include "pci.h"
-#if NPCI > 0
-      #include <pci/pcivar.h>
-#endif
-
-#include "crd.h"
-#if NCRD > 0
-void	pccard_configure();
+extern int	msdosfs_mountroot __P((void *));
 #endif
 
 #ifdef CD9660
@@ -127,7 +119,12 @@ static struct {
 	{ 0, 0}
 };
 
-int
+static void	configure_finish __P((void));
+static void	configure_start __P((void));
+static int	find_cdrom_root __P((void *));
+static void	setroot __P((void));
+
+static int
 find_cdrom_root(dummy)
 	void *dummy;
 {
@@ -145,12 +142,7 @@ find_cdrom_root(dummy)
 }
 #endif /* CD9660 */
 
-#include "scbus.h"
-#if NSCBUS > 0
-      #include <scsi/scsiconf.h>
-#endif
-
-void
+static void
 configure_start()
 {
 #if NSCBUS > 0
@@ -158,7 +150,7 @@ configure_start()
 #endif
 }
 
-void
+static void
 configure_finish()
 {
 #if NSCBUS > 0
