@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stty.c,v 1.4 1995/05/30 00:07:28 rgrimes Exp $
+ *	$Id: stty.c,v 1.5 1995/07/02 08:54:27 joerg Exp $
  */
 
 #ifndef lint
@@ -95,10 +95,8 @@ main(argc, argv)
 args:	argc -= optind;
 	argv += optind;
 
-	if (tcgetattr(i.fd, &i.t) < 0) {
-		warn("tcgetattr: not running on a terminal");
-		exit(1);
-	}
+	if (tcgetattr(i.fd, &i.t) < 0)
+		errx(1, "stdin isn't a terminal");
 	if (ioctl(i.fd, TIOCGETD, &i.ldisc) < 0)
 		err(1, "TIOCGETD");
 	if (ioctl(i.fd, TIOCGWINSZ, &i.win) < 0)
