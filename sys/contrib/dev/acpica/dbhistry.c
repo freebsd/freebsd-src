@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dbhistry - debugger HISTORY command
- *              $Revision: 19 $
+ *              $Revision: 22 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -129,7 +129,7 @@
 #ifdef ENABLE_DEBUGGER
 
 #define _COMPONENT          ACPI_DEBUGGER
-        MODULE_NAME         ("dbhistry")
+        ACPI_MODULE_NAME    ("dbhistry")
 
 
 #define HI_NO_HISTORY       0
@@ -169,10 +169,9 @@ AcpiDbAddToHistory (
     NATIVE_CHAR             *CommandLine)
 {
 
-
     /* Put command into the next available slot */
 
-    STRCPY (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command, CommandLine);
+    ACPI_STRCPY (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command, CommandLine);
 
     AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].CmdNum = AcpiGbl_NextCmdNum;
 
@@ -194,13 +193,11 @@ AcpiDbAddToHistory (
         AcpiGbl_NextHistoryIndex = 0;
     }
 
-
     AcpiGbl_NextCmdNum++;
     if (AcpiGbl_NumHistory < HISTORY_SIZE)
     {
         AcpiGbl_NumHistory++;
     }
-
 }
 
 
@@ -270,9 +267,8 @@ AcpiDbGetFromHistory (
 
     else
     {
-        CmdNum = STRTOUL (CommandNumArg, NULL, 0);
+        CmdNum = ACPI_STRTOUL (CommandNumArg, NULL, 0);
     }
-
 
     /* Search history buffer */
 

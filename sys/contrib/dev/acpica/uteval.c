@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 34 $
+ *              $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -122,7 +122,7 @@
 
 
 #define _COMPONENT          ACPI_UTILITIES
-        MODULE_NAME         ("uteval")
+        ACPI_MODULE_NAME    ("uteval")
 
 
 /*******************************************************************************
@@ -152,7 +152,7 @@ AcpiUtEvaluateNumericObject (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("UtEvaluateNumericObject");
+    ACPI_FUNCTION_TRACE ("UtEvaluateNumericObject");
 
 
     /* Execute the method */
@@ -163,12 +163,12 @@ AcpiUtEvaluateNumericObject (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s on %4.4s was not found\n",
-                ObjectName, (char*)&DeviceNode->Name));
+                ObjectName, (char *) &DeviceNode->Name));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%s on %4.4s failed with status %s\n",
-                ObjectName, (char*)&DeviceNode->Name,
+                ObjectName, (char *) &DeviceNode->Name,
                 AcpiFormatException (Status)));
         }
 
@@ -236,7 +236,7 @@ AcpiUtExecute_HID (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("UtExecute_HID");
+    ACPI_FUNCTION_TRACE ("UtExecute_HID");
 
 
     /* Execute the method */
@@ -248,12 +248,12 @@ AcpiUtExecute_HID (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "_HID on %4.4s was not found\n",
-                (char*)&DeviceNode->Name));
+                (char *) &DeviceNode->Name));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_HID on %4.4s failed %s\n",
-                (char*)&DeviceNode->Name, AcpiFormatException (Status)));
+                (char *) &DeviceNode->Name, AcpiFormatException (Status)));
         }
 
         return_ACPI_STATUS (Status);
@@ -291,7 +291,7 @@ AcpiUtExecute_HID (
         {
             /* Copy the String HID from the returned object */
 
-            STRNCPY(Hid->Buffer, ObjDesc->String.Pointer, sizeof(Hid->Buffer));
+            ACPI_STRNCPY (Hid->Buffer, ObjDesc->String.Pointer, sizeof(Hid->Buffer));
         }
     }
 
@@ -328,7 +328,7 @@ AcpiUtExecute_CID (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("UtExecute_CID");
+    ACPI_FUNCTION_TRACE ("UtExecute_CID");
 
     /* Execute the method */
 
@@ -376,7 +376,7 @@ AcpiUtExecute_CID (
 
         /* Copy the String CID from the returned object */
 
-        STRNCPY(Cid->Buffer, ObjDesc->String.Pointer, sizeof(Cid->Buffer));
+        ACPI_STRNCPY (Cid->Buffer, ObjDesc->String.Pointer, sizeof(Cid->Buffer));
         break;
 
     case ACPI_TYPE_PACKAGE:
@@ -426,7 +426,7 @@ AcpiUtExecute_UID (
     ACPI_STATUS             Status;
 
 
-    PROC_NAME ("UtExecute_UID");
+    ACPI_FUNCTION_NAME ("UtExecute_UID");
 
 
     /* Execute the method */
@@ -438,13 +438,13 @@ AcpiUtExecute_UID (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "_UID on %4.4s was not found\n",
-                (char*)&DeviceNode->Name));
+                (char *) &DeviceNode->Name));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "_UID on %4.4s failed %s\n",
-                (char*)&DeviceNode->Name, AcpiFormatException (Status)));
+                (char *) &DeviceNode->Name, AcpiFormatException (Status)));
         }
 
         return (Status);
@@ -482,7 +482,7 @@ AcpiUtExecute_UID (
         {
             /* Copy the String UID from the returned object */
 
-            STRNCPY(Uid->Buffer, ObjDesc->String.Pointer, sizeof(Uid->Buffer));
+            ACPI_STRNCPY (Uid->Buffer, ObjDesc->String.Pointer, sizeof(Uid->Buffer));
         }
     }
 
@@ -520,7 +520,7 @@ AcpiUtExecute_STA (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("UtExecute_STA");
+    ACPI_FUNCTION_TRACE ("UtExecute_STA");
 
 
     /* Execute the method */
@@ -531,7 +531,7 @@ AcpiUtExecute_STA (
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
             "_STA on %4.4s was not found, assuming present.\n",
-            (char*)&DeviceNode->Name));
+            (char *) &DeviceNode->Name));
 
         *Flags = 0x0F;
         Status = AE_OK;
@@ -540,7 +540,7 @@ AcpiUtExecute_STA (
     else if (ACPI_FAILURE (Status))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_STA on %4.4s failed %s\n",
-            (char*)&DeviceNode->Name,
+            (char *) &DeviceNode->Name,
             AcpiFormatException (Status)));
     }
 

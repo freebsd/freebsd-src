@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: psfind - Parse tree search routine
- *              $Revision: 32 $
+ *              $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,7 +123,7 @@
 #include "amlcode.h"
 
 #define _COMPONENT          ACPI_PARSER
-        MODULE_NAME         ("psfind")
+        ACPI_MODULE_NAME    ("psfind")
 
 
 /*******************************************************************************
@@ -201,7 +201,30 @@ AcpiPsFindName (
     while (Op)
     {
         OpInfo = AcpiPsGetOpcodeInfo (Op->Opcode);
-        if (OpInfo->Flags & AML_FIELD)
+
+        /* Check AML_CREATE first (since some opcodes have AML_FIELD set also )*/
+
+        if (OpInfo->Flags & AML_CREATE)
+        {
+            if (Op->Opcode == AML_CREATE_FIELD_OP)
+            {
+                Field = AcpiPsGetArg (Op, 3);
+            }
+            else
+            {
+                /* CreateXXXField, check name */
+
+                Field = AcpiPsGetArg (Op, 2);
+            }
+
+            if ((Field) &&
+                (Field->Value.String) &&
+                (!ACPI_STRNCMP (Field->Value.String, (char *) &Name, ACPI_NAME_SIZE)))
+            {
+                return (Op);
+            }
+        }
+        else if (OpInfo->Flags & AML_FIELD)
         {
             /* Field, search named fields */
 
@@ -218,26 +241,6 @@ AcpiPsFindName (
                 }
 
                 Field = Field->Next;
-            }
-        }
-        else if (OpInfo->Flags & AML_CREATE)
-        {
-            if (Op->Opcode == AML_CREATE_FIELD_OP)
-            {
-                Field = AcpiPsGetArg (Op, 3);
-            }
-            else
-            {
-                /* CreateXXXField, check name */
-
-                Field = AcpiPsGetArg (Op, 2);
-            }
-
-            if ((Field) &&
-                (Field->Value.String) &&
-                (!STRNCMP (Field->Value.String, (char *) &Name, ACPI_NAME_SIZE)))
-            {
-                return (Op);
             }
         }
         else if ((OpInfo->Flags & AML_NAMED) &&
@@ -283,7 +286,7 @@ AcpiPsFind (
     BOOLEAN                 Unprefixed = TRUE;
 
 
-    FUNCTION_TRACE_PTR ("PsFind", Scope);
+    ACPI_FUNCTION_TRACE_PTR ("PsFind", Scope);
 
 
     if (!Scope || !Path)
@@ -297,9 +300,9 @@ AcpiPsFind (
 
     /* Handle all prefixes in the name path */
 
-    while (AcpiPsIsPrefixChar (GET8 (Path)))
+    while (AcpiPsIsPrefixChar (ACPI_GET8 (Path)))
     {
-        switch (GET8 (Path))
+        switch (ACPI_GET8 (Path))
         {
         case '\\':
 
@@ -320,7 +323,6 @@ AcpiPsFind (
             {
                 Scope = AcpiPsGetParent (Scope);
             }
-
             break;
         }
 
@@ -330,9 +332,9 @@ AcpiPsFind (
 
     /* get name segment count */
 
-    switch (GET8 (Path))
+    switch (ACPI_GET8 (Path))
     {
-    case '\0':
+    case 0:
         SegCount = 0;
 
         /* Null name case */
@@ -347,9 +349,9 @@ AcpiPsFind (
         }
 
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Null path, returning current root scope Op=%p\n", Op));
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+            "Null path, returning current root scope Op=%p\n", Op));
         return_PTR (Op);
-        break;
 
     case AML_DUAL_NAME_PREFIX:
         SegCount = 2;
@@ -357,7 +359,7 @@ AcpiPsFind (
         break;
 
     case AML_MULTI_NAME_PREFIX_OP:
-        SegCount = GET8 (Path + 1);
+        SegCount = ACPI_GET8 (Path + 1);
         Path += 2;
         break;
 
@@ -366,14 +368,15 @@ AcpiPsFind (
         break;
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Search scope %p Segs=%d Opcode=%4.4X Create=%d\n",
-                    Scope, SegCount, Opcode, Create));
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+        "Search scope %p Segs=%d Opcode=%4.4X Create=%d\n",
+        Scope, SegCount, Opcode, Create));
 
     /* match each name segment */
 
     while (Scope && SegCount)
     {
-        MOVE_UNALIGNED32_TO_32 (&Name, Path);
+        ACPI_MOVE_UNALIGNED32_TO_32 (&Name, Path);
         Path += 4;
         SegCount --;
 
@@ -389,7 +392,9 @@ AcpiPsFind (
         Op = AcpiPsFindName (Scope, Name, NameOp);
         if (Op)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Found! Op=%p Opcode=%4.4X\n", (char*)&Name, Op, Op->Opcode));
+            ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+                "[%4.4s] Found! Op=%p Opcode=%4.4X\n",
+                (char *) &Name, Op, Op->Opcode));
         }
 
         if (!Op)
@@ -412,7 +417,9 @@ AcpiPsFind (
                     AcpiPsSetName (Op, Name);
                     AcpiPsAppendArg (Scope, Op);
 
-                    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Not found, created Op=%p Opcode=%4.4X\n", (char*)&Name, Op, Opcode));
+                    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+                        "[%4.4s] Not found, created Op=%p Opcode=%4.4X\n",
+                        (char *) &Name, Op, Opcode));
                 }
             }
 
@@ -426,17 +433,23 @@ AcpiPsFind (
                     Op = AcpiPsFindName (Scope, Name, Opcode);
                     if (Op)
                     {
-                        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Found in parent tree! Op=%p Opcode=%4.4X\n", (char*)&Name, Op, Op->Opcode));
+                        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+                            "[%4.4s] Found in parent tree! Op=%p Opcode=%4.4X\n",
+                            (char *) &Name, Op, Op->Opcode));
                     }
                     else
                     {
-                        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Not found in parent=%p\n", (char*)&Name, Scope));
+                        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+                            "[%4.4s] Not found in parent=%p\n",
+                            (char *) &Name, Scope));
                     }
                 }
             }
             else
             {
-                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Segment [%4.4s] Not Found in scope %p!\n", (char*)&Name, Scope));
+                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+                    "Segment [%4.4s] Not Found in scope %p!\n",
+                    (char *) &Name, Scope));
             }
         }
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstorob - AML Interpreter object store support, store to object
- *              $Revision: 37 $
+ *              $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -127,12 +127,12 @@
 
 
 #define _COMPONENT          ACPI_EXECUTER
-        MODULE_NAME         ("exstorob")
+        ACPI_MODULE_NAME    ("exstorob")
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExCopyBufferToBuffer
+ * FUNCTION:    AcpiExStoreBufferToBuffer
  *
  * PARAMETERS:  SourceDesc          - Source object to copy
  *              TargetDesc          - Destination object of the copy
@@ -144,7 +144,7 @@
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiExCopyBufferToBuffer (
+AcpiExStoreBufferToBuffer (
     ACPI_OPERAND_OBJECT     *SourceDesc,
     ACPI_OPERAND_OBJECT     *TargetDesc)
 {
@@ -152,7 +152,7 @@ AcpiExCopyBufferToBuffer (
     UINT8                   *Buffer;
 
 
-    PROC_NAME ("ExCopyBufferToBuffer");
+    ACPI_FUNCTION_NAME ("ExStoreBufferToBuffer");
 
 
     /*
@@ -184,8 +184,8 @@ AcpiExCopyBufferToBuffer (
     {
         /* Clear existing buffer and copy in the new one */
 
-        MEMSET (TargetDesc->Buffer.Pointer, 0, TargetDesc->Buffer.Length);
-        MEMCPY (TargetDesc->Buffer.Pointer, Buffer, Length);
+        ACPI_MEMSET (TargetDesc->Buffer.Pointer, 0, TargetDesc->Buffer.Length);
+        ACPI_MEMCPY (TargetDesc->Buffer.Pointer, Buffer, Length);
     }
 
     else
@@ -193,7 +193,7 @@ AcpiExCopyBufferToBuffer (
         /*
          * Truncate the source, copy only what will fit
          */
-        MEMCPY (TargetDesc->Buffer.Pointer, Buffer, TargetDesc->Buffer.Length);
+        ACPI_MEMCPY (TargetDesc->Buffer.Pointer, Buffer, TargetDesc->Buffer.Length);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
             "Truncating src buffer from %X to %X\n",
@@ -206,7 +206,7 @@ AcpiExCopyBufferToBuffer (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExCopyStringToString
+ * FUNCTION:    AcpiExStoreStringToString
  *
  * PARAMETERS:  SourceDesc          - Source object to copy
  *              TargetDesc          - Destination object of the copy
@@ -218,7 +218,7 @@ AcpiExCopyBufferToBuffer (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiExCopyStringToString (
+AcpiExStoreStringToString (
     ACPI_OPERAND_OBJECT     *SourceDesc,
     ACPI_OPERAND_OBJECT     *TargetDesc)
 {
@@ -226,7 +226,7 @@ AcpiExCopyStringToString (
     UINT8                   *Buffer;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     /*
@@ -242,8 +242,8 @@ AcpiExCopyStringToString (
     {
         /* Clear old string and copy in the new one */
 
-        MEMSET (TargetDesc->String.Pointer, 0, TargetDesc->String.Length);
-        MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
+        ACPI_MEMSET (TargetDesc->String.Pointer, 0, TargetDesc->String.Length);
+        ACPI_MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
     }
 
     else
@@ -268,7 +268,7 @@ AcpiExCopyStringToString (
         }
 
         TargetDesc->String.Length = Length;
-        MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
+        ACPI_MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
     }
 
     return (AE_OK);

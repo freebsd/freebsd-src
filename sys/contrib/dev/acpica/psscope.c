@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psscope - Parser scope stack management routines
- *              $Revision: 31 $
+ *              $Revision: 35 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,7 +119,7 @@
 #include "acparser.h"
 
 #define _COMPONENT          ACPI_PARSER
-        MODULE_NAME         ("psscope")
+        ACPI_MODULE_NAME    ("psscope")
 
 
 /*******************************************************************************
@@ -186,7 +186,7 @@ AcpiPsInitScope (
     ACPI_GENERIC_STATE      *Scope;
 
 
-    FUNCTION_TRACE_PTR ("PsInitScope", RootOp);
+    ACPI_FUNCTION_TRACE_PTR ("PsInitScope", RootOp);
 
 
     Scope = AcpiUtCreateGenericState ();
@@ -233,7 +233,7 @@ AcpiPsPushScope (
     ACPI_GENERIC_STATE      *Scope;
 
 
-    FUNCTION_TRACE_PTR ("PsPushScope", Op);
+    ACPI_FUNCTION_TRACE_PTR ("PsPushScope", Op);
 
 
     Scope = AcpiUtCreateGenericState ();
@@ -265,7 +265,7 @@ AcpiPsPushScope (
     {
         /* single argument */
 
-        Scope->ParseScope.ArgEnd = ACPI_MAX_AML;
+        Scope->ParseScope.ArgEnd = ACPI_TO_POINTER (ACPI_MAX_PTR);
     }
 
     return_ACPI_STATUS (AE_OK);
@@ -298,7 +298,7 @@ AcpiPsPopScope (
     ACPI_GENERIC_STATE      *Scope = ParserState->Scope;
 
 
-    FUNCTION_TRACE ("PsPopScope");
+    ACPI_FUNCTION_TRACE ("PsPopScope");
 
 
     /*
@@ -354,7 +354,7 @@ AcpiPsCleanupScope (
 {
     ACPI_GENERIC_STATE      *Scope;
 
-    FUNCTION_TRACE_PTR ("PsCleanupScope", ParserState);
+    ACPI_FUNCTION_TRACE_PTR ("PsCleanupScope", ParserState);
 
 
     if (!ParserState)

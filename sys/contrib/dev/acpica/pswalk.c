@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: pswalk - Parser routines to walk parsed op tree(s)
- *              $Revision: 61 $
+ *              $Revision: 63 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,7 +123,7 @@
 #include "acinterp.h"
 
 #define _COMPONENT          ACPI_PARSER
-        MODULE_NAME         ("pswalk")
+        ACPI_MODULE_NAME    ("pswalk")
 
 
 /*******************************************************************************
@@ -152,12 +152,12 @@ AcpiPsGetNextWalkOp (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE_PTR ("PsGetNextWalkOp", Op);
+    ACPI_FUNCTION_TRACE_PTR ("PsGetNextWalkOp", Op);
 
 
     /* Check for a argument only if we are descending in the tree */
 
-    if (WalkState->NextOpInfo != NEXT_OP_UPWARD)
+    if (WalkState->NextOpInfo != ACPI_NEXT_OP_UPWARD)
     {
         /* Look for an argument or child of the current op */
 
@@ -168,7 +168,7 @@ AcpiPsGetNextWalkOp (
 
             WalkState->PrevOp       = Op;
             WalkState->NextOp       = Next;
-            WalkState->NextOpInfo   = NEXT_OP_DOWNWARD;
+            WalkState->NextOpInfo   = ACPI_NEXT_OP_DOWNWARD;
 
             return_ACPI_STATUS (AE_OK);
         }
@@ -209,7 +209,7 @@ AcpiPsGetNextWalkOp (
 
             WalkState->PrevOp       = Op;
             WalkState->NextOp       = Next;
-            WalkState->NextOpInfo   = NEXT_OP_DOWNWARD;
+            WalkState->NextOpInfo   = ACPI_NEXT_OP_DOWNWARD;
 
             /* Continue downward */
 
@@ -271,7 +271,7 @@ AcpiPsGetNextWalkOp (
 
             WalkState->PrevOp       = Parent;
             WalkState->NextOp       = Next;
-            WalkState->NextOpInfo   = NEXT_OP_DOWNWARD;
+            WalkState->NextOpInfo   = ACPI_NEXT_OP_DOWNWARD;
 
             return_ACPI_STATUS (Status);
         }
@@ -339,7 +339,7 @@ AcpiPsDeleteParseTree (
     ACPI_THREAD_STATE       *Thread;
 
 
-    FUNCTION_TRACE_PTR ("PsDeleteParseTree", SubtreeRoot);
+    ACPI_FUNCTION_TRACE_PTR ("PsDeleteParseTree", SubtreeRoot);
 
 
     if (!SubtreeRoot)
@@ -371,7 +371,7 @@ AcpiPsDeleteParseTree (
 
     /* Head downward in the tree */
 
-    WalkState->NextOpInfo = NEXT_OP_DOWNWARD;
+    WalkState->NextOpInfo = ACPI_NEXT_OP_DOWNWARD;
 
     /* Visit all nodes in the subtree */
 

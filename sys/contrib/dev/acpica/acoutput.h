@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acoutput.h -- debug output
- *       $Revision: 84 $
+ *       $Revision: 86 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -137,25 +137,18 @@
 #define ACPI_DEBUGGER               0x00000200
 #define ACPI_OS_SERVICES            0x00000400
 
-#define ACPI_BUS                    0x00010000
-#define ACPI_SYSTEM                 0x00020000
-#define ACPI_POWER                  0x00040000
-#define ACPI_EC                     0x00080000
-#define ACPI_AC_ADAPTER             0x00100000
-#define ACPI_BATTERY                0x00200000
-#define ACPI_BUTTON                 0x00400000
-#define ACPI_PROCESSOR              0x00800000
-#define ACPI_THERMAL                0x01000000
-#define ACPI_FAN                    0x02000000
-
-#define ACPI_ALL_COMPONENTS         0x0FFFFFFF
+#define ACPI_ALL_COMPONENTS         0x00000FFF
 
 #define ACPI_COMPONENT_DEFAULT      (ACPI_ALL_COMPONENTS)
 
+/* Component IDs for ACPI tools and utilities */
 
-#define ACPI_COMPILER               0x10000000
-#define ACPI_TOOLS                  0x20000000
+#define ACPI_COMPILER               0x00001000
+#define ACPI_TOOLS                  0x00002000
 
+/* Component IDs reserved for ACPI drivers */
+
+#define ACPI_ALL_DRIVERS            0xFFFF0000
 
 /*
  * Raw debug output levels, do not use these in the DEBUG_PRINT macros
