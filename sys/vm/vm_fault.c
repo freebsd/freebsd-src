@@ -446,13 +446,14 @@ readrest:
 				if (ahead > VM_FAULT_READ_AHEAD)
 					ahead = VM_FAULT_READ_AHEAD;
 			}
-
-			if ((fs.first_object->type != OBJT_DEVICE) &&
-			    (behavior == MAP_ENTRY_BEHAV_SEQUENTIAL ||
-                                (behavior != MAP_ENTRY_BEHAV_RANDOM &&
-                                fs.pindex >= fs.entry->lastr &&
-                                fs.pindex < fs.entry->lastr + VM_FAULT_READ))
-			) {
+			is_first_object_locked = FALSE;
+			if ((behavior == MAP_ENTRY_BEHAV_SEQUENTIAL ||
+			     (behavior != MAP_ENTRY_BEHAV_RANDOM &&
+			      fs.pindex >= fs.entry->lastr &&
+			      fs.pindex < fs.entry->lastr + VM_FAULT_READ)) &&
+			    (fs.first_object == fs.object ||
+			     (is_first_object_locked = VM_OBJECT_TRYLOCK(fs.first_object))) &&
+			    fs.first_object->type != OBJT_DEVICE) {
 				vm_pindex_t firstpindex, tmppindex;
 
 				if (fs.first_pindex < 2 * VM_FAULT_READ)
@@ -492,7 +493,8 @@ readrest:
 				ahead += behind;
 				behind = 0;
 			}
-
+			if (is_first_object_locked)
+				VM_OBJECT_UNLOCK(fs.first_object);
 			/*
 			 * now we find out if any other pages should be paged
 			 * in at this time this routine checks to see if the
