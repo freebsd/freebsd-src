@@ -1,13 +1,12 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.45 1997/04/20 11:53:53 pds Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.46 1997/04/21 00:42:54 jfieber Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
-
-Last updated: <date>$Date: 1997/04/20 11:53:53 $</date>
+<date>$Date: 1997/04/21 00:42:54 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -31,7 +30,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           frequently asked questions concerning the FreeBSD operating system
           (and of course answer them!).  Although originally intended to reduce
           bandwidth and avoid the same old questions being asked over and over
-          again, FAQs have become recognised as valuable information resources.
+          again, FAQs have become recognized as valuable information resources.
 
           Every effort has been made to make this FAQ as informative as 
           possible; if you have any suggestions as to how it may be improved,
@@ -406,7 +405,7 @@ make release BUILDNAME=3.0-MY-SNAP CHROOTDIR=/some/big/filesystem/release
           even better, join) on the <tt>doc</tt> mailing list:
           <url url="mailto:doc@FreeBSD.ORG" name="&lt;doc@FreeBSD.ORG&gt;">.
 
-          A FreeBSD ``handbook'' is availible, and can be found as:
+          A FreeBSD ``handbook'' is available, and can be found as:
 	    <url url="../handbook/handbook.html" name="the FreeBSD Handbook">.  
           Note that this is a work in progress, and so parts may be incomplete.
 
@@ -1882,6 +1881,71 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
 	  </verb>
 	  in your config-file.
 
+      </sect1>
+
+      <sect1>
+	<heading>What is FreeBSD's a.out executable format, and why not ELF?</heading>
+	<p>To understand why FreeBSD uses the <tt>a.out</tt> format, you must
+	first know a little about the 3 currently "dominant" executable
+	formats for UNIX:
+
+	<itemize>
+	<item><bf>a.out</bf>
+	<p>The oldest and `classic' unix object format.  It uses a
+	short and compact header with a magic number at the beginning
+	that's often used to characterize the format (see the
+	<tt>a.out</tt>(5) for more details).  It contains three loaded
+	segments: .text, .data, and .bss plus a symbol table and a
+	string table.
+	</item>
+
+
+	<item><bf>COFF</bf>
+	<p>The SVR3 object format.  The header now comprises a section
+	table, so you can have more than just .text, .data, and .bss
+	sections.  IIRC, the section length values are 16-bit entities
+	only.</item>
+	
+	<item><bf>ELF</bf>
+	<p>The successor to <tt/COFF/, featuring Multiple sections
+	and 32-bit or 64-bit possible values.  One major drawback:
+	<tt/ELF/ was also designed with the assumption that there
+	would be only one ABI per system architecture.  That
+	assumption is actually quite incorrect, and not even in the
+	commercial SYSV world (which has at least three ABIs: SVR4,
+	Solaris, SCO) does it hold true.
+
+	FreeBSD tries to work around this problem somewhat by
+	providing a utility for <em>branding</em> a known <tt/ELF/
+	executable with information about the ABI it's compliant with.
+	See the man page for brandelf(1) for more information.</item>
+	</itemize>
+
+	<p>FreeBSD comes from the "classic" camp and uses the
+	<tt/a.out/ format, a technology tried and proven through
+	many generations of BSD releases.  Though it has also been possible
+	for some time to build and run native <tt/ELF/ binaries (and
+	kernels) on a FreeBSD system, no official "push" to switch to
+	ELF as the default format has, as yet, been made. Why?  Well,
+	when the Linux camp made their painful transition to <tt/ELF/, it
+	was not so much to flee the <tt/a.out/ executable format
+	as it was their inflexible jump-table based shared library
+	mechanism, which made the construction of shared libraries
+	very difficult for vendors and developers alike. Since the <tt/ELF/
+	tools available offered a solution to the shared library
+	problem and were generally seen as "the way forward" anyway, the
+	migration cost was accepted as necessary and the transition
+	made.
+
+	<p>In FreeBSD's case, it's not quite so simple since our shared
+	library mechanism is based more closely on Sun's
+	<tt>SunOS</tt>-style shared library mechanism and, as such, is very
+	easy to use.  The only thing we actually lack with <tt/a.out/
+	which <tt/ELF/ would give us is better support for C++ constructors
+	and destructors, among other similarly esoteric things, and it
+	simply hasn't become much of a problem yet (and there is quite
+	a bit of C++ code in FreeBSD's source tree).  Should that change,
+	a migration may, at some point, be more seriously contemplated.
       </sect1>
 
       <sect1>
