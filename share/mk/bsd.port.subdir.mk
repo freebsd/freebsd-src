@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.14 1996/04/09 22:54:13 wosch Exp $
+#	$Id: bsd.port.subdir.mk,v 1.15 1996/11/01 07:22:37 asami Exp $
 
 .MAIN: all
 
@@ -22,16 +22,17 @@ _SUBDIRUSE: .USE
 				${ECHO_MSG} "===> ${DIRPRFX}$${entry} skipped"; \
 			fi; \
 		done; \
+		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
+			edir=$${entry}.${MACHINE}; \
+		elif test -d ${.CURDIR}/$${entry}; then \
+			edir=$${entry}; \
+		else \
+			OK="false"; \
+			${ECHO_MSG} "===> ${DIRPRFX}$${entry} non-existent"; \
+		fi; \
 		if [ "$$OK" = "" ]; then \
-			if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
-				${ECHO_MSG} "===> ${DIRPRFX}$${entry}.${MACHINE}"; \
-				edir=$${entry}.${MACHINE}; \
-				cd ${.CURDIR}/$${edir}; \
-			else \
-				${ECHO_MSG} "===> ${DIRPRFX}$$entry"; \
-				edir=$${entry}; \
-				cd ${.CURDIR}/$${edir}; \
-			fi; \
+			${ECHO_MSG} "===> ${DIRPRFX}$${edir}"; \
+			cd ${.CURDIR}/$${edir}; \
 			${MAKE} ${.TARGET:realinstall=install} \
 				DIRPRFX=${DIRPRFX}$$edir/; \
 		fi; \
