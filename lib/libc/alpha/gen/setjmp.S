@@ -65,7 +65,7 @@ LEAF(setjmp, 1)
 	/* see what's blocked */
 	lda	a2, (71 * 8)(a0)		/* oset: sc_reserved */
 	mov	zero, a1			/* set:	 NULL */
-	add	a1, 1, a0			/* how:	 SIG_BLOCK */
+	addq	a1, 1, a0			/* how:	 SIG_BLOCK */
 	PCALL(sigprocmask)			/* see what's blocked */
 
 	lda	sp, -24(sp)			/* sizeof struct sigaltstack */
