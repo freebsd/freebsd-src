@@ -1310,7 +1310,7 @@ nge_rxeof(sc)
 		u_int32_t		extsts;
 
 #ifdef DEVICE_POLLING
-		if (ifp->if_ipending & IFF_POLLING) {
+		if (ifp->if_flags & IFF_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -1576,7 +1576,7 @@ nge_intr(arg)
 	ifp = &sc->arpcom.ac_if;
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_ipending & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING)
 		return;
 	if (ether_poll_register(nge_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, NGE_IER, 0);
@@ -1956,7 +1956,7 @@ nge_init(xsc)
 	 * ... only enable interrupts if we are not polling, make sure
 	 * they are off otherwise.
 	 */
-	if (ifp->if_ipending & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING)
 		CSR_WRITE_4(sc, NGE_IER, 0);
 	else
 #endif /* DEVICE_POLLING */
