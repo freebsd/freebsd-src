@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.11 1997/07/18 21:27:53 fsmp Exp $
+ * $Id: mplock.s,v 1.11 1997/07/25 22:19:16 smp Exp smp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -42,6 +42,9 @@
 #define GRAB_HWI \
 	movl	$ALLHWI_LEVEL, TPR_TARGET	/* task prio to 'all HWI' */
 
+#define GRAB_HWI_2 \
+	movl	$ALLHWI_LEVEL, lapic_tpr	/* task prio to 'all HWI' */
+
 /* after last release of lock give up LOW PRIO (ie, arbitrate INTerrupts) */
 #define ARB_HWI \
 	movl	$LOPRIO_LEVEL, lapic_tpr	/* task prio to 'arbitrate' */
@@ -50,6 +53,9 @@
 
 #define GRAB_HWI \
 	andl	$~APIC_TPR_PRIO, TPR_TARGET	/* task prio to 'all HWI' */
+
+#define GRAB_HWI_2 \
+	andl	$~APIC_TPR_PRIO, lapic_tpr	/* task prio to 'all HWI' */
 
 #define ARB_HWI								\
 	movl	lapic_tpr, %eax ;		/* TPR */		\
@@ -63,6 +69,7 @@
 #else /** TEST_LOPRIO */
 
 #define GRAB_HWI				/* nop */
+#define GRAB_HWI_2				/* nop */
 #define ARB_HWI					/* nop */
 
 #endif /** TEST_LOPRIO */
@@ -125,7 +132,7 @@ NON_GPROF_ENTRY(MPtrylock)
 	lock
 	cmpxchg	%ecx, (%edx)		/* - try it atomically */
 	jne	3f			/* ...do not collect $200 */
-	GRAB_HWI			/* 1st acquire, grab hw INTs */
+	GRAB_HWI_2			/* 1st acquire, grab hw INTs */
 	movl	$1, %eax
 	ret
 3:	movl	$0, %eax
