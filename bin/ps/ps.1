@@ -106,7 +106,7 @@ user, pid, ppid, pgid, jobc, state, tt, time and command.
 List the set of available keywords.
 .It Fl l
 Display information associated with the following keywords:
-uid, pid, ppid, cpu, pri, nice, vsz, rss, wchan, state, tt, time
+uid, pid, ppid, cpu, pri, nice, vsz, rss, mwchan, state, tt, time
 and command.
 .It Fl M
 Extract values associated with the name list from the specified core
@@ -234,6 +234,10 @@ that the process is currently blocked on.
 If the name is invalid or unknown, then
 .Dq ???\&
 is displayed.
+.It mwchan
+The event name if the process is blocked normally, or the mutex name if
+the process is blocked on a mutex.  See the wchan and mtxname keywords
+for details.
 .It nice
 The process scheduling increment (see
 .Xr setpriority 2 ) .
@@ -393,6 +397,8 @@ total messages sent (writes on pipes/sockets)
 .It mtxname
 .Xr mutex 9
 currently blocked on (as a symbolic name)
+.It mwchan
+wait channel or mutex currently blocked on
 .It nice
 nice value (alias ni)
 .It nivcsw
