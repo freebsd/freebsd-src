@@ -61,8 +61,11 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.3 1994/08/02 07:55:34 davidg Exp $
+ * $Id: vm_pageout.h,v 1.4 1994/08/18 22:36:08 wollman Exp $
  */
+
+#ifndef _VM_VM_PAGEOUT_H_
+#define _VM_VM_PAGEOUT_H_
 
 /*
  *	Header file for pageout daemon.
@@ -109,4 +112,6 @@ inline static void vm_wait() {
 int		 vm_pageout_scan __P((void));
 void		 vm_pageout_page __P((vm_page_t, vm_object_t));
 void		 vm_pageout_cluster __P((vm_page_t, vm_object_t));
+#endif
+
 #endif

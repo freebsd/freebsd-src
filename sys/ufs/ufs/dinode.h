@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)dinode.h	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: dinode.h,v 1.2 1994/08/02 07:54:47 davidg Exp $
  */
+
+#ifndef _UFS_UFS_DINODE_H_
+#define _UFS_UFS_DINODE_H_
 
 /*
  * The root inode is the root of the file system.  Inode 0 can't be used for
@@ -107,3 +110,5 @@ struct dinode {
 #define	IFREG		0100000		/* Regular file. */
 #define	IFLNK		0120000		/* Symbolic link. */
 #define	IFSOCK		0140000		/* UNIX domain socket. */
+
+#endif

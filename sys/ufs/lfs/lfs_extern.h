@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $Id$
+ * $Id: lfs_extern.h,v 1.2 1994/08/02 07:54:34 davidg Exp $
  */
+
+#ifndef _UFS_LFS_LFS_EXTERN_H_
+#define _UFS_LFS_LFS_EXTERN_H_
 
 struct fid;
 struct mount;
@@ -104,4 +107,6 @@ extern int (**lfs_fifoop_p)();
 #define LFS_FIFOOPS lfs_fifoop_p
 #else
 #define LFS_FIFOOPS NULL
+#endif
+
 #endif

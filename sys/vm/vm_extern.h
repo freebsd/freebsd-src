@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id$
+ * $Id: vm_extern.h,v 1.3 1994/08/02 07:55:17 davidg Exp $
  */
+
+#ifndef _VM_VM_EXTERN_H_
+#define _VM_VM_EXTERN_H_
 
 struct buf;
 struct loadavg;
@@ -133,4 +136,6 @@ void		 vnode_pager_umount __P((struct mount *));
 boolean_t	 vnode_pager_uncache __P((struct vnode *));
 void		 vslock __P((caddr_t, u_int));
 void		 vsunlock __P((caddr_t, u_int, int));
+#endif
+
 #endif

@@ -34,11 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)quota.h	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: quota.h,v 1.2 1994/08/02 07:54:51 davidg Exp $
  */
 
-#ifndef _QUOTA_
-#define _QUOTA_
+#ifndef _UFS_UFS_QUOTA_
+#define _UFS_UFS_QUOTA_
 
 /*
  * Definitions for disk quotas imposed on the average user
