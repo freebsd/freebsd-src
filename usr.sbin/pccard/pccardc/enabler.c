@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: enabler.c,v 1.5.2.1 1997/10/08 07:33:23 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -40,7 +40,7 @@ static const char rcsid[] =
 #include <pccard/card.h>
 #include <pccard/cis.h>
 
-static void	usage __P((char *));
+static void    usage __P((char *));
 
 int
 enabler_main(argc, argv)

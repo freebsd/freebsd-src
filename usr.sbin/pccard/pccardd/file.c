@@ -26,10 +26,9 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: file.c,v 1.12 1997/10/06 11:36:06 charnier Exp $";
 #endif /* not lint */
 
-#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,7 +73,7 @@ static struct allocblk *ioblk_tok(int);
 static struct allocblk *memblk_tok(int);
 static struct driver *new_driver(char *);
 
-static void    addcmd(struct cmd **cp);
+static void    addcmd(struct cmd **);
 static void    parse_card(void);
 
 /*
@@ -87,13 +86,14 @@ readfile(char *name)
 	struct card *cp;
 
 	in = fopen(name, "r");
-	if (in == 0)
-		err(1, "%s", name);
+	if (in == 0) {
+		logerr(name);
+		die("readfile");
+	}
 	parsefile();
 	for (cp = cards; cp; cp = cp->next) {
 		if (cp->config == 0)
-			fprintf(stderr,
-			    "warning: card %s(%s) has no valid configuration\n",
+			log_1s("warning: card %s(%s) has no valid configuration\n",
 			    cp->manuf, cp->version);
 	}
 }
@@ -401,7 +401,7 @@ static void
 error(char *msg)
 {
 	pusht = 1;
-	fprintf(stderr, "%s: %s at line %d, near %s\n",
+	log_1s("%s: %s at line %d, near %s\n",
 	    filename, msg, lineno, next_tok());
 	pusht = 1;
 }
