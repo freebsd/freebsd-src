@@ -98,6 +98,10 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="i386">The &man.cp.4; driver has been added for Cronyx Tau-PCI
+      synchronous serial adapters.
+    </para>
+
     <para>A bug in &man.mmap.2; that pages marked as <literal>PROT_NONE</literal>
       may become readable under certain circumstances, has been fixed.</para>
 
