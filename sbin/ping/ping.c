@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.35 1998/05/25 03:50:51 steve Exp $";
+	"$Id: ping.c,v 1.36 1998/05/25 06:53:17 steve Exp $";
 #endif /* not lint */
 
 /*
@@ -84,6 +84,7 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -164,14 +165,13 @@ volatile sig_atomic_t siginfo_p;
 
 static void fill(char *, char *);
 static u_short in_cksum(u_short *, int);
-static void catcher(int sig);
 static void check_status(void);
 static void finish(void) __dead2;
 static void pinger(void);
 static char *pr_addr(struct in_addr);
 static void pr_icmph(struct icmp *);
 static void pr_iph(struct ip *);
-static void pr_pack(char *, int, struct sockaddr_in *);
+static void pr_pack(char *, int, struct sockaddr_in *, struct timeval *);
 static void pr_retip(struct ip *);
 static void status(int);
 static void stopit(int);
@@ -183,12 +183,12 @@ main(argc, argv)
 	int argc;
 	char *const *argv;
 {
-	struct timeval timeout;
+	struct timeval last, intvl;
 	struct hostent *hp;
 	struct sockaddr_in *to;
 	struct termios ts;
 	register int i;
-	int ch, fdmask, hold, packlen, preload, sockerrno;
+	int ch, hold, packlen, preload, sockerrno, almost_done = 0;
 	struct in_addr ifaddr;
 	unsigned char ttl, loop;
 	u_char *datap, *packet;
@@ -199,6 +199,10 @@ main(argc, argv)
 	char rspace[3 + 4 * NROUTES + 1];	/* record route space */
 #endif
 	struct sigaction si_sa;
+	struct iovec iov;
+	struct msghdr msg;
+	struct sockaddr_in from;
+	char ctrl[sizeof(struct cmsghdr) + sizeof(struct timeval)];
 
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
@@ -377,9 +381,11 @@ main(argc, argv)
 	/* record route option */
 	if (options & F_RROUTE) {
 #ifdef IP_OPTIONS
+		bzero(rspace, sizeof(rspace));
 		rspace[IPOPT_OPTVAL] = IPOPT_RR;
-		rspace[IPOPT_OLEN] = sizeof(rspace)-1;
+		rspace[IPOPT_OLEN] = sizeof(rspace) - 1;
 		rspace[IPOPT_OFFSET] = IPOPT_MINOFF;
+		rspace[sizeof(rspace) - 1] = IPOPT_EOL;
 		if (setsockopt(s, IPPROTO_IP, IP_OPTIONS, rspace,
 		    sizeof(rspace)) < 0)
 			err(EX_OSERR, "setsockopt IP_OPTIONS");
@@ -407,6 +413,12 @@ main(argc, argv)
 			err(EX_OSERR, "setsockopt IP_MULTICAST_IF");
 		}
 	}
+#ifdef SO_TIMESTAMP
+	{ int on = 1;
+	if (setsockopt(s, SOL_SOCKET, SO_TIMESTAMP, &on, sizeof(on)) < 0)
+		err(EX_OSERR, "setsockopt SO_TIMESTAMP");
+	}
+#endif
 
 	/*
 	 * When pinging the broadcast address, you can get a lot of answers.
@@ -439,15 +451,20 @@ main(argc, argv)
 		err(EX_OSERR, "sigaction SIGINT");
 	}
 
-	si_sa.sa_handler = catcher;
-	if (sigaction(SIGALRM, &si_sa, 0) == -1) {
-		err(EX_OSERR, "sigaction SIGALRM");
-	}
-
 	si_sa.sa_handler = status;
 	if (sigaction(SIGINFO, &si_sa, 0) == -1) {
 		err(EX_OSERR, "sigaction");
 	}
+
+	bzero(&msg, sizeof(msg));
+	msg.msg_name = (caddr_t)&from;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+#ifdef SO_TIMESTAMP
+	msg.msg_control = (caddr_t)ctrl;
+#endif
+	iov.iov_base = packet;
+	iov.iov_len = packlen;
 
 	if (tcgetattr(STDOUT_FILENO, &ts) != -1) {
 		reset_kerninfo = !(ts.c_lflag & NOKERNINFO);
@@ -458,35 +475,84 @@ main(argc, argv)
 	while (preload--)		/* fire off them quickies */
 		pinger();
 
-	if ((options & F_FLOOD) == 0)
-		catcher(0);		/* start things going */
+	if (options & F_FLOOD) {
+		intvl.tv_sec = 0;
+		intvl.tv_usec = 10000;
+	} else {
+		intvl.tv_sec = interval;
+		intvl.tv_usec = 0;
+	}
+
+	pinger();			/* send the first ping */
+	(void)gettimeofday(&last, NULL);
 
 	while (!finish_up) {
-		struct sockaddr_in from;
 		register int cc;
-		int fromlen;
+		int n;
+		struct timeval timeout, now;
+		fd_set rfds;
 
 		check_status();
-		if (options & F_FLOOD) {
-			pinger();
-			timeout.tv_sec = 0;
-			timeout.tv_usec = 10000;
-			fdmask = 1 << s;
-			if (select(s + 1, (fd_set *)&fdmask, (fd_set *)NULL,
-			    (fd_set *)NULL, &timeout) < 1)
-				continue;
+		FD_ZERO(&rfds);
+		FD_SET(s, &rfds);
+		(void)gettimeofday(&now, NULL);
+		timeout.tv_sec = last.tv_sec + intvl.tv_sec - now.tv_sec;
+		timeout.tv_usec = last.tv_usec + intvl.tv_usec - now.tv_usec;
+		while (timeout.tv_usec < 0) {
+			timeout.tv_usec += 1000000;
+			timeout.tv_sec--;
 		}
-		fromlen = sizeof(from);
-		if ((cc = recvfrom(s, (char *)packet, packlen, 0,
-		    (struct sockaddr *)&from, &fromlen)) < 0) {
-			if (errno == EINTR)
-				continue;
-			perror("ping: recvfrom");
-			continue;
+		while (timeout.tv_usec > 1000000) {
+			timeout.tv_usec -= 1000000;
+			timeout.tv_sec++;
 		}
-		pr_pack((char *)packet, cc, &from);
-		if (npackets && nreceived >= npackets)
-			break;
+		if (timeout.tv_sec < 0)
+			timeout.tv_sec = timeout.tv_usec = 0;
+		n = select(s + 1, &rfds, NULL, NULL, &timeout);
+		if (n == 1) {
+			struct timeval *t = 0;
+#ifdef SO_TIMESTAMP
+			struct cmsghdr *cmsg = (struct cmsghdr *)&ctrl;
+
+			msg.msg_controllen = sizeof(ctrl);
+#endif
+			msg.msg_namelen = sizeof(from);
+			if ((cc = recvmsg(s, &msg, 0)) < 0) {
+				if (errno == EINTR)
+					continue;
+				perror("ping: recvmsg");
+				continue;
+			}
+#ifdef SO_TIMESTAMP
+			if (cmsg->cmsg_level == SOL_SOCKET &&
+			    cmsg->cmsg_type == SCM_TIMESTAMP &&
+			    cmsg->cmsg_len == (sizeof *cmsg + sizeof *t))
+				t = (struct timeval *)CMSG_DATA(cmsg);
+#endif
+			if (t == 0) {
+				(void)gettimeofday(&now, NULL);
+				t = &now;
+			}
+			pr_pack((char *)packet, cc, &from, t);
+			if (npackets && nreceived >= npackets)
+				break;
+		}
+		if (n == 0) {
+			if (!npackets || ntransmitted < npackets)
+				pinger();
+			else {
+				if (almost_done)
+					break;
+				almost_done = 1;
+				if (nreceived) {
+					intvl.tv_sec = 2 * tmax / 1000;
+					if (!intvl.tv_sec)
+						intvl.tv_sec = 1;
+				} else
+					intvl.tv_sec = MAXWAIT;
+			}
+			(void)gettimeofday(&last, NULL);
+		}
 	}
 	finish();
 	/* NOTREACHED */
@@ -507,54 +573,12 @@ stopit(sig)
 }
 
 /*
- * catcher --
- *	This routine causes another PING to be transmitted, and then
- * schedules another SIGALRM for 1 second from now.
- *
- * bug --
- *	Our sense of time will slowly skew (i.e., packets will not be
- * launched exactly at 1-second intervals).  This does not affect the
- * quality of the delay and loss statistics.
- */
-static void
-catcher(int sig)
-{
-	int waittime;
-	struct sigaction si_sa;
-
-	pinger();
-
-	if (!npackets || ntransmitted < npackets)
-		(void)alarm((u_int)interval);
-	else {
-		if (nreceived) {
-			waittime = 2 * tmax / 1000;
-			if (!waittime)
-				waittime = 1;
-		} else
-			waittime = MAXWAIT;
-
-		si_sa.sa_handler = stopit;
-		sigemptyset(&si_sa.sa_mask);
-		si_sa.sa_flags = 0;
-		if (sigaction(SIGALRM, &si_sa, 0) == -1) {
-			finish_up = 1;
-			return;
-		}
-		(void)alarm((u_int)waittime);
-	}
-}
-
-/*
  * pinger --
  *	Compose and transmit an ICMP ECHO REQUEST packet.  The IP packet
  * will be added on by the kernel.  The ID field is our UNIX process ID,
  * and the sequence number is an ascending integer.  The first 8 bytes
  * of the data portion are used to hold a UNIX "timeval" struct in host
  * byte-order, to compute the round-trip time.
- *
- * bug --
- *	this does far too much to be called from a signal handler.
  */
 static void
 pinger(void)
@@ -609,10 +633,11 @@ pinger(void)
  * program to be run without having intermingled output (or statistics!).
  */
 static void
-pr_pack(buf, cc, from)
+pr_pack(buf, cc, from, tv)
 	char *buf;
 	int cc;
 	struct sockaddr_in *from;
+	struct timeval *tv;
 {
 	register struct icmp *icp;
 	register u_long l;
@@ -621,11 +646,9 @@ pr_pack(buf, cc, from)
 	static int old_rrlen;
 	static char old_rr[MAX_IPOPTLEN];
 	struct ip *ip;
-	struct timeval tv, *tp;
+	struct timeval *tp;
 	double triptime;
 	int hlen, dupflag;
-
-	(void)gettimeofday(&tv, (struct timezone *)NULL);
 
 	/* Check the IP header */
 	ip = (struct ip *)buf;
@@ -654,9 +677,9 @@ pr_pack(buf, cc, from)
 #endif
 			/* Avoid unaligned data: */
 			memcpy(&tv1,tp,sizeof(tv1));
-			tvsub(&tv, &tv1);
-			triptime = ((double)tv.tv_sec) * 1000.0 +
-			    ((double)tv.tv_usec) / 1000.0;
+			tvsub(tv, &tv1);
+ 			triptime = ((double)tv->tv_sec) * 1000.0 +
+ 			    ((double)tv->tv_usec) / 1000.0;
 			tsum += triptime;
 			tsumsq += triptime * triptime;
 			if (triptime < tmin)
