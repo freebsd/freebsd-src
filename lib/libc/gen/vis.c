@@ -56,17 +56,18 @@ vis(dst, c, flag, nextc)
 	c = (unsigned char)c;
 
 	if (flag & VIS_HTTPSTYLE) {
-	    if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z')
-		|| (c >= 'a' && c <= 'z') || c == '$' || c == '-'
-		|| c == '_' || c == '\'' || c == '+' || c == '!' ||
-		c == '(' || c == ')' || c == ',' || c == '"' ||
-		c == ';' || c == '/' || c == '?' || c == ':' ||
-		c == '@' || c == '&' || c == '=' || c == '+')) {
-		*dst++ = '%';
-		snprintf(dst, 4, (c < 16 ? "0%X" : "%X"), c);
-		dst += 2;
-		goto done;
-	    }
+		/* Described in RFC 1808 */
+		if (!(isalnum(c) /* alpha-numeric */
+		    /* safe */
+		    || c == '$' || c == '-' || c == '_' || c == '.' || c == '+'
+		    /* extra */
+		    || c == '!' || c == '*' || c == '\'' || c == '('
+		    || c == ')' || c == ',')) {
+			*dst++ = '%';
+			snprintf(dst, 4, (c < 16 ? "0%X" : "%X"), c);
+			dst += 2;
+			goto done;
+		}
 	}
 
 	if (isgraph(c) ||
