@@ -645,33 +645,10 @@ try_challenge_reponse_authentication(void)
 	}
 	challenge = packet_get_string(&clen);
 	packet_integrity_check(payload_len, (4 + clen), type);
-	if (options.cipher == SSH_CIPHER_NONE)
-		log("WARNING: Encryption is disabled! "
-		    "Reponse will be transmitted in clear text.");
-	fprintf(stderr, "%s\n", challenge);
+	snprintf(prompt, sizeof prompt, "%s%s", challenge,
+		 strchr(challenge, '\n') ? "" : "\nResponse: ");
 	xfree(challenge);
-	fflush(stderr);
 	for (i = 0; i < options.number_of_password_prompts; i++) {
-		/* request a challenge */
-		packet_start(SSH_CMSG_AUTH_TIS);
-		packet_send();
-		packet_write_wait();
-
-		type = packet_read(&payload_len);
-		if (type != SSH_SMSG_FAILURE &&
-		    type != SSH_SMSG_AUTH_TIS_CHALLENGE) {
-			packet_disconnect("Protocol error: got %d in response "
-			    "to SSH_CMSG_AUTH_TIS", type);
-		}
-		if (type != SSH_SMSG_AUTH_TIS_CHALLENGE) {
-			debug("No challenge.");
-			return 0;
-		}
-		challenge = packet_get_string(&clen);
-		packet_integrity_check(payload_len, (4 + clen), type);
-		snprintf(prompt, sizeof prompt, "%s%s", challenge,
-		     strchr(challenge, '\n') ? "" : "\nResponse: ");
-		xfree(challenge);
 		if (i != 0)
 			error("Permission denied, please try again.");
 		if (options.cipher == SSH_CIPHER_NONE)
