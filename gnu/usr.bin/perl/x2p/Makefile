@@ -15,5 +15,9 @@ beforeinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/h2ph \
 		${DESTDIR}${BINDIR}
 
+afterinstall:
+	-mkdir -p ${DESTDIR}/usr/share/perl/sys
+	cd ${DESTDIR}/usr/include ; h2ph * sys/*
+
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
