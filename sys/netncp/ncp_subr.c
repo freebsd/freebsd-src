@@ -79,19 +79,23 @@ void
 ncp_at_exit(struct proc *p)
 {
 	struct ncp_conn *ncp, *nncp;
+	struct thread *td;
 
-	if (ncp_conn_putprochandles(p) == 0) return;
-
-	ncp_conn_locklist(LK_EXCLUSIVE, p);
-	for (ncp = SLIST_FIRST(&conn_list); ncp; ncp = nncp) {
-		nncp = SLIST_NEXT(ncp, nc_next);
-		if (ncp_conn_lock(ncp, p, p->p_ucred,NCPM_READ|NCPM_EXECUTE|NCPM_WRITE))
+	FOREACH_THREAD_IN_PROC(p, td) {
+		if (ncp_conn_putprochandles(td) == 0)
 			continue;
-		if (ncp_conn_free(ncp) != 0)
-			ncp_conn_unlock(ncp,p);
+
+		ncp_conn_locklist(LK_EXCLUSIVE, td);
+		for (ncp = SLIST_FIRST(&conn_list); ncp; ncp = nncp) {
+			nncp = SLIST_NEXT(ncp, nc_next);
+			if (ncp_conn_lock(ncp, td, td->td_ucred,
+					  NCPM_READ | NCPM_EXECUTE | NCPM_WRITE))
+				continue;
+			if (ncp_conn_free(ncp) != 0)
+				ncp_conn_unlock(ncp, td);
+		}
+		ncp_conn_unlocklist(td);
 	}
-	ncp_conn_unlocklist(p);
-	return;
 }
 
 int
@@ -102,7 +106,7 @@ ncp_init(void)
 		NCPFATAL("can't register at_exit handler\n");
 		return ENOMEM;
 	}
-	ncp_timer_handle = timeout(ncp_timer,NULL,NCP_TIMER_TICK);
+	ncp_timer_handle = timeout(ncp_timer, NULL, NCP_TIMER_TICK);
 	return 0;
 }
 
@@ -114,7 +118,7 @@ ncp_done(void)
 	error = ncp_conn_destroy();
 	if (error)
 		return error;
-	untimeout(ncp_timer,NULL,ncp_timer_handle);
+	untimeout(ncp_timer, NULL, ncp_timer_handle);
 	rm_at_exit(ncp_at_exit);
 	return 0;
 }
@@ -131,5 +135,5 @@ ncp_timer(void *arg)
 			ncp_check_conn(conn);
 		ncp_conn_unlocklist(NULL);
 	}
-	ncp_timer_handle = timeout(ncp_timer,NULL,NCP_TIMER_TICK);
+	ncp_timer_handle = timeout(ncp_timer, NULL, NCP_TIMER_TICK);
 }

@@ -37,6 +37,7 @@
 #include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/uio.h>
@@ -61,7 +62,8 @@ MODULE_VERSION(ncp, 1);
 MODULE_DEPEND(ncp, libmchain, 1, 1, 1);
 
 static int
-ncp_conn_frag_rq(struct ncp_conn *conn, struct proc *p, struct ncp_conn_frag *nfp);
+ncp_conn_frag_rq(struct ncp_conn *conn, struct thread *td,
+		 struct ncp_conn_frag *nfp);
 
 /*
  * Attach to NCP server
@@ -71,8 +73,8 @@ struct sncp_connect_args {
 	int *connHandle;
 };
 
-static int 
-sncp_connect(struct proc *p, struct sncp_connect_args *uap)
+static int
+sncp_connect(struct thread *td, struct sncp_connect_args *uap)
 {
 	int connHandle = 0, error;
 	struct ncp_conn *conn;
@@ -82,9 +84,9 @@ sncp_connect(struct proc *p, struct sncp_connect_args *uap)
 	checkbad(copyin(uap->li,&li,sizeof(li)));
 	checkbad(copyout(&connHandle,uap->connHandle,sizeof(connHandle))); /* check before */
 	li.password = li.user = NULL;
-	error = ncp_conn_getattached(&li, p, p->p_ucred, NCPM_WRITE | NCPM_EXECUTE, &conn);
+	error = ncp_conn_getattached(&li, td, td->td_ucred, NCPM_WRITE | NCPM_EXECUTE, &conn);
 	if (error) {
-		error = ncp_conn_alloc(&li, p, p->p_ucred, &conn);
+		error = ncp_conn_alloc(&li, td, td->td_ucred, &conn);
 		if (error)
 			goto bad;
 		error = ncp_conn_reconnect(conn);
@@ -92,12 +94,12 @@ sncp_connect(struct proc *p, struct sncp_connect_args *uap)
 			ncp_conn_free(conn);
 	}
 	if (!error) {
-		error = ncp_conn_gethandle(conn, p, &handle);
+		error = ncp_conn_gethandle(conn, td, &handle);
 		copyout(&handle->nh_id, uap->connHandle, sizeof(uap->connHandle));
-		ncp_conn_unlock(conn,p);
+		ncp_conn_unlock(conn,td);
 	}
 bad:
-	p->p_retval[0]=error;
+	td->td_retval[0]=error;
 	return error;
 }
 
@@ -107,27 +109,27 @@ struct sncp_request_args {
 	struct ncp_buf *ncpbuf;
 };
 
-static int ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
+static int ncp_conn_handler(struct thread *td, struct sncp_request_args *uap,
 	struct ncp_conn *conn, struct ncp_handle *handle);
 
 static int
-sncp_request(struct proc *p, struct sncp_request_args *uap)
+sncp_request(struct thread *td, struct sncp_request_args *uap)
 {
 	struct ncp_rq *rqp;
 	struct ncp_conn *conn;
 	struct ncp_handle *handle;
 	int error = 0, rqsize;
 
-	error = ncp_conn_findhandle(uap->connHandle,p,&handle);
+	error = ncp_conn_findhandle(uap->connHandle, td, &handle);
 	if (error)
 		return error;
 	conn = handle->nh_conn;
 	if (uap->fn == NCP_CONN)
-		return ncp_conn_handler(p, uap, conn, handle);
+		return ncp_conn_handler(td, uap, conn, handle);
 	error = copyin(&uap->ncpbuf->rqsize, &rqsize, sizeof(int));
 	if (error)
 		return(error);
-	error = ncp_rq_alloc(uap->fn, conn, p, p->p_ucred, &rqp);
+	error = ncp_rq_alloc(uap->fn, conn, td, td->td_ucred, &rqp);
 	if (error)
 		return error;
 	if (rqsize) {
@@ -151,7 +153,7 @@ bad:
 
 static int
 ncp_mod_login(struct ncp_conn *conn, char *user, int objtype, char *password,
-	struct proc *p, struct ucred *cred)
+	struct thread *td, struct ucred *cred)
 {
 	int error;
 
@@ -169,7 +171,7 @@ ncp_mod_login(struct ncp_conn *conn, char *user, int objtype, char *password,
 	if ((conn->li.opt & NCP_OPT_NOUPCASEPASS) == 0)
 		ncp_str_upper(conn->li.password);
 	conn->li.objtype = objtype;
-	error = ncp_conn_login(conn, p, cred);
+	error = ncp_conn_login(conn, td, cred);
 	return error;
 bad:
 	if (conn->li.user) {
@@ -184,17 +186,18 @@ bad:
 }
 
 static int
-ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
+ncp_conn_handler(struct thread *td, struct sncp_request_args *uap,
 	struct ncp_conn *conn, struct ncp_handle *hp)
 {
-	int error=0, rqsize, subfn;
+	int error = 0, rqsize, subfn;
 	struct ucred *cred;
-	
+
 	char *pdata;
 
-	cred = p->p_ucred;
+	cred = td->td_ucred;
 	error = copyin(&uap->ncpbuf->rqsize, &rqsize, sizeof(int));
-	if (error) return(error);
+	if (error)
+		return(error);
 	error = 0;
 	pdata = uap->ncpbuf->packet;
 	subfn = *(pdata++) & 0xff;
@@ -204,10 +207,12 @@ ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
 		struct ncp_rw rwrq;
 		struct uio auio;
 		struct iovec iov;
-	
-		if (rqsize != sizeof(rwrq)) return (EBADRPC);	
+
+		if (rqsize != sizeof(rwrq))
+			return (EBADRPC);
 		error = copyin(pdata,&rwrq,rqsize);
-		if (error) return (error);
+		if (error)
+			return (error);
 		iov.iov_base = rwrq.nrw_base;
 		iov.iov_len = rwrq.nrw_cnt;
 		auio.uio_iov = &iov;
@@ -216,25 +221,28 @@ ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
 		auio.uio_resid = rwrq.nrw_cnt;
 		auio.uio_segflg = UIO_USERSPACE;
 		auio.uio_rw = (subfn == NCP_CONN_READ) ? UIO_READ : UIO_WRITE;
-		auio.uio_procp = p;
+		auio.uio_td = td;
 		if (subfn == NCP_CONN_READ)
 			error = ncp_read(conn, &rwrq.nrw_fh, &auio, cred);
 		else
 			error = ncp_write(conn, &rwrq.nrw_fh, &auio, cred);
 		rwrq.nrw_cnt -= auio.uio_resid;
-		p->p_retval[0] = rwrq.nrw_cnt;
+		td->td_retval[0] = rwrq.nrw_cnt;
 		break;
 	    } /* case int_read/write */
 	    case NCP_CONN_SETFLAGS: {
 		u_int16_t mask, flags;
 
 		error = copyin(pdata,&mask, sizeof(mask));
-		if (error) return error;
+		if (error)
+			return error;
 		pdata += sizeof(mask);
 		error = copyin(pdata,&flags,sizeof(flags));
-		if (error) return error;
-		error = ncp_conn_lock(conn,p,cred,NCPM_WRITE);
-		if (error) return error;
+		if (error)
+			return error;
+		error = ncp_conn_lock(conn, td, cred, NCPM_WRITE);
+		if (error)
+			return error;
 		if (mask & NCPFL_PERMANENT) {
 			conn->flags &= ~NCPFL_PERMANENT;
 			conn->flags |= (flags & NCPFL_PERMANENT);
@@ -242,11 +250,11 @@ ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
 		if (mask & NCPFL_PRIMARY) {
 			error = ncp_conn_setprimary(conn, flags & NCPFL_PRIMARY);
 			if (error) {
-				ncp_conn_unlock(conn,p);
+				ncp_conn_unlock(conn, td);
 				break;
 			}
 		}
-		ncp_conn_unlock(conn,p);
+		ncp_conn_unlock(conn, td);
 		break;
 	    }
 	    case NCP_CONN_LOGIN: {
@@ -258,83 +266,90 @@ ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
 			return EALREADY;
 		if ((error = copyin(pdata,&la,rqsize)) != 0)
 			break;
-		error = ncp_conn_lock(conn, p, cred, NCPM_EXECUTE | NCPM_WRITE);
-		if (error) return error;
-		error = ncp_mod_login(conn, la.username, la.objtype, la.password, p, p->p_ucred);
-		ncp_conn_unlock(conn, p);
-		p->p_retval[0] = error;
+		error = ncp_conn_lock(conn, td, cred, NCPM_EXECUTE | NCPM_WRITE);
+		if (error)
+			return error;
+		error = ncp_mod_login(conn, la.username, la.objtype,
+		    la.password, td, td->td_ucred);
+		ncp_conn_unlock(conn, td);
+		td->td_retval[0] = error;
 		break;
 	    }
 	    case NCP_CONN_GETINFO: {
 		struct ncp_conn_stat ncs;
 		int len = sizeof(ncs);
 
-		error = ncp_conn_lock(conn, p, p->p_ucred, NCPM_READ);
-		if (error) return error;
+		error = ncp_conn_lock(conn, td, td->td_ucred, NCPM_READ);
+		if (error)
+			return error;
 		ncp_conn_getinfo(conn, &ncs);
 		copyout(&len, &uap->ncpbuf->rpsize, sizeof(int));
 		error = copyout(&ncs, &uap->ncpbuf->packet, len);
-		ncp_conn_unlock(conn, p);
+		ncp_conn_unlock(conn, td);
 		break;
 	    }
 	    case NCP_CONN_GETUSER: {
 		int len;
 
-		error = ncp_conn_lock(conn, p, p->p_ucred, NCPM_READ);
-		if (error) return error;
+		error = ncp_conn_lock(conn, td, td->td_ucred, NCPM_READ);
+		if (error)
+			return error;
 		len = (conn->li.user) ? strlen(conn->li.user) + 1 : 0;
 		copyout(&len, &uap->ncpbuf->rpsize, sizeof(int));
 		if (len) {
 			error = copyout(conn->li.user, &uap->ncpbuf->packet, len);
 		}
-		ncp_conn_unlock(conn, p);
+		ncp_conn_unlock(conn, td);
 		break;
 	    }
 	    case NCP_CONN_CONN2REF: {
 		int len = sizeof(int);
 
-		error = ncp_conn_lock(conn, p, p->p_ucred, NCPM_READ);
-		if (error) return error;
+		error = ncp_conn_lock(conn, td, td->td_ucred, NCPM_READ);
+		if (error)
+			return error;
 		copyout(&len, &uap->ncpbuf->rpsize, sizeof(int));
 		if (len) {
 			error = copyout(&conn->nc_id, &uap->ncpbuf->packet, len);
 		}
-		ncp_conn_unlock(conn, p);
+		ncp_conn_unlock(conn, td);
 		break;
 	    }
 	    case NCP_CONN_FRAG: {
 		struct ncp_conn_frag nf;
 
-		if (rqsize != sizeof(nf)) return (EBADRPC);	
+		if (rqsize != sizeof(nf))
+			return (EBADRPC);
 		if ((error = copyin(pdata, &nf, rqsize)) != 0) break;
-		error = ncp_conn_lock(conn, p, cred, NCPM_EXECUTE);
-		if (error) return error;
-		error = ncp_conn_frag_rq(conn, p, &nf);
-		ncp_conn_unlock(conn, p);
+		error = ncp_conn_lock(conn, td, cred, NCPM_EXECUTE);
+		if (error)
+			return error;
+		error = ncp_conn_frag_rq(conn, td, &nf);
+		ncp_conn_unlock(conn, td);
 		copyout(&nf, &pdata, sizeof(nf));
-		p->p_retval[0] = error;
+		td->td_retval[0] = error;
 		break;
 	    }
 	    case NCP_CONN_DUP: {
 		struct ncp_handle *newhp;
 		int len = sizeof(NWCONN_HANDLE);
 
-		error = ncp_conn_lock(conn, p, cred, NCPM_READ);
+		error = ncp_conn_lock(conn, td, cred, NCPM_READ);
 		if (error) break;
 		copyout(&len, &uap->ncpbuf->rpsize, len);
-		error = ncp_conn_gethandle(conn, p, &newhp);
+		error = ncp_conn_gethandle(conn, td, &newhp);
 		if (!error)
 			error = copyout(&newhp->nh_id, uap->ncpbuf->packet, len);
-		ncp_conn_unlock(conn,p);
+		ncp_conn_unlock(conn, td);
 		break;
 	    }
 	    case NCP_CONN_CONNCLOSE: {
-		error = ncp_conn_lock(conn, p, cred, NCPM_EXECUTE);
+		error = ncp_conn_lock(conn, td, cred, NCPM_EXECUTE);
 		if (error) break;
-		ncp_conn_puthandle(hp, p, 0);
+		ncp_conn_puthandle(hp, td, 0);
 		error = ncp_conn_free(conn);
 		if (error)
-			ncp_conn_unlock(conn, p);
+			ncp_conn_unlock(conn, td);
 		break;
 	    }
 	    default:
@@ -348,8 +363,8 @@ struct sncp_conn_scan_args {
 	int *connHandle;
 };
 
-static int 
-sncp_conn_scan(struct proc *p, struct sncp_conn_scan_args *uap)
+static int
+sncp_conn_scan(struct thread *td, struct sncp_conn_scan_args *uap)
 {
 	int connHandle = 0, error;
 	struct ncp_conn_args li, *lip;
@@ -358,7 +373,8 @@ sncp_conn_scan(struct proc *p, struct sncp_conn_scan_args *uap)
 	char *user = NULL, *password = NULL;
 
 	if (uap->li) {
-		if (copyin(uap->li,&li,sizeof(li))) return EFAULT;
+		if (copyin(uap->li, &li, sizeof(li)))
+			return EFAULT;
 		lip = &li;
 	} else {
 		lip = NULL;
@@ -369,7 +385,8 @@ sncp_conn_scan(struct proc *p, struct sncp_conn_scan_args *uap)
 		ncp_str_upper(lip->server);
 		if (lip->user) {
 			user = ncp_str_dup(lip->user);
-			if (user == NULL) return EINVAL;
+			if (user == NULL)
+				return EINVAL;
 			ncp_str_upper(user);
 		}
 		if (lip->password) {
@@ -384,29 +401,32 @@ sncp_conn_scan(struct proc *p, struct sncp_conn_scan_args *uap)
 		lip->user = user;
 		lip->password = password;
 	}
-	error = ncp_conn_getbyli(lip,p,p->p_ucred,NCPM_EXECUTE,&conn);
-	if (!error) { 		/* already have this login */
-		ncp_conn_gethandle(conn, p, &hp);
+	error = ncp_conn_getbyli(lip, td, td->td_ucred, NCPM_EXECUTE, &conn);
+	if (!error) {		/* already have this login */
+		ncp_conn_gethandle(conn, td, &hp);
 		connHandle = hp->nh_id;
-		ncp_conn_unlock(conn,p);
-		copyout(&connHandle,uap->connHandle,sizeof(connHandle));
+		ncp_conn_unlock(conn, td);
+		copyout(&connHandle, uap->connHandle, sizeof(connHandle));
 	}
-	if (user) free(user, M_NCPDATA);
-	if (password) free(password, M_NCPDATA);
-	p->p_retval[0] = error;
+	if (user)
+		free(user, M_NCPDATA);
+	if (password)
+		free(password, M_NCPDATA);
+	td->td_retval[0] = error;
 	return error;
 
 }
 
 int
-ncp_conn_frag_rq(struct ncp_conn *conn, struct proc *p, struct ncp_conn_frag *nfp)
+ncp_conn_frag_rq(struct ncp_conn *conn, struct thread *td,
+		 struct ncp_conn_frag *nfp)
 {
 	NW_FRAGMENT *fp;
 	struct ncp_rq *rqp;
 	u_int32_t fsize;
 	int error, i, rpsize;
 
-	error = ncp_rq_alloc(nfp->fn, conn, p, p->p_ucred, &rqp);
+	error = ncp_rq_alloc(nfp->fn, conn, td, td->td_ucred, &rqp);
 	if (error)
 		return error;
 	for(fp = nfp->rqf, i = 0; i < nfp->rqfcnt; i++, fp++) {
@@ -456,17 +476,19 @@ sncp_intfn(struct proc *p, struct sncp_intfn_args *uap)
 {
 	return ENOSYS;
 }
+
 /*
  * define our new system calls
  */
 static struct sysent newent[] = {
-	{2, 	(sy_call_t*)sncp_conn_scan},
+	{2,	(sy_call_t*)sncp_conn_scan},
 	{2,	(sy_call_t*)sncp_connect},
 	{2,	(sy_call_t*)sncp_intfn},
 	{3,	(sy_call_t*)sncp_request}
 };
 
 #define	SC_SIZE	sizeof(newent)/sizeof(struct sysent)
+
 /*
  * Miscellaneous modules must have their own save areas...
  */
@@ -475,44 +497,47 @@ static struct sysent	oldent[SC_SIZE];	/* save are for old callslot entry*/
 /*
  * Number of syscall entries for a.out executables
  */
-/*#define nsysent SYS_MAXSYSCALL*/
-#define nsysent (aout_sysvec.sv_size)
+#define nsysent SYS_MAXSYSCALL
+/* #define nsysent (elf_sysvec.sv_size) */
 
 
 static int
-ncp_load(void) {
-	int i, ff, scnt, err=0;
+ncp_load(void)
+{
+	int i, ff, scnt, err = 0;
 
-	while(1) {
+	while (1) {
 		/* Search the table looking for an enough number of slots... */
-		for (scnt=0, ff = -1, i = 0; i < nsysent; i++) {
+		for (scnt = 0, ff = -1, i = 0; i < nsysent; i++) {
 			if (sysent[i].sy_call == (sy_call_t *)lkmnosys) {
 				if (ff == -1) {
-				    ff = i;
-				    scnt = 1;
+					ff = i;
+					scnt = 1;
 				} else {
-				    scnt++;
-				    if (scnt == SC_SIZE) break;
+					scnt++;
+					if (scnt == SC_SIZE)
+						break;
 				}
 			} else {
 				ff = -1;
 			}
 		}
 		/* out of allocable slots?*/
-		if(i == nsysent || ff == -1) {
+		if (i == nsysent || ff == -1) {
 			err = ENFILE;
 			break;
 		}
 		err = ncp_init();
-		if (err) break;
-		bcopy(&sysent[ff], &oldent, sizeof(struct sysent)*SC_SIZE);
-		bcopy(&newent, &sysent[ff], sizeof(struct sysent)*SC_SIZE);
+		if (err)
+			break;
+		bcopy(&sysent[ff], &oldent, sizeof(struct sysent) * SC_SIZE);
+		bcopy(&newent, &sysent[ff], sizeof(struct sysent) * SC_SIZE);
 		ncp_sysent = ff;	/* slot in sysent[]*/
-		printf("ncp_load: [%d-%d]\n",ff,i);
+		printf("ncp_load: [%d-%d]\n", ff, i);
 		break;
 	}
 
-	return( err);
+	return (err);
 }
 
 static int
@@ -534,18 +559,18 @@ ncp_mod_handler(module_t mod, int type, void *data)
 	int error;
 
 	switch (type) {
-	    case MOD_LOAD:
+	case MOD_LOAD:
 		error = ncp_load();
 		break;
-	    case MOD_UNLOAD:
+	case MOD_UNLOAD:
 		error = ncp_unload();
 		break;
-	    default:
+	default:
 		error = EINVAL;
 	}
 	return error;
 }
-                                                               \
+
 static moduledata_t ncp_mod = {
 	"ncp",
 	ncp_mod_handler,

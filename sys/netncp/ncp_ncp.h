@@ -108,7 +108,6 @@ struct ncp_bursthdr {
 struct ncp_conn;
 struct ncp_conn_args;
 struct ncp_rq;
-struct proc;
 struct ucred;
 
 int  ncp_ncp_connect(struct ncp_conn *conn);
@@ -119,15 +118,15 @@ int  ncp_renegotiate_connparam(struct ncp_conn *conn, int buffsize,
 int  ncp_get_bindery_object_id(struct ncp_conn *conn, 
 		u_int16_t object_type, char *object_name, 
 		struct ncp_bindery_object *target,
-		struct proc *p,struct ucred *cred);
+		struct thread *td,struct ucred *cred);
 int  ncp_get_encryption_key(struct ncp_conn *conn, char *target);
 int  ncp_login_encrypted(struct ncp_conn *conn,
 	struct ncp_bindery_object *object,
 	const u_char *key, const u_char *passwd,
-	struct proc *p, struct ucred *cred);
+	struct thread *td, struct ucred *cred);
 int ncp_login_unencrypted(struct ncp_conn *conn, u_int16_t object_type, 
 	const char *object_name, const u_char *passwd,
-	struct proc *p, struct ucred *cred);
+	struct thread *td, struct ucred *cred);
 int  ncp_read(struct ncp_conn *conn, ncp_fh *file, struct uio *uiop, struct ucred *cred);
 int  ncp_write(struct ncp_conn *conn, ncp_fh *file, struct uio *uiop, struct ucred *cred);
 
