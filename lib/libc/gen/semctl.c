@@ -1,7 +1,11 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
+#if __STDC__
 #include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 #include <stdlib.h>
 
 #if __STDC__
@@ -16,7 +20,7 @@ int semctl(semid, semnum, cmd, va_alist)
 	va_list ap;
 	union semun semun;
 	union semun *semun_ptr;
-#ifdef __STDC__
+#if __STDC__
 	va_start(ap, cmd);
 #else
 	va_start(ap);
