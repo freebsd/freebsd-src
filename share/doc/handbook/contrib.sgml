@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.117 1996/08/09 07:36:09 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.118 1996/08/09 08:18:10 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -185,6 +185,7 @@
 	  <item>Chet Ramey &lt;chet@odin.INS.CWRU.Edu&gt;
 	  <item>Chris G. Demetriou &lt;cgd@postgres.berkeley.edu&gt;
 	  <item>Chris Stenton &lt;jacs@gnome.co.uk&gt;
+	  <item>Chris Timmons &lt;skynyrd@opus.cts.cwu.edu&gt;
 	  <item>Chris Torek &lt;torek@ee.lbl.gov&gt;
 	  <item>Christian Gusenbauer &lt;cg@fimp01.fim.uni-linz.ac.at&gt;
 	  <item>Christian Haury &lt;Christian.Haury@sagem.fr&gt;
