@@ -45,6 +45,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/user.h>
+#include <sys/sysctl.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fstab.h>
@@ -52,59 +57,122 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
-static void usage(const char *);
-static int is_swapoff(const char *);
-int	swap_on_off(char *name, int ignoreebusy, int do_swapoff);
+static void usage(void);
+static int swap_on_off(char *name, int ignoreebusy);
+static void swaplist(int, int, int);
+
+enum { SWAPON, SWAPOFF, SWAPCTL } orig_prog, which_prog = SWAPCTL;
 
 int
 main(int argc, char **argv)
 {
 	struct fstab *fsp;
+	char *ptr;
 	int stat;
 	int ch, doall;
-	int do_swapoff;
-	char *pname = argv[0];
+	int sflag = 0, lflag = 0, hflag = 0;
 
-	do_swapoff = is_swapoff(pname);
-
+	if ((ptr = strrchr(argv[0], '/')) == NULL)
+		ptr = argv[0];
+	if (strstr(ptr, "swapon"))
+		which_prog = SWAPON;
+	else if (strstr(ptr, "swapoff"))
+		which_prog = SWAPOFF;
+	orig_prog = which_prog;
+	
 	doall = 0;
-	while ((ch = getopt(argc, argv, "a")) != -1)
-		switch((char)ch) {
+	while ((ch = getopt(argc, argv, "AadlhksU")) != -1) {
+		switch(ch) {
+		case 'A':
+			if (which_prog == SWAPCTL) {
+				doall = 1;
+				which_prog = SWAPON;
+			} else {
+				usage();
+			}
+			break;
 		case 'a':
-			doall = 1;
+			if (which_prog == SWAPON || which_prog == SWAPOFF)
+				doall = 1;
+			else
+				which_prog = SWAPON;
+			break;
+		case 'd':
+			if (which_prog == SWAPCTL)
+				which_prog = SWAPOFF;
+			else
+				usage();
+			break;
+		case 's':
+			sflag = 1;
+			break;
+		case 'l':
+			lflag = 1;
+			break;
+		case 'h':
+			hflag = 'M';
+			break;
+		case 'k':
+			hflag = 'K';
+			break;
+		case 'U':
+			if (which_prog == SWAPCTL) {
+				doall = 1;
+				which_prog = SWAPOFF;
+			} else {
+				usage();
+			}
 			break;
 		case '?':
 		default:
-			usage(pname);
+			usage();
 		}
+	}
 	argv += optind;
 
 	stat = 0;
-	if (doall)
-		while ((fsp = getfsent()) != NULL) {
-			if (strcmp(fsp->fs_type, FSTAB_SW))
-				continue;
-			if (strstr(fsp->fs_mntops, "noauto"))
-				continue;
-			if (swap_on_off(fsp->fs_spec, 1, do_swapoff))
-				stat = 1;
-			else
-				printf("%s: %sing %s as swap device\n",
-				    pname, do_swapoff ? "remov" : "add",
-				    fsp->fs_spec);
+	if (which_prog == SWAPON || which_prog == SWAPOFF) {
+		if (doall) {
+			while ((fsp = getfsent()) != NULL) {
+				if (strcmp(fsp->fs_type, FSTAB_SW))
+					continue;
+				if (strstr(fsp->fs_mntops, "noauto"))
+					continue;
+				if (swap_on_off(fsp->fs_spec, 0)) {
+					stat = 1;
+				} else {
+					printf("%s: %sing %s as swap device\n",
+					    getprogname(), which_prog == SWAPOFF ? "remov" : "add",
+					    fsp->fs_spec);
+				}
+			}
 		}
-	else if (!*argv)
-		usage(pname);
-	for (; *argv; ++argv)
-		stat |= swap_on_off(*argv, 0, do_swapoff);
+		else if (!*argv)
+			usage();
+		for (; *argv; ++argv) {
+			if (swap_on_off(*argv, 0)) {
+				stat = 1;
+			} else if (orig_prog == SWAPCTL) {
+				printf("%s: %sing %s as swap device\n",
+				    getprogname(), which_prog == SWAPOFF ? "remov" : "add",
+				    *argv);
+			}
+		}
+	} else {
+		if (lflag || sflag)
+			swaplist(lflag, sflag, hflag);
+		else 
+			usage();
+	}
 	exit(stat);
 }
 
-int
-swap_on_off(char *name, int ignoreebusy, int do_swapoff)
+static int
+swap_on_off(char *name, int ignoreebusy)
 {
-	if ((do_swapoff ? swapoff(name) : swapon(name)) == -1) {
+	if ((which_prog == SWAPOFF ? swapoff(name) : swapon(name)) == -1) {
 		switch (errno) {
 		case EBUSY:
 			if (!ignoreebusy)
@@ -120,23 +188,90 @@ swap_on_off(char *name, int ignoreebusy, int do_swapoff)
 }
 
 static void
-usage(const char *pname)
+usage(void)
 {
-	fprintf(stderr, "usage: %s [-a] [special_file ...]\n", pname);
+	fprintf(stderr, "usage: %s ", getprogname());
+	switch(orig_prog) {
+	case SWAPOFF:
+	    fprintf(stderr, "[-a] [special_file ...]\n");
+	    break;
+	case SWAPON:
+	    fprintf(stderr, "[-a] [special_file ...]\n");
+	    break;
+	case SWAPCTL:
+	    fprintf(stderr, "[-lshAU] [-a/-d special_file ...]\n");
+	    break;
+	}
 	exit(1);
 }
 
-static int
-is_swapoff(const char *s)
+static void
+swaplist(int lflag, int sflag, int hflag)
 {
-	const char *u;
-
-	if ((u = strrchr(s, '/')) != NULL)
-		++u;
-	else
-		u = s;
-	if (strcmp(u, "swapoff") == 0)
-		return 1;
-	else
-		return 0;
+	size_t mibsize, size;
+	struct xswdev xsw;
+	int mib[16], n, pagesize;
+	size_t hlen;
+	long blocksize;
+	long long total = 0;
+	long long used = 0;
+	long long tmp_total;
+	long long tmp_used;
+	
+	pagesize = getpagesize();
+	switch(hflag) {
+	case 'K':
+	    blocksize = 1024;
+	    hlen = 10;
+	    break;
+	case 'M':
+	    blocksize = 1024 * 1024;
+	    hlen = 10;
+	    break;
+	default:
+	    getbsize(&hlen, &blocksize);
+	    break;
+	}
+	
+	mibsize = sizeof mib / sizeof mib[0];
+	if (sysctlnametomib("vm.swap_info", mib, &mibsize) == -1)
+		err(1, "sysctlnametomib()");
+	
+	if (lflag) {
+		char buf[32];
+		snprintf(buf, sizeof(buf), "%ld-blocks", blocksize);
+		printf("%-13s %*s %*s\n",
+		    "Device:", 
+		    hlen, buf,
+		    hlen, "Used:");
+	}
+	
+	for (n = 0; ; ++n) {
+		mib[mibsize] = n;
+		size = sizeof xsw;
+		if (sysctl(mib, mibsize + 1, &xsw, &size, NULL, NULL) == -1)
+			break;
+		if (xsw.xsw_version != XSWDEV_VERSION)
+			errx(1, "xswdev version mismatch");
+		
+		tmp_total = (long long)xsw.xsw_nblks * pagesize / blocksize;
+		tmp_used  = (long long)xsw.xsw_used * pagesize / blocksize;
+		total += tmp_total;
+		used  += tmp_used;
+		if (lflag) {
+			printf("/dev/%-8s %*lld %*lld\n", 
+			    devname(xsw.xsw_dev, S_IFCHR),
+			    hlen, tmp_total,
+			    hlen, tmp_used);
+		}
+	}
+	if (errno != ENOENT)
+		err(1, "sysctl()");
+	
+	if (sflag) {
+		printf("Total:        %*lld %*lld\n",
+		       hlen, total,
+		       hlen, used);
+	}
 }
+
