@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <geom/geom_disk.h>
 
 #include <dev/ofw/openfirm.h>
@@ -55,10 +56,12 @@ struct ofwd_softc
 /*
  * Disk device bus interface.
  */
+static void	ofwd_identify(driver_t *, device_t);
 static int	ofwd_probe(device_t);
 static int	ofwd_attach(device_t);
 
 static device_method_t	ofwd_methods[] = {
+	DEVMETHOD(device_identify,	ofwd_identify),
 	DEVMETHOD(device_probe, 	ofwd_probe),
 	DEVMETHOD(device_attach,	ofwd_attach),
 	{ 0, 0 }
@@ -122,15 +125,38 @@ ofwd_strategy(struct bio *bp)
 	}
 
 	bp->bio_resid -= r;
-	
+
 	if (r < bp->bio_bcount) {
 		device_printf(sc->ofwd_dev, "r (%ld) < bp->bio_bcount (%ld)\n",
 		    r, bp->bio_bcount);
 		biofinish(bp, NULL, EIO);	/* XXX: probably not an error */
 		return;
-	} 
+	}
 	biodone(bp);
 	return;
+}
+
+/*
+ * Attach the OpenFirmware disk to nexus if present
+ */
+static void
+ofwd_identify(driver_t *driver, device_t parent)
+{
+	device_t child;
+	phandle_t ofd;
+	static char type[8];
+
+	ofd = OF_finddevice("ofwdisk");
+	if (ofd == -1)
+		return;
+
+	OF_getprop(ofd, "device_type", type, sizeof(type));
+
+	child = BUS_ADD_CHILD(parent, INT_MAX, "ofwd", 0);
+	if (child != NULL) {
+		nexus_set_device_type(child, type);
+		nexus_set_node(child, ofd);
+	}
 }
 
 /*
@@ -146,7 +172,7 @@ ofwd_probe(device_t dev)
 	type = nexus_get_device_type(dev);
 	node = nexus_get_node(dev);
 
-	if (type == NULL || 
+	if (type == NULL ||
 	    (strcmp(type, "disk") != 0 && strcmp(type, "block") != 0))
 		return (ENXIO);
 
