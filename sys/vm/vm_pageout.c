@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.102 1997/12/05 05:41:06 dyson Exp $
+ * $Id: vm_pageout.c,v 1.103 1997/12/06 02:23:33 dyson Exp $
  */
 
 /*
@@ -190,7 +190,7 @@ SYSCTL_INT(_vm, OID_AUTO, max_page_launder,
 	CTLFLAG_RW, &max_page_launder, 0, "");
 
 
-#define VM_PAGEOUT_PAGE_COUNT 16
+#define VM_PAGEOUT_PAGE_COUNT 8
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
