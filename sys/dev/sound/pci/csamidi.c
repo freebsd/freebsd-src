@@ -224,9 +224,11 @@ csamidi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 
 	unit = MIDIUNIT(i_dev);
 
+	MIDI_DEBUG(printf("csamidi_ioctl: unit %d, cmd %s.\n", unit, midi_cmdname(cmd, cmdtab_midiioctl)));
+
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
-		DEB(printf("csamidi_ioctl: unit %d is not configured.\n", unit));
+		MIDI_DEBUG(printf("csamidi_ioctl: unit %d is not configured.\n", unit));
 		return (ENXIO);
 	}
 	scp = devinfo->softc;
@@ -310,7 +312,7 @@ csamidi_callback(void *di, int reason)
 	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
 	if (d == NULL) {
-		DEB(printf("csamidi_callback: device not configured.\n"));
+		MIDI_DEBUG(printf("csamidi_callback: device not configured.\n"));
 		return (ENXIO);
 	}
 

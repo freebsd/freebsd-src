@@ -249,7 +249,7 @@ mpu_probe2(device_t dev)
 	if (scp->io == NULL)
 		return (ENXIO);
 
-	DEB(printf("mpu%d: probing.\n", unit));
+	MIDI_DEBUG(printf("mpu%d: probing.\n", unit));
 
 	/* Reset the interface. */
 	if (mpu_resetmode(scp) != 0 || mpu_waitack(scp) != 0) {
@@ -320,7 +320,7 @@ no_irq:
 		/* We have found the irq. */
 		scp->irq_val = ffs(~irqp0 & irqp1) - 1;
 
-	DEB(printf("mpu%d: probed.\n", unit));
+	MIDI_DEBUG(printf("mpu%d: probed.\n", unit));
 
 	return (0);
 }
@@ -356,7 +356,7 @@ mpu_attach(device_t dev)
 
 	scp = device_get_softc(dev);
 
-	DEB(printf("mpu: attaching.\n"));
+	MIDI_DEBUG(printf("mpu: attaching.\n"));
 
 	mtx_init(&scp->mtx, "mpumid", MTX_DEF);
 
@@ -387,7 +387,7 @@ mpu_attach(device_t dev)
 		bus_setup_intr(dev, scp->irq, INTR_TYPE_AV, mpu_intr, scp,
 			       &scp->ih);
 
-	DEB(printf("mpu: attached.\n"));
+	MIDI_DEBUG(printf("mpu: attached.\n"));
 
 	return (0);
 }
@@ -417,9 +417,11 @@ mpu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 
 	unit = MIDIUNIT(i_dev);
 
+	MIDI_DEBUG(printf("mpu_ioctl: unit %d, cmd %s.\n", unit, midi_cmdname(cmd, cmdtab_midiioctl)));
+
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
-		DEB(printf("mpu_ioctl: unit %d is not configured.\n", unit));
+		MIDI_DEBUG(printf("mpu_ioctl: unit %d is not configured.\n", unit));
 		return (ENXIO);
 	}
 	scp = devinfo->softc;
@@ -497,7 +499,7 @@ mpu_callback(void *di, int reason)
 	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
 	if (d == NULL) {
-		DEB(printf("mpu_callback: device not configured.\n"));
+		MIDI_DEBUG(printf("mpu_callback: device not configured.\n"));
 		return (ENXIO);
 	}
 

@@ -548,7 +548,7 @@ emu_probe(device_t dev)
 	device_set_desc(dev, "EMU8000 Wavetable Synth");
 	bzero(scp, sizeof(*scp));
 
-	DEB(printf("emu%d: probing.\n", unit));
+	MIDI_DEBUG(printf("emu%d: probing.\n", unit));
 
 	if (emu_allocres(scp, dev)) {
 		emu_releaseres(scp, dev);
@@ -565,7 +565,7 @@ emu_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	DEB(printf("emu%d: probed.\n", unit));
+	MIDI_DEBUG(printf("emu%d: probed.\n", unit));
 
 	return (0);
 }
@@ -582,7 +582,7 @@ emu_attach(device_t dev)
 	unit = device_get_unit(dev);
 	scp = device_get_softc(dev);
 
-	DEB(printf("emu%d: attaching.\n", unit));
+	MIDI_DEBUG(printf("emu%d: attaching.\n", unit));
 
 	if (emu_allocres(scp, dev)) {
 		emu_releaseres(scp, dev);
@@ -731,7 +731,7 @@ emu_attach(device_t dev)
 
 	midiinit(devinfo, dev);
 
-	DEB(printf("emu%d: attached.\n", unit));
+	MIDI_DEBUG(printf("emu%d: attached.\n", unit));
 
 	return (0);
 }
@@ -765,11 +765,11 @@ emu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 
 	unit = MIDIUNIT(i_dev);
 
-	DEB(printf("emu%d: ioctlling, cmd 0x%x.\n", unit, (int)cmd));
+	MIDI_DEBUG(printf("emu_ioctl: unit %d, cmd %s.\n", unit, midi_cmdname(cmd, cmdtab_midiioctl)));
 
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
-		DEB(printf("emu_ioctl: unit %d is not configured.\n", unit));
+		MIDI_DEBUG(printf("emu_ioctl: unit %d is not configured.\n", unit));
 		return (ENXIO);
 	}
 	scp = devinfo->softc;
@@ -793,7 +793,8 @@ emu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 		return (0);
 		break;
 	case SNDCTL_SYNTH_MEMAVL:
-		return 0x7fffffff;
+		*(int *)arg = 0x7fffffff;
+		return (0);
 		break;
 	default:
 		return (ENOSYS);
@@ -828,7 +829,7 @@ emu_readraw(mididev_info *md, u_char *buf, int len, int *lenr, int nonblock)
 	unit = md->unit;
 	scp = md->softc;
 	if ((md->fflags & FREAD) == 0) {
-		DEB(printf("emu_readraw: unit %d is not for reading.\n", unit));
+		MIDI_DEBUG(printf("emu_readraw: unit %d is not for reading.\n", unit));
 		return (EIO);
 	}
 
@@ -852,7 +853,7 @@ emu_writeraw(mididev_info *md, u_char *buf, int len, int *lenw, int nonblock)
 	unit = md->unit;
 	scp = md->softc;
 	if ((md->fflags & FWRITE) == 0) {
-		DEB(printf("emu_writeraw: unit %d is not for writing.\n", unit));
+		MIDI_DEBUG(printf("emu_writeraw: unit %d is not for writing.\n", unit));
 		return (EIO);
 	}
 

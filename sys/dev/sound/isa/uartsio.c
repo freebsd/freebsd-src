@@ -172,7 +172,7 @@ uartsio_probe(device_t dev)
 	if (scp->io == NULL)
 		return (ENXIO);
 
-	DEB(printf("uartsio%d: probing.\n", unit));
+	MIDI_DEBUG(printf("uartsio%d: probing.\n", unit));
 
 /* Read the IER. The upper four bits should all be zero. */
 	c = uartsio_readport(scp, com_ier);
@@ -190,7 +190,7 @@ uartsio_probe(device_t dev)
 
 	/* XXX Do we need a loopback test? */
 
-	DEB(printf("uartsio%d: probed.\n", unit));
+	MIDI_DEBUG(printf("uartsio%d: probed.\n", unit));
 
 	return (0);
 }
@@ -203,7 +203,7 @@ uartsio_attach(device_t dev)
 
 	scp = device_get_softc(dev);
 
-	DEB(printf("uartsio: attaching.\n"));
+	MIDI_DEBUG(printf("uartsio: attaching.\n"));
 
 	/* Allocate resources. */
 	if (uartsio_allocres(scp, dev)) {
@@ -216,11 +216,11 @@ uartsio_attach(device_t dev)
 	if ((uartsio_readport(scp, com_iir) & IIR_FIFO_MASK) == FIFO_RX_HIGH) {
 		scp->has_fifo = 1;
 		scp->tx_size = TX_FIFO_SIZE;
-		DEB(printf("uartsio: uart is 16550A, tx size is %d bytes.\n", scp->tx_size));
+		MIDI_DEBUG(printf("uartsio: uart is 16550A, tx size is %d bytes.\n", scp->tx_size));
 	} else {
 		scp->has_fifo = 0;
 		scp->tx_size = 1;
-		DEB(printf("uartsio: uart is not 16550A.\n"));
+		MIDI_DEBUG(printf("uartsio: uart is not 16550A.\n"));
 	}
 
 	/* Configure the uart. */
@@ -255,7 +255,7 @@ uartsio_attach(device_t dev)
 	/* Now we can handle the interrupts. */
 	bus_setup_intr(dev, scp->irq, INTR_TYPE_AV, uartsio_intr, scp, &scp->ih);
 
-	DEB(printf("uartsio: attached.\n"));
+	MIDI_DEBUG(printf("uartsio: attached.\n"));
 
 	return (0);
 }
@@ -271,9 +271,11 @@ uartsio_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 
 	unit = MIDIUNIT(i_dev);
 
+	MIDI_DEBUG(printf("uartsio_ioctl: unit %d, cmd %s.\n", unit, midi_cmdname(cmd, cmdtab_midiioctl)));
+
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
-		DEB(printf("uartsio_ioctl: unit %d is not configured.\n", unit));
+		MIDI_DEBUG(printf("uartsio_ioctl: unit %d is not configured.\n", unit));
 		return (ENXIO);
 	}
 	scp = devinfo->softc;
@@ -331,7 +333,7 @@ uartsio_callback(void *di, int reason)
 	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
 	if (d == NULL) {
-		DEB(printf("uartsio_callback: device not configured.\n"));
+		MIDI_DEBUG(printf("uartsio_callback: device not configured.\n"));
 		return (ENXIO);
 	}
 
