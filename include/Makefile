@@ -9,7 +9,8 @@ all clean cleandir depend lint tags:
 
 # XXX MISSING:	mp.h
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
-	err.h fnmatch.h fstab.h fts.h glob.h grp.h kvm.h limits.h locale.h \
+	err.h fnmatch.h fstab.h fts.h glob.h grp.h kvm.h limits.h link.h \
+	locale.h \
 	math.h memory.h mpool.h ndbm.h netdb.h nlist.h paths.h pwd.h \
 	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h setjmp.h \
 	sgtty.h signal.h stab.h stddef.h stdio.h stdlib.h string.h strings.h \
