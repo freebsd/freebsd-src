@@ -293,7 +293,6 @@ static driver_t xl_driver = {
 
 static devclass_t xl_devclass;
 
-DRIVER_MODULE(xl, cardbus, xl_driver, xl_devclass, 0, 0);
 DRIVER_MODULE(xl, pci, xl_driver, xl_devclass, 0, 0);
 DRIVER_MODULE(miibus, xl, miibus_driver, miibus_devclass, 0, 0);
 
