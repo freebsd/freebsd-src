@@ -162,6 +162,11 @@ If the file
 .Pa _PERM_PATH/at.allow
 exists, only usernames mentioned in it are allowed to use
 .Nm .
+In these two files, a user is considered to be listed only if the user
+name has no blank or other characters before it on its line and a
+newline character immediately after the name, even at the end of
+the file.
+Other lines are ignored and may be used for comments.
 .Pp
 If
 .Pa _PERM_PATH/at.allow
