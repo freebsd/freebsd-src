@@ -134,8 +134,8 @@ pam_thread_conv(int n,
 	*resp = xmalloc(n * sizeof **resp);
 	buffer_init(&buffer);
 	for (i = 0; i < n; ++i) {
-		resp[i]->resp_retcode = 0;
-		resp[i]->resp = NULL;
+		(*resp)[i].resp_retcode = 0;
+		(*resp)[i].resp = NULL;
 		switch (msg[i]->msg_style) {
 		case PAM_PROMPT_ECHO_OFF:
 			buffer_put_cstring(&buffer, msg[i]->msg);
@@ -143,7 +143,7 @@ pam_thread_conv(int n,
 			ssh_msg_recv(ctxt->pam_csock, &buffer);
 			if (buffer_get_char(&buffer) != PAM_AUTHTOK)
 				goto fail;
-			resp[i]->resp = buffer_get_string(&buffer, NULL);
+			(*resp)[i].resp = buffer_get_string(&buffer, NULL);
 			break;
 		case PAM_PROMPT_ECHO_ON:
 			buffer_put_cstring(&buffer, msg[i]->msg);
@@ -151,7 +151,7 @@ pam_thread_conv(int n,
 			ssh_msg_recv(ctxt->pam_csock, &buffer);
 			if (buffer_get_char(&buffer) != PAM_AUTHTOK)
 				goto fail;
-			resp[i]->resp = buffer_get_string(&buffer, NULL);
+			(*resp)[i].resp = buffer_get_string(&buffer, NULL);
 			break;
 		case PAM_ERROR_MSG:
 			buffer_put_cstring(&buffer, msg[i]->msg);
@@ -550,20 +550,20 @@ pam_chauthtok_conv(int n,
 	for (i = 0; i < n; ++i) {
 		switch (msg[i]->msg_style) {
 		case PAM_PROMPT_ECHO_OFF:
-			resp[i]->resp =
+			(*resp)[i].resp =
 			    read_passphrase(msg[i]->msg, RP_ALLOW_STDIN);
-			resp[i]->resp_retcode = PAM_SUCCESS;
+			(*resp)[i].resp_retcode = PAM_SUCCESS;
 			break;
 		case PAM_PROMPT_ECHO_ON:
 			fputs(msg[i]->msg, stderr);
 			fgets(input, sizeof input, stdin);
-			resp[i]->resp = xstrdup(input);
-			resp[i]->resp_retcode = PAM_SUCCESS;
+			(*resp)[i].resp = xstrdup(input);
+			(*resp)[i].resp_retcode = PAM_SUCCESS;
 			break;
 		case PAM_ERROR_MSG:
 		case PAM_TEXT_INFO:
 			fputs(msg[i]->msg, stderr);
-			resp[i]->resp_retcode = PAM_SUCCESS;
+			(*resp)[i].resp_retcode = PAM_SUCCESS;
 			break;
 		default:
 			goto fail;
