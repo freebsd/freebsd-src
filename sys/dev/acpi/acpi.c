@@ -153,6 +153,7 @@ static void acpi_process_event(acpi_softc_t *sc,
 			       u_int32_t status_0, u_int32_t status_1);
 static void acpi_intr(void *data);
 static void acpi_enable_events(acpi_softc_t *sc);
+static void acpi_clear_ignore_events(void *arg);
 
 /* New-bus dependent code */
 static acpi_softc_t *acpi_get_softc(dev_t dev);
@@ -834,6 +835,10 @@ acpi_trans_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 		val_a = ACPI_PM1_WAK_STS;
 		val_b = ACPI_PM1_WAK_STS;
 		acpi_io_pm1_status(sc, ACPI_REGISTERS_OUTPUT, &val_a, &val_b);
+
+		/* ignore power button and sleep button events for 5 sec. */
+		sc->ignore_events = ACPI_PM1_PWRBTN_EN | ACPI_PM1_SLPBTN_EN;
+		timeout(acpi_clear_ignore_events, (caddr_t)sc, hz * 5);
 	}
 
 	acpi_io_pm1_control(sc, ACPI_REGISTERS_INPUT, &val_a, &val_b);
@@ -1001,11 +1006,19 @@ acpi_process_event(acpi_softc_t *sc, u_int32_t status_a, u_int32_t status_b,
 {
 
 	if (status_a & ACPI_PM1_PWRBTN_EN || status_b & ACPI_PM1_PWRBTN_EN) {
-		acpi_set_sleeping_state(sc, ACPI_S_STATE_S5);
+		if (sc->ignore_events & ACPI_PM1_PWRBTN_EN) {
+			ACPI_DEBUGPRINT("PWRBTN event ingnored\n");
+		} else {
+			acpi_set_sleeping_state(sc, ACPI_S_STATE_S5);
+		}
 	}
 
 	if (status_a & ACPI_PM1_SLPBTN_EN || status_b & ACPI_PM1_SLPBTN_EN) {
-		acpi_set_sleeping_state(sc, ACPI_S_STATE_S1);
+		if (sc->ignore_events & ACPI_PM1_SLPBTN_EN) {
+			ACPI_DEBUGPRINT("SLPBTN event ingnored\n");
+		} else {
+			acpi_set_sleeping_state(sc, ACPI_S_STATE_S1);
+		}
 	}
 }
 
@@ -1164,6 +1177,14 @@ acpi_enable_events(acpi_softc_t *sc)
 	acpi_io_pm1_control(sc, ACPI_REGISTERS_INPUT,  &status_a, &status_b);
 	acpi_io_pm2_control(sc, ACPI_REGISTERS_INPUT,  &status_a);
 	acpi_io_pm_timer(sc, ACPI_REGISTERS_INPUT,  &status_a);
+}
+
+static void
+acpi_clear_ignore_events(void *arg)
+{
+
+	((acpi_softc_t *)arg)->ignore_events = 0;
+	ACPI_DEBUGPRINT("ignore events cleared\n");
 }
 
 /*
