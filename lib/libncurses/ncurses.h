@@ -240,14 +240,12 @@ extern int wclear(WINDOW *);
 extern int wclrtobot(WINDOW *);
 extern int wclrtoeol(WINDOW *);
 extern int wdelch(WINDOW *);
-extern int wdeleteln(WINDOW *);
 extern int werase(WINDOW *);
 extern int wgetch(WINDOW *);
 extern int wgetnstr(WINDOW *,char *,int maxlen);
 extern int whline(WINDOW *,chtype,int);
 extern int winsch(WINDOW *,chtype);
 extern int winsdel(WINDOW *,int);
-extern int winsertln(WINDOW *);
 extern int winsnstr(WINDOW *,char *,int);
 extern int wmove(WINDOW *,int,int);
 extern int wnoutrefresh(WINDOW *);
@@ -327,6 +325,8 @@ extern int slk_touch(void);
 #define vline(ch, n)		wvline(stdscr, ch, n)
 
 #define winsstr(w, s)		winsnstr(w, s, 0)
+#define winsertln(w)            winsdel(w, 1)
+#define wdeleteln(w)            winsdel(w, -1)
 
 #define redrawwin(w)		redrawln(w, 0, w->_maxy+1)
 

@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.5 1994/10/12 01:59:06 ache Exp $
+# $Id: Makefile,v 1.6 1994/10/28 06:56:55 ache Exp $
 
 LIB=    ncurses
 SRCS=   lib_kernel.c lib_pad.c\
@@ -8,8 +8,8 @@ SRCS=   lib_kernel.c lib_pad.c\
 	lib_addstr.c lib_scroll.c lib_clreol.c lib_touch.c lib_mvcur.c lib_keyname.c\
 	lib_delwin.c lib_endwin.c lib_clrbot.c lib_move.c lib_printw.c \
 	lib_scanw.c lib_erase.c lib_getch.c lib_options.c lib_acs.c lib_slk.c\
-	lib_box.c lib_clear.c lib_delch.c lib_deleteln.c lib_insch.c \
-	lib_insertln.c lib_getstr.c lib_mvwin.c lib_longname.c lib_tstp.c \
+	lib_box.c lib_clear.c lib_delch.c lib_insch.c \
+	lib_getstr.c lib_mvwin.c lib_longname.c lib_tstp.c \
 	lib_newterm.c lib_set_term.c lib_overlay.c lib_scrreg.c lib_color.c \
 	lib_insstr.c lib_insdel.c lib_twait.c copyright.c
 
