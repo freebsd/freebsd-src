@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.126.2.6 1999/06/19 21:37:40 wpaul Exp $
+ **      $Id: userconfig.c,v 1.126.2.7 1999/08/08 21:22:09 wpaul Exp $
  **/
 
 /**
@@ -2511,7 +2511,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.126.2.6 1999/06/19 21:37:40 wpaul Exp $
+ *      $Id: userconfig.c,v 1.126.2.7 1999/08/08 21:22:09 wpaul Exp $
  */
 
 #include "scbus.h"
@@ -2819,7 +2819,7 @@ set_device_irq(CmdParm *parms)
 
     irq = parms[1].parm.iparm;
     if (irq == 2) {
-	printf("Warning: Remapping IRQ 2 to IRQ 9 - see config(8)\n");
+	printf("Warning: Remapping IRQ 2 to IRQ 9\n");
 	irq = 9;
     }
     else if (irq != -1 && irq > 15) {
@@ -3044,8 +3044,8 @@ helpfunc(CmdParm *parms)
     "pnp <csn> <ldn> [os|bios]\tset parameters using FreeBSD or BIOS\n"
     "pnp <csn> <ldn> [portX <addr>]\tset addr for port X (0..7)\n"
     "pnp <csn> <ldn> [memX <maddr>]\tset addr for memory range X (0..3)\n"
-    "pnp <csn> <ldn> [irq <number>]\tset irq X (0..1) to number, 0=unused\n"
-    "pnp <csn> <ldn> [drq <number>]\tset drq X (0..1) to number, 4=unused\n");
+    "pnp <csn> <ldn> [irqX <number>]\tset irq X (0..1) to number, 0=unused\n"
+    "pnp <csn> <ldn> [drqX <number>]\tset drq X (0..1) to number, 4=unused\n");
 #endif
 #if NEISA > 0
     printf("eisa <number>\t\tSet the number of EISA slots to probe\n");
