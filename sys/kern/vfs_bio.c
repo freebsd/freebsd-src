@@ -332,6 +332,12 @@ caddr_t
 kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est)
 {
 	/*
+	 * physmem_est is in pages.  Convert it to kilobytes (assumes
+	 * PAGE_SIZE is >= 1K)
+	 */
+	physmem_est = physmem_est * (PAGE_SIZE / 1024);
+
+	/*
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
 	 * For the first 64MB of ram nominally allocate sufficient buffers to
 	 * cover 1/4 of our ram.  Beyond the first 64MB allocate additional
@@ -342,14 +348,14 @@ kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est)
 	 * factor represents the 1/4 x ram conversion.
 	 */
 	if (nbuf == 0) {
-		int factor = 4 * BKVASIZE / PAGE_SIZE;
+		int factor = 4 * BKVASIZE / 1024;
 
 		nbuf = 50;
-		if (physmem_est > 1024)
-			nbuf += min((physmem_est - 1024) / factor,
-			    16384 / factor);
-		if (physmem_est > 16384)
-			nbuf += (physmem_est - 16384) * 2 / (factor * 5);
+		if (physmem_est > 4096)
+			nbuf += min((physmem_est - 4096) / factor,
+			    65536 / factor);
+		if (physmem_est > 65536)
+			nbuf += (physmem_est - 65536) * 2 / (factor * 5);
 
 		if (maxbcache && nbuf > maxbcache / BKVASIZE)
 			nbuf = maxbcache / BKVASIZE;
