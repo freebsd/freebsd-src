@@ -21,9 +21,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.1 1995/03/14 09:16:06 davidg Exp $
+ * $Id: pdq.c,v 1.2 1995/03/21 22:43:04 se Exp $
  *
  * $Log: pdq.c,v $
+ * Revision 1.2  1995/03/21  22:43:04  se
+ * Silence "gcc -Wall".
+ *
+ * Submitted by:	Wolfgang Stanglmeier <wolf@kintaro.cologne.de>
+ *
  * Revision 1.1  1995/03/14  09:16:06  davidg
  * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
  *
@@ -176,8 +181,6 @@ const char * const pdq_descriptions[] = {
     "DEFPA PCI",
     "DEFEA EISA",
 };
-
-extern printf (), bzero(), DELAY();
 
 void
 pdq_print_fddi_chars(
