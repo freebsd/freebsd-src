@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.8 1998/09/28 20:08:34 peter Exp $
+ *	$Id: biosdisk.c,v 1.9 1998/10/02 16:32:45 msmith Exp $
  */
 
 /*
@@ -78,7 +78,7 @@ struct open_disk {
 #define BD_MODEEDD3	0x2
 #define BD_FLOPPY	(1<<2)
     struct disklabel		od_disklabel;
-    struct dos_partition	od_parttab;
+    struct dos_partition	od_parttab[NDOSPART];	/* XXX needs to grow for extended partitions */
 #define BD_LABELOK	(1<<3)
 #define BD_PARTTABOK	(1<<4)
 };
@@ -126,9 +126,12 @@ bd_bios2unit(int biosdev)
 {
     int		i;
     
-    for (i = 0; i < nbdinfo; i++)
+    DEBUG("looking for bios device 0x%x", biosdev);
+    for (i = 0; i < nbdinfo; i++) {
+	DEBUG("bd unit %d is BIOS device 0x%x", i, bdinfo[i].bd_unit);
 	if (bdinfo[i].bd_unit == biosdev)
 	    return(i);
+    }
     return(-1);
 }
 
@@ -288,8 +291,8 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	sector = 0;
 	goto unsliced;		/* may be a floppy */
     }
-    bcopy(buf + DOSPARTOFF, &od->od_parttab, sizeof(struct dos_partition));
-    dptr = &od->od_parttab;
+    bcopy(buf + DOSPARTOFF, &od->od_parttab, sizeof(struct dos_partition) * NDOSPART);
+    dptr = &od->od_parttab[0];
     od->od_flags |= BD_PARTTABOK;
 
     /* 
@@ -310,6 +313,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	    error = ENOENT;
 	    goto out;
 	}
+	DEBUG("found slice at %d, %d sectors", sector, dptr->dp_size);
     } else {
 	/*
 	 * Accept the supplied slice number unequivocally (we may be looking
@@ -319,8 +323,9 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	    error = ENOENT;
 	    goto out;
 	}
-	dptr += (dev->d_kind.biosdisk.slice - 1);
+	dptr += (dev->d_kind.biosdisk.slice - 1);	/* we number 1-4, offsets are 0-3 */
 	sector = dptr->dp_start;
+	DEBUG("slice entry %d at %d, %d sectors", dev->d_kind.biosdisk.slice - 1, sector, dptr->dp_size);
     }
  unsliced:
     /* 
@@ -427,7 +432,7 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
 	return (EIO);
     }
 #ifdef BD_SUPPORT_FRAGS
-    DEBUG("bd_strategy: frag read %d from %d+%d+d to %p\n", 
+    DEBUG("bd_strategy: frag read %d from %d+%d+d to %p", 
 	     fragsize, od->od_boff, dblk, blks, buf + (blks * BIOSDISK_SECSIZE));
     if (fragsize && bd_read(od, dblk + od->od_boff + blks, 1, fragsize)) {
 	DEBUG("frag read error");
@@ -520,7 +525,7 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	}
 	
  	DEBUG("%d sectors from %d/%d/%d to %p (0x%x) %s", x, cyl, hd, sec - 1, p, VTOP(p), result ? "failed" : "ok");
-	DEBUG("ax = 0x%04x cx = 0x%04x dx = 0x%04x status 0x%x\n", 
+	DEBUG("ax = 0x%04x cx = 0x%04x dx = 0x%04x status 0x%x", 
 	      0x200 | x, ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec, (hd << 8) | od->od_unit, (v86.eax >> 8) & 0xff);
 	if (result) {
 	    if (bbuf != NULL)
@@ -559,7 +564,6 @@ bd_getgeom(struct open_disk *od)
     /* convert max head # -> # of heads */
     od->od_hds = ((v86.edx & 0xff00) >> 8) + 1;
     od->od_sec = v86.ecx & 0x3f;
-
 
     DEBUG("unit 0x%x geometry %d/%d/%d", od->od_unit, od->od_cyl, od->od_hds, od->od_sec);
     return(0);
