@@ -207,17 +207,17 @@ static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
 static void	pmap_clear_ptes(vm_page_t m, int bit);
 
-static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva);
+static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq,
+		vm_offset_t sva, pd_entry_t ptepde);
 static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
 static int pmap_remove_entry(struct pmap *pmap, vm_page_t m,
-					vm_offset_t va);
-static void pmap_insert_entry(pmap_t pmap, vm_offset_t va,
-		vm_page_t mpte, vm_page_t m);
+		vm_offset_t va, pd_entry_t ptepde);
+static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex);
-static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
+static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 
 CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
@@ -334,12 +334,37 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 }
 
 
+static __inline pt_entry_t *
+pmap_pte_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *ptepde)
+{
+	pd_entry_t *pde;
+	pt_entry_t *pte;
+
+	pde = pmap_pde(pmap, va);
+	if (pde == NULL || (*pde & PG_V) == 0)
+		return NULL;
+	*ptepde = *pde;
+	if ((*pde & PG_PS) != 0)	/* compat with i386 pmap_pte() */
+		return ((pt_entry_t *)pde);
+	pte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
+	return (&pte[pmap_pte_index(va)]);
+}
+
+
 PMAP_INLINE pt_entry_t *
 vtopte(vm_offset_t va)
 {
 	u_int64_t mask = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1);
 
-	return (PTmap + (amd64_btop(va) & mask));
+	return (PTmap + ((va >> PAGE_SHIFT) & mask));
+}
+
+static __inline pd_entry_t *
+vtopde(vm_offset_t va)
+{
+	u_int64_t mask = ((1ul << (NPDEPGSHIFT + NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1);
+
+	return (PDmap + ((va >> PDRSHIFT) & mask));
 }
 
 static u_int64_t
@@ -1034,12 +1059,16 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
  * conditionally free the page, and manage the hold/wire counts.
  */
 static int
-pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
+pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde)
 {
+	vm_page_t mpte;
 
 	if (va >= VM_MAXUSER_ADDRESS)
 		return 0;
-
+/* XXX this should be an error, all cases should be caught now */
+	if (ptepde == 0)
+		ptepde = *pmap_pde(pmap, va);
+	mpte = PHYS_TO_VM_PAGE(ptepde & PG_FRAME);
 	return pmap_unwire_pte_hold(pmap, va, mpte);
 }
 
@@ -1437,7 +1466,7 @@ get_pv_entry(void)
 
 
 static int
-pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
+pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va, pd_entry_t ptepde)
 {
 	pv_entry_t pv;
 	int rtval;
@@ -1458,7 +1487,7 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 
 	rtval = 0;
 	if (pv) {
-		rtval = pmap_unuse_pt(pmap, va, pv->pv_ptem);
+		rtval = pmap_unuse_pt(pmap, va, ptepde);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
@@ -1476,14 +1505,13 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
  * (pmap, va).
  */
 static void
-pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
+pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	pv_entry_t pv;
 
 	pv = get_pv_entry();
 	pv->pv_va = va;
 	pv->pv_pmap = pmap;
-	pv->pv_ptem = mpte;
 
 	vm_page_lock_queues();
 	TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
@@ -1496,10 +1524,10 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
  * pmap_remove_pte: do the things to unmap a page in a process
  */
 static int
-pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
+pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, pd_entry_t ptepde)
 {
 	pt_entry_t oldpte;
-	vm_page_t m, mpte;
+	vm_page_t m;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	oldpte = pte_load_clear(ptq);
@@ -1527,10 +1555,9 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 		}
 		if (oldpte & PG_A)
 			vm_page_flag_set(m, PG_REFERENCED);
-		return pmap_remove_entry(pmap, m, va);
+		return pmap_remove_entry(pmap, m, va, ptepde);
 	} else {
-		mpte = PHYS_TO_VM_PAGE(*pmap_pde(pmap, va) & PG_FRAME);
-		return pmap_unuse_pt(pmap, va, mpte);
+		return pmap_unuse_pt(pmap, va, ptepde);
 	}
 }
 
@@ -1540,13 +1567,14 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 static void
 pmap_remove_page(pmap_t pmap, vm_offset_t va)
 {
+	pd_entry_t ptepde;
 	pt_entry_t *pte;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	pte = pmap_pte(pmap, va);
+	pte = pmap_pte_pde(pmap, va, &ptepde);
 	if (pte == NULL || (*pte & PG_V) == 0)
 		return;
-	pmap_remove_pte(pmap, pte, va);
+	pmap_remove_pte(pmap, pte, va, ptepde);
 	pmap_invalidate_page(pmap, va);
 }
 
@@ -1649,7 +1677,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			if (pte == NULL || *pte == 0)
 				continue;
 			anyvalid = 1;
-			if (pmap_remove_pte(pmap, pte, sva))
+			if (pmap_remove_pte(pmap, pte, sva, ptpaddr))
 				break;
 		}
 	}
@@ -1677,6 +1705,7 @@ pmap_remove_all(vm_page_t m)
 {
 	register pv_entry_t pv;
 	pt_entry_t *pte, tpte;
+	pd_entry_t ptepde;
 
 #if defined(PMAP_DIAGNOSTIC)
 	/*
@@ -1691,7 +1720,7 @@ pmap_remove_all(vm_page_t m)
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		PMAP_LOCK(pv->pv_pmap);
 		pv->pv_pmap->pm_stats.resident_count--;
-		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
+		pte = pmap_pte_pde(pv->pv_pmap, pv->pv_va, &ptepde);
 		tpte = pte_load_clear(pte);
 		if (tpte & PG_W)
 			pv->pv_pmap->pm_stats.wired_count--;
@@ -1716,7 +1745,7 @@ pmap_remove_all(vm_page_t m)
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
-		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
+		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, ptepde);
 		PMAP_UNLOCK(pv->pv_pmap);
 		free_pv_entry(pv);
 	}
@@ -1849,6 +1878,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	vm_paddr_t pa;
 	register pt_entry_t *pte;
 	vm_paddr_t opa;
+	pd_entry_t ptepde;
 	pt_entry_t origpte, newpte;
 	vm_page_t mpte;
 
@@ -1882,7 +1912,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 #endif
 
-	pte = pmap_pte(pmap, va);
+	pte = pmap_pte_pde(pmap, va, &ptepde);
 
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
@@ -1948,7 +1978,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		int err;
 		vm_page_lock_queues();
 		PMAP_LOCK(pmap);
-		err = pmap_remove_pte(pmap, pte, va);
+		err = pmap_remove_pte(pmap, pte, va, ptepde);
 		PMAP_UNLOCK(pmap);
 		vm_page_unlock_queues();
 		if (err)
@@ -1962,7 +1992,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if (pmap_initialized && 
 	    (m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0) {
-		pmap_insert_entry(pmap, va, mpte, m);
+		pmap_insert_entry(pmap, va, m);
 		pa |= PG_MANAGED;
 	}
 
@@ -2080,7 +2110,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	 * called at interrupt time.
 	 */
 	if ((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0)
-		pmap_insert_entry(pmap, va, mpte, m);
+		pmap_insert_entry(pmap, va, m);
 
 	/*
 	 * Increment counters
@@ -2331,8 +2361,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					m = PHYS_TO_VM_PAGE(ptetemp & PG_FRAME);
 					*dst_pte = ptetemp & ~(PG_M | PG_A);
 					dst_pmap->pm_stats.resident_count++;
-					pmap_insert_entry(dst_pmap, addr,
-						dstmpte, m);
+					pmap_insert_entry(dst_pmap, addr, m);
 	 			} else {
 					vm_page_lock_queues();
 					pmap_unwire_pte_hold(dst_pmap, addr, dstmpte);
@@ -2516,7 +2545,7 @@ pmap_remove_pages(pmap, sva, eva)
 		if (TAILQ_EMPTY(&m->md.pv_list))
 			vm_page_flag_clear(m, PG_WRITEABLE);
 
-		pmap_unuse_pt(pmap, pv->pv_va, pv->pv_ptem);
+		pmap_unuse_pt(pmap, pv->pv_va, *vtopde(pv->pv_va));
 		free_pv_entry(pv);
 	}
 	pmap_invalidate_all(pmap);
