@@ -96,7 +96,9 @@ static char sccsid[] = "@(#)hack.tty.c	8.1 (Berkeley) 5/31/93";
 
 #endif USG
 
+#if 0
 extern short ospeed;
+#endif
 static char erase_char, kill_char;
 static boolean settty_needed = FALSE;
 struct termstruct inittyb, curttyb;
@@ -110,7 +112,9 @@ gettty(){
 	if(GTTY(&inittyb) < 0)
 		perror("Hack (gettty)");
 	curttyb = inittyb;
+#if 0
 	ospeed = OSPEED(inittyb);
+#endif
 	erase_char = inittyb.erase_sym;
 	kill_char = inittyb.kill_sym;
 	getioctls();

@@ -9,10 +9,6 @@
 #include "def.flag.h"	/* for flags.nonull */
 extern long *alloc();
 
-#ifndef lint
-extern			/* it is defined in libtermlib (libtermcap) */
-#endif lint
-	short ospeed;		/* terminal baudrate; used by tputs */
 static char tbuf[512];
 static char *HO, *CL, *CE, *UP, *CM, *ND, *XD, *BC, *SO, *SE, *TI, *TE;
 static char *VS, *VE;
