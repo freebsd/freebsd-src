@@ -242,6 +242,7 @@ pam_cleanup(void *arg)
 static int
 pam_init(const char *user)
 {
+	struct pam_conv no_conv = { NULL, NULL };
 	extern ServerOptions options;
 	extern u_int utmp_len;
 	const char *pam_rhost, *pam_user;
@@ -257,7 +258,7 @@ pam_init(const char *user)
 		pam_handle = NULL;
 	}
 	debug("PAM: initializing for \"%s\"", user);
-	pam_err = pam_start("sshd", user, NULL, &pam_handle);
+	pam_err = pam_start("sshd", user, &no_conv, &pam_handle);
 	if (pam_err != PAM_SUCCESS)
 		return (-1);
 	pam_rhost = get_remote_name_or_ip(utmp_len,
