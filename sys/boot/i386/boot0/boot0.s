@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot0.s,v 1.6 1998/12/05 11:58:33 rnordier Exp $
+#	$Id: boot0.s,v 1.7 1999/02/26 14:51:14 rnordier Exp $
 
 # A 512-byte boot manager.
 
@@ -68,8 +68,7 @@ main.0: 	movbr1(_dl,_FAKE,_bp_)		# Save drive number
 		callwi(putn)			# To new line
 		movwir(partbl,_bx)		# Partition table
 		xorl %edx,%edx			# Item
-main.1: 	movbr0(_dh,_bx_)		# Mark inactive
-		movb1r(0x4,_bx_,_al)		# Load type
+main.1: 	movb1r(0x4,_bx_,_al)		# Load type
 		movwir(tables,_di)		# Lookup tables
 		movb $TBL0SZ,%cl		# Entries
 		repne				# Exclude
@@ -129,26 +128,35 @@ main.9: 	xorb %ah,%ah			# BIOS: Get
 main.10:	cwtl				# Option
 		btwr1(_ax,_MNUOPT,_bp_) 	#  enabled?
 		jnc main.8			# No
-		movwir(FAKE,_si)		# Partition entry
-		movb1r(_NXTDRV,_bp_,_dl)	# Next drive
-		subb $'0',%dl			#  number
-		cmpb $0x4,%al			# F5 pressed?
-		je main.11			# Yes
-		movb0r(_si_,_dl)		# Drive number
 		movbr1(_al,_OPT,_bp_)		# Save option
-		shlb $0x4,%al			# Point to
-		addwia(partbl)			#  partition
-		xchgl %esi,%eax 		#  entry
+		movwir(FAKE,_si)		# Partition for write
+		movb0r(_si_,_dl)		# Drive number
+		movl %esi,%ebx			# Partition for read
+		cmpb $0x4,%al			# F5 pressed?
+		pushfl				# Save
+		je main.12			# Yes
+		movwir(partbl,_bx)		# Partition table
+		pushl %ebx			# Save
+main.11:	movbr0(_ah,_bx_)		# Mark inactive
+		addb $0x10,%bl			# To next entry
+		cmpb $0xfe,%bl			# Till
+		jb main.11			#  done
+		popl %ebx			# Restore
+		shlb $0x4,%al			# Selected
+		addb %al,%bl			#  partition
+		movbi0(0x80,_bx_)		# Flag active
+main.12:	pushl %ebx			# Save
 		tstbi1(0x40,_FLAGS,_bp_)	# No updates?
-		jnz main.11			# Yes
-		movbi0(0x80,_si_)		# Flag active
-		pushl %esi			# Save
-		xchgl %esi,%eax 		# Fake partition entry
+		jnz main.13			# Yes
 		movwir(start,_bx)		# Data to write
 		movwir(0x301,_ax)		# Write sector
 		callwi(intx13)			#  to disk
-		popl %esi			# Restore
-main.11:	movwir(LOAD,_bx)		# Address for read
+main.13:	popl %esi			# Restore
+		popfl				# Restore
+		jne main.14			# If not F5
+		movb1r(_NXTDRV,_bp_,_dl)	# Next drive
+		subb $'0',%dl			#  number
+main.14:	movwir(LOAD,_bx)		# Address for read
 		movwir(0x201,_ax)		# Read sector
 		callwi(intx13)			#  from disk
 		jc main.8			# If error
