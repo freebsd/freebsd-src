@@ -80,8 +80,6 @@
     ((dh)->dh_hash[(slot) >> DH_BLKOFFSHIFT][(slot) & DH_BLKOFFMASK])
 
 struct dirhash {
-	struct mtx dh_mtx;	/* protects all fields except dh_list */
-
 	doff_t	**dh_hash;	/* the hash array (2-level) */
 	int	dh_narrays;	/* number of entries in dh_hash */
 	int	dh_hlen;	/* total slots in the 2-level hash array */
@@ -100,7 +98,6 @@ struct dirhash {
 
 	int	dh_onlist;	/* true if on the ufsdirhash_list chain */
 
-	/* Protected by ufsdirhash_mtx. */
 	TAILQ_ENTRY(dirhash) dh_list;	/* chain of all dirhashes */
 };
 
