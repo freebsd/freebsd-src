@@ -6,9 +6,6 @@ MAN=	vinum.8
 
 CFLAGS+=	-I${.CURDIR}/../../sys -Wall
 
-# Print __FILE__ and __LINE__ when doing perror()
-#CFLAGS+=	-DDEVBUG
-
 DPADD=	${LIBREADLINE} ${LIBTERMCAP} ${LIBDEVSTAT}
 LDADD=	-lreadline -ltermcap -ldevstat
 
