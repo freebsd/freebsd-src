@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.111 1997/09/21 21:38:05 gibbs Exp $
+ *	$Id: trap.c,v 1.112 1997/10/10 09:44:09 peter Exp $
  */
 
 /*
@@ -75,10 +75,15 @@
 #include <machine/psl.h>
 #include <machine/../isa/intr_machdep.h>
 #include <machine/smp.h>
+#include <machine/tss.h>
 
 #ifdef POWERFAIL_NMI
 #include <sys/syslog.h>
 #include <machine/clock.h>
+#endif
+
+#ifdef VM86
+#include <machine/vm86.h>
 #endif
 
 #include "isa.h"
