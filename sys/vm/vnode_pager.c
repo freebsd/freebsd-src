@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.30 1995/03/16 18:17:34 bde Exp $
+ *	$Id: vnode_pager.c,v 1.31 1995/03/19 12:36:10 davidg Exp $
  */
 
 /*
@@ -316,6 +316,8 @@ vnode_pager_haspage(pager, offset)
 	block = offset / vp->v_mount->mnt_stat.f_iosize;
 	if (incore(vp, block))
 		return TRUE;
+
+	VOP_LOCK(vp);
 	/*
 	 * Read the index to find the disk block to read from.  If there is no
 	 * block, report that we don't have this data.
@@ -323,7 +325,8 @@ vnode_pager_haspage(pager, offset)
 	 * Assumes that the vnode has whole page or nothing.
 	 */
 	err = VOP_BMAP(vp, block, (struct vnode **) 0, &bn, 0);
-	if (err)
+	VOP_UNLOCK(vp);
+	if (err) 
 		return (TRUE);
 	return ((long) bn < 0 ? FALSE : TRUE);
 }
@@ -595,6 +598,9 @@ vnode_pager_input_smlfs(vnp, m)
 	vp = vnp->vnp_vp;
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 
+
+	VOP_LOCK(vp);
+
 	VOP_BMAP(vp, 0, &dp, 0, 0);
 
 	kva = vm_pager_map_page(m);
@@ -652,6 +658,7 @@ vnode_pager_input_smlfs(vnp, m)
 nextblock:
 	}
 	vm_pager_unmap_page(kva);
+	VOP_UNLOCK(vp);
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 	if (error) {
 		return VM_PAGER_ERROR;
@@ -686,11 +693,14 @@ vnode_pager_input_old(vnp, m)
 		size = PAGE_SIZE;
 		if (m->offset + size > vnp->vnp_size)
 			size = vnp->vnp_size - m->offset;
+
+		VOP_LOCK(vnp->vnp_vp);
 		/*
 		 * Allocate a kernel virtual address and initialize so that
 		 * we can use VOP_READ/WRITE routines.
 		 */
 		kva = vm_pager_map_page(m);
+
 		aiov.iov_base = (caddr_t) kva;
 		aiov.iov_len = size;
 		auio.uio_iov = &aiov;
@@ -711,6 +721,7 @@ vnode_pager_input_old(vnp, m)
 				bzero((caddr_t) kva + count, PAGE_SIZE - count);
 		}
 		vm_pager_unmap_page(kva);
+		VOP_UNLOCK(vnp->vnp_vp);
 	}
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 	m->dirty = 0;
@@ -728,7 +739,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 {
 	int i;
 	vm_offset_t kva, foff;
-	int size, sizea;
+	int size;
 	vm_object_t object;
 	struct vnode *dp, *vp;
 	int bsize;
@@ -739,8 +750,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 	int runpg;
 	int runend;
 
-	struct buf *bp, *bpa;
-	int counta;
+	struct buf *bp;
 	int s;
 	int failflag;
 
@@ -802,11 +812,12 @@ vnode_pager_input(vnp, m, count, reqpage)
 		}
 		return VM_PAGER_OK;
 	}
+
 	/*
 	 * here on direct device I/O
 	 */
 
-
+	VOP_LOCK(vp);
 	firstaddr = -1;
 	/*
 	 * calculate the run that includes the required page
@@ -857,11 +868,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 	 * calculate the file virtual address for the transfer
 	 */
 	foff = m[0]->offset;
-#if 0
-	printf("foff: 0x%lx, firstaddr: 0x%lx\n",
-		foff, firstaddr);
-	DELAY(6000000);
-#endif
 
 	/*
 	 * calculate the size of the transfer
@@ -876,20 +882,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 	if (dp->v_type == VBLK || dp->v_type == VCHR)
 		size = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 
-	counta = 0;
-	if (count * PAGE_SIZE > bsize)
-		counta = (count - reqpage) - 1;
-	bpa = 0;
-	sizea = 0;
 	bp = getpbuf();
-	if (counta) {
-		bpa = (struct buf *) trypbuf();
-		if (bpa) {
-			count -= counta;
-			sizea = size - count * PAGE_SIZE;
-			size = count * PAGE_SIZE;
-		}
-	}
 	kva = (vm_offset_t) bp->b_data;
 
 	/*
@@ -918,29 +911,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 	/* do the input */
 	VOP_STRATEGY(bp);
 
-	if (counta) {
-		for (i = 0; i < counta; i++) {
-			vm_page_deactivate(m[count + i]);
-		}
-		pmap_qenter((vm_offset_t) bpa->b_data, &m[count], counta);
-		++m[count]->object->paging_in_progress;
-		bpa->b_flags = B_BUSY | B_READ | B_CALL | B_ASYNC;
-		bpa->b_iodone = vnode_pager_iodone;
-		/* B_PHYS is not set, but it is nice to fill this in */
-		bpa->b_proc = curproc;
-		bpa->b_rcred = bpa->b_wcred = bpa->b_proc->p_ucred;
-		if (bpa->b_rcred != NOCRED)
-			crhold(bpa->b_rcred);
-		if (bpa->b_wcred != NOCRED)
-			crhold(bpa->b_wcred);
-		bpa->b_blkno = firstaddr + count * (PAGE_SIZE / DEV_BSIZE);
-		pbgetvp(dp, bpa);
-		bpa->b_bcount = sizea;
-		bpa->b_bufsize = counta * PAGE_SIZE;
-
-		cnt.v_vnodepgsin += counta;
-		VOP_STRATEGY(bpa);
-	}
 	s = splbio();
 	/* we definitely need to be at splbio here */
 
@@ -961,6 +931,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 	 * free the buffer header back to the swap buffer pool
 	 */
 	relpbuf(bp);
+	VOP_UNLOCK(vp);
 
 finishup:
 	for (i = 0; i < count; i++) {
@@ -1051,6 +1022,7 @@ vnode_pager_output_old(vnp, m)
 				error = EINVAL;
 			}
 		}
+
 		return error ? VM_PAGER_ERROR : VM_PAGER_OK;
 	}
 }
@@ -1182,6 +1154,8 @@ retryoutput:
 		rtvals[0] = VM_PAGER_OK;
 		return VM_PAGER_OK;
 	}
+
+	VOP_LOCK(vp);
 	/*
 	 * if the filesystem does not have a bmap, then use the old code
 	 */
@@ -1193,6 +1167,7 @@ retryoutput:
 		m[0]->dirty = 0;
 		cnt.v_vnodeout++;
 		cnt.v_vnodepgsout++;
+		VOP_UNLOCK(vp);
 		return rtvals[0];
 	}
 	tv = time;
@@ -1213,6 +1188,7 @@ retryoutput:
 		}
 		cnt.v_vnodeout++;
 		cnt.v_vnodepgsout += count;
+		VOP_UNLOCK(vp);
 		return rtvals[0];
 	}
 	for (i = 0; i < count; i++) {
@@ -1225,6 +1201,7 @@ retryoutput:
 		}
 	}
 	if (count == 0) {
+		VOP_UNLOCK(vp);
 		return rtvals[0];
 	}
 	foff = m[0]->offset;
@@ -1298,6 +1275,8 @@ retryoutput:
 	 * free the buffer header back to the swap buffer pool
 	 */
 	relpbuf(bp);
+
+	VOP_UNLOCK(vp);
 
 	if (!error) {
 		for (i = 0; i < count; i++) {
