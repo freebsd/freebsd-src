@@ -1022,7 +1022,6 @@ pmap_pinit(pmap)
 		VM_WAIT;
 	vm_page_lock_queues();
 	vm_page_flag_clear(pml4pg, PG_BUSY);
-	pml4pg->valid = VM_PAGE_BITS_ALL;
 	vm_page_unlock_queues();
 
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml4pg));
@@ -1196,7 +1195,6 @@ _pmap_allocpte(pmap, ptepindex)
 	}
 
 	vm_page_lock_queues();
-	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
