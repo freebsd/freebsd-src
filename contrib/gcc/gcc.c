@@ -2853,6 +2853,14 @@ process_command (argc, argv)
 	  n_infiles++;
 	  i++;
 	}
+      else if (strcmp (argv[i], "-l") == 0)
+	{
+	  if (i + 1 == argc)
+	    fatal ("argument to `-l' is missing");
+
+	  n_infiles++;
+	  i++;
+	}
       else if (strncmp (argv[i], "-l", 2) == 0)
 	n_infiles++;
       else if (strcmp (argv[i], "-save-temps") == 0)
@@ -3258,6 +3266,12 @@ process_command (argc, argv)
 	{
 	  infiles[n_infiles].language = "*";
 	  infiles[n_infiles++].name = argv[++i];
+	}
+      else if (strcmp (argv[i], "-l") == 0)
+	{ /* POSIX allows separation of -l and the lib arg;
+	     canonicalize by concatenating -l with its arg */
+	  infiles[n_infiles].language = "*";
+	  infiles[n_infiles++].name = concat ("-l", argv[++i], NULL);
 	}
       else if (strncmp (argv[i], "-l", 2) == 0)
 	{
