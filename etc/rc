@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.9 1993/12/17 04:20:30 ache Exp $
+#	$Id: rc,v 1.10 1993/12/21 02:58:15 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -157,6 +157,17 @@ fi
 
 if [ X${name_server} = X"YES" -a -r /etc/named.boot ]; then
 	echo -n ' named';		named
+fi
+
+# $ntpdate and $xntpdflags are imported from /etc/netstart.
+# If $ntpdate != NO, run ntpdate $ntpdate to set the date correctly.
+# If $xntpdflags != NO, start xntpd.
+if [ X"${ntpdate}" != X"NO" ]; then
+	echo -n ' ntpdate';	ntpdate $ntpdate
+fi
+
+if [ X"${xntpdflags}" != X"NO" ]; then
+	echo -n ' xntpd';	xntpd ${xntpdflags}
 fi
 
 # $rwhod is imported from /etc/netstart;
