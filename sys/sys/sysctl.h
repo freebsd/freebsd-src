@@ -402,8 +402,6 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KIPC_MAX_PROTOHDR	5	/* int: max length of network header */
 #define	KIPC_MAX_HDR		6	/* int: max total length of headers */
 #define	KIPC_MAX_DATALEN	7	/* int: max length of data? */
-#define	KIPC_MBSTAT		8	/* struct: mbuf usage statistics */
-#define	KIPC_NMBCLUSTERS	9	/* int: maximum mbuf clusters */
 
 /*
  * CTL_HW identifiers

@@ -153,6 +153,16 @@ static struct nlist nl[] = {
 	{ "_nmbclusters" },
 #define N_NMBUFS	41
 	{ "_nmbufs" },
+#define	N_MBLIM		42
+	{ "_mbuf_limit" },
+#define	N_CLLIM		43
+	{ "_clust_limit" },
+#define	N_NCPUS		44
+	{ "_smp_cpus" },
+#define	N_PAGESZ	45
+	{ "_pagesize" },
+#define	N_MBPSTAT	46
+	{ "_mb_statpcpu" },
 	{ "" },
 };
 
@@ -486,9 +496,14 @@ main(argc, argv)
 				mbpr(nl[N_MBSTAT].n_value,
 				    nl[N_MBTYPES].n_value,
 				    nl[N_NMBCLUSTERS].n_value,
-				    nl[N_NMBUFS].n_value);
+				    nl[N_NMBUFS].n_value,
+				    nl[N_MBLIM].n_value,
+				    nl[N_CLLIM].n_value,
+				    nl[N_NCPUS].n_value,
+				    nl[N_PAGESZ].n_value,
+				    nl[N_MBPSTAT].n_value);
 		} else
-			mbpr(0, 0, 0, 0);
+			mbpr(0, 0, 0, 0, 0, 0, 0, 0, 0);
 		exit(0);
 	}
 #if 0

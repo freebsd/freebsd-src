@@ -48,11 +48,14 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "netstat.h"
 
 #define	YES	1
 typedef int bool;
 
+/* XXX: mbtypes stats temporarily disactivated. */
+#if 0
 static struct mbtypenames {
 	int	mt_type;
 	char	*mt_name;
@@ -89,24 +92,30 @@ static struct mbtypenames {
 #endif
 	{ 0, 0 }
 };
+#endif	/* 0 */
 
 /*
  * Print mbuf statistics.
  */
 void
-mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr)
+mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
+    u_long mblimaddr, u_long cllimaddr, u_long cpusaddr, u_long pgsaddr,
+    u_long mbpaddr)
 {
-	u_long totmem, totpossible, totmbufs;
-	register int i;
-	struct mbstat mbstat;
-	struct mbtypenames *mp;
-	int name[3], nmbclusters, nmbufs, nmbcnt, nmbtypes;
-	size_t nmbclen, nmbuflen, nmbcntlen, mbstatlen, mbtypeslen;
-	u_long *mbtypes;
-	bool *seen;	/* "have we seen this type yet?" */
+	int i, nmbufs, nmbclusters, ncpu, page_size, num_objs;
+	u_int mbuf_limit, clust_limit;
+	u_long totspace, totnum, totfree;
+	size_t mlen;
+	struct mbstat *mbstat = NULL;
+	struct mbpstat **mbpstat = NULL;
 
-	mbtypes = NULL;
-	seen = NULL;
+/* XXX: mbtypes stats temporarily disabled. */
+#if 0
+	int nmbtypes;
+	size_t mbtypeslen;
+	struct mbtypenames *mp;
+	u_long *mbtypes = NULL;
+	bool *seen = NULL;
 
 	/*
 	 * XXX
@@ -127,92 +136,182 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr)
 		warn("calloc");
 		goto err;
 	}
+#endif
+
+	mlen = sizeof mbstat;
+	if ((mbstat = malloc(mlen)) == NULL) {
+		warn("malloc: cannot allocate memory for mbstat");
+		goto err;
+	}
+
+	/*
+	 * XXX: Unfortunately, for the time being, we have to fetch
+	 * the total length of the per-CPU stats area via sysctl
+	 * (regardless of whether we're looking at a core or not.
+	 */
+	if (sysctlbyname("kern.ipc.mb_statpcpu", NULL, &mlen, NULL, 0) < 0) {
+		warn("sysctl: retrieving mb_statpcpu len");
+		goto err;
+	} 
+	num_objs = (int)(mlen / sizeof(struct mbpstat));
+	if ((mbpstat = calloc(num_objs, sizeof(struct mbpstat *))) == NULL) {
+		warn("calloc: cannot allocate memory for mbpstats pointers");
+		goto err;
+	}
+	if ((mbpstat[0] = calloc(num_objs, sizeof(struct mbpstat))) == NULL) {
+		warn("calloc: cannot allocate memory for mbpstats");
+		goto err;
+	}
 
 	if (mbaddr) {
-		if (kread(mbaddr, (char *)&mbstat, sizeof mbstat))
+		if (kread(mbpaddr, (char *)mbpstat[0], mlen))
+			goto err; 
+		if (kread(mbaddr, (char *)mbstat, sizeof mbstat))
 			goto err;
+#if 0
 		if (kread(mbtaddr, (char *)mbtypes, mbtypeslen))
 			goto err;
+#endif
 		if (kread(nmbcaddr, (char *)&nmbclusters, sizeof(int)))
 			goto err;
 		if (kread(nmbufaddr, (char *)&nmbufs, sizeof(int)))
 			goto err;
+		if (kread(mblimaddr, (char *)&mbuf_limit, sizeof(u_int)))
+			goto err;
+		if (kread(cllimaddr, (char *)&clust_limit, sizeof(u_int)))
+			goto err;
+		if (kread(cpusaddr, (char *)&ncpu, sizeof(int)))
+			goto err;
+		if (kread(pgsaddr, (char *)&page_size, sizeof(int)))
+			goto err;
 	} else {
-		name[0] = CTL_KERN;
-		name[1] = KERN_IPC;
-		name[2] = KIPC_MBSTAT;
-		mbstatlen = sizeof mbstat;
-		if (sysctl(name, 3, &mbstat, &mbstatlen, 0, 0) < 0) {
+		if (sysctlbyname("kern.ipc.mb_statpcpu", mbpstat[0], &mlen,
+		    NULL, 0) < 0) {
+			warn("sysctl: retrieving mb_statpcpu");
+			goto err;
+		}
+		if (sysctlbyname("kern.ipc.mbstat", mbstat, &mlen, NULL, 0)
+		    < 0) {
 			warn("sysctl: retrieving mbstat");
 			goto err;
 		}
-
+#if 0
 		if (sysctlbyname("kern.ipc.mbtypes", mbtypes, &mbtypeslen, NULL,
 		    0) < 0) {
 			warn("sysctl: retrieving mbtypes");
 			goto err;
 		}
-		
-		name[2] = KIPC_NMBCLUSTERS;
-		nmbclen = sizeof(int);
-		if (sysctl(name, 3, &nmbclusters, &nmbclen, 0, 0) < 0) {
+#endif
+		mlen = sizeof(int);
+		if (sysctlbyname("kern.ipc.nmbclusters", &nmbclusters, &mlen,
+		    NULL, 0) < 0) {
 			warn("sysctl: retrieving nmbclusters");
 			goto err;
 		}
-
-		nmbuflen = sizeof(int);
-		if (sysctlbyname("kern.ipc.nmbufs", &nmbufs, &nmbuflen, 0, 0) < 0) {
+		mlen = sizeof(int);
+		if (sysctlbyname("kern.ipc.nmbufs", &nmbufs, &mlen, NULL, 0)
+		    < 0) {
 			warn("sysctl: retrieving nmbufs");
+			goto err;
+		}
+		mlen = sizeof(u_int);
+		if (sysctlbyname("kern.ipc.mbuf_limit", &mbuf_limit, &mlen,
+		    NULL, 0) < 0) {
+			warn("sysctl: retrieving mbuf_limit");
+			goto err;
+		}
+		mlen = sizeof(u_int);
+		if (sysctlbyname("kern.ipc.clust_limit", &clust_limit, &mlen,
+		    NULL, 0) < 0) {
+			warn("sysctl: retrieving clust_limit");
+			goto err;
+		}
+		mlen = sizeof(int);
+		if (sysctlbyname("kern.smp.cpus", &ncpu, &mlen, NULL, 0) < 0) {
+			warn("sysctl: retrieving kern.smp.cpus");
+			goto err;
+		}
+		mlen = sizeof(int);
+		if (sysctlbyname("hw.pagesize", &page_size, &mlen, NULL, 0)
+		    < 0) {
+			warn("sysctl: retrieving hw.pagesize");
 			goto err;
 		}
 	}
 
-	nmbcntlen = sizeof(int);
-	if (sysctlbyname("kern.ipc.nmbcnt", &nmbcnt, &nmbcntlen, 0, 0) < 0) {
-		warn("sysctl: retrieving nmbcnt");
-		goto err;
-	}
+	for (i = 0; i < num_objs; i++)
+		mbpstat[i] = mbpstat[0] + i;
 
 #undef MSIZE
-#define MSIZE		(mbstat.m_msize)
+#define MSIZE		(mbstat->m_msize)
 #undef MCLBYTES
-#define	MCLBYTES	(mbstat.m_mclbytes)
+#define	MCLBYTES	(mbstat->m_mclbytes)
+#define	MBPERPG		(page_size / MSIZE)
+#define	CLPERPG		(page_size / MCLBYTES)
+#define	GENLST		(num_objs - 1)
 
-	totmbufs = 0;
-	for (mp = mbtypenames; mp->mt_name; mp++)
-		totmbufs += mbtypes[mp->mt_type];
-	printf("%lu/%lu/%u mbufs in use (current/peak/max):\n", totmbufs,
-	    mbstat.m_mbufs, nmbufs);
-	for (mp = mbtypenames; mp->mt_name; mp++)
-		if (mbtypes[mp->mt_type]) {
-			seen[mp->mt_type] = YES;
-			printf("\t%lu mbufs allocated to %s\n",
-			    mbtypes[mp->mt_type], mp->mt_name);
-		}
-	seen[MT_FREE] = YES;
-	for (i = 0; i < nmbtypes; i++)
-		if (!seen[i] && mbtypes[i]) {
-			printf("\t%lu mbufs allocated to <mbuf type %d>\n",
-			    mbtypes[i], i);
-		}
-	printf("%lu/%lu/%u mbuf clusters in use (current/peak/max)\n",
-		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters,
-		nmbclusters);
-	printf("%lu/%lu m_ext reference counters (in use/allocated)\n",
-		mbstat.m_refcnt - mbstat.m_refree, mbstat.m_refcnt);
-	totmem = mbstat.m_mbufs * MSIZE + mbstat.m_clusters * MCLBYTES +
-	    mbstat.m_refcnt * sizeof(union mext_refcnt);
-	totpossible = nmbclusters * MCLBYTES + nmbufs * MSIZE +
-	    nmbcnt * sizeof(union mext_refcnt); 
-	printf("%lu Kbytes allocated to network (%lu%% of mb_map in use)\n",
-		totmem / 1024, (totmem * 100) / totpossible);
-	printf("%lu requests for memory denied\n", mbstat.m_drops);
-	printf("%lu requests for memory delayed\n", mbstat.m_wait);
-	printf("%lu calls to protocol drain routines\n", mbstat.m_drain);
+	printf("mbuf usage:\n");
+	printf("\tGEN list:\t%lu/%lu (in use/in pool)\n",
+	    (mbpstat[GENLST]->mb_mbpgs * MBPERPG - mbpstat[GENLST]->mb_mbfree),
+	    (mbpstat[GENLST]->mb_mbpgs * MBPERPG));
+	totnum = mbpstat[GENLST]->mb_mbpgs * MBPERPG;
+	totfree = mbpstat[GENLST]->mb_mbfree;
+	totspace = mbpstat[GENLST]->mb_mbpgs * page_size;
+	for (i = 0; i < ncpu; i++) {
+		printf("\tCPU #%d list:\t%lu/%lu (in use/in pool)\n", i,
+		    (mbpstat[i]->mb_mbpgs * MBPERPG - mbpstat[i]->mb_mbfree),
+		    (mbpstat[i]->mb_mbpgs * MBPERPG));
+		totspace += mbpstat[i]->mb_mbpgs * page_size;
+		totnum += mbpstat[i]->mb_mbpgs * MBPERPG;
+		totfree += mbpstat[i]->mb_mbfree;
+	}
+	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", (totnum - totfree),
+	    totnum);
+	printf("\tMaximum number allowed on each CPU list: %d\n", mbuf_limit);
+	printf("\tMaximum possible: %d\n", nmbufs);
+	printf("\t%lu%% of mbuf map consumed\n", ((totspace * 100) / (nmbufs
+	    * MSIZE)));
+
+	printf("mbuf cluster usage:\n");
+	printf("\tGEN list:\t%lu/%lu (in use/in pool)\n",
+	    (mbpstat[GENLST]->mb_clpgs * CLPERPG - mbpstat[GENLST]->mb_clfree),
+	    (mbpstat[GENLST]->mb_clpgs * CLPERPG));
+	totnum = mbpstat[GENLST]->mb_clpgs * CLPERPG;
+	totfree = mbpstat[GENLST]->mb_clfree;
+	totspace = mbpstat[GENLST]->mb_clpgs * page_size;
+	for (i = 0; i < ncpu; i++) {
+		printf("\tCPU #%d list:\t%lu/%lu (in use/in pool)\n", i,
+		    (mbpstat[i]->mb_clpgs * CLPERPG - mbpstat[i]->mb_clfree),
+		    (mbpstat[i]->mb_clpgs * CLPERPG));
+		totspace += mbpstat[i]->mb_clpgs * page_size;
+		totnum += mbpstat[i]->mb_clpgs * CLPERPG;
+		totfree += mbpstat[i]->mb_clfree;
+	}
+	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", (totnum - totfree),
+	    totnum);
+	printf("\tMaximum number allowed on each CPU list: %d\n", clust_limit);
+	printf("\tMaximum possible: %d\n", nmbclusters);
+	printf("\t%lu%% of cluster map consumed\n", ((totspace * 100) /
+	    (nmbclusters * MCLBYTES)));
+
+	printf("%lu requests for memory denied\n", mbstat->m_drops);
+	printf("%lu requests for memory delayed\n", mbstat->m_wait);
+	printf("%lu calls to protocol drain routines\n", mbstat->m_drain);
 
 err:
+#if 0
 	if (mbtypes != NULL)
 		free(mbtypes);
 	if (seen != NULL)
 		free(seen);
+#endif
+	if (mbstat != NULL)
+		free(mbstat);
+	if (mbpstat != NULL) {
+		if (mbpstat[0] != NULL)
+			free(mbpstat[0]);
+		free(mbpstat);
+	}
+
+	return;
 }
