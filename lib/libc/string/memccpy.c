@@ -49,9 +49,10 @@ memccpy(t, f, c, n)
 	if (n) {
 		register unsigned char *tp = t;
 		register const unsigned char *fp = f;
+		register unsigned char uc = c;
 		do {
-			if ((*tp++ = *fp++) == c)
-				return (t);
+			if ((*tp++ = *fp++) == uc)
+				return (tp);
 		} while (--n != 0);
 	}
 	return (0);
