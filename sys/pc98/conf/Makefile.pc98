@@ -70,6 +70,10 @@ PROF+=	-mprofiler-epilogue
 .endif
 .endif
 
+# Put configuration-specific C flags last (except for ${PROF}) so that they
+# can override the others.
+CFLAGS+=	${CONF_CFLAGS}
+
 NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_S= ${CC} -c ${ASM_CFLAGS} $<
