@@ -171,26 +171,26 @@ unpend(int irql)
 }
 
 static unsigned char
-irqc_in(int port)
+irqc_in(int port __unused)
 {
     return 0x60; /* What should be here? */
 }
  
 static void
-irqc_out(int port, unsigned char val)
+irqc_out(int port __unused, unsigned char val)
 {
     if (val == 0x20)
 	send_eoi();
 }
 
 static unsigned char
-imr_in(int port)
+imr_in(int port __unused)
 {
     return IM;
 }
  
 static void
-imr_out(int port, unsigned char val)
+imr_out(int port __unused, unsigned char val)
 {
     IM = val;
     resume_interrupt();
