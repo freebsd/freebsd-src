@@ -1,4 +1,4 @@
-/* $Id: param.h,v 1.9 1999/03/01 06:10:16 imp Exp $ */
+/* $Id: param.h,v 1.10 1999/04/11 12:19:02 simokawa Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*
@@ -69,6 +69,8 @@
  */
 #define OBJFORMAT_NAMES		"elf"
 #define OBJFORMAT_DEFAULT	"elf"
+
+#define NCPUS		1
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
