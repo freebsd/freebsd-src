@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
-.\"	$Id: ifconfig.8,v 1.17 1998/06/08 02:00:45 danny Exp $
+.\"	$Id: ifconfig.8,v 1.18 1998/07/06 06:53:42 charnier Exp $
 .\"
 .Dd February 13, 1996
 .Dt IFCONFIG 8
@@ -200,6 +200,49 @@ list of available options.
 .It Fl mediaopt Ar opts
 If the driver supports the media selection system, disable the
 specified media options on the interface.
+.It Cm vlan Ar vlan_tag
+If the interface is a vlan pseudo interface, set the vlan tag value
+to
+.Ar vlan_tag .
+This value is a 16-bit number which is used to create an 802.1Q
+vlan header for packets sent from the vlan interface. Note that
+.Cm vlan
+and
+.Cm vlandev
+must both be set at the same time.
+.It Cm vlandev Ar iface
+If the interface is a vlan pseudo device, associate physical interface
+.Ar iface
+with it. Packets transmitted through the vlan interface will be
+diverted to the specified physical interface
+.Ar iface
+with 802.1Q vlan encapsulation. Packets with 802.1Q encapsulation received
+by the parent interface with the correct vlan tag will be diverted to
+the associated vlan pseudo-interface. The vlan interface is assigned a
+copy of the parent interface's flags and the parent's ethernet address.
+The
+.Cm vlandev
+and
+.Cm vlan
+must both be set at the same time. If the vlan interface already has
+a physical interface associated with it, this command will fail. To
+change the association to another physical interface, the existing
+association must be cleared first.
+.Pp
+Note: if the
+.Ar link0
+flag is set on the vlan interface, the vlan pseudo
+interface's behavior changes: the
+.Ar link0
+tells the vlan interface that the
+parent interface supports insertion and extraction of vlan tags on its
+own (usually in firmware) and that it should pass packets to and from
+the parent unaltered.
+.It Fl vlandev Ar iface
+If the driver is a vlan pseudo device, disassociate the physical interface
+.Ar iface
+from it. This breaks the link between the vlan interface and its parent,
+clears its vlan tag, flags and its link address and shuts the interface down.
 .It Cm metric Ar n
 Set the routing metric of the interface to
 .Ar n ,

@@ -31,7 +31,7 @@
  *
  * so there!
  *
- * $Id: ifconfig.h,v 1.2 1997/05/10 14:47:35 peter Exp $
+ * $Id: ifconfig.h,v 1.3 1997/05/10 17:14:53 peter Exp $
  */
 
 extern struct ifreq ifr;
@@ -44,3 +44,8 @@ extern void setmedia(const char *, int, int, const struct afswtch *rafp);
 extern void setmediaopt(const char *, int, int, const struct afswtch *rafp);
 extern void unsetmediaopt(const char *, int, int, const struct afswtch *rafp);
 extern void media_status(int s, struct rt_addrinfo *);
+
+extern void setvlantag(const char *, int, int, const struct afswtch *rafp);
+extern void setvlandev(const char *, int, int, const struct afswtch *rafp);
+extern void unsetvlandev(const char *, int, int, const struct afswtch *rafp);
+extern void vlan_status(int s, struct rt_addrinfo *);

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.37 1998/07/06 19:54:39 bde Exp $";
+	"$Id: ifconfig.c,v 1.38 1998/08/07 06:36:53 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -166,6 +166,11 @@ struct	cmd {
 	{ "mediaopt",	NEXTARG,	setmediaopt },
 	{ "-mediaopt",	NEXTARG,	unsetmediaopt },
 #endif
+#ifdef USE_VLANS
+	{ "vlan",	NEXTARG,	setvlantag },
+	{ "vlandev",	NEXTARG,	setvlandev },
+	{ "-vlandev",	NEXTARG,	unsetvlandev },
+#endif
 	{ "normal",	-IFF_LINK0,	setifflags },
 	{ "compress",	IFF_LINK0,	setifflags },
 	{ "noicmp",	IFF_LINK1,	setifflags },
@@ -216,6 +221,9 @@ struct	afswtch {
 #if 0	/* XXX conflicts with the media command */
 #ifdef USE_IF_MEDIA
 	{ "media", AF_INET, media_status, NULL },	/* XXX not real!! */
+#endif
+#ifdef USE_VLANS
+	{ "vlan", AF_INET, media_status, NULL },	/* XXX not real!! */
 #endif
 #endif
 	{ 0,	0,	    0,		0 }
@@ -632,6 +640,11 @@ setifdstaddr(addr, param, s, afp)
 	(*afp->af_getaddr)(addr, DSTADDR);
 }
 
+/*
+ * Note: doing an SIOCIGIFFLAGS scribbles on the union portion
+ * of the ifreq structure, which may confuse other parts of ifconfig.
+ * Make a private copy so we can avoid that.
+ */
 void
 setifflags(vname, value, s, afp)
 	const char *vname;
@@ -639,20 +652,24 @@ setifflags(vname, value, s, afp)
 	int s;
 	const struct afswtch *afp;
 {
- 	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
+	struct ifreq		my_ifr;
+
+	bcopy((char *)&ifr, (char *)&my_ifr, sizeof(struct ifreq));
+
+ 	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&my_ifr) < 0) {
  		Perror("ioctl (SIOCGIFFLAGS)");
  		exit(1);
  	}
-	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
- 	flags = ifr.ifr_flags;
+	strncpy(my_ifr.ifr_name, name, sizeof (my_ifr.ifr_name));
+ 	flags = my_ifr.ifr_flags;
 
 	if (value < 0) {
 		value = -value;
 		flags &= ~value;
 	} else
 		flags |= value;
-	ifr.ifr_flags = flags;
-	if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) < 0)
+	my_ifr.ifr_flags = flags;
+	if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&my_ifr) < 0)
 		Perror(vname);
 }
 
@@ -753,6 +770,9 @@ status(afp, addrcount, sdl, ifm, ifam)
 #ifdef USE_IF_MEDIA
 			    afp->af_status != media_status &&
 #endif
+#ifdef USE_VLANS
+			    afp->af_status != vlan_status &&
+#endif
 			    afp->af_status != ether_status) {
 				p = afp;
 				(*p->af_status)(s, &info);
@@ -761,6 +781,9 @@ status(afp, addrcount, sdl, ifm, ifam)
 			if (p->af_af == info.rti_info[RTAX_IFA]->sa_family &&
 #ifdef USE_IF_MEDIA
 			    p->af_status != media_status &&
+#endif
+#ifdef USE_VLANS
+			    p->af_status != vlan_status &&
 #endif
 			    p->af_status != ether_status) 
 				(*p->af_status)(s, &info);
@@ -774,8 +797,12 @@ status(afp, addrcount, sdl, ifm, ifam)
 	if (allfamilies || afp->af_status == media_status)
 		media_status(s, NULL);
 #endif
+#ifdef USE_VLANS
+	if (allfamilies || afp->af_status == vlan_status)
+		vlan_status(s, NULL);
+#endif
 	if (!allfamilies && !p && afp->af_status != media_status &&
-	    afp->af_status != ether_status)
+	    afp->af_status != ether_status && afp->af_status != vlan_status)
 		warnx("%s has no %s interface address!", name, afp->af_name);
 
 	close(s);
