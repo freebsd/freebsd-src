@@ -558,7 +558,7 @@ ieee80211_watchdog(struct ifnet *ifp)
 	struct ieee80211com *ic = (void *)ifp;
 
 	if (ic->ic_mgt_timer && --ic->ic_mgt_timer == 0)
-		ieee80211_new_state(ifp, IEEE80211_S_SCAN, -1);
+		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 	if (ic->ic_inact_timer && --ic->ic_inact_timer == 0)
 		ieee80211_timeout_nodes(ic);
 

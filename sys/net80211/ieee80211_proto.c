@@ -78,6 +78,15 @@ const char *ieee80211_mgt_subtype_name[] = {
 	"beacon",	"atim",		"disassoc",	"auth",
 	"deauth",	"reserved#13",	"reserved#14",	"reserved#15"
 };
+const char *ieee80211_state_name[IEEE80211_S_MAX] = {
+	"INIT",		/* IEEE80211_S_INIT */
+	"SCAN",		/* IEEE80211_S_SCAN */
+	"AUTH",		/* IEEE80211_S_AUTH */
+	"ASSOC",	/* IEEE80211_S_ASSOC */
+	"RUN"		/* IEEE80211_S_RUN */
+};
+
+static int ieee80211_newstate(struct ieee80211com *, enum ieee80211_state, int);
 
 void
 ieee80211_proto_attach(struct ifnet *ifp)
@@ -95,6 +104,9 @@ ieee80211_proto_attach(struct ifnet *ifp)
 	ic->ic_fixed_rate = -1;			/* no fixed rate */
 
 	mtx_init(&ic->ic_mgtq.ifq_mtx, ifp->if_name, "mgmt send q", MTX_DEF);
+
+	/* protocol state change handler */
+	ic->ic_newstate = ieee80211_newstate;
 
 	/* initialize management frame handlers */
 	ic->ic_recv_mgmt = ieee80211_recv_mgmt;
@@ -275,30 +287,17 @@ ieee80211_fix_rate(struct ieee80211com *ic, struct ieee80211_node *ni, int flags
 #undef RV
 }
 
-int
-ieee80211_new_state(struct ifnet *ifp, enum ieee80211_state nstate, int mgt)
+static int
+ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int mgt)
 {
-	struct ieee80211com *ic = (void *)ifp;
+	struct ifnet *ifp = &ic->ic_if;
 	struct ieee80211_node *ni;
-	int error, ostate;
-#ifdef IEEE80211_DEBUG
-	static const char *stname[] = 
-	    { "INIT", "SCAN", "AUTH", "ASSOC", "RUN" };
-#endif
+	enum ieee80211_state ostate;
 
 	ostate = ic->ic_state;
 	IEEE80211_DPRINTF(("%s: %s -> %s\n", __func__,
-		stname[ostate], stname[nstate]));
-	if (ic->ic_newstate) {
-		error = (*ic->ic_newstate)(ic->ic_softc, nstate);
-		if (error == EINPROGRESS)
-			return 0;
-		if (error != 0)
-			return error;
-	}
-
-	/* state transition */
-	ic->ic_state = nstate;
+		ieee80211_state_name[ostate], ieee80211_state_name[nstate]));
+	ic->ic_state = nstate;			/* state transition */
 	ni = ic->ic_bss;			/* NB: no reference held */
 	switch (nstate) {
 	case IEEE80211_S_INIT:
@@ -378,7 +377,7 @@ ieee80211_new_state(struct ifnet *ifp, enum ieee80211_state nstate, int mgt)
 				 */
 				ieee80211_create_ibss(ic, ic->ic_des_chan);
 			} else {
-				ieee80211_begin_scan(ifp, ni);
+				ieee80211_begin_scan(ifp);
 			}
 			break;
 		case IEEE80211_S_SCAN:
@@ -406,7 +405,7 @@ ieee80211_new_state(struct ifnet *ifp, enum ieee80211_state nstate, int mgt)
 				ni->ni_fails++;
 				ieee80211_unref_node(&ni);
 			}
-			ieee80211_begin_scan(ifp, ic->ic_bss);
+			ieee80211_begin_scan(ifp);
 			break;
 		}
 		break;

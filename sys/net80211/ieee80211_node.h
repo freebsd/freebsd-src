@@ -123,8 +123,7 @@ struct ieee80211com;
 extern	void ieee80211_node_attach(struct ifnet *);
 extern	void ieee80211_node_detach(struct ifnet *);
 
-extern	void ieee80211_reset_scan(struct ifnet *);
-extern	void ieee80211_begin_scan(struct ifnet *, struct ieee80211_node *);
+extern	void ieee80211_begin_scan(struct ifnet *);
 extern	void ieee80211_next_scan(struct ifnet *);
 extern	void ieee80211_end_scan(struct ifnet *);
 extern	struct ieee80211_node *ieee80211_alloc_node(struct ieee80211com *,
