@@ -201,6 +201,9 @@ ensure octal interpretation.
 .Sy Name	Type	Notes	Description
 .It minpasswordlen	number	6	The minimum length a local password may be.
 .\" .It approve	program 	Program to approve login.
+.It mixpasswordcase	bool	true	Whether
+.Xr passwd 1
+will warn the user if an all lower case password is entered.
 .It copyright	file		File containing additional copyright information
 .\".It widepasswords	bool	false	Use the wide password format. The wide password
 .\" format allows up to 128 significant characters in the password.
