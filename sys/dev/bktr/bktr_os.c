@@ -50,7 +50,6 @@
 
 #ifdef __FreeBSD__
 #include "bktr.h"
-#include "opt_devfs.h"
 #endif /* __FreeBSD__ */
 
 #include "opt_bktr.h"		/* include any kernel config options */

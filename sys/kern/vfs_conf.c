@@ -43,7 +43,6 @@
  */
 
 #include "opt_rootdevname.h"
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -61,11 +60,6 @@
 #include "opt_ddb.h"
 #ifdef DDB
 #include <ddb/ddb.h>
-#endif
-
-#ifdef DEVFS
-#include <sys/eventhandler.h>
-#include <fs/devfs/devfs.h>
 #endif
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
@@ -326,7 +320,6 @@ gets(char *cp)
  */
 dev_t
 getdiskbyname(char *name) {
-#ifdef DEVFS
 	char *cp;
 	dev_t dev;
 
@@ -335,58 +328,8 @@ getdiskbyname(char *name) {
 		cp += 5;
 
 	dev = NODEV;
-	EVENTHANDLER_INVOKE(devfs_clone, cp, strlen(cp), &dev);
+	EVENTHANDLER_INVOKE(dev_clone, cp, strlen(cp), &dev);
 	return (dev);
-
-#else
-	char *cp;
-	int cd, unit, slice, part;
-	dev_t dev;
-
-	slice = 0;
-	part = 0;
-	cp = rindex(name, '/');
-	if (cp != NULL) {
-		name = cp + 1;
-	}
-	cp = name;
-	while (cp != '\0' && (*cp < '0' || *cp > '9'))
-		cp++;
-	if (cp == name) {
-		printf("missing device name\n");
-		return (NODEV);
-	}
-	if (*cp == '\0') {
-		printf("missing unit number\n");
-		return (NODEV);
-	}
-	unit = *cp - '0';
-	*cp++ = '\0';
-	for (cd = 0; cd < NUMCDEVSW; cd++) {
-		dev = makedev(cd, 0);
-		if (devsw(dev) != NULL &&
-		    strcmp(devsw(dev)->d_name, name) == 0)
-			goto gotit;
-	}
-	printf("no such device '%s'\n", name);
-	return (NODEV);
-gotit:
-	while (*cp >= '0' && *cp <= '9')
-		unit += 10 * unit + *cp++ - '0';
-	if (*cp == 's' && cp[1] >= '0' && cp[1] <= '9') {
-		slice = cp[1] - '0' + 1;
-		cp += 2;
-	}
-	if (*cp >= 'a' && *cp <= 'h') {
-		part = *cp - 'a';
-		cp++;
-	}
-	if (*cp != '\0') {
-		printf("junk after name\n");
-		return (NODEV);
-	}
-	return (makedev(cd, dkmakeminor(unit, slice, part)));
-#endif
 }
 
 /*

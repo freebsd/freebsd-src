@@ -39,7 +39,6 @@
  * (Actually two drivers, requiring two entries in 'cdevsw')
  */
 #include "opt_compat.h"
-#include "opt_devfs.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -54,11 +53,6 @@
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
 #include <sys/malloc.h>
-
-#ifdef DEVFS
-#include <sys/eventhandler.h>
-#include <fs/devfs/devfs.h>
-#endif
 
 MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 
@@ -177,23 +171,8 @@ ptsopen(dev, flag, devtype, p)
 	int error;
 	struct pt_ioctl *pti;
 
-#ifndef DEVFS
-	{
-	int minr = lminor(dev);
-	/*
-	 * If we openned this device, ensure we have the
-	 * next one too, so people can open it.
-	 */
-	if (minr < 255) {
-		dev_t nextdev = makedev(major(dev), minr + 1);
-		if (!nextdev->si_drv1) {
-			ptyinit(minr + 1);
-		}
-	}
 	if (!dev->si_drv1)
 		ptyinit(minor(dev));
-	}
-#endif
 	if (!dev->si_drv1)
 		return(ENXIO);	
 	pti = dev->si_drv1;
@@ -355,10 +334,8 @@ ptcopen(dev, flag, devtype, p)
 	register struct tty *tp;
 	struct pt_ioctl *pti;
 
-#ifndef DEVFS
 	if (!dev->si_drv1)
 		ptyinit(minor(dev));
-#endif
 	if (!dev->si_drv1)
 		return(ENXIO);	
 	tp = dev->si_tty;
@@ -826,7 +803,6 @@ ptyioctl(dev, cmd, data, flag, p)
 
 static void ptc_drvinit __P((void *unused));
 
-#ifdef DEVFS
 static void pty_clone __P((void *arg, char *name, int namelen, dev_t *dev));
 
 static void
@@ -865,20 +841,13 @@ pty_clone(arg, name, namelen, dev)
 	return;
 }
 
-
-#endif
-
 static void
 ptc_drvinit(unused)
 	void *unused;
 {
-#ifdef DEVFS
-	EVENTHANDLER_REGISTER(devfs_clone, pty_clone, 0, 1000);
-#else
+	EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
 	cdevsw_add(&pts_cdevsw);
 	cdevsw_add(&ptc_cdevsw);
-	ptyinit(0);
-#endif
 }
 
 SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR_C,ptc_drvinit,NULL)

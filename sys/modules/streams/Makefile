@@ -7,7 +7,7 @@ CFLAGS+= -DDEBUG_SVR4
 
 .PATH:  ${.CURDIR}/../../dev/streams
 KMOD=   streams
-SRCS=   streams.c opt_streams.h opt_devfs.h
+SRCS=   streams.c opt_streams.h
 
 NOMAN=
 

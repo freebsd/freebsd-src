@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_devfs.h"
-
 #include <dev/sound/midi/midi.h>
 #include <dev/sound/chip.h>
 #include <dev/sound/pci/csareg.h>
