@@ -1,0 +1,287 @@
+.\" ++Copyright++ 1986, 1988
+.\" -
+.\" Copyright (c) 1986, 1988
+.\"    The Regents of the University of California.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" -
+.\" Portions Copyright (c) 1993 by Digital Equipment Corporation.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies, and that
+.\" the name of Digital Equipment Corporation not be used in advertising or
+.\" publicity pertaining to distribution of the document or software without
+.\" specific, written prior permission.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+.\" WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+.\" CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\" -
+.\" --Copyright--
+.\"
+.\"	@(#)ack.me
+.\"
+.sx 0
+.bp
+.ce
+.b "ACKNOWLEDGEMENTS \(em 4.9.3"
+.pp
+The \fI<bind-workers@vix.com>\fP mailing list was once again of great help;
+this release would not be nearly as ready for prime time if not for their
+efforts.  Special commendations are owed to Robert Elz, Don "Truck" Lewis,
+Bob Halley, Mark Andrews, Berthold Paffrath, Ruediger Volk, and Peter Koch.
+.pp
+Digital Equipment Corporation, Hewlett Packard, Silicon Graphics, and SunSoft
+all made hardware available for integration testing; this made the release
+far more solid than it would otherwise have been.  More hardware loans are
+welcome \(em if you are a system vendor and you would like \s-2BIND\s+2 to
+run ``out of the box'' on your platform and are willing to lend some rusty
+old hardware for the purpose, please contact me (\fI<paul@vix.org>\fP) to
+make the arrangements.
+.pp
+Special thanks to the Internet Software Consortium for funding this work.
+Contact \fI<isc-info@isc.org>\fP if your organization would like to
+participate in funding future releases of \s-2BIND\s+2 and other freely
+redistributable software packages that are in wide use on the Internet.
+.sp 2
+.ce
+.b "ACKNOWLEDGEMENTS \(em through 4.9"
+.pp
+The alpha-test group was extremely helpful in furnishing improvements,
+finding and repairing bugs, and being patient.  I would like to express
+special thanks to Brian Reid of Digital Equipment corporation for funding
+this work.  Robert Elz, Alan Barrett, Paul Albitz, Bryan Beecher, Andrew
+Partan, Andy Cherenson, Tom Limoncelli, Berthold Paffrath, Fuat Baran, Anant
+Kumar, Art Harkin, Win Treese, Don Lewis, Christophe Wolfhugel, and a cast
+of dozens all helped out above and beyond the call of duty.  Special thanks
+to Phil Almquist, who got the project started and contributed a lot of the
+code and fixed several of the worst bugs.
+.sp 2
+.ce
+.b "ACKNOWLEDGEMENTS \(em through 4.8.3"
+.pp
+Many thanks to the users at U. C. Berkeley for falling into many of the holes
+involved with integrating BIND into the system so that others would be
+spared the trauma.  I would also like to extend gratitude to Jim McGinness
+and Digital Equipment Corporation for permitting me to spend most of my time
+on this project.
+.pp
+Ralph Campbell, Doug Kingston, Craig Partridge, Smoot Carl-Mitchell, Mike
+Muuss and everyone else on the DARPA Internet who has contributed to the
+development of BIND.  To the members of the original BIND project, Douglas
+Terry, Mark Painter, David Riggle and Songnian Zhou.
+.pp
+Anne Hughes, Jim Bloom and Kirk McKusick and the many others who have
+reviewed this paper giving considerable advice.
+.pp
+This work was sponsored by the Defense Advanced Research Projects Agency
+(DoD), Arpa Order No. 4871 monitored by the Naval Electronics Systems
+Command under contract No. N00039-84-C-0089.  The views and conclusions
+contained in this document are those of the authors and should not be
+interpreted as representing official policies, either expressed or implied,
+of the Defense Research Projects Agency, of the US Government, or of Digital
+Equipment Corporation.
+.bp
+.ba 0
+.in 0
+.sp 2
+.ce
+.b REFERENCES
+.sp
+.nr ii 1i
+.ip [Birrell]
+Birrell, A. D.,
+Levin, R.,
+Needham, R. M.,
+and Schroeder, M.D.,
+.q "Grapevine: An Exercise in Distributed Computing."
+In
+.ul
+Comm. A.C.M. 25,
+4:260-274
+April 1982.
+.ip [RFC819]
+Su, Z.
+Postel, J.,
+.q "The Domain Naming Convention for Internet User Applications."
+.ul
+Internet Request For Comment 819
+Network Information Center,
+SRI International,
+Menlo Park, California.
+August 1982.
+.ip [RFC974]
+Partridge, C.,
+.q "Mail Routing and The Domain System."
+.ul
+Internet Request For Comment 974
+Network Information Center,
+SRI International,
+Menlo Park, California.
+February 1986.
+.ip [RFC1032]
+Stahl, M.,
+.q "Domain Administrators Guide"
+.ul
+Internet Request For Comment 1032
+Network Information Center,
+SRI International,
+Menlo Park, California.
+November 1987.
+.ip [RFC1033]
+Lottor, M.,
+.q "Domain Administrators Guide"
+.ul
+Internet Request For Comment 1033
+Network Information Center,
+SRI International,
+Menlo Park, California.
+November 1987.
+.ip [RFC1034]
+Mockapetris, P.,
+.q "Domain Names - Concept and Facilities."
+.ul
+Internet Request For Comment 1034
+Network Information Center,
+SRI International,
+Menlo Park, California.
+November 1987.
+.ip [RFC1035]
+Mockapetris, P.,
+.q "Domain Names - Implementation and Specification."
+.ul
+Internet Request For Comment 1035
+Network Information Center,
+SRI International,
+Menlo Park, California.
+November 1987.
+.ip [RFC1101]
+Mockapetris, P.,
+.q "DNS Encoding of Network Names and Other Types."
+.ul
+Internet Request For Comment 1101
+Network Information Center,
+SRI International,
+Menlo Park, California.
+April 1989.
+.ip [RFC1123]
+R. Braden, Editor,
+.q "Requirements for Internet Hosts -- Application and Support"
+.ul
+Internet Request For Comment 1123
+Network Information Center,
+SRI International,
+Menlo Park, California.
+October 1989.
+.ip [RFC1183]
+Everhart, C.,
+Mamakos, L.,
+Ullmann, R.,
+and
+Mockapetris, P.,
+.q "New DNS RR Definitions"
+.ul
+Internet Request For Comment 1183
+Network Information Center,
+SRI International,
+Menlo Park, California.
+October 1990.
+.ip [RFC1327]
+Hardcastle-Kille, S.,
+.q "Mapping between X.400(1988) / ISO 10021 and RFC 822"
+.ul
+Internet Request For Comment 1327
+Network Information Center,
+SRI International,
+Menlo Park, California.
+May 1992.
+.ip [RFC1664]
+Allocchio, C.,
+Bonito, A.,
+Cole, B.,
+Giordano, S.,
+Hagens, R.,
+.q "Using the Internet DNS to Distribute RFC1327 Mail Address Mapping Tables"
+.ul
+Internet Request For Comment 1664
+Network Information Center,
+SRI International,
+Menlo Park, California.
+August 1994.
+.ip [RFC1713]
+Romao, A.,
+.q "Tools for DNS debugging"
+.ul
+Internet Request For Comment 1713, also FYI27
+Network Information Center,
+SRI International,
+Menlo Park, California.
+November 1994.
+.ip [Terry]
+Terry, D. B.,
+Painter, M.,
+Riggle, D. W.,
+and
+Zhou, S.,
+.ul
+The Berkeley Internet Name Domain Server.
+Proceedings USENIX Summer Conference,
+Salt Lake City, Utah.
+June 1984, pages 23-31.
+.ip [Zhou]
+Zhou, S.,
+.ul
+The Design and Implementation of the Berkeley Internet Name Domain (BIND) Servers.
+UCB/CSD 84/177.
+University of California, Berkeley,
+Computer Science Division.
+May 1984.
+.ip [Mockapetris]
+Mockapetris, P.,
+Dunlap, K,
+.ul
+Development of the Domain Name System
+ACM Computer Communications Review 18, 4:123-133.
+Proceedings ACM SIGCOMM '88  Symposium,
+August 1988.
+.ul
+.ip [Liu]
+Liu, C.,
+Albitz, P.,
+.ul
+DNS and BIND
+O'Reilly & Associates, Sebastopol, CA, 
+502 pages, ISBN 0-937175-82-X
+1992

@@ -1,0 +1,102 @@
+.\" ++Copyright++ 1986, 1988
+.\" -
+.\" Copyright (c) 1986, 1988
+.\"    The Regents of the University of California.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" -
+.\" Portions Copyright (c) 1993 by Digital Equipment Corporation.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies, and that
+.\" the name of Digital Equipment Corporation not be used in advertising or
+.\" publicity pertaining to distribution of the document or software without
+.\" specific, written prior permission.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+.\" WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+.\" CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\" -
+.\" --Copyright--
+.\"
+.\"	@(#)root.cache	6.4 (Berkeley) 4/29/90
+.\"
+.ne 38v
+.sh 3 "root.cache"
+.(b L
+
+;
+;       This file holds the information on root name servers needed to
+;       initialize cache of Internet domain name servers 
+;       (e.g. reference this file in the "cache  .  <file>"
+;       configuration file of BIND domain name servers).
+;
+;       This file is made available by InterNIC registration services
+;       under anonymous FTP as
+;           file                /domain/named.root
+;           on server           FTP.RS.INTERNIC.NET
+;       -OR- under Gopher at    RS.INTERNIC.NET
+;           under menu          InterNIC Registration Services (NSI)
+;              submenu          InterNIC Registration Archives
+;           file                named.root
+;
+;       last update:    Oct 5, 1994
+;       related version of root zone:   1994100500
+;
+.TS
+l	l	l	l	l.	
+\fB.\fP	604800	IN	NS	NS\fB.\fPINTERNIC\fB.\fPNET\fB.\fP
+NS\fB.\fPINTERNIC\fB.\fPNET\fB.\fP	604800	IN	A	198\fB.\fP41\fB.\fP0\fB.\fP4
+\fB.\fP	604800	IN	NS	NS1\fB.\fPISI\fB.\fPEDU\fB.\fP	
+NS1\fB.\fPISI\fB.\fPEDU\fB.\fP	604800	IN	A	128\fB.\fP9\fB.\fP0\fB.\fP107
+\fB.\fP	604800	IN	NS	C\fB.\fPPSI\fB.\fPNET\fB.\fP
+C\fB.\fPPSI\fB.\fPNET\fB.\fP	604800	IN	A	192\fB.\fP33\fB.\fP4\fB.\fP12
+\fB.\fP	604800	IN	NS	TERP\fB.\fPUMD\fB.\fPEDU\fB.\fP
+TERP\fB.\fPUMD\fB.\fPEDU\fB.\fP	604800	IN	A	128\fB.\fP8\fB.\fP10\fB.\fP90
+\fB.\fP	604800	IN	NS	NS\fB.\fPNASA\fB.\fPGOV\fB.\fP
+NS\fB.\fPNASA\fB.\fPGOV\fB.\fP	604800	IN	A	128\fB.\fP102\fB.\fP16\fB.\fP10
+	604800	IN	A	192\fB.\fP52\fB.\fP195\fB.\fP10
+\fB.\fP	604800	IN	NS	NS\fB.\fPISC\fB.\fPORG\fB.\fP
+NS\fB.\fPISC\fB.\fPORG\fB.\fP	604800	IN	A	192\fB.\fP5\fB.\fP5\fB.\fP241
+\fB.\fP	604800	IN	NS	NS\fB.\fPNIC\fB.\fPDDN\fB.\fPMIL\fB.\fP
+NS\fB.\fPNIC\fB.\fPDDN\fB.\fPMIL\fB.\fP	604800	IN	A	192\fB.\fP112\fB.\fP36\fB.\fP4
+\fB.\fP	604800	IN	NS	AOS\fB.\fPARL\fB.\fPARMY\fB.\fPMIL\fB.\fP
+AOS\fB.\fPARL\fB.\fPARMY\fB.\fPMIL\fB.\fP	604800	IN	A	128\fB.\fP63\fB.\fP4\fB.\fP82
+	604800	IN	A	192\fB.\fP5\fB.\fP25\fB.\fP82
+\fB.\fP	604800	IN	NS	NIC\fB.\fPNORDU\fB.\fPNET\fB.\fP
+NIC\fB.\fPNORDU\fB.\fPNET\fB.\fP	604800	IN	A	192\fB.\fP36\fB.\fP148\fB.\fP17
+.TE
+; End of File
+.)b
