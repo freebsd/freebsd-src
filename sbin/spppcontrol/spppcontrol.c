@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: spppcontrol.c,v 1.4 1998/08/03 06:24:59 charnier Exp $";
+	"$Id: spppcontrol.c,v 1.5 1999/02/23 21:47:05 gj Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -231,7 +231,7 @@ proto_name(u_short proto)
 const char *
 authflags(u_short flags)
 {
-	static char buf[20];
+	static char buf[30];
 	buf[0] = '\0';
 	if (flags & AUTHFLAG_NOCALLOUT)
 		strcat(buf, " callin");
