@@ -34,6 +34,7 @@
 #include <sys/conf.h>
 #include <sys/signalvar.h>
 #include <sys/proc.h>
+#include <sys/random.h>
 #include <sys/tty.h>
 #include <sys/malloc.h>
 
@@ -616,6 +617,9 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
     case OLD_CONS_MOUSECTL:
 
 	mouse = (mouse_info_t*)data;
+
+	random_harvest(mouse, sizeof(mouse_info_t), 2, 0, RANDOM_MOUSE);
+
 	if (cmd == OLD_CONS_MOUSECTL) {
 	    static u_char swapb[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 	    old_mouse_info_t *old_mouse = (old_mouse_info_t *)data;
