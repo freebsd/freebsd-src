@@ -13,4 +13,4 @@ If you're web-connected, you can even mosey on over to http://www.ora.com/
 for an online order form.
 
 Other Perl books from various publishers and authors 
-can be found listed in L<perlfaq3>.
+can be found listed in L<perlfaq2>.

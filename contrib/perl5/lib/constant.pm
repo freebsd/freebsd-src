@@ -1,6 +1,107 @@
 package constant;
 
-$VERSION = '1.00';
+use strict;
+use 5.005_64;
+use warnings::register;
+
+our($VERSION, %declared);
+$VERSION = '1.02';
+
+#=======================================================================
+
+# Some names are evil choices.
+my %keywords = map +($_, 1), qw{ BEGIN INIT CHECK END DESTROY AUTOLOAD };
+
+my %forced_into_main = map +($_, 1),
+    qw{ STDIN STDOUT STDERR ARGV ARGVOUT ENV INC SIG };
+
+my %forbidden = (%keywords, %forced_into_main);
+
+#=======================================================================
+# import() - import symbols into user's namespace
+#
+# What we actually do is define a function in the caller's namespace
+# which returns the value. The function we create will normally
+# be inlined as a constant, thereby avoiding further sub calling 
+# overhead.
+#=======================================================================
+sub import {
+    my $class = shift;
+    return unless @_;			# Ignore 'use constant;'
+    my $name = shift;
+    unless (defined $name) {
+        require Carp;
+	Carp::croak("Can't use undef as constant name");
+    }
+    my $pkg = caller;
+
+    # Normal constant name
+    if ($name =~ /^_?[^\W_0-9]\w*\z/ and !$forbidden{$name}) {
+        # Everything is okay
+
+    # Name forced into main, but we're not in main. Fatal.
+    } elsif ($forced_into_main{$name} and $pkg ne 'main') {
+	require Carp;
+	Carp::croak("Constant name '$name' is forced into main::");
+
+    # Starts with double underscore. Fatal.
+    } elsif ($name =~ /^__/) {
+	require Carp;
+	Carp::croak("Constant name '$name' begins with '__'");
+
+    # Maybe the name is tolerable
+    } elsif ($name =~ /^[A-Za-z_]\w*\z/) {
+	# Then we'll warn only if you've asked for warnings
+	if (warnings::enabled()) {
+	    if ($keywords{$name}) {
+		warnings::warn("Constant name '$name' is a Perl keyword");
+	    } elsif ($forced_into_main{$name}) {
+		warnings::warn("Constant name '$name' is " .
+		    "forced into package main::");
+	    } else {
+		# Catch-all - what did I miss? If you get this error,
+		# please let me know what your constant's name was.
+		# Write to <rootbeer@redcat.com>. Thanks!
+		warnings::warn("Constant name '$name' has unknown problems");
+	    }
+	}
+
+    # Looks like a boolean
+    # 		use constant FRED == fred;
+    } elsif ($name =~ /^[01]?\z/) {
+        require Carp;
+	if (@_) {
+	    Carp::croak("Constant name '$name' is invalid");
+	} else {
+	    Carp::croak("Constant name looks like boolean value");
+	}
+
+    } else {
+	# Must have bad characters
+        require Carp;
+	Carp::croak("Constant name '$name' has invalid characters");
+    }
+
+    {
+	no strict 'refs';
+	my $full_name = "${pkg}::$name";
+	$declared{$full_name}++;
+	if (@_ == 1) {
+	    my $scalar = $_[0];
+	    *$full_name = sub () { $scalar };
+	} elsif (@_) {
+	    my @list = @_;
+	    *$full_name = sub () { @list };
+	} else {
+	    *$full_name = sub () { };
+	}
+    }
+
+}
+
+1;
+
+__END__
 
 =head1 NAME
 
@@ -20,7 +121,7 @@ constant - Perl pragma to declare constants
 
     print "This line does nothing"		unless DEBUGGING;
 
-    # references can be declared constant
+    # references can be constants
     use constant CHASH		=> { foo => 42 };
     use constant CARRAY		=> [ 1,2,3,4 ];
     use constant CPSEUDOHASH	=> [ { foo => 1}, 42 ];
@@ -30,7 +131,7 @@ constant - Perl pragma to declare constants
     print CARRAY->[$i];
     print CPSEUDOHASH->{foo};
     print CCODE->("me");
-    print CHASH->[10];				# compile-time error
+    print CHASH->[10];			# compile-time error
 
 =head1 DESCRIPTION
 
@@ -63,7 +164,10 @@ List constants are returned as lists, not as arrays.
 The use of all caps for constant names is merely a convention,
 although it is recommended in order to make constants stand out
 and to help avoid collisions with other barewords, keywords, and
-subroutine names. Constant names must begin with a letter.
+subroutine names. Constant names must begin with a letter or
+underscore. Names beginning with a double underscore are reserved. Some
+poor choices for names will generate warnings, if warnings are enabled at
+compile time.
 
 Constant symbols are package scoped (rather than block scoped, as
 C<use strict> is). That is, you can refer to a constant from package
@@ -98,7 +202,24 @@ constants at compile time, allowing for way cool stuff like this.
     print   E2BIG, "\n";	# something like "Arg list too long"
     print 0+E2BIG, "\n";	# "7"
 
-Errors in dereferencing constant references are trapped at compile-time.
+Dereferencing constant references incorrectly (such as using an array
+subscript on a constant hash reference, or vice versa) will be trapped at
+compile time.
+
+In the rare case in which you need to discover at run time whether a
+particular constant has been declared via this module, you may use
+this function to examine the hash C<%constant::declared>. If the given
+constant name does not include a package name, the current package is
+used.
+
+    sub declared ($) {
+	use constant 1.01;		# don't omit this!
+	my $name = shift;
+	$name =~ s/^::/main::/;
+	my $pkg = caller;
+	my $full_name = $name =~ /::/ ? $name : "${pkg}::$name";
+	$constant::declared{$full_name};
+    }
 
 =head1 TECHNICAL NOTE
 
@@ -115,7 +236,19 @@ In the current version of Perl, list constants are not inlined
 and some symbols may be redefined without generating a warning.
 
 It is not possible to have a subroutine or keyword with the same
-name as a constant. This is probably a Good Thing.
+name as a constant in the same package. This is probably a Good Thing.
+
+A constant with a name in the list C<STDIN STDOUT STDERR ARGV ARGVOUT
+ENV INC SIG> is not allowed anywhere but in package C<main::>, for
+technical reasons. 
+
+Even though a reference may be declared as a constant, the reference may
+point to data which may be changed, as this code shows.
+
+    use constant CARRAY		=> [ 1,2,3,4 ];
+    print CARRAY->[1];
+    CARRAY->[1] = " be changed";
+    print CARRAY->[1];
 
 Unlike constants in some languages, these cannot be overridden
 on the command line or via environment variables.
@@ -126,61 +259,20 @@ For example, you can't say C<$hash{CONSTANT}> because C<CONSTANT> will
 be interpreted as a string.  Use C<$hash{CONSTANT()}> or
 C<$hash{+CONSTANT}> to prevent the bareword quoting mechanism from
 kicking in.  Similarly, since the C<=E<gt>> operator quotes a bareword
-immediately to its left you have to say C<CONSTANT() =E<gt> 'value'>
-instead of C<CONSTANT =E<gt> 'value'>.
+immediately to its left, you have to say C<CONSTANT() =E<gt> 'value'>
+(or simply use a comma in place of the big arrow) instead of
+C<CONSTANT =E<gt> 'value'>.
 
 =head1 AUTHOR
 
-Tom Phoenix, E<lt>F<rootbeer@teleport.com>E<gt>, with help from
+Tom Phoenix, E<lt>F<rootbeer@redcat.com>E<gt>, with help from
 many other folks.
 
 =head1 COPYRIGHT
 
-Copyright (C) 1997, Tom Phoenix
+Copyright (C) 1997, 1999 Tom Phoenix
 
 This module is free software; you can redistribute it or modify it
 under the same terms as Perl itself.
 
 =cut
-
-use strict;
-use Carp;
-use vars qw($VERSION);
-
-#=======================================================================
-
-# Some of this stuff didn't work in version 5.003, alas.
-require 5.003_96;
-
-#=======================================================================
-# import() - import symbols into user's namespace
-#
-# What we actually do is define a function in the caller's namespace
-# which returns the value. The function we create will normally
-# be inlined as a constant, thereby avoiding further sub calling 
-# overhead.
-#=======================================================================
-sub import {
-    my $class = shift;
-    my $name = shift or return;			# Ignore 'use constant;'
-    croak qq{Can't define "$name" as constant} .
-	    qq{ (name contains invalid characters or is empty)}
-	unless $name =~ /^[^\W_0-9]\w*$/;
-
-    my $pkg = caller;
-    {
-	no strict 'refs';
-	if (@_ == 1) {
-	    my $scalar = $_[0];
-	    *{"${pkg}::$name"} = sub () { $scalar };
-	} elsif (@_) {
-	    my @list = @_;
-	    *{"${pkg}::$name"} = sub () { @list };
-	} else {
-	    *{"${pkg}::$name"} = sub () { };
-	}
-    }
-
-}
-
-1;

@@ -74,10 +74,14 @@ C<IPC::SysV> defines and conditionally exports all the constants
 defined in your system include files which are needed by the SysV
 IPC calls.
 
+=over
+
 =item ftok( PATH, ID )
 
 Return a key based on PATH and ID, which can be used as a key for
 C<msgget>, C<semget> and C<shmget>. See L<ftok>
+
+=back
 
 =head1 SEE ALSO
 

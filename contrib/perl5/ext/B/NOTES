@@ -161,8 +161,8 @@ O module
 	it should return a sub ref (usually a closure) to perform the
 	actual compilation. When O regains control, it ensures that the
 	"-c" option is forced (so that the program being compiled doesn't
-	end up running) and registers an END block to call back the sub ref
+	end up running) and registers a CHECK block to call back the sub ref
 	returned from the backend's compile(). Perl then continues by
 	parsing prog.pl (just as it would with "perl -c prog.pl") and after
-	doing so, assuming there are no parse-time errors, the END block
+	doing so, assuming there are no parse-time errors, the CHECK block
 	of O gets called and the actual backend compilation happens. Phew.

@@ -39,11 +39,11 @@ see the C<tie> entry in perlfunc(1) and perltie(1) for more information.
 
 =head1 AUTHOR
 
-Gurusamy Sarathy        gsar@umich.edu
+Gurusamy Sarathy        gsar@activestate.com
 
 =head1 VERSION
 
-Version 1.2    15 Dec 1996
+Version 1.21    22 Jun 1999
 
 =head1 SEE ALSO
 
@@ -94,7 +94,8 @@ sub EXISTS {
 
 sub FIRSTKEY {
   my $s = shift;
-  my $a = scalar(keys %{$s->[0]}) + scalar(keys %{$s->[1]});
+  keys %{$s->[0]};	# reset iterator
+  keys %{$s->[1]};	# reset iterator
   $s->[2] = 0;
   $s->NEXTKEY;
 }

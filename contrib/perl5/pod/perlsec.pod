@@ -32,17 +32,19 @@ program more secure than the corresponding C program.
 You may not use data derived from outside your program to affect
 something else outside your program--at least, not by accident.  All
 command line arguments, environment variables, locale information (see
-L<perllocale>), results of certain system calls (readdir, readlink,
-the gecos field of getpw* calls), and all file input are marked as
-"tainted".  Tainted data may not be used directly or indirectly in any
-command that invokes a sub-shell, nor in any command that modifies
-files, directories, or processes. (B<Important exception>: If you pass
-a list of arguments to either C<system> or C<exec>, the elements of
-that list are B<NOT> checked for taintedness.) Any variable set
-to a value derived from tainted data will itself be tainted,
-even if it is logically impossible for the tainted data
-to alter the variable.  Because taintedness is associated with each
-scalar value, some elements of an array can be tainted and others not.
+L<perllocale>), results of certain system calls (readdir(),
+readlink(), the variable of shmread(), the messages returned by
+msgrcv(), the password, gcos and shell fields returned by the
+getpwxxx() calls), and all file input are marked as "tainted".
+Tainted data may not be used directly or indirectly in any command
+that invokes a sub-shell, nor in any command that modifies files,
+directories, or processes. (B<Important exception>: If you pass a list
+of arguments to either C<system> or C<exec>, the elements of that list
+are B<NOT> checked for taintedness.) Any variable set to a value
+derived from tainted data will itself be tainted, even if it is
+logically impossible for the tainted data to alter the variable.
+Because taintedness is associated with each scalar value, some
+elements of an array can be tainted and others not.
 
 For example:
 
@@ -84,8 +86,8 @@ For example:
     exec "echo", $arg;		# Secure (doesn't use the shell)
     exec "sh", '-c', $arg;	# Considered secure, alas!
 
-    @files = <*.c>;		# Always insecure (uses csh)
-    @files = glob('*.c');	# Always insecure (uses csh)
+    @files = <*.c>;		# insecure (uses readdir() or similar)
+    @files = glob('*.c');	# insecure (uses readdir() or similar)
 
 If you try to do something insecure, you will get a fatal error saying
 something like "Insecure dependency" or "Insecure $ENV{PATH}".  Note that you
@@ -139,7 +141,7 @@ metacharacters, nor are dot, dash, or at going to mean something special
 to the shell.  Use of C</.+/> would have been insecure in theory because
 it lets everything through, but Perl doesn't check for that.  The lesson
 is that when untainting, you must be exceedingly careful with your patterns.
-Laundering data using regular expression is the I<ONLY> mechanism for
+Laundering data using regular expression is the I<only> mechanism for
 untainting dirty data, unless you use the strategy detailed below to fork
 a child of lesser privilege.
 

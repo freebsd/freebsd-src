@@ -52,7 +52,7 @@ d_csh='undef'
 #
 cc='/bin/cc'
 cccdlflags='-Zpic'
-ccdlflags='-Zlink=dynamic -Wl,-Bexport'
+ccdlflags='-Zlink=dynamic -Wl,-usys_nerr -Wl,-Bexport'
 lddlflags='-Zlink=so'
 
 # Configure sometime finds what it believes to be ndbm header files on the
@@ -62,6 +62,12 @@ lddlflags='-Zlink=so'
 # (or even function :-)
 #
 i_ndbm='undef'
+
+# I have no clude what perl thinks it wants <sys/mode.h> for, but if
+# you include it in a program in PowerMAX without first including
+# <sys/vnode.h> the code don't compile...
+#
+i_sysmode='undef'
 
 # There is a bug in memcmp (which I hope will be fixed soon) which sometimes
 # fails to provide the correct compare status (it is data dependant), so just
@@ -84,6 +90,15 @@ useshrplib='false'
 # abandon all hope that number of links will mean anything.
 #
 dont_use_nlink=define
+
+# Configure comes up with the wrong type for these for some reason.  The
+# pointers shouldn't have const in them. (And it looks like I have to
+# provide netdb_hlen_type as well becuase when I predefine the others it
+# comes up empty :-).
+#
+netdb_host_type='char *'
+netdb_name_type='char *'
+netdb_hlen_type='int'
 
 # Misc other flags that might be able to change, but I know these work right.
 #

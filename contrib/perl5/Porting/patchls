@@ -17,7 +17,7 @@ use Text::Tabs qw(expand unexpand);
 use strict;
 use vars qw($VERSION);
 
-$VERSION = 2.08;
+$VERSION = 2.11;
 
 sub usage {
 die qq{
@@ -35,6 +35,7 @@ die qq{
            (F has \$ appended unless it contains a /).
     -e     Expect patched files to Exist (relative to current directory)
            Will print warnings for files which don't. Also affects -4 option.
+    -      Read patch from STDIN
   other options for special uses:
     -I     just gather and display summary Information about the patches.
     -4     write to stdout the PerForce commands to prepare for patching.
@@ -93,7 +94,7 @@ my %cat_title = (
     'UTIL'	=> 'UTILITIES',
     'OTHER'	=> 'OTHER CHANGES',
     'EXT'	=> 'EXTENSIONS',
-    'UNKNOWN'	=> 'UNKNOWN - NO FILES PATCH',
+    'UNKNOWN'	=> 'UNKNOWN - NO FILES PATCHED',
 );
 
 
@@ -131,7 +132,11 @@ sub get_meta_info {
 # Style 2:
 #	--- perl5.004001/mg.c   Sun Jun 08 12:26:24 1997
 #	+++ perl5.004-bc/mg.c   Sun Jun 08 11:56:08 1997
-#	@@ -656,9 +656,27 @@
+#	@@ .. @@
+# or for deletions
+#	--- perl5.004001/mg.c   Sun Jun 08 12:26:24 1997
+#	+++ /dev/null   Sun Jun 08 11:56:08 1997
+#	@@ ... @@
 # or (rcs, note the different date format)
 #	--- 1.18	1997/05/23 19:22:04
 #	+++ ./pod/perlembed.pod	1997/06/03 21:41:38
@@ -145,13 +150,19 @@ my $in;
 my $ls;
 my $prevline = '';
 my $prevtype = '';
-my (@removed, @added);
+my (%removed, %added);
 my $prologue = 1;	# assume prologue till patch or /^exit\b/ seen
 
 
 foreach my $argv (@ARGV) {
     $in = $argv;
-    unless (open F, "<$in") {
+    if (-d $in) {
+	warn "Ignored directory $in\n";
+	next;
+    }
+    if ($in eq "-") {
+      *F = \*STDIN;
+    } elsif (not open F, "<$in") {
 	warn "Unable to open $in: $!\n";
 	next;
     }
@@ -163,8 +174,8 @@ foreach my $argv (@ARGV) {
 	    # not an interesting patch line
 	    # but possibly meta-information or prologue
 	    if ($prologue) {
-		push @added, $1     if /^touch\s+(\S+)/;
-		push @removed, $1   if /^rm\s+(?:-f)?\s*(\S+)/;
+		$added{$1}   = 1    if /^touch\s+(\S+)/;
+		$removed{$1} = 1    if /^rm\s+(?:-f)?\s*(\S+)/;
 		$prologue = 0       if /^exit\b/;
 	    }
 	    get_meta_info($ls, $_) if $::opt_m;
@@ -182,7 +193,7 @@ foreach my $argv (@ARGV) {
 	# to the file which describes the problem being fixed.
 	if (/^Index:\s+(.*)/) {
 	    my $f;
-	    foreach $f (split(/ /, $1)) { add_file($ls, $f) }
+	    foreach $f (split(/ /, $1)) { add_patched_file($ls, $f) }
 	    next;
 	}
 
@@ -190,7 +201,13 @@ foreach my $argv (@ARGV) {
 	    or	($type eq '+++' and $prevtype eq '---')	# Style 2
 	) {
 	    if (/^[-+*]{3} (\S+)\s*(.*?\d\d:\d\d:\d\d)?/) {	# double check
-		add_file($ls, $1);
+		if ($1 eq "/dev/null") {
+		    $prevline =~ /^[-+*]{3} (\S+)\s*/;
+		    add_deleted_file($ls, $1);
+		}
+		else {
+		    add_patched_file($ls, $1);
+		}
 	    }
 	    else {
 		warn "$in $.: parse error (prev $prevtype, type $type)\n$prevline$_";
@@ -226,7 +243,7 @@ foreach my $argv (@ARGV) {
     }
 
     # if we don't have a title for -m then use the file name
-    $ls->{Title}{$in}=1 if $::opt_m
+    $ls->{Title}{"Untitled: $in"}=1 if $::opt_m
 	and !$ls->{Title} and $ls->{out};
 
     $ls->{category} = $::opt_c
@@ -263,16 +280,18 @@ if ($::opt_f) {		# filter out patches based on -f <regexp>
 
 if ($::opt_4) {
     my $tail = ($::opt_5) ? "|| exit 1" : "";
-    print map { "p4 delete $_$tail\n" } @removed if @removed;
-    print map { "p4 add    $_$tail\n" } @added   if @added;
+    print map { "p4 delete $_$tail\n" } sort keys %removed if %removed;
+    print map { "p4 add    $_$tail\n" } sort keys %added   if %added;
     my @patches = sort grep { $_->{is_in} } @ls;
     my @no_outs = grep { keys %{$_->{out}} == 0 } @patches;
     warn "Warning: Some files contain no patches:",
 	join("\n\t", '', map { $_->{in} } @no_outs), "\n" if @no_outs;
+
     my %patched = map { ($_, 1) } map { keys %{$_->{out}} } @patches;
-    delete @patched{@added};
+    delete @patched{keys %added};
     my @patched = sort keys %patched;
     foreach(@patched) {
+	next if $removed{$_};
 	my $edit = ($::opt_e && !-f $_) ? "add " : "edit";
 	print "p4 $edit   $_$tail\n";
     }
@@ -312,8 +331,8 @@ if ($::opt_I) {
 	    print "\n";
 	}
     }
-    print "Added files:   @added\n"   if @added;
-    print "Removed files: @removed\n" if @removed;
+    print "Added files:   ".join(" ",sort keys %added  )."\n" if %added;
+    print "Removed files: ".join(" ",sort keys %removed)."\n" if %removed;
     exit 0+@missing;
 }
 
@@ -353,12 +372,15 @@ exit 0;
 # ---
 
 
-sub add_file {
+sub add_patched_file {
     my $ls = shift;
-	print "add_file '$_[0]'\n" if $::opt_d;
-    my $out = trim_name(shift);
+	my $raw_name = shift;
+    my $action = shift || 1;	# 1==patched, 2==deleted
 
-    $ls->{out}->{$out} = 1;
+    my $out = trim_name($raw_name);
+    print "add_patched_file '$out' ($raw_name, $action)\n" if $::opt_d;
+
+    $ls->{out}->{$out} = $action;
 
     warn "$out patched but not present\n" if $::opt_e && !-f $out;
 
@@ -371,13 +393,24 @@ sub add_file {
     $i->{out}->{$in} = 1;
 }
 
+sub add_deleted_file {
+    my $ls = shift;
+	my $raw_name = shift;
+    my $out = trim_name($raw_name);
+    print "add_deleted_file '$out' ($raw_name)\n" if $::opt_d;
+	$removed{$out} = 1;
+    #add_patched_file(@_[0,1], 2);
+}
+
 
 sub trim_name {		# reduce/tidy file paths from diff lines
     my $name = shift;
-    $name = "$name ($in)" if $name eq "/dev/null";
     $name =~ s:\\:/:g;	# adjust windows paths
     $name =~ s://:/:g;	# simplify (and make win \\share into absolute path)
-    if (defined $::opt_p) {
+    if ($name eq "/dev/null") {
+	# do nothing (XXX but we need a way to record deletions)
+    }
+    elsif (defined $::opt_p) {
 	# strip on -p levels of directory prefix
 	my $dc = $::opt_p;
 	$name =~ s:^[^/]+/(.+)$:$1: while $dc-- > 0;
@@ -385,7 +418,7 @@ sub trim_name {		# reduce/tidy file paths from diff lines
     else {	# try to strip off leading path to perl directory
 	# if absolute path, strip down to any *perl* directory first
 	$name =~ s:^/.*?perl.*?/::i;
-	$name =~ s:.*perl[-_]?5?[._]?[-_a-z0-9.+]*/::i;
+	$name =~ s:.*(perl|maint)[-_]?5?[._]?[-_a-z0-9.+]*/::i;
 	$name =~ s:^\./::;
     }
     return $name;
@@ -436,7 +469,9 @@ sub list_files_by_patch {
     # a twisty maze of little options
     my $cat = ($ls->{category} and !$::opt_m) ? "\t$ls->{category}" : "";
     print "$name$cat: "	unless ($::opt_h and !$::opt_v) or !"$name$cat";
-    print join('',"\n",@meta) if @meta;
+    my $sep = "\n";
+    $sep = "" if @show_meta==1 && $::opt_c && $::opt_h;
+    print join('', $sep, @meta) if @meta;
 
     return if $::opt_m && !$show_meta{Files};
     my @v = sort PATORDER keys %{ $ls->{out} };
@@ -467,7 +502,7 @@ sub categorize_files {
 	$c{UTIL} += 10,next  if m:^(utils|x2p|h2pl)/:;
 	$c{PORT1}+= 15,next  if m:^win32:;
 	$c{PORT2} += 15,next
-	    if m:^(cygwin32|os2|plan9|qnx|vms)/:
+	    if m:^(cygwin|os2|plan9|qnx|vms)/:
 	    or m:^(hints|Porting|ext/DynaLoader)/:
 	    or m:^README\.:;
 	$c{EXT}  += 10,next

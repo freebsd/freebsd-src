@@ -9,10 +9,8 @@ use overload
 '+'	=>	sub {new Math::BigFloat &fadd},
 '-'	=>	sub {new Math::BigFloat
 		       $_[2]? fsub($_[1],${$_[0]}) : fsub(${$_[0]},$_[1])},
-'<=>'	=>	sub {new Math::BigFloat
-		       $_[2]? fcmp($_[1],${$_[0]}) : fcmp(${$_[0]},$_[1])},
-'cmp'	=>	sub {new Math::BigFloat
-		       $_[2]? ($_[1] cmp ${$_[0]}) : (${$_[0]} cmp $_[1])},
+'<=>'	=>	sub {$_[2]? fcmp($_[1],${$_[0]}) : fcmp(${$_[0]},$_[1])},
+'cmp'	=>	sub {$_[2]? ($_[1] cmp ${$_[0]}) : (${$_[0]} cmp $_[1])},
 '*'	=>	sub {new Math::BigFloat &fmul},
 '/'	=>	sub {new Math::BigFloat 
 		       $_[2]? scalar fdiv($_[1],${$_[0]}) :
@@ -28,9 +26,9 @@ qw(
 sub new {
   my ($class) = shift;
   my ($foo) = fnorm(shift);
-  panic("Not a number initialized to Math::BigFloat") if $foo eq "NaN";
   bless \$foo, $class;
 }
+
 sub numify { 0 + "${$_[0]}" }	# Not needed, additional overhead
 				# comparing to direct compilation based on
 				# stringify
@@ -76,6 +74,7 @@ sub fnorm; sub fsqrt;
 sub fnorm { #(string) return fnum_str
     local($_) = @_;
     s/\s+//g;                               # strip white space
+    no warnings;	# $4 and $5 below might legitimately be undefined
     if (/^([+-]?)(\d*)(\.(\d*))?([Ee]([+-]?\d+))?$/ && "$2$4" ne '') {
 	&norm(($1 ? "$1$2$4" : "+$2$4"),(($4 ne '') ? $6-length($4) : $6));
     } else {
@@ -159,7 +158,8 @@ sub fdiv #(fnum_str, fnum_str[,scale]) return fnum_str
 	$scale = length($xm)-1 if (length($xm)-1 > $scale);
 	$scale = length($ym)-1 if (length($ym)-1 > $scale);
 	$scale = $scale + length($ym) - length($xm);
-	&norm(&round(Math::BigInt::bdiv($xm.('0' x $scale),$ym),$ym),
+	&norm(&round(Math::BigInt::bdiv($xm.('0' x $scale),$ym),
+		    Math::BigInt::babs($ym)),
 	    $xe-$ye-$scale);
     }
 }
@@ -219,7 +219,11 @@ sub ffround { #(fnum_str, scale) return fnum_str
 	    if ($xe < 1) {
 		'+0E+0';
 	    } elsif ($xe == 1) {
-		&norm(&round('+0',"+0".substr($xm,$[+1,1),"+10"), $scale);
+		# The first substr preserves the sign, passing a non-
+		# normalized "-0" to &round when rounding -0.006 (for
+		# example), purely so &round won't lose the sign.
+		&norm(&round(substr($xm,$[,1).'0',
+		      "+0".substr($xm,$[+1,1),"+10"), $scale);
 	    } else {
 		&norm(&round(substr($xm,$[,$xe),
 		      "+0".substr($xm,$[+$xe,1),"+10"), $scale);
@@ -236,12 +240,13 @@ sub fcmp #(fnum_str, fnum_str) return cond_code
     if ($x eq "NaN" || $y eq "NaN") {
 	undef;
     } else {
+	local($xm,$xe,$ym,$ye) = split('E', $x."E$y");
+	if ($xm eq '+0' || $ym eq '+0') {
+	    return $xm <=> $ym;
+	}
 	ord($y) <=> ord($x)
-	||
-	(  local($xm,$xe,$ym,$ye) = split('E', $x."E$y"),
-	     (($xe <=> $ye) * (substr($x,$[,1).'1')
-             || Math::BigInt::cmp($xm,$ym))
-	);
+	|| ($xe <=> $ye) * (substr($x,$[,1).'1')
+	|| Math::BigInt::cmp($xm,$ym);
     }
 }
 
@@ -301,7 +306,7 @@ floats as
 =item number format
 
 canonical strings have the form /[+-]\d+E[+-]\d+/ .  Input values can
-have imbedded whitespace.
+have embedded whitespace.
 
 =item Error returns 'NaN'
 
@@ -310,8 +315,23 @@ negative number.
 
 =item Division is computed to 
 
-C<max($div_scale,length(dividend)+length(divisor))> digits by default.
+C<max($Math::BigFloat::div_scale,length(dividend)+length(divisor))>
+digits by default.
 Also used for default sqrt scale.
+
+=item Rounding is performed
+
+according to the value of
+C<$Math::BigFloat::rnd_mode>:
+
+  trunc     truncate the value
+  zero      round towards 0
+  +inf      round towards +infinity (round up)
+  -inf      round towards -infinity (round down)
+  even      round to the nearest, .5 to the even digit
+  odd       round to the nearest, .5 to the odd digit
+
+The default is C<even> rounding.
 
 =back
 
@@ -319,6 +339,15 @@ Also used for default sqrt scale.
 
 The current version of this module is a preliminary version of the
 real thing that is currently (as of perl5.002) under development.
+
+The printf subroutine does not use the value of
+C<$Math::BigFloat::rnd_mode> when rounding values for printing.
+Consequently, the way to print rounded values is
+to specify the number of digits both as an
+argument to C<ffround> and in the C<%f> printf string,
+as follows:
+
+  printf "%.3f\n", $bigfloat->ffround(-3);
 
 =head1 AUTHOR
 

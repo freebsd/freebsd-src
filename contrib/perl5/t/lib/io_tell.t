@@ -3,7 +3,7 @@
 BEGIN {
     unless(grep /blib/, @INC) {
 	chdir 't' if -d 't';
-	@INC = '../lib' if -d '../lib';
+	unshift @INC, '../lib' if -d '../lib';
 	$tell_file = "TEST";
     }
     else {

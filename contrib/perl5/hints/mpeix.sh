@@ -12,7 +12,7 @@
 # Revised again for 5.004_69 by Mark Bixby, markb@cccd.edu.
 #
 osname='mpeix'
-osvers='5.5'
+osvers='5.5'  # Isn't there a way to determine this dynamically?
 #
 # Force Configure to use our wrapper mpeix/nm script
 #
@@ -24,7 +24,8 @@ usenm='true'
 #
 # Various directory locations.
 #
-prefix='/PERL/PUB'
+# Which ones of these does Configure get wrong?
+test -z "$prefix" && prefix='/PERL/PUB'
 archname='PA-RISC1.1'
 bin="$prefix"
 installman1dir="$prefix/man/man1"
@@ -38,23 +39,29 @@ startsh='#!/bin/sh'
 #
 # Compiling.
 #
-cc='gcc'
+test -z "$cc" && cc='gcc'
 cccdlflags='none'
-ccflags='-DMPE -D_POSIX_SOURCE -D_SOCKET_SOURCE -D_POSIX_JOB_CONTROL -DIS_SOCKET_CLIB_ITSELF'
-locincpth='/usr/local/include /usr/contrib/include /BIND/PUB/include'
-optimize='-O2'
+ccflags="$ccflags -DMPE -D_POSIX_SOURCE -D_SOCKET_SOURCE -D_POSIX_JOB_CONTROL -DIS_SOCKET_CLIB_ITSELF"
+locincpth="$locincpth /usr/local/include /usr/contrib/include /BIND/PUB/include"
+test -z "$optimize" && optimize="-O2"
 ranlib='/bin/true'
 # Special compiling options for certain source files.
+# But what if you want -g?
 regcomp_cflags='optimize=-O'
 toke_cflags='ccflags="$ccflags -DARG_ZERO_IS_SCRIPT"'
 #
 # Linking.
 #
 lddlflags='-b'
-libs='-lbind -lsyslog -lcurses -lsvipc -lsocket -lm -lc'
-loclibpth='/usr/local/lib /usr/contrib/lib /BIND/PUB/lib /SYSLOG/PUB'
+# What if you want additional libs (e.g. gdbm)?
+# This should remove the unwanted libraries from $libswanted and
+# add on whatever ones are needed instead.
+libs="$libs -lbind -lsyslog -lcurses -lsvipc -lsocket -lm -lc"
+loclibpth="$loclibpth /usr/local/lib /usr/contrib/lib /BIND/PUB/lib /SYSLOG/PUB"
 #
 # External functions and data items.
+#
+# Does Configure *really* get *all* of these wrong?
 #
 d_crypt='define'
 d_difftime='define'

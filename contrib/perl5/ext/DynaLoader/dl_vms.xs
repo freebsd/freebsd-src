@@ -65,6 +65,12 @@ static AV *dl_require_symbols = Nullav;
 #include <ssdef.h>
 #include <starlet.h>
 
+#if defined(VMS_WE_ARE_CASE_SENSITIVE)
+#define DL_CASE_SENSITIVE 1<<4
+#else
+#define DL_CASE_SENSITIVE 0
+#endif
+
 typedef unsigned long int vmssts;
 
 struct libref {
@@ -112,6 +118,7 @@ dl_set_error(sts,stv)
     vmssts  stv;
 {
     vmssts vec[3];
+    dTHX;
 
     vec[0] = stv ? 2 : 1;
     vec[1] = sts;  vec[2] = stv;
@@ -121,12 +128,13 @@ dl_set_error(sts,stv)
 static unsigned int
 findsym_handler(void *sig, void *mech)
 {
+    dTHX;
     unsigned long int myvec[8],args, *usig = (unsigned long int *) sig;
     /* Be paranoid and assume signal vector passed in might be readonly */
     myvec[0] = args = usig[0] > 10 ? 9 : usig[0] - 1;
     while (--args) myvec[args] = usig[args];
     _ckvmssts(sys$putmsg(myvec,copy_errmsg,0,0));
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "findsym_handler: received\n\t%s\n",LastError));
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "findsym_handler: received\n\t%s\n",LastError));
     return SS$_CONTINUE;
 }
 
@@ -140,16 +148,16 @@ my_find_image_symbol(struct dsc$descriptor_s *imgname,
 {
   unsigned long int retsts;
   VAXC$ESTABLISH(findsym_handler);
-  retsts = lib$find_image_symbol(imgname,symname,entry,defspec);
+  retsts = lib$find_image_symbol(imgname,symname,entry,defspec,DL_CASE_SENSITIVE);
   return retsts;
 }
 
 
 static void
-dl_private_init()
+dl_private_init(pTHX)
 {
-    dl_generic_private_init();
-    dl_require_symbols = perl_get_av("DynaLoader::dl_require_symbols", 0x4);
+    dl_generic_private_init(aTHX);
+    dl_require_symbols = get_av("DynaLoader::dl_require_symbols", 0x4);
     /* Set up the static control blocks for dl_expand_filespec() */
     dlfab = cc$rms_fab;
     dlnam = cc$rms_nam;
@@ -162,7 +170,7 @@ dl_private_init()
 MODULE = DynaLoader PACKAGE = DynaLoader
 
 BOOT:
-    (void)dl_private_init();
+    (void)dl_private_init(aTHX);
 
 void
 dl_expandspec(filespec)
@@ -177,11 +185,11 @@ dl_expandspec(filespec)
     dlfab.fab$b_fns = strlen(vmsspec);
     dlfab.fab$l_dna = 0;
     dlfab.fab$b_dns = 0;
-    DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "dl_expand_filespec(%s):\n",vmsspec));
+    DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dl_expand_filespec(%s):\n",vmsspec));
     /* On the first pass, just parse the specification string */
     dlnam.nam$b_nop = NAM$M_SYNCHK;
     sts = sys$parse(&dlfab);
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\tSYNCHK sys$parse = %d\n",sts));
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\tSYNCHK sys$parse = %d\n",sts));
     if (!(sts & 1)) {
       dl_set_error(dlfab.fab$l_sts,dlfab.fab$l_stv);
       ST(0) = &PL_sv_undef;
@@ -194,7 +202,7 @@ dl_expandspec(filespec)
              dlnam.nam$b_type + dlnam.nam$b_ver);
       deflen += dlnam.nam$b_type + dlnam.nam$b_ver;
       memcpy(vmsspec,dlnam.nam$l_name,dlnam.nam$b_name);
-      DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\tsplit filespec: name = %.*s, default = %.*s\n",
+      DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\tsplit filespec: name = %.*s, default = %.*s\n",
                         dlnam.nam$b_name,vmsspec,deflen,defspec));
       /* . . . and go back to expand it */
       dlnam.nam$b_nop = 0;
@@ -202,7 +210,7 @@ dl_expandspec(filespec)
       dlfab.fab$b_dns = deflen;
       dlfab.fab$b_fns = dlnam.nam$b_name;
       sts = sys$parse(&dlfab);
-      DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\tname/default sys$parse = %d\n",sts));
+      DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\tname/default sys$parse = %d\n",sts));
       if (!(sts & 1)) {
         dl_set_error(dlfab.fab$l_sts,dlfab.fab$l_stv);
         ST(0) = &PL_sv_undef;
@@ -210,14 +218,14 @@ dl_expandspec(filespec)
       else {
         /* Now find the actual file */
         sts = sys$search(&dlfab);
-        DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\tsys$search = %d\n",sts));
+        DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\tsys$search = %d\n",sts));
         if (!(sts & 1)) {
           dl_set_error(dlfab.fab$l_sts,dlfab.fab$l_stv);
           ST(0) = &PL_sv_undef;
         }
         else {
-          ST(0) = sv_2mortal(newSVpv(dlnam.nam$l_rsa,dlnam.nam$b_rsl));
-          DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "\tresult = \\%.*s\\\n",
+          ST(0) = sv_2mortal(newSVpvn(dlnam.nam$l_rsa,dlnam.nam$b_rsl));
+          DLDEBUG(1,PerlIO_printf(Perl_debug_log, "\tresult = \\%.*s\\\n",
                             dlnam.nam$b_rsl,dlnam.nam$l_rsa));
         }
       }
@@ -228,6 +236,7 @@ dl_load_file(filespec, flags)
     char *	filespec
     int		flags
     PREINIT:
+    dTHX;
     char vmsspec[NAM$C_MAXRSS];
     SV *reqSV, **reqSVhndl;
     STRLEN deflen;
@@ -244,16 +253,16 @@ dl_load_file(filespec, flags)
     void (*entry)();
     CODE:
 
-    DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "dl_load_file(%s,%x):\n", filespec,flags));
+    DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dl_load_file(%s,%x):\n", filespec,flags));
     specdsc.dsc$a_pointer = tovmsspec(filespec,vmsspec);
     specdsc.dsc$w_length = strlen(specdsc.dsc$a_pointer);
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\tVMS-ified filespec is %s\n",
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\tVMS-ified filespec is %s\n",
                       specdsc.dsc$a_pointer));
     New(1399,dlptr,1,struct libref);
     dlptr->name.dsc$b_dtype = dlptr->defspec.dsc$b_dtype = DSC$K_DTYPE_T;
     dlptr->name.dsc$b_class = dlptr->defspec.dsc$b_class = DSC$K_CLASS_S;
     sts = sys$filescan(&specdsc,namlst,0);
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\tsys$filescan: returns %d, name is %.*s\n",
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\tsys$filescan: returns %d, name is %.*s\n",
                       sts,namlst[0].len,namlst[0].string));
     if (!(sts & 1)) {
       failed = 1;
@@ -269,21 +278,21 @@ dl_load_file(filespec, flags)
       memcpy(dlptr->defspec.dsc$a_pointer + deflen,
              namlst[0].string + namlst[0].len,
              dlptr->defspec.dsc$w_length - deflen);
-      DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\tlibref = name: %s, defspec: %.*s\n",
+      DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\tlibref = name: %s, defspec: %.*s\n",
                         dlptr->name.dsc$a_pointer,
                         dlptr->defspec.dsc$w_length,
                         dlptr->defspec.dsc$a_pointer));
       if (!(reqSVhndl = av_fetch(dl_require_symbols,0,FALSE)) || !(reqSV = *reqSVhndl)) {
-        DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\t@dl_require_symbols empty, returning untested libref\n"));
+        DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\t@dl_require_symbols empty, returning untested libref\n"));
       }
       else {
         symdsc.dsc$w_length = SvCUR(reqSV);
         symdsc.dsc$a_pointer = SvPVX(reqSV);
-        DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\t$dl_require_symbols[0] = %.*s\n",
+        DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\t$dl_require_symbols[0] = %.*s\n",
                           symdsc.dsc$w_length, symdsc.dsc$a_pointer));
         sts = my_find_image_symbol(&(dlptr->name),&symdsc,
                                     &entry,&(dlptr->defspec));
-        DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\tlib$find_image_symbol returns %d\n",sts));
+        DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\tlib$find_image_symbol returns %d\n",sts));
         if (!(sts&1)) {
           failed = 1;
           dl_set_error(sts,0);
@@ -298,7 +307,7 @@ dl_load_file(filespec, flags)
       ST(0) = &PL_sv_undef;
     }
     else {
-      ST(0) = sv_2mortal(newSViv((IV) dlptr));
+      ST(0) = sv_2mortal(newSViv(PTR2IV(dlptr)));
     }
 
 
@@ -313,19 +322,19 @@ dl_find_symbol(librefptr,symname)
     void (*entry)();
     vmssts sts;
 
-    DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "dl_find_dymbol(%.*s,%.*s):\n",
+    DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dl_find_dymbol(%.*s,%.*s):\n",
                       thislib.name.dsc$w_length, thislib.name.dsc$a_pointer,
                       symdsc.dsc$w_length,symdsc.dsc$a_pointer));
     sts = my_find_image_symbol(&(thislib.name),&symdsc,
                                &entry,&(thislib.defspec));
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\tlib$find_image_symbol returns %d\n",sts));
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "\tentry point is %d\n",
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\tlib$find_image_symbol returns %d\n",sts));
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "\tentry point is %d\n",
                       (unsigned long int) entry));
     if (!(sts & 1)) {
       /* error message already saved by findsym_handler */
       ST(0) = &PL_sv_undef;
     }
-    else ST(0) = sv_2mortal(newSViv((IV) entry));
+    else ST(0) = sv_2mortal(newSViv(PTR2IV(entry)));
 
 
 void
@@ -341,9 +350,11 @@ dl_install_xsub(perl_name, symref, filename="$Package")
     void *	symref 
     char *	filename
     CODE:
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "dl_install_xsub(name=%s, symref=%x)\n",
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "dl_install_xsub(name=%s, symref=%x)\n",
         perl_name, symref));
-    ST(0)=sv_2mortal(newRV((SV*)newXS(perl_name, (void(*)())symref, filename)));
+    ST(0) = sv_2mortal(newRV((SV*)newXS(perl_name,
+				      (void(*)(pTHX_ CV *))symref,
+				      filename)));
 
 
 char *

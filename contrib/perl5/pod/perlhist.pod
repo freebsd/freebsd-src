@@ -4,10 +4,12 @@
 
 perlhist - the Perl history records
 
+=for RCS
+
 =begin RCS
 
 #
-# $Id: perlhist.pod,v 1.57 1999/01/26 17:38:07 jhi Exp $
+# $Id: perlhist.pod,v 1.2 2000/01/24 11:44:47 jhi Exp $
 #
 
 =end RCS
@@ -117,16 +119,16 @@ the strings?).
           5.000alpha4   1993-???-??
           5.000alpha5   1993-???-??
           5.000alpha6   1994-Mar-18
-          5.003alpha7   1994-Mar-25
+          5.000alpha7   1994-Mar-25
  Andy     5.000alpha8   1994-Apr-04
  Larry    5.000alpha9   1994-May-05     ext appears.
-          5.000alpha10  1994-???-??
-          5.000alpha11  1994-???-??
+          5.000alpha10  1994-Jun-11
+          5.000alpha11  1994-Jul-01
  Andy     5.000a11a     1994-Jul-07     To fit 14.
           5.000a11b     1994-Jul-14
           5.000a11c     1994-Jul-19
           5.000a11d     1994-Jul-22
- Larry    5.000alpha12  1994-???-??
+ Larry    5.000alpha12  1994-Aug-04
  Andy     5.000a12a     1994-Aug-08
           5.000a12b     1994-Aug-15
           5.000a12c     1994-Aug-22
@@ -135,8 +137,8 @@ the strings?).
           5.000a12f     1994-Aug-24
           5.000a12g     1994-Aug-24
           5.000a12h     1994-Aug-24
- Larry    5.000beta1    1994-???-??
- Andy     5.000b1a      1994-???-??
+ Larry    5.000beta1    1994-Aug-30
+ Andy     5.000b1a      1994-Sep-06
  Larry    5.000beta2    1994-Sep-14     Core slushified.
  Andy     5.000b2a      1994-Sep-14
           5.000b2b      1994-Sep-17
@@ -150,8 +152,9 @@ the strings?).
           5.000b3f      1994-Sep-30
           5.000b3g      1994-Oct-04
  Andy     5.000b3h      1994-Oct-07
+ Larry?   5.000gamma    1994-Oct-13?
 
- Larry   5.000          1994-Oct-18
+ Larry   5.000          1994-Oct-17
 
  Andy     5.000a        1994-Dec-19
           5.000b        1995-Jan-18
@@ -165,8 +168,9 @@ the strings?).
           5.000j        1995-Feb-07
           5.000k        1995-Feb-11
           5.000l        1995-Feb-21
-          5.000m        1995-???-??
+          5.000m        1995-Feb-28
           5.000n        1995-Mar-07
+          5.000o        1995-Mar-13?
 
  Larry   5.001          1995-Mar-13
 
@@ -185,7 +189,7 @@ the strings?).
           5.001m        1995-Jul-02     Very stable.
           5.001n        1995-Oct-31     Very unstable.
           5.002beta1    1995-Nov-21
-          5.002b1a      1995-Nov-??
+          5.002b1a      1995-Dec-04
           5.002b1b      1995-Dec-04
           5.002b1c      1995-Dec-04
           5.002b1d      1995-Dec-04
@@ -270,7 +274,8 @@ the strings?).
           5.004_04-MT6  1998-Oct-09
           5.004_04-MT7  1998-Nov-22
           5.004_04-MT8  1998-Dec-03
-          5.004_04-MT9  1999-***-**
+ Chip     5.004_04-MT9  1999-Apr-26
+          5.004_05	1999-Apr-29
 
  Malcolm  5.004_50      1997-Sep-09     The 5.005 development track.
           5.004_51      1997-Oct-02
@@ -310,16 +315,31 @@ the strings?).
           5.005_03-MT3  1999-Jan-17
           5.005_03-MT4  1999-Jan-26
           5.005_03-MT5  1999-Jan-28
-          5.005_03-MT6  1999-Mar-04
           5.005_03      1999-Mar-28
+ Chip     5.005_04	2000-***-**
 
- Sarathy  5.005_50      1998-Jul-26     The 5.006 development track.
+ Sarathy  5.005_50      1998-Jul-26     The 5.6 development track.
           5.005_51      1998-Aug-10
           5.005_52      1998-Sep-25
           5.005_53      1998-Oct-31
           5.005_54      1998-Nov-30
           5.005_55      1999-Feb-16
           5.005_56      1999-Mar-01
+          5.005_57      1999-May-25
+	  5.005_58	1999-Jul-27
+	  5.005_59	1999-Aug-02
+	  5.005_60	1999-Aug-02
+	  5.005_61	1999-Aug-20
+	  5.005_62	1999-Oct-15
+	  5.005_63	1999-Dec-09
+	  5.5.640	2000-Feb-02
+	  5.5.650	2000-Feb-08	beta1
+	  5.5.660	2000-Feb-22	beta2
+	  5.5.670	2000-Feb-29	beta3
+	  5.6.0-RC1	2000-Mar-09	release candidate 1
+	  5.6.0-RC2	2000-Mar-14	release candidate 2
+	  5.6.0-RC3	2000-Mar-21	release candidate 3
+	  5.6.0		2000-Mar-22
 
 =head2 SELECTED RELEASE SIZES
 
@@ -352,6 +372,7 @@ explained below.
  5.004          1351  60   1230 136    408  51    355 161   1587  55
  5.004_01       1356  60   1258 138    410  51    358 161   1587  55
  5.004_04       1375  60   1294 139    413  51    394 162   1629  55
+ 5.004_05       1463  60   1435 150    394  50    445 175   1855  59
  5.004_51       1401  61   1260 140    413  53    358 162   1594  56
  5.004_53       1422  62   1295 141    438  70    394 162   1637  56
  5.004_56       1501  66   1301 140    447  74    408 165   1648  57
@@ -363,6 +384,10 @@ explained below.
  5.004_73       1874  76   1467 152    762 102    506 196   1883  61
  5.004_75       1877  76   1467 152    770 103    508 196   1896  62
  5.005          1896  76   1469 152    795 103    509 197   1945  63
+ 5.005_03	1936  77   1541 153    813 104    551 201   2176  72       
+ 5.005_50	1969  78   1842 301    795 103    514 198   1948  63
+ 5.005_53	1999  79   1885 303    806 104    602 224   2002  67
+ 5.005_56       2086  79   1970 307    866 113    672 238   2221  75
 
 The "core"..."doc" mean the following files from the Perl source code
 distribution.  The glob notation ** means recursively, (.) means
@@ -439,25 +464,28 @@ the Perl source distribution for somewhat more selected releases.
 
  ======================================================================
 
-            5.004_70 5.004_73 5.004_75  5.005
+            5.004_70 5.004_73 5.004_75  5.005  5.005_03
 
- beos         1   1    1   1    1   1    1   1
- Configure  256   1  256   1  264   1  264   1
- cygwin32    24   5   24   5   24   5   24   5
- djgpp       14   5   14   5   14   5   14   5
- eg          86  65   86  65   86  65   86  65
- emacs      262   2  262   2  262   2  262   2
- h2pl        12  12   12  12   12  12   12  12
- hints      157  74  157  74  159  74  160  74
- mpeix        -   -    -   -    5   3    5   3
- os2        129  44  139  44  142  44  143  44
- plan9       82  15   82  15   82  15   82  15
- Porting    241   9  253   9  259  10  264  12
- qnx          1   2    1   2    1   2    1   2
- utils      160   9  160   9  160   9  160   9
- vms        570  34  572  34  573  34  575  34
- win32      577  41  585  41  585  41  587  41
- x2p        281  19  281  19  281  19  281  19
+ apollo       -   -    -   -    -   -    -   -    0   1
+ beos         1   1    1   1    1   1    1   1    1   1
+ Configure  256   1  256   1  264   1  264   1  270   1
+ cygwin32    24   5   24   5   24   5   24   5   24   5  
+ djgpp       14   5   14   5   14   5   14   5	 15   5
+ eg          86  65   86  65   86  65   86  65	 86  65
+ emacs      262   2  262   2  262   2  262   2	274   2
+ h2pl        12  12   12  12   12  12   12  12	 12  12
+ hints      157  74  157  74  159  74  160  74	179  77
+ mint         -   -    -   -    -   -    -   -	  4   7
+ mpeix        -   -    -   -    5   3    5   3	  5   3
+ os2        129  44  139  44  142  44  143  44	148  44
+ plan9       82  15   82  15   82  15   82  15	 82  15
+ Porting    241   9  253   9  259  10  264  12	272  13
+ qnx          1   2    1   2    1   2    1   2	  1   2
+ utils      160   9  160   9  160   9  160   9	164   9
+ vms        570  34  572  34  573  34  575  34	583  34
+ vos          -   -    -   -    -   -    -   -	156  10
+ win32      577  41  585  41  585  41  587  41	600  42
+ x2p        281  19  281  19  281  19  281  19	281  19
 
 =head2 SELECTED PATCH SIZES
 
@@ -531,7 +559,7 @@ Jarkko Hietaniemi <F<jhi@iki.fi>>.
 
 Thanks to the collective memory of the Perlfolk.  In addition to the
 Keepers of the Pumpkin also Alan Champion, Andreas König, John
-Macdonald, Matthias Neeracher, Michael Peppler, Randal Schwartz, and
-Paul D. Smith sent corrections and additions.
+Macdonald, Matthias Neeracher, Jeff Okamoto, Michael Peppler,
+Randal Schwartz, and Paul D. Smith sent corrections and additions.
 
 =cut

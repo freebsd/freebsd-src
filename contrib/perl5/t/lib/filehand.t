@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
     require Config; import Config;
     if ($Config{'extensions'} !~ /\bIO\b/ && $^O ne 'VMS') {
 	print "1..0\n";
@@ -72,7 +72,8 @@ if ($^O eq 'dos')
 
 ($rd,$wr) = FileHandle::pipe;
 
-if ($^O eq 'VMS' || $^O eq 'os2' || $^O eq 'amigaos' || $^O eq 'MSWin32') {
+if ($^O eq 'VMS' || $^O eq 'os2' || $^O eq 'amigaos' || $^O eq 'MSWin32' ||
+    $Config{d_fork} ne 'define') {
   $wr->autoflush;
   $wr->printf("ok %d\n",11);
   print $rd->getline;

@@ -59,3 +59,51 @@ archobjs=ebcdic.o
 
 # We have our own cppstdin.
 echo 'cat >.$$.c; '"$cc"' -E -Wc,NOLOC ${1+"$@"} .$$.c; rm .$$.c' > cppstdin
+
+#
+# Note that Makefile.SH employs a bare yacc to generate 
+# perly.[hc] and a2p.[hc], hence you may wish to:
+#
+#    alias yacc='myyacc'
+#
+# Then if you would like to use myyacc and skip past the
+# following warnings try invoking Configure like so: 
+#
+#    sh Configure -Dbyacc=yacc
+#
+# This trick ought to work even if your yacc is byacc.
+#
+if test "X$byacc" = "Xbyacc" ; then
+    if test -e /etc/yyparse.c ; then
+        : we should be OK - perhaps do a test -r?
+    else
+        cat <<EOWARN >&4
+
+Warning.  You do not have a copy of yyparse.c, the default 
+yacc parser template file, in place in /etc.
+EOWARN
+        if test -e /samples/yyparse.c ; then
+            cat <<EOWARN >&4
+
+There does appear to be a template file in /samples though.
+Please run:
+
+      cp /samples/yyparse.c /etc
+
+before attempting to Configure the build of $package.
+
+EOWARN
+        else
+            cat <<EOWARN >&4
+
+There does not appear to be one in /samples either.  
+If you feel you can make use of an alternate yacc-like 
+parser generator then please read the comments in the
+hints/os390.sh file carefully.
+
+EOWARN
+        fi
+        exit 1
+    fi
+fi
+

@@ -1,6 +1,6 @@
 /*    pp.h
  *
- *    Copyright (c) 1991-1999, Larry Wall
+ *    Copyright (c) 1991-2000, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -14,11 +14,40 @@
 #define ARGS
 #define dARGS
 #endif /* USE_THREADS */
-#ifdef PERL_OBJECT
-#define PP(s) OP * CPerlObj::s(ARGSproto)
-#else
-#define PP(s) OP * s(ARGSproto)
-#endif
+
+#define PP(s) OP * Perl_##s(pTHX)
+
+/*
+=for apidoc AmU||SP
+Stack pointer.  This is usually handled by C<xsubpp>.  See C<dSP> and
+C<SPAGAIN>.
+
+=for apidoc AmU||MARK
+Stack marker variable for the XSUB.  See C<dMARK>.
+
+=for apidoc Ams||PUSHMARK
+Opening bracket for arguments on a callback.  See C<PUTBACK> and
+L<perlcall>.
+
+=for apidoc Ams||dSP
+Declares a local copy of perl's stack pointer for the XSUB, available via
+the C<SP> macro.  See C<SP>.
+
+=for apidoc Ams||dMARK
+Declare a stack marker variable, C<mark>, for the XSUB.  See C<MARK> and
+C<dORIGMARK>.
+
+=for apidoc Ams||dORIGMARK
+Saves the original stack mark for the XSUB.  See C<ORIGMARK>.
+
+=for apidoc AmU||ORIGMARK
+The original stack mark for the XSUB.  See C<dORIGMARK>.
+
+=for apidoc Ams||SPAGAIN
+Refetch the stack pointer.  Used after a callback.  See L<perlcall>.
+
+=cut
+*/
 
 #define SP sp
 #define MARK mark
@@ -53,7 +82,30 @@
 #define dTARG SV *targ
 
 #define NORMAL PL_op->op_next
-#define DIE return die
+#define DIE return Perl_die
+
+/*
+=for apidoc Ams||PUTBACK
+Closing bracket for XSUB arguments.  This is usually handled by C<xsubpp>.
+See C<PUSHMARK> and L<perlcall> for other uses.
+
+=for apidoc Amn|SV*|POPs
+Pops an SV off the stack.
+
+=for apidoc Amn|char*|POPp
+Pops a string off the stack.
+
+=for apidoc Amn|NV|POPn
+Pops a double off the stack.
+
+=for apidoc Amn|IV|POPi
+Pops an integer off the stack.
+
+=for apidoc Amn|long|POPl
+Pops a long off the stack.
+
+=cut
+*/
 
 #define PUTBACK		PL_stack_sp = sp
 #define RETURN		return PUTBACK, NORMAL
@@ -67,6 +119,11 @@
 #define POPi		((IV)SvIVx(POPs))
 #define POPu		((UV)SvUVx(POPs))
 #define POPl		((long)SvIVx(POPs))
+#define POPul		((unsigned long)SvIVx(POPs))
+#ifdef HAS_QUAD
+#define POPq		((Quad_t)SvIVx(POPs))
+#define POPuq		((Uquad_t)SvUVx(POPs))
+#endif
 
 #define TOPs		(*sp)
 #define TOPp		(SvPV(TOPs, PL_na))		/* deprecated */
@@ -75,8 +132,65 @@
 #define TOPi		((IV)SvIV(TOPs))
 #define TOPu		((UV)SvUV(TOPs))
 #define TOPl		((long)SvIV(TOPs))
+#define TOPul		((unsigned long)SvUV(TOPs))
+#ifdef HAS_QUAD
+#define TOPq		((Quad_t)SvIV(TOPs))
+#define TOPuq		((Uquad_t)SvUV(TOPs))
+#endif
 
 /* Go to some pains in the rare event that we must extend the stack. */
+
+/*
+=for apidoc Am|void|EXTEND|SP|int nitems
+Used to extend the argument stack for an XSUB's return values. Once
+used, guarrantees that there is room for at least C<nitems> to be pushed
+onto the stack.
+
+=for apidoc Am|void|PUSHs|SV* sv
+Push an SV onto the stack.  The stack must have room for this element. 
+Does not handle 'set' magic.  See C<XPUSHs>.
+
+=for apidoc Am|void|PUSHp|char* str|STRLEN len
+Push a string onto the stack.  The stack must have room for this element.
+The C<len> indicates the length of the string.  Handles 'set' magic.  See
+C<XPUSHp>.
+
+=for apidoc Am|void|PUSHn|NV nv
+Push a double onto the stack.  The stack must have room for this element.
+Handles 'set' magic.  See C<XPUSHn>.
+
+=for apidoc Am|void|PUSHi|IV iv
+Push an integer onto the stack.  The stack must have room for this element.
+Handles 'set' magic.  See C<XPUSHi>.
+
+=for apidoc Am|void|PUSHu|UV uv
+Push an unsigned integer onto the stack.  The stack must have room for this
+element.  See C<XPUSHu>.
+
+=for apidoc Am|void|XPUSHs|SV* sv
+Push an SV onto the stack, extending the stack if necessary.  Does not
+handle 'set' magic.  See C<PUSHs>.
+
+=for apidoc Am|void|XPUSHp|char* str|STRLEN len
+Push a string onto the stack, extending the stack if necessary.  The C<len>
+indicates the length of the string.  Handles 'set' magic.  See
+C<PUSHp>.
+
+=for apidoc Am|void|XPUSHn|NV nv
+Push a double onto the stack, extending the stack if necessary.  Handles
+'set' magic.  See C<PUSHn>.
+
+=for apidoc Am|void|XPUSHi|IV iv
+Push an integer onto the stack, extending the stack if necessary.  Handles
+'set' magic. See C<PUSHi>.
+
+=for apidoc Am|void|XPUSHu|UV uv
+Push an unsigned integer onto the stack, extending the stack if necessary. 
+See C<PUSHu>.
+
+=cut
+*/
+
 #define EXTEND(p,n)	STMT_START { if (PL_stack_max - p < (n)) {		\
 			    sp = stack_grow(sp,p, (int) (n));		\
 			} } STMT_END
@@ -91,43 +205,50 @@
 #define PUSHs(s)	(*++sp = (s))
 #define PUSHTARG	STMT_START { SvSETMAGIC(TARG); PUSHs(TARG); } STMT_END
 #define PUSHp(p,l)	STMT_START { sv_setpvn(TARG, (p), (l)); PUSHTARG; } STMT_END
-#define PUSHn(n)	STMT_START { sv_setnv(TARG, (double)(n)); PUSHTARG; } STMT_END
+#define PUSHn(n)	STMT_START { sv_setnv(TARG, (NV)(n)); PUSHTARG; } STMT_END
 #define PUSHi(i)	STMT_START { sv_setiv(TARG, (IV)(i)); PUSHTARG; } STMT_END
 #define PUSHu(u)	STMT_START { sv_setuv(TARG, (UV)(u)); PUSHTARG; } STMT_END
 
 #define XPUSHs(s)	STMT_START { EXTEND(sp,1); (*++sp = (s)); } STMT_END
 #define XPUSHTARG	STMT_START { SvSETMAGIC(TARG); XPUSHs(TARG); } STMT_END
 #define XPUSHp(p,l)	STMT_START { sv_setpvn(TARG, (p), (l)); XPUSHTARG; } STMT_END
-#define XPUSHn(n)	STMT_START { sv_setnv(TARG, (double)(n)); XPUSHTARG; } STMT_END
+#define XPUSHn(n)	STMT_START { sv_setnv(TARG, (NV)(n)); XPUSHTARG; } STMT_END
 #define XPUSHi(i)	STMT_START { sv_setiv(TARG, (IV)(i)); XPUSHTARG; } STMT_END
 #define XPUSHu(u)	STMT_START { sv_setuv(TARG, (UV)(u)); XPUSHTARG; } STMT_END
+#define XPUSHundef	STMT_START { SvOK_off(TARG); XPUSHs(TARG); } STMT_END
 
 #define SETs(s)		(*sp = s)
 #define SETTARG		STMT_START { SvSETMAGIC(TARG); SETs(TARG); } STMT_END
 #define SETp(p,l)	STMT_START { sv_setpvn(TARG, (p), (l)); SETTARG; } STMT_END
-#define SETn(n)		STMT_START { sv_setnv(TARG, (double)(n)); SETTARG; } STMT_END
+#define SETn(n)		STMT_START { sv_setnv(TARG, (NV)(n)); SETTARG; } STMT_END
 #define SETi(i)		STMT_START { sv_setiv(TARG, (IV)(i)); SETTARG; } STMT_END
 #define SETu(u)		STMT_START { sv_setuv(TARG, (UV)(u)); SETTARG; } STMT_END
 
 #define dTOPss		SV *sv = TOPs
 #define dPOPss		SV *sv = POPs
-#define dTOPnv		double value = TOPn
-#define dPOPnv		double value = POPn
+#define dTOPnv		NV value = TOPn
+#define dPOPnv		NV value = POPn
 #define dTOPiv		IV value = TOPi
 #define dPOPiv		IV value = POPi
 #define dTOPuv		UV value = TOPu
 #define dPOPuv		UV value = POPu
+#ifdef HAS_QUAD
+#define dTOPqv		Quad_t value = TOPu
+#define dPOPqv		Quad_t value = POPu
+#define dTOPuqv		Uquad_t value = TOPuq
+#define dPOPuqv		Uquad_t value = POPuq
+#endif
 
 #define dPOPXssrl(X)	SV *right = POPs; SV *left = CAT2(X,s)
-#define dPOPXnnrl(X)	double right = POPn; double left = CAT2(X,n)
+#define dPOPXnnrl(X)	NV right = POPn; NV left = CAT2(X,n)
 #define dPOPXiirl(X)	IV right = POPi; IV left = CAT2(X,i)
 
 #define USE_LEFT(sv) \
 	(SvOK(sv) || SvGMAGICAL(sv) || !(PL_op->op_flags & OPf_STACKED))
 #define dPOPXnnrl_ul(X)	\
-    double right = POPn;				\
+    NV right = POPn;				\
     SV *leftsv = CAT2(X,s);				\
-    double left = USE_LEFT(leftsv) ? SvNV(leftsv) : 0.0
+    NV left = USE_LEFT(leftsv) ? SvNV(leftsv) : 0.0
 #define dPOPXiirl_ul(X) \
     IV right = POPi;					\
     SV *leftsv = CAT2(X,s);				\
@@ -154,24 +275,24 @@
 #define RETSETUNDEF	RETURNX(SETs(&PL_sv_undef))
 
 #define ARGTARG		PL_op->op_targ
-#define MAXARG		PL_op->op_private
+
+    /* See OPpTARGET_MY: */
+#define MAXARG		(PL_op->op_private & 15)
 
 #define SWITCHSTACK(f,t) \
     STMT_START {							\
-	AvFILLp(f) = sp - PL_stack_base;					\
+	AvFILLp(f) = sp - PL_stack_base;				\
 	PL_stack_base = AvARRAY(t);					\
-	PL_stack_max = PL_stack_base + AvMAX(t);				\
+	PL_stack_max = PL_stack_base + AvMAX(t);			\
 	sp = PL_stack_sp = PL_stack_base + AvFILLp(t);			\
-	PL_curstack = t;							\
+	PL_curstack = t;						\
     } STMT_END
 
 #define EXTEND_MORTAL(n) \
-	STMT_START { \
-	    if (PL_tmps_ix + (n) >= PL_tmps_max) \
-		Renew(PL_tmps_stack, PL_tmps_max = PL_tmps_ix + (n) + 1, SV*); \
-	} STMT_END
-
-#ifdef OVERLOAD
+    STMT_START {							\
+	if (PL_tmps_ix + (n) >= PL_tmps_max)				\
+	    tmps_grow(n);						\
+    } STMT_END
 
 #define AMGf_noright	1
 #define AMGf_noleft	2
@@ -200,23 +321,43 @@
 #define AMG_CALLbinL(left,right,meth) \
             amagic_call(left,right,CAT2(meth,_amg),AMGf_noright)
 
-#define tryAMAGICunW(meth,set) STMT_START { \
+#define tryAMAGICunW(meth,set,shift,ret) STMT_START { \
           if (PL_amagic_generation) { \
 	    SV* tmpsv; \
-	    SV* arg= *(sp); \
+	    SV* arg= sp[shift]; \
+	  am_again: \
 	    if ((SvAMAGIC(arg))&&\
 		(tmpsv=AMG_CALLun(arg,meth))) {\
-	       SPAGAIN;	\
-	       set(tmpsv); RETURN; } \
+	       SPAGAIN; if (shift) sp += shift; \
+	       set(tmpsv); ret; } \
 	  } \
 	} STMT_END
 
-#define tryAMAGICun	tryAMAGICunSET
-#define tryAMAGICunSET(meth) tryAMAGICunW(meth,SETs)
+#define FORCE_SETs(sv) STMT_START { sv_setsv(TARG, (sv)); SETTARG; } STMT_END
+
+#define tryAMAGICun(meth)	tryAMAGICunW(meth,SETsvUN,0,RETURN)
+#define tryAMAGICunSET(meth)	tryAMAGICunW(meth,SETs,0,RETURN)
+#define tryAMAGICunTARGET(meth, shift)					\
+	{ dSP; sp--; 	/* get TARGET from below PL_stack_sp */		\
+	    { dTARGETSTACKED; 						\
+		{ dSP; tryAMAGICunW(meth,FORCE_SETs,shift,RETURN);}}}
+
+#define setAGAIN(ref) sv = arg = ref;					\
+  if (!SvROK(ref))							\
+      Perl_croak(aTHX_ "Overloaded dereference did not return a reference");	\
+  goto am_again;
+
+#define tryAMAGICunDEREF(meth) tryAMAGICunW(meth,setAGAIN,0,(void)0)
 
 #define opASSIGN (PL_op->op_flags & OPf_STACKED)
 #define SETsv(sv)	STMT_START {					\
-		if (opASSIGN) { sv_setsv(TARG, (sv)); SETTARG; }	\
+		if (opASSIGN || (SvFLAGS(TARG) & SVs_PADMY))		\
+		   { sv_setsv(TARG, (sv)); SETTARG; }			\
+		else SETs(sv); } STMT_END
+
+#define SETsvUN(sv)	STMT_START {					\
+		if (SvFLAGS(TARG) & SVs_PADMY)		\
+		   { sv_setsv(TARG, (sv)); SETTARG; }			\
 		else SETs(sv); } STMT_END
 
 /* newSVsv does not behave as advertised, so we copy missing
@@ -229,11 +370,3 @@
     SvREFCNT_dec(tmpRef);                   \
     SvRV(rv)=AMG_CALLun(rv,copy);        \
   } } STMT_END
-#else
-
-#define tryAMAGICbin(a,b)
-#define tryAMAGICbinSET(a,b)
-#define tryAMAGICun(a)
-#define tryAMAGICunSET(a)
-
-#endif /* OVERLOAD */

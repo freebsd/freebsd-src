@@ -1,7 +1,9 @@
 package Tie::Array;
-use vars qw($VERSION); 
+
+use 5.005_64;
 use strict;
-$VERSION = '1.00';
+use Carp;
+our $VERSION = '1.01';
 
 # Pod documentation after __END__ below.
 
@@ -74,6 +76,16 @@ sub SPLICE
  return @result;
 } 
 
+sub EXISTS {
+    my $pkg = ref $_[0];
+    croak "$pkg dosn't define an EXISTS method";
+}
+
+sub DELETE {
+    my $pkg = ref $_[0];
+    croak "$pkg dosn't define a DELETE method";
+}
+
 package Tie::StdArray;
 use vars qw(@ISA);
 @ISA = 'Tie::Array';
@@ -88,6 +100,8 @@ sub POP       { pop(@{$_[0]}) }
 sub PUSH      { my $o = shift; push(@$o,@_) }
 sub SHIFT     { shift(@{$_[0]}) } 
 sub UNSHIFT   { my $o = shift; unshift(@$o,@_) } 
+sub EXISTS    { exists $_[0]->[$_[1]] }
+sub DELETE    { delete $_[0]->[$_[1]] }
 
 sub SPLICE
 {
@@ -112,15 +126,17 @@ Tie::Array - base class for tied arrays
     package NewArray;
     use Tie::Array;
     @ISA = ('Tie::Array');
-                       
+
     # mandatory methods
     sub TIEARRAY { ... }  
     sub FETCH { ... }     
     sub FETCHSIZE { ... } 
-        
+
     sub STORE { ... }        # mandatory if elements writeable
     sub STORESIZE { ... }    # mandatory if elements can be added/deleted
-                               
+    sub EXISTS { ... }       # mandatory if exists() expected to work
+    sub DELETE { ... }       # mandatory if delete() expected to work
+
     # optional methods - for efficiency
     sub CLEAR { ... }  
     sub PUSH { ... } 
@@ -133,7 +149,7 @@ Tie::Array - base class for tied arrays
 
     package NewStdArray;
     use Tie::Array;
-    
+
     @ISA = ('Tie::StdArray');
 
     # all methods provided by default
@@ -150,9 +166,11 @@ Tie::Array - base class for tied arrays
 
 This module provides methods for array-tying classes. See
 L<perltie> for a list of the functions required in order to tie an array
-to a package. The basic B<Tie::Array> package provides stub C<DELETE> 
-and C<EXTEND> methods, and implementations of C<PUSH>, C<POP>, C<SHIFT>, 
-C<UNSHIFT>, C<SPLICE> and C<CLEAR> in terms of basic C<FETCH>, C<STORE>, 
+to a package. The basic B<Tie::Array> package provides stub C<DESTROY>,
+and C<EXTEND> methods that do nothing, stub C<DELETE> and C<EXISTS>
+methods that croak() if the delete() or exists() builtins are ever called
+on the tied array, and implementations of C<PUSH>, C<POP>, C<SHIFT>,
+C<UNSHIFT>, C<SPLICE> and C<CLEAR> in terms of basic C<FETCH>, C<STORE>,
 C<FETCHSIZE>, C<STORESIZE>.
 
 The B<Tie::StdArray> package provides efficient methods required for tied arrays 
@@ -202,6 +220,18 @@ deleted.
 
 Informative call that array is likely to grow to have I<count> entries.
 Can be used to optimize allocation. This method need do nothing.
+
+=item EXISTS this, key
+
+Verify that the element at index I<key> exists in the tied array I<this>.
+
+The B<Tie::Array> implementation is a stub that simply croaks.
+
+=item DELETE this, key
+
+Delete the element at index I<key> from the tied array I<this>.
+
+The B<Tie::Array> implementation is a stub that simply croaks.
 
 =item CLEAR this
 

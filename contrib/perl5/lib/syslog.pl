@@ -29,10 +29,12 @@
 
 package syslog;
 
+use warnings::register;
+
 $host = 'localhost' unless $host;	# set $syslog'host to change
 
-if ($] >= 5) {
-    warn "You should 'use Sys::Syslog' instead; continuing" # if $^W
+if ($] >= 5 && warnings::enabled()) {
+    warnings::warn "You should 'use Sys::Syslog' instead; continuing";
 } 
 
 require 'syslog.ph';

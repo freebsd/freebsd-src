@@ -33,8 +33,10 @@ glob		5	2	do_readline
 readline	8	2	do_readline	
 rcatline	8	2
 regcmaybe	8	1
+regcreset	8	1
 regcomp		8	9	pregcomp
 match		8	10
+qr		8	1
 subst		8	10
 substcont	8	7
 trans		7	4	do_trans
@@ -170,6 +172,7 @@ orassign	7	3	modifies flow of control
 method		8	5
 entersub	10	7
 leavesub	10	5
+leavesublv
 caller		2	8
 warn		9	3
 die		9	3
@@ -212,6 +215,7 @@ leavewrite	4	5
 prtf		4	4	do_sprintf
 print		8	6
 sysopen		8	2
+sysseek		8	2
 sysread		8	4
 syswrite	8	4	pp_send
 send		8	4
@@ -347,4 +351,7 @@ sgrent
 egrent
 getlogin
 syscall
-	
+lock		6	1
+threadsv	6	2	unused if not USE_THREADS
+setstate	1	1	currently unused anywhere
+method_named	10	2

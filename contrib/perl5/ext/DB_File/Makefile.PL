@@ -14,7 +14,15 @@ WriteMakefile(
         MAN3PODS        => {},         # Pods will be built by installman.
 	#INC		=> '-I/usr/local/include',
 	VERSION_FROM	=> 'DB_File.pm',
+	OBJECT		=> 'version$(OBJ_EXT) DB_File$(OBJ_EXT)',
 	XSPROTOARG	=> '-noprototypes',
-	DEFINE		=> "$OS2",
+	DEFINE		=> $OS2 || "",
 	);
+
+sub MY::postamble {
+      '
+version$(OBJ_EXT):	version.c
+
+' ;
+}
 

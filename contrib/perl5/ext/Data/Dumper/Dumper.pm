@@ -9,22 +9,22 @@
 
 package Data::Dumper;
 
-$VERSION = $VERSION = '2.101';
+$VERSION = '2.101';
 
 #$| = 1;
 
-require 5.004;
+require 5.005_64;
 require Exporter;
-require DynaLoader;
+use XSLoader ();
 require overload;
 
 use Carp;
 
-@ISA = qw(Exporter DynaLoader);
+@ISA = qw(Exporter);
 @EXPORT = qw(Dumper);
 @EXPORT_OK = qw(DumperX);
 
-bootstrap Data::Dumper;
+XSLoader::load 'Data::Dumper';
 
 # module vars and their defaults
 $Indent = 2 unless defined $Indent;
@@ -39,7 +39,7 @@ $Deepcopy = 0 unless defined $Deepcopy;
 $Quotekeys = 1 unless defined $Quotekeys;
 $Bless = "bless" unless defined $Bless;
 #$Expdepth = 0 unless defined $Expdepth;
-#$Maxdepth = 0 unless defined $Maxdepth;
+$Maxdepth = 0 unless defined $Maxdepth;
 
 #
 # expects an arrayref of values to be dumped.
@@ -74,7 +74,7 @@ sub new {
              quotekeys	=> $Quotekeys,  # quote hash keys
              'bless'	=> $Bless,	# keyword to use for "bless"
 #	     expdepth   => $Expdepth,   # cutoff depth for explicit dumping
-#	     maxdepth	=> $Maxdepth,   # depth beyond which we give up
+	     maxdepth	=> $Maxdepth,   # depth beyond which we give up
 	   };
 
   if ($Indent > 0) {
@@ -146,11 +146,17 @@ sub Names {
 
 sub DESTROY {}
 
+sub Dump {
+    return &Dumpxs
+	unless $Data::Dumper::Useqq || (ref($_[0]) && $_[0]->{useqq});
+    return &Dumpperl;
+}
+
 #
 # dump the refs in the current dumper object.
 # expects same args as new() if called via package name.
 #
-sub Dump {
+sub Dumpperl {
   my($s) = shift;
   my(@out, $val, $name);
   my($i) = 0;
@@ -214,14 +220,13 @@ sub _dump {
   if ($type) {
 
     # prep it, if it looks like an object
-    if ($type =~ /[a-z_:]/) {
-      my $freezer = $s->{freezer};
-      $val->$freezer() if $freezer && UNIVERSAL::can($val, $freezer);
+    if (my $freezer = $s->{freezer}) {
+      $val->$freezer() if UNIVERSAL::can($val, $freezer);
     }
 
     ($realpack, $realtype, $id) =
       (overload::StrVal($val) =~ /^(?:(.*)\=)?([^=]*)\(([^\(]*)\)$/);
-    
+
     # if it has a name, we need to either look it up, or keep a tab
     # on it so we know when we hit it later
     if (defined($name) and length($name)) {
@@ -231,7 +236,7 @@ sub _dump {
 	  if ($s->{purity} and $s->{level} > 0) {
 	    $out = ($realtype eq 'HASH')  ? '{}' :
 	      ($realtype eq 'ARRAY') ? '[]' :
-		"''" ;
+		'do{my $o}' ;
 	    push @post, $name . " = " . $s->{seen}{$id}[0];
 	  }
 	  else {
@@ -259,14 +264,33 @@ sub _dump {
       }
     }
 
-    $s->{level}++;
-    $ipad = $s->{xpad} x $s->{level};
+    if ($realpack and $realpack eq 'Regexp') {
+	$out = "$val";
+	$out =~ s,/,\\/,g;
+	return "qr/$out/";
+    }
 
-    if ($realpack) {          # we have a blessed ref
+    # If purity is not set and maxdepth is set, then check depth: 
+    # if we have reached maximum depth, return the string
+    # representation of the thing we are currently examining
+    # at this depth (i.e., 'Foo=ARRAY(0xdeadbeef)'). 
+    if (!$s->{purity}
+	and $s->{maxdepth} > 0
+	and $s->{level} >= $s->{maxdepth})
+    {
+      return qq['$val'];
+    }
+
+    # we have a blessed ref
+    if ($realpack) {
       $out = $s->{'bless'} . '( ';
       $blesspad = $s->{apad};
       $s->{apad} .= '       ' if ($s->{indent} >= 2);
     }
+
+    $s->{level}++;
+    $ipad = $s->{xpad} x $s->{level};
+
     
     if ($realtype eq 'SCALAR') {
       if ($realpack) {
@@ -389,7 +413,7 @@ sub _dump {
     elsif (!defined($val)) {
       $out .= "undef";
     }
-    elsif ($val =~ /^-?[1-9]\d{0,8}$/) { # safe decimal number
+    elsif ($val =~ /^(?:0|-?[1-9]\d{0,8})$/) { # safe decimal number
       $out .= $val;
     }
     else {				 # string
@@ -422,9 +446,7 @@ sub Dumper {
   return Data::Dumper->Dump([@_]);
 }
 
-#
-# same, only calls the XS version
-#
+# compat stub
 sub DumperX {
   return Data::Dumper->Dumpxs([@_], []);
 }
@@ -511,6 +533,12 @@ sub Bless {
   defined($v) ? (($s->{'bless'} = $v), return $s) : $s->{'bless'};
 }
 
+sub Maxdepth {
+  my($s, $v) = @_;
+  defined($v) ? (($s->{'maxdepth'} = $v), return $s) : $s->{'maxdepth'};
+}
+
+
 # used by qquote below
 my %esc = (  
     "\a" => "\\a",
@@ -526,25 +554,35 @@ my %esc = (
 sub qquote {
   local($_) = shift;
   s/([\\\"\@\$])/\\$1/g;
-  return qq("$_") unless /[^\040-\176]/;  # fast exit
+  return qq("$_") unless 
+    /[^ !"\#\$%&'()*+,\-.\/0-9:;<=>?\@A-Z[\\\]^_`a-z{|}~]/;  # fast exit
 
   my $high = shift || "";
   s/([\a\b\t\n\f\r\e])/$esc{$1}/g;
 
-  # no need for 3 digits in escape for these
-  s/([\0-\037])(?!\d)/'\\'.sprintf('%o',ord($1))/eg;
-
-  s/([\0-\037\177])/'\\'.sprintf('%03o',ord($1))/eg;
-  if ($high eq "iso8859") {
-    s/([\200-\240])/'\\'.sprintf('%o',ord($1))/eg;
-  } elsif ($high eq "utf8") {
-#   use utf8;
-#   $str =~ s/([^\040-\176])/sprintf "\\x{%04x}", ord($1)/ge;
-  } elsif ($high eq "8bit") {
-      # leave it as it is
-  } else {
-    s/([\0-\037\177-\377])/'\\'.sprintf('%03o',ord($1))/eg;
+  if (ord('^')==94)  { # ascii
+    # no need for 3 digits in escape for these
+    s/([\0-\037])(?!\d)/'\\'.sprintf('%o',ord($1))/eg;
+    s/([\0-\037\177])/'\\'.sprintf('%03o',ord($1))/eg;
+    # all but last branch below not supported --BEHAVIOR SUBJECT TO CHANGE--
+    if ($high eq "iso8859") {
+      s/([\200-\240])/'\\'.sprintf('%o',ord($1))/eg;
+    } elsif ($high eq "utf8") {
+#     use utf8;
+#     $str =~ s/([^\040-\176])/sprintf "\\x{%04x}", ord($1)/ge;
+    } elsif ($high eq "8bit") {
+        # leave it as it is
+    } else {
+      s/([\200-\377])/'\\'.sprintf('%03o',ord($1))/eg;
+    }
   }
+  else { # ebcdic
+      s{([^ !"\#\$%&'()*+,\-.\/0-9:;<=>?\@A-Z[\\\]^_`a-z{|}~])(?!\d)}
+       {my $v = ord($1); '\\'.sprintf(($v <= 037 ? '%o' : '%03o'), $v)}eg;
+      s{([^ !"\#\$%&'()*+,\-.\/0-9:;<=>?\@A-Z[\\\]^_`a-z{|}~])}
+       {'\\'.sprintf('%03o',ord($1))}eg;
+  }
+
   return qq("$_");
 }
 
@@ -653,12 +691,6 @@ of strings corresponding to the supplied values.
 The second form, for convenience, simply calls the C<new> method on its
 arguments before dumping the object immediately.
 
-=item I<$OBJ>->Dumpxs  I<or>  I<PACKAGE>->Dumpxs(I<ARRAYREF [>, I<ARRAYREF]>)
-
-This method is available if you were able to compile and install the XSUB
-extension to C<Data::Dumper>. It is exactly identical to the C<Dump> method 
-above, only about 4 to 5 times faster, since it is written entirely in C.
-
 =item I<$OBJ>->Seen(I<[HASHREF]>)
 
 Queries or adds to the internal table of already encountered references.
@@ -701,12 +733,6 @@ Returns the stringified form of the values in the list, subject to the
 configuration options below.  The values will be named C<$VAR>I<n> in the
 output, where I<n> is a numeric suffix.  Will return a list of strings
 in an array context.
-
-=item DumperX(I<LIST>)
-
-Identical to the C<Dumper()> function above, but this calls the XSUB 
-implementation.  Only available if you were able to compile and install
-the XSUB extensions in C<Data::Dumper>.
 
 =back
 
@@ -763,8 +789,8 @@ When set, enables the use of double quotes for representing string values.
 Whitespace other than space will be represented as C<[\n\t\r]>, "unsafe"
 characters will be backslashed, and unprintable characters will be output as
 quoted octal integers.  Since setting this variable imposes a performance
-penalty, the default is 0.  The C<Dumpxs()> method does not honor this
-flag yet.
+penalty, the default is 0.  C<Dump()> will run slower if this flag is set,
+since the fast XSUB implementation doesn't support it yet.
 
 =item $Data::Dumper::Terse  I<or>  I<$OBJ>->Terse(I<[NEWVAL]>)
 
@@ -814,6 +840,14 @@ builtin operator used to create objects.  A function with the specified
 name should exist, and should accept the same arguments as the builtin.
 Default is C<bless>.
 
+=item $Data::Dumper::Maxdepth  I<or>  $I<OBJ>->Maxdepth(I<[NEWVAL]>)
+
+Can be set to a positive integer that specifies the depth beyond which
+which we don't venture into a structure.  Has no effect when
+C<Data::Dumper::Purity> is set.  (Useful in debugger when we often don't
+want to see more than enough).  Default is 0, which means there is 
+no maximum depth. 
+
 =back
 
 =head2 Exports
@@ -847,7 +881,7 @@ distribution for more examples.)
     $boo = [ 1, [], "abcd", \*foo,
              {1 => 'a', 023 => 'b', 0x45 => 'c'}, 
              \\"p\q\'r", $foo, $fuz];
-    
+
     ########
     # simple usage
     ########
@@ -868,12 +902,12 @@ distribution for more examples.)
 
     $Data::Dumper::Useqq = 1;          # print strings in double quotes
     print Dumper($boo);
-    
-    
+
+
     ########
     # recursive structures
     ########
-    
+
     @c = ('c');
     $c = \@c;
     $b = {};
@@ -882,37 +916,52 @@ distribution for more examples.)
     $b->{b} = $a->[1];
     $b->{c} = $a->[2];
     print Data::Dumper->Dump([$a,$b,$c], [qw(a b c)]);
-    
-    
+
+
     $Data::Dumper::Purity = 1;         # fill in the holes for eval
     print Data::Dumper->Dump([$a, $b], [qw(*a b)]); # print as @a
     print Data::Dumper->Dump([$b, $a], [qw(*b a)]); # print as %b
-    
-    
+
+
     $Data::Dumper::Deepcopy = 1;       # avoid cross-refs
     print Data::Dumper->Dump([$b, $a], [qw(*b a)]);
-    
-    
+
+
     $Data::Dumper::Purity = 0;         # avoid cross-refs
     print Data::Dumper->Dump([$b, $a], [qw(*b a)]);
-    
-    
+
+    ########
+    # deep structures
+    ########
+
+    $a = "pearl";
+    $b = [ $a ];
+    $c = { 'b' => $b };
+    $d = [ $c ];
+    $e = { 'd' => $d };
+    $f = { 'e' => $e };
+    print Data::Dumper->Dump([$f], [qw(f)]);
+
+    $Data::Dumper::Maxdepth = 3;       # no deeper than 3 refs down
+    print Data::Dumper->Dump([$f], [qw(f)]);
+
+
     ########
     # object-oriented usage
     ########
-    
+
     $d = Data::Dumper->new([$a,$b], [qw(a b)]);
     $d->Seen({'*c' => $c});            # stash a ref without printing it
     $d->Indent(3);
     print $d->Dump;
     $d->Reset->Purity(0);              # empty the seen cache
     print join "----\n", $d->Dump;
-    
-    
+
+
     ########
     # persistence
     ########
-    
+
     package Foo;
     sub new { bless { state => 'awake' }, shift }
     sub Freeze {
@@ -921,7 +970,7 @@ distribution for more examples.)
 	$s->{state} = 'asleep';
 	return bless $s, 'Foo::ZZZ';
     }
-    
+
     package Foo::ZZZ;
     sub Thaw {
         my $s = shift;
@@ -929,7 +978,7 @@ distribution for more examples.)
 	$s->{state} = 'awake';
 	return bless $s, 'Foo';
     }
-    
+
     package Foo;
     use Data::Dumper;
     $a = Foo->new;
@@ -940,12 +989,12 @@ distribution for more examples.)
     print $c;
     $d = eval $c;
     print Data::Dumper->Dump([$d], ['d']);
-    
-    
+
+
     ########
     # symbol substitution (useful for recreating CODE refs)
     ########
-    
+
     sub foo { print "foo speaking\n" }
     *other = \&foo;
     $bar = [ \&other ];
@@ -974,15 +1023,15 @@ to have, you can use the C<Seen> method to pre-seed the internal reference
 table and make the dumped output point to them, instead.  See L<EXAMPLES>
 above.
 
-The C<Useqq> flag is not honored by C<Dumpxs()> (it always outputs
-strings in single quotes).
+The C<Useqq> flag makes Dump() run slower, since the XSUB implementation
+does not support it.
 
 SCALAR objects have the weirdest looking C<bless> workaround.
 
 
 =head1 AUTHOR
 
-Gurusamy Sarathy        gsar@umich.edu
+Gurusamy Sarathy        gsar@activestate.com
 
 Copyright (c) 1996-98 Gurusamy Sarathy. All rights reserved.
 This program is free software; you can redistribute it and/or
@@ -991,7 +1040,7 @@ modify it under the same terms as Perl itself.
 
 =head1 VERSION
 
-Version 2.10    (31 Oct 1998)
+Version 2.11   (unreleased)
 
 =head1 SEE ALSO
 

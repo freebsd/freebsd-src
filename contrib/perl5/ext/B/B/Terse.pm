@@ -17,6 +17,7 @@ sub terse {
 sub compile {
     my $order = shift;
     my @options = @_;
+    B::clearsym();
     if (@options) {
 	return sub {
 	    my $objname;
@@ -53,10 +54,9 @@ sub B::SVOP::terse {
     $op->sv->terse(0);
 }
 
-sub B::GVOP::terse {
+sub B::PADOP::terse {
     my ($op, $level) = @_;
-    print indent($level), peekop($op), "  ";
-    $op->gv->terse(0);
+    print indent($level), peekop($op), "  ", $op->padix, "\n";
 }
 
 sub B::PMOP::terse {
@@ -78,7 +78,7 @@ sub B::COP::terse {
     if ($label) {
 	$label = " label ".cstring($label);
     }
-    print indent($level), peekop($op), $label, "\n";
+    print indent($level), peekop($op), $label || "", "\n";
 }
 
 sub B::PV::terse {

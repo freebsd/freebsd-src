@@ -1,16 +1,16 @@
 package Thread;
 require Exporter;
-require DynaLoader;
-use vars qw($VERSION @ISA @EXPORT);
+use XSLoader ();
+our($VERSION, @ISA, @EXPORT);
 
 $VERSION = "1.0";
 
-@ISA = qw(Exporter DynaLoader);
+@ISA = qw(Exporter);
 @EXPORT_OK = qw(yield cond_signal cond_broadcast cond_wait async);
 
 =head1 NAME
 
-Thread - multithreading
+Thread - manipulate threads in Perl (EXPERIMENTAL, subject to change)
 
 =head1 SYNOPSIS
 
@@ -18,19 +18,31 @@ Thread - multithreading
 
     my $t = new Thread \&start_sub, @start_args;
 
-    $t->join;
+    $result = $t->join;
+    $result = $t->eval;
+    $t->detach;
+
+    if($t->equal($another_thread)) {
+    	# ...
+    }
 
     my $tid = Thread->self->tid; 
-
     my $tlist = Thread->list;
 
     lock($scalar);
+    yield();
 
     use Thread 'async';
 
-    use Thread 'eval';
-
 =head1 DESCRIPTION
+
+    WARNING: Threading is an experimental feature.  Both the interface
+    and implementation are subject to change drastically.  In fact, this
+    documentation describes the flavor of threads that was in version
+    5.005.  Perl 5.6.0 and later have the beginnings of support for
+    interpreter threads, which (when finished) is expected to be
+    significantly different from what is described here.  The information
+    contained here may therefore soon be obsolete.  Use at your own risk!
 
 The C<Thread> module provides multithreading support for perl.
 
@@ -70,8 +82,8 @@ of that container are not locked. For example, if a thread does a C<lock
 
 You may also C<lock> a sub, using C<lock &sub>. Any calls to that sub from
 another thread will block until the lock is released. This behaviour is not
-equvalent to C<use attrs qw(locked)> in the sub. C<use attrs qw(locked)>
-serializes access to a subroutine, but allows different threads
+equivalent to declaring the sub with the C<locked> attribute.  The C<locked>
+attribute serializes access to a subroutine, but allows different threads
 non-simultaneous access. C<lock &sub>, on the other hand, will not allow
 I<any> other thread access for the duration of the lock.
 
@@ -122,6 +134,11 @@ The C<cond_broadcast> function works similarly to C<cond_wait>.
 C<cond_broadcast>, though, will unblock B<all> the threads that are blocked
 in a C<cond_wait> on the locked variable, rather than only one.
 
+=item yield
+
+The C<yield> function allows another thread to take control of the
+CPU. The exact results are implementation-dependent.
+
 =back
 
 =head1 METHODS
@@ -145,12 +162,26 @@ The C<eval> method wraps an C<eval> around a C<join>, and so waits for a
 thread to exit, passing along any values the thread might have returned.
 Errors, of course, get placed into C<$@>.
 
+=item detach
+
+C<detach> tells a thread that it is never going to be joined i.e.
+that all traces of its existence can be removed once it stops running.
+Errors in detached threads will not be visible anywhere - if you want
+to catch them, you should use $SIG{__DIE__} or something like that.
+
+=item equal 
+
+C<equal> tests whether two thread objects represent the same thread and
+returns true if they do.
+
 =item tid
 
 The C<tid> method returns the tid of a thread. The tid is a monotonically
 increasing integer assigned when a thread is created. The main thread of a
 program will have a tid of zero, while subsequent threads will have tids
 assigned starting with one.
+
+=back
 
 =head1 LIMITATIONS
 
@@ -161,7 +192,7 @@ duplicate tids. This limitation may be lifted in a future version of Perl.
 
 =head1 SEE ALSO
 
-L<attrs>, L<Thread::Queue>, L<Thread::Semaphore>, L<Thread::Specific>.
+L<attributes>, L<Thread::Queue>, L<Thread::Semaphore>, L<Thread::Specific>.
 
 =cut
 
@@ -180,6 +211,6 @@ sub eval {
     return eval { shift->join; };
 }
 
-bootstrap Thread;
+XSLoader::load 'Thread';
 
 1;

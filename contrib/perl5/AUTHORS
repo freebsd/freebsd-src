@@ -1,0 +1,120 @@
+# Two sections: the real one and the virtual one.
+# The real section has three \t+ fields: alias, name, email.
+# The sections are separated by one or more empty lines.
+# The virtual section (each record two \t+ separated fields) builds
+# meta-aliases based on the real section.
+
+alan.burlison	Alan Burlison		Alan.Burlison@UK.Sun.com
+allen		Norton T. Allen		allen@huarp.harvard.edu
+bradapp		Brad Appleton		bradapp@enteract.com
+cbail		Charles Bailey		bailey@newman.upenn.edu
+dgris		Daniel Grisinger	dgris@dimensional.com
+dmulholl	Daniel Yacob		dmulholl@cs.indiana.edu
+dogcow		Tom Spindler		dogcow@merit.edu
+domo		Dominic Dunlop		domo@slipper.ip.lu
+doug		Doug MacEachern		dougm@pobox.com
+doughera	Andy Dougherty		doughera@lafcol.lafayette.edu
+gbarr		Graham Barr		gbarr@ti.com
+gerti		Gerd Knops		gerti@BITart.com
+gibreel		Stephen Zander		gibreel@pobox.com
+gnat		Nathan Torkington	gnat@frii.com
+gsar		Gurusamy Sarathy	gsar@activestate.com
+hansmu		Hans Mulder		hansmu@xs4all.nl
+ilya		Ilya Zakharevich	ilya@math.ohio-state.edu
+jbuehler	Joe Buehler		jbuehler@hekimian.com
+jfs		John Stoffel		jfs@fluent.com
+jhi		Jarkko Hietaniemi	jhi@iki.fi
+jon		Jon Orwant		orwant@media.mit.edu
+jvromans	Johan Vromans		jvromans@squirrel.nl
+k		Andreas Koenig		andreas.koenig@franz.ww.tu-berlin.de
+kjahds		Kenneth Albanowski	kjahds@kjahds.com
+krishna		Krishna Sethuraman	krishna@sgi.com
+kstar		Kurt D. Starsinic	kstar@isinet.com
+lstein		Lincoln D. Stein	lstein@genome.wi.mit.edu
+lutherh		Luther Huffman		lutherh@stratcom.com
+lutz		Mark P. Lutz		mark.p.lutz@boeing.com
+lwall		Larry Wall		larry@wall.org
+makemaker	MakeMaker list		makemaker@franz.ww.tu-berlin.de
+mbiggar		Mark A Biggar		mab@wdl.loral.com
+mbligh		Martin J. Bligh		mbligh@sequent.com
+mike		Mike Stok		mike@stok.co.uk
+millert		Todd Miller		millert@openbsd.org
+laszlo.molnar	Laszlo Molnar		Laszlo.Molnar@eth.ericsson.se
+mpeix		Mark Bixby		markb@cccd.edu
+muir		David Muir Sharnoff	muir@idiom.com
+neale		Neale Ferguson		neale@VMA.TABNSW.COM.AU
+nik		Nick Ing-Simmons	nik@tiuk.ti.com
+okamoto		Jeff Okamoto		okamoto@corp.hp.com
+paul_green	Paul Green		Paul_Green@stratus.com
+pmarquess	Paul Marquess		Paul.Marquess@btinternet.com
+pomeranz	Hal Pomeranz		pomeranz@netcom.com
+pudge		Chris Nandor		pudge@pobox.com
+pueschel	Norbert Pueschel	pueschel@imsdd.meb.uni-bonn.de
+pvhp		Peter Prymmer		pvhp@forte.com
+raphael		Raphael Manfredi	Raphael_Manfredi@pobox.com
+rdieter		Rex Dieter		rdieter@math.unl.edu
+rsanders	Robert Sanders		Robert.Sanders@linux.org	
+roberto		Ollivier Robert		roberto@keltia.freenix.fr
+roderick	Roderick Schertler	roderick@argon.org
+roehrich	Dean Roehrich		roehrich@cray.com
+tsanders	Tony Sanders		sanders@bsdi.com
+schinder	Paul Schinder		schinder@pobox.com
+scotth		Scott Henry		scotth@sgi.com
+seibert		Greg Seibert		seibert@Lynx.COM
+spider		Spider Boardman		spider@Orb.Nashua.NH.US
+smccam		Stephen McCamant	smccam@uclink4.berkeley.edu
+sugalskd	Dan Sugalski		sugalskd@osshe.edu
+sundstrom	David Sundstrom		sunds@asictest.sc.ti.com
+tchrist		Tom Christiansen	tchrist@perl.com
+thomas.dorner	Dorner Thomas		Thomas.Dorner@start.de
+timb		Tim Bunce		Tim.Bunce@ig.co.uk
+tom.horsley	Tom Horsley		Tom.Horsley@mail.ccur.com
+tye		Tye McQueen		tye@metronet.com
+wayne.thompson	Wayne Thompson		Wayne.Thompson@Ebay.sun.com
+
+PUMPKING	gsar
+aix		jhi
+amiga		pueschel
+beos		dogcow
+bsdos		tsanders
+cfg		jhi
+cgi		lstein
+complex		jhi,raphael
+cpan		k
+cxux		tom.horsley
+cygwin		win32
+dec_osf		jhi,spider
+dgux		roderick
+doc		tchrist
+dos		laszlo.molnar
+dynix/ptx	mbligh
+ebcdic		vms,vmesa,posixbc
+filespec	kjahds
+freebsd		roberto
+hpux		okamoto,jhi
+irix		scotth,krishna,jfs,kstar
+jpl		gibreel
+linux		kjahds,kstar
+locale		jhi,domo
+lynxos		lynxos
+machten		domo
+mm		makemaker
+mvs		pvhp
+netbsd		jhi
+openbsd		millert
+os2		ilya
+plan9		lutherl
+posix-bc	thomas.dorner
+powerux		tom.horsley
+qnx		allen
+solaris		doughera,alan.burlison
+step		gerti,hansmu,rdieter
+sunos4		doughera
+svr4		tye
+unicos		jhi,lutz
+uwin		jbuehler
+vmesa		neale
+vms		sugalskd,cbail
+vos		paul_green
+warn		pmarquess
+win32		gsar

@@ -7,3 +7,8 @@ Fri Apr 15 10:15:30 EDT 1994.
 
 Additional portability/configuration changes for libsdbm by Andy Dougherty
 doughera@lafcol.lafayette.edu.
+
+
+Mon Mar 22 03:24:47 PST 1999.
+
+sdbm_exists added to the library by Russ Allbery <rra@stanford.edu>.

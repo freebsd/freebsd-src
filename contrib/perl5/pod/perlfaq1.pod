@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq1 - General Questions About Perl ($Revision: 1.20 $, $Date: 1999/01/08 04:22:09 $)
+perlfaq1 - General Questions About Perl ($Revision: 1.23 $, $Date: 1999/05/23 16:08:30 $)
 
 =head1 DESCRIPTION
 
@@ -36,8 +36,8 @@ In particular, the core development team (known as the Perl Porters)
 are a rag-tag band of highly altruistic individuals committed
 to producing better software for free than you could hope to
 purchase for money.  You may snoop on pending developments via
-nntp://news.perl.com/perl.porters-gw/ and the Deja News archive at
-http://www.dejanews.com/ using the perl.porters-gw newsgroup, or you can
+news://news.perl.com/perl.porters-gw/ and the Deja archive at
+http://www.deja.com/ using the perl.porters-gw newsgroup, or you can
 subscribe to the mailing list by sending perl5-porters-request@perl.org
 a subscription request.
 
@@ -56,13 +56,13 @@ You should definitely use version 5.  Version 4 is old, limited, and
 no longer maintained; its last patch (4.036) was in 1992, long ago and
 far away.  Sure, it's stable, but so is anything that's dead; in fact,
 perl4 had been called a dead, flea-bitten camel carcass.  The most recent
-production release is 5.005_02 (although 5.004_04 is still supported).
-The most cutting-edge development release is 5.005_54.  Further references
+production release is 5.005_03 (although 5.004_05 is still supported).
+The most cutting-edge development release is 5.005_57.  Further references
 to the Perl language in this document refer to the production release
-unless otherwise specified.  There may be one or more official bug
-fixes for 5.005_02 by the time you read this, and also perhaps some
-experimental versions on the way to the next release.  All releases
-prior to 5.004 were subject to buffer overruns, a grave security issue.
+unless otherwise specified.  There may be one or more official bug fixes
+by the time you read this, and also perhaps some experimental versions
+on the way to the next release.  All releases prior to 5.004 were subject
+to buffer overruns, a grave security issue.
 
 =head2 What are perl4 and perl5?
 
@@ -96,7 +96,7 @@ found in release 5.  Written in nominally portable C++, Topaz hopes to
 maintain 100% source-compatibility with previous releases of Perl but to
 run significantly faster and smaller.  The Topaz team hopes to provide
 an XS compatibility interface to allow most XS modules to work unchanged,
-albeit perhaps without the efficiency that the new interface uowld allow.
+albeit perhaps without the efficiency that the new interface would allow.
 New features in Topaz are as yet undetermined, and will be addressed
 once compatibility and performance goals are met.
 
@@ -125,8 +125,8 @@ and the rare new keyword).
 
 No, Perl is easy to start learning -- and easy to keep learning.  It looks
 like most programming languages you're likely to have experience
-with, so if you've ever written an C program, an awk script, a shell
-script, or even BASIC program, you're already part way there.
+with, so if you've ever written a C program, an awk script, a shell
+script, or even a BASIC program, you're already part way there.
 
 Most tasks only require a small subset of the Perl language.  One of
 the guiding mottos for Perl development is "there's more than one way
@@ -213,8 +213,8 @@ signify the language proper and "perl" the implementation of it,
 i.e. the current interpreter.  Hence Tom's quip that "Nothing but perl
 can parse Perl."  You may or may not choose to follow this usage.  For
 example, parallelism means "awk and perl" and "Python and Perl" look
-ok, while "awk and Perl" and "Python and perl" do not.  But never
-write "PERL", because perl isn't really an acronym, aprocryphal
+OK, while "awk and Perl" and "Python and perl" do not.  But never
+write "PERL", because perl isn't really an acronym, apocryphal
 folklore and post-facto expansions notwithstanding.
 
 =head2 Is it a Perl program or a Perl script?
@@ -223,7 +223,7 @@ Larry doesn't really care.  He says (half in jest) that "a script is
 what you give the actors.  A program is what you give the audience."
 
 Originally, a script was a canned sequence of normally interactive
-commands, that is, a chat script.  Something like a uucp or ppp chat
+commands, that is, a chat script.  Something like a UUCP or PPP chat
 script or an expect script fits the bill nicely, as do configuration
 scripts run by a program at its start up, such F<.cshrc> or F<.ircrc>,
 for example.  Chat scripts were just drivers for existing programs,
@@ -247,7 +247,7 @@ a definitive answer here.
 Now that "script" and "scripting" are terms that have been seized by
 unscrupulous or unknowing marketeers for their own nefarious purposes,
 they have begun to take on strange and often pejorative meanings,
-like "non serious" or "not real programming".  Consequently, some perl
+like "non serious" or "not real programming".  Consequently, some Perl
 programmers prefer to avoid them altogether.
 
 =head2 What is a JAPH?
@@ -269,7 +269,7 @@ Newer examples can be found by perusing Larry's postings:
 =head2 How can I convince my sysadmin/supervisor/employees to use version (5/5.005/Perl instead of some other language)?
 
 If your manager or employees are wary of unsupported software, or
-software which doesn't officially ship with your Operating System, you
+software which doesn't officially ship with your operating system, you
 might try to appeal to their self-interest.  If programmers can be
 more productive using and utilizing Perl constructs, functionality,
 simplicity, and power, then the typical manager/supervisor/employee
@@ -295,31 +295,30 @@ by the Perl Development Team.  Another big sell for Perl5 is the large
 number of modules and extensions which greatly reduce development time
 for any given task.  Also mention that the difference between version
 4 and version 5 of Perl is like the difference between awk and C++.
-(Well, ok, maybe not quite that distinct, but you get the idea.)  If you
+(Well, OK, maybe not quite that distinct, but you get the idea.)  If you
 want support and a reasonable guarantee that what you're developing
 will continue to work in the future, then you have to run the supported
 version.  That probably means running the 5.005 release, although 5.004
 isn't that bad.  Several important bugs were fixed from the 5.000 through
 5.003 versions, though, so try upgrading past them if possible.
 
-Of particular note is the massive bughunt for buffer overflow
+Of particular note is the massive bug hunt for buffer overflow
 problems that went into the 5.004 release.  All releases prior to
 that, including perl4, are considered insecure and should be upgraded
 as soon as possible.
 
 =head1 AUTHOR AND COPYRIGHT
 
-Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
+Copyright (c) 1997, 1998, 1999 Tom Christiansen and Nathan Torkington.
 All rights reserved.
 
 When included as an integrated part of the Standard Distribution
-of Perl or of its documentation (printed or otherwise), this work is
+of Perl or of its documentation (printed or otherwise), this works is
 covered under Perl's Artistic Licence.  For separate distributions of
 all or part of this FAQ outside of that, see L<perlfaq>.
 
-Irrespective of its distribution, all code examples here are public
+Irrespective of its distribution, all code examples here are in the public
 domain.  You are permitted and encouraged to use this code and any
 derivatives thereof in your own programs for fun or for profit as you
 see fit.  A simple comment in the code giving credit to the FAQ would
 be courteous but is not required.
-

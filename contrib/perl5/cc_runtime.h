@@ -1,4 +1,5 @@
-#define DOOP(ppname) PUTBACK; PL_op = ppname(ARGS); SPAGAIN
+#define DOOP(ppname) PUTBACK; PL_op = ppname(aTHX); SPAGAIN
+#define CCPP(s)   OP * s(pTHX)
 
 #define PP_LIST(g) do {			\
 	dMARK;				\
@@ -43,7 +44,7 @@
 	JMPENV_PUSH(ret);			\
 	switch (ret) {				\
 	case 0:					\
-	    PL_op = ppaddr(ARGS);			\
+	    PL_op = ppaddr(aTHX);		\
 	    PL_retstack[PL_retstack_ix - 1] = Nullop;	\
 	    if (PL_op != nxt) CALLRUNOPS();		\
 	    JMPENV_POP;				\
@@ -52,20 +53,23 @@
 	case 2: JMPENV_POP; JMPENV_JUMP(2);	\
 	case 3:					\
 	    JMPENV_POP;				\
-	    if (PL_restartop != nxt)		\
+	    if (PL_restartop && PL_restartop != nxt)		\
 		JMPENV_JUMP(3);			\
 	}					\
 	PL_op = nxt;				\
 	SPAGAIN;				\
     } while (0)
 
-#define PP_ENTERTRY(jmpbuf,label) do {		\
-	dJMPENV;				\
-	int ret;				\
-	JMPENV_PUSH(ret);			\
-	switch (ret) {				\
-	case 1: JMPENV_POP; JMPENV_JUMP(1);	\
-	case 2: JMPENV_POP; JMPENV_JUMP(2);	\
-	case 3: JMPENV_POP; SPAGAIN; goto label;\
-	}					\
-    } while (0)
+
+#define PP_ENTERTRY(jmpbuf,label)  \
+	STMT_START {                    \
+		int ret;		\
+		JMPENV_PUSH_ENV(jmpbuf,ret);			\
+		switch (ret) {				\
+			case 1: JMPENV_POP_ENV(jmpbuf); JMPENV_JUMP(1);\
+			case 2: JMPENV_POP_ENV(jmpbuf); JMPENV_JUMP(2);\
+			case 3: JMPENV_POP_ENV(jmpbuf); SPAGAIN; goto label;\
+		}                                       \
+	} STMT_END
+#define PP_LEAVETRY \
+	STMT_START{ PL_top_env=PL_top_env->je_prev; }STMT_END

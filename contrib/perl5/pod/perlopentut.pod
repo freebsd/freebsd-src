@@ -73,7 +73,7 @@ from a different file, and forget to trim it before opening:
 This is not a bug, but a feature.  Because C<open> mimics the shell in
 its style of using redirection arrows to specify how to open the file, it
 also does so with respect to extra white space around the filename itself
-as well.  For accessing files with naughty names, see L</"Dispelling
+as well.  For accessing files with naughty names, see L<"Dispelling
 the Dweomer">.
 
 =head2 Pipe Opens
@@ -84,7 +84,7 @@ C<popen> function.  But in the shell, you just use a different redirection
 character.  That's also the case for Perl.  The C<open> call 
 remains the same--just its argument differs.  
 
-If the leading character is a pipe symbol, C<open) starts up a new
+If the leading character is a pipe symbol, C<open> starts up a new
 command and open a write-only filehandle leading into that command.
 This lets you write into that handle and have what you write show up on
 that command's standard input.  For example:
@@ -123,9 +123,9 @@ special way.  If you open minus for reading, it really means to access
 the standard input.  If you open minus for writing, it really means to
 access the standard output.
 
-If minus can be used as the default input or default output?  What happens
+If minus can be used as the default input or default output, what happens
 if you open a pipe into or out of minus?  What's the default command it
-would run?  The same script as you're current running!  This is actually
+would run?  The same script as you're currently running!  This is actually
 a stealth C<fork> hidden inside an C<open> call.  See L<perlipc/"Safe Pipe
 Opens"> for details.
 
@@ -175,7 +175,7 @@ L<perlfaq5> for more details.
 
 One of the most common uses for C<open> is one you never
 even notice.  When you process the ARGV filehandle using
-C<E<lt>ARGVE<gt>>, Perl actually does an implicit open 
+C<< <ARGV> >>, Perl actually does an implicit open 
 on each file in @ARGV.  Thus a program called like this:
 
     $ myprogram file1 file2 file3
@@ -189,7 +189,7 @@ using a construct no more complex than:
 
 If @ARGV is empty when the loop first begins, Perl pretends you've opened
 up minus, that is, the standard input.  In fact, $ARGV, the currently
-open file during C<E<lt>ARGVE<gt>> processing, is even set to "-"
+open file during C<< <ARGV> >> processing, is even set to "-"
 in these circumstances.
 
 You are welcome to pre-process your @ARGV before starting the loop to
@@ -239,7 +239,7 @@ Here's an example:
                 or die "can't open $pwdinfo: $!";
 
 This sort of thing also comes into play in filter processing.  Because
-C<E<lt>ARGVE<gt>> processing employs the normal, shell-style Perl C<open>,
+C<< <ARGV> >> processing employs the normal, shell-style Perl C<open>,
 it respects all the special things we've already seen:
 
     $ myprogram f1 "cmd1|" - f2 "cmd2|" f3 < tmpfile
@@ -264,7 +264,7 @@ you can fetch URLs before processing them:
 
     @ARGV = map { m#^\w+://# ? "GET $_ |" : $_ } @ARGV;
 
-It's not for nothing that this is called magic C<E<lt>ARGVE<gt>>.
+It's not for nothing that this is called magic C<< <ARGV> >>.
 Pretty nifty, eh?
 
 =head1 Open E<agrave> la C
@@ -303,11 +303,13 @@ from the Fcntl module, which supplies the following standard flags:
     O_TRUNC             Truncate the file
     O_NONBLOCK          Non-blocking access
 
-Less common flags that are sometimes available on some operating systems
-include C<O_BINARY>, C<O_TEXT>, C<O_SHLOCK>, C<O_EXLOCK>, C<O_DEFER>,
-C<O_SYNC>, C<O_ASYNC>, C<O_DSYNC>, C<O_RSYNC>, C<O_NOCTTY>, C<O_NDELAY>
-and C<O_LARGEFILE>.  Consult your open(2) manpage or its local equivalent
-for details.
+Less common flags that are sometimes available on some operating
+systems include C<O_BINARY>, C<O_TEXT>, C<O_SHLOCK>, C<O_EXLOCK>,
+C<O_DEFER>, C<O_SYNC>, C<O_ASYNC>, C<O_DSYNC>, C<O_RSYNC>,
+C<O_NOCTTY>, C<O_NDELAY> and C<O_LARGEFILE>.  Consult your open(2)
+manpage or its local equivalent for details.  (Note: starting from
+Perl release 5.6 the O_LARGEFILE flag, if available, is automatically
+added to the sysopen() flags because large files are the the default.)
 
 Here's how to use C<sysopen> to emulate the simple C<open> calls we had
 before.  We'll omit the C<|| die $!> checks for clarity, but make sure
@@ -391,7 +393,7 @@ folders, cookie files, and internal temporary files.
 Sometimes you already have a filehandle open, and want to make another
 handle that's a duplicate of the first one.  In the shell, we place an
 ampersand in front of a file descriptor number when doing redirections.
-For example, C<2E<gt>&1> makes descriptor 2 (that's STDERR in Perl)
+For example, C<< 2>&1 >> makes descriptor 2 (that's STDERR in Perl)
 be redirected into descriptor 1 (which is usually Perl's STDOUT).
 The same is essentially true in Perl: a filename that begins with an
 ampersand is treated instead as a file descriptor if a number, or as a
@@ -442,8 +444,8 @@ these days.  Here's an example of that:
     $fd = $ENV{"MHCONTEXTFD"};
     open(MHCONTEXT, "<&=$fd")   or die "couldn't fdopen $fd: $!";
 
-If you're using magic C<E<lt>ARGVE<gt>>, you could even pass in as a
-command line argument in @ARGV something like C<"E<lt>&=$MHCONTEXTFD">,
+If you're using magic C<< <ARGV> >>, you could even pass in as a
+command line argument in @ARGV something like C<"<&=$MHCONTEXTFD">,
 but we've never seen anyone actually do this.
 
 =head2 Dispelling the Dweomer
@@ -472,7 +474,7 @@ The only vaguely popular system that doesn't work this way is the
 proprietary Macintosh system, which uses a colon where the rest of us
 use a slash.  Maybe C<sysopen> isn't such a bad idea after all.
 
-If you want to use C<E<lt>ARGVE<gt>> processing in a totally boring
+If you want to use C<< <ARGV> >> processing in a totally boring
 and non-magical way, you could do this first:
 
     #   "Sam sat on the ground and put his head in his hands.  
@@ -494,7 +496,7 @@ to mean standard input, per the standard convention.
 You've probably noticed how Perl's C<warn> and C<die> functions can
 produce messages like:
 
-    Some warning at scriptname line 29, <FH> chunk 7.
+    Some warning at scriptname line 29, <FH> line 7.
 
 That's because you opened a filehandle FH, and had read in seven records
 from it.  But what was the name of the file, not the handle?
@@ -510,7 +512,7 @@ temporarily, then all you have to do is this:
 Since you're using the pathname of the file as its handle,
 you'll get warnings more like
 
-    Some warning at scriptname line 29, </etc/motd> chunk 7.
+    Some warning at scriptname line 29, </etc/motd> line 7.
 
 =head2 Single Argument Open
 
@@ -694,7 +696,7 @@ the doctor ordered.  There's no filehandle interface, but
 it's still easy to get the contents of a document:
 
     use LWP::Simple;
-    $doc = get('http://www.sn.no/libwww-perl/');
+    $doc = get('http://www.linpro.no/lwp/');
 
 =head2 Binary Files
 

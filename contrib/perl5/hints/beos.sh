@@ -51,3 +51,7 @@ ld='gcc'
 # Of course, this may also change with R5.
 
 export PATH="$PATH:$PWD/beos"
+
+case "$ldlibpthname" in
+'') ldlibpthname=LIBRARY_PATH ;;
+esac

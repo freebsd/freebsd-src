@@ -1,0 +1,29 @@
+# perl
+
+use V;
+
+dprofpp( '-T' );
+$e1 = $expected =
+qq{main::bar
+main::baz
+   main::bar
+   main::foo
+};
+report 9, sub { $expected eq $results };
+
+dprofpp('-TF');
+$e2 = $expected =
+qq{main::bar
+main::baz
+   main::bar
+   main::foo
+};
+report 10, sub { $expected eq $results };
+
+dprofpp( '-t' );
+$expected = $e1;
+report 11, sub { 1 };
+
+dprofpp('-tF');
+$expected = $e2;
+report 12, sub { $expected eq $results };

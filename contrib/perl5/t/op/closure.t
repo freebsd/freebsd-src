@@ -7,12 +7,12 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
 use Config;
 
-print "1..169\n";
+print "1..171\n";
 
 my $test = 1;
 sub test (&) {
@@ -156,6 +156,31 @@ test {
   &{$foo[3]}(3) and
   &{$foo[4]}(4)
 };
+
+for my $n (0..4) {
+    $foo[$n] = sub {
+                     # no intervening reference to $n here
+                     sub { $n == $_[0] }
+		   };
+}
+
+test {
+  $foo[0]->()->(0) and
+  $foo[1]->()->(1) and
+  $foo[2]->()->(2) and
+  $foo[3]->()->(3) and
+  $foo[4]->()->(4)
+};
+
+{
+    my $w;
+    $w = sub {
+	my ($i) = @_;
+	test { $i == 10 };
+	sub { $w };
+    };
+    $w->(10);
+}
 
 # Additional tests by Tom Phoenix <rootbeer@teleport.com>.
 

@@ -1,14 +1,11 @@
 package attrs;
-require DynaLoader;
-use vars '@ISA';
-@ISA = 'DynaLoader';
+use XSLoader ();
 
-use vars qw($VERSION);
 $VERSION = "1.0";
 
 =head1 NAME
 
-attrs - set/get attributes of a subroutine
+attrs - set/get attributes of a subroutine (deprecated)
 
 =head1 SYNOPSIS
 
@@ -21,11 +18,17 @@ attrs - set/get attributes of a subroutine
 
 =head1 DESCRIPTION
 
-This module lets you set and get attributes for subroutines.
+NOTE: Use of this pragma is deprecated.  Use the syntax
+
+    sub foo : locked method { }
+
+to declare attributes instead.  See also L<attributes>.
+
+This pragma lets you set and get attributes for subroutines.
 Setting attributes takes place at compile time; trying to set
 invalid attribute names causes a compile-time error. Calling
-C<attr::get> on a subroutine reference or name returns its list
-of attribute names. Notice that C<attr::get> is not exported.
+C<attrs::get> on a subroutine reference or name returns its list
+of attribute names. Notice that C<attrs::get> is not exported.
 Valid attributes are as follows.
 
 =over
@@ -50,6 +53,6 @@ subroutine is entered.
 
 =cut
 
-bootstrap attrs $VERSION;
+XSLoader::load 'attrs', $VERSION;
 
 1;

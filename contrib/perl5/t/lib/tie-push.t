@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }    
 
 {
@@ -21,4 +21,4 @@ tie @x,Basic;
 tie @get,Basic;
 tie @got,Basic;
 tie @tests,Basic;
-require "../t/op/push.t"
+require "op/push.t"

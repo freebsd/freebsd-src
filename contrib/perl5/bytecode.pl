@@ -1,3 +1,6 @@
+BEGIN {
+  push @INC, './lib';
+}
 use strict;
 my %alias_to = (
     U32 => [qw(PADOFFSET STRLEN)],
@@ -6,7 +9,7 @@ my %alias_to = (
     U8 => [qw(char)],
 );
 
-my @optype= qw(OP UNOP BINOP LOGOP CONDOP LISTOP PMOP SVOP GVOP PVOP LOOP COP);
+my @optype= qw(OP UNOP BINOP LOGOP LISTOP PMOP SVOP PADOP PVOP LOOP COP);
 
 # Nullsv *must* come first in the following so that the condition
 # ($$sv == 0) can continue to be used to test (sv == Nullsv).
@@ -19,7 +22,7 @@ while (($from, $tos) = each %alias_to) {
 
 my $c_header = <<'EOT';
 /*
- *      Copyright (c) 1996-1998 Malcolm Beattie
+ *      Copyright (c) 1996-1999 Malcolm Beattie
  *
  *      You may distribute under the terms of either the GNU General Public
  *      License or the Artistic License, as specified in the README file.
@@ -33,7 +36,7 @@ EOT
 my $perl_header;
 ($perl_header = $c_header) =~ s{[/ ]?\*/?}{#}g;
 
-unlink "byterun.c", "byterun.h", "ext/B/B/Asmdata.pm";
+unlink "ext/ByteLoader/byterun.c", "ext/ByteLoader/byterun.h", "ext/B/B/Asmdata.pm";
 
 #
 # Start with boilerplate for Asmdata.pm
@@ -44,7 +47,7 @@ package B::Asmdata;
 use Exporter;
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(%insn_data @insn_name @optype @specialsv_name);
-use vars qw(%insn_data @insn_name @optype @specialsv_name);
+our(%insn_data, @insn_name, @optype, @specialsv_name);
 
 EOT
 print ASMDATA_PM <<"EOT";
@@ -59,34 +62,72 @@ EOT
 #
 # Boilerplate for byterun.c
 #
-open(BYTERUN_C, ">byterun.c") or die "byterun.c: $!";
+open(BYTERUN_C, ">ext/ByteLoader/byterun.c") or die "ext/ByteLoader/byterun.c: $!";
 print BYTERUN_C $c_header, <<'EOT';
 
+#define PERL_NO_GET_CONTEXT
 #include "EXTERN.h"
 #include "perl.h"
+#define NO_XSLOCKS
+#include "XSUB.h"
+
+#ifdef PERL_OBJECT
+#undef CALL_FPTR
+#define CALL_FPTR(fptr) (pPerl->*fptr)
+#undef PL_ppaddr
+#define PL_ppaddr (*get_ppaddr())
+#endif
+
+#include "byterun.h"
+#include "bytecode.h"
+
+
+static int optype_size[] = {
+EOT
+my $i = 0;
+for ($i = 0; $i < @optype - 1; $i++) {
+    printf BYTERUN_C "    sizeof(%s),\n", $optype[$i], $i;
+}
+printf BYTERUN_C "    sizeof(%s)\n", $optype[$i], $i;
+print BYTERUN_C <<'EOT';
+};
+
+static SV *specialsv_list[4];
+
+static int bytecode_iv_overflows = 0;
+static SV *bytecode_sv;
+static XPV bytecode_pv;
+static void **bytecode_obj_list;
+static I32 bytecode_obj_list_fill = -1;
 
 void *
-bset_obj_store(void *obj, I32 ix)
+bset_obj_store(pTHXo_ void *obj, I32 ix)
 {
-    if (ix > PL_bytecode_obj_list_fill) {
-	if (PL_bytecode_obj_list_fill == -1)
-	    New(666, PL_bytecode_obj_list, ix + 1, void*);
+    if (ix > bytecode_obj_list_fill) {
+	if (bytecode_obj_list_fill == -1)
+	    New(666, bytecode_obj_list, ix + 1, void*);
 	else
-	    Renew(PL_bytecode_obj_list, ix + 1, void*);
-	PL_bytecode_obj_list_fill = ix;
+	    Renew(bytecode_obj_list, ix + 1, void*);
+	bytecode_obj_list_fill = ix;
     }
-    PL_bytecode_obj_list[ix] = obj;
+    bytecode_obj_list[ix] = obj;
     return obj;
 }
 
-#ifdef INDIRECT_BGET_MACROS
-void byterun(struct bytestream bs)
-#else
-void byterun(PerlIO *fp)
-#endif /* INDIRECT_BGET_MACROS */
+void
+byterun(pTHXo_ struct bytestream bs)
 {
     dTHR;
     int insn;
+
+EOT
+
+for (my $i = 0; $i < @specialsv; $i++) {
+    print BYTERUN_C "    specialsv_list[$i] = $specialsv[$i];\n";
+}
+
+print BYTERUN_C <<'EOT';
+
     while ((insn = BGET_FGETC()) != EOF) {
 	switch (insn) {
 EOT
@@ -121,7 +162,7 @@ while (<DATA>) {
     if ($flags =~ /x/) {
 	print BYTERUN_C "\t\tBSET_$insn($lvalue$optarg);\n";
     } elsif ($flags =~ /s/) {
-	# Store instructions store to PL_bytecode_obj_list[arg]. "lvalue" field is rvalue.
+	# Store instructions store to bytecode_obj_list[arg]. "lvalue" field is rvalue.
 	print BYTERUN_C "\t\tBSET_OBJ_STORE($lvalue$optarg);\n";
     }
     elsif ($optarg && $lvalue ne "none") {
@@ -145,7 +186,7 @@ EOT
 #
 print BYTERUN_C <<'EOT';
 	  default:
-	    croak("Illegal bytecode instruction %d\n", insn);
+	    Perl_croak(aTHX_ "Illegal bytecode instruction %d\n", insn);
 	    /* NOTREACHED */
 	}
     }
@@ -155,23 +196,18 @@ EOT
 #
 # Write the instruction and optype enum constants into byterun.h
 #
-open(BYTERUN_H, ">byterun.h") or die "byterun.h: $!";
+open(BYTERUN_H, ">ext/ByteLoader/byterun.h") or die "ext/ByteLoader/byterun.h: $!";
 print BYTERUN_H $c_header, <<'EOT';
-#ifdef INDIRECT_BGET_MACROS
 struct bytestream {
     void *data;
-    int (*fgetc)(void *);
-    int (*fread)(char *, size_t, size_t, void*);
-    void (*freadpv)(U32, void*);
+    int (*pfgetc)(void *);
+    int (*pfread)(char *, size_t, size_t, void *);
+    void (*pfreadpv)(U32, void *, XPV *);
 };
-#endif /* INDIRECT_BGET_MACROS */
-
-void *bset_obj_store _((void *, I32));
 
 enum {
 EOT
 
-my $i = 0;
 my $add_enum_value = 0;
 my $max_insn;
 for ($i = 0; $i < @insn_name; $i++) {
@@ -196,22 +232,10 @@ for ($i = 0; $i < @optype - 1; $i++) {
     printf BYTERUN_H "    OPt_%s,\t\t/* %d */\n", $optype[$i], $i;
 }
 printf BYTERUN_H "    OPt_%s\t\t/* %d */\n};\n\n", $optype[$i], $i;
-print BYTERUN_H <<'EOT';
-EXT int optype_size[]
-#ifdef DOINIT
-= {
-EOT
-for ($i = 0; $i < @optype - 1; $i++) {
-    printf BYTERUN_H "    sizeof(%s),\n", $optype[$i], $i;
-}
-printf BYTERUN_H "    sizeof(%s)\n}\n", $optype[$i], $i;
-print BYTERUN_H <<'EOT';
-#endif /* DOINIT */
-;
-
-EOT
 
 print BYTERUN_H <<'EOT';
+extern void byterun(pTHXo_ struct bytestream bs);
+
 #define INIT_SPECIALSV_LIST STMT_START { \
 EOT
 for ($i = 0; $i < @specialsv; $i++) {
@@ -270,85 +294,85 @@ nop		none			none
 #opcode		lvalue					argtype		flags	
 #
 ret		none					none		x
-ldsv		PL_bytecode_sv				svindex
+ldsv		bytecode_sv				svindex
 ldop		PL_op					opindex
-stsv		PL_bytecode_sv				U32		s
+stsv		bytecode_sv				U32		s
 stop		PL_op					U32		s
-ldspecsv	PL_bytecode_sv				U8		x
-newsv		PL_bytecode_sv				U8		x
+ldspecsv	bytecode_sv				U8		x
+newsv		bytecode_sv				U8		x
 newop		PL_op					U8		x
 newopn		PL_op					U8		x
 newpv		none					PV
-pv_cur		PL_bytecode_pv.xpv_cur			STRLEN
-pv_free		PL_bytecode_pv				none		x
-sv_upgrade	PL_bytecode_sv				char		x
-sv_refcnt	SvREFCNT(PL_bytecode_sv)		U32
-sv_refcnt_add	SvREFCNT(PL_bytecode_sv)		I32		x
-sv_flags	SvFLAGS(PL_bytecode_sv)			U32
-xrv		SvRV(PL_bytecode_sv)			svindex
-xpv		PL_bytecode_sv				none		x
-xiv32		SvIVX(PL_bytecode_sv)			I32
-xiv64		SvIVX(PL_bytecode_sv)			IV64
-xnv		SvNVX(PL_bytecode_sv)			double
-xlv_targoff	LvTARGOFF(PL_bytecode_sv)		STRLEN
-xlv_targlen	LvTARGLEN(PL_bytecode_sv)		STRLEN
-xlv_targ	LvTARG(PL_bytecode_sv)			svindex
-xlv_type	LvTYPE(PL_bytecode_sv)			char
-xbm_useful	BmUSEFUL(PL_bytecode_sv)		I32
-xbm_previous	BmPREVIOUS(PL_bytecode_sv)		U16
-xbm_rare	BmRARE(PL_bytecode_sv)			U8
-xfm_lines	FmLINES(PL_bytecode_sv)			I32
-xio_lines	IoLINES(PL_bytecode_sv)			long
-xio_page	IoPAGE(PL_bytecode_sv)			long
-xio_page_len	IoPAGE_LEN(PL_bytecode_sv)		long
-xio_lines_left	IoLINES_LEFT(PL_bytecode_sv)		long
-xio_top_name	IoTOP_NAME(PL_bytecode_sv)		pvcontents
-xio_top_gv	*(SV**)&IoTOP_GV(PL_bytecode_sv)	svindex
-xio_fmt_name	IoFMT_NAME(PL_bytecode_sv)		pvcontents
-xio_fmt_gv	*(SV**)&IoFMT_GV(PL_bytecode_sv)	svindex
-xio_bottom_name	IoBOTTOM_NAME(PL_bytecode_sv)		pvcontents
-xio_bottom_gv	*(SV**)&IoBOTTOM_GV(PL_bytecode_sv)	svindex
-xio_subprocess	IoSUBPROCESS(PL_bytecode_sv)		short
-xio_type	IoTYPE(PL_bytecode_sv)			char
-xio_flags	IoFLAGS(PL_bytecode_sv)			char
-xcv_stash	*(SV**)&CvSTASH(PL_bytecode_sv)		svindex
-xcv_start	CvSTART(PL_bytecode_sv)			opindex
-xcv_root	CvROOT(PL_bytecode_sv)			opindex
-xcv_gv		*(SV**)&CvGV(PL_bytecode_sv)		svindex
-xcv_filegv	*(SV**)&CvFILEGV(PL_bytecode_sv)	svindex
-xcv_depth	CvDEPTH(PL_bytecode_sv)			long
-xcv_padlist	*(SV**)&CvPADLIST(PL_bytecode_sv)	svindex
-xcv_outside	*(SV**)&CvOUTSIDE(PL_bytecode_sv)	svindex
-xcv_flags	CvFLAGS(PL_bytecode_sv)			U8
-av_extend	PL_bytecode_sv				SSize_t		x
-av_push		PL_bytecode_sv				svindex		x
-xav_fill	AvFILLp(PL_bytecode_sv)			SSize_t
-xav_max		AvMAX(PL_bytecode_sv)			SSize_t
-xav_flags	AvFLAGS(PL_bytecode_sv)			U8
-xhv_riter	HvRITER(PL_bytecode_sv)			I32
-xhv_name	HvNAME(PL_bytecode_sv)			pvcontents
-hv_store	PL_bytecode_sv				svindex		x
-sv_magic	PL_bytecode_sv				char		x
-mg_obj		SvMAGIC(PL_bytecode_sv)->mg_obj		svindex
-mg_private	SvMAGIC(PL_bytecode_sv)->mg_private	U16
-mg_flags	SvMAGIC(PL_bytecode_sv)->mg_flags	U8
-mg_pv		SvMAGIC(PL_bytecode_sv)			pvcontents	x
-xmg_stash	*(SV**)&SvSTASH(PL_bytecode_sv)		svindex
-gv_fetchpv	PL_bytecode_sv				strconst	x
-gv_stashpv	PL_bytecode_sv				strconst	x
-gp_sv		GvSV(PL_bytecode_sv)			svindex
-gp_refcnt	GvREFCNT(PL_bytecode_sv)		U32
-gp_refcnt_add	GvREFCNT(PL_bytecode_sv)		I32		x
-gp_av		*(SV**)&GvAV(PL_bytecode_sv)		svindex
-gp_hv		*(SV**)&GvHV(PL_bytecode_sv)		svindex
-gp_cv		*(SV**)&GvCV(PL_bytecode_sv)		svindex
-gp_filegv	*(SV**)&GvFILEGV(PL_bytecode_sv)	svindex
-gp_io		*(SV**)&GvIOp(PL_bytecode_sv)		svindex
-gp_form		*(SV**)&GvFORM(PL_bytecode_sv)		svindex
-gp_cvgen	GvCVGEN(PL_bytecode_sv)			U32
-gp_line		GvLINE(PL_bytecode_sv)			line_t
-gp_share	PL_bytecode_sv				svindex		x
-xgv_flags	GvFLAGS(PL_bytecode_sv)			U8
+pv_cur		bytecode_pv.xpv_cur			STRLEN
+pv_free		bytecode_pv				none		x
+sv_upgrade	bytecode_sv				char		x
+sv_refcnt	SvREFCNT(bytecode_sv)			U32
+sv_refcnt_add	SvREFCNT(bytecode_sv)			I32		x
+sv_flags	SvFLAGS(bytecode_sv)			U32
+xrv		SvRV(bytecode_sv)			svindex
+xpv		bytecode_sv				none		x
+xiv32		SvIVX(bytecode_sv)			I32
+xiv64		SvIVX(bytecode_sv)			IV64
+xnv		SvNVX(bytecode_sv)			NV
+xlv_targoff	LvTARGOFF(bytecode_sv)			STRLEN
+xlv_targlen	LvTARGLEN(bytecode_sv)			STRLEN
+xlv_targ	LvTARG(bytecode_sv)			svindex
+xlv_type	LvTYPE(bytecode_sv)			char
+xbm_useful	BmUSEFUL(bytecode_sv)			I32
+xbm_previous	BmPREVIOUS(bytecode_sv)			U16
+xbm_rare	BmRARE(bytecode_sv)			U8
+xfm_lines	FmLINES(bytecode_sv)			I32
+xio_lines	IoLINES(bytecode_sv)			long
+xio_page	IoPAGE(bytecode_sv)			long
+xio_page_len	IoPAGE_LEN(bytecode_sv)			long
+xio_lines_left	IoLINES_LEFT(bytecode_sv)	       	long
+xio_top_name	IoTOP_NAME(bytecode_sv)			pvcontents
+xio_top_gv	*(SV**)&IoTOP_GV(bytecode_sv)		svindex
+xio_fmt_name	IoFMT_NAME(bytecode_sv)			pvcontents
+xio_fmt_gv	*(SV**)&IoFMT_GV(bytecode_sv)		svindex
+xio_bottom_name	IoBOTTOM_NAME(bytecode_sv)		pvcontents
+xio_bottom_gv	*(SV**)&IoBOTTOM_GV(bytecode_sv)	svindex
+xio_subprocess	IoSUBPROCESS(bytecode_sv)		short
+xio_type	IoTYPE(bytecode_sv)			char
+xio_flags	IoFLAGS(bytecode_sv)			char
+xcv_stash	*(SV**)&CvSTASH(bytecode_sv)		svindex
+xcv_start	CvSTART(bytecode_sv)			opindex
+xcv_root	CvROOT(bytecode_sv)			opindex
+xcv_gv		*(SV**)&CvGV(bytecode_sv)		svindex
+xcv_file	CvFILE(bytecode_sv)			pvcontents
+xcv_depth	CvDEPTH(bytecode_sv)			long
+xcv_padlist	*(SV**)&CvPADLIST(bytecode_sv)		svindex
+xcv_outside	*(SV**)&CvOUTSIDE(bytecode_sv)		svindex
+xcv_flags	CvFLAGS(bytecode_sv)			U16
+av_extend	bytecode_sv				SSize_t		x
+av_push		bytecode_sv				svindex		x
+xav_fill	AvFILLp(bytecode_sv)			SSize_t
+xav_max		AvMAX(bytecode_sv)			SSize_t
+xav_flags	AvFLAGS(bytecode_sv)			U8
+xhv_riter	HvRITER(bytecode_sv)			I32
+xhv_name	HvNAME(bytecode_sv)			pvcontents
+hv_store	bytecode_sv				svindex		x
+sv_magic	bytecode_sv				char		x
+mg_obj		SvMAGIC(bytecode_sv)->mg_obj		svindex
+mg_private	SvMAGIC(bytecode_sv)->mg_private	U16
+mg_flags	SvMAGIC(bytecode_sv)->mg_flags		U8
+mg_pv		SvMAGIC(bytecode_sv)			pvcontents	x
+xmg_stash	*(SV**)&SvSTASH(bytecode_sv)		svindex
+gv_fetchpv	bytecode_sv				strconst	x
+gv_stashpv	bytecode_sv				strconst	x
+gp_sv		GvSV(bytecode_sv)			svindex
+gp_refcnt	GvREFCNT(bytecode_sv)			U32
+gp_refcnt_add	GvREFCNT(bytecode_sv)			I32		x
+gp_av		*(SV**)&GvAV(bytecode_sv)		svindex
+gp_hv		*(SV**)&GvHV(bytecode_sv)		svindex
+gp_cv		*(SV**)&GvCV(bytecode_sv)		svindex
+gp_file		GvFILE(bytecode_sv)			pvcontents
+gp_io		*(SV**)&GvIOp(bytecode_sv)		svindex
+gp_form		*(SV**)&GvFORM(bytecode_sv)		svindex
+gp_cvgen	GvCVGEN(bytecode_sv)			U32
+gp_line		GvLINE(bytecode_sv)			line_t
+gp_share	bytecode_sv				svindex		x
+xgv_flags	GvFLAGS(bytecode_sv)			U8
 op_next		PL_op->op_next				opindex
 op_sibling	PL_op->op_sibling			opindex
 op_ppaddr	PL_op->op_ppaddr			strconst	x
@@ -360,8 +384,6 @@ op_private	PL_op->op_private			U8
 op_first	cUNOP->op_first				opindex
 op_last		cBINOP->op_last				opindex
 op_other	cLOGOP->op_other			opindex
-op_true		cCONDOP->op_true			opindex
-op_false	cCONDOP->op_false			opindex
 op_children	cLISTOP->op_children			U32
 op_pmreplroot	cPMOP->op_pmreplroot			opindex
 op_pmreplrootgv	*(SV**)&cPMOP->op_pmreplroot		svindex
@@ -371,18 +393,19 @@ pregcomp	PL_op					pvcontents	x
 op_pmflags	cPMOP->op_pmflags			U16
 op_pmpermflags	cPMOP->op_pmpermflags			U16
 op_sv		cSVOP->op_sv				svindex
-op_gv		*(SV**)&cGVOP->op_gv			svindex
+op_padix	cPADOP->op_padix			PADOFFSET
 op_pv		cPVOP->op_pv				pvcontents
 op_pv_tr	cPVOP->op_pv				op_tr_array
 op_redoop	cLOOP->op_redoop			opindex
 op_nextop	cLOOP->op_nextop			opindex
 op_lastop	cLOOP->op_lastop			opindex
 cop_label	cCOP->cop_label				pvcontents
-cop_stash	*(SV**)&cCOP->cop_stash			svindex
-cop_filegv	*(SV**)&cCOP->cop_filegv		svindex
+cop_stashpv	cCOP					pvcontents	x
+cop_file	cCOP					pvcontents	x
 cop_seq		cCOP->cop_seq				U32
 cop_arybase	cCOP->cop_arybase			I32
-cop_line	cCOP->cop_line				line_t
+cop_line	cCOP					line_t		x
+cop_warnings	cCOP->cop_warnings			svindex
 main_start	PL_main_start				opindex
 main_root	PL_main_root				opindex
 curpad		PL_curpad				svindex		x

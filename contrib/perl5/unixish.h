@@ -89,7 +89,7 @@
  */
 /* #define ALTERNATE_SHEBANG "#!" / **/
 
-#if !defined(NSIG) || defined(M_UNIX) || defined(M_XENIX)  || defined(__NetBSD__)
+#if !defined(NSIG) || defined(M_UNIX) || defined(M_XENIX) || defined(__NetBSD__)
 # include <signal.h>
 #endif
 
@@ -99,7 +99,7 @@
 #ifndef SIGILL
 #    define SIGILL 6         /* blech */
 #endif
-#define ABORT() kill(getpid(),SIGABRT);
+#define ABORT() kill(PerlProc_getpid(),SIGABRT);
 
 /*
  * fwrite1() should be a routine with the same calling sequence as fwrite(),
@@ -114,17 +114,28 @@
 #define Fflush(fp)         fflush(fp)
 #define Mkdir(path,mode)   mkdir((path),(mode))
 
+/* these should be set in a hint file, not here */
 #ifndef PERL_SYS_INIT
-#ifdef PERL_SCO5
-/* this should be set in a hint file, not here */
+#if defined(PERL_SCO5) || defined(__FreeBSD__)
+#  ifdef __FreeBSD__
+#    include <floatingpoint.h>
+#  endif
 #  define PERL_SYS_INIT(c,v)	fpsetmask(0); MALLOC_INIT
 #else
-#  define PERL_SYS_INIT(c,v)	MALLOC_INIT
+#  ifdef POSIX_BC
+#    define PERL_SYS_INIT(c,v)	sigignore(SIGFPE); MALLOC_INIT
+#  else
+#    ifdef __CYGWIN__
+#      define PERL_SYS_INIT(c,v) Perl_my_setenv_init(&environ); MALLOC_INIT
+#    else
+#      define PERL_SYS_INIT(c,v) MALLOC_INIT
+#    endif
+#  endif
 #endif
 #endif
 
 #ifndef PERL_SYS_TERM
-#define PERL_SYS_TERM()		MALLOC_TERM
+#define PERL_SYS_TERM()		OP_REFCNT_TERM; MALLOC_TERM
 #endif
 
 #define BIT_BUCKET "/dev/null"

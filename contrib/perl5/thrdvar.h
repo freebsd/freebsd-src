@@ -10,12 +10,13 @@
  *
  * When building without USE_THREADS, these variables will be truly global.
  * When building without USE_THREADS but with MULTIPLICITY, these variables
- * will be global per-interpreter.
- *
- * Avoid build-specific #ifdefs here, like DEBUGGING.  That way,
- * we can keep binary compatibility of the curinterp structure */
+ * will be global per-interpreter. */
 
 /* Important ones in the first cache line (if alignment is done right) */
+
+#ifdef USE_THREADS
+PERLVAR(interp,		PerlInterpreter*)	/* thread owner */
+#endif
 
 PERLVAR(Tstack_sp,	SV **)		/* top of the stack */
 #ifdef OP_IN_REGISTER
@@ -53,6 +54,20 @@ PERLVAR(Tretstack_max,	I32)
 PERLVAR(TSv,		SV *)		/* used to hold temporary values */
 PERLVAR(TXpv,		XPV *)		/* used to hold temporary values */
 
+/*
+=for apidoc Amn|STRLEN|PL_na
+
+A convenience variable which is typically used with C<SvPV> when one
+doesn't care about the length of the string.  It is usually more efficient
+to either declare a local variable and use that instead or to use the
+C<SvPV_nolen> macro.
+
+=cut
+*/
+
+PERLVAR(Tna,		STRLEN)		/* for use in SvPV when length is
+					   Not Applicable */
+
 /* stat stuff */
 PERLVAR(Tstatbuf,	Stat_t)
 PERLVAR(Tstatcache,	Stat_t)		/* _ */
@@ -85,14 +100,19 @@ PERLVAR(Trestartop,	OP *)		/* propagating an error from croak? */
 PERLVARI(Tcurcop,	COP * VOL,	&PL_compiling)
 PERLVAR(Tin_eval,	VOL int)	/* trap "fatal" errors? */
 PERLVAR(Tdelaymagic,	int)		/* ($<,$>) = ... */
-PERLVAR(Tdirty,		bool)		/* in the middle of tearing things down? */
+PERLVARI(Tdirty,	bool, FALSE)	/* in the middle of tearing things down? */
 PERLVAR(Tlocalizing,	int)		/* are we processing a local() list? */
 
 PERLVAR(Tcurstack,	AV *)		/* THE STACK */
 PERLVAR(Tcurstackinfo,	PERL_SI *)	/* current stack + context */
 PERLVAR(Tmainstack,	AV *)		/* the stack when nothing funny is happening */
+
 PERLVAR(Ttop_env,	JMPENV *)	/* ptr. to current sigjmp() environment */
 PERLVAR(Tstart_env,	JMPENV)		/* empty startup sigjmp() environment */
+#ifdef PERL_FLEXIBLE_EXCEPTIONS
+PERLVARI(Tprotect,	protect_proc_t,	MEMBER_TO_FPTR(Perl_default_protect))
+#endif
+PERLVARI(Terrors,	SV *, Nullsv)	/* outstanding queued errors */
 
 /* statics "owned" by various functions */
 PERLVAR(Tav_fetch_sv,	SV *)		/* owned by av_fetch() */
@@ -102,6 +122,7 @@ PERLVAR(Thv_fetch_ent_mh, HE)		/* owned by hv_fetch_ent() */
 PERLVAR(Tmodcount,	I32)		/* how much mod()ification in assignment? */
 
 PERLVAR(Tlastgotoprobe,	OP*)		/* from pp_ctl.c */
+PERLVARI(Tdumpindent,	I32, 4)		/* # of blanks per dump indentation level */
 
 /* sort stuff */
 PERLVAR(Tsortcop,	OP *)		/* user defined sort routine */
@@ -109,6 +130,10 @@ PERLVAR(Tsortstash,	HV *)		/* which is in some package or other */
 PERLVAR(Tfirstgv,	GV *)		/* $a */
 PERLVAR(Tsecondgv,	GV *)		/* $b */
 PERLVAR(Tsortcxix,	I32)		/* from pp_ctl.c */
+
+/* float buffer */
+PERLVAR(Tefloatbuf,	char*)
+PERLVAR(Tefloatsize,	STRLEN)
 
 /* regex stuff */
 
@@ -133,12 +158,13 @@ PERLVAR(Tseen_evals,	I32)		/* from regcomp.c */
 PERLVAR(Tregcomp_rx,	regexp *)	/* from regcomp.c */
 PERLVAR(Textralen,	I32)		/* from regcomp.c */
 PERLVAR(Tcolorset,	int)		/* from regcomp.c */
-PERLVAR(Tcolors[4],	char *)		/* from regcomp.c */
+PERLVARA(Tcolors,6,	char *)		/* from regcomp.c */
+PERLVAR(Treg_whilem_seen, I32)		/* number of WHILEM in this expr */
 PERLVAR(Treginput,	char *)		/* String-input pointer. */
 PERLVAR(Tregbol,	char *)		/* Beginning of input, for ^ check. */
 PERLVAR(Tregeol,	char *)		/* End of input, for $ check. */
-PERLVAR(Tregstartp,	char **)	/* Pointer to startp array. */
-PERLVAR(Tregendp,	char **)	/* Ditto for endp. */
+PERLVAR(Tregstartp,	I32 *)		/* Pointer to startp array. */
+PERLVAR(Tregendp,	I32 *)		/* Ditto for endp. */
 PERLVAR(Treglastparen,	U32 *)		/* Similarly for lastparen. */
 PERLVAR(Tregtill,	char *)		/* How far we are required to go. */
 PERLVAR(Tregprev,	char)		/* char before regbol, \n if none */
@@ -153,14 +179,37 @@ PERLVAR(Tregnarrate,	I32)		/* from regexec.c */
 PERLVAR(Tregprogram,	regnode *)	/* from regexec.c */
 PERLVARI(Tregindent,	int,	    0)	/* from regexec.c */
 PERLVAR(Tregcc,		CURCUR *)	/* from regexec.c */
+PERLVAR(Treg_call_cc,	struct re_cc_state *)	/* from regexec.c */
+PERLVAR(Treg_re,	regexp *)	/* from regexec.c */
+PERLVAR(Treg_ganch,	char *)		/* position of \G */
+PERLVAR(Treg_sv,	SV *)		/* what we match against */
+PERLVAR(Treg_magic,	MAGIC *)	/* pos-magic of what we match */
+PERLVAR(Treg_oldpos,	I32)		/* old pos of what we match */
+PERLVARI(Treg_oldcurpm,	PMOP*, NULL)	/* curpm before match */
+PERLVARI(Treg_curpm,	PMOP*, NULL)	/* curpm during match */
+PERLVAR(Treg_oldsaved,	char*)		/* old saved substr during match */
+PERLVAR(Treg_oldsavedlen, STRLEN)	/* old length of saved substr during match */
+PERLVAR(Treg_maxiter,	I32)		/* max wait until caching pos */
+PERLVAR(Treg_leftiter,	I32)		/* wait until caching pos */
+PERLVARI(Treg_poscache, char *, Nullch)	/* cache of pos of WHILEM */
+PERLVAR(Treg_poscache_size, STRLEN)	/* size of pos cache of WHILEM */
 
-PERLVARI(Tregcompp,	regcomp_t, FUNC_NAME_TO_PTR(pregcomp))
-					/* Pointer to RE compiler */
-PERLVARI(Tregexecp,	regexec_t, FUNC_NAME_TO_PTR(regexec_flags))
-					/* Pointer to RE executer */
+PERLVARI(Tregcompp,	regcomp_t, MEMBER_TO_FPTR(Perl_pregcomp))
+					/* Pointer to REx compiler */
+PERLVARI(Tregexecp,	regexec_t, MEMBER_TO_FPTR(Perl_regexec_flags))
+					/* Pointer to REx executer */
+PERLVARI(Tregint_start,	re_intuit_start_t, MEMBER_TO_FPTR(Perl_re_intuit_start))
+					/* Pointer to optimized REx executer */
+PERLVARI(Tregint_string,re_intuit_string_t, MEMBER_TO_FPTR(Perl_re_intuit_string))
+					/* Pointer to optimized REx string */
+PERLVARI(Tregfree,	regfree_t, MEMBER_TO_FPTR(Perl_pregfree))
+					/* Pointer to REx free()er */
+
 PERLVARI(Treginterp_cnt,int,	    0)	/* Whether `Regexp'
 						   was interpolated. */
-
+PERLVARI(Treg_starttry,	char *,	    0)	/* -Dr: where regtry was called. */
+PERLVARI(Twatchaddr,	char **,    0)
+PERLVAR(Twatchok,	char *)
 
 /* Note that the variables below are all explicitly referenced in the code
  * as thr->whatever and therefore don't need the 'T' prefix. */
@@ -175,7 +224,6 @@ PERLVAR(threadsv,	AV *)		/* Per-thread SVs ($_, $@ etc.) */
 PERLVAR(threadsvp,	SV **)		/* AvARRAY(threadsv) */
 PERLVAR(specific,	AV *)		/* Thread-specific user data */
 PERLVAR(errsv,		SV *)		/* Backing SV for $@ */
-PERLVAR(errhv,		HV *)		/* HV for what was %@ in pp_ctl.c */
 PERLVAR(mutex,		perl_mutex)	/* For the fields others can change */
 PERLVAR(tid,		U32)
 PERLVAR(prev,		struct perl_thread *)

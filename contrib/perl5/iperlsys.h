@@ -71,63 +71,118 @@
 #      define PERLIO_IS_STDIO
 #  endif
 #else
-extern void PerlIO_init _((void));
+extern void PerlIO_init (void);
 #endif
 
-#ifdef PERL_OBJECT
+#ifndef Sighandler_t
+typedef Signal_t (*Sighandler_t) (int);
+#endif
+
+#if defined(PERL_IMPLICIT_SYS)
 
 #ifndef PerlIO
 typedef struct _PerlIO PerlIO;
 #endif
 
-class IPerlStdIO
+/* IPerlStdIO		*/
+struct IPerlStdIO;
+struct IPerlStdIOInfo;
+typedef PerlIO*		(*LPStdin)(struct IPerlStdIO*);
+typedef PerlIO*		(*LPStdout)(struct IPerlStdIO*);
+typedef PerlIO*		(*LPStderr)(struct IPerlStdIO*);
+typedef PerlIO*		(*LPOpen)(struct IPerlStdIO*, const char*,
+			    const char*);
+typedef int		(*LPClose)(struct IPerlStdIO*, PerlIO*);
+typedef int		(*LPEof)(struct IPerlStdIO*, PerlIO*);
+typedef int		(*LPError)(struct IPerlStdIO*, PerlIO*);
+typedef void		(*LPClearerr)(struct IPerlStdIO*, PerlIO*);
+typedef int		(*LPGetc)(struct IPerlStdIO*, PerlIO*);
+typedef char*		(*LPGetBase)(struct IPerlStdIO*, PerlIO*);
+typedef int		(*LPGetBufsiz)(struct IPerlStdIO*, PerlIO*);
+typedef int		(*LPGetCnt)(struct IPerlStdIO*, PerlIO*);
+typedef char*		(*LPGetPtr)(struct IPerlStdIO*, PerlIO*);
+typedef char*		(*LPGets)(struct IPerlStdIO*, PerlIO*, char*, int);
+typedef int		(*LPPutc)(struct IPerlStdIO*, PerlIO*, int);
+typedef int		(*LPPuts)(struct IPerlStdIO*, PerlIO*, const char*);
+typedef int		(*LPFlush)(struct IPerlStdIO*, PerlIO*);
+typedef int		(*LPUngetc)(struct IPerlStdIO*, PerlIO*,int);
+typedef int		(*LPFileno)(struct IPerlStdIO*, PerlIO*);
+typedef PerlIO*		(*LPFdopen)(struct IPerlStdIO*, int, const char*);
+typedef PerlIO*		(*LPReopen)(struct IPerlStdIO*, const char*,
+			    const char*, PerlIO*);
+typedef SSize_t		(*LPRead)(struct IPerlStdIO*, PerlIO*, void*, Size_t);
+typedef SSize_t		(*LPWrite)(struct IPerlStdIO*, PerlIO*, const void*,
+			    Size_t);
+typedef void		(*LPSetBuf)(struct IPerlStdIO*, PerlIO*, char*);
+typedef int		(*LPSetVBuf)(struct IPerlStdIO*, PerlIO*, char*, int,
+			    Size_t);
+typedef void		(*LPSetCnt)(struct IPerlStdIO*, PerlIO*, int);
+typedef void		(*LPSetPtrCnt)(struct IPerlStdIO*, PerlIO*, char*,
+			    int);
+typedef void		(*LPSetlinebuf)(struct IPerlStdIO*, PerlIO*);
+typedef int		(*LPPrintf)(struct IPerlStdIO*, PerlIO*, const char*, 
+			    ...);
+typedef int		(*LPVprintf)(struct IPerlStdIO*, PerlIO*, const char*,
+			    va_list);
+typedef long		(*LPTell)(struct IPerlStdIO*, PerlIO*);
+typedef int		(*LPSeek)(struct IPerlStdIO*, PerlIO*, Off_t, int);
+typedef void		(*LPRewind)(struct IPerlStdIO*, PerlIO*);
+typedef PerlIO*		(*LPTmpfile)(struct IPerlStdIO*);
+typedef int		(*LPGetpos)(struct IPerlStdIO*, PerlIO*, Fpos_t*);
+typedef int		(*LPSetpos)(struct IPerlStdIO*, PerlIO*,
+			    const Fpos_t*);
+typedef void		(*LPInit)(struct IPerlStdIO*);
+typedef void		(*LPInitOSExtras)(struct IPerlStdIO*);
+typedef PerlIO*		(*LPFdupopen)(struct IPerlStdIO*, PerlIO*);
+
+struct IPerlStdIO
 {
-public:
-    virtual PerlIO *	Stdin(void) = 0;
-    virtual PerlIO *	Stdout(void) = 0;
-    virtual PerlIO *	Stderr(void) = 0;
-    virtual PerlIO *	Open(const char *, const char *, int &err) = 0;
-    virtual int		Close(PerlIO*, int &err) = 0;
-    virtual int		Eof(PerlIO*, int &err) = 0;
-    virtual int		Error(PerlIO*, int &err) = 0;
-    virtual void	Clearerr(PerlIO*, int &err) = 0;
-    virtual int		Getc(PerlIO*, int &err) = 0;
-    virtual char *	GetBase(PerlIO *, int &err) = 0;
-    virtual int		GetBufsiz(PerlIO *, int &err) = 0;
-    virtual int		GetCnt(PerlIO *, int &err) = 0;
-    virtual char *	GetPtr(PerlIO *, int &err) = 0;
-    virtual char *	Gets(PerlIO*, char*, int, int& err) = 0;
-    virtual int		Putc(PerlIO*, int, int &err) = 0;
-    virtual int		Puts(PerlIO*, const char *, int &err) = 0;
-    virtual int		Flush(PerlIO*, int &err) = 0;
-    virtual int		Ungetc(PerlIO*,int, int &err) = 0;
-    virtual int		Fileno(PerlIO*, int &err) = 0;
-    virtual PerlIO *	Fdopen(int, const char *, int &err) = 0;
-    virtual PerlIO *	Reopen(const char*, const char*, PerlIO*, int &err) = 0;
-    virtual SSize_t	Read(PerlIO*,void *,Size_t, int &err) = 0;
-    virtual SSize_t	Write(PerlIO*,const void *,Size_t, int &err) = 0;
-    virtual void	SetBuf(PerlIO *, char*, int &err) = 0;
-    virtual int		SetVBuf(PerlIO *, char*, int, Size_t, int &err) = 0;
-    virtual void	SetCnt(PerlIO *, int, int &err) = 0;
-    virtual void	SetPtrCnt(PerlIO *, char *, int, int& err) = 0;
-    virtual void	Setlinebuf(PerlIO*, int &err) = 0;
-    virtual int		Printf(PerlIO*, int &err, const char *,...) = 0;
-    virtual int		Vprintf(PerlIO*, int &err, const char *, va_list) = 0;
-    virtual long	Tell(PerlIO*, int &err) = 0;
-    virtual int		Seek(PerlIO*, Off_t, int, int &err) = 0;
-    virtual void	Rewind(PerlIO*, int &err) = 0;
-    virtual PerlIO *	Tmpfile(int &err) = 0;
-    virtual int		Getpos(PerlIO*, Fpos_t *, int &err) = 0;
-    virtual int		Setpos(PerlIO*, const Fpos_t *, int &err) = 0;
-    virtual void	Init(int &err) = 0;
-    virtual void	InitOSExtras(void* p) = 0;
-#ifdef WIN32
-    virtual int		OpenOSfhandle(long osfhandle, int flags) = 0;
-    virtual int		GetOSfhandle(int filenum) = 0;
-#endif
+    LPStdin		pStdin;
+    LPStdout		pStdout;
+    LPStderr		pStderr;
+    LPOpen		pOpen;
+    LPClose		pClose;
+    LPEof		pEof;
+    LPError		pError;
+    LPClearerr		pClearerr;
+    LPGetc		pGetc;
+    LPGetBase		pGetBase;
+    LPGetBufsiz		pGetBufsiz;
+    LPGetCnt		pGetCnt;
+    LPGetPtr		pGetPtr;
+    LPGets		pGets;
+    LPPutc		pPutc;
+    LPPuts		pPuts;
+    LPFlush		pFlush;
+    LPUngetc		pUngetc;
+    LPFileno		pFileno;
+    LPFdopen		pFdopen;
+    LPReopen		pReopen;
+    LPRead		pRead;
+    LPWrite		pWrite;
+    LPSetBuf		pSetBuf;
+    LPSetVBuf		pSetVBuf;
+    LPSetCnt		pSetCnt;
+    LPSetPtrCnt		pSetPtrCnt;
+    LPSetlinebuf	pSetlinebuf;
+    LPPrintf		pPrintf;
+    LPVprintf		pVprintf;
+    LPTell		pTell;
+    LPSeek		pSeek;
+    LPRewind		pRewind;
+    LPTmpfile		pTmpfile;
+    LPGetpos		pGetpos;
+    LPSetpos		pSetpos;
+    LPInit		pInit;
+    LPInitOSExtras	pInitOSExtras;
+    LPFdupopen		pFdupopen;
 };
 
-
+struct IPerlStdIOInfo
+{
+    unsigned long	nCount;	    /* number of entries expected */
+    struct IPerlStdIO	perlStdIOList;
+};
 
 #ifdef USE_STDIO_PTR
 #  define PerlIO_has_cntptr(f)		1       
@@ -154,55 +209,93 @@ public:
 #define PerlIO_has_base(f)		0
 #endif
 
-#define PerlIO_stdin()		PL_piStdIO->Stdin()
-#define PerlIO_stdout()		PL_piStdIO->Stdout()
-#define PerlIO_stderr()		PL_piStdIO->Stderr()
-#define PerlIO_open(x,y)	PL_piStdIO->Open((x),(y), ErrorNo())
-#define PerlIO_close(f)		PL_piStdIO->Close((f), ErrorNo())
-#define PerlIO_eof(f)		PL_piStdIO->Eof((f), ErrorNo())
-#define PerlIO_error(f)		PL_piStdIO->Error((f), ErrorNo())
-#define PerlIO_clearerr(f)	PL_piStdIO->Clearerr((f), ErrorNo())
-#define PerlIO_getc(f)		PL_piStdIO->Getc((f), ErrorNo())
-#define PerlIO_get_base(f)	PL_piStdIO->GetBase((f), ErrorNo())
-#define PerlIO_get_bufsiz(f)	PL_piStdIO->GetBufsiz((f), ErrorNo())
-#define PerlIO_get_cnt(f)	PL_piStdIO->GetCnt((f), ErrorNo())
-#define PerlIO_get_ptr(f)	PL_piStdIO->GetPtr((f), ErrorNo())
-#define PerlIO_putc(f,c)	PL_piStdIO->Putc((f),(c), ErrorNo())
-#define PerlIO_puts(f,s)	PL_piStdIO->Puts((f),(s), ErrorNo())
-#define PerlIO_flush(f)		PL_piStdIO->Flush((f), ErrorNo())
-#define PerlIO_gets(s, n, fp)   PL_piStdIO->Gets((fp), s, n, ErrorNo())
-#define PerlIO_ungetc(f,c)	PL_piStdIO->Ungetc((f),(c), ErrorNo())
-#define PerlIO_fileno(f)	PL_piStdIO->Fileno((f), ErrorNo())
-#define PerlIO_fdopen(f, s)	PL_piStdIO->Fdopen((f),(s), ErrorNo())
-#define PerlIO_reopen(p, m, f)  PL_piStdIO->Reopen((p), (m), (f), ErrorNo())
+#define PerlIO_stdin()							\
+	(*PL_StdIO->pStdin)(PL_StdIO)
+#define PerlIO_stdout()							\
+	(*PL_StdIO->pStdout)(PL_StdIO)
+#define PerlIO_stderr()							\
+	(*PL_StdIO->pStderr)(PL_StdIO)
+#define PerlIO_open(x,y)						\
+	(*PL_StdIO->pOpen)(PL_StdIO, (x),(y))
+#define PerlIO_close(f)							\
+	(*PL_StdIO->pClose)(PL_StdIO, (f))
+#define PerlIO_eof(f)							\
+	(*PL_StdIO->pEof)(PL_StdIO, (f))
+#define PerlIO_error(f)							\
+	(*PL_StdIO->pError)(PL_StdIO, (f))
+#define PerlIO_clearerr(f)						\
+	(*PL_StdIO->pClearerr)(PL_StdIO, (f))
+#define PerlIO_getc(f)							\
+	(*PL_StdIO->pGetc)(PL_StdIO, (f))
+#define PerlIO_get_base(f)						\
+	(*PL_StdIO->pGetBase)(PL_StdIO, (f))
+#define PerlIO_get_bufsiz(f)						\
+	(*PL_StdIO->pGetBufsiz)(PL_StdIO, (f))
+#define PerlIO_get_cnt(f)						\
+	(*PL_StdIO->pGetCnt)(PL_StdIO, (f))
+#define PerlIO_get_ptr(f)						\
+	(*PL_StdIO->pGetPtr)(PL_StdIO, (f))
+#define PerlIO_putc(f,c)						\
+	(*PL_StdIO->pPutc)(PL_StdIO, (f),(c))
+#define PerlIO_puts(f,s)						\
+	(*PL_StdIO->pPuts)(PL_StdIO, (f),(s))
+#define PerlIO_flush(f)							\
+	(*PL_StdIO->pFlush)(PL_StdIO, (f))
+#define PerlIO_gets(s, n, fp)						\
+	(*PL_StdIO->pGets)(PL_StdIO, (fp), s, n)
+#define PerlIO_ungetc(f,c)						\
+	(*PL_StdIO->pUngetc)(PL_StdIO, (f),(c))
+#define PerlIO_fileno(f)						\
+	(*PL_StdIO->pFileno)(PL_StdIO, (f))
+#define PerlIO_fdopen(f, s)						\
+	(*PL_StdIO->pFdopen)(PL_StdIO, (f),(s))
+#define PerlIO_reopen(p, m, f)						\
+	(*PL_StdIO->pReopen)(PL_StdIO, (p), (m), (f))
 #define PerlIO_read(f,buf,count)					\
-	(SSize_t)PL_piStdIO->Read((f), (buf), (count), ErrorNo())
+	(SSize_t)(*PL_StdIO->pRead)(PL_StdIO, (f), (buf), (count))
 #define PerlIO_write(f,buf,count)					\
-	PL_piStdIO->Write((f), (buf), (count), ErrorNo())
-#define PerlIO_setbuf(f,b)	PL_piStdIO->SetBuf((f), (b), ErrorNo())
-#define PerlIO_setvbuf(f,b,t,s)	PL_piStdIO->SetVBuf((f), (b), (t), (s), ErrorNo())
-#define PerlIO_set_cnt(f,c)	PL_piStdIO->SetCnt((f), (c), ErrorNo())
+	(*PL_StdIO->pWrite)(PL_StdIO, (f), (buf), (count))
+#define PerlIO_setbuf(f,b)						\
+	(*PL_StdIO->pSetBuf)(PL_StdIO, (f), (b))
+#define PerlIO_setvbuf(f,b,t,s)						\
+	(*PL_StdIO->pSetVBuf)(PL_StdIO, (f),(b),(t),(s))
+#define PerlIO_set_cnt(f,c)						\
+	(*PL_StdIO->pSetCnt)(PL_StdIO, (f), (c))
 #define PerlIO_set_ptrcnt(f,p,c)					\
-	PL_piStdIO->SetPtrCnt((f), (p), (c), ErrorNo())
-#define PerlIO_setlinebuf(f)	PL_piStdIO->Setlinebuf((f), ErrorNo())
-#define PerlIO_printf		fprintf
-#define PerlIO_stdoutf		PL_piStdIO->Printf
-#define PerlIO_vprintf(f,fmt,a)	PL_piStdIO->Vprintf((f), ErrorNo(), (fmt),a)          
-#define PerlIO_tell(f)		PL_piStdIO->Tell((f), ErrorNo())
-#define PerlIO_seek(f,o,w)	PL_piStdIO->Seek((f),(o),(w), ErrorNo())
-#define PerlIO_getpos(f,p)	PL_piStdIO->Getpos((f),(p), ErrorNo())
-#define PerlIO_setpos(f,p)	PL_piStdIO->Setpos((f),(p), ErrorNo())
-#define PerlIO_rewind(f)	PL_piStdIO->Rewind((f), ErrorNo())
-#define PerlIO_tmpfile()	PL_piStdIO->Tmpfile(ErrorNo())
-#define PerlIO_init()		PL_piStdIO->Init(ErrorNo())
+	(*PL_StdIO->pSetPtrCnt)(PL_StdIO, (f), (p), (c))
+#define PerlIO_setlinebuf(f)						\
+	(*PL_StdIO->pSetlinebuf)(PL_StdIO, (f))
+#define PerlIO_printf		Perl_fprintf_nocontext
+#define PerlIO_stdoutf		*PL_StdIO->pPrintf
+#define PerlIO_vprintf(f,fmt,a)						\
+	(*PL_StdIO->pVprintf)(PL_StdIO, (f),(fmt),a)          
+#define PerlIO_tell(f)							\
+	(*PL_StdIO->pTell)(PL_StdIO, (f))
+#define PerlIO_seek(f,o,w)						\
+	(*PL_StdIO->pSeek)(PL_StdIO, (f),(o),(w))
+#define PerlIO_getpos(f,p)						\
+	(*PL_StdIO->pGetpos)(PL_StdIO, (f),(p))
+#define PerlIO_setpos(f,p)						\
+	(*PL_StdIO->pSetpos)(PL_StdIO, (f),(p))
+#define PerlIO_rewind(f)						\
+	(*PL_StdIO->pRewind)(PL_StdIO, (f))
+#define PerlIO_tmpfile()						\
+	(*PL_StdIO->pTmpfile)(PL_StdIO)
+#define PerlIO_init()							\
+	(*PL_StdIO->pInit)(PL_StdIO)
 #undef 	init_os_extras
-#define init_os_extras()	PL_piStdIO->InitOSExtras(this)
+#define init_os_extras()						\
+	(*PL_StdIO->pInitOSExtras)(PL_StdIO)
+#define PerlIO_fdupopen(f)						\
+	(*PL_StdIO->pFdupopen)(PL_StdIO, (f))
 
-#else	/* PERL_OBJECT */
+#else	/* PERL_IMPLICIT_SYS */
 
 #include "perlsdio.h"
+#include "perl.h"
+#define PerlIO_fdupopen(f)		(f)
 
-#endif	/* PERL_OBJECT */
+#endif	/* PERL_IMPLICIT_SYS */
 
 #ifndef PERLIO_IS_STDIO
 #ifdef USE_SFIO
@@ -250,133 +343,136 @@ struct _PerlIO;
 #endif
 
 #ifndef PerlIO_stdoutf
-extern int	PerlIO_stdoutf		_((const char *,...))
-					__attribute__((format (printf, 1, 2)));
+extern int	PerlIO_stdoutf		(const char *,...)
+					__attribute__((__format__ (__printf__, 1, 2)));
 #endif
 #ifndef PerlIO_puts
-extern int	PerlIO_puts		_((PerlIO *,const char *));
+extern int	PerlIO_puts		(PerlIO *,const char *);
 #endif
 #ifndef PerlIO_open
-extern PerlIO *	PerlIO_open		_((const char *,const char *));
+extern PerlIO *	PerlIO_open		(const char *,const char *);
 #endif
 #ifndef PerlIO_close
-extern int	PerlIO_close		_((PerlIO *));
+extern int	PerlIO_close		(PerlIO *);
 #endif
 #ifndef PerlIO_eof
-extern int	PerlIO_eof		_((PerlIO *));
+extern int	PerlIO_eof		(PerlIO *);
 #endif
 #ifndef PerlIO_error
-extern int	PerlIO_error		_((PerlIO *));
+extern int	PerlIO_error		(PerlIO *);
 #endif
 #ifndef PerlIO_clearerr
-extern void	PerlIO_clearerr		_((PerlIO *));
+extern void	PerlIO_clearerr		(PerlIO *);
 #endif
 #ifndef PerlIO_getc
-extern int	PerlIO_getc		_((PerlIO *));
+extern int	PerlIO_getc		(PerlIO *);
 #endif
 #ifndef PerlIO_putc
-extern int	PerlIO_putc		_((PerlIO *,int));
+extern int	PerlIO_putc		(PerlIO *,int);
 #endif
 #ifndef PerlIO_flush
-extern int	PerlIO_flush		_((PerlIO *));
+extern int	PerlIO_flush		(PerlIO *);
 #endif
 #ifndef PerlIO_ungetc
-extern int	PerlIO_ungetc		_((PerlIO *,int));
+extern int	PerlIO_ungetc		(PerlIO *,int);
 #endif
 #ifndef PerlIO_fileno
-extern int	PerlIO_fileno		_((PerlIO *));
+extern int	PerlIO_fileno		(PerlIO *);
 #endif
 #ifndef PerlIO_fdopen
-extern PerlIO *	PerlIO_fdopen		_((int, const char *));
+extern PerlIO *	PerlIO_fdopen		(int, const char *);
 #endif
 #ifndef PerlIO_importFILE
-extern PerlIO *	PerlIO_importFILE	_((FILE *,int));
+extern PerlIO *	PerlIO_importFILE	(FILE *,int);
 #endif
 #ifndef PerlIO_exportFILE
-extern FILE *	PerlIO_exportFILE	_((PerlIO *,int));
+extern FILE *	PerlIO_exportFILE	(PerlIO *,int);
 #endif
 #ifndef PerlIO_findFILE
-extern FILE *	PerlIO_findFILE		_((PerlIO *));
+extern FILE *	PerlIO_findFILE		(PerlIO *);
 #endif
 #ifndef PerlIO_releaseFILE
-extern void	PerlIO_releaseFILE	_((PerlIO *,FILE *));
+extern void	PerlIO_releaseFILE	(PerlIO *,FILE *);
 #endif
 #ifndef PerlIO_read
-extern SSize_t	PerlIO_read		_((PerlIO *,void *,Size_t));
+extern SSize_t	PerlIO_read		(PerlIO *,void *,Size_t);
 #endif
 #ifndef PerlIO_write
-extern SSize_t	PerlIO_write		_((PerlIO *,const void *,Size_t));
+extern SSize_t	PerlIO_write		(PerlIO *,const void *,Size_t);
 #endif
 #ifndef PerlIO_setlinebuf
-extern void	PerlIO_setlinebuf	_((PerlIO *));
+extern void	PerlIO_setlinebuf	(PerlIO *);
 #endif
 #ifndef PerlIO_printf
-extern int	PerlIO_printf		_((PerlIO *, const char *,...))
-					__attribute__((format (printf, 2, 3)));
+extern int	PerlIO_printf		(PerlIO *, const char *,...)
+					__attribute__((__format__ (__printf__, 2, 3)));
 #endif
 #ifndef PerlIO_sprintf
-extern int	PerlIO_sprintf		_((char *, int, const char *,...))
-					__attribute__((format (printf, 3, 4)));
+extern int	PerlIO_sprintf		(char *, int, const char *,...)
+					__attribute__((__format__ (__printf__, 3, 4)));
 #endif
 #ifndef PerlIO_vprintf
-extern int	PerlIO_vprintf		_((PerlIO *, const char *, va_list));
+extern int	PerlIO_vprintf		(PerlIO *, const char *, va_list);
 #endif
 #ifndef PerlIO_tell
-extern Off_t	PerlIO_tell		_((PerlIO *));
+extern Off_t	PerlIO_tell		(PerlIO *);
 #endif
 #ifndef PerlIO_seek
-extern int	PerlIO_seek		_((PerlIO *, Off_t, int));
+extern int	PerlIO_seek		(PerlIO *, Off_t, int);
 #endif
 #ifndef PerlIO_rewind
-extern void	PerlIO_rewind		_((PerlIO *));
+extern void	PerlIO_rewind		(PerlIO *);
 #endif
 #ifndef PerlIO_has_base
-extern int	PerlIO_has_base		_((PerlIO *));
+extern int	PerlIO_has_base		(PerlIO *);
 #endif
 #ifndef PerlIO_has_cntptr
-extern int	PerlIO_has_cntptr	_((PerlIO *));
+extern int	PerlIO_has_cntptr	(PerlIO *);
 #endif
 #ifndef PerlIO_fast_gets
-extern int	PerlIO_fast_gets	_((PerlIO *));
+extern int	PerlIO_fast_gets	(PerlIO *);
 #endif
 #ifndef PerlIO_canset_cnt
-extern int	PerlIO_canset_cnt	_((PerlIO *));
+extern int	PerlIO_canset_cnt	(PerlIO *);
 #endif
 #ifndef PerlIO_get_ptr
-extern STDCHAR * PerlIO_get_ptr		_((PerlIO *));
+extern STDCHAR * PerlIO_get_ptr		(PerlIO *);
 #endif
 #ifndef PerlIO_get_cnt
-extern int	PerlIO_get_cnt		_((PerlIO *));
+extern int	PerlIO_get_cnt		(PerlIO *);
 #endif
 #ifndef PerlIO_set_cnt
-extern void	PerlIO_set_cnt		_((PerlIO *,int));
+extern void	PerlIO_set_cnt		(PerlIO *,int);
 #endif
 #ifndef PerlIO_set_ptrcnt
-extern void	PerlIO_set_ptrcnt	_((PerlIO *,STDCHAR *,int));
+extern void	PerlIO_set_ptrcnt	(PerlIO *,STDCHAR *,int);
 #endif
 #ifndef PerlIO_get_base
-extern STDCHAR * PerlIO_get_base	_((PerlIO *));
+extern STDCHAR * PerlIO_get_base	(PerlIO *);
 #endif
 #ifndef PerlIO_get_bufsiz
-extern int	PerlIO_get_bufsiz	_((PerlIO *));
+extern int	PerlIO_get_bufsiz	(PerlIO *);
 #endif
 #ifndef PerlIO_tmpfile
-extern PerlIO *	PerlIO_tmpfile		_((void));
+extern PerlIO *	PerlIO_tmpfile		(void);
 #endif
 #ifndef PerlIO_stdin
-extern PerlIO *	PerlIO_stdin	_((void));
+extern PerlIO *	PerlIO_stdin	(void);
 #endif
 #ifndef PerlIO_stdout
-extern PerlIO *	PerlIO_stdout	_((void));
+extern PerlIO *	PerlIO_stdout	(void);
 #endif
 #ifndef PerlIO_stderr
-extern PerlIO *	PerlIO_stderr	_((void));
+extern PerlIO *	PerlIO_stderr	(void);
 #endif
 #ifndef PerlIO_getpos
-extern int	PerlIO_getpos		_((PerlIO *,Fpos_t *));
+extern int	PerlIO_getpos		(PerlIO *,Fpos_t *);
 #endif
 #ifndef PerlIO_setpos
-extern int	PerlIO_setpos		_((PerlIO *,const Fpos_t *));
+extern int	PerlIO_setpos		(PerlIO *,const Fpos_t *);
+#endif
+#ifndef PerlIO_fdupopen
+extern PerlIO *	PerlIO_fdupopen		(PerlIO *);
 #endif
 
 
@@ -384,42 +480,74 @@ extern int	PerlIO_setpos		_((PerlIO *,const Fpos_t *));
  *   Interface for directory functions
  */
 
-#ifdef PERL_OBJECT
+#if defined(PERL_IMPLICIT_SYS)
 
-class IPerlDir
+/* IPerlDir		*/
+struct IPerlDir;
+struct IPerlDirInfo;
+typedef int		(*LPMakedir)(struct IPerlDir*, const char*, int);
+typedef int		(*LPChdir)(struct IPerlDir*, const char*);
+typedef int		(*LPRmdir)(struct IPerlDir*, const char*);
+typedef int		(*LPDirClose)(struct IPerlDir*, DIR*);
+typedef DIR*		(*LPDirOpen)(struct IPerlDir*, char*);
+typedef struct direct*	(*LPDirRead)(struct IPerlDir*, DIR*);
+typedef void		(*LPDirRewind)(struct IPerlDir*, DIR*);
+typedef void		(*LPDirSeek)(struct IPerlDir*, DIR*, long);
+typedef long		(*LPDirTell)(struct IPerlDir*, DIR*);
+#ifdef WIN32
+typedef char*		(*LPDirMapPathA)(struct IPerlDir*, const char*);
+typedef WCHAR*		(*LPDirMapPathW)(struct IPerlDir*, const WCHAR*);
+#endif
+
+struct IPerlDir
 {
-public:
-    virtual int		Makedir(const char *dirname, int mode, int &err) = 0;
-    virtual int		Chdir(const char *dirname, int &err) = 0;
-    virtual int		Rmdir(const char *dirname, int &err) = 0;
-    virtual int		Close(DIR *dirp, int &err) = 0;
-    virtual DIR *	Open(char *filename, int &err) = 0;
-    virtual struct direct *Read(DIR *dirp, int &err) = 0;
-    virtual void	Rewind(DIR *dirp, int &err) = 0;
-    virtual void	Seek(DIR *dirp, long loc, int &err) = 0;
-    virtual long	Tell(DIR *dirp, int &err) = 0;
+    LPMakedir		pMakedir;
+    LPChdir		pChdir;
+    LPRmdir		pRmdir;
+    LPDirClose		pClose;
+    LPDirOpen		pOpen;
+    LPDirRead		pRead;
+    LPDirRewind		pRewind;
+    LPDirSeek		pSeek;
+    LPDirTell		pTell;
+#ifdef WIN32
+    LPDirMapPathA	pMapPathA;
+    LPDirMapPathW	pMapPathW;
+#endif
+};
+
+struct IPerlDirInfo
+{
+    unsigned long	nCount;	    /* number of entries expected */
+    struct IPerlDir	perlDirList;
 };
 
 #define PerlDir_mkdir(name, mode)				\
-	PL_piDir->Makedir((name), (mode), ErrorNo())
+	(*PL_Dir->pMakedir)(PL_Dir, (name), (mode))
 #define PerlDir_chdir(name)					\
-	PL_piDir->Chdir((name), ErrorNo())
+	(*PL_Dir->pChdir)(PL_Dir, (name))
 #define PerlDir_rmdir(name)					\
-	PL_piDir->Rmdir((name), ErrorNo())
+	(*PL_Dir->pRmdir)(PL_Dir, (name))
 #define PerlDir_close(dir)					\
-	PL_piDir->Close((dir), ErrorNo())
+	(*PL_Dir->pClose)(PL_Dir, (dir))
 #define PerlDir_open(name)					\
-	PL_piDir->Open((name), ErrorNo())
+	(*PL_Dir->pOpen)(PL_Dir, (name))
 #define PerlDir_read(dir)					\
-	PL_piDir->Read((dir), ErrorNo())
+	(*PL_Dir->pRead)(PL_Dir, (dir))
 #define PerlDir_rewind(dir)					\
-	PL_piDir->Rewind((dir), ErrorNo())
+	(*PL_Dir->pRewind)(PL_Dir, (dir))
 #define PerlDir_seek(dir, loc)					\
-	PL_piDir->Seek((dir), (loc), ErrorNo())
+	(*PL_Dir->pSeek)(PL_Dir, (dir), (loc))
 #define PerlDir_tell(dir)					\
-	PL_piDir->Tell((dir), ErrorNo())
+	(*PL_Dir->pTell)(PL_Dir, (dir))
+#ifdef WIN32
+#define PerlDir_mapA(dir)					\
+	(*PL_Dir->pMapPathA)(PL_Dir, (dir))
+#define PerlDir_mapW(dir)					\
+	(*PL_Dir->pMapPathW)(PL_Dir, (dir))
+#endif
 
-#else	/* PERL_OBJECT */
+#else	/* PERL_IMPLICIT_SYS */
 
 #define PerlDir_mkdir(name, mode)	Mkdir((name), (mode))
 #ifdef VMS
@@ -434,132 +562,279 @@ public:
 #define PerlDir_rewind(dir)		rewinddir((dir))
 #define PerlDir_seek(dir, loc)		seekdir((dir), (loc))
 #define PerlDir_tell(dir)		telldir((dir))
+#ifdef WIN32
+#define PerlDir_mapA(dir)		dir
+#define PerlDir_mapW(dir)		dir
+#endif
 
-#endif	/* PERL_OBJECT */
+#endif	/* PERL_IMPLICIT_SYS */
 
 /*
     Interface for perl environment functions
 */
 
-#ifdef PERL_OBJECT
+#if defined(PERL_IMPLICIT_SYS)
 
-class IPerlEnv
-{
-public:
-    virtual char *	Getenv(const char *varname, int &err) = 0;
-    virtual int		Putenv(const char *envstring, int &err) = 0;
-    virtual char *	LibPath(char *patchlevel) =0;
-    virtual char *	SiteLibPath(char *patchlevel) =0;
-};
-
-#define PerlEnv_putenv(str)		PL_piENV->Putenv((str), ErrorNo())
-#define PerlEnv_getenv(str)		PL_piENV->Getenv((str), ErrorNo())
+/* IPerlEnv		*/
+struct IPerlEnv;
+struct IPerlEnvInfo;
+typedef char*		(*LPEnvGetenv)(struct IPerlEnv*, const char*);
+typedef int		(*LPEnvPutenv)(struct IPerlEnv*, const char*);
+typedef char*		(*LPEnvGetenv_len)(struct IPerlEnv*,
+				    const char *varname, unsigned long *len);
+typedef int		(*LPEnvUname)(struct IPerlEnv*, struct utsname *name);
+typedef void		(*LPEnvClearenv)(struct IPerlEnv*);
+typedef void*		(*LPEnvGetChildenv)(struct IPerlEnv*);
+typedef void		(*LPEnvFreeChildenv)(struct IPerlEnv*, void* env);
+typedef char*		(*LPEnvGetChilddir)(struct IPerlEnv*);
+typedef void		(*LPEnvFreeChilddir)(struct IPerlEnv*, char* dir);
+#ifdef HAS_ENVGETENV
+typedef char*		(*LPENVGetenv)(struct IPerlEnv*, const char *varname);
+typedef char*		(*LPENVGetenv_len)(struct IPerlEnv*,
+				    const char *varname, unsigned long *len);
+#endif
 #ifdef WIN32
-#define PerlEnv_lib_path(str)		PL_piENV->LibPath((str))
-#define PerlEnv_sitelib_path(str)	PL_piENV->SiteLibPath((str))
+typedef unsigned long	(*LPEnvOsID)(struct IPerlEnv*);
+typedef char*		(*LPEnvLibPath)(struct IPerlEnv*, const char*);
+typedef char*		(*LPEnvSiteLibPath)(struct IPerlEnv*, const char*);
+typedef char*		(*LPEnvVendorLibPath)(struct IPerlEnv*, const char*);
+typedef void		(*LPEnvGetChildIO)(struct IPerlEnv*, child_IO_table*);
 #endif
 
-#else	/* PERL_OBJECT */
+struct IPerlEnv
+{
+    LPEnvGetenv		pGetenv;
+    LPEnvPutenv		pPutenv;
+    LPEnvGetenv_len	pGetenv_len;
+    LPEnvUname		pEnvUname;
+    LPEnvClearenv	pClearenv;
+    LPEnvGetChildenv	pGetChildenv;
+    LPEnvFreeChildenv	pFreeChildenv;
+    LPEnvGetChilddir	pGetChilddir;
+    LPEnvFreeChilddir	pFreeChilddir;
+#ifdef HAS_ENVGETENV
+    LPENVGetenv		pENVGetenv;
+    LPENVGetenv_len	pENVGetenv_len;
+#endif
+#ifdef WIN32
+    LPEnvOsID		pEnvOsID;
+    LPEnvLibPath	pLibPath;
+    LPEnvSiteLibPath	pSiteLibPath;
+    LPEnvVendorLibPath	pVendorLibPath;
+    LPEnvGetChildIO	pGetChildIO;
+#endif
+};
+
+struct IPerlEnvInfo
+{
+    unsigned long	nCount;	    /* number of entries expected */
+    struct IPerlEnv	perlEnvList;
+};
+
+#define PerlEnv_putenv(str)					\
+	(*PL_Env->pPutenv)(PL_Env,(str))
+#define PerlEnv_getenv(str)					\
+	(*PL_Env->pGetenv)(PL_Env,(str))
+#define PerlEnv_getenv_len(str,l)				\
+	(*PL_Env->pGetenv_len)(PL_Env,(str), (l))
+#define PerlEnv_clearenv()					\
+	(*PL_Env->pClearenv)(PL_Env)
+#define PerlEnv_get_childenv()					\
+	(*PL_Env->pGetChildenv)(PL_Env)
+#define PerlEnv_free_childenv(e)				\
+	(*PL_Env->pFreeChildenv)(PL_Env, (e))
+#define PerlEnv_get_childdir()					\
+	(*PL_Env->pGetChilddir)(PL_Env)
+#define PerlEnv_free_childdir(d)				\
+	(*PL_Env->pFreeChilddir)(PL_Env, (d))
+#ifdef HAS_ENVGETENV
+#  define PerlEnv_ENVgetenv(str)				\
+	(*PL_Env->pENVGetenv)(PL_Env,(str))
+#  define PerlEnv_ENVgetenv_len(str,l)				\
+	(*PL_Env->pENVGetenv_len)(PL_Env,(str), (l))
+#else
+#  define PerlEnv_ENVgetenv(str)				\
+	PerlEnv_getenv((str))
+#  define PerlEnv_ENVgetenv_len(str,l)				\
+	PerlEnv_getenv_len((str),(l))
+#endif
+#define PerlEnv_uname(name)					\
+	(*PL_Env->pEnvUname)(PL_Env,(name))
+#ifdef WIN32
+#define PerlEnv_os_id()						\
+	(*PL_Env->pEnvOsID)(PL_Env)
+#define PerlEnv_lib_path(str)					\
+	(*PL_Env->pLibPath)(PL_Env,(str))
+#define PerlEnv_sitelib_path(str)				\
+	(*PL_Env->pSiteLibPath)(PL_Env,(str))
+#define PerlEnv_vendorlib_path(str)				\
+	(*PL_Env->pVendorLibPath)(PL_Env,(str))
+#define PerlEnv_get_child_IO(ptr)				\
+	(*PL_Env->pGetChildIO)(PL_Env, ptr)
+#endif
+
+#else	/* PERL_IMPLICIT_SYS */
 
 #define PerlEnv_putenv(str)		putenv((str))
 #define PerlEnv_getenv(str)		getenv((str))
+#define PerlEnv_getenv_len(str,l)	getenv_len((str), (l))
+#define PerlEnv_clearenv()		clearenv()
+#define PerlEnv_get_childenv()		get_childenv()
+#define PerlEnv_free_childenv(e)	free_childenv((e))
+#define PerlEnv_get_childdir()		get_childdir()
+#define PerlEnv_free_childdir(d)	free_childdir((d))
+#ifdef HAS_ENVGETENV
+#  define PerlEnv_ENVgetenv(str)	ENVgetenv((str))
+#  define PerlEnv_ENVgetenv_len(str,l)	ENVgetenv_len((str), (l))
+#else
+#  define PerlEnv_ENVgetenv(str)	PerlEnv_getenv((str))
+#  define PerlEnv_ENVgetenv_len(str,l)	PerlEnv_getenv_len((str), (l))
+#endif
+#define PerlEnv_uname(name)		uname((name))
 
-#endif	/* PERL_OBJECT */
+#ifdef WIN32
+#define PerlEnv_os_id()			win32_os_id()
+#define PerlEnv_lib_path(str)		win32_get_privlib(str)
+#define PerlEnv_sitelib_path(str)	win32_get_sitelib(str)
+#define PerlEnv_vendorlib_path(str)	win32_get_vendorlib(str)
+#define PerlEnv_get_child_IO(ptr)	win32_get_child_IO(ptr)
+#endif
+
+#endif	/* PERL_IMPLICIT_SYS */
 
 /*
     Interface for perl low-level IO functions
 */
 
-#ifdef PERL_OBJECT
+#if defined(PERL_IMPLICIT_SYS)
 
-class IPerlLIO
+/* IPerlLIO		*/
+struct IPerlLIO;
+struct IPerlLIOInfo;
+typedef int		(*LPLIOAccess)(struct IPerlLIO*, const char*, int);
+typedef int		(*LPLIOChmod)(struct IPerlLIO*, const char*, int);
+typedef int		(*LPLIOChown)(struct IPerlLIO*, const char*, uid_t,
+			    gid_t);
+typedef int		(*LPLIOChsize)(struct IPerlLIO*, int, long);
+typedef int		(*LPLIOClose)(struct IPerlLIO*, int);
+typedef int		(*LPLIODup)(struct IPerlLIO*, int);
+typedef int		(*LPLIODup2)(struct IPerlLIO*, int, int);
+typedef int		(*LPLIOFlock)(struct IPerlLIO*, int, int);
+typedef int		(*LPLIOFileStat)(struct IPerlLIO*, int, struct stat*);
+typedef int		(*LPLIOIOCtl)(struct IPerlLIO*, int, unsigned int,
+			    char*);
+typedef int		(*LPLIOIsatty)(struct IPerlLIO*, int);
+typedef int		(*LPLIOLink)(struct IPerlLIO*, const char*,
+				     const char *);
+typedef long		(*LPLIOLseek)(struct IPerlLIO*, int, long, int);
+typedef int		(*LPLIOLstat)(struct IPerlLIO*, const char*,
+			    struct stat*);
+typedef char*		(*LPLIOMktemp)(struct IPerlLIO*, char*);
+typedef int		(*LPLIOOpen)(struct IPerlLIO*, const char*, int);	
+typedef int		(*LPLIOOpen3)(struct IPerlLIO*, const char*, int, int);	
+typedef int		(*LPLIORead)(struct IPerlLIO*, int, void*, unsigned int);
+typedef int		(*LPLIORename)(struct IPerlLIO*, const char*,
+			    const char*);
+typedef int		(*LPLIOSetmode)(struct IPerlLIO*, int, int);
+typedef int		(*LPLIONameStat)(struct IPerlLIO*, const char*,
+			    struct stat*);
+typedef char*		(*LPLIOTmpnam)(struct IPerlLIO*, char*);
+typedef int		(*LPLIOUmask)(struct IPerlLIO*, int);
+typedef int		(*LPLIOUnlink)(struct IPerlLIO*, const char*);
+typedef int		(*LPLIOUtime)(struct IPerlLIO*, char*, struct utimbuf*);
+typedef int		(*LPLIOWrite)(struct IPerlLIO*, int, const void*,
+			    unsigned int);
+
+struct IPerlLIO
 {
-public:
-    virtual int		Access(const char *path, int mode, int &err) = 0;
-    virtual int		Chmod(const char *filename, int pmode, int &err) = 0;
-    virtual int		Chown(const char *filename, uid_t owner,
-			      gid_t group, int &err) = 0;
-    virtual int		Chsize(int handle, long size, int &err) = 0;
-    virtual int		Close(int handle, int &err) = 0;
-    virtual int		Dup(int handle, int &err) = 0;
-    virtual int		Dup2(int handle1, int handle2, int &err) = 0;
-    virtual int		Flock(int fd, int oper, int &err) = 0;
-    virtual int		FileStat(int handle, struct stat *buffer, int &err) = 0;
-    virtual int		IOCtl(int i, unsigned int u, char *data, int &err) = 0;
-    virtual int		Isatty(int handle, int &err) = 0;
-    virtual long	Lseek(int handle, long offset, int origin, int &err) = 0;
-    virtual int		Lstat(const char *path, struct stat *buffer, int &err) = 0;
-    virtual char *	Mktemp(char *Template, int &err) = 0;
-    virtual int		Open(const char *filename, int oflag, int &err) = 0;	
-    virtual int		Open(const char *filename, int oflag,
-			     int pmode, int &err) = 0;	
-    virtual int		Read(int handle, void *buffer,
-			     unsigned int count, int &err) = 0;
-    virtual int		Rename(const char *oname,
-			       const char *newname, int &err) = 0;
-    virtual int		Setmode(int handle, int mode, int &err) = 0;
-    virtual int		NameStat(const char *path,
-				 struct stat *buffer, int &err) = 0;
-    virtual char *	Tmpnam(char *string, int &err) = 0;
-    virtual int		Umask(int pmode, int &err) = 0;
-    virtual int		Unlink(const char *filename, int &err) = 0;
-    virtual int		Utime(char *filename, struct utimbuf *times, int &err) = 0;
-    virtual int		Write(int handle, const void *buffer,
-			      unsigned int count, int &err) = 0;
+    LPLIOAccess		pAccess;
+    LPLIOChmod		pChmod;
+    LPLIOChown		pChown;
+    LPLIOChsize		pChsize;
+    LPLIOClose		pClose;
+    LPLIODup		pDup;
+    LPLIODup2		pDup2;
+    LPLIOFlock		pFlock;
+    LPLIOFileStat	pFileStat;
+    LPLIOIOCtl		pIOCtl;
+    LPLIOIsatty		pIsatty;
+    LPLIOLink		pLink;
+    LPLIOLseek		pLseek;
+    LPLIOLstat		pLstat;
+    LPLIOMktemp		pMktemp;
+    LPLIOOpen		pOpen;
+    LPLIOOpen3		pOpen3;
+    LPLIORead		pRead;
+    LPLIORename		pRename;
+    LPLIOSetmode	pSetmode;
+    LPLIONameStat	pNameStat;
+    LPLIOTmpnam		pTmpnam;
+    LPLIOUmask		pUmask;
+    LPLIOUnlink		pUnlink;
+    LPLIOUtime		pUtime;
+    LPLIOWrite		pWrite;
+};
+
+struct IPerlLIOInfo
+{
+    unsigned long	nCount;	    /* number of entries expected */
+    struct IPerlLIO	perlLIOList;
 };
 
 #define PerlLIO_access(file, mode)					\
-	PL_piLIO->Access((file), (mode), ErrorNo())
+	(*PL_LIO->pAccess)(PL_LIO, (file), (mode))
 #define PerlLIO_chmod(file, mode)					\
-	PL_piLIO->Chmod((file), (mode), ErrorNo())
+	(*PL_LIO->pChmod)(PL_LIO, (file), (mode))
 #define PerlLIO_chown(file, owner, group)				\
-	PL_piLIO->Chown((file), (owner), (group), ErrorNo())
+	(*PL_LIO->pChown)(PL_LIO, (file), (owner), (group))
 #define PerlLIO_chsize(fd, size)					\
-	PL_piLIO->Chsize((fd), (size), ErrorNo())
+	(*PL_LIO->pChsize)(PL_LIO, (fd), (size))
 #define PerlLIO_close(fd)						\
-	PL_piLIO->Close((fd), ErrorNo())
+	(*PL_LIO->pClose)(PL_LIO, (fd))
 #define PerlLIO_dup(fd)							\
-	PL_piLIO->Dup((fd), ErrorNo())
+	(*PL_LIO->pDup)(PL_LIO, (fd))
 #define PerlLIO_dup2(fd1, fd2)						\
-	PL_piLIO->Dup2((fd1), (fd2), ErrorNo())
+	(*PL_LIO->pDup2)(PL_LIO, (fd1), (fd2))
 #define PerlLIO_flock(fd, op)						\
-	PL_piLIO->Flock((fd), (op), ErrorNo())
+	(*PL_LIO->pFlock)(PL_LIO, (fd), (op))
 #define PerlLIO_fstat(fd, buf)						\
-	PL_piLIO->FileStat((fd), (buf), ErrorNo())
+	(*PL_LIO->pFileStat)(PL_LIO, (fd), (buf))
 #define PerlLIO_ioctl(fd, u, buf)					\
-	PL_piLIO->IOCtl((fd), (u), (buf), ErrorNo())
+	(*PL_LIO->pIOCtl)(PL_LIO, (fd), (u), (buf))
 #define PerlLIO_isatty(fd)						\
-	PL_piLIO->Isatty((fd), ErrorNo())
+	(*PL_LIO->pIsatty)(PL_LIO, (fd))
+#define PerlLIO_link(oldname, newname)					\
+	(*PL_LIO->pLink)(PL_LIO, (oldname), (newname))
 #define PerlLIO_lseek(fd, offset, mode)					\
-	PL_piLIO->Lseek((fd), (offset), (mode), ErrorNo())
+	(*PL_LIO->pLseek)(PL_LIO, (fd), (offset), (mode))
 #define PerlLIO_lstat(name, buf)					\
-	PL_piLIO->Lstat((name), (buf), ErrorNo())
+	(*PL_LIO->pLstat)(PL_LIO, (name), (buf))
 #define PerlLIO_mktemp(file)						\
-	PL_piLIO->Mktemp((file), ErrorNo())
+	(*PL_LIO->pMktemp)(PL_LIO, (file))
 #define PerlLIO_open(file, flag)					\
-	PL_piLIO->Open((file), (flag), ErrorNo())
+	(*PL_LIO->pOpen)(PL_LIO, (file), (flag))
 #define PerlLIO_open3(file, flag, perm)					\
-	PL_piLIO->Open((file), (flag), (perm), ErrorNo())
+	(*PL_LIO->pOpen3)(PL_LIO, (file), (flag), (perm))
 #define PerlLIO_read(fd, buf, count)					\
-	PL_piLIO->Read((fd), (buf), (count), ErrorNo())
+	(*PL_LIO->pRead)(PL_LIO, (fd), (buf), (count))
 #define PerlLIO_rename(oname, newname)					\
-	PL_piLIO->Rename((oname), (newname), ErrorNo())
+	(*PL_LIO->pRename)(PL_LIO, (oname), (newname))
 #define PerlLIO_setmode(fd, mode)					\
-	PL_piLIO->Setmode((fd), (mode), ErrorNo())
+	(*PL_LIO->pSetmode)(PL_LIO, (fd), (mode))
 #define PerlLIO_stat(name, buf)						\
-	PL_piLIO->NameStat((name), (buf), ErrorNo())
+	(*PL_LIO->pNameStat)(PL_LIO, (name), (buf))
 #define PerlLIO_tmpnam(str)						\
-	PL_piLIO->Tmpnam((str), ErrorNo())
+	(*PL_LIO->pTmpnam)(PL_LIO, (str))
 #define PerlLIO_umask(mode)						\
-	PL_piLIO->Umask((mode), ErrorNo())
+	(*PL_LIO->pUmask)(PL_LIO, (mode))
 #define PerlLIO_unlink(file)						\
-	PL_piLIO->Unlink((file), ErrorNo())
+	(*PL_LIO->pUnlink)(PL_LIO, (file))
 #define PerlLIO_utime(file, time)					\
-	PL_piLIO->Utime((file), (time), ErrorNo())
+	(*PL_LIO->pUtime)(PL_LIO, (file), (time))
 #define PerlLIO_write(fd, buf, count)					\
-	PL_piLIO->Write((fd), (buf), (count), ErrorNo())
+	(*PL_LIO->pWrite)(PL_LIO, (fd), (buf), (count))
 
-#else	/* PERL_OBJECT */
+#else	/* PERL_IMPLICIT_SYS */
 
 #define PerlLIO_access(file, mode)	access((file), (mode))
 #define PerlLIO_chmod(file, mode)	chmod((file), (mode))
@@ -572,8 +847,14 @@ public:
 #define PerlLIO_fstat(fd, buf)		Fstat((fd), (buf))
 #define PerlLIO_ioctl(fd, u, buf)	ioctl((fd), (u), (buf))
 #define PerlLIO_isatty(fd)		isatty((fd))
+#define PerlLIO_link(oldname, newname)	link((oldname), (newname))
 #define PerlLIO_lseek(fd, offset, mode)	lseek((fd), (offset), (mode))
-#define PerlLIO_lstat(name, buf)	lstat((name), (buf))
+#define PerlLIO_stat(name, buf)		Stat((name), (buf))
+#ifdef HAS_LSTAT
+#  define PerlLIO_lstat(name, buf)	lstat((name), (buf))
+#else
+#  define PerlLIO_lstat(name, buf)	PerlLIO_stat((name), (buf))
+#endif
 #define PerlLIO_mktemp(file)		mktemp((file))
 #define PerlLIO_mkstemp(file)		mkstemp((file))
 #define PerlLIO_open(file, flag)	open((file), (flag))
@@ -581,138 +862,306 @@ public:
 #define PerlLIO_read(fd, buf, count)	read((fd), (buf), (count))
 #define PerlLIO_rename(old, new)	rename((old), (new))
 #define PerlLIO_setmode(fd, mode)	setmode((fd), (mode))
-#define PerlLIO_stat(name, buf)		Stat((name), (buf))
 #define PerlLIO_tmpnam(str)		tmpnam((str))
 #define PerlLIO_umask(mode)		umask((mode))
 #define PerlLIO_unlink(file)		unlink((file))
 #define PerlLIO_utime(file, time)	utime((file), (time))
 #define PerlLIO_write(fd, buf, count)	write((fd), (buf), (count))
 
-#endif	/* PERL_OBJECT */
+#endif	/* PERL_IMPLICIT_SYS */
 
 /*
     Interface for perl memory allocation
 */
 
-#ifdef PERL_OBJECT
+#if defined(PERL_IMPLICIT_SYS)
 
-class IPerlMem
+/* IPerlMem		*/
+struct IPerlMem;
+struct IPerlMemInfo;
+typedef void*		(*LPMemMalloc)(struct IPerlMem*, size_t);
+typedef void*		(*LPMemRealloc)(struct IPerlMem*, void*, size_t);
+typedef void		(*LPMemFree)(struct IPerlMem*, void*);
+typedef void*		(*LPMemCalloc)(struct IPerlMem*, size_t, size_t);
+typedef void		(*LPMemGetLock)(struct IPerlMem*);
+typedef void		(*LPMemFreeLock)(struct IPerlMem*);
+typedef int		(*LPMemIsLocked)(struct IPerlMem*);
+
+struct IPerlMem
 {
-public:
-    virtual void *	Malloc(size_t) = 0;
-    virtual void *	Realloc(void*, size_t) = 0;
-    virtual void	Free(void*) = 0;
+    LPMemMalloc		pMalloc;
+    LPMemRealloc	pRealloc;
+    LPMemFree		pFree;
+    LPMemCalloc		pCalloc;
+    LPMemGetLock	pGetLock;
+    LPMemFreeLock	pFreeLock;
+    LPMemIsLocked	pIsLocked;
 };
 
-#define PerlMem_malloc(size)		PL_piMem->Malloc((size))
-#define PerlMem_realloc(buf, size)	PL_piMem->Realloc((buf), (size))
-#define PerlMem_free(buf)		PL_piMem->Free((buf))
+struct IPerlMemInfo
+{
+    unsigned long	nCount;	    /* number of entries expected */
+    struct IPerlMem	perlMemList;
+};
 
-#else	/* PERL_OBJECT */
+/* Interpreter specific memory macros */
+#define PerlMem_malloc(size)				    \
+	(*PL_Mem->pMalloc)(PL_Mem, (size))
+#define PerlMem_realloc(buf, size)			    \
+	(*PL_Mem->pRealloc)(PL_Mem, (buf), (size))
+#define PerlMem_free(buf)				    \
+	(*PL_Mem->pFree)(PL_Mem, (buf))
+#define PerlMem_calloc(num, size)			    \
+	(*PL_Mem->pCalloc)(PL_Mem, (num), (size))
+#define PerlMem_get_lock()				    \
+	(*PL_Mem->pGetLock)(PL_Mem)
+#define PerlMem_free_lock()				    \
+	(*PL_Mem->pFreeLock)(PL_Mem)
+#define PerlMem_is_locked()				    \
+	(*PL_Mem->pIsLocked)(PL_Mem)
 
+/* Shared memory macros */
+#define PerlMemShared_malloc(size)			    \
+	(*PL_MemShared->pMalloc)(PL_Mem, (size))
+#define PerlMemShared_realloc(buf, size)		    \
+	(*PL_MemShared->pRealloc)(PL_Mem, (buf), (size))
+#define PerlMemShared_free(buf)				    \
+	(*PL_MemShared->pFree)(PL_Mem, (buf))
+#define PerlMemShared_calloc(num, size)			    \
+	(*PL_MemShared->pCalloc)(PL_Mem, (num), (size))
+#define PerlMemShared_get_lock()			    \
+	(*PL_MemShared->pGetLock)(PL_Mem)
+#define PerlMemShared_free_lock()			    \
+	(*PL_MemShared->pFreeLock)(PL_Mem)
+#define PerlMemShared_is_locked()			    \
+	(*PL_MemShared->pIsLocked)(PL_Mem)
+
+
+/* Parse tree memory macros */
+#define PerlMemParse_malloc(size)			    \
+	(*PL_MemParse->pMalloc)(PL_Mem, (size))
+#define PerlMemParse_realloc(buf, size)			    \
+	(*PL_MemParse->pRealloc)(PL_Mem, (buf), (size))
+#define PerlMemParse_free(buf)				    \
+	(*PL_MemParse->pFree)(PL_Mem, (buf))
+#define PerlMemParse_calloc(num, size)			    \
+	(*PL_MemParse->pCalloc)(PL_Mem, (num), (size))
+#define PerlMemParse_get_lock()				    \
+	(*PL_MemParse->pGetLock)(PL_Mem)
+#define PerlMemParse_free_lock()			    \
+	(*PL_MemParse->pFreeLock)(PL_Mem)
+#define PerlMemParse_is_locked()			    \
+	(*PL_MemParse->pIsLocked)(PL_Mem)
+
+
+#else	/* PERL_IMPLICIT_SYS */
+
+/* Interpreter specific memory macros */
 #define PerlMem_malloc(size)		malloc((size))
 #define PerlMem_realloc(buf, size)	realloc((buf), (size))
 #define PerlMem_free(buf)		free((buf))
+#define PerlMem_calloc(num, size)	calloc((num), (size))
+#define PerlMem_get_lock()		
+#define PerlMem_free_lock()
+#define PerlMem_is_locked()		0
 
-#endif	/* PERL_OBJECT */
+/* Shared memory macros */
+#define PerlMemShared_malloc(size)		malloc((size))
+#define PerlMemShared_realloc(buf, size)	realloc((buf), (size))
+#define PerlMemShared_free(buf)			free((buf))
+#define PerlMemShared_calloc(num, size)		calloc((num), (size))
+#define PerlMemShared_get_lock()		
+#define PerlMemShared_free_lock()
+#define PerlMemShared_is_locked()		0
+
+/* Parse tree memory macros */
+#define PerlMemParse_malloc(size)	malloc((size))
+#define PerlMemParse_realloc(buf, size)	realloc((buf), (size))
+#define PerlMemParse_free(buf)		free((buf))
+#define PerlMemParse_calloc(num, size)	calloc((num), (size))
+#define PerlMemParse_get_lock()		
+#define PerlMemParse_free_lock()
+#define PerlMemParse_is_locked()	0
+
+#endif	/* PERL_IMPLICIT_SYS */
 
 /*
     Interface for perl process functions
 */
 
 
-#ifdef PERL_OBJECT
+#if defined(PERL_IMPLICIT_SYS)
 
-#ifndef Sighandler_t
-typedef Signal_t (*Sighandler_t) _((int));
-#endif
 #ifndef jmp_buf
 #include <setjmp.h>
 #endif
 
-class IPerlProc
-{
-public:
-    virtual void	Abort(void) = 0;
-    virtual char *	Crypt(const char* clear, const char* salt) = 0;
-    virtual void	Exit(int status) = 0;
-    virtual void	_Exit(int status) = 0;
-    virtual int		Execl(const char *cmdname, const char *arg0,
-			      const char *arg1, const char *arg2,
-			      const char *arg3) = 0;
-    virtual int		Execv(const char *cmdname, const char *const *argv) = 0;
-    virtual int		Execvp(const char *cmdname, const char *const *argv) = 0;
-    virtual uid_t	Getuid(void) = 0;
-    virtual uid_t	Geteuid(void) = 0;
-    virtual gid_t	Getgid(void) = 0;
-    virtual gid_t	Getegid(void) = 0;
-    virtual char *	Getlogin(void) = 0;
-    virtual int		Kill(int pid, int sig) = 0;
-    virtual int		Killpg(int pid, int sig) = 0;
-    virtual int		PauseProc(void) = 0;
-    virtual PerlIO *	Popen(const char *command, const char *mode) = 0;
-    virtual int		Pclose(PerlIO *stream) = 0;
-    virtual int		Pipe(int *phandles) = 0;
-    virtual int		Setuid(uid_t uid) = 0;
-    virtual int		Setgid(gid_t gid) = 0;
-    virtual int		Sleep(unsigned int) = 0;
-    virtual int		Times(struct tms *timebuf) = 0;
-    virtual int		Wait(int *status) = 0;
-    virtual int		Waitpid(int pid, int *status, int flags) = 0;
-    virtual Sighandler_t	Signal(int sig, Sighandler_t subcode) = 0;
+/* IPerlProc		*/
+struct IPerlProc;
+struct IPerlProcInfo;
+typedef void		(*LPProcAbort)(struct IPerlProc*);
+typedef char*		(*LPProcCrypt)(struct IPerlProc*, const char*,
+			    const char*);
+typedef void		(*LPProcExit)(struct IPerlProc*, int);
+typedef void		(*LPProc_Exit)(struct IPerlProc*, int);
+typedef int		(*LPProcExecl)(struct IPerlProc*, const char*,
+			    const char*, const char*, const char*,
+			    const char*);
+typedef int		(*LPProcExecv)(struct IPerlProc*, const char*,
+			    const char*const*);
+typedef int		(*LPProcExecvp)(struct IPerlProc*, const char*,
+			    const char*const*);
+typedef uid_t		(*LPProcGetuid)(struct IPerlProc*);
+typedef uid_t		(*LPProcGeteuid)(struct IPerlProc*);
+typedef gid_t		(*LPProcGetgid)(struct IPerlProc*);
+typedef gid_t		(*LPProcGetegid)(struct IPerlProc*);
+typedef char*		(*LPProcGetlogin)(struct IPerlProc*);
+typedef int		(*LPProcKill)(struct IPerlProc*, int, int);
+typedef int		(*LPProcKillpg)(struct IPerlProc*, int, int);
+typedef int		(*LPProcPauseProc)(struct IPerlProc*);
+typedef PerlIO*		(*LPProcPopen)(struct IPerlProc*, const char*,
+			    const char*);
+typedef int		(*LPProcPclose)(struct IPerlProc*, PerlIO*);
+typedef int		(*LPProcPipe)(struct IPerlProc*, int*);
+typedef int		(*LPProcSetuid)(struct IPerlProc*, uid_t);
+typedef int		(*LPProcSetgid)(struct IPerlProc*, gid_t);
+typedef int		(*LPProcSleep)(struct IPerlProc*, unsigned int);
+typedef int		(*LPProcTimes)(struct IPerlProc*, struct tms*);
+typedef int		(*LPProcWait)(struct IPerlProc*, int*);
+typedef int		(*LPProcWaitpid)(struct IPerlProc*, int, int*, int);
+typedef Sighandler_t	(*LPProcSignal)(struct IPerlProc*, int, Sighandler_t);
+typedef int		(*LPProcFork)(struct IPerlProc*);
+typedef int		(*LPProcGetpid)(struct IPerlProc*);
 #ifdef WIN32
-    virtual void	GetSysMsg(char*& msg, DWORD& dwLen, DWORD dwErr) = 0;
-    virtual void	FreeBuf(char* msg) = 0;
-    virtual BOOL	DoCmd(char *cmd) = 0;
-    virtual int		Spawn(char*cmds) = 0;
-    virtual int		Spawnvp(int mode, const char *cmdname,
-				const char *const *argv) = 0;
-    virtual int		ASpawn(void *vreally, void **vmark, void **vsp) = 0;
+typedef void*		(*LPProcDynaLoader)(struct IPerlProc*, const char*);
+typedef void		(*LPProcGetOSError)(struct IPerlProc*,
+			    SV* sv, DWORD dwErr);
+typedef void		(*LPProcFreeBuf)(struct IPerlProc*, char*);
+typedef BOOL		(*LPProcDoCmd)(struct IPerlProc*, char*);
+typedef int		(*LPProcSpawn)(struct IPerlProc*, char*);
+typedef int		(*LPProcSpawnvp)(struct IPerlProc*, int, const char*,
+			    const char*const*);
+typedef int		(*LPProcASpawn)(struct IPerlProc*, void*, void**, void**);
+#endif
+
+struct IPerlProc
+{
+    LPProcAbort		pAbort;
+    LPProcCrypt		pCrypt;
+    LPProcExit		pExit;
+    LPProc_Exit		p_Exit;
+    LPProcExecl		pExecl;
+    LPProcExecv		pExecv;
+    LPProcExecvp	pExecvp;
+    LPProcGetuid	pGetuid;
+    LPProcGeteuid	pGeteuid;
+    LPProcGetgid	pGetgid;
+    LPProcGetegid	pGetegid;
+    LPProcGetlogin	pGetlogin;
+    LPProcKill		pKill;
+    LPProcKillpg	pKillpg;
+    LPProcPauseProc	pPauseProc;
+    LPProcPopen		pPopen;
+    LPProcPclose	pPclose;
+    LPProcPipe		pPipe;
+    LPProcSetuid	pSetuid;
+    LPProcSetgid	pSetgid;
+    LPProcSleep		pSleep;
+    LPProcTimes		pTimes;
+    LPProcWait		pWait;
+    LPProcWaitpid	pWaitpid;
+    LPProcSignal	pSignal;
+    LPProcFork		pFork;
+    LPProcGetpid	pGetpid;
+#ifdef WIN32
+    LPProcDynaLoader	pDynaLoader;
+    LPProcGetOSError	pGetOSError;
+    LPProcDoCmd		pDoCmd;
+    LPProcSpawn		pSpawn;
+    LPProcSpawnvp	pSpawnvp;
+    LPProcASpawn	pASpawn;
 #endif
 };
 
-#define PerlProc_abort()	PL_piProc->Abort()
-#define PerlProc_crypt(c,s)	PL_piProc->Crypt((c), (s))
-#define PerlProc_exit(s)	PL_piProc->Exit((s))
-#define PerlProc__exit(s)	PL_piProc->_Exit((s))
-#define PerlProc_execl(c, w, x, y, z)					\
-	PL_piProc->Execl((c), (w), (x), (y), (z))
+struct IPerlProcInfo
+{
+    unsigned long	nCount;	    /* number of entries expected */
+    struct IPerlProc	perlProcList;
+};
 
-#define PerlProc_execv(c, a)	PL_piProc->Execv((c), (a))
-#define PerlProc_execvp(c, a)	PL_piProc->Execvp((c), (a))
-#define PerlProc_getuid()	PL_piProc->Getuid()
-#define PerlProc_geteuid()	PL_piProc->Geteuid()
-#define PerlProc_getgid()	PL_piProc->Getgid()
-#define PerlProc_getegid()	PL_piProc->Getegid()
-#define PerlProc_getlogin()	PL_piProc->Getlogin()
-#define PerlProc_kill(i, a)	PL_piProc->Kill((i), (a))
-#define PerlProc_killpg(i, a)	PL_piProc->Killpg((i), (a))
-#define PerlProc_pause()	PL_piProc->PauseProc()
-#define PerlProc_popen(c, m)	PL_piProc->Popen((c), (m))
-#define PerlProc_pclose(f)	PL_piProc->Pclose((f))
-#define PerlProc_pipe(fd)	PL_piProc->Pipe((fd))
-#define PerlProc_setuid(u)	PL_piProc->Setuid((u))
-#define PerlProc_setgid(g)	PL_piProc->Setgid((g))
-#define PerlProc_sleep(t)	PL_piProc->Sleep((t))
-#define PerlProc_times(t)	PL_piProc->Times((t))
-#define PerlProc_wait(t)	PL_piProc->Wait((t))
-#define PerlProc_waitpid(p,s,f)	PL_piProc->Waitpid((p), (s), (f))
-#define PerlProc_setjmp(b, n)	Sigsetjmp((b), (n))
-#define PerlProc_longjmp(b, n)	Siglongjmp((b), (n))
-#define PerlProc_signal(n, h)	PL_piProc->Signal((n), (h))
+#define PerlProc_abort()						\
+	(*PL_Proc->pAbort)(PL_Proc)
+#define PerlProc_crypt(c,s)						\
+	(*PL_Proc->pCrypt)(PL_Proc, (c), (s))
+#define PerlProc_exit(s)						\
+	(*PL_Proc->pExit)(PL_Proc, (s))
+#define PerlProc__exit(s)						\
+	(*PL_Proc->p_Exit)(PL_Proc, (s))
+#define PerlProc_execl(c, w, x, y, z)					\
+	(*PL_Proc->pExecl)(PL_Proc, (c), (w), (x), (y), (z))
+#define PerlProc_execv(c, a)						\
+	(*PL_Proc->pExecv)(PL_Proc, (c), (a))
+#define PerlProc_execvp(c, a)						\
+	(*PL_Proc->pExecvp)(PL_Proc, (c), (a))
+#define PerlProc_getuid()						\
+	(*PL_Proc->pGetuid)(PL_Proc)
+#define PerlProc_geteuid()						\
+	(*PL_Proc->pGeteuid)(PL_Proc)
+#define PerlProc_getgid()						\
+	(*PL_Proc->pGetgid)(PL_Proc)
+#define PerlProc_getegid()						\
+	(*PL_Proc->pGetegid)(PL_Proc)
+#define PerlProc_getlogin()						\
+	(*PL_Proc->pGetlogin)(PL_Proc)
+#define PerlProc_kill(i, a)						\
+	(*PL_Proc->pKill)(PL_Proc, (i), (a))
+#define PerlProc_killpg(i, a)						\
+	(*PL_Proc->pKillpg)(PL_Proc, (i), (a))
+#define PerlProc_pause()						\
+	(*PL_Proc->pPauseProc)(PL_Proc)
+#define PerlProc_popen(c, m)						\
+	(*PL_Proc->pPopen)(PL_Proc, (c), (m))
+#define PerlProc_pclose(f)						\
+	(*PL_Proc->pPclose)(PL_Proc, (f))
+#define PerlProc_pipe(fd)						\
+	(*PL_Proc->pPipe)(PL_Proc, (fd))
+#define PerlProc_setuid(u)						\
+	(*PL_Proc->pSetuid)(PL_Proc, (u))
+#define PerlProc_setgid(g)						\
+	(*PL_Proc->pSetgid)(PL_Proc, (g))
+#define PerlProc_sleep(t)						\
+	(*PL_Proc->pSleep)(PL_Proc, (t))
+#define PerlProc_times(t)						\
+	(*PL_Proc->pTimes)(PL_Proc, (t))
+#define PerlProc_wait(t)						\
+	(*PL_Proc->pWait)(PL_Proc, (t))
+#define PerlProc_waitpid(p,s,f)						\
+	(*PL_Proc->pWaitpid)(PL_Proc, (p), (s), (f))
+#define PerlProc_signal(n, h)						\
+	(*PL_Proc->pSignal)(PL_Proc, (n), (h))
+#define PerlProc_fork()							\
+	(*PL_Proc->pFork)(PL_Proc)
+#define PerlProc_getpid()						\
+	(*PL_Proc->pGetpid)(PL_Proc)
+#define PerlProc_setjmp(b, n) Sigsetjmp((b), (n))
+#define PerlProc_longjmp(b, n) Siglongjmp((b), (n))
 
 #ifdef WIN32
-#define PerlProc_GetSysMsg(s,l,e)					\
-	PL_piProc->GetSysMsg((s), (l), (e))
-
-#define PerlProc_FreeBuf(s)	PL_piProc->FreeBuf((s))
-#define PerlProc_Cmd(s)		PL_piProc->DoCmd((s))
-#define do_spawn(s)		PL_piProc->Spawn((s))
-#define do_spawnvp(m, c, a)	PL_piProc->Spawnvp((m), (c), (a))
-#define PerlProc_aspawn(m,c,a)	PL_piProc->ASpawn((m), (c), (a))
+#define PerlProc_DynaLoad(f)						\
+	(*PL_Proc->pDynaLoader)(PL_Proc, (f))
+#define PerlProc_GetOSError(s,e)					\
+	(*PL_Proc->pGetOSError)(PL_Proc, (s), (e))
+#define PerlProc_Cmd(s)							\
+	(*PL_Proc->pDoCmd)(PL_Proc, (s))
+#define do_spawn(s)							\
+	(*PL_Proc->pSpawn)(PL_Proc, (s))
+#define do_spawnvp(m, c, a)						\
+	(*PL_Proc->pSpawnvp)(PL_Proc, (m), (c), (a))
+#define PerlProc_aspawn(m,c,a)						\
+	(*PL_Proc->pASpawn)(PL_Proc, (m), (c), (a))
 #endif
 
-#else	/* PERL_OBJECT */
+#else	/* PERL_IMPLICIT_SYS */
 
 #define PerlProc_abort()	abort()
 #define PerlProc_crypt(c,s)	crypt((c), (s))
@@ -742,135 +1191,237 @@ public:
 #define PerlProc_setjmp(b, n)	Sigsetjmp((b), (n))
 #define PerlProc_longjmp(b, n)	Siglongjmp((b), (n))
 #define PerlProc_signal(n, h)	signal((n), (h))
+#define PerlProc_fork()		fork()
+#define PerlProc_getpid()	getpid()
 
-
-#endif	/* PERL_OBJECT */
+#ifdef WIN32
+#define PerlProc_DynaLoad(f)						\
+	win32_dynaload((f))
+#define PerlProc_GetOSError(s,e)					\
+	win32_str_os_error((s), (e))
+#endif
+#endif	/* PERL_IMPLICIT_SYS */
 
 /*
     Interface for perl socket functions
 */
 
-#ifdef PERL_OBJECT
+#if defined(PERL_IMPLICIT_SYS)
 
-class IPerlSock
-{
-public:
-    virtual u_long	Htonl(u_long hostlong) = 0;
-    virtual u_short	Htons(u_short hostshort) = 0;
-    virtual u_long	Ntohl(u_long netlong) = 0;
-    virtual u_short	Ntohs(u_short netshort) = 0;
-    virtual SOCKET	Accept(SOCKET s, struct sockaddr* addr,
-			       int* addrlen, int &err) = 0;
-    virtual int		Bind(SOCKET s, const struct sockaddr* name,
-			     int namelen, int &err) = 0;
-    virtual int		Connect(SOCKET s, const struct sockaddr* name,
-				int namelen, int &err) = 0;
-    virtual void	Endhostent(int &err) = 0;
-    virtual void	Endnetent(int &err) = 0;
-    virtual void	Endprotoent(int &err) = 0;
-    virtual void	Endservent(int &err) = 0;
-    virtual int		Gethostname(char* name, int namelen, int &err) = 0;
-    virtual int		Getpeername(SOCKET s, struct sockaddr* name,
-				    int* namelen, int &err) = 0;
-    virtual struct hostent *	Gethostbyaddr(const char* addr, int len,
-					      int type, int &err) = 0;
-    virtual struct hostent *	Gethostbyname(const char* name, int &err) = 0;
-    virtual struct hostent *	Gethostent(int &err) = 0;
-    virtual struct netent *	Getnetbyaddr(long net, int type, int &err) = 0;
-    virtual struct netent *	Getnetbyname(const char *, int &err) = 0;
-    virtual struct netent *	Getnetent(int &err) = 0;
-    virtual struct protoent *	Getprotobyname(const char* name, int &err) = 0;
-    virtual struct protoent *	Getprotobynumber(int number, int &err) = 0;
-    virtual struct protoent *	Getprotoent(int &err) = 0;
-    virtual struct servent *	Getservbyname(const char* name,
-					      const char* proto, int &err) = 0;
-    virtual struct servent *	Getservbyport(int port, const char* proto,
-					      int &err) = 0;
-    virtual struct servent *	Getservent(int &err) = 0;
-    virtual int		Getsockname(SOCKET s, struct sockaddr* name,
-				    int* namelen, int &err) = 0;
-    virtual int		Getsockopt(SOCKET s, int level, int optname,
-				   char* optval, int* optlen, int &err) = 0;
-    virtual unsigned long	InetAddr(const char* cp, int &err) = 0;
-    virtual char *	InetNtoa(struct in_addr in, int &err) = 0;
-    virtual int		Listen(SOCKET s, int backlog, int &err) = 0;
-    virtual int		Recv(SOCKET s, char* buf, int len,
-			     int flags, int &err) = 0;
-    virtual int		Recvfrom(SOCKET s, char* buf, int len, int flags,
-				 struct sockaddr* from, int* fromlen, int &err) = 0;
-    virtual int		Select(int nfds, char* readfds, char* writefds,
-			       char* exceptfds, const struct timeval* timeout,
-			       int &err) = 0;
-    virtual int		Send(SOCKET s, const char* buf, int len,
-			     int flags, int &err) = 0; 
-    virtual int		Sendto(SOCKET s, const char* buf, int len, int flags,
-			       const struct sockaddr* to, int tolen, int &err) = 0;
-    virtual void	Sethostent(int stayopen, int &err) = 0;
-    virtual void	Setnetent(int stayopen, int &err) = 0;
-    virtual void	Setprotoent(int stayopen, int &err) = 0;
-    virtual void	Setservent(int stayopen, int &err) = 0;
-    virtual int		Setsockopt(SOCKET s, int level, int optname,
-				   const char* optval, int optlen, int &err) = 0;
-    virtual int		Shutdown(SOCKET s, int how, int &err) = 0;
-    virtual SOCKET	Socket(int af, int type, int protocol, int &err) = 0;
-    virtual int		Socketpair(int domain, int type, int protocol,
-				   int* fds, int &err) = 0;
+/* PerlSock		*/
+struct IPerlSock;
+struct IPerlSockInfo;
+typedef u_long		(*LPHtonl)(struct IPerlSock*, u_long);
+typedef u_short		(*LPHtons)(struct IPerlSock*, u_short);
+typedef u_long		(*LPNtohl)(struct IPerlSock*, u_long);
+typedef u_short		(*LPNtohs)(struct IPerlSock*, u_short);
+typedef SOCKET		(*LPAccept)(struct IPerlSock*, SOCKET,
+			    struct sockaddr*, int*);
+typedef int		(*LPBind)(struct IPerlSock*, SOCKET,
+			    const struct sockaddr*, int);
+typedef int		(*LPConnect)(struct IPerlSock*, SOCKET,
+			    const struct sockaddr*, int);
+typedef void		(*LPEndhostent)(struct IPerlSock*);
+typedef void		(*LPEndnetent)(struct IPerlSock*);
+typedef void		(*LPEndprotoent)(struct IPerlSock*);
+typedef void		(*LPEndservent)(struct IPerlSock*);
+typedef int		(*LPGethostname)(struct IPerlSock*, char*, int);
+typedef int		(*LPGetpeername)(struct IPerlSock*, SOCKET,
+			    struct sockaddr*, int*);
+typedef struct hostent*	(*LPGethostbyaddr)(struct IPerlSock*, const char*,
+			    int, int);
+typedef struct hostent*	(*LPGethostbyname)(struct IPerlSock*, const char*);
+typedef struct hostent*	(*LPGethostent)(struct IPerlSock*);
+typedef struct netent*	(*LPGetnetbyaddr)(struct IPerlSock*, long, int);
+typedef struct netent*	(*LPGetnetbyname)(struct IPerlSock*, const char*);
+typedef struct netent*	(*LPGetnetent)(struct IPerlSock*);
+typedef struct protoent*(*LPGetprotobyname)(struct IPerlSock*, const char*);
+typedef struct protoent*(*LPGetprotobynumber)(struct IPerlSock*, int);
+typedef struct protoent*(*LPGetprotoent)(struct IPerlSock*);
+typedef struct servent*	(*LPGetservbyname)(struct IPerlSock*, const char*,
+			    const char*);
+typedef struct servent*	(*LPGetservbyport)(struct IPerlSock*, int,
+			    const char*);
+typedef struct servent*	(*LPGetservent)(struct IPerlSock*);
+typedef int		(*LPGetsockname)(struct IPerlSock*, SOCKET,
+			    struct sockaddr*, int*);
+typedef int		(*LPGetsockopt)(struct IPerlSock*, SOCKET, int, int,
+			    char*, int*);
+typedef unsigned long	(*LPInetAddr)(struct IPerlSock*, const char*);
+typedef char*		(*LPInetNtoa)(struct IPerlSock*, struct in_addr);
+typedef int		(*LPListen)(struct IPerlSock*, SOCKET, int);
+typedef int		(*LPRecv)(struct IPerlSock*, SOCKET, char*, int, int);
+typedef int		(*LPRecvfrom)(struct IPerlSock*, SOCKET, char*, int,
+			    int, struct sockaddr*, int*);
+typedef int		(*LPSelect)(struct IPerlSock*, int, char*, char*,
+			    char*, const struct timeval*);
+typedef int		(*LPSend)(struct IPerlSock*, SOCKET, const char*, int,
+			    int); 
+typedef int		(*LPSendto)(struct IPerlSock*, SOCKET, const char*,
+			    int, int, const struct sockaddr*, int);
+typedef void		(*LPSethostent)(struct IPerlSock*, int);
+typedef void		(*LPSetnetent)(struct IPerlSock*, int);
+typedef void		(*LPSetprotoent)(struct IPerlSock*, int);
+typedef void		(*LPSetservent)(struct IPerlSock*, int);
+typedef int		(*LPSetsockopt)(struct IPerlSock*, SOCKET, int, int,
+			    const char*, int);
+typedef int		(*LPShutdown)(struct IPerlSock*, SOCKET, int);
+typedef SOCKET		(*LPSocket)(struct IPerlSock*, int, int, int);
+typedef int		(*LPSocketpair)(struct IPerlSock*, int, int, int,
+			    int*);
 #ifdef WIN32
-    virtual int		Closesocket(SOCKET s, int& err) = 0;
-    virtual int		Ioctlsocket(SOCKET s, long cmd, u_long *argp,
-				    int& err) = 0;
+typedef int		(*LPClosesocket)(struct IPerlSock*, SOCKET s);
+#endif
+
+struct IPerlSock
+{
+    LPHtonl		pHtonl;
+    LPHtons		pHtons;
+    LPNtohl		pNtohl;
+    LPNtohs		pNtohs;
+    LPAccept		pAccept;
+    LPBind		pBind;
+    LPConnect		pConnect;
+    LPEndhostent	pEndhostent;
+    LPEndnetent		pEndnetent;
+    LPEndprotoent	pEndprotoent;
+    LPEndservent	pEndservent;
+    LPGethostname	pGethostname;
+    LPGetpeername	pGetpeername;
+    LPGethostbyaddr	pGethostbyaddr;
+    LPGethostbyname	pGethostbyname;
+    LPGethostent	pGethostent;
+    LPGetnetbyaddr	pGetnetbyaddr;
+    LPGetnetbyname	pGetnetbyname;
+    LPGetnetent		pGetnetent;
+    LPGetprotobyname	pGetprotobyname;
+    LPGetprotobynumber	pGetprotobynumber;
+    LPGetprotoent	pGetprotoent;
+    LPGetservbyname	pGetservbyname;
+    LPGetservbyport	pGetservbyport;
+    LPGetservent	pGetservent;
+    LPGetsockname	pGetsockname;
+    LPGetsockopt	pGetsockopt;
+    LPInetAddr		pInetAddr;
+    LPInetNtoa		pInetNtoa;
+    LPListen		pListen;
+    LPRecv		pRecv;
+    LPRecvfrom		pRecvfrom;
+    LPSelect		pSelect;
+    LPSend		pSend;
+    LPSendto		pSendto;
+    LPSethostent	pSethostent;
+    LPSetnetent		pSetnetent;
+    LPSetprotoent	pSetprotoent;
+    LPSetservent	pSetservent;
+    LPSetsockopt	pSetsockopt;
+    LPShutdown		pShutdown;
+    LPSocket		pSocket;
+    LPSocketpair	pSocketpair;
+#ifdef WIN32
+    LPClosesocket	pClosesocket;
 #endif
 };
 
-#define PerlSock_htonl(x)		PL_piSock->Htonl(x)
-#define PerlSock_htons(x)		PL_piSock->Htons(x)
-#define PerlSock_ntohl(x)		PL_piSock->Ntohl(x)
-#define PerlSock_ntohs(x)		PL_piSock->Ntohs(x)
-#define PerlSock_accept(s, a, l)	PL_piSock->Accept(s, a, l, ErrorNo())
-#define PerlSock_bind(s, n, l)		PL_piSock->Bind(s, n, l, ErrorNo())
-#define PerlSock_connect(s, n, l)	PL_piSock->Connect(s, n, l, ErrorNo())
-#define PerlSock_endhostent()		PL_piSock->Endhostent(ErrorNo())
-#define PerlSock_endnetent()		PL_piSock->Endnetent(ErrorNo())
-#define PerlSock_endprotoent()		PL_piSock->Endprotoent(ErrorNo())
-#define PerlSock_endservent()		PL_piSock->Endservent(ErrorNo())
-#define PerlSock_gethostbyaddr(a, l, t)	PL_piSock->Gethostbyaddr(a, l, t, ErrorNo())
-#define PerlSock_gethostbyname(n)	PL_piSock->Gethostbyname(n, ErrorNo())
-#define PerlSock_gethostent()		PL_piSock->Gethostent(ErrorNo())
-#define PerlSock_gethostname(n, l)	PL_piSock->Gethostname(n, l, ErrorNo())
-#define PerlSock_getnetbyaddr(n, t)	PL_piSock->Getnetbyaddr(n, t, ErrorNo())
-#define PerlSock_getnetbyname(c)	PL_piSock->Getnetbyname(c, ErrorNo())
-#define PerlSock_getnetent()		PL_piSock->Getnetent(ErrorNo())
-#define PerlSock_getpeername(s, n, l)	PL_piSock->Getpeername(s, n, l, ErrorNo())
-#define PerlSock_getprotobyname(n)	PL_piSock->Getprotobyname(n, ErrorNo())
-#define PerlSock_getprotobynumber(n)	PL_piSock->Getprotobynumber(n, ErrorNo())
-#define PerlSock_getprotoent()		PL_piSock->Getprotoent(ErrorNo())
-#define PerlSock_getservbyname(n, p)	PL_piSock->Getservbyname(n, p, ErrorNo())
-#define PerlSock_getservbyport(port, p)	PL_piSock->Getservbyport(port, p, ErrorNo())
-#define PerlSock_getservent()		PL_piSock->Getservent(ErrorNo())
-#define PerlSock_getsockname(s, n, l)	PL_piSock->Getsockname(s, n, l, ErrorNo())
-#define PerlSock_getsockopt(s,l,n,v,i)	PL_piSock->Getsockopt(s, l, n, v, i, ErrorNo())
-#define PerlSock_inet_addr(c)		PL_piSock->InetAddr(c, ErrorNo())
-#define PerlSock_inet_ntoa(i)		PL_piSock->InetNtoa(i, ErrorNo())
-#define PerlSock_listen(s, b)		PL_piSock->Listen(s, b, ErrorNo())
-#define PerlSock_recv(s, b, l, f)	PL_piSock->Recv(s, b, l, f, ErrorNo())
-#define PerlSock_recvfrom(s,b,l,f,from,fromlen)				\
-	PL_piSock->Recvfrom(s, b, l, f, from, fromlen, ErrorNo())
-#define PerlSock_select(n, r, w, e, t)					\
-	PL_piSock->Select(n, (char*)r, (char*)w, (char*)e, t, ErrorNo())
-#define PerlSock_send(s, b, l, f)	PL_piSock->Send(s, b, l, f, ErrorNo())
-#define PerlSock_sendto(s, b, l, f, t, tlen)				\
-	PL_piSock->Sendto(s, b, l, f, t, tlen, ErrorNo())
-#define PerlSock_sethostent(f)		PL_piSock->Sethostent(f, ErrorNo())
-#define PerlSock_setnetent(f)		PL_piSock->Setnetent(f, ErrorNo())
-#define PerlSock_setprotoent(f)		PL_piSock->Setprotoent(f, ErrorNo())
-#define PerlSock_setservent(f)		PL_piSock->Setservent(f, ErrorNo())
-#define PerlSock_setsockopt(s, l, n, v, len)				\
-	PL_piSock->Setsockopt(s, l, n, v, len, ErrorNo())
-#define PerlSock_shutdown(s, h)		PL_piSock->Shutdown(s, h, ErrorNo())
-#define PerlSock_socket(a, t, p)	PL_piSock->Socket(a, t, p, ErrorNo())
-#define PerlSock_socketpair(a, t, p, f)	PL_piSock->Socketpair(a, t, p, f, ErrorNo())
+struct IPerlSockInfo
+{
+    unsigned long	nCount;	    /* number of entries expected */
+    struct IPerlSock	perlSockList;
+};
 
-#else	/* PERL_OBJECT */
+#define PerlSock_htonl(x)						\
+	(*PL_Sock->pHtonl)(PL_Sock, x)
+#define PerlSock_htons(x)						\
+	(*PL_Sock->pHtons)(PL_Sock, x)
+#define PerlSock_ntohl(x)						\
+	(*PL_Sock->pNtohl)(PL_Sock, x)
+#define PerlSock_ntohs(x)						\
+	(*PL_Sock->pNtohs)(PL_Sock, x)
+#define PerlSock_accept(s, a, l)					\
+	(*PL_Sock->pAccept)(PL_Sock, s, a, l)
+#define PerlSock_bind(s, n, l)						\
+	(*PL_Sock->pBind)(PL_Sock, s, n, l)
+#define PerlSock_connect(s, n, l)					\
+	(*PL_Sock->pConnect)(PL_Sock, s, n, l)
+#define PerlSock_endhostent()						\
+	(*PL_Sock->pEndhostent)(PL_Sock)
+#define PerlSock_endnetent()						\
+	(*PL_Sock->pEndnetent)(PL_Sock)
+#define PerlSock_endprotoent()						\
+	(*PL_Sock->pEndprotoent)(PL_Sock)
+#define PerlSock_endservent()						\
+	(*PL_Sock->pEndservent)(PL_Sock)
+#define PerlSock_gethostbyaddr(a, l, t)					\
+	(*PL_Sock->pGethostbyaddr)(PL_Sock, a, l, t)
+#define PerlSock_gethostbyname(n)					\
+	(*PL_Sock->pGethostbyname)(PL_Sock, n)
+#define PerlSock_gethostent()						\
+	(*PL_Sock->pGethostent)(PL_Sock)
+#define PerlSock_gethostname(n, l)					\
+	(*PL_Sock->pGethostname)(PL_Sock, n, l)
+#define PerlSock_getnetbyaddr(n, t)					\
+	(*PL_Sock->pGetnetbyaddr)(PL_Sock, n, t)
+#define PerlSock_getnetbyname(c)					\
+	(*PL_Sock->pGetnetbyname)(PL_Sock, c)
+#define PerlSock_getnetent()						\
+	(*PL_Sock->pGetnetent)(PL_Sock)
+#define PerlSock_getpeername(s, n, l)					\
+	(*PL_Sock->pGetpeername)(PL_Sock, s, n, l)
+#define PerlSock_getprotobyname(n)					\
+	(*PL_Sock->pGetprotobyname)(PL_Sock, n)
+#define PerlSock_getprotobynumber(n)					\
+	(*PL_Sock->pGetprotobynumber)(PL_Sock, n)
+#define PerlSock_getprotoent()						\
+	(*PL_Sock->pGetprotoent)(PL_Sock)
+#define PerlSock_getservbyname(n, p)					\
+	(*PL_Sock->pGetservbyname)(PL_Sock, n, p)
+#define PerlSock_getservbyport(port, p)					\
+	(*PL_Sock->pGetservbyport)(PL_Sock, port, p)
+#define PerlSock_getservent()						\
+	(*PL_Sock->pGetservent)(PL_Sock)
+#define PerlSock_getsockname(s, n, l)					\
+	(*PL_Sock->pGetsockname)(PL_Sock, s, n, l)
+#define PerlSock_getsockopt(s,l,n,v,i)					\
+	(*PL_Sock->pGetsockopt)(PL_Sock, s, l, n, v, i)
+#define PerlSock_inet_addr(c)						\
+	(*PL_Sock->pInetAddr)(PL_Sock, c)
+#define PerlSock_inet_ntoa(i)						\
+	(*PL_Sock->pInetNtoa)(PL_Sock, i)
+#define PerlSock_listen(s, b)						\
+	(*PL_Sock->pListen)(PL_Sock, s, b)
+#define PerlSock_recv(s, b, l, f)					\
+	(*PL_Sock->pRecv)(PL_Sock, s, b, l, f)
+#define PerlSock_recvfrom(s,b,l,f,from,fromlen)				\
+	(*PL_Sock->pRecvfrom)(PL_Sock, s, b, l, f, from, fromlen)
+#define PerlSock_select(n, r, w, e, t)					\
+	(*PL_Sock->pSelect)(PL_Sock, n, (char*)r, (char*)w, (char*)e, t)
+#define PerlSock_send(s, b, l, f)					\
+	(*PL_Sock->pSend)(PL_Sock, s, b, l, f)
+#define PerlSock_sendto(s, b, l, f, t, tlen)				\
+	(*PL_Sock->pSendto)(PL_Sock, s, b, l, f, t, tlen)
+#define PerlSock_sethostent(f)						\
+	(*PL_Sock->pSethostent)(PL_Sock, f)
+#define PerlSock_setnetent(f)						\
+	(*PL_Sock->pSetnetent)(PL_Sock, f)
+#define PerlSock_setprotoent(f)						\
+	(*PL_Sock->pSetprotoent)(PL_Sock, f)
+#define PerlSock_setservent(f)						\
+	(*PL_Sock->pSetservent)(PL_Sock, f)
+#define PerlSock_setsockopt(s, l, n, v, len)				\
+	(*PL_Sock->pSetsockopt)(PL_Sock, s, l, n, v, len)
+#define PerlSock_shutdown(s, h)						\
+	(*PL_Sock->pShutdown)(PL_Sock, s, h)
+#define PerlSock_socket(a, t, p)					\
+	(*PL_Sock->pSocket)(PL_Sock, a, t, p)
+#define PerlSock_socketpair(a, t, p, f)					\
+	(*PL_Sock->pSocketpair)(PL_Sock, a, t, p, f)
+
+#ifdef WIN32
+#define	PerlSock_closesocket(s)						\
+	(*PL_Sock->pClosesocket)(PL_Sock, s)
+#endif
+
+#else	/* PERL_IMPLICIT_SYS */
 
 #define PerlSock_htonl(x)		htonl(x)
 #define PerlSock_htons(x)		htons(x)
@@ -924,8 +1475,11 @@ public:
 #define PerlSock_socket(a, t, p)	socket(a, t, p)
 #define PerlSock_socketpair(a, t, p, f)	socketpair(a, t, p, f)
 
+#ifdef WIN32
+#define PerlSock_closesocket(s)		closesocket(s)
+#endif
 
-#endif	/* PERL_OBJECT */
+#endif	/* PERL_IMPLICIT_SYS */
 
 #endif	/* __Inc__IPerl___ */
 

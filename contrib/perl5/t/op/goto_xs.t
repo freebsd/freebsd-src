@@ -10,7 +10,7 @@
 #       break correctly as well.
 
 chdir 't' if -d 't';
-@INC = "../lib";
+unshift @INC, "../lib";
 $ENV{PERL5LIB} = "../lib";
 
 # turn warnings into fatal errors

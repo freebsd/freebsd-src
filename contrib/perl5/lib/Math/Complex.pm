@@ -8,9 +8,10 @@
 require Exporter;
 package Math::Complex;
 
+use 5.005_64;
 use strict;
 
-use vars qw($VERSION @ISA @EXPORT %EXPORT_TAGS);
+our($VERSION, @ISA, @EXPORT, %EXPORT_TAGS);
 
 my ( $i, $ip2, %logn );
 
@@ -65,9 +66,10 @@ use overload
 # Package "privates"
 #
 
-my $package = 'Math::Complex';		# Package name
-my $display = 'cartesian';		# Default display format
-my $eps     = 1e-14;			# Epsilon
+my $package        = 'Math::Complex';	# Package name
+my %DISPLAY_FORMAT = ('style' => 'cartesian',
+		      'polar_pretty_print' => 1);
+my $eps            = 1e-14;		# Epsilon
 
 #
 # Object attributes (internal):
@@ -160,7 +162,7 @@ sub new { &make }		# For backward compatibility only.
 #
 sub cplx {
 	my ($re, $im) = @_;
-	return $package->make($re, defined $im ? $im : 0);
+	return __PACKAGE__->make($re, defined $im ? $im : 0);
 }
 
 #
@@ -171,7 +173,7 @@ sub cplx {
 #
 sub cplxe {
 	my ($rho, $theta) = @_;
-	return $package->emake($rho, defined $theta ? $theta : 0);
+	return __PACKAGE__->emake($rho, defined $theta ? $theta : 0);
 }
 
 #
@@ -179,21 +181,21 @@ sub cplxe {
 #
 # The number defined as pi = 180 degrees
 #
-use constant pi => 4 * CORE::atan2(1, 1);
+sub pi () { 4 * CORE::atan2(1, 1) }
 
 #
 # pit2
 #
 # The full circle
 #
-use constant pit2 => 2 * pi;
+sub pit2 () { 2 * pi }
 
 #
 # pip2
 #
 # The quarter circle
 #
-use constant pip2 => pi / 2;
+sub pip2 () { pi / 2 }
 
 #
 # deg1
@@ -201,14 +203,14 @@ use constant pip2 => pi / 2;
 # One degree in radians, used in stringify_polar.
 #
 
-use constant deg1 => pi / 180;
+sub deg1 () { pi / 180 }
 
 #
 # uplog10
 #
 # Used in log10().
 #
-use constant uplog10 => 1 / CORE::log(10);
+sub uplog10 () { 1 / CORE::log(10) }
 
 #
 # i
@@ -835,7 +837,7 @@ sub acos {
 	my $u = CORE::atan2(CORE::sqrt(1-$beta*$beta), $beta);
 	my $v = CORE::log($alpha + CORE::sqrt($alpha*$alpha-1));
 	$v = -$v if $y > 0 || ($y == 0 && $x < -1);
-	return $package->make($u, $v);
+	return __PACKAGE__->make($u, $v);
 }
 
 #
@@ -857,7 +859,7 @@ sub asin {
 	my $u =  CORE::atan2($beta, CORE::sqrt(1-$beta*$beta));
 	my $v = -CORE::log($alpha + CORE::sqrt($alpha*$alpha-1));
 	$v = -$v if $y > 0 || ($y == 0 && $x < -1);
-	return $package->make($u, $v);
+	return __PACKAGE__->make($u, $v);
 }
 
 #
@@ -1153,34 +1155,53 @@ sub atan2 {
 # display_format
 # ->display_format
 #
-# Set (fetch if no argument) display format for all complex numbers that
+# Set (get if no argument) the display format for all complex numbers that
 # don't happen to have overridden it via ->display_format
 #
-# When called as a method, this actually sets the display format for
+# When called as an object method, this actually sets the display format for
 # the current object.
 #
 # Valid object formats are 'c' and 'p' for cartesian and polar. The first
 # letter is used actually, so the type can be fully spelled out for clarity.
 #
 sub display_format {
-	my $self = shift;
-	my $format = undef;
+	my $self  = shift;
+	my %display_format = %DISPLAY_FORMAT;
 
-	if (ref $self) {			# Called as a method
-		$format = shift;
-	} else {				# Regular procedure call
-		$format = $self;
-		undef $self;
+	if (ref $self) {			# Called as an object method
+	    if (exists $self->{display_format}) {
+		my %obj = %{$self->{display_format}};
+		@display_format{keys %obj} = values %obj;
+	    }
+	    if (@_ == 1) {
+		$display_format{style} = shift;
+	    } else {
+		my %new = @_;
+		@display_format{keys %new} = values %new;
+	    }
+	} else {				# Called as a class method
+	    if (@_ = 1) {
+		$display_format{style} = $self;
+	    } else {
+		my %new = @_;
+		@display_format{keys %new} = values %new;
+	    }
+	    undef $self;
 	}
 
 	if (defined $self) {
-		return defined $self->{display} ? $self->{display} : $display
-			unless defined $format;
-		return $self->{display} = $format;
+	    $self->{display_format} = { %display_format };
+	    return
+		wantarray ?
+		    %{$self->{display_format}} :
+		    $self->{display_format}->{style};
 	}
 
-	return $display unless defined $format;
-	return $display = $format;
+	%DISPLAY_FORMAT = %display_format;
+	return
+	    wantarray ?
+		%DISPLAY_FORMAT :
+		    $DISPLAY_FORMAT{style};
 }
 
 #
@@ -1195,12 +1216,12 @@ sub display_format {
 #
 sub stringify {
 	my ($z) = shift;
-	my $format;
 
-	$format = $display;
-	$format = $z->{display} if defined $z->{display};
+	my $style = $z->display_format;
 
-	return $z->stringify_polar if $format =~ /^p/i;
+	$style = $DISPLAY_FORMAT{style} unless defined $style;
+
+	return $z->stringify_polar if $style =~ /^p/i;
 	return $z->stringify_cartesian;
 }
 
@@ -1220,17 +1241,27 @@ sub stringify_cartesian {
 		if int(CORE::abs($y)) != int(CORE::abs($y) + $eps);
 
 	$re = "$x" if CORE::abs($x) >= $eps;
-        if ($y == 1)                           { $im = 'i' }
-        elsif ($y == -1)                       { $im = '-i' }
-        elsif (CORE::abs($y) >= $eps)                { $im = $y . "i" }
+
+	my %format = $z->display_format;
+	my $format = $format{format};
+
+	if ($y == 1)			       { $im = 'i' }
+	elsif ($y == -1)		       { $im = '-i' }
+	elsif (CORE::abs($y) >= $eps) {
+	    $im = (defined $format ? sprintf($format, $y) : $y) . "i";
+	}
 
 	my $str = '';
-	$str = $re if defined $re;
-	$str .= "+$im" if defined $im;
-	$str =~ s/\+-/-/;
-	$str =~ s/^\+//;
-	$str =~ s/([-+])1i/$1i/; # Not redundant with the above 1/-1 tests.
-	$str = '0' unless $str;
+	$str = defined $format ? sprintf($format, $re) : $re
+	    if defined $re;
+	if (defined $im) {
+	    if ($y < 0) {
+		$str .= $im;
+	    } elsif ($y > 0)  {
+		$str .= "+" if defined $re;
+		$str .= $im;
+	    }
+	}
 
 	return $str;
 }
@@ -1277,6 +1308,8 @@ sub stringify_polar {
 
 	return '[0,0]' if $r <= $eps;
 
+	my %format = $z->display_format;
+
 	my $nt = $t / pit2;
 	$nt = ($nt - int($nt)) * pit2;
 	$nt += pit2 if $nt < 0;			# Range [0, 2pi]
@@ -1299,7 +1332,7 @@ sub stringify_polar {
 
 	$nt -= pit2 if $nt > pi;
 
-	if (CORE::abs($nt) >= deg1) {
+	if ($format{polar_pretty_print} && CORE::abs($nt) >= deg1) {
 	    my ($n, $k, $kpi);
 
 	    for ($k = 1, $kpi = pi; $k < 10; $k++, $kpi += pi) {
@@ -1328,12 +1361,19 @@ sub stringify_polar {
 		if ($theta !~ m(^-?\d*pi/\d+$) and
 		    int(CORE::abs($theta)) != int(CORE::abs($theta) + $eps));
 
+	my $format = $format{format};
+        if (defined $format) {
+	    $r     = sprintf($format, $r);
+	    $theta = sprintf($format, $theta);
+	}
+
 	return "\[$r,$theta\]";
 }
 
 1;
 __END__
 
+=pod
 =head1 NAME
 
 Math::Complex - complex numbers and associated mathematical functions
@@ -1617,9 +1657,9 @@ It is possible to write:
 
 	$x = cplxe(-3, pi/4);
 
-but that will be silently converted into C<[3,-3pi/4]>, since the modulus
-must be non-negative (it represents the distance to the origin in the complex
-plane).
+but that will be silently converted into C<[3,-3pi/4]>, since the
+modulus must be non-negative (it represents the distance to the origin
+in the complex plane).
 
 It is also possible to have a complex number as either argument of
 either the C<make> or C<emake>: the appropriate component of
@@ -1631,31 +1671,67 @@ the argument will be used.
 =head1 STRINGIFICATION
 
 When printed, a complex number is usually shown under its cartesian
-form I<a+bi>, but there are legitimate cases where the polar format
+style I<a+bi>, but there are legitimate cases where the polar style
 I<[r,t]> is more appropriate.
 
-By calling the routine C<Math::Complex::display_format> and supplying either
-C<"polar"> or C<"cartesian">, you override the default display format,
-which is C<"cartesian">. Not supplying any argument returns the current
-setting.
+By calling the class method C<Math::Complex::display_format> and
+supplying either C<"polar"> or C<"cartesian"> as an argument, you
+override the default display style, which is C<"cartesian">. Not
+supplying any argument returns the current settings.
 
 This default can be overridden on a per-number basis by calling the
 C<display_format> method instead. As before, not supplying any argument
-returns the current display format for this number. Otherwise whatever you
-specify will be the new display format for I<this> particular number.
+returns the current display style for this number. Otherwise whatever you
+specify will be the new display style for I<this> particular number.
 
 For instance:
 
 	use Math::Complex;
 
 	Math::Complex::display_format('polar');
-	$j = ((root(1, 3))[1];
-	print "j = $j\n";		# Prints "j = [1,2pi/3]
+	$j = (root(1, 3))[1];
+	print "j = $j\n";		# Prints "j = [1,2pi/3]"
 	$j->display_format('cartesian');
 	print "j = $j\n";		# Prints "j = -0.5+0.866025403784439i"
 
-The polar format attempts to emphasize arguments like I<k*pi/n>
-(where I<n> is a positive integer and I<k> an integer within [-9,+9]).
+The polar style attempts to emphasize arguments like I<k*pi/n>
+(where I<n> is a positive integer and I<k> an integer within [-9,+9]),
+this is called I<polar pretty-printing>.
+
+=head2 CHANGED IN PERL 5.6
+
+The C<display_format> class method and the corresponding
+C<display_format> object method can now be called using
+a parameter hash instead of just a one parameter.
+
+The old display format style, which can have values C<"cartesian"> or
+C<"polar">, can be changed using the C<"style"> parameter.  (The one
+parameter calling convention also still works.)
+
+There are two new display parameters.
+
+The first one is C<"format">, which is a sprintf()-style format
+string to be used for both parts of the complex number(s).  The
+default is C<undef>, which corresponds usually (this is somewhat
+system-dependent) to C<"%.15g">.  You can revert to the default by
+setting the format string to C<undef>.
+
+	# the $j from the above example
+
+	$j->display_format('format' => '%.5f');
+	print "j = $j\n";		# Prints "j = -0.50000+0.86603i"
+	$j->display_format('format' => '%.6f');
+	print "j = $j\n";		# Prints "j = -0.5+0.86603i"
+
+Notice that this affects also the return values of the
+C<display_format> methods: in list context the whole parameter hash
+will be returned, as opposed to only the style parameter value.  If
+you want to know the whole truth for a complex number, you must call
+both the class method and the object method:
+
+The second new display parameter is C<"polar_pretty_print">, which can
+be set to true or false, the default being true.  See the previous
+section for what this means.
 
 =head1 USAGE
 
@@ -1746,7 +1822,7 @@ Whatever it is, it does not manifest itself anywhere else where Perl runs.
 
 =head1 AUTHORS
 
-Raphael Manfredi <F<Raphael_Manfredi@grenoble.hp.com>> and
+Raphael Manfredi <F<Raphael_Manfredi@pobox.com>> and
 Jarkko Hietaniemi <F<jhi@iki.fi>>.
 
 Extensive patches by Daniel S. Lewart <F<d-lewart@uiuc.edu>>.

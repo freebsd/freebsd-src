@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq3 - Programming Tools ($Revision: 1.33 $, $Date: 1998/12/29 20:12:12 $)
+perlfaq3 - Programming Tools ($Revision: 1.38 $, $Date: 1999/05/23 16:08:30 $)
 
 =head1 DESCRIPTION
 
@@ -19,13 +19,13 @@ Have you read the appropriate man pages?  Here's a brief index:
 	Objects		perlref, perlmod, perlobj, perltie
 	Data Structures	perlref, perllol, perldsc
 	Modules		perlmod, perlmodlib, perlsub
-	Regexps		perlre, perlfunc, perlop, perllocale
+	Regexes		perlre, perlfunc, perlop, perllocale
 	Moving to perl5	perltrap, perl
 	Linking w/C	perlxstut, perlxs, perlcall, perlguts, perlembed
 	Various 	http://www.perl.com/CPAN/doc/FMTEYEWTK/index.html
 			(not a man-page but still useful)
 
-L<perltoc> provides a crude table of contents for the perl man page set.
+A crude table of contents for the Perl man page set is found in L<perltoc>.
 
 =head2 How can I use Perl interactively?
 
@@ -41,19 +41,20 @@ operations typically found in symbolic debuggers.
 
 =head2 Is there a Perl shell?
 
-In general, no.  The Shell.pm module (distributed with perl) makes
-perl try commands which aren't part of the Perl language as shell
+In general, no.  The Shell.pm module (distributed with Perl) makes
+Perl try commands which aren't part of the Perl language as shell
 commands.  perlsh from the source distribution is simplistic and
 uninteresting, but may still be what you want.
 
 =head2 How do I debug my Perl programs?
 
-Have you used C<-w>?  It enables warnings for dubious practices.
+Have you tried C<use warnings> or used C<-w>?  They enable warnings 
+for dubious practices.
 
 Have you tried C<use strict>?  It prevents you from using symbolic
 references, makes you predeclare any subroutines that you call as bare
 words, and (probably most importantly) forces you to predeclare your
-variables with C<my> or C<use vars>.
+variables with C<my> or C<our> or C<use vars>.
 
 Did you check the returns of each and every system call?  The operating
 system (and thus Perl) tells you whether they worked or not, and if not
@@ -130,7 +131,7 @@ can provide significant assistance.  Tom swears by the following
 settings in vi and its clones:
 
     set ai sw=4
-    map ^O {^M}^[O^T
+    map! ^O {^M}^[O^T
 
 Now put that in your F<.exrc> file (replacing the caret characters
 with control characters) and away you go.  In insert mode, ^T is
@@ -144,34 +145,45 @@ to a laser printer, you can take a stab at this using
 http://www.perl.com/CPAN/doc/misc/tips/working.vgrind.entry, but the
 results are not particularly satisfying for sophisticated code.
 
-The a2ps at http://www.infres.enst.fr/~demaille/a2ps/ does lots of things
+The a2ps at http://www.infres.enst.fr/%7Edemaille/a2ps/ does lots of things
 related to generating nicely printed output of documents.
 
-=head2 Is there a etags/ctags for perl?
+=head2 Is there a ctags for Perl?
 
-With respect to the source code for the Perl interpreter, yes.
-There has been support for etags in the source for a long time.
-Ctags was introduced in v5.005_54 (and probably 5.005_03).
-After building perl, type 'make etags' or 'make ctags' and both
-sets of tag files will be built.
-
-Now, if you're looking to build a tag file for perl code, then there's
-a simple one at
+There's a simple one at
 http://www.perl.com/CPAN/authors/id/TOMC/scripts/ptags.gz which may do
 the trick.  And if not, it's easy to hack into what you want.
 
 =head2 Is there an IDE or Windows Perl Editor?
 
-If you're on Unix, you already have an IDE -- Unix itself.
-You just have to learn the toolbox.  If you're not, then you
-probably don't have a toolbox, so may need something else.
+If you're on Unix, you already have an IDE -- Unix itself.  This powerful
+IDE derives from its interoperability, flexibility, and configurability.
+If you really want to get a feel for Unix-qua-IDE, the best thing to do
+is to find some high-powered programmer whose native language is Unix.
+Find someone who has been at this for many years, and just sit back
+and watch them at work.  They have created their own IDE, one that
+suits their own tastes and aptitudes.  Quietly observe them edit files,
+move them around, compile them, debug them, test them, etc.  The entire
+development *is* integrated, like a top-of-the-line German sports car:
+functional, powerful, and elegant.  You will be absolutely astonished
+at the speed and ease exhibited by the native speaker of Unix in his
+home territory.  The art and skill of a virtuoso can only be seen to be
+believed.  That is the path to mastery -- all these cobbled little IDEs
+are expensive toys designed to sell a flashy demo using cheap tricks,
+and being optimized for immediate but shallow understanding rather than
+enduring use, are but a dim palimpsest of real tools.
 
-PerlBuilder (XXX URL to follow) is an integrated development
-environment for Windows that supports Perl development.  Perl programs
-are just plain text, though, so you could download emacs for Windows
-(XXX) or vim for win32 (http://www.cs.vu.nl/~tmgil/vi.html).  If
-you're transferring Windows files to Unix, be sure to transfer in
-ASCII mode so the ends of lines are appropriately converted.
+In short, you just have to learn the toolbox.  However, if you're not
+on Unix, then your vendor probably didn't bother to provide you with
+a proper toolbox on the so-called complete system that you forked out
+your hard-earned cash on.
+
+PerlBuilder (XXX URL to follow) is an integrated development environment
+for Windows that supports Perl development.  Perl programs are just plain
+text, though, so you could download emacs for Windows (???) or a vi clone
+(vim) which runs on for win32 (http://www.cs.vu.nl/%7Etmgil/vi.html).
+If you're transferring Windows files to Unix, be sure to transfer in
+ASCII mode so the ends of lines are appropriately mangled.
 
 =head2 Where can I get Perl macros for vi?
 
@@ -184,15 +196,15 @@ with an embedded Perl interpreter -- see http://www.perl.com/CPAN/src/misc.
 =head2 Where can I get perl-mode for emacs?
 
 Since Emacs version 19 patchlevel 22 or so, there have been both a
-perl-mode.el and support for the perl debugger built in.  These should
+perl-mode.el and support for the Perl debugger built in.  These should
 come with the standard Emacs 19 distribution.
 
-In the perl source directory, you'll find a directory called "emacs",
+In the Perl source directory, you'll find a directory called "emacs",
 which contains a cperl-mode that color-codes keywords, provides
 context-sensitive help, and other nifty things.
 
 Note that the perl-mode of emacs will have fits with C<"main'foo">
-(single quote), and mess up the indentation and hilighting.  You
+(single quote), and mess up the indentation and highlighting.  You
 are probably using C<"main::foo"> in new Perl code anyway, so this
 shouldn't be an issue.
 
@@ -212,11 +224,11 @@ to the Athena Widget set.  Both are available from CPAN.  See the
 directory http://www.perl.com/CPAN/modules/by-category/08_User_Interfaces/
 
 Invaluable for Perl/Tk programming are: the Perl/Tk FAQ at
-http://w4.lns.cornell.edu/~pvhp/ptk/ptkTOC.html , the Perl/Tk Reference
+http://w4.lns.cornell.edu/%7Epvhp/ptk/ptkTOC.html , the Perl/Tk Reference
 Guide available at
 http://www.perl.com/CPAN-local/authors/Stephen_O_Lidie/ , and the
 online manpages at
-http://www-users.cs.umn.edu/~amundson/perl/perltk/toc.html .
+http://www-users.cs.umn.edu/%7Eamundson/perl/perltk/toc.html .
 
 =head2 How can I generate simple menus without using CGI or Tk?
 
@@ -261,9 +273,9 @@ it.  See the F<INSTALL> file in the source distribution for more
 information.
 
 Unsubstantiated reports allege that Perl interpreters that use sfio
-outperform those that don't (for IO intensive applications).  To try
+outperform those that don't (for I/O intensive applications).  To try
 this, see the F<INSTALL> file in the source distribution, especially
-the ``Selecting File IO mechanisms'' section.
+the ``Selecting File I/O mechanisms'' section.
 
 The undump program was an old attempt to speed up your Perl program
 by storing the already-compiled form to disk.  This is no longer
@@ -358,21 +370,21 @@ anything a module written in C can.  For more on mod_perl, see
 http://perl.apache.org/
 
 With the FCGI module (from CPAN) and the mod_fastcgi
-module (available from http://www.fastcgi.com/) each of your perl
-scripts becomes a permanent CGI daemon process.
+module (available from http://www.fastcgi.com/) each of your Perl
+programs becomes a permanent CGI daemon process.
 
 Both of these solutions can have far-reaching effects on your system
-and on the way you write your CGI scripts, so investigate them with
+and on the way you write your CGI programs, so investigate them with
 care.
 
 See http://www.perl.com/CPAN/modules/by-category/15_World_Wide_Web_HTML_HTTP_CGI/ .
 
 A non-free, commercial product, ``The Velocity Engine for Perl'',
-(http://www.binevolve.com/ or 
+(http://www.binevolve.com/ or http://www.binevolve.com/velocigen/) might
 also be worth looking at.  It will allow you to increase the performance
-of your perl scripts, upto 25 times faster than normal CGI perl by
-running in persistent perl mode, or 4 to 5 times faster without any
-modification to your existing CGI scripts. Fully functional evaluation
+of your Perl programs, up to 25 times faster than normal CGI Perl by
+running in persistent Perl mode, or 4 to 5 times faster without any
+modification to your existing CGI programs. Fully functional evaluation
 copies are available from the web site.
 
 =head2 How can I hide the source for my Perl program?
@@ -404,12 +416,12 @@ your code, but none can definitively conceal it (this is true of every
 language, not just Perl).
 
 If you're concerned about people profiting from your code, then the
-bottom line is that nothing but a restrictive licence will give you
+bottom line is that nothing but a restrictive license will give you
 legal security.  License your software and pepper it with threatening
 statements like ``This is unpublished proprietary software of XYZ Corp.
 Your access to it does not give you permission to use it blah blah
 blah.''  We are not lawyers, of course, so you should see a lawyer if
-you want to be sure your licence's wording will stand up in court.
+you want to be sure your license's wording will stand up in court.
 
 =head2 How can I compile my Perl program into byte code or C?
 
@@ -434,8 +446,8 @@ just as big as the original perl executable, and then some.  That's
 because as currently written, all programs are prepared for a full
 eval() statement.  You can tremendously reduce this cost by building a
 shared I<libperl.so> library and linking against that.  See the
-F<INSTALL> podfile in the perl source distribution for details.  If
-you link your main perl binary with this, it will make it miniscule.
+F<INSTALL> podfile in the Perl source distribution for details.  If
+you link your main perl binary with this, it will make it minuscule.
 For example, on one author's system, F</usr/bin/perl> is only 11k in
 size!
 
@@ -454,7 +466,7 @@ Perl install anyway.
 You can't.  Not yet, anyway.  You can integrate Java and Perl with the
 Perl Resource Kit from O'Reilly and Associates.  See
 http://www.oreilly.com/catalog/prkunix/ for more information.
-The Java interface will be supported in the core 5.006 release
+The Java interface will be supported in the core 5.6 release
 of Perl.
 
 =head2 How can I get C<#!perl> to work on [MS-DOS,NT,...]?
@@ -470,23 +482,22 @@ F<INSTALL> file in the source distribution for more information).
 
 The Win95/NT installation, when using the ActiveState port of Perl,
 will modify the Registry to associate the C<.pl> extension with the
-perl interpreter.  If you install another port (Gurusamy Sarathy's is
-the recommended Win95/NT port), or (eventually) build your own
-Win95/NT Perl using a Windows port of gcc (e.g., with cygwin32 or
-mingw32), then you'll have to modify the Registry yourself.  In
-addition to associating C<.pl> with the interpreter, NT people can
-use: C<SET PATHEXT=%PATHEXT%;.PL> to let them run the program
-C<install-linux.pl> merely by typing C<install-linux>.
+perl interpreter.  If you install another port, perhaps even building
+your own Win95/NT Perl from the standard sources by using a Windows port
+of gcc (e.g., with cygwin or mingw32), then you'll have to modify
+the Registry yourself.  In addition to associating C<.pl> with the
+interpreter, NT people can use: C<SET PATHEXT=%PATHEXT%;.PL> to let them
+run the program C<install-linux.pl> merely by typing C<install-linux>.
 
-Macintosh perl scripts will have the appropriate Creator and
-Type, so that double-clicking them will invoke the perl application.
+Macintosh Perl programs will have the appropriate Creator and
+Type, so that double-clicking them will invoke the Perl application.
 
 I<IMPORTANT!>: Whatever you do, PLEASE don't get frustrated, and just
 throw the perl interpreter into your cgi-bin directory, in order to
-get your scripts working for a web server.  This is an EXTREMELY big
+get your programs working for a web server.  This is an EXTREMELY big
 security risk.  Take the time to figure out how to do it correctly.
 
-=head2 Can I write useful perl programs on the command line?
+=head2 Can I write useful Perl programs on the command line?
 
 Yes.  Read L<perlrun> for more information.  Some examples follow.
 (These assume standard Unix shell quoting rules.)
@@ -510,9 +521,9 @@ Yes.  Read L<perlrun> for more information.  Some examples follow.
     echo $PATH | perl -nl -072 -e '
 	s![^/+]*$!man!&&-d&&!$s{$_}++&&push@m,$_;END{print"@m"}'
 
-Ok, the last one was actually an obfuscated perl entry. :-)
+OK, the last one was actually an Obfuscated Perl Contest entry. :-)
 
-=head2 Why don't perl one-liners work on my DOS/Mac/VMS system?
+=head2 Why don't Perl one-liners work on my DOS/Mac/VMS system?
 
 The problem is usually that the command interpreters on those systems
 have rather different ideas about quoting than the Unix shells under
@@ -570,7 +581,7 @@ when it runs fine on the command line'', see these sources:
         http://www.boutell.com/faq/
 
     CGI FAQ
-		http://www.webthing.com/tutorials/cgifaq.html		
+        http://www.webthing.com/tutorials/cgifaq.html
 
     HTTP Spec
         http://www.w3.org/pub/WWW/Protocols/HTTP/
@@ -585,11 +596,10 @@ when it runs fine on the command line'', see these sources:
     CGI Security FAQ
         http://www.go2net.com/people/paulp/cgi-security/safe-cgi.txt
 
-Also take a look at L<perlfaq9>
 
 =head2 Where can I learn about object-oriented Perl programming?
 
-L<perltoot> is a good place to start, and you can use L<perlobj> and
+A good place to start is L<perltoot>, and you can use L<perlobj> and
 L<perlbot> for reference.  Perltoot didn't come out until the 5.004
 release, but you can get a copy (in pod, html, or postscript) from
 http://www.perl.com/CPAN/doc/FMTEYEWTK/ .
@@ -608,15 +618,15 @@ my C program, what am I doing wrong?
 
 Download the ExtUtils::Embed kit from CPAN and run `make test'.  If
 the tests pass, read the pods again and again and again.  If they
-fail, see L<perlbug> and send a bugreport with the output of
+fail, see L<perlbug> and send a bug report with the output of
 C<make test TEST_VERBOSE=1> along with C<perl -V>.
 
 =head2 When I tried to run my script, I got this message. What does it
 mean?
 
-L<perldiag> has a complete list of perl's error messages and warnings,
-with explanatory text.  You can also use the splain program (distributed
-with perl) to explain the error messages:
+A complete list of Perl's error messages and warnings with explanatory
+text can be found in L<perldiag>. You can also use the splain program
+(distributed with Perl) to explain the error messages:
 
     perl program 2>diag.out
     splain [-v] [-p] diag.out
@@ -631,7 +641,7 @@ or
 
 =head2 What's MakeMaker?
 
-This module (part of the standard perl distribution) is designed to
+This module (part of the standard Perl distribution) is designed to
 write a Makefile for an extension module from a Makefile.PL.  For more
 information, see L<ExtUtils::MakeMaker>.
 
@@ -641,13 +651,12 @@ Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
 All rights reserved.
 
 When included as an integrated part of the Standard Distribution
-of Perl or of its documentation (printed or otherwise), this work is
-covered under Perl's Artistic Licence.  For separate distributions of
+of Perl or of its documentation (printed or otherwise), this works is
+covered under Perl's Artistic License.  For separate distributions of
 all or part of this FAQ outside of that, see L<perlfaq>.
 
-Irrespective of its distribution, all code examples here are public
+Irrespective of its distribution, all code examples here are in the public
 domain.  You are permitted and encouraged to use this code and any
 derivatives thereof in your own programs for fun or for profit as you
 see fit.  A simple comment in the code giving credit to the FAQ would
 be courteous but is not required.
-

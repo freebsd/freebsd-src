@@ -1,5 +1,5 @@
 #
-#      Copyright (c) 1996-1998 Malcolm Beattie
+#      Copyright (c) 1996-1999 Malcolm Beattie
 #
 #      You may distribute under the terms of either the GNU General Public
 #      License or the Artistic License, as specified in the README file.
@@ -12,9 +12,9 @@ package B::Asmdata;
 use Exporter;
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(%insn_data @insn_name @optype @specialsv_name);
-use vars qw(%insn_data @insn_name @optype @specialsv_name);
+our(%insn_data, @insn_name, @optype, @specialsv_name);
 
-@optype = qw(OP UNOP BINOP LOGOP CONDOP LISTOP PMOP SVOP GVOP PVOP LOOP COP);
+@optype = qw(OP UNOP BINOP LOGOP LISTOP PMOP SVOP PADOP PVOP LOOP COP);
 @specialsv_name = qw(Nullsv &PL_sv_undef &PL_sv_yes &PL_sv_no);
 
 # XXX insn_data is initialised this way because with a large
@@ -42,7 +42,7 @@ $insn_data{xrv} = [17, \&PUT_svindex, "GET_svindex"];
 $insn_data{xpv} = [18, \&PUT_none, "GET_none"];
 $insn_data{xiv32} = [19, \&PUT_I32, "GET_I32"];
 $insn_data{xiv64} = [20, \&PUT_IV64, "GET_IV64"];
-$insn_data{xnv} = [21, \&PUT_double, "GET_double"];
+$insn_data{xnv} = [21, \&PUT_NV, "GET_NV"];
 $insn_data{xlv_targoff} = [22, \&PUT_U32, "GET_U32"];
 $insn_data{xlv_targlen} = [23, \&PUT_U32, "GET_U32"];
 $insn_data{xlv_targ} = [24, \&PUT_svindex, "GET_svindex"];
@@ -68,11 +68,11 @@ $insn_data{xcv_stash} = [44, \&PUT_svindex, "GET_svindex"];
 $insn_data{xcv_start} = [45, \&PUT_opindex, "GET_opindex"];
 $insn_data{xcv_root} = [46, \&PUT_opindex, "GET_opindex"];
 $insn_data{xcv_gv} = [47, \&PUT_svindex, "GET_svindex"];
-$insn_data{xcv_filegv} = [48, \&PUT_svindex, "GET_svindex"];
+$insn_data{xcv_file} = [48, \&PUT_pvcontents, "GET_pvcontents"];
 $insn_data{xcv_depth} = [49, \&PUT_I32, "GET_I32"];
 $insn_data{xcv_padlist} = [50, \&PUT_svindex, "GET_svindex"];
 $insn_data{xcv_outside} = [51, \&PUT_svindex, "GET_svindex"];
-$insn_data{xcv_flags} = [52, \&PUT_U8, "GET_U8"];
+$insn_data{xcv_flags} = [52, \&PUT_U16, "GET_U16"];
 $insn_data{av_extend} = [53, \&PUT_I32, "GET_I32"];
 $insn_data{av_push} = [54, \&PUT_svindex, "GET_svindex"];
 $insn_data{xav_fill} = [55, \&PUT_I32, "GET_I32"];
@@ -95,7 +95,7 @@ $insn_data{gp_refcnt_add} = [71, \&PUT_I32, "GET_I32"];
 $insn_data{gp_av} = [72, \&PUT_svindex, "GET_svindex"];
 $insn_data{gp_hv} = [73, \&PUT_svindex, "GET_svindex"];
 $insn_data{gp_cv} = [74, \&PUT_svindex, "GET_svindex"];
-$insn_data{gp_filegv} = [75, \&PUT_svindex, "GET_svindex"];
+$insn_data{gp_file} = [75, \&PUT_pvcontents, "GET_pvcontents"];
 $insn_data{gp_io} = [76, \&PUT_svindex, "GET_svindex"];
 $insn_data{gp_form} = [77, \&PUT_svindex, "GET_svindex"];
 $insn_data{gp_cvgen} = [78, \&PUT_U32, "GET_U32"];
@@ -113,32 +113,31 @@ $insn_data{op_private} = [89, \&PUT_U8, "GET_U8"];
 $insn_data{op_first} = [90, \&PUT_opindex, "GET_opindex"];
 $insn_data{op_last} = [91, \&PUT_opindex, "GET_opindex"];
 $insn_data{op_other} = [92, \&PUT_opindex, "GET_opindex"];
-$insn_data{op_true} = [93, \&PUT_opindex, "GET_opindex"];
-$insn_data{op_false} = [94, \&PUT_opindex, "GET_opindex"];
-$insn_data{op_children} = [95, \&PUT_U32, "GET_U32"];
-$insn_data{op_pmreplroot} = [96, \&PUT_opindex, "GET_opindex"];
-$insn_data{op_pmreplrootgv} = [97, \&PUT_svindex, "GET_svindex"];
-$insn_data{op_pmreplstart} = [98, \&PUT_opindex, "GET_opindex"];
-$insn_data{op_pmnext} = [99, \&PUT_opindex, "GET_opindex"];
-$insn_data{pregcomp} = [100, \&PUT_pvcontents, "GET_pvcontents"];
-$insn_data{op_pmflags} = [101, \&PUT_U16, "GET_U16"];
-$insn_data{op_pmpermflags} = [102, \&PUT_U16, "GET_U16"];
-$insn_data{op_sv} = [103, \&PUT_svindex, "GET_svindex"];
-$insn_data{op_gv} = [104, \&PUT_svindex, "GET_svindex"];
-$insn_data{op_pv} = [105, \&PUT_pvcontents, "GET_pvcontents"];
-$insn_data{op_pv_tr} = [106, \&PUT_op_tr_array, "GET_op_tr_array"];
-$insn_data{op_redoop} = [107, \&PUT_opindex, "GET_opindex"];
-$insn_data{op_nextop} = [108, \&PUT_opindex, "GET_opindex"];
-$insn_data{op_lastop} = [109, \&PUT_opindex, "GET_opindex"];
-$insn_data{cop_label} = [110, \&PUT_pvcontents, "GET_pvcontents"];
-$insn_data{cop_stash} = [111, \&PUT_svindex, "GET_svindex"];
-$insn_data{cop_filegv} = [112, \&PUT_svindex, "GET_svindex"];
-$insn_data{cop_seq} = [113, \&PUT_U32, "GET_U32"];
-$insn_data{cop_arybase} = [114, \&PUT_I32, "GET_I32"];
-$insn_data{cop_line} = [115, \&PUT_U16, "GET_U16"];
-$insn_data{main_start} = [116, \&PUT_opindex, "GET_opindex"];
-$insn_data{main_root} = [117, \&PUT_opindex, "GET_opindex"];
-$insn_data{curpad} = [118, \&PUT_svindex, "GET_svindex"];
+$insn_data{op_children} = [93, \&PUT_U32, "GET_U32"];
+$insn_data{op_pmreplroot} = [94, \&PUT_opindex, "GET_opindex"];
+$insn_data{op_pmreplrootgv} = [95, \&PUT_svindex, "GET_svindex"];
+$insn_data{op_pmreplstart} = [96, \&PUT_opindex, "GET_opindex"];
+$insn_data{op_pmnext} = [97, \&PUT_opindex, "GET_opindex"];
+$insn_data{pregcomp} = [98, \&PUT_pvcontents, "GET_pvcontents"];
+$insn_data{op_pmflags} = [99, \&PUT_U16, "GET_U16"];
+$insn_data{op_pmpermflags} = [100, \&PUT_U16, "GET_U16"];
+$insn_data{op_sv} = [101, \&PUT_svindex, "GET_svindex"];
+$insn_data{op_padix} = [102, \&PUT_U32, "GET_U32"];
+$insn_data{op_pv} = [103, \&PUT_pvcontents, "GET_pvcontents"];
+$insn_data{op_pv_tr} = [104, \&PUT_op_tr_array, "GET_op_tr_array"];
+$insn_data{op_redoop} = [105, \&PUT_opindex, "GET_opindex"];
+$insn_data{op_nextop} = [106, \&PUT_opindex, "GET_opindex"];
+$insn_data{op_lastop} = [107, \&PUT_opindex, "GET_opindex"];
+$insn_data{cop_label} = [108, \&PUT_pvcontents, "GET_pvcontents"];
+$insn_data{cop_stashpv} = [109, \&PUT_pvcontents, "GET_pvcontents"];
+$insn_data{cop_file} = [110, \&PUT_pvcontents, "GET_pvcontents"];
+$insn_data{cop_seq} = [111, \&PUT_U32, "GET_U32"];
+$insn_data{cop_arybase} = [112, \&PUT_I32, "GET_I32"];
+$insn_data{cop_line} = [113, \&PUT_U16, "GET_U16"];
+$insn_data{cop_warnings} = [114, \&PUT_svindex, "GET_svindex"];
+$insn_data{main_start} = [115, \&PUT_opindex, "GET_opindex"];
+$insn_data{main_root} = [116, \&PUT_opindex, "GET_opindex"];
+$insn_data{curpad} = [117, \&PUT_svindex, "GET_svindex"];
 
 my ($insn_name, $insn_data);
 while (($insn_name, $insn_data) = each %insn_data) {

@@ -5,7 +5,7 @@ WriteMakefile(
     MAN3PODS		=> {}, 	# Pods will be built by installman.
     XSPROTOARG		=> '-noprototypes',
     OBJECT		=> 're_exec$(OBJ_EXT) re_comp$(OBJ_EXT) re$(OBJ_EXT)',
-    DEFINE		=> '-DPERL_EXT_RE_BUILD',
+    DEFINE		=> '-DPERL_EXT_RE_BUILD -DPERL_EXT_RE_DEBUG',
     clean		=> { FILES => '*$(OBJ_EXT) *.c ../../lib/re.pm' },
 );
 

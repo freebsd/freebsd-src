@@ -1,12 +1,21 @@
 package bigfloat;
 require "bigint.pl";
+#
+# This library is no longer being maintained, and is included for backward
+# compatibility with Perl 4 programs which may require it.
+#
+# In particular, this should not be used as an example of modern Perl
+# programming techniques.
+#
+# Suggested alternative: Math::BigFloat
+#
 # Arbitrary length float math package
 #
 # by Mark Biggar
 #
 # number format
 #   canonical strings have the form /[+-]\d+E[+-]\d+/
-#   Input values can have inbedded whitespace
+#   Input values can have embedded whitespace
 # Error returns
 #   'NaN'           An input parameter was "Not a Number" or 
 #                       divide by zero or sqrt of negative number
@@ -70,7 +79,12 @@ sub norm { #(mantissa, exponent) return fnum_str
 sub main'fneg { #(fnum_str) return fnum_str
     local($_) = &'fnorm($_[$[]);
     vec($_,0,8) ^= ord('+') ^ ord('-') unless $_ eq '+0E+0'; # flip sign
-    s/^H/N/;
+    if ( ord("\t") == 9 ) { # ascii
+        s/^H/N/;
+    }
+    else { # ebcdic character set
+        s/\373/N/;
+    }
     $_;
 }
 
@@ -126,7 +140,7 @@ sub main'fdiv #(fnum_str, fnum_str[,scale]) return fnum_str
 	$scale = length($xm)-1 if (length($xm)-1 > $scale);
 	$scale = length($ym)-1 if (length($ym)-1 > $scale);
 	$scale = $scale + length($ym) - length($xm);
-	&norm(&round(&'bdiv($xm.('0' x $scale),$ym),$ym),
+	&norm(&round(&'bdiv($xm.('0' x $scale),$ym),&'babs($ym)),
 	    $xe-$ye-$scale);
     }
 }
@@ -186,7 +200,12 @@ sub main'ffround { #(fnum_str, scale) return fnum_str
 	    if ($xe < 1) {
 		'+0E+0';
 	    } elsif ($xe == 1) {
-		&norm(&round('+0',"+0".substr($xm,$[+1,1),"+10"), $scale);
+		# The first substr preserves the sign, which means that
+		# we'll pass a non-normalized "-0" to &round when rounding
+		# -0.006 (for example), purely so that &round won't lose
+		# the sign.
+		&norm(&round(substr($xm,$[,1).'0',
+		      "+0".substr($xm,$[+1,1),"+10"), $scale);
 	    } else {
 		&norm(&round(substr($xm,$[,$xe),
 		      "+0".substr($xm,$[+$xe,1),"+10"), $scale);

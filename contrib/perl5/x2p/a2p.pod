@@ -43,9 +43,24 @@ causes a2p to assume that input will always have that many fields.
 
 =item B<-o>
 
-tells a2p to use old awk behavior.  For now, the only difference is
-that old awk always has a line loop, even if there are no line
+tells a2p to use old awk behavior.  The only current differences are:
+
+=over 5
+
+=item
+
+Old awk always has a line loop, even if there are no line
 actions, whereas new awk does not.
+
+=item
+
+In old awk, sprintf is extremely greedy about its arguments.
+For example, given the statement
+
+	print sprintf(some_args), extra_args;
+
+old awk considers I<extra_args> to be arguments to C<sprintf>; new awk
+considers them arguments to C<print>.
 
 =back
 

@@ -5,7 +5,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib' if -d '../lib';
+    unshift @INC, '../lib' if -d '../lib';
 }
 
 BEGIN {$| = 1; print "1..24\n"; }

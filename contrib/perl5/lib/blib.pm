@@ -45,12 +45,12 @@ sub import
 {
  my $package = shift;
  my $dir = getcwd;
- if ($^O eq 'VMS') { ($dir = VMS::Filespec::unixify($dir)) =~ s-/$--; }
+ if ($^O eq 'VMS') { ($dir = VMS::Filespec::unixify($dir)) =~ s-/\z--; }
  if (@_)
   {
    $dir = shift;
-   $dir =~ s/blib$//;
-   $dir =~ s,/+$,,;
+   $dir =~ s/blib\z//;
+   $dir =~ s,/+\z,,;
    $dir = '.' unless ($dir);
    die "$dir is not a directory\n" unless (-d $dir);
   }

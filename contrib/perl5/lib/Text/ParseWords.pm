@@ -1,7 +1,7 @@
 package Text::ParseWords;
 
 use vars qw($VERSION @ISA @EXPORT $PERL_SINGLE_QUOTE);
-$VERSION = "3.1";
+$VERSION = "3.2";
 
 require 5.000;
 
@@ -49,7 +49,7 @@ sub nested_quotewords {
 
 sub parse_line {
 	# We will be testing undef strings
-	local($^W) = 0;
+	no warnings;
 
     my($delimiter, $keep, $line) = @_;
     my($quote, $quoted, $unquoted, $delim, $word, @pieces);

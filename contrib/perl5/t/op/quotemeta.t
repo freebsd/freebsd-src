@@ -1,8 +1,14 @@
 #!./perl
 
+BEGIN {
+    chdir 't' if -d 't';
+    unshift @INC, '../lib' if -d '../lib';
+    require Config; import Config;
+}
+
 print "1..15\n";
 
-if ($^O eq 'os390') { # An EBCDIC variant.
+if ($Config{ebcdic} eq 'define') {
     $_=join "", map chr($_), 129..233;
 
     # 105 characters - 52 letters = 53 backslashes

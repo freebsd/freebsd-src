@@ -1,7 +1,7 @@
 
 			   Perl Kit, Version 5.0
 
-		       Copyright 1989-1999, Larry Wall
+		       Copyright 1989-2000, Larry Wall
 			    All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
@@ -50,9 +50,9 @@
 --------------------------------------------------------------------------
 
 Perl is a language that combines some of the features of C, sed, awk
-and shell.  See the manual page for more hype.  There are also two Nutshell
-Handbooks published by O'Reilly & Assoc.  See pod/perlbook.pod
-for more information.
+and shell.  See the manual page for more hype.  There are also many Perl
+books available, covering a wide variety of topics, from various publishers.
+See pod/perlbook.pod for more information.
 
 Please read all the directions below before you proceed any further, and
 then follow them carefully.
@@ -62,16 +62,10 @@ in MANIFEST.
 
 Installation
 
-1) Detailed instructions are in the file INSTALL which you should read.
-In brief, the following should work on most systems:
-	rm -f config.sh
-	sh Configure
-	make
-	make test
-	make install
-For most systems, it should be safe to accept all the Configure defaults.
-(It is recommended that you accept the defaults the first time you build
-or if you have any problems building.)
+1) Detailed instructions are in the file "INSTALL", which you should
+read if you are either installing on a system resembling Unix
+or porting perl to another platform.  For non-Unix platforms, see the
+corresponding README.
 
 2) Read the manual entries before running perl.
 
@@ -81,18 +75,16 @@ If you have a problem, there's someone else out there who either has had
 or will have the same problem.  It's usually helpful if you send the
 output of the "myconfig" script in the main perl directory.
 
-If you've succeeded in compiling perl, the perlbug script in the utils/
+If you've succeeded in compiling perl, the perlbug script in the "utils"
 subdirectory can be used to help mail in a bug report.
 
 If possible, send in patches such that the patch program will apply them.
 Context diffs are the best, then normal diffs.  Don't send ed scripts--
 I've probably changed my copy since the version you have.
 
-Watch for perl patches in comp.lang.perl.announce.  Patches will generally
-be in a form usable by the patch program.  If you are just now bringing
-up perl and aren't sure how many patches there are, write to me and I'll
-send any you don't have.  Your current patch level is shown in
-patchlevel.h.
+The latest versions of perl are always available on the various CPAN
+(Comprehensive Perl Archive Network) sites around the world.
+See <URL:http://www.perl.com/CPAN/src/>.
 
 
 Just a personal note:  I want you to know that I create nice things like this

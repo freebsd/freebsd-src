@@ -4,7 +4,7 @@
 # reads a perforce style diff on stdin and outputs appropriate headers
 # so the diff can be applied with the patch program
 #
-# Gurusamy Sarathy <gsar@umich.edu>
+# Gurusamy Sarathy <gsar@activestate.com>
 #
 
 BEGIN {

@@ -1,4 +1,6 @@
 package ExtUtils::Command;
+
+use 5.005_64;
 use strict;
 # use AutoLoader;
 use Carp;
@@ -7,7 +9,7 @@ use File::Compare;
 use File::Basename;
 use File::Path qw(rmtree);
 require Exporter;
-use vars qw(@ISA @EXPORT $VERSION);
+our(@ISA, @EXPORT, $VERSION);
 @ISA     = qw(Exporter);
 @EXPORT  = qw(cp rm_f rm_rf mv cat eqtime mkpath touch test_f);
 $VERSION = '1.01';

@@ -1,5 +1,5 @@
 #! /bin/sh
-case $CONFIG in
+case $CONFIGDOTSH in
 '')
 	if test -f config.sh; then TOP=.;
 	elif test -f ../config.sh; then TOP=..;
@@ -37,7 +37,7 @@ esac
 
 export PATH || (echo "OOPS, this isn't sh.  Desperation time.  I will feed myself to sh."; sh \$0; kill \$\$)
 
-case $CONFIG in
+case $CONFIGDOTSH in
 '')
 	if test -f config.sh; then TOP=.;
 	elif test -f ../config.sh; then TOP=..;
@@ -105,7 +105,11 @@ for file in `$cat .clist`; do
 		if [ "$osname" = os2 ]; then
 			uwinfix="-e s,\\\\\\\\,/,g"
 		else
-			uwinfix=
+			if [ "$archname" = cygwin ]; then
+				uwinfix="-e s,\\\\\\\\,/,g"
+			else
+				uwinfix=
+			fi
 		fi
 	fi
     case "$file" in
@@ -126,8 +130,12 @@ for file in `$cat .clist`; do
 	-e 's|\\$||' \
 	-e p \
 	-e '}' ) >UU/$file.c
+    if [ "$osname" = os390 -a "$file" = perly.c ]; then
+        $echo '#endif' >>UU/$file.c
+    fi
     $cppstdin $finc -I. $cppflags $cppminus <UU/$file.c |
     $sed \
+	-e '1d' \
 	-e '/^#.*<stdin>/d' \
 	-e '/^#.*"-"/d' \
 	-e 's#\.[0-9][0-9]*\.c#'"$file.c#" \

@@ -1,0 +1,2 @@
+$self->{CCFLAGS} = $Config{ccflags} . ' -DNEED_FGETC_PROTOTYPE -DNEED_FREAD_PROTOTYPE';
+

@@ -230,5 +230,64 @@
    * Updated the message that db-recno.t prints when tests 51, 53 or 55 fail.
 
 1.65 6th March 1999
+
    * Fixed a bug in the recno PUSH logic.
    * The BOOT version check now needs 2.3.4 when using Berkeley DB version 2
+
+1.66 15th March 1999
+
+   * Added DBM Filter code
+
+1.67 6th June 1999
+
+   * Added DBM Filter documentation to DB_File.pm
+
+   * Fixed DBM Filter code to work with 5.004
+
+   * A few instances of newSVpvn were used in 1.66. This isn't available in
+     Perl 5.004_04 or earlier. Replaced with newSVpv.
+
+1.68 22nd July 1999
+
+   * Merged changes from 5.005_58 
+
+   * Fixed a bug in R_IBEFORE & R_IAFTER procesing in Berkeley DB
+     2 databases.
+
+   * Added some of the examples in the POD into the test harness.
+
+1.69 3rd August 1999
+
+   * fixed a bug in push -- DB_APPEND wasn't working properly.
+
+   * Fixed the R_SETCURSOR bug introduced in 1.68
+
+   * Added a new Perl variable $DB_File::db_ver
+   
+1.70 4th August 1999
+
+   * Initialise $DB_File::db_ver and $DB_File::db_version with
+     GV_ADD|GV_ADDMULT -- bug spotted by Nick Ing-Simmons.
+
+   * Added a BOOT check to test for equivalent versions of db.h &
+     libdb.a/so.
+
+1.71 7th September 1999
+
+   * Fixed a bug that prevented 1.70 from compiling under win32
+
+   * Updated to support Berkeley DB 3.x
+
+   * Updated dbinfo for Berkeley DB 3.x file formats.
+
+1.72 16th January 2000
+
+   * Added hints/sco.pl
+
+   * The module will now use XSLoader when it is available. When it
+     isn't it will use DynaLoader.
+
+   * The locking section in DB_File.pm has been discredited. Many thanks
+     to David Harris for spotting the underlying problem, contributing
+     the updates to the documentation and writing DB_File::Lock (available
+     on CPAN).

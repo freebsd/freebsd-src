@@ -13,7 +13,7 @@ T_XSCPTR
 		|| mg->mg_private != ${ntype}_MAGIC_SIGNATURE)
 		croak(\"XSUB ${func_name}: $var is a forged ${ntype} object\");
 	    $var = ($type) SvPVX(mg->mg_obj);
-	    DEBUG_S(PerlIO_printf(PerlIO_stderr(),
+	    DEBUG_S(PerlIO_printf(Perl_debug_log,
 				  \"XSUB ${func_name}: %p\\n\", $var);)
 	} STMT_END
 T_IVREF
