@@ -194,6 +194,7 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 struct msgbuf *msgbufp=0;
 
 long Maxmem = 0;
+long realmem = 0;
 
 long	totalphysmem;		/* total amount of physical memory in system */
 long	resvmem;		/* amount of memory reserved for PROM */
@@ -250,6 +251,7 @@ cpu_startup(dummy)
 #endif
 	printf("real memory  = %ld (%ld MB)\n", alpha_ptob(Maxmem),
 	    alpha_ptob(Maxmem) / 1048576);
+	realmem = alpha_ptob(Maxmem);
 
 	/*
 	 * Display any holes after the first chunk of extended memory.

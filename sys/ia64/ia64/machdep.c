@@ -143,6 +143,7 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 struct msgbuf *msgbufp=0;
 
 long Maxmem = 0;
+long realmem = 0;
 
 vm_offset_t phys_avail[100];
 
@@ -246,6 +247,7 @@ cpu_startup(dummy)
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
+	realmem = ia64_ptob(Maxmem);
 	 */
 	if (bootverbose) {
 		int indx;
