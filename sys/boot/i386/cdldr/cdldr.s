@@ -81,13 +81,13 @@ start:		cld				# string ops inc
 		movw %ax, %ds			# setup the
 		movw %ax, %es			#  data segments
 		movw $welcome_msg, %si		# %ds:(%si) -> welcome message
-		call putstr			# display the welcome message
+		callw putstr			# display the welcome message
 #
 # Setup the arguments that the loader is expecting from boot[12]
 #
 		movw $bootinfo_msg, %si		# %ds:(%si) -> boot args message
-		call putstr			# display the message
-		movl $MEM_ARG, %ebx		# %ds:(%ebx) -> boot args
+		callw putstr			# display the message
+		movl $MEM_ARG, %bx		# %ds:(%bx) -> boot args
 		movw %bx, %di			# %es:(%di) -> boot args
 		xorl %eax, %eax			# zero %eax
 		movw $(MEM_ARG_SIZE/4), %cx	# Size of arguments in 32-bit
@@ -95,18 +95,18 @@ start:		cld				# string ops inc
 		rep				# Clear the arguments
 		stosl				#  to zero
 		popw %dx			# restore BIOS boot device
-		movb %dl, 0x4(%ebx)		# set kargs->bootdev
-		orb $KARGS_FLAGS_CD, 0x8(%ebx)	# kargs->bootflags |=
+		movb %dl, 0x4(%bx)		# set kargs->bootdev
+		orb $KARGS_FLAGS_CD, 0x8(%bx)	# kargs->bootflags |=
 						#  KARGS_FLAGS_CD
 #
 # Turn on the A20 address line
 #
-		call seta20			# Turn A20 on		
+		callw seta20			# Turn A20 on		
 #
 # Relocate the loader and BTX using a very lazy protected mode
 #
 		movw $relocate_msg, %si		# Display the
-		call putstr			#  relocation message
+		callw putstr			#  relocation message
 		movl end+AOUT_ENTRY, %edi	# %edi is the destination
 		movl $(end+AOUT_HEADER), %esi	# %esi is 
 						#  the start of the text
@@ -118,9 +118,8 @@ start:		cld				# string ops inc
 		movl %cr0, %eax			# Turn on
 		orb $0x1, %al			#  protected
 		movl %eax, %cr0			#  mode
-		.byte 0xea			# long jump to
-		.word pm_start			#   clear the instruction
-		.word SEL_SCODE			#   pre-fetch queue
+		ljmp $SEL_SCODE,$pm_start	# long jump to clear the
+						#  instruction pre-fetch queue
 		.code32
 pm_start:	movw $SEL_SDATA, %ax		# Initialize
 		movw %ax, %ds			#  %ds and
@@ -152,9 +151,8 @@ pm_16:		movw $SEL_RDATA, %ax		# Initialize
 		movl %cr0, %eax			# Turn off
 		andb $~0x1, %al			#  protected
 		movl %eax, %cr0			#  mode
-		.byte 0xea			# Long jump to
-		.word pm_end			#   clear the instruction
-		.word 0x0			#   pre-fetch
+		ljmp $0,$pm_end			# Long jump to clear the
+						#  instruction pre-fetch queue
 pm_end:		sti				# Turn interrupts back on now
 #
 # Copy the BTX client to MEM_BTX_CLIENT
@@ -185,10 +183,8 @@ pm_end:		sti				# Turn interrupts back on now
 # Now we just start up BTX and let it do the rest
 #
 		movw $jump_message, %si		# Display the
-		call putstr			#  jump message
-		.byte 0xea			# Jump to
-		.word MEM_BTX_ENTRY 		# BTX entry
-		.word 0x0			#  point
+		callw putstr			#  jump message
+		ljmp $0,$MEM_BTX_ENTRY		# Jump to the BTX entry point
 
 #
 # Display a null-terminated string
@@ -196,7 +192,7 @@ pm_end:		sti				# Turn interrupts back on now
 putstr:		lodsb				# load %al from %ds:(%si)
 		testb %al,%al			# stop at null
 		jnz putc			# if the char != null, output it
-		ret				# return when null is hit
+		retw				# return when null is hit
 putc:		movw $0x7,%bx			# attribute for output
 		movb $0xe,%ah			# BIOS: put_char
 		int $0x10			# call BIOS, print char in %al
@@ -217,7 +213,7 @@ seta20.2:	inb $0x64,%al			# Get status
 		movb $0xdf,%al			# Enable
 		outb %al,$0x60			#  A20
 		sti				# Enable interrupts
-		ret				# To caller
+		retw				# To caller
 
 #
 # BTX client to start btxldr
