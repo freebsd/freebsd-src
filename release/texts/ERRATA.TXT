@@ -24,7 +24,7 @@ For the latest security incident information.
 
 ---- Security Advisories:
 
-Current active security advisories for 3.1:	None
+Current active security advisories for 3.2:	None
 
 ---- System Update Information:
 

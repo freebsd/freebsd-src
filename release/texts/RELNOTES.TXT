@@ -2,7 +2,7 @@
                            FreeBSD Release 3.2-RELEASE
 
 Welcome to 3.2-RELEASE, a full follow-on to the 3.1-RELEASE
-released Feburary 1999 and which marked the beginning of the
+released February 1999 and which marked the beginning of the
 3.0-STABLE branch.  In the 4 months since 3.1 was released, many
 hundreds of bug fixes and general enhancements were made to the
 system.  Please see relevant details below.
