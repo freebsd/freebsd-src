@@ -599,11 +599,11 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {
 	alarm_clear();
 	if (AlarmWentOff) {
-	    msgDebug("Failure to read from media - timeout or user abort.\n");
+	    msgConfirm("Failure to read from media - timeout or user abort.\n");
 	    break;
 	}
 	if (write(qfd[1], buf, i) != i) {
-	    msgDebug("Write error on transfer to cpio process, try of %d bytes\n", i);
+	    msgConfirm("Write error on transfer to cpio process, try of %d bytes\n", i);
 	    break;
 	}
 	else {
