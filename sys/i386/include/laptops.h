@@ -14,28 +14,25 @@
 
 #ifdef	LAPTOP
 
+
+/*
+ * Machine-dependent options
+ */
+
 #ifdef	HINOTE		/* Digital Hinote */
 #ifndef	COMPAT_APM10
 #define	COMPAT_APM10
 #endif	/* COMPAT_APM10 */
-#ifndef	SIO_IRQ_BUG
-#define	SIO_IRQ_BUG
-#endif	/* SIO_IRQ_BUG */
 #endif	/* HINOTE */
 
 #ifdef	DHULTRA		/* Digital Hinote Ultra */
-#ifndef	FORCE_APM10
-#define	FORCE_APM10
-#endif	/* FORCE_APM10 */
-#ifndef	SIO_IRQ_BUG
-#define	SIO_IRQ_BUG
-#endif	/* SIO_IRQ_BUG */
+/* (update BIOS to 1.41 or later) */
 #endif	/* DHULTRA */
 
 #ifdef	TP230		/* IBM ThinkPad 230 Series */
-#ifndef	SIO_IRQ_BUG2
-#define	SIO_IRQ_BUG2
-#endif	/* SIO_IRQ_BUG2 */
+#ifndef	SIO_IRQ_BUG
+#define	SIO_IRQ_BUG
+#endif	/* SIO_IRQ_BUG */
 #ifndef	FORCE_APM10
 #define	FORCE_APM10
 #endif	/* FORCE_APM10 */
@@ -45,9 +42,9 @@
 #endif	/* TP230 */
 
 #ifdef	TP230FBW	/* IBM ThinkPad 230 FBW Series */
-#ifndef	SIO_IRQ_BUG2
-#define	SIO_IRQ_BUG2
-#endif	/* SIO_IRQ_BUG2 */
+#ifndef	SIO_IRQ_BUG
+#define	SIO_IRQ_BUG
+#endif	/* SIO_IRQ_BUG */
 #ifndef	PCIC_NOCLRREGS
 #define	PCIC_NOCLRREGS
 #endif	/* PCIC_NOCLRREGS */
@@ -87,9 +84,6 @@
 #endif	/* JETMINI */
 
 #ifdef	CONTURA		/* COMPAQ CONTURA Series */
-#ifndef	SIO_IRQ_BUG
-#define	SIO_IRQ_BUG
-#endif	/* SIO_IRQ_BUG */
 #ifndef	PCIC_NOCLRREGS
 #define	PCIC_NOCLRREGS
 #endif	/* PCIC_NOCLRREGS */
@@ -98,6 +92,14 @@
 #endif	/* APM_SUSPEND_DELAY */
 #endif	/* CONTURA */
 
+#ifdef	ELITE           /* COMPAQ ELITE Series */
+#ifndef	PCIC_NOCLRREGS
+#define	PCIC_NOCLRREGS
+#endif	/* PCIC_NOCLRREGS */
+#ifndef	APM_SUSPEND_DELAY
+#define	APM_SUSPEND_DELAY
+#endif	/* APM_SUSPEND_DELAY */
+#endif  /* ELITE */
 
 #endif	/* LAPTOP */
 
