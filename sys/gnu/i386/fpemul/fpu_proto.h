@@ -1,3 +1,10 @@
+/*
+ *
+ *    $Id:$
+ *
+ */
+
+
 /* errors.c */
 extern void Un_impl(void);
 extern void emu_printall(void);

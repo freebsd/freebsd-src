@@ -73,6 +73,9 @@
  * available under the terms of the GNU copyleft.
  *
  * W. Metzenthen   June 1993.
+ *
+ *  $Id:$
+ * 
  */
 
 /*---------------------------------------------------------------------------+
