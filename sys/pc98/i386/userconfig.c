@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.28 1997/03/11 16:19:55 kato Exp $
+ **      $Id: userconfig.c,v 1.29 1997/03/15 15:44:05 kato Exp $
  **/
 
 /**
@@ -2372,7 +2372,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.28 1997/03/11 16:19:55 kato Exp $
+ *      $Id: userconfig.c,v 1.29 1997/03/15 15:44:05 kato Exp $
  */
 
 #include "scbus.h"
@@ -2852,6 +2852,38 @@ introfunc(CmdParm *parms)
 	    case 'q':
 		clear();
 		return 1;	/* user requests exit */
+
+	    case '1':				/* select an item */
+	    case 'S':
+	    case 's':
+		curr_item = 0;
+		break;
+	    case '2':
+	    case 'V':
+	    case 'v':
+		curr_item = 1;
+		break;
+	    case '3':
+	    case 'C':
+	    case 'c':
+		curr_item = 2;
+		break;
+
+	    case 'U':				/* up */
+	    case 'u':
+	    case 'P':
+	    case 'p':
+		if (curr_item > 0)
+		    --curr_item;
+		break;
+
+	    case 'D':				/* down */
+	    case 'd':
+	    case 'N':
+	    case 'n':
+		if (curr_item < 2)
+		    ++curr_item;
+		break;
 
 	    case '\r':				
 	    case '\n':
