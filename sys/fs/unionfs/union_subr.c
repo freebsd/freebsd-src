@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.4 (Berkeley) 2/17/94
- * $Id$
+ * $Id: union_subr.c,v 1.3 1994/08/02 07:45:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ union_list_lock(ix)
 
 	if (unvplock[ix] & UN_LOCKED) {
 		unvplock[ix] |= UN_WANT;
-		sleep((caddr_t) &unvplock[ix], PINOD);
+		(void) tsleep((caddr_t) &unvplock[ix], PINOD, "unllck", 0);
 		return (1);
 	}
 
@@ -311,7 +311,7 @@ loop:
 			if (un->un_flags & UN_LOCKED) {
 				vrele(UNIONTOV(un));
 				un->un_flags |= UN_WANT;
-				sleep((caddr_t) &un->un_flags, PINOD);
+				(void) tsleep((caddr_t) &un->un_flags, PINOD, "unalvp", 0);
 				goto loop;
 			}
 			un->un_flags |= UN_LOCKED;

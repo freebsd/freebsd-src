@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.1 1994/09/19 15:41:41 dfr Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.2 1994/09/27 20:42:44 phk Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -96,7 +96,7 @@ msdosfs_hashget(dev, dirclust, diroff)
 				continue;
 			if (dep->de_flag & DE_LOCKED) {
 				dep->de_flag |= DE_WANTED;
-				sleep((caddr_t)dep, PINOD);
+				(void) tsleep((caddr_t)dep, PINOD, "msdhgt", 0);
 				break;
 			}
 			if (!vget(DETOV(dep), 1))

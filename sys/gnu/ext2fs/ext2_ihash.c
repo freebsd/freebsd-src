@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.4 (Berkeley) 12/30/93
- * $Id$
+ * $Id: ufs_ihash.c,v 1.2 1994/08/02 07:54:55 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -100,7 +100,7 @@ ufs_ihashget(device, inum)
 			if (inum == ip->i_number && device == ip->i_dev) {
 				if (ip->i_flag & IN_LOCKED) {
 					ip->i_flag |= IN_WANTED;
-					sleep(ip, PINOD);
+					(void) tsleep(ip, PINOD, "uihget", 0);
 					break;
 				}
 				vp = ITOV(ip);

@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.5 1994/09/21 03:46:56 wollman Exp $
+ * $Id: fdesc_vnops.c,v 1.6 1994/10/02 17:47:51 phk Exp $
  */
 
 /*
@@ -140,7 +140,7 @@ loop:
 	 */ 
 	if (fdcache_lock & FDL_LOCKED) {
 		fdcache_lock |= FDL_WANT;
-		sleep((caddr_t) &fdcache_lock, PINOD);
+		(void) tsleep((caddr_t) &fdcache_lock, PINOD, "fdalvp", 0);
 		goto loop;
 	}
 	fdcache_lock |= FDL_LOCKED;

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.6 (Berkeley) 2/17/94
- * $Id: union_vnops.c,v 1.4 1994/09/21 03:47:14 wollman Exp $
+ * $Id: union_vnops.c,v 1.5 1994/09/21 23:22:45 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -128,7 +128,7 @@ union_lookup1(udvp, dvp, vpp, cnp)
 
 		if (mp->mnt_flag & MNT_MLOCK) {
 			mp->mnt_flag |= MNT_MWAIT;
-			sleep((caddr_t) mp, PVFS);
+			(void) tsleep((caddr_t) mp, PVFS, "unlkup", 0);
 			continue;
 		}
 
@@ -1253,7 +1253,7 @@ union_lock(ap)
 start:
 	while (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		sleep((caddr_t)vp, PINOD);
+		(void) tsleep((caddr_t)vp, PINOD, "unnlk1", 0);
 	}
 
 	un = VTOUNION(vp);
@@ -1276,7 +1276,7 @@ start:
 			panic("union: locking against myself");
 #endif
 		un->un_flags |= UN_WANT;
-		sleep((caddr_t) &un->un_flags, PINOD);
+		(void) tsleep((caddr_t) &un->un_flags, PINOD, "unnlk2", 0);
 		goto start;
 	}
 
