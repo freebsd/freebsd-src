@@ -50,6 +50,7 @@ The FreeBSD Core Team	[also the Board of Directors for The FreeBSD Project]
 	John Dyson <dyson@FreeBSD.org>
 	Jordan K. Hubbard <jkh@FreeBSD.org>
 	Justin Gibbs <gibbs@FreeBSD.org>
+	Nate Williams <nate@FreeBSD.org>
 	Paul Richards <paul@FreeBSD.org>
 	Poul-Henning Kamp <phk@FreeBSD.org>
 	Rich Murphey <rich@FreeBSD.org>
@@ -236,4 +237,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.15 1995/02/16 12:04:53 joerg Exp $
+$Id: CONTRIB.FreeBSD,v 1.16 1995/02/18 04:07:09 jkh Exp $
