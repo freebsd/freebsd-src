@@ -1,4 +1,3 @@
-
 /*
  * Copyright 1998 Marshall Kirk McKusick. All Rights Reserved.
  *
@@ -32,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep_stub.c	9.1 (McKusick) 7/10/97
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* 
  * Use this file as ffs_softdep.c if you do not wish the real ffs_softdep.c

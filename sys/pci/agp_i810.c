@@ -23,14 +23,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
 
 /*
  * Fixes for 830/845G support: David Dawes <dawes@xfree86.org>
  * 852GM/855GM/865G support added by David Dawes <dawes@xfree86.org>
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
 
