@@ -1,7 +1,7 @@
-#	$Id: bsd.obj.mk,v 1.19 1997/02/22 13:56:12 peter Exp $
+#	$Id: bsd.obj.mk,v 1.20 1997/04/30 17:04:11 bde Exp $
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
-# and cleaning up object files, log files etc.
+# and cleaning up object files, etc.
 #
 #
 # +++ variables +++
@@ -32,7 +32,7 @@
 # +++ targets +++
 #
 #	clean:
-#		remove a.out Errs errs mklog ${CLEANFILES} 
+#		remove ${CLEANFILES} 
 #
 #	cleandir:
 #		remove the build directory (and all its contents) created by obj
@@ -108,9 +108,6 @@ whereobj:
 	@cd ${.CURDIR}; ${MAKE} -V .OBJDIR
 .endif
 
-#
-# cleanup
-#
 cleanobj:
 	@if [ -d ${CANONICALOBJDIR}/ ]; then \
 		rm -rf ${CANONICALOBJDIR}; \
@@ -119,30 +116,31 @@ cleanobj:
 	fi
 	@if [ -h ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
 
-.if !target(cleanfiles)
-cleanfiles:
-	rm -f a.out Errs errs mklog ${CLEANFILES} 
-.endif
-
-# see bsd.dep.mk
-.if !target(cleandepend)
-cleandepend:
-	@rm -f .depend
-.endif
-
 .if !target(clean)
-clean: cleanfiles _SUBDIR
+clean: _SUBDIR
+.if defined(CLEANFILES) && !empty(CLEANFILES)
+	rm -f ${CLEANFILES} 
+.endif
 .endif
 
 .if !target(checkdpadd)
 checkdpadd: _SUBDIR
 .if (defined(DPADD) || defined(LDADD))
 checkdpadd:
+.if ${BINFORMAT} != aout
 	@if [ "${DPADD:S;^/usr/lib/lib;-l;S;.a$;;}" != "${LDADD}" ] ; then \
 		echo ${.CURDIR} ; \
 		echo "DPADD -> " ${DPADD:S;^/usr/lib/lib;-l;S;.a$;;} ; \
 		echo "LDADD =  " ${LDADD} ; \
 	fi
+.else
+	@dpadd=`echo \`ld -Bstatic -f ${LDDESTDIR} ${LDADD}\`` ; \
+	if [ "$$dpadd" != "${DPADD}" ] ; then \
+		echo ${.CURDIR} ; \
+		echo "LDADD -> " $$dpadd ; \
+		echo "DPADD =  " ${DPADD} ; \
+	fi
+.endif
 .endif
 .endif
 
