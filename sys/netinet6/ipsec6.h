@@ -42,7 +42,7 @@
 
 #ifdef _KERNEL
 extern struct ipsecstat ipsec6stat;
-extern struct secpolicy ip6_def_policy;
+extern struct secpolicy *ip6_def_policy;
 extern int ip6_esp_trans_deflev;
 extern int ip6_esp_net_deflev;
 extern int ip6_ah_trans_deflev;
@@ -51,8 +51,6 @@ extern int ip6_ipsec_ecn;
 extern int ip6_esp_randpad;
 
 struct inpcb;
-extern struct secpolicy *ipsec6_getpolicybypcb
-	__P((struct mbuf *, u_int, struct inpcb *, int *));
 extern struct secpolicy *ipsec6_getpolicybysock
 	__P((struct mbuf *, u_int, struct socket *, int *));
 extern struct secpolicy *ipsec6_getpolicybyaddr
@@ -60,10 +58,9 @@ extern struct secpolicy *ipsec6_getpolicybyaddr
 
 extern int ipsec6_in_reject_so __P((struct mbuf *, struct socket *));
 extern int ipsec6_delete_pcbpolicy __P((struct inpcb *));
-extern int ipsec6_set_policy __P((struct inpcb *inp, int optname,
-	caddr_t request, size_t len, int priv));
-extern int ipsec6_get_policy
-	__P((struct inpcb *inp, caddr_t request, size_t len, struct mbuf **mp));
+extern int ipsec6_set_policy __P((struct inpcb *, int, caddr_t, size_t, int));
+extern int ipsec6_get_policy __P((struct inpcb *, caddr_t, size_t,
+	struct mbuf **));
 extern int ipsec6_in_reject __P((struct mbuf *, struct inpcb *));
 
 struct tcp6cb;

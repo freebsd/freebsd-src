@@ -487,6 +487,10 @@ nd6_ns_output(ifp, daddr6, taddr6, ln, dad)
 	nd_ns->nd_ns_cksum =
 	    in6_cksum(m, IPPROTO_ICMPV6, sizeof(*ip6), icmp6len);
 
+#ifdef IPSEC
+	/* Don't lookup socket */
+	(void)ipsec_setsocket(m, NULL);
+#endif
 	ip6_output(m, NULL, NULL, dad ? IPV6_DADOUTPUT : 0, &im6o, &outif, NULL);
 	if (outif) {
 		icmp6_ifstat_inc(outif, ifs6_out_msg);
@@ -928,6 +932,10 @@ nd6_na_output(ifp, daddr6, taddr6, flags, tlladdr, sdl0)
 	nd_na->nd_na_cksum =
 	    in6_cksum(m, IPPROTO_ICMPV6, sizeof(struct ip6_hdr), icmp6len);
 
+#ifdef IPSEC
+	/* Don't lookup socket */
+	(void)ipsec_setsocket(m, NULL);
+#endif
 	ip6_output(m, NULL, NULL, 0, &im6o, &outif, NULL);
 	if (outif) {
 		icmp6_ifstat_inc(outif, ifs6_out_msg);

@@ -184,18 +184,21 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
 	int needipsec = 0;
-#ifdef IPSEC
-	int needipsectun = 0;
-	struct secpolicy *sp = NULL;
-
-	ip6 = mtod(m, struct ip6_hdr *);
-#endif /* IPSEC */
 #ifdef FAST_IPSEC
 	int needipsectun = 0;
 	struct secpolicy *sp = NULL;
+#endif /* FAST_IPSEC */
+#ifdef IPSEC
+	int needipsectun = 0;
+	struct socket *so;
+	struct secpolicy *sp = NULL;
+
+	/* for AH processing. stupid to have "socket" variable in IP layer... */
+	so = ipsec_getsocket(m);
+	(void)ipsec_setsocket(m, NULL);
+#endif /* IPSEC */
 
 	ip6 = mtod(m, struct ip6_hdr *);
-#endif /* FAST_IPSEC */
 
 #define MAKE_EXTHDR(hp, mp)						\
     do {								\
@@ -235,10 +238,10 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 
 #ifdef IPSEC
 	/* get a security policy for this packet */
-	if (inp == NULL)
+	if (so == NULL)
 		sp = ipsec6_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, 0, &error);
 	else
-		sp = ipsec6_getpolicybypcb(m, IPSEC_DIR_OUTBOUND, inp, &error);
+		sp = ipsec6_getpolicybysock(m, IPSEC_DIR_OUTBOUND, so, &error);
 
 	if (sp == NULL) {
 		ipsec6stat.out_inval++;

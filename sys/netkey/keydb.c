@@ -1,4 +1,4 @@
-/*	$KAME: keydb.c,v 1.64 2000/05/11 17:02:30 itojun Exp $	*/
+/*	$KAME: keydb.c,v 1.82 2003/09/07 07:47:33 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/pfkeyv2.h>
 #include <netkey/keydb.h>
+#include <netkey/key.h>
 #include <netinet6/ipsec.h>
 
 #include <net/net_osdep.h>
@@ -69,7 +70,35 @@ keydb_newsecpolicy()
 	if (!p)
 		return p;
 	bzero(p, sizeof(*p));
+	TAILQ_INSERT_TAIL(&sptailq, p, tailq);
+
 	return p;
+}
+
+u_int32_t
+keydb_newspid(void)
+{
+	u_int32_t newid = 0;
+	static u_int32_t lastalloc = IPSEC_MANUAL_POLICYID_MAX;
+	struct secpolicy *sp;
+
+	newid = lastalloc + 1;
+	/* XXX possible infinite loop */
+again:
+	TAILQ_FOREACH(sp, &sptailq, tailq) {
+		if (sp->id == newid)
+			break;
+	}
+	if (sp != NULL) {
+		if (newid + 1 < newid)	/* wraparound */
+			newid = IPSEC_MANUAL_POLICYID_MAX + 1;
+		else
+			newid++;
+		goto again;
+	}
+	lastalloc = newid;
+
+	return newid;
 }
 
 void
@@ -77,7 +106,25 @@ keydb_delsecpolicy(p)
 	struct secpolicy *p;
 {
 
+	TAILQ_REMOVE(&sptailq, p, tailq);
+	if (p->spidx)
+		free(p->spidx, M_SECA);
 	free(p, M_SECA);
+}
+
+int
+keydb_setsecpolicyindex(p, idx)
+	struct secpolicy *p;
+	struct secpolicyindex *idx;
+{
+
+	if (!p->spidx)
+		p->spidx = (struct secpolicyindex *)malloc(sizeof(*p->spidx),
+		    M_SECA, M_NOWAIT);
+	if (!p->spidx)
+		return ENOMEM;
+	memcpy(p->spidx, idx, sizeof(*p->spidx));
+	return 0;
 }
 
 /*
@@ -112,12 +159,36 @@ keydb_delsecashead(p)
 struct secasvar *
 keydb_newsecasvar()
 {
-	struct secasvar *p;
+	struct secasvar *p, *q;
+	static u_int32_t said = 0;
 
 	p = (struct secasvar *)malloc(sizeof(*p), M_SECA, M_NOWAIT);
 	if (!p)
 		return p;
+
+again:
+	said++;
+	if (said == 0)
+		said++;
+	TAILQ_FOREACH(q, &satailq, tailq) {
+		if (q->id == said)
+			goto again;
+		if (TAILQ_NEXT(q, tailq)) {
+			if (q->id < said && said < TAILQ_NEXT(q, tailq)->id)
+				break;
+			if (q->id + 1 < TAILQ_NEXT(q, tailq)->id) {
+				said = q->id + 1;
+				break;
+			}
+		}
+	}
+
 	bzero(p, sizeof(*p));
+	p->id = said;
+	if (q)
+		TAILQ_INSERT_AFTER(&satailq, q, p, tailq);
+	else
+		TAILQ_INSERT_TAIL(&satailq, p, tailq);
 	return p;
 }
 
@@ -125,6 +196,8 @@ void
 keydb_delsecasvar(p)
 	struct secasvar *p;
 {
+
+	TAILQ_REMOVE(&satailq, p, tailq);
 
 	free(p, M_SECA);
 }
@@ -144,7 +217,7 @@ keydb_newsecreplay(wsize)
 
 	bzero(p, sizeof(*p));
 	if (wsize != 0) {
-		p->bitmap = (caddr_t)malloc(wsize, M_SECA, M_NOWAIT);
+		p->bitmap = malloc(wsize, M_SECA, M_NOWAIT);
 		if (!p->bitmap) {
 			free(p, M_SECA);
 			return NULL;

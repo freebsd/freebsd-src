@@ -144,6 +144,7 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 	struct in_addr pkt_dst;
 #ifdef IPSEC
 	struct route iproute;
+	struct socket *so;
 	struct secpolicy *sp = NULL;
 #endif
 #ifdef FAST_IPSEC
@@ -194,6 +195,11 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 		}
 	}
 	m = m0;
+
+#ifdef IPSEC
+	so = ipsec_getsocket(m);
+	(void)ipsec_setsocket(m, NULL);
+#endif /*IPSEC*/
 
 	M_ASSERTPKTHDR(m);
 #ifndef FAST_IPSEC
@@ -488,10 +494,11 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 sendit:
 #ifdef IPSEC
 	/* get SP for this packet */
-	if (inp == NULL)
-		sp = ipsec4_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, flags, &error);
+	if (so == NULL)
+		sp = ipsec4_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND,
+		    flags, &error);
 	else
-		sp = ipsec4_getpolicybypcb(m, IPSEC_DIR_OUTBOUND, inp, &error);
+		sp = ipsec4_getpolicybysock(m, IPSEC_DIR_OUTBOUND, so, &error);
 
 	if (sp == NULL) {
 		ipsecstat.out_inval++;

@@ -79,7 +79,6 @@
 
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
-#define	IPSEC
 #endif /* FAST_IPSEC */
 
 struct	in_addr zeroin_addr;
@@ -162,7 +161,7 @@ in_pcballoc(so, pcbinfo, td)
 	struct thread *td;
 {
 	register struct inpcb *inp;
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 	int error;
 #endif
 	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT | M_ZERO);
@@ -171,8 +170,12 @@ in_pcballoc(so, pcbinfo, td)
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);
+#else
+	error = ipsec_init_pcbpolicy(so, &inp->inp_sp);
+#endif
 	if (error != 0) {
 		uma_zfree(pcbinfo->ipi_zone, inp);
 		return error;
@@ -473,6 +476,10 @@ in_pcbconnect(inp, nam, td)
 	inp->inp_faddr.s_addr = faddr;
 	inp->inp_fport = fport;
 	in_pcbrehash(inp);
+#ifdef IPSEC
+	if (inp->inp_socket->so_type == SOCK_STREAM)
+		ipsec_pcbconn(inp->inp_sp);
+#endif
 	if (anonport)
 		inp->inp_flags |= INP_ANONPORT;
 	return (0);
@@ -655,6 +662,9 @@ in_pcbdisconnect(inp)
 	in_pcbrehash(inp);
 	if (inp->inp_socket->so_state & SS_NOFDREF)
 		in_pcbdetach(inp);
+#ifdef IPSEC
+	ipsec_pcbdisconn(inp->inp_sp);
+#endif
 }
 
 void
@@ -664,7 +674,7 @@ in_pcbdetach(inp)
 	struct socket *so = inp->inp_socket;
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 	ipsec4_delete_pcbpolicy(inp);
 #endif /*IPSEC*/
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
