@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.22 1996/03/24 18:57:34 joerg Exp $
+ * $Id: config.c,v 1.23 1996/04/07 03:52:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -156,7 +149,7 @@ configFstab(void)
 
     if (!RunningAsInit) {
 	if (file_readable("/etc/fstab"))
-	    return RET_SUCCESS;
+	    return DITEM_SUCCESS;
 	else {
 	    dialog_clear();
 	    msgConfirm("Attempting to rebuild your /etc/fstab file.  Warning: If you had\n"
@@ -169,7 +162,7 @@ configFstab(void)
     if (!devs) {
 	dialog_clear();
 	msgConfirm("No disks found!");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     /* Record all the chunks */
@@ -199,7 +192,7 @@ configFstab(void)
 	dialog_clear();
 	msgConfirm("Unable to create a new /etc/fstab file!  Manual intervention\n"
 		   "will be required.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     /* Go for the burn */
@@ -239,7 +232,7 @@ configFstab(void)
     fclose(fstab);
     if (isDebug())
 	msgDebug("Wrote out /etc/fstab file\n");
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 /*
@@ -329,13 +322,13 @@ int
 configSaverTimeout(dialogMenuItem *self)
 {
     return variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver") ?
-	RET_SUCCESS : RET_FAIL;
+	DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 int
 configNTP(dialogMenuItem *self)
 {
-    return variable_get_value(VAR_NTPDATE, "Enter the name of an NTP server") ? RET_SUCCESS : RET_FAIL;
+    return variable_get_value(VAR_NTPDATE, "Enter the name of an NTP server") ? DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 int
@@ -343,12 +336,12 @@ configXFree86(dialogMenuItem *self)
 {
     if (file_executable("/usr/X11R6/bin/xf86config")) {
 	systemExecute("/usr/X11R6/bin/xf86config");
-	return RET_SUCCESS;
+	return DITEM_SUCCESS;
     }
     else {
 	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
 		   "The XFree86 distribution before attempting to configure it.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 }
 
@@ -416,7 +409,7 @@ configRoutedFlags(dialogMenuItem *self)
 {
     return variable_get_value(VAR_ROUTEDFLAGS, 
 			      "Specify the flags for routed; -q is the default, -s is\n"
-			      "a good choice for gateway machines.") ? RET_SUCCESS : RET_FAIL;
+			      "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 int
@@ -428,10 +421,10 @@ configPackages(dialogMenuItem *self)
     int fd;
 
     if (!mediaVerify())
-	return RET_FAIL;
+	return DITEM_FAILURE;
 
     if (!mediaDevice->init(mediaDevice))
-	return RET_FAIL;
+	return DITEM_FAILURE;
 
     if (!index_initted) {
 	msgNotify("Attempting to fetch packages/INDEX file from selected media.");
@@ -445,7 +438,7 @@ configPackages(dialogMenuItem *self)
 		       "(or path to media) and try again.  If your local site does not\n"
 		       "carry the packages collection, then we recommend either a CD\n"
 		       "distribution or the master distribution on ftp.freebsd.org.");
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	}
 	msgNotify("Got INDEX successfully, now building packages menu..");
 	index_init(&top, &plist);
@@ -454,7 +447,7 @@ configPackages(dialogMenuItem *self)
 	    msgConfirm("I/O or format error on packages/INDEX file.\n"
 		       "Please verify media (or path to media) and try again.");
 	    mediaDevice->close(mediaDevice, fd);
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	}
 	mediaDevice->close(mediaDevice, fd);
 	index_sort(&top);
@@ -471,9 +464,9 @@ configPackages(dialogMenuItem *self)
 	    /* Now show the packing list menu */
 	    pos = scroll = 0;
 	    ret = index_menu(&plist, NULL, &pos, &scroll);
-	    if (ret == RET_DONE)
+	    if (ret == DITEM_LEAVE_MENU)
 		break;
-	    else if (ret != RET_FAIL) {
+	    else if (ret != DITEM_FAILURE) {
 		index_extract(mediaDevice, &top, &plist);
 		break;
 	    }
@@ -493,7 +486,7 @@ configPackages(dialogMenuItem *self)
     }
     index_init(NULL, &plist);
     mediaDevice->shutdown(mediaDevice);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -518,11 +511,11 @@ configPorts(dialogMenuItem *self)
 			 "reside in a directory with as much free space as possible,\n"
 			 "as you'll need space to compile any ports.");
 	if (!cp || !*cp)
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	if (Mkdir(cp, NULL)) {
 	    dialog_clear();
 	    msgConfirm("Unable to make the %s directory!", cp);
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	}
 	else {
 	    if (strcmp(cp, "/usr/ports")) {
@@ -530,7 +523,7 @@ configPorts(dialogMenuItem *self)
 		if (symlink(cp, "/usr/ports") == -1) {
 		    msgConfirm("Unable to create a symlink from /usr/ports to %s!\n"
 			       "I can't continue, sorry!", cp);
-		    return RET_FAIL;
+		    return DITEM_FAILURE;
 		}
 		else {
 		    msgConfirm("NOTE: This directory is also now symlinked to /usr/ports\n"
@@ -541,7 +534,7 @@ configPorts(dialogMenuItem *self)
 		}
 	    }
 	    msgNotify("Making a link tree from %s to %s.", dist, cp);
-	    if (lndir(dist, cp) != RET_SUCCESS) {
+	    if (lndir(dist, cp) != DITEM_SUCCESS) {
 		dialog_clear();
 		msgConfirm("The lndir function returned an error status and may not have.\n"
 			   "successfully generated the link tree.  You may wish to inspect\n"
@@ -557,6 +550,6 @@ configPorts(dialogMenuItem *self)
 	}
     }
     else
-	return RET_FAIL;
-    return RET_SUCCESS;
+	return DITEM_FAILURE;
+    return DITEM_SUCCESS;
 }

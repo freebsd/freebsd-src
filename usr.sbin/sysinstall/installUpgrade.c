@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.18 1995/11/17 14:17:12 jkh Exp $
+ * $Id: installUpgrade.c,v 1.19 1996/04/07 03:52:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -195,7 +188,7 @@ installUpgrade(dialogMenuItem *self)
 	dialog_clear();
 	msgConfirm("You can only perform this procedure when booted off the installation\n"
 		   "floppy.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     variable_set2(SYSTEM_STATE, "upgrade");
@@ -203,7 +196,7 @@ installUpgrade(dialogMenuItem *self)
 
     if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
 		 "risk it all and proceed with this upgrade?"))
-	return RET_FAIL;
+	return DITEM_FAILURE;
 
     if (!Dists) {
 	dialog_clear();
@@ -213,7 +206,7 @@ installUpgrade(dialogMenuItem *self)
 		   "to select those portions of 2.1 you wish to install on top of your 2.0.5\n"
 		   "system.");
 	if (!dmenuOpenSimple(&MenuDistributions))
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
 
     /* No bin selected?  Not much of an upgrade.. */
@@ -235,7 +228,7 @@ installUpgrade(dialogMenuItem *self)
 	dialog_clear();
 	msgConfirm("Now you must specify an installation medium for the upgrade.");
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
 
     dialog_clear();
@@ -248,36 +241,36 @@ installUpgrade(dialogMenuItem *self)
 	       "Once you're done in the label editor, press Q to return here for the next\n"
 	       "step.");
 
-    if (diskLabelEditor(self) == RET_FAIL) {
+    if (diskLabelEditor(self) == DITEM_FAILURE) {
 	dialog_clear();
 	msgConfirm("The disk label editor failed to work properly!  Upgrade operation\n"
 		   "aborted.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     /* Don't write out MBR info */
     variable_set2(DISK_PARTITIONED, "written");
-    if (diskLabelCommit(self) == RET_FAIL) {
+    if (diskLabelCommit(self) == DITEM_FAILURE) {
 	dialog_clear();
 	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		   "aborted.");
 	variable_unset(DISK_PARTITIONED);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     if (!copySelf()) {
 	dialog_clear();
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
 		   "Aborting.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
-    if (chroot("/mnt") == RET_FAIL) {
+    if (chroot("/mnt") == DITEM_FAILURE) {
 	dialog_clear();
 	msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		   "root partition or the way it's mounted if this doesn't work.");
 	variable_unset(DISK_PARTITIONED);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     chdir("/");
@@ -322,7 +315,7 @@ installUpgrade(dialogMenuItem *self)
     }
 
     msgNotify("Beginning extraction of distributions..");
-    if (distExtractAll(self) == RET_FAIL) {
+    if (distExtractAll(self) == DITEM_FAILURE) {
 	if (extractingBin && (Dists & DIST_BIN)) {
 	    dialog_clear();
 	    msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
@@ -341,7 +334,7 @@ installUpgrade(dialogMenuItem *self)
 		  "/dev entries and such that a 2.1 system expects to see.  I'll also perform a\n"
 		  "few \"fixup\" operations to repair the effects of splatting a bin distribution\n"
 		  "on top of an existing system..");
-	if (installFixup(self) == RET_FAIL) {
+	if (installFixup(self) == DITEM_FAILURE) {
 	    dialog_clear();
 	    msgConfirm("Hmmmmm.  The fixups don't seem to have been very happy.\n"
 		       "You may wish to examine the system a little more closely when\n"

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.16 1996/03/23 07:23:39 jkh Exp $
+ * $Id: apache.c,v 1.17 1996/04/07 03:52:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Coranth Gryphon
- *	for the FreeBSD Project.
- * 4. The name of Coranth Gryphon or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY CORANTH GRYPHON ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -210,7 +203,7 @@ apacheOpenDialog(void)
     {
         beep();
         msgConfirm("Cannot open apache dialog window!!");
-        return(RET_SUCCESS);
+        return(DITEM_SUCCESS);
     }
     
     /* Say where our help comes from */
@@ -395,8 +388,8 @@ apacheOpenDialog(void)
     use_helpfile(NULL);
     
     if (cancel)
-	return RET_FAIL;
-    return RET_SUCCESS;
+	return DITEM_FAILURE;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -408,27 +401,27 @@ configApache(dialogMenuItem *self)
     FILE *fptr;
     
     /* Be optimistic */
-    i = RET_SUCCESS;
+    i = DITEM_SUCCESS;
     
     dialog_clear();
     msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
 	       "Apache HTTPD package and set up a few configuration files.");
     i = package_add(APACHE_PACKAGE);
-    if (i != RET_SUCCESS) {
+    if (i != DITEM_SUCCESS) {
 	dialog_clear();
 	msgConfirm("Hmmmmm.  Looks like we weren't able to fetch the Apache WEB server\n"
 		   "package.  You may wish to fetch and configure it by hand by looking\n"
 		   "in /usr/ports/net/apache (in the ports collection) or looking for the\n"
 		   "precompiled apache package in packages/networking/%s.", APACHE_PACKAGE);
-        return (i);
+        return DITEM_FAILURE;
     }
-    
+
     i = apacheOpenDialog();
-    if (i != RET_SUCCESS) {
+    if (i != DITEM_SUCCESS) {
 	dialog_clear();
 	msgConfirm("Configuration of the Apache WEB server was cancelled per\n"
 		   "user request.");
-	return i;
+	return DITEM_FAILURE;
     }
     /*** Fix defaults for invalid value ***/
     if (! tconf.logdir[0])
@@ -499,14 +492,14 @@ configApache(dialogMenuItem *self)
 	    }
 	    else {
 		msgConfirm("Unable to create sample Web Page.");
-		i = RET_FAIL;
+		i = DITEM_FAILURE;
 	    }
 	}
     }
     else {
 	dialog_clear();
 	msgConfirm("Unable to create Document Root Directory.");
-	i = RET_FAIL;
+	i = DITEM_FAILURE;
     }
     
     msgNotify("Writing configuration files....");
@@ -532,7 +525,7 @@ configApache(dialogMenuItem *self)
     else {
 	dialog_clear();
 	msgConfirm("Could not create %s",file);
-	i = RET_FAIL;
+	i = DITEM_FAILURE;
     }
     
     sprintf(file, "%s/%s/httpd.conf", APACHE_BASE,CONFIG_SUBDIR);
@@ -569,7 +562,7 @@ configApache(dialogMenuItem *self)
     else {
 	dialog_clear();
 	msgConfirm("Could not create %s",file);
-	i = RET_FAIL;
+	i = DITEM_FAILURE;
     }
     
     sprintf(file, "%s/%s/srm.conf", APACHE_BASE,CONFIG_SUBDIR);
@@ -620,9 +613,9 @@ configApache(dialogMenuItem *self)
     else {
 	dialog_clear();
 	msgConfirm("Could not create %s",file);
-	i = RET_FAIL;
+	i = DITEM_FAILURE;
     }
-    if (i != RET_FAIL)
+    if (i != DITEM_FAILURE)
 	variable_set2("apache_httpd", "YES");
     return i;
 }

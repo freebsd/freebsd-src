@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.24 1996/03/23 07:21:30 jkh Exp $
+ * $Id: installFinal.c,v 1.25 1996/04/07 03:52:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the authors listed above
- *	for the FreeBSD Project.
- * 4. The names of the authors or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE FREEBSD PROJECT ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -77,29 +70,29 @@ static DMenu MenuSamba = {
 int
 configGated(dialogMenuItem *self)
 {
-    if (package_add("gated-3.5a11") == RET_SUCCESS)
+    if (package_add("gated-3.5a11") == DITEM_SUCCESS)
 	variable_set2("gated", "YES");
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 /* Load pcnfsd package */
 int
 configPCNFSD(dialogMenuItem *self)
 {
-    if (package_add("pcnfsd-93.02.16") == RET_SUCCESS)
+    if (package_add("pcnfsd-93.02.16") == DITEM_SUCCESS)
 	variable_set2("pcnfsd", "YES");
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
 configSamba(dialogMenuItem *self)
 {
-    int i = RET_SUCCESS;
+    int i = DITEM_SUCCESS;
 
     if (!dmenuOpenSimple(&MenuSamba))
-	i = RET_FAIL;
-    else if (package_add("samba-1.9.15p8") != RET_SUCCESS)
-	i = RET_FAIL;
+	i = DITEM_FAILURE;
+    else if (package_add("samba-1.9.15p8") != DITEM_SUCCESS)
+	i = DITEM_FAILURE;
     else {
 	FILE *fptr;
 	char tbuf[256], *tptr;
@@ -220,5 +213,5 @@ configNFSServer(dialogMenuItem *self)
 	systemExecute(cmd);
     }
     variable_set2("nfs_server", "YES");
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }

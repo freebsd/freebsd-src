@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.39 1996/02/02 06:43:59 jkh Exp $
+ * $Id: dist.c,v 1.40 1996/04/07 03:52:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -172,7 +165,7 @@ distReset(dialogMenuItem *self)
     XF86Dists = 0;
     XF86ServerDists = 0;
     XF86FontDists = 0;
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -181,7 +174,7 @@ distSetDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -194,7 +187,7 @@ distSetXDeveloper(dialogMenuItem *self)
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
     XF86FontDists = DIST_XF86_FONTS_MISC;
     distSetXF86(NULL);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -203,7 +196,7 @@ distSetKernDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -211,7 +204,7 @@ distSetUser(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_USER;
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -223,7 +216,7 @@ distSetXUser(dialogMenuItem *self)
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
     XF86FontDists = DIST_XF86_FONTS_MISC;
     distSetXF86(NULL);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -231,7 +224,7 @@ distSetMinimum(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = DIST_BIN;
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -242,51 +235,56 @@ distSetEverything(dialogMenuItem *self)
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
 distSetDES(dialogMenuItem *self)
 {
-    if (dmenuOpenSimple(&MenuDESDistributions)) {
-	if (DESDists) {
-	    if (DESDists & DIST_DES_KERBEROS)
-		DESDists |= DIST_DES_DES;
-	    Dists |= DIST_DES;
-	}
-	return RET_SUCCESS;
+    WINDOW *w;
+
+    w = savescr();
+    dmenuOpenSimple(&MenuDESDistributions);
+    if (DESDists) {
+	if (DESDists & DIST_DES_KERBEROS)
+	    DESDists |= DIST_DES_DES;
+	Dists |= DIST_DES;
     }
-    else
-	return RET_FAIL;
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 int
 distSetSrc(dialogMenuItem *self)
 {
-    if (dmenuOpenSimple(&MenuSrcDistributions)) {
-	if (SrcDists)
-	    Dists |= DIST_SRC;
-	return RET_SUCCESS;
-    }
-    return RET_FAIL;
+    WINDOW *w;
+
+    w = savescr();
+    dmenuOpenSimple(&MenuSrcDistributions);
+    if (SrcDists)
+	Dists |= DIST_SRC;
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 int
 distSetXF86(dialogMenuItem *self)
 {
-    if (dmenuOpenSimple(&MenuXF86Select)) {
-	if (XF86ServerDists)
-	    XF86Dists |= DIST_XF86_SERVER;
-	if (XF86FontDists)
-	    XF86Dists |= DIST_XF86_FONTS;
-	if (XF86Dists)
-	    Dists |= DIST_XF86;
-	if (isDebug())
-	    msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
-		     XF86ServerDists, XF86FontDists, XF86Dists, Dists);
-	return RET_SUCCESS;
-    }
-    return RET_FAIL;
+    WINDOW *w;
+
+    w = savescr();
+    dmenuOpenSimple(&MenuXF86Select);
+    if (XF86ServerDists)
+	XF86Dists |= DIST_XF86_SERVER;
+    if (XF86FontDists)
+	XF86Dists |= DIST_XF86_FONTS;
+    if (XF86Dists)
+	Dists |= DIST_XF86;
+    if (isDebug())
+	msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
+		 XF86ServerDists, XF86FontDists, XF86Dists, Dists);
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 static Boolean
@@ -352,7 +350,7 @@ distExtract(char *parent, Distribution *me)
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	    if (attr_parse_file(dist_attr, buf) == RET_FAIL) {
+	    if (attr_parse_file(dist_attr, buf) == DITEM_FAILURE) {
 		dialog_clear();
 		msgConfirm("Cannot load information file for %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
@@ -477,10 +475,10 @@ distExtractAll(dialogMenuItem *self)
 
     /* First try to initialize the state of things */
     if (!mediaDevice->init(mediaDevice))
-	return RET_FAIL;
+	return DITEM_FAILURE;
     if (!Dists) {
 	msgConfirm("You haven't selected any distributions to extract.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
@@ -493,5 +491,5 @@ distExtractAll(dialogMenuItem *self)
 		   "be because the following distributions are not available on the\n"
 		   "installation media you've chosen:\n\n\t%s", buf);
     }
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }

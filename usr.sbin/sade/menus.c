@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.48 1996/04/03 06:55:09 jkh Exp $
+ * $Id: menus.c,v 1.49 1996/04/07 03:52:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -66,12 +59,30 @@ option by pressing [ENTER].",				/* prompt */
   { "Novice",	"Begin a novice installation (for beginners)",		NULL, installNovice },
   { "Express",	"Begin a quick installation (for the impatient)",	NULL, installExpress },
   { "Custom",	"Begin a custom installation (for experts)",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
-  { "Fixit",	"Mount fixit floppy and go into repair mode",		NULL, installFixit },
+  { "Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
   { "Upgrade",	"Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
   { "Configure","Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
   { "Quit",	"Exit this menu (and the installation)",		NULL },
   { NULL } },
 };
+
+DMenu MenuFixit = {
+    DMENU_NORMAL_TYPE,
+    "Please choose a fixit option",
+"There are two ways of going into \"fixit\" mode - you may either elect\n\
+to use the 2nd FreeBSD CDROM, in which case there will be full access\n\
+access to the complete set of FreeBSD commands and utilities, or you\n\
+can use the more limited fixit floppy if you don't have a CDROM or are\n\
+somehow faced with a situation where a CDROM is impractical.  The fixit\n\
+floppy has only a minimal subset of commands which we deemed most useful\n\
+for fixing a system in trouble.",
+    "Press F1 for more detailed repair instructions",
+    "fixit",
+{ { "CDROM",	"Use the 2nd \"live\" CDROM from the distribution",	NULL, installFixitCDROM },
+  { "Floppy",	"Use a floppy generated from the fixit image",		NULL, installFixitFloppy },
+  { NULL } },
+};
+
 
 /* The main documentation menu */
 DMenu MenuDocumentation = {
@@ -95,7 +106,7 @@ consult the README file.",
 };
 
 DMenu MenuMouse = {
-    DMENU_NORMAL_TYPE,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select your mouse type from the following menu",
     "There are many different types of mice currently on the market,\n\
 but this configuration menu should at least narrow down the choices\n\
@@ -116,7 +127,7 @@ on building a kernel.",
 };
 
 DMenu MenuMediaCDROM = {
-    DMENU_NORMAL_TYPE,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a CDROM type",
     "FreeBSD can be installed directly from a CDROM containing a valid\n\
 FreeBSD distribution.  If you are seeing this menu it is because\n\
@@ -128,7 +139,7 @@ of the following CDROM drives as your installation drive.",
 };
 
 DMenu MenuMediaFloppy = {
-    DMENU_NORMAL_TYPE,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a Floppy drive",
     "You have more than one floppy drive.  Please chose the drive\n\
 you would like to use for this operation",
@@ -138,7 +149,7 @@ you would like to use for this operation",
 };
 
 DMenu MenuMediaDOS = {
-    DMENU_NORMAL_TYPE,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a DOS partition",
     "FreeBSD can be installed directly from a DOS partition\n\
 assuming, of course, that you have copied the relevant\n\
@@ -154,7 +165,7 @@ distribution files.",
 };
 
 DMenu MenuMediaFTP = {
-    DMENU_NORMAL_TYPE,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select a FreeBSD FTP distribution site",
     "Please select the site closest to you or \"other\" if you'd like to\n\
 specify a different choice.  Also note that not every site listed here\n\
@@ -276,7 +287,7 @@ guaranteed to carry the full range of possible distributions.",
 };
 
 DMenu MenuMediaTape = {
-    DMENU_NORMAL_TYPE,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a tape drive type",
     "FreeBSD can be installed from tape drive, though this installation\n\
 method requires a certain amount of temporary storage in addition\n\
@@ -290,7 +301,7 @@ select one of the following tape devices detected on your system.",
 };
 
 DMenu MenuNetworkDevice = {
-    DMENU_NORMAL_TYPE,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
     "If you are using PPP over a serial device (cuaa0 or cuaa1) as opposed\n\
 to a direct ethernet connection, then you may first need to dial your\n\
@@ -308,7 +319,7 @@ for an ethernet installation.",
 
 /* The media selection menu */
 DMenu MenuMedia = {
-    DMENU_NORMAL_TYPE,
+    DMENU_RADIO_TYPE,
     "Choose Installation Media",
     "FreeBSD can be installed from a variety of different installation\n\
 media, ranging from floppies to an Internet FTP server.  If you're\n\
@@ -317,14 +328,14 @@ the best media to use if you have no overriding reason for using other\n\
 media.",
     "Press F1 for more information on the various media types",
     "media",
-{ { "CDROM", "Install from a FreeBSD CDROM",			NULL, mediaSetCDROM },
-  { "DOS", "Install from a DOS partition",			NULL, mediaSetDOS },
+{ { "CDROM",	"Install from a FreeBSD CDROM",			NULL, mediaSetCDROM },
+  { "DOS",	"Install from a DOS partition",			NULL, mediaSetDOS },
   { "File System", "Install from an existing filesystem",	NULL, mediaSetUFS },
-  { "Floppy", "Install from a floppy disk set",			NULL, mediaSetFloppy },
-  { "FTP", "Install from an FTP server",			NULL, mediaSetFTPActive },
+  { "Floppy",	"Install from a floppy disk set",		NULL, mediaSetFloppy },
+  { "FTP",	"Install from an FTP server",			NULL, mediaSetFTPActive },
   { "FTP Passive", "Install from an FTP server through a firewall", NULL, mediaSetFTPPassive },
-  { "NFS", "Install over NFS",					NULL, mediaSetNFS },
-  { "Tape", "Install from SCSI or QIC tape",			NULL, mediaSetTape },
+  { "NFS",	"Install over NFS",				NULL, mediaSetNFS },
+  { "Tape",	"Install from SCSI or QIC tape",		NULL, mediaSetTape },
   { NULL } },
 };
 
@@ -334,19 +345,30 @@ DMenu MenuDistributions = {
     "Choose Distributions",
     "As a convenience, we provide several \"canned\" distribution sets.\n\
 These select what we consider to be the most reasonable defaults for the\n\
-type of system in question.  If you would prefer to pick and choose\n\
-the list of distributions yourself, simply select \"Custom\".",
+type of system in question.  If you would prefer to pick and choose the\n\
+list of distributions yourself, simply select \"Custom\".  You can also\n\
+add distribution sets together by picking more than one, fine-tuning the\n\
+final results with the Custom item.  When you are finished, select Cancel",
     "Press F1 for more information on these options.",
     "distributions",
-{ { "Developer", "Full sources, binaries and doc but no games [180MB]",		NULL, distSetDeveloper },
-  { "X-Developer", "Same as above, but includes XFree86 [201MB]",		NULL, distSetXDeveloper },
-  { "Kern-Developer", "Full binaries and doc, kernel sources only [70MB]",	NULL, distSetKernDeveloper },
-  { "User", "Average user - binaries and doc but no sources [52MB]",		NULL, distSetUser },
-  { "X-User", "Same as above, but includes XFree86 [52MB]",			NULL, distSetXUser },
-  { "Minimal", "The smallest configuration possible [44MB]",			NULL, distSetMinimum },
-  { "Everything", "All sources, binaries and XFree86 binaries [700MB]",		NULL, distSetEverything	},
-  { "Custom", "Specify your own distribution set [?]",		NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
-  { "Clear", "Reset selected distribution list to None",			NULL, distReset },
+{ { "Developer",	"Full sources, binaries and doc but no games [180MB]",
+    NULL, distSetDeveloper },
+  { "X-Developer",	"Same as above, but includes XFree86 [201MB]",
+    NULL, distSetXDeveloper },
+  { "Kern-Developer",	"Full binaries and doc, kernel sources only [70MB]",
+    NULL, distSetKernDeveloper },
+  { "User",		"Average user - binaries and doc but no sources [52MB]",
+    NULL, distSetUser },
+  { "X-User",		"Same as above, but includes XFree86 [52MB]",
+    NULL, distSetXUser },
+  { "Minimal",		"The smallest configuration possible [44MB]",
+    NULL, distSetMinimum },
+  { "Everything",	"All sources, binaries and XFree86 binaries [700MB]",
+    NULL, distSetEverything	},
+  { "Custom",		"Specify your own distribution set [?]",
+    NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
+  { "Clear",		"Reset selected distribution list to None",
+    NULL, distReset },
   { NULL } },
 };
 
@@ -378,7 +400,7 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
     NULL,
 { { "bin",		"Binary base distribution (required) [36MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_BIN },
-  { "commercial",	"Commercial and shareware demos [10MB]",
+  { "commerce",		"Commercial and shareware demos [10MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMMERCIAL },
   { "compat1x",		"FreeBSD 1.x binary compatibility [2MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT1X },
@@ -404,7 +426,7 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
     srcFlagCheck, distSetSrc },
   { "XFree86",		"The XFree86 3.1.2-S distribution",
     x11FlagCheck, distSetXF86 },
-  { "Experimental",	"Work in progress!",
+  { "xperimnt",		"Experimental work in progress!",
     dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_EXPERIMENTAL },
   { NULL } },
 };
@@ -479,22 +501,44 @@ clearx11(dialogMenuItem *self)
     XF86ServerDists = 0;
     XF86FontDists = 0;
     Dists &= ~DIST_XF86;
-    return 0;
+    return DITEM_REDRAW;
 }
 
+static int
+checkx11Basic(dialogMenuItem *self)
+{
+    return XF86Dists;
+}
+
+static int
+checkx11Servers(dialogMenuItem *self)
+{
+    return XF86ServerDists;
+}
+
+static int
+checkx11Fonts(dialogMenuItem *self)
+{
+    return XF86FontDists;
+}
+
+
 DMenu MenuXF86Select = {
-    DMENU_NORMAL_TYPE,
+    DMENU_CHECKLIST_TYPE,
     "XFree86 3.1.2-S Distribution",
     "Please select the components you need from the XFree86 3.1.2-S\n\
 distribution.  We recommend that you select what you need from the basic\n\
 component set and at least one entry from the Server and Font set menus.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
-{ { "Basic",	"Basic component menu (required)",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectCore },
-  { "Server",	"X server menu",				NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
-  { "Fonts",	"Font set menu",				NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
-  { "Exit",	"Exit this menu (returning to previous)",	NULL, dmenuCancel },
-  { "Clear",	"Reset XFree86 distribution list",		NULL, clearx11 },
+{ { "Basic",	"Basic component menu (required)",
+    checkx11Basic, dmenuSubmenu, NULL, &MenuXF86SelectCore },
+  { "Server",	"X server menu",
+    checkx11Servers, dmenuSubmenu, NULL, &MenuXF86SelectServer },
+  { "Fonts",	"Font set menu",
+    checkx11Fonts, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
+  { "Clear",	"Reset XFree86 distribution list",
+    NULL, clearx11 },
   { NULL } },
 };
 
@@ -602,7 +646,8 @@ this operation.  If you are attempting to install a boot partition\n\
 on a drive other than the first one or have multiple operating\n\
 systems on your machine, you will have the option to install a boot\n\
 manager later.  To select a drive, use the arrow keys to move to it\n\
-and press [SPACE].",
+and press [SPACE].  When you're finished, select Cancel to go on to\n\
+the next step.",
     "Press F1 for important information regarding disk geometry!",
     "drives",
     { { NULL } },
@@ -661,9 +706,9 @@ DMenu MenuMBRType = {
 { { "BootMgr",	"Install the FreeBSD Boot Manager (\"Booteasy\")",
     dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
   { "Standard",	"Install a standard MBR (no boot manager)",
-    dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '[', '*', ']', 1 },
+    dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
   { "None",	"Leave the Master Boot Record untouched",
-    dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '[', '*', ']', 2 },
+    dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 2 },
   { NULL } },
 };
 

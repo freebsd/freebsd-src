@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.9 1996/03/23 07:21:28 jkh Exp $
+ * $Id: anonFTP.c,v 1.10 1996/04/07 03:52:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Coranth Gryphon
- *	for the FreeBSD Project.
- * 4. The name of Coranth Gryphon or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY CORANTH GRYPHON ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -199,7 +192,7 @@ createFtpUser(void)
 	if (tpw->pw_uid != FTP_UID)
 	    msgConfirm("FTP user already exists with a different uid.");
 	
-	return (RET_SUCCESS); 	/* succeeds if already exists */
+	return (DITEM_SUCCESS); 	/* succeeds if already exists */
     }
     
     sprintf(pwline, "%s::%s:%d::0:0:%s:%s:/bin/date\n", FTP_NAME, tconf.uid, gid, tconf.comment, tconf.homedir);
@@ -207,14 +200,14 @@ createFtpUser(void)
     fptr = fopen(_PATH_MASTERPASSWD,"a");
     if (! fptr) {
 	msgConfirm("Could not open master password file.");
-	return (RET_FAIL);
+	return (DITEM_FAILURE);
     }
     fprintf(fptr, pwline);
     fclose(fptr);
     msgNotify("Remaking password file: %s", _PATH_MASTERPASSWD);
     vsystem("pwd_mkdb -p %s", _PATH_MASTERPASSWD);
     
-    return (RET_SUCCESS);
+    return (DITEM_SUCCESS);
 }
 
 /* This is it - how to get the setup values */
@@ -234,7 +227,7 @@ anonftpOpenDialog(void)
     if (ds_win == 0) {
 	beep();
 	msgConfirm("Cannot open anonymous ftp dialog window!!");
-	return(RET_FAIL);
+	return(DITEM_FAILURE);
     }
     
     /* Say where our help comes from */
@@ -397,8 +390,8 @@ anonftpOpenDialog(void)
     use_helpfile(NULL);
     
     if (cancel)
-	return RET_FAIL;
-    return RET_SUCCESS;
+	return DITEM_FAILURE;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -407,14 +400,14 @@ configAnonFTP(dialogMenuItem *self)
     int i;
     
     /* Be optimistic */
-    i = RET_SUCCESS;
+    i = DITEM_SUCCESS;
     
     dialog_clear();
     i = anonftpOpenDialog();
-    if (i != RET_SUCCESS) {
+    if (i != DITEM_SUCCESS) {
 	dialog_clear();
 	msgConfirm("Configuration of Anonymous FTP cancelled per user request.");
-	return i;
+	return DITEM_SUCCESS;
     }
     
     /*** Use defaults for any invalid values ***/
@@ -452,7 +445,7 @@ configAnonFTP(dialogMenuItem *self)
 	vsystem("mkdir -p %s/%s", tconf.homedir, tconf.upload);
 	vsystem("chmod 1777 %s/%s", tconf.homedir, tconf.upload);
 	
-	if (createFtpUser() == RET_SUCCESS) {
+	if (createFtpUser() == DITEM_SUCCESS) {
 	    msgNotify("Copying password information for anon FTP.");
 	    vsystem("cp /etc/pwd.db %s/etc && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir);
 	    vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd",tconf.homedir, tconf.homedir);
@@ -462,25 +455,31 @@ configAnonFTP(dialogMenuItem *self)
 	else {
 	    dialog_clear();
 	    msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
-	    i = RET_FAIL;
+	    i = DITEM_FAILURE;
 	}
 	
 	dialog_clear();
 	if (!msgYesNo("Create a welcome message file for anonymous FTP users?")) {
 	    char cmd[256];
-	    
+	    WINDOW *w;
+
+	    w = savescr();
 	    dialog_clear();
 	    msgNotify("Uncompressing the editor - please wait..");
 	    vsystem("echo Your welcome message here. > %s/etc/%s", tconf.homedir, MOTD_FILE);
 	    sprintf(cmd, "%s %s/etc/%s", variable_get(VAR_EDITOR), tconf.homedir, MOTD_FILE);
-	    systemExecute(cmd);
+	    if (!systemExecute(cmd))
+		i = DITEM_SUCCESS;
+	    else
+		i = DITEM_FAILURE;
+	    restorescr(w);
 	}
     }
     else {
 	dialog_clear();
 	msgConfirm("Invalid Directory: %s\n"
 		   "Anonymous FTP will not be set up.", tconf.homedir);
-	i = RET_FAIL;
+	i = DITEM_FAILURE;
     }
     return i;
 }

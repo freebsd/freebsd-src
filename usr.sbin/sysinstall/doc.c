@@ -1,14 +1,37 @@
 /*
  * The new sysinstall program.
  *
- * This is probably the last program in the `sysinstall' line - the next
- * generation being essentially a complete rewrite.
+ * This is probably the last attempt in the `sysinstall' line, the next
+ * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.10 1995/11/06 12:49:23 jkh Exp $
+ * $Id: dmenu.c,v 1.15 1996/04/07 03:52:23 jkh Exp $
  *
- * Jordan Hubbard
+ * Copyright (c) 1995
+ *	Jordan Hubbard.  All rights reserved.
  *
- * My contributions are in the public domain.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
+ *    point in the file.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL JORDAN HUBBARD OR HIS PETS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, LIFE OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+
  *
  */
 
@@ -25,20 +48,20 @@ docBrowser(dialogMenuItem *self)
 
     if (RunningAsInit && !strstr(variable_get(SYSTEM_STATE), "install")) {
 	msgConfirm("This option may only be used after the system is installed, sorry!");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     /* Make sure we have media available */
     if (!mediaVerify())
-	return RET_FAIL;
+	return DITEM_FAILURE;
 
     /* First, make sure we have whatever browser we've chosen is here */
-    if (package_add(browser) != RET_SUCCESS) {
+    if (package_add(browser) != DITEM_SUCCESS) {
 	dialog_clear();
 	msgConfirm("Unable to install the %s HTML browser package.  You may\n"
 		   "wish to verify that your media is configured correctly and\n"
 		   "try again.", browser);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     if (!file_executable(variable_get(VAR_BROWSER_BINARY))) {
 	dialog_clear();
@@ -49,14 +72,14 @@ docBrowser(dialogMenuItem *self)
 		      "I suggest that we remove the version that was extracted since it does\n"
 		      "not appear to be correct.   Would you like me to do that now?"))
 	    vsystem("pkg_delete %s %s", !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v" : "", browser);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     /* Run browser on the appropriate doc */
     if (dmenuOpenSimple(&MenuHTMLDoc))
-	return RET_SUCCESS;
+	return DITEM_SUCCESS;
     else
-	return RET_FAIL;
+	return DITEM_FAILURE;
 }
 
 /* Try to show one of the documents requested from the HTML doc menu */
@@ -72,7 +95,7 @@ docShowDocument(dialogMenuItem *self)
 	dialog_clear();
 	msgConfirm("Can't find the browser in %s!  Please ensure that it's\n"
 		   "properly set in the Options editor.", browser);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     if (!strcmp(str, "Home"))
 	where = "http://www.freebsd.org";
@@ -93,11 +116,12 @@ docShowDocument(dialogMenuItem *self)
     if (where) {
 	sprintf(tmp, "%s %s", browser, where);
 	systemExecute(tmp);
-	return RET_SUCCESS;
+	return DITEM_SUCCESS;
     }
     else {
 	msgConfirm("Hmmmmm!  I can't seem to access the documentation you selected!\n"
 		   "Have you loaded the bin distribution?  Is your network connected?");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 }
+
