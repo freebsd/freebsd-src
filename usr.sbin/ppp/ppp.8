@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.91 1997/12/27 07:22:12 brian Exp $
+.\" $Id: ppp.8,v 1.92 1997/12/30 02:45:45 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -301,7 +301,7 @@ side of the
 .Em PPP
 link), enter the following command:
 .Bd -literal -offset indent
-PPP ON awfulhak> add 0 0 HISADDR
+PPP ON awfulhak> add default HISADDR
 .Ed
 .Pp
 The string
@@ -755,7 +755,7 @@ on ui-gate (the receiver) should contain the following:
 ppp-in:
  set timeout 0
  set ifaddr 10.0.4.1 10.0.4.2
- add 10.0.1.0 255.255.255.0 10.0.4.1
+ add 10.0.1.0 255.255.255.0 10.0.4.2
 .Ed
 .Pp
 You may also want to enable PAP or CHAP for security.  To enable PAP, add
@@ -781,7 +781,7 @@ ui-gate:
  set timeout 30 5 4 
  set log Phase Chat Connect Carrier hdlc LCP IPCP CCP tun
  set ifaddr 10.0.4.2 10.0.4.1
- add 10.0.2.0 255.255.255.0 10.0.4.2
+ add 10.0.2.0 255.255.255.0 10.0.4.1
 .Ed
 .Pp
 Again, if you're enabling PAP, you'll also need:
@@ -1200,10 +1200,12 @@ set ifaddr 10.10.10.10/0 10.10.11.11/0 0.0.0.0 0.0.0.0
 .Pp
 .It
 In most cases, your ISP will also be your default router.  If this is
-the case, add the lines
+the case, and if you're using
+.Fl auto
+mode, add the lines
 .Bd -literal -offset indent
 delete ALL
-add 0 0 HISADDR
+add default HISADDR
 .Ed
 .Pp
 to
@@ -1213,19 +1215,27 @@ This tells
 .Nm
 to delete all non-direct routing entries for the tun interface that
 .Nm
-is running on, then to add a default route to 10.10.11.11.
+is running on, then to add a default route to 10.10.11.11.  If you're
+not using
+.Fl auto
+mode, this isn't necessary as
+.Nm
+will dial immediately and may negotiate new IP numbers with the peer.
 .Pp
-If you're using dynamic IP numbers, you must also put these two lines
-in the
+If you're not using
+.Fl auto
+mode, or if you're using dynamic IP numbers, you must also put these
+two lines in the
 .Pa /etc/ppp/ppp.linkup
 file:
 .Bd -literal -offset indent
 delete ALL
-add 0 0 HISADDR
+add default HISADDR
 .Ed
 .Pp
 HISADDR is a macro meaning the "other side"s IP number, and is
-available once an IP number has been agreed (using IPCP).
+available once an IP number has been agreed (using IPCP) or set
+.Pq using Dq set ifaddr .
 Now, once a connection is established,
 .Nm
 will delete all non-direct interface routes, and add a default route
@@ -1236,7 +1246,7 @@ one used in
 If commands are being typed interactively, the only requirement is
 to type
 .Bd -literal -offset indent
-add 0 0 HISADDR
+add default HISADDR
 .Ed
 .Pp
 after a successful dial.
@@ -1583,9 +1593,18 @@ as the
 is replaced with the current interface name and
 .Sq HISADDR
 is replaced with the current interface address.  If the current interface
-address has not yet been assigned, the current
+address has not yet been assigned
+.Pq via Dq set ifaddr ,
+the current
 .Sq INTERFACE
 is used instead.
+.Pp
+Refer to the
+.Dq set ifaddr
+command below for details of some restrictions regarding the use of this
+command in the
+.Pa ppp.conf
+file.
 .Pp
 If the
 .Ar add!
@@ -2084,6 +2103,30 @@ is specified, it is used in place of
 in the initial IPCP negotiation.  However, only an address in the
 .Ar myaddr
 range will be accepted.
+.Pp
+It should be noted that in
+.Fl auto
+mode,
+.Nm
+will configure the interface immediately upon reading the
+.Dq set ifaddr
+line in the config file.  In any other mode, these values are just
+used for the IPCP negotiations, and the interface isn't configured
+until the IPCP layer is up.  As a result, it is impossible
+.Pq or at least unwise
+to use the
+.Dq add
+command in
+.Pa ppp.conf
+unless using
+.Fl auto
+mode (the
+.Pa ppp.linkup
+file should be used instead).  Use
+.Dq allow mode auto
+to restrict the current profile to
+.Fl auto
+mode only.
 .It set loopback on|off
 When set to
 .Ar on
