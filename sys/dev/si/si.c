@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.14 1995/11/09 21:53:45 peter Exp $
+ *	$Id: si.c,v 1.15 1995/11/28 02:07:34 peter Exp $
  */
 
 #ifndef lint
@@ -52,7 +52,6 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 #include <sys/dkstat.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/device.h>
 #include <sys/malloc.h>
 #include <sys/devconf.h>
 
