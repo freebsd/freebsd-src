@@ -2,4 +2,4 @@
 
 .PATH:	 ${.CURDIR}/sys ${.CURDIR}/arch/${MACHINE_ARCH}/${MACHINE_ARCH}
 
-SRCS+=	thr_error.c
+SRCS+=	_setcurthread.c _curthread.S
