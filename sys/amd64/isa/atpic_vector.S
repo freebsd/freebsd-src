@@ -37,8 +37,6 @@
  */
 
 #include <machine/asmacros.h>
-#include <amd64/isa/icu.h>
-#include <amd64/isa/isa.h>
 
 #include "assym.s"
 

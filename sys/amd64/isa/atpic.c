@@ -63,6 +63,16 @@ __FBSDID("$FreeBSD$");
 #define	SLAVE	1
 
 /*
+ * PC-98 machines wire the slave 8259A to pin 7 on the master PIC, and
+ * PC-AT machines wire the slave PIC to pin 2 on the master PIC.
+ */
+#ifdef PC98
+#define	ICU_SLAVEID	7
+#else
+#define	ICU_SLAVEID	2
+#endif
+
+/*
  * Determine the base master and slave modes not including auto EOI support.
  * All machines that FreeBSD supports use 8086 mode.
  */
@@ -81,9 +91,15 @@ __FBSDID("$FreeBSD$");
 #define	SLAVE_MODE		BASE_SLAVE_MODE
 #endif
 
+#define	IRQ_MASK(irq)		(1 << (irq))
+#define	IMEN_MASK(ai)		(IRQ_MASK((ai)->at_irq))
+
+#define	NUM_ISA_IRQS		16
+
 static void	atpic_init(void *dummy);
 
 unsigned int imen;	/* XXX */
+static int using_elcr;
 
 inthand_t
 	IDTVEC(atpic_intr0), IDTVEC(atpic_intr1), IDTVEC(atpic_intr2),
@@ -95,14 +111,15 @@ inthand_t
 
 #define	IRQ(ap, ai)	((ap)->at_irqbase + (ai)->at_irq)
 
-#define	ATPIC(io, base, eoi, imenptr)				\
+#define	ATPIC(io, base, eoi, imenptr)					\
      	{ { atpic_enable_source, atpic_disable_source, (eoi),		\
 	    atpic_enable_intr, atpic_vector, atpic_source_pending, NULL, \
-	    atpic_resume }, (io), (base), IDT_IO_INTS + (base), (imenptr) }
+	    atpic_resume, atpic_config_intr }, (io), (base),		\
+	    IDT_IO_INTS + (base), (imenptr) }
 
 #define	INTSRC(irq)							\
-	{ { &atpics[(irq) / 8].at_pic }, (irq) % 8,			\
-	    IDTVEC(atpic_intr ## irq ) }
+	{ { &atpics[(irq) / 8].at_pic }, IDTVEC(atpic_intr ## irq ),	\
+	    (irq) % 8 }
 
 struct atpic {
 	struct pic at_pic;
@@ -114,8 +131,9 @@ struct atpic {
 
 struct atpic_intsrc {
 	struct intsrc at_intsrc;
-	int	at_irq;		/* Relative to PIC base. */
 	inthand_t *at_intr;
+	int	at_irq;			/* Relative to PIC base. */
+	enum intr_trigger at_trigger;
 	u_long	at_count;
 	u_long	at_straycount;
 };
@@ -128,6 +146,8 @@ static void atpic_enable_intr(struct intsrc *isrc);
 static int atpic_vector(struct intsrc *isrc);
 static void atpic_resume(struct intsrc *isrc);
 static int atpic_source_pending(struct intsrc *isrc);
+static int atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+    enum intr_polarity pol);
 static void i8259_init(struct atpic *pic, int slave);
 
 static struct atpic atpics[] = {
@@ -154,6 +174,8 @@ static struct atpic_intsrc atintrs[] = {
 	INTSRC(15),
 };
 
+CTASSERT(sizeof(atintrs) / sizeof(atintrs[0]) == NUM_ISA_IRQS);
+
 static void
 atpic_enable_source(struct intsrc *isrc)
 {
@@ -161,8 +183,10 @@ atpic_enable_source(struct intsrc *isrc)
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
 	mtx_lock_spin(&icu_lock);
-	*ap->at_imen &= ~(1 << ai->at_irq);
-	outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
+	if (*ap->at_imen & IMEN_MASK(ai)) {
+		*ap->at_imen &= ~IMEN_MASK(ai);
+		outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
+	}
 	mtx_unlock_spin(&icu_lock);
 }
 
@@ -172,8 +196,10 @@ atpic_disable_source(struct intsrc *isrc)
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
+	if (ai->at_trigger == INTR_TRIGGER_EDGE)
+		return;
 	mtx_lock_spin(&icu_lock);
-	*ap->at_imen |= (1 << ai->at_irq);
+	*ap->at_imen |= IMEN_MASK(ai);
 	outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
 	mtx_unlock_spin(&icu_lock);
 }
@@ -186,7 +212,7 @@ atpic_eoi_master(struct intsrc *isrc)
 	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_1
 	mtx_lock_spin(&icu_lock);
-	outb(atpics[MASTER].at_ioaddr, ICU_EOI);
+	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
 	mtx_unlock_spin(&icu_lock);
 #endif
 }
@@ -203,9 +229,9 @@ atpic_eoi_slave(struct intsrc *isrc)
 	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_2
 	mtx_lock_spin(&icu_lock);
-	outb(atpics[SLAVE].at_ioaddr, ICU_EOI);
+	outb(atpics[SLAVE].at_ioaddr, OCW2_EOI);
 #ifndef AUTO_EOI_1
-	outb(atpics[MASTER].at_ioaddr, ICU_EOI);
+	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
 #endif
 	mtx_unlock_spin(&icu_lock);
 #endif
@@ -231,7 +257,7 @@ atpic_source_pending(struct intsrc *isrc)
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
-	return (inb(ap->at_ioaddr) & (1 << ai->at_irq));
+	return (inb(ap->at_ioaddr) & IMEN_MASK(ai));
 }
 
 static void
@@ -240,8 +266,67 @@ atpic_resume(struct intsrc *isrc)
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
-	if (ai->at_irq == 0)
+	if (ai->at_irq == 0) {
 		i8259_init(ap, ap == &atpics[SLAVE]);
+		if (ap == &atpics[SLAVE] && using_elcr)
+			elcr_resume();
+	}
+}
+
+static int
+atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
+	u_int vector;
+
+	/* Map conforming values to edge/hi and sanity check the values. */
+	if (trig == INTR_TRIGGER_CONFORM)
+		trig = INTR_TRIGGER_EDGE;
+	if (pol == INTR_POLARITY_CONFORM)
+		pol = INTR_POLARITY_HIGH;
+	vector = atpic_vector(isrc);
+	if ((trig == INTR_TRIGGER_EDGE && pol == INTR_POLARITY_LOW) ||
+	    (trig == INTR_TRIGGER_LEVEL && pol == INTR_POLARITY_HIGH)) {
+		printf(
+		"atpic: Mismatched config for IRQ%u: trigger %s, polarity %s\n",
+		    vector, trig == INTR_TRIGGER_EDGE ? "edge" : "level",
+		    pol == INTR_POLARITY_HIGH ? "high" : "low");
+		return (EINVAL);
+	}
+
+	/* If there is no change, just return. */
+	if (ai->at_trigger == trig)
+		return (0);
+
+	/*
+	 * Certain IRQs can never be level/lo, so don't try to set them
+	 * that way if asked.  At least some ELCR registers ignore setting
+	 * these bits as well.
+	 */
+	if ((vector == 0 || vector == 1 || vector == 2 || vector == 13) &&
+	    trig == INTR_TRIGGER_LEVEL) {
+		if (bootverbose)
+			printf(
+		"atpic: Ignoring invalid level/low configuration for IRQ%u\n",
+			    vector);
+		return (EINVAL);
+	}
+	if (!using_elcr) {
+		if (bootverbose)
+			printf("atpic: No ELCR to configure IRQ%u as %s\n",
+			    vector, trig == INTR_TRIGGER_EDGE ? "edge/high" :
+			    "level/low");
+		return (ENXIO);
+	}
+	if (bootverbose)
+		printf("atpic: Programming IRQ%u as %s\n", vector,
+		    trig == INTR_TRIGGER_EDGE ? "edge/high" : "level/low");
+	mtx_lock_spin(&icu_lock);
+	elcr_write_trigger(atpic_vector(isrc), trig);
+	ai->at_trigger = trig;
+	mtx_unlock_spin(&icu_lock);
+	return (0);
 }
 
 static void
@@ -263,9 +348,9 @@ i8259_init(struct atpic *pic, int slave)
 	 * which line on the master we are connected to.
 	 */
 	if (slave)
-		outb(imr_addr, ICU_SLAVEID);	/* my slave id is 7 */
+		outb(imr_addr, ICU_SLAVEID);
 	else
-		outb(imr_addr, IRQ_SLAVE);	/* slave on line 7 */
+		outb(imr_addr, IRQ_MASK(ICU_SLAVEID));
 
 	/* Set mode. */
 	if (slave)
@@ -298,27 +383,58 @@ atpic_startup(void)
 	atpic_enable_source((struct intsrc *)&atintrs[ICU_SLAVEID]);
 
 	/* Install low-level interrupt handlers for all of our IRQs. */
-	for (i = 0; i < sizeof(atintrs) / sizeof(struct atpic_intsrc); i++) {
+	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
 		if (i == ICU_SLAVEID)
 			continue;
-		ai = &atintrs[i];
 		ai->at_intsrc.is_count = &ai->at_count;
 		ai->at_intsrc.is_straycount = &ai->at_straycount;
 		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
 		    ai->at_irq, ai->at_intr, SDT_SYSIGT, SEL_KPL, 0);
+	}
+
+	/*
+	 * Look for an ELCR.  If we find one, update the trigger modes.
+	 * If we don't find one, assume that IRQs 0, 1, 2, and 13 are
+	 * edge triggered and that everything else is level triggered.
+	 * We only use the trigger information to reprogram the ELCR if
+	 * we have one and as an optimization to avoid masking edge
+	 * triggered interrupts.  For the case that we don't have an ELCR,
+	 * it doesn't hurt to mask an edge triggered interrupt, so we
+	 * assume level trigger for any interrupt that we aren't sure is
+	 * edge triggered.
+	 */
+	if (elcr_probe() == 0) {
+		using_elcr = 1;
+		for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++)
+			ai->at_trigger = elcr_read_trigger(i);
+	} else {
+		for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++)
+			switch (i) {
+			case 0:
+			case 1:
+			case 2:
+			case 8:
+			case 13:
+				ai->at_trigger = INTR_TRIGGER_EDGE;
+				break;
+			default:
+				ai->at_trigger = INTR_TRIGGER_LEVEL;
+				break;
+			}
 	}
 }
 
 static void
 atpic_init(void *dummy __unused)
 {
+	struct atpic_intsrc *ai;
 	int i;
 
 	/* Loop through all interrupt sources and add them. */
-	for (i = 0; i < sizeof(atintrs) / sizeof(struct atpic_intsrc); i++) {
+	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
 		if (i == ICU_SLAVEID)
 			continue;
-		intr_register_source(&atintrs[i].at_intsrc);
+		intr_register_source(&ai->at_intsrc);
 	}
 }
 SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_SECOND + 1, atpic_init, NULL)
@@ -329,7 +445,7 @@ atpic_handle_intr(void *cookie, struct intrframe iframe)
 	struct intsrc *isrc;
 	int vec = (uintptr_t)cookie;
 
-	KASSERT(vec < ICU_LEN, ("unknown int %d\n", vec));
+	KASSERT(vec < NUM_ISA_IRQS, ("unknown int %d\n", vec));
 	isrc = &atintrs[vec].at_intsrc;
 
 	/*
@@ -349,7 +465,7 @@ atpic_handle_intr(void *cookie, struct intrframe iframe)
 		isr = inb(port);
 		outb(port, OCW3_SEL | OCW3_RR);
 		mtx_unlock_spin(&icu_lock);
-		if ((isr & IRQ7) == 0)
+		if ((isr & IRQ_MASK(7)) == 0)
 			return;
 	}
 	intr_execute_handlers(isrc, &iframe);

@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/specialreg.h>
 
-#include <amd64/isa/icu.h>
 #include <amd64/isa/isa.h>
 #include <isa/rtc.h>
 #ifdef DEV_ISA
@@ -107,10 +106,11 @@ struct mtx clock_lock;
 static	int	beeping = 0;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static	u_int	hardclock_max_count;
+static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
+static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
-static	struct intsrc *i8254_intsrc;
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
 
@@ -741,6 +741,9 @@ cpu_initclocks()
 	/* Finish initializing 8254 timer 0. */
 	intr_add_handler("clk", 0, (driver_intr_t *)clkintr, NULL,
 	    INTR_TYPE_CLK | INTR_FAST, NULL);
+	i8254_intsrc = intr_lookup_source(0);
+	if (i8254_intsrc != NULL)
+		i8254_pending = i8254_intsrc->is_pic->pic_source_pending;
 
 	/* Initialize RTC. */
 	writertc(RTC_STATUSA, rtc_statusa);
@@ -754,7 +757,6 @@ cpu_initclocks()
 
 		intr_add_handler("rtc", 8, (driver_intr_t *)rtcintr, NULL,
 		    INTR_TYPE_CLK | INTR_FAST, NULL);
-		i8254_intsrc = intr_lookup_source(8);
 
 		writertc(RTC_STATUSB, rtc_statusb);
 	}
@@ -821,8 +823,7 @@ i8254_get_timecount(struct timecounter *tc)
 	if (count < i8254_lastcount ||
 	    (!i8254_ticked && (clkintr_pending ||
 	    ((count < 20 || (!(rflags & PSL_I) && count < timer0_max_count / 2u)) &&
-	    i8254_intsrc != NULL &&
-	    i8254_intsrc->is_pic->pic_source_pending(i8254_intsrc))))) {
+	    i8254_intsrc != NULL && i8254_pending(i8254_intsrc))))) {
 		i8254_ticked = 1;
 		i8254_offset += timer0_max_count;
 	}

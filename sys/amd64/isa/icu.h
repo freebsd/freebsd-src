@@ -41,39 +41,9 @@
 #ifndef _AMD64_ISA_ICU_H_
 #define	_AMD64_ISA_ICU_H_
 
-/*
- * Interrupt enable bits - in normal order of priority (which we change)
- */
-#define	IRQ0		0x0001		/* highest priority - timer */
-#define	IRQ1		0x0002
-#define	IRQ_SLAVE	0x0004
-#define	IRQ8		0x0100
-#define	IRQ9		0x0200
-#define	IRQ2		IRQ9
-#define	IRQ10		0x0400
-#define	IRQ11		0x0800
-#define	IRQ12		0x1000
-#define	IRQ13		0x2000
-#define	IRQ14		0x4000
-#define	IRQ15		0x8000
-#define	IRQ3		0x0008		/* this is highest after rotation */
-#define	IRQ4		0x0010
-#define	IRQ5		0x0020
-#define	IRQ6		0x0040
-#define	IRQ7		0x0080		/* lowest - parallel printer */
-
-/*
- * Interrupt Control offset into Interrupt descriptor table (IDT)
- */
-#define	ICU_OFFSET	32		/* 0-31 are processor exceptions */
-#define	ICU_LEN		16		/* 32-47 are ISA interrupts */
 #define	ICU_IMR_OFFSET	1
-#define	ICU_SLAVEID	2
-#define	ICU_EOI		(OCW2_EOI)	/* non-specific EOI */
 
-#ifndef LOCORE
 void	atpic_handle_intr(void *cookie, struct intrframe iframe);
 void	atpic_startup(void);
-#endif
 
 #endif /* !_AMD64_ISA_ICU_H_ */
