@@ -57,6 +57,7 @@
 #include <sys/types.h>
 #include <sys/linker.h>
 #include <sys/module.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <readline/history.h>
 #include <readline/readline.h>
