@@ -335,8 +335,8 @@ sysctl_remove_oid(struct sysctl_oid *oidp, int del, int recurse)
 		}
 		sysctl_unregister_oid(oidp);
 		if (del) {
-			if (oidp->descr)
-				free((void *)(uintptr_t)(const void *)oidp->descr, M_SYSCTLOID);
+			if (oidp->oid_descr)
+				free((void *)(uintptr_t)(const void *)oidp->oid_descr, M_SYSCTLOID);
 			free((void *)(uintptr_t)(const void *)oidp->oid_name,
 			     M_SYSCTLOID);
 			free(oidp, M_SYSCTLOID);
@@ -399,9 +399,9 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	oidp->oid_fmt = fmt;
 	if (descr) {
 		int len = strlen(descr) + 1;
-		oidp->descr = malloc(len, M_SYSCTLOID, M_WAITOK);
-		if (oidp->descr)
-			strcpy((char *)(uintptr_t)(const void *)oidp->descr, descr);
+		oidp->oid_descr = malloc(len, M_SYSCTLOID, M_WAITOK);
+		if (oidp->oid_descr)
+			strcpy((char *)(uintptr_t)(const void *)oidp->oid_descr, descr);
 	}
 	/* Update the context, if used */
 	if (clist != NULL)
@@ -779,9 +779,9 @@ sysctl_sysctl_oiddescr(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 
-	if (!oid->descr)
+	if (!oid->oid_descr)
 		return (ENOENT);
-	error = SYSCTL_OUT(req, oid->descr, strlen(oid->descr) + 1);
+	error = SYSCTL_OUT(req, oid->oid_descr, strlen(oid->oid_descr) + 1);
 	return (error);
 }
 
