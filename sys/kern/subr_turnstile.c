@@ -464,19 +464,15 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 
 	MPASS(curthread != NULL);
 
+	KASSERT(!mtx_owned(m),
+	    ("mtx_trylock() called on a mutex already owned"));
+
 	rval = _obtain_lock(m, curthread);
 
 	LOCK_LOG_TRY("LOCK", &m->mtx_object, opts, rval, file, line);
-	if (rval) {
-		/*
-		 * We do not handle recursion in _mtx_trylock; see the
-		 * note at the top of the routine.
-		 */
-		KASSERT(!mtx_recursed(m),
-		    ("mtx_trylock() called on a recursed mutex"));
+	if (rval)
 		WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
-	}
 
 	return (rval);
 }
