@@ -21,9 +21,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.9 1994/10/23 21:27:22 wollman Exp $
+ * $Id: if_le.c,v 1.10 1994/11/24 14:29:24 davidg Exp $
  *
  * $Log: if_le.c,v $
+ * Revision 1.10  1994/11/24  14:29:24  davidg
+ * Moved conversion of ether_type to host byte order out of ethernet drivers
+ * and into ether_input(). It was silly to have bpf want this one way and
+ * ether_input want it another way. Ripped out trailer support from the few
+ * remaining drivers that still had it.
+ *
  * Revision 1.9  1994/10/23  21:27:22  wollman
  * Finished device configuration database work for all ISA devices (except `ze')
  * and all SCSI devices (except that it's not done quite the way I want).  New
@@ -828,7 +834,7 @@ le_multi_op(
 #define LEMAC_32K_MODE(mbase)	(((mbase) >= 0x14) && ((mbase) <= 0x1F))
 #define LEMAC_2K_MODE(mbase)	( (mbase) >= 0x40)
 
-static int  lemac_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
+/* static int lemac_probe(le_softc_t *sc, const le_board_t *bd, int *msize); */
 static void lemac_init(int unit);
 static void lemac_start(struct ifnet *ifp);
 static void lemac_reset(IF_RESET_ARGS);
@@ -841,10 +847,10 @@ static int  lemac_read_eeprom(le_softc_t *sc);
 static void lemac_init_adapmem(le_softc_t *sc);
 
 static const le_mcbits_t lemac_allmulti_mctbl[16] =  {
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
-    0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU,
+    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
+    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
+    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
+    0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU,
 };
 /*
  * An IRQ mapping table.  Less space than switch statement.
@@ -1348,7 +1354,7 @@ lemac_init_adapmem(
  * Start of DEPCA (DE200/DE201/DE202/DE422 etal) support.
  *
  */
-static int  depca_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
+/* static int depca_probe(le_softc_t *sc, const le_board_t *bd, int *msize); */
 static void depca_intr(le_softc_t *sc);
 static int  lance_init_adapmem(le_softc_t *sc);
 static int  lance_init_ring(le_softc_t *sc, ln_ring_t *rp, lance_ring_t *ri,
