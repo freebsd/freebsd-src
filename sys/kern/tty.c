@@ -456,9 +456,9 @@ parmrk:
 		 * processing takes place.
 		 */
 		/*
-		 * erase (^H / ^?)
+		 * erase or erase2 (^H / ^?)
 		 */
-		if (CCEQ(cc[VERASE], c)) {
+		if (CCEQ(cc[VERASE], c) || CCEQ(cc[VERASE2], c) ) {
 			if (tp->t_rawq.c_cc)
 				ttyrub(unputc(&tp->t_rawq), tp);
 			goto endcase;
@@ -660,9 +660,16 @@ ttyoutput(c, tp)
 	if (c == '\n' && ISSET(tp->t_oflag, ONLCR)) {
 		tk_nout++;
 		tp->t_outcc++;
-		if (putc('\r', &tp->t_outq))
+		if (!ISSET(tp->t_lflag, FLUSHO) && putc('\r', &tp->t_outq))
 			return (c);
 	}
+	/* If OCRNL is set, translate "\r" into "\n". */
+	else if (c == '\r' && ISSET(tp->t_oflag, OCRNL))
+		c = '\n';
+	/* If ONOCR is set, don't transmit CRs when on column 0. */
+	else if (c == '\r' && ISSET(tp->t_oflag, ONOCR) && tp->t_column == 0)
+		return (-1);
+
 	tk_nout++;
 	tp->t_outcc++;
 	if (!ISSET(tp->t_lflag, FLUSHO) && putc(c, &tp->t_outq))
@@ -677,6 +684,9 @@ ttyoutput(c, tp)
 	case CONTROL:
 		break;
 	case NEWLINE:
+		if (ISSET(tp->t_oflag, ONLCR | ONLRET))
+			col = 0;
+		break;
 	case RETURN:
 		col = 0;
 		break;
@@ -2090,8 +2100,17 @@ ttyrub(c, tp)
 			(void)ttyoutput('\\', tp);
 		}
 		ttyecho(c, tp);
-	} else
+	} else {
 		ttyecho(tp->t_cc[VERASE], tp);
+		/*
+		 * This code may be executed not only when an ERASE key
+		 * is pressed, but also when ^U (KILL) or ^W (WERASE) are.
+		 * So, I didn't think it was worthwhile to pass the extra
+		 * information (which would need an extra parameter,
+		 * changing every call) needed to distinguish the ERASE2
+		 * case from the ERASE.
+		 */
+	}
 	--tp->t_rocount;
 }
 
