@@ -83,17 +83,17 @@ static char *
 ether_str(sdl)
 	struct sockaddr_dl *sdl;
 {
-	static char ebuf[32];
+	static char hbuf[32];
 	u_char *cp;
 
 	if (sdl->sdl_alen && sdl->sdl_alen > 5) {
 		cp = (u_char *)LLADDR(sdl);
-		sprintf(ebuf, "%x:%x:%x:%x:%x:%x",
+		snprintf(hbuf, sizeof(hbuf), "%x:%x:%x:%x:%x:%x",
 			cp[0], cp[1], cp[2], cp[3], cp[4], cp[5]);
 	} else
-		sprintf(ebuf, "NONE");
+		snprintf(hbuf, sizeof(hbuf), "NONE");
 
-	return(ebuf);
+	return(hbuf);
 }
 
 static void
