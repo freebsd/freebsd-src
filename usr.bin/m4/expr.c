@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -99,22 +101,22 @@ static char sccsid[] = "@(#)expr.c	8.1 (Berkeley) 6/6/93";
 
 static char *nxtch;		       /* Parser scan pointer */
 
-static int query __P((void));
-static int lor __P((void));
-static int land __P((void));
-static int not __P((void));
-static int eqrel __P((void));
-static int shift __P((void));
-static int primary __P((void));
-static int term __P((void));
-static int exp __P((void));
-static int unary __P((void));
-static int factor __P((void));
-static int constant __P((void));
-static int num __P((void));
-static int geteqrel __P((void));
-static int skipws __P((void));
-static void experr __P((char *));
+static int query(void);
+static int lor(void);
+static int land(void);
+static int not(void);
+static int eqrel(void);
+static int shift(void);
+static int primary(void);
+static int term(void);
+static int exp(void);
+static int unary(void);
+static int factor(void);
+static int constant(void);
+static int num(void);
+static int geteqrel(void);
+static int skipws(void);
+static void experr(char *);
 
 /*
  * For longjmp

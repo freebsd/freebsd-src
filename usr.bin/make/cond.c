@@ -97,24 +97,24 @@ typedef enum {
  * Structures to handle elegantly the different forms of #if's. The
  * last two fields are stored in condInvert and condDefProc, respectively.
  */
-static void CondPushBack __P((Token));
-static int CondGetArg __P((char **, char **, char *, Boolean));
-static Boolean CondDoDefined __P((int, char *));
-static int CondStrMatch __P((void *, void *));
-static Boolean CondDoMake __P((int, char *));
-static Boolean CondDoExists __P((int, char *));
-static Boolean CondDoTarget __P((int, char *));
-static char * CondCvtArg __P((char *, double *));
-static Token CondToken __P((Boolean));
-static Token CondT __P((Boolean));
-static Token CondF __P((Boolean));
-static Token CondE __P((Boolean));
+static void CondPushBack(Token);
+static int CondGetArg(char **, char **, char *, Boolean);
+static Boolean CondDoDefined(int, char *);
+static int CondStrMatch(void *, void *);
+static Boolean CondDoMake(int, char *);
+static Boolean CondDoExists(int, char *);
+static Boolean CondDoTarget(int, char *);
+static char * CondCvtArg(char *, double *);
+static Token CondToken(Boolean);
+static Token CondT(Boolean);
+static Token CondF(Boolean);
+static Token CondE(Boolean);
 
 static struct If {
     char	*form;	      /* Form of if */
     int		formlen;      /* Length of form */
     Boolean	doNot;	      /* TRUE if default function should be negated */
-    Boolean	(*defProc) __P((int, char *)); /* Default function to apply */
+    Boolean	(*defProc)(int, char *); /* Default function to apply */
 } ifs[] = {
     { "ifdef",	  5,	  FALSE,  CondDoDefined },
     { "ifndef",	  6,	  TRUE,	  CondDoDefined },
@@ -126,7 +126,7 @@ static struct If {
 
 static Boolean	  condInvert;	    	/* Invert the default function */
 static Boolean	  (*condDefProc)	/* Default function to apply */
-		    __P((int, char *));
+(int, char *);
 static char 	  *condExpr;	    	/* The expression to parse */
 static Token	  condPushBack=None;	/* Single push-back token used in
 					 * parsing */
@@ -764,7 +764,7 @@ error:
 		break;
 	    }
 	    default: {
-		Boolean (*evalProc) __P((int, char *));
+		Boolean (*evalProc)(int, char *);
 		Boolean invert = FALSE;
 		char	*arg;
 		int	arglen;

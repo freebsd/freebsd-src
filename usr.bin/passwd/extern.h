@@ -34,5 +34,5 @@
  * $FreeBSD$
  */
 
-int	krb_passwd __P((char *, char *, char *, char *));
-int	local_passwd __P((char *));
+int	krb_passwd(char *, char *, char *, char *);
+int	local_passwd(char *);

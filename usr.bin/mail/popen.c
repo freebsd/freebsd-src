@@ -63,9 +63,9 @@ struct child {
 	struct	child *link;
 };
 static struct child *child;
-static struct child *findchild __P((int));
-static void delchild __P((struct child *));
-static int file_pid __P((FILE *));
+static struct child *findchild(int);
+static void delchild(struct child *);
+static int file_pid(FILE *);
 
 FILE *
 Fopen(path, mode)

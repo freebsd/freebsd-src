@@ -43,19 +43,19 @@ static char sccsid[] = "@(#)rpc_hout.c 1.12 89/02/22 (C) 1987 SMI";
 #include "rpc_parse.h"
 #include "rpc_util.h"
 
-void storexdrfuncdecl __P(( char *, int ));
-static void pconstdef __P(( definition * ));
-static void pstructdef __P(( definition * ));
-static void puniondef __P(( definition * ));
-static void pprogramdef __P(( definition * ));
-static void pstructdef __P(( definition * ));
-static void penumdef __P(( definition * ));
-static void ptypedef __P(( definition * ));
-static void pdefine __P(( char *, char * ));
-static int undefined2 __P(( char *, char * ));
-static void parglist __P(( proc_list *, char * ));
-static void pprocdef __P(( proc_list *, version_list *, char *, int, int ));
-void pdeclaration __P(( char *, declaration *, int, char * ));
+void storexdrfuncdecl( char *, int );
+static void pconstdef( definition * );
+static void pstructdef( definition * );
+static void puniondef( definition * );
+static void pprogramdef( definition * );
+static void pstructdef( definition * );
+static void penumdef( definition * );
+static void ptypedef( definition * );
+static void pdefine( char *, char * );
+static int undefined2( char *, char * );
+static void parglist( proc_list *, char * );
+static void pprocdef( proc_list *, version_list *, char *, int, int );
+void pdeclaration( char *, declaration *, int, char * );
 
 static char RESULT[] = "clnt_res";
 

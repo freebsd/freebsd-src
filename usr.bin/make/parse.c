@@ -236,28 +236,28 @@ static struct {
 { ".WAIT",	  Wait, 	0 },
 };
 
-static int ParseFindKeyword __P((char *));
-static int ParseLinkSrc __P((void *, void *));
-static int ParseDoOp __P((void *, void *));
-static int ParseAddDep __P((void *, void *));
-static void ParseDoSrc __P((int, char *, Lst));
-static int ParseFindMain __P((void *, void *));
-static int ParseAddDir __P((void *, void *));
-static int ParseClearPath __P((void *, void *));
-static void ParseDoDependency __P((char *));
-static int ParseAddCmd __P((void *, void *));
-static int ParseReadc __P((void));
-static void ParseUnreadc __P((int));
-static void ParseHasCommands __P((void *));
-static void ParseDoInclude __P((char *));
-static void ParseDoError __P((char *));
+static int ParseFindKeyword(char *);
+static int ParseLinkSrc(void *, void *);
+static int ParseDoOp(void *, void *);
+static int ParseAddDep(void *, void *);
+static void ParseDoSrc(int, char *, Lst);
+static int ParseFindMain(void *, void *);
+static int ParseAddDir(void *, void *);
+static int ParseClearPath(void *, void *);
+static void ParseDoDependency(char *);
+static int ParseAddCmd(void *, void *);
+static int ParseReadc(void);
+static void ParseUnreadc(int);
+static void ParseHasCommands(void *);
+static void ParseDoInclude(char *);
+static void ParseDoError(char *);
 #ifdef SYSVINCLUDE
-static void ParseTraditionalInclude __P((char *));
+static void ParseTraditionalInclude(char *);
 #endif
-static int ParseEOF __P((int));
-static char *ParseReadLine __P((void));
-static char *ParseSkipLine __P((int));
-static void ParseFinishLine __P((void));
+static int ParseEOF(int);
+static char *ParseReadLine(void);
+static char *ParseSkipLine(int);
+static void ParseFinishLine(void);
 
 /*-
  *----------------------------------------------------------------------
@@ -2588,7 +2588,7 @@ Parse_Init ()
 void
 Parse_End()
 {
-    Lst_Destroy(targCmds, (void (*) __P((void *))) free);
+    Lst_Destroy(targCmds, (void (*)(void *)) free);
     if (targets)
 	Lst_Destroy(targets, NOFREE);
     Lst_Destroy(sysIncPath, Dir_Destroy);

@@ -72,13 +72,13 @@ size_t nhosts;
 time_t now;
 int rflg = 1;
 
-int	 hscmp __P((const void *, const void *));
-char	*interval __P((time_t, char *));
-int	 lcmp __P((const void *, const void *));
-void	 morehosts __P((void));
-int	 tcmp __P((const void *, const void *));
-int	 ucmp __P((const void *, const void *));
-void	 usage __P((void));
+int	 hscmp(const void *, const void *);
+char	*interval(time_t, char *);
+int	 lcmp(const void *, const void *);
+void	 morehosts(void);
+int	 tcmp(const void *, const void *);
+int	 ucmp(const void *, const void *);
+void	 usage(void);
 
 int
 main(argc, argv)
@@ -93,7 +93,7 @@ main(argc, argv)
 	size_t hspace;
 	int aflg, cc, ch, fd, i, maxloadav;
 	char buf[sizeof(struct whod)];
-	int (*cmp) __P((const void *, const void *));
+	int (*cmp)(const void *, const void *);
 
 	aflg = 0;
 	cmp = hscmp;

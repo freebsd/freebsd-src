@@ -67,7 +67,7 @@ FILE *fin;			/* file pointer of current input */
 
 list *defined;			/* list of defined things */
 
-static void printwhere __P(( void ));
+static void printwhere( void );
 
 /*
  * Reinitialize the world

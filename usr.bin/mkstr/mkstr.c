@@ -81,14 +81,14 @@ static const char rcsid[] =
 FILE	*mesgread, *mesgwrite;
 char	name[100], *np;
 
-void copystr __P((void));
-int fgetNUL __P((char *, int, FILE *));
-unsigned hashit __P((char *, char, unsigned));
-void inithash __P((void));
-int match __P((const char *));
-int octdigit __P((char));
-void process __P((void));
-static void usage __P((void));
+void copystr(void);
+int fgetNUL(char *, int, FILE *);
+unsigned hashit(char *, char, unsigned);
+void inithash(void);
+int match(const char *);
+int octdigit(char);
+void process(void);
+static void usage(void);
 
 int
 main(argc, argv)

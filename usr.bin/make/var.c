@@ -168,29 +168,28 @@ typedef struct {
     int		   flags;
 } VarREPattern;
 
-static int VarCmp __P((void *, void *));
-static Var *VarFind __P((char *, GNode *, int));
-static void VarAdd __P((char *, char *, GNode *));
-static void VarDelete __P((void *));
-static Boolean VarHead __P((char *, Boolean, Buffer, void *));
-static Boolean VarTail __P((char *, Boolean, Buffer, void *));
-static Boolean VarSuffix __P((char *, Boolean, Buffer, void *));
-static Boolean VarRoot __P((char *, Boolean, Buffer, void *));
-static Boolean VarMatch __P((char *, Boolean, Buffer, void *));
+static int VarCmp(void *, void *);
+static Var *VarFind(char *, GNode *, int);
+static void VarAdd(char *, char *, GNode *);
+static void VarDelete(void *);
+static Boolean VarHead(char *, Boolean, Buffer, void *);
+static Boolean VarTail(char *, Boolean, Buffer, void *);
+static Boolean VarSuffix(char *, Boolean, Buffer, void *);
+static Boolean VarRoot(char *, Boolean, Buffer, void *);
+static Boolean VarMatch(char *, Boolean, Buffer, void *);
 #ifdef SYSVVARSUB
-static Boolean VarSYSVMatch __P((char *, Boolean, Buffer, void *));
+static Boolean VarSYSVMatch(char *, Boolean, Buffer, void *);
 #endif
-static Boolean VarNoMatch __P((char *, Boolean, Buffer, void *));
-static void VarREError __P((int, regex_t *, const char *));
-static Boolean VarRESubstitute __P((char *, Boolean, Buffer, void *));
-static Boolean VarSubstitute __P((char *, Boolean, Buffer, void *));
-static char *VarGetPattern __P((GNode *, int, char **, int, int *, int *,
-				VarPattern *));
-static char *VarQuote __P((char *));
-static char *VarModify __P((char *, Boolean (*)(char *, Boolean, Buffer,
-						void *),
-			    void *));
-static int VarPrintVar __P((void *, void *));
+static Boolean VarNoMatch(char *, Boolean, Buffer, void *);
+static void VarREError(int, regex_t *, const char *);
+static Boolean VarRESubstitute(char *, Boolean, Buffer, void *);
+static Boolean VarSubstitute(char *, Boolean, Buffer, void *);
+static char *VarGetPattern(GNode *, int, char **, int, int *, int *, 
+			   VarPattern *);
+static char *VarQuote(char *);
+static char *VarModify(char *, Boolean (*)(char *, Boolean, Buffer, void *),
+		       void *);
+static int VarPrintVar(void *, void *);
 
 /*-
  *-----------------------------------------------------------------------
@@ -1243,7 +1242,7 @@ static char *
 VarModify (str, modProc, datum)
     char    	  *str;	    	    /* String whose words should be trimmed */
 				    /* Function to use to modify them */
-    Boolean    	  (*modProc) __P((char *, Boolean, Buffer, void *));
+    Boolean    	  (*modProc)(char *, Boolean, Buffer, void *);
     void *	  datum;    	    /* Datum to pass it */
 {
     Buffer  	  buf;	    	    /* Buffer for the new string */
