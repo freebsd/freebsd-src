@@ -471,7 +471,7 @@ ata_ali_allocate(device_t dev)
     device_t parent = device_get_parent(dev);
     struct ata_pci_controller *ctlr = device_get_softc(parent);
     struct ata_channel *ch = device_get_softc(dev);
-    struct resource *io = NULL, *altio = NULL;
+    struct resource *io = NULL, *ctlio = NULL;
     int unit01 = (ch->unit & 1), unit10 = (ch->unit & 2);
     int i, rid;
                 
@@ -481,22 +481,20 @@ ata_ali_allocate(device_t dev)
 	return ENXIO;
 
     rid = PCIR_BAR(1) + (unit01 ? 8 : 0);
-    altio = bus_alloc_resource_any(parent, SYS_RES_IOPORT, &rid, RF_ACTIVE);
-    if (!altio) {
+    ctlio = bus_alloc_resource_any(parent, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+    if (!ctlio) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 	return ENXIO;
     }
                 
-    for (i = ATA_DATA; i <= ATA_STATUS; i ++) {
+    for (i = ATA_DATA; i <= ATA_COMMAND; i ++) {
         ch->r_io[i].res = io;
         ch->r_io[i].offset = i + (unit10 ? 8 : 0);
     }
-    ch->r_io[ATA_ALTSTAT].res = altio;
-    ch->r_io[ATA_ALTSTAT].offset = 2 + (unit10 ? 4 : 0);
+    ch->r_io[ATA_CONTROL].res = ctlio;
+    ch->r_io[ATA_CONTROL].offset = 2 + (unit10 ? 4 : 0);
     ch->r_io[ATA_IDX_ADDR].res = io;
-
-    ch->flags |= ATA_NO_SLAVE;
-         
+    ata_default_registers(ch);
     if (ctlr->r_res1) {
 	for (i = ATA_BMCMD_PORT; i <= ATA_BMDTP_PORT; i++) {
 	    ch->r_io[i].res = ctlr->r_res1;
@@ -504,6 +502,7 @@ ata_ali_allocate(device_t dev)
 	}
     }
 
+    ch->flags |= ATA_NO_SLAVE;
     ata_generic_hw(ch);
     return 0;
 }
@@ -1652,15 +1651,16 @@ ata_promise_mio_allocate(device_t dev)
     int offset = (ctlr->chip->cfg2 & PRSX4X) ? 0x000c0000 : 0;
     int i;
  
-    for (i = ATA_DATA; i <= ATA_STATUS; i++) {
+    for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
 	ch->r_io[i].res = ctlr->r_res2;
 	ch->r_io[i].offset = offset + 0x0200 + (i << 2) + (ch->unit << 7); 
     }
-    ch->r_io[ATA_ALTSTAT].res = ctlr->r_res2;
-    ch->r_io[ATA_ALTSTAT].offset = offset + 0x0238 + (ch->unit << 7);
+    ch->r_io[ATA_CONTROL].res = ctlr->r_res2;
+    ch->r_io[ATA_CONTROL].offset = offset + 0x0238 + (ch->unit << 7);
     ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res2;
-    ch->flags |= ATA_USE_16BIT;
+    ata_default_registers(ch);
 
+    ch->flags |= ATA_USE_16BIT;
     if ((ctlr->chip->cfg2 & (PRSATA | PRSATA2)) ||
 	((ctlr->chip->cfg2 & (PRCMBO | PRCMBO2)) && ch->unit < 2))
 	ch->flags |= ATA_NO_SLAVE;
@@ -2148,7 +2148,7 @@ ata_promise_apkt(u_int8_t *bytep, struct ata_device *atadev, u_int8_t command,
 	bytep[i++] = (atadev->flags & ATA_D_USE_CHS ? 0 : ATA_D_LBA) |
 		   ATA_D_IBM | atadev->unit | ((lba >> 24) & 0xf);
     }
-    bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_END | ATA_CMD;
+    bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_END | ATA_COMMAND;
     bytep[i++] = command;
     return i;
 }
@@ -2625,12 +2625,14 @@ ata_sii_allocate(device_t dev)
     int unit01 = (ch->unit & 1), unit10 = (ch->unit & 2);
     int i;
 
-    for (i = ATA_DATA; i <= ATA_STATUS; i++) {
+    for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
 	ch->r_io[i].res = ctlr->r_res2;
 	ch->r_io[i].offset = 0x80 + i + (unit01 << 6) + (unit10 << 8);
     }
-    ch->r_io[ATA_ALTSTAT].res = ctlr->r_res2;
-    ch->r_io[ATA_ALTSTAT].offset = 0x8a + (unit01 << 6) + (unit10 << 8);
+    ch->r_io[ATA_CONTROL].res = ctlr->r_res2;
+    ch->r_io[ATA_CONTROL].offset = 0x8a + (unit01 << 6) + (unit10 << 8);
+    ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res2;
+    ata_default_registers(ch);
     ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_res2;
     ch->r_io[ATA_BMCMD_PORT].offset = 0x00 + (unit01 << 3) + (unit10 << 8);
     ch->r_io[ATA_BMSTAT_PORT].res = ctlr->r_res2;
@@ -2641,7 +2643,6 @@ ata_sii_allocate(device_t dev)
     ch->r_io[ATA_BMDEVSPEC_0].offset = 0xa1 + (unit01 << 6) + (unit10 << 8);
     ch->r_io[ATA_BMDEVSPEC_1].res = ctlr->r_res2;
     ch->r_io[ATA_BMDEVSPEC_1].offset = 0x100 + (unit01 << 7) + (unit10 << 8);
-    ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res2;
 
     if (ctlr->chip->max_dma >= ATA_SA150) {
 	ch->flags |= ATA_NO_SLAVE;

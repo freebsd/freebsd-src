@@ -29,9 +29,24 @@
  */
 
 /* ATA register defines */
-#define ATA_DATA                        0x00    /* data register */
+#define ATA_DATA                        0       /* (RW) data */
 
-#define ATA_ERROR                       0x01    /* (R) error register */
+#define ATA_FEATURE                     1       /* (W) feature */
+#define         ATA_F_DMA               0x01    /* enable DMA */
+#define         ATA_F_OVL               0x02    /* enable overlap */
+
+#define ATA_COUNT                       2       /* (W) sector count */
+
+#define ATA_SECTOR                      3       /* (RW) sector # */
+#define ATA_CYL_LSB                     4       /* (RW) cylinder# LSB */
+#define ATA_CYL_MSB                     5       /* (RW) cylinder# MSB */
+#define ATA_DRIVE                       6       /* (W) Sector/Drive/Head */
+#define         ATA_D_LBA               0x40    /* use LBA addressing */
+#define         ATA_D_IBM               0xa0    /* 512 byte sectors, ECC */
+
+#define ATA_COMMAND                     7       /* (W) command */
+
+#define ATA_ERROR                       8       /* (R) error */
 #define         ATA_E_ILI               0x01    /* illegal length */
 #define         ATA_E_NM                0x02    /* no media */
 #define         ATA_E_ABORT             0x04    /* command aborted */
@@ -59,27 +74,14 @@
 #define         ATA_SK_MISCOMPARE       0xe0    /* data dont match the medium */
 #define         ATA_SK_RESERVED         0xf0
 
-#define ATA_FEATURE                     0x01    /* (W) feature register */
-#define         ATA_F_DMA               0x01    /* enable DMA */
-#define         ATA_F_OVL               0x02    /* enable overlap */
-
-#define ATA_COUNT                       0x02    /* (W) sector count */
-#define ATA_IREASON                     0x02    /* (R) interrupt reason */
+#define ATA_IREASON                     9       /* (R) interrupt reason */
 #define         ATA_I_CMD               0x01    /* cmd (1) | data (0) */
 #define         ATA_I_IN                0x02    /* read (1) | write (0) */
 #define         ATA_I_RELEASE           0x04    /* released bus (1) */
 #define         ATA_I_TAGMASK           0xf8    /* tag mask */
 
-#define ATA_SECTOR                      0x03    /* sector # */
-#define ATA_CYL_LSB                     0x04    /* cylinder# LSB */
-#define ATA_CYL_MSB                     0x05    /* cylinder# MSB */
-#define ATA_DRIVE                       0x06    /* Sector/Drive/Head register */
-#define         ATA_D_LBA               0x40    /* use LBA addressing */
-#define         ATA_D_IBM               0xa0    /* 512 byte sectors, ECC */
-
-#define ATA_CMD                         0x07    /* command register */
-
-#define ATA_STATUS                      0x07    /* status register */
+#define ATA_STATUS                      10      /* (R) status */
+#define ATA_ALTSTAT                     11      /* (R) alternate status */
 #define         ATA_S_ERROR             0x01    /* error */
 #define         ATA_S_INDEX             0x02    /* index */
 #define         ATA_S_CORR              0x04    /* data corrected */
@@ -91,10 +93,11 @@
 #define         ATA_S_READY             0x40    /* drive ready */
 #define         ATA_S_BUSY              0x80    /* busy */
 
-#define ATA_ALTSTAT                     0x08    /* alternate status register */
-#define ATA_ALTOFFSET                   0x206   /* alternate registers offset */
-#define ATA_PCCARD_ALTOFFSET            0x0e    /* do for PCCARD devices */
-#define ATA_PC98_ALTOFFSET              0x10c   /* do for PC98 devices */
+#define ATA_CONTROL                     12      /* (W) control */
+
+#define ATA_CTLOFFSET                   0x206   /* control register offset */
+#define ATA_PCCARD_CTLOFFSET            0x0e    /* do for PCCARD devices */
+#define ATA_PC98_CTLOFFSET              0x10c   /* do for PC98 devices */
 #define         ATA_A_IDS               0x02    /* disable interrupts */
 #define         ATA_A_RESET             0x04    /* RESET controller */
 #define         ATA_A_4BIT              0x08    /* 4 head bits */
@@ -116,13 +119,13 @@
 #define ATA_PC98_BANK                   0x432
 #define ATA_IOSIZE                      0x08
 #define ATA_PC98_IOSIZE                 0x10
-#define ATA_ALTIOSIZE                   0x01
+#define ATA_CTLIOSIZE                   0x01
 #define ATA_BMIOSIZE                    0x08
 #define ATA_PC98_BANKIOSIZE             0x01
 #define ATA_IOADDR_RID                  0
-#define ATA_ALTADDR_RID                 1
+#define ATA_CTLADDR_RID                 1
 #define ATA_BMADDR_RID                  0x20
-#define ATA_PC98_ALTADDR_RID            8
+#define ATA_PC98_CTLADDR_RID            8
 #define ATA_PC98_BANKADDR_RID           9
 
 #define ATA_IRQ_RID                     0
@@ -132,12 +135,12 @@
 #define ATA_DMA_ENTRIES                 256
 #define ATA_DMA_EOT                     0x80000000
 
-#define ATA_BMCMD_PORT                  0x09
+#define ATA_BMCMD_PORT                  13
 #define         ATA_BMCMD_START_STOP    0x01
 #define         ATA_BMCMD_WRITE_READ    0x08
 
-#define ATA_BMDEVSPEC_0                 0x0a
-#define ATA_BMSTAT_PORT                 0x0b
+#define ATA_BMDEVSPEC_0                 14
+#define ATA_BMSTAT_PORT                 15
 #define         ATA_BMSTAT_ACTIVE       0x01
 #define         ATA_BMSTAT_ERROR        0x02
 #define         ATA_BMSTAT_INTERRUPT    0x04
@@ -146,12 +149,12 @@
 #define         ATA_BMSTAT_DMA_SLAVE    0x40
 #define         ATA_BMSTAT_DMA_SIMPLEX  0x80
 
-#define ATA_BMDEVSPEC_1                 0x0c
-#define ATA_BMDTP_PORT                  0x0d
+#define ATA_BMDEVSPEC_1                 16
+#define ATA_BMDTP_PORT                  17
 
-#define ATA_IDX_ADDR                    0x0e
-#define ATA_IDX_DATA                    0x0f
-#define ATA_MAX_RES                     0x10
+#define ATA_IDX_ADDR                    18
+#define ATA_IDX_DATA                    19
+#define ATA_MAX_RES                     20
 
 #define ATA_INTR_FLAGS                  (INTR_MPSAFE|INTR_TYPE_BIO|INTR_ENTROPY)
 #define ATA_OP_CONTINUES                0
@@ -252,7 +255,7 @@ struct ata_request {
 };
 
 /* define this for debugging request processing */
-#if 1
+#if 0
 #define ATA_DEBUG_RQ(request, string) \
     { \
     if (request->flags & ATA_R_DEBUG) \
@@ -395,6 +398,7 @@ int ata_reinit(device_t dev);
 int ata_suspend(device_t dev);
 int ata_resume(device_t dev);
 void ata_identify(driver_t *driver, device_t parent, int type, const char *name);
+void ata_default_registers(struct ata_channel *ch);
 void ata_udelay(int interval);
 char *ata_mode2str(int mode);
 int ata_pmode(struct ata_params *ap);
