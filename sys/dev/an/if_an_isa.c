@@ -70,6 +70,11 @@
 #include <dev/an/if_aironet_ieee.h>
 #include <dev/an/if_anreg.h>
 
+#ifndef lint
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
+
 static struct isa_pnp_id an_ids[] = {
 	{ 0x0100ec06, "Aironet ISA4500/ISA4800" },
 	{ 0, NULL }
@@ -120,6 +125,7 @@ an_attach_isa(dev)
 
 	sc->an_bhandle = rman_get_bushandle(sc->port_res);
 	sc->an_btag = rman_get_bustag(sc->port_res);
+	sc->an_dev = dev;
 
 	return an_attach(sc, device_get_unit(dev), flags);
 } 

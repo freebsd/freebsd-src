@@ -181,6 +181,7 @@ static int an_attach_pci(dev)
 		goto fail;
 	}
 
+	sc->an_dev = dev;
 	error = an_attach(sc, device_get_unit(dev), flags);
 
 fail:
