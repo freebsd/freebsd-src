@@ -257,6 +257,7 @@ aha_free(struct aha_softc *aha)
 	case 1:
 		bus_dma_tag_destroy(aha->mailbox_dmat);
 	case 0:
+		break;
 	}
 	free(aha, M_DEVBUF);
 }
