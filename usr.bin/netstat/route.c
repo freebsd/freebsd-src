@@ -588,9 +588,9 @@ p_rtentry(rt)
 	sa_u addr, mask;
 
 	/*
-	 * Don't print protocol-cloned routes unless -a.
+	 * Don't print cloned routes unless -a.
 	 */
-	if (rt->rt_parent && !aflag)
+	if (rt->rt_flags & RTF_WASCLONED && !aflag)
 		return;
 
 	bzero(&addr, sizeof(addr));
