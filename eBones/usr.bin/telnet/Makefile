@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id: Makefile,v 1.14 1996/04/23 05:18:42 pst Exp $
+#	$Id$
 #
 
 PROG=	telnet
@@ -40,7 +40,7 @@ SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
 	terminal.c tn3270.c utilities.c
 
 CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DENCRYPTION
-CFLAGS+=-I${.CURDIR}/../../lib
+CFLAGS+=-DSKEY -I${.CURDIR}/../../lib
 LDADD+= -L${TELNETOBJDIR} -ltermcap -ltelnet
 DPADD+= ${TELNETOBJDIR}/libtelnet.a ${LIBTERMCAP}
 

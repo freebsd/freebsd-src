@@ -1667,6 +1667,7 @@ start_login(host, autologin, name)
 	if (auth_level >= 0 && autologin == AUTH_VALID) {
 # if	!defined(NO_LOGIN_F)
 		argv = addarg(argv, "-f");
+		argv = addarg(argv, "--");
 		argv = addarg(argv, name);
 # else
 #  if defined(LOGIN_R)
@@ -1739,17 +1740,14 @@ start_login(host, autologin, name)
 			pty = xpty;
 		}
 #  else
+		argv = addarg(argv, "--");
 		argv = addarg(argv, name);
 #  endif
 # endif
 	} else
 #endif
-	if ((user = getenv("USER"))) {
-	if (strchr(user, '-')) {
-			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
-			       user);
-			fatal(net, "invalid user");
-		}
+ 	if (getenv("USER")) {
+ 		argv = addarg(argv, "--");
 		argv = addarg(argv, getenv("USER"));
 #if	defined(LOGIN_ARGS) && defined(NO_LOGIN_P)
 		{
