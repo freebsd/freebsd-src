@@ -199,7 +199,7 @@ main(int argc, char **argv)
     struct sockaddr *sock;
     struct sockaddr_in ifsin;
     struct sockaddr_un ifsun;
-    int socksz, arg, fd, len, verbose, save_errno, hide1, hide1off, hide2;
+    int n, socksz, arg, fd, len, verbose, save_errno, hide1, hide1off, hide2;
     unsigned TimeoutVal;
     char *DoneWord = "x", *next, *start;
     struct sigaction act, oact;
@@ -254,11 +254,16 @@ main(int argc, char **argv)
       for (harg = pos = 0; harg < argc; harg++)
         if (harg == 0 || harg != hide2) {
           if (harg == 0 || harg != hide1)
-            pos += snprintf(title + pos, sizeof title - pos, "%s%s",
+            n = snprintf(title + pos, sizeof title - pos, "%s%s",
                             harg ? " " : "", argv[harg]);
           else if (hide1off > 1)
-            pos += snprintf(title + pos, sizeof title - pos, " %.*s",
+            n = snprintf(title + pos, sizeof title - pos, " %.*s",
                             hide1off, argv[harg]);
+          else
+            n = 0;
+          if (n < 0 || n >= sizeof title - pos)
+            break;
+          pos += n;
         }
 #ifdef __FreeBSD__
       setproctitle("-%s", title);
