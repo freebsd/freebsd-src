@@ -295,7 +295,8 @@ showgrpname(name)
 			if (grp->gr_gid == gidset[i])
 				break;
 		if (i >= ngroups && getuid() != 0) {
-			warnx("%s (gid %u): permission denied", name, grp->gr_gid);
+			warnx("%s (gid %u): permission denied", name,
+						grp->gr_gid);
 			return;
 		}
 	}
@@ -559,7 +560,7 @@ getufsquota(fst, fs, qup, id, quotatype)
 
 	if (quotactl(fs->fs_file, qcmd, id, (char *)&qup->dqblk) != 0) {
 		if ((fd = open(qfpathname, O_RDONLY)) < 0) {
-			warn(qfpathname);
+			warn("%s", qfpathname);
 			return (0);
 		}
 		(void) lseek(fd, (off_t)(id * sizeof(struct dqblk)), L_SET);
@@ -611,8 +612,7 @@ getnfsquota(fst, fs, qup, id, quotatype)
 	 */
 	cp = strchr(fst->f_mntfromname, ':');
 	if (cp == NULL) {
-		warnx("cannot find hostname for %s",
-		    fst->f_mntfromname);
+		warnx("cannot find hostname for %s", fst->f_mntfromname);
 		return (0);
 	}
  
@@ -665,8 +665,7 @@ getnfsquota(fst, fs, qup, id, quotatype)
 		*cp = ':';
 		return (1);
 	default:
-		warnx("bad rpc result, host: %s",
-		    fst->f_mntfromname);
+		warnx("bad rpc result, host: %s", fst->f_mntfromname);
 		break;
 	}
 	*cp = ':';
@@ -692,7 +691,8 @@ callaurpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 		return ((int) RPC_UNKNOWNHOST);
 	timeout.tv_usec = 0;
 	timeout.tv_sec = 6;
-	bcopy(hp->h_addr, &server_addr.sin_addr, MIN(hp->h_length,sizeof(server_addr.sin_addr)));
+	bcopy(hp->h_addr, &server_addr.sin_addr,
+			MIN(hp->h_length,sizeof(server_addr.sin_addr)));
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port =  0;
 
