@@ -1749,32 +1749,32 @@ pmap_new_proc(struct proc *p)
 {
 	int		i;
 	vm_object_t	upobj;
+	vm_offset_t	up;
 	vm_page_t	m;
-	struct user	*up;
 	pte_t		pte;
 	sr_t		sr;
 	int		idx;
+	vm_offset_t	va;
 
 	/*
 	 * allocate object for the upages
 	 */
-	if ((upobj = p->p_upages_obj) == NULL) {
-		upobj = vm_object_allocate( OBJT_DEFAULT, UPAGES);
+	upobj = p->p_upages_obj;
+	if (upobj == NULL) {
+		upobj = vm_object_allocate(OBJT_DEFAULT, UPAGES);
 		p->p_upages_obj = upobj;
 	}
 
 	/* get a kernel virtual address for the UPAGES for this proc */
-	if ((up = p->p_addr) == NULL) {
-		up = (struct user *) kmem_alloc_nofault(kernel_map,
-				UPAGES * PAGE_SIZE);
-		if (up == NULL)
-			panic("pmap_new_proc: u_map allocation failed");
-		p->p_addr = up;
+	up = p->p_addr;
+	if (up == 0) {
+		up = kmem_alloc_nofault(kernel_map, UPAGES * PAGE_SIZE);
+		if (up == 0)
+			panic("pmap_new_proc: upage allocation failed");
+		p->p_addr = (struct user *)up;
 	}
 
-	for(i=0;i<UPAGES;i++) {
-		vm_offset_t	va;
-
+	for (i = 0; i < UPAGES; i++) {
 		/*
 		 * Get a kernel stack page
 		 */
@@ -1789,11 +1789,11 @@ pmap_new_proc(struct proc *p)
 		/*
 		 * Enter the page into the kernel address space.
 		 */
-		va = (vm_offset_t)(up + i * PAGE_SIZE);
+		va = up + i * PAGE_SIZE;
 		idx = pteidx(sr = ptesr(kernel_pmap->pm_sr, va), va);
 
-		pte.pte_hi = ((sr & SR_VSID) << PTE_VSID_SHFT)
-		    | ((va & ADDR_PIDX) >> ADDR_API_SHFT);
+		pte.pte_hi = ((sr & SR_VSID) << PTE_VSID_SHFT) |
+		    ((va & ADDR_PIDX) >> ADDR_API_SHFT);
 		pte.pte_lo = (VM_PAGE_TO_PHYS(m) & PTE_RPGN) | PTE_M | PTE_I |
 		    PTE_G | PTE_RW;
 
