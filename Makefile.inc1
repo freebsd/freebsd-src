@@ -617,12 +617,8 @@ installmost:
 #
 
 #
-# bootstrap-tools: Build tools needed for compatibility
+# libbuild: Build compatibility shims for the next three targets
 #
-.if exists(${.CURDIR}/games) && !defined(NOGAMES)
-_strfile=	games/fortune/strfile
-.endif
-
 libbuild:
 .for _tool in tools/build
 	@${ECHODIR} "===> ${_tool}"; \
@@ -632,6 +628,13 @@ libbuild:
 	    ${MAKE} DIRPRFX=${_tool}/ all; \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/build install
 .endfor
+
+#
+# bootstrap-tools: Build tools needed for compatibility
+#
+.if exists(${.CURDIR}/games) && !defined(NOGAMES)
+_strfile=	games/fortune/strfile
+.endif
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef \
