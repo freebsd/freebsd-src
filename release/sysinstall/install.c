@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.20 1995/06/04 07:13:18 jkh Exp $
+ * $Id: install.c,v 1.70.2.21 1995/06/04 08:50:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -437,7 +437,6 @@ root_extract(void)
 	    msgDebug("Attempting to extract root image from %s device\n", mediaDevice->description);
 	switch(mediaDevice->type) {
 
-	case DEVICE_TYPE_TAPE:
 	case DEVICE_TYPE_FLOPPY:
 	    alreadyExtracted = loop_on_root_floppy();
 	    break;
