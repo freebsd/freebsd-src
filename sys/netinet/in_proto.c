@@ -76,12 +76,8 @@
 #include <netinet6/ipcomp.h>
 #endif /* IPSEC */
 
-#ifdef FAST_IPESC
+#ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
-#define	ah4_input	ipsec4_common_input
-#define	esp4_input	ipsec4_common_input
-#define	ipcomp4_input	ipsec4_common_input
-#define	IPSEC
 #endif /* FAST_IPSEC */
 
 #ifdef IPXIP
@@ -162,6 +158,26 @@ struct protosw inetsw[] = {
   &nousrreqs
 },
 #endif /* IPSEC */
+#ifdef FAST_IPSEC
+{ SOCK_RAW,	&inetdomain,	IPPROTO_AH,	PR_ATOMIC|PR_ADDR,
+  ah4_input,	0,	 	0,		0,
+  0,	  
+  0,		0,		0,		0,
+  &nousrreqs
+},
+{ SOCK_RAW,	&inetdomain,	IPPROTO_ESP,	PR_ATOMIC|PR_ADDR,
+  esp4_input,	0,	 	0,		0,
+  0,	  
+  0,		0,		0,		0,
+  &nousrreqs
+},
+{ SOCK_RAW,	&inetdomain,	IPPROTO_IPCOMP,	PR_ATOMIC|PR_ADDR,
+  ipcomp4_input,	0,	 	0,		0,
+  0,	  
+  0,		0,		0,		0,
+  &nousrreqs
+},
+#endif /* FAST_IPSEC */
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
   encap4_input,	0,	 	0,		rip_ctloutput,
   0,
