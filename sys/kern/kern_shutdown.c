@@ -139,13 +139,18 @@ static void shutdown_panic(void *junk, int howto);
 static void shutdown_reset(void *junk, int howto);
 
 /* register various local shutdown events */
-static void 
+static void
 shutdown_conf(void *unused)
 {
-	EVENTHANDLER_REGISTER(shutdown_final, poweroff_wait, NULL, SHUTDOWN_PRI_FIRST);
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL, SHUTDOWN_PRI_LAST + 100);
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_panic, NULL, SHUTDOWN_PRI_LAST + 100);
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_reset, NULL, SHUTDOWN_PRI_LAST + 200);
+
+	EVENTHANDLER_REGISTER(shutdown_final, poweroff_wait, NULL,
+	    SHUTDOWN_PRI_FIRST);
+	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL,
+	    SHUTDOWN_PRI_LAST + 100);
+	EVENTHANDLER_REGISTER(shutdown_final, shutdown_panic, NULL,
+	    SHUTDOWN_PRI_LAST + 100);
+	EVENTHANDLER_REGISTER(shutdown_final, shutdown_reset, NULL,
+	    SHUTDOWN_PRI_LAST + 200);
 }
 
 SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL)
@@ -183,8 +188,9 @@ static int shutdown_howto = 0;
 void
 shutdown_nice(int howto)
 {
+
 	shutdown_howto = howto;
-	
+
 	/* Send a signal to init(8) and have it shutdown the world */
 	if (initproc != NULL) {
 		PROC_LOCK(initproc);
@@ -228,6 +234,7 @@ print_uptime(void)
 static void
 doadump(void)
 {
+
 	savectx(&dumppcb);
 	dumping++;
 	dumpsys(&dumper);
@@ -376,6 +383,7 @@ boot(int howto)
 static void
 shutdown_halt(void *junk, int howto)
 {
+
 	if (howto & RB_HALT) {
 		printf("\n");
 		printf("The operating system has halted.\n");
@@ -431,6 +439,7 @@ shutdown_panic(void *junk, int howto)
 static void
 shutdown_reset(void *junk, int howto)
 {
+
 	printf("Rebooting...\n");
 	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */
 	/* cpu_boot(howto); */ /* doesn't do anything at the moment */
@@ -445,6 +454,7 @@ shutdown_reset(void *junk, int howto)
 void
 backtrace(void)
 {
+
 #ifdef DDB
 	printf("Stack backtrace:\n");
 	db_print_backtrace();
@@ -543,10 +553,11 @@ static int poweroff_delay = POWEROFF_DELAY;
 SYSCTL_INT(_kern_shutdown, OID_AUTO, poweroff_delay, CTLFLAG_RW,
 	&poweroff_delay, 0, "");
 
-static void 
+static void
 poweroff_wait(void *junk, int howto)
 {
-	if(!(howto & RB_POWEROFF) || poweroff_delay <= 0)
+
+	if (!(howto & RB_POWEROFF) || poweroff_delay <= 0)
 		return;
 	DELAY(poweroff_delay * 1000);
 }
@@ -586,6 +597,7 @@ kproc_shutdown(void *arg, int howto)
 int
 set_dumper(struct dumperinfo *di)
 {
+
 	if (di == NULL) {
 		bzero(&dumper, sizeof dumper);
 		return (0);
