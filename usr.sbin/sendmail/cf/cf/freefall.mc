@@ -33,7 +33,7 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
-VERSIONID(`@(#)freefall.mc	$Revision: 1.4 $')
+VERSIONID(`@(#)freefall.mc	$Revision: 1.5 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl
@@ -48,6 +48,7 @@ define(`confMIN_FREE_BLOCKS', `1024')dnl
 define(`confME_TOO', `True')dnl
 define(`confMCI_CACHE_TIMEOUT', `10m')dnl
 define(`confTO_QUEUEWARN', `1d')dnl
+define(`confTO_QUEUEWARN_NORMAL', `1d')dnl
 define(`confTO_RCPT', `10m')dnl
 define(`confTO_DATABLOCK', `10m')dnl
 define(`confTO_DATAFINAL', `10m')dnl
