@@ -783,6 +783,21 @@ fork_exit(callout, arg, frame)
 	struct thread *td;
 
 	/*
+	 * Finish setting up thread glue so that it begins execution in a
+	 * non-nested critical section with sched_lock held but not recursed.
+	 */
+	td = curthread;
+	p = td->td_proc;
+	td->td_oncpu = PCPU_GET(cpuid);
+	KASSERT(p->p_state == PRS_NORMAL, ("executing process is still new"));
+
+	sched_lock.mtx_lock = (uintptr_t)td;
+	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
+	cpu_critical_fork_exit();
+	CTR3(KTR_PROC, "fork_exit: new thread %p (pid %d, %s)", td, p->p_pid,
+	    p->p_comm);
+
+	/*
 	 * Processes normally resume in mi_switch() after being
 	 * cpu_switch()'ed to, but when children start up they arrive here
 	 * instead, so we must do much the same things as mi_switch() would.
@@ -793,19 +808,6 @@ fork_exit(callout, arg, frame)
 		thread_stash(td);
 	}
 	td = curthread;
-	p = td->td_proc;
-	td->td_oncpu = PCPU_GET(cpuid);
-	KASSERT(p->p_state == PRS_NORMAL, ("executing process is still new"));
-
-	/*
-	 * Finish setting up thread glue so that it begins execution in a
-	 * non-nested critical section with sched_lock held but not recursed.
-	 */
-	sched_lock.mtx_lock = (uintptr_t)td;
-	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
-	cpu_critical_fork_exit();
-	CTR3(KTR_PROC, "fork_exit: new thread %p (pid %d, %s)", td, p->p_pid,
-	    p->p_comm);
 	mtx_unlock_spin(&sched_lock);
 
 	/*
