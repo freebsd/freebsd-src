@@ -37,9 +37,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/filio.h>
 #include <sys/vnode.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+#include <sys/unistd.h>
 
 #include <machine/cpu.h>
 
@@ -195,33 +198,19 @@ xenix_scoinfo(struct thread *td, struct xenix_scoinfo_args *uap)
 int     
 xenix_eaccess(struct thread *td, struct xenix_eaccess_args *uap)
 {
-	struct ucred *cred = td->td_ucred;
-	struct vnode *vp;
-        struct nameidata nd;
-        int error, flags;
-	caddr_t sg = stackgap_init();
+	char *path;
+        int error, bsd_flags;
 
-	CHECKALTEXIST(td, &sg, uap->path);
+	bsd_flags = 0;
+	if (uap->flags & IBCS2_R_OK)
+		bsd_flags |= R_OK;
+	if (uap->flags & IBCS2_W_OK)
+		bsd_flags |= W_OK;
+	if (uap->flags & IBCS2_X_OK)
+		bsd_flags |= X_OK;
 
-        NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-            uap->path, td);
-        if ((error = namei(&nd)) != 0)
-                return error;
-        vp = nd.ni_vp;
-
-        /* Flags == 0 means only check for existence. */
-        if (uap->flags) {
-                flags = 0;
-                if (uap->flags & IBCS2_R_OK)
-                        flags |= VREAD;
-                if (uap->flags & IBCS2_W_OK)
-                        flags |= VWRITE;
-                if (uap->flags & IBCS2_X_OK)
-                        flags |= VEXEC;
-                if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
-                        error = VOP_ACCESS(vp, flags, cred, td);
-        }
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-        vput(vp);
-        return error;
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_access(td, path, UIO_SYSSPACE, bsd_flags);
+	free(path, M_TEMP);
+        return (error);
 }

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
@@ -196,14 +197,18 @@ ibcs2_execv(td, uap)
 	struct thread *td;
 	struct ibcs2_execv_args *uap;
 {
-	struct execve_args ea;
-	caddr_t sg = stackgap_init();
+	struct image_args eargs;
+	char *path;
+	int error;
 
-        CHECKALTEXIST(td, &sg, uap->path);
-	ea.fname = uap->path;
-	ea.argv = uap->argp;
-	ea.envv = NULL;
-	return execve(td, &ea);
+        CHECKALTEXIST(td, uap->path, &path);
+
+	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp, NULL);
+	free(path, M_TEMP);
+	if (error == 0)
+		error = kern_execve(td, &eargs, NULL);
+	exec_free_args(&eargs);
+	return (error);
 }
 
 int
@@ -211,9 +216,19 @@ ibcs2_execve(td, uap)
         struct thread *td;
         struct ibcs2_execve_args *uap;
 {
-        caddr_t sg = stackgap_init();
-        CHECKALTEXIST(td, &sg, uap->path);
-        return execve(td, (struct execve_args *)uap);
+	struct image_args eargs;
+	char *path;
+	int error;
+
+        CHECKALTEXIST(td, uap->path, &path);
+
+	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp,
+	    uap->envp);
+	free(path, M_TEMP);
+	if (error == 0)
+		error = kern_execve(td, &eargs, NULL);
+	exec_free_args(&eargs);
+	return (error);
 }
 
 int
@@ -623,21 +638,16 @@ ibcs2_mknod(td, uap)
 	struct thread *td;
 	struct ibcs2_mknod_args *uap;
 {
-        caddr_t sg = stackgap_init();
+	char *path;
+	int error;
 
-        CHECKALTCREAT(td, &sg, uap->path);
-	if (S_ISFIFO(uap->mode)) {
-                struct mkfifo_args ap;
-                ap.path = uap->path;
-                ap.mode = uap->mode;
-		return mkfifo(td, &ap);
-	} else {
-                struct mknod_args ap;
-                ap.path = uap->path;
-                ap.mode = uap->mode;
-                ap.dev = uap->dev;
-                return mknod(td, &ap);
-	}
+        CHECKALTCREAT(td, uap->path, &path);
+	if (S_ISFIFO(uap->mode))
+		error = kern_mkfifo(td, path, UIO_SYSSPACE, uap->mode);
+	else
+		error = kern_mknod(td, path, UIO_SYSSPACE, uap->mode, uap->dev);
+	free(path, M_TEMP);
+	return (error);
 }
 
 int
@@ -748,8 +758,14 @@ ibcs2_pathconf(td, uap)
 	struct thread *td;
 	struct ibcs2_pathconf_args *uap;
 {
+	char *path;
+	int error;
+
+	CHECKALTEXIST(td, uap->path, &path);
 	uap->name++;	/* iBCS2 _PC_* defines are offset by one */
-        return pathconf(td, (struct pathconf_args *)uap);
+	error = kern_pathconf(td, path, UIO_SYSSPACE, uap->name);
+	free(path, M_TEMP);
+	return (error);
 }
 
 int
@@ -833,27 +849,19 @@ ibcs2_alarm(td, uap)
 	struct thread *td;
 	struct ibcs2_alarm_args *uap;
 {
+	struct itimerval itv, oitv;
 	int error;
-        struct itimerval *itp, *oitp;
-	struct setitimer_args sa;
-	caddr_t sg = stackgap_init();
 
-        itp = stackgap_alloc(&sg, sizeof(*itp));
-	oitp = stackgap_alloc(&sg, sizeof(*oitp));
-        timevalclear(&itp->it_interval);
-        itp->it_value.tv_sec = uap->sec;
-        itp->it_value.tv_usec = 0;
-
-	sa.which = ITIMER_REAL;
-	sa.itv = itp;
-	sa.oitv = oitp;
-        error = setitimer(td, &sa);
+	timevalclear(&itv.it_interval);
+	itv.it_value.tv_sec = uap->sec;
+	itv.it_value.tv_usec = 0;
+	error = kern_setitimer(td, ITIMER_REAL, &itv, &oitv);
 	if (error)
-		return error;
-        if (oitp->it_value.tv_usec)
-                oitp->it_value.tv_sec++;
-        td->td_retval[0] = oitp->it_value.tv_sec;
-        return 0;
+		return (error);
+	if (oitv.it_value.tv_usec != 0)
+		oitv.it_value.tv_sec++;
+	td->td_retval[0] = oitv.it_value.tv_sec;
+	return (0);
 }
 
 int
@@ -861,34 +869,29 @@ ibcs2_times(td, uap)
 	struct thread *td;
 	struct ibcs2_times_args *uap;
 {
-	int error;
-	struct getrusage_args ga;
+	struct rusage ru;
+	struct timeval t;
 	struct tms tms;
-        struct timeval t;
-	caddr_t sg = stackgap_init();
-        struct rusage *ru = stackgap_alloc(&sg, sizeof(*ru));
+	int error;
+
 #define CONVTCK(r)      (r.tv_sec * hz + r.tv_usec / (1000000 / hz))
 
-	ga.who = RUSAGE_SELF;
-	ga.rusage = ru;
-	error = getrusage(td, &ga);
+	error = kern_getrusage(td, RUSAGE_SELF, &ru);
 	if (error)
-                return error;
-        tms.tms_utime = CONVTCK(ru->ru_utime);
-        tms.tms_stime = CONVTCK(ru->ru_stime);
+		return (error);
+	tms.tms_utime = CONVTCK(ru.ru_utime);
+	tms.tms_stime = CONVTCK(ru.ru_stime);
 
-	ga.who = RUSAGE_CHILDREN;
-        error = getrusage(td, &ga);
+	error = kern_getrusage(td, RUSAGE_CHILDREN, &ru);
 	if (error)
-		return error;
-        tms.tms_cutime = CONVTCK(ru->ru_utime);
-        tms.tms_cstime = CONVTCK(ru->ru_stime);
+		return (error);
+	tms.tms_cutime = CONVTCK(ru.ru_utime);
+	tms.tms_cstime = CONVTCK(ru.ru_stime);
 
 	microtime(&t);
-        td->td_retval[0] = CONVTCK(t);
+	td->td_retval[0] = CONVTCK(t);
 	
-	return copyout((caddr_t)&tms, (caddr_t)uap->tp,
-		       sizeof(struct tms));
+	return (copyout(&tms, uap->tp, sizeof(struct tms)));
 }
 
 int
@@ -916,30 +919,27 @@ ibcs2_utime(td, uap)
 	struct thread *td;
 	struct ibcs2_utime_args *uap;
 {
+	struct ibcs2_utimbuf ubuf;
+	struct timeval tbuf[2], *tp;
+	char *path;
 	int error;
-	struct utimes_args sa;
-	struct timeval *tp;
-	caddr_t sg = stackgap_init();
 
-        CHECKALTEXIST(td, &sg, uap->path);
-	sa.path = uap->path;
 	if (uap->buf) {
-		struct ibcs2_utimbuf ubuf;
-
-		if ((error = copyin((caddr_t)uap->buf, (caddr_t)&ubuf,
-				   sizeof(ubuf))) != 0)
-			return error;
-		sa.tptr = stackgap_alloc(&sg,
-						  2 * sizeof(struct timeval *));
-		tp = (struct timeval *)sa.tptr;
-		tp->tv_sec = ubuf.actime;
-		tp->tv_usec = 0;
-		tp++;
-		tp->tv_sec = ubuf.modtime;
-		tp->tv_usec = 0;
+		error = copyin(uap->buf, &ubuf, sizeof(ubuf));
+		if (error)
+			return (error);
+		tbuf[0].tv_sec = ubuf.actime;
+		tbuf[0].tv_usec = 0;
+		tbuf[1].tv_sec = ubuf.modtime;
+		tbuf[1].tv_usec = 0;
+		tp = tbuf;
 	} else
-		sa.tptr = NULL;
-	return utimes(td, &sa);
+		tp = NULL;
+
+        CHECKALTEXIST(td, uap->path, &path);
+	error = kern_utimes(td, path, UIO_SYSSPACE, tp, UIO_SYSSPACE);
+	free(path, M_TEMP);
+	return (error);
 }
 
 int
@@ -1109,10 +1109,13 @@ ibcs2_unlink(td, uap)
 	struct thread *td;
 	struct ibcs2_unlink_args *uap;
 {
-        caddr_t sg = stackgap_init();
+	char *path;
+	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	return unlink(td, (struct unlink_args *)uap);
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_unlink(td, path, UIO_SYSSPACE);
+	free(path, M_TEMP);
+	return (error);
 }
 
 int
@@ -1120,10 +1123,13 @@ ibcs2_chdir(td, uap)
 	struct thread *td;
 	struct ibcs2_chdir_args *uap;
 {
-        caddr_t sg = stackgap_init();
+	char *path;
+	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	return chdir(td, (struct chdir_args *)uap);
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_chdir(td, path, UIO_SYSSPACE);
+	free(path, M_TEMP);
+	return (error);
 }
 
 int
@@ -1131,10 +1137,13 @@ ibcs2_chmod(td, uap)
 	struct thread *td;
 	struct ibcs2_chmod_args *uap;
 {
-        caddr_t sg = stackgap_init();
+	char *path;
+	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	return chmod(td, (struct chmod_args *)uap);
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_chmod(td, path, UIO_SYSSPACE, uap->mode);
+	free(path, M_TEMP);
+	return (error);
 }
 
 int
@@ -1142,10 +1151,13 @@ ibcs2_chown(td, uap)
 	struct thread *td;
 	struct ibcs2_chown_args *uap;
 {
-        caddr_t sg = stackgap_init();
+	char *path;
+	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	return chown(td, (struct chown_args *)uap);
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_chown(td, path, UIO_SYSSPACE, uap->uid, uap->gid);
+	free(path, M_TEMP);
+	return (error);
 }
 
 int
@@ -1153,10 +1165,13 @@ ibcs2_rmdir(td, uap)
 	struct thread *td;
 	struct ibcs2_rmdir_args *uap;
 {
-        caddr_t sg = stackgap_init();
+	char *path;
+	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	return rmdir(td, (struct rmdir_args *)uap);
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_rmdir(td, path, UIO_SYSSPACE);
+	free(path, M_TEMP);
+	return (error);
 }
 
 int
@@ -1164,10 +1179,13 @@ ibcs2_mkdir(td, uap)
 	struct thread *td;
 	struct ibcs2_mkdir_args *uap;
 {
-        caddr_t sg = stackgap_init();
+	char *path;
+	int error;
 
-	CHECKALTCREAT(td, &sg, uap->path);
-	return mkdir(td, (struct mkdir_args *)uap);
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_mkdir(td, path, UIO_SYSSPACE, uap->mode);
+	free(path, M_TEMP);
+	return (error);
 }
 
 int
@@ -1175,11 +1193,24 @@ ibcs2_symlink(td, uap)
 	struct thread *td;
 	struct ibcs2_symlink_args *uap;
 {
-        caddr_t sg = stackgap_init();
+	char *path, *link;
+	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	CHECKALTCREAT(td, &sg, uap->link);
-	return symlink(td, (struct symlink_args *)uap);
+	CHECKALTEXIST(td, uap->path, &path);
+
+	/*
+	 * Have to expand CHECKALTCREAT() so that 'path' can be freed on
+	 * errors.
+	 */
+	error = ibcs2_emul_find(td, uap->link, UIO_USERSPACE, &link, 1);
+	if (link == NULL) {
+		free(path, M_TEMP);
+		return (error);
+	}
+	error = kern_symlink(td, path, link, UIO_SYSSPACE);
+	free(path, M_TEMP);
+	free(link, M_TEMP);
+	return (error);
 }
 
 int
@@ -1187,11 +1218,24 @@ ibcs2_rename(td, uap)
 	struct thread *td;
 	struct ibcs2_rename_args *uap;
 {
-        caddr_t sg = stackgap_init();
+	char *from, *to;
+	int error;
 
-	CHECKALTEXIST(td, &sg, uap->from);
-	CHECKALTCREAT(td, &sg, uap->to);
-	return rename(td, (struct rename_args *)uap);
+	CHECKALTEXIST(td, uap->from, &from);
+
+	/*
+	 * Have to expand CHECKALTCREAT() so that 'from' can be freed on
+	 * errors.
+	 */
+	error = ibcs2_emul_find(td, uap->to, UIO_USERSPACE, &to, 1);
+	if (link == NULL) {
+		free(from, M_TEMP);
+		return (error);
+	}
+	error = kern_rename(td, from, to, UIO_SYSSPACE);
+	free(from, M_TEMP);
+	free(to, M_TEMP);
+	return (error);
 }
 
 int
@@ -1199,8 +1243,12 @@ ibcs2_readlink(td, uap)
 	struct thread *td;
 	struct ibcs2_readlink_args *uap;
 {
-        caddr_t sg = stackgap_init();
+	char *path;
+	int error;
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	return readlink(td, (struct readlink_args *) uap);
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_readlink(td, path, UIO_SYSSPACE, uap->buf, UIO_USERSPACE,
+		uap->count);
+	free(path, M_TEMP);
+	return (error);
 }

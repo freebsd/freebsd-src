@@ -50,6 +50,7 @@
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
+#include <sys/uio.h>
 
 static __inline caddr_t stackgap_init(void);
 static __inline void *stackgap_alloc(caddr_t *, size_t);
@@ -82,17 +83,22 @@ stackgap_alloc(sgp, sz)
 
 extern const char ibcs2_emul_path[];
 
-int ibcs2_emul_find(struct thread *, caddr_t *, const char *, char *,
-			char **, int);
+int	ibcs2_emul_find(struct thread *, char *, enum uio_seg, char **, int);
 
-#define CHECKALTEXIST(p, sgp, path) \
-    ibcs2_emul_find(td, sgp, ibcs2_emul_path, path, &(path), 0)
+#define	CHECKALT(td, upath, pathp, i)					\
+	do {								\
+		int _error;						\
+									\
+		_error = ibcs2_emul_find(td, upath, UIO_USERSPACE, pathp, i); \
+		if (*(pathp) == NULL)					\
+			return (_error);				\
+	} while (0)
 
-#define CHECKALTCREAT(p, sgp, path) \
-    ibcs2_emul_find(td, sgp, ibcs2_emul_path, path, &(path), 1)
+#define CHECKALTEXIST(td, upath, pathp) CHECKALT(td, upath, pathp, 0)
+#define CHECKALTCREAT(td, upath, pathp) CHECKALT(td, upath, pathp, 1)
 
 #ifdef SPX_HACK
-int spx_open(struct thread *td, void *uap);
+int	spx_open(struct thread *td);
 #endif
 
 #endif /* !_IBCS2_UTIL_H_ */

@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
+#include <sys/malloc.h>
 #include <sys/vnode.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 
@@ -105,24 +107,16 @@ ibcs2_statfs(td, uap)
 	struct thread *td;
 	struct ibcs2_statfs_args *uap;
 {
-	register struct mount *mp;
-	register struct statfs *sp;
+	struct statfs sf;
+	char *path;
 	int error;
-	struct nameidata nd;
-	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_statfs(td, path, UIO_SYSSPACE, &sf);
+	free(path, M_TEMP);
+	if (error)
 		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	mp = nd.ni_vp->v_mount;
-	sp = &mp->mnt_stat;
-	vrele(nd.ni_vp);
-	if ((error = VFS_STATFS(mp, sp, td)) != 0)
-		return (error);
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	return cvt_statfs(sp, (caddr_t)uap->buf, uap->len);
+	return cvt_statfs(&sf, (caddr_t)uap->buf, uap->len);
 }
 
 int
@@ -130,21 +124,13 @@ ibcs2_fstatfs(td, uap)
 	struct thread *td;
 	struct ibcs2_fstatfs_args *uap;
 {
-	struct file *fp;
-	struct mount *mp;
-	register struct statfs *sp;
+	struct statfs sf;
 	int error;
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	error = kern_fstatfs(td, uap->fd, &sf);
+	if (error)
 		return (error);
-	mp = fp->f_vnode->v_mount;
-	sp = &mp->mnt_stat;
-	error = VFS_STATFS(mp, sp, td);
-	fdrop(fp, td);
-	if (error != 0)
-		return (error);
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	return cvt_statfs(sp, (caddr_t)uap->buf, uap->len);
+	return cvt_statfs(&sf, (caddr_t)uap->buf, uap->len);
 }
 
 int
@@ -152,21 +138,17 @@ ibcs2_stat(td, uap)
 	struct thread *td;
 	struct ibcs2_stat_args *uap;
 {
-	struct stat st;
 	struct ibcs2_stat ibcs2_st;
-	struct stat_args cup;
+	struct stat st;
+	char *path;
 	int error;
-	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	cup.path = uap->path;
-	cup.ub = stackgap_alloc(&sg, sizeof(st));
+	CHECKALTEXIST(td, uap->path, &path);
 
-	if ((error = stat(td, &cup)) != 0)
-		return error;
-
-	if ((error = copyin(cup.ub, &st, sizeof(st))) != 0)
-		return error;
+	error = kern_stat(td, path, UIO_SYSSPACE, &st);
+	free(path, M_TEMP);
+	if (error)
+		return (error);
 	bsd_stat2ibcs_stat(&st, &ibcs2_st);
 	return copyout((caddr_t)&ibcs2_st, (caddr_t)uap->st,
 		       ibcs2_stat_len);
@@ -177,21 +159,17 @@ ibcs2_lstat(td, uap)
 	struct thread *td;
 	struct ibcs2_lstat_args *uap;
 {
-	struct stat st;
 	struct ibcs2_stat ibcs2_st;
-	struct lstat_args cup;
+	struct stat st;
+	char *path;
 	int error;
-	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(td, &sg, uap->path);
-	cup.path = uap->path;
-	cup.ub = stackgap_alloc(&sg, sizeof(st));
+	CHECKALTEXIST(td, uap->path, &path);
 
-	if ((error = lstat(td, &cup)) != 0)
-		return error;
-
-	if ((error = copyin(cup.ub, &st, sizeof(st))) != 0)
-		return error;
+	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
+	free(path, M_TEMP);
+	if (error)
+		return (error);
 	bsd_stat2ibcs_stat(&st, &ibcs2_st);
 	return copyout((caddr_t)&ibcs2_st, (caddr_t)uap->st,
 		       ibcs2_stat_len);
@@ -202,20 +180,13 @@ ibcs2_fstat(td, uap)
 	struct thread *td;
 	struct ibcs2_fstat_args *uap;
 {
-	struct stat st;
 	struct ibcs2_stat ibcs2_st;
-	struct fstat_args cup;
+	struct stat st;
 	int error;
-	caddr_t sg = stackgap_init();
 
-	cup.fd = uap->fd;
-	cup.sb = stackgap_alloc(&sg, sizeof(st));
-
-	if ((error = fstat(td, &cup)) != 0)
-		return error;
-
-	if ((error = copyin(cup.sb, &st, sizeof(st))) != 0)
-		return error;
+	error = kern_fstat(td, uap->fd, &st);
+	if (error)
+		return (error);
 	bsd_stat2ibcs_stat(&st, &ibcs2_st);
 	return copyout((caddr_t)&ibcs2_st, (caddr_t)uap->st,
 		       ibcs2_stat_len);

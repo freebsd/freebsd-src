@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
@@ -175,24 +176,27 @@ ibcs2_open(td, uap)
 	struct thread *td;
 	struct ibcs2_open_args *uap;
 {
-	struct proc *p = td->td_proc;
-	int noctty = uap->flags & IBCS2_O_NOCTTY;
-	int ret;
-	caddr_t sg = stackgap_init();
+	struct proc *p;
+	char *path;
+	int flags, noctty, ret;
 
-	uap->flags = cvt_o_flags(uap->flags);
+	p = td->td_proc;
+	noctty = uap->flags & IBCS2_O_NOCTTY;
+	flags = cvt_o_flags(uap->flags);
 	if (uap->flags & O_CREAT)
-		CHECKALTCREAT(td, &sg, uap->path);
+		CHECKALTCREAT(td, uap->path, &path);
 	else
-		CHECKALTEXIST(td, &sg, uap->path);
-	ret = open(td, (struct open_args *)uap);
+		CHECKALTEXIST(td, uap->path, &path);
+	ret = kern_open(td, path, UIO_SYSSPACE, flags, uap->mode);
 
 #ifdef SPX_HACK
 	if (ret == ENXIO) {
-		if (!strcmp(uap->path, "/compat/ibcs2/dev/spx"))
-			ret = spx_open(td, uap);
+		if (!strcmp(path, "/compat/ibcs2/dev/spx"))
+			ret = spx_open(td);
+		free(path, M_TEMP);
 	} else
 #endif /* SPX_HACK */
+	free(path, M_TEMP);
 	PROC_LOCK(p);
 	if (!ret && !noctty && SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 		struct file *fp;
@@ -217,15 +221,15 @@ int
 ibcs2_creat(td, uap)
         struct thread *td;  
 	struct ibcs2_creat_args *uap;
-{       
-	struct open_args cup;   
-	caddr_t sg = stackgap_init();
+{
+	char *path;
+	int error;
 
-	CHECKALTCREAT(td, &sg, uap->path);
-	cup.path = uap->path;
-	cup.mode = uap->mode;
-	cup.flags = O_WRONLY | O_CREAT | O_TRUNC;
-	return open(td, &cup);
+	CHECKALTCREAT(td, uap->path, &path);
+	error = kern_open(td, path, UIO_SYSSPACE, O_WRONLY | O_CREAT | O_TRUNC,
+	    uap->mode);
+	free(path, M_TEMP);
+	return (error);
 }       
 
 int
@@ -233,13 +237,13 @@ ibcs2_access(td, uap)
         struct thread *td;
         struct ibcs2_access_args *uap;
 {
-        struct access_args cup;
-        caddr_t sg = stackgap_init();
+	char *path;
+	int error;
 
-        CHECKALTEXIST(td, &sg, uap->path);
-        cup.path = uap->path;
-        cup.flags = uap->flags;
-        return access(td, &cup);
+        CHECKALTEXIST(td, uap->path, &path);
+	error = kern_access(td, path, UIO_SYSSPACE, uap->flags);
+	free(path, M_TEMP);
+	return (error);
 }
 
 int
