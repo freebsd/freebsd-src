@@ -38,9 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
+#if 0
+static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
+#endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.22 1997/03/29 04:34:07 imp Exp $";
+	"$Id: xinstall.c,v 1.23 1997/05/24 05:39:19 peter Exp $";
 #endif /* not lint */
 
 /*-
