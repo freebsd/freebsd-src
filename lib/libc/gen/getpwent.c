@@ -623,8 +623,12 @@ fin:
 		(void)st->db->close(st->db);
 		st->db = NULL;
 	}
-	if (rv == NS_SUCCESS && retval != NULL)
-		*(struct passwd **)retval = pwd;
+	if (rv == NS_SUCCESS) {
+		pwd->pw_fields &= ~_PWF_SOURCE;
+		pwd->pw_fields |= _PWF_FILES;
+		if (retval != NULL)
+			*(struct passwd **)retval = pwd;
+	}
 	return (rv);
 }
 
