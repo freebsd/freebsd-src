@@ -1,4 +1,4 @@
-
+/*-
 SOFTWARE LICENSE AGREEMENT
 
 IMPORTANT! READ CAREFULLY: 
@@ -99,7 +99,7 @@ DiskOnChip® product lines.
         The laws of the State of California, United States of America, 
         exclusive of conflict-of-laws provisions, shall govern this 
         Agreement in all respects. 
-
+*/
 
 #ifndef MSYSOSAK_H
 #define MSYSOSAK_H 1
