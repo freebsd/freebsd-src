@@ -374,10 +374,8 @@ rewritelabel(char *s, struct disklabel *lp)
 		return;
 	lp->d_checksum = 0;
 	lp->d_checksum = dkcksum(lp);
-	if (ioctl(fso, DIOCWDINFO, (char *)lp) < 0) {
-		warn("ioctl (WDINFO)");
-		errx(1, "%s: can't rewrite disk label", s);
-	}
+	if (ioctl(fso, DIOCWDINFO, (char *)lp) < 0)
+		warn("ioctl (WDINFO): %s: can't rewrite disk label", s);
 }
 
 static void
