@@ -65,7 +65,7 @@
 #ifdef UHUB_DEBUG
 #define DPRINTF(x)	if (uhubdebug) logprintf x
 #define DPRINTFN(n,x)	if (uhubdebug>(n)) logprintf x
-int	uhubdebug;
+int	uhubdebug = 0;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
