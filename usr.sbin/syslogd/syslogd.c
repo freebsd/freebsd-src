@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.13 1996/11/18 21:48:29 peter Exp $";
+	"$Id: syslogd.c,v 1.14 1996/11/26 02:24:42 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -730,10 +730,7 @@ fprintlog(f, flags, msg)
 
 		errno = 0;	/* ttymsg() only sometimes returns an errno */
 		if ((msgret = ttymsg(iov, 6, f->f_un.f_fname, 10))) {
-			int e = errno;
-			(void)close(f->f_file);
 			f->f_type = F_UNUSED;
-			errno = e;
 			logerror(msgret);
 		}
 		break;
