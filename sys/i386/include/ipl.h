@@ -30,11 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ipl.h,v 1.9 1997/05/31 09:16:36 peter Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
 #define	_MACHINE_IPL_H_
+
+#if defined(KERNEL) && !defined(ACTUALLY_LKM_NOT_KERNEL)
 
 #ifdef APIC_IO
 #include <i386/isa/apic_ipl.h>
@@ -78,6 +80,8 @@
 #define	SWI_AST_MASK	SWI_AST_PENDING
 #define	SWI_MASK	(~HWI_MASK)
 
+#endif /* KERNEL && !ACTUALLY_LKM_NOT_KERNEL */
+
 #ifndef	LOCORE
 
 /*
@@ -85,13 +89,13 @@
  * ipending and idelayed are changed by interrupt handlers so they are
  * volatile.
  */
-#if 0
+#ifdef notyet /* in <sys/interrupt.h> until pci drivers stop hacking on them */
 extern	unsigned bio_imask;	/* group of interrupts masked with splbio() */
 #endif
 extern	unsigned cpl;		/* current priority level mask */
 extern	volatile unsigned idelayed;	/* interrupts to become pending */
 extern	volatile unsigned ipending;	/* active interrupts masked by cpl */
-#if 0
+#ifdef notyet /* in <sys/interrupt.h> until pci drivers stop hacking on them */
 extern	unsigned net_imask;	/* group of interrupts masked with splimp() */
 extern	unsigned stat_imask;	/* interrupts masked with splstatclock() */
 extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
