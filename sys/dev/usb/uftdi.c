@@ -154,6 +154,9 @@ USB_MATCH(uftdi)
 	    (uaa->product == USB_PRODUCT_FTDI_SERIAL_8U100AX ||
 	     uaa->product == USB_PRODUCT_FTDI_SERIAL_8U232AM ||
 	     uaa->product == USB_PRODUCT_FTDI_CFA_631 ||
+	     uaa->product == USB_PRODUCT_FTDI_CFA_632 ||
+	     uaa->product == USB_PRODUCT_FTDI_CFA_633 ||
+	     uaa->product == USB_PRODUCT_FTDI_CFA_634 ||
 	     uaa->product == USB_PRODUCT_FTDI_USBSERIAL ||
 	     uaa->product == USB_PRODUCT_FTDI_MX2_3 ||
 	     uaa->product == USB_PRODUCT_FTDI_MX4_5 ||
@@ -212,6 +215,9 @@ USB_ATTACH(uftdi)
 		break;
 	case USB_PRODUCT_FTDI_SERIAL_8U232AM:
 	case USB_PRODUCT_FTDI_CFA_631:
+	case USB_PRODUCT_FTDI_CFA_632:
+	case USB_PRODUCT_FTDI_CFA_633:
+	case USB_PRODUCT_FTDI_CFA_634:
 	case USB_PRODUCT_FTDI_USBSERIAL:
 	case USB_PRODUCT_FTDI_MX2_3:
 	case USB_PRODUCT_FTDI_MX4_5:
