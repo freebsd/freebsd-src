@@ -224,7 +224,7 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 	}
 	if (!now)
 		time(&now);
-	strmode(st->st_mode, tmp);
+	bsdtar_strmode(entry, tmp);
 	fprintf(out, "%s %d ", tmp, st->st_nlink);
 
 	/* Use uname if it's present, else uid. */
