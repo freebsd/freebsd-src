@@ -27,6 +27,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/endian.h>
 #include <sys/wait.h>
 
 #include <err.h>

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)a.out.h	8.1 (Berkeley) 6/2/93
+ * $FreeBSD$
  */
 
 #ifndef	_AOUT_H_
@@ -38,6 +39,7 @@
 
 #include <sys/types.h>
 #include <machine/exec.h>
+#include <sys/endian.h>
 #include <sys/imgact_aout.h>
 #include <machine/reloc.h>
 
