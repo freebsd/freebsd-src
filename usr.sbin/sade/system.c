@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.91 1999/02/15 00:49:33 jkh Exp $
+ * $Id: system.c,v 1.92 1999/07/16 22:07:09 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -71,8 +71,6 @@ expand(char *fname)
 void
 systemInitialize(int argc, char **argv)
 {
-    int i;
-
     signal(SIGINT, SIG_IGN);
     globalsInit();
 
@@ -351,7 +349,7 @@ systemCreateHoloshell(void)
 	    if (kill(ehs_pid, 0) == 0) {
 
 		if (msgYesNo("There seems to be an emergency holographic shell\n"
-			     "already running von VTY 4.\n"
+			     "already running on VTY 4.\n\n"
 			     "Kill it and start a new one?"))
 		    return;
 
