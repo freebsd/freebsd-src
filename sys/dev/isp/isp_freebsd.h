@@ -61,7 +61,10 @@
 #include "opt_ddb.h"
 #include "opt_isp.h"
 
-#define	ISP_DMA_ADDR_T	bus_addr_t
+/*
+ * Not quite yet
+ */
+/* #define	ISP_DAC_SUPPORTED	1 */
 
 /*
  * Efficiency- get rid of SBus code && tests unless we need them.
