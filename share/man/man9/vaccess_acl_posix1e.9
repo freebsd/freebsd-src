@@ -30,7 +30,7 @@
 .Dt VACCESS_ACL_POSIX1E 9
 .Sh NAME
 .Nm vaccess_acl_posix1e
-.Nd generate an POSIX.1e ACL access control decision using vnode parameters
+.Nd generate a POSIX.1e ACL access control decision using vnode parameters
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/vnode.h
@@ -52,7 +52,7 @@ discretionary file security model
 with POSIX.1e ACL extensions.
 It accepts the vnodes type
 .Fa type ,
-owning UID 
+owning UID
 .Fa file_uid ,
 owning GID
 .Fa file_gid ,
@@ -87,7 +87,9 @@ be composed with the return value.
 The algorithm used by
 .Fn vaccess_acl_posix1e
 is based on the POSIX.1e ACL evaluation algorithm.
-The algorithm selects a "matching" entry from the access ACL, which may
+The algorithm selects a
+.Em matching
+entry from the access ACL, which may
 then be composed with an available ACL mask entry, providing
 .Ux
 security compatibility.
@@ -121,6 +123,6 @@ This man page and the current implementation of
 .Fn vaccess_acl_posix1e
 were written by
 .An Robert Watson .
-.Ss BUGS
+.Sh BUGS
 This man page should include a full description of the POSIX.1e ACL
 evaluation algorithm, or cross reference another page that does.
