@@ -921,11 +921,13 @@ epic_rx_done(sc)
 		m->m_pkthdr.rcvif = &(sc->sc_if);
 		m->m_pkthdr.len = m->m_len = len;
 
+#if !defined(__FreeBSD__)
 #if NBPFILTER > 0
 		/* Give mbuf to BPFILTER */
 		if( sc->sc_if.if_bpf ) 
 			bpf_mtap( EPIC_BPFTAP_ARG(&sc->sc_if), m );
 #endif /* NBPFILTER > 0 */
+#endif /* !__FreeBSD__ */
 
 		/* Second mbuf holds packet ifself */
 		m->m_pkthdr.len = m->m_len = len - sizeof(struct ether_header);
