@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.39 1997/03/24 11:24:14 bde Exp $
+ * $Id: wt.c,v 1.40 1997/07/20 14:10:18 bde Exp $
  *
  */
 
@@ -131,7 +131,7 @@
 enum wttype {
 	UNKNOWN = 0,                    /* unknown type, driver disabled */
 	ARCHIVE,                        /* Archive Viper SC499, SC402 etc */
-	WANGTEK,                        /* Wangtek */
+	WANGTEK                         /* Wangtek */
 };
 
 typedef struct {
