@@ -710,11 +710,14 @@ pmap_map(vm_offset_t *virt, vm_offset_t pa_start, vm_offset_t pa_end, int prot)
 {
 	vm_offset_t sva;
 	vm_offset_t va;
+	vm_offset_t pa;
 
+	pa = pa_start;
 	sva = *virt;
 	va = sva;
-	for (; pa_start < pa_end; pa_start += PAGE_SIZE, va += PAGE_SIZE)
-		pmap_kenter(va, pa_start);
+	for (; pa < pa_end; pa += PAGE_SIZE, va += PAGE_SIZE)
+		pmap_kenter(va, pa);
+	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + (pa_end - pa_start) - 1);
 	*virt = va;
 	return (sva);
 }
@@ -725,12 +728,15 @@ pmap_map(vm_offset_t *virt, vm_offset_t pa_start, vm_offset_t pa_end, int prot)
  * references recorded.  Existing mappings in the region are overwritten.
  */
 void
-pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
+pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 {
+	vm_offset_t va;
 	int i;
 
+	va = sva;
 	for (i = 0; i < count; i++, va += PAGE_SIZE)
 		pmap_kenter(va, VM_PAGE_TO_PHYS(m[i]));
+	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + (count * PAGE_SIZE) - 1);
 }
 
 /*
@@ -738,12 +744,15 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
  * pmap_kenter_flags().
  */
 void
-pmap_qenter_flags(vm_offset_t va, vm_page_t *m, int count, u_long fl)
+pmap_qenter_flags(vm_offset_t sva, vm_page_t *m, int count, u_long fl)
 {
+	vm_offset_t va;
 	int i;
 
+	va = sva;
 	for (i = 0; i < count; i++, va += PAGE_SIZE)
 		pmap_kenter_flags(va, VM_PAGE_TO_PHYS(m[i]), fl);
+	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + (count * PAGE_SIZE) - 1);
 }
 
 /*
@@ -751,12 +760,15 @@ pmap_qenter_flags(vm_offset_t va, vm_page_t *m, int count, u_long fl)
  * temporary mappings entered by pmap_qenter.
  */
 void
-pmap_qremove(vm_offset_t va, int count)
+pmap_qremove(vm_offset_t sva, int count)
 {
+	vm_offset_t va;
 	int i;
 
+	va = sva;
 	for (i = 0; i < count; i++, va += PAGE_SIZE)
 		pmap_kremove(va);
+	tlb_range_demap(TLB_CTX_KERNEL, sva, sva + (count * PAGE_SIZE) - 1);
 }
 
 /*
@@ -766,6 +778,7 @@ pmap_qremove(vm_offset_t va, int count)
 void
 pmap_new_proc(struct proc *p)
 {
+	vm_page_t ma[UAREA_PAGES];
 	vm_object_t upobj;
 	vm_offset_t up;
 	vm_page_t m;
@@ -796,6 +809,7 @@ pmap_new_proc(struct proc *p)
 		 * Get a uarea page.
 		 */
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		ma[i] = m;
 
 		/*
 		 * Wire the page.
@@ -803,16 +817,16 @@ pmap_new_proc(struct proc *p)
 		m->wire_count++;
 		cnt.v_wire_count++;
 
-		/*
-		 * Enter the page into the kernel address space.
-		 */
-		pmap_kenter(up + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
-
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
+
+	/*
+	 * Enter the pages into the kernel address space.
+	 */
+	pmap_qenter(up, ma, UAREA_PAGES);
 }
 
 /*
@@ -834,10 +848,10 @@ pmap_dispose_proc(struct proc *p)
 		if (m == NULL)
 			panic("pmap_dispose_proc: upage already missing?");
 		vm_page_busy(m);
-		pmap_kremove(up + i * PAGE_SIZE);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
+	pmap_qremove(up, UAREA_PAGES);
 }
 
 /*
@@ -859,8 +873,8 @@ pmap_swapout_proc(struct proc *p)
 			panic("pmap_swapout_proc: upage already missing?");
 		vm_page_dirty(m);
 		vm_page_unwire(m, 0);
-		pmap_kremove(up + i * PAGE_SIZE);
 	}
+	pmap_qremove(up, UAREA_PAGES);
 }
 
 /*
@@ -869,6 +883,7 @@ pmap_swapout_proc(struct proc *p)
 void
 pmap_swapin_proc(struct proc *p)
 {
+	vm_page_t ma[UAREA_PAGES];
 	vm_object_t upobj;
 	vm_offset_t up;
 	vm_page_t m;
@@ -879,7 +894,6 @@ pmap_swapin_proc(struct proc *p)
 	up = (vm_offset_t)p->p_uarea;
 	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-		pmap_kenter(up + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(upobj, &m, 1, 0);
 			if (rv != VM_PAGER_OK)
@@ -887,10 +901,12 @@ pmap_swapin_proc(struct proc *p)
 			m = vm_page_lookup(upobj, i);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
+		ma[i] = m;
 		vm_page_wire(m);
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
+	pmap_qenter(up, ma, UAREA_PAGES);
 }
 
 /*
@@ -901,6 +917,7 @@ pmap_swapin_proc(struct proc *p)
 void
 pmap_new_thread(struct thread *td)
 {
+	vm_page_t ma[KSTACK_PAGES];
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
@@ -934,6 +951,7 @@ pmap_new_thread(struct thread *td)
 		 * Get a kernel stack page.
 		 */
 		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		ma[i] = m;
 
 		/*
 		 * Wire the page.
@@ -941,16 +959,16 @@ pmap_new_thread(struct thread *td)
 		m->wire_count++;
 		cnt.v_wire_count++;
 
-		/*
-		 * Enter the page into the kernel address space.
-		 */
-		pmap_kenter(ks + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
-
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
+
+	/*
+	 * Enter the page into the kernel address space.
+	 */
+	pmap_qenter(ks, ma, KSTACK_PAGES);
 }
 
 /*
@@ -972,10 +990,10 @@ pmap_dispose_thread(struct thread *td)
 		if (m == NULL)
 			panic("pmap_dispose_proc: kstack already missing?");
 		vm_page_busy(m);
-		pmap_kremove(ks + i * PAGE_SIZE);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
+	pmap_qremove(ks, KSTACK_PAGES);
 }
 
 /*
@@ -997,8 +1015,8 @@ pmap_swapout_thread(struct thread *td)
 			panic("pmap_swapout_thread: kstack already missing?");
 		vm_page_dirty(m);
 		vm_page_unwire(m, 0);
-		pmap_kremove(ks + i * PAGE_SIZE);
 	}
+	pmap_qremove(ks, KSTACK_PAGES);
 }
 
 /*
@@ -1007,6 +1025,7 @@ pmap_swapout_thread(struct thread *td)
 void
 pmap_swapin_thread(struct thread *td)
 {
+	vm_page_t ma[KSTACK_PAGES];
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
@@ -1017,7 +1036,6 @@ pmap_swapin_thread(struct thread *td)
 	ks = td->td_kstack;
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-		pmap_kenter(ks + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
 			if (rv != VM_PAGER_OK)
@@ -1025,10 +1043,12 @@ pmap_swapin_thread(struct thread *td)
 			m = vm_page_lookup(ksobj, i);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
+		ma[i] = m;
 		vm_page_wire(m);
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
+	pmap_qenter(ks, ma, KSTACK_PAGES);
 }
 
 /*
@@ -1086,6 +1106,7 @@ pmap_pinit(pmap_t pm)
 	m->valid = VM_PAGE_BITS_ALL;
 
 	pmap_kenter((vm_offset_t)pm->pm_tsb, VM_PAGE_TO_PHYS(m));
+	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, (vm_offset_t)pm->pm_tsb);
 
 	pm->pm_active = 0;
 	pm->pm_context = pmap_context_alloc();
@@ -1127,6 +1148,7 @@ pmap_release(pmap_t pm)
 	vm_page_busy(m);
 	KASSERT(m->hold_count == 0, ("pmap_release: freeing held tsb page"));
 	pmap_kremove((vm_offset_t)pm->pm_tsb);
+	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, (vm_offset_t)pm->pm_tsb);
 	m->wire_count--;
 	cnt.v_wire_count--;
 	vm_page_free_zero(m);
@@ -1204,8 +1226,6 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp, vm_offset_t v
 	atomic_clear_long(&tp->tte_data, TD_V);
 	tp->tte_tag = 0;
 	tp->tte_data = 0;
-	tlb_page_demap(TLB_ITLB | TLB_DTLB,
-	    pm->pm_context, va);
 	if (PMAP_REMOVE_DONE(pm))
 		return (0);
 	return (1);
@@ -1224,15 +1244,17 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 	    pm->pm_context, start, end);
 	if (PMAP_REMOVE_DONE(pm))
 		return;
-	if (end - start > PMAP_TSB_THRESH)
+	if (end - start > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, start, end, pmap_remove_tte);
-	else {
+		tlb_context_demap(pm->pm_context);
+	} else {
 		for (va = start; va < end; va += PAGE_SIZE) {
 			if ((tp = tsb_tte_lookup(pm, va)) != NULL) {
 				if (!pmap_remove_tte(pm, NULL, tp, va))
 					break;
 			}
 		}
+		tlb_range_demap(pm->pm_context, start, end - 1);
 	}
 }
 
@@ -1256,16 +1278,9 @@ pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp, vm_offset_t 
 	}
 
 	data &= ~(TD_W | TD_SW);
-
 	CTR2(KTR_PMAP, "pmap_protect: new=%#lx old=%#lx",
 	    data, tp->tte_data);
-
-	if (data != tp->tte_data) {
-		CTR0(KTR_PMAP, "pmap_protect: demap");
-		tlb_page_demap(TLB_DTLB | TLB_ITLB,
-		    pm->pm_context, va);
-		tp->tte_data = data;
-	}
+	tp->tte_data = data;
 	return (0);
 }
 
@@ -1292,13 +1307,15 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if (prot & VM_PROT_WRITE)
 		return;
 
-	if (eva - sva > PMAP_TSB_THRESH)
+	if (eva - sva > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, sva, eva, pmap_protect_tte);
-	else {
+		tlb_context_demap(pm->pm_context);
+	} else {
 		for (va = sva; va < eva; va += PAGE_SIZE) {
 			if ((tp = tsb_tte_lookup(pm, va)) != NULL)
 				pmap_protect_tte(pm, NULL, tp, va);
 		}
+		tlb_range_demap(pm->pm_context, sva, eva - 1);
 	}
 }
 
@@ -1368,8 +1385,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 					if (pmap_track_modified(pm, va))
 						vm_page_dirty(m);
 				}
-				tlb_page_demap(TLB_DTLB | TLB_ITLB,
-				    TT_GET_CTX(otte.tte_tag), va);
+				tlb_tte_demap(otte, va);
 			}
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: replace");
@@ -1400,8 +1416,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				if (pmap_cache_enter(m, va) != 0)
 					tte.tte_data |= TD_CV;
 			}
-			tlb_page_demap(TLB_DTLB | TLB_ITLB,
-			    TT_GET_CTX(otte.tte_tag), va);
+			tlb_tte_demap(otte, va);
 		}
 	} else {
 		CTR0(KTR_PMAP, "pmap_enter: new");
@@ -1633,7 +1648,7 @@ pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
 		pv_free(pv);
 	}
-	tlb_context_primary_demap(TLB_DTLB | TLB_ITLB);
+	tlb_context_demap(pm->pm_context);
 }
 
 /*
