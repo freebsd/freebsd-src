@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.5 1994/10/04 06:50:01 phk Exp $
+ * $Id: uipc_mbuf.c,v 1.6 1994/10/09 07:34:59 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -87,7 +87,8 @@ m_clalloc(ncl, nowait)
 	int npg;
 
 	npg = ncl * CLSIZE;
-	p = (caddr_t)kmem_malloc(mb_map, ctob(npg), !nowait);
+	p = (caddr_t)kmem_malloc(mb_map, ctob(npg),
+				 nowait ? M_NOWAIT : M_WAITOK);
 	if (p == NULL) {
 		if (logged == 0) {
 			logged++;
