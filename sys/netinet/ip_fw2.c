@@ -1297,6 +1297,59 @@ lookup_next_rule(struct ip_fw *me)
 	return rule;
 }
 
+static int
+check_uidgid(ipfw_insn_u32 *insn,
+	int proto, struct ifnet *oif,
+	struct in_addr dst_ip, u_int16_t dst_port,
+	struct in_addr src_ip, u_int16_t src_port)
+{
+	struct inpcbinfo *pi;
+	int wildcard;
+	struct inpcb *pcb;
+	int match;
+
+	if (proto == IPPROTO_TCP) {
+		wildcard = 0;
+		pi = &tcbinfo;
+	} else if (proto == IPPROTO_UDP) {
+		wildcard = 1;
+		pi = &udbinfo;
+	} else
+		return 0;
+
+	match = 0;
+
+	INP_INFO_RLOCK(pi);	/* XXX LOR with IPFW */
+	pcb =  (oif) ?
+		in_pcblookup_hash(pi,
+		    dst_ip, htons(dst_port),
+		    src_ip, htons(src_port),
+		    wildcard, oif) :
+		in_pcblookup_hash(pi,
+		    src_ip, htons(src_port),
+		    dst_ip, htons(dst_port),
+		    wildcard, NULL);
+	if (pcb != NULL) {
+		INP_LOCK(pcb);
+		if (pcb->inp_socket != NULL) {
+#if __FreeBSD_version < 500034
+#define socheckuid(a,b)	((a)->so_cred->cr_uid != (b))
+#endif
+			if (insn->o.opcode == O_UID) {
+				match = !socheckuid(pcb->inp_socket,
+				   (uid_t)insn->d[0]);
+			} else  {
+				match = groupmember((uid_t)insn->d[0],
+				    pcb->inp_socket->so_cred);
+			}
+		}
+		INP_UNLOCK(pcb);
+	}
+	INP_INFO_RUNLOCK(pi);
+
+	return match;
+}
+
 /*
  * The main check routine for the firewall.
  *
@@ -1600,46 +1653,13 @@ check_body:
 				 */
 				if (offset!=0)
 					break;
-			    {
-				struct inpcbinfo *pi;
-				int wildcard;
-				struct inpcb *pcb;
-
-				if (proto == IPPROTO_TCP) {
-					wildcard = 0;
-					pi = &tcbinfo;
-				} else if (proto == IPPROTO_UDP) {
-					wildcard = 1;
-					pi = &udbinfo;
-				} else
-					break;
-
-				/* XXX locking? */
-				pcb =  (oif) ?
-					in_pcblookup_hash(pi,
-					    dst_ip, htons(dst_port),
-					    src_ip, htons(src_port),
-					    wildcard, oif) :
-					in_pcblookup_hash(pi,
-					    src_ip, htons(src_port),
-					    dst_ip, htons(dst_port),
-					    wildcard, NULL);
-
-				if (pcb == NULL || pcb->inp_socket == NULL)
-					break;
-#if __FreeBSD_version < 500034
-#define socheckuid(a,b)	((a)->so_cred->cr_uid != (b))
-#endif
-				if (cmd->opcode == O_UID) {
-					match =
-					  !socheckuid(pcb->inp_socket,
-					   (uid_t)((ipfw_insn_u32 *)cmd)->d[0]);
-				} else  {
-					match = groupmember(
-					    (uid_t)((ipfw_insn_u32 *)cmd)->d[0],
-					    pcb->inp_socket->so_cred);
-				}
-			    }
+				if (proto == IPPROTO_TCP ||
+				    proto == IPPROTO_UDP)
+					match = check_uidgid(
+						    (ipfw_insn_u32 *)cmd,
+						    proto, oif,
+						    src_ip, src_port,
+						    dst_ip, dst_port);
 				break;
 
 			case O_RECV:
