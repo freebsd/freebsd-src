@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: keyword.c,v 1.3 1994/09/24 02:56:43 davidg Exp $
  */
 
 #ifndef lint
@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)keyword.c	8.5 (Berkeley) 4/2/94";
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/rtprio.h>
 #include <sys/proc.h>
 
 #include <err.h>
