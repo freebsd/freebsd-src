@@ -25,6 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * 3. The party using or redistributing the source code and binary forms
+ *    agrees to the above disclaimer and the terms and conditions set forth
+ *    herein.
+ *
+ * Additional Copyright (c) 2002 by Eric Moore under same license.
+ * Additional Copyright (c) 2002 LSI Logic Corporation
+ *
  * $FreeBSD$
  */
 
@@ -100,12 +107,15 @@ static driver_t amrd_driver = {
 DRIVER_MODULE(amrd, amr, amrd_driver, amrd_devclass, 0, 0);
 
 static int
-amrd_open(dev_t dev, int flags, int fmt, struct thread *td)
+amrd_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
+#if __FreeBSD_version < 500000		/* old buf style */
+    struct disklabel    *label;
+#endif
 
     debug_called(1);
-	
+
     if (sc == NULL)
 	return (ENXIO);
 
@@ -113,22 +123,34 @@ amrd_open(dev_t dev, int flags, int fmt, struct thread *td)
     if (sc->amrd_controller->amr_state & AMR_STATE_SHUTDOWN)
 	return(ENXIO);
 
+#if __FreeBSD_version < 500000		/* old buf style */
+    label = &sc->amrd_disk.d_label;
+    bzero(label, sizeof(*label));
+    label->d_type       = DTYPE_SCSI;
+    label->d_secsize    = AMR_BLKSIZE;
+    label->d_nsectors   = sc->amrd_drive->al_sectors;
+    label->d_ntracks    = sc->amrd_drive->al_heads;
+    label->d_ncylinders = sc->amrd_drive->al_cylinders;
+    label->d_secpercyl  = sc->amrd_drive->al_sectors * sc->amrd_drive->al_heads;
+    label->d_secperunit = sc->amrd_drive->al_size;
+#else
     sc->amrd_disk.d_sectorsize = AMR_BLKSIZE;
     sc->amrd_disk.d_mediasize = (off_t)sc->amrd_drive->al_size * AMR_BLKSIZE;
     sc->amrd_disk.d_fwsectors = sc->amrd_drive->al_sectors;
     sc->amrd_disk.d_fwheads = sc->amrd_drive->al_heads;
+#endif
 
     sc->amrd_flags |= AMRD_OPEN;
     return (0);
 }
 
 static int
-amrd_close(dev_t dev, int flags, int fmt, struct thread *td)
+amrd_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
 
     debug_called(1);
-	
+
     if (sc == NULL)
 	return (ENXIO);
     sc->amrd_flags &= ~AMRD_OPEN;
@@ -136,7 +158,7 @@ amrd_close(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-amrd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+amrd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
 {
 
     return (ENOTTY);
@@ -189,7 +211,7 @@ amrd_intr(void *data)
 	bio->bio_resid = 0;
     }
 
-    biofinish(bio, &sc->amrd_stats, 0);
+    AMR_BIO_FINISH(bio);
 }
 
 static int
@@ -197,8 +219,8 @@ amrd_probe(device_t dev)
 {
 
     debug_called(1);
-	
-    device_set_desc(dev, "MegaRAID logical drive");
+
+    device_set_desc(dev, "LSILogic MegaRAID logical drive");
     return (0);
 }
 

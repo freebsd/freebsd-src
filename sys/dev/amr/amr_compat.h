@@ -24,6 +24,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * 3. The party using or redistributing the source code and binary forms
+ *    agrees to the above disclaimer and the terms and conditions set forth
+ *    herein.
+ *
+ * Additional Copyright (c) 2002 by Eric Moore under same license.
+ * Additional Copyright (c) 2002 LSI Logic Corporation
+ *
  * $FreeBSD$
  */
 /*
@@ -33,6 +40,7 @@
 #if __FreeBSD_version < 500003		/* old buf style */
 # include <sys/buf.h>
 # include <machine/clock.h>
+# define INTR_ENTROPY                           0
 
 # define FREEBSD_4
 # define bio					buf
@@ -55,8 +63,24 @@
 # define BIO_ERROR				B_ERROR
 # define devstat_end_transaction_bio(x, y)	devstat_end_transaction_buf(x, y)
 # define BIO_IS_READ(x)				((x)->b_flags & B_READ)
+# define AMR_BIO_FINISH(x)                      devstat_end_transaction_bio(&sc->amrd_stats, x);\
+                                                biodone(x)
 
 #else
 # include <sys/bio.h>
 # define BIO_IS_READ(x)				((x)->bio_cmd == BIO_READ)
+# define AMR_BIO_FINISH(x)                      biofinish(x, &sc->amrd_stats, 0)
+#endif
+
+/************************************************************************
+ * Compatibility with older versions of FreeBSD
+ */
+#if __FreeBSD_version < 440001
+typedef struct proc     d_thread_t;
+#define M_ZERO          0x0008          /* bzero the allocation */
+#endif
+
+
+#ifndef __packed
+#define __packed __attribute__ ((packed))
 #endif
