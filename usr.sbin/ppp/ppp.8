@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.188 1999/08/06 20:04:05 brian Exp $
+.\" $Id: ppp.8,v 1.189 1999/08/17 17:22:46 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -2654,7 +2654,7 @@ mode) to properly connect the process that caused the PPP link to
 come up in the first place.
 .Pp
 Disabling IP aliasing with
-.Dq alias enable off
+.Dq alias enable no
 will also disable
 .Sq iface-alias .
 .El
