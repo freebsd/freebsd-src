@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uucplock.c,v 1.5 1997/04/02 04:24:39 ache Exp $
  *
  */
 
@@ -62,7 +62,7 @@ static pid_t get_pid (int fd,int *err);
  * 	  -1 - failure
  */
 
-int uu_lock (char *ttyname)
+int uu_lock (const char *ttyname)
 {
 	int fd;
 	pid_t pid;
@@ -114,7 +114,7 @@ int uu_lock (char *ttyname)
 	return UU_LOCK_OK;
 }
 
-int uu_unlock (char *ttyname)
+int uu_unlock (const char *ttyname)
 {
 	char tbuf[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
 
@@ -122,7 +122,7 @@ int uu_unlock (char *ttyname)
 	return unlink(tbuf);
 }
 
-char *uu_lockerr (int uu_lockresult)
+const char *uu_lockerr (int uu_lockresult)
 {
 	static char errbuf[128];
 	char *fmt;
