@@ -15,7 +15,6 @@ crypto/des/des_enc.c		optional	crypto
 dev/auxio/auxio.c		optional	auxio sbus
 dev/auxio/auxio.c		optional	auxio ebus
 dev/esp/esp_sbus.c		optional	esp sbus
-dev/esp/lsi64854.c		optional	esp sbus
 dev/fb/creator.c		optional	creator sc
 dev/fb/fb.c			optional	sc
 dev/fb/splash.c			optional	splash
@@ -68,6 +67,7 @@ sparc64/pci/ofw_pcibus.c	optional	pci
 sparc64/pci/ofw_pci_if.m	standard
 sparc64/pci/psycho.c		optional	pci
 sparc64/sbus/sbus.c		optional	sbus
+sparc64/sbus/lsi64854.c         optional        esp sbus
 sparc64/sparc64/autoconf.c	standard
 sparc64/sparc64/bus_machdep.c	standard
 sparc64/sparc64/cache.c		standard
