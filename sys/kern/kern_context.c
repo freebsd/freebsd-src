@@ -71,7 +71,7 @@ getcontext(struct thread *td, struct getcontext_args *uap)
 	if (uap->ucp == NULL)
 		ret = EINVAL;
 	else {
-		get_mcontext(td, &uc.uc_mcontext);
+		get_mcontext(td, &uc.uc_mcontext, 1);
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
 		PROC_UNLOCK(td->td_proc);
@@ -115,7 +115,7 @@ swapcontext(struct thread *td, struct swapcontext_args *uap)
 	if (uap->oucp == NULL || uap->ucp == NULL)
 		ret = EINVAL;
 	else {
-		get_mcontext(td, &uc.uc_mcontext);
+		get_mcontext(td, &uc.uc_mcontext, 1);
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
 		PROC_UNLOCK(td->td_proc);

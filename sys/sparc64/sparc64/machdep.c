@@ -535,7 +535,7 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 #endif
 
 int
-get_mcontext(struct thread *td, mcontext_t *mc)
+get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 {
 	struct trapframe *tf;
 	struct pcb *pcb;
@@ -543,6 +543,10 @@ get_mcontext(struct thread *td, mcontext_t *mc)
 	tf = td->td_frame;
 	pcb = td->td_pcb;
 	bcopy(tf, mc, sizeof(*tf));
+	if (clear_ret != 0) {
+		mc->mc_out[0] = 0;
+		mc->mc_out[1] = 0;
+	}
 	mc->mc_flags = _MC_VERSION;
 	critical_enter();
 	if ((tf->tf_fprs & FPRS_FEF) != 0) {
