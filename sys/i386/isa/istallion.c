@@ -1076,11 +1076,9 @@ STATIC int stliclose(dev_t dev, int flag, int mode, struct proc *p)
 	return(0);
 }
 
-/*****************************************************************************/
 
 STATIC int stliread(dev_t dev, struct uio *uiop, int flag)
 {
-	stliport_t	*portp;
 
 #if DEBUG
 	printf("stliread(dev=%s,uiop=%p,flag=%x)\n", devtoname(dev),
@@ -1089,11 +1087,8 @@ STATIC int stliread(dev_t dev, struct uio *uiop, int flag)
 
 	if (minor(dev) & STL_MEMDEV)
 		return(stli_memrw(dev, uiop, flag));
-
-	portp = stli_dev2port(dev);
-	if (portp == (stliport_t *) NULL)
-		return(ENODEV);
-	return((*linesw[portp->tty.t_line].l_read)(&portp->tty, uiop, flag));
+	else
+		return(ttyread(dev, uiop, flag));
 }
 
 /*****************************************************************************/
@@ -1136,11 +1131,8 @@ STATIC int stliwrite(dev_t dev, struct uio *uiop, int flag)
 
 	if (minor(dev) & STL_MEMDEV)
 		return(stli_memrw(dev, uiop, flag));
-
-	portp = stli_dev2port(dev);
-	if (portp == (stliport_t *) NULL)
-		return(ENODEV);
-	return((*linesw[portp->tty.t_line].l_write)(&portp->tty, uiop, flag));
+	else
+		return(ttywrite(dev, uiop, flag));
 }
 
 /*****************************************************************************/
