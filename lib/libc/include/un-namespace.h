@@ -65,6 +65,7 @@
 #undef		pthread_mutexattr_destroy
 #undef		pthread_mutexattr_settype
 #undef		pthread_once
+#undef		pthread_self
 #undef		pthread_setspecific
 #undef		read
 #undef		readv
@@ -102,7 +103,6 @@
 #undef		pthread_rwlock_wrlock
 #undef		pthread_rwlockattr_init
 #undef		pthread_rwlockattr_destroy
-#undef		pthread_self
 #undef		sched_yield
 #undef		sendfile
 #undef		shutdown

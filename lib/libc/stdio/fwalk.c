@@ -61,10 +61,13 @@ _fwalk(function)
 	 * It should be safe to walk the list without locking it;
 	 * new nodes are only added to the end and none are ever
 	 * removed.
+	 *
+	 * Avoid locking this list while walking it or else you will
+	 * introduce a potential deadlock in [at least] refill.c.
 	 */
 	for (g = &__sglue; g != NULL; g = g->next)
 		for (fp = g->iobs, n = g->niobs; --n >= 0; fp++)
-			if (fp->_flags != 0)
+			if ((fp->_flags != 0) && ((fp->_flags & __SIGN) == 0))
 				ret |= (*function)(fp);
 	return (ret);
 }

@@ -74,7 +74,7 @@ sprintf(str, fmt, va_alist)
 #else
 	va_start(ap);
 #endif
-	ret = vfprintf(&f, fmt, ap);
+	ret = __vfprintf(&f, fmt, ap);
 	va_end(ap);
 	*f._p = 0;
 	return (ret);

@@ -49,7 +49,13 @@
 #pragma weak	_pthread_mutexattr_destroy=_pthread_mutexattr_destroy_stub
 #pragma weak	_pthread_mutexattr_settype=_pthread_mutexattr_settype_stub
 #pragma weak	_pthread_once=_pthread_once_stub
+#pragma weak	_pthread_self=_pthread_self_stub
 #pragma weak	_pthread_setspecific=_pthread_setspecific_stub
+
+struct pthread {
+};
+
+static struct pthread	main_thread;
 
 
 void *
@@ -122,6 +128,12 @@ int
 _pthread_once_stub(pthread_once_t *once_control, void (*init_routine) (void))
 {
 	return (0);
+}
+
+pthread_t
+_pthread_self_stub(void)
+{
+	return (&main_thread);
 }
 
 int

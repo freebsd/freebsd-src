@@ -51,8 +51,7 @@ static const char rcsid[] =
 #include "local.h"
 
 int
-fclose(fp)
-	FILE *fp;
+fclose(FILE *fp)
 {
 	int r;
 
@@ -70,15 +69,9 @@ fclose(fp)
 		FREEUB(fp);
 	if (HASLB(fp))
 		FREELB(fp);
-	FUNLOCKFILE(fp);
 	fp->_file = -1;
 	fp->_r = fp->_w = 0;	/* Mess up if reaccessed. */
-#if 0
-	if (fp->_lock != NULL) {
-		_pthread_mutex_destroy((pthread_mutex_t *)&fp->_lock);
-		fp->_lock = NULL;
-	}
-#endif
 	fp->_flags = 0;		/* Release this FILE for reuse. */
+	FUNLOCKFILE(fp);
 	return (r);
 }

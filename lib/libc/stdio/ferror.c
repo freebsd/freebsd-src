@@ -42,16 +42,24 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <stdio.h>
+#include "un-namespace.h"
+#include "libc_private.h"
 
 /*
- * A subroutine version of the macro ferror.
+ * ferror has traditionally been a macro in <stdio.h>.  That is no
+ * longer true because it needs to be thread-safe.
+ *
+ * #undef ferror
  */
-#undef ferror
-
 int
-ferror(fp)
-	FILE *fp;
+ferror(FILE *fp)
 {
-	return (__sferror(fp));
+	int	ret;
+
+	FLOCKFILE(fp);
+	ret = __sferror(fp);
+	FUNLOCKFILE(fp);
+	return (ret);
 }
