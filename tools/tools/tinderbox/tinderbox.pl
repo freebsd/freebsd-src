@@ -392,7 +392,6 @@ MAIN:{
 
 	'__MAKE_CONF'		=> "/dev/null",
 	'MAKEOBJDIRPREFIX'	=> "$sandbox/obj",
-	'NO_KERNELCLEAN'	=> "YES",
 
 	'TARGET_ARCH'		=> $arch,
 	'TARGET_MACHINE'	=> $machine,
