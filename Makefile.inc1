@@ -8,7 +8,6 @@
 #	-DNOCRYPT will prevent building of crypt versions
 #	-DNOMAN do not build the manual pages
 #	-DNOPROFILE do not build profiled libraries
-#	-DNOSECURE do not go into secure subdir
 #	-DNOGAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
 #	-DNOINFO do not make or install info files
@@ -70,7 +69,7 @@ SUBDIR+= libexec
 .if exists(${.CURDIR}/sbin)
 SUBDIR+= sbin
 .endif
-.if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+.if exists(${.CURDIR}/secure) && !defined(NOCRYPT)
 SUBDIR+= secure
 .endif
 .if exists(${.CURDIR}/share) && !defined(NOSHARE)
@@ -803,7 +802,7 @@ lib/libypclnt__L: lib/librpcsvc__L
 
 _generic_libs+=	lib
 
-.if !defined(NOCRYPT) && !defined(NOSECURE)
+.if !defined(NOCRYPT)
 .if !defined(NO_OPENSSL)
 _prebuild_libs+=	secure/lib/libcrypto secure/lib/libssl
 .if !defined(NO_OPENSSH)

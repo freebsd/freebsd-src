@@ -24,8 +24,7 @@ MODULES		+= pam_rhosts
 MODULES		+= pam_rootok
 MODULES		+= pam_securetty
 MODULES		+= pam_self
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH) && \
-    !defined(NOSECURE)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
 MODULES		+= pam_ssh
 .endif
 MODULES		+= pam_tacplus
