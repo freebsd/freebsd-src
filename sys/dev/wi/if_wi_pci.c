@@ -105,6 +105,7 @@ static struct {
 	{0x111a, 0x1023, WI_BUS_PCI_PLX, "Siemens SpeedStream"},
 	{0x10b5, 0x9050, WI_BUS_PCI_PLX, "SMC 2602W"},
 	{0x16ec, 0x3685, WI_BUS_PCI_PLX, "US Robotics 2415"},
+	{0x4033, 0x7001, WI_BUS_PCI_PLX, "Addtron AWA-100 PCI"},
 	{0, 0, 0, NULL}
 };
 
