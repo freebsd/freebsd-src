@@ -185,8 +185,7 @@ static int n_pccard_cis_quirks =
 
 void pccard_check_cis_quirks(device_t dev)
 {
-	struct pccard_softc *sc = (struct pccard_softc *)
-	    device_get_softc(dev);
+	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	int wiped = 0;
 	int i, j;
 	struct pccard_function *pf, *pf_next, *pf_last;
