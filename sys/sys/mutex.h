@@ -246,7 +246,7 @@ extern int mtx_pool_valid;
 #ifndef LOCK_DEBUG
 #error LOCK_DEBUG not defined, include <sys/lock.h> before <sys/mutex.h>
 #endif
-#if LOCK_DEBUG > 0
+#if LOCK_DEBUG > 0 || defined(MUTEX_NOINLINE)
 #define	mtx_lock_flags(m, opts)						\
 	_mtx_lock_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_flags(m, opts)					\
@@ -255,7 +255,7 @@ extern int mtx_pool_valid;
 	_mtx_lock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_spin_flags(m, opts)					\
 	_mtx_unlock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
-#else	/* LOCK_DEBUG == 0 */
+#else	/* LOCK_DEBUG == 0 && !MUTEX_NOINLINE */
 #define	mtx_lock_flags(m, opts)						\
 	_get_sleep_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_flags(m, opts)					\
@@ -269,7 +269,7 @@ extern int mtx_pool_valid;
 #define	mtx_lock_spin_flags(m, opts)	critical_enter()
 #define	mtx_unlock_spin_flags(m, opts)	critical_exit()
 #endif	/* SMP */
-#endif	/* LOCK_DEBUG */
+#endif	/* LOCK_DEBUG > 0 || MUTEX_NOINLINE */
 
 #define mtx_trylock_flags(m, opts)					\
 	_mtx_trylock((m), (opts), LOCK_FILE, LOCK_LINE)
