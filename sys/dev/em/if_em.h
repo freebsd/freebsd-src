@@ -425,7 +425,11 @@ struct adapter {
 	struct em_hw_stats stats;
 };
 
-#define	EM_LOCK(_sc)	mtx_lock(&(_sc)->mtx)
-#define	EM_UNLOCK(_sc)	mtx_unlock(&(_sc)->mtx)
+#define	EM_LOCK_INIT(_sc, _name) \
+	mtx_init(&(_sc)->mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+#define	EM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->mtx)
+#define	EM_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
+#define	EM_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
+#define	EM_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
 
 #endif                                                  /* _EM_H_DEFINED_ */
