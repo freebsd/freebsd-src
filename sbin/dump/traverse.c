@@ -275,17 +275,20 @@ dirindir(
 	long *tapesize,
 	int nodump)
 {
+	union {
+		ufs1_daddr_t ufs1[MAXBSIZE / sizeof(ufs1_daddr_t)];
+		ufs2_daddr_t ufs2[MAXBSIZE / sizeof(ufs2_daddr_t)];
+	} idblk;
 	int ret = 0;
 	int i;
-	char idblk[MAXBSIZE];
 
-	bread(fsbtodb(sblock, blkno), idblk, (int)sblock->fs_bsize);
+	bread(fsbtodb(sblock, blkno), (char *)&idblk, (int)sblock->fs_bsize);
 	if (ind_level <= 0) {
 		for (i = 0; *filesize > 0 && i < NINDIR(sblock); i++) {
 			if (sblock->fs_magic == FS_UFS1_MAGIC)
-				blkno = ((ufs1_daddr_t *)idblk)[i];
+				blkno = idblk.ufs1[i];
 			else
-				blkno = ((ufs2_daddr_t *)idblk)[i];
+				blkno = idblk.ufs2[i];
 			if (blkno != 0)
 				ret |= searchdir(ino, blkno, sblock->fs_bsize,
 					*filesize, tapesize, nodump);
@@ -299,9 +302,9 @@ dirindir(
 	ind_level--;
 	for (i = 0; *filesize > 0 && i < NINDIR(sblock); i++) {
 		if (sblock->fs_magic == FS_UFS1_MAGIC)
-			blkno = ((ufs1_daddr_t *)idblk)[i];
+			blkno = idblk.ufs1[i];
 		else
-			blkno = ((ufs2_daddr_t *)idblk)[i];
+			blkno = idblk.ufs2[i];
 		if (blkno != 0)
 			ret |= dirindir(ino, blkno, ind_level, filesize,
 			    tapesize, nodump);
@@ -498,13 +501,17 @@ dumpino(union dinode *dp, ino_t ino)
 static void
 dmpindir(ino_t ino, ufs2_daddr_t blk, int ind_level, off_t *size)
 {
+	union {
+		ufs1_daddr_t ufs1[MAXBSIZE / sizeof(ufs1_daddr_t)];
+		ufs2_daddr_t ufs2[MAXBSIZE / sizeof(ufs2_daddr_t)];
+	} idblk;
 	int i, cnt;
-	char idblk[MAXBSIZE];
 
 	if (blk != 0)
-		bread(fsbtodb(sblock, blk), idblk, (int) sblock->fs_bsize);
+		bread(fsbtodb(sblock, blk), (char *)&idblk,
+		    (int)sblock->fs_bsize);
 	else
-		memset(idblk, 0, (int)sblock->fs_bsize);
+		memset(&idblk, 0, sblock->fs_bsize);
 	if (ind_level <= 0) {
 		if (*size < NINDIR(sblock) * sblock->fs_bsize)
 			cnt = howmany(*size, sblock->fs_fsize);
@@ -512,19 +519,17 @@ dmpindir(ino_t ino, ufs2_daddr_t blk, int ind_level, off_t *size)
 			cnt = NINDIR(sblock) * sblock->fs_frag;
 		*size -= NINDIR(sblock) * sblock->fs_bsize;
 		if (sblock->fs_magic == FS_UFS1_MAGIC)
-			ufs1_blksout((ufs1_daddr_t *)idblk, cnt, ino);
+			ufs1_blksout(idblk.ufs1, cnt, ino);
 		else
-			ufs2_blksout((ufs2_daddr_t *)idblk, cnt, ino);
+			ufs2_blksout(idblk.ufs2, cnt, ino);
 		return;
 	}
 	ind_level--;
 	for (i = 0; i < NINDIR(sblock); i++) {
 		if (sblock->fs_magic == FS_UFS1_MAGIC)
-			dmpindir(ino, ((ufs1_daddr_t *)idblk)[i], ind_level,
-			    size);
+			dmpindir(ino, idblk.ufs1[i], ind_level, size);
 		else
-			dmpindir(ino, ((ufs2_daddr_t *)idblk)[i], ind_level,
-			    size);
+			dmpindir(ino, idblk.ufs2[i], ind_level, size);
 		if (*size <= 0)
 			return;
 	}
