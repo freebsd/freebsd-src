@@ -111,7 +111,7 @@ ahc_attach(struct ahc_softc *ahc)
 	ahc_lock(ahc, &s);
 	/* Hook up our interrupt handler */
 	if ((error = bus_setup_intr(ahc->dev_softc, ahc->platform_data->irq,
-				    INTR_TYPE_CAM, ahc_platform_intr, ahc,
+				    INTR_TYPE_CAM|INTR_ENTROPY, ahc_platform_intr, ahc,
 				    &ahc->platform_data->ih)) != 0) {
 		device_printf(ahc->dev_softc, "bus_setup_intr() failed: %d\n",
 			      error);

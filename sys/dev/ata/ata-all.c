@@ -887,7 +887,7 @@ ata_attach(device_t dev)
 	ata_printf(scp, -1, "unable to allocate interrupt\n");
 	return ENXIO;
     }
-    if ((error = bus_setup_intr(dev, scp->r_irq, INTR_TYPE_BIO, ata_intr,
+    if ((error = bus_setup_intr(dev, scp->r_irq, INTR_TYPE_BIO|INTR_ENTROPY, ata_intr,
 				scp, &scp->ih)))
 	return error;
 
