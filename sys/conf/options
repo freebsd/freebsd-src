@@ -43,9 +43,8 @@ AHD_TMODE_ENABLE	opt_aic79xx.h
 AHD_REG_PRETTY_PRINT	opt_aic79xx.h
 ADW_ALLOW_MEMIO		opt_adw.h
 
-# 3ware 9000 series RAID controller driver options
-TWA_DEBUG		opt_twa.h	# 0-10; 10 prints the most messages.
-TWA_FLASH_FIRMWARE	opt_twa.h	# firmware image bundled when defined.
+TWA_DEBUG		opt_twa.h
+TWA_FLASH_FIRMWARE	opt_twa.h
 
 # Miscellaneous options.
 ADAPTIVE_MUTEXES
