@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.8 1998/11/04 00:29:01 msmith Exp $
+ *	$Id: interp.c,v 1.9 1998/12/22 11:41:51 abial Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -54,7 +54,7 @@ static void	prompt(void);
 int
 perform(int argc, char *argv[])
 {
-    int				i, result;
+    int				result;
     struct bootblk_command	**cmdp;
     bootblk_cmd_t		*cmd;
 
@@ -87,8 +87,10 @@ void
 interact(void)
 {
     char	input[256];			/* big enough? */
+#ifndef BOOT_FORTH
     int		argc;
     char	**argv;
+#endif
 
 #ifdef BOOT_FORTH
     bf_init();
