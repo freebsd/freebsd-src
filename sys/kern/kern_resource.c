@@ -69,7 +69,6 @@ static struct mtx uihashtbl_mtx;
 static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
 static u_long uihash;		/* size of hash table - 1 */
 
-static struct uidinfo	*uicreate __P((uid_t uid));
 static struct uidinfo	*uilookup __P((uid_t uid));
 
 /*
@@ -733,25 +732,6 @@ uilookup(uid)
 }
 
 /*
- * Create a uidinfo struct for the parameter uid.
- * uihashtbl_mtx must be locked.
- */
-static struct uidinfo *
-uicreate(uid)
-	uid_t uid;
-{
-	struct	uidinfo *uip;
-
-	mtx_assert(&uihashtbl_mtx, MA_OWNED);
-	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_UIDINFO,
-	    M_WAITOK | M_ZERO);
-	LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
-	uip->ui_uid = uid;
-	mtx_init(&uip->ui_mtx, "uidinfo struct", MTX_DEF);
-	return (uip);
-}
-
-/*
  * Find or allocate a struct uidinfo for a particular uid.
  * Increase refcount on uidinfo struct returned.
  * uifree() should be called on a struct uidinfo when released.
@@ -764,8 +744,27 @@ uifind(uid)
 
 	mtx_lock(&uihashtbl_mtx);
 	uip = uilookup(uid);
-	if (uip == NULL)
-		uip = uicreate(uid);
+	if (uip == NULL) {
+		struct  uidinfo *old_uip;
+
+		mtx_unlock(&uihashtbl_mtx);
+		uip = malloc(sizeof(*uip), M_UIDINFO, M_WAITOK | M_ZERO);
+		mtx_lock(&uihashtbl_mtx);
+		/*
+		 * There's a chance someone created our uidinfo while we
+		 * were in malloc and not holding the lock, so we have to
+		 * make sure we don't insert a duplicate uidinfo
+		 */
+		if ((old_uip = uilookup(uid)) != NULL) {
+			/* someone else beat us to it */
+			free(uip, M_UIDINFO);
+			uip = old_uip;
+		} else {
+			mtx_init(&uip->ui_mtx, "uidinfo struct", MTX_DEF);
+			uip->ui_uid = uid;
+			LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
+		}
+	}
 	uihold(uip);
 	mtx_unlock(&uihashtbl_mtx);
 	return (uip);
