@@ -1,18 +1,6 @@
-/*	$NetBSD: ohci.c,v 1.126 2002/06/01 23:51:03 lukem Exp $	*/
+/*	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $	*/
 
 /* Also, already ported:
- *	$NetBSD: ohci.c,v 1.127 2002/08/07 20:03:19 augustss Exp $
- *	$NetBSD: ohci.c,v 1.128 2002/09/27 15:37:35 provos Exp $
- *	$NetBSD: ohci.c,v 1.129 2002/09/29 20:58:25 augustss Exp $
- *	$NetBSD: ohci.c,v 1.130 2002/09/29 20:59:30 augustss Exp $
- *	$NetBSD: ohci.c,v 1.131 2002/09/30 16:36:19 augustss Exp $
- *	$NetBSD: ohci.c,v 1.132 2002/12/07 06:52:11 toshii Exp $
- *	$NetBSD: ohci.c,v 1.133 2002/12/07 07:14:28 toshii Exp $
- *	$NetBSD: ohci.c,v 1.134 2002/12/07 07:33:20 toshii Exp $
- *	$NetBSD: ohci.c,v 1.135 2002/12/10 14:07:37 toshii Exp $
- *	$NetBSD: ohci.c,v 1.136 2003/01/20 05:30:09 simonb Exp $
- *	$NetBSD: ohci.c,v 1.137 2003/01/20 07:12:13 simonb Exp $
- *	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $
  *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  */
 
