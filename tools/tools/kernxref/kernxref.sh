@@ -12,8 +12,17 @@
 # This shellscript will make a cross reference of the symbols of the LINT 
 # kernel.
 
-COMPILEDIR=/sys/i386/compile
+COMPILEDIR=/sys/`uname -m`/compile
 KERNELNAME=LINT
+
+if [ "x$1" != "x" ]; then
+	KERNELNAME=$1;
+fi
+
+if [ ! -d ${COMPILEDIR}/${KERNELNAME} ]; then
+	echo "Kernel $KERNELNAME does not exist in ${COMPILEDIR}!";
+	exit 1;
+fi
 
 cd ${COMPILEDIR}/${KERNELNAME}
 if file vers.o | grep -q ELF; then
@@ -22,7 +31,9 @@ else
 	OBJFORMAT=aout;
 fi
 
-OBJFORMAT=${OBJFORMAT} nm -gon `echo *.o /boot/kernel/*.ko	\
+MOD_OBJS=`find modules -name \*.ko`
+
+OBJFORMAT=${OBJFORMAT} nm -gon `echo *.o $MOD_OBJS      \
 	| tr ' ' '\012'					\
 	| egrep -v '(aicasm|genassym)'`			\
 	| tr : ' ' | awk '
