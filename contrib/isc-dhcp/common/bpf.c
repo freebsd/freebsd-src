@@ -3,8 +3,8 @@
    BPF socket interface code, originally contributed by Archie Cobbs. */
 
 /*
- * Copyright (c) 1995, 1996 The Internet Software Consortium.
- * All rights reserved.
+ * Copyright (c) 1995, 1996, 1998, 1999
+ * The Internet Software Consortium.    All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,22 +42,31 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: bpf.c,v 1.19 1997/10/20 21:47:13 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: bpf.c,v 1.19.2.6 1999/02/09 04:46:59 mellon Exp $ Copyright (c) 1995, 1996, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
-#if defined (USE_BPF_SEND) || defined (USE_BPF_RECEIVE)
-#include <sys/ioctl.h>
-#include <sys/uio.h>
+#if defined (USE_BPF_SEND) || defined (USE_BPF_RECEIVE)	\
+				|| defined (USE_LPF_RECEIVE)
+# if defined (USE_LPF_RECEIVE)
+#  include <asm/types.h>
+#  include <linux/filter.h>
+#  define bpf_insn sock_filter /* Linux: dare to be gratuitously different. */
+# else
+#  include <sys/ioctl.h>
+#  include <sys/uio.h>
 
-#include <net/bpf.h>
-#ifdef NEED_OSF_PFILT_HACKS
-#include <net/pfilt.h>
-#endif
+#  include <net/bpf.h>
+#  if defined (NEED_OSF_PFILT_HACKS)
+#   include <net/pfilt.h>
+#  endif
+# endif
+
 #include <netinet/in_systm.h>
 #include "includes/netinet/ip.h"
 #include "includes/netinet/udp.h"
 #include "includes/netinet/if_ether.h"
+#endif
 
 /* Reinitializes the specified interface after an address change.   This
    is not required for packet-filter APIs. */
@@ -80,6 +89,7 @@ void if_reinitialize_receive (info)
    Opens a packet filter for each interface and adds it to the select
    mask. */
 
+#if defined (USE_BPF_SEND) || defined (USE_BPF_RECEIVE)
 int if_register_bpf (info)
 	struct interface_info *info;
 {
@@ -99,6 +109,11 @@ int if_register_bpf (info)
 			if (errno == EBUSY) {
 				continue;
 			} else {
+				if (!b)
+					error ("No bpf devices.%s%s%s",
+					       "   Please read the README",
+					       " section for your operating",
+					       " system.");
 				error ("Can't find free bpf: %m");
 			}
 		} else {
@@ -137,12 +152,12 @@ void if_register_send (info)
 }
 #endif /* USE_BPF_SEND */
 
-#ifdef USE_BPF_RECEIVE
+#if defined (USE_BPF_RECEIVE) || defined (USE_LPF_RECEIVE)
 /* Packet filter program...
    XXX Changes to the filter program may require changes to the constant
    offsets used in if_register_send to patch the BPF program! XXX */
 
-struct bpf_insn filter [] = {
+struct bpf_insn dhcp_bpf_filter [] = {
 	/* Make sure this is an IP packet... */
 	BPF_STMT (BPF_LD + BPF_H + BPF_ABS, 12),
 	BPF_JUMP (BPF_JMP + BPF_JEQ + BPF_K, ETHERTYPE_IP, 0, 8),
@@ -169,6 +184,10 @@ struct bpf_insn filter [] = {
 	BPF_STMT(BPF_RET+BPF_K, 0),
 };
 
+int dhcp_bpf_filter_len = sizeof dhcp_bpf_filter / sizeof (struct bpf_insn);
+#endif
+
+#if defined (USE_BPF_RECEIVE)
 void if_register_receive (info)
 	struct interface_info *info;
 {
@@ -220,13 +239,13 @@ void if_register_receive (info)
 	info -> rbuf_len = 0;
 
 	/* Set up the bpf filter program structure. */
-	p.bf_len = sizeof filter / sizeof (struct bpf_insn);
-	p.bf_insns = filter;
+	p.bf_len = dhcp_bpf_filter_len;
+	p.bf_insns = dhcp_bpf_filter;
 
         /* Patch the server port into the BPF  program...
 	   XXX changes to filter program may require changes
 	   to the insn number(s) used below! XXX */
-	filter [8].k = ntohs (local_port);
+	dhcp_bpf_filter [8].k = ntohs (local_port);
 
 	if (ioctl (info -> rfdesc, BIOCSETF, &p) < 0)
 		error ("Can't install packet filter program: %m");
@@ -254,6 +273,10 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	int bufp = 0;
 	unsigned char buf [256];
 	struct iovec iov [2];
+
+	if (!strcmp (interface -> name, "fallback"))
+		return send_fallback (interface, packet, raw,
+				      len, from, to, hto);
 
 	/* Assemble the headers... */
 	assemble_hw_header (interface, buf, &bufp, hto);
@@ -382,5 +405,21 @@ ssize_t receive_packet (interface, buf, len, from, hfrom)
 		return hdr.bh_caplen;
 	} while (!length);
 	return 0;
+}
+
+int can_unicast_without_arp ()
+{
+	return 1;
+}
+
+void maybe_setup_fallback ()
+{
+	struct interface_info *fbi;
+	fbi = setup_fallback ();
+	if (fbi) {
+		if_register_fallback (fbi);
+		add_protocol ("fallback", fallback_interface -> wfdesc,
+			      fallback_discard, fallback_interface);
+	}
 }
 #endif

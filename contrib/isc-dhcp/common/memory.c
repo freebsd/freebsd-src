@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: memory.c,v 1.35.2.2 1998/06/25 21:11:30 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: memory.c,v 1.35.2.3 1998/11/24 22:32:43 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -357,36 +357,59 @@ struct subnet *find_grouped_subnet (share, addr)
 	return (struct subnet *)0;
 }
 
+int subnet_inner_than (subnet, scan, warnp)
+	struct subnet *subnet, *scan;
+	int warnp;
+{
+	if (addr_eq (subnet_number (subnet -> net, scan -> netmask),
+		     scan -> net) ||
+	    addr_eq (subnet_number (scan -> net, subnet -> netmask),
+		     subnet -> net)) {
+		char n1buf [16];
+		int i, j;
+		for (i = 0; i < 32; i++)
+			if (subnet -> netmask.iabuf [3 - (i >> 3)]
+			    & (1 << (i & 7)))
+				break;
+		for (j = 0; j < 32; j++)
+			if (scan -> netmask.iabuf [3 - (j >> 3)] &
+			    (1 << (j & 7)))
+				break;
+		strcpy (n1buf, piaddr (subnet -> net));
+		if (warnp)
+			warn ("%ssubnet %s/%d conflicts with subnet %s/%d",
+			      "Warning: ", n1buf, 32 - i,
+			      piaddr (scan -> net), 32 - j);
+		if (i < j)
+			return 1;
+	}
+	return 0;
+}
+
 /* Enter a new subnet into the subnet list. */
 
 void enter_subnet (subnet)
 	struct subnet *subnet;
 {
-	struct subnet *scan;
+	struct subnet *scan, *prev = (struct subnet *)0;
 
 	/* Check for duplicates... */
 	for (scan = subnets; scan; scan = scan -> next_subnet) {
-		if (addr_eq (subnet_number (subnet -> net, scan -> netmask),
-			     scan -> net) ||
-		    addr_eq (subnet_number (scan -> net, subnet -> netmask),
-			     subnet -> net)) {
-			char n1buf [16];
-			int i, j;
-			for (i = 0; i < 32; i++)
-				if (subnet -> netmask.iabuf [3 - (i >> 3)]
-				    & (1 << (i & 7)))
-					break;
-			for (j = 0; j < 32; j++)
-				if (scan -> netmask.iabuf [3 - (j >> 3)]
-				    & (1 << (j & 7)))
-					break;
-			strcpy (n1buf, piaddr (subnet -> net));
-			error ("subnet %s/%d conflicts with subnet %s/%d",
-			       n1buf, i, piaddr (scan -> net), j);
+		/* When we find a conflict, make sure that the
+		   subnet with the narrowest subnet mask comes
+		   first. */
+		if (subnet_inner_than (subnet, scan, 1)) {
+			if (prev) {
+				prev -> next_subnet = subnet; 
+			} else
+				subnets = subnet;
+			subnet -> next_subnet = scan;
+			return;
 		}
+		prev = scan;
 	}
 
-	/* XXX Sort the nets into a balanced tree to make searching quicker. */
+	/* XXX use the BSD radix tree code instead of a linked list. */
 	subnet -> next_subnet = subnets;
 	subnets = subnet;
 }
@@ -626,8 +649,10 @@ void release_lease (lease)
 	struct lease lt;
 
 	lt = *lease;
-	lt.ends = cur_time;
-	supersede_lease (lease, &lt, 1);
+	if (lt.ends > cur_time) {
+		lt.ends = cur_time;
+		supersede_lease (lease, &lt, 1);
+	}
 }
 
 /* Abandon the specified lease (set its timeout to infinity and its
@@ -896,16 +921,21 @@ void dump_subnets ()
 	struct shared_network *s;
 	struct subnet *n;
 
+	note ("Subnets:");
+	for (n = subnets; n; n = n -> next_subnet) {
+		debug ("  Subnet %s", piaddr (n -> net));
+		debug ("     netmask %s",
+		       piaddr (n -> netmask));
+	}
+	note ("Shared networks:");
 	for (s = shared_networks; s; s = s -> next) {
-		for (n = subnets; n; n = n -> next_sibling) {
-			debug ("Subnet %s", piaddr (n -> net));
-			debug ("   netmask %s",
-			       piaddr (n -> netmask));
-		}
+		note ("  %s", s -> name);
 		for (l = s -> leases; l; l = l -> next) {
 			print_lease (l);
 		}
-		debug ("Last Lease:");
-		print_lease (s -> last_lease);
+		if (s -> last_lease) {
+			debug ("    Last Lease:");
+			print_lease (s -> last_lease);
+		}
 	}
 }

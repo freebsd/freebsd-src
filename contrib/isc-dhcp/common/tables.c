@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: tables.c,v 1.13.2.1 1998/06/25 21:11:32 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: tables.c,v 1.13.2.3 1998/12/22 22:45:44 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -78,7 +78,7 @@ struct option dhcp_options [256] = {
 	{ "lpr-servers", "IA",				&dhcp_universe, 9 },
 	{ "impress-servers", "IA",			&dhcp_universe, 10 },
 	{ "resource-location-servers", "IA",		&dhcp_universe, 11 },
-	{ "host-name", "t",				&dhcp_universe, 12 },
+	{ "host-name", "X",				&dhcp_universe, 12 },
 	{ "boot-size", "S",				&dhcp_universe, 13 },
 	{ "merit-dump", "t",				&dhcp_universe, 14 },
 	{ "domain-name", "t",				&dhcp_universe, 15 },
@@ -418,7 +418,7 @@ char *hardware_types [] = {
 	"unknown-5",
 	"token-ring",
 	"unknown-7",
-	"unknown-8",
+	"fddi",
 	"unknown-9",
 	"unknown-10",
 	"unknown-11",
