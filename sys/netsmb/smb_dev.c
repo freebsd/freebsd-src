@@ -420,7 +420,7 @@ smb_dev2share(int fd, int mode, struct smb_cred *scred,
 	fp = nsmb_getfp(scred->scr_td->td_proc->p_fd, fd, FREAD | FWRITE);
 	if (fp == NULL)
 		return EBADF;
-	vp = fp->un_data.vnode;
+	vp = fp->f_data;
 	if (vp == NULL) {
 		fdrop(fp, curthread);
 		return EBADF;
