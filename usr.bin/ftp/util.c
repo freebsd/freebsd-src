@@ -1,5 +1,5 @@
-/*	$Id: util.c,v 1.1 1997/06/25 08:56:46 msmith Exp $ */
-/*	$NetBSD: util.c,v 1.9 1997/06/10 22:00:01 lukem Exp $	*/
+/*	$Id$	*/
+/*	$NetBSD: util.c,v 1.16.2.1 1997/11/18 01:02:33 mellon Exp $	*/
 
 /*
  * Copyright (c) 1985, 1989, 1993, 1994
@@ -34,8 +34,10 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #ifndef lint
-static char rcsid[] = "$Id: util.c,v 1.1 1997/06/25 08:56:46 msmith Exp $";
+__RCSID("$Id$");
+__RCSID_SOURCE("$NetBSD: util.c,v 1.16.2.1 1997/11/18 01:02:33 mellon Exp $");
 #endif /* not lint */
 
 /*
@@ -49,14 +51,20 @@ static char rcsid[] = "$Id: util.c,v 1.1 1997/06/25 08:56:46 msmith Exp $";
 #include <err.h>
 #include <fcntl.h>
 #include <glob.h>
+#include <limits.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "ftp_var.h"
 #include "pathnames.h"
+
+#ifndef	SECSPERHOUR
+#define	SECSPERHOUR	(60*60)
+#endif
 
 /*
  * Connect to peer server and
@@ -68,7 +76,7 @@ setpeer(argc, argv)
 	char *argv[];
 {
 	char *host;
-	short port;
+	u_int16_t port;
 
 	if (connected) {
 		printf("Already connected to %s, use close first.\n",
@@ -83,20 +91,41 @@ setpeer(argc, argv)
 		code = -1;
 		return;
 	}
-	port = ftpport;
+	if (gatemode)
+		port = gateport;
+	else
+		port = ftpport;
 	if (argc > 2) {
-		port = atoi(argv[2]);
-		if (port <= 0) {
+		char *ep;
+		long nport;
+
+		nport = strtol(argv[2], &ep, 10);
+		if (nport < 1 || nport > 0xffff || *ep != '\0') {
 			printf("%s: bad port number '%s'.\n", argv[1], argv[2]);
 			printf("usage: %s host-name [port]\n", argv[0]);
 			code = -1;
 			return;
 		}
-		port = htons(port);
+		port = htons(nport);
 	}
-	host = hookup(argv[1], port);
+
+	if (gatemode) {
+		if (gateserver == NULL || *gateserver == '\0')
+			errx(1, "gateserver not defined (shouldn't happen)");
+		host = hookup(gateserver, port);
+	} else
+		host = hookup(argv[1], port);
+
 	if (host) {
 		int overbose;
+
+		if (gatemode) {
+			if (command("PASSERVE %s", argv[1]) != COMPLETE)
+				return;
+			if (verbose)
+				printf("Connected via pass-through server %s\n",
+				    gateserver);
+		}
 
 		connected = 1;
 		/*
@@ -174,6 +203,7 @@ login(host, user, pass)
 	char *acct;
 	char anonpass[MAXLOGNAME + 1 + MAXHOSTNAMELEN];	/* "user@hostname" */
 	char hostname[MAXHOSTNAMELEN];
+	struct passwd *pw;
 	int n, aflag = 0;
 
 	acct = NULL;
@@ -194,7 +224,12 @@ login(host, user, pass)
 		/*
 		 * Set up anonymous login password.
 		 */
-		user = getlogin();
+		if ((user = getlogin()) == NULL) {
+			if ((pw = getpwuid(getuid())) == NULL)
+				user = "anonymous";
+			else
+				user = pw->pw_name;
+		}
 		gethostname(hostname, MAXHOSTNAMELEN);
 #ifndef DONT_CHEAT_ANONPASS
 		/*
@@ -217,12 +252,8 @@ login(host, user, pass)
 	while (user == NULL) {
 		char *myname = getlogin();
 
-		if (myname == NULL) {
-			struct passwd *pp = getpwuid(getuid());
-
-			if (pp != NULL)
-				myname = pp->pw_name;
-		}
+		if (myname == NULL && (pw = getpwuid(getuid())) != NULL)
+			myname = pw->pw_name;
 		if (myname)
 			printf("Name (%s:%s): ", host, myname);
 		else
@@ -334,7 +365,7 @@ remglob(argv, doswitch, errbuf)
                 return (cp);
         }
         if (ftemp == NULL) {
-                (void)snprintf(temp, sizeof(temp), "%s%s", _PATH_TMP, TMPFILE);
+                (void)snprintf(temp, sizeof(temp), "%s/%s", tmpdir, TMPFILE);
                 if ((fd = mkstemp(temp)) < 0) {
                         warn("unable to create temporary file %s", temp);
                         return (NULL);
@@ -347,7 +378,7 @@ remglob(argv, doswitch, errbuf)
                 if (doswitch)
                         pswitch(!proxy);
                 for (mode = "w"; *++argv != NULL; mode = "a")
-                        recvrequest("NLST", temp, *argv, mode, 0);
+                        recvrequest("NLST", temp, *argv, mode, 0, 0);
 		if ((code / 100) != COMPLETE) {
 			if (errbuf != NULL)
 				*errbuf = reply_string;
@@ -428,7 +459,10 @@ globulize(cpp)
 		globfree(&gl);
 		return (0);
 	}
-	*cpp = strdup(gl.gl_pathv[0]);	/* XXX - wasted memory */
+		/* XXX: caller should check if *cpp changed, and
+		 *	free(*cpp) if that is the case
+		 */
+	*cpp = strdup(gl.gl_pathv[0]);
 	globfree(&gl);
 	return (1);
 }
@@ -448,9 +482,17 @@ remotesize(file, noisy)
 	size = -1;
 	if (debug == 0)
 		verbose = -1;
-	if (command("SIZE %s", file) == COMPLETE)
-		sscanf(reply_string, "%*s %qd", &size);
-	else if (noisy && debug == 0)
+	if (command("SIZE %s", file) == COMPLETE) {
+		char *cp, *ep;
+
+		cp = strchr(reply_string, ' ');
+		if (cp != NULL) {
+			cp++;
+			size = strtoq(cp, &ep, 10);
+			if (*ep != '\0' && !isspace(*ep))
+				size = -1;
+		}
+	} else if (noisy && debug == 0)
 		puts(reply_string);
 	verbose = overbose;
 	return (size);
@@ -466,8 +508,10 @@ remotemodtime(file, noisy)
 {
 	int overbose;
 	time_t rtime;
+	int ocode;
 
 	overbose = verbose;
+	ocode = code;
 	rtime = -1;
 	if (debug == 0)
 		verbose = -1;
@@ -492,11 +536,16 @@ remotemodtime(file, noisy)
 	} else if (noisy && debug == 0)
 		puts(reply_string);
 	verbose = overbose;
+	if (rtime == -1)
+		code = ocode;
 	return (rtime);
 }
 
+void updateprogressmeter __P((int));
+
 void
-updateprogressmeter()
+updateprogressmeter(dummy)
+	int dummy;
 {
 	static pid_t pgrp = -1;
 	int ctty_pgrp;
@@ -539,8 +588,10 @@ progressmeter(flag)
 	struct timeval now, td, wait;
 	off_t cursize, abbrevsize;
 	double elapsed;
-	int ratio, barlength, i, remaining;
+	int ratio, barlength, i, len, remaining;
 	char buf[256];
+
+	len = 0;
 
 	if (flag == -1) {
 		(void)gettimeofday(&start, (struct timezone *)0);
@@ -555,12 +606,12 @@ progressmeter(flag)
 	ratio = cursize * 100 / filesize;
 	ratio = MAX(ratio, 0);
 	ratio = MIN(ratio, 100);
-	snprintf(buf, sizeof(buf), "\r%3d%% ", ratio);
+	len += snprintf(buf + len, sizeof(buf) - len, "\r%3d%% ", ratio);
 
 	barlength = ttywidth - 30;
 	if (barlength > 0) {
 		i = barlength * ratio / 100;
-		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
+		len += snprintf(buf + len, sizeof(buf) - len,
 		    "|%.*s%*s|", i, 
 "*****************************************************************************"
 "*****************************************************************************",
@@ -573,8 +624,8 @@ progressmeter(flag)
 		i++;
 		abbrevsize >>= 10;
 	}
-	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-	    " %5qd %c%c ", abbrevsize, prefixes[i],
+	len += snprintf(buf + len, sizeof(buf) - len,
+	    " %5qd %c%c ", (long long)abbrevsize, prefixes[i],
 	    prefixes[i] == ' ' ? ' ' : 'B');
 
 	timersub(&now, &lastupdate, &wait);
@@ -592,26 +643,31 @@ progressmeter(flag)
 	elapsed = td.tv_sec + (td.tv_usec / 1000000.0);
 
 	if (bytes <= 0 || elapsed <= 0.0 || cursize > filesize) {
-		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
+		len += snprintf(buf + len, sizeof(buf) - len,
 		    "   --:-- ETA");
 	} else if (wait.tv_sec >= STALLTIME) {
-		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
+		len += snprintf(buf + len, sizeof(buf) - len,
 		    " - stalled -");
 	} else {
-		remaining = (int)((filesize - restart_point) /
-				  (bytes / elapsed) - elapsed);
-		i = remaining / 3600;
-		if (i)
-			snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-			    "%2d:", i);
-		else
-			snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-			    "   ");
-		i = remaining % 3600;
-		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		    "%02d:%02d ETA", i / 60, i % 60);
+		remaining = (int)
+		    ((filesize - restart_point) / (bytes / elapsed) - elapsed);
+		if (remaining >= 100 * SECSPERHOUR)
+			len += snprintf(buf + len, sizeof(buf) - len,
+			    "   --:-- ETA");
+		else {
+			i = remaining / SECSPERHOUR;
+			if (i)
+				len += snprintf(buf + len, sizeof(buf) - len,
+				    "%2d:", i);
+			else
+				len += snprintf(buf + len, sizeof(buf) - len,
+				    "   ");
+			i = remaining % SECSPERHOUR;
+			len += snprintf(buf + len, sizeof(buf) - len,
+			    "%02d:%02d ETA", i / 60, i % 60);
+		}
 	}
-	(void)write(STDOUT_FILENO, buf, strlen(buf));
+	(void)write(STDOUT_FILENO, buf, len);
 
 	if (flag == -1) {
 		(void)signal(SIGALRM, updateprogressmeter);
@@ -638,7 +694,7 @@ ptransfer(siginfo)
 	struct timeval now, td;
 	double elapsed;
 	off_t bs;
-	int meg, remaining, hh;
+	int meg, remaining, hh, len;
 	char buf[100];
 
 	if (!verbose && !siginfo)
@@ -651,22 +707,23 @@ ptransfer(siginfo)
 	meg = 0;
 	if (bs > (1024 * 1024))
 		meg = 1;
-	(void)snprintf(buf, sizeof(buf),
+	len = 0;
+	len += snprintf(buf + len, sizeof(buf) - len,
 	    "%qd byte%s %s in %.2f seconds (%.2f %sB/s)\n",
-	    bytes, bytes == 1 ? "" : "s", direction, elapsed,
+	    (long long)bytes, bytes == 1 ? "" : "s", direction, elapsed,
 	    bs / (1024.0 * (meg ? 1024.0 : 1.0)), meg ? "M" : "K");
 	if (siginfo && bytes > 0 && elapsed > 0.0 && filesize >= 0
 	    && bytes + restart_point <= filesize) {
 		remaining = (int)((filesize - restart_point) /
 				  (bytes / elapsed) - elapsed);
-		hh = remaining / 3600;
-		remaining %= 3600;
-			/* "buf+len(buf) -1" to overwrite \n */
-		snprintf(buf + strlen(buf) - 1, sizeof(buf) - strlen(buf),
+		hh = remaining / SECSPERHOUR;
+		remaining %= SECSPERHOUR;
+		len--;	 		/* decrement len to overwrite \n */
+		len += snprintf(buf + len, sizeof(buf) - len,
 		    "  ETA: %02d:%02d:%02d\n", hh, remaining / 60,
 		    remaining % 60);
 	}
-	(void)write(siginfo ? STDERR_FILENO : STDOUT_FILENO, buf, strlen(buf));
+	(void)write(siginfo ? STDERR_FILENO : STDOUT_FILENO, buf, len);
 }
 
 /*
