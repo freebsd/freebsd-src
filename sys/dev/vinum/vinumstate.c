@@ -65,6 +65,9 @@ set_drive_state(int driveno, enum drivestate newstate, enum setstateflags flags)
 	if ((drive->state == drive_up)
 	    && (drive->vp == NULL))			    /* should be open, but we're not */
 	    init_drive(drive, 1);			    /* which changes the state again */
+	if (newstate < drive_up)			    /* drive going down, */
+	    queue_daemon_request(daemonrq_closedrive,	    /* get the daemon to close it */
+		(union daemoninfo) drive);
 	if (newstate != oldstate) {			    /* state has changed */
 	    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) { /* find this drive's subdisks */
 		if ((SD[sdno].state >= sd_referenced)
