@@ -312,24 +312,25 @@ static moduledata_t name##_mod = {					\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 
-int	cdevsw_add(struct cdevsw *new);
-int	cdevsw_remove(struct cdevsw *old);
-int	count_dev(dev_t dev);
-void	destroy_dev(dev_t dev);
-void	revoke_and_destroy_dev(dev_t dev);
-struct cdevsw *devsw(dev_t dev);
-const char *devtoname(dev_t dev);
-int	dev_named(dev_t pdev, const char *name);
-void	dev_depends(dev_t pdev, dev_t cdev);
-void	freedev(dev_t dev);
-int	iszerodev(dev_t dev);
-dev_t	makebdev(int maj, int min);
-dev_t	make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const char *fmt, ...) __printflike(6, 7);
-dev_t	make_dev_alias(dev_t pdev, const char *fmt, ...) __printflike(2, 3);
-int	dev2unit(dev_t dev);
-int	unit2minor(int unit);
+int	cdevsw_add(struct cdevsw *_new);
+int	cdevsw_remove(struct cdevsw *_old);
+int	count_dev(dev_t _dev);
+void	destroy_dev(dev_t _dev);
+void	revoke_and_destroy_dev(dev_t _dev);
+struct cdevsw *devsw(dev_t _dev);
+const char *devtoname(dev_t _dev);
+int	dev_named(dev_t _pdev, const char *_name);
+void	dev_depends(dev_t _pdev, dev_t _cdev);
+void	freedev(dev_t _dev);
+int	iszerodev(dev_t _dev);
+dev_t	makebdev(int _maj, int _min);
+dev_t	make_dev(struct cdevsw *_devsw, int _minor, uid_t _uid, gid_t _gid,
+		int _perms, const char *_fmt, ...) __printflike(6, 7);
+dev_t	make_dev_alias(dev_t _pdev, const char *_fmt, ...) __printflike(2, 3);
+int	dev2unit(dev_t _dev);
+int	unit2minor(int _unit);
 void	setconf(void);
-dev_t	getdiskbyname(char *name);
+dev_t	getdiskbyname(char *_name);
 
 /* This is type of the function DEVFS uses to hook into the kernel with */
 typedef void devfs_create_t(dev_t dev);
@@ -352,7 +353,7 @@ extern int devfs_present;
 
 typedef void (*dev_clone_fn)(void *arg, char *name, int namelen, dev_t *result);
 
-int dev_stdclone(char *name, char **namep, const char *stem, int *unit);
+int dev_stdclone(char *_name, char **_namep, const char *_stem, int *_unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 
 /* Stuff relating to kernel-dump */
