@@ -34,6 +34,8 @@ sed	-e '/	pty	/d' \
 	-e '/INVARIANTS/d' \
 	-e '/INVARIANT_SUPPORT/d' \
 	-e '/WITNESS/d' \
+	-e '/AHC_REG_PRETTY_PRINT/d' \
+	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/	pci$/d' \
 	-e '/	adv	/d' \
 	-e '/	ahc	/d' \
@@ -96,6 +98,8 @@ sed	-e '/	pty	/d' \
  	-e '/INVARIANTS/d' \
  	-e '/INVARIANT_SUPPORT/d' \
  	-e '/WITNESS/d' \
+	-e '/AHC_REG_PRETTY_PRINT/d' \
+	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/	ncr	/d' \
 	-e '/	pcm/d' \
 	-e '/	agp	/d' \
