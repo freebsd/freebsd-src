@@ -2312,17 +2312,21 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			    cnt.v_free_count < cnt.v_free_reserved) {
 				break;
 			}
+			vm_page_lock_queues();
 			if (((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 				(p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
 				vm_page_busy(p);
+				vm_page_unlock_queues();
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx), p, mpte);
+				vm_page_lock_queues();
 				vm_page_flag_set(p, PG_MAPPED);
 				vm_page_wakeup(p);
 			}
+			vm_page_unlock_queues();
 			objpgs -= 1;
 		}
 	} else {
@@ -2339,18 +2343,23 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 				break;
 			}
 			p = vm_page_lookup(object, tmpidx + pindex);
-			if (p &&
-			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+			if (p == NULL)
+				continue;
+			vm_page_lock_queues();
+			if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
 				(p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
 				vm_page_busy(p);
+				vm_page_unlock_queues();
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx), p, mpte);
+				vm_page_lock_queues();
 				vm_page_flag_set(p, PG_MAPPED);
 				vm_page_wakeup(p);
 			}
+			vm_page_unlock_queues();
 		}
 	}
 	return;
@@ -2434,7 +2443,7 @@ pmap_prefault(pmap, addra, entry)
 		 */
 		if (m == NULL)
 			break;
-
+		vm_page_lock_queues();
 		if (((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 			(m->busy == 0) &&
 		    (m->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
@@ -2443,10 +2452,13 @@ pmap_prefault(pmap, addra, entry)
 				vm_page_deactivate(m);
 			}
 			vm_page_busy(m);
+			vm_page_unlock_queues();
 			mpte = pmap_enter_quick(pmap, addr, m, mpte);
+			vm_page_lock_queues();
 			vm_page_flag_set(m, PG_MAPPED);
 			vm_page_wakeup(m);
 		}
+		vm_page_unlock_queues();
 	}
 }
 
