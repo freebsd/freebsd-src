@@ -53,6 +53,7 @@ void	gv_remove(struct g_geom *, struct gctl_req *);
 
 /* geom_vinum_state.c */
 int	gv_sdstatemap(struct gv_plex *);
+void	gv_setstate(struct g_geom *, struct gctl_req *);
 int	gv_set_drive_state(struct gv_drive *, int, int);
 int	gv_set_sd_state(struct gv_sd *, int, int);
 void	gv_update_sd_state(struct gv_sd *);
