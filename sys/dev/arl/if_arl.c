@@ -192,7 +192,6 @@ arl_attach(dev)
 #endif
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_output = ether_output;
 	ifp->if_start = arl_start;
 	ifp->if_ioctl = arl_ioctl;
 	ifp->if_watchdog = arl_watchdog;

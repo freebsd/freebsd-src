@@ -1251,7 +1251,6 @@ re_attach(dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = re_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_start = re_start;
 	ifp->if_hwassist = RE_CSUM_FEATURES;

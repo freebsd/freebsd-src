@@ -396,7 +396,6 @@ bfe_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = bfe_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = bfe_start;
 	ifp->if_watchdog = bfe_watchdog;
 	ifp->if_init = bfe_init;

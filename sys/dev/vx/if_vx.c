@@ -159,7 +159,6 @@ vxattach(dev)
     ifp->if_mtu = ETHERMTU;
     ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-    ifp->if_output = ether_output;
     ifp->if_start = vxstart;
     ifp->if_ioctl = vxioctl;
     ifp->if_init = vxinit;

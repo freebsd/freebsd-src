@@ -174,7 +174,6 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 	if_initname(ifp, device_get_name(sc->sc_dev),
 	    device_get_unit(sc->sc_dev));
 	ifp->if_ioctl = sncioctl;
-        ifp->if_output = ether_output;
 	ifp->if_start = sncstart;
 	ifp->if_flags =
 	    IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;

@@ -209,7 +209,6 @@ fwe_attach(device_t dev)
 	ifp->if_name = "fwe";
 #endif
 	ifp->if_init = fwe_init;
-	ifp->if_output = ether_output;
 	ifp->if_start = fwe_start;
 	ifp->if_ioctl = fwe_ioctl;
 	ifp->if_mtu = ETHERMTU;

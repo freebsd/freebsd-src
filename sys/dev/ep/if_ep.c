@@ -290,7 +290,6 @@ ep_attach(struct ep_softc *sc)
 	if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_output = ether_output;
 	ifp->if_start = epstart;
 	ifp->if_ioctl = epioctl;
 	ifp->if_watchdog = epwatchdog;

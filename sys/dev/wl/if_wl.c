@@ -554,7 +554,6 @@ wlattach(device_t device)
 #endif	/* MULTICAST */
     if_initname(ifp, device_get_name(device), device_get_unit(device));
     ifp->if_init = wlinit;
-    ifp->if_output = ether_output;
     ifp->if_start = wlstart;
     ifp->if_ioctl = wlioctl;
     ifp->if_timer = 0;   /* paranoia */

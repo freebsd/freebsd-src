@@ -231,7 +231,6 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	if_initname(ifp, "sbni", unit);
 	ifp->if_init	= sbni_init;
 	ifp->if_start	= sbni_start;
-	ifp->if_output	= ether_output;
 	ifp->if_ioctl	= sbni_ioctl;
 	ifp->if_watchdog	= sbni_watchdog;
 	ifp->if_snd.ifq_maxlen	= IFQ_MAXLEN;

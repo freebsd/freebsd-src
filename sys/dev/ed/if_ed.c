@@ -1719,7 +1719,6 @@ ed_attach(dev)
 	 */
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_output = ether_output;
 	ifp->if_start = ed_start;
 	ifp->if_ioctl = ed_ioctl;
 	ifp->if_watchdog = ed_watchdog;

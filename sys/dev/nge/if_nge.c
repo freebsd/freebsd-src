@@ -940,7 +940,6 @@ nge_attach(dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = nge_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = nge_start;
 	ifp->if_watchdog = nge_watchdog;
 	ifp->if_init = nge_init;
