@@ -11,6 +11,7 @@
  * 
  * Interface for the packet protocol functions.
  * 
+ * $FreeBSD$
  */
 
 /* RCSID("$Id: packet.h,v 1.9 2000/01/04 16:54:58 markus Exp $"); */
@@ -18,7 +19,7 @@
 #ifndef PACKET_H
 #define PACKET_H
 
-#include <ssl/bn.h>
+#include <openssl/bn.h>
 
 /*
  * Sets the socket used for communication.  Disables encryption until

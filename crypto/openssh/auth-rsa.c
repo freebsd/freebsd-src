@@ -13,6 +13,7 @@
  * based on RSA authentication.  This file also contains functions to check
  * validity of the host key.
  * 
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -26,8 +27,8 @@ RCSID("$Id: auth-rsa.c,v 1.18 2000/02/11 10:59:11 markus Exp $");
 #include "uidswap.h"
 #include "servconf.h"
 
-#include <ssl/rsa.h>
-#include <ssl/md5.h>
+#include <openssl/rsa.h>
+#include <openssl/md5.h>
 
 /* Flags that may be set in authorized_keys options. */
 extern int no_port_forwarding_flag;

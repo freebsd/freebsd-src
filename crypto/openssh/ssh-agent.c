@@ -6,6 +6,8 @@
  *                    All rights reserved
  * Created: Wed Mar 29 03:46:59 1995 ylo
  * The authentication agent program.
+ *
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -21,7 +23,7 @@ RCSID("$OpenBSD: ssh-agent.c,v 1.25 2000/01/02 21:51:03 markus Exp $");
 #include "getput.h"
 #include "mpaux.h"
 
-#include <ssl/md5.h>
+#include <openssl/md5.h>
 
 typedef struct {
 	int fd;
