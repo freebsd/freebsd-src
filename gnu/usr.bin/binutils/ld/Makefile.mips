@@ -6,11 +6,14 @@
 HOST=		mipseb-unknown-freebsdelf
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf32bmip\"
 CFLAGS+=	-DTARGET=\"elf32-bigmips\"
-.endif
-.if	${MACHINE_ARCH} == "mipsel"
+_mips_path=	\"/usr/lib\"
+.elif	${MACHINE_ARCH} == "mipsel"
 HOST=		mipsel-unknown-freebsdelf
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf32lmip\"
 CFLAGS+=	-DTARGET=\"elf32-littlemips\"
+_mips_path=	\"/usr/lib\"
+.else
+_mips_path=	\"/usr/cross/mips-freebsdelf/usr/lib\"
 .endif
 EMS+=		ld_elf32bmip_emulation ld_elf32lmip_emulation
 LDSCRIPTS+=	elf32bmip.x elf32bmip.xbn elf32bmip.xn elf32bmip.xr \
@@ -23,15 +26,13 @@ CLEANFILES+=	eelf32lmip.c
 
 eelf32bmip.c:	emulparams/elf32ebmip.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
-	env LIB_PATH="/usr/lib" \
-	    sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_mips_path} \
 	    ${HOST} mipseb-unknown-freebsdelf mipseb-unknown-freebsdelf \
 	    elf32bmip "" elf32bmip mipseb-unknown-freebsdelf
 
 eelf32lmip.c:	emulparams/elf32elmip.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
-	env LIB_PATH="/usr/lib" \
-	    sh ${SRCDIR}/ld/genscripts.sh ${SRCDIR}/ld ${DESTDIR}/usr/lib \
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_mips_path} \
 	    ${HOST} mipsel-unknown-freebsdelf mipsel-unknown-freebsdelf \
 	    elf32lmip "" elf32lmip mipsel-unknown-freebsdelf
 
