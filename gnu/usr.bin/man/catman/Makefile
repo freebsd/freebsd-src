@@ -1,15 +1,26 @@
+FILES=	catman
 NOMAN=	noman
-CLEANFILES=	catman
 
-beforeinstall: catman
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	     catman ${DESTDIR}${BINDIR}
+CLEANFILES+=	${FILES}
 
-.include <bsd.prog.mk>
+all: ${FILES}
 
+# XXX null suffixes are currently broken
+# .SUFFIXES:
+# .SUFFIXES: .sh
+# .sh:
+# 	sed -e 's,%compress%,${compress},' \
+# 	    -e 's,%compext%,${compext},' \
+# 	    -e 's,%zcat%,${zcat},' \
+# 	    ${.IMPSRC} > ${.TARGET}
 catman: catman.sh
 	sed -e 's,%compress%,${compress},' \
-	-e 's,%compext%,${compext},' \
-	-e 's,%zcat%,${zcat},' \
-	   ${.CURDIR}/catman.sh > catman
+	    -e 's,%compext%,${compext},' \
+	    -e 's,%zcat%,${zcat},' \
+	    ${.CURDIR}/${.TARGET}.sh > ${.TARGET}
 
+install:
+	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	     ${FILES} ${DESTDIR}${BINDIR}
+
+.include <bsd.prog.mk>
