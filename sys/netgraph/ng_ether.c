@@ -692,6 +692,8 @@ ng_ether_disconnect(hook_p hook)
 		priv->lowerOrphan = 0;
 	} else
 		panic("%s: weird hook", __FUNCTION__);
+	if (hook->node->numhooks == 0)
+		ng_rmnode(hook->node);	/* reset node */
 	return (0);
 }
 
