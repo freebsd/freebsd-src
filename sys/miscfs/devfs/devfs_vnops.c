@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.28 1996/10/12 00:07:53 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.29 1996/10/16 18:02:53 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -475,10 +475,12 @@ DBPRINT(("access\n"));
 		printf("devfs_vntodn returned %d ",error);
 		return error;
 	}
-	/*
-	 *  Root gets to do anything.
+
+	/* 
+	 * if we are not running as a process, we are in the 
+	 * kernel and we DO have permission
 	 */
-	if (cred->cr_uid == 0)
+	if (ap->a_p == NULL)
 		return 0;
 
 	/*
@@ -505,6 +507,13 @@ found:
 	}
 	if ((file_node->mode & mode) == mode)
 		return (0);
+	/*
+	 *  Root gets to do anything.
+	 * but only use suser prives as a last resort
+	 * (Use of super powers is recorded in ap->a_p->p_acflag)
+	 */
+	if( suser(cred, &ap->a_p->p_acflag) == 0) /* XXX what if no proc? */
+		return 0;
 	return (EACCES);
 }
 
@@ -601,7 +610,10 @@ devfs_setattr(struct vop_setattr_args *ap)
 	struct ucred *cred = ap->a_cred;
 	struct proc *p = ap->a_p;
 	int error = 0;
+	gid_t *gp;
+	int i;
 	dn_p	file_node;
+	struct timeval tv;
 
 	if (error = devfs_vntodn(vp,&file_node))
 	{
@@ -616,50 +628,94 @@ DBPRINT(("setattr\n"));
 	    (vap->va_blocksize != VNOVAL)  ||
 	    (vap->va_rdev != VNOVAL)  ||
 	    (vap->va_bytes != VNOVAL)  ||
+	    (vap->va_size != VNOVAL) || /* doesn't make sense in devfs */
 	    (vap->va_gen != VNOVAL ))
 	{
 		return EINVAL;
 	}
 
-	if (cred->cr_uid != file_node->uid 
-	&& 	(error = suser(cred, &p->p_acflag)) 
-	&&	((vap->va_vaflags & VA_UTIMES_NULL) == 0 
-		||	(error = VOP_ACCESS(vp, VWRITE, cred, p))))
-				return (error);
 
-	if (vap->va_size != VNOVAL) {
-			return error;	/*XXX (?) */
-	}
-	if (vap->va_atime.tv_sec != VNOVAL)
-	{
+	/* 
+	 * Anyone can touch the files in such a way that the times are set
+	 * to NOW (e.g. run 'touch') if they have write permissions
+	 * however only the owner or root can set "un-natural times.
+	 * They also don't need write permissions.
+	 */
+	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
+#if 0		/*
+		 * This next test is pointless under devfs for now..
+		 * as there is only one devfs hiding under potentially many
+		 * mountpoints and actual device node are really 'mounted' under
+		 * a FAKE mountpoint inside the kernel only, no matter where it
+		 * APPEARS they are mounted to the outside world..
+		 * A readonly devfs doesn't exist anyway.
+		 */
+		if (vp->v_mount->mnt_flag & MNT_RDONLY)
+			return (EROFS);
+#endif
+		if (((vap->va_vaflags & VA_UTIMES_NULL) == 0) &&
+		    (cred->cr_uid != file_node->uid)  &&
+		    suser(cred, &p->p_acflag))
+			return (EPERM);
+		    if(VOP_ACCESS(vp, VWRITE, cred, p))
+			return (EACCES);
 		file_node->atime = vap->va_atime;
-	}
-
-	if (vap->va_mtime.tv_sec != VNOVAL)
-	{
 		file_node->mtime = vap->va_mtime;
+		microtime(&tv);
+		TIMEVAL_TO_TIMESPEC(&tv, &file_node->ctime);
+		return (0);
 	}
 
-	if (vap->va_ctime.tv_sec != VNOVAL)
-	{
-		file_node->ctime = vap->va_ctime;
-	}
-
-	if (vap->va_mode != (u_short)VNOVAL)
-	{
+	/*
+	 * Change the permissions.. must be root or owner to do this.
+	 */
+	if (vap->va_mode != (u_short)VNOVAL) {
+		if ((cred->cr_uid != file_node->uid)
+		 && suser(cred, &p->p_acflag))
+			return (EPERM);
 		/* set drwxwxrwx stuff */
 		file_node->mode &= ~07777;
 		file_node->mode |= vap->va_mode & 07777;
 	}
 
-	if (vap->va_uid != (uid_t)VNOVAL)
-	{
+	/*
+	 * Change the owner.. must be root to do this.
+	 */
+	if (vap->va_uid != (uid_t)VNOVAL) {
+		if (suser(cred, &p->p_acflag))
+			return (EPERM);
 		file_node->uid = vap->va_uid;
 	}
-	if (vap->va_gid != (gid_t)VNOVAL)
-	{
+
+	/*
+	 * Change the group.. must be root or owner to do this.
+	 * If we are the owner, we must be in the target group too.
+	 * don't use suser() unless you have to as it reports
+	 * whether you needed suser powers or not.
+	 */
+	if (vap->va_gid != (gid_t)VNOVAL) {
+		if (cred->cr_uid == file_node->uid){
+			gp = cred->cr_groups;
+			for (i = 0; i < cred->cr_ngroups; i++, gp++) {
+				if (vap->va_gid == *gp)
+					goto cando; 
+			}
+		}
+		/*
+		 * we can't do it with normal privs,
+		 * do we have an ace up our sleeve?
+		 */
+	 	if( suser(cred, &p->p_acflag))
+			return (EPERM);
+cando:
 		file_node->gid = vap->va_gid;
 	}
+#if 0
+	/*
+ 	 * Copied from somewhere else
+	 * but only kept as a marker and reminder of the fact that
+	 * flags should be handled some day
+	 */
 	if (vap->va_flags != VNOVAL) {
 		if (error = suser(cred, &p->p_acflag))
 			return error;
@@ -668,6 +724,7 @@ DBPRINT(("setattr\n"));
 		else {
 		}
 	}
+#endif
 	return error;
 }
 
@@ -1805,9 +1862,9 @@ static struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_access_desc, (vop_t *)devfs_access },	/* access */
 	{ &vop_getattr_desc, (vop_t *)devfs_getattr },	/* getattr */
 	{ &vop_setattr_desc, (vop_t *)devfs_setattr },	/* setattr */
-	{ &vop_read_desc, (vop_t *)spec_read },		/* read */
+	{ &vop_read_desc, (vop_t *)devfs_read },	/* read */
 	{ &vop_write_desc, (vop_t *)devfs_write },	/* write */
-	{ &vop_ioctl_desc, (vop_t *)devfs_ioctl },	/* ioctl */
+	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
 	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)spec_fsync },	/* fsync */
