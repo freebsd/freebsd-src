@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.168 1998/10/25 17:44:52 phk Exp $
+ * $Id: vfs_subr.c,v 1.169 1998/10/26 08:07:00 bde Exp $
  */
 
 /*
@@ -605,20 +605,14 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
   	}
 	s = splbio();
 	for (;;) {
-		if ((blist = vp->v_cleanblkhd.lh_first) && (flags & V_SAVEMETA))
-			while (blist && blist->b_lblkno < 0)
-				blist = blist->b_vnbufs.le_next;
-		if (!blist && (blist = vp->v_dirtyblkhd.lh_first) &&
-		    (flags & V_SAVEMETA))
-			while (blist && blist->b_lblkno < 0)
-				blist = blist->b_vnbufs.le_next;
+		blist = vp->v_cleanblkhd.lh_first;
+		if (!blist)
+			blist = vp->v_dirtyblkhd.lh_first;
 		if (!blist)
 			break;
 
 		for (bp = blist; bp; bp = nbp) {
 			nbp = bp->b_vnbufs.le_next;
-			if ((flags & V_SAVEMETA) && bp->b_lblkno < 0)
-				continue;
 			if (bp->b_flags & B_BUSY) {
 				bp->b_flags |= B_WANTED;
 				error = tsleep((caddr_t) bp,
@@ -676,17 +670,12 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	simple_lock(&vp->v_interlock);
 	object = vp->v_object;
 	if (object != NULL) {
-		if (flags & V_SAVEMETA)
-			vm_object_page_remove(object, 0, object->size,
-				(flags & V_SAVE) ? TRUE : FALSE);
-		else
-			vm_object_page_remove(object, 0, 0,
-				(flags & V_SAVE) ? TRUE : FALSE);
+		vm_object_page_remove(object, 0, 0,
+			(flags & V_SAVE) ? TRUE : FALSE);
 	}
 	simple_unlock(&vp->v_interlock);
 
-	if (!(flags & V_SAVEMETA) &&
-	    (vp->v_dirtyblkhd.lh_first || vp->v_cleanblkhd.lh_first))
+	if (vp->v_dirtyblkhd.lh_first || vp->v_cleanblkhd.lh_first)
 		panic("vinvalbuf: flush failed");
 	return (0);
 }
