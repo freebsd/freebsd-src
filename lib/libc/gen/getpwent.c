@@ -69,6 +69,9 @@ static int _yp_exclusions = 0;
 static int _yp_enabled;			/* set true when yp enabled */
 static int _pw_stepping_yp;		/* set true when stepping thru map */
 static char _ypnam[YPMAXRECORD];
+#define YP_HAVE_MASTER 2
+#define YP_HAVE_ADJUNCT 1
+#define YP_HAVE_NONE 0
 static int _gotmaster;
 static char *_pw_yp_domain;
 static inline int unwind __P(( char * ));
@@ -265,7 +268,7 @@ __initdb()
 					if (yp_get_default_domain(&_pw_yp_domain))
 					return(1);
 				_gotmaster = _havemaster(_pw_yp_domain);
-			} else _gotmaster = 0;
+			} else _gotmaster = YP_HAVE_NONE;
 			if (!_ypcache)
 				_ypinitdb();
 		}
@@ -550,7 +553,34 @@ again:
 	}
 	return(0);
 }
-	
+
+static char * _get_adjunct_pw(name)
+	char *name;
+{
+	static char adjunctbuf[YPMAXRECORD+2];
+	int rval;
+	char *result;
+	int resultlen;
+	char *map = "passwd.adjunct.byname";
+	char *s;
+
+	if ((rval = yp_match(_pw_yp_domain, map, name, strlen(name),
+		    &result, &resultlen)))
+		return(NULL);
+
+	strncpy((char *)&adjunctbuf, result, YPMAXRECORD);
+	free(result);
+	result = (char *)&adjunctbuf;
+
+	/* Don't care about the name. */
+	if ((s = strsep(&result, ":")) == NULL)
+		return (NULL); /* name */
+	if ((s = strsep(&result, ":")) == NULL)
+		return (NULL); /* password */
+
+	return(s);
+}
+
 static int
 _pw_breakout_yp(struct passwd *pw, char *res, int master)
 {
@@ -589,7 +619,17 @@ _pw_breakout_yp(struct passwd *pw, char *res, int master)
 
 	if ((s = strsep(&result, ":")) == NULL) return 0; /* password */
 	if(!(pw->pw_fields & _PWF_PASSWD)) {
-		pw->pw_passwd = s;
+		/* SunOS passwd.adjunct hack */
+		if (master == YP_HAVE_ADJUNCT && !strstr(s, "##")) {
+			char *realpw;
+			realpw = _get_adjunct_pw(pw->pw_name);
+			if (realpw == NULL)
+				pw->pw_passwd = s;
+			else
+				pw->pw_passwd = realpw;
+		} else {
+			pw->pw_passwd = s;
+		}
 		pw->pw_fields |= _PWF_PASSWD;
 	}
 
@@ -605,7 +645,7 @@ _pw_breakout_yp(struct passwd *pw, char *res, int master)
 		pw->pw_fields |= _PWF_GID;
 	}
 
-	if (master) {
+	if (master == YP_HAVE_MASTER) {
 		if ((s = strsep(&result, ":")) == NULL) return 0; /* class */
 		if(!(pw->pw_fields & _PWF_CLASS))  {
 			pw->pw_class = s;
@@ -652,15 +692,27 @@ _pw_breakout_yp(struct passwd *pw, char *res, int master)
 static int
 _havemaster(char *_pw_yp_domain)
 {
-	int keylen, resultlen;
-	char *key, *result;
+	int order;
+	int rval;
 
-	if (yp_first(_pw_yp_domain, "master.passwd.byname",
-		&key, &keylen, &result, &resultlen)) {
-		return 0;
+	if (!(rval = yp_order(_pw_yp_domain, "master.passwd.byname", &order)))
+		return(YP_HAVE_MASTER);
+
+	/*
+	 * NIS+ in YP compat mode doesn't support
+	 * YPPROC_ORDER -- no point in continuing.
+	 */
+	if (rval == YPERR_YPERR)
+		return(YP_HAVE_NONE);
+
+	/* master.passwd doesn't exist -- try passwd.adjunct */
+	if (rval == YPERR_MAP) {
+		rval = yp_order(_pw_yp_domain, "passwd.adjunct.byname", &order);
+		if (!rval)
+			return(YP_HAVE_ADJUNCT);
 	}
-	free(result);
-	return 1;
+
+	return (YP_HAVE_NONE);
 }
 
 static int
@@ -678,7 +730,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 
 	sprintf(mastermap,"%s",map);
 
-	if (_gotmaster)
+	if (_gotmaster == YP_HAVE_MASTER)
 		sprintf(mastermap,"master.%s", map);
 
 	if(yp_match(_pw_yp_domain, (char *)&mastermap, name, strlen(name),
@@ -724,7 +776,7 @@ _nextyppass(struct passwd *pw)
 		  return 0;
 	}
 
-	if (_gotmaster)
+	if (_gotmaster == YP_HAVE_MASTER)
 		map = "master.passwd.byname";
 
 	if(!_pw_stepping_yp) {
