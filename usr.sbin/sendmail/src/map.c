@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)map.c	8.25 (Berkeley) 4/17/94";
+static char sccsid[] = "@(#)map.c	8.25.1.1 (Berkeley) 2/10/95";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -189,19 +189,12 @@ map_parseargs(map, ap)
 **		av -- arguments to interpolate into buf.
 **
 **	Returns:
-**		Pointer to rewritten result.
+**		Pointer to rewritten result.  This is static data that
+**		should be copied if it is to be saved!
 **
 **	Side Effects:
 **		none.
 */
-
-struct rwbuf
-{
-	int	rwb_len;	/* size of buffer */
-	char	*rwb_buf;	/* ptr to buffer */
-};
-
-struct rwbuf	RwBufs[2];	/* buffers for rewriting output */
 
 char *
 map_rewrite(map, s, slen, av)
@@ -214,9 +207,10 @@ map_rewrite(map, s, slen, av)
 	register char c;
 	char **avp;
 	register char *ap;
-	register struct rwbuf *rwb;
 	int i;
 	int len;
+	static int buflen = -1;
+	static char *buf = NULL;
 
 	if (tTd(39, 1))
 	{
@@ -230,10 +224,6 @@ map_rewrite(map, s, slen, av)
 		}
 		printf("\n");
 	}
-
-	rwb = RwBufs;
-	if (av == NULL)
-		rwb++;
 
 	/* count expected size of output (can safely overestimate) */
 	i = len = slen;
@@ -258,16 +248,16 @@ map_rewrite(map, s, slen, av)
 	}
 	if (map->map_app != NULL)
 		len += strlen(map->map_app);
-	if (rwb->rwb_len < ++len)
+	if (buflen < ++len)
 	{
 		/* need to malloc additional space */
-		rwb->rwb_len = len;
-		if (rwb->rwb_buf != NULL)
-			free(rwb->rwb_buf);
-		rwb->rwb_buf = xalloc(rwb->rwb_len);
+		buflen = len;
+		if (buf != NULL)
+			free(buf);
+		buf = xalloc(buflen);
 	}
 
-	bp = rwb->rwb_buf;
+	bp = buf;
 	if (av == NULL)
 	{
 		bcopy(s, bp, slen);
@@ -307,8 +297,8 @@ map_rewrite(map, s, slen, av)
 	else
 		*bp = '\0';
 	if (tTd(39, 1))
-		printf("map_rewrite => %s\n", rwb->rwb_buf);
-	return rwb->rwb_buf;
+		printf("map_rewrite => %s\n", buf);
+	return buf;
 }
 /*
 **  INITMAPS -- initialize for aliasing
