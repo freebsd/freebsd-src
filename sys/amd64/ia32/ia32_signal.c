@@ -263,7 +263,7 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 
 	regs->tf_rsp = (uintptr_t)sfp;
-	regs->tf_rip = PS_STRINGS - sz_freebsd4_ia32_sigcode;
+	regs->tf_rip = IA32_PS_STRINGS - sz_freebsd4_ia32_sigcode;
 	regs->tf_rflags &= ~PSL_T;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
@@ -362,7 +362,7 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_siginfo = code;
-		sf.sf_addr = regs->tf_err;
+		sf.sf_addr = regs->tf_addr;
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
 	}
 	PROC_UNLOCK(p);
@@ -379,7 +379,7 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 
 	regs->tf_rsp = (uintptr_t)sfp;
-	regs->tf_rip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_rip = IA32_PS_STRINGS - *(p->p_sysent->sv_szsigcode);
 	regs->tf_rflags &= ~PSL_T;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
