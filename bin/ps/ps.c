@@ -86,18 +86,33 @@ __FBSDID("$FreeBSD$");
 #define	W_SEP	" \t"		/* "Whitespace" list separators */
 #define	T_SEP	","		/* "Terminate-element" list separators */
 
-static KINFO *kinfo;
+#ifdef LAZY_PS
+#define	DEF_UREAD	0
+#define	OPT_LAZY_f	"f"
+#else
+#define	DEF_UREAD	1	/* Always do the more-expensive read. */
+#define	OPT_LAZY_f		/* I.e., the `-f' option is not added. */
+#endif
+
+int	 cflag;			/* -c */
+int	 eval;			/* Exit value */
+time_t	 now;			/* Current time(3) value */
+int	 rawcpu;		/* -C */
+int	 sumrusage;		/* -S */
+int	 termwidth;		/* Width of the screen (0 == infinity). */
+int	 totwidth;		/* Calculated-width of requested variables. */
+
 struct varent *vhead, *vtail;
 
-int	eval;			/* exit value */
-int	cflag;			/* -c */
-int	optfatal;		/* Fatal error parsing some list-option */
-int	rawcpu;			/* -C */
-int	sumrusage;		/* -S */
-int	termwidth;		/* width of screen (0 == infinity) */
-int	totwidth;		/* calculated width of requested variables */
+static int	 forceuread = DEF_UREAD; /* Do extra work to get u-area. */
+static kvm_t	*kd;
+static KINFO	*kinfo;
+static int	 needcomm;	/* -o "command" */
+static int	 needenv;	/* -e */
+static int	 needuser;	/* -o "user" */
+static int	 optfatal;	/* Fatal error parsing some list-option. */
 
-time_t	now;			/* current time(3) value */
+static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
 struct listinfo;
 typedef	int	addelem_rtn(struct listinfo *_inf, const char *_elem);
@@ -116,17 +131,6 @@ struct listinfo {
 		void	*ptr;
 	} l;
 };
-
-static int needuser, needcomm, needenv;
-#ifdef LAZY_PS
-static int forceuread = 0;
-#define	OPT_LAZY_f	"f"
-#else
-static int forceuread = 1;
-#define	OPT_LAZY_f		/* I.e., the `-f' option is not added. */
-#endif
-
-static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
 static int	 addelem_gid(struct listinfo *, const char *);
 static int	 addelem_pid(struct listinfo *, const char *);
@@ -149,13 +153,13 @@ static void	 usage(void);
 
 static char dfmt[] = "pid,tt,state,time,command";
 static char jfmt[] = "user,pid,ppid,pgid,sess,jobc,state,tt,time,command";
-static char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,wchan,state,tt,time,command";
+static char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,wchan,state,"
+			"tt,time,command";
 static char   o1[] = "pid";
 static char   o2[] = "tt,state,time,command";
 static char ufmt[] = "user,pid,%cpu,%mem,vsz,rss,tt,state,start,time,command";
-static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,%cpu,%mem,command";
-
-static kvm_t *kd;
+static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
+			"%cpu,%mem,command";
 
 #define	PS_ARGS	"AaCce" OPT_LAZY_f "G:ghjLlM:mN:O:o:p:rSTt:U:uvwXx"
 
