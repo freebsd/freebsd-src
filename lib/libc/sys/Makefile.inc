@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.55 1998/08/17 03:41:28 jb Exp $
+#	$Id: Makefile.inc,v 1.56 1998/11/05 14:43:29 dg Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -73,7 +73,7 @@ ${SPSEUDOR}:
 	    > ${.TARGET}
 
 .if ${LIB} == "c"
-MAN2+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
+MAN2+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 aio_read.2 \
 	bind.2 brk.2 chdir.2 chflags.2 \
 	chmod.2 chown.2 chroot.2 clock_gettime.2 close.2 \
 	connect.2 dup.2 execve.2 \
