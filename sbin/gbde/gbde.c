@@ -238,7 +238,7 @@ cmd_attach(const struct g_bde_softc *sc, const char *dest, const char *lfile)
 	if (lfile != NULL) {
 		ffd = open(lfile, O_RDONLY, 0);
 		if (ffd < 0)
-			err(1, lfile);
+			err(1, "%s", lfile);
 		read(ffd, buf + sizeof(sc->sha2), 16);
 		close(ffd);
 	} else {
@@ -300,7 +300,7 @@ cmd_open(struct g_bde_softc *sc, int dfd , const char *l_opt, u_int *nkey)
 	if (l_opt != NULL) {
 		ffd = open(l_opt, O_RDONLY, 0);
 		if (ffd < 0)
-			err(1, l_opt);
+			err(1, "%s", l_opt);
 		read(ffd, keyloc, sizeof keyloc);
 		close(ffd);
 	} else {
@@ -374,7 +374,7 @@ cmd_write(struct g_bde_key *gl, struct g_bde_softc *sc, int dfd , int key, const
 	if (l_opt != NULL) {
 		ffd = open(l_opt, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 		if (ffd < 0)
-			err(1, l_opt);
+			err(1, "%s", l_opt);
 		write(ffd, keyloc, sizeof keyloc);
 		close(ffd);
 	} else if (gl->flags & 1) {
@@ -476,7 +476,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 	if (f_opt != NULL) {
 		i = open(f_opt, O_RDONLY);
 		if (i < 0)
-			err(1, f_opt);
+			err(1, "%s", f_opt);
 		params = properties_read(i);
 		close (i);
 	} else {
@@ -484,7 +484,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		q = strdup("/tmp/temp.XXXXXXXXXX");
 		i = mkstemp(q);
 		if (i < 0)
-			err(1, q);
+			err(1, "%s", q);
 		write(i, template, strlen(template));
 		close (i);
 		if (i_opt) {
@@ -496,7 +496,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		}
 		i = open(q, O_RDONLY);
 		if (i < 0)
-			err(1, f_opt);
+			err(1, "%s", f_opt);
 		params = properties_read(i);
 		close (i);
 		unlink(q);
@@ -753,7 +753,7 @@ main(int argc, char **argv)
 			dfd = open(buf, O_RDWR | O_CREAT, 0644);
 		}
 		if (dfd < 0)
-			err(1, dest);
+			err(1, "%s", dest);
 	} else {
 		if (!memcmp(dest, _PATH_DEV, strlen(_PATH_DEV)))
 			strcpy(dest, dest + strlen(_PATH_DEV));
