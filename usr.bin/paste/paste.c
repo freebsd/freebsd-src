@@ -115,11 +115,10 @@ int
 parallel(char **argv)
 {
 	LIST *lp;
-	int cnt;
+	int cnt, ich;
 	char ch, *p;
 	LIST *head, *tmp;
 	int opencnt, output;
-	char buf[_POSIX2_LINE_MAX + 1];
 
 	for (cnt = 0, head = NULL; (p = *argv); ++argv, ++cnt) {
 		if ((lp = malloc(sizeof(LIST))) == NULL)
@@ -147,7 +146,7 @@ parallel(char **argv)
 					putchar(ch);
 				continue;
 			}
-			if (!fgets(buf, sizeof(buf), lp->fp)) {
+			if ((ich = getc(lp->fp)) == EOF) {
 				if (!--opencnt)
 					break;
 				lp->fp = NULL;
@@ -156,9 +155,6 @@ parallel(char **argv)
 					putchar(ch);
 				continue;
 			}
-			if (!(p = index(buf, '\n')))
-				errx(1, "%s: input line too long", lp->name);
-			*p = '\0';
 			/*
 			 * make sure that we don't print any delimiters
 			 * unless there's a non-empty file.
@@ -170,7 +166,11 @@ parallel(char **argv)
 						putchar(ch);
 			} else if ((ch = delim[(lp->cnt - 1) % delimcnt]))
 				putchar(ch);
-			(void)printf("%s", buf);
+			if (ich == '\n')
+				continue;
+			do {
+				putchar(ich);
+			} while ((ich = getc(lp->fp)) != EOF && ich != '\n');
 		}
 		if (output)
 			putchar('\n');
@@ -183,9 +183,8 @@ int
 sequential(char **argv)
 {
 	FILE *fp;
-	int cnt, failed;
-	char ch, *p, *dp;
-	char buf[_POSIX2_LINE_MAX + 1];
+	int ch, cnt, failed, needdelim;
+	char *p;
 
 	failed = 0;
 	for (; (p = *argv); ++argv) {
@@ -196,23 +195,22 @@ sequential(char **argv)
 			failed = 1;
 			continue;
 		}
-		if (fgets(buf, sizeof(buf), fp)) {
-			for (cnt = 0, dp = delim;;) {
-				if (!(p = index(buf, '\n')))
-					errx(1, "%s: input line too long", *argv);
-				*p = '\0';
-				(void)printf("%s", buf);
-				if (!fgets(buf, sizeof(buf), fp))
-					break;
-				if ((ch = *dp++))
-					putchar(ch);
-				if (++cnt == delimcnt) {
-					dp = delim;
+		cnt = needdelim = 0;
+		while ((ch = getc(fp)) != EOF) {
+			if (needdelim) {
+				needdelim = 0;
+				if (delim[cnt] != '\0')
+					putchar(delim[cnt]);
+				if (++cnt == delimcnt)
 					cnt = 0;
-				}
 			}
-			putchar('\n');
+			if (ch != '\n')
+				putchar(ch);
+			else
+				needdelim = 1;
 		}
+		if (needdelim)
+			putchar('\n');
 		if (fp != stdin)
 			(void)fclose(fp);
 	}
