@@ -145,6 +145,7 @@ static struct filterops *sysfilt_ops[] = {
 	&proc_filtops,			/* EVFILT_PROC */
 	&sig_filtops,			/* EVFILT_SIGNAL */
 	&timer_filtops,			/* EVFILT_TIMER */
+	&file_filtops,			/* EVFILT_NETDEV */
 };
 
 static int
