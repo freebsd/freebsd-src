@@ -83,6 +83,10 @@ static default_attr kernel_default = {
 
 static	int		sc_console_unit = -1;
 static  scr_stat    	*sc_console;
+static	struct tty	*sc_console_tty;
+#ifndef SC_NO_SYSMOUSE
+static	struct tty	*sc_mouse_tty;
+#endif
 static  term_stat   	kernel_console;
 static  default_attr    *current_default;
 
@@ -107,7 +111,6 @@ static	void		(*current_saver)(sc_softc_t *, int) = none_saver;
 
 static	bios_values_t	bios_value;
 
-static struct tty     	sccons[2];
 #define SC_MOUSE 	128
 #define SC_CONSOLECTL	255
 
@@ -115,9 +118,7 @@ static struct tty     	sccons[2];
 static u_char		default_kanji = UJIS;
 #endif
 
-#define VIRTUAL_TTY(sc, x) (&((sc)->tty[(x) - (sc)->first_vty]))
-#define CONSOLE_TTY	(&sccons[0])
-#define MOUSE_TTY	(&sccons[1])
+#define VIRTUAL_TTY(sc, x) (SC_DEV((sc), (x))->si_tty)
 
 #define debugger	FALSE
 
@@ -300,6 +301,7 @@ sc_attach_unit(int unit, int flags)
     video_info_t info;
 #endif
     int vc;
+    dev_t dev;
 
     scmeminit(NULL);		/* XXX */
 
@@ -309,7 +311,7 @@ sc_attach_unit(int unit, int flags)
     scinit(unit, flags);
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
     sc->config = flags;
-    scp = sc->console[0];
+    scp = SC_STAT(sc->dev[0]);
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
 
@@ -365,15 +367,27 @@ sc_attach_unit(int unit, int flags)
      */
     cdevsw_add(&sc_cdevsw);	/* XXX do this just once... */
 
-    for (vc = sc->first_vty; vc < sc->first_vty + sc->vtys; vc++)
-        make_dev(&sc_cdevsw, vc, UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc);
-    if (scp == sc_console) {
-#ifndef SC_NO_SYSMOUSE
-	make_dev(&sc_cdevsw, SC_MOUSE, UID_ROOT, GID_WHEEL, 0600, "sysmouse");
-#endif /* SC_NO_SYSMOUSE */
-	make_dev(&sc_cdevsw, SC_CONSOLECTL,
-				UID_ROOT, GID_WHEEL, 0600, "consolectl");
+    for (vc = 0; vc < sc->vtys; vc++) {
+	dev = make_dev(&sc_cdevsw, vc + unit * MAXCONS,
+	    UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc + unit * MAXCONS);
+	sc->dev[vc] = dev;
+	/*
+	 * The first vty already has struct tty and scr_stat initialized
+	 * in scinit().  The other vtys will have these structs when
+	 * first opened.
+	 */
     }
+
+#ifndef SC_NO_SYSMOUSE
+    dev = make_dev(&sc_cdevsw, SC_MOUSE,
+		   UID_ROOT, GID_WHEEL, 0600, "sysmouse");
+    dev->si_tty = sc_mouse_tty = ttymalloc(sc_mouse_tty);
+    /* sysmouse doesn't have scr_stat */
+#endif /* SC_NO_SYSMOUSE */
+    dev = make_dev(&sc_cdevsw, SC_CONSOLECTL,
+		   UID_ROOT, GID_WHEEL, 0600, "consolectl");
+    dev->si_tty = sc_console_tty = ttymalloc(sc_console_tty);
+    SC_STAT(dev) = sc_console;
 
     return 0;
 }
@@ -426,25 +440,8 @@ sc_resume_unit(int unit)
 struct tty
 *scdevtotty(dev_t dev)
 {
-    sc_softc_t *sc;
-    int vty = SC_VTY(dev);
-    int unit;
 
-    if (init_done == COLD)
-	return NULL;
-
-    if (vty == SC_CONSOLECTL)
-	return CONSOLE_TTY;
-#ifndef SC_NO_SYSMOUSE
-    if (vty == SC_MOUSE)
-	return MOUSE_TTY;
-#endif
-
-    unit = scdevtounit(dev);
-    sc = sc_get_softc(unit, (sc_console_unit == unit) ? SC_KERNEL_CONSOLE : 0);
-    if (sc == NULL)
-	return NULL;
-    return VIRTUAL_TTY(sc, vty);
+    return (dev->si_tty);
 }
 
 static int
@@ -465,20 +462,26 @@ scdevtounit(dev_t dev)
 int
 scopen(dev_t dev, int flag, int mode, struct proc *p)
 {
-    struct tty *tp = scdevtotty(dev);
     int unit = scdevtounit(dev);
     sc_softc_t *sc;
+    struct tty *tp;
+    scr_stat *scp;
     keyarg_t key;
+    int error;
 
-    if (!tp)
-	return(ENXIO);
-
-    DPRINTF(5, ("scopen: dev:%d, unit:%d, vty:%d\n",
-		dev, unit, SC_VTY(dev)));
+    DPRINTF(5, ("scopen: dev:%d,%d, unit:%d, vty:%d\n",
+		major(dev), minor(dev), unit, SC_VTY(dev)));
 
     /* sc == NULL, if SC_VTY(dev) == SC_MOUSE */
     sc = sc_get_softc(unit, (sc_console_unit == unit) ? SC_KERNEL_CONSOLE : 0);
+#ifndef SC_NO_SYSMOUSE
+    if ((SC_VTY(dev) != SC_MOUSE) && (sc == NULL))
+#else
+    if (sc == NULL)
+#endif
+	return ENXIO;
 
+    tp = dev->si_tty = ttymalloc(dev->si_tty);
     tp->t_oproc = (SC_VTY(dev) == SC_MOUSE) ? scmousestart : scstart;
     tp->t_param = scparam;
     tp->t_dev = dev;
@@ -506,23 +509,23 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     else
 	if (tp->t_state & TS_XCLUDE && suser(p))
 	    return(EBUSY);
-    if ((SC_VTY(dev) != SC_CONSOLECTL) && (SC_VTY(dev) != SC_MOUSE)) {
+
+    error = (*linesw[tp->t_line].l_open)(dev, tp);
+
+    if (SC_VTY(dev) != SC_MOUSE) {
 	/* assert(sc != NULL) */
-	if (sc->console[SC_VTY(dev) - sc->first_vty] == NULL) {
-	    sc->console[SC_VTY(dev) - sc->first_vty]
-		= alloc_scp(sc, SC_VTY(dev));
-	    if (ISGRAPHSC(sc->console[SC_VTY(dev) - sc->first_vty]))
-		sc_set_pixel_mode(sc->console[SC_VTY(dev) - sc->first_vty],
-				  NULL, COL, ROW, 16);
+	scp = SC_STAT(dev);
+	if (scp == NULL) {
+	    scp = SC_STAT(dev) = alloc_scp(sc, SC_VTY(dev));
+	    if (ISGRAPHSC(scp))
+		sc_set_pixel_mode(scp, NULL, COL, ROW, 16);
 	}
 	if (!tp->t_winsize.ws_col && !tp->t_winsize.ws_row) {
-	    tp->t_winsize.ws_col
-		= sc->console[SC_VTY(dev) - sc->first_vty]->xsize;
-	    tp->t_winsize.ws_row
-		= sc->console[SC_VTY(dev) - sc->first_vty]->ysize;
+	    tp->t_winsize.ws_col = scp->xsize;
+	    tp->t_winsize.ws_row = scp->ysize;
 	}
     }
-    return ((*linesw[tp->t_line].l_open)(dev, tp));
+    return error;
 }
 
 int
@@ -532,10 +535,8 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
     struct scr_stat *scp;
     int s;
 
-    if (!tp)
-	return(ENXIO);
     if ((SC_VTY(dev) != SC_CONSOLECTL) && (SC_VTY(dev) != SC_MOUSE)) {
-	scp = sc_get_scr_stat(tp->t_dev);
+	scp = SC_STAT(tp->t_dev);
 	/* were we in the middle of the VT switching process? */
 	DPRINTF(5, ("sc%d: scclose(), ", scp->sc->unit));
 	s = spltty();
@@ -564,7 +565,6 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	    sc_vtb_destroy(&scp->scr);
 	    sc_free_history_buffer(scp, scp->ysize);
 	    free(scp, M_DEVBUF);
-	    sc->console[SC_VTY(dev) - sc->first_vty] = NULL;
 	}
 #else
 	scp->pid = 0;
@@ -588,8 +588,6 @@ scread(dev_t dev, struct uio *uio, int flag)
 {
     struct tty *tp = scdevtotty(dev);
 
-    if (!tp)
-	return(ENXIO);
     sc_touch_scrn_saver();
     return((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
@@ -599,8 +597,6 @@ scwrite(dev_t dev, struct uio *uio, int flag)
 {
     struct tty *tp = scdevtotty(dev);
 
-    if (!tp)
-	return(ENXIO);
     return((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
 
@@ -637,7 +633,8 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	cur_tty = VIRTUAL_TTY(sc, sc->cur_scp->index);
 	/* XXX */
 	if (!(cur_tty->t_state & TS_ISOPEN))
-	    if (!((cur_tty = CONSOLE_TTY)->t_state & TS_ISOPEN))
+	    if (((cur_tty = sc_console_tty) == NULL)
+	    	|| !(cur_tty->t_state & TS_ISOPEN))
 		continue;
 
 	switch (KEYFLAGS(c)) {
@@ -693,8 +690,6 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     int s;
 
     tp = scdevtotty(dev);
-    if (!tp)
-	return ENXIO;
 
     /* If there is a user_ioctl function call that first */
     if (sc_user_ioctl) {
@@ -728,7 +723,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     }
 #endif
 
-    scp = sc_get_scr_stat(tp->t_dev);
+    scp = SC_STAT(tp->t_dev);
     /* assert(scp != NULL) */
     /* scp is sc_console, if SC_VTY(dev) == SC_CONSOLECTL. */
     sc = scp->sc;
@@ -980,7 +975,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     case VT_OPENQRY:    	/* return free virtual console */
 	for (i = sc->first_vty; i < sc->first_vty + sc->vtys; i++) {
 	    tp = VIRTUAL_TTY(sc, i);
-	    if (!(tp->t_state & TS_ISOPEN)) {
+	    if ((tp == NULL) || !(tp->t_state & TS_ISOPEN)) {
 		*(int *)data = i + 1;
 		return 0;
 	    }
@@ -1003,7 +998,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if (error)
 	    return error;
 	if (*(int *)data != 0)
-	    scp = sc->console[*(int *)data - 1 - sc->first_vty];
+	    scp = SC_STAT(SC_DEV(sc, *(int *)data - 1));
 	if (scp == scp->sc->cur_scp)
 	    return 0;
 	while ((error=tsleep((caddr_t)&scp->smode, PZERO|PCATCH,
@@ -1301,7 +1296,7 @@ scstart(struct tty *tp)
     struct clist *rbp;
     int s, len;
     u_char buf[PCBURST];
-    scr_stat *scp = sc_get_scr_stat(tp->t_dev);
+    scr_stat *scp = SC_STAT(tp->t_dev);
 
     if (scp->status & SLKED || scp->sc->blink_in_progress)
 	return;
@@ -1384,7 +1379,7 @@ sccninit(struct consdev *cp)
     sc_get_cons_priority(&unit, &flags);
     scinit(unit, flags | SC_KERNEL_CONSOLE);
     sc_console_unit = unit;
-    sc_console = sc_get_softc(unit, SC_KERNEL_CONSOLE)->console[0];
+    sc_console = SC_STAT(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
 #endif /* __i386__ */
 
 #if __alpha__
@@ -1438,7 +1433,7 @@ sccnattach(void)
 
     scinit(unit, flags | SC_KERNEL_CONSOLE);
     sc_console_unit = unit;
-    sc_console = sc_get_softc(unit, SC_KERNEL_CONSOLE)->console[0];
+    sc_console = SC_STAT(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
     consdev.cn_dev = makedev(CDEV_MAJOR, 0);
     cn_tab = &consdev;
 }
@@ -1598,27 +1593,6 @@ sccnupdate(scr_stat *scp)
 
     if (!ISGRAPHSC(scp) && !(scp->status & SAVER_RUNNING))
 	scrn_update(scp, TRUE);
-}
-
-scr_stat
-*sc_get_scr_stat(dev_t dev)
-{
-    sc_softc_t *sc;
-    int vty = SC_VTY(dev);
-    int unit;
-
-    if (vty < 0)
-	return NULL;
-    if (vty == SC_CONSOLECTL)
-	return sc_console;
-
-    unit = scdevtounit(dev);
-    sc = sc_get_softc(unit, (sc_console_unit == unit) ? SC_KERNEL_CONSOLE : 0);
-    if (sc == NULL)
-	return NULL;
-    if ((sc->first_vty <= vty) && (vty < sc->first_vty + sc->vtys))
-	return sc->console[vty - sc->first_vty];
-    return NULL;
 }
 
 static void
@@ -2248,7 +2222,7 @@ switch_scr(sc_softc_t *sc, u_int next_scr)
      */
     if ((sc_console == NULL) || (next_scr != sc_console->index)) {
 	tp = VIRTUAL_TTY(sc, next_scr);
-	if (!(tp->t_state & TS_ISOPEN)) {
+	if ((tp == NULL) || !(tp->t_state & TS_ISOPEN)) {
 	    splx(s);
 	    do_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	    DPRINTF(5, ("error 2, requested vty isn't open!\n"));
@@ -2260,7 +2234,7 @@ switch_scr(sc_softc_t *sc, u_int next_scr)
     ++sc->switch_in_progress;
     sc->delayed_next_scr = 0;
     sc->old_scp = sc->cur_scp;
-    sc->new_scp = sc->console[next_scr - sc->first_vty];
+    sc->new_scp = SC_STAT(SC_DEV(sc, next_scr));
     if (sc->new_scp == sc->old_scp) {
 	sc->switch_in_progress = 0;
 	wakeup((caddr_t)&sc->new_scp->smode);
@@ -3430,8 +3404,8 @@ scinit(int unit, int flags)
      * but is necessry evil for the time being.  XXX
      */
     static scr_stat main_console;
-    static scr_stat *main_vtys[MAXCONS];
-    static struct tty main_tty[MAXCONS];
+    static dev_t main_devs[MAXCONS];
+    static struct tty main_tty;
 #ifndef PC98
     static u_short sc_buffer[ROW*COL];	/* XXX */
 #else
@@ -3521,23 +3495,25 @@ scinit(int unit, int flags)
 
 	/* set up the first console */
 	sc->first_vty = unit*MAXCONS;
+	sc->vtys = MAXCONS;
 	if (flags & SC_KERNEL_CONSOLE) {
-	    sc->vtys = sizeof(main_vtys)/sizeof(main_vtys[0]);
-	    sc->tty = main_tty;
-	    sc->console = main_vtys;
-	    scp = main_vtys[0] = &main_console;
+	    sc->dev = main_devs;
+	    sc->dev[0] = makedev(CDEV_MAJOR, unit*MAXCONS);
+	    sc->dev[0]->si_tty = &main_tty;
+	    ttyregister(&main_tty);
+	    scp = &main_console;
 	    init_scp(sc, sc->first_vty, scp);
 	    sc_vtb_init(&scp->vtb, VTB_MEMORY, scp->xsize, scp->ysize,
 			(void *)sc_buffer, FALSE);
 	} else {
 	    /* assert(sc_malloc) */
-	    sc->vtys = MAXCONS;
-	    sc->tty = malloc(sizeof(struct tty)*MAXCONS, M_DEVBUF, M_WAITOK);
-	    bzero(sc->tty, sizeof(struct tty)*MAXCONS);
-	    sc->console = malloc(sizeof(struct scr_stat *)*MAXCONS,
-				 M_DEVBUF, M_WAITOK);
-	    scp = sc->console[0] = alloc_scp(sc, sc->first_vty);
+	    sc->dev = malloc(sizeof(dev_t)*sc->vtys, M_DEVBUF, M_WAITOK);
+	    bzero(sc->dev, sizeof(dev_t)*sc->vtys);
+	    sc->dev[0] = makedev(CDEV_MAJOR, unit*MAXCONS);
+	    sc->dev[0]->si_tty = ttymalloc(sc->dev[0]->si_tty);
+	    scp = alloc_scp(sc, sc->first_vty);
 	}
+	SC_STAT(sc->dev[0]) = scp;
 	sc->cur_scp = scp;
 
 	/* copy screen to temporary buffer */
@@ -3619,10 +3595,6 @@ scinit(int unit, int flags)
     if (sc->flags & SC_INIT_DONE)
 	return;
 
-    /* clear structures */
-    for (i = 1; i < sc->vtys; i++)
-	sc->console[i] = NULL;
-
     /* initialize mapscrn arrays to a one to one map */
     for (i = 0; i < sizeof(sc->scr_map); i++)
 	sc->scr_map[i] = sc->scr_rmap[i] = i;
@@ -3658,8 +3630,12 @@ scterm(int unit, int flags)
 
     /* clear the structure */
     if (!(flags & SC_KERNEL_CONSOLE)) {
-	free(sc->console, M_DEVBUF);
+	/* XXX: We need delete_dev() for this */
+	free(sc->dev, M_DEVBUF);
+#if 0
+	/* XXX: We need a ttyunregister for this */
 	free(sc->tty, M_DEVBUF);
+#endif
 #ifndef SC_NO_FONT_LOADING
 	free(sc->font_8, M_DEVBUF);
 	free(sc->font_14, M_DEVBUF);
@@ -4082,7 +4058,7 @@ next_code:
 			sc->first_vty + i != this_scr; 
 			i = (i + 1)%sc->vtys) {
 		    struct tty *tp = VIRTUAL_TTY(sc, sc->first_vty + i);
-		    if (tp->t_state & TS_ISOPEN) {
+		    if (tp && tp->t_state & TS_ISOPEN) {
 			switch_scr(scp->sc, sc->first_vty + i);
 			break;
 		    }
@@ -4095,7 +4071,7 @@ next_code:
 			sc->first_vty + i != this_scr;
 			i = (i + sc->vtys - 1)%sc->vtys) {
 		    struct tty *tp = VIRTUAL_TTY(sc, sc->first_vty + i);
-		    if (tp->t_state & TS_ISOPEN) {
+		    if (tp && tp->t_state & TS_ISOPEN) {
 			switch_scr(scp->sc, sc->first_vty + i);
 			break;
 		    }
@@ -4126,13 +4102,13 @@ next_code:
 int
 scmmap(dev_t dev, vm_offset_t offset, int nprot)
 {
-    struct tty *tp;
-    struct scr_stat *scp;
+    scr_stat *scp;
 
-    tp = scdevtotty(dev);
-    if (!tp)
-	return ENXIO;
-    scp = sc_get_scr_stat(tp->t_dev);
+    if (SC_VTY(dev) == SC_MOUSE)
+	return -1;
+    scp = SC_STAT(dev);
+    if (scp != scp->sc->cur_scp)
+	return -1;
     return (*vidsw[scp->sc->adapter]->mmap)(scp->sc->adp, offset, nprot);
 }
 
@@ -4313,7 +4289,7 @@ copy_font(scr_stat *scp, int operation, int font_size, u_char *buf)
 struct tty
 *sc_get_mouse_tty(void)
 {
-    return MOUSE_TTY;
+    return sc_mouse_tty;
 }
 #endif /* !SC_NO_SYSMOUSE */
 
@@ -4326,6 +4302,8 @@ sc_paste(scr_stat *scp, u_char *p, int count)
 
     if (scp->status & MOUSE_VISIBLE) {
 	tp = VIRTUAL_TTY(scp->sc, scp->sc->cur_scp->index);
+	if (!(tp->t_state & TS_ISOPEN))
+	    return;
 	rmap = scp->sc->scr_rmap;
 	for (; count > 0; --count)
 	    (*linesw[tp->t_line].l_rint)(rmap[*p++], tp);
