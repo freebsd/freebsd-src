@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.25.4.2 1995/08/24 05:52:06 davidg Exp $
+ *	$Id: tcp_input.c,v 1.25.4.3 1996/02/04 12:46:20 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -316,23 +316,6 @@ tcp_input(m, iphlen)
 		}
 		optlen = off - sizeof (struct tcphdr);
 		optp = mtod(m, caddr_t) + sizeof (struct tcpiphdr);
-		/*
-		 * Do quick retrieval of timestamp options ("options
-		 * prediction?").  If timestamp is the only option and it's
-		 * formatted as recommended in RFC 1323 appendix A, we
-		 * quickly get the values now and not bother calling
-		 * tcp_dooptions(), etc.
-		 */
-		if ((optlen == TCPOLEN_TSTAMP_APPA ||
-		     (optlen > TCPOLEN_TSTAMP_APPA &&
-			optp[TCPOLEN_TSTAMP_APPA] == TCPOPT_EOL)) &&
-		     *(u_long *)optp == htonl(TCPOPT_TSTAMP_HDR) &&
-		     (ti->ti_flags & TH_SYN) == 0) {
-			to.to_flag |= TOF_TS;
-			to.to_tsval = ntohl(*(u_long *)(optp + 4));
-			to.to_tsecr = ntohl(*(u_long *)(optp + 8));
-			optp = NULL;	/* we've parsed the options */
-		}
 	}
 	tiflags = ti->ti_flags;
 
@@ -441,9 +424,8 @@ findpcb:
 	 * Process options if not in LISTEN state,
 	 * else do it below (after getting remote address).
 	 */
-	if (optp && tp->t_state != TCPS_LISTEN)
-		tcp_dooptions(tp, optp, optlen, ti,
-			&to);
+	if (tp->t_state != TCPS_LISTEN)
+		tcp_dooptions(tp, optp, optlen, ti, &to);
 
 	/*
 	 * Header prediction: check for the two common cases
@@ -643,9 +625,7 @@ findpcb:
 			taop = &tao_noncached;
 			bzero(taop, sizeof(*taop));
 		}
-		if (optp)
-			tcp_dooptions(tp, optp, optlen, ti,
-				&to);
+		tcp_dooptions(tp, optp, optlen, ti, &to);
 		if (iss)
 			tp->iss = iss;
 		else
@@ -2090,12 +2070,6 @@ tcp_mssopt(tp)
 	rt = tcp_rtlookup(tp->t_inpcb);
 	if (rt == NULL)
 		return tcp_mssdflt;
-
-	/*
-	 * if there's an mtu associated with the route, use it
-	 */
-	if (rt->rt_rmx.rmx_mtu)
-		return rt->rt_rmx.rmx_mtu - sizeof(struct tcpiphdr);
 
 	return rt->rt_ifp->if_mtu - sizeof(struct tcpiphdr);
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.19.4.3 1996/02/23 15:26:11 phk Exp $
+ * $Id: ip_output.c,v 1.19.4.4 1996/02/26 15:23:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -85,6 +85,23 @@ ip_output(m0, opt, ro, flags, imo)
 	register struct mbuf *m = m0;
 	register int hlen = sizeof (struct ip);
 	int len, off, error = 0;
+	/*
+	 * It might seem obvious at first glance that one could easily
+	 * make a one-behind cache out of this by simply making `iproute'
+	 * static and eliminating the bzero() below.  However, this turns
+	 * out not to work, for two reasons:
+	 *
+	 * 1) This routine needs to be reentrant.  It can be called
+	 * recursively from encapsulating network interfaces, and it
+	 * is always called recursively from ip_mforward().
+	 *
+	 * 2) You turn out not to gain much.  There is already a one-
+	 * behind cache implemented for the specific case of forwarding,
+	 * and sends on a connected socket will use a route associated
+	 * with the PCB.  The only cases left are sends on unconnected
+	 * and raw sockets, and if these cases are really significant,
+	 * something is seriously wrong.
+	 */
 	struct route iproute;
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
@@ -339,6 +356,20 @@ sendit:
 	 */
 	if (ip->ip_off & IP_DF) {
 		error = EMSGSIZE;
+#if 1
+		/*
+		 * This case can happen if the user changed the MTU
+		 * of an interface after enabling IP on it.  Because
+		 * most netifs don't keep track of routes pointing to
+		 * them, there is no way for one to update all its
+		 * routes when the MTU is changed.
+		 */
+		if ((ro->ro_rt->rt_flags & (RTF_UP | RTF_HOST))
+		    && !(ro->ro_rt->rt_rmx.rmx_locks & RTV_MTU)
+		    && (ro->ro_rt->rt_rmx.rmx_mtu > ifp->if_mtu)) {
+			ro->ro_rt->rt_rmx.rmx_mtu = ifp->if_mtu;
+		}
+#endif
 		ipstat.ips_cantfrag++;
 		goto bad;
 	}

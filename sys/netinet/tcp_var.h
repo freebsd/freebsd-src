@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.11.4.2 1995/07/29 23:16:53 davidg Exp $
+ * $Id: tcp_var.h,v 1.11.4.3 1996/01/31 11:02:05 davidg Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -46,15 +46,15 @@
 struct tcpcb {
 	struct	tcpiphdr *seg_next;	/* sequencing queue */
 	struct	tcpiphdr *seg_prev;
-	short	t_state;		/* state of this connection */
-	short	t_timer[TCPT_NTIMERS];	/* tcp timers */
-	short	t_rxtshift;		/* log(2) of rexmt exp. backoff */
-	short	t_rxtcur;		/* current retransmit value */
-	short	t_dupacks;		/* consecutive dup acks recd */
-	u_short	t_maxseg;		/* maximum segment size */
-	u_short	t_maxopd;		/* mss plus options */
-	char	t_force;		/* 1 if forcing out a byte */
-	u_short	t_flags;
+	int	t_state;		/* state of this connection */
+	int	t_timer[TCPT_NTIMERS];	/* tcp timers */
+	int	t_rxtshift;		/* log(2) of rexmt exp. backoff */
+	int	t_rxtcur;		/* current retransmit value */
+	int	t_dupacks;		/* consecutive dup acks recd */
+	u_int	t_maxseg;		/* maximum segment size */
+	u_int	t_maxopd;		/* mss plus options */
+	int	t_force;		/* 1 if forcing out a byte */
+	u_int	t_flags;
 #define	TF_ACKNOW	0x0001		/* ack peer immediately */
 #define	TF_DELACK	0x0002		/* ack, but try to delay it */
 #define	TF_NODELAY	0x0004		/* don't delay packets to coalesce */
@@ -110,12 +110,12 @@ struct tcpcb {
  * transmit timing stuff.  See below for scale of srtt and rttvar.
  * "Variance" is actually smoothed difference.
  */
-	short	t_idle;			/* inactivity time */
-	short	t_rtt;			/* round trip time */
+	u_int	t_idle;			/* inactivity time */
+	int	t_rtt;			/* round trip time */
 	tcp_seq	t_rtseq;		/* sequence number being timed */
-	short	t_srtt;			/* smoothed round-trip time */
-	short	t_rttvar;		/* variance in round-trip time */
-	u_short	t_rttmin;		/* minimum rtt allowed */
+	int	t_srtt;			/* smoothed round-trip time */
+	int	t_rttvar;		/* variance in round-trip time */
+	u_int	t_rttmin;		/* minimum rtt allowed */
 	u_long	max_sndwnd;		/* largest window peer has offered */
 
 /* out-of-band data */
@@ -123,7 +123,7 @@ struct tcpcb {
 	char	t_iobc;			/* input character */
 #define	TCPOOB_HAVEDATA	0x01
 #define	TCPOOB_HADDATA	0x02
-	short	t_softerror;		/* possible error not yet reported */
+	int	t_softerror;		/* possible error not yet reported */
 
 /* RFC 1323 variables */
 	u_char	snd_scale;		/* window scaling for send window */
@@ -240,7 +240,6 @@ struct	tcpstat {
 	u_long	tcps_timeoutdrop;	/* conn. dropped in rxmt timeout */
 	u_long	tcps_rexmttimeo;	/* retransmit timeouts */
 	u_long	tcps_persisttimeo;	/* persist timeouts */
-	u_long	tcps_persistdrop;	/* conns dropped by persist timeout */
 	u_long	tcps_keeptimeo;		/* keepalive timeouts */
 	u_long	tcps_keepprobe;		/* keepalive probes sent */
 	u_long	tcps_keepdrops;		/* connections dropped in keepalive */
@@ -287,6 +286,9 @@ struct	tcpstat {
 	u_long	tcps_usedrtt;		/* times RTT initialized from route */
 	u_long	tcps_usedrttvar;	/* times RTTVAR initialized from rt */
 	u_long	tcps_usedssthresh;	/* times ssthresh initialized from rt*/
+	u_long	tcps_persistdrop;	/* timeout in persist state */
+	u_long	tcps_badsyn;		/* bogus SYN, e.g. premature ACK */
+	u_long	tcps_mturesent;		/* resends due to MTU discovery */
 };
 
 /*
@@ -348,6 +350,7 @@ void	 tcp_init __P((void));
 void	 tcp_input __P((struct mbuf *, int));
 void	 tcp_mss __P((struct tcpcb *, int));
 int	 tcp_mssopt __P((struct tcpcb *));
+void	 tcp_mtudisc __P((struct inpcb *, int));
 struct tcpcb *
 	 tcp_newtcpcb __P((struct inpcb *));
 void	 tcp_notify __P((struct inpcb *, int));

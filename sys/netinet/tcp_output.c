@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.11.4.2 1996/01/31 11:02:00 davidg Exp $
+ * $Id: tcp_output.c,v 1.11.4.3 1996/01/31 11:09:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -442,7 +442,6 @@ send:
 		 * If there is still more to send, don't close the connection.
 		 */
 		flags &= ~TH_FIN;
-
 		len = tp->t_maxopd - optlen;
 		sendalot = 1;
 	}
@@ -493,7 +492,7 @@ send:
 		} else {
 			m->m_next = m_copy(so->so_snd.sb_mb, off, (int) len);
 			if (m->m_next == 0) {
-				m_free(m);
+				(void) m_free(m);
 				error = ENOBUFS;
 				goto out;
 			}
@@ -667,16 +666,28 @@ send:
 	else
 #endif
     {
+#if 1
+	struct rtentry *rt;
+#endif
 	((struct ip *)ti)->ip_len = m->m_pkthdr.len;
 	((struct ip *)ti)->ip_ttl = tp->t_inpcb->inp_ip.ip_ttl;	/* XXX */
 	((struct ip *)ti)->ip_tos = tp->t_inpcb->inp_ip.ip_tos;	/* XXX */
-#if BSD >= 43
+#if 1
+	/*
+	 * See if we should do MTU discovery.  We do it only if the following
+	 * are true:
+	 *	1) we have a valid route to the destination
+	 *	2) the MTU is not locked (if it is, then discovery has been
+	 *	   disabled)
+	 */
+	if ((rt = tp->t_inpcb->inp_route.ro_rt)
+	    && rt->rt_flags & RTF_UP
+	    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
+		((struct ip *)ti)->ip_off |= IP_DF;
+	}
+#endif
 	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
 	    so->so_options & SO_DONTROUTE, 0);
-#else
-	error = ip_output(m, (struct mbuf *)0, &tp->t_inpcb->inp_route,
-	    so->so_options & SO_DONTROUTE);
-#endif
     }
 	if (error) {
 out:
@@ -684,6 +695,18 @@ out:
 			tcp_quench(tp->t_inpcb, 0);
 			return (0);
 		}
+#if 1
+		if (error == EMSGSIZE) {
+			/*
+			 * ip_output() will have already fixed the route
+			 * for us.  tcp_mtudisc() will, as its last action,
+			 * initiate retransmission, so it is important to
+			 * not do so here.
+			 */
+			tcp_mtudisc(tp->t_inpcb, 0);
+			return 0;
+		}
+#endif
 		if ((error == EHOSTUNREACH || error == ENETDOWN)
 		    && TCPS_HAVERCVDSYN(tp->t_state)) {
 			tp->t_softerror = error;
