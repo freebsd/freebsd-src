@@ -159,7 +159,6 @@ retry:
 				    threadqueue, td_runq);
 			}
 			TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
-			kg->kg_runnable--;
 		}
 		CTR2(KTR_RUNQ, "choosethread: td=%p pri=%d",
 		    td, td->td_priority);
@@ -254,7 +253,6 @@ remrunqueue(struct thread *td)
 	}
    	td3 = TAILQ_PREV(td, threadqueue, td_runq);
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
-	kg->kg_runnable--;
 	if (ke->ke_state == KES_ONRUNQ) {
 		/*
 		 * This thread has been assigned to the system run queue.
@@ -310,7 +308,6 @@ adjustrunqueue( struct thread *td, int newpri)
 		sched_rem(td);
 	}
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
-	kg->kg_runnable--;
 	TD_SET_CAN_RUN(td);
 	td->td_priority = newpri;
 	setrunqueue(td, SRQ_BORING);
@@ -514,14 +511,12 @@ setrunqueue(struct thread *td, int flags)
 	 */
 	TAILQ_FOREACH(td2, &kg->kg_runq, td_runq) {
 		if (td2->td_priority > td->td_priority) {
-			kg->kg_runnable++;
 			TAILQ_INSERT_BEFORE(td2, td, td_runq);
 			break;
 		}
 	}
 	if (td2 == NULL) {
 		/* We ran off the end of the TAILQ or it was empty. */
-		kg->kg_runnable++;
 		TAILQ_INSERT_TAIL(&kg->kg_runq, td, td_runq);
 	}
 
@@ -945,7 +940,6 @@ sched_newthread(struct thread *td)
 	bzero(ke, sizeof(*ke));
 	td->td_sched     = ke;
 	ke->ke_thread	= td;
-	ke->ke_oncpu	= NOCPU;
 	ke->ke_state	= KES_THREAD;
 }
 
