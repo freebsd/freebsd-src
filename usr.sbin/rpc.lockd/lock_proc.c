@@ -119,6 +119,7 @@ log_from_addr(fun_name, req)
 static CLIENT *clnt_cache_ptr[CLIENT_CACHE_SIZE];
 static long clnt_cache_time[CLIENT_CACHE_SIZE];	/* time entry created */
 static struct sockaddr_storage clnt_cache_addr[CLIENT_CACHE_SIZE];
+static rpcvers_t clnt_cache_vers[CLIENT_CACHE_SIZE];
 static int clnt_cache_next_to_use = 0;
 
 static int
@@ -181,13 +182,16 @@ get_client(host_addr, vers)
 			client = NULL;
 		}
 		if (client && !addrcmp((struct sockaddr *)&clnt_cache_addr[i],
-		    host_addr)) {
+		    host_addr) && clnt_cache_vers[i] == vers) {
 			/* Found it! */
 			if (debug_level > 3)
 				syslog(LOG_DEBUG, "Found CLIENT* in cache");
 			return (client);
 		}
 	}
+
+	if (debug_level > 3)
+		syslog(LOG_DEBUG, "CLIENT* not found in cache, creating");
 
 	/* Not found in cache.  Free the next entry if it is in use. */
 	if (clnt_cache_ptr[clnt_cache_next_to_use]) {
@@ -236,6 +240,7 @@ get_client(host_addr, vers)
 	clnt_cache_ptr[clnt_cache_next_to_use] = client;
 	memcpy(&clnt_cache_addr[clnt_cache_next_to_use], host_addr,
 	    host_addr->sa_len);
+	clnt_cache_vers[clnt_cache_next_to_use] = vers;
 	clnt_cache_time[clnt_cache_next_to_use] = time_now.tv_sec;
 	if (++clnt_cache_next_to_use > CLIENT_CACHE_SIZE)
 		clnt_cache_next_to_use = 0;
