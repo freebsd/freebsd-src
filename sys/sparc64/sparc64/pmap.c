@@ -964,9 +964,11 @@ pmap_new_thread(struct thread *td, int pages)
 		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 		ma[i] = m;
 
+		vm_page_lock_queues();
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
+		vm_page_unlock_queues();
 	}
 
 	/*
@@ -1144,9 +1146,11 @@ pmap_pinit(pmap_t pm)
 		if ((m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 
+		vm_page_lock_queues();
 		vm_page_flag_clear(m, PG_BUSY);
 		m->valid = VM_PAGE_BITS_ALL;
 		m->md.pmap = pm;
+		vm_page_unlock_queues();
 
 		ma[i] = m;
 	}
