@@ -10,7 +10,7 @@ SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
 	tty.c xms.c
 
 CFLAGS+=	-I. -DDISASSEMBLER
-CLEANFILES=	emsdriv.sys redir.com
+CLEANFILES=	cp437-8x16.pcf.gz emsdriv.sys redir.com
 
 .if ${OBJFORMAT} == "aout"
 CLEANFILES+=	doscmd.kernel crt0.o doscmd_loader.o
@@ -42,6 +42,11 @@ beforeinstall:
 .endif
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
 	    emsdriv.sys redir.com ${DESTDIR}/usr/libdata/doscmd/
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${SHAREMODE} \
+	    cp437-8x16.pcf.gz ${DESTDIR}/usr/libdata/doscmd/fonts
+	cd ${.CURDIR} && \
+	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${SHAREMODE} \
+		fonts.dir ${DESTDIR}/usr/libdata/doscmd/fonts
 
 .if ${OBJFORMAT} == "aout"
 doscmd: ${LIBCRT0} doscmd_loader.o ${LIBGCC} ${LIBC}
@@ -52,16 +57,19 @@ doscmd: ${LIBCRT0} doscmd_loader.o ${LIBGCC} ${LIBC}
 .depend: doscmd_loader.c
 
 # Bogus dependencies to get more than one binary created by `make all'.
-doscmd: doscmd.kernel emsdriv.sys redir.com
+doscmd: cp437-8x16.pcf.gz doscmd.kernel emsdriv.sys redir.com
 .else
-doscmd: emsdriv.sys redir.com
+doscmd: cp437-8x16.pcf.gz emsdriv.sys redir.com
 .endif
 
-redir.com: redir.com.uu
-	uudecode ${.CURDIR}/redir.com.uu
+cp437-8x16.pcf.gz: cp437-8x16.pcf.gz.uu
+	uudecode ${.CURDIR}/cp437-8x16.pcf.gz.uu
 
 emsdriv.sys: emsdriv.sys.uu
 	uudecode ${.CURDIR}/emsdriv.sys.uu
+
+redir.com: redir.com.uu
+	uudecode ${.CURDIR}/redir.com.uu
 
 # Make sure the library names are defined.  We want to specify the full
 # path to the standard crt0.o, and building two binaries in one directory
