@@ -285,6 +285,8 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 					abortsleep(td2);
 			}	
 			mtx_unlock_spin(&sched_lock);
+			td->td_retval[0] = 0;
+			td->td_retval[1] = 0;
 			return 0;
 		}
 	}
