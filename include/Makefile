@@ -27,8 +27,8 @@ PHDRS=	sched.h semaphore.h _semaphore.h # mqueue.h
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 	termios.h ucontext.h
 
-LDIRS=	cam geom net netatalk netatm netgraph netinet netinet6 netipsec \
-	netipx netkey netnatm netncp netsmb nfs nfsclient nfsserver \
+LDIRS=	cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
+	netipsec netipx netkey netnatm netncp netsmb nfs nfsclient nfsserver \
 	pccard posix4 sys vm
 
 LSUBDIRS=	cam/scsi dev/an dev/ic dev/iicbus dev/firewire dev/ofw \
