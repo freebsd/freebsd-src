@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)termios.h	8.3 (Berkeley) 3/28/94
- * $Id: termios.h,v 1.5 1995/05/11 07:52:47 bde Exp $
+ * $Id: termios.h,v 1.6 1995/05/30 08:14:40 rgrimes Exp $
  */
 
 #ifndef _SYS_TERMIOS_H_
@@ -47,22 +47,22 @@
 #define	VEOF		0	/* ICANON */
 #define	VEOL		1	/* ICANON */
 #ifndef _POSIX_SOURCE
-#define	VEOL2		2	/* ICANON */
+#define	VEOL2		2	/* ICANON together with IEXTEN */
 #endif
 #define	VERASE		3	/* ICANON */
 #ifndef _POSIX_SOURCE
-#define VWERASE 	4	/* ICANON */
+#define VWERASE 	4	/* ICANON together with IEXTEN */
 #endif
 #define VKILL		5	/* ICANON */
 #ifndef _POSIX_SOURCE
-#define	VREPRINT 	6	/* ICANON */
+#define	VREPRINT 	6	/* ICANON together with IEXTEN */
 #endif
 /*			7	   spare 1 */
 #define VINTR		8	/* ISIG */
 #define VQUIT		9	/* ISIG */
 #define VSUSP		10	/* ISIG */
 #ifndef _POSIX_SOURCE
-#define VDSUSP		11	/* ISIG */
+#define VDSUSP		11	/* ISIG together with IEXTEN */
 #endif
 #define VSTART		12	/* IXON, IXOFF */
 #define VSTOP		13	/* IXON, IXOFF */
@@ -73,7 +73,7 @@
 #define VMIN		16	/* !ICANON */
 #define VTIME		17	/* !ICANON */
 #ifndef _POSIX_SOURCE
-#define VSTATUS		18	/* ICANON */
+#define VSTATUS		18	/* ICANON together with IEXTEN */
 /*			19	   spare 2 */
 #endif
 #define	NCCS		20
