@@ -1,0 +1,80 @@
+.\"
+.\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 8, 2001
+.Dt VFS_BUSY 9
+.Os
+.Sh NAME
+.Nm vfs_busy
+.Nd "Marks a mount point as busy."
+.Sh SYNOPSIS
+.Ft int
+.Fo vfs_busy
+.Fa "struct mount *mp"
+.Fa "int flags"
+.Fa "struct mtx *interlkp"
+.Fa "struct proc *p"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+function marks a mount point as busy.  The purpose of this
+function is to synchronize access to a mount point.  It also
+delays unmounting by sleeping on mp if the MNTK_UNMOUNT flag
+is set in mp->mnt_kern_flag and the LK_NOWAIT flag is NOT set.
+.Pp
+Its arguments are:
+.Bl -tag -width interlkp
+.It Ar mp
+The mount point to busy.
+.It Ar flags
+Flags controlling the operation of
+.Nm
+.
+.Pp
+LK_NOWAIT - do not sleep if MNTK_UNMOUNT is set.
+.It Ar interlkp
+The interlock mutex for mp->mount_lock.  If there is any chance
+the mount point is being unmounted and LK_NOWAIT is not set then
+interlock must be valid locked mutex.
+.It Ar p
+The process responsible for this call.
+.El
+.Sh LOCKS
+If interlkp is a valid pointer it must be locked on entry,
+and it will not be unlocked even on error.
+.Sh RETURN VALUES
+A 0 value is returned on success.  If the mount point is being
+unmounted ENOENT will always be returned.
+.Sh ERRORS
+.Bl -tag
+.It Bq ENOENT
+The mount point is being unmounted (MNTK_UNMOUNT is set).
+.El
+.Sh AUTHORS
+This man page was written by Chad David.
