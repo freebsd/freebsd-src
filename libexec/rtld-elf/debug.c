@@ -33,6 +33,12 @@
 #include <stdio.h>
 
 #include "debug.h"
+#include "rtld.h"
+
+static const char rel_header[] =
+    " symbol name               r_info r_offset st_value st_size    address    value\n"
+    " ------------------------------------------------------------------------------\n";
+static const char rel_format[] =  " %-25s %6x %08x %08x %7d %10p %08x\n";
 
 int debug = 0;
 
@@ -49,4 +55,89 @@ debug_printf(const char *format, ...)
 
 	va_end(ap);
     }
+}
+
+void
+dump_relocations (Obj_Entry *obj0)
+{
+    Obj_Entry *obj;
+
+    for (obj = obj0; obj != NULL; obj = obj->next) {
+        dump_obj_relocations(obj);
+    }
+}
+
+void
+dump_obj_relocations (Obj_Entry *obj)
+{
+
+    printf("Object \"%s\", relocbase %p\n", obj->path, obj->relocbase);
+
+    if (obj->relsize) {
+        printf("Non-PLT Relocations: %ld\n",
+            (obj->relsize / sizeof(Elf_Rel)));
+        dump_Elf_Rel(obj, obj->rel, obj->relsize);
+    }
+
+    if (obj->relasize) {
+        printf("Non-PLT Relocations with Addend: %ld\n",
+            (obj->relasize / sizeof(Elf_Rela)));
+        dump_Elf_Rela(obj, obj->rela, obj->relasize);
+    }
+
+    if (obj->pltrelsize) {
+        printf("PLT Relocations: %ld\n",
+            (obj->pltrelsize / sizeof(Elf_Rel)));
+        dump_Elf_Rel(obj, obj->pltrel, obj->pltrelsize);
+    }
+
+    if (obj->pltrelasize) {
+        printf("PLT Relocations with Addend: %ld\n",
+            (obj->pltrelasize / sizeof(Elf_Rela)));
+        dump_Elf_Rela(obj, obj->pltrela, obj->pltrelasize);
+    }
+}
+
+void
+dump_Elf_Rel (Obj_Entry *obj, const Elf_Rel *rel0, u_long relsize)
+{
+    const Elf_Rel *rel;
+    const Elf_Rel *rellim;
+    const Elf_Sym *sym;
+    Elf_Addr *dstaddr;
+
+    printf("%s", rel_header);
+    rellim = (const Elf_Rel *)((char *)rel0 + relsize);
+    for (rel = rel0; rel < rellim; rel++) {
+	dstaddr = (Elf_Addr *)(obj->relocbase + rel->r_offset);
+        sym = obj->symtab + ELF_R_SYM(rel->r_info);
+        printf(rel_format,
+		obj->strtab + sym->st_name,
+		rel->r_info, rel->r_offset,
+		sym->st_value, sym->st_size,
+		dstaddr, *dstaddr);
+    }
+    return;
+}
+
+void
+dump_Elf_Rela (Obj_Entry *obj, const Elf_Rela *rela0, u_long relasize)
+{
+    const Elf_Rela *rela;
+    const Elf_Rela *relalim;
+    const Elf_Sym *sym;
+    Elf_Addr *dstaddr;
+
+    printf("%s", rel_header);
+    relalim = (const Elf_Rela *)((char *)rela0 + relasize);
+    for (rela = rela0; rela < relalim; rela++) {
+	dstaddr = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+        sym = obj->symtab + ELF_R_SYM(rela->r_info);
+        printf(rel_format,
+		obj->strtab + sym->st_name,
+		rela->r_info, rela->r_offset,
+		sym->st_value, sym->st_size,
+		dstaddr, *dstaddr);
+    }
+    return;
 }
