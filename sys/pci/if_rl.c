@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.9.2.4 1999/04/12 21:39:14 wpaul Exp $
+ *	$Id: if_rl.c,v 1.32 1999/06/19 20:01:32 wpaul Exp $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.9.2.4 1999/04/12 21:39:14 wpaul Exp $";
+	"$Id: if_rl.c,v 1.32 1999/06/19 20:01:32 wpaul Exp $";
 #endif
 
 /*
@@ -1080,7 +1080,12 @@ rl_attach(config_id, unit)
 		printf ("rl%d: couldn't map ports\n", unit);
 		goto fail;
 	}
+#ifdef __i386__
 	sc->rl_btag = I386_BUS_SPACE_IO;
+#endif
+#ifdef __alpha__
+	sc->rl_btag = ALPHA_BUS_SPACE_IO;
+#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("rl%d: failed to enable memory mapping!\n", unit);
@@ -1091,7 +1096,12 @@ rl_attach(config_id, unit)
 		printf ("rl%d: couldn't map memory\n", unit);
 		goto fail;
 	}
+#ifdef __i386__
 	sc->rl_btag = I386_BUS_SPACE_MEM;
+#endif
+#ifdef __alpha__
+	sc->rl_btag = ALPHA_BUS_SPACE_MEM;
+#endif
 	sc->rl_bhandle = vbase;
 #endif
 
@@ -1135,7 +1145,7 @@ rl_attach(config_id, unit)
 		goto fail;
 	}
 
-	sc->rl_cdata.rl_rx_buf = contigmalloc(RL_RXBUFLEN + 16, M_DEVBUF,
+	sc->rl_cdata.rl_rx_buf = contigmalloc(RL_RXBUFLEN + 32, M_DEVBUF,
 		M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->rl_cdata.rl_rx_buf == NULL) {
@@ -1143,6 +1153,10 @@ rl_attach(config_id, unit)
 		printf("rl%d: no memory for list buffers!\n", unit);
 		goto fail;
 	}
+
+	/* Leave a few bytes before the start of the RX ring buffer. */
+	sc->rl_cdata.rl_rx_buf_ptr = sc->rl_cdata.rl_rx_buf;
+	sc->rl_cdata.rl_rx_buf += sizeof(u_int64_t);
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
@@ -1242,7 +1256,8 @@ static int rl_list_tx_init(sc)
 	cd = &sc->rl_cdata;
 	for (i = 0; i < RL_TX_LIST_CNT; i++) {
 		cd->rl_tx_chain[i] = NULL;
-		CSR_WRITE_4(sc, RL_TXADDR0 + i, 0x0000000);
+		CSR_WRITE_4(sc,
+		    RL_TXADDR0 + (i * sizeof(u_int32_t)), 0x0000000);
 	}
 
 	sc->rl_cdata.cur_tx = 0;
@@ -1267,6 +1282,16 @@ static int rl_list_tx_init(sc)
  * the status word) is also 32-bit aligned. The frame length is in the
  * first 16 bits of the status word; the lower 15 bits correspond with
  * the 'rx status register' mentioned in the datasheet.
+ *
+ * Note: to make the Alpha happy, the frame payload needs to be aligned
+ * on a 32-bit boundary. To achieve this, we cheat a bit by copying from
+ * the ring buffer starting at an address two bytes before the actual
+ * data location. We can then shave off the first two bytes using m_adj().
+ * The reason we do this is because m_devget() doesn't let us specify an
+ * offset into the mbuf storage space, so we have to artificially create
+ * one. The ring is allocated in such a way that there are a few unused
+ * bytes of space preceecing it so that it will be safe for us to do the
+ * 2-byte backstep even if reading from the ring at offset 0.
  */
 static void rl_rxeof(sc)
 	struct rl_softc		*sc;
@@ -1355,23 +1380,28 @@ static void rl_rxeof(sc)
 		wrap = (sc->rl_cdata.rl_rx_buf + RL_RXBUFLEN) - rxbufpos;
 
 		if (total_len > wrap) {
-			m = m_devget(rxbufpos, wrap, 0, ifp, NULL);
+			m = m_devget(rxbufpos - RL_ETHER_ALIGN,
+			   wrap + RL_ETHER_ALIGN, 0, ifp, NULL);
 			if (m == NULL) {
 				ifp->if_ierrors++;
 				printf("rl%d: out of mbufs, tried to "
 					"copy %d bytes\n", sc->rl_unit, wrap);
 			}
-			else
+			else {
+				m_adj(m, RL_ETHER_ALIGN);
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
+			}
 			cur_rx = (total_len - wrap + ETHER_CRC_LEN);
 		} else {
-			m = m_devget(rxbufpos, total_len, 0, ifp, NULL);
+			m = m_devget(rxbufpos - RL_ETHER_ALIGN,
+			    total_len + RL_ETHER_ALIGN, 0, ifp, NULL);
 			if (m == NULL) {
 				ifp->if_ierrors++;
 				printf("rl%d: out of mbufs, tried to "
 				"copy %d bytes\n", sc->rl_unit, total_len);
-			}
+			} else
+				m_adj(m, RL_ETHER_ALIGN);
 			cur_rx += total_len + 4 + ETHER_CRC_LEN;
 		}
 
