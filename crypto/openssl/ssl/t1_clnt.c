@@ -79,11 +79,18 @@ SSL_METHOD *TLSv1_client_method(void)
 
 	if (init)
 		{
-		memcpy((char *)&TLSv1_client_data,(char *)tlsv1_base_method(),
-			sizeof(SSL_METHOD));
-		TLSv1_client_data.ssl_connect=ssl3_connect;
-		TLSv1_client_data.get_ssl_method=tls1_get_client_method;
-		init=0;
+		CRYPTO_w_lock(CRYPTO_LOCK_SSL_METHOD);
+
+		if (init)
+			{
+			memcpy((char *)&TLSv1_client_data,(char *)tlsv1_base_method(),
+				sizeof(SSL_METHOD));
+			TLSv1_client_data.ssl_connect=ssl3_connect;
+			TLSv1_client_data.get_ssl_method=tls1_get_client_method;
+			init=0;
+			}
+		
+		CRYPTO_w_unlock(CRYPTO_LOCK_SSL_METHOD);
 		}
 	return(&TLSv1_client_data);
 	}

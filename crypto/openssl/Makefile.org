@@ -270,9 +270,7 @@ do_gnu-shared:
 	done
 
 DETECT_GNU_LD=${CC} -v 2>&1 | grep '^gcc' >/dev/null 2>&1 && \
-	collect2=`gcc -print-prog-name=collect2 2>&1` && \
-	[ -n "$$collect2" ] && \
-	my_ld=`$$collect2 --help 2>&1 | grep Usage: | sed 's/^Usage: *\([^ ][^ ]*\).*/\1/'` && \
+	my_ld=`${CC} -print-prog-name=ld 2>&1` && \
 	[ -n "$$my_ld" ] && \
 	$$my_ld -v 2>&1 | grep 'GNU ld' >/dev/null 2>&1
 
@@ -529,6 +527,10 @@ links:
 	fi; \
 	done;
 
+gentests:
+	@(cd test && echo "generating dummy tests (if needed)..." && \
+	$(MAKE) CC='${CC}' PLATFORM='${PLATFORM}' CFLAG='${CFLAG}' SDIRS='$(SDIRS)' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' AR='${AR}' PROCESSOR='${PROCESSOR}' PERL='${PERL}' RANLIB='${RANLIB}' TESTS='${TESTS}' KRB5_INCLUDES='${KRB5_INCLUDES}' LIBKRB5='${LIBKRB5}' EXE_EXT='${EXE_EXT}' SHARED_LIBS='${SHARED_LIBS}' SHLIB_EXT='${SHLIB_EXT}' SHLIB_TARGET='${SHLIB_TARGET}' TESTS='${TESTS}' OPENSSL_DEBUG_MEMORY=on generate );
+
 dclean:
 	rm -f *.bak
 	@for i in $(DIRS) ;\
@@ -610,6 +612,9 @@ update: depend errors stacks util/libeay.num util/ssleay.num crypto/objects/obj_
 # and read directly, requiring GNU-Tar. Call "make TAR=gtar dist" if the normal
 # tar does not support the --files-from option.
 tar:
+	find . -type d -print | xargs chmod 755
+	find . -type f -print | xargs chmod a+r
+	find . -type f -perm -0100 -print | xargs chmod a+x
 	find * \! -path CVS/\* \! -path \*/CVS/\* \! -name CVS \! -name .cvsignore \! -name STATUS \! -name TABLE | sort > ../$(TARFILE).list; \
 	$(TAR) $(TARFLAGS) --files-from ../$(TARFILE).list -cvf - | \
 	tardy --user_number=0  --user_name=openssl \
@@ -652,9 +657,10 @@ install: all install_docs
 	do \
 		if [ -f "$$i" ]; then \
 		(       echo installing $$i; \
-			cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/lib; \
-			$(RANLIB) $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i; \
-			chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i ); \
+			cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new; \
+			$(RANLIB) $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new; \
+			chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new; \
+			mv $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i ); \
 		fi; \
 	done
 	@if [ -n "$(SHARED_LIBS)" ]; then \
@@ -664,14 +670,17 @@ install: all install_docs
 			if [ -f "$$i" -o -f "$$i.a" ]; then \
 			(       echo installing $$i; \
 				if [ "$(PLATFORM)" != "Cygwin" ]; then \
-					cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/lib; \
-					chmod 555 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i; \
+					cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new; \
+					chmod 555 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new; \
+					mv $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i; \
 				else \
 					c=`echo $$i | sed 's/^lib/cyg/'`; \
-					cp $$c $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c; \
-					chmod 755 $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c; \
-					cp $$i.a $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a; \
-					chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a; \
+					cp $$c $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c.new; \
+					chmod 755 $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c.new; \
+					mv $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c.new $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c; \
+					cp $$i.a $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a.new; \
+					chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a.new; \
+					mv $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a.new $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a; \
 				fi ); \
 			fi; \
 		done; \
@@ -687,13 +696,13 @@ install_docs:
 		$(INSTALL_PREFIX)$(MANDIR)/man3 \
 		$(INSTALL_PREFIX)$(MANDIR)/man5 \
 		$(INSTALL_PREFIX)$(MANDIR)/man7
-	@pod2man=`cd util; ./pod2mantest ignore`; \
+	@pod2man="`cd util; ./pod2mantest $(PERL)`"; \
 	for i in doc/apps/*.pod; do \
 		fn=`basename $$i .pod`; \
 		if [ "$$fn" = "config" ]; then sec=5; else sec=1; fi; \
 		echo "installing man$$sec/`basename $$i .pod`.$$sec"; \
 		(cd `$(PERL) util/dirname.pl $$i`; \
-		sh -c "$(PERL) $$pod2man \
+		sh -c "$$pod2man \
 			--section=$$sec --center=OpenSSL \
 			--release=$(VERSION) `basename $$i`") \
 			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/`basename $$i .pod`.$$sec; \
@@ -703,7 +712,7 @@ install_docs:
 		if [ "$$fn" = "des_modes" ]; then sec=7; else sec=3; fi; \
 		echo "installing man$$sec/`basename $$i .pod`.$$sec"; \
 		(cd `$(PERL) util/dirname.pl $$i`; \
-		sh -c "$(PERL) $$pod2man \
+		sh -c "$$pod2man \
 			--section=$$sec --center=OpenSSL \
 			--release=$(VERSION) `basename $$i`") \
 			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/`basename $$i .pod`.$$sec; \

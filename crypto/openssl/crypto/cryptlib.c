@@ -58,6 +58,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "cryptlib.h"
 #include <openssl/crypto.h>
 #include <openssl/safestack.h>
@@ -89,6 +90,7 @@ static const char* lock_names[CRYPTO_NUM_LOCKS] =
 	"ssl_session",
 	"ssl_sess_cert",
 	"ssl",
+	/* "ssl_method", */
 	"rand",
 	"rand2",
 	"debug_malloc",
@@ -204,10 +206,18 @@ int CRYPTO_get_new_dynlockid(void)
 	i=sk_CRYPTO_dynlock_find(dyn_locks,NULL);
 	/* If there was none, push, thereby creating a new one */
 	if (i == -1)
-		i=sk_CRYPTO_dynlock_push(dyn_locks,pointer);
+		/* Since sk_push() returns the number of items on the
+		   stack, not the location of the pushed item, we need
+		   to transform the returned number into a position,
+		   by decreasing it.  */
+		i=sk_CRYPTO_dynlock_push(dyn_locks,pointer) - 1;
+	else
+		/* If we found a place with a NULL pointer, put our pointer
+		   in it.  */
+		sk_CRYPTO_dynlock_set(dyn_locks,i,pointer);
 	CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
 
-	if (!i)
+	if (i == -1)
 		{
 		dynlock_destroy_callback(pointer->data,__FILE__,__LINE__);
 		OPENSSL_free(pointer);
@@ -399,16 +409,17 @@ void CRYPTO_lock(int mode, int type, const char *file, int line)
 #endif
 	if (type < 0)
 		{
-		int i = -type - 1;
-		struct CRYPTO_dynlock_value *pointer
-			= CRYPTO_get_dynlock_value(i);
-
-		if (pointer && dynlock_lock_callback)
+		if (dynlock_lock_callback != NULL)
 			{
-			dynlock_lock_callback(mode, pointer, file, line);
-			}
+			struct CRYPTO_dynlock_value *pointer
+				= CRYPTO_get_dynlock_value(type);
 
-		CRYPTO_destroy_dynlockid(i);
+			assert(pointer != NULL);
+
+			dynlock_lock_callback(mode, pointer, file, line);
+
+			CRYPTO_destroy_dynlockid(type);
+			}
 		}
 	else
 		if (locking_callback != NULL)
@@ -459,7 +470,7 @@ const char *CRYPTO_get_lock_name(int type)
 		return("dynamic");
 	else if (type < CRYPTO_NUM_LOCKS)
 		return(lock_names[type]);
-	else if (type-CRYPTO_NUM_LOCKS >= sk_num(app_locks))
+	else if (type-CRYPTO_NUM_LOCKS > sk_num(app_locks))
 		return("ERROR");
 	else
 		return(sk_value(app_locks,type-CRYPTO_NUM_LOCKS));

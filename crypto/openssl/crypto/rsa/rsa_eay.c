@@ -1,5 +1,4 @@
 /* crypto/rsa/rsa_eay.c */
-/* $FreeBSD$ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -185,7 +184,7 @@ err:
 	BN_clear_free(&ret);
 	if (buf != NULL) 
 		{
-		memset(buf,0,num);
+		OPENSSL_cleanse(buf,num);
 		OPENSSL_free(buf);
 		}
 	return(r);
@@ -269,7 +268,7 @@ err:
 	BN_clear_free(&f);
 	if (buf != NULL)
 		{
-		memset(buf,0,num);
+		OPENSSL_cleanse(buf,num);
 		OPENSSL_free(buf);
 		}
 	return(r);
@@ -368,7 +367,7 @@ err:
 	BN_clear_free(&ret);
 	if (buf != NULL)
 		{
-		memset(buf,0,num);
+		OPENSSL_cleanse(buf,num);
 		OPENSSL_free(buf);
 		}
 	return(r);
@@ -465,7 +464,7 @@ err:
 	BN_clear_free(&ret);
 	if (buf != NULL)
 		{
-		memset(buf,0,num);
+		OPENSSL_cleanse(buf,num);
 		OPENSSL_free(buf);
 		}
 	return(r);

@@ -4,23 +4,23 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=0.9.6g
+VERSION=0.9.6i
 MAJOR=0
 MINOR=9.6
 SHLIB_VERSION_NUMBER=0.9.6
 SHLIB_VERSION_HISTORY=
 SHLIB_MAJOR=0
 SHLIB_MINOR=9.6
-SHLIB_EXT=
-PLATFORM=dist
-OPTIONS=
-CONFIGURE_ARGS=dist
-SHLIB_TARGET=
+SHLIB_EXT=.so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
+PLATFORM=FreeBSD-elf
+OPTIONS=386
+CONFIGURE_ARGS=FreeBSD-elf 386
+SHLIB_TARGET=bsd-gcc-shared
 
 # INSTALL_PREFIX is for package builders so that they can configure
 # for, say, /usr/ and yet have everything installed to /tmp/somedir/usr/.
 # Normally it is left empty.
-INSTALL_PREFIX=
+INSTALL_PREFIX=/var/tmp/ssl
 INSTALLTOP=/usr/local/ssl
 
 # Do not edit this manually. Use Configure --openssldir=DIR do change this!
@@ -55,21 +55,21 @@ OPENSSLDIR=/usr/local/ssl
 # equal 4.
 # PKCS1_CHECK - pkcs1 tests.
 
-CC= cc
+CC= gcc
 #CFLAG= -DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -m486 -Wall -Wuninitialized -DSHA1_ASM -DMD5_ASM -DRMD160_ASM
-CFLAG= -O
+CFLAG= -fPIC -DTHREADS -pthread -D_REENTRANT -D_THREAD_SAFE -D_THREADSAFE -DDSO_DLFCN -DHAVE_DLFCN_H -DTERMIOS -DL_ENDIAN -fomit-frame-pointer -O3 -m486 -Wall -DSHA1_ASM -DMD5_ASM -DRMD160_ASM
 DEPFLAG= 
 PEX_LIBS= 
 EX_LIBS= 
 EXE_EXT= 
 AR=ar r
 RANLIB= /usr/bin/ranlib
-PERL= /usr/local/bin/perl
+PERL= /usr/local/bin/perl5
 TAR= tar
 TARFLAGS= --no-recursion
 
 # Set BN_ASM to bn_asm.o if you want to use the C version
-BN_ASM= bn_asm.o
+BN_ASM= asm/bn86-elf.o asm/co86-elf.o
 #BN_ASM= bn_asm.o
 #BN_ASM= asm/bn86-elf.o	# elf, linux-elf
 #BN_ASM= asm/bn86-sol.o # solaris
@@ -85,11 +85,11 @@ BN_ASM= bn_asm.o
 
 # For x86 assembler: Set PROCESSOR to 386 if you want to support
 # the 80386.
-PROCESSOR= 
+PROCESSOR= 386
 
 # Set DES_ENC to des_enc.o if you want to use the C version
 #There are 4 x86 assember options.
-DES_ENC= des_enc.o fcrypt_b.o
+DES_ENC= asm/dx86-elf.o asm/yx86-elf.o
 #DES_ENC= des_enc.o fcrypt_b.o          # C
 #DES_ENC= asm/dx86-elf.o asm/yx86-elf.o # elf
 #DES_ENC= asm/dx86-sol.o asm/yx86-sol.o # solaris
@@ -98,7 +98,7 @@ DES_ENC= des_enc.o fcrypt_b.o
 
 # Set BF_ENC to bf_enc.o if you want to use the C version
 #There are 4 x86 assember options.
-BF_ENC= bf_enc.o
+BF_ENC= asm/bx86-elf.o
 #BF_ENC= bf_enc.o
 #BF_ENC= asm/bx86-elf.o # elf
 #BF_ENC= asm/bx86-sol.o # solaris
@@ -107,7 +107,7 @@ BF_ENC= bf_enc.o
 
 # Set CAST_ENC to c_enc.o if you want to use the C version
 #There are 4 x86 assember options.
-CAST_ENC= c_enc.o
+CAST_ENC= asm/cx86-elf.o
 #CAST_ENC= c_enc.o
 #CAST_ENC= asm/cx86-elf.o # elf
 #CAST_ENC= asm/cx86-sol.o # solaris
@@ -116,7 +116,7 @@ CAST_ENC= c_enc.o
 
 # Set RC4_ENC to rc4_enc.o if you want to use the C version
 #There are 4 x86 assember options.
-RC4_ENC= rc4_enc.o
+RC4_ENC= asm/rx86-elf.o
 #RC4_ENC= rc4_enc.o
 #RC4_ENC= asm/rx86-elf.o # elf
 #RC4_ENC= asm/rx86-sol.o # solaris
@@ -125,7 +125,7 @@ RC4_ENC= rc4_enc.o
 
 # Set RC5_ENC to rc5_enc.o if you want to use the C version
 #There are 4 x86 assember options.
-RC5_ENC= rc5_enc.o
+RC5_ENC= asm/r586-elf.o
 #RC5_ENC= rc5_enc.o
 #RC5_ENC= asm/r586-elf.o # elf
 #RC5_ENC= asm/r586-sol.o # solaris
@@ -133,21 +133,21 @@ RC5_ENC= rc5_enc.o
 #RC5_ENC= asm/r586bsdi.o # bsdi
 
 # Also need MD5_ASM defined
-MD5_ASM_OBJ= 
+MD5_ASM_OBJ= asm/mx86-elf.o
 #MD5_ASM_OBJ= asm/mx86-elf.o        # elf
 #MD5_ASM_OBJ= asm/mx86-sol.o        # solaris
 #MD5_ASM_OBJ= asm/mx86-out.o        # a.out, FreeBSD
 #MD5_ASM_OBJ= asm/mx86bsdi.o        # bsdi
 
 # Also need SHA1_ASM defined
-SHA1_ASM_OBJ= 
+SHA1_ASM_OBJ= asm/sx86-elf.o
 #SHA1_ASM_OBJ= asm/sx86-elf.o       # elf
 #SHA1_ASM_OBJ= asm/sx86-sol.o       # solaris
 #SHA1_ASM_OBJ= asm/sx86-out.o       # a.out, FreeBSD
 #SHA1_ASM_OBJ= asm/sx86bsdi.o       # bsdi
 
 # Also need RMD160_ASM defined
-RMD160_ASM_OBJ= 
+RMD160_ASM_OBJ= asm/rm86-elf.o
 #RMD160_ASM_OBJ= asm/rm86-elf.o       # elf
 #RMD160_ASM_OBJ= asm/rm86-sol.o       # solaris
 #RMD160_ASM_OBJ= asm/rm86-out.o       # a.out, FreeBSD
@@ -184,7 +184,7 @@ LIBS=   libcrypto.a libssl.a
 SHARED_CRYPTO=libcrypto$(SHLIB_EXT)
 SHARED_SSL=libssl$(SHLIB_EXT)
 SHARED_LIBS=
-SHARED_LIBS_LINK_EXTS=
+SHARED_LIBS_LINK_EXTS=.so.$(SHLIB_MAJOR) .so
 SHARED_LDFLAGS=
 
 GENERAL=        Makefile
@@ -272,9 +272,7 @@ do_gnu-shared:
 	done
 
 DETECT_GNU_LD=${CC} -v 2>&1 | grep '^gcc' >/dev/null 2>&1 && \
-	collect2=`gcc -print-prog-name=collect2 2>&1` && \
-	[ -n "$$collect2" ] && \
-	my_ld=`$$collect2 --help 2>&1 | grep Usage: | sed 's/^Usage: *\([^ ][^ ]*\).*/\1/'` && \
+	my_ld=`${CC} -print-prog-name=ld 2>&1` && \
 	[ -n "$$my_ld" ] && \
 	$$my_ld -v 2>&1 | grep 'GNU ld' >/dev/null 2>&1
 
@@ -531,6 +529,10 @@ links:
 	fi; \
 	done;
 
+gentests:
+	@(cd test && echo "generating dummy tests (if needed)..." && \
+	$(MAKE) CC='${CC}' PLATFORM='${PLATFORM}' CFLAG='${CFLAG}' SDIRS='$(SDIRS)' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' AR='${AR}' PROCESSOR='${PROCESSOR}' PERL='${PERL}' RANLIB='${RANLIB}' TESTS='${TESTS}' KRB5_INCLUDES='${KRB5_INCLUDES}' LIBKRB5='${LIBKRB5}' EXE_EXT='${EXE_EXT}' SHARED_LIBS='${SHARED_LIBS}' SHLIB_EXT='${SHLIB_EXT}' SHLIB_TARGET='${SHLIB_TARGET}' TESTS='${TESTS}' OPENSSL_DEBUG_MEMORY=on generate );
+
 dclean:
 	rm -f *.bak
 	@for i in $(DIRS) ;\
@@ -612,6 +614,9 @@ update: depend errors stacks util/libeay.num util/ssleay.num crypto/objects/obj_
 # and read directly, requiring GNU-Tar. Call "make TAR=gtar dist" if the normal
 # tar does not support the --files-from option.
 tar:
+	find . -type d -print | xargs chmod 755
+	find . -type f -print | xargs chmod a+r
+	find . -type f -perm -0100 -print | xargs chmod a+x
 	find * \! -path CVS/\* \! -path \*/CVS/\* \! -name CVS \! -name .cvsignore \! -name STATUS \! -name TABLE | sort > ../$(TARFILE).list; \
 	$(TAR) $(TARFLAGS) --files-from ../$(TARFILE).list -cvf - | \
 	tardy --user_number=0  --user_name=openssl \
@@ -654,9 +659,10 @@ install: all install_docs
 	do \
 		if [ -f "$$i" ]; then \
 		(       echo installing $$i; \
-			cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/lib; \
-			$(RANLIB) $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i; \
-			chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i ); \
+			cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new; \
+			$(RANLIB) $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new; \
+			chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new; \
+			mv $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i ); \
 		fi; \
 	done
 	@if [ -n "$(SHARED_LIBS)" ]; then \
@@ -666,14 +672,17 @@ install: all install_docs
 			if [ -f "$$i" -o -f "$$i.a" ]; then \
 			(       echo installing $$i; \
 				if [ "$(PLATFORM)" != "Cygwin" ]; then \
-					cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/lib; \
-					chmod 555 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i; \
+					cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new; \
+					chmod 555 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new; \
+					mv $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.new $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i; \
 				else \
 					c=`echo $$i | sed 's/^lib/cyg/'`; \
-					cp $$c $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c; \
-					chmod 755 $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c; \
-					cp $$i.a $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a; \
-					chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a; \
+					cp $$c $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c.new; \
+					chmod 755 $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c.new; \
+					mv $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c.new $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c; \
+					cp $$i.a $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a.new; \
+					chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a.new; \
+					mv $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a.new $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i.a; \
 				fi ); \
 			fi; \
 		done; \
@@ -689,13 +698,13 @@ install_docs:
 		$(INSTALL_PREFIX)$(MANDIR)/man3 \
 		$(INSTALL_PREFIX)$(MANDIR)/man5 \
 		$(INSTALL_PREFIX)$(MANDIR)/man7
-	@pod2man=`cd util; ./pod2mantest ignore`; \
+	@pod2man="`cd util; ./pod2mantest $(PERL)`"; \
 	for i in doc/apps/*.pod; do \
 		fn=`basename $$i .pod`; \
 		if [ "$$fn" = "config" ]; then sec=5; else sec=1; fi; \
 		echo "installing man$$sec/`basename $$i .pod`.$$sec"; \
 		(cd `$(PERL) util/dirname.pl $$i`; \
-		sh -c "$(PERL) $$pod2man \
+		sh -c "$$pod2man \
 			--section=$$sec --center=OpenSSL \
 			--release=$(VERSION) `basename $$i`") \
 			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/`basename $$i .pod`.$$sec; \
@@ -705,7 +714,7 @@ install_docs:
 		if [ "$$fn" = "des_modes" ]; then sec=7; else sec=3; fi; \
 		echo "installing man$$sec/`basename $$i .pod`.$$sec"; \
 		(cd `$(PERL) util/dirname.pl $$i`; \
-		sh -c "$(PERL) $$pod2man \
+		sh -c "$$pod2man \
 			--section=$$sec --center=OpenSSL \
 			--release=$(VERSION) `basename $$i`") \
 			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/`basename $$i .pod`.$$sec; \
