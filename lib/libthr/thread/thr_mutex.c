@@ -85,11 +85,11 @@ static pthread_mutexattr_t		static_mattr = &static_mutex_attr;
 /* Single underscore versions provided for libc internal usage: */
 __weak_reference(__pthread_mutex_trylock, pthread_mutex_trylock);
 __weak_reference(__pthread_mutex_lock, pthread_mutex_lock);
+__weak_reference(__pthread_mutex_unlock, pthread_mutex_unlock);
 
 /* No difference between libc and application usage of these: */
 __weak_reference(_pthread_mutex_init, pthread_mutex_init);
 __weak_reference(_pthread_mutex_destroy, pthread_mutex_destroy);
-__weak_reference(_pthread_mutex_unlock, pthread_mutex_unlock);
 
 
 /*
@@ -505,6 +505,9 @@ __pthread_mutex_lock(pthread_mutex_t *mutex)
 	return (ret);
 }
 
+/*
+ * Libc internal.
+ */
 int
 _pthread_mutex_lock(pthread_mutex_t *mutex)
 {
@@ -512,6 +515,8 @@ _pthread_mutex_lock(pthread_mutex_t *mutex)
 
 	if (_thread_initial == NULL)
 		_thread_init();
+
+	_thread_sigblock();
 
 	if (mutex == NULL)
 		ret = EINVAL;
@@ -524,13 +529,28 @@ _pthread_mutex_lock(pthread_mutex_t *mutex)
 	    ((ret = mutex_init(mutex, 1)) == 0))
 		ret = mutex_lock_common(mutex, 0);
 
+	if (ret != 0)
+		_thread_sigunblock();
+
 	return (ret);
 }
 
 int
-_pthread_mutex_unlock(pthread_mutex_t * mutex)
+__pthread_mutex_unlock(pthread_mutex_t * mutex)
 {
 	return (mutex_unlock_common(mutex, /* add reference */ 0));
+}
+
+/*
+ * Libc internal
+ */
+int
+_pthread_mutex_unlock(pthread_mutex_t * mutex)
+{
+	int error;
+	if ((error = mutex_unlock_common(mutex, /* add reference */ 0)) == 0)
+		_thread_sigunblock();
+	return (error);
 }
 
 int
