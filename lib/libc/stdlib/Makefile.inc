@@ -14,10 +14,10 @@ SRCS+=	abort.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
 
 MAN3+=	stdlib/abort.3 stdlib/abs.3 stdlib/alloca.3 stdlib/atexit.3 \
 	stdlib/atof.3 stdlib/atoi.3 stdlib/atol.3 stdlib/bsearch.3 \
-	stdlib/calloc.3 stdlib/div.3 stdlib/exit.3 stdlib/free.3 \
+	stdlib/calloc.3 stdlib/div.3 stdlib/exit.3 \
 	stdlib/getenv.3 stdlib/getopt.3 stdlib/getsubopt.3 stdlib/labs.3 \
 	stdlib/ldiv.3 stdlib/malloc.3 stdlib/memory.3 stdlib/qsort.3 \
-	stdlib/radixsort.3 stdlib/rand.3 stdlib/random.3 stdlib/realloc.3 \
+	stdlib/radixsort.3 stdlib/rand.3 stdlib/random.3 \
 	stdlib/realpath.3 stdlib/strtod.3 stdlib/strtol.3 stdlib/strtoul.3 \
 	stdlib/system.3
 
@@ -27,3 +27,4 @@ MLINKS+=rand.3 srand.3
 MLINKS+=random.3 initstate.3 random.3 setstate.3 random.3 srandom.3
 MLINKS+=strtol.3 strtoq.3
 MLINKS+=strtoul.3 strtouq.3
+MLINKS+=malloc.3 free.3 malloc.3 realloc.3
