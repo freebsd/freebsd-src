@@ -117,7 +117,11 @@ main(int argc, char **argv)
 		case 'o':
 			if (cmdline != 2)
 				usage();
-			if (!strcmp(optarg, "cluster"))
+			if (!strcmp(optarg, "async"))
+				mdio.md_options |= MD_ASYNC;
+			else if (!strcmp(optarg, "noasync"))
+				mdio.md_options &= ~MD_ASYNC;
+			else if (!strcmp(optarg, "cluster"))
 				mdio.md_options |= MD_CLUSTER;
 			else if (!strcmp(optarg, "nocluster"))
 				mdio.md_options &= ~MD_CLUSTER;
