@@ -212,8 +212,6 @@ static int	hlt_cpus_mask;
 static int	hlt_logical_cpus;
 static struct	sysctl_ctx_list logical_cpu_clist;
 
-struct mem_range_softc mem_range_softc;
-
 static void
 mem_range_AP_init(void)
 {
