@@ -58,6 +58,11 @@ database.  It contains network numbers used in those parts of the world
 covered neither by
 .Tn APNIC nor by
 .Tn RIPE .
+Contact (handle) information should be looked up by appending "-ARIN" to the
+NIC handle:
+.Pp
+.D1 Ic $ whois -a foo3-ARIN
+.Pp
 .It Fl d
 Use the US Department of Defense
 database.  It contains points of contact for subdomains of
@@ -98,6 +103,11 @@ Also, note that the InterNIC database
 is no longer handled by Network Solutions, Inc.
 For details, see:
 http://www.internic.net/.
+Contact (handle) information should be looked up by prefixing "handle " to the
+NIC handle in the querry:
+.Pp
+.D1 Ic $ whois -i 'handle foo3'
+.Pp
 .It Fl m
 Use the Route Arbiter Database
 .Pq Tn RADB
