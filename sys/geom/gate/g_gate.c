@@ -102,7 +102,9 @@ g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
 		LIST_REMOVE(sc, sc_next);
 	}
 	mtx_unlock(&g_gate_list_mtx);
+	mtx_lock(&sc->sc_inqueue_mtx);
 	wakeup(sc);
+	mtx_unlock(&sc->sc_inqueue_mtx);
 	if (sc->sc_ref > 0) {
 		G_GATE_DEBUG(1, "Cannot destroy %s yet.", sc->sc_name);
 		return (0);
@@ -215,8 +217,8 @@ g_gate_start(struct bio *bp)
 
 	mtx_lock(&sc->sc_inqueue_mtx);
 	bioq_disksort(&sc->sc_inqueue, bp);
-	mtx_unlock(&sc->sc_inqueue_mtx);
 	wakeup(sc);
+	mtx_unlock(&sc->sc_inqueue_mtx);
 }
 
 static struct g_gate_softc *
@@ -563,8 +565,8 @@ g_gate_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 			atomic_add_acq_32(&sc->sc_queue_count, 1);
 			mtx_lock(&sc->sc_inqueue_mtx);
 			bioq_disksort(&sc->sc_inqueue, bp);
-			mtx_unlock(&sc->sc_inqueue_mtx);
 			wakeup(sc);
+			mtx_unlock(&sc->sc_inqueue_mtx);
 		} else {
 			bp->bio_error = ggio->gctl_error;
 			if (bp->bio_error == 0) {
