@@ -32,15 +32,15 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static char copyright[] __attribute__ ((unused)) =
 "@(#) Copyright (c) 1983, 1991, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
-static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.14 1996/10/28 23:02:38 joerg Exp $";
+static char inetd_c_rcsid[] __attribute__ ((unused)) =
+	"$Id: inetd.c,v 1.15 1996/11/01 01:42:08 alex Exp $";
 #endif /* not lint */
 
 /*
@@ -112,6 +112,7 @@ static char inetd_c_rcsid[] =
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
+#include <rpc/pmap_clnt.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -124,6 +125,7 @@ static char inetd_c_rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 #include <libutil.h>
+#include <sysexits.h>
 
 #include "pathnames.h"
 
@@ -298,7 +300,7 @@ main(argc, argv, envp)
 			if (!inet_aton(optarg, &bind_address)) {
 				syslog(LOG_ERR,
 			         "-a %s: invalid IP address", optarg);
-				 exit(1);
+				exit(EX_USAGE);
 			}
 			break;
 		case 'p':
@@ -309,7 +311,7 @@ main(argc, argv, envp)
 			syslog(LOG_ERR,
 				"usage: inetd [-dl] [-a address] [-R rate]"
 				" [-p pidfile] [conf-file]");
-			exit(1);
+			exit(EX_USAGE);
 		}
 	argc -= optind;
 	argv += optind;
@@ -395,7 +397,7 @@ main(argc, argv, envp)
 						sep->se_service);
 				    continue;
 			    }
-			    if(log) {
+			    if (log) {
 				i = sizeof peer;
 				if(getpeername(ctrl, (struct sockaddr *)
 						&peer, &i)) {
@@ -478,11 +480,12 @@ main(argc, argv, envp)
 						maxsock);
 				for (tmpint = maxsock; tmpint > 2; tmpint--)
 					if (tmpint != ctrl)
-						close(tmpint);
+						(void) close(tmpint);
 			    }
-			    if (sep->se_bi)
+			    if (sep->se_bi) {
 				(*sep->se_bi->bi_fn)(ctrl, sep);
-			    else {
+				/* NOTREACHED */
+			    } else {
 				if (debug)
 					fprintf(stderr, "%d execl %s\n",
 					    getpid(), sep->se_server);
@@ -497,26 +500,26 @@ main(argc, argv, envp)
 						sep->se_user);
 					if (sep->se_socktype != SOCK_STREAM)
 						recv(0, buf, sizeof (buf), 0);
-					_exit(1);
+					_exit(EX_NOUSER);
 				}
 				if (setsid() < 0) {
 					syslog(LOG_ERR,
 						"%s: can't setsid(): %m",
 						 sep->se_service);
-					/* _exit(1); not fatal yet */
+					/* _exit(EX_OSERR); not fatal yet */
 				}
 				if (pwd->pw_uid) {
 					if (setlogin(sep->se_user) < 0) {
 						syslog(LOG_ERR,
 						 "%s: can't setlogin(%s): %m",
 						 sep->se_service, sep->se_user);
-						/* _exit(1); not fatal yet */
+						/* _exit(EX_OSERR); not yet */
 					}
 					if (setgid(pwd->pw_gid) < 0) {
 						syslog(LOG_ERR,
 						  "%s: can't set gid %d: %m",
 						  sep->se_service, pwd->pw_gid);
-						_exit(1);
+						_exit(EX_OSERR);
 					}
 					(void) initgroups(pwd->pw_name,
 							pwd->pw_gid);
@@ -524,7 +527,7 @@ main(argc, argv, envp)
 						syslog(LOG_ERR,
 						  "%s: can't set uid %d: %m",
 						  sep->se_service, pwd->pw_uid);
-						_exit(1);
+						_exit(EX_OSERR);
 					}
 				}
 				execv(sep->se_server, sep->se_argv);
@@ -532,7 +535,7 @@ main(argc, argv, envp)
 					recv(0, buf, sizeof (buf), 0);
 				syslog(LOG_ERR,
 				    "cannot execute %s: %m", sep->se_server);
-				_exit(1);
+				_exit(EX_OSERR);
 			    }
 		    }
 		    if (!sep->se_wait && sep->se_socktype == SOCK_STREAM)
@@ -673,7 +676,7 @@ config(signo)
 	 */
 	omask = sigblock(SIGBLOCK);
 	sepp = &servtab;
-	while (sep = *sepp) {
+	while ((sep = *sepp)) {
 		if (sep->se_checked) {
 			sepp = &sep->se_next;
 			continue;
@@ -727,7 +730,7 @@ retry(signo)
 
 	timingout = 0;
 	for (sep = servtab; sep; sep = sep->se_next)
-		if (sep->se_fd == -1)
+		if (sep->se_fd == -1 && !ISMUX(sep))
 			setup(sep);
 }
 
@@ -838,7 +841,7 @@ enter(cp)
 	sep = (struct servtab *)malloc(sizeof (*sep));
 	if (sep == (struct servtab *)0) {
 		syslog(LOG_ERR, "Out of memory.");
-		exit(-1);
+		exit(EX_OSERR);
 	}
 	*sep = *cp;
 	sep->se_fd = -1;
@@ -1040,7 +1043,7 @@ sskip(cpp)
 	cp = skip(cpp);
 	if (cp == NULL) {
 		syslog(LOG_ERR, "%s: syntax error", CONFIG);
-		exit(-1);
+		exit(EX_DATAERR);
 	}
 	return (cp);
 }
@@ -1062,7 +1065,7 @@ again:
 		c = getc(fconfig);
 		(void) ungetc(c, fconfig);
 		if (c == ' ' || c == '\t')
-			if (cp = nextline(fconfig))
+			if ((cp = nextline(fconfig)))
 				goto again;
 		*cpp = (char *)0;
 		return ((char *)0);
@@ -1100,10 +1103,10 @@ char *
 newstr(cp)
 	char *cp;
 {
-	if (cp = strdup(cp ? cp : ""))
+	if ((cp = strdup(cp ? cp : "")))
 		return (cp);
 	syslog(LOG_ERR, "strdup: %m");
-	exit(-1);
+	exit(EX_OSERR);
 }
 
 #ifdef OLD_SETPROCTITLE
@@ -1439,18 +1442,11 @@ print_service(action, sep)
 	char *action;
 	struct servtab *sep;
 {
-	if(sep->se_rpc)
-		fprintf(stderr,
-	    		"%s: %s proto=%s, wait=%d, user=%s builtin=%x server=%s\n",
-	    		action, sep->se_service, sep->se_proto,
-	    		sep->se_wait, sep->se_user, (int)sep->se_bi,
-			sep->se_server);
-	else
-		fprintf(stderr,
-			"%s: %s proto=%s, wait=%d, user=%s builtin=%x server=%s\n",
-			action, sep->se_service, sep->se_proto,
-			sep->se_wait, sep->se_user, (int)sep->se_bi,
-			sep->se_server);
+	fprintf(stderr,
+	    "%s: %s proto=%s accept=%d max=%d user=%s builtin=%x server=%s\n",
+	    action, sep->se_service, sep->se_proto,
+	    sep->se_accept, sep->se_maxchild, sep->se_user,
+	    (int)sep->se_bi, sep->se_server);
 }
 
 /*
