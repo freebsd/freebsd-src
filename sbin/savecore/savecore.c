@@ -213,7 +213,7 @@ DoFile(char *savedir, const char *device)
 	off_t mediasize, dumpsize, firsthd, lasthd, dmpcnt;
 	FILE *info, *fp;
 	int fd, fdinfo, error, wl;
-	int nr, nw, hs, he;
+	int nr, nw, hs, he = 0;
 	int bounds;
 	u_int sectorsize;
 	mode_t oumask;
