@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_host.c,v 5.2.2.2 1992/05/31 16:36:08 jsp Exp $
+ * $Id: amfs_host.c,v 1.1.1.1 1998/11/05 02:04:46 ezk Exp $
  *
  */
 
@@ -347,7 +347,7 @@ amfs_host_fmount(mntfs *mf)
    * The original 10 second per try timeout is WAY too large, especially
    * if we're only waiting 10 or 20 seconds max for the response.
    * That would mean we'd try only once in 10 seconds, and we could
-   * lose the transmitt or receive packet, and never try again.
+   * lose the transmit or receive packet, and never try again.
    * A 2-second per try timeout here is much more reasonable.
    * 09/28/92 Mike Mitchell, mcm@unx.sas.com
    */

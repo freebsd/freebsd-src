@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_autofs.c,v 5.2.2.3 1992/08/02 10:42:21 jsp Exp $
+ * $Id: ops_autofs.c,v 1.2 1998/12/27 06:24:47 ezk Exp $
  *
  */
 
@@ -53,7 +53,7 @@
 #include <amd.h>
 
 /*
- * CLUDGE: wrap whole file in HAVE_FS_AUTOFS, becasue
+ * KLUDGE: wrap whole file in HAVE_FS_AUTOFS, because
  * not all systems with an automounter file system are supported
  * by am-utils yet...
  */
@@ -76,7 +76,7 @@ static int mount_autofs(char *dir, char *opts);
 static int autofs_mount_1_svc(struct mntrequest *mr, struct mntres *result, struct authunix_parms *cred);
 static int autofs_unmount_1_svc(struct umntrequest *ur, struct umntres *result, struct authunix_parms *cred);
 
-/* externam declarations */
+/* external declarations */
 extern bool_t xdr_mntrequest(XDR *, mntrequest *);
 extern bool_t xdr_mntres(XDR *, mntres *);
 extern bool_t xdr_umntrequest(XDR *, umntrequest *);
@@ -284,8 +284,9 @@ mount_autofs(char *dir, char *opts)
   /*
    * Make a ``hostname'' string for the kernel
    */
-  sprintf(fs_hostname, "pid%ld@%s:%s", (long) (foreground ? mypid : getppid()),
-	  hostname, dir);
+  sprintf(fs_hostname, "pid%ld@%s:%s",
+	  (long) (foreground ? am_mypid : getppid()),
+	  am_get_hostname(), dir);
 
   /*
    * Most kernels have a name length restriction.
@@ -481,7 +482,7 @@ out:
  break
  fi
  if no error on this mount then
- this_error = initialise mount point
+ this_error = initialize mount point
  fi
  if no error on this mount and mount is delayed then
  this_error = -1
@@ -500,7 +501,7 @@ out:
  this_error = mount in foreground
  fi
  fi
- if an error occured on this mount then
+ if an error occurred on this mount then
  update stats
  save error in mount point
  fi
@@ -661,7 +662,7 @@ autofs_bgmount(struct continuation * cp, int mpe)
     /*
      * Will usually need to play around with the mount nodes
      * file attribute structure.  This must be done here.
-     * Try and get things initialised, even if the fileserver
+     * Try and get things initialized, even if the fileserver
      * is not known to be up.  In the common case this will
      * progress things faster.
      */
@@ -711,7 +712,7 @@ autofs_bgmount(struct continuation * cp, int mpe)
       cp->retry = TRUE;
     }
 
-    if (!this_error)
+    if (!this_error) {
       if (p->fs_flags & FS_MBACKGROUND) {
 	mf->mf_flags |= MFF_MOUNTING;	/* XXX */
 #ifdef DEBUG
@@ -737,6 +738,7 @@ autofs_bgmount(struct continuation * cp, int mpe)
 	  cp->retry = TRUE;
 	}
       }
+    }
 
     if (this_error >= 0) {
       if (this_error > 0) {
@@ -859,7 +861,7 @@ autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op)
   char *auto_opts;		/* Automount options */
   int error = 0;		/* Error so far */
   char path_name[MAXPATHLEN];	/* General path name buffer */
-  char apath[MAXPATHLEN];	/* authofs path (added space) */
+  char apath[MAXPATHLEN];	/* autofs path (added space) */
   char *pfname;			/* Path for database lookup */
   struct continuation *cp;	/* Continuation structure if need to mount */
   int in_progress = 0;		/* # of (un)mount in progress */
@@ -877,10 +879,11 @@ autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op)
    */
   if (amd_state == Finishing) {
 #ifdef DEBUG
-    if ((mf = mp->am_mnt) == 0 || mf->mf_ops == &amfs_direct_ops)
+    if ((mf = mp->am_mnt) == 0 || mf->mf_ops == &amfs_direct_ops) {
       dlog("%s mount ignored - going down", fname);
-    else
+    } else {
       dlog("%s/%s mount ignored - going down", mp->am_path, fname);
+    }
 #endif /* DEBUG */
     ereturn(ENOENT);
   }
@@ -990,7 +993,7 @@ autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op)
   }
 
   /*
-   * If an error occured then return it.
+   * If an error occurred then return it.
    */
   if (error) {
 #ifdef DEBUG

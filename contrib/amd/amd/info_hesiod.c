@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: info_hesiod.c,v 1.1 1997-1998/07/11 08:34:52 danny Exp danny $
+ * $Id: info_hesiod.c,v 1.1.1.1 1998/11/05 02:04:49 ezk Exp $
  *
  */
 

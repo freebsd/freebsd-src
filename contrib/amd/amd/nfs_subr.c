@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_subr.c,v 5.2.2.1 1992/02/09 15:08:53 jsp beta $
+ * $Id: nfs_subr.c,v 1.1.1.1 1998/11/05 02:04:48 ezk Exp $
  *
  */
 
@@ -141,7 +141,7 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
 #ifndef MNT2_NFS_OPT_SYMTTL
   /*
    * This code is needed to defeat Solaris 2.4's (and newer) symlink values
-   * cache.  It forces the last-modifed time of the symlink to be current.
+   * cache.  It forces the last-modified time of the symlink to be current.
    * It is not needed if the O/S has an nfs flag to turn off the
    * symlink-cache at mount time (such as Irix 5.x and 6.x). -Erez.
    */
@@ -211,6 +211,13 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
       }
       res.dr_status = nfs_error(error);
     } else {
+      /*
+       * XXX: EXPERIMENTAL! Delay unmount of what was looked up.  This
+       * should reduce the chance for race condition between unmounting an
+       * entry synchronously, and re-mounting it asynchronously.
+       */
+      if (ap->am_ttl < mp->am_ttl)
+ 	ap->am_ttl = mp->am_ttl;
       mp_to_fh(ap, &res.dr_u.dr_drok_u.drok_fhandle);
       res.dr_u.dr_drok_u.drok_attributes = ap->am_fattr;
       res.dr_status = NFS_OK;

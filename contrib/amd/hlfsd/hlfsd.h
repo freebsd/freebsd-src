@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: hlfs.h,v 1.9 1993/09/13 15:11:00 ezk Exp $
+ * $Id: hlfsd.h,v 1.1.1.1 1998/11/05 02:04:55 ezk Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -110,7 +110,7 @@
   (fatal (strcat (strnsave ((str), strlen ((str)) + sizeof (ERRM) - 1), ERRM)))
 
 /*
- * TYPDEFS:
+ * TYPEDEFS:
  */
 typedef struct uid2home_t uid2home_t;
 typedef struct username2uid_t username2uid_t;

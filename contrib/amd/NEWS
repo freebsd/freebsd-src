@@ -1,3 +1,35 @@
+*** Notes specific to am-utils version 6.0:
+
+- updated or minor new ports:
+	hppa2.0w-hp-hpux11.00,
+	i386-pc-bsdi4.0
+	i386-unknown-freebsd2.2.8
+	i386-unknown-netbsd1.3.3
+	i386-unknown-openbsd2.4
+	mips-sgi-irix6.5
+	powerpc-ibm-aix4.3.1.0
+	i386-unknown-freebsd3.0 now supports nfs v.3
+
+- ctl-amd and ctl-hlfsd now compatible with RedHat's chkconfig utility
+
+- ctl-amd stop will now wait until amd is down
+
+- libamu.so completely self contained --- does not export any symbols which
+  must be defined by the process linking with it.  This is so shared
+  libraries could be supported on systems that have restrictive shared
+  libraries.
+
+- use latest autoconf, automake, and libtool (off of cygnus' CVS server) to
+  support shared libraries on many more platforms.
+
+- posix code cleanups
+
+- bugs fixed:
+	case insensitive host match in type:=nfsl
+	correct swapped args to kill(2)
+	try to avoid a race condition b/t mounting and unmounting
+	yp_all support is found in libnsl in RH-5.1 systems
+
 *** Notes specific to am-utils version 6.0b1:
 
 - updated or minor new ports:

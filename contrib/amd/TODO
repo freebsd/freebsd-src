@@ -67,7 +67,7 @@ correct new prototype.
 
 use HAVE_SVC_GETREQSET instead of RPC_4.
 
-replace all "jsp" in *.[hc] $Id$ with ezk.
+replace all "jsp" in *.[hc] $Id: TODO,v 1.1.1.1 1998/11/05 02:04:19 ezk Exp $ with ezk.
 
 use MNTTAB_FILE_NAME instead of MOUNTED
 

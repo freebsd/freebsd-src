@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsi_data.h,v 5.2.2.1 1992/02/09 15:09:53 jsp beta $
+ * $Id: fsi_data.h,v 1.1.1.1 1998/11/05 02:04:54 ezk Exp $
  *
  */
 
@@ -89,11 +89,10 @@ struct host {
   ioloc *h_ioloc;
   fsmount *h_netroot, *h_netswap;
 #define HF_HOST	0
-  char *h_hostname;		/* The full name of the host */
-  char *h_lochost;		/* The name of the host with local domains *
-				 * * * stripped */
-  char *h_hostpath;		/* The filesystem path to the host (cf * * *
-				 * compute_hostpath) */
+  char *h_hostname;	/* The full name of the host */
+  char *h_lochost;	/* The name of the host with local domains stripped */
+  char *h_hostpath;	/* The filesystem path to the host (cf
+			   compute_hostpath) */
 #define	HF_ETHER 1
   qelem *h_ether;
 #define	HF_CONFIG 2

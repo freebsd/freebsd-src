@@ -1,3 +1,160 @@
+1999-01-01  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	*******************************************************************
+	*** Released am-utils-6.0					***
+	*******************************************************************
+
+1998-12-28  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* conf/nfs_prot/nfs_prot_sunos5_7.h: support ldap in solaris 2.7.
+
+1998-12-27  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* conf/nfs_prot/nfs_prot_bsdi3.h: don't use reserved ports on
+	bsdi4 for NFS V3/nfs mounts.
+
+1998-12-26  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* using latest libtool (1.2e + patches), now supporting shared
+	libraries on many more systems.  Also using latest autoconf and
+	automake (unreleased GNU CVS'd versions.)
+
+	* minor new ports: hppa2.0w-hp-hpux11.00,
+	i386-unknown-netbsd1.3.3, mips-sgi-irix6.5.
+
+	* fsinfo/fsinfo.h (yywrap): define it for systems (osf4) that
+	have /usr/bin/flex but not libfl.
+
+1998-12-24  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* lots of code cleanup, to make sure libamu.so does not use
+	undefined symbols.  Some system's shared libraries cannot handle
+	that.
+
+1998-12-23  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* include/am_defs.h: only defined seteuid extern if function also
+	exists and is not superceded by setresuid (hpux).
+
+	* amd/ops_autofs.c (autofs_bgmount, autofs_lookuppn): put explicit
+	braces to avoid confusion with nested if-then-else clauses.
+
+	* aux/config.{sub,status}, aux/{ltmain.sh,ltconfig,mkinstalldirs:
+	updated from latest versions.
+
+1998-12-22  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* minor new port: i386-pc-bsdi4.0
+
+	* conf/nfs_prot/nfs_prot_bsdi3.h: add missing hesiod header
+	definitions for bsdi4.
+
+	* {amd,fsinfo}/Makefile.am: force path to .y/.l files, because
+	some make programs (bsdi4) do not support VPATH correctly.
+
+1998-12-16  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* conf/mount/mount_aix.c: minor code cleanup
+
+	* aux/configure.in: check for extern definition to xdr_groups.
+
+1998-12-15  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* minor new port: powerpc-ibm-aix4.3.1.0
+
+	* aux/macros/*.m4: updates for aix 4.3
+
+1998-12-14  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* minor new port: i386-unknown-openbsd2.4
+
+	* aux/configure.in: don't check for xfs on openbsd because
+	openbsd-2.4 introduces a new file system named xfs, but different
+	than Irix's XFS.  Sigh.
+
+	* minor new port: i386-unknown-freebsd2.2.8
+
+1998-12-03  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* amd/amfs_nfsl.c (amfs_nfsl_ffserver): use case insensitive host
+	name match.  Bug fix from Douglas K. Rand" <rand@aero.und.edu>.
+
+1998-11-20  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* scripts/ctl-amd.in: wait4amd2die runs in the stop action, to
+	avoid race conditions when shutting down systems running amd.
+
+	* Makefile.am: add a dist-hook to change modes of the directories
+	in the tar file so they are not world writable.
+
+	* conf/nfs_prot/nfs_prot_freebsd3.h: turned on NFSv3 support,
+	since it is now finally defined in the header files and
+	(hopefully) stable.
+
+	* amd/srvr_nfs.c (find_nfs_srvr): allow overriding if nfsv2 option
+	is specified in mount options.  freebsd patches from David
+	O'Brien.
+
+	* amq/amq.c (main), fixmount/fixmount.c (main), hlfsd/hlfsd.c
+	(main), fsinfo/fsinfo.c (fsi_get_args), hlfsd/hlfsd.c (main),
+	amd/get_args.c (get_args): posix: use -1 to check for return from
+	getopt() (not EOF), as per posix.
+
+	* amd/amq_subr.c (xdr_amq_mount_tree_node): patches from "David
+	O'Brien" <obrien@NUXI.com>, from the FreeBSD source tree.  Use
+	real variable whose pointer is on the stack for decoding a long
+	int.
+
+1998-11-11  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* scripts/ctl-{amd,hlfsd}.in: include comments useful for redhat's
+	chkconfig utility.
+
+1998-11-10  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* released snapshot am-utils-6.0b2s3
+
+	* conf/transp/transp_sockets.c (create_nfs_service): remove C++
+	style comments.
+
+1998-11-04  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* released snapshot am-utils-6.0b2s2
+
+	* created CVS package
+
+	* amd/nfs_subr.c (nfsproc_lookup_2_svc): try to avoid a race
+	condition between unmounting and re-mounting an entry, by
+	increasing the ttl of a looked up entry before unmounting it.
+	Patch from Mike Mitchell <mcm@unx.sas.com>.
+
+	* All files: spell comments and strings.
+
+1998-11-03  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/configure.in: look for yp_all in libnsl only if yp_all not
+	already found elsewhere (in libc or other default libraries).
+	This is so RedHat 5.1 systems could find yp functions in libnsl,
+	but also so AIX 4.2.1 will NOT include libnsl, because the latter
+	has broken nis functionality that also exists and works ok in libc.
+
+1998-10-29  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* amd/amd.c (main): bug fix: swapped arguments to kill(2).  Fix
+	from Danny Rathjens <dkr@cs.fiu.edu>.
+
+1998-10-28  Erez Zadok  <ezk@spruce.mcl.cs.columbia.edu>
+
+	* released snapshot am-utils-6.0b2s1
+
+1998-10-27  Erez Zadok  <ezk@spruce.mcl.cs.columbia.edu>
+
+	* aux/macros/*.m4: support bsdi4 as bsdi3.
+
+	* aux/macros/os_ldflags.m4: enable detection of LDAP on solaris
+	2.7 (libraries located in /usr/lib/fn).  This is off until Sun
+	includes LDAP header information.
+
 1998-10-20  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
 
 	*******************************************************************
