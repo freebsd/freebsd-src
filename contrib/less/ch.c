@@ -21,6 +21,8 @@
 #include <windows.h>
 #endif
 
+typedef POSITION BLOCKNUM;
+
 public int ignore_eoi;
 
 /*
@@ -29,34 +31,38 @@ public int ignore_eoi;
  * in order from most- to least-recently used.
  * The circular list is anchored by the file state "thisfile".
  */
-#define LBUFSIZE	1024
+#define	LBUFSIZE	8192
 struct buf {
-	struct buf *next, *prev;  /* Must be first to match struct filestate */
-	long block;
+	struct buf *next, *prev;
+	struct buf *hnext, *hprev;
+	BLOCKNUM block;
 	unsigned int datasize;
 	unsigned char data[LBUFSIZE];
+};
+
+struct buflist {
+	/* -- Following members must match struct buf */
+	struct buf *buf_next, *buf_prev;
+	struct buf *buf_hnext, *buf_hprev;
 };
 
 /*
  * The file state is maintained in a filestate structure.
  * A pointer to the filestate is kept in the ifile structure.
  */
+#define	BUFHASH_SIZE	64
 struct filestate {
-	/* -- Following members must match struct buf */
 	struct buf *buf_next, *buf_prev;
-	long buf_block;
-	/* -- End of struct buf copy */
+	struct buflist hashtbl[BUFHASH_SIZE];
 	int file;
 	int flags;
 	POSITION fpos;
 	int nbufs;
-	long block;
+	BLOCKNUM block;
 	unsigned int offset;
 	POSITION fsize;
 };
 
-
-#define	END_OF_CHAIN	((struct buf *)thisfile)
 #define	ch_bufhead	thisfile->buf_next
 #define	ch_buftail	thisfile->buf_prev
 #define	ch_nbufs	thisfile->nbufs
@@ -66,6 +72,24 @@ struct filestate {
 #define	ch_fsize	thisfile->fsize
 #define	ch_flags	thisfile->flags
 #define	ch_file		thisfile->file
+
+#define	END_OF_CHAIN	((struct buf *)&thisfile->buf_next)
+#define	END_OF_HCHAIN(h) ((struct buf *)&thisfile->hashtbl[h])
+#define BUFHASH(blk)	((blk) & (BUFHASH_SIZE-1))
+
+#define	FOR_BUFS_IN_CHAIN(h,bp) \
+	for (bp = thisfile->hashtbl[h].buf_hnext;  \
+	     bp != END_OF_HCHAIN(h);  bp = bp->hnext)
+
+#define	HASH_RM(bp) \
+	(bp)->hnext->hprev = (bp)->hprev; \
+	(bp)->hprev->hnext = (bp)->hnext;
+
+#define	HASH_INS(bp,h) \
+	(bp)->hnext = thisfile->hashtbl[h].buf_hnext; \
+	(bp)->hprev = END_OF_HCHAIN(h); \
+	thisfile->hashtbl[h].buf_hnext->hprev = (bp); \
+	thisfile->hashtbl[h].buf_hnext = (bp);
 
 static struct filestate *thisfile;
 static int ch_ungotchar = -1;
@@ -100,6 +124,7 @@ fch_get()
 	register struct buf *bp;
 	register int n;
 	register int slept;
+	register int h;
 	POSITION pos;
 	POSITION len;
 
@@ -108,7 +133,9 @@ fch_get()
 	/*
 	 * Look for a buffer holding the desired block.
 	 */
-	for (bp = ch_bufhead;  bp != END_OF_CHAIN;  bp = bp->next)
+	h = BUFHASH(ch_block);
+	FOR_BUFS_IN_CHAIN(h, bp)
+	{
 		if (bp->block == ch_block)
 		{
 			if (ch_offset >= bp->datasize)
@@ -118,6 +145,7 @@ fch_get()
 				goto read_more;
 			goto found;
 		}
+	}
 	/*
 	 * Block is not in a buffer.  
 	 * Take the least recently used buffer 
@@ -125,7 +153,7 @@ fch_get()
 	 * If the LRU buffer has data in it, 
 	 * then maybe allocate a new buffer.
 	 */
-	if (ch_buftail == END_OF_CHAIN || ch_buftail->block != (long)(-1))
+	if (ch_buftail == END_OF_CHAIN || ch_buftail->block != -1)
 	{
 		/*
 		 * There is no empty buffer to use.
@@ -142,8 +170,10 @@ fch_get()
 				autobuf = OPT_OFF;
 	}
 	bp = ch_buftail;
+	HASH_RM(bp); /* Remove from old hash chain. */
 	bp->block = ch_block;
 	bp->datasize = 0;
+	HASH_INS(bp, h); /* Insert into new hash chain. */
 
     read_more:
 	pos = (ch_block * LBUFSIZE) + bp->datasize;
@@ -230,7 +260,11 @@ fch_get()
 			 * Wait a while, then try again.
 			 */
 			if (!slept)
-				ierror("Waiting for data", NULL_PARG);
+			{
+				PARG parg;
+				parg.p_string = wait_message();
+				ierror("%s", &parg);
+			}
 #if !MSDOS_COMPILER
 	 		sleep(1);
 #else
@@ -253,11 +287,16 @@ fch_get()
 		 */
 		bp->next->prev = bp->prev;
 		bp->prev->next = bp->next;
-
 		bp->next = ch_bufhead;
 		bp->prev = END_OF_CHAIN;
 		ch_bufhead->prev = bp;
 		ch_bufhead = bp;
+
+		/*
+		 * Move to head of hash chain too.
+		 */
+		HASH_RM(bp);
+		HASH_INS(bp, h);
 	}
 
 	if (ch_offset >= bp->datasize)
@@ -318,8 +357,8 @@ sync_logfile()
 {
 	register struct buf *bp;
 	int warned = FALSE;
-	long block;
-	long nblocks;
+	BLOCKNUM block;
+	BLOCKNUM nblocks;
 
 	nblocks = (ch_fpos + LBUFSIZE - 1) / LBUFSIZE;
 	for (block = 0;  block < nblocks;  block++)
@@ -352,13 +391,17 @@ sync_logfile()
  */
 	static int
 buffered(block)
-	long block;
+	BLOCKNUM block;
 {
 	register struct buf *bp;
+	register int h;
 
-	for (bp = ch_bufhead;  bp != END_OF_CHAIN;  bp = bp->next)
+	h = BUFHASH(block);
+	FOR_BUFS_IN_CHAIN(h, bp)
+	{
 		if (bp->block == block)
 			return (TRUE);
+	}
 	return (FALSE);
 }
 
@@ -370,7 +413,7 @@ buffered(block)
 ch_seek(pos)
 	register POSITION pos;
 {
-	long new_block;
+	BLOCKNUM new_block;
 	POSITION len;
 
 	len = ch_length();
@@ -470,12 +513,10 @@ ch_length()
 /*
  * Return the current position in the file.
  */
-#define	tellpos(blk,off)   ((POSITION)((((long)(blk)) * LBUFSIZE) + (off)))
-
 	public POSITION
 ch_tell()
 {
-	return (tellpos(ch_block, ch_offset));
+	return (ch_block * LBUFSIZE) + ch_offset;
 }
 
 /*
@@ -570,7 +611,7 @@ ch_flush()
 	 * Initialize all the buffers.
 	 */
 	for (bp = ch_bufhead;  bp != END_OF_CHAIN;  bp = bp->next)
-		bp->block = (long)(-1);
+		bp->block = -1;
 
 	/*
 	 * Figure out the size of the file, if we can.
@@ -626,12 +667,28 @@ ch_addbuf()
 	if (bp == NULL)
 		return (1);
 	ch_nbufs++;
-	bp->block = (long)(-1);
+	bp->block = -1;
 	bp->next = END_OF_CHAIN;
 	bp->prev = ch_buftail;
 	ch_buftail->next = bp;
 	ch_buftail = bp;
+	HASH_INS(bp, 0);
 	return (0);
+}
+
+/*
+ *
+ */
+	static void
+init_hashtbl()
+{
+	register int h;
+
+	for (h = 0;  h < BUFHASH_SIZE;  h++)
+	{
+		thisfile->hashtbl[h].buf_hnext = END_OF_HCHAIN(h);
+		thisfile->hashtbl[h].buf_hprev = END_OF_HCHAIN(h);
+	}
 }
 
 /*
@@ -650,6 +707,7 @@ ch_delbufs()
 		free(bp);
 	}
 	ch_nbufs = 0;
+	init_hashtbl();
 }
 
 /*
@@ -693,7 +751,6 @@ ch_init(f, flags)
 		thisfile = (struct filestate *) 
 				calloc(1, sizeof(struct filestate));
 		thisfile->buf_next = thisfile->buf_prev = END_OF_CHAIN;
-		thisfile->buf_block = (long)(-1);
 		thisfile->nbufs = 0;
 		thisfile->flags = 0;
 		thisfile->fpos = 0;
@@ -702,6 +759,7 @@ ch_init(f, flags)
 		thisfile->file = -1;
 		thisfile->fsize = NULL_POSITION;
 		ch_flags = flags;
+		init_hashtbl();
 		/*
 		 * Try to seek; set CH_CANSEEK if it works.
 		 */

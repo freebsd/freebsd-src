@@ -24,7 +24,6 @@
 #if MSDOS_COMPILER==DJGPPC
 #include <glob.h>
 #include <dir.h>
-#include <limits.h>
 #define _MAX_PATH	PATH_MAX
 #endif
 #endif
@@ -33,6 +32,9 @@
 #ifndef _OSK_MWC32
 #include <modes.h>
 #endif
+#endif
+#if OS2
+#include <signal.h>
 #endif
 
 #if HAVE_STAT
@@ -878,7 +880,16 @@ close_altfile(altfilename, filename, pipefd)
 	if (secure)
 		return;
 	if (pipefd != NULL)
+	{
+#if OS2
+		/*
+		 * The pclose function of OS/2 emx sometimes fails.
+		 * Send SIGINT to the piped process before closing it.
+		 */
+		kill(((FILE*)pipefd)->_pid, SIGINT);
+#endif
 		pclose((FILE*) pipefd);
+	}
 	if ((lessclose = lgetenv("LESSCLOSE")) == NULL)
 	     	return;
 	gfilename = esc_metachars(filename);
