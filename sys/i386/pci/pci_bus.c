@@ -272,6 +272,14 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 
+		/* XXX unknown chipset, but working */
+	case 0x00171166:
+		/* FALLTHROUGH */
+	case 0x01011166:
+		s = "ServerWorks host to PCI bridge(unknown chipset)";
+		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
+		break;
+
 		/* Integrated Micro Solutions -- vendor 0x10e0 */
 	case 0x884910e0:
 		s = "Integrated Micro Solutions VL Bridge";
