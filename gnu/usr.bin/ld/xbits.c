@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: xbits.c,v 1.2 1993/11/09 04:19:08 paul Exp $
+ *	$Id: xbits.c,v 1.3 1994/02/13 20:41:50 jkh Exp $
  */
 
 /*
@@ -48,6 +48,7 @@
 #include <string.h>
 
 #include "ld.h"
+#include "dynamic.h"
 
 void
 swap_longs(lp, n)

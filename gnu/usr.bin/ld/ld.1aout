@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.10 1996/05/28 16:17:46 phk Exp $
+.\"	$Id: ld.1,v 1.11 1996/08/29 18:05:54 wosch Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 1
@@ -41,16 +41,17 @@
 .Bk -words
 .Op Fl A Ar symbol-file
 .Op Fl assert Ar keyword
-.Op Fl B Ar linkmode
+.Op Fl B Ns Ar linkmode
 .Op Fl D Ar datasize
 .Op Fl d Ar c
 .Op Fl d Ar p
 .Op Fl e Ar entry
-.Op Fl l Ar library-specifier
-.Op Fl L Ar library-search-path
+.Op Fl l Ns Ar library-specifier
+.Op Fl L Ns Ar library-search-path
 .Op Fl nostdlib
 .Op Fl O Ar filename
 .Op Fl o Ar filename
+.Op Fl R Ns Ar record-library-search-path
 .Op Fl T Ar address
 .Op Fl u Ar symbol
 .Op Fl V Ar shlib-version
@@ -71,41 +72,49 @@ The options are as follows:
 .It Fl A Ar symbol-file
 The the symbol-file is taken as a base for link-editing the object files
 on the command line.
-.It Fl a\&ssert Ar keyword
+.It Fl assert Ar keyword
 This option has currently no effect. It is here for compatibility with
 SunOS ld. All conditions which would cause a Sun assertion to fail will
 currently always cause error or warning messages from
-.Nm ld\&.
-.It Fl B Ar dynamic
+.Nm ld .
+.It Fl B Ns Ar dynamic
 Specifies that linking against dynamic libraries can take place. If a library
 specifier of the form -lx appears on the command line,
 .Nm ld
-searches for a library of the from libx.so.n.m (see the
-.Ar l
-option) according to the search rules in effect. If such a file can not be
+searches for a library of the from libx.so.n.m
+.Po see the \&
+.Fl l
+option
+.Pc
+according to the search rules in effect. If such a file can not be
 found a traditional archive is looked for.
 This options can appear anywhere on the command line and is complementary
-to -Bstatic.
-.It Fl B Ar static
-The counterpart of -Bdynamic. This option turns off dynamic linking for
-all library specifiers until a -Bdynamic is once again given. Any explicitly
+to
+.Fl B Ns Ar static.
+.It Fl B Ns Ar static
+The counterpart of
+.Fl B Ns Ar dynamic .
+This option turns off dynamic linking for
+all library specifiers until a
+.Fl B Ns Ar dynamic
+is once again given. Any explicitly
 mentioned shared object encountered on the command line while this option is
 in effect is flagged as an error.
-.It Fl B Ar shareable
+.It Fl B Ns Ar shareable
 Instructs the linker to build a shared object from the object files rather
 than a normal executable image.
-.It Fl B Ar symbolic
+.It Fl B Ns Ar symbolic
 This option causes all symbolic references in the output to be resolved in
 this link-edit session. The only remaining run-time relocation requirements are
 .Em base-relative
 relocations, ie. translation with respect to the load address. Failure to
 resolve any symbolic reference causes an error to be reported.
-.It Fl B Ar forcearchive
+.It Fl B Ns Ar forcearchive
 Force all members of archives to be loaded, whether or not such members
 contribute a definition to any plain object files. Useful for making a
 shared library from an archive of PIC objects without having to unpack
 the archive.
-.It Fl B Ar silly
+.It Fl B Ns Ar silly
 Search for
 .Em \.sa
 silly archive companions of shared objects. Useful for compatibility with
@@ -122,30 +131,42 @@ calls will be re-directed through the Procedure Linkage Table (see
 .Xr link 5)
 .It Fl e Ar entry-symbol
 Specifies the entry symbol for an executable.
-.It Fl L Ar path
+.It Fl L Ns Ar path
 Add
 .Ar path
 to the list of directories to search for libraries specified with the
 .Ar -l
 option.
-.It Fl l Ar lib-spec
+.It Fl l Ns Ar lib-spec
 This option specifies a library to be considered for inclusion in the
-output. If the -Bdynamic option is in effect, a shared library of the
-form lib<spec>.so.m.n (where
+output. If the
+.Fl B Ns Ar dynamic
+option is in effect, a shared library of the
+form lib<spec>.so.m.n
+.Po where \&
 .Em m
 is the major, and
 .Em n
-is the minor version number, respectively) is searched for first. The
+is the minor version number, respectively
+.Pc is searched for first. The
 library with the highest version found in the search path is selected.
-If no shared library is found or the -Bstatic options is in effect,
-an archive of the form lib<spec>.a is looked for in the library seach path.
+If no shared library is found or the
+.Fl B Ns Ar static
+options is in effect, an archive of the form lib<spec>.a is looked for in
+the library seach path.
 .It Fl M
 Produce output about the mapping of segments of the input files and the
-values assigned to (global) symbols in the output file.
+values assigned to
+.Pq global
+symbols in the output file.
 .It Fl N
-Produce a OMAGIC output file.
+Produce a
+.Dv OMAGIC
+output file.
 .It Fl n
-Produce a NMAGIC output file.
+Produce a
+.Dv NMAGIC
+output file.
 .It Fl nostdlib
 Do not search the built-in path
 .Po
@@ -153,7 +174,7 @@ usually
 .Dq /usr/lib
 .Pc
 for
-.Ar -l
+.Fl l
 specified libraries.
 .It Fl O Ar filename
 Specifies the name of the output file.
@@ -165,10 +186,15 @@ and when output is complete renamed to
 Specifies the name of the output file. Defaults to
 .Dq a.out.
 .It Fl Q
-Produce a QMAGIC (FreeBSD/BSDi-i386) output file.  This is the default.
+Produce a
+.Dv QMAGIC
+(FreeBSD/BSDi-i386) output file.  This is the default.
 .It Fl r
 Produce relocatable object file, suitable for another pass through
 .Nm ld.
+.It Fl R
+Record the given path within the executable for run-time libary search.
+This only applies to dynamically linked executables.
 .It Fl S
 Strip all debugger symbols from the output.
 .It Fl s
@@ -184,8 +210,9 @@ Force
 to be marked as undefined. Useful to force loading of an archive member
 in the absence of any other references to that member.
 .It Fl V Ar version
-Put the given version number into the output shared library (if one is
-created). Useful to make shared libaries compatible with other operating
+Put the given version number into the output shared library
+.Pq if one is created .
+Useful to make shared libaries compatible with other operating
 systems. Eg. SunOS 4.x libraries use version number 3. Defaults to 8.
 .It Fl X
 Discard local symbols in the input files that start with the letter
@@ -196,17 +223,37 @@ Discard all local symbols in the input files.
 Trace the manipulations inflicted on
 .Ar symbol
 .It Fl Z
-Make a 386BSD ZMAGIC output file.
+Make a 386BSD
+.Dv ZMAGIC
+output file.
 .It Fl z
-Make a NetBSD ZMAGIC output file.
+Make a NetBSD
+.Dv ZMAGIC
+output file.
+.Sh ENVIRONMENT
+.Nm
+utilizes the following environment variables:
+.Bl -tag -width "LD_LIBRARY_PATH"
+.It Ev LD_LIBRARY_PATH
+This colon-separated list of directories is inserted into the search
+path for libraries following any directories specified via
+.Fl L
+options and preceding the built-in path.
+.\" .It Ev LD_NOSTD_PATH
+.\" When set, do not search the built-in path for libraries.
+.\" This is an alternative to the
+.\" .Fl nostdlib
+.\" command-line flag.
+.El
 .Sh FILES
 .Sh SEE ALSO
 .Xr ldconfig 8 ,
-.Xr link 5
+.Xr link 5 ,
+.Xr rtld 1
 .Sh CAVEATS
 An entry point must now explicitly be given if the output is intended to be
 a normal executable program. This was not the case for the previous version of
-.Nm ld\&.
+.Nm ld .
 .Sh BUGS
 Shared objects are not properly checked for undefined symbols.
 .Pp

@@ -1,5 +1,37 @@
+/*-
+ * This code is derived from software copyrighted by the Free Software
+ * Foundation.
+ *
+ * Modified 1991 by Donn Seeley at UUNET Technologies, Inc.
+ *
+ * Modified 1993 by Paul Kranenburg, Erasmus University
+ */
+
+/* Derived from ld.c: "@(#)ld.c 6.10 (Berkeley) 5/22/91"; */
+
+/* Linker `ld' for GNU
+   Copyright (C) 1988 Free Software Foundation, Inc.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 1, or (at your option)
+   any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+/* Written by Richard Stallman with some help from Eric Albert.
+   Set, indirect, and warning symbol features added by Randy Smith. */
+
 /*
- * $Id: symbol.c,v 1.5 1994/06/15 22:39:56 rich Exp $		- symbol table routines
+ * symbol table routines
+ * $Id: symbol.c,v 1.6 1994/12/23 22:30:54 nate Exp $
  */
 
 /* Create the symbol table entries for `etext', `edata' and `end'.  */
@@ -14,6 +46,7 @@
 #include <string.h>
 
 #include "ld.h"
+#include "dynamic.h"
 
 symbol	*symtab[SYMTABSIZE];	/* The symbol table. */
 int	num_hash_tab_syms;	/* Number of symbols in symbol hash table. */
