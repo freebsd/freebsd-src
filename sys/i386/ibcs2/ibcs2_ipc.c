@@ -21,6 +21,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id: ibcs2_ipc.c,v 1.8 1996/12/17 19:52:25 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -66,6 +68,8 @@
 #define IBCS2_IPC_RMID	0
 #define IBCS2_IPC_SET	1
 #define IBCS2_IPC_STAT	2
+#define IBCS2_SETVAL	8
+
 
 
 static void cvt_msqid2imsqid __P((struct msqid_ds *, struct ibcs2_msqid_ds *));
@@ -273,7 +277,18 @@ ibcs2_semsys(p, uap, retval)
 			SCARG(uap, a5) = (int)sp;
 			return semsys(p, (struct semsys_args *)uap, retval);
 		    }
+		case IBCS2_SETVAL:
+		    {
+			union semun *sp;
+			caddr_t sg = stackgap_init();
+
+			sp = stackgap_alloc(&sg, sizeof(*sp));
+			sp->val = (int) SCARG(uap, a5);
+			SCARG(uap, a5) = (int)sp;
+			return semsys(p, (struct semsys_args *)uap, retval);
+		    }
 		}
+
 		return semsys(p, (struct semsys_args *)uap, retval);
 
 	case 1:				/* semget */
@@ -375,6 +390,7 @@ ibcs2_shmsys(p, uap, retval)
 			return shmsys(p, (struct shmsys_args *)uap, retval);
 		    }
 		}
+
 		return shmsys(p, (struct shmsys_args *)uap, retval);
 
 	case 2:						/* shmdt */
