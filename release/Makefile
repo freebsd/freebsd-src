@@ -196,8 +196,12 @@ BIGBOOTLABEL=		minimum2
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Things that need to be recompiled with Kerberos support.
+.if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 K4PROGS!=	cd ${.CURDIR}/../kerberosIV; ${MAKE} -V KPROGS
+.endif
+.if exists(${.CURDIR}/../kerberos5) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 K5PROGS!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS
+.endif
 
 # Things that need to be compiled without crypto support in releases
 .if !defined(FIXCRYPTO)
@@ -403,11 +407,21 @@ rerelease release:
 .if defined(TARGET_ARCH)
 	echo "export TARGET_ARCH=\"${TARGET_ARCH}\"" >> ${CHROOTDIR}/mk
 .endif
+.if defined(EXTRA_SRC)
+	echo "export EXTRA_SRC=\"${EXTRA_SRC}\""	>> ${CHROOTDIR}/mk
+.endif
+.if defined(FIXCRYPTO)
+	echo "export FIXCRYPTO=\"${FIXCRYPTO}\""	>> ${CHROOTDIR}/mk
+.endif
+.if defined(NOKERBEROS)
+	echo "export NOKERBEROS=\"${NOKERBEROS}\""	>> ${CHROOTDIR}/mk
+.endif
+.if defined(NO_SENDMAIL)
+	echo "export NO_SENDMAIL=\"${NO_SENDMAIL}\""	>> ${CHROOTDIR}/mk
+.endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
 	echo "export PATH=/bin:/usr/bin:/sbin:/usr/sbin:${LOCALDIR}"	>> ${CHROOTDIR}/mk
-	echo "export TMPDIR=/tmp"		>> ${CHROOTDIR}/mk
-	echo "export MAKEOBJDIRPREFIX=/usr/obj"	>> ${CHROOTDIR}/mk
 	echo "export MANBUILDCAT=YES"		>> ${CHROOTDIR}/mk
 	echo "if [ ! -f /tmp/.world_done ]; then" >> ${CHROOTDIR}/mk
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
