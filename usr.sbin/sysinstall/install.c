@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.91 1996/04/29 06:47:09 jkh Exp $
+ * $Id: install.c,v 1.92 1996/04/29 19:34:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -297,11 +297,13 @@ installExpress(dialogMenuItem *self)
 	return i;
 
     if (!Dists) {
+	dialog_clear();
 	if (!dmenuOpenSimple(&MenuDistributions) && !Dists)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
 
     if (!mediaDevice) {
+	dialog_clear();
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     }
@@ -357,8 +359,8 @@ installNovice(dialogMenuItem *self)
 	    break;
     }
 
-    dialog_clear();
     if (!mediaDevice) {
+	dialog_clear();
 	msgConfirm("Finally, you must specify an installation medium.");
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
@@ -374,7 +376,7 @@ installNovice(dialogMenuItem *self)
 
     }
     else
-	msgConfirm("Congradulations!  You now have FreeBSD installed on your system.\n"
+	msgConfirm("Congradulations!  You now have FreeBSD installed on your system.\n\n"
 		   "We will now move on to the final configuration questions.\n"
 		   "For any option you do not wish to configure, simply select\n"
 		   "Cancel.\n\n"
@@ -413,8 +415,12 @@ installNovice(dialogMenuItem *self)
     if (!msgYesNo("Do you want to configure this machine as a WEB server?"))
 	configApache(self);
 
-    if (!msgYesNo("Would you like to customize your system console settings?"))
+    if (!msgYesNo("Would you like to customize your system console settings?")) {
+	WINDOW *w = savescr();
+
 	dmenuOpenSimple(&MenuSyscons);
+	restorescr(w);
+    }
 
     if (!msgYesNo("Would you like to set this machine's time zone now?")) {
 	WINDOW *w = savescr();
@@ -424,8 +430,12 @@ installNovice(dialogMenuItem *self)
 	restorescr(w);
     }
 
-    if (!msgYesNo("Does this system have a mouse attached to it?"))
+    if (!msgYesNo("Does this system have a mouse attached to it?")) {
+	WINDOW *w = savescr();
+
 	dmenuOpenSimple(&MenuMouse);
+	restorescr(w);
+    }
 
     if (directory_exists("/usr/X11R6")) {
 	if (!msgYesNo("Would you like to configure your X server at this time?"))
@@ -513,8 +523,12 @@ installConfigure(void)
 {
     /* Final menu of last resort */
     if (!msgYesNo("Visit the general configuration menu for a chance to set\n"
-		  "any last options?"))
+		  "any last options?")) {
+	WINDOW *w = savescr();
+
 	dmenuOpenSimple(&MenuConfigure);
+	restorescr(w);
+    }
 
     /* Write out any changes .. */
     configResolv();
