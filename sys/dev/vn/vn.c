@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.79 1999/05/11 19:54:02 phk Exp $
+ *	$Id: vn.c,v 1.80 1999/05/30 16:51:55 phk Exp $
  */
 
 /*
@@ -108,7 +108,6 @@ static	d_close_t	vnclose;
 static	d_dump_t	vndump;
 static	d_psize_t	vnsize;
 static	d_strategy_t	vnstrategy;
-static	d_parms_t	vnparms;
 
 #define CDEV_MAJOR 43
 #define BDEV_MAJOR 15
@@ -133,7 +132,7 @@ static struct cdevsw vn_cdevsw = {
 	/* mmap */	nommap,
 	/* strategy */	vnstrategy,
 	/* name */	"vn",
-	/* parms */	vnparms,
+	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	vndump,
 	/* psize */	vnsize,
@@ -516,6 +515,10 @@ vniocattach_file(vn, vio, dev, flag, p)
 		(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
 		return(error);
 	}
+	if (dev->si_bsize_phys < vn->sc_secsize)
+		dev->si_bsize_phys = vn->sc_secsize;
+	if (dev->si_bsize_best < vn->sc_secsize)
+		dev->si_bsize_best = vn->sc_secsize;
 	vn->sc_flags |= VNF_INITED;
 	IFOPT(vn, VN_LABELS) {
 		/*
@@ -684,44 +687,6 @@ vnsize(dev_t dev)
 		return(-1);
 
 	return(vn->sc_size);
-}
-
-/*
- * vnparms() - return requested device block info
- *
- *	This is typically called by specfs with DBLK_MIN to get
- *	the minimum read/write block size.  If the device does not
- *	exist or has not been configured, 0 is returned.
- */
-
-static int
-vnparms(dev_t dev, struct specinfo *sinfo, int ctl)
-{
-	int unit = vnunit(dev);
-	int r = -1;
-	struct vn_softc *vn;
-
-	if (unit < 0 || unit >= NVN)
-		return(r);
-	if ((vn = vn_softc[unit]) == NULL || (vn->sc_flags & VNF_INITED) == 0)
-		return(r);
-
-	switch(ctl) {
-	case DPARM_GET:
-		/* 
-		 * Retrieve disk parameters.  The system has already set
-		 * the defaults, we simply override them as necessary.
-		 */
-		r = 0;
-		if (sinfo->si_bsize_phys < vn->sc_secsize)
-			sinfo->si_bsize_phys = vn->sc_secsize;
-		if (sinfo->si_bsize_best < vn->sc_secsize)
-			sinfo->si_bsize_best = vn->sc_secsize;
-		break;
-	default:
-		break;
-	}
-	return(r);
 }
 
 static	int

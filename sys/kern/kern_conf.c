@@ -30,20 +30,34 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.49 1999/07/17 19:57:25 phk Exp $
+ * $Id: kern_conf.c,v 1.50 1999/07/19 09:37:59 phk Exp $
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/module.h>
+#include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/vnode.h>
+#include <sys/queue.h>
+
+#include <miscfs/specfs/specdev.h>
 
 #define cdevsw_ALLOCSTART	(NUMCDEVSW/2)
 
 struct cdevsw 	*cdevsw[NUMCDEVSW];
 
-int	bmaj2cmaj[NUMCDEVSW];
+static int	bmaj2cmaj[NUMCDEVSW];
+
+MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
+
+#define DEVT_HASH 83
+#define DEVT_STASH 50
+
+static struct specinfo devt_stash[DEVT_STASH];
+
+static SLIST_HEAD(devt_hash_head, specinfo) dev_hash[DEVT_HASH];
 
 /*
  * Routine to convert from character to block device number.
@@ -87,7 +101,7 @@ cdevsw_add(struct cdevsw *newentry)
 	if (!setup) {
 		for (i = 0; i < NUMCDEVSW; i++)
 			if (!bmaj2cmaj[i])
-				bmaj2cmaj[i] = 256;
+				bmaj2cmaj[i] = 254;
 		setup++;
 	}
 
@@ -104,7 +118,7 @@ cdevsw_add(struct cdevsw *newentry)
 	cdevsw[newentry->d_maj] = newentry;
 
 	if (newentry->d_bmaj >= 0 && newentry->d_bmaj < NUMCDEVSW) {
-		if (bmaj2cmaj[newentry->d_bmaj] != 256) {
+		if (bmaj2cmaj[newentry->d_bmaj] != 254) {
 			printf("WARNING: \"%s\" is usurping \"%s\"'s bmaj\n",
 			    newentry->d_name, 
 			    cdevsw[bmaj2cmaj[newentry->d_bmaj]]->d_name);
@@ -169,51 +183,63 @@ devsw_module_handler(module_t mod, int what, void* arg)
  * dev_t and u_dev_t primitives
  */
 
-#define DEVT_FASCIST 1
-
 int 
 major(dev_t x)
 {
-	uintptr_t i = (uintptr_t)x;
-
-#ifdef DEVT_FASCIST
-	return(255 - ((i >> 8) & 0xff));
-#else
-	return((i >> 8) & 0xff);
-#endif
+	if (x == NODEV)
+		return NOUDEV;
+	return((x->si_udev >> 8) & 0xff);
 }
 
 int
 minor(dev_t x)
 {
-	uintptr_t i = (uintptr_t)x;
-
-	return(i & 0xffff00ff);
+	if (x == NODEV)
+		return NOUDEV;
+	return(x->si_udev & 0xffff00ff);
 }
 
 dev_t
 makebdev(int x, int y)
 {
-	if (bmaj2cmaj[x] == 256) {
-		return NODEV;
-	}
 	return (makedev(bmaj2cmaj[x], y));
 }
 
 dev_t
 makedev(int x, int y)
 {
-#ifdef DEVT_FASCIST
-        return ((dev_t)(uintptr_t) (((255 - x) << 8) | y));
-#else
-        return ((dev_t)(uintptr_t) ((x << 8) | y));
-#endif
+	struct specinfo *si;
+	udev_t	udev;
+	int hash;
+	static int stashed;
+
+	udev = (x << 8) | y;
+	hash = udev % DEVT_HASH;
+	SLIST_FOREACH(si, &dev_hash[hash], si_hash) {
+		if (si->si_udev == udev)
+			return (si);
+	}
+	if (stashed >= DEVT_STASH) {
+		MALLOC(si, struct specinfo *, sizeof(*si), M_DEVT, 
+		    M_USE_RESERVE);
+	} else {
+		si = devt_stash + stashed++;
+	}
+	bzero(si, sizeof(*si));
+	si->si_udev = udev;
+	si->si_bsize_phys = DEV_BSIZE;
+	si->si_bsize_best = BLKDEV_IOSIZE;
+	si->si_bsize_max = MAXBSIZE;
+	SLIST_INSERT_HEAD(&dev_hash[hash], si, si_hash);
+        return (si);
 }
 
 udev_t
 dev2udev(dev_t x)
 {
-	return makeudev(major(x), minor(x));
+	if (x == NODEV)
+		return NOUDEV;
+	return (x->si_udev);
 }
 
 dev_t
