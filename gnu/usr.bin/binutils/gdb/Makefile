@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.25 1997/05/01 00:26:43 pst Exp $
+#	$Id: Makefile,v 1.26 1997/05/01 13:40:57 peter Exp $
 
 PROG = gdb
 
@@ -38,7 +38,7 @@ CFLAGS+= -DNO_MMALLOC
 # uncomment the next line if you want to debug gdb
 #CFLAGS+= -g
 
-CLEANFILES+=	c-exp.c f-exp.c m2-exp.c init.c y.tab.h 
+CLEANFILES+=	c-exp.c f-exp.c m2-exp.c init.c y.tab.h init.c-tmp
 beforedepend:	c-exp.c f-exp.c m2-exp.c init.c
 
 .if exists(${.OBJDIR}/../bfd)
@@ -83,8 +83,7 @@ DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
 # object files that will be linked into gdb.
 
 init.c: ${XSRCS}
-	@echo Making init.c
-	echo ${.ALLSRC}
+	@echo Making ${.TARGET}
 	@rm -f init.c-tmp
 	@echo '/* Do not modify this file.  */' >init.c-tmp
 	@echo '/* It is created automatically by the Makefile.  */'>>init.c-tmp
@@ -110,9 +109,7 @@ init.c: ${XSRCS}
 	  esac ; \
 	done
 	@echo '}' >>init.c-tmp
-	@mv init.c-tmp init.c
-
-CLEANFILES+=	init.c-tmp
+	@mv init.c-tmp ${.TARGET}
 
 .PRECIOUS: init.c
 
