@@ -125,6 +125,7 @@ _pthread_mutex_init(pthread_mutex_t * mutex,
 	enum pthread_mutextype	type;
 	int		protocol;
 	int		ceiling;
+	int		flags;
 	pthread_mutex_t	pmutex;
 	int		ret = 0;
 
@@ -137,6 +138,7 @@ _pthread_mutex_init(pthread_mutex_t * mutex,
 		type = PTHREAD_MUTEX_ERRORCHECK;
 		protocol = PTHREAD_PRIO_NONE;
 		ceiling = PTHREAD_MAX_PRIORITY;
+		flags = 0;
 	}
 
 	/* Check mutex type: */
@@ -156,6 +158,7 @@ _pthread_mutex_init(pthread_mutex_t * mutex,
 		type = (*mutex_attr)->m_type;
 		protocol = (*mutex_attr)->m_protocol;
 		ceiling = (*mutex_attr)->m_ceiling;
+		flags = (*mutex_attr)->m_flags;
 	}
 
 	/* Check no errors so far: */
@@ -164,8 +167,8 @@ _pthread_mutex_init(pthread_mutex_t * mutex,
 		    malloc(sizeof(struct pthread_mutex))) == NULL)
 			ret = ENOMEM;
 		else {
-			/* Reset the mutex flags: */
-			pmutex->m_flags = 0;
+			/* Set the mutex flags: */
+			pmutex->m_flags = flags;
 
 			/* Process according to mutex type: */
 			switch (type) {
