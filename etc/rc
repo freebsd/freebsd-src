@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.117 1997/04/27 03:59:13 jkh Exp $
+#	$Id: rc,v 1.104.2.11 1997/05/01 06:01:35 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -132,38 +132,14 @@ rm -f /var/spool/lock/*
 rm -rf /var/spool/uucp/.Temp/*
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
-#
-# Clearing /tmp at boot-time is essentially stupid, but seems to have
-# a long tradition.  It doesn't help in any way for long-living systems,
-# and it might accidentally clobber files you would rather like to have
-# preserved after a crash (if not using mfs /tmp anyway).
-#
-# See also the commented out example of another cleanup policy in
-# /etc/daily.
-#
-echo clearing /tmp
-
-# prune quickly with one rm, then use find to clean up /tmp/[lq]*
-# (not needed with mfs /tmp, but doesn't hurt there...)
-(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
-    find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
-
-# The above is even more stupid since it prevents you from restarting
-# X11 after a system crash.  If you disable the above, make sure to
-# uncomment the line below.
-#
-# clean up leftover X lock files and local connection sockets
-#rm -f /tmp/.X*-lock /tmp/.X11-unix/*
-
-
 # enable dumpdev so that savecore can see it
-if [ "X${dumpdev}" != X"NO" ]; then
+if [ "X${dumpdev}" != X"NO" -a -e ${dumpdev} ]; then
 	dumpon ${dumpdev}
 fi
 
 # /var/crash should be a directory or a symbolic link
 # to the crash directory if core dumps are to be saved.
-if [ -d /var/crash ]; then
+if [ "X${savecore_enable}" = X"YES" -a -d /var/crash ]; then
 	echo -n checking for core dump...
 	savecore /var/crash
 fi
@@ -176,9 +152,7 @@ echo -n 'additional daemons:'
 # start system logging and name service (named needs to start before syslogd
 # if you don't have a /etc/resolv.conf)
 #
-# If syslogdflags == NO, syslog isn't run
-if [ "X${syslogdflags}" != X"NO" ] ; then
-
+if [ "X${syslogd_enable}" = X"YES" ]; then
 	# Transitional symlink (for the next couple of years :) until all
 	# binaries had a chance to move towards /var/run/log.
 	if [ ! -h /dev/log ] ; then
@@ -191,7 +165,7 @@ if [ "X${syslogdflags}" != X"NO" ] ; then
 fi
 
 if [ "X${tickadj_enable}" = X"YES" ]; then
-	echo -n ' tickadj'; tickadj ${tickadj_flags--Aq}
+	echo -n ' tickadj';	tickadj ${tickadj_flags--Aq}
 fi
 echo '.'
 
@@ -226,7 +200,7 @@ fi
 if [ "X${accounting_enable}" = X"YES" -a -d /var/account ]; then
 	echo 'turning on accounting'
 	if [ ! -e /var/account/acct ]; then
-		touch /var/account/acct && chmod 600 /var/account/acct
+		touch /var/account/acct
 	fi
 	accton /var/account/acct
 fi
