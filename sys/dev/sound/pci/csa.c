@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-#include "csa.h"
 #include "pci.h"
 
 #include <sys/param.h>
@@ -48,8 +47,6 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #endif /* NPCI > 0 */
-
-#if NCSA > 0
 
 #include <dev/sound/pci/csaimg.h>
 
@@ -792,5 +789,3 @@ static driver_t csa_driver = {
  */
 DRIVER_MODULE(csa, pci, csa_driver, csa_devclass, 0, 0);
 #endif /* NPCI > 0 */
-
-#endif /* NCSA > 0 */

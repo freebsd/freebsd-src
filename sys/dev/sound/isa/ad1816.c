@@ -29,9 +29,6 @@
  */
 
 #include <dev/sound/pcm/sound.h>
-
-#if NPCM > 0 && NPNP > 0
-
 #include <dev/sound/isa/ad1816.h>
 
 struct ad1816_info;
@@ -621,5 +618,3 @@ static driver_t ad1816_driver = {
 };
 
 DRIVER_MODULE(ad1816, isa, ad1816_driver, pcm_devclass, 0, 0);
-
-#endif

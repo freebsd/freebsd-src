@@ -26,11 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_devfs.h"
-#include "pci.h"
-#include "csa.h"
-#include "pcm.h"
-
 #include <sys/soundcard.h>
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
@@ -40,8 +35,6 @@
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-
-#if NCSA > 0
 
 /* device private data */
 struct csa_info;
@@ -847,5 +840,3 @@ static driver_t pcmcsa_driver = {
 static devclass_t pcm_devclass;
 
 DRIVER_MODULE(pcmcsa, csa, pcmcsa_driver, pcm_devclass, 0, 0);
-
-#endif /* NCSA > 0 */

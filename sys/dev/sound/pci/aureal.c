@@ -36,8 +36,6 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#if NPCI != 0
-
 /* PCI IDs of supported chips */
 #define AU8820_PCI_ID 0x000112eb
 
@@ -688,6 +686,3 @@ static driver_t au_driver = {
 static devclass_t pcm_devclass;
 
 DRIVER_MODULE(au, pci, au_driver, pcm_devclass, 0, 0);
-
-#endif /* NPCI != 0 */
-
