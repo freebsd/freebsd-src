@@ -357,17 +357,25 @@ ftpPutURL(char *url, char *user, char *passwd, int *retcode)
 {
     char host[255], name[255];
     int port;
-    FILE *fp, *fp2;
+    static FILE *fp = NULL;
+    FILE *fp2;
 
     if (retcode)
 	*retcode = 0;
+    if (fp) {	/* Close previous managed connection */
+	fclose(fp);
+	fp = NULL;
+    }
     if (get_url_info(url, host, &port, name) == SUCCESS) {
 	fp = ftpLogin(host, user, passwd, port, 0, retcode);
 	if (fp) {
 	    fp2 = ftpPut(fp, name);
-	    if (!fp2 && retcode)
-		*retcode = ftpErrno(fp);
-	    fclose(fp);
+	    if (!fp2) {
+		if (retcode)
+		    *retcode = ftpErrno(fp);
+		fclose(fp);
+		fp = NULL;
+	    }
 	    return fp2;
 	}
     }
