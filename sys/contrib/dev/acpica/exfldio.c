@@ -246,7 +246,7 @@ AcpiExAccessRegion (
     ACPI_PHYSICAL_ADDRESS   Address;
 
 
-    ACPI_FUNCTION_TRACE ("AcpiExAccessRegion");
+    ACPI_FUNCTION_TRACE ("ExAccessRegion");
 
 
     /*
@@ -800,7 +800,7 @@ AcpiExExtractFromField (
     ByteFieldLength = ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength);
     if (ByteFieldLength > BufferLength)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
             "Field size %X (bytes) too large for buffer (%X)\n",
             ByteFieldLength, BufferLength));
 
@@ -812,7 +812,7 @@ AcpiExExtractFromField (
     DatumCount = ACPI_ROUND_UP_TO (ByteFieldLength,
                               ObjDesc->CommonField.AccessByteWidth);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
         "ByteLen=%x, DatumLen=%x, ByteGran=%x\n",
         ByteFieldLength, DatumCount,ObjDesc->CommonField.AccessByteWidth));
 
@@ -991,7 +991,7 @@ AcpiExInsertIntoField (
     ByteFieldLength = ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength);
     if (BufferLength < ByteFieldLength)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Buffer length %X too small for field %X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD, "Buffer length %X too small for field %X\n",
             BufferLength, ByteFieldLength));
 
         return_ACPI_STATUS (AE_BUFFER_OVERFLOW);
@@ -1001,7 +1001,7 @@ AcpiExInsertIntoField (
 
     DatumCount = ACPI_ROUND_UP_TO (ByteFieldLength, ObjDesc->CommonField.AccessByteWidth);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+    ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
         "ByteLen=%x, DatumLen=%x, ByteGran=%x\n",
         ByteFieldLength, DatumCount, ObjDesc->CommonField.AccessByteWidth));
 
