@@ -113,9 +113,6 @@ int	 local_domain __P((char *));
 char	*topdomain __P((char *));
 void	 usage __P((void));
 
-#ifndef NO_PAM
-extern int auth_pam __P((char *));
-#endif
 
 #define	OPTIONS	"alnDL"
 
@@ -216,7 +213,6 @@ doit(fromp)
 	char fromhost[2 * MAXHOSTNAMELEN + 1];
 	char numericname[INET6_ADDRSTRLEN];
 	int af = fromp->su_family, err;
-	int retval;
 #ifdef	CRYPT
 	int rc;
 	int pv1[2], pv2[2];
@@ -382,20 +378,6 @@ doit(fromp)
 		pwd->pw_dir = "/";
 	}
 
-#ifndef  NO_PAM
-	retval = auth_pam(locuser);
-
-	if (retval) {
-		if (retval == -1) {
-			syslog(LOG_ERR,"PAM authentication failed");
-		}
-		else {
-			syslog(LOG_ERR,
-				"User %s failed PAM authentication", locuser);
-			exit(1);
-		}
-	}
-#endif 
 
 		if (errorstr ||
 		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire) ||
