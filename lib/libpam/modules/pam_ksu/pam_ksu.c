@@ -54,7 +54,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 {
 	krb5_context	 context;
 	krb5_principal	 su_principal;
-	const char	*user, *ruser;
+	const char	*user;
+	const void	*ruser;
 	char		*su_principal_name;
 	long		 rv;
 	int		 pamret;
@@ -63,7 +64,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if (pamret != PAM_SUCCESS)
 		return (pamret);
 	PAM_LOG("Got user: %s", user);
-	pamret = pam_get_item(pamh, PAM_RUSER, (const void **)&ruser);
+	pamret = pam_get_item(pamh, PAM_RUSER, &ruser);
 	if (pamret != PAM_SUCCESS)
 		return (pamret);
 	PAM_LOG("Got ruser: %s", ruser);
@@ -128,13 +129,10 @@ auth_krb5(pam_handle_t *pamh, krb5_context context, const char *su_principal_nam
 	if (prompt == NULL)
 		return (PAM_BUF_ERR);
 	pass = NULL;
-	(void)pam_get_item(pamh, PAM_AUTHTOK, (const void **)&pass);
+	pamret = pam_get_authtok(pamh, PAM_AUTHTOK, &pass, prompt);
 	free(prompt);
-	if (pass == NULL) {
-		pamret = pam_get_authtok(pamh, PAM_AUTHTOK, &pass, prompt);
-		if (pamret != PAM_SUCCESS)
-			return (pamret);
-	}
+	if (pamret != PAM_SUCCESS)
+		return (pamret);
 	rv = krb5_get_init_creds_password(context, &creds, su_principal,
 	    pass, NULL, NULL, 0, NULL, &gic_opt);
 	if (rv != 0) {
