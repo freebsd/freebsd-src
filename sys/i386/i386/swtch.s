@@ -56,12 +56,12 @@
 
 	.data
 
-	.globl	_panic
+	.globl	panic
 
 #if defined(SWTCH_OPTIM_STATS)
-	.globl	_swtch_optim_stats, _tlb_flush_count
-_swtch_optim_stats:	.long	0		/* number of _swtch_optims */
-_tlb_flush_count:	.long	0
+	.globl	swtch_optim_stats, tlb_flush_count
+swtch_optim_stats:	.long	0		/* number of _swtch_optims */
+tlb_flush_count:	.long	0
 #endif
 
 	.text
@@ -129,7 +129,7 @@ ENTRY(cpu_switch)
 	jne	1f
 	addl	$PCB_SAVEFPU,%edx		/* h/w bugs make saving complicated */
 	pushl	%edx
-	call	_npxsave			/* do it in a big C function */
+	call	npxsave				/* do it in a big C function */
 	popl	%eax
 1:
 #endif	/* DEV_NPX */
@@ -139,7 +139,7 @@ sw1:
 
 #ifdef SMP
 	/* Stop scheduling if smp_active goes zero and we are not BSP */
-	cmpl	$0,_smp_active
+	cmpl	$0,smp_active
 	jne	1f
 	cmpl	$0,PCPU(CPUID)
 	je	1f
@@ -154,7 +154,7 @@ sw1:
 	 * if it cannot find another process to run.
 	 */
 sw1a:
-	call	_chooseproc			/* trash ecx, edx, ret eax*/
+	call	chooseproc			/* trash ecx, edx, ret eax*/
 
 #ifdef INVARIANTS
 	testl	%eax,%eax			/* no process? */
@@ -171,15 +171,15 @@ sw1b:
 	movl	P_ADDR(%ecx),%edx
 
 #if defined(SWTCH_OPTIM_STATS)
-	incl	_swtch_optim_stats
+	incl	swtch_optim_stats
 #endif
 	/* switch address space */
 	movl	%cr3,%ebx
 	cmpl	PCB_CR3(%edx),%ebx
 	je	4f
 #if defined(SWTCH_OPTIM_STATS)
-	decl	_swtch_optim_stats
-	incl	_tlb_flush_count
+	decl	swtch_optim_stats
+	incl	tlb_flush_count
 #endif
 	movl	PCB_CR3(%edx),%ebx
 	movl	%ebx,%cr3
@@ -188,7 +188,7 @@ sw1b:
 	movl	PCPU(CPUID), %esi
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f
-	btsl	%esi, _private_tss		/* mark use of private tss */
+	btsl	%esi, private_tss		/* mark use of private tss */
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
 	jmp	2f
 1:
@@ -198,7 +198,7 @@ sw1b:
 	addl	$(UPAGES * PAGE_SIZE - 16), %ebx
 	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0
 
-	btrl	%esi, _private_tss
+	btrl	%esi, private_tss
 	jae	3f
 	PCPU_ADDR(COMMON_TSSD, %edi)
 2:
@@ -227,9 +227,9 @@ sw1b:
 #ifdef SMP
 #ifdef GRAB_LOPRIO				/* hold LOPRIO for INTs */
 #ifdef CHEAP_TPR
-	movl	$0, _lapic+LA_TPR
+	movl	$0, lapic+LA_TPR
 #else
-	andl	$~APIC_TPR_PRIO, _lapic+LA_TPR
+	andl	$~APIC_TPR_PRIO, lapic+LA_TPR
 #endif /** CHEAP_TPR */
 #endif /** GRAB_LOPRIO */
 #endif /* SMP */
@@ -242,14 +242,14 @@ sw1b:
 
 	cmpl	$0, PCB_USERLDT(%edx)
 	jnz	1f
-	movl	__default_ldt,%eax
+	movl	_default_ldt,%eax
 	cmpl	PCPU(CURRENTLDT),%eax
 	je	2f
-	lldt	__default_ldt
+	lldt	_default_ldt
 	movl	%eax,PCPU(CURRENTLDT)
 	jmp	2f
 1:	pushl	%edx
-	call	_set_user_ldt
+	call	set_user_ldt
 	popl	%edx
 2:
 
@@ -282,13 +282,13 @@ CROSSJUMPTARGET(sw1a)
 #ifdef INVARIANTS
 badsw2:
 	pushl	$sw0_2
-	call	_panic
+	call	panic
 
 sw0_2:	.asciz	"cpu_switch: not SRUN"
 
 badsw3:
 	pushl	$sw0_3
-	call	_panic
+	call	panic
 
 sw0_3:	.asciz	"cpu_switch: chooseproc returned NULL"
 #endif
@@ -337,7 +337,7 @@ ENTRY(savectx)
 	leal	PCB_SAVEFPU(%eax),%eax
 	pushl	%eax
 	pushl	%eax
-	call	_npxsave
+	call	npxsave
 	addl	$4,%esp
 	popl	%eax
 	popl	%ecx
@@ -346,7 +346,7 @@ ENTRY(savectx)
 	leal	PCB_SAVEFPU(%ecx),%ecx
 	pushl	%ecx
 	pushl	%eax
-	call	_bcopy
+	call	bcopy
 	addl	$12,%esp
 #endif	/* DEV_NPX */
 
