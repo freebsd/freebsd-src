@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: malloc.ms,v 1.1 1996/04/13 08:30:17 phk Exp $
+.\" $Id: malloc.ms,v 1.2 1996/09/29 18:36:13 phk Exp $
 .\"
 .ds RH Malloc and free
 .NH
@@ -50,7 +50,7 @@ put the small structure used to contain the next and previous pointers
 plus the state of the chunk right before the chunk itself.
 .PP
 As a matter of fact, the canonical malloc(3) implementation can be 
-studied in the ``Old testament'', chapter 8 verse 7 [Kernighan & Rich ie]
+studied in the ``Old testament'', chapter 8 verse 7 [Kernighan & Ritchie]
 .PP
 Various optimisations can be applied to the above basic algorithm:
 .IP
