@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.25 1998/02/09 06:09:18 eivind Exp $
+ * $Id: cd9660_node.c,v 1.27 1999/01/27 21:49:54 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -120,7 +120,7 @@ cd9660_ihashins(ip)
 
 	simple_lock(&cd9660_ihash_slock);
 	ipp = &isohashtbl[INOHASH(ip->i_dev, ip->i_number)];
-	if (iq = *ipp)
+	if ((iq = *ipp) != NULL)
 		iq->i_prev = &ip->i_next;
 	ip->i_next = iq;
 	ip->i_prev = ipp;
@@ -140,7 +140,7 @@ cd9660_ihashrem(ip)
 	register struct iso_node *iq;
 
 	simple_lock(&cd9660_ihash_slock);
-	if (iq = ip->i_next)
+	if ((iq = ip->i_next) != NULL)
 		iq->i_prev = ip->i_prev;
 	*ip->i_prev = iq;
 #ifdef DIAGNOSTIC

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.52 1998/03/06 09:46:14 msmith Exp $
+ * $Id: cd9660_vnops.c,v 1.55 1999/04/18 10:58:02 dcs Exp $
  */
 
 #include <sys/param.h>
@@ -109,6 +109,8 @@ cd9660_setattr(ap)
  		case VBLK:
  		case VSOCK:
  		case VFIFO:
+		case VNON:
+		case VBAD:
 			return (0);
 		}
 	}
@@ -148,6 +150,9 @@ cd9660_access(ap)
 		case VLNK:
 		case VREG:
 			return (EROFS);
+			/* NOT REACHED */
+		default:
+			break;
 		}
 	}
 
@@ -362,7 +367,7 @@ iso_uiodir(idp,dp,off)
 		--idp->ncookies;
 	}
 
-	if (error = uiomove((caddr_t) dp,dp->d_reclen,idp->uio))
+	if ((error = uiomove((caddr_t) dp,dp->d_reclen,idp->uio)) != 0)
 		return (error);
 	idp->uio_off = off;
 	return (0);
@@ -396,12 +401,12 @@ assoc = (cl > 1) && (*cname == ASSOCCHAR);
 		if (sl != cl
 		    || bcmp(sname,cname,sl)) {
 			if (idp->assocent.d_namlen) {
-				if (error = iso_uiodir(idp,&idp->assocent,idp->assocoff))
+				if ((error = iso_uiodir(idp,&idp->assocent,idp->assocoff)) != 0)
 					return (error);
 				idp->assocent.d_namlen = 0;
 			}
 			if (idp->saveent.d_namlen) {
-				if (error = iso_uiodir(idp,&idp->saveent,idp->saveoff))
+				if ((error = iso_uiodir(idp,&idp->saveent,idp->saveoff)) != 0)
 					return (error);
 				idp->saveent.d_namlen = 0;
 			}
@@ -492,8 +497,8 @@ cd9660_readdir(ap)
 		if ((idp->curroff & bmask) == 0) {
 			if (bp != NULL)
 				brelse(bp);
-			if (error =
-			    cd9660_blkatoff(vdp, (off_t)idp->curroff, NULL, &bp))
+			if ((error =
+			    cd9660_blkatoff(vdp, (off_t)idp->curroff, NULL, &bp)) != 0)
 				break;
 			entryoffsetinblock = 0;
 		}
@@ -549,26 +554,23 @@ cd9660_readdir(ap)
 			break;
 		default: /* ISO_FTYPE_DEFAULT || ISO_FTYPE_9660 || ISO_FTYPE_HIGH_SIERRA*/
 			strcpy(idp->current.d_name,"..");
-			switch (ep->name[0]) {
-			case 0:
+			if (idp->current.d_namlen == 1 && ep->name[0] == 0) {
 				idp->current.d_namlen = 1;
 				error = iso_uiodir(idp,&idp->current,idp->curroff);
-				break;
-			case 1:
+			} else if (idp->current.d_namlen == 1 && ep->name[0] == 1) {
 				idp->current.d_namlen = 2;
 				error = iso_uiodir(idp,&idp->current,idp->curroff);
-				break;
-			default:
+			} else {
 				isofntrans(ep->name,idp->current.d_namlen,
 					   idp->current.d_name, &namelen,
 					   imp->iso_ftype == ISO_FTYPE_9660,
-					   isonum_711(ep->flags)&4);
+					   isonum_711(ep->flags)&4,
+					   imp->joliet_level);
 				idp->current.d_namlen = (u_char)namelen;
 				if (imp->iso_ftype == ISO_FTYPE_DEFAULT)
 					error = iso_shipdir(idp);
 				else
 					error = iso_uiodir(idp,&idp->current,idp->curroff);
-				break;
 			}
 		}
 		if (error)

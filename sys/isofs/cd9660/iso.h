@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.6 (Berkeley) 5/10/95
- * $Id: iso.h,v 1.15 1997/05/04 16:17:49 joerg Exp $
+ * $Id: iso.h,v 1.17 1999/04/18 10:58:03 dcs Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -54,6 +54,7 @@ struct iso_volume_descriptor {
 
 /* volume descriptor types */
 #define ISO_VD_PRIMARY 1
+#define ISO_VD_SUPPLEMENTARY 2
 #define ISO_VD_END 255
 
 #define ISO_STANDARD_ID "CD001"
@@ -97,6 +98,47 @@ struct iso_primary_descriptor {
 	char unused5			[ISODCL (1396, 2048)];
 };
 #define ISO_DEFAULT_BLOCK_SIZE		2048
+
+/*
+ * Used by Microsoft Joliet extension to ISO9660. Almost the same
+ * as PVD, but byte position 8 is a flag, and 89-120 is for escape.
+ */
+
+struct iso_supplementary_descriptor {
+      char type                       [ISODCL (  1,   1)]; /* 711 */
+      char id                         [ISODCL (  2,   6)];
+      char version                    [ISODCL (  7,   7)]; /* 711 */
+      char flags                      [ISODCL (  8,   8)]; /* 711? */
+      char system_id                  [ISODCL (  9,  40)]; /* achars */
+      char volume_id                  [ISODCL ( 41,  72)]; /* dchars */
+      char unused2                    [ISODCL ( 73,  80)];
+      char volume_space_size          [ISODCL ( 81,  88)]; /* 733 */
+      char escape                     [ISODCL ( 89, 120)];
+      char volume_set_size            [ISODCL (121, 124)]; /* 723 */
+      char volume_sequence_number     [ISODCL (125, 128)]; /* 723 */
+      char logical_block_size         [ISODCL (129, 132)]; /* 723 */
+      char path_table_size            [ISODCL (133, 140)]; /* 733 */
+      char type_l_path_table          [ISODCL (141, 144)]; /* 731 */
+      char opt_type_l_path_table      [ISODCL (145, 148)]; /* 731 */
+      char type_m_path_table          [ISODCL (149, 152)]; /* 732 */
+      char opt_type_m_path_table      [ISODCL (153, 156)]; /* 732 */
+      char root_directory_record      [ISODCL (157, 190)]; /* 9.1 */
+      char volume_set_id              [ISODCL (191, 318)]; /* dchars */
+      char publisher_id               [ISODCL (319, 446)]; /* achars */
+      char preparer_id                [ISODCL (447, 574)]; /* achars */
+      char application_id             [ISODCL (575, 702)]; /* achars */
+      char copyright_file_id          [ISODCL (703, 739)]; /* 7.5 dchars */
+      char abstract_file_id           [ISODCL (740, 776)]; /* 7.5 dchars */
+      char bibliographic_file_id      [ISODCL (777, 813)]; /* 7.5 dchars */
+      char creation_date              [ISODCL (814, 830)]; /* 8.4.26.1 */
+      char modification_date          [ISODCL (831, 847)]; /* 8.4.26.1 */
+      char expiration_date            [ISODCL (848, 864)]; /* 8.4.26.1 */
+      char effective_date             [ISODCL (865, 881)]; /* 8.4.26.1 */
+      char file_structure_version     [ISODCL (882, 882)]; /* 711 */
+      char unused4                    [ISODCL (883, 883)];
+      char application_data           [ISODCL (884, 1395)];
+      char unused5                    [ISODCL (1396, 2048)];
+};
 
 struct iso_sierra_primary_descriptor {
 	char unknown1			[ISODCL (  1,	8)]; /* 733 */
@@ -175,7 +217,7 @@ struct iso_extended_attributes {
 
 /* CD-ROM Format type */
 enum ISO_FTYPE	{ ISO_FTYPE_DEFAULT, ISO_FTYPE_9660, ISO_FTYPE_RRIP,
-		  ISO_FTYPE_ECMA, ISO_FTYPE_HIGH_SIERRA };
+		  ISO_FTYPE_JOLIET, ISO_FTYPE_ECMA, ISO_FTYPE_HIGH_SIERRA };
 
 #ifndef	ISOFSMNT_ROOT
 #define	ISOFSMNT_ROOT	0
@@ -202,6 +244,8 @@ struct iso_mnt {
 
 	int rr_skip;
 	int rr_skip0;
+
+	int joliet_level;
 };
 
 #define VFSTOISOFS(mp)	((struct iso_mnt *)((mp)->mnt_data))
@@ -221,8 +265,9 @@ extern vop_t **cd9660_vnodeop_p;
 extern vop_t **cd9660_specop_p;
 extern vop_t **cd9660_fifoop_p;
 
-int isofncmp __P((u_char *, int, u_char *, int));
-void isofntrans __P((u_char *, int, u_char *, u_short *, int, int));
+int isochar __P((u_char *, u_char *, int, u_char *));
+int isofncmp __P((u_char *, int, u_char *, int, int));
+void isofntrans __P((u_char *, int, u_char *, u_short *, int, int, int));
 ino_t isodirino __P((struct iso_directory_record *, struct iso_mnt *));
 
 #endif /* KERNEL */
