@@ -1054,16 +1054,12 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	struct buf *bp;
 	struct vnode *vp;
 	struct kaioinfo *ki;
-	struct filedesc *fdp;
 	struct aio_liojob *lj;
-	int fd;
 	int s;
 	int notify;
 
 	cb = &aiocbe->uaiocb;
-	fdp = p->p_fd;
-	fd = cb->aio_fildes;
-	fp = fdp->fd_ofiles[fd];
+	fp = aiocbe->fd_file;
 
 	if (fp->f_type != DTYPE_VNODE) 
 		return (-1);
@@ -1516,7 +1512,6 @@ retryproc:
 		num_aio_resv_start++;
 		if ((error = aio_newproc()) == 0) {
 			num_aio_resv_start--;
-			td->td_retval[0] = 0;
 			goto retryproc;
 		}
 		num_aio_resv_start--;
