@@ -124,8 +124,12 @@ is still needed to support non-PCI cards. [MERGED]
 
 The ed(4) driver is now also supported on the Alpha.
 
+
 1.2. SECURITY FIXES
 -------------------
+
+rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
+/etc/inetd.conf.  This only affects new installations.  [MERGED]
 
 
 1.3. USERLAND CHANGES
