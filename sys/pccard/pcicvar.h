@@ -49,6 +49,7 @@ struct pcic_softc
 #define PCIC_PD_POWER	0x00000004	/* Uses CL-PD regs  */
 #define	PCIC_VG_POWER	0x00000008	/* Uses VG power regs */
 #define PCIC_KING_POWER	0x00000010	/* Uses IBM KING regs  */
+#define PCIC_RICOH_POWER 0x00000020	/* Uses the ricoh power regs */
 	int			iorid;		/* Rid of I/O region */
 	struct resource 	*iores;		/* resource for I/O region */
 	int			memrid;

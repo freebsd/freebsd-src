@@ -44,9 +44,10 @@
 #define	PCIC_VG465      6		/* Vadem 465 */
 #define	PCIC_VG468	7		/* Vadem 468 */
 #define	PCIC_VG469	8		/* Vadem 469 */
-#define	PCIC_RF5C396	9		/* Ricoh RF5C396 */
-#define	PCIC_IBM_KING	10		/* IBM KING PCMCIA Controller */
-#define PCIC_I82365SL_DF 11		/* Intel i82365sl-DF step */
+#define	PCIC_RF5C296	9		/* Ricoh RF5C296 */
+#define	PCIC_RF5C396	10		/* Ricoh RF5C396 */
+#define	PCIC_IBM_KING	11		/* IBM KING PCMCIA Controller */
+#define PCIC_I82365SL_DF 12		/* Intel i82365sl-DF step */
 
 /*
  *	Address of the controllers. Each controller can manage
@@ -84,8 +85,10 @@
 #define PCIC_MISC2	0x1e	/* PD672x: Misc control register 2 per chip */
 #define PCIC_CLCHIP	0x1f	/* PD67xx: Chip I/D */
 #define PCIC_CVSR	0x2f	/* Vadem: Voltage select register */
+#define PCIC_RICOH_MCR2 0x2f	/* Ricoh: Mode Control Register 2 */
 
 #define PCIC_VMISC	0x3a	/* Vadem: Misc control register */
+#define PCIC_RICOH_ID	0x3a	/* Ricoh: ID register */
 
 #define	PCIC_TIME_SETUP0	0x3a
 #define	PCIC_TIME_CMD0		0x3b
@@ -241,8 +244,15 @@
 #define PCIC_CVSR_VS_XX	0x02		/* X.XV when available */
 #define PCIC_CVSR_VS_33 0x03		/* 3.3V */
 
+/* Ricoh: Misc Control Register 2 (PCIC_RICOH_MCR2) */
+#define PCIC_MCR2_VCC_33 0x01		/* 3.3V */
+
 /* Vadem: misc register (PCIC_VMISC) */
 #define PCIC_VADEMREV	0x40
+
+/* Ricoh: ID register values (PCIC_RICOH_ID) */
+#define PCIC_RID_296	0x32
+#define PCIC_RID_396	0xb2
 
 /*
  *	Mask of allowable interrupts.
