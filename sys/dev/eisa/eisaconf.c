@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.13 1996/01/29 03:13:20 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.14 1996/01/31 18:02:19 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -691,6 +691,7 @@ eisa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 	void *offset;	/* Offset relative to target address space */
 	void *ioa_prev; /* Prev Node entries relative to target address space */
 	void *ma_prev;	/* Prev Node entries relative to target address space */
+	int retval;
 
 	offset = req->oldptr + req->oldidx;
 	buf = malloc(kdc->kdc_datalen, M_TEMP, M_NOWAIT);
@@ -747,5 +748,7 @@ eisa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 		}
 	}
 	
-	return (SYSCTL_OUT(req, buf, kdc->kdc_datalen));
+	retval = SYSCTL_OUT(req, buf, kdc->kdc_datalen);
+	free(buf, M_TEMP);
+	return retval;
 }
