@@ -362,7 +362,9 @@ main(int ac, char **av)
 #ifdef AFS
 		case 'k':
 			options.krb4_tgt_passing = 0;
+#ifdef KRB5
 			options.krb5_tgt_passing = 0;
+#endif
 			options.afs_token_passing = 0;
 			break;
 #endif

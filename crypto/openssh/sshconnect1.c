@@ -973,7 +973,7 @@ ssh_userauth1(const char *local_user, const char *server_user, char *host,
 
 #ifdef AFS
 	/* Try Kerberos tgt passing if the server supports it. */
-	if ((supported_authentications & (1 << SSH_PASS_KRB4_TGT)) &&
+	if ((supported_authentications & (1 << SSH_PASS_KERBEROS_TGT)) &&
 	    options.krb4_tgt_passing) {
 		if (options.cipher == SSH_CIPHER_NONE)
 			log("WARNING: Encryption is disabled! Ticket will be transmitted in the clear!");
