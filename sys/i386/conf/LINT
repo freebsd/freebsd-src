@@ -892,6 +892,9 @@ pseudo-device	ccd	4	#Concatenated disk driver
 pseudo-device	vinum		#Vinum concat/mirror/raid driver
 options 	VINUMDEBUG	#enable Vinum debugging hooks
 
+# Kernel side iconv library
+options 	LIBICONV
+
 # Size of the kernel message buffer.  Should be N * pagesize.
 options 	MSGBUF_SIZE=40960
 
