@@ -3,7 +3,8 @@
 
 # Grrr, this should use stdin and stdout, but is encrufted for compatibility.
 
-usage() {
+usage()
+{
 	echo "usage: genassym [-o outfile] objfile"
 	exit 1
 }
