@@ -980,6 +980,7 @@ configNFSServer(dialogMenuItem *self)
 	    vsystem("echo '#/a      -maproot=0  -network 10.0.1.0 -mask 255.255.248.0' >> /etc/exports");
 	    vsystem("echo '#' >> /etc/exports");
 	    vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
+	    vsystem("echo '# Note that BSD's export synatx is \"host-centric\" vs. Sun\'s \"FS-centric\" one.' >> /etc/exports");
 	    vsystem("echo >> /etc/exports");
 	    sprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
 	    dialog_clear();
