@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.82 1995/04/01 22:57:43 ache Exp $
+ *	$Id: sio.c,v 1.83 1995/04/01 23:56:08 ache Exp $
  */
 
 #include "sio.h"
@@ -85,19 +85,6 @@ termioschars(t)
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
 #define	RS_IBUFSIZE	256
-
-#define SET_BYPASS(tp, t) \
-	if (!((t)->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP \
-			   | IXOFF | IXON)) \
-	    && (!((t)->c_iflag & BRKINT) || ((t)->c_iflag & IGNBRK)) \
-	    && (!((t)->c_iflag & PARMRK) || \
-		((t)->c_iflag & (IGNPAR|IGNBRK)) == (IGNPAR|IGNBRK)) \
-	    && !((t)->c_lflag & (ECHO | ECHONL | ICANON | IEXTEN | ISIG \
-			   | PENDIN)) \
-	    && linesw[(tp)->t_line].l_rint == ttyinput) \
-		(tp)->t_state |= TS_CAN_BYPASS_L_RINT; \
-	else \
-		(tp)->t_state &= ~TS_CAN_BYPASS_L_RINT
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
@@ -293,6 +280,7 @@ static	void	sioregisterdev	__P((struct isa_device *id));
 static	void	comstart	__P((struct tty *tp));
 static	timeout_t comwakeup;
 static	int	tiocm_xxx2mcr	__P((int tiocm_xxx));
+static  void    set_bypass      __P((struct tty *tp, struct termios *t));
 
 #ifdef DSI_SOFT_MODEM
 static  int 	LoadSoftModem   __P((int unit,int base_io, u_long size, u_char *ptr));
@@ -898,7 +886,7 @@ open_top:
 		goto open_top;
 	}
 	error =	(*linesw[tp->t_line].l_open)(dev, tp);
-	SET_BYPASS(tp, &(tp->t_termios));
+	set_bypass(tp, &(tp->t_termios));
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		com->active_out = TRUE;
 out:
@@ -928,6 +916,7 @@ sioclose(dev, flag, mode, p)
 	tp = com->tp;
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
+	set_bypass(tp, &(tp->t_termios));
 	siostop(tp, FREAD | FWRITE);
 	comhardclose(com);
 	ttyclose(tp);
@@ -1354,11 +1343,13 @@ sioioctl(dev, cmd, data, flag, p)
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
 	if (error >= 0)
 		return (error);
-	error = ttioctl(tp, cmd, data, flag);
-	SET_BYPASS(tp, &(tp->t_termios));
-	if (error >= 0)
-		return (error);
 	s = spltty();
+	error = ttioctl(tp, cmd, data, flag);
+	set_bypass(tp, &(tp->t_termios));
+	if (error >= 0) {
+		splx(s);
+		return (error);
+	}
 	switch (cmd) {
 	case TIOCSBRK:
 		outb(iobase + com_cfcr, com->cfcr_image |= CFCR_SBREAK);
@@ -1755,8 +1746,7 @@ retry:
 		if (!(com->last_modem_status & MSR_CTS))
 			com->state &= ~CS_ODEVREADY;
 	}
-
-	SET_BYPASS(tp, t);
+	set_bypass(tp, t);
 	/*
 	 * Recover from fiddling with CS_TTGO.  We used to call siointr1()
 	 * unconditionally, but that defeated the careful discarding of
@@ -1976,6 +1966,25 @@ comwakeup(chan)
 #endif
 		}
 	}
+}
+
+static void
+set_bypass(tp, t)
+	struct tty	*tp;
+	struct termios	*t;
+{
+
+	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP
+			   | IXOFF | IXON))
+	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
+	    && (!(t->c_iflag & PARMRK) ||
+		(t->c_iflag & (IGNPAR|IGNBRK)) == (IGNPAR|IGNBRK))
+	    && !(t->c_lflag & (ECHO | ECHONL | ICANON | IEXTEN | ISIG
+			   | PENDIN))
+	    && linesw[tp->t_line].l_rint == ttyinput)
+		tp->t_state |= TS_CAN_BYPASS_L_RINT;
+	else
+		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 }
 
 /*
