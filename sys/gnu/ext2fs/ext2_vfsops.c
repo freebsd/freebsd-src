@@ -237,7 +237,7 @@ ext2_mount(mp, path, data, ndp, p)
 			error = ext2_reload(mp, ndp->ni_cnd.cn_cred, p);
 		if (error)
 			return (error);
-		if (fs->s_rd_only && (mp->mnt_flag & MNT_WANTRDWR))
+		if (fs->s_rd_only && (mp->mnt_kern_flag & MNTK_WANTRDWR))
 			fs->s_rd_only = 0;
 		if (fs->s_rd_only == 0) {
 			/* don't say it's clean */

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pstat.c	8.16 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: pstat.c,v 1.31 1997/10/09 07:22:08 charnier Exp $";
+	"$Id: pstat.c,v 1.32 1997/10/19 18:41:23 davidg Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -195,9 +195,11 @@ struct {
 	{ MNT_DELEXPORT, "delexport" },
 	{ MNT_RELOAD, "reload" },
 	{ MNT_FORCE, "force" },
+#if 0
 	{ MNT_UNMOUNT, "unmount" },
 	{ MNT_MWAIT, "mwait" },
 	{ MNT_WANTRDWR, "wantrdwr" },
+#endif
 	{ 0 }
 };
 

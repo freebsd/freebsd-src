@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.21 1997/10/11 18:31:30 phk Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.22 1997/10/12 20:25:01 phk Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -138,7 +138,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 			error = EINVAL;
 		if (error)
 			return error;
-		if (pmp->pm_ronly && (mp->mnt_flag & MNT_WANTRDWR))
+		if (pmp->pm_ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR))
 			pmp->pm_ronly = 0;
 		if (args.fspec == 0) {
 			/*

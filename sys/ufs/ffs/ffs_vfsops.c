@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.60 1997/10/16 10:49:33 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.61 1997/10/16 20:32:35 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -207,7 +207,7 @@ ffs_mount( mp, path, data, ndp, p)
 		if (err) {
 			goto error_1;
 		}
-		if (fs->fs_ronly && (mp->mnt_flag & MNT_WANTRDWR)) {
+		if (fs->fs_ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
 			if (!fs->fs_clean) {
 				if (mp->mnt_flag & MNT_FORCE) {
 					printf("WARNING: %s was not properly dismounted.\n",fs->fs_fsmnt);
