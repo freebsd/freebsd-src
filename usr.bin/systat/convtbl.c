@@ -49,7 +49,7 @@ struct	convtbl convtbl[] = {
 };
 
 
-static __inline__
+static __inline
 struct convtbl *
 get_tbl_ptr(const u_long size, const u_int scale)
 {
