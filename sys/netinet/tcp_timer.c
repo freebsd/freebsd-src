@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.c,v 1.6 1995/04/12 06:49:56 davidg Exp $
+ * $Id: tcp_timer.c,v 1.7 1995/05/30 08:09:59 rgrimes Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -63,6 +63,8 @@
 int	tcp_keepidle = TCPTV_KEEP_IDLE;
 int	tcp_keepintvl = TCPTV_KEEPINTVL;
 int	tcp_maxidle;
+int	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
+int	tcp_totbackoff = 511;
 #endif /* TUBA_INCLUDE */
 /*
  * Fast timeout routine for processing delayed acks
@@ -266,6 +268,20 @@ tcp_timers(tp, timer)
 	 */
 	case TCPT_PERSIST:
 		tcpstat.tcps_persisttimeo++;
+		/*
+		 * Hack: if the peer is dead/unreachable, we do not
+		 * time out if the window is closed.  After a full
+		 * backoff, drop the connection if the idle time
+		 * (no responses to probes) reaches the maximum
+		 * backoff that we would use if retransmitting.
+		 */
+		if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
+		    (tp->t_idle >= tcp_maxpersistidle ||
+		    tp->t_idle >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
+		        tcpstat.tcps_persistdrop++;
+		        tp = tcp_drop(tp, ETIMEDOUT);
+		        break;
+		}
 		tcp_setpersist(tp);
 		tp->t_force = 1;
 		(void) tcp_output(tp);
