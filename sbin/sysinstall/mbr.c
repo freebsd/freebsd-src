@@ -56,9 +56,9 @@ read_dospart(int fd, struct dos_partition *dp)
 {
     u_char buf[512];
     if (lseek(fd, 0, SEEK_SET) == -1) 
-	Fatal("Couldn't seek for master boot record read\n");
+	AskAbort("Couldn't seek for master boot record read\n");
     if (read(fd, buf, 512) != 512) {
-	Fatal("Failed to read master boot record\n");
+	AskAbort("Failed to read master boot record\n");
     }
     memcpy(dp, buf+DOSPARTOFF, sizeof(*dp)*NDOSPART);
 }
@@ -69,21 +69,21 @@ write_dospart(int fd, struct dos_partition *dp)
     u_char buf[512];
     int flag;
     if (lseek(fd, 0, SEEK_SET) == -1) 
-	Fatal("Couldn't seek for master boot record read\n");
+	AskAbort("Couldn't seek for master boot record read\n");
     if (read(fd, buf, 512) != 512) {
-	Fatal("Failed to read master boot record\n");
+	AskAbort("Failed to read master boot record\n");
     }
     memcpy(buf+DOSPARTOFF, dp, sizeof(*dp)*NDOSPART);
     if (lseek(fd, 0, SEEK_SET) == -1) 
-	Fatal("Couldn't seek for master boot record read\n");
+	AskAbort("Couldn't seek for master boot record read\n");
     flag=1;
     if (ioctl(fd, DIOCWLABEL, &flag) < 0)
-	Fatal("Couldn't enable writing of labels");
+	AskAbort("Couldn't enable writing of labels");
     if (write(fd, buf, 512) != 512) 
-	Fatal("Failed to write master boot record\n");
+	AskAbort("Failed to write master boot record\n");
     flag=0;
     if (ioctl(fd, DIOCWLABEL, &flag) < 0)
-	Fatal("Couldn't disable writing of labels");
+	AskAbort("Couldn't disable writing of labels");
 }
 
 int
@@ -457,9 +457,9 @@ Fdisk()
 	    flag=1;
 	    enable_label(Dfd[diskno]);
 	    if(ioctl(Dfd[diskno], DIOCSDINFO, Dlbl[diskno]) == -1)
-		Fatal("Couldn't set label: %s", strerror(errno));
+		AskAbort("Couldn't set label: %s", strerror(errno));
 	    if(ioctl(Dfd[diskno], DIOCWDINFO, Dlbl[diskno]) == -1)
-		Fatal("Couldn't write label: %s", strerror(errno));
+		AskAbort("Couldn't write label: %s", strerror(errno));
 	    flag=0;
 	    disable_label(Dfd[diskno]);
 	    
