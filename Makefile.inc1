@@ -147,6 +147,10 @@ IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
 		usr/libexec/${OBJFORMAT} usr/share/misc
 
+.if ${MACHINE_ARCH} == "i386" && ${MACHINE} == "pc98"
+USRDIRS+=	usr/libexec/aout
+.endif
+
 INCDIRS=	arpa g++/std objc protocols readline rpc rpcsvc security ss
 
 #
@@ -334,9 +338,13 @@ installmost:
 _strfile=	games/fortune/strfile
 .endif
 
+.if ${MACHINE_ARCH} == "i386" && ${MACHINE} == "pc98"
+_aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
+.endif
+
 tools::
-.for _tool in ${_strfile} gnu/usr.bin/binutils usr.bin/objformat \
-    usr.bin/yacc gnu/usr.bin/bison gnu/usr.bin/cc
+.for _tool in ${_strfile} ${_aout_tools} gnu/usr.bin/binutils \
+    usr.bin/objformat usr.bin/yacc gnu/usr.bin/bison gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
