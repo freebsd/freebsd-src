@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.13 1995/07/29 11:40:31 bde Exp $
+ * $Id: spec_vnops.c,v 1.14 1995/09/04 00:20:37 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -251,9 +251,9 @@ spec_read(ap)
 		    dpart.part->p_fstype == FS_BSDFFS &&
 		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
 			bsize = dpart.part->p_frag * dpart.part->p_fsize;
-		bscale = bsize / DEV_BSIZE;
+		bscale = bsize >> DEV_BSHIFT;
 		do {
-			bn = (uio->uio_offset / DEV_BSIZE) &~ (bscale - 1);
+			bn = (uio->uio_offset >> DEV_BSHIFT) &~ (bscale - 1);
 			on = uio->uio_offset % bsize;
 			n = min((unsigned)(bsize - on), uio->uio_resid);
 			if (vp->v_lastr + bscale == bn) {
@@ -331,9 +331,9 @@ spec_write(ap)
 				bsize = dpart.part->p_frag *
 				    dpart.part->p_fsize;
 		}
-		blkmask = (bsize / DEV_BSIZE) - 1;
+		blkmask = (bsize >> DEV_BSHIFT) - 1;
 		do {
-			bn = (uio->uio_offset / DEV_BSIZE) &~ blkmask;
+			bn = (uio->uio_offset >> DEV_BSHIFT) &~ blkmask;
 			on = uio->uio_offset % bsize;
 			n = min((unsigned)(bsize - on), uio->uio_resid);
 			if (n == bsize)
