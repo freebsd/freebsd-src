@@ -1,5 +1,6 @@
 #ifndef lint
-static char *rcsid = "$FreeBSD$";
+static const char *rcsid =
+"$FreeBSD$";
 #endif
 
 /*
@@ -37,37 +38,6 @@ static char *rcsid = "$FreeBSD$";
 
 /*
  * $Log: strhash.c,v $
- * Revision 1.6  1996/01/13 14:25:04  jkh
- * Return pointer to new hash node when search inserts it (e.g. there
- * was some datum given).
- *
- * Revision 1.5  1995/10/22  14:53:17  phk
- * Mino cleanup, #includes & unused vars.
- *
- * Revision 1.4  1995/05/30  05:41:55  rgrimes
- * Remove trailing whitespace.
- *
- * Revision 1.3  1995/03/28  08:41:02  jkh
- * Fix a missing _hash() to prevent namespace pollution with the db/hash routines.
- * Grrr.  If the dbhash routines weren't grossly overengineered I wouldn't
- * even need to do this! :-(
- *
- * Also now export the hash_stats routine.  Manpage coming RSN - I promise.
- *
- * Revision 1.2  1995/03/26  19:32:24  ache
- * Hash 8bit chars without sign extension
- *
- * Revision 1.1  1995/03/26  10:21:55  jkh
- * Add the strhash family of routines.  They provide a number of features
- * that the db/hash functions don't, and they're much simpler to use for
- * low-overhead string hashing.
- *
- * Revision 1.1  1995/02/25  02:16:34  jkh
- * Second version of this - now support the essentials of a basic
- * attributed file system for storing menu information and command
- * templates.  This is not finished yet, but it does compile so I can
- * commit it to the tree now and continue working on it.
- *
  * Revision 2.0  90/03/26  01:44:26  jkh
  * pre-beta check-in
  *
