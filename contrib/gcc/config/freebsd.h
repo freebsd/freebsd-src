@@ -56,7 +56,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* Place spaces around this string.  We depend on string splicing to produce
    the final CPP_PREDEFINES value.  */
-#define CPP_FBSD_PREDEFINES " -Dunix -D__FreeBSD__=4 -D__FreeBSD_cc_version=400003 -Asystem(unix) -Asystem(FreeBSD) "
+#define CPP_FBSD_PREDEFINES " -Dunix -D__FreeBSD__=4 -D__FreeBSD_cc_version=400004 -Asystem(unix) -Asystem(FreeBSD) "
 
 #define FBSD_CPP_SPEC "\
   %(cpp_cpu) \
