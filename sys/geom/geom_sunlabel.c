@@ -221,9 +221,8 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 }
 
 static struct g_class g_sunlabel_class = {
-	SUNLABEL_CLASS_NAME,
-	g_sunlabel_taste,
-	NULL,
+	.name = SUNLABEL_CLASS_NAME,
+	.taste = g_sunlabel_taste,
 	G_CLASS_INITIALIZER
 };
 

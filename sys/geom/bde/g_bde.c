@@ -271,9 +271,8 @@ g_bde_config(struct g_configargs *ga)
 }
 
 static struct g_class g_bde_class	= {
-	BDE_CLASS_NAME,
-	NULL,
-	g_bde_config,
+	.name = BDE_CLASS_NAME,
+	.config = g_bde_config,
 	G_CLASS_INITIALIZER
 };
 
