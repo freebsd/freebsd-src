@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.26 1995/02/23 22:32:38 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.27 1995/03/01 23:30:04 davidg Exp $
  */
 
 /*
@@ -233,6 +233,7 @@ vnode_pager_dealloc(pager)
 
 		vp->v_vmdata = NULL;
 		vp->v_flag &= ~(VTEXT | VVMIO);
+		vp->v_flag |= VAGE;
 		vrele(vp);
 	}
 	TAILQ_REMOVE(&vnode_pager_list, pager, pg_list);
