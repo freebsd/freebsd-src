@@ -40,7 +40,7 @@
 
 #include "ngctl.h"
 
-#define BUF_SIZE	1024
+#define BUF_SIZE	4096
 
 static int MsgCmd(int ac, char **av);
 
@@ -80,7 +80,67 @@ MsgCmd(int ac, char **av)
 		return(CMDRTN_ERROR);
 	}
 
+	/* See if a synchronous reply awaits */
+	{
+		struct timeval tv;
+		fd_set rfds;
+
+		FD_ZERO(&rfds);
+		FD_SET(csock, &rfds);
+		memset(&tv, 0, sizeof(tv));
+		switch (select(csock + 1, &rfds, NULL, NULL, &tv)) {
+		case -1:
+			err(EX_OSERR, "select");
+		case 0:
+			break;
+		default:
+			MsgRead();
+			break;
+		}
+	}
+
 	/* Done */
 	return(CMDRTN_OK);
+}
+
+/*
+ * Read and display the next incoming control message
+ */
+void
+MsgRead()
+{
+	u_char buf[2 * sizeof(struct ng_mesg) + BUF_SIZE];
+	struct ng_mesg *const m = (struct ng_mesg *)buf;
+	struct ng_mesg *const ascii = (struct ng_mesg *)m->data;
+	char path[NG_PATHLEN+1];
+
+	/* Get incoming message (in binary form) */
+	if (NgRecvMsg(csock, m, sizeof(buf), path) < 0) {
+		warn("recv incoming message");
+		return;
+	}
+
+	/* Ask originating node to convert message to ASCII */
+	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
+	      NGM_BINARY2ASCII, m, sizeof(*m) + m->header.arglen) < 0
+	    || NgRecvMsg(csock, m, sizeof(buf), NULL) < 0) {
+		printf("Rec'd %s %d from \"%s\":\n",
+		    (m->header.flags & NGF_RESP) != 0 ? "response" : "command",
+		    m->header.cmd, path);
+		if (m->header.arglen == 0)
+			printf("No arguments\n");
+		else
+			DumpAscii(m->data, m->header.arglen);
+		return;
+	}
+
+	/* Display message in ASCII form */
+	printf("Rec'd %s \"%s\" (%d) from \"%s\":\n",
+	    (ascii->header.flags & NGF_RESP) != 0 ? "response" : "command",
+	    ascii->header.cmdstr, ascii->header.cmd, path);
+	if (*ascii->data != '\0')
+		printf("Args:\t%s\n", ascii->data);
+	else
+		printf("No arguments\n");
 }
 
