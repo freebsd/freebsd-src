@@ -1,1 +1,0 @@
-COMPILER=gcc -O -pipe -finline-functions -fomit-frame-pointer -D_POSIX_SOURCE

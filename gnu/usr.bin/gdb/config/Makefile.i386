@@ -1,6 +1,0 @@
-#	@(#)Makefile.i386	6.2 (Berkeley) 3/21/91
-
-CONFIGSRCS=	i386bsd-dep.c i386-pinsn.c
-
-param.h:
-	ln -s $(.CURDIR)/config/m-i386bsd.h param.h
