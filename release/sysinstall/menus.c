@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.29 1995/06/07 07:21:46 jkh Exp $
+ * $Id: menus.c,v 1.41.2.30 1995/06/07 07:51:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -590,7 +590,7 @@ clearFlags(char *str)
 }
 
 static char *
-userPassCheck(char *str)
+userPassCheck(DMenuItem *item)
 {
     return getenv(FTP_USER) ? "ON" : "OFF";
 }
