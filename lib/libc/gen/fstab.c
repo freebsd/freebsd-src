@@ -52,7 +52,7 @@ static fstabscan __P((void));
 static
 fstabscan()
 {
-	register char *cp;
+	char *cp, *p;
 #define	MAXLINELENGTH	1024
 	static char line[MAXLINELENGTH];
 	char subline[MAXLINELENGTH];
@@ -60,16 +60,16 @@ fstabscan()
 
 	for (;;) {
 
-		if (!(cp = fgets(line, sizeof(line), _fs_fp)))
+		if (!(p = fgets(line, sizeof(line), _fs_fp)))
 			return(0);
 /* OLD_STYLE_FSTAB */
 		++LineNo;
 		if (*line == '#' || *line == '\n')
 			continue;
-		if (!strpbrk(cp, " \t")) {
-			_fs_fstab.fs_spec = strtok(cp, ":\n");
-			_fs_fstab.fs_file = strtok((char *)NULL, ":\n");
-			_fs_fstab.fs_type = strtok((char *)NULL, ":\n");
+		if (!strpbrk(p, " \t")) {
+			_fs_fstab.fs_spec = strsep(&p, ":\n");
+			_fs_fstab.fs_file = strsep(&p, ":\n");
+			_fs_fstab.fs_type = strsep(&p, ":\n");
 			if (_fs_fstab.fs_type) {
 				if (!strcmp(_fs_fstab.fs_type, FSTAB_XX))
 					continue;
@@ -77,9 +77,9 @@ fstabscan()
 				_fs_fstab.fs_vfstype =
 				    strcmp(_fs_fstab.fs_type, FSTAB_SW) ?
 				    "ufs" : "swap";
-				if (cp = strtok((char *)NULL, ":\n")) {
+				if (cp = strsep(&p, ":\n")) {
 					_fs_fstab.fs_freq = atoi(cp);
-					if (cp = strtok((char *)NULL, ":\n")) {
+					if (cp = strsep(&p, ":\n")) {
 						_fs_fstab.fs_passno = atoi(cp);
 						return(1);
 					}
@@ -88,24 +88,37 @@ fstabscan()
 			goto bad;
 		}
 /* OLD_STYLE_FSTAB */
-		_fs_fstab.fs_spec = strtok(cp, " \t\n");
+		while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
+			;
+		_fs_fstab.fs_spec = cp;
 		if (!_fs_fstab.fs_spec || *_fs_fstab.fs_spec == '#')
 			continue;
-		_fs_fstab.fs_file = strtok((char *)NULL, " \t\n");
-		_fs_fstab.fs_vfstype = strtok((char *)NULL, " \t\n");
-		_fs_fstab.fs_mntops = strtok((char *)NULL, " \t\n");
+		while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
+			;
+		_fs_fstab.fs_file = cp;
+		while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
+			;
+		_fs_fstab.fs_vfstype = cp;
+		while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
+			;
+		_fs_fstab.fs_mntops = cp;
 		if (_fs_fstab.fs_mntops == NULL)
 			goto bad;
 		_fs_fstab.fs_freq = 0;
 		_fs_fstab.fs_passno = 0;
-		if ((cp = strtok((char *)NULL, " \t\n")) != NULL) {
+		while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
+			;
+		if (cp != NULL) {
 			_fs_fstab.fs_freq = atoi(cp);
-			if ((cp = strtok((char *)NULL, " \t\n")) != NULL)
+			while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
+				;
+			if (cp != NULL)
 				_fs_fstab.fs_passno = atoi(cp);
 		}
 		strcpy(subline, _fs_fstab.fs_mntops);
-		for (typexx = 0, cp = strtok(subline, ","); cp;
-		     cp = strtok((char *)NULL, ",")) {
+		p = subline;
+		for (typexx = 0, cp = strsep(&p, ","); cp;
+		     cp = strsep(&p, ",")) {
 			if (strlen(cp) != 2)
 				continue;
 			if (!strcmp(cp, FSTAB_RW)) {
