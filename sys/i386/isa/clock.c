@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.44 1996/01/04 21:11:33 wollman Exp $
+ *	$Id: clock.c,v 1.45 1996/01/08 18:50:14 ache Exp $
  */
 
 /*
@@ -541,10 +541,16 @@ resettodr()
 #else
 	writertc(RTC_YEAR, int2bcd(y - 1900));          /* Write back Year    */
 #endif
-	if (LEAPYEAR(y)	&& (tm >= 31+29))
-		tm--;					/* Subtract Feb-29 */
-	for (m = 0; tm >= daysinmonth[m]; m++)
-		tm -= daysinmonth[m];
+	for (m = 0; ; m++) {
+		int ml;
+
+		ml = daysinmonth[m];
+		if (m == 1 && LEAPYEAR(y))
+			ml++;
+		if (tm < ml)
+			break;
+		tm -= ml;
+	}
 
 	writertc(RTC_MONTH, int2bcd(m + 1));            /* Write back Month   */
 	writertc(RTC_DAY, int2bcd(tm + 1));             /* Write back Month Day */
