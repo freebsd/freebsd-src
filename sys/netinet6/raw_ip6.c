@@ -278,6 +278,7 @@ rip6_ctlinput(cmd, sa, d)
 	int off = 0;
 	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
+	void *cmdarg;
 	struct inpcb *(*notify) __P((struct inpcb *, int)) = in6_rtchange;
 
 	if (sa->sa_family != AF_INET6 ||
@@ -299,15 +300,17 @@ rip6_ctlinput(cmd, sa, d)
 		m = ip6cp->ip6c_m;
 		ip6 = ip6cp->ip6c_ip6;
 		off = ip6cp->ip6c_off;
+		cmdarg = ip6cp->ip6c_cmdarg;
 		sa6_src = ip6cp->ip6c_src;
 	} else {
 		m = NULL;
 		ip6 = NULL;
+		cmdarg = NULL;
 		sa6_src = &sa6_any;
 	}
 
 	(void) in6_pcbnotify(&ripcb, sa, 0, (const struct sockaddr *)sa6_src,
-			     0, cmd, notify);
+			     0, cmd, cmdarg, notify);
 }
 
 /*
