@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.76 1995/12/08 11:18:53 julian Exp $
+ *      $Id: sd.c,v 1.77 1995/12/08 23:22:25 phk Exp $
  */
 
 #define SPLSD splbio
@@ -45,7 +45,7 @@
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX *//* for aborting dump */
 
-u_int32 sdstrats, sdqueues;
+static u_int32 sdstrats, sdqueues;
 
 #define SECSIZE 512
 #define	SDOUTSTANDING	4
@@ -188,7 +188,6 @@ sdattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
 	struct disk_parms *dp;
-	char	name[32];
 
 	struct scsi_data *sd = sc_link->sd;
 
