@@ -127,6 +127,12 @@ stub_destroy_label(struct label *label)
 
 }
 
+static void
+stub_copy_label(struct label *src, struct label *dest)
+{
+
+}
+
 static int
 stub_externalize_label(struct label *label, char *element_name,
     struct sbuf *sb, int *claimed)
@@ -1024,6 +1030,9 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_destroy_socket_label = stub_destroy_label,
 	.mpo_destroy_socket_peer_label = stub_destroy_label,
 	.mpo_destroy_vnode_label = stub_destroy_label,
+	.mpo_copy_mbuf_label = stub_copy_label,
+	.mpo_copy_pipe_label = stub_copy_label,
+	.mpo_copy_vnode_label = stub_copy_label,
 	.mpo_externalize_cred_label = stub_externalize_label,
 	.mpo_externalize_ifnet_label = stub_externalize_label,
 	.mpo_externalize_pipe_label = stub_externalize_label,
