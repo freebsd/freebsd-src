@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.7.2.15 1998/02/04 14:35:55 kato Exp $
+ *	$Id: identcpu.c,v 1.7.2.16 1998/02/14 13:44:42 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -95,6 +95,7 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "Cyrix 6x86MX",	CPUCLASS_686 },		/* CPU_M2 */
 	{ "NexGen 586",		CPUCLASS_386 },		/* CPU_NX586 (XXX) */
 	{ "Cyrix 486S/DX",	CPUCLASS_486 },		/* CPU_CY486DX */
+	{ "Pentium II",		CPUCLASS_686 },		/* CPU_PII */
 };
 
 static void
@@ -144,7 +145,34 @@ printcpuinfo(void)
 				strcat(cpu_model, "i486 ");
 				break;
 			case 0x500:
-				strcat(cpu_model, "Pentium"); /* nb no space */
+			        /* Check the particular flavor of 586 */
+			        strcat(cpu_model, "Pentium");
+			        switch (cpu_id & 0xf0) {
+				case 0x00:
+				        strcat(cpu_model, " A-step");
+					break;
+				case 0x10:
+				        strcat(cpu_model, "/P5");
+					break;
+				case 0x20:
+				        strcat(cpu_model, "/P54C");
+					break;
+				case 0x30:
+				        strcat(cpu_model, "/P54T Overdrive");
+					break;
+				case 0x40:
+				        strcat(cpu_model, "/P55C");
+					break;
+				case 0x70:
+				        strcat(cpu_model, "/P54C");
+					break;
+				case 0x80:
+				        strcat(cpu_model, "/P55C (quarter-micron)");
+					break;
+				default:
+				        /* nothing */
+					break;
+				}
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 				/*
 				 * XXX - If/when Intel fixes the bug, this
@@ -155,7 +183,26 @@ printcpuinfo(void)
 #endif
 				break;
 			case 0x600:
-				strcat(cpu_model, "Pentium Pro");
+			        /* Check the particular flavor of 686 */
+  			        switch (cpu_id & 0xf0) {
+				case 0x00:
+				        strcat(cpu_model, "Pentium Pro A-step");
+					break;
+				case 0x10:
+				        strcat(cpu_model, "Pentium Pro");
+					break;
+				case 0x30:
+				        strcat(cpu_model, "Pentium II");
+					cpu = CPU_PII;
+					break;
+				case 0x50:
+				        strcat(cpu_model, "Pentium II (quarter-micron)");
+					cpu = CPU_PII;
+					break;
+				default:
+				        strcat(cpu_model, "Unknown 80686");
+					break;
+				}
 				break;
 			default:
 				strcat(cpu_model, "unknown");

@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cputypes.h,v 1.5 1996/01/30 22:54:21 mpp Exp $
+ *	$Id: cputypes.h,v 1.5.4.1 1997/06/20 10:27:42 kato Exp $
  */
 
 #ifndef _MACHINE_CPUTYPES_H_
@@ -58,4 +58,5 @@
 #define	CPU_M2		11	/* Cyrix M2 (aka enhanced 6x86 with MMX */
 #define CPU_NX586	12	/* NexGen (now AMD) 586 */
 #define	CPU_CY486DX	13	/* Cyrix 486S/DX/DX2/DX4 */
+#define CPU_PII		14	/* Intel Pentium II */
 #endif /* _MACHINE_CPUTYPES_H_ */
