@@ -166,11 +166,11 @@ If the
 or
 .Fl interface
 option is used,
-.Nm natd
+.Nm
 will monitor the routing socket for alterations to the
 .Ar interface
 passed.  If the interfaces IP number is changed,
-.Nm natd
+.Nm
 will dynamically alter its concept of the alias address.
 
 .It Fl i | inport Ar inport
@@ -313,13 +313,13 @@ flag.
 .El
 .Pp
 Running
-.Nm natd
+.Nm
 is fairly straight forward.  The line
 
   natd -interface ed0
 
 should suffice in most cases (substituting the correct interface name).  Once
-.Nm natd
+.Nm
 is running, you must ensure that traffic is diverted to natd:
 
 .Bl -enum
@@ -338,7 +338,7 @@ and assumes that you've updated
 .Pa /etc/services
 with the natd entry as above.  If you specify real firewall rules, it's
 best to specify line 2 at the start of the script so that
-.Nm natd
+.Nm
 sees all packets before they are dropped by the firewall.  The firewall
 rules will be run again on each packet after translation by
 .Nm natd ,
@@ -347,7 +347,7 @@ minus any divert rules.
 .It
 Enable your firewall by setting
 
-  firewall=YES
+  firewall_enable=YES
 
 in
 .Pa /etc/rc.conf .
