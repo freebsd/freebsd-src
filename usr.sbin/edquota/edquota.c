@@ -414,14 +414,16 @@ writeprivs(quplist, outfd, name, quotatype)
 		err(1, "%s", tmpfil);
 	fprintf(fd, "Quotas for %s %s:\n", qfextension[quotatype], name);
 	for (qup = quplist; qup; qup = qup->next) {
-		fprintf(fd, "%s: %s %u, limits (soft = %u, hard = %u)\n",
+		fprintf(fd, "%s: %s %lu, limits (soft = %lu, hard = %lu)\n",
 		    qup->fsname, "blocks in use:",
 		    (unsigned long)(dbtob(qup->dqblk.dqb_curblocks) / 1024),
 		    (unsigned long)(dbtob(qup->dqblk.dqb_bsoftlimit) / 1024),
 		    (unsigned long)(dbtob(qup->dqblk.dqb_bhardlimit) / 1024));
-		fprintf(fd, "%s %u, limits (soft = %u, hard = %u)\n",
-		    "\tinodes in use:", qup->dqblk.dqb_curinodes,
-		    qup->dqblk.dqb_isoftlimit, qup->dqblk.dqb_ihardlimit);
+		fprintf(fd, "%s %lu, limits (soft = %lu, hard = %lu)\n",
+		    "\tinodes in use:",
+		    (unsigned long)qup->dqblk.dqb_curinodes,
+		    (unsigned long)qup->dqblk.dqb_isoftlimit,
+		    (unsigned long)qup->dqblk.dqb_ihardlimit);
 	}
 	fclose(fd);
 	return (1);
@@ -437,6 +439,8 @@ readprivs(quplist, inname)
 {
 	register struct quotause *qup;
 	FILE *fd;
+	unsigned long bhardlimit, bsoftlimit, curblocks;
+	unsigned long ihardlimit, isoftlimit, curinodes;
 	int cnt;
 	register char *cp;
 	struct dqblk dqblk;
@@ -462,30 +466,29 @@ readprivs(quplist, inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    " blocks in use: %u, limits (soft = %u, hard = %u)",
-		    &dqblk.dqb_curblocks, &dqblk.dqb_bsoftlimit,
-		    &dqblk.dqb_bhardlimit);
+		    " blocks in use: %lu, limits (soft = %lu, hard = %lu)",
+		    &curblocks, &bsoftlimit, &bhardlimit);
 		if (cnt != 3) {
 			warnx("%s:%s: bad format", fsp, cp);
 			return (0);
 		}
-		dqblk.dqb_curblocks = btodb((off_t)dqblk.dqb_curblocks * 1024);
-		dqblk.dqb_bsoftlimit = btodb((off_t)dqblk.dqb_bsoftlimit
-		    * 1024);
-		dqblk.dqb_bhardlimit = btodb((off_t)dqblk.dqb_bhardlimit
-		    * 1024);
+		dqblk.dqb_curblocks = btodb((off_t)curblocks * 1024);
+		dqblk.dqb_bsoftlimit = btodb((off_t)bsoftlimit * 1024);
+		dqblk.dqb_bhardlimit = btodb((off_t)bhardlimit * 1024);
 		if ((cp = strtok(line2, "\n")) == NULL) {
 			warnx("%s: %s: bad format", fsp, line2);
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    "\tinodes in use: %u, limits (soft = %u, hard = %u)",
-		    &dqblk.dqb_curinodes, &dqblk.dqb_isoftlimit,
-		    &dqblk.dqb_ihardlimit);
+		    "\tinodes in use: %lu, limits (soft = %lu, hard = %lu)",
+		    &curinodes, &isoftlimit, &ihardlimit);
 		if (cnt != 3) {
 			warnx("%s: %s: bad format", fsp, line2);
 			return (0);
 		}
+		dqblk.dqb_curinodes = curinodes;
+		dqblk.dqb_isoftlimit = isoftlimit;
+		dqblk.dqb_ihardlimit = ihardlimit;
 		for (qup = quplist; qup; qup = qup->next) {
 			if (strcmp(fsp, qup->fsname))
 				continue;
@@ -578,6 +581,7 @@ readtimes(quplist, inname)
 	int cnt;
 	register char *cp;
 	time_t itime, btime, iseconds, bseconds;
+	long l_itime, l_btime;
 	char *fsp, bunits[10], iunits[10], line1[BUFSIZ];
 
 	fd = fopen(inname, "r");
@@ -601,11 +605,13 @@ readtimes(quplist, inname)
 		}
 		cnt = sscanf(cp,
 		    " block grace period: %ld %s file grace period: %ld %s",
-		    &btime, bunits, &itime, iunits);
+		    &l_btime, bunits, &l_itime, iunits);
 		if (cnt != 4) {
 			warnx("%s:%s: bad format", fsp, cp);
 			return (0);
 		}
+		btime = l_btime;
+		itime = l_itime;
 		if (cvtatos(btime, bunits, &bseconds) == 0)
 			return (0);
 		if (cvtatos(itime, iunits, &iseconds) == 0)
@@ -646,15 +652,15 @@ cvtstoa(time)
 
 	if (time % (24 * 60 * 60) == 0) {
 		time /= 24 * 60 * 60;
-		sprintf(buf, "%ld day%s", time, time == 1 ? "" : "s");
+		sprintf(buf, "%ld day%s", (long)time, time == 1 ? "" : "s");
 	} else if (time % (60 * 60) == 0) {
 		time /= 60 * 60;
-		sprintf(buf, "%ld hour%s", time, time == 1 ? "" : "s");
+		sprintf(buf, "%ld hour%s", (long)time, time == 1 ? "" : "s");
 	} else if (time % 60 == 0) {
 		time /= 60;
-		sprintf(buf, "%ld minute%s", time, time == 1 ? "" : "s");
+		sprintf(buf, "%ld minute%s", (long)time, time == 1 ? "" : "s");
 	} else
-		sprintf(buf, "%ld second%s", time, time == 1 ? "" : "s");
+		sprintf(buf, "%ld second%s", (long)time, time == 1 ? "" : "s");
 	return (buf);
 }
 
