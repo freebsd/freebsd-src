@@ -1332,7 +1332,7 @@ g_raid3_sync_request(struct bio *bp)
 		disk->d_sync.ds_offset_done = bp->bio_offset + bp->bio_length;
 		g_destroy_bio(bp);
 		if (disk->d_sync.ds_offset_done ==
-		    sc->sc_provider->mediasize / (sc->sc_ndisks - 1)) {
+		    sc->sc_mediasize / (sc->sc_ndisks - 1)) {
 			/*
 			 * Disk up-to-date, activate it.
 			 */
@@ -1649,7 +1649,7 @@ g_raid3_worker(void *arg)
 			nreqs = 0;
 			disk = sc->sc_syncdisk;
 			if (disk->d_sync.ds_offset <
-			    sc->sc_provider->mediasize / (sc->sc_ndisks - 1) &&
+			    sc->sc_mediasize / (sc->sc_ndisks - 1) &&
 			    disk->d_sync.ds_offset ==
 			    disk->d_sync.ds_offset_done) {
 				g_raid3_sync_one(sc);
@@ -2816,8 +2816,7 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			else {
 				sbuf_printf(sb, "%u%%",
 				    (u_int)((disk->d_sync.ds_offset_done * 100) /
-				    (sc->sc_provider->mediasize /
-				     (sc->sc_ndisks - 1))));
+				    (sc->sc_mediasize / (sc->sc_ndisks - 1))));
 			}
 			sbuf_printf(sb, "</Synchronized>\n");
 		}
