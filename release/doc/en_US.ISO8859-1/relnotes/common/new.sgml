@@ -385,7 +385,7 @@
       series of adaptors.</para>
 
       <para>The &man.txp.4; driver has been added to support NICs
-      based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset.</para>
+      based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset. &merged;</para>
     </sect3>
 
     <sect3>
@@ -1691,6 +1691,9 @@
       <literal>NOADDITIONAL</literal> flag, which causes &man.named.8;
       to operate in a more consistent fashion for certain common
       misconfigurations. &merged;</para>
+
+      <para><application>BIND</application> has been updated to
+      8.2.4-REL.</para>
 
       <para><application>Binutils</application> have been upgraded a
       snapshot from 19 July 2001 on the 2.11 development branch.</para>
