@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.162 1999/08/24 03:51:33 rgrimes Exp $
+#	$Id: BSD.usr.dist,v 1.163 1999/08/25 21:49:37 rgrimes Exp $
 #
 # Please see the file README before making changes to this file.
 #
@@ -175,20 +175,6 @@
         dict
         ..
         doc
-            FAQ
-            ..
-            handbook
-            ..
-            es
-                FAQ
-                ..
-            ..
-            ja
-                FAQ
-                ..
-                handbook
-                ..
-            ..
             papers
             ..
             psd
@@ -221,10 +207,6 @@
                 28.cvs
                 ..
             ..
-            ru
-                FAQ
-                ..
-            ..
             smm
                 01.setup
                 ..
@@ -253,28 +235,6 @@
                 18.net
                 ..
             ..
-            tutorials
-                ddwg
-                ..
-                mh
-                ..
-                devel
-                ..
-                diskformat
-                ..
-                disklessx
-                ..
-                fonts
-                ..
-                ppp
-                ..
-                multios
-                ..
-                newuser
-                ..
-                upgrade
-                ..
-            ..
             usd
                 04.csh
                 ..
@@ -297,10 +257,6 @@
                 30.rogue
                 ..
                 31.trek
-                ..
-            ..
-            zh
-                FAQ
                 ..
             ..
         ..
