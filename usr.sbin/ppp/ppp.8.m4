@@ -2151,6 +2151,11 @@ is able to generate the following log info either via
 or directly to the screen:
 .Pp
 .Bl -tag -width XXXXXXXXX -offset XXX -compact
+.It Li All
+Enable all logging facilities.
+This generates a lot of log.
+The most common use of 'all' is as a basis, where you remove some facilities
+after enabling 'all' ('debug' and 'timer' are usually best disabled.)
 .It Li Async
 Dump async level packet in hex.
 .It Li CBCP
