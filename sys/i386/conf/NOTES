@@ -453,6 +453,7 @@ hint.mse.0.irq="5"
 
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
+# ath:	Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # cx:   Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices (refer to etc/defauls/pccard.conf)
@@ -532,6 +533,10 @@ hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
+
+device		ath
+device		ath_hal		# Atheros HAL (includes binary component)
+#device		wlan		# 802.11 layer
 
 #
 # ATA raid adapters
