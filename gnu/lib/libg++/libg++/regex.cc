@@ -114,7 +114,7 @@ init_syntax_once ()
 #endif
 
 /* Get the interface, including the syntax bits.  */
-#include "regex.h"
+#include <gnuregex.h>
 
 
 /* These are the command codes that appear in compiled regular
