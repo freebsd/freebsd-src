@@ -33,27 +33,30 @@
 
 #define NG_MN_NODE_TYPE	"mn"
 
-#ifdef _KERNEL
-#define PPP_HEADER_LEN       4 	/* XXX: should live in some header somewhere */
-
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/bus.h>
+#include <sys/mbuf.h>
+#include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
+
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include "pci_if.h"
+
+#include <machine/bus.h>
+#include <machine/resource.h>
 #include <machine/clock.h>
 
+#include <sys/rman.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <netgraph/ng_message.h>
-#include <netgraph/ng_sample.h>
 #include <netgraph/netgraph.h>  
+
 
 static int mn_maxlatency = 1000;
 SYSCTL_INT(_debug, OID_AUTO, mn_maxlatency, CTLFLAG_RW, 
@@ -162,9 +165,8 @@ struct softc;
 struct sockaddr;
 struct rtentry;
 
-static	const char*	mn_probe  (pcici_t tag, pcidi_t type);
-static	void	mn_attach (pcici_t tag, int unit);
-static	u_long	mn_count;
+static	int	mn_probe  (device_t self);
+static	int	mn_attach (device_t self);
 static	void	mn_create_channel(struct softc *sc, int chan);
 static	int	mn_reset(struct softc *sc);
 static	struct trxd * mn_alloc_desc(void);
@@ -205,8 +207,6 @@ static MALLOC_DEFINE(M_MN, "mn", "Mx driver related");
 
 #define NIQB	64
 
-struct softc;
-
 struct schan {
 	enum {DOWN, UP} state;
 	struct softc	*sc;
@@ -237,10 +237,13 @@ struct schan {
 	u_long		tx_limit;
 };
 
-static struct softc {
+struct softc {
 	int	unit;
-	pcici_t tag;
-	vm_offset_t	m0v, m0p, m1v, m1p;
+	device_t	dev;
+	struct resource *irq;
+	void *intrhand;
+	void 		*m0v, *m1v;
+	vm_offset_t	m0p, m1p;
 	struct m32xreg	*m32x;
 	struct f54wreg	*f54w;
 	struct f54rreg	*f54r;
@@ -263,7 +266,7 @@ static struct softc {
 	u_long		cnt_cec2;
 	u_long		cnt_cec3;
 	u_long		cnt_rbc;
-} *softc[NMN];
+};
 
 static int
 ngmn_constructor(node_p *nodep)
@@ -391,9 +394,10 @@ ngmn_newhook(node_p node, hook_p hook, const char *name)
 	if (ts == 0)
 		return (EINVAL);
 	chan = ffs(ts) - 1;
-	if (sc->ch[chan]) 
+	if (!sc->ch[chan])
+		mn_create_channel(sc, chan);
+	else if (sc->ch[chan]->state == UP)
 		return (EBUSY);
-	mn_create_channel(sc, chan);
 	sc->ch[chan]->ts = ts;
 	sc->ch[chan]->hook = hook;
 	sc->ch[chan]->tx_limit = nbit * 8;
@@ -507,12 +511,10 @@ ngmn_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 
 	if (sch->state != UP) {
 		NG_FREE_DATA(m, meta);
-		printf("D1\n");
 		return (0);
 	}
 	if (sch->tx_pending + m->m_pkthdr.len > sch->tx_limit * mn_maxlatency) {
 		NG_FREE_DATA(m, meta);
-		printf("D2\n");
 		return (0);
 	}
 	NG_FREE_META(meta);
@@ -703,8 +705,10 @@ ngmn_disconnect(hook_p hook)
 
 	/* Free all transmit descriptors and mbufs */
 	for (dp = sc->ch[chan]->x1; dp ; dp = dp2) {
-		if (dp->m)
+		if (dp->m) {
+			sc->ch[chan]->tx_pending -= dp->m->m_pkthdr.len;
 			m_freem(dp->m);
+		}
 		sc->ch[chan]->x1 = dp2 = dp->vnext;
 		mn_free_desc(dp);
 	}
@@ -839,24 +843,7 @@ static int
 mn_reset(struct softc *sc)
 {
 	u_int32_t u;
-	int i, j;
-
-	u = 0;
-	for(i = 5; i >= 0; i-- ) {
-		sc->m32x->gpdir = i;
-		for (j = 0; j < 8; j ++) {
-			sc->m32x->gpdata = j;
-			u += sc->m32x->gpdata;
-		}
-	}
-	if (u != 0xe4) {
-		printf("mn%d: WARNING: Controller failed to initialize.\n",
-		    sc->unit);
-#if 0
-		return (0);
-#endif
-		printf("mn%d: %x\n", sc->unit, u);
-	}
+	int i;
 
 	sc->m32x->ccba = vtophys(&sc->m32_mem.csa);
 	sc->m32_mem.csa = vtophys(&sc->m32_mem.ccb);
@@ -1188,51 +1175,40 @@ mn_timeout(void *xsc)
  * PCI initialization stuff
  */
 
-static struct pci_device mn_device = {
-	"mn",
-	mn_probe,
-	mn_attach,
-	&mn_count,
-	NULL
-};
-
-#ifdef COMPAT_PCI_DRIVER
-COMPAT_PCI_DRIVER(ti, mn_device);
-#else
-DATA_SET(pcidevice_set, mn_device);
-#endif /* COMPAT_PCI_DRIVER */
-
-static const char* 
-mn_probe (pcici_t tag, pcidi_t typea)
+static int
+mn_probe (device_t self)
 {
-	u_int id = pci_conf_read(tag, PCI_ID_REG);
+	u_int id = pci_get_devid(self);
 
 	if (sizeof (struct m32xreg) != 256) {
 		printf("MN: sizeof(struct m32xreg) = %d, should have been 256\n", sizeof (struct m32xreg));
-		return (0);
+		return (ENXIO);
 	}
 	if (sizeof (struct f54rreg) != 128) {
 		printf("MN: sizeof(struct f54rreg) = %d, should have been 128\n", sizeof (struct f54rreg));
-		return (0);
+		return (ENXIO);
 	}
 	if (sizeof (struct f54wreg) != 128) {
 		printf("MN: sizeof(struct f54wreg) = %d, should have been 128\n", sizeof (struct f54wreg));
-		return (0);
+		return (ENXIO);
 	}
 
-	if (id == 0x2101110a) 
-		return "Munich32X E1/T1 HDLC Controller";
+	if (id != 0x2101110a) 
+		return (ENXIO);
 
-	return 0;
+	device_set_desc_copy(self, "Munich32X E1/T1 HDLC Controller");
+	return (0);
 }
 
-static void
-mn_attach (pcici_t tag, int unit)
+static int
+mn_attach (device_t self)
 {
 	struct softc *sc;
 	u_int32_t u;
-	u_int32_t pci_class;
+	u_int32_t ver;
 	static int once;
+	int rid, error;
+	struct resource *res;
 
 	if (!once) {
 		if (ng_newtype(&mntypestruct))
@@ -1241,25 +1217,60 @@ mn_attach (pcici_t tag, int unit)
 	}
 
 	sc = (struct softc *)malloc(sizeof *sc, M_MN, M_WAITOK);
-	softc[unit] = sc;
 	bzero(sc, sizeof *sc);
+	device_set_softc(self, sc);
 
-	sc->tag = tag;
-	sc->unit = unit;
-	sprintf(sc->name, "mn%d", unit);
+	sc->dev = self;
+	sc->unit = device_get_unit(self);
+	sprintf(sc->name, "mn%d", sc->unit);
 
-	if (!pci_map_int(tag, mn_intr, sc, &net_imask)) {
-		printf("mn%d: could not map interrupt\n", sc->unit);
-		return;
+	/* Allocate interrupt */
+	rid = 0;
+	sc->irq = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0,
+	    1, RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->irq == NULL) {
+		printf("couldn't map interrupt\n");
+		return(ENXIO);
 	}
-	pci_map_mem(tag, PCIR_MAPS, &sc->m0v, &sc->m0p);
-	pci_map_mem(tag, PCIR_MAPS + 4, &sc->m1v, &sc->m1p);
 
-	u = pci_conf_read(tag, PCIR_COMMAND);
-	pci_conf_write(tag, PCIR_COMMAND, u | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-	pci_conf_write(tag, PCIR_COMMAND, 0x02800046);
+	error = bus_setup_intr(self, sc->irq, INTR_TYPE_NET, mn_intr, sc, &sc->intrhand);
 
-	pci_class = pci_conf_read(tag, PCI_CLASS_REG);
+	if (error) {
+		printf("couldn't set up irq\n");
+		return(ENXIO);
+	}
+
+        rid = PCIR_MAPS;
+        res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
+            0, ~0, 1, RF_ACTIVE);
+        if (res == NULL) {
+                device_printf(self, "Could not map memory\n");
+                return ENXIO;
+        }
+        sc->m0v = rman_get_virtual(res);
+        sc->m0p = rman_get_start(res);
+
+        rid = PCIR_MAPS + 4;
+        res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
+            0, ~0, 1, RF_ACTIVE);
+        if (res == NULL) {
+                device_printf(self, "Could not map memory\n");
+                return ENXIO;
+        }
+        sc->m1v = rman_get_virtual(res);
+        sc->m1p = rman_get_start(res);
+
+	u = pci_read_config(self, PCIR_COMMAND, 1);
+	printf("%x\n", u);
+	pci_write_config(self, PCIR_COMMAND, u | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN, 1);
+#if 0
+	pci_write_config(self, PCIR_COMMAND, 0x02800046, 4);
+#endif
+	u = pci_read_config(self, PCIR_COMMAND, 1);
+	printf("%x\n", u);
+
+	ver = pci_read_config(self, PCI_CLASS_REG, 4);
 
 	sc->m32x = (struct m32xreg *) sc->m0v;
 	sc->f54w = (struct f54wreg *) sc->m1v;
@@ -1268,15 +1279,15 @@ mn_attach (pcici_t tag, int unit)
 	/* We must reset before poking at FALC54 registers */
 	u = mn_reset(sc);
 	if (!u)
-		return;
+		return (0);
 
 	printf("mn%d: Munich32X", sc->unit);
-	switch (pci_class & 0xff) {
+	switch (ver & 0xff) {
 	case 0x13:
-		printf(" Rev 1.3");
+		printf(" Rev 2.2");
 		break;
 	default:
-		printf(" Rev 0x%x\n", pci_class & 0xff);
+		printf(" Rev 0x%x\n", ver & 0xff);
 	}
 	printf(", Falc54");
 	switch (sc->f54r->vstr) {
@@ -1292,22 +1303,46 @@ mn_attach (pcici_t tag, int unit)
 	case 0x10:
 		printf("-LH Rev 1.1\n");
 		break;
+	case 0x13:
+		printf("-LH Rev 1.3\n");
+		break;
 	default:
 		printf(" Rev 0x%x\n", sc->f54r->vstr);
 	}
 
 	if (ng_make_node_common(&mntypestruct, &sc->node) != 0) {
 		printf("ng_make_node_common failed\n");
-		return;
+		return (0);
 	}
 	sc->node->private = sc;
 	sprintf(sc->nodename, "%s%d", NG_MN_NODE_TYPE, sc->unit);
 	if (ng_name_node(sc->node, sc->nodename)) {
 		ng_rmnode(sc->node);
 		ng_unref(sc->node);
-		return;
+		return (0);
 	}
 	
-	return;
+	return (0);
 }
-#endif /* _KERNEL */
+
+
+static device_method_t mn_methods[] = {
+        /* Device interface */
+        DEVMETHOD(device_probe,         mn_probe),
+        DEVMETHOD(device_attach,        mn_attach),
+        DEVMETHOD(device_suspend,       bus_generic_suspend),
+        DEVMETHOD(device_resume,        bus_generic_resume),
+        DEVMETHOD(device_shutdown,      bus_generic_shutdown),
+
+        {0, 0}
+};
+ 
+static driver_t mn_driver = {
+        "mn",
+        mn_methods,
+        0
+};
+
+static devclass_t mn_devclass;
+
+DRIVER_MODULE(mn, pci, mn_driver, mn_devclass, 0, 0);
