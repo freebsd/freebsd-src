@@ -1,11 +1,22 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.4 1993/11/07 17:52:24 wollman Exp $
+ *	$Id: cdio.h,v 1.5 1994/01/29 10:31:20 rgrimes Exp $
  */
 /* Shared between kernel & process */
 #ifndef _SYS_CDIO_H_
 #define _SYS_CDIO_H_
+
+union msf_lba {
+	struct {
+		unsigned char   unused;
+		unsigned char   minute;
+		unsigned char   second;
+		unsigned char   frame;
+	} msf;
+	int     lba;
+	u_char	addr[4];
+};
 
 struct cd_toc_entry {
 	u_char	:8;
@@ -13,7 +24,7 @@ struct cd_toc_entry {
 	u_char	addr_type:4;
 	u_char  track;
 	u_char	:8;
-	u_char	addr[4];
+	union msf_lba  addr;
 };
 
 struct cd_sub_channel_header {
@@ -34,8 +45,8 @@ struct cd_sub_channel_position_data {
 	u_char	addr_type:4;
 	u_char	track_number;
 	u_char	index_number;
-	u_char	absaddr[4];
-	u_char	reladdr[4];
+	union msf_lba  absaddr;
+	union msf_lba  reladdr;
 };
 
 struct cd_sub_channel_media_catalog {
