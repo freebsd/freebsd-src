@@ -210,7 +210,8 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 #endif
 
 #ifndef __sparc64__
-	if (OF_call_method("dma-alloc", netinstance, 1, 1, NULL, &dmabuf)
+	dmabuf = NULL;
+	if (OF_call_method("dma-alloc", netinstance, 1, 1, (64 * 1024), &dmabuf)
 	    < 0) {   
 		printf("Failed to allocate DMA buffer (got %08x).\n", dmabuf);
 		goto punt;
