@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.270 1998/02/04 10:36:56 asami Exp $
+#	$Id: bsd.port.mk,v 1.271 1998/02/19 06:49:27 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -1054,7 +1054,8 @@ do-configure:
 		  ${SCRIPTDIR}/configure; \
 	fi
 .if defined(HAS_CONFIGURE)
-	@(cd ${WRKSRC} && CC="${CC}" ac_cv_path_CC="${CC}" CFLAGS="${CFLAGS}" \
+	@(cd ${WRKSRC} && CC="${CC}" CXX="${CXX}" ac_cv_path_CC="${CC}" \
+	    CFLAGS="${CFLAGS}" \
 	    INSTALL="/usr/bin/install -c -o ${BINOWN} -g ${BINGRP}" \
 	    INSTALL_DATA="${INSTALL_DATA}" \
 	    INSTALL_PROGRAM="${INSTALL_PROGRAM}" \
