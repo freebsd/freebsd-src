@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.62 1996/01/27 01:56:30 bde Exp $
+ *	$Id: isa.c,v 1.63 1996/01/27 02:33:36 bde Exp $
  */
 
 /*
@@ -634,8 +634,10 @@ void isa_dmastart(int flags, caddr_t addr, unsigned nbytes, unsigned chan)
 	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
 		panic("isa_dmastart: impossible request");
 
+#ifdef notdef
 	if (dma_busy[chan])
 		printf("isa_dmastart: channel %u busy\n", chan);
+#endif
 	dma_busy[chan] = 1;
 	if (isa_dmarangecheck(addr, nbytes, chan)) {
 		if (dma_bouncebuf[chan] == NULL
@@ -726,8 +728,10 @@ void isa_dmastart(int flags, caddr_t addr, unsigned nbytes, unsigned chan)
 void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 {
 
+#ifdef notdef
 	if (!dma_busy[chan])
 		printf("isa_dmadone: channel %d not busy\n", chan);
+#endif
 	if (dma_bounced[chan]) {
 		/* copy bounce buffer on read */
 		if (flags & B_READ)
@@ -743,8 +747,10 @@ isa_dmadone_nobounce(chan)
 	unsigned chan;
 {
 
+#ifdef notdef
 	if (!dma_busy[chan])
 		printf("isa_dmadone_nobounce: channel %u not busy\n", chan);
+#endif
 	if (dma_bounced[chan]) {
 		printf("isa_dmadone_nobounce: channel %u bounced\n", chan);
 		dma_bounced[chan] = 0;
