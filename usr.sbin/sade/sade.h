@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.141 1997/09/17 16:18:21 pst Exp $
+ * $Id: sysinstall.h,v 1.142 1997/10/12 16:21:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -366,6 +366,7 @@ extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
 extern DMenu		MenuMediaTape;		/* Tape media menu				*/
 extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
 extern DMenu		MenuNTP;		/* NTP time server menu				*/
+extern DMenu		MenuStartup;		/* Startup services menu			*/
 extern DMenu		MenuSyscons;		/* System console configuration menu		*/
 extern DMenu		MenuSysconsFont;	/* System console font configuration menu	*/
 extern DMenu		MenuSysconsKeymap;	/* System console keymap configuration menu	*/
@@ -493,6 +494,7 @@ extern int	dmenuSubmenu(dialogMenuItem *tmp);
 extern int	dmenuSystemCommand(dialogMenuItem *tmp);
 extern int	dmenuSystemCommandBox(dialogMenuItem *tmp);
 extern int	dmenuExit(dialogMenuItem *tmp);
+extern int	dmenuISetVariable(dialogMenuItem *tmp);
 extern int	dmenuSetVariable(dialogMenuItem *tmp);
 extern int	dmenuSetKmapVariable(dialogMenuItem *tmp);
 extern int	dmenuSetVariables(dialogMenuItem *tmp);
