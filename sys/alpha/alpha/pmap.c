@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.11 1998/10/21 11:38:06 dg Exp $
+ *	$Id: pmap.c,v 1.12 1998/10/28 13:36:49 dg Exp $
  */
 
 /*
@@ -1273,10 +1273,6 @@ retry:
 	if ((lev1pg->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_lev1, PAGE_SIZE);
 
-	/* wire in kernel global address entries */
-	/* XXX copies current process, does not fill in MPPTDI */
-	bcopy(PTlev1 + K1SEGLEV1I, pmap->pm_lev1 + K1SEGLEV1I, nklev2 * PTESIZE);
-
 	/* install self-referential address mapping entry (not PG_ASM) */
 	pmap->pm_lev1[PTLEV1I] = pmap_phys_to_pte(VM_PAGE_TO_PHYS(lev1pg))
 		| PG_V | PG_KRE | PG_KWE;
@@ -1289,6 +1285,19 @@ retry:
 	pmap->pm_asngen = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+}
+
+/*
+ * Wire in kernel global address entries.  To avoid a race condition
+ * between pmap initialization and pmap_growkernel, this procedure
+ * should be called after the vmspace is attached to the process
+ * but before this pmap is activated.
+ */
+void
+pmap_pinit2(pmap)
+	struct pmap *pmap;
+{
+	bcopy(PTlev1 + K1SEGLEV1I, pmap->pm_lev1 + K1SEGLEV1I, nklev2 * PTESIZE);
 }
 
 static int
