@@ -68,7 +68,7 @@ struct sc_info;
 
 /* channel registers */
 struct sc_pchinfo {
-	int spd, fmt, run;
+	int spd, fmt, blksz, run;
 	struct emu_voice *master, *slave;
 	snd_dbuf *buffer;
 	pcm_channel *channel;
@@ -76,7 +76,7 @@ struct sc_pchinfo {
 };
 
 struct sc_rchinfo {
-	int spd, fmt, run, num;
+	int spd, fmt, run, blksz, num;
 	u_int32_t idxreg, basereg, sizereg, setupreg, irqmask;
 	snd_dbuf *buffer;
 	pcm_channel *channel;
@@ -97,7 +97,7 @@ struct sc_info {
 	int		regtype, regid, irqid;
 	void		*ih;
 
-	int timer;
+	int timer, timerinterval;
 	int pnum, rnum;
 	struct emu_mem mem;
 	struct emu_voice voice[64];
@@ -303,12 +303,39 @@ emu_enaint(struct sc_info *sc, char channel, int enable)
 
 /* stuff */
 static int
+emu_settimer(struct sc_info *sc)
+{
+	struct sc_pchinfo *pch;
+	struct sc_rchinfo *rch;
+	int i, tmp, rate;
+
+	rate = 0;
+	for (i = 0; i < EMU_CHANS; i++) {
+		pch = &sc->pch[i];
+		tmp = (pch->spd * sndbuf_getbps(pch->buffer)) / pch->blksz;
+		if (tmp > rate)
+			rate = tmp;
+	}
+
+	for (i = 0; i < 3; i++) {
+		rch = &sc->rch[i];
+		tmp = (rch->spd * sndbuf_getbps(rch->buffer)) / rch->blksz;
+		if (tmp > rate)
+			rate = tmp;
+	}
+	RANGE(rate, 48, 9600);
+	sc->timerinterval = 48000 / rate;
+	emu_wr(sc, TIMER, sc->timerinterval & 0x03ff, 2);
+
+	return sc->timerinterval;
+}
+
+static int
 emu_enatimer(struct sc_info *sc, int go)
 {
 	u_int32_t x;
 	if (go) {
 		if (sc->timer++ == 0) {
-			emu_wr(sc, TIMER, 256, 2);
 			x = emu_rd(sc, INTE, 4);
 			x |= INTE_INTERVALTIMERENB;
 			emu_wr(sc, INTE, x, 4);
@@ -430,10 +457,8 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s,
 	buf = emu_memalloc(sc, sz);
 	if (buf == NULL)
 		return -1;
-	if (c != NULL) {
-		c->buffer.buf = buf;
-		c->buffer.bufsize = sz;
-	}
+	if (c != NULL)
+		sndbuf_setup(&c->buffer, buf, sz);
 	m->start = emu_memstart(sc, buf) * EMUPAGESIZE;
 	m->end = m->start + sz;
 	m->channel = NULL;
@@ -631,6 +656,9 @@ emupchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->buffer = b;
 	ch->parent = sc;
 	ch->channel = c;
+	ch->blksz = EMU_BUFFSIZE / 2;
+	ch->fmt = AFMT_U8;
+	ch->spd = 8000;
 	ch->master = emu_valloc(sc);
 	ch->slave = emu_valloc(sc);
 	if (emu_vinit(sc, ch->master, ch->slave, EMU_BUFFSIZE, ch->channel))
@@ -645,7 +673,7 @@ emupchan_free(kobj_t obj, void *data)
 	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 
-	return emu_memfree(sc, ch->buffer->buf);
+	return emu_memfree(sc, sndbuf_getbuf(ch->buffer));
 }
 
 static int
@@ -669,6 +697,14 @@ emupchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 emupchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
+	struct sc_pchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
+	int irqrate, blksz;
+
+	ch->blksz = blocksize;
+	emu_settimer(sc);
+	irqrate = 48000 / sc->timerinterval;
+	blksz = (ch->spd * sndbuf_getbps(ch->buffer)) / irqrate;
 	return blocksize;
 }
 
@@ -684,6 +720,7 @@ emupchan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_START) {
 		emu_vsetup(ch);
 		emu_vwrite(sc, ch->master);
+		emu_settimer(sc);
 		emu_enatimer(sc, 1);
 #ifdef EMUDEBUG
 		printf("start [%d bit, %s, %d hz]\n",
@@ -737,9 +774,9 @@ emurchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	KASSERT(dir == PCMDIR_REC, ("emurchan_init: bad direction"));
 	ch = &sc->rch[sc->rnum];
 	ch->buffer = b;
-	ch->buffer->bufsize = EMU_BUFFSIZE;
 	ch->parent = sc;
 	ch->channel = c;
+	ch->blksz = EMU_BUFFSIZE / 2;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	ch->num = sc->rnum;
@@ -769,10 +806,10 @@ emurchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 		break;
 	}
 	sc->rnum++;
-	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, EMU_BUFFSIZE) == -1)
 		return NULL;
 	else {
-		emu_wrptr(sc, 0, ch->basereg, vtophys(ch->buffer->buf));
+		emu_wrptr(sc, 0, ch->basereg, vtophys(sndbuf_getbuf(ch->buffer)));
 		emu_wrptr(sc, 0, ch->sizereg, 0); /* off */
 		return ch;
 	}
@@ -805,6 +842,14 @@ emurchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 emurchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
+	struct sc_rchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
+	int irqrate, blksz;
+
+	ch->blksz = blocksize;
+	emu_settimer(sc);
+	irqrate = 48000 / sc->timerinterval;
+	blksz = (ch->spd * sndbuf_getbps(ch->buffer)) / irqrate;
 	return blocksize;
 }
 

@@ -48,7 +48,7 @@ struct mss_chinfo {
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir;
-	u_int32_t fmt;
+	u_int32_t fmt, blksz;
 };
 
 struct mss_info {
@@ -67,7 +67,6 @@ struct mss_info {
 
     char mss_indexed_regs[MSS_INDEXED_REGS];
     char opl_indexed_regs[OPL_INDEXED_REGS];
-    int pdma, rdma;
     int bd_id;      /* used to hold board-id info, eg. sb version,
 		     * mss codec type, etc. etc.
 		     */
@@ -242,19 +241,17 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 				     mss->irq);
 		mss->irq = 0;
     	}
-    	if (mss->drq1) {
-		bus_release_resource(dev, SYS_RES_DRQ, mss->drq1_rid,
-				     mss->drq1);
-		mss->drq1 = 0;
-		mss->pdma = -1;
-    	}
-    	if (mss->drq2) {
+    	if (mss->drq2 && mss->drq2 != mss->drq1) {
 		bus_release_resource(dev, SYS_RES_DRQ, mss->drq2_rid,
 				     mss->drq2);
 		mss->drq2 = 0;
-		mss->rdma = -1;
     	}
-    	if (mss->io_base) {
+     	if (mss->drq1) {
+		bus_release_resource(dev, SYS_RES_DRQ, mss->drq1_rid,
+				     mss->drq1);
+		mss->drq1 = 0;
+    	}
+   	if (mss->io_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, mss->io_rid,
 				     mss->io_base);
 		mss->io_base = 0;
@@ -274,7 +271,7 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 static int
 mss_alloc_resources(struct mss_info *mss, device_t dev)
 {
-    	int ok = 1;
+    	int pdma, rdma, ok = 1;
 	if (!mss->io_base)
     		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->io_rid,
 						  0, ~0, 1, RF_ACTIVE);
@@ -296,16 +293,16 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
     	if (mss->drq2_rid >= 0 && !mss->drq2) ok = 0;
 
 	if (ok) {
-		mss->pdma = rman_get_start(mss->drq1);
-		isa_dma_acquire(mss->pdma);
-		isa_dmainit(mss->pdma, MSS_BUFFSIZE);
+		pdma = rman_get_start(mss->drq1);
+		isa_dma_acquire(pdma);
+		isa_dmainit(pdma, MSS_BUFFSIZE);
 		mss->bd_flags &= ~BD_F_DUPLEX;
 		if (mss->drq2) {
-			mss->rdma = rman_get_start(mss->drq2);
-			isa_dma_acquire(mss->rdma);
-			isa_dmainit(mss->rdma, MSS_BUFFSIZE);
+			rdma = rman_get_start(mss->drq2);
+			isa_dma_acquire(rdma);
+			isa_dmainit(rdma, MSS_BUFFSIZE);
 			mss->bd_flags |= BD_F_DUPLEX;
-		} else mss->rdma = mss->pdma;
+		} else mss->drq2 = mss->drq1;
 	}
     	return ok;
 }
@@ -691,11 +688,11 @@ mss_intr(void *arg)
 		/* get exact reason for full-duplex boards */
 		c = FULL_DUPLEX(mss)? ad_read(mss, 24) : 0x30;
 		c &= ~served;
-		if (mss->pch.buffer->dl && (c & 0x10)) {
+		if (sndbuf_runsz(mss->pch.buffer) && (c & 0x10)) {
 	    		served |= 0x10;
 	    		chn_intr(mss->pch.channel);
 		}
-		if (mss->rch.buffer->dl && (c & 0x20)) {
+		if (sndbuf_runsz(mss->rch.buffer) && (c & 0x20)) {
 	    		served |= 0x20;
 	    		chn_intr(mss->rch.channel);
 		}
@@ -935,7 +932,7 @@ mss_trigger(struct mss_chinfo *ch, int go)
     	m = ad_read(mss, 9);
     	switch (go) {
     	case PCMTRIG_START:
-		cnt = (ch->buffer->dl / ss) - 1;
+		cnt = (ch->blksz / ss) - 1;
 
 		DEB(if (m & 4) printf("OUCH! reg 9 0x%02x\n", m););
 		m |= wr? I9_PEN : I9_CEN; /* enable DMA */
@@ -1015,8 +1012,8 @@ opti931_intr(void *arg)
 		return;
     	}
 
-    	if (mss->rch.buffer->dl && (mc11 & 8)) chn_intr(mss->rch.channel);
-    	if (mss->pch.buffer->dl && (mc11 & 4)) chn_intr(mss->pch.channel);
+    	if (sndbuf_runsz(mss->rch.buffer) && (mc11 & 8)) chn_intr(mss->rch.channel);
+    	if (sndbuf_runsz(mss->pch.buffer) && (mc11 & 4)) chn_intr(mss->pch.channel);
     	opti_wr(mss, 11, ~mc11); /* ack */
     	if (--loops) goto again;
     	DEB(printf("xxx too many loops\n");)
@@ -1033,10 +1030,9 @@ msschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = mss;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = MSS_BUFFSIZE;
-	ch->buffer->chan = (dir == PCMDIR_PLAY)? mss->pdma : mss->rdma;
 	ch->dir = dir;
-	if (chn_allocbuf(ch->buffer, mss->parent_dmat) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, mss->parent_dmat, MSS_BUFFSIZE) == -1) return NULL;
+	sndbuf_isadmasetup(ch->buffer, (dir == PCMDIR_PLAY)? mss->drq1 : mss->drq2);
 	return ch;
 }
 
@@ -1060,7 +1056,10 @@ msschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 msschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
-	return blocksize;
+	struct mss_chinfo *ch = data;
+
+	ch->blksz = blocksize;
+	return ch->blksz;
 }
 
 static int
@@ -1071,7 +1070,7 @@ msschan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	buf_isadma(ch->buffer, go);
+	sndbuf_isadma(ch->buffer, go);
 	mss_trigger(ch, go);
 	return 0;
 }
@@ -1080,7 +1079,7 @@ static int
 msschan_getptr(kobj_t obj, void *data)
 {
 	struct mss_chinfo *ch = data;
-	return buf_isadmaptr(ch->buffer);
+	return sndbuf_isadmaptr(ch->buffer);
 }
 
 static pcmchan_caps *
@@ -1496,11 +1495,13 @@ ymf_test(device_t dev, struct mss_info *mss)
 static int
 mss_doattach(device_t dev, struct mss_info *mss)
 {
-    	int flags = device_get_flags(dev);
+    	int pdma, rdma, flags = device_get_flags(dev);
     	char status[SND_STATUSLEN];
 
     	if (!mss_alloc_resources(mss, dev)) goto no;
     	mss_init(mss, dev);
+	pdma = rman_get_start(mss->drq1);
+	rdma = rman_get_start(mss->drq2);
     	if (flags & DV_F_TRUE_MSS) {
 		/* has IRQ/DMA registers, set IRQ and DMA addr */
 #ifdef PC98 /* CS423[12] in PC98 can use IRQ3,5,10,12 */
@@ -1521,13 +1522,12 @@ mss_doattach(device_t dev, struct mss_info *mss)
 		if ((io_rd(mss, 3) & 0x40) == 0) device_printf(dev, "IRQ Conflict?\n");
 #endif
 		/* Write IRQ+DMA setup */
-		if (pdma_bits[mss->pdma] == -1) goto no;
-		bits |= pdma_bits[mss->pdma];
-		if (mss->pdma != mss->rdma) {
-	    		if (mss->rdma == valid_rdma[mss->pdma]) bits |= 4;
+		if (pdma_bits[pdma] == -1) goto no;
+		bits |= pdma_bits[pdma];
+		if (pdma != rdma) {
+	    		if (rdma == valid_rdma[pdma]) bits |= 4;
 	    		else {
-				printf("invalid dual dma config %d:%d\n",
-			       	mss->pdma, mss->rdma);
+				printf("invalid dual dma config %d:%d\n", pdma, rdma);
 				goto no;
 	    		}
 		}
@@ -1542,7 +1542,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	default:
 		bus_setup_intr(dev, mss->irq, INTR_TYPE_TTY, mss_intr, mss, &mss->ih);
     	}
-    	if (mss->pdma == mss->rdma)
+    	if (pdma == rdma)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
     	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
@@ -1555,9 +1555,9 @@ mss_doattach(device_t dev, struct mss_info *mss)
 		goto no;
     	}
     	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %d",
-    	     	rman_get_start(mss->io_base), rman_get_start(mss->irq), mss->pdma);
-    	if (mss->pdma != mss->rdma) snprintf(status + strlen(status),
-        	SND_STATUSLEN - strlen(status), ":%d", mss->rdma);
+    	     	rman_get_start(mss->io_base), rman_get_start(mss->irq), pdma);
+    	if (pdma != rdma) snprintf(status + strlen(status),
+        	SND_STATUSLEN - strlen(status), ":%d", rdma);
 
     	if (pcm_register(dev, mss, 1, 1)) goto no;
     	pcm_addchan(dev, PCMDIR_REC, &msschan_class, mss);

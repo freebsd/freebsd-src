@@ -338,8 +338,7 @@ nmchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	chnbuf = (dir == PCMDIR_PLAY)? sc->pbuf : sc->rbuf;
 	ch = (dir == PCMDIR_PLAY)? &sc->pch : &sc->rch;
 	ch->buffer = b;
-	ch->buffer->bufsize = NM_BUFFSIZE;
-	ch->buffer->buf = (u_int8_t *)rman_get_virtual(sc->buf) + chnbuf;
+	sndbuf_setup(ch->buffer, (u_int8_t *)rman_get_virtual(sc->buf) + chnbuf, NM_BUFFSIZE);
 	if (bootverbose)
 		device_printf(sc->dev, "%s buf %p\n", (dir == PCMDIR_PLAY)?
 			      "play" : "rec", ch->buffer->buf);

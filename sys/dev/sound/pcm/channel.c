@@ -36,7 +36,6 @@ MALLOC_DEFINE(M_CHANNEL, "channel", "pcm channel");
 #define	DMA_ALIGN_THRESHOLD	4
 #define	DMA_ALIGN_MASK		(~(DMA_ALIGN_THRESHOLD - 1))
 
-#define ISA_DMA(b) (((b)->chan >= 0 && (b)->chan != 4 && (b)->chan < 8))
 #define CANCHANGE(c) (!(c)->buffer.dl)
 #define ROUND(x) ((x) & DMA_ALIGN_MASK)
 
@@ -44,7 +43,6 @@ MALLOC_DEFINE(M_CHANNEL, "channel", "pcm channel");
 #define DEB(x) x
 */
 
-static void buf_clear(snd_dbuf *b, u_int32_t fmt, int length);
 static void chn_dmaupdate(pcm_channel *c);
 static void chn_wrintr(pcm_channel *c);
 static void chn_rdintr(pcm_channel *c);
@@ -110,14 +108,6 @@ produced on overruns.
  * gets copied in or out of the real buffer.  fix requires mods to isa_dma.c
  * and possibly fixes to other autodma mode clients
  */
-static void
-chn_isadmabounce(pcm_channel *c)
-{
-	if (ISA_DMA(&c->buffer)) {
-		/* tell isa_dma to bounce data in/out */
-    	} else KASSERT(1, ("chn_isadmabounce called on invalid channel"));
-}
-
 static int
 chn_polltrigger(pcm_channel *c)
 {
@@ -156,7 +146,7 @@ chn_dmadone(pcm_channel *c)
 	else
 		chn_dmaupdate(c);
 	if (ISA_DMA(b))
-		chn_isadmabounce(c); /* sync bounce buffer */
+		sndbuf_isadmabounce(b); /* sync bounce buffer */
 	b->int_count++;
 }
 
@@ -286,7 +276,7 @@ chn_wrfeed(pcm_channel *c)
 		b->fl -= l;
 		b->fp = (b->fp + l) % b->bufsize;
 		/* Clear the new space in the secondary buffer. */
-		buf_clear(bs, bs->fmt, l);
+		sndbuf_clear(bs, l);
 		/* Accumulate the total bytes of the moved samples. */
 		lacc += l;
 		/* A feed to the DMA buffer is equivalent to an interrupt. */
@@ -389,7 +379,7 @@ chn_wrintr(pcm_channel *c)
 		chn_wrfeed(c);
 	else {
 		while (chn_wrfeed(c) > 0);
-		buf_clear(b, b->fmt, b->fl);
+		sndbuf_clear(b, b->fl);
 	}
 	chn_dmawakeup(c);
     	if (c->flags & CHN_F_TRIGGERED) {
@@ -414,7 +404,7 @@ chn_wrintr(pcm_channel *c)
 			 * we are near to underflow condition, so to prevent
 			 * audio 'clicks' clear next b->fl bytes
 			 */
-			buf_clear(b, b->fmt, b->fl);
+			sndbuf_clear(b, b->fl);
 			if (b->rl < DMA_ALIGN_THRESHOLD)
 				b->underflow = 1;
 		}
@@ -423,7 +413,7 @@ chn_wrintr(pcm_channel *c)
 		DEB(printf("underflow, flags 0x%08x rp %d rl %d\n", c->flags, b->rp, b->rl));
 		if (b->dl) { /* DMA was active */
 			b->underflow = 1; /* set underflow flag */
-			buf_clear(b, b->fmt, b->bufsize);
+			sndbuf_clear(b, b->bufsize);
 		}
     	}
 }
@@ -649,7 +639,7 @@ chn_rdfeed2nd(pcm_channel *c, struct uio *buf)
 		bs->rl -= w;
 		bs->rp = (bs->rp + w) % bs->bufsize;
 		/* Clear the new space in the secondary buffer. */
-		buf_clear(bs, bs->fmt, l);
+		sndbuf_clear(bs, l);
 		/* Accumulate the total bytes of the moved samples. */
 		bs->total += w;
 		wacc += w;
@@ -844,76 +834,6 @@ chn_start(pcm_channel *c, int force)
 	return r;
 }
 
-static void
-chn_dma_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	snd_dbuf *b = (snd_dbuf *)arg;
-
-	if (bootverbose) {
-		printf("pcm: setmap %lx, %lx; ", (unsigned long)segs->ds_addr,
-		       (unsigned long)segs->ds_len);
-		printf("%p -> %lx\n", b->buf, (unsigned long)vtophys(b->buf));
-	}
-}
-
-/*
- * Allocate memory for DMA buffer. If the device do not perform DMA transfer,
- * the drvier can call malloc(9) by its own.
- */
-int
-chn_allocbuf(snd_dbuf *b, bus_dma_tag_t parent_dmat)
-{
-	b->parent_dmat = parent_dmat;
-	if (bus_dmamem_alloc(b->parent_dmat, (void **)&b->buf,
-			     BUS_DMA_NOWAIT, &b->dmamap)) return -1;
-	if (bus_dmamap_load(b->parent_dmat, b->dmamap, b->buf,
-			    b->bufsize, chn_dma_setmap, b, 0)) return -1;
-	return 0;
-}
-
-void
-chn_freebuf(snd_dbuf *b)
-{
-	bus_dmamem_free(b->parent_dmat, b->buf, b->dmamap);
-}
-
-static void
-buf_clear(snd_dbuf *b, u_int32_t fmt, int length)
-{
-	int i;
-	u_int16_t data, *p;
-
-	if (length == 0)
-		return;
-
-	if (fmt & AFMT_SIGNED)
-		data = 0x00;
-	else
-		data = 0x80;
-
-	if (fmt & AFMT_16BIT)
-		data <<= 8;
-	else
-		data |= data << 8;
-
-	if (fmt & AFMT_BIGENDIAN)
-		data = ((data >> 8) & 0x00ff) | ((data << 8) & 0xff00);
-
-	i = b->fp;
-	p = (u_int16_t *)(b->buf + b->fp);
-	while (length > 1) {
-		*p++ = data;
-		length -= 2;
-		i += 2;
-		if (i >= b->bufsize) {
-			p = (u_int16_t *)b->buf;
-			i = 0;
-		}
-	}
-	if (length == 1)
-		*(b->buf + i) = data & 0xff;
-}
-
 void
 chn_resetbuf(pcm_channel *c)
 {
@@ -921,59 +841,8 @@ chn_resetbuf(pcm_channel *c)
 	snd_dbuf *bs = &c->buffer2nd;
 
 	c->blocks = 0;
-	b->rp = b->fp = 0;
-	b->dl = b->rl = 0;
-	b->fl = b->bufsize;
-	b->prev_total = b->total = 0;
-	b->prev_int_count = b->int_count = 0;
-	b->underflow = 0;
-	if (b->buf && b->bufsize > 0)
-		buf_clear(b, b->fmt, b->bufsize);
-
-	bs->rp = bs->fp = 0;
-	bs->dl = bs->rl = 0;
-	bs->fl = bs->bufsize;
-	bs->prev_total = bs->total = 0;
-	bs->prev_int_count = bs->int_count = 0;
-	bs->underflow = 0;
-	if (bs->buf && bs->bufsize > 0)
-		buf_clear(bs, bs->fmt, bs->bufsize);
-}
-
-void
-buf_isadma(snd_dbuf *b, int go)
-{
-	KASSERT(b, ("buf_isadma called with b == NULL"));
-	KASSERT(ISA_DMA(b), ("buf_isadma called on non-ISA channel"));
-
-	switch (go) {
-	case PCMTRIG_START:
-		isa_dmastart(b->dir | ISADMA_RAW, b->buf, b->bufsize, b->chan);
-		break;
-
-	case PCMTRIG_STOP:
-	case PCMTRIG_ABORT:
-		isa_dmastop(b->chan);
-		isa_dmadone(b->dir | ISADMA_RAW, b->buf, b->bufsize, b->chan);
-		break;
-	}
-
-	DEB(printf("buf 0x%p ISA DMA %s, channel %d\n",
-		b,
-		(go == PCMTRIG_START)? "started" : "stopped",
-		b->chan));
-}
-
-int
-buf_isadmaptr(snd_dbuf *b)
-{
-	if (ISA_DMA(b)) {
-		int i = b->dl? isa_dmastatus(b->chan) : b->bufsize;
-		if (i < 0)
-			i = 0;
-		return b->bufsize - i;
-    	} else KASSERT(1, ("buf_isadmaptr called on invalid channel"));
-	return -1;
+	sndbuf_reset(b);
+	sndbuf_reset(bs);
 }
 
 /*
@@ -1132,9 +1001,6 @@ chn_reset(pcm_channel *c, u_int32_t fmt)
 	chn_abort(c);
 	c->flags &= CHN_F_RESET;
 	CHANNEL_RESET(c->methods, c->devinfo);
-	r = chn_setblocksize(c, CHN_2NDBUFBLKNUM, CHN_2NDBUFBLKSIZE);
-	if (r)
-		return r;
 	if (fmt) {
 		hwspd = DSP_DEFAULT_SPEED;
 		RANGE(hwspd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
@@ -1146,6 +1012,9 @@ chn_reset(pcm_channel *c, u_int32_t fmt)
 		if (r == 0)
 			r = chn_setvolume(c, 100, 100);
 	}
+	r = chn_setblocksize(c, 0, 0);
+	if (r)
+		return r;
 	chn_resetbuf(c);
 	CHANNEL_RESETDONE(c->methods, c->devinfo);
 	/* c->flags |= CHN_F_INIT; */
@@ -1169,6 +1038,7 @@ int
 chn_init(pcm_channel *c, void *devinfo, int dir)
 {
 	struct feeder_class *fc;
+	snd_dbuf *b = &c->buffer;
 	snd_dbuf *bs = &c->buffer2nd;
 
 	/* Initialize the hardware and DMA buffer first. */
@@ -1191,6 +1061,8 @@ chn_init(pcm_channel *c, void *devinfo, int dir)
 
 	/* And the secondary buffer. */
 	bs->buf = NULL;
+	sndbuf_setfmt(b, AFMT_U8);
+	sndbuf_setfmt(bs, AFMT_U8);
 	bs->bufsize = 0;
 	return 0;
 }
@@ -1202,7 +1074,7 @@ chn_kill(pcm_channel *c)
 		chn_trigger(c, PCMTRIG_ABORT);
 	while (chn_removefeeder(c) == 0);
 	if (CHANNEL_FREE(c->methods, c->devinfo))
-		chn_freebuf(&c->buffer);
+		sndbuf_free(&c->buffer);
 	c->flags |= CHN_F_DEAD;
 	return 0;
 }
@@ -1236,44 +1108,59 @@ int
 chn_setspeed(pcm_channel *c, int speed)
 {
 	pcm_feeder *f;
-	int r, hwspd, delta;
+    	snd_dbuf *b = &c->buffer;
+    	snd_dbuf *bs = &c->buffer2nd;
+	int r, delta;
 
 	DEB(printf("want speed %d, ", speed));
 	if (speed <= 0)
 		return EINVAL;
 	if (CANCHANGE(c)) {
 		c->speed = speed;
-		hwspd = speed;
-		RANGE(hwspd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
-		DEB(printf("try speed %d, ", hwspd));
-		hwspd = CHANNEL_SETSPEED(c->methods, c->devinfo, hwspd);
-		DEB(printf("got speed %d, ", hwspd));
-		delta = hwspd - speed;
+		b->spd = speed;
+		bs->spd = speed;
+		RANGE(b->spd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
+		DEB(printf("try speed %d, ", b->spd));
+		b->spd = CHANNEL_SETSPEED(c->methods, c->devinfo, b->spd);
+		DEB(printf("got speed %d, ", b->spd));
+
+		delta = b->spd - bs->spd;
 		if (delta < 0)
 			delta = -delta;
+
 		c->feederflags &= ~(1 << FEEDER_RATE);
 		if (delta > 500)
 			c->feederflags |= 1 << FEEDER_RATE;
 		else
-			speed = hwspd;
+			bs->spd = b->spd;
+
 		r = chn_buildfeeder(c);
 		DEB(printf("r = %d\n", r));
 		if (r)
 			return r;
+
+		r = chn_setblocksize(c, 0, 0);
+		if (r)
+			return r;
+
 		if (!(c->feederflags & (1 << FEEDER_RATE)))
 			return 0;
+
 		f = chn_findfeeder(c, FEEDER_RATE);
 		DEB(printf("feedrate = %p\n", f));
 		if (f == NULL)
 			return EINVAL;
-		r = FEEDER_SET(f, FEEDRATE_SRC, speed);
-		DEB(printf("feeder_set(FEEDRATE_SRC, %d) = %d\n", speed, r));
+
+		r = FEEDER_SET(f, FEEDRATE_SRC, bs->spd);
+		DEB(printf("feeder_set(FEEDRATE_SRC, %d) = %d\n", bs->spd, r));
 		if (r)
 			return r;
-		r = FEEDER_SET(f, FEEDRATE_DST, hwspd);
-		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", hwspd, r));
+
+		r = FEEDER_SET(f, FEEDRATE_DST, b->spd);
+		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", b->spd, r));
 		if (r)
 			return r;
+
 		return 0;
 	}
 	c->speed = speed;
@@ -1287,8 +1174,8 @@ chn_setformat(pcm_channel *c, u_int32_t fmt)
 	snd_dbuf *b = &c->buffer;
 	snd_dbuf *bs = &c->buffer2nd;
 	int r;
-
 	u_int32_t hwfmt;
+
 	if (CANCHANGE(c)) {
 		DEB(printf("want format %d\n", fmt));
 		c->format = fmt;
@@ -1300,8 +1187,8 @@ chn_setformat(pcm_channel *c, u_int32_t fmt)
 		if (r)
 			return r;
 		hwfmt = c->feeder->desc->out;
-		b->fmt = hwfmt;
-		bs->fmt = hwfmt;
+		sndbuf_setfmt(b, hwfmt);
+		sndbuf_setfmt(bs, hwfmt);
 		chn_resetbuf(c);
 		CHANNEL_SETFORMAT(c->methods, c->devinfo, hwfmt);
 		return chn_setspeed(c, c->speed);
@@ -1316,54 +1203,65 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 {
 	snd_dbuf *b = &c->buffer;
 	snd_dbuf *bs = &c->buffer2nd;
-	int s, ss, bufsz;
+	int s, bufsz, irqhz, tmp;
 
-	if (bs->blkcnt == blkcnt && bs->blksz == blksz)
-		return 0;
-    	if (c->flags & CHN_F_MAPPED) {
-		DEB(printf("chn_setblocksize: can't work on mapped channel"));
+	if (!CANCHANGE(c) || (c->flags & CHN_F_MAPPED))
 		return EINVAL;
-	}
-	c->flags &= ~CHN_F_HAS_SIZE;
 
-	ss = 1;
-	ss <<= (bs->fmt & AFMT_STEREO)? 1 : 0;
-	ss <<= (bs->fmt & AFMT_16BIT)? 1 : 0;
+	if (blksz == 0 || blksz == -1) {
+		if (blksz == -1)
+			c->flags &= ~CHN_F_HAS_SIZE;
+		if (c->flags & CHN_F_HAS_SIZE)
+			return 0;
+		blksz = (bs->bps * bs->spd) / CHN_DEFAULT_HZ;
+	      	tmp = 32;
+		while (tmp <= blksz)
+			tmp <<= 1;
+		tmp >>= 1;
+		blksz = tmp;
 
-	if (blksz >= 2)
+		RANGE(blksz, 16, CHN_2NDBUFMAXSIZE / 2);
+		RANGE(blkcnt, 2, CHN_2NDBUFMAXSIZE / blksz);
+	} else {
+		if ((blksz < 16) || (blkcnt < 2) || (blkcnt * blksz > CHN_2NDBUFMAXSIZE))
+			return EINVAL;
 		c->flags |= CHN_F_HAS_SIZE;
-	/* let us specify blksz without setting CHN_F_HAS_SIZE */
-	if (blksz < 0)
-		blksz = -blksz;
-	/* default to blksz = ~0.25s */
-	if (blksz < 16)
-		blksz = (ss * c->speed) >> 2;
-	if (blksz > CHN_2NDBUFMAXSIZE / 2)
-		blksz = CHN_2NDBUFMAXSIZE / 2;
-	if (blkcnt < 2)
-		blkcnt = 2;
+	}
 
-	if (blkcnt * blksz > CHN_2NDBUFMAXSIZE)
-		blkcnt = CHN_2NDBUFMAXSIZE / blksz;
 	bufsz = blkcnt * blksz;
 
 	s = spltty();
+
 	if (bs->buf != NULL)
 		free(bs->buf, M_DEVBUF);
 	bs->buf = malloc(bufsz, M_DEVBUF, M_WAITOK);
 	if (bs->buf == NULL) {
       		splx(s);
-		DEB(printf("chn_setblocksize: out of memory."));
+		DEB(printf("chn_setblocksize: out of memory\n"));
 		return ENOSPC;
 	}
+
 	bs->bufsize = bufsz;
-	bs->rl = bs->rp = bs->fp = 0;
-	bs->fl = bs->bufsize;
-	buf_clear(bs, bs->fmt, bs->bufsize);
 	bs->blkcnt = blkcnt;
 	bs->blksz = blksz;
+
+	/* adjust for different hw format/speed */
+	irqhz = (bs->bps * bs->spd) / bs->blksz;
+
+	b->blksz = (b->bps * b->spd) / irqhz;
+
+	/* round down to 2^x */
+	blksz = 32;
+	while (blksz <= b->blksz)
+		blksz <<= 1;
+	blksz >>= 1;
+
+	/* round down to fit hw buffer size */
 	RANGE(blksz, 16, b->bufsize / 2);
+
 	b->blksz = CHANNEL_SETBLOCKSIZE(c->methods, c->devinfo, blksz);
+
+	chn_resetbuf(c);
 	splx(s);
 
 	return 0;
@@ -1439,7 +1337,7 @@ chn_buildfeeder(pcm_channel *c)
 			desc.flags = 0;
 			DEB(printf("find feeder type %d, ", type));
 			fc = feeder_getclass(&desc);
-			DEB(printf("got %p\n", f));
+			DEB(printf("got %p\n", fc));
 			if (fc == NULL)
 				return EINVAL;
 			dst = fc->desc->in;
@@ -1454,7 +1352,7 @@ chn_buildfeeder(pcm_channel *c)
 			if (chn_addfeeder(c, fc, fc->desc))
 				return EINVAL;
 			src = fc->desc->out;
-			DEB(printf("added feeder %p, output %x\n", f, src));
+			DEB(printf("added feeder %p, output %x\n", fc, src));
 			dst = 0;
 			flags &= ~(1 << type);
 		}

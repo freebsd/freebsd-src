@@ -523,8 +523,7 @@ csachan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = csa;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = CS461x_BUFFSIZE;
-	if (chn_allocbuf(ch->buffer, csa->parent_dmat) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, csa->parent_dmat, CS461x_BUFFSIZE) == -1) return NULL;
 	return ch;
 }
 
@@ -538,9 +537,9 @@ csachan_setdir(kobj_t obj, void *data, int dir)
 	resp = &csa->res;
 
 	if (dir == PCMDIR_PLAY)
-		csa_writemem(resp, BA1_PBA, vtophys(ch->buffer->buf));
+		csa_writemem(resp, BA1_PBA, vtophys(sndbuf_getbuf(ch->buffer)));
 	else
-		csa_writemem(resp, BA1_CBA, vtophys(ch->buffer->buf));
+		csa_writemem(resp, BA1_CBA, vtophys(sndbuf_getbuf(ch->buffer)));
 	ch->dir = dir;
 	return 0;
 }
@@ -606,12 +605,7 @@ csachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 csachan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
-#if notdef
-	return blocksize;
-#else
-	struct csa_chinfo *ch = data;
-	return ch->buffer->bufsize / 2;
-#endif /* notdef */
+	return CS461x_BUFFSIZE / 2;
 }
 
 static int
@@ -648,11 +642,11 @@ csachan_getptr(kobj_t obj, void *data)
 	resp = &csa->res;
 
 	if (ch->dir == PCMDIR_PLAY) {
-		ptr = csa_readmem(resp, BA1_PBA) - vtophys(ch->buffer->buf);
+		ptr = csa_readmem(resp, BA1_PBA) - vtophys(sndbuf_getbuf(ch->buffer));
 		if ((ch->fmt & AFMT_U8) != 0 || (ch->fmt & AFMT_S8) != 0)
 			ptr >>= 1;
 	} else {
-		ptr = csa_readmem(resp, BA1_CBA) - vtophys(ch->buffer->buf);
+		ptr = csa_readmem(resp, BA1_CBA) - vtophys(sndbuf_getbuf(ch->buffer));
 		if ((ch->fmt & AFMT_U8) != 0 || (ch->fmt & AFMT_S8) != 0)
 			ptr >>= 1;
 	}

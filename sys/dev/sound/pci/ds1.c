@@ -431,8 +431,8 @@ ds_setuppch(struct sc_pchinfo *ch)
 	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
 	c = stereo? 1 : 0;
-	buf = ch->buffer->buf;
-	sz = ch->buffer->bufsize;
+	buf = sndbuf_getbuf(ch->buffer);
+	sz = sndbuf_getsize(ch->buffer);
 
 	ds_initpbank(ch->lslot, c, stereo, b16, ch->spd, buf, sz);
 	ds_initpbank(ch->lslot + 1, c, stereo, b16, ch->spd, buf, sz);
@@ -450,8 +450,8 @@ ds_setuprch(struct sc_rchinfo *ch)
 
 	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
-	buf = ch->buffer->buf;
-	sz = ch->buffer->bufsize;
+	buf = sndbuf_getbuf(ch->buffer);
+	sz = sndbuf_getsize(ch->buffer);
 	pri = (ch->num == DS1_RECPRIMARY)? 1 : 0;
 
 	for (i = 0; i < 2; i++) {
@@ -480,14 +480,13 @@ ds1pchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 
 	ch = &sc->pch[sc->pchn++];
 	ch->buffer = b;
-	ch->buffer->bufsize = 4096;
 	ch->parent = sc;
 	ch->channel = c;
 	ch->dir = dir;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	ch->run = 0;
-	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 4096) == -1)
 		return NULL;
 	else {
 		ch->lsnum = sc->pslotfree;
@@ -602,13 +601,12 @@ ds1rchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch = &sc->rch[sc->rchn];
 	ch->num = sc->rchn++;
 	ch->buffer = b;
-	ch->buffer->bufsize = 4096;
 	ch->parent = sc;
 	ch->channel = c;
 	ch->dir = dir;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
-	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 4096) == -1)
 		return NULL;
 	else {
 		ch->slot = (ch->num == DS1_RECPRIMARY)? sc->rbank + 2: sc->rbank;
