@@ -425,6 +425,7 @@ if_attach(ifp)
 	ifasize = sizeof(*ifa) + 2 * socksize;
 	ifa = (struct ifaddr *)malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
 	if (ifa) {
+		IFA_LOCK_INIT(ifa);
 		sdl = (struct sockaddr_dl *)(ifa + 1);
 		sdl->sdl_len = socksize;
 		sdl->sdl_family = AF_LINK;
@@ -441,6 +442,7 @@ if_attach(ifp)
 		sdl->sdl_len = masklen;
 		while (namelen != 0)
 			sdl->sdl_data[--namelen] = 0xff;
+		ifa->ifa_refcnt = 1;
 		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	}
 	ifp->if_broadcastaddr = 0; /* reliably crash if used uninitialized */
@@ -830,6 +832,9 @@ if_clone_list(ifcr)
 	return (error);
 }
 
+#define	equal(a1, a2) \
+  (bcmp((caddr_t)(a1), (caddr_t)(a2), ((struct sockaddr *)(a1))->sa_len) == 0)
+
 /*
  * Locate an interface based on a complete address.
  */
@@ -841,8 +846,6 @@ ifa_ifwithaddr(addr)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-#define	equal(a1, a2) \
-  (bcmp((caddr_t)(a1), (caddr_t)(a2), ((struct sockaddr *)(a1))->sa_len) == 0)
 	TAILQ_FOREACH(ifp, &ifnet, if_link)
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -1051,8 +1054,8 @@ link_rtrequest(cmd, rt, info)
 	ifa = ifaof_ifpforaddr(dst, ifp);
 	if (ifa) {
 		IFAFREE(rt->rt_ifa);
+		IFAREF(ifa);		/* XXX */
 		rt->rt_ifa = ifa;
-		ifa->ifa_refcnt++;
 		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
 			ifa->ifa_rtrequest(cmd, rt, info);
 	}

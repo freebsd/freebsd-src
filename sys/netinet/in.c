@@ -276,14 +276,16 @@ in_control(so, cmd, data, ifp, td)
 			 * while we're modifying it.
 			 */
 			s = splnet();
-			
 			TAILQ_INSERT_TAIL(&in_ifaddrhead, ia, ia_link);
-			ifa = &ia->ia_ifa;
-			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 
+			ifa = &ia->ia_ifa;
+			IFA_LOCK_INIT(ifa);
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
 			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 			ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;
+			ifa->ifa_refcnt = 1;
+			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
+
 			ia->ia_sockmask.sin_len = 8;
 			ia->ia_sockmask.sin_family = AF_INET;
 			if (ifp->if_flags & IFF_BROADCAST) {
