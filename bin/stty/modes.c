@@ -44,7 +44,7 @@ static const char rcsid[] =
 #include <string.h>
 #include "stty.h"
 
-int msearch __P((char ***, struct info *));
+int msearch(char ***, struct info *);
 
 struct modes {
 	const char *name;
@@ -209,9 +209,7 @@ struct modes omodes[] = {
 #define	CHK(s)	(*name == s[0] && !strcmp(name, s))
 
 int
-msearch(argvp, ip)
-	char ***argvp;
-	struct info *ip;
+msearch(char ***argvp, struct info *ip)
 {
 	struct modes *mp;
 	char *name;

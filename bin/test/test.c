@@ -37,22 +37,10 @@ static const char rcsid[] =
 static void error(const char *, ...) __attribute__((__noreturn__));
 
 static void
-#ifdef __STDC__
 error(const char *msg, ...)
-#else
-error(va_alist)
-	va_dcl
-#endif
 {
 	va_list ap;
-#ifndef __STDC__
-	const char *msg;
-
-	va_start(ap);
-	msg = va_arg(ap, const char *);
-#else
 	va_start(ap, msg);
-#endif
 	verrx(2, msg, ap);
 	/*NOTREACHED*/
 	va_end(ap);
@@ -176,27 +164,25 @@ struct t_op {
 struct t_op const *t_wp_op;
 char **t_wp;
 
-static int	aexpr __P((enum token));
-static int	binop __P((void));
-static int	equalf __P((const char *, const char *));
-static int	filstat __P((char *, enum token));
-static int	getn __P((const char *));
-static long long	getq __P((const char *));
-static int	intcmp __P((const char *, const char *));
-static int	isoperand __P((void));
-int		main __P((int, char **));
-static int	newerf __P((const char *, const char *));
-static int	nexpr __P((enum token));
-static int	oexpr __P((enum token));
-static int	olderf __P((const char *, const char *));
-static int	primary __P((enum token));
-static void	syntax __P((const char *, const char *));
-static enum	token t_lex __P((char *));
+static int	aexpr(enum token);
+static int	binop(void);
+static int	equalf(const char *, const char *);
+static int	filstat(char *, enum token);
+static int	getn(const char *);
+static long long	getq(const char *);
+static int	intcmp(const char *, const char *);
+static int	isoperand(void);
+int		main(int, char **);
+static int	newerf(const char *, const char *);
+static int	nexpr(enum token);
+static int	oexpr(enum token);
+static int	olderf(const char *, const char *);
+static int	primary(enum token);
+static void	syntax(const char *, const char *);
+static enum	token t_lex(char *);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int	res;
 	char	*p;
@@ -232,9 +218,7 @@ main(argc, argv)
 }
 
 static void
-syntax(op, msg)
-	const char	*op;
-	const char	*msg;
+syntax(const char *op, const char *msg)
 {
 
 	if (op && *op)
@@ -244,8 +228,7 @@ syntax(op, msg)
 }
 
 static int
-oexpr(n)
-	enum token n;
+oexpr(enum token n)
 {
 	int res;
 
@@ -257,8 +240,7 @@ oexpr(n)
 }
 
 static int
-aexpr(n)
-	enum token n;
+aexpr(enum token n)
 {
 	int res;
 
@@ -270,8 +252,7 @@ aexpr(n)
 }
 
 static int
-nexpr(n)
-	enum token n;			/* token */
+nexpr(enum token n)
 {
 	if (n == UNOT)
 		return !nexpr(t_lex(*++t_wp));
@@ -279,8 +260,7 @@ nexpr(n)
 }
 
 static int
-primary(n)
-	enum token n;
+primary(enum token n)
 {
 	enum token nn;
 	int res;
@@ -319,7 +299,7 @@ primary(n)
 }
 
 static int
-binop()
+binop(void)
 {
 	const char *opnd1, *opnd2;
 	struct t_op const *op;
@@ -365,9 +345,7 @@ binop()
 }
 
 static int
-filstat(nm, mode)
-	char *nm;
-	enum token mode;
+filstat(char *nm, enum token mode)
 {
 	struct stat s;
 
@@ -420,8 +398,7 @@ filstat(nm, mode)
 }
 
 static enum token
-t_lex(s)
-	char *s;
+t_lex(char *s)
 {
 	struct t_op const *op = ops;
 
@@ -444,7 +421,7 @@ t_lex(s)
 }
 
 static int
-isoperand()
+isoperand(void)
 {
 	struct t_op const *op = ops;
 	char *s;
@@ -465,8 +442,7 @@ isoperand()
 
 /* atoi with error detection */
 static int
-getn(s)
-	const char *s;
+getn(const char *s)
 {
 	char *p;
 	long r;
@@ -492,8 +468,7 @@ getn(s)
 
 /* atoi with error detection and 64 bit range */
 static long long
-getq(s)
-	const char *s;
+getq(const char *s)
 {
 	char *p;
 	long long r;
@@ -518,8 +493,7 @@ getq(s)
 }
 
 static int
-intcmp (s1, s2)
-	const char *s1, *s2;
+intcmp (const char *s1, const char *s2)
 {
 	long long q1, q2;
 
@@ -537,8 +511,7 @@ intcmp (s1, s2)
 }
 
 static int
-newerf (f1, f2)
-	const char *f1, *f2;
+newerf (const char *f1, const char *f2)
 {
 	struct stat b1, b2;
 
@@ -548,8 +521,7 @@ newerf (f1, f2)
 }
 
 static int
-olderf (f1, f2)
-	const char *f1, *f2;
+olderf (const char *f1, const char *f2)
 {
 	struct stat b1, b2;
 
@@ -559,8 +531,7 @@ olderf (f1, f2)
 }
 
 static int
-equalf (f1, f2)
-	const char *f1, *f2;
+equalf (const char *f1, const char *f2)
 {
 	struct stat b1, b2;
 

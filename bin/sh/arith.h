@@ -34,5 +34,5 @@
  * $FreeBSD$
  */
 
-int arith __P((char *));
-int expcmd __P((int , char **));
+int arith(char *);
+int expcmd(int , char **);

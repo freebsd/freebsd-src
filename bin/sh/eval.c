@@ -92,14 +92,14 @@ int exitstatus;			/* exit status of last command */
 int oexitstatus;		/* saved exit status */
 
 
-STATIC void evalloop __P((union node *));
-STATIC void evalfor __P((union node *));
-STATIC void evalcase __P((union node *, int));
-STATIC void evalsubshell __P((union node *, int));
-STATIC void expredir __P((union node *));
-STATIC void evalpipe __P((union node *));
-STATIC void evalcommand __P((union node *, int, struct backcmd *));
-STATIC void prehash __P((union node *));
+STATIC void evalloop(union node *);
+STATIC void evalfor(union node *);
+STATIC void evalcase(union node *, int);
+STATIC void evalsubshell(union node *, int);
+STATIC void expredir(union node *);
+STATIC void evalpipe(union node *);
+STATIC void evalcommand(union node *, int, struct backcmd *);
+STATIC void prehash(union node *);
 
 
 /*
@@ -127,9 +127,7 @@ SHELLPROC {
  */
 
 int
-evalcmd(argc, argv)
-	int argc;
-	char **argv;
+evalcmd(int argc, char **argv)
 {
         char *p;
         char *concat;
@@ -161,9 +159,8 @@ evalcmd(argc, argv)
  */
 
 void
-evalstring(s)
-	char *s;
-	{
+evalstring(char *s)
+{
 	union node *n;
 	struct stackmark smark;
 
@@ -185,9 +182,7 @@ evalstring(s)
  */
 
 void
-evaltree(n, flags)
-	union node *n;
-	int flags;
+evaltree(union node *n, int flags)
 {
 	if (n == NULL) {
 		TRACE(("evaltree(NULL) called\n"));
@@ -305,8 +300,7 @@ out:
 
 
 STATIC void
-evalloop(n)
-	union node *n;
+evalloop(union node *n)
 {
 	int status;
 
@@ -342,8 +336,7 @@ skipping:	  if (evalskip == SKIPCONT && --skipcount <= 0) {
 
 
 STATIC void
-evalfor(n)
-    union node *n;
+evalfor(union node *n)
 {
 	struct arglist arglist;
 	union node *argp;
@@ -383,9 +376,7 @@ out:
 
 
 STATIC void
-evalcase(n, flags)
-	union node *n;
-	int flags;
+evalcase(union node *n, int flags)
 {
 	union node *cp;
 	union node *patp;
@@ -417,9 +408,7 @@ out:
  */
 
 STATIC void
-evalsubshell(n, flags)
-	union node *n;
-	int flags;
+evalsubshell(union node *n, int flags)
 {
 	struct job *jp;
 	int backgnd = (n->type == NBACKGND);
@@ -446,8 +435,7 @@ evalsubshell(n, flags)
  */
 
 STATIC void
-expredir(n)
-	union node *n;
+expredir(union node *n)
 {
 	union node *redir;
 
@@ -484,8 +472,7 @@ expredir(n)
  */
 
 STATIC void
-evalpipe(n)
-	union node *n;
+evalpipe(union node *n)
 {
 	struct job *jp;
 	struct nodelist *lp;
@@ -551,9 +538,7 @@ evalpipe(n)
  */
 
 void
-evalbackcmd(n, result)
-	union node *n;
-	struct backcmd *result;
+evalbackcmd(union node *n, struct backcmd *result)
 {
 	int pip[2];
 	struct job *jp;
@@ -603,10 +588,7 @@ out:
  */
 
 STATIC void
-evalcommand(cmd, flags, backcmd)
-	union node *cmd;
-	int flags;
-	struct backcmd *backcmd;
+evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 {
 	struct stackmark smark;
 	union node *argp;
@@ -944,8 +926,7 @@ out:
  */
 
 STATIC void
-prehash(n)
-	union node *n;
+prehash(union node *n)
 {
 	struct cmdentry entry;
 
@@ -968,9 +949,7 @@ prehash(n)
  */
 
 int
-bltincmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+bltincmd(int argc __unused, char **argv __unused)
 {
 	listsetvar(cmdenviron);
 	/*
@@ -993,9 +972,7 @@ bltincmd(argc, argv)
  */
 
 int
-breakcmd(argc, argv)
-	int argc;
-	char **argv;
+breakcmd(int argc, char **argv)
 {
 	int n = argc > 1 ? number(argv[1]) : 1;
 
@@ -1014,9 +991,7 @@ breakcmd(argc, argv)
  */
 
 int
-returncmd(argc, argv)
-	int argc;
-	char **argv;
+returncmd(int argc, char **argv)
 {
 	int ret = argc > 1 ? number(argv[1]) : oexitstatus;
 
@@ -1033,27 +1008,21 @@ returncmd(argc, argv)
 
 
 int
-falsecmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+falsecmd(int argc __unused, char **argv __unused)
 {
 	return 1;
 }
 
 
 int
-truecmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+truecmd(int argc __unused, char **argv __unused)
 {
 	return 0;
 }
 
 
 int
-execcmd(argc, argv)
-	int argc;
-	char **argv;
+execcmd(int argc, char **argv)
 {
 	if (argc > 1) {
 		struct strlist *sp;

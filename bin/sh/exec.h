@@ -56,17 +56,17 @@ struct cmdentry {
 extern char *pathopt;		/* set by padvance */
 extern int exerrno;		/* last exec error */
 
-void shellexec __P((char **, char **, char *, int));
-char *padvance __P((char **, char *));
-int hashcmd __P((int, char **));
-void find_command __P((char *, struct cmdentry *, int, char *));
-int find_builtin __P((char *));
-void hashcd __P((void));
-void changepath __P((const char *));
-void deletefuncs __P((void));
-void getcmdentry __P((char *, struct cmdentry *));
-void addcmdentry __P((char *, struct cmdentry *));
-void defun __P((char *, union node *));
-int unsetfunc __P((char *));
-int typecmd __P((int, char **));
-void clearcmdentry __P((int));
+void shellexec(char **, char **, char *, int);
+char *padvance(char **, char *);
+int hashcmd(int, char **);
+void find_command(char *, struct cmdentry *, int, char *);
+int find_builtin(char *);
+void hashcd(void);
+void changepath(const char *);
+void deletefuncs(void);
+void getcmdentry(char *, struct cmdentry *);
+void addcmdentry(char *, struct cmdentry *);
+void defun(char *, union node *);
+int unsetfunc(char *);
+int typecmd(int, char **);
+void clearcmdentry(int);
