@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/stdint.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 
@@ -480,7 +481,7 @@ ida_intr(void *data)
 
 		if (qcb == NULL || qcb->state != QCB_ACTIVE) {
 			device_printf(ida->dev,
-			    "ignoring completion %llx\n", (long long)completed);
+			    "ignoring completion %jx\n", (intmax_t)completed);
 			continue;
 		}
 		ida_done(ida, qcb);
