@@ -65,15 +65,13 @@ struct nlist nl[] = {
 	{ NULL },
 };
 
-void usage __P((void));
+void usage(void) __dead2;
 
 #define	KREAD(addr, var) \
 	kvm_read(kd, addr, &var, sizeof(var)) != sizeof(var)
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, newl, skip;
 	char *p, *ep;
@@ -192,7 +190,7 @@ main(argc, argv)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: dmesg [-a] [-M core] [-N system]\n");
 	exit(1);
