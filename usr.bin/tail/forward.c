@@ -60,6 +60,8 @@ static const char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 #include "extern.h"
 
 static void rlines(FILE *, off_t, struct stat *);
+static void show(file_info_t *);
+static void set_events(file_info_t *files);
 
 /* defines for inner loop actions */
 #define USE_SLEEP	0
@@ -95,11 +97,7 @@ int kq;
 void
 forward(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 {
-	int ch, n, kq = -1;
-	int action = USE_SLEEP;
-	struct kevent ev[2];
-	struct stat sb2;
-	struct timespec ts;
+	int ch;
 
 	switch(style) {
 	case FBYTES:
@@ -245,7 +243,7 @@ rlines(fp, off, sbp)
  *
  */
 
-void
+static void
 show(file_info_t *file)
 {
     int ch, first;
@@ -267,7 +265,7 @@ show(file_info_t *file)
 	    clearerr(file->fp);
 }
 
-void
+static void
 set_events(file_info_t *files)
 {
 	int i, n = 0;
@@ -302,9 +300,7 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 {
 	int active, i, n = -1;
 	struct stat sb2;
-	struct stat *sbp;
 	file_info_t *file;
-	long spin=1;
 	struct timespec ts;
 
 	/* Position each of the files */
