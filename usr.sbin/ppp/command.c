@@ -365,7 +365,7 @@ LogCommand(struct cmdargs const *arg)
       argc = sizeof argv / sizeof argv[0] - 1;
       log_Printf(LogWARN, "Truncating log command to %d args\n", argc);
     }
-    command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 0, getpid());
+    command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 1, getpid());
     Concatinate(buf, sizeof buf, argc, (const char *const *)argv);
     log_Printf(LogLOG, "%s\n", buf);
     command_Free(argc, argv);
