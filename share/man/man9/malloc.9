@@ -102,13 +102,13 @@ will return
 rather then block.  Note that
 .Dv M_WAITOK
 is defined to be 0, meaning that blocking operation is the default.
-.It Dv M_AWAIT
+.It Dv M_ASLEEP
 Causes
 .Fn malloc
 to call 
 .Fn asleep
 if the request cannot be immediately fulfilled due to a resource shortage.
-M_AWAIT is not useful alone and should always be or'd with M_NOWAIT to allow
+M_ASLEEP is not useful alone and should always be or'd with M_NOWAIT to allow
 malloc to call
 .Fn asleep
 and return
@@ -172,7 +172,7 @@ any type of object, or
 if the request could not be satisfied and 
 .Dv M_NOWAIT 
 was set.  If 
-.Dv M_AWAIT
+.Dv M_ASLEEP
 was set and
 .Fn malloc
 returns
