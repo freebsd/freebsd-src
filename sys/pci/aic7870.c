@@ -321,6 +321,7 @@ ahc_pci_attach(parent, self, aux)
 	const char *intrstr;
 #endif
 	u_int32_t id;
+	u_int32_t command;
 	struct scb_data *shared_scb_data;
 	int opri;
 	ahc_type    ahc_t = AHC_NONE;
@@ -336,12 +337,12 @@ ahc_pci_attach(parent, self, aux)
 	paddr = NULL;
 #if defined(__FreeBSD__)
 	io_port = 0;
-#ifdef AHC_ALLOW_MEMIO
-	if (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr) == 0)
-#endif
-		if (pci_map_port(config_id, PCI_BASEADR0, &io_port) == 0)
+	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	if ((command & PCI_COMMAND_MEM_ENABLE) == 0
+	 || (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr)) == 0)
+		if ((command & PCI_COMMAND_IO_ENABLE) == 0
+		 || (pci_map_port(config_id, PCI_BASEADR0, &io_port)) == 0)
 			return;
-		
 #elif defined(__NetBSD__)
 	/* XXX Memory mapped I/O?? */
 	if (bus_io_map(pa->pa_bc, iobase, iosize, &ioh))
@@ -618,7 +619,8 @@ ahc_pci_attach(parent, self, aux)
 			/* In case we are a wide card */
 			ahc_outb(ahc, SCSICONF + 1, our_id);
 
-			if (!ultra_enb || (ahc->flags & AHC_USEDEFAULTS)) {
+			if (ultra_enb == 0
+			 && (ahc->flags & AHC_USEDEFAULTS) == 0) {
 				/*
 				 * If there wasn't a BIOS or the board
 				 * wasn't in this mode to begin with, 
