@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.58 1997/10/12 15:24:39 peter Exp $
+ *	$Id: mp_machdep.c,v 1.59 1997/10/28 15:58:10 bde Exp $
  */
 
 #include "opt_smp.h"
@@ -1607,9 +1607,9 @@ start_all_aps(u_int boot_addr)
 		for (i = 0; i < UPAGES; i++)
 			newpt[i + 3] = (pt_entry_t)(PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
-		newpt[5] = 0;			/* *prv_CMAP1 */
-		newpt[6] = 0;			/* *prv_CMAP2 */
-		newpt[7] = 0;			/* *prv_CMAP3 */
+		newpt[3 + UPAGES] = 0;		/* *prv_CMAP1 */
+		newpt[4 + UPAGES] = 0;		/* *prv_CMAP2 */
+		newpt[5 + UPAGES] = 0;		/* *prv_CMAP3 */
 
 		/* prime data page for it to use */
 		newpp[0] = x;			/* cpuid */
@@ -1622,9 +1622,9 @@ start_all_aps(u_int boot_addr)
 		newpp[7] = 0;			/* other_cpus */
 		newpp[8] = (int)myPTD;		/* my_idlePTD */
 		newpp[9] = 0;			/* ss_tpr */
-		newpp[10] = (int)&newpt[5];	/* prv_CMAP1 */
-		newpp[11] = (int)&newpt[6];	/* prv_CMAP2 */
-		newpp[12] = (int)&newpt[7];	/* prv_CMAP3 */
+		newpp[10] = (int)&newpt[3 + UPAGES];	/* prv_CMAP1 */
+		newpp[11] = (int)&newpt[4 + UPAGES];	/* prv_CMAP2 */
+		newpp[12] = (int)&newpt[5 + UPAGES];	/* prv_CMAP3 */
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
