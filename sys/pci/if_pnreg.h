@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.11 1999/05/06 15:32:47 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.12 1999/05/26 23:01:49 gallatin Exp $
  */
 
 /*
@@ -525,7 +525,6 @@ struct pn_softc {
  * Lite-On PNIC PCI device ID.
  */
 #define	PN_DEVICEID_PNIC	0x0002
-#define PN_DEVICEID_PNIC_II	0xc115
 
 /*
  * The 82c168 chip has the same PCI vendor/device ID as the
