@@ -30,6 +30,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	world as usual, then after installworld but before
 	mergemaster do the following:
 
+	/etc/rc.d/syslogd stop
 	If named is running: /etc/rc.d/named stop
 	cd /etc
 	mv namedb namedb.bak
@@ -40,6 +41,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 		cd /var/named/etc/namedb
 		/bin/sh make-localhost
 		rm -f localhost-v6.rev localhost.rev
+	/etc/rc.d/syslogd start
 	/etc/rc.d/named start
 
 	If you are using a custom configuration, or if you have
