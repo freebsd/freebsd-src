@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.227 1997/07/25 11:53:30 phk Exp $
+ *  $Id: syscons.c,v 1.228 1997/07/26 07:58:29 phk Exp $
  */
 
 #include "sc.h"
@@ -1211,6 +1211,24 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	scp->status |= UNKNOWN_MODE;    /* graphics mode */
 	/* clear_graphics();*/
 
+	if (tp->t_winsize.ws_xpixel != scp->xpixel
+	    || tp->t_winsize.ws_ypixel != scp->ypixel) {
+	    tp->t_winsize.ws_xpixel = scp->xpixel;
+	    tp->t_winsize.ws_ypixel = scp->ypixel;
+	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
+	}
+	return 0;
+
+    case SW_VGA_MODEX:
+	if (!crtc_vga || video_mode_ptr == NULL)
+	    return ENXIO;
+	scp->mode = cmd & 0xFF;
+	if (scp == cur_console)
+	    set_mode(scp);
+	scp->status |= UNKNOWN_MODE;    /* graphics mode */
+	/* clear_graphics();*/
+	scp->xpixel = 320;
+	scp->ypixel = 240;
 	if (tp->t_winsize.ws_xpixel != scp->xpixel
 	    || tp->t_winsize.ws_ypixel != scp->ypixel) {
 	    tp->t_winsize.ws_xpixel = scp->xpixel;
@@ -3498,12 +3516,40 @@ setup_mode:
 	mark_all(scp);
 	break;
 
+    case M_VGA_MODEX:
+	/* start out with std 320x200x256 mode */
+	bcopy(video_mode_ptr+(64*M_VGA_CG320), &special_modetable, 64);
+	/* "unchain" the VGA mode */
+	special_modetable[5-1+0x04] &= 0xf7;
+	special_modetable[5-1+0x04] |= 0x04;
+	/* turn off doubleword mode */
+	special_modetable[10+0x14] &= 0xbf;
+	/* turn off word adressing */
+	special_modetable[10+0x17] |= 0x40;
+	/* set logical screen width */
+	special_modetable[10+0x13] = 80;
+	/* set 240 lines */
+	special_modetable[10+0x11] = 0x2c;
+	special_modetable[10+0x06] = 0x0d;
+	special_modetable[10+0x07] = 0x3e;
+	special_modetable[10+0x10] = 0xea;
+	special_modetable[10+0x11] = 0xac;
+	special_modetable[10+0x12] = 0xdf;
+	special_modetable[10+0x15] = 0xe7;
+	special_modetable[10+0x16] = 0x06;
+	/* set vertical sync polarity to reflect aspect ratio */
+	special_modetable[9] = 0xe3;
+
+	modetable = special_modetable;
+	goto setup_grmode;
+
     case M_BG320:     case M_CG320:     case M_BG640:
     case M_CG320_D:   case M_CG640_E:
     case M_CG640x350: case M_ENH_CG640:
     case M_BG640x480: case M_CG640x480: case M_VGA_CG320:
-
-	set_vgaregs(video_mode_ptr + (scp->mode * 64));
+	modetable = video_mode_ptr + (scp->mode * 64);
+setup_grmode:
+	set_vgaregs(modetable);
 	scp->font_size = FONT_NONE;
 	break;
 
@@ -3862,13 +3908,17 @@ set_mouse_pos(scr_stat *scp)
 	scp->mouse_xpos = 0;
     if (scp->mouse_ypos < 0)
 	scp->mouse_ypos = 0;
+    if (scp->status & UNKNOWN_MODE) {
+        if (scp->mouse_xpos > scp->xpixel)
+	    scp->mouse_xpos = scp->xpixel-1;
+        if (scp->mouse_ypos > scp->ypixel)
+	    scp->mouse_ypos = scp->ypixel-1;
+	return;
+    }
     if (scp->mouse_xpos > (scp->xsize*8)-2)
 	scp->mouse_xpos = (scp->xsize*8)-2;
     if (scp->mouse_ypos > (scp->ysize*scp->font_size)-2)
 	scp->mouse_ypos = (scp->ysize*scp->font_size)-2;
-
-    if (scp->status & UNKNOWN_MODE)
-	return;
 
     if (scp->mouse_xpos != last_xpos || scp->mouse_ypos != last_ypos) {
 	scp->status |= MOUSE_MOVED;
