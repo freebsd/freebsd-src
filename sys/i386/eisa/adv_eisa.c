@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adv_eisa.c,v 1.4 1999/05/08 21:59:16 dfr Exp $
+ *	$Id: adv_eisa.c,v 1.5 1999/08/01 22:57:08 mdodd Exp $
  */
 
 #include "eisa.h"
@@ -178,7 +178,7 @@ adveisaattach(device_t dev)
 		 * by the MI portions of the advansys driver
 		 */
 		/* XXX Should be a child of the PCI bus dma tag */
-		error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/0,
+		error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 					   /*boundary*/0,
 					   /*lowaddr*/ADV_EISA_MAX_DMA_ADDR,
 					   /*highaddr*/BUS_SPACE_MAXADDR,
@@ -213,7 +213,7 @@ adveisaattach(device_t dev)
 		 * by the MI portions of the advansys driver
 		 */
 		/* XXX Should be a child of the PCI bus dma tag */
-		error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/0,
+		error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 					   /*boundary*/0,
 					   /*lowaddr*/ADV_EISA_MAX_DMA_ADDR,
 					   /*highaddr*/BUS_SPACE_MAXADDR,

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ida_pci.c,v 1.2 1999/07/03 20:17:02 peter Exp $
+ *	$Id: ida_pci.c,v 1.3 1999/07/29 01:03:02 mdodd Exp $
  */
 
 #include <sys/param.h>
@@ -145,7 +145,7 @@ ida_pci_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/0,
+	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 	    /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 	    /*highaddr*/BUS_SPACE_MAXADDR, /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/MAXBSIZE, /*nsegments*/IDA_NSEG,

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ida.c,v 1.1 1999/06/24 03:31:57 jlemon Exp $
  */
 
 /*
@@ -192,7 +192,7 @@ ida_init(struct ida_softc *ida)
 
 	/* DMA tag for our hardware QCB structures */
 	error = bus_dma_tag_create(ida->parent_dmat,
-	    /*alignment*/0, /*boundary*/0,
+	    /*alignment*/1, /*boundary*/0,
 	    /*lowaddr*/BUS_SPACE_MAXADDR, /*highaddr*/BUS_SPACE_MAXADDR,
 	    /*filter*/NULL, /*filterarg*/NULL,
 	    IDA_QCB_MAX * sizeof(struct ida_hardware_qcb),
@@ -203,7 +203,7 @@ ida_init(struct ida_softc *ida)
 
 	/* DMA tag for mapping buffers into device space */
 	error = bus_dma_tag_create(ida->parent_dmat,
-	    /*alignment*/0, /*boundary*/0,
+	    /*alignment*/1, /*boundary*/0,
 	    /*lowaddr*/BUS_SPACE_MAXADDR, /*highaddr*/BUS_SPACE_MAXADDR,
 	    /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/MAXBSIZE, /*nsegments*/IDA_NSEG,
