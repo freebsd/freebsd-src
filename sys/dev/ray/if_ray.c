@@ -2402,7 +2402,7 @@ ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ifmultiaddr *ifma;
 	size_t bufp;
-	int count;
+	int count = 0;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
@@ -2421,6 +2421,7 @@ ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 	 * mode and don't bother updating the multicast list.
 	 */
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+		count++;
 	if (count == 0) {
 		ray_com_runq_done(sc);
 		return;
