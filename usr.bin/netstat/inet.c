@@ -148,11 +148,11 @@ protopr(off, name)
 				printf(" %d", tcpcb.t_state);
                       else {
 				printf(" %s", tcpstates[tcpcb.t_state]);
-#if defined(TF_NEEDSYN) && defined(TF_NEEDSYN)
+#if defined(TF_NEEDSYN) && defined(TF_NEEDFIN)
                               /* Show T/TCP `hidden state' */
                               if (tcpcb.t_flags & (TF_NEEDSYN|TF_NEEDFIN))
                                       putchar('*');
-#endif /* defined(TF_NEEDSYN) && defined(TF_NEEDSYN) */
+#endif /* defined(TF_NEEDSYN) && defined(TF_NEEDFIN) */
                       }
 		}
 		putchar('\n');
