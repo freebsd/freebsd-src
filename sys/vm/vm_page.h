@@ -307,13 +307,13 @@ extern long first_page;			/* first physical page number */
  */
 
 static __inline void
-vm_page_flag_set(vm_page_t m, unsigned int bits)
+vm_page_flag_set(vm_page_t m, unsigned short bits)
 {
 	atomic_set_short(&(m)->flags, bits);
 }
 
 static __inline void
-vm_page_flag_clear(vm_page_t m, unsigned int bits)
+vm_page_flag_clear(vm_page_t m, unsigned short bits)
 {
 	atomic_clear_short(&(m)->flags, bits);
 }
