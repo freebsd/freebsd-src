@@ -257,12 +257,16 @@ Static usbd_status	uaudio_identify(struct uaudio_softc *sc,
 			    usb_config_descriptor_t *cdesc);
 
 Static int 		uaudio_signext(int type, int val);
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 Static int 		uaudio_value2bsd(struct mixerctl *mc, int val);
+#endif
 Static int 		uaudio_bsd2value(struct mixerctl *mc, int val);
 Static int 		uaudio_get(struct uaudio_softc *sc, int type,
 			    int which, int wValue, int wIndex, int len);
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 Static int		uaudio_ctl_get(struct uaudio_softc *sc, int which,
 			    struct mixerctl *mc, int chan);
+#endif
 Static void		uaudio_set(struct uaudio_softc *sc, int type,
 			    int which, int wValue, int wIndex, int l, int v);
 Static void 		uaudio_ctl_set(struct uaudio_softc *sc, int which,
@@ -1789,6 +1793,7 @@ uaudio_signext(int type, int val)
 	return (val);
 }
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 int
 uaudio_value2bsd(struct mixerctl *mc, int val)
 {
@@ -1802,6 +1807,7 @@ uaudio_value2bsd(struct mixerctl *mc, int val)
 	DPRINTFN(5, ("val'=%d\n", val));
 	return (val);
 }
+#endif
 
 int
 uaudio_bsd2value(struct mixerctl *mc, int val)
@@ -1816,6 +1822,7 @@ uaudio_bsd2value(struct mixerctl *mc, int val)
 	return (val);
 }
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 int
 uaudio_ctl_get(struct uaudio_softc *sc, int which, struct mixerctl *mc, 
 	       int chan)
@@ -1827,6 +1834,7 @@ uaudio_ctl_get(struct uaudio_softc *sc, int which, struct mixerctl *mc,
 			 mc->wIndex, MIX_SIZE(mc->type));
 	return (uaudio_value2bsd(mc, val));
 }
+#endif
 
 void
 uaudio_ctl_set(struct uaudio_softc *sc, int which, struct mixerctl *mc,
