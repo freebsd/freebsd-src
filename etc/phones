@@ -1,9 +1,5 @@
-#	$Id$
+#	$Id: phones,v 1.3 1994/01/23 18:39:52 rgrimes Exp $
 #	From: @(#)phones	5.2 (Berkeley) 6/30/90
-#
-# YOU MUST REMOVE ALL OF THESE COMMENT LINES BEFORE /etc/phones WILL
-# WORK CORRECTLY.  THE DIALER CODE IN tip NEEDS FIXED TO DEAL WITH
-# COMMENTS
 #
 # phones -- remote host phone number data base
 # see tip(1), phones(5)
