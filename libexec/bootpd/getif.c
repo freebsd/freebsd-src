@@ -91,13 +91,12 @@ getif(s, addrp)
 			maxmatch = m;
 			ifrmax = ifrq;
 		}
-		/* XXX - Could this be just #ifndef IFNAMSIZ instead? -gwr */
-#if (BSD - 0) < 43
+#ifndef IFNAMSIZ
 		/* BSD not defined or earlier than 4.3 */
 		incr = sizeof(*ifrq);
-#else /* NetBSD */
+#else
 		incr = ifrq->ifr_addr.sa_len + IFNAMSIZ;
-#endif /* NetBSD */
+#endif
 
 		p += incr;
 		len -= incr;
