@@ -65,6 +65,7 @@ static char rcsid[] = "$Id: db_load.c,v 4.9.1.18 1994/07/23 23:23:56 vixie Exp $
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
+#include <netiso/iso.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 #include <stdio.h>
@@ -173,6 +174,7 @@ db_load(filename, in_origin, zp, doinginclude)
 	int c, class, type, ttl, dbflags, dataflags, multiline;
 	static int read_soa;	/* number of soa's read */
 	struct databuf *dp;
+	struct iso_addr *isoa;
 	FILE *fp;
 	int slineno, i, errs = 0, didinclude = 0;
 	register u_int32_t n;
@@ -562,9 +564,11 @@ db_load(filename, in_origin, zp, doinginclude)
 				break;
 
 			case T_NSAP:
-				n = inet_nsap_addr(buf, data, MAXDATA);
-				if (n == 0)
-					goto err;
+				isoa = iso_addr(buf);
+				if (!isoa)
+				    goto err;
+				n = isoa->isoa_len;
+				bcopy(isoa->isoa_genaddr, data, n);
 				endline(fp);
 				break;
 #ifdef ALLOW_T_UNSPEC

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_dump.c	4.33 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: db_dump.c,v 4.9.1.12 1994/07/22 08:42:39 vixie Exp $";
+static char rcsid[] = "$Id: db_dump.c,v 1.1.1.1 1994/09/22 19:46:10 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -61,6 +61,7 @@ static char rcsid[] = "$Id: db_dump.c,v 4.9.1.12 1994/07/22 08:42:39 vixie Exp $
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
+#include <netiso/iso.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -341,6 +342,7 @@ db_dump(htp, fp, zone, origin)
 	u_int32_t n;
 	u_int32_t addr;
 	int j, i;
+	struct iso_addr isoa;
 	register u_char *cp;
 	u_char *end;
 	char *proto, *sep;
@@ -529,9 +531,12 @@ db_dump(htp, fp, zone, origin)
 				break;
 
 			case T_NSAP:
-				(void) fputs(inet_nsap_ntoa(dp->d_size,
-							    dp->d_data, NULL),
-					     fp);
+				isoa.isoa_len = dp->d_size;
+				if (isoa.isoa_len > sizeof(isoa.isoa_genaddr))
+				    isoa.isoa_len = sizeof(isoa.isoa_genaddr);
+				bcopy(dp->d_data, isoa.isoa_genaddr,
+				      isoa.isoa_len);
+				(void) fputs(iso_ntoa(&isoa), fp);
 				break;
 
 			case T_UINFO:

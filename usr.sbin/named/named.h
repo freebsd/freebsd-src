@@ -4,8 +4,8 @@
  * $Id: named.h,v 1.1 1993/09/08 04:57:40 vixie Exp $
  */
 
-#include "../conf/portability.h"
-#include "../conf/options.h"
+#include "options.h"
+#include "portability.h"
 
 #include "pathnames.h"
 

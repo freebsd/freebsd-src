@@ -55,8 +55,6 @@
 
 #include <sys/param.h>
 #include <syslog.h>
-#include "../conf/portability.h"
-#include "../conf/options.h"
 
 #ifdef DSTORAGE
 /*
@@ -83,7 +81,7 @@
  *	All rights reserved.
  */
 #ifndef lint
-static char RCSid[] = "$Id: storage.c,v 4.9.1.2 1993/09/08 00:01:17 vixie Exp $";
+static char RCSid[] = "$Id: storage.c,v 1.1.1.1 1994/09/22 19:46:14 pst Exp $";
 #endif
 
 #undef malloc

@@ -72,7 +72,6 @@ static char rcsid[] = "$Id: nstest.c,v 4.9.1.6 1994/06/01 21:10:11 vixie Exp $";
 #include <arpa/nameser.h>
 #include <stdio.h>
 #include <resolv.h>
-#include "../conf/portability.h"
 
 char *progname;
 FILE *log;

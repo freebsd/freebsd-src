@@ -73,7 +73,7 @@ static char rcsid[] = "$Id: nsquery.c,v 4.9.1.4 1994/06/11 22:05:07 vixie Exp $"
 #include <stdio.h>
 #include <netdb.h>
 #include <resolv.h>
-#include "../conf/portability.h"
+#include <string.h>
 
 main(argc, argv)
 	int argc;
