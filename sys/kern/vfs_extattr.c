@@ -1615,29 +1615,44 @@ lseek(p, uap)
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;
 	struct vattr vattr;
-	int error;
+	struct vnode *vp;
+	off_t offset;
+	int error, noneg;
 
 	if ((u_int)SCARG(uap, fd) >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL)
 		return (EBADF);
 	if (fp->f_type != DTYPE_VNODE)
 		return (ESPIPE);
+	vp = (struct vnode *)fp->f_data;
+	noneg = (vp->v_type != VCHR);
+	offset = SCARG(uap, offset);
 	switch (SCARG(uap, whence)) {
 	case L_INCR:
-		fp->f_offset += SCARG(uap, offset);
+		if (noneg &&
+		    ((offset > 0 && fp->f_offset > OFF_MAX - offset) ||
+		     (offset < 0 && fp->f_offset < OFF_MIN - offset)))
+			return (EOVERFLOW);
+		offset += fp->f_offset;
 		break;
 	case L_XTND:
-		error=VOP_GETATTR((struct vnode *)fp->f_data, &vattr, cred, p);
+		error = VOP_GETATTR(vp, &vattr, cred, p);
 		if (error)
 			return (error);
-		fp->f_offset = SCARG(uap, offset) + vattr.va_size;
+		if (noneg &&
+		    ((offset > 0 && vattr.va_size > OFF_MAX - offset) ||
+		     (offset < 0 && vattr.va_size < OFF_MIN - offset)))
+			return (EOVERFLOW);
+		offset += vattr.va_size;
 		break;
 	case L_SET:
-		fp->f_offset = SCARG(uap, offset);
 		break;
 	default:
 		return (EINVAL);
 	}
+	if (noneg && offset < 0)
+		return (EINVAL);
+	fp->f_offset = offset;
 	*(off_t *)(p->p_retval) = fp->f_offset;
 	return (0);
 }
