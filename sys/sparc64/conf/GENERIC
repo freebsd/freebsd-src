@@ -133,7 +133,6 @@ device		eeprom		# eeprom (really an ebus driver for the MK48Txx)
 device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
 
 # Serial (COM) ports
-#device		sio		# 8250, 16[45]50 based serial ports
 device		sab		# Siemens SAB82532 based serial ports
 device		zs		# Zilog 8530 based serial ports
 #device		uart		# Multi-uart driver
