@@ -134,12 +134,12 @@ struct sockaddr_ns {
 
 #ifdef _KERNEL
 extern struct domain nsdomain;
-union ns_host ns_thishost;
-union ns_host ns_zerohost;
-union ns_host ns_broadhost;
-union ns_net ns_zeronet;
-union ns_net ns_broadnet;
-u_short ns_cksum();
+extern union ns_host ns_thishost;
+extern union ns_host ns_zerohost;
+extern union ns_host ns_broadhost;
+extern union ns_net ns_zeronet;
+extern union ns_net ns_broadnet;
+u_short ns_cksum(void);
 #else
 
 #include <sys/cdefs.h>
