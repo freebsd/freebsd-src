@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.27 1995/05/27 04:40:57 davidg Exp $
+ *  $Id: if_ep.c,v 1.28 1995/05/30 08:02:07 rgrimes Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -1129,6 +1129,8 @@ epioctl(ifp, cmd, data)
     struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
 
+    s = splimp();
+
     switch (cmd) {
       case SIOCSIFADDR:
 	ifp->if_flags |= IFF_UP;
@@ -1210,6 +1212,9 @@ epioctl(ifp, cmd, data)
       default:
 		error = EINVAL;
     }
+
+    splx(s);
+
     return (error);
 }
 
