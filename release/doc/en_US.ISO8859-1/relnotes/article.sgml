@@ -1222,6 +1222,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	has been removed.  The Memory Filesystem (MFS) has also been
 	removed.</para>
 
+      <para arch="i386,alpha,pc98,sparc64">The mpt driver, for
+	supporting the LSI Logic Fusion/MP architecture Fiber Channel
+	controllers, has been added. &merged;</para>
+
       <para arch="i386" role="historic">The &man.mly.4; driver, for Mylex PCI to SCSI
 	AccelRAID and eXtremeRAID controllers with firmware 6.X and
 	later, has been added. &merged;</para>
@@ -1234,6 +1238,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para arch="powerpc">The ofw driver, a basic OpenFirmware disk
 	driver, has been added.</para>
+
+      <para arch="i386">The pst driver, for supporting Promise
+	SuperTrak ATA RAID controllers, has been
+	added. &merged;</para>
 
       <para>Some problems in &man.sa.4; error handling have been
 	fixed, including the <quote>tape drive spinning indefinitely
@@ -3114,7 +3122,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <command><replaceable>command</replaceable> &amp; &amp;&amp;
       <replaceable>command</replaceable></command>, <command>&amp;&amp;
       <replaceable>command</replaceable></command>, or <command>||
-      <replaceable>command</replaceable></command>.</para>
+      <replaceable>command</replaceable></command>. &merged;</para>
 
     <para role="historic">&man.sockstat.1; now has <option>-c</option> and
       <option>-l</option> flags for listing connected and listening
