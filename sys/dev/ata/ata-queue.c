@@ -153,11 +153,11 @@ ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data,
     struct ata_request *request = ata_alloc_request();
     int packet_size, error = ENOMEM;
 
-    if ((atadev->param->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
-	packet_size = 12;
-    else
-	packet_size = 16;
     if (request) {
+	if ((atadev->param->config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
+	    packet_size = 12;
+	else
+	    packet_size = 16;
 	request->device = atadev;
 	bcopy(ccb, request->u.atapi.ccb, packet_size);
 	request->data = data;

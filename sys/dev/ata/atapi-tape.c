@@ -510,7 +510,7 @@ ast_start(struct ata_device *atadev)
     ccb[4] = blkcount;
 
     if (!(request = ata_alloc_request())) {
-	biofinish(bp, NULL, EIO);
+	biofinish(bp, NULL, ENOMEM);
 	return;
     }
     request->device = atadev;
