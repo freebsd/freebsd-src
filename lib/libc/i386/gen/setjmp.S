@@ -80,12 +80,11 @@ ENTRY(setjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifdef _THREAD_SAFE
-ENTRY(__longjmp)
-#else
-ALTENTRY(__longjmp)
-ENTRY(longjmp)
+#ifndef _THREAD_SAFE
+.weak CNAME(longjmp);
+.set CNAME(longjmp),CNAME(__longjmp);
 #endif
+ENTRY(__longjmp)
 	movl	4(%esp),%edx
 	PIC_PROLOGUE
 	pushl	$0			/* (sigset_t*)oset */
