@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: btreg.h,v 1.6 1999/04/18 15:50:33 peter Exp $
+ *      $Id: btreg.h,v 1.7 1999/04/23 23:28:20 gibbs Exp $
  */
 
 #ifndef _BTREG_H_
@@ -664,7 +664,6 @@ struct bt_softc {
 	char			 model[5];
 };
 
-extern struct bt_softc *bt_softcs[];	/* XXX Config should handle this */
 extern u_long bt_unit;
 
 #define BT_TEMP_UNIT 0xFF		/* Unit for probes */
