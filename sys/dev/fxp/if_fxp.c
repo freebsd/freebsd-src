@@ -797,11 +797,13 @@ fxp_attach(device_t dev)
 	ifp->if_start = fxp_start;
 	ifp->if_watchdog = fxp_watchdog;
 
+	ifp->if_capabilities = ifp->if_capenable = 0;
+
 	/* Enable checksum offload for 82550 or better chips */
 	if (sc->flags & FXP_FLAG_EXT_RFA) {
 		ifp->if_hwassist = FXP_CSUM_FEATURES;
-		ifp->if_capabilities = IFCAP_HWCSUM;
-		ifp->if_capenable = ifp->if_capabilities;
+		ifp->if_capabilities |= IFCAP_HWCSUM;
+		ifp->if_capenable |= IFCAP_HWCSUM;
 	}
 
 #ifdef DEVICE_POLLING
@@ -817,6 +819,8 @@ fxp_attach(device_t dev)
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
+	 * Must appear after the call to ether_ifattach() because
+	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
