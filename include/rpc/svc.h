@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc.h 1.20 88/02/08 SMI
  *	from: @(#)svc.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: svc.h,v 1.6 1996/12/30 13:59:40 peter Exp $
+ *	$Id: svc.h,v 1.12 1997/05/28 04:45:13 wpaul Exp $
  */
 
 /*
@@ -68,6 +68,8 @@ enum xprt_stat {
 	XPRT_MOREREQS,
 	XPRT_IDLE
 };
+
+struct rpc_msg;
 
 /*
  * Server side transport handle

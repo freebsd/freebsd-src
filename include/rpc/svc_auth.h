@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc_auth.h 1.6 86/07/16 SMI
  *	from: @(#)svc_auth.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: svc_auth.h,v 1.4 1996/01/30 23:32:36 mpp Exp $
+ *	$Id: svc_auth.h,v 1.9 1997/05/28 04:45:14 wpaul Exp $
  */
 
 /*
@@ -40,13 +40,17 @@
 #ifndef _RPC_SVCAUTH_H
 #define _RPC_SVCAUTH_H
 
+struct rpc_msg;
+struct svc_req;
+
 /*
  * Server side authenticator
  */
 __BEGIN_DECLS
 extern enum auth_stat _authenticate __P((struct svc_req *, struct rpc_msg *));
-extern int svc_auth_reg __P(( register int, enum auth_stat (*)() ));
-extern enum auth_stat _svcauth_des __P(( struct svc_req *, struct rpc_msg * ));
+extern int svc_auth_reg __P((int, enum auth_stat (*)(struct svc_req *,
+						     struct rpc_msg *)));
+extern enum auth_stat _svcauth_des __P((struct svc_req *, struct rpc_msg *));
 __END_DECLS
 
 #endif /* !_RPC_SVCAUTH_H */
