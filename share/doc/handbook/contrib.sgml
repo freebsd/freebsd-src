@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.98 1996/06/24 01:21:58 wosch Exp $ -->
+<!-- $Id: contrib.sgml,v 1.99 1996/06/27 20:52:06 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -93,6 +93,7 @@
         <item>&a.se;  
         <item>&a.fenner;
         <item>&a.jfieber;
+	<item>&a.scrappy;
 	<item>&a.jhay;
         <item>&a.lars;
         <item>&a.tg;
@@ -101,14 +102,15 @@
         <item>&a.hsu;
         <item>&a.ugen;
         <item>&a.gj;
+	<item>&a.andreas;
         <item>&a.ljo;
         <item>&a.erich;
         <item>&a.smace;
         <item>&a.amurai;
         <item>&a.markm;
         <item>&a.alex;
-        <item>&a.olah;
         <item>&a.wpaul; 
+	<item>&a.smpatel;
         <item>&a.jmacd; 
         <item>&a.jdp;
         <item>&a.mpp;
