@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.52 1998/03/28 11:49:55 dufault Exp $
+ * $Id: kern_synch.c,v 1.53 1998/03/28 18:16:29 dufault Exp $
  */
 
 #include "opt_ktrace.h"
@@ -621,9 +621,9 @@ mi_switch()
 	 * Compute the amount of time during which the current
 	 * process was running, and add that to its total so far.
 	 */
-	microtime(&tv);
-	u = p->p_rtime.tv_usec + (tv.tv_usec - runtime.tv_usec);
-	s = p->p_rtime.tv_sec + (tv.tv_sec - runtime.tv_sec);
+	microruntime(&tv);
+	u = p->p_rtime.tv_usec + (tv.tv_usec - p->p_runtime.tv_usec);
+	s = p->p_rtime.tv_sec + (tv.tv_sec - p->p_runtime.tv_sec);
 	if (u < 0) {
 		u += 1000000;
 		s--;
@@ -660,7 +660,7 @@ mi_switch()
 	 */
 	cnt.v_swtch++;
 	cpu_switch(p);
-	microtime(&runtime);
+	microruntime(&p->p_runtime);
 	splx(x);
 }
 

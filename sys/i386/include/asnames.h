@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.16 1998/01/26 04:44:32 peter Exp $
+ * $Id: asnames.h,v 1.17 1998/03/04 09:55:13 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -316,7 +316,6 @@
 #define _rel_mplock			rel_mplock
 #define _round_reg			round_reg
 #define _rtqs				rtqs
-#define _runtime			runtime
 #define _s_lock				s_lock
 #define _s_unlock			s_unlock
 #define _secondary_main			secondary_main

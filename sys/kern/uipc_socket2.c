@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.30 1997/09/07 16:53:48 bde Exp $
+ *	$Id: uipc_socket2.c,v 1.31 1998/03/01 19:39:19 guido Exp $
  */
 
 #include <sys/param.h>
@@ -157,13 +157,14 @@ sodropablereq(head)
 {
 	register struct socket *so;
 	unsigned int i, j, qlen;
-
 	static int rnd;
-	static long old_mono_secs;
+	static struct timeval old_runtime;
 	static unsigned int cur_cnt, old_cnt;
+	struct timeval tv;
 
-	if ((i = (mono_time.tv_sec - old_mono_secs)) != 0) {
-		old_mono_secs = mono_time.tv_sec;
+	getmicroruntime(&tv);
+	if ((i = (tv.tv_sec - old_runtime.tv_sec)) != 0) {
+		old_runtime = tv;
 		old_cnt = cur_cnt / i;
 		cur_cnt = 0;
 	}

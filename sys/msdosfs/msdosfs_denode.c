@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.33 1998/03/20 02:33:35 kato Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.34 1998/03/26 20:52:51 phk Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -198,6 +198,7 @@ deget(pmp, dirclust, diroffset, depp)
 	struct vnode *nvp;
 	struct buf *bp;
 	struct proc *p = curproc;	/* XXX */
+	struct timeval tv;
 
 #ifdef MSDOSFS_DEBUG
 	printf("deget(pmp %p, dirclust %lu, diroffset %lx, depp %p)\n",
@@ -345,8 +346,9 @@ deget(pmp, dirclust, diroffset, depp)
 		}
 	} else
 		nvp->v_type = VREG;
-	SETHIGH(ldep->de_modrev, mono_time.tv_sec);
-	SETLOW(ldep->de_modrev, mono_time.tv_usec * 4294);
+	getmicroruntime(&tv);
+	SETHIGH(ldep->de_modrev, tv.tv_sec);
+	SETLOW(ldep->de_modrev, tv.tv_usec * 4294);
 	VREF(ldep->de_devvp);
 	*depp = ldep;
 	return (0);
