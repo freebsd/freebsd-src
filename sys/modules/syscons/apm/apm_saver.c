@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Nick Sayer (who stole shamelessly from blank_saver)
+ * Copyright (c) 1995-1998 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,17 +32,16 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/consio.h>
-#include <sys/fbio.h>
 
-#include <dev/fb/fbreg.h>
-#include <dev/fb/splashreg.h>
-#include <dev/syscons/syscons.h>
+#include <dev/fb/vgareg.h>
+
+#include <i386/isa/isa.h>
 
 #include <sys/select.h>
 #include <machine/apm_bios.h>
-#include <machine/pc/bios.h>
 #include <i386/apm/apm.h>
+
+#include <saver.h>
 
 extern int apm_display __P((int newstate));                                     
 
@@ -71,10 +70,6 @@ apm_saver(video_adapter_t *adp, int blank)
 static int
 apm_init(video_adapter_t *adp)
 {
-	struct apm_softc *sc = &apm_softc;                                      
-
-	if (!sc->initialized || !sc->active)
-		printf("WARNING: apm_saver module requires apm enabled\n");
 	return 0;
 }
 
