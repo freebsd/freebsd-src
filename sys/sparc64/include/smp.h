@@ -48,8 +48,10 @@
 #define	IPI_RETRIES	100
 
 struct cpu_start_args {
+	u_int	csa_count;
 	u_int	csa_mid;
 	u_int	csa_state;
+	vm_offset_t csa_pcpu;
 	u_long	csa_tick;
 	u_long	csa_ver;
 	struct	tte csa_ttes[PCPU_PAGES];
@@ -63,7 +65,7 @@ struct ipi_level_args {
 struct ipi_tlb_args {
 	u_int	ita_count;
 	u_long	ita_tlb;
-	u_long	ita_ctx;
+	struct	pmap *ita_pmap;
 	u_long	ita_start;
 	u_long	ita_end;
 };
@@ -85,8 +87,6 @@ vm_offset_t mp_tramp_alloc(void);
 extern	struct	ipi_level_args ipi_level_args;
 extern	struct	ipi_tlb_args ipi_tlb_args;
 
-extern	int mp_ncpus;
-
 extern	vm_offset_t mp_tramp;
 extern	char *mp_tramp_code;
 extern	u_long mp_tramp_code_len;
@@ -103,58 +103,68 @@ extern	char tl_ipi_tlb_range_demap[];
 
 #ifdef SMP
 
+#ifdef _MACHINE_PMAP_H_
+
 static __inline void *
-ipi_tlb_context_demap(u_int ctx)
+ipi_tlb_context_demap(struct pmap *pm)
 {
 	struct ipi_tlb_args *ita;
+	u_int cpus;
 
-	if (mp_ncpus == 1)
+	if (smp_cpus == 1)
+		return (NULL);
+	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
 		return (NULL);
 	ita = &ipi_tlb_args;
-	ita->ita_count = mp_ncpus;
-	ita->ita_ctx = ctx;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0,
-	    (u_long)tl_ipi_tlb_context_demap, (u_long)ita);
+	ita->ita_count = smp_cpus;
+	ita->ita_pmap = pm;
+	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_context_demap,
+	    (u_long)ita);
 	return (&ita->ita_count);
 }
 
 static __inline void *
-ipi_tlb_page_demap(u_int tlb, u_int ctx, vm_offset_t va)
+ipi_tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
 {
 	struct ipi_tlb_args *ita;
+	u_int cpus;
 
-	if (mp_ncpus == 1)
+	if (smp_cpus == 1)
+		return (NULL);
+	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
 		return (NULL);
 	ita = &ipi_tlb_args;
-	ita->ita_count = mp_ncpus;
+	ita->ita_count = smp_cpus;
 	ita->ita_tlb = tlb;
-	ita->ita_ctx = ctx;
+	ita->ita_pmap = pm;
 	ita->ita_va = va;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0,
-	    (u_long)tl_ipi_tlb_page_demap, (u_long)ita);
+	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_page_demap, (u_long)ita);
 	return (&ita->ita_count);
 }
 
 static __inline void *
-ipi_tlb_range_demap(u_int ctx, vm_offset_t start, vm_offset_t end)
+ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 {
 	struct ipi_tlb_args *ita;
+	u_int cpus;
 
-	if (mp_ncpus == 1)
+	if (smp_cpus == 1)
+		return (NULL);
+	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
 		return (NULL);
 	ita = &ipi_tlb_args;
-	ita->ita_count = mp_ncpus;
-	ita->ita_ctx = ctx;
+	ita->ita_count = smp_cpus;
+	ita->ita_pmap = pm;
 	ita->ita_start = start;
 	ita->ita_end = end;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0,
-	    (u_long)tl_ipi_tlb_range_demap, (u_long)ita);
+	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_range_demap, (u_long)ita);
 	return (&ita->ita_count);
 }
 
 static __inline void
 ipi_wait(void *cookie)
 {
+#if 0
 	u_int *count;
 
 	if ((count = cookie) != NULL) {
@@ -162,24 +172,27 @@ ipi_wait(void *cookie)
 		while (*count != 0)
 			;
 	}
+#endif
 }
+
+#endif
 
 #else
 
 static __inline void *
-ipi_tlb_context_demap(u_int ctx)
+ipi_tlb_context_demap(struct pmap *pm)
 {
 	return (NULL);
 }
 
 static __inline void *
-ipi_tlb_page_demap(u_int tlb, u_int ctx, vm_offset_t va)
+ipi_tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
 {
 	return (NULL);
 }
 
 static __inline void *
-ipi_tlb_range_demap(u_int ctx, vm_offset_t start, vm_offset_t end)
+ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 {
 	return (NULL);
 }

@@ -120,9 +120,9 @@ ENTRY(mp_startup)
 	/*
 	 * Wait till its our turn to bootstrap.
 	 */
-1:	lduw	[%l0 + CSA_MID], %l1
+2:	lduw	[%l0 + CSA_MID], %l1
 	cmp	%l1, %o0
-	bne	%xcc, 1b
+	bne	%xcc, 2b
 	 nop
 
 #if KTR_COMPILE & KTR_SMP
@@ -132,25 +132,34 @@ ENTRY(mp_startup)
 9:
 #endif
 
-	/*
-	 * Find our per-cpu page and the tte data that we will use to map it.
-	 */
-	ldx	[%l0 + CSA_TTES + TTE_VPN], %l1
-	ldx	[%l0 + CSA_TTES + TTE_DATA], %l2
+	add	%l0, CSA_TTES, %l1
+	clr	%l2
 
 	/*
-	 * Map the per-cpu page.  It uses a locked tlb entry.
+	 * Map the per-cpu pages.
 	 */
+3:	sllx	%l2, TTE_SHIFT, %l3
+	add	%l1, %l3, %l3
+
+	ldx	[%l3 + TTE_VPN], %l4
+	ldx	[%l3 + TTE_DATA], %l5
+
 	wr	%g0, ASI_DMMU, %asi
-	sllx	%l1, PAGE_SHIFT, %l1
-	stxa	%l1, [%g0 + AA_DMMU_TAR] %asi
-	stxa	%l2, [%g0] ASI_DTLB_DATA_IN_REG
+	sllx	%l4, PAGE_SHIFT, %l4
+	stxa	%l4, [%g0 + AA_DMMU_TAR] %asi
+	stxa	%l5, [%g0] ASI_DTLB_DATA_IN_REG
 	membar	#Sync
+
+	add	%l2, 1, %l2
+	cmp	%l2, PCPU_PAGES
+	bne	%xcc, 3b
+	 nop
 
 	/*
 	 * Get onto our per-cpu panic stack, which precedes the struct pcpu
 	 * in the per-cpu page.
 	 */
+	ldx	[%l0 + CSA_PCPU], %l1
 	set	PCPU_PAGES * PAGE_SIZE - PC_SIZEOF, %l2
 	add	%l1, %l2, %l1
 	sub	%l1, SPOFF + CCFSZ, %sp
@@ -164,12 +173,11 @@ ENTRY(mp_startup)
 	CATR(KTR_SMP,
 	    "_mp_start: bootstrap cpuid=%d mid=%d pcpu=%#lx data=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
-	lduw	[%l2 + PC_CPUID], %g2
+	lduw	[%l1 + PC_CPUID], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
-	lduw	[%l2 + PC_MID], %g2
+	lduw	[%l1 + PC_MID], %g2
 	stx	%g2, [%g1 + KTR_PARM2]
-	stx	%l2, [%g1 + KTR_PARM3]
-	stx	%l1, [%g1 + KTR_PARM4]
+	stx	%l1, [%g1 + KTR_PARM3]
 	stx	%sp, [%g1 + KTR_PARM5]
 9:
 #endif

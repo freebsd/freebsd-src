@@ -41,6 +41,7 @@
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h> 
 #include <vm/vm_param.h>
@@ -54,6 +55,7 @@
 #include <machine/frame.h>
 #include <machine/pmap.h>
 #include <machine/pv.h>
+#include <machine/smp.h>
 #include <machine/tte.h>
 #include <machine/tlb.h>
 #include <machine/tsb.h>

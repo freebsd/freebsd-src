@@ -67,6 +67,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
+#include <sys/user.h>
 #include <sys/ucontext.h>
 #include <sys/user.h>
 #include <sys/ucontext.h>
@@ -93,6 +94,7 @@
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
+#include <machine/smp.h>
 #include <machine/pmap.h>
 #include <machine/pstate.h>
 #include <machine/reg.h>

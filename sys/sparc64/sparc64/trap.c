@@ -52,6 +52,7 @@
 #include <sys/systm.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/user.h>
@@ -71,6 +72,7 @@
 #include <machine/intr_machdep.h>
 #include <machine/pcb.h>
 #include <machine/pv.h>
+#include <machine/smp.h>
 #include <machine/trap.h>
 #include <machine/tstate.h>
 #include <machine/tte.h>

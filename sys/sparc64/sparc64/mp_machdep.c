@@ -89,7 +89,9 @@ static ih_func_t cpu_ipi_stop;
  * since the other processors will use it before the boot cpu enters the
  * kernel.
  */
-struct	cpu_start_args cpu_start_args = { -1, -1, 0, 0 };
+struct	cpu_start_args cpu_start_args = { 0, -1, -1, 0, 0 };
+struct	ipi_tlb_args ipi_tlb_args;
+struct	ipi_level_args ipi_level_args;
 
 vm_offset_t mp_tramp;
 
@@ -252,9 +254,10 @@ cpu_mp_unleash(void *v)
 	u_long s;
 	int i;
 
-	ctx_min = 1;
-	ctx_inc = (8192 - 1) / mp_ncpus;
+	ctx_min = TLB_CTX_USER_MIN;
+	ctx_inc = (TLB_CTX_USER_MAX - 1) / mp_ncpus;
 	csa = &cpu_start_args;
+	csa->csa_count = mp_ncpus;
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		pc->pc_tlb_ctx = ctx_min;
 		pc->pc_tlb_ctx_min = ctx_min;
@@ -279,12 +282,18 @@ cpu_mp_unleash(void *v)
 			    TD_L | TD_CP | TD_CV | TD_P | TD_W;
 		}
 		csa->csa_state = 0;
+		csa->csa_pcpu = pc->pc_addr;
 		csa->csa_mid = pc->pc_mid;
 		s = intr_disable();
 		while (csa->csa_state != CPU_BOOTSTRAP)
 			;
 		intr_restore(s);
+
+		cpu_ipi_send(pc->pc_mid, 0, (u_long)tl_ipi_test, 0);
 	}
+
+	membar(StoreLoad);
+	csa->csa_count = 0; 
 }
 
 void
@@ -300,8 +309,10 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
 	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
+	csa->csa_count--;
+	membar(StoreLoad);
 	csa->csa_state = CPU_BOOTSTRAP;
-	for (;;)
+	while (csa->csa_count != 0)
 		;
 
 	binuptime(PCPU_PTR(switchtime));
@@ -340,15 +351,13 @@ cpu_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2)
 void
 cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 {
-	u_long pstate;
+	u_long s;
 	int i;
 
 	KASSERT((ldxa(0, ASI_INTR_DISPATCH_STATUS) & IDR_BUSY) == 0,
 	    ("ipi_send: outstanding dispatch"));
-	pstate = rdpr(pstate);
 	for (i = 0; i < IPI_RETRIES; i++) {
-		if (pstate & PSTATE_IE)
-			wrpr(pstate, pstate, PSTATE_IE);
+		s = intr_disable();
 		stxa(AA_SDB_INTR_D0, ASI_SDB_INTR_W, d0);
 		stxa(AA_SDB_INTR_D1, ASI_SDB_INTR_W, d1);
 		stxa(AA_SDB_INTR_D2, ASI_SDB_INTR_W, d2);
@@ -356,7 +365,7 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		membar(Sync);
 		while (ldxa(0, ASI_INTR_DISPATCH_STATUS) & IDR_BUSY)
 			;
-		wrpr(pstate, pstate, 0);
+		intr_restore(s);
 		if ((ldxa(0, ASI_INTR_DISPATCH_STATUS) & IDR_NACK) == 0)
 			return;
 	}
