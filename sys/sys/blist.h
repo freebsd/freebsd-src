@@ -56,6 +56,14 @@
 typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
 
 /*
+ * note: currently use SWAPBLK_NONE as an absolute value rather then 
+ * a flag bit.
+ */
+
+#define SWAPBLK_MASK	((daddr_t)((u_daddr_t)-1 >> 1))		/* mask */
+#define SWAPBLK_NONE	((daddr_t)((u_daddr_t)SWAPBLK_MASK + 1))/* flag */
+
+/*
  * blmeta and bl_bitmap_t MUST be a power of 2 in size.
  */
 
