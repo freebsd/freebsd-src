@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2000 David O'Brien
  * Copyright (c) 1995-1996 Søren Schmidt
  * Copyright (c) 1996 Peter Wemm
  * All rights reserved.
@@ -106,6 +107,7 @@ struct sysentvec elf_freebsd_sysvec = {
 
 static Elf_Brandinfo freebsd_brand_info = {
 						ELFOSABI_FREEBSD,
+						"FreeBSD",
 						"",
 						"/usr/libexec/ld-elf.so.1",
 						&elf_freebsd_sysvec
@@ -562,21 +564,23 @@ exec_elf_imgact(struct image_params *imgp)
 
 	brand_info = NULL;
 
-	/* XXX  For now we look for the magic "FreeBSD" that we used to put
-	 * into the ELF header at the EI_ABIVERSION location.  If found use
-	 * that information rather than figuring out the ABI from proper
-	 * branding.  This should be removed for 5.0-RELEASE. The Linux caes
-	 * can be figured out from the `interp_path' field.
+	/* We support three types of branding -- (1) the ELF EI_OSABI field
+	 * that SCO added to the ELF spec, (2) FreeBSD 3.x's traditional string
+	 * branding w/in the ELF header, and (3) path of the `interp_path'
+	 * field.  We should also look for an ".note.ABI-tag" ELF section now
+	 * in all Linux ELF binaries, FreeBSD 4.1+, and some NetBSD ones.
 	 */
-	if (strcmp("FreeBSD", (const char *)&hdr->e_ident[OLD_EI_BRAND]) == 0)
-		brand_info = &freebsd_brand_info;
 
 	/* If the executable has a brand, search for it in the brand list. */
 	if (brand_info == NULL) {
 		for (i = 0;  i < MAX_BRANDS;  i++) {
 			Elf_Brandinfo *bi = elf_brand_list[i];
 
-			if (bi != NULL && hdr->e_ident[EI_OSABI] == bi->brand) {
+			if (bi != NULL && 
+			    (hdr->e_ident[EI_OSABI] == bi->brand
+			    || 0 == 
+			    strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND], 
+			    bi->compat_3_brand, strlen(bi->compat_3_brand)))) {
 				brand_info = bi;
 				break;
 			}
