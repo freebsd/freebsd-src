@@ -606,6 +606,7 @@ SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
 static int
 udp_getcred(SYSCTL_HANDLER_ARGS)
 {
+	struct xucred xuc;
 	struct sockaddr_in addrs[2];
 	struct inpcb *inp;
 	int error, s;
@@ -623,14 +624,19 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto out;
 	}
-	error = SYSCTL_OUT(req, inp->inp_socket->so_cred, sizeof(struct ucred));
+	bzero(&xuc, sizeof(xuc));
+	xuc.cr_uid = inp->inp_socket->so_cred->cr_uid;
+	xuc.cr_ngroups = inp->inp_socket->so_cred->cr_ngroups;
+	bcopy(inp->inp_socket->so_cred->cr_groups, xuc.cr_groups,
+	    sizeof(xuc.cr_groups));
+	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
 	splx(s);
 	return (error);
 }
 
 SYSCTL_PROC(_net_inet_udp, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW,
-    0, 0, udp_getcred, "S,ucred", "Get the ucred of a UDP connection");
+    0, 0, udp_getcred, "S,xucred", "Get the xucred of a UDP connection");
 
 static int
 udp_output(inp, m, addr, control, p)
