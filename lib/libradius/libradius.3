@@ -39,6 +39,8 @@
 .Ft int
 .Fn rad_config "struct rad_handle *h" "const char *file"
 .Ft int
+.Fn rad_continue_send_request "struct rad_handle *h" "int selected" "int *fd" "struct timeval *tv"
+.Ft int
 .Fn rad_create_request "struct rad_handle *h" "int code"
 .Ft struct in_addr
 .Fn rad_cvt_addr "const void *data"
@@ -48,6 +50,8 @@
 .Fn rad_cvt_string "const void *data" "size_t len"
 .Ft int
 .Fn rad_get_attr "struct rad_handle *h" "const void **data" "size_t *len"
+.Ft int
+.Fn rad_init_send_request "struct rad_handle *h" "int *fd" "struct timeval *tv"
 .Ft struct rad_handle *
 .Fn rad_open "void"
 .Ft int
@@ -179,10 +183,16 @@ The
 .Fn rad_put_X
 functions return 0 on success, or -1 if an error occurs.
 .Sh SENDING THE REQUEST AND RECEIVING THE RESPONSE
-After the RADIUS request has been constructed, it is sent by means
-of
-.Fn rad_send_request .
-This function sends the request and waits for a valid reply,
+After the RADIUS request has been constructed, it is sent either by means of
+.Fn rad_send_request
+or by a combination of calls to
+.Fn rad_init_send_request
+and
+.Fn rad_continue_send_request .
+.Pp
+The
+.Fn rad_send_request
+function sends the request and waits for a valid reply,
 retrying the defined servers in round-robin fashion as necessary.
 If a valid response is received,
 .Fn rad_send_request
@@ -196,9 +206,43 @@ If no valid response is received,
 .Fn rad_send_request
 returns -1.
 .Pp
+As an alternative, if you do not wish to block waiting for a response,
+.Fn rad_init_send_request
+and
+.Fn rad_continue_send_request
+may be used instead.  If a reply is received from the RADIUS server or a
+timeout occurs, these functions return a value as described for
+.Fn rad_send_request .
+Otherwise, a value of zero is returned and the values pointed to by
+.Ar fd
+and
+.Ar tv
+are set to the descriptor and timeout that should be passed to
+.Xr select 2 .
+.Pp
+.Fn rad_init_send_request
+must be called first, followed by repeated calls to
+.Fn rad_continue_send_request
+as long as a return value of zero is given.
+Between each call, the application should call
+.Xr select 2 ,
+passing
+.Ar *fd
+as a read descriptor and timing out after the interval specified by
+.Ar tv .
+When select returns,
+.Fn rad_continue_send_request
+should be called with
+.Ar selected
+set to a non-zero value if
+.Xr select 2
+indicated that the descriptor is readable.
+.Pp
 Like RADIUS requests, each response may contain zero or more
 attributes.  After a response has been received successfully by
-.Fn rad_send_request ,
+.Fn rad_send_request
+or
+.Fn rad_continue_send_request ,
 its attributes can be extracted one by one using
 .Fn rad_get_attr .
 Each time
@@ -285,6 +329,10 @@ which can be retrieved using
 .Fn rad_put_int
 .It
 .Fn rad_put_string
+.It
+.Fn rad_init_send_request
+.It
+.Fn rad_continue_send_request
 .It
 .Fn rad_send_request
 .El
