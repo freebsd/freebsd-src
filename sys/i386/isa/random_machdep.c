@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.26 1998/06/07 08:40:25 phk Exp $
+ * $Id: random_machdep.c,v 1.27 1998/06/09 13:10:46 phk Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -105,7 +105,7 @@ static struct timer_rand_state blkdev_timer_state[MAX_BLKDEV];
 static struct wait_queue *random_wait;
 
 inthand2_t *sec_intr_handler[ICU_LEN];
-int sec_intr_unit[ICU_LEN];
+void *sec_intr_unit[ICU_LEN];
 
 #ifndef MIN
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))

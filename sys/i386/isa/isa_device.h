@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.49 1998/06/17 16:32:23 kato Exp $
+ *	$Id: isa_device.h,v 1.50 1998/06/17 16:54:22 bde Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -122,6 +122,18 @@ int	isa_dmastatus __P((int chan));
 int	isa_dmastop __P((int chan));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
 
+typedef	void	ointhand2_t __P((int unit));
+
+/*
+ * The "old" interrupt handlers really have type ointhand2_t although they
+ * appear to be declared as having type inthand2_t.  However, if if this
+ * header is included by ioconf.c, pretend that the handlers really have
+ * type inthand_t.  Assume that `C' is defined only by ioconf.c.
+ */
+#ifndef C
+#define	inthand2_t	ointhand2_t
+#endif
+
 inthand2_t	adintr;
 inthand2_t	ahaintr;
 inthand2_t	aicintr;
@@ -176,6 +188,8 @@ inthand2_t	wlintr;
 inthand2_t	wtintr;
 inthand2_t	zeintr;
 inthand2_t	zpintr;
+
+#undef inthand2_t
 
 #endif /* KERNEL */
 
