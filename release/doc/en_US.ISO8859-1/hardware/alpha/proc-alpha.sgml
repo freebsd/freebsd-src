@@ -834,6 +834,10 @@ device	sbc0</programlisting>
       to keep in mind when doing really high speed things with 64
       bit PCI adapters.</para>
 
+      <para>Although the hardware allows you to install up to 1.5Gbyte
+      of memory, &os; is limited to 1Gbyte because the DMA code does not
+      correctly handle memory above 1Gbyte.</para>
+
       <para>Moving to a faster CPU is quite simple, swap out the
       CPU chip and set the clock multiplier dipswitch to the speed of
       the new CPU.</para>
