@@ -701,7 +701,10 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 		if (bp->b_rcred == NOCRED && cred != NOCRED)
 			bp->b_rcred = crhold(cred);
 		vfs_busy_pages(bp, 0);
-		VOP_STRATEGY(vp, bp);
+		if (vp->v_type == VCHR)
+			VOP_SPECSTRATEGY(vp, bp);
+		else
+			VOP_STRATEGY(vp, bp);
 		++readwait;
 	}
 
@@ -721,7 +724,10 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 				rabp->b_rcred = crhold(cred);
 			vfs_busy_pages(rabp, 0);
 			BUF_KERNPROC(rabp);
-			VOP_STRATEGY(vp, rabp);
+			if (vp->v_type == VCHR)
+				VOP_SPECSTRATEGY(vp, bp);
+			else
+				VOP_STRATEGY(vp, bp);
 		} else {
 			brelse(rabp);
 		}
@@ -855,7 +861,10 @@ bwrite(struct buf * bp)
 	splx(s);
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
-	VOP_STRATEGY(bp->b_vp, bp);
+	if (bp->b_vp->v_type == VCHR)
+		VOP_SPECSTRATEGY(bp->b_vp, bp);
+	else
+		VOP_STRATEGY(bp->b_vp, bp);
 
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = bufwait(bp);
