@@ -1209,12 +1209,6 @@ ptrace_single_step(struct thread *td)
 }
 
 int
-ia64_pa_access(vm_offset_t pa)
-{
-	return VM_PROT_READ|VM_PROT_WRITE;
-}
-
-int
 fill_regs(struct thread *td, struct reg *regs)
 {
 	struct trapframe *tf;
