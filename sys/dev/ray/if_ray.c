@@ -194,7 +194,16 @@
  *	cards
  * apm/resume - ignore
  *	apm+pccard is borken for 3.x - no one knows how to do it anymore
+ * fix the XXX code in start_join_done - n/a
+ *	i've removed this as the error handling should be consistent for
+ *	all ECF commands and none of the other commands bother!
  *
+ * ***unload needs to drain comq
+ * ***unload checks in more routines
+ * ***IFF_RUNNING checks are they really needed?
+ * ***PCATCH tsleeps and have something that will clean the runq
+ * havenet needs checking again
+ * error handling of ECF command completions
  * proper setting of mib_hop_seq_len with country code for v4 firmware
  * _reset - check where needed
  * splimp or splnet?
@@ -203,18 +212,20 @@
  * infrastructure mode - maybe need some of the old stuff for checking?
  * differeniate between parameters set in attach and init
  * spinning in ray_cmd_issue
- * fix the XXX code in start_join_done
  * make RAY_DEBUG a knob somehow - either sysctl or IFF_DEBUG
  * ray_update_params_done needs work
- * callout handles need rationalising. can probably remove timerh and
- *   use ccs_timerh for download and sj_timerh
+ * callout handles need rationalising. can probably remove sj_timerh
+ * replace sc_comtimo with callout_pending() - see /sys/kern/kern_timeout.c
+ *   unfortunately not in 3.2
  * fragmentation when rx level drops?
+ * make RAY_DPRINTFN RAY_DPRINTF
+ * rationalise CM mapping if needed - might mean moving a couple of things
  */
 
 #define XXX		0
 #define XXX_NETBSDTX	0
-#define XXX_PROM	0
 #define XXX_CLEARCCS_IN_INIT	0
+#define XXX_ASSOCWORKING_AGAIN	0
 
 /*
  * XXX build options - move to LINT
@@ -233,7 +244,7 @@
  *	MBUF		MBUFs dumped
  *	RX		packet types reported
  *	CM		common memory re-mapping
- *	CMD		command scheduler
+ *	COM		new command sleep/wakeup
  */
 #define RAY_DBG_RECERR		0x0001
 #define RAY_DBG_SUBR		0x0002
@@ -245,7 +256,7 @@
 #define RAY_DBG_MBUF		0x0080
 #define RAY_DBG_RX		0x0100
 #define RAY_DBG_CM		0x0200
-#define RAY_DBG_CMD		0x0400
+#define RAY_DBG_COM		0x0400
 
 #ifndef RAY_DEBUG
 #define RAY_DEBUG	(				\
@@ -259,16 +270,13 @@
                         /* RAY_DBG_MBUF		| */	\
                         /* RAY_DBG_RX		| */	\
                         /* RAY_DBG_CM		| */	\
-                           RAY_DBG_CMD		|   	\
+                           RAY_DBG_COM		|   	\
 			0				\
 			)
 #endif
 
 #define RAY_CCS_TIMEOUT		(hz/2)	/* Timeout for CCS commands */
 #define	RAY_CHECK_SCHED_TIMEOUT	(hz)	/* Time to wait until command retry, should be > RAY_CCS_TIMEOUT */
-
-#define RAY_NEED_STARTJOIN_TIMO	0	/* Might be needed with build 4 */
-#define RAY_SJ_TIMEOUT		(90*hz)	/* Timeout for failing STARTJOIN commands - only used with RAY_NEED_STARTJOIN_TIMO */
 
 #define RAY_NEED_CM_FIXUP	1	/* Needed until pccardd hacks for ed drivers are removed (pccardd forces 16bit memory and 0x4000 size) THIS IS A DANGEROUS THING TO USE IF YOU USE OTHER MEMORY MAPPED PCCARDS */
 
@@ -307,6 +315,11 @@
     printf x ;							\
 } } while (0)
 
+#define RAY_DPRINTF(sc, mask, fmt, args...) do {if (RAY_DEBUG & mask) {	\
+    printf("ray%d: %s(%d) " fmt "\n",					\
+    	sc->unit, __FUNCTION__ , __LINE__ , ##args);			\
+} } while (0)
+
 #define RAY_DNET_DUMP(sc, s) do { if (RAY_DEBUG & RAY_DBG_NETPARAM) {	\
     printf("ray%d: Current network parameters%s\n", (sc)->unit, (s));	\
     printf("  bss_id %6D\n", (sc)->sc_c.np_bss_id, ":");		\
@@ -336,11 +349,32 @@
     printf("  priv_join 0x%02x\n", (sc)->sc_d.np_priv_join);		\
 } } while (0)
 
+#define RAY_DCOM_DUMP(sc, com, s) do { if (RAY_DEBUG & RAY_DBG_COM) {	\
+    printf("ray%d: %s(%d) %s com entry 0x%p\n",				\
+        (sc)->unit, __FUNCTION__ , __LINE__ , (s) , (com));		\
+    printf("  c_mesg %s\n", (com)->c_mesg);				\
+    printf("  c_flags 0x%b\n", (com)->c_flags, RAY_COM_FLAGS_PRINTFB);	\
+    printf("  c_retval 0x%x\n", (com)->c_retval);			\
+    printf("  c_ccs 0x%0x index 0x%02x\n",				\
+        com->c_ccs, RAY_CCS_INDEX((com)->c_ccs));			\
+} } while (0)
+
+#define RAY_DCOM_CHECK(sc, com) do { if (RAY_DEBUG & RAY_DBG_COM) {	\
+    ray_com_ecf_check((sc), (com), __FUNCTION__ );			\
+} } while (0)
+
 #else
 #define RAY_DHEX8(p, l, mask)
 #define RAY_DPRINTFN(mask, x)
+#define RAY_DPRINTF(sc, mask, fmt, args...)
 #define RAY_DNET_DUMP(sc, s)
+#define RAY_DCOM_DUMP(sc, com, s)
+#define RAY_DCOM_CHECK(sc, com)
 #endif /* RAY_DEBUG > 0 */
+#define RAY_PANIC(sc, fmt, args...) do {			\
+    panic("ray%d: %s(%d) " fmt "\n",				\
+    	sc->unit, __FUNCTION__ , __LINE__ , ##args);		\
+} while (0)
 
 #if RAY_DEBUG & RAY_DBG_MBUF
 #define RAY_DMBUF_DUMP(sc, m, s)	ray_dump_mbuf((sc), (m), (s))
@@ -356,6 +390,7 @@
 #if NRAY > 0
 
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/cdefs.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
@@ -446,16 +481,12 @@ struct ray_softc {
 
     struct arpcom	arpcom;		/* Ethernet common 		*/
     struct ifmedia	ifmedia;	/* Ifnet common 		*/
-    struct callout_handle \
-    			ccs_timerh;	/* Handle for ccs timeouts	*/
-    struct callout_handle \
+    struct callout_handle
     			reset_timerh;	/* Handle for reset timer	*/
-    struct callout_handle \
+    struct callout_handle
     			start_timerh;	/* Handle for start timer	*/
-#if RAY_NEED_STARTJOIN_TIMO
-    struct callout_handle \
-    			sj_timerh;	/* Handle for start_join timer	*/
-#endif /* RAY_NEED_STARTJOIN_TIMO */
+    struct callout_handle
+    			com_timerh;	/* Handle for command timer	*/
     char		*card_type;	/* Card model name		*/
     char		*vendor;	/* Card manufacturer		*/
 
@@ -471,17 +502,16 @@ struct ray_softc {
     struct mem_desc	md;		/* Map info for common memory	*/
 #endif /* (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP) */
 
-    struct ray_ecf_startup_v5 \
+    struct ray_ecf_startup_v5
     			sc_ecf_startup; /* Startup info from card	*/
+
+    TAILQ_HEAD(ray_comq, ray_comq_entry) 
+			sc_comq;	/* Command queue		*/
 
     struct ray_nw_param	sc_c;		/* current network params 	*/
     struct ray_nw_param sc_d;		/* desired network params	*/
     int			sc_havenet;	/* true if we have a network	*/
     int			sc_promisc;	/* current set value		*/
-    int			sc_running;	/* things we are doing		*/
-    int			sc_scheduled;	/* things we need to do		*/
-    int			sc_timoneed;	/* set if timeout is sched	*/
-    int			sc_timocheck;	/* set if timeout is sched	*/
     u_int8_t		sc_ccsinuse[64];/* ccss' in use -- not for tx	*/
 
     int			sc_checkcounters;
@@ -502,39 +532,44 @@ static struct ray_softc ray_softc[NRAY];
 #define	sc_version	sc_ecf_startup.e_fw_build_string
 #define	sc_tibsize	sc_ecf_startup.e_tibsize
 
-/* Commands -- priority given to LSB */
-#define	SCP_FIRST		0x0001
-#define	SCP_UPDATESUBCMD	0x0001
-#define	SCP_STARTASSOC		0x0002
-#define	SCP_REPORTPARAMS	0x0004
-#define	SCP_IFSTART		0x0008
-
-/* Update sub commands -- issues are serialized priority to LSB */
-#define	SCP_UPD_FIRST		0x0100
-#define	SCP_UPD_DOWNLOAD	0x0100
-#define	SCP_UPD_STARTJOIN	0x0200
-#define	SCP_UPD_PROMISC		0x0400
-#define	SCP_UPD_MCAST		0x0800
-#define	SCP_UPD_UPDATEPARAMS	0x1000
-#define	SCP_UPD_SHIFT		8
-#define	SCP_UPD_MASK		0xff00
-
-/* These command (a subset of the update set) require timeout checking */
-#define	SCP_TIMOCHECK_CMD_MASK	\
-	(SCP_UPD_UPDATEPARAMS | SCP_UPD_DOWNLOAD | SCP_UPD_MCAST | \
-	SCP_UPD_PROMISC)
-
-#define SCP_PRINTFB 			\
-	"\020"				\
-	"\001SCP_UPDATESUBCMD"		\
-	"\002SCP_STARTASSOC"		\
-	"\003SCP_REPORTPARAMS"		\
-	"\004SCP_IFSTART"		\
-	"\011SCP_UPD_DOWNLOAD"		\
-	"\012SCP_UPD_STARTJOIN"		\
-	"\013SCP_UPD_PROMISC"		\
-	"\014SCP_UPD_MCAST"		\
-	"\015SCP_UPD_UPDATEPARAMS"
+/*
+ * Command queue definitions
+ */
+MALLOC_DECLARE(M_RAYCOM);
+MALLOC_DEFINE(M_RAYCOM, "raycom", "Raylink command queue entry");
+struct ray_comq_entry {
+	TAILQ_ENTRY(ray_comq_entry) c_chain;	/* Tail queue.		*/
+	void		(*c_function)		/* Function to call */
+			    __P((struct ray_softc *sc,
+			    struct ray_comq_entry *com));
+	int		c_flags;		/* Flags		*/
+	u_int8_t	c_retval;		/* Return value		*/
+	void		*c_wakeup;		/* Sleeping on this	*/
+	size_t		c_ccs;			/* Control structure	*/
+#if RAY_DEBUG & RAY_DBG_COM
+	char		*c_mesg;
+#endif /* RAY_DEBUG & RAY_DBG_COM */
+};
+#define RAY_COM_FWOK		0x0001		/* Wakeup on completion	*/
+#define RAY_COM_FRUNNING	0x0002		/* This one running	*/
+#define RAY_COM_FCOMPLETED	0x0004		/* This one completed	*/
+#define RAY_COM_FLAGS_PRINTFB	\
+	"\020"			\
+	"\001WOK"		\
+	"\002RUNNING"		\
+	"\003COMPLETED"
+#define RAY_COM_NEEDS_TIMO(cmd)			\
+	(cmd == RAY_CMD_DOWNLOAD_PARAMS) ||	\
+	(cmd == RAY_CMD_UPDATE_PARAMS) ||	\
+	(cmd == RAY_CMD_UPDATE_MCAST)
+#if RAY_DEBUG & RAY_DBG_COM
+#define RAY_COM_FUNCTION(comp, function)	\
+	(comp)->c_function = (function);	\
+	(comp)->c_mesg = __STRING(function);
+#else
+#define RAY_COM_FUNCTION(comp, function)	\
+	comp->c_function = function;
+#endif /* RAY_DEBUG & RAY_DBG_COM */
 
 /*
  * Translation types
@@ -546,31 +581,30 @@ static struct ray_softc ray_softc[NRAY];
  * Prototyping
  */
 static int	ray_attach		__P((struct isa_device *dev));
-static int	ray_alloc_ccs		__P((struct ray_softc *sc, size_t *ccsp, u_int cmd, u_int track));
+static int	ray_ccs_alloc		__P((struct ray_softc *sc, size_t *ccsp, u_int cmd, int timo));
 static void	ray_ccs_done		__P((struct ray_softc *sc, size_t ccs));
-static void	ray_check_ccs		__P((void *arg));
-static void	ray_cmd_check_scheduled	__P((void *arg));
-static void	ray_cmd_cancel		__P((struct ray_softc *sc, int cmdf));
-static void	ray_cmd_done		__P((struct ray_softc *sc, int cmdf));
-static int	ray_cmd_is_running	__P((struct ray_softc *sc, int cmdf));
-static int	ray_cmd_is_scheduled	__P((struct ray_softc *sc, int cmdf));
-static int	ray_cmd_issue		__P((struct ray_softc *sc, size_t ccs, u_int track));
-static void	ray_cmd_pending		__P((struct ray_softc *sc, u_int cmdf));
-static void	ray_cmd_ran		__P((struct ray_softc *sc, int cmdf));
-static void	ray_cmd_schedule	__P((struct ray_softc *sc, int cmdf));
-static int	ray_cmd_simple		__P((struct ray_softc *sc, u_int cmd, u_int track));
-static void	ray_download_done	__P((struct ray_softc *sc));
-static void	ray_download_params	__P((struct ray_softc *sc));
+static u_int8_t	ray_ccs_free 		__P((struct ray_softc *sc, size_t ccs));
+#if XXX_NETBSDTX
+static void	ray_ccs_free_chain	__P((struct ray_softc *sc, u_int ni));
+#endif /* XXX_NETBSDTX */
+static void	ray_com_ecf		__P((struct ray_softc *sc, struct ray_comq_entry *com));
+#if RAY_DEBUG & RAY_DBG_COM
+static void	ray_com_ecf_check	__P((struct ray_softc *sc, size_t ccs, char *mesg));
+#endif /* RAY_DEBUG & RAY_DBG_COM */
+static void	ray_com_ecf_done	__P((struct ray_softc *sc));
+static void	ray_com_ecf_timo	__P((void *xsc));
+static void	ray_com_runq		__P((struct ray_softc *sc));
+static void	ray_com_runq_add	__P((struct ray_softc *sc, struct ray_comq_entry *com));
+static void	ray_com_runq_done	__P((struct ray_softc *sc));
+static void	ray_download		__P((struct ray_softc *sc, struct ray_comq_entry *com));
+static void	ray_download_done	__P((struct ray_softc *sc, size_t ccs));
 #if RAY_DEBUG & RAY_DBG_MBUF
 static void	ray_dump_mbuf		__P((struct ray_softc *sc, struct mbuf *m, char *s));
 #endif /* RAY_DEBUG & RAY_DBG_MBUF */
-static u_int8_t	ray_free_ccs 		__P((struct ray_softc *sc, size_t ccs));
-#if XXX_NETBSDTX
-static void	ray_free_ccs_chain	__P((struct ray_softc *sc, u_int ni));
-#endif /* XXX_NETBSDTX */
-static int	ray_intr		__P((struct pccard_devinfo *dev_p));
-static int	ray_ioctl		__P((struct ifnet *ifp, u_long command, caddr_t data));
 static void	ray_init		__P((void *xsc));
+static int	ray_ioctl		__P((struct ifnet *ifp, u_long command, caddr_t data));
+static int	ray_intr		__P((struct pccard_devinfo *dev_p));
+static void	ray_intr_updt_errcntrs	__P((struct ray_softc *sc));
 static int	ray_pccard_init		__P((struct pccard_devinfo *dev_p));
 static int	ray_pccard_intr		__P((struct pccard_devinfo *dev_p));
 static void	ray_pccard_unload	__P((struct pccard_devinfo *dev_p));
@@ -582,27 +616,26 @@ static void	ray_reset		__P((struct ray_softc *sc));
 static void	ray_reset_timo		__P((void *xsc));
 static void	ray_rx			__P((struct ray_softc *sc, size_t rcs));
 static void	ray_rx_update_cache	__P((struct ray_softc *sc, u_int8_t *src, u_int8_t siglev, u_int8_t antenna));
+static void	ray_sj			__P((struct ray_softc *sc, struct ray_comq_entry *com));
+static void	ray_sj_done		__P((struct ray_softc *sc, size_t ccs));
 static void	ray_start		__P((struct ifnet *ifp));
+#if XXX_ASSOCWORKING_AGAIN
 static void	ray_start_assoc		__P((struct ray_softc *sc));
 static void	ray_start_assoc_done	__P((struct ray_softc *sc, size_t ccs, u_int8_t status));
+#endif XXX_ASSOCWORKING_AGAIN
 static u_int8_t ray_start_best_antenna	__P((struct ray_softc *sc, u_int8_t *dst));
 static void	ray_start_done		__P((struct ray_softc *sc, size_t ccs, u_int8_t status));
 static void	ray_start_timo		__P((void *xsc));
 static size_t	ray_start_wrhdr		__P((struct ray_softc *sc, struct ether_header *eh, size_t bufp));
-static void	ray_start_join_done	__P((struct ray_softc *sc, size_t ccs, u_int8_t status));
-static void	ray_start_join_net	__P((struct ray_softc *sc));
-#if RAY_NEED_STARTJOIN_TIMO
-static void	ray_start_join_timo	__P((void *xsc));
-#endif /* RAY_NEED_STARTJOIN_TIMO */
 static void	ray_stop		__P((struct ray_softc *sc));
-static void	ray_update_error_counters \
-					__P((struct ray_softc *sc));
-static void	ray_update_mcast	__P((struct ray_softc *sc)); 
-static void	ray_update_mcast_done	__P((struct ray_softc *sc, size_t ccs, u_int8_t status)); 
+static void	ray_mcast		__P((struct ray_softc *sc, struct ray_comq_entry *com)); 
+static void	ray_mcast_done		__P((struct ray_softc *sc, size_t ccs)); 
+static int	ray_mcast_user		__P((struct ray_softc *sc)); 
 static void	ray_update_params	__P((struct ray_softc *sc));
 static void	ray_update_params_done	__P((struct ray_softc *sc, size_t ccs, u_int stat));
-static void	ray_update_promisc	__P((struct ray_softc *sc));
-static void	ray_update_subcmd	__P((struct ray_softc *sc));
+static void	ray_promisc		__P((struct ray_softc *sc, struct ray_comq_entry *com)); 
+static void	ray_promisc_done	__P((struct ray_softc *sc, size_t ccs)); 
+static int	ray_promisc_user	__P((struct ray_softc *sc)); 
 static int	ray_user_update_params	__P((struct ray_softc *sc, struct ray_param_req *pr));
 static int	ray_user_report_params	__P((struct ray_softc *sc, struct ray_param_req *pr));
 static int	ray_user_report_stats	__P((struct ray_softc *sc, struct ray_stats_req *sr));
@@ -622,26 +655,6 @@ struct isa_driver raydriver = {
     "ray",
     1
 };
-
-/*
- * Command function tables - based on bit index in SCP_xx
- */
-typedef	void (*ray_cmd_func_t)(struct ray_softc *);
-static ray_cmd_func_t ray_cmdtab[] = {
-	ray_update_subcmd,	/* SCP_UPDATESUBCMD */
-	ray_start_assoc,	/* SCP_STARTASSOC */
-	ray_report_params,	/* SCP_REPORTPARAMS */
-};
-static int ray_ncmdtab = sizeof(ray_cmdtab) / sizeof(*ray_cmdtab);
-
-static ray_cmd_func_t ray_subcmdtab[] = {
-	ray_download_params,	/* SCP_UPD_DOWNLOAD */
-	ray_start_join_net,	/* SCP_UPD_STARTJOIN */
-	ray_update_promisc,	/* SCP_UPD_PROMISC */
-	ray_update_mcast,	/* SCP_UPD_MCAST */
-	ray_update_params	/* SCP_UPD_UPDATEPARAMS */
-};
-static int ray_nsubcmdtab = sizeof(ray_subcmdtab) / sizeof(*ray_subcmdtab);
 
 /*
  * Indirections for reading/writing shared memory - from NetBSD/if_ray.c
@@ -689,11 +702,11 @@ static int ray_nsubcmdtab = sizeof(ray_subcmdtab) / sizeof(*ray_subcmdtab);
 /*
  * Macro's and constants
  */
-#ifndef RAY_CCS_TIMEOUT
-#define RAY_CCS_TIMEOUT		(hz / 2)
-#endif
 #ifndef	RAY_CHECK_SCHED_TIMEOUT
 #define	RAY_CHECK_SCHED_TIMEOUT	(hz)
+#endif
+#ifndef RAY_COM_TIMEOUT
+#define RAY_COM_TIMEOUT		(hz / 2)
 #endif
 #ifndef RAY_RESET_TIMEOUT
 #define RAY_RESET_TIMEOUT	(10 * hz)
@@ -825,16 +838,12 @@ ray_pccard_unload(dev_p)
      * timers as they are used with multiple arguments.
      */
 #if RAY_USE_CALLOUT_STOP
-    callout_stop(sc->ccs_timerh);
+    callout_stop(sc->com_timerh);
     callout_stop(sc->reset_timerh);
 #else
-    untimeout(ray_check_ccs, sc, sc->ccs_timerh);
-    untimeout(ray_cmd_check_scheduled, sc, sc->ccs_timerh);
+    untimeout(ray_com_ecf_timo, sc, sc->com_timerh);
     untimeout(ray_reset_timo, sc, sc->reset_timerh);
 #endif /* RAY_USE_CALLOUT_STOP */
-#if RAY_NEED_STARTJOIN_TIMO
-    untimeout(ray_start_join_timo, sc, sc->sj_timerh);
-#endif /* RAY_NEED_STARTJOIN_TIMO */
     untimeout(ray_start_timo, sc, sc->start_timerh);
     sc->sc_havenet = 0;
 
@@ -1004,12 +1013,10 @@ ray_attach(dev_p)
     sprintf(ifname, "ray%d", sc->unit);
 
     if (ifunit(ifname) == NULL) {
-	callout_handle_init(&sc->ccs_timerh);
+	callout_handle_init(&sc->com_timerh);
 	callout_handle_init(&sc->reset_timerh);
-#if RAY_NEED_STARTJOIN_TIMO
-	callout_handle_init(&sc->sj_timerh);
-#endif /* RAY_NEED_STARTJOIN_TIMO */
 	callout_handle_init(&sc->start_timerh);
+	TAILQ_INIT(&sc->sc_comq);
 	if_attach(ifp);
 	ether_ifattach(ifp);
 #if NBPFILTER > 0
@@ -1026,12 +1033,14 @@ ray_attach(dev_p)
 }
 
 /*
- * Network initialisation.
+ * User land entry to network initialisation.
+ *
+ *XXX change all this - it's wrong
  *
  * Start up flow is as follows.
  * The kernel calls ray_init when the interface is assigned an address.
  * 
- * ray_init does a bit of house keeping before calling ray_download_params.
+ * ray_init does a bit of house keeping before calling ray_download.
  *
  * ray_download_params fills the startup parameter structure out and
  * sends it to the card. The download command simply completes, so we
@@ -1043,10 +1052,10 @@ ray_attach(dev_p)
  * a managed network. This should complete via the interrupt
  * mechanism, but the NetBSD driver includes a timeout for some buggy
  * stuff somewhere - I've left the hooks in but don't use them. The
- * interrupt handler passes control to ray_start_join_done - the ccs
+ * interrupt handler passes control to ray_sj_done - the ccs
  * is handled by the interrupt mechanism.
  *
- * Once ray_start_join_done has checked the ccs and uploaded/updated
+ * Once ray_sj_done has checked the ccs and uploaded/updated
  * the network parameters we are ready to process packets. It is then
  * safe to call ray_start which is done by the interrupt handler.
  */
@@ -1055,13 +1064,12 @@ ray_init(xsc)
     void			*xsc;
 {
     struct ray_softc		*sc = xsc;
+    struct ray_comq_entry	*com[4];
     struct ray_ecf_startup_v5	*ep;
     struct ifnet		*ifp;
-    size_t			ccs;
-    int				i, rv;
+    int i;
 
-    RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
-        ("ray%d: ray_init\n", sc->unit));
+    RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
     RAY_MAP_CM(sc);
 
     if (sc->gone) {
@@ -1140,33 +1148,48 @@ ray_init(xsc)
 	sc->sc_tibsize = sizeof(struct ray_tx_tib);
 
     /*
-     * We are now up and running. Next we have to download network
-     * configuration into the card. We are busy until download is done.
+     * We are now up and running. We are busy until network is joined.
      */
     ifp->if_flags |= IFF_RUNNING | IFF_OACTIVE;
 
-    ray_download_params(sc);
-
-    /* XXX is ray_stop is robust enough we can probably dispense with
-     * XXX the tsleep/wakeup stuff and be safe for fast ifconfigs
+    /*
+     * Create the following runq entries:
+     *
+     *		download	- download the network definition to the card
+     *		sj		- find or start a BSS
+     *		mcast		- download multicast list
+     *		promisc		- last in case mcast called it anyway
      */
-    while (ifp->if_flags & IFF_OACTIVE) {
-	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_init sleeping\n", sc->unit));
-	rv = tsleep(ray_init, 0|PCATCH, "rayinit", 0);
-	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_init awakened\n", sc->unit));
-	if (rv) {
-		RAY_DPRINTFN(RAY_DBG_STARTJOIN,
-		    ("ray%d: ray_init tsleep error\n",
-		    sc->unit));
-		break;
-	}
-    }
-printf("ray%d: ray_init scheduled commands 0x%b\n", sc->unit, sc->sc_scheduled, SCP_PRINTFB);
-printf("ray%d: ray_init running commands 0x%b\n", sc->unit, sc->sc_running, SCP_PRINTFB);
+    for (i = 0; i < 4; i++)
+	    MALLOC(com[i], struct ray_comq_entry *,
+		sizeof(struct ray_comq_entry), M_RAYCOM, M_WAITOK);
 
-    return;
+    RAY_COM_FUNCTION(com[0], ray_download);
+    RAY_COM_FUNCTION(com[1], ray_sj);
+    RAY_COM_FUNCTION(com[2], ray_mcast);
+    RAY_COM_FUNCTION(com[3], ray_promisc);
+
+    for (i = 0; i < 4; i++) {
+	    com[i]->c_flags = 0;
+	    com[i]->c_retval = 0;
+	    com[i]->c_ccs = NULL;
+	    com[i]->c_wakeup = com[3];
+#if XXX
+	    ray_com_runq_add(sc, com[i]);
+#endif
+    }
+    ray_com_runq_add(sc, com[0]); /* XXX remove */
+    ray_com_runq_add(sc, com[1]); /* XXX remove */
+
+    com[1]->c_flags = RAY_COM_FWOK; /* XXX should be com[3] */
+
+    ray_com_runq(sc);
+    RAY_DPRINTF(sc, RAY_DBG_COM, "sleeping");
+    (void)tsleep(com[3], 0, "rayinit", 0);
+    RAY_DPRINTF(sc, RAY_DBG_COM, "awakened");
+
+    for (i = 0; i < 4; i++)
+	FREE(com[i], M_RAYCOM);
 }
 
 /*
@@ -1201,39 +1224,7 @@ ray_stop(sc)
 printf("ray%d: ray_stop hcs_intr %d rcsi 0x%0x\n", sc->unit,
     RAY_HCS_INTR(sc), SRAM_READ_1(sc, RAY_SCB_RCSI));
 printf("ray%d: ray_stop ready %d\n", sc->unit, RAY_ECF_READY(sc));
-printf("ray%d: ray_stop running commands 0x%b\n", sc->unit, sc->sc_running, SCP_PRINTFB);
-printf("ray%d: ray_stop scheduled commands 0x%b\n", sc->unit, sc->sc_scheduled, SCP_PRINTFB);
-    ray_cmd_cancel(sc, SCP_UPDATESUBCMD);
-printf("ray%d: ray_stop scheduled commands 0x%b\n", sc->unit, sc->sc_scheduled, SCP_PRINTFB);
-/*
-SCP_UPDATESUBCMD
-SCP_STARTASSOC
-SCP_REPORTPARAMS
-SCP_IFSTART
-	currently not tracked anyway
 
-SCP_UPD_DOWNLOAD
-SCP_UPD_STARTJOIN
-SCP_UPD_PROMISC
-SCP_UPD_MCAST
-SCP_UPD_UPDATEPARAMS
-*/
-
-
-
-
-#if XXX
-    scheduled = sc->sc_scheduled;
-    for (i = 15; i >= 0; i--)
-	if (scheduled & (1 << i))
-	    ray_cmd_cancel(sc, (1 << i));
-printf("ray%d: ray_stop scheduled commands 0x%b\n", sc->unit, sc->sc_scheduled, SCP_PRINTFB);
-
-	if (sc->sc_running & (1 << i)) {
-	    printf("ray%d: ray_stop command 0x%b still running",
-	        sc->unit, (1 << i), SCP_PRINTFB);
-    }
-#endif
     if (sc->sc_repreq) {
 	sc->sc_repreq->r_failcause = RAY_FAILCAUSE_EDEVSTOP;
 	wakeup(ray_report_params);
@@ -1243,16 +1234,12 @@ printf("ray%d: ray_stop scheduled commands 0x%b\n", sc->unit, sc->sc_scheduled, 
 	wakeup(ray_update_params);
     }
 #if RAY_USE_CALLOUT_STOP
-    callout_stop(sc->ccs_timerh);
+    callout_stop(sc->com_timerh);
     callout_stop(sc->reset_timerh);
 #else
-    untimeout(ray_check_ccs, sc, sc->ccs_timerh);
-    untimeout(ray_cmd_check_scheduled, sc, sc->ccs_timerh);
+    untimeout(ray_com_ecf_timo, sc, sc->com_timerh);
     untimeout(ray_reset_timo, sc, sc->reset_timerh);
 #endif /* RAY_USE_CALLOUT_STOP */
-#if RAY_NEED_STARTJOIN_TIMO
-    untimeout(ray_start_join_timo, sc, sc->sj_timerh);
-#endif /* RAY_NEED_STARTJOIN_TIMO */
     untimeout(ray_start_timo, sc, sc->start_timerh);
     sc->sc_havenet = 0;
     sc->sc_rxoverflow = 0;
@@ -1369,182 +1356,145 @@ ray_watchdog(ifp)
 
     return;
 }
+/******************************************************************************
+ * XXX NOT KNF FROM HERE UP
+ ******************************************************************************/
 
 /*
  * Network ioctl request.
  */
 static int
-ray_ioctl(ifp, command, data)
-    register struct ifnet	*ifp;
-    u_long			command;
-    caddr_t			data;
+ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 {
-    struct ray_softc *sc;
-    struct ray_param_req pr;
-    struct ray_stats_req sr;
-    struct ifreq *ifr;
-    int s, error, error2;
+	struct ray_softc *sc;
+	struct ray_param_req pr;
+	struct ray_stats_req sr;
+	struct ifreq *ifr;
+	int s, error, error2;
 
-    RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_IOCTL,
-        ("ray%d: ray_ioctl\n", ifp->if_unit));
-    sc = ifp->if_softc;
-    RAY_MAP_CM(sc);
+	sc = ifp->if_softc;
 
-    if (sc->gone) {
-	printf("ray%d: ray_ioctl unloaded!\n", sc->unit);
-	ifp->if_flags &= ~IFF_RUNNING;
-	return (ENXIO);
-    }
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_IOCTL, "");
+	RAY_MAP_CM(sc);
 
-    ifr = (struct ifreq *)data;
-    error = 0;
-    error2 = 0;
-    s = splimp();
+	if (sc->gone) {
+	    printf("ray%d: ray_ioctl unloaded!\n", sc->unit);
+	    ifp->if_flags &= ~IFF_RUNNING;
+	    return (ENXIO);
+	}
 
-#if XXX
-    struct ray_cmd *cmd;
-    cmd = malloc(sizeof(struct ray_cmd));
-    submit_cmd(cmd)
-    tsleep(cmd, ...)
-    free(cmd);
+	ifr = (struct ifreq *)data;
+	error = 0;
+	error2 = 0;
 
-Set up a command queue.  To submit a command, you do this:
+	s = splimp();
 
-        s = splnet()
-        put_cmd_on_queue(sc, cmd)
-        start_command_on_queue(sc)
-        tsleep(cmd, 0, "raycmd", 0)
-        splx(s)
-        handle_completed_command(cmd)
-
-The start_command_on_queue() function looks like this:
-
-        if (device_ready_for_command(sc) && queue_not_empty(sc))
-                running_cmd = pop_command_from_queue(sc)
-                submit_command(running_cmd)
-
-In your interrupt handler you do:
-
-        if (interrupt_is_completed_command(sc))
-                wakeup(running_cmd)
-                running_cmd = NULL;
-                start_command_on_queue(sc)
-#endif
-
-    switch (command) {
+	switch (command) {
 
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
 	case SIOCSIFMTU:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	        ("ray%d: for SIFADDR/GIFADDR/SIFMTU\n", sc->unit));
-	    error = ether_ioctl(ifp, command, data);
-	    break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFADDR/GIFADDR/SIFMTU");
+		error = ether_ioctl(ifp, command, data);
+		break;
 
 	case SIOCSIFFLAGS:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL, ("ray%d: for SIFFLAGS\n", sc->unit));
-	    /*
-	     * If the interface is marked up and stopped, then start
-	     * it. If it is marked down and running, then stop it.
-	     */
-	    if (ifp->if_flags & IFF_UP) {
-		if (!(ifp->if_flags & IFF_RUNNING))
-		    ray_init(sc);
-		else
-		    ray_update_promisc(sc);
-	    } else {
-		if (ifp->if_flags & IFF_RUNNING)
-		    ray_stop(sc);
-	    }
-	    break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFFLAGS");
+		/*
+		 * If the interface is marked up and stopped, then start
+		 * it. If it is marked down and running, then stop it.
+		 */
+		if (ifp->if_flags & IFF_UP) {
+			if (!(ifp->if_flags & IFF_RUNNING))
+				ray_init(sc);
+			else
+				ray_promisc_user(sc);
+		} else {
+			if (ifp->if_flags & IFF_RUNNING)
+				ray_stop(sc);
+		}
+		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	        ("ray%d: for ADDMULTI/DELMULTI\n", sc->unit));
-	    ray_update_mcast(sc);
-	    error = 0;
-	    break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "ADDMULTI/DELMULTI");
+		error = ray_mcast_user(sc);
+		break;
 
 	case SIOCSRAYPARAM:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	        ("ray%d: for SRAYPARAM\n", sc->unit));
-	    if ((error = copyin(ifr->ifr_data, &pr, sizeof(pr))))
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SRAYPARAM");
+		if ((error = copyin(ifr->ifr_data, &pr, sizeof(pr))))
+			break;
+		error = ray_user_update_params(sc, &pr);
+		error2 = copyout(&pr, ifr->ifr_data, sizeof(pr));
+		error = error2 ? error2 : error;
 		break;
-	    error = ray_user_update_params(sc, &pr);
-	    error2 = copyout(&pr, ifr->ifr_data, sizeof(pr));
-	    error = error2 ? error2 : error;
-	    break;
 
 	case SIOCGRAYPARAM:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	        ("ray%d: for GRAYPARAM\n", sc->unit));
-	    if ((error = copyin(ifr->ifr_data, &pr, sizeof(pr))))
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GRAYPARAM");
+		if ((error = copyin(ifr->ifr_data, &pr, sizeof(pr))))
+			break;
+		error = ray_user_report_params(sc, &pr);
+		error2 = copyout(&pr, ifr->ifr_data, sizeof(pr));
+		error = error2 ? error2 : error;
 		break;
-	    error = ray_user_report_params(sc, &pr);
-	    error2 = copyout(&pr, ifr->ifr_data, sizeof(pr));
-	    error = error2 ? error2 : error;
-	    break;
 
 	case SIOCGRAYSTATS:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	        ("ray%d: for GRAYSTATS\n", sc->unit));
-	    error = ray_user_report_stats(sc, &sr);
-	    error2 = copyout(&sr, ifr->ifr_data, sizeof(sr));
-	    error = error2 ? error2 : error;
-	    break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GRAYSTATS");
+		error = ray_user_report_stats(sc, &sr);
+		error2 = copyout(&sr, ifr->ifr_data, sizeof(sr));
+		error = error2 ? error2 : error;
+		break;
 
 	case SIOCGRAYSIGLEV:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	        ("ray%d: for GRAYSIGLEV\n", sc->unit));
-	    error = copyout(sc->sc_siglevs, ifr->ifr_data,
-	        sizeof(sc->sc_siglevs));
-	    break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GRAYSIGLEV");
+		error = copyout(sc->sc_siglevs, ifr->ifr_data,
+		    sizeof(sc->sc_siglevs));
+		break;
 
 	case SIOCGIFFLAGS:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	        ("ray%d: for GIFFLAGS\n", sc->unit));
-	    error = EINVAL;
-	    break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GIFFLAGS");
+		error = EINVAL;
+		break;
 
 	case SIOCGIFMETRIC:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	        ("ray%d: for GIFMETRIC\n", sc->unit));
-	    error = EINVAL;
-	    break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GIFMETRIC");
+		error = EINVAL;
+		break;
 
 	case SIOCGIFMTU:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	        ("ray%d: for GIFMTU\n", sc->unit));
-	    error = EINVAL;
-	    break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GIFMTU");
+		error = EINVAL;
+		break;
 
 	case SIOCGIFPHYS:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	        ("ray%d: for GIFPYHS\n", sc->unit));
-	    error = EINVAL;
-	    break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GIFPYHS");
+		error = EINVAL;
+		break;
 
 	case SIOCSIFMEDIA:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	    	("ray%d: for SIFMEDIA\n", sc->unit));
-	    error = EINVAL;
-	break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "SIFMEDIA");
+		error = EINVAL;
+		break;
 
 	case SIOCGIFMEDIA:
-	    RAY_DPRINTFN(RAY_DBG_IOCTL,
-	    	("ray%d: for GIFMEDIA\n", sc->unit));
-	    error = EINVAL;
-	    break;
+		RAY_DPRINTF(sc, RAY_DBG_IOCTL, "GIFMEDIA");
+		error = EINVAL;
+		break;
 
 	default:
-	    error = EINVAL;
-    }
+		error = EINVAL;
 
-    splx(s);
+	}
 
-    return (error);
+	splx(s);
+
+	return (error);
 }
+
+/*
+ * Transmit packet handling
+ */
 
 /*
  * Network start.
@@ -1561,236 +1511,232 @@ In your interrupt handler you do:
 static void
 ray_start(struct ifnet *ifp)
 {
-    struct ray_softc *sc;
-    struct mbuf			*m0, *m;
-    struct ether_header		*eh;
-    size_t			ccs, bufp;
-    int				i, pktlen, len;
-    u_int8_t			status;
+	struct ray_softc *sc;
+	struct mbuf *m0, *m;
+	struct ether_header *eh;
+	size_t ccs, bufp;
+	int i, pktlen, len;
+	u_int8_t status;
 
-    RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_start\n", ifp->if_unit));
+	sc = ifp->if_softc;
 
-    sc = ifp->if_softc;
-    RAY_MAP_CM(sc);
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+	RAY_MAP_CM(sc);
 
-    /*
-     * Some simple checks first
-     */
-    if (sc->gone) {
-	printf("ray%d: ray_start unloaded!\n", sc->unit);
-	return;
-    }
-    if ((ifp->if_flags & IFF_RUNNING) == 0 || !sc->sc_havenet)
-	return;
-    if (!RAY_ECF_READY(sc)) {
-	RAY_DPRINTFN(RAY_DBG_RECERR,
-	    ("ray%d: ray_start busy, schedule a timeout\n", sc->unit));
-	sc->start_timerh = timeout(ray_start_timo, sc, RAY_START_TIMEOUT);
-	return;
-    } else
-	untimeout(ray_start_timo, sc, sc->start_timerh);
+	/*
+	 * Some simple checks first
+	 */
+	if (sc->gone) {
+		printf("ray%d: ray_start unloaded!\n", sc->unit);
+		return;
+	}
+	if ((ifp->if_flags & IFF_RUNNING) == 0 || !sc->sc_havenet)
+		return;
+	if (!RAY_ECF_READY(sc)) {
+		RAY_DPRINTF(sc, RAY_DBG_RECERR, "busy, schedule a timeout");
+		sc->start_timerh = timeout(ray_start_timo, sc,
+		    RAY_START_TIMEOUT);
+		return;
+	} else
+		untimeout(ray_start_timo, sc, sc->start_timerh);
 
-    /*
-     * Simple one packet at a time TX routine - probably appaling performance
-     * and we certainly chew CPU. However bing to windows boxes shows
-     * a reliance on the far end too:
-     *
-     * 1500k default rate
-     *
-     * Libretto 50CT (75MHz Pentium) with FreeBSD-3.1 to
-     *   Nonname box Windows 95C (133MHz AMD 5x86) 		 996109bps
-     *   AST J30 Windows 95A (100MHz Pentium) 			1307791bps
-     *
-     * 2000k default rate
-     *
-     * Libretto 50CT (75MHz Pentium) with FreeBSD-3.1 to
-     *   Nonname box Windows 95C (133MHz AMD 5x86) 		1087049bps
-     *   AST J30 Windows 95A (100MHz Pentium) 			1307791bps
-     *
-     * Flow is
-     *		get a ccs
-     *		build the packet
-     *		set IFF_OACTIVE
-     *		interrupt the card to send the packet
-     *		exit
-     *
-     *		wait for interrupt telling us the packet has been sent
-     *		clear IFF_OACTIVE
-     *		get called by the interrupt routine if any packets left
-     */
+	/*
+	 * Simple one packet at a time TX routine - probably appaling performance
+	 * and we certainly chew CPU. However bing to windows boxes shows
+	 * a reliance on the far end too:
+	 *
+	 * 1500k default rate
+	 *
+	 * Libretto 50CT (75MHz Pentium) with FreeBSD-3.1 to
+	 *   Nonname box Windows 95C (133MHz AMD 5x86) 		 996109bps
+	 *   AST J30 Windows 95A (100MHz Pentium) 		1307791bps
+	 *
+	 * 2000k default rate
+	 *
+	 * Libretto 50CT (75MHz Pentium) with FreeBSD-3.1 to
+	 *   Nonname box Windows 95C (133MHz AMD 5x86) 		1087049bps
+	 *   AST J30 Windows 95A (100MHz Pentium) 		1307791bps
+	 *
+	 * Flow is
+	 *		get a ccs
+	 *		build the packet
+	 *		set IFF_OACTIVE
+	 *		interrupt the card to send the packet
+	 *		exit
+	 *
+	 *		wait for interrupt telling us the packet has been sent
+	 *		clear IFF_OACTIVE
+	 *		get called by the interrupt routine if any packets left
+	 */
 
-    /*
-     * Find a free ccs; if none available wave good bye and exit.
-     *
-     * We find a ccs before we process the mbuf so that we are sure it
-     * is worthwhile processing the packet. All errors in the mbuf
-     * processing are either errors in the mbuf or gross configuration
-     * errors and the packet wouldn't get through anyway.
-     *
-     * Don't forget to clear the ccs on errors.
-     */
-    i = RAY_CCS_TX_FIRST;
-    do {
-	status = SRAM_READ_FIELD_1(sc, RAY_CCS_ADDRESS(i), ray_cmd, c_status);
-	if (status == RAY_CCS_STATUS_FREE)
-	    break;
-	i++;
-    } while (i <= RAY_CCS_TX_LAST);
-    if (i > RAY_CCS_TX_LAST) {
-	ifp->if_flags |= IFF_OACTIVE;
-	return;
-    }
-    RAY_DPRINTFN(RAY_DBG_CCS,
-    	("ray%d: ray_start using ccs 0x%02x\n", sc->unit, i));
+	/*
+	 * Find a free ccs; if none available wave good bye and exit.
+	 *
+	 * We find a ccs before we process the mbuf so that we are sure it
+	 * is worthwhile processing the packet. All errors in the mbuf
+	 * processing are either errors in the mbuf or gross configuration
+	 * errors and the packet wouldn't get through anyway.
+	 *
+	 * Don't forget to clear the ccs on errors.
+	 */
+	i = RAY_CCS_TX_FIRST;
+	do {
+		status = SRAM_READ_FIELD_1(sc,
+		    RAY_CCS_ADDRESS(i), ray_cmd, c_status);
+		if (status == RAY_CCS_STATUS_FREE)
+			break;
+		i++;
+	} while (i <= RAY_CCS_TX_LAST);
+	if (i > RAY_CCS_TX_LAST) {
+		ifp->if_flags |= IFF_OACTIVE;
+		return;
+	}
+	RAY_DPRINTF(sc, RAY_DBG_CCS, "using ccs 0x%02x", i);
 
-    /*
-     * Reserve and fill the ccs - must do the length later.
-     *
-     * Even though build 4 and build 5 have different fields all these
-     * are common apart from tx_rate. Neither the NetBSD driver or Linux
-     * driver bother to overwrite this for build 4 cards.
-     *
-     * The start of the buffer must be aligned to a 256 byte boundary
-     * (least significant byte of address = 0x00).
-     */
-    ccs = RAY_CCS_ADDRESS(i);
-    bufp = RAY_TX_BASE + i * RAY_TX_BUF_SIZE;
-    bufp += sc->sc_tibsize;
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_status, RAY_CCS_STATUS_BUSY);
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_cmd, RAY_CMD_TX_REQ);
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_link, RAY_CCS_LINK_NULL);
-    SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_bufp, bufp);
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_tx_rate, sc->sc_c.np_def_txrate);
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_apm_mode, 0); /* XXX */
-    bufp += sizeof(struct ray_tx_phy_header);
+	/*
+	 * Reserve and fill the ccs - must do the length later.
+	 *
+	 * Even though build 4 and build 5 have different fields all these
+	 * are common apart from tx_rate. Neither the NetBSD driver or Linux
+	 * driver bother to overwrite this for build 4 cards.
+	 *
+	 * The start of the buffer must be aligned to a 256 byte boundary
+	 * (least significant byte of address = 0x00).
+	 */
+	ccs = RAY_CCS_ADDRESS(i);
+	bufp = RAY_TX_BASE + i * RAY_TX_BUF_SIZE;
+	bufp += sc->sc_tibsize;
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_status, RAY_CCS_STATUS_BUSY);
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_cmd, RAY_CMD_TX_REQ);
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_link, RAY_CCS_LINK_NULL);
+	SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_bufp, bufp);
+	SRAM_WRITE_FIELD_1(sc,
+	    ccs, ray_cmd_tx, c_tx_rate, sc->sc_c.np_def_txrate);
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_apm_mode, 0); /* XXX */
+	bufp += sizeof(struct ray_tx_phy_header);
     
-    /*
-     * Get the mbuf and process it - we have to remember to free the
-     * ccs if there are any errors
-     */
-    IF_DEQUEUE(&ifp->if_snd, m0);
-    if (m0 == NULL) {
-	RAY_CCS_FREE(sc, ccs);
-	return;
-    }
-    eh = mtod(m0, struct ether_header *);
+	/*
+	 * Get the mbuf and process it - we have to remember to free the
+	 * ccs if there are any errors
+	 */
+	IF_DEQUEUE(&ifp->if_snd, m0);
+	if (m0 == NULL) {
+		RAY_CCS_FREE(sc, ccs);
+		return;
+	}
+	eh = mtod(m0, struct ether_header *);
 
-    for (pktlen = 0, m = m0; m != NULL; m = m->m_next) {
-	pktlen += m->m_len;
-    }
-    if (pktlen > ETHER_MAX_LEN - ETHER_CRC_LEN) {
-	RAY_DPRINTFN(RAY_DBG_RECERR,
-	    ("ray%d: mbuf too long %d\n", sc->unit, pktlen));
-	RAY_CCS_FREE(sc, ccs);
-	ifp->if_oerrors++;
-	m_freem(m0);
-	return;
-    }
+	for (pktlen = 0, m = m0; m != NULL; m = m->m_next) {
+		pktlen += m->m_len;
+	}
+	if (pktlen > ETHER_MAX_LEN - ETHER_CRC_LEN) {
+		RAY_DPRINTF(sc, RAY_DBG_RECERR, "mbuf too long %d", pktlen);
+		RAY_CCS_FREE(sc, ccs);
+		ifp->if_oerrors++;
+		m_freem(m0);
+		return;
+	}
 
-    /* XXX
-     * I would much prefer to have the complete 802.11 packet dropped to
-     * the bpf tap and then have a user land program parse the headers
-     * as needed. This way, tcpdump -w can be used to grab the raw data. If
-     * needed the 802.11 aware program can "translate" the .11 to ethernet
-     * for tcpdump -r.
-     */
+	/* XXX
+	 * I would much prefer to have the complete 802.11 packet dropped to
+	 * the bpf tap and then have a user land program parse the headers
+	 * as needed. This way, tcpdump -w can be used to grab the raw data. If
+	 * needed the 802.11 aware program can "translate" the .11 to ethernet
+	 * for tcpdump -r.
+	 */
 #if NBPFILTER > 0
-    if (ifp->if_bpf)
-	bpf_mtap(ifp, m0);
+	if (ifp->if_bpf)
+		bpf_mtap(ifp, m0);
 #endif /* NBPFILTER */
 
-    /*
-     * Translation - capability as described earlier
-     *
-     * Each case must write the 802.11 header using ray_start_wrhdr,
-     * passing a pointer to the ethernet header in and getting a new
-     * tc buffer pointer. Next remove/modify/addto the 802.3 and 802.2
-     * headers as needed.
-     *
-     * We've pulled up the mbuf for you.
-     *
-     */
-    if (m0->m_len < sizeof(struct ether_header))
-    	m = m_pullup(m, sizeof(struct ether_header));
-    if (m0 == NULL) {
-	RAY_DPRINTFN(RAY_DBG_RECERR,
-	    ("ray%d: ray_start could not pullup ether\n", sc->unit));
-	RAY_CCS_FREE(sc, ccs);
-	ifp->if_oerrors++;
-	return;
-    }
-    switch (sc->translation) {
+	/*
+	 * Translation - capability as described earlier
+	 *
+	 * Each case must write the 802.11 header using ray_start_wrhdr,
+	 * passing a pointer to the ethernet header in and getting a new
+	 * tc buffer pointer. Next remove/modify/addto the 802.3 and 802.2
+	 * headers as needed.
+	 *
+	 * We've pulled up the mbuf for you.
+	 *
+	 */
+	if (m0->m_len < sizeof(struct ether_header))
+		m = m_pullup(m, sizeof(struct ether_header));
+	if (m0 == NULL) {
+		RAY_DPRINTF(sc, RAY_DBG_RECERR, "could not pullup ether");
+		RAY_CCS_FREE(sc, ccs);
+		ifp->if_oerrors++;
+		return;
+	}
+	switch (sc->translation) {
 
     	case SC_TRANSLATE_WEBGEAR:
-	    bufp = ray_start_wrhdr(sc, eh, bufp);
-	    break;
+		bufp = ray_start_wrhdr(sc, eh, bufp);
+		break;
 
 	default:
-	    printf("ray%d: ray_start unknown translation type 0x%x - why?\n",
+		printf("ray%d: ray_start unknown translation type 0x%x",
 	    		sc->unit, sc->translation);
-	    RAY_CCS_FREE(sc, ccs);
-	    ifp->if_oerrors++;
-	    m_freem(m0);
-	    m0 = NULL;
-	    return;
+		RAY_CCS_FREE(sc, ccs);
+		ifp->if_oerrors++;
+		m_freem(m0);
+		m0 = NULL;
+		return;
 
-    }
-    if (m0 == NULL) {
-	RAY_DPRINTFN(RAY_DBG_RECERR,
-	    ("ray%d: ray_start could not translate mbuf\n", sc->unit));
-	RAY_CCS_FREE(sc, ccs);
-	ifp->if_oerrors++;
-	return;
-    }
-    pktlen = sizeof(struct ieee80211_header);
+	}
+	if (m0 == NULL) {
+		RAY_DPRINTF(sc, RAY_DBG_RECERR, "could not translate mbuf");
+		RAY_CCS_FREE(sc, ccs);
+		ifp->if_oerrors++;
+		return;
+	}
+	pktlen = sizeof(struct ieee80211_header);
 
-    /*
-     * Copy the mbuf to the buffer in common memory
-     *
-     * We panic and don't bother wrapping as ethernet packets are 1518
-     * bytes, we checked the mbuf earlier, and our TX buffers are 2048
-     * bytes. We don't have 530 bytes of headers etc. so something
-     * must be fubar.
-     */
-    for (m = m0; m != NULL; m = m->m_next) {
-	pktlen += m->m_len;
-	if ((len = m->m_len) == 0)
-	    continue;
-	if ((bufp + len) < RAY_TX_END)
-	    ray_write_region(sc, bufp, mtod(m, u_int8_t *), len);
-	else 
-	    panic("ray%d: ray_start tx buffer overflow\n", sc->unit);
-	bufp += len;
-    }
-    RAY_DMBUF_DUMP(sc, m0, "ray_start");
-
-    /*
-     * Fill in a few loose ends and kick the card to send the packet
-     */
-    if (!RAY_ECF_READY(sc)) {
 	/*
-	 * From NetBSD code:
+	 * Copy the mbuf to the buffer in common memory
 	 *
-	 * If this can really happen perhaps we need to save
-	 * the chain and use it later.  I think this might
-	 * be a confused state though because we check above
-	 * and don't issue any commands between.
+	 * We panic and don't bother wrapping as ethernet packets are 1518
+	 * bytes, we checked the mbuf earlier, and our TX buffers are 2048
+	 * bytes. We don't have 530 bytes of headers etc. so something
+	 * must be fubar.
 	 */
-	printf("ray%d: ray_tx device busy\n", sc->unit);
-	RAY_CCS_FREE(sc, ccs);
-	ifp->if_oerrors++;
-	return;
-    }
-    ifp->if_opackets++;
-    ifp->if_flags |= IFF_OACTIVE;
-    SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_len, pktlen);
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_antenna,
-        ray_start_best_antenna(sc, eh->ether_dhost));
-    SRAM_WRITE_1(sc, RAY_SCB_CCSI, ccs);
-    RAY_ECF_START_CMD(sc);
-    m_freem(m0);
+	for (m = m0; m != NULL; m = m->m_next) {
+		pktlen += m->m_len;
+		if ((len = m->m_len) == 0)
+			continue;
+		if ((bufp + len) < RAY_TX_END)
+			ray_write_region(sc, bufp, mtod(m, u_int8_t *), len);
+		else 
+			RAY_PANIC(sc, "tx buffer overflow");
+		bufp += len;
+	}
+	RAY_DMBUF_DUMP(sc, m0, "ray_start");
 
-    return;
+	/*
+	 * Fill in a few loose ends and kick the card to send the packet
+	 */
+	if (!RAY_ECF_READY(sc)) {
+		/*
+		 * From NetBSD code:
+		 *
+		 * If this can really happen perhaps we need to save
+		 * the chain and use it later.  I think this might
+		 * be a confused state though because we check above
+		 * and don't issue any commands between.
+		 */
+		printf("ray%d: ray_tx device busy\n", sc->unit);
+		RAY_CCS_FREE(sc, ccs);
+		ifp->if_oerrors++;
+		return;
+	}
+	ifp->if_opackets++;
+	ifp->if_flags |= IFF_OACTIVE;
+	SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_len, pktlen);
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_antenna,
+	    ray_start_best_antenna(sc, eh->ether_dhost));
+	SRAM_WRITE_1(sc, RAY_SCB_CCSI, ccs);
+	RAY_ECF_START_CMD(sc);
+	m_freem(m0);
 }
 #if XXX_NETBSDTX
 netbsd
@@ -1799,7 +1745,7 @@ driver uses a loop
     repeat
 	get a ccs
 	get a mbuf
-	translate and send packet to shared ram
+	    translate and send packet to shared ram
     until (no more ccs's) || (no more mbuf's)
 
     send ccs chain to card
@@ -1847,9 +1793,6 @@ netbsd:
 
 		rework calling
 #endif XXX_NETBSDTX
-/******************************************************************************
- * XXX NOT KNF FROM HERE UP
- ******************************************************************************/
 
 /*
  * Start timeout routine.
@@ -1985,7 +1928,11 @@ ray_start_done(struct ray_softc *sc, size_t ccs, u_int8_t status)
 }
 
 /*
- * receive a packet from the card
+ * Receiver packet handling
+ */
+
+/*
+ * Receive a packet from the card
  */
 static void
 ray_rx(struct ray_softc *sc, size_t rcs)
@@ -2234,17 +2181,6 @@ skip_read:
 	if (ifp->if_bpf)
 		bpf_mtap(ifp, m0);
 #endif /* NBPFILTER */
-#if XXX_PROM
-if_wi.c - might be needed if we hear our own broadcasts in promiscuous mode
-but will not be if we dont see them
-	if ((ifp->if_flags & IFF_PROMISC) &&
-	    (bcmp(eh->ether_shost, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN) &&
-	    (eh->ether_dhost[0] & 1) == 0)
-	) {
-		m_freem(m0);
-		return;
-	}
-#endif /* XXX_PROM */
 	eh = mtod(m0, struct ether_header *);
 	m_adj(m0, sizeof(struct ether_header));
 	ether_input(ifp, eh, m0);
@@ -2297,86 +2233,82 @@ found:
 	}
 }
 
-
+/*
+ * Interrupt handling
+ */
 
 /*
- * check for unreported returns
- *
- * this routine is coded to only expect one outstanding request for the
- * timed out requests at a time, but thats all that can be outstanding
- * per hardware limitations
+ * Process an interrupt
  */
-static void
-ray_check_ccs(void *arg)
+static int
+ray_intr(struct pccard_devinfo *dev_p)
 {
 	struct ray_softc *sc;
-	u_int i, cmd, stat;
-	size_t ccs;
-	int s;
+	struct ifnet *ifp;
+	int i, count;
 
-	s = splnet();
-	sc = arg;
+	sc = &ray_softc[dev_p->isahd.id_unit];
 
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_check_ccs\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_intr\n", sc->unit));
 	RAY_MAP_CM(sc);
 
-	ccs = 0;
-	stat = RAY_CCS_STATUS_FAIL;
-	sc->sc_timocheck = 0;
-	for (i = RAY_CCS_CMD_FIRST; i <= RAY_CCS_CMD_LAST; i++) {
-		if (!sc->sc_ccsinuse[i])
-			continue;
-		ccs = RAY_CCS_ADDRESS(i);
-		cmd = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd);
-		switch (cmd) {
-		case RAY_CMD_DOWNLOAD_PARAMS:
-		case RAY_CMD_UPDATE_MCAST:
-		case RAY_CMD_UPDATE_PARAMS:
-			stat = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
-			RAY_DPRINTFN(RAY_DBG_CMD,
-			    ("ray%d: ray_check_ccs ccs 0x%x cmd 0x%x stat %d\n",
-			    sc->unit, i, cmd, stat));
-			goto breakout;
-		}
+	ifp = &sc->arpcom.ac_if;
+
+	if (sc->gone) {
+		printf("ray%d: ray_intr unloaded!\n", sc->unit);
+		return (0);
 	}
-breakout:
-	/* see if we got one of the commands we are looking for */
-	if (i > RAY_CCS_CMD_LAST)
-		; /* nothign */
-	else if (stat == RAY_CCS_STATUS_FREE) {
-		stat = RAY_CCS_STATUS_COMPLETE;
-		ray_ccs_done(sc, ccs);
-	} else if (stat != RAY_CCS_STATUS_BUSY) {
-		if (sc->sc_ccsinuse[i] == 1) {
-			/* give a chance for the interrupt to occur */
-			sc->sc_ccsinuse[i] = 2;
-			if (!sc->sc_timocheck) {
-				sc->ccs_timerh = timeout(ray_check_ccs, sc, 1);
-				sc->sc_timocheck = 1;
-			}
-		} else
-			ray_ccs_done(sc, ccs);
-	} else {
-		sc->ccs_timerh = timeout(ray_check_ccs, sc, RAY_CCS_TIMEOUT);
-		sc->sc_timocheck = 1;
+
+	if ((++sc->sc_checkcounters % 32) == 0)
+		ray_intr_updt_errcntrs(sc);
+
+	/*
+	 * Check that the interrupt was for us, if so get the rcs/ccs
+	 * and vector on the command contained within it.
+	 */
+	if (!RAY_HCS_INTR(sc))
+		count = 0;
+	else {
+		count = 1;
+		i = SRAM_READ_1(sc, RAY_SCB_RCSI);
+		if (i <= RAY_CCS_LAST)
+			ray_ccs_done(sc, RAY_CCS_ADDRESS(i));
+		else if (i <= RAY_RCS_LAST)
+			ray_rcs_intr(sc, RAY_CCS_ADDRESS(i));
+		else
+		    printf("ray%d: ray_intr bad ccs index %d\n", sc->unit, i);
 	}
-	splx(s);
+
+	if (count)
+		RAY_HCS_CLEAR_INTR(sc);
+
+	RAY_DPRINTFN(RAY_DBG_RX, ("ray%d: interrupt %s handled\n",
+	    sc->unit, count?"was":"not"));
+
+	/* Send any packets lying around */
+	if (!(ifp->if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL))
+		ray_start(ifp);
+
+	return (count);
 }
 
 /*
- * read the counters, the card implements the following protocol
- * to keep the values from being changed while read:  It checks
- * the `own' bit and if zero writes the current internal counter
- * value, it then sets the `own' bit to 1.  If the `own' bit was 1 it
- * incremenets its internal counter.  The user thus reads the counter
- * if the `own' bit is one and then sets the own bit to 0.
+ * Read the error counters.
+ *
+ * The card implements the following protocol to keep the values from
+ * being changed while read: It checks the `own' bit and if zero
+ * writes the current internal counter value, it then sets the `own'
+ * bit to 1. If the `own' bit was 1 it incremenets its internal
+ * counter. The user thus reads the counter if the `own' bit is one
+ * and then sets the own bit to 0.
  */
 static void
-ray_update_error_counters(struct ray_softc *sc)
+ray_intr_updt_errcntrs(struct ray_softc *sc)
 {
 	size_t csc;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_update_error_counters\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR,
+	    ("ray%d: ray_intr_updt_errcntrs\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	/* try and update the error counters */
@@ -2400,46 +2332,42 @@ ray_update_error_counters(struct ray_softc *sc)
 }
 
 /*
- * Process CCS command completion - called from ray_intr
+ * Process CCS command completion
  */
 static void
 ray_ccs_done(struct ray_softc *sc, size_t ccs)
 {
 	struct ifnet *ifp;
-	u_int cmd, stat;
+	u_int cmd, status;
     
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_ccs_done\n", sc->unit));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
 	/* XXX don't really need stat here? */
 	cmd = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd);
-	stat = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
-
-	RAY_DPRINTFN(RAY_DBG_CCS,
-	    ("ray%d: ccs idx %d ccs 0x%x cmd 0x%x status %d\n",
-	    sc->unit, RAY_CCS_INDEX(ccs), ccs, cmd, stat));
+	status = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
+	RAY_DPRINTF(sc, RAY_DBG_CCS,
+	    "ccs index 0x%02x ccs addr 0x%02x cmd 0x%x status %d",
+	    RAY_CCS_INDEX(ccs), ccs, cmd, status);
 
 	switch (cmd) {
 
 	case RAY_CMD_DOWNLOAD_PARAMS:
-		RAY_DPRINTFN(RAY_DBG_CCS,
-		    ("ray%d: ray_ccs_done got START_PARAMS\n", sc->unit));
-		ray_download_done(sc);
+		RAY_DPRINTF(sc, RAY_DBG_COM, "START_PARAMS");
+		ray_download_done(sc, ccs);
 		break;
 
 	case RAY_CMD_UPDATE_PARAMS:
-		RAY_DPRINTFN(RAY_DBG_CCS,
-		    ("ray%d: ray_ccs_done got UPDATE_PARAMS\n", sc->unit));
-		ray_update_params_done(sc, ccs, stat);
+		RAY_DPRINTF(sc, RAY_DBG_COM, "UPDATE_PARAMS");
+		ray_update_params_done(sc, ccs, status);
 		break;
 
 	case RAY_CMD_REPORT_PARAMS:
-		RAY_DPRINTFN(RAY_DBG_CCS,
-		    ("ray%d: ray_ccs_done got REPORT_PARAMS\n", sc->unit));
+		RAY_DPRINTF(sc, RAY_DBG_COM, "REPORT_PARAMS");
+		/* XXX proper function and don't forget to ecf_done */
 		/* get the reported parameters */
-		ray_cmd_done(sc, SCP_REPORTPARAMS);
 		if (!sc->sc_repreq)
 			break;
 		sc->sc_repreq->r_failcause =
@@ -2453,28 +2381,26 @@ ray_ccs_done(struct ray_softc *sc, size_t ccs)
 		break;
 
 	case RAY_CMD_UPDATE_MCAST:
-		RAY_DPRINTFN(RAY_DBG_CCS,
-		    ("ray%d: ray_ccs_done got UPDATE_MCAST\n", sc->unit));
-		ray_update_mcast_done(sc, ccs, stat);
+		RAY_DPRINTF(sc, RAY_DBG_COM, "UPDATE_MCAST");
+		ray_mcast_done(sc, ccs);
 		break;
 
 	case RAY_CMD_START_NET:
 	case RAY_CMD_JOIN_NET:
-		RAY_DPRINTFN(RAY_DBG_CCS,
-		    ("ray%d: ray_ccs_done got START|JOIN_NET\n", sc->unit));
-		ray_start_join_done(sc, ccs, stat);
+		RAY_DPRINTF(sc, RAY_DBG_COM, "START|JOIN_NET");
+		ray_sj_done(sc, ccs);
 		break;
 
 	case RAY_CMD_TX_REQ:
-		RAY_DPRINTFN(RAY_DBG_CCS,
-		    ("ray%d: ray_ccs_done got TX_REQ\n", sc->unit));
-		ray_start_done(sc, ccs, stat);
+		RAY_DPRINTF(sc, RAY_DBG_COM, "TX_REQ");
+		ray_start_done(sc, ccs, status);
 		goto done;
 
 	case RAY_CMD_START_ASSOC:
-		RAY_DPRINTFN(RAY_DBG_CCS,
-		    ("ray%d: ray_ccs_done got START_ASSOC\n", sc->unit));
-		ray_start_assoc_done(sc, ccs, stat);
+		RAY_DPRINTF(sc, RAY_DBG_COM, "START_ASSOC");
+#if XXX_ASSOCWORKING_AGAIN
+		ray_start_assoc_done(sc, ccs);
+#endif XXX_ASSOCWORKING_AGAIN
 		break;
 
 	case RAY_CMD_UPDATE_APM:
@@ -2504,17 +2430,17 @@ ray_ccs_done(struct ray_softc *sc, size_t ccs)
 		break;
 	}
 
-	ray_free_ccs(sc, ccs);
+	ray_ccs_free(sc, ccs);
 done:
+
 	/*
-	 * see if needed things can be done now that a command
-	 * has completed
+	 * See if needed things can be done now that a command has completed
 	 */
-	ray_cmd_check_scheduled(sc);
+	ray_com_runq(sc);
 }
 
 /*
- * Process ECF command request - called from ray_intr
+ * Process ECF command request
  */
 static void
 ray_rcs_intr(struct ray_softc *sc, size_t rcs)
@@ -2570,151 +2496,42 @@ ray_rcs_intr(struct ray_softc *sc, size_t rcs)
 }
 
 /*
- * process an interrupt
+ * CCS allocator for commands
+ */
+
+/*
+ * Obtain a ccs and fill easy bits in
+ *
+ * Returns 1 and in `ccsp' the bus offset of the free ccs. Will block
+ * awaiting free ccs if needed, timo is passed to tsleep and will
+ * return 0 if the timeout expired.
  */
 static int
-ray_intr(struct pccard_devinfo *dev_p)
-{
-	struct ray_softc *sc;
-	struct ifnet *ifp;
-	int i, count;
-
-	sc = &ray_softc[dev_p->isahd.id_unit];
-
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_intr\n", sc->unit));
-	RAY_MAP_CM(sc);
-
-	ifp = &sc->arpcom.ac_if;
-
-	if (sc->gone) {
-		printf("ray%d: ray_intr unloaded!\n", sc->unit);
-		return (0);
-	}
-
-	if ((++sc->sc_checkcounters % 32) == 0)
-		ray_update_error_counters(sc);
-
-	/*
-	 * Check that the interrupt was for us, if so get the rcs/ccs
-	 * and vector on the command contained within it.
-	 */
-	if (!RAY_HCS_INTR(sc))
-		count = 0;
-	else {
-		count = 1;
-		i = SRAM_READ_1(sc, RAY_SCB_RCSI);
-		if (i <= RAY_CCS_LAST)
-			ray_ccs_done(sc, RAY_CCS_ADDRESS(i));
-		else if (i <= RAY_RCS_LAST)
-			ray_rcs_intr(sc, RAY_CCS_ADDRESS(i));
-		else
-		    printf("ray%d: ray_intr bad ccs index %d\n", sc->unit, i);
-	}
-
-	if (count)
-		RAY_HCS_CLEAR_INTR(sc);
-
-	RAY_DPRINTFN(RAY_DBG_RX, ("ray%d: interrupt %s handled\n",
-	    sc->unit, count?"was":"not"));
-
-	/* Send any packets lying around */
-	if (!(ifp->if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL))
-		ray_start(ifp);
-
-	return (count);
-}
-
-/*
- * Generic CCS handling
- */
-
-#if XXX_NETBSDTX
-/*
- * free the chain of descriptors -- used for freeing allocated tx chains
- */
-static void
-ray_free_ccs_chain(struct ray_softc *sc, u_int ni)
-{
-	u_int i;
-
-	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_CCS,
-	    ("ray%d: ray_free_ccs_chain\n", sc->unit));
-	RAY_MAP_CM(sc);
-
-	while ((i = ni) != RAY_CCS_LINK_NULL) {
-		ni = SRAM_READ_FIELD_1(sc, RAY_CCS_ADDRESS(i), ray_cmd, c_link);
-		RAY_CCS_FREE(sc, RAY_CCS_ADDRESS(i));
-	}
-}
-#endif XXX_NETBSDTX
-
-/*
- * free up a cmd and return the old status.
- * this routine is only used for commands.
- */
-static u_int8_t
-ray_free_ccs(struct ray_softc *sc, size_t ccs)
-{
-	u_int8_t stat;
-
-	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_CCS,
-	    ("ray%d: ray_free_ccs\n", sc->unit));
-	RAY_MAP_CM(sc);
-
-	stat = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
-	RAY_CCS_FREE(sc, ccs);
-	if (ccs <= RAY_CCS_ADDRESS(RAY_CCS_LAST))
-		sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)] = 0;
-	RAY_DPRINTFN(RAY_DBG_CCS, ("ray%d: ray_free_ccs freed 0x%02x\n",
-	    sc->unit, RAY_CCS_INDEX(ccs)));
-
-	return (stat);
-}
-
-/*
- * Obtain a free ccs buffer.
- *
- * returns 1 and in `ccsp' the bus offset of the free ccs 
- * or 0 if none are free
- *
- * If `track' is not zero, handles tracking this command
- * possibly indicating a callback is needed and setting a timeout
- * also if ECF isn't ready we terminate earlier to avoid overhead.
- *
- * this routine is only used for commands
- */
-static int
-ray_alloc_ccs(struct ray_softc *sc, size_t *ccsp, u_int cmd, u_int track)
+ray_ccs_alloc(struct ray_softc *sc, size_t *ccsp, u_int cmd, int timo)
 {
 	size_t ccs;
 	u_int i;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_CCS,
-	    ("ray%d: ray_alloc_ccs\n", sc->unit));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CCS, "");
 	RAY_MAP_CM(sc);
 
-	/* for tracked commands, if not ready just set pending */
-	if (track && !RAY_ECF_READY(sc)) {
-		ray_cmd_schedule(sc, track);
-		return (0);
-	}
-
-	for (i = RAY_CCS_CMD_FIRST; i <= RAY_CCS_CMD_LAST; i++) {
-		/* probe here to make the card go */
-		(void)SRAM_READ_FIELD_1(sc, RAY_CCS_ADDRESS(i), ray_cmd,
-		    c_status);
-		if (!sc->sc_ccsinuse[i])
+	for (;;) {
+		for (i = RAY_CCS_CMD_FIRST; i <= RAY_CCS_CMD_LAST; i++) {
+			/* we probe here to make the card go */
+			(void)SRAM_READ_FIELD_1(sc, RAY_CCS_ADDRESS(i), ray_cmd,
+			    c_status);
+			if (!sc->sc_ccsinuse[i])
+				break;
+		}
+		if (i > RAY_CCS_CMD_LAST) {
+			RAY_PANIC(sc, "out of CCS's");
+		} else
 			break;
 	}
-	if (i > RAY_CCS_CMD_LAST) {
-		if (track)
-			ray_cmd_schedule(sc, track);
-		return (0);
-	}
+
 	sc->sc_ccsinuse[i] = 1;
 	ccs = RAY_CCS_ADDRESS(i);
-	RAY_DPRINTFN(RAY_DBG_CCS,
-	    ("ray%d: ray_alloc_ccs using ccs 0x%0x\n", sc->unit, i));
+	RAY_DPRINTF(sc, RAY_DBG_CCS, "allocated 0x%02x", i);
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_status, RAY_CCS_STATUS_BUSY);
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_cmd, cmd);
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_link, RAY_CCS_LINK_NULL);
@@ -2724,293 +2541,318 @@ ray_alloc_ccs(struct ray_softc *sc, size_t *ccsp, u_int cmd, u_int track)
 }
 
 /*
- * this function sets the pending bit for the command given in 'need'
- * and schedules a timeout if none is scheduled already.  Any command
- * that uses the `host to ecf' region must be serialized.
+ * Free up a ccs allocated via ray_ccs_alloc
+ *
+ * Return the old status. This routine is only used for ccs allocated via
+ * ray_ccs_alloc (not tx, rx or ECF command requests).
+ */
+static u_int8_t
+ray_ccs_free(struct ray_softc *sc, size_t ccs)
+{
+	u_int8_t status;
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CCS, "");
+	RAY_MAP_CM(sc);
+
+	status = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
+	RAY_CCS_FREE(sc, ccs);
+	sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)] = 0;
+	wakeup(ray_ccs_alloc);
+	RAY_DPRINTF(sc, RAY_DBG_CCS, "freed 0x%02x", RAY_CCS_INDEX(ccs));
+
+	return (status);
+}
+
+/*
+ * Command queuing and execution
+ *
+ * XXX
+ * Set up a command queue.  To submit a command, you do this:
+ *
+ *      s = splnet()
+ *      put_cmd_on_queue(sc, cmd)
+ *      start_command_on_queue(sc)
+ *      tsleep(com, 0, "raycmd", 0)
+ *      splx(s)
+ *      handle_completed_command(cmd)
+ *
+ * The start_command_on_queue() function looks like this:
+ *
+ *      if (device_ready_for_command(sc) && queue_not_empty(sc))
+ *              running_cmd = pop_command_from_queue(sc)
+ *              submit_command(running_cmd)
+ *
+ *
+ * In your interrupt handler you do:
+ *
+ *      if (interrupt_is_completed_command(sc))
+ *              wakeup(running_cmd)
+ *              running_cmd = NULL;
+ *              start_command_on_queue(sc)
+ */
+
+/*
+ * Add a command to the tail of the queue
  */
 static void
-ray_cmd_pending(struct ray_softc *sc, u_int cmdf)
+ray_com_runq_add(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_pending\n", sc->unit));
-	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD,
-	    ("ray%d: ray_cmd_pending 0x%b\n", sc->unit, cmdf, SCP_PRINTFB));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 
-	sc->sc_scheduled |= cmdf;
-	if (!sc->sc_timoneed) {
-		RAY_DPRINTFN(RAY_DBG_CCS,
-		    ("ray%d: ray_cmd_pending new timo\n", sc->unit));
-		sc->ccs_timerh = timeout(ray_cmd_check_scheduled, sc,
-		    RAY_CHECK_SCHED_TIMEOUT);
-		sc->sc_timoneed = 1;
-	}
+	RAY_DCOM_DUMP(sc, com, "adding");
+	TAILQ_INSERT_TAIL(&sc->sc_comq, com, c_chain);
 }
 
 /*
- *  check to see if we have any pending commands.
+ * Run the command at the head of the queue (if not already running)
  */
 static void
-ray_cmd_check_scheduled(void *arg)
+ray_com_runq(struct ray_softc *sc)
 {
-	struct ray_softc *sc;
-	int s, i, mask;
+	struct ray_comq_entry *com;
 
-	s = splnet();
-	sc = arg;
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_check_scheduled\n", sc->unit));
-	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD,
-	    ("ray%d: ray_cmd_check_scheduled in schd 0x%b running 0x%b ready %d\n",
-	    sc->unit, sc->sc_scheduled, SCP_PRINTFB,
-	    sc->sc_running, SCP_PRINTFB, RAY_ECF_READY(sc)));
-
-	if (sc->sc_timoneed) {
-		untimeout(ray_cmd_check_scheduled, sc, sc->ccs_timerh);
-		sc->sc_timoneed = 0;
+	com = TAILQ_FIRST(&sc->sc_comq);
+#if RAY_DEBUG & RAY_DBG_COM /* XXX this can go later */
+	if (com == NULL) {
+		RAY_DPRINTF(sc, RAY_DBG_COM, "empty command queue");
+		return;
 	}
-
-	/* if update subcmd is running -- clear it in scheduled */
-	if (sc->sc_running & SCP_UPDATESUBCMD)
-		sc->sc_scheduled &= ~SCP_UPDATESUBCMD;
-
-	mask = SCP_FIRST;
-	for (i = 0; i < ray_ncmdtab; mask <<= 1, i++) {
-		if ((sc->sc_scheduled & ~SCP_UPD_MASK) == 0)
-			break;
-		if (!RAY_ECF_READY(sc))
-			break;
-		if (sc->sc_scheduled & mask)
-			(*ray_cmdtab[i])(sc);
+	if (com->c_flags & RAY_COM_FRUNNING) {
+		RAY_DPRINTF(sc, RAY_DBG_COM, "command already running");
+		return;
 	}
-	RAY_DPRINTFN(RAY_DBG_CMD,
-	    ("ray%d: ray_cmd_check_scheduled out schd 0x%b running 0x%b ready %d\n",
-	    sc->unit, sc->sc_scheduled, SCP_PRINTFB,
-	    sc->sc_running, SCP_PRINTFB, RAY_ECF_READY(sc)));
+#else
+	if ((com == NULL) || (com->c_flags & RAY_COM_FRUNNING))
+		return;
+#endif /* RAY_DEBUG & RAY_DBG_COM */
 
-	if (sc->sc_scheduled & ~SCP_UPD_MASK)
-		ray_cmd_pending(sc, sc->sc_scheduled);
-
-	splx(s);
+	com->c_flags |= RAY_COM_FRUNNING;
+	RAY_DCOM_DUMP(sc, com, "running");
+	com->c_function(sc, com);
 }
 
 /*
- * schedule the `cmdf' for completion later
+ * Abort the execution of a run queue entry and wakeup the
+ * user level caller.
+ *
+ * We do not remove the entry from the runq incase the caller want's to
+ * retry and to prevent any other commands being run. The user level caller
+ * must acknowledge the abort.
  */
 static void
-ray_cmd_schedule(struct ray_softc *sc, int cmdf)
+ray_com_runq_abort(struct ray_softc *sc, struct ray_comq_entry *com, int reason)
 {
-	int track;
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_schedule\n", sc->unit));
-	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD,
-	    ("ray%d: ray_cmd_schedule 0x%b\n", sc->unit, cmdf, SCP_PRINTFB));
+#if RAY_DEBUG & RAY_DBG_COM
+	if (com != TAILQ_FIRST(&sc->sc_comq))
+		RAY_PANIC(sc, "com and head of queue");
+#endif /* RAY_DEBUG & RAY_DBG_COM */
+	RAY_DCOM_DUMP(sc, com, "aborting");
+	com->c_retval = reason;
 
-	track = cmdf;
-	if ((cmdf & SCP_UPD_MASK) == 0)
-		ray_cmd_pending(sc, track);
-	else if (ray_cmd_is_running(sc, SCP_UPDATESUBCMD)) {
-		/* don't do timeout mechaniscm if subcmd already going */
-		sc->sc_scheduled |= cmdf;
-	} else
-		ray_cmd_pending(sc, cmdf | SCP_UPDATESUBCMD);
+	wakeup(com->c_wakeup);
 }
 
 /*
- * check to see if `cmdf' has been scheduled
- */
-static int
-ray_cmd_is_scheduled(struct ray_softc *sc, int cmdf)
-{
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_is_scheduled\n", sc->unit));
-	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD, ("ray%d: ray_cmd_is_scheduled 0x%b\n",
-	    sc->unit, sc->sc_scheduled, SCP_PRINTFB));
-
-	return ((sc->sc_scheduled & cmdf) ? 1 : 0);
-}
-
-/*
- * cancel a scheduled command (not a running one though!)
+ * Remove an aborted command and re-run the queue
  */
 static void
-ray_cmd_cancel(struct ray_softc *sc, int cmdf)
+ray_com_runq_clrabort(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_cancel\n", sc->unit));
-	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD,
-	    ("ray%d: ray_cmd_cancel 0x%b\n", sc->unit, cmdf, SCP_PRINTFB));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 
-	sc->sc_scheduled &= ~cmdf;
-	if ((cmdf & SCP_UPD_MASK) && (sc->sc_scheduled & SCP_UPD_MASK) == 0)
-		sc->sc_scheduled &= ~SCP_UPDATESUBCMD;
+#if RAY_DEBUG & RAY_DBG_COM
+	if (com != TAILQ_FIRST(&sc->sc_comq))
+		RAY_PANIC(sc, "com and head of queue");
+#endif /* RAY_DEBUG & RAY_DBG_COM */
 
-	/* if nothing else needed cancel the timer */
-	if (sc->sc_scheduled == 0 && sc->sc_timoneed) {
-		untimeout(ray_cmd_check_scheduled, sc, sc->ccs_timerh);
-		sc->sc_timoneed = 0;
-	}
+	RAY_DCOM_DUMP(sc, com, "removing");
+	TAILQ_REMOVE(&sc->sc_comq, com, c_chain);
+
+	ray_com_runq(sc);
 }
 
 /*
- * called to indicate the 'cmdf' has been issued
+ * Remove run command and wakeup caller.
+ *
+ * Minimal checks are done here as we ensure that the com and
+ * command handler were matched up earlier.
+ *
+ * Remove the com from the comq, and wakeup the caller if it requested
+ * to be woken. This is used for ensuring a sequence of commands
+ * completes.
  */
 static void
-ray_cmd_ran(struct ray_softc *sc, int cmdf)
+ray_com_runq_done(struct ray_softc *sc)
 {
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_ran\n", sc->unit));
-	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD,
-	    ("ray%d: ray_cmd_ran 0x%b\n", sc->unit, cmdf, SCP_PRINTFB));
+    	struct ray_comq_entry *com;
 
-	if (cmdf & SCP_UPD_MASK)
-		sc->sc_running |= cmdf | SCP_UPDATESUBCMD;
-	else
-		sc->sc_running |= cmdf;
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 
-	if ((cmdf & SCP_TIMOCHECK_CMD_MASK) && !sc->sc_timocheck) {
-		sc->ccs_timerh = timeout(ray_check_ccs, sc, RAY_CCS_TIMEOUT);
-		sc->sc_timocheck = 1;
-	}
+	com = TAILQ_FIRST(&sc->sc_comq); /* XXX shall we do this as below */
+	com->c_flags &= ~RAY_COM_FRUNNING;
+	com->c_flags |= RAY_COM_FCOMPLETED;
+	com->c_retval = 0;
+
+	RAY_DCOM_DUMP(sc, com, "removing");
+	TAILQ_REMOVE(&sc->sc_comq, com, c_chain);
+
+	if (com->c_flags & RAY_COM_FWOK)
+		wakeup(com->c_wakeup);
+
+	/* XXX what about error on completion then? deal with when i fix
+	 * XXX the status checking */
 }
 
 /*
- * check to see if `cmdf' has been issued
- */
-static int
-ray_cmd_is_running(struct ray_softc *sc, int cmdf)
-{
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_is_running\n", sc->unit));
-	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD, ("ray%d: ray_cmd_is_running 0x%b\n",
-	    sc->unit, sc->sc_scheduled, SCP_PRINTFB));
-
-	return ((sc->sc_running & cmdf) ? 1 : 0);
-}
-
-/*
- * the given `cmdf' that was issued has completed
+ * Send a command to the ECF.
  */
 static void
-ray_cmd_done(struct ray_softc *sc, int cmdf)
-{
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_done\n", sc->unit));
-	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD,
-	    ("ray%d: ray_cmd_done 0x%b\n", sc->unit, cmdf, SCP_PRINTFB));
-
-	sc->sc_running &= ~cmdf;
-	if (cmdf & SCP_UPD_MASK) {
-		sc->sc_running &= ~SCP_UPDATESUBCMD;
-		if (sc->sc_scheduled & SCP_UPD_MASK)
-			ray_cmd_schedule(sc, sc->sc_scheduled & SCP_UPD_MASK);
-	}
-	if ((sc->sc_running & SCP_TIMOCHECK_CMD_MASK) == 0 && sc->sc_timocheck){
-		untimeout(ray_check_ccs, sc, sc->ccs_timerh);
-		sc->sc_timocheck = 0;
-	}
-}
-
-/*
- * issue the command
- * only used for commands not tx
- */
-static int
-ray_cmd_issue(struct ray_softc *sc, size_t ccs, u_int track)
+ray_com_ecf(struct ray_softc *sc, struct ray_comq_entry *com)
 {
 	u_int i;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_issue\n", sc->unit));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD,
-	    ("ray%d: ray_cmd_issue 0x%b\n", sc->unit, track, SCP_PRINTFB));
+
+#if RAY_DEBUG & RAY_DBG_COM
+	if (com != TAILQ_FIRST(&sc->sc_comq))
+		RAY_PANIC(sc, "com and head of queue");
+#endif /* RAY_DEBUG & RAY_DBG_COM */
 
 	/*
 	 * XXX other drivers did this, but I think 
 	 * what we really want to do is just make sure we don't
 	 * get here or that spinning is ok
+	 *
+	 * XXX actually we probably want to call a timeout on
+	 * XXX ourself here...
 	 */
 	i = 0;
 	while (!RAY_ECF_READY(sc))
 		if (++i > 50) {
 			printf("\n");
-			(void)ray_free_ccs(sc, ccs);
-			if (track)
-				ray_cmd_schedule(sc, track);
-			return (0);
+			RAY_PANIC(sc, "spun too long");
 		} else if (i == 1)
-			printf("ray%d: ray_cmd_issue spinning", sc->unit);
+			printf("ray%d: ray_com_issue spinning", sc->unit);
 		else
 			printf(".");
 
-	SRAM_WRITE_1(sc, RAY_SCB_CCSI, RAY_CCS_INDEX(ccs));
+	RAY_DCOM_DUMP(sc, com, "");
+	SRAM_WRITE_1(sc, RAY_SCB_CCSI, RAY_CCS_INDEX(com->c_ccs));
 	RAY_ECF_START_CMD(sc);
-	ray_cmd_ran(sc, track);
 
-	return (1);
+	if (RAY_COM_NEEDS_TIMO(
+	    SRAM_READ_FIELD_1(sc, com->c_ccs, ray_cmd, c_cmd)
+	    )) {
+	    	RAY_DPRINTF(sc, RAY_DBG_COM, "adding timeout");
+		sc->com_timerh = timeout(ray_com_ecf_timo, sc, RAY_COM_TIMEOUT);
+	}
 }
 
 /*
- * send a simple command if we can
+ * Deal with commands that require a timeout to test completion.
+ *
+ * This routine is coded to only expect one outstanding request for the
+ * timed out requests at a time, but thats all that can be outstanding
+ * per hardware limitations and all that we issue anyway.
+ *
+ * We don't do any fancy testing of the command currently issued as we
+ * know it must be a timeout based one...unless I've got this wrong!
  */
-static int
-ray_cmd_simple(struct ray_softc *sc, u_int cmd, u_int track)
+static void
+ray_com_ecf_timo(void *xsc)
 {
-	size_t ccs;
+	struct ray_softc *sc = xsc;
+    	struct ray_comq_entry *com;
+	u_int8_t status;
+	int s;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_simple\n", sc->unit));
+	s = splnet();
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD,
-	    ("ray%d: ray_cmd_simple 0x%b\n", sc->unit, track, SCP_PRINTFB));
 
-	return (ray_alloc_ccs(sc, &ccs, cmd, track) &&
-	    ray_cmd_issue(sc, ccs, track));
+	com = TAILQ_FIRST(&sc->sc_comq);
+#if RAY_DEBUG & RAY_DBG_COM /* XXX get rid of this at some point or make it KASSERT */
+	if (com == NULL)
+		RAY_PANIC(sc, "no command queue");
+#endif /* RAY_DEBUG & RAY_DBG_COM */
+
+	status = SRAM_READ_FIELD_1(sc, com->c_ccs, ray_cmd, c_status);
+	RAY_DPRINTF(sc, RAY_DBG_COM, "ccs 0x%02x status %d",
+	    RAY_CCS_INDEX(com->c_ccs), status);
+	
+	switch (status) {
+
+	case RAY_CCS_STATUS_COMPLETE:
+	case RAY_CCS_STATUS_FREE:			/* Buggy firmware */
+		ray_ccs_done(sc, com->c_ccs);
+		break;
+
+	case RAY_CCS_STATUS_BUSY:
+		sc->com_timerh = timeout(ray_com_ecf_timo, sc, RAY_COM_TIMEOUT);
+		break;
+
+	default:					/* Replicates NetBSD */
+		if (sc->sc_ccsinuse[RAY_CCS_INDEX(com->c_ccs)] == 1) {
+			/* give a chance for the interrupt to occur */
+			sc->sc_ccsinuse[RAY_CCS_INDEX(com->c_ccs)] = 2;
+			sc->com_timerh = timeout(ray_com_ecf_timo, sc,
+			    RAY_COM_TIMEOUT);
+		} else
+			ray_ccs_done(sc, com->c_ccs);
+		break;
+
+	}
+
+	splx(s);
 }
+
+/*
+ * Called when interrupt handler for the command has done all it
+ * needs to.
+ */
+static void
+ray_com_ecf_done(struct ray_softc *sc)
+{
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
+
+	untimeout(ray_com_ecf_timo, sc, sc->com_timerh);
+
+	ray_com_runq_done(sc);
+}
+
+#if RAY_DEBUG & RAY_DBG_COM
+/*
+ * Process completed ECF commands that probably came from the command queue
+ *
+ * This routine is called after vectoring the completed ECF command
+ * to the appropriate _done routine. It helps check everything is okay.
+ */
+static void
+ray_com_ecf_check(struct ray_softc *sc, size_t ccs, char *mesg)
+{
+    	struct ray_comq_entry *com;
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "%s", mesg);
+	RAY_MAP_CM(sc);
+
+	com = TAILQ_FIRST(&sc->sc_comq);
+
+	if (com == NULL)
+		RAY_PANIC(sc, "no command queue");
+	if (com->c_ccs != ccs)
+		RAY_PANIC(sc, "ccs's don't match");
+}
+#endif /* RAY_DEBUG & RAY_DBG_COM */
 
 /*
  * Functions based on CCS commands
  */
-
-/*
- * run a update subcommand
- */
-static void
-ray_update_subcmd(struct ray_softc *sc)
-{
-	struct ifnet *ifp;
-	int submask, i;
-
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_update_subcmd\n", sc->unit));
-	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(RAY_DBG_CMD,
-	    ("ray%d: ray_update_subcmd\n", sc->unit));
-
-	ray_cmd_cancel(sc, SCP_UPDATESUBCMD);
-
-	ifp = &sc->arpcom.ac_if;
-	if ((ifp->if_flags & IFF_RUNNING) == 0)
-		return;
-	submask = SCP_UPD_FIRST;
-	for (i = 0; i < ray_nsubcmdtab; submask <<= 1, i++) {
-		if ((sc->sc_scheduled & SCP_UPD_MASK) == 0)
-			break;
-		/* when done the next command will be scheduled */
-		if (ray_cmd_is_running(sc, SCP_UPDATESUBCMD))
-			break;
-		if (!RAY_ECF_READY(sc))
-			break;
-		/*
-		 * give priority to LSB -- e.g., if previous loop reschuled
-		 * doing this command after calling the function won't catch
-		 * if a later command sets an earlier bit
-		 */
-		if (sc->sc_scheduled & ((submask - 1) & SCP_UPD_MASK))
-			break;
-		if (sc->sc_scheduled & submask)
-			(*ray_subcmdtab[i])(sc);
-	}
-}
 
 /*
  * report a parameter
@@ -3024,8 +2866,6 @@ ray_report_params(struct ray_softc *sc)
 	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_report_params\n", sc->unit));
 	RAY_MAP_CM(sc);
 
-	ray_cmd_cancel(sc, SCP_REPORTPARAMS);
-
 	ifp = &sc->arpcom.ac_if;
 
 	if (!sc->sc_repreq)
@@ -3034,96 +2874,74 @@ ray_report_params(struct ray_softc *sc)
 	/* do the issue check before equality check */
 	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
-	else if (ray_cmd_is_running(sc, SCP_REPORTPARAMS)) {
-		ray_cmd_schedule(sc, SCP_REPORTPARAMS);
-		return;
-	} else if (!ray_alloc_ccs(sc, &ccs, RAY_CMD_REPORT_PARAMS,
-	    SCP_REPORTPARAMS))
+	else if (!ray_ccs_alloc(sc, &ccs, RAY_CMD_REPORT_PARAMS, 0))
 		return;
 
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_report, c_paramid,
 	    sc->sc_repreq->r_paramid);
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_report, c_nparam, 1);
-	(void)ray_cmd_issue(sc, ccs, SCP_REPORTPARAMS);
+
 }
 
+#if XXX_ASSOCWORKING_AGAIN
+/*XXX move this further down the code */
 /*
- * start an association
+ * Start an association with an access point
  */
 static void
 ray_start_assoc(struct ray_softc *sc)
 {
 	struct ifnet *ifp;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_start_assoc\n", sc->unit));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
-	ray_cmd_cancel(sc, SCP_STARTASSOC);
 	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
-	else if (ray_cmd_is_running(sc, SCP_STARTASSOC))
-		return;
+
 	(void)ray_cmd_simple(sc, RAY_CMD_START_ASSOC, SCP_STARTASSOC);
 }
 
 /*
- * complete association
- *
- * Part of ray_init, download, start_join control flow.
+ * Complete association
  */
 static void
-ray_start_assoc_done(struct ray_softc *sc, size_t ccs, u_int8_t status)
+ray_start_assoc_done(struct ray_softc *sc, size_t ccs)
 {
 	struct ifnet *ifp;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_start_assoc_done\n", sc->unit));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
+	RAY_DCOM_CHECK(sc, ccs);
 
+	/*
+	 * Hurrah! The network is now active.
+	 *
+	 * Clearing IFF_OACTIVE will ensure that the system will queue
+	 * packets. Just before we return from the interrupt context
+	 * we check to see if packets have been queued.
+	 */
 	ifp = &sc->arpcom.ac_if;
+	sc->sc_havenet = 1;
+	ifp->if_flags &= ~IFF_OACTIVE;
 
-	ray_cmd_done(sc, SCP_STARTASSOC);
-
-	if (status == RAY_CCS_STATUS_FAIL) {
-		RAY_DPRINTFN(RAY_DBG_STARTJOIN,
-		    ("ray%d: START_ASSOC failed retrying \n", sc->unit));
-		ray_start_join_net(sc);	/* XXX check */
-	} else {
-		sc->sc_havenet = 1;
-		ifp->if_flags &= ~IFF_OACTIVE;
-		RAY_DPRINTFN(RAY_DBG_STARTJOIN,
-		    ("ray%d: START_ASSOC waking ray_init\n",
-		    sc->unit));
-		wakeup(ray_init);
-	}
-
-	return;
+	ray_com_ecf_done(sc);
 }
-
-/*
- * Subcommand functions that use the SCP_UPDATESUBCMD command
- * (and are serialized with respect to other update sub commands
- */
+#endif XXX_ASSOCWORKING_AGAIN
 
 /*
  * Download start up structures to card.
- *
- * Part of ray_init, download, startjoin control flow.
  */
 static void
-ray_download_params(struct ray_softc *sc)
+ray_download(struct ray_softc *sc, struct ray_comq_entry *com)
 {
 	struct ray_mib_4 ray_mib_4_default;
 	struct ray_mib_5 ray_mib_5_default;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_download_params\n", sc->unit));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
-
-	ray_cmd_cancel(sc, SCP_UPD_DOWNLOAD);
 
 #define MIB4(m)		ray_mib_4_default.##m
 #define MIB5(m)		ray_mib_5_default.##m
@@ -3232,16 +3050,6 @@ ray_download_params(struct ray_softc *sc)
 	 MIB5(mib_privacy_can_join)	= sc->sc_d.np_priv_join;
 	 MIB5(mib_basic_rate_set[0])	= sc->sc_d.np_def_txrate;
 
-	/* XXX i think that this can go when ray_stop is fixed or
-	 * XXX do we need it for safety for the case where the card is
-	 * XXX busy but the driver hasn't got the state e.g. over an unload?
-	 * XXX does that mean attach should do this? */
-	/* this should certainly go if we don't use simple_cmd */
-	if (!RAY_ECF_READY(sc)) {
-	    printf("ray%d: ray_download_params device busy\n", sc->unit);
-	    ray_reset(sc);
-	}
-
 	if (sc->sc_version == RAY_ECFS_BUILD_4)
 		ray_write_region(sc, RAY_HOST_TO_ECF_BASE,
 		    &ray_mib_4_default, sizeof(ray_mib_4_default));
@@ -3249,33 +3057,18 @@ ray_download_params(struct ray_softc *sc)
 		ray_write_region(sc, RAY_HOST_TO_ECF_BASE,
 		    &ray_mib_5_default, sizeof(ray_mib_5_default));
 
-	if (!ray_cmd_simple(sc, RAY_CMD_DOWNLOAD_PARAMS, SCP_UPD_DOWNLOAD))
-	    printf("ray%d: ray_download_params can't issue command\n",
-	        sc->unit);
-
-	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_download_params awaiting completion\n", sc->unit));
-
-	return;
+	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_DOWNLOAD_PARAMS, 0);
+	ray_com_ecf(sc, com);
 }
 
 /*
  * Download completion routine.
- *
- * Part of ray_init, download, start_join control flow.
- *
- * As START_PARAMS is an update command ray_check_ccs has checked the
- * ccs status and re-scheduled timeouts if needed.
  */
 static void
-ray_download_done(struct ray_softc *sc)
+ray_download_done(struct ray_softc *sc, size_t ccs)
 {
-
-	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_download_done\n", sc->unit));
-	RAY_MAP_CM(sc);
-
-	ray_cmd_done(sc, SCP_UPD_DOWNLOAD);
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
+	RAY_DCOM_CHECK(sc, ccs);
 
 	/* 
 	 * Fake the current network parameter settings so start_join_net
@@ -3285,57 +3078,45 @@ ray_download_done(struct ray_softc *sc)
 	sc->sc_c.np_net_type = sc->sc_d.np_net_type;
 	bcopy(sc->sc_d.np_ssid, sc->sc_c.np_ssid, IEEE80211_NWID_LEN);
 	    
-	ray_start_join_net(sc);
+	ray_com_ecf_done(sc);
 }
 
 /*
- * start or join a network
+ * Start or join a network
  */
 static void
-ray_start_join_net(struct ray_softc *sc)
+ray_sj(struct ray_softc *sc, struct ray_comq_entry *com)
 {
 	struct ray_net_params np;
 	struct ifnet *ifp;
-	size_t ccs;
-	int cmd, update;
+	int update;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_start_join_net\n", sc->unit));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
 
+	/* XXX do I need this anymore? how can IFF_RUNNING be cleared
+	 * XXX before this routine exits - check in ray_ioctl and the
+	 * network code itself.
+	 */
 	ifp = &sc->arpcom.ac_if;
-
-	ray_cmd_cancel(sc, SCP_UPD_STARTJOIN);
-	if ((ifp->if_flags & IFF_RUNNING) == 0)
-		return;
-
-	/* XXX check we may not want to re-issue */
-	if (ray_cmd_is_running(sc, SCP_UPDATESUBCMD)) {
-		RAY_DPRINTFN(RAY_DBG_STARTJOIN,
-		    ("ray%d: ray_start_join_net already running\n", sc->unit));
-		ray_cmd_schedule(sc, SCP_UPD_STARTJOIN);
-		return;
+	if ((ifp->if_flags & IFF_RUNNING) == 0) {
+		RAY_PANIC(sc, "IFF_RUNNING == 0");
 	}
 
+	sc->sc_havenet = 0;
 	if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_ADHOC)
-		cmd = RAY_CMD_START_NET;
+		(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_START_NET, 0);
 	else
-		cmd = RAY_CMD_JOIN_NET;
-
-	if (!ray_alloc_ccs(sc, &ccs, cmd, SCP_UPD_STARTJOIN)) {
-		printf("ray%d: ray_start_join_net can't get a CCS\n", sc->unit);
-		ray_reset(sc);
-	}
+		(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_JOIN_NET, 0);
 
 	update = 0;
 	if (bcmp(sc->sc_c.np_ssid, sc->sc_d.np_ssid, IEEE80211_NWID_LEN))
 		update++;
 	if (sc->sc_c.np_net_type != sc->sc_d.np_net_type)
 		update++;
-
+	RAY_DPRINTF(sc, RAY_DBG_STARTJOIN,
+	    "%s updating nw params", update?"is":"not");
 	if (update) {
-		sc->sc_havenet = 0;
-
 		bzero(&np, sizeof(np));
 		np.p_net_type = sc->sc_d.np_net_type;
 		bcopy(sc->sc_d.np_ssid, np.p_ssid,  IEEE80211_NWID_LEN);
@@ -3343,206 +3124,149 @@ ray_start_join_net(struct ray_softc *sc)
 		np.p_privacy_can_join = sc->sc_d.np_priv_join;
 
 		ray_write_region(sc, RAY_HOST_TO_ECF_BASE, &np, sizeof(np));
-		SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 1);
+		SRAM_WRITE_FIELD_1(sc, com->c_ccs, ray_cmd_net, c_upd_param, 1);
 	} else
-		SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 0);
+		SRAM_WRITE_FIELD_1(sc, com->c_ccs, ray_cmd_net, c_upd_param, 0);
 
-	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_start_join_net %s updating nw params\n",
-	    sc->unit, update?"is":"not"));
-
-	if (!ray_cmd_issue(sc, ccs, SCP_UPD_STARTJOIN)) {
-	    printf("ray%d: ray_start_join_net can't issue cmd\n", sc->unit);
-	    ray_reset(sc);
-	}
-
-	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_start_join_net awaiting completion\n", sc->unit));
-
-#if RAY_NEED_STARTJOIN_TIMO
-	sc->sj_timerh = timeout(ray_start_join_timo, sc, RAY_SJ_TIMEOUT);
-#endif /* RAY_NEED_STARTJOIN_TIMO */
+	ray_com_ecf(sc, com);
 }
 
-#if RAY_NEED_STARTJOIN_TIMO
 /*
- * Back stop catcher for start_join command. The NetBSD driver
- * suggests that they need it to catch a bug in the firmware or the
- * parameters they use - they are not sure. I'll just panic as I seem
- * to get interrupts back fine and I have version 4 firmware.
+ * Complete start command or intermediate step in join command
  */
 static void
-ray_start_join_timo(void *xsc)
-{
-	struct ray_softc *sc = xsc;
-
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_start_join_timo\n", sc->unit));
-	RAY_MAP_CM(sc);
-
-	panic("ray%d: ray-start_join_timo occured\n", sc->unit);
-
-	return;
-}
-#endif /* RAY_NEED_STARTJOIN_TIMO */
-
-/******************************************************************************
- * XXX NOT KNF FROM HERE DOWN						      *
- ******************************************************************************/
-/*
- * Complete start command or intermediate step in join command.
- *
- * Part of ray_init, download, start_join control flow.
- */
-static void
-ray_start_join_done(sc, ccs, status)
-    struct ray_softc	*sc;
-    size_t		ccs;
-    u_int8_t		status;
-{
-    struct ifnet	*ifp;
-    u_int8_t		o_net_type;
-
-    RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
-        ("ray%d: ray_start_join_done\n", sc->unit));
-    RAY_MAP_CM(sc);
-
-    ifp = &sc->arpcom.ac_if;
-
-#if RAY_NEED_STARTJOIN_TIMO
-    untimeout(ray_start_join_timo, sc, sc->sj_timerh);
-#endif /* RAY_NEED_STARTJOIN_TIMO */
-
-    ray_cmd_done(sc, SCP_UPD_STARTJOIN);
-
-    /*
-     * XXX This switch and the following test are badly done. I
-     * XXX need to take remedial action in each case branch and
-     * XXX return from there. Then remove the test.
-     * XXX FAIL comment 
-     * XXX    if we fired the start command we successfully set the card up
-     * XXX    so just restart ray_start_join sequence and dont reset the card
-     * XXX    may need to split download_done for this
-     * XXX FREE
-     * XXX    not sure
-     * XXX BUSY
-     * XXX    maybe timeout but why would we get an interrupt when
-     * XXX    the card is not finished? 
-     */
-    switch (status) {
-
-    	case RAY_CCS_STATUS_FREE:
-    	case RAY_CCS_STATUS_BUSY:
-	    printf("ray%d: ray_start_join_done status is FREE/BUSY - why?\n",
-	    		sc->unit);
-	    break;
-
-    	case RAY_CCS_STATUS_COMPLETE:
-	    break;
-
-    	case RAY_CCS_STATUS_FAIL:
-	    printf("ray%d: ray_start_join_done status is FAIL - why?\n",
-	    		sc->unit);
-	    sc->sc_havenet = 0;
-	    break;
-
-	default:
-	    printf("ray%d: ray_start_join_done unknown status 0x%x\n",
-	    		sc->unit, status);
-	    break;
-    }
-    if (status != RAY_CCS_STATUS_COMPLETE)
-	return;
-
-    /*
-     * If the command completed correctly, get a few network parameters
-     * from the ccs and active the network.
-     */
-    ray_read_region(sc, ccs, &sc->sc_c.p_1, sizeof(struct ray_cmd_net));
-
-    /* adjust values for buggy build 4 */
-    if (sc->sc_c.np_def_txrate == 0x55)
-	    sc->sc_c.np_def_txrate = sc->sc_d.np_def_txrate;
-    if (sc->sc_c.np_encrypt == 0x55)
-	    sc->sc_c.np_encrypt = sc->sc_d.np_encrypt;
-
-    /* card is telling us to update the network parameters */
-    if (sc->sc_c.np_upd_param) {
-	RAY_DPRINTFN(RAY_DBG_RECERR,
-	    ("ray%d: sj_done card updating parameters - why?\n", sc->unit));
-	o_net_type = sc->sc_c.np_net_type; /* XXX this may be wrong? */
-	ray_read_region(sc, RAY_HOST_TO_ECF_BASE,
-		&sc->sc_c.p_2, sizeof(struct ray_net_params));
-	if (sc->sc_c.np_net_type != o_net_type) {
-	    printf("ray%d: sj_done card changing network type - why?\n",
-	    	sc->unit);
-#if XXX
-	    restart ray_start_join sequence
-	    may need to split download_done for this
-#endif
-	}
-    }
-    RAY_DNET_DUMP(sc, " after start/join network completed.");
-
-    /*
-     * Hurrah! The network is now active.
-     *
-     * Clearing IFF_OACTIVE will ensure that the system will queue packets.
-     * Just before we return from the interrupt context we check to
-     * see if packets have been queued.
-     */
-    ray_cmd_schedule(sc, SCP_UPD_MCAST|SCP_UPD_PROMISC);
-
-    if (SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd) == RAY_CMD_JOIN_NET)
-	ray_start_assoc(sc);
-    else {
-	sc->sc_havenet = 1;
-        ifp->if_flags &= ~IFF_OACTIVE;
-	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
-	    ("ray%d: ray_start_join_done waking ray_init\n",
-	    sc->unit));
-	wakeup(ray_init);
-    }
-
-    return;
-}
-
-/******************************************************************************
- * XXX NOT KNF FROM HERE UP
- ******************************************************************************/
-
-/*
- * set the card in/out of promiscuous mode
- */
-static void
-ray_update_promisc(struct ray_softc *sc)
+ray_sj_done(struct ray_softc *sc, size_t ccs)
 {
 	struct ifnet *ifp;
-	size_t ccs;
-	int promisc;
+	u_int8_t o_net_type;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_update_promisc\n", sc->unit));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
+	RAY_DCOM_CHECK(sc, ccs);
+	RAY_MAP_CM(sc);
+
+	/*
+	 * Read back any network parameters the ECF changed
+	 */
+	ray_read_region(sc, ccs, &sc->sc_c.p_1, sizeof(struct ray_cmd_net));
+
+	/* adjust values for buggy build 4 */
+	if (sc->sc_c.np_def_txrate == 0x55)
+		sc->sc_c.np_def_txrate = sc->sc_d.np_def_txrate;
+	if (sc->sc_c.np_encrypt == 0x55)
+		sc->sc_c.np_encrypt = sc->sc_d.np_encrypt;
+
+	/* card is telling us to update the network parameters */
+	if (sc->sc_c.np_upd_param) {
+		RAY_DPRINTF(sc, RAY_DBG_STARTJOIN, "card updating parameters");
+		o_net_type = sc->sc_c.np_net_type; /* XXX this may be wrong? */
+		ray_read_region(sc, RAY_HOST_TO_ECF_BASE,
+		    &sc->sc_c.p_2, sizeof(struct ray_net_params));
+		if (sc->sc_c.np_net_type != o_net_type) {
+			RAY_PANIC(sc, "card changing network type");
+#if XXX
+			restart ray_start_join sequence
+			may need to split download_done for this
+#endif
+		}
+	}
+	RAY_DNET_DUMP(sc, " after start/join network completed.");
+
+	/*
+	 * Hurrah! The network is now active.
+	 *
+	 * Clearing IFF_OACTIVE will ensure that the system will queue
+	 * packets. Just before we return from the interrupt context
+	 * we check to see if packets have been queued.
+	 */
+	ifp = &sc->arpcom.ac_if;
+#if XXX_ASSOCWORKING_AGAIN
+	if (SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd) == RAY_CMD_JOIN_NET)
+		ray_start_assoc(sc);
+	else {
+		sc->sc_havenet = 1;
+		ifp->if_flags &= ~IFF_OACTIVE;
+	}
+#else
+	sc->sc_havenet = 1;
+	ifp->if_flags &= ~IFF_OACTIVE;
+#endif XXX_ASSOCWORKING_AGAIN
+
+	ray_com_ecf_done(sc);
+}
+
+#if 0
+/*
+ * User land entry to promiscuous mode changes
+ */
+static int
+ray_promisc_user(struct ray_softc *sc)
+{
+	struct ifnet *ifp;
+	struct ray_comq_entry *com;
+	int error;
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+
+	if ((ifp->if_flags & IFF_RUNNING) == 0)
+		return (0);
+	if (sc->promisc != !!(ifp->if_flags & (IFF_PROMISC|IFF_ALLMULTI)))
+		return (0);
+
+	MALLOC(com, struct ray_comq_entry *, sizeof(struct ray_comq_entry),
+	    M_RAYCOM, M_WAITOK);
+	com->c_function = ray_promisc;
+	com->c_flags = RAY_COM_FWOK;
+	com->c_retval = 0;
+	com->c_ccs = NULL;
+	com->c_wakeup = com;
+#if RAY_DEBUG > 0
+	com->c_mesg = "ray_promisc";
+#endif /* RAY_DEBUG > 0 */
+	ray_com_runq_add(sc, com);
+
+	ray_com_runq(sc);
+	RAY_DPRINTF(sc, RAY_DBG_COM, "sleeping");
+	(void)tsleep(com[3], 0, "raypromisc", 0);
+	RAY_DPRINTF(sc, RAY_DBG_COM, "awakened");
+
+	error = com->c_retval;
+	FREE(com, M_RAYCOM);
+	return (error);
+}
+
+/*
+ * Set/reset promiscuous mode
+ */
+static void
+ray_promisc(struct ray_softc *sc, struct ray_comq_entry *com)
+{
+	struct ifnet *ifp;
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
-	ray_cmd_cancel(sc, SCP_UPD_PROMISC);
 
-	/* do the issue check before equality check */
-	promisc = !!(ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI));
-	if ((ifp->if_flags & IFF_RUNNING) == 0)
-		return;
-	else if (ray_cmd_is_running(sc, SCP_UPDATESUBCMD)) {
-		ray_cmd_schedule(sc, SCP_UPD_PROMISC);
-		return;
-	} else if (promisc == sc->sc_promisc)
-		return;
-	else if (!ray_alloc_ccs(sc, &ccs, RAY_CMD_UPDATE_PARAMS,
-	    SCP_UPD_PROMISC))
-		return;
+	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_UPDATE_PARAMS, 0);
+	SRAM_WRITE_FIELD_1(sc, &com->c_ccs,
+	    ray_cmd_update, c_paramid, RAY_MIB_PROMISC);
+	SRAM_WRITE_FIELD_1(sc, &com->c_ccs, ray_cmd_update, c_nparam, 1);
+	SRAM_WRITE_1(sc, RAY_HOST_TO_ECF_BASE, 
+	    !!(ifp->if_flags & (IFF_PROMISC|IFF_ALLMULTI)));
 
-	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_update, c_paramid, RAY_MIB_PROMISC);
-	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_update, c_nparam, 1);
-	SRAM_WRITE_1(sc, RAY_HOST_TO_ECF_BASE, promisc);
-	(void)ray_cmd_issue(sc, ccs, SCP_UPD_PROMISC);
+	ray_com_ecf(sc, com);
+}
+
+/*
+ * Complete the promiscuous mode update
+ */
+static void
+ray_promisc_done(struct ray_softc *sc, size_t ccs)
+{
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+	RAY_DCOM_CHECK(sc, ccs);
+
+	ray_com_ecf_done(sc);
 }
 
 /*
@@ -3571,8 +3295,7 @@ ray_update_params(struct ray_softc *sc)
 	else if (ray_cmd_is_running(sc, SCP_UPDATESUBCMD)) {
 		ray_cmd_schedule(sc, SCP_UPD_UPDATEPARAMS);
 		return;
-	} else if (!ray_alloc_ccs(sc, &ccs, RAY_CMD_UPDATE_PARAMS,
-	    SCP_UPD_UPDATEPARAMS))
+	} else if (!ray_ccs_alloc(sc, &ccs, RAY_CMD_UPDATE_PARAMS, 0))
 		return;
 
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_update, c_paramid,
@@ -3593,7 +3316,7 @@ ray_update_params(struct ray_softc *sc)
 static void
 ray_update_params_done(struct ray_softc *sc, size_t ccs, u_int stat)
 {
-	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_CMD,
+	RAY_DPRINTFN(RAY_DBG_SUBR,
 	    ("ray%d: ray_update_params_done\n", sc->unit));
 	RAY_MAP_CM(sc);
 
@@ -3617,49 +3340,109 @@ ray_update_params_done(struct ray_softc *sc, size_t ccs, u_int stat)
 		    SRAM_READ_FIELD_1(sc, ccs, ray_cmd_update, c_failcause);
 		sc->sc_updreq = 0;
 		wakeup(ray_update_params);
-		ray_start_join_net(sc);
+		ray_sj_net(sc);
 	}
 }
 
 /*
- * set the multicast filter list
+ * User land entry to multicast list changes
+ */
+static int
+ray_mcast_user(struct ray_softc *sc)
+{
+	struct ifnet *ifp;
+	struct ray_comq_entry *com[2];
+	int error, count;
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+	
+	ifp = &sc->arpcom.ac_if;
+
+	/*
+	 * The multicast list is only 16 items long so use promiscuous
+	 * mode if needed.
+	 *
+	 * We track this stuff even when not running.
+	 */
+	for (ifma = ifp->if_multiaddrs.lh_first, count = 0; ifma != NULL;
+	    ifma = ifma->ifma_link.le_next, count++)
+	if (count > 16)
+		ifp->if_flags |= IFF_ALLMULTI;
+	else if (ifp->if_flags & IFF_ALLMULTI)
+		ifp->if_flags &= ~IFF_ALLMULTI;
+
+	if ((ifp->if_flags & IFF_RUNNING) == 0) {
+		return (0);
+	}
+
+	/*
+	 * If we need to change the promiscuous mode then do so.
+	 */
+	if (sc->promisc != !!(ifp->if_flags & (IFF_PROMISC|IFF_ALLMULTI))) {
+		MALLOC(com[0], struct ray_comq_entry *,
+		    sizeof(struct ray_comq_entry), M_RAYCOM, M_WAITOK);
+		com[0]->c_function = ray_promisc;
+		com[0]->c_flags = RAY_COM_FWOK; 
+		com[0]->c_retval = 0;
+		com[0]->c_ccs = NULL;
+		com[0]->c_wakeup = com[1];
+#if RAY_DEBUG > 0
+		com[0]->c_mesg = "ray_promisc";
+#endif /* RAY_DEBUG > 0 */
+		ray_com_runq_add(sc, com[0]);
+	} else
+	    com[0] = NULL;
+
+	/*
+	 * If we need to set the mcast list then do so.
+	 */
+	if (!(ifp->if_flags & IFF_ALLMULTI))
+		MALLOC(com[1], struct ray_comq_entry *,
+		    sizeof(struct ray_comq_entry), M_RAYCOM, M_WAITOK);
+		com[1]->c_function = ray_mcast;
+		com[0]->c_flags &= ~RAY_COM_FWOK; 
+		com[1]->c_flags = RAY_COM_FWOK; 
+		com[1]->c_retval = 0;
+		com[1]->c_ccs = NULL;
+		com[1]->c_wakeup = com[1];
+#if RAY_DEBUG > 0
+		com[1]->c_mesg = "ray_mcast";
+#endif /* RAY_DEBUG > 0 */
+		ray_com_runq_add(sc, com[1]);
+	} else
+	    com[1] = NULL;
+
+	ray_com_runq(sc);
+	RAY_DPRINTF(sc, RAY_DBG_COM, "sleeping");
+	(void)tsleep(com[1], 0, "raymcast", 0);
+	RAY_DPRINTF(sc, RAY_DBG_COM, "awakened");
+
+	error = com->c_retval;
+	if (com[0] != NULL)
+	    FREE(com[0], M_RAYCOM);
+	if (com[1] != NULL)
+	    FREE(com[1], M_RAYCOM);
+	return (error);
+}
+
+/*
+ * Set the multicast filter list
  */
 static void
-ray_update_mcast(struct ray_softc *sc)
+ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 {
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
-	size_t ccs, bufp;
-	int count;
+	size_t bufp;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_update_mcast\n", sc->unit));
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
-	
-	ray_cmd_cancel(sc, SCP_UPD_MCAST);
 
-	for (ifma = ifp->if_multiaddrs.lh_first, count = 0; ifma != NULL;
-	    ifma = ifma->ifma_link.le_next, count++)
-
-	/* track this stuff even when not running */
-	if (count > 16) {
-		ifp->if_flags |= IFF_ALLMULTI;
-		ray_update_promisc(sc);
-		return;
-	} else if (ifp->if_flags & IFF_ALLMULTI) {
-		ifp->if_flags &= ~IFF_ALLMULTI;
-		ray_update_promisc(sc);
-	}
-
-	if ((ifp->if_flags & IFF_RUNNING) == 0)
-		return;
-	else if (ray_cmd_is_running(sc, SCP_UPDATESUBCMD)) {
-		ray_cmd_schedule(sc, SCP_UPD_MCAST);
-		return;
-	} else if (!ray_alloc_ccs(sc,&ccs, RAY_CMD_UPDATE_MCAST, SCP_UPD_MCAST))
-		return;
-	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_update_mcast, c_nmcast, count);
+	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_UPDATE_MCAST, 0);
+	SRAM_WRITE_FIELD_1(sc, &com->c_ccs,
+	    ray_cmd_update_mcast, c_nmcast, count);
 	bufp = RAY_HOST_TO_ECF_BASE;
 	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
 	    ifma = ifma->ifma_link.le_next) {
@@ -3671,27 +3454,21 @@ ray_update_mcast(struct ray_softc *sc)
 		);
 		bufp += ETHER_ADDR_LEN;
 	}
-	(void)ray_cmd_issue(sc, ccs, SCP_UPD_MCAST);
+
+	ray_com_ecf(sc, com);
 }
 
 /*
- * complete the multicast filter list update
+ * Complete the multicast filter list update
  */
 static void
-ray_update_mcast_done(struct ray_softc *sc, size_t ccs, u_int8_t status)
+ray_mcast_done(struct ray_softc *sc, size_t ccs)
 {
-	RAY_DPRINTFN(RAY_DBG_SUBR,
-	    ("ray%d: ray_update_mcast_done\n", sc->unit));
-	RAY_MAP_CM(sc);
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+	RAY_DCOM_CHECK(sc, ccs);
 
-	ray_cmd_done(sc, SCP_UPD_MCAST);
-	if (status == RAY_CCS_STATUS_FAIL)
-		ray_reset(sc);
+	ray_com_ecf_done(sc);
 }
-
-/*
- * User issued commands
- */
 
 /*
  * issue a update params
@@ -3728,7 +3505,7 @@ ray_user_update_params(struct ray_softc *sc, struct ray_param_req *pr)
 			return (0);
 		sc->sc_d.np_net_type = *pr->r_data;
 		if (ifp->if_flags & IFF_RUNNING)
-			ray_start_join_net(sc);
+			ray_sj_net(sc);
 		return (0);
 
 	case RAY_MIB_SSID:
@@ -3736,7 +3513,7 @@ ray_user_update_params(struct ray_softc *sc, struct ray_param_req *pr)
 			return (0);
 		bcopy(pr->r_data, sc->sc_d.np_ssid, IEEE80211_NWID_LEN);
 		if (ifp->if_flags & IFF_RUNNING)
-			ray_start_join_net(sc);
+			ray_sj_net(sc);
 		return (0);
 
 	case RAY_MIB_BASIC_RATE_SET:
@@ -3899,21 +3676,33 @@ ray_user_report_params(struct ray_softc *sc, struct ray_param_req *pr)
 
 	return (0);
 }
+#else
+static void ray_update_params(struct ray_softc *sc) {}
+static void ray_update_params_done(struct ray_softc *sc, size_t ccs, u_int stat) {}
+
+static int ray_mcast_user(struct ray_softc *sc) {return (0);}
+static void ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com) {}
+static void ray_mcast_done(struct ray_softc *sc, size_t ccs) {}
+static int ray_promisc_user(struct ray_softc *sc) {return (0);}
+static void ray_promisc(struct ray_softc *sc, struct ray_comq_entry *com) {}
+static void ray_promisc_done(struct ray_softc *sc, size_t ccs) {}
+
+
+static int ray_user_update_params(struct ray_softc *sc, struct ray_param_req *pr) {return (0);}
+static int ray_user_report_params(struct ray_softc *sc, struct ray_param_req *pr) {return (0);}
+#endif
 
 /*
- * return the error counters
+ * Return the error counters
  */
 static int
 ray_user_report_stats(struct ray_softc *sc, struct ray_stats_req *sr)
 {
 	struct ifnet *ifp;
 
-	RAY_DPRINTFN(RAY_DBG_SUBR,
-	    ("ray%d: ray_user_report_stats\n", sc->unit));
-	RAY_MAP_CM(sc);
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
 	ifp = &sc->arpcom.ac_if;
-
 	if ((ifp->if_flags & IFF_RUNNING) == 0) {
 		return (EIO);
 	}
@@ -3925,6 +3714,7 @@ ray_user_report_stats(struct ray_softc *sc, struct ray_stats_req *sr)
 
 	return (0);
 }
+
 /******************************************************************************
  * XXX NOT KNF FROM HERE DOWN
  ******************************************************************************/
