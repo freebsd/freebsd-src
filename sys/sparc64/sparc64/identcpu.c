@@ -1,4 +1,4 @@
-/*
+/*-
  * Initial implementation:
  * Copyright (c) 2001 Robert Drehmel
  * All rights reserved.

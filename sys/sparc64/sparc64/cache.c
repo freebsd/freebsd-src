@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996
  *	The President and Fellows of Harvard College. All rights reserved.
  * Copyright (c) 1992, 1993

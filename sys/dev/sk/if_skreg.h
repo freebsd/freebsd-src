@@ -1,6 +1,6 @@
 /*	$OpenBSD: if_skreg.h,v 1.10 2003/08/12 05:23:06 nate Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -34,7 +34,7 @@
  * $FreeBSD$
  */
 
-/*
+/*-
  * Copyright (c) 2003 Nathan L. Binkert <binkertn@umich.edu>
  *
  * Permission to use, copy, modify, and distribute this software for any

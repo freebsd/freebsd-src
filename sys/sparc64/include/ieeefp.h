@@ -1,4 +1,4 @@
-/*
+/*-
  * Written by J.T. Conklin, Apr 6, 1995
  * Public domain.
  * $FreeBSD$

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004, 2005
  *     Bosko Milekic <bmilekic@freebsd.org>
  * Copyright (c) 2002, 2003, 2004, 2005,

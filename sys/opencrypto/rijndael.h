@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$OpenBSD: rijndael.h,v 1.7 2001/12/19 17:42:24 markus Exp $ */
 
-/**
+/*-
  * rijndael-alg-fst.h
  *
  * @version 3.0 (December 2000)
