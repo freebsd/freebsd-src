@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* def.rm.h - version 1.0.2 */
+/* $FreeBSD$ */
 
 /* Level location types */
 #define	HWALL 1
@@ -32,7 +33,7 @@
 #define	CORR_SYM	':'
 #else
 #define	CORR_SYM	'#'
-#endif QUEST
+#endif /* QUEST */
 #define	POOL_SYM	'}'
 
 #define	ERRCHAR	'{'

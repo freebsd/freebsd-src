@@ -181,4 +181,4 @@ remseg(wtmp) struct wseg *wtmp; {
 		newsym(wtmp->wx, wtmp->wy);
 	free((char *) wtmp);
 }
-#endif NOWORM
+#endif /* NOWORM */
