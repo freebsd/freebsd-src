@@ -40,9 +40,7 @@
 #ifndef _KERNEL
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
-#endif
-
-#ifdef _KERNEL
+#else
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
@@ -53,6 +51,16 @@ struct uio;
 struct knote;
 struct vnode;
 struct socket;
+
+#endif /* _KERNEL */
+
+#define	DTYPE_VNODE	1	/* file */
+#define	DTYPE_SOCKET	2	/* communications endpoint */
+#define	DTYPE_PIPE	3	/* pipe */
+#define	DTYPE_FIFO	4	/* fifo (named pipe) */
+#define	DTYPE_KQUEUE	5	/* event queue */
+
+#ifdef _KERNEL
 
 /*
  * Kernel descriptor table.
@@ -67,11 +75,6 @@ struct socket;
 struct file {
 	LIST_ENTRY(file) f_list;/* (fl) list of active files */
 	short	f_gcflag;	/* used by thread doing fd garbage collection */
-#define	DTYPE_VNODE	1	/* file */
-#define	DTYPE_SOCKET	2	/* communications endpoint */
-#define	DTYPE_PIPE	3	/* pipe */
-#define	DTYPE_FIFO	4	/* fifo (named pipe) */
-#define	DTYPE_KQUEUE	5	/* event queue */
 	short	f_type;		/* descriptor type */
 	int	f_count;	/* (f) reference count */
 	int	f_msgcount;	/* (f) references from message queue */
@@ -103,6 +106,27 @@ struct file {
 	u_int	f_flag;		/* see fcntl.h */
 	struct mtx	*f_mtxp;	/* mutex to protect data */
 };
+
+#endif /* _KERNEL */
+
+/*
+ * Userland version of struct file, for sysctl
+ */
+struct xfile {
+	size_t	xf_size;	/* size of struct xfile */
+	pid_t	xf_pid;		/* owning process */
+	uid_t	xf_uid;		/* effective uid of owning process */
+	int	xf_fd;		/* descriptor number */
+	void	*xf_file;	/* address of struct file */
+	short	xf_type;	/* descriptor type */
+	int	xf_count;	/* reference count */
+	int	xf_msgcount;	/* references from message queue */
+	off_t	xf_offset;	/* file offset */
+	void	*xf_data;	/* pointer to vnode or socket */
+	u_int	xf_flag;	/* flags (see fcntl.h) */
+};
+
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_FILE);
