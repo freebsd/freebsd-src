@@ -181,6 +181,8 @@ struct disklabel {
 	} d_partitions[MAXPARTITIONS];	/* actually may be more */
 };
 
+static u_int16_t dkcksum __P((struct disklabel *lp));
+
 static __inline u_int16_t
 dkcksum(lp)
 	struct disklabel *lp;
