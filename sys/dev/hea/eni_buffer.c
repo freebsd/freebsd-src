@@ -267,7 +267,7 @@ eni_allocate_buffer ( eup, size )
 		    /*
 		     * If we use this alignment, will it still fit?
 		     */
-		    if ( (eptr->size - (nbase - eptr->base)) >= 0 )
+		    if ( (eptr->size - (nbase - eptr->base)) >= nsize )
 		    {
 			Mbd	*etmp;
 
