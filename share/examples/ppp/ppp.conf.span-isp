@@ -115,20 +115,20 @@ default:
 
 isp1:
   set phone "1234567"
-  set authname isp1name
-  set authkey isp1key
+  set authname "isp1name"
+  set authkey "isp1key"
   add! RIP1/32 HISADDR
 
 isp2:
   set phone "2345678"
-  set authname isp2name
-  set authkey isp2key
+  set authname "isp2name"
+  set authkey "isp2key"
   add! RIP2/32 HISADDR
 
 ispN:
   set phone "3456789"
-  set authname ispNname
-  set authkey ispNkey
+  set authname "ispNname"
+  set authkey "ispNkey"
   add! RIPN/32 HISADDR
 
 
@@ -145,8 +145,8 @@ vpn:
   set mrru 1500
   set mru 1504			# Room for the MP header
   nat enable yes
-  set authname vpnname
-  set authkey vpnkey
+  set authname "vpnname"
+  set authkey "vpnkey"
   add! default HISADDR
   disable deflate pred1 lqr
   deny deflate pred1
