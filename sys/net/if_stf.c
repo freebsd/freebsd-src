@@ -141,7 +141,7 @@ struct stf_softc {
 static LIST_HEAD(, stf_softc) stf_softc_list;
 
 static MALLOC_DEFINE(M_STF, STFNAME, "6to4 Tunnel Interface");
-static int ip_stf_ttl = 40;
+static const int ip_stf_ttl = 40;
 
 extern  struct domain inetdomain;
 struct protosw in_stf_protosw =
