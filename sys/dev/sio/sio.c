@@ -2168,7 +2168,7 @@ comparam(tp, t)
 		 * without producing silo overflow errors.
 		 */
 		com->fifo_image = t->c_ospeed <= 4800
-				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_MEDHI;
+				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_MEDH;
 #ifdef COM_ESP
 		/*
 		 * The Hayes ESP card needs the fifo DMA mode bit set
