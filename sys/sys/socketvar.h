@@ -81,10 +81,10 @@ struct socket {
 	TAILQ_HEAD(, socket) so_incomp;	/* (e) queue of partial unaccepted connections */
 	TAILQ_HEAD(, socket) so_comp;	/* (e) queue of complete unaccepted connections */
 	TAILQ_ENTRY(socket) so_list;	/* (e) list of unaccepted connections */
-	short	so_qlen;		/* (e) number of unaccepted connections */
-	short	so_incqlen;		/* (e) number of unaccepted incomplete
+	u_short	so_qlen;		/* (e) number of unaccepted connections */
+	u_short	so_incqlen;		/* (e) number of unaccepted incomplete
 					   connections */
-	short	so_qlimit;		/* (e) max number queued connections */
+	u_short	so_qlimit;		/* (e) max number queued connections */
 	short	so_timeo;		/* (g) connection timeout */
 	u_short	so_error;		/* (f) error affecting connection */
 	struct	sigio *so_sigio;	/* [sg] information for async I/O or
@@ -235,9 +235,9 @@ struct xsocket {
 	caddr_t	so_pcb;		/* another convenient handle */
 	int	xso_protocol;
 	int	xso_family;
-	short	so_qlen;
-	short	so_incqlen;
-	short	so_qlimit;
+	u_short	so_qlen;
+	u_short	so_incqlen;
+	u_short	so_qlimit;
 	short	so_timeo;
 	u_short	so_error;
 	pid_t	so_pgid;
