@@ -109,6 +109,8 @@ __FBSDID("$FreeBSD$");
 #define	MC_RFLAGS	(22 * 8)
 #define	MC_RSP		(23 * 8)
 
+#define	REDZONE		128		/* size of the red zone */
+
 /*
  * _amd64_ctx_save(mcontext_t *mcp)
  *
@@ -188,6 +190,7 @@ ENTRY(_amd64_restore_context)
 4:	fninit
 	fldcw	MC_FP_CW_OFFSET(%rdi)
 5:	movq	MC_RSP(%rdi), %rsp	/* switch to context stack */
+	subq	$REDZONE, %rsp
 	movq	MC_RIP(%rdi), %rax	/* return address on stack */
 	pushq	%rax
 	movq	MC_RDI(%rdi), %rax	/* rdi on stack */
@@ -207,4 +210,6 @@ ENTRY(_amd64_restore_context)
 	popq	%rsi			/* restore rsi, rdx, and rdi */
 	popq	%rdx
 	popq	%rdi
+	leaq	(8 + REDZONE)(%rsp), %rsp
+	jmp	*-(8 + REDZONE)(%rsp)	/* jump to return address */
 7:	ret
