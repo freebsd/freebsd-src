@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.8 1995/03/16 18:14:49 bde Exp $
+ * $Id: igmp.c,v 1.9 1995/04/26 18:10:53 pst Exp $
  */
 
 /*
@@ -167,7 +167,7 @@ igmp_input(m, iphlen)
 	struct in_multistep step;
 	struct router_info *rti;
 	
-	static int timer; /** timer value in the igmp query header **/
+	int timer; /** timer value in the igmp query header **/
 
 	++igmpstat.igps_rcv_total;
 
@@ -204,7 +204,7 @@ igmp_input(m, iphlen)
 	m->m_len += iphlen;
 
 	ip = mtod(m, struct ip *);
-	timer = ntohs(igmp->igmp_code);
+	timer = igmp->igmp_code * PR_FASTHZ / IGMP_TIMER_SCALE;
 	rti = find_rti(ifp);
 
 	switch (igmp->igmp_type) {
@@ -289,9 +289,7 @@ igmp_input(m, iphlen)
 				break;
 			      case IGMP_DELAYING_MEMBER:
 				if (inm->inm_ifp == ifp &&
-				    (inm->inm_timer >
-					timer * PR_FASTHZ / IGMP_TIMER_SCALE)
-					&&
+				    (inm->inm_timer > timer) &&
 				    inm->inm_addr.s_addr !=
 						igmp_all_hosts_group) {
 				    inm->inm_timer = IGMP_RANDOM_DELAY(timer);
@@ -327,8 +325,7 @@ igmp_input(m, iphlen)
 			  case IGMP_DELAYING_MEMBER:
 			    inm->inm_state = IGMP_DELAYING_MEMBER;
 			    if (inm->inm_ifp == ifp &&
-				(inm->inm_timer >
-				 timer * PR_FASTHZ / IGMP_TIMER_SCALE) ) {
+				(inm->inm_timer > timer) ) {
 			      inm->inm_timer = IGMP_RANDOM_DELAY(timer);
 			      igmp_timers_are_running = 1;
 			      inm->inm_state = IGMP_DELAYING_MEMBER;
