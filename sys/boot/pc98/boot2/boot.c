@@ -258,7 +258,7 @@ loadprog(void)
 		printf("Start address too low\n");
 		return;
 	}
-	printf("text=0x%x ", head.a_text);
+	printf("text=0x%lx ", head.a_text);
 	/********************************************************/
 	/* LOAD THE TEXT SEGMENT				*/
 	/********************************************************/
@@ -271,7 +271,7 @@ loadprog(void)
 	while (addr & PAGE_MASK)
                 *(char *)addr++ = 0;
 
-	printf("data=0x%x ", head.a_data);
+	printf("data=0x%lx ", head.a_data);
 	xread((void *)addr, head.a_data);
 	addr += head.a_data;
 
@@ -279,7 +279,7 @@ loadprog(void)
 	/* Skip over the uninitialised data			*/
 	/* (but clear it)					*/
 	/********************************************************/
-	printf("bss=0x%x ", head.a_bss);
+	printf("bss=0x%lx ", head.a_bss);
 
 /*
  * XXX however, we should be checking that we don't load ... into
@@ -306,7 +306,7 @@ loadprog(void)
 	/********************************************************/
 	/* Load the symbol table				*/
 	/********************************************************/
-	printf("symbols=[+0x%x+0x%x+0x%x", pad, sizeof(head.a_syms),
+	printf("symbols=[+0x%x+0x%x+0x%lx", pad, sizeof(head.a_syms),
 	       head.a_syms);
 	xread((void *)addr, head.a_syms);
 	addr += head.a_syms;
