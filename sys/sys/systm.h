@@ -62,9 +62,6 @@ extern struct cv selwait;	/* select conditional variable */
 
 extern int physmem;		/* physical memory */
 
-extern dev_t dumpdev;		/* dump device */
-extern long dumplo;		/* offset into dumpdev */
-
 extern dev_t rootdev;		/* root device */
 extern dev_t rootdevs[2];	/* possible root devices */
 extern char *rootdevnames[2];	/* names of possible root devices */

@@ -33,6 +33,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/disklabel.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -43,6 +44,7 @@ static dev_t null_dev;
 static dev_t zero_dev;
 
 static d_write_t null_write;
+static d_ioctl_t null_ioctl;
 static d_read_t zero_read;
 
 #define CDEV_MAJOR	2
@@ -54,7 +56,7 @@ static struct cdevsw null_cdevsw = {
 	/* close */	(d_close_t *)nullop,
 	/* read */	(d_read_t *)nullop,
 	/* write */	null_write,
-	/* ioctl */	noioctl,
+	/* ioctl */	null_ioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
@@ -89,6 +91,20 @@ null_write(dev_t dev, struct uio *uio, int flag)
 	uio->uio_resid = 0;
 	return 0;
 }
+
+static int
+null_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+{
+	int error;
+
+	if (cmd != DIOCGKERNELDUMP)
+		return (noioctl(dev, cmd, data, fflag, td));
+	error = suser_td(td);
+	if (error)
+		return (error);
+	return (set_dumper(NULL));
+}
+
 
 static int
 zero_read(dev_t dev, struct uio *uio, int flag)

@@ -139,7 +139,7 @@ typedef int d_close_t(dev_t dev, int fflag, int devtype, struct thread *td);
 typedef void d_strategy_t(struct bio *bp);
 typedef int d_ioctl_t(dev_t dev, u_long cmd, caddr_t data,
 		      int fflag, struct thread *td);
-typedef int d_dump_t(dev_t dev);
+typedef int d_dump_t(dev_t dev,void *virtual, vm_offset_t physical, off_t offset, size_t length);
 typedef int d_psize_t(dev_t dev);
 
 typedef int d_read_t(dev_t dev, struct uio *uio, int ioflag);
@@ -354,6 +354,25 @@ typedef void (*dev_clone_fn)(void *arg, char *name, int namelen, dev_t *result);
 int dev_stdclone(char *name, char **namep, const char *stem, int *unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 
+/* Stuff relating to kernel-dump */
+
+typedef int dumper_t(
+	void *priv,		/* Private to the driver. */
+	void *virtual,		/* Virtual (mapped) address. */
+	vm_offset_t physical,	/* Physical address of virtual. */
+	off_t offset,		/* Byte-offset to write at. */
+	size_t length);		/* Number of bytes to dump. */
+
+struct dumperinfo {
+	dumper_t *dumper;	/* Dumping function. */
+	void    *priv;		/* Private parts. */
+	u_int   blocksize;	/* Size of block in bytes. */
+	off_t   mediaoffset;	/* Initial offset in bytes. */
+	off_t   mediasize;	/* Space available in bytes. */
+};
+
+int set_dumper(struct dumperinfo *);
+void dumpsys(struct dumperinfo *);
 extern int dumping;		/* system is dumping */
 
 #endif /* _KERNEL */
