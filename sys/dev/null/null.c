@@ -58,6 +58,7 @@ static struct cdevsw null_cdevsw = {
 	.d_ioctl =	null_ioctl,
 	.d_name =	"null",
 	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_NOGIANT,
 };
 
 static struct cdevsw zero_cdevsw = {
@@ -67,7 +68,7 @@ static struct cdevsw zero_cdevsw = {
 	.d_write =	null_write,
 	.d_name =	"zero",
 	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_MMAP_ANON,
+	.d_flags =	D_MMAP_ANON | D_NOGIANT,
 };
 
 static void *zbuf;
