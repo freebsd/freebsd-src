@@ -169,9 +169,11 @@ int main (int argc, char** argv)
 	openlog ("natd", LOG_CONS | LOG_PID | (verbose ? LOG_PERROR : 0),
 		 logFacility);
 /*
- * Check that valid aliasing address has been given.
+ * If not doing the transparent proxying only,
+ * check that valid aliasing address has been given.
  */
-	if (aliasAddr.s_addr == INADDR_NONE && ifName == NULL)
+	if (aliasAddr.s_addr == INADDR_NONE && ifName == NULL &&
+	    !(PacketAliasSetMode(0,0) & PKT_ALIAS_PROXY_ONLY))
 		errx (1, "aliasing address not given");
 
 	if (aliasAddr.s_addr != INADDR_NONE && ifName != NULL)
