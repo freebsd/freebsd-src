@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.38 1997/10/29 00:30:43 julian Exp $
+ * $Id: if_ethersubr.c,v 1.39 1997/11/07 08:53:18 phk Exp $
  */
+
+#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
