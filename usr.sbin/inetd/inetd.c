@@ -40,7 +40,7 @@ static char copyright[] __attribute__ ((unused)) =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] __attribute__ ((unused)) =
-	"$Id: inetd.c,v 1.17 1996/11/10 21:12:44 julian Exp $";
+	"$Id: inetd.c,v 1.15.2.1 1996/11/11 23:42:30 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -687,6 +687,7 @@ config(signo)
 			}
 			if (sp->s_port != sep->se_ctrladdr.sin_port) {
 				sep->se_ctrladdr.sin_family = AF_INET;
+				sep->se_ctrladdr.sin_addr = bind_address;
 				sep->se_ctrladdr.sin_port = sp->s_port;
 				if (sep->se_fd >= 0)
 					close_sep(sep);
