@@ -194,3 +194,5 @@ int pcic_set_res_flags(device_t dev, device_t child, int type, int rid,
     u_int32_t flags);
 int pcic_set_memory_offset(device_t dev, device_t child, int rid,
     u_int32_t offset);
+
+#define PCIC_SOFTC(d) (struct pcic_softc *) device_get_softc(d)
