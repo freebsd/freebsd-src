@@ -105,18 +105,6 @@ do_swap(fl)
 		fprintf(fp, "dev_t\tdumpdev = NODEV;\t\t\t/* unconfigured */\n");
 	}
 	fprintf(fp, "\n");
-	fprintf(fp, "struct\tswdevt swdevt[] = {\n");
-	do {
-		dev = swap->f_swapdev;
-		fprintf(fp, "\t{ makedev(%d, 0x%08x),\t%d,\t%d },\t/* %s */\n",
-		    major(dev), minor(dev), swap->f_swapflag,
-		    swap->f_swapsize, swap->f_fn);
-		swap = swap->f_next;
-	} while (swap && swap->f_type == SWAPSPEC);
-	fprintf(fp, "\t{ NODEV, 0, 0 },\t/* for NFS diskless */\n");
-	fprintf(fp, "\t{ NODEV, 0, 0 }\n");
-	fprintf(fp, "};\n\n");
-	fprintf(fp, "/* Stub for when generic swap config is not used. */\n");
 	fprintf(fp, "void\nsetconf()\n{\n}\n");
 	fclose(fp);
 	return (swap);
