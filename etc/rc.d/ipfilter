@@ -79,12 +79,12 @@ ipfilter_start()
 	echo "Enabling ipfilter."
 	case ${OSTYPE} in
 	FreeBSD)
-		${ipfilter_program:-/sbin/ipf} -Fa
+		${ipfilter_program:-/sbin/ipf} -EFa
 		if [ -r "${ipfilter_rules}" ]; then
 			${ipfilter_program:-/sbin/ipf} \
 			    -f "${ipfilter_rules}" ${ipfilter_flags}
 		fi
-		${ipfilter_program:-/sbin/ipf} -6 -Fa
+		${ipfilter_program:-/sbin/ipf} -6 -EFa
 		if [ -r "${ipv6_ipfilter_rules}" ]; then
 			${ipfilter_program:-/sbin/ipf} -6 \
 			    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
