@@ -337,7 +337,7 @@ when terminating sessions.
 login sessions will be accounted.
 .It "host.exempt 	list		List of remote host wildcards from which
 login session accounting is exempted.
-.It "idletime	time		Maximum idle time before logout.
+.It "idletime	time		Maximum idle time before logout (unused).
 .It "monthtime 	time		Maximum login time per month.
 .It "passwordtime	time		Used by
 .Xr passwd 1
@@ -375,6 +375,10 @@ Similarly with the
 and
 .Em host.exempt
 lists.
+.Sh BUGS
+The
+.Em idletime
+setting is not enforced.
 .Sh SEE ALSO
 .Xr cap_mkdb 1 ,
 .Xr login 1 ,
