@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/vmmeter.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -323,6 +324,29 @@ S_timeval(int l2, void *p)
 }
 
 static int
+S_vmtotal(int l2, void *p)
+{
+	struct vmtotal *v = (struct vmtotal *)p;
+
+	if (l2 != sizeof(*v)) {
+		warnx("S_vmtotal %d != %d", l2, sizeof(*v));
+		return (0);
+	}
+
+	printf("\nSystem wide totals computed every five seconds:\n");
+	printf("===============================================\n");
+	printf("Processes: (RUNQ:\t %hu Disk Wait: %hu Page Wait: %hu Sleep: %hu)\n",
+		v->t_rq, v->t_dw, v->t_pw, v->t_sl);
+	printf("Virtual Memory:\t\t (Total: %hu Active %hu)\n", v->t_vm, v->t_avm);
+	printf("Real Memory:\t\t (Total: %hu Active %hu)\n", v->t_rm, v->t_arm);
+	printf("Shared Virtual Memory:\t (Total: %hu Active: %hu)\n", v->t_vmshr, v->t_avmshr);
+	printf("Shared Real Memory:\t (Total: %hu Active: %hu)\n", v->t_rmshr, v->t_armshr);
+	printf("Free Memory Pages:\t %hu\n", v->t_free);
+	
+	return (0);
+}
+
+static int
 T_dev_t(int l2, void *p)
 {
 	dev_t *d = (dev_t *)p;
@@ -587,6 +611,8 @@ show_var(int *oid, int nlen)
 			func = S_timeval;
 		else if (strcmp(fmt, "S,loadavg") == 0)
 			func = S_loadavg;
+		else if (strcmp(fmt, "S,vmtotal") == 0)
+			func = S_vmtotal;
 		else if (strcmp(fmt, "T,dev_t") == 0)
 			func = T_dev_t;
 		else

@@ -237,7 +237,7 @@ vcnt(SYSCTL_HANDLER_ARGS)
 	return(error);
 }
 
-SYSCTL_PROC(_vm, VM_METER, vmmeter, CTLTYPE_OPAQUE|CTLFLAG_RD,
+SYSCTL_PROC(_vm, VM_TOTAL, vmtotal, CTLTYPE_OPAQUE|CTLFLAG_RD,
     0, sizeof(struct vmtotal), vmtotal, "S,vmtotal", 
     "System virtual memory statistics");
 SYSCTL_NODE(_vm, OID_AUTO, stats, CTLFLAG_RW, 0, "VM meter stats");
