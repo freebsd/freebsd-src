@@ -125,7 +125,7 @@ vinumioctl(dev_t dev,
 
 	    /* start configuring the subsystem */
 	case VINUM_STARTCONFIG:
-	    return start_config();			    /* just lock it */
+	    return start_config(*(int *) data);		    /* just lock it.  Parameter is 'force' */
 
 	    /*
 	     * Move the individual parts of the config to user space.
