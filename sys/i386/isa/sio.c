@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.142 1996/05/02 09:34:40 phk Exp $
+ *	$Id: sio.c,v 1.143 1996/06/17 14:23:39 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -670,7 +670,7 @@ sioprobe(dev)
 	failures[0] = inb(iobase + com_cfcr) - CFCR_8BITS;
 	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
 	failures[2] = inb(iobase + com_mcr) - mcr_image;
-	DELAY(1000);		/* XXX */
+	DELAY(10000);		/* Some internal modems need this time */
 	if (idev->id_irq != 0)
 		failures[3] = isa_irq_pending(idev) ? 0 : 1;
 	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
