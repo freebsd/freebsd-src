@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.82 1994/10/27 20:44:34 jkh Exp $
+ *	$Id: machdep.c,v 1.83 1994/10/28 12:41:50 jkh Exp $
  */
 
 #include "npx.h"
@@ -909,6 +909,7 @@ cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	size_t newlen;
 	struct proc *p;
 {
+	int error;
 
 	/* all sysctl names at this level are terminal */
 	if (namelen != 1)
@@ -919,7 +920,10 @@ cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (sysctl_rdstruct(oldp, oldlenp, newp, &cn_tty->t_dev,
 		   sizeof cn_tty->t_dev));
 	case CPU_ADJKERNTZ:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &adjkerntz));
+		error = sysctl_int(oldp, oldlenp, newp, newlen, &adjkerntz);
+		if (!error && newp)
+			resettodr();
+		return error;
 	case CPU_DISRTCSET:
 		return (sysctl_int(oldp, oldlenp, newp,	newlen,	&disable_rtc_set));
 	default:
