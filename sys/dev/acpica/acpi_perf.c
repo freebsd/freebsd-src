@@ -95,6 +95,7 @@ static int	acpi_perf_evaluate(device_t dev);
 static int	acpi_px_to_set(device_t dev, struct acpi_px *px,
 		    struct cf_setting *set);
 static void	acpi_px_available(struct acpi_perf_softc *sc);
+static void	acpi_px_startup(void *arg);
 static void	acpi_px_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_px_settings(device_t dev, struct cf_setting *sets,
 		    int *count, int *type);
@@ -130,7 +131,6 @@ MALLOC_DEFINE(M_ACPIPERF, "acpi_perf", "ACPI Performance states");
 static void
 acpi_perf_identify(driver_t *driver, device_t parent)
 {
-	device_t child;
 	ACPI_HANDLE handle;
 
 	/* Make sure we're not being doubly invoked. */
@@ -143,7 +143,7 @@ acpi_perf_identify(driver_t *driver, device_t parent)
 		return;
 	if (ACPI_FAILURE(AcpiEvaluateObject(handle, "_PSS", NULL, NULL)))
 		return;
-	if ((child = BUS_ADD_CHILD(parent, 0, "acpi_perf", 0)) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "acpi_perf", 0) == NULL)
 		device_printf(parent, "acpi_perf: add child failed\n");
 }
 
@@ -194,6 +194,7 @@ acpi_perf_attach(device_t dev)
 	if (acpi_perf_evaluate(dev) != 0)
 		return (ENXIO);
 	cpufreq_register(dev);
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_px_startup, NULL);
 
 	return (0);
 }
@@ -301,6 +302,18 @@ out:
 	if (buf.Pointer)
 		AcpiOsFree(buf.Pointer);
 	return (error);
+}
+
+static void
+acpi_px_startup(void *arg)
+{
+
+	/* Signal to the platform that we are taking over CPU control. */
+	if (AcpiGbl_FADT->PstateCnt == 0)
+		return;
+	ACPI_LOCK(acpi);
+	AcpiOsWritePort(AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->PstateCnt, 8);
+	ACPI_UNLOCK(acpi);
 }
 
 static void
