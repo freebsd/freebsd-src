@@ -149,6 +149,13 @@ static void i4btelattach(void *);
 
 PSEUDO_SET(i4btelattach, i4b_tel);
 
+#if __FreeBSD_version >= 501113
+#ifndef TTIPRI
+/* don't want to include tty.h just to get this */
+#define TTIPRI (PSOCK + 1)
+#endif
+#endif
+
 /*===========================================================================*
  *			DEVICE DRIVER ROUTINES
  *===========================================================================*/
