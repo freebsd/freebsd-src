@@ -1334,7 +1334,7 @@ END(tl1_immu_miss_trap)
 	/*
 	 * Extract the context from the contents of the tag access register.
 	 * If its non-zero this is a fault on a user address.  Note that the
-	 * faulting address is passed in %g2.
+	 * faulting address is passed in %g1.
 	 */
 	sllx	%g5, 64 - TAR_VPN_SHIFT, %g6
 	brnz,a,pn %g6, tl1_dmmu_miss_user
@@ -1430,9 +1430,9 @@ ENTRY(tl1_dmmu_miss_trap)
 	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
 
-	KSTACK_CHECK
-
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
+
+	KSTACK_CHECK
 
 	tl1_split
 	clr	%o1
@@ -1524,8 +1524,8 @@ ENTRY(tl1_dmmu_prot_1)
 
 	/*
 	 * Extract the context from the contents of the tag access register.
-	 * If its non-zero this is a fault on a user address, otherwise get
-	 * the virtual page number.
+	 * If its non-zero this is a fault on a user address.  Note that the
+	 * faulting address is passed in %g1.
 	 */
 	sllx	%g5, 64 - TAR_VPN_SHIFT, %g6
 	brnz,a,pn %g6, tl1_dmmu_prot_user
