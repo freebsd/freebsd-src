@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.67 1995/10/19 23:48:25 dyson Exp $
+ * $Id: vfs_bio.c,v 1.68 1995/10/29 15:31:13 phk Exp $
  */
 
 /*
@@ -818,7 +818,7 @@ vfs_setdirty(struct buf *bp) {
 	 * is not cleared simply by protecting pages off.
 	 */
 	if ((bp->b_flags & B_VMIO) &&
-		((object = bp->b_pages[0]->object)->flags & OBJ_WRITEABLE)) {
+		((object = bp->b_pages[0]->object)->flags & (OBJ_WRITEABLE|OBJ_CLEANING))) {
 		/*
 		 * test the pages to see if they have been modified directly
 		 * by users through the VM system.

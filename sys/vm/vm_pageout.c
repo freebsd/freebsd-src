@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.57 1995/10/07 19:02:55 davidg Exp $
+ * $Id: vm_pageout.c,v 1.58 1995/10/23 05:35:48 dyson Exp $
  */
 
 /*
@@ -164,7 +164,6 @@ vm_pageout_clean(m, sync)
 	int pageout_status[VM_PAGEOUT_PAGE_COUNT];
 	vm_page_t mc[2*VM_PAGEOUT_PAGE_COUNT];
 	int pageout_count;
-	int anyok = 0;
 	int i, forward_okay, backward_okay, page_base;
 	vm_offset_t offset = m->offset;
 
@@ -292,14 +291,31 @@ do_backward:
 		mc[i]->flags |= PG_BUSY;
 		vm_page_protect(mc[i], VM_PROT_READ);
 	}
-	object->paging_in_progress += pageout_count;
 
-	vm_pager_put_pages(object, &mc[page_base], pageout_count,
+	return vm_pageout_flush(&mc[page_base], pageout_count, sync);
+}
+
+int
+vm_pageout_flush(mc, count, sync)
+	vm_page_t *mc;
+	int count;
+	int sync;
+{
+	register vm_object_t object;
+	int pageout_status[count];
+	int anyok = 0;
+	int i;
+
+	object = mc[0]->object;
+	object->paging_in_progress += count;
+
+	vm_pager_put_pages(object, mc, count,
 	    ((sync || (object == kernel_object)) ? TRUE : FALSE),
 	    pageout_status);
 
-	for (i = 0; i < pageout_count; i++) {
-		vm_page_t mt = mc[page_base + i];
+
+	for (i = 0; i < count; i++) {
+		vm_page_t mt = mc[i];
 
 		switch (pageout_status[i]) {
 		case VM_PAGER_OK:
@@ -621,7 +637,7 @@ rescan1:
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
 				if (VOP_ISLOCKED(vp) || vget(vp, 1)) {
-					if (object->flags & OBJ_WRITEABLE)
+					if (object->flags & OBJ_MIGHTBEDIRTY)
 						++vnodes_skipped;
 					m = next;
 					continue;
