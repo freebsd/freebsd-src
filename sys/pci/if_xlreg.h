@@ -609,19 +609,9 @@ struct xl_softc {
 	struct mtx		xl_mtx;
 };
 
-/*
- * XXX: The driver still tries to sleep with locks held, so disable
- *      locking for the time being.
- */
-#if 0
 #define XL_LOCK(_sc)		mtx_lock(&(_sc)->xl_mtx)
 #define XL_UNLOCK(_sc)		mtx_unlock(&(_sc)->xl_mtx)
 #define XL_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->xl_mtx, MA_OWNED)
-#else
-#define XL_LOCK(x)		do { } while (0)
-#define XL_UNLOCK(x)		do { } while (0)
-#define XL_LOCK_ASSERT(x)	do { } while (0)
-#endif
 
 #define xl_rx_goodframes(x) \
 	((x.xl_upper_frames_ok & 0x03) << 8) | x.xl_rx_frames_ok
