@@ -297,7 +297,7 @@ static int
 isp_pci_attach(device_t dev)
 {
 	struct resource *regs, *irq;
-	int unit, bitmap, rtp, rgd, iqd, m1, m2, isp_debug;
+	int unit, bitmap, rtp, rgd, iqd, m1, m2, isp_debug, role;
 	u_int32_t data, cmd, linesz, psize, basetype;
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp = NULL;
@@ -309,12 +309,25 @@ isp_pci_attach(device_t dev)
 
 	/*
 	 * Figure out if we're supposed to skip this one.
+	 * If we are, we actually go to ISP_ROLE_NONE.
 	 */
 	unit = device_get_unit(dev);
 	if (getenv_int("isp_disable", &bitmap)) {
 		if (bitmap & (1 << unit)) {
-			device_printf(dev, "not configuring\n");
-			return (ENODEV);
+			device_printf(dev, "device is disabled\n");
+			/* but return 0 so the !$)$)*!$*) unit isn't reused */
+			return (0);
+		}
+	}
+#ifdef	ISP_TARGET_MODE
+	role = ISP_ROLE_INITIATOR|ISP_ROLE_TARGET;
+#else
+	role = ISP_DEFAULT_ROLES;
+#endif
+	if (getenv_int("isp_none", &bitmap)) {
+		if (bitmap & (1 << unit)) {
+			device_printf(dev, "setting to ISP_ROLE_NONE\n");
+			role = ISP_ROLE_NONE;
 		}
 	}
 
@@ -453,7 +466,7 @@ isp_pci_attach(device_t dev)
 	isp->isp_revision = pci_get_revid(dev);
 	(void) snprintf(isp->isp_name, sizeof (isp->isp_name), "isp%d", unit);
 	isp->isp_osinfo.unit = unit;
-	isp->isp_role = ISP_DEFAULT_ROLES;
+	isp->isp_role = role;
 
 	/*
 	 * Try and find firmware for this device.
@@ -583,9 +596,7 @@ isp_pci_attach(device_t dev)
 	/* Make sure the lock is set up. */
 	mtx_init(&isp->isp_osinfo.lock, "isp", MTX_DEF);
 	locksetup++;
-#endif
 
-#ifdef	ISP_SMPLOCK
 	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_MPSAFE,
 	    isp_pci_intr, isp, &pcs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
@@ -615,28 +626,21 @@ isp_pci_attach(device_t dev)
 	 */
 	ISP_LOCK(isp);
 	isp_reset(isp);
-
 	if (isp->isp_state != ISP_RESETSTATE) {
 		ISP_UNLOCK(isp);
 		goto bad;
 	}
 	isp_init(isp);
-	if (isp->isp_state != ISP_INITSTATE) {
-		/* If we're a Fibre Channel Card, we allow deferred attach */
-		if (IS_SCSI(isp)) {
-			isp_uninit(isp);
-			ISP_UNLOCK(isp);
-			goto bad;
-		}
+	if (isp->isp_role != ISP_ROLE_NONE && isp->isp_state != ISP_INITSTATE) {
+		isp_uninit(isp);
+		ISP_UNLOCK(isp);
+		goto bad;
 	}
 	isp_attach(isp);
-	if (isp->isp_state != ISP_RUNSTATE) {
-		/* If we're a Fibre Channel Card, we allow deferred attach */
-		if (IS_SCSI(isp)) {
-			isp_uninit(isp);
-			ISP_UNLOCK(isp);
-			goto bad;
-		}
+	if (isp->isp_role != ISP_ROLE_NONE && isp->isp_state != ISP_RUNSTATE) {
+		isp_uninit(isp);
+		ISP_UNLOCK(isp);
+		goto bad;
 	}
 	/*
 	 * XXXX: Here is where we might unload the f/w module
