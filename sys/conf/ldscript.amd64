@@ -87,6 +87,8 @@ SECTIONS
   .eh_frame       : { KEEP (*(.eh_frame)) }
   .gcc_except_table   : { *(.gcc_except_table) }
   .dynamic        : { *(.dynamic) }
+  _start_ctors = .;
+  PROVIDE (start_ctors = .);
   .ctors          :
   {
     /* gcc uses crtbegin.o to find the start of
@@ -107,6 +109,8 @@ SECTIONS
     KEEP (*(SORT(.ctors.*)))
     KEEP (*(.ctors))
   }
+  _stop_ctors = .;
+  PROVIDE (stop_ctors = .);
   .dtors          :
   {
     KEEP (*crtbegin.o(.dtors))
