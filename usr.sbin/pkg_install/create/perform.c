@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.14 1994/12/06 00:51:37 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.15 1995/04/09 15:05:00 jkh Exp $";
 #endif
 
 /*
@@ -63,13 +63,20 @@ pkg_perform(char **pkgs)
 	suffix = "tgz";
 
     /* Stick the dependencies, if any, at the top */
-    while (Pkgdeps) {
-	cp = strsep(&Pkgdeps, " \t\n");
-        if (*cp) {
-	    add_plist(&plist, PLIST_PKGDEP, cp);
+    if (Pkgdeps) {
+	if (Verbose)
+	    printf("Registering depends:");
+	while (Pkgdeps) {
+	    cp = strsep(&Pkgdeps, " \t\n");
+	    if (*cp) {
+		add_plist(&plist, PLIST_PKGDEP, cp);
+		if (Verbose)
+		    printf(" %s", cp);
+	    }
 	}
+	if (Verbose)
+	    printf(".\n");
     }
-
     /* Slurp in the packing list */
     read_plist(&plist, pkg_in);
 
