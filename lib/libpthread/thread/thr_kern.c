@@ -82,8 +82,6 @@ __FBSDID("$FreeBSD$");
 #define	MAX_CACHED_KSEGS	50
 #endif
 
-#define	KSE_STACKSIZE		16384
-
 #define	KSE_SET_MBOX(kse, thrd) \
 	(kse)->k_kcb->kcb_kmbx.km_curthread = &(thrd)->tcb->tcb_tmbx
 
