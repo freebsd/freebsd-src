@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.69 1999/05/07 07:03:45 phk Exp $
+ * $Id: buf.h,v 1.70 1999/06/26 02:45:37 mckusick Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -232,6 +232,7 @@ struct buf {
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
+#ifdef KERNEL
 /*
  * Buffer locking
  */
@@ -310,6 +311,8 @@ BUF_KERNPROC(struct buf *bp)
 #define BUF_REFCNT(bp) \
 	lockcount(&(bp)->b_lock)
 
+#endif /* KERNEL */
+
 struct buf_queue_head {
 	TAILQ_HEAD(buf_queue, buf) queue;
 	daddr_t	last_pblkno;
@@ -331,6 +334,7 @@ struct cluster_save {
 	struct buf **bs_children;	/* List of associated buffers. */
 };
 
+#ifdef KERNEL
 static __inline void bufq_init __P((struct buf_queue_head *head));
 
 static __inline void bufq_insert_tail __P((struct buf_queue_head *head,
@@ -381,6 +385,8 @@ bufq_first(struct buf_queue_head *head)
 {
 	return (TAILQ_FIRST(&head->queue));
 }
+
+#endif /* KERNEL */
 
 
 /*
