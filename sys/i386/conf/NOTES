@@ -480,8 +480,8 @@ options 	TCPDEBUG
 # prevents nmap et al. from identifying the TCP/IP stack, but breaks support
 # for RFC1644 extensions and is not recommended for web servers.
 # 
-options		TCP_RESTRICT_RST	#restrict emission of TCP RST
-options		TCP_DROP_SYNFIN		#drop TCP packets with SYN+FIN
+options 	TCP_RESTRICT_RST	#restrict emission of TCP RST
+options 	TCP_DROP_SYNFIN		#drop TCP packets with SYN+FIN
 
 # ICMP_BANDLIM enables icmp error response bandwidth limiting.   You
 # typically want this option as it will help protect the machine from
