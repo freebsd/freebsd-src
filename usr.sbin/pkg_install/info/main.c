@@ -187,8 +187,11 @@ main(int argc, char **argv)
 
     /* Get all the remaining package names, if any */
     while (*argv) {
-	/* Don't try to apply heuristics if arguments are regexs */
-	if (MatchType != MATCH_REGEX)
+	/* 
+	 * Don't try to apply heuristics if arguments are regexs or if
+	 * the argument refers to an existing file.
+	 */
+	if (MatchType != MATCH_REGEX && !isfile(*argv))
 	    while ((pkgs_split = strrchr(*argv, (int)'/')) != NULL) {
 		*pkgs_split++ = '\0';
 		/*
