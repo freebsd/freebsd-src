@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.47 1997/02/17 13:30:19 jkh Exp $
+ * $Id: media.c,v 1.25.2.48 1997/02/24 05:01:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -675,21 +675,15 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
 int
 mediaGetType(dialogMenuItem *self)
 {
-    int i;
-
-    i = dmenuOpenSimple(&MenuMedia, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
-    return i | DITEM_RESTORE;
+    return ((dmenuOpenSimple(&MenuMedia, FALSE) && mediaDevice) ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 /* Return TRUE if all the media variables are set up correctly */
 Boolean
 mediaVerify(void)
 {
-    if (!mediaDevice) {
-	msgConfirm("Media type not set!  Please select a media type\n"
-		   "from the Installation menu before proceeding.");
-	return DITEM_STATUS(mediaGetType(NULL)) == DITEM_SUCCESS;
-    }
+    if (!mediaDevice)
+	return (DITEM_STATUS(mediaGetType(NULL)) == DITEM_SUCCESS);
     return TRUE;
 }
 

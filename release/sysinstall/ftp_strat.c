@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.29 1996/10/12 23:48:31 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.53 1996/11/07 09:17:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,7 +87,7 @@ try:
     else
 	login_name = user;
     if (variable_get(VAR_FTP_PASS))
-	strcpy(password, variable_get(VAR_FTP_PASS));
+	SAFE_STRCPY(password, variable_get(VAR_FTP_PASS));
     else
 	sprintf(password, "installer@%s", variable_get(VAR_HOSTNAME));
     msgNotify("Logging in as %s..", login_name);

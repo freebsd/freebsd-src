@@ -1,5 +1,5 @@
 :
-# set -ex
+#set -ex
 
 VNDEVICE=vn0
 export BLOCKSIZE=512
@@ -25,34 +25,40 @@ do
 
 	umount ${MNT} 2>/dev/null || true
 
-	vnconfig -u /dev/${VNDEVICE} 2>/dev/null || true
+	vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
 
 	dd of=fs-image if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
 	# this suppresses the `invalid primary partition table: no magic'
 	awk 'BEGIN {printf "%c%c", 85, 170}' |\
 	    dd of=fs-image obs=1 seek=510 conv=notrunc 2>/dev/null
 
-	vnconfig -s labels -c /dev/${VNDEVICE} fs-image
+	vnconfig -s labels -c /dev/r${VNDEVICE} fs-image
 
-	dd if=${RD}/trees/bin/usr/mdec/boot1 of=fs-image conv=notrunc
-	disklabel -w -r -B \
+	disklabel -Brw \
 		-b ${RD}/trees/bin/usr/mdec/fdboot \
 		-s ${RD}/trees/bin/usr/mdec/bootfd \
-		${VNDEVICE} ${FSLABEL}
+		/dev/r${VNDEVICE} minimum
 
 	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T minimum -o space /dev/r${VNDEVICE}c
 
-	mount /dev/${VNDEVICE} ${MNT}
+	mount /dev/${VNDEVICE}c ${MNT}
 
 	( set -e && cd ${FSPROTO} && find . -print | cpio -dump ${MNT} )
 
-	set `df -i /mnt | tail -1`
+	df -ki /mnt
+
+	set `df -ki /mnt | tail -1`
 
 	umount ${MNT}
 
-	fsck -p /dev/r${VNDEVICE} < /dev/null
+	fsck -p /dev/r${VNDEVICE}c < /dev/null
 
 	vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
+
+	if [ $FSLABEL != "minimum" ] ; then
+		echo ${FSSIZE} > fs-image.size
+		break
+	fi
 
 	echo ">>> Filesystem is ${FSSIZE} K, $4 left"
 	echo ">>>     ${FSINODE} bytes/inode, $7 left"

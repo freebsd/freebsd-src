@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.72 1997/02/18 04:38:48 jkh Exp $
+ * $Id: menus.c,v 1.42.2.73 1997/02/27 13:41:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -122,8 +122,10 @@ clearX11Fonts(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
-#define IS_DEVELOPER(dist, extra) (((dist) == (_DIST_DEVELOPER | (extra))) || ((dist) == (_DIST_DEVELOPER | DIST_DES | (extra))))
-#define IS_USER(dist, extra) (((dist) == (_DIST_USER | (extra))) || ((dist) == (_DIST_USER | DIST_DES | (extra))))
+#define IS_DEVELOPER(dist, extra) ((((dist) & (_DIST_DEVELOPER | (extra))) == (_DIST_DEVELOPER | (extra))) || \
+				   (((dist) & (_DIST_DEVELOPER | DIST_DES | (extra))) == (_DIST_DEVELOPER | DIST_DES | (extra))))
+#define IS_USER(dist, extra) ((((dist) & (_DIST_USER | (extra))) == (_DIST_USER | (extra))) || \
+			      (((dist) & (_DIST_USER | DIST_DES | (extra))) == (_DIST_USER | DIST_DES | (extra))))
 
 static int
 checkDistDeveloper(dialogMenuItem *self)
@@ -222,6 +224,7 @@ DMenu MenuIndex = {
       { "Dists, Kern Developer", "Select kernel developer's distribution.", checkDistKernDeveloper, distSetKernDeveloper },
       { "Dists, User",		"Select average user distribution.",	checkDistUser, distSetUser },
       { "Dists, X User",	"Select average X user distribution.",	checkDistXUser, distSetXUser },
+      { "Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
       { "Distributions, XFree86","XFree86 distribution menu.",		NULL, distSetXF86 },
       { "Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { "Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "readme" },
@@ -231,7 +234,6 @@ DMenu MenuIndex = {
       { "Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
       { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
       { "Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
-      { "Extract",		"Extract selected distributions from media.",		NULL, distExtractAll },
       { "Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
@@ -259,6 +261,8 @@ DMenu MenuIndex = {
       { "Packages",		"The packages collection",		NULL, configPackages },
       { "Partition",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "PCNFSD",		"Run authentication server for PC-NFS.", dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
+      { "Register",		"Register yourself or company as a FreeBSD user.", dmenuVarCheck, configRegister, NULL, "registered" },
+      { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "Router",		"Select routing daemon (default: routed)", NULL, configRouter, NULL, "router" },
       { "Samba",		"Configure Samba for LanManager access.", dmenuVarCheck, configSamba, NULL, "samba" },
@@ -268,7 +272,7 @@ DMenu MenuIndex = {
       { "Syscons, Keyrate",	"The console key rate configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
       { "Syscons, Saver",	"The console screen saver configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
       { "Syscons, Screenmap",	"The console screenmap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
-      { "Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "rm -f /etc/localtime; tzsetup" },
+      { "Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "tzsetup" },
       { "Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { "Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
       { "User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
@@ -531,7 +535,7 @@ DMenu MenuMediaFTP = {
       { "Russia",	"ftp.ru.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.ru.freebsd.org/pub/FreeBSD/" },
       { "Russia #2",	"ftp2.ru.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp2.ru.freebsd.org/FreeBSD/" },
+	VAR_FTP_PATH "=ftp://ftp2.ru.freebsd.org/pub/FreeBSD/" },
       { "Russia #3",	"ftp3.ru.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp3.ru.freebsd.org/pub/FreeBSD/" },
       { "South Africa",	"ftp.za.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -650,10 +654,10 @@ DMenu MenuDistributions = {
 	checkDistXUser,		distSetXUser },
       { "6 Minimal",		"The smallest configuration possible",
 	checkDistMinimum,	distSetMinimum },
-      { "7 All",		"All sources, binaries and XFree86 binaries",
-	checkDistEverything,	distSetEverything },
-      { "8 Custom",		"Specify your own distribution set",
+      { "7 Custom",		"Specify your own distribution set",
 	NULL,			dmenuSubmenu, NULL, &MenuSubDistributions, '>', '>', '>' },
+      { "8 All",		"All sources, binaries and XFree86 binaries",
+	checkDistEverything,	distSetEverything },
       { "9 Clear",		"Reset selected distribution list to nothing",
 	NULL,			distReset, NULL, NULL, ' ', ' ', ' ' },
       { "0 Exit",		"Exit this menu (returning to previous)",
@@ -695,6 +699,8 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PROFLIBS },
       { "src",		"Sources for everything but DES",
 	srcFlagCheck,	distSetSrc },
+      { "ports",	"The FreeBSD Ports collection",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
       { "XFree86",	"The XFree86 3.2 distribution",
 	x11FlagCheck,	distSetXF86 },
       { "All",		"All sources, binaries and XFree86 binaries",
@@ -1001,7 +1007,6 @@ DMenu MenuInstallCustom = {
       { "4 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { "5 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
       { "6 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCustomCommit },
-      { "7 Extract",		"Just do distribution extract step",	NULL, distExtractAll },
       { "0 Exit",		"Exit this menu (returning to previous)", NULL,	dmenuExit },
       { NULL } },
 };
@@ -1019,8 +1024,8 @@ DMenu MenuMBRType = {
     "one, select \"standard\".  If you would prefer your Master Boot\n"
     "Record to remain untouched then select \"None\".\n\n"
     "  NOTE:  PC-DOS users will almost certainly require \"None\"!",
-    "Press F1 to read the installation guide",
-    "install",
+    "Press F1 to read about drive setup",
+    "drives",
     { { "BootMgr",	"Install the FreeBSD Boot Manager (\"Booteasy\")",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
       { "Standard",	"Install a standard MBR (no boot manager)",
@@ -1045,7 +1050,7 @@ DMenu MenuConfigure = {
       { "2 Console",	"Customize system console behavior",
 	NULL,	dmenuSubmenu, NULL, &MenuSyscons },
       { "3 Time Zone",	"Set which time zone you're in",
-	NULL,	dmenuSystemCommand, NULL, "rm -f /etc/localtime; tzsetup" },
+	NULL,	dmenuSystemCommand, NULL, "tzsetup" },
       { "4 Media",	"Change the installation media type",
 	NULL,	dmenuSubmenu, NULL, &MenuMedia	},
       { "5 Mouse",	"Select the type of mouse you have",
@@ -1060,13 +1065,16 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
       { "A HTML Docs",	"Go to the HTML documentation menu (post-install)",
 	NULL, docBrowser },
-      { "B XFree86",	"Configure XFree86",
+      { "X XFree86",	"Configure XFree86",
 	NULL, configXFree86 },
+      { "D Distributions", "Install additional distribution sets",
+	NULL, distExtractAll },
       { "L Label",	"The disk Label editor",
 	NULL, diskLabelEditor },
       { "P Partition",	"The disk Partition Editor",
 	NULL, diskPartitionEditor },
-      { "Exit",		"Exit this menu (returning to previous)",
+      { "R Register",	"Register yourself or company as a FreeBSD user.", NULL, configRegister },
+      { "E Exit",		"Exit this menu (returning to previous)",
 	NULL,	dmenuExit },
       { NULL } },
 };

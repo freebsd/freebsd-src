@@ -2,7 +2,7 @@ This menu allows you to configure your system after the installation
 process is complete.  At the minimum, you should probably set the
 system manager's password and the system time zone.
 
-For extra goodies like bash, emacs, pascal, etc., you should look at
+For extra goodies like bash, emacs, Pascal, etc., you should look at
 the Packages item in this menu.
 
 For setting the timezone after the system is installed, type

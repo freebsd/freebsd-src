@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.33 1997/02/17 13:30:23 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.34 1997/02/17 22:08:56 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -168,6 +168,7 @@ tcpOpenDialog(Device *devp)
 				    TCP_DIALOG_X, TCP_DIALOG_Y, TCP_DIALOG_WIDTH, TCP_DIALOG_HEIGHT))) {
 	beep();
 	msgConfirm("Cannot open TCP/IP dialog window!!");
+	restorescr(save);
 	return DITEM_FAILURE;
     }
 
@@ -259,6 +260,7 @@ reenter:
 	goto reenter;
 
     /* Clear this crap off the screen */
+    delwin(ds_win);
     dialog_clear_norefresh();
     use_helpfile(NULL);
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: dist.c,v 1.36.2.44 1997/02/07 04:25:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -75,6 +75,7 @@ static Distribution DistTable[] = {
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
+{ "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
 { "XF8632",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
@@ -174,6 +175,7 @@ static Distribution XF86FontDistTable[] = {
 };
 
 static int	distMaybeSetDES(dialogMenuItem *self);
+static int	distMaybeSetPorts(dialogMenuItem *self);
 
 int
 distReset(dialogMenuItem *self)
@@ -193,7 +195,7 @@ distSetDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    return distMaybeSetDES(self);
+    return distMaybeSetDES(self) | distMaybeSetPorts(self);
 }
 
 int
@@ -202,10 +204,10 @@ distSetXDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
+    XF86Dists = DIST_XF86_BIN | DIST_COMPAT21 | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-    return distSetXF86(NULL) | distMaybeSetDES(self);
+    return distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
 }
 
 int
@@ -214,7 +216,7 @@ distSetKernDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
-    return distMaybeSetDES(self);
+    return distMaybeSetDES(self) | distMaybeSetPorts(self);
 }
 
 int
@@ -222,7 +224,7 @@ distSetUser(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_USER;
-    return distMaybeSetDES(self);
+    return distMaybeSetDES(self) | distMaybeSetPorts(self);
 }
 
 int
@@ -230,10 +232,10 @@ distSetXUser(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_USER;
-    XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
+    XF86Dists = DIST_XF86_BIN | DIST_COMPAT21 | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
     XF86FontDists = DIST_XF86_FONTS_MISC;
-    return distSetXF86(NULL) | distMaybeSetDES(self);
+    return distSetXF86(NULL) | distMaybeSetDES(self) | distMaybeSetPorts(self);
 }
 
 int
@@ -252,7 +254,7 @@ distSetEverything(dialogMenuItem *self)
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
-    return distMaybeSetDES(self);
+    return distMaybeSetDES(self) | distMaybeSetPorts(self);
 }
 
 int
@@ -304,6 +306,26 @@ distMaybeSetDES(dialogMenuItem *self)
     return i | DITEM_RECREATE;
 }
 
+static int
+distMaybeSetPorts(dialogMenuItem *self)
+{
+    dialog_clear_norefresh();
+    if (!msgYesNo("Would you like to install the FreeBSD ports collection?\n\n"
+		  "This will give you ready access to over 800 ported software\n"
+		  "packages, though at the cost of around 35MB of space when \"clean\"\n"
+		  "and possibly much more than that if a lot of the distribution tarballs\n"
+		  "are loaded (unless you have the 2nd CD from a FreeBSD CDROM distribution\n"
+		  "available and can mount it on /cdrom, of course, in which case this is far\n"
+		  "less of a problem).\n\n"
+		  "The ports collection is a very valuable resource and, if you have at least\n"
+		  "100MB to spare in your /usr partition, well worth having around.\n\n"
+		  "For more information on the ports collection, see http://www.freebsd.org/ports\n"))
+	Dists |= DIST_PORTS;
+    else
+	Dists &= ~DIST_PORTS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
+}
+
 int
 distSetSrc(dialogMenuItem *self)
 {
@@ -331,7 +353,7 @@ distSetXF86(dialogMenuItem *self)
 	if (XF86FontDists)
 	    XF86Dists |= DIST_XF86_FONTS;
 	if (XF86Dists)
-	    Dists |= DIST_XF86;
+	    Dists |= (DIST_XF86 | DIST_COMPAT21);
 	msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
 		 XF86ServerDists, XF86FontDists, XF86Dists, Dists);
     }
@@ -645,7 +667,12 @@ distExtractAll(dialogMenuItem *self)
     char buf[512];
 
     /* paranoia */
-    if (!Dists || !mediaVerify() || !mediaDevice->init(mediaDevice))
+    if (!Dists) {
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
+	    return DITEM_FAILURE | DITEM_RESTORE;
+    }
+
+    if (!mediaVerify() || !mediaDevice->init(mediaDevice))
 	return DITEM_FAILURE;
 
     dialog_clear_norefresh();
@@ -667,3 +694,5 @@ distExtractAll(dialogMenuItem *self)
     }
     return DITEM_SUCCESS;
 }
+
+    

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uc_scsi.c,v 1.3.2.1 1997/02/07 04:27:18 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -163,7 +163,7 @@ get_scsi_info(struct kernel *kp){
 
       sbp=(struct uc_scsibus *)realloc(sbp, sizeof(struct uc_scsibus)*
                                        (nscsibus+1));
-      sbpc=sbp+nscsibus+1;
+      sbpc=sbp+nscsibus;
       bzero(sbpc, sizeof(struct uc_scsibus));
 
       kp->scsi_devp=sp;

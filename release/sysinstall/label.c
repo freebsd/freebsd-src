@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: label.c,v 1.32.2.44 1997/02/07 04:26:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -427,6 +427,8 @@ print_label_chunks(void)
 	    if (label_chunk_info[i].c->private_data
 		&& (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT))
 	        mountpoint = ((PartInfo *)label_chunk_info[i].c->private_data)->mountpoint;
+	    else if (label_chunk_info[i].type == PART_SWAP)
+		mountpoint = "swap";
 	    else
 	        mountpoint = "<none>";
 

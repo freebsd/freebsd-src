@@ -56,7 +56,7 @@ by mistake.
 
 Another useful filesystem to create is /var, which contains mail, news
 printer spool files and other temporary items.  It is a popular
-candidate for a separate paritition and should be sized according to
+candidate for a separate partition and should be sized according to
 your estimates of the amount of mail, news or spooled print jobs that
 may be stored there.
 

@@ -2,7 +2,7 @@ You can do network installations over 3 types of communications links:
 
         Serial port:    SLIP / PPP
         Parallel port:  PLIP (laplink cable)
-        Ethernet:       A standard ethernet controller (includes some
+        Ethernet:       A standard Ethernet controller (includes some
                         PCMCIA networking cards).
 
 SLIP support is rather primitive and limited primarily to directly
@@ -35,11 +35,11 @@ parallel port cable.  The data rate over the parallel port is much
 higher than what is typically possible over a serial line, and speeds
 of up to 50KB/sec are not uncommon.
 
-Finally, for the fastest possible network installation, an ethernet
+Finally, for the fastest possible network installation, an Ethernet
 adaptor is always a good choice!  FreeBSD supports most common PC
-ethernet cards, a table of which is provided in the FreeBSD Hardware
+Ethernet cards, a table of which is provided in the FreeBSD Hardware
 Guide (see the Documentation menu on the boot floppy).  If you are
-using one of the supported PCMCIA ethernet cards, also be sure that
+using one of the supported PCMCIA Ethernet cards, also be sure that
 it's plugged in _before_ the laptop is powered on!  FreeBSD does not,
 unfortunately, currently support "hot insertion" of PCMCIA cards.
 
@@ -52,5 +52,5 @@ possibly the address of a gateway (if you're using PPP, it's your
 provider's IP address) to use in talking to it.  If you do not know
 the answers to all or most of these questions then you should really
 probably talk to your system administrator _first_ before trying this
-type of installation!  Chosing the wrong IP address on a busy network
+type of installation!  Choosing the wrong IP address on a busy network
 will NOT make you popular with your systems administrator!  :-)

@@ -12,25 +12,6 @@ swap, file systems, etc.  The usual convention is to create ONE
 FreeBSD partition per drive and then subsection this partition into
 swap and file systems with the Label editor.
 
-
-The flags field has the following legend:
-
-        '='  -- This partition is properly aligned.
-        '>'  -- This partition doesn't end before cylinder 1024
-        'R'  -- This partition contains the root (/) filesystem
-        'B'  -- Partition employs BAD144 bad-spot handling
-        'C'  -- This is the FreeBSD 2.0-compatibility partition (default)
-        'A'  -- This partition is marked active.
-
-If you select a partition for Bad144 handling, it will be scanned
-for bad blocks before any new filesystems are made on it.
-
-If no partition is marked Active, you will need to either install
-a Boot Manager (the option for which will be presented later in the
-installation) or set one Active before leaving this screen.
-
-To leave the partition editor, type `Q'.
-
 No actual changes will be made to the disk until you (C)ommit from the
 Install menu or use the (W)rite option here!  You're working with what
 is essentially a copy of the disk label(s), both here and in the Label
@@ -56,5 +37,23 @@ extend to the very last sector of the disk medium.  Needless to say,
 such a disk cannot have any sort of a boot manager, `disk manager',
 or anything else that has to interact with the BIOS.  This option is
 therefore only considered safe for SCSI disks and most IDE disks and
-is primarily intented for people who are going to set up a dedicated
+is primarily intended for people who are going to set up a dedicated
 FreeBSD server or workstation, not a typical `home PC'.
+
+The flags field has the following legend:
+
+        '='  -- This partition is properly aligned.
+        '>'  -- This partition doesn't end before cylinder 1024
+        'R'  -- This partition contains the root (/) filesystem
+        'B'  -- Partition employs BAD144 bad-spot handling
+        'C'  -- This is the FreeBSD 2.0-compatibility partition (default)
+        'A'  -- This partition is marked active.
+
+If you select a partition for Bad144 handling, it will be scanned
+for bad blocks before any new filesystems are made on it.
+
+If no partition is marked Active, you will need to either install
+a Boot Manager (the option for which will be presented later in the
+installation) or set one Active before leaving this screen.
+
+To leave the partition editor, type `Q'.

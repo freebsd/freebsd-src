@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.117 1997/02/16 23:36:13 jkh Exp $
+ * $Id: install.c,v 1.71.2.118 1997/02/17 13:30:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -318,8 +318,8 @@ installFixitCDROM(dialogMenuItem *self)
 
     fixit_common();
 
-    msgConfirm("Please remove the FreeBSD CDROM now.");
     mediaDevice->shutdown(mediaDevice);
+    msgConfirm("Please remove the FreeBSD CDROM now.");
     return DITEM_SUCCESS;
 }
 
@@ -353,8 +353,8 @@ installFixitFloppy(dialogMenuItem *self)
 
     fixit_common();
 
-    msgConfirm("Please remove the fixit floppy now.");
     unmount("/mnt2", MNT_FORCE);
+    msgConfirm("Please remove the fixit floppy now.");
     return DITEM_SUCCESS;
 }
 
@@ -549,7 +549,7 @@ installNovice(dialogMenuItem *self)
 	WINDOW *w = savescr();
 
 	dialog_clear();
-	systemExecute("rm -f /etc/localtime /etc/wall_cmos_clock; tzsetup");
+	systemExecute("tzsetup");
 	restorescr(w);
     }
 
@@ -560,6 +560,10 @@ installNovice(dialogMenuItem *self)
 	dmenuOpenSimple(&MenuMouse, FALSE);
 	restorescr(w);
     }
+
+    /* Now would be a good time to checkpoint the configuration data */
+    configSysconfig("/etc/sysconfig");
+    sync();
 
     if (directory_exists("/usr/X11R6")) {
 	dialog_clear_norefresh();
@@ -588,6 +592,19 @@ installNovice(dialogMenuItem *self)
 	systemExecute("passwd root");
 	restorescr(w);
     }
+
+    dialog_clear_norefresh();
+    if (!msgYesNo("Would you like to register your FreeBSD system at this time?\n\n"
+		  "PLEASE, take just 5 minutes to do this.  If we're ever to get any\n"
+		  "significant base of commercial software for FreeBSD, we need to\n"
+		  "be able to provide more information about the size of our user community.\n"
+		  "This is where your registration can really help us, and you can also\n"
+		  "sign up for the new FreeBSD newsletter (its free!) at the same time.\n"))
+	configRegister(NULL);
+    else
+	msgConfirm("OK, but if you should change your mind then you always can register\n"
+		   "later by typing ``/stand/sysinstall register'' or by simply visiting our\n"
+		   "web site at http://www.freebsd.org/register.html");
 
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 
@@ -636,10 +653,8 @@ installCommit(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
-    if (!mediaDevice) {
-	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RESTORE;
-    }
+    if (!mediaVerify())
+	return DITEM_FAILURE | DITEM_RESTORE;
 
     str = variable_get(SYSTEM_STATE);
     if (isDebug())
@@ -657,7 +672,8 @@ try_media:
     if (!mediaDevice->init(mediaDevice)) {
 	if (!msgYesNo("Unable to initialize selected media. Would you like to\n"
 		      "adjust your media configuration and try again?")) {
-	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+	    mediaDevice = NULL;
+	    if (!mediaVerify())
 		return DITEM_FAILURE | DITEM_RESTORE;
 	    else
 		goto try_media;

@@ -31,7 +31,7 @@ Everything:     The base distribution, man pages, dictionary files,
                 profiling libraries, the FreeBSD 1.x and the FreeBSD 2.0
                 compatibility libraries, the complete source tree,
                 games and your choice of XFree86 distribution components.
-                Note that the cryptocraphy source code is NOT included
+                Note that the cryptography source code is NOT included
                 in this collection.  You will need to select that by
                 hand if you're inside the United States.
 
@@ -42,27 +42,6 @@ Reset:          Clear all currently selected distributions.
 
 ---
 
-When using Custom, most of the sub-distribution choices are fairly
-obvious, though two possible exceptions may be the "commerce" and
-"xperimnt" distributions:
-
-        * The "commerce" directory, as its name implies, is devoted to
-        commercial offerings.  This includes commercial products released
-        under special arrangement, limited functionality demos, shareware
-        products (you like it, you buy it), etc.
-
-        * The "xperimnt" directory contains, not surprisingly, experimental
-        offerings.  Unfinished (or work-in-progress) features, special
-        purpose drivers and packages, strange proof-of-concept stuff,
-        it's a mixed bag!  Select this item on a distribution menu and
-        you'll get the whole collection (between 10 and 30MB).
-
-
-        If you're installing from a 2 disc CDROM set then all of the
-        commercial and "experimental" offerings are also available already
-        installed on the 2nd "live filesystem" CD.
-
-
 ENCRYPTION SOFTWARE:
 --------------------
 You may notice that certain distributions, like "des" and "krb",
@@ -72,7 +51,7 @@ encryption technology to be on its restricted export list).  Since
 breaking this law only gets the _originating_ site (US!) in trouble,
 please do not load these distributions from U.S. servers!  We don't
 like these restrictions any more than you do, but can't do much about
-it (write your U.S. congressperson!).
+it (write your U.S. congress person!).
 
 A number of "foreign" servers do exist for the benefit of
 non-U.S. sites, the official site being:
