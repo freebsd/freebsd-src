@@ -53,10 +53,11 @@ typedef enum {
 } ipf_kind;
 
 int do_resolv=1;
+int do_verbose=0;
 
 show_usage()
 {
-fprintf(stderr,"ipfw: [-n] <command>\n");
+fprintf(stderr,"ipfw: [-nv] <command>\n");
 }
 
 
@@ -744,6 +745,8 @@ add(ipf_kind kind, int socket_fd, char **argv)
     if ( *argv == NULL ) {
 
 	firewall.flags = protocol | accept_firewall | src_range | dst_range;
+	if (do_verbose)
+		firewall.flags=firewall.flags | IP_FIREWALL_PRINT;
 	(void)do_setsockopt( 
 	    socket_fd, IPPROTO_IP,
 	    kind == IPF_BLOCKING ? IP_FW_ADD_BLK : IP_FW_ADD_FWD,
@@ -896,11 +899,11 @@ if (b!=0 && b!=1)
 exit(1);
 }
 
- if (strncmp(argv[0],"deny",strlen(argv[0])))
-	p=1;
- else
- if (strncmp(argv[0],"accept",strlen(argv[0])))
+ if (!strncmp(argv[0],"deny",strlen(argv[0])))
 	p=0;
+ else
+ if (!strncmp(argv[0],"accept",strlen(argv[0])))
+	p=1;
  else
 	{
          fprintf(stderr,"usage: ipfw policy [deny|accept]\n");
@@ -924,6 +927,9 @@ char **argv;
     int socket_fd;
     struct ip_firewall *data,*fdata;
     char **str;
+    extern char *optarg;
+    extern int optind;
+    int ch;
 
     socket_fd = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 
@@ -937,13 +943,20 @@ char **argv;
 	exit(1);
     }
 
-    if (!strcmp(argv[1],"-n"))
-	{
-	 str=&argv[2];
-	 do_resolv=0;
-	}
-    else 
-	str=&argv[1];
+     while ((ch = getopt(argc, argv, "vn")) != EOF)
+             switch(ch) {
+             case 'n':
+	 	     do_resolv=0;
+                     break;
+             case 'v':
+		     do_verbose=1;
+                     break;
+             case '?':
+             default:
+                     show_usage();                                      
+	     }
+
+	str=argv+optind;
 
     if (str[0]==NULL)
 	{
@@ -959,6 +972,7 @@ char **argv;
 
 	(void)do_setsockopt( socket_fd, IPPROTO_IP, 
                              IP_FW_FLUSH, NULL, 0, 0 );
+	printf("All entries flushed.\n");
 
     } else if ( strlen(str[0]) >= strlen("checkb")
     && strncmp(str[0],"checkblocking",strlen(str[0])) == 0 ) {

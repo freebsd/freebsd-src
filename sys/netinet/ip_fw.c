@@ -89,12 +89,14 @@ int range_flag;
  * Returns 0 if packet should be dropped, 1 if it should be accepted
  */
 
+#ifdef old
 
 int ip_firewall_check_print(ip,chain)
 struct ip *ip;
 struct ip_firewall *chain;
 {
-    if ( !ip_firewall_check_noprint(ip,chain) ) {
+struct ip_firewall *fwtmp;
+    if ( !ip_firewall_check_noprint(ip,chain,&fwtmp) ) {
 
 	u_short *portptr = (u_short *)&(((u_int *)ip)[ip->ip_hl]);
 
@@ -121,7 +123,9 @@ struct ip_firewall *chain;
     return(1);
 }
 
-int ip_firewall_check_noprint(ip,chain)
+#endif
+
+int ip_firewall_check(ip,chain)
 struct ip *ip;
 struct ip_firewall *chain;
 {
@@ -130,6 +134,9 @@ struct ip_firewall *chain;
     int firewall_proto, proto = 0;
     register struct ip_firewall *fptr;
     u_short src_port = 0, dst_port = 0;
+#ifdef IPFIREWALL_VERBOSE
+    u_short *portptr = (u_short *)&(((u_int *)ip)[ip->ip_hl]);
+#endif
 
     if ( chain == NULL ) {	/* Is there a firewall chain? */
 	return(1);
@@ -172,12 +179,31 @@ struct ip_firewall *chain;
 #ifdef DEBUG_IPFIREWALL
 		printf("universal firewall match\n");
 #endif
-#ifdef olf
-		return( (fptr->flags & IP_FIREWALL_ACCEPT) == IP_FIREWALL_ACCEPT );
-#else
-		return( fptr->flags & IP_FIREWALL_ACCEPT );
+#ifdef IPFIREWALL_VERBOSE
+    if (  !(fptr->flags & IP_FIREWALL_ACCEPT) &&
+          (fptr->flags & IP_FIREWALL_PRINT)) {
+	printf("ip_firewall_check says no to ");
+	switch(ip->ip_p) {
+	case IPPROTO_TCP: printf("TCP "); break;
+	case IPPROTO_UDP: printf("UDP "); break;
+	case IPPROTO_ICMP: printf("ICMP:%d ",((char *)portptr)[0]&0xff); break;
+	default: printf("p=%d ",ip->ip_p); break;
+	}
+	print_ip(ip->ip_src);
+	if ( ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ) {
+	    printf(":%d ",ntohs(portptr[0]));
+	} else {
+	    printf("\n");
+	}
+	print_ip(ip->ip_dst);
+	if ( ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ) {
+	    printf(":%d ",ntohs(portptr[1]));
+	}
+	printf("\n");
+	return(0);
+    }
 #endif
-
+		return( fptr->flags & IP_FIREWALL_ACCEPT );
 	    } else {
 
 	/* Specific firewall - packet's protocol must match firewall's */
@@ -234,12 +260,31 @@ struct ip_firewall *chain;
 			)
 		    ) {
 
-#ifdef old
-			return( (fptr->flags & IP_FIREWALL_ACCEPT) == IP_FIREWALL_ACCEPT );
-
-#else
-			return( fptr->flags & IP_FIREWALL_ACCEPT);
+#ifdef IPFIREWALL_VERBOSE
+    if (  !(fptr->flags & IP_FIREWALL_ACCEPT) &&
+          (fptr->flags & IP_FIREWALL_PRINT)) {
+	printf("ip_firewall_check says no to ");
+	switch(ip->ip_p) {
+	case IPPROTO_TCP: printf("TCP "); break;
+	case IPPROTO_UDP: printf("UDP "); break;
+	case IPPROTO_ICMP: printf("ICMP:%d ",((char *)portptr)[0]&0xff); break;
+	default: printf("p=%d ",ip->ip_p); break;
+	}
+	print_ip(ip->ip_src);
+	if ( ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ) {
+	    printf(":%d ",ntohs(portptr[0]));
+	} else {
+	    printf("\n");
+	}
+	print_ip(ip->ip_dst);
+	if ( ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ) {
+	    printf(":%d ",ntohs(portptr[1]));
+	}
+	printf("\n");
+	return(0);
+    }
 #endif
+			return( fptr->flags & IP_FIREWALL_ACCEPT);
 		    }
 
 		}
@@ -261,11 +306,31 @@ struct ip_firewall *chain;
      * handles this case).
      */
 
-#ifdef old
-    return( ((chain->flags) & IP_FIREWALL_ACCEPT) != IP_FIREWALL_ACCEPT );
-#else 
-    return(ip_fw_policy);
+#ifdef IPFIREWALL_VERBOSE
+    if (  !(ip_fw_policy) &&
+          (fptr->flags & IP_FIREWALL_PRINT)) {
+	printf("ip_firewall_check says no to ");
+	switch(ip->ip_p) {
+	case IPPROTO_TCP: printf("TCP "); break;
+	case IPPROTO_UDP: printf("UDP "); break;
+	case IPPROTO_ICMP: printf("ICMP:%d ",((char *)portptr)[0]&0xff); break;
+	default: printf("p=%d ",ip->ip_p); break;
+	}
+	print_ip(ip->ip_src);
+	if ( ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ) {
+	    printf(":%d ",ntohs(portptr[0]));
+	} else {
+	    printf("\n");
+	}
+	print_ip(ip->ip_dst);
+	if ( ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ) {
+	    printf(":%d ",ntohs(portptr[1]));
+	}
+	printf("\n");
+	return(0);
+    }
 #endif
+    return(ip_fw_policy);
 
 }
 
@@ -291,6 +356,12 @@ struct ip_firewall *firewall;
 {
     struct ip_firewall *ftmp;
     struct ip_firewall *chaintmp=NULL;
+    struct ip_firewall *chaintmp_prev=NULL;
+    u_long m_src_mask,m_dst_mask;
+    u_long n_sa,n_da,o_sa,o_da,o_sm,o_dm,n_sm,n_dm;
+    u_short oldkind,newkind;
+    int addb4=0;
+    int n_o,n_n;
 
     ftmp = malloc( sizeof(struct ip_firewall), M_SOOPTS, M_DONTWAIT );
     if ( ftmp == NULL ) {
@@ -307,26 +378,108 @@ struct ip_firewall *firewall;
        }
     else
        {
-	/*
-	 * This made so to get firewall behavior more *human* oriented-
-	 * as to speed up the packet check the first firewall matching
-	 * the packet used to determine ALLOW/DENY condition,and one
- 	 * tends to set up more specific firewall later then more general
-	 * this change allows adding firewalls to the head of chain so
-	 * that the first matching is last added in line of matching 
-	 * firewalls.This change is not real turn in behavior but helps
-	 * to use firewall efficiently.
-	 */
-#ifdef old
-        chaintmp=*chainptr;
-        while(chaintmp->next!=NULL)
-           chaintmp=chaintmp->next;
-        chaintmp->next=ftmp;
+	chaintmp_prev=NULL;
+	for (chaintmp=*chainptr;chaintmp!=NULL;chaintmp=chaintmp->next) {
+
+		addb4=0;
+
+		newkind=ftmp->flags & IP_FIREWALL_KIND;
+		oldkind=chaintmp->flags & IP_FIREWALL_KIND;
+
+		if (newkind!=IP_FIREWALL_UNIVERSAL 
+		&&  oldkind!=IP_FIREWALL_UNIVERSAL
+		&&  oldkind!=newkind)
+			continue;
+		/*
+		 * Very very *UGLY* code...
+		 * Sorry,but i had to do this....
+		 */
+		n_sa=ntohl(ftmp->src.s_addr);
+		n_da=ntohl(ftmp->dst.s_addr);
+		n_sm=ntohl(ftmp->src_mask.s_addr);
+		n_dm=ntohl(ftmp->dst_mask.s_addr);
+
+		o_sa=ntohl(chaintmp->src.s_addr);
+		o_da=ntohl(chaintmp->dst.s_addr);
+		o_sm=ntohl(chaintmp->src_mask.s_addr);
+		o_dm=ntohl(chaintmp->dst_mask.s_addr);
+
+		m_src_mask = o_sm & n_sm;
+		m_dst_mask = o_dm & n_dm;
+
+		if ((o_sa & m_src_mask) == (n_sa & m_src_mask)) {
+			if (n_sm > o_sm) 
+				addb4++;
+			if (n_sm < o_sm) 
+				addb4--;
+		}
+
+		if ((o_da & m_dst_mask) == (n_da & m_dst_mask)) {
+			if (n_dm > o_dm)
+				addb4++;
+			if (n_dm < o_dm)
+				addb4--;
+		}
+
+		if (((o_da & o_dm) == (n_da & n_dm))
+                  &&((o_sa & o_sm) == (n_sa & n_sm)))
+		{
+			if (newkind!=IP_FIREWALL_UNIVERSAL &&
+			    oldkind==IP_FIREWALL_UNIVERSAL)
+				addb4++;
+			if (newkind==oldkind && (oldkind==IP_FIREWALL_TCP
+					     ||  oldkind==IP_FIREWALL_UDP)) {
+				if ( (!(ftmp->flags & IP_FIREWALL_SRC_RANGE)
+					&& ftmp->num_src_ports>0)
+				  || (!(ftmp->flags & IP_FIREWALL_DST_RANGE)
+					&& ftmp->num_dst_ports>0))
+					addb4++;
+				if ((ftmp->flags & IP_FIREWALL_SRC_RANGE) &&
+				(chaintmp->flags & IP_FIREWALL_SRC_RANGE))
+					if ((ftmp->ports[1]-ftmp->ports[0])<
+					(chaintmp->ports[1]-chaintmp->ports[0]))
+						addb4++;
+				n_n=ftmp->num_src_ports;
+				n_o=chaintmp->num_src_ports;
+				if ((n_n>(IP_FIREWALL_MAX_PORTS-2)) ||
+				    (n_o>(IP_FIREWALL_MAX_PORTS-2)))
+					goto skip_1_check;
+		/*
+		 * Actually this cannot happen as the firewall control
+		 * procedure checks for number of ports in source and
+		 * destination range but we will try to be more safe.
+		 */
+				if ((ftmp->flags & IP_FIREWALL_DST_RANGE) &&
+				(chaintmp->flags & IP_FIREWALL_DST_RANGE))
+				   if ((ftmp->ports[n_n+1]-ftmp->ports[n_n])<
+				  (chaintmp->ports[n_o+1]-chaintmp->ports[n_o]))
+						addb4++;
+				
+skip_1_check:
+			}
+		}
+		if (addb4>0) {
+			if (chaintmp_prev) {
+				chaintmp_prev->next=ftmp; 
+				ftmp->next=chaintmp;
+			} else {
+				*chainptr=ftmp;
+				ftmp->next=chaintmp;
+			}
+			return 0;
+		}
+		chaintmp_prev=chaintmp;
+	}
+	if (chaintmp_prev)
+		chaintmp_prev->next=ftmp;
+	else
+#define wrong
+#ifdef wrong
+        	*chainptr=ftmp;
 #else
-	chaintmp=*chainptr;
-	*chainptr=ftmp;
-	ftmp->next=chaintmp;
+	panic("Can't happen");
 #endif
+#undef wrong
        }
     return(0);
 }
@@ -422,6 +575,8 @@ if ( stage == IP_FW_FLUSH )
 if ( stage == IP_FW_POLICY )
       {
 	tmp_policy_ptr=mtod(m,int *);
+	if ((*tmp_policy_ptr)!=1 && (*tmp_policy_ptr)!=0)
+		return ( EINVAL );
 	ip_fw_policy=*tmp_policy_ptr;
 	return 0;
       }

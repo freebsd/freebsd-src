@@ -19,6 +19,8 @@
  * flags and num_*_ports are stored in host byte order (of course).
  * Port numbers are stored in HOST byte order.
  */
+#ifndef _IP_FW_H
+#define _IP_FW_H
 
 struct ip_firewall {
     struct ip_firewall *next;		/* Next firewall on chain */
@@ -41,7 +43,8 @@ struct ip_firewall {
 					 * order). 
 					 * (ports[0] <= port <= ports[1]) 
 					 */
-#define IP_FIREWALL_FLAG_BITS	0x1f	/* All possible flag bits */
+#define IP_FIREWALL_PRINT	32	/* In verbos mode print this firewall */
+#define IP_FIREWALL_FLAG_BITS	0x2f	/* All possible flag bits */
     u_short num_src_ports, num_dst_ports;/* # of src ports and # of dst ports */
     					/* in ports array (dst ports follow */
     					/* src ports; max of 10 ports in all; */
@@ -69,9 +72,4 @@ extern struct ip_firewall *ip_fw_blk_chain;
 extern struct ip_firewall *ip_fw_fwd_chain;
 extern int ip_fw_policy;
 
-#ifdef IPFIREWALL_VERBOSE
-#define ip_firewall_check ip_firewall_check_print
-#else
-#define ip_firewall_check ip_firewall_check_noprint
 #endif
-
