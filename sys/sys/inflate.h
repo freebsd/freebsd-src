@@ -46,6 +46,12 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 
+/* needed to make inflate() work */
+#define	uch u_char
+#define	ush u_short
+#define	ulg u_long
+
+
 #define WSIZE 0x8000
 
 struct gzip {
@@ -68,10 +74,17 @@ struct gzip {
  * This structure is used in order to make inflate() reentrant.
  */
 struct gz_global {
-	int foo;
+	ulg		bb;		/* bit buffer */
+	unsigned	bk;		/* bits in bit buffer */
+	unsigned	hufts;		/* track memory usage */
+	struct huft 	*fixed_tl;	/* must init to NULL !! */
+	struct huft	*fixed_td;
+	int		fixed_bl;
+	int		fixed_bd;
 };
 
 int inflate __P((struct gzip *, struct gz_global *));
+int do_aout_hdr __P((struct gzip *));
 
 #define slide (gz->gz_slide)
 #define wp    (gz->gz_wp)
