@@ -113,22 +113,36 @@ ATA
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
-Adaptec 274X/284X/2920C/2940/2950/3940/3950 (Narrow/Wide/Twin) series
+Adaptec 274X/284X/2920C/294x/2950/3940/3950 (Narrow/Wide/Twin) series
 EISA/VLB/PCI SCSI controllers.
-Adaptec AIC7850, AIC7880, AIC789x, on-board SCSI controllers.
+Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
 
 AdvanSys SCSI controllers (all models).
 
-Buslogic 545S & 545c
-Buslogic 445S/445c VLB SCSI controller
-Buslogic 742A, 747S, 747c EISA SCSI controller.
-Buslogic 946c PCI SCSI controller
-Buslogic 956c PCI SCSI controller
+BusLogic MultiMaster controllers:
 
-DPT SmartRAID III and IV SCSI/RAID controllers
+[ Please note that BusLogic/Mylex "Flashpoint" adapters are NOT yet supported ]
 
-SymBios (formerly NCR) 53C810, 53C825, 53c860 and 53c875 PCI SCSI
-controllers:
+BusLogic MultiMaster "W" Series Host Adapters:
+    BT-948, BT-958, BT-958D
+BusLogic MultiMaster "C" Series Host Adapters:
+    BT-946C, BT-956C, BT-956CD, BT-445C, BT-747C, BT-757C, BT-757CD, BT-545C,
+    BT-540CF
+BusLogic MultiMaster "S" Series Host Adapters:
+    BT-445S, BT-747S, BT-747D, BT-757S, BT-757D, BT-545S, BT-542D, BT-742A,
+    BT-542B
+BusLogic MultiMaster "A" Series Host Adapters:
+    BT-742A, BT-542B
+
+AMI FastDisk controllers that are true BusLogic MultiMaster clones are also
+supported.
+
+DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
+SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
+is not yet supported.
+
+SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
+53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
         ASUS SC-200
         Data Technology DTC3130 (all variants)
         NCR cards (all)
@@ -137,7 +151,7 @@ controllers:
         Tyan S1365
 
 
-QLogic SCSI and Fibre Channel controllers.
+QLogic 1020, 1040, 1040B and 2100 SCSI and Fibre Channel Adapters
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
@@ -155,21 +169,6 @@ The following CD-ROM type systems are supported at this time:
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
 (wcd)   ATAPI IDE interface
-
-SCSI TAPE SUPPORT:
-
-  The CAM SCSI tape driver doesn't yet handle older (and many times broken)
-  tape drives very well.  If you've got an older SCSI-1 tape drive, like an
-  Exabyte 8200 or older QIC-type tape drive, it may not work properly with
-  the CAM tape driver.  This is obviously a known problem, and we're
-  working on it.
-
-  Newer tape drives that are mostly SCSI-2 compliant should work fine.
-  e.g., DAT (DDS-1, 2 and 3), DLT, and newer Exabyte 8mm drives should
-  work fine.
-
-  If you want to find out if your particular tape drive is supported, the
-  best way to find out is to try it!
 
 The following drivers were supported under the old SCSI subsystem, but are
 NOT YET supported under the new CAM SCSI subsystem:
