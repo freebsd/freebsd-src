@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id: asm.S,v 1.6 1995/01/25 21:37:36 bde Exp $
+ *	$Id: asm.S,v 1.7 1996/03/08 05:15:53 bde Exp $
  */
 
 
@@ -93,12 +93,14 @@ ENTRY(real_to_prot)
 xprot:
 	/*
 	 * we are in USE32 mode now
-	 * set up the protected mode segment registers : DS, SS, ES
+	 * set up the protected mode segment registers : DS, SS, ES, FS
 	 */
 	mov	$0x20, %eax
 	movw	%ax, %ds
 	movw	%ax, %ss
 	movw	%ax, %es
+	movw	$0x10, %ax	/* flat segment */
+	movw	%ax, %fs
 
 #ifdef BDE_DEBUGGER
 	/* load idtr so we can debug */
@@ -126,6 +128,7 @@ x16:
 	mov	%ax, %ds
 	mov	%ax, %ss
 	mov	%ax, %es
+	mov	%ax, %fs
 
 	/* clear the PE bit of CR0 */
 	mov	%cr0, %eax
@@ -143,12 +146,13 @@ xreal:
 
 	/*
 	 * we are in real mode now
-	 * set up the real mode segment registers : DS, SS, ES
+	 * set up the real mode segment registers : DS, SS, ES, FS
 	 */
 	movw	%cs, %ax
 	movw	%ax, %ds
 	movw	%ax, %ss
 	movw	%ax, %es
+	movw	%ax, %fs
 
 #ifdef BDE_DEBUGGER
 	/* load idtr so we can debug */
