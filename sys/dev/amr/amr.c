@@ -337,7 +337,7 @@ amr_attach(struct amr_softc *sc)
      */
     TAILQ_INIT(&sc->amr_work);
     TAILQ_INIT(&sc->amr_freecmds);
-    bufq_init(&sc->amr_bufq);
+    bioq_init(&sc->amr_bioq);
 
     /*
      * Configure for this controller type.
@@ -503,7 +503,7 @@ amr_detach(device_t dev)
  * an operation which may add or delete system disks.  (Call amr_startup to
  * resume normal operation.)
  *
- * Note that we can assume that the bufq on the controller is empty, as we won't
+ * Note that we can assume that the bioq on the controller is empty, as we won't
  * allow shutdown if any device is open.
  */
 int
@@ -608,14 +608,14 @@ amr_intr(void *arg)
  * disk resource, then poke the disk resource to start as much work as it can.
  */
 int
-amr_submit_buf(struct amr_softc *sc, struct buf *bp)
+amr_submit_buf(struct amr_softc *sc, struct bio *bp)
 {
     int		s;
 
     debug("called");
 
     s = splbio();
-    bufq_insert_tail(&sc->amr_bufq, bp);
+    bioq_insert_tail(&sc->amr_bioq, bp);
     splx(s);
     sc->amr_waitbufs++;
     amr_startio(sc);
@@ -884,7 +884,7 @@ amr_startio(struct amr_softc *sc)
 {
     struct amr_command	*ac;
     struct amrd_softc	*amrd;
-    struct buf		*bp;
+    struct bio		*bp;
     int			blkcount;
     int			driveno;
     int			cmd;
@@ -899,7 +899,7 @@ amr_startio(struct amr_softc *sc)
     for (;;) {
 
 	/* see if there's work to be done */
-	if ((bp = bufq_first(&sc->amr_bufq)) == NULL)
+	if ((bp = bioq_first(&sc->amr_bioq)) == NULL)
 	    break;
 	/* get a command */
 	if ((ac = amr_alloccmd(sc)) == NULL)
@@ -910,16 +910,16 @@ amr_startio(struct amr_softc *sc)
 	    break;
 	}
 	/* get the buf containing our work */
-	bufq_remove(&sc->amr_bufq, bp);
+	bioq_remove(&sc->amr_bioq, bp);
 	sc->amr_waitbufs--;
 	splx(s);
 	
 	/* connect the buf to the command */
 	ac->ac_complete = amr_completeio;
 	ac->ac_private = bp;
-	ac->ac_data = bp->b_data;
-	ac->ac_length = bp->b_bcount;
-	if (bp->b_iocmd == BIO_READ) {
+	ac->ac_data = bp->bio_data;
+	ac->ac_length = bp->bio_bcount;
+	if (bp->bio_cmd == BIO_READ) {
 	    ac->ac_flags |= AMR_CMD_DATAIN;
 	    cmd = AMR_CMD_LREAD;
 	} else {
@@ -931,20 +931,20 @@ amr_startio(struct amr_softc *sc)
 	amr_mapcmd(ac);
 	
 	/* build a suitable I/O command (assumes 512-byte rounded transfers) */
-	amrd = (struct amrd_softc *)bp->b_dev->si_drv1;
+	amrd = (struct amrd_softc *)bp->bio_dev->si_drv1;
 	driveno = amrd->amrd_drive - sc->amr_drive;
-	blkcount = (bp->b_bcount + AMR_BLKSIZE - 1) / AMR_BLKSIZE;
+	blkcount = (bp->bio_bcount + AMR_BLKSIZE - 1) / AMR_BLKSIZE;
 
-	if ((bp->b_pblkno + blkcount) > sc->amr_drive[driveno].al_size)
+	if ((bp->bio_pblkno + blkcount) > sc->amr_drive[driveno].al_size)
 	    device_printf(sc->amr_dev, "I/O beyond end of unit (%u,%d > %u)\n", 
-			  bp->b_pblkno, blkcount, sc->amr_drive[driveno].al_size);
+			  bp->bio_pblkno, blkcount, sc->amr_drive[driveno].al_size);
 
 	/*
 	 * Build the I/O command.
 	 */
 	ac->ac_mailbox.mb_command = cmd;
 	ac->ac_mailbox.mb_blkcount = blkcount;
-	ac->ac_mailbox.mb_lba = bp->b_pblkno;
+	ac->ac_mailbox.mb_lba = bp->bio_pblkno;
 	ac->ac_mailbox.mb_physaddr = ac->ac_sgphys;
 	ac->ac_mailbox.mb_drive = driveno;
 	ac->ac_mailbox.mb_nsgelem = ac->ac_nsgent;
@@ -968,15 +968,15 @@ static void
 amr_completeio(struct amr_command *ac)
 {
     struct amr_softc	*sc = ac->ac_sc;
-    struct buf		*bp = (struct buf *)ac->ac_private;
+    struct bio		*bp = (struct bio *)ac->ac_private;
     int			notify, release;
 
     notify = 1;
     release = 1;
     
     if (ac->ac_status != AMR_STATUS_SUCCESS) {	/* could be more verbose here? */
-	bp->b_error = EIO;
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_error = EIO;
+	bp->bio_flags |= BIO_ERROR;
 
 	switch(ac->ac_status) {
 	    /* XXX need more information on I/O error reasons */

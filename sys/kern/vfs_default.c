@@ -167,7 +167,7 @@ vop_nostrategy (struct vop_strategy_args *ap)
 	vprint("", ap->a_bp->b_vp);
 	ap->a_bp->b_ioflags |= BIO_ERROR;
 	ap->a_bp->b_error = EOPNOTSUPP;
-	biodone(ap->a_bp);
+	bufdone(ap->a_bp);
 	return (EOPNOTSUPP);
 }
 

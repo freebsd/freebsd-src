@@ -164,10 +164,10 @@ static int
 mfs_strategy(ap)
 	struct vop_strategy_args /* {
 		struct vnode *a_vp;
-		struct buf *a_bp;
+		struct bio *a_bp;
 	} */ *ap;
 {
-	register struct buf *bp = ap->a_bp;
+	register struct buf *bp = (struct buf *)ap->a_bp;
 	register struct mfsnode *mfsp;
 	struct vnode *vp;
 	struct proc *p = curproc;		/* XXX */
@@ -198,7 +198,7 @@ mfs_strategy(ap)
 			bcopy(base, bp->b_data, bp->b_bcount);
 		else
 			bcopy(bp->b_data, base, bp->b_bcount);
-		biodone(bp);
+		bufdone(bp);
 	} else if (mfsp->mfs_pid == p->p_pid) {
 		/*
 		 * VOP to self
@@ -277,7 +277,7 @@ mfs_doio(bp, mfsp)
 	}
 	if (bp->b_error)
 		bp->b_ioflags |= BIO_ERROR;
-	biodone(bp);
+	bufdone(bp);
 }
 
 /*

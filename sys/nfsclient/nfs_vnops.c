@@ -2943,7 +2943,7 @@ again:
 				bp->b_ioflags &= ~BIO_ERROR;
 				bp->b_dirtyoff = bp->b_dirtyend = 0;
 				splx(s);
-				biodone(bp);
+				bufdone(bp);
 			}
 		}
 	}

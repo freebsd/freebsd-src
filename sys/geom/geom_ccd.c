@@ -764,9 +764,10 @@ ccdclose(dev, flags, fmt, p)
 }
 
 static void
-ccdstrategy(bp)
-	struct buf *bp;
+ccdstrategy(bip)
+	struct bio *bip;
 {
+	struct buf *bp = (struct buf *)bip;
 	int unit = ccdunit(bp->b_dev);
 	struct ccd_softc *cs = &ccd_softc[unit];
 	int s;
@@ -795,7 +796,7 @@ ccdstrategy(bp)
 	 */
 	wlabel = cs->sc_flags & (CCDF_WLABEL|CCDF_LABELLING);
 	if (ccdpart(bp->b_dev) != RAW_PART) {
-		if (bounds_check_with_label(bp, lp, wlabel) <= 0)
+		if (bounds_check_with_label(&bp->b_io, lp, wlabel) <= 0)
 			goto done;
 	} else {
 		int pbn;        /* in sc_secsize chunks */
@@ -838,7 +839,7 @@ ccdstrategy(bp)
 	splx(s);
 	return;
 done:
-	biodone(bp);
+	bufdone(bp);
 }
 
 static void
@@ -1112,7 +1113,7 @@ ccdintr(cs, bp)
 	if (bp->b_ioflags & BIO_ERROR)
 		bp->b_resid = bp->b_bcount;
 	devstat_end_transaction_buf(&cs->device_stats, bp);
-	biodone(bp);
+	bufdone(bp);
 }
 
 /*

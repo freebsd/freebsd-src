@@ -1491,7 +1491,7 @@ nfs_doio(bp, cr, p)
 			    bp->b_dirtyoff = bp->b_dirtyend = 0;
 			    bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 			    bp->b_resid = 0;
-			    biodone(bp);
+			    bufdone(bp);
 			    return (0);
 		    }
 		    if (retv == NFSERR_STALEWRITEVERF) {
@@ -1587,13 +1587,13 @@ nfs_doio(bp, cr, p)
 		}
 	    } else {
 		bp->b_resid = 0;
-		biodone(bp);
+		bufdone(bp);
 		return (0);
 	    }
 	}
 	bp->b_resid = uiop->uio_resid;
 	if (must_commit)
 	    nfs_clearcommit(vp->v_mount);
-	biodone(bp);
+	bufdone(bp);
 	return (error);
 }

@@ -394,7 +394,7 @@ ntfs_strategy(ap)
 			}
 		}
 	}
-	biodone(bp);
+	bufdone(bp);
 	return (error);
 }
 

@@ -91,7 +91,7 @@ afdattach(struct atapi_softc *atp)
 	return -1;
     }
     bzero(fdp, sizeof(struct afd_softc));
-    bufq_init(&fdp->buf_queue);
+    bioq_init(&fdp->bio_queue);
     fdp->atp = atp;
     fdp->lun = ata_get_lun(&afd_lun_map);
 
@@ -274,20 +274,20 @@ afdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 }
 
 static void 
-afdstrategy(struct buf *bp)
+afdstrategy(struct bio *bp)
 {
-    struct afd_softc *fdp = bp->b_dev->si_drv1;
+    struct afd_softc *fdp = bp->bio_dev->si_drv1;
     int32_t s;
 
     /* if it's a null transfer, return immediatly. */
-    if (bp->b_bcount == 0) {
-	bp->b_resid = 0;
+    if (bp->bio_bcount == 0) {
+	bp->bio_resid = 0;
 	biodone(bp);
 	return;
     }
 
     s = splbio();
-    bufqdisksort(&fdp->buf_queue, bp);
+    bioqdisksort(&fdp->bio_queue, bp);
     ata_start(fdp->atp->controller);
     splx(s);
 }
@@ -296,7 +296,7 @@ void
 afd_start(struct atapi_softc *atp)
 {
     struct afd_softc *fdp = atp->driver;
-    struct buf *bp = bufq_first(&fdp->buf_queue);
+    struct bio *bp = bioq_first(&fdp->bio_queue);
     u_int32_t lba, count;
     int8_t ccb[16];
     int8_t *data_ptr;
@@ -304,24 +304,24 @@ afd_start(struct atapi_softc *atp)
     if (!bp)
 	return;
 
-    bufq_remove(&fdp->buf_queue, bp);
+    bioq_remove(&fdp->bio_queue, bp);
 
     /* should reject all queued entries if media have changed. */
     if (fdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
-	bp->b_error = EIO;
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_error = EIO;
+	bp->bio_flags |= BIO_ERROR;
 	biodone(bp);
 	return;
     }
 
-    lba = bp->b_pblkno;
-    count = bp->b_bcount / fdp->cap.sector_size;
-    data_ptr = bp->b_data;
-    bp->b_resid = 0; 
+    lba = bp->bio_pblkno;
+    count = bp->bio_bcount / fdp->cap.sector_size;
+    data_ptr = bp->bio_data;
+    bp->bio_resid = 0; 
 
     bzero(ccb, sizeof(ccb));
 
-    if (bp->b_iocmd == BIO_READ)
+    if (bp->bio_cmd == BIO_READ)
 	ccb[0] = ATAPI_READ_BIG;
     else
 	ccb[0] = ATAPI_WRITE_BIG;
@@ -338,7 +338,7 @@ afd_start(struct atapi_softc *atp)
 
 	atapi_queue_cmd(fdp->atp, ccb, data_ptr, 
 			fdp->transfersize * fdp->cap.sector_size,
-			(bp->b_iocmd == BIO_READ) ? ATPR_F_READ : 0, 30,
+			(bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 30,
 			afd_partial_done, bp);
 
 	count -= fdp->transfersize;
@@ -354,35 +354,35 @@ afd_start(struct atapi_softc *atp)
     ccb[8] = count;
 
     atapi_queue_cmd(fdp->atp, ccb, data_ptr, count * fdp->cap.sector_size,
-		    (bp->b_iocmd == BIO_READ) ? ATPR_F_READ : 0, 30, afd_done, bp);
+		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 30, afd_done, bp);
 }
 
 static int32_t 
 afd_partial_done(struct atapi_request *request)
 {
-    struct buf *bp = request->driver;
+    struct bio *bp = request->driver;
 
     if (request->error) {
-	bp->b_error = request->error;
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_error = request->error;
+	bp->bio_flags |= BIO_ERROR;
     }
-    bp->b_resid += request->bytecount;
+    bp->bio_resid += request->bytecount;
     return 0;
 }
 
 static int32_t 
 afd_done(struct atapi_request *request)
 {
-    struct buf *bp = request->driver;
+    struct bio *bp = request->driver;
     struct afd_softc *fdp = request->device->driver;
 
-    if (request->error || (bp->b_ioflags & BIO_ERROR)) {
-	bp->b_error = request->error;
-	bp->b_ioflags |= BIO_ERROR;
+    if (request->error || (bp->bio_flags & BIO_ERROR)) {
+	bp->bio_error = request->error;
+	bp->bio_flags |= BIO_ERROR;
     }
     else
-	bp->b_resid += (bp->b_bcount - request->donecount);
-    devstat_end_transaction_buf(&fdp->stats, bp);
+	bp->bio_resid += (bp->bio_bcount - request->donecount);
+    devstat_end_transaction_bio(&fdp->stats, bp);
     biodone(bp);
     return 0;
 }

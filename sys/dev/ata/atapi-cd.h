@@ -316,7 +316,7 @@ struct acd_softc {
 #define 	F_DISK_OPEN		0x0004	/* disk open for writing */
 #define 	F_TRACK_OPEN		0x0008	/* track open for writing */
 
-    struct buf_queue_head	buf_queue;	/* Queue of i/o requests */
+    struct bio_queue_head	bio_queue;	/* Queue of i/o requests */
     struct toc			toc;		/* table of disc contents */
     struct {
 	u_int32_t	volsize;		/* volume size in blocks */
