@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id: termcap.src,v 1.66.2.6 1998/03/07 11:50:01 jkh Exp $
+#	$Id: termcap.src,v 1.66.2.7 1998/05/28 06:47:08 jkoshy Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -408,7 +408,7 @@ ibm3163|ibm63|i3163|3163|IBM 3163:\
 	:dl=\EO:do=\EB:ds=\E#\072:es:fs=\E=:ho=\EH:\
 	:hs:ic=\EP:kA=\EN:kB=\E2:kC=\EQ:\
 	:kD=\EQ:kE=\EI:kI=\EI:kL=\EO:kS=\EJ:\
-	:kb=^H:kd=\EB:kl=\EB:kr=\EC:ku=\EA:\
+	:kb=^H:kd=\EB:kl=\ED:kr=\EC:ku=\EA:kh=\EH:\
 	:le=\ED:li#24:mb=\E4D:md=\E4H:me=\E4@:\
 	:mk=\E4P:mr=\E4A:nd=\EC:\
 	:ds=\E#\::es:fs=\E=\E#;:hs:ts=\E=:ws#80:\
