@@ -45,8 +45,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	groupmember.9 \
 	ifnet.9 inittodr.9 intro.9 ithread.9 \
 	kernacc.9 kobj.9 kthread.9 ktr.9 \
-	lockcount.9 lockdestroy.9 lockmgr.9 lockmgr_printinfo.9 \
-	lockstatus.9 \
+	lock.9 \
 	make_dev.9 malloc.9 mbchain.9 mbuf.9 mdchain.9 \
 	mi_switch.9 microseq.9 microtime.9 microuptime.9 \
 	module.9 mutex.9 \
@@ -250,6 +249,10 @@ MLINKS+=BUS_SETUP_INTR.9 bus_teardown_intr.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
 MLINKS+=ucred.9 crget.9 ucred.9 crhold.9 ucred.9 crfree.9
 MLINKS+=ucred.9 crshared.9 ucred.9 crcopy.9 ucred.9 crdup.9
+
+MLINKS+= lock.9 lockinit.9 lock.9 lockdestroy.9
+MLINKS+= lock.9 lockcount.9 lock.9 lockmgr.9
+MLINKS+= lock.9 lockstatus.9 lock.9 lockmgr_printinfo.9
 
 MLINKS+=mbchain.9 mb_init.9
 MLINKS+=mbchain.9 mb_initm.9
