@@ -39,12 +39,14 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.16 1996/06/08 07:10:18 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.42.2.1 1996/09/06 06:32:29 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
+#include "../../../../scsi/scsi_message.h"
 #elif defined(__FreeBSD__)
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
+#include "../../scsi/scsi_message.h"
 #endif
 
 /*
@@ -186,45 +188,36 @@ start_selection:
  * Messages are stored in scratch RAM starting with a length byte
  * followed by the message itself.
  */
-	test	SCB_CMDLEN,0xff jnz mk_identify	/* 0 Length Command? */
-
-/*
- * The kernel has sent us an SCB with no command attached.  This implies
- * that the kernel wants to send a message of some sort to this target,
- * so we interrupt the driver, allow it to fill the message buffer, and
- * then go back into the arbitration loop
- */
-	mvi     INTSTAT,AWAITING_MSG
-	jmp     wait_for_selection
 
 mk_identify:
 	and	A,DISCENB,SCB_CONTROL	/* mask off disconnect privledge */
 
 	and	MSG0,0x7,SCB_TCL	/* lun */
 	or	MSG0,A			/* or in disconnect privledge */
-	or	MSG0,MSG_IDENTIFY
+	or	MSG0,MSG_IDENTIFYFLAG
 	mvi	MSG_LEN, 1
 
-	test	SCB_CONTROL,0xb0 jz  !message	/* WDTR, SDTR or TAG?? */
 /*
  * Send a tag message if TAG_ENB is set in the SCB control block.
  * Use SCB_TAG (the position in the kernel's SCB array) as the tag value.
  */
-
 mk_tag:
+	test	SCB_CONTROL,TAG_ENB jz  mk_message
 	mvi	DINDEX, MSG1
-	test	SCB_CONTROL,TAG_ENB jz mk_tag_done
 	and	DINDIR,0x23,SCB_CONTROL
 	mov	DINDIR,SCB_TAG
 
 	add	MSG_LEN,COMP_MSG0,DINDEX	/* update message length */
 
-mk_tag_done:
+/*
+ * Interrupt the driver, and allow it to tweak the message buffer
+ * if it asks.
+ */
+mk_message:
+	test	SCB_CONTROL,MK_MESSAGE  jz wait_for_selection
 
-	test	SCB_CONTROL,0x90 jz !message	/* NEEDWDTR|NEEDSDTR */
-	mov	DINDEX	call mk_dtr	/* build DTR message if needed */
+	mvi     INTSTAT,AWAITING_MSG
 
-!message:
 wait_for_selection:
 	test	SSTAT0,SELDO	jnz select 
 	test	SSTAT0,SELDI	jz wait_for_selection
@@ -511,7 +504,7 @@ p_status:
  */
 p_mesgout:
 	test	MSG_LEN, 0xff	jnz  p_mesgout_start
-	mvi	MSG_NOP		call mk_mesg	/* build NOP message */
+	mvi	MSG_NOOP	call mk_mesg	/* build NOP message */
 
 p_mesgout_start:
 /*
@@ -569,13 +562,13 @@ p_mesgin:
 	mvi	A		call inb_first	/* read the 1st message byte */
 	mov	REJBYTE,A			/* save it for the driver */
 
-	test	A,MSG_IDENTIFY		jnz mesgin_identify
+	test	A,MSG_IDENTIFYFLAG	jnz mesgin_identify
 	cmp	A,MSG_DISCONNECT	je mesgin_disconnect
-	cmp	A,MSG_SDPTRS		je mesgin_sdptrs
+	cmp	A,MSG_SAVEDATAPOINTER	je mesgin_sdptrs
 	cmp	ALLZEROS,A		je mesgin_complete
-	cmp	A,MSG_RDPTRS		je mesgin_rdptrs
+	cmp	A,MSG_RESTOREPOINTERS	je mesgin_rdptrs
 	cmp	A,MSG_EXTENDED		je mesgin_extended
-	cmp	A,MSG_REJECT		je mesgin_reject
+	cmp	A,MSG_MESSAGE_REJECT	je mesgin_reject
 
 rej_mesgin:
 /*
@@ -589,7 +582,7 @@ rej_mesgin:
 	or	SCSISIGO,ATNO			/* turn on ATNO */
 	mvi	INTSTAT,SEND_REJECT		/* let driver know */
 
-	mvi	MSG_REJECT	call mk_mesg
+	mvi	MSG_MESSAGE_REJECT	call mk_mesg
 
 mesgin_done:
 	call	inb_last			/*ack & turn auto PIO back on*/
@@ -665,51 +658,38 @@ complete:
 
 
 /*
- * Is it an extended message?  We only support the synchronous and wide data
- * transfer request messages, which will probably be in response to
- * WDTR or SDTR message outs from us.  If it's not SDTR or WDTR, reject it -
- * apparently this can be done after any message in byte, according
- * to the SCSI-2 spec.
+ * Is it an extended message?  Copy the message to our message buffer and
+ * notify the host.  The host will tell us whether to reject this message,
+ * respond to it with the message that the host placed in our message buffer,
+ * or simply to do nothing.
  */
 mesgin_extended:
-	mvi	ARG_1		call inb_next	/* extended message length */
-	mvi	REJBYTE_EXT	call inb_next	/* extended message code */
-
-	cmp	REJBYTE_EXT,MSG_SDTR	je p_mesginSDTR
-	cmp	REJBYTE_EXT,MSG_WDTR	je p_mesginWDTR
-	jmp	rej_mesgin
-
-p_mesginWDTR:
-	cmp	ARG_1,2		jne rej_mesgin	/* extended mesg length=2 */
-	mvi	ARG_1		call inb_next	/* Width of bus */
-	mvi	INTSTAT,WDTR_MSG		/* let driver know */
-	test	RETURN_1,0xff jz mesgin_done	/* Do we need to send WDTR? */
-	cmp	RETURN_1,SEND_REJ je rej_mesgin /*
-						 * Bus width was too large 
-						 * Reject it.
-						 */
-
-/* We didn't initiate the wide negotiation, so we must respond to the request */
-	and	RETURN_1,0x7f			/* Clear the SEND_WDTR Flag */
-	mvi	DINDEX,MSG0
-	mvi	MSG0	call mk_wdtr		/* build WDTR message */
-	or	SCSISIGO,ATNO			/* turn on ATNO */
-	jmp	mesgin_done
-
-p_mesginSDTR:
-	cmp	ARG_1,3		jne rej_mesgin	/* extended mesg length=3 */
-	mvi	ARG_1		call inb_next	/* xfer period */
-	mvi	A		call inb_next	/* REQ/ACK offset */
-	mvi	INTSTAT,SDTR_MSG		/* call driver to convert */
-
-	test	RETURN_1,0xff	jz mesgin_done  /* Do we need to mk_sdtr/rej */
-	cmp	RETURN_1,SEND_REJ je rej_mesgin /*
-						 * Requested SDTR too small
-						 * Reject it.
-						 */
-	clr	ARG_1				/* Use the scratch ram rate */
-	mvi	DINDEX, MSG0
-	mvi     MSG0     call mk_sdtr
+	mvi	MSGIN_EXT_LEN	 call inb_next
+	mvi	MSGIN_EXT_OPCODE call inb_next
+	mov	A, MSGIN_EXT_LEN
+	dec	A	/* Length counts the op code */
+	mvi	SINDEX, MSGIN_EXT_BYTE0
+mesgin_extended_loop:
+	test	A, 0xFF		jz mesgin_extended_intr
+	cmp	SINDEX, MSGIN_EXT_LASTBYTE je mesgin_extended_dump
+	call	inb_next
+	dec	A
+/*
+ * We pass the arg to inb in SINDEX, but DINDEX is the one incremented
+ * so update SINDEX with DINDEX's value before looping again.
+ */
+	mov	DINDEX		jmp mesgin_extended_loop
+mesgin_extended_dump:
+/* We have no more storage space, so dump the rest */
+	test	A, 0xFF		jz mesgin_extended_intr
+	mvi	NONE		call inb_next
+	dec	A
+	jmp	mesgin_extended_dump
+mesgin_extended_intr:
+	mvi	INTSTAT,EXTENDED_MSG		/* let driver know */
+	cmp	RETURN_1,SEND_REJ je rej_mesgin
+	cmp	RETURN_1,SEND_MSG jne mesgin_done
+/* The kernel has setup a message to be sent */
 	or	SCSISIGO,ATNO			/* turn on ATNO */
 	jmp	mesgin_done
 
@@ -783,11 +763,11 @@ mesgin_identify:
  */
 	mvi	ARG_1,SCB_LIST_NULL	/* Default to no-tag */
 snoop_tag_loop:
-	test	SSTAT1,BUSFREE	jnz use_findSCB
-	test	SSTAT1,REQINIT	jz snoop_tag_loop
-	test	SSTAT1,PHASEMIS	jnz use_findSCB
-	mvi	A		call inb_first
-	cmp	A,MSG_SIMPLE_TAG jne use_findSCB
+	test	SSTAT1,BUSFREE		jnz use_findSCB
+	test	SSTAT1,REQINIT		jz snoop_tag_loop
+	test	SSTAT1,PHASEMIS		jnz use_findSCB
+	mvi	A			call inb_first
+	cmp	A,MSG_SIMPLE_Q_TAG	jne use_findSCB
 get_tag:
 	mvi	ARG_1	call inb_next	/* tag value */
 /*
@@ -947,7 +927,7 @@ dma5:
 	and	DFCNTRL,WIDEODD
 dma6:
 	test	DFCNTRL,0x38	jnz dma6  /* SCSIENACK|SDMAENACK|HDMAENACK */
-
+return:
 	ret
 
 /*
@@ -1087,68 +1067,3 @@ ndx_dtr:
 	or	A,0x08		/* Channel B entries add 8 */
 ndx_dtr_2:
 	add	SINDEX,TARG_SCRATCH,A ret
-
-/*
- * If we need to negotiate transfer parameters, build the WDTR or SDTR message
- * starting at the address passed in SINDEX.  DINDEX is modified on return.
- * The SCSI-II spec requires that Wide negotiation occur first and you can
- * only negotiat one or the other at a time otherwise in the event of a message
- * reject, you wouldn't be able to tell which message was the culpret.
- */
-mk_dtr:
-	test	SCB_CONTROL,NEEDWDTR jnz  mk_wdtr_16bit
-	mvi	ARG_1, MAXOFFSET	/* Force an offset of 15 or 8 if WIDE */
-
-mk_sdtr:
-	mvi	DINDIR,1		/* extended message */
-	mvi	DINDIR,3		/* extended message length = 3 */
-	mvi	DINDIR,1		/* SDTR code */
-	call	sdtr_to_rate
-	mov	DINDIR,RETURN_1		/* REQ/ACK transfer period */
-	cmp	ARG_1, MAXOFFSET je mk_sdtr_max_offset
-	and	DINDIR,0x0f,SINDIR	/* Sync Offset */
-
-mk_sdtr_done:
-	add	MSG_LEN,COMP_MSG0,DINDEX ret	/* update message length */
-
-mk_sdtr_max_offset:
-/*
- * We're initiating sync negotiation, so request the max offset we can (15 or 8)
- */
-	/* Talking to a WIDE device? */
-	test	SCSIRATE, WIDEXFER	jnz wmax_offset	
-	mvi	DINDIR, MAX_OFFSET_8BIT
-	jmp	mk_sdtr_done
-
-wmax_offset:
-	mvi	DINDIR, MAX_OFFSET_16BIT
-	jmp	mk_sdtr_done
-
-mk_wdtr_16bit:
-	mvi	ARG_1,BUS_16_BIT
-mk_wdtr:
-	mvi	DINDIR,1		/* extended message */
-	mvi	DINDIR,2		/* extended message length = 2 */
-	mvi	DINDIR,3		/* WDTR code */
-	mov	DINDIR,ARG_1		/* bus width */
-
-	add	MSG_LEN,COMP_MSG0,DINDEX ret	/* update message length */
-	
-sdtr_to_rate:
-	call	ndx_dtr			/* index scratch space for target */
-	shr	A,SINDIR,0x4
-	dec	SINDEX			/* Preserve SINDEX */
-	and	A,0x7
-	clr	RETURN_1
-sdtr_to_rate_loop:
-	test	A,0x0f	jz sdtr_to_rate_done
-	add	RETURN_1,0x19
-	dec	A	
-	jmp	sdtr_to_rate_loop
-sdtr_to_rate_done:
-	shr	RETURN_1,0x2
-	add	RETURN_1,0x19
-	test	SXFRCTL0,ULTRAEN jz return
-	shr	RETURN_1,0x1
-return:
-	ret

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.29 1996/05/30 07:18:52 gibbs Exp $
+ *	$Id: aic7770.c,v 1.21.2.4 1996/06/08 07:10:37 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -148,24 +148,14 @@ aic7770probe(void)
 
 		eisa_add_iospace(e_dev, iobase, AHC_EISA_IOSIZE, RESVADDR_NONE);
 		intdef = inb(INTDEF + iobase);
-		switch (intdef & 0xf) {
+		irq = intdef & 0xf;
+		switch (irq) {
 			case 9: 
-				irq = 9;
-				break;
 			case 10:
-				irq = 10;
-				break;
 			case 11:
-				irq = 11;
-				break;  
 			case 12:
-				irq = 12;
-				break;
 			case 14:
-				irq = 14;
-				break;
 			case 15:
-				irq = 15;
 				break;
 			default:
 				printf("aic7770 at slot %d: illegal "
