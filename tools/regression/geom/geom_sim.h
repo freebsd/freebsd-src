@@ -165,3 +165,4 @@ void sdumpf(char *file);
 #define THR_DOWN	2
 #define THR_EVENT	3
 
+#define EJUSTRETURN	(-2)
