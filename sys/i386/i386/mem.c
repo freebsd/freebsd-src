@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.52 1998/06/21 11:33:29 bde Exp $
+ *	$Id: mem.c,v 1.53 1998/11/08 12:39:01 dfr Exp $
  */
 
 /*
@@ -59,6 +59,7 @@
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/signalvar.h>
 
 #include <machine/frame.h>
 #include <machine/random.h>
@@ -286,6 +287,16 @@ mmrw(dev, uio, flags)
 			if (uio->uio_rw == UIO_WRITE) {
 				c = iov->iov_len;
 				break;
+			}
+			if (CURSIG(curproc) != 0) {
+				/*
+				 * Use tsleep() to get the error code right.
+				 * It should return immediately.
+				 */
+				error = tsleep(&random_softc[0],
+				    PZERO | PCATCH, "urand", 1);
+				if (error != 0 && error != EWOULDBLOCK)
+					continue;
 			}
 			if (buf == NULL)
 				buf = (caddr_t)
