@@ -25,5 +25,6 @@ specify which one to use.  The following strings are recognized:
         "media 10base5/AUI" - Select the AUI port.
         "media 10baseT/UTP" - Select the twisted pair port.
         "media 10base2/BNC" - Select the BNC connector.
+        "media 100baseTX" - Select 100BaseT on a 100/10 dual adaptor.
 
 When you're done with this form, select OK.
