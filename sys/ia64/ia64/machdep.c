@@ -1217,7 +1217,7 @@ fill_regs(struct thread *td, struct reg *regs)
 	tf = td->td_frame;
 	regs->r_special = tf->tf_special;
 	regs->r_scratch = tf->tf_scratch;
-	/* XXX preserved */
+	save_callee_saved(&regs->r_preserved);
 	return (0);
 }
 
@@ -1229,7 +1229,7 @@ set_regs(struct thread *td, struct reg *regs)
 	tf = td->td_frame;
 	tf->tf_special = regs->r_special;
 	tf->tf_scratch = regs->r_scratch;
-	/* XXX preserved */
+	restore_callee_saved(&regs->r_preserved);
 	return (0);
 }
 
@@ -1257,7 +1257,7 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 	ia64_highfp_save(td);
 
 	fpregs->fpr_scratch = frame->tf_scratch_fp;
-	/* XXX preserved_fp */
+	save_callee_saved_fp(&fpregs->fpr_preserved);
 	fpregs->fpr_high = pcb->pcb_high_fp;
 	return (0);
 }
@@ -1272,7 +1272,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 	ia64_highfp_drop(td);
 
 	frame->tf_scratch_fp = fpregs->fpr_scratch;
-	/* XXX preserved_fp */
+	restore_callee_saved_fp(&fpregs->fpr_preserved);
 	pcb->pcb_high_fp = fpregs->fpr_high;
 	return (0);
 }
