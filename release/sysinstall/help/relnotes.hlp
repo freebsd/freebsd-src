@@ -1,23 +1,26 @@
                                  RELEASE NOTES
-                          FreeBSD Release 3.0-SNAPSHOT
+                          FreeBSD Release 3.0-RELEASE
 
-This is a SNAPSHOT release of FreeBSD 3.0-CURRENT and is aimed primarily
-at release testers.  Some parts of the documentation may not be updated
-yet and should be reported if and when seen.  Naturally, any installation
-failures or crashes should also be reported ASAP by sending mail to
-freebsd-bugs@FreeBSD.org or using the send-pr command (those preferring a 
-WEB based interface can also see http://www.freebsd.org/send-pr.html).
+This is our first release of 3.0-CURRENT and is aimed primarily at
+early adopters and developers.  Some parts of the documentation may
+not be updated yet and should be reported if and when seen.
+Naturally, any installation failures or crashes should also be
+reported ASAP by sending mail to freebsd-bugs@FreeBSD.org or using the
+send-pr command (those preferring a WEB based interface can also see
+http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 3.0-SNAPSHOT release
-directory (especially if you're installing from floppies!), see ABOUT.TXT.
-For installation instructions, see the INSTALL.TXT and HARDWARE.TXT files.
+For information about FreeBSD and the layout of the 3.0-RELEASE
+directory (especially if you're installing from floppies!), see
+ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
+HARDWARE.TXT files.
 
-And for the latest 3.0-current (HEAD branch) snapshot releases,
-please install from:
+This is also hardly the last release on the 3.0-current (HEAD) branch
+and daily snapshot releases will continue as normal following this
+release.  Please install them from:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
-Many many bugs fixed and security enhancements made.
+If you wish to get the latest post-3.0-RELEASE technology.
 
 Table of contents:
 ------------------
