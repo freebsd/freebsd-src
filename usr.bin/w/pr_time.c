@@ -76,7 +76,8 @@ pr_attime(started, now)
 		(void)strcpy(fmt, __CONCAT("%l:%", "M%p"));
 	}
 
-	(void)strftime(buf, sizeof(buf), fmt, tp);
+	(void)strftime(buf, sizeof(buf) - 1, fmt, tp);
+	buf[sizeof(buf) - 1] = '\0';
 	(void)printf("%s", buf);
 }
 
