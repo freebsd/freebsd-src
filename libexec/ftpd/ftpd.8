@@ -40,7 +40,7 @@
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46ADEORSUdro
+.Op Fl 46ADEMORSUdro
 .Op Fl l Op Fl l
 .Op Fl T Ar maxtimeout
 .Op Fl a Ar address
@@ -95,6 +95,8 @@ and is thus useful on busy servers to reduce load.
 .It Fl E
 Disable the EPSV command.
 This is useful for servers behind older firewalls.
+.It Fl M
+Prevent anonymous users from creating directories.
 .It Fl O
 Put server in write-only mode for anonymous users only.
 RETR is disabled for anonymous users, preventing anonymous downloads.

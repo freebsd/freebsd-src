@@ -143,6 +143,7 @@ int	readonly=0;		/* Server is in readonly mode.	*/
 int	noepsv=0;		/* EPSV command is disabled.	*/
 int	noretr=0;		/* RETR command is disabled.	*/
 int	noguestretr=0;		/* RETR command is disabled for anon users. */
+int	noguestmkd=0;		/* MKD command is disabled for anon users. */
 
 static volatile sig_atomic_t recvurg;
 sig_atomic_t transflag;
@@ -297,7 +298,7 @@ main(int argc, char *argv[], char **envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "AdlDESURrt:T:u:vOoa:p:46")) != -1) {
+	while ((ch = getopt(argc, argv, "AdlDESURrt:T:u:vMOoa:p:46")) != -1) {
 		switch (ch) {
 		case 'D':
 			daemon_mode++;
@@ -378,6 +379,10 @@ main(int argc, char *argv[], char **envp)
 
 		case '6':
 			family = AF_INET6;
+			break;
+
+		case 'M':
+			noguestmkd = 1;
 			break;
 
 		case 'O':
@@ -2247,7 +2252,9 @@ makedir(char *name)
 {
 
 	LOGCMD("mkdir", name);
-	if (mkdir(name, 0777) < 0)
+	if (guest && noguestmkd)
+		reply(550, "%s: permission denied", name);
+	else if (mkdir(name, 0777) < 0)
 		perror_reply(550, name);
 	else
 		reply(257, "MKD command successful.");
