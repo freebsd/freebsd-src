@@ -914,9 +914,6 @@
         <listitem>
 	  <para>Creative Technology Video Blaster WebCam Plus</para>
 	</listitem>
-        <listitem>
-	  <para>Diamond Rio 500, 600, and 800 MP3 players (&man.urio.4; driver)</para>
-	</listitem>
 	<listitem>
 	  <para>D-Link DSB-R100 USB Radio (&man.ufm.4; driver)</para>
 	</listitem>
@@ -926,38 +923,14 @@
       </itemizedlist>
     </para>
 
+    &hwlist.urio;
+
     &hwlist.umodem;
 
     <para arch="i386,pc98,alpha,amd64">Mice (&man.ums.4; driver)
     </para>
-    <para arch="i386,pc98,alpha,amd64">Printers and parallel printer conversion cables (&man.ulpt.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>ATen parallel printer adapter</para>
-	</listitem>
-        <listitem>
-	  <para>Belkin F5U002 parallel printer adapter</para>
-	</listitem>
-        <listitem>
-	  <para>Canon BJ F850, S600</para>
-	</listitem>
-        <listitem>
-	  <para>Canon LBP-1310, 350</para>
-	</listitem>
-        <listitem>
-	  <para>Entrega USB-to-parallel printer adapter</para>
-	</listitem>
-        <listitem>
-	  <para>Hewlett-Packard HP Deskjet 3420 (P/N: C8947A #ABJ)</para>
-	</listitem>
-        <listitem>
-	  <para>Oki Data MICROLINE ML660PS</para>
-	</listitem>
-        <listitem>
-	  <para>Seiko Epson PM-900C, 880C, 820C, 730C</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+
+    &hwlist.ulpt;
 
     &hwlist.ubsa;
 
@@ -966,6 +939,8 @@
     &hwlist.uftdi;
 
     &hwlist.uplcom;
+
+    &hwlist.umct;
 
     &hwlist.uscanner;
 
