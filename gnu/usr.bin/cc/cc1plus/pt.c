@@ -1116,15 +1116,11 @@ lookup_nested_type_by_name (ctype, name)
 {
   tree t;
 
-  t = TREE_VALUE(CLASSTYPE_TAGS(ctype)); 
-  while (t)
-  {
-    if (strcmp(IDENTIFIER_POINTER(name), IDENTIFIER_POINTER(TYPE_IDENTIFIER(t)))
- == 0)
-      return t;
-    else 
-      t = TREE_CHAIN(t);
-  }
+  for (t = CLASSTYPE_TAGS (ctype); t; t = TREE_CHAIN (t))
+    {
+      if (name == TREE_PURPOSE (t))
+	return TREE_VALUE (t);
+    }
   return NULL_TREE;
 }
 
@@ -1198,9 +1194,12 @@ tsubst (t, args, nargs, in_decl)
 	 tsubst (TYPE_MAX_VALUE (t), args, nargs, in_decl));
 
     case TEMPLATE_TYPE_PARM:
-      return cp_build_type_variant (args[TEMPLATE_TYPE_IDX (t)],
-				   TYPE_READONLY (t),
-				   TYPE_VOLATILE (t));
+      {
+	tree arg = args[TEMPLATE_TYPE_IDX (t)];
+	return cp_build_type_variant
+	  (arg, TYPE_READONLY (arg) || TYPE_READONLY (t),
+	   TYPE_VOLATILE (arg) || TYPE_VOLATILE (t));
+      }
 
     case TEMPLATE_CONST_PARM:
       return args[TEMPLATE_CONST_IDX (t)];
@@ -2008,6 +2007,9 @@ type_unification (tparms, targs, parms, args, nsubsts, subr)
 	  arg = TREE_TYPE (arg);
 	}
 #endif
+      if (TREE_CODE (arg) == REFERENCE_TYPE)
+	arg = TREE_TYPE (arg);
+
       if (TREE_CODE (parm) != REFERENCE_TYPE)
 	{
 	  if (TREE_CODE (arg) == FUNCTION_TYPE
@@ -2068,9 +2070,6 @@ unify (tparms, targs, ntparms, parm, arg, nsubsts)
   if (arg == parm)
     return 0;
 
-  if (TREE_CODE (arg) == REFERENCE_TYPE)
-    arg = TREE_TYPE (arg);
-
   switch (TREE_CODE (parm))
     {
     case TEMPLATE_TYPE_PARM:
@@ -2082,6 +2081,7 @@ unify (tparms, targs, ntparms, parm, arg, nsubsts)
 	  return 1;
 	}
       idx = TEMPLATE_TYPE_IDX (parm);
+#if 0
       /* Template type parameters cannot contain cv-quals; i.e.
          template <class T> void f (T& a, T& b) will not generate
 	 void f (const int& a, const int& b).  */
@@ -2089,6 +2089,13 @@ unify (tparms, targs, ntparms, parm, arg, nsubsts)
 	  || TYPE_VOLATILE (arg) > TYPE_VOLATILE (parm))
 	return 1;
       arg = TYPE_MAIN_VARIANT (arg);
+#else
+      {
+	int constp = TYPE_READONLY (arg) > TYPE_READONLY (parm);
+	int volatilep = TYPE_VOLATILE (arg) > TYPE_VOLATILE (parm);
+	arg = cp_build_type_variant (arg, constp, volatilep);
+      }
+#endif
       /* Simple cases: Value already set, does match or doesn't.  */
       if (targs[idx] == arg)
 	return 0;
@@ -2495,12 +2502,19 @@ do_type_instantiation (name, storage)
 	  rest_of_type_compilation (t, 1);
 	}
     }
-
-  instantiate_member_templates (TYPE_IDENTIFIER (t));
-
-  /* this should really be done by instantiate_member_templates */
+  
   {
-    tree tmp = TREE_VEC_ELT (CLASSTYPE_METHOD_VEC (t), 0);
+    tree tmp;
+    /* Classes nested in template classes currently don't have an
+       IDENTIFIER_TEMPLATE--their out-of-line members are handled
+       by the enclosing template class.  Note that there are name
+       conflict bugs with this approach. */
+    tmp = TYPE_IDENTIFIER (t);
+    if (IDENTIFIER_TEMPLATE (tmp))
+      instantiate_member_templates (tmp);
+
+    /* this should really be done by instantiate_member_templates */
+    tmp = TREE_VEC_ELT (CLASSTYPE_METHOD_VEC (t), 0);
     for (; tmp; tmp = TREE_CHAIN (tmp))
       {
 	if (DECL_TEMPLATE_SPECIALIZATION (tmp)

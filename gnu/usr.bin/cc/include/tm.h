@@ -22,6 +22,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This is tested by i386gas.h.  */
 #define YES_UNDERSCORES
 
+/* Don't assume anything about the header files. */
+#define NO_IMPLICIT_EXTERN_C
+
 #include "i386/gstabs.h"
 
 /* Get perform_* macros to build libgcc.a.  */
@@ -65,12 +68,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define HAVE_ATEXIT
 
-/* Tell final.c that we don't need a label passed to mcount.  */
-
-#define NO_PROFILE_DATA
-
-/* Redefine this to not pass an unused label in %edx.  */
-
+/* Redefine this to use %eax instead of %edx.  */
 #undef FUNCTION_PROFILER
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
 {									\
@@ -233,22 +231,3 @@ do {                                                                    \
 	putc ('\n', FILE);						\
       }									\
   } while (0)
-
-/* This is defined when gcc is compiled in the BSD-directory-tree, and must
- * make up for the gap to all the stuff done in the GNU-makefiles.
- */
-
-#ifdef FREEBSD_NATIVE
-
-#undef MD_EXEC_PREFIX
-#define MD_EXEC_PREFIX "/usr/libexec/"
-
-#undef STANDARD_STARTFILE_PREFIX
-#define STANDARD_STARTFILE_PREFIX "/usr/lib"
-
-#define DEFAULT_TARGET_MACHINE "i386-unknown-freebsd_1.0"
-#define GPLUSPLUS_INCLUDE_DIR "/usr/local/lib/gcc-lib/i386-unknown-freebsd_1.0/2.5.8/include"
-#define TOOL_INCLUDE_DIR "/usr/local/i386-unknown-freebsd_1.0/include"
-#define GCC_INCLUDE_DIR "/usr/local/lib/gcc-lib/i386-unknown-freebsd_1.0/2.5.8/include"
-
-#endif /* FREEBSD_NATIVE */

@@ -1404,6 +1404,11 @@ fold_convert (t, arg1)
     {
       if (TREE_CODE (arg1) == INTEGER_CST)
 	{
+	  /* If we would build a constant wider than GCC supports,
+	     leave the conversion unfolded.  */
+	  if (TYPE_PRECISION (type) > 2 * HOST_BITS_PER_WIDE_INT)
+	    return t;
+
 	  /* Given an integer constant, make new constant with new type,
 	     appropriately sign-extended or truncated.  */
 	  t = build_int_2 (TREE_INT_CST_LOW (arg1),
@@ -2836,14 +2841,12 @@ fold_truthop (code, truth_type, lhs, rhs)
       l_const = convert (unsigned_type (TREE_TYPE (l_const)), l_const);
       l_const = const_binop (LSHIFT_EXPR, convert (type, l_const),
 			     size_int (xll_bitpos), 0);
-      l_const = const_binop (BIT_AND_EXPR, l_const, ll_mask, 0);
     }
   if (r_const)
     {
       r_const = convert (unsigned_type (TREE_TYPE (r_const)), r_const);
       r_const = const_binop (LSHIFT_EXPR, convert (type, r_const),
 			     size_int (xrl_bitpos), 0);
-      r_const = const_binop (BIT_AND_EXPR, r_const, rl_mask, 0);
     }
 
   /* If the right sides are not constant, do the same for it.  Also,

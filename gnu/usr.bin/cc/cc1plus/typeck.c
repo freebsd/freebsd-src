@@ -6742,6 +6742,8 @@ convert_for_initialization (exp, type, rhs, flags, errtype, fndecl, parmnum)
 	    }
 	  /* Handle the case of default parameter initialization and
 	     initialization of static variables.  */
+	  else if (TREE_CODE (rhs) == TARGET_EXPR)
+	    return rhs;
 	  else if (TREE_CODE (rhs) == INDIRECT_REF && TREE_HAS_CONSTRUCTOR (rhs))
 	    {
 	      my_friendly_assert (TREE_CODE (TREE_OPERAND (rhs, 0)) == CALL_EXPR, 318);
