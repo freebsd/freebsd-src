@@ -37,7 +37,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
-#include <sys/ioctl.h>
+#include <sys/fcntl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
