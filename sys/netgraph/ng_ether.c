@@ -53,6 +53,7 @@
 #include <sys/syslog.h>
 #include <sys/socket.h>
 
+#include <net/bridge.h>
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_arp.h>
@@ -551,6 +552,10 @@ ng_ether_rcv_upper(node_p node, struct mbuf *m)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	m->m_pkthdr.rcvif = priv->ifp;
+
+	if (BDG_ACTIVE(priv->ifp) )
+		if ((m = bridge_in_ptr(priv->ifp, m)) == NULL)
+			return (0);
 
 	/* Route packet back in */
 	ether_demux(priv->ifp, m);
