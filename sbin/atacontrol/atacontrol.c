@@ -106,68 +106,77 @@ param_print(struct ata_params *parm)
 }
 
 void
-aparam_print(struct ata_params *parm)
+cap_print(struct ata_params *parm)
 {
-	printf("                                 disk model name %.40s\n", parm->model);
-	printf("                               firmware revision %.8s\n", parm->revision);
-	printf("                            ata / atapi revision %d\n", version(parm->version_major));
+	printf("\n");
+	printf("ATA/ATAPI revision    %d\n", version(parm->version_major));
+	printf("device model          %.40s\n", parm->model);
+	printf("firmware revision     %.8s\n", parm->revision);
 
-	printf("                             number of cylinders %d\n", parm->cylinders);
-	printf("                                 number of heads %d\n", parm->heads);
-	printf("                               sectors per track %d\n", parm->sectors);	
+	printf("cylinders             %d\n", parm->cylinders);
+	printf("heads                 %d\n", parm->heads);
+	printf("sectors/track         %d\n", parm->sectors);	
 	
-	printf("                                     lba support %s\n", parm->support_lba ? "yes" : "no");
-	printf("                                     lba sectors %d\n", parm->lba_size);	
-	printf("                                     dma support %s\n", parm->support_dma ? "yes" : "no");
-	printf("                                queueing support %s\n", parm->support_queueing ? "yes" : "no");
-	if(parm->support_queueing)
-	printf("                                          length %d\n", parm->queuelen);	
+	printf("lba%ssupported         ", parm->support_lba ? " " : " not ");
+	if (parm->lba_size)
+		printf("%d sectors\n", parm->lba_size);	
+	else
+		printf("\n");
 
-	printf("                                   SMART support %s\n", parm->support.smart ? "yes" : "no");
-	if(parm->support.smart)
-	printf("                                         enabled %s\n", parm->enabled.smart ? "yes" : "no");
+	printf("lba48%ssupported         ", parm->support.address48 ? " " : " not ");
+	if (parm->lba_size48)
+		printf("%lld sectors\n", parm->lba_size48);	
+	else
+		printf("\n");
+	printf("dma%ssupported\n", parm->support_dma ? " " : " not");
 
-	printf("                                security support %s\n", parm->support.smart ? "yes" : "no");
-	if(parm->support.smart)
-	printf("                                         enabled %s\n", parm->enabled.smart ? "yes" : "no");	
+	printf("overlap%ssupported\n", parm->support_queueing ? " " : " not ");
+  
+	printf("\nFeature                      Support  Enable    Value   Vendor\n");
 
-	printf("                        power management support %s\n", parm->support.power_mngt ? "yes" : "no");
-	if(parm->support.power_mngt)
-	printf("                                         enabled %s\n", parm->enabled.power_mngt ? "yes" : "no");	
+	printf("write cache                    %s	%s\n",
+		parm->support.write_cache ? "yes" : "no",
+		parm->enabled.write_cache ? "yes" : "no");	
 
-	printf("                             write cache support %s\n", parm->support.write_cache ? "yes" : "no");
-	if(parm->support.write_cache)
-	printf("                                         enabled %s\n", parm->enabled.write_cache ? "yes" : "no");	
+	printf("read ahead                     %s	%s\n",
+		parm->support.look_ahead ? "yes" : "no",
+		parm->enabled.look_ahead ? "yes" : "no");	
 
-	printf("                              look ahead support %s\n", parm->support.look_ahead ? "yes" : "no");
-	if(parm->support.look_ahead)
-	printf("                                         enabled %s\n", parm->enabled.look_ahead ? "yes" : "no");	
+	printf("dma queued                     %s	%s	%d/%02X\n",
+		parm->support.queued ? "yes" : "no",
+		parm->enabled.queued ? "yes" : "no",
+		parm->queuelen, parm->queuelen);	
 
-	printf("                      microcode download support %s\n", parm->support.microcode ? "yes" : "no");
-	if(parm->support.microcode)
-	printf("                                         enabled %s\n", parm->enabled.microcode ? "yes" : "no");	
+	printf("SMART                          %s	%s\n",
+		parm->support.smart ? "yes" : "no",
+		parm->enabled.smart ? "yes" : "no");
 
-	printf("                        rd/wr dma queued support %s\n", parm->support.queued ? "yes" : "no");
-	if(parm->support.queued)
-	printf("                                         enabled %s\n", parm->enabled.queued ? "yes" : "no");	
+	printf("microcode download             %s	%s\n",
+		parm->support.microcode ? "yes" : "no",
+		parm->enabled.microcode ? "yes" : "no");	
 
-	printf("               advanced power management support %s\n", parm->support.apm ? "yes" : "no");
-	if(parm->support.apm)
-	{
-	printf("                                         enabled %s\n", parm->enabled.apm ? "yes" : "no");	
-	printf("                                           value %d / 0x%02x\n", parm->apm_value, parm->apm_value);
-	}	
-	printf("           automatic acoustic management support %s\n", parm->support.auto_acoustic ? "yes" : "no");
-	if(parm->support.auto_acoustic)
-	{
-	printf("                                         enabled %s\n", parm->enabled.auto_acoustic ? "yes" : "no");
-	printf("     automatic acoustic management current value %d / 0x%02x\n", parm->current_acoustic, parm->current_acoustic);
-	printf("                               recommended value %d / 0x%02x\n", parm->vendor_acoustic, parm->vendor_acoustic);	
-	}
+	printf("security                       %s	%s\n",
+		parm->support.smart ? "yes" : "no",
+		parm->enabled.smart ? "yes" : "no");	
+
+	printf("power management               %s	%s\n",
+		parm->support.power_mngt ? "yes" : "no",
+		parm->enabled.power_mngt ? "yes" : "no");	
+
+	printf("advanced power management      %s	%s	%d/%02X\n",
+		parm->support.apm ? "yes" : "no",
+		parm->enabled.apm ? "yes" : "no",
+		parm->apm_value, parm->apm_value);
+
+	printf("automatic acoustic management  %s	%s	%d/%02X	%d/%02X\n",
+		parm->support.auto_acoustic ? "yes" : "no",
+		parm->enabled.auto_acoustic ? "yes" : "no",
+		parm->current_acoustic, parm->current_acoustic,
+		parm->vendor_acoustic, parm->vendor_acoustic);	
 }
 
 int
-ata_params_print(int fd, int channel, int master)
+ata_cap_print(int fd, int channel, int device)
 {
 	struct ata_cmd iocmd;
 
@@ -180,20 +189,14 @@ ata_params_print(int fd, int channel, int master)
 	if (ioctl(fd, IOCATA, &iocmd) < 0)
 		return errno;
 
-	if(master)
-		master = 1;
-	master = !master;
-	
-	printf("ATA channel %d, %s", channel, master==0 ? "Master" : "Slave");
+	printf("ATA channel %d, %s", channel, device==0 ? "Master" : "Slave");
 
-	if (iocmd.u.param.type[master]) {
-		printf(", device %s:\n", iocmd.u.param.name[master]);
-		aparam_print(&iocmd.u.param.params[master]);
+	if (iocmd.u.param.type[device]) {
+		printf(", device %s:\n", iocmd.u.param.name[device]);
+		cap_print(&iocmd.u.param.params[device]);
 	}
 	else
-	{
 		printf(": no device present\n");
-	}
 	return 0;
 }
 
@@ -231,7 +234,6 @@ int
 main(int argc, char **argv)
 {
 	struct ata_cmd iocmd;
-	int master;
 	int fd;
 
 	if ((fd = open("/dev/ata", O_RDWR)) < 0)
@@ -242,16 +244,22 @@ main(int argc, char **argv)
 
 	bzero(&iocmd, sizeof(struct ata_cmd));
 
-	if (argc > 2) {
+	if (argc > 2 && strcmp(argv[1], "create")) {
 		int chan;
-		if (!(sscanf(argv[2], "%d", &chan) == 1 ||
-		    sscanf(argv[2], "ata%d", &chan) == 1))
-			usage();
+
+		if (!strcmp(argv[1], "delete") ||
+		    !strcmp(argv[1], "rebuild")) {
+			if (!(sscanf(argv[2], "%d", &chan) == 1 ||
+			      sscanf(argv[2], "ar%d", &chan) == 1))
+				usage();
+		}
+		else {
+			if (!(sscanf(argv[2], "%d", &chan) == 1 ||
+			      sscanf(argv[2], "ata%d", &chan) == 1))
+				usage();
+		}
 		iocmd.channel = chan;
 	}
-
-	if (argc > 3)
-		master = atoi(argv[3]);
 
 	if (!strcmp(argv[1], "list") && argc == 2) {
 		int unit = 0;
@@ -261,8 +269,19 @@ main(int argc, char **argv)
 	else if (!strcmp(argv[1], "info") && argc == 3) {
 		info_print(fd, iocmd.channel, 0);
 	}
-	else if (!strcmp(argv[1], "parm") && argc == 4) {
-		ata_params_print(fd, iocmd.channel, master);
+	else if (!strcmp(argv[1], "cap") && argc == 4) {
+		ata_cap_print(fd, iocmd.channel, atoi(argv[3]));
+	}
+	else if (!strcmp(argv[1], "enclosure") && argc == 4) {
+		iocmd.device = atoi(argv[3]);
+		iocmd.cmd = ATAENCSTAT;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
+			err(1, "ioctl(ATAENCSTAT)");
+		printf("fan RPM: %d temp: %.1f 5V: %.2f 12V: %.2f\n",
+			iocmd.u.enclosure.fan,
+			(double)iocmd.u.enclosure.temp / 10,
+			(double)iocmd.u.enclosure.v05 / 1000,
+			(double)iocmd.u.enclosure.v12 / 1000);
 	}
 	else if (!strcmp(argv[1], "detach") && argc == 3) {
 		iocmd.cmd = ATADETACH;
@@ -282,9 +301,50 @@ main(int argc, char **argv)
 		info_print(fd, iocmd.channel, 0);
 	}
 	else if (!strcmp(argv[1], "rebuild") && argc == 3) {
-		iocmd.cmd = ATAREBUILD;
+		iocmd.cmd = ATARAIDREBUILD;
 		if (ioctl(fd, IOCATA, &iocmd) < 0)
-			warn("ioctl(ATAREBUILD)");
+			warn("ioctl(ATARAIDREBUILD)");
+	}
+	else if (!strcmp(argv[1], "delete") && argc == 3) {
+		iocmd.cmd = ATARAIDDELETE;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
+			warn("ioctl(ATARAIDDELETE)");
+	}
+	else if (!strcmp(argv[1], "create")) {
+		int disk, dev, offset;
+
+		iocmd.cmd = ATARAIDCREATE;
+		if (!strcmp(argv[2], "RAID0") || !strcmp(argv[2], "stripe"))
+			iocmd.u.raid_setup.type = 1;
+		if (!strcmp(argv[2], "RAID1") || !strcmp(argv[2],"mirror"))
+			iocmd.u.raid_setup.type = 2;
+		if (!strcmp(argv[2], "RAID0+1"))
+			iocmd.u.raid_setup.type = 3;
+		if (!strcmp(argv[2], "SPAN") || !strcmp(argv[2], "JBOD"))
+			iocmd.u.raid_setup.type = 4;
+		if (!iocmd.u.raid_setup.type)
+		     usage();
+		
+		if (iocmd.u.raid_setup.type & 1) {
+			if (!sscanf(argv[3], "%d",
+				    &iocmd.u.raid_setup.interleave) == 1)
+				usage();
+			offset = 4;
+		}
+		else
+			offset = 3;
+		
+		for (disk = 0; disk < 16 && (offset + disk) < argc; disk++) {
+			if (!(sscanf(argv[offset + disk], "%d", &dev) == 1 ||
+			      sscanf(argv[offset + disk], "ad%d", &dev) == 1))
+				usage();
+			iocmd.u.raid_setup.disks[disk] = dev;
+		}
+		iocmd.u.raid_setup.total_disks = disk;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
+			warn("ioctl(ATARAIDCREATE)");
+		else
+			printf("ar%d created\n", iocmd.u.raid_setup.unit);
 	}
 	else if (!strcmp(argv[1], "mode") && (argc == 3 || argc == 5)) {
 		if (argc == 5) {

@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Aq Ar command
-.Ar channel Op Ar args
+.Ar args
 .Pp
 .Nm
 .Ic attach
@@ -46,6 +46,12 @@
 .Ic reinit
 .Ar channel
 .Nm
+.Ic create
+.Ar type [interleave] disk0 ... diskN
+.Nm
+.Ic delete
+.Ar raid
+.Nm
 .Ic rebuild
 .Ar raid
 .Nm
@@ -55,6 +61,12 @@
 .Nm
 .Ic info
 .Ar channel
+.Nm
+.Ic cap
+.Ar channel device
+.Nm
+.Ic enclosure
+.Ar channel device
 .Nm
 .Ic list
 .Sh DESCRIPTION
@@ -70,9 +82,9 @@ exercise caution when using this command!
 .Pp
 The
 .Ar channel
-argument is the number of the ata channel on which to operate.
+argument is the number of the ATA channel on which to operate.
 The following commands are supported:
-.Bl -tag -width "attach"
+.Bl -tag -width "rebuild"
 .It Ic attach
 Attach an ATA
 .Ar channel ,
@@ -92,6 +104,24 @@ initialized to the parameters the ATA driver has stored internally.
 Devices that has gone bad and no longer responds to the probe, or devices
 that has physically been removed are removed from the kernel.
 Likewise are devices that show up during a reset, probed and attached.
+.It Ic create
+Create a
+.Ar type
+ATA RAID. The Type can be RAID0 (stripe), RAID1 (mirror), RAID0+1 or
+SPAN (JBOD). In case the RAID has a RAID0 component the 
+.Ar interleave
+must be specified in number of sectors. The RAID will be created
+of the individual disks named
+.Ar disk0 ... diskN.    
+.Pp
+Allthough the ATA driver allows for creating an ATA RAID on disks on any
+controller, there are restrictions. It is only possible to boot on
+an array if its either located on a "real" ATA RAID controller like
+the Promise or Highpoint controllers, or if the RAID declared is of
+RAID1 or SPAN type, in case of a SPAN the partition to boot must 
+reside on the first disk in the SPAN.
+.It Ic delete
+Deletes a RAID array on a RAID capable ATA controller.
 .It Ic rebuild
 Rebuild a RAID1 array on a RAID capable ATA controller.
 .It Ic mode
@@ -113,8 +143,16 @@ and the mode will remain unchanged.
 .It Ic info
 Show info about the attached devices on the
 .Ar channel ,
-currently only the device
-name and manufacture/version strings are shown.
+the device name and manufacture/version strings are shown.
+.It Ic cap
+Show detailed info about the device on
+.Ar channel device
+where device is 0 for master and 1 for slave.
+.It Ic enclosure
+Show detailed info about the encolsure on
+.Ar channel device
+where device is 0 for master and 1 for slave.
+Fan RPM speed, enclosure temperature, 5V and 12V levels are shown.
 .It Ic list
 Show info about all attached devices on all active controllers.
 .El
