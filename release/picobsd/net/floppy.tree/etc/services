@@ -91,3 +91,4 @@ uucp	540/tcp
 uucp	540/udp
 uucp-rlogin	541/tcp
 uucp-rlogin	541/udp
+natd		8668/divert # Network Address Translation
