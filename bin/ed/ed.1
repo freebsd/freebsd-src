@@ -15,8 +15,9 @@
 .\" .LP
 .\" red [-] [-sx] [-p \fIstring\fR] [\fIfile\fR]
 .Sh DESCRIPTION
-.Nm Ed
-is a line-oriented text editor.
+The
+.Nm
+utility is a line-oriented text editor.
 It is used to create, display, modify and otherwise manipulate text
 files.
 .\" .B red
@@ -147,8 +148,9 @@ only if it is not prefixed with a bang.
 .El
 .Sh LINE ADDRESSING
 An address represents the number of a line in the buffer.
-.Nm Ed
-maintains a
+The
+.Nm
+utility maintains a
 .Em current address
 which is
 typically supplied to commands as the default address when none is specified.
@@ -442,7 +444,9 @@ to print the last line affected by the command.
 An interrupt (typically ^C) has the effect of aborting the current command
 and returning the editor to command mode.
 .Pp
-.Nm Ed
+The
+.Nm
+utility
 recognizes the following commands.  The commands are shown together with
 the default address or address range supplied if none is
 specified (in parenthesis).
@@ -578,8 +582,9 @@ Print the addressed lines unambiguously.
 If a single line fills for than one screen (as might be the case
 when viewing a binary file, for instance), a `--More--'
 prompt is printed on the last line.
-.Nm Ed
-waits until the RETURN key is pressed
+The
+.Nm
+utility waits until the RETURN key is pressed
 before displaying the next screen.
 The current address is set to the last line
 printed.
@@ -804,8 +809,9 @@ If the first character of
 is `!', then it is replaced by text of the
 previous
 .Ar !command .
-.Nm Ed
-does not process
+The
+.Nm
+utility does not process
 .Ar command
 for backslash (\\) escapes.
 However, an unescaped
@@ -845,8 +851,9 @@ USD:12-13
 .%D 1981
 .Re
 .Sh LIMITATIONS
-.Nm Ed
-processes
+The
+.Nm
+utility processes
 .Ar file
 arguments for backslash escapes, i.e.,  in a filename,
 any characters preceded by a backslash (\\) are
