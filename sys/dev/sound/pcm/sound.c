@@ -37,6 +37,7 @@ devclass_t pcm_devclass;
 int snd_unit = 0;
 TUNABLE_INT("hw.snd.unit", &snd_unit);
 #endif
+
 int snd_autovchans = 0;
 int snd_maxvchans = 0;
 #if __FreeBSD_version > 500000
