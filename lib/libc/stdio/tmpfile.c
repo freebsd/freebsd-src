@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)tmpfile.c	8.1 (Berkeley) 6/4/93";
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <paths.h>
 
 FILE *
