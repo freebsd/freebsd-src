@@ -40,7 +40,7 @@
  */
 
 /*
- * Machine dependent constants for the AMD x86-64.
+ * Machine dependent constants for the AMD64.
  */
 
 /*
@@ -65,10 +65,10 @@
 #endif
 
 #ifndef _MACHINE
-#define	_MACHINE	x86_64
+#define	_MACHINE	amd64
 #endif
 #ifndef _MACHINE_ARCH
-#define	_MACHINE_ARCH	x86_64
+#define	_MACHINE_ARCH	amd64
 #endif
 
 #ifndef _NO_NAMESPACE_POLLUTION
@@ -77,12 +77,11 @@
 #define	_MACHINE_PARAM_H_
 
 #ifndef MACHINE
-#define	MACHINE		"x86_64"
+#define	MACHINE		"amd64"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"x86_64"
+#define	MACHINE_ARCH	"amd64"
 #endif
-#define	MID_MACHINE	MID_X86_64
 
 #ifdef SMP
 #define MAXCPU		16
@@ -122,8 +121,8 @@
 #define	atop(x)		((unsigned long)(x) >> PAGE_SHIFT)
 #define	ptoa(x)		((unsigned long)(x) << PAGE_SHIFT)
 
-#define	x86_64_btop(x)	((unsigned long)(x) >> PAGE_SHIFT)
-#define	x86_64_ptob(x)	((unsigned long)(x) << PAGE_SHIFT)
+#define	amd64_btop(x)	((unsigned long)(x) >> PAGE_SHIFT)
+#define	amd64_ptob(x)	((unsigned long)(x) << PAGE_SHIFT)
 
 #define	pgtok(x)	((x) * (PAGE_SIZE / 1024)) 
 
