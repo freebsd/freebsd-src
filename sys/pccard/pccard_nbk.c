@@ -61,7 +61,12 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+/* XXX Shouldn't reach into the MD code here */
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
