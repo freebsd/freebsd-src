@@ -71,7 +71,6 @@ static char sccsid[] = "@(#)uucpd.c	8.1 (Berkeley) 6/4/93";
 
 #define	SCPYN(a, b)	strncpy(a, b, sizeof (a))
 
-struct	utmp utmp;
 struct	sockaddr_in hisctladdr;
 int hisaddrlen = sizeof hisctladdr;
 struct	sockaddr_in myctladdr;
@@ -85,7 +84,6 @@ char *nenv[] = {
 };
 extern char **environ;
 extern void logwtmp(char *line, char *name, char *host);
-extern void login(struct utmp *ut);
 
 void doit(struct sockaddr_in *sinp);
 void dologout(void);
@@ -174,9 +172,10 @@ void doit(struct sockaddr_in *sinp)
 	alarm(0);
 	sprintf(Username, "USER=%s", pw->pw_name);
 	sprintf(Logname, "LOGNAME=%s", pw->pw_name);
-	if ((s = fork()) < 0)
+	if ((s = fork()) < 0) {
 		syslog(LOG_ERR, "fork: %m");
-	else if (s == 0) {
+		_exit(1);
+	} else if (s == 0) {
 		dologin(pw, sinp);
 		setgid(pw->pw_gid);
 		initgroups(pw->pw_name, pw->pw_gid);
@@ -184,8 +183,8 @@ void doit(struct sockaddr_in *sinp)
 		setuid(pw->pw_uid);
 		execl(pw->pw_shell, "uucico", NULL);
 		syslog(LOG_ERR, "execl: %m");
+		_exit(1);
 	}
-	_exit(1);
 }
 
 int readline(char start[], int num, int passw)
@@ -259,9 +258,5 @@ void dologin(struct passwd *pw, struct sockaddr_in *sin)
 		(void) write(f, (char *) &ll, sizeof ll);
 		(void) close(f);
 	}
-	utmp.ut_time = cur_time;
-	SCPYN(utmp.ut_line, line);
-	SCPYN(utmp.ut_name, pw->pw_name);
-	SCPYN(utmp.ut_host, remotehost);
-	login(&utmp);
+	logwtmp(line, pw->pw_name, remotehost);
 }
