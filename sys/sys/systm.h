@@ -74,8 +74,15 @@ extern int maxusers;		/* system tune hint */
 	if (__predict_false(!(exp)))					\
 		panic msg;						\
 } while (0)
+#define	VNASSERT(exp, vp, msg) do {					\
+	if (__predict_false(!(exp))) {					\
+		vn_printf(vp, "VNASSERT failed\n");		\
+		panic msg;						\
+	}								\
+} while (0)
 #else
 #define	KASSERT(exp,msg)
+#define	VNASSERT(exp, vp, msg)
 #endif
 
 #ifndef CTASSERT		/* Allow lint to override */
