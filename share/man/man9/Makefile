@@ -35,6 +35,7 @@ MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	bus_generic_attach.9 bus_generic_detach.9 bus_generic_map_intr.9 \
 	bus_generic_print_child.9 bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
+	bus_alloc_resource.9 bus_release_resource.9 \
 	VOP_ACLCHECK.9 VOP_GETACL.9 VOP_GETEXTATTR.9 VOP_SETACL.9 \
 	VOP_SETEXTATTR.9 acl.9 extattr.9
 
