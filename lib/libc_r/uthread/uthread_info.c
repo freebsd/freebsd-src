@@ -252,10 +252,6 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 			    pthread->data.fd.fname,
 			    pthread->data.fd.branch);
 			__sys_write(fd, s, strlen(s));
-			snprintf(s, sizeof(s), "owner %pr/%pw\n",
-			    _thread_fd_table[pthread->data.fd.fd]->r_owner,
-			    _thread_fd_table[pthread->data.fd.fd]->w_owner);
-			__sys_write(fd, s, strlen(s));
 			break;
 		case PS_SIGWAIT:
 			snprintf(s, sizeof(s), "sigmask (hi)");
