@@ -1342,7 +1342,8 @@ AAA
 		}
 	}
 quit:
-	NG_FREE_ITEM(item);
+	if (item)
+		NG_FREE_ITEM(item);
 	NG_FREE_M(m);
 	return error;
 }
