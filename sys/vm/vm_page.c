@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.46 1996/01/19 04:00:10 dyson Exp $
+ *	$Id: vm_page.c,v 1.47 1996/01/27 00:13:33 bde Exp $
  */
 
 /*
@@ -826,10 +826,6 @@ vm_page_free(m)
 	vm_page_remove(m);
 	vm_page_unqueue(m);
 
-/*
-	if ((flags & PG_WANTED) != 0)
-		wakeup(m);
-*/
 	if ((flags & PG_FICTITIOUS) == 0) {
 		if (m->wire_count) {
 			if (m->wire_count > 1) {

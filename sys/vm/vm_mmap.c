@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.35 1996/01/19 03:59:59 dyson Exp $
+ * $Id: vm_mmap.c,v 1.36 1996/02/23 18:49:25 peter Exp $
  */
 
 /*
@@ -773,6 +773,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			object2->backing_object_offset = foff;
 			TAILQ_INSERT_TAIL(&object->shadow_head,
 				object2, shadow_list);
+			++object->shadow_count;
 		} else {
 			docow |= MAP_COPY_NEEDED;
 		}

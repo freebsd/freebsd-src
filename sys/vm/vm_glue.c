@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.39 1996/02/22 10:57:36 davidg Exp $
+ * $Id: vm_glue.c,v 1.40 1996/02/23 18:49:24 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -271,7 +271,8 @@ vm_fork(p1, p2)
 	for(i=0;i<UPAGES;i++) {
 		vm_page_t m;
 
-		while ((m = vm_page_alloc(p2->p_vmspace->vm_upages_obj, i, VM_ALLOC_ZERO)) == NULL) {
+		while ((m = vm_page_alloc(p2->p_vmspace->vm_upages_obj,
+			i, VM_ALLOC_NORMAL)) == NULL) {
 			VM_WAIT;
 		}
 
@@ -281,12 +282,11 @@ vm_fork(p1, p2)
 			VM_PAGE_TO_PHYS(m), VM_PROT_READ|VM_PROT_WRITE, 1);
 		pmap_kenter(((vm_offset_t) up) + i * PAGE_SIZE,
 			VM_PAGE_TO_PHYS(m));
-		if ((m->flags & PG_ZERO) == 0)
-			bzero(((caddr_t) up) + i * PAGE_SIZE, PAGE_SIZE);
 		m->flags &= ~PG_ZERO;
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 	vm_page_unhold(stkm);
+
 
 	p2->p_addr = up;
 
