@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.33 1994/10/25 23:06:15 se Exp $
+ *	$Id: isa.c,v 1.34 1994/10/26 00:16:20 phk Exp $
  */
 
 /*
@@ -691,6 +691,15 @@ void isa_dmastart(int flags, caddr_t addr, unsigned nbytes, unsigned chan)
 		 * byte mode channels.
 		 */
 		/* set dma channel mode, and reset address ff */
+
+		/* If B_RAW flag is set, then use autoinitialise mode */
+		if (flags & B_RAW) {
+		  if (flags & B_READ)
+			outb(DMA1_MODE, DMA37MD_AUTO|DMA37MD_WRITE|chan);
+		  else
+			outb(DMA1_MODE, DMA37MD_AUTO|DMA37MD_READ|chan);
+		}
+		else
 		if (flags & B_READ)
 			outb(DMA1_MODE, DMA37MD_SINGLE|DMA37MD_WRITE|chan);
 		else
@@ -715,6 +724,15 @@ void isa_dmastart(int flags, caddr_t addr, unsigned nbytes, unsigned chan)
 		 * word mode channels.
 		 */
 		/* set dma channel mode, and reset address ff */
+
+		/* If B_RAW flag is set, then use autoinitialise mode */
+		if (flags & B_RAW) {
+		  if (flags & B_READ)
+			outb(DMA2_MODE, DMA37MD_AUTO|DMA37MD_WRITE|(chan&3));
+		  else
+			outb(DMA2_MODE, DMA37MD_AUTO|DMA37MD_READ|(chan&3));
+		}
+		else
 		if (flags & B_READ)
 			outb(DMA2_MODE, DMA37MD_SINGLE|DMA37MD_WRITE|(chan&3));
 		else
