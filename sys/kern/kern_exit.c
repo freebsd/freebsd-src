@@ -251,7 +251,9 @@ exit1(td, rv)
 					PGRP_UNLOCK(sp->s_ttyp->t_pgrp);
 				}
 				/* XXX tp should be locked. */
+				PGRPSESS_XUNLOCK();
 				(void) ttywait(tp);
+				PGRPSESS_XLOCK();
 				/*
 				 * The tty could have been revoked
 				 * if we blocked.
