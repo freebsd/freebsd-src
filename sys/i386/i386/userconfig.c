@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.63.2.7 1996/11/28 21:57:07 phk Exp $
+ **      $Id: userconfig.c,v 1.63.2.8 1996/12/14 14:32:49 joerg Exp $
  **/
 
 /**
@@ -132,7 +132,7 @@ getchar(void)
     if (next == userconfig_from_boot) {
 	if (strncmp(next, "USERCONFIG\n", 11)) {
 	    next++;
-	    strcpy(next, "quit\n");
+	    strcpy(next, "intro\n");
 	} else {
 	    next += 11;
 	}
@@ -2220,7 +2220,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.63.2.7 1996/11/28 21:57:07 phk Exp $
+ *      $Id: userconfig.c,v 1.63.2.8 1996/12/14 14:32:49 joerg Exp $
  */
 
 #include "scbus.h"
