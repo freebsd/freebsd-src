@@ -1,4 +1,4 @@
-.\"	$KAME: ping6.8,v 1.39 2001/04/04 00:08:34 itojun Exp $
+.\"	$KAME: ping6.8,v 1.43 2001/06/28 06:54:29 suz Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -110,7 +110,7 @@ must be a string constructed of the following characters.
 .Bl -tag -width Ds -compact
 .It Ic a
 requests all the responder's unicast addresses.
-If the charater is ommited,
+If the character is omitted,
 only those addresses which belong to the interface which has the
 responder's address are requests.
 .It Ic c
@@ -450,8 +450,8 @@ ping command for both IPv4 and IPv6.
 The followings are an answer to the request.
 .Pp
 From a developer's point of view:
-since the underling API is totally different between IPv4 and IPv6,
-we would end up having two types of code base.
+since the underling raw sockets API is totally different between IPv4
+and IPv6, we would end up having two types of code base.
 There would actually be less benefit to uniform the two commands
 into a single command from the developer's standpoint.
 .Pp
