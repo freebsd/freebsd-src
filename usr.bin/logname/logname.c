@@ -44,11 +44,9 @@ static const char sccsid[] = "@(#)logname.c	8.2 (Berkeley) 4/3/94";
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
-#include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 void usage(void);
 
