@@ -120,6 +120,5 @@ echo "options  NETGRAPH_SOCKET"
 # reset maxusers to something lower
 echo "maxusers	5"
 
-echo "options  NFS_NOSERVER" 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
