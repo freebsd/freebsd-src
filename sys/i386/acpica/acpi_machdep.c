@@ -223,8 +223,7 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 	struct apm_info info;
 	apm_info_old_t aiop;
 
-	if ((acpi_sc = device_get_softc(acpi_dev)) == NULL)
-		return (ENXIO);
+	acpi_sc = device_get_softc(acpi_dev);
 
 	switch (cmd) {
 	case APMIO_SUSPEND:
@@ -317,8 +316,7 @@ acpi_machdep_init(device_t dev)
 	struct	acpi_softc *sc;
 
 	acpi_dev = dev;
-	if ((sc = device_get_softc(acpi_dev)) == NULL)
-		return (ENXIO);
+	sc = device_get_softc(acpi_dev);
 
 	/*
 	 * XXX: Prevent the PnP BIOS code from interfering with
