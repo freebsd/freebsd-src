@@ -134,6 +134,7 @@ int options;
 #define F_POLICY	0x4000
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif /*IPSEC*/
+#define	F_TTL		0x8000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -198,9 +199,9 @@ main(argc, argv)
 	struct sockaddr_in *to, sin;
 	struct termios ts;
 	register int i;
-	int ch, hold, packlen, preload, sockerrno, almost_done = 0;
+	int ch, hold, packlen, preload, sockerrno, almost_done = 0, ttl;
 	struct in_addr ifaddr;
-	unsigned char ttl, loop;
+	unsigned char mttl, loop;
 	u_char *datap, *packet;
 	char *source = NULL, *target, hnamebuf[MAXHOSTNAMELEN];
 	char snamebuf[MAXHOSTNAMELEN];
@@ -234,13 +235,14 @@ main(argc, argv)
 	alarmtimeout = preload = 0;
 
 	datap = &outpack[8 + PHDR_LEN];
-#ifndef IPSEC
-	while ((ch = getopt(argc, argv, "I:LQRS:T:c:adfi:l:np:qrs:t:v")) != -1)
-#else
+	while ((ch = getopt(argc, argv,
+		"I:LQRS:T:c:adfi:l:m:np:qrs:t:v"
+#ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
-	while ((ch = getopt(argc, argv, "I:LQRS:T:c:adfi:l:np:qrs:t:vP:")) != -1)
+		"P:"
 #endif /*IPSEC_POLICY_IPSEC*/
-#endif
+#endif /*IPSEC*/
+		)) != -1)
 	{
 		switch(ch) {
 		case 'a':
@@ -306,6 +308,14 @@ main(argc, argv)
 			options |= F_NOLOOP;
 			loop = 0;
 			break;
+		case 'm':		/* TTL */
+			ultmp = strtoul(optarg, &ep, 0);
+			if (*ep || ep == optarg || ultmp > 255)
+				errx(EX_USAGE, "invalid TTL: `%s'",
+				     optarg);
+			ttl = ultmp;
+			options |= F_TTL;
+			break;
 		case 'n':
 			options |= F_NUMERIC;
 			break;
@@ -357,7 +367,7 @@ main(argc, argv)
 			if (*ep || ep == optarg || ultmp > 255)
 				errx(EX_USAGE, "invalid multicast TTL: `%s'",
 				     optarg);
-			ttl = ultmp;
+			mttl = ultmp;
 			options |= F_MTTL;
 			break;
 		case 'v':
@@ -508,6 +518,12 @@ main(argc, argv)
 #endif /* IP_OPTIONS */
 	}
 
+	if (options & F_TTL) {
+		if (setsockopt(s, IPPROTO_IP, IP_TTL, &ttl,
+		    sizeof(ttl)) < 0) {
+			err(EX_OSERR, "setsockopt IP_TTL");
+		}
+	}
 	if (options & F_NOLOOP) {
 		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_LOOP, &loop,
 		    sizeof(loop)) < 0) {
@@ -515,8 +531,8 @@ main(argc, argv)
 		}
 	}
 	if (options & F_MTTL) {
-		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ttl,
-		    sizeof(ttl)) < 0) {
+		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &mttl,
+		    sizeof(mttl)) < 0) {
 			err(EX_OSERR, "setsockopt IP_MULTICAST_TTL");
 		}
 	}
@@ -1402,8 +1418,8 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: ping [-QRadfnqrv] [-c count] [-i wait] [-l preload] [-p pattern]",
-"            "
+"usage: ping [-QRadfnqrv] [-c count] [-i wait] [-l preload] [-m ttl]",
+"            [-p pattern] "
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 "[-P policy] "
