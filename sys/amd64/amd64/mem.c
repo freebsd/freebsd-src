@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.13 1995/09/15 23:49:23 davidg Exp $
+ *	$Id: mem.c,v 1.14 1995/09/20 13:01:17 davidg Exp $
  */
 
 /*
@@ -62,6 +62,8 @@
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
 
+#include <machine/random.h>
+
 #ifdef	DEVFS
 #include <sys/devfsext.h>
 #include "sys/kernel.h"
@@ -70,12 +72,16 @@ int mmopen();
 void memdev_init(void *data) /* data not used */
 {
   void * x;
-/*            path	name	devsw   minor	type   uid gid perm*/
-   x=dev_add("/misc",	"mem",	mmopen, 0,	DV_CHR, 0,  2, 0640);
-   x=dev_add("/misc",	"kmem",	mmopen, 1,	DV_CHR, 0,  2, 0640);
-   x=dev_add("/misc",	"null",	mmopen, 2,	DV_CHR, 0,  0, 0666);
-   x=dev_add("/misc",	"zero",	mmopen, 12,	DV_CHR, 0,  0, 0666);
-   x=dev_add("/misc",	"io",	mmopen, 14,	DV_CHR, 0,  2, 0640);
+/*            path	name		devsw   minor	type   uid gid perm*/
+   x=dev_add("/misc",	"mem",		mmopen, 0,	DV_CHR, 0,  2, 0640);
+   x=dev_add("/misc",	"kmem",		mmopen, 1,	DV_CHR, 0,  2, 0640);
+   x=dev_add("/misc",	"null",		mmopen, 2,	DV_CHR, 0,  0, 0666);
+#ifdef DEVRANDOM
+   x=dev_add("/misc",	"random",	mmopen, 3,	DV_CHR, 0,  0, 0666);
+   x=dev_add("/misc",	"urandom",	mmopen, 4,	DV_CHR, 0,  0, 0666);
+#endif
+   x=dev_add("/misc",	"zero",		mmopen, 12,	DV_CHR, 0,  0, 0666);
+   x=dev_add("/misc",	"io",		mmopen, 14,	DV_CHR, 0,  2, 0640);
 }
 SYSINIT(memdev,SI_SUB_DEVFS, SI_ORDER_ANY, memdev_init, NULL)
 #endif /*DEVFS*/
@@ -132,9 +138,12 @@ mmrw(dev, uio, flags)
 {
 	register int o;
 	register u_int c, v;
+#ifdef DEVRANDOM
+	u_int poolsize;
+#endif
 	register struct iovec *iov;
 	int error = 0;
-	caddr_t zbuf = NULL;
+	caddr_t buf = NULL;
 
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
@@ -191,19 +200,56 @@ mmrw(dev, uio, flags)
 			c = iov->iov_len;
 			break;
 
+#ifdef DEVRANDOM
+/* minor device 3 (/dev/random) is source of filth on read, rathole on write */
+		case 3:
+			if (uio->uio_rw == UIO_WRITE) {
+				c = iov->iov_len;
+				break;
+			}
+			if (buf == NULL)
+				buf = (caddr_t)
+				    malloc(CLBYTES, M_TEMP, M_WAITOK);
+			c = min(iov->iov_len, CLBYTES);
+			poolsize = read_random(buf, c);
+			if (poolsize == 0) {
+				if (buf)
+					free(buf, M_TEMP);
+				return (0);
+			}
+			c = min(c, poolsize);
+			error = uiomove(buf, (int)c, uio);
+			continue;
+
+/* minor device 4 (/dev/urandom) is source of muck on read, rathole on write */
+		case 4:
+			if (uio->uio_rw == UIO_WRITE) {
+				c = iov->iov_len;
+				break;
+			}
+			if (buf == NULL)
+				buf = (caddr_t)
+				    malloc(CLBYTES, M_TEMP, M_WAITOK);
+			c = min(iov->iov_len, CLBYTES);
+			poolsize = read_random_unlimited(buf, c);
+			c = min(c, poolsize);
+			error = uiomove(buf, (int)c, uio);
+			continue;
+#endif
+
 /* minor device 12 (/dev/zero) is source of nulls on read, rathole on write */
 		case 12:
 			if (uio->uio_rw == UIO_WRITE) {
 				c = iov->iov_len;
 				break;
 			}
-			if (zbuf == NULL) {
-				zbuf = (caddr_t)
+			if (buf == NULL) {
+				buf = (caddr_t)
 				    malloc(CLBYTES, M_TEMP, M_WAITOK);
-				bzero(zbuf, CLBYTES);
+				bzero(buf, CLBYTES);
 			}
 			c = min(iov->iov_len, CLBYTES);
-			error = uiomove(zbuf, (int)c, uio);
+			error = uiomove(buf, (int)c, uio);
 			continue;
 
 #ifdef notyet
@@ -263,8 +309,8 @@ mmrw(dev, uio, flags)
 		uio->uio_offset += c;
 		uio->uio_resid -= c;
 	}
-	if (zbuf)
-		free(zbuf, M_TEMP);
+	if (buf)
+		free(buf, M_TEMP);
 	return (error);
 }
 
@@ -293,3 +339,41 @@ int memmmap(dev_t dev, int offset, int nprot)
 	}
 }
 
+#ifdef DEVRANDOM
+
+/*
+ * Allow userland to select which interrupts will be used in the muck
+ * gathering business.
+ */
+
+int
+mmioctl(dev_t dev, int cmd, caddr_t cmdarg, int flags, struct proc *p)
+{
+	if (minor(dev) != 3 && minor(dev) != 4)
+		return (ENODEV);
+
+	if (*(u_int16_t *)cmdarg >= 16)
+		return (EINVAL);
+
+	switch (cmd){
+
+		case MEM_SETIRQ:
+			interrupt_allowed |= 1 << *(u_int16_t *)cmdarg;
+			break;
+
+		case MEM_CLEARIRQ:
+			interrupt_allowed &= ~(1 << *(u_int16_t *)cmdarg);
+			break;
+
+		case MEM_RETURNIRQ:
+			*(u_int16_t *)cmdarg = interrupt_allowed;
+			break;
+
+		default:
+			return (ENOTTY);
+	}
+	return (0);
+}
+#else
+d_ioctl_t *mmioctl = enodev;
+#endif
