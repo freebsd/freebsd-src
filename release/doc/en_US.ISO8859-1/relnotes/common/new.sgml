@@ -942,8 +942,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The directory layout preference algorithm for FFS has been
       changed to improve its speed on large filesystems. &merged;</para>
 
-      <para arch="i386">smbfs (CIFS) support in kernel has been
-      added. &merged;</para>
+      <para arch="i386">smbfs (CIFS) support in kernel has been added.
+      The userland programs &man.smbutil.1; and &man.mount.smbfs.8;
+      can be used to work with SMB shares. &merged;</para>
 
       <para>For consistency, the fdesc, fifo, null, msdos, portal,
       umap, and union filesystems have been renamed to fdescfs,
@@ -2371,8 +2372,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>&man.routed.8; has been updated to version 2.22. &merged;</para>
 
-      <para>Version 1.4.1 of the <application>smbfs</application>
-      userland utilities have been imported.</para>
+      <para arch="i386">Version 1.4.1 of the <application>smbfs</application>
+      userland utilities have been imported. &merged;</para>
 
       <para><application>tcpdump</application> has been updated to
       3.6.3. &merged;</para>
