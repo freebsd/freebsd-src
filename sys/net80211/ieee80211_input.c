@@ -2183,6 +2183,20 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			ic->ic_stats.is_rx_assoc_notauth++;
 			return;
 		}
+		/* assert right associstion security credentials */
+		if (wpa == NULL && (ic->ic_flags & IEEE80211_F_WPA)) {
+			IEEE80211_DPRINTF(ic,
+			    IEEE80211_MSG_ASSOC | IEEE80211_MSG_WPA,
+			    "[%s] no WPA/RSN IE in association request\n",
+			    ether_sprintf(wh->i_addr2));
+			IEEE80211_SEND_MGMT(ic, ni,
+			    IEEE80211_FC0_SUBTYPE_DEAUTH,
+			    IEEE80211_REASON_RSN_REQUIRED);
+			ieee80211_node_leave(ic, ni);
+			/* XXX distinguish WPA/RSN? */
+			ic->ic_stats.is_rx_assoc_badwpaie++;
+			return;	
+		}
 		if (wpa != NULL) {
 			/*
 			 * Parse WPA information element.  Note that
