@@ -167,20 +167,20 @@
     <sect><heading>The FreeBSD Documentation Project<label
 	id="contrib:doc"></heading>
 
-    <p>The FreeBSD Documentation project is responsible a number of
+    <p>The FreeBSD Documentation project is responsible for a number of
        different services, each of which is run by one or more of
        the following individuals:
 
       <p><descrip>
         <tag/Documentation Project Manager/ &a.jfieber
-        <tag/Webmasters/ &a.mbarkah; and &a.paul
+        <tag/Webmaster/ &a.mbarkah;<p><em>Deputy:</em> &a.paul
         <tag/Handbook & FAQ Editor/ &a.pds
-        <tag/Build Engineers/ &a.paul; and &a.dave
-        <tag/Mirror Managers/ &a.ulf; and &a.john
-        <tag/News Editors/ &a.john; and &a.nsj;
-        <tag/Gallery and Commercial Editors/ &a.ricardag; and &a.cawimm
-        <tag/Style Police & Art Directors/ &a.dave; and &a.opsys
-        <tag/Database Engineers/ &a.mayo; and &a.cracauer
+        <tag/Build Engineer/ &a.paul;<p><em>Deputy:</em> &a.dave
+        <tag/Mirror Manager/ &a.ulf;<p><em>Deputy:</em> &a.john
+        <tag/News Editor/ &a.john;<p><em>Deputy:</em> &a.nsj;
+        <tag/Gallery and Commercial Editor/ &a.ricardag;<p><em>Deputy:</em> &a.cawimm
+        <tag/Style Police & Art Director/ &a.dave;<p><em>Deputy:</em> &a.opsys
+        <tag/Database Engineer/ &a.mayo;<p><em>Deputy:</em> &a.cracauer
         <tag/CGI Engineer/ &a.cracauer
         <tag/Bottle Washing/ &a.nsj
       </descrip>
