@@ -878,7 +878,7 @@ relocate_file(elf_file_t ef)
 	while (rel < rellim) {
 	    symname = symbol_name(ef, rel->r_info);
 	    if (elf_reloc(&ef->lf, rel, ELF_RELOC_REL, symname)) {
-		uprintf("link_elf: symbol %s undefined\n", symname);
+		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
 	    }
 	    rel++;
@@ -892,7 +892,7 @@ relocate_file(elf_file_t ef)
 	while (rela < relalim) {
 	    symname = symbol_name(ef, rela->r_info);
 	    if (elf_reloc(&ef->lf, rela, ELF_RELOC_RELA, symname)) {
-		uprintf("link_elf: symbol %s undefined\n", symname);
+		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
 	    }
 	    rela++;
@@ -906,7 +906,7 @@ relocate_file(elf_file_t ef)
 	while (rel < rellim) {
 	    symname = symbol_name(ef, rel->r_info);
 	    if (elf_reloc(&ef->lf, rel, ELF_RELOC_REL, symname)) {
-		uprintf("link_elf: symbol %s undefined\n", symname);
+		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
 	    }
 	    rel++;
@@ -920,7 +920,7 @@ relocate_file(elf_file_t ef)
 	while (rela < relalim) {
 	    symname = symbol_name(ef, rela->r_info);
 	    if (elf_reloc(&ef->lf, rela, ELF_RELOC_RELA, symname)) {
-		uprintf("link_elf: symbol %s undefined\n", symname);
+		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
 	    }
 	    rela++;
