@@ -105,10 +105,10 @@ devname(dev, type)
 	}
 
 	/* Finally just format it */
-	if (minor(dev) > 255) 
+	if (dev == NODEV)
+		r = "#NODEV";
+	else 
 		r = "#%c:%d:0x%x";
-	else
-		r = "#%c:%d:0x%d";
 	snprintf(buf, SPECNAMELEN + 1, r,
 	    (type & S_IFMT) == S_IFCHR ? 'C' : 'B', major(dev), minor(dev));
 	return (buf);
