@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.53 1998/06/07 17:11:04 dfr Exp $
+ * $Id: wcd.c,v 1.54 1998/06/08 08:50:43 bde Exp $
  */
 
 #include "wdc.h"
@@ -32,31 +32,24 @@
 #include <sys/disklabel.h>
 #include <sys/cdio.h>
 #include <sys/conf.h>
+#include <sys/stat.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
 #include <i386/isa/atapi.h>
 
-static	d_open_t	wcdropen;
-static	d_open_t	wcdbopen;
-static	d_close_t	wcdrclose;
-static	d_close_t	wcdbclose;
+static	d_open_t	wcdopen;
+static	d_close_t	wcdclose;
 static	d_ioctl_t	wcdioctl;
 static	d_strategy_t	wcdstrategy;
 
 #define CDEV_MAJOR 69
 #define BDEV_MAJOR 19
-extern	struct cdevsw wcd_cdevsw;
+static struct cdevsw wcd_cdevsw;
 static struct bdevsw wcd_bdevsw = 
-	{ wcdbopen,	wcdbclose,	wcdstrategy,	wcdioctl,	/*19*/
+	{ wcdopen,	wcdclose,	wcdstrategy,	wcdioctl,	/*19*/
 	  nodump,	nopsize,	0,	"wcd",	&wcd_cdevsw,	-1 };
-
-static struct cdevsw wcd_cdevsw = 
-	{ wcdropen,	wcdrclose,	rawread,	nowrite,	/*69*/
-	  wcdioctl,	nostop,		nullreset,	nodevtotty,/* atapi */
-	  seltrue,	nommap,		wcdstrategy,	"wcd",
-	  &wcd_bdevsw,	-1 };
 
 #ifndef ATAPI_STATIC
 static
@@ -83,10 +76,10 @@ struct toc {
 /*
  * Volume size info.
  */
-static struct volinfo {
+struct volinfo {
 	u_long volsize;         /* Volume size in blocks */
 	u_long blksize;         /* Block size in bytes */
-} info;
+};
 
 /*
  * Current subchannel status.
@@ -279,7 +272,6 @@ static int wcd_request_wait (struct wcd *t, u_char cmd, u_char a1, u_char a2,
 	u_char a3, u_char a4, u_char a5, u_char a6, u_char a7, u_char a8,
 	u_char a9, char *addr, int count);
 static void wcd_describe (struct wcd *t);
-static int wcd_open(dev_t dev, int rawflag);
 static int wcd_setchan (struct wcd *t,
 	u_char c0, u_char c1, u_char c2, u_char c3);
 static int wcd_eject (struct wcd *t, int closeit);
@@ -514,7 +506,7 @@ void wcd_describe (struct wcd *t)
 }
 
 static int 
-wcd_open (dev_t dev, int rawflag)
+wcdopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int lun = dkunit(dev);
 	struct wcd *t;
@@ -534,51 +526,37 @@ wcd_open (dev_t dev, int rawflag)
 			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
 		t->flags |= F_LOCKED;
 	}
-	if (rawflag)
+	if (fmt == S_IFCHR)
 		++t->refcnt;
 	else
 		t->flags |= F_BOPEN;
 	return (0);
 }
 
-int wcdbopen (dev_t dev, int flags, int fmt, struct proc *p)
-{
-	return wcd_open (dev, 0);
-}
-
-int wcdropen (dev_t dev, int flags, int fmt, struct proc *p)
-{
-	return wcd_open (dev, 1);
-}
-
 /*
  * Close the device.  Only called if we are the LAST
  * occurence of an open device.
  */
-int wcdbclose (dev_t dev, int flags, int fmt, struct proc *p)
+static int
+wcdclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int lun = dkunit(dev);
 	struct wcd *t = wcdtab[lun];
 
-	/* If we were the last open of the entire device, release it. */
-	if (! t->refcnt)
-		wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	t->flags &= ~(F_BOPEN|F_LOCKED);
-	return (0);
-}
-
-int wcdrclose (dev_t dev, int flags, int fmt, struct proc *p)
-{
-	int lun = dkunit(dev);
-	struct wcd *t = wcdtab[lun];
-
-	/* If we were the last open of the entire device, release it. */
-	if (! (t->flags & F_BOPEN) && t->refcnt == 1)
-		wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	t->flags &= ~F_LOCKED;
-	--t->refcnt;
+	if (fmt == S_IFBLK) {
+		/* If we were the last open of the entire device, release it. */
+		if (! t->refcnt)
+			wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+		t->flags &= ~(F_BOPEN|F_LOCKED);
+	} else {
+		/* If we were the last open of the entire device, release it. */
+		if (! (t->flags & F_BOPEN) && t->refcnt == 1)
+			wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+		t->flags &= ~F_LOCKED;
+		--t->refcnt;
+	}
 	return (0);
 }
 
@@ -1381,13 +1359,9 @@ static wcd_devsw_installed = 0;
 
 static void 	wcd_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! wcd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&wcd_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&wcd_bdevsw, NULL);
+		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &wcd_bdevsw);
 		wcd_devsw_installed = 1;
     	}
 }
