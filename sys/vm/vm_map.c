@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.139.2.6 1999/05/09 23:22:18 alc Exp $
+ * $Id: vm_map.c,v 1.139.2.7 1999/06/13 04:06:41 alc Exp $
  */
 
 /*
@@ -567,209 +567,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 	default_pager_convert_to_swapq(object);
 	return (KERN_SUCCESS);
-}
-
-int
-vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
-	      vm_prot_t prot, vm_prot_t max, int cow)
-{
-	vm_map_entry_t prev_entry;
-	vm_map_entry_t new_stack_entry;
-	vm_size_t      init_ssize;
-	int            rv;
-
-	if (VM_MIN_ADDRESS > 0 && addrbos < VM_MIN_ADDRESS)
-		return (KERN_NO_SPACE);
-
-	if (max_ssize < SGROWSIZ)
-		init_ssize = max_ssize;
-	else
-		init_ssize = SGROWSIZ;
-
-	vm_map_lock(map);
-
-	/* If addr is already mapped, no go */
-	if (vm_map_lookup_entry(map, addrbos, &prev_entry)) {
-		vm_map_unlock(map);
-		return (KERN_NO_SPACE);
-	}
-
-	/* If we can't accomodate max_ssize in the current mapping,
-	 * no go.  However, we need to be aware that subsequent user
-	 * mappings might map into the space we have reserved for
-	 * stack, and currently this space is not protected.  
-	 * 
-	 * Hopefully we will at least detect this condition 
-	 * when we try to grow the stack.
-	 */
-	if ((prev_entry->next != &map->header) &&
-	    (prev_entry->next->start < addrbos + max_ssize)) {
-		vm_map_unlock(map);
-		return (KERN_NO_SPACE);
-	}
-
-	/* We initially map a stack of only init_ssize.  We will
-	 * grow as needed later.  Since this is to be a grow 
-	 * down stack, we map at the top of the range.
-	 *
-	 * Note: we would normally expect prot and max to be
-	 * VM_PROT_ALL, and cow to be 0.  Possibly we should
-	 * eliminate these as input parameters, and just
-	 * pass these values here in the insert call.
-	 */
-	rv = vm_map_insert(map, NULL, 0, addrbos + max_ssize - init_ssize,
-	                   addrbos + max_ssize, prot, max, cow);
-
-	/* Now set the avail_ssize amount */
-	if (rv == KERN_SUCCESS){
-		new_stack_entry = prev_entry->next;
-		if (new_stack_entry->end   != addrbos + max_ssize ||
-		    new_stack_entry->start != addrbos + max_ssize - init_ssize)
-			panic ("Bad entry start/end for new stack entry");
-		else 
-			new_stack_entry->avail_ssize = max_ssize - init_ssize;
-	}
-
-	vm_map_unlock(map);
-	return (rv);
-}
-
-/* Attempts to grow a vm stack entry.  Returns KERN_SUCCESS if the
- * desired address is already mapped, or if we successfully grow
- * the stack.  Also returns KERN_SUCCESS if addr is outside the
- * stack range (this is strange, but preserves compatibility with
- * the grow function in vm_machdep.c).
- */
-int
-vm_map_growstack (struct proc *p, vm_offset_t addr)
-{
-	vm_map_entry_t prev_entry;
-	vm_map_entry_t stack_entry;
-	vm_map_entry_t new_stack_entry;
-	struct vmspace *vm = p->p_vmspace;
-	vm_map_t map = &vm->vm_map;
-	vm_offset_t    end;
-	int      grow_amount;
-	int      rv;
-	int      is_procstack;
-Retry:
-	vm_map_lock_read(map);
-
-	/* If addr is already in the entry range, no need to grow.*/
-	if (vm_map_lookup_entry(map, addr, &prev_entry)) {
-		vm_map_unlock_read(map);
-		return (KERN_SUCCESS);
-	}
-
-	if ((stack_entry = prev_entry->next) == &map->header) {
-		vm_map_unlock_read(map);
-		return (KERN_SUCCESS);
-	} 
-	if (prev_entry == &map->header) 
-		end = stack_entry->start - stack_entry->avail_ssize;
-	else
-		end = prev_entry->end;
-
-	/* This next test mimics the old grow function in vm_machdep.c.
-	 * It really doesn't quite make sense, but we do it anyway
-	 * for compatibility.
-	 *
-	 * If not growable stack, return success.  This signals the
-	 * caller to proceed as he would normally with normal vm.
-	 */
-	if (stack_entry->avail_ssize < 1 ||
-	    addr >= stack_entry->start ||
-	    addr <  stack_entry->start - stack_entry->avail_ssize) {
-		vm_map_unlock_read(map);
-		return (KERN_SUCCESS);
-	} 
-	
-	/* Find the minimum grow amount */
-	grow_amount = roundup (stack_entry->start - addr, PAGE_SIZE);
-	if (grow_amount > stack_entry->avail_ssize) {
-		vm_map_unlock_read(map);
-		return (KERN_NO_SPACE);
-	}
-
-	/* If there is no longer enough space between the entries
-	 * nogo, and adjust the available space.  Note: this 
-	 * should only happen if the user has mapped into the
-	 * stack area after the stack was created, and is
-	 * probably an error.
-	 *
-	 * This also effectively destroys any guard page the user
-	 * might have intended by limiting the stack size.
-	 */
-	if (grow_amount > stack_entry->start - end) {
-		if (vm_map_lock_upgrade(map))
-			goto Retry;
-
-		stack_entry->avail_ssize = stack_entry->start - end;
-
-		vm_map_unlock(map);
-		return (KERN_NO_SPACE);
-	}
-
-	is_procstack = addr >= (vm_offset_t)vm->vm_maxsaddr;
-
-	/* If this is the main process stack, see if we're over the 
-	 * stack limit.
-	 */
-	if (is_procstack && (vm->vm_ssize + grow_amount >
-			     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
-		vm_map_unlock_read(map);
-		return (KERN_NO_SPACE);
-	}
-
-	/* Round up the grow amount modulo SGROWSIZ */
-	grow_amount = roundup (grow_amount, SGROWSIZ);
-	if (grow_amount > stack_entry->avail_ssize) {
-		grow_amount = stack_entry->avail_ssize;
-	}
-	if (is_procstack && (vm->vm_ssize + grow_amount >
-	                     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
-		grow_amount = p->p_rlimit[RLIMIT_STACK].rlim_cur -
-		              vm->vm_ssize;
-	}
-
-	if (vm_map_lock_upgrade(map))
-		goto Retry;
-
-	/* Get the preliminary new entry start value */
-	addr = stack_entry->start - grow_amount;
-
-	/* If this puts us into the previous entry, cut back our growth
-	 * to the available space.  Also, see the note above.
-	 */
-	if (addr < end) {
-		stack_entry->avail_ssize = stack_entry->start - end;
-		addr = end;
-	}
-
-	rv = vm_map_insert(map, NULL, 0, addr, stack_entry->start,
-			   stack_entry->protection,
-			   stack_entry->max_protection,
-			   0);
-
-	/* Adjust the available stack space by the amount we grew. */
-	if (rv == KERN_SUCCESS) {
-		new_stack_entry = prev_entry->next;
-		if (new_stack_entry->end   != stack_entry->start  ||
-		    new_stack_entry->start != addr)
-			panic ("Bad stack grow start/end in new stack entry");
-		else {
-			new_stack_entry->avail_ssize = stack_entry->avail_ssize -
-							(new_stack_entry->end -
-							 new_stack_entry->start);
-			if (is_procstack)
-				vm->vm_ssize += new_stack_entry->end -
-						new_stack_entry->start;
-		}
-	}
-
-	vm_map_unlock(map);
-	return (rv);
-
 }
 
 /*
@@ -2406,6 +2203,213 @@ vmspace_fork(vm1)
 	old_map->timestamp++;
 
 	return (vm2);
+}
+
+int
+vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
+	      vm_prot_t prot, vm_prot_t max, int cow)
+{
+	vm_map_entry_t prev_entry;
+	vm_map_entry_t new_stack_entry;
+	vm_size_t      init_ssize;
+	int            rv;
+
+	if (VM_MIN_ADDRESS > 0 && addrbos < VM_MIN_ADDRESS)
+		return (KERN_NO_SPACE);
+
+	if (max_ssize < SGROWSIZ)
+		init_ssize = max_ssize;
+	else
+		init_ssize = SGROWSIZ;
+
+	vm_map_lock(map);
+
+	/* If addr is already mapped, no go */
+	if (vm_map_lookup_entry(map, addrbos, &prev_entry)) {
+		vm_map_unlock(map);
+		return (KERN_NO_SPACE);
+	}
+
+	/* If we can't accomodate max_ssize in the current mapping,
+	 * no go.  However, we need to be aware that subsequent user
+	 * mappings might map into the space we have reserved for
+	 * stack, and currently this space is not protected.  
+	 * 
+	 * Hopefully we will at least detect this condition 
+	 * when we try to grow the stack.
+	 */
+	if ((prev_entry->next != &map->header) &&
+	    (prev_entry->next->start < addrbos + max_ssize)) {
+		vm_map_unlock(map);
+		return (KERN_NO_SPACE);
+	}
+
+	/* We initially map a stack of only init_ssize.  We will
+	 * grow as needed later.  Since this is to be a grow 
+	 * down stack, we map at the top of the range.
+	 *
+	 * Note: we would normally expect prot and max to be
+	 * VM_PROT_ALL, and cow to be 0.  Possibly we should
+	 * eliminate these as input parameters, and just
+	 * pass these values here in the insert call.
+	 */
+	rv = vm_map_insert(map, NULL, 0, addrbos + max_ssize - init_ssize,
+	                   addrbos + max_ssize, prot, max, cow);
+
+	/* Now set the avail_ssize amount */
+	if (rv == KERN_SUCCESS){
+		if (prev_entry != &map->header)
+			vm_map_clip_end(map, prev_entry, addrbos + max_ssize - init_ssize);
+		new_stack_entry = prev_entry->next;
+		if (new_stack_entry->end   != addrbos + max_ssize ||
+		    new_stack_entry->start != addrbos + max_ssize - init_ssize)
+			panic ("Bad entry start/end for new stack entry");
+		else 
+			new_stack_entry->avail_ssize = max_ssize - init_ssize;
+	}
+
+	vm_map_unlock(map);
+	return (rv);
+}
+
+/* Attempts to grow a vm stack entry.  Returns KERN_SUCCESS if the
+ * desired address is already mapped, or if we successfully grow
+ * the stack.  Also returns KERN_SUCCESS if addr is outside the
+ * stack range (this is strange, but preserves compatibility with
+ * the grow function in vm_machdep.c).
+ */
+int
+vm_map_growstack (struct proc *p, vm_offset_t addr)
+{
+	vm_map_entry_t prev_entry;
+	vm_map_entry_t stack_entry;
+	vm_map_entry_t new_stack_entry;
+	struct vmspace *vm = p->p_vmspace;
+	vm_map_t map = &vm->vm_map;
+	vm_offset_t    end;
+	int      grow_amount;
+	int      rv;
+	int      is_procstack;
+Retry:
+	vm_map_lock_read(map);
+
+	/* If addr is already in the entry range, no need to grow.*/
+	if (vm_map_lookup_entry(map, addr, &prev_entry)) {
+		vm_map_unlock_read(map);
+		return (KERN_SUCCESS);
+	}
+
+	if ((stack_entry = prev_entry->next) == &map->header) {
+		vm_map_unlock_read(map);
+		return (KERN_SUCCESS);
+	} 
+	if (prev_entry == &map->header) 
+		end = stack_entry->start - stack_entry->avail_ssize;
+	else
+		end = prev_entry->end;
+
+	/* This next test mimics the old grow function in vm_machdep.c.
+	 * It really doesn't quite make sense, but we do it anyway
+	 * for compatibility.
+	 *
+	 * If not growable stack, return success.  This signals the
+	 * caller to proceed as he would normally with normal vm.
+	 */
+	if (stack_entry->avail_ssize < 1 ||
+	    addr >= stack_entry->start ||
+	    addr <  stack_entry->start - stack_entry->avail_ssize) {
+		vm_map_unlock_read(map);
+		return (KERN_SUCCESS);
+	} 
+	
+	/* Find the minimum grow amount */
+	grow_amount = roundup (stack_entry->start - addr, PAGE_SIZE);
+	if (grow_amount > stack_entry->avail_ssize) {
+		vm_map_unlock_read(map);
+		return (KERN_NO_SPACE);
+	}
+
+	/* If there is no longer enough space between the entries
+	 * nogo, and adjust the available space.  Note: this 
+	 * should only happen if the user has mapped into the
+	 * stack area after the stack was created, and is
+	 * probably an error.
+	 *
+	 * This also effectively destroys any guard page the user
+	 * might have intended by limiting the stack size.
+	 */
+	if (grow_amount > stack_entry->start - end) {
+		if (vm_map_lock_upgrade(map))
+			goto Retry;
+
+		stack_entry->avail_ssize = stack_entry->start - end;
+
+		vm_map_unlock(map);
+		return (KERN_NO_SPACE);
+	}
+
+	is_procstack = addr >= (vm_offset_t)vm->vm_maxsaddr;
+
+	/* If this is the main process stack, see if we're over the 
+	 * stack limit.
+	 */
+	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount >
+			     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
+		vm_map_unlock_read(map);
+		return (KERN_NO_SPACE);
+	}
+
+	/* Round up the grow amount modulo SGROWSIZ */
+	grow_amount = roundup (grow_amount, SGROWSIZ);
+	if (grow_amount > stack_entry->avail_ssize) {
+		grow_amount = stack_entry->avail_ssize;
+	}
+	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount >
+	                     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
+		grow_amount = p->p_rlimit[RLIMIT_STACK].rlim_cur -
+		              ctob(vm->vm_ssize);
+	}
+
+	if (vm_map_lock_upgrade(map))
+		goto Retry;
+
+	/* Get the preliminary new entry start value */
+	addr = stack_entry->start - grow_amount;
+
+	/* If this puts us into the previous entry, cut back our growth
+	 * to the available space.  Also, see the note above.
+	 */
+	if (addr < end) {
+		stack_entry->avail_ssize = stack_entry->start - end;
+		addr = end;
+	}
+
+	rv = vm_map_insert(map, NULL, 0, addr, stack_entry->start,
+			   VM_PROT_ALL,
+			   VM_PROT_ALL,
+			   0);
+
+	/* Adjust the available stack space by the amount we grew. */
+	if (rv == KERN_SUCCESS) {
+		if (prev_entry != &map->header)
+			vm_map_clip_end(map, prev_entry, addr);
+		new_stack_entry = prev_entry->next;
+		if (new_stack_entry->end   != stack_entry->start  ||
+		    new_stack_entry->start != addr)
+			panic ("Bad stack grow start/end in new stack entry");
+		else {
+			new_stack_entry->avail_ssize = stack_entry->avail_ssize -
+							(new_stack_entry->end -
+							 new_stack_entry->start);
+			if (is_procstack)
+				vm->vm_ssize += btoc(new_stack_entry->end -
+						     new_stack_entry->start);
+		}
+	}
+
+	vm_map_unlock(map);
+	return (rv);
+
 }
 
 /*
