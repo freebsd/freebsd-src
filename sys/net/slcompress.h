@@ -35,8 +35,11 @@
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
- * $Id$
+ * $Id: slcompress.h,v 1.2 1994/08/02 07:46:48 davidg Exp $
  */
+
+#define _NET_SLCOMPRESS_H_
+#define _NET_SLCOMPRESS_H_
 
 #define MAX_STATES 16		/* must be > 2 and < 256 */
 #define MAX_HDR MLEN		/* XXX 4bsd-ism: should really be 128 */
@@ -153,4 +156,6 @@ struct slcompress {
 void	 sl_compress_init __P((struct slcompress *));
 u_int	 sl_compress_tcp __P((struct mbuf *,
 	    struct ip *, struct slcompress *, int));
+
+#endif
 int	 sl_uncompress_tcp __P((u_char **, int, u_int, struct slcompress *));

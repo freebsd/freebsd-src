@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: radix.h,v 1.2 1994/08/02 07:46:31 davidg Exp $
  */
 
-#ifndef _RADIX_H_
-#define	_RADIX_H_
+#ifndef _NET_RADIX_H_
+#define	_NET_RADIX_H_
 
 /*
  * Radix search tree node layout.

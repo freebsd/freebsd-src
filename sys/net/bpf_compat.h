@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)bpf_compat.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: bpf_compat.h,v 1.2 1994/08/02 07:45:56 davidg Exp $
  */
+
+#ifndef _NET_BPF_COMPAT_H_
+#define _NET_BPF_COMPAT_H_
 
 /*
  * Some hacks for compatibility across SunOS and 4.4BSD.  We emulate malloc
@@ -47,3 +50,5 @@
 
 /* This mapping works for our purposes. */
 #define ERESTART EINTR
+
+#endif
