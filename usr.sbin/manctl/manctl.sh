@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id$
+# $Id: manctl.sh,v 1.9 1997/02/22 16:06:29 peter Exp $
 #
 # manctl: 
 #	a utility for manipulating manual pages
@@ -345,10 +345,10 @@ do_compress_so()
 #
 ctl_usage()
 {
-	echo "usage : 	$1 -compress <path> ... " 1>&2
-	echo "	 	$1 -uncompress <path> ... " 1>&2
-	echo "	 	$1 -purge <days> <path> ... " 1>&2
-	echo "	 	$1 -purge expire <path> ... " 1>&2
+	echo "usage: $1 -compress <path> ... " 1>&2
+	echo "       $1 -uncompress <path> ... " 1>&2
+	echo "       $1 -purge <days> <path> ... " 1>&2
+	echo "       $1 -purge expire <path> ... " 1>&2
 	exit 1
 }
 
