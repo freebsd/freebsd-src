@@ -60,6 +60,7 @@ SRCS+= \
 	uthread_info.c \
 	uthread_init.c \
 	uthread_ioctl.c \
+	uthread_jmp.c \
 	uthread_join.c \
 	uthread_kern.c \
 	uthread_kill.c \
