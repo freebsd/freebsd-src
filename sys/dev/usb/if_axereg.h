@@ -168,6 +168,7 @@ struct axe_softc {
 	unsigned char		axe_ipgs[3];
 	unsigned char 		axe_phyaddrs[2];
 	struct timeval		axe_rx_notice;
+	struct usb_qdat		axe_qdat;
 };
 
 #if 0
