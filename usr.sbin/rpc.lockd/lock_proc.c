@@ -194,7 +194,7 @@ get_client(host_addr, vers)
 	CLIENT *client;
 	struct timeval retry_time, time_now;
 	int i;
-	char *netid;
+	const char *netid;
 	struct netconfig *nconf;
 	char host[NI_MAXHOST];
 
