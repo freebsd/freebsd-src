@@ -554,13 +554,7 @@ static void wfd_done (struct wfd *t, struct buf *bp, int resid,
 	 */
 	if (((int)bp->b_driver1)-- <= 0) {
 		bp->b_resid = (int)bp->b_driver2;
-
-		/* Tell devstat we have finished with the transaction */
-		devstat_end_transaction(&t->device_stats,
-					bp->b_bcount - bp->b_resid,
-					DEVSTAT_TAG_NONE,
-					(bp->b_flags & B_READ) ? DEVSTAT_READ : DEVSTAT_WRITE);
-
+		devstat_end_transaction_buf(&t->device_stats, bp);
 		biodone (bp);
 	}
 	

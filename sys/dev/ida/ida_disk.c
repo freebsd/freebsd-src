@@ -254,10 +254,8 @@ id_intr(struct buf *bp)
 	else
 		bp->b_resid = 0;
 
+	devstat_end_transaction_buf(&drv->stats, bp);
 	biodone(bp);
-	devstat_end_transaction(&drv->stats,
-	     bp->b_bcount - bp->b_resid, DEVSTAT_TAG_NONE,
-	     (bp->b_flags & B_READ) ? DEVSTAT_READ : DEVSTAT_WRITE);
 }
 
 static void
