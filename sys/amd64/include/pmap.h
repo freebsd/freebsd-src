@@ -226,7 +226,6 @@ struct pmap {
 	u_int			pm_active;	/* active on cpus */
 	/* spare u_int here due to padding */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
-	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
 };
 
 typedef struct pmap	*pmap_t;
