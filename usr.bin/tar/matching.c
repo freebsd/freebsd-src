@@ -43,7 +43,7 @@ struct match {
 struct matching {
 	struct match	 *exclusions;
 	int		  exclusions_count;
-        struct match	 *inclusions;
+	struct match	 *inclusions;
 	int		  inclusions_count;
 	int		  inclusions_unmatched_count;
 };
