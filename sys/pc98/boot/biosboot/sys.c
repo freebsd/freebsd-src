@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id$
+ *	$Id: sys.c,v 1.10 1997/02/22 09:43:10 peter Exp $
  */
 
 /*
@@ -77,12 +77,14 @@ read(char *buffer, int count)
 {
 	int logno, off, size;
 	int cnt2, bnum2;
+	struct fs *fs_copy;
 
-	while (count) {
-		off = blkoff(fs, poff);
-		logno = lblkno(fs, poff);
-		cnt2 = size = blksize(fs, &inode, logno);
-		bnum2 = fsbtodb(fs, block_map(logno)) + boff;
+	while (count > 0 && poff < inode.i_size) {
+		fs_copy = fs;
+		off = blkoff(fs_copy, poff);
+		logno = lblkno(fs_copy, poff);
+		cnt2 = size = blksize(fs_copy, &inode, logno);
+		bnum2 = fsbtodb(fs_copy, block_map(logno)) + boff;
 		if (	(!off)  && (size <= count)) {
 			devread(buffer, bnum2, cnt2);
 		} else {
