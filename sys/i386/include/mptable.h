@@ -259,27 +259,6 @@ extern	int nkpt;
 u_int32_t cpu_apic_versions[MAXCPU];
 u_int32_t *io_apic_versions;
 
-#ifdef APIC_INTR_DIAGNOSTIC
-int apic_itrace_enter[32];
-int apic_itrace_tryisrlock[32];
-int apic_itrace_gotisrlock[32];
-int apic_itrace_active[32];
-int apic_itrace_masked[32];
-int apic_itrace_noisrlock[32];
-int apic_itrace_masked2[32];
-int apic_itrace_unmask[32];
-int apic_itrace_noforward[32];
-int apic_itrace_leave[32];
-int apic_itrace_enter2[32];
-int apic_itrace_doreti[32];
-int apic_itrace_eoi[32];
-#ifdef APIC_INTR_DIAGNOSTIC_IRQ
-unsigned short apic_itrace_debugbuffer[32768];
-int apic_itrace_debugbuffer_idx;
-struct simplelock apic_itrace_debuglock;
-#endif
-#endif
-
 #ifdef APIC_INTR_REORDER
 struct {
 	volatile int *location;
@@ -1920,10 +1899,6 @@ struct simplelock	panic_lock;
 static void
 init_locks(void)
 {
-#if defined(APIC_INTR_DIAGNOSTIC) && defined(APIC_INTR_DIAGNOSTIC_IRQ)
-	s_lock_init((struct simplelock*)&apic_itrace_debuglock);
-#endif
-
 	s_lock_init((struct simplelock*)&mcount_lock);
 
 	s_lock_init((struct simplelock*)&fast_intr_lock);
