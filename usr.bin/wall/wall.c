@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
 #include <sys/time.h>
 #include <sys/uio.h>
 
+#include <locale.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -80,6 +81,8 @@ main(argc, argv)
 	FILE *fp;
 	char *p, *ttymsg();
 	char line[sizeof(utmp.ut_line) + 1];
+
+	(void)setlocale(LC_CTYPE, "");
 
 	while ((ch = getopt(argc, argv, "n")) != -1)
 		switch (ch) {
