@@ -66,7 +66,7 @@
 #if !defined(__FreeBSD__)
 #include <ufs/ufs/lockf.h>
 #else
-#include <lockf.h>
+#include <sys/lockf.h>
 #include <sys/signalvar.h>
 #endif
 #include <ufs/ufs/quota.h>

@@ -54,14 +54,14 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: reg_constant.h,v 1.2 1994/04/29 21:30:18 gclarkii Exp $
+ *    $Id: reg_constant.h,v 1.3 1994/06/10 07:44:49 rich Exp $
  *
  */
 
 #ifndef _REG_CONSTANT_H_
 #define _REG_CONSTANT_H_
 
-#include "fpu_emu.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
 
 extern FPU_REG CONST_1;
 extern FPU_REG CONST_2;

@@ -56,24 +56,24 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_compare.c,v 1.4 1994/08/31 04:45:23 davidg Exp $
+ *     $Id: reg_compare.c,v 1.5 1995/05/30 07:57:54 rgrimes Exp $
  *
  */
 
 /*---------------------------------------------------------------------------+
  | compare() is the core FPU_REG comparison function                         |
  +---------------------------------------------------------------------------*/
-#include "param.h"
-#include "proc.h"
-#include "systm.h"
-#include "machine/cpu.h"
-#include "machine/pcb.h"
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
+#include <machine/cpu.h>
+#include <machine/pcb.h>
 
-#include "fpu_emu.h"
-#include "fpu_system.h"
-#include "exception.h"
-#include "control_w.h"
-#include "status_w.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/fpu_system.h>
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/control_w.h>
+#include <gnu/i386/fpemul/status_w.h>
 
 
 int

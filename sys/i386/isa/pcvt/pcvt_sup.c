@@ -64,7 +64,7 @@
 #include "vt.h"
 #if NVT > 0
 
-#include "pcvt_hdr.h"		/* global include */
+#include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 
 static void vid_cursor ( struct cursorshape *data );
 static void vgasetfontattr ( struct vgafontattr *data );

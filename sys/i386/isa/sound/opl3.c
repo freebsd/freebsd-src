@@ -34,11 +34,11 @@
  * hooft@chem.ruu.nl
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_YM3812)
 
-#include "opl3.h"
+#include <i386/isa/sound/opl3.h>
 
 #define MAX_VOICE	18
 #define OFFS_4OP	11	/*

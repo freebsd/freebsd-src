@@ -27,11 +27,11 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
 
 #include <machine/ultrasound.h>
-#include "gus_hw.h"
+#include <i386/isa/sound/gus_hw.h>
 
 #define MIX_DEVS	(SOUND_MASK_MIC|SOUND_MASK_LINE| \
 			 SOUND_MASK_SYNTH| \

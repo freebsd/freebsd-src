@@ -18,11 +18,11 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include "at.h"
-#include "at_var.h"
-#include "ddp_var.h"
-#include "aarp.h"
-#include "endian.h"
+#include <netatalk/at.h>
+#include <netatalk/at_var.h>
+#include <netatalk/ddp_var.h>
+#include <netatalk/aarp.h>
+#include <netatalk/endian.h>
 #include <netatalk/at_extern.h>
 
 static void at_pcbdisconnect( struct ddpcb *ddp );

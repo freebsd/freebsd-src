@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.16 1995/12/14 08:21:27 phk Exp $
+ *	$Id: math_emulate.c,v 1.17 1995/12/14 20:21:58 bde Exp $
  */
 
 /*
@@ -62,7 +62,7 @@
 #include <sys/user.h>
 
 #define __ALIGNED_TEMP_REAL 1
-#include "math_emu.h"
+#include <i386/i386/math_emu.h>
 
 #define bswapw(x) __asm__("xchgb %%al,%%ah":"=a" (x):"0" ((short)x))
 #define ST(x) (*__st((x)))

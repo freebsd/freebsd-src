@@ -56,15 +56,15 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: poly_sin.c,v 1.4 1994/06/10 07:44:41 rich Exp $
+ *     $Id: poly_sin.c,v 1.5 1994/08/31 04:45:22 davidg Exp $
  *
  */
 
 
-#include "exception.h"
-#include "reg_constant.h"
-#include "fpu_emu.h"
-#include "control_w.h"
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/reg_constant.h>
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/control_w.h>
 
 
 #define	HIPOWER	5

@@ -70,7 +70,7 @@
 #include "vt.h"
 #if NVT > 0
 
-#include "pcvt_hdr.h"		/* global include */
+#include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 
 static int  s3testwritable( void );
 static int  et4000_col( int );

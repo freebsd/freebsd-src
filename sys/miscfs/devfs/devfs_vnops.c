@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.23 1996/08/13 19:48:41 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.24 1996/09/03 14:22:02 bde Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -20,7 +20,7 @@
 #include <miscfs/specfs/specdev.h>/* definitions of spec functions we use */
 #include <sys/malloc.h>
 #include <sys/dir.h>		/* defines dirent structure		*/
-#include "devfsdefs.h"
+#include <miscfs/devfs/devfsdefs.h>
 
 /*
  * Insert description here

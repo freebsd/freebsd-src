@@ -7,7 +7,7 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.8 1995/11/09 08:16:48 bde Exp $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.9 1996/01/30 22:57:01 mpp Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */
@@ -180,4 +180,4 @@ extern struct vnodeops spec_vnodeops,devfs_vnodeops;
 /*
  * Prototypes for DEVFS virtual filesystem operations
  */
-#include "devfs_proto.h"
+#include <miscfs/devfs/devfs_proto.h>

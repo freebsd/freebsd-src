@@ -80,8 +80,13 @@
 #include	"qcam.h"
 #endif
 
+#ifdef __FreeBSD__
+#include	<i386/isa/qcamreg.h>
+#include	<i386/isa/qcamdefs.h>
+#else
 #include	"qcamreg.h"
 #include	"qcamdefs.h"
+#endif
 
 /*
  * There should be _NO_ operating system dependant code or definitions

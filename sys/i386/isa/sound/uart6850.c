@@ -28,7 +28,7 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 
@@ -236,7 +236,7 @@ uart6850_buffer_status (int dev)
 
 #define MIDI_SYNTH_NAME	"6850 UART Midi"
 #define MIDI_SYNTH_CAPS	SYNTH_CAP_INPUT
-#include "midi_synth.h"
+#include <i386/isa/sound/midi_synth.h>
 
 static struct midi_operations uart6850_operations =
 {

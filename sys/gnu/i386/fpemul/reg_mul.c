@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_mul.c,v 1.2 1994/04/29 21:30:21 gclarkii Exp $
+ *     $Id: reg_mul.c,v 1.3 1994/06/10 07:44:53 rich Exp $
  *
  */
 
@@ -64,10 +64,10 @@
  | The destination may be any FPU_REG, including one of the source FPU_REGs. |
  +---------------------------------------------------------------------------*/
 
-#include "exception.h"
-#include "reg_constant.h"
-#include "fpu_emu.h"
-#include "fpu_system.h"
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/reg_constant.h>
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/fpu_system.h>
 
 
 /* This routine must be called with non-empty source registers */

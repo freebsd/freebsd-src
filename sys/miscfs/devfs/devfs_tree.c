@@ -2,22 +2,23 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.28 1996/08/13 07:21:44 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.29 1996/08/13 19:48:40 julian Exp $
  */
 
-#include "param.h"
-#include "systm.h"
-#include "types.h"
-#include "kernel.h"
-#include "file.h"		/* define FWRITE ... */
-#include "conf.h"
-#include "stat.h"
-#include "mount.h"
-#include "vnode.h"
-#include "malloc.h"
-#include "dir.h"		/* defines dirent structure		*/
-#include "devfsdefs.h"
-#include "sys/devfsext.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/types.h>
+#include <sys/kernel.h>
+#include <sys/file.h>		/* define FWRITE ... */
+#include <sys/conf.h>
+#include <sys/stat.h>
+#include <sys/mount.h>
+#include <sys/vnode.h>
+#include <sys/malloc.h>
+#include <sys/dir.h>		/* defines dirent structure		*/
+#include <sys/devfsext.h>
+
+#include <miscfs/devfs/devfsdefs.h>
 
 SYSINIT(devfs, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_sinit, NULL)
 

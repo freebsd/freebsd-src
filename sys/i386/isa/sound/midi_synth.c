@@ -30,7 +30,7 @@
 #define USE_SEQ_MACROS
 #define USE_SIMPLE_MACROS
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_MIDI)
 
@@ -38,7 +38,7 @@
 
 DEFINE_WAIT_QUEUE (sysex_sleeper, sysex_sleep_flag);
 
-#include "midi_synth.h"
+#include <i386/isa/sound/midi_synth.h>
 
 static int      midi2synth[MAX_MIDI_DEV];
 static unsigned char prev_out_status[MAX_MIDI_DEV];

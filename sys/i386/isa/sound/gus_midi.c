@@ -27,11 +27,11 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#include "gus_hw.h"
+#include <i386/isa/sound/gus_hw.h>
 
 #if !defined(EXCLUDE_GUS) && !defined(EXCLUDE_MIDI)
 
@@ -225,7 +225,7 @@ gus_midi_buffer_status (int dev)
 
 #define MIDI_SYNTH_NAME	"Gravis Ultrasound Midi"
 #define MIDI_SYNTH_CAPS	SYNTH_CAP_INPUT
-#include "midi_synth.h"
+#include <i386/isa/sound/midi_synth.h>
 
 static struct midi_operations gus_midi_operations =
 {

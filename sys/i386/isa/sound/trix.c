@@ -28,12 +28,12 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_TRIX)
 
 #ifdef INCLUDE_TRIX_BOOT
-#include "trix_boot.h"
+#include <i386/isa/sound/trix_boot.h>
 #endif
 
 static int      kilroy_was_here = 0;	/* Don't detect twice */

@@ -81,7 +81,7 @@
 
 #define EXTERN			/* allocate mem */
 
-#include "pcvt_hdr.h"		/* global include */
+#include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #if !defined(MAXCONS)

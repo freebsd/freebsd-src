@@ -71,7 +71,7 @@
 
 #if NVT > 0
 
-#include "pcvt_hdr.h"		/* global include */
+#include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 
 extern int kbd_response __P((void));
 
@@ -107,7 +107,7 @@ static u_short	altkpval  = 0;
 u_char rawkeybuf[80];
 #endif
 
-#include "pcvt_kbd.h"		/* tables etc */
+#include <i386/isa/pcvt/pcvt_kbd.h>	/* tables etc */
 
 #if PCVT_SHOWKEYS
 /*---------------------------------------------------------------------------*

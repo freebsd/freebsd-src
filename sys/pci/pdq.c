@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.7 1996/01/24 20:01:27 wollman Exp $
+ * $Id: pdq.c,v 1.8 1996/01/24 21:12:23 phk Exp $
  *
  * Revision 1.8  1995/03/14  01:52:52  thomas
  * Update for new FreeBSD PCI Interrupt interface
@@ -54,8 +54,8 @@
  * have yet to be made.
  */
 
-#include "pdqreg.h"
-#include "pdq_os.h"
+#include <pci/pdqreg.h>
+#include <pci/pdq_os.h>
 
 #define	PDQ_ROUNDUP(n, x)	(((n) + ((x) - 1)) & ~((x) - 1))
 #define	PDQ_CMD_RX_ALIGNMENT	16

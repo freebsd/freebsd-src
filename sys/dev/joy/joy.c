@@ -30,8 +30,7 @@
 
 #if NJOY > 0
 
-#include <errno.h>
-
+#include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>

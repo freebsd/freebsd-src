@@ -24,15 +24,15 @@
 
 #if NGP > 0
 
-#include "param.h"
-#include "buf.h"
-#include "systm.h"
-#include "sys/ioctl.h"
-#include "proc.h"
-#include "conf.h"
-#include "uio.h"
-#include "kernel.h"
-#include "malloc.h"
+#include <sys/param.h>
+#include <sys/buf.h>
+#include <sys/systm.h>
+#include <sys/ioctl.h>
+#include <sys/proc.h>
+#include <sys/conf.h>
+#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
@@ -41,9 +41,9 @@
 
 #include <machine/clock.h>
 
-#include "i386/isa/gpibreg.h"
-#include "i386/isa/gpib.h"
-#include "i386/isa/isa_device.h"
+#include <i386/isa/gpibreg.h>
+#include <i386/isa/gpib.h>
+#include <i386/isa/isa_device.h>
 
 #define MIN(a,b) ((a < b) ? a : b)
 
