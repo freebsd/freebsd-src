@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.13.2.6 1999/04/28 01:19:00 jdp Exp $
+ *      $Id: rtld.c,v 1.13.2.7 1999/04/28 01:23:51 jdp Exp $
  */
 
 /*
@@ -68,6 +68,7 @@ typedef void (*func_ptr_type)();
 /*
  * Function declarations.
  */
+static const char *basename(const char *);
 static void call_fini_functions(Obj_Entry *);
 static void call_init_functions(Obj_Entry *);
 static void die(void);
@@ -87,15 +88,12 @@ static Obj_Entry *obj_from_addr(const void *);
 static int relocate_objects(Obj_Entry *, bool);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
+static void set_program_var(const char *, const void *);
 static void unref_object_dag(Obj_Entry *);
 static void trace_loaded_objects(Obj_Entry *obj);
 
 void r_debug_state(void);
 void xprintf(const char *, ...);
-
-#ifdef DEBUG
-static const char *basename(const char *);
-#endif
 
 /*
  * Data declarations.
@@ -287,6 +285,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (do_copy_relocations(obj_main) == -1)
 	die();
 
+    dbg("initializing key program variables");
+    set_program_var("__progname", argv[0] != NULL ? basename(argv[0]) : "");
+    set_program_var("environ", env);
+
     dbg("calling _init functions");
     call_init_functions(obj_main->next);
 
@@ -346,14 +348,12 @@ _rtld_error(const char *fmt, ...)
     va_end(ap);
 }
 
-#ifdef DEBUG
 static const char *
 basename(const char *name)
 {
     const char *p = strrchr(name, '/');
     return p != NULL ? p + 1 : name;
 }
-#endif
 
 static void
 call_fini_functions(Obj_Entry *first)
@@ -1348,6 +1348,32 @@ linkmap_delete(Obj_Entry *obj)
 void
 r_debug_state(void)
 {
+}
+
+/*
+ * Set a pointer variable in the main program to the given value.  This
+ * is used to set key variables such as "environ" before any of the
+ * init functions are called.
+ */
+static void
+set_program_var(const char *name, const void *value)
+{
+    const Obj_Entry *obj;
+    unsigned long hash;
+
+    hash = elf_hash(name);
+    for (obj = obj_main;  obj != NULL;  obj = obj->next) {
+	const Elf_Sym *def;
+
+	if ((def = symlook_obj(name, hash, obj, false)) != NULL) {
+	    const void **addr;
+
+	    addr = (const void **)(obj->relocbase + def->st_value);
+	    dbg("\"%s\": *%p <-- %p", name, addr, value);
+	    *addr = value;
+	    break;
+	}
+    }
 }
 
 /*
