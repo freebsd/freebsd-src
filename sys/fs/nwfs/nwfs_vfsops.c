@@ -383,16 +383,6 @@ nwfs_quotactl(mp, cmd, uid, arg, td)
 int
 nwfs_init(struct vfsconf *vfsp)
 {
-#ifndef SMP
-	int name[2];
-	int olen, ncpu, plen, error;
-
-	name[0] = CTL_HW;
-	name[1] = HW_NCPU;
-	error = kernel_sysctl(curthread, name, 2, &ncpu, &olen, NULL, 0, &plen);
-	if (error == 0 && ncpu > 1)
-		printf("warning: nwfs module compiled without SMP support.");
-#endif
 	nwfs_hash_init();
 	nwfs_pbuf_freecnt = nswbuf / 2 + 1;
 	NCPVODEBUG("always happy to load!\n");
