@@ -540,14 +540,6 @@ char *more_above_str, *more_below_str;
 
 char *chinese_cmd, *nochinese_cmd;
 
-#ifndef __STDC__
-#ifndef HAS_STDLIB
-extern char *malloc();
-extern char *realloc();
-extern char *getenv();
-FILE *fopen();			/* declaration for open function	*/
-#endif /* HAS_STDLIB */
-#endif /* __STDC__ */
 
 int
 main(argc, argv)		/* beginning of main program		*/

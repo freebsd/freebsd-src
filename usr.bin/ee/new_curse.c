@@ -73,11 +73,7 @@ statis const char rcsid[] =
 #include <stdlib.h>
 #endif
 
-#if defined(__STDC__)
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifdef HAS_UNISTD
 #include <unistd.h>
@@ -663,29 +659,12 @@ static char nc_scrolling_ability = FALSE;
 
 #ifdef CAP
 
-#if __STDC__ || defined(__cplusplus)
-#define P_(s) s
-#else
-#define P_(s) ()
-#endif /* __STDC__ */
-
-int tc_Get_int P_((int));
-void CAP_PARSE P_((void));
-void Find_term P_((void));
-
-#undef P_
+int tc_Get_int(int);
+void CAP_PARSE(void);
+void Find_term(void);
 
 #endif /* CAP */
 
-
-#ifndef __STDC__
-#ifndef HAS_STDLIB
-extern char *fgets();
-extern char *malloc();
-extern char *getenv();
-FILE *fopen();			/* declaration for open function	*/
-#endif /* HAS_STDLIB */
-#endif /* __STDC__ */
 
 #ifdef SIGWINCH
 
@@ -2828,33 +2807,15 @@ WINDOW *window;
 	}
 }
 
-#ifndef __STDC__
-void 
-wprintw(va_alist)
-va_dcl
-#else /* __STDC__ */
 void 
 wprintw(WINDOW *window, const char *format, ...)
-#endif /* __STDC__ */
 {
-#ifndef __STDC__
-	WINDOW *window;
-	char *format;
 	va_list ap;
-#else
-	va_list ap;
-#endif
 	int value;
 	char *fpoint;
 	char *wtemp;
 
-#ifndef __STDC__
-	va_start(ap);
-	window = va_arg(ap, WINDOW *);
-	format = va_arg(ap, char *);
-#else /* __STDC__ */
 	va_start(ap, format);
-#endif /* __STDC__ */
 
 	fpoint = (char *) format;
 	while (*fpoint != (char) NULL)
@@ -2899,9 +2860,7 @@ wprintw(WINDOW *window, const char *format, ...)
 		else
 			waddch(window, *fpoint++);
 	}
-#ifdef __STDC__
 	va_end(ap);
-#endif /* __STDC__ */
 }
 
 void 
