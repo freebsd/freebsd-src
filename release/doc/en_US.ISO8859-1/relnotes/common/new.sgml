@@ -356,11 +356,11 @@
       <para>The &man.ng.atmllc.4; Netgraph node type, which handles
         RFC 1483 ATM LLC encapsulation, has been added.</para>
 
-      <para>The &man.ng.hub.4; NetGraph node type, which supports
+      <para>The &man.ng.hub.4; Netgraph node type, which supports
         a simple packet distribution that acts like an Ethernet hub
         has been added.</para>
 
-      <para>The &man.ng.vlan.4; NetGraph node type, which supports
+      <para>The &man.ng.vlan.4; Netgraph node type, which supports
         IEEE 802.1Q VLAN tagging has been added.  &merged;</para>
 
       <para>A bug that prevents VLAN support in the &man.nge.4; driver
