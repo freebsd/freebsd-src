@@ -603,7 +603,7 @@ main(int argc, char **argv)
 
   memset(&act, '\0', sizeof act);
   act.sa_handler = Farewell;
-  act.sa_flags = SA_RESETHAND;
+  act.sa_flags = 0;
   sigemptyset(&act.sa_mask);
   sigaction(SIGHUP, &act, NULL);
   sigaction(SIGINT, &act, NULL);
