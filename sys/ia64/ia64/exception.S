@@ -1151,6 +1151,7 @@ IVT_ENTRY(External_Interrupt, 0x3000)
 	;;
 }
 	alloc		r14=ar.pfs,0,0,2,0
+	cmp4.eq		p14,p0=0,r0
 	;;
 1:
 {	.mii
@@ -1178,29 +1179,16 @@ IVT_ENTRY(External_Interrupt, 0x3000)
 	nop		0
 }
 {	.mfb
-	nop		0
+	cmp4.eq		p14,p0=0,r8	// Return to kernel mode?
 	nop		0
 	br.sptk		1b		// loop for more
 	;;
 }
 2:
-{	.mmi
-	add		r14=16+TF_SPECIAL_IIP,sp
-	;;
-	ld8		r14=[r14]
+{	.mbb
 	add		out0=16,sp
-	;;
-}
-{	.mii
-	nop		0
-	extr.u		r14=r14,61,3
-	;;
-	cmp.gt		p15,p0=5,r14
-}
-{	.mfb
-	nop		0
-	nop		0
-(p15)	br.call.sptk	rp=do_ast
+(p14)	br.sptk		exception_restore
+	br.call.sptk	rp=do_ast
 	;;
 }
 {	.mfb
