@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)softdep.h	9.6 (McKusick) 2/25/99
- *	$Id: softdep.h,v 1.4 1998/05/19 23:07:25 julian Exp $
+ *	$Id: softdep.h,v 1.5 1999/03/02 00:19:47 mckusick Exp $
  */
 
 #include <sys/queue.h>
@@ -517,7 +517,7 @@ struct mkdir {
 	struct	worklist md_list;	/* id_inowait or buffer holding dir */
 #	define	md_state md_list.wk_state /* type: MKDIR_PARENT or MKDIR_BODY */
 	struct	diradd *md_diradd;	/* associated diradd */
-	struct  buf *md_buf;		/* MKDIR_BODY: buffer holding dir */
+	struct	buf *md_buf;		/* MKDIR_BODY: buffer holding dir */
 	LIST_ENTRY(mkdir) md_mkdirs;	/* list of all mkdirs */
 };
 LIST_HEAD(mkdirlist, mkdir) mkdirlisthd;
