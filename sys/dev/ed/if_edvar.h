@@ -47,9 +47,13 @@ struct ed_softc {
 	int	port_rid;	/* resource id for port range */
 	int	port_used;	/* nonzero if ports used */
 	struct resource* port_res; /* resource for port range */
+	bus_space_tag_t port_bst;
+	bus_space_handle_t port_bsh;
 	int	mem_rid;	/* resource id for memory range */
 	int	mem_used;	/* nonzero if memory used */
 	struct resource* mem_res; /* resource for memory range */
+	bus_space_tag_t mem_bst;
+	bus_space_handle_t mem_bsh;
 	int	irq_rid;	/* resource id for irq */
 	struct resource* irq_res; /* resource for irq */
 	void*	irq_handle;	/* handle for irq handler */
@@ -95,99 +99,81 @@ struct ed_softc {
 };
 
 #define	ed_nic_inb(sc, port) \
-	bus_space_read_1(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), (sc)->nic_offset + (port))
+	bus_space_read_1(sc->port_bst, sc->port_bsh, (sc)->nic_offset + (port))
 
 #define	ed_nic_outb(sc, port, value) \
-	bus_space_write_1(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), (sc)->nic_offset + (port), \
-		(value))
+	bus_space_write_1(sc->port_bst, sc->port_bsh, \
+	    (sc)->nic_offset + (port), (value))
 
 #define	ed_nic_inw(sc, port) \
-	bus_space_read_2(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), (sc)->nic_offset + (port))
+	bus_space_read_2(sc->port_bst, sc->port_bsh, (sc)->nic_offset + (port))
 
 #define	ed_nic_outw(sc, port, value) \
-	bus_space_write_2(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), (sc)->nic_offset + (port), \
-		(value))
+	bus_space_write_2(sc->port_bst, sc->port_bsh, \
+	    (sc)->nic_offset + (port), (value))
 
 #define	ed_nic_insb(sc, port, addr, count) \
-	bus_space_read_multi_1(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_read_multi_1(sc->port_bst,  sc->port_bsh, \
 		(sc)->nic_offset + (port), (addr), (count))
 
 #define	ed_nic_outsb(sc, port, addr, count) \
-	bus_space_write_multi_1(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_write_multi_1(sc->port_bst, sc->port_bsh, \
 		(sc)->nic_offset + (port), (addr), (count))
 
 #define	ed_nic_insw(sc, port, addr, count) \
-	bus_space_read_multi_2(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_read_multi_2(sc->port_bst, sc->port_bsh, \
 		(sc)->nic_offset + (port), (uint16_t *)(addr), (count))
 
 #define	ed_nic_outsw(sc, port, addr, count) \
-	bus_space_write_multi_2(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_write_multi_2(sc->port_bst, sc->port_bsh, \
 		(sc)->nic_offset + (port), (uint16_t *)(addr), (count))
 
 #define	ed_nic_insl(sc, port, addr, count) \
-	bus_space_read_multi_4(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_read_multi_4(sc->port_bst, sc->port_bsh, \
 		(sc)->nic_offset + (port), (uint32_t *)(addr), (count))
 
 #define	ed_nic_outsl(sc, port, addr, count) \
-	bus_space_write_multi_4(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_write_multi_4(sc->port_bst, sc->port_bsh, \
 		(sc)->nic_offset + (port), (uint32_t *)(addr), (count))
 
 #define	ed_asic_inb(sc, port) \
-	bus_space_read_1(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), (sc)->asic_offset + (port))
+	bus_space_read_1(sc->port_bst, sc->port_bsh, \
+	    (sc)->asic_offset + (port))
 
 #define	ed_asic_outb(sc, port, value) \
-	bus_space_write_1(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), (sc)->asic_offset + (port), \
-		(value))
+	bus_space_write_1(sc->port_bst, sc->port_bsh, \
+	    (sc)->asic_offset + (port), (value))
 
 #define	ed_asic_inw(sc, port) \
-	bus_space_read_2(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), (sc)->asic_offset + (port))
+	bus_space_read_2(sc->port_bst, sc->port_bsh, \
+	    (sc)->asic_offset + (port))
 
 #define	ed_asic_outw(sc, port, value) \
-	bus_space_write_2(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), (sc)->asic_offset + (port), \
-		(value))
+	bus_space_write_2(sc->port_bst, sc->port_bsh, \
+	    (sc)->asic_offset + (port), (value))
 
 #define	ed_asic_insb(sc, port, addr, count) \
-	bus_space_read_multi_1(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_read_multi_1(sc->port_bst, sc->port_bsh, \
 		(sc)->asic_offset + (port), (addr), (count))
 
 #define	ed_asic_outsb(sc, port, addr, count) \
-	bus_space_write_multi_1(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_write_multi_1(sc->port_bst, sc->port_bsh, \
 		(sc)->asic_offset + (port), (addr), (count))
 
 #define	ed_asic_insw(sc, port, addr, count) \
-	bus_space_read_multi_2(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_read_multi_2(sc->port_bst, sc->port_bsh, \
 		(sc)->asic_offset + (port), (uint16_t *)(addr), (count))
 
 #define	ed_asic_outsw(sc, port, addr, count) \
-	bus_space_write_multi_2(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_write_multi_2(sc->port_bst, sc->port_bsh, \
 		(sc)->asic_offset + (port), (uint16_t *)(addr), (count))
 
 #define	ed_asic_insl(sc, port, addr, count) \
-	bus_space_read_multi_4(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_read_multi_4(sc->port_bst, sc->port_bsh, \
 		(sc)->asic_offset + (port), (uint32_t *)(addr), (count))
 
 #define	ed_asic_outsl(sc, port, addr, count) \
-	bus_space_write_multi_4(rman_get_bustag((sc)->port_res), \
-		rman_get_bushandle((sc)->port_res), \
+	bus_space_write_multi_4(sc->port_bst, sc->port_bsh, \
 		(sc)->asic_offset + (port), (uint32_t *)(addr), (count))
 
 void	ed_release_resources(device_t);
