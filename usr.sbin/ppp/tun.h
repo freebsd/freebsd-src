@@ -36,4 +36,4 @@ struct tun_data {
 
 struct bundle;
 
-extern void tun_configure(struct bundle *, int);
+extern void tun_configure(struct bundle *);

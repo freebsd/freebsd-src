@@ -301,7 +301,7 @@ MakeArgs(char *script, char **pvect, int maxargs, int flags)
   nargs = 0;
   while (*script) {
     script += strspn(script, " \t");
-    if (*script == '#' && flags & PARSE_NOHASH) {
+    if (*script == '#' && !(flags & PARSE_NOHASH)) {
       *script = '\0';
       break;
     }

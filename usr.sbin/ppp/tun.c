@@ -74,7 +74,7 @@
 #include "tun.h"
 
 void
-tun_configure(struct bundle *bundle, int mtu)
+tun_configure(struct bundle *bundle)
 {
 #ifdef __NetBSD__
   struct ifreq ifr;
@@ -88,7 +88,7 @@ tun_configure(struct bundle *bundle, int mtu)
   }
 
   sprintf(ifr.ifr_name, "tun%d", bundle->unit);
-  ifr.ifr_mtu = mtu;
+  ifr.ifr_mtu = bundle->mtu;
   if (ioctl(s, SIOCSIFMTU, &ifr) < 0)
       log_Printf(LogERROR, "tun_configure: ioctl(SIOCSIFMTU): %s\n",
              strerror(errno));
@@ -99,7 +99,7 @@ tun_configure(struct bundle *bundle, int mtu)
 
   memset(&info, '\0', sizeof info);
   info.type = IFT_PPP;
-  info.mtu = mtu;
+  info.mtu = bundle->mtu;
   
   info.baudrate = bundle->bandwidth;
 #ifdef __OpenBSD__

@@ -83,6 +83,7 @@ struct lcp {
 #ifdef HAVE_DES
     unsigned chap80nt : 2;	/* Microsoft (NT) CHAP */
     unsigned chap80lm : 2;	/* Microsoft (LANMan) CHAP */
+    unsigned chap81 : 2;	/* Microsoft CHAP v2 */
 #endif
     unsigned lqr : 2;		/* Link Quality Report */
     unsigned pap : 2;		/* Password Authentication protocol */

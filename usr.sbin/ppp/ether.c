@@ -584,10 +584,9 @@ ether_Create(struct physical *p)
 
     /* And finally, request a connection to the given provider */
 
-    data = (struct ngpppoe_init_data *)alloca(sizeof *data + providerlen + 1);
-
+    data = (struct ngpppoe_init_data *)alloca(sizeof *data + providerlen);
     snprintf(data->hook, sizeof data->hook, "%s", dev->hook);
-    strcpy(data->data, provider);
+    memcpy(data->data, provider, providerlen);
     data->data_len = providerlen;
 
     snprintf(connectpath, sizeof connectpath, ".:%s", dev->hook);
