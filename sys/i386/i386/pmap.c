@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.211 1998/10/28 13:36:57 dg Exp $
+ *	$Id: pmap.c,v 1.212 1998/11/08 02:26:14 msmith Exp $
  */
 
 /*
@@ -183,6 +183,11 @@ caddr_t CADDR1 = 0, ptvmmap = 0;
 static caddr_t CADDR2;
 static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp=0;
+
+/*
+ *  PPro_vmtrr
+ */
+struct ppro_vmtrr PPro_vmtrr[NPPROVMTRR];
 
 #ifdef SMP
 extern char prv_CPAGE1[], prv_CPAGE2[], prv_CPAGE3[];
