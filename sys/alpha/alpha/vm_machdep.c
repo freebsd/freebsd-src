@@ -240,8 +240,7 @@ cpu_set_fork_handler(td, func, arg)
  * from proc0.
  */
 void
-cpu_exit(td)
-	register struct thread *td;
+cpu_exit(struct thread *td)
 {
 
 	alpha_fpstate_drop(td);
@@ -251,6 +250,141 @@ void
 cpu_sched_exit(td)
 	register struct thread *td;
 {
+}
+
+void
+cpu_thread_exit(struct thread *td)
+{
+
+	return;
+}
+
+void
+cpu_thread_setup(struct thread *td)
+{
+
+	td->td_pcb =
+	     (struct pcb *)(td->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb) - 1;
+}
+
+struct md_store {
+	struct pcb mds_pcb;
+	struct trapframe mds_frame;
+};
+
+void
+cpu_save_upcall(struct thread *td, struct kse *newkse)
+{
+
+	newkse->ke_mdstorage = malloc(sizeof(struct md_store), M_TEMP,
+	    M_WAITOK);
+	/* Note: use of M_WAITOK means it won't fail. */
+	/* set up shortcuts in MI section */
+	newkse->ke_pcb =
+	    &(((struct md_store *)(newkse->ke_mdstorage))->mds_pcb);
+	newkse->ke_frame =
+	    &(((struct md_store *)(newkse->ke_mdstorage))->mds_frame);
+
+	/* Copy the upcall pcb. Kernel mode & fp regs are here. */
+	/* XXXKSE this may be un-needed */
+	bcopy(td->td_pcb, newkse->ke_pcb, sizeof(struct pcb));
+
+	/* This copies most of the user mode register values. */
+	bcopy(td->td_frame, newkse->ke_frame, sizeof(struct trapframe));
+}
+
+void
+cpu_set_upcall(struct thread *td, void *pcb)
+{
+	struct pcb *pcb2;
+
+	td->td_flags |= TDF_UPCALLING;
+
+	/* Point the pcb to the top of the stack. */
+	pcb2 = td->td_pcb;
+
+	/*
+	 * Copy the upcall pcb.  This loads kernel regs.
+	 * Those not loaded individually below get their default
+	 * values here.
+	 *
+	 * XXXKSE It might be a good idea to simply skip this as
+	 * the values of the other registers may be unimportant.
+	 * This would remove any requirement for knowing the KSE
+	 * at this time (see the matching comment below for
+	 * more analysis) (need a good safe default).
+	 */
+	bcopy(pcb, pcb2, sizeof(*pcb2));
+
+	/*
+	 * Create a new fresh stack for the new thread.
+	 * Don't forget to set this stack value into whatever supplies
+	 * the address for the fault handlers.
+	 * The contexts are filled in at the time we actually DO the
+	 * upcall as only then do we know which KSE we got.
+	 */
+	td->td_frame = (struct trapframe *)((caddr_t)pcb2) - 1;
+
+	/*
+	 * Arrange for continuation at fork_return(), which
+	 * will return to exception_return().  Note that the child
+	 * process doesn't stay in the kernel for long!
+	 */
+	pcb2->pcb_hw.apcb_ksp = (u_int64_t)td->td_frame;
+	pcb2->pcb_context[0] = (u_int64_t)fork_return;	 	/* s0: a0 */
+	pcb2->pcb_context[1] = (u_int64_t)exception_return;	/* s1: ra */
+	pcb2->pcb_context[2] = (u_long)td;			/* s2: a1 */
+	pcb2->pcb_context[7] = (u_int64_t)fork_trampoline;	/* ra: magic*/
+#ifdef SMP
+	/*
+	 * We start off at a nesting level of 1 within the kernel.
+	 */
+	td->td_md.md_kernnest = 1;
+#endif
+}
+
+void
+cpu_set_args(struct thread *td, struct kse *ke)
+{
+/* XXX
+	suword((void *)(ke->ke_frame->tf_esp + sizeof(void *)),
+	    (int)ke->ke_mailbox);
+*/
+}
+
+void
+cpu_free_kse_mdstorage(struct kse *kse)
+{
+
+	free(kse->ke_mdstorage, M_TEMP);
+	kse->ke_mdstorage = NULL;
+	kse->ke_pcb = NULL;
+	kse->ke_frame = NULL;
+}
+
+int
+cpu_export_context(struct thread *td)
+{
+	/* XXXKSE */
+#if 0
+	struct trapframe *frame;
+	struct thread_mailbox *tm;
+	struct trapframe *uframe;
+	int error;
+
+	frame = td->td_frame;
+	tm = td->td_mailbox;
+	uframe = &tm->ctx.tfrm.tf_tf;
+	error = copyout(frame, uframe, sizeof(*frame));
+	/*
+	 * "What about the fp regs?" I hear you ask.... XXXKSE
+	 * Don't know where gs and "onstack" come from.
+	 * May need to fiddle a few other values too.
+	 */
+	return (error);
+#endif
+	return (0);
 }
 
 void

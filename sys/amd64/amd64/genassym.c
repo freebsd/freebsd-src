@@ -79,10 +79,10 @@ ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(P_SFLAG, offsetof(struct proc, p_sflag));
-ASSYM(P_STAT, offsetof(struct proc, p_stat));
+ASSYM(P_STATE, offsetof(struct proc, p_state));
 ASSYM(P_UAREA, offsetof(struct proc, p_uarea));
 
-/*ASSYM(TD_STAT, offsetof(struct thread, td__stat));*/
+ASSYM(TD_STATE, offsetof(struct thread, td_state));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_WCHAN, offsetof(struct thread, td_wchan));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
@@ -101,8 +101,9 @@ ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
 ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
 ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
 
-ASSYM(SSLEEP, SSLEEP);
-ASSYM(SRUN, SRUN);
+ASSYM(TDS_SLP, TDS_SLP);
+ASSYM(TDS_RUNQ, TDS_RUNQ);
+ASSYM(TDS_RUNNING, TDS_RUNNING);
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
 ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));

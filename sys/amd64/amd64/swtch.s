@@ -65,12 +65,19 @@ tlb_flush_count:	.long	0
 
 /*
  * cpu_throw()
+ *
+ * This is the second half of cpu_swtch(). It is used when the current
+ * thread is either a dummy or slated to die, and we no longer care
+ * about its state.
  */
 ENTRY(cpu_throw)
 	jmp	sw1
 
 /*
  * cpu_switch()
+ *
+ * Save the current thread state, then select the next thread to run
+ * and load its state.
  */
 ENTRY(cpu_switch)
 
@@ -166,11 +173,11 @@ sw1b:
 	movl	%eax,%ecx
 
 #ifdef	INVARIANTS
-	movl	TD_PROC(%ecx), %eax		/* XXXKSE */
-	cmpb	$SRUN,P_STAT(%eax)
+	cmpb	$TDS_RUNQ,TD_STATE(%ecx)
 	jne	badsw2
 #endif
 
+	movl	$TDS_RUNNING,TD_STATE(%ecx)
 	movl	TD_PCB(%ecx),%edx
 
 #if defined(SWTCH_OPTIM_STATS)
@@ -310,12 +317,14 @@ cpu_switch_load_gs:
 
 #ifdef INVARIANTS
 badsw2:
+	pushal
 	pushl	$sw0_2
 	call	panic
 
 sw0_2:	.asciz	"cpu_switch: not TDS_RUNQ"
 
 badsw3:
+	pushal
 	pushl	$sw0_3
 	call	panic
 

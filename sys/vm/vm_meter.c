@@ -81,6 +81,7 @@ SYSCTL_STRUCT(_vm, VM_LOADAVG, loadavg, CTLFLAG_RD,
 static int
 vmtotal(SYSCTL_HANDLER_ARGS)
 {
+/* XXXKSE almost completely broken */
 	struct proc *p;
 	struct vmtotal total, *totalp;
 	vm_map_entry_t entry;
@@ -88,6 +89,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	vm_map_t map;
 	int paging;
 	struct ksegrp *kg;
+	struct thread *td;
 
 	totalp = &total;
 	bzero(totalp, sizeof *totalp);
@@ -107,44 +109,49 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		if (p->p_flag & P_SYSTEM)
 			continue;
 		mtx_lock_spin(&sched_lock);
-		switch (p->p_stat) {
-		case 0:
-			mtx_unlock_spin(&sched_lock);
-			continue;
-
-		case SMTX:
-		case SSLEEP:
-		case SSTOP:
-			kg = &p->p_ksegrp;	/* XXXKSE */
-			if (p->p_sflag & PS_INMEM) {
-				if (FIRST_THREAD_IN_PROC(p)->td_priority
-				    <= PZERO)
-					totalp->t_dw++;
-				else if (kg->kg_slptime < maxslp)
-					totalp->t_sl++;
-			} else if (kg->kg_slptime < maxslp)
-				totalp->t_sw++;
-			if (kg->kg_slptime >= maxslp) {
-				mtx_unlock_spin(&sched_lock);
-				continue;
-			}
-			break;
-
-		case SWAIT:
-			totalp->t_sl++;
-			continue;
-
-		case SRUN:
-		case SIDL:
+		switch (p->p_state) {
+		case PRS_NEW:
 			if (p->p_sflag & PS_INMEM)
 				totalp->t_rq++;
 			else
 				totalp->t_sw++;
-			if (p->p_stat == SIDL) {
-				mtx_unlock_spin(&sched_lock);
-				continue;
-			}
+			mtx_unlock_spin(&sched_lock);
+			continue;
 			break;
+		default:
+			FOREACH_THREAD_IN_PROC(p, td) {
+				switch (td->td_state) {
+				case TDS_MTX:
+				case TDS_SLP:
+					kg = td->td_ksegrp;	/* XXXKSE */
+					if (p->p_sflag & PS_INMEM) {
+						if (td->td_priority <= PZERO)
+							totalp->t_dw++;
+						else if (kg->kg_slptime
+							< maxslp)
+							totalp->t_sl++;
+					} else if (kg->kg_slptime < maxslp)
+						totalp->t_sw++;
+					if (kg->kg_slptime >= maxslp) {
+						continue;
+					}
+					break;
+
+				case TDS_RUNQ:
+				case TDS_RUNNING:
+					if (p->p_sflag & PS_INMEM)
+						totalp->t_rq++;
+					else
+						totalp->t_sw++;
+					continue;
+
+				case TDS_IWAIT:
+					totalp->t_sl++;
+					continue;
+				default:
+					break;
+				}
+			}
 		}
 		mtx_unlock_spin(&sched_lock);
 		/*

@@ -467,7 +467,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		}
 
 		/* not currently stopped */
-		if (p->p_stat != SSTOP || (p->p_flag & P_WAITED) == 0) {
+		if (!P_SHOULDSTOP(p) || (p->p_flag & P_WAITED) == 0) {
 			error = EBUSY;
 			goto fail;
 		}
@@ -566,10 +566,12 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		if (proctree_locked)
 			sx_xunlock(&proctree_lock);
 		/* deliver or queue signal */
-		if (p->p_stat == SSTOP) {
+		if (P_SHOULDSTOP(p)) {
 			p->p_xstat = uap->data;
 			mtx_lock_spin(&sched_lock);
+			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SGNL);
 			setrunnable(td2);	/* XXXKSE */
+			/* Need foreach kse in proc, ... make_kse_queued(). */
 			mtx_unlock_spin(&sched_lock);
 		} else if (uap->data)		      
 			psignal(p, uap->data);

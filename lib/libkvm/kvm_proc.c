@@ -325,11 +325,28 @@ nopgrp:
 		kp->ki_estcpu = proc.p_ksegrp.kg_estcpu;	/* XXXKSE */
 		kp->ki_slptime = proc.p_kse.ke_slptime;		/* XXXKSE */
 		kp->ki_swtime = proc.p_swtime;
-		kp->ki_flag = proc.p_flag;
+		kp->ki_flag = proc.p_flag;	/* WILDLY INNACURATE XXXKSE */
 		kp->ki_sflag = proc.p_sflag;
 		kp->ki_wchan = mainthread.td_wchan;		/* XXXKSE */
 		kp->ki_traceflag = proc.p_traceflag;
-		kp->ki_stat = proc.p_stat;
+		if (proc.p_state == PRS_NORMAL) { /*  XXXKSE very aproximate */
+			if ((mainthread.td_state == TDS_RUNQ) ||
+			    (mainthread.td_state == TDS_RUNNING)) {
+				kp->ki_stat = SRUN;
+			} else if (mainthread.td_state == TDS_SLP) {
+				kp->ki_stat = SSLEEP;
+			} else if (P_SHOULDSTOP(&proc)) {
+				kp->ki_stat = SSTOP;
+			} else if (mainthread.td_state == TDS_MTX) {
+				kp->ki_stat = SMTX;
+			} else {
+				kp->ki_stat = SWAIT;
+			}
+		} else if (proc.p_state == PRS_ZOMBIE) {
+			kp->ki_stat = SZOMB;
+		} else {
+			kp->ki_stat = SIDL;
+		}
 		kp->ki_pri.pri_class = proc.p_ksegrp.kg_pri_class; /* XXXKSE */
 		kp->ki_pri.pri_user = proc.p_ksegrp.kg_user_pri; /* XXXKSE */
 		kp->ki_pri.pri_level = mainthread.td_priority;	/* XXXKSE */

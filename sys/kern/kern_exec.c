@@ -154,12 +154,14 @@ execve(td, uap)
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
+	if ((p->p_flag & P_KSES) && thread_single(SNGLE_EXIT)) {
+		PROC_UNLOCK(p);
+		mtx_unlock(&Giant);
+		return (ERESTART);	/* Try again later. */
+	}
+	/* If we get here all other threads are dead. */
 	p->p_flag |= P_INEXEC;
 	PROC_UNLOCK(p);
-	
-/* XXXKSE */
-/* !!!!!!!! we need abort all the other threads of this process before we */
-/* proceed beyond his point! */
 
 	/*
 	 * Initialize part of the common data

@@ -44,15 +44,15 @@
  * Only the suser() or suser_cred() function should be used for this.
  */
 struct ucred {
-	u_int	cr_ref;			/* reference count */
+	u_int		cr_ref;		/* reference count */
 #define	cr_startcopy cr_uid
-	uid_t	cr_uid;			/* effective user id */
-	uid_t	cr_ruid;		/* real user id */
-	uid_t	cr_svuid;		/* saved user id */
-	short	cr_ngroups;		/* number of groups */
-	gid_t	cr_groups[NGROUPS];	/* groups */
-	gid_t	cr_rgid;		/* real group id */
-	gid_t	cr_svgid;		/* saved user id */
+	uid_t		cr_uid;		/* effective user id */
+	uid_t		cr_ruid;	/* real user id */
+	uid_t		cr_svuid;	/* saved user id */
+	short		cr_ngroups;	/* number of groups */
+	gid_t		cr_groups[NGROUPS]; /* groups */
+	gid_t		cr_rgid;	/* real group id */
+	gid_t		cr_svgid;	/* saved user id */
 	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
 	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
 	struct prison	*cr_prison;	/* jail(4) */

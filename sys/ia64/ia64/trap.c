@@ -872,13 +872,13 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 		break;
 	}
 
-	userret(td, framep, sticks);
-
 	/*
 	 * Release Giant if we had to get it.
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
+
+	userret(td, framep, sticks);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
@@ -1043,15 +1043,15 @@ ia32_syscall(struct trapframe *framep)
 	}
 
 	/*
-	 * Handle reschedule and other end-of-syscall issues
-	 */
-	userret(td, framep, sticks);
-
-	/*
 	 * Release Giant if we previously set it.
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
+
+	/*
+	 * Handle reschedule and other end-of-syscall issues
+	 */
+	userret(td, framep, sticks);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))

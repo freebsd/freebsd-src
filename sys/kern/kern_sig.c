@@ -84,7 +84,7 @@ static int killpg1(struct thread *td, int sig, int pgid, int all);
 static int sig_ffs(sigset_t *set);
 static int sigprop(int sig);
 static void stop(struct proc *);
-
+static void tdsignal(struct thread *td, int sig, sig_t action);
 static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
@@ -168,16 +168,18 @@ static int sigproptbl[NSIG] = {
  * Determine signal that should be delivered to process p, the current
  * process, 0 if none.  If there is a pending stop signal with default
  * action, the process stops in issignal().
+ * XXXKSE   the check for a pending stop is not done under KSE
  *
  * MP SAFE.
  */
 int
-cursig(struct proc *p)
+cursig(struct thread *td)
 {
+	struct proc *p = td->td_proc;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_NOTOWNED);
-	return (SIGPENDING(p) ? issignal(p) : 0);
+	return (SIGPENDING(p) ? issignal(td) : 0);
 }
 
 /*
@@ -1042,7 +1044,7 @@ killpg1(td, sig, pgid, all)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p->p_stat == SZOMB) {
+			if (p->p_state == PRS_ZOMBIE) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -1243,12 +1245,10 @@ psignal(p, sig)
 	register struct proc *p;
 	register int sig;
 {
-	register int prop;
 	register sig_t action;
 	struct thread *td;
-#ifdef SMP
-	struct ksegrp *kg;
-#endif
+	register int prop;
+
 
 	KASSERT(_SIG_VALID(sig),
 	    ("psignal(): invalid signal %d\n", sig));
@@ -1257,7 +1257,6 @@ psignal(p, sig)
 	KNOTE(&p->p_klist, NOTE_SIGNAL | sig);
 
 	prop = sigprop(sig);
-
 	/*
 	 * If proc is traced, always give parent a chance;
 	 * if signal event is tracked by procfs, give *that*
@@ -1283,29 +1282,6 @@ psignal(p, sig)
 			action = SIG_DFL;
 	}
 
-	/*
-	 * bring the priority of a process up if we want it to get 
-	 * killed in this lifetime.
-	 * XXXKSE think if a better way to do this.
-	 *
-	 * What we need to do is see if there is a thread that will
-	 * be able to accept the signal. e.g.
-	 * FOREACH_THREAD_IN_PROC() {
-	 *	if runnable, we're done
-	 *	else pick one at random.
-	 * }
-	 */
-	/* XXXKSE
-	 * For now there is one thread per proc.
-	 * Effectively select one sucker thread..
-	 */
-	td = FIRST_THREAD_IN_PROC(p);
-	mtx_lock_spin(&sched_lock);
-	if ((p->p_ksegrp.kg_nice > NZERO) && (action == SIG_DFL) &&
-	    (prop & SA_KILL) && ((p->p_flag & P_TRACED) == 0))
-		p->p_ksegrp.kg_nice = NZERO; /* XXXKSE */
-	mtx_unlock_spin(&sched_lock);
-
 	if (prop & SA_CONT)
 		SIG_STOPSIGMASK(p->p_siglist);
 
@@ -1316,48 +1292,125 @@ psignal(p, sig)
 		 * is default; don't stop the process below if sleeping,
 		 * and don't clear any pending SIGCONT.
 		 */
-		if (prop & SA_TTYSTOP && p->p_pgrp->pg_jobc == 0 &&
-		    action == SIG_DFL)
+		if ((prop & SA_TTYSTOP) &&
+		    (p->p_pgrp->pg_jobc == 0) &&
+		    (action == SIG_DFL))
 		        return;
 		SIG_CONTSIGMASK(p->p_siglist);
 	}
 	SIGADDSET(p->p_siglist, sig);
 	mtx_lock_spin(&sched_lock);
 	signotify(p);
+	mtx_unlock_spin(&sched_lock);
 
 	/*
-	 * Defer further processing for signals which are held,
-	 * except that stopped processes must be continued by SIGCONT.
+	 * Some signals have a process-wide effect and a per-thread
+	 * component.  Most processing occurs when the process next
+	 * tries to cross the user boundary, however there are some
+	 * times when processing needs to be done immediatly, such as
+	 * waking up threads so that they can cross the user boundary.
+	 * We try do the per-process part here.
 	 */
-	if (action == SIG_HOLD && (!(prop & SA_CONT) || p->p_stat != SSTOP)) {
-		mtx_unlock_spin(&sched_lock);
-		return;
-	}
-
-	switch (p->p_stat) {
-
-	case SSLEEP:
+	if (P_SHOULDSTOP(p)) {
 		/*
-		 * If process is sleeping uninterruptibly
-		 * we can't interrupt the sleep... the signal will
-		 * be noticed when the process returns through
-		 * trap() or syscall().
+		 * The process is in stopped mode. All the threads should be
+		 * either winding down or already on the suspended queue.
 		 */
-		if ((td->td_flags & TDF_SINTR) == 0)
+		if (p->p_flag & P_TRACED) {
+			/*
+			 * The traced process is already stopped,
+			 * so no further action is necessary.
+			 * No signal can restart us.
+			 */
 			goto out;
+		}
+
+		if (sig == SIGKILL) {
+			/*
+			 * SIGKILL sets process running.
+			 * It will die elsewhere.
+			 * All threads must be restarted.
+			 */
+			p->p_flag &= ~P_STOPPED;
+			goto runfast;
+		}
+
+		if (prop & SA_CONT) {
+			/*
+			 * If SIGCONT is default (or ignored), we continue the
+			 * process but don't leave the signal in p_siglist as
+			 * it has no further action.  If SIGCONT is held, we
+			 * continue the process and leave the signal in
+			 * p_siglist.  If the process catches SIGCONT, let it
+			 * handle the signal itself.  If it isn't waiting on
+			 * an event, it goes back to run state.
+			 * Otherwise, process goes back to sleep state.
+			 */
+			p->p_flag &= ~P_STOPPED_SGNL;
+			if (action == SIG_DFL) {
+				SIGDELSET(p->p_siglist, sig);
+			} else if (action == SIG_CATCH) {
+				/*
+				 * The process wants to catch it so it needs
+				 * to run at least one thread, but which one?
+				 * It would seem that the answer would be to
+				 * run an upcall in the next KSE to run, and
+				 * deliver the signal that way. In a NON KSE
+				 * process, we need to make sure that the
+				 * single thread is runnable asap.
+				 * XXXKSE for now however, make them all run.
+				 */
+				goto runfast;
+			}
+			/*
+			 * The signal is not ignored or caught.
+			 */
+			mtx_lock_spin(&sched_lock);
+			thread_unsuspend(p);	/* Checks if should do it. */
+			mtx_unlock_spin(&sched_lock);
+			goto out;
+		}
+
+		if (prop & SA_STOP) {
+			/*
+			 * Already stopped, don't need to stop again
+			 * (If we did the shell could get confused).
+			 */
+			SIGDELSET(p->p_siglist, sig);
+			goto out;
+		}
+
 		/*
-		 * Process is sleeping and traced... make it runnable
-		 * so it can discover the signal in issignal() and stop
-		 * for the parent.
+		 * All other kinds of signals:
+		 * If a thread is sleeping interruptibly, simulate a
+		 * wakeup so that when it is continued it will be made
+		 * runnable and can look at the signal.  However, don't make
+		 * the process runnable, leave it stopped.
+		 * It may run a bit until it hits a thread_suspend_check().
+		 *
+		 * XXXKSE I don't understand this at all.
 		 */
-		if (p->p_flag & P_TRACED)
-			goto run;
+		mtx_lock_spin(&sched_lock);
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if (td->td_wchan && (td->td_flags & TDF_SINTR)) {
+				if (td->td_flags & TDF_CVWAITQ)
+					cv_waitq_remove(td);
+				else
+					unsleep(td);
+				setrunnable(td);
+			}
+		}
+		mtx_unlock_spin(&sched_lock);
+		goto out;
 		/*
-		 * If SIGCONT is default (or ignored) and process is
-		 * asleep, we are finished; the process should not
-		 * be awakened.
+		 * XXXKSE  What about threads that are waiting on mutexes?
+		 * Shouldn't they abort too?
 		 */
-		if ((prop & SA_CONT) && action == SIG_DFL) {
+	}  else if (p->p_state == PRS_NORMAL) {
+		if (prop & SA_CONT) {
+			/*
+			 * Already active, don't need to start again.
+			 */
 			SIGDELSET(p->p_siglist, sig);
 			goto out;
 		}
@@ -1370,133 +1423,128 @@ psignal(p, sig)
 		if (prop & SA_STOP) {
 			if (action != SIG_DFL)
 				goto runfast;
+
 			/*
 			 * If a child holding parent blocked,
 			 * stopping could cause deadlock.
 			 */
 			if (p->p_flag & P_PPWAIT)
 				goto out;
-			mtx_unlock_spin(&sched_lock);
 			SIGDELSET(p->p_siglist, sig);
 			p->p_xstat = sig;
 			PROC_LOCK(p->p_pptr);
-			if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
+			if (!(p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP))
 				psignal(p->p_pptr, SIGCHLD);
 			PROC_UNLOCK(p->p_pptr);
 			mtx_lock_spin(&sched_lock);
 			stop(p);
+			mtx_unlock_spin(&sched_lock);
 			goto out;
 		} else
 			goto runfast;
 		/* NOTREACHED */
+	} else {
+		/* Not in "NORMAL" state. discard the signal. */
+		SIGDELSET(p->p_siglist, sig);
+		goto out;
+	}
 
-	case SSTOP:
+	/*
+	 * The process is not stopped so we need to apply the signal to all the
+	 * running threads.
+	 */
+
+runfast:
+	FOREACH_THREAD_IN_PROC(p, td)
+		tdsignal(td, sig, action);
+	mtx_lock_spin(&sched_lock);
+	thread_unsuspend(p);
+	mtx_unlock_spin(&sched_lock);
+out:
+	/* If we jump here, sched_lock should not be owned. */
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+}
+
+/*
+ * The force of a signal has been directed against a single
+ * thread. We need to see what we can do about knocking it
+ * out of any sleep it may be in etc.
+ */
+static void
+tdsignal(struct thread *td, int sig, sig_t action)
+{
+	struct proc *p = td->td_proc;
+	register int prop;
+
+	prop = sigprop(sig);
+
+	/*
+	 * Bring the priority of a process up if we want it to get
+	 * killed in this lifetime.
+	 * XXXKSE we should shift the priority to the thread.
+	 */
+	mtx_lock_spin(&sched_lock);
+	if ((action == SIG_DFL) && (prop & SA_KILL)) {
+		if (td->td_priority > PUSER) {
+			td->td_priority = PUSER;
+		}
+	}
+	mtx_unlock_spin(&sched_lock);
+
+	/*
+	 * Defer further processing for signals which are held,
+	 * except that stopped processes must be continued by SIGCONT.
+	 */
+	if (action == SIG_HOLD) {
+		goto out;
+	}
+	mtx_lock_spin(&sched_lock);
+	if (td->td_state == TDS_SLP) {
 		/*
-		 * If traced process is already stopped,
-		 * then no further action is necessary.
+		 * If thread is sleeping uninterruptibly
+		 * we can't interrupt the sleep... the signal will
+		 * be noticed when the process returns through
+		 * trap() or syscall().
 		 */
-		if (p->p_flag & P_TRACED)
-			goto out;
-
-		/*
-		 * Kill signal always sets processes running.
-		 */
-		if (sig == SIGKILL)
-			goto runfast;
-
-		if (prop & SA_CONT) {
-			/*
-			 * If SIGCONT is default (or ignored), we continue the
-			 * process but don't leave the signal in p_siglist, as
-			 * it has no further action.  If SIGCONT is held, we
-			 * continue the process and leave the signal in
-			 * p_siglist.  If the process catches SIGCONT, let it
-			 * handle the signal itself.  If it isn't waiting on
-			 * an event, then it goes back to run state.
-			 * Otherwise, process goes back to sleep state.
-			 */
-			if (action == SIG_DFL)
-				SIGDELSET(p->p_siglist, sig);
-			if (action == SIG_CATCH)
-				goto runfast;
-			/*
-			 * XXXKSE
-			 * do this for each thread.
-			 */
-			if (p->p_flag & P_KSES) {
-				mtx_assert(&sched_lock,
-				    MA_OWNED | MA_NOTRECURSED);
-				FOREACH_THREAD_IN_PROC(p, td) {
-					if (td->td_wchan == NULL) {
-						setrunnable(td); /* XXXKSE */
-					} else {
-						/* mark it as sleeping */
-					}
-				}
-			} else {
-				p->p_flag |= P_CONTINUED;
-				wakeup(p->p_pptr);
-				if (td->td_wchan == NULL)
-					goto run;
-				p->p_stat = SSLEEP;
-			}
+		if ((td->td_flags & TDF_SINTR) == 0) {
+			mtx_unlock_spin(&sched_lock);
 			goto out;
 		}
-
-		if (prop & SA_STOP) {
-			/*
-			 * Already stopped, don't need to stop again.
-			 * (If we did the shell could get confused.)
-			 */
+		/*
+		 * Process is sleeping and traced.  Make it runnable
+		 * so it can discover the signal in issignal() and stop
+		 * for its parent.
+		 */
+		if (p->p_flag & P_TRACED) {
+			p->p_flag &= ~P_STOPPED_TRACE;
+			goto run;
+		}
+		mtx_unlock_spin(&sched_lock);
+		/*
+		 * If SIGCONT is default (or ignored) and process is
+		 * asleep, we are finished; the process should not
+		 * be awakened.
+		 */
+		if ((prop & SA_CONT) && action == SIG_DFL) {
 			SIGDELSET(p->p_siglist, sig);
 			goto out;
 		}
+		goto runfast;
+		/* NOTREACHED */
 
+	} else {
 		/*
-		 * If process is sleeping interruptibly, then simulate a
-		 * wakeup so that when it is continued, it will be made
-		 * runnable and can look at the signal.  But don't make
-		 * the process runnable, leave it stopped.
-		 * XXXKSE should we wake ALL blocked threads?
-		 */
-		if (p->p_flag & P_KSES) {
-			FOREACH_THREAD_IN_PROC(p, td) {
-				if (td->td_wchan && (td->td_flags & TDF_SINTR)){
-					if (td->td_flags & TDF_CVWAITQ)
-						cv_waitq_remove(td);
-					else
-						unsleep(td); /* XXXKSE */
-				}
-			}
-		} else {
-			if (td->td_wchan && td->td_flags & TDF_SINTR) {
-				if (td->td_flags & TDF_CVWAITQ)
-					cv_waitq_remove(td);
-				else
-					unsleep(td); /* XXXKSE */
-			}
-		}
-		goto out;
-
-	default:
-		/*
-		 * SRUN, SIDL, SZOMB do nothing with the signal,
+		 * Other states do nothing with the signal immediatly,
 		 * other than kicking ourselves if we are running.
 		 * It will either never be noticed, or noticed very soon.
 		 */
-		if (p->p_stat == SRUN) {
+		mtx_unlock_spin(&sched_lock);
+		if (td->td_state == TDS_RUNQ ||
+		    td->td_state == TDS_RUNNING) {
+			signotify(td->td_proc);
 #ifdef SMP
-			struct kse *ke;
-			struct thread *td = curthread;
-/* we should only deliver to one thread.. but which one? */
-			FOREACH_KSEGRP_IN_PROC(p, kg) {
-				FOREACH_KSE_IN_GROUP(kg, ke) {
-					if (ke->ke_thread == td) {
-						continue;
-					}
-					forward_signal(ke->ke_thread);
-				}
-			}
+			if (td->td_state == TDS_RUNNING && td != curthread)
+				forward_signal(td);
 #endif
 		}
 		goto out;
@@ -1506,21 +1554,17 @@ psignal(p, sig)
 runfast:
 	/*
 	 * Raise priority to at least PUSER.
-	 * XXXKSE Should we make them all run fast?
-	 * Maybe just one would be enough?
 	 */
-
-	if (FIRST_THREAD_IN_PROC(p)->td_priority > PUSER) {
-		FIRST_THREAD_IN_PROC(p)->td_priority = PUSER;
+	mtx_lock_spin(&sched_lock);
+	if (td->td_priority > PUSER) {
+		td->td_priority = PUSER;
 	}
 run:
-	/* If we jump here, sched_lock has to be owned. */
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
-	setrunnable(td); /* XXXKSE */
-out:
+	setrunnable(td);
 	mtx_unlock_spin(&sched_lock);
 
-	/* Once we get here, sched_lock should not be owned. */
+out:
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 }
 
@@ -1533,16 +1577,18 @@ out:
  * by checking the pending signal masks in cursig.) The normal call
  * sequence is
  *
- *	while (sig = cursig(curproc))
+ *	while (sig = cursig(curthread))
  *		postsig(sig);
  */
 int
-issignal(p)
-	register struct proc *p;
+issignal(td)
+	struct thread *td;
 {
+	struct proc *p;
 	sigset_t mask;
 	register int sig, prop;
 
+	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	for (;;) {
 		int traced = (p->p_flag & P_TRACED) || (p->p_stops & S_SIG);
@@ -1576,6 +1622,7 @@ issignal(p)
 			PROC_UNLOCK(p->p_pptr);
 			mtx_lock_spin(&sched_lock);
 			stop(p);
+			td->td_state = TDS_UNQUEUED;
 			PROC_UNLOCK(p);
 			DROP_GIANT();
 			p->p_stats->p_ru.ru_nivcsw++;
@@ -1633,6 +1680,7 @@ issignal(p)
 #endif
 				break;		/* == ignore */
 			}
+#if 0
 			/*
 			 * If there is a pending stop signal to process
 			 * with default action, stop here,
@@ -1647,8 +1695,10 @@ issignal(p)
 					break;	/* == ignore */
 				p->p_xstat = sig;
 				PROC_LOCK(p->p_pptr);
-				if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
+				if ((p->p_pptr->p_procsig->ps_flag &
+				    PS_NOCLDSTOP) == 0) {
 					psignal(p->p_pptr, SIGCHLD);
+				}
 				PROC_UNLOCK(p->p_pptr);
 				mtx_lock_spin(&sched_lock);
 				stop(p);
@@ -1660,7 +1710,9 @@ issignal(p)
 				PICKUP_GIANT();
 				PROC_LOCK(p);
 				break;
-			} else if (prop & SA_IGNORE) {
+			} else
+#endif
+			     if (prop & SA_IGNORE) {
 				/*
 				 * Except for SIGCONT, shouldn't get here.
 				 * Default action is to ignore; drop it.
@@ -1706,7 +1758,7 @@ stop(p)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_OWNED);
-	p->p_stat = SSTOP;
+	p->p_flag |= P_STOPPED_SGNL;
 	p->p_flag &= ~P_WAITED;
 	wakeup(p->p_pptr);
 }
