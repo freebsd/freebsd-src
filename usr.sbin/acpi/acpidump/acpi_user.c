@@ -142,7 +142,9 @@ acpi_scan_rsd_ptr(void)
 	for (; addr < end; addr += 16)
 		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
 			return (rsdp);
-	for (addr = RSDP_HI_START; addr < RSDP_HI_END; addr += 16)
+	addr = RSDP_HI_START;
+	end = addr + RSDP_HI_SIZE;
+	for (; addr < end; addr += 16)
 		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
 			return (rsdp);
 #endif /* __i386__ */
