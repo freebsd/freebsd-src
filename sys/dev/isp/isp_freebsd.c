@@ -1650,10 +1650,7 @@ printf("notify ack\n");
 			sdparam *sdp = isp->isp_param;
 			sdp += cam_sim_bus(xpt_path_sim(cpi->ccb_h.path));
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
-			if (IS_ULTRA2(isp))
-				cpi->hba_misc = PIM_NOBUSRESET;
-			else
-				cpi->hba_misc = 0;
+			cpi->hba_misc = 0;
 			cpi->initiator_id = sdp->isp_initiator_id;
 			cpi->base_transfer_speed = 3300;
 		}
