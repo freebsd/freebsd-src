@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.131 1999/06/16 23:27:48 mckusick Exp $
+ * $Id: nfs_vnops.c,v 1.132 1999/06/26 02:46:32 mckusick Exp $
  */
 
 
@@ -2647,7 +2647,7 @@ nfs_strategy(ap)
 	int error = 0;
 
 	KASSERT(!(bp->b_flags & B_DONE), ("nfs_strategy: buffer %p unexpectedly marked B_DONE", bp));
-	KASSERT(BUF_REFCNT(bp) == 0, ("nfs_strategy: buffer %p not locked", bp));
+	KASSERT(BUF_REFCNT(bp) > 0, ("nfs_strategy: buffer %p not locked", bp));
 
 	if (bp->b_flags & B_PHYS)
 		panic("nfs physio");
