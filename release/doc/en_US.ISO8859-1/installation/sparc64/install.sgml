@@ -39,7 +39,7 @@ This file contains sparc64-specific installation instructions.
   <para>If installing from CDROM is impossible or undesirable, the
     alternative is to install over the network.  This requires another
     machine, suitably configured, to serve the boot loader, kernel,
-    and root file system to the new machine, via a combination of
+    and root filesystem to the new machine, via a combination of
     RARP, TFTP, and either BOOTP or DHCP.  This netboot server can be
     another &os; machine, but is not required to be.</para>
 
@@ -497,23 +497,23 @@ drivedata: 0
     <title>Creating the Root Fileystem</title>
 
     <para>If you want to boot from a local disk, you will need to
-      create a root file system to hold the base system binaries and
-      configuration files (and optionally other file systems mounted
+      create a root filesystem to hold the base system binaries and
+      configuration files (and optionally other filesystems mounted
       in places such as <filename>/usr</filename> and
       <filename>/var</filename>).</para>
 
     <para>The kernel contains support for Sun disklabels, so you can
       use Solaris disks, which may even be prepared using
       <application>newfs</application> under Solaris.  NetBSD disk
-      labels and file systems are also usable from &os;.</para>
+      labels and filesystems are also usable from &os;.</para>
 
     <warning>
       <para>Do <emphasis>not</emphasis> run Solaris
-	<application>fsck</application> on file systems modified by
+	<application>fsck</application> on filesystems modified by
 	&os;.  Doing so will damage the file permissions.</para>
     </warning>
 
-    <para>To create file systems and to install the base system, boot
+    <para>To create filesystems and to install the base system, boot
       from CDROM or via NFS and create a disk label as described in
       <xref linkend="creating-disk-label">.</para>
 
@@ -523,7 +523,7 @@ drivedata: 0
       booting (use a format like
       <command>ufs:<replaceable>disk</replaceable><replaceable>partition</replaceable></command>,
       i.e. leave the slice specification out).  If the kernel does
-      automatically attempt to boot from another file system, press a
+      automatically attempt to boot from another filesystem, press a
       key other than <keycap>Enter</keycap> on the
       <application>loader</application> prompt:</para>
 
@@ -531,7 +531,7 @@ drivedata: 0
 
     <para>Then, boot the kernel using <command>boot -a -s</command>,
       which will cause the kernel to ask you for the root partition
-      and then boot into single-user mode.  Once the root file system
+      and then boot into single-user mode.  Once the root filesystem
       has been entered into <filename>/etc/fstab</filename>, it should
       be automatically mounted as <filename>/</filename> on the next
       boot.</para>
