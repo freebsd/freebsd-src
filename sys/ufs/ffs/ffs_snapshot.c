@@ -57,7 +57,7 @@
 #include <ufs/ffs/ffs_extern.h>
 
 #define KERNCRED proc0.p_ucred
-#define DEBUG
+#define DEBUG 1
 
 static int indiracct __P((struct vnode *, struct vnode *, int, ufs_daddr_t,
 	int, int, int, int));
