@@ -10,18 +10,17 @@ HOME=/var/log
 #
 */5	*	*	*	*	root	/usr/libexec/atrun
 #
-# save some entropy so that /dev/random can reseed on boot
+# Save some entropy so that /dev/random can re-seed on boot.
 */11	*	*	*	*	operator /usr/libexec/save-entropy
 #
-# rotate log files every hour, if necessary
+# Rotate log files every hour, if necessary.
 0	*	*	*	*	root	newsyslog
 #
-# do daily/weekly/monthly maintenance
+# Perform daily/weekly/monthly maintenance.
 1	3	*	*	*	root	periodic daily
 15	4	*	*	6	root	periodic weekly
 30	5	1	*	*	root	periodic monthly
 #
-# time zone change adjustment for wall cmos clock,
-# does nothing, if you have UTC cmos clock.
-# See adjkerntz(8) for details.
+# Adjust the time zone if the CMOS clock keeps local time, as opposed to
+# UTC time.  See adjkerntz(8) for details.
 1,31	0-5	*	*	*	root	adjkerntz -a
