@@ -109,8 +109,8 @@ typedef struct event_name_s {
 } event_name_t;
 
 event_name_t event_names[] = {
-	{USB_EVENT_ATTACH, "attach"},
-	{USB_EVENT_DETACH, "detach"},
+	{USB_EVENT_CTRLR_ATTACH, "attach"},
+	{USB_EVENT_CTRLR_DETACH, "detach"},
 	{0, NULL}			/* NULL indicates end of list, not 0 */
 };
 
@@ -560,7 +560,7 @@ print_event(struct usb_event *event)
 {
 	int i;
 	struct timespec *timespec = &event->ue_time;
-	struct usb_device_info *devinfo = &event->ue_device;
+	struct usb_device_info *devinfo = &event->u.ue_device;
 
 	printf("%s: ", __progname);
 	for (i = 0; event_names[i].name != NULL; i++) {
@@ -585,7 +585,7 @@ print_event(struct usb_event *event)
 		char c = ' ';
 
 		printf("  device names:");
-		for (i = 0; i < MAXDEVNAMES; i++) {
+		for (i = 0; i < USB_MAX_DEVNAMES; i++) {
 			if (devinfo->devnames[i][0] == '\0')
 				break;
 
@@ -662,7 +662,7 @@ match_devname(action_t *action, struct usb_device_info *devinfo)
 	regmatch_t match;
 	int error;
 
-	for (i = 0; i < MAXDEVNAMES; i++) {
+	for (i = 0; i < USB_MAX_DEVNAMES; i++) {
 		if (devinfo->devnames[i][0] == '\0')
 			break;
 
@@ -853,9 +853,9 @@ process_event_queue(int fd)
 
 		/* handle the event appropriately */
 		switch (event.ue_type) {
-		case USB_EVENT_ATTACH:
-		case USB_EVENT_DETACH:
-			if (find_action(&event.ue_device, &action_match) == 0)
+		case USB_EVENT_CTRLR_ATTACH:
+		case USB_EVENT_CTRLR_DETACH:
+			if (find_action(&event.u.ue_device, &action_match) == 0)
 				/* nothing found */
 				break;
 
@@ -873,9 +873,9 @@ process_event_queue(int fd)
 						__progname, action_match.devname, strerror(errno));
 			}
 
-			if (event.ue_type == USB_EVENT_ATTACH && action_match.action->attach)
+			if (event.ue_type == USB_EVENT_CTRLR_ATTACH && action_match.action->attach)
 				execute_command(action_match.action->attach);
-			if (event.ue_type == USB_EVENT_DETACH && action_match.action->detach)
+			if (event.ue_type == USB_EVENT_CTRLR_DETACH && action_match.action->detach)
 				execute_command(action_match.action->detach);
 
 			break;

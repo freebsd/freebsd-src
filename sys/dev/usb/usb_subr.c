@@ -1032,7 +1032,7 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 		return (err);
   	}
   
-	usbd_add_event(USB_EVENT_ATTACH, dev);
+	usbd_add_event(USB_EVENT_CTRLR_ATTACH, dev);
 
   	return (USBD_NORMAL_COMPLETION);
 }
@@ -1172,15 +1172,15 @@ usbd_fill_deviceinfo(usbd_device_handle dev, struct usb_device_info *di,
 
 	if (dev->subdevs != NULL) {
 		for (i = 0; dev->subdevs[i] &&
-			     i < MAXDEVNAMES; i++) {
+			     i < USB_MAX_DEVNAMES; i++) {
 			strncpy(di->devnames[i], USBDEVPTRNAME(dev->subdevs[i]),
-				MAXDEVNAMELEN);
-			di->devnames[i][MAXDEVNAMELEN-1] = '\0';
+				USB_MAX_DEVNAMELEN);
+			di->devnames[i][USB_MAX_DEVNAMELEN-1] = '\0';
                 }
         } else {
                 i = 0;
         }
-        for (/*i is set */; i < MAXDEVNAMES; i++)
+        for (/*i is set */; i < USB_MAX_DEVNAMES; i++)
                 di->devnames[i][0] = 0;                 /* empty */
 
 	if (dev->hub) {

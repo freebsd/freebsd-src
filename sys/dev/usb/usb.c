@@ -652,10 +652,10 @@ usbd_add_event(type, dev)
 	int s;
 
 	s = splusb();
-	if (type == USB_EVENT_DETACH) {
+	if (type == USB_EVENT_CTRLR_DETACH) {
 		for (ueq = TAILQ_FIRST(&usb_events); ueq; ueq = ueq_next) {
 			ueq_next = TAILQ_NEXT(ueq, next);
-			if (ueq->ue.ue_cookie.cookie == dev->cookie.cookie) {
+			if (ueq->ue.u.ue_driver.ue_cookie.cookie == dev->cookie.cookie) {
 				TAILQ_REMOVE(&usb_events, ueq, next);
 				free(ueq, M_USBDEV);
 				usb_nevents--;
@@ -676,8 +676,8 @@ usbd_add_event(type, dev)
 		return;
 	}
 	ueq->ue.ue_type = type;
-	ueq->ue.ue_cookie = dev->cookie;
-	usbd_fill_deviceinfo(dev, &ueq->ue.ue_device, 0);
+	ueq->ue.u.ue_driver.ue_cookie = dev->cookie;
+	usbd_fill_deviceinfo(dev, &ueq->ue.u.ue_device, 0);
 	microtime(&thetime);
 	TIMEVAL_TO_TIMESPEC(&thetime, &ueq->ue.ue_time);
 	TAILQ_INSERT_TAIL(&usb_events, ueq, next);
