@@ -35,6 +35,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -345,13 +346,15 @@ fetch(char *URL, char *path)
     if (sigint)
 	warnx("transfer interrupted");
     
-    /* check the status of our files */
-    if (ferror(f))
-	warn("%s", URL);
-    if (ferror(of))
-	warn("%s", path);
-    if (ferror(f) || ferror(of))
-	goto failure;
+    if (!sigalrm && !sigint) {
+	/* check the status of our files */
+	if (ferror(f))
+	    warn("%s", URL);
+	if (ferror(of))
+	    warn("%s", path);
+	if (ferror(f) || ferror(of))
+	    goto failure;
+    }
 
     /* did the transfer complete normally? */
     if (us.size != -1 && count < us.size) {
@@ -412,6 +415,7 @@ int
 main(int argc, char *argv[])
 {
     struct stat sb;
+    struct sigaction sa;
     char *p, *q, *s;
     int c, e, r;
 
@@ -542,8 +546,7 @@ main(int argc, char *argv[])
     if ((buf = malloc(B_size)) == NULL)
 	errx(1, strerror(ENOMEM));
 
-    /* timeout handling */
-    signal(SIGALRM, sig_handler);
+    /* timeouts */
     if ((s = getenv("FTP_TIMEOUT")) != NULL) {
 	if (parseint(s, &ftp_timeout) == -1) {
 	    warnx("FTP_TIMEOUT is not a positive integer");
@@ -557,8 +560,12 @@ main(int argc, char *argv[])
 	}
     }
 
-    /* interrupt handling */
-    signal(SIGINT, sig_handler);
+    /* signal handling */
+    sa.sa_flags = 0;
+    sa.sa_handler = sig_handler;
+    sigemptyset(&sa.sa_mask);
+    (void)sigaction(SIGALRM, &sa, NULL);
+    (void)sigaction(SIGINT, &sa, NULL);
     
     /* output file */
     if (o_flag) {
