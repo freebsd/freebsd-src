@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)auth_unix.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)auth_unix.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: auth_unix.c,v 1.1 1994/08/07 18:35:39 wollman Exp $";
+static char *rcsid = "$Id: auth_unix.c,v 1.2 1994/08/10 02:25:22 wollman Exp $";
 #endif
 
 /*
@@ -149,7 +149,7 @@ authunix_create(machname, uid, gid, len, aup_gids)
 	aup.aup_gid = gid;
 	/* GW: continuation of max group list hack */
 	if(authunix_maxgrouplist != 0) {
-		aup.aup_len = ((len > authunix_maxgrouplist) ? len 
+		aup.aup_len = ((len < authunix_maxgrouplist) ? len
 			       : authunix_maxgrouplist);
 	} else {
 		aup.aup_len = (u_int)len;
