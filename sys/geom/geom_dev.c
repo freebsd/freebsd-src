@@ -99,11 +99,13 @@ g_dev_getprovider(struct cdev *dev)
 {
 	struct g_consumer *cp;
 
+	g_topology_assert();
 	if (dev == NULL)
 		return (NULL);
-	if (devsw(dev) != &g_dev_cdevsw)
-		return (NULL);
-	cp = dev->si_drv2;
+	if (dev->si_devsw != &g_dev_cdevsw)
+		cp = NULL;
+	else
+		cp = dev->si_drv2;
 	return (cp->provider);
 }
 
