@@ -327,6 +327,7 @@ dconschat_get_ptr (struct dcons_state *dc) {
 	int dlen, i;
 	u_int32_t ptr[DCONS_NPORT*2+1];
 	static int retry = RETRY;
+	char ebuf[64];
 
 again:
 	dlen = dread(dc, &ptr, sizeof(ptr),
@@ -340,7 +341,10 @@ again:
 		return(-1);
 	}
 	if (ptr[0] != htonl(DCONS_MAGIC)) {
-		dconschat_ready(dc, 0, "wrong magic");
+		if ((dc->flags & F_USE_CROM) !=0)
+			dc->paddr = 0;
+		snprintf(ebuf, sizeof(ebuf), "wrong magic 0x%08x", ptr[0]);
+		dconschat_ready(dc, 0, ebuf);
 		return(-1);
 	}
 	retry = RETRY;
