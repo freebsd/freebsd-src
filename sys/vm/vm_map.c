@@ -2173,11 +2173,13 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 			vm_map_entry_unwire(map, entry);
 		}
 
-		mtx_lock(&Giant);
+		if (map != kmem_map)
+			mtx_lock(&Giant);
 		vm_page_lock_queues();
 		pmap_remove(map->pmap, entry->start, entry->end);
 		vm_page_unlock_queues();
-		mtx_unlock(&Giant);
+		if (map != kmem_map)
+			mtx_unlock(&Giant);
 
 		/*
 		 * Delete the entry (which may delete the object) only after
