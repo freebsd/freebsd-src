@@ -2053,9 +2053,19 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 				mpte->wire_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex,
-				    M_WAITOK);
-				if (mpte == NULL)
+				    M_NOWAIT);
+				if (mpte == NULL) {
+					PMAP_UNLOCK(pmap);
+					vm_page_busy(m);
+					vm_page_unlock_queues();
+					VM_OBJECT_UNLOCK(m->object);
+					VM_WAIT;
+					VM_OBJECT_LOCK(m->object);
+					vm_page_lock_queues();
+					vm_page_wakeup(m);
+					PMAP_LOCK(pmap);
 					goto retry;
+				}
 			}
 		}
 	} else {
