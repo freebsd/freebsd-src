@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.83 1999/01/26 02:38:12 julian Exp $
+ * $Id: vm_glue.c,v 1.84 1999/02/19 14:25:36 luoqi Exp $
  */
 
 #include "opt_rlimit.h"
@@ -389,7 +389,7 @@ loop:
 
 #define	swappable(p) \
 	(((p)->p_lock == 0) && \
-		((p)->p_flag & (P_TRACED|P_NOSWAP|P_SYSTEM|P_INMEM|P_WEXIT|P_PHYSIO|P_SWAPPING)) == P_INMEM)
+		((p)->p_flag & (P_TRACED|P_SYSTEM|P_INMEM|P_WEXIT|P_SWAPPING)) == P_INMEM)
 
 
 /*
