@@ -140,7 +140,7 @@ void		 pmap_swapout_proc __P((struct proc *p));
 void		 pmap_swapin_proc __P((struct proc *p));
 void		 pmap_activate __P((struct proc *p));
 vm_offset_t	 pmap_addr_hint __P((vm_object_t obj, vm_offset_t addr, vm_size_t size));
-void		*pmap_kenter_temporary __P((vm_offset_t pa));
+void		*pmap_kenter_temporary __P((vm_offset_t pa, int i));
 void		 pmap_init2 __P((void));
 
 #endif /* _KERNEL */
