@@ -577,7 +577,8 @@ exec_new_vmspace(imgp)
 {
 	int error;
 	struct execlist *ep;
-	struct vmspace *vmspace = imgp->proc->p_vmspace;
+	struct proc *p = imgp->proc;
+	struct vmspace *vmspace = p->p_vmspace;
 	vm_offset_t stack_addr = USRSTACK - maxssiz;
 
 	GIANT_REQUIRED;
@@ -588,7 +589,7 @@ exec_new_vmspace(imgp)
 	 * Perform functions registered with at_exec().
 	 */
 	TAILQ_FOREACH(ep, &exec_list, next)
-		(*ep->function)(imgp->proc);
+		(*ep->function)(p);
 
 	/*
 	 * Blow away entire process VM, if address space not shared,
@@ -597,12 +598,12 @@ exec_new_vmspace(imgp)
 	 */
 	if (vmspace->vm_refcnt == 1) {
 		if (vmspace->vm_shm)
-			shmexit(imgp->proc);
+			shmexit(p);
 		pmap_remove_pages(vmspace_pmap(vmspace), 0, VM_MAXUSER_ADDRESS);
 		vm_map_remove(&vmspace->vm_map, 0, VM_MAXUSER_ADDRESS);
 	} else {
-		vmspace_exec(imgp->proc);
-		vmspace = imgp->proc->p_vmspace;
+		vmspace_exec(p);
+		vmspace = p->p_vmspace;
 	}
 
 	/* Allocate a new stack */
@@ -623,7 +624,7 @@ exec_new_vmspace(imgp)
 		error = vm_map_find(&vmspace->vm_map, 0, 0, &bsaddr,
 				    4*PAGE_SIZE, 0,
 				    VM_PROT_ALL, VM_PROT_ALL, 0);
-		FIRST_THREAD_IN_PROC(imgp->proc)->td_md.md_bspstore = bsaddr;
+		FIRST_THREAD_IN_PROC(p)->td_md.md_bspstore = bsaddr;
 	}
 #endif
 
