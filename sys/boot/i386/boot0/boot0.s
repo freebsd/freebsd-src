@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot0.s,v 1.8 1999/03/01 02:42:47 rnordier Exp $
+#	$Id: boot0.s,v 1.9 1999/06/18 21:49:18 rnordier Exp $
 
 # A 512-byte boot manager.
 
@@ -71,6 +71,8 @@ main.2: 	movbr1(_dl,_FAKE,_bp_)		# Save drive number
 		movwir(partbl+0x4,_bx)		# Partition table
 		xorl %edx,%edx			# Item number
 main.3: 	movbr1(_ch,-0x4,_bx_)		# Zero active flag
+		btwr1(_dx,_FLAGS,_bp_)		# Entry enabled?
+		jnc main.5			# No
 		movb0r(_bx_,_al)		# Load type
 		movwir(tables,_di)		# Lookup tables
 		movb $TBL0SZ,%cl		# Number of entries
