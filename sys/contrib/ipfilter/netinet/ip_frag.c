@@ -90,7 +90,7 @@ extern struct timeout ipfr_slowtimer_ch;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.10.2.21 2002/04/10 04:56:10 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.10.2.24 2002/08/28 12:41:04 darrenr Exp $";
 #endif
 
 
@@ -120,7 +120,7 @@ extern	kmutex_t	ipf_rw;
 #endif
 
 
-static ipfr_t *ipfr_new __P((ip_t *, fr_info_t *, u_int, ipfr_t **));
+static ipfr_t *ipfr_new __P((ip_t *, fr_info_t *, ipfr_t **));
 static ipfr_t *ipfr_lookup __P((ip_t *, fr_info_t *, ipfr_t **));
 static void ipfr_delete __P((ipfr_t *));
 
@@ -138,10 +138,9 @@ ipfrstat_t *ipfr_fragstats()
  * add a new entry to the fragment cache, registering it as having come
  * through this box, with the result of the filter operation.
  */
-static ipfr_t *ipfr_new(ip, fin, pass, table)
+static ipfr_t *ipfr_new(ip, fin, table)
 ip_t *ip;
 fr_info_t *fin;
-u_int pass;
 ipfr_t *table[];
 {
 	ipfr_t **fp, *fra, frag;
@@ -198,7 +197,7 @@ ipfr_t *table[];
 	/*
 	 * Instert the fragment into the fragment table, copy the struct used
 	 * in the search using bcopy rather than reassign each field.
-	 * Set the ttl to the default and mask out logging from "pass"
+	 * Set the ttl to the default.
 	 */
 	if ((fra->ipfr_next = table[idx]))
 		table[idx]->ipfr_prev = fra;
@@ -220,17 +219,16 @@ ipfr_t *table[];
 }
 
 
-int ipfr_newfrag(ip, fin, pass)
+int ipfr_newfrag(ip, fin)
 ip_t *ip;
 fr_info_t *fin;
-u_int pass;
 {
 	ipfr_t	*ipf;
 
 	if ((ip->ip_v != 4) || (fr_frag_lock))
 		return -1;
 	WRITE_ENTER(&ipf_frag);
-	ipf = ipfr_new(ip, fin, pass, ipfr_heads);
+	ipf = ipfr_new(ip, fin, ipfr_heads);
 	RWLOCK_EXIT(&ipf_frag);
 	if (ipf == NULL) {
 		ATOMIC_INCL(frstats[fin->fin_out].fr_bnfr);
@@ -241,10 +239,9 @@ u_int pass;
 }
 
 
-int ipfr_nat_newfrag(ip, fin, pass, nat)
+int ipfr_nat_newfrag(ip, fin, nat)
 ip_t *ip;
 fr_info_t *fin;
-u_int pass;
 nat_t *nat;
 {
 	ipfr_t	*ipf;
@@ -256,10 +253,10 @@ nat_t *nat;
 	off = fin->fin_off;
 	off <<= 3;
 	if ((off + fin->fin_dlen) > 0xffff || (fin->fin_dlen == 0))
-		return NULL;
+		return -1;
 
 	WRITE_ENTER(&ipf_natfrag);
-	ipf = ipfr_new(ip, fin, pass, ipfr_nattab);
+	ipf = ipfr_new(ip, fin, ipfr_nattab);
 	if (ipf != NULL) {
 		ipf->ipfr_data = nat;
 		nat->nat_data = ipf;

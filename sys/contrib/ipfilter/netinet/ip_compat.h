@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.26.2.45 2002/06/04 14:40:54 darrenr Exp $
+ * $Id: ip_compat.h,v 2.26.2.46 2002/06/27 14:39:40 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H__
@@ -186,6 +186,9 @@ typedef	struct	qif	{
 	 */
 	size_t	qf_hl;	/* header length */
 	int	qf_sap;
+# if SOLARIS2 >= 8
+	int	qf_tunoff;	/* tunnel offset */
+#endif
 	size_t	qf_incnt;
 	size_t	qf_outcnt;
 } qif_t;
