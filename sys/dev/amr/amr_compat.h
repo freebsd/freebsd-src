@@ -53,7 +53,7 @@
 # define bio_resid				b_resid
 # define BIO_ERROR				B_ERROR
 # define devstat_end_transaction_bio(x, y)	devstat_end_transaction_buf(x, y)
-# define BIO_IS_READ(x)				((x)-b_flags & B_READ)
+# define BIO_IS_READ(x)				((x)->b_flags & B_READ)
 
 #else
 # include <sys/bio.h>
