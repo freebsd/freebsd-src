@@ -2,7 +2,7 @@
 
 NL=     spanish
 DL=     es_ES.ISO_8859-1
-LL=     es_ES.DIS_8859-15
+LL=     es_ES.ISO_8859-15
 
 .PATH: ${BASESRC}/${NL}
 
