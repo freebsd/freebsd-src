@@ -3,7 +3,6 @@
 PROG=		expr
 SRCS=		expr.c regex.c
 CFLAGS+=	-I${.CURDIR} -DHAVE_STRING_H=1
-NOMAN=		noman
 CLEANFILES+=	expr.c y.tab.h
 
 expr.c:
