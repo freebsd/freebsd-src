@@ -553,7 +553,9 @@ in_arpinput(m)
 	u_int8_t *enaddr = NULL;
 	int op, rif_len;
 	int req_len;
+#ifdef DEV_CARP
 	int carp_match = 0;
+#endif
 
 	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
 	if (m->m_len < req_len && (m = m_pullup(m, req_len)) == NULL) {
@@ -637,8 +639,11 @@ match:
 	la = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
 		/* the following is not an error when doing bridging */
-		if (!do_bridge && rt->rt_ifp != ifp &&
-		    !(ifp->if_type == IFT_CARP && carp_match)) {
+		if (!do_bridge && rt->rt_ifp != ifp
+#ifdef DEV_CARP
+		    && (ifp->if_type != IFT_CARP || !carp_match)
+#endif
+								) {
 			if (log_arp_wrong_iface)
 				log(LOG_ERR, "arp: %s is on %s but got reply from %*D on %s\n",
 				    inet_ntoa(isaddr),
