@@ -118,15 +118,15 @@ main(argc, argv)
 			rflag = 1;
 			tval = atol(optarg);
 			break;
-		case 't':		/* minutes west of GMT */
+		case 't':		/* minutes west of UTC */
 					/* error check; don't allow "PST" */
 			tz.tz_minuteswest = strtol(optarg, &endptr, 10);
 			if (endptr == optarg || *endptr != '\0')
 				usage();
 			set_timezone = 1;
 			break;
-		case 'u':		/* do everything in GMT */
-			(void)setenv("TZ", "GMT0", 1);
+		case 'u':		/* do everything in UTC */
+			(void)setenv("TZ", "UTC0", 1);
 			break;
 		case 'v':
 			v = vary_append(v, optarg);
