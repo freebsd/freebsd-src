@@ -408,6 +408,7 @@ struct sound_timer_operations {
 	extern int num_sound_drivers;
 	extern struct card_info snd_installed_cards[];
 	extern int num_sound_cards;
+#endif	/* _DEV_TABLE_C_ */
 
 int sndtable_probe(int unit, struct address_info *hw_config);
 int sndtable_init_card(int unit, struct address_info *hw_config);
@@ -417,5 +418,4 @@ struct address_info *sound_getconf(int card_type);
 void sound_chconf(int card_type, int ioaddr, int irq, int dma);
 int snd_find_driver(int type);
 
-#endif	/* _DEV_TABLE_C_ */
 #endif	/* _DEV_TABLE_H_ */
