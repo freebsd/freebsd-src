@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: ccp.c,v 1.10 1997/02/22 16:10:03 peter Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -30,8 +30,6 @@
 #include "vars.h"
 #include "pred.h"
 #include "cdefs.h"
-
-extern void PutConfValue __P((void));
 
 struct ccpstate CcpInfo;
 
@@ -78,7 +76,7 @@ static char const *cftypes[] = {
 /* 20 */  "V42BIS", "BSD",
 };
 
-void
+int
 ReportCcpStatus()
 {
   struct ccpstate *icp = &CcpInfo;
@@ -89,6 +87,7 @@ ReportCcpStatus()
 	cftypes[icp->want_proto], cftypes[icp->his_proto]);
   printf("Input: %ld --> %ld,  Output: %ld --> %ld\n",
 	icp->orgin, icp->compin, icp->orgout, icp->compout);
+  return 0;
 }
 
 void

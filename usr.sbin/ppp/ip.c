@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.14 1997/02/22 16:10:18 peter Exp $
+ * $Id: ip.c,v 1.15 1997/04/21 01:01:45 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -389,11 +389,10 @@ IpStartOutput()
 {
   struct mqueue *queue;
   struct mbuf *bp;
-  int pri, cnt;
+  int cnt;
 
   if (IpcpFsm.state != ST_OPENED)
     return;
-  pri = PRI_FAST;
   for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--) {
     if (queue->top) {
       bp = Dequeue(queue);
@@ -405,6 +404,5 @@ IpStartOutput()
 	break;
        }
     }
-    pri--;
   }
 }

@@ -5,7 +5,7 @@
 
 /*
  *
- * $Id$
+ * $Id: pred.c,v 1.9 1997/02/22 16:10:47 peter Exp $
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm
@@ -20,8 +20,8 @@
  * A better hash function would result in additional compression,
  * at the expense of time.
  */
-#define IHASH(x) iHash = (iHash << 4) ^ (x)
-#define OHASH(x) oHash = (oHash << 4) ^ (x)
+#define IHASH(x) do {iHash = (iHash << 4) ^ (x);} while(0)
+#define OHASH(x) do {oHash = (oHash << 4) ^ (x);} while(0)
 
 static unsigned short int iHash, oHash;
 static unsigned char InputGuessTable[65536];
@@ -111,10 +111,7 @@ int direction;
 }
 
 void
-Pred1Output(pri, proto, bp)
-int pri;
-u_short proto;
-struct mbuf *bp;
+Pred1Output(int pri, u_short proto, struct mbuf *bp)
 {
   struct mbuf *mwp;
   u_char *cp, *wp, *hp;
