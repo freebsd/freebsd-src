@@ -47,17 +47,20 @@
 
 static void generator_gate(void);
 static void reseed(int);
-static void random_harvest_internal(struct timespec *nanotime, u_int64_t entropy, u_int bits, u_int frac, u_int source);
+static void random_harvest_internal(struct timespec *nanotime, u_int64_t entropy, u_int bits, u_int frac, enum esource source);
 
 /* Structure holding the entropy state */
 struct random_state random_state;
 
 /* When enough entropy has been harvested, asynchronously "stir" it in */
-static struct task regate_task;
+static struct task regate_task[2];
 
-static struct context {
+struct context {
 	u_int pool;
-} context = { 0 };
+} context[2] =	{
+			{ 0 },
+			{ 1 }
+		};
 
 static void
 regate(void *context, int pending)
@@ -80,7 +83,8 @@ random_init(void)
 	random_state.pool[1].thresh = 160;
 	random_state.slowoverthresh = 2;
 	random_state.which = FAST;
-	TASK_INIT(&regate_task, 0, &regate, (void *)&context);
+	TASK_INIT(&regate_task[FAST], FAST, &regate, (void *)&context[FAST]);
+	TASK_INIT(&regate_task[SLOW], SLOW, &regate, (void *)&context[SLOW]);
 	random_init_harvester(random_harvest_internal);
 }
 
@@ -286,7 +290,7 @@ generator_gate(void)
 
 static void
 random_harvest_internal(struct timespec *nanotime, u_int64_t entropy,
-	u_int bits, u_int frac, u_int origin)
+	u_int bits, u_int frac, enum esource origin)
 {
 	u_int insert;
 	int which;	/* fast or slow */
@@ -324,16 +328,15 @@ random_harvest_internal(struct timespec *nanotime, u_int64_t entropy,
 				source->bits += source->frac / 1024;
 				source->frac %= 1024;
 			}
-			context.pool = which;
 			if (source->bits >= pool->thresh) {
-				/* XXX Needs to be multiply queued? */
-				taskqueue_enqueue(taskqueue_swi, &regate_task);
+				/* XXX Slowoverthresh nees to be considered */
+				taskqueue_enqueue(taskqueue_swi, &regate_task[which]);
 			}
 
 			/* bump the insertion point */
 			source->current = insert;
 
-			/* toggle the pool for next time */
+			/* toggle the pool for next insertion */
 			random_state.which = !random_state.which;
 
 		}

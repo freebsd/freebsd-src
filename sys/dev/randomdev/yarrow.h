@@ -41,7 +41,7 @@
 
 void random_init(void);
 void random_deinit(void);
-void random_init_harvester(void (*)(struct timespec *, u_int64_t, u_int, u_int, u_int));
+void random_init_harvester(void (*)(struct timespec *, u_int64_t, u_int, u_int, enum esource));
 void random_deinit_harvester(void);
 
 /* This is the beasite that needs protecting. It contains all of the
