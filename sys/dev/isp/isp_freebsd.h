@@ -44,11 +44,13 @@
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
+#include <machine/cpu.h>
 
 #include <cam/cam.h>
 #include <cam/cam_debug.h>
@@ -112,7 +114,13 @@ struct isposinfo {
 	struct cam_path		*path;
 	struct cam_sim		*sim2;
 	struct cam_path		*path2;
-	volatile char		simqfrozen;
+	struct intr_config_hook	ehook;
+	volatile u_int16_t	:	14,
+		islocked	:	1,
+		intsok		:	1;
+	u_int8_t		mboxwaiting;
+	u_int8_t		simqfrozen;
+	int			splsaved;
 #ifdef	ISP_TARGET_MODE
 #define	TM_WANTED		0x01
 #define	TM_BUSY			0x02
@@ -143,13 +151,60 @@ struct isposinfo {
 
 #define	DFLT_DBLEVEL		isp_debug
 extern int isp_debug;
-#define	ISP_LOCKVAL_DECL	int isp_spl_save
-#define	ISP_ILOCKVAL_DECL	ISP_LOCKVAL_DECL
-#define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
-#define	ISP_LOCK(isp)		isp_spl_save = splcam()
-#define	ISP_ILOCK(isp)		ISP_LOCK(isp)
-#define	ISP_IUNLOCK(isp)	ISP_UNLOCK(isp)
-#define	IMASK			cam_imask
+
+static __inline void isp_lock(struct ispsoftc *);
+static __inline void isp_unlock(struct ispsoftc *);
+
+static __inline void
+isp_lock(struct ispsoftc *isp)
+{
+	int s = splcam();
+	if (isp->isp_osinfo.islocked == 0) {
+		isp->isp_osinfo.islocked = 1;
+		isp->isp_osinfo.splsaved = s;
+	} else {
+		splx(s);
+	}
+}
+
+static __inline void
+isp_unlock(struct ispsoftc *isp)
+{
+	if (isp->isp_osinfo.islocked) {
+		isp->isp_osinfo.islocked = 0;
+		splx(isp->isp_osinfo.splsaved);
+	}
+}
+
+#define	ISP_LOCK		isp_lock
+#define	ISP_UNLOCK		isp_unlock
+#define	SERVICING_INTERRUPT(isp)	(intr_nesting_level != 0)
+
+#define	MBOX_WAIT_COMPLETE(isp)		\
+	if (isp->isp_osinfo.intsok == 0 || SERVICING_INTERRUPT(isp)) { \
+		int j; \
+		for (j = 0; j < 60 * 2000; j++) { \
+			if (isp_intr(isp) == 0) { \
+				SYS_DELAY(500); \
+			} \
+			if (isp->isp_mboxbsy == 0) \
+				break; \
+		} \
+		if (isp->isp_mboxbsy != 0) \
+			printf("%s: mailbox timeout\n", isp->isp_name); \
+	} else { \
+		isp->isp_osinfo.mboxwaiting = 1; \
+		while (isp->isp_mboxbsy != 0) \
+			(void) tsleep(&isp->isp_osinfo.mboxwaiting, PRIBIO, \
+			    "isp_mailbox", 0);\
+	}
+
+#define	MBOX_NOTIFY_COMPLETE(isp)	\
+	if (isp->isp_osinfo.mboxwaiting) { \
+		isp->isp_osinfo.mboxwaiting = 0; \
+		wakeup(&isp->isp_osinfo.mboxwaiting); \
+	} \
+	isp->isp_mboxbsy = 0
 
 #define	XS_NULL(ccb)		ccb == NULL
 #define	XS_ISP(ccb)		((struct ispsoftc *) (ccb)->ccb_h.spriv_ptr1)
@@ -266,6 +321,25 @@ extern void isp_uninit(struct ispsoftc *);
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= (u_int8_t) lev) printf x
 #define	PRINTF			printf
 #define	CFGPRINTF		if (bootverbose || DFLT_DBLEVEL > 1) printf
+#define	STRNCAT			strncat
+static __inline char *strncat(char *, const char *, size_t);
+static __inline char *
+strncat(char *d, const char *s, size_t c)
+{
+        char *t = d;
+
+        if (c) {
+                while (*d)
+                        d++;
+                while ((*d++ = *s++)) {
+                        if (--c == 0) {
+                                *d = '\0';
+                                break;
+                        }
+                }
+        }
+        return (t);
+}
 
 #define	SYS_DELAY(x)	DELAY(x)
 
@@ -276,4 +350,3 @@ extern void isp_uninit(struct ispsoftc *);
 #define	INLINE	__inline
 #include <dev/isp/isp_inline.h>
 #endif	/* _ISP_FREEBSD_H */
-
