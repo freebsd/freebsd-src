@@ -83,6 +83,7 @@ g_up_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 	struct mtx mymutex;
 
+	mtx_assert(&Giant, MA_NOTOWNED);
 	bzero(&mymutex, sizeof mymutex);
 	mtx_init(&mymutex, "g_up", MTX_DEF, 0);
 	mtx_lock(&mymutex);
@@ -108,6 +109,7 @@ g_down_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 	struct mtx mymutex;
 
+	mtx_assert(&Giant, MA_NOTOWNED);
 	bzero(&mymutex, sizeof mymutex);
 	mtx_init(&mymutex, "g_down", MTX_DEF, 0);
 	mtx_lock(&mymutex);
@@ -132,6 +134,7 @@ g_event_procbody(void)
 	struct proc *p = g_event_proc;
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
+	mtx_assert(&Giant, MA_NOTOWNED);
 	tp->td_base_pri = PRIBIO;
 	for(;;) {
 		g_run_events();
