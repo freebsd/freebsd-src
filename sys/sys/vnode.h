@@ -85,10 +85,14 @@ struct vpollinfo {
  * Reading or writing any of these items requires holding the appropriate lock.
  *
  * Lock reference:
+ *	c - namecache mutex
  *	f - freelist mutex
  *	i - interlock
  *	m - mntvnodes mutex
  *	p - pollinfo lock
+ *	s - spechash mutex
+ *	S - syncer mutex
+ *	u - Only a reference to the vnode is needed to read.
  *	v - vnode lock
  *
  * XXX Not all fields are locked yet and some fields that are marked are not
@@ -99,44 +103,44 @@ struct vnode {
 	struct	mtx v_interlock;		/* lock for "i" things */
 	u_long	v_iflag;			/* i vnode flags (see below) */
 	int	v_usecount;			/* i ref count of users */
-	int	v_writecount;			/* i ref count of writers */
 	long	v_numoutput;			/* i writes in progress */
 	struct thread *v_vxproc;		/* i thread owning VXLOCK */
 	int	v_holdcnt;			/* i page & buffer references */
+	struct	buflists v_cleanblkhd;		/* i SORTED clean blocklist */
+	struct buf	*v_cleanblkroot;	/* i clean buf splay tree  */
+	struct	buflists v_dirtyblkhd;		/* i SORTED dirty blocklist */
+	struct buf	*v_dirtyblkroot;	/* i dirty buf splay tree */
 	u_long	v_vflag;			/* v vnode flags */
-	u_long	v_id;				/* capability identifier */
-	struct	mount *v_mount;			/* ptr to vfs we are in */
-	vop_t	**v_op;				/* vnode operations vector */
+	int	v_writecount;			/* v ref count of writers */
+	struct vm_object *v_object;		/* v Place to store VM object */
+	daddr_t	v_lastw;			/* v last write (write cluster) */
+	daddr_t	v_cstart;			/* v start block of cluster */
+	daddr_t	v_lasta;			/* v last allocation (cluster) */
+	int	v_clen;				/* v length of current cluster */
+	union {
+		struct mount	*vu_mountedhere;/* v ptr to mounted vfs (VDIR) */
+		struct socket	*vu_socket;	/* v unix ipc (VSOCK) */
+		struct {
+			struct specinfo	*vu_specinfo; /* v device (VCHR, VBLK) */
+			SLIST_ENTRY(vnode) vu_specnext;	/* s device aliases */
+		} vu_spec;
+		struct fifoinfo	*vu_fifoinfo;	/* v fifo (VFIFO) */
+	} v_un;
 	TAILQ_ENTRY(vnode) v_freelist;		/* f vnode freelist */
 	TAILQ_ENTRY(vnode) v_nmntvnodes;	/* m vnodes for mount point */
-	struct	buflists v_cleanblkhd;		/* SORTED clean blocklist */
-	struct buf	*v_cleanblkroot;	/* clean buf splay tree root */
-	struct	buflists v_dirtyblkhd;		/* SORTED dirty blocklist */
-	struct buf	*v_dirtyblkroot;	/* dirty buf splay tree root */
-	LIST_ENTRY(vnode) v_synclist;		/* vnodes with dirty buffers */
-	enum	vtype v_type;			/* vnode type */
-	union {
-		struct mount	*vu_mountedhere;/* ptr to mounted vfs (VDIR) */
-		struct socket	*vu_socket;	/* unix ipc (VSOCK) */
-		struct {
-			struct specinfo	*vu_specinfo; /* device (VCHR, VBLK) */
-			SLIST_ENTRY(vnode) vu_specnext;
-		} vu_spec;
-		struct fifoinfo	*vu_fifoinfo;	/* fifo (VFIFO) */
-	} v_un;
-	daddr_t	v_lastw;			/* last write (write cluster) */
-	daddr_t	v_cstart;			/* start block of cluster */
-	daddr_t	v_lasta;			/* last allocation (cluster) */
-	int	v_clen;				/* length of current cluster */
-	struct vm_object *v_object;		/* Place to store VM object */
-	struct	lock v_lock;			/* used if fs don't have one */
-	struct	lock *v_vnlock;			/* pointer to vnode lock */
-	const char *v_tag;			/* type of underlying data */
-	void	*v_data;			/* private data for fs */
-	LIST_HEAD(, namecache) v_cache_src;	/* Cache entries from us */
-	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
-	struct	vnode *v_dd;			/* .. vnode */
-	u_long	v_ddid;				/* .. capability identifier */
+	LIST_ENTRY(vnode) v_synclist;		/* S dirty vnode list */
+	enum	vtype v_type;			/* u vnode type */
+	const char *v_tag;			/* u type of underlying data */
+	void	*v_data;			/* u private data for fs */
+	struct	lock v_lock;			/* u used if fs don't have one */
+	struct	lock *v_vnlock;			/* u pointer to vnode lock */
+	vop_t	**v_op;				/* u vnode operations vector */
+	struct	mount *v_mount;			/* u ptr to vfs we are in */
+	LIST_HEAD(, namecache) v_cache_src;	/* c Cache entries from us */
+	TAILQ_HEAD(, namecache) v_cache_dst;	/* c Cache entries to us */
+	u_long	v_id;				/* c capability identifier */
+	struct	vnode *v_dd;			/* c .. vnode */
+	u_long	v_ddid;				/* c .. capability identifier */
 	struct vpollinfo *v_pollinfo;		/* p Poll events */
 	struct label v_label;			/* MAC label for vnode */
 #ifdef	DEBUG_LOCKS
