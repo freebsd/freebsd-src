@@ -22,9 +22,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id$
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/callout.h>
@@ -37,7 +40,6 @@
 #include <net/if_sppp.h>
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,7 +47,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-void	usage(void);
+static void usage(void);
 void	print_vals(const char *ifname, struct spppreq *sp);
 const char *phase_name(enum ppp_phase phase);
 const char *proto_name(u_short proto);
@@ -178,12 +180,13 @@ main(int argc, char **argv)
 	return 0;
 }
 
-void
+static void
 usage(void)
 {
-	errx(EX_USAGE,
-	     "usage: [-v] ifname [{my|his}auth{proto|name|secret}=..."
-	     "|callin|always]");
+	fprintf(stderr, "%s\n%s\n",
+	"usage: spppcontrol [-v] ifname [{my|his}auth{proto|name|secret}=...]",
+	"       spppcontrol [-v] ifname callin|always");
+	exit(EX_USAGE);
 }
 
 void
