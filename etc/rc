@@ -521,6 +521,13 @@ rm -f /tmp/.X*-lock /tmp/.X11-unix/*
 # Snapshot any kernel -c changes back to disk here <someday>.
 # This has changed with ELF and /kernel.config.
 
+# Load LOMAC(4) security if wanted.
+case ${lomac_enable} in
+[Yy][Ee][Ss])
+	kldload lomac >/dev/null 2>&1
+	;;
+esac
+
 echo -n 'Additional daemons:'
 
 # Start system logging and name service.  Named needs to start before syslogd
