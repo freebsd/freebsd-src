@@ -897,17 +897,20 @@ sun-c|sun-cmd|Sun Microsystems Workstation console with scrollable history:\
 # 1011 bytes which just scrapes below the 1023 limit that FreeBSD sets.
 # Daniel Rudy <dcrudy@pacbell.net>
 mvterm|vv100:\
-	:@8=\EOM:AB=\E[4%p1%dm:AF=\E[3%p1%dm:AL=\E[%p1%dL:Co#8:DC=\E[%p1%dP:sc=\E7:\
-	:DL=\E[%p1%dM:DO=\E[%p1%dB:IC=\E[%p1%d@:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:xn:\
-	:K5=\EOn:LE=\E[%p1%dD:RI=\E[%p1%dC:UP=\E[%p1%dA:al=\E[L:am:as=^N:bl=^G:us=\E[4m:\
-	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:cb=\E[1K$<3>:so=\E[7m:\
-	:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%p1%d;%p2%dH:co#80:cr=\r:ct=\E[3g:ue=\E[m:\
-	:cs=\E[%i%p1%d;%p2%dr:dc=\E[P:dl=\E[M:do=\n:ds=\E[?E:eA=\E(B\E)0:es:ti=\E7\E[?47h:\
-	:fs=\E[?F:ho=\E[H:hs:ic=\E[@:it#8:k0=\EOy:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:sf=\n:\
-	:k5=\EOt:k6=\EOu:k7=\EOv:k8=\EOl:k9=\EOw:k;=\EOx:kb=\b:kd=\EOB:kl=\EOD:st=\EH:\
-	:ke=\E[?1l\E>:km:kr=\EOC:ks=\E[?1h\E=:ku=\EOA:le=\b:li#24:mb=\E[5m$<2>:ta=\t:\
-	:md=\E[1m:me=\E[m:mi:mr=\E[7m:ms:nd=\E[C:op=\E[100m:pa#64:rc=\E8:sr=\EM:ae=^O:\
-	:r1=\E>\E[1;3;4;5;6l\E[?7h\E[100m\E[m\E[r\E[2J\E[H:te=\E[2J\E[?47l\E8:se=\E[m:\
+	:@8=\EOM:AB=\E[4%p1%dm:AF=\E[3%p1%dm:AL=\E[%p1%dL:Co#8:DC=\E[%p1%dP:\
+	:sc=\E7:DL=\E[%p1%dM:DO=\E[%p1%dB:IC=\E[%p1%d@:K1=\EOq:K2=\EOr:\
+	:K3=\EOs:K4=\EOp:xn:K5=\EOn:LE=\E[%p1%dD:RI=\E[%p1%dC:UP=\E[%p1%dA:\
+	:al=\E[L:am:as=^N:bl=^G:us=\E[4m:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:cb=\E[1K$<3>:\
+	:so=\E[7m:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%p1%d;%p2%dH:co#80:\
+	:cr=\r:ct=\E[3g:ue=\E[m:cs=\E[%i%p1%d;%p2%dr:dc=\E[P:dl=\E[M:do=\n:\
+	:ds=\E[?E:eA=\E(B\E)0:es:ti=\E7\E[?47h:fs=\E[?F:ho=\E[H:hs:ic=\E[@:\
+	:it#8:k0=\EOy:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:sf=\n:k5=\EOt:k6=\EOu:\
+	:k7=\EOv:k8=\EOl:k9=\EOw:k;=\EOx:kb=\b:kd=\EOB:kl=\EOD:st=\EH:\
+	:ke=\E[?1l\E>:km:kr=\EOC:ks=\E[?1h\E=:ku=\EOA:le=\b:li#24:\
+	:mb=\E[5m$<2>:ta=\t:md=\E[1m:me=\E[m:mi:mr=\E[7m:ms:nd=\E[C:\
+	:op=\E[100m:pa#64:rc=\E8:sr=\EM:ae=^O:se=\E[m:\
+	:r1=\E>\E[1;3;4;5;6l\E[?7h\E[100m\E[m\E[r\E[2J\E[H:te=\E[2J\E[?47l\E8:\
 	:sa=\E[0%?%p1%p6%|%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5%;m%?%p9%t^N%e^O%;:\
 	:ts=\E[?E\E[?%i%p1%dT:up=\E[A:
 # For NeWS's psterm from Eric Messick & Hugh Daniel
