@@ -12,7 +12,4 @@ LINTFLAGS=-aehpz
 
 BINDIR=	/usr/libexec
 
-# XXX: -O causes the gcc to die on the i386, when compiling tree.o
-CFLAGS+= -DXXX_BROKEN_GCC
-
 .include <bsd.prog.mk>
