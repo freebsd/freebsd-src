@@ -283,7 +283,7 @@ ENTRY(fork_trampoline)
  * XXX it should be in a stand-alone file.  It's still icu-dependent and
  * belongs in i386/isa.
  */
-#include "amd64/isa/vector.s"
+#include "amd64/isa/vector.S"
 
 	.data
 	ALIGN_DATA
@@ -379,4 +379,4 @@ doreti_iret_fault:
 	movq	$0,TF_ERR(%rsp)	/* XXX should be the error code */
 	jmp	alltraps_with_regs_pushed
 
-#include "amd64/isa/icu_ipl.s"
+#include "amd64/isa/icu_ipl.S"

@@ -73,4 +73,4 @@ eintrnames:
  * loading segregs.
  */
 
-#include "amd64/isa/icu_vector.s"
+#include "amd64/isa/icu_vector.S"
