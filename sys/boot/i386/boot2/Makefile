@@ -28,24 +28,21 @@ REL1=	0x700
 ORG1=	0x7c00
 ORG2=	0x2000
 
-# Setting this to anything else gives UFS1+2 support and larger
-# boot2 binary.
+# Decide Level of UFS support.  UFS1_AND_UFS2 doesn't fit.
+
+# BOOT2_UFS?=	UFS2_ONLY
+# BOOT2_UFS?=	UFS1_AND_UFS2
 BOOT2_UFS?=	UFS1_ONLY
 
 CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
 	-fno-guess-branch-probability \
 	-mrtd \
+	-D${BOOT2_UFS} \
 	-I${.CURDIR}/../../common \
 	-I${.CURDIR}/../btx/lib -I. \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings
-
-.if ${BOOT2_UFS} == "UFS1_ONLY"
-CFLAGS+= -D${BOOT2_UFS}
-.else
-# nothing here
-.endif
 
 LDFLAGS=-nostdlib -static -N
 
@@ -77,18 +74,12 @@ boot2.h: boot1.out
 boot2: boot2.ldr boot2.bin ${BTX}/btx/btx
 	btxld -v -E ${ORG2} -f bin -b ${BTX}/btx/btx -l boot2.ldr \
 		-o boot2.ld -P 1 boot2.bin
-.if ${BOOT2_UFS} == "UFS1_ONLY"
 	@ls -l boot2.ld | awk '{ x = 7680 - $$5; \
 		print x " bytes available"; if (x < 0) exit 1 }'
 	dd if=boot2.ld of=${.TARGET} obs=7680 conv=osync 2>/dev/null
-.else
-	@ls -l boot2.ld | awk '{ x = 9728 - $$5; \
-		print x " bytes available"; if (x < 0) exit 1 }'
-	dd if=boot2.ld of=${.TARGET} obs=9728 conv=osync 2>/dev/null
-.endif
 
 boot2.ldr:
-	dd if=/dev/zero of=${.TARGET} bs=512 count=1 2>/dev/null
+	dd if=/dev/zero of=${.TARGET} bs=276 count=1 2>/dev/null
 
 boot2.bin: boot2.out
 	objcopy -S -O binary boot2.out ${.TARGET}
