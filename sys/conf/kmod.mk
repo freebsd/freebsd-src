@@ -220,7 +220,7 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 
 realinstall: _SUBDIR
 	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
+	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}/
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
 	while test $$# -ge 2; do \
