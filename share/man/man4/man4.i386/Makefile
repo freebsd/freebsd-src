@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.84 1998/10/28 00:51:40 nsouch Exp $
+#	$Id: Makefile,v 1.85 1998/10/29 09:35:10 bde Exp $
 
 MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 aic.4 alog.4 apm.4 ar.4 asc.4 bktr.4 \
 	bt.4 cs.4 cx.4 cy.4 de.4 \
@@ -45,7 +45,7 @@ MLINKS+=	keyboard.4 ../keyboard.4
 MLINKS+=	labpc.4 ../labpc.4
 MLINKS+=	le.4 ../le.4
 MLINKS+=	lnc.4 ../lnc.4
-MLINKS+=	lp.4 ../lp.4 lp.4 plip.4 lp.4 ../plip.4
+MLINKS+=	lp.4 ../lp.4
 MLINKS+=	lpt.4 ../lpt.4
 MLINKS+=	matcd.4 ../matcd.4
 MLINKS+=	mcd.4 ../mcd.4
