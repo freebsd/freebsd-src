@@ -153,7 +153,7 @@ and set with
 .It Dv SO_RCVLOWAT Ta "set minimum count for input"
 .It Dv SO_SNDTIMEO Ta "set timeout value for output"
 .It Dv SO_RCVTIMEO Ta "set timeout value for input"
-.It Dv SO_ACCEPTFILTER Ta "set accept filter on listen socket"
+.It Dv SO_ACCEPTFILTER Ta "set accept filter on listening socket"
 .It Dv SO_TYPE Ta "get the type of the socket (get only)"
 .It Dv SO_ERROR Ta "get and clear error on the socket (get only)"
 .El
@@ -309,6 +309,13 @@ on the socket,
 which will filter incoming connections
 on a listening stream socket before being presented for
 .Xr accept 2 .
+Once more,
+.Xr listen 2
+must be called on the socket before
+trying to install the filter on it,
+or else the
+.Fn setsockopt
+call will fail.
 .Bd -literal
 struct  accept_filter_arg {
         char    af_name[16];
@@ -318,7 +325,7 @@ struct  accept_filter_arg {
 .Pp
 .Fa optval
 should point to a
-.Fa struct accept_filter_arg .
+.Fa struct accept_filter_arg
 that will select and configure the
 .Xr accept_filter 9 .
 .Fa af_name
@@ -372,6 +379,10 @@ For
 this error may also be returned if
 .Fa optlen
 is not in a valid part of the process address space.
+.It Bq Er EINVAL
+Installing an
+.Xr accept_filter 9
+on a non-listening socket was attempted.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
