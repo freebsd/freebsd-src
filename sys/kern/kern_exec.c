@@ -211,6 +211,9 @@ kern_execve(td, fname, argv, envv, mac_p)
 		 */
 		p->p_flag &= ~P_KSES;
 		td->td_flags &= ~TDF_UNBOUND;
+		td->td_mailbox = NULL;
+		td->td_kse->ke_mailbox = NULL;
+		td->td_kse->ke_flags &= ~KEF_DOUPCALL;
 		thread_single_end();
 	}
 	p->p_flag |= P_INEXEC;
