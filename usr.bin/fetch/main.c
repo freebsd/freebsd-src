@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.26.2.4 1997/03/06 07:21:40 mpp Exp $ */
+/* $Id: main.c,v 1.26.2.5 1997/07/02 06:25:28 charnier Exp $ */
 
 #include <sys/types.h>
 
@@ -73,7 +73,7 @@ main(int argc, char *const *argv)
     fs.fs_verbose = 1;
     change_to_dir = file_to_get = hostname = 0;
 
-    while ((c = getopt(argc, argv, "ac:D:f:h:HilLmMnNo:pPqRrT:vV:")) != -1) {
+    while ((c = getopt(argc, argv, "abc:D:f:h:HilLmMnNo:pPqRrT:vV:")) != -1) {
 	    switch (c) {
 	    case 'D': case 'H': case 'I': case 'N': case 'L': case 'V': 
 		    break;	/* ncftp compatibility */
@@ -81,10 +81,15 @@ main(int argc, char *const *argv)
 	    case 'a':
 		    fs.fs_auto_retry = 1;
 		    break;
+
+	    case 'b':
+		    fs.fs_linux_bug = 1;
+		    break;
+
 	    case 'c':
 		    change_to_dir = optarg;
 		    break;
-	    
+
 	    case 'f':
 		    file_to_get = optarg;
 		    break;
