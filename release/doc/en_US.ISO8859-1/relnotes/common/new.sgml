@@ -117,11 +117,13 @@
       More details are given in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>. &merged;</para>
 
-    <para>A remotely-exploitable buffer overflow vulnerability in
-      <application>sendmail</application> has been fixed by updating
-      <application>sendmail</application> to version 8.12.8.  For more
+    <para>Remotely-exploitable buffer overflow vulnerabilities in
+      <application>sendmail</application> have been fixed by updating
+      <application>sendmail</application>.  For more
       details, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>.
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
+      and <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>.
       &merged;</para>
 
     <para>A bounds-checking bug in the XDR implementation, which could
