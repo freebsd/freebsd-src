@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.17 1999/02/05 07:57:26 mjacob Exp $
+ * $Id: mtio.h,v 1.15.2.1 1999/02/05 08:36:32 mjacob Exp $
  */
 
 #ifndef	_SYS_MTIO_H_
@@ -105,7 +105,7 @@ struct mtop {
 #define	MTIO_DSREG_REW	43	/* Rewinding */
 #define	MTIO_DSREG_TEN	44	/* Retensioning */
 #define	MTIO_DSREG_UNL	45	/* Unloading */
-#define	MTIO_DSREG_LD	46	/* Unloading */
+#define	MTIO_DSREG_LD	46	/* Loading */
 
 #endif	/* __FreeBSD__ */
 
@@ -216,6 +216,13 @@ union mterrstat {
 #define	MTIOCSLOCATE	_IOW('m', 5, u_int32_t)	/* seek to logical blk addr */
 #define	MTIOCHLOCATE	_IOW('m', 6, u_int32_t)	/* seek to hardware blk addr */
 #define	MTIOCERRSTAT	_IOR('m', 7, union mterrstat)	/* get tape errors */
+/*
+ * Set EOT model- argument is number of filemarks to end a tape with.
+ * Note that not all possible values will be accepted.
+ */
+#define	MTIOCSETEOTMODEL	_IOW('m', 8, u_int32_t)
+/* Get current EOT model */
+#define	MTIOCGETEOTMODEL	_IOR('m', 8, u_int32_t)
 
 #ifndef KERNEL
 #define	DEFTAPE	"/dev/nrsa0"
