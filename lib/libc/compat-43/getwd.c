@@ -41,16 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
-#include <string.h>
 
 char *
-getwd(buf)
-	char *buf;
+getwd(char *buf)
 {
 	char *p;
 
 	if ( (p = getcwd(buf, MAXPATHLEN)) )
 		return(p);
-	(void)strcpy(buf, strerror(errno));
+	(void)strerror_r(errno, buf, MAXPATHLEN);
 	return((char *)NULL);
 }
