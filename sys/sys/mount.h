@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.52 1997/11/25 07:07:47 julian Exp $
+ *	$Id: mount.h,v 1.53 1998/01/20 10:36:42 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -248,6 +248,7 @@ struct mount {
  */
 #define MNT_WAIT	1
 #define MNT_NOWAIT	2
+#define MNT_LAZY	3	/* push data not written by filesystem syncer */
 
 /*
  * Generic file handle
