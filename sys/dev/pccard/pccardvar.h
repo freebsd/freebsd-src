@@ -269,3 +269,16 @@ void	pccard_io_unmap(struct pccard_function *, int);
 
 #define	pccard_mem_unmap(pf, window)					\
 	(pccard_chip_mem_unmap((pf)->sc->pct, (pf)->sc->pch, (window)))
+
+/* ivar interface */
+enum {
+	PCCARD_IVAR_ETHADDR,	/* read ethernet address from CIS tupple */
+};
+
+/* read ethernet address from CIS tupple */
+__inline static int
+pccard_get_ether(device_t dev, u_char *enaddr)
+{
+	return BUS_READ_IVAR(device_get_parent(dev), dev, 
+				PCCARD_IVAR_ETHADDR, (uintptr_t *)enaddr);
+}

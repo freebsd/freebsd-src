@@ -70,6 +70,9 @@
 #include <pccard/slot.h>
 #include <pccard/pccard_nbk.h>
 
+#include <dev/pccard/pccardvar.h>
+#include <net/ethernet.h>
+
 devclass_t	pccard_devclass;
 
 #define PCCARD_NPORT	2
@@ -252,6 +255,19 @@ pccard_release_resource(device_t bus, device_t child, int type, int rid,
 	return resource_list_release(rl, bus, child, type, rid, r);
 }
 
+static int
+pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
+{
+	struct pccard_devinfo *devi = PCCARD_DEVINFO(child);
+	
+	switch (which) {
+	case PCCARD_IVAR_ETHADDR:
+		bcopy(devi->misc, result, ETHER_ADDR_LEN);
+		return 0;
+	}
+	return ENOENT;
+}
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
@@ -272,6 +288,7 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(bus_set_resource,	pccard_set_resource),
 	DEVMETHOD(bus_get_resource,	pccard_get_resource),
 	DEVMETHOD(bus_delete_resource,	pccard_delete_resource),
+	DEVMETHOD(bus_read_ivar,	pccard_read_ivar),
 
 	{ 0, 0 }
 };
