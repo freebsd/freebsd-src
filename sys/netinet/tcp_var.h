@@ -177,6 +177,7 @@ struct tcpcb {
 	u_long	snd_ssthresh_prev;	/* ssthresh prior to retransmit */
 	tcp_seq	snd_high_prev;		/* snd_high prior to retransmit */
 	u_long	t_badrxtwin;		/* window for retransmit recovery */
+	u_char	snd_limited;		/* segments limited transmitted */
 };
 
 /*
