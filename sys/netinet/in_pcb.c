@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.39 1998/03/01 19:39:26 guido Exp $
+ *	$Id: in_pcb.c,v 1.40 1998/03/24 18:06:08 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,8 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <vm/vm_zone.h>		/* for zalloci, zfreei prototypes */
+
+#include <vm/vm_zone.h>
 
 #include <net/if.h>
 #include <net/route.h>
