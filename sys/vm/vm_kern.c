@@ -70,6 +70,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>		/* for ticks and hz */
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -331,8 +332,13 @@ kmem_malloc(map, size, flags)
 	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
 		vm_map_unlock(map);
 		if (map != kmem_map) {
-			printf("Out of mbuf address space!\n");
-			printf("Consider increasing NMBCLUSTERS\n");
+			static int last_report; /* when we did it (in ticks) */
+			if (ticks < last_report ||
+			    (ticks - last_report) >= hz) {
+				last_report = ticks;
+				printf("Out of mbuf address space!\n");
+				printf("Consider increasing NMBCLUSTERS\n");
+			}
 			goto bad;
 		}
 		if ((flags & M_NOWAIT) == 0)
