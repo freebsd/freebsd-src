@@ -149,7 +149,7 @@ gem_pci_probe(dev)
 			gsc = device_get_softc(dev);
 			gsc->gsc_gem.sc_variant =
 			    gem_pci_devlist[i].gpd_variant;
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 

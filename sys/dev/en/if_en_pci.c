@@ -170,7 +170,7 @@ en_pci_probe(device_t dev)
 		    case PCI_PRODUCT_EFFICIENTNETS_ENI155PF:
 		    case PCI_PRODUCT_EFFICIENTNETS_ENI155PA:
 			device_set_desc(dev, "Efficient Networks ENI-155p");
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		break;
 
@@ -180,7 +180,7 @@ en_pci_probe(device_t dev)
 		  case PCI_PRODUCT_ADP_AIC5900:
 		  case PCI_PRODUCT_ADP_AIC5905:
 			device_set_desc(dev, "Adaptec 155 ATM");
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		break;
 	}

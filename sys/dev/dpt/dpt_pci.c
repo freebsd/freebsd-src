@@ -68,7 +68,7 @@ dpt_pci_probe (device_t dev)
 	if ((pci_get_vendor(dev) == DPT_VENDOR_ID) &&
 	    (pci_get_device(dev) == DPT_DEVICE_ID)) {
 		device_set_desc(dev, "DPT Caching SCSI RAID Controller");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
 }

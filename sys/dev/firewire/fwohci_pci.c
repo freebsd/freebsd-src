@@ -97,116 +97,116 @@ fwohci_pci_probe( device_t dev )
 	id = pci_get_devid(dev);
 	if (id == (FW_VENDORID_NATSEMI | FW_DEVICE_CS4210)) {
 		device_set_desc(dev, "National Semiconductor CS4210");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD861)) {
 		device_set_desc(dev, "NEC uPD72861");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD871)) {
 		device_set_desc(dev, "NEC uPD72871/2");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD72870)) {
 		device_set_desc(dev, "NEC uPD72870");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD72873)) {
 		device_set_desc(dev, "NEC uPD72873");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD72874)) {
 		device_set_desc(dev, "NEC uPD72874");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_SIS | FW_DEVICE_7007)) {
 		/* It has no real identifier, using device id. */
 		device_set_desc(dev, "SiS 7007");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB22)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV22");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB23)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV23");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB26)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV26");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43)) {
 		device_set_desc(dev, "Texas Instruments TSB43AA22");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43A)) {
 		device_set_desc(dev, "Texas Instruments TSB43AB22/A");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43AB21)) {
 		device_set_desc(dev, "Texas Instruments TSB43AB21/A/AI/A-EP");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43AB23)) {
 		device_set_desc(dev, "Texas Instruments TSB43AB23");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB82AA2)) {
 		device_set_desc(dev, "Texas Instruments TSB82AA2");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TIPCI4450)) {
 		device_set_desc(dev, "Texas Instruments PCI4450");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TIPCI4410A)) {
 		device_set_desc(dev, "Texas Instruments PCI4410A");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TIPCI4451)) {
 		device_set_desc(dev, "Texas Instruments PCI4451");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_SONY | FW_DEVICE_CXD1947)) {
 		device_set_desc(dev, "Sony i.LINK (CXD1947)");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_SONY | FW_DEVICE_CXD3222)) {
 		device_set_desc(dev, "Sony i.LINK (CXD3222)");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_VIA | FW_DEVICE_VT6306)) {
 		device_set_desc(dev, "VIA Fire II (VT6306)");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_RICOH | FW_DEVICE_R5C551)) {
 		device_set_desc(dev, "Ricoh R5C551");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_RICOH | FW_DEVICE_R5C552)) {
 		device_set_desc(dev, "Ricoh R5C552");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_APPLE | FW_DEVICE_PANGEA)) {
 		device_set_desc(dev, "Apple Pangea");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_APPLE | FW_DEVICE_UNINORTH)) {
 		device_set_desc(dev, "Apple UniNorth");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_LUCENT | FW_DEVICE_FW322)) {
 		device_set_desc(dev, "Lucent FW322/323");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_INTEL | FW_DEVICE_82372FB)) {
 		device_set_desc(dev, "Intel 82372FB");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	if (id == (FW_VENDORID_ADAPTEC | FW_DEVICE_AIC5800)) {
 		device_set_desc(dev, "Adaptec AHA-894x/AIC-5800");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 #endif
 	if (pci_get_class(dev) == PCIC_SERIALBUS
@@ -216,7 +216,7 @@ fwohci_pci_probe( device_t dev )
 			device_printf(dev, "vendor=%x, dev=%x\n",
 			    pci_get_vendor(dev), pci_get_device(dev));
 		device_set_desc(dev, "1394 Open Host Controller Interface");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 
 	return ENXIO;
