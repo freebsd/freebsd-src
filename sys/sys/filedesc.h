@@ -154,7 +154,7 @@ struct	filedesc *fdinit(struct thread *td);
 struct	filedesc *fdshare(struct proc *p);
 void	ffree(struct file *fp);
 static __inline struct file *	fget_locked(struct filedesc *fdp, int fd);
-pid_t	fgetown(struct sigio *sigio);
+pid_t	fgetown(struct sigio **sigiop);
 int	fsetown(pid_t pgid, struct sigio **sigiop);
 void	funsetown(struct sigio **sigiop);
 void	funsetownlst(struct sigiolst *sigiolst);

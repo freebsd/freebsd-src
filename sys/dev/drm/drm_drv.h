@@ -1203,7 +1203,7 @@ int DRM(ioctl)( DRM_OS_IOCTL )
 
 	case FIOGETOWN:
 		atomic_dec(&dev->ioctl_count);
-		*(int *) data = fgetown(dev->buf_sigio);
+		*(int *) data = fgetown(&dev->buf_sigio);
 		return 0;
 	}
 #endif /* __FreeBSD__ */
