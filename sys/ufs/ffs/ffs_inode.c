@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.51 1999/01/06 18:18:06 bde Exp $
+ * $Id: ffs_inode.c,v 1.52 1999/01/07 16:14:16 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -490,8 +490,8 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		if (nb == 0)
 			continue;
 		if (level > SINGLE) {
-			if (error = ffs_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
-			    (ufs_daddr_t)-1, level - 1, &blkcount))
+			if ((error = ffs_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
+			    (ufs_daddr_t)-1, level - 1, &blkcount)) != 0)
 				allerror = error;
 			blocksreleased += blkcount;
 		}

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.40 1999/01/21 09:27:03 dillon Exp $
+ * $Id: mfs_vnops.c,v 1.41 1999/01/27 18:19:52 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -320,7 +320,7 @@ mfs_close(ap)
 	/*
 	 * Finish any pending I/O requests.
 	 */
-	while (bp = bufq_first(&mfsp->buf_queue)) {
+	while ((bp = bufq_first(&mfsp->buf_queue)) != NULL) {
 		bufq_remove(&mfsp->buf_queue, bp);
 		mfs_doio(bp, mfsp);
 		wakeup((caddr_t)bp);
@@ -330,7 +330,7 @@ mfs_close(ap)
 	 * we must invalidate any in core blocks, so that
 	 * we can, free up its vnode.
 	 */
-	if (error = vinvalbuf(vp, 1, ap->a_cred, ap->a_p, 0, 0))
+	if ((error = vinvalbuf(vp, 1, ap->a_cred, ap->a_p, 0, 0)) != 0)
 		return (error);
 	/*
 	 * There should be no way to have any more uses of this

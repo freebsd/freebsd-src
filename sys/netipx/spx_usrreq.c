@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.22 1999/01/12 12:37:18 eivind Exp $
+ * $Id: spx_usrreq.c,v 1.23 1999/01/27 22:42:26 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -463,8 +463,8 @@ register struct spx *si;
 update_window:
 	if (SSEQ_LT(cb->s_snxt, cb->s_rack))
 		cb->s_snxt = cb->s_rack;
-	if (SSEQ_LT(cb->s_swl1, si->si_seq) || (cb->s_swl1 == si->si_seq &&
-	    (SSEQ_LT(cb->s_swl2, si->si_ack)) ||
+	if (SSEQ_LT(cb->s_swl1, si->si_seq) || ((cb->s_swl1 == si->si_seq &&
+	    (SSEQ_LT(cb->s_swl2, si->si_ack))) ||
 	     (cb->s_swl2 == si->si_ack && SSEQ_LT(cb->s_ralo, si->si_alo)))) {
 		/* keep track of pure window updates */
 		if ((si->si_cc & SPX_SP) && cb->s_swl2 == si->si_ack

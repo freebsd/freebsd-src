@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.25 1998/07/11 07:46:07 bde Exp $
+ * $Id: ufs_lookup.c,v 1.26 1999/01/07 16:14:18 bde Exp $
  */
 
 #include <sys/param.h>
@@ -481,7 +481,7 @@ found:
 	 * regular file, or empty directory.
 	 */
 	if (nameiop == RENAME && wantparent && (flags & ISLASTCN)) {
-		if (error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc))
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc)) != 0)
 			return (error);
 		/*
 		 * Careful about locking second inode.
@@ -521,7 +521,7 @@ found:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, p);	/* race to get the inode */
-		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) {
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0) {
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p);
 			return (error);
 		}
@@ -861,8 +861,8 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 		/*
 		 * Whiteout entry: set d_ino to WINO.
 		 */
-		if (error =
-		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp))
+		if ((error =
+		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp)) != 0)
 			return (error);
 		ep->d_ino = WINO;
 		ep->d_type = DT_WHT;

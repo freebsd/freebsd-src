@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.37 1999/01/21 08:29:05 dillon Exp $
+ * $Id: vfs_aio.c,v 1.38 1999/01/27 21:49:57 dillon Exp $
  */
 
 /*
@@ -359,8 +359,9 @@ aio_free_entry(struct aiocblist *aiocbe)
 	}
 
 	if ((ki->kaio_flags & KAIO_WAKEUP) ||
-		(ki->kaio_flags & KAIO_RUNDOWN) &&
-		((ki->kaio_buffer_count == 0) && (ki->kaio_queue_count == 0))) {
+	    ((ki->kaio_flags & KAIO_RUNDOWN) &&
+	    ((ki->kaio_buffer_count == 0) && 
+	    (ki->kaio_queue_count == 0)))) {
 		ki->kaio_flags &= ~KAIO_WAKEUP;
 		wakeup(p);
 	}
@@ -797,8 +798,8 @@ aio_daemon(void *uproc)
 				lj->lioj_queue_finished_count++;
 			}
 			if ((ki->kaio_flags & KAIO_WAKEUP) ||
-				(ki->kaio_flags & KAIO_RUNDOWN) &&
-				(ki->kaio_active_count == 0)) {
+			    ((ki->kaio_flags & KAIO_RUNDOWN) &&
+			    (ki->kaio_active_count == 0))) {
 				ki->kaio_flags &= ~KAIO_WAKEUP;
 				wakeup(userp);
 			}

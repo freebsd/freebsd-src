@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.42 1998/11/10 09:16:29 peter Exp $
+ * $Id: kern_prot.c,v 1.43 1998/12/13 07:07:51 truckman Exp $
  */
 
 /*
@@ -651,10 +651,10 @@ setreuid(p, uap)
 
 	ruid = uap->ruid;
 	euid = uap->euid;
-	if ((ruid != (uid_t)-1 && ruid != pc->p_ruid && ruid != pc->p_svuid ||
-	     euid != (uid_t)-1 && euid != pc->pc_ucred->cr_uid &&
-	     euid != pc->p_ruid && euid != pc->p_svuid) &&
-	    (error = suser(pc->pc_ucred, &p->p_acflag)))
+	if (((ruid != (uid_t)-1 && ruid != pc->p_ruid && ruid != pc->p_svuid) ||
+	     (euid != (uid_t)-1 && euid != pc->pc_ucred->cr_uid &&
+	     euid != pc->p_ruid && euid != pc->p_svuid)) &&
+	    (error = suser(pc->pc_ucred, &p->p_acflag)) != 0)
 		return (error);
 
 	if (euid != (uid_t)-1 && pc->pc_ucred->cr_uid != euid) {
@@ -694,10 +694,10 @@ setregid(p, uap)
 
 	rgid = uap->rgid;
 	egid = uap->egid;
-	if ((rgid != (gid_t)-1 && rgid != pc->p_rgid && rgid != pc->p_svgid ||
-	     egid != (gid_t)-1 && egid != pc->pc_ucred->cr_groups[0] &&
-	     egid != pc->p_rgid && egid != pc->p_svgid) &&
-	    (error = suser(pc->pc_ucred, &p->p_acflag)))
+	if (((rgid != (gid_t)-1 && rgid != pc->p_rgid && rgid != pc->p_svgid) ||
+	     (egid != (gid_t)-1 && egid != pc->pc_ucred->cr_groups[0] &&
+	     egid != pc->p_rgid && egid != pc->p_svgid)) &&
+	    (error = suser(pc->pc_ucred, &p->p_acflag)) != 0)
 		return (error);
 
 	if (egid != (gid_t)-1 && pc->pc_ucred->cr_groups[0] != egid) {
