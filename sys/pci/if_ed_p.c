@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.12 1998/02/27 22:29:36 se Exp $
+ *	$Id: if_ed_p.c,v 1.13 1998/03/17 10:54:23 danny Exp $
  */
 
 #include "pci.h"
@@ -51,7 +51,7 @@ static struct _pcsid
 
 extern void *ed_attach_NE2000_pci __P((int, int));
 
-static char* ed_pci_probe __P((pcici_t tag, pcidi_t type));
+static const char* ed_pci_probe __P((pcici_t tag, pcidi_t type));
 static void ed_pci_attach __P((pcici_t config_id, int unit));
 
 static u_long ed_pci_count = NED;
@@ -66,7 +66,7 @@ static struct pci_device ed_pci_driver = {
 
 DATA_SET (pcidevice_set, ed_pci_driver);
 
-static char*
+static const char*
 ed_pci_probe (pcici_t tag, pcidi_t type)
 {
 	struct _pcsid	*ep =pci_ids;

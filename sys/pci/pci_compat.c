@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.15 1998/12/07 21:58:48 archie Exp $
+ * $Id: pci_compat.c,v 1.16 1998/12/09 01:27:29 eivind Exp $
  *
  */
 
@@ -345,9 +345,9 @@ pci_freeunit(pcicfgregs *cfg, char *name, int unit)
 	return (unit);
 }
 
-static char *drvname;
+static const char *drvname;
 
-static char*
+static const char*
 pci_probedrv(pcicfgregs *cfg, struct pci_device *dvp)
 {
 	if (dvp && dvp->pd_probe) {

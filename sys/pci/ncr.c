@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.138 1998/12/04 22:54:55 archie Exp $
+**  $Id: ncr.c,v 1.139 1998/12/07 21:58:47 archie Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1340,7 +1340,7 @@ static	void	ncr_action	(struct cam_sim *sim, union ccb *ccb);
 static	void	ncr_timeout	(void *arg);
 static  void    ncr_wakeup	(ncb_p np, u_long code);
 
-static  char*	ncr_probe	(pcici_t tag, pcidi_t type);
+static  const char*	ncr_probe	(pcici_t tag, pcidi_t type);
 static	void	ncr_attach	(pcici_t tag, int unit);
 
 #endif /* KERNEL */
@@ -1357,7 +1357,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 #if !defined(lint)
 static const char ident[] =
-	"\n$Id: ncr.c,v 1.138 1998/12/04 22:54:55 archie Exp $\n";
+	"\n$Id: ncr.c,v 1.139 1998/12/07 21:58:47 archie Exp $\n";
 #endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11
@@ -3357,7 +3357,7 @@ static int ncr_chip_lookup(u_long device_id, u_char revision_id)
 
 
 
-static	char* ncr_probe (pcici_t tag, pcidi_t type)
+static	const char* ncr_probe (pcici_t tag, pcidi_t type)
 {
 	u_char rev = pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 	int i;
