@@ -2448,6 +2448,7 @@ nfs_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	struct nfsnode *np;
 	int error;
 	short pid;
+	unsigned int lticks;
 
 	cache_purge(dvp);
 	np = VTONFS(vp);
@@ -2462,18 +2463,23 @@ nfs_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	sp->s_removeit = nfs_removeit;
 	VREF(dvp);
 
-	/* Fudge together a funny name */
+	/* 
+	 * Fudge together a funny name.
+	 * Changing the format of the funny name to accomodate more 
+	 * sillynames per directory.
+	 * The name is now changed to .nfs.<ticks>.<pid>.4, where ticks is 
+	 * CPU ticks since boot.
+	 */
 	pid = cnp->cn_thread->td_proc->p_pid;
-	sp->s_namlen = sprintf(sp->s_name, ".nfsA%04x4.4", pid);
-
-	/* Try lookitups until we get one that isn't there */
-	while (nfs_lookitup(dvp, sp->s_name, sp->s_namlen, sp->s_cred,
-		cnp->cn_thread, NULL) == 0) {
-		sp->s_name[4]++;
-		if (sp->s_name[4] > 'z') {
-			error = EINVAL;
-			goto bad;
-		}
+	lticks = (unsigned int)ticks;
+	for ( ; ; ) {
+		sp->s_namlen = sprintf(sp->s_name, 
+				       ".nfs.%08x.%04x4.4", lticks, 
+				       pid);
+		if (nfs_lookitup(dvp, sp->s_name, sp->s_namlen, sp->s_cred,
+				 cnp->cn_thread, NULL))
+			break;
+		lticks++;
 	}
 	error = nfs_renameit(dvp, cnp, sp);
 	if (error)
