@@ -20,7 +20,7 @@ STRIP=
 AFLAGS+=--defsym PC98=1
 
 M4?=	m4
-M4FLAGS=-DOBJFORMAT=${OBJFORMAT}
+M4FLAGS=
 
 BOOT_COMCONSOLE_PORT?=	0x238
 M4FLAGS+=-DSIOPRT=${BOOT_COMCONSOLE_PORT}
@@ -31,7 +31,7 @@ kgzldr.o: ${OBJS}
 	${CC} ${LDFLAGS} -o ${.TARGET} ${OBJS}
 
 .s.o:
-	(cd ${.CURDIR}; ${M4} ${M4FLAGS} ../../i386/kgzldr/kgzldr.m4 ${.IMPSRC}) |\
+	(cd ${.CURDIR}; ${M4} ${M4FLAGS} ${.IMPSRC}) |\
 		${AS} ${AFLAGS} -o ${.TARGET}
 
 .include <bsd.prog.mk>
