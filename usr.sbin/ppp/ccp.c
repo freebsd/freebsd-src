@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.8 1998/02/08 11:04:45 brian Exp $
+ * $Id: ccp.c,v 1.30.2.9 1998/02/10 03:23:07 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -452,23 +452,26 @@ CcpOutput(struct link *l, int pri, u_short proto, struct mbuf *m)
 }
 
 struct mbuf *
-CompdInput(u_short *proto, struct mbuf *m)
+ccp_Decompress(u_short *proto, struct mbuf *bp)
 {
-  /* Decompress incoming data */
-  if (CcpInfo.reset_sent != -1) {
-    /* Send another REQ and put the packet in the bit bucket */
-    LogPrintf(LogCCP, "ReSendResetReq(%d)\n", CcpInfo.reset_sent);
-    FsmOutput(&CcpInfo.fsm, CODE_RESETREQ, CcpInfo.reset_sent, NULL, 0);
-    pfree(m);
-  } else if (CcpInfo.in_init)
-    return (*algorithm[CcpInfo.in_algorithm]->i.Read)(proto, m);
-  return NULL;
-}
+  /*
+   * If proto isn't PROTO_COMPD, we still want to pass it to the
+   * decompression routines so that the dictionary's updated
+   */
+  if (CcpInfo.fsm.state == ST_OPENED)
+    if (*proto == PROTO_COMPD) {
+      /* Decompress incoming data */
+      if (CcpInfo.reset_sent != -1) {
+        /* Send another REQ and put the packet in the bit bucket */
+        LogPrintf(LogCCP, "ReSendResetReq(%d)\n", CcpInfo.reset_sent);
+        FsmOutput(&CcpInfo.fsm, CODE_RESETREQ, CcpInfo.reset_sent, NULL, 0);
+      } else if (CcpInfo.in_init)
+        return (*algorithm[CcpInfo.in_algorithm]->i.Read)(proto, bp);
+      pfree(bp);
+      bp = NULL;
+    } else if ((*proto & 0xfff1) == 0x21 && CcpInfo.in_init)
+      /* Add incoming Network Layer traffic to our dictionary */
+      (*algorithm[CcpInfo.in_algorithm]->i.DictSetup)(*proto, bp);
 
-void
-CcpDictSetup(u_short proto, struct mbuf *m)
-{
-  /* Add incoming data to the dictionary */
-  if (CcpInfo.in_init)
-    (*algorithm[CcpInfo.in_algorithm]->i.DictSetup)(proto, m);
+  return bp;
 }
