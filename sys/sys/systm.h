@@ -153,7 +153,7 @@ int	sprintf(char *buf, const char *, ...) __printflike(2, 3);
 int	uprintf(const char *, ...) __printflike(1, 2);
 int	vprintf(const char *, __va_list) __printflike(1, 0);
 int	vsnprintf(char *, size_t, const char *, __va_list) __printflike(3, 0);
-int	vsnrprintf(char *, size_t, int, const char *, __va_list) __printflike(4, 0); 
+int	vsnrprintf(char *, size_t, int, const char *, __va_list) __printflike(4, 0);
 int	vsprintf(char *buf, const char *, __va_list) __printflike(2, 0);
 int	ttyprintf(struct tty *, const char *, ...) __printflike(2, 3);
 int	sscanf(const char *, char const *, ...) __nonnull(1) __nonnull(2);
@@ -224,16 +224,18 @@ int	cr_canseesocket(struct ucred *cred, struct socket *so);
 char	*getenv(const char *name);
 void	freeenv(char *env);
 int	getenv_int(const char *name, int *data);
+long	getenv_long(const char *name, long *data);
+unsigned long getenv_ulong(const char *name, unsigned long *data);
 int	getenv_string(const char *name, char *data, int size);
 int	getenv_quad(const char *name, quad_t *data);
 int	setenv(const char *name, const char *value);
 int	unsetenv(const char *name);
 int	testenv(const char *name);
 
-#ifdef APM_FIXUP_CALLTODO 
+#ifdef APM_FIXUP_CALLTODO
 struct timeval;
-void	adjust_timeout_calltodo(struct timeval *time_change); 
-#endif /* APM_FIXUP_CALLTODO */ 
+void	adjust_timeout_calltodo(struct timeval *time_change);
+#endif /* APM_FIXUP_CALLTODO */
 
 #include <sys/libkern.h>
 
@@ -296,7 +298,7 @@ typedef void (*watchdog_tickle_fn)(void);
 
 extern watchdog_tickle_fn	wdog_tickler;
 
-/* 
+/*
  * Common `proc' functions are declared here so that proc.h can be included
  * less often.
  */

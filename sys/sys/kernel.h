@@ -189,7 +189,7 @@ enum sysinit_elem_order {
  * to discern SYSINIT's which take non-constant data pointers and
  * SYSINIT's which take constant data pointers,
  *
- * The C_* macros take functions expecting const void * arguments 
+ * The C_* macros take functions expecting const void * arguments
  * while the non-C_* macros take functions expecting just void * arguments.
  *
  * With -Wcast-qual on, the compiler issues warnings:
@@ -266,6 +266,10 @@ void	sysinit_add(struct sysinit **set, struct sysinit **set_end);
  * loader.conf(5) for any tunables or conflicts will result.
  */
 
+/*
+ * int
+ * please avoid using for new tunables!
+ */
 extern void tunable_int_init(void *);
 struct tunable_int {
 	const char *path;
@@ -286,6 +290,56 @@ struct tunable_int {
 
 #define	TUNABLE_INT_FETCH(path, var)	getenv_int((path), (var))
 
+/*
+ * long
+ */
+extern void tunable_long_init(void *);
+struct tunable_long {
+	const char *path;
+	long *var;
+};
+#define	TUNABLE_LONG(path, var)					\
+	_TUNABLE_LONG((path), (var), __LINE__)
+#define _TUNABLE_LONG(path, var, line)				\
+	__TUNABLE_LONG((path), (var), line)
+
+#define	__TUNABLE_LONG(path, var, line)				\
+	static struct tunable_long __tunable_long_ ## line = {	\
+		path,						\
+		var,						\
+	};							\
+	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
+	     tunable_long_init, &__tunable_long_ ## line)
+
+#define	TUNABLE_LONG_FETCH(path, var)	getenv_long((path), (var))
+
+/*
+ * unsigned long
+ */
+extern void tunable_ulong_init(void *);
+struct tunable_ulong {
+	const char *path;
+	unsigned long *var;
+};
+#define	TUNABLE_ULONG(path, var)				\
+	_TUNABLE_ULONG((path), (var), __LINE__)
+#define _TUNABLE_ULONG(path, var, line)				\
+	__TUNABLE_ULONG((path), (var), line)
+
+#define	__TUNABLE_ULONG(path, var, line)			\
+	static struct tunable_ulong __tunable_ulong_ ## line = {\
+		path,						\
+		var,						\
+	};							\
+	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
+	     tunable_ulong_init, &__tunable_ulong_ ## line)
+
+#define	TUNABLE_ULONG_FETCH(path, var)	getenv_ulong((path), (var))
+
+/*
+ * Quad (64-bit)
+ * please avoid using for new tunables!
+ */
 extern void tunable_quad_init(void *);
 struct tunable_quad {
 	const char *path;
