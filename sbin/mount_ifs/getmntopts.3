@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)getmntopts.3	8.1 (Berkeley) 3/27/94
+.\"	@(#)getmntopts.3	8.3 (Berkeley) 3/30/95
 .\"
-.Dd March 27, 1994
+.Dd March 30, 1995
 .Dt GETMNTOPTS 3
 .Os BSD 4.4
 .Sh NAME
@@ -62,7 +62,7 @@ or
 .Dv m_altloc
 field of the option's table entry)
 are updated.
-The flag word is not initialized by
+The flag words are not initialized by
 .Nm getmntopt .
 The table,
 .Dv mopts ,
@@ -154,16 +154,21 @@ struct mntopt mopts[] = {
 };
 
 	...
-	mntflags = 0;
+	mntflags = mntaltflags = 0;
 	...
-	getmntopts(options, mopts, &mntflags)
+	getmntopts(options, mopts, &mntflags, &mntaltflags);
 	...
 .Ed
 .Sh DIAGNOSTICS
-The
+If the external integer variable
+.Dv getmnt_silent
+is non-zero then the
 .Nm getmntopts
 function displays an error message and exits if an
 unrecognized option is encountered.
+By default
+.Dv getmnt_silent
+is zero.
 .Sh SEE ALSO
 .Xr err 3 ,
 .Xr mount 8

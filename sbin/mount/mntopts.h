@@ -30,48 +30,48 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mntopts.h	8.3 (Berkeley) 3/27/94
+ *	@(#)mntopts.h	8.7 (Berkeley) 3/29/95
  */
 
 struct mntopt {
 	const char *m_option;	/* option name */
 	int m_inverse;		/* if a negative option, eg "dev" */
 	int m_flag;		/* bit to set, eg. MNT_RDONLY */
-	int m_altloc;		/* zero if this is a real mount flag */
+	int m_altloc;		/* 1 => set bit in altflags */
 };
 
 /* User-visible MNT_ flags. */
 #define MOPT_ASYNC		{ "async",	0, MNT_ASYNC, 0 }
 #define MOPT_NOATIME		{ "atime",	1, MNT_NOATIME, 0 }
-#define MOPT_NOAUTO		{ "auto",	1, 0, 0 }
 #define MOPT_NODEV		{ "dev",	1, MNT_NODEV, 0 }
 #define MOPT_NOEXEC		{ "exec",	1, MNT_NOEXEC, 0 }
 #define MOPT_NOSUID		{ "suid",	1, MNT_NOSUID, 0 }
 #define MOPT_RDONLY		{ "rdonly",	0, MNT_RDONLY, 0 }
 #define MOPT_SYNC		{ "sync",	0, MNT_SYNCHRONOUS, 0 }
 #define MOPT_UNION		{ "union",	0, MNT_UNION, 0 }
-
-/* Skip	this options without any action	(needed	for checkquota/quotaon)	*/
-#define	MOPT_UQUOTA		{ "userquota",	0, 0, 0 }
-#define	MOPT_GQUOTA		{ "groupquota",	0, 0, 0 }
+#define MOPT_USERQUOTA		{ "userquota",	0, 0, 0 }
+#define MOPT_GROUPQUOTA		{ "groupquota",	0, 0, 0 }
 
 /* Control flags. */
 #define MOPT_FORCE		{ "force",	0, MNT_FORCE, 0 }
 #define MOPT_UPDATE		{ "update",	0, MNT_UPDATE, 0 }
-
-/* Support for old-style "ro", "rw" flags. */
 #define MOPT_RO			{ "ro",		0, MNT_RDONLY, 0 }
 #define MOPT_RW			{ "rw",		1, MNT_RDONLY, 0 }
 
+/* This is parsed by mount(8), but is ignored by specific mount_*(8)s. */
+#define MOPT_AUTO		{ "auto",	0, 0, 0 }
+
 #define MOPT_FSTAB_COMPAT						\
 	MOPT_RO,							\
-	MOPT_RW
+	MOPT_RW,							\
+	MOPT_AUTO
 
 /* Standard options which all mounts can understand. */
 #define MOPT_STDOPTS							\
+	MOPT_USERQUOTA,							\
+	MOPT_GROUPQUOTA,						\
 	MOPT_FSTAB_COMPAT,						\
 	MOPT_NOATIME,							\
-	MOPT_NOAUTO,							\
 	MOPT_NODEV,							\
 	MOPT_NOEXEC,							\
 	MOPT_NOSUID,							\

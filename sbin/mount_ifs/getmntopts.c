@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)getmntopts.c	8.1 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)getmntopts.c	8.3 (Berkeley) 3/29/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -57,7 +57,7 @@ getmntopts(options, m0, flagp, altflagp)
 {
 	const struct mntopt *m;
 	int negative, len;
-	char *opt, *optbuf;
+	char *opt, *optbuf, *p;
 	int *thisflagp;
 
 	/* Copy option string, since it is about to be torn asunder... */
@@ -71,6 +71,14 @@ getmntopts(options, m0, flagp, altflagp)
 			opt += 2;
 		} else
 			negative = 0;
+
+		/*
+		 * for options with assignments in them (ie. quotas)
+		 * ignore the assignment as it's handled elsewhere
+		 */
+		p = strchr(opt, '=');
+		if (p)
+			 *p = '\0';
 
 		/* Scan option table. */
 		for (m = m0; m->m_option != NULL; ++m) {
@@ -89,7 +97,7 @@ getmntopts(options, m0, flagp, altflagp)
 				*thisflagp |= m->m_flag;
 			else
 				*thisflagp &= ~m->m_flag;
-		} else if(!getmnt_silent) {
+		} else if (!getmnt_silent) {
 			errx(1, "-o %s: option not supported", opt);
 		}
 	}
