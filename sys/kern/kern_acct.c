@@ -228,6 +228,7 @@ acct_process(td)
 	int t, ret;
 	struct vnode *vp;
 	struct ucred *uc;
+	struct plimit *newlim, *oldlim;
 
 	mtx_lock(&acct_mtx);
 
@@ -300,11 +301,14 @@ acct_process(td)
 	/*
 	 * Eliminate any file size rlimit.
 	 */
-	if (p->p_limit->p_refcnt > 1) {
-		p->p_limit->p_refcnt--;
-		p->p_limit = limcopy(p->p_limit);
-	}
-	p->p_rlimit[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
+	newlim = lim_alloc();
+	PROC_LOCK(p);
+	oldlim = p->p_limit;
+	lim_copy(newlim, oldlim);
+	newlim->pl_rlimit[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
+	p->p_limit = newlim;
+	PROC_UNLOCK(p);
+	lim_free(oldlim);
 
 	VOP_LEASE(vp, td, uc, LEASE_WRITE);
 	ret = vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),

@@ -2467,6 +2467,7 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	vm_offset_t bot, top;
 	vm_size_t init_ssize;
 	int orient, rv;
+	rlim_t vmemlim;
 
 	/*
 	 * The stack orientation is piggybacked with the cow argument.
@@ -2483,6 +2484,10 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 
 	init_ssize = (max_ssize < sgrowsiz) ? max_ssize : sgrowsiz;
 
+	PROC_LOCK(curthread->td_proc);
+	vmemlim = lim_cur(curthread->td_proc, RLIMIT_VMEM);
+	PROC_UNLOCK(curthread->td_proc);
+
 	vm_map_lock(map);
 
 	/* If addr is already mapped, no go */
@@ -2492,8 +2497,7 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	}
 
 	/* If we would blow our VMEM resource limit, no go */
-	if (map->size + init_ssize >
-	    curthread->td_proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+	if (map->size + init_ssize > vmemlim) {
 		vm_map_unlock(map);
 		return (KERN_NO_SPACE);
 	}
@@ -2566,11 +2570,17 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	vm_map_t map = &vm->vm_map;
 	vm_offset_t end;
 	size_t grow_amount, max_grow;
+	rlim_t stacklim, vmemlim;
 	int is_procstack, rv;
 
 	GIANT_REQUIRED;
 
 Retry:
+	PROC_LOCK(p);
+	stacklim = lim_cur(p, RLIMIT_STACK);
+	vmemlim = lim_cur(curthread->td_proc, RLIMIT_VMEM);
+	PROC_UNLOCK(p);
+
 	vm_map_lock_read(map);
 
 	/* If addr is already in the entry range, no need to grow.*/
@@ -2658,8 +2668,7 @@ Retry:
 	 * If this is the main process stack, see if we're over the stack
 	 * limit.
 	 */
-	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount >
-			     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
+	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > stacklim)) {
 		vm_map_unlock_read(map);
 		return (KERN_NO_SPACE);
 	}
@@ -2668,14 +2677,12 @@ Retry:
 	grow_amount = roundup (grow_amount, sgrowsiz);
 	if (grow_amount > stack_entry->avail_ssize)
 		grow_amount = stack_entry->avail_ssize;
-	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount >
-			     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
-		grow_amount = p->p_rlimit[RLIMIT_STACK].rlim_cur -
-			      ctob(vm->vm_ssize);
+	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > stacklim)) {
+		grow_amount = stacklim - ctob(vm->vm_ssize);
 	}
 
 	/* If we would blow our VMEM resource limit, no go */
-	if (map->size + grow_amount > p->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+	if (map->size + grow_amount > vmemlim) {
 		vm_map_unlock_read(map);
 		return (KERN_NO_SPACE);
 	}

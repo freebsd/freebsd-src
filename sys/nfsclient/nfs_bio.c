@@ -809,14 +809,17 @@ restart:
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, i don't think it matters
 	 */
-	if (p && uio->uio_offset + uio->uio_resid >
-	      p->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
+	if (p != NULL) {
 		PROC_LOCK(p);
-		psignal(p, SIGXFSZ);
+		if (uio->uio_offset + uio->uio_resid >
+		    lim_cur(p, RLIMIT_FSIZE)) {
+			psignal(p, SIGXFSZ);
+			PROC_UNLOCK(p);
+			if (haverslock)
+				nfs_rsunlock(np, td);
+			return (EFBIG);
+		}
 		PROC_UNLOCK(p);
-		if (haverslock)
-			nfs_rsunlock(np, td);
-		return (EFBIG);
 	}
 
 	biosize = vp->v_mount->mnt_stat.f_iosize;

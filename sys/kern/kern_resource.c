@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 
 static int donice(struct thread *td, struct proc *chgp, int n);
 
+static MALLOC_DEFINE(M_PLIMIT, "plimit", "plimit structures");
 static MALLOC_DEFINE(M_UIDINFO, "uidinfo", "uidinfo structures");
 #define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
 static struct mtx uihashtbl_mtx;
@@ -459,9 +460,7 @@ osetrlimit(td, uap)
 		return (error);
 	lim.rlim_cur = olim.rlim_cur;
 	lim.rlim_max = olim.rlim_max;
-	mtx_lock(&Giant);
-	error = dosetrlimit(td, uap->which, &lim);
-	mtx_unlock(&Giant);
+	error = kern_setrlimit(td, uap->which, &lim);
 	return (error);
 }
 
@@ -482,19 +481,17 @@ ogetrlimit(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct orlimit olim;
+	struct rlimit  rl;
 	int error;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
-	mtx_lock(&Giant);
-	olim.rlim_cur = p->p_rlimit[uap->which].rlim_cur;
-	if (olim.rlim_cur == -1)
-		olim.rlim_cur = 0x7fffffff;
-	olim.rlim_max = p->p_rlimit[uap->which].rlim_max;
-	if (olim.rlim_max == -1)
-		olim.rlim_max = 0x7fffffff;
+	PROC_LOCK(p);
+	lim_rlimit(p, uap->which, &rl);
+	PROC_UNLOCK(p);
+	olim.rlim_cur = rl.rlim_cur == -1 ? 0x7fffffff : rl.rlim_cur;
+	olim.rlim_max = rl.rlim_max == -1 ? 0x7fffffff : rl.rlim_max;
 	error = copyout(&olim, uap->rlp, sizeof(olim));
-	mtx_unlock(&Giant);
 	return (error);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
@@ -519,27 +516,24 @@ setrlimit(td, uap)
 
 	if ((error = copyin(uap->rlp, &alim, sizeof (struct rlimit))))
 		return (error);
-	mtx_lock(&Giant);
-	error = dosetrlimit(td, uap->which, &alim);
-	mtx_unlock(&Giant);
+	error = kern_setrlimit(td, uap->which, &alim);
 	return (error);
 }
 
 int
-dosetrlimit(td, which, limp)
+kern_setrlimit(td, which, limp)
 	struct thread *td;
 	u_int which;
 	struct rlimit *limp;
 {
 	struct proc *p = td->td_proc;
+	struct plimit *newlim, *oldlim;
 	register struct rlimit *alimp;
+	rlim_t oldssiz;
 	int error;
-
-	GIANT_REQUIRED;
 
 	if (which >= RLIM_NLIMITS)
 		return (EINVAL);
-	alimp = &p->p_rlimit[which];
 
 	/*
 	 * Preserve historical bugs by treating negative limits as unsigned.
@@ -549,17 +543,22 @@ dosetrlimit(td, which, limp)
 	if (limp->rlim_max < 0)
 		limp->rlim_max = RLIM_INFINITY;
 
+	oldssiz = 0;
+	newlim = lim_alloc();
+	PROC_LOCK(p);
+	oldlim = p->p_limit;
+	alimp = &oldlim->pl_rlimit[which];
 	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
-		if ((error = suser_cred(td->td_ucred, PRISON_ROOT)))
+		if ((error = suser_cred(td->td_ucred, PRISON_ROOT))) {
+			PROC_UNLOCK(p);
+			lim_free(newlim);
 			return (error);
+	}
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;
-	if (p->p_limit->p_refcnt > 1) {
-		p->p_limit->p_refcnt--;
-		p->p_limit = limcopy(p->p_limit);
-		alimp = &p->p_rlimit[which];
-	}
+	lim_copy(newlim, oldlim);
+	alimp = &newlim->pl_rlimit[which];
 
 	switch (which) {
 
@@ -580,32 +579,7 @@ dosetrlimit(td, which, limp)
 			limp->rlim_cur = maxssiz;
 		if (limp->rlim_max > maxssiz)
 			limp->rlim_max = maxssiz;
-		/*
-		 * Stack is allocated to the max at exec time with only
-		 * "rlim_cur" bytes accessible.  If stack limit is going
-		 * up make more accessible, if going down make inaccessible.
-		 */
-		if (limp->rlim_cur != alimp->rlim_cur) {
-			vm_offset_t addr;
-			vm_size_t size;
-			vm_prot_t prot;
-
-			if (limp->rlim_cur > alimp->rlim_cur) {
-				prot = p->p_sysent->sv_stackprot;
-				size = limp->rlim_cur - alimp->rlim_cur;
-				addr = p->p_sysent->sv_usrstack -
-				    limp->rlim_cur;
-			} else {
-				prot = VM_PROT_NONE;
-				size = alimp->rlim_cur - limp->rlim_cur;
-				addr = p->p_sysent->sv_usrstack -
-				    alimp->rlim_cur;
-			}
-			addr = trunc_page(addr);
-			size = round_page(size);
-			(void) vm_map_protect(&p->p_vmspace->vm_map,
-					      addr, addr+size, prot, FALSE);
-		}
+		oldssiz = alimp->rlim_cur;
 		break;
 
 	case RLIMIT_NOFILE:
@@ -627,6 +601,40 @@ dosetrlimit(td, which, limp)
 		break;
 	}
 	*alimp = *limp;
+	p->p_limit = newlim;
+	PROC_UNLOCK(p);
+	lim_free(oldlim);
+
+	if (which == RLIMIT_STACK) {
+		/*
+		 * Stack is allocated to the max at exec time with only
+		 * "rlim_cur" bytes accessible.  If stack limit is going
+		 * up make more accessible, if going down make inaccessible.
+		 */
+		if (limp->rlim_cur != oldssiz) {
+			vm_offset_t addr;
+			vm_size_t size;
+			vm_prot_t prot;
+
+			mtx_lock(&Giant);
+			if (limp->rlim_cur > oldssiz) {
+				prot = p->p_sysent->sv_stackprot;
+				size = limp->rlim_cur - oldssiz;
+				addr = p->p_sysent->sv_usrstack -
+				    limp->rlim_cur;
+			} else {
+				prot = VM_PROT_NONE;
+				size = oldssiz - limp->rlim_cur;
+				addr = p->p_sysent->sv_usrstack -
+				    oldssiz;
+			}
+			addr = trunc_page(addr);
+			size = round_page(size);
+			(void) vm_map_protect(&p->p_vmspace->vm_map,
+					      addr, addr+size, prot, FALSE);
+			mtx_unlock(&Giant);
+		}
+	}
 	return (0);
 }
 
@@ -647,13 +655,14 @@ getrlimit(td, uap)
 {
 	int error;
 	struct proc *p = td->td_proc;
+	struct rlimit rlim;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
-	mtx_lock(&Giant);
-	error = copyout(&p->p_rlimit[uap->which], uap->rlp,
-		    sizeof (struct rlimit));
-	mtx_unlock(&Giant);
+	PROC_LOCK(p);
+	lim_rlimit(p, uap->which, &rlim);
+	PROC_UNLOCK(p);
+	error = copyout(&rlim, uap->rlp, sizeof (struct rlimit));
 	return(error);
 }
 
@@ -814,21 +823,107 @@ ruadd(ru, ru2)
 }
 
 /*
- * Make a copy of the plimit structure.
- * We share these structures copy-on-write after fork,
- * and copy when a limit is changed.
+ * Allocate a new resource limits structure, initialize it's
+ * reference count and mutex.
  */
 struct plimit *
-limcopy(lim)
-	struct plimit *lim;
+lim_alloc(void)
 {
-	register struct plimit *copy;
+	struct plimit *limp;
 
-	MALLOC(copy, struct plimit *, sizeof(struct plimit),
-	    M_SUBPROC, M_WAITOK);
-	bcopy(lim->pl_rlimit, copy->pl_rlimit, sizeof(struct plimit));
-	copy->p_refcnt = 1;
-	return (copy);
+	limp = (struct plimit *)malloc(sizeof(struct plimit), M_PLIMIT,
+	    M_WAITOK | M_ZERO);
+	limp->pl_refcnt = 1;
+	mtx_init(&limp->pl_mtx, "plimit lock", NULL, MTX_DEF);
+	return (limp);
+}
+
+/*
+ * NOTE: The caller must own the proc lock this limit is associated with.
+ */
+struct plimit *
+lim_hold(limp)
+	struct plimit *limp;
+{
+
+	LIM_LOCK(limp);
+	limp->pl_refcnt++;
+	LIM_UNLOCK(limp);
+	return (limp);
+}
+
+/* 
+ * NOTE: The caller must own the proc lock this plimit belongs to.
+ */
+void
+lim_free(limp)
+	struct plimit *limp;
+{
+
+	LIM_LOCK(limp);
+	KASSERT(limp->pl_refcnt > 0, ("bad plimit refcnt: %d", limp->pl_refcnt));
+	if (--limp->pl_refcnt == 0) {
+		mtx_destroy(&limp->pl_mtx);
+		free((void *)limp, M_PLIMIT);
+		return;
+	}
+	LIM_UNLOCK(limp);
+}
+
+/*
+ * Make a copy of the plimit structure.
+ * We share these structures copy-on-write after fork.
+ */
+void
+lim_copy(dst, src)
+	struct plimit *dst, *src;
+{
+
+	KASSERT(dst->pl_refcnt == 1, ("lim_copy of shared limit"));
+	bcopy(src->pl_rlimit, dst->pl_rlimit, sizeof(src->pl_rlimit));
+}
+
+/*
+ * Obtain the hard limit for a particular system resource.
+ * 	which - index into the rlimit array
+ * Note: callers must hold proc lock.
+ */
+rlim_t
+lim_max(struct proc *p, int which)
+{
+	struct rlimit rl;
+
+	lim_rlimit(p, which, &rl);
+	return (rl.rlim_max);
+}
+
+/*
+ * Obtain the current (soft) limit for a particular system resource.
+ * 	which - index into the rlimit array
+ * Note: callers must hold proc lock.
+ */
+rlim_t
+lim_cur(struct proc *p, int which)
+{
+	struct rlimit rl;
+
+	lim_rlimit(p, which, &rl);
+	return (rl.rlim_max);
+}
+
+/*
+ * Obtain the entire rlimit structure for a particular system limit.
+ *	which - index into the rlimit array
+ *	rlp   - address into which the rlimit structure will be placed
+ */
+void
+lim_rlimit(struct proc *p, int which, struct rlimit *rlp)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	KASSERT(which >= 0 && which < RLIM_NLIMITS,
+	    ("request for invalid resource limit"));
+	*rlp = p->p_limit->pl_rlimit[which];
 }
 
 /*

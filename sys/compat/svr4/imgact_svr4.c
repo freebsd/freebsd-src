@@ -104,14 +104,16 @@ exec_svr4_imgact(imgp)
     /* text + data can't exceed file size */
     if (a_out->a_data + a_out->a_text > imgp->attr->va_size)
 	return (EFAULT);
-    /* For p_rlimit below. */
-    mtx_assert(&Giant, MA_OWNED);
     /*
      * text/data/bss must not exceed limits
      */
+    PROC_LOCK(imgp->proc);
     if (a_out->a_text > maxtsiz ||
-	a_out->a_data + bss_size > imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
+	a_out->a_data + bss_size > lim_cur(imgp->proc, RLIMIT_DATA)) {
+    	PROC_UNLOCK(imgp->proc);
 	return (ENOMEM);
+    }
+    PROC_UNLOCK(imgp->proc);
 
     VOP_UNLOCK(imgp->vp, 0, td);
 

@@ -46,11 +46,15 @@
 #define _RLIMIT_IDENT
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/resource.h>
 #include <sys/sbuf.h>
+#include <sys/types.h>
+#include <sys/malloc.h>
 
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
@@ -59,7 +63,16 @@
 int
 procfs_doprocrlimit(PFS_FILL_ARGS)
 {
+	struct plimit *limp;
 	int i;
+
+	/*
+	 * Obtain a private reference to resource limits
+	 */
+
+	PROC_LOCK(p);
+	limp = lim_hold(p->p_limit);
+	PROC_UNLOCK(p);
 
 	for (i = 0; i < RLIM_NLIMITS; i++) {
 
@@ -77,24 +90,25 @@ procfs_doprocrlimit(PFS_FILL_ARGS)
 		 * current limit
 		 */
 
-		if (p->p_rlimit[i].rlim_cur == RLIM_INFINITY) {
+		if (limp->pl_rlimit[i].rlim_cur == RLIM_INFINITY) {
 			sbuf_printf(sb, "-1 ");
 		} else {
 			sbuf_printf(sb, "%llu ",
-				(unsigned long long)p->p_rlimit[i].rlim_cur);
+			    (unsigned long long)limp->pl_rlimit[i].rlim_cur);
 		}
 
 		/*
 		 * maximum limit
 		 */
 
-		if (p->p_rlimit[i].rlim_max == RLIM_INFINITY) {
+		if (limp->pl_rlimit[i].rlim_max == RLIM_INFINITY) {
 			sbuf_printf(sb, "-1\n");
 		} else {
 			sbuf_printf(sb, "%llu\n",
-				(unsigned long long)p->p_rlimit[i].rlim_max);
+			    (unsigned long long)limp->pl_rlimit[i].rlim_max);
 		}
 	}
 
+	lim_free(limp);
 	return (0);
 }

@@ -224,10 +224,10 @@ getdtablesize(td, uap)
 {
 	struct proc *p = td->td_proc;
 
-	mtx_lock(&Giant);
+	PROC_LOCK(p);
 	td->td_retval[0] =
-	    min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
-	mtx_unlock(&Giant);
+	    min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
+	PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -353,11 +353,14 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_DUPFD:
 		FILEDESC_UNLOCK(fdp);
 		newmin = arg;
-		if (newmin >= p->p_rlimit[RLIMIT_NOFILE].rlim_cur ||
+		PROC_LOCK(p);
+		if (newmin >= lim_cur(p, RLIMIT_NOFILE) ||
 		    newmin >= maxfilesperproc) {
+			PROC_UNLOCK(p);
 			error = EINVAL;
 			break;
 		}
+		PROC_UNLOCK(p);
 		error = do_dup(td, DUP_VARIABLE, fd, newmin, td->td_retval);
 		break;
 
@@ -572,7 +575,9 @@ do_dup(td, type, old, new, retval)
 	 */
 	if (old < 0 || new < 0)
 		return (EBADF);
-	maxfd = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
+	PROC_LOCK(p);
+	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
+	PROC_UNLOCK(p);
 	if (new >= maxfd)
 		return (EMFILE);
 
@@ -1213,7 +1218,9 @@ fdalloc(struct thread *td, int minfd, int *result)
 
 	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
 
-	maxfd = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
+	PROC_LOCK(p);
+	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
+	PROC_UNLOCK(p);
 
 	/*
 	 * Search the bitmap for a free descriptor.  If none is found, try
@@ -1261,7 +1268,9 @@ fdavail(td, n)
 
 	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
 
-	lim = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
+	PROC_LOCK(p);
+	lim = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
+	PROC_UNLOCK(p);
 	if ((i = lim - fdp->fd_nfiles) > 0 && (n -= i) <= 0)
 		return (1);
 	last = min(fdp->fd_nfiles, lim);

@@ -77,9 +77,15 @@ obreak(td, uap)
 {
 	struct vmspace *vm = td->td_proc->p_vmspace;
 	vm_offset_t new, old, base;
+	rlim_t datalim, vmemlim;
 	int rv;
 	int error = 0;
 	boolean_t do_map_wirefuture;
+
+	PROC_LOCK(td->td_proc);
+	datalim = lim_cur(td->td_proc, RLIMIT_DATA);
+	vmemlim = lim_cur(td->td_proc, RLIMIT_VMEM);
+	PROC_UNLOCK(td->td_proc);
 
 	do_map_wirefuture = FALSE;
 	new = round_page((vm_offset_t)uap->nsize);
@@ -92,8 +98,7 @@ obreak(td, uap)
 		 * Check the resource limit, but allow a process to reduce
 		 * its usage, even if it remains over the limit.
 		 */
-		if (new - base > td->td_proc->p_rlimit[RLIMIT_DATA].rlim_cur &&
-		    new > old) {
+		if (new - base > datalim && new > old) {
 			error = ENOMEM;
 			goto done;
 		}
@@ -111,8 +116,7 @@ obreak(td, uap)
 		goto done;
 	}
 	if (new > old) {
-		if (vm->vm_map.size + (new - old) >
-		    td->td_proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+		if (vm->vm_map.size + (new - old) > vmemlim) {
 			error = ENOMEM;
 			goto done;
 		}

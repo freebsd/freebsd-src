@@ -794,11 +794,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * limits after loading the segments since we do
 	 * not actually fault in all the segments pages.
 	 */
-	if (data_size >
-	    imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur ||
+	PROC_LOCK(imgp->proc);
+	if (data_size > lim_cur(imgp->proc, RLIMIT_DATA) ||
 	    text_size > maxtsiz ||
-	    total_size >
-	    imgp->proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+	    total_size > lim_cur(imgp->proc, RLIMIT_VMEM)) {
+		PROC_UNLOCK(imgp->proc);
 		error = ENOMEM;
 		goto fail;
 	}
@@ -815,7 +815,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * its maximum allowed size.
 	 */
 	addr = round_page((vm_offset_t)imgp->proc->p_vmspace->vm_daddr +
-	    imgp->proc->p_rlimit[RLIMIT_DATA].rlim_max);
+	    lim_max(imgp->proc, RLIMIT_DATA));
+	PROC_UNLOCK(imgp->proc);
 
 	imgp->entry_addr = entry;
 
