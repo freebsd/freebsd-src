@@ -57,7 +57,7 @@ Write column headings above the output.
 .It Fl m
 Show information about the terminal attached to standard input only.
 .It Fl q
-.Dq Quick mode Ns :
+.Dq "Quick mode" :
 List the names and number of logged in users in columns.
 All other command line options are ignored.
 .It Fl s
@@ -66,20 +66,21 @@ This is the default.
 .It Fl T
 Indicate whether each user is accepting messages.
 One of the following characters is written:
-.Bl -tag -width x -compact
-.It +
+.Pp
+.Bl -tag -width 1n -compact
+.It Li +
 User is accepting messages.
-.It \&-
+.It Li \&-
 User is not accepting messages.
-.It ?
+.It Li \&?
 An error occurred.
 .El
 .It Fl u
 Show idle time for each user in hours and minutes as
-.Ql hh:mm ,
+.Ar hh Ns : Ns Ar mm ,
 .Ql \&.
-if the user has been idle less that a minute and
-.Ql old
+if the user has been idle less that a minute, and
+.Dq Li old
 if the user has been idle more than 24 hours.
 .It Cm am I
 Equivalent to
