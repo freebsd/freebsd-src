@@ -2281,7 +2281,7 @@ Var_Subst (char *var, char *str, GNode *ctxt, Boolean undefErr)
 		int expand;
 		for (;;) {
 		    if (str[1] != '(' && str[1] != '{') {
-			if (str[1] != *var) {
+			if (str[1] != *var || val[1] != '\0') {
 			    Buf_AddBytes(buf, 2, (Byte *) str);
 			    str += 2;
 			    expand = FALSE;
