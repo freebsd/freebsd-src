@@ -2138,7 +2138,6 @@ ohci_device_intr_abort(reqh)
 	if (reqh->pipe->intrreqh == reqh) {
 		DPRINTF(("ohci_device_intr_abort: remove\n"));
 		reqh->pipe->intrreqh = 0;
-		ohci_intr_done((ohci_softc_t *)reqh->pipe->device->bus, reqh);
 	}
 }
 
