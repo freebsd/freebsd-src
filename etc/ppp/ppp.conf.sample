@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.21 1997/11/08 20:58:39 brian Exp $
+# $Id: ppp.conf.sample,v 1.22 1997/11/09 17:54:27 brian Exp $
 #
 #################################################################
 
@@ -90,7 +90,7 @@ PAPorCHAPpmdemand:
 #
 #  It is not necessary to have an entry in ppp.linkup when both IP numbers
 #  are static.  Be warned though, the MYADDR: label is executed from
-#  ppp.linkup if the "ondemand:" label is not found.
+#  ppp.linkup if the "ondemand:" and "192.244.176.44" labels are not found.
 #
 ondemand:
  set phone 1234567
@@ -106,6 +106,7 @@ ondemand:
 # section and aren't themselves complete.  They're provided as examples
 # of how to achieve different things.
 
+examples:
 # Multi-phone example.  Numbers separated by a : are used sequentially.
 # Numbers separated by a | are used if the previous dial or login script
 # failed.  Usually, you will prefer to use only one of | or :, but both
