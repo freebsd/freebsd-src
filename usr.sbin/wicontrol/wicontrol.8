@@ -314,7 +314,11 @@ which means the key can be specified as either a 13 character text
 string or 26 hex digits in addition to the formats supported by the
 Silver cards.
 .Pp
-Note: Both 128-bit and 64-bit WEP have been broken.
+For maximum portability, hex keys are recommended;
+the mapping of text keys to WEP encryption is usually driver-specific.   
+In particular, the Windows drivers do this mapping differently to FreeBSD.
+.Pp
+Note: Both 128-bit and 64-bit WEP encryption have been broken.
 See the
 .Sx BUGS
 section for details.
