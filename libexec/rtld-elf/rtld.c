@@ -824,7 +824,12 @@ find_library(const char *xname, const Obj_Entry *refobj)
       (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
 	return pathname;
 
-    _rtld_error("Shared object \"%s\" not found", name);
+    if(refobj != NULL && refobj->path != NULL) {
+	_rtld_error("Shared object \"%s\" not found, required by \"%s\"",
+	  name, basename(refobj->path));
+    } else {
+	_rtld_error("Shared object \"%s\" not found", name);
+    }
     return NULL;
 }
 
