@@ -137,6 +137,17 @@ static struct randomtab randomtab_32 = {
 	{ 2, 3, 59652323, 0 },	/* factors of ru_n */
 };
 
+static struct randomtab randomtab_20 = {
+	20,			/* resulting bits */
+	180,			/* Time after wich will be reseeded */
+	200000,			/* Uniq cycle, avoid blackjack prediction */
+	2,			/* Starting generator */
+	524269,			/* RU_N-1 = 2^2*3^2*14563 */
+	7,			/* determine ru_a as RU_AGEN^(2*rand) */
+	279936,			/* RU_M = 2^7*3^7 - don't change */
+	{ 2, 3, 14563, 0 },	/* factors of ru_n */
+};
+
 static u_int32_t pmod(u_int32_t, u_int32_t, u_int32_t);
 static void initid(struct randomtab *);
 static u_int32_t randomid(struct randomtab *);
