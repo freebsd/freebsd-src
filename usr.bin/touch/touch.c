@@ -204,7 +204,7 @@ stime_arg1(arg, tvp)
 	switch(strlen(arg)) {
 	case 12:			/* CCYYMMDDhhmm */
 		t->tm_year = ATOI2(arg);
-		t->tm_year *= 1000;
+		t->tm_year *= 100;
 		yearset = 1;
 		/* FALLTHOUGH */
 	case 10:			/* YYMMDDhhmm */
