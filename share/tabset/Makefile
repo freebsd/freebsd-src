@@ -7,15 +7,10 @@ FILES=	3101 9837 aa aed512 beehive diablo dtc382 hp700-wy ibm3101 std \
 
 CLEANFILES+=	${FILES}
 
-all: ${FILES}
+.SUFFIXES: .uu
+.uu:
+	uudecode < ${.IMPSRC}
 
-${FILES}:
-	uudecode < ${.CURDIR}/${.TARGET}.uu
-
-depend lint tags:
-
-install:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${FILES} \
-	    ${DESTDIR}${BINDIR}/tabset
+FILESDIR=	${BINDIR}/tabset
 
 .include <bsd.prog.mk>
