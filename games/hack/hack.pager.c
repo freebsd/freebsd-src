@@ -381,7 +381,6 @@ child(wt) {
 		settty((char *) 0);		/* also calls end_screen() */
 		/* revoke */
 		setgid(getgid());
-		setuid(getuid());
 #ifdef CHDIR
 		(void) chdir(getenv("HOME"));
 #endif CHDIR
