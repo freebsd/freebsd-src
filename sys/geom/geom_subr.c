@@ -706,6 +706,9 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 		cp->acr += dcr;
 		cp->acw += dcw;
 		cp->ace += dce;
+		if (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)
+			KASSERT(pp->sectorsize > 0,
+			    ("Provider %s lacks sectorsize", pp->name));
 	}
 	return (error);
 }
