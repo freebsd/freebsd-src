@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)getpwent.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include <stdio.h>
 #include <sys/param.h>
 #include <fcntl.h>
 #include <db.h>
@@ -46,12 +47,16 @@ static char sccsid[] = "@(#)getpwent.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <grp.h>
 
 static struct passwd _pw_passwd;	/* password structure */
 static DB *_pw_db;			/* password database */
 static int _pw_keynum;			/* key counter */
 static int _pw_stayopen;		/* keep fd's open */
 #ifdef YP
+#include <rpc/rpc.h>
+#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/ypclnt.h>
 struct _namelist {
 	char *name;
 	struct _namelist *next;
@@ -70,7 +75,7 @@ static int _pw_stepping_yp;		/* set true when stepping thru map */
 #endif
 static int __hashpw(), __initdb();
 
-static int _havemaster(const char *);
+static int _havemaster(char *);
 static int _getyppass(struct passwd *, const char *, const char *);
 static int _nextyppass(struct passwd *);
 
@@ -89,9 +94,9 @@ getpwent()
 		_pw_passwd = _pw_copy;
 		return (_nextyppass(&_pw_passwd) ? &_pw_passwd : 0);
 	}
-#endif
-
+#else
 tryagain:
+#endif
 	++_pw_keynum;
 	bf[0] = _PW_KEYBYNUM;
 	bcopy((char *)&_pw_keynum, bf + 1, sizeof(_pw_keynum));
@@ -307,14 +312,12 @@ __hashpw(key)
  * database though getpwent() very slow. +user/-user entries are treated
  * like @groups/@netgroups with only one member.
  */
-#include <grp.h>
 static void
 _createcaches()
 {
 	DBT key, data;
 	int i;
 	char bf[UT_NAMESIZE + 2];
-	char entry[UT_NAMESIZE];
 	struct _pw_cache *p, *m;
 	struct _namelist *n, *namehead;
 	char *user, *host, *domain;
@@ -552,12 +555,11 @@ _pw_breakout_yp(struct passwd *pw, char *result, int master)
 static char *_pw_yp_domain;
 
 static int
-_havemaster(const char *_pw_yp_domain)
+_havemaster(char *_pw_yp_domain)
 {
-	char *result;
 	int *order;
 
-	if (yp_order(_pw_yp_domain, "master.passwd.byname", &order)) {
+	if (yp_order(_pw_yp_domain, "master.passwd.byname", (int *)&order)) {
 		free(order);
 		return 0;
 	}
@@ -576,6 +578,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	int gotmaster = 0;
 	struct _pw_cache *m, *p;
 	struct _namelist *n;
+	char user[UT_NAMESIZE];
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
@@ -591,7 +594,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 			gotmaster++;
 		}
 
-	if(yp_match(_pw_yp_domain, &mastermap, name, strlen(name), 
+	if(yp_match(_pw_yp_domain, (char *)&mastermap, name, strlen(name), 
 		    &result, &resultlen))
 		return 0;
 
@@ -600,14 +603,14 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 
 	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
-	s = strsep(&result,":");
+	sprintf (user, "%.*s", (strchr(result, ':') - result), result);
 	_pw_passwd.pw_fields = 0;
 	if (_minuscnt && _minushead) {
 		m = _minushead;
 		while (m) {
 			n = m->namelist;
 			while (n) {
-				if (!strcmp(n->name, s) || *n->name == '\0') {
+				if (!strcmp(n->name,user) || *n->name == '\0') {
 					free(result);
 					return (0);
 				}
@@ -621,7 +624,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 		while (p) {
 			n = p->namelist;
 			while (n) {
-				if (!strcmp(n->name, s) || *n->name == '\0')
+				if (!strcmp(n->name, user) || *n->name == '\0')
 					bcopy((char *)&p->pw_entry,
 					(char *)&_pw_passwd, sizeof(p->pw_entry));
 				n = n->next;
@@ -639,7 +642,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 static int
 _nextyppass(struct passwd *pw)
 {
-	static char *key, *s;
+	static char *key;
 	static int keylen;
 	char *lastkey, *result;
 	static char resultbuf[1024];
@@ -649,6 +652,7 @@ _nextyppass(struct passwd *pw)
 	int gotmaster = 0;
 	struct _pw_cache *m, *p;
 	struct _namelist *n;
+	char user[UT_NAMESIZE];
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
@@ -689,14 +693,14 @@ unpack:
 		}
 
 		strcpy(resultbuf, result);
-		s = strsep(&result,":");
+		sprintf(user, "%.*s", (strchr(result, ':') - result), result);
 		_pw_passwd.pw_fields = 0;
 		if (_minuscnt && _minushead) {
 			m = _minushead;
 			while (m) {
 				n = m->namelist;
 				while (n) {
-					if (!strcmp(n->name, s) || *n->name == '\0') {
+					if (!strcmp(n->name, user) || *n->name == '\0') {
 						free(result);
 						goto tryagain;
 					}
@@ -710,7 +714,7 @@ unpack:
 			while (p) {
 				n = p->namelist;
 				while (n) {
-					if (!strcmp(n->name, s) || *n->name == '\0')
+					if (!strcmp(n->name, user) || *n->name == '\0')
 						bcopy((char *)&p->pw_entry,
 						(char*)&_pw_passwd, sizeof(p->pw_entry));
 					n = n->next;

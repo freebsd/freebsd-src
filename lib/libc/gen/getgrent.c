@@ -46,9 +46,12 @@ static struct group _gr_group;
 static int _gr_stayopen;
 static int grscan(), start_gr();
 #ifdef YP
+#include <rpc/rpc.h>
+#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/ypclnt.h>
 static int _gr_stepping_yp;
 static int _gr_yp_enabled;
-static int _getypgroup(struct group *, const char *, const char *);
+static int _getypgroup(struct group *, const char *, char *);
 static int _nextypgroup(struct group *);
 #endif
 
@@ -316,7 +319,7 @@ _gr_breakout_yp(struct group *gr, char *result)
 static char *_gr_yp_domain;
 
 static int
-_getypgroup(struct group *gr, const char *name, const char *map)
+_getypgroup(struct group *gr, const char *name, char *map)
 {
 	char *result, *s;
 	static char resultbuf[1024];
