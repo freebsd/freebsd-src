@@ -29,7 +29,7 @@
  *
  *	BSDI cwd.c,v 2.2 1996/04/08 19:32:25 bostic Exp
  *
- * $Id: cwd.c,v 1.6 1996/09/23 09:59:23 miff Exp $
+ * $Id: cwd.c,v 1.1 1997/08/09 01:42:38 dyson Exp $
  */
 
 #include <sys/types.h>
@@ -89,13 +89,13 @@ init_path(int drive, u_char *base, u_char *dir)
 	free(d->path);
 
     if ((d->path = ustrdup(base)) == NULL)
-	fatal("strdup in init_path for %c:%s: %s", drive + 'A', base,
+	fatal("strdup in init_path for %c:%s: %s", drntol(drive), base,
 	      strerror(errno));
 
     if (d->maxlen < 2) {
 	d->maxlen = 128;
 	if ((d->cwd = (u_char *)malloc(d->maxlen)) == NULL)
-	    fatal("malloc in init_path for %c:%s: %s", drive + 'A', base,
+	    fatal("malloc in init_path for %c:%s: %s", drntol(drive), base,
 		  strerror(errno));
     }
 
@@ -120,7 +120,7 @@ init_path(int drive, u_char *base, u_char *dir)
 	    while (*dir == '/')
 		++dir;
 
-	    dosname[0] = drive + 'A';
+	    dosname[0] = drntol(drive);
 	    dosname[1] = ':';
 	    real_to_dos(realname, &dosname[2]);
 
@@ -200,23 +200,25 @@ dos_makepath(u_char *where, u_char *newpath)
     u_char tmppath[1024];
 
     if (where[0] != '\0' && where[1] == ':') {
-	drive = *where - 'A';
+	drive = drlton(*where);
 	*newpath++ = *where++;
 	*newpath++ = *where++;
     } else {
 	drive = diskdrive;
-	*newpath++ = diskdrive + 'A';
+	*newpath++ = drntol(diskdrive);
 	*newpath++ = ':';
     }
 
+printf("dos_makepath: Drive = %d\n", drive);
+    
     if (drive < 0 || drive >= MAX_DRIVE) {
-	debug(D_REDIR,"drive %c invalid\n",drive + 'A');
+	debug(D_REDIR,"drive %c invalid\n", drntol(drive));
 	return (DISK_DRIVE_INVALID);
     }
 
     d = &paths[drive];
     if (d->cwd == NULL) {
-	debug(D_REDIR,"no cwd for drive %c\n",drive + 'A');
+	debug(D_REDIR,"no cwd for drive %c\n",drntol(drive));
 	return (DISK_DRIVE_INVALID);
     }
 
@@ -298,8 +300,8 @@ dos_setcwd(u_char *where)
 	d->maxlen = d->len + 1 + 32;
 	d->cwd = (u_char *)malloc(d->maxlen);
 	if (d->cwd == NULL)
-	    fatal("malloc in dos_setcwd for %c:%s: %s",
-		  drive + 'A', newpath, strerror(errno));
+	    fatal("malloc in dos_setcwd for %c:%s: %s", drntol(drive),
+		  newpath, strerror(errno));
     }
     ustrcpy(d->cwd, newpath + 2);
     return (0);
@@ -324,7 +326,7 @@ dos_to_real_path(u_char *dospath, u_char *realpath, int *drivep)
     debug(D_REDIR, "dos_to_real_path(%s)\n", dospath);
 
     if (dospath[0] != '\0' && dospath[1] == ':') {
-	drive = *dospath - 'A';
+	drive = drlton(*dospath);
 	dospath++;
 	dospath++;
     } else {

@@ -29,7 +29,7 @@
  *
  *	BSDI config.c,v 2.2 1996/04/08 19:32:22 bostic Exp
  *
- * $Id: config.c,v 1.2 1996/09/18 16:12:24 miff Exp $
+ * $Id: config.c,v 1.1 1997/08/09 01:42:35 dyson Exp $
  */
 
 #include <stdio.h>
@@ -135,10 +135,8 @@ read_config(FILE *fp)
 
     	    	if (isdigit(av[1][4])) {
 		    drive = atoi(&av[1][4]) - 1;
-		} else if (islower(av[1][4]) && av[1][5] == ':' && !av[1][6]) {
-		    drive = av[1][4] - 'a';
-		} else if (isupper(av[1][4]) && av[1][5] == ':' && !av[1][6]) {
-		    drive = av[1][4] - 'A';
+		} else if (isalpha(av[1][4]) && av[1][5] == ':' && !av[1][6]) {
+		    drive = drlton(av[1][4]);
 		}
 init_soft:
 		drive = init_floppy(drive, atoi(av[3]), av[2]);
@@ -149,10 +147,8 @@ init_soft:
 
     	    	if (isdigit(av[1][4])) {
 		    drive = atoi(&av[1][4]) + 1;
-		} else if (islower(av[1][4]) && av[1][5] == ':' && !av[1][6]) {
-		    drive = av[1][4] - 'a';
-		} else if (isupper(av[1][4]) && av[1][5] == ':' && !av[1][6]) {
-		    drive = av[1][4] - 'A';
+		} else if (isalpha(av[1][4]) && av[1][5] == ':' && !av[1][6]) {
+		    drive = drlton(av[1][4]);
 		}
 
 init_hard:
@@ -185,10 +181,7 @@ init_hard:
 		    fprintf(stderr, "Usage: assign [A-Z]: ...\n");
 		    quit(1);
 		}
-    	    	if (isupper(av[1][0]))
-		    drive = av[1][0] - 'A';
-		else
-		    drive = av[1][0] - 'a';
+                drive = drlton(av[1][0]);
 
     	    	if (ac == 3) {
 		    init_path(drive, (u_char *)av[2], 0);
@@ -240,10 +233,7 @@ init_hard:
 		fprintf(stderr, "Usage: boot [A: | C:]\n");
 		quit(1);
 	    }
-	    if (isupper(av[1][0]))
-		bootdrive = av[1][0] - 'A';
-	    else
-		bootdrive = av[1][0] - 'a';
+            bootdrive = drlton(av[1][0]);
 	    if (bootdrive != 0 && bootdrive != 2) {
 	    	fprintf(stderr, "Boot drive must be either A: or C:\n");
 		quit(1);
