@@ -39,6 +39,13 @@
     account the swap space used by processes when computing the
     process sizes.</para>
 
+    <para>Network device cloning has been implemented, and the &man.gif.4;
+    device has been modified to take advantage of it.
+    Thus, instead of specifying how many &man.gif.4; interfaces
+    are available in kernel configuration files, &man.ifconfig.8;'s
+    <option>create</option> option should be used when another device
+    instance is desired.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
