@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.88 1996/10/12 19:30:23 jkh Exp $
+ * $Id: menus.c,v 1.89 1996/10/14 21:32:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -233,7 +233,6 @@ DMenu MenuIndex = {
       { "Extract",		"Extract selected distributions from media.",		NULL, distExtractAll },
       { "Fixit",		"Repair mode with CDROM or floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
-      { "Gated",		"Load and configure gated instead of routed.",  dmenuVarCheck, configGated, NULL, "gated" },
       { "Gateway",		"Set flag to route packets between interfaces.", dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
       { "HTML Docs",		"The HTML documentation menu",		NULL, docBrowser },
       { "Install, Novice",	"A novice system installation.",	NULL, installNovice },
@@ -259,7 +258,7 @@ DMenu MenuIndex = {
       { "Partition",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "PCNFSD",		"Run authentication server for PC-NFS.",	dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
       { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
-      { "Routed",		"Set flags for routed (default: -q)",	dmenuVarCheck, configRoutedFlags, NULL, "routed" },
+      { "Router",		"Select routing daemon (default: routed)",	dmenuVarCheck, configRouter, NULL, "router" },
       { "Samba",		"Configure Samba for LanManager access.", dmenuVarCheck, configSamba, NULL, "samba" },
       { "Syscons",		"The system console configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSyscons },
       { "Syscons, Keymap",	"The console keymap configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
@@ -1038,14 +1037,12 @@ aspects of your system's network configuration.",
     dmenuVarCheck, configNFSServer, NULL, "nfs_server" },
   { "Gateway",		"This machine will route packets between interfaces",
     dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
-  { "Gated",		"This machine wants to run gated instead of routed",
-    dmenuVarCheck, configGated, NULL, "gated" },
   { "Netcon",		"Install the Novell client/server demo package",
     dmenuVarCheck, configNovell, NULL, "novell" },
   { "Ntpdate",		"Select a clock-syncronization server",
     dmenuVarCheck, dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', (int)VAR_NTPDATE },
-  { "Routed",		"Set flags for routed (default: -q)",
-    dmenuVarCheck, configRoutedFlags, NULL, "routed" },
+  { "router",		"Select routing daemon (default: routed)",
+    dmenuVarCheck, configRouter, NULL, "router" },
   { "Rwhod",		"This machine wants to run the rwho daemon",
     dmenuVarCheck, dmenuToggleVariable, NULL, "rwhod=YES" },
   { "Anon FTP",		"This machine wishes to allow anonymous FTP.",
