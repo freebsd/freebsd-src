@@ -239,6 +239,7 @@ Features:
 - 21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz
 - memory bus: 64 bits 
 - on-board Bcache / L2 cache: COAST-like 256 kByte cache module
+			      233MHz models have 512kByte of cache
 - PS/2 mouse & keyboard port
 - memory: PS/2 style 72 pin 36 bit Fast Page Mode SIMMs, 
 	  70ns or better,
@@ -300,6 +301,10 @@ The kernel configuration file for a Multia kernel must contain:
         options         DEC_AXPPCI_33
 	cpu		EV4
 
+More info:
+Recommended reading on Multia can be found at
+	http://www.netbsd.org/Ports/alpha/multiafaq.html
+	http://www.brouhaha.com/~eric/computers/udb.html
 
 *
 * Personal Workstation ("Miata")
