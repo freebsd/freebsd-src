@@ -201,7 +201,7 @@ options 	MUTEX_WAKE_ALL
 #	  allows interrupt threads to run sooner rather than waiting.
 #	  WARNING! Only tested on alpha, amd64, and i386.
 # FULL_PREEMPTION instructs the kernel to preempt non-realtime kernel
-#	  threads.  It sole use is to expose race conditions and other
+#	  threads.  Its sole use is to expose race conditions and other
 #	  bugs during development.  Enabling this option will reduce
 #	  performance and increase the frequency of kernel panics by
 #	  design.  If you aren't sure that you need it then you don't.
