@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.20 1997/04/26 11:45:39 peter Exp $
+ *	$Id: pcb.h,v 1.21 1997/05/07 19:49:32 peter Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -64,7 +64,9 @@ struct pcb {
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 	u_long	pcb_mpnest;
-	u_long	__pcb_spare[7];	/* adjust to avoid core dump size changes */
+	int	pcb_fs;
+	int	pcb_gs;
+	u_long	__pcb_spare[5];	/* adjust to avoid core dump size changes */
 #if 0	/* some day we may switch between procs that have their own i386tss */
 	struct	i386tss pcb_tss;
 	u_char	pcb_iomap[NPORT/sizeof(u_char)]; /* i/o port bitmap */
