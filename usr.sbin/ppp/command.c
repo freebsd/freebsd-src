@@ -2181,7 +2181,7 @@ AddCommand(struct cmdargs const *arg)
     }
   }
 
-  if (bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
+  if (rt_Set(arg->bundle, RTM_ADD, dest, gateway, netmask,
                   arg->cmd->args ? 1 : 0, (addrs & ROUTE_GWHISADDR) ? 1 : 0)
       && addrs != ROUTE_STATIC)
     route_Add(&arg->bundle->ncp.ipcp.route, addrs, dest, netmask, gateway);
@@ -2222,7 +2222,7 @@ DeleteCommand(struct cmdargs const *arg)
         addrs = ROUTE_STATIC;
       }
       none.s_addr = INADDR_ANY;
-      bundle_SetRoute(arg->bundle, RTM_DELETE, dest, none, none,
+      rt_Set(arg->bundle, RTM_DELETE, dest, none, none,
                       arg->cmd->args ? 1 : 0, 0);
       route_Delete(&arg->bundle->ncp.ipcp.route, addrs, dest);
     }

@@ -46,6 +46,7 @@ struct sticky_route {
 extern int GetIfIndex(char *);
 extern int route_Show(struct cmdargs const *);
 extern void route_IfDelete(struct bundle *, int);
+extern void route_UpdateMTU(struct bundle *);
 extern const char *Index2Nam(int);
 extern void route_Change(struct bundle *, struct sticky_route *,
                          struct in_addr, struct in_addr, struct in_addr[2]);
@@ -57,3 +58,6 @@ extern void route_Clean(struct bundle *, struct sticky_route *);
 extern void route_ShowSticky(struct prompt *, struct sticky_route *,
                              const char *, int);
 extern void route_ParseHdr(struct rt_msghdr *, struct sockaddr *[RTAX_MAX]);
+extern int rt_Set(struct bundle *, int, struct in_addr,
+                           struct in_addr, struct in_addr, int, int);
+extern void rt_Update(struct bundle *, struct in_addr, struct in_addr);
