@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)compress.c	8.1 (Berkeley) 6/6/93";
 	/* special */
 #include <stdio.h>
 #include <fcntl.h>
+#include <stdlib.h>
 int cc_trace = 0;
 FILE *cc_trace_fp;
 
