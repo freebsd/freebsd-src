@@ -457,7 +457,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 #ifdef DEBUG
 	if (ldebug(clone)) {
 		printf(ARGS(clone, "flags %x, stack %x"),
-		    (unsigned int)args->flags, (unsigned int)args->stack);
+		    (unsigned int)(uintptr_t)args->flags,
+		    (unsigned int)(uintptr_t)args->stack);
 		if (args->flags & CLONE_PID)
 			printf(LMSG("CLONE_PID not yet supported"));
 	}
@@ -533,7 +534,7 @@ linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 #ifdef DEBUG
 	if (ldebug(mmap2))
 		printf(ARGS(mmap2, "%p, %d, %d, 0x%08x, %d, %d"),
-		    (void *)args->addr, args->len, args->prot,
+		    (void *)(intptr_t)args->addr, args->len, args->prot,
 		    args->flags, args->fd, args->pgoff);
 #endif
 
@@ -560,8 +561,9 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 #ifdef DEBUG
 	if (ldebug(mmap))
 		printf(ARGS(mmap, "%p, %d, %d, 0x%08x, %d, %d"),
-		    (void *)linux_args.addr, linux_args.len, linux_args.prot,
-		    linux_args.flags, linux_args.fd, linux_args.pos);
+		    (void *)(intptr_t)linux_args.addr, linux_args.len,
+		    linux_args.prot, linux_args.flags, linux_args.fd,
+		    linux_args.pos);
 #endif
 
 	return (linux_mmap_common(td, &linux_args));
@@ -681,7 +683,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 	if (ldebug(mmap))
 		printf("-> %s(%p, %d, %d, 0x%08x, %d, 0x%x)\n",
 		    __func__,
-		    (void *)bsd_args.addr, bsd_args.len, bsd_args.prot,
+		    (void *)bsd_args.addr, (int)bsd_args.len, bsd_args.prot,
 		    bsd_args.flags, bsd_args.fd, (int)bsd_args.pos);
 #endif
 	error = mmap(td, &bsd_args);
