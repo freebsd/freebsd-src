@@ -519,7 +519,6 @@ msdosfs/msdosfs_vfsops.c	optional msdosfs
 msdosfs/msdosfs_vnops.c		optional msdosfs
 net/bpf.c		standard
 net/bpf_filter.c	optional bpf
-net/bpf_filter.c	optional netgraph_bpf
 net/bridge.c		optional bridge
 net/bsd_comp.c		optional ppp_bsdcomp
 #net/hostcache.c		standard
@@ -643,6 +642,7 @@ netgraph/ng_UI.c	optional netgraph_UI
 netgraph/ng_async.c	optional netgraph_async
 netgraph/ng_base.c	optional netgraph
 netgraph/ng_bpf.c	optional netgraph_bpf
+net/bpf_filter.c	optional netgraph_bpf
 netgraph/ng_cisco.c	optional netgraph_cisco
 netgraph/ng_echo.c	optional netgraph_echo
 netgraph/ng_frame_relay.c	optional netgraph_frame_relay
@@ -650,6 +650,14 @@ netgraph/ng_hole.c	optional netgraph_hole
 netgraph/ng_iface.c	optional netgraph_iface
 netgraph/ng_ksocket.c	optional netgraph_ksocket
 netgraph/ng_lmi.c	optional netgraph_lmi
+netgraph/ng_mppc.c	optional netgraph_mppc_compression
+# The next two files (plus the header file net/mppc.h) are proprietary and
+# must be obtained elsewhere in order to enable NETGRAPH_MPPC_COMPRESSION
+net/mppcc.c		optional netgraph_mppc_compression
+net/mppcd.c		optional netgraph_mppc_compression
+netgraph/ng_mppc.c	optional netgraph_mppc_encryption
+crypto/rc4/rc4.c	optional netgraph_mppc_encryption
+crypto/sha1.c		optional netgraph_mppc_encryption
 netgraph/ng_parse.c	optional netgraph
 netgraph/ng_ppp.c	optional netgraph_ppp
 netgraph/ng_pppoe.c	optional netgraph_pppoe
