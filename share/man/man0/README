@@ -16,3 +16,11 @@ The man[1-8] files were generated through the following process:
 
 Garrett Wollman <wollman@lcs.mit.edu>
 11 January 1995
+
+
+
+Currently these files are in the prospect of being updated to work on newer
+FreeBSD releases again.
+
+Jeroen Ruigrok van der Werven <asmodai@FreeBSD.org>
+18 January 2001
