@@ -24,8 +24,11 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+#if 0
 static char sccsid[] = "@(#)popen.c	5.7 (Berkeley) 2/14/89";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "cron.h"
@@ -59,7 +62,7 @@ cron_popen(program, type)
 	extern char **glob(), **copyblk();
 #endif
 
-	if (*type != 'r' && *type != 'w' || type[1])
+	if ((*type != 'r' && *type != 'w') || type[1])
 		return(NULL);
 
 	if (!pids) {

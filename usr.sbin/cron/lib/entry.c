@@ -16,7 +16,8 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id$";
+static const char rcsid[] =
+	"$Id: entry.c,v 1.6 1997/02/22 16:05:06 peter Exp $";
 #endif
 
 /* vix 26jan87 [RCS'd; rest of log is in RCS file]

@@ -16,7 +16,8 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id$";
+static const char rcsid[] =
+	"$Id: job.c,v 1.4 1997/02/22 16:04:44 peter Exp $";
 #endif
 
 
