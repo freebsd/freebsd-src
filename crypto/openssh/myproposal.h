@@ -6,7 +6,7 @@
 #define	KEX_DEFAULT_LANG	""
 
 
-static const char *myproposal[PROPOSAL_MAX] = {
+static char *myproposal[PROPOSAL_MAX] = {
 	KEX_DEFAULT_KEX,
 	KEX_DEFAULT_PK_ALG,
 	KEX_DEFAULT_ENCRYPT,
