@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.set.c,v 3.35 1998/10/25 15:10:26 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.set.c,v 3.36 2000/01/14 22:57:28 christos Exp $ */
 /*
  * sh.set.c: Setting and Clearing of variables
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.set.c,v 3.35 1998/10/25 15:10:26 christos Exp $")
+RCSID("$Id: sh.set.c,v 3.36 2000/01/14 22:57:28 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -1188,8 +1188,10 @@ autoset_dspmbyte(pcp)
 	Char *n;
 	Char *v;
     } dspmt[] = {
-	{ STRLANGEUC, STRKEUC },
-	{ STRLANGEUCB, STRKEUC },
+	{ STRLANGEUCJP, STRKEUC },
+	{ STRLANGEUCKR, STRKEUC },
+	{ STRLANGEUCJPB, STRKEUC },
+	{ STRLANGEUCKRB, STRKEUC },
 	{ STRLANGSJIS, STRKSJIS },
 	{ STRLANGSJISB, STRKSJIS },
 	{ NULL, NULL }

@@ -155,7 +155,7 @@ MODELS	:	vax, DECstation
 COMPILER:	cc, gcc
 CFLAGS	:	-O -Olimit 2000 (cc), normal (gcc)
 LIBES	:	-ltermcap
-OS	:	ultrix 3.0 (vax), 4.0, 4.1, 4.2, 4.3, 4.4
+OS	:	ultrix 3.0 (vax), 4.0, 4.1, 4.2, 4.3, 4.4, 4.5
 CONFIG	:	ultrix 
 ENVIRON	:	n/a
 NOTES	:	pcc broken: typedef void sigret_t (vax); 
@@ -163,7 +163,7 @@ NOTES	:	mips compiler on ultrix 3.5 needs -Dvoid=int
 NOTES	:	vax compiler on ultrix 3.0 needs -Dvoid=int
 NOTES	:	Does Ultrix 4.x still need YPBUGS?
 NOTES	:	Ultrix4.2 may need NAMEI_BUG
-VERSION	:	6.07.11
+VERSION	:	6.09.00
 
 VENDOR	:	apple
 MODELS	:	macII
@@ -1014,3 +1014,15 @@ CONFIG	:	superux8
 ENVIRON	:	n/a
 NOTES	:	none
 VERSION	:	6.08.01
+
+VENDOR	:	Unixware 7.1.0
+MODELS	:	all
+COMPILER:	gcc
+CFLAGS	:	normal
+LIBES	:	-ltermlib -lsocket -lgen
+OS	:	Unixware 7.1.0  
+CONFIG	:	svr5
+ENVIRON :	n/a
+NOTES	:	none
+VERSION :	6.09.00
+
