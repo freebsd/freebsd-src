@@ -1,8 +1,10 @@
-#	$Id: Makefile,v 1.11 1997/02/22 14:40:11 peter Exp $
+#	$Id$
 
 # lib must be first, or it will not work.  This is because we reference
 # the lib's in the directory where they are built from the binaries we
 # want to build.
+
+MAINTAINER=	markm
 
 SUBDIR= lib usr.bin
 
