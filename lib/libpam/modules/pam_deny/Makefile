@@ -33,8 +33,6 @@ SHLIB_NAME=	pam_deny.so
 SRCS=		pam_deny.c
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
-DPADD+=		${LIBGCC_PIC}
-LDADD+=		-lgcc_pic
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 

@@ -33,8 +33,8 @@ SRCS=		pam_opie.c
 CFLAGS+=	-Wall -g
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBOPIE} ${LIBGCC_PIC}
-LDADD+=		-lopie -lgcc_pic
+DPADD+=		${LIBOPIE}
+LDADD+=		-lopie
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 

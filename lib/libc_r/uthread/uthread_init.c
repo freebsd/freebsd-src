@@ -54,6 +54,31 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+/*
+ * These are needed when linking statically.  All references within
+ * libgcc (and in the future libc) to these routines are weak, but
+ * if they are not (strongly) referenced by the application or other
+ * libraries, then the actual functions will not be loaded.
+ */
+static void *thread_references[] = {
+	&pthread_once,
+	&pthread_key_create,
+	&pthread_key_delete,
+	&pthread_getspecific,
+	&pthread_setspecific,
+	&pthread_mutex_init,
+	&pthread_mutex_destroy,
+	&pthread_mutex_lock,
+	&pthread_mutex_trylock,
+	&pthread_mutex_unlock,
+	&pthread_cond_init,
+	&pthread_cond_destroy,
+	&pthread_cond_wait,
+	&pthread_cond_timedwait,
+	&pthread_cond_signal,
+	&pthread_cond_broadcast
+};
+
 #ifdef GCC_2_8_MADE_THREAD_AWARE
 typedef void *** (*dynamic_handler_allocator)();
 extern void __set_dynamic_handler_allocator(dynamic_handler_allocator);
@@ -97,6 +122,13 @@ _thread_init(void)
 	if (_thread_initial)
 		/* Only initialise the threaded application once. */
 		return;
+
+	/*
+	 * Make gcc quiescent about thread_references not being
+	 * referenced:
+	 */
+	if (thread_references[0] == NULL)
+		PANIC("Mandatory pthread_* functions not loaded");
 
 	/*
 	 * Check for the special case of this process running as
