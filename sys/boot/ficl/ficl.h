@@ -281,13 +281,13 @@ typedef struct _ficl_string
 
 typedef struct 
 {
-    UNS32 count;
+    FICL_UNS count;
     char *cp;
 } STRINGINFO;
 
 #define SI_COUNT(si) (si.count)
 #define SI_PTR(si)   (si.cp)
-#define SI_SETLEN(si, len) (si.count = (UNS32)(len))
+#define SI_SETLEN(si, len) (si.count = (FICL_UNS)(len))
 #define SI_SETPTR(si, ptr) (si.cp = (char *)(ptr))
 /* 
 ** Init a STRINGINFO from a pointer to NULL-terminated string
@@ -425,8 +425,8 @@ typedef struct vm
     IPTYPE          ip;         /* instruction pointer              */
     struct ficl_word 
                    *runningWord;/* address of currently running word (often just *(ip-1) ) */
-    UNS32           state;      /* compiling or interpreting        */
-    UNS32           base;       /* number conversion base           */
+    FICL_UNS        state;      /* compiling or interpreting        */
+    FICL_UNS        base;       /* number conversion base           */
     FICL_STACK     *pStack;     /* param stack                      */
     FICL_STACK     *rStack;     /* return stack                     */
     CELL            sourceID;   /* -1 if string, 0 if normal input  */
@@ -572,7 +572,7 @@ void        vmCheckStack(FICL_VM *pVM, int popCells, int pushCells);
 ** PopTib restores the TIB state given a saved TIB from PushTib
 ** GetInBuf returns a pointer to the next unused char of the TIB
 */
-void        vmPushTib(FICL_VM *pVM, char *text, INT32 nChars, TIB *pSaveTib);
+void        vmPushTib(FICL_VM *pVM, char *text, FICL_INT nChars, TIB *pSaveTib);
 void        vmPopTib(FICL_VM *pVM, TIB *pTib);
 #define     vmGetInBuf(pVM) ((pVM)->tib.cp + (pVM)->tib.index)
 #define     vmGetInBufLen(pVM) ((pVM)->tib.end - (pVM)->tib.cp)
@@ -758,7 +758,7 @@ void       ficlTermSystem(void);
 **      Successful creation and init of the VM by ficlNewVM (or equiv)
 */
 int        ficlExec (FICL_VM *pVM, char *pText);
-int        ficlExecC(FICL_VM *pVM, char *pText, INT32 nChars);
+int        ficlExecC(FICL_VM *pVM, char *pText, FICL_INT nChars);
 int        ficlExecXT(FICL_VM *pVM, FICL_WORD *pWord);
 
 /*
@@ -807,8 +807,8 @@ FICL_WORD *ficlLookup(char *name);
 */
 FICL_DICT *ficlGetDict(void);
 FICL_DICT *ficlGetEnv(void);
-void       ficlSetEnv(char *name, UNS32 value);
-void       ficlSetEnvD(char *name, UNS32 hi, UNS32 lo);
+void       ficlSetEnv(char *name, FICL_UNS value);
+void       ficlSetEnvD(char *name, FICL_UNS hi, FICL_UNS lo);
 #if FICL_WANT_LOCALS
 FICL_DICT *ficlGetLoc(void);
 #endif
