@@ -209,6 +209,7 @@ product CONNECTIX QUICKCAM	0x0001	QuickCam
 
 /* Corega products */
 product COREGA ETHER_USB_T	0x0001	Ether USB-T
+product COREGA FETHER_USB_TX	0x0004	FEther USB-TX
 
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse
