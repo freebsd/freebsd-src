@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.25.4.2 1995/08/20 03:12:38 davidg Exp $
+ * $Id: kern_sysctl.c,v 1.25.4.3 1996/02/22 19:22:30 peter Exp $
  */
 
 /*
@@ -748,12 +748,18 @@ fill_eproc(p, ep)
 	if (p->p_pptr)
 		ep->e_ppid = p->p_pptr->p_pid;
 	if (p->p_pgrp) {
-		ep->e_sess = p->p_pgrp->pg_session;
 		ep->e_pgid = p->p_pgrp->pg_id;
 		ep->e_jobc = p->p_pgrp->pg_jobc;
+		ep->e_sess = p->p_pgrp->pg_session;
+
+		if (ep->e_sess) {
+			bcopy(ep->e_sess->s_login, ep->e_login, sizeof(ep->e_login));
+			if (ep->e_sess->s_ttyvp)
+				ep->e_flag = EPROC_CTTY;
+			if (p->p_session && SESS_LEADER(p))
+				ep->e_flag |= EPROC_SLEADER;
+		}
 	}
-	if (ep->e_sess)
-		bcopy(ep->e_sess->s_login, ep->e_login, sizeof(ep->e_login));
 	if ((p->p_flag & P_CONTROLT) &&
 	    (ep->e_sess != NULL) &&
 	    ((tp = ep->e_sess->s_ttyp) != NULL)) {
@@ -762,10 +768,6 @@ fill_eproc(p, ep)
 		ep->e_tsess = tp->t_session;
 	} else
 		ep->e_tdev = NODEV;
-	if (ep->e_sess && ep->e_sess->s_ttyvp)
-		ep->e_flag = EPROC_CTTY;
-	if (SESS_LEADER(p))
-		ep->e_flag |= EPROC_SLEADER;
 	if (p->p_wmesg) {
 		strncpy(ep->e_wmesg, p->p_wmesg, WMESGLEN);
 		ep->e_wmesg[WMESGLEN] = 0;
