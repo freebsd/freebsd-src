@@ -61,6 +61,7 @@ static	char sccsid[] = "@(#)rpcbind.c 1.35 89/04/21 Copyr 1984 Sun Micro";
 #include <netinet/in.h>
 #endif
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <netconfig.h>
@@ -82,6 +83,8 @@ rpcblist_ptr list_rbl;	/* A list of version 3/4 rpcbind services */
 /* who to suid to if -s is given */
 #define RUN_AS  "daemon"
 
+#define RPCBINDDLOCK "/var/run/rpcbind.lock"
+
 int runasdaemon = 0;
 int insecure = 0;
 int oldstyle_local = 0;
@@ -90,6 +93,7 @@ int verboselog = 0;
 char **hosts = NULL;
 int nhosts = 0;
 int on = 1;
+int rpcbindlockfd;
 
 #ifdef WARMSTART
 /* Local Variable */
@@ -122,6 +126,14 @@ main(int argc, char *argv[])
 	struct rlimit rl;
 
 	parseargs(argc, argv);
+
+	/* Check that another rpcbind isn't already running. */
+	if ((rpcbindlockfd = (open(RPCBINDDLOCK,
+	    O_RDONLY|O_CREAT, 0444))) == -1)
+		err(1, "%s", RPCBINDDLOCK);
+
+	if(flock(rpcbindlockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK)
+		errx(1, "another rpcbind is already running. Aborting");
 
 	getrlimit(RLIMIT_NOFILE, &rl);
 	if (rl.rlim_cur < 128) {
@@ -647,6 +659,7 @@ rbllist_add(rpcprog_t prog, rpcvers_t vers, struct netconfig *nconf,
 static void
 terminate(int dummy __unused)
 {
+	close(rpcbindlockfd);
 #ifdef WARMSTART
 	syslog(LOG_ERR,
 		"rpcbind terminating on signal. Restart with \"rpcbind -w\"");
