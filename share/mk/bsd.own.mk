@@ -39,7 +39,7 @@
 #
 # SHLIBDIR	Base path for shared libraries. [${LIBDIR}]
 #
-# LIBOWN	Library mode. [${BINOWN}]
+# LIBOWN	Library owner. [${BINOWN}]
 #
 # LIBGRP	Library group. [${BINGRP}]
 #
