@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.28 1995/12/02 13:08:20 julian Exp $
+ * $Id: tty_pty.c,v 1.29 1995/12/08 11:17:09 julian Exp $
  */
 
 /*
@@ -76,12 +76,12 @@ static	d_select_t	ptcselect;
 
 #define CDEV_MAJOR_S 5
 #define CDEV_MAJOR_C 6
-struct cdevsw pts_cdevsw = 
+static struct cdevsw pts_cdevsw = 
 	{ ptsopen,	ptsclose,	ptsread,	ptswrite,	/*5*/
 	  ptyioctl,	ptsstop,	nullreset,	ptydevtotty,/* ttyp */
 	  ttselect,	nommap,		NULL,	"pts",	NULL,	-1 };
 
-struct cdevsw ptc_cdevsw = 
+static struct cdevsw ptc_cdevsw = 
 	{ ptcopen,	ptcclose,	ptcread,	ptcwrite,	/*6*/
 	  ptyioctl,	nullstop,	nullreset,	ptydevtotty,/* ptyp */
 	  ptcselect,	nommap,		NULL,	"ptc",	NULL,	-1 };

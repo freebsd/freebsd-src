@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.23 1995/11/29 14:40:11 julian Exp $
+ * $Id: wt.c,v 1.24 1995/12/08 11:15:48 julian Exp $
  *
  */
 
@@ -207,11 +207,11 @@ static	d_strategy_t	wtstrategy;
 #define BDEV_MAJOR 3
 
 extern struct cdevsw wt_cdevsw; 
-struct bdevsw wt_bdevsw = 
+static struct bdevsw wt_bdevsw = 
 	{ wtopen,	wtclose,	wtstrategy,	wtioctl,	/*3*/
 	  wtdump,	wtsize,		B_TAPE,	"wt",	&wt_cdevsw,	-1 };
 
-struct cdevsw wt_cdevsw = 
+static struct cdevsw wt_cdevsw = 
 	{ wtopen,	wtclose,	rawread,	rawwrite,	/*10*/
 	  wtioctl,	nostop,		nullreset,	nodevtotty,/* wt */
 	  seltrue,	nommap,		wtstrategy,	"wt",

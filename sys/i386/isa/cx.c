@@ -89,7 +89,7 @@ static	d_ttycv_t	cxdevtotty;
 
 # define CDEV_MAJOR 42
 
-struct cdevsw cx_cdevsw = 
+static struct cdevsw cx_cdevsw = 
 	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
 	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
 	  cxselect,	nommap,		NULL,	"cx",	NULL,	-1 };

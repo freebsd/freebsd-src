@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.8 1995/11/29 14:41:00 julian Exp $
+ *      $Id: sctarg.c,v 1.9 1995/12/08 11:18:51 julian Exp $
  */
 
 /*
@@ -79,7 +79,7 @@ static	d_ioctl_t	sctargioctl;
 static	d_strategy_t	sctargstrategy;
 
 #define CDEV_MAJOR 65
-struct cdevsw sctarg_cdevsw = 
+static struct cdevsw sctarg_cdevsw = 
 	{ sctargopen,	sctargclose,	rawread,	rawwrite,	/*65*/
 	  sctargioctl,	nostop,		nullreset,	nodevtotty,/* sctarg */
 	  seltrue,	nommap,		sctargstrategy,	"sctarg", NULL,	-1 };

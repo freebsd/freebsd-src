@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.13 1995/12/05 07:14:27 julian Exp $
+ *      $Id: worm.c,v 1.14 1995/12/08 11:19:07 julian Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -90,7 +90,7 @@ static	d_ioctl_t	wormioctl;
 d_strategy_t	wormstrategy;
 
 #define CDEV_MAJOR 62
-struct cdevsw worm_cdevsw = 
+static struct cdevsw worm_cdevsw = 
 	{ wormopen,	wormclose,	rawread,	rawwrite,	/*62*/
 	  wormioctl,	nostop,		nullreset,	nodevtotty,/* worm */
 	  seltrue,	nommap,		wormstrategy };

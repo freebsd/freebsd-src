@@ -213,7 +213,7 @@ static	d_write_t	twwrite;
 static	d_select_t	twselect;
 
 #define CDEV_MAJOR 19
-struct cdevsw tw_cdevsw = 
+static struct cdevsw tw_cdevsw = 
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
 	  noioc,	nullstop,	nullreset,	nodevtotty, /* tw */
 	  twselect,	nommap,		nostrat,	"tw",	NULL,	-1 };

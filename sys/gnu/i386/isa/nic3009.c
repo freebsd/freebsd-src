@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.11 1995/11/29 14:39:08 julian Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.12 1995/12/08 11:12:47 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.12 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,29 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.11 1995/11/29 14:39:08 juli
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.12  1995/12/08  11:12:47  julian
+ * Pass 3 of the great devsw changes
+ * most devsw referenced functions are now static, as they are
+ * in the same file as their devsw structure. I've also added DEVFS
+ * support for nearly every device in the system, however
+ * many of the devices have 'incorrect' names under DEVFS
+ * because I couldn't quickly work out the correct naming conventions.
+ * (but devfs won't be coming on line for a month or so anyhow so that doesn't
+ * matter)
+ *
+ * If you "OWN" a device which would normally have an entry in /dev
+ * then search for the devfs_add_devsw() entries and munge to make them right..
+ * check out similar devices to see what I might have done in them in you
+ * can't see what's going on..
+ * for a laugh compare conf.c conf.h defore and after... :)
+ * I have not doen DEVFS entries for any DISKSLICE devices yet as that will be
+ * a much more complicated job.. (pass 5 :)
+ *
+ * pass 4 will be to make the devsw tables of type (cdevsw * )
+ * rather than (cdevsw)
+ * seems to work here..
+ * complaints to the usual places.. :)
+ *
  * Revision 1.11  1995/11/29  14:39:08  julian
  * If you're going to mechanically replicate something in 50 files
  * it's best to not have a (compiles cleanly) typo in it! (sigh)
@@ -128,7 +151,7 @@ static	d_close_t	nnicclose;
 static	d_ioctl_t	nnicioctl;
 
 #define CDEV_MAJOR 60
-struct cdevsw nnic_cdevsw = 
+static struct cdevsw nnic_cdevsw = 
 	{ nnicopen,	nnicclose,	noread,		nowrite,	/*60*/
 	  nnicioctl,	nostop,		nullreset,	nodevtotty,/* nnic */
 	  seltrue,	nommap,		NULL,	"nnic",	NULL,	-1 };
