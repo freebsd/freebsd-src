@@ -10,8 +10,8 @@ BINOWN=	root
 BINGRP=	bin
 BINMODE=4555
 
-LDADD+=	-lipsec -lmd
-DPADD+= ${LIBIPSEC} ${LIBMD}
+LDADD=	-lipsec -lmd
+DPADD= ${LIBIPSEC} ${LIBMD}
 
 # kame scopeid hack
 CFLAGS+=-DKAME_SCOPEID
