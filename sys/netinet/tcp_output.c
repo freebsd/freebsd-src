@@ -116,7 +116,9 @@ tcp_output(tp)
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
 	int idle, sendalot;
+#if 0
 	int maxburst = TCP_MAXBURST;
+#endif
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
 #ifdef INET6
@@ -268,28 +270,38 @@ again:
 	win = sbspace(&so->so_rcv);
 
 	/*
-	 * Sender silly window avoidance.  If connection is idle
-	 * and can send all data, a maximum segment,
-	 * at least a maximum default-size segment do it,
-	 * or are forced, do it; otherwise don't bother.
-	 * If peer's buffer is tiny, then send
-	 * when window is at least half open.
-	 * If retransmitting (possibly after persist timer forced us
-	 * to send into a small window), then must resend.
+	 * Sender silly window avoidance.   We transmit under the following
+	 * conditions when len is non-zero:
+	 *
+	 *	- We have a full segment
+	 *	- This is the last buffer in a write()/send() and we are
+	 *	  either idle or running NODELAY
+	 *	- we've timed out (e.g. persist timer)
+	 *	- we have more then 1/2 the maximum send window's worth of
+	 *	  data (receiver may be limited the window size)
+	 *	- we need to retransmit
 	 */
 	if (len) {
 		if (len == tp->t_maxseg)
 			goto send;
-		if (!(tp->t_flags & TF_MORETOCOME) &&
-		    (idle || tp->t_flags & TF_NODELAY) &&
-		    (tp->t_flags & TF_NOPUSH) == 0 &&
-		    len + off >= so->so_snd.sb_cc)
+		/*
+		 * NOTE! on localhost connections an 'ack' from the remote
+		 * end may occur synchronously with the output and cause
+		 * us to flush a buffer queued with moretocome.  XXX
+		 *
+		 * note: the len + off check is almost certainly unnecessary.
+		 */
+		if (!(tp->t_flags & TF_MORETOCOME) &&	/* normal case */
+		    (idle || (tp->t_flags & TF_NODELAY)) &&
+		    len + off >= so->so_snd.sb_cc &&
+		    (tp->t_flags & TF_NOPUSH) == 0) {
 			goto send;
-		if (tp->t_force)
+		}
+		if (tp->t_force)			/* typ. timeout case */
 			goto send;
 		if (len >= tp->max_sndwnd / 2 && tp->max_sndwnd > 0)
 			goto send;
-		if (SEQ_LT(tp->snd_nxt, tp->snd_max))
+		if (SEQ_LT(tp->snd_nxt, tp->snd_max))	/* retransmit case */
 			goto send;
 	}
 
@@ -688,6 +700,20 @@ send:
 	if (win > (long)TCP_MAXWIN << tp->rcv_scale)
 		win = (long)TCP_MAXWIN << tp->rcv_scale;
 	th->th_win = htons((u_short) (win>>tp->rcv_scale));
+
+	/*
+	 * Adjust the RXWIN0SENT flag - indicate that we have advertised
+	 * a 0 window.  This may cause the remote transmitter to stall.  This
+	 * flag tells soreceive() to disable delayed acknowledgements when
+	 * draining the buffer.  This can occur if the receiver is attempting
+	 * to read more data then can be buffered prior to transmitting on
+	 * the connection.
+	 */
+	if (win == 0)
+		tp->t_flags |= TF_RXWIN0SENT;
+	else
+		tp->t_flags &= ~TF_RXWIN0SENT;
+
 	if (SEQ_GT(tp->snd_up, tp->snd_nxt)) {
 		th->th_urp = htons((u_short)(tp->snd_up - tp->snd_nxt));
 		th->th_flags |= TH_URG;
