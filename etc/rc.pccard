@@ -1,6 +1,6 @@
 #!/bin/sh -
 #	PC-card startup script
-#	$Id: rc.pccard,v 1.14 1999/07/07 01:19:12 hosokawa Exp $
+#	$Id: rc.pccard,v 1.15 1999/07/07 01:26:55 hosokawa Exp $
 
 if [ "X$pccard_enable" = X"YES" ] ; then
 	if [ "x$pccard_mem" != "xDEFAULT" ] ; then
@@ -12,5 +12,5 @@ if [ "X$pccard_enable" = X"YES" ] ; then
 		pccardd_flags="$pccardd_flags -f $pccard_conf"
 	fi
 	echo -n "Enable PC-card." 
-	pccardd $pccardd_flags 2>&1 > /var/log/pccardd.debug &
+	pccardd $pccardd_flags 2>&1 > /var/log/pccardd.debug
 fi
