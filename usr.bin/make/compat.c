@@ -303,8 +303,9 @@ Compat_RunCommand (void *cmdp, void *gnp)
 	 * -e flag as well as -c if it's supposed to exit when it hits an
 	 * error.
 	 */
-	static char	*shargv[4] = { "/bin/sh" };
+	static char	*shargv[4];
 
+	shargv[0] = shellPath;
 	shargv[1] = (errCheck ? "-ec" : "-c");
 	shargv[2] = cmd;
 	shargv[3] = (char *)NULL;
@@ -315,13 +316,14 @@ Compat_RunCommand (void *cmdp, void *gnp)
 	 * This command must be passed by the shell for other reasons..
 	 * or.. possibly not at all.
 	 */
-	static char	*shargv[4] = { "/bin/sh" };
+	static char	*shargv[4];
 
 	if (internal == -1) {
 		/* Command does not need to be executed */
 		return (0);
 	}
 
+	shargv[0] = shellPath;
 	shargv[1] = (errCheck ? "-ec" : "-c");
 	shargv[2] = cmd;
 	shargv[3] = (char *)NULL;
@@ -655,6 +657,7 @@ Compat_Run(Lst targs)
     int	    	  errors;   /* Number of targets not remade due to errors */
 
     CompatInit();
+    Shell_Init();		/* Set up shell. */
 
     if (signal(SIGINT, SIG_IGN) != SIG_IGN) {
 	signal(SIGINT, CompatInterrupt);

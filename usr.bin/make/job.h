@@ -205,6 +205,9 @@ typedef struct Shell {
     char          *exit;	/* exit on error */
 }               Shell;
 
+extern char *shellPath;
+extern char *shellName;
+
 /*
  * If REMOTE is defined then these things need exposed, otherwise they are
  * static to job.c!
@@ -229,6 +232,7 @@ extern Boolean	jobFull;    	/* Non-zero if no more jobs should/will start*/
 extern int	maxJobs;	/* Number of jobs that may run */
 
 
+void Shell_Init(void);
 void Job_Touch(GNode *, Boolean);
 Boolean Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...));
 void Job_CatchChildren(Boolean);

@@ -1042,10 +1042,12 @@ Cmd_Exec(char *cmd, char **error)
 
     *error = NULL;
 
+    if (shellPath == NULL)
+	Shell_Init();
     /*
      * Set up arguments for shell
      */
-    args[0] = "sh";
+    args[0] = shellName;
     args[1] = "-c";
     args[2] = cmd;
     args[3] = NULL;
@@ -1076,15 +1078,7 @@ Cmd_Exec(char *cmd, char **error)
 	(void) dup2(fds[1], 1);
 	(void) close(fds[1]);
 
-#if defined(DEFSHELL) && DEFSHELL == 0
-	(void) execv("/bin/csh", args);
-#elif DEFSHELL == 1
-	(void) execv("/bin/sh", args);
-#elif DEFSHELL == 2
-	(void) execv("/bin/ksh", args);
-#else
-#error "DEFSHELL must be 1 or 2."
-#endif
+	(void) execv(shellPath, args);
 	_exit(1);
 	/*NOTREACHED*/
 
