@@ -549,8 +549,8 @@ fetch(char *URL, const char *path)
 		tv[0].tv_sec = (long)(us.atime ? us.atime : us.mtime);
 		tv[1].tv_sec = (long)us.mtime;
 		tv[0].tv_usec = tv[1].tv_usec = 0;
-		if (utimes(path, tv))
-			warn("%s: utimes()", path);
+		if (utimes(tmppath ? tmppath : path, tv))
+			warn("%s: utimes()", tmppath ? tmppath : path);
 	}
 
 	/* timed out or interrupted? */
