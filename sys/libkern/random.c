@@ -38,7 +38,7 @@
 
 #define NSHUFF 100      /* to drop part of seed -> 1st value correlation */
 
-static u_long randseed = 1;
+static u_long randseed = 892053144; /* after srandom(1), NSHUFF counted */
 
 void
 srandom(seed)
