@@ -630,7 +630,7 @@ meteor_reset(meteor_reg_t * const sc)
 #define UNIT(x)	((x) & 0x07)
 
 int
-meteor_open(dev_t dev, int flag)
+meteor_open(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -664,7 +664,7 @@ meteor_open(dev_t dev, int flag)
 }
 
 int
-meteor_close(dev_t dev, int flag)
+meteor_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -730,7 +730,7 @@ meteor_close(dev_t dev, int flag)
 }
 
 int
-meteor_read(dev_t dev, struct uio *uio)
+meteor_read(dev_t dev, struct uio *uio, int ioflag)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -768,7 +768,7 @@ meteor_read(dev_t dev, struct uio *uio)
 }
 
 int
-meteor_write()
+meteor_write(dev_t dev, struct uio *uio, int ioflag)
 {
 	return(0);
 }

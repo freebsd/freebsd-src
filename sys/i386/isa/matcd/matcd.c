@@ -477,10 +477,10 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 	Entry points and other connections to/from kernel - see conf.c
 ---------------------------------------------------------------------------*/
 
-	int	matcdopen(dev_t dev);
-	int	matcdclose(dev_t dev);
+	int	matcdopen(dev_t dev, int flags, int fmt, struct proc *p);
+	int	matcdclose(dev_t dev, int flags, int fmt, struct proc *p);
 	void	matcdstrategy(struct buf *bp);
-	int	matcdioctl(dev_t dev, int command, caddr_t addr, int flags);
+	int	matcdioctl(dev_t dev, int command, caddr_t addr, int flags, struct proc *p);
 	int	matcdsize(dev_t dev);
 extern	int	hz;
 extern	int	matcd_probe(struct isa_device *dev);
@@ -558,7 +558,7 @@ static	int	docmd(char * cmd, int ldrive, int cdrive,	/*<14>*/
 <15>	If LOCKDRIVE is enabled, additional minor number devices allow
 <15>	the drive to be locked while being accessed.
 ---------------------------------------------------------------------------*/
-int	matcdopen(dev_t dev)
+int	matcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int cdrive,ldrive,partition,controller;
 	struct matcd_data *cd;
@@ -751,7 +751,7 @@ int	matcdopen(dev_t dev)
 <15>	the drive.
 ---------------------------------------------------------------------------*/
 
-int matcdclose(dev_t dev)
+int matcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int	ldrive,cdrive,port,partition,controller;
 	struct matcd_data *cd;
@@ -960,7 +960,7 @@ static void matcd_start(struct buf *dp)
 	things that don't fit into the block read scheme of things.
 ---------------------------------------------------------------------------*/
 
-int matcdioctl(dev_t dev, int command, caddr_t addr, int flags)
+int matcdioctl(dev_t dev, int command, caddr_t addr, int flags, struct proc *p)
 {
 	struct	matcd_data *cd;
 	int	ldrive,cdrive,partition;

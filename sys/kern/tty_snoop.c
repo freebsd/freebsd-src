@@ -339,9 +339,11 @@ detach_notty:
 }
 
 int
-snpclose(dev, flag)
+snpclose(dev, flags, fmt, p)
 	dev_t           dev;
-	int             flag;
+	int             flags;
+	int             fmt;
+	struct proc    *p;
 {
 	register int    unit = minor(dev);
 	struct snoop   *snp = &snoopsw[unit];
@@ -367,11 +369,12 @@ snpdown(snp)
 
 
 int
-snpioctl(dev, cmd, data, flag)
+snpioctl(dev, cmd, data, flags, p)
 	dev_t           dev;
 	int             cmd;
 	caddr_t         data;
-	int             flag;
+	int             flags;
+	struct proc    *p;
 {
 	int             unit = minor(dev), s;
 	dev_t		tdev;
