@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.96 1996/12/29 05:51:39 jkh Exp $
+ * $Id: sysinstall.h,v 1.97 1997/01/03 06:32:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,7 +57,7 @@
 /* Different packages we depend on - update this when package version change! */
 #define PACKAGE_GATED	"gated-3.5b3"
 #define PACKAGE_APACHE	"apache-1.1.1"
-#define PACKAGE_NETCON	"commerce/netcon/bsd60"
+#define PACKAGE_NETCON	"commerce/netcon/bsd61"
 #define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
 #define PACKAGE_SAMBA	"samba-1.9.15p8"
 #define PACKAGE_LYNX	"lynx-2.6"
