@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	rnordier
-
 M4?=	m4
 
 .if defined(PAGING)
