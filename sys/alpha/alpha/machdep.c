@@ -203,32 +203,28 @@ vm_offset_t phys_avail[10];
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	unsigned long val;
+	u_long val;
 
 	val = alpha_ptob(physmem);
-	error = sysctl_handle_long(oidp, &val, 0, req);
-	return (error);
+	return (sysctl_handle_long(oidp, &val, 0, req));
 }
 
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG|CTLFLAG_RD,
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG | CTLFLAG_RD,
 	0, 0, sysctl_hw_physmem, "LU", "");
 
 static int
 sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	unsigned long val;
+	u_long val;
 
 	val = alpha_ptob(physmem - cnt.v_wire_count);
-	error = sysctl_handle_long(oidp, &val, 0, req);
-	return (error);
+	return (sysctl_handle_long(oidp, &val, 0, req));
 }
 
-SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG|CTLFLAG_RD,
+SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG | CTLFLAG_RD,
 	0, 0, sysctl_hw_usermem, "LU", "");
 
-SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
+SYSCTL_ULONG(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
