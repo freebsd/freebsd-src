@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.124 1996/08/19 12:11:35 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.125 1996/08/21 07:28:39 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -296,6 +296,7 @@
 	  <item>Theo Deraadt &lt;deraadt@fsa.ca&gt;
 	  <item>Thomas Gellekum &lt;thomas@ghpc8.ihf.rwth-aachen.de&gt;
 	  <item>Tim Kientzle &lt;kientzle@netcom.com&gt;
+	  <item>Tim Vanderhoek &lt;ac199@freenet.hamilton.on.ca&gt;
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
 	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;
