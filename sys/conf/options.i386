@@ -1,1 +1,3 @@
 USER_LDT
+MATH_EMULATE		math_emulate.h
+GPL_MATH_EMULATE	math_emulate.h
