@@ -352,9 +352,7 @@ again:
 #ifndef notdef
 	/*
 	 * If the source address is not specified yet, use the address
-	 * of the outoing interface. In case, keep note we did that, so
-	 * if the the firewall changes the next-hop causing the output
-	 * interface to change, we can fix that.
+	 * of the outoing interface.
 	 */
 	if (ip->ip_src.s_addr == INADDR_ANY) {
 		/* Interface may have no addresses. */
