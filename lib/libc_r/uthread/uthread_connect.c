@@ -76,4 +76,14 @@ _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 	return (ret);
 }
 
-__strong_reference(_connect, connect);
+int
+connect(int fd, const struct sockaddr * name, socklen_t namelen)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _connect(fd, name, namelen);
+	_thread_leave_cancellation_point();
+
+ 	return (ret);
+}

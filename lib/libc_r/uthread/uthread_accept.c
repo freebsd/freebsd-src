@@ -108,4 +108,14 @@ _accept(int fd, struct sockaddr * name, socklen_t *namelen)
 	return (ret);
 }
 
-__strong_reference(_accept, accept);
+int
+accept(int fd, struct sockaddr * name, socklen_t *namelen)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _accept(fd, name, namelen);
+	_thread_leave_cancellation_point();
+
+	return (ret);
+}

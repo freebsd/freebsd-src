@@ -72,4 +72,15 @@ _sendto(int fd, const void *msg, size_t len, int flags, const struct
 	return (ret);
 }
 
-__strong_reference(_sendto, sendto);
+ssize_t
+sendto(int fd, const void *msg, size_t len, int flags, const struct
+    sockaddr * to, socklen_t to_len)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _sendto(fd, msg, len, flags, to, to_len);
+	_thread_leave_cancellation_point();
+
+	return (ret);
+}

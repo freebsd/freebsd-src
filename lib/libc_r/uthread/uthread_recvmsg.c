@@ -72,4 +72,14 @@ _recvmsg(int fd, struct msghdr *msg, int flags)
 	return (ret);
 }
 
-__strong_reference(_recvmsg, recvmsg);
+ssize_t
+recvmsg(int fd, struct msghdr *msg, int flags)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _recvmsg(fd, msg, flags);
+	_thread_leave_cancellation_point();
+
+	return (ret);
+}

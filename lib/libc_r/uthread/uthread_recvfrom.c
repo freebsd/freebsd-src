@@ -73,4 +73,15 @@ _recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
 	return (ret);
 }
 
-__strong_reference(_recvfrom, recvfrom);
+ssize_t
+recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr * from,
+    socklen_t *from_len)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _recvfrom(fd, buf, len, flags, from, from_len);
+	_thread_leave_cancellation_point();
+
+	return (ret);
+}
