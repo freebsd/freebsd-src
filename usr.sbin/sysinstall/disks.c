@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.55 1996/07/09 03:07:47 jkh Exp $
+ * $Id: disks.c,v 1.56 1996/07/31 06:20:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,15 +68,15 @@ static void
 print_chunks(Disk *d)
 {
     int row;
-    int i;
+    int i, sz;
 
-    if (!d->bios_cyl && !d->bios_hd && !d->bios_sect) {
+    for (i = sz = 0; chunk_info[i]; i++)
+	sz += chunk_info[i]->size;
+    if ((!d->bios_cyl || d->bios_cyl == sz / ONE_MEG) && d->bios_hd <= 1 && d->bios_sect <= 1) {
 	All_FreeBSD(d, TRUE);
 	d->bios_hd = d->bios_sect = d->bios_cyl = 1;
     }
     else if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
-	int sz;
-
 	dialog_clear();
 	msgConfirm("WARNING:  A geometry of %d/%d/%d for %s is incorrect.  Using\n"
 		   "a default geometry of 64 heads and 32 sectors.  If this geometry\n"
@@ -85,12 +85,7 @@ print_chunks(Disk *d)
 		   "or use the (G)eometry command to change it now.", d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
 	d->bios_hd = 64;
 	d->bios_sect = 32;
-	for (i = sz = 0; chunk_info[i]; i++)
-	    sz += chunk_info[i]->size;
-	if (sz)
-	    d->bios_cyl = sz / ONE_MEG;
-	else
-	    msgConfirm("Couldn't calculate disk size!  You'll have to set the geometry by hand.");
+	d->bios_cyl = sz / ONE_MEG;
     }
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
