@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1996 John D. Polstra.  All rights reserved.
+ * Copyright (C) 1996-1997 John D. Polstra.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sods.c,v 1.4 1997/02/22 15:46:44 peter Exp $
+ * $Id: sods.c,v 1.1.2.1 1997/08/08 02:18:12 jdp Exp $
  */
 
 #include <assert.h>
@@ -41,6 +41,8 @@
 #include <a.out.h>
 #include <link.h>
 #include <stab.h>
+
+#define PAGE_SIZE	4096	/* i386 specific */
 
 #ifndef N_SETA
 #define	N_SETA	0x14		/* Absolute set element symbol */
@@ -74,7 +76,6 @@ static void dump_sods();
 static void dump_sym(const struct nlist *);
 static void dump_syms();
 
-static void dump_rtrels();
 static void dump_rtsyms();
 
 static void error(const char *, ...);
@@ -129,7 +130,7 @@ main(int argc, char *argv[])
 {
     int i;
 
-    for(i = 1;  i < argc;  ++i)
+    for (i = 1;  i < argc;  ++i)
 	dump_file(argv[i]);
 
     return error_count == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
@@ -145,25 +146,24 @@ dump_file(const char *fname)
     int fd;
     struct stat sb;
     caddr_t objbase;
-    long load_offset;
 
-    if(stat(fname, &sb) == -1) {
+    if (stat(fname, &sb) == -1) {
 	error("Cannot stat \"%s\"", fname);
 	return;
     }
 
-    if((sb.st_mode & S_IFMT) != S_IFREG) {
+    if ((sb.st_mode & S_IFMT) != S_IFREG) {
 	error("\"%s\" is not a regular file", fname);
 	return;
     }
 
-    if((fd = open(fname, O_RDONLY, 0)) == -1) {
+    if ((fd = open(fname, O_RDONLY, 0)) == -1) {
 	error("Cannot open \"%s\"", fname);
 	return;
     }
 
     objbase = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    if(objbase == (caddr_t) -1) {
+    if (objbase == (caddr_t) -1) {
 	error("Cannot mmap \"%s\"", fname);
 	close(fd);
 	return;
@@ -176,11 +176,11 @@ dump_file(const char *fname)
     ex = (const struct exec *) file_base;
 
     printf("%s: a_midmag = 0x%lx\n", fname, ex->a_midmag);
-    printf("  magic = 0x%x = 0%o, netmagic = 0x%x = 0%o\n",
+    printf("  magic = 0x%lx = 0%lo, netmagic = 0x%lx = 0%lo\n",
 	N_GETMAGIC(*ex), N_GETMAGIC(*ex),
 	N_GETMAGIC_NET(*ex), N_GETMAGIC_NET(*ex));
 
-    if(N_BADMAG(*ex)) {
+    if (N_BADMAG(*ex)) {
 	error("%s: Bad magic number", fname);
 	munmap(objbase, sb.st_size);
 	return;
@@ -194,8 +194,6 @@ dump_file(const char *fname)
     printf("  a_trsize = 0x%lx\n", ex->a_trsize);
     printf("  a_drsize = 0x%lx\n", ex->a_drsize);
 
-    load_offset = N_TXTADDR(*ex) - N_TXTOFF(*ex);
-
     text_base = file_base + N_TXTOFF(*ex);
     data_base = file_base + N_DATOFF(*ex);
     rel_base = (const struct relocation_info *) (file_base + N_RELOFF(*ex));
@@ -207,21 +205,18 @@ dump_file(const char *fname)
     sym_count = ex->a_syms / sizeof sym_base[0];
     assert(sym_count * sizeof sym_base[0] == ex->a_syms);
 
-    if(sym_count != 0) {
+    if (sym_count != 0) {
 	sym_used = (unsigned char *) calloc(sym_count, sizeof(unsigned char));
 	assert(sym_used != NULL);
     }
 
-    printf("  Entry = 0x%x, load offset = 0x%lx\n",
-	ex->a_entry, load_offset);
-    printf("  Text offset = %lx, address = %lx\n", N_TXTOFF(*ex),
+    printf("  Entry = 0x%lx\n", ex->a_entry);
+    printf("  Text offset = %x, address = %x\n", N_TXTOFF(*ex),
 	N_TXTADDR(*ex));
     printf("  Data offset = %lx, address = %lx\n", N_DATOFF(*ex),
 	N_DATADDR(*ex));
 
     /*
-     * DEBUG
-     *
      * In an executable program file, everything is relocated relative to
      * the assumed run-time load address, i.e., N_TXTADDR(*ex), i.e., 0x1000.
      *
@@ -247,21 +242,25 @@ dump_file(const char *fname)
     data_addr = data_base;
     origin = 0;
 
-    if(ex->a_entry >= load_offset) {	/* Executable, not a shared library */
+    if (ex->a_entry >= PAGE_SIZE) {	/* Executable, not a shared library */
 	/*
 	 * The fields in the object have already been relocated on the
 	 * assumption that the object will be loaded at N_TXTADDR(*ex).
 	 * We have to compensate for that.
 	 */
-	text_addr -= load_offset;
-	data_addr -= load_offset;
-	origin = load_offset;
+	text_addr -= PAGE_SIZE;
+	data_addr -= PAGE_SIZE;
+	origin = PAGE_SIZE;
 	printf("  Program, origin = %lx\n", origin);
-    } else
-	printf("  Library, origin = %lx\n", origin);
+    } else if (N_GETFLAG(*ex) & EX_DYNAMIC)
+	printf("  Shared library, origin = %lx\n", origin);
+    else
+	printf("  Object file, origin = %lx\n", origin);
 
-    if(N_GETFLAG(*ex) & EX_DYNAMIC) {
+    if (N_GETFLAG(*ex) & EX_DYNAMIC) {
 	dyn = (const struct _dynamic *) data_base;
+	printf("  Dynamic version = %d\n", dyn->d_version);
+
 	sdt = (const struct section_dispatch_table *)
 	    (text_addr + (unsigned long) dyn->d_un.d_sdt);
 
@@ -277,7 +276,7 @@ dump_file(const char *fname)
 	assert(rtsym_count * sizeof rtsym_base[0] ==
 	    sdt->sdt_strings - sdt->sdt_nzlist);
 
-	if(rtsym_count != 0) {
+	if (rtsym_count != 0) {
 	    rtsym_used = (unsigned char *) calloc(rtsym_count,
 		sizeof(unsigned char));
 	    assert(rtsym_used != NULL);
@@ -295,11 +294,11 @@ dump_file(const char *fname)
 	rtsym_used);
     dump_rtsyms();
 
-    if(rtsym_used != NULL) {
+    if (rtsym_used != NULL) {
 	free(rtsym_used);
 	rtsym_used = NULL;
     }
-    if(sym_used != NULL) {
+    if (sym_used != NULL) {
 	free(sym_used);
 	sym_used = NULL;
     }
@@ -314,11 +313,40 @@ dump_rels(const char *label, const struct relocation_info *base,
     unsigned long i;
 
     printf("  %s:\n", label);
-    for(i = 0;  i < count;  ++i) {
+    for (i = 0;  i < count;  ++i) {
 	const struct relocation_info *r = &base[i];
+	unsigned int size;
+	char contents[16];
 
-	printf("    %6lu %8x/%u %c%c%c%c%c%c", i,
-	    r->r_address, 1u << r->r_length,
+	size = 1u << r->r_length;
+
+	if (origin <= r->r_address
+	  && r->r_address < origin + ex->a_text + ex->a_data
+	  && 1 <= size && size <= 4) {
+	    /*
+	     * XXX - This can cause unaligned accesses.  OK for the
+	     * i386, not so for other architectures.
+	     */
+	    switch (size) {
+	    case 1:
+		snprintf(contents, sizeof contents, "      [%02x]",
+		  *(unsigned char *)(text_addr + r->r_address));
+		break;
+	    case 2:
+		snprintf(contents, sizeof contents, "    [%04x]",
+		  *(unsigned short *)(text_addr + r->r_address));
+		break;
+	    case 4:
+		snprintf(contents, sizeof contents, "[%08lx]",
+		  *(unsigned long *)(text_addr + r->r_address));
+		break;
+	    }
+	} else
+	    snprintf(contents, sizeof contents, "          ");
+
+	printf("    %6lu %8x/%u %s %c%c%c%c%c%c", i,
+	    r->r_address, size,
+	    contents,
 	    r->r_extern   ? 'e' : '-',
 	    r->r_jmptable ? 'j' : '-',
 	    r->r_relative ? 'r' : '-',
@@ -326,7 +354,7 @@ dump_rels(const char *label, const struct relocation_info *base,
 	    r->r_pcrel    ? 'p' : '-',
 	    r->r_copy     ? 'c' : '-');
 
-	if(r->r_extern || r->r_baserel || r->r_jmptable || r->r_copy) {
+	if (r->r_extern || r->r_baserel || r->r_jmptable || r->r_copy) {
 	    printf(" %4u %s", r->r_symbolnum, name(r->r_symbolnum));
 	    sym_used_flags[r->r_symbolnum] = 1;
 	}
@@ -341,7 +369,7 @@ dump_rtsyms()
     unsigned long i;
 
     printf("  Run-time symbols:\n");
-    for(i = 0;  i < rtsym_count;  ++i) {
+    for (i = 0;  i < rtsym_count;  ++i) {
 	printf("    %6lu%c ", i, rtsym_used[i] ? '*' : ' ');
 	dump_sym(&rtsym_base[i].nlist);
 	printf("/%-5ld %s\n", rtsym_base[i].nz_size, rtsym_name(i));
@@ -352,7 +380,7 @@ static void
 dump_segs()
 {
     printf("  Text segment starts at address %lx\n", origin + N_TXTOFF(*ex));
-    if(N_GETFLAG(*ex) & EX_DYNAMIC) {
+    if (N_GETFLAG(*ex) & EX_DYNAMIC) {
 	printf("    rel starts at %lx\n", sdt->sdt_rel);
 	printf("    hash starts at %lx\n", sdt->sdt_hash);
 	printf("    nzlist starts at %lx\n", sdt->sdt_nzlist);
@@ -360,7 +388,7 @@ dump_segs()
     }
 
     printf("  Data segment starts at address %lx\n", origin + N_DATOFF(*ex));
-    if(N_GETFLAG(*ex) & EX_DYNAMIC) {
+    if (N_GETFLAG(*ex) & EX_DYNAMIC) {
 	printf("    _dynamic starts at %lx\n", origin + N_DATOFF(*ex));
 	printf("    so_debug starts at %lx\n", (unsigned long) dyn->d_debug);
 	printf("    sdt starts at %lx\n", (unsigned long) dyn->d_un.d_sdt);
@@ -377,12 +405,12 @@ dump_sods()
     long sod_offset;
     long paths_offset;
 
-    if(dyn == NULL)		/* Not a shared object */
+    if (dyn == NULL)		/* Not a shared object */
 	return;
 
     sod_offset = sdt->sdt_sods;
     printf("  Shared object dependencies:\n");
-    while(sod_offset != 0) {
+    while (sod_offset != 0) {
 	const struct sod *sodp = (const struct sod *) (text_addr + sod_offset);
 	const char *name = (const char *) (text_addr + sodp->sod_name);
 
@@ -399,7 +427,7 @@ dump_sods()
 	char *path = (char *)(text_addr + paths_offset);
 	printf("    %s\n", path);
     } else {
-	printf("    NULL\n");
+	printf("    (none)\n");
     }
 }
 
@@ -407,9 +435,11 @@ static void
 dump_sym(const struct nlist *np)
 {
     char type[8];
+    char aux[8];
+    char weak;
     char *p;
 
-    switch(np->n_type & ~N_EXT) {
+    switch (np->n_type & ~N_EXT) {
     case N_UNDF:	strcpy(type, "undf");  break;
     case N_ABS:		strcpy(type, "abs");  break;
     case N_TEXT:	strcpy(type, "text");  break;
@@ -450,14 +480,25 @@ dump_sym(const struct nlist *np)
     case N_ECOMM:	strcpy(type, "ecomm");  break;
     case N_ECOML:	strcpy(type, "ecoml");  break;
     case N_LENG:	strcpy(type, "leng");  break;
-    default:		sprintf(type, "0x%02x", np->n_type);
+    default:
+	snprintf(type, sizeof type, "%#02x", np->n_type);
+	break;
     }
 
-    if(np->n_type & N_EXT && type[0] != '0')
-	for(p = type;  *p != '\0';  ++p)
+    if (np->n_type & N_EXT && type[0] != '0')
+	for (p = type;  *p != '\0';  ++p)
 	    *p = toupper(*p);
 
-    printf("%-5s %8lx", type, np->n_value);
+    switch (N_AUX(np)) {
+    case 0:		strcpy(aux, "");  break;
+    case AUX_OBJECT:	strcpy(aux, "objt");  break;
+    case AUX_FUNC:	strcpy(aux, "func");  break;
+    default:		snprintf(aux, sizeof aux, "%#01x", N_AUX(np));  break;
+    }
+
+    weak = N_BIND(np) == BIND_WEAK ? 'w' : ' ';
+
+    printf("%c%-6s %-4s %8lx", weak, type, aux, np->n_value);
 }
 
 static void
@@ -466,7 +507,7 @@ dump_syms()
     unsigned long i;
 
     printf("  Symbols:\n");
-    for(i = 0;  i < sym_count;  ++i) {
+    for (i = 0;  i < sym_count;  ++i) {
 	printf("    %6lu%c ", i, sym_used[i] ? '*' : ' ');
 	dump_sym(&sym_base[i]);
 	printf(" %s\n", sym_name(i));
@@ -490,7 +531,7 @@ static const char *
 rtsym_name(unsigned long n)
 {
     assert(n < rtsym_count);
-    if(rtsym_base[n].nz_strx == 0)
+    if (rtsym_base[n].nz_strx == 0)
 	return "";
     return rtstr_base + rtsym_base[n].nz_strx;
 }
@@ -499,7 +540,7 @@ static const char *
 sym_name(unsigned long n)
 {
     assert(n < sym_count);
-    if(sym_base[n].n_un.n_strx == 0)
+    if (sym_base[n].n_un.n_strx == 0)
 	return "";
     return str_base + sym_base[n].n_un.n_strx;
 }
