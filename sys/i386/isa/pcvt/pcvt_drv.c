@@ -928,10 +928,6 @@ pcrint(void)
 
 #if PCVT_NETBSD || PCVT_FREEBSD >= 200
 
-#if PCVT_NETBSD == 9
-extern void ttrstrt();
-#endif /* PCVT_NETBSD == 9 */
-
 void
 pcstart(register struct tty *tp)
 {
@@ -950,25 +946,27 @@ pcstart(register struct tty *tp)
 
 	async_update(UPDATE_KERN);
 
-	/*
-	 * We need to do this outside spl since it could be fairly
-	 * expensive and we don't want our serial ports to overflow.
-	 */
-
 	rbp = &tp->t_outq;
 
-	while (len = q_to_b(rbp, buf, PCVT_PCBURST))
-		sput(&buf[0], 0, len, minor(tp->t_dev));
+	/*
+	 * Call q_to_b() at spltty() to ensure that the queue is empty when
+	 * the loop terminates.
+	 */
 
 	s = spltty();
 
-	tp->t_state &= ~TS_BUSY;
-
-	if (rbp->c_cc)
+	while (len = q_to_b(rbp, buf, PCVT_PCBURST))
 	{
-		tp->t_state |= TS_TIMEOUT;
-		timeout(ttrstrt, tp, 1);
+		/*
+		 * We need to do this outside spl since it could be fairly
+		 * expensive and we don't want our serial ports to overflow.
+		 */
+		splx(s);
+		sput(&buf[0], 0, len, minor(tp->t_dev));
+		s = spltty();
 	}
+
+	tp->t_state &= ~TS_BUSY;
 
 #ifndef TS_ASLEEP /* FreeBSD some time after 2.0.5 */
 	ttwwakeup(tp);
