@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.16 1998/10/03 10:58:54 dfr Exp $";
+	"$Id: mt.c,v 1.17 1998/12/18 02:02:20 mjacob Exp $";
 #endif /* not lint */
 
 /*
@@ -186,7 +186,7 @@ main(argc, argv)
 		if (*argv) {
 #if defined (__FreeBSD__)
 			if (!isdigit(**argv) &&
-			    comp->c_flags & IS_DENSITY) {
+			    (comp->c_flags & IS_DENSITY)) {
 				const char *dcanon;
 				mt_com.mt_count = stringtodens(*argv);
 				if (mt_com.mt_count == 0)
@@ -198,7 +198,7 @@ main(argc, argv)
 					       *argv, dcanon);
 				p = "";
 			} else if (!isdigit(**argv) &&
-				   comp->c_flags & IS_COMP) {
+				   (comp->c_flags & IS_COMP)) {
 
 				mt_com.mt_count = stringtocomp(*argv);
 				if ((u_int32_t)mt_com.mt_count == 0xf0f0f0f0)
@@ -211,14 +211,14 @@ main(argc, argv)
 #else
 			mt_com.mt_count = strtol(*argv, &p, 10);
 #endif /* defined(__FreeBSD__) */
-			if (mt_com.mt_count <=
+			if ((mt_com.mt_count <=
 #if defined (__FreeBSD__)
 			    ((comp->c_flags & ZERO_ALLOWED)? -1: 0)
 			    && ((comp->c_flags & IS_COMP) == 0)
 #else
 			    0
 #endif /* defined (__FreeBSD__) */
-			    || *p)
+			    ) || *p)
 				errx(1, "%s: illegal count", *argv);
 		}
 		else
@@ -227,19 +227,25 @@ main(argc, argv)
 		switch (comp->c_code) {
 		case MTIOCRDHPOS:
 		case MTIOCRDSPOS:
-			if (ioctl(mtfd, comp->c_code, &mt_com.mt_count) < 0)
+		{
+			u_int32_t block;
+			if (ioctl(mtfd, comp->c_code, (caddr_t)&block) < 0)
 				err(2, "%s", tape);
 			printf("%s: %s block location %u\n", tape,
 			    (comp->c_code == MTIOCRDHPOS)? "hardware" :
-			    "logical", (unsigned int) mt_com.mt_count);
-			exit (0);
+			    "logical", block);
+			exit(0);
 			/* NOTREACHED */
+		}
 		case MTIOCSLOCATE:
 		case MTIOCHLOCATE:
-			if (ioctl(mtfd, comp->c_code, &mt_com.mt_count) < 0)
+		{
+			u_int32_t block = (u_int32_t)mt_com.mt_count;
+			if (ioctl(mtfd, comp->c_code, (caddr_t)&block) < 0)
 				err(2, "%s", tape);
-			exit (0);
+			exit(0);
 			/* NOTREACHED */
+		}
 		default:
 			break;
 		}
@@ -251,7 +257,7 @@ main(argc, argv)
 			err(1, NULL);
 		status(&mt_status);
 	}
-	exit (0);
+	exit(0);
 	/* NOTREACHED */
 }
 
