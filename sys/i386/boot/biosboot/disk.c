@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.8 1995/02/16 15:06:09 bde Exp $
+ *	$Id: disk.c,v 1.9 1995/04/14 21:26:50 joerg Exp $
  */
 
 /*
@@ -85,7 +85,8 @@ devopen(void)
 	struct dos_partition *dptr;
 	struct disklabel *dl;
 	int dosdev = inode.i_dev;
-	int i, sector, di;
+	int i, sector = 0, di;
+	u_long bend;
 	
 	di = get_diskinfo(dosdev);
 	spc = (spt = SPT(di)) * HEADS(di);
@@ -101,15 +102,14 @@ devopen(void)
 #else	EMBEDDED_DISKLABEL
 		Bread(dosdev, 0);
 		dptr = (struct dos_partition *)(((char *)0)+DOSPARTOFF);
-		sector = LABELSECTOR;
 		slice = WHOLE_DISK_SLICE;
 		for (i = 0; i < NDOSPART; i++, dptr++)
 			if (dptr->dp_typ == DOSPTYP_386BSD) {
 				slice = BASE_SLICE + i;
-				sector = dptr->dp_start + LABELSECTOR;
+				sector = dptr->dp_start;
 				break;
 			}
-		Bread(dosdev, sector++);
+		Bread(dosdev, sector + LABELSECTOR);
 		dl=((struct disklabel *)0);
 		disklabel = *dl;	/* structure copy (maybe useful later)*/
 #endif	EMBEDDED_DISKLABEL
@@ -128,9 +128,19 @@ devopen(void)
 				maj = 0; /* must be ESDI/IDE */
 			}
 		}
-		boff = dl->d_partitions[part].p_offset;
-#ifdef DO_BAD144
+		/* This little trick is for OnTrack DiskManager disks */
+		boff = dl->d_partitions[part].p_offset -
+			dl->d_partitions[2].p_offset + sector;
+
+		/* This is a good idea for all disks */
 		bsize = dl->d_partitions[part].p_size;
+		bend = boff + bsize - 1 ;
+		if (bend / spt > 1024) {
+			printf("partition is out of reach from the bios\n");
+			return 1;
+		}
+
+#ifdef DO_BAD144
 		do_bad144 = 0;
 		if (dl->d_flags & D_BADSECT) {
 		    /* this disk uses bad144 */
