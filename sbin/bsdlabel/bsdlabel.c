@@ -165,6 +165,10 @@ main(int argc, char *argv[])
 					labeloffset = 512;
 					bbsize = 8192;
 					alphacksum = 0;
+				} else if (!strcmp(optarg, "pc98")) {
+					labeloffset = 512;
+					bbsize = 8192;
+					alphacksum = 0;
 				} else if (!strcmp(optarg, "alpha")) {
 					labeloffset = 64;
 					bbsize = 8192;
