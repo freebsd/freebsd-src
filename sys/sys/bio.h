@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.21 1995/08/24 12:57:17 davidg Exp $
+ * $Id: buf.h,v 1.22 1995/11/19 19:54:31 dyson Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -57,6 +57,8 @@ struct iodone_chain {
 	}	ic_args[5];
 };
 
+typedef TAILQ_HEAD(buf_queue_head, buf) buf_queue_head, *buf_queue_head_t;
+
 /*
  * The buffer header describes an I/O operation in the kernel.
  */
@@ -64,7 +66,8 @@ struct buf {
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
 	LIST_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
-	struct	buf *b_actf, **b_actb;	/* Device driver queue when active. */
+	struct	buf *b_actf, **b_actb;	/* Device driver queue when active. *depricated* XXX */
+	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
 	struct  proc *b_proc;		/* Associated proc; NULL if kernel. */
 	volatile long	b_flags;	/* B_* flags. */
 	int	b_qindex;		/* buffer queue index */

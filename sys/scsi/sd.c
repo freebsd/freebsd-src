@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.68 1995/10/21 23:13:09 phk Exp $
+ *      $Id: sd.c,v 1.69 1995/11/06 08:19:24 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -74,7 +74,7 @@ struct scsi_data {
 		u_int32 disksize;	/* total number sectors */
 	} params;
 	struct diskslices *dk_slices;	/* virtual drives */
-	struct buf buf_queue;
+	struct buf_queue_head buf_queue;
 	int dkunit;		/* disk stats unit number */
 };
 
@@ -172,6 +172,8 @@ sdattach(struct scsi_link *sc_link)
 
 	if (sc_link->opennings > SDOUTSTANDING)
 		sc_link->opennings = SDOUTSTANDING;
+
+	TAILQ_INIT(&sd->buf_queue);
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
@@ -357,7 +359,6 @@ sd_close(dev, fflag, fmt, p, sc_link)
 void
 sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
-	struct buf *dp;
 	u_int32 opri;
 	struct scsi_data *sd;
 	u_int32 unit;
@@ -392,8 +393,6 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 		goto done;	/* XXX check b_resid */
 
 	opri = SPLSD();
-	dp = &sd->buf_queue;
-
 	/*
 	 * Use a bounce buffer if necessary
 	 */
@@ -405,7 +404,7 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	disksort(dp, bp);
+	TAILQ_INSERT_TAIL(&sd->buf_queue, bp, b_act);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
@@ -459,7 +458,6 @@ sdstart(u_int32 unit, u_int32 flags)
 	register struct	scsi_link *sc_link = SCSI_LINK(&sd_switch, unit);
 	register struct scsi_data *sd = sc_link->sd;
 	struct buf *bp = 0;
-	struct buf *dp;
 	struct scsi_rw_big cmd;
 	u_int32 blkno, nblk;
 
@@ -480,12 +478,12 @@ sdstart(u_int32 unit, u_int32 flags)
 		/*
 		 * See if there is a buf with work for us to do..
 		 */
-		dp = &sd->buf_queue;
-		if ((bp = dp->b_actf) == NULL) {	/* yes, an assign */
+		bp = sd->buf_queue.tqh_first;
+		if (bp == NULL) {	/* yes, an assign */
 			return;
 		}
-		dp->b_actf = bp->b_actf;
-		bp->b_actf = NULL;
+		TAILQ_REMOVE( &sd->buf_queue, bp, b_act);
+
 
 		/*
 		 *  If the device has become invalid, abort all the
