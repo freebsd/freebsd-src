@@ -243,7 +243,8 @@ static moduledata_t ng_##typename##_mod = {				\
 	ng_mod_event,							\
 	(typestructp)							\
 };									\
-DECLARE_MODULE(ng_##typename, ng_##typename##_mod, sub, order)
+DECLARE_MODULE(ng_##typename, ng_##typename##_mod, sub, order);		\
+MODULE_DEPEND(ng_##typename, netgraph, 1, 1, 1)
 
 #define NETGRAPH_INIT(tn, tp)						\
 	NETGRAPH_INIT_ORDERED(tn, tp, SI_SUB_PSEUDO, SI_ORDER_ANY)
