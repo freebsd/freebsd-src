@@ -241,19 +241,25 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 
 	atomic_add_int(&cp->biocount, 1);
 	/* Fail on unattached consumers */
-	if (bp->bio_to == NULL)
-		return (g_io_fail(bp, ENXIO));
+	if (bp->bio_to == NULL) {
+		g_io_fail(bp, ENXIO);
+		return;
+	}
 	/* Fail if access doesn't allow operation */
 	switch(bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_GETATTR:
-		if (cp->acr == 0)
-			return (g_io_fail(bp, EPERM));
+		if (cp->acr == 0) {
+			g_io_fail(bp, EPERM);
+			return;
+		}
 		break;
 	case BIO_WRITE:
 	case BIO_DELETE:
-		if (cp->acw == 0)
-			return (g_io_fail(bp, EPERM));
+		if (cp->acw == 0) {
+			g_io_fail(bp, EPERM);
+			return;
+		}
 		break;
 	case BIO_SETATTR:
 		/* XXX: Should ideally check for (cp->ace == 0) */
@@ -261,22 +267,28 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 			printf("setattr on %s mode (%d,%d,%d)\n",
 				cp->provider->name,
 				cp->acr, cp->acw, cp->ace);
-			return (g_io_fail(bp, EPERM));
+			g_io_fail(bp, EPERM);
+			return;
 		}
 		break;
 	default:
-		return (g_io_fail(bp, EPERM));
+		g_io_fail(bp, EPERM);
+		return;
 	}
 	/* if provider is marked for error, don't disturb. */
-	if (bp->bio_to->error)
-		return (g_io_fail(bp, bp->bio_to->error));
+	if (bp->bio_to->error) {
+		g_io_fail(bp, bp->bio_to->error);
+		return;
+	}
 	switch(bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
 		/* Reject requests past the end of media. */
-		if (bp->bio_offset > bp->bio_to->mediasize)
-			return (g_io_fail(bp, EIO));
+		if (bp->bio_offset > bp->bio_to->mediasize) {
+			g_io_fail(bp, EIO);
+			return;
+		}
 		/* Truncate requests to the end of providers media. */
 		excess = bp->bio_offset + bp->bio_length;
 		if (excess > bp->bio_to->mediasize) {
@@ -284,8 +296,10 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 			bp->bio_length -= excess;
 		}
 		/* Deliver zero length transfers right here. */
-		if (bp->bio_length == 0) 
-			return (g_io_deliver(bp));
+		if (bp->bio_length == 0) {
+			g_io_deliver(bp);
+			return;
+		}
 		break;
 	default:
 		break;
