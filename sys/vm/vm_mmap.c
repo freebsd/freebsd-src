@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.7 1994/10/09 01:52:11 phk Exp $
+ * $Id: vm_mmap.c,v 1.8 1995/01/09 16:05:48 davidg Exp $
  */
 
 /*
@@ -746,7 +746,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 				vm_object_deallocate(object);
 				goto out;
 			}
-			tmap = vm_map_create(pmap_create(size), VM_MIN_ADDRESS,
+			tmap = vm_map_create(NULL, VM_MIN_ADDRESS,
 			    VM_MIN_ADDRESS + size, TRUE);
 			off = VM_MIN_ADDRESS;
 			rv = vm_allocate_with_pager(tmap, &off, size,
