@@ -909,7 +909,8 @@ sigreturn(p, uap)
 			vm86->vm86_eflags = eflags;	/* save VIF, VIP */
 			eflags = (tf->tf_eflags & ~VM_USERCHANGE) |					    (eflags & VM_USERCHANGE) | PSL_VM;
 		}
-		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(struct trapframe));
+		bcopy(&ucp->uc_mcontext.mc_fs, tf, sizeof(struct trapframe));
+		tf->tf_eflags = eflags;
 		tf->tf_vm86_ds = tf->tf_ds;
 		tf->tf_vm86_es = tf->tf_es;
 		tf->tf_vm86_fs = tf->tf_fs;
