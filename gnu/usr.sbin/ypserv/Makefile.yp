@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS database
 #
-# $Id$
+# $Id: Makefile.yp,v 1.2 1995/02/01 23:05:36 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -55,7 +55,7 @@ DOMAINNAME = `/bin/domainname`
 # the real /etc/passwd and /etc/master.passwd files by:
 #
 # - editing this Makefile
-# - invoking yppasswdd without the -m and -o options (yppasswdd will
+# - invoking yppasswdd without the -m option (yppasswdd will
 #   automagically update the master.passwd, passwd, spwd.db and pwd.db
 #   files as needed)
 #
