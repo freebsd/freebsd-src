@@ -1623,10 +1623,10 @@ DMenu MenuSysconsScrnmap = {
 DMenu MenuSysconsTtys = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Terminal Type",
-    "For various console encodings corresponding terminal type\n"
-    "must be choosed in /etc/ttys.\n"
-    "WARNING: due to compatibility reasons, only entries started with\n"
-    "ttyv and with terminal type started with cons[0-9] can be changed\n"
+    "For various console encodings, a corresponding terminal type\n"
+    "must be chosen in /etc/ttys.\n\n"
+    "WARNING: For compatibility reasons, only entries starting with\n"
+    "ttyv and terminal types starting with cons[0-9] can be changed\n"
     "via this menu.\n",
     "Choose a terminal type",
     NULL,
