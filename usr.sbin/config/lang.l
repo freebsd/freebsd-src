@@ -101,9 +101,6 @@ struct kt {
 	{ "priority",	PRIORITY },
 	{ "pseudo-device",PSEUDO_DEVICE },
 	{ "root",	ROOT },
-#if MACHINE_HP300 || MACHINE_LUNA68K
-	{ "scode",	NEXUS },
-#endif
 	{ "sequential",	SEQUENTIAL },
 	{ "size",	SIZE },
 	{ "slave",	SLAVE },
