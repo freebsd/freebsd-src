@@ -37,6 +37,11 @@
 #include "boot2.h"
 #include "lib.h"
 
+#define IO_KEYBOARD	1
+#define IO_SERIAL	2
+
+#define SECOND		18	/* Circa that many ticks in a second. */
+
 #define RBX_ASKNAME	0x0	/* -a */
 #define RBX_SINGLE	0x1	/* -s */
 #define RBX_DFLTROOT	0x5	/* -r */
@@ -138,7 +143,7 @@ static uint32_t opts;
 static struct bootinfo bootinfo;
 static int ls;
 static uint32_t fs_off;
-static uint8_t ioctrl = 0x1;
+static uint8_t ioctrl = IO_KEYBOARD;
 
 void exit(int);
 static void load(const char *);
@@ -281,34 +286,43 @@ main(void)
     bootinfo.bi_memsizes_valid++;
     for (i = 0; i < N_BIOS_GEOM; i++)
 	bootinfo.bi_bios_geom[i] = drvinfo(i);
-    autoboot = 2;
+
+    /* Process configuration file */
+
+    autoboot = 1;
     readfile(PATH_CONFIG, cmd, sizeof(cmd));
     if (*cmd) {
 	printf("%s: %s", PATH_CONFIG, cmd);
 	if (parse(cmd))
 	    autoboot = 0;
+	/* Do not process this command twice */
 	*cmd = 0;
     }
+
+    /*
+     * Try to exec stage 3 boot loader. If interrupted by a keypress,
+     * or in case of failure, try to load a kernel directly instead.
+     */
+
     if (autoboot && !*kname) {
-	if (autoboot == 2) {
-	    memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
-	    if (!keyhit(0x37)) {
-		load(kname);
-		autoboot = 1;
-	    }
-	}
-	if (autoboot == 1)
+	memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+	if (!keyhit(3*SECOND)) {
+	    load(kname);
 	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
+	}
     }
+
+    /* Present the user with the boot2 prompt. */
+
     for (;;) {
 	printf(" \n>> FreeBSD/i386 BOOT\n"
 	       "Default: %u:%s(%u,%c)%s\n"
 	       "boot: ",
 	       dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
 	       'a' + dsk.part, kname);
-	if (ioctrl & 0x2)
+	if (ioctrl & IO_SERIAL)
 	    sio_flush();
-	if (!autoboot || keyhit(0x5a))
+	if (!autoboot || keyhit(5*SECOND))
 	    getstr(cmd, sizeof(cmd));
 	else
 	    putchar('\n');
@@ -447,9 +461,9 @@ parse(char *arg)
 		    opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
 		opts &= ~(1 << RBX_PROBEKBD);
 	    }
-	    ioctrl = opts & 1 << RBX_DUAL ? 0x3 :
-		     opts & 1 << RBX_SERIAL ? 0x2 : 0x1;
-	    if (ioctrl & 0x2)
+	    ioctrl = opts & 1 << RBX_DUAL ? (IO_SERIAL|IO_KEYBOARD) :
+		     opts & 1 << RBX_SERIAL ? IO_SERIAL : IO_KEYBOARD;
+	    if (ioctrl & IO_SERIAL)
 	        sio_init();
 	} else {
 	    for (q = arg--; *q && *q != '('; q++);
@@ -794,9 +808,9 @@ keyhit(unsigned ticks)
 static int
 xputc(int c)
 {
-    if (ioctrl & 0x1)
+    if (ioctrl & IO_KEYBOARD)
 	putc(c);
-    if (ioctrl & 0x2)
+    if (ioctrl & IO_SERIAL)
 	sio_putc(c);
     return c;
 }
@@ -807,9 +821,9 @@ xgetc(int fn)
     if (opts & 1 << RBX_NOINTR)
 	return 0;
     for (;;) {
-	if (ioctrl & 0x1 && getc(1))
+	if (ioctrl & IO_KEYBOARD && getc(1))
 	    return fn ? 1 : getc(0);
-	if (ioctrl & 0x2 && sio_ischar())
+	if (ioctrl & IO_SERIAL && sio_ischar())
 	    return fn ? 1 : sio_getc();
 	if (fn)
 	    return 0;
