@@ -855,10 +855,15 @@ scbus_devtab(fp, dev_idp)
 			continue;
 		}
 
-		if (mp->d_conn == 0) {
+		if (mp->d_conn == 0 &&
+		(dp->d_target != UNKNOWN && dp->d_target != QUES)) {
 			fprintf(stderr,
-			 "%s%s: Warning, can't tell what is attached to scbus%s.\n",
-			 dp->d_name, wnum(dp->d_unit), wnum(mp->d_unit));
+			 "Warning: %s%s is configured at ",
+			 dp->d_name, wnum(dp->d_unit));
+
+			fprintf(stderr,
+			 "%s%s which is not fixed at a single adapter.\n",
+			 mp->d_name, wnum(mp->d_unit));
 		}
 		
 		fprintf(fp, "{ ");
