@@ -23,16 +23,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.2 1998/05/21 21:46:10 brian Exp $
+ *  $Id: link.c,v 1.3 1998/06/27 23:48:49 brian Exp $
  *
  */
 
 #include <sys/types.h>
 
 #include <stdio.h>
-#include <string.h>
 #include <termios.h>
 
+#include "defs.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"

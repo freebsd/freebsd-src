@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.49 1998/06/24 19:33:31 brian Exp $
+ *	$Id: chat.c,v 1.50 1998/06/27 14:18:01 brian Exp $
  */
 
 #include <sys/types.h>
@@ -64,6 +64,7 @@
 #include "iplist.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "cbcp.h"
 #include "datalink.h"
 #include "bundle.h"
 
@@ -673,9 +674,11 @@ ExpandString(struct chat *c, const char *str, char *result, int reslen,
 	result += strlen(result);
 	break;
       case 'T':
-        strncpy(result, c->phone, reslen);
-        reslen -= strlen(result);
-        result += strlen(result);
+        if (c->phone) {
+          strncpy(result, c->phone, reslen);
+          reslen -= strlen(result);
+          result += strlen(result);
+        }
 	break;
       case 'U':
 	strncpy(result, c->physical->dl->bundle->cfg.auth.name, reslen);
