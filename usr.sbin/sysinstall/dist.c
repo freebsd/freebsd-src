@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.140 1999/05/14 07:15:03 jkh Exp $
+ * $Id: dist.c,v 1.141 1999/06/23 08:40:56 brian Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -73,12 +73,14 @@ static Distribution DistTable[] = {
 { "info",	"/",			&Dists,		DIST_INFO,		NULL		},
 { "src",	"/",			&Dists,		DIST_SRC,		SrcDistTable	},
 { "des",	"/",			&Dists,		DIST_DES,		DESDistTable	},
+#ifdef __i386__
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
 { "compat22",	"/",			&Dists,		DIST_COMPAT22,		NULL		},
 #if __FreeBSD__ > 3
 { "compat3x",	"/",			&Dists,		DIST_COMPAT3X,		NULL		},
+#endif
 #endif
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
 { "XF86333",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
@@ -200,8 +202,12 @@ distVerifyFlags(void)
 	XF86Dists |= DIST_XF86_SERVER;
     if (XF86FontDists)
 	XF86Dists |= DIST_XF86_FONTS;
-    if (XF86Dists || XF86ServerDists || XF86FontDists)
+    if (XF86Dists || XF86ServerDists || XF86FontDists) {
 	Dists |= DIST_XF86;
+#ifdef __i386__
+	Dists |= DIST_COMPAT22;	/* For certain old X applications */
+#endif
+    }
     if (isDebug())
 	msgDebug("Dist Masks: Dists: %0x, DES: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
 		 Dists, DESDists, SrcDists, XF86ServerDists, XF86FontDists, XF86Dists);
