@@ -1607,12 +1607,9 @@ nfs_sndlock(rep)
 	struct proc *p;
 	int slpflag = 0, slptimeo = 0;
 
-	if (rep) {
-		p = rep->r_procp;
-		if (rep->r_nmp->nm_flag & NFSMNT_INT)
-			slpflag = PCATCH;
-	} else
-		p = (struct proc *)0;
+	p = rep->r_procp;
+	if (rep->r_nmp->nm_flag & NFSMNT_INT)
+		slpflag = PCATCH;
 	while (*statep & NFSSTA_SNDLOCK) {
 		if (nfs_sigintr(rep->r_nmp, rep, p))
 			return (EINTR);
@@ -1625,7 +1622,7 @@ nfs_sndlock(rep)
 		}
 	}
 	/* Always fail if our request has been cancelled. */
-	if (rep != NULL && (rep->r_flags & R_SOFTTERM))
+	if ((rep->r_flags & R_SOFTTERM))
 		return (EINTR);
 	*statep |= NFSSTA_SNDLOCK;
 	return (0);
