@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.23 1997/08/21 16:14:34 bde Exp $
+# $Id: Makefile,v 1.24 1997/10/01 13:37:27 phk Exp $
 #
 # This file is generated automatically, do not edit it here!
 #
@@ -19,7 +19,7 @@ CFLAGS+=  -I${TCLDIST}/unix
 
 TCL_LIBRARY=	/usr/libdata/tcl
 SHLIB_MAJOR=	80
-SHLIB_MINOR=	3
+SHLIB_MINOR=	4
 
 LIB=    tcl
 
