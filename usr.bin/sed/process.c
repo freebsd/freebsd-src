@@ -245,7 +245,7 @@ redirect:
 			case 'y':
 				if (pd || psl == 0)
 					break;
-				for (p = ps, len = psl; --len; ++p)
+				for (p = ps, len = psl; len--; ++p)
 					*p = cp->u.y[(unsigned char)*p];
 				break;
 			case ':':
