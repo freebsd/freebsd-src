@@ -53,47 +53,6 @@ __FBSDID("$FreeBSD$");
 /* Track if its fd points to a writable device. */
 #define	MINE_WRITE	0x02
 
-struct uufsd *
-ufs_disk_ctor(const char *name)
-{
-	struct uufsd *new;
-
-	new = NULL;
-
-	ERROR(new, NULL);
-
-	new = malloc(sizeof(*new));
-	if (new == NULL) {
-		ERROR(new, "unable to allocate memory for disk");
-		return (NULL);
-	}
-
-	if (ufs_disk_fillout(new, name) == -1) {
-		ERROR(new, "could not fill out disk");
-		free(new);
-		return (NULL);
-	}
-
-	return (new);
-}
-
-void
-ufs_disk_dtor(struct uufsd **diskp)
-{
-	struct uufsd *disk;
-
-	if (diskp != NULL)
-		disk = *diskp;
-	else
-		return;
-
-	ERROR(disk, NULL);
-
-	ufs_disk_close(disk);
-	free(disk);
-	*diskp = NULL;
-}
-
 int
 ufs_disk_close(struct uufsd *disk)
 {
