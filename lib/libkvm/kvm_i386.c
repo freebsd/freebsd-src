@@ -132,16 +132,3 @@ int
 _kvm_kvatop(kvm_t *kd, u_long va, u_long *pa) {
 	return (_kvm_vatop(kd, va, pa));
 }
-
-/*
- * Translate a user virtual address to a physical address.
- */
-int
-_kvm_uvatop(kvm_t *kd, const struct proc *p, u_long va, u_long *pa) {
-	if (ISALIVE(kd)) {
-		/* Not done yet */
-	} else {
-		/* Not done yet */
-	}
-	return ((off_t)(0));
-}
