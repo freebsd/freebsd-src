@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.11 1997/03/10 08:04:13 ache Exp $
+ * $Id: chap.c,v 1.12 1997/03/17 14:47:55 ache Exp $
  *
  *	TODO:
  */
@@ -80,8 +80,9 @@ int chapid;
   char *cp;
 
   if (!randinit) {
-    srandom((unsigned long)(time(NULL) ^ getpid()));
     randinit = 1;
+    if (srandomdev() < 0)
+      srandom((unsigned long)(time(NULL) ^ getpid()));
   }
 
   cp = challenge_data;
