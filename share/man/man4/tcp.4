@@ -113,7 +113,7 @@ supports a number of socket options which can be set with
 .Xr setsockopt 2
 and tested with
 .Xr getsockopt 2 :
-.Bl -tag -width TCP_SIGNATURE_ENABLEx
+.Bl -tag -width TCP_MD5SIGx
 .It Dv TCP_NODELAY
 Under most circumstances,
 .Tn TCP
@@ -163,7 +163,7 @@ When the option is set to a non-zero value,
 .Tn TCP
 will delay sending any data at all until either the socket is closed,
 or the internal send buffer is filled.
-.It Dv TCP_SIGNATURE_ENABLE
+.It Dv TCP_MD5SIG
 This option enables the use of MD5 digests (also known as TCP-MD5)
 on writes to the specified socket.
 In the current release, only outgoing traffic is digested;
