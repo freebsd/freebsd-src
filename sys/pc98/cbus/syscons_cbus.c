@@ -69,7 +69,7 @@ static driver_t sc_driver = {
 	sizeof(sc_softc_t),
 };
 
-static sc_softc_t main_softc = { 0, 0, 0, -1, NULL, -1, NULL, };
+static sc_softc_t main_softc;
 
 static int
 scprobe(device_t dev)
@@ -109,17 +109,17 @@ sc_softc_t
 		return NULL;
 	if (flags & SC_KERNEL_CONSOLE) {
 		/* FIXME: clear if it is wired to another unit! */
-		main_softc.unit = unit;
-		return &main_softc;
+		sc = &main_softc;
 	} else {
 	        sc = (sc_softc_t *)device_get_softc(devclass_get_device(sc_devclass, unit));
-		if (!(sc->flags & SC_INIT_DONE)) {
-			sc->unit = unit;
-			sc->keyboard = -1;
-			sc->adapter = -1;
-		}
-		return sc;
 	}
+	sc->unit = unit;
+	if (!(sc->flags & SC_INIT_DONE)) {
+		sc->keyboard = -1;
+		sc->adapter = -1;
+		sc->mouse_char = SC_MOUSE_CHAR;
+	}
+	return sc;
 }
 
 sc_softc_t
