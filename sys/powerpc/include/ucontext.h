@@ -35,12 +35,38 @@
 #ifndef	_MACHINE_UCONTEXT_H_
 #define	_MACHINE_UCONTEXT_H_
 
-#include <machine/frame.h>
-
-
 typedef struct __mcontext {
-	int mc_onstack;			/* saved onstack flag */
-	struct trapframe mc_frame;	/* saved registers */
-} mcontext_t;
+	int		mc_vers;
+	int		mc_flags;
+#define _MC_FP_VALID	0x01
+#define _MC_AV_VALID	0x02
+	int		mc_onstack;	  	/* saved onstack flag */
+	int		mc_len;			/* sizeof(__mcontext) */
+	uint64_t	mc_avec[32*2];		/* vector register file */
+	uint32_t	mc_av[2];
+	uint32_t	mc_frame[41];
+	uint64_t	mc_fpreg[33];
+} mcontext_t __aligned(16);
+
+/* GPRs and supervisor-level regs */
+#define mc_gpr		mc_frame
+#define mc_lr		mc_frame[32]
+#define mc_cr		mc_frame[33]
+#define mc_xer		mc_frame[34]
+#define	mc_ctr		mc_frame[35]
+#define mc_srr0		mc_frame[36]
+#define mc_srr1		mc_frame[37]
+#define mc_dar		mc_frame[38]
+#define mc_dsisr	mc_frame[39]
+#define mc_exc		mc_frame[40]
+
+/* floating-point state */
+#define mc_fpscr	mc_fpreg[32]
+
+/* altivec state */
+#define mc_vscr		mc_av[0]
+#define mc_vrsave	mc_av[1]
+
+#define _MC_VERSION	0x1
 
 #endif	/* !_MACHINE_UCONTEXT_H_ */

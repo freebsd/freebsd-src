@@ -321,3 +321,30 @@ fuword32(const void *addr)
 {
 	return ((int32_t)fuword(addr));
 }
+
+intptr_t
+casuptr(intptr_t *addr, intptr_t old, intptr_t new)
+{
+	struct thread *td;
+	pmap_t pm;
+	faultbuf env;
+	intptr_t *p, val;
+
+	td = PCPU_GET(curthread);
+	pm = &td->td_proc->p_vmspace->vm_pmap;
+	p = (intptr_t *)((u_int)USER_ADDR + ((u_int)addr & ~SEGMENT_MASK));
+
+	set_user_sr(pm->pm_sr[(u_int)addr >> ADDR_SR_SHFT]);
+
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	val = *p;
+	(void) atomic_cmpset_32(p, old, new);
+
+	td->td_pcb->pcb_onfault = NULL;
+
+	return (val);
+}
