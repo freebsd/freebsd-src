@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: exec.c,v 1.6 1997/10/14 07:23:16 bde Exp $";
+	"$Id: exec.c,v 1.7 1997/11/20 15:09:38 bde Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -102,21 +102,33 @@ execl(name, arg, va_alist)
 #endif
 {
 	va_list ap;
-	int sverrno;
 	char **argv;
+	int n;
 
+	/* The following code is ugly, but makes execl() vfork()-safe. */
+	
 #if __STDC__
 	va_start(ap, arg);
 #else
 	va_start(ap);
 #endif
-	if ( (argv = buildargv(ap, arg, NULL)) )
-		(void)execve(name, argv, environ);
+	n = 0;
+	while (va_arg(ap, char *) != NULL)
+		n++ ;
 	va_end(ap);
-	sverrno = errno;
-	free(argv);
-	errno = sverrno;
-	return (-1);
+	argv = (char **)alloca((n + 1) * sizeof(*argv));
+	if (argv == NULL)
+		return (-1);
+#if __STDC__
+	va_start(ap, arg);
+#else
+	va_start(ap);
+#endif
+	n = 0;
+	while ((argv[n] = va_arg(ap, char *)) != NULL)
+		n++;
+	va_end(ap);
+	return (execve(name, argv, environ));
 }
 
 int
