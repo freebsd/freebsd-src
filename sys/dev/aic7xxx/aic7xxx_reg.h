@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.8 1996/04/20 21:20:31 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.9 1996/05/10 16:11:03 gibbs Exp $
  */
 
 /*
@@ -561,7 +561,7 @@
 #define	SCB_NEXT		0x0ba
 #define	SCB_PREV		0x0bb
 
-#ifdef linux
+#ifdef __linux__
 #define	SG_SIZEOF		0x0c		/* sizeof(struct scatterlist) */
 #else
 #define	SG_SIZEOF		0x08		/* sizeof(struct ahc_dma) */
