@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.32 1998/06/10 21:21:30 dfr Exp $
+ * $Id: kernfs_vnops.c,v 1.33 1998/06/14 12:34:42 bde Exp $
  */
 
 /*
@@ -520,8 +520,8 @@ kernfs_readdir(ap)
 		struct uio *a_uio;
 		struct ucred *a_cred;
 		int *a_eofflag;
-		u_long *a_cookies;
-		int a_ncookies;
+		int *a_ncookies;
+		u_long **a_cookies;
 	} */ *ap;
 {
 	int error, i, off;
@@ -531,13 +531,6 @@ kernfs_readdir(ap)
 
 	if (ap->a_vp->v_type != VDIR)
 		return (ENOTDIR);
-
-	/*
-	 * We don't allow exporting kernfs mounts, and currently local
-	 * requests do not need cookies.
-	 */
-	if (ap->a_ncookies != NULL)
-		panic("kernfs_readdir: not hungry");
 
 	off = (int)uio->uio_offset;
 	if (off != uio->uio_offset || off < 0 || (u_int)off % UIO_MX != 0 ||
