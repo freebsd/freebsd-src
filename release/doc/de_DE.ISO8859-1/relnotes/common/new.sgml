@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.152 2002/11/20 07:01:44 ue Exp $
-  basiert auf: 1.453
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.153 2002/11/21 07:15:59 ue Exp $
+  basiert auf: 1.454
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -1608,7 +1608,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         werden.</para>
 
       <para>Der neue Treiber trm unterst&uuml;tzt SCSI-Kontroller auf
-	Basis des Tekram TRM-S1040 SCSI Chipsatzes.</para>
+	Basis des Tekram TRM-S1040 SCSI Chipsatzes.  &merged;</para>
 
       <para arch="i386" role="historic">Der neue Treiber &man.twe.4; unterst&uuml;tzt
         das 3ware ATA RAID.  &merged;</para>
