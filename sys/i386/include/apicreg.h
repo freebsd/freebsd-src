@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic.h,v 1.7 1997/07/15 02:47:52 fsmp Exp $
+ *	$Id: apic.h,v 1.5 1997/07/18 19:47:48 smp Exp smp $
  */
 
 #ifndef _MACHINE_APIC_H_
@@ -220,7 +220,10 @@ typedef struct IOAPIC ioapic_t;
  * various code 'logical' values
  */
 
+#ifdef TEST_LOPRIO
 #define LOPRIO_LEVEL		0x00000010	/* TPR of CPUs accepting INT */
+#define ALLHWI_LEVEL		0x00000000	/* TPR of CPU grabbing INTs */
+#endif /** TEST_LOPRIO */
 
 /* XXX these 2 don't really belong here... */
 #define COUNT_FIELD		0x00ffffff	/* count portion of the lock */

@@ -1,10 +1,11 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.7 1997/07/15 02:49:21 fsmp Exp $
+ *	$Id: apic_vector.s,v 1.12 1997/07/18 19:47:13 smp Exp smp $
  */
 
 
-#include <machine/smptests.h>	/** TEST_CPUSTOP */
+#include <machine/smptests.h>		/** various counters */
+#include "i386/isa/intr_machdep.h"
 
 /* convert an absolute IRQ# into a bitmask */
 #define IRQ_BIT(irq_num)	(1 << (irq_num))
@@ -212,10 +213,6 @@ _Xinvltlb:
 	iret
 
 
-#ifdef  TEST_CPUSTOP
-
-#include "i386/isa/intr_machdep.h"
-
 /*
  * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
  *
@@ -262,8 +259,6 @@ _Xcpustop:
 	popl	%ds			/* restore previous data segment */
 	popl	%eax
 	iret
-
-#endif /* TEST_CPUSTOP */
 
 
 MCOUNT_LABEL(bintr)
@@ -359,32 +354,21 @@ _sihits:
 #ifdef COUNT_XINVLTLB_HITS
 	.globl	_xhits
 _xhits:
-	.long	0
-	.long	0
-	.long	0
-	.long	0
+	.space	(NCPU * 4), 0
 #endif /* COUNT_XINVLTLB_HITS */
 
-#ifdef TEST_CPUSTOP
-
-	.globl _stopped_cpus
+/* variables used by stop_cpus()/restart_cpus()/Xcpustop */
+	.globl _stopped_cpus, _started_cpus
 _stopped_cpus:
 	.long	0
-
-	.globl _started_cpus
 _started_cpus:
 	.long	0
 
 #ifdef COUNT_CSHITS
 	.globl	_cshits
 _cshits:
-	.long	0
-	.long	0
-	.long	0
-	.long	0
+	.space	(NCPU * 4), 0
 #endif /* COUNT_CSHITS */
-
-#endif /* TEST_CPUSTOP */
 
 
 /*

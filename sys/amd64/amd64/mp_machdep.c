@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.28 1997/07/17 19:44:56 dyson Exp $
+ *	$Id: mp_machdep.c,v 1.16 1997/07/18 19:45:41 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -45,7 +45,7 @@
 #include <machine/mpapic.h>
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
-#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_CPUSTOP _TEST1 */
+#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, TEST_TEST1 */
 #include <machine/tss.h>
 #include <machine/specialreg.h>
 
@@ -491,14 +491,12 @@ mp_enable(u_int boot_addr)
 	setidt(XINVLTLB_OFFSET, Xinvltlb,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
-#if defined(TEST_CPUSTOP)
 	/* install an inter-CPU IPI for CPU stop/restart */
 	setidt(XCPUSTOP_OFFSET, Xcpustop,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#endif  /** TEST_CPUSTOP */
 
 #if defined(TEST_TEST1)
-	/* install a 'Spurious INTerrupt' vector */
+	/* install a "fake hardware INTerrupt" vector */
 	setidt(XTEST1_OFFSET, Xtest1,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 #endif  /** TEST_TEST1 */
@@ -1741,12 +1739,6 @@ invltlb(void)
 }
 
 
-#if defined(TEST_CPUSTOP)
-
-#if defined(DEBUG_CPUSTOP)
-void	db_printf __P((const char *fmt, ...));
-#endif /* DEBUG_CPUSTOP */
-
 /*
  * When called the executing CPU will send an IPI to all other CPUs
  *  requesting that they halt execution.
@@ -1771,25 +1763,13 @@ stop_cpus( u_int map )
 		return 0;
 
 	/* send IPI to all CPUs in map */
-#if defined(DEBUG_CPUSTOP)
-	db_printf("\nCPU%d stopping CPUs: 0x%08x\n", cpuid, map);
-#endif /* DEBUG_CPUSTOP */
-
 	stopped_cpus = 0;
 
 	/* send the Xcpustop IPI to all CPUs in map */
 	selected_apic_ipi(map, XCPUSTOP_OFFSET, APIC_DELMODE_FIXED);
 
-#if defined(DEBUG_CPUSTOP)
-	db_printf("  spin\n");
-#endif /* DEBUG_CPUSTOP */
-
 	while (stopped_cpus != map)
 		/* spin */ ;
-
-#if defined(DEBUG_CPUSTOP)
-	db_printf("  spun\nstopped\n");
-#endif /* DEBUG_CPUSTOP */
 
 	return 1;
 }
@@ -1814,21 +1794,10 @@ restart_cpus( u_int map )
 	if (!smp_active)
 		return 0;
 
-#if defined(DEBUG_CPUSTOP)
-	db_printf("\nCPU%d restarting CPUs: 0x%08x (0x%08x)\n",
-	       cpuid, map, stopped_cpus);
-#endif /* DEBUG_CPUSTOP */
-
 	started_cpus = map;		/* signal other cpus to restart */
 
 	while (started_cpus)		/* wait for each to clear its bit */
 		/* spin */ ;
 
-#if defined(DEBUG_CPUSTOP)
-	db_printf(" restarted\n");
-#endif /* DEBUG_CPUSTOP */
-
 	return 1;
 }
-
-#endif  /** TEST_CPUSTOP */

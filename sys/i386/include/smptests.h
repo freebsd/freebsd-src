@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.10 1997/07/15 03:27:12 fsmp Exp $
+ *	$Id: smptests.h,v 1.15 1997/07/18 19:47:48 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -35,7 +35,8 @@
 
 
 /*
- * address of POST hardware port
+ * Address of POST hardware port.
+ * Defining this enables POSTCODE macros.
  *
 #define POST_ADDR		0x80
  */
@@ -50,19 +51,18 @@
 #define TEST_ALTTIMER
 
 /*
- * send 8254 timer INTs to all CPUs in LOPRIO mode
+ * Send 8254 timer INTs to all CPUs in LOPRIO mode.
  *
 */
 #define TIMER_ALL
 
 
 /*
- * IPI for stop/restart of other CPUs
+ * Send CPUSTOP IPI for stop/restart of other CPUs on DDB break.
  *
-#define COUNT_CSHITS
-#define DEBUG_CPUSTOP
  */
-#define TEST_CPUSTOP
+#define CPUSTOP_ON_DDBBREAK
+#define VERBOSE_CPUSTOP_ON_DDBBREAK
 
 
 /*
@@ -93,6 +93,7 @@
  *
 #define COUNT_XINVLTLB_HITS
 #define COUNT_SPURIOUS_INTS
+#define COUNT_CSHITS
  */
 
 
@@ -167,12 +168,14 @@
 
 
 /*
- * these are all temps for debugging CPUSTOP code in mplock.s
- * they will (hopefully) go away soon...
+ * these are all temps for debugging...
  *
 #define GUARD_INTS
  */
 
+/*
+ * This macro traps unexpected INTs to a specific CPU, eg. GUARD_CPU.
+ */
 #ifdef GUARD_INTS
 #define GUARD_CPU	1
 #define MAYBE_PANIC(irq_num)		\
