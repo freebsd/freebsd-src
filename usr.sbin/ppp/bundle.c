@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.27 1998/06/27 14:18:00 brian Exp $
+ *	$Id: bundle.c,v 1.28 1998/07/28 21:54:50 brian Exp $
  */
 
 #include <sys/param.h>
@@ -214,7 +214,7 @@ bundle_AutoLoadTimeout(void *v)
   if (bundle->autoload.comingup) {
     log_Printf(LogPHASE, "autoload: Another link is required\n");
     /* bundle_Open() stops the timer */
-    bundle_Open(bundle, NULL, PHYS_AUTO);
+    bundle_Open(bundle, NULL, PHYS_AUTO, 0);
   } else {
     struct datalink *dl, *last;
 
@@ -654,7 +654,7 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
        * *not* be UP and we can't receive data
        */
       if ((pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
-        bundle_Open(bundle, NULL, PHYS_AUTO);
+        bundle_Open(bundle, NULL, PHYS_AUTO, 0);
       else
         /*
          * Drop the packet.  If we were to queue it, we'd just end up with
@@ -1100,7 +1100,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
 }
 
 void
-bundle_Open(struct bundle *bundle, const char *name, int mask)
+bundle_Open(struct bundle *bundle, const char *name, int mask, int force)
 {
   /*
    * Please open the given datalink, or all if name == NULL
@@ -1110,7 +1110,12 @@ bundle_Open(struct bundle *bundle, const char *name, int mask)
   timer_Stop(&bundle->autoload.timer);
   for (dl = bundle->links; dl; dl = dl->next)
     if (name == NULL || !strcasecmp(dl->name, name)) {
-      if (dl->state == DATALINK_CLOSED && (mask & dl->physical->type)) {
+      if ((mask & dl->physical->type) &&
+          (dl->state == DATALINK_CLOSED ||
+           (force && dl->state == DATALINK_OPENING &&
+            dl->dial_timer.state == TIMER_RUNNING))) {
+        if (force)
+          timer_Stop(&dl->dial_timer);
         datalink_Up(dl, 1, 1);
         if (mask == PHYS_AUTO)
           /* Only one AUTO link at a time (see the AutoLoad timer) */
