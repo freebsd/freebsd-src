@@ -274,6 +274,7 @@ struct gv_plex {
 
 	struct mtx		bqueue_mtx; /* Lock for the BIO queue. */
 	TAILQ_HEAD(,gv_bioq)	bqueue;	/* BIO queue. */
+	TAILQ_HEAD(,gv_bioq)	wqueue;	/* Waiting BIO queue. */
 	TAILQ_HEAD(,gv_raid5_packet)	packets; /* RAID5 sub-requests. */
 
 	LIST_HEAD(,gv_sd)   subdisks;	/* List of attached subdisks. */
