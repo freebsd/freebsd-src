@@ -196,7 +196,7 @@ either expressed or implied, of the Regents of the University of California.
 .ds Dt \\$3
 .so \\$1
 ..
-.t /usr/src/share/man/man0/toc8 8 "System Maintenance"
+.\" .t /usr/src/share/man/man0/toc8 8 "System Maintenance"
 .in -.5i
 .cs 3
 .if n .ta 8n 16n 24n 32n 40n 48n 56n 64n 72n 80n
