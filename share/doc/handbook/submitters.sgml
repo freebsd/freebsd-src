@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.41 1997/02/22 12:59:28 peter Exp $ -->
+<!-- $Id: submitters.sgml,v 1.42 1997/04/09 10:34:31 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -503,6 +503,7 @@ like to publically thank them here!
   <p>The following individuals and businesses made it possible for
   the FreeBSD Project to build a new central server machine to eventually
   replace <em>freefall.freebsd.org</em> by donating the following items:
+
   <itemize>
 	<item><url url="mailto:mbarkah@freebsd.org" name="Ade Barkah">
 	and his employer, <url url="http://www.hemi.com"
@@ -520,6 +521,7 @@ like to publically thank them here!
 <item><bf>Direct funding:</bf>
   <p>The following individuals and businesses have generously contributed
   direct funding to the project:
+
   <itemize>
 	<item><htmlurl url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
 	name="Annelise Anderson">
@@ -530,8 +532,14 @@ like to publically thank them here!
 	<item><htmlurl url="mailto:gmarco@masternet.it"
 	name="Gianmarco Giovannelli">
 
-	<item><htmlurl url="http://www.imagescape.com"
+	<item><htmlurl url="mailto:joeg@truenorth.org" name="Josef C. Grosch">
+
+	<item><htmlurl url="mailto:ken@stox.sa.enteract.com"
+	name="Kenneth P. Stox"> of <htmlurl url="http://www.imagescape.com"
 	name="Imaginary Landscape, LLC.">
+
+	<item><htmlurl url="mailto:dk@dog.farm.org"
+	name="Dmitry S. Kohmanyuk">
 
         <item><htmlurl url="http://www.iijnet.or.jp/laser5/" name="Laser5">
         of Japan (a portion of the profits from sales of their
@@ -540,6 +548,7 @@ like to publically thank them here!
    </itemize>
 
 <item><bf>Special contributors:</bf>
+  <p>
   <itemize>
 	<item><htmlurl url="http://www.cdrom.com" name="Walnut Creek CDROM">
 	has donated almost more than we can say (see the
