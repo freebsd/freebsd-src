@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.7 1994/01/25 05:56:06 deraadt Exp paulus $ */
+/* $Id: if_ppp.c,v 1.2 1994/09/23 00:13:18 wollman Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -192,7 +192,7 @@ pppattach()
 	sc->sc_if.if_name = "ppp";
 	sc->sc_if.if_unit = i++;
 	sc->sc_if.if_mtu = PPP_MTU;
-	sc->sc_if.if_flags = IFF_POINTOPOINT;
+	sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 	sc->sc_if.if_type = IFT_PPP;
 	sc->sc_if.if_hdrlen = PPP_HDRLEN;
 	sc->sc_if.if_ioctl = pppioctl;
@@ -1488,6 +1488,18 @@ pppioctl(ifp, cmd, data)
 
     case SIOCGIFMTU:
 	ifr->ifr_mtu = sc->sc_if.if_mtu;
+	break;
+    case SIOCADDMULTI:
+    case SIOCDELMULTI:
+	switch(ifr->ifr_addr.sa_family) {
+#ifdef INET
+	case AF_INET:
+		break;
+#endif
+	default:
+		error = EAFNOSUPPORT;
+		break;
+	}
 	break;
 
     default:
