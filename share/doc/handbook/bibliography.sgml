@@ -13,6 +13,28 @@
 	manual.
 
       <sect>
+	<heading>Books & magazines specific to FreeBSD</heading>
+
+	<p><bf>International books & Magazines:</bf>
+
+	<p><itemize>
+	  <item><htmlurl url="http://freebsd.csie.nctu.edu.tw/~jdli/book.shtml"
+	  name="Using FreeBSD"> (in Chinese).
+	  <item>FreeBSD for PC 98'ers (in Japanese), published by SHUWA
+	   System Co, LTD. ISBN4-87966-468-5 C3055 P2900E.
+	  <item>FreeBSD (in Japanese), published by CUTT.
+	  ISBN4-906391-22-2 C3055 P2400E.
+	</itemize>
+
+	<p><bf>English language books & Magazines:</bf>
+
+	<p><itemize>
+	  <item><htmlurl url="http://www.cdrom.com/titles/os/bsdbook2.htm"
+	  name="The Complete FreeBSD">, published by <htmlurl
+	  url="http://www.cdrom.com" name="Walnut Creek CDROM">.
+	</itemize>
+
+      <sect>
 	<heading>Users' guides</heading>
 
 	<p><itemize>
