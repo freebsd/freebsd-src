@@ -14,6 +14,7 @@ name="nfsd"
 rcvar=`set_rcvar nfs_server`
 command="/usr/sbin/${name}"
 
+load_rc_config $name
 case ${OSTYPE} in
 FreeBSD)
 	command_args="${nfs_server_flags}"
@@ -51,5 +52,4 @@ nfsd_precmd()
 	return 0
 }
 
-load_rc_config $name
 run_rc_command "$1"

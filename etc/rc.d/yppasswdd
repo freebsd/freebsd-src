@@ -15,6 +15,7 @@ name="yppasswdd"
 command="/usr/sbin/rpc.${name}"
 start_precmd="yppasswdd_precmd"
 
+load_rc_config $name
 case ${OSTYPE} in
 FreeBSD)
 	rcvar="nis_yppasswdd_enable"
@@ -50,5 +51,4 @@ yppasswdd_precmd()
 	fi
 }
 
-load_rc_config $name
 run_rc_command "$1"

@@ -12,8 +12,9 @@
 name="ypset"
 rcvar="nis_ypset_enable"
 command="/usr/sbin/${name}"
-command_args="${nis_ypset_flags}"
 start_precmd="ypset_precmd"
+load_rc_config $name
+command_args="${nis_ypset_flags}"
 
 ypset_precmd()
 {
@@ -35,5 +36,4 @@ ypset_precmd()
 	fi
 }
 
-load_rc_config $name
 run_rc_command "$1"

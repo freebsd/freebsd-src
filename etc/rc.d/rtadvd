@@ -16,17 +16,16 @@ rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 start_precmd="rtadvd_precmd"
 
-case ${OSTYPE} in
-FreeBSD)
-	IS_GATEWAY="checkyesno ipv6_gateway_enable"
-	;;
-NetBSD)
-	IS_GATEWAY="eval [ \"$ip6mode\" = \"router\" ]"
-	;;
-esac
-
 rtadvd_precmd()
 {
+	case ${OSTYPE} in
+	FreeBSD)
+		IS_GATEWAY="checkyesno ipv6_gateway_enable"
+		;;
+	NetBSD)
+		IS_GATEWAY="eval [ \"$ip6mode\" = \"router\" ]"
+		;;
+	esac
 	if ! ${IS_GATEWAY}; then
 		warn \
 		  "${name} cannot be used on IPv6 host, only on an IPv6 router."
