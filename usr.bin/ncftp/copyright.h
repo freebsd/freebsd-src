@@ -1,16 +1,11 @@
 /* Copyright.h */
 
-/*  $RCSfile: copyright.h,v $
- *  $Revision: 14020.12 $
- *  $Date: 93/06/02 13:43:03 $
- */
-
 /*
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * Copyright (c) 1992-1994 Mike Gleason, NCEMRSoft.
+ * Copyright (c) 1992-1995 Mike Gleason, NCEMRSoft.
  * Copyright (c) 1985, 1989 Regents of the University of California.
  * All rights reserved.
  *
@@ -23,7 +18,7 @@
 
 #ifdef _main_c_
 #ifndef lint
-static char copyright[] = "@(#) Copyright (c) 1992, 1993 by NCEMRSoft and Copyright (c) 1985, 1989 Regents of the University of California.\n All rights reserved.\n";
+static char copyright[] = "@(#) Copyright (c) 1992, 1993, 1994, 1995 by NCEMRSoft and Copyright (c) 1985, 1989 Regents of the University of California.\n All rights reserved.\n";
 #endif /* not lint */
 #endif /* _main_c_ */
 

@@ -1753,7 +1753,11 @@ int initconn(void)
 		bcopy( (void *)&n[0], (void *)&data_addr.sin_addr, 4 );
 		bcopy( (void *)&n[4], (void *)&data_addr.sin_port, 2 );
 
+#ifdef SOCKS
+		if (Rconnect( data, (struct sockaddr *) &data_addr, (int) sizeof(data_addr) ) < 0 ) {
+#else
 		if (Connect( data, &data_addr, sizeof(data_addr) ) < 0 ) {
+#endif
 			if (errno == ECONNREFUSED) {
 				dbprintf("Could not connect to port specified by server;\n");
 				dbprintf("Falling back to PORT mode.\n");
