@@ -187,7 +187,8 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: mount_cd9660 [-egrv] [-o options] [-s startsector] [-C charset ] special node\n");
+"usage: mount_cd9660 [-begjrv] [-C charset] [-o options] [-s startsector]\n"
+"                    special node\n");
 	exit(EX_USAGE);
 }
 
