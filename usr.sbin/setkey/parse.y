@@ -561,6 +561,7 @@ upper_spec
 	:	DECSTRING { p_upper = $1; }
 	|	UP_PROTO { p_upper = $1; }
 	|	ANY { p_upper = IPSEC_ULPROTO_ANY; }
+	|	PR_TCP { p_upper = IPPROTO_TCP; }
 	|	STRING
 		{
 			struct protoent *ent;
