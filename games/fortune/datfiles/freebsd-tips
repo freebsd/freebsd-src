@@ -115,7 +115,7 @@ the environment variable HTTP_AUTH to 'basic:*'.
 You can permanently set environment variables for your shell by putting them
 in a startup file for the shell.  The name of the startup file varies
 depending on the shell - csh and tcsh uses .cshrc, bash uses .bashrc, zsh uses
-.zshrc, ksh uses .kshrc, and the Bourne shell (/bin/sh) uses .profile (and
+.zshenv, ksh uses .kshrc, and the Bourne shell (/bin/sh) uses .profile (and
 through a little bit of trickery in .profile also .shrc)
 Other shells will often also read .profile
 %
@@ -385,7 +385,7 @@ Want to know how many words, lines, or bytes are contained in a file? Type
 % 
 Need to print a manpage? Use 
 
-	man name_of_manpage | col -bx > lpr
+	man name_of_manpage | col -bx | lpr
 		-- Dru <genesis@istar.ca>
 % 
 Need to remove all those ^M characters from a DOS file? Try 
