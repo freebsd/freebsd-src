@@ -610,6 +610,7 @@ make_device(device_t parent, const char *name,
     dev->nameunit = NULL;
     dev->desc = NULL;
     dev->busy = 0;
+    dev->devflags = 0;
     dev->flags = DF_ENABLED;
     dev->order = 0;
     if (unit == -1)
@@ -892,6 +893,12 @@ device_get_desc(device_t dev)
     return dev->desc;
 }
 
+u_int32_t
+device_get_flags(device_t dev)
+{
+    return dev->devflags;
+}
+
 int
 device_print_prettyname(device_t dev)
 {
@@ -953,6 +960,12 @@ void
 device_set_desc_copy(device_t dev, const char* desc)
 {
     device_set_desc_internal(dev, desc, TRUE);
+}
+
+void
+device_set_flags(device_t dev, u_int32_t flags)
+{
+    dev->devflags = flags;
 }
 
 void *

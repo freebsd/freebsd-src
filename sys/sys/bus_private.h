@@ -127,6 +127,7 @@ struct device {
     char*		desc;	/* driver specific description */
     int			busy;	/* count of calls to device_busy() */
     device_state_t	state;
+    u_int32_t		devflags; /* api level flags for device_get_flags() */
     u_short		flags;
 #define DF_ENABLED	1	/* device should be probed/attached */
 #define DF_FIXEDCLASS	2	/* devclass specified at create time */
