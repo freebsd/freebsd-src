@@ -52,9 +52,10 @@
 #include <sys/poll.h>
 #include <sys/selinfo.h>
 #include <sys/uio.h>
+#include <sys/mouse.h>
 
 #include <machine/bus.h>
-#include <sys/mouse.h>
+#include <machine/clock.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 
@@ -330,7 +331,7 @@ mse_probe(dev)
 	/* check PnP IDs */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, mse_ids);
 	if (error == ENXIO)
-		return ENXIO;
+		return error;
 
 	sc = device_get_softc(dev);
 	rid = 0;
