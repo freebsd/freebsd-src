@@ -67,6 +67,7 @@
  *	$FreeBSD$
  */
 
+#ifdef INET6
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -247,3 +248,4 @@ mrt6_stats(mstaddr)
 	    (unsigned long long)mrtstat.mrt6s_pkt2large,
 	    plural(mrtstat.mrt6s_pkt2large));
 }
+#endif /*INET6*/
