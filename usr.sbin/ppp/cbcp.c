@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cbcp.c,v 1.2 1998/08/26 17:39:38 brian Exp $
+ *	$Id: cbcp.c,v 1.3 1998/10/17 12:28:08 brian Exp $
  */
 
 #include <sys/types.h>
@@ -617,6 +617,7 @@ cbcp_Input(struct physical *p, struct mbuf *bp)
         timer_Stop(&cbcp->fsm.timer);
         if (cbcp_AdjustResponse(cbcp, data)) {
           cbcp->fsm.restart = DEF_REQs;
+          cbcp->fsm.id = head->id;
           cbcp_SendResponse(cbcp);
         } else
           datalink_CBCPFailed(cbcp->p->dl);
