@@ -1,13 +1,13 @@
 /*
  * Christian
  *
- * $Id: calendar.christian,v 1.3 1996/02/02 06:04:06 wosch Exp $
+ * $Id: calendar.christian,v 1.4 1996/04/06 01:15:19 mpp Exp $
  */
 
 #ifndef _calendar_christian_
 #define _calendar_christian_
 
-01/06*		Epiphany
+01/06*	Epiphany
 Easter-47	Shrove Tuesday / Mardi Gras (day before Ash Wednesday)
 Easter-46	Ash Wednesday (First day of Lent)
 Easter-7	Palm Sunday (7 days before Easter)
