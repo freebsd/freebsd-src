@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_send.c,v 8.13 1997/06/01 20:34:37 vixie Exp";
-static char rcsid[] = "$Id: res_send.c,v 1.18 1997/06/28 04:19:52 peter Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.19 1997/09/14 09:44:34 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -608,19 +608,20 @@ read_len:
 					sigaction(SIGSYS, &osa, NULL);
 					errno = oerrno;
 				}
+				/* XXX why does nosys() return EINVAL? */
+				if (n < 0 && (errno == ENOSYS ||
+				    errno == EINVAL)) {
+					use_poll = 0;
+					goto othersyscall;
+				} else if (use_poll == 1)
+					use_poll = 2;
 				if (n < 0) {
-					if (errno == ENOSYS) {
-						use_poll = 0;
-						goto othersyscall;
-					}
 					if (errno == EINTR)
 						goto wait;
 					Perror(stderr, "poll", errno);
 					res_close();
 					goto next_ns;
 				}
-				if (use_poll == 1)
-					use_poll = 2;
 			} else {
 				dsmasklen = howmany(s + 1, NFDBITS) *
 					    sizeof(fd_mask);
