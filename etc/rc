@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.154 1998/09/09 22:27:21 jraynard Exp $
+#	$Id: rc,v 1.155 1998/09/14 09:14:46 sos Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -245,8 +245,22 @@ fi
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
 if [ -x /sbin/ldconfig ]; then
+	if [ X"`/usr/bin/objformat`" = X"elf" ]; then
+		_LDC=/usr/lib
+		for i in $ldconfig_paths; do
+			if test -d $i; then
+				_LDC="${_LDC} $i"
+			fi
+		done
+		echo 'setting ELF ldconfig path:' ${_LDC}
+		ldconfig -elf ${_LDC}
+	fi
+
+	# Default the a.out ldconfig path, in case the system's
+	# /etc/rc.conf hasn't been updated.
+	: ${ldconfig_paths_aout=${ldconfig_paths}}
 	_LDC=/usr/lib/aout
-	for i in $ldconfig_paths; do
+	for i in $ldconfig_paths_aout; do
 		if test -d $i; then
 			_LDC="${_LDC} $i"
 		fi
