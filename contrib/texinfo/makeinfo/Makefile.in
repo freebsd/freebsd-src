@@ -1,112 +1,289 @@
-# Makefile for GNU makeinfo.
-# $Id: Makefile.in,v 1.9 1996/10/01 21:45:00 karl Exp $
-# 
-# Copyright (C) 1993, 96 Free Software Foundation, Inc.
+# Makefile.in generated automatically by automake 1.2f from Makefile.am
 
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2, or (at your option)
-# any later version.
+# Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
 
 # This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-
-#### Start of system configuration section. ####
-
-srcdir = @srcdir@
-VPATH = $(srcdir):$(common)
-
-common = $(srcdir)/../libtxi
-
-CC = @CC@
-INSTALL = @INSTALL@
-INSTALL_PROGRAM = @INSTALL_PROGRAM@
-INSTALL_DATA = @INSTALL_DATA@
-
-LN	= ln
-RM	= rm -f
-MKDIR	= mkdir
-
-DEFS = @DEFS@
-LIBS = -L../libtxi -ltxi @LIBS@
-LOADLIBES = $(LIBS)
 
 SHELL = /bin/sh
 
-CFLAGS = @CFLAGS@
-LDFLAGS = @LDFLAGS@
-
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
-bindir = $(exec_prefix)/bin
-# Prefix for each installed program, normally empty or `g'.
-binprefix = 
-infodir = $(prefix)/info
 
-#### End of system configuration section. ####
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
 
-SRCS =  makeinfo.c multi.c
-OBJS =  makeinfo.o multi.o
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
 
-PROGS = makeinfo
+top_builddir = ..
 
-all: $(PROGS) makeinfo.info
-sub-all: all
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+CATALOGS = @CATALOGS@
+CATOBJEXT = @CATOBJEXT@
+CC = @CC@
+DATADIRNAME = @DATADIRNAME@
+GENCAT = @GENCAT@
+GMOFILES = @GMOFILES@
+GMSGFMT = @GMSGFMT@
+GT_NO = @GT_NO@
+GT_YES = @GT_YES@
+INCLUDE_LOCALE_H = @INCLUDE_LOCALE_H@
+INSTOBJEXT = @INSTOBJEXT@
+INTLDEPS = @INTLDEPS@
+INTLLIBS = @INTLLIBS@
+INTLOBJS = @INTLOBJS@
+MAKEINFO = @MAKEINFO@
+MKINSTALLDIRS = @MKINSTALLDIRS@
+MSGFMT = @MSGFMT@
+PACKAGE = @PACKAGE@
+POFILES = @POFILES@
+POSUB = @POSUB@
+RANLIB = @RANLIB@
+TERMLIBS = @TERMLIBS@
+TEXCONFIG = @TEXCONFIG@
+TEXMF = @TEXMF@
+USE_INCLUDED_LIBINTL = @USE_INCLUDED_LIBINTL@
+USE_NLS = @USE_NLS@
+VERSION = @VERSION@
+l = @l@
+
+bin_PROGRAMS = makeinfo
+
+localedir = $(datadir)/locale
+INCLUDES = -I$(top_srcdir)/lib -I../intl -DLOCALEDIR=\"$(localedir)\"
+LDADD = ../lib/libtxi.a @INTLLIBS@
+
+makeinfo_SOURCES = makeinfo.c makeinfo.h multi.c
+
+EXTRA_DIST = README
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = ../config.h
+CONFIG_CLEAN_FILES = 
+PROGRAMS =  $(bin_PROGRAMS)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I..
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+makeinfo_OBJECTS =  makeinfo.o multi.o
+makeinfo_LDADD = $(LDADD)
+makeinfo_DEPENDENCIES =  ../lib/libtxi.a
+makeinfo_LDFLAGS = 
+CFLAGS = @CFLAGS@
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
+LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
+DIST_COMMON =  README Makefile.am Makefile.in
+
+
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+
+TAR = tar
+GZIP = --best
+SOURCES = $(makeinfo_SOURCES)
+OBJECTS = $(makeinfo_OBJECTS)
+
+default: all
+
+.SUFFIXES:
+.SUFFIXES: .S .c .o .s
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps makeinfo/Makefile
+
+Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+
+mostlyclean-binPROGRAMS:
+
+clean-binPROGRAMS:
+	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+
+distclean-binPROGRAMS:
+
+maintainer-clean-binPROGRAMS:
+
+install-binPROGRAMS: $(bin_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(bindir)
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    echo "  $(INSTALL_PROGRAM) $$p $(bindir)/`echo $$p|sed '$(transform)'`"; \
+	     $(INSTALL_PROGRAM) $$p $(bindir)/`echo $$p|sed '$(transform)'`; \
+	  else :; fi; \
+	done
+
+uninstall-binPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  rm -f $(bindir)/`echo $$p|sed '$(transform)'`; \
+	done
 
 .c.o:
-	$(CC) -c $(CPPFLAGS) -I. -I$(srcdir) -I$(common) $(DEFS) $(CFLAGS) $<
+	$(COMPILE) -c $<
 
-makeinfo: $(OBJS) ../libtxi/libtxi.a
-	$(CC) $(LDFLAGS) -o makeinfo $(OBJS) $(LOADLIBES)
+.s.o:
+	$(COMPILE) -c $<
 
-../libtxi/libtxi.a:
-	(cd ../libtxi && $(MAKE) $(MFLAGS) libtxi.a)
+.S.o:
+	$(COMPILE) -c $<
 
-makeinfo.o: makeinfo.c $(common)/getopt.h
+mostlyclean-compile:
+	-rm -f *.o core *.core
 
-$(OBJS): makeinfo.h
+clean-compile:
 
-info makeinfo.info: ./makeinfo makeinfo.texi #macro.texi
-	./makeinfo --no-split -I$(srcdir) makeinfo.texi
+distclean-compile:
+	-rm -f *.tab.c
 
-# makeinfo.texi: ./makeinfo makeinfo.mki
-# 	./makeinfo -E makeinfo.texi -I$(srcdir) makeinfo.mki
+maintainer-clean-compile:
 
-dvi makeinfo.dvi: ./makeinfo makeinfo.texi #macro.texi
-	$(srcdir)/../util/texi2dvi makeinfo.txi
+makeinfo: $(makeinfo_OBJECTS) $(makeinfo_DEPENDENCIES)
+	@rm -f makeinfo
+	$(LINK) $(makeinfo_LDFLAGS) $(makeinfo_OBJECTS) $(makeinfo_LDADD) $(LIBS)
 
-install: all
-	$(INSTALL_PROGRAM) makeinfo $(bindir)/$(binprefix)makeinfo
-	-d=$(srcdir); test -f ./makeinfo.info && d=.; $(INSTALL_DATA) $$d/makeinfo.info $(infodir)/makeinfo.info
-	$(POST_INSTALL)
-	../util/install-info --info-dir=$(infodir) $(infodir)/makeinfo.info
-	
-uninstall:
-	for f in $(PROGS); do rm -f $(bindir)/$(binprefix)$$f; done
-	rm -f $(infodir)/makeinfo.info
+tags: TAGS
 
-TAGS: $(SRCS)
-	etags $(SRCS)
+ID: $(HEADERS) $(SOURCES) $(LISP)
+	here=`pwd` && cd $(srcdir) \
+	  && mkid -f$$here/ID $(SOURCES) $(HEADERS) $(LISP)
 
-clean:
-	rm -f *.o a.out core core.* $(PROGS)
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
+	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags  $$unique $(LISP) -o $$here/TAGS)
 
-mostlyclean: clean
+mostlyclean-tags:
 
-distclean: clean
-	rm -f TAGS Makefile config.status *.info */*.info
+clean-tags:
 
-realclean: distclean
-maintainer-clean: distclean
+distclean-tags:
+	-rm -f TAGS ID
 
-Makefile: Makefile.in ../config.status
-	cd .. && sh config.status
+maintainer-clean-tags:
 
-# Prevent GNU make v3 from overflowing arg limit on SysV.
+distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+
+subdir = makeinfo
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  test -f $(distdir)/$$file \
+	  || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	  || cp -p $$d/$$file $(distdir)/$$file; \
+	done
+makeinfo.o: makeinfo.c ../lib/system.h ../config.h ../lib/getopt.h \
+	makeinfo.h
+multi.o: multi.c ../lib/system.h ../config.h makeinfo.h
+
+info:
+dvi:
+check: all
+	$(MAKE)
+installcheck:
+install-exec: install-binPROGRAMS
+	@$(NORMAL_INSTALL)
+
+install-data: 
+	@$(NORMAL_INSTALL)
+
+install: install-exec install-data all
+	@:
+
+uninstall: uninstall-binPROGRAMS
+
+all: Makefile $(PROGRAMS)
+
+install-strip:
+	$(MAKE) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' INSTALL_SCRIPT='$(INSTALL_PROGRAM)' install
+installdirs:
+	$(mkinstalldirs)  $(bindir)
+
+
+mostlyclean-generic:
+	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
+
+clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+
+distclean-generic:
+	-rm -f Makefile $(DISTCLEANFILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
+
+maintainer-clean-generic:
+	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
+mostlyclean:  mostlyclean-binPROGRAMS mostlyclean-compile \
+		mostlyclean-tags mostlyclean-generic
+
+clean:  clean-binPROGRAMS clean-compile clean-tags clean-generic \
+		mostlyclean
+
+distclean:  distclean-binPROGRAMS distclean-compile distclean-tags \
+		distclean-generic clean
+	-rm -f config.status
+
+maintainer-clean:  maintainer-clean-binPROGRAMS maintainer-clean-compile \
+		maintainer-clean-tags maintainer-clean-generic \
+		distclean
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+.PHONY: default mostlyclean-binPROGRAMS distclean-binPROGRAMS \
+clean-binPROGRAMS maintainer-clean-binPROGRAMS uninstall-binPROGRAMS \
+install-binPROGRAMS mostlyclean-compile distclean-compile clean-compile \
+maintainer-clean-compile tags mostlyclean-tags distclean-tags \
+clean-tags maintainer-clean-tags distdir info dvi installcheck \
+install-exec install-data install uninstall all installdirs \
+mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
