@@ -198,16 +198,11 @@ static uint16_t aha_board_ports[] =
 };
 
 /* Exported functions */
-struct aha_softc *
-aha_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
+void
+aha_alloc(struct aha_softc *aha, int unit, bus_space_tag_t tag,
+  bus_space_handle_t bsh)
 {
-	struct  aha_softc *aha;  
 
-	aha = malloc(sizeof(struct aha_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (!aha) {
-		printf("aha%d: cannot malloc!\n", unit);
-		return NULL;    
-	}
 	SLIST_INIT(&aha->free_aha_ccbs);
 	LIST_INIT(&aha->pending_ccbs);
 	SLIST_INIT(&aha->sg_maps);
@@ -216,7 +211,6 @@ aha_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
 	aha->bsh = bsh;
 	aha->ccb_sg_opcode = INITIATOR_SG_CCB_WRESID;
 	aha->ccb_ccb_opcode = INITIATOR_CCB_WRESID;
-	return (aha);
 }
 
 void
@@ -258,7 +252,6 @@ aha_free(struct aha_softc *aha)
 	case 0:
 		break;
 	}
-	free(aha, M_DEVBUF);
 }
 
 /*
