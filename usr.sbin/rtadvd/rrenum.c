@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: rrenum.c,v 1.10 2001/01/21 15:32:16 itojun Exp $	*/
+/*	$KAME: rrenum.c,v 1.12 2002/06/10 19:59:47 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -92,7 +92,7 @@ rr_pco_check(int len, struct rr_pco_match *rpm)
 		return 1;
 	}
 	/* rpm->rpm_code must be valid value */
-	switch(rpm->rpm_code) {
+	switch (rpm->rpm_code) {
 	case RPM_PCO_ADD:
 	case RPM_PCO_CHANGE:
 	case RPM_PCO_SETGLOBAL:

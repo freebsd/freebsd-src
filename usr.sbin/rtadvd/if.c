@@ -215,11 +215,11 @@ if_getflags(int ifindex, int oifflags)
 int
 lladdropt_length(struct sockaddr_dl *sdl)
 {
-	switch(sdl->sdl_type) {
-	 case IFT_ETHER:
-		 return(ROUNDUP8(ETHER_ADDR_LEN + 2));
-	 default:
-		 return(0);
+	switch (sdl->sdl_type) {
+	case IFT_ETHER:
+		return(ROUNDUP8(ETHER_ADDR_LEN + 2));
+	default:
+		return(0);
 	}
 }
 
@@ -230,17 +230,16 @@ lladdropt_fill(struct sockaddr_dl *sdl, struct nd_opt_hdr *ndopt)
 
 	ndopt->nd_opt_type = ND_OPT_SOURCE_LINKADDR; /* fixed */
 
-	switch(sdl->sdl_type) {
-	 case IFT_ETHER:
-		 ndopt->nd_opt_len = (ROUNDUP8(ETHER_ADDR_LEN + 2)) >> 3;
-		 addr = (char *)(ndopt + 1);
-		 memcpy(addr, LLADDR(sdl), ETHER_ADDR_LEN);
-		 break;
-	 default:
-		 syslog(LOG_ERR,
-			"<%s> unsupported link type(%d)",
-			__func__, sdl->sdl_type);
-		 exit(1);
+	switch (sdl->sdl_type) {
+	case IFT_ETHER:
+		ndopt->nd_opt_len = (ROUNDUP8(ETHER_ADDR_LEN + 2)) >> 3;
+		addr = (char *)(ndopt + 1);
+		memcpy(addr, LLADDR(sdl), ETHER_ADDR_LEN);
+		break;
+	default:
+		syslog(LOG_ERR, "<%s> unsupported link type(%d)",
+		    __func__, sdl->sdl_type);
+		exit(1);
 	}
 
 	return;
