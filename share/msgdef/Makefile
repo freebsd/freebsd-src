@@ -129,5 +129,7 @@ afterinstall:
 .endfor
 	ln -sf ../ko_KR.eucKR/LC_MESSAGES \
 		${LOCALEDIR}/ko_KR.CP949/LC_MESSAGES
+	ln -sf ../zh_CN.GB2312/LC_MESSAGES \
+		${LOCALEDIR}/zh_CN.GBK/LC_MESSAGES
 
 .include <bsd.prog.mk>
