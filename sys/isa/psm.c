@@ -159,6 +159,7 @@ struct psm_softc {		/* Driver status information */
     struct resource *intr;	/* IRQ resource */
     void	  *ih;		/* interrupt handle */
     mousehw_t     hw;		/* hardware information */
+    synapticshw_t synhw;	/* Synaptics-specific hardware information */
     mousemode_t   mode;		/* operation mode */
     mousemode_t   dflt_mode;	/* default operation mode */
     mousestatus_t status;	/* accumulated mouse movement */
@@ -290,6 +291,7 @@ static probefunc_t enable_msintelli;
 static probefunc_t enable_4dmouse;
 static probefunc_t enable_4dplus;
 static probefunc_t enable_mmanplus;
+static probefunc_t enable_synaptics;
 static probefunc_t enable_versapad;
 static int tame_mouse(struct psm_softc *, packetbuf_t *, mousestatus_t *, unsigned char *);
 
@@ -323,6 +325,8 @@ static struct {
       0x80, MOUSE_PS2_PACKETSIZE, enable_kmouse, },
     { MOUSE_MODEL_VERSAPAD,		/* Interlink electronics VersaPad */
       0xe8, MOUSE_PS2VERSA_PACKETSIZE, enable_versapad, },
+    { MOUSE_MODEL_SYNAPTICS,		/* Synaptics Touchpad */
+      0xc0, MOUSE_SYNAPTICS_PACKETSIZE, enable_synaptics, },
     { MOUSE_MODEL_GENERIC,
       0xc0, MOUSE_PS2_PACKETSIZE, NULL, },
 };
@@ -578,6 +582,7 @@ model_name(int model)
         { MOUSE_MODEL_EXPLORER,		"IntelliMouse Explorer" },
         { MOUSE_MODEL_4D,		"4D Mouse" },
         { MOUSE_MODEL_4DPLUS,		"4D+ Mouse" },
+        { MOUSE_MODEL_SYNAPTICS,	"Synaptics Touchpad" },
         { MOUSE_MODEL_GENERIC,		"Generic PS/2 mouse" },
         { MOUSE_MODEL_UNKNOWN,		NULL },
     };
@@ -1719,6 +1724,15 @@ psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	splx(s);
         break;
 
+    case MOUSE_SYN_GETHWINFO:
+	s = spltty();
+	if (sc->hw.model == MOUSE_MODEL_SYNAPTICS)
+	    *(synapticshw_t *)addr = sc->synhw;
+	else
+	    error = EINVAL;
+	splx(s);
+	break;
+
     case OLD_MOUSE_GETMODE:
 	s = spltty();
 	switch (sc->mode.level) {
@@ -2154,7 +2168,7 @@ psmsoftintr(void *arg)
     };
     register struct psm_softc *sc = arg;
     mousestatus_t ms;
-    int x, y, z;
+    int w, x, y, z;
     int c;
     int l;
     int x0, y0;
@@ -2442,6 +2456,88 @@ psmsoftintr(void *arg)
 		/* preserve previous button states */
 		ms.button |= ms.obutton & MOUSE_EXTBUTTONS;
 	    }
+	    break;
+
+	case MOUSE_MODEL_SYNAPTICS:
+	    /* TouchPad PS/2 absolute mode message format
+	     *
+	     *  Bits:        7   6   5   4   3   2   1   0 (LSB)
+	     *  ------------------------------------------------
+	     *  ipacket[0]:  1   0  W3  W2   0  W1   R   L
+	     *  ipacket[1]: Yb  Ya  Y9  Y8  Xb  Xa  X9  X8
+	     *  ipacket[2]: Z7  Z6  Z5  Z4  Z3  Z2  Z1  Z0
+	     *  ipacket[3]:  1   1  Yc  Xc   0  W0   D   U
+	     *  ipacket[4]: X7  X6  X5  X4  X3  X2  X1  X0
+	     *  ipacket[5]: Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0
+	     *
+	     * Legend:
+	     *  L: left physical mouse button
+	     *  R: right physical mouse button
+	     *  D: down button
+	     *  U: up button
+	     *  W: "wrist" value
+	     *  X: x position
+	     *  Y: x position
+	     *  Z: pressure
+	     *
+	     * Absolute reportable limits:    0 - 6143.
+	     * Typical bezel limits:       1472 - 5472.
+	     * Typical edge marings:       1632 - 5312.
+	     *
+	     * w = 3 Passthrough Packet
+	     *
+	     * Byte 2,5,6 == Byte 1,2,3 of "Guest"
+	     */
+
+	    /* Sanity check for out of sync packets. */
+	    if ((pb->ipacket[0] & 0xc8) != 0x80 ||
+		(pb->ipacket[3] & 0xc8) != 0xc0)
+		continue;
+
+	    x = y = x0 = y0 = 0;
+
+	    /* Pressure value. */
+	    z = pb->ipacket[2];
+	    w = ((pb->ipacket[0] & 0x30) >> 2) |
+		((pb->ipacket[0] & 0x04) >> 1) |
+		((pb->ipacket[3] & 0x04) >> 2);
+
+	    ms.button = 0;
+	    if (pb->ipacket[0] & 0x01)
+		ms.button |= MOUSE_BUTTON1DOWN;
+	    if (pb->ipacket[0] & 0x02)
+		ms.button |= MOUSE_BUTTON3DOWN;
+
+	    if ((pb->ipacket[3] & 0x01) && (pb->ipacket[0] & 0x01) == 0)
+		ms.button |= MOUSE_BUTTON2DOWN;
+	    if ((pb->ipacket[3] & 0x02) && (pb->ipacket[0] & 0x02) == 0)
+		ms.button |= MOUSE_BUTTON4DOWN;
+
+	    /* There is a finger on the pad. */
+	    if ((w >= 4 && w <= 7) && (z >= 16 && z < 200)) {
+		x0 = ((pb->ipacket[3] & 0x10) << 8) |
+		    ((pb->ipacket[1] & 0x0f) << 8) |
+		    pb->ipacket[4];
+		y0 = ((pb->ipacket[3] & 0x20) << 7) |
+		    ((pb->ipacket[1] & 0xf0) << 4) |
+		    pb->ipacket[5];
+
+		if (sc->flags & PSM_FLAGS_FINGERDOWN) {
+		    x0 = (x0 + sc->xold * 3) / 4;
+		    y0 = (y0 + sc->yold * 3) / 4;
+
+		    x = (x0 - sc->xold) / 4;
+		    y = (y0 - sc->yold) / 4;
+		} else {
+		    sc->flags |= PSM_FLAGS_FINGERDOWN;
+		}
+
+		sc->xold = x0;
+		sc->yold = y0;
+	    } else {
+		sc->flags &= ~PSM_FLAGS_FINGERDOWN;
+	    }
+	    z = 0;
 	    break;
 
 	case MOUSE_MODEL_GENERIC:
@@ -2920,6 +3016,122 @@ enable_4dplus(struct psm_softc *sc)
     return TRUE;
 }
 
+/* Synaptics Touchpad */
+static int
+enable_synaptics(struct psm_softc *sc)
+{
+    int status[3];
+    KBDC kbdc;
+
+    kbdc = sc->kbdc;
+    disable_aux_dev(kbdc);
+
+    /* Just to be on the safe side */
+    set_mouse_scaling(kbdc, 1);
+ 
+    if (mouse_ext_command(kbdc, 0) == 0)
+	return (FALSE);
+    if (get_mouse_status(kbdc, status, 0, 3) != 3)
+	return (FALSE);
+
+    /* If it is a Synaptics, byte 2 is 0x47. */
+    if (status[1] != 0x47)
+	return (FALSE);
+
+    /*
+     * Identify the Touchpad version.  The first byte contains the minor
+     * version number, the lower 4 bits of the third byte contain infoMajor,
+     * and the upper 4 bits contain the (obsolete) infoModelCode.
+     */
+    sc->synhw.infoMinor = status[0];
+    sc->synhw.infoMajor = status[2] & 0x0f;
+    if (verbose >= 2) {
+	printf("Synaptics Touchpad:\n");
+	printf("  Version: %d.%d\n", sc->synhw.infoMajor, sc->synhw.infoMinor);
+    }
+    if (sc->synhw.infoMajor < 4) {
+	printf("Synaptics Version less than 4 detected, not yet supported\n");
+	return (FALSE);
+    }
+
+    if (mouse_ext_command(kbdc, 3) == 0)
+	return (FALSE);
+    if (get_mouse_status(kbdc, status, 0, 3) != 3)
+	return (FALSE);
+    if ((status[1] & 0x01) != 0) {
+	printf("  Could not read model id bytes from the Touchpad\n");
+	return (FALSE);
+    }
+
+    sc->synhw.infoRot180   = (status[0] & 0x80) >> 7;
+    sc->synhw.infoPortrait = (status[0] & 0x40) >> 6;
+    sc->synhw.infoSensor   =  status[0] & 0x3f;
+    sc->synhw.infoHardware = (status[1] & 0xfe) >> 1;
+    sc->synhw.infoNewAbs   = (status[2] & 0x80) >> 7;
+    sc->synhw.capPen       = (status[2] & 0x40) >> 6;
+    sc->synhw.infoSimplC   = (status[2] & 0x20) >> 5;
+    sc->synhw.infoGeometry =  status[2] & 0x0f;
+    if (verbose >= 2) {
+	printf("  Model id: %02x %02x %02x\n", status[0] , status[1] ,
+	    status[2]);
+	printf(" infoRot180: %d\n",sc->synhw.infoRot180);
+	printf(" infoPortrait: %d\n",sc->synhw.infoPortrait);
+	printf(" infoSensor: %d\n",sc->synhw.infoSensor);
+	printf(" infoHardware: %d\n",sc->synhw.infoHardware);
+	printf(" infoNewAbs: %d\n",sc->synhw.infoNewAbs);
+	printf(" capPen: %d\n",sc->synhw.capPen);
+	printf(" infoSimplC: %d\n",sc->synhw.infoSimplC);
+	printf(" infoGeometry: %d\n",sc->synhw.infoGeometry);
+    }
+
+    if (mouse_ext_command(kbdc, 2) == 0)
+	return (FALSE);
+    if (get_mouse_status(kbdc, status, 0, 3) != 3)
+	return (FALSE);
+    if (status[1] != 0x47) {
+	printf("  Could not read capabilities from the Touchpad\n");
+	return (FALSE);
+    }
+    sc->synhw.capExtended    = (status[0] & 0x80) >> 7;
+    sc->synhw.capPassthrough = (status[2] & 0x80) >> 7;
+    sc->synhw.capSleep       = (status[2] & 0x10) >> 4;
+    sc->synhw.capFourButtons = (status[2] & 0x08) >> 3;
+    sc->synhw.capMultiFinger = (status[2] & 0x02) >> 1;
+    sc->synhw.capPalmDetect  = (status[2] & 0x01);
+    if (verbose >= 2)
+	printf("  Capability Bytes: %02x %02x %02x\n", status[0], status[1],
+	    status[2]);
+
+    if (mouse_ext_command(kbdc, 1) == 0)
+	return (FALSE);
+    if (get_mouse_status(kbdc, status, 0, 3) != 3)
+	return (FALSE);
+    if (status[0] != 0x3b || status[1] != 0x47) {
+	printf("  Could not read mode byte from the Touchpad\n");
+	return (FALSE);
+    }
+    if (verbose >= 2)
+	printf("  Mode byte set by BIOS: %02x\n", status[2]);
+
+    /*
+     * Mode byte values:
+     * 1 (absolute)
+     * 1 rate (0 = 40/1 = 80)
+     * 0
+     * 0 (reserved)
+     * 0 (Sleep (Only buttons))
+     * 0 DisGest (not for absolute Mode)
+     * 0 pktsize (0 for ps2)
+     * 1 wmode
+     */
+    sc->hw.buttons = 3;
+
+    /* Set encode mode byte and sampling rate. */
+    mouse_ext_command(kbdc, 0xc1);
+    set_mouse_sampling_rate(kbdc, 20);
+
+    return (TRUE);
+}
 /* Interlink electronics VersaPad */
 static int
 enable_versapad(struct psm_softc *sc)
