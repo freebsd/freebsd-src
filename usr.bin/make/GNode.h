@@ -44,7 +44,7 @@
 #include "sprite.h"
 #include "lst.h"
 
-struct _Suff;
+struct Suff;
 
 /*
  * The structure for an individual graph node. Each node has several
@@ -156,7 +156,7 @@ typedef struct GNode {
 	 * Suffix for the node (determined by Suff_FindDeps and opaque to
 	 * everyone but the Suff module)
 	 */
-	struct _Suff	*suffix;
+	struct Suff	*suffix;
 } GNode;
 
 #endif /* GNode_h_39503bf2 */

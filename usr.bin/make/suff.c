@@ -126,7 +126,7 @@ static int sNum = 0;
 /*
  * Structure describing an individual suffix.
  */
-typedef struct _Suff {
+typedef struct Suff {
 	char	*name;		/* The suffix itself */
 	int	nameLen;	/* Length of the suffix */
 	short	flags;		/* Type of suffix */
@@ -144,11 +144,11 @@ typedef struct _Suff {
 /*
  * Structure used in the search for implied sources.
  */
-typedef struct _Src {
+typedef struct Src {
 	char	*file;		/* The file to look for */
 	char	*pref;		/* Prefix from which file was formed */
 	Suff	*suff;		/* The suffix on the file */
-	struct _Src *parent;	/* The Src for which this is a source */
+	struct Src *parent;	/* The Src for which this is a source */
 	GNode	*node;		/* The node describing the file */
 	int	children;	/* Count of existing children (so we don't free
 				 * this thing too early or never nuke it) */
