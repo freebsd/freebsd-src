@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.35 1997/08/26 00:02:23 bde Exp $
+ *	$Id: imgact_aout.c,v 1.36 1997/09/02 20:05:33 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,7 +47,7 @@
 
 static int	exec_aout_imgact __P((struct image_params *imgp));
 
-static int
+int
 exec_aout_imgact(imgp)
 	struct image_params *imgp;
 {
@@ -177,7 +177,8 @@ exec_aout_imgact(imgp)
 		 *	instruction of the same name.
 		 */
 		vmaddr = virtual_offset + a_out->a_text + a_out->a_data;
-		error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr, bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
+		error = vm_map_find(&vmspace->vm_map, NULL, 0,
+			&vmaddr, bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (error)
 			return (error);
 	}

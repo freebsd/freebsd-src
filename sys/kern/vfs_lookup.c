@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.21 1997/12/27 02:56:22 bde Exp $
+ * $Id: vfs_lookup.c,v 1.22 1997/12/29 00:22:38 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -165,6 +165,13 @@ namei(ndp)
 				zfree(namei_zone, cnp->cn_pnbuf);
 			else
 				cnp->cn_flags |= HASBUF;
+
+			if (ndp->ni_vp && ndp->ni_vp->v_type == VREG &&
+				(cnp->cn_nameiop != DELETE) &&
+				((cnp->cn_flags & (NOOBJ|LOCKLEAF)) == LOCKLEAF))
+				vfs_object_create(ndp->ni_vp,
+					ndp->ni_cnd.cn_proc, ndp->ni_cnd.cn_cred, 1);
+
 			return (0);
 		}
 		if ((cnp->cn_flags & LOCKPARENT) && ndp->ni_pathlen == 1)
@@ -538,8 +545,6 @@ nextname:
 	if (!wantparent)
 		vrele(ndp->ni_dvp);
 
-	vfs_object_create(dp, ndp->ni_cnd.cn_proc, ndp->ni_cnd.cn_cred, 1);
-
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, p);
 	return (0);
@@ -687,7 +692,9 @@ relookup(dvp, vpp, cnp)
 	if (!wantparent)
 		vrele(dvp);
 
-	vfs_object_create(dp, cnp->cn_proc, cnp->cn_cred, 1);
+	if (dp->v_type == VREG &&
+		((cnp->cn_flags & (NOOBJ|LOCKLEAF)) == LOCKLEAF))
+		vfs_object_create(dp, cnp->cn_proc, cnp->cn_cred, 1);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, p);

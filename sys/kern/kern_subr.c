@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.13 1997/10/10 18:14:23 phk Exp $
+ * $Id: kern_subr.c,v 1.14 1997/12/19 09:03:23 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -147,7 +147,7 @@ uiomoveco(cp, n, uio, obj)
 					((((int) cp) & PAGE_MASK) == 0)) {
 						error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
 								uio->uio_offset, cnt,
-								(vm_offset_t) iov->iov_base);
+								(vm_offset_t) iov->iov_base, NULL);
 				} else {
 					error = copyout(cp, iov->iov_base, cnt);
 				}
@@ -175,6 +175,69 @@ uiomoveco(cp, n, uio, obj)
 		n -= cnt;
 	}
 	return (0);
+}
+
+int
+uioread(n, uio, obj, nread)
+	int n;
+	struct uio *uio;
+	struct vm_object *obj;
+	int *nread;
+{
+	int npagesmoved;
+	struct iovec *iov;
+	u_int cnt, tcnt;
+	int error;
+
+	*nread = 0;
+	error = 0;
+
+	while (n > 0 && uio->uio_resid) {
+		iov = uio->uio_iov;
+		cnt = iov->iov_len;
+		if (cnt == 0) {
+			uio->uio_iov++;
+			uio->uio_iovcnt--;
+			continue;
+		}
+		if (cnt > n)
+			cnt = n;
+
+		if ((uio->uio_segflg == UIO_USERSPACE) &&
+			((((int) iov->iov_base) & PAGE_MASK) == 0) &&
+				 ((uio->uio_offset & PAGE_MASK) == 0) ) {
+
+			if (cnt < PAGE_SIZE)
+				break;
+
+			cnt &= ~PAGE_MASK;
+
+			error = vm_uiomove(&curproc->p_vmspace->vm_map, obj,
+						uio->uio_offset, cnt,
+						(vm_offset_t) iov->iov_base, &npagesmoved);
+
+			if (npagesmoved == 0)
+				break;
+
+			tcnt = npagesmoved * PAGE_SIZE;
+			if (tcnt != cnt) {
+				cnt = tcnt;
+			}
+
+			if (error)
+				break;
+
+			iov->iov_base += cnt;
+			iov->iov_len -= cnt;
+			uio->uio_resid -= cnt;
+			uio->uio_offset += cnt;
+			*nread += cnt;
+			n -= cnt;
+		} else {
+			break;
+		}
+	}
+	return error;
 }
 
 /*

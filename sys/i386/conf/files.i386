@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.181 1997/12/09 12:04:49 jamil Exp $
+#	$Id: files.i386,v 1.182 1997/12/12 14:08:45 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -277,6 +277,7 @@ libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+libkern/cmpdi2.c		standard
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate

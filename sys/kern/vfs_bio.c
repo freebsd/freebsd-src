@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.139 1997/12/07 04:06:41 dyson Exp $
+ * $Id: vfs_bio.c,v 1.140 1997/12/22 11:54:00 dyson Exp $
  */
 
 /*
@@ -204,8 +204,8 @@ bufinit()
  * Remove the probability of deadlock conditions by limiting the
  * number of dirty buffers.
  */
-	hidirtybuffers = nbuf / 6 + 20;
-	lodirtybuffers = nbuf / 12 + 10;
+	hidirtybuffers = nbuf / 8 + 20;
+	lodirtybuffers = nbuf / 16 + 10;
 	numdirtybuffers = 0;
 	lofreebuffers = nbuf / 18 + 5;
 	hifreebuffers = 2 * lofreebuffers;
@@ -396,7 +396,7 @@ bwrite(struct buf * bp)
 	return (0);
 }
 
-void
+inline void
 vfs_bio_need_satisfy(void) {
 	++numfreebuffers;
 	if (!needsbuffer)
@@ -850,6 +850,8 @@ vfs_bio_awrite(struct buf * bp)
 	int ncl;
 	struct buf *bpa;
 	int nwritten;
+	int size;
+	int maxcl;
 
 	s = splbio();
 	/*
@@ -858,8 +860,6 @@ vfs_bio_awrite(struct buf * bp)
 	if ((vp->v_type == VREG) && 
 	    (vp->v_mount != 0) && /* Only on nodes that have the size info */
 	    (bp->b_flags & (B_CLUSTEROK | B_INVAL)) == B_CLUSTEROK) {
-		int size;
-		int maxcl;
 
 		size = vp->v_mount->mnt_stat.f_iosize;
 		maxcl = MAXPHYS / size;
@@ -885,7 +885,33 @@ vfs_bio_awrite(struct buf * bp)
 			splx(s);
 			return nwritten;
 		}
+	} else if ((vp->v_flag & VOBJBUF) && (vp->v_type == VBLK) &&
+		((size = bp->b_bufsize) >= PAGE_SIZE)) {
+		maxcl = MAXPHYS / size;
+		for (i = 1; i < maxcl; i++) {
+			if ((bpa = gbincore(vp, lblkno + i)) &&
+			    ((bpa->b_flags & (B_BUSY | B_DELWRI | B_CLUSTEROK | B_INVAL)) ==
+			    (B_DELWRI | B_CLUSTEROK)) &&
+			    (bpa->b_bufsize == size)) {
+				    if (bpa->b_blkno !=
+						bp->b_blkno + ((i * size) >> DEV_BSHIFT))
+							break;
+			} else {
+				break;
+			}
+		}
+		ncl = i;
+		/*
+		 * this is a possible cluster write
+		 */
+		if (ncl != 1) {
+			nwritten = cluster_wbuild(vp, size, lblkno, ncl);
+			printf("Block cluster: (%d, %d)\n", lblkno, nwritten);
+			splx(s);
+			return nwritten;
+		}
 	}
+
 	bremfree(bp);
 	splx(s);
 	/*
@@ -902,7 +928,8 @@ vfs_bio_awrite(struct buf * bp)
  * Find a buffer header which is available for use.
  */
 static struct buf *
-getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int size, int maxsize)
+getnewbuf(struct vnode *vp, daddr_t blkno,
+	int slpflag, int slptimeo, int size, int maxsize)
 {
 	struct buf *bp, *bp1;
 	int nbyteswritten = 0;
@@ -981,6 +1008,33 @@ trytofreespace:
 	/* if we are a delayed write, convert to an async write */
 	if ((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) {
 
+		/*
+		 * If our delayed write is likely to be used soon, then
+		 * recycle back onto the LRU queue.
+		 */
+		if (vp && (bp->b_vp == vp) && (bp->b_qindex == QUEUE_LRU) &&
+			(bp->b_lblkno >= blkno) && (maxsize > 0)) {
+
+			if (bp->b_usecount > 0) {
+				if (bp->b_lblkno < blkno + (MAXPHYS / maxsize)) {
+
+					TAILQ_REMOVE(&bufqueues[QUEUE_LRU], bp, b_freelist);
+
+					if (TAILQ_FIRST(&bufqueues[QUEUE_LRU]) != NULL) {
+						TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
+						bp->b_usecount--;
+						goto start;
+					}
+					TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
+				}
+			}
+		}
+
+		/*
+		 * Certain layered filesystems can recursively re-enter the vfs_bio
+		 * code, due to delayed writes.  This helps keep the system from
+		 * deadlocking.
+		 */
 		if (writerecursion > 0) {
 			bp = TAILQ_FIRST(&bufqueues[QUEUE_AGE]);
 			while (bp) {
@@ -1201,7 +1255,7 @@ inmem(struct vnode * vp, daddr_t blkno)
 		return 1;
 	if (vp->v_mount == NULL)
 		return 0;
-	if ((vp->v_object == NULL) || (vp->v_flag & VVMIO) == 0)
+	if ((vp->v_object == NULL) || (vp->v_flag & VOBJBUF) == 0)
 		return 0;
 
 	obj = vp->v_object;
@@ -1351,7 +1405,8 @@ loop:
 	} else {
 		vm_object_t obj;
 
-		if ((bp = getnewbuf(vp, slpflag, slptimeo, size, maxsize)) == 0) {
+		if ((bp = getnewbuf(vp, blkno,
+			slpflag, slptimeo, size, maxsize)) == 0) {
 			if (slpflag || slptimeo) {
 				splx(s);
 				return NULL;
@@ -1381,7 +1436,7 @@ loop:
 		bh = BUFHASH(vp, blkno);
 		LIST_INSERT_HEAD(bh, bp, b_hash);
 
-		if ((obj = vp->v_object) && (vp->v_flag & VVMIO)) {
+		if ((obj = vp->v_object) && (vp->v_flag & VOBJBUF)) {
 			bp->b_flags |= (B_VMIO | B_CACHE);
 #if defined(VFS_BIO_DEBUG)
 			if (vp->v_type != VREG && vp->v_type != VBLK)
@@ -1414,7 +1469,7 @@ geteblk(int size)
 	int s;
 
 	s = splbio();
-	while ((bp = getnewbuf(0, 0, 0, size, MAXBSIZE)) == 0);
+	while ((bp = getnewbuf(0, (daddr_t) 0, 0, 0, size, MAXBSIZE)) == 0);
 	splx(s);
 	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;
@@ -1696,7 +1751,10 @@ biowait(register struct buf * bp)
 #if defined(NO_SCHEDULE_MODS)
 		tsleep(bp, PRIBIO, "biowait", 0);
 #else
-		tsleep(bp, curproc->p_usrpri, "biowait", 0);
+		if (bp->b_flags & B_READ)
+			tsleep(bp, PRIBIO, "biord", 0);
+		else
+			tsleep(bp, curproc->p_usrpri, "biowr", 0);
 #endif
 	splx(s);
 	if (bp->b_flags & B_EINTR) {
@@ -1770,7 +1828,7 @@ biodone(register struct buf * bp)
 			panic("biodone: missing VM object");
 		}
 
-		if ((vp->v_flag & VVMIO) == 0) {
+		if ((vp->v_flag & VOBJBUF) == 0) {
 			panic("biodone: vnode is not setup for merged cache");
 		}
 #endif

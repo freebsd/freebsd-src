@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.61 1997/12/29 01:03:55 dyson Exp $
+ * $Id: vnode.h,v 1.62 1997/12/29 16:53:53 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -146,14 +146,13 @@ struct vnode {
 #define	VBWAIT		0x00400	/* waiting for output to complete */
 #define	VALIASED	0x00800	/* vnode has an alias */
 #define	VDIROP		0x01000	/* LFS: vnode is involved in a directory op */
-#define	VVMIO		0x02000	/* VMIO flag */
+#define	VOBJBUF		0x02000	/* Allocate buffers in VM object */
 #define	VNINACT		0x04000	/* LFS: skip ufs_inactive() in lfs_vunref */
 #define	VAGE		0x08000	/* Insert vnode at head of free list */
 #define	VOLOCK		0x10000	/* vnode is locked waiting for an object */
 #define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
 #define	VDOOMED		0x40000	/* This vnode is being recycled */
 #define	VFREE		0x80000	/* This vnode is on the freelist */
-#define VOBJREF		0x100000 /* This vnode is referenced by it's object */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value

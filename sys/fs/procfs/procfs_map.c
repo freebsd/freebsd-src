@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.12 1997/08/02 14:32:12 bde Exp $
+ *	$Id: procfs_map.c,v 1.13 1997/11/14 22:57:46 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -101,7 +101,7 @@ procfs_domap(curp, p, pfs, uio)
 			continue;
 
 		obj = entry->object.vm_object;
-		if (obj && (obj->ref_count == 1))
+		if (obj && (obj->shadow_count == 1))
 			privateresident = obj->resident_page_count;
 		else
 			privateresident = 0;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.71 1997/12/20 03:05:45 sef Exp $
+ *	$Id: kern_exec.c,v 1.72 1997/12/27 02:56:21 bde Exp $
  */
 
 #include <sys/param.h>
@@ -185,7 +185,8 @@ interpret:
 		 * header into it.
 		 */
 		imgp->image_header = malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-		error = vn_rdwr(UIO_READ, imgp->vp, (void *)imgp->image_header, PAGE_SIZE, 0,
+		error = vn_rdwr(UIO_READ, imgp->vp,
+			(void *)imgp->image_header, PAGE_SIZE, 0,
 		    UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred, &resid, p);
 		/*
 		 * Clear out any remaining junk.
@@ -316,7 +317,7 @@ interpret:
 			p->p_ucred->cr_gid = attr.va_gid;
 		setsugid(p);
 	} else {
-	        if (p->p_ucred->cr_uid == p->p_cred->p_ruid &&
+		if (p->p_ucred->cr_uid == p->p_cred->p_ruid &&
 		    p->p_ucred->cr_gid == p->p_cred->p_rgid)
 			p->p_flag &= ~P_SUGID;
 	}

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.118 1997/12/29 01:03:41 dyson Exp $
+ * $Id: vfs_subr.c,v 1.119 1997/12/29 16:54:03 dyson Exp $
  */
 
 /*
@@ -83,7 +83,6 @@ static void	vfree __P((struct vnode *));
 static void	vgonel __P((struct vnode *vp, struct proc *p));
 static unsigned long	numvnodes;
 SYSCTL_INT(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
-static void	vputrele __P((struct vnode *vp, int put));
 
 enum vtype iftovt_tab[16] = {
 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
@@ -108,7 +107,7 @@ SYSCTL_INT(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "")
 static u_long freevnodes = 0;
 SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
-int vfs_ioopt = 0;
+int vfs_ioopt = 1;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 
 struct mntlist mountlist;	/* mounted filesystem list */
@@ -352,7 +351,9 @@ getnewvnode(tag, mp, vops, vpp)
 	struct vnode **vpp;
 {
 	struct proc *p = curproc;	/* XXX */
-	struct vnode *vp;
+	struct vnode *vp, *tvp;
+	vm_object_t object;
+	TAILQ_HEAD(freelst, vnode) vnode_tmp_list;
 
 	/*
 	 * We take the least recently used vnode from the freelist
@@ -362,6 +363,7 @@ getnewvnode(tag, mp, vops, vpp)
 	 */
 
 	simple_lock(&vnode_free_list_slock);
+	TAILQ_INIT(&vnode_tmp_list);
 
 	if (wantfreevnodes && freevnodes < wantfreevnodes) {
 		vp = NULL;
@@ -377,9 +379,11 @@ getnewvnode(tag, mp, vops, vpp)
 			if (vp->v_usecount)
 				panic("free vnode isn't");
 
-			if (vp->v_object && vp->v_object->resident_page_count) {
+			object = vp->v_object;
+			if (object && (object->resident_page_count || object->ref_count)) {
 				/* Don't recycle if it's caching some pages */
-				simple_unlock(&vp->v_interlock);
+				TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+				TAILQ_INSERT_TAIL(&vnode_tmp_list, vp, v_freelist);
 				continue;
 			} else if (LIST_FIRST(&vp->v_cache_src)) {
 				/* Don't recycle if active in the namecache */
@@ -389,6 +393,12 @@ getnewvnode(tag, mp, vops, vpp)
 				break;
 			}
 		}
+	}
+
+	TAILQ_FOREACH(tvp, &vnode_tmp_list, v_freelist) {
+		TAILQ_REMOVE(&vnode_tmp_list, tvp, v_freelist);
+		TAILQ_INSERT_TAIL(&vnode_free_list, tvp, v_freelist);
+		simple_unlock(&tvp->v_interlock);
 	}
 
 	if (vp) {
@@ -429,6 +439,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp = (struct vnode *) malloc((u_long) sizeof *vp,
 		    M_VNODE, M_WAITOK);
 		bzero((char *) vp, sizeof *vp);
+		simple_lock_init(&vp->v_interlock);
 		vp->v_dd = vp;
 		cache_purge(vp);
 		LIST_INIT(&vp->v_cache_src);
@@ -553,7 +564,16 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 			 * check for it.
 			 */
 			if ((bp->b_flags & B_DELWRI) && (flags & V_SAVE)) {
-				(void) VOP_BWRITE(bp);
+				if (bp->b_vp == vp) {
+					if (bp->b_flags & B_CLUSTEROK) {
+						vfs_bio_awrite(bp);
+					} else {
+						bp->b_flags |= B_ASYNC;
+						VOP_BWRITE(bp);
+					}
+				} else {
+					(void) VOP_BWRITE(bp);
+				}
 				break;
 			}
 			bp->b_flags |= (B_INVAL|B_NOCACHE|B_RELBUF);
@@ -571,11 +591,18 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
+	simple_lock(&vp->v_interlock);
 	object = vp->v_object;
 	if (object != NULL) {
-		vm_object_page_remove(object, 0, object->size,
-		    (flags & V_SAVE) ? TRUE : FALSE);
+		if (flags & V_SAVEMETA)
+			vm_object_page_remove(object, 0, object->size,
+				(flags & V_SAVE) ? TRUE : FALSE);
+		else
+			vm_object_page_remove(object, 0, 0,
+				(flags & V_SAVE) ? TRUE : FALSE);
 	}
+	simple_unlock(&vp->v_interlock);
+
 	if (!(flags & V_SAVEMETA) &&
 	    (vp->v_dirtyblkhd.lh_first || vp->v_cleanblkhd.lh_first))
 		panic("vinvalbuf: flush failed");
@@ -863,13 +890,11 @@ vget(vp, flags, p)
 	/*
 	 * Create the VM object, if needed
 	 */
-	if (((vp->v_type == VREG) || (vp->v_type == VBLK)) &&
-		((vp->v_object == NULL) ||
-			(vp->v_object->flags & OBJ_VFS_REF) == 0 ||
+	if ((flags & LK_NOOBJ) == 0 &&
+		   (vp->v_type == VREG) &&
+		   ((vp->v_object == NULL) ||
 			(vp->v_object->flags & OBJ_DEAD))) {
-		simple_unlock(&vp->v_interlock);
 		vfs_object_create(vp, curproc, curproc->p_ucred, 0);
-		simple_lock(&vp->v_interlock);
 	}
 	if (flags & LK_TYPE_MASK) {
 		if (error = vn_lock(vp, flags | LK_INTERLOCK, p))
@@ -909,7 +934,10 @@ vrele(vp)
 		vp->v_usecount--;
 		simple_unlock(&vp->v_interlock);
 
-	} else if (vp->v_usecount == 1) {
+		return;
+	}
+
+	if (vp->v_usecount == 1) {
 
 		vp->v_usecount--;
 
@@ -927,6 +955,7 @@ vrele(vp)
 	} else {
 #ifdef DIAGNOSTIC
 		vprint("vrele: negative ref count", vp);
+		simple_unlock(&vp->v_interlock);
 #endif
 		panic("vrele: negative ref cnt");
 	}
@@ -942,17 +971,20 @@ vput(vp)
 	if (vp == NULL)
 		panic("vput: null vp");
 #endif
+
 	simple_lock(&vp->v_interlock);
 
 	if (vp->v_usecount > 1) {
 
 		vp->v_usecount--;
 		VOP_UNLOCK(vp, LK_INTERLOCK, p);
+		return;
 
-	} else if (vp->v_usecount == 1) {
+	}
+
+	if (vp->v_usecount == 1) {
 
 		vp->v_usecount--;
-
 		if (VSHOULDFREE(vp))
 			vfree(vp);
 	/*
@@ -1110,8 +1142,7 @@ vclean(vp, flags, p)
 	int flags;
 	struct proc *p;
 {
-	int active, irefed;
-	vm_object_t object;
+	int active;
 
 	/*
 	 * Check to see if the vnode is in use. If so we have to reference it
@@ -1120,6 +1151,10 @@ vclean(vp, flags, p)
 	 */
 	if ((active = vp->v_usecount))
 		vp->v_usecount++;
+
+	if (vp->v_object) {
+		vp->v_object->flags |= OBJ_DEAD;
+	}
 	/*
 	 * Prevent the vnode from being recycled or brought into use while we
 	 * clean it out.
@@ -1136,18 +1171,13 @@ vclean(vp, flags, p)
 	 */
 	VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, p);
 
-	object = vp->v_object;
-
 	/*
 	 * Clean out any buffers associated with the vnode.
 	 */
-	if (flags & DOCLOSE)
+	if (vp->v_object)
+		vm_object_terminate(vp->v_object);
+	else
 		vinvalbuf(vp, V_SAVE, NOCRED, p, 0, 0);
-
-	if (vp->v_object && (vp->v_object->flags & OBJ_VFS_REF)) {
-		vp->v_object->flags &= ~OBJ_VFS_REF;
-		vm_object_deallocate(object);
-	}
 
 	/*
 	 * If purging an active vnode, it must be closed and
@@ -1257,6 +1287,10 @@ vop_revoke(ap)
 		 */
 		simple_lock(&vp->v_interlock);
 		vp->v_flag &= ~VXLOCK;
+		if (vp->v_flag & VXWANT) {
+			vp->v_flag &= ~VXWANT;
+			wakeup(vp);
+		}
 	}
 	vgonel(vp, p);
 	return (0);
@@ -1319,10 +1353,6 @@ vgonel(vp, p)
 		simple_unlock(&vp->v_interlock);
 		tsleep((caddr_t)vp, PINOD, "vgone", 0);
 		return;
-	}
-
-	if (vp->v_object) {
-		vp->v_object->flags |= OBJ_VNODE_GONE;
 	}
 
 	/*
@@ -1392,6 +1422,7 @@ vgonel(vp, p)
 	}
 
 	vp->v_type = VBAD;
+	simple_unlock(&vp->v_interlock);
 }
 
 /*
@@ -1488,6 +1519,8 @@ vprint(label, vp)
 		strcat(buf, "|VDOOMED");
 	if (vp->v_flag & VFREE)
 		strcat(buf, "|VFREE");
+	if (vp->v_flag & VOBJBUF)
+		strcat(buf, "|VOBJBUF");
 	if (buf[0] != '\0')
 		printf(" flags (%s)", &buf[1]);
 	if (vp->v_data == NULL) {
@@ -1999,21 +2032,41 @@ vfs_export_lookup(mp, nep, nam)
 void
 vfs_msync(struct mount *mp, int flags) {
 	struct vnode *vp, *nvp;
+	int anyio, tries;
+
+	tries = 5;
 loop:
+	anyio = 0;
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
 
-		if (vp->v_mount != mp)
-			goto loop;
 		nvp = vp->v_mntvnodes.le_next;
-		if (VOP_ISLOCKED(vp) && (flags != MNT_WAIT))
+
+		if (vp->v_mount != mp) {
+			goto loop;
+		}
+
+		if ((vp->v_flag & VXLOCK) ||
+			(VOP_ISLOCKED(vp) && (flags != MNT_WAIT))) {
 			continue;
+		}
+
+		simple_lock(&vp->v_interlock);
 		if (vp->v_object &&
 		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curproc);
-			vm_object_page_clean(vp->v_object, 0, 0, TRUE);
-			VOP_UNLOCK(vp, 0, curproc);
+			if (!vget(vp,
+				LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY | LK_NOOBJ, curproc)) {
+				if (vp->v_object) {
+					vm_object_page_clean(vp->v_object, 0, 0, TRUE);
+					anyio = 1;
+				}
+				vput(vp);
+			}
+		} else {
+			simple_unlock(&vp->v_interlock);
 		}
 	}
+	if (anyio && (--tries > 0))
+		goto loop;
 }
 
 /*
@@ -2021,6 +2074,8 @@ loop:
  * is done for all VREG files in the system.  Some filesystems might
  * afford the additional metadata buffering capability of the
  * VMIO code by making the device node be VMIO mode also.
+ *
+ * If !waslocked, must be called with interlock.
  */
 int
 vfs_object_create(vp, p, cred, waslocked)
@@ -2033,44 +2088,49 @@ vfs_object_create(vp, p, cred, waslocked)
 	vm_object_t object;
 	int error = 0;
 
-	if ((vp->v_type != VREG) && (vp->v_type != VBLK))
+	if ((vp->v_type != VREG) && (vp->v_type != VBLK)) {
 		return 0;
+	}
+
+	if (!waslocked) 
+		vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY, p);
 
 retry:
 	if ((object = vp->v_object) == NULL) {
 		if (vp->v_type == VREG) {
 			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
 				goto retn;
-			(void) vnode_pager_alloc(vp,
+			object = vnode_pager_alloc(vp,
 				OFF_TO_IDX(round_page(vat.va_size)), 0, 0);
-			vp->v_object->flags |= OBJ_VFS_REF;
-		} else {
+		} else if (major(vp->v_rdev) < nblkdev) {
 			/*
 			 * This simply allocates the biggest object possible
 			 * for a VBLK vnode.  This should be fixed, but doesn't
 			 * cause any problems (yet).
 			 */
-			(void) vnode_pager_alloc(vp, INT_MAX, 0, 0);
-			vp->v_object->flags |= OBJ_VFS_REF;
+			object = vnode_pager_alloc(vp, INT_MAX, 0, 0);
 		}
+		object->ref_count--;
+		vp->v_usecount--;
 	} else {
 		if (object->flags & OBJ_DEAD) {
-			if (waslocked)
-				VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, 0, p);
 			tsleep(object, PVM, "vodead", 0);
-			if (waslocked)
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 			goto retry;
 		}
-		if ((object->flags & OBJ_VFS_REF) == 0) {
-			vm_object_reference(object);
-			object->flags |= OBJ_VFS_REF;
-		}
 	}
-	if (vp->v_object)
-		vp->v_flag |= VVMIO;
+
+	if (vp->v_object) {
+		vp->v_flag |= VOBJBUF;
+	}
 
 retn:
+	if (!waslocked) {
+		simple_lock(&vp->v_interlock);
+		VOP_UNLOCK(vp, LK_INTERLOCK, p);
+	}
+
 	return error;
 }
 

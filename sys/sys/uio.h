@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
- * $Id: uio.h,v 1.7 1997/12/19 09:03:37 dyson Exp $
+ * $Id: uio.h,v 1.8 1997/12/19 10:03:31 bde Exp $
  */
 
 #ifndef _SYS_UIO_H_
@@ -78,6 +78,7 @@ struct vm_object;
 
 int	uiomove __P((caddr_t, int, struct uio *));
 int	uiomoveco __P((caddr_t, int, struct uio *, struct vm_object *));
+int	uioread __P((int, struct uio *, struct vm_object *, int *));
 
 #else /* !KERNEL */
 

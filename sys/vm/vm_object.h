@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.39 1997/12/19 09:03:16 dyson Exp $
+ * $Id: vm_object.h,v 1.40 1997/12/29 00:24:55 dyson Exp $
  */
 
 /*
@@ -122,16 +122,13 @@ struct vm_object {
 /*
  * Flags
  */
-#define OBJ_CANPERSIST	0x0001		/* allow to persist */
 #define OBJ_ACTIVE	0x0004		/* active objects */
 #define OBJ_DEAD	0x0008		/* dead objects (during rundown) */
-#define	OBJ_PIPWNT	0x0040		/* paging in progress wanted */
+#define OBJ_PIPWNT	0x0040		/* paging in progress wanted */
 #define	OBJ_WRITEABLE	0x0080		/* object has been made writable */
-#define	OBJ_MIGHTBEDIRTY	0x0100	/* object might be dirty */
+#define OBJ_MIGHTBEDIRTY	0x0100	/* object might be dirty */
 #define OBJ_CLEANING	0x0200
-#define	OBJ_VFS_REF	0x0400		/* object is refed by vfs layer */
-#define OBJ_VNODE_GONE	0x0800		/* vnode is gone */
-#define OBJ_OPT		0x1000			/* I/O optimization */
+#define OBJ_OPT		0x1000		/* I/O optimization */
 
 #define OBJ_NORMAL	0x0		/* default behavior */
 #define OBJ_SEQUENTIAL	0x1		/* expect sequential accesses */
@@ -170,6 +167,8 @@ boolean_t vm_object_coalesce __P((vm_object_t, vm_pindex_t, vm_size_t, vm_size_t
 void vm_object_collapse __P((vm_object_t));
 void vm_object_copy __P((vm_object_t, vm_pindex_t, vm_object_t *, vm_pindex_t *, boolean_t *));
 void vm_object_deallocate __P((vm_object_t));
+void vm_object_terminate __P((vm_object_t));
+void vm_object_vndeallocate __P((vm_object_t));
 void vm_object_init __P((void));
 void vm_object_page_clean __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t));
 void vm_object_page_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.62 1997/11/12 05:42:25 julian Exp $
+ * $Id: ffs_vfsops.c,v 1.63 1997/12/29 00:24:28 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -63,6 +63,7 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_object.h>
 
 static MALLOC_DEFINE(M_FFSNODE, "FFS node", "FFS vnode private part");
 
@@ -364,6 +365,7 @@ ffs_reload(mp, cred, p)
 	struct buf *bp;
 	struct fs *fs, *newfs;
 	struct partinfo dpart;
+	dev_t dev;
 	int i, blks, size, error;
 	int32_t *lp;
 
@@ -375,6 +377,18 @@ ffs_reload(mp, cred, p)
 	devvp = VFSTOUFS(mp)->um_devvp;
 	if (vinvalbuf(devvp, 0, cred, p, 0, 0))
 		panic("ffs_reload: dirty1");
+
+	dev = devvp->v_rdev;
+	/*
+	 * Only VMIO the backing device if the backing device is a real
+	 * block device.  This excludes the original MFS implementation.
+	 * Note that it is optional that the backing device be VMIOed.  This
+	 * increases the opportunity for metadata caching.
+	 */
+	if ((devvp->v_type == VBLK) && (major(dev) < nblkdev)) {
+		vfs_object_create(devvp, p, p->p_ucred, 0);
+	}
+
 	/*
 	 * Step 2: re-read superblock from disk.
 	 */
@@ -509,17 +523,31 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	if (error)
 		return (error);
 	ncount = vcount(devvp);
+/*
 	if (devvp->v_object)
 		ncount -= 1;
+*/
 	if (ncount > 1 && devvp != rootvp)
 		return (EBUSY);
 	if (error = vinvalbuf(devvp, V_SAVE, cred, p, 0, 0))
 		return (error);
 
+	/*
+	 * Only VMIO the backing device if the backing device is a real
+	 * block device.  This excludes the original MFS implementation.
+	 * Note that it is optional that the backing device be VMIOed.  This
+	 * increases the opportunity for metadata caching.
+	 */
+	if ((devvp->v_type == VBLK) && (major(dev) < nblkdev)) {
+		vfs_object_create(devvp, p, p->p_ucred, 0);
+	}
+
+
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
 	if (error)
 		return (error);
+
 	if (VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart, FREAD, cred, p) != 0)
 		size = DEV_BSIZE;
 	else
@@ -641,15 +669,6 @@ ffs_mountfs(devvp, mp, p, malloctype)
 		fs->fs_clean = 0;
 		(void) ffs_sbupdate(ump, MNT_WAIT);
 	}
-	/*
-	 * Only VMIO the backing device if the backing device is a real
-	 * block device.  This excludes the original MFS implementation.
-	 * Note that it is optional that the backing device be VMIOed.  This
-	 * increases the opportunity for metadata caching.
-	 */
-	if ((devvp->v_type == VBLK) && (major(devvp->v_rdev) < nblkdev)) {
-		vfs_object_create(devvp, p, p->p_ucred, 0);
-	}
 	return (0);
 out:
 	if (bp)
@@ -726,6 +745,10 @@ ffs_unmount(mp, mntflags, p)
 		}
 	}
 	ump->um_devvp->v_specflags &= ~SI_MOUNTEDON;
+
+	vinvalbuf(ump->um_devvp, V_SAVE, NOCRED, p, 0, 0);
+	if (ump->um_devvp->v_object)
+		vm_object_terminate(ump->um_devvp->v_object);
 
 	error = VOP_CLOSE(ump->um_devvp, fs->fs_ronly ? FREAD : FREAD|FWRITE,
 		NOCRED, p);
