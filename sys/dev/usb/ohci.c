@@ -10,6 +10,7 @@
  *	$NetBSD: ohci.c,v 1.132 2002/12/07 06:52:11 toshii Exp $
  *	$NetBSD: ohci.c,v 1.133 2002/12/07 07:14:28 toshii Exp $
  *	$NetBSD: ohci.c,v 1.134 2002/12/07 07:33:20 toshii Exp $
+ *	$NetBSD: ohci.c,v 1.135 2002/12/10 14:07:37 toshii Exp $
  *	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $
  *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  */
@@ -1483,15 +1484,15 @@ ohci_softintr(void *v)
 			for (i = 0, sitd = xfer->hcpriv;;
 			    sitd = next) {
 				next = sitd->nextitd;
-				if (OHCI_ITD_GET_CC(sitd->itd.itd_flags)
-				    != OHCI_CC_NO_ERROR)
+				if (OHCI_ITD_GET_CC(le32toh(sitd->
+				    itd.itd_flags)) != OHCI_CC_NO_ERROR)
 					xfer->status = USBD_IOERROR;
 				/* For input, update frlengths with actual */
 				/* XXX anything necessary for output? */
 				if (uedir == UE_DIR_IN &&
 				    xfer->status == USBD_NORMAL_COMPLETION) {
-					iframes = OHCI_ITD_GET_FC(sitd->
-					    itd.itd_flags);
+					iframes = OHCI_ITD_GET_FC(le32toh(
+					    sitd->itd.itd_flags));
 					for (j = 0; j < iframes; i++, j++) {
 						len = le16toh(sitd->
 						    itd.itd_offset[j]);
