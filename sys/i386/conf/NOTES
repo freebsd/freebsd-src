@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.8 1993/09/21 06:16:07 rgrimes Exp $
+#	$Id: LINT,v 1.9 1993/09/24 21:01:11 rgrimes Exp $
 #
 
 machine		"i386"
@@ -15,7 +15,7 @@ maxusers	10
 maxfdescs	2048			#Max file descriptors per process
 options		MATH_EMULATE		#Support for x87 emulation
 
-config		"386bsd"	root on wd0 swap on wd0 and sd0
+config		"386bsd"	at 0xFE100000 root on wd0 swap on wd0 and sd0
 
 #
 # options that appear as inline #ifdef's
@@ -23,6 +23,7 @@ config		"386bsd"	root on wd0 swap on wd0 and sd0
 options		"COM_BIDIR"		#Bidirectional support in sys/isa/sio.c
 options		"COM_MULTIPORT"		#Multiport support in sys/isa/sio.c
 options		"COMPAT_43"		#compatible with BSD 4.3
+options		"SYMTAB_SPACE=89000"	#This kernel needs LOTS of symtable
 options		GATEWAY			#internetwork gateway
 options		KTRACE			#kernel tracing
 options		"NCONS=8"		#number of syscons virtual consoles
