@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.52 1995/12/07 12:45:53 davidg Exp $
+ *      $Id: aha1542.c,v 1.53 1995/12/15 00:11:26 bde Exp $
  */
 
 /*
@@ -1565,7 +1565,8 @@ aha_scsi_cmd(xs)
 					if (thisphys > 0xFFFFFF)
 					{
 						printf("aha%d: DMA beyond"
-							" end Of ISA\n", unit);
+							" end Of ISA: 0x%x\n",
+							unit, thisphys);
 						xs->error = XS_DRIVER_STUFFUP;
 						aha_free_ccb(unit, ccb, flags);
 						return (HAD_ERROR);
