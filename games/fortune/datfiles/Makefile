@@ -25,8 +25,10 @@ CAESAR=/usr/games/caesar
 
 .if exists(${.CURDIR}/../strfile/obj/strfile)
 STRFILE=${.CURDIR}/../strfile/obj/strfile
-.else
+.elif exists(${.CURDIR}/../strfile/strfile)
 STRFILE=${.CURDIR}/../strfile/strfile
+.else
+STRFILE=/usr/games/strfile
 .endif
 
 CLEANFILES+=${BLDS}

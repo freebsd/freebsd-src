@@ -37,7 +37,7 @@
  */
 
 #define	STR_ENDSTRING(line,tbl) \
-	((line)[0] == (tbl).str_delim && (line)[1] == '\n')
+	(((unsigned char)(line)[0]) == (tbl).str_delim && (line)[1] == '\n')
 
 typedef struct {				/* information table */
 #define	VERSION		1
