@@ -36,7 +36,6 @@
  *
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
- * From:
  * $FreeBSD$
  */
 
@@ -70,7 +69,6 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/user.h>
 #include <sys/vnode.h>
 
 #include <machine/md_var.h>
@@ -81,25 +79,18 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-#define	PROCFS_ACTION(action) do {					\
-	int error;							\
-									\
-	mtx_lock_spin(&sched_lock);					\
-	if ((p->p_sflag & PS_INMEM) == 0)				\
-		error = EIO;						\
-	else								\
-		error = (action);					\
-	mtx_unlock_spin(&sched_lock);					\
-	return (error);							\
-} while(0)
+#include <sys/user.h>
 
 int
 procfs_read_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
+	if ((p->p_flag & PS_INMEM) == 0) {
+		return (EIO);
+	}
 
-	PROCFS_ACTION(fill_regs(p, regs));
+	return (fill_regs(p, regs));
 }
 
 int
@@ -107,8 +98,11 @@ procfs_write_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
+	if ((p->p_flag & PS_INMEM) == 0) {
+		return (EIO);
+	}
 
-	PROCFS_ACTION(set_regs(p, regs));
+	return (set_regs(p, regs));
 }
 
 /*
@@ -121,8 +115,11 @@ procfs_read_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
+	if ((p->p_flag & PS_INMEM) == 0) {
+		return (EIO);
+	}
 
-	PROCFS_ACTION(fill_fpregs(p, fpregs));
+	return (fill_fpregs(p, fpregs));
 }
 
 int
@@ -130,8 +127,11 @@ procfs_write_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
+	if ((p->p_flag & PS_INMEM) == 0) {
+		return (EIO);
+	}
 
-	PROCFS_ACTION(set_fpregs(p, fpregs));
+	return (set_fpregs(p, fpregs));
 }
 
 int

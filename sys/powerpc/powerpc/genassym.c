@@ -44,133 +44,58 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/errno.h>
-#include <net/radix.h>
 #include <sys/socket.h>
-#include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/ktr.h>
-#include <machine/frame.h>
-#include <machine/chipset.h>
-#include <machine/globaldata.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
+#include <machine/pcb.h>
+#include <machine/pmap.h>
 
 ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
-ASSYM(GD_FPCURPROC, offsetof(struct globaldata, gd_fpcurproc));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
-ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
-ASSYM(GD_IDLEPCBPHYS, offsetof(struct globaldata, gd_idlepcbphys));
+ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
-ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
+ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
 ASSYM(MTX_SAVECRIT, offsetof(struct mtx, mtx_savecrit));
-ASSYM(MTX_UNOWNED, MTX_UNOWNED);
+
+ASSYM(PM_KERNELSR, offsetof(struct pmap, pm_sr[KERNEL_SR]));
+ASSYM(PM_USERSR, offsetof(struct pmap, pm_sr[USER_SR]));
+
+ASSYM(FRAMELEN, FRAMELEN);
+ASSYM(FRAME_0, offsetof(struct trapframe, fixreg[0]));
+ASSYM(FRAME_1, offsetof(struct trapframe, fixreg[1]));
+ASSYM(FRAME_2, offsetof(struct trapframe, fixreg[2]));
+ASSYM(FRAME_3, offsetof(struct trapframe, fixreg[3]));
+ASSYM(FRAME_LR, offsetof(struct trapframe, lr));
+ASSYM(FRAME_CR, offsetof(struct trapframe, cr));
+ASSYM(FRAME_CTR, offsetof(struct trapframe, ctr));
+ASSYM(FRAME_XER, offsetof(struct trapframe, xer));
+ASSYM(FRAME_SRR0, offsetof(struct trapframe, srr0));
+ASSYM(FRAME_SRR1, offsetof(struct trapframe, srr1));
+ASSYM(FRAME_DAR, offsetof(struct trapframe, dar));
+ASSYM(FRAME_DSISR, offsetof(struct trapframe, dsisr));
+ASSYM(FRAME_EXC, offsetof(struct trapframe, exc));
+
+ASSYM(SFRAMELEN, roundup(sizeof(struct switchframe), 16));
+
+ASSYM(PCB_PMR, offsetof(struct pcb, pcb_pmreal));
+ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
+ASSYM(PCB_SPL, offsetof(struct pcb, pcb_spl));
+ASSYM(PCB_FAULT, offsetof(struct pcb, pcb_onfault));
 
 ASSYM(P_ADDR, offsetof(struct proc, p_addr));
-ASSYM(P_MD_FLAGS, offsetof(struct proc, p_md.md_flags));
-ASSYM(P_MD_PCBPADDR, offsetof(struct proc, p_md.md_pcbpaddr));
-ASSYM(P_MD_HAE, offsetof(struct proc, p_md.md_hae));
-#ifdef SMP
-ASSYM(P_MD_KERNNEST, offsetof(struct proc, p_md.md_kernnest));
-#endif
-ASSYM(MDP_HAEUSED, MDP_HAEUSED);
-
-ASSYM(CHIPSET_WRITE_HAE, offsetof(struct alpha_chipset, write_hae));
-
-ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
-ASSYM(PTLEV1I, PTLEV1I);
-ASSYM(PTESIZE, PTESIZE);
-
-ASSYM(U_PCB_ONFAULT, offsetof(struct user, u_pcb.pcb_onfault));
-ASSYM(U_PCB_HWPCB_KSP, offsetof(struct user, u_pcb.pcb_hw.apcb_ksp));
-ASSYM(U_PCB_CONTEXT, offsetof(struct user, u_pcb.pcb_context));
-
-ASSYM(PCB_HW, offsetof(struct pcb, pcb_hw));
-
-ASSYM(FPREG_FPR_REGS, offsetof(struct fpreg, fpr_regs));
-ASSYM(FPREG_FPR_CR, offsetof(struct fpreg, fpr_cr));
-
-ASSYM(EFAULT, EFAULT);
-ASSYM(ENAMETOOLONG, ENAMETOOLONG);
-
-/* Register offsets, for stack frames. */
-ASSYM(FRAME_V0, FRAME_V0);
-ASSYM(FRAME_T0, FRAME_T0);
-ASSYM(FRAME_T1, FRAME_T1);
-ASSYM(FRAME_T2, FRAME_T2);
-ASSYM(FRAME_T3, FRAME_T3);
-ASSYM(FRAME_T4, FRAME_T4);
-ASSYM(FRAME_T5, FRAME_T5);
-ASSYM(FRAME_T6, FRAME_T6);
-ASSYM(FRAME_T7, FRAME_T7);
-ASSYM(FRAME_S0, FRAME_S0);
-ASSYM(FRAME_S1, FRAME_S1);
-ASSYM(FRAME_S2, FRAME_S2);
-ASSYM(FRAME_S3, FRAME_S3);
-ASSYM(FRAME_S4, FRAME_S4);
-ASSYM(FRAME_S5, FRAME_S5);
-ASSYM(FRAME_S6, FRAME_S6);
-ASSYM(FRAME_A3, FRAME_A3);
-ASSYM(FRAME_A4, FRAME_A4);
-ASSYM(FRAME_A5, FRAME_A5);
-ASSYM(FRAME_T8, FRAME_T8);
-ASSYM(FRAME_T9, FRAME_T9);
-ASSYM(FRAME_T10, FRAME_T10);
-ASSYM(FRAME_T11, FRAME_T11);
-ASSYM(FRAME_RA, FRAME_RA);
-ASSYM(FRAME_T12, FRAME_T12);
-ASSYM(FRAME_AT, FRAME_AT);
-ASSYM(FRAME_SP, FRAME_SP);
-ASSYM(FRAME_FLAGS, FRAME_FLAGS);
-ASSYM(FRAME_FLAGS_SYSCALL, FRAME_FLAGS_SYSCALL);
-
-ASSYM(FRAME_SW_SIZE, FRAME_SW_SIZE);
-
-ASSYM(FRAME_PS, FRAME_PS);
-ASSYM(FRAME_PC, FRAME_PC);
-ASSYM(FRAME_GP, FRAME_GP);
-ASSYM(FRAME_A0, FRAME_A0);
-ASSYM(FRAME_A1, FRAME_A1);
-ASSYM(FRAME_A2, FRAME_A2);
-
-ASSYM(FRAME_SIZE, FRAME_SIZE);
-
-/* bits of the PS register */
-ASSYM(ALPHA_PSL_USERMODE, ALPHA_PSL_USERMODE);
-ASSYM(ALPHA_PSL_IPL_MASK, ALPHA_PSL_IPL_MASK);
-ASSYM(ALPHA_PSL_IPL_0, ALPHA_PSL_IPL_0);
-ASSYM(ALPHA_PSL_IPL_SOFT, ALPHA_PSL_IPL_SOFT);
-ASSYM(ALPHA_PSL_IPL_HIGH, ALPHA_PSL_IPL_HIGH);
-
-/* pte bits */
-ASSYM(ALPHA_L1SHIFT, ALPHA_L1SHIFT);
-ASSYM(ALPHA_L2SHIFT, ALPHA_L2SHIFT);
-ASSYM(ALPHA_L3SHIFT, ALPHA_L3SHIFT);
-ASSYM(ALPHA_K1SEG_BASE, ALPHA_K1SEG_BASE);
-ASSYM(ALPHA_PTE_VALID, ALPHA_PTE_VALID);
-ASSYM(ALPHA_PTE_ASM, ALPHA_PTE_ASM);
-ASSYM(ALPHA_PTE_KR, ALPHA_PTE_KR);
-ASSYM(ALPHA_PTE_KW, ALPHA_PTE_KW);
-
-/* Kernel entries */
-ASSYM(ALPHA_KENTRY_ARITH, ALPHA_KENTRY_ARITH);
-ASSYM(ALPHA_KENTRY_MM, ALPHA_KENTRY_MM);
-
-ASSYM(ALPHA_KENTRY_IF, ALPHA_KENTRY_IF);
-ASSYM(ALPHA_KENTRY_UNA, ALPHA_KENTRY_UNA);
-
-ASSYM(VPTBASE, VPTBASE);
