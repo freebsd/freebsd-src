@@ -42,7 +42,7 @@ rc=0
 
 case "$daily_status_security_ipfwlimit_enable" in
     [Yy][Ee][Ss])
-	TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
+	TMP=`mktemp -t security`
 	IPFW_LOG_LIMIT=`sysctl -n net.inet.ip.fw.verbose_limit 2> /dev/null`
 	if [ $? -eq 0 ] && [ "${IPFW_LOG_LIMIT}" -ne 0 ]; then
 	    ipfw -a l | grep " log " | \
