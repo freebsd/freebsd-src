@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.65 2003/08/21 16:43:10 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.66 2003/08/21 17:26:44 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -69,7 +69,7 @@
 #define	PCMCIA_VENDOR_USROBOTICS	0x0115	/* US Robotics Corporation */
 #define	PCMCIA_VENDOR_OLICOM	0x0121	/* Olicom */
 #define	PCMCIA_VENDOR_PROXIM	0x0126	/* Proxim */
-#define	PCMCIA_VENDOR_MEGAHERTZ2	0x0128	/* Megahertz Corporation */
+#define	PCMCIA_VENDOR_DSPSI	0x0128	/* DSP Solutions, Inc */
 #define	PCMCIA_VENDOR_ADAPTEC	0x012f	/* Adaptec Corporation */
 #define	PCMCIA_VENDOR_QUATECH	0x0137	/* Quatech */
 #define	PCMCIA_VENDOR_COMPAQ	0x0138	/* Compaq */
@@ -302,6 +302,14 @@
 #define	PCMCIA_PRODUCT_DLINK_2_DMF560TX	0xc0ab
 #define	PCMCIA_STR_DLINK_2_DMF560TX	"D-Link DMF-650TX"
 
+/* DSP Solutions, Inc. (Megahertz OEM) */
+#define	PCMCIA_CIS_DSPSI_XJEM1144	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_DSPSI_XJEM1144	0x0101
+#define	PCMCIA_STR_DSPSI_XJEM1144	"Megahertz X-JACK"
+#define	PCMCIA_CIS_DSPSI_XJACK	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_DSPSI_XJACK	0x0103
+#define	PCMCIA_STR_DSPSI_XJACK	"Megahertz X-JACK Ethernet"
+
 /* Dual */
 #define	PCMCIA_CIS_DUAL_NE2000	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_DUAL_NE2000	0x0100
@@ -486,12 +494,6 @@
 #define	PCMCIA_CIS_MEGAHERTZ_XJ5560	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_MEGAHERTZ_XJ5560	0x0034
 #define	PCMCIA_STR_MEGAHERTZ_XJ5560	"Megahertz X-JACK 56kbps Modem"
-#define	PCMCIA_CIS_MEGAHERTZ2_XJEM1144	{ NULL, NULL, NULL, NULL }
-#define	PCMCIA_PRODUCT_MEGAHERTZ2_XJEM1144	0x0101
-#define	PCMCIA_STR_MEGAHERTZ2_XJEM1144	"Megahertz X-JACK"
-#define	PCMCIA_CIS_MEGAHERTZ2_XJACK	{ NULL, NULL, NULL, NULL }
-#define	PCMCIA_PRODUCT_MEGAHERTZ2_XJACK	0x0103
-#define	PCMCIA_STR_MEGAHERTZ2_XJACK	"Megahertz X-JACK Ethernet"
 
 /* Melco Products */
 #define	PCMCIA_CIS_MELCO_LPC3_TX	{ NULL, NULL, NULL, NULL }
