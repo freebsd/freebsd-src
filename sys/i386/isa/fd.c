@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.85 1996/04/07 14:46:42 bde Exp $
+ *	$Id: fd.c,v 1.86 1996/04/07 17:32:12 bde Exp $
  *
  */
 
@@ -575,6 +575,8 @@ fdattach(struct isa_device *dev)
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
 	fdc->dmachan = dev->id_drq;
+	/* Acquire the DMA channel forever, The driver will do the rest */
+	isa_dma_acquire(fdc->dmachan);
 	isa_dmainit(fdc->dmachan, 128 << 3 /* XXX max secsize */);
 	fdc->state = DEVIDLE;
 	/* reset controller, turn motor off, clear fdout mirror reg */

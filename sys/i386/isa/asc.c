@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.16 1996/01/27 00:53:55 bde Exp $
+ * $Id: asc.c,v 1.17 1996/03/28 14:28:35 scrappy Exp $
  */
 
 #include "asc.h"
@@ -604,6 +604,9 @@ ascopen(dev_t dev, int flags, int fmt, struct proc *p)
       lprintf("asc%d.open: already open", unit);
       return EBUSY;
   }
+  if (isa_dma_acquire(scu->dma_num))
+      return(EBUSY);
+
   scu->flags = ATTACHED | OPEN;      
 
   asc_reset(scu);
@@ -668,6 +671,7 @@ ascclose(dev_t dev, int flags, int fmt, struct proc *p)
   scu->cfg_byte &= ~ scu->int_byte ; /* disable scanner int */
   outb(ASC_CFG, scu->cfg_byte);
     /* --- disable dma controller ? --- */
+  isa_dma_release(scu->dma_num);
     /* --- disable interrupts on the controller (sub_24) --- */
 
   scu->sbuf.base = NULL;
