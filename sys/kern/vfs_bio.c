@@ -3541,6 +3541,82 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 	bp->b_npages = newnpages;
 }
 
+/*
+ * Map an IO request into kernel virtual address space.
+ *
+ * All requests are (re)mapped into kernel VA space.
+ * Notice that we use b_bufsize for the size of the buffer
+ * to be mapped.  b_bcount might be modified by the driver.
+ */
+void
+vmapbuf(struct buf *bp)
+{
+	caddr_t addr, kva;
+	vm_offset_t pa;
+	int pidx;
+	struct vm_page *m;
+	struct pmap *pmap = &curproc->p_vmspace->vm_pmap;
+
+	GIANT_REQUIRED;
+
+	if ((bp->b_flags & B_PHYS) == 0)
+		panic("vmapbuf");
+
+	for (addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data), pidx = 0;
+	     addr < bp->b_data + bp->b_bufsize;
+	     addr += PAGE_SIZE, pidx++) {
+		/*
+		 * Do the vm_fault if needed; do the copy-on-write thing
+		 * when reading stuff off device into memory.
+		 *
+		 * NOTE! Must use pmap_extract() because addr may be in
+		 * the userland address space, and kextract is only guarenteed
+		 * to work for the kernland address space (see: sparc64 port).
+		 */
+		vm_fault_quick((addr >= bp->b_data) ? addr : bp->b_data,
+			(bp->b_iocmd == BIO_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
+		pa = trunc_page(pmap_extract(pmap, (vm_offset_t) addr));
+		if (pa == 0)
+			panic("vmapbuf: page not present");
+		m = PHYS_TO_VM_PAGE(pa);
+		vm_page_hold(m);
+		bp->b_pages[pidx] = m;
+	}
+	if (pidx > btoc(MAXPHYS))
+		panic("vmapbuf: mapped more than MAXPHYS");
+	pmap_qenter((vm_offset_t)bp->b_saveaddr, bp->b_pages, pidx);
+	
+	kva = bp->b_saveaddr;
+	bp->b_npages = pidx;
+	bp->b_saveaddr = bp->b_data;
+	bp->b_data = kva + (((vm_offset_t) bp->b_data) & PAGE_MASK);
+}
+
+/*
+ * Free the io map PTEs associated with this IO operation.
+ * We also invalidate the TLB entries and restore the original b_addr.
+ */
+void
+vunmapbuf(struct buf *bp)
+{
+	int pidx;
+	int npages;
+
+	GIANT_REQUIRED;
+
+	if ((bp->b_flags & B_PHYS) == 0)
+		panic("vunmapbuf");
+
+	npages = bp->b_npages;
+	pmap_qremove(trunc_page((vm_offset_t)bp->b_data),
+		     npages);
+	vm_page_lock_queues();
+	for (pidx = 0; pidx < npages; pidx++)
+		vm_page_unhold(bp->b_pages[pidx]);
+	vm_page_unlock_queues();
+
+	bp->b_data = bp->b_saveaddr;
+}
 
 #include "opt_ddb.h"
 #ifdef DDB
