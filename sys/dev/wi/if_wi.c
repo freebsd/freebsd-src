@@ -133,7 +133,7 @@ void wi_cache_store(struct wi_softc *, struct ether_header *,
 #endif
 
 static int wi_get_cur_ssid(struct wi_softc *, char *, int *);
-static void wi_get_id(struct wi_softc *, device_t);
+static void wi_get_id(struct wi_softc *);
 static int wi_media_change(struct ifnet *);
 static void wi_media_status(struct ifnet *, struct ifmediareq *);
 
@@ -141,6 +141,36 @@ static int wi_get_debug(struct wi_softc *, struct wi_req *);
 static int wi_set_debug(struct wi_softc *, struct wi_req *);
 
 devclass_t wi_devclass;
+
+struct wi_card_ident wi_card_ident[] = {
+	/* CARD_ID			CARD_NAME		FIRM_TYPE */
+	{ WI_NIC_LUCENT_ID,		WI_NIC_LUCENT_STR,	WI_LUCENT },
+	{ WI_NIC_SONY_ID,		WI_NIC_SONY_STR,	WI_LUCENT },
+	{ WI_NIC_LUCENT_EMB_ID,		WI_NIC_LUCENT_EMB_STR,	WI_LUCENT },
+	{ WI_NIC_EVB2_ID,		WI_NIC_EVB2_STR,	WI_INTERSIL },
+	{ WI_NIC_HWB3763_ID,		WI_NIC_HWB3763_STR,	WI_INTERSIL },
+	{ WI_NIC_HWB3163_ID,		WI_NIC_HWB3163_STR,	WI_INTERSIL },
+	{ WI_NIC_HWB3163B_ID,		WI_NIC_HWB3163B_STR,	WI_INTERSIL },
+	{ WI_NIC_EVB3_ID,		WI_NIC_EVB3_STR,	WI_INTERSIL },
+	{ WI_NIC_HWB1153_ID,		WI_NIC_HWB1153_STR,	WI_INTERSIL },
+	{ WI_NIC_P2_SST_ID,		WI_NIC_P2_SST_STR,	WI_INTERSIL },
+	{ WI_NIC_EVB2_SST_ID,		WI_NIC_EVB2_SST_STR,	WI_INTERSIL },
+	{ WI_NIC_3842_EVA_ID,		WI_NIC_3842_EVA_STR,	WI_INTERSIL },
+	{ WI_NIC_3842_PCMCIA_AMD_ID,	WI_NIC_3842_PCMCIA_STR,	WI_INTERSIL },
+	{ WI_NIC_3842_PCMCIA_SST_ID,	WI_NIC_3842_PCMCIA_STR,	WI_INTERSIL },
+	{ WI_NIC_3842_PCMCIA_ATM_ID,	WI_NIC_3842_PCMCIA_STR,	WI_INTERSIL },
+	{ WI_NIC_3842_MINI_AMD_ID,	WI_NIC_3842_MINI_STR,	WI_INTERSIL },
+	{ WI_NIC_3842_MINI_SST_ID,	WI_NIC_3842_MINI_STR,	WI_INTERSIL },
+	{ WI_NIC_3842_MINI_ATM_ID,	WI_NIC_3842_MINI_STR,	WI_INTERSIL },
+	{ WI_NIC_3842_PCI_AMD_ID,	WI_NIC_3842_PCI_STR,	WI_INTERSIL },
+	{ WI_NIC_3842_PCI_SST_ID,	WI_NIC_3842_PCI_STR,	WI_INTERSIL },
+	{ WI_NIC_3842_PCI_ATM_ID,	WI_NIC_3842_PCI_STR,	WI_INTERSIL },
+	{ WI_NIC_P3_PCMCIA_AMD_ID,	WI_NIC_P3_PCMCIA_STR,	WI_INTERSIL },
+	{ WI_NIC_P3_PCMCIA_SST_ID,	WI_NIC_P3_PCMCIA_STR,	WI_INTERSIL },
+	{ WI_NIC_P3_MINI_AMD_ID,	WI_NIC_P3_MINI_STR,	WI_INTERSIL },
+	{ WI_NIC_P3_MINI_SST_ID,	WI_NIC_P3_MINI_STR,	WI_INTERSIL },
+	{ 0,	NULL,	0 },
+};
 
 int
 wi_generic_detach(dev)
@@ -222,7 +252,7 @@ wi_generic_attach(device_t dev)
 
 	device_printf(dev, "802.11 address: %6D\n", sc->arpcom.ac_enaddr, ":");
 
-	wi_get_id(sc, dev);
+	wi_get_id(sc);
 
 	ifp->if_softc = sc;
 	ifp->if_unit = sc->wi_unit;
@@ -325,11 +355,11 @@ wi_generic_attach(device_t dev)
 }
 
 static void
-wi_get_id(sc, dev)
+wi_get_id(sc)
 	struct wi_softc *sc;
-	device_t dev;
 {
 	struct wi_ltv_ver       ver;
+	struct wi_card_ident	*id;
 
 	/* getting chip identity */
 	memset(&ver, 0, sizeof(ver));
@@ -337,74 +367,23 @@ wi_get_id(sc, dev)
 	ver.wi_len = 5;
 	wi_read_record(sc, (struct wi_ltv_gen *)&ver);
 	device_printf(sc->dev, "using ");
-	switch (le16toh(ver.wi_ver[0])) {
-	case WI_NIC_EVB2:
-		printf("RF:PRISM2 MAC:HFA3841");
-		break;
-	case WI_NIC_HWB3763:
-		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3763 rev.B");
-		break;
-	case WI_NIC_HWB3163:
-		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.A");
-		break;
-	case WI_NIC_HWB3163B:
-		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.B");
-		break;
-	case WI_NIC_EVB3:
-	case WI_NIC_3842_EVA:
-		printf("RF:PRISM2 MAC:HFA3842 CARD:HFA3842 EVAL");
-		break;
-	case WI_NIC_HWB1153:
-		printf("RF:PRISM1 MAC:HFA3841 CARD:HWB1153");
-		break;
-	case WI_NIC_P2_SST:
-	case WI_NIC_EVB2_SST:
-		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163-SST-flash");
-		break;
-	case WI_NIC_3842_PCMCIA_AMD:
-	case WI_NIC_3842_PCMCIA_SST:
-	case WI_NIC_3842_PCMCIA_ATM:
-		printf("RF:PRISM2.5 MAC:ISL3873");
-		break;
-	case WI_NIC_3842_MINI_AMD:
-	case WI_NIC_3842_MINI_SST:
-	case WI_NIC_3842_MINI_ATM:
-		printf("RF:PRISM2.5 MAC:ISL3874A(Mini-PCI)");
-		break;
-	case WI_NIC_3842_PCI_AMD:
-	case WI_NIC_3842_PCI_SST:
-	case WI_NIC_3842_PCI_ATM:
-		printf("RF:PRISM2.5 MAC:ISL3874A(PCI-bridge)");
-		break;
-	case WI_NIC_P3_PCMCIA_AMD:
-	case WI_NIC_P3_PCMCIA_SST:
-		printf("RF:PRISM3(PCMCIA)");
-		break;
-	case WI_NIC_P3_MINI_AMD:
-	case WI_NIC_P3_MINI_SST:
-		printf("RF:PRISM3(Mini-PCI)");
-		break;
-	case WI_NIC_LUCENT:
-		printf("Lucent WaveLAN");
-		break;
-	case WI_NIC_SONY:
-		printf("Sony");
-		break;
-	case WI_NIC_LUCENT_EMBEDDED:
-		printf("Lucent WaveLAN (embedded)");
-		break;
-	default:
-		if (le16toh(ver.wi_ver[0]) & 0x8000)
-			printf("Unknown PRISM2 chip");
-		else
-			printf("Unknown Lucent chip");
-		printf(" 0x%x", le16toh(ver.wi_ver[0]));
-		break;
+	sc->sc_firmware_type = WI_NOTYPE;
+	for (id = wi_card_ident; id->card_name != NULL; id++) {
+		if (le16toh(ver.wi_ver[0]) == id->card_id) {
+			printf("%s", id->card_name);
+			sc->sc_firmware_type = id->firm_type;
+			break;
+		}
 	}
-	if (le16toh(ver.wi_ver[0]) & 0x8000)
-		sc->sc_firmware_type = WI_INTERSIL;
-	else
-		sc->sc_firmware_type = WI_LUCENT;
+	if (sc->sc_firmware_type == WI_NOTYPE) {
+		if (le16toh(ver.wi_ver[0]) & 0x8000) {
+			printf("Unknown PRISM2 chip");
+			sc->sc_firmware_type = WI_INTERSIL;
+		} else {
+			printf("Unknown Lucent chip");
+			sc->sc_firmware_type = WI_LUCENT;
+		}
+	}
 
 	if (sc->sc_firmware_type != WI_LUCENT) {
 		/* get primary firmware version */
@@ -1066,10 +1045,12 @@ wi_write_record(sc, ltv)
 		case WI_RID_ENCRYPTION:
 			p2ltv.wi_type = WI_RID_P2_ENCRYPTION;
 			p2ltv.wi_len = 2;
-			if (ltv->wi_val)
-				p2ltv.wi_val = 0x03;
+			if (le16toh(ltv->wi_val))
+				p2ltv.wi_val =htole16(PRIVACY_INVOKED |
+				    EXCLUDE_UNENCRYPTED);
 			else
-				p2ltv.wi_val = 0x90;
+				p2ltv.wi_val =
+				    htole16(HOST_ENCRYPT | HOST_DECRYPT);
 			ltv = &p2ltv;
 			break;
 		case WI_RID_TX_CRYPT_KEY:
