@@ -687,6 +687,8 @@ linux_sigaltstack(p, uap)
 		lss.ss_flags = bsd_to_linux_sigaltstack(oss->ss_flags);
 		error = copyout(&lss, uap->uoss, sizeof(linux_stack_t));
 	}
+	if (!error && (ss != NULL) && (lss.ss_size < ss->ss_size))
+		p->p_sigstk.ss_size = lss.ss_size;
 
 	return (error);
 }
