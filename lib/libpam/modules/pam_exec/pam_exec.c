@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Networks Associates Technology, Inc.
+ * Copyright (c) 2001,2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
