@@ -153,7 +153,7 @@ device		sc0	at isa? tty
 device		npx0	at isa? port IO_NPX irq 8
 
 # Power management support (see LINT for more options)
-device		apm0    at isa?	disable	flags 0x31 # Advanced Power Management
+#device		apm0    at isa?	disable	flags 0x31 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
 #controller	card0
