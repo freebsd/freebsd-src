@@ -401,8 +401,8 @@ const void	*s1, *s2;
 # define	SET_N(nf,ch)	(nf = (ch == '\n'))
 # define        IS_END(ch,nf)   (ch == EOF || (ch == (unsigned char) Delimch && nf))
 
-	p1 = (const STR *)s1;
-	p2 = (const STR *)s2;
+	p1 = (const STR *) s1;
+	p2 = (const STR *) s2;
 	
 	c1 = (unsigned char) p1->first;
 	c2 = (unsigned char) p2->first;
