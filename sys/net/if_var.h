@@ -147,12 +147,7 @@ struct ifnet {
 		 */
 	struct	knlist if_klist;	/* events attached to this if */
 	int	if_pcount;		/* number of promiscuous listeners */
-	union {
-		struct carp_if *carp_s;	/* carp structure (used by !carp ifs) */
-		struct ifnet *carp_d;	/* ptr to carpdev (used by carp ifs) */
-	} if_carp_ptr;
-#define	if_carp		if_carp_ptr.carp_s
-#define	if_carpdev	if_carp_ptr.carp_d
+	struct	carp_if *if_carp;	/* carp interface structure */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
 	u_short	if_index;		/* numeric abbreviation for this if  */
 	short	if_timer;		/* time 'til if_watchdog called */
