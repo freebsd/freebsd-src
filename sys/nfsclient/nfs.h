@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.38 1998/05/31 17:48:03 peter Exp $
+ * $Id: nfs.h,v 1.39 1998/05/31 19:49:28 peter Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -204,14 +204,14 @@ struct nfsd_args {
 struct nfsd_srvargs {
 	struct nfsd	*nsd_nfsd;	/* Pointer to in kernel nfsd struct */
 	uid_t		nsd_uid;	/* Effective uid mapped to cred */
-	u_long		nsd_haddr;	/* Ip address of client */
+	u_int32_t	nsd_haddr;	/* Ip address of client */
 	struct ucred	nsd_cr;		/* Cred. uid maps to */
 	int		nsd_authlen;	/* Length of auth string (ret) */
 	u_char		*nsd_authstr;	/* Auth string (ret) */
 	int		nsd_verflen;	/* and the verfier */
 	u_char		*nsd_verfstr;
 	struct timeval	nsd_timestamp;	/* timestamp from verifier */
-	u_long		nsd_ttl;	/* credential ttl (sec) */
+	u_int32_t	nsd_ttl;	/* credential ttl (sec) */
 	NFSKERBKEY_T	nsd_key;	/* Session key */
 };
 
@@ -342,7 +342,7 @@ struct nfsreq {
 	caddr_t		r_dpos;
 	struct nfsmount *r_nmp;
 	struct vnode	*r_vp;
-	u_long		r_xid;
+	u_int32_t	r_xid;
 	int		r_flags;	/* flags on request, see below */
 	int		r_retry;	/* max retransmission count */
 	int		r_rexmit;	/* current retrans count */
@@ -382,7 +382,7 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 #define	NFS_WDELAYHASHSIZ 16	/* and with this */
 #endif
 #define	NWDELAYHASH(sock, f) \
-	(&(sock)->ns_wdelayhashtbl[(*((u_long *)(f))) % NFS_WDELAYHASHSIZ])
+	(&(sock)->ns_wdelayhashtbl[(*((u_int32_t *)(f))) % NFS_WDELAYHASHSIZ])
 #ifndef NFS_MUIDHASHSIZ
 #define NFS_MUIDHASHSIZ	63	/* Tune the size of nfsmount with this */
 #endif
@@ -395,7 +395,7 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
  * Network address hash list element
  */
 union nethostaddr {
-	u_long had_inetaddr;
+	u_int32_t had_inetaddr;
 	struct sockaddr *had_nam;
 };
 
@@ -407,7 +407,7 @@ struct nfsuid {
 	struct ucred	nu_cr;		/* Cred uid mapped to */
 	int		nu_expire;	/* Expiry time (sec) */
 	struct timeval	nu_timestamp;	/* Kerb. timestamp */
-	u_long		nu_nickname;	/* Nickname on server */
+	u_int32_t	nu_nickname;	/* Nickname on server */
 	NFSKERBKEY_T	nu_key;		/* and session key */
 };
 
@@ -439,7 +439,7 @@ struct nfssvc_sock {
 	int		ns_cc;
 	int		ns_reclen;
 	int		ns_numuids;
-	u_long		ns_sref;
+	u_int32_t	ns_sref;
 	LIST_HEAD(, nfsrv_descript) ns_tq;	/* Write gather lists */
 	LIST_HEAD(, nfsuid) ns_uidhashtbl[NFS_UIDHASHSIZ];
 	LIST_HEAD(nfsrvw_delayhash, nfsrv_descript) ns_wdelayhashtbl[NFS_WDELAYHASHSIZ];
@@ -502,8 +502,8 @@ struct nfsrv_descript {
 	int			nd_flag;	/* nd_flag */
 	int			nd_len;		/* Length of this write */
 	int			nd_repstat;	/* Reply status */
-	u_long			nd_retxid;	/* Reply xid */
-	u_long			nd_duration;	/* Lease duration */
+	u_int32_t		nd_retxid;	/* Reply xid */
+	u_int32_t		nd_duration;	/* Lease duration */
 	struct timeval		nd_starttime;	/* Time RPC initiated */
 	fhandle_t		nd_fh;		/* File handle */
 	struct ucred		nd_cr;		/* Credentials */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.59 1998/05/31 18:11:03 peter Exp $
+ * $Id: nfs_subs.c,v 1.60 1998/05/31 19:16:08 peter Exp $
  */
 
 /*
@@ -83,14 +83,14 @@
  * Data items converted to xdr at startup, since they are constant
  * This is kinda hokey, but may save a little time doing byte swaps
  */
-u_long nfs_xdrneg1;
-u_long rpc_call, rpc_vers, rpc_reply, rpc_msgdenied, rpc_autherr,
+u_int32_t nfs_xdrneg1;
+u_int32_t rpc_call, rpc_vers, rpc_reply, rpc_msgdenied, rpc_autherr,
 	rpc_mismatch, rpc_auth_unix, rpc_msgaccepted,
 	rpc_auth_kerb;
-u_long nfs_prog, nqnfs_prog, nfs_true, nfs_false;
+u_int32_t nfs_prog, nqnfs_prog, nfs_true, nfs_false;
 
 /* And other global data */
-static u_long nfs_xid = 0;
+static u_int32_t nfs_xid = 0;
 static enum vtype nv2tov_type[8]= {
 	VNON, VREG, VDIR, VBLK, VCHR, VLNK, VNON,  VNON 
 };
@@ -580,7 +580,7 @@ nfsm_reqh(vp, procid, hsiz, bposp)
 	caddr_t *bposp;
 {
 	register struct mbuf *mb;
-	register u_long *tl;
+	register u_int32_t *tl;
 	register caddr_t bpos;
 	struct mbuf *mb2;
 	struct nfsmount *nmp;
@@ -600,11 +600,11 @@ nfsm_reqh(vp, procid, hsiz, bposp)
 		if (nmp->nm_flag & NFSMNT_NQNFS) {
 			nqflag = NQNFS_NEEDLEASE(vp, procid);
 			if (nqflag) {
-				nfsm_build(tl, u_long *, 2*NFSX_UNSIGNED);
+				nfsm_build(tl, u_int32_t *, 2*NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(nqflag);
 				*tl = txdr_unsigned(nmp->nm_leaseterm);
 			} else {
-				nfsm_build(tl, u_long *, NFSX_UNSIGNED);
+				nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
 				*tl = 0;
 			}
 		}
@@ -634,15 +634,15 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	struct mbuf *mrest;
 	int mrest_len;
 	struct mbuf **mbp;
-	u_long *xidp;
+	u_int32_t *xidp;
 {
 	register struct mbuf *mb;
-	register u_long *tl;
+	register u_int32_t *tl;
 	register caddr_t bpos;
 	register int i;
 	struct mbuf *mreq, *mb2;
 	int siz, grpsiz, authsiz;
-	static u_long base;
+	static u_int32_t base;
 
 	authsiz = nfsm_rndup(auth_len);
 	MGETHDR(mb, M_WAIT, MT_DATA);
@@ -660,7 +660,7 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	/*
 	 * First the RPC header.
 	 */
-	nfsm_build(tl, u_long *, 8 * NFSX_UNSIGNED);
+	nfsm_build(tl, u_int32_t *, 8 * NFSX_UNSIGNED);
 
 	/* Get a pretty random xid to start with */
 	if (!nfs_xid) 
@@ -696,7 +696,7 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	*tl = txdr_unsigned(authsiz);
 	switch (auth_type) {
 	case RPCAUTH_UNIX:
-		nfsm_build(tl, u_long *, auth_len);
+		nfsm_build(tl, u_int32_t *, auth_len);
 		*tl++ = 0;		/* stamp ?? */
 		*tl++ = 0;		/* NULL hostname */
 		*tl++ = txdr_unsigned(cr->cr_uid);
@@ -736,7 +736,7 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	/*
 	 * And the verifier...
 	 */
-	nfsm_build(tl, u_long *, 2 * NFSX_UNSIGNED);
+	nfsm_build(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	if (verf_str) {
 		*tl++ = txdr_unsigned(RPCAUTH_KERB4);
 		*tl = txdr_unsigned(verf_len);
@@ -1038,14 +1038,14 @@ nfsm_strtmbuf(mb, bpos, cp, siz)
 {
 	register struct mbuf *m1 = NULL, *m2;
 	long left, xfer, len, tlen;
-	u_long *tl;
+	u_int32_t *tl;
 	int putsize;
 
 	putsize = 1;
 	m2 = *mb;
 	left = M_TRAILINGSPACE(m2);
 	if (left > 0) {
-		tl = ((u_long *)(*bpos));
+		tl = ((u_int32_t *)(*bpos));
 		*tl++ = txdr_unsigned(siz);
 		putsize = 0;
 		left -= NFSX_UNSIGNED;
@@ -1066,7 +1066,7 @@ nfsm_strtmbuf(mb, bpos, cp, siz)
 		m1->m_len = NFSMSIZ(m1);
 		m2->m_next = m1;
 		m2 = m1;
-		tl = mtod(m1, u_long *);
+		tl = mtod(m1, u_int32_t *);
 		tlen = 0;
 		if (putsize) {
 			*tl++ = txdr_unsigned(siz);
@@ -1207,7 +1207,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	register struct vattr *vap;
 	register struct nfs_fattr *fp;
 	register struct nfsnode *np;
-	register long t1;
+	register int32_t t1;
 	caddr_t cp2;
 	int error = 0, rdev;
 	struct mbuf *md;
@@ -1252,7 +1252,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		 */
 		if (vtyp == VNON || (vtyp == VREG && (vmode & S_IFMT) != 0))
 			vtyp = IFTOVT(vmode);
-		rdev = fxdr_unsigned(long, fp->fa2_rdev);
+		rdev = fxdr_unsigned(int32_t, fp->fa2_rdev);
 		fxdr_nfsv2time(&fp->fa2_mtime, &mtime);
 
 		/*
@@ -1313,7 +1313,8 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		fxdr_hyper(&fp->fa3_size, &vap->va_size);
 		vap->va_blocksize = NFS_FABLKSIZE;
 		fxdr_hyper(&fp->fa3_used, &vap->va_bytes);
-		vap->va_fileid = fxdr_unsigned(int, fp->fa3_fileid.nfsuquad[1]);
+		vap->va_fileid = fxdr_unsigned(int32_t,
+		    fp->fa3_fileid.nfsuquad[1]);
 		fxdr_nfsv3time(&fp->fa3_atime, &vap->va_atime);
 		fxdr_nfsv3time(&fp->fa3_ctime, &vap->va_ctime);
 		vap->va_flags = 0;
@@ -1322,15 +1323,17 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		vap->va_nlink = fxdr_unsigned(u_short, fp->fa_nlink);
 		vap->va_uid = fxdr_unsigned(uid_t, fp->fa_uid);
 		vap->va_gid = fxdr_unsigned(gid_t, fp->fa_gid);
-		vap->va_size = fxdr_unsigned(u_long, fp->fa2_size);
-		vap->va_blocksize = fxdr_unsigned(long, fp->fa2_blocksize);
-		vap->va_bytes = fxdr_unsigned(long, fp->fa2_blocks) * NFS_FABLKSIZE;
-		vap->va_fileid = fxdr_unsigned(long, fp->fa2_fileid);
+		vap->va_size = fxdr_unsigned(u_int32_t, fp->fa2_size);
+		vap->va_blocksize = fxdr_unsigned(int32_t, fp->fa2_blocksize);
+		vap->va_bytes = fxdr_unsigned(int32_t, fp->fa2_blocks)
+		    * NFS_FABLKSIZE;
+		vap->va_fileid = fxdr_unsigned(int32_t, fp->fa2_fileid);
 		fxdr_nfsv2time(&fp->fa2_atime, &vap->va_atime);
 		vap->va_flags = 0;
-		vap->va_ctime.tv_sec = fxdr_unsigned(long, fp->fa2_ctime.nfsv2_sec);
+		vap->va_ctime.tv_sec = fxdr_unsigned(u_int32_t,
+		    fp->fa2_ctime.nfsv2_sec);
 		vap->va_ctime.tv_nsec = 0;
-		vap->va_gen = fxdr_unsigned(u_long, fp->fa2_ctime.nfsv2_usec);
+		vap->va_gen = fxdr_unsigned(u_int32_t,fp->fa2_ctime.nfsv2_usec);
 		vap->va_filerev = 0;
 	}
 	if (vap->va_size != np->n_size) {
@@ -1763,13 +1766,13 @@ nfsm_srvwcc(nfsd, before_ret, before_vap, after_ret, after_vap, mbp, bposp)
 {
 	register struct mbuf *mb = *mbp, *mb2;
 	register char *bpos = *bposp;
-	register u_long *tl;
+	register u_int32_t *tl;
 
 	if (before_ret) {
-		nfsm_build(tl, u_long *, NFSX_UNSIGNED);
+		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
 		*tl = nfs_false;
 	} else {
-		nfsm_build(tl, u_long *, 7 * NFSX_UNSIGNED);
+		nfsm_build(tl, u_int32_t *, 7 * NFSX_UNSIGNED);
 		*tl++ = nfs_true;
 		txdr_hyper(&(before_vap->va_size), tl);
 		tl += 2;
@@ -1792,14 +1795,14 @@ nfsm_srvpostopattr(nfsd, after_ret, after_vap, mbp, bposp)
 {
 	register struct mbuf *mb = *mbp, *mb2;
 	register char *bpos = *bposp;
-	register u_long *tl;
+	register u_int32_t *tl;
 	register struct nfs_fattr *fp;
 
 	if (after_ret) {
-		nfsm_build(tl, u_long *, NFSX_UNSIGNED);
+		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED);
 		*tl = nfs_false;
 	} else {
-		nfsm_build(tl, u_long *, NFSX_UNSIGNED + NFSX_V3FATTR);
+		nfsm_build(tl, u_int32_t *, NFSX_UNSIGNED + NFSX_V3FATTR);
 		*tl++ = nfs_true;
 		fp = (struct nfs_fattr *)tl;
 		nfsm_srvfattr(nfsd, after_vap, fp);
