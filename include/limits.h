@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)limits.h	8.2 (Berkeley) 1/4/94
- *	$Id: limits.h,v 1.5 1997/12/27 22:56:41 steve Exp $
+ *	$Id: limits.h,v 1.6 1998/03/04 10:23:24 dufault Exp $
  */
 
 #ifndef _LIMITS_H_
 #define	_LIMITS_H_
+#include <sys/_posix.h>
 
 #ifndef _ANSI_SOURCE
 #define	_POSIX_ARG_MAX		4096
@@ -61,19 +62,24 @@
 #define	_POSIX2_LINE_MAX	2048
 #define	_POSIX2_RE_DUP_MAX	255
 
-#ifdef POSIX4_VISIBLE
 
-#define _POSIX_AIO_LISTIO_MAX	2
+#ifdef _POSIX4_VISIBLE
+
+#define _POSIX_AIO_LISTIO_MAX	16
 #define _POSIX_AIO_MAX		1
 #define _POSIX_DELAYTIMER_MAX	32
 #define _POSIX_MQ_OPEN_MAX	8
 #define _POSIX_MQ_PRIO_MAX	32
-#define _POSIX_RTSIG_MAX	8
+#define _POSIX_RTSIG_MAX	0
 #define _POSIX_SEM_NSEMS_MAX	256
 #define _POSIX_SEM_VALUE_MAX	32767
 #define _POSIX_SIGQUEUE_MAX	32
 #define _POSIX_TIMER_MAX	32
 
+#endif
+
+#ifdef _POSIX4_VISIBLE_HISTORICALLY
+#define	AIO_LISTIO_MAX		16
 #endif
 
 #endif /* !_ANSI_SOURCE */

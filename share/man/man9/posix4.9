@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: posix4.9,v 1.8 1998/01/02 19:22:52 alex Exp $
+.\"	$Id: posix4.9,v 1.1 1998/03/04 10:23:50 dufault Exp $
 .Dd March 1, 1998
 .Dt POSIX.4 9
 .Os FreeBSD 3.0
@@ -32,17 +32,21 @@
 .Sh DESCRIPTION
 POSIX.4 adds real time extensions and some commonly used
 Berkeley extensions to POSIX.1
-This section contains information about the the 
-POSIX.4 extensions to the system.
+This section contains preliminary information about avoiding conflicts
+and adding support for the required ability to specify the interface
+version.
 .Sh STATUS
-March 1, 1998 adds the header file changes to 3.0.  There should be no
-visible differences as long as _POSIX_VERSION is left at 199009L and
-no one builds kernels with a POSIX4 option.
+March 7, 1998: adding header file changes to 3.0.  There should be no
+visible differences as long as _POSIX_VERSION is left undefined.
+Defining _POSIX_VERSION, even to the current value of 199009L, will
+change the behavior of the system per the POSIX spec:  if you define
+_POSIX_VERSION to be 199009L then any extensions
+already added to the system (for example,
+John Dyson's aio work) may no longer be visible - this is happening
+slowly.
 .Pp
-If you are working with something defined in POSIX.4 then there is a good
-chance we conflict.  If you have the time then set
-_POSIX_VERSION to 199309L in /etc/make.conf and see that your work
-fits with mine.
+In spite of what I said at first, don't set _POSIX_VERSION into the
+future until I say it is working.
 .Pp
 Since this only brings in the headers I'm only explaining the feature
 test options.
@@ -70,37 +74,46 @@ in the name space, i.e., if _POSIX_VERSION is 199309L (POSIX.4) but
 _POSIX_C_SOURCE is 199009L (POSIX.1) then only POSIX.1 features should
 appear.
 .Sh PROPERLY HIDING EXTENSIONS
+The following test macros are set up in <sys/_posix.h>.  They should
+used by system header files to avoid the kind of tests you see in
+<sys/_posix.h>.  Source programs should not use these FreeBSD specific
+implementation details and should test _POSIX_VERSION.
+These should not be used in the kernel either - the kernel should be
+immune to the user land setting of _POSIX_VERSION.  The POSIX4 option can
+be used in the kernel to limit inclusion of new code, but make sure
+things work properly when a POSIX.4 program is run on a kernel without
+the POSIX4 option.
 .Bd -literal -offset 0i
-POSIX4_VISIBLE
+_POSIX4_VISIBLE
 .Ed
-is a test macro that tries to sort out when extensions should be
-visible.
+is a test macro that sorts out when extensions should be
+visible.  It is defined in <sys/_posix.h>.
 .Pp
 In normal C program development
 only _POSIX_VERSION is set, permitting BSD extensions to
 appear to the programs.  However, when adding new functionality mandated
 by POSIX.4, it
 is important to satisfy the requirements added by the
-new _POSIX_C_SOURCE macro.  POSIX4_VISIBLE (not a standard feature test macro)
+new _POSIX_C_SOURCE macro.  _POSIX4_VISIBLE (not a standard feature test macro)
 is defined in sys/unistd.h when the combination of _POSIX_VERSION,
-_POSIX_SOURCE, and _POSIX_C_SOURCE indicate the extensions are in scope.
+_POSIX_SOURCE, and _POSIX_C_SOURCE indicate that the extensions are in scope.
+.Bd -literal -offset 0i
+_POSIX4_VISIBLE_HISTORICALLY
+is present to conditionalize POSIX.4 extensions that were historically
+in the system.  These are visible when _POSIX_SOURCE and _POSIX_C_SOURCE
+are not set at all or when _POSIX_C_SOURCE enables POSIX.4 features.
 .Pp
-Since for POSIX to work you must include <unistd.h> which ultimately
-sets this up header files can always assume this is visible without
-including anything.
+Some of these are new enough that they should be changed to
+be dependent on _POSIX4_VISIBLE instead.
 .Pp
-Some traditional BSD headers (e.g., mmap.h) are now specified in POSIX.4.
-This means that functionality not present in POSIX.4 should now be
-hidden by testing _POSIX_SOURCE or _POSIX_C_SOURCE.  The safest thing
-is to hide them when _POSIX_C_SOURCE is defined and less than 199309L.
-Don't bracket the extensions with the POSIX.4 feature test macros.
-For example, don't conditionalize new memory locking flags with
-_POSIX_MEMLOCK.  It will be too easy for conflicting implementations
-that don't pay heed to the POSIX.4 flags to sneak into the system.
+Traditional BSD headers (e.g., mmap.h) that are now specified
+in POSIX.4 should include <sys/_posix.h> and conditionalize
+BSD extensions on _POSIX4_VISIBLE_HISTORICALLY.
 .Sh NON STANDARD TEST MACROS
 .Bd -literal -offset 0i
-POSIX4_INCLUDE_MAYBES
+_POSIX4_INCLUDE_MAYBES
 .Ed
+when set before the inclusion of any other header file
 requests that all header files that the POSIX.4 spec says a standard
 header may include should be included.  Normally no non-required
 headers are included.  Setting this pre-processor definition should

@@ -31,15 +31,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id:$
+ * $Id: aio.h,v 1.1 1998/03/04 10:26:10 dufault Exp $
  */
 
 /* aio.h: P1003.1B-1993 Asynchronous I/O */
 
-#ifndef _POSIX4_AIO_H_
-#define _POSIX4_AIO_H_
+#ifndef _AIO_H_
+#define _AIO_H_
 
-#ifdef POSIX4_INCLUDE_MAYBES
+#ifdef _POSIX4_INCLUDE_MAYBES
 #include <sys/types.h>
 #include <signal.h>
 #include <time.h>
@@ -87,6 +87,7 @@ struct aiocb {
 #ifndef KERNEL
 #include <sys/cdefs.h>
 
+__BEGIN_DECLS
 int aio_read __P((struct aiocb *));
 int aio_write __P((struct aiocb *));
 
@@ -101,6 +102,7 @@ int aio_suspend __P((caio_listio_ctl [_POSIX_AIO_LISTIO_MAX],
 	int, const struct timespec *));
 
 int aio_fsync __P((int, struct aiocb *));
+__END_DECLS
 
 #endif /* KERNEL */
 

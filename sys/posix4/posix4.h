@@ -33,21 +33,13 @@
  *
  */
 
-#if defined(_POSIX_VERSION) && _POSIX_VERSION >= 199309L
+#include <sys/_posix.h>
+
+#ifdef _POSIX4_VISIBLE
+
 #include <sys/param.h>
 #include <sys/ioccom.h>
 #include <sched.h>
-
-/*
- * This defines POSIX4_VISIBLE to indicate posix4 extensions should show up.
- * You should test this when you add a posix4 extension to a header
- * that exists in POSIX.1.  Try "man 9 posix4".
- */
-
-#if !defined(_POSIX_C_SOURCE) || \
- defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 199309L
-#define POSIX4_VISIBLE
-#endif
 
 /* 
  *
@@ -296,5 +288,5 @@ int kmunlock(int *, void *, const void *, size_t );
 	{ "timer_max", CTLTYPE_INT }, \
 }
 
-#endif /* _POSIX_VERSION >= 199309L */
+#endif /* _POSIX4_VISIBLE */
 #endif /* _POSIX4_POSIX4_H_ */
