@@ -41,6 +41,7 @@ MAN=	aac.4 \
 	crypto.4 \
 	csa.4 \
 	cue.4 \
+	cy.4 \
 	da.4 \
 	dc.4 \
 	dcons.4 \
