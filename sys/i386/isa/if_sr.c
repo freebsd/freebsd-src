@@ -399,7 +399,8 @@ static struct ng_type typestruct = {
 	ngsr_connect,
 	ngsr_rcvdata,
 	ngsr_rcvdata,
-	ngsr_disconnect 
+	ngsr_disconnect,
+	NULL
 };
 
 static int	ngsr_done_init = 0;

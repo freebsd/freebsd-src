@@ -47,18 +47,10 @@
 
   This defines a library of routines for converting between various C
   language types in binary form and ASCII strings.  Types are user
-  definable.  Several pre-defined types are supplied, for some common
-  C types: structures, variable and fixed length arrays, integer types,
-  variable and fixed length strings, IP addresses, etc.
-
-  A netgraph node type may provide a list of types that correspond to
-  the structures it expects to send and receive in the arguments field
-  of a control message.  This allows these messages to be converted
-  between their native binary form and the corresponding ASCII form.
-
-  A future use of the ASCII form may be for inter-machine communication
-  of control messages, because the ASCII form is machine independent
-  whereas the native binary form is not.
+  definable.  Several pre-defined types are supplied, for some
+  common C types: structures, variable and fixed length arrays,
+  integer types, variable and fixed length strings, IP addresses,
+  etc.
 
   Syntax
   ------
@@ -85,106 +77,32 @@
       That is, strings are specified just like C strings. The usual
       backslash escapes are accepted.
 
-    Other simple types (integers, IP addresses) have their obvious forms.
+   Other simple types have their obvious ASCII forms.
 
   Example
   -------
 
-    Suppose we have a netgraph command that takes as an argument
-    a 'struct foo' shown below.  Here is an example of a possible
-    value for the structure, and the corresponding ASCII encoding
-    of that value:
+      Structure			Binary (big endian)
+      ---------			-------------------
 
-	Structure			Binary value
-	---------			------------
+      struct foo {
+	struct in_addr ip;  	03 03 03 03
+	int bar;		00 00 00 00
+	u_char num;	  	02 00
+	short ary[0];	  	00 05 00 00 00 0a
+      };
 
-	struct foo {
-	    struct in_addr ip;  	01 02 03 04
-	    int bar;			00 00 00 00
-	    char label[8];		61 62 63 0a 00 00 00 00
-	    u_char alen;		03 00
-	    short ary[0];	  	05 00 00 00 0a 00
-	};
+      ASCII form:	"{ ip=3.3.3.3 num=3 ary=[ 5 2=10 ] }"
 
-	ASCII value
-	-----------
-
-	{ ip=1.2.3.4 label="abc\n" alen=3 ary=[ 5 2=10 ] }
-
-    Note that omitted fields and array elements get their default
-    values ("bar" and ary[2]), and that the alignment is handled
-    automatically (the extra 00 byte after "num").  Also, since byte
-    order and alignment are inherently machine dependent, so is this
-    conversion process.  The above example shows an x86 (little
-    endian) encoding.  Also the above example is tricky because the
-    structure is variable length, depending on 'alen', the number of
-    elements in the array 'ary'.
-
-    Here is how one would define a parse type for the above structure,
-    subclassing the pre-defined types below.  We construct the type in
-    a 'bottom up' fashion, defining each field's type first, then the
-    type for the whole structure ('//' comments used to avoid breakage).
-
-    // Super-type info for 'label' field
-    struct ng_parse_fixedsstring_info foo_label_info = { 8 };
-
-    // Parse type for 'label' field
-    struct ng_parse_type foo_label_type = {
-	    &ng_parse_fixedstring_type		// super-type
-	    &foo_label_info			// super-type info
-    };
-
-    #define OFFSETOF(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
-
-    // Function to compute the length of the array 'ary', which
-    // is variable length, depending on the previous field 'alen'.
-    // Upon entry 'buf' will be pointing at &ary[0].
-    int
-    foo_ary_getLength(const struct ng_parse_type *type,
-	    const u_char *start, const u_char *buf)
-    {
-	    const struct foo *f;
-
-	    f = (const struct foo *)(buf - OFFSETOF(struct foo, ary));
-	    return f->alen;
-    }
-
-    // Super-type info for 'ary' field
-    struct ng_parse_array_info foo_ary_info = {
-	    &ng_parse_int16_type,		// element type
-	    &foo_ary_getLength			// func to get array length
-    }
-
-    // Parse type for 'ary' field
-    struct ng_parse_type foo_ary_type = {
-	    &ng_parse_array_type,		// super-type
-	    &foo_ary_info			// super-type info
-    };
-
-    // Super-type info for struct foo
-    struct ng_parse_struct_info foo_fields = {
-	    { "ip",		&ng_parse_ipaddr_type	},
-	    { "bar",	&ng_parse_int32_type	},
-	    { "label",	&foo_label_type		},
-	    { "alen",	&ng_parse_int8_type	},
-	    { "ary",	&foo_ary_type		},
-	    { NULL }
-    };
-
-    // Parse type for struct foo
-    struct ng_parse_type foo_type = {
-	    &ng_parse_struct_type,		// super-type
-	    &foo_fields				// super-type info
-    };
+    Note that omitted fields or array elements get their default values
+    ("bar" and ary[2]), and that the alignment is handled automatically
+    (the extra 00 byte after "num").
 
   To define a type, you can define it as a sub-type of a predefined
-  type as shown above, possibly overriding some of the predefined
-  type's methods, or define an entirely new syntax, with the restriction
-  that the ASCII representation of your type's value must not contain
-  any whitespace or any of these characters: { } [ ] = "
-
-  See ng_ksocket.c for an example of how to do this for 'struct sockaddr'.
-  See ng_parse.c to see implementations of the pre-defined types below.
+  type, overriding some of the predefined type's methods and/or its
+  alignment, or define your own syntax, with the restriction that
+  the ASCII representation must not contain any whitespace or these
+  characters: { } [ ] = "
 
 */
 
@@ -194,8 +112,7 @@
 
 /*
  * Three methods are required for a type. These may be given explicitly
- * or, if NULL, inherited from the super-type.  The 'getDefault' method
- * is always optional; the others are required if there is no super-type.
+ * or, if NULL, inherited from the super-type.
  */
 
 struct ng_parse_type;
@@ -265,16 +182,7 @@ typedef	int	ng_getAlign_t(const struct ng_parse_type *type);
 
 /*
  * This structure describes a type, which may be a sub-type of another
- * type by pointing to it with 'supertype' and possibly omitting methods.
- * Typically the super-type requires some type-specific info, which is
- * supplied by the 'info' field.
- *
- * The 'private' field is ignored by all of the pre-defined types.
- * Sub-types may use it as they see fit.
- *
- * The 'getDefault' method may always be omitted (even if there is no
- * super-type), which means the value for any item of this type must
- * always be explicitly given.
+ * type by pointing to it with 'supertype' and omitting one or more methods.
  */
 struct ng_parse_type {
 	const struct ng_parse_type *supertype;	/* super-type, if any */
@@ -291,11 +199,7 @@ struct ng_parse_type {
  ************************************************************************/
 
 /*
- * STRUCTURE TYPE
- *
- * This type supports arbitrary C structures.  The normal field alignment
- * rules for the local machine are applied.  Fields are always parsed in
- * field order, no matter what order they are listed in the ASCII string.
+ * Structures
  *
  *   Default value:		Determined on a per-field basis
  *   Additional info:		struct ng_parse_struct_info *
@@ -316,26 +220,23 @@ struct ng_parse_struct_info {
 };
 
 /*
- * FIXED LENGTH ARRAY TYPE
+ * Fixed length arrays
  *
- * This type supports fixed length arrays, having any element type.
- *
- *   Default value:		As returned by getDefault for each index
+ *   Default value:		See below
  *   Additional info:		struct ng_parse_fixedarray_info *
  */
 extern const struct ng_parse_type ng_parse_fixedarray_type;
 
-/*
- * Get the default value for the element at index 'index'.  This method
- * may be NULL, in which case the default value is computed from the
- * element type.  Otherwise, it should fill in the default value at *buf
- * (having size *buflen) and update *buflen to the length of the filled-in
- * value before return.  If there is not enough routine return ERANGE.
- */
+typedef int	ng_parse_array_getLength_t(const struct ng_parse_type *type,
+				const u_char *start, const u_char *buf);
 typedef	int	ng_parse_array_getDefault_t(const struct ng_parse_type *type,
 				int index, const u_char *start,
 				u_char *buf, int *buflen);
 
+/* The 'getDefault' method may be NULL, in which case the default value
+   is computed from the element type.  If not, it should fill in the
+   default value at *buf (having size *buflen) and update *buflen to the
+   length of the filled-in value before return. */
 struct ng_parse_fixedarray_info {
 	const struct ng_parse_type	*elementType;
 	int				length;
@@ -343,24 +244,12 @@ struct ng_parse_fixedarray_info {
 };
 
 /*
- * VARIABLE LENGTH ARRAY TYPE
- *
- * Same as fixed length arrays, except that the length is determined
- * by a function instead of a constant value.
+ * Variable length arrays
  *
  *   Default value:		Same as with fixed length arrays
  *   Additional info:		struct ng_parse_array_info *
  */
 extern const struct ng_parse_type ng_parse_array_type;
-
-/*
- * Return the length of the array.  If the array is a field in a structure,
- * all prior fields are guaranteed to be filled in already.  Upon entry,
- * 'start' is equal to the first byte parsed in this run, while 'buf' points
- * to the first element of the array to be filled in.
- */
-typedef int	ng_parse_array_getLength_t(const struct ng_parse_type *type,
-				const u_char *start, const u_char *buf);
 
 struct ng_parse_array_info {
 	const struct ng_parse_type	*elementType;
@@ -369,9 +258,7 @@ struct ng_parse_array_info {
 };
 
 /*
- * ARBITRARY LENGTH STRING TYPE
- *
- * For arbirary length, NUL-terminated strings.
+ * Arbitrary length strings
  *
  *   Default value:		Empty string
  *   Additional info:		None required
@@ -379,10 +266,8 @@ struct ng_parse_array_info {
 extern const struct ng_parse_type ng_parse_string_type;
 
 /*
- * BOUNDED LENGTH STRING TYPE
- *
- * These are strings that have a fixed-size buffer, and always include
- * a terminating NUL character.
+ * Bounded length strings.  These are strings that have a fixed-size
+ * buffer, and always include a terminating NUL character.
  *
  *   Default value:		Empty string
  *   Additional info:		struct ng_parse_fixedsstring_info *
@@ -394,7 +279,7 @@ struct ng_parse_fixedsstring_info {
 };
 
 /*
- * COMMONLY USED BOUNDED LENGTH STRING TYPES
+ * Some commonly used bounded length string types
  */
 extern const struct ng_parse_type ng_parse_nodebuf_type;  /* NG_NODELEN + 1 */
 extern const struct ng_parse_type ng_parse_hookbuf_type;  /* NG_HOOKLEN + 1 */
@@ -403,7 +288,7 @@ extern const struct ng_parse_type ng_parse_typebuf_type;  /* NG_TYPELEN + 1 */
 extern const struct ng_parse_type ng_parse_cmdbuf_type;   /* NG_CMDSTRLEN + 1 */
 
 /*
- * INTEGER TYPES
+ * Integer types
  *
  *   Default value:		0
  *   Additional info:		None required
@@ -414,7 +299,7 @@ extern const struct ng_parse_type ng_parse_int32_type;
 extern const struct ng_parse_type ng_parse_int64_type;
 
 /*
- * IP ADDRESS TYPE
+ * IP address type
  *
  *   Default value:		0.0.0.0
  *   Additional info:		None required
@@ -422,11 +307,9 @@ extern const struct ng_parse_type ng_parse_int64_type;
 extern const struct ng_parse_type ng_parse_ipaddr_type;
 
 /*
- * VARIABLE LENGTH BYTE ARRAY TYPE
- *
- * The bytes are displayed in hex.  The ASCII form may be either an
- * array of bytes or a string constant, in which case the array is
- * zero-filled after the string bytes.
+ * Variable length byte array. The bytes are displayed in hex.
+ * ASCII form may be either an array of bytes or a string constant,
+ * in which case the array is zero-filled after the string bytes.
  *
  *   Default value:		All bytes are zero
  *   Additional info:		ng_parse_array_getLength_t *
@@ -434,9 +317,7 @@ extern const struct ng_parse_type ng_parse_ipaddr_type;
 extern const struct ng_parse_type ng_parse_bytearray_type;
 
 /*
- * NETGRAPH CONTROL MESSAGE TYPE
- *
- * This is the parse type for a struct ng_mesg.
+ * Netgraph control message type
  *
  *   Default value:		All fields zero
  *   Additional info:		None required

@@ -146,7 +146,8 @@ static struct ng_type typestruct = {
 	ngether_connect,
 	ngether_rcvdata,
 	ngether_rcvdata,
-	ngether_disconnect
+	ngether_disconnect,
+	NULL
 };
 
 #define AC2NG(AC) ((node_p)((AC)->ac_ng))

@@ -75,7 +75,8 @@ static struct ng_type typestruct = {
 	NULL,
 	nge_rcvdata,
 	nge_rcvdata,
-	nge_disconnect
+	nge_disconnect,
+	NULL
 };
 NETGRAPH_INIT(echo, &typestruct);
 

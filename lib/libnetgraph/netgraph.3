@@ -57,9 +57,13 @@
 .Ft int
 .Fn NgSendMsg "int cs" "const char *path" "int cookie" "int cmd" "const void *arg" "size_t arglen"
 .Ft int
+.Fn NgSendAsciiMsg "int cs" "const char *path" "const char *fmt" "..."
+.Ft int
 .Fn NgSendMsgReply "int cs" "const char *path" "struct ng_mesg *msg" "const void *arg" "size_t arglen"
 .Ft int
 .Fn NgRecvMsg "int cs" "struct ng_mesg *rep" "size_t replen" "char *path"
+.Ft int
+.Fn NgRecvAsciiMsg "int cs" "struct ng_mesg *rep" "size_t replen" "char *path"
 .Ft int
 .Fn NgSendData "int ds" "const char *hook" "const u_char *buf" "size_t len"
 .Ft int
@@ -97,7 +101,8 @@ assigns a global name to the node addressed by
 .Fa path .
 .Pp
 .Fn NgSendMsg
-sends a control message from the socket node associated with control socket
+sends a binary control message from the socket node associated
+with control socket
 .Fa cs
 to the node addressed by
 .Fa path .
@@ -122,6 +127,20 @@ to send reply to a previously received control message.
 The original message header should be pointed to by
 .Fa msg .
 .Pp
+.Fn NgSendAsciiMsg
+performs the same function as
+.Fn NgSendMsg ,
+but adds support for ASCII encoding of control messages.
+.Fn NgSendAsciiMsg
+formats its input a la
+.Xr printf 3
+and then sends the resulting ASCII string to the node in a
+.Dv NGM_ASCII2BINARY
+control message.  The node returns a binary version of the
+message, which is then sent back to the node just as with
+.Fn NgSendMsg .
+Note that ASCII conversion may not be supported by all node types.
+.Pp
 .Fn NgRecvMsg
 reads the next control message received by the node associated with
 control socket
@@ -135,6 +154,18 @@ is non-NULL, it must point to a buffer of at least
 .Dv "NG_PATHLEN + 1"
 bytes, which will be filled in (and NUL terminated) with the path to
 the node from which the message was received.
+.Pp
+.Fn NgRecvAsciiMsg
+works exactly like
+.Fn NgRecvMsg ,
+except that after the message is received, any binary arguments
+are converted to ASCII by sending a
+.Dv NGM_BINARY2ASCII
+request back to the originating node.  The result is the same as
+.Fn NgRecvAsciiMsg ,
+with the exception that the reply arguments field will contain
+a NUL-terminated ASCII version of the arguments (and the reply
+header argument length field will be adjusted).
 .Pp
 .Fn NgSendData
 writes a data packet out on the specified hook of the node corresponding
@@ -171,6 +202,11 @@ The default logging functions are
 and
 .Xr vwarnx 3 .
 .Pp
+At debug level 3, the library attempts to display control message arguments
+in ASCII format; however, this results in additional messages being
+sent which may interfere with debugging.  At even higher levels,
+even these additional messagages will be displayed, etc.
+.Pp
 Note that
 .Xr select 2
 can be used on the data and the control sockets to detect the presence of
@@ -182,9 +218,9 @@ User mode programs must be linked with the
 .Dv -lnetgraph
 flag to link in this library.
 .Sh INITIALIZATION
-Netgraph is not part of the standard FreeBSD kernel. To enable it,
-either your kernel must be compiled with ``options NETGRAPH''
-in the kernel configuration file, or else the
+To enable Netgraph in your kernel, either your kernel must be
+compiled with ``options NETGRAPH'' in the kernel configuration
+file, or else the
 .Xr netgraph 4
 and
 .Xr ng_socket 8
@@ -196,6 +232,26 @@ All functions except
 and
 .Fn NgSetErrLog
 return -1 if there was an error and set errno accordingly.
+.Pp
+For
+.Fn NgSendAsciiMsg
+and
+.Fn NgRecvAsciiMsg ,
+the following additional errors are possible:
+.Bl -tag -width Er
+.It Bq Er ENOSYS
+The node type does not know how to encode or decode the control message.
+.It Bq Er ERANGE
+The encoded or decoded arguments were too long for the supplied buffer.
+.It Bq Er ENOENT
+An unknown structure field was seen in an ASCII control message.
+.It Bq Er EALREADY
+The same structure field was specified twice in an ASCII control message.
+.It Bq Er EINVAL
+ASCII control message parse error or illegal value.
+.It Bq Er E2BIG
+ASCII control message array or fixed width string buffer overflow.
+.El
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr socket 2 ,
@@ -205,7 +261,7 @@ return -1 if there was an error and set errno accordingly.
 .Sh HISTORY
 The
 .Em netgraph
-system was designed and first implemented at Whistle Communications, Inc.
-in a version FreeBSD 2.2 customized for the Whistle InterJet.
+system was designed and first implemented at Whistle Communications, Inc. in
+a version FreeBSD 2.2 customized for the Whistle InterJet.
 .Sh AUTHOR
 .An Archie Cobbs <archie@whistle.com>

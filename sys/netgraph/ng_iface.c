@@ -73,13 +73,14 @@
 #include <net/if_types.h>
 #include <net/netisr.h>
 
+#include <netinet/in.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_iface.h>
 #include <netgraph/ng_cisco.h>
 
 #ifdef INET
-#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -166,13 +167,13 @@ const static struct iffam gFamilies[] = {
 #define NUM_FAMILIES		(sizeof(gFamilies) / sizeof(*gFamilies))
 
 /* Node private data */
-struct private {
+struct ng_iface_private {
 	struct	ifnet *ifp;		/* This interface */
 	node_p	node;			/* Our netgraph node */
 	hook_p	hooks[NUM_FAMILIES];	/* Hook for each address family */
 	struct	private *next;		/* When hung on the free list */
 };
-typedef struct private *priv_p;
+typedef struct ng_iface_private *priv_p;
 
 /* Interface methods */
 static void	ng_iface_start(struct ifnet *ifp);
@@ -213,7 +214,8 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_iface_rcvdata,
 	ng_iface_rcvdata,
-	ng_iface_disconnect
+	ng_iface_disconnect,
+	NULL
 };
 NETGRAPH_INIT(iface, &typestruct);
 
@@ -694,12 +696,8 @@ ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	int s, error = 0;
 
 	/* Sanity checks */
-#ifdef DIAGNOSTIC
-	if (iffam == NULL)
-		panic(__FUNCTION__);
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic(__FUNCTION__);
-#endif
+	KASSERT(iffam != NULL, ("%s: iffam", __FUNCTION__));
+	KASSERT(m->m_flags & M_PKTHDR, ("%s: not pkthdr", __FUNCTION__));
 	if (m == NULL)
 		return (EINVAL);
 	if ((ifp->if_flags & IFF_UP) == 0) {

@@ -47,6 +47,28 @@
 #define NG_KSOCKET_NODE_TYPE	"ksocket"
 #define NGM_KSOCKET_COOKIE	942710669
 
+/* For NGM_KSOCKET_SETOPT and NGM_KSOCKET_GETOPT control messages */
+struct ng_ksocket_sockopt {
+	u_int32_t	level;		/* second arg of [gs]etsockopt() */
+	u_int32_t	name;		/* third arg of [gs]etsockopt() */
+	u_char		value[0];	/* fourth arg of [gs]etsockopt() */
+};
+
+/* Max length socket option we can return via NGM_KSOCKET_GETOPT
+   XXX This should not be necessary, we should dynamically size
+   XXX the response. Until then.. */
+#define NG_KSOCKET_MAX_OPTLEN	1024
+
+/* Keep this in sync with the above structure definition */
+#define NG_KSOCKET_SOCKOPT_INFO(svtype)	{			\
+	{							\
+	  { "level",		&ng_parse_int32_type	},	\
+	  { "name",		&ng_parse_int32_type	},	\
+	  { "value",		(svtype)		},	\
+	  { NULL },						\
+	}							\
+}
+
 /* Netgraph commands */
 enum {
 	NGM_KSOCKET_BIND = 1,

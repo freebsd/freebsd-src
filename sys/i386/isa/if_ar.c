@@ -271,7 +271,8 @@ static struct ng_type typestruct = {
 	ngar_connect,
 	ngar_rcvdata,
 	ngar_rcvdata,
-	ngar_disconnect 
+	ngar_disconnect,
+	NULL
 };
 
 static int	ngar_done_init = 0;

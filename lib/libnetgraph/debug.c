@@ -41,24 +41,45 @@
  */
 
 #include <sys/types.h>
+
 #include <stdarg.h>
+
+#include <netinet/in.h>
+#include <net/ethernet.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_socket.h>
 
 #include "netgraph.h"
 #include "internal.h"
 
-#include <netgraph/ng_socket.h>
-#include <netgraph/ng_message.h>
-#include <netgraph/ng_iface.h>
-#include <netgraph/ng_rfc1490.h>
-#include <netgraph/ng_cisco.h>
+#include <netgraph/ng_UI.h>
 #include <netgraph/ng_async.h>
-#include <netgraph/ng_ppp.h>
+#include <netgraph/ng_cisco.h>
+#include <netgraph/ng_echo.h>
+#include <netgraph/ng_ether.h>
 #include <netgraph/ng_frame_relay.h>
+#include <netgraph/ng_hole.h>
+#include <netgraph/ng_iface.h>
+#include <netgraph/ng_ksocket.h>
 #include <netgraph/ng_lmi.h>
+#include <netgraph/ng_ppp.h>
+#include <netgraph/ng_pppoe.h>
+#include <netgraph/ng_rfc1490.h>
+#include <netgraph/ng_socket.h>
+#include <netgraph/ng_tee.h>
 #include <netgraph/ng_tty.h>
-#include <netgraph/ng_tty.h>
+#include <netgraph/ng_vjc.h>
+#ifdef	WHISTLE
+#include <machine/../isa/df_def.h>
+#include <machine/../isa/if_wfra.h>
+#include <machine/../isa/ipac.h>
+#include <netgraph/ng_df.h>
+#include <netgraph/ng_ipac.h>
+#include <netgraph/ng_mppc.h>
+#include <netgraph/ng_pptpgre.h>
+#include <netgraph/ng_tn.h>
+#endif
 
 /* Global debug level */
 int     _gNgDebugLevel = 0;
@@ -69,8 +90,45 @@ void    (*_NgLogx) (const char *fmt,...) = warnx;
 
 /* Internal functions */
 static const	char *NgCookie(int cookie);
-static const	char *NgCmd(int cookie, int cmd);
-static void	NgArgs(int cookie, int cmd, int resp, void *args, int arglen);
+
+/* Known typecookie list */
+struct ng_cookie {
+	int		cookie;
+	const char	*type;
+};
+
+#define COOKIE(c)	{ NGM_ ## c ## _COOKIE, #c }
+
+/* List of known cookies */
+static const struct ng_cookie cookies[] = {
+	COOKIE(UI),
+	COOKIE(ASYNC),
+	COOKIE(CISCO),
+	COOKIE(ECHO),
+	COOKIE(ETHER),
+	COOKIE(FRAMERELAY),
+	COOKIE(GENERIC),
+	COOKIE(HOLE),
+	COOKIE(IFACE),
+	COOKIE(KSOCKET),
+	COOKIE(LMI),
+	COOKIE(PPP),
+	COOKIE(PPPOE),
+	COOKIE(RFC1490),
+	COOKIE(SOCKET),
+	COOKIE(TEE),
+	COOKIE(TTY),
+	COOKIE(VJC),
+#ifdef WHISTLE
+	COOKIE(DF),
+	COOKIE(IPAC),
+	COOKIE(MPPC),
+	COOKIE(PPTPGRE),
+	COOKIE(TN),
+	COOKIE(WFRA),
+#endif
+	{ 0, NULL }
+};
 
 /*
  * Set debug level, ie, verbosity, if "level" is non-negative.
@@ -102,27 +160,82 @@ NgSetErrLog(void (*log) (const char *fmt,...),
  * Display a netgraph sockaddr
  */
 void
-_NgDebugSockaddr(struct sockaddr_ng *sg)
+_NgDebugSockaddr(const struct sockaddr_ng *sg)
 {
 	NGLOGX("SOCKADDR: { fam=%d len=%d addr=\"%s\" }",
 	       sg->sg_family, sg->sg_len, sg->sg_data);
 }
 
+#define ARGS_BUFSIZE	1024
+
 /*
  * Display a negraph message
  */
 void
-_NgDebugMsg(struct ng_mesg * msg)
+_NgDebugMsg(const struct ng_mesg *msg, const char *path)
 {
+	u_char buf[2 * sizeof(struct ng_mesg) + ARGS_BUFSIZE];
+	struct ng_mesg *const req = (struct ng_mesg *)buf;
+	struct ng_mesg *const bin = (struct ng_mesg *)req->data;
+	int arglen, debugSave, csock = -1;
+
+	/* Lower debugging to avoid infinite recursion */
+	debugSave = _gNgDebugLevel;
+	_gNgDebugLevel -= 4;
+
+	/* Display header stuff */
 	NGLOGX("NG_MESG :");
 	NGLOGX("  vers   %d", msg->header.version);
 	NGLOGX("  arglen %d", msg->header.arglen);
 	NGLOGX("  flags  %ld", msg->header.flags);
-	NGLOGX("  token  %lu", (u_long) msg->header.token);
-	NGLOGX("  cookie %s", NgCookie(msg->header.typecookie));
-	NGLOGX("  cmd    %s", NgCmd(msg->header.typecookie, msg->header.cmd));
-	NgArgs(msg->header.typecookie, msg->header.cmd,
-	       (msg->header.flags & NGF_RESP), msg->data, msg->header.arglen);
+	NGLOGX("  token  %lu", (u_long)msg->header.token);
+	NGLOGX("  cookie %s (%d)",
+	    NgCookie(msg->header.typecookie), msg->header.typecookie);
+
+	/* At lower debugging levels, skip ASCII translation */
+	if (_gNgDebugLevel <= 2)
+		goto fail2;
+
+	/* If path is not absolute, don't bother trying to use relative
+	   address on a different socket for the ASCII translation */
+	if (strchr(path, ':') == NULL)
+		goto fail2;
+
+	/* Get a temporary socket */
+	if (NgMkSockNode(NULL, &csock, NULL) < 0)
+		goto fail;
+
+	/* Copy binary message into request message payload */
+	arglen = msg->header.arglen;
+	if (arglen > ARGS_BUFSIZE)
+		arglen = ARGS_BUFSIZE;
+	memcpy(bin, msg, sizeof(*msg) + arglen);
+	bin->header.arglen = arglen;
+
+	/* Ask the node to translate the binary message to ASCII for us */
+	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
+	    NGM_BINARY2ASCII, bin, sizeof(*bin) + bin->header.arglen) < 0)
+		goto fail;
+	if (NgRecvMsg(csock, req, sizeof(buf), NULL) < 0)
+		goto fail;
+
+	/* Display command string and arguments */
+	NGLOGX("  cmd    %s (%d)", bin->header.cmdstr, bin->header.cmd);
+	NGLOGX("  args   %s", bin->data);
+	goto done;
+
+fail:
+	/* Just display binary version */
+	NGLOGX("  [error decoding message: %s]", strerror(errno));
+fail2:
+	NGLOGX("  cmd    %d", msg->header.cmd);
+	NGLOGX("  args (%d bytes)", msg->header.arglen);
+	_NgDebugBytes(msg->data, msg->header.arglen);
+
+done:
+	if (csock != -1)
+		(void)close(csock);
+	_gNgDebugLevel = debugSave;
 }
 
 /*
@@ -131,240 +244,20 @@ _NgDebugMsg(struct ng_mesg * msg)
 static const char *
 NgCookie(int cookie)
 {
-	static char buf[20];
+	int k;
 
-	switch (cookie) {
-	case NGM_GENERIC_COOKIE:
-		return "generic";
-	case NGM_TTY_COOKIE:
-		return "tty";
-	case NGM_ASYNC_COOKIE:
-		return "async";
-	case NGM_IFACE_COOKIE:
-		return "iface";
-	case NGM_FRAMERELAY_COOKIE:
-		return "frame_relay";
-	case NGM_LMI_COOKIE:
-		return "lmi";
-	case NGM_CISCO_COOKIE:
-		return "cisco";
-	case NGM_PPP_COOKIE:
-		return "ppp";
-	case NGM_RFC1490_NODE_COOKIE:
-		return "rfc1490";
-	case NGM_SOCKET_COOKIE:
-		return "socket";
+	for (k = 0; cookies[k].cookie != 0; k++) {
+		if (cookies[k].cookie == cookie)
+			return cookies[k].type;
 	}
-	snprintf(buf, sizeof(buf), "?? (%d)", cookie);
-	return buf;
-}
-
-/*
- * Return the name of the command
- */
-static const char *
-NgCmd(int cookie, int cmd)
-{
-	static char buf[20];
-
-	switch (cookie) {
-	case NGM_GENERIC_COOKIE:
-		switch (cmd) {
-		case NGM_SHUTDOWN:
-			return "shutdown";
-		case NGM_MKPEER:
-			return "mkpeer";
-		case NGM_CONNECT:
-			return "connect";
-		case NGM_NAME:
-			return "name";
-		case NGM_RMHOOK:
-			return "rmhook";
-		case NGM_NODEINFO:
-			return "nodeinfo";
-		case NGM_LISTHOOKS:
-			return "listhooks";
-		case NGM_LISTNAMES:
-			return "listnames";
-		case NGM_LISTNODES:
-			return "listnodes";
-		case NGM_TEXT_STATUS:
-			return "text_status";
-		}
-		break;
-	case NGM_TTY_COOKIE:
-		switch (cmd) {
-		case NGM_TTY_GET_HOTCHAR:
-			return "getHotChar";
-		case NGM_TTY_SET_HOTCHAR:
-			return "setHotChar";
-		}
-		break;
-	case NGM_ASYNC_COOKIE:
-		switch (cmd) {
-		case NGM_ASYNC_CMD_GET_STATS:
-			return "getStats";
-		case NGM_ASYNC_CMD_CLR_STATS:
-			return "setStats";
-		case NGM_ASYNC_CMD_SET_CONFIG:
-			return "setConfig";
-		case NGM_ASYNC_CMD_GET_CONFIG:
-			return "getConfig";
-		}
-		break;
-	case NGM_IFACE_COOKIE:
-		switch (cmd) {
-		case NGM_IFACE_GET_IFNAME:
-			return "getIfName";
-		case NGM_IFACE_GET_IFADDRS:
-			return "getIfAddrs";
-		}
-		break;
-	case NGM_LMI_COOKIE:
-		switch (cmd) {
-		case NGM_LMI_GET_STATUS:
-			return "get-status";
-		}
-		break;
-	}
-	snprintf(buf, sizeof(buf), "?? (%d)", cmd);
-	return buf;
-}
-
-/*
- * Decode message arguments
- */
-static void
-NgArgs(int cookie, int cmd, int resp, void *args, int arglen)
-{
-
-switch (cookie) {
-case NGM_GENERIC_COOKIE:
-	switch (cmd) {
-	case NGM_SHUTDOWN:
-		return;
-	case NGM_MKPEER:
-	    {
-		struct ngm_mkpeer *const mkp = (struct ngm_mkpeer *) args;
-
-		if (resp)
-			return;
-		NGLOGX("    type     \"%s\"", mkp->type);
-		NGLOGX("    ourhook  \"%s\"", mkp->ourhook);
-		NGLOGX("    peerhook \"%s\"", mkp->peerhook);
-		return;
-	    }
-	case NGM_CONNECT:
-	    {
-		struct ngm_connect *const ngc = (struct ngm_connect *) args;
-
-		if (resp)
-			return;
-		NGLOGX("    path     \"%s\"", ngc->path);
-		NGLOGX("    ourhook  \"%s\"", ngc->ourhook);
-		NGLOGX("    peerhook \"%s\"", ngc->peerhook);
-		return;
-	    }
-	case NGM_NAME:
-	    {
-		struct ngm_name *const ngn = (struct ngm_name *) args;
-
-		if (resp)
-			return;
-		NGLOGX("    name \"%s\"", ngn->name);
-		return;
-	    }
-	case NGM_RMHOOK:
-	    {
-		struct ngm_rmhook *const ngr = (struct ngm_rmhook *) args;
-
-		if (resp)
-			return;
-		NGLOGX("    hook \"%s\"", ngr->ourhook);
-		return;
-	    }
-	case NGM_NODEINFO:
-		return;
-	case NGM_LISTHOOKS:
-		return;
-	case NGM_LISTNAMES:
-	case NGM_LISTNODES:
-		return;
-	case NGM_TEXT_STATUS:
-		if (!resp)
-			return;
-		NGLOGX("    status \"%s\"", (char *) args);
-	    	return;
-	}
-	break;
-
-case NGM_TTY_COOKIE:
-	switch (cmd) {
-	case NGM_TTY_GET_HOTCHAR:
-		if (!resp)
-			return;
-		NGLOGX("    char 0x%02x", *((int *) args));
-		return;
-	case NGM_TTY_SET_HOTCHAR:
-		NGLOGX("    char 0x%02x", *((int *) args));
-		return;
-	}
-	break;
-
-case NGM_ASYNC_COOKIE:
-	switch (cmd) {
-	case NGM_ASYNC_CMD_GET_STATS:
-	    {
-		struct ng_async_stat *const as = (struct ng_async_stat *) args;
-
-		if (!resp)
-			return;
-		NGLOGX("    syncOctets = %lu", as->syncOctets);
-		NGLOGX("    syncFrames = %lu", as->syncFrames);
-		NGLOGX("    syncOverflows = %lu", as->syncOverflows);
-		NGLOGX("    asyncOctets = %lu", as->asyncOctets);
-		NGLOGX("    asyncFrames = %lu", as->asyncFrames);
-		NGLOGX("    asyncRunts = %lu", as->asyncRunts);
-		NGLOGX("    asyncOverflows = %lu", as->asyncOverflows);
-		NGLOGX("    asyncBadCheckSums = %lu", as->asyncBadCheckSums);
-		return;
-	    }
-	case NGM_ASYNC_CMD_GET_CONFIG:
-	case NGM_ASYNC_CMD_SET_CONFIG:
-	    {
-		struct ng_async_cfg *const ac = (struct ng_async_cfg *) args;
-
-		if (!resp ^ (cmd != NGM_ASYNC_CMD_GET_CONFIG))
-			return;
-		NGLOGX("    enabled   %s", ac->enabled ? "YES" : "NO");
-		NGLOGX("    Async MRU %u", ac->amru);
-		NGLOGX("    Sync MRU  %u", ac->smru);
-		NGLOGX("    ACCM      0x%08x", ac->accm);
-		return;
-	    }
-	case NGM_ASYNC_CMD_CLR_STATS:
-		return;
-	}
-	break;
-
-case NGM_IFACE_COOKIE:
-	switch (cmd) {
-	case NGM_IFACE_GET_IFNAME:
-		return;
-	case NGM_IFACE_GET_IFADDRS:
-		return;
-	}
-	break;
-
-	}
-	_NgDebugBytes(args, arglen);
+	return "??";
 }
 
 /*
  * Dump bytes in hex
  */
 void
-_NgDebugBytes(const u_char * ptr, int len)
+_NgDebugBytes(const u_char *ptr, int len)
 {
 	char    buf[100];
 	int     k, count;

@@ -82,6 +82,66 @@ NgSendMsg(int cs, const char *path,
 }
 
 /*
+ * Send a message given in ASCII format. We first ask the node to translate
+ * the command into binary, and then we send the binary.
+ */
+int
+NgSendAsciiMsg(int cs, const char *path, const char *fmt, ...)
+{
+	const int bufSize = 1024;
+	char replybuf[2 * sizeof(struct ng_mesg) + bufSize];
+	struct ng_mesg *const reply = (struct ng_mesg *)replybuf;
+	struct ng_mesg *const binary = (struct ng_mesg *)reply->data;
+	struct ng_mesg *ascii;
+	char *buf, *cmd, *args;
+	va_list fmtargs;
+
+	/* Parse out command and arguments */
+	va_start(fmtargs, fmt);
+	vasprintf(&buf, fmt, fmtargs);
+	va_end(fmtargs);
+	if (buf == NULL)
+		return (-1);
+
+	/* Parse out command, arguments */
+	for (cmd = buf; isspace(*cmd); cmd++)
+		;
+	for (args = cmd; *args != '\0' && !isspace(*args); args++)
+		;
+	if (*args != '\0') {
+		while (isspace(*args))
+			*args++ = '\0';
+	}
+
+	/* Get a bigger buffer to hold inner message header plus arg string */
+	if ((ascii = malloc(sizeof(struct ng_mesg)
+	    + strlen(buf) + 1)) == NULL) {
+		free(buf);
+		return (-1);
+	}
+	memset(ascii, 0, sizeof(*ascii));
+
+	/* Build inner header (only need cmdstr, arglen, and data fields) */
+	strncpy(ascii->header.cmdstr, cmd, sizeof(ascii->header.cmdstr) - 1);
+	strcpy(ascii->data, args);
+	ascii->header.arglen = strlen(ascii->data) + 1;
+	free(buf);
+
+	/* Send node a request to convert ASCII to binary */
+	if (NgSendMsg(cs, path, NGM_GENERIC_COOKIE, NGM_ASCII2BINARY,
+	    (u_char *)ascii, sizeof(*ascii) + ascii->header.arglen) < 0)
+		return (-1);
+
+	/* Get reply */
+	if (NgRecvMsg(cs, reply, sizeof(replybuf), NULL) < 0)
+		return (-1);
+
+	/* Now send binary version */
+	return NgDeliverMsg(cs,
+	    path, binary, binary->data, binary->header.arglen);
+}
+
+/*
  * Send a message that is a reply to a previously received message.
  * Returns -1 and sets errno on error, otherwise returns zero.
  */
@@ -143,7 +203,7 @@ NgDeliverMsg(int cs, const char *path,
 		NGLOGX("SENDING %s:",
 		    (msg->header.flags & NGF_RESP) ? "RESPONSE" : "MESSAGE");
 		_NgDebugSockaddr(sg);
-		_NgDebugMsg(msg);
+		_NgDebugMsg(msg, sg->sg_data);
 	}
 
 	/* Send it */
@@ -193,7 +253,7 @@ NgRecvMsg(int cs, struct ng_mesg *rep, size_t replen, char *path)
 		NGLOGX("RECEIVED %s:",
 		    (rep->header.flags & NGF_RESP) ? "RESPONSE" : "MESSAGE");
 		_NgDebugSockaddr(sg);
-		_NgDebugMsg(rep);
+		_NgDebugMsg(rep, sg->sg_data);
 	}
 
 	/* Done */
@@ -202,5 +262,50 @@ NgRecvMsg(int cs, struct ng_mesg *rep, size_t replen, char *path)
 errout:
 	errno = errnosv;
 	return (-1);
+}
+
+/*
+ * Receive a control message and convert the arguments to ASCII
+ */
+int
+NgRecvAsciiMsg(int cs, struct ng_mesg *reply, size_t replen, char *path)
+{
+	struct ng_mesg *msg, *ascii;
+	int bufSize, errnosv;
+	u_char *buf;
+
+	/* Allocate buffer */
+	bufSize = 2 * sizeof(*reply) + replen;
+	if ((buf = malloc(bufSize)) == NULL)
+		return (-1);
+	msg = (struct ng_mesg *)buf;
+	ascii = (struct ng_mesg *)msg->data;
+
+	/* Get binary message */
+	if (NgRecvMsg(cs, msg, bufSize, path) < 0)
+		goto fail;
+	memcpy(reply, msg, sizeof(*msg));
+
+	/* Ask originating node to convert the arguments to ASCII */
+	if (NgSendMsg(cs, path, NGM_GENERIC_COOKIE,
+	    NGM_BINARY2ASCII, msg, sizeof(*msg) + msg->header.arglen) < 0)
+		goto fail;
+	if (NgRecvMsg(cs, msg, bufSize, NULL) < 0)
+		goto fail;
+
+	/* Copy result to client buffer */
+	if (sizeof(*ascii) + ascii->header.arglen > replen) {
+		errno = ERANGE;
+fail:
+		errnosv = errno;
+		free(buf);
+		errno = errnosv;
+		return (-1);
+	}
+	strncpy(reply->data, ascii->data, ascii->header.arglen);
+
+	/* Done */
+	free(buf);
+	return (0);
 }
 

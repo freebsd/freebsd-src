@@ -49,7 +49,8 @@ const struct ngcmd show_cmd = {
 	ShowCmd,
 	"show [-n] <path>",
 	"Show information about the node at <path>",
-	"If the -n flag is given, hooks are not listed."
+	"If the -n flag is given, hooks are not listed.",
+	{ "inquire", "info" }
 };
 
 static int

@@ -79,7 +79,8 @@ static struct ng_type typestruct = {
 	ng_xxx_connect,
 	ng_xxx_rcvdata,
 	ng_xxx_rcvdataq,
-	ng_xxx_disconnect
+	ng_xxx_disconnect,
+	NULL
 };
 NETGRAPH_INIT(xxx, &typestruct);
 
@@ -178,7 +179,7 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 	 * file. */
 	if (strncmp(name,
 	    NG_XXX_HOOK_DLCI_LEADIN, strlen(NG_XXX_HOOK_DLCI_LEADIN)) == 0) {
-		const char *eptr;
+		char *eptr;
 
 		cp = name + sizeof(NG_XXX_HOOK_DLCI_LEADIN);
 		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
