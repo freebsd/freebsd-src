@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.95 1996/05/29 05:09:07 dyson Exp $
+ *	$Id: pmap.c,v 1.96 1996/05/31 00:37:48 dyson Exp $
  */
 
 /*
@@ -677,8 +677,8 @@ pmap_release_free_page(pmap, p)
 	}
 
 	if (p->flags & PG_MAPPED) {
-		pmap_remove_pte_mapping(VM_PAGE_TO_PHYS(p));
 		p->flags &= ~PG_MAPPED;
+		pmap_remove_pte_mapping(VM_PAGE_TO_PHYS(p));
 	}
 
 #if defined(PMAP_DIAGNOSTIC)
@@ -983,6 +983,7 @@ pmap_remove_pte(pmap, ptq, va)
 {
 	unsigned oldpte;
 	pv_entry_t *ppv;
+	int rtval;
 
 	oldpte = *ptq;
 	*ptq = 0;
@@ -1001,7 +1002,13 @@ pmap_remove_pte(pmap, ptq, va)
 			}
 		}
 		ppv = pa_to_pvh(oldpte);
-		return pmap_remove_entry(pmap, ppv, va);
+		rtval = pmap_remove_entry(pmap, ppv, va);
+#if defined(notyet)
+		if (*ppv == NULL) {
+			PHYS_TO_VM_PAGE(oldpte)->flags &= ~PG_MAPPED;
+		}
+#endif
+		return rtval;
 	} else {
 		return pmap_unuse_pt(pmap, va, NULL);
 	}
@@ -1733,12 +1740,12 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if (p->queue == PQ_CACHE)
 					vm_page_deactivate(p);
-				vm_page_hold(p);
-				p->flags |= PG_MAPPED;
+				p->flags |= PG_BUSY;
 				pmap_enter_quick(pmap, 
 					addr + (tmpidx << PAGE_SHIFT),
 					VM_PAGE_TO_PHYS(p));
-				vm_page_unhold(p);
+				p->flags |= PG_MAPPED;
+				PAGE_WAKEUP(p);
 			}
 			objpgs -= 1;
 		}
@@ -1752,12 +1759,12 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 			    (p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
-				vm_page_hold(p);
-				p->flags |= PG_MAPPED;
+				p->flags |= PG_BUSY;
 				pmap_enter_quick(pmap, 
 					addr + (tmpidx << PAGE_SHIFT),
 					VM_PAGE_TO_PHYS(p));
-				vm_page_unhold(p);
+				p->flags |= PG_MAPPED;
+				PAGE_WAKEUP(p);
 			}
 		}
 	}
@@ -1843,10 +1850,10 @@ pmap_prefault(pmap, addra, entry, object)
 			if (m->queue == PQ_CACHE) {
 				vm_page_deactivate(m);
 			}
-			vm_page_hold(m);
-			m->flags |= PG_MAPPED;
+			m->flags |= PG_BUSY;
 			pmap_enter_quick(pmap, addr, VM_PAGE_TO_PHYS(m));
-			vm_page_unhold(m);
+			m->flags |= PG_MAPPED;
+			PAGE_WAKEUP(m);
 		}
 	}
 }
@@ -1940,7 +1947,10 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 		while (addr < pdnxt) {
 			unsigned ptetemp;
 			ptetemp = *src_pte;
-			if (ptetemp) {
+			/*
+			 * we only virtual copy managed pages
+			 */
+			if ((ptetemp & PG_MANAGED) != 0) {
 				/*
 				 * We have to check after allocpte for the
 				 * pte still being around...  allocpte can
