@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1999/03/10 13:41:44 kato Exp $
+# $Id: Makefile,v 1.4 1999/03/18 13:42:21 kato Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -69,7 +69,7 @@ CFLAGS+=	-DNEW_LINKER_SET
 #LDFLAGS+=	-g
 
 vers.o:
-	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+	sh ${.CURDIR}/../../i386/loader/newvers.sh ${.CURDIR}/../../i386/loader/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
 ${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help
@@ -82,7 +82,7 @@ ${BASE}.bin: ${BASE}.sym
 	cp ${.ALLSRC} ${.TARGET}
 	strip ${.TARGET}
 
-${BASE}.help: help.common help.pc98
+${BASE}.help: help.common help.i386
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 beforeinstall:
