@@ -125,8 +125,8 @@
 
 struct	device cur;
 struct	device *curp = 0;
-char	*temp_id;
-char	*val_id;
+
+#define ns(s)	strdup(s)
 
 %}
 %%
@@ -188,17 +188,16 @@ Config_spec:
 		struct cputype *cp =
 		    (struct cputype *)malloc(sizeof (struct cputype));
 		memset(cp, 0, sizeof(*cp));
-		cp->cpu_name = ns($2);
+		cp->cpu_name = $2;
 		cp->cpu_next = cputype;
 		cputype = cp;
-		free(temp_id);
 	      } |
 	OPTIONS Opt_list
 		|
 	MAKEOPTIONS Mkopt_list
 		|
 	IDENT ID
-	      = { ident = ns($2); } |
+	      = { ident = $2; } |
 	System_spec
 		|
 	MAXUSERS NUMBER
@@ -397,7 +396,7 @@ Option:
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		char *s;
 		memset(op, 0, sizeof(*op));
-		op->op_name = ns($1);
+		op->op_name = $1;
 		op->op_next = opt;
 		op->op_value = 0;
 		opt = op;
@@ -406,34 +405,31 @@ Option:
 			*s = '\0';
 			op->op_value = ns(s + 1);
 		}
-		free(temp_id);
 	      } |
 	Save_id EQUALS Opt_value
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		memset(op, 0, sizeof(*op));
-		op->op_name = ns($1);
+		op->op_name = $1;
 		op->op_next = opt;
-		op->op_value = ns($3);
+		op->op_value = $3;
 		opt = op;
-		free(temp_id);
-		free(val_id);
 	      } ;
 
 Opt_value:
 	ID
-	      = { $$ = val_id = ns($1); } |
+	      = { $$ = $1; } |
 	NUMBER
 	      = {
 		char nb[16];
 	        (void) sprintf(nb, "%d", $1);
-		$$ = val_id = ns(nb);
+		$$ = ns(nb);
 	      } ;
 
 
 Save_id:
 	ID
-	      = { $$ = temp_id = ns($1); }
+	      = { $$ = $1; }
 	;
 
 Mkopt_list:
@@ -447,18 +443,16 @@ Mkoption:
 	      = {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		memset(op, 0, sizeof(*op));
-		op->op_name = ns($1);
+		op->op_name = $1;
 		op->op_ownfile = 0;	/* for now */
 		op->op_next = mkopt;
-		op->op_value = ns($3);
+		op->op_value = $3;
 		mkopt = op;
-		free(temp_id);
-		free(val_id);
 	      } ;
 
 Dev:
 	ID
-	      = { $$ = ns($1); }
+	      = { $$ = $1; }
 	;
 
 Device_spec:
@@ -620,7 +614,7 @@ Info:
 	IOSIZ NUMBER
 	      = { cur.d_msize = $2; } |
 	PORT device_name
-	      = { cur.d_port = ns($2); } |
+	      = { cur.d_port = $2; } |
 	PORT NUMBER
 	      = { cur.d_portn = $2; } |
 	PORT AUTO
@@ -669,20 +663,6 @@ yyerror(s)
 {
 
 	fprintf(stderr, "config: line %d: %s\n", yyline + 1, s);
-}
-
-/*
- * return the passed string in a new space
- */
-char *
-ns(str)
-	register char *str;
-{
-	register char *cp;
-
-	cp = malloc((unsigned)(strlen(str)+1));
-	(void) strcpy(cp, str);
-	return (cp);
 }
 
 /*
