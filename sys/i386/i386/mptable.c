@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 /* string defined by the Intel MP Spec as identifying the MP table */
 #define	MP_SIG			0x5f504d5f	/* _MP_ */
 
-#define	NAPICID			32	/* Max number of I/O APIC's */
+#define	NAPICID			32	/* Max number of APIC's */
 
 #ifdef PC98
 #define BIOS_BASE		(0xe8000)
@@ -816,7 +816,7 @@ mptable_hyperthread_fixup(u_int id_mask)
 	 * physical processor.  If any of those ID's are
 	 * already in the table, then kill the fixup.
 	 */
-	for (id = 0; id <= MAXCPU; id++) {
+	for (id = 0; id < NAPICID; id++) {
 		if ((id_mask & 1 << id) == 0)
 			continue;
 		/* First, make sure we are on a logical_cpus boundary. */
