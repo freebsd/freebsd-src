@@ -2224,19 +2224,19 @@ cons25|ansis|ansi80x25:\
 cons25-m|ansis-mono|ansi80x25-mono:\
 	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25:
 cons30|ansi80x30:\
-        :li#30:tc=cons25:
+	:li#30:tc=cons25:
 cons30-m|ansi80x30-mono:\
 	:li#30:tc=cons25-m:
 cons43|ansi80x43:\
-        :li#43:tc=cons25:
+	:li#43:tc=cons25:
 cons43-m|ansi80x43-mono:\
 	:li#43:tc=cons25-m:
 cons50|ansil|ansi80x50:\
-        :li#50:tc=cons25:
+	:li#50:tc=cons25:
 cons50-m|ansil-mono|ansi80x50-mono:\
 	:li#50:tc=cons25-m:
 cons60|ansi80x60:\
-        :li#60:tc=cons25:
+	:li#60:tc=cons25:
 cons60-m|ansi80x60-mono:\
 	:li#60:tc=cons25-m:
 # Syscons console with koi8-r russian code table.
@@ -2261,13 +2261,13 @@ cons50l1|cons50-iso8859-1:\
 cons50l1-m|cons50-iso8859-1-mono:\
 	:li#50:tc=cons25l1-m:
 dosansi|ANSI.SYS standard crt:\
-        :am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
-        :do=\E[B:li#25:mi:nd=\E[C:\
-        :se=\E[m:so=\E[7m:up=\E[A:us=\E[4m:ue=\E[m:\
-        :md=\E[1m:mh=\E[m:mb=\E[5m:me=\E[m:\
-        :kh=\EG:kb=^h:ku=\EH:kd=\EP:kl=\EK:kr=\EM:\
-        :k1=\E;:k2=\E<:k3=\E=:k4=\E>:k5=\E?:\
-        :k6=\E@:k7=\EA:k8=\EB:k9=\EC:k0=\ED:
+	:am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
+	:do=\E[B:li#25:mi:nd=\E[C:\
+	:se=\E[m:so=\E[7m:up=\E[A:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mh=\E[m:mb=\E[5m:me=\E[m:\
+	:kh=\EG:kb=^h:ku=\EH:kd=\EP:kl=\EK:kr=\EM:\
+	:k1=\E;:k2=\E<:k3=\E=:k4=\E>:k5=\E?:\
+	:k6=\E@:k7=\EA:k8=\EB:k9=\EC:k0=\ED:
 # # --------------------------------
 #
 # d: DEC (DIGITAL EQUIPMENT CORPORATION)
