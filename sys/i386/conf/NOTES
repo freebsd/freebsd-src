@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.100 1994/10/26 19:20:27 jkh Exp $
+#	$Id: LINT,v 1.101 1994/10/26 21:10:13 wollman Exp $
 #
 
 #
@@ -40,6 +40,12 @@ maxusers	10
 options		MATH_EMULATE		#Support for x87 emulation
 #options        GPL_MATH_EMULATE        #Support for x87 emualtion via
                                         #new math emulator 
+
+# Enable the following (IPFIREWALL_VERBOSE optional) to enable the IP firewall
+# code.  This is used in conjunction with the ipfw(1) command.  See the
+# man page for more details.
+options         IPFIREWALL              #firewall test
+options         IPFIREWALL_VERBOSE      #print information about dropped packets
 
 #
 # This directive defines a number of things:

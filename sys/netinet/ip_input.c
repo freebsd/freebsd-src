@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.7 1994/10/02 17:48:39 phk Exp $
+ * $Id: ip_input.c,v 1.8 1994/10/10 07:56:07 phk Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,10 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
+
+#ifdef IPFIREWALL
+#include <netinet/ip_fw.h>
+#endif
 
 #include <sys/socketvar.h>
 struct socket *ip_rsvpd;
@@ -231,6 +235,13 @@ next:
 			m_adj(m, ip->ip_len - m->m_pkthdr.len);
 	}
 
+#ifdef IPFIREWALL
+        if ( ((char *)&(ip->ip_dst.s_addr))[0] != 127
+        && !ip_firewall_check(ip,ip_fw_blk_chain) ) {
+                goto bad;
+        }
+#endif                            
+
 	/*
 	 * Process options and, if not destined for us,
 	 * ship it on.  ip_dooptions returns 1 when an
@@ -341,6 +352,7 @@ next:
 	goto next;
 
 ours:
+
 	/*
 	 * If offset or IP_MF are set, must reassemble.
 	 * Otherwise, nothing need be done.
@@ -1019,9 +1031,19 @@ ip_forward(m, srcrt)
 	dest = 0;
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
-		printf("forward: src %lx dst %lx ttl %x\n", 
+		printf("forward: src %lx dst %lx ttl %x\n",
 			ip->ip_src.s_addr, ip->ip_dst.s_addr, ip->ip_ttl);
 #endif
+
+#ifdef IPFIREWALL
+	if ( ((char *)&(ip->ip_dst.s_addr))[0] != 127
+	&& !ip_firewall_check(ip,ip_fw_fwd_chain) ) {
+		ipstat.ips_cantforward++;
+		m_freem(m);
+		return;
+	} 
+#endif   
+
 	if (m->m_flags & M_BCAST || in_canforward(ip->ip_dst) == 0) {
 		ipstat.ips_cantforward++;
 		m_freem(m);
