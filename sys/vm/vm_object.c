@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.127 1998/08/24 08:39:37 dfr Exp $
+ * $Id: vm_object.c,v 1.128 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*
@@ -1323,7 +1323,8 @@ again:
 			if (all || ((start <= p->pindex) && (p->pindex < end))) {
 				if (p->wire_count != 0) {
 					vm_page_protect(p, VM_PROT_NONE);
-					p->valid = 0;
+					if (!clean_only)
+						p->valid = 0;
 					continue;
 				}
 
@@ -1351,8 +1352,9 @@ again:
 			if ((p = vm_page_lookup(object, start)) != 0) {
 
 				if (p->wire_count != 0) {
-					p->valid = 0;
 					vm_page_protect(p, VM_PROT_NONE);
+					if (!clean_only)
+						p->valid = 0;
 					start += 1;
 					size -= 1;
 					continue;
