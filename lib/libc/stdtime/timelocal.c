@@ -47,7 +47,7 @@ int _time_using_locale;
 #define	LCTIME_SIZE_1 \
 	(offsetof(struct lc_time_T, alt_month[0]) / sizeof(char *))
 #define LCTIME_SIZE_2 \
-	(offsetof(struct lc_time_T, Ex_fmt) / sizeof(char *))
+	(offsetof(struct lc_time_T, Ef_fmt) / sizeof(char *))
 
 const struct lc_time_T	_C_time_locale = {
 	{
@@ -82,7 +82,7 @@ const struct lc_time_T	_C_time_locale = {
 	**	"%a %b %d %H:%M:%S %Y"
 	** is used by Solaris 2.3.
 	*/
-	"%a %Ex %X %Y",
+	"%a %Ef %X %Y",
 
 	/* am */
 	"AM",
@@ -91,17 +91,22 @@ const struct lc_time_T	_C_time_locale = {
 	"PM",
 
 	/* date_fmt */
-	"%a %Ex %X %Z %Y",
+	"%a %Ef %X %Z %Y",
 	
 	{
 		"January", "February", "March", "April", "May", "June",
 		"July", "August", "September", "October", "November", "December"
 	},
 
-	/* Ex_fmt
-	** To determine months / day order
+	/* Ef_fmt
+	** To determine short months / day order
 	*/
-	"%b %e"
+	"%b %e",
+
+	/* EF_fmt
+	** To determine long months / day order
+	*/
+	"%B %e"
 };
 
 
