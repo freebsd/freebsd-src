@@ -114,13 +114,6 @@
 
 #define _I386_ISA_ISA_DEVICE_H_
 
-#undef NPNP
-#define NPNP 0
-
-#if NPNP > 0
-#include <i386/isa/pnp.h>
-#endif
-
 static MALLOC_DEFINE(M_DEVL, "uc_devlist", "uc_device lists in userconfig()");
 
 #include <machine/uc_device.h>
@@ -2450,11 +2443,6 @@ typedef struct _cmd {
 } Cmd;
 
 
-#if 0
-static void lsscsi(void);
-static int list_scsi(CmdParm *);
-#endif
-
 static int lsdevtab(struct uc_device *);
 static struct uc_device *find_device(char *, int);
 static struct uc_device *search_devtable(struct uc_device *, char *, int);
@@ -2478,22 +2466,17 @@ static int helpfunc(CmdParm *);
 static int introfunc(CmdParm *);
 #endif
 
-#if NPNP > 0
-static int lspnp(void);
-static int set_pnp_parms(CmdParm *);
-#endif
-
 static int lineno;
 
 #include "eisa.h"
 
-#if NEISA > 0
+#ifdef DEV_EISA
 
 #include <dev/eisa/eisaconf.h>
 
 static int set_num_eisa_slots(CmdParm *);
 
-#endif /* NEISA > 0 */
+#endif
 
 static CmdParm addr_parms[] = {
     { PARM_DEVSPEC, {} },
@@ -2512,27 +2495,20 @@ static CmdParm dev_parms[] = {
     { -1, {} },
 };
 
-#if NPNP > 0
-static CmdParm string_arg[] = {
-    { PARM_STRING, {} },
-    { -1, {} },
-};
-#endif
-
-#if NEISA > 0
+#ifdef DEV_EISA
 static CmdParm int_arg[] = {
     { PARM_INT, {} },
     { -1, {} },
 };
-#endif /* NEISA > 0 */
+#endif
 
 static Cmd CmdList[] = {
     { "?", 	helpfunc, 		NULL },		/* ? (help)	*/
     { "di",	set_device_disable,	dev_parms },	/* disable dev	*/
     { "dr",	set_device_drq,		int_parms },	/* drq dev #	*/
-#if NEISA > 0
+#ifdef DEV_EISA
     { "ei",	set_num_eisa_slots,	int_arg },	/* # EISA slots */
-#endif /* NEISA > 0 */
+#endif
     { "en",	set_device_enable,	dev_parms },	/* enable dev	*/
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
@@ -2544,15 +2520,9 @@ static Cmd CmdList[] = {
     { "ios",	set_device_iosize,	int_parms },	/* iosize dev size */
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
     { "l",	list_devices,		NULL },		/* ls, list	*/
-#if NPNP > 0
-    { "pn",	set_pnp_parms,		string_arg },	/* pnp ... */
-#endif
     { "po",	set_device_ioaddr,	int_parms },	/* port dev addr */
     { "res",	(CmdFunc)cpu_reset,	NULL },		/* reset CPU	*/
     { "q", 	quitfunc, 		NULL },		/* quit		*/
-#if 0
-    { "s",	list_scsi,		NULL },		/* scsi */
-#endif
 #ifdef VISUAL_USERCONFIG
     { "v",	(CmdFunc)visuserconfig,	NULL },		/* visual mode */
 #endif
@@ -2704,12 +2674,9 @@ list_devices(CmdParm *parms)
 {
     lineno = 0;
     if (lsdevtab(uc_devtab)) return 0;
-#if NPNP > 0
-    if (lspnp()) return 0;
-#endif
-#if NEISA > 0
+#ifdef DEV_EISA
     printf("\nNumber of EISA slots to probe: %d\n", num_eisa_slots);
-#endif /* NEISA > 0 */
+#endif
     return 0;
 }
 
@@ -2795,120 +2762,7 @@ set_device_disable(CmdParm *parms)
     return 0;
 }
 
-#if NPNP > 0
-
-static int
-sysctl_machdep_uc_pnplist(SYSCTL_HANDLER_ARGS)
-{
-	int error=0;
-
-	if(!req->oldptr) {
-		/* Only sizing */
-		return(SYSCTL_OUT(req,0,sizeof(struct pnp_cinfo)*MAX_PNP_LDN));
-	} else {
-		/*
-		 * Output the pnp_ldn_overrides[] table.
-		 */
-		error=sysctl_handle_opaque(oidp,&pnp_ldn_overrides,
-			sizeof(struct pnp_cinfo)*MAX_PNP_LDN,req);
-		if(error) return(error);
-		return(0);
-	}
-}
-
-SYSCTL_PROC( _machdep, OID_AUTO, uc_pnplist, CTLFLAG_RD,
-	0, 0, sysctl_machdep_uc_pnplist, "A",
-	"List of PnP overrides changed in UserConfig");
-
-/*
- * this function sets the kernel table to override bios PnP
- * configuration.
- */
-static int      
-set_pnp_parms(CmdParm *parms)      
-{   
-    u_long idx, val, ldn, csn;
-    int i;
-    char *q;
-    const char *p = parms[0].parm.u.sparm;
-    struct pnp_cinfo d;
-
-    csn=strtoul(p,&q, 0);
-    ldn=strtoul(q,&q, 0);
-    for (p=q; *p && (*p==' ' || *p=='\t'); p++) ;
-    if (csn < 1 || csn > MAX_PNP_CARDS || ldn >= MAX_PNP_LDN) {
-	printf("bad csn/ldn %ld:%ld\n", csn, ldn);
-	return 0;
-    }
-    for (i=0; i < MAX_PNP_LDN; i++) {
-	if (pnp_ldn_overrides[i].csn == csn &&
-	    pnp_ldn_overrides[i].ldn == ldn)
-		break;
-    }
-    if (i==MAX_PNP_LDN) {
-	for (i=0; i < MAX_PNP_LDN; i++) {
-	    if (pnp_ldn_overrides[i].csn <1 ||
-		 pnp_ldn_overrides[i].csn > MAX_PNP_CARDS)
-		 break;
-	}
-    }
-    if (i==MAX_PNP_LDN) {
-	printf("sorry, no PnP entries available, try delete one\n");
-	return 0 ;
-    }
-    d = pnp_ldn_overrides[i] ;
-    d.csn = csn;
-    d.ldn = ldn ;
-    while (*p) {
-	idx = 0;
-	val = 0;
-	if (!strncmp(p,"irq",3)) {
-	    idx=strtoul(p+3,&q, 0);
-	    val=strtoul(q,&q, 0);
-	    if (idx >=0 && idx < 2) d.irq[idx] = val;
-	} else if (!strncmp(p,"flags",5)) {
-	    idx=strtoul(p+5,&q, 0);
-	    d.flags = idx;
-	} else if (!strncmp(p,"drq",3)) {
-	    idx=strtoul(p+3,&q, 0);
-	    val=strtoul(q,&q, 0);
-	    if (idx >=0 && idx < 2) d.drq[idx] = val;
-	} else if (!strncmp(p,"port",4)) {
-	    idx=strtoul(p+4,&q, 0);
-	    val=strtoul(q,&q, 0);
-	    if (idx >=0 && idx < 8) d.port[idx] = val;
-	} else if (!strncmp(p,"mem",3)) {
-	    idx=strtoul(p+3,&q, 0);
-	    val=strtoul(q,&q, 0);
-	    if (idx >=0 && idx < 4) d.mem[idx].base = val;
-	} else if (!strncmp(p,"bios",4)) {
-	    q = p+ 4;
-	    d.override = 0 ;
-	} else if (!strncmp(p,"os",2)) {
-	    q = p+2 ;
-	    d.override = 1 ;
-	} else if (!strncmp(p,"disable",7)) {
-	    q = p+7 ;
-	    d.enable = 0 ;
-	} else if (!strncmp(p,"enable",6)) {
-	    q = p+6;
-	    d.enable = 1 ;
-	} else if (!strncmp(p,"delete",6)) {
-	    bzero(&pnp_ldn_overrides[i], sizeof (pnp_ldn_overrides[i]));
-	    if (i==0) pnp_ldn_overrides[i].csn = 255;/* not reinit */
-	    return 0;
-	} else {
-	    printf("unknown command <%s>\n", p);
-	    break;
-	}
-	for (p=q; *p && (*p==' ' || *p=='\t'); p++) ;
-    }
-    pnp_ldn_overrides[i] = d ;
-    return 0; 
-}
-#endif /* NPNP */
-
-#if NEISA > 0
+#ifdef DEV_EISA
 static int
 set_num_eisa_slots(CmdParm *parms)
 {
@@ -2918,7 +2772,7 @@ set_num_eisa_slots(CmdParm *parms)
     num_eisa_slots = (num_slots <= 16 ? num_slots : 10);
     return 0;
 }
-#endif /* NEISA > 0 */
+#endif
 
 static int
 quitfunc(CmdParm *parms)
@@ -2948,18 +2802,9 @@ helpfunc(CmdParm *parms)
     "flags <devname> <mask>\tSet device flags\n"
     "enable <devname>\tEnable device\n"
     "disable <devname>\tDisable device (will not be probed)\n");
-#if NPNP > 0
-    printf(
-    "pnp <csn> <ldn> [enable|disable]\tenable/disable device\n"
-    "pnp <csn> <ldn> [os|bios]\tset parameters using FreeBSD or BIOS\n"
-    "pnp <csn> <ldn> [portX <addr>]\tset addr for port X (0..7)\n"
-    "pnp <csn> <ldn> [memX <maddr>]\tset addr for memory range X (0..3)\n"
-    "pnp <csn> <ldn> [irqX <number>]\tset irq X (0..1) to number, 0=unused\n"
-    "pnp <csn> <ldn> [drqX <number>]\tset drq X (0..1) to number, 4=unused\n");
-#endif
-#if NEISA > 0
+#ifdef DEV_EISA
     printf("eisa <number>\t\tSet the number of EISA slots to probe\n");
-#endif /* NEISA > 0 */
+#endif
     printf(
     "quit\t\t\tExit this configuration utility\n"
     "reset\t\t\tReset CPU\n");
@@ -3120,69 +2965,6 @@ introfunc(CmdParm *parms)
 }
 #endif
 
-#if NPNP > 0
-static int
-lspnp ()
-{
-    struct pnp_cinfo *c;
-    int i, first = 1;
-
-
-    for (i=0; i< MAX_PNP_LDN; i++) {
-	c = &pnp_ldn_overrides[i];
-	if (c->csn >0 && c->csn != 255) {
-	    int pmax, mmax;
-	    static char pfmt[] =
-		"port 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x ";
-	    static char mfmt[] =
-		"mem 0x%x 0x%x 0x%x 0x%x";
-	    char buf[256];
-	    if (lineno >= 23) {
-		    if (!userconfig_boot_parsing) {
-			    printf("<More> ");
-			    if (getchar() == 'q') {
-				    printf("quit\n");
-				    return (1);
-			    }
-			    printf("\n");
-		    }
-		    lineno = 0;
-	    }
-	    if (lineno == 0 || first)
-		printf("CSN LDN conf en irqs  drqs others (PnP devices)\n");
-	    first = 0 ;
-	    printf("%3d %3d %4s %2s %2d %-2d %2d %-2d ",
-		c->csn, c->ldn,
-		c->override ? "OS  ":"BIOS",
-		c->enable ? "Y":"N",
-		c->irq[0], c->irq[1], c->drq[0], c->drq[1]);
-	    if (c->flags)
-		printf("flags 0x%08lx ",c->flags);
-	    for (pmax = 7; pmax >=0 ; pmax--)
-		if (c->port[pmax]!=0) break;
-	    for (mmax = 3; mmax >=0 ; mmax--)
-		if (c->mem[mmax].base!=0) break;
-	    if (pmax>=0) {
-		strcpy(buf, pfmt);
-		buf[10 + 5*pmax]='\0';
-		printf(buf,
-		    c->port[0], c->port[1], c->port[2], c->port[3],
-		    c->port[4], c->port[5], c->port[6], c->port[7]);
-	    }
-	    if (mmax>=0) {
-		strcpy(buf, mfmt);
-		buf[8 + 5*mmax]='\0';
-		printf(buf,
-		    c->mem[0].base, c->mem[1].base,
-		    c->mem[2].base, c->mem[3].base);
-	    }
-	    printf("\n");
-	}
-    }
-    return 0 ;
-}
-#endif /* NPNP */
-		
 static int
 lsdevtab(struct uc_device *dt)
 {
@@ -3318,83 +3100,6 @@ cngets(char *input, int maxin)
 	*input++ = (u_char)c;
     }
 }
-
-
-#if 0
-/* scsi: Support for displaying configured SCSI devices.
- * There is no way to edit them, and this is inconsistent
- * with the ISA method.  This is here as a basis for further work.
- */
-static char *
-type_text(char *name)	/* XXX: This is bogus */
-{
-	if (strcmp(name, "sd") == 0)
-		return "disk";
-
-	if (strcmp(name, "st") == 0)
-		return "tape";
-
-	return "device";
-}
-
-id_put(char *desc, int id)
-{
-    if (id != SCCONF_UNSPEC)
-    {
-    	if (desc)
-	    printf("%s", desc);
-
-    	if (id == SCCONF_ANY)
-	    printf("?");
-        else
-	    printf("%d", id);
-    }
-}
-
-static void
-lsscsi(void)
-{
-    int i;
-
-    printf("scsi: (can't be edited):\n");
-
-    for (i = 0; scsi_cinit[i].driver; i++)
-    {
-	id_put("controller scbus", scsi_cinit[i].scbus);
-
-	if (scsi_cinit[i].unit != -1)
-	{
-	    printf(" at ");
-	    id_put(scsi_cinit[i].driver, scsi_cinit[i].unit);
-	}
-
-	printf("\n");
-    }
-
-    for (i = 0; scsi_dinit[i].name; i++)
-    {
-		printf("%s ", type_text(scsi_dinit[i].name));
-
-		id_put(scsi_dinit[i].name, scsi_dinit[i].unit);
-		id_put(" at scbus", scsi_dinit[i].cunit);
-		id_put(" target ", scsi_dinit[i].target);
-		id_put(" lun ", scsi_dinit[i].lun);
-
-		if (scsi_dinit[i].flags)
-	    	printf(" flags 0x%x\n", scsi_dinit[i].flags);
-
-		printf("\n");
-    }
-}
-
-static int
-list_scsi(CmdParm *parms)
-{
-    lineno = 0;
-    lsscsi();
-    return 0;
-}
-#endif
 
 static void
 save_resource(struct uc_device *idev)
