@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id: igmp_var.h,v 1.5 1995/02/16 00:27:42 wollman Exp $
+ * $Id: igmp_var.h,v 1.6 1995/06/13 17:51:07 wollman Exp $
  */
 
 #ifndef _NETINET_IGMP_VAR_H_
@@ -73,7 +73,6 @@ void	igmp_joingroup __P((struct in_multi *));
 void	igmp_leavegroup __P((struct in_multi *));
 void	igmp_fasttimo __P((void));
 void	igmp_slowtimo __P((void));
-int	igmp_sysctl(int *, u_int, void *, size_t *, void *, size_t);
 #endif
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.14 1995/09/18 15:51:37 wollman Exp $
+ *	$Id: ip_var.h,v 1.15 1995/09/21 18:04:43 wollman Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -164,35 +164,20 @@ extern u_long	(*ip_mcast_src) __P((int));
 extern int rsvp_on;
 
 int	 ip_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
-void	 ip_deq __P((struct ipasfrag *));
-int	 ip_dooptions __P((struct mbuf *));
 void	 ip_drain __P((void));
-void	 ip_enq __P((struct ipasfrag *, struct ipasfrag *));
-void	 ip_forward __P((struct mbuf *, int));
-void	 ip_freef __P((struct ipq *));
 void	 ip_freemoptions __P((struct ip_moptions *));
-int	 ip_getmoptions __P((int, struct ip_moptions *, struct mbuf **));
 void	 ip_init __P((void));
 extern int	 (*ip_mforward) __P((struct ip *, struct ifnet *, struct mbuf *,
 			  struct ip_moptions *));
 #ifdef MTUDISC
 int	 ip_next_mtu __P((int, int));
 #endif /* MTUDISC */
-int	 ip_optcopy __P((struct ip *, struct ip *));
 int	 ip_output __P((struct mbuf *,
 	    struct mbuf *, struct route *, int, struct ip_moptions *));
-int	 ip_pcbopts __P((struct mbuf **, struct mbuf *));
-struct ip *
-	 ip_reass __P((struct ipasfrag *, struct ipq *));
-struct in_ifaddr *
-	 ip_rtaddr __P((struct in_addr));
-int	 ip_setmoptions __P((int, struct ip_moptions **, struct mbuf *));
 void	 ip_slowtimo __P((void));
 struct mbuf *
 	 ip_srcroute __P((void));
 void	 ip_stripoptions __P((struct mbuf *, struct mbuf *));
-int	 ip_sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
-void	 ipintr __P((void));
 int	 rip_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 void	 rip_init __P((void));
 void	 rip_input __P((struct mbuf *));

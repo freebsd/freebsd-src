@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.13 1995/08/17 22:09:14 olah Exp $
+ *	$Id: udp_usrreq.c,v 1.14 1995/09/22 19:56:26 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@
 #include <sys/stat.h>
 #include <sys/queue.h>
 #include <vm/vm.h>
+#include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -65,10 +66,12 @@
  * Per RFC 768, August, 1980.
  */
 #ifndef	COMPAT_42
-int	udpcksum = 1;
+static int	udpcksum = 1;
 #else
-int	udpcksum = 0;		/* XXX */
+static int	udpcksum = 0;		/* XXX */
 #endif
+SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
+		&udpcksum, 0, "");
 
 struct	inpcbhead udb;		/* from udp_var.h */
 struct	inpcbinfo udbinfo;
@@ -78,8 +81,10 @@ struct	inpcbinfo udbinfo;
 #endif
 
 struct	udpstat udpstat;	/* from udp_var.h */
+SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RD,
+	&udpstat, udpstat, "");
 
-struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
+static struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
 
 static	void udp_detach __P((struct inpcb *));
 static	void udp_notify __P((struct inpcb *, int));
@@ -385,7 +390,7 @@ udp_ctlinput(cmd, sa, ip)
 		in_pcbnotify(&udb, sa, 0, zeroin_addr, 0, cmd, udp_notify);
 }
 
-int
+static int
 udp_output(inp, m, addr, control)
 	register struct inpcb *inp;
 	register struct mbuf *m;
@@ -475,9 +480,14 @@ release:
 	return (error);
 }
 
-u_long	udp_sendspace = 9216;		/* really max datagram size */
-u_long	udp_recvspace = 40 * (1024 + sizeof(struct sockaddr_in));
+static u_long	udp_sendspace = 9216;		/* really max datagram size */
 					/* 40 1K datagrams */
+SYSCTL_INT(_net_inet_udp, UDPCTL_MAXDGRAM, maxdgram, CTLFLAG_RW,
+	&udp_sendspace, 0, "");
+
+static u_long	udp_recvspace = 40 * (1024 + sizeof(struct sockaddr_in));
+SYSCTL_INT(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
+	&udp_recvspace, 0, "");
 
 /*ARGSUSED*/
 int
@@ -625,38 +635,4 @@ udp_detach(inp)
 
 	in_pcbdetach(inp);
 	splx(s);
-}
-
-/*
- * Sysctl for udp variables.
- */
-int
-udp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-{
-	/* All sysctl names at this level are terminal. */
-	if (namelen != 1)
-		return (ENOTDIR);
-
-	switch (name[0]) {
-	case UDPCTL_CHECKSUM:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &udpcksum));
-	case UDPCTL_STATS:
-		return (sysctl_rdstruct(oldp, oldlenp, newp, &udpstat,
-					sizeof udpstat));
-	case UDPCTL_MAXDGRAM:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-				   (int *)&udp_sendspace)); /* XXX */
-	case UDPCTL_RECVSPACE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-				   (int *)&udp_recvspace)); /* XXX */
-	default:
-		return (ENOPROTOOPT);
-	}
-	/* NOTREACHED */
 }

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.17 1995/10/29 15:32:28 phk Exp $
+ * $Id: in_rmx.c,v 1.18 1995/11/09 20:22:59 phk Exp $
  */
 
 /*
@@ -147,17 +147,17 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	return rn;
 }
 
-int rtq_reallyold = 60*60;
+static int rtq_reallyold = 60*60;
 	/* one hour is ``really old'' */
 SYSCTL_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire,
 	CTLFLAG_RW, &rtq_reallyold , 0, "");
 				   
-int rtq_minreallyold = 10;
+static int rtq_minreallyold = 10;
 	/* never automatically crank down to less */
 SYSCTL_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire,
 	CTLFLAG_RW, &rtq_minreallyold , 0, "");
 				   
-int rtq_toomany = 128;
+static int rtq_toomany = 128;
 	/* 128 cached routes is ``too many'' */
 SYSCTL_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache,
 	CTLFLAG_RW, &rtq_toomany , 0, "");
@@ -251,7 +251,7 @@ in_rtqkill(struct radix_node *rn, void *rock)
 }
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-int rtq_timeout = RTQ_TIMEOUT;
+static int rtq_timeout = RTQ_TIMEOUT;
 
 static void
 in_rtqtimo(void *rock)
@@ -301,7 +301,8 @@ in_rtqtimo(void *rock)
 	timeout(in_rtqtimo, rock, hzto(&atv));
 }
 
-void
+#ifdef never_used
+static void
 in_rtqdrain(void)
 {
 	struct radix_node_head *rnh = rt_tables[AF_INET];
@@ -316,6 +317,7 @@ in_rtqdrain(void)
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 	splx(s);
 }
+#endif
 
 /*
  * Initialize our routing tree.

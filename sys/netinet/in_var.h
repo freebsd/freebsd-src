@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: in_var.h,v 1.10 1995/05/30 08:09:32 rgrimes Exp $
+ *	$Id: in_var.h,v 1.11 1995/09/21 17:50:45 wollman Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -217,11 +217,8 @@ struct in_multistep {
 	IN_NEXT_MULTI((step), (inm)); \
 }
 
-int	in_ifinit __P((struct ifnet *,
-	    struct in_ifaddr *, struct sockaddr_in *, int));
 struct	in_multi *in_addmulti __P((struct in_addr *, struct ifnet *));
 void	in_delmulti __P((struct in_multi *));
-void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
 int	in_control __P((struct socket *, u_long, caddr_t, struct ifnet *));
 
 #endif /* KERNEL */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.19 1995/10/26 20:30:42 julian Exp $
+ *	$Id: in_proto.c,v 1.20 1995/11/09 20:22:55 phk Exp $
  */
 
 #include <sys/param.h>
@@ -95,18 +95,18 @@ struct protosw inetsw[] = {
 { 0,		&inetdomain,	0,		0,
   0,		ip_output,	0,		0,
   0,
-  ip_init,	0,		ip_slowtimo,	ip_drain,	ip_sysctl
+  ip_init,	0,		ip_slowtimo,	ip_drain
 },
 { SOCK_DGRAM,	&inetdomain,	IPPROTO_UDP,	PR_ATOMIC|PR_ADDR,
   udp_input,	0,		udp_ctlinput,	ip_ctloutput,
   udp_usrreq,
-  udp_init,	0,		0,		0,		udp_sysctl
+  udp_init
 },
 { SOCK_STREAM,	&inetdomain,	IPPROTO_TCP,
 	PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD,
   tcp_input,	0,		tcp_ctlinput,	tcp_ctloutput,
   tcp_usrreq,
-  tcp_init,	tcp_fasttimo,	tcp_slowtimo,	tcp_drain,	tcp_sysctl
+  tcp_init,	tcp_fasttimo,	tcp_slowtimo,	tcp_drain
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_RAW,	PR_ATOMIC|PR_ADDR,
   rip_input,	rip_output,	0,		rip_ctloutput,
@@ -115,13 +115,12 @@ struct protosw inetsw[] = {
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_ICMP,	PR_ATOMIC|PR_ADDR,
   icmp_input,	rip_output,	0,		rip_ctloutput,
-  rip_usrreq,
-  0,		0,		0,		0,		icmp_sysctl
+  rip_usrreq
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_IGMP,	PR_ATOMIC|PR_ADDR,
   igmp_input,	rip_output,	0,		rip_ctloutput,
   rip_usrreq,
-  igmp_init,	igmp_fasttimo,	igmp_slowtimo,	0,		igmp_sysctl
+  igmp_init,	igmp_fasttimo,	igmp_slowtimo
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_RSVP,	PR_ATOMIC|PR_ADDR,
   rsvp_input,	rip_output,	0,		rip_ctloutput,

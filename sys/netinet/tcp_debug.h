@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_debug.h,v 1.2 1994/08/02 07:48:56 davidg Exp $
+ * $Id: tcp_debug.h,v 1.3 1994/08/21 05:27:35 paul Exp $
  */
 
 #ifndef _NETINET_TCP_DEBUG_H_
@@ -54,7 +54,7 @@ struct	tcp_debug {
 #define	TA_DROP		4
 
 #ifdef TANAMES
-char	*tanames[] =
+static char	*tanames[] =
     { "input", "output", "user", "respond", "drop" };
 #endif
 

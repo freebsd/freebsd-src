@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.21 1995/10/16 18:21:26 wollman Exp $
+ * 	$Id: tcp_var.h,v 1.22 1995/11/03 22:08:13 olah Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -329,19 +329,13 @@ extern	u_long tcp_now;		/* for RFC 1323 timestamps */
 extern	int tcp_rttdflt;	/* XXX */
 extern  u_short tcp_lastport;	/* last assigned port */
 
-int	 tcp_attach __P((struct socket *));
 void	 tcp_canceltimers __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_close __P((struct tcpcb *));
-int	 tcp_connect __P((struct tcpcb *, struct mbuf *));
 void	 tcp_ctlinput __P((int, struct sockaddr *, struct ip *));
 int	 tcp_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 struct tcpcb *
-	 tcp_disconnect __P((struct tcpcb *));
-struct tcpcb *
 	 tcp_drop __P((struct tcpcb *, int));
-void	 tcp_dooptions __P((struct tcpcb *,
-	    u_char *, int, struct tcpiphdr *, struct tcpopt *));
 void	 tcp_drain __P((void));
 void	 tcp_fasttimo __P((void));
 struct rmxp_tao *
@@ -355,29 +349,21 @@ void tcp_mtudisc __P((struct inpcb *, int));
 #endif /* MTUDISC */
 struct tcpcb *
 	 tcp_newtcpcb __P((struct inpcb *));
-void	 tcp_notify __P((struct inpcb *, int));
 int	 tcp_output __P((struct tcpcb *));
-void	 tcp_pulloutofband __P((struct socket *,
-	    struct tcpiphdr *, struct mbuf *));
 void	 tcp_quench __P((struct inpcb *, int));
-int	 tcp_reass __P((struct tcpcb *, struct tcpiphdr *, struct mbuf *));
 void	 tcp_respond __P((struct tcpcb *,
 	    struct tcpiphdr *, struct mbuf *, u_long, u_long, int));
 struct rtentry *
 	 tcp_rtlookup __P((struct inpcb *));
 void	 tcp_setpersist __P((struct tcpcb *));
 void	 tcp_slowtimo __P((void));
-int	 tcp_sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
 struct tcpiphdr *
 	 tcp_template __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_timers __P((struct tcpcb *, int));
 void	 tcp_trace __P((int, int, struct tcpcb *, struct tcpiphdr *, int));
-struct tcpcb *
-	 tcp_usrclosed __P((struct tcpcb *));
 int	 tcp_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *));
-void	 tcp_xmit_timer __P((struct tcpcb *, int));
 
 extern	u_long tcp_sendspace;
 extern	u_long tcp_recvspace;
