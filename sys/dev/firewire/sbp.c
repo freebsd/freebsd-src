@@ -1317,6 +1317,7 @@ sbp_mgm_orb(struct sbp_dev *sdev, int func, struct sbp_ocb *aocb)
 	}
 	if ((ocb = sbp_get_ocb(sdev)) == NULL) {
 		splx(s);
+		/* XXX */
 		return;
 	}
 	ocb->flags = OCB_ACT_MGM;
@@ -1903,7 +1904,7 @@ END_DEBUG
 	sbp->sim = cam_sim_alloc(sbp_action, sbp_poll, "sbp", sbp,
 				 device_get_unit(dev),
 				 /*untagged*/ 1,
-				 /*tagged*/ SBP_QUEUE_LEN,
+				 /*tagged*/ SBP_QUEUE_LEN - 1,
 				 devq);
 
 	if (sbp->sim == NULL) {
@@ -2325,8 +2326,11 @@ END_DEBUG
 			}
 		}
 #endif
-		if ((ocb = sbp_get_ocb(sdev)) == NULL)
+		if ((ocb = sbp_get_ocb(sdev)) == NULL) {
+			ccb->ccb_h.status = CAM_REQUEUE_REQ;
+			xpt_done(ccb);
 			return;
+		}
 
 		ocb->flags = OCB_ACT_CMD;
 		ocb->sdev = sdev;
