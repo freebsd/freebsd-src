@@ -354,7 +354,7 @@ udp_input(m, off, proto)
 			goto bad;
 		}
 #ifdef ICMP_BANDLIM
-		if (badport_bandlim(0) < 0)
+		if (badport_bandlim(BANDLIM_ICMP_UNREACH) < 0)
 			goto bad;
 #endif
 		if (blackhole)
