@@ -48,7 +48,7 @@ MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	bus_alloc_resource.9 bus_release_resource.9 \
 	VOP_ACLCHECK.9 VOP_GETACL.9 VOP_GETEXTATTR.9 VOP_SETACL.9 \
 	VOP_SETEXTATTR.9 acl.9 extattr.9 kobj.9 taskqueue.9 accept_filter.9 \
-	sbuf.9 \
+	sbuf.9 resource_int_value.9 resource_query_string.9 \
 	zone.9 \
 	sysctl_add_oid.9 sysctl_ctx_init.9
 
@@ -184,6 +184,10 @@ MLINKS+=taskqueue.9 taskqueue_run.9
 MLINKS+=taskqueue.9 TASK_INIT.9
 MLINKS+=taskqueue.9 TASKQUEUE_DECLARE.9
 MLINKS+=taskqueue.9 TASKQUEUE_DEFINE.9
+
+MLINKS+=resource_int_value.9 resource_long_value.9
+MLINKS+=resource_int_value.9 resource_string_value.9
+MLINKS+=resource_query_string.9 resource_query_name.9
 
 MLINKS+=suser.9 suser_xxx.9
 
