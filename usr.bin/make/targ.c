@@ -606,7 +606,7 @@ TargPrintNode (gnp, passp)
  *	0.
  *
  * Side Effects:
- *	The name of each file is printed preceeded by #\t
+ *	The name of each file is printed preceded by #\t
  *
  *-----------------------------------------------------------------------
  */

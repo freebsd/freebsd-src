@@ -368,7 +368,7 @@ proc backoutDrvChanges {kpath} {
 # Adds an entry to i386/conf/files.i386 and conf/files for the .c files in the driver.  
 # (kpath) points to the kernel.
 #
-# A comment is added to the file preceeding the new entries :
+# A comment is added to the file preceding the new entries :
 #
 #  ## driver: <drivername>
 #  # <description>

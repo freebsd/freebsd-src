@@ -177,7 +177,7 @@ preload_search_info(caddr_t mod, int inf)
 	
 	/* 
 	 * Attribute match? Return pointer to data.
-	 * Consumer may safely assume that size value preceeds	
+	 * Consumer may safely assume that size value precedes	
 	 * data.
 	 */
 	if (hdr[0] == inf)

@@ -1562,10 +1562,10 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 
         /*
 	 * [KY-97/08/03]
-	 * Receive the fourth byte only when preceeding three bytes have
+	 * Receive the fourth byte only when preceding three bytes have
 	 * been detected (pBufP >= cur_proto[4]).  In the previous
 	 * versions, the test was pBufP == 0; thus, we may have mistakingly
-	 * received a byte even if we didn't see anything preceeding 
+	 * received a byte even if we didn't see anything preceding 
 	 * the byte.
 	 */
 
