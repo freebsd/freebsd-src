@@ -9,29 +9,6 @@ bak=/var/backups
 
 echo ""
 echo "Removing scratch and junk files:"
-if [ -d /tmp ]; then
-	cd /tmp && {
-	find . -type f -atime +3 -exec rm -f -- {} \;
-	find . ! -name . -type d -mtime +1 -exec rmdir -- {} \; \
-	    >/dev/null 2>&1; }
-fi
-
-if [ -d /var/tmp ]; then
-	cd /var/tmp && {
-	find . ! -name . -atime +7 -exec rm -f -- {} \;
-	find . ! -name . -type d -mtime +1 -exec rmdir -- {} \; \
-	    >/dev/null 2>&1; }
-fi
-
-if [ -d /scratch ]; then
-	cd /scratch && {
-	find . ! -name . ! -fstype local -a -prune -o \
-		-atime +1 -exec rm -f -- {} \;
-	find . ! -name . ! -fstype local -a -prune -o \
-		-type d -mtime +1 -exec rmdir -- {} \; \
-	    >/dev/null 2>&1; }
-fi
-
 if [ -d /var/preserve ]; then
 	cd /var/preserve && {
 	find . ! -name . -mtime +7 -exec rm -f -- {} \; ; }
@@ -146,10 +123,6 @@ echo "network:"
 netstat -i
 echo ""
 ruptime
-
-echo ""
-echo "Checking filesystems:"
-fsck -n | grep -v '^\*\* Phase'
 
 echo ""
 if [ -f /etc/Distfile ]; then
