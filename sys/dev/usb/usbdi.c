@@ -930,7 +930,7 @@ usbd_transfer_cb(reqh)
 	if (reqh->status == USBD_NORMAL_COMPLETION &&
 	    reqh->actlen < reqh->length &&
 	    !(reqh->flags & USBD_SHORT_XFER_OK)) {
-		DPRINTFN(-1, ("usbd_transfer_cb: short xfer %d < %d\n",
+		DPRINTFN(-1, ("usbd_transfer_cb: short xfer %d+1<%d+1 (bytes)\n",
 			      reqh->actlen, reqh->length));
 		reqh->status = USBD_SHORT_XFER;
 	}
@@ -948,7 +948,7 @@ usbd_transfer_cb(reqh)
 		pipe->running = 0;
 	else {
 		SIMPLEQ_REMOVE_HEAD(&pipe->queue, nreqh, next);
-		pipe->curreqh = reqh;
+		pipe->curreqh = nreqh;
 		r = pipe->methods->transfer(nreqh);
 		if (r != USBD_IN_PROGRESS)
 			printf("usbd_transfer_cb: error=%d\n", r);

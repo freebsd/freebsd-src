@@ -219,7 +219,12 @@ extern	int usbd_use_polling;
 #endif
 
 #define	uhubcf_port	cf_loc[UHUBCF_PORT]
+#define        uhubcf_configuration    cf_loc[UHUBCF_CONFIGURATION]
+#define        uhubcf_interface        cf_loc[UHUBCF_INTERFACE]
 #define	UHUB_UNK_PORT	UHUBCF_PORT_DEFAULT /* wildcarded 'port' */
+#define        UHUB_UNK_CONFIGURATION  UHUBCF_CONFIGURATION_DEFAULT /* wildcarded 'configuration' */
+#define        UHUB_UNK_INTERFACE      UHUBCF_INTERFACE_DEFAULT /* wildcarded 'interface' */
+
 
 /* Junk. */
 
