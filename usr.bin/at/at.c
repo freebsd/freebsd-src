@@ -53,10 +53,10 @@
 #include <locale.h>
 #endif
 
-#if (MAXLOGNAME-1) > UT_NAMESIZE
+#if MAXLOGNAME > UT_NAMESIZE
 #define LOGNAMESIZE UT_NAMESIZE
 #else
-#define LOGNAMESIZE (MAXLOGNAME-1)
+#define LOGNAMESIZE MAXLOGNAME
 #endif
 
 /* Local headers */
@@ -92,7 +92,7 @@ enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
 
 /* File scope variables */
 
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: at.c,v 1.10 1997/02/22 19:54:04 peter Exp $";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"
