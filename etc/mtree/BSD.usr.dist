@@ -600,6 +600,36 @@
             ..
             catn
             ..
+            en.ISO_8859-1   uname=root
+                cat1
+                ..
+                cat1aout
+                ..
+                cat2
+                ..
+                cat3
+                ..
+                cat4
+                    i386
+                    ..
+                ..
+                cat5
+                ..
+                cat6
+                ..
+                cat7
+                ..
+                cat8
+                    i386
+                    ..
+                ..
+                cat9
+                    i386
+                    ..
+                ..
+                catn
+                ..
+            ..
             ja              uname=root
                 cat1
                 ..
