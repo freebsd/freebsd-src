@@ -51,6 +51,15 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <pam_mod_misc.h>
 
+enum {
+	PAM_OPT_EVEN_ROOT	= PAM_OPT_STD_MAX,
+};
+
+static struct opttab other_options[] = {
+	{ "even_root",		PAM_OPT_EVEN_ROOT },
+	{ NULL, 0 }
+};
+
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
@@ -58,8 +67,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	struct passwd *pwd;
 	const char *luser;
 	int pam_err;
+	uid_t uid;
 
-	pam_std_option(&options, NULL, argc, argv);
+	pam_std_option(&options, other_options, argc, argv);
 
 	PAM_LOG("Options processed");
 
@@ -69,7 +79,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	if (luser == NULL || (pwd = getpwnam(luser)) == NULL)
 		PAM_RETURN(PAM_AUTH_ERR);
 
-	if (getuid() == (uid_t)pwd->pw_uid)
+	uid = getuid();
+	if (uid == 0 && !pam_test_option(&options, PAM_OPT_EVEN_ROOT, NULL))
+		PAM_RETURN(PAM_AUTH_ERR);
+	
+	if (uid == (uid_t)pwd->pw_uid)
 		PAM_RETURN(PAM_SUCCESS);
 	
 	PAM_VERBOSE_ERROR("Refused; source and target users differ");
