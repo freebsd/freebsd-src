@@ -1,0 +1,42 @@
+.\" 
+.\" $Header: /local/cvsfiles/kerberos/src/appl/rkinit/man/rkinitd.8,v 1.1 1991/12/03 23:21:32 eichin Exp $
+.\" $Source: /local/cvsfiles/kerberos/src/appl/rkinit/man/rkinitd.8,v $
+.\" $Author: eichin $
+.\"
+.\"
+.TH RKINITD 8 "November 12, 1989"
+.UC 4
+.SH NAME
+rkinitd \- server for 
+.I rkinit,
+a remote kerberos ticket establishment utility
+.SH SYNOPSIS
+.B rkinitd
+.SH DESCRIPTION
+.I rkinitd
+is the server for 
+.I rkinit. 
+See 
+.IR rkinit (1)
+for information about
+.I rkinit.
+.I rkinitd
+is started from inetd and must be run as root or be installed
+setuid(root) as it needs to be able to read /etc/athena/srvtab and
+change its uid to create tickets.
+
+.I rkinitd
+times out in 60 seconds if the transaction is not completed.
+
+.I rkinitd 
+must be running on a machine that is registered for rlogin
+service; that is, the host must have a srvtab containing an rcmd.<host>
+key where <host> is the value returned by the 
+.IR krb_get_phost (3)
+kerberos library call.
+
+.SH SEE ALSO
+rkinit(1), inetd(8), kerberos(1), kerberos(3)
+
+.SH AUTHOR
+Emanuel Jay Berkenbilt (MIT-Project Athena)
