@@ -594,9 +594,6 @@ extern int	loadKeymap(const char *lang);
 extern int	diskLabelEditor(dialogMenuItem *self);
 extern int	diskLabelCommit(dialogMenuItem *self);
 
-/* lndir.c */
-extern int	lndir(char *from, char *to);
-
 /* makedevs.c (auto-generated) */
 extern const char	termcap_ansi[];
 extern const char	termcap_vt100[];
