@@ -91,8 +91,8 @@ At the output from the second queue packets
 are reinjected into the protocol stack at the same point they came
 from (i.e. ip_input(), ip_output(), bdg_forward() ).
 Depending on the setting of the sysctl variable
-   sys.net.inet.ipfw.one_pass
-Packets coming from a pipe can be either forwarded to their
+.Ql net.inet.ipfw.one_pass ,
+packets coming from a pipe can be either forwarded to their
 destination, or passed again through the
 .Nm ipfw
 rules, starting from the one after the matching rule.
@@ -143,18 +143,12 @@ pipes.
 
 .Sh SYSCTL VARIABLES
 .Pp
-.Bd -literal
-    net.inet.ip.fw.one_pass
-.Ed
-
+.Ql net.inet.ip.fw.one_pass
 is set to 1 if we want packets to pass through the firewall code only
 once.
-.Bd -literal
-   net.link.ether.bridge_ipfw
-.Ed
-
+.Pp
+.Ql net.link.ether.bridge_ipfw
 is set if we want bridged packets to pass through the firewall code.
-
 .Sh COMMANDS
 The following socket options are used to manage pipes:
 .Pp
