@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.4 1993/10/13 15:59:28 rgrimes Exp $
+ *	$Id: isa.c,v 1.5 1993/10/18 18:45:48 rgrimes Exp $
  */
 
 /*
@@ -541,7 +541,7 @@ isa_allocphysmem(caddr_t va, unsigned length, void (*func)()) {
 	isaphysmemunblock = func;
 	while (isaphysmemflag & B_BUSY) {
 		isaphysmemflag |= B_WANTED;
-		sleep(&isaphysmemflag, PRIBIO);
+		tsleep(&isaphysmemflag, PRIBIO, "isaphys", 0);
 	}
 	isaphysmemflag |= B_BUSY;
 
