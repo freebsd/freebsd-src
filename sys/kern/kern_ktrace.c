@@ -271,9 +271,11 @@ ktr_freerequest(struct ktr_request *req)
 {
 
 	crfree(req->ktr_cred);
-	mtx_lock(&Giant);
-	vrele(req->ktr_vp);
-	mtx_unlock(&Giant);
+	if (req->ktr_vp != NULL) {
+		mtx_lock(&Giant);
+		vrele(req->ktr_vp);
+		mtx_unlock(&Giant);
+	}
 	mtx_lock(&ktrace_mtx);
 	STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
 	mtx_unlock(&ktrace_mtx);

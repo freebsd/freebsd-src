@@ -420,7 +420,7 @@ shutdown_reset(void *junk, int howto)
 }
 
 #ifdef SMP
-static u_int panic_cpu = NOCPU;
+static uintptr_t panic_thread = NULL;
 #endif
 
 /*
@@ -441,15 +441,17 @@ panic(const char *fmt, ...)
 #ifdef SMP
 	/*
 	 * We don't want multiple CPU's to panic at the same time, so we
-	 * use panic_cpu as a simple spinlock.  We have to keep checking
-	 * panic_cpu if we are spinning in case the panic on the first
+	 * use panic_thread as a simple spinlock.  We have to keep checking
+	 * panic_thread if we are spinning in case the panic on the first
 	 * CPU is canceled.
 	 */
-	if (panic_cpu != PCPU_GET(cpuid))
-		while (atomic_cmpset_int(&panic_cpu, NOCPU,
-		    PCPU_GET(cpuid)) == 0)
-			while (panic_cpu != NOCPU)
-				; /* nothing */
+	if (panic_thread != curthread)
+		while (atomic_cmpset_ptr(&panic_thread, NULL, curthread) == 0)
+			while (panic_thread != NULL) {
+#ifdef __i386__
+				ia32_pause();
+#endif
+			}
 #endif
 
 	bootopt = RB_AUTOBOOT | RB_DUMP;
@@ -481,7 +483,7 @@ panic(const char *fmt, ...)
 	/* See if the user aborted the panic, in which case we continue. */
 	if (panicstr == NULL) {
 #ifdef SMP
-		atomic_store_rel_int(&panic_cpu, NOCPU);
+		atomic_store_rel_ptr(&panic_thread, NULL);
 #endif
 		return;
 	}
