@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2001
+.Dd March 3, 2002
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -744,7 +744,7 @@ these are the flags to pass to
 .Pq Vt bool
 Set to
 .Dq YES
-to start a Kerberos authentication server
+to start a Kerberos IV authentication server
 at boot time.
 .It Va kadmind_server_enable
 .Pq Vt bool
@@ -752,7 +752,7 @@ Set to
 .Dq YES
 to start
 .Xr kadmind 8 ,
-the Kerberos Administration Daemon); set to
+the Kerberos IV Administration Daemon; set to
 .Dq NO
 on a slave server.
 .It Va kerberos_stash
@@ -768,6 +768,21 @@ and is used for both
 .Xr kerberos 1
 and
 .Xr kadmind 8 ) .
+.It Va kerberos5_server_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to start a Kerberos 5 authentication server
+at boot time.
+.It Va kadmind5_server_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to start
+.Xr k5admind 8 ,
+the Kerberos 5 Administration Daemon; set to
+.Dq NO
+on a slave server.
 .It Va rwhod_enable
 .Pq Vt bool
 If set to
