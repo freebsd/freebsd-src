@@ -31,7 +31,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)nfs_prot.x 1.2 87/10/12 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)nfs_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id: nfs_prot.x,v 1.3 1997/02/23 09:17:29 peter Exp $";
+%static char rcsid[] = "$Id: nfs_prot.x,v 1.4 1997/04/18 12:31:27 dfr Exp $";
 %#endif /* not lint */
 #endif
 
@@ -460,35 +460,35 @@ default:
 
 union set_uid3 switch (bool set_it) {
 case TRUE:
-	uid3	mode;
+	uid3	uid;
 default:
 	void;
 };
 
 union set_gid3 switch (bool set_it) {
 case TRUE:
-	gid3	mode;
+	gid3	gid;
 default:
 	void;
 };
 
 union set_size3 switch (bool set_it) {
 case TRUE:
-	size3	mode;
+	size3	size;
 default:
 	void;
 };
 
 union set_atime switch (time_how set_it) {
 case SET_TO_CLIENT_TIME:
-	atime	mode;
+	nfstime3	atime;
 default:
 	void;
 };
 
 union set_mtime switch (time_how set_it) {
 case SET_TO_CLIENT_TIME:
-	mtime	mode;
+	nfstime3	mtime;
 default:
 	void;
 };
@@ -657,6 +657,7 @@ struct READ3resfail {
 	post_op_attr	file_attributes;
 };
 
+/* XXX: solaris 2.6 uses ``nfsstat'' here */
 union READ3res switch (nfsstat3 status) {
 case NFS3_OK:
 	READ3resok	resok;
@@ -684,7 +685,7 @@ struct WRITE3args {
 struct WRITE3resok {
 	wcc_data	file_wcc;
 	count3		count;
-	stable_how	comitted;
+	stable_how	committed;
 	writeverf3	verf;
 };
 
@@ -1098,9 +1099,9 @@ struct PATHCONF3resfail {
 
 union PATHCONF3res switch (nfsstat3 status) {
 case NFS3_OK:
-	FSINFO3resok	resok;
+	PATHCONF3resok	resok;
 default:
-	FSINFO3resfail	resfail;
+	PATHCONF3resfail	resfail;
 };
 
 /*
@@ -1123,9 +1124,9 @@ struct COMMIT3resfail {
 
 union COMMIT3res switch (nfsstat3 status) {
 case NFS3_OK:
-	FSINFO3resok	resok;
+	COMMIT3resok	resok;
 default:
-	FSINFO3resfail	resfail;
+	COMMIT3resfail	resfail;
 };
 
 #endif /* WANT_NFS3 */
@@ -1189,7 +1190,9 @@ program NFS_PROGRAM {
 		statfsres
 		NFSPROC_STATFS(nfs_fh) = 17;
 	} = 2;
+} = 100003;
 #ifdef WANT_NFS3
+program NFS3_PROGRAM {
 	version NFS_V3 {
 		void
 		NFSPROC3_NULL(void)			= 0;
@@ -1256,8 +1259,7 @@ program NFS_PROGRAM {
 
 		COMMIT3res
 		NFSPROC3_COMMIT(COMMIT3args)		= 21;
-
-         } = 3;
-#endif
+	} = 3;
 } = 100003;
+#endif
 
