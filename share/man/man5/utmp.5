@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)utmp.5	8.2 (Berkeley) 3/17/94
-.\"	$Id: utmp.5,v 1.5 1997/03/07 03:28:09 jmg Exp $
+.\"	$Id: utmp.5,v 1.6 1998/01/02 19:22:52 alex Exp $
 .\"
 .Dd March 17, 1994
 .Dt UTMP 5
@@ -62,12 +62,8 @@ These files can grow rapidly on busy systems, daily or weekly rotation
 is recommended. 
 If any of these files do not exist, it is not created.
 These
-files must be created manually and are normally maintained in either the script
-.Pa /etc/daily
-or the script
-.Pa /etc/weekly .
-(See
-.Xr cron 8 . )
+files must be created manually and are maintained by
+.Xr newsyslog 8 .
 .Bd -literal -offset indent
 #define _PATH_UTMP      "/var/run/utmp"
 #define _PATH_WTMP      "/var/log/wtmp"
