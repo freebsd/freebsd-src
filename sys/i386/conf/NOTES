@@ -247,6 +247,11 @@ options 	CLK_CALIBRATION_LOOP
 options 	CLK_USE_I8254_CALIBRATION
 options 	CLK_USE_TSC_CALIBRATION
 
+# One some SMP mainboards, the TSCs can be used in SMP mode due to 
+# them being synchronized.  This can significantly reduce the context
+# switch cost.
+options		SMP_TSC
+
 
 #####################################################################
 # MISCELLANEOUS DEVICES AND OPTIONS
