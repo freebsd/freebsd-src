@@ -227,7 +227,7 @@ static void ficlBreak(FICL_VM *pVM)
 static void ficlClock(FICL_VM *pVM)
 {
     clock_t now = clock();
-    stackPushUNS(pVM->pStack, (UNS32)now);
+    stackPushUNS(pVM->pStack, (FICL_UNS)now);
     return;
 }
 

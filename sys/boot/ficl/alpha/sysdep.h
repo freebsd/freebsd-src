@@ -66,11 +66,11 @@
 ** System dependent data type declarations...
 */
 #if !defined INT32
-#define INT32 long
+#define INT32 int
 #endif
 
 #if !defined UNS32
-#define UNS32 unsigned long
+#define UNS32 unsigned int
 #endif
 
 #if !defined UNS16
@@ -91,18 +91,18 @@
 ** FICL_INT. 
 */
 #if !defined FICL_INT
-#define FICL_INT INT32
+#define FICL_INT long
 #endif
 
 #if !defined FICL_UNS
-#define FICL_UNS UNS32
+#define FICL_UNS unsigned long
 #endif
 
 /*
 ** Ficl presently supports values of 32 and 64 for BITS_PER_CELL
 */
 #if !defined BITS_PER_CELL
-#define BITS_PER_CELL 32
+#define BITS_PER_CELL 64
 #endif
 
 #if ((BITS_PER_CELL != 32) && (BITS_PER_CELL != 64))
@@ -248,7 +248,7 @@ typedef struct
 ** machine. 3 would be appropriate for a 64 bit machine.
 */
 #if !defined FICL_ALIGN
-#define FICL_ALIGN 4
+#define FICL_ALIGN 3
 #define FICL_ALIGN_ADD ((1 << FICL_ALIGN) - 1)
 #endif
 

@@ -29,6 +29,11 @@
 #include <string.h>
 #include "ficl.h"
 
+/* Dictionary on-demand resizing control variables */
+unsigned int dictThreshold;
+unsigned int dictIncrease;
+
+
 static char *dictCopyName(FICL_DICT *pDict, STRINGINFO si);
 
 /**************************************************************************
@@ -230,10 +235,10 @@ FICL_WORD *dictAppendWord2(FICL_DICT *pDict,
 
 
 /**************************************************************************
-                        d i c t A p p e n d U N S 3 2
-** Append the specified UNS32 to the dictionary
+                        d i c t A p p e n d U N S
+** Append the specified FICL_UNS to the dictionary
 **************************************************************************/
-void dictAppendUNS(FICL_DICT *pDict, UNS32 u)
+void dictAppendUNS(FICL_DICT *pDict, FICL_UNS u)
 {
     *pDict->here++ = LVALUEtoCELL(u);
     return;
@@ -265,14 +270,14 @@ int dictCellsUsed(FICL_DICT *pDict)
 ** Checks the dictionary for corruption and throws appropriate
 ** errors
 **************************************************************************/
-void dictCheck(FICL_DICT *pDict, FICL_VM *pVM, int nCells)
+void dictCheck(FICL_DICT *pDict, FICL_VM *pVM, int n)
 {
-    if ((nCells >= 0) && (dictCellsAvail(pDict) < nCells))
+    if ((n >= 0) && (dictCellsAvail(pDict) * sizeof (CELL) < n))
     {
         vmThrowErr(pVM, "Error: dictionary full");
     }
 
-    if ((nCells <= 0) && (dictCellsUsed(pDict) < -nCells))
+    if ((n <= 0) && (dictCellsUsed(pDict) * sizeof (CELL) < -n))
     {
         vmThrowErr(pVM, "Error: dictionary underflow");
     }
@@ -347,12 +352,14 @@ FICL_DICT  *dictCreateHashed(unsigned nCells, unsigned nHash)
     FICL_DICT *pDict;
     size_t nAlloc;
 
-    nAlloc =  sizeof (FICL_DICT) + nCells      * sizeof (CELL)
-            + sizeof (FICL_HASH) + (nHash - 1) * sizeof (FICL_WORD *);
+    nAlloc =  sizeof (FICL_HASH) + nCells      * sizeof (CELL)
+                                 + (nHash - 1) * sizeof (FICL_WORD *);
 
-    pDict = ficlMalloc(nAlloc);
+    pDict = ficlMalloc(sizeof (FICL_DICT));
     assert(pDict);
     memset(pDict, 0, sizeof (FICL_DICT));
+    pDict->dict = ficlMalloc(nAlloc);
+    assert(pDict->dict);
     pDict->size = nCells;
     dictEmpty(pDict, nHash);
     return pDict;
@@ -374,8 +381,7 @@ void dictDelete(FICL_DICT *pDict)
 /**************************************************************************
                         d i c t E m p t y
 ** Empty the dictionary, reset its hash table, and reset its search order.
-** Clears and (re-)creates the main hash table (pForthWords) with the
-** size specified by nHash.
+** Clears and (re-)creates the hash table with the size specified by nHash.
 **************************************************************************/
 void dictEmpty(FICL_DICT *pDict, unsigned nHash)
 {
@@ -701,4 +707,19 @@ void hashReset(FICL_HASH *pHash)
     return;
 }
 
+/**************************************************************************
+                    d i c t C h e c k T h r e s h o l d
+** Verify if an increase in the dictionary size is warranted, and do it if
+** so.
+**************************************************************************/
+
+void dictCheckThreshold(FICL_DICT* dp)
+{
+    if( dictCellsAvail(dp) < dictThreshold ) {
+        dp->dict = ficlMalloc( dictIncrease * sizeof (CELL) );
+        assert(dp->dict);
+        dp->here = dp->dict;
+        dp->size = dictIncrease;
+    }
+}
 
