@@ -77,7 +77,7 @@ and
 Note that single characters can have the eighth bit set, as can the
 names of fonts and special characters.
 .LP
-The names of characters and fonts an be of arbitrary length; drivers
+The names of characters and fonts can be of arbitrary length; drivers
 should not assume that they will be only two characters long.
 .LP
 When a character is to be printed, that character will always be
