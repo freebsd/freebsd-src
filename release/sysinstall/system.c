@@ -47,6 +47,35 @@ handle_intr(int sig)
 	restorescr(save);
 }
 
+/* Public variable for ease of use - handler should set it if interested */
+Boolean AlarmWentOff;
+
+/* Simple alarm interface */
+void
+alarm_set(int delay, void (*handler)(int sig))
+{
+    struct sigaction act;
+
+    act.sa_handler = handler;
+    act.sa_flags = 0;
+    act.sa_mask = 0;
+    sigaction(SIGALRM, &act, NULL);
+    AlarmWentOff = FALSE;
+    alarm(delay);
+}
+
+void
+alarm_clear(void)
+{
+    struct sigaction act;
+
+    alarm(0);
+    act.sa_handler = SIG_DFL;
+    act.sa_flags = 0;
+    act.sa_mask = 0;
+    sigaction(SIGALRM, &act, NULL);
+}   
+
 /* Expand a file into a convenient location, nuking it each time */
 static char *
 expand(char *fname)
