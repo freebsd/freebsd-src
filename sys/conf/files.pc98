@@ -74,12 +74,6 @@ dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	pckbd
-dev/sound/isa/ad1816.c		optional	pcm isa
-dev/sound/isa/es1888.c		optional	pcm isa
-dev/sound/isa/gusc.c		optional	gusc isa
-dev/sound/isa/mss.c		optional	pcm isa
-dev/sound/isa/sb.c		optional	pcm isa
-dev/sound/isa/sbc.c		optional	sbc
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
