@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.66 1995/05/15 19:50:59 rgrimes Exp $
+#	$Id: rc,v 1.67 1995/06/25 04:01:32 bde Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -197,6 +197,9 @@ fi
 # Start ypbind if we're an NIS client
 if [ "X${nis_clientflags}" != X"NO" ]; then
 	echo -n ' ypbind'; ypbind ${nis_clientflags}
+	if [ "X${nis_ypsetflags}" != X"NO" ]; then
+		echo -n ' ypset'; ypset ${nis_ypsetflags}
+	fi
 fi
 
 # $rwhod is imported from /etc/sysconfig;
