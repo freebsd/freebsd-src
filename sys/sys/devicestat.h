@@ -129,6 +129,11 @@ typedef enum {
 	DEVSTAT_TYPE_PASS	= 0x100
 } devstat_type_flags;
 
+/*
+ * XXX: Next revision should add
+ *	off_t		offset[DEVSTAT_N_TRANS_FLAGS];
+ * XXX: which should contain the offset of the last completed transfer.
+ */
 struct devstat {
 	/* Internal house-keeping fields */
 	u_int			sequence0;	     /* Update sequence# */
