@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: readcis.c,v 1.4 1996/04/18 04:25:15 nate Exp $
+ * $Id: readcis.c,v 1.5 1996/06/17 22:30:29 nate Exp $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -36,15 +36,18 @@
 
 #include "readcis.h"
 
-static int read_attr(int fd, char *bp, int len);
-struct tuple_list *read_one_tuplelist(int, int, off_t);
-int     ck_linktarget(int, off_t, int);
-void    cis_info(struct cis *cp, unsigned char *p, int len);
-void    device_desc(unsigned char *p, int len, struct dev_mem *dp);
-void    config_map(struct cis *cp, unsigned char *p, int len);
-void    cis_config(struct cis *cp, unsigned char *p, int len);
+static int read_attr(int, char *, int);
+static int ck_linktarget(int, off_t, int);
+static void cis_info(struct cis *, unsigned char *, int);
+static void device_desc(unsigned char *, int, struct dev_mem *);
+static void config_map(struct cis *, unsigned char *, int);
+static void cis_config(struct cis *, unsigned char *, int);
+static struct tuple_list *read_one_tuplelist(int, int, off_t);
+static struct tuple_list *read_tuples(int);
+static struct tuple *find_tuple_in_list(struct tuple_list *, unsigned char);
+static struct tuple_info *get_tuple_info(unsigned char);
 
-struct tuple_info tuple_info[] = {
+static struct tuple_info tuple_info[] = {
 	{"Null tuple", 0x00, 0},
 	{"Common memory descriptor", 0x01, 255},
 	{"Checksum", 0x10, 5},
@@ -159,7 +162,7 @@ freecis(struct cis *cp)
 /*
  *	Fills in CIS version data.
  */
-void
+static void
 cis_info(struct cis *cp, unsigned char *p, int len)
 {
 	cp->maj_v = *p++;
@@ -176,7 +179,7 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 /*
  *	device_desc - decode device descriptor.
  */
-void
+static void
 device_desc(unsigned char *p, int len, struct dev_mem *dp)
 {
 	while (len > 0 && *p != 0xFF) {
@@ -197,7 +200,7 @@ device_desc(unsigned char *p, int len, struct dev_mem *dp)
 /*
  *	configuration map of card control register.
  */
-void
+static void
 config_map(struct cis *cp, unsigned char *p, int len)
 {
 	unsigned char *p1;
@@ -219,7 +222,7 @@ config_map(struct cis *cp, unsigned char *p, int len)
 /*
  *	CIS config entry - Decode and build configuration entry.
  */
-void
+static void
 cis_config(struct cis *cp, unsigned char *p, int len)
 {
 	int     x;
@@ -400,7 +403,7 @@ cis_config(struct cis *cp, unsigned char *p, int len)
  */
 static struct tuple_list *tlist;
 
-struct tuple_list *
+static struct tuple_list *
 read_tuples(int fd)
 {
 	struct tuple_list *tl = 0, *last_tl;
@@ -455,7 +458,7 @@ read_tuples(int fd)
 /*
  *	Read one tuple list from the card.
  */
-struct tuple_list *
+static struct tuple_list *
 read_one_tuplelist(int fd, int flags, off_t offs)
 {
 	struct tuple *tp, *last_tp = 0;
@@ -527,7 +530,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 /*
  *	return true if the offset points to a LINKTARGET tuple.
  */
-int
+static int
 ck_linktarget(int fd, off_t offs, int flag)
 {
 	char    blk[5];
@@ -546,25 +549,10 @@ ck_linktarget(int fd, off_t offs, int flag)
 }
 
 /*
- *	find_tuple - find the indicated tuple in the CIS
- */
-struct tuple *
-find_tuple(struct cis *sp, unsigned char code)
-{
-	struct tuple_list *tl;
-	struct tuple *tp;
-
-	for (tl = sp->tlist; tl; tl = tl->next)
-		if ((tp = find_tuple_in_list(tl, code)) != 0)
-			return (tp);
-	return (0);
-}
-
-/*
  *	find_tuple_in_list - find a tuple within a
  *	single tuple list.
  */
-struct tuple *
+static struct tuple *
 find_tuple_in_list(struct tuple_list *tl, unsigned char code)
 {
 	struct tuple *tp;
@@ -599,7 +587,7 @@ read_attr(int fd, char *bp, int len)
 /*
  *	return table entry for code.
  */
-struct tuple_info *
+static struct tuple_info *
 get_tuple_info(unsigned char code)
 {
 	struct tuple_info *tp;
@@ -611,7 +599,7 @@ get_tuple_info(unsigned char code)
 	return (0);
 }
 
-char   *
+char *
 tuple_name(unsigned char code)
 {
 	struct tuple_info *tp;
