@@ -100,7 +100,7 @@ exca_read(struct exca_softc *sc, int reg)
 static __inline void
 exca_write(struct exca_softc *sc, int reg, uint8_t val)
 {
-	return (bus_space_write_1(sc->bst, sc->bsh, sc->offset + reg, val));
+	bus_space_write_1(sc->bst, sc->bsh, sc->offset + reg, val);
 }
 
 static __inline void
