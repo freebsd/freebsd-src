@@ -41,6 +41,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	breakages with non-default CFLAGS where optimization level is set
 	to -O2 or higher.
 
+	With the upgrade of the system compiler, the kernel has been upgraded
+	to match the new system compiler.  This makes it impossible to build
+	a new kernel with the old compiler.  Upgrade your system via
+	make buildworld and make kernel (see below) to fix this problem.
+
 20040727:
 	The size of 'struct ifnet' has changed due to the addition of
 	the IFF_NEEDSGIANT flag (and what it implies).  All kernel
