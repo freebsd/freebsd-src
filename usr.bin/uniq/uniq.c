@@ -200,7 +200,7 @@ skip(str)
 	register int infield, nchars, nfields;
 
 	for (nfields = numfields, infield = 0; nfields && *str; ++str)
-		if (isspace((unsigned char)*str)) {
+		if (isblank((unsigned char)*str)) {
 			if (infield) {
 				infield = 0;
 				--nfields;
