@@ -63,6 +63,7 @@ sleep(seconds)
 	struct timespec time_remaining;
 
 	if (seconds != 0) {
+	again:
 		/*
 		 * XXX
 		 * Hack to work around itimerfix(9) gratuitously limiting
@@ -76,6 +77,15 @@ sleep(seconds)
 		time_to_sleep.tv_sec = seconds;
 		time_to_sleep.tv_nsec = 0;
 		nanosleep(&time_to_sleep, &time_remaining);
+
+		if (rest != 0 &&
+		    time_remaining.tv_sec == 0 &&
+		    time_remaining.tv_nsec == 0) {
+			seconds = rest;
+			rest = 0;
+			goto again;
+		}
+
 		rest += time_remaining.tv_sec;
 		if (time_remaining.tv_nsec > 0)
 			rest++;      /* round up */
@@ -90,6 +100,7 @@ sleep(seconds)
 	int alarm_blocked;
 
 	if (seconds != 0) {
+	again:
 		/*
 		 * XXX
 		 * Hack to work around itimerfix(9) gratuitously limiting
@@ -135,6 +146,14 @@ sleep(seconds)
 			/* Unwind */
 			sigaction(SIGALRM, &oact, (struct sigaction *)0);
 			sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
+		}
+
+		if (rest != 0 &&
+		    time_remaining.tv_sec == 0 &&
+		    time_remaining.tv_nsec == 0) {
+			seconds = rest;
+			rest = 0;
+			goto again;
 		}
 
 		/* return how long is left */
