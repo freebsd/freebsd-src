@@ -42,7 +42,7 @@
  *		in the PCB is set to the return address from savectx().)
  */
 
-LEAF(savectx, 1)
+ENTRY(savectx, 1)
 	flushrs				// push out caller's dirty regs
 	mov	r3=ar.unat		// caller's value for ar.unat
 	;;
@@ -103,7 +103,7 @@ LEAF(savectx, 1)
  *	return a second time with a non-zero return value.
  */
 
-LEAF(restorectx, 1)
+ENTRY(restorectx, 1)
 	add	r3=U_PCB_UNAT,in0	// point at NaT for r4..r7
 	mov	ar.rsc=0 ;;		// switch off the RSE
 	ld8	r16=[r3]		// load NaT for r4..r7
@@ -164,10 +164,16 @@ LEAF(restorectx, 1)
  * address specified by the r5 register and with one argument, taken
  * from r6.
  */
-LEAF(switch_trampoline, 0)
+ENTRY(switch_trampoline, 0)
 	MTX_EXIT(sched_lock, r14, r15)
 
-	alloc	r16=ar.pfs,0,0,1,0
+	// Clear sched_lock.mtx_recurse (normally restored in cpu_switch).
+	addl	r15=@ltoff(sched_lock),gp ;;
+	ld8	r15=[r15] ;;
+	add	r15=MTX_RECURSE,r15 ;;
+	st4	[r15]=r0
+
+	alloc	r14=ar.pfs,0,0,1,0
 	mov	b7=r4
 	mov	b0=r5
 	mov	out0=r6

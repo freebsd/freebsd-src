@@ -63,123 +63,132 @@
  * fu{byte,word} : fetch a byte (word) from user memory
  */
 	
-LEAF(suword, 1)
-#if 0
-	LDGP(pv)
+ENTRY(suword, 2)
 
-	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
-	cmpult	a0, t0, t1
-	beq	t1, fusufault
+	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	cmp.geu	p6,p0=in0,r14
+(p6)	br.dpnt.few fusufault
 
-	lda	t0, fusufault		/* trap faults */
-	ldq	t2, curproc
-	ldq	t2, P_ADDR(t2)
-	stq	t0, U_PCB_ONFAULT(t2)
+	movl	r14=fusufault			// set up fault handler.
+	add	r15=GD_CURPROC,r13		// find curproc
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=P_ADDR,r15			// find pcb
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=U_PCB_ONFAULT,r15
+	;;
+	st8	[r15]=r14
+	;;
+	st8.rel	[in0]=in1			// try the store
+	;;
+	st8	[r15]=r0			// clean up
 
-	stq	a1, 0(a0)		/* try the store */
+	mov	ret0=r0
+	br.ret.sptk.few rp
 
-	stq	zero, U_PCB_ONFAULT(t2)	/* clean up */
-
-	mov	zero, v0
-	RET
-#endif
 END(suword)
 	
-LEAF(subyte, 1)
-#if 0
-	LDGP(pv)
+ENTRY(subyte, 2)
 
-	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
-	cmpult	a0, t0, t1
-	beq	t1, fusufault
+	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	cmp.geu	p6,p0=in0,r14
+(p6)	br.dpnt.few fusufault
 
-	lda	t0, fusufault		/* trap faults */
-	ldq	t2, curproc
-	ldq	t2, P_ADDR(t2)
-	stq	t0, U_PCB_ONFAULT(t2)
+	movl	r14=fusufault			// set up fault handler.
+	add	r15=GD_CURPROC,r13		// find curproc
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=P_ADDR,r15			// find pcb
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=U_PCB_ONFAULT,r15
+	;;
+	st8	[r15]=r14
+	;;
+	st1.rel	[in0]=in1			// try the store
+	;;
+	st8	[r15]=r0			// clean up
 
-	zap	a1, 0xfe, a1		/* mask off the byte to store */
-	insbl	a1, a0, a1		/* shift it to the right place */
-	ldq_u	t0, 0(a0)		/* read the qword to store it in */
-	mskbl	t0, a0, t0		/* make a place for our byte */
-	or	a1, t0, a1		/* move it in */
-	stq_u	a1, 0(a0)		/* and put the byte back */
+	mov	ret0=r0
+	br.ret.sptk.few rp
 
-	stq	zero, U_PCB_ONFAULT(t2)	/* clean up */
-
-	mov	zero, v0
-	RET
-#endif
 END(subyte)
 
-LEAF(fuword, 1)
-#if 0
-	LDGP(pv)
+ENTRY(fuword, 1)
 
-	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
-	cmpult	a0, t0, t1
-	beq	t1, fusufault
+	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	cmp.geu	p6,p0=in0,r14
+(p6)	br.dpnt.few fusufault
 
-	lda	t0, fusufault		/* trap faults */
-	ldq	t2, curproc
-	ldq	t2, P_ADDR(t2)
-	stq	t0, U_PCB_ONFAULT(t2)
+	movl	r14=fusufault			// set up fault handler.
+	add	r15=GD_CURPROC,r13		// find curproc
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=P_ADDR,r15			// find pcb
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=U_PCB_ONFAULT,r15
+	;;
+	st8	[r15]=r14
+	;;
+	ld8.acq	ret0=[in0]			// try the fetch
+	;;
+	st8	[r15]=r0			// clean up
 
-	ldq	v0, 0(a0)		/* try the fetch */
+	br.ret.sptk.few rp
 
-	stq	zero, U_PCB_ONFAULT(t2)	/* clean up */
-
-	RET
-#endif
 END(fuword)
 
-LEAF(fubyte, 1)
-#if 0
-	LDGP(pv)
+ENTRY(fubyte, 1)
 
-	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
-	cmpult	a0, t0, t1
-	beq	t1, fusufault
+	movl	r14=VM_MAXUSER_ADDRESS;;	// make sure address is ok
+	cmp.geu	p6,p0=in0,r14
+(p6)	br.dpnt.few fusufault
 
-	lda	t0, fusufault		/* trap faults */
-	ldq	t2, curproc
-	ldq	t2, P_ADDR(t2)
-	stq	t0, U_PCB_ONFAULT(t2)
+	movl	r14=fusufault			// set up fault handler.
+	add	r15=GD_CURPROC,r13		// find curproc
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=P_ADDR,r15			// find pcb
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=U_PCB_ONFAULT,r15
+	;;
+	st8	[r15]=r14
+	;;
+	ld1.acq	ret0=[in0]			// try the fetch
+	;;
+	st8	[r15]=r0			// clean up
 
-	ldq_u	v0, 0(a0)		/* get the word containing our byte */
-	extbl	v0, a0, v0		/* extract the byte */
+	br.ret.sptk.few rp
 
-	stq	zero, U_PCB_ONFAULT(t2)	/* clean up */
-
-	RET
-#endif
 END(fubyte)
 	
-LEAF(suibyte, 2)
-#if 0
-	ldiq	v0, -1
-	RET
-#endif
-	END(suibyte)
+ENTRY(suibyte, 2)
+	mov	ret0=-1
+	br.ret.sptk.few rp
+END(suibyte)
 
-	LEAF(fusufault, 0)
-#if 0
-	ldq	t0, curproc
-	ldq	t0, P_ADDR(t0)
-	stq	zero, U_PCB_ONFAULT(t0)
-	ldiq	v0, -1
-	RET
-#endif
+ENTRY(fusufault, 0)
+	st8	[r15]=r0 ;;			// r15 points at onfault
+	mov	ret0=r0
+	br.ret.sptk.few rp
 END(fusufault)
 	
-LEAF(fswintrberr, 0)
-XLEAF(fuswintr)					/* XXX what is a 'word'? */
-XLEAF(suswintr)					/* XXX what is a 'word'? */
-#if 0
-	LDGP(pv)
-	ldiq	v0, -1
-	RET
-#endif
+ENTRY(fswintrberr, 0)
+XENTRY(fuswintr)					/* XXX what is a 'word'? */
+XENTRY(suswintr)					/* XXX what is a 'word'? */
+	mov	ret0=-1
+	br.ret.sptk.few rp
 END(fswintrberr)
 	
 /**************************************************************************/
@@ -190,7 +199,7 @@ END(fswintrberr)
  *
  * int copystr(char *from, char *to, size_t len, size_t *lenp);
  */
-LEAF(copystr, 4)
+ENTRY(copystr, 4)
 	mov	r14=in2			// r14 = i = len
 	cmp.eq	p6,p0=r0,in2
 (p6)	br.cond.spnt.few 2f		// if (len == 0), bail out
@@ -223,13 +232,13 @@ LEAF(copystr, 4)
 	
 END(copystr)
 
-NESTED(copyinstr, 4)
+ENTRY(copyinstr, 4)
 	alloc	loc0=ar.pfs,4,3,4,0
 	mov	loc1=rp
 
 	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that src addr
 	;; 
-	cmp.ltu	p6,p0=in0,loc2			// is in user space.
+	cmp.geu	p6,p0=in0,loc2			// is in user space.
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
@@ -257,13 +266,13 @@ NESTED(copyinstr, 4)
 
 END(copyinstr)
 
-NESTED(copyoutstr, 4)
+ENTRY(copyoutstr, 4)
 	alloc	loc0=ar.pfs,4,3,4,0
 	mov	loc1=rp
 
 	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that dest addr
 	;; 
-	cmp.ltu	p6,p0=in1,loc2			// is in user space.
+	cmp.geu	p6,p0=in1,loc2			// is in user space.
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
@@ -294,8 +303,8 @@ END(copyoutstr)
 /*
  * Not the fastest bcopy in the world.
  */
-LEAF(bcopy, 3)
-XLEAF(ovbcopy)
+ENTRY(bcopy, 3)
+XENTRY(ovbcopy)
 
 	mov	ret0=r0				// return zero for copy{in,out}
 	;; 
@@ -361,7 +370,7 @@ XLEAF(ovbcopy)
 
 END(bcopy)
 
-LEAF(memcpy,3)
+ENTRY(memcpy,3)
 	
 	mov	r14=in0 ;;
 	mov	in0=in1 ;;
@@ -370,7 +379,7 @@ LEAF(memcpy,3)
 	
 END(memcpy)
 	
-NESTED(copyin, 3)
+ENTRY(copyin, 3)
 	
 	alloc	loc0=ar.pfs,3,3,3,0
 	mov	loc1=rp
@@ -404,7 +413,7 @@ NESTED(copyin, 3)
 	
 END(copyin)
 
-NESTED(copyout, 3)
+ENTRY(copyout, 3)
 	
 	alloc	loc0=ar.pfs,3,3,3,0
 	mov	loc1=rp
@@ -438,7 +447,7 @@ NESTED(copyout, 3)
 	
 END(copyout)
 
-LEAF(copyerr, 0)
+ENTRY(copyerr, 0)
 
 	add	r14=GD_CURPROC,r13 ;;		// find curproc
 	ld8	r14=[r14] ;;
@@ -464,7 +473,7 @@ END(copyerr)
  */
 
 
-LEAF(setjmp, 1)
+ENTRY(setjmp, 1)
 #if 0
 	LDGP(pv)
 
@@ -486,7 +495,7 @@ LEAF(setjmp, 1)
 #endif
 END(setjmp)
 
-LEAF(longjmp, 1)
+ENTRY(longjmp, 1)
 #if 0
 	LDGP(pv)
 

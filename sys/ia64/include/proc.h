@@ -37,6 +37,7 @@
 
 struct mdproc {
 	u_long		md_flags;
+	vm_offset_t	md_bspstore;	/* initial ar.bspstore */
 	struct	trapframe *md_tf;	/* trap/syscall registers */
 };
 

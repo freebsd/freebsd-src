@@ -88,8 +88,8 @@ struct ia64_pal_result {
 };
 
 extern struct ia64_pal_result
-		ia64_call_pal_static(u_int64_t proc, u_int64_t arg1,
-				     u_int64_t arg2, u_int64_t arg3);
+	ia64_call_pal(u_int64_t proc, u_int64_t arg1,
+		      u_int64_t arg2, u_int64_t arg3);
 
 
 #endif /* _MACHINE_PAL_H_ */

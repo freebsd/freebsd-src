@@ -58,6 +58,7 @@ struct pcb {
 	u_int64_t		pcb_unat;	/* ar.unat for r4..r7 */
 	u_int64_t		pcb_rnat;
 	u_int64_t		pcb_pr;		/* predicates */
+	u_int64_t		pcb_schednest;	/* sched_lock state */
 
 	u_int64_t		pcb_onfault;	/* for copy faults */
 	u_int64_t		pcb_accessaddr;	/* for [fs]uswintr */

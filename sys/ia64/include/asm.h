@@ -67,90 +67,48 @@
 #endif
 
 /*
- * LEAF
+ * ENTRY
  *	Declare a global leaf function.
  *	A leaf function does not call other functions.
  */
-#define	LEAF(_name_, _n_args_)			\
+#define	ENTRY(_name_, _n_args_)			\
 	.global	_name_;				\
+	.align	16;				\
 	.proc	_name_;				\
 _name_:;					\
 	.regstk	_n_args_, 0, 0, 0		\
 	MCOUNT
 
-#define	LEAF_NOPROFILE(_name_, _n_args_)	\
+#define	ENTRY_NOPROFILE(_name_, _n_args_)	\
 	.global	_name_;				\
+	.align	16;				\
 	.proc	_name_;				\
 _name_:;					\
 	.regstk	_n_args_, 0, 0, 0
 
 /*
- * STATIC_LEAF
+ * STATIC_ENTRY
  *	Declare a local leaf function.
  */
-#define STATIC_LEAF(_name_, _n_args_)		\
+#define STATIC_ENTRY(_name_, _n_args_)		\
+	.align	16;				\
 	.proc	_name_;				\
 _name_:;					\
 	.regstk	_n_args_, 0, 0, 0		\
 	MCOUNT
 /*
- * XLEAF
+ * XENTRY
  *	Global alias for a leaf function, or alternate entry point
  */
-#define	XLEAF(_name_)				\
+#define	XENTRY(_name_)				\
 	.globl	_name_;				\
 _name_:
 
 /*
- * STATIC_XLEAF
+ * STATIC_XENTRY
  *	Local alias for a leaf function, or alternate entry point
  */
-#define	STATIC_XLEAF(_name_)			\
-_name_:
-
-/*
- * NESTED
- *	Declare a (global) nested function
- *	A nested function calls other functions and needs
- *	to use alloc to save registers.
- */
-#define	NESTED(_name_,_n_args_)			\
-	.globl	_name_;				\
-	.proc	_name_;				\
-_name_:;					\
-	.regstk	_n_args_, 0, 0, 0		\
-	MCOUNT
-
-#define	NESTED_NOPROFILE(_name_,_n_args_)	\
-	.globl	_name_;				\
-	.proc	_name_;				\
-_name_:;					\
-	.regstk	_n_args_, 0, 0, 0
-
-/*
- * STATIC_NESTED
- *	Declare a local nested function.
- */
-#define	STATIC_NESTED(_name_,_n_args_)		\
-	.proc	_name_;				\
-_name_:;					\
-	.regstk	_n_args_, 0, 0, 0		\
-	MCOUNT
-
-/*
- * XNESTED
- *	Same as XLEAF, for a nested function.
- */
-#define	XNESTED(_name_)				\
-	.globl	_name_;				\
-_name_:
-
-
-/*
- * STATIC_XNESTED
- *	Same as STATIC_XLEAF, for a nested function.
- */
-#define	STATIC_XNESTED(_name_)			\
+#define	STATIC_XENTRY(_name_)			\
 _name_:
 
 
@@ -201,10 +159,11 @@ _name_	=	_value_
  *	Allocate space for a message (a read-only ascii string)
  */
 #define	ASCIZ	.asciz
-#define	MSG(msg,reg,label)					\
-	lda reg, label;						\
-	.data;							\
-label:	ASCIZ msg;						\
+#define	MSG(msg,reg,label)			\
+	addl reg,@ltoff(label),gp;;		\
+	ld8 reg=[reg];;				\
+	.data;					\
+label:	ASCIZ msg;				\
 	.text;
 
 /*
