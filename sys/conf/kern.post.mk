@@ -1,4 +1,4 @@
-# Part of unified Makefile for building kenrels.  This includes all
+# Part of unified Makefile for building kernels.  This includes all
 # the definitions that need to be included after all the % directives,
 # except %RULES and things that act like they are part of %RULES
 #
