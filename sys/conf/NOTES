@@ -839,9 +839,6 @@ options 	VFS_AIO
 # Cryptographically secure random number generator; /dev/random
 device		random
 
-# The bit-bucket; /dev/null
-device		null
-
 # The system memory devices; /dev/mem, /dev/kmem
 device		mem
 
