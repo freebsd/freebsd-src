@@ -7,13 +7,18 @@ tzfile \- time zone information
 .SH DESCRIPTION
 The time zone information files used by
 .IR tzset (3)
-begin with bytes reserved for future use,
-followed by four four-byte values of type
+begin with the magic characters "TZif" to identify then as
+time zone information files,
+followed by sixteen bytes reserved for future use,
+followed by six four-byte values of type
 .BR long ,
 written in a ``standard'' byte order
 (the high-order byte of the value is written first).
 These values are,
 in order:
+.TP
+.I tzh_ttisgmtcnt
+The number of UTC/local indicators stored in the file.
 .TP
 .I tzh_ttisstdcnt
 The number of standard/wall indicators stored in the file.
@@ -74,7 +79,7 @@ and a one-byte value for
 .IR tt_abbrind .
 In each structure,
 .I tt_gmtoff
-gives the number of seconds to be added to GMT,
+gives the number of seconds to be added to UTC,
 .I tt_isdst
 tells whether
 .I tm_isdst
@@ -99,11 +104,19 @@ the second gives the
 number of leap seconds to be applied after the given time.
 The pairs of values are sorted in ascending order by time.
 .PP
-Finally there are
+Then there are
 .I tzh_ttisstdcnt
 standard/wall indicators, each stored as a one-byte value;
 they tell whether the transition times associated with local time types
 were specified as standard time or wall clock time,
+and are used when a time zone file is used in handling POSIX-style
+time zone environment variables.
+.PP
+Finally there are
+.I tzh_ttisgmtcnt
+UTC/local indicators, each stored as a one-byte value;
+they tell whether the transition times associated with local time types
+were specified as UTC or local time,
 and are used when a time zone file is used in handling POSIX-style
 time zone environment variables.
 .PP
@@ -120,4 +133,6 @@ is zero or the time argument is less than the first transition time recorded
 in the file.
 .SH SEE ALSO
 newctime(3)
-.\" @(#)tzfile.5	7.2
+.\" @(#)tzfile.5	7.11
+.\" This file is in the public domain, so clarified as of
+.\" 1996-06-05 by Arthur David Olson (arthur_david_olson@nih.gov).
