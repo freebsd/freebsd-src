@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.36 1997/01/02 18:10:40 mpp Exp $ -->
+<!-- $Id: submitters.sgml,v 1.37 1997/01/02 18:21:48 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -326,6 +326,11 @@ diff -c -r olddir newdir
    day-to-day work on FreeBSD.  Note that this group is also
    <em>very busy</em> and so you should only send mail to them
    in cases where mailing to hackers is truly impractical.
+
+   Please refer to <tt>man 9 intro</tt> and <tt>man 9 style</tt>
+   for some information on coding style.  We would appreciate
+   it if you were at least aware of this information before
+   submitting code.
 
 <sect1><heading>New code or major value-added packages</heading>
 
