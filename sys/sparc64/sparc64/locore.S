@@ -43,10 +43,6 @@
 /*
  * void _start(caddr_t metadata, u_long o1, u_long o2, u_long o3,
  *	       u_long ofw_vec)
- *
- * XXX: in am smp system the other cpus are started in the loader, but since
- * there's no way to look up a symbol there, we need to use the same entry
- * point.  So if the module id is not equal to bootcpu, jump to _mp_start.
  */
 ENTRY(_start)
 	/*
