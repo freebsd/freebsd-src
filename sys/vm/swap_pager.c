@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.96 1998/07/04 20:45:41 julian Exp $
+ * $Id: swap_pager.c,v 1.97 1998/07/11 07:46:11 bde Exp $
  */
 
 /*
@@ -1477,10 +1477,10 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		for (i = firstidx; i < lastidx; i++) {
 			rtvals[i] = VM_PAGER_PEND;
 		}
+		splx(s);
 		return VM_PAGER_PEND;
 	}
 
-	s = splvm();
 	/*
 	 * wait for the sync I/O to complete
 	 */
