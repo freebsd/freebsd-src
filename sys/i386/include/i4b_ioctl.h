@@ -29,27 +29,19 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Mar 17 10:09:55 2002]
+ *      last edit-date: [Tue Mar 26 14:44:15 2002]
  *
  *---------------------------------------------------------------------------*/
 
 #ifndef _I4B_IOCTL_H_
 #define _I4B_IOCTL_H_
 
-#if 0
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-#ifndef _MACHINE_TYPES_H_
-#include <machine/types.h>
-#endif /* _MACHINE_TYPES_H_ */
-#endif /* __FreeBSD__ */
-#endif
-
 /*---------------------------------------------------------------------------*
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
 #define	VERSION		1		/* version number	*/
-#define	REL		1		/* release number	*/
-#define STEP		1		/* release step		*/
+#define	REL		2		/* release number	*/
+#define STEP		0		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -172,6 +164,7 @@
  *	max length of some strings
  *---------------------------------------------------------------------------*/
 #define TELNO_MAX	41  /* max length of a telephone number (+ '\0')  */
+#define SUBADDR_MAX	21  /* max length of a subaddress (+ '\0')        */
 #define DISPLAY_MAX	91  /* max length of display information (+ '\0') */
 #define DATETIME_MAX	21  /* max length of datetime information (+ '\0')*/
 #define KEYPAD_MAX	35  /* max length of a keypad string (+ '\0')     */
@@ -341,7 +334,9 @@ typedef struct {
 #define  CHAN_NO  (-2)		/* call waiting (CW) for incoming	*/
 	int		bprot;	/* b channel protocot, see BPROT_XXX	*/
 	char		dst_telno[TELNO_MAX];	/* destination telno	*/
+	char		dst_subaddr[SUBADDR_MAX];	/* dest subaddr */
 	char		src_telno[TELNO_MAX];	/* source telno		*/
+	char		src_subaddr[SUBADDR_MAX];	/* src subaddr	*/
 	int		scr_ind;/* screening indicator			*/
 #define  SCR_NONE     0		/* no screening indicator transmitted	*/
 #define  SCR_USR_NOSC 1		/* screening user provided, not screened*/
@@ -412,7 +407,9 @@ typedef struct {
 	int		driver;		/* driver type		*/
 	int		driver_unit;	/* driver unit number	*/
 	int		cmdlen;		/* length of string	*/
+	int		subaddrlen;	/* length of subaddr	*/
 	char		cmd[TELNO_MAX];	/* the number to dial	*/	
+	char		subaddr[SUBADDR_MAX];	/* dest subaddr	*/	
 } msg_dialoutnumber_ind_t;
 
 /*---------------------------------------------------------------------------*
@@ -572,7 +569,9 @@ typedef struct {
 #define  ULEN_METHOD_STATIC  0	/* use unitlen_time value (see above) */
 #define  ULEN_METHOD_DYNAMIC 1	/* use AOCD */	
 	char		dst_telno[TELNO_MAX];	/* destination telephone no  */
+	char		dst_subaddr[SUBADDR_MAX];	/* dest subaddr      */
 	char		src_telno[TELNO_MAX];	/* source telephone number   */
+	char		src_subaddr[SUBADDR_MAX];	/* source subaddr    */
 	char		keypad[KEYPAD_MAX];	/* keypad string 	     */	
 } msg_connect_req_t;
 

@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 1998,1999 Martin Husemann. All rights reserved.
+ *   Copyright (c) 1998, 1999 Martin Husemann. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -33,11 +33,9 @@
  *	i4b daemon - network monitor server module
  *	------------------------------------------
  *
- *	$Id: monitor.c,v 1.30 2000/10/09 12:53:29 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:47:44 1999]
+ *      last edit-date: [Tue Mar 26 14:37:03 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -1071,13 +1069,13 @@ monitor_evnt_connect(cfg_entry_t *cep)
 
 	if(cep->direction == DIR_OUT)
 	{
-		I4B_PUT_STR(evnt, I4B_MON_CONNECT_REMPHONE, cep->remote_phone_dialout);
-		I4B_PUT_STR(evnt, I4B_MON_CONNECT_LOCPHONE, cep->local_phone_dialout);
+		I4B_PUT_STR(evnt, I4B_MON_CONNECT_REMPHONE, cep->remote_phone_dialout.number);
+		I4B_PUT_STR(evnt, I4B_MON_CONNECT_LOCPHONE, cep->local_phone_dialout.number);
 	}
 	else
 	{
-		I4B_PUT_STR(evnt, I4B_MON_CONNECT_REMPHONE, cep->real_phone_incoming);
-		I4B_PUT_STR(evnt, I4B_MON_CONNECT_LOCPHONE, cep->local_phone_incoming);
+		I4B_PUT_STR(evnt, I4B_MON_CONNECT_REMPHONE, cep->real_phone_incoming.number);
+		I4B_PUT_STR(evnt, I4B_MON_CONNECT_LOCPHONE, cep->local_phone_incoming.number);
 	}
 	monitor_broadcast(mask, evnt, sizeof evnt);
 }

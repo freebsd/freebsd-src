@@ -147,7 +147,9 @@ typedef struct
 	int	call_state;		/* from incoming SETUP	*/
 	
 	u_char	dst_telno[TELNO_MAX];	/* destination number	*/
+	u_char	dst_subaddr[SUBADDR_MAX];	/* destination subaddr	*/
 	u_char	src_telno[TELNO_MAX];	/* source number	*/
+	u_char	src_subaddr[SUBADDR_MAX];	/* source subaddr	*/
 
 	int	scr_ind;		/* screening ind for incoming call */
 	int	prs_ind;		/* presentation ind for incoming call */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 18 11:13:29 2001]
+ *      last edit-date: [Tue Mar 26 14:37:25 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -831,7 +831,7 @@ msg_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 	
 	DBGL(DL_DRVR, (log(LL_DBG, "msg_dialoutnumber: dial req from %s, unit %d", bdrivername(mp->driver), mp->driver_unit)));
 
-	if((cep = find_by_device_for_dialoutnumber(mp->driver, mp->driver_unit, mp->cmdlen, mp->cmd)) == NULL)
+	if((cep = find_by_device_for_dialoutnumber(mp)) == NULL)
 	{
 		DBGL(DL_DRVR, (log(LL_DBG, "msg_dialoutnumber: config entry reserved or no match")));
 		return;
@@ -1216,8 +1216,12 @@ sendm_connect_req(cfg_entry_t *cep)
 	else
 		mcr.unitlen_method = ULEN_METHOD_STATIC;
 	
-	strcpy(mcr.dst_telno, cep->remote_phone_dialout);
-	strcpy(mcr.src_telno, cep->local_phone_dialout);
+	strcpy(mcr.dst_telno, cep->remote_phone_dialout.number);
+	if(cep->usesubaddr)
+		strcpy(mcr.dst_subaddr, cep->remote_phone_dialout.subaddr);
+	strcpy(mcr.src_telno, cep->local_phone_dialout.number);
+	if(cep->usesubaddr)
+		strcpy(mcr.src_subaddr, cep->local_phone_dialout.subaddr);
 	strcpy(mcr.keypad, cep->keypad);	
 
 	cep->last_dial_time = time(NULL);
@@ -1236,8 +1240,8 @@ sendm_connect_req(cfg_entry_t *cep)
 	log(LL_CHD, "%05d %s dialing out from %s to %s",
 		cep->cdid,
 	        cep->name,
-		aliasing ? get_alias(cep->local_phone_dialout) : cep->local_phone_dialout,
-		aliasing ? get_alias(cep->remote_phone_dialout) : cep->remote_phone_dialout);
+		aliasing ? get_alias(cep->local_phone_dialout.number) : cep->local_phone_dialout.number,
+		aliasing ? get_alias(cep->remote_phone_dialout.number) : cep->remote_phone_dialout.number);
 
 	return(ret);
 }

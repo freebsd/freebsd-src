@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Dec 26 12:57:07 2001]
+ *      last edit-date: [Tue Mar 26 14:37:38 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -219,6 +219,8 @@ set_config_defaults(void)
 		cep->state = ST_IDLE;
 
 		cep->aoc_valid = AOC_INVALID;
+
+		cep->usesubaddr = 0;
  	}
 }
 
@@ -769,12 +771,22 @@ cfg_setval(int keyword)
 
 		case LOCAL_PHONE_DIALOUT:
 			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: local_phone_dialout = %s", entrycount, yylval.str)));
-			strcpy(cfg_entry_tab[entrycount].local_phone_dialout, yylval.str);
+			strcpy(cfg_entry_tab[entrycount].local_phone_dialout.number, yylval.str);
+			break;
+
+		case LOCAL_SUBADDR_DIALOUT:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: local_subaddr_dialout = %s", entrycount, yylval.str)));
+			strcpy(cfg_entry_tab[entrycount].local_phone_dialout.subaddr, yylval.str);
 			break;
 
 		case LOCAL_PHONE_INCOMING:
 			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: local_phone_incoming = %s", entrycount, yylval.str)));
-			strcpy(cfg_entry_tab[entrycount].local_phone_incoming, yylval.str);
+			strcpy(cfg_entry_tab[entrycount].local_phone_incoming.number, yylval.str);
+			break;
+
+		case LOCAL_SUBADDR_INCOMING:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: local_subaddr_incoming = %s", entrycount, yylval.str)));
+			strcpy(cfg_entry_tab[entrycount].local_phone_incoming.subaddr, yylval.str);
 			break;
 
 		case MAILER:
@@ -941,6 +953,21 @@ cfg_setval(int keyword)
 			
 			break;
 
+		case REMOTE_SUBADDR_DIALOUT:
+			if(cfg_entry_tab[entrycount].remote_subaddr_count >= MAXRNUMBERS)
+			{
+				log(LL_ERR, "ERROR parsing config file: too many remote subaddresses at line %d!", lineno);
+				config_error_flag++;
+				break;
+			}				
+			
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remote_subaddr_dialout #%d = %s",
+				entrycount, cfg_entry_tab[entrycount].remote_numbers_count, yylval.str)));
+
+			strcpy(cfg_entry_tab[entrycount].remote_numbers[cfg_entry_tab[entrycount].remote_numbers_count].subaddr, yylval.str);
+
+			break;
+
 		case REMOTE_NUMBERS_HANDLING:			
 			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remdial_handling = %s", entrycount, yylval.str)));
 			if(!(strcmp(yylval.str, "next")))
@@ -969,6 +996,21 @@ cfg_setval(int keyword)
 				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remote_phone_incoming #%d = %s", entrycount, n, yylval.str)));
 				strcpy(cfg_entry_tab[entrycount].remote_phone_incoming[n].number, yylval.str);
 				cfg_entry_tab[entrycount].incoming_numbers_count++;
+			}
+			break;
+
+		case REMOTE_SUBADDR_INCOMING:
+			{
+				int n;
+				n = cfg_entry_tab[entrycount].incoming_numbers_count;
+				if (n >= MAX_INCOMING)
+				{
+					log(LL_ERR, "ERROR parsing config file: too many \"remote_subaddr_incoming\" entries at line %d!", lineno);
+					config_error_flag++;
+					break;
+				}
+				DBGL(DL_RCCF, (log(LL_DBG, "entry %d: remote_subaddr_incoming #%d = %s", entrycount, n, yylval.str)));
+				strcpy(cfg_entry_tab[entrycount].remote_phone_incoming[n].subaddr, yylval.str);
 			}
 			break;
 
@@ -1136,6 +1178,11 @@ cfg_setval(int keyword)
 			DBGL(DL_RCCF, (log(LL_DBG, "system: useacctfile = %d", yylval.booln)));
 			break;
 
+		case USESUBADDR:
+			cfg_entry_tab[entrycount].usesubaddr = yylval.booln;
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: usesubaddr = %d", entrycount, yylval.booln)));
+			break;
+
 		case USEDOWN:
 			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: usedown = %d", entrycount, yylval.booln)));
 			cfg_entry_tab[entrycount].usedown = yylval.booln;
@@ -1280,7 +1327,7 @@ check_config(void)
 				log(LL_ERR, "check_config: remote-phone-dialout not set in entry %d!", i);
 				error++;
 			}
-			if(strlen(cep->local_phone_dialout) == 0)
+			if(strlen(cep->local_phone_dialout.number) == 0)
 			{
 				log(LL_ERR, "check_config: local-phone-dialout not set in entry %d!", i);
 				error++;
@@ -1291,7 +1338,7 @@ check_config(void)
 		
 		if(cep->inout != DIR_OUTONLY)
 		{
-			if(strlen(cep->local_phone_incoming) == 0)
+			if(strlen(cep->local_phone_incoming.number) == 0)
 			{
 				log(LL_ERR, "check_config: local-phone-incoming not set in entry %d!", i);
 				error++;
@@ -1616,7 +1663,7 @@ print_config(void)
 				fprintf(PFILE, "remote-phone-dialout  = %s\t\t# telephone number for dialing out to remote\n", cep->remote_numbers[0].number);
 			}
 
-			fprintf(PFILE, "local-phone-dialout   = %s\t\t# show this number to remote when dialling out\n", cep->local_phone_dialout);
+			fprintf(PFILE, "local-phone-dialout   = %s\t\t# show this number to remote when dialling out\n", cep->local_phone_dialout.number);
 			fprintf(PFILE, "dialout-type          = %s\n", cep->dialouttype ? "calledback\t\t# i am called back by remote" : "normal\t\t# i am not called back by remote");
 		}
 
@@ -1624,7 +1671,7 @@ print_config(void)
 		{
 			int n;
 			
-			fprintf(PFILE, "local-phone-incoming  = %s\t\t# incoming calls must match this (mine) telephone number\n", cep->local_phone_incoming);
+			fprintf(PFILE, "local-phone-incoming  = %s\t\t# incoming calls must match this (mine) telephone number\n", cep->local_phone_incoming.number);
 			for (n = 0; n < cep->incoming_numbers_count; n++)
 				fprintf(PFILE, "remote-phone-incoming = %s\t\t# this is a valid remote number to call me\n",
 					cep->remote_phone_incoming[n].number);
