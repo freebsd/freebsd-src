@@ -204,7 +204,8 @@ vm_page_startup(vm_offset_t vaddr)
 	/*
 	 * Initialize the locks.
 	 */
-	mtx_init(&vm_page_queue_mtx, "vm page queue mutex", NULL, MTX_DEF);
+	mtx_init(&vm_page_queue_mtx, "vm page queue mutex", NULL, MTX_DEF |
+	    MTX_RECURSE);
 	mtx_init(&vm_page_queue_free_mtx, "vm page queue free mutex", NULL,
 	    MTX_SPIN);
 
@@ -1657,11 +1658,7 @@ vm_page_cowfault(vm_page_t m)
 
  retry_alloc:
 	vm_page_remove(m);
-	/*
-	 * An interrupt allocation is requested because the page
-	 * queues lock is held. 
-	 */
-	mnew = vm_page_alloc(object, pindex, VM_ALLOC_INTERRUPT);
+	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
 	if (mnew == NULL) {
 		vm_page_insert(m, object, pindex);
 		vm_page_unlock_queues();
