@@ -108,6 +108,10 @@ static int	blackhole = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW,
 	&blackhole, 0, "Do not send port unreachables for refused connects");
 
+static int	strict_mcast_mship = 0;
+SYSCTL_INT(_net_inet_udp, OID_AUTO, strict_mcast_mship, CTLFLAG_RW,
+	&strict_mcast_mship, 0, "Only send multicast to member sockets");
+
 struct	inpcbhead udb;		/* from udp_var.h */
 #define	udb6	udb  /* for KAME src sync over BSD*'s */
 struct	inpcbinfo udbinfo;
@@ -308,6 +312,30 @@ udp_input(m, off)
 					goto docontinue;
 			}
 
+			/*
+			 * Check multicast packets to make sure they are only
+			 * sent to sockets with multicast memberships for the
+			 * packet's destination address and arrival interface
+			 */
+#define MSHIP(_inp, n) ((_inp)->inp_moptions->imo_membership[(n)])
+#define NMSHIPS(_inp) ((_inp)->inp_moptions->imo_num_memberships)
+			if (strict_mcast_mship && inp->inp_moptions != NULL) {
+				int mship, foundmship = 0;
+
+				for (mship = 0; mship < NMSHIPS(inp); mship++) {
+					if (MSHIP(inp, mship)->inm_addr.s_addr
+					    == ip->ip_dst.s_addr &&
+					    MSHIP(inp, mship)->inm_ifp
+					    == m->m_pkthdr.rcvif) {
+						foundmship = 1;
+						break;
+					}
+				}
+				if (foundmship == 0)
+					goto docontinue;
+			}
+#undef NMSHIPS
+#undef MSHIP
 			if (last != NULL) {
 				struct mbuf *n;
 
