@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/errno.h>
@@ -119,8 +119,8 @@ static frentry_t *fr_checkicmp6matchingstate __P((ip6_t *, fr_info_t *));
 static int fr_matchsrcdst __P((ipstate_t *, union i6addr, union i6addr,
 			       fr_info_t *, tcphdr_t *));
 static frentry_t *fr_checkicmpmatchingstate __P((ip_t *, fr_info_t *));
-static int fr_matchicmpqueryreply __P((int, ipstate_t *, icmphdr_t *));
-static int fr_state_flush __P((int));
+static int fr_matchicmpqueryreply __P((int, ipstate_t *, icmphdr_t *, int));
+static int fr_state_flush __P((int, int));
 static ips_stat_t *fr_statetstats __P((void));
 static void fr_delstate __P((ipstate_t *));
 static int fr_state_remove __P((caddr_t));
@@ -205,8 +205,8 @@ static ips_stat_t *fr_statetstats()
  *              starting at > 4 days idle and working back in successive half-
  *              days to at most 12 hours old.
  */
-static int fr_state_flush(which)
-int which;
+static int fr_state_flush(which, proto)
+int which, proto;
 {
 	ipstate_t *is, **isp;
 #if defined(_KERNEL) && !SOLARIS
@@ -217,6 +217,9 @@ int which;
 	SPL_NET(s);
 	for (isp = &ips_list; (is = *isp); ) {
 		delete = 0;
+
+		if ((proto != 0) && (is->is_v != proto))
+			continue;
 
 		switch (which)
 		{
@@ -339,12 +342,26 @@ int mode;
 			break;
 		if (arg == 0 || arg == 1) {
 			WRITE_ENTER(&ipf_state);
-			ret = fr_state_flush(arg);
+			ret = fr_state_flush(arg, 4);
 			RWLOCK_EXIT(&ipf_state);
 			error = IWCOPY((caddr_t)&ret, data, sizeof(ret));
 		} else
 			error = EINVAL;
 		break;
+#ifdef USE_INET6
+	case SIOCIPFL6 :
+		error = IRCOPY(data, (caddr_t)&arg, sizeof(arg));
+		if (error)
+			break;
+		if (arg == 0 || arg == 1) {
+			WRITE_ENTER(&ipf_state);
+			ret = fr_state_flush(arg, 6);
+			RWLOCK_EXIT(&ipf_state);
+			error = IWCOPY((caddr_t)&ret, data, sizeof(ret));
+		} else
+			error = EINVAL;
+		break;
+#endif
 #ifdef	IPFILTER_LOG
 	case SIOCIPFFB :
 		if (!(mode & FWRITE))
@@ -1120,7 +1137,7 @@ tcphdr_t *tcp;
 	return 1;
 }
 
-static int fr_matchicmpqueryreply(v, is, icmp)
+static int fr_matchicmpqueryreply(v, is, icmp, rev)
 int v;
 ipstate_t *is;
 icmphdr_t *icmp;
@@ -1130,8 +1147,8 @@ icmphdr_t *icmp;
 		 * If we matched its type on the way in, then when going out
 		 * it will still be the same type.
 		 */
-		if (((icmp->icmp_type == is->is_type) ||
-		     (icmpreplytype4[is->is_type] == icmp->icmp_type))) {
+		if ((!rev && (icmp->icmp_type == is->is_type)) ||
+		    (rev && (icmpreplytype4[is->is_type] == icmp->icmp_type))) {
 			if (icmp->icmp_type != ICMP_ECHOREPLY)
 				return 1;
 			if ((icmp->icmp_id == is->is_icmp.ics_id) &&
@@ -1141,8 +1158,8 @@ icmphdr_t *icmp;
 	}
 #ifdef	USE_INET6
 	else if (is->is_v == 6) {
-		if (((icmp->icmp_type == is->is_type) ||
-		     (icmpreplytype6[is->is_type] == icmp->icmp_type))) {
+		if ((!rev && (icmp->icmp_type == is->is_type)) ||
+		    (rev && (icmpreplytype6[is->is_type] == icmp->icmp_type))) {
 			if (icmp->icmp_type != ICMP6_ECHO_REPLY)
 				return 1;
 			if ((icmp->icmp_id == is->is_icmp.ics_id) &&
@@ -1280,7 +1297,7 @@ fr_info_t *fin;
 		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext)
 			if ((is->is_p == pr) && (is->is_v == 4) &&
 			    fr_matchsrcdst(is, src, dst, &ofin, NULL) &&
-			    fr_matchicmpqueryreply(is->is_v, is, icmp)) {
+			    fr_matchicmpqueryreply(is->is_v, is, icmp, fin->fin_rev)) {
 				ips_stats.iss_hits++;
 				is->is_pkts++;
 				is->is_bytes += ip->ip_len;
@@ -1462,7 +1479,7 @@ icmp6again:
 		for (isp = &ips_table[hvm]; (is = *isp); isp = &is->is_hnext)
 			if ((is->is_p == pr) && (is->is_v == v) &&
 			    fr_matchsrcdst(is, src, dst, fin, NULL) &&
-			    fr_matchicmpqueryreply(v, is, ic)) {
+			    fr_matchicmpqueryreply(v, is, ic, fin->fin_rev)) {
 				rev = fin->fin_rev;
 				if (is->is_frage[rev] != 0)
 					is->is_age = is->is_frage[rev];
@@ -1517,7 +1534,7 @@ icmp6again:
 		for (isp = &ips_table[hvm]; (is = *isp); isp = &is->is_hnext)
 			if ((is->is_p == pr) && (is->is_v == v) &&
 			    fr_matchsrcdst(is, src, dst, fin, NULL) &&
-			    fr_matchicmpqueryreply(v, is, ic)) {
+			    fr_matchicmpqueryreply(v, is, ic, fin->fin_rev)) {
 				rev = fin->fin_rev;
 				if (is->is_frage[rev] != 0)
 					is->is_age = is->is_frage[rev];
@@ -1752,7 +1769,7 @@ void fr_timeoutstate()
 		} else
 			isp = &is->is_next;
 	if (fr_state_doflush) {
-		(void) fr_state_flush(2);
+		(void) fr_state_flush(2, 0);
 		fr_state_doflush = 0;
 	}
 	RWLOCK_EXIT(&ipf_state);

@@ -100,6 +100,7 @@ typedef struct  ftpside {
 	u_32_t	ftps_len;
 	int	ftps_junk;
 	int	ftps_cmds;
+	int	ftps_cmd;
 	char	ftps_buf[FTP_BUFSZ];
 } ftpside_t;
 
