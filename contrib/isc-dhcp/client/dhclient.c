@@ -56,10 +56,11 @@
 
 #ifndef lint
 static char ocopyright[] =
-"$Id: dhclient.c,v 1.44.2.37 1999/04/24 16:55:19 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: dhclient.c,v 1.44.2.39 1999/06/22 13:36:46 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
+#include "version.h"
 
 TIME cur_time;
 TIME default_lease_time = 43200; /* 12 hours... */
@@ -93,7 +94,7 @@ int onetry;
 static char copyright[] =
 "Copyright 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.";
 static char arr [] = "All rights reserved.";
-static char message [] = "Internet Software Consortium DHCP Client V2.0b1pl27";
+static char message [] = "Internet Software Consortium DHCP Client";
 static char contrib [] = "Please contribute if you find this software useful.";
 static char url [] = "For info, please visit http://www.isc.org/dhcp-contrib.html";
 
@@ -110,7 +111,7 @@ int main (argc, argv, envp)
 	int quiet = 1;
 	char *s;
 
-	s = strchr (argv [0], '/');
+	s = strrchr (argv [0], '/');
 	if (!s)
 		s = argv [0];
 	else
@@ -171,7 +172,7 @@ int main (argc, argv, envp)
 	}
 
 	if (!quiet) {
-		note (message);
+		note ("%s %s", message, DHCP_VERSION);
 		note (copyright);
 		note (arr);
 		note ("");
