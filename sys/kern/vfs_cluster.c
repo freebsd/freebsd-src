@@ -399,11 +399,15 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			 * VMIO backed.  The clustering code can only deal
 			 * with VMIO-backed buffers.
 			 */
-			if ((tbp->b_flags & (B_CACHE|B_LOCKED)) ||
-				(tbp->b_flags & B_VMIO) == 0) {
+			VI_LOCK(bp->b_vp);
+			if ((tbp->b_vflags & BV_BKGRDINPROG) ||
+			    (tbp->b_flags & B_CACHE) ||
+			    (tbp->b_flags & B_VMIO) == 0) {
+				VI_UNLOCK(bp->b_vp);
 				bqrelse(tbp);
 				break;
 			}
+			VI_UNLOCK(bp->b_vp);
 
 			/*
 			 * The buffer must be completely invalid in order to
@@ -768,7 +772,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 		 * partake in the clustered write.
 		 */
 		VI_LOCK(vp);
-		if ((tbp = gbincore(vp, start_lbn)) == NULL) {
+		if ((tbp = gbincore(vp, start_lbn)) == NULL ||
+		    (tbp->b_vflags & BV_BKGRDINPROG)) {
 			VI_UNLOCK(vp);
 			++start_lbn;
 			--len;
@@ -782,8 +787,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 			splx(s);
 			continue;
 		}
-		if ((tbp->b_flags & (B_LOCKED | B_INVAL | B_DELWRI)) !=
-		    B_DELWRI) {
+		if ((tbp->b_flags & (B_INVAL | B_DELWRI)) != B_DELWRI) {
 			BUF_UNLOCK(tbp);
 			++start_lbn;
 			--len;
@@ -857,7 +861,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 * can't need to be written.
 				 */
 				VI_LOCK(vp);
-				if ((tbp = gbincore(vp, start_lbn)) == NULL) {
+				if ((tbp = gbincore(vp, start_lbn)) == NULL ||
+				    (tbp->b_vflags & BV_BKGRDINPROG)) {
 					VI_UNLOCK(vp);
 					splx(s);
 					break;
@@ -881,7 +886,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 				    B_INVAL | B_DELWRI | B_NEEDCOMMIT))
 				    != (B_DELWRI | B_CLUSTEROK |
 				    (bp->b_flags & (B_VMIO | B_NEEDCOMMIT))) ||
-				    (tbp->b_flags & B_LOCKED) ||
 				    tbp->b_wcred != bp->b_wcred) {
 					BUF_UNLOCK(tbp);
 					splx(s);

@@ -217,7 +217,7 @@ struct buf {
 #define	B_00000800	0x00000800	/* Availabel flag. */
 #define	B_00001000	0x00001000	/* Available flag. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
-#define	B_LOCKED	0x00004000	/* Locked in core (not reusable). */
+#define	B_00004000	0x00004000	/* Available flag. */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
 #define	B_MALLOC	0x00010000	/* malloced b_data */
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
@@ -247,15 +247,18 @@ struct buf {
  */
 #define	BX_VNDIRTY	0x00000001	/* On vnode dirty list */
 #define	BX_VNCLEAN	0x00000002	/* On vnode clean list */
-#define	BX_BKGRDWRITE	0x00000004	/* Do writes in background */
-#define	BX_BKGRDINPROG	0x00000008	/* Background write in progress */
-#define	BX_BKGRDWAIT	0x00000010	/* Background write waiting */
+#define	BX_BKGRDWRITE	0x00000010	/* Do writes in background */
 #define BX_BKGRDMARKER	0x00000020	/* Mark buffer for splay tree */
 #define	BX_ALTDATA	0x00000040	/* Holds extended data */
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
-#define	BV_SCANNED	0x00001000	/* VOP_FSYNC funcs mark written bufs */
+/*
+ * These flags are kept in b_vflags.
+ */
+#define	BV_SCANNED	0x00000001	/* VOP_FSYNC funcs mark written bufs */
+#define	BV_BKGRDINPROG	0x00000002	/* Background write in progress */
+#define	BV_BKGRDWAIT	0x00000004	/* Background write waiting */
 
 #ifdef _KERNEL
 /*
