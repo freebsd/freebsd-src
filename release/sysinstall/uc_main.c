@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.20 1998/09/30 19:37:46 jkh Exp $
+ * $Id: uc_main.c,v 1.21 1998/09/30 20:51:01 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -52,7 +52,7 @@ static struct nlist _nl[] = {
     {"_eisa_dev_list"},
     {"_pcidevice_set"},
     {"_device_list"},
-#ifdef USE_SCSI
+#ifdef DO_SCSI
     {"_scbusses"},
     {"_scsi_cinit"},
     {"_scsi_dinit"},
@@ -211,7 +211,7 @@ uc_open(char *name){
     get_eisa_info(kern);
     if (isDebug())
 	msgDebug("uc_open: got eisa information\n");
-#ifdef USE_SCSI
+#ifdef DO_SCSI
     get_scsi_info(kern);
     if (isDebug())
 	msgDebug("uc_open: got scsi information\n");
@@ -234,7 +234,7 @@ uc_close(struct kernel *kern, int writeback)
     if (kern->pci_devp)
 	pci_free(kern, writeback); /* or here */
     
-#ifdef USE_SCSI
+#ifdef DO_SCSI
     if (kern->scsi_devp)
 	scsi_free(kern, writeback);
 #endif
@@ -265,7 +265,7 @@ uc_getdev(struct kernel *kern, char *dev)
 	    if (kern->pci_devp)
 		list_append(list, "pci");
 	    
-#ifdef USE_SCSI
+#ifdef DO_SCSI
 	    if (kern->scsi_devp)
 		list_append(list, "scsi");
 #endif
@@ -277,7 +277,7 @@ uc_getdev(struct kernel *kern, char *dev)
 	    list = get_eisa_devlist(kern);
 	else if (strcmp(dev, "-pci") == 0)
 	    list = get_pci_devlist(kern);
-#ifdef USE_SCSI
+#ifdef DO_SCSI
 	else if (strcmp(dev, "-scsi") == 0)
 	    list = get_scsi_devlist(kern);
 #endif
@@ -297,7 +297,7 @@ uc_getdev(struct kernel *kern, char *dev)
 	    }
 	}
 	
-#ifdef USE_SCSI
+#ifdef DO_SCSI
 	if (kern->scsi_devp) {
 	    struct uc_scsi *sp;
 
