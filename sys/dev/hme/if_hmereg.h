@@ -54,8 +54,8 @@
 #define HME_SEB_CFG_BURST16	0x00000000	/* 16 byte bursts */
 #define HME_SEB_CFG_BURST32	0x00000001	/* 32 byte bursts */
 #define HME_SEB_CFG_BURST64	0x00000002	/* 64 byte bursts */
-#define HME_SEB_CFG_64BIT	0x00000004	/* ? */
-#define HME_SEB_CFG_PARITY	0x00000008	/* ? */
+#define HME_SEB_CFG_64BIT	0x00000004	/* extended transfer mode */
+#define HME_SEB_CFG_PARITY	0x00000008	/* parity check for DVMA/PIO */
 
 #define HME_SEB_STAT_GOTFRAME	0x00000001	/* frame received */
 #define HME_SEB_STAT_RCNTEXP	0x00000002	/* rx frame count expired */
@@ -154,7 +154,7 @@
 #define HME_ERXI_FIFO_WPTR	(3*4)		/* FIFO write pointer */
 #define HME_ERXI_FIFO_SWPTR	(4*4)		/* FIFO shadow write pointer */
 #define HME_ERXI_FIFO_RPTR	(5*4)		/* FIFO read pointer */
-#define HME_ERXI_FIFO_SRPTR	(6*4)		/* FIFO shadow read pointer */
+#define HME_ERXI_FIFO_PKTCNT	(6*4)		/* FIFO packet counter */
 #define HME_ERXI_STATEMACHINE	(7*4)		/* State machine */
 
 /* RXI_CFG bits */
@@ -166,7 +166,8 @@
 #define HME_ERX_CFG_RINGSIZE128	0x00000400	/* Descriptor ring size: 128 */
 #define HME_ERX_CFG_RINGSIZE256	0x00000600	/* Descriptor ring size: 256 */
 #define HME_ERX_CFG_RINGSIZEMSK	0x00000600	/* Descriptor ring size: 256 */
-#define HME_ERX_CFG_CSUMSTART	0x007f0000	/* cksum offset */
+#define HME_ERX_CFG_CSUMSTART_MASK 0x007f0000	/* cksum offset mask */
+#define HME_ERX_CFG_CSUMSTART_SHIFT	16
 
 /*
  * HME MAC-core register offsets
@@ -289,6 +290,8 @@
 #define HME_XD_RXLENMSK	0x3fff0000	/* packet length mask (rx) */
 #define HME_XD_RXLENSHIFT	16
 #define HME_XD_TXLENMSK	0x00003fff	/* packet length mask (tx) */
+#define HME_XD_TXCKSUM_SSHIFT	14
+#define HME_XD_TXCKSUM_OSHIFT	20
 #define HME_XD_RXCKSUM	0x0000ffff	/* packet checksum (rx) */
 
 /* Macros to encode/decode the receive buffer size from the flags field */
