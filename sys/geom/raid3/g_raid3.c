@@ -80,6 +80,9 @@ SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, n4k, CTLFLAG_RD, &g_raid3_n4k, 0,
 
 SYSCTL_NODE(_kern_geom_raid3, OID_AUTO, stat, CTLFLAG_RW, 0,
     "GEOM_RAID3 statistics");
+static u_int g_raid3_parity_mismatch = 0;
+SYSCTL_UINT(_kern_geom_raid3_stat, OID_AUTO, parity_mismatch, CTLFLAG_RD,
+    &g_raid3_parity_mismatch, 0, "Number of failures in VERIFY mode");
 static u_int g_raid3_64k_requested = 0;
 SYSCTL_UINT(_kern_geom_raid3_stat, OID_AUTO, 64k_requested, CTLFLAG_RD,
     &g_raid3_64k_requested, 0, "Number of requested 64kB allocations");
@@ -212,6 +215,24 @@ _g_raid3_xor(uint64_t *src1, uint64_t *src2, uint64_t *dst, size_t size)
 		*dst++ = (*src1++) ^ (*src2++);
 		*dst++ = (*src1++) ^ (*src2++);
 	}
+}
+
+static int
+g_raid3_is_zero(struct bio *bp)
+{
+	static const uint64_t zeros[] = {
+	    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	};
+	u_char *addr;
+	ssize_t size;
+
+	size = bp->bio_length;
+	addr = (u_char *)bp->bio_data;
+	for (; size > 0; size -= sizeof(zeros), addr += sizeof(zeros)) {
+		if (bcmp(addr, zeros, sizeof(zeros)) != 0)
+			return (0);
+	}
+	return (1);
 }
 
 /*
@@ -727,6 +748,46 @@ g_raid3_init_bio(struct bio *pbp)
 }
 
 static void
+g_raid3_remove_bio(struct bio *cbp)
+{
+	struct bio *pbp, *bp;
+
+	pbp = cbp->bio_parent;
+	if (G_RAID3_HEAD_BIO(pbp) == cbp)
+		G_RAID3_HEAD_BIO(pbp) = G_RAID3_NEXT_BIO(cbp);
+	else {
+		G_RAID3_FOREACH_BIO(pbp, bp) {
+			if (G_RAID3_NEXT_BIO(bp) == cbp) {
+				G_RAID3_NEXT_BIO(bp) = G_RAID3_NEXT_BIO(cbp);
+				break;
+			}
+		}
+	}
+	G_RAID3_NEXT_BIO(cbp) = NULL;
+}
+
+static void
+g_raid3_replace_bio(struct bio *sbp, struct bio *dbp)
+{
+	struct bio *pbp, *bp;
+
+	g_raid3_remove_bio(sbp);
+	pbp = dbp->bio_parent;
+	G_RAID3_NEXT_BIO(sbp) = G_RAID3_NEXT_BIO(dbp);
+	if (G_RAID3_HEAD_BIO(pbp) == dbp)
+		G_RAID3_HEAD_BIO(pbp) = sbp;
+	else {
+		G_RAID3_FOREACH_BIO(pbp, bp) {
+			if (G_RAID3_NEXT_BIO(bp) == dbp) {
+				G_RAID3_NEXT_BIO(bp) = sbp;
+				break;
+			}
+		}
+	}
+	G_RAID3_NEXT_BIO(dbp) = NULL;
+}
+
+static void
 g_raid3_destroy_bio(struct g_raid3_softc *sc, struct bio *cbp)
 {
 	struct bio *bp, *pbp;
@@ -751,10 +812,12 @@ g_raid3_destroy_bio(struct g_raid3_softc *sc, struct bio *cbp)
 			if (G_RAID3_NEXT_BIO(bp) == cbp)
 				break;
 		}
-		KASSERT(bp != NULL, ("NULL bp"));
-		KASSERT(G_RAID3_NEXT_BIO(bp) != NULL, ("NULL bp->bio_driver1"));
-		G_RAID3_NEXT_BIO(bp) = G_RAID3_NEXT_BIO(cbp);
-		G_RAID3_NEXT_BIO(cbp) = NULL;
+		if (bp != NULL) {
+			KASSERT(G_RAID3_NEXT_BIO(bp) != NULL,
+			    ("NULL bp->bio_driver1"));
+			G_RAID3_NEXT_BIO(bp) = G_RAID3_NEXT_BIO(cbp);
+			G_RAID3_NEXT_BIO(cbp) = NULL;
+		}
 		g_destroy_bio(cbp);
 	}
 }
@@ -928,7 +991,12 @@ g_raid3_gather(struct bio *pbp)
 	}
 	if (pbp->bio_error != 0)
 		goto finish;
-	if (fbp != NULL) {
+	if (fbp != NULL && (pbp->bio_pflags & G_RAID3_BIO_PFLAG_VERIFY) != 0) {
+		pbp->bio_pflags &= ~G_RAID3_BIO_PFLAG_VERIFY;
+		if (xbp != fbp)
+			g_raid3_replace_bio(xbp, fbp);
+		g_raid3_destroy_bio(sc, fbp);
+	} else if (fbp != NULL) {
 		struct g_consumer *cp;
 
 		/*
@@ -970,6 +1038,14 @@ g_raid3_gather(struct bio *pbp)
 			    xbp->bio_length);
 		}
 		xbp->bio_cflags &= ~G_RAID3_BIO_CFLAG_PARITY;
+		if ((pbp->bio_pflags & G_RAID3_BIO_PFLAG_VERIFY) != 0) {
+			if (!g_raid3_is_zero(xbp)) {
+				g_raid3_parity_mismatch++;
+				pbp->bio_error = EIO;
+				goto finish;
+			}
+			g_raid3_destroy_bio(sc, xbp);
+		}
 	}
 	atom = sc->sc_sectorsize / (sc->sc_ndisks - 1);
 	cadd = padd = 0;
@@ -986,7 +1062,7 @@ finish:
 		G_RAID3_LOGREQ(3, pbp, "Request finished.");
 	else
 		G_RAID3_LOGREQ(0, pbp, "Request failed.");
-	pbp->bio_pflags &= ~G_RAID3_BIO_PFLAG_DEGRADED;
+	pbp->bio_pflags &= ~G_RAID3_BIO_PFLAG_MASK;
 	g_io_deliver(pbp, pbp->bio_error);
 	while ((cbp = G_RAID3_HEAD_BIO(pbp)) != NULL)
 		g_raid3_destroy_bio(sc, cbp);
@@ -1286,7 +1362,7 @@ g_raid3_register_request(struct bio *pbp)
 	struct bio *cbp;
 	off_t offset, length;
 	u_int n, ndisks;
-	int round_robin;
+	int round_robin, verify;
 
 	ndisks = 0;
 	sc = pbp->bio_to->geom->softc;
@@ -1298,21 +1374,32 @@ g_raid3_register_request(struct bio *pbp)
 	g_raid3_init_bio(pbp);
 	length = pbp->bio_length / (sc->sc_ndisks - 1);
 	offset = pbp->bio_offset / (sc->sc_ndisks - 1);
+	round_robin = verify = 0;
 	switch (pbp->bio_cmd) {
 	case BIO_READ:
-		ndisks = sc->sc_ndisks - 1;
+		if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_VERIFY) != 0 &&
+		    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE) {
+			pbp->bio_pflags |= G_RAID3_BIO_PFLAG_VERIFY;
+			verify = 1;
+			ndisks = sc->sc_ndisks;
+		} else {
+			verify = 0;
+			ndisks = sc->sc_ndisks - 1;
+		}
+		if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_ROUND_ROBIN) != 0 &&
+		    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE) {
+			round_robin = 1;
+		} else {
+			round_robin = 0;
+		}
+		KASSERT(!round_robin || !verify,
+		    ("ROUND-ROBIN and VERIFY are mutually exclusive."));
 		pbp->bio_driver2 = &sc->sc_disks[sc->sc_ndisks - 1];
 		break;
 	case BIO_WRITE:
 	case BIO_DELETE:
 		ndisks = sc->sc_ndisks;
 		break;
-	}
-	if (sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE &&
-	    (sc->sc_flags & G_RAID3_DEVICE_FLAG_ROUND_ROBIN) != 0) {
-		round_robin = 1;
-	} else {
-		round_robin = 0;
 	}
 	for (n = 0; n < ndisks; n++) {
 		disk = &sc->sc_disks[n];
@@ -1346,6 +1433,8 @@ g_raid3_register_request(struct bio *pbp)
 				cbp->bio_cflags |= G_RAID3_BIO_CFLAG_PARITY;
 				sc->sc_round_robin++;
 				round_robin = 0;
+			} else if (verify && disk->d_no == sc->sc_ndisks - 1) {
+				cbp->bio_cflags |= G_RAID3_BIO_CFLAG_PARITY;
 			}
 			break;
 		case BIO_WRITE:
@@ -2355,6 +2444,15 @@ g_raid3_check_metadata(struct g_raid3_softc *sc, struct g_provider *pp,
 		    pp->name, sc->sc_name);
 		return (EINVAL);
 	}
+	if ((md->md_mflags & G_RAID3_DEVICE_FLAG_VERIFY) != 0 &&
+	    (md->md_mflags & G_RAID3_DEVICE_FLAG_ROUND_ROBIN) != 0) {
+		/*
+		 * VERIFY and ROUND-ROBIN options are mutally exclusive.
+		 */
+		G_RAID3_DEBUG(1, "Both VERIFY and ROUND-ROBIN flags exist on "
+		    "disk %s (device %s), skipping.", pp->name, sc->sc_name);
+		return (EINVAL);
+	}
 	if ((md->md_dflags & ~G_RAID3_DISK_FLAG_MASK) != 0) {
 		G_RAID3_DEBUG(1,
 		    "Invalid disk flags on disk %s (device %s), skipping.",
@@ -2764,6 +2862,7 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			ADD_FLAG(G_RAID3_DEVICE_FLAG_NOAUTOSYNC, "NOAUTOSYNC");
 			ADD_FLAG(G_RAID3_DEVICE_FLAG_ROUND_ROBIN,
 			    "ROUND-ROBIN");
+			ADD_FLAG(G_RAID3_DEVICE_FLAG_VERIFY, "VERIFY");
 #undef	ADD_FLAG
 		}
 		sbuf_printf(sb, "</Flags>\n");
