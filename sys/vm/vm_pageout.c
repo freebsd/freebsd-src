@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.129 1998/10/31 17:21:31 peter Exp $
+ * $Id: vm_pageout.c,v 1.129.2.1 1999/01/22 06:05:08 dillon Exp $
  */
 
 /*
@@ -957,6 +957,13 @@ rescan0:
 		m = vm_page_list_find(PQ_CACHE, cache_rover);
 		if (!m)
 			break;
+		if ((m->flags & PG_BUSY) || m->busy || m->hold_count || m->wire_count) {
+#ifdef INVARIANTS
+			printf("Warning: busy page %p found in cache\n", m);
+#endif
+			vm_page_deactivate(m);
+			continue;
+		}
 		cache_rover = (cache_rover + PQ_PRIME2) & PQ_L2_MASK;
 		vm_pageout_page_free(m);
 		cnt.v_dfree++;
