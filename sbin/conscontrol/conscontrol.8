@@ -89,6 +89,11 @@ the name of the directory may be omitted.
 Change the state of console muting.
 All console output is suppressed when console muting is
 .Cm on .
+.It Cm set Ar console | Cm unset
+Set or unset the virtual console.
+When unset, output from the system, such as the kernel
+.Xr printf 9 ,
+always goes out to the real main console.
 .El
 .Sh SEE ALSO
 .Xr sio 4 ,
