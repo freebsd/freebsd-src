@@ -235,6 +235,15 @@ vn_close(vp, flags, cred, p)
 	if (flags & FWRITE)
 		vp->v_writecount--;
 	error = VOP_CLOSE(vp, flags, cred, p);
+	/*
+	 * XXX - In certain instances VOP_CLOSE has to do the vrele
+	 * itself. If the vrele has been done, it will return EAGAIN
+	 * to indicate that the vrele should not be done again. When
+	 * this happens, we just return success. The correct thing to
+	 * do would be to have all VOP_CLOSE instances do the vrele.
+	 */
+	if (error == EAGAIN)
+		return (0);
 	vrele(vp);
 	return (error);
 }

@@ -952,7 +952,7 @@ ffs_sync(mp, waitfor, cred, p)
 	struct ucred *cred;
 	struct proc *p;
 {
-	struct vnode *nvp, *vp;
+	struct vnode *nvp, *vp, *devvp;
 	struct inode *ip;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
@@ -1026,12 +1026,21 @@ loop:
 #ifdef QUOTA
 	qsync(mp);
 #endif
-	if (waitfor != MNT_LAZY) {
-		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		if ((error = VOP_FSYNC(ump->um_devvp, cred, waitfor, p)) != 0)
+	devvp = ump->um_devvp;
+	mtx_lock(&devvp->v_interlock);
+	if (waitfor != MNT_LAZY &&
+	    (devvp->v_numoutput > 0 || TAILQ_FIRST(&devvp->v_dirtyblkhd))) {
+		mtx_unlock(&devvp->v_interlock);
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+		if ((error = VOP_FSYNC(devvp, cred, waitfor, p)) != 0)
 			allerror = error;
-		VOP_UNLOCK(ump->um_devvp, 0, p);
-	}
+		VOP_UNLOCK(devvp, 0, p);
+		if (waitfor == MNT_WAIT) {
+			mtx_lock(&mntvnode_mtx);
+			goto loop;
+		}
+	} else
+		mtx_unlock(&devvp->v_interlock);
 	/*
 	 * Write back modified superblock.
 	 */

@@ -292,12 +292,32 @@ ufs_close(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
+	struct vnode *vp = ap->a_vp;
+	struct mount *mp;
 
 	mtx_lock(&vp->v_interlock);
-	if (vp->v_usecount > 1)
+	if (vp->v_usecount > 1) {
 		ufs_itimes(vp);
-	mtx_unlock(&vp->v_interlock);
+		mtx_unlock(&vp->v_interlock);
+	} else {
+		mtx_unlock(&vp->v_interlock);
+		/*
+		 * If we are closing the last reference to an unlinked
+		 * file, then it will be freed by the inactive routine.
+		 * Because the freeing causes a the filesystem to be
+		 * modified, it must be held up during periods when the
+		 * filesystem is suspended.
+		 *
+		 * XXX - EAGAIN is returned to prevent vn_close from
+		 * repeating the vrele operation.
+		 */
+		if (vp->v_type == VREG && VTOI(vp)->i_effnlink == 0) {
+			(void) vn_start_write(vp, &mp, V_WAIT);
+			vrele(vp);
+			vn_finished_write(mp);
+			return (EAGAIN);
+		}
+	}
 	return (0);
 }
 
