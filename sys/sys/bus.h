@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.2 1998/06/14 13:46:09 dfr Exp $
+ *	$Id: bus.h,v 1.3 1998/07/05 10:14:32 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -91,7 +91,8 @@ int bus_generic_shutdown(device_t dev);
 void bus_generic_print_child(device_t dev, device_t child);
 int bus_generic_read_ivar(device_t dev, device_t child, int which, u_long *result);
 int bus_generic_write_ivar(device_t dev, device_t child, int which, u_long value);
-int bus_generic_map_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg);
+void *bus_generic_create_intr(device_t dev, device_t child, int irq, driver_intr_t *intr, void *arg);
+int bus_generic_connect_intr(device_t dev, void *ih);
 
 /*
  * Access functions for device.
