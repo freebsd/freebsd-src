@@ -1,6 +1,6 @@
 .\" $FreeBSD$
-.\" $Id: file.man,v 1.42 2002/07/03 18:26:37 christos Exp $
-.Dd April 4, 2001
+.\" $Id: file.man,v 1.44 2003/02/27 20:47:46 christos Exp $
+.Dd February 27, 2003
 .Dt FILE 1 "Copyright but distributable"
 .Os
 .Sh NAME
@@ -8,15 +8,16 @@
 .Nd determine file type
 .Sh SYNOPSIS
 .Nm
-.Op Fl bciknsvzL
+.Op Fl bciknNsvzL
 .Op Fl f Ar namefile
+.Op Fl F Ar separator
 .Op Fl m Ar magicfiles
 .Ar
 .Nm
 .Fl C
 .Op Fl m Ar magicfile
 .Sh DESCRIPTION
-This manual page documents version 3.39 of the
+This manual page documents version 3.41 of the
 .Nm
 utility which tests each argument in an attempt to classify it.
 There are three sets of tests, performed in this order:
@@ -181,6 +182,9 @@ or at least one filename argument must be present;
 to test the standard input, use
 .Dq Fl
 as a filename argument.
+.It Fl F Ar separator
+Use the specified separator character instead of
+.Ql \&: .
 .It Fl i
 Causes the file command to output mime type strings rather than the more
 traditional human readable ones.
@@ -206,6 +210,8 @@ Force stdout to be flushed after checking each file.
 This is only useful if checking a list of files.
 It is intended to be used by programs that want
 filetype output from a pipe.
+.It Fl N
+Don't pad output to align filenames nicely.
 .It Fl v
 Print the version of the program and exit.
 .It Fl z
@@ -325,7 +331,7 @@ file:      ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV),
 $ file -s /dev/wd0{b,d}
 /dev/wd0b: data
 /dev/wd0d: x86 boot sector
-$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
+$ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}	# Linux
 /dev/hda:   x86 boot sector
 /dev/hda1:  Linux/i386 ext2 filesystem
 /dev/hda2:  x86 boot sector
@@ -337,6 +343,22 @@ $ file -s /dev/hda{,1,2,3,4,5,6,7,8,9,10}
 /dev/hda8:  Linux/i386 swap file
 /dev/hda9:  empty
 /dev/hda10: empty
+
+$ file -s /dev/rwd0e				# BSD
+/dev/rwd0e:
+Unix Fast File system (little-endian),
+last mounted on /usr,
+last written at Mon Feb 10 13:22:40 2003,
+clean flag 2,
+number of blocks 28754208,
+number of data blocks 27812712,
+number of cylinder groups 3566,
+block size 8192,
+fragment size 1024,
+minimum percentage of free blocks 5,
+rotational delay 0ms,
+disk rotational speed 60rps,
+TIME optimization
 
 $ file -i file.c file /dev/{wd0a,hda}
 file.c:    text/x-c
@@ -506,4 +528,4 @@ You can obtain the original author's latest version by anonymous FTP
 on
 .Pa ftp.astron.com
 in the directory
-.Pa /pub/file/file-X.YY.tar.gz
+.Pa /pub/file/file-X.YZ.tar.gz
