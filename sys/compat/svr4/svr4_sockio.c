@@ -122,7 +122,7 @@ svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 			if ((error = copyin(data, &sr, sizeof(sr))) != 0)
 				return error;
 
-			(void) strncpy(br.ifr_name, sr.svr4_ifr_name,
+			(void) strlcpy(br.ifr_name, sr.svr4_ifr_name,
 			    sizeof(br.ifr_name));
 			if ((error = fo_ioctl(fp, SIOCGIFFLAGS, 
 					    (caddr_t) &br, td->td_ucred,
