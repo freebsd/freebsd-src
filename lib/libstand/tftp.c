@@ -254,10 +254,11 @@ tftp_open(path, f)
 	struct iodesc  *io;
 	int             res;
 
-#ifdef __sparc64__
+#ifndef __i386__
 	if (strcmp(f->f_dev->dv_name, "net") != 0)
 		return (EINVAL);
 #endif
+
 	tftpfile = (struct tftp_handle *) malloc(sizeof(*tftpfile));
 	if (!tftpfile)
 		return (ENOMEM);
