@@ -179,29 +179,23 @@ cook_cat(FILE *fp)
 	line = gobble = 0;
 	for (prev = '\n'; (ch = getc(fp)) != EOF; prev = ch) {
 		if (prev == '\n') {
-			if (ch == '\n') {
-				if (sflag) {
-					if (!gobble && putchar(ch) == EOF)
-						break;
+			if (sflag) {
+				if (ch == '\n') {
+					if (gobble)
+						continue;
 					gobble = 1;
-					continue;
-				}
-				if (nflag && !bflag) {
-					fprintf(stdout, "%6d\t", ++line);
-					if (ferror(stdout))
-						break;
-				}
-			} else if (nflag) {
-				fprintf(stdout, "%6d\t", ++line);
+				} else
+					gobble = 0;
+			}
+			if (nflag && (!bflag || ch != '\n')) {
+				(void)fprintf(stdout, "%6d\t", ++line);
 				if (ferror(stdout))
 					break;
 			}
 		}
-		gobble = 0;
 		if (ch == '\n') {
-			if (eflag)
-				if (putchar('$') == EOF)
-					break;
+			if (eflag && putchar('$') == EOF)
+				break;
 		} else if (ch == '\t') {
 			if (tflag) {
 				if (putchar('^') == EOF || putchar('I') == EOF)
