@@ -522,9 +522,9 @@ addupc_task(ke, pc, ticks)
 		return;
 
 	addr = prof->pr_base + i;
-	if (copyin(addr, (caddr_t)&v, sizeof(v)) == 0) {
+	if (copyin(addr, &v, sizeof(v)) == 0) {
 		v += ticks;
-		if (copyout((caddr_t)&v, addr, sizeof(v)) == 0)
+		if (copyout(&v, addr, sizeof(v)) == 0)
 			return;
 	}
 	stopprofclock(p);

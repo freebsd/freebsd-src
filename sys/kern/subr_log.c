@@ -138,8 +138,7 @@ logread(dev_t dev, struct uio *uio, int flag)
 			return (EWOULDBLOCK);
 		}
 		logsoftc.sc_state |= LOG_RDWAIT;
-		if ((error = tsleep((caddr_t)mbp, LOG_RDPRI | PCATCH,
-		    "klog", 0))) {
+		if ((error = tsleep(mbp, LOG_RDPRI | PCATCH, "klog", 0))) {
 			splx(s);
 			return (error);
 		}

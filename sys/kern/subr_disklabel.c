@@ -98,7 +98,7 @@ bioqdisksort(bioq, bp)
 				break;
 		if (bn != NULL) {
 			mtx_lock(&dksort_mtx);
-			msleep((caddr_t)&dksort_mtx, &dksort_mtx,
+			msleep(&dksort_mtx, &dksort_mtx,
 			    PPAUSE | PCATCH | PDROP, "ioslow",
 			    td->td_ksegrp->kg_nice);
 		}
