@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	grops
-SRCS=		ps.cc psrm.cc
+SRCS=		ps.cpp psrm.cpp
 DPADD=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBDRIVER} ${LIBGROFF} -lm
 CLEANFILES=	${MAN}

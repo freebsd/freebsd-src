@@ -1,15 +1,16 @@
 # $FreeBSD$
 
 PROG_CXX=	troff
-SRCS=		env.cc node.cc input.cc div.cc symbol.cc dictionary.cc reg.cc \
-		number.cc majorminor.cc
+SRCS=		dictionary.cpp div.cpp env.cpp glyphuni.cpp input.cpp \
+		majorminor.cpp node.cpp number.cpp reg.cpp symbol.cpp \
+		unicode.cpp uniglyph.cpp uniuni.cpp
 DPADD=		${LIBGROFF} ${LIBM}
 LDADD=		${LIBGROFF} -lm
-CLEANFILES=	majorminor.cc ${MAN}
+CLEANFILES=	majorminor.cpp ${MAN}
 
 .include <bsd.prog.mk>
 
-majorminor.cc: ${GROFF_DIST}/VERSION ${GROFF_DIST}/REVISION
+majorminor.cpp: ${GROFF_DIST}/VERSION ${GROFF_DIST}/REVISION
 	@${ECHO} Making $@
 	@-rm -f $@
 	@echo const char \*major_version = \

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	hpftodit
-SRCS=		hpftodit.cc
+SRCS=		hpftodit.cpp
 DPADD=		${LIBGROFF} ${LIBM}
 LDADD=		${LIBGROFF} -lm
 CLEANFILES=	${MAN}

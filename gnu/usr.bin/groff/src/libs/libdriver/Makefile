@@ -2,6 +2,6 @@
 
 LIB=		driver
 INTERNALLIB=	YES
-SRCS=		input.cc printer.cc
+SRCS=		input.cpp printer.cpp
 
 .include <bsd.lib.mk>

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	pre-grohtml
-SRCS=		pre-html.cc pushback.cc
+SRCS=		pre-html.cpp pushback.cpp
 DPADD=		${LIBGROFF}
 LDADD=		${LIBGROFF}
 NOMAN=		YES
