@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.53 1997/05/29 05:11:10 peter Exp $
+ *	$Id: support.s,v 1.54 1997/06/22 16:03:33 peter Exp $
  */
 
 #include "npx.h"
@@ -1522,6 +1522,16 @@ ENTRY(load_cr3)
 	movl	%eax,%cr3
 	ret
 
+/* rcr4() */
+ENTRY(rcr4)
+	movl	%cr4,%eax
+	ret
+
+/* void load_cr3(caddr_t cr3) */
+ENTRY(load_cr4)
+	movl	4(%esp),%eax
+	movl	%eax,%cr4
+	ret
 
 /*****************************************************************************/
 /* setjump, longjump                                                         */

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.67 1997/05/21 22:56:04 jdp Exp $
+ *	$Id: cpufunc.h,v 1.68 1997/05/31 09:13:03 peter Exp $
  */
 
 /*
@@ -416,8 +416,10 @@ void	wrmsr		__P((u_int msr, quad_t newval));
 
 void	load_cr0	__P((u_long cr0));
 void	load_cr3	__P((u_long cr3));
+void	load_cr4	__P((u_long cr4));
 void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_long	rcr3		__P((void));
+u_long	rcr4		__P((void));
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
