@@ -64,7 +64,7 @@ getsym(const char *sym)
      if (!ret && !whined) {
 	fprintf(stderr, "** %s: Unable to find an RSAREF shared library (%s).\n", sym, RSA_SHLIB);
 	fprintf(stderr, "** Install the /usr/ports/security/rsaref port or package and run this\n");
-	fprintf(stderr, "** program again. See Chapter 6.5 in the FreeBSD Handbook, located at\n");
+	fprintf(stderr, "** program again. See the OpenSSL chapter in the FreeBSD Handbook, located at\n");
 	fprintf(stderr, "** http://www.freebsd.org/handbook/openssl.html, for more information.\n");
 	whined = 1;
      }
