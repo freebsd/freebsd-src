@@ -1,9 +1,10 @@
-#	$Id: Makefile,v 1.56 1994/11/21 04:14:30 phk Exp $
+#	$Id: Makefile,v 1.57 1994/11/21 08:15:25 phk Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
 FLOPPY=		fd0
 #EVIL_FLOPPY=	yes
+
 
 .if defined(EVIL_FLOPPY)
 FDLABEL=	fd1200
@@ -155,9 +156,10 @@ bar:
 			DESTDIR=${RELEASEDIR}/filesys \
 			SHARED=copies )
 
-EXTRADISTRIBUTIONS=	des games manpages proflibs dict krb
+EXTRADISTRIBUTIONS=	secrdist games manpages proflibs dict krb srcdist
 DISTRIBUTIONS=	bindist ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
+SECRSRC=	src/secure src/eBones
 
 distribute: 
 	-mkdir ${RELEASEDIR}
@@ -175,7 +177,7 @@ distribute:
 	install ${COPY} -m 644 ${.CURDIR}/../sys/compile/GENERIC/kernel \
 		${RELEASEDIR}/bindist/kernel
 
-tarballs:
+beforetarballs:
 	rm -rf ${RELEASEDIR}/manpages/usr/share/man
 	mv ${RELEASEDIR}/bindist/usr/share/man \
 		${RELEASEDIR}/manpages/usr/share/man
@@ -192,6 +194,11 @@ tarballs:
 		${RELEASEDIR}/proflibs/usr/lib
 	-cd ${RELEASEDIR} ; \
 	find ${EXTRADISTRIBUTIONS} -depth -type d -print | xargs rmdir
+	cd ${RELEASEDIR}/secrdist/usr ; cvs export -r ${RELEASETAG} ${SECRSRC}
+	cd ${RELEASEDIR}/srcdist/usr ; cvs export -r ${RELEASETAG} src
+	cd ${RELEASEDIR}/srcdist/usr/src ; rm -rf secure kerberosIV eBones
+
+tarballs:
 	rm -rf ${RELEASEDIR}/tarballs
 	mkdir ${RELEASEDIR}/tarballs
 	for i in ${DISTRIBUTIONS} ; \
