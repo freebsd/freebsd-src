@@ -35,15 +35,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
 /* Static variables: */
 static	struct pthread_key key_table[PTHREAD_KEYS_MAX];
 
+#pragma weak	pthread_key_create=_pthread_key_create
+#pragma weak	pthread_key_delete=_pthread_key_delete
+#pragma weak	pthread_getspecific=_pthread_getspecific
+#pragma weak	pthread_setspecific=_pthread_setspecific
+
+
 int
-pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
+_pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
 {
 	for ((*key) = 0; (*key) < PTHREAD_KEYS_MAX; (*key)++) {
 		/* Lock the key table entry: */
@@ -65,7 +70,7 @@ pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
 }
 
 int
-pthread_key_delete(pthread_key_t key)
+_pthread_key_delete(pthread_key_t key)
 {
 	int ret = 0;
 
@@ -88,23 +93,24 @@ pthread_key_delete(pthread_key_t key)
 void 
 _thread_cleanupspecific(void)
 {
-	void           *data = NULL;
-	int             key;
-	int             itr;
+	struct pthread	*curthread = _get_curthread();
+	void		*data = NULL;
+	int		key;
+	int		itr;
 	void		(*destructor)( void *);
 
 	for (itr = 0; itr < PTHREAD_DESTRUCTOR_ITERATIONS; itr++) {
 		for (key = 0; key < PTHREAD_KEYS_MAX; key++) {
-			if (_thread_run->specific_data_count) {
+			if (curthread->specific_data_count) {
 				/* Lock the key table entry: */
 				_SPINLOCK(&key_table[key].lock);
 				destructor = NULL;
 
 				if (key_table[key].allocated) {
-					if (_thread_run->specific_data[key]) {
-						data = (void *) _thread_run->specific_data[key];
-						_thread_run->specific_data[key] = NULL;
-						_thread_run->specific_data_count--;
+					if (curthread->specific_data[key]) {
+						data = (void *) curthread->specific_data[key];
+						curthread->specific_data[key] = NULL;
+						curthread->specific_data_count--;
 						destructor = key_table[key].destructor;
 					}
 				}
@@ -119,14 +125,14 @@ _thread_cleanupspecific(void)
 				if (destructor)
 					destructor(data);
 			} else {
-				free(_thread_run->specific_data);
-				_thread_run->specific_data = NULL;
+				free(curthread->specific_data);
+				curthread->specific_data = NULL;
 				return;
 			}
 		}
 	}
-	free(_thread_run->specific_data);
-	_thread_run->specific_data = NULL;
+	free(curthread->specific_data);
+	curthread->specific_data = NULL;
 }
 
 static inline const void **
@@ -140,13 +146,13 @@ pthread_key_allocate_data(void)
 }
 
 int 
-pthread_setspecific(pthread_key_t key, const void *value)
+_pthread_setspecific(pthread_key_t key, const void *value)
 {
-	pthread_t       pthread;
-	int             ret = 0;
+	struct pthread	*pthread;
+	int		ret = 0;
 
 	/* Point to the running thread: */
-	pthread = _thread_run;
+	pthread = _get_curthread();
 
 	if ((pthread->specific_data) ||
 	    (pthread->specific_data = pthread_key_allocate_data())) {
@@ -171,13 +177,13 @@ pthread_setspecific(pthread_key_t key, const void *value)
 }
 
 void *
-pthread_getspecific(pthread_key_t key)
+_pthread_getspecific(pthread_key_t key)
 {
-	pthread_t       pthread;
+	struct pthread	*pthread;
 	void		*data;
 
 	/* Point to the running thread: */
-	pthread = _thread_run;
+	pthread = _get_curthread();
 
 	/* Check if there is specific data: */
 	if (pthread->specific_data != NULL && key < PTHREAD_KEYS_MAX) {
@@ -197,4 +203,3 @@ pthread_getspecific(pthread_key_t key)
 		data = NULL;
 	return (data);
 }
-#endif

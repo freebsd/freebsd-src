@@ -7,21 +7,18 @@
 
 #include <sys/stat.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	fchflags=_fchflags
 int
 _fchflags(int fd, u_long flags)
 {
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
-		ret = _thread_sys_fchflags(fd, flags);
+		ret = __sys_fchflags(fd, flags);
 		_FD_UNLOCK(fd, FD_WRITE);
 	}
 	return (ret);
 }
-
-__strong_reference(_fchflags, fchflags);
-#endif

@@ -36,13 +36,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	fork=_fork
 
 pid_t
 _fork(void)
 {
+	struct pthread	*curthread = _get_curthread();
 	int             i, flags;
 	pid_t           ret;
 	pthread_t	pthread;
@@ -55,42 +57,42 @@ _fork(void)
 	_thread_kern_sig_defer();
 
 	/* Fork a new process: */
-	if ((ret = _thread_sys_fork()) != 0) {
+	if ((ret = __sys_fork()) != 0) {
 		/* Parent process or error. Nothing to do here. */
 	} else {
 		/* Close the pthread kernel pipe: */
-		_thread_sys_close(_thread_kern_pipe[0]);
-		_thread_sys_close(_thread_kern_pipe[1]);
+		__sys_close(_thread_kern_pipe[0]);
+		__sys_close(_thread_kern_pipe[1]);
 
 		/* Reset signals pending for the running thread: */
-		sigemptyset(&_thread_run->sigpend);
+		sigemptyset(&curthread->sigpend);
 
 		/*
 		 * Create a pipe that is written to by the signal handler to
 		 * prevent signals being missed in calls to
-		 * _thread_sys_select: 
+		 * __sys_select: 
 		 */
-		if (_thread_sys_pipe(_thread_kern_pipe) != 0) {
+		if (__sys_pipe(_thread_kern_pipe) != 0) {
 			/* Cannot create pipe, so abort: */
 			PANIC("Cannot create pthread kernel pipe for forked process");
 		}
 		/* Get the flags for the read pipe: */
-		else if ((flags = _thread_sys_fcntl(_thread_kern_pipe[0], F_GETFL, NULL)) == -1) {
+		else if ((flags = __sys_fcntl(_thread_kern_pipe[0], F_GETFL, NULL)) == -1) {
 			/* Abort this application: */
 			abort();
 		}
 		/* Make the read pipe non-blocking: */
-		else if (_thread_sys_fcntl(_thread_kern_pipe[0], F_SETFL, flags | O_NONBLOCK) == -1) {
+		else if (__sys_fcntl(_thread_kern_pipe[0], F_SETFL, flags | O_NONBLOCK) == -1) {
 			/* Abort this application: */
 			abort();
 		}
 		/* Get the flags for the write pipe: */
-		else if ((flags = _thread_sys_fcntl(_thread_kern_pipe[1], F_GETFL, NULL)) == -1) {
+		else if ((flags = __sys_fcntl(_thread_kern_pipe[1], F_GETFL, NULL)) == -1) {
 			/* Abort this application: */
 			abort();
 		}
 		/* Make the write pipe non-blocking: */
-		else if (_thread_sys_fcntl(_thread_kern_pipe[1], F_SETFL, flags | O_NONBLOCK) == -1) {
+		else if (__sys_fcntl(_thread_kern_pipe[1], F_SETFL, flags | O_NONBLOCK) == -1) {
 			/* Abort this application: */
 			abort();
 		}
@@ -125,7 +127,7 @@ _fork(void)
 				pthread = TAILQ_NEXT(pthread, dle);
 
 				/* Make sure this isn't the running thread: */
-				if (pthread_save != _thread_run) {
+				if (pthread_save != curthread) {
 					/* Remove this thread from the list: */
 					TAILQ_REMOVE(&_thread_list,
 					    pthread_save, tle);
@@ -165,7 +167,7 @@ _fork(void)
 			}
 
 			/* Treat the current thread as the initial thread: */
-			_thread_initial = _thread_run;
+			_thread_initial = curthread;
 
 			/* Re-init the dead thread list: */
 			TAILQ_INIT(&_dead_list);
@@ -175,7 +177,7 @@ _fork(void)
 			TAILQ_INIT(&_workq);
 
 			/* Re-init the threads mutex queue: */
-			TAILQ_INIT(&_thread_run->mutexq);
+			TAILQ_INIT(&curthread->mutexq);
 
 			/* No spinlocks yet: */
 			_spinblock_count = 0;
@@ -217,6 +219,3 @@ _fork(void)
 	/* Return the process ID: */
 	return (ret);
 }
-
-__strong_reference(_fork, fork);
-#endif

@@ -30,12 +30,13 @@
  */
 
 #include <termios.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	tcdrain=_tcdrain
+
 int
-tcdrain(int fd)
+_tcdrain(int fd)
 {
 	int	ret;
 	
@@ -45,4 +46,3 @@ tcdrain(int fd)
 
 	return ret;
 }
-#endif

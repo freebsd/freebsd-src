@@ -31,7 +31,6 @@
  *
  * $FreeBSD$
  */
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -58,4 +57,3 @@ _thread_seterrno(pthread_t thread, int error)
 		 */
 		thread->error = error;
 }
-#endif

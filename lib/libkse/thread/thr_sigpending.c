@@ -33,13 +33,15 @@
  */
 #include <signal.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	sigpending=_sigpending
 
 int
 _sigpending(sigset_t * set)
 {
+	struct pthread	*curthread = _get_curthread();
 	int ret = 0;
 
 	/* Check for a null signal set pointer: */
@@ -48,11 +50,8 @@ _sigpending(sigset_t * set)
 		ret = EINVAL;
 	}
 	else {
-		*set = _thread_run->sigpend;
+		*set = curthread->sigpend;
 	}
 	/* Return the completion status: */
 	return (ret);
 }
-
-__strong_reference(_sigpending, sigpending);
-#endif

@@ -32,12 +32,16 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_mutexattr_setkind_np=_pthread_mutexattr_setkind_np
+#pragma weak	pthread_mutexattr_getkind_np=_pthread_mutexattr_getkind_np
+#pragma weak	pthread_mutexattr_gettype=_pthread_mutexattr_gettype
+#pragma weak	pthread_mutexattr_settype=_pthread_mutexattr_settype
+
 int
-pthread_mutexattr_setkind_np(pthread_mutexattr_t *attr, int kind)
+_pthread_mutexattr_setkind_np(pthread_mutexattr_t *attr, int kind)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL) {
@@ -51,7 +55,7 @@ pthread_mutexattr_setkind_np(pthread_mutexattr_t *attr, int kind)
 }
 
 int
-pthread_mutexattr_getkind_np(pthread_mutexattr_t attr)
+_pthread_mutexattr_getkind_np(pthread_mutexattr_t attr)
 {
 	int	ret;
 	if (attr == NULL) {
@@ -64,7 +68,7 @@ pthread_mutexattr_getkind_np(pthread_mutexattr_t attr)
 }
 
 int
-pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type)
+_pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL || type >= MUTEX_TYPE_MAX) {
@@ -78,7 +82,7 @@ pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type)
 }
 
 int
-pthread_mutexattr_gettype(pthread_mutexattr_t *attr, int *type)
+_pthread_mutexattr_gettype(pthread_mutexattr_t *attr, int *type)
 {
 	int	ret;
 
@@ -91,4 +95,3 @@ pthread_mutexattr_gettype(pthread_mutexattr_t *attr, int *type)
 	}
 	return ret;
 }
-#endif

@@ -31,15 +31,19 @@
  *
  * $FreeBSD$
  */
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	sched_yield=_sched_yield
+#pragma weak	pthread_yield=_pthread_yield
+
 int
-sched_yield(void)
+_sched_yield(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/* Reset the accumulated time slice value for the current thread: */
-	_thread_run->slice_usec = -1;
+	curthread->slice_usec = -1;
 
 	/* Schedule the next thread: */
 	_thread_kern_sched(NULL);
@@ -50,12 +54,13 @@ sched_yield(void)
 
 /* Draft 4 yield */
 void
-pthread_yield(void)
+_pthread_yield(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/* Reset the accumulated time slice value for the current thread: */
-	_thread_run->slice_usec = -1;
+	curthread->slice_usec = -1;
 
 	/* Schedule the next thread: */
 	_thread_kern_sched(NULL);
 }
-#endif

@@ -32,14 +32,16 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include <pthread_np.h>
 #include "pthread_private.h"
 
 
+#pragma weak	pthread_switch_add_np=_pthread_switch_add_np
+#pragma weak	pthread_switch_delete_np=_pthread_switch_delete_np
+
 int
-pthread_switch_add_np(pthread_switch_routine_t routine)
+_pthread_switch_add_np(pthread_switch_routine_t routine)
 {
 	int ret = 0;
 
@@ -54,7 +56,7 @@ pthread_switch_add_np(pthread_switch_routine_t routine)
 }
 
 int
-pthread_switch_delete_np(pthread_switch_routine_t routine)
+_pthread_switch_delete_np(pthread_switch_routine_t routine)
 {
 	int ret = 0;
 
@@ -67,4 +69,3 @@ pthread_switch_delete_np(pthread_switch_routine_t routine)
 
 	return(ret);
 }
-#endif

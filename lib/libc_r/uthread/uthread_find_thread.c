@@ -32,7 +32,6 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -97,4 +96,3 @@ _find_dead_thread(pthread_t pthread)
 	/* Return zero if the thread exists: */
 	return ((pthread1 != NULL) ? 0:ESRCH);
 }
-#endif

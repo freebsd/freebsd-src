@@ -32,9 +32,10 @@
  * $FreeBSD$
  */
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	fsync=__fsync
 
 int
 _fsync(int fd)
@@ -42,14 +43,14 @@ _fsync(int fd)
 	int	ret;
 
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-		ret = _thread_sys_fsync(fd);
+		ret = __sys_fsync(fd);
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return (ret);
 }
 
 int
-fsync(int fd)
+__fsync(int fd)
 {
 	int	ret;
 
@@ -59,4 +60,3 @@ fsync(int fd)
 
 	return ret;
 }
-#endif
