@@ -307,29 +307,23 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 {
 	int numdevs;
 	device_t *devlist;
-	int tmp;
+	device_t dev;
+	int i;
 	struct cardbus_devinfo *dinfo;
 
-	device_get_children(cbdev, &devlist, &numdevs);
-
 	DEVICE_IDENTIFY(driver, cbdev);
-	POWER_ENABLE_SOCKET(device_get_parent(cbdev), cbdev);
-	for (tmp = 0; tmp < numdevs; tmp++) {
-		if (device_get_state(devlist[tmp]) == DS_NOTPRESENT) {
-			dinfo = device_get_ivars(devlist[tmp]);
-#ifdef notyet
-			cardbus_device_setup_regs(brdev, bus, slot, func,
-			    &dinfo->pci.cfg);
-#endif
-			cardbus_print_verbose(dinfo);
-			resource_list_init(&dinfo->pci.resources);
-			cardbus_do_cis(cbdev, dinfo->pci.cfg.dev);
-			if (device_probe_and_attach(dinfo->pci.cfg.dev) != 0) {
-				cardbus_release_all_resources(cbdev, dinfo);
-			}
-		}
+	device_get_children(cbdev, &devlist, &numdevs);
+	for (i = 0; i < numdevs; i++) {
+		dev = devlist[i];
+		if (device_get_state(dev) != DS_NOTPRESENT)
+			continue;
+		dinfo = device_get_ivars(dev);
+		cardbus_print_verbose(dinfo);
+		resource_list_init(&dinfo->pci.resources);
+		cardbus_do_cis(cbdev, dev);
+		if (device_probe_and_attach(dev) != 0)
+			cardbus_release_all_resources(cbdev, dinfo);
 	}
-
 	free(devlist, M_TEMP);
 }
 
