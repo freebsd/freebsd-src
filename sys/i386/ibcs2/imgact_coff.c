@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.32 1998/10/13 08:24:36 dg Exp $
+ *	$Id: imgact_coff.c,v 1.33 1998/10/16 03:55:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -475,7 +475,7 @@ exec_coff_imgact(imgp)
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  * Since `const' objects end up in the text segment, TEXT_SET is the
- * correct directive to use.  Do not staticize; used by coff LKM.
+ * correct directive to use.
  */
-const struct execsw coff_execsw = { exec_coff_imgact, "coff" };
+static const struct execsw coff_execsw = { exec_coff_imgact, "coff" };
 EXEC_SET(coff, coff_execsw);
