@@ -45,6 +45,7 @@
  * Mapped file (mmap) interface to VM
  */
 
+#include "opt_bleed.h"
 #include "opt_compat.h"
 #include "opt_rlimit.h"
 
@@ -526,6 +527,9 @@ msync(p, uap)
 	 * the range of the map entry containing addr. This can be incorrect
 	 * if the region splits or is coalesced with a neighbor.
 	 */
+#ifndef BLEED
+	mtx_lock(&Giant);
+#endif
 	mtx_lock(&vm_mtx);
 	if (size == 0) {
 		vm_map_entry_t entry;
@@ -535,6 +539,9 @@ msync(p, uap)
 		vm_map_unlock_read(map);
 		if (rv == FALSE) {
 			mtx_unlock(&vm_mtx);
+#ifndef BLEED
+			mtx_unlock(&Giant);
+#endif
 			return (EINVAL);
 		}
 		addr = entry->start;
@@ -548,6 +555,9 @@ msync(p, uap)
 	    (flags & MS_INVALIDATE) != 0);
 
 	mtx_unlock(&vm_mtx);
+#ifndef BLEED
+	mtx_unlock(&Giant);
+#endif
 	switch (rv) {
 	case KERN_SUCCESS:
 		break;
@@ -706,10 +716,16 @@ minherit(p, uap)
 	if (addr + size < addr)
 		return(EINVAL);
 
+#ifndef BLEED
+	mtx_lock(&Giant);
+#endif
 	mtx_lock(&vm_mtx);
 	ret = vm_map_inherit(&p->p_vmspace->vm_map, addr, addr+size,
 		    inherit);
 	mtx_unlock(&vm_mtx);
+#ifndef BLEED
+	mtx_unlock(&Giant);
+#endif
 
 	switch (ret) {
 	case KERN_SUCCESS:
@@ -763,9 +779,15 @@ madvise(p, uap)
 	start = trunc_page((vm_offset_t) uap->addr);
 	end = round_page((vm_offset_t) uap->addr + uap->len);
 	
+#ifndef BLEED
+	mtx_lock(&Giant);
+#endif
 	mtx_lock(&vm_mtx);
 	ret = vm_map_madvise(&p->p_vmspace->vm_map, start, end, uap->behav);
 	mtx_unlock(&vm_mtx);
+#ifndef BLEED
+	mtx_unlock(&Giant);
+#endif
 	return (ret ? EINVAL : 0);
 }
 
@@ -812,6 +834,9 @@ mincore(p, uap)
 	vec = uap->vec;
 
 	map = &p->p_vmspace->vm_map;
+#ifndef BLEED
+	mtx_lock(&Giant);
+#endif
 	mtx_lock(&vm_mtx);
 	pmap = vmspace_pmap(p->p_vmspace);
 
@@ -906,6 +931,9 @@ RestartScan:
 			while((lastvecindex + 1) < vecindex) {
 				error = subyte( vec + lastvecindex, 0);
 				if (error) {
+#ifndef BLEED
+					mtx_unlock(&Giant);
+#endif
 					return (EFAULT);
 				}
 				++lastvecindex;
@@ -916,6 +944,9 @@ RestartScan:
 			 */
 			error = subyte( vec + vecindex, mincoreinfo);
 			if (error) {
+#ifndef BLEED
+				mtx_unlock(&Giant);
+#endif
 				return (EFAULT);
 			}
 
@@ -947,6 +978,9 @@ RestartScan:
 	while((lastvecindex + 1) < vecindex) {
 		error = subyte( vec + lastvecindex, 0);
 		if (error) {
+#ifndef BLEED
+			mtx_unlock(&Giant);
+#endif
 			return (EFAULT);
 		}
 		++lastvecindex;
@@ -962,6 +996,9 @@ RestartScan:
 		goto RestartScan;
 	vm_map_unlock_read(map);
 	mtx_unlock(&vm_mtx);
+#ifndef BLEED
+	mtx_unlock(&Giant);
+#endif
 
 	return (0);
 }
@@ -1006,10 +1043,16 @@ mlock(p, uap)
 		return (error);
 #endif
 
+#ifndef BLEED
+	mtx_lock(&Giant);
+#endif
 	mtx_lock(&vm_mtx);
 	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr,
 		     addr + size, FALSE);
 	mtx_unlock(&vm_mtx);
+#ifndef BLEED
+	mtx_unlock(&Giant);
+#endif
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -1074,10 +1117,16 @@ munlock(p, uap)
 		return (error);
 #endif
 
+#ifndef BLEED
+	mtx_lock(&Giant);
+#endif
 	mtx_lock(&vm_mtx);
 	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr,
 		     addr + size, TRUE);
 	mtx_unlock(&vm_mtx);
+#ifndef BLEED
+	mtx_unlock(&Giant);
+#endif
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
