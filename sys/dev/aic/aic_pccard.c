@@ -177,4 +177,5 @@ static driver_t aic_pccard_driver = {
 
 extern devclass_t aic_devclass;
 
+MODULE_DEPEND(aic, cam, 1,1,1);
 DRIVER_MODULE(aic, pccard, aic_pccard_driver, aic_devclass, 0, 0);
