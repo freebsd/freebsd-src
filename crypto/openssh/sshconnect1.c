@@ -44,6 +44,7 @@ RCSID("$FreeBSD$");
 #include "readpass.h"
 #include "cipher.h"
 #include "canohost.h"
+#include "auth.h"
 
 /* Session id for the current session. */
 u_char session_id[16];
