@@ -190,8 +190,8 @@ struct thread;
 
 /* 
  * The second structure is the Kernel Schedulable Entity. (KSE)
- * It represents the ability to take a slot in th scheduler queue.
- * As long as this is scheduled, it cound continue to run any threads that
+ * It represents the ability to take a slot in the scheduler queue.
+ * As long as this is scheduled, it could continue to run any threads that
  * are assigned to the KSEGRP (see later) until either it runs out
  * of runnable threads of high enough priority, or CPU.
  * It runs on one CPU and is assigned a quantum of time. When a thread is
