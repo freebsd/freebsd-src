@@ -334,6 +334,7 @@ extern struct sx topology_lock;
 
 /* geom_ctl.c */
 void *gctl_get_param(struct gctl_req *req, const char *param, int *len);
-int gctl_error(struct gctl_req *req, const char *errtxt);
+void *gctl_get_paraml(struct gctl_req *req, const char *param, int len);
+int gctl_error(struct gctl_req *req, const char *fmt, ...);
 
 #endif /* _GEOM_GEOM_H_ */
