@@ -161,9 +161,7 @@ clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 
 	if (uap->clock_id != CLOCK_REALTIME)
 		return (EINVAL);
-	mtx_lock(&Giant);
 	nanotime(&ats);
-	mtx_unlock(&Giant);
 	return (copyout(&ats, uap->tp, sizeof(ats)));
 }
 
