@@ -201,7 +201,6 @@ gif_clone_create(ifc, unit)
 	sc->gif_if.if_output = gif_output;
 	sc->gif_if.if_type   = IFT_GIF;
 	sc->gif_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
-	sc->called = 0;
 	if_attach(&sc->gif_if);
 	bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
 	if (ng_gif_attach_p != NULL)
@@ -341,6 +340,7 @@ gif_output(ifp, m, dst, rt)
 {
 	struct gif_softc *sc = (struct gif_softc*)ifp;
 	int error = 0;
+	static int called = 0;	/* XXX: MUTEX */
 
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
@@ -353,11 +353,14 @@ gif_output(ifp, m, dst, rt)
 	/*
 	 * gif may cause infinite recursion calls when misconfigured.
 	 * We'll prevent this by introducing upper limit.
+	 * XXX: this mechanism may introduce another problem about
+	 *      mutual exclusion of the variable CALLED, especially if we
+	 *      use kernel thread.
 	 */
-	if (++(sc->called) > max_gif_nesting) {
+	if (++called > max_gif_nesting) {
 		log(LOG_NOTICE,
 		    "gif_output: recursively called too many times(%d)\n",
-		    sc->called);
+		    called);
 		m_freem(m);
 		error = EIO;	/* is there better errno? */
 		goto end;
@@ -414,7 +417,7 @@ gif_output(ifp, m, dst, rt)
 	}
 
   end:
-	sc->called = 0;		/* reset recursion counter */
+	called = 0;		/* reset recursion counter */
 	if (error)
 		ifp->if_oerrors++;
 	return error;
