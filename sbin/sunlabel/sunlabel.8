@@ -74,8 +74,7 @@ In addition,
 .Nm
 can install bootstrap code.
 .Ss Introduction
-.Pp
-The label occupies the first sector (i. e. 512 bytes) of each disk.
+The label occupies the first sector (i.e., 512 bytes) of each disk.
 It starts with a textual description which by convention also mentions
 the disk geometry in textual form (number of cylinders, alternate
 cylinders, heads, and sectors per track), optionally followed by a
@@ -99,7 +98,7 @@ by the
 .Fx
 kernel.
 It is maintained solely for compatibilty with the
-.Em Solaris
+.Tn Solaris
 operating system that might share disks with
 .Fx
 on the same hardware platform.
@@ -114,7 +113,7 @@ Note that the hardware platform mandates that two cylinders are set
 aside as
 .Em alternate cylinders
 which are not available to user programs (and not even through the
-.Ql backup
+.Dq Li backup
 partition).
 .Ss Options
 Options are listed in alphabetical order here.
@@ -169,7 +168,7 @@ option are not suited for re-installing using the
 option.
 .It Fl n
 No changes.
-All operations, checks etc. are performed normally, but nothing
+All operations, checks etc., are performed normally, but nothing
 is written to disk.
 .It Fl r
 Obsolete option that used to indicate that the operation should
@@ -199,7 +198,7 @@ but this functionality is not supported by
 Instead, the only allowable
 .Ar type
 argument is the string
-.Dq auto ,
+.Dq Li auto ,
 indicating that an automatically created label should be written
 to disk.
 This automatism will try to create an initial label that fits as
@@ -207,15 +206,16 @@ best as possible into the available disk capacity.
 .El
 .Pp
 If neither of the
-.Fl e ,
-.Fl R ,
+.Fl e , R ,
 or
 .Fl w
-options is present, the existing label for
+options are present, the existing label for
 .Ar disk
 will be printed to standard output.
 .Pp
+The
 .Ar disk
+argument
 must be given as a plain disk name, without any leading
 .Pa /dev/ .
 .Ss Edit mode
@@ -229,36 +229,36 @@ to edit the label.
 The label is then checked and examined for any errors.
 If no errors have been found, the new label is written to disk.
 If there were any errors, a message is printed to standard
-error output, and the user is asked whether they want to edit
+error output, and the user is given the opportunity to edit
 the template file again.
-If accepted, editing starts over, if declined, no changes will
+If accepted, editing starts over.
+If declined, no changes will
 be written to disk.
 .Pp
 The label presented for editing is the same as the standard
 printout, with some added hints about the possible options to
 specify the sector size and starting cylinder.
 There are two areas in the template that can be edited:
-.Pp
 .Bl -tag -width indent
 .It Sy Textual label, geometry emulation
 The line
-.Dl "text: XXXX cyl CC alt 2 hd HH sec SS"
+.D1 Li text: Ar XXXX Li cyl Ar CC Li alt 2 hd Ar HH Li sec Ar SS
 represents the label text.
 It must be retained exactly in the form shown.
 The editable text
-.Sy XXXX
+.Ar XXXX
 is a simple (non-whitespace) text describing the disk.
 By convention, this text mentions the approximate size of the
 disk, as in
-.Ql SUN9.0G
+.Dq Li SUN9.0G
 for a 9 GB disk shipped by Sun.
 .Pp
 The values
-.Sy CC ,
-.Sy HH ,
+.Ar CC ,
+.Ar HH ,
 and
-.Sy SS
-describe the number of cylinders, heads (aka. tracks per
+.Ar SS
+describe the number of cylinders, heads (tracks per
 cylinder), and sectors per track respectively.
 They might be modified to change the geometry emulation.
 Each number must be between 1 and 65535.
@@ -289,14 +289,14 @@ for megabytes, or
 .Ql g
 for gigabytes.
 The last partition entry may specify the size as
-.Ql \&*
+.Ql *
 to indicate that this entry should consume the rest of disk not
 consumed by any other partition so far.
 .Pp
 The start of partition is always taken as a cylinder number (starting
 at 0) since this is what the underlying hardware uses.
 Alternatively, specifying it as
-.Ql \&*
+.Ql *
 will make the computation automatically chose the nearest possible
 cylinder boundary.
 .Pp
@@ -345,13 +345,13 @@ for octal numbers).
 If the flag field is omitted, it defaults to
 .Ql wm .
 If the tag field is also omitted, it defaults to
-.Ql unassigned .
+.Dq Li unassigned .
 If none of the partitions lists any VTOC tag/flags, no
 SVR4-compatible VTOC elements will be written to disk.
 If VTOC-style elements are present, partition
 .Ql c
 must be marked as
-.Ql backup 
+.Dq Li backup
 (and should be marked
 .Ql wu ) .
 .El
