@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.29 1997/10/11 18:31:36 phk Exp $
+ * $Id: malloc.h,v 1.30 1997/10/12 20:25:59 phk Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -46,9 +46,11 @@
 #define	M_NOWAIT	0x0001
 #define M_KERNEL	0x0002
 
+#define M_MAGIC		877983977	/* time when first defined :-) */
+
 struct malloc_type {
 	const char * const ks_shortdesc;	/* Short description */
-	const char * const ks_longdesc;	/* Long description */
+	u_long	ks_magic;	/* If if's not magic, don't touch it */
 	struct malloc_type *ks_next; /* Next pointer */
 	long	ks_inuse;	/* # of packets of this type currently in use */
 	long	ks_calls;	/* total packets of this type ever allocated */
@@ -61,7 +63,7 @@ struct malloc_type {
 };
 
 #define	MALLOC_DEFINE(type, shortdesc, longdesc) \
-	struct malloc_type type[1] = { { shortdesc, longdesc } }; \
+	struct malloc_type type[1] = { { shortdesc, M_MAGIC } }; \
 	struct __hack
 
 #define	MALLOC_DECLARE(type) \
