@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.10 1995/12/10 09:09:49 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.11 1996/01/03 02:22:03 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -66,11 +66,97 @@ urgency:
 
 <sect1><heading>Would be nice to have</heading>
 <p>The following tasks are purely cosmetic or represent such an
-investment or work that it's not likely that anyone will get them done
+investment of work that it's not likely that anyone will get them done
 anytime soon:
 
+<p>The first 20 items are from Terry Lambert <terry@lambert.org>
 <enum>
-<item>Put something here too.
+<item>Ability to make BIOS calls from protected mode using V86 mode
+on the processor and return the results via a mapped interrupt
+IPC mechanism to the protected mode caller.
+
+<item>Drivers built into the kernel that use the BIOS call mechanism
+to allow them to be independent of the actual underlying hardware
+the same way that DOS is independent of the underlying hardware.
+This includes NetWork and ASPI drivers loaded in DOS prior to
+BSD being loaded by a DOS-based loader program, which means
+potential polling, which means DOS-not-busy interrupt generation
+for V86 machines by the protected mode kernel.
+
+<item>An image format that allows tagging of such drivers data and
+text areas in the default kernel executable so that that portion
+of the kernel address space may be recovered at a later time,
+after hardware specific protected mode drivers have been loaded
+and activated.  This includes seperation of BIOS based drivers
+from each other, since it is better to run with a BIOS based
+driver in all cases than to not run at all.
+
+<item>Abstraction of the bus interface mechanism.  Currently, PCMCIA,
+EISA, and PCI busses are assumed to be bridged from ISA.  This
+is not something which should be assumed.
+
+<item>A configuration manager that knows about PNP events, including
+power management events, insertion, extraction, and bus (PNP ISA
+and PCMCIA bridging chips) vs. card level event management.
+
+<item>A topological sort mechanism for assigning reassignable addresses
+that do not collide with other reassignable and non-reassignable
+device space resource usage by fixed devices.
+
+<item>A registration based mechanism for hardware services registration.
+Specifically, a device centric registration mechanism for timer
+and sound and other system critical service providers.  Consider
+Timer2 and Timer0 and speaker services as one example of a single
+monithic service provider.
+
+<item>A kernel exported symbol space in the kernel data space acessable
+by an LKM loader mechanism that does relocation and symbol space
+manipulation.  The intent of this interface is to support the
+ability to demand load and unload kernel modules.
+
+<item>NetWare Server (protected mode ODI driver) loader and subservices
+to allow the use of ODI card drivers supplied with network cards.
+The same thing for NDIS drivers and NetWare SCSI drivers.
+
+<item>An "upgrade system" option that works on Linux boxes instead
+of just previous rev FreeBSD boxes.
+
+<item>Splitting of the console driver into abstraction layers, both to
+make it easier to port and to kill the X and ThinkPad and PS/2
+mouse and LED and console switching and bouncing NumLock problems
+once and for all.
+
+<item>Other kernel emulation environments for other foreign drivers
+as opportunity permits.  SCO and Solaris are good candidates,
+followed by UnixWare, etc.
+
+<item>Processor emulation environments for execution of foreign binaries.
+This is easier than it sounds if the system call interface doesn't
+change much.
+
+<item>Streams to allow the use of commercial streams drivers.
+
+<item>Kernel multithreading (requires kernel preemption).
+
+<item>Symmetric Multiprocessing with kernel preemption (requires kernel
+preemption).
+
+<item>A concerted effort at support for portable computers.  This is
+somewhat handled by changing PCMCIA bridging rules and power
+management event handling.  But there are things like detecting
+internal vs. external display and picking a different screen
+resoloution based on that fact, not spinning down the disk if
+the machine is in dock, and allowing dock-based cards to disappear
+without affecting the machines ability to boot (same issue for
+PCMCIA).
+
+<item>Reorganization of the source tree for multiple platform ports.
+
+<item>A "make world" that "makes the world" (rename the current one
+to "make regress" if that's all it is good for).
+
+<item>A 4M (preferrably smaller!) memory footprint.
+
 </enum>
 
 <sect><heading>How to contribute</heading>
@@ -254,7 +340,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.10 1995/12/10 09:09:49 jkh Exp $
+	$Id: submitters.sgml,v 1.11 1996/01/03 02:22:03 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
