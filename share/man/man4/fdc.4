@@ -56,14 +56,6 @@ configuration value in their CMOS.  Use the flags value
 to pretend a 1.44 MB floppy drive as the first unit, without asking the
 CMOS for it.
 .Pp
-The flags value
-.Ql 0x2
-is reserved for PCMCIA floppy use, and should never be set in a
-configuration file directly.  It is internally handled in the driver
-if the compilation option
-.Dv FDC_YE
-is set, and defers device probing.
-.Pp
 Normally, the device driver detects FDC chipsets that have an internal
 FIFO, and enables the FIFO on them.  There is a slight chance that this
 feature is actually misdetected (seen on an IBM Thinkpad 755c), so it
