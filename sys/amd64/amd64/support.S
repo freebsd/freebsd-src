@@ -83,7 +83,7 @@ ENTRY(pagezero)
 	addq	$32,%rdx
 	jne	1b
 	sfence
-	retq
+	ret
 
 ENTRY(bcmp)
 	xorq	%rax,%rax
@@ -618,6 +618,7 @@ ENTRY(lgdt)
 	popq	%rax
 	pushq	$KCSEL
 	pushq	%rax
+	MEXITCOUNT
 	lretq
 
 #ifdef DDB
