@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.16 1995/07/16 10:12:30 bde Exp $
+ * $Id: vfs_vnops.c,v 1.17 1995/07/20 09:43:04 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -404,7 +404,12 @@ vn_stat(vp, sb, p)
 	sb->st_blksize = vap->va_blocksize;
 	sb->st_flags = vap->va_flags;
 	sb->st_gen = vap->va_gen;
+#if (S_BLKSIZE == 512)
+	/* Optimize this case */
+	sb->st_blocks = vap->va_bytes >> 9;
+#else
 	sb->st_blocks = vap->va_bytes / S_BLKSIZE;
+#endif
 	return (0);
 }
 
