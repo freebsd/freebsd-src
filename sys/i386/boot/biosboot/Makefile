@@ -1,15 +1,16 @@
-#	$Id: Makefile,v 1.22 1994/11/05 21:06:16 ache Exp $
+#	$Id: Makefile,v 1.23 1994/12/18 19:14:08 bde Exp $
 #
 
 PROG=	boot
 # Order is very important on the SRCS line for this prog
-SRCS=	start.S table.c boot2.S boot.c asm.S bios.S io.c disk.c sys.c
+SRCS=	start.S table.c boot2.S boot.c asm.S bios.S serial.S
+SRCS+=  probe_keyboard.c io.c disk.c sys.c
 
 BINDIR=		/usr/mdec
 BINMODE=	444
-CFLAGS=		-O -DDO_BAD144 -DBOOTWAIT=${BOOTWAIT}
+CFLAGS=		-O2 -DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DCOMCONSOLE=0x3F8
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../.. -DRB_SERIAL=0x1000
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2
 DPADD=		${LIBC}
 LDFLAGS+=	-N -T 0 -nostdlib
