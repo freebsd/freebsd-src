@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)utility.c	8.2 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: utility.c,v 1.11 1997/12/08 07:46:53 charnier Exp $";
 #endif /* not lint */
 
 #ifdef __FreeBSD__
@@ -441,7 +441,11 @@ putf(cp, where)
 	putlocation = where;
 
 	while (*cp) {
-		if (*cp != '%') {
+		if (*cp =='\n') {
+			putstr("\r\n");
+			cp++;
+			continue;
+		} else if (*cp != '%') {
 			putchr(*cp++);
 			continue;
 		}
