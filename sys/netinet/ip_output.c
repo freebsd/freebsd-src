@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *      $Id: ip_output.c,v 1.44.2.10 1998/09/17 18:02:26 luigi Exp $
+ *      $Id: ip_output.c,v 1.44.2.11 1998/09/21 08:55:22 luigi Exp $
  */
 
 #define _IP_VHL
@@ -488,6 +488,7 @@ sendit:
 			ipstat.ips_odropped++;
 			goto sendorfree;
 		}
+		m->m_flags |= (m0->m_flags & M_MCAST);
 		m->m_data += max_linkhdr;
 		mhip = mtod(m, struct ip *);
 		*mhip = *ip;
