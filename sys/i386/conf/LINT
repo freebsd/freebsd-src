@@ -52,7 +52,7 @@ makeoptions	CONF_CFLAGS=-fno-builtin  #Don't allow use of memcmp, etc.
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 #makeoptions	KERNEL=foo		#Build kernel "foo" and install "/foo"
 # Only build Linux API modules and plus those parts of the sound system I need.
-#makeoptions	MODULES_OVERRIDE="linux sound/snd sound/pcm sound/drivers/maestro3"
+#makeoptions	MODULES_OVERRIDE="linux sound/snd sound/pcm sound/driver/maestro3"
 
 #
 # Certain applications can grow to be larger than the 128M limit
