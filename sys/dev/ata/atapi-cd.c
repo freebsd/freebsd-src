@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.1 1999/03/01 21:19:18 sos Exp $
+ *	$Id: atapi-cd.c,v 1.2 1999/03/03 21:10:29 sos Exp $
  */
 
 #include "ata.h"
@@ -395,7 +395,7 @@ msf2lba(u_int8_t m, u_int8_t s, u_int8_t f)
     return (m * 60 + s) * 75 + f - 150;
 }
 
-static int32_t
+static int
 acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = dkunit(dev);
@@ -431,7 +431,7 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     return 0;
 }
 
-static int32_t 
+static int 
 acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = dkunit(dev);
@@ -460,19 +460,19 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     return 0;
 }
 
-static int32_t
+static int
 acdread(dev_t dev, struct uio *uio, int32_t ioflag)
 {
     return physio(acdstrategy, NULL, dev, 1, minphys, uio);
 }
 
-static int32_t
+static int
 acdwrite(dev_t dev, struct uio *uio, int32_t ioflag)
 {
     return physio(acdstrategy, NULL, dev, 0, minphys, uio);
 }
 
-static int32_t 
+static int 
 acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 {
     int32_t lun = dkunit(dev);

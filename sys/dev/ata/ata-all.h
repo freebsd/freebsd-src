@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-all.h,v 1.1 1999/03/01 21:19:18 sos Exp $
+ *	$Id: ata-all.h,v 1.2 1999/03/03 21:10:29 sos Exp $
  */
 
 /* ATA register defines */
@@ -79,79 +79,6 @@
 #define ATA_ATAPI_MASTER		0x04
 #define ATA_ATAPI_SLAVE			0x08
 
-struct ata_params {
-    int16_t	config;				/* general configuration bits */
-    u_int16_t	cylinders;			/* number of cylinders */
-    int16_t	reserved2;
-    u_int16_t	heads;				/* # heads */
-    int16_t	unfbytespertrk;			/* # unformatted bytes/track */
-    int16_t	unfbytes;			/* # unformatted bytes/sector */
-    u_int16_t	sectors;			/* # sectors/track */
-    int16_t	vendorunique[3];
-    int8_t	serial[20];			/* serial number */
-    int16_t	buffertype;			/* buffer type */
-#define	ATA_BT_SINGLEPORTSECTOR		1	/* 1 port, 1 sector buffer */
-#define	ATA_BT_DUALPORTMULTI		2	/* 2 port, mult sector buffer */
-#define	ATA_BT_DUALPORTMULTICACHE	3	/* above plus track cache */
-
-    int16_t	buffersize;			/* buf size, 512-byte units */
-    int16_t	necc;				/* ecc bytes appended */
-    int8_t	revision[8];			/* firmware revision */
-    int8_t	model[40];			/* model name */
-    int8_t	nsecperint;			/* sectors per interrupt */
-    int8_t	vendorunique1;
-    int16_t	usedmovsd;			/* double word read/write? */
-    int8_t	vendorunique2;
-    int8_t	capability;			/* various capability bits */
-    int16_t	cap_validate;			/* validation for above */
-    int8_t	vendorunique3;
-    int8_t	opiomode;			/* PIO modes 0-2 */
-    int8_t	vendorunique4;
-    int8_t	odmamode;			/* old DMA modes, not ATA-3 */
-    int16_t	atavalid;			/* fields valid */
-    int16_t	currcyls;
-    int16_t	currheads;
-    int16_t	currsectors;
-    int16_t	currsize0;
-    int16_t	currsize1;
-    int8_t	currmultsect;
-    int8_t	multsectvalid;
-    int		lbasize;
-    int16_t	dmasword;			/* obsolete in ATA-3 */
-    int16_t	dmamword;			/* multiword DMA modes */
-    int16_t	eidepiomodes;			/* advanced PIO modes */
-    int16_t	eidedmamin;			/* fastest DMA timing */
-    int16_t	eidedmanorm;			/* recommended DMA timing */
-    int16_t	eidepioblind;			/* fastest possible blind PIO */
-    int16_t	eidepioacked;			/* fastest possible IORDY PIO */
-    int16_t	reserved69;
-    int16_t	reserved70;
-    int16_t	reserved71;
-    int16_t	reserved72;
-    int16_t	reserved73;
-    int16_t	reserved74;
-    int16_t	queuelen;
-    int16_t	reserved76;
-    int16_t	reserved77;
-    int16_t	reserved78;
-    int16_t	reserved79;
-    int16_t	versmajor;
-    int16_t	versminor;
-    int16_t	featsupp1;
-    int16_t	featsupp2;
-    int16_t	featsupp3;
-    int16_t	featenab1;
-    int16_t	featenab2;
-    int16_t	featenab3;
-    int16_t	udmamode;			/* UltraDMA modes */
-    int16_t	erasetime;
-    int16_t	enherasetime;
-    int16_t	apmlevel;
-    int16_t	reserved92[34];
-    int16_t	rmvcap;
-    int16_t	securelevel;
-};
-
 /* Structure describing an ATA device */
 struct ata_softc {
     u_int32_t			unit;		/* this instance's number */
@@ -164,30 +91,16 @@ struct ata_softc {
     int32_t			devices;	/* what is present */
     u_int8_t			status;		/* last controller status */
     u_int8_t			error;		/* last controller error */
-
     int32_t			active;		/* active processing request */
 #define		ATA_IDLE		0x0
-#define		ATA_ACTIVE_ATA		0x1
-#define		ATA_ACTIVE_ATAPI	0x2
-#define		ATA_IGNORE_INTR		0x3
+#define		ATA_IMMEDIATE		0x0
+#define		ATA_WAIT_INTR		0x1
+#define		ATA_IGNORE_INTR		0x2
+#define		ATA_ACTIVE_ATA		0x3
+#define		ATA_ACTIVE_ATAPI	0x4
 
     struct buf_queue_head       ata_queue;      /* head of ATA queue */
-    struct ata_params		*ata_parm[2];	/* ata device params */
     TAILQ_HEAD(, atapi_request) atapi_queue;    /* head of ATAPI queue */
-    struct atapi_params		*atapi_parm[2];	/* atapi device params */
-};
-
-struct ata_request {
-    struct ad_softc		*driver;	/* ptr to parent device */
-    /*bla request bla*/
-    u_int32_t                   flags;          /* drive flags */
-#define         A_READ			0x0001
-
-    u_int32_t                   bytecount;      /* bytes to transfer */
-    u_int32_t                   donecount;      /* bytes transferred */
-    u_int32_t                   currentsize;    /* size of current transfer */
-    struct buf			*bp;		/* associated buf ptr */
-    TAILQ_ENTRY(ata_request)	chain;          /* list management */
 };
 
 #define MAXATA	8
@@ -197,6 +110,8 @@ extern struct ata_softc *atadevices[];
 /* public prototypes */
 void ata_start(struct ata_softc *);
 int32_t ata_wait(struct ata_softc *, u_int8_t);
-int32_t atapi_wait(struct ata_softc *, u_int8_t);
+int32_t ata_command(struct ata_softc *, int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, int32_t);
+void bswap(int8_t *, int32_t);
+void btrim(int8_t *, int32_t);
 void bpack(int8_t *, int8_t *, int32_t);
 

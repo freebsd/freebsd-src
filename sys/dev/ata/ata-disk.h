@@ -25,8 +25,82 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.h,v 1.1 1999/03/01 21:19:18 sos Exp $
+ *	$Id: ata-disk.h,v 1.2 1999/03/03 21:10:29 sos Exp $
  */
+
+/* ATA device parameter information */
+struct ata_params {
+    int16_t	config;				/* general configuration bits */
+    u_int16_t	cylinders;			/* number of cylinders */
+    int16_t	reserved2;
+    u_int16_t	heads;				/* # heads */
+    int16_t	unfbytespertrk;			/* # unformatted bytes/track */
+    int16_t	unfbytes;			/* # unformatted bytes/sector */
+    u_int16_t	sectors;			/* # sectors/track */
+    int16_t	vendorunique[3];
+    int8_t	serial[20];			/* serial number */
+    int16_t	buffertype;			/* buffer type */
+#define	ATA_BT_SINGLEPORTSECTOR		1	/* 1 port, 1 sector buffer */
+#define	ATA_BT_DUALPORTMULTI		2	/* 2 port, mult sector buffer */
+#define	ATA_BT_DUALPORTMULTICACHE	3	/* above plus track cache */
+
+    int16_t	buffersize;			/* buf size, 512-byte units */
+    int16_t	necc;				/* ecc bytes appended */
+    int8_t	revision[8];			/* firmware revision */
+    int8_t	model[40];			/* model name */
+    int8_t	nsecperint;			/* sectors per interrupt */
+    int8_t	vendorunique1;
+    int16_t	usedmovsd;			/* double word read/write? */
+    int8_t	vendorunique2;
+    int8_t	capability;			/* various capability bits */
+    int16_t	cap_validate;			/* validation for above */
+    int8_t	vendorunique3;
+    int8_t	opiomode;			/* PIO modes 0-2 */
+    int8_t	vendorunique4;
+    int8_t	odmamode;			/* old DMA modes, not ATA-3 */
+    int16_t	atavalid;			/* fields valid */
+    int16_t	currcyls;
+    int16_t	currheads;
+    int16_t	currsectors;
+    int16_t	currsize0;
+    int16_t	currsize1;
+    int8_t	currmultsect;
+    int8_t	multsectvalid;
+    int32_t	lbasize;
+    int16_t	dmasword;			/* obsolete in ATA-3 */
+    int16_t	dmamword;			/* multiword DMA modes */
+    int16_t	eidepiomodes;			/* advanced PIO modes */
+    int16_t	eidedmamin;			/* fastest DMA timing */
+    int16_t	eidedmanorm;			/* recommended DMA timing */
+    int16_t	eidepioblind;			/* fastest possible blind PIO */
+    int16_t	eidepioacked;			/* fastest possible IORDY PIO */
+    int16_t	reserved69;
+    int16_t	reserved70;
+    int16_t	reserved71;
+    int16_t	reserved72;
+    int16_t	reserved73;
+    int16_t	reserved74;
+    int16_t	queuelen;
+    int16_t	reserved76;
+    int16_t	reserved77;
+    int16_t	reserved78;
+    int16_t	reserved79;
+    int16_t	versmajor;
+    int16_t	versminor;
+    int16_t	featsupp1;
+    int16_t	featsupp2;
+    int16_t	featsupp3;
+    int16_t	featenab1;
+    int16_t	featenab2;
+    int16_t	featenab3;
+    int16_t	udmamode;			/* UltraDMA modes */
+    int16_t	erasetime;
+    int16_t	enherasetime;
+    int16_t	apmlevel;
+    int16_t	reserved92[34];
+    int16_t	rmvcap;
+    int16_t	securelevel;
+};
 
 /* Structure describing an ATA disk */
 struct ad_softc {  
