@@ -305,42 +305,15 @@ kernfs_access(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	register struct ucred *cred = ap->a_cred;
 	mode_t amode = ap->a_mode;
 	mode_t fmode =
 	    (vp->v_flag & VROOT) ? DIR_MODE : VTOKERN(vp)->kf_kt->kt_mode;
-	mode_t mask = 0;
-	register gid_t *gp;
-	int i;
 
 	/* Some files are simply not modifiable. */
 	if ((amode & VWRITE) && (fmode & (S_IWUSR|S_IWGRP|S_IWOTH)) == 0)
 		return (EPERM);
 
-	/* Root can do anything else. */
-	if (cred->cr_uid == 0)
-		return (0);
-
-	/* Check for group 0 (wheel) permissions. */
-	for (i = 0, gp = cred->cr_groups; i < cred->cr_ngroups; i++, gp++)
-		if (*gp == 0) {
-			if (amode & VEXEC)
-				mask |= S_IXGRP;
-			if (amode & VREAD)
-				mask |= S_IRGRP;
-			if (amode & VWRITE)
-				mask |= S_IWGRP;
-			return ((fmode & mask) == mask ?  0 : EACCES);
-		}
-
-        /* Otherwise, check everyone else. */
-	if (amode & VEXEC)
-		mask |= S_IXOTH;
-	if (amode & VREAD)
-		mask |= S_IROTH;
-	if (amode & VWRITE)
-		mask |= S_IWOTH;
-	return ((fmode & mask) == mask ? 0 : EACCES);
+	return (vaccess(vp->v_tag, fmode, 0, 0, ap->a_mode, ap->a_cred));
 }
 
 static int

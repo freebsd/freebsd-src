@@ -2984,3 +2984,57 @@ NDFREE(ndp, flags)
 		ndp->ni_startdir = NULL;
 	}
 }
+
+int
+vaccess(type, file_mode, uid, gid, acc_mode, cred)
+	enum vtype type;
+	mode_t file_mode;
+	uid_t uid;
+	gid_t gid;
+	mode_t acc_mode;
+	struct ucred *cred;
+{
+	mode_t mask;
+
+	/*
+	 * At this point, uid == 0 can do anything.
+	 * XXX: should use suser() ? */
+	 * XXX: Should only check root-ness after other checks fail.
+	 */
+	if (cred->cr_uid == 0)
+		return (0);
+
+	mask = 0;
+
+        /* Otherwise, check the owner. */
+        if (cred->cr_uid == uid) {
+                if (acc_mode & VEXEC)
+                        mask |= S_IXUSR;
+                if (acc_mode & VREAD)
+                        mask |= S_IRUSR;
+                if (acc_mode & VWRITE)
+                        mask |= S_IWUSR;
+                return ((file_mode & mask) == mask ? 0 : EACCES);
+        }
+
+	/* Otherwise, check for all groups. */
+	if (groupmember(gid, cred)) {
+		if (acc_mode & VEXEC)
+			mask |= S_IXGRP;
+		if (acc_mode & VREAD)
+			mask |= S_IRGRP;
+		if (acc_mode & VWRITE)
+			mask |= S_IWGRP;
+		return ((file_mode & mask) == mask ?  0 : EACCES);
+	}
+
+        /* Otherwise, check everyone else. */
+	if (acc_mode & VEXEC)
+		mask |= S_IXOTH;
+	if (acc_mode & VREAD)
+		mask |= S_IROTH;
+	if (acc_mode & VWRITE)
+		mask |= S_IWOTH;
+	return ((file_mode & mask) == mask ? 0 : EACCES);
+}
+
