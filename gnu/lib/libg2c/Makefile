@@ -1,4 +1,4 @@
-#  $Id: Makefile,v 1.25 1999/04/08 08:39:16 obrien Exp $
+#  $Id: Makefile,v 1.1 1999/04/18 09:48:40 obrien Exp $
 
 EGCSDIR=	${.CURDIR}/../../../contrib/egcs
 
@@ -74,10 +74,9 @@ E77OBJS=	abort.o access.o alarm.o besj0.o besj1.o besjn.o \
 		secnds.o second.o signal.o sleep.o srand.o stat.o symlnk.o \
 		system.o time.o ttynam.o umask.o unlink.o vxtidt.o vxttim.o
 
-LIBF77SRCS=	${F77SRCS} ${I77SRCS} ${U77SRCS} ${E77SRCS}
+LIBF77SRCS=	${F77SRCS} ${I77SRCS} ${U77SRCS} ${E77SRCS} MAIN.c
 
 SRCS=		${LIBF77SRCS}
-CLEANFILES=	${LIBF77SRCS}
 OBJS=		${E77OBJS}
 
 CFLAGS+=	-DHAVE_CONFIG_H=1 -DSTDC_HEADERS=1 -DHAVE_TEMPNAM=1
@@ -90,6 +89,7 @@ CFLAGS+=	-I${.CURDIR}
 
 .for x in F I U
 ${x}77SRCS+=	Version${x}.c
+CLEANFILES+=	Version${x}.c
 Version${x}.c: ${EGCSDIR}/libf2c/lib${x}77/Version.c
 	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
