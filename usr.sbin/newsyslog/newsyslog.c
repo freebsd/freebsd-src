@@ -29,7 +29,7 @@ provided "as is" without express or implied warranty.
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: newsyslog.c,v 1.6 1996/09/06 06:36:07 jkh Exp $";
+static char rcsid[] = "$Id: newsyslog.c,v 1.7 1996/09/09 15:32:26 jkh Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -110,7 +110,7 @@ static char *missing_field(char *p,char *errline);
 static void do_entry(struct conf_entry *ent);
 static void PRS(int argc,char **argv);
 static void usage();
-static void dotrim(char *log,int numdays,int falgs,int perm, int owner_uid,int group_gid);
+static void dotrim(char *log,int numdays,int flags,int perm, int owner_uid,int group_gid);
 static int log_trim(char *log);
 static void compress_log(char *log);
 static int sizefile(char *file);
