@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: cd.c,v 1.9 1993/09/20 06:27:02 rgrimes Exp $
+ *	$Id: cd.c,v 1.10 1993/09/21 05:30:35 rgrimes Exp $
  */
 
 #define SPLCD splbio
@@ -1223,7 +1223,7 @@ struct	cd_mode_data *data;
 	scsi_cmd.byte2 |= SMS_PF;
 	scsi_cmd.length = sizeof(*data) & 0xff;
 	data->header.data_length = 0;
-	/*show_mem(data,sizeof(*data));/**/
+	/*show_mem(data,sizeof(*data));*/
 	return (cd_scsi_cmd(unit,
 			&scsi_cmd,
 			sizeof(scsi_cmd),
