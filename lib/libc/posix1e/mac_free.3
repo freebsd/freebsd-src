@@ -1,4 +1,4 @@
-.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" Copyright (c) 2001, 2002 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\" 
 .\" This software was developed for the FreeBSD Project by Chris
@@ -43,21 +43,18 @@
 .Sh SYNOPSIS
 .In sys/mac.h
 .Ft int
-.Fn mac_free "void *buf_p"
+.Fn mac_free "mac_t label"
 .Sh DESCRIPTION
 The
 .Fn mac_free
-function frees the storage allocated to contain either a
-.Vt mac_t
-or a
-.Vt char * ,
-as allocated by the
-.Fn mac_to_text
-function.
+function frees the storage allocated to contain a
+.Vt mac_t .
 .Sh RETURN VALUES
 The
 .Fn mac_free
 function always returns 0.
+WARNING: see the notes in the BUGS section regarding the use of this
+function.
 .Sh SEE ALSO
 .Xr mac 3 ,
 .Xr mac_get 3 ,
@@ -71,3 +68,17 @@ To join this list, see the
 .Fx
 POSIX.1e implementation page
 for more information.
+.Sh BUGS
+POSIX.1e specifies that
+.Fn mac_free
+will be used to free text strings created using
+.Xr mac_to_text 3 .
+Because
+.Vt mac_t
+is a complex structure in the TrustedBSD implementation,
+.Fn mac_free
+is specific to that type, and must not be used to free the character
+strings returned from
+.Fn mac_to_text .
+Doing so may result in undefined behavior,
+including application failure.
