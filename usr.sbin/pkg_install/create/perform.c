@@ -70,14 +70,23 @@ pkg_perform(char **pkgs)
     if (len > 4) {
 	if (!strcmp(&pkg[len - 4], ".tgz")) {
 	    compress = TRUE;
+	    UseBzip2 = FALSE;
 	    pkg[len - 4] = '\0';
 	}
 	else if (!strcmp(&pkg[len - 4], ".tar")) {
 	    compress = FALSE;
+	    UseBzip2 = FALSE;
 	    pkg[len - 4] = '\0';
 	}
+	else if ((len > 5) && (!strcmp(&pkg[len - 5], ".tbz2"))) {
+	    compress = FALSE;
+	    UseBzip2 = TRUE;
+	    pkg[len - 5] = '\0';
+	}
     }
-    if (compress)
+    if (UseBzip2)
+	suf = "tbz2";
+    else if (compress)
 	suf = "tgz";
     else
 	suf = "tar";
@@ -225,6 +234,7 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
     int pipefds[2];
     FILE *totar;
     pid_t pid;
+    char *cname;
 
     args[nargs++] = "tar";	/* argv[0] */
 
@@ -236,8 +246,18 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
     args[nargs++] = "-c";
     args[nargs++] = "-f";
     args[nargs++] = tball;
-    if (strchr(suffix, 'z'))	/* Compress/gzip? */
-	args[nargs++] = "-z";
+    if (strchr(suffix, 'z')) {	/* Compress/gzip/bzip2? */
+	if (UseBzip2) {
+	    args[nargs++] = "-y";
+	    cname = "bzip'd ";
+	}
+	else {
+	    args[nargs++] = "-z";
+	    cname = "gzip'd ";
+	}
+    } else {
+	cname = "";
+    }
     if (Dereference)
 	args[nargs++] = "-h";
     if (ExcludeFrom) {
@@ -249,7 +269,7 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
     args[nargs] = NULL;
 
     if (Verbose)
-	printf("Creating gzip'd tar ball in '%s'\n", tball);
+	printf("Creating %star ball in '%s'\n", cname, tball);
 
     /* Set up a pipe for passing the filenames, and fork off a tar process. */
     if (pipe(pipefds) == -1) {

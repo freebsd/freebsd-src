@@ -18,7 +18,7 @@ static const char rcsid[] =
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNOhvf:p:P:c:d:i:I:k:K:r:t:X:D:m:s:o:";
+static char Options[] = "YNOhvyf:p:P:c:d:i:I:k:K:r:t:X:D:m:s:o:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
@@ -38,6 +38,7 @@ char	*Origin		= NULL;
 char	PlayPen[FILENAME_MAX];
 int	Dereference	= FALSE;
 int	PlistOnly	= FALSE;
+int	UseBzip2	= FALSE;
 
 static void usage __P((void));
 
@@ -134,6 +135,10 @@ main(int argc, char **argv)
 	    Origin = optarg;
 	    break;
 
+	case 'y':
+	    UseBzip2 = FALSE;
+	    break;
+
 	case '?':
 	default:
 	    usage();
@@ -167,7 +172,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-"usage: pkg_create [-YNOhv] [-P pkgs] [-p prefix] [-f contents] [-i iscript]",
+"usage: pkg_create [-YNOhvy] [-P pkgs] [-p prefix] [-f contents] [-i iscript]",
 "                  [-I piscript] [-k dscript] [-K pdscript] [-r rscript] ",
 "                  [-t template] [-X excludefile] [-D displayfile] ",
 "                  [-m mtreefile] [-o origin] -c comment -d description ",
