@@ -596,4 +596,4 @@ ipcomp_attach(void)
 {
 	xform_register(&ipcomp_xformsw);
 }
-SYSINIT(ipcomp_xform_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, ipcomp_attach, NULL)
+SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipcomp_attach, NULL);
