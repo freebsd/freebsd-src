@@ -16,7 +16,7 @@ SRCS=	a_md5encrypt.c	adjtime.c	atoint.c \
 	hextoint.c	hextolfp.c	humandate.c	ieee754io.c \
 	inttoa.c	iosignal.c	lib_strbuf.c \
 	machines.c	md5c.c	memmove.c	mexit.c \
-	mfp_mul.c	mfptoa.c	mfptoms.c	mktime.c \
+	mfp_mul.c	mfptoa.c	mfptoms.c \
 	modetoa.c	mstolfp.c	msutotsf.c	msyslog.c \
 	netof.c	numtoa.c	numtohost.c	octtoint.c \
 	prettydate.c	ranny.c	recvbuff.c	refnumtoa.c \
