@@ -135,6 +135,7 @@ int	maxcontig = 0;		/* max contiguous blocks to allocate */
 int	maxbpg;			/* maximum blocks per file in a cyl group */
 int	avgfilesize = AVFILESIZ;/* expected average file size */
 int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
+int	fso;			/* filedescriptor to device */
 
 static char	device[MAXPATHLEN];
 static char	*disktype;
@@ -260,20 +261,17 @@ main(int argc, char *argv[])
 		special = device;
 	}
 
-	if (ufs_disk_fillout_blank(&disk, special) == -1) {
-		if (disk.d_error != NULL)
-			errx(1, "%s: %s", special, disk.d_error);
-		else
-			err(1, "%s", special);
-	}
-	if (fstat(disk.d_fd, &st) < 0)
+	fso = open(special, Nflag ? O_RDONLY : O_RDWR);
+	if (fso < 0)
+		err(1, "%s", special);
+	if (fstat(fso, &st) < 0)
 		err(1, "%s", special);
 	if ((st.st_mode & S_IFMT) != S_IFCHR)
 		errx(1, "%s: not a character-special device", special);
 
 	if (sectorsize == 0) 
-		ioctl(disk.d_fd, DIOCGSECTORSIZE, &sectorsize);
-	if (sectorsize && !ioctl(disk.d_fd, DIOCGMEDIASIZE, &mediasize)) {
+		ioctl(fso, DIOCGSECTORSIZE, &sectorsize);
+	if (sectorsize && !ioctl(fso, DIOCGMEDIASIZE, &mediasize)) {
 		if (fssize == 0)
 			fssize = mediasize / sectorsize;
 		else if (fssize > mediasize / sectorsize)
@@ -352,7 +350,7 @@ main(int argc, char *argv[])
 		if (!Nflag && bcmp(pp, &oldpartition, sizeof(oldpartition)))
 			rewritelabel(special, lp);
 	}
-	ufs_disk_close(&disk);
+	close(fso);
 	exit(0);
 }
 
@@ -362,7 +360,7 @@ getdisklabel(char *s)
 	static struct disklabel lab;
 	struct disklabel *lp;
 
-	if (!ioctl(disk.d_fd, DIOCGDINFO, (char *)&lab))
+	if (!ioctl(fso, DIOCGDINFO, (char *)&lab))
 		return (&lab);
 	unlabeled++;
 	if (disktype) {
@@ -380,12 +378,12 @@ rewritelabel(char *s, struct disklabel *lp)
 		return;
 	lp->d_checksum = 0;
 	lp->d_checksum = dkcksum(lp);
-	if (ioctl(disk.d_fd, DIOCWDINFO, (char *)lp) < 0)
+	if (ioctl(fso, DIOCWDINFO, (char *)lp) < 0)
 		warn("ioctl (WDINFO): %s: can't rewrite disk label", s);
 }
 
 static void
-usage(void)
+usage()
 {
 	fprintf(stderr,
 	    "usage: %s [ -fsoptions ] special-device%s\n",
