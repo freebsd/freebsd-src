@@ -48,6 +48,8 @@
 .Fn zalloc "vm_zone_t z"
 .Ft void
 .Fn zfree "vm_zone_t z" "void *item"
+.Ft void
+.Fn zdestroy "vm_zone_t z"
 .Sh DESCRIPTION
 The zone allocator provides an efficient interface for managing
 dynamically-sized collections of items of similar size.
@@ -149,6 +151,19 @@ Items are released back to the zone from which they were allocated by
 calling
 .Fn zfree
 with a pointer to the zone and a pointer to the item.
+.Pp
+Zones created with
+.Fn zinit
+or
+.Fn zinitna
+can be destroyed using
+.Fn zdestroy ,
+freeing all memory that was allocated for the zone.
+All items allocated from the zone with
+.Fn zalloc
+must have been freed with
+.Fn zfree
+before.
 .Sh RETURN VALUES
 The
 .Fn zinitna
