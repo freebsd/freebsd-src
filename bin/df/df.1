@@ -1,0 +1,116 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)df.1	8.2 (Berkeley) 1/13/94
+.\"
+.Dd January 13, 1994
+.Dt DF 1
+.Os BSD 4
+.Sh NAME
+.Nm df
+.Nd display free disk space
+.Sh SYNOPSIS
+.Nm df
+.Op Fl in
+.Op Fl t Ar type
+.Op Ar file | Ar filesystem ...
+.Sh DESCRIPTION
+.Nm Df
+displays statistics about the amount of free disk space on the specified
+.Ar filesystem
+or on the filesystem of which
+.Ar file
+is a part.
+Values are displayed in 512-byte per block block counts.
+If neither a file or a filesystem operand is specified,
+statistics for all mounted filesystems are displayed
+(subject to the
+.Fl t
+option below).
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl i
+Include statistics on the number of free inodes.
+.It Fl n
+Print out the previously obtained statistics from the filesystems.
+This option should be used if it is possible that one or more
+filesystems are in a state such that they will not be able to provide
+statistics without a long delay.
+When this option is specified,
+.Nm df
+will not request new statistics from the filesystems, but will respond
+with the possibly stale statistics that were previously obtained.
+.It Fl t
+Only print out statistics for filesystems of the specified types.
+The recognized types are:
+ufs, nfs, mfs, lfs, msdos, fdesc, portal, kernfs, procfs, afs and isofs.
+along with the aggregates:
+all (the default),
+local (ufs, mfs, lfs, msdos, isofs),
+and misc (fdesc, portal, kernfs, procfs).
+The string ``no'' may be prepending to a type to get its complement
+(e.g. ``nonfs'' to get non-NFS filesystems).  The first
+.Fl t
+option overrides the default, additional such options will add to
+(or subtract from) the current set of types; e.g. either
+``df -t ufs -t lfs''
+or
+``df -t local -t nomfs''
+will display statistics for UFS and LFS filesystems.
+.El
+.Sh ENVIRONMENTAL VARIABLES
+.Bl -tag -width BLOCKSIZE
+.It Ev BLOCKSIZE
+If the environmental variable
+.Ev BLOCKSIZE
+is set, the block counts will be displayed in units of that size block.
+.El
+.Sh BUGS
+The
+.Fl n
+and
+.Fl t
+flags are ignored if a file or filesystem is specified.
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr statfs 2 ,
+.Xr fstatfs 2 ,
+.Xr getfsstat 2 ,
+.Xr getmntinfo 3 ,
+.Xr fstab 5 ,
+.Xr mount 8 ,
+.Xr quot 8
+.Sh HISTORY
+A
+.Nm df
+command appeared in
+.At v6 .
