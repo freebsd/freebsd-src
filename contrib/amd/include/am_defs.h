@@ -914,14 +914,11 @@ struct sockaddr_dl;
  * AIX does not protect against this file doubly included,
  * so I have to do my own protection here.
  */
-#ifdef COMMENT_OUT
 #ifdef HAVE_RPCSVC_MOUNT_H
 # ifndef _RPCSVC_MOUNT_H
 #  include <rpcsvc/mount.h>
 # endif /* not _RPCSVC_MOUNT_H */
 #endif /* HAVE_RPCSVC_MOUNT_H */
-#endif
-#  include "mount.h"
 
 /*
  * Actions to take if <rpcsvc/nis.h> exists.
