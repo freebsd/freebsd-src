@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.6 1998/06/09 18:49:08 brian Exp $
+ *	$Id: throughput.c,v 1.7 1998/06/12 17:45:41 brian Exp $
  */
 
 #include <sys/types.h>
@@ -157,4 +157,45 @@ void
 throughput_addout(struct pppThroughput *t, int n)
 {
   t->OctetsOut += n;
+}
+
+void
+throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
+{
+  if (clear_type & (THROUGHPUT_OVERALL|THROUGHPUT_CURRENT)) {
+    int i;
+
+    for (i = 0; i < SAMPLE_PERIOD; i++)
+      t->SampleOctets[i] = 0;
+    t->nSample = 0;
+  }
+
+  if (clear_type & THROUGHPUT_OVERALL) {
+    int secs_up;
+
+    secs_up = t->uptime ? time(NULL) - t->uptime : 1;
+    prompt_Printf(prompt, "overall cleared (was %5ld bytes/sec)\n",
+                  (t->OctetsIn + t->OctetsOut)/secs_up);
+    t->OctetsIn = t->OctetsOut = 0;
+    t->uptime = time(NULL);
+  } 
+
+  if (clear_type & THROUGHPUT_CURRENT) {
+    prompt_Printf(prompt, "current cleared (was %5d bytes/sec)\n",
+                  t->OctetsPerSecond);
+    t->OctetsPerSecond = 0;
+  }
+
+  if (clear_type & THROUGHPUT_PEAK) {
+    char *time_buf, *last;
+
+    time_buf = ctime(&t->BestOctetsPerSecondTime);
+    last = time_buf + strlen(time_buf);
+    if (last > time_buf && *--last == '\n')
+      *last = '\0';
+    prompt_Printf(prompt, "peak    cleared (was %5d bytes/sec on %s)\n",
+                   t->BestOctetsPerSecond, time_buf); 
+    t->BestOctetsPerSecond = 0;
+    t->BestOctetsPerSecondTime = time(NULL);
+  }
 }
