@@ -49,7 +49,7 @@
  * 20 Apr 93	Bruce Evans		New npx-0.5 code
  * 25 Apr 93	Bruce Evans		New intr-0.1 code
  */
-static char rcsid[] = "$Header: /usr/src/sys.386bsd/i386/i386/RCS/machdep.c,v 1.2 92/01/21 14:22:09 william Exp Locker: root $";
+static char rcsid[] = "$Header: /home/cvs/386BSD/src/sys.386bsd/i386/i386/machdep.c,v 1.1.1.1 93/06/12 14:58:06 rgrimes Exp $";
 
 
 #include <stddef.h>
@@ -84,6 +84,10 @@ extern vm_offset_t avail_end;
 
 #define	EXPECT_BASEMEM	640	/* The expected base memory*/
 #define	INFORM_WAIT	1	/* Set to pause berfore crash in weird cases*/
+
+#if __GNUC__ >= 2
+__main(){}
+#endif
 
 /*
  * Declare these as initialized data so we can patch them.
@@ -653,6 +657,7 @@ setregs(p, entry)
 /*
  * Initialize segments & interrupt table
  */
+#define DESCRIPTOR_SIZE	8
 
 
 #define	GNULL_SEL	0	/* Null Descriptor */
@@ -664,13 +669,13 @@ setregs(p, entry)
 #define	GPROC0_SEL	6	/* Task state process slot zero and up */
 #define NGDT 	GPROC0_SEL+1
 
-union descriptor gdt[GPROC0_SEL+1];
+unsigned char gdt[GPROC0_SEL+1][DESCRIPTOR_SIZE];
 
 /* interrupt descriptor table */
 struct gate_descriptor idt[NIDT];
 
 /* local descriptor table */
-union descriptor ldt[5];
+unsigned char ldt[5][DESCRIPTOR_SIZE];
 #define	LSYS5CALLS_SEL	0	/* forced by intel BCS */
 #define	LSYS5SIGR_SEL	1
 
@@ -831,7 +836,7 @@ init386(first)
 	struct gate_descriptor *gdp;
 	extern int sigcode,szsigcode;
 	/* table descriptors - used to load tables by microp */
-	struct region_descriptor r_gdt, r_idt;
+	unsigned short	r_gdt[3], r_idt[3];
 	int	pagesinbase, pagesinext;
 
 
@@ -845,12 +850,12 @@ init386(first)
 
 	/* make gdt memory segments */
 	gdt_segs[GCODE_SEL].ssd_limit = btoc((int) &etext + NBPG);
-	for (x=0; x < NGDT; x++) ssdtosd(gdt_segs+x, gdt+x);
+	for (x=0; x < NGDT; x++) ssdtosd(gdt_segs+x, &gdt[x][0]);
 	/* make ldt memory segments */
 	ldt_segs[LUCODE_SEL].ssd_limit = btoc(UPT_MIN_ADDRESS);
 	ldt_segs[LUDATA_SEL].ssd_limit = btoc(UPT_MIN_ADDRESS);
 	/* Note. eventually want private ldts per process */
-	for (x=0; x < 5; x++) ssdtosd(ldt_segs+x, ldt+x);
+	for (x=0; x < 5; x++) ssdtosd(ldt_segs+x, &ldt[x][0]);
 
 	/* exceptions */
 	setidt(0, &IDTVEC(div),  SDT_SYS386TGT, SEL_KPL);
@@ -891,11 +896,13 @@ init386(first)
 	isa_defaultirq();
 #endif
 
-	r_gdt.rd_limit = sizeof(gdt)-1;
-	r_gdt.rd_base = (int) gdt;
+	r_gdt[0] = (unsigned short) (sizeof(gdt) - 1);
+	r_gdt[1] = (unsigned short) ((int) gdt & 0xffff);
+	r_gdt[2] = (unsigned short) ((int) gdt >> 16);
 	lgdt(&r_gdt);
-	r_idt.rd_limit = sizeof(idt)-1;
-	r_idt.rd_base = (int) idt;
+	r_idt[0] = (unsigned short) (sizeof(idt) - 1);
+	r_idt[1] = (unsigned short) ((int) idt & 0xfffff);
+	r_idt[2] = (unsigned short) ((int) idt >> 16);
 	lidt(&r_idt);
 	lldt(GSEL(GLDT_SEL, SEL_KPL));
 
@@ -975,7 +982,7 @@ init386(first)
 	ltr(_gsel_tss);
 
 	/* make a call gate to reenter kernel with */
-	gdp = &ldt[LSYS5CALLS_SEL].gd;
+	gdp = (struct gate_descriptor *) &ldt[LSYS5CALLS_SEL][0];
 	
 	x = (int) &IDTVEC(syscall);
 	gdp->gd_looffset = x++;
