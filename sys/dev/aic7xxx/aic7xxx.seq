@@ -1039,7 +1039,18 @@ dma_scb:
 	mov	DFCNTRL, DMAPARAMS;
 	test	DMAPARAMS, DIRECTION	jnz dma_scb_fromhost;
 	/* Fill it with the SCB data */
-	call	copy_scb_tofifo;
+copy_scb_tofifo:
+	mvi	SINDEX, SCB_CONTROL;
+	add	A, 28, SINDEX;
+copy_scb_tofifo_loop:
+	mov	DFDAT,SINDIR;
+	mov	DFDAT,SINDIR;
+	mov	DFDAT,SINDIR;
+	mov	DFDAT,SINDIR;
+	mov	DFDAT,SINDIR;
+	mov	DFDAT,SINDIR;
+	mov	DFDAT,SINDIR;
+	cmp	SINDEX, A jne copy_scb_tofifo_loop;
 	or	DFCNTRL, HDMAEN|FIFOFLUSH;
 dma_scb_fromhost:
 	call	dma_finish;
@@ -1059,19 +1070,6 @@ dfdat_in_7_continued:
 	mov	DINDIR,DFDAT;
 	mov	DINDIR,DFDAT;
 	mov	DINDIR,DFDAT ret;
-
-copy_scb_tofifo:
-	mvi	SCB_CONTROL call dfdat_out_7;
-	call	dfdat_out_7;
-	call	dfdat_out_7;
-dfdat_out_7:
-	mov	DFDAT,SINDIR;
-	mov	DFDAT,SINDIR;
-	mov	DFDAT,SINDIR;
-	mov	DFDAT,SINDIR;
-	mov	DFDAT,SINDIR;
-	mov	DFDAT,SINDIR;
-	mov	DFDAT,SINDIR ret;
 
 /*
  * Wait for DMA from host memory to data FIFO to complete, then disable
