@@ -47,9 +47,18 @@
 .Op Fl d Ar dst
 .Op Fl r Ar seconds
 .Op Fl t Ar minutes_west
-.Op Fl v Ns Ar [+|-]val Ns Op ymwdHMS
-.Ar ...
-.Op Fl f Ar fmt Ar date | [[[[[cc]yy]mm]dd]HH]MM[\&.ss]
+.Oo
+.Fl v
+.Op +|- Ns
+.No val Ns Op ymwdHMS
+.Oc Ns ...
+.Oo Fl f No " "
+.Ar fmt date No |
+.Oo Oo Oo Oo Oo "\&cc" Ns
+.Oc "\&yy" Oc "\&mm" Oc "\&dd" Oc "\&HH" Ns
+.Oc
+.No "\&MM" Ns Op "\&.ss"
+.Oc
 .Op Cm + Ns Ar format
 .Sh DESCRIPTION
 .Nm Date
@@ -74,7 +83,12 @@ Use
 .Ar fmt
 as the format string to parse the date provided rather than using
 the default
-.Ar [[[[[cc]yy]mm]dd]HH]MM[.ss]
+.\" .Ar [[[[[cc]yy]mm]dd]HH]MM[.ss]
+.Xo
+.Oo Oo Oo Oo Oo "\&cc" Ns
+.Oc "\&yy" Oc "\&mm" Oc "\&dd" Oc "\&HH" Ns
+.Oc
+.No "\&MM" Ns Op "\&.ss" Xc
 format.  Parsing is done using
 .Xr strptime 3 .
 .It Fl j
@@ -112,7 +126,8 @@ by future calls to
 .It Fl u
 Display or set the date in
 .Tn UCT
-(universal) time.
+.Pq universal
+time.
 .It Fl v
 Adjust the second, minute, hour, month day, week day, month or year according to
 .Ar val .  
@@ -125,8 +140,11 @@ required using these flags.  Flags are processed in the order given.
 .Pp
 Seconds are in the range 0-59, minutes are in the range 0-59, hours are
 in the range 1-12, month days are in the range 1-31, week days are in the
-range 0-6 (Sun-Sat), months are in the range 1-12 (Jan-Dec) and years are
-in the range 80-38 or 1980-2038.
+range 0-6
+.Pq Sun-Sat ,
+months are in the range 1-12
+.Pq Jan-Dec
+and years are in the range 80-38 or 1980-2038.
 .Pp
 If
 .Ar val
@@ -142,26 +160,29 @@ or
 must be used to specify which part of the date is to be adjusted.
 .Pp
 The week day or month may be specified using a name rather than a
-number.  If a name is used with the plus (or minus) sign, the date
-will be put forwards (or backwards) to the next (previous) date that
-matches the given week day or month.  This will not adjust the date
+number.  If a name is used with the plus
+.Pq or minus
+sign, the date will be put forwards
+.Pq or backwards
+to the next
+.Pq previous
+date that matches the given week day or month.  This will not adjust the date
 if the given week day or month is the same as the current one.
 .Pp
 Refer to the examples below for further details.
 .El
 .Pp
-An operand with a leading plus (``+'') sign signals a user-defined format
-string which specifies the format in which to display the date and time.
-The format string may contain any of the conversion specifications described
-in the 
+An operand with a leading plus
+.Pq Dq \&+
+sign signals a user-defined format string which specifies the format in
+which to display the date and time.  The format string may contain any of
+the conversion specifications described in the 
 .Xr strftime 3
 manual page, as well as any arbitrary text.
 A <newline> character is always output after the characters specified by
 the format string.
-The format string for the default display is:
-.Bd -literal -offset indent
-``+%+''
-.Ed
+The format string for the default display is
+.Dq +%+ .
 .Pp
 If an operand does not have a leading plus sign, it is interpreted as
 a value for setting the system's notion of the current date and time.
@@ -169,9 +190,12 @@ The canonical representation for setting the date and time is:
 .Pp
 .Bl -tag -width Ds -compact -offset indent
 .It Ar cc
-Century (either 19 or 20) prepended to the abbreviated year.
+Century
+.Pq either 19 or 20
+prepended to the abbreviated year.
 .It Ar yy
-Year in abbreviated form (e.g. 89 for 1989, 06 for 2006).
+Year in abbreviated form
+.Pq e.g. 89 for 1989, 06 for 2006 .
 .It Ar mm
 Numeric month.
 A number from 1 to 12.
@@ -182,7 +206,8 @@ Hour, a number from 0 to 23.
 .It Ar MM
 Minutes, a number from 0 to 59.
 .It Ar .ss
-Seconds, a number from 0 to 61 (59 plus a maximum of two leap seconds).
+Seconds, a number from 0 to 61
+.Pq 59 plus a maximum of two leap seconds .
 .El
 .Pp
 Everything but the minutes is optional.
@@ -211,7 +236,7 @@ will display:
 Sun Jan  4 03:15:24 GMT 1998
 .Ed
 .Pp
-(where it is currently Mon Aug  4 04:15:24 BST 1997).
+where it is currently Mon Aug  4 04:15:24 BST 1997.
 .Pp
 The command:
 .Bd -literal -offset indent
@@ -233,7 +258,7 @@ will display the last Friday of the month:
 Fri Aug 29 04:31:11 BST 1997
 .Ed
 .Pp
-(where it is currently Mon Aug  4 04:31:11 BST 1997).
+where it is currently Mon Aug  4 04:31:11 BST 1997.
 .Pp
 The command:
 .Bd -literal -offset indent
