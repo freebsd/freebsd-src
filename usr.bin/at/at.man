@@ -1,4 +1,4 @@
-.\" $Id: at.man,v 1.3 1994/06/16 16:49:46 kernel Exp $
+.\" $Id: at.man,v 1.1 1995/04/12 02:42:31 ache Exp $
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os "FreeBSD 2.1"
@@ -81,6 +81,8 @@ or
 .Ar MM/DD/YY
 or
 .Ar DD.MM.YY .
+The specification of a date must follow the specification of
+the time of day.
 You can also give times like
 .Op Nm now
 .Nm + Ar count \%time-units ,
