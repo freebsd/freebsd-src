@@ -102,6 +102,9 @@ add_pattern(struct bsdtar *bsdtar, struct match **list, const char *pattern)
 	if (pattern[0] == '/')
 		pattern++;
 	strcpy(match->pattern, pattern);
+	/* Both "foo/" and "foo" should match "foo/bar". */
+	if (match->pattern[strlen(match->pattern)-1] == '/')
+		match->pattern[strlen(match->pattern)-1] = '\0';
 	match->next = *list;
 	*list = match;
 	match->matches = 0;
