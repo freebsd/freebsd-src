@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.56 1998/07/30 15:16:05 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.57 1998/08/13 08:09:07 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -512,7 +512,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 			       ssp->dss_slices[WHOLE_DISK_SLICE].ds_copenmask
 			       & (1 << RAW_PART) ? S_IFCHR : S_IFBLK,
 			       ssp->dss_oflags, sspp, lp, strat, setgeom,
-			       ssp->dss_bdevsw, ssp->dss_cdevsw);
+			       ssp->dss_cdevsw);
 		if (error != 0) {
 			free(lp, M_DEVBUF);
 			*sspp = ssp;
@@ -534,7 +534,6 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 							  slice),
 					       S_IFBLK, ssp->dss_oflags, sspp,
 					       lp, strat, setgeom,
-					       ssp->dss_bdevsw,
 					       ssp->dss_cdevsw);
 				if (error != 0) {
 					/* XXX should free devfs toks. */
@@ -553,7 +552,6 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 							  slice),
 					       S_IFCHR, ssp->dss_oflags, sspp,
 					       lp, strat, setgeom,
-					       ssp->dss_bdevsw,
 					       ssp->dss_cdevsw);
 				if (error != 0) {
 					/* XXX should free devfs toks. */
@@ -654,7 +652,6 @@ dsmakeslicestruct(nslices, lp)
 
 	ssp = malloc(offsetof(struct diskslices, dss_slices) +
 		     nslices * sizeof *sp, M_DEVBUF, M_WAITOK);
-	ssp->dss_bdevsw = NULL;
 	ssp->dss_cdevsw = NULL;
 	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
 	ssp->dss_nslices = nslices;
@@ -700,7 +697,7 @@ dsname(dname, unit, slice, part, partname)
  * strategy routine must be special to allow activity.
  */
 int
-dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, bdevsw, cdevsw)
+dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 	char	*dname;
 	dev_t	dev;
 	int	mode;
@@ -709,7 +706,6 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 	struct disklabel *lp;
 	d_strategy_t *strat;
 	ds_setgeom_t *setgeom;
-	struct cdevsw *bdevsw;
 	struct cdevsw *cdevsw;
 {
 	struct dkbad *btp;
@@ -760,7 +756,6 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 		ssp = *sspp;
 		ssp->dss_oflags = flags;
 #ifdef DEVFS
-		ssp->dss_bdevsw = bdevsw;
 		ssp->dss_cdevsw = cdevsw;
 #endif
 
@@ -1170,7 +1165,7 @@ set_ds_labeldevs_unaliased(dname, dev, ssp)
 		} else {
 			mynor = minor(dkmodpart(dev, part));
 			sp->ds_bdevs[part] =
-				devfs_add_devswf(ssp->dss_bdevsw, mynor, DV_BLK,
+				devfs_add_devswf(ssp->dss_cdevsw, mynor, DV_BLK,
 						 UID_ROOT, GID_OPERATOR, 0640,
 						 "%s%s", sname, partname);
 			sp->ds_cdevs[part] =

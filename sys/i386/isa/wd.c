@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.172 1998/07/13 08:23:01 julian Exp $
+ *	$Id: wd.c,v 1.173 1998/07/30 15:16:04 bde Exp $
  */
 
 /* TODO:
@@ -1501,7 +1501,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_secpercyl = du->dk_dd.d_secpercyl;
 	label.d_secperunit = du->dk_dd.d_secperunit;
 	error = dsopen("wd", dev, fmt, 0, &du->dk_slices, &label, wdstrategy1,
-		       (ds_setgeom_t *)NULL, &wd_cdevsw, &wd_cdevsw);
+		       (ds_setgeom_t *)NULL, &wd_cdevsw);
 	}
 	du->dk_flags &= ~DKFL_LABELLING;
 	wdsleep(du->dk_ctrlr, "wdopn2");

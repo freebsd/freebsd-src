@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.67 1998/07/30 15:16:04 bde Exp $
+ *	$Id: vn.c,v 1.68 1998/08/19 10:50:32 sos Exp $
  */
 
 /*
@@ -234,7 +234,7 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 
 			return (dsopen("vn", dev, mode, 0, &vn->sc_slices,
 				       &label, vnstrategy, (ds_setgeom_t *)NULL,
-				       &vn_cdevsw, &vn_cdevsw));
+				       &vn_cdevsw));
 		}
 		if (dkslice(dev) != WHOLE_DISK_SLICE ||
 		    dkpart(dev) != RAW_PART ||

@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.44 1998/07/29 11:15:51 bde Exp $
+ *	$Id: od.c,v 1.45 1998/07/30 15:16:05 bde Exp $
  */
 
 /*
@@ -386,7 +386,7 @@ od_open(dev, mode, fmt, p, sc_link)
 
 	/* Initialize slice tables. */
 	errcode = dsopen("od", dev, fmt, 0, &od->dk_slices, &label, odstrategy1,
-			 (ds_setgeom_t *)NULL, &od_cdevsw, &od_cdevsw);
+			 (ds_setgeom_t *)NULL, &od_cdevsw);
 	if (errcode != 0)
 		goto bad;
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));

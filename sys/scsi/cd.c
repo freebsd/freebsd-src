@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.97 1998/07/30 17:05:10 bde Exp $
+ *      $Id: cd.c,v 1.98 1998/08/17 19:09:36 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -340,7 +340,7 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 	/* Initialize slice tables. */
 	errcode = dsopen("cd", dev, fmt, DSO_NOLABELS | DSO_ONESLICE,
 			 &cd->dk_slices, &label, cdstrategy1,
-			 (ds_setgeom_t *)NULL, &cd_cdevsw, &cd_cdevsw);
+			 (ds_setgeom_t *)NULL, &cd_cdevsw);
 	if (errcode != 0)
 		goto bad;
 	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
