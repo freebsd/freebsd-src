@@ -92,7 +92,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x414b4d01, 1, "Asahi Kasei AK4542", 		0 },
 	{ 0x414b4d02, 1, "Asahi Kasei AK4543", 		0 },
 	{ 0x414c4710, 0, "Avance Logic ALC200/200P", 	0 },
-	{ 0x414c4720, 0, "Realtek Semiconductor ALC650", 0 },
+	{ 0x414c4720, 0, "Realtek ALC650", 		0 },
 	{ 0x43525900, 0, "Cirrus Logic CS4297", 	0 },
 	{ 0x43525903, 0, "Cirrus Logic CS4297", 	0 },
 	{ 0x43525913, 0, "Cirrus Logic CS4297A", 	0 },
@@ -216,7 +216,7 @@ ac97_reset(struct ac97_info *codec)
 			return;
 		DELAY(1000);
 	}
-	device_printf(codec->dev, "AC97 reset timed out.");
+	device_printf(codec->dev, "AC97 reset timed out.\n");
 }
 
 int
@@ -477,11 +477,14 @@ ac97_initmixer(struct ac97_info *codec)
 		/* printf("mixch %d, en=%d, b=%d\n", i, codec->mix[i].enable, codec->mix[i].bits); */
 	}
 
+	if (codec->id) {
+		device_printf(codec->dev, "<%s ac97 codec>\n", codec->id);
+	} else {
+		device_printf(codec->dev, 
+			      "<unknown ac97 codec> (id=0x%08x)\n", id);
+	}
+
 	if (bootverbose) {
-		device_printf(codec->dev, "ac97 codec id 0x%08x", id);
-		if (codec->id)
-			printf(" (%s)", codec->id);
-		printf("\n");
 		device_printf(codec->dev, "ac97 codec features ");
 		for (i = j = 0; i < 10; i++)
 			if (codec->caps & (1 << i))
