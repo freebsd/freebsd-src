@@ -436,7 +436,7 @@ void deque<T>::allocate_at_begin() {
 	    start = iterator(p + __dq_buffer_size, map + map_size / 4);
 	    finish = iterator(finish.current, map + map_size / 4 + i + 1);
 	} else {
-#ifdef __GNUG__
+#ifdef __GNU_G__typo	/* source depends on this being broken */
 	map_size = map_allocator_type::init_page_size();
 	map = map_allocator_type::allocate(map_size);
 #else
