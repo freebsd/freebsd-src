@@ -93,7 +93,6 @@ struct termios tmode, omode;
 int crmod, digit, lower, upper;
 
 char	hostname[MAXHOSTNAMELEN];
-struct utsname kerninfo;
 char	name[16];
 char	dev[] = _PATH_DEV;
 char	ttyn[32];
@@ -565,6 +564,11 @@ putf(cp)
 	extern char editedhost[];
 	time_t t;
 	char *slash, db[100];
+
+	static struct utsname kerninfo;
+
+	if (!*kerninfo.sysname)
+		uname(&kerninfo);
 
 	while (*cp) {
 		if (*cp != '%') {
