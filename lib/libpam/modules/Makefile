@@ -24,8 +24,8 @@
 #
 #	$FreeBSD$
 
-SUBDIR+=	pam_cleartext_pass_ok
 SUBDIR+=	pam_deny
+SUBDIR+=	pam_ftp
 .if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=	pam_kerberosIV
 .endif
@@ -37,7 +37,7 @@ SUBDIR+=	pam_opie
 SUBDIR+=	pam_permit
 SUBDIR+=	pam_radius
 SUBDIR+=	pam_rootok
-SUBDIR+=	pam_skey
+SUBDIR+=	pam_securetty
 SUBDIR+=	pam_tacplus
 SUBDIR+=	pam_unix
 SUBDIR+=	pam_wheel
