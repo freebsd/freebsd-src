@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)limits.h	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: limits.h,v 1.11 1997/02/22 09:34:47 peter Exp $
  */
 
 #ifndef _MACHINE_LIMITS_H_
@@ -54,8 +54,14 @@
 #define	SCHAR_MIN	(-128)		/* max value for a signed char */
 
 #define	UCHAR_MAX	255		/* max value for an unsigned char */
-#define	CHAR_MAX	127		/* max value for a char */
-#define	CHAR_MIN	(-128)		/* min value for a char */
+
+#ifdef __CHAR_UNSIGNED__
+# define CHAR_MIN	0		/* min value for a char */
+# define CHAR_MAX	UCHAR_MAX	/* max value for a char */
+#else
+# define CHAR_MIN	SCHAR_MIN	/* min value for a char */
+# define CHAR_MAX	SCHAR_MAX	/* max value for a char */
+#endif
 
 #define	USHRT_MAX	65535		/* max value for an unsigned short */
 #define	SHRT_MAX	32767		/* max value for a short */
