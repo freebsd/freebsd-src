@@ -1370,7 +1370,7 @@ amr_done(struct amr_softc *sc)
     /* handle completion and timeouts */
 #if __FreeBSD_version >= 500005
     if (sc->amr_state & AMR_STATE_INTEN) 
-	taskqueue_enqueue(taskqueue_swi, &sc->amr_task_complete);
+	taskqueue_enqueue(taskqueue_swi_giant, &sc->amr_task_complete);
     else
 #endif
 	amr_complete(sc, 0);

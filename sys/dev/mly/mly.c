@@ -1610,7 +1610,7 @@ mly_done(struct mly_softc *sc)
     if (worked) {
 #if __FreeBSD_version >= 500005
 	if (sc->mly_state & MLY_STATE_INTERRUPTS_ON)
-	    taskqueue_enqueue(taskqueue_swi, &sc->mly_task_complete);
+	    taskqueue_enqueue(taskqueue_swi_giant, &sc->mly_task_complete);
 	else
 #endif
 	    mly_complete(sc, 0);

@@ -660,7 +660,7 @@ aac_intr(void *arg)
 	/* It's not ok to return here because of races with the previous step */
 	if (reason & AAC_DB_RESPONSE_READY)
 		/* handle completion processing */
-		taskqueue_enqueue(taskqueue_swi, &sc->aac_task_complete);
+		taskqueue_enqueue(taskqueue_swi_giant, &sc->aac_task_complete);
 
 	/* controller wants to talk to the log */
 	if (reason & AAC_DB_PRINTF) {
