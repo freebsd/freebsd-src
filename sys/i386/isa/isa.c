@@ -141,12 +141,12 @@ isa_alloc_resourcev(device_t child, int type, int *rid,
 	struct resource_list *rl = &idev->id_resources;
 
 	device_t	bus = device_get_parent(child);
-	bus_addr_t	ioport;
+	bus_addr_t	start;
 	struct resource *re;
 	struct resource	**bsre;
 	int		i, j, k, linear_cnt, ressz, bsrid;
 
-	ioport = bus_get_resource_start(child, SYS_RES_IOPORT, 0);
+	start = bus_get_resource_start(child, type, *rid);
 
 	linear_cnt = count;
 	ressz = 1;
@@ -158,8 +158,9 @@ isa_alloc_resourcev(device_t child, int type, int *rid,
 		}
 	}
 
-	re = isa_alloc_resource(bus, child, type, rid, ioport + res[0],
-			 ioport + res[linear_cnt - 1], linear_cnt, flags);
+	re = isa_alloc_resource(bus, child, type, rid,
+				start + res[0], start + res[linear_cnt - 1],
+				linear_cnt, flags);
 	if (re == NULL)
 		return NULL;
 
@@ -177,7 +178,7 @@ isa_alloc_resourcev(device_t child, int type, int *rid,
 		}
 		bsrid = *rid + k;
 		bsre[k] = isa_alloc_resource(bus, child, type, &bsrid,
-			ioport + res[i], ioport + res[j - 1], j - i, flags);
+			start + res[i], start + res[j - 1], j - i, flags);
 		if (bsre[k] == NULL) {
 			for (k--; k >= 0; k--)
 				resource_list_release(rl, bus, child, type,
