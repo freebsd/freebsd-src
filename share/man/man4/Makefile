@@ -93,6 +93,7 @@ MAN=	aac.4 \
 	mly.4 \
 	mouse.4 \
 	mtio.4 \
+	multicast.4 \
 	my.4 \
 	natm.4 \
 	ncr.4 \
@@ -133,6 +134,7 @@ MAN=	aac.4 \
 	pcm.4 \
 	pcn.4 \
 	pcvt.4 \
+	pim.4 \
 	polling.4 \
 	ppbus.4 \
 	ppc.4 \
