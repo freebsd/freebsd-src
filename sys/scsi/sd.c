@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.39 1994/10/31 23:45:40 phk Exp $
+ *      $Id: sd.c,v 1.40 1994/11/03 18:20:15 joerg Exp $
  */
 
 #define SPLSD splbio
@@ -221,6 +221,12 @@ sdattach(sc_link)
 	 * request must specify this.
 	 */
 	sd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
+	/*
+	 * if we don't have actual parameters, assume 512 bytes/sec
+	 * (could happen on removable media - MOD)
+	 * -- this avoids the division below from falling over
+	 */
+	if(dp->secsiz == 0) dp->secsiz = 512;
 	printf("sd%ld: %ldMB (%ld total sec), %d cyl, %d head, %d sec, bytes/sec %d\n",
 	    unit,
 	    dp->disksize / ((1024L * 1024L) / dp->secsiz),
