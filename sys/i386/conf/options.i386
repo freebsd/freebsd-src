@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.26.2.17 1998/02/28 05:17:25 yokota Exp $
+#	$Id: options.i386,v 1.26.2.18 1998/08/10 09:00:09 yokota Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -59,7 +59,7 @@ MAXCONS			opt_syscons.h
 SLOW_VGA		opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
-SC_BAD_FLICKER          opt_syscons.h
+SC_ALT_SEQACCESS        opt_syscons.h
 
 PSM_HOOKAPM		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
