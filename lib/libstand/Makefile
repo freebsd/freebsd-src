@@ -21,6 +21,9 @@ CFLAGS+=	-mno-fp-regs
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+=	-mpreferred-stack-boundary=2
 .endif
+.if ${MACHINE_ARCH} == "powerpc"
+CFLAGS+=	-msoft-float
+.endif
 
 
 # standalone components and stuff we have modified locally
@@ -33,7 +36,7 @@ SRCS+=	strcasecmp.c
 
 # string functions from libc
 .PATH:	${.CURDIR}/../libc/string
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
         memcpy.c memmove.c memset.c qdivrem.c rindex.c strcat.c strchr.c \
         strcmp.c strcpy.c strcspn.c strlen.c strncat.c strncmp.c strncpy.c \
