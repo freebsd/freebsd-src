@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.60 1999/05/13 12:21:41 bde Exp $
+ *	$Id: if_ie.c,v 1.61 1999/07/06 19:22:49 des Exp $
  */
 
 /*
@@ -126,21 +126,6 @@ iomem and and with 0xffff.
 #include <net/if_dl.h>
 
 #include "bpf.h"
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
@@ -2258,80 +2243,16 @@ ie_stop(int unit)
 static int
 ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct ifaddr *ifa = (struct ifaddr *) data;
-#if defined(IPX) || defined(NS)
-	struct ie_softc *ie = ifp->if_softc;
-#endif
 	struct ifreq *ifr = (struct ifreq *) data;
 	int	s, error = 0;
 
 	s = splimp();
 
 	switch (command) {
-	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			ieinit(ifp->if_unit);
-			arp_ifinit((struct arpcom *) ifp, ifa);
-			break;
-#endif				/* INET */
-
-#ifdef IPX
-			/*
-			 * This magic copied from if_is.c; I don't use XNS,
-			 * so I have no way of telling if this actually
-			 * works or not.
-			 */
-		case AF_IPX:
-			{
-				struct ipx_addr *ina =
-				    &(IA_SIPX(ifa)->sipx_addr);
-
-				if (ipx_nullhost(*ina)) {
-					ina->x_host = *(union ipx_host *) (ie->arpcom.ac_enaddr);
-				} else {
-					ifp->if_flags &= ~IFF_RUNNING;
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) ie->arpcom.ac_enaddr,
-					      sizeof ie->arpcom.ac_enaddr);
-				}
-
-				ieinit(ifp->if_unit);
-			}
-			break;
-#endif				/* IPX */
-
-#ifdef NS
-			/*
-			 * This magic copied from if_is.c; I don't use XNS,
-			 * so I have no way of telling if this actually
-			 * works or not.
-			 */
-		case AF_NS:
-			{
-				struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-
-				if (ns_nullhost(*ina)) {
-					ina->x_host = *(union ns_host *)(ie->arpcom.ac_enaddr);
-				} else {
-					ifp->if_flags &= ~IFF_RUNNING;
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) ie->arpcom.ac_enaddr,
-					      sizeof ie->arpcom.ac_enaddr);
-				}
-
-				ieinit(ifp->if_unit);
-			}
-			break;
-#endif				/* NS */
-
-		default:
-			ieinit(ifp->if_unit);
-			break;
-		}
+        case SIOCSIFADDR:
+        case SIOCGIFADDR:
+	case SIOCSIFMTU:
+		error = ether_ioctl(ifp, command, data);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -2365,17 +2286,6 @@ ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		/* reset multicast filtering */
 		ie_mc_reset(ifp->if_unit);
 		error = 0;
-		break;
-
-	case SIOCSIFMTU:
-		/*
-		 * Set the interface MTU.
-		 */
-		if (ifr->ifr_mtu > ETHERMTU) {
-			error = EINVAL;
-		} else {
-			ifp->if_mtu = ifr->ifr_mtu;
-		}
 		break;
 
 	default:

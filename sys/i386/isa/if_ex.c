@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ex.c,v 1.15 1999/05/02 22:01:24 peter Exp $
+ *	$Id: if_ex.c,v 1.16 1999/07/06 19:22:47 des Exp $
  */
 
 /*
@@ -49,21 +49,6 @@
 #include <sys/socket.h>
 
 #include <net/if.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #if NBPF > 0
 #include <net/bpf.h>
@@ -766,7 +751,6 @@ void ex_rx_intr(int unit)
 
 int ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-  register struct ifaddr *ifa = (struct ifaddr *) data;
   struct ex_softc *sc = &ex_sc[ifp->if_unit];
   struct ifreq *ifr = (struct ifreq *) data;
   int s, error = 0;
@@ -777,60 +761,11 @@ int ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 
   switch(cmd) {
   case SIOCSIFADDR:
-    DODEBUG(Start_End, printf("SIOCSIFADDR"););
-    ifp->if_flags |= IFF_UP;
-    
-    switch(ifa->ifa_addr->sa_family) {
-#ifdef INET
-    case AF_INET:
-      ex_init(sc);
-      arp_ifinit((struct arpcom *) ifp, ifa);
-      break;
-#endif
-#ifdef IPX_NOTYET
-    case AF_IPX:
-      {
-	register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-	if (ipx_nullhost(*ina))
-	  ina->x_host = *(union ipx_host *) (sc->arpcom.ac_enaddr);
-	else {
-	  ifp->if_flags &= ~IFF_RUNNING;
-	  bcopy((caddr_t) ina->x_host.c_host, (caddr_t) sc->arpcom.ac_enaddr, sizeof(sc->arpcom.ac_enaddr));
-	}
-	ex_init(sc);
-	break;
-      }
-#endif
-#ifdef NS
-    case AF_NS:
-      {
-	register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-
-	if (ns_nullhost(*ina))
-	  ina->x_host = *(union ns_host *) (sc->arpcom.ac_enaddr);
-	else {
-	  ifp->if_flags &= ~IFF_RUNNING;
-	  bcopy((caddr_t) ina->x_host.c_host, (caddr_t) sc->arpcom.ac_enaddr, sizeof(sc->arpcom.ac_enaddr));
-	}
-	ex_init(sc);
-	break;
-      }
-#endif
-    default:
-      ex_init(sc);
-      break;
-    }
-    break;
   case SIOCGIFADDR:
-    {
-      struct sockaddr *sa;
+  case SIOCSIFMTU:
+    error = ether_ioctl(ifp, command, data);
+    break;
 
-      DODEBUG(Start_End, printf("SIOCGIFADDR"););
-      sa = (struct sockaddr *) &ifr->ifr_data;
-      bcopy((caddr_t) sc->arpcom.ac_enaddr, (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
-    }
-  break;
   case SIOCSIFFLAGS:
     DODEBUG(Start_End, printf("SIOCSIFFLAGS"););
     if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
@@ -846,13 +781,6 @@ int ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
     bcopy((caddr_t) sc->sc_addr, (caddr_t) &ifr->ifr_data, sizeof(sc->sc_addr));
     break;
 #endif
-  case SIOCSIFMTU:
-    DODEBUG(Start_End, printf("SIOCSIFMTU"););
-    if (ifr->ifr_mtu > ETHERMTU)
-      error = EINVAL;
-    else
-      ifp->if_mtu = ifr->ifr_mtu;
-    break;
   case SIOCADDMULTI:
     DODEBUG(Start_End, printf("SIOCADDMULTI"););
   case SIOCDELMULTI:
