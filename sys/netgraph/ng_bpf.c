@@ -279,7 +279,8 @@ ng_bpf_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 
 			/* Sanity check */
 			if (msg->header.arglen < sizeof(*hp)
-			    || msg->header.arglen != NG_BPF_HOOKPROG_SIZE(hp))
+			    || msg->header.arglen
+			      != NG_BPF_HOOKPROG_SIZE(hp->bpf_prog_len))
 				ERROUT(EINVAL);
 
 			/* Find hook */
@@ -294,8 +295,8 @@ ng_bpf_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 
 		case NGM_BPF_GET_PROGRAM:
 		    {
+			struct ng_bpf_hookprog *hp;
 			hook_p hook;
-			hinfo_p hip;
 
 			/* Sanity check */
 			if (msg->header.arglen == 0)
@@ -305,15 +306,15 @@ ng_bpf_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 			/* Find hook */
 			if ((hook = ng_findhook(node, msg->data)) == NULL)
 				ERROUT(ENOENT);
-			hip = hook->private;
 
 			/* Build response */
+			hp = ((hinfo_p)hook->private)->prog;
 			NG_MKRESPONSE(resp, msg,
-			    NG_BPF_HOOKPROG_SIZE(hip->prog), M_NOWAIT);
+			    NG_BPF_HOOKPROG_SIZE(hp->bpf_prog_len), M_NOWAIT);
 			if (resp == NULL)
 				ERROUT(ENOMEM);
-			bcopy(hip->prog, resp->data,
-			   NG_BPF_HOOKPROG_SIZE(hip->prog));
+			bcopy(hp, resp->data,
+			   NG_BPF_HOOKPROG_SIZE(hp->bpf_prog_len));
 			break;
 		    }
 
@@ -486,7 +487,7 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 		return (EINVAL);
 
 	/* Make a copy of the program */
-	size = NG_BPF_HOOKPROG_SIZE(hp0);
+	size = NG_BPF_HOOKPROG_SIZE(hp0->bpf_prog_len);
 	MALLOC(hp, struct ng_bpf_hookprog *, size, M_NETGRAPH, M_WAITOK);
 	if (hp == NULL)
 		return (ENOMEM);
