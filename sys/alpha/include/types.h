@@ -1,4 +1,4 @@
-/* $Id: types.h,v 1.1 1998/01/10 10:13:16 jb Exp $ */
+/* $Id: types.h,v 1.2 1998/03/09 05:53:13 jb Exp $ */
 /* From: NetBSD: types.h,v 1.8 1997/04/06 08:47:45 cgd Exp */
 
 /*-
@@ -52,6 +52,8 @@ typedef struct label_t {
 #endif
 
 typedef	unsigned long	vm_offset_t;
+typedef	long		vm_ooffset_t;
+typedef	unsigned long	vm_pindex_t;
 typedef	unsigned long	vm_size_t;
 
 /*
