@@ -297,33 +297,33 @@ _worldtmp:
 _legacy:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 1: legacy release compatibility shims"
+	@echo ">>> stage 1.1: legacy release compatibility shims"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} legacy
 _bootstrap-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 1: bootstrap tools"
+	@echo ">>> stage 1.2: bootstrap tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} bootstrap-tools
 _cleanobj:
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 2: cleaning up the object tree"
+	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
 .endif
 _obj:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 2: rebuilding the object tree"
+	@echo ">>> stage 2.2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} par-obj
 _build-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 2: build tools"
+	@echo ">>> stage 2.3: build tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${TMAKE} build-tools
 _cross-tools:
@@ -335,26 +335,26 @@ _cross-tools:
 _includes:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 4: populating ${WORLDTMP}/usr/include"
+	@echo ">>> stage 4.1: populating ${WORLDTMP}/usr/include"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks par-includes
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 4: building libraries"
+	@echo ">>> stage 4.2: building libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} -DNOHTML -DNOINFO -DNOMAN -DNOFSCHG -DNOLINT \
 		libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 4: make dependencies"
+	@echo ">>> stage 4.3: make dependencies"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} par-depend
 everything:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 4: building everything.."
+	@echo ">>> stage 4.4: building everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} par-all
 
