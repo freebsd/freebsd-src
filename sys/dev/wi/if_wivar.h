@@ -120,6 +120,7 @@ struct wi_softc	{
 	char			sc_net_name[IEEE80211_NWID_LEN];
 
 	int			sc_buflen;		/* TX buffer size */
+	int			sc_ntxbuf;
 #define	WI_NTXBUF	3
 	struct {
 		int		d_fid;
