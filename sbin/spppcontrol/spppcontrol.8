@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2001
+.Dd December 30, 2001
 .Os
 .Dt SPPPCONTROL 8
 .Sh NAME
@@ -172,6 +172,17 @@ defaulting to 3000 ms.
 Enable negotiation of Van Jacobsen header compression.  (Enabled by default.)
 .It Ar disable-vj
 Disable negotiation of Van Jacobsen header compression.
+.It Ar enable-ipv6
+Enable negotiation of the IPv6 network control protocol.  (Enabled by
+default if the kernel has IPv6 enabled.)
+.It Ar disable-ipv6
+Disable negotiation of the IPv6 network control protocol.  Since every
+IPv4 interface in an IPv6-enabled kernel automatically gets an IPv6
+address assigned, this option provides for a way to administratively
+prevent the link from attempting to negotiate IPv6.  Note that
+initialization of an IPv6 interface causes a multicast packet to be
+sent, which can cause unwanted traffic costs (for dial-on-demand
+interfaces).
 .El
 .Sh EXAMPLES
 .Bd -literal
@@ -181,6 +192,7 @@ bppp0:	phase=dead
 	hisauthproto=chap hisauthname="ifb-gw" norechallenge
 	lcp-timeout=3000
 	enable-vj
+	enable-ipv6
 .Ed
 .Pp
 Display the settings for bppp0.  The interface is currently in
