@@ -12,6 +12,7 @@ sed	-e '/pty/d' \
 	-e '/faith/d' \
 	-e '/gzip/d' \
 	-e '/splash/d' \
+	-e '/ICMP_BANDLIM/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSVMSG/d' \
