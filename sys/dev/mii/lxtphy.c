@@ -178,7 +178,7 @@ static int lxtphy_attach(dev)
 	printf("100baseFX-FDX, ");
 #undef ADD
 
-	mii_add_media(mii, sc->mii_capabilities, sc->mii_inst);
+	mii_add_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
