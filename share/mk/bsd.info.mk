@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.7 1995/01/12 08:21:31 jkh Exp $
+# $Id: bsd.info.mk,v 1.8 1995/01/14 07:51:05 jkh Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
@@ -28,7 +28,8 @@ ${INFO}.info: ${SRCS}
 	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} ${SRCS:S/^/${.CURDIR}\//g} -o ${INFO}.info
 .endif
 
-depend:;
+depend:
+	@echo -n
 
 .if !target(obj)
 .if defined(NOOBJ)
