@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.74 1998/09/11 18:50:16 rvb Exp $
+ * $Id: vnode.h,v 1.75 1998/10/16 03:55:01 peter Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -242,7 +242,6 @@ extern int		vttoif_tab[];
 #define	WRITECLOSE	0x0004		/* vflush: only close writable files */
 #define	DOCLOSE		0x0008		/* vclean: close active files */
 #define	V_SAVE		0x0001		/* vinvalbuf: sync file first */
-#define	V_SAVEMETA	0x0002		/* vinvalbuf: leave indirect blocks */
 #define	REVOKEALL	0x0001		/* vop_revoke: revoke all aliases */
 
 #define	VREF(vp)	vref(vp)
