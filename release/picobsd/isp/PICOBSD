@@ -17,7 +17,7 @@ options		FFS_ROOT		#FFS usable as root device [keep this!]
 options		NFS			#Network Filesystem
 #options		BOOTP
 options		MFS			#Memory Filesystem
-options		MFS_ROOT		#MFS as root
+options		MD_ROOT			#MFS as root
 options		MSDOSFS			#MSDOS Filesystem
 options		CD9660			#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem
@@ -38,16 +38,16 @@ controller	isa0
 controller	pci0
 
 controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
-disk		fd0	at fdc0 drive 0
-#disk		fd1	at fdc0 drive 1
+device		fd0	at fdc0 drive 0
+#device		fd1	at fdc0 drive 1
 
 controller	wdc0	at isa? port IO_WD1 irq 14
-disk		wd0	at wdc0 drive 0
-disk		wd1	at wdc0 drive 1
+device		wd0	at wdc0 drive 0
+device		wd1	at wdc0 drive 1
 
 controller	wdc1	at isa? port IO_WD2 irq 15
-disk		wd2	at wdc1 drive 0
-disk		wd3	at wdc1 drive 1
+device		wd2	at wdc1 drive 0
+device		wd3	at wdc1 drive 1
 
 device		wcd0	#IDE CD-ROM
 
@@ -132,4 +132,5 @@ pseudo-device	ppp	8
 pseudo-device	tun	2
 #pseudo-device	vn
 pseudo-device	pty	16
+pseudo-device	md
 #pseudo-device	gzip		# Exec gzipped a.out's
