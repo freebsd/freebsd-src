@@ -96,7 +96,7 @@ have been processed.
 This helps prevent the random device
 from being so compute-bound
 that it takes over all processing ability.
-A value of zero (0) is treated as
+A value of 0 (zero) is treated as
 .Em infinity ,
 and will only allow the kernel to pause
 if the queue is empty.
@@ -107,27 +107,27 @@ are accepted.
 The
 .Va kern.random.sys.harvest.ethernet
 variable is used to select LAN traffic as an entropy source.
-A zero (0) value means that LAN traffic
+A 0 (zero) value means that LAN traffic
 is not considered as an entropy source.
-Set the variable to one (1)
+Set the variable to 1 (one)
 if you wish to use LAN traffic for entropy harvesting.
 .Pp
 The
 .Va kern.random.sys.harvest.point_to_point
 variable is used to select serial line traffic as an entropy source.
 (Serial line traffic includes PPP, SLIP and all tun0 traffic.)
-A zero (0) value means such traffic
+A 0 (zero) value means such traffic
 is not considered as an entropy source.
-Set the variable to one (1)
+Set the variable to 1 (one)
 if you wish to use it for entropy harvesting.
 .Pp
 The
 .Va kern.random.sys.harvest.interrupt
 variable is used to select hardware interrupts
 as an entropy source.
-A zero (0) value means interrupts
+A 0 (zero) value means interrupts
 are not considered as an entropy source.
-Set the variable to one (1)
+Set the variable to 1 (one)
 if you wish to use them for entropy harvesting.
 All interrupt harvesting is setup by the
 individual device drivers.
