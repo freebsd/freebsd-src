@@ -1383,8 +1383,10 @@ fxp_start(struct ifnet *ifp)
 		 * granularities, we must prevent the card from DMA'ing
 		 * up the status while we update the command field.
 		 * This could cause us to overwrite the completion status.
+		 * XXX This is probably bogus and we're _not_ looking
+		 * for atomicity here.
 		 */
-		atomic_clear_short(&sc->fxp_desc.tx_last->tx_cb->cb_command,
+		atomic_clear_16(&sc->fxp_desc.tx_last->tx_cb->cb_command,
 		    htole16(FXP_CB_COMMAND_S));
 #else
 		sc->fxp_desc.tx_last->tx_cb->cb_command &=
