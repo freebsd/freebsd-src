@@ -169,6 +169,7 @@ void fwohci_txbufdb __P((struct fwohci_softc *, int , struct fw_bulkxfer *));
 #define NDVDB (DVBUF * NDB)
 
 #define	OHCI_VERSION		0x00
+#define	OHCI_ATRETRY		0x08
 #define	OHCI_CROMHDR		0x18
 #define	OHCI_BUS_OPT		0x20
 #define	OHCI_BUSIRMC		(1 << 31)
@@ -809,6 +810,10 @@ txloop:
 	len = xfer->send.len;
 	for( i = 0 ; i < hdr_off ; i+= 4){
 		ohcifp->mode.ld[i/4] = ntohl(fp->mode.ld[i/4]);
+	}
+	/* XXX payload must be network byte order */
+	if (tcode == FWTCODE_WREQQ || tcode == FWTCODE_RRESQ) {
+		ohcifp->mode.ld[3] = htonl(ohcifp->mode.ld[3]);
 	}
 	ohcifp->mode.common.spd = xfer->spd;
 	if (tcode == FWTCODE_STREAM ){
@@ -1882,6 +1887,8 @@ busresetout:
 		OWRITE(sc, OHCI_PREQHI, 0x7fffffff);
 		OWRITE(sc, OHCI_PREQLO, 0xffffffff);
 		OWRITE(sc, OHCI_PREQUPPER, 0x10000);
+		/* Set ATRetries register */
+		OWRITE(sc, OHCI_ATRETRY, 1<<(13+16) | 0xfff);
 /*
 ** Checking whether the node is root or not. If root, turn on 
 ** cycle master.
@@ -2795,7 +2802,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 				switch(stat){
 				case FWOHCIEV_ACKPEND:
 #if 0
-					printf("fwohci_arcv: ack pending..\n");
+					printf("fwohci_arcv: ack pending tcode=0x%x..\n", fp->mode.common.tcode);
 #endif
 					/* fall through */
 				case FWOHCIEV_ACKCOMPL:
