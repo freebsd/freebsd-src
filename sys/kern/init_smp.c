@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.2 1997/04/28 00:24:00 fsmp Exp $
+ * $Id: init_smp.c,v 1.3 1997/05/01 14:18:05 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -55,8 +55,50 @@
 #include <sys/user.h>
 
 
-int smp_active = 0;	/* is the secondary allowed to run? */
+#define NEW_STYLE_NOT
+
+int smp_active = 0;	/* are the APs allowed to run? */
+
+#if defined(NEW_STYLE)
+
+/* a shadow copy for diddling */
+static int xsmp_active = 0;
+
+static int
+sysctl_xmp SYSCTL_HANDLER_ARGS
+{
+	int error;
+
+	/* load the shadow with the current value */
+	xsmp_active = smp_active;
+
+	/* update the shadow */
+	error = sysctl_handle_int( oidp, oidp->oid_arg1, oidp->oid_arg2, req );
+	if (!error) {
+		/* check the shadow for a legal range */
+		if ((xsmp_active < 1) || (xsmp_active > mp_ncpus)) {
+			xsmp_active = smp_active;	/* bad, back to old */
+			error = EOPNOTSUPP;
+		}
+		else {
+			smp_active = xsmp_active;	/* good, update */
+		}
+	}
+	else {
+		xsmp_active = smp_active;		/* ??? */
+	}
+
+	return error;
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, smp_active, CTLTYPE_INT | CTLFLAG_RW,
+		&xsmp_active, 0, &sysctl_xmp, "I", "");
+
+#else  /* NEW_STYLE_NOT */
+
 SYSCTL_INT(_kern, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
+
+#endif  /* NEW_STYLE */
 
 int smp_cpus = 0;	/* how many cpu's running */
 SYSCTL_INT(_kern, OID_AUTO, smp_cpus, CTLFLAG_RD, &smp_cpus, 0, "");
