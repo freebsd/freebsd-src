@@ -1,3 +1,6 @@
+/*	$OpenBSD: stdd.h,v 1.4 1999/11/09 18:16:18 deraadt Exp $	*/
+/*	$NetBSD: stdd.h,v 1.2 1995/09/28 05:37:50 tls Exp $	*/
+
 /*-
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,6 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdd.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 /*
@@ -45,9 +49,9 @@
 
 #define iswhite(c) ((c) == ' ' || (c) == '\t')
 
-/*
- * STREQ is an optimised strcmp(a,b)==0
- * STREQN is an optimised strncmp(a,b,n)==0; assumes n > 0
+/* 
+ * STREQ is an optimised strcmp(a,b)==0 
+ * STREQN is an optimised strncmp(a,b,n)==0; assumes n > 0 
  */
 #define STREQ(a, b) ((a)[0] == (b)[0] && strcmp(a, b) == 0)
 #define STREQN(a, b, n) ((a)[0] == (b)[0] && strncmp(a, b, n) == 0)
