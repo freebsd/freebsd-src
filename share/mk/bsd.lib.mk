@@ -69,7 +69,7 @@ STRIP?=	-s
 
 .c.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .cc.o .C.o .cpp.o .cxx.o:
@@ -84,7 +84,7 @@ STRIP?=	-s
 
 .cc.So .C.So .cpp.So .cxx.So:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .f.o:
@@ -99,7 +99,7 @@ STRIP?=	-s
 
 .f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .m.o:
@@ -114,19 +114,19 @@ STRIP?=	-s
 
 .m.So:
 	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.o .asm.o:
 	${CC} -x assembler-with-cpp ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.po .asm.po:
 	${CC} -x assembler-with-cpp -DPROF ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.So .asm.So:
@@ -137,12 +137,12 @@ STRIP?=	-s
 
 .S.o:
 	${CC} ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.po:
 	${CC} -DPROF ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.So:
