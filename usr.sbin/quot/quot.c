@@ -569,7 +569,7 @@ main(argc,argv)
 		for (; --cnt >= 0; mp++) {
 			if (!strncmp(mp->f_fstypename, "ufs", MFSNAMELEN)) {
 				if ((nm = strrchr(mp->f_mntfromname,'/'))) {
-					sprintf(dev,"/dev/r%s",nm + 1);
+					sprintf(dev,"/dev/%s",nm + 1);
 					nm = dev;
 				} else
 					nm = mp->f_mntfromname;
