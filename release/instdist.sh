@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.2 1994/11/17 11:53:13 jkh Exp $
+# $Id: instdist.sh,v 1.3 1994/11/17 14:18:02 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -131,11 +131,20 @@ the files yourself.\n\n"; then return 1; fi
 
 media_extract_dist()
 {
-	if [ -f extract.sh ]; then
-		message "Extracting distribution..  Please wait!"
-		sh ./extract.sh < /dev/ttyv1 > /dev/ttyv1 2>&1
+	if [ -f do_cksum.sh ]; then
+		message "Verifying checksums for distribution.  Please wait!"
+		if sh ./do_cksum.sh; then
+			if [ -f extract.sh ]; then
+				message "Extracting distribution.  Please wait!"
+				sh ./extract.sh < /dev/ttyv1 > /dev/ttyv1 2>&1
+			else
+				error "No installation script found!"
+			fi
+		else
+			error "Checksum error(s) found.  Please check media!"
+		fi
 	else    
-		error "Improper distribution.  No installation script found!"
+		error "Improper distribution.  No checksum script found!"
 	fi
 }
 
