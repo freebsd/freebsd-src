@@ -47,7 +47,7 @@ extern FILE					*logf;
 extern longstring			rcname, logfname, lcwd;
 extern int					auto_binary, ansi_escapes, debug;
 extern int					mprompt, remote_is_unix, verbose;
-extern int					startup_msg, anon_open;
+extern int					startup_msg, anon_open, passivemode;
 #ifndef NO_TIPS
 extern int					tips;
 #endif
@@ -77,6 +77,7 @@ struct var vars[] = {
 	VARENTRY("logsize",			LONG, 0, &logsize,		NULL),
 	VARENTRY("mprompt",			BOOL, 0, &mprompt,		NULL),
 	VARENTRY("netrc",			-STR, 0, rcname,		NULL),
+	VARENTRY("passive",			BOOL, 0, &passivemode,	NULL),
 	VARENTRY("pager",			STR,  0, pager + 1,		set_pager),
 	VARENTRY("prompt",			STR,  0, prompt,		set_prompt),
 	VARENTRY("progress-reports",INT,  0, &progress_meter,NULL),
