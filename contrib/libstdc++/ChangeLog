@@ -1,1421 +1,2447 @@
-Fri Mar 16 12:46:19 GMT 2001 Bernd Schmidt  (bernds@redhat.com)
+2002-05-09  Jakub Jelinek  <jakub@redhat.com>
 
-	* gcc-2.95.3 Released.
+	* testsuite/lib/libstdc++-v3-dg.exp (libstdc++-v3-init): Append all
+	multilib dirs containing libgcc_s*.so.1 below gcc object dir to
+	LD_LIBRARY_PATH.
 
-2001-01-01  Bernd Schmidt  <bernds@redhat.co.uk>
+2002-05-08  Alexandre Oliva  <aoliva@redhat.com>
 
-	1999-12-07  Martin v. Löwis  <loewis@informatik.hu-berlin.de>
-	* stl_deque.h (_Deque_base::const_iterator): Change third
-	template argument to pointer type.
-	Reported by Carlo Wood <carlo@node1500a.a2000.nl>
+	* configure.in (ORIGINAL_LD_FOR_MULTILIBS): Preserve LD at
+	script entry, and set LD to it when configuring multilibs.
+	* configure: Rebuilt.
 
-	1999-11-10  Benjamin Kosnik  <bkoz@haight.constant.com>
-		    Matthias Klose  <doko@cs.tu-berlin.de>
-	* stl_rope.h: Fix initialization order.
-	* stl_deque.h: Use static_casts<size_type>(signed_type).
+2002-05-06  Phil Edwards  <pme@gcc.gnu.org>
 
-2000-11-24  Magnus Fromreide <magfr@lysator.liu.se>
+	* docs/html/documentation.html:  Fix broken link.
 
-	* sstream: Backport libstdc++-V3 sstream to V2.
+2002-05-03  Benjamin Kosnik  <bkoz@redhat.com>
 
-2000-04-24  Magnus Fromreide  <magfr@lysator.liu.se>
+	PR libstdc++/6549.
+	* include/bits/fstream.tcc (filebuf::_M_underflow_common): Revert.
+	* testsuite/27_io/narrow_stream_objects.cc (test07): Add.
 
-	* sstream: New file.
-	* Makefile.in (HEADERS): Add it.
+2002-05-02  Phil Edwards  <pme@gcc.gnu.org>
 
-2000-03-12  Gabriel Dos Reis  <dosreis@cmla.ens-cachan.fr>
+	* docs/html/faq/index.html:  Update list in #4.1.
+	* docs/html/faq/index.txt:  Regenerated.
 
-	* std/bastring.h (basic_string<>::push_back): Define.
+2002-05-01  Phil Edwards  <pme@gcc.gnu.org>
 
-Tue Mar  7 21:37:56 2000  Jeffrey A Law  (law@cygnus.com)
+	* include/std/std_bitset.h:  Fix doxygen comments.
+	* docs/html/documentation.html:  Minor tweaks for 3.1.
+	* docs/html/27_io/howto.html:  Likewise.
+	* docs/html/ext/howto.html:  Likewise, mention stdio_filebuf.
+	* docs/html/faq/index.html:  Likewise.
+	* docs/html/faq/index.txt:  Regenerated.
 
-	1999-11-19  Gabriel Dos Reis  <dosreis@cmla.ens-cachan.fr>
-	* std/valarray_meta.h (_DEFINE_EXPR_UNARY_FUNCTION): Don't forget
-	to define tanh. 
+2002-05-01  Benjamin Kosnik  <bkoz@redhat.com>
 
-	1999-11-05  Gabriel Dos Reis  <dosreis@cmla.ens-cachan.fr>
-	* std/valarray_meta.h (_DEFINE_EXPR_UNARY_FUNCTION):  When
-	building meta-expressions don't forget to take the contained
-	closures.
+	PR libstdc++/6533
+	* include/bits/streambuf_iterator.h (istreambuf_iterator::_M_get): New.
+	(istreambuf_iterator::equal): Use it.
+	(istreambuf_iterator::operator*): Use it.	
 
-	1999-10-19  Gabriel Dos Reis  <dosreis@cmla.ens-cachan.fr>
-	* std/valarray_meta.h: (_BinClos::_BinClos): Fix typo.
-
-	1999-09-17 Gabriel Dos Reis  <dosreis@cmla.ens-cachan.fr>
-	* std/complext.cc (pow): Don't expect floating point promotion
-	in presence of template argument deduction.  There is no such
-	thing. 
-
-2000-02-06 Gabriel Dos Reis  <dosreis@cmla.ens-cachan.fr>
-	* std/valarray_array.h (__valarray_copy): Fix typo.
-
-1999-12-14  Martin v. Löwis  <loewis@informatik.hu-berlin.de>
-	* std/bastring.h (basic_string::basic_string): Rename parameters
-	to avoid shadow warnings.
-	* std/bastring.cc (alloc): Likewise.
-
-Sun Oct 24 23:54:10 PDT 1999 Jeff Law  (law@cygnus.com)
-
-	* gcc-2.95.2 Released.
-
-Mon Aug 16 01:29:24 PDT 1999 Jeff Law  (law@cygnus.com)
-
-	* gcc-2.95.1 Released.
-
-Thu Aug  5 02:00:13 1999  Loren Rittle  <ljrittle@acm.org>
-
-	* Makefile.in (MARLINK, MSHLINK): Handle library version
-	number components with more than one numeric digit.
-
-Mon Aug  2 00:40:10 1999  Jeffrey A Law  (law@cygnus.com)
-
-	1999-07-16  Markus Gyger (mgyger@gmu.edu)
-	* stdexcepti.cc (__out_of_range): Use std:: qualifier for names 
-	in std.
-	(__length_error): Likewise.
-
-Wed Jul 28 21:39:31 PDT 1999 Jeff Law  (law@cygnus.com)
-
-	* gcc-2.95 Released.
-
-Sun Jul 25 23:40:51 PDT 1999 Jeff Law  (law@cygnus.com)
-
-	* gcc-2.95 Released.
-
-Sat Jul 17 23:49:59 1999  Jeffrey A Law  (law@cygnus.com)
-
-	* Makefile.in (INTERFACE): Bump to 3.
-
-Fri Jul  9 01:20:23 1999  Jeffrey A Law  (law@cygnus.com)
-
-	* Makefile.in (VERSION): Bump to 2.10.0.
-
-Tue Jun  8 00:21:11 1999  Jeffrey A Law  (law@cygnus.com)
-
-	* configure.in (*-*-freebsd2*): Add missing '*' at end of configure
-	string.
-
-1999-06-05  Gabriel Dos Reis  <dosreis@cmla.ens-cachan.fr>
-
-	* std/std_valarray.h: Don't #include unconditionally <alloca.h>
-
-1999-06-05  Gabriel Dos Reis  <dosreis@cmla.ens-cachan.fr>
-
-	* std/std_valarray.h: New file.
-	  * std/slice.h: New file.
-	  * std/slice_array.h: New file.
-	  * std/gslice.h: New file.
-	  * std/gslice_array.h: New file.
-	  * std/mask_array.h: New file.
-	  * std/indirect_array.h: New file.
-	  * std/valarray_array.h: New file.
-	  * std/valarray_array.tcc: New file.
-	  * std/valarray_meta.h: New file.
-	  * valarray.cc: New file.
-	  * valarray: New file
-
-	  * Makefile.in (OBJS): add valarray.o
-	  (HEADERS): add valarray
-	  (valarray.o): define dependency on valarray.cc
-	  (install): make it possible to install valarray file.
+2002-05-01  Paolo Carlini  <pcarlini@unitus.it>
 	
-Wed Jun  2 00:21:54 1999  Robert Lipe  <robertlipe@usa.net>
-
-	* std/bastring.h (class basic_string:Rep): Encode xlock opcode
-	as .bytes instead of mnemonics.
-
-1999-05-20  Angela Marie Thomas <angela@cygnus.com>
-
-	* configure.in: Test for ${compiler_name}.exe as well.
-
-1999-05-15  Mark Kettenis  <kettenis@gnu.org>
-
-	* configure.in: Add shared library support for the Hurd
-	(*-*-gnu*).
-	* config/gnu.ml: New file.
-
-1999-05-12  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* configure.in (compiler_name): Don't do the skip-this-dir thing
-	if we're reconfiguring.
-
-1999-05-07  Ulrich Drepper  <drepper@cygnus.com>
-
-	* std/bastring.h (class basic_string::Rep): Make release member
-	function thread-safe for ix86 (x>=4) and UltraSPARC.
-
-	* stlinst.cc: Make it possible to compile with __USE_MALLOC.
-
-Mon Apr 26 02:24:47 1999 "Loren J. Rittle" <rittle@supra.rsch.comm.mot.com>
-
-	* config/freebsd.ml (LIBS): Add ARLINK.
-	* config/openbsd.ml (LIBS): Add ARLINK.
-
-Fri Apr  2 15:12:14 1999  H.J. Lu  (hjl@gnu.org)
-
-	* libstdc++/configure.in (gxx_include_dir): Handle it.
-	* libstdc++/Makefile.in: Likewise.
-
-Wed Mar 24 22:36:45 1999  Mumit Khan  <khan@xraylith.wisc.edu>
-
-	* configure.in (EXEEXT): Define.
-	(compiler_name): Use.
-
-Thu Mar 11 01:07:55 1999  Franz Sirl <Franz.Sirl-kernel@lauterbach.com>
-
-	* configure.in: Add mh-*pic handling for alpha, arm, powerpc
-
-Fri Mar  5 02:16:39 1999  Doug Rabson  <dfr@freebsd.org>
-
-	* configure.in: Support shared libs on FreeBSD 3.x and 4.x
-	* config/freebsd.ml: A copy of config/linux.ml since they are both
-	ELF and both have a shared libm.
-
-1999-02-24  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* configure.in: Fix INSTALLDIR sed pattern for Solaris sed.
-
-Sat Feb 20 13:17:17 1999  Jeffrey A Law  (law@cygnus.com)
-
-	* string, std/straits.h, std/bastring.h: Revert recent change.  Needs
-	some libiberty support before it can be re-enabled.
-
-Thu Feb 18 19:53:17 1999  Marc Espie <espie@cvs.openbsd.org>
-
-	* configure.in: Handle OpenBSD with and without threads.
-	* config/openbsd.ml: New file.
-	* config/openbsd.mt: New file.
-
-1999-02-04  Ulrich Drepper  <drepper@cygnus.com>
-
-	* configure.in: Recognize --enable-threads=posix for all
-	platforms.
-	* config/posix.mt: New file.
-
-	* configure.in: Add fragments for Solaris defining macro specifying
-	thread library to be used.
-	* config/sol2pth.mt: New file
-	* config/sol2solth.mt: New file.
-	* stl/stl_alloc.h: Add support for Solaris thread library.
-	* stl/stl_config.h: Recognize _SOLTHREADS and define internal macros
-	appropriately.
-
-1999-01-28  Baron Roberts  <baron@sgi.com>
-
-	* string: Uncomment wstring declaration.
-
-	* std/straits.h: Remove #if 0/#endif from around
-	struct string_char_traits <wchar_t>.
-	#include <cwchar>.
-	Add missing definition for wchar_t move method.
-	Add empty() method for trait-based empty string return.
-
-	* std/bastring.h (c_str): Change return of "" to return of
-	traits::empty() call so that proper empty string is returned
-	based on the character type (i.e. "" or L"").
-
-1999-02-07  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in (stuff2): Tweak.
-
-1999-02-04  Ulrich Drepper  <drepper@cygnus.com>
-
-	* configure.in: Recognize --enable-threads=posix for all
-	platforms.
-	* config/posix.mt: New file.
-
-	* configure.in: Add fragments for Solaris defining macro specifying
-	thread library to be used.
-	* config/sol2pth.mt: New file
-	* config/sol2solth.mt: New file.
-	* stl/stl_alloc.h: Add support for Solaris thread library.
-	* stl/stl_config.h: Recognize _SOLTHREADS and define internal macros
-	appropriately.
-
-Sat Jan 30 08:05:46 1999 Mumit Khan  <khan@xraylith.wisc.edu>
-
-	* config/x86-interix.ml: New file.
-	* configure.in (i[3456]86-*-interix*): Add shared library support.
-
-1999-01-13  Ulrich Drepper  <drepper@cygnus.com>
-
-	* configure.in: Test for "ln -s" and set LN_S in generated Makefile.
-	* Makefile.in: Use $(LN_S) instead of explicitly ln -s.
-
-Sun Jan 03 03:16:02 1999  Robert Lipe  <robertlipe@usa.net>
-
-	* configure.in:  (*-*-sysv5, *-*-*udk*):  Treat like sysv4.
-
-Tue Dec  8 00:59:09 1998  Marc Espie <Marc.Espie@liafa.jussieu.fr>
-
-	* Makefile.in: Be more selective about what files to install.
-
-1998-11-30  Ulrich Drepper  <drepper@cygnus.com>
-
-	* std/bastring.cc (operator>>): Correct cast in last patch.
-	(getline): Likewise.
-
-1998-11-27  Alexandre Oliva  <oliva@dcc.unicamp.br>
-
-	* Makefile.in (HEADERS): Install bitset.
-
-1998-11-26  Manfred Hollstein  <manfred@s-direktnet.de>
-
-	* configure.in (compiler_name): Add check to detect if this
-	language's compiler has been built.
-
-1998-11-23  Ulrich Drepper  <drepper@cygnus.com>
-
-	* std/bastring.cc (operator>>): Cast new character to char before
-	adding to string.
-	(getline): Likewise.
-
-Thu Sep 17 01:29:46 1998  H.J. Lu  (hjl@gnu.org)
-
-	* Makefile.in ($(ARLINK), $(SHLINK)): Don't rely on 'ln -f'.
-
-	* Makefile.in (install): Don't rely on 'ln -f'.
-
-1998-09-09  Manfred Hollstein  <manfred@s-direktnet.de>
-
-	* Makefile.in (install): Initialize RELINSTALLDIR correctly
-	even for multilib and cross configurations.
-
-	* configure.in (INSTALLDIR): Don't change INSTALLDIR's init
-	value if --enable-version-specific-runtime-libs has been specified.
-
-Wed Sep  2 21:11:15 1998  H.J. Lu  (hjl@gnu.org)
-
-	* Makefile.in (RELINSTALLDIR): New. Use it to make symlinks.
-
-	* configure.in: Fix INSTALLDIR replacement for cross-compile.
-
-Sun Aug 30 22:17:41 1998  H.J. Lu  (hjl@gnu.org)
-
-	* Makefile.in (INTERFACE): New, set to 2.
-	(ARLIB): Set to libstdc++.a.$(VERSION)
-	(ARLINK, MARLINK): New macros.
-	(LIBS): Add $(ARLINK).
-	($(ARLINK), marlink): New targets.
-	(install): Don't check $(libsubdir). Handle versioned libraries.
-
-	* config/linux.ml (ARLIB, MARLINK, SHLIB, MSHLINK): New macros.
-	(LIBS): Add marlink $(ARLINK).
-
-	* config/aix.ml (ARLIB): Set to libstdc++-ar.a.$(VERSION)
-	(ARLINK): New macros.
-	(BUILD_LIBS): Add $(ARLINK).
-
-	* config/dec-osf.ml (LIBS): Add $(ARLINK).
-	* config/elf.ml (LIBS): Likewise.
-	* config/elfshlibm.ml (LIBS): Likewise.
-	* config/hpux.ml (LIBS): Likewise.
-	* config/iris5.ml (LIBS): Likewise.
-	* config/sol2shm.ml (LIBS): Likewise.
-	* config/sunos4.ml (LIBS): Likewise.
-
-	* configure.in: Use ${topsrcdir}/config.if to put
-	LIBSTDCXX_INTERFACE, CXX_INTERFACE, LIBC_INTERFACE in
-	${package_makefile_frag}.
-
-1998-08-25  Martin von Löwis  <loewis@informatik.hu-berlin.de>
-
-	* stdexcept: Remove __HONOR_STD.
-
-1998-08-23  Mark Mitchell  <mark@markmitchell.com>
-
-	* sinst.cc: Don't explicitly instantiation string_char_traits<char>.
-	* cinst.cc: Likewiwse, for complex<float>, complex<double>,
-	complex<long double>.
-
-1998-08-17  Mark Mitchell  <mark@markmitchell.com>
-
-	* stdexcept: Put things in the std namespace, if appropriate.
-
-1998-07-12  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in (VERSION): Bump to 2.9.0.
-
-1998-07-12  Lars Albertsson <lalle@sics.se>
-
-	* std/bastring.cc (find_last_of): Fix.
-	(find_last_not_of): Likewise.
-
-1998-07-06  Manfred Hollstein  <manfred@s-direktnet.de>
-
-	* configure.in (INSTALLDIR): Make sed pattern failsafe.
-
-1998-07-06  Ulrich Drepper  <drepper@cygnus.com>
-
-	* std/bastring.h (class basic_string): Correct iterator return
-	values in insert member functions.
-
-1998-07-02  Ulrich Drepper  <drepper@cygnus.com>
-
-	* std/bastring.h (class basic_string): Return correct iterators in
-	erase member functions.
-
-1998-06-24  Manfred Hollstein  <manfred@s-direktnet.de>
-
-	* Makefile.in (INSTALLDIR): Add comment to document the fact,
-	this macro will be properly initialized at make's runtime.
-	(install): Add initialization of INSTALLDIR depending on $(libsubdir)
-	and ${enable_version_specific_runtime_libs}; use $${INSTALLDIR} shell
-	variable instead of the $(INSTALLDIR) make macro.
-
-Tue Mar 24 10:13:07 1998  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.cc (basic_string::copy): Mark const here, too.
-
-1998-03-23 15:59  Ulrich Drepper  <drepper@cygnus.com>
-
-	* std/bastring.h (basic_string::copy): Mark copy function as const.
-	Reported by Scott Schurr <scotts@ims.com>.
-
-Thu Mar  5 09:23:28 1998  Manfred Hollstein  <manfred@s-direktnet.de>
-
-	* configure.in: Make locating frag files failsafe even for the
-	special case if configuring and building in srcdir.
-
-1998-03-04 12:37  Ulrich Drepper <drepper@cygnus.com>
-
-	* cinst.cc [INSERT] (operator<<): Correct type of numeric argument.
-
-Fri Feb  6 01:36:21 1998  Manfred Hollstein  <manfred@s-direktnet.de>
-
-	* Makefile.in (piclist): Check value of enable_shared, not PICFLAG.
-	(stmp-string, ...): Dito.
-	(bigstmp-string, ...): Dito.
-
-Sun Feb  1 13:38:07 1998  H.J. Lu  (hjl@gnu.org)
-
-	* config/linux.mt: Don't define _PTHREADS, but define
-	_IO_MTSAFE_IO.
-
-Wed Jan 28 10:27:11 1998  Manfred Hollstein  <manfred@s-direktnet.de>
-
-        * tests/configure.in, testsuite/configure.in: Update with yesterday's
-	toplevel configure.in changes.
-
-Tue Jan 27 23:27:32 1998  Manfred Hollstein  <manfred@s-direktnet.de>
-
-	* configure.in (package_makefile_rules_frag): New variable
-	which is used in the call to config.shared; redirect file descriptor 2
-	to ${package_makefile_rules_frag}.
-
-Tue Jan 27 10:11:27 1998  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in (install): Remove the shared library symlink even if
- 	we aren't installing it.
-
-Tue Jan 27 10:29:44 1998  H.J. Lu  (hjl@gnu.org)
-
-	* configure.in (topsrcdir): New.
-	(configdirs): Check ${topsrcdir}/gcc instead.
-	(config-ml.in): Use ${topsrcdir}/config-ml.in.
-
-	* tests/configure.in (topsrcdir): New.
-	(check): Check ${topsrcdir}/gcc instead.
-
-Sun Jan 25 14:01:50 1998  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.h (unique): We only need length bytes.
-	(c_str): Avoid writing over random memory.
-	#include <std/bastring.cc>.
-	Lose _G_ALLOC_CONTROL.
-	* std/bastring.cc: Likewise.
- 	(nilRep): Add initializer for selfish.
-	* sinst.cc: Just #include <string>.
-
-Tue Jan 13 21:23:05 1998  H.J. Lu  (hjl@gnu.org)
-
-	* configure.in (configdirs): Include testsuite only if
-	${srcdir}/../gcc exists.
-
-	* tests/configure.in (check): Set to ${CHECK} if
-	${srcdir}/../../gcc doesn't exists.
-
-1998-01-05  Brendan Kehoe  <brendan@lisa.cygnus.com>
-
-	* std/bastring.cc (basic_string::Rep::operator delete): Don't claim
-	to return from deallocate, since this is a void method.
-
-Sat Jan  3 12:15:41 1998 Franz Sirl <franz.sirl-kernel@lauterbach.com>
-
-	* configure.in: Finalize support for {alpha|powerpc}*-*-linux-gnulibc1
-
-Sun Dec  7 02:34:40 1997  Jody Goldberg	<jodyg@idt.net>
-
-	* libstdc++/std/bastring.h : Move closer to the draft standard
-	implementation of basic_string by adding 3 paramter 'Allocator'.
-	NOTE: this still differs from the standard in not offering per
-	instance allocators.
-	* libstdc++/std/bastring.cc : Likewise.
-	* libstdc++/stlinst.cc : Handle thread safe allocators if they are the
-	default.
-
-Sun Dec  7 02:32:20 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* iosfwd: New header.
-	* Makefile.in (HEADERS): Add it.
-
-Sun Dec  7 02:32:20 1997  Gregory L. Galloway (gregg@eoeml.gtri.gatech.edu)
-
-	* Makefile.in (HEADERS): Modified list of headers to
-	install to include all of SGI STL headers especially hash_set and
-	hash_map, and added ANSI C++ style wrappers for fstream, iomanip,
-	iostream, and strstream.
-
-	* fstream, iomanip, iostream, strstream: New forwarding headers
-	added.
-
-Thu Nov 27 01:33:55 1997  Jeffrey A Law  (law@cygnus.com)
-
-	* Makefile.in (install): Change gxx_includedir to gxx_include_dir.
-
-Tue Nov 25 23:16:44 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	London changes to string:
-	* std/bastring.cc (check_realloc): Don't be selfish anymore.
-	* std/bastring.h (non-const operator[]): Be selfish.
-	(iterator forms of insert and erase): Stay selfish.
-
-Tue Nov 25 14:03:43 1997  H.J. Lu  (hjl@gnu.org)
-
-	* Makefile.in (stmp-complex, bigstmp-complex): Changed to
-	xxxx-complx.
-
-Mon Nov 24 14:41:33 1997  Jeffrey A Law  (law@cygnus.com)
-
-	* Makefile.in: Use ln -f -s, not ln -s -f.
-
-Fri Nov 21 12:56:24 1997  Manfred Hollstein <manfred@s-direktnet.de>
-
-	* Makefile.in (bigstmp-complex): Name changed to bigstmp-complx to
-	cope with filesystem not capable to handle names longer than
-	14 characters.
-
-Sun Nov 16 22:41:55 1997  Jeffrey A Law  (law@cygnus.com)
-
-	* Makefile.in (SHLIB): Build with CC instead of CXX.
-
-Sun Nov  2 23:34:09 1997  Manfred Hollstein  <manfred@s-direktnet.de>
-
-	* configure.in: Use delta.mt for m68k-motorola-sysv.
-	* config/delta.mt: New makefile fragment.
-
-Sun Nov  2 12:14:37 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in (install): Some of HEADERS come from the stl dir now.
-	* algorithm, deque, functional, iterator, list, map, memory, numeric,
- 	queue, set, stack, utility, vector: Now in stl dir.
-
-Fri Oct 10 00:40:00 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.h: Use ibegin internally.  Return passed iterator
-	instead of recalculating it where appropriate.
-	* std/bastring.cc: Adjust for erase.
-
-	From Yotam Medini:
-	* std/bastring.h: Replace remove with erase.
-
-Thu Oct  9 23:24:36 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* stdexcepti.cc (__out_of_range): New fn.
-	(__length_error): New fn.
-
-	* std/bastring.h (OUTOFRANGE): Fix logic.  Use throwing functions.
-	(LENGTHERROR): Likewise.
-	Revert Oct 2 changes.
-	* string: Revert Oct 2 changes.
-
-Tue Oct  7 00:51:51 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/{f,d,ld}complex.h: Replace guiding fns if not -ansi.
-
-Thu Oct  2 00:08:18 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.h: Move exception stuff after definition of string.
-	Move typedef of string here.
-	* string: From here.
-
-Sat Sep 27 16:48:00 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/complext.h: Lose injection decls.
-	* std/fcomplex.h: Likewise.
-	* std/dcomplex.h: Likewise.
-	* std/ldcomplex.h: Likewise.
-
-Sat Sep 27 16:47:35 1997  Mark Mitchell  <mmitchell@usa.net>
-
-	* std/complext.h: Declare templates before making them
-	friends.  Use new friend <> syntax.
-	* std/complext.cc: Don't rely on guiding declarations.
-	* std/fcomplex.h: Use new friend <> syntax.
-	* std/dcomplex.h: Likewise.
-	* std/ldcomplex.h: Likewise.
-
-Thu Sep 25 19:55:56 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.h: Enable exceptions.
- 	(assign, append, insert, replace): Implement member template versions.
-
-1997-09-15 02:37  Ulrich Drepper  <drepper@cygnus.com>
-
-	* config/linux.mt: New file.  Make sure _PTHREADS is defined
-	if necessary.
-	* configure.in: Find linux.mt file.
-
-Thu Sep 11 15:03:20 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.h (class basic_string): Add global scope to
-	use of reverse_iterator.
-
-Tue Sep  9 19:47:07 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.h: Adjust use of reverse_iterator template.
-
-Wed Aug 27 00:04:33 1997  Alexandre Oliva  (oliva@dcc.unicamp.br)
-
-	* Makefile.in: Create correct multiple links to
-	shared libstdc++.
-
-Tue Aug 26 12:24:01 1997  H.J. Lu  (hjl@gnu.ai.mit.edu)
-
-	* testsuite/Makefile.in (check): Don't depend on site.exp.
-	(just-check): Depend on site.exp.
-
-Mon Aug 25 14:26:45 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in (CXXFLAGS): Add -Weffc++.
-
-Sat Aug 23 21:25:37 1997  Mark Mitchell  <mmitchell@usa.net>
-
-	* bastring.h: Enable reverse_iterator and its ilk.
-
-	* bastring.h: Provide specializations of member function templates
-	for const_iterator.
-
-Wed Jul 30 10:59:00 1997  Benjamin Kosnik  <bkoz@rhino.cygnus.com>
-
-	* stlinst.cc: Add instantiation file for
-	__default_alloc_template<fale, 0> and
-	__malloc_alloc_template<0>
-
-Sun Jun  1 17:03:40 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.cc (find_last_of): Correct handling of POS.
-	(find_last_not_of): Likewise.
-
-Thu May  1 17:37:10 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in ($(SHLIB)): Add $(LIBCXXFLAGS).
-
-Wed Apr 30 12:06:23 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in (IO_DIR): Remove $(MULTIBUILDTOP).
-	(LIBIBERTY_DIR): Likewise.
-	* configure.in: Don't turn on multilib here.
-
-Fri Apr 25 16:09:15 1997  Bob Manson  <manson@charmed.cygnus.com>
-
-	* testsuite/libstdc++.tests/test.exp, testsuite/lib/libstdc++.exp,
-	  testsuite/configure.in, testsuite/Makefile.in,
-	  testsuite/config/default.exp, testsuite/ChangeLog: New files.
-
-	* configure.in: Add new testsuite directory to be configured.
-
-Tue Apr 22 19:03:39 1997  Alexandre Oliva <oliva@dcc.unicamp.br>
-
-	* Makefile.in (install): Fix handling of mshlink.
-
-Fri Apr  4 03:25:13 1997  Ulrich Drepper  <drepper@cygnus.com>
-
-	* Makefile.in (IO_DIR): Prepend $(MULTIBUILDTOP) to
-	support multilib build.
-	(LIBIBERTY_DIR): Likewise.
-
-	* configure.in: Enable multilibing by default.
-	Update multilib template to read config-ml.in.
-
-Wed Mar 12 16:09:34 1997  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* configure.in (XCXXINCLUDES): Add the STL directory.
-
-Thu Jan 23 08:08:43 1997  Brendan Kehoe  <brendan@lisa.cygnus.com>
-
-	* stdexcept: Delete dtors for all of the error classes, to match
-	their removal in the Apr 1995 WP.
- 	(class overflow_error): Define missing class, added in May 1996 WP.
-
-Mon Nov 18 16:57:25 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in (stuff[12]): More rules for my own evil purposes.
-	(CXXFLAGS, CFLAGS): Use -O instead of -O3 so debugging works.
-
-Wed Oct 16 13:47:45 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* config/irix5.ml: Do link against the math library.
-	* configure.in: Support shared libs on Irix 6.
-
-Fri Oct 11 18:06:09 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* config/linux.ml: Lose version overrides.
-
-	* Makefile.in (MSHLINK): Defaults to .so.2.x
-	(mshlink): Indirect rule for making it.
-
-Tue Sep 24 17:58:31 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Remove new, typeinfo, exception, stddef*.
-	* Move public headers from std/*.h to *.
-
-Sun Sep 22 05:35:55 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in: Remove new, exception, typeinfo handling.
-	* exceptioni.cc, newi.cc, typeinfoi.cc, std/exception.h, std/new.h,
-	std/typeinfo.h, new.h: Remove.
-	* typeinfo, new, exception: Refer to the files with .h in gcc.
-
-Fri Sep 20 14:39:19 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in: Remove references to stl.list.
-	* configure.in (configdirs): Remove stl.
-
-Sat Sep 14 09:42:08 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in (stuff): Convenience for me.
-
-	* std/bastring.h: Remove kludge obsoleted by new overloading code.
-
-Fri Sep  6 16:43:21 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* typeinfoi.cc (__dynamic_cast): Fix static_cast.
-	(__rtti_si): Likewise.
-	(dcast): Likewise.
-
-Thu Aug 29 17:06:23 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
-
-	* configure.in (i[345]86-*-*): Recognize i686 for pentium pro.
-
-Tue Jul 23 14:27:44 1996  Mike Stump  <mrs@cygnus.com>
-
-	* Makefile.in (exceptioni.o): Use -fexceptions now.
-
-Mon Jun 17 13:57:24 1996  Per Bothner  <bothner@deneb.cygnus.com>
-
-	* std/bastring.h (class basic_string::remove):  Add casts.
-
-	* configure.in:  Use EXTRA_DISTCLEAN rather than DISTCLEAN.
-
-Fri Jun  7 14:09:20 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* typeinfoi.cc (BUILTIN): Align typeinfo object like a pointer.
-
-Wed May 29 16:48:35 1996  Mike Stump  <mrs@cygnus.com>
-
-	* exceptioni.cc (__throw_bad_exception): Add.
-	* std/exception.h (bad_exception): Add.
-	* std/typeinfo.h: Remove leftovers of bad_cast_object.
-
-Mon May  6 14:04:42 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/complext.h: s/FLOAT/_FLT/g.
-
-Thu May  2 17:26:24 1996  Mike Stump  <mrs@cygnus.com>
-
-	* exceptioni.cc (uncaught_exception): New routine.
-	* std/exception.h: Declare it.
-
-Thu Apr 25 13:20:57 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in (typeinfoi.o, stdexcepti.o): Use default rule.
-
-Wed Apr 24 18:38:24 1996  Mike Stump  <mrs@cygnus.com>
-
-	* exceptioni.cc: Add #pragma implementation.
-	* std/exception.h: Add #pragma interface.  Moved exception from
-	stdexcept.
-	* std/stdexcept.h: Moved exception to exception.  Fix all constructor
-	arguments to take strings to match ANSI.  Moved bad_cast and bad_typeid
-	to typeinfo.
-	* std/typeinfo.h: Moved bad_cast and bad_typeid from stdexcept.
-
-Wed Apr 24 10:43:07 1996  Doug Evans  <dje@blues.cygnus.com>
-
-	* Makefile.in (newi.o,cstringi.o,stddefi.o,cstdlibi.o,cmathi.o): Add
-	rules for SunOS VPATH.
-
-Fri Apr 19 17:24:51 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Version 2.8.0b3.
-
-Wed Apr 10 14:38:05 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* typeinfoi.cc (base_info): Pack the latter three fields into 32 bits.
-
-Tue Apr  9 15:49:38 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* typeinfoi.cc: Add 'const'.
-	(__class_type_info): Now just one pointer to an array of structs,
-	rather than four pointers to arrays.
-
-	* typeinfoi.cc (__throw_type_match_rtti): Check for conversion to
-	void* before conversion to base*.
-	(dcast): Handle downcasting to X* given other X	subobjects in
-	the most derived type.  Ack.
-
-Mon Apr  8 15:20:32 1996  Ian Lance Taylor  <ian@cygnus.com>
-
-	* configure.in: Permit --enable-shared to specify a list of
-	directories.
-
-Sun Apr  7 22:50:53 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* typeinfoi.cc (__rtti_array): New entry point.
-
-Sat Apr  6 14:41:18 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* exceptioni.cc (__throw_bad_cast): New entry point for compiler.
-	* typeinfoi.cc: Remove __bad_cast_object.
-
-	* typeinfoi.cc: Add nodes for unsigned builtins.
-
-Fri Apr  5 18:16:22 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* typeinfoi.cc, std/typeinfo.h: Total overhaul.  Move most
- 	everything out of the header, move name field into type_info, add
- 	single-inheritance case, rewrite pointer handling, add new
- 	compiler interface.  Compare addresses to check for equality.
-
-Wed Mar 27 11:54:08 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Version 2.8.0b2.
-
-Fri Mar  8 13:56:18 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/[cs]inst.h: Remove.
-
-Thu Mar  7 07:29:00 1996  Lee Iverson  <leei@Canada.AI.SRI.COM>
-
-	* Makefile.in (install): Restore deleted chdir to stl subdir.
-
-Thu Mar  7 15:02:58 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/complext.h: Fix __attribute__ usage.
-
-Wed Feb 28 10:00:24 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Version 2.8.0b1.
-
-Mon Feb 26 17:26:26 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/cstring.h: New approach to changing signatures of string
- 	manipulation functions.  Still disabled.
-
-Tue Feb 20 18:29:30 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/complext.h (__doapl, __doami, __doaml, __doadv): Helper
- 	templates to implement +=, -=, *= and /=, respectively, since
- 	member function templates do not apply to class specializations.
-	* std/{f,d,ld}complex.h, std/complext.cc, cinst.cc: Adjust.
-
-	* std/bastring.h: The representation class is now a nested class.
-	* std/bastring.cc: Add templates for static data members.
-	* sinst.cc: Don't provide specializations for static data members.
-	* std/string.h: Use default template parameters.
-
-	* Makefile.in (CXXFLAGS): Remove -pedantic -ansi.
-	(CFLAGS): Ditto.
-
-Wed Feb 14 14:39:07 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.cc (check_realloc): Fix for sizeof (charT) > 1.
-	From John Hickin <hickin@bnr.ca>.
-
-Wed Jan 10 11:05:04 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.h (insert): Fix iterator handling.
-	From Joe Buck <jbuck@synopsys.com>.
-
-Mon Jan  8 11:48:03 1996  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.h (max_size): Fix for sizeof (charT) > 1.
-	* std/bastring.cc (replace): Use it.
-
-	* std/bastring.cc (rfind): Fix for n > length ().
-
-Tue Dec 19 15:13:08 1995  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* config/aix.ml (SHFLAGS): Add -Wl,-unix.
-
-Mon Dec 18 12:48:25 1995  Mike Stump  <mrs@cygnus.com>
-
-	* Makefile.in (exceptioni.o): Compile with -fhandle-exceptions, so
-	we can unwind through unexpected on machines that don't have a
-	working __unwind_function.
-
-Sun Dec 17 00:28:31 1995  Jeffrey A Law  (law@cygnus.com)
-
-	* Makefile.in (install): Make sure shared libraries
-	are installed with mode 555.
-
-Mon Nov 27 15:01:56 1995  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* Makefile.in (install): Make shared library links relative.
-	(install): Break up -sf into -s -f.
-	({M,}SHLINK): Ditto.
-
-Sun Nov 26 22:48:06 1995  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* queue: Include <stack.h> instead of <queue.h>.
-
-Sat Nov 25 11:33:13 1995  Doug Evans  <dje@canuck.cygnus.com>
-
-	* Makefile.in (install): Fix setting of rootme.
-
-Tue Nov 21 14:20:34 1995  Ian Lance Taylor  <ian@cygnus.com>
-
-	* configure.in: Check ${with_cross_host} rather than comparing
-	${host} and ${target}.
-
-Tue Nov 14 01:50:52 1995  Doug Evans  <dje@canuck.cygnus.com>
-
-	* Makefile.in (IO_DIR): Delete MULTITOP, MULTISUBDIR.
-	(LIBIBERTY_DIR): Likewise.
-	(INSTALLDIR): Delete MULTISUBDIR.
-	* configure.in: Delete call to cfg-ml-com.in.  Call config-ml.in
-	instead of cfg-ml-pos.in.
-	(XCXXINCLUDES): Delete MULTITOP.
-	* stl/configure.in (XCXXINCLUDES): Delete MULTITOP.
-	(config-ml.in): Call instead of cfg-ml-pos.in.
-
-Sun Nov 12 16:44:25 1995  Per Bothner  <bothner@kalessin.cygnus.com>
-
-	* Makefile.in (VERSION):  Set to 2.7.1.
-
-Thu Nov  9 17:39:28 1995  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* config/{aix,dec-osf,irix5,linux,sol2shm}.ml: Remove LDLIBS defn;
- 	no longer needed now that make check sets LD_LIBRARY_PATH.
-
-Wed Nov  8 19:46:35 1995  Brendan Kehoe  <brendan@lisa.cygnus.com>
-
-        * std/bastring.h: Wrap with #ifndef/#define/#endif.
-        * std/cassert.h: Likewise.
-        * std/cinst.h: Likewise.
-        * std/complext.h: Likewise.
-        * std/dcomplex.h: Likewise.
-        * std/fcomplex.h: Likewise.
-        * std/ldcomplex.h: Likewise.
-        * std/sinst.h: Likewise.
-
-Wed Nov  8 16:15:48 1995  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.cc (getline): Update to September 95 WP.  Now we
- 	don't set failbit when reading an empty line.
-
-Tue Nov  7 16:09:04 1995  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.cc (new): Fix for sizeof (charT) != 1.
-
-Sat Nov  4 17:37:16 1995  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/complext.cc (operator / (FLOAT, const complex<FLOAT>&)):
- 	Reimplement along the lines of the other operator / templates.
-	From John Eaton <jwe@bevo.che.wisc.edu>.
-
-Sat Nov  4 13:33:50 1995  Per Bothner  <bothner@kalessin.cygnus.com>
-
-	* configure.in (DISTCLEAN):  New, to add target-mkfrag.
-
-Tue Oct 31 13:59:32 1995  Jason Merrill  <jason@yorick.cygnus.com>
-
-	* std/bastring.h: Use size_t for the reference count.
-	* std/bastring.cc (create): Set selfish.
-	From Joe Buck (jbuck@synopsys.com).
-
-Mon Oct 30 23:09:48 1995  Per Bothner  <bothner@kalessin.cygnus.com>
-
-	* configure.in:  Don't bother changing LIBIBERTY for cross,
-	now that we are using target-libiberty instead.
-	* Makefile.in (LIBIBERTY_DIR):  Simplify.
-	(LIBIBERTY):  Remove.
-
-Wed Oct 11 14:56:49 1995  Brendan Kehoe  <brendan@lisa.cygnus.com>
-
-	* config/sol2shm.ml: New files with -rpath.
-	* configure (*-*-solaris*): Use sol2shm.ml.
-
-Thu Sep 28 09:26:52 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/straits.h (compare, copy, move, set): Fix for non-char charT's.
-	* std/bastring.h (basic_string::remove): Fix for non-char charT's.
-
-Tue Sep 26 15:22:56 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* config/irix5.ml: Pass -rpath to links.
-
-Fri Sep 15 00:17:47 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* config/linux.ml: Conform to Linux shared library numbering
- 	scheme.
-	* Makefile.in: Ditto.
-
-Tue Sep 12 00:28:56 1995  Mike Stump  <mrs@cygnus.com>
-
-	* typeinfoi.cc: (__pointer_type_info::__rtti_match): Moved from
-	the headerfile, include all sorts of pointer conversions from 15.3
-	para 2.
-	* std/typeinfo.h (__pointer_type_info::__rtti_match): Moved from here.
-
-Mon Sep 11 23:27:59 1995  Mike Stump  <mrs@cygnus.com>
-
-	* std/typeinfo.h (__pointer_type_info::__rtti_match): We no longer
-	have to dereference the object pointer, as the pointer is always
-	passed directly.
-
-Mon Sep 11 19:29:51 1995  Mike Stump  <mrs@cygnus.com>
-
-	* std/typeinfo.h (__pointer_type_info::__rtti_match): Define so
-	that pointer conversions can happen on catch type matching.
-	* typeinfoi.cc (__throw_type_match_rtti): Arrange for __rtti_match
-	to be used on pointers.
-
-Tue Sep  5 14:49:19 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* string.h: Remove for now.
-
-Thu Aug 31 14:14:01 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/bastring.cc (operator>>): Simplify and fix.
-	(resize): Fix order of arguments to append.
-	(getline): Simplify and fix.
-
-Thu Aug 24 17:44:09 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/cstdlib.h (abs): Provide default implementation for peons
- 	without labs.
-
-Tue Aug 22 08:43:07 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/cstdlib.h: Comment out definition of div(long,long) for now,
- 	since not all targets have ldiv.
-
-Mon Aug 21 11:46:03 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/cmath.h: Wrap abs(double) with #if ! _G_MATH_H_INLINES.
-
-	* stl.h: Add, for compatibility with ObjectSpace STL.
-
-	* std/complext.cc (operator /): Use abs instead of fabs.
-
-	* std/bastring.h (replace): Update single-character replace method
- 	as per my proposal.
-
-	* std/cmath.h: Add abs(float), abs(double) and abs(long double).
-  	Add commented-out declarations for other float and long double
- 	math functions.
-
-	* std/cstdlib.h: Add abs(long) and div(long,long).
-
-	* Makefile.in (install): Make shared library executable and
- 	non-writable.  Tidy.
-	(OBJS): Add cstdlibi.o and cmathi.o.
-
-	* Rename implementation files to have different basenames.
-
-Mon Aug 21 00:57:03 1995  Jeffrey A. Law  <law@rtl.cygnus.com>
-
-	* Makefile.in (install): Use "cd stl"; no need for $(srcdir)
-	prefix because we're already in $(srcdir).
-
-Tue Jul 25 18:41:29 1995  Per Bothner  <bothner@kalessin.cygnus.com>
-
-	* std/stddef.h:  Remove obsolete definition of enum capacity.
-
-Sat Jul 22 13:37:01 1995  Doug Evans  <dje@canuck.cygnus.com>
-
-	* Makefile.in (IO_DIR): Add multilib support.
-	(LIBIBERTY, LIBIBERTY_OBJS, INSTALLDIR, stdlist): Likewise.
-	(libiberty.a, install): Likewise.
-	* configure.in: Likewise.
-	(XCXXINCLUDES): Likewise.
-	* stl/configure.in: Likewise.
-	(XCXXINCLUDES): Likewise.
-
-Mon Jul 17 09:29:31 1995  Brendan Kehoe  <brendan@lisa.cygnus.com>
-
-	* Makefile.in (typeinfo.o, stdexcept.o): Put an else for the if
-	stmt checking PICFLAG.
-	(stmp-string, bigstmp-string, stmp-complex, bigstmp-complex): Likewise.
-
-Wed Jun 28 17:05:29 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/*.h: Wrap with extern "C++".
-
-	* std/ciso646.h: Don't worry about #undefing the keywords.
-
-Mon Jun 26 19:05:38 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/bastring.h (operator!=): If they've included the STL
-        function.h, don't overload the operator templates that it defines.
-
-Fri Jun 23 16:54:17 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* Makefile.in (SHLINK): Force link.
-	(install): Ditto.
-
-	* std/bastring.h (terminate): Never reallocate.
-	(alloc): No longer const.
-
-	* std/bastring.cc (create): Always allocate an extra byte.
-	(check_realloc): Always leave room for an extra byte.
-	(*find*): Add missing 'const'.
-
-	* Makefile.in (SHARLIB): Provide a default value.
-
-Tue Jun 20 16:29:52 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/cstring.h: Don't bother tweaking prototypes for now.  When
-        we do, we will use new-style casts.
-
-Fri Jun 16 13:57:53 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* Makefile.in (VERSION): Update to 2.7.0.
-
-	* config/aix.ml: Build both shared and archive libraries.
-
-Wed Jun 14 21:44:21 1995  Jason Merrill  <jason@python.cygnus.com>
-
-	* configure.in (frags): Use linux.ml for Linux/ELF.
-	* config/linux.ml: New file.
-
-Wed Jun 14 17:56:23 1995  Niclas Andersson  <nican@ida.liu.se>
-
-	* configure.in: Use xiberty when building cross-compiler.
-
-Wed Jun 14 12:57:47 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/*complex*, std/cinst.h, cinst.cc: Pass by reference to const
-        rather than by value.
-	* std/*complex*: Add member functions real() and imag().
-
-Sat Jun 10 12:14:38 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* Makefile.in (bigstmp-string): Call main string object cstrmain.o
-        instead of cstring.o.
-
-Wed Jun  7 11:15:15 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/cstring.h: Use #include_next to pick up <string.h>.
-
-	* string.h: New file.
-
-	* Makefile.in (MOSTLYCLEAN_JUNK): Remove piclist.
-
-	* configure.in (MOSTLYCLEAN): Remove stamp-picdir.
-
-Mon Jun  5 18:36:39 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* config/*.ml: Build both shared and archive libraries.
-
-	* configure.in (MOSTLYCLEAN): Remove pic.
-	(frags): Use toplevel pic frags.
-
-	* Makefile.in (piclist): New rule.
-	(SHLIB): Use it.
-	(stl.list): Removed.
-	(typeinfo.o): Also build pic version.
-	(stdexcept.o): Ditto.
-	(*stmp-*): Ditto.
-
-Tue May 30 12:01:14 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/{complext,{f,d,ld}complex}.h: To declare specializations,
-        use friend declarations in the class body...
-	* std/cinst.h: ...rather than macro hackery.
-
-	* Makefile.in (stdlist): Renamed from list.
-
-	* cstdarg: Don't define __CSTDARG__.
-	* complex.h: Similarly.
-
-Tue May  9 19:31:20 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/bastring.cc (operator>>): Use an int to store the return value
-        of streambuf::sbumpc.
-	(getline): Ditto.
-	* std/bastring.* (replace): Reverse size_t and charT arguments.
-
-	* configure.in (enable_shared): Support enable_shared under AIX.
-
-	* Makefile.in (SHARLIB): New variable and rule for building an
-        archive library containing a single shared object (for AIX).
-
-Mon May  8 01:43:19 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/bastring.h (remove): Forgot one.
-	(empty): And this.
-	Disable copy-on-write if someone takes an iterator.
-
-	* std/bastring.cc (getline): Avoid resizing down if unnecessary.
-	(operator>>): Don't use private methods.
-
-Sun May  7 02:39:56 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/bastring.h (insert, replace): Fix.
-	* std/bastring.cc (find_*_of): Fix.
-
-Fri May  5 01:45:10 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/bastring.h: Add iterator remove fn.  Remove evil default
-        arguments.
-
-	* std/*complex*, std/cinst.h, cinst.cc: s/__complex/complex/g.
-        complex<float> is now specialized.  Lose _*_complex in favor of
-        'explicit' constructors.
-	* std/complex.h: Lose typedef of complex.
-	* std/fcomplex.h: New file.
-	* std/complext.cc (operator<<): Accept more input forms.
-
-	* std/bastring.h: Add iterator insert fns.
-
-Thu May  4 02:30:04 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/bastring.*: Update to current draft.
-
-	* std/bastring.*: Reorganize so that the pointer in a string
-        object points to the data rather than the bsrep object, for
-        debugging.
-
-Tue Apr 25 17:15:09 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* configure.in: Update to stay in sync with config.shared.
-
-Mon Apr 24 13:08:46 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/complext.h: Declare hypot.  Declare appropriate functions const.
-
-Wed Apr 12 15:26:25 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* Makefile.in (typeinfo.o): Don't use $<.
-	(stdexcept.o): Ditto.
-
-Sat Apr  8 15:35:00 1995  Mike Stump  <mrs@cygnus.com>
-
-	* std/typeinfo.h: Move bad_cast, bad_typeid and __bad_cast_object
-	from here to stdexcept.
-	* std/stdexcept.h: Ditto.
-	* Makefile.in (stdexcept.o): Added rule to build typeinfo.o with
-	-frtti to support matching of thrown objects with rtti info for
-	bad_cast.
-
-Mon Apr  3 18:13:14 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* typeinfo: New file.
-
-	* Makefile.in (HEADERS): Add typeinfo.
-
-Mon Apr  3 15:06:58 1995  Mike Stump  <mrs@cygnus.com>
-
-	* Makefile.in (typeinfo.o): Added rule to build typeinfo.o with
-	-frtti to support matching of thrown objects with rtti info for
-	bad_cast.
-
-Wed Mar 29 15:56:06 1995  Mike Stump  <mrs@cygnus.com>
-
-	* typeinfo.cc: (__throw_type_match_rtti): Added to support
-	matching of thrown objects with rtti info.
-
-Thu Mar 23 18:42:30 1995  Jason Merrill  <jason@deneb.cygnus.com>
-
-	* Makefile.in (HEADERS): Add stdexcept.
-
-Sun Mar 12 01:25:27 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/typeinfo.h: Add return statements to dummy methods.
-
-Wed Mar  8 16:09:50 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* config/dec-osf.ml: Use -rpath flag.
-
-Fri Feb 17 18:16:46 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/typeinfo.h: Add copyright header.
-
-	* Makefile.in (CXXFLAGS): Add a bunch of warning options to keep
-        me honest.
-
-Thu Feb 16 00:04:49 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* Makefile.in, config/*.ml: Generate shared library on most hosts
-	as libstdc++.so.$(VERSION), with a symlink to libstdc++.so, so that
-	multiple versions can coexist.
-
-Fri Feb 10 02:59:39 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/exception.h: {set_,}{terminate,unexpected} have C++ linkage.
-
-	* Makefile.in: Allow string and complex to be split up either by
-        individual function or into I/O and non-I/O.  Default to the
-        latter.
-
-Wed Feb  8 02:39:47 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/bastring.h: Start thinking about throwing exceptions.
-
-	* typeinfo.cc: Remove private functions; defining them to call
-        abort () just delays errors until runtime.  Define
-        __bad_cast_object.
-
-	* std/exception.h: Standard exceptions are now defined in
-        stdexcept.h.  This header now contains declarations of terminate()
-        et al.
-	* exception.cc: Move code from libg++/src/except.c here.
-	* std/typeinfo.h: Define RTTI-related exceptions here.
-	* stdexcept{,.cc},std/stdexcept.h: New files.
-
-Mon Feb  6 18:51:31 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* Makefile.in (HEADERS): Resurrect, add new STL header names.
-	(install): Install extensionless headers again.
-	* extensionless headers: Resurrect, add new STL headers.
-        Currently only forward to std/whatever or stl/whatever.
-
-Mon Jan 30 13:53:22 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/bastring.h (basic_string (charT, size_t)): Mark explicit.
-
-	* Makefile.in (install): Set rootme when installing stl headers.
-	Only install *.* from std.
-
-Wed Jan 25 02:29:30 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* std/bastring.h (operator=): grab before releasing.
-
-Mon Jan 23 19:54:02 1995  Ronald F. Guilmette  <rfg@segfault.us.com>
-
-	* Makefile.in (install): Also install STL headers.
-
-Mon Jan 23 04:09:35 1995  Jason Merrill  <jason@python.cygnus.com>
-
-	* Makefile.in (list): Set $rootme before calling make.
-
-Wed Jan 11 19:24:47 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* typeinfo.cc (__rtti_match): Don't try to do pointer arithmetic
-        with a void *.
-
-	* move all headers into std subdirectory and update files accordingly.
-
-Thu Jan  5 01:51:49 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* bastring.ccI (basic_string (size_t, capacity)): s/reserve/::reserve/.
-
-Wed Jan  4 17:27:32 1995  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* exception: s/string/__string/g.
-
-	* configure.in (MOSTLYCLEAN): Add so_locations.
-
-	* bastring.ccI (basic_string (size_t, capacity)): Fix thinko.
-	(various find functions): Ditto.
-
-Fri Dec 30 18:04:00 1994  Mike Stump  <mrs@cygnus.com>
-
-	* typeinfo.h: Add support for the built-in type bool.
-
-Fri Dec 30 14:57:02 1994  Mike Stump  <mrs@cygnus.com>
-
-	* typeinfo.{cc, h}: Guard against multiple inclusions, and add #p i/i.
-
-Fri Dec  2 17:56:05 1994  Mike Stump  <mrs@cygnus.com>
-
-	* libg++ 2.6.2 released.
-
-	* typeinfo.{cc, h} (__rtti_match): Change interface to compiler
-        for dynamic_casting to gear up for exception handling's use of
-        rtti for argument matching.
-
-Tue Nov 29 16:49:32 1994  Per Bothner  <bothner@kalessin.cygnus.com>
-
-	* configure.in (configdirs):  Add stl.
-	* Makefile.in:  Build stl, and merge .o files from it.
-
-Thu Nov 17 15:30:57 1994  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* bastring.hI: Add iterator, const_iterator, begin() and end() to
-        basic_string.
-
-Mon Nov  7 16:50:33 1994  Jason Merrill  <jason@phydeaux.cygnus.com>
-
-	* Makefile.in, configure.in, config/*.ml, tests/Makefile.in,
-	tests/configure.in: Various changes to handle --enable-shared.
-
-Fri Nov  4 19:13:33 1994  Mike Stump  <mrs@cygnus.com>
-
-	* exception{,.cc}: Added to support catching bad_cast's.
-
-Thu Nov  3 17:42:13 1994  Mike Stump  <mrs@cygnus.com>
-
-	* typeinfo.h (type_info::{name, before}): Add to match draft.
-
-Thu Nov  3 00:56:34 1994  Jason Merrill  (jason@phydeaux.cygnus.com)
-
-	* Makefile.in (LIBIBERTY_OBJS): Add strerror.o.
-
-Mon Oct 31 15:33:06 1994  Kung Hsu  (kung@mexican.cygnus.com)
-
-	* typeinfo.cc: Fix a bug in the final return.
-	* typeinfo.cc: Fix the ANSI header version number.
-	* typeinfo.h: ditto.
-
-Fri Oct 28 14:23:12 1994  Mike Stump  <mrs@cygnus.com>
-
-	* type_info.{cc,h}: Rename to typeinfo to better match current draft.
-
-Wed Oct 26 11:13:53 1994  Kung Hsu  (kung@mexican.cygnus.com)
-
-	* type_info.h: new header file for rtti.
-	* type_info.cc: new code file for rtti.
-	* Makefile.in: change to include type_info.o in libstdc++ for rtti.
-
-Sat Oct 15 16:09:51 1994  Jason Merrill  (jason@phydeaux.cygnus.com)
-
-	* libg++ 2.6.1 released.
-
-	* cinst.hI: Also declare instantiations of out-of-line functions.
-
-Fri Oct 14 15:00:09 1994  Jason Merrill  (jason@phydeaux.cygnus.com)
-
-	* configure.in (CXXINCLUDES): Use {} to wrap variable name.
-	* tests/configure.in (CXXINCLUDES): Ditto.
-
-	* cinst.hI: Declare instantiations of two-argument functions so
-        overload resolution will work.
-	* complext.hI: Always include cinst.hI.
-
-	* bastring.ccI (operator>>): Tweak.
-
-Tue Oct 11 17:07:49 1994  Jason Merrill  (jason@phydeaux.cygnus.com)
-
-	* stddef*: Do the #pragma i/i thang.
-
-	* bastring.hI (basic_string::put_at): Use operator[].
-	(basic_string::terminate): Don't necessarily copy the rep.
-
-	* bastring.ccI (operator>>): Avoid shrinking and then re-expanding
-        the string.
-
-	* bastring.*I, sinst.cc: Only allow allocation policy control if
-	_G_ALLOC_CONTROL is defined.
-
-	* Makefile.in (libstdc++.a): Depend on iostream.list and libiberty.a.
-	(../libio/iostream.list): New rule.
-	(../libiberty/libiberty.a): New rule.
-	(OBJS): Add stddef.o.
-
-Sat Oct  8 23:59:45 1994  Jason Merrill (jason@phydeaux.cygnus.com)
-
-	* *: First checkin.
+	PR libstdc++/6513
+	* include/bits/stl_uninitialized.h
+	(uninitialized_copy(_InputIter, _InputIter, _ForwardIter)):
+	Fix typo in 2001-07-17 commit: typedef _ValueType to
+	iterator_traits<_ForwardIter> not <_InputIter>.
+	* testsuite/23_containers/vector_ctor.cc: Add test04.
+
+2002-04-30  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	PR libstdc++/6501
+	* include/c_std/std_cctype.h: Include bits/c++config.h.
+	* config/os/hpux/bits/os_defines.h (_SB_CTYPE_MACROS): Define.
+
+2002-04-30  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/ext/stdio_filebuf.h: New file.
+	* include/ext/enc_filebuf.h: New file.
+	* config/io/basic_file_stdio.h (__basic_file::sys_open): Add fd ctor.
+	* config/io/basic_file_stdio.cc: Same.
+	* include/bits/fstream.tcc (filebuf::_M_allocate_internal_buffer):
+	Remove _M_unbuf hacks.
+	(filebuf::_M_destroy_internal_buffer): Same.
+	(filebuf::filebuf(cfile, openmode, int_type): Remove definition.
+	(filebuf::fd): Remove.
+	* include/std/std_fstream.h (filebuf::_M_unbuf): Remove.
+	(filebuf::filebuf(__c_file*, openmode, int_type)): Remove.
+	(filebuf::fd): Remove.
+	* src/ios.cc (ios_base::_S_ios_create): Change to use specialized
+	filebufs.
+	(ios_base::_S_ios_destroy): Same.
+	* src/misc-inst.cc (file_filebuf<char>): Add instantiation.
+	* include/Makefile.am (ext_headers): Add ext_filebuf.h,
+	stdio_filebuf.h.  * include/Makefile.in: Regenerate.
+	
+2002-04-30  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/6511
+	* config/os/solaris/solaris2.7/bits/ctype_noninline.h: Fix typo.
+	
+2002-04-29  Benjamin Kosnik  <bkoz@redhat.com>
+
+        PR libstdc++/5820
+        * include/bits/fstream.tcc (basic_filebuf::_M_underflow_common):
+        Check for eof.
+        * include/bits/streambuf_iterator.h: Match stream_iterator.h.
+        (istreambuf_iterator::operator++): Invalidate on eof.
+        (istreambuf_iterator::operator++(int)): Same.
+        (istreambuf_iterator::operator*): Same.
+ 
+2002-04-29  Benjamin Kosnik  <bkoz@redhat.com>
+
+        PR libstdc++/5820
+	* config/io/basic_file_stdio.h (__basic_file::sys_getc): Return int.
+        (__basic_file::sys_ungetc): Take int.
+        * config/io/basic_file_stdio.cc (__basic_file::sys_ungetc): Same.
+        * include/bits/fstream.tcc (basic_filebuf::_M_underflow_common):
+        Use sys_getc for unbuffered input.
+        * testsuite/27_io/narrow_stream_objects.cc (test06): New.
+        
+        * src/ios.cc (_M_grow_words): Adjust error checking.
+        * testsuite/27_io/ios_base_storage.cc: Same.
+
+2002-04-29  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* testsuite/lib/libstdc++-v3-dg.exp (libstdc++-v3-init): Set all
+	of LD_LIBRARY_PATH, SHLIB_PATH, LD_LIBRARYN32_PATH,
+	LD_LIBRARY64_PATH. 
+
+2002-04-28  Peter Schmid  <schmid@snake.iap.physik.tu-darmstadt.de>
+
+	* include/ext/stl_hashtable.h: Import __iterator_category
+
+2002-04-28  Paolo Carlini  <pcarlini@unitus.it>
+            Peter Schmid  <schmid@snake.iap.physik.tu-darmstadt.de>
+
+	* testsuite/ext/hash_set.cc: New testfile.
+
+2002-04-26  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/basic_string.h (replace(__pos, __n1, __s, __n2):
+	Fix and tighten __throw_length_error check.
+	* testsuite/21_strings/replace.cc (test04): New.
+	* testsuite/21_strings/replace.cc (test02, test03): Tweak.
+
+2002-04-23  Loren J. Rittle <ljrittle@acm.org>
+
+	* include/std/std_fstream.h (basic_filebuf::sync): Hoist
+	unconditional flush on lower-layer handle to here...
+	* include/bits/fstream.tcc (basic_filebuf::_M_really_overflow):
+	...from here.  Optimize remaining _M_file.sync() call pattern.
+	* testsuite/27_io/narrow_stream_objects.cc (test04): New test.
+	(test05): Likewise.
+
+2002-04-23  Jason Merrill  <jason@redhat.com>
+
+	* include/bits/fstream.tcc (basic_filebuf::seekoff): Fix for
+	output-only filebufs.
+	* include/std/std_fstream.h (basic_filebuf::_M_set_indeterminate):
+	Likewise.
+	(basic_filebuf::_M_set_determinate): Likewise.
+
+	PR libstdc++/6414
+	* include/bits/fstream.tcc (basic_filebuf::seekoff): Adjust return
+	value properly in the trivial case.
+	* testsuite/27_io/istream_seeks.cc (test04): Make sure that
+	tellg() returns the right value after a read.
+
+2002-04-23  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* config/cpu/mmix/bits/cpu_limits.h: New file.
+	* configure.target (CPULIMITSH): Use it.
+
+2002-04-20  Jason Merrill  <jason@redhat.com>
+
+	PR libstdc++/4150
+	* include/std/std_streambuf.h (basic_streambuf::_M_set_indeterminate): 
+	Move to filebuf.
+	(basic_streambuf::_M_set_determinate): Likewise.
+	(basic_streambuf::_M_is_indeterminate): Likewise.
+	* include/bits/std_fstream.h (basic_filebuf::_M_filepos): New 
+	non-static data member.
+	(basic_filebuf::_M_underflow_common): New non-static member function.
+	(basic_filebuf::_M_underflow, _M_uflow): Call it.
+	(basic_filebuf::sync): Avoid useless seeking.
+	(basic_filebuf::_M_set_indeterminate): Move here from streambuf.
+	Set _M_filepos.
+	(basic_filebuf::_M_set_determinate): Likewise.
+	(basic_filebuf::_M_is_indeterminate): Likewise.
+	* include/bits/fstream.tcc (basic_filebuf::_M_really_overflow): Seek
+	back to _M_out_beg if necessary.
+	(basic_filebuf::seekoff): Likewise.
+	(basic_filebuf::_M_underflow_common): Generalization of old 
+	underflow().  Don't seek back to _M_in_beg.
+	* src/ios.cc: Lose _GLIBCPP_AVOID_FSEEK stuff.
+	* config/os/solaris/solaris2.?/bits/os_defines.h: Likewise.
+	* config/os/bsd/freebsd/bits/os_defines.h: Likewise.
+	* config/os/mingw32/bits/os_defines.h: Likewise.
+	* testsuite/27_io/filebuf_virtuals.cc (test05): Don't overspecify 
+	ungetc test.
+
+2002-04-22  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/istream.tcc (istream::read): Fix.
+	* testsuite/27_io/istream_unformatted.cc (main): Add.
+	
+2002-04-20  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/6360
+	* include/bits/istream.tcc (istream::ignore): Streamline, use
+	delimiter as is.
+	* include/bits/streambuf.tcc: Use this->gptr.
+	* testsuite/27_io/istream_unformatted.cc (test08): Add test.
+
+2002-04-19  Benjamin Kosnik  <bkoz@redhat.com>
+
+        * include/bits/localefwd.h (locale::id::_M_id): Do this correctly,
+        as type safety is important, especially on solaris.
+        * include/bits/istream.tcc (istream::read): Clean.
+        (istream::readsome): Same.
+        * locale.cc: Wrap lines.
+
+        * testsuite/21_strings/inserters_extractors.cc: Tweaks.
+        * testsuite/27_io/instantiations.cc (test): Add bool variable...
+        * testsuite/21_strings/capacity.cc: Clean.
+
+2002-04-19  Benjamin Kosnik  <bkoz@redhat.com>
+
+        * testsuite/27_io/filebuf_virtuals.cc: Add _S_pback_size instantiation.
+
+2002-04-19  Benjamin Kosnik  <bkoz@redhat.com>
+
+        * config/linker-map.gnu (__malloc_alloc_template): Add.
+        (__default_alloc_template): Same.       
+        * include/bits/stl_alloc.h (__malloc_alloc_template): Add extern
+        template.
+        (__default_alloc_template): Same.
+
+2002-04-19  Benjamin Kosnik  <bkoz@redhat.com>
+
+        * src/concept-inst.cc (vector<locale::facet*>): Remove instantiations.
+        * src/stl-inst.cc (vector::_M_insert_aux): Remove instantiation.
+        (__malloc_alloc_template): Conditionalize.
+
+        * include/bits/istream.tcc: Remove sputbackc calls.
+
+        * testsuite/19_diagnostics/stdexceptions.cc: Fix comment.
+
+2002-04-19  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/4164
+	Valgrind fixes.
+	* config/io/basic_file_stdio.cc (__basic_file::~__basic_file):
+	Call close.
+	(__basic_file::close): Call fflush. Correct return if fclose ok. 
+	(__basic_file::is_open): Make const.
+	Change __c_file_type to __c_file.
+	* config/io/basic_file_stdio.h: Change __c_file_type to __c_file.
+	(__basic_file::is_open): Make const.
+	* config/io/c_io_stdio.h: Change __c_file_type to __c_file.
+	* include/std/std_fstream.h (filebuf::_M_allocate_file): Remove.
+	(filebuf::_M_unbuf): Add.
+	(filebuf::_M_file): Change to non-pointer.
+	(filebuf::_M_allocate_pback_buffer): Remove.
+	* include/bits/fstream.tcc (filebuf::_M_allocate_file): Remove.
+	(filebuf::_M_allocate_internal_buffer): Use _M_unbuf.
+	Change initialization list for _M_file change.
+	(filebuf::_M_allocate_pback_buffer): Remove.
+	Change _M_file usage to reflect non-pointer data member.
+
+	* config/locale/generic/c_locale.cc
+	(locale::facet::_S_create_c_locale): Add parameter.
+	* config/locale/generic/collate_members.cc: Change
+	_M_compare_helper to _M_compare.
+	Change _M_transform_helper to _M_transform.
+	* config/locale/generic/monetary_members.cc: Changeup data types.
+	Add dtors.
+	* config/locale/generic/numeric_members.cc: Add dtors.
+	* config/locale/generic/time_members.cc: Add dtors.
+	* config/locale/gnu/c_locale.cc: Add parameter.
+	* config/locale/gnu/collate_members.cc:Change
+	_M_compare_helper to _M_compare.
+	Change _M_transform_helper to _M_transform.
+	* config/locale/gnu/ctype_members.cc: Better error checking.
+	* config/os/gnu-linux/bits/ctype_noninline.h: Better error checking.
+	* config/locale/gnu/messages_members.cc: Tweak comment.
+	* config/locale/gnu/monetary_members.cc: Change data types.
+	Add dtors.
+	* config/locale/gnu/numeric_members.cc: Add dtors, better error
+	checking.
+	* config/locale/gnu/time_members.cc: Same.
+	* config/locale/ieee_1003.1-2001/c_locale.cc
+	(locale::facet::_S_create_c_locale): Add parameter.
+	* config/locale/ieee_1003.1-2001/c_locale.h: Correct typedef.
+	* config/locale/ieee_1003.1-2001/codecvt_specializations.h: Remove
+	bogus ctor.
+
+	* include/bits/locale_facets.h (moneypunct): Use string literals.
+	Don't define dtor.
+	(numpunct): Same.
+	(__timepunct): Same.
+	(locale::_Impl::_M_facets): Change from vector to array.
+	(locale::_Impl::_M_names): Change from array of strings to array
+	of string literals.
+	(locale::facet::_S_create_c_locale): Add parameter.
+	(locale::locale::_S_num_facets): Move to...
+	(locale::_Impl::_M_facets_size): Here.
+	* include/bits/locale_facets.tcc: Fixups for _M_facets, _M_name
+	changes.
+	* include/bits/localefwd.h: (locale::id::_M_id): Add member function.
+	(locale::_Impl::_Impl(facet**, size_t, bool)): Add.
+	(locale::_Impl::_Impl(string, size_t)): Change to
+	(locale::_Impl::_Impl(const char*, size_t)): This.
+
+	* include/bits/streambuf.tcc (streambuf::_S_pback_size): Define.
+	* include/std/std_streambuf.h (streambuf::_M_pback_size): Change to
+	(streambuf::_S_pback_size): This.
+
+	* src/globals.cc: Add pre-allocations for "C" facets.
+	* src/locale-inst.cc: Remove vector instantiations.
+	* src/locale.cc: Remove vector include. Fixups for _M_names,
+	_M_facets changes.
+	* src/localename.cc: Same.
+
+	* include/bits/stl_vector.h: Fix odd formatting.
+
+	* include/bits/basic_string.tcc: Tweak comment.
+
+	* libsupc++/new: Make sure parameters are uglified.
+	* libsupc++/typeinfo: Same.
+
+	* testsuite/22_locale/num_get_members_char.cc: Fixup.
+	* testsuite/22_locale/num_get_members_wchar_t.cc: Same.
+	* testsuite/27_io/filebuf_members.cc: Same.
+	
+2002-04-17  Phil Edwards  <pme@gcc.gnu.org>
+
+	* docs/doxygen/doxygroups.cc:  New group on binary searching.
+	* include/bits/stl_algo.h:  Document binary searches and merges.
+	* include/bits/stl_deque.h:  The 'map' member is not the 'map' class.
+
+2002-04-17  Phil Edwards  <pme@gcc.gnu.org>
+
+	* docs/doxygen/mainpage.html:  Doxygen logo is now a PNG file.
+	* docs/doxygen/run_doxygen:  Bump required version.
+	* docs/doxygen/user.cfg.in:  Revert accidental change.
+	* docs/html/faq/index.html:  Reindent a block of links.
+	(4.4):  New note on using dlsym.
+	* docs/html/faq/index.txt:  Regenerated.
+
+2002-04-16  Paolo Carlini <pcarlini@unitus.it>
+
+	* testsuite/24_iterators/rel_ops.cc: New test.
+	
+2002-04-16  Gabriel Dos Reis  <gdr@merlin.codesourcery.com>
+
+	* include/bits/type_traits.h (__normal_iterator): Declare in
+	__gnu_cxx.  Adjust use at global namespace.
+	* include/bits/stl_iterator.h (__normal_iterator): Move definition
+	into __gnu_cxx::. Add more operator overloads.  Tidy existing ones.
+	* include/bits/basic_string.h (basic_string): Adjust use of
+	__normal_iterator.
+	* include/bits/stl_vector.h (_Alloc>): Likewise.
+	* src/concept-inst.cc (__gnu_cxx): __normal_iterator<> is now here.
+	* src/locale-inst.cc (__gnu_cxx): Likewise.
+	* src/string-inst.cc (operator==): Instantiate in __gnu_cxx.
+
+2002-04-15  Steve Ellcey  <sje@cup.hp.com>
+
+	* gcc/libstdc++-v3/config/os/hpux/bits/os_defines.h
+	(strtoll, strtoull): In 64 bit mode HP-UX (IA64 and HPPA)
+	does not define strtoll or strtoull, but does define strtol
+	and strtoul which are the same since in 64 bit mode
+	sizeof(long) == sizeof(long long).
+
+2002-04-12  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/std/std_bitset.h:  Doxygenate std::bitset<>.  Clean up
+	trailing spaces, indentation, and macro names.  Make exception
+	messages more informative.
+
+2002-04-11  Richard Henderson  <rth@redhat.com>
+
+	* include/bits/fstream.tcc (basic_filebuf<>::open): Fix & ordering.
+	* include/bits/ostream.tcc (basic_ostream<>::operator<<(long)): Same.
+	(basic_ostream<>::operator<<(long long)): Same.
+
+2002-04-11  Richard Henderson  <rth@redhat.com>
+
+	* config/linker-map.gnu: Add __gxx_personality_sj0.
+
+2002-04-09  Benjamin Kosnik  <bkoz@redhat.com>
+
+	libstdc++/1072
+	* include/bits/localefwd.h (locale::_Impl::_M_facets): Change from
+	pointer to vector.
+	Remove forward declaration of vector.
+	Include vector.
+	* include/bits/locale_facets.tcc: Remove vector include.
+	(use_locale): Adjust.
+	(has_locale): Adjust.
+	* src/locale.cc: Adjust.
+	* src/localename.cc: Same.
+	
+2002-04-09  Benjamin Kosnik  <bkoz@redhat.com>
+	    Richard Henderson  <rth@redhat.com>
+
+	* include/bits/sstream.tcc: Clean up bit ops.
+	* include/bits/fstream.tcc: Same.
+
+2002-04-09  Jakub Jelinek  <jakub@redhat.com>
+
+	* include/bits/locale_facets.h (__num_base::_S_scale_hex): Remove.
+	(__num_base::_S_scale_oct): Remove.
+	* src/locale.cc (__num_base::_S_scale_hex): Remove.
+	(__num_base::_S_scale_oct): Remove.
+
+2002-04-09  Benjamin Kosnik  <bkoz@redhat.com>
+
+	libstdc++/6124
+	* testsuite/23_containers/bitset_members.cc: New test.
+	* include/std/std_bitset.h (_Bit_count::_S_bit_count): Move..
+	(_S_bit_count): Here.
+	(_First_one::_S_first_one): Move...
+	(_S_first_one): Here.
+	Format.
+	* src/bitset.cc: Adjust.
+	* config/linker-map.gnu: Export.
+	
+2002-04-08  Benjamin Kosnik  <bkoz@redhat.com>
+
+	libstdc++/5180
+	* include/bits/fstream.tcc (filebuf::seekpos): Fix.
+	* include/std/std_fstream.h: Clean.
+	* include/bits/ostream.tcc: Remove extraneous variables.
+	* include/bits/sstream.tcc (stringbuf::seekoff): Be strict about
+	open modes and which modes.
+	(stringbuf::seekpos): Same.
+	* testsuite/27_io/stringbuf_virtuals.cc: New tests.
+	
+2002-04-05  Jonathan Wakely <jw@kayari.org>
+
+	* include/bits/stl_algo.h (unique_copy, __gcd, rotate, rotate_copy,
+	random_shuffle, partition, stable_partition, sort, stable_sort,
+	partial_sort, partial_sort_copy, nth_element):  Doxygenate.
+
+2002-04-05  David S. Miller  <davem@redhat.com>
+
+	* config/os/gnu-linux/bits/os_defines.h
+	(__glibcpp_long_double_bits): Set to 64 on 32-bit Sparc.
+
+2002-04-04  Benjamin Kosnik  <bkoz@redhat.com>
+
+	libstdc++/3457 
+	via gawrilow@math.tu-berlin.de
+	* acinclude.m4 (version_specific_libs): Fix combo usage with
+	--with-gxx-include-dir.
+	* aclocal.m4: Regenerate.
+	* configure: Same.
+	
+2002-04-03  Benjamin Kosnik  <bkoz@redhat.com>
+
+        As per DR 184, libstdc++/3139
+        * include/std/std_limits.h (__glibcpp_bool_digits): Change to 1.
+        (numeric_limits<bool>::is_iec559): False.
+        (numeric_limits<bool>::is_modulo): False.       
+
+	* testsuite/27_io/ios_init.cc: Add instantiations.
+
+2002-04-02  Benjamin Kosnik  <bkoz@redhat.com>
+	
+	libstdc++/5268
+	* src/ios.cc: (ios_base::Init::_S_ios_destroy): Remove flush calls.
+	* testsuite/27_io/ios_init.cc (tests04): Add test.
+
+	libstdc++/3983
+	* include/bits/basic_ios.h (basic_ios::_M_get_fctype_ios): Remove.
+	(basic_ios::_M_ios_fctype): Consistently name to _M_fctype.
+	* include/bits/basic_ios.tcc: Same. Remove outdated comments.
+	* include/bits/istream.tcc: Use _M_fctype, make consistent with
+	ostream.
+	* testsuite/27_io/ios_init.cc (tests03): Add test.
+	
+2002-04-02  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/Makefile.am (install-data-local):  Use mkinstalldirs.
+	* include/Makefile.in:  Regenerate.
+
+2002-04-01  Benjamin Kosnik  <bkoz@redhat.com>
+
+	libstdc++/5542
+	* acinclude: More extensive checks for msgfmt, --enable-nls.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2002-04-01  Phil Edwards  <pme@gcc.gnu.org>
+
+	* libsupc++/exception (__verbose_terminate_handler):  Point to docs.
+	* docs/doxygen/doxygroups.cc:  Doxygen hooks for abi::__cxa_demangle.
+	* docs/html/18_support/howto.html:  Document the demangler.
+	* docs/html/17_intro/howto.html:  And link to it.
+
+	* docs/doxygen/mainpage.html:  Describe user-vs-maintainer docs.
+	* docs/doxygen/run_doxygen:  Print user-vs-maintainer.
+
+2002-04-01  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/bits/c++config:  Fix misplaced leading blanks on first line.
+
+2002-04-01  Phil Edwards  <pme@gcc.gnu.org>
+
+	* config/linker-map.gnu:  Export __verbose_terminate_handler.
+	* libsupc++/Makefile.am (sources):  Add cxa_demangle.c, dyn-string.c.
+	Make new LTCOMPILE variable, use it in new special build rules.
+	* libsupc++/Makefile.in:  Rebuild.
+	* src/vterminate.cc (__verbose_terminate_handler):  Enable use of
+	runtime __cxa_demangle.
+
+	* docs/html/install.html:  Update prereqs and instructions.
+	* docs/html/19_diagnostics/howto.html:  Bring naming for
+	verbose_terminate_handler into line with reality.
+
+2002-04-01  Benjamin Kosnik  <bkoz@redhat.com>
+	
+	libstdc++/3129
+	* include/bits/basic_ios.h (basic_ios::_M_exception): Move.
+	(basic_ios::_M_streambuf_state): Move.	
+	* include/bits/ios_base (ios_base): To here.
+	* include/bits/ios_base.h (ios_base::_S_local_words): To
+	_S_local_word_size.
+	(ios_base::_M_word_array): To _M_local_word.
+	(ios_base::_M_words_limit): To _M_word_size.	
+	(ios_base::_M_words): To _M_word.		
+	Comment.
+	* include/bits/basic_ios.tcc: Adjust.	
+	* src/ios.cc (ios_base::_M_grow_words): Tweak.
+	* testsuite/27_io/ios_base_storage.cc: Add tests.
+
+	libstdc++/5207
+	Kenny Simpson <theonetruekenny@yahoo.com>
+	* include/bits/ios_base.h: Fix.
+	
+	Richard Henderson  <rth@redhat.com>
+	* include/bits/ostream.tcc (ostream::operator<<(_CharT)): Correct
+	last change.
+
+	* include/bits/basic_string.h: Tweak formatting.
+	
+2002-04-01  Paolo Carlini  <pcarlini@unitus.it>
+
+	* config/locale/ieee_1003.1-2001/codecvt_specializations.h
+	(codecvt::do_out, codecvt::do_unshift, codecvt::do_in):
+	By definition, sizeof(char) == 1.
+	* include/bits/locale_facets.tcc (money_get::do_get,
+	money_put::do_put): Ditto.
+	* testsuite/21_strings/inserters_extractors.cc
+	(test04): Ditto.
+
+2002-03-30  Richard Henderson  <rth@redhat.com>
+
+	PR c++/3719
+	* libsupc++/eh_personality.cc (__cxa_call_unexpected): Copy handler
+	data out of the exception struct before calling unexpectedHandler.
+
+2002-03-28  Roger Sayle  <roger@eyesopen.com>
+
+	* include/c_std/std_cmath.h:  To prevent problems overloading
+	g++ builtins, use the double variants from the global namespace
+	before defining float and long double variants in std::.
+
+2002-03-28  Loren J. Rittle <ljrittle@acm.org>
+
+	* testsuite/18_support/numeric_limits.cc (test_extrema): Fix typo.
+
+2002-03-28  Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/24_iterators/istream_iterator.cc
+	(test02): New tests.
+
+2002-03-28  Ulrich Weigand  <Ulrich.Weigand@de.ibm.com>
+            Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/22_locale/codecvt_members_unicode_wchar_t.cc
+	(test01): Protect the test with _GLIBCPP_USE_WCHAR_T;
+	fix i_lit_base e_lit_base arrays, making them independent
+	from the endianness of the platform; tweak UCS4 to UCS-4BE.
+
+2002-03-27  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/ostream.tcc (ostream::operator<<(_CharT)): Always
+	allocate at least a byte.
+
+	* testsuite/18_support/numeric_limits.cc (test_extrema): Make
+	debugger-friendly.
+	* testsuite/27_io/streambuf.cc (test07): Fix.
+	(test06): Enable.
+
+2002-03-27  Phil Edwards  <pme@gcc.gnu.org>
+
+	Bulk documentation merge (copy) from trunk.
+	* docs/doxygen/Intro.3, docs/doxygen/TODO, docs/doxygen/doxygroups.cc,
+	docs/doxygen/mainpage.html, docs/doxygen/run_doxygen,
+	docs/doxygen/tables.html, docs/doxygen/user.cfg.in,
+	docs/html/Makefile, docs/html/17_intro/howto.html,
+	docs/html/19_diagnostics/howto.html, docs/html/20_util/howto.html:
+	Merge from trunk.
+
+2002-03-27  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/bits/stl_algo.h:  Remove @maint and @endmaint.
+	* include/bits/stl_alloc.h:  Likewise.
+	* include/bits/stl_construct.h:  Likewise.
+	* include/bits/stl_deque.h:  Likewise.
+	* include/bits/stl_iterator_base_types.h:  Likewise.
+	* include/bits/stl_list.h:  Likewise.
+	* include/bits/stl_relops.h:  Likewise.
+	* include/bits/stl_tempbuf.h:  Likewise.
+	* include/bits/stl_vector.h:  Likewise.
+	* include/std/std_memory.h:  Likewise.
+
+	* include/bits/stl_deque.h:  Point into tables.html and add @ingroup.
+	* include/bits/stl_list.h:  Likewise.
+	* include/bits/stl_vector.h:  Likewise.
+
+2002-03-26  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/c/: Guard with _CPP_.
+	* include/c_std/: Same.
+	* include/Makefile.am: Fixup install, link routines for null
+	c_base_headers_extra scenarios.
+	* include/Makefile.in: Regerate.
+
+2002-03-25  Paolo Carlini <pcarlini@unitus.it>
+            Richard Henderson  <rth@redhat.com>
+
+	* testsuite/22_locale/codecvt_members_unicode_char.cc
+	(test01, test02): make sure that the i_lit_base array
+	is sufficiently aligned.
+
+2002-03-25  Benjamin Kosnik  <bkoz@redhat.com>
+
+        * config/os/newlib/bits/ctype_noninline.h (ctype::classic): Set to
+        _ctype_.
+
+2002-03-25  Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/22_locale/collate_byname.cc
+	(test01): compare the result of collate::compare with
+	that of collate::transform + string::compare, not with
+	that of collate::transform + collate::compare; values
+	returned by collate::compare are normalized, therefore
+	test against +-1.
+
+2002-03-25  Jakub Jelinek  <jakub@redhat.com>
+
+	PR target/5676
+	* acinclude.m4 (GLIBCPP_ENABLE_SJLJ_EXCEPTIONS): Pass -fexceptions
+	explicitly.
+	* aclocal.m4: Rebuilt.
+	* configure: Rebuilt.
+	* configure.target (mcore-*-pe*): Add -frtti -fno-exceptions
+	by default to c++ flags.
+
+2002-03-25  Benjamin Kosnik  <bkoz@redhat.com>
+            Jakub Jelinek  <jakub@redhat.com>
+
+	* config/locale/gnu/messages_members.h: Correct conditional.
+	* config/locale/gnu/messages_members.cc: Same.
+	* config/locale/gnu/time_members.cc: Same.
+
+2002-03-25  Ulrich Weigand  <Ulrich.Weigand@de.ibm.com>
+            Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/22_locale/codecvt_members_unicode_char.cc
+	(test01, test02): Fix i_lit_base arrays, making them
+	independent from the endianness of the platform.
+
+2002-03-22  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* acinclude.m4 (GLIBCPP_CHECK_COMPLEX_MATH_SUPP): Just test for
+	signbit and __signbit directly.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* config.h.in: Regenerate.
+	* libmath/Makefile.am: Simplify.
+	* libmath/Makefile.in: Regenerate.
+	* include/c_std/std_cmath.h: Update paths for include of cmath.tcc.
+
+	* include/Makefile.am: Clean up handling of extra "C" header files.
+	Add hooks for "C" compatibility headers.
+	* include/Makefile.in: Regenerate.
+
+	* include/c/*: Formatting tweaks, cleanups.
+	* include/c_std/*: Same.
+
+2002-03-22  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/locale/gnu/messages_members.h: Add __uselocale bits.
+	* config/locale/gnu/messages_members.cc: Same.
+	* config/locale/gnu/time_members.cc: Same.
+
+2002-03-22  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* src/vterminate.cc: Format, -fno-exceptions cleanup.
+
+2002-03-21  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* acinclude.m4 (GLIBCPP_CHECK_STDLIB_DECL_AND_LINKAGE_3): New.
+	(GLIBCPP_CONFIGURE_TESTSUITE): Use it to check for setenv.
+	* aclocal.m4: Regenerate.
+	* configure: Likewise.
+
+2002-03-19  Paolo Carlini  <pcarlini@unitus.it>
+            Ulrich Drepper  <drepper@redhat.com>
+
+	* src/locale-inst.cc (__convert_from_v): Add an additional
+	__size parameter in the declarations.
+	* include/bits/locale_facets.tcc
+	(__convert_from_v): When available (that is,
+	_GLIBCPP_USE_C99 defined) use snprintf instead of sprintf.
+	(num_put::_M_convert_float): Depending on _GLIBCPP_USE_C99
+	being defined or not, call and use __convert_from_v in the
+	appropriate way.
+	(num_put::_M_convert_int): Same here.
+	(money_put::do_put(long double)): Same here.
+
+2002-03-19  Phil Edwards  <pme@gcc.gnu.org>
+
+	* docs/html/faq/index.html (#3.6):  Rewrap and close <a href> tags.
+	* docs/html/faq/index.txt:  Regenerate.
+
+2002-03-19  Steve Ellcey  <sje@cup.hp.com>
+
+	* acinclude.m4 (GLIBCPP_ENABLE_LIBUNWIND_EXCEPTIONS): Define
+	GLIBCPP_ENABLE_LIBUNWIND_EXCEPTIONS to set LIBUNWIND_FLAG if
+	--enable-libunwind-exceptions is set.
+	* configure.in (GLIBCPP_ENABLE_LIBUNWIND_EXCEPTIONS): Call new
+	macro to check for libunwind.
+	* configure: Regenerate.
+	* src/Makefile.am (libstdc___la_LDFLAGS): Add
+	LIBUNWIND_FLAG to libstdc link line.
+	* src/Makefile.in: Regenerate.
+
+2002-03-19  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* docs/html/faq/index.html: Add OS X workaround.
+	* docs/html/17_intro/TODO: Update.
+
+2002-03-18  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/locale_facets.tcc
+	(money_put::do_put(long double)): Fix dimensioning of
+	temporary buffers to avoid risk of overruns.
+	(money_put::do_put(string)): Same for the buffer used to
+	add the grouping chars.
+	* testsuite/22_locale/money_put_members_char.cc: Add test06.
+	* testsuite/22_locale/money_put_members_wchar_t.cc: Ditto.
+
+	* include/bits/locale_facets.tcc
+	(collate::do_transform): Simplify.
+
+2002-03-18  Phil Edwards  <pme@gcc.gnu.org>
+
+	* acinclude.m4 (GLIBCPP_CONFIGURE):  Make indentation/spacing uniform.
+	* configure.in:  Add comments pointing the way for autoconf 2.5x.
+	* aclocal.m4, config.h.in, configure:  Regenerate.
+
+2002-03-18  Philipp Thomas  <pthomas@suse.de>
+
+	* include/backward/hash_map.h: hash, hashtable, hash_map and
+	hash_multimap are in namespace __gnu_cxx.
+	include/backward/hash_set.h: hash, hashtable, hash_set and
+	hash_multiset are in namespace __gnu_cxx.
+	include/backward/hashtable.h: hash and hashtable are in
+	namespace __gnu_cxx.
+	include/backward/rope.h: char_producer, sequence_buffer,
+	rope, crope and wrope are in namespace __gnu_cxx.
+	include/backward/slist.h: slist is in namespace __gnu_cxx.
+	* testsuite/backward/header_hash_map_h.cc
+	testsuite/backward/header_hash_set_h.cc
+	testsuite/backward/header_hashtable_h.cc
+	testsuite/backward/header_rope_h.cc
+	testsuite/backward/header_slist_h.cc
+	testsuite/backward/header_tempbuf_h.cc: New tests for
+	checking that we're using the correct namespace.
+
+2002-03-17  Jason Merrill  <jason@redhat.com>
+
+	PR c++/4381
+	* libsupc++/eh_personality.cc (get_adjusted_ptr): New static fn.
+	(check_exception_spec): Call it.  Take the thrown pointer.
+	(__cxa_call_unexpected): Pass it.
+	(PERSONALITY_FUNCTION): Likewise.  Use get_adjusted_ptr.
+
+2002-03-15  Anthony Green  <green@redhat.com>
+
+	* configure.in: Remove useless is_mingw32.
+	* configure: Rebuilt.
+
+2002-03-15  Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/22_locale/collate_members_char.cc
+	(test01): compare the result of collate::compare with
+	that of collate::transform + string::compare, not with
+	that of collate::transform + collate::compare.
+	(test01): values returned by collate::compare are
+	normalized, therefore test against +-1.
+	* testsuite/22_locale/collate_members_wchar_t.cc: Ditto.
+
+2002-03-12  Loren Rittle  <ljrittle@acm.org>
+
+	reported by Peter Schmid <schmid@snake.iap.physik.tu-darmstadt.de>
+	* testsuite/thread/pthread4.cc: Lower nominal iteration counter.
+
+2002-03-12  Benjamin Kosnik  <bkoz@redhat.com>
+            Per Liboriussen  <liborius@stofanet.dk>
+
+	* config/os/gnu-linux/bits/ctype_noninline.h: Cast to
+	unsigned char.
+	* config/os/gnu-linux/bits/ctype_inline.h: Same.
+
+	* config/os/irix/irix6.5/bits/ctype_inline.h: Same.
+
+	* config/os/solaris/solaris2.5/bits/ctype_inline.h: Same.
+	* config/os/solaris/solaris2.5/bits/ctype_noninline.h: Same.
+
+	* config/os/solaris/solaris2.6/bits/ctype_inline.h: Same.
+	* config/os/solaris/solaris2.6/bits/ctype_noninline.h: Same.
+
+	* config/os/solaris/solaris2.7/bits/ctype_inline.h: Same.
+	* config/os/solaris/solaris2.7/bits/ctype_noninline.h: Same.
+
+	* testsuite/22_locale/ctype_members_char.cc (main): Add tests.
+
+2002-03-12  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/basic_string.tcc (string::_S_construct(_InIter,
+	_InIter, const _Alloc&, forward_iterator_tag): Check for null.
+	(string::basic_string(const _CharT* __s, const _Alloc& __a)): Same.
+	* testsuite/21_strings/ctor_copy_dtor.cc (test01): Re-enable, now
+	that memory limits are in place.
+	(test03): Add tests.
+
+2002-03-11  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* acinclude.m4 (GLIBCPP_CHECK_WCHAR_T_SUPPORT): Check for wctype.h.
+	* aclocal.m4: Regenerate.
+	* config.h.in: Regenerate.
+	* configure: Regenerate.
+	* include/c_std/std_cwctype.h: Guard.
+
+2002-03-11  Chris Demetriou  <cgd@broadcom.com>
+
+	* acinclude.m4 (GLIBCPP_ENABLE_SYMVERS): Enhance check for
+	whether GLIBCPP_CHECK_LINKER_FEATURES has been used.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2002-03-11  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/stl_bvector.h: Fix warning.
+
+2002-03-11  Richard Henderson  <rth@redhat.com>
+
+	* include/bits/stl_bvector.h (_Bit_type): New.  Use throughout.
+
+2002-03-11  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/locale_facets.tcc (collate::do_transform):
+	Rewrite to fix problems with long transformed strings.
+
+	* include/bits/locale_facets.tcc (time_put::do_put):
+	Consider sizeof(char_type) in allocating the buffer.
+
+2002-03-10  Anthony Green  <green@redhat.com>
+
+	* configure.in: Support cross builds to mingw32 target.
+	* configure: Rebuilt.
+
+2002-03-08  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* c_locale_generic.cc: Move to...
+	* generic/c_locale.cc
+	* c_locale_generic.h: Move to...
+	* generic/c_locale.h
+	* codecvt_specializations_generic.h: Move to...
+	* generic/codecvt_specializations.h
+	* collate_members_generic.cc: Move to...
+	* generic/collate_members.cc
+	* ctype_members_generic.cc: Move to...
+	* generic/ctype_members.cc
+	* messages_members_generic.cc: Move to...
+	* generic/messages_members.cc
+	* messages_members_generic.h: Move to...
+	* generic/messages_members.h
+	* moneypunct_members_generic.cc: Move to...
+	* generic/monetary_members.cc
+	* numpunct_members_generic.cc: Move to...
+	* generic/numeric_members.cc
+	* time_members_generic.cc: Move to...
+	* generic/time_members.cc
+	* c_locale_gnu.cc: Move to...
+	* gnu/c_locale.cc
+	* c_locale_gnu.h: Move to...
+	* gnu/c_locale.h
+	* collate_members_gnu.cc: Move to...
+	* gnu/collate_members.cc
+	* ctype_members_gnu.cc: Move to...
+	* gnu/ctype_members.cc
+	* messages_members_gnu.cc: Move to...
+	* gnu/messages_members.cc
+	* messages_members_gnu.h: Move to...
+	* gnu/messages_members.h
+	* moneypunct_members_gnu.cc: Move to...
+	* gnu/monetary_members.cc
+	* numpunct_members_gnu.cc: Move to...
+	* gnu/numeric_members.cc
+	* time_members_gnu.cc: Move to...
+	* gnu/time_members.cc
+	* c_locale_ieee_1003.1-200x.cc: Move to...
+	* ieee_1003.1-2001/c_locale.cc
+	* c_locale_ieee_1003.1-200x.h: Move to...
+	* ieee_1003.1-2001/c_locale.h
+	* codecvt_specializations_ieee_1003.1-200x.h: Move to...
+	* ieee_1003.1-2001/codecvt_specializations.h
+	* messages_members_ieee_1003.1-200x.cc: Move to...
+	* ieee_1003.1-2001/messages_members.cc
+	* messages_members_ieee_1003.1-200x.h: Move to...
+	* ieee_1003.1-2001/messages_members.h
+
+	* acinclude.m4 (GLIBCPP_ENABLE_CLOCALE): Make consistent.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* src/Makefile.am (sources): Change to monetary and numeric.
+	* src/Makefile.in: Regenerate.
+	* docs/html/configopts.html: Update to ieee_1003.1-2001.
+
+2002-03-08  scott snyder  <snyder@fnal.gov>
+
+	libstdc++/5875
+	* include/bits/locale_facets.tcc (num_put::_M_convert_float):
+	Allow one more digit of precision.
+	* testsuite/27_io/ostream_inserter_arith.cc: Test that we can
+	write a double and read back in the same value.
+
+2002-03-08  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/std/std_limits.h: Move static const data members out of
+	generic template, into base class __numeric_limits_base.
+	* src/limits.cc: Add definitions.
+	* config/linker-map.gnu: Add __numeric_limits_base.
+	* testsuite/18_support/numeric_limits.cc: Declare test in scope.
+
+2002-03-07  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/stl_alloc.h: Add extern implicit allocator
+	instantiations.
+	* include/bits/basic_string.tcc: Tweak.
+	* include/bits/loqcale_facets.tcc: Remove default args. Add
+	has_facet, use_facet extern instantiations.
+	* src/stl-inst.cc: Add explicit instantiation.
+	* src/locale-inst.cc: Clean. Remove locale member template
+	instantiations.
+
+	* testsuite/22_locale/operators.cc (test02): Enable.
+
+2002-03-06  Benjamin Kosnik  <bkoz@redhat.com>
+	    Stephen M. Webb  <stephen.webb@bregmasoft.com>
+
+	* include/bits/stl_tree.h (_S_rb_tree_red): Make enum.
+	(_S_rb_tree_black): Make enum.
+	Clean. Format.
+	* include/bits/stl_bvector.h (__WORD_BIT): To _M_word_bit, enum.
+	* include/bits/stl_algo.h (__stl_chunk_size): _M_chunk_size, enum.
+	(__stl_threshold): _M_threshold, enum.
+	* src/stl-inst.cc: Same.
+	* config/linker-map.gnu: Remove.
+
+	* testsuite/23_containers/vector_bool.cc: New.
+
+2002-03-08  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/bits/basic_string.h (basic_string::_S_construct):  Fix
+	names in declaration.
+	(basic_string::compare):  These are no longer optional.
+	* include/bits/ostream.tcc:  Tweak closing brace placement.
+	* include/bits/stl_algo.h:  Lots of initial doxygen comment hooks.
+	* include/std/std_sstream.h:  Fix typo in comment.
+	* include/bits/locale_facets.tcc:  Remove unneeded header inclusion.
+	* src/locale.cc:  Likewise.
+
+2002-03-08  Phil Edwards  <pme@gcc.gnu.org>
+
+	PR libstdc++/5734
+	* include/bits/stl_vector.h (vector::push_back()):  Guard with
+	_GLIBCPP_DEPRECATED.
+
+2002-03-05  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* docs/html/17_intro/RELEASE-NOTES: Fix usage.
+	* README (libmath): Make clear.
+
+2002-03-05  Jakub Jelinek  <jakub@redhat.com>
+
+	* acinclude.m4 (GLIBCPP_ENABLE_SYMVERS): Check for version
+	script globbing in ld.
+	* aclocal.m4: Rebuilt.
+	* configure: Rebuilt.
+
+2002-03-05  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* docs/html/17_intro/RELEASE-NOTES: Update.
+	* README: Format subdirectories.
+
+2002-03-05  Paolo Carlini  <pcarlini@unitus.it>
+
+	libstdc++/5816
+	* include/bits/locale_facets.tcc
+	(num_get::_M_extract_float): Fix the parsing of __dec, since
+	the standard prescribes that if no grouping characters are
+	seen, no grouping check is applied.
+	* testsuite/22_locale/num_get_members_char.cc: Add test05
+	distilled from the PR.
+	* testsuite/22_locale/num_get_members_wchar_t.cc: Ditto.
+
+2002-03-04  Craig Rodrigues  <rodrigc@gcc.gnu.org>
+
+	* docs/html/17_intro/porting-howto.xml: Refer to
+	http://www.oasis-open.org for docbookx.dtd.
+	* docs/html/17_intro/porting-howto.html: Regenerated.
+
+2002-03-03  Phil Edwards  <pme@gcc.gnu.org>
+
+        PR libstdc++/2955
+	* include/std/std_sstream.h:  Remove trailing spaces.
+	(basic_stringbuf::_M_stringbuf_init):  Also check for ios_base::app.
+	* testsuite/27_io/stringbuf.cc (test05, test06):  New tests.
+
+2002-03-03  Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/22_locale/num_get_members_char.cc (test04):
+	Use a named locale expecting grouping (de_DE).
+	* testsuite/22_locale/num_get_members_wchar_t.cc (test04):
+	Ditto.
+	* testsuite/27_io/ios_manip_basefield.cc (test01):
+	Extend coverage, uniform treatment of hexs and octs.
+
+2002-03-01  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/locale_facets.tcc (num_get::_M_extract_int):
+	Admit grouping for octals and hexadecimals too.
+	* testsuite/22_locale/num_get_members_char.cc: Add test04.
+	(test01): Tweak "." -> "," in void* test.
+	* testsuite/22_locale/num_get_members_wchar_t.cc: Ditto.
+
+	* testsuite/27_io/ios_manip_basefield.cc: Remove static keyword.
+	* testsuite/27_io/ios_manip_fmtflags.cc: Remove two of them.
+
+	* testsuite/27_io/ios_manip_basefield.cc (test01):
+	Fix for 64 bit machines.
+
+2002-02-28  Richard Henderson  <rth@redhat.com>
+
+	* config/linker-map.gnu: Export operator new with unsigned long,
+	and with std::nothrow_t.  Likewise operator delete.
+
+2002-02-26  Benjamin Kosnik  <bkoz@redhat.com>
+
+	libstdc++/3983
+	* include/bits/basic_ios.tcc (basic_ios::init): Set _M_fill to zero.
+	Adjust comment.
+	* include/bits/basic_ios.h (basic_ios::_M_fill): Make mutable.
+	(basic_ios::_M_fill_init): New.
+	(basic_ios::fill()): Delay dealing with _M_fill.
+	Adjust comment.
+	* ios.cc (ios_base::ios_base()): Initialize _M_callbacks, _M_words.
+	(ios_base::_M_call_callbacks): Adjust.
+	* testsuite/27_io/ios_init.cc (test02): Adjust testcase.
+
+2002-02-28  Loren Rittle  <ljrittle@acm.org>
+
+	* include/Makefile.am (thread_target_headers): Unconditionally
+	stage and install gthr-posix.h.
+	(${target_builddir}/gthr-posix.h): New rule cloned off
+	${target_builddir}/gthr-default.h.
+	(${target_builddir}/gthr-default.h): Support chained inclusion
+	of gthr support headers.
+	* include/Makefile.in: Rebuilt.
+
+2002-02-26  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/locale_facets.tcc (num_put::_M_widen_int):
+	Group all the integral types, not only decs.
+	* testsuite/27_io/ios_manip_basefield.cc (test01): Tweak existing
+	tests, add a few more.
+
+2002-02-25  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* src/ios.cc (ios_base::~ios_base): Tweak.
+	(ios_base::_M_call_callbacks): Deal with null __p.
+	(ios_base::ios_base): Set _M_callbacks.
+	* include/bits/basic_ios.tcc (basic_ios::init): Adjust comment.
+	* testsuite/27_io/ios_init.cc (test02): Fix.
+
+	* mkcheck.in (static_fail): Failed links go to output file.
+
+2002-02-25  Phil Edwards  <pme@gcc.gnu.org>
+
+	* docs/html/faq/index.html:  Update.
+	* docs/html/faq/index.txt:  Regenerate.
+
+2002-02-22  Phil Edwards  <pme@gcc.gnu.org>
+
+	* acinclude.m4 (GLIBCPP_ENABLE_SYMVERS):  Fix comment.
+	* aclocal.m4:  Regenerate.
+	* docs/html/configopts.html:  Document --enable-symvers.
+	* config/linker-map.gnu:  Break libsupc++ symbols out to their own tag.
+
+2002-02-22  Philipp Thomas  <pthomas@suse.de>
+
+        * include/backward/tempbuf.h: get_temporary_buffer and
+        return_temporary_buffer are in namespace std, not in __gnu_cxx.
+
+2002-02-21  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* configure.in (target_alias): Default to yes.
+	* acinclude.m4 (GLIBCPP_ENABLE_SYMVERS): Add check for shared
+	libgcc to default case.
+
+2002-02-20  Phil Edwards  <pme@gcc.gnu.org>
+
+	* acinclude.m4 (GLIBCPP_CHECK_LINKER_FEATURES):  Also check version.
+	(GLIBCPP_ENABLE_SYMVERS):  Redo logic, use linker version.
+	* configure.in (GLIBCPP_ENABLE_SYMVERS):  Move later in the script.
+	* aclocal.m4:  Regenerate.
+	* configure:  Regenerate.
+	* config/linker-map.dummy:  New file.  Contains nothing useful.
+
+2002-02-20  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* testsuite/22_locale/money_put_members_char.cc: Fix.
+	* testsuite/22_locale/money_put_members_wchar_t.cc: Fix.
+
+	* testsuite/27_io/standard_manipulators.cc: New file.
+
+	* testsuite/27_io/ios_manip_basefield.cc: Check results, now failing.
+	* testsuite/27_io/ios_manip_fmtflags.cc: Use locale::classic().
+
+2002-02-20  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* config/os/mingw32/bits/ctype_noninline.h
+	(ctype<char>::ctype): Remove default args from parm list.
+	* config/os/djgpp/bits/ctype_noninline.h: Same.
+
+2002-02-19  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/std/std_iomanip.h: Inline, tweaks.
+	* config/linker-map.gnu: Remove hacks.
+
+	* testsuite/21_strings/capacity.cc: Add explicit instantiations.
+	* testsuite/27_io/ios_init.cc: Same.
+	* testsuite/22_locale/money_get_members_char.cc (test07): Fix.
+	* testsuite/22_locale/money_get_members_wchar_t.cc (test07): Same.
+
+2002-02-19  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/linker-map.gnu: Export global vtable, typeinfo, guard
+	variable, and thunk info as per CXXABI docs.
+
+2002-02-19  Loren Rittle <ljrittle@acm.org>
+
+	* include/Makefile.am: Use CONFIG_HEADER instead of ad hoc names.
+	* include/Makefile.in: Rebuilt.
+
+2002-02-18  Peter Schmid  <schmid@snake.iap.physik.tu-darmstadt.de>
+
+	* testsuite/22_locale/collate_byname.cc (test01): Replace size4
+          with size3 for the string collations of str5.
+
+2002-02-18  Paolo Carlini  <pcarlini@unitus.it>
+
+	libstdc++/5708
+	* include/bits/locale_facets.tcc (money_put::do_put):
+	For the space field use __fill instead of ' ', uniformly.
+	* testsuite/22_locale/money_put_members_char.cc:
+	Add test05 distilled from PR.
+	(test01-02-03): Trim some '*' to ' '.
+	* testsuite/22_locale/money_put_members_wchar_t.cc: Ditto.
+
+2002-02-18  Loren Rittle <ljrittle@acm.org>
+
+	libstdc++/5697
+	* include/Makefile.am (thread_builddir): Remove (map all
+	existing uses to target_builddir).
+	(thread_headers): Rename to...
+	(thread_target_headers): ...this.
+	(stamp-thread): Remove.
+	(stamp-target): Correctly state the position as built.
+	Update all dependencies to match the new reality.  Remove all
+	dependency calculations on directories.
+	* include/Makefile.in: Rebuilt.
+
+2002-02-16   Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/locale_facets.tcc: Add pragma GCC system_header.
+	* include/bits/fstream.tcc: Same.
+	* include/bits/sstream.tcc: Same.
+	* include/bits/ostream.tcc: Same.
+	* include/bits/istream.tcc: Same.
+	* include/bits/streambuf.tcc: Same.
+	* include/bits/basic_ios.tcc: Same.
+	* include/bits/basic_string.tcc: Same.
+
+2002-02-15  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/std/std_iosfwd.h: Don't guard typedefs with
+	_GLIBCPP_USE_WCHAR_T
+	* include/bits/stringfwd.h: Same.
+
+2002-02-15  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* src/locale.cc (moneypunct_byname): Remove definitions.
+	* include/std/std_streambuf.h (streambuf::operator=): Return.
+
+2002-02-15  Benjamin Kosnik  <bkoz@redhat.com>
+
+	Tune for size.
+	* src/string-inst.cc (string::_Rep::_S_terminal): Remove redundant
+	explicit instantiation.
+	(string::_Rep::_S_max_size): Same.
+	* include/bits/basic_string.tcc: Add extern explicit
+	instantiations for string, wstring.
+	* include/bits/basic_ios.tcc: Add extern explicit instantiations
+	for ios, wios.
+	* include/bits/streambuf.tcc: Same, for streambuf, wstreambuf.
+	* include/bits/istream.tcc: Same, for istream, wistream.
+	* include/bits/ostream.tcc: Same for ostream, wostream, iostream,
+	wiostream.
+	* include/bits/sstream.tcc: Same, for stringbuf, wstringbuf,
+	istringstream, wistringstream, ostringstream, wostringstream,
+	stringstream, wstringstream.
+	* include/bits/fstream.tcc: Same, for filebuf, wfilebuf, ifstream,
+	wifstream, ofstream, wofstream, fstream, wfstream.
+	* src/misc-inst.cc: Correct comments.
+	Add iomanip instantiations for wide streams.
+	* include/std/std_iomanip.h: Same.
+	* include/bits/locale_facets.tcc: Same.
+
+	* include/std/std_streambuf.h: Correct
+	_GLIBCPP_FULLY_COMPLIANT_HEADERS guard.
+	* include/std/std_sstream.h: Same.
+	* include/std/std_ostream.h: Same.
+	* include/std/std_istream.h: Same.
+	* include/std/std_fstream.h: Same.
+
+	* include/std/std_streambuf.h: Add definitions for private copy
+	ctor and assignment operator.
+	* include/std/std_istream.h: Remove declared but undefined copy
+	ctor and assignment operator. This is taken care of in ios_base,
+	so adding it in the derived class as well is superfluous.
+	* include/std/std_ostream.h: Same.
+
+	* include/bits/basic_ios.h (basic_ios::clear): Don't inline.
+	* include/bits/basic_ios.tcc (basic_ios::clear): Move definition here.
+
+2002-02-14  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/linker-map.gnu: Change tag from GCC_3.1 to GLIBCPP_3.1.
+	Add typeinfo bits. Smooth.
+	* aclocal.m4: Regenerate.
+	* configure: Same.
+	* src/Makefile.in: Same.
+
+2001-02-14  Joel Sherrill  <joel@OARcorp.com>
+
+	* config/cpu/m68k/bits/atomicity.h: Corrected for RTEMS targets
+	which do not have a CAS instruction.
+
+2002-02-14  Phil Edwards  <pme@gcc.gnu.org>
+
+	* acinclude.m4 (GLIBCPP_ENABLE_SYMVERS):  New macro, initial revision.
+	* configure.in:  Call it.
+	* config/linker-map.gnu:  New file, initial incomplete revision.
+	* src/Makefile.am:  Optionally pass version script to the linker.
+	* aclocal.m4:  Regenerate.
+	* configure:  Regenerate.
+	* src/Makefile.in:  Regenerate.
+
+2002-02-13  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* src/localename.cc: Remove stdexcept include.
+	* src/locale-inst.cc: Same.
+	* src/locale.cc: Same.
+	* src/functexcept.cc: Remove string includes.
+	* include/std/std_bitset.h: Remove stdexcept include.
+	* testsuite/23_containers/bitset_members.cc: Add stdexcept.
+	* testsuite/23_containers/bitset_ctor.cc: Same.
+
+2002-02-11  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/stl_algo (__stl_threshold): Declare external.
+	(__stl_chunk_size): Same.
+	* include/bits/stl_bvector.h (__WORD_BIT): Same.
+	* include/bits/stl_tree.h (_S_rb_tree_red): Same.
+	(_S_rb_tree_black): Same.
+	* src/stl-inst.cc (__stl_threshold): Define.
+	(__stl_chunk_size): Same.
+	(__WORD_BIT): Same.
+	(_S_rb_tree_red): Same.
+	(_S_rb_tree_black): Same.
+
+	* config/io/basic_file_libio.h (__basic_file): Add declarations.
+	* include/bits/basic_file.h: Remove.
+	* config/io/c_io_stdio.h: Remove _GLIBCPP_BASIC_FILE_ENCAPSULATION
+	Declare generic types, specialization.
+        * config/io/basic_file_stdio.cc: Definitions.
+	* config/io/c_io_libio.h: Remove _GLIBCPP_BASIC_FILE_INHERITANCE.
+	Declare generic types.
+	* include/Makefile.am (bits_headers): Remove basic_file.h.
+	(extra_target_headers): Change basic_file_model.h to basic_file.h.
+	(stamp-target): Same.
+
+	* include/bits/stl_alloc.h: Tweaks.
+	* include/bits/localefwd.h: Same.
+
+2002-02-11  Aaron W LaFramboise  <AWLaFramboise@aol.com>
+
+	* include/bits/locale_facets.tcc (collate::do_hash): Fix.
+	* testsuite/22_locale/collate_members_char.cc (test03): New test.
+	* testsuite/22_locale/collate_members_wchar_t.cc (test03): Same.
+
+2002-02-10  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/bits/stl_algo.h (transform (both signatures), generate_n):
+	Use __typeof__ in concept checks.
+
+2002-02-10  Jonathan Wakely  <cow@compsoc.man.ac.uk>
+
+	* include/bits/stl_algo.h (__median, for_each, find, find_if,
+	adjacent_find, count, count_if, search, search_n, swap_ranges,
+	transform, replace, replace_if, replace_copy, replace_copy_if,
+	generate, generate_n, remove_copy, remove_copy_if, remove, remove_if,
+	unique, unique_copy, reverse, reverse_copy):  Doxygenate.
+
+2002-02-08  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/locale_facets.h
+	(numpunct<_CharT>::_M_initialize_numpunct): Remove definition.
+	(__timepunct<_CharT>::_M_initialize_timepunct): Same.
+	(__timepunct<_CharT>::_M_put_helper): Same.
+	(moneypunct<_CharT, _Intl>::_M_initialize_moneypunct): Same.
+
+	* include/bits/fstream.tcc (filebuf::underflow): Remove
+	__codecvt_type typedef.
+	(filebuf::_M_convert_to_external): Same.
+
+2002-02-08  Phil Edwards  <pme@gcc.gnu.org>
+
+	* docs/doxygen/TODO:  Update.
+	* docs/doxygen/doxygroups.cc:  Tweak __gnu_cxx description.
+	* docs/doxygen/mainpage.html:  Add TODO list link.
+	* docs/doxygen/user.cfg.in:  Add @doctodo hook.
+	* docs/doxygen/tables.html:  New file, emoty structure only.
+
+	* include/bits/stl_iterator.h:  Doxygenate just about everything.
+	* include/bits/stl_iterator_base_funcs.h:  Ditto, clean up spaces.
+	* include/bits/stl_iterator_base_types.h:  Add notes.
+
+2002-02-07  Stephan Buys  <sbproxy@icon.co.za>
+
+	* include/bits/stl_map.h:  Tweak doxygen markup.
+	* include/bits/stl_multimap.h:  Doxygenate and remove extra spaces.
+	* include/bits/stl_vector.h:  Likewise.
+
+2002-02-07  Benjamin Kosnik  <bkoz@redhat.com>
+
+	libstdc++/5286
+	libstdc++/3860
+	* include/std/std_fstream.h (filebuf::__file_type): Change to
+	__basic_file<char>.
+	(filebuf::_M_convert_to_external): Declare.
+	* include/bits/fstream.tcc (filebuf::_M_convert_to_external): Define
+	codecvt bits for wide streams.
+	(filebuf::_M_really_overflow): Use it.
+	(filebuf::underflow): Use codecvt.
+	* config/locale/codecvt_specializations_ieee_1003.1-200x.h:
+	(codecvt<__enc_traits>::do_out): Deal with partial.
+	(codecvt<__enc_traits>::do_encoding): Return something useful.
+	* src/codecvt.cc (codecvt<wchar_t>::do_encoding): Return sizeof
+	wchar_t.
+	* testsuite/22_locale/codecvt_members_unicode_char.cc (test01):
+	Change expected encoding output.
+	(test02): Same.
+	* testsuite/22_locale/codecvt_members_wchar_t_char.cc (test01): Same.
+	(test02): Same.
+
+2002-02-07  Benjamin Kosnik  <bkoz@redhat.com>
+            Wolfgang Bangerth  <wolfgang.bangerth@iwr.uni-heidelberg.de>
+
+	* include/bits/basic_ios.tcc (basic_ios::narrow): Add default value.
+	(basic_ios::widen): Same.
+
+2002-02-07  Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/22_locale/money_get_members_char.cc:
+	Add comment, tidy up.
+	(test01): more "en_HK" tests (without showbase).
+	* testsuite/22_locale/money_get_members_wchar_t.cc: Ditto.
+
+2002-02-06  Loren Rittle <ljrittle@acm.org>
+
+	* config/locale/c_locale_generic.cc: Do not trust
+	_GLIBCPP_HAVE_STRTOF or _GLIBCPP_HAVE_STRTOLD as
+	set by configure.
+
+2002-02-06  Loren Rittle <ljrittle@acm.org>
+
+	* acinclude.m4: Add C++ linkage check for strtof.
+	* aclocal.m4: Rebuilt.
+	* config.h.in: Rebuilt.
+	* configure: Rebuilt.
+	* config/locale/c_locale_generic.cc: Conditionally include
+	<ieeefp.h>.  Improve handling and error checking of float
+	and long double input for non-C99 configurations.
+
+2002-02-06  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/locale_facets.tcc (money_get::do_get(string)):
+	In case money_base::symbol deal properly with multi-char sign
+	for patterns {X,Y,Z,symbol} and {X,Y,symbol,none}.
+	* testsuite/22_locale/money_get_members_char.cc: Add test07.
+	* testsuite/22_locale/money_get_members_wchar_t.cc: Add test07.
+
+2002-02-05  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/locale_facets.tcc (money_get::do_get(string)):
+	First construct a tentative returned string, then, only if the
+	parsing succeeds, copy it into the string passed by reference.
+	* testsuite/22_locale/money_get_members_char.cc: Add test06.
+	* testsuite/22_locale/money_get_members_wchar_t.cc: Add test06.
+
+2002-02-04  Phil Edwards  <pme@gcc.gnu.org>
+
+	* docs/doxygen/TODO:  Impl-defined behavior now documented...
+	* docs/html/17_intro/howto.html:  ...here.
+	* docs/doxygen/mainpage.doxy:  Remove, rename...
+	* docs/doxygen/mainpage.html:  ...to this.  Tweak HTML, add license.
+	* docs/doxygen/style.css:  Add small text.
+	* docs/doxygen/run_doxygen:  Adjust for new mainpage.
+	* docs/doxygen/user.cfg.in:  Likewise.
+
+2002-02-04  Stephan Buys  <sbproxy@icon.co.za>
+
+	* include/bits/stl_map.h:  Initial doxygen markup.
+	* include/std/std_fstream.h:  Initial doxygen markup.
+
+2002-02-04  Paolo Carlini  <pcarlini@unitus.it>
+
+	libstdc++/5579
+	* include/bits/locale_facets.tcc (money_get::do_get(string)):
+	Deal correctly with !(__io.flags() & ios_base::showbase)
+	for case money_base::symbol.
+	* testsuite/22_locale/money_get_members_char.cc: Add test05.
+	* testsuite/22_locale/money_get_members_wchar_t.cc: Add test05.
+
+2002-02-02  Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/22_locale/operators.cc
+	(gnu_collate::do_compare()): Add return statement to
+	suppress "no return statement" warning.
+
+2002-02-01  Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/27_io/ostream_manip.cc: Enable test02.
+
+2002-02-01  Phil Edwards  <pme@gcc.gnu.org>
+
+	* docs/html/documentation.html:  Update for 3.0.96.
+	* docs/html/faq/index.html:  Update for 3.0.96.
+	* docs/html/faq/index.txt:  Regenerated.
+	* docs/doxygen/TODO:  Update notes.
+	* docs/html/17_intro/howto.html:  Initial impl-specific listing.
+
+2002-01-31  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/locale/codecvt_specializations_ieee_1003.1-200x.h:
+	Initialize all data members in copy ctor. Make ctors explicit.
+	(__enc_traits::__enc_traits()): Default ctor does nothing.
+	(__enc_traits::_M_init): Guard against multiple iconv_opens.
+	* include/std/std_sstream.h (basic_stringbuf): Make data members
+	protected.
+	* include/std/std_fstream.h (basic_filebuf): Same.
+	* include/std/std_streambuf.h: Tweak.
+	* include/bits/streambuf.tcc: Same.
+	* include/bits/sstream.tcc: Same.
+	* include/bits/fstream.tcc: Same.
+
+2002-01-31  Loren Rittle <ljrittle@acm.org>
+
+	* testsuite/22_locale/codecvt_members_char_char.cc: Do not
+	allow NULL argument to be passed to setenv().
+	* testsuite/22_locale/codecvt_members_wchar_t_char.cc: Likewise.
+	* testsuite/22_locale/collate_members_char.cc: Likewise.
+	* testsuite/22_locale/collate_members_wchar_t.cc: Likewise.
+	* testsuite/22_locale/ctype_members_char.cc: Likewise.
+	* testsuite/22_locale/ctype_members_wchar_t.cc: Likewise.
+	* testsuite/22_locale/messages_members_char.cc: Likewise.
+	* testsuite/22_locale/money_get_members_char.cc: Likewise.
+	* testsuite/22_locale/money_get_members_wchar_t.cc: Likewise.
+	* testsuite/22_locale/money_put_members_char.cc: Likewise.
+	* testsuite/22_locale/money_put_members_wchar_t.cc: Likewise.
+	* testsuite/22_locale/moneypunct_members_char.cc: Likewise.
+	* testsuite/22_locale/moneypunct_members_wchar_t.cc: Likewise.
+	* testsuite/22_locale/num_get_members_char.cc: Likewise.
+	* testsuite/22_locale/num_get_members_wchar_t.cc: Likewise.
+	* testsuite/22_locale/num_put_members_char.cc: Likewise.
+	* testsuite/22_locale/num_put_members_wchar_t.cc: Likewise.
+	* testsuite/22_locale/numpunct_members_char.cc: Likewise.
+	* testsuite/22_locale/numpunct_members_wchar_t.cc: Likewise.
+	* testsuite/22_locale/time_get_members_char.cc: Likewise.
+	* testsuite/22_locale/time_get_members_wchar_t.cc: Likewise.
+	* testsuite/22_locale/time_put_members_char.cc: Likewise.
+	* testsuite/22_locale/time_put_members_wchar_t.cc: Likewise.
+
+2002-01-30  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/locale/c_locale_gnu.cc: Same errno fixes as generic.
+
+	* ChangeLog-2001: Fix spelling errors...
+	* docs/html/17_intro/RELEASE-NOTES: Update.
+	* docs/html/17_intro/TODO: Update.
+	* README (file): Update.
+
+2002-01-30  Loren Rittle <ljrittle@acm.org>
+
+	* config/locale/c_locale_generic.cc: Check errno for ERANGE
+	instead of non-zero to aid portability.
+
+2002-01-30  Peter Schmid  <schmid@snake.iap.physik.tu-darmstadt.de>
+
+	* docs/html/22_locale/messages.html: Fix example code.
+
+2002-01-30  Richard Henderson  <rth@redhat.com>
+
+	* testsuite/27_io/ostream_inserter_arith.cc (test03_check): Break
+	out from test03 and templatize.
+	(test03): Use it.
+
+2002-01-30  Paolo Carlini  <pcarlini@unitus.it>
+
+	* config/locale/numpunct_members_gnu.cc
+	(numpunct<char, wchar_t>::_M_initialize_numpunct()):
+	Fix initialization of _M_grouping for locales which have
+	_M_thousands_sep == '\0'(L'\0', respectively).
+	* testsuite/22_locale/numpunct_byname.cc (test02): Add test.
+
+2002-01-30  Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/27_io/ostream_inserter_arith.cc (test03):
+	Better fix for 32/64 bit architectures, avoiding the
+	implicit assumption that CHAR_BIT == 8.
+
+2002-01-28  Phil Edwards  <pme@gcc.gnu.org>
+
+	* Makefile.am (doxygen, doxygen-maint, doxygen-man):  Tweak targets.
+	* Makefile.in:  Regenerate.
+
+	* docs/doxygen/run_doxygen:  Update, mostly for man pages.
+	* docs/doxygen/Intro.3:  Update.
+	* docs/doxygen/TODO:  Update.
+	* docs/doxygen/doxygroups.cc:  Add namespace hook for __gnu_cxx.
+	* docs/doxygen/mainpage.doxy:  Update.
+	* docs/doxygen/user.cfg.in:  Update for header rename.  Also
+	regenerate comments and variables with 1.2.12.
+	* docs/doxygen/maint.cfg.in:  Remove file.
+
+	* include/bits/stl_relops.h:  Doxygenate.
+	* include/bits/stl_tempbuf.h (std::_Temporary_buffer):  Likewise.
+
+	* include/c_std/std_cassert.h, include/c_std/std_cctype.h,
+	include/c_std/std_cerrno.h, include/c_std/std_cfloat.h,
+	include/c_std/std_ciso646.h, include/c_std/std_climits.h,
+	include/c_std/std_clocale.h, include/c_std/std_cmath.h,
+	include/c_std/std_csetjmp.h, include/c_std/std_csignal.h,
+	include/c_std/std_cstdarg.h, include/c_std/std_cstddef.h,
+	include/c_std/std_cstdio.h, include/c_std/std_cstdlib.h,
+	include/c_std/std_cstring.h, include/c_std/std_ctime.h,
+	include/c_std/std_cwchar.h, include/c_std/std_cwctype.h,
+	include/ext/algorithm, include/ext/functional, include/ext/hash_map,
+	include/ext/hash_set, include/ext/iterator, include/ext/memory,
+	include/ext/numeric, include/ext/rb_tree, include/ext/rope,
+	include/ext/ropeimpl.h, include/ext/slist, include/ext/stl_hash_fun.h,
+	include/ext/stl_hashtable.h, include/ext/stl_rope.h,
+	include/std/std_algorithm.h, include/std/std_bitset.h,
+	include/std/std_complex.h, include/std/std_deque.h,
+	include/std/std_fstream.h, include/std/std_functional.h,
+	include/std/std_iomanip.h, include/std/std_ios.h,
+	include/std/std_iosfwd.h, include/std/std_iostream.h,
+	include/std/std_istream.h, include/std/std_iterator.h,
+	include/std/std_limits.h, include/std/std_list.h,
+	include/std/std_locale.h, include/std/std_map.h,
+	include/std/std_memory.h, include/std/std_numeric.h,
+	include/std/std_ostream.h, include/std/std_queue.h,
+	include/std/std_set.h, include/std/std_sstream.h,
+	include/std/std_stack.h, include/std/std_stdexcept.h,
+	include/std/std_streambuf.h, include/std/std_string.h,
+	include/std/std_utility.h, include/std/std_valarray.h,
+	include/std/std_vector.h:  Add/correct @file doxygen hook.
+
+	* include/ext/memory:  Doxygenate most of rest of file.
+	* libsupc++/exception:  Doxygen output formatting.
+	* libsupc++/new:  Say which header it is.
+
+	* testsuite/lib/libstdc++-v3-dg.exp:  Fix spacing.
+	* docs/html/19_diagnostics/howto.html:  Describe concept-checks switch.
+	* docs/html/23_containers/howto.html:  Describe O(n) list::size().
+	* docs/html/27_io/howto.html:  Also link to Langer and Kreft text.
+
+2002-01-28  Paolo Carlini  <pcarlini@unitus.it>
+            Charles Leggett <CGLeggett@lbl.gov>
+
+	* testsuite/27_io/filebuf_members.cc (test_05): Add test.
+
+2002-01-28  Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/27_io/ostream_inserter_arith.cc (test03):
+	Fix to deal correctly with both 32 bit and 64 bit architectures
+
+2002-01-25  Loren Rittle <ljrittle@acm.org>
+
+	* testsuite/thread/pthread1.cc: Use one condition variable
+	per predicate instead of tricky use of one condition variable.
+
+2002-01-25  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/fstream.tcc (filebuf::close()): Fix close for input
+	streams.
+	(filebuf::_M_really_overflow): Match indeterminate and sync calls.
+	* testsuite/27_io/filebuf.cc: Compile only.
+	* testsuite/27_io/filebuf_members.cc: Move tests to here.
+	* testsuite/27_io/filebuf_virtuals.cc: And here.
+	Revert sungetc, sync changes for expected values.
+	* testsuite/27_io/filebuf-*: Move to...
+	* testsuite/27_io/filebuf_virtuals-*: ...here.
+	* testsuite/27_io/istream.cc: Compile only, activate.
+	* testsuite/27_io/ostream.cc: Same.
+	* testsuite/27_io/iostream.cc: New.
+	* testsuite/27_io/iostream_members.cc: New.
+
+2002-01-25  David Billinghurst <David.Billinghurst@riotinto.com>
+
+	* testsuite/thread/pthread1.cc: Enable on cygwin.
+	* testsuite/thread/pthread2.cc: Likewise.
+	* testsuite/thread/pthread3.cc: Likewise.
+	* testsuite/thread/pthread4.cc: Likewise.
+	* testsuite/thread/pthread5.cc: Likewise.
+	* testsuite/thread/pthread6.cc: Likewise.
+
+2002-01-24  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* testsuite/27_io/ostream_inserter_char.cc (test07): New.
+
+2002-01-24  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/basic_ios.h (basic_ios::_M_check_facet): Make
+	const, tweak.
+	(basic_ios::fill(char_type)): Use fill().
+	* include/bits/basic_ios.tcc (basic_ios::widen): Use _M_check_facet.
+	(basic_ios::narrow): Same.
+	(basic_ios::_M_cache_facets): Explicitly set cached facets to zero
+	if they are invalid.
+	(basic_ios::init): Comment.
+	* testsuite/27_io/ios_init.cc (test02): New.
+
+2002-01-24  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/bits/stl_tempbuf.h (_Temporary_buffer):  Add doxygen hook.
+	* include/bits/stl_algo.h:  Include stl_tempbuf.h.
+	* include/ext/memory:  Do not include stl_tempbuf.h.
+	(temporary_buffer):  Add doxygen hook.
+	(__get_temporary_buffer, get_temporary_buffer,
+	return_temporary_buffer):  Move back to std:: header...
+	* include/std/std_memory.h:  ...here.  Do not include stl_tempbuf.h.
+	* include/ext/rope:  Do not include stl_tempbuf.h.
+	* include/ext/stl_hashtable.h:  Likewise.
+	* include/std/std_algorithm.h:  Likewise.
+	* testsuite/20_util/temporary_buffer.cc:  New file.
+
+2002-01-24  andrew@andypo.net
+	    (tweaks, test and commit by Loren J. Rittle  <ljrittle@acm.org>)
+
+	libstdc++/5432
+	* include/bits/ios_base.h: Use _Atomic_word for reference counts.
+	* include/bits/localefwd.h: Likewise.
+	Also use for std::locale::id::_S_highwater.
+	* src/ios.cc (ios_base::xalloc): Use _Atomic_word.
+	* src/locale.cc: Support new usage of _Atomic_word.
+	(std::locale::classic): Guard entire function against reentry.
+	* src/localename.cc: Support new usage of _Atomic_word.
+
+2002-01-24   Benjamin Kosnik  <bkoz@redhat.com>
+
+	* testsuite/22_locale/num_put_members_wchar_t.cc (test03): Use
+	_GLIBCPP_HAVE_SETENV.
+	* testsuite/22_locale/codecvt_members_wchar_t_char.cc (test02): Same.
+	* testsuite/22_locale/collate_members_char.cc (test02): Same.
+	* testsuite/22_locale/ctype_members_char.cc (test03): Same.
+	* testsuite/22_locale/ctype_members_wchar_t.cc (test03): Same.
+	* testsuite/22_locale/messages_members_char.cc (test02): Same.
+	* testsuite/22_locale/moneypunct_members_char.cc (test02): Same.
+	* testsuite/22_locale/moneypunct_members_wchar_t.cc (test02): Same.
+	* testsuite/22_locale/money_put_members_char.cc (test04): Same.
+	* testsuite/22_locale/money_put_members_wchar_t.cc (test04): Same.
+	* testsuite/22_locale/num_get_members_char.cc (test03): Same.
+	* testsuite/22_locale/num_get_members_wchar_t.cc (test03): Same.
+	* testsuite/22_locale/numpunct_members_char.cc (test02): Same.
+	* testsuite/22_locale/numpunct_members_wchar_t.cc (test02): Same.
+	* testsuite/22_locale/time_get_members_char.cc (test07): Same.
+	* testsuite/22_locale/time_get_members_wchar_t.cc (test07): Same.
+	* testsuite/22_locale/time_put_members_char.cc (test03): Same.
+	* testsuite/22_locale/time_put_members_wchar_t.cc (test03): Same.
+	* testsuite/22_locale/num_put_members_char.cc (test03): Same.
+	* acinclude.m4 (GLIBCPP_CONFIGURE_TESTSUITE): Check for setenv.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* config.h.in: Regenerate.
+
+2002-01-23  Loren Rittle <ljrittle@acm.org>
+
+	* testsuite/thread/pthread1.cc: New test.
+	* testsuite/thread/pthread2.cc: New test adapted from libstdc++/5347.
+	* testsuite/thread/pthread3.cc: Likewise.
+	* testsuite/thread/pthread4.cc: New test adapted from
+	http://gcc.gnu.org/ml/gcc-bugs/2002-01/msg00679.html
+	* testsuite/thread/pthread5.cc: New test adapted from libstdc++/5464.
+	* testsuite/thread/pthread6.cc: New test adapted from libstdc++/5444.
+
+2002-01-23  Richard Henderson  <rth@redhat.com>
+
+	PR libstdc++/5198
+	* config/cpu/m68k/bits/atomicity.h (__exchange_and_add): Only use
+	CAS on the cpu variants that support it.  Add versions that use
+	TAS and that disable interrupts.
+	(__atomic_add): Use __exchange_and_add to guarantee atomicity.
+
+2002-01-23  Matt Kraai  <kraai@alumni.cmu.edu>
+
+	* include/bits/locale_facets.tcc: Remove old comments.
+
+2002-01-23  Andreas Tobler  <toa@pop.agri.ch>
+
+	* include/bits/locale_facets.tcc (__convert_to_v): Change template
+	parameter to _Tv.
+	(__convert_from_v): Same.
+
+2002-01-23  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/locale_facets.h (num_get::_M_extract_int): Change
+	prototype.
+	* include/bits/locale_facets.tcc (num_get::_M_extract_int): Remove
+	__max_digits checks, adjust arguments.
+	(num_get::do_get(*)): Changeup.
+
+2002-01-23  Loren Rittle <ljrittle@acm.org>
+
+        * config/locale/c_locale_generic.cc: Fix typename usage.
+
+2002-01-22  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/locale/c_locale_generic.cc: Fix.
+
+2002-01-22  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* docs/html/22_locale/messages.html: Remove angle brackets.
+	* docs/html/17_intro/TODO: Add.
+
+2002-01-22  Paolo Carlini  <pcarlini@unitus.it>
+
+	* testsuite/27_io/ios_manip_basefield.cc: Enable test02.
+	* testsuite/27_io/ostream_inserter_arith.cc: Enable test03.
+	* testsuite/27_io/ostream_inserter_char.cc: Enable test01.
+	* testsuite/27_io/ostream_inserter_other.cc: Enable test04.
+
+2002-01-22  Benjamin Kosnik  <bkoz@redhat.com>
+
+	Audit for LANG independence.
+	* include/bits/localefwd.h: Tweaks.
+	* include/bits/locale_facets.tcc (money_get::do_get(long double)):
+	Use __convert_to_v.
+	(time_get::do_get_year): Same.
+	(__convert_from_v): Add.
+	(num_put::_M_convert_float): Use.
+	(num_put::_M_convert_int): Same.
+	(money_put::do_put): Same.
+
+	* src/locale-inst.cc: Add instantiations for __convert_from_v.
+	* config/locale/time_members_gnu.cc: Cleanup setlocale usage.
+	* config/locale/time_members_generic.cc:
+	* config/locale/messages_members_gnu.cc: Same.
+	* config/locale/messages_members_gnu.h: Same.
+
+	* testsuite/22_locale/codecvt_members_wchar_t_char.cc (test02): New.
+	* testsuite/22_locale/codecvt_members_char_char.cc (test02): New.
+	* testsuite/22_locale/collate_members_wchar_t.cc (test02): New.
+	* testsuite/22_locale/collate_members_char.cc (test02): New.
+	* testsuite/22_locale/ctype_members_wchar_t.cc (test03): New.
+	* testsuite/22_locale/ctype_members_char.cc (test03): New.
+	* testsuite/22_locale/messages_members_char.cc (test02): New.
+	* testsuite/22_locale/moneypunct_members_wchar_t.cc (test02): New.
+	* testsuite/22_locale/moneypunct_members_char.cc (test02): New.
+	* testsuite/22_locale/money_get_members_wchar_t.cc (test04): New.
+	* testsuite/22_locale/money_get_members_char.cc (test04): New.
+	* testsuite/22_locale/money_put_members_wchar_t.cc (test04): New.
+	* testsuite/22_locale/money_put_members_char.cc (test04): New.
+	* testsuite/22_locale/numpunct_members_wchar_t.cc (test02): New.
+	* testsuite/22_locale/numpunct_members_char.cc (test02): New.
+	* testsuite/22_locale/time_put_members_wchar_t.cc (test03): New.
+	* testsuite/22_locale/time_put_members_char.cc (test03): New.
+	* testsuite/22_locale/time_get_members_wchar_t.cc (test07): New.
+	* testsuite/22_locale/time_get_members_char.cc (test07): New.
+	* testsuite/22_locale/num_get_members_wchar_t.cc (test03): New.
+	* testsuite/22_locale/num_get_members_char.cc (test03): New.
+	* testsuite/22_locale/num_put_members_wchar_t.cc (test03): New.
+	* testsuite/22_locale/num_put_members_char.cc (test03): New.
+
+	* testsuite/22_locale/time_get_members_char.cc: Fixups for global
+	locale issues.
+	* testsuite/22_locale/time_get_members_char.cc: Same.
+
+2002-01-22  Benjamin Kosnik  <bkoz@redhat.com>
+
+	libstdc++/5280
+	* include/bits/localefwd.h: Tweak comments.
+	* include/bits/locale_facets.h (__convert_to_v): Add.
+	* include/bits/locale_facets.tcc (num_get::do_get(double)): Use it.
+	(num_get::do_get(float)): Same.
+	(num_get::do_get(long double)): Same.
+	(num_get::do_get(bool)): Same.
+	(num_get::do_get(long)): Same.
+	(num_get::do_get(long long)): Same.
+	(num_get::do_get(unsigned int)): Same.
+	(num_get::do_get(unsigned short)): Same.
+	(num_get::do_get(unsigned long)): Same.
+	(num_get::do_get(unsigned long long)): Same.
+	* config/locale/c_locale_gnu.cc (__convert_to_v): Specialize.
+	* config/locale/c_locale_generic.cc: Same.
+
+2002-01-22  Loren Rittle <ljrittle@acm.org>
+
+	* include/Makefile.am (c_base_builddir): Remove redundant slash.
+	(std_builddir): Likewise.
+	(std_headers_rename): Fix cut-n-paste typo.
+	(install-data-local): Concat path per element instead of once to
+	first element of list.
+	* include/Makefile.in: Rebuilt.
+
+2002-01-22  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/os/aix/bits/ctype_noninline.h: Fix formatting.
+	* config/os/bsd/netbsd/bits/ctype_noninline.h: Fix typo.
+	* config/os/bsd/freebsd/bits/ctype_noninline.h: Fix formatting.
+
+2002-01-20  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/locale_facets.h (ctype<char>::classic_table):
+	Remove definition.
+	(ctype<char>::_S_ctable): Remove.
+	* config/os/gnu-linux/bits/ctype_noninline.h
+	(ctype<char>::_S_table): Remove definition.
+	(ctype<char>::classic_table): Define.
+	(ctype<char>::ctype): Replace _S_ctable with classic_table().
+	* config/os/aix/bits/ctype_noninline.h: Same.
+	* config/os/bsd/freebsd/bits/ctype_noninline.h: Same.
+	* config/os/bsd/netbsd/bits/ctype_noninline.h: Same.
+	* config/os/djgpp/bits/ctype_noninline.h: Same.
+	* config/os/generic/bits/ctype_noninline.h: Same.
+	* config/os/gnu-linux/bits/ctype_noninline.h: Same.
+	* config/os/hpux/bits/ctype_noninline.h: Same.
+	* config/os/irix/irix5.2/bits/ctype_noninline.h: Same.
+	* config/os/irix/irix6.5/bits/ctype_noninline.h: Same.
+	* config/os/mingw32/bits/ctype_noninline.h: Same.
+	* config/os/newlib/bits/ctype_noninline.h: Same.
+	* config/os/solaris/solaris2.5/bits/ctype_noninline.h: Same.
+	* config/os/solaris/solaris2.6/bits/ctype_noninline.h: Same.
+	* config/os/solaris/solaris2.7/bits/ctype_noninline.h: Same.
+
+2002-01-20  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* config/os/mingw32/bits/ctype_noninline.h: Declare _ctype instead
+	of _pctype. Use to define _S_ctable.  Add definition for alternate
+	ctor.  Initialise _M_ctable to _S_ctable in ctors.
+	(do_toupper, do_tolower): Use inline code appropriate for C-locale
+	rather than ::toupper, ::tolower.
+
+2002-01-18  Loren Rittle <ljrittle@acm.org>
+
+	* testsuite/18_support/numeric_limits.cc (test_extrema<long double>):
+	Add specialization for FreeBSD systems only to avoid losing test
+	only due to extra precision unmentioned in system headers.
+
+2002-01-18  David Billinghurst <David.Billinghurst@riotinto.com>
+
+	* config/os/irix/irix6.5/bits/ctype_noninline.h: Fix typo
+
+2002-01-17  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* testsuite/testsuite_hooks.h: Fix comment typo.  Memory
+	limiting is only attempted if _GLIBCPP_MEM_LIMIT is defined.
+
+2002-01-17  Peter Schmid  <schmid@snake.iap.physik.tu-darmstadt.de>
+
+	* testsuite/22_locale/ctor_copy_dtor.cc: Remove check.
+
+2002-01-17  David Edelsohn  <edelsohn@gnu.org>
+
+	* configure.target: Define OPT_LDFLAGS for AIX case.
+
+2002-01-17  Gabriel Dos Reis  <gdr@merlin.codesourcery.com>
+
+	* include/std/std_limits.h (__glibcpp_float_has_quiet_NaN,
+	__glibcpp_double_has_quiet_NaN): Correct mispelling.
+
+2002-01-17  Andreas Tobler  <toa@pop.agri.ch>
+
+	* config/os/solaris/solaris2.6/bits/ctype_noninline.h: Fix.
+
+2002-01-16  David Edelsohn  <dje@watson.ibm.com>
+
+	* acinclude.m4 (GLIBCPP_CHECK_LINKER_FEATURES): Do not clear
+	SECTION_LDFLAGS and OPT_LDFLAGS.  Fix ac_sectionLDflags type.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2002-01-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/Makefile.am (c_base_headers_rename): New.
+	(c_base_headers_extra): New.
+	(stamp-c_base): Modify.
+	(install-data-local): Use both.
+	* include/Makefile.in: Regenerate.
+	* include/c/[cctype ciso646 cmath cstdarg cstdlib cerrno climits
+	csetjmp cstddef cstring cwchar cassert cfloat clocale csignal
+	cstdio ctime cwctype]: Move to..
+	* include/c/std_*: Here.
+	* include/c_std/[cctype ciso646 cmath cstdarg cstdlib cerrno climits
+	csetjmp cstddef cstring cwchar cassert cfloat clocale csignal
+	cstdio ctime cwctype]: Move to..
+	* include/c_std/std_*: Here.
+
+	Alexandre Oliva  <aoliva@redhat.com>
+	* include/Makefile.am (.PRECIOUS): Add rule.
+	* include/Makefile.in: Regenerate.
+
+2002-01-16  Benjamin Kosnik  <bkoz@redhat.com>
+            Peter Schmid  <schmid@snake.iap.physik.tu-darmstadt.de>
+
+	* include/bits/stl_iterator.h (reverse_iterator::_M_current):
+	Deuglify, should be current.
+	(back_insert_iterator::_M_container): Deuglify, should be container.
+	(front_insert_iterator::_M_container): Same.
+	(insert_iterator::_M_container): Same.
+	* testsuite/24_iterators/reverse_iterator.cc: Add check.
+	* testsuite/24_iterators/back_insert_iterator.cc: Add check.
+	* testsuite/24_iterators/front_insert_iterator.cc: Same.
+	* testsuite/24_iterators/insert_iterator.cc: Same.
+
+2002-01-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/locale_facets.h (ctype<char>::classic_table): Make
+	static.
+	(ctype<char>::_M_ctable): Make static, change name to _S_ctable.
+	* config/os/gnu-linux/bits/ctype_noninline.h: Define _S_ctable.
+	* config/os/solaris/solaris2.7/bits/ctype_noninline.h: Same.
+	* config/os/solaris/solaris2.6/bits/ctype_noninline.h: Same.
+	* config/os/solaris/solaris2.5/bits/ctype_noninline.h: Same.
+	* config/os/newlib/bits/ctype_noninline.h: Same.
+	* config/os/irix/irix6.5/bits/ctype_noninline.h: Same.
+	* config/os/irix/irix5.2/bits/ctype_noninline.h: Same.
+	* config/os/hpux/bits/ctype_noninline.h: Same.
+	* config/os/djgpp/bits/ctype_noninline.h: Same.
+	* config/os/bsd/netbsd/bits/ctype_noninline.h: Same.
+	* config/os/bsd/freebsd/bits/ctype_noninline.h: Same.
+	* config/os/aix/bits/ctype_noninline.h: Same.
+
+	Testcase by Dietmar Kühl via Peter Schmid
+	* testsuite/22_locale/ctype_members_char.cc (char>): Add test for
+	classic_table().
+
+2002-01-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* libmath/signbitl.c: Copyright years as list, not range.
+	* libmath/Makefile.am: Same.
+	* libmath/Makefie.in: Regenerate.
+	* libmath/signbit.c: Same.
+	* libmath/nan.c: Same.
+	* libmath/copysignf.c: Same.
+	* libmath/signbitf.c: Same.
+	* testsuite/22_locale/money_get_members_char.cc: Same.
+	* testsuite/22_locale/money_get_members_wchar_t.cc: Same.
+	* testsuite/22_locale/money_put_members_char.cc: Same.
+	* testsuite/22_locale/money_put_members_wchar_t.cc: Same.
+	* testsuite/22_locale/time_get_members_char.cc: Same.
+	* testsuite/22_locale/time_get_members_wchar_t.cc: Same.
+	* testsuite/22_locale/time_put_members_char.cc: Same.
+	* testsuite/22_locale/time_put_members_wchar_t.cc: Same.
+	* testsuite/21_strings/nonmember.cc: Same.
+	* testsuite/21_strings/compare.cc: Same.
+	* testsuite/27_io/stringstream.cc: Same.
+	* testsuite/27_io/stringbuf.cc: Same.
+	* testsuite/27_io/filebuf.cc: Same.
+	* testsuite/27_io/ios_manip_basefield.cc: Same.
+	* testsuite/27_io/ios_manip_fmtflags.cc: Same.
+	* include/bits/cpp_type_traits.h: Same.
+	* include/bits/generic_shadow.h: Same.
+	* include/bits/gslice_array.h: Same.
+	* include/bits/gslice.h: Same.
+	* include/bits/indirect_array.h: Same.
+	* include/bits/slice_array.h: Same.
+	* include/bits/sstream.tcc: Same.
+	* include/bits/streambuf_iterator.h: Same.
+	* include/bits/valarray_array.tcc: Same.
+	* include/bits/valarray_meta.h: Same.
+	* include/bits/valarray_array.h: Same.
+	* config/os/mingw32/bits/ctype_noninline.h: Same.
+	* config/os/mingw32/bits/ctype_base.h: Same.
+	* config/os/hpux/bits/ctype_noninline.h: Same.
+	* config/os/hpux/bits/ctype_base.h: Same.
+	* config/os/gnu-linux/bits/ctype_noninline.h: Same.
+	* config/os/gnu-linux/bits/ctype_base.h: Same.
+	* config/os/generic/bits/ctype_noninline.h: Same.
+	* config/os/generic/bits/ctype_base.h: Same.
+
+	* libsupc++/tinfo.h: Tweaks.
+
+2002-01-15  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* testsuite/22_locale/num_put_members_wchar_t.cc (test02): Same.
+	* testsuite/22_locale/num_put_members_char.cc (test01): Tweak.
+	* testsuite/22_locale/ctype_members_char.cc: Tweak.
+
+2002-01-15  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/locale_facets.tcc (num_put::do_put(bool): Fix.
+	(num_put::do_put(void*)): Fix.
+	* testsuite/22_locale/num_put_members_char.cc (test02): Add.
+	* testsuite/22_locale/num_put_members_wchar_t.cc (test02): Add.
+	* testsuite/22_locale/num_get_members_char.cc (test02): Add
+	long double, void, bool types.
+	* testsuite/22_locale/num_get_members_wchar_t.cc (test02): Add.
+
+2002-01-15  Benjamin Kosnik  <bkoz@redhat.com>
+	    Alexandre Oliva  <aoliva@redhat.com>
+
+	* libmath/Makefile.am (LINK): Add --tag CC.
+	* libmath/Makefile.in: Regenerate.
+
+2002-01-15  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* config/os/hpux/bits/ctype_noninline.h: Use __SB_masks for address
+	of character to attribute mapping table.
+
+2002-01-15  David Billinghurst <David.Billinghurst@riotinto.com>
+
+	* testsuite/26_numerics/c99_classification_macros_c.cc
+	Remove dg-error and dg-excess-errors comments.
+
+2002-01-14  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/locale_facets.tcc (time_put::put): Correct output
+	iterator positions.
+	* testsuite/22_locale/time_put_members_char.cc (test02): Add.
+	* testsuite/22_locale/time_put_members_wchar_t.cc (test02): Add.
+	* testsuite/22_locale/time_get_members_wchar_t.cc (test06): Add.
+	* testsuite/22_locale/time_get_members_char.cc (test06): Add.
+
+2002-01-14  Craig Rodrigues  <rodrigc@gcc.gnu.org>
+
+	* docs/html/17_intro/porting-howto.xml: Update filebuf section.
+
+2002-01-14  Paolo Carlini  <pcarlini@unitus.it>
+	    Nathan Myers  <ncm@cantrip.org>
+
+	* include/bits/basic_string.h
+	(replace(__pos, __n1, __s, __n2)): Optimize by avoiding
+	temporaries (i.e., call _M_replace_safe) when possible.
+	(replace(__pos, __n, __str)): Call replace(__pos, __n1, __s, __n2).
+	(replace(__pos, __n1, __s)): Call replace(__pos, __n1, __s , __n2).
+	(replace(__i1, __i2, __str)): Call replace(__i1, __i2, __s, __n).
+	(replace(__i1, __i2, __s)): Call replace(__i1, __i2, __s, __n).
+	(replace(__i1, __i2, __s, __n)): Call replace(__pos1, __n1, __s, __n2).
+	* include/bits/basic_string.tcc
+	(replace(__pos1, __n1, __str, __pos2, __n2)): Call
+	replace(__pos, __n1, __s, __n2).
+	* testsuite/21_strings/replace.cc (test03): New testcases.
+
+	* include/bits/basic_string.h (insert(__pos, __s, __n)):
+	Adjust comparison wrt overflow.
+
+2002-01-12  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/Makefile.am (std_headers_rename): New variable.
+	(install-data-local): Use it.
+	* include/Makefile.in: Regenerate.
+
+2002-01-12  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/locale_facets.tcc (money_put::do_put(string):
+	Correct output iterator value.
+	* testsuite/22_locale/money_put_members_char.cc (test03): Add.
+	* testsuite/22_locale/money_put_members_wchar_t.cc: Same.
+
+2002-01-11  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/Makefile.am, include/Makefile.in (stamp-std):  Fix typo from
+	previous commit.
+
+2002-01-11  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/Makefile.am (std_headers):  Update list with new names.
+	(stamp-std):  Link to standardized name.
+	* include/Makefile.in:  Regenerate.
+
+	* include/std/algorithm, include/std/bitset, include/std/complex,
+	include/std/deque, include/std/fstream, include/std/functional,
+	include/std/iomanip, include/std/ios, include/std/iosfwd,
+	include/std/iostream, include/std/istream, include/std/iterator,
+	include/std/limits, include/std/list, include/std/locale,
+	include/std/map, include/std/memory, include/std/numeric,
+	include/std/ostream, include/std/queue, include/std/set,
+	include/std/sstream, include/std/stack, include/std/stdexcept,
+	include/std/streambuf, include/std/string, include/std/utility,
+	include/std/valarray, include/std/vector:  Rename to...
+
+	* include/std/std_algorithm.h, include/std/std_bitset.h,
+	include/std/std_complex.h, include/std/std_deque.h,
+	include/std/std_fstream.h, include/std/std_functional.h,
+	include/std/std_iomanip.h, include/std/std_ios.h,
+	include/std/std_iosfwd.h, include/std/std_iostream.h,
+	include/std/std_istream.h, include/std/std_iterator.h,
+	include/std/std_limits.h, include/std/std_list.h,
+	include/std/std_locale.h, include/std/std_map.h,
+	include/std/std_memory.h, include/std/std_numeric.h,
+	include/std/std_ostream.h, include/std/std_queue.h,
+	include/std/std_set.h, include/std/std_sstream.h,
+	include/std/std_stack.h, include/std/std_stdexcept.h,
+	include/std/std_streambuf.h, include/std/std_string.h,
+	include/std/std_utility.h, include/std/std_valarray.h,
+	include/std/std_vector.h:  ...this.
+
+2002-01-11  Loren Rittle <ljrittle@acm.org>
+
+	* include/Makefile.am (extra_target_headers): New list of all
+	target files built with ad hoc naming rules.
+	(stamp-*): Handle LN_S failure in manner portable across make
+	implementations.
+	(install-data-local): Install header files from human-maintained
+	file lists and directory components instead of non-robust find.
+	* include/Makefile.in: Rebuilt.
+
+2002-01-11  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/bits/locale_facets.tcc (money_get::do_get(string)):
+	Check for zero-length negative sign before adding it to output
+	string.
+	(money_get::do_get(long double)): Return beg.
+	* testsuite/22_locale/money_get_members_char.cc (test02): Add
+	iterator checks.
+	* testsuite/22_locale/money_get_members_wchar_t.cc: Same.
+
+2002-01-10  David Seymour  <seymour_dj@yahoo.com>
+
+	libstdc++/5331
+	* include/bits/locale_facets.h (num_get<>): Return advanced iterator
+	for _M_extract_float and _M_extract_int
+	* include/bits/locale_facets.tcc (num_get<>::_M_extract_float)
+	(num_get<>::_M_extract_int): Likewise, all callers changed
+	* testsuite/22_locale/num_get_members_char.cc: Testcase
+
+2002-01-09  Paolo Carlini <pcarlini@unitus.it>
+
+        * libsupc++/exception (bad_exception): Add comment.
+        * libsupc++/new (bad_alloc): Same.
+        * libsupc++/typeinfo (bad_cast, bad_typeid): Same.
+
+2002-01-09  Paolo Carlini <pcarlini@unitus.it>
+
+	libstdc++/3150: revert 2001-11-30 commit. DR266 only means
+	that the destructors should be removed from the descriptions
+	in the standard: writing them explicitly allows the vtable
+	heuristic to work. For additional information see:
+	http://gcc.gnu.org/ml/libstdc++/2002-01/msg00090.html
+	http://gcc.gnu.org/ml/libstdc++/2002-01/msg00110.html
+	http://gcc.gnu.org/ml/libstdc++/2002-01/msg00155.html
+	* libsupc++/exception (bad_exception::~bad_exception()):
+	Reintroduce declaration.
+	* libsupc++/new (bad_alloc::~bad_alloc()): Same.
+	* libsupc++/typeinfo (bad_cast::~bad_cast()): Same.
+	(bad_typeid::~bad_typeid()): Same.
+	* libsupc++/eh_exception.cc (bad_exception::~bad_exception()):
+	Reintroduce definition.
+	* libsupc++/new_handler.cc (bad_alloc::~bad_alloc()): Same.
+	* libsupc++/tinfo.cc (bad_cast::~bad_cast()): Same.
+	(bad_typeid::~bad_typeid()): Same.
+
+2002-01-09  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/Makefile.am (c_base_srcdir): Remove duplicate '/'.
+	* include/Makefile.in: Regenerate.
+
+2002-01-09  Bo Thorsen  <bo@suse.co.uk>
+
+	* config/cpu/x86-64/bits/cpu_limits.h (__glibcpp_long_bits): Add
+	definition.
+
+2002-01-08  Benjamin Kosnik  <bkoz@redhat.com>
+
+        libstdc++/2913
+        libstdc++/4879
+	* include/bits/fstream.tcc (filebuf::_M_really_overflow): Test
+	return value of _M_file->sync().
+	(filebuf::showmanyc): Check for is_open.
+	* include/std/fstream (filebuf::sync): Tweak.
+	* testsuite/27_io/filebuf.cc: Tweak.
+
+2002-01-08  John Fardo  <jfardo@laurelnetworks.com>
+	    Brad Garcia  <garsh@attbi.com>
+
+	* testsuite/27_io/filebuf_members.cc: Add test.
+
+2002-01-07  Benjamin Kosnik  <bkoz@redhat.com>
+ 	    Craig Rodrigues  <rodrigc@mediaone.net>
+
+	libstdc++/5174
+	* po/Makefile.am (mkinstalldirs): Add.
+	* po/Makefile.in: Regenerate.
+
+2002-01-07  David Billinghurst  <David.Billinghurst@riotinto.com>
+
+	* testsuite_flags.in: Add -fmessage-length=0 to CXXFLAGS *
+	testsuite/lib/prune.exp: Delete lines ":In function ..."  from
+	compiler output.
+	* testsuite/23_containers/map_operators.cc: Remove
+	dg-excess-errors comment.
+	* testsuite/23_containers/set_operators.cc: Likewise.
+
+2002-01-06  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/stl_function.h:  Remove two lines of comments;
+	adjust copyright years.
+
+2002-01-04  Benjamin  Kosnik  <bkoz@redhat.com>
+
+	* include/Makefile.am (std_headers): Remove cXXX from list.
+	(c_base_srcdir): No bits subdirectory.
+	(c_base_builddir): Same.
+	(c_base_headers): Adjust names, add ciso646.
+	(bits_headers): Remove std_xxx.h headers.
+	* include/Makefile.in: Regenerate.
+
+	* include/ext/iterator: Adjust includes.
+	* include/ext/ropeimpl.h: Same.
+	* include/ext/stl_hash_fun.h: Same.
+	* include/ext/algorithm: Same.
+
+	* include/backward/bvector.h: Adjust includes.
+	* include/backward/vector.h: Same.
+	* include/backward/strstream: Same.
+	* include/backward/streambuf.h: Same.
+	* include/backward/stack.h: Same.
+	* include/backward/set.h: Same.
+	* include/backward/queue.h: Same.
+	* include/backward/multiset.h: Same.
+	* include/backward/multimap.h: Same.
+	* include/backward/map.h: Same.
+	* include/backward/list.h: Same.
+	* include/backward/iterator.h: Same.
+	* include/backward/iostream.h: Same.
+	* include/backward/iomanip.h: Same.
+	* include/backward/fstream.h: Same.
+	* include/backward/deque.h: Same.
+	* include/backward/complex.h: Same.
+
+	* include/bits/std_algorithm.h: Move to...
+	* include/std/algorithm: ...here.
+	* include/bits/std_iosfwd.h, std_locale.h, std_stack.h,
+	std_bitset.h, std_ios.h, std_map.h, std_stdexcept.h,
+	std_complex.h, std_iostream.h, std_memory.h, std_streambuf.h,
+	std_deque.h, std_istream.h, std_numeric.h, std_string.h,
+	std_fstream.h, std_ostream.h, std_utility.h, std_iterator.h,
+	std_queue.h, std_valarray.h, std_functional.h, std_limits.h,
+	std_set.h, std_vector.h, std_iomanip.h, std_list.h, std_sstream.h:
+	Same.
+
+	* include/c_std/bits/std_cassert.h: Move to...
+	* include/c_std/cassert: Here.
+	* include/c_std/std_cctype.h, std_cerrno.h, std_cfloat.h,
+	std_climits.h, std_clocale.h, std_cmath.h, std_csetjmp.h,
+	std_csignal.h, std_cstdarg.h, std_cstddef.h, std_cstdio.h,
+	std_cstdlib.h, std_cstring.h, std_ctime.h, std_cwchar.h,
+	std_cwctype.h: Same.
+	* include/c_std/cmath: Adjust cmath.tcc include.
+	* include/c_std/cstdlib: Adjust includes.
+	* include/c_std/cwchar: Same.
+	* include/c_std/ctime: Same.
+	* include/c_std/cstring: Same.
+	* include/c_std/cstdio: Same.
+	* include/c_std/bits: Remove directory.
+
+	* include/c/bits/std_cassert.h: Move to...
+	* include/c/cassert: Here.
+	* include/c/std_cctype.h, std_cerrno.h, std_cfloat.h,
+	std_climits.h, std_clocale.h, std_cmath.h, std_csetjmp.h,
+	std_csignal.h, std_cstdarg.h, std_cstddef.h, std_cstdio.h,
+	std_cstdlib.h, std_cstring.h, std_ctime.h, std_cwchar.h,
+	std_cwctype.h: Same.
+	* include/c/bits: Remove directory.
+
+	* include/std/cwctype: Remove.
+	* include/std/cwchar: Remove.
+	* include/std/ctime: Remove.
+	* include/std/cstring: Remove.
+	* include/std/cstdlib: Remove.
+	* include/std/cstdio: Remove.
+	* include/std/cstddef: Remove.
+	* include/std/cstdarg: Remove.
+	* include/std/csignal: Remove.
+	* include/std/csetjmp: Remove.
+	* include/std/cmath: Remove.
+	* include/std/clocale: Remove.
+	* include/std/climits: Remove.
+	* include/std/ciso646: Remove.
+	* include/std/cfloat: Remove.
+	* include/std/cerrno: Remove.
+	* include/std/cctype: Remove.
+	* include/std/cassert: Remove.
+
+	* include/bits/fpos.h: Adjust includes, removing <bits/std_xxx.h>
+	files and subsituting <xxx>.
+	* include/bits/valarray_array.h: Same.
+	* include/bits/stl_uninitialized.h: Same.
+	* include/bits/stl_alloc.h: Same.
+	* include/bits/stl_algobase.h: Same.
+	* include/bits/sstream.tcc: Same.
+	* include/bits/pthread_allocimpl.h: Same.
+	* include/bits/ostream.tcc: Same.
+	* include/bits/localefwd.h: Same.
+	* include/bits/locale_facets.tcc: Same.
+	* include/bits/locale_facets.h: Same.
+	* include/bits/istream.tcc: Same.
+	* include/bits/char_traits.h: Same.
+	* include/bits/boost_concept_check.h: Same.
+	* include/bits/basic_file.h: Same.
+	* include/std/bitset: Same.
+	* include/std/complex: Same.
+	* include/std/fstream: Same.
+	* include/std/functional: Same.
+	* include/std/ios: Same.
+	* include/std/iostream: Same.
+	* include/std/ostream: Same.
+	* include/std/sstream: Same.
+	* include/std/streambuf: Same.
+	* include/std/string: Same.
+	* include/std/iterator: Same.
+	* include/std/valarray: Same.
+
+	* src/ios.cc: Adjust includes.
+	* src/valarray-inst.cc: Same.
+	* src/string-inst.cc: Same.
+	* src/stl-inst.cc: Same.
+	* src/stdexcept.cc: Same.
+	* src/misc-inst.cc: Same.
+	* src/localename.cc: Same.
+	* src/locale-inst.cc: Same.
+	* src/locale.cc: Same.
+	* src/limits.cc: Same.
+	* src/concept-inst.cc: Same.
+	* src/complex_io.cc: Same.
+	* src/codecvt.cc: Same.
+	* src/bitset.cc: Same.
+	* src/cmath.cc: Same.
+
+2002-01-04  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/stl_tree.h (rb_tree):  Move to...
+	* include/ext/rb_tree:  ...here, new file.
+	* include/Makefile.am (ext_headers):  Add new file.
+	* include/Makefile.in:  Regenerate.
+	* include/bits/stl_tempbuf.h (get_temporary_buffer + helper,
+	return_temporary_buffer, struct temporary_buffer):  Move to...
+	* include/ext/memory:  ...here.
+	* testsuite/ext/headers.cc:  Include <ext/rb_tree>.
+	* include/backward/tempbuf.h:  Include <ext/memory>, tweak.
+	* include/backward/tree.h:  Include <ext/rb_tree), tweak.
+
+2002-01-03  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/stl_numeric.h (power + helpers, iota):  Move to...
+	* include/ext/numeric:  ...here, new file.
+        * include/bits/stl_function.h (identity_element, unary_compose,
+	binary_compose, compose1, compose2, identity, select1st,
+	select2nd, project1st + helper, project2nd + helper,
+	constant_void_fun + helper, constant_unary_fun + helper,
+	costant_binary_fun + helper, constant0, constant1, constant2,
+	subtractive_rng, mem_fun1, mem_fun1_ref):  Move to...
+        * include/ext/functional:  ...here, new file.
+        * include/Makefile.am (ext_headers):  Add new files.
+        * include/Makefile.in:  Regenerate.
+        * testsuite/ext/headers.cc:  Include <ext/numeric> and
+	<ext/functional>.
+	* include/backward/algo.h:  Include <ext/numeric>, tweak.
+	* include/backward/function.h:  Include <ext/functional>, tweak.
+        * include/ext/ropeimpl.h:  Include <ext/numeric>.
+
+2002-01-03  Jeffrey A Law  <law@redhat.com>
+
+        * config/os/hpux/bits/os_defines.h: Prefix __strtoll and
+        __strtoull declarations with __extension__.
+
+2002-01-03  David Billinghurst <David.Billinghurst@riotinto.com>
+
+	* testsuite/lib/prune.exp: Correct regular expression for
+	-ffunction-sections
+
+2002-01-02  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/bits/stl_algo.h (upper_bound, equal_range, binary_search):
+	Change concept checks, as with lower_bound and PR 2054.
+	* testsuite/ext/concept_checks.cc:  Expand test to include those.
+
+2002-01-02  Phil Edwards  <pme@gcc.gnu.org>
+
+	* include/bits/boost_concept_check.h:  Import some changes from
+	upsteam (Boost) version.
+
+2002-01-02  Paolo Carlini  <pcarlini@unitus.it>
+
+	* include/bits/stl_algobase.h (copy_n + helpers,
+	lexicographical_compare_3way + helpers):  Move to...
+	* include/ext/algorithm:  ...here.
+        * include/bits/stl_uninitialized.h (uninitialized_copy_n +
+        helpers):  Move to...
+        * include/ext/memory:  ...here, new file.
+        * include/Makefile.am (ext_headers):  Add new file.
+        * include/Makefile.in:  Regenerate.
+        * testsuite/ext/headers.cc:  Include <ext/memory>.
+	* include/backward/algobase.h:  Include <ext/memory> and
+	<ext/algorithm>, tweak.
+        * include/ext/ropeimpl.h:  Include <ext/memory>, tweak.
+	* include/ext/stl_rope.h:  Include <ext/memory>, tweak.
+
+2002-01-01  Roger Sayle <roger@eyesopen.com>
+
+	* libmath/stubs.c (sinf,cosf): Implement stubs to enable the
+	equivalent ___builtin__ versions.
+
+	* include/c_shadow/bits/std_cmath.h: All __builtin math functions
+	are available in libstdc++ as the necessary stub implementations
+	are provided by libmath/stubs.c.
+
+2002-01-01  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* configure.in: Add support for NetBSD cross compiles.
+	* configure: Regenerate.
