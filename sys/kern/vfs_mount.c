@@ -1058,7 +1058,8 @@ devfs_first(void)
 	set_rootvnode(td);
 
 	error = kern_symlink(td, "/", "dev", UIO_SYSSPACE);
-	printf("kern_symlink  = %d\n", error);
+	if (error)
+		printf("kern_symlink /dev -> / returns %d\n", error);
 
 	return (mp);
 }
@@ -1092,13 +1093,6 @@ devfs_fixup(struct thread *td)
 	TAILQ_FIRST(&mountlist)->mnt_vnodecovered = NULL;
 	set_rootvnode(td);
 	cache_purgevfs(rootvnode->v_mount);
-
-
-#if 0
-	/* We may have a chance... */
-	error = kern_mkdir(td, "/dev", UIO_SYSSPACE, 0700);
-	printf("kern_mkdir = %d\n", error);
-#endif
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, "/dev", td);
 	error = namei(&nd);
@@ -1260,7 +1254,6 @@ vfs_mountroot_try(const char *mountfrom)
 	    "fspath", "/",
 	    "from", path,
 	    NULL);
-	printf("kernel_vmount = %d\n", error);
 	if (error == 0) {
 		mp = TAILQ_FIRST(&mountlist);
 
