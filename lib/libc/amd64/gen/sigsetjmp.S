@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigsetjmp.S,v 1.5 1996/01/22 00:00:54 julian Exp $
+ *	$Id: sigsetjmp.S,v 1.6 1996/02/17 12:25:21 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sigsetjmp.S,v 1.5 1996/01/22 00:00:54 julian Exp $"
+	.asciz "$Id: sigsetjmp.S,v 1.6 1996/02/17 12:25:21 peter Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -69,13 +69,15 @@ ENTRY(sigsetjmp)
 	movl	%eax,32(%ecx)
 	testl	%eax,%eax
 	jz	1f
+	PIC_PROLOGUE
 	pushl	$0
 #ifdef _THREAD_SAFE
-	call	PIC_PLT(__thread_sys_sigblock)
+	call	PIC_PLT(CNAME(_thread_sys_sigblock))
 #else
-	call	PIC_PLT(_sigblock)
+	call	PIC_PLT(CNAME(sigblock))
 #endif
 	addl	$4,%esp
+	PIC_EPILOGUE
 	movl	4(%esp),%ecx 
 	movl	%eax,24(%ecx)
 1:	movl	0(%esp),%edx
@@ -97,13 +99,15 @@ ENTRY(siglongjmp)
 	movl	4(%esp),%edx
 	cmpl	$0,32(%edx)
 	jz	1f
+	PIC_PROLOGUE
 	pushl	24(%edx)
 #ifdef _THREAD_SAFE
-	call	PIC_PLT(__thread_sys_sigsetmask)
+	call	PIC_PLT(CNAME(_thread_sys_sigsetmask))
 #else
-	call	PIC_PLT(_sigsetmask)
+	call	PIC_PLT(CNAME(sigsetmask))
 #endif
 	addl	$4,%esp
+	PIC_EPILOGUE
 1:	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	movl	0(%edx),%ecx

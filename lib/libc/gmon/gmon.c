@@ -44,7 +44,11 @@ static char sccsid[] = "@(#)gmon.c	8.1 (Berkeley) 6/4/93";
 #include <fcntl.h>
 #include <unistd.h>
 
+#if defined(__ELF__)
+extern char *minbrk asm (".minbrk");
+#else
 extern char *minbrk asm ("minbrk");
+#endif
 
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
 

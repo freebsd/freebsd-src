@@ -33,27 +33,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: setlogin.S,v 1.1 1994/08/05 01:18:50 wollman Exp $
+ *	$Id: setlogin.S,v 1.2 1995/01/23 01:30:06 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: setlogin.S,v 1.2 1995/01/23 01:30:06 davidg Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "SYS.h"
 
-.globl	__logname_valid		/* in getlogin() */
+.globl	CNAME(_logname_valid)		/* in getlogin() */
 
 SYSCALL(setlogin)
 #ifdef PIC
 	PIC_PROLOGUE
 	pushl	%eax
-	movl	PIC_GOT(__logname_valid),%eax
+	movl	PIC_GOT(CNAME(_logname_valid)),%eax
 	movl	$0,(%eax)
 	popl	%eax
 	PIC_EPILOGUE
 #else
-	movl	$0,__logname_valid
+	movl	$0,CNAME(_logname_valid)
 #endif
 	ret				/* setlogin(name) */
