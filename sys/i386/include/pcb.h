@@ -79,6 +79,9 @@ struct pcb {
  * core dumps. For the i386: ???
  */
 struct md_coredump {
+#ifdef lint
+	int dummy;
+#endif
 };
 
 #ifdef _KERNEL
