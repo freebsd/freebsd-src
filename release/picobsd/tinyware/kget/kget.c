@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kget.c,v 1.1 1999/01/08 21:09:42 abial Exp $
  */
 
 #include <stdio.h>
@@ -106,6 +106,7 @@ main(int argc, char *argv[])
 		}
 		i+=sizeof(struct isa_device)+8;
 	}
+	fprintf(fout,"q\n");
 	fclose(fout);
 	free(buf);
 	exit(0);
