@@ -1,0 +1,27 @@
+Try first:
+
+USA:
+sup2.freebsd.org
+sup3.freebsd.org
+sup4.freebsd.org
+
+Europe:
+sup.de.freebsd.org
+nic.funet.fi
+	a bit non-standard, get supfiles from
+	ftp://nic.funet.fi/pub/mirrors/sup.freebsd.org/
+
+Australia:
+sup.au.freebsd.org
+
+South Africa:
+sup.za.freebsd.org
+
+Italia:
+sup.it.freebsd.org
+
+Korea:
+sup.kr.freebsd.org
+
+Japan:
+sup.jp.freebsd.org
