@@ -35,7 +35,6 @@
 #if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
-#include "opt_ipdivert.h"
 #include "opt_inet.h"
 #include "opt_ipsec.h"
 #ifndef INET
@@ -3077,9 +3076,8 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_DIVERT:
 		case O_TEE:
-#ifndef	IPDIVERT
-			return EINVAL;
-#endif
+			if (ip_divert_ptr == NULL)
+				return EINVAL;
 		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
 		case O_COUNT:
