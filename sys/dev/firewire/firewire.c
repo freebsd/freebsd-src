@@ -59,6 +59,13 @@
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/iec68113.h>
 
+struct crom_src_buf {
+	struct crom_src	src;
+	struct crom_chunk root;
+	struct crom_chunk vendor;
+	struct crom_chunk hw;
+};
+
 int firewire_debug=0, try_bmr=1;
 SYSCTL_INT(_debug, OID_AUTO, firewire_debug, CTLFLAG_RW, &firewire_debug, 0,
 	"FireWire driver debug flag");
@@ -467,6 +474,7 @@ firewire_detach( device_t dev )
 	}
 	free(sc->fc->topology_map, M_FW);
 	free(sc->fc->speed_map, M_FW);
+	free(sc->fc->crom_src_buf, M_FW);
 	return(0);
 }
 #if 0
@@ -502,25 +510,11 @@ fw_drain_txq(struct firewire_comm *fc)
 		fw_xferq_drain(fc->it[i]);
 }
 
-/*
- * Called after bus reset.
- */
-void
-fw_busreset(struct firewire_comm *fc)
+static void
+fw_reset_csr(struct firewire_comm *fc)
 {
-	struct firewire_dev_comm *fdc;
-	device_t *devlistp;
-	int devcnt;
 	int i;
 
-	switch(fc->status){
-	case FWBUSMGRELECT:
-		callout_stop(&fc->bmr_callout);
-		break;
-	default:
-		break;
-	}
-	fc->status = FWBUSRESET;
 	CSRARC(fc, STATE_CLEAR)
 			= 1 << 23 | 0 << 17 | 1 << 16 | 1 << 15 | 1 << 14 ;
 	CSRARC(fc, STATE_SET) = CSRARC(fc, STATE_CLEAR);
@@ -559,6 +553,93 @@ fw_busreset(struct firewire_comm *fc)
 
 	CSRARC(fc, STATE_CLEAR) &= ~(1 << 23 | 1 << 15 | 1 << 14 );
 	CSRARC(fc, STATE_SET) = CSRARC(fc, STATE_CLEAR);
+}
+
+static void
+fw_init_crom(struct firewire_comm *fc)
+{
+	struct crom_src *src;
+
+	fc->crom_src_buf = (struct crom_src_buf *)
+		malloc(sizeof(struct crom_src_buf), M_FW, M_WAITOK | M_ZERO);
+	if (fc->crom_src_buf == NULL)
+		return;
+
+	src = &fc->crom_src_buf->src;
+	bzero(src, sizeof(struct crom_src));
+
+	/* BUS info sample */
+	src->hdr.info_len = 4;
+
+	src->businfo.bus_name = CSR_BUS_NAME_IEEE1394;
+
+	src->businfo.irmc = 1;
+	src->businfo.cmc = 1;
+	src->businfo.isc = 1;
+	src->businfo.bmc = 1;
+	src->businfo.pmc = 0;
+	src->businfo.cyc_clk_acc = 100;
+	src->businfo.max_rec = fc->maxrec;
+	src->businfo.max_rom = MAXROM_4;
+	src->businfo.generation = 0;
+	src->businfo.link_spd = fc->speed;
+
+	src->businfo.eui64.hi = fc->eui.hi;
+	src->businfo.eui64.lo = fc->eui.lo;
+
+	STAILQ_INIT(&src->chunk_list);
+
+	fc->crom_src = src;
+	fc->crom_root = &fc->crom_src_buf->root;
+}
+
+static void
+fw_reset_crom(struct firewire_comm *fc)
+{
+	struct crom_src_buf *buf;
+	struct crom_src *src;
+	struct crom_chunk *root;
+
+	if (fc->crom_src_buf == NULL)
+		fw_init_crom(fc);
+
+	buf =  fc->crom_src_buf;
+	src = fc->crom_src;
+	root = fc->crom_root;
+
+	src->businfo.generation ++;
+	STAILQ_INIT(&src->chunk_list);
+
+	bzero(root, sizeof(struct crom_chunk));
+	crom_add_chunk(src, NULL, root, 0);
+	crom_add_entry(root, CSRKEY_NCAP, 0x0083c0); /* XXX */
+	/* private company_id */
+	crom_add_entry(root, CSRKEY_VENDOR, CSRVAL_VENDOR_PRIVATE);
+	crom_add_simple_text(src, root, &buf->vendor, "FreeBSD Project");
+	crom_add_entry(root, CSRKEY_HW, __FreeBSD_version);
+	crom_add_simple_text(src, root, &buf->hw, hostname);
+}
+
+/*
+ * Called after bus reset.
+ */
+void
+fw_busreset(struct firewire_comm *fc)
+{
+	struct firewire_dev_comm *fdc;
+	device_t *devlistp;
+	int i, devcnt;
+
+	switch(fc->status){
+	case FWBUSMGRELECT:
+		callout_stop(&fc->bmr_callout);
+		break;
+	default:
+		break;
+	}
+	fc->status = FWBUSRESET;
+	fw_reset_csr(fc);
+	fw_reset_crom(fc);
 
 	if (device_get_children(fc->bdev, &devlistp, &devcnt) == 0) {
 		for( i = 0 ; i < devcnt ; i++)
@@ -569,6 +650,8 @@ fw_busreset(struct firewire_comm *fc)
 			}
 		free(devlistp, M_TEMP);
 	}
+
+	crom_load(&fc->crom_src_buf->src, fc->config_rom, CROMSIZE);
 }
 
 /* Call once after reboot */
@@ -675,6 +758,7 @@ void fw_init(struct firewire_comm *fc)
 	}
 #endif
 
+	fc->crom_src_buf = NULL;
 
 #ifdef FW_VMACCESS
 	xfer = fw_xfer_alloc();
@@ -1215,7 +1299,8 @@ loop:
 			fc->ongoeui.hi = 0xffffffff; fc->ongoeui.lo = 0xffffffff;
 			goto loop;
 		}
-		fwdev = malloc(sizeof(struct fw_device), M_FW, M_NOWAIT);
+		fwdev = malloc(sizeof(struct fw_device), M_FW,
+							M_NOWAIT | M_ZERO);
 		if(fwdev == NULL)
 			return;
 		fwdev->fc = fc;

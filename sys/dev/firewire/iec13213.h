@@ -63,6 +63,12 @@
 #define CSRTYPE_L	(2 << CSRTYPE_SHIFT) /* Leaf */
 #define CSRTYPE_D	(3 << CSRTYPE_SHIFT) /* Directory */
 
+/*
+ * CSR keys
+ * 00 - 2F: defined by CSR architecture standards.
+ * 30 - 37: defined by BUS starndards
+ * 38 - 3F: defined by Vendor/Specifier
+ */
 #define CSRKEY_MASK	0x3f
 #define CSRKEY_DESC	0x01 /* Descriptor */
 #define CSRKEY_BDINFO	0x02 /* Bus_Dependent_Info */
@@ -98,6 +104,7 @@
 #define CROM_LUN	(CSRTYPE_I | CSRKEY_DINFO) /* 0x14 Logical unit num. */
 #define CROM_MGM	(CSRTYPE_C | CSRKEY_DINFO) /* 0x54 Management agent */
 
+#define CSRVAL_VENDOR_PRIVATE	0xacde48
 #define CSRVAL_1394TA	0x00a02d
 #define CSRVAL_ANSIT10	0x00609e
 #define CSRVAL_IETF	0x00005e
@@ -155,12 +162,24 @@ struct csrtext {
 struct bus_info {
 #define	CSR_BUS_NAME_IEEE1394	0x31333934
 	u_int32_t bus_name;	
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int32_t irmc:1,		/* iso. resource manager capable */
+		  cmc:1,		/* cycle master capable */
+		  isc:1,		/* iso. operation support */
+		  bmc:1,		/* bus manager capable */
+		  pmc:1,		/* power manager capable */
+		  :3,
+		  cyc_clk_acc:8,	/* 0 <= ppm <= 100 */
+		  max_rec:4,		/* (2 << max_rec) bytes */
+		  :2,
+		  max_rom:2,
+		  generation:4,
+		  :1,
+		  link_spd:3;
+#else
 	u_int32_t link_spd:3,
 		  :1,
 		  generation:4,
-#define MAXROM_4	0
-#define MAXROM_64	1
-#define MAXROM_1024	2
 		  max_rom:2,
 		  :2,
 		  max_rec:4,		/* (2 << max_rec) bytes */
@@ -171,8 +190,13 @@ struct bus_info {
 		  isc:1,		/* iso. operation support */
 		  cmc:1,		/* cycle master capable */
 		  irmc:1;		/* iso. resource manager capable */
+#endif
 	struct fw_eui64 eui64;
 };
+/* max_rom */
+#define MAXROM_4	0
+#define MAXROM_64	1
+#define MAXROM_1024	2
 
 #define CROM_MAX_DEPTH	10
 struct crom_ptr {
@@ -212,9 +236,8 @@ struct crom_chunk {
 	int ref_index; 
 	int offset;
 	struct {
-			u_int32_t crc:16,
-				  crc_len:16;
-			u_int32_t buf[CROM_MAX_CHUNK_LEN]; 
+		BIT16x2(crc_len, crc);
+		u_int32_t buf[CROM_MAX_CHUNK_LEN]; 
 	} data;
 };
 

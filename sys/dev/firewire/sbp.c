@@ -1090,7 +1090,7 @@ END_DEBUG
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQQ, 0x04);
 	if (xfer == NULL)
 		return;
-	if (sdev->status == SBP_DEV_ATTACHED)
+	if (sdev->status == SBP_DEV_ATTACHED || sdev->status == SBP_DEV_PROBE)
 		xfer->act.hand = sbp_agent_reset_callback;
 	else
 		xfer->act.hand = sbp_do_attach;
@@ -2291,11 +2291,13 @@ printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[4]), ntohl(ocb->orb[5]), ntoh
 	case XPT_CALC_GEOMETRY:
 	{
 		struct ccb_calc_geometry *ccg;
+#if __FreeBSD_version < 501100
 		u_int32_t size_mb;
 		u_int32_t secs_per_cylinder;
 		int extended = 1;
-		ccg = &ccb->ccg;
+#endif
 
+		ccg = &ccb->ccg;
 		if (ccg->block_size == 0) {
 			printf("sbp_action1: block_size is 0.\n");
 			ccb->ccb_h.status = CAM_REQ_INVALID;
@@ -2318,10 +2320,11 @@ SBP_DEBUG(1)
 				ccg->volume_size);
 END_DEBUG
 
+#if __FreeBSD_version < 501100
 		size_mb = ccg->volume_size
 			/ ((1024L * 1024L) / ccg->block_size);
 
-		if (size_mb >= 1024 && extended) {
+		if (size_mb > 1024 && extended) {
 			ccg->heads = 255;
 			ccg->secs_per_track = 63;
 		} else {
@@ -2331,6 +2334,9 @@ END_DEBUG
 		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
 		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
 		ccb->ccb_h.status = CAM_REQ_CMP;
+#else
+		cam_calc_geometry(ccg, /*extended*/1);
+#endif
 		xpt_done(ccb);
 		break;
 	}

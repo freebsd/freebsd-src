@@ -77,6 +77,7 @@ static void fwe_as_input __P((struct fw_xferq *));
 
 static int fwedebug = 0;
 static int stream_ch = 1;
+static int tx_speed = 2;
 
 MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over FireWire interface");
 SYSCTL_INT(_debug, OID_AUTO, if_fwe_debug, CTLFLAG_RW, &fwedebug, 0, "");
@@ -85,6 +86,8 @@ SYSCTL_NODE(_hw_firewire, OID_AUTO, fwe, CTLFLAG_RD, 0,
 	"Ethernet Emulation Subsystem");
 SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, stream_ch, CTLFLAG_RW, &stream_ch, 0,
 	"Stream channel to use");
+SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, tx_speed, CTLFLAG_RW, &tx_speed, 0,
+	"Transmission Speed");
 
 #ifdef DEVICE_POLLING
 #define FWE_POLL_REGISTER(func, fwe, ifp)			\
@@ -354,7 +357,7 @@ fwe_init(void *arg)
 			xfer = fw_xfer_alloc(M_FWE);
 			if (xfer == NULL)
 				break;
-			xfer->spd = 2;
+			xfer->spd = tx_speed;
 			xfer->fc = fwe->fd.fc;
 			xfer->retry_req = fw_asybusy;
 			xfer->sc = (caddr_t)fwe;

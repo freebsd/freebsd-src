@@ -110,6 +110,10 @@ fwohci_pci_probe( device_t dev )
 		device_set_desc(dev, "Texas Instruments TSB43AB23");
 		return 0;
 	}
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB82AA2)) {
+		device_set_desc(dev, "Texas Instruments TSB82AA2");
+		return 0;
+	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TIPCI4450)) {
 		device_set_desc(dev, "Texas Instruments PCI4450");
 		return 0;

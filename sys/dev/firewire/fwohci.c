@@ -94,8 +94,8 @@ char fwohcicode[32][0x20]={
 	"Undef","Undef","Undef","ack tardy",
 	"Undef","ack data_err","ack type_err",""};
 
-#define MAX_SPEED 2
-extern char linkspeed[MAX_SPEED+1][0x10];
+#define MAX_SPEED 3
+extern char linkspeed[][0x10];
 u_int32_t tagbit[4] = { 1 << 28, 1 << 29, 1 << 30, 1 << 31};
 
 static struct tcode_info tinfo[] = {
@@ -648,7 +648,8 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 		return ENOMEM;
 	}
 
-#if 1
+#if 0
+	bzero(&sc->fc.config_rom[0], CROMSIZE);
 	sc->fc.config_rom[1] = 0x31333934;
 	sc->fc.config_rom[2] = 0xf000a002;
 	sc->fc.config_rom[3] = OREAD(sc, OHCI_EUID_HI);
@@ -1761,6 +1762,8 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_PHY_BUS_R);
 #endif
 		fw_busreset(fc);
+		OWRITE(sc, OHCI_CROMHDR, ntohl(sc->fc.config_rom[0]));
+		OWRITE(sc, OHCI_BUS_OPT, ntohl(sc->fc.config_rom[2]));
 	}
 busresetout:
 	if((stat & OHCI_INT_DMA_IR )){
