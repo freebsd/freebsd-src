@@ -87,6 +87,12 @@ struct tun_softc {
 #define TUNDEBUG	if (tundebug) if_printf
 #define	TUNNAME		"tun"
 
+/*
+ * All mutable global variables in if_tun are locked using tunmtx, with
+ * the exception of tundebug, which is used unlocked, and tunclones,
+ * which is static after setup.
+ */
+static struct mtx tunmtx;
 static MALLOC_DEFINE(M_TUN, TUNNAME, "Tunnel Interface");
 static int tundebug = 0;
 static struct clonedevs *tunclones;
@@ -147,15 +153,30 @@ tunclone(void *arg, char *name, int namelen, dev_t *dev)
 	}
 }
 
+static void
+tun_destroy(struct tun_softc *tp)
+{
+	dev_t dev;
+
+	KASSERT((tp->tun_flags & TUN_OPEN) == 0,
+	    ("tununits is out of sync - unit %d", tp->tun_if.if_dunit));
+
+	dev = tp->tun_dev;
+	bpfdetach(&tp->tun_if);
+	if_detach(&tp->tun_if);
+	destroy_dev(dev);
+	free(tp, M_TUN);
+}
+
 static int
 tunmodevent(module_t mod, int type, void *data)
 {
 	static eventhandler_tag tag;
 	struct tun_softc *tp;
-	dev_t dev;
 
 	switch (type) {
 	case MOD_LOAD:
+		mtx_init(&tunmtx, "tunmtx", NULL, MTX_DEF);
 		clone_setup(&tunclones);
 		tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
 		if (tag == NULL)
@@ -164,19 +185,16 @@ tunmodevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		EVENTHANDLER_DEREGISTER(dev_clone, tag);
 
-		while (!TAILQ_EMPTY(&tunhead)) {
-			tp = TAILQ_FIRST(&tunhead);
-			KASSERT((tp->tun_flags & TUN_OPEN) == 0,
-			    ("tununits is out of sync - unit %d",
-			    tp->tun_if.if_dunit));
+		mtx_lock(&tunmtx);
+		while ((tp = TAILQ_FIRST(&tunhead)) != NULL) {
 			TAILQ_REMOVE(&tunhead, tp, tun_list);
-			dev = tp->tun_dev;
-			bpfdetach(&tp->tun_if);
-			if_detach(&tp->tun_if);
-			destroy_dev(dev);
-			free(tp, M_TUN);
+			mtx_unlock(&tunmtx);
+			tun_destroy(tp);
+			mtx_lock(&tunmtx);
 		}
+		mtx_unlock(&tunmtx);
 		clone_cleanup(&tunclones);
+		mtx_destroy(&tunmtx);
 		break;
 	}
 	return 0;
@@ -215,7 +233,9 @@ tuncreate(dev_t dev)
 	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
 	sc->tun_flags = TUN_INITED;
 	sc->tun_dev = dev;
+	mtx_lock(&tunmtx);
 	TAILQ_INSERT_TAIL(&tunhead, sc, tun_list);
+	mtx_unlock(&tunmtx);
 
 	ifp = &sc->tun_if;
 	if_initname(ifp, TUNNAME, dev2unit(dev));
