@@ -911,11 +911,9 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 #endif
 
 	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
-		mtx_lock(&Giant);
-		pmap_object_init_pt(map->pmap, start,
+		vm_map_pmap_enter(map, start,
 				    object, OFF_TO_IDX(offset), end - start,
 				    cow & MAP_PREFAULT_PARTIAL);
-		mtx_unlock(&Giant);
 	}
 
 	return (KERN_SUCCESS);
@@ -1272,6 +1270,23 @@ vm_map_submap(
 }
 
 /*
+ *	vm_map_pmap_enter:
+ *
+ *	Preload the mappings for the given object into the specified
+ *	map.  This eliminates the soft faults on process startup and
+ *	immediately after an mmap(2).
+ */
+void
+vm_map_pmap_enter(vm_map_t map, vm_offset_t addr,
+    vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags)
+{
+
+	mtx_lock(&Giant);
+	pmap_object_init_pt(map->pmap, addr, object, pindex, size, flags);
+	mtx_unlock(&Giant);
+}
+
+/*
  *	vm_map_protect:
  *
  *	Sets the protection of the specified address
@@ -1491,16 +1506,13 @@ vm_map_madvise(
 			vm_object_madvise(current->object.vm_object,
 					  pindex, count, behav);
 			if (behav == MADV_WILLNEED) {
-				mtx_lock(&Giant);
-				pmap_object_init_pt(
-				    map->pmap, 
+				vm_map_pmap_enter(map, 
 				    useStart,
 				    current->object.vm_object,
 				    pindex, 
 				    (count << PAGE_SHIFT),
 				    MAP_PREFAULT_MADVISE
 				);
-				mtx_unlock(&Giant);
 			}
 		}
 		vm_map_unlock_read(map);
