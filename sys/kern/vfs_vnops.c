@@ -739,9 +739,7 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	if (vap->va_type == VREG) {
 		sb->st_blksize = vap->va_blocksize;
 	} else if (vn_isdisk(vp, NULL)) {
-		sb->st_blksize = vp->v_rdev->si_bsize_best;
-		if (sb->st_blksize < vp->v_rdev->si_bsize_phys)
-			sb->st_blksize = vp->v_rdev->si_bsize_phys;
+		sb->st_blksize = vp->v_rdev->si_bsize_phys;
 		if (sb->st_blksize < BLKDEV_IOSIZE)
 			sb->st_blksize = BLKDEV_IOSIZE;
 	} else {
