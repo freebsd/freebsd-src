@@ -645,7 +645,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       </sect4>
 
       <sect4>
-        <title>Conseils d'installation NFS</title>
+        <title>Conseils d'installation via NFS</title>
 
         <para>L'installation via NFS est tr&egrave;s simple: copiez
         simplement les fichiers des distributions de &os, dont vous
@@ -684,104 +684,110 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       </sect4>
 
       <sect4>
-        <title>FTP Installation tips</title>
+        <title>Conseils d'installation via FTP</title>
 
-        <para>FTP installation may be done from any mirror site containing a
-        reasonably up-to-date version of &os;.  A full menu of
-        reasonable choices for almost any location in the world is
-        provided in the FTP site menu during installation.</para>
+        <para>L'installation via FTP peut se faire depuis n'importe
+        quel site mirroir raisonnablement &agrave; jour de &os;. Un menu
+        complet comportant un nombre de choix raisonnalbe pour
+        diff&eacute;rents pays se trouve dans le menu site FTP lors de
+        l'installation.</para>
 
-        <para>If you are installing from some other FTP site not listed in
-        this menu, or you are having troubles getting your name server
-        configured properly, you can also specify your own URL by
-        selecting the <quote>URL</quote> choice in that menu.  A URL can
-        contain a hostname or an IP address, so something like the following would
-        work in the absence of a name server:</para>
+        <para>Si vous installez depuis un autre site FTP que un de
+        ceux fournit dans le menu, ou si vous avez des soucis avec
+        votre serveur de noms, vous pouvez sp&eacute;cifier votre propre URL
+        en s&eacute;lectionnant le choix <quote>URL</quote> dans le menu. Une
+        URL peut contenir un nom de machine ou une adresse IP, donc
+        quelque chose comme ce qui suit doit fonctionner en l'absence
+        d'un serveur de nom:</para>
 
         <screen>ftp://216.66.64.162/pub/FreeBSD/releases/&arch;/4.2-RELEASE</screen>
 
-        <para>There are three FTP installation modes you can use:
+        <para>Il y a trois modes d'installation FTP disponibles:
 	  <itemizedlist>
 	    <listitem>
-	      <para>FTP:  This method uses the standard
-              <quote>Active</quote> mode for transfers, in which the
-              server initiates a connection to the client.  This will
-              not work through most firewalls but will often work best
-              with older FTP servers that do not support passive mode.
-              If your connection hangs with passive mode, try this
-              one.</para>
+	      <para>FTP:  Cette m&eacute;thode utilise le mode
+              <quote>Actif</quote> standard pour les transferts. Ce
+              mode peut ne pas fonctionner correctement &agrave; travers la
+              plupart des firewalls mais risque de fonctionner tr&egrave;s
+              bien avec les vieux serveurs FTP qui ne supporte pas le
+              mode passif. Si votre connection se bloque avec le mode
+              passif, utilisez ce mode.</para>
 	    </listitem>
 	    <listitem>
-	      <para>FTP Passive:  This sets the FTP "Passive" mode
-              which prevents the server from opening connections to
-              the client.  This option is best for users to pass
-              through firewalls that do not allow incoming connections
-              on random port addresses.</para>
+	      <para>FTP Passive:  Ce mode active le mode  FTP
+              "Passif". Cette option est la meilleure pour les
+              personnes n&eacute;cessitant de traverser des firewalls qui
+              n'autorise pas les connexions entrantes sur des ports
+              al&eacute;atoires.</para>
 	    </listitem>
             <listitem>
-	      <para>FTP via an HTTP proxy: This option instructs &os;
-              to use HTTP to connect to a proxy for all FTP
-              operations.  The proxy will translate the requests and
-              send them to the FTP server.  This allows the user to
-              pass through firewalls that do not allow FTP at all, but
-              offer an HTTP proxy.  You must specify the hostname of
-              the proxy in addition to the FTP server.</para>
+	      <para>FTP via an HTTP proxy: Cette option informe &os;
+              d'utiliser un proxy HTTP pour toute connexion FTP. Le
+              proxy transforme alors les requ&egrave;tes et les envoient au
+              serveur FTP. Cela permet &agrave; l'utilisateur de traverser
+              certains firewalls qui n'autorisent pas le FTP, mais
+              offre une fonction de proxy HTTP. Vous devez fournir
+              l'adresse du proxy en plus du nom du serveur FTP.</para>
 
-	      <para>In the rare case that you have an FTP proxy that
-              does not go through HTTP, you can specify the URL as
-              something like:</para>
+	      <para>Dans certains cas, tr&egrave;s rare, ou vous disposez
+              d'un proxy FTP, mais qui ne supporte pas les requ&egrave;tes
+              HTTP, vous pouvez sp&eacute;cifier l'URL comme ceci:</para>
 
               <screen><userinput>ftp://foo.bar.com:<replaceable>port</replaceable>/pub/FreeBSD</userinput></screen>
 
-              <para>In the URL above, <replaceable>port</replaceable>
-              is the port number of the proxy FTP server.</para>
+              <para>Dans l'URL ci-dessus, <replaceable>port</replaceable>
+              correspond au num&eacute;ro du port du serveur FTP proxy.</para>
 	    </listitem>
 	  </itemizedlist>
 
       </sect4>
     </sect3>
     <sect3>
-      <title>Tips for Serial Console Users</title>
+      <title>Conseils pour les utilisateurs de console s&eacute;rie</title>
 
-      <para>If you'd like to install &os; on a machine using just a
-      serial port (e.g. you don't have or wish to use a VGA card),
-      please follow these steps:</para>
+      <para>Si vous d&eacute;sirez installer &os; sur une machine en
+      utilisant uniquement un port s&eacute;rie (e.g. si vous ne disposez pas
+      d'une carte graphique), suivez les instructions suivantes:</para>
 
       <procedure>
 	<step>
-	  <para>Connect some sort of ANSI (vt100) compatible terminal
-	  or terminal emulation program to the <devicename>COM1</devicename> port of the PC you
-	  are installing &os; onto.</para>
+	  <para>Connectez un terminal compatible ANSI (vt100) ou un
+          programme d'&eacute;mulation de terminal sur le port
+          <devicename>COM1</devicename> du PC sur lequel vous d&eacute;sirez
+          installer &os;.</para>
 	</step>
 	<step>
-	  <para>Unplug the keyboard (yes, that's correct!) and then
-	  try to boot from floppy or the installation CDROM, depending
-	  on the type of installation media you have, with the
-	  keyboard unplugged.</para>
+	  <para>D&eacute;branchez le clavier (oui vous avez bien lu!) et
+          essayez de d&eacute;marrer depuis une disquette ou depuis le CDROM
+          d'installation, en fonction du type de m&eacute;dia d'installation
+          en votre possession, avec le clavier d&eacute;branch&eacute;.</para>
 	</step>
 	<step>
-	  <para>If you don't get any output on your serial console,
-	  plug the keyboard in again and wait for some beeps.  If you
-	  are booting from the CDROM, proceed to <xref
-	  linkend="hitspace"> as soon as you
-	  hear the beep.</para>
+	  <para>Si vous n'obtenez aucun caract&egrave;re sur votre console
+          s&eacute;rie, branchez le clavier et attendez des sonneries. Si
+          vous d&eacute;marrez depuis le CDROM, allez &agrave; <xref
+	  linkend="hitspace"> aussi vite que possible.</para>
 	</step>
 	<step>
-	  <para>For a floppy boot, the first beep means to remove the
-	  <filename>kern.flp</filename> floppy and insert the
-	  <filename>mfsroot.flp</filename> floppy, after
-	  which you should press <keycap>Enter</keycap> and wait for another beep.</para>
+	  <para>Pour une installation via des disquettes, la premi&egrave;re
+          sonnerie indique de retirer la disquette
+          <filename>kern.flp</filename> et d'ins&eacute;rer la disquette
+          <filename>mfsroot.flp</filename> puis appuyez sur la touche
+          <keycap>Enter</keycap> et attendez une autre sonnerie.</para>
 	</step>
 	<step id="hitspace">
-	  <para>Hit the space bar, then enter</para>
+	  <para>Appuyez sur la barre d'espace et entrez</para>
 
 	  <screen><userinput>boot -h</userinput></screen>
 
-	  <para>and you should now definitely be seeing everything on
-	  the serial port.  If that still doesn't work, check your
-	  serial cabling as well as the settings on your terminal
-	  emulation program or actual terminal device.  It should be
-	  set for 9600 baud, 8 bits, no parity.</para>
+	  <para>Et vous deviez enfin voir des choses sur le port
+          s&eacute;rie. Si cela ne fonctionne pas, v&eacute;rifier
+          votre cablage s&eacute;rie et vos pr&eacute;f&eacute;rences
+          de l'&eacute;mulateur de terminal ou le
+          p&eacute;riph&eacute;rique. Il doivent &ecirc;tre
+          configur&eacute;s en 9600 baud, 8bits, pas de
+          parit&eacute;.</para>
+
 	</step>
       </procedure>
     </sect3>
