@@ -261,14 +261,15 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 				
 			case PNP_TAG_MEMORY_RANGE:
 				if (bootverbose) {
+					int temp = I16(resinfo + 7) << 8;
+
 					printf("%s: adding memory range "
 					       "%#x-%#x, size=%#x, "
 					       "align=%#x\n",
 					       pnp_eisaformat(id),
 					       I16(resinfo + 1)<<8,
-					       (I16(resinfo + 3)<<8)
-					       + I16(resinfo + 7) - 1,
-					       I16(resinfo + 7),
+					       (I16(resinfo + 3)<<8) + temp - 1,
+					       temp,
 					       I16(resinfo + 5));
 				}
 
@@ -282,9 +283,9 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 					I16(resinfo + 1)<<8;
 				config->ic_mem[config->ic_nmem].ir_end =
 					(I16(resinfo + 3)<<8)
-					+ I16(resinfo + 7) - 1;
+					+ (I16(resinfo + 7) << 8) - 1;
 				config->ic_mem[config->ic_nmem].ir_size =
-					I16(resinfo + 7);
+					I16(resinfo + 7) << 8;
 				config->ic_mem[config->ic_nmem].ir_align =
 					I16(resinfo + 5);
 				if (!config->ic_mem[config->ic_nmem].ir_align)
