@@ -130,7 +130,7 @@ stat_eta(struct xferstat *xs)
 	elapsed = xs->last.tv_sec - xs->start.tv_sec;
 	received = xs->rcvd - xs->offset;
 	expected = xs->size - xs->rcvd;
-	eta = (elapsed * expected) / received;
+	eta = (long)((double)elapsed * expected / received);
 	if (eta > 3600) {
 		fprintf(stderr, "%02ld:", eta / 3600);
 		eta %= 3600;
