@@ -109,7 +109,7 @@ put_entries(node)
 		printf("%s %s %d\n",
 		    node->entry, node->file, (node->lno + 63) / 64);
 	else if (xflag)
-		printf("%-16s%4d %-16s %s\n",
+		printf("%-16s %4d %-16s %s\n",
 		    node->entry, node->lno, node->file, node->pat);
 	else
 		fprintf(outf, "%s\t%s\t%c^%s%c\n",
