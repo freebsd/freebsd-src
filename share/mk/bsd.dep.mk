@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.8.2.4 1998/03/07 13:17:52 jkh Exp $
+#	$Id: bsd.dep.mk,v 1.25 1998/06/05 18:38:54 dt Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -31,31 +31,78 @@
 MKDEPCMD?=	mkdep
 DEPENDFILE?=	.depend
 
-# some of the rules involve .h sources, so remove them from mkdep line
+.if defined(SRCS)
+CLEANFILES?=
+
+.for _LSRC in ${SRCS:M*.l:N*/*}
+.for _LC in ${_LSRC:S/.l/.c/}
+${_LC}: ${_LSRC}
+	${LEX} -t ${LFLAGS} ${.ALLSRC} > ${.TARGET}
+SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
+CLEANFILES:= ${CLEANFILES} ${_LC}
+.endfor
+.endfor
+
+.for _YSRC in ${SRCS:M*.y:N*/*}
+.for _YC in ${_YSRC:S/.y/.c/}
+SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
+CLEANFILES:= ${CLEANFILES} ${_YC}
+.if ${YFLAGS:M-d} != "" && ${SRCS:My.tab.h}
+.ORDER: ${_YC} y.tab.h
+${_YC} y.tab.h: ${_YSRC}
+	${YACC} ${YFLAGS} ${.ALLSRC}
+	cp y.tab.c ${_YC}
+SRCS:=	${SRCS} y.tab.h
+CLEANFILES:= ${CLEANFILES} y.tab.c y.tab.h
+.elif ${YFLAGS:M-d} != ""
+.for _YH in ${_YC:S/.c/.h/}
+.ORDER: ${_YC} ${_YH}
+${_YC} ${_YH}: ${_YSRC}
+	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
+SRCS:=	${SRCS} ${_YH}
+CLEANFILES:= ${CLEANFILES} ${_YH}
+.endfor
+.else
+${_YC}: ${_YSRC}
+	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
+.endif
+.endfor
+.endfor
+.endif
+
 .if !target(depend)
 .if defined(SRCS)
 depend: beforedepend ${DEPENDFILE} afterdepend _SUBDIR
 
-# .if defined ${SRCS:M*.[sS]} does not work
-__depend_s=	${SRCS:M*.[sS]}
-__depend_c=	${SRCS:M*.c}
-__depend_cc=	${SRCS:M*.cc} ${SRCS:M*.C} ${SRCS:M*.cpp} ${SRCS:M*.cxx}
-
+# Different types of sources are compiled with slightly different flags.
+# Split up the sources, and filter out headers and non-applicable flags.
 ${DEPENDFILE}: ${SRCS}
 	rm -f ${DEPENDFILE}
-.if defined(__depend_s) && !empty(__depend_s)
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} ${CFLAGS:M-[BID]*} ${AINC} \
-		${.ALLSRC:M*.[sS]}
-.endif
-.if defined(__depend_c) && !empty(__depend_c)
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} ${CFLAGS:M-[BID]*} \
-		${.ALLSRC:M*.c}
-.endif
-.if defined(__depend_cc) && !empty(__depend_cc)
+.if ${SRCS:M*.[sS]} != ""
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-		${CXXFLAGS:M-nostd*} ${CXXFLAGS:M-[BID]*} \
-		${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} \
-		${.ALLSRC:M*.cxx}
+	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
+	    ${AINC} \
+	    ${.ALLSRC:M*.[sS]}
+.endif
+.if ${SRCS:M*.c} != ""
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
+	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
+	    ${.ALLSRC:M*.c}
+.endif
+.if ${SRCS:M*.cc} != "" || ${SRCS:M*.C} != "" || ${SRCS:M*.cpp} != "" || \
+    ${SRCS:M*.cxx} != ""
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
+	    ${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BID]*} \
+	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
+.endif
+.if ${SRCS:M*.m} != ""
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
+	    ${OBJCFLAGS:M-nostdinc*} ${OBJCFLAGS:M-[BID]*} \
+	    ${OBJCFLAGS:M-Wno-import*} \
+	    ${.ALLSRC:M*.m}
+.endif
+.if target(_EXTRADEPEND)
+	cd ${.CURDIR}; ${MAKE} _EXTRADEPEND
 .endif
 
 .ORDER: ${DEPENDFILE} afterdepend
@@ -79,31 +126,18 @@ tags:
 
 .if !target(tags)
 tags: ${SRCS} _SUBDIR
-	@cd ${.CURDIR} && gtags ${GTAGSFLAGS}
+	@cd ${.CURDIR} && gtags ${GTAGSFLAGS} ${.OBJDIR}
 .if defined(HTML)
-	@cd ${.CURDIR} && htags ${HTAGSFLAGS}
+	@cd ${.CURDIR} && htags ${HTAGSFLAGS} -d ${.OBJDIR} ${.OBJDIR}
 .endif
 .endif
 
 .if !target(cleandepend)
 cleandepend: _SUBDIR
 .if defined(SRCS)
-	rm -f ${DEPENDFILE} ${.CURDIR}/GRTAGS ${.CURDIR}/GTAGS
+	rm -f ${DEPENDFILE} ${.OBJDIR}/GRTAGS ${.OBJDIR}/GSYMS ${.OBJDIR}/GTAGS
 .if defined(HTML)
-	rm -rf ${.CURDIR}/HTML
+	rm -rf ${.OBJDIR}/HTML
 .endif
 .endif
-.endif
-
-_SUBDIR: .USE
-.if defined(SUBDIR) && !empty(SUBDIR)
-	@for entry in ${SUBDIR}; do \
-		(${ECHODIR} "===> ${DIRPRFX}$$entry"; \
-		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
-			cd ${.CURDIR}/$${entry}.${MACHINE}; \
-		else \
-			cd ${.CURDIR}/$${entry}; \
-		fi; \
-		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/} DIRPRFX=${DIRPRFX}$$entry/); \
-	done
 .endif
