@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_ioctl.h,v 1.9 1998/08/26 23:29:01 mks Exp $
+ *	@(#) $Id: atm_ioctl.h,v 1.1 1998/09/15 08:22:58 phk Exp $
  *
  */
 
@@ -307,7 +307,7 @@ struct air_int_rsp {
 	u_char		anp_sig_proto;		/* Signalling protocol */
 	u_char		anp_sig_state;		/* Signalling protocol state */
 	char		anp_nif_pref[IFNAMSIZ]; /* Netif prefix */
-	u_char		anp_nif_cnt;		/* No. of netifs */
+	int		anp_nif_cnt;		/* No. of netifs */
 };
 
 /*
