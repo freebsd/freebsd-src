@@ -32,7 +32,7 @@
 .\"     @(#)intro.2	8.5 (Berkeley) 2/27/95
 .\" $FreeBSD$
 .\"
-.Dd February 27, 1995
+.Dd January 12, 2005
 .Dt INTRO 2
 .Os
 .Sh NAME
@@ -451,6 +451,8 @@ The scheduled operation was canceled.
 While decoding a multibyte character the function came along an
 invalid or an incomplete sequence of bytes or the given wide
 character is invalid.
+.It Er 87 ENOATTR Em "Attribute not found" .
+The specified extended attribute does not exist.
 .El
 .Sh DEFINITIONS
 .Bl -tag -width Ds
