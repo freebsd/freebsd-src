@@ -115,9 +115,8 @@ rusers_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 		printf("%-*s ", HOST_WIDTH, host);
 
 	for (x = 0; x < up->utmpidlearr_len; x++) {
-		strncpy(date,
-		&(ctime((time_t *)&(up->utmpidlearr_val[x].ui_utmp.ut_time))[4]),
-		    sizeof(date) - 1);
+		time_t t = int_to_time(up->utmpidlearr_val[x].ui_utmp.ut_time);
+		strncpy(date, &(ctime(&t)[4]), sizeof(date) - 1);
 
 		idle = up->utmpidlearr_val[x].ui_idle;
 		sprintf(idle_time, "  :%02d", idle);
