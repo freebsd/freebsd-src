@@ -614,6 +614,16 @@ requiring that "non-echoed" characters are still echoed back in a null
 packet, as well as by padding passwords sent so as not to hint at
 password lengths. [MERGED]
 
+OpenSSH now has a "VersionAddendum" configuration setting for sshd(8)
+to allow changing the part of the OpenSSH version string after the
+main version number.
+
+OpenSSH has been updated to version 2.9, which adds two new programs,
+sftp(1) and ssh-keyscan(1).  Among the various enhancements: The
+default protocol is now v2, rekeying of existing SSH sessions is now
+supported, and an experimental SOCKS4 proxy has been added to the
+ssh(1) client.
+
 Support for USB devices was added to the GENERIC kernel and to the
 installation programs to support USB devices out of the box.  Note that
 an AT keyboard must still be used during the initial install, but it
@@ -1015,6 +1025,9 @@ matches, and the -regexp and -iregexp primaries for regular-expression
 matches.  The -E flag now enables extended regular
 expressions. [MERGED]
 
+find(1) now has the -anewer, -cnewer, -mnewer, -okdir, and
+-newer[acm][acmt] primaries for comparisons of file timestamps.
+
 tftpd(8) now takes the -c and -C options, which allow the server to
 chroot(2) based on the IP address of the connecting client.  tftp(1)
 and tftpd(8) can now transfer files larger than 65535 blocks. [MERGED]
@@ -1066,6 +1079,8 @@ login(1) now exports environment variables set by PAM
 modules. [MERGED]
 
 PAM support has been added for account management and sessions.
+
+Linux PAM has been updated to 0.75.
 
 wall(1) now supports a -g flag to write a message to all users of a
 given group.
@@ -1158,6 +1173,8 @@ devices, has been added.
 
 fmtcheck(3), a function for checking consistency of format string
 arguments, has been added.
+
+nl(1), a line numbering filter program, has been added.
 
 
 2. Supported Configurations
