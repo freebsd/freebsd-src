@@ -140,8 +140,6 @@ ipxintr(struct mbuf *m)
 	struct ipx_ifaddr *ia;
 	int len;
 
-	GIANT_REQUIRED;
-
 	/*
 	 * If no IPX addresses have been set yet but the interfaces
 	 * are receiving, can't do anything with incoming packets yet.
