@@ -362,7 +362,7 @@ been marked as SIG_IGN.  Event notification happens after normal
 signal delivery processing.
 .Va data
 returns the number of times the signal has occurred since the last call to
-.Fn kqueue .
+.Fn kevent .
 This filter automatically sets the EV_CLEAR flag internally.
 .El
 .Sh RETURN VALUES
