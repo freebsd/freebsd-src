@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.32 1995/11/12 04:55:23 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.33 1996/03/12 06:12:37 jkh Exp $";
 #endif
 
 /*
@@ -276,6 +276,9 @@ pkg_do(char *pkg)
 	else if (Verbose)
 	    printf(" - already installed.\n");
     }
+
+    if (code != 0)
+	goto bomb;
 
     /* Look for the requirements file */
     if (fexists(REQUIRE_FNAME)) {
