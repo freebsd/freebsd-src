@@ -168,8 +168,9 @@ MNT=			/mnt
 # Various floppy image parameters.
 #
 
+.undef MAKE_FLOPPIES
 .if ${TARGET_ARCH} == "i386"
-FLOPPIES=		true
+MAKE_FLOPPIES=		true
 .if ${TARGET} == "pc98"
 SMALLFLOPPYSIZE=	1200
 SMALLFLOPPYSPLITSIZE=	1152
@@ -185,7 +186,7 @@ MFSSIZE=		4320
 MFSINODE=		8000
 MFSLABEL=		minimum3
 .elif ${TARGET_ARCH} == "alpha"
-FLOPPIES=		true
+MAKE_FLOPPIES=		true
 FLOPPYSIZE=		1440
 FLOPPYSPLITSIZE=	1392
 FLOPPYINODE=		40000
@@ -250,7 +251,7 @@ CRUNCH_TARGETS+=fixit-small
 .endif
 .endif
 
-.if defined(FLOPPIES)
+.if defined(MAKE_FLOPPIES)
 EXTRAS= floppies.1
 .if ${TARGET_ARCH} == "i386"
 EXTRAS+= floppies.2
@@ -438,6 +439,7 @@ release rerelease:
 	HTTP_PROXY \
 	KERNELS \
 	KERNEL_FLAGS \
+	MAKE_FLOPPIES \
 	MAKE_ISOS \
 	NOCDROM \
 	NODOC \
@@ -446,7 +448,6 @@ release rerelease:
 	NOSRC \
 	NO_CPU_CFLAGS \
 	NO_CPU_COPTFLAGS \
-	FLOPPIES \
 	NO_SENDMAIL \
 	RELEASETAG \
 	RELNOTES_LANG \
@@ -512,7 +513,7 @@ release.1:
 	-chflags -R noschg ${_R}/.
 	rm -rf ${_R}/*
 	mkdir ${RD}
-.if defined(FLOPPIES)
+.if defined(MAKE_FLOPPIES)
 	mkdir ${RD}/floppies
 .endif
 	mkdir ${RD}/trees
@@ -824,7 +825,7 @@ ftp.1:
 	@echo "Setting up FTP distribution area"
 	@mkdir -p ${FD}
 	-@ln -s . ${FD}/${BUILDNAME}
-.if defined(FLOPPIES)
+.if defined(MAKE_FLOPPIES)
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 .endif
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
@@ -857,7 +858,7 @@ cdrom.1:
 	@echo "Setting up CDROM distribution area"
 	@mkdir -p ${CD_BOOT} ${CD_DISC1} ${CD_DISC2}
 	-@ln -s . ${CD_DISC1}/${BUILDNAME}
-.if defined(FLOPPIES)
+.if defined(MAKE_FLOPPIES)
 	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
 .endif
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
