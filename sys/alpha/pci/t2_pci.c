@@ -44,7 +44,7 @@
 #include "alphapci_if.h"
 #include "pcib_if.h"
 
-#define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
+#define KV(pa)			ALPHA_PHYS_TO_K0SEG((pa) + sable_lynx_base)
 
 static devclass_t	pcib_devclass;
 
@@ -92,7 +92,7 @@ t2_pcib_maxslots(device_t dev)
 
 #define T2_TYPE1_SETUP(b,s,old_hae3) if((b)) {			\
         do {							\
-		(s) = splhigh();				\
+		(s) = critical_enter();				\
 		(old_hae3) = REGVAL(T2_HAE0_3);			\
 		alpha_mb();					\
 		REGVAL(T2_HAE0_3) = (old_hae3) | (1<<30);	\
@@ -105,7 +105,7 @@ t2_pcib_maxslots(device_t dev)
 		alpha_mb();				\
 		REGVAL(T2_HAE0_3) = (old_hae3);		\
 		alpha_mb();				\
-		splx((s));				\
+		critical_exit((s));			\
         } while(0);					\
 }
 
