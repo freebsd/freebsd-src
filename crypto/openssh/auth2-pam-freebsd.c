@@ -132,6 +132,7 @@ pam_thread_conv(int n,
 	if (n <= 0 || n > PAM_MAX_NUM_MSG)
 		return (PAM_CONV_ERR);
 	*resp = xmalloc(n * sizeof **resp);
+	memset(*resp, 0, n * sizeof **resp);
 	buffer_init(&buffer);
 	for (i = 0; i < n; ++i) {
 		(*resp)[i].resp_retcode = 0;
@@ -169,6 +170,13 @@ pam_thread_conv(int n,
 	buffer_free(&buffer);
 	return (PAM_SUCCESS);
  fail:
+	for (i = 0; i < n; ++i) {
+		if ((*resp)[i].resp != NULL) {
+			memset((*resp)[i].resp, 0, strlen((*resp)[i].resp));
+			xfree((*resp)[i].resp);
+		}
+	}
+	memset(*resp, 0, n * sizeof **resp);
 	xfree(*resp);
 	*resp = NULL;
 	buffer_free(&buffer);
