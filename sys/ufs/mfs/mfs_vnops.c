@@ -53,7 +53,6 @@
 #include <ufs/mfs/mfs_extern.h>
 
 static int	mfs_badop __P((struct vop_generic_args *));
-static int	mfs_bmap __P((struct vop_bmap_args *));
 static int	mfs_close __P((struct vop_close_args *));
 static int	mfs_fsync __P((struct vop_fsync_args *));
 static int	mfs_freeblks __P((struct vop_freeblks_args *));
@@ -69,7 +68,7 @@ static int	mfs_getpages __P((struct vop_getpages_args *)); /* XXX */
 vop_t **mfs_vnodeop_p;
 static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) mfs_badop },
-	{ &vop_bmap_desc,		(vop_t *) mfs_bmap },
+	{ &vop_bmap_desc,		(vop_t *) vop_stdbmap },
 	{ &vop_close_desc,		(vop_t *) mfs_close },
 	{ &vop_createvobject_desc,	(vop_t *) vop_stdcreatevobject },
 	{ &vop_destroyvobject_desc,	(vop_t *) vop_stddestroyvobject },
@@ -289,29 +288,6 @@ mfs_doio(bp, mfsp)
 	if (bp->b_error)
 		bp->b_ioflags |= BIO_ERROR;
 	bufdone(bp);
-}
-
-/*
- * This is a noop, simply returning what one has been given.
- */
-static int
-mfs_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		ufs_daddr_t  a_bn;
-		struct vnode **a_vpp;
-		ufs_daddr_t *a_bnp;
-		int *a_runp;
-	} */ *ap;
-{
-
-	if (ap->a_vpp != NULL)
-		*ap->a_vpp = ap->a_vp;
-	if (ap->a_bnp != NULL)
-		*ap->a_bnp = ap->a_bn;
-	if (ap->a_runp != NULL)
-		*ap->a_runp = 0;
-	return (0);
 }
 
 /*

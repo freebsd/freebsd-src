@@ -685,7 +685,6 @@ static vop_t **devfs_vnodeop_p;
 static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) devfs_access },
-	{ &vop_bmap_desc,		(vop_t *) devfs_badop },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
 	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
@@ -705,31 +704,9 @@ static struct vnodeopv_desc devfs_vnodeop_opv_desc =
 
 VNODEOP_SET(devfs_vnodeop_opv_desc);
 
-#if 0
-int
-foo(ap)
-	struct vop_generic_args *ap;
-{
-	int i;
-
-	i = spec_vnoperate(ap);
-	printf("foo(%s) = %d\n", ap->a_desc->vdesc_name, i);
-	return (i);
-}
-#endif
-
 static vop_t **devfs_specop_p;
 static struct vnodeopv_entry_desc devfs_specop_entries[] = {
-#if 1
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
-#else
-	{ &vop_default_desc,		(vop_t *) foo },
-	{ &vop_lock_desc,		(vop_t *) spec_vnoperate },
-	{ &vop_unlock_desc,		(vop_t *) spec_vnoperate },
-	{ &vop_lease_desc,		(vop_t *) spec_vnoperate },
-	{ &vop_strategy_desc,		(vop_t *) spec_vnoperate },
-	{ &vop_bmap_desc,		(vop_t *) spec_vnoperate },
-#endif
 	{ &vop_access_desc,		(vop_t *) devfs_access },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
 	{ &vop_print_desc,		(vop_t *) devfs_print },

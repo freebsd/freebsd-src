@@ -121,7 +121,6 @@ static	int	nfs_mkdir __P((struct vop_mkdir_args *));
 static	int	nfs_rmdir __P((struct vop_rmdir_args *));
 static	int	nfs_symlink __P((struct vop_symlink_args *));
 static	int	nfs_readdir __P((struct vop_readdir_args *));
-static	int	nfs_bmap __P((struct vop_bmap_args *));
 static	int	nfs_strategy __P((struct vop_strategy_args *));
 static	int	nfs_lookitup __P((struct vnode *, const char *, int,
 			struct ucred *, struct proc *, struct nfsnode **));
@@ -138,7 +137,6 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) nfs_access },
 	{ &vop_advlock_desc,		(vop_t *) nfs_advlock },
-	{ &vop_bmap_desc,		(vop_t *) nfs_bmap },
 	{ &vop_close_desc,		(vop_t *) nfs_close },
 	{ &vop_create_desc,		(vop_t *) nfs_create },
 	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
@@ -2679,39 +2677,6 @@ nfs_commit(vp, offset, cnt, cred, procp)
 	}
 	nfsm_reqdone;
 	return (error);
-}
-
-/*
- * Kludge City..
- * - make nfs_bmap() essentially a no-op that does no translation
- * - do nfs_strategy() by doing I/O with nfs_readrpc/nfs_writerpc
- *   (Maybe I could use the process's page mapping, but I was concerned that
- *    Kernel Write might not be enabled and also figured copyout() would do
- *    a lot more work than bcopy() and also it currently happens in the
- *    context of the swapper process (2).
- */
-static int
-nfs_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct vnode **a_vpp;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
-{
-	register struct vnode *vp = ap->a_vp;
-
-	if (ap->a_vpp != NULL)
-		*ap->a_vpp = vp;
-	if (ap->a_bnp != NULL)
-		*ap->a_bnp = ap->a_bn * btodb(vp->v_mount->mnt_stat.f_iosize);
-	if (ap->a_runp != NULL)
-		*ap->a_runp = 0;
-	if (ap->a_runb != NULL)
-		*ap->a_runb = 0;
-	return (0);
 }
 
 /*
