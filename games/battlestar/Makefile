@@ -6,7 +6,7 @@ SRCS=	battlestar.c com1.c com2.c com3.c com4.c com5.c com6.c com7.c \
 	globals.c dayfile.c nightfile.c dayobjs.c nightobjs.c words.c
 MAN6=	battlestar.6
 DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
-LDADD=	-lcurses -ltermlib -lcompat
+LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 
 .include <bsd.prog.mk>

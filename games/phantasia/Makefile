@@ -2,8 +2,8 @@
 
 PROG=	phantasia
 SRCS=	main.c fight.c io.c interplayer.c gamesupport.c misc.c phantglobs.c
-DPADD=	${LIBM} ${LIBCURSES} ${LIBTERM} ${LIBCOMPAT}
-LDADD=	-lm -lcurses -ltermlib -lcompat
+DPADD=	${LIBM} ${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
+LDADD=	-lm -lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 MAN6=	phantasia.6
 CLEANFILES+=map setup setup.o

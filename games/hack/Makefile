@@ -13,7 +13,7 @@ SRCS=	alloc.c hack.Decl.c hack.apply.c hack.bones.c hack.c hack.cmd.c \
 	hack.u_init.c hack.unix.c hack.vault.c hack.version.c hack.wield.c \
 	hack.wizard.c hack.worm.c hack.worn.c hack.zap.c rnd.c
 MAN6=	hack.6
-DPADD=	${LIBTERM} ${LIBCOMPAT}
+DPADD=	${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-ltermcap -lcompat
 HIDEGAME=hidegame
 

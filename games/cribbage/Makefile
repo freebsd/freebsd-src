@@ -1,8 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
 
 PROG=	cribbage
-DPADD=	${LIBCURSES} ${LIBTERM} ${LIBCOMPAT}
-LDADD=	-lcurses -ltermlib -lcompat
+DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
+LDADD=	-lcurses -ltermcap -lcompat
 SRCS=	extern.c crib.c cards.c instr.c io.c score.c support.c
 MAN6=	cribbage.6
 HIDEGAME=hidegame
