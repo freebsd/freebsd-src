@@ -7,7 +7,7 @@
 
 	unset acpi_load
 
-	$hint.acpi.0.disable="1"
+	$hint.acpi.0.disabled="1"
 
 	If set, the ACPI module won't be loaded.
 
