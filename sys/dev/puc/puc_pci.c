@@ -88,7 +88,7 @@ puc_pci_probe(device_t dev)
 	uint32_t v1, v2, d1, d2;
 	const struct puc_device_description *desc;
 
-	if ((pci_read_config(dev, PCIR_HEADERTYPE, 1) & 0x7f) != 0)
+	if ((pci_read_config(dev, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) != 0)
 		return (ENXIO);
 
 	v1 = pci_read_config(dev, PCIR_VENDOR, 2);
