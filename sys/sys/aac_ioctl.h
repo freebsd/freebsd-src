@@ -39,16 +39,16 @@
 #define AACQ_COUNT	5	/* total number of queues */
 
 struct aac_qstat {
-    u_int32_t	q_length;
-    u_int32_t	q_max;
+	u_int32_t	q_length;
+	u_int32_t	q_max;
 };
 
 /*
  * Statistics request
  */
 union aac_statrequest {
-    u_int32_t		as_item;
-    struct aac_qstat	as_qstat;
+	u_int32_t		as_item;
+	struct aac_qstat	as_qstat;
 };
 
 #define AACIO_STATS		_IOWR('T', 101, union aac_statrequest)
@@ -147,33 +147,33 @@ union aac_statrequest {
  * Support for faking the "miniport" version.
  */
 struct aac_rev_check {
-    RevComponent	callingComponent;
-    struct FsaRevision	callingRevision;
+	RevComponent		callingComponent;
+	struct FsaRevision	callingRevision;
 };
 
 struct aac_rev_check_resp {
-    int			possiblyCompatible;
-    struct FsaRevision	adapterSWRevision;
+	int			possiblyCompatible;
+	struct FsaRevision	adapterSWRevision;
 };
 
 /*
  * Context passed in by a consumer looking to collect an AIF.
  */
 struct get_adapter_fib_ioctl {
-    u_int32_t	AdapterFibContext;
-    int	  	Wait;
-    caddr_t	AifFib;
+	u_int32_t	AdapterFibContext;
+	int	  	Wait;
+	caddr_t		AifFib;
 };
 
 struct aac_query_disk {
-    int32_t	ContainerNumber;
-    int32_t	Bus;
-    int32_t	Target;
-    int32_t	Lun;
-    u_int32_t	Valid;
-    u_int32_t	Locked;
-    u_int32_t	Deleted;
-    int32_t	Instance;
-    char	diskDeviceName[10];
-    u_int32_t	UnMapped;
+	int32_t		ContainerNumber;
+	int32_t		Bus;
+	int32_t		Target;
+	int32_t		Lun;
+	u_int32_t	Valid;
+	u_int32_t	Locked;
+	u_int32_t	Deleted;
+	int32_t		Instance;
+	char		diskDeviceName[10];
+	u_int32_t	UnMapped;
 };
