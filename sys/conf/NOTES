@@ -1700,6 +1700,7 @@ device		miibus
 # fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
+# gx:   Intel Pro/1000 Gigabit Ethernet (82542, 82543-F, 82543-T)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
 # le:   Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
@@ -1890,6 +1891,7 @@ device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Gigabit & FDDI NICs.
 device		bge
+device		gx
 device		lge
 device		nge
 device		sk
