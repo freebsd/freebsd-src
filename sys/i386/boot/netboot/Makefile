@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.15 1998/02/15 21:38:18 eivind Exp $
+#	$Id: Makefile,v 1.16 1998/03/07 10:48:13 eivind Exp $
 #
 # Makefile for NETBOOT
 #
@@ -88,6 +88,6 @@ nb3c509.com:	start2.o ${SRCS:N*.h:R:S/$/.o/g} 3c509.o
 # This force the creation of the "machine" symlink.  These objects are
 # specially handled in this file, and thus can't be taken care of in
 # ../Makefile.inc
-3c509.o makerom ns8390.o start2.ro:	beforedepend
+3c509.o makerom ns8390.o start2.ro: machine
 
 .include <bsd.prog.mk>
