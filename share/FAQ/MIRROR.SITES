@@ -1,23 +1,26 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.6 1994/11/28 06:46:49 asami Exp $
+$Id: MIRROR.SITES,v 1.7 1994/11/29 18:23:21 guido Exp $
 
 The FreeBSD 2.0 distribution (or later) is being mirrored at the following
 locations:
 
 Country		Site and Maintainer
 =======		=========================================================
-France		ftp://ftp.ibp.fr:/pub/FreeBSD/FreeBSD-current
+France		ftp://ftp.ibp.fr/pub/FreeBSD/FreeBSD-current
 		<Remy.Card@ibp.fr>
 
-Netherlands	ftp://ftp.nl.net:/pub/os/FreeBSD/2.0-RELEASE
+Netherlands	ftp://ftp.nl.net/pub/os/FreeBSD/2.0-RELEASE
 		<archive@nl.net>
 
-USA		ftp://gatekeeper.dec.com:/pub/BSD/FreeBSD/FreeBSD-current
+Germany		ftp://ftp.uni-duisburg.de/pub/unix/FreeBSD
+		<ftp@ftp.uni-duisburg.de>
+
+USA		ftp://gatekeeper.dec.com/pub/BSD/FreeBSD/FreeBSD-current
 		<hubbard@gatekeeper.dec.com>
 
-USA		ftp://ftp.cybernetics.net:/pub/FreeBSD
+USA		ftp://ftp.cybernetics.net/pub/FreeBSD
 		<michael@Cybernetics.NET>
 
 Japan		ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-2.0-RELEASE
