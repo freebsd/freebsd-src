@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: key.c,v 1.188 2001/05/31 14:58:31 sakane Exp $	*/
+/*	$KAME: key.c,v 1.189 2001/05/31 15:02:56 sakane Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -1825,7 +1825,7 @@ key_spdadd(so, m, mhp)
 
 	/* create new sadb_msg to reply. */
 	if (lft) {
-		n = key_gather_mbuf(m, mhp, 2, 4, SADB_EXT_RESERVED,
+		n = key_gather_mbuf(m, mhp, 2, 5, SADB_EXT_RESERVED,
 		    SADB_X_EXT_POLICY, SADB_EXT_LIFETIME_HARD,
 		    SADB_EXT_ADDRESS_SRC, SADB_EXT_ADDRESS_DST);
 	} else {
