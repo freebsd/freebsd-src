@@ -18,7 +18,7 @@
 
 /* F2C_INTEGER will normally be `int' but would be `long' on 16-bit systems */
 /* we assume short, float are OK */
-typedef long int /* long int */ integer;
+typedef int /* long int */ integer;
 typedef unsigned long int /* long */ uinteger;
 typedef char *address;
 typedef short int shortint;
@@ -26,7 +26,7 @@ typedef float real;
 typedef double doublereal;
 typedef struct { real r, i; } complex;
 typedef struct { doublereal r, i; } doublecomplex;
-typedef long int /* long int */ logical;
+typedef int /* long int */ logical;
 typedef short int shortlogical;
 typedef char logical1;
 typedef char integer1;
@@ -52,9 +52,9 @@ typedef short flag;
 typedef short ftnlen;
 typedef short ftnint;
 #else
-typedef long int /* long int */ flag;
-typedef long int /* long int */ ftnlen;
-typedef long int /* long int */ ftnint;
+typedef int /* long int */ flag;
+typedef int /* long int */ ftnlen;
+typedef int /* long int */ ftnint;
 #endif
 
 /*external read, write*/
