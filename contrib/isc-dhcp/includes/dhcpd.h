@@ -781,7 +781,7 @@ struct interface_info {
 
 	char name [IFNAMSIZ];		/* Its name... */
 	int linkstatus;			/* Link status */
-	int ieee802;			/* True if media is ieee802 */
+	int ieee80211;			/* True if media is ieee80211 */
 	int index;			/* Its index. */
 	int rfdesc;			/* Its read file descriptor. */
 	int wfdesc;			/* Its write file descriptor, if

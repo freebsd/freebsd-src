@@ -217,7 +217,7 @@ int main (argc, argv, envp)
 		} else if (!strcmp (argv [i], "-i")) {
 			if (++i == argc)
 				usage ();
-			polling_interval = (int)strtol(argv [i],
+			polling_interval = (int)strtol (argv [i],
 			    (char **)NULL, 10);
 			if (polling_interval <= 0) {
 				log_info ("Incorrect polling interval %d",
@@ -257,8 +257,8 @@ int main (argc, argv, envp)
 			    log_fatal ("%s: interface name too long (max %ld)",
 				       argv [i], (long)strlen (argv [i]));
  		    strlcpy (tmp -> name, argv [i], IFNAMSIZ);
-		    set_ieee802(tmp);
-		    tmp->linkstatus = interface_active(tmp);
+		    set_ieee80211 (tmp);
+		    tmp -> linkstatus = interface_active (tmp);
 		    if (interfaces) {
 			    interface_reference (&tmp -> next,
 						 interfaces, MDL);
@@ -286,16 +286,16 @@ int main (argc, argv, envp)
 	/* first kill of any currently running client */
 	if (release_mode) {
 
-		if ((pidfd = fopen(path_dhclient_pid, "r")) != NULL) {
-			e = fscanf(pidfd, "%d", &oldpid);
+		if ((pidfd = fopen (path_dhclient_pid, "r")) != NULL) {
+			e = fscanf (pidfd, "%d", &oldpid);
 
 			if (e != 0 && e != EOF) {
 				if (oldpid) {
-					if (kill(oldpid, SIGKILL) == 0)
-						unlink(path_dhclient_pid);
+					if (kill (oldpid, SIGKILL) == 0)
+						unlink (path_dhclient_pid);
 				}
 			}
-			fclose(pidfd);
+			fclose (pidfd);
 		}
 	}
 
@@ -412,7 +412,7 @@ int main (argc, argv, envp)
 					     INTERFACE_AUTOMATIC)) !=
 			     INTERFACE_REQUESTED))
 				continue;
-			set_ieee802(ip);
+			set_ieee80211 (ip);
 			script_init (ip -> client,
 				     "PREINIT", (struct string_list *)0);
 			if (ip -> client -> alias)
@@ -459,7 +459,7 @@ int main (argc, argv, envp)
 				add_timeout (cur_time + random () % 5,
 					     state_link, client, 0, 0);
 #else
-				add_timeout(cur_time + random () % 5,
+				add_timeout (cur_time + random () % 5,
 					     state_reboot, client, 0, 0);
 #endif
 			}
@@ -1385,7 +1385,7 @@ void send_discover (cpp)
 	int interval;
 	int increase = 1;
 
-	if (interface_active(client -> interface) == 0)
+	if (interface_active (client -> interface) == 0)
 		return;
 
 	/* Figure out how long it's been since we started transmitting. */
@@ -1493,7 +1493,7 @@ void state_panic (cpp)
 	struct client_lease *loop;
 	struct client_lease *lp;
 
-	if (interface_active(client -> interface) == 0)
+	if (interface_active (client -> interface) == 0)
 		return;
 
 	loop = lp = client -> active;
@@ -2809,8 +2809,8 @@ void client_location_changed ()
 				break;
 			}
 			client -> state = S_INIT;
-			if (interface_active(ip))
-				state_reboot(client);
+			if (interface_active (ip))
+				state_reboot (client);
 		}
 	}
 }
@@ -2971,8 +2971,8 @@ isc_result_t dhclient_interface_startup_hook (struct interface_info *interface)
 			client -> state = S_INIT;
 			/* Set up a timeout to start the initialization
 			   process. */
-			if (interface_active(ip)) {
-				add_timeout(cur_time + random () % 5,
+			if (interface_active (ip)) {
+				add_timeout (cur_time + random () % 5,
 					     state_reboot, client, 0, 0);
 			}
 		}
@@ -3038,8 +3038,8 @@ isc_result_t dhcp_set_control_state (control_object_state_t oldstate,
 		    break;
 
 		  case server_awaken:
-		    if (interface_active(ip))
-			    state_reboot(client);
+		    if (interface_active (ip))
+			    state_reboot (client);
 		    break;
 		}
 	    }
@@ -3188,32 +3188,32 @@ interface_active(struct interface_info *ip) {
 
 	ifname = ip -> name;
 
-	if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-		log_fatal("Can't create interface_active socket");
+	if ((sock = socket (AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+		log_fatal ("Can't create interface_active socket");
 
-	(void) memset(&ifmr, 0, sizeof(ifmr));
-	(void) strncpy(ifmr.ifm_name, ifname, sizeof(ifmr.ifm_name));
+	(void) memset (&ifmr, 0, sizeof (ifmr));
+	(void) strncpy (ifmr.ifm_name, ifname, sizeof (ifmr.ifm_name));
 
-	if (ioctl(sock, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
+	if (ioctl (sock, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
 		/*
 		 * Interface doesn't support SIOCGIFMEDIA, presume okay
 		 */
-		close(sock);
+		close (sock);
 		return (1);
 	}
-	close(sock);
+	close (sock);
 
 	if (ifmr.ifm_count == 0) {
 		/*
 		 * this is unexpected (to me), but we'll just assume
 		 * that this means interface does not support SIOCGIFMEDIA
 		 */
-		log_fatal("%s: no media types?", ifname);
+		log_fatal ("%s: no media types?", ifname);
 		return (1);
 	}
 
 	if (ifmr.ifm_status & IFM_AVALID) {
-		if (ip->ieee802) {
+		if (ip -> ieee80211) {
 			if ((IFM_TYPE(ifmr.ifm_active) == IFM_IEEE80211) &&
 			     (ifmr.ifm_status & IFM_ACTIVE))
 				return (1);
@@ -3231,7 +3231,7 @@ interface_active(struct interface_info *ip) {
 }
 
 #ifdef __FreeBSD__
-set_ieee802 (struct interface_info *ip) {
+set_ieee80211 (struct interface_info *ip) {
 
 	struct ieee80211req     ireq;
 	u_int8_t                data[32];
@@ -3242,11 +3242,11 @@ set_ieee802 (struct interface_info *ip) {
 
 	ifname = ip -> name;
 
-	if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-		log_fatal("Can't create interface_active socket");
+	if ((sock = socket (AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+		log_fatal ("Can't create interface_active socket");
 
-	(void) memset(&ireq, 0, sizeof(ireq));
-	(void) strncpy(ireq.i_name, ifname, sizeof(ireq.i_name));
+	(void) memset (&ireq, 0, sizeof (ireq));
+	(void) strncpy (ireq.i_name, ifname, sizeof (ireq.i_name));
 	ireq.i_data = &data;
 	ireq.i_type = IEEE80211_IOC_SSID;
 	ireq.i_val = -1;
@@ -3254,15 +3254,15 @@ set_ieee802 (struct interface_info *ip) {
 	 * If we can't get the SSID,
 	 * this isn't an 802.11 device.
 	 */
-	if (ioctl(sock, SIOCG80211, &ireq) < 0)
-		ip->ieee802 = 0;
+	if (ioctl (sock, SIOCG80211, &ireq) < 0)
+		ip -> ieee80211 = 0;
 	else {
 #ifdef DEBUG
-		printf("Device %s has 802.11\n", ifname);
+		printf ("Device %s has 802.11\n", ifname);
 #endif
-		ip->ieee802 = 1;
+		ip -> ieee80211 = 1;
 	}
-	close(sock);
+	close (sock);
 }
 #endif /* __FreeBSD__ */
 
@@ -3275,29 +3275,29 @@ void state_link (cpp)
 	struct client_state *client;
 
 #ifdef DEBUG
-	printf("Polling interface status\n");
+	printf ("Polling interface status\n");
 #endif
 	for (ip = interfaces; ip; ip = ip -> next) {
-		if (ip->linkstatus == 0 || doinitcheck == 0) {
-			if (interface_active(ip)) {
+		if (ip -> linkstatus == 0 || doinitcheck == 0) {
+			if (interface_active (ip)) {
 #ifdef DEBUG
-				printf("%s: Found Link on interface\n", ip->name);
+				printf ("%s: Found Link on interface\n", ip -> name);
 #endif
 				for (client = ip -> client;
 				     client; client = client -> next) {
-					add_timeout(cur_time + random () % 5,
+					add_timeout (cur_time + random () % 5,
 					             state_reboot, client, 0, 0);
 				}
-				ip->linkstatus = 1;
+				ip -> linkstatus = 1;
 			} else {
 #ifdef DEBUG
-				printf("%s: No Link on interface\n", ip->name);
+				printf ("%s: No Link on interface\n", ip -> name);
 #endif
 				for (client = ip -> client;
 				     client; client = client -> next) {
-					cancel_timeout(state_init, client);
-			 		cancel_timeout(send_discover, client);
-					cancel_timeout(send_request, client);
+					cancel_timeout (state_init, client);
+			 		cancel_timeout (send_discover, client);
+					cancel_timeout (send_request, client);
 					/*
 					 * XXX without this, dhclient does
 					 * not poll on a interface if there
@@ -3305,18 +3305,18 @@ void state_link (cpp)
 					 * time
 					 */
 					if (client -> state == S_INIT) {
-						add_timeout(cur_time + polling_interval,
+						add_timeout (cur_time + polling_interval,
 						             state_link, client, 0, 0);
 					}
 			 	}
-				ip->linkstatus = 0;
+				ip -> linkstatus = 0;
 			}
 		} else {
-			if (interface_active(ip) == 0) {
+			if (interface_active (ip) == 0) {
 #ifdef DEBUG
-				printf("%s: Lost Link on interface\n", ip->name);
+				printf ("%s: Lost Link on interface\n", ip -> name);
 #endif
-				ip->linkstatus = 0;
+				ip -> linkstatus = 0;
 			}
 		}
 	}
