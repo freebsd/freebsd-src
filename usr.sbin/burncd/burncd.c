@@ -175,7 +175,7 @@ main(int argc, char **argv)
 	}
 
 	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) 
-       		err(EX_IOERR, "ioctl(CDRIOCGETBLOCKSIZE)");
+       		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
 
 	if (eject)
 		if (ioctl(fd, CDIOCEJECT) < 0)
@@ -185,6 +185,6 @@ main(int argc, char **argv)
 
 void cleanup(int dummy)
 {
-	if (ioctl(fd, CDRIOCGETBLOCKSIZE, &saved_block_size) < 0) 
-       		err(EX_IOERR, "ioctl(CDRIOCGETBLOCKSIZE)");
+	if (ioctl(fd, CDRIOCSETBLOCKSIZE, &saved_block_size) < 0) 
+       		err(EX_IOERR, "ioctl(CDRIOCSETBLOCKSIZE)");
 }
