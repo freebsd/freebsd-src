@@ -72,6 +72,7 @@
 
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
+#include <sys/_mutex.h>
 
 /*
  *	Types defined:
