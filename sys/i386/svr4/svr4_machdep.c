@@ -31,25 +31,14 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/exec.h>
 #include <sys/lock.h>
 #include <vm/vm.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <vm/vm_extern.h>
-#include <sys/user.h>
 #include <sys/filedesc.h>
-#include <sys/kernel.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
-#include <sys/malloc.h>
-#include <sys/mount.h>
-#include <sys/sysproto.h>
-#include <sys/elf32.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -67,7 +56,6 @@
 #include <svr4/svr4_ucontext.h>
 #include <svr4/svr4_proto.h>
 #include <svr4/svr4_util.h>
-#include <svr4/svr4_exec.h>
 
 #undef sigcode
 #undef szsigcode

@@ -33,26 +33,14 @@
 #include <sys/systm.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/fcntl.h>
-#include <sys/unistd.h>
 #include <sys/termios.h>
-#include <sys/tty.h>
-#include <sys/socket.h>
-#include <sys/mount.h>
-#include <net/if.h>
-#include <sys/malloc.h>
 
 #include <sys/sysproto.h>
 
 #include <svr4/svr4.h>
-#include <svr4/svr4_types.h>
 #include <svr4/svr4_util.h>
-#include <svr4/svr4_signal.h>
 #include <svr4/svr4_ioctl.h>
-#include <svr4/svr4_proto.h>
-#include <svr4/svr4_stropts.h>
 #include <svr4/svr4_termios.h>
-
 
 #ifndef __CONCAT3
 # if __STDC__

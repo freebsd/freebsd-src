@@ -32,7 +32,6 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
-#include <sys/kernel.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>

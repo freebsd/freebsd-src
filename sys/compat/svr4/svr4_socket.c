@@ -43,7 +43,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/file.h>
@@ -111,31 +110,10 @@ svr4_find_socket(p, fp, dev, ino)
 }
 
 
-void
-svr4_delete_socket(p, fp)
-	struct proc *p;
-	struct file *fp;
-{
-	struct svr4_sockcache_entry *e;
-	void *cookie = ((struct socket *) fp->f_data)->so_emuldata;
-
-	if (!svr4_str_initialized) {
-		TAILQ_INIT(&svr4_head);
-		svr4_str_initialized = 1;
-		return;
-	}
-
-	for (e = svr4_head.tqh_first; e != NULL; e = e->entries.tqe_next)
-		if (e->p == p && e->cookie == cookie) {
-			TAILQ_REMOVE(&svr4_head, e, entries);
-			DPRINTF(("svr4_delete_socket: %s [%p,%d,%d]\n",
-				 e->sock.sun_path, p, e->dev, e->ino));
-			free(e, M_TEMP);
-			return;
-		}
-}
-
-
+/*
+ * svr4_delete_socket() is in sys/dev/streams.c (because it's called by
+ * the streams "soo_close()" routine).
+ */
 int
 svr4_add_socket(p, path, st)
 	struct proc *p;

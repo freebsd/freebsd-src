@@ -33,12 +33,9 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/fcntl.h>
-#include <sys/termios.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
-#include <net/if.h>
-
 
 #include <svr4/svr4.h>
 #include <svr4/svr4_types.h>

@@ -33,13 +33,9 @@
 #include <sys/systm.h>
 #include <sys/file.h>
 #include <sys/filio.h>
-#include <sys/fcntl.h>
 #include <sys/signal.h>
 #include <sys/filedesc.h>
-#include <sys/termios.h>
 #include <sys/poll.h>
-#include <sys/socket.h>
-#include <net/if.h>
 #include <sys/malloc.h>
 
 #include <sys/sysproto.h>
