@@ -5,12 +5,12 @@
 # do not forget to propagate your changes by running "Configure -der". You may
 # instead choose to run each of the .SH files by yourself, or "Configure -S".
 #
-# $Id: config.SH-elf.i386,v 1.6 1998/09/29 18:58:16 markm Exp $
+# $Id: config.SH-elf.i386,v 1.7 1998/10/17 07:10:43 markm Exp $
 #
 
 # Package name      : perl5
 # Source directory  : .
-# Configuration time: $Date: 1998/09/29 18:58:16 $
+# Configuration time: $Date: 1998/10/17 07:10:43 $
 # Configured by     : markm
 # Target system     : freebsd 3.0-current #0:
 
@@ -55,7 +55,7 @@ ccdlflags=' '
 ccflags=''
 cf_by='markm'
 cf_email='markm@freebsd.org'
-cf_time='$Date: 1998/09/29 18:58:16 $'
+cf_time='$Date: 1998/10/17 07:10:43 $'
 chgrp=''
 chmod=''
 chown=''
@@ -322,7 +322,7 @@ full_csh='/bin/csh'
 full_sed='sed'
 gccversion='2.7.2.1'
 gidtype='gid_t'
-glibpth="/usr/lib /usr/local/lib"
+glibpth="/usr/lib"
 grep='grep'
 groupcat='cat /etc/group'
 groupstype='gid_t'
@@ -407,7 +407,7 @@ less='less'
 lib_ext='.a'
 libc='undef'
 libperl='libperl.so.3'
-libpth="/usr/lib /usr/local/lib"
+libpth="/usr/lib"
 libs='-lm -lc -lcrypt'
 libswanted='sfio socket inet nsl nm ndbm gdbm dbm db dl dld ld sun m c cposix posix ndir dir crypt ucb bsd BSD PW x'
 line='line'
@@ -566,7 +566,7 @@ uuname=''
 version='5.00502'
 vi=''
 voidflags='15'
-xlibpth='/usr/lib/386 /lib/386'
+xlibpth=''
 zcat=''
 zip='zip'
 # Configure command line arguments.
