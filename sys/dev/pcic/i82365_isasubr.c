@@ -44,16 +44,6 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <vm/vm.h>
-
-#ifdef __FreeBSD__
-#include <i386/isa/isa_device.h>
-typedef int isa_chipset_tag_t;
-#define delay(x) DELAY(x)
-#else
-#include <dev/isa/isareg.h>
-#include <dev/isa/isavar.h>
-#endif
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
@@ -115,21 +105,29 @@ int	pcic_isa_intr_alloc_mask = PCIC_ISA_INTR_ALLOC_MASK;
 #ifdef PCICISADEBUG
 int	pcicsubr_debug = 0 /* XXX */ ;
 #define	DPRINTF(arg) if (pcicsubr_debug) printf arg;
+#define DEVPRINTF(arg) if (pcicsubr_debug) device_printf arg;
 #else
 #define	DPRINTF(arg)
+#define	DEVPRINTF(arg)
 #endif
 
-void pcic_isa_bus_width_probe (dev, iot, ioh, base, length)
-	device_t dev;
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
-	bus_addr_t base;
-	u_int32_t length;
+void pcic_isa_bus_width_probe (device_t dev)
 {
 	struct pcic_softc *sc = (struct pcic_softc *)
 	    device_get_softc(dev);
 	bus_space_handle_t ioh_high;
 	int i, iobuswidth, tmp1, tmp2;
+	int rid;
+	u_long base;
+	u_int32_t length;
+	bus_space_tag_t iot;
+	bus_space_handle_t ioh;
+	struct resource *r;
+
+	base = rman_get_start(sc->port_res);
+	length = rman_get_end(sc->port_res) - rman_get_end(sc->port_res) + 1;
+	iot = sc->iot;
+	ioh = sc->ioh;
 
 	/*
 	 * figure out how wide the isa bus is.  Do this by checking if the
@@ -137,14 +135,14 @@ void pcic_isa_bus_width_probe (dev, iot, ioh, base, length)
 	 */
 
 	iobuswidth = 12;
-
-#if XXX 
-	/* Map i/o space. */
-	if (bus_space_map(iot, base + 0x400, length, 0, &ioh_high)) {
-		printf("%s: can't map high i/o space\n", sc->dev.dv_xname);
+	rid = 1;
+	r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, base + 0x400,
+	    base + 0x400 + length, length, RF_ACTIVE);
+	if (!r) {
+		printf("Can't allocated mirror area for pcic bus width probe\n");
 		return;
 	}
-#endif
+	ioh_high = rman_get_bushandle(r);
 	for (i = 0; i < PCIC_NSLOTS; i++) {
 		if (sc->handle[i].flags & PCIC_FLAG_SOCKETP) {
 			/*
@@ -164,10 +162,7 @@ void pcic_isa_bus_width_probe (dev, iot, ioh, base, length)
 				iobuswidth = 10;
 		}
 	}
-
-#if XXX
-	bus_space_free(iot, ioh_high, length);
-#endif
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, r);
 
 	/*
 	 * XXX mycroft recommends I/O space range 0x400-0xfff .  I should put
@@ -206,17 +201,15 @@ void pcic_isa_bus_width_probe (dev, iot, ioh, base, length)
 #endif
 	}
 
-	DPRINTF(("%s: bus_space_alloc range 0x%04lx-0x%04lx (probed)\n",
-	    sc->dev.dv_xname, (long) sc->iobase,
-
-	    (long) sc->iobase + sc->iosize));
+	DEVPRINTF((dev, "bus_space_alloc range 0x%04lx-0x%04lx (probed)\n",
+	    (long) sc->iobase, (long) sc->iobase + sc->iosize));
 
 	if (pcic_isa_alloc_iobase && pcic_isa_alloc_iosize) {
 		sc->iobase = pcic_isa_alloc_iobase;
 		sc->iosize = pcic_isa_alloc_iosize;
 
-		DPRINTF(("%s: bus_space_alloc range 0x%04lx-0x%04lx "
-		    "(config override)\n", sc->dev.dv_xname, (long) sc->iobase,
+		DEVPRINTF((dev, "bus_space_alloc range 0x%04lx-0x%04lx "
+		    "(config override)\n", (long) sc->iobase,
 		    (long) sc->iobase + sc->iosize));
 	}
 }
@@ -235,7 +228,9 @@ pcic_isa_chip_intr_establish(pch, pf, ipl, fct, arg)
 #define IST_EDGE  3
 	struct pcic_handle *h = (struct pcic_handle *) pch;
 	struct pcic_softc *sc = (struct pcic_softc *)(h->ph_parent);
+#if XXX
 	isa_chipset_tag_t ic = sc->intr_est;
+#endif
 	int irq, ist;
 	void *ih;
 	int reg;
@@ -275,7 +270,9 @@ pcic_isa_chip_intr_disestablish(pch, ih)
 {
 	struct pcic_handle *h = (struct pcic_handle *) pch;
 	struct pcic_softc *sc = (struct pcic_softc *)(h->ph_parent);
+#if XXX
 	isa_chipset_tag_t ic = sc->intr_est;
+#endif
 	int reg;
 
 	h->ih_irq = 0;
