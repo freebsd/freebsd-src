@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.37 1996/07/10 11:38:28 jkh Exp $
+ * $Id: msg.c,v 1.38 1996/07/31 06:20:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -39,9 +39,6 @@
 #include <sys/ioctl.h>
 #include <machine/console.h>
 
-#define VTY_STATLINE	24
-#define TTY_STATLINE	23
-
 Boolean
 isDebug(void)
 {
@@ -64,7 +61,7 @@ msgYap(char *fmt, ...)
     va_end(args);
     attrs = getattrs(stdscr);
     attrset(A_REVERSE);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
+    mvaddstr(StatusLine, 0, errstr);
     attrset(attrs);
     refresh();
 }
@@ -81,7 +78,7 @@ msgInfo(char *fmt, ...)
     attrs = getattrs(stdscr);
     /* NULL is a special convention meaning "erase the old stuff" */
     if (!fmt) {
-	move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0);
+	move(StatusLine, 0);
 	clrtoeol();
 	return;
     }
@@ -98,9 +95,9 @@ msgInfo(char *fmt, ...)
     }
     line[80] = '\0';
     attrset(ATTR_TITLE);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, line);
+    mvaddstr(StatusLine, 0, line);
     attrset(attrs);
-    move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 79);
+    move(StatusLine, 79);
     refresh();
 }
 
@@ -120,7 +117,7 @@ msgWarn(char *fmt, ...)
     attrs = getattrs(stdscr);
     beep();
     attrset(ATTR_TITLE);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
+    mvaddstr(StatusLine, 0, errstr);
     attrset(attrs);
     refresh();
     if (OnVTY && isDebug())
@@ -143,7 +140,7 @@ msgError(char *fmt, ...)
     beep();
     attrs = getattrs(stdscr);
     attrset(ATTR_TITLE);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
+    mvaddstr(StatusLine, 0, errstr);
     attrset(attrs);
     refresh();
     if (OnVTY && isDebug())
@@ -166,7 +163,7 @@ msgFatal(char *fmt, ...)
     beep();
     attrs = getattrs(stdscr);
     attrset(ATTR_TITLE);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
+    mvaddstr(StatusLine, 0, errstr);
     addstr(" - ");
     addstr("PRESS ANY KEY TO ");
     if (getpid() == 1)

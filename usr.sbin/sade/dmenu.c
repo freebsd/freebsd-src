@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.22 1996/07/05 08:35:53 jkh Exp $
+ * $Id: dmenu.c,v 1.23 1996/07/11 18:37:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -171,7 +171,10 @@ menu_height(DMenu *menu, int n)
     int max;
     char *t;
 
-    for (t = menu->prompt, max = MAX_MENU; *t; t++) {
+    max = MAX_MENU;
+    if (StatusLine > 24)
+	max += StatusLine - 24;
+    for (t = menu->prompt; *t; t++) {
 	if (*t == '\n')
 	    --max;
     }
