@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.81 1995/04/09 15:49:56 jkh Exp $
+ *	$Id: conf.c,v 1.82 1995/04/10 20:40:11 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -123,7 +123,7 @@ d_psize_t	wdsize;
 #endif
 
 #include "worm.h"
-#if WORM > 0
+#if NWORM > 0
 d_open_t	wormopen;
 d_close_t	wormclose;
 d_strategy_t	wormstrategy;
@@ -137,6 +137,23 @@ d_psize_t	wormsize;
 #define	wormioctl		nxioctl
 #define	wormdump		nxdump
 #define	wormsize		zerosize
+#endif
+
+#include "sctarg.h"
+#if NSCTARG > 0
+d_open_t	sctargopen;
+d_close_t	sctargclose;
+d_strategy_t	sctargstrategy;
+d_ioctl_t	sctargioctl;
+d_dump_t	sctargdump;
+d_psize_t	sctargsize;
+#else
+#define	sctargopen		nxopen
+#define	sctargclose		nxclose
+#define	sctargstrategy	nxstrategy
+#define	sctargioctl		nxioctl
+#define	sctargdump		nxdump
+#define	sctargsize		zerosize
 #endif
 
 #include "pt.h"
@@ -1194,6 +1211,9 @@ struct cdevsw	cdevsw[] =
 	  nxwrite, nxioctl, nxstop,				   /* Talisman*/
 	  nxreset, nxdevtotty, nxselect,
 	  nxmmap, NULL },
+	{ sctargopen,	sctargclose,	rawread,	rawwrite,	/*65*/
+	  sctargioctl,	nostop,		nullreset,	nodevtotty,/* sctarg */
+	  seltrue,	nommap,		sctargstrategy },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
