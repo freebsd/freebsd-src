@@ -1466,23 +1466,3 @@ linux_modify_ldt(p, uap)
 
 	return (error);
 }
-
-int
-linux_setfsuid(p, uap)
-	struct proc *p;
-	struct linux_setfsuid_args *uap;
-{
-	p->p_retval[0] = p->p_ucred->cr_uid;
-	/* XXX - emit a diagnostics message */
-	return 0;
-}
-
-int
-linux_setfsgid(p, uap)
-	struct proc *p;
-	struct linux_setfsgid_args *uap;
-{
-	p->p_retval[0] = p->p_ucred->cr_gid;
-	/* XXX - emit a diagnostics message */
-	return 0;
-}
