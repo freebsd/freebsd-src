@@ -142,3 +142,20 @@ void usb_tx_done(m)
 
 	return;
 }
+
+struct mbuf *
+usb_ether_newbuf(const char *devname)
+{
+	struct mbuf *m_new;
+
+	m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m_new == NULL) {
+		printf("%s: no memory for rx list "
+		    "-- packet dropped!\n", devname);
+		return (NULL);
+	}
+	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+
+	m_adj(m_new, ETHER_ALIGN);
+	return (m_new);
+}

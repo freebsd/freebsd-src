@@ -159,6 +159,7 @@ struct kue_cdata {
 
 struct kue_softc {
 	struct arpcom		arpcom;
+	device_t		kue_dev;
 	usbd_device_handle	kue_udev;
 	usbd_interface_handle	kue_iface;
 	struct kue_ether_desc	kue_desc;
