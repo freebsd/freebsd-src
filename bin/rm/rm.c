@@ -67,7 +67,7 @@ uid_t uid;
 int	check(char *, char *, struct stat *);
 void	checkdot(char **);
 void	rm_file(char **);
-void	rm_overwrite(char *, struct stat *);
+int	rm_overwrite(char *, struct stat *);
 void	rm_tree(char **);
 void	usage(void);
 
@@ -139,7 +139,7 @@ main(int argc, char *argv[])
 
 	if (argc < 1) {
 		if (fflag)
-			return 0;
+			return (0);
 		usage();
 	}
 
@@ -271,7 +271,8 @@ rm_tree(char **argv)
 
 			default:
 				if (Pflag)
-					rm_overwrite(p->fts_accpath, NULL);
+					if (!rm_overwrite(p->fts_accpath, NULL))
+						continue;
 				rval = unlink(p->fts_accpath);
 				if (rval == 0 || (fflag && errno == ENOENT)) {
 					if (rval == 0 && vflag)
@@ -337,7 +338,8 @@ rm_file(char **argv)
 				rval = rmdir(f);
 			else {
 				if (Pflag)
-					rm_overwrite(f, &sb);
+					if (!rm_overwrite(f, &sb))
+						continue;
 				rval = unlink(f);
 			}
 		}
@@ -361,7 +363,7 @@ rm_file(char **argv)
  * System V file system).  In a logging file system, you'll have to have
  * kernel support.
  */
-void
+int
 rm_overwrite(char *file, struct stat *sbp)
 {
 	struct stat sb;
@@ -377,7 +379,7 @@ rm_overwrite(char *file, struct stat *sbp)
 		sbp = &sb;
 	}
 	if (!S_ISREG(sbp->st_mode))
-		return;
+		return (1);
 	if ((fd = open(file, O_WRONLY, 0)) == -1)
 		goto err;
 	if (fstatfs(fd, &fsb) == -1)
@@ -403,7 +405,7 @@ rm_overwrite(char *file, struct stat *sbp)
 	PASS(0xff);
 	if (!fsync(fd) && !close(fd)) {
 		free(buf);
-		return;
+		return (1);
 	}
 
 err:	eval = 1;
@@ -412,6 +414,7 @@ err:	eval = 1;
 	if (fd != -1)
 		close(fd);
 	warn("%s", file);
+	return (0);
 }
 
 
@@ -430,8 +433,11 @@ check(char *path, char *name, struct stat *sp)
 		 * talking to a terminal, ask.  Symbolic links are excluded
 		 * because their permissions are meaningless.  Check stdin_ok
 		 * first because we may not have stat'ed the file.
+		 * Also skip this check if the -P option was specified because
+		 * we will not be able to overwrite file contents and will
+		 * barf later.
 		 */
-		if (!stdin_ok || S_ISLNK(sp->st_mode) ||
+		if (!stdin_ok || S_ISLNK(sp->st_mode) || Pflag ||
 		    (!access(name, W_OK) &&
 		    !(sp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
 		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !uid)))
