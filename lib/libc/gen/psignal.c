@@ -49,15 +49,13 @@ psignal(sig, s)
 	const char *s;
 {
 	register const char *c;
-	register int n;
 
 	if (sig < NSIG)
 		c = sys_siglist[sig];
 	else
 		c = "Unknown signal";
-	n = strlen(s);
-	if (n) {
-		(void)write(STDERR_FILENO, s, n);
+	if (s != NULL && *s != '\0') {
+		(void)write(STDERR_FILENO, s, strlen(s));
 		(void)write(STDERR_FILENO, ": ", 2);
 	}
 	(void)write(STDERR_FILENO, c, strlen(c));
