@@ -101,6 +101,7 @@ SUBDIR=	IPXrouted \
 	sliplogin \
 	slstat \
 	spray \
+	sysinstall \
 	syslogd \
 	tcpdchk \
 	tcpdmatch \
