@@ -759,12 +759,16 @@ domem()
 	kread(X_KMEMBUCKETS, buckets, sizeof(buckets));
 	(void)printf("Memory statistics by bucket size\n");
 	(void)printf(
-	    "    Size   In Use   Free   Requests  HighWater  Couldfree\n");
+	    "Size   In Use   Free   Requests  HighWater  Couldfree\n");
 	for (i = MINBUCKET, kp = &buckets[i]; i < MINBUCKET + 16; i++, kp++) {
 		if (kp->kb_calls == 0)
 			continue;
 		size = 1 << i;
-		(void)printf("%8d %8ld %6ld %10ld %7ld %10ld\n", size, 
+		if(size < 1024)
+			(void)printf("%4d",size);
+		else
+			(void)printf("%3dK",size>>10);
+		(void)printf(" %8ld %6ld %10ld %7ld %10ld\n", 
 			kp->kb_total - kp->kb_totalfree,
 			kp->kb_totalfree, kp->kb_calls,
 			kp->kb_highwat, kp->kb_couldfree);
@@ -773,7 +777,7 @@ domem()
 
 	kread(X_KMEMSTAT, kmemstats, sizeof(kmemstats));
 	(void)printf("\nMemory usage type by bucket size\n");
-	(void)printf("    Size  Type(s)\n");
+	(void)printf("Size  Type(s)\n");
 	kp = &buckets[MINBUCKET];
 	for (j =  1 << MINBUCKET; j < 1 << (MINBUCKET + 16); j <<= 1, kp++) {
 		if (kp->kb_calls == 0)
@@ -787,11 +791,13 @@ domem()
 				continue;
 			name = kmemnames[i] ? kmemnames[i] : "undefined";
 			len += 2 + strlen(name);
-			if (first)
-				printf("%8d  %s", j, name);
+			if (first && j < 1024)
+				printf("%4d  %s", j, name);
+			else if (first)
+				printf("%3dK  %s", j>>10, name);
 			else
 				printf(",");
-			if (len >= 80) {
+			if (len >= 79) {
 				printf("\n\t ");
 				len = 10 + strlen(name);
 			}
@@ -803,13 +809,13 @@ domem()
 	}
 
 	(void)printf(
-	    "\nMemory statistics by type                        Type  Kern\n");
+	    "\nMemory statistics by type                          Type  Kern\n");
 	(void)printf(
-"      Type  InUse MemUse HighUse  Limit Requests Limit Limit Size(s)\n");
+"        Type  InUse MemUse HighUse  Limit Requests Limit Limit Size(s)\n");
 	for (i = 0, ks = &kmemstats[0]; i < M_LAST; i++, ks++) {
 		if (ks->ks_calls == 0)
 			continue;
-		(void)printf("%11s%6ld%6ldK%7ldK%6ldK%9ld%5u%6u",
+		(void)printf("%13s%6ld%6ldK%7ldK%6ldK%9ld%5u%6u",
 		    kmemnames[i] ? kmemnames[i] : "undefined",
 		    ks->ks_inuse, (ks->ks_memuse + 1023) / 1024,
 		    (ks->ks_maxused + 1023) / 1024,
@@ -820,9 +826,13 @@ domem()
 			if ((ks->ks_size & j) == 0)
 				continue;
 			if (first)
-				printf("  %d", j);
+				printf("  ");
 			else
-				printf(",%d", j);
+				printf(",");
+			if(j<1024)
+				printf("%d",j);
+			else
+				printf("%dK",j>>10);
 			first = 0;
 		}
 		printf("\n");
