@@ -1,5 +1,4 @@
 #	$OpenBSD: ssh_config,v 1.15 2002/06/20 20:03:34 stevesk Exp $
-#	$FreeBSD$
 
 # This is the ssh client system-wide configuration file.  See
 # ssh_config(5) for more information.  This file provides defaults for
@@ -34,4 +33,3 @@
 #   Cipher 3des
 #   Ciphers aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,aes192-cbc,aes256-cbc
 #   EscapeChar ~
-#   VersionAddendum FreeBSD-20020402

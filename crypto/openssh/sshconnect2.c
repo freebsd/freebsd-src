@@ -24,7 +24,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: sshconnect2.c,v 1.104 2002/06/19 00:27:55 deraadt Exp $");
-RCSID("$FreeBSD$");
 
 #include "ssh.h"
 #include "ssh2.h"
@@ -473,7 +472,7 @@ userauth_passwd(Authctxt *authctxt)
  * parse PASSWD_CHANGEREQ, prompt user and send SSH2_MSG_USERAUTH_REQUEST
  */
 void
-input_userauth_passwd_changereq(int type, uint32_t seqnr, void *ctxt)
+input_userauth_passwd_changereq(int type, u_int32_t seqnr, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
 	char *info, *lang, *password = NULL, *retype = NULL;

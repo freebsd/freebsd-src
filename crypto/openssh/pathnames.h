@@ -1,5 +1,4 @@
 /*	$OpenBSD: pathnames.h,v 1.13 2002/05/23 19:24:30 markus Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -14,8 +13,14 @@
  */
 
 #define ETCDIR				"/etc"
+
+#ifndef SSHDIR
 #define SSHDIR				ETCDIR "/ssh"
+#endif
+
+#ifndef _PATH_SSH_PIDDIR
 #define _PATH_SSH_PIDDIR		"/var/run"
+#endif
 
 /*
  * System-wide file containing host keys of known hosts.  This file should be
@@ -38,7 +43,9 @@
 /* Backwards compatibility */
 #define _PATH_DH_PRIMES			SSHDIR "/primes"
 
+#ifndef _PATH_SSH_PROGRAM
 #define _PATH_SSH_PROGRAM		"/usr/bin/ssh"
+#endif
 
 /*
  * The process id of the daemon listening for connections is saved here to
@@ -109,20 +116,54 @@
 /*
  * Default location of askpass
  */
+#ifndef _PATH_SSH_ASKPASS_DEFAULT
 #define _PATH_SSH_ASKPASS_DEFAULT	"/usr/X11R6/bin/ssh-askpass"
+#endif
 
 /* Location of ssh-keysign for hostbased authentication */
-#define _PATH_SSH_KEY_SIGN	 	"/usr/libexec/ssh-keysign"
+#ifndef _PATH_SSH_KEY_SIGN
+#define _PATH_SSH_KEY_SIGN            "/usr/libexec/ssh-keysign"
+#endif
 
 /* xauth for X11 forwarding */
+#ifndef _PATH_XAUTH
 #define _PATH_XAUTH			"/usr/X11R6/bin/xauth"
+#endif
 
 /* UNIX domain socket for X11 server; displaynum will replace %u */
+#ifndef _PATH_UNIX_X
 #define _PATH_UNIX_X "/tmp/.X11-unix/X%u"
+#endif
+
+/* for scp */
+#ifndef _PATH_CP
+#define _PATH_CP			"cp"
+#endif
 
 /* for sftp */
+#ifndef _PATH_SFTP_SERVER
 #define _PATH_SFTP_SERVER		"/usr/libexec/sftp-server"
-#define _PATH_LS			"ls"
+#endif
 
 /* chroot directory for unprivileged user when UsePrivilegeSeparation=yes */
+#ifndef _PATH_PRIVSEP_CHROOT_DIR
 #define _PATH_PRIVSEP_CHROOT_DIR	"/var/empty"
+#endif
+
+#ifndef _PATH_LS
+#define _PATH_LS			"ls"
+#endif
+
+/* path to login program */
+#ifndef LOGIN_PROGRAM
+# ifdef LOGIN_PROGRAM_FALLBACK
+#  define LOGIN_PROGRAM         LOGIN_PROGRAM_FALLBACK
+# else
+#  define LOGIN_PROGRAM         "/usr/bin/login"
+# endif
+#endif /* LOGIN_PROGRAM */
+
+/* Askpass program define */
+#ifndef ASKPASS_PROGRAM
+#define ASKPASS_PROGRAM         "/usr/lib/ssh/ssh-askpass"
+#endif /* ASKPASS_PROGRAM */

@@ -8,10 +8,8 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: ssh-keyscan.c,v 1.36 2002/06/16 21:30:58 itojun Exp $");
-RCSID("$FreeBSD$");
 
-#include <sys/queue.h>
-#include <errno.h>
+#include "openbsd-compat/fake-queue.h"
 
 #include <openssl/bn.h>
 
@@ -31,7 +29,13 @@ RCSID("$FreeBSD$");
 #include "atomicio.h"
 #include "misc.h"
 
-extern int IPv4or6;
+/* Flag indicating whether IPv4 or IPv6.  This can be set on the command line.
+   Default value is AF_UNSPEC means both IPv4 and IPv6. */
+#ifdef IPV4_DEFAULT
+int IPv4or6 = AF_INET;
+#else
+int IPv4or6 = AF_UNSPEC;
+#endif
 
 int ssh_port = SSH_DEFAULT_PORT;
 
@@ -49,7 +53,11 @@ int timeout = 5;
 int maxfd;
 #define MAXCON (maxfd - 10)
 
+#ifdef HAVE___PROGNAME
 extern char *__progname;
+#else
+char *__progname;
+#endif
 fd_set *read_wait;
 size_t read_wait_size;
 int ncon;
@@ -199,6 +207,7 @@ Linebuf_getline(Linebuf * lb)
 static int
 fdlim_get(int hard)
 {
+#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE)
 	struct rlimit rlfd;
 
 	if (getrlimit(RLIMIT_NOFILE, &rlfd) < 0)
@@ -207,19 +216,30 @@ fdlim_get(int hard)
 		return 10000;
 	else
 		return hard ? rlfd.rlim_max : rlfd.rlim_cur;
+#elif defined (HAVE_SYSCONF)
+	return sysconf (_SC_OPEN_MAX);
+#else
+	return 10000;
+#endif
 }
 
 static int
 fdlim_set(int lim)
 {
+#if defined(HAVE_SETRLIMIT) && defined(RLIMIT_NOFILE)
 	struct rlimit rlfd;
+#endif
 	if (lim <= 0)
 		return (-1);
+#if defined(HAVE_SETRLIMIT) && defined(RLIMIT_NOFILE)
 	if (getrlimit(RLIMIT_NOFILE, &rlfd) < 0)
 		return (-1);
 	rlfd.rlim_cur = lim;
 	if (setrlimit(RLIMIT_NOFILE, &rlfd) < 0)
 		return (-1);
+#elif defined (HAVE_SETDTABLESIZE)
+	setdtablesize(lim);
+#endif
 	return (0);
 }
 
@@ -679,6 +699,9 @@ main(int argc, char **argv)
 	extern int optind;
 	extern char *optarg;
 
+	__progname = get_progname(argv[0]);
+	init_rng();
+	seed_rng();
 	TAILQ_INIT(&tq);
 
 	if (argc <= 1)

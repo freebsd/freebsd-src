@@ -13,7 +13,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: canohost.c,v 1.32 2002/06/11 08:11:45 itojun Exp $");
-RCSID("$FreeBSD$");
 
 #include "packet.h"
 #include "xmalloc.h"
@@ -43,6 +42,28 @@ get_remote_hostname(int socket, int verify_reverse_mapping)
 		debug("getpeername failed: %.100s", strerror(errno));
 		fatal_cleanup();
 	}
+#ifdef IPV4_IN_IPV6
+	if (from.ss_family == AF_INET6) {
+		struct sockaddr_in6 *from6 = (struct sockaddr_in6 *)&from;
+
+		/* Detect IPv4 in IPv6 mapped address and convert it to */
+		/* plain (AF_INET) IPv4 address */
+		if (IN6_IS_ADDR_V4MAPPED(&from6->sin6_addr)) {
+			struct sockaddr_in *from4 = (struct sockaddr_in *)&from;
+			struct in_addr addr;
+			u_int16_t port;
+
+			memcpy(&addr, ((char *)&from6->sin6_addr) + 12, sizeof(addr));
+			port = from6->sin6_port;
+
+			memset(&from, 0, sizeof(from));
+
+			from4->sin_family = AF_INET;
+			memcpy(&from4->sin_addr, &addr, sizeof(addr));
+			from4->sin_port = port;
+		}
+	}
+#endif
 
 	if (getnameinfo((struct sockaddr *)&from, fromlen, ntop, sizeof(ntop),
 	    NULL, 0, NI_NUMERICHOST) != 0)

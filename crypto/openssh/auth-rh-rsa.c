@@ -14,7 +14,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth-rh-rsa.c,v 1.34 2002/03/25 09:25:06 markus Exp $");
-RCSID("$FreeBSD$");
 
 #include "packet.h"
 #include "uidswap.h"

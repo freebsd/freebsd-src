@@ -24,7 +24,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth2.c,v 1.93 2002/05/31 11:35:15 markus Exp $");
-RCSID("$FreeBSD$");
 
 #include "ssh2.h"
 #include "xmalloc.h"
@@ -35,12 +34,7 @@ RCSID("$FreeBSD$");
 #include "auth.h"
 #include "dispatch.h"
 #include "pathnames.h"
-#include "canohost.h"
 #include "monitor_wrap.h"
-
-#ifdef HAVE_LOGIN_CAP
-#include <login_cap.h>
-#endif /* HAVE_LOGIN_CAP */
 
 /* import */
 extern ServerOptions options;
@@ -91,6 +85,10 @@ do_authentication2(void)
 	/* challenge-response is implemented via keyboard interactive */
 	if (options.challenge_response_authentication)
 		options.kbd_interactive_authentication = 1;
+	if (options.pam_authentication_via_kbd_int)
+		options.kbd_interactive_authentication = 1;
+	if (use_privsep)
+		options.pam_authentication_via_kbd_int = 0;
 
 	dispatch_init(&dispatch_protocol_error);
 	dispatch_set(SSH2_MSG_SERVICE_REQUEST, &input_service_request);
@@ -139,15 +137,6 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	Authmethod *m = NULL;
 	char *user, *service, *method, *style = NULL;
 	int authenticated = 0;
-#ifdef HAVE_LOGIN_CAP
-	login_cap_t *lc;
-#endif /* HAVE_LOGIN_CAP */
-#if defined(HAVE_LOGIN_CAP)
-	const char *from_host, *from_ip;
-
-	from_host = get_canonical_hostname(options.verify_reverse_mapping);
-	from_ip = get_remote_ipaddr();
-#endif /* HAVE_LOGIN_CAP */
 
 	if (authctxt == NULL)
 		fatal("input_userauth_request: no authctxt");
@@ -168,11 +157,13 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 			authctxt->valid = 1;
 			debug2("input_userauth_request: setting up authctxt for %s", user);
 #ifdef USE_PAM
-			start_pam(authctxt->pw);
+			PRIVSEP(start_pam(authctxt->pw->pw_name));
 #endif
 		} else {
 			log("input_userauth_request: illegal user %s", user);
-			authctxt->pw = NULL;
+#ifdef USE_PAM
+			PRIVSEP(start_pam("NOUSER"));
+#endif
 		}
 		setproctitle("%s%s", authctxt->pw ? user : "unknown",
 		    use_privsep ? " [net]" : "");
@@ -187,26 +178,6 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 		    "(%s,%s) -> (%s,%s)",
 		    authctxt->user, authctxt->service, user, service);
 	}
-
-#ifdef HAVE_LOGIN_CAP
-	if (authctxt->pw != NULL) {
-		lc = login_getpwclass(authctxt->pw);
-		if (lc == NULL)
-			lc = login_getclassbyname(NULL, authctxt->pw);
-		if (!auth_hostok(lc, from_host, from_ip)) {
-			log("Denied connection for %.200s from %.200s [%.200s].",
-			    authctxt->pw->pw_name, from_host, from_ip);
-			packet_disconnect("Sorry, you are not allowed to connect.");
-		}
-		if (!auth_timeok(lc, time(NULL))) {
-			log("LOGIN %.200s REFUSED (TIME) FROM %.200s",
-			    authctxt->pw->pw_name, from_host);
-			packet_disconnect("Logins not available right now.");
-		}
-		login_close(lc);
-		lc = NULL;
-	}
-#endif  /* HAVE_LOGIN_CAP */
 	/* reset state */
 	auth2_challenge_stop(authctxt);
 	authctxt->postponed = 0;
@@ -217,10 +188,6 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 		debug2("input_userauth_request: try method %s", method);
 		authenticated =	m->userauth(authctxt);
 	}
-#ifdef USE_PAM
-	if (authenticated && authctxt->user && !do_pam_account(authctxt->user, NULL))
-		authenticated = 0;
-#endif /* USE_PAM */
 	userauth_finish(authctxt, authenticated, method);
 
 	xfree(service);
@@ -242,6 +209,12 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 	    !auth_root_allowed(method))
 		authenticated = 0;
 
+#ifdef USE_PAM
+	if (!use_privsep && authenticated && authctxt->user && 
+	    !do_pam_account(authctxt->user, NULL))
+		authenticated = 0;
+#endif /* USE_PAM */
+
 	/* Log before sending the reply */
 	auth_log(authctxt, authenticated, method, " ssh2");
 
@@ -258,8 +231,15 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		/* now we can break out */
 		authctxt->success = 1;
 	} else {
-		if (authctxt->failures++ > AUTH_FAIL_MAX)
+		if (authctxt->failures++ > AUTH_FAIL_MAX) {
+#ifdef WITH_AIXAUTHENTICATE
+			/* XXX: privsep */
+			loginfailed(authctxt->user,
+			    get_canonical_hostname(options.verify_reverse_mapping),
+			    "ssh");
+#endif /* WITH_AIXAUTHENTICATE */
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
+		}
 		methods = authmethods_get();
 		packet_start(SSH2_MSG_USERAUTH_FAILURE);
 		packet_put_cstring(methods);

@@ -1,18 +1,14 @@
 #	$OpenBSD: sshd_config,v 1.56 2002/06/20 23:37:12 markus Exp $
-#	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.
+
+# This sshd was compiled with PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
 # The strategy used for options in the default sshd_config shipped with
 # OpenSSH is to specify options with their default value where
 # possible, but leave them commented.  Uncommented options change a
 # default value.
-
-# Note that some of FreeBSD's defaults differ from OpenBSD's, and
-# FreeBSD has a few additional options.
-
-#VersionAddendum FreeBSD-20020402
 
 #Port 22
 #Protocol 2,1
@@ -36,8 +32,8 @@
 
 # Authentication:
 
-#LoginGraceTime 120
-#PermitRootLogin no
+#LoginGraceTime 600
+#PermitRootLogin yes
 #StrictModes yes
 
 #RSAAuthentication yes
@@ -73,15 +69,18 @@
 # Kerberos TGT Passing only works with the AFS kaserver
 #KerberosTgtPassing no
 
-#X11Forwarding yes
+# Set this to 'yes' to enable PAM keyboard-interactive authentication 
+# Warning: enabling this may bypass the setting of 'PasswordAuthentication'
+#PAMAuthenticationViaKbdInt yes
+
+#X11Forwarding no
 #X11DisplayOffset 10
 #X11UseLocalhost yes
 #PrintMotd yes
 #PrintLastLog yes
 #KeepAlive yes
 #UseLogin no
-#CheckMail yes
-#UsePrivilegeSeparation no
+#UsePrivilegeSeparation yes
 #Compression yes
 
 #MaxStartups 10

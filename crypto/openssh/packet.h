@@ -1,5 +1,4 @@
 /*	$OpenBSD: packet.h,v 1.35 2002/06/19 18:01:00 markus Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

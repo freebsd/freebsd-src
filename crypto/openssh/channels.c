@@ -40,7 +40,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: channels.c,v 1.175 2002/06/10 22:28:41 markus Exp $");
-RCSID("$FreeBSD$");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -130,7 +129,7 @@ static u_int x11_fake_data_len;
 #define	NUM_SOCKS	10
 
 /* AF_UNSPEC or AF_INET or AF_INET6 */
-int IPv4or6 = AF_UNSPEC;
+static int IPv4or6 = AF_UNSPEC;
 
 /* helper */
 static void port_open_helper(Channel *c, char *rtype);
@@ -2058,7 +2057,11 @@ channel_setup_fwd_listener(int type, const char *listen_addr, u_short listen_por
 		/* Bind the socket to the address. */
 		if (bind(sock, ai->ai_addr, ai->ai_addrlen) < 0) {
 			/* address can be in use ipv6 address is already bound */
-			verbose("bind: %.100s", strerror(errno));
+			if (!ai->ai_next)
+				error("bind: %.100s", strerror(errno));
+			else
+				verbose("bind: %.100s", strerror(errno));
+
 			close(sock);
 			continue;
 		}
@@ -2177,6 +2180,7 @@ channel_input_port_forward_request(int is_root, int gateway_ports)
 	hostname = packet_get_string(NULL);
 	host_port = packet_get_int();
 
+#ifndef HAVE_CYGWIN
 	/*
 	 * Check that an unprivileged user is not trying to forward a
 	 * privileged port.
@@ -2184,6 +2188,7 @@ channel_input_port_forward_request(int is_root, int gateway_ports)
 	if (port < IPPORT_RESERVED && !is_root)
 		packet_disconnect("Requested forwarding of port %d but user is not root.",
 				  port);
+#endif
 	/* Initiate forwarding */
 	channel_setup_local_fwd_listener(port, hostname, host_port, gateway_ports);
 
@@ -2355,12 +2360,29 @@ x11_create_display_inet(int x11_display_offset, int x11_use_localhost,
 				continue;
 			sock = socket(ai->ai_family, SOCK_STREAM, 0);
 			if (sock < 0) {
-				error("socket: %.100s", strerror(errno));
-				return -1;
+				if ((errno != EINVAL) && (errno != EAFNOSUPPORT)) {
+					error("socket: %.100s", strerror(errno));
+					return -1;
+				} else {
+					debug("x11_create_display_inet: Socket family %d not supported",
+						 ai->ai_family);
+					continue;
+				}
 			}
+#ifdef IPV6_V6ONLY
+			if (ai->ai_family == AF_INET6) {
+				int on = 1;
+				if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0)
+					error("setsockopt IPV6_V6ONLY: %.100s", strerror(errno));
+			}
+#endif
 			if (bind(sock, ai->ai_addr, ai->ai_addrlen) < 0) {
 				debug("bind port %d: %.100s", port, strerror(errno));
 				close(sock);
+
+				if (ai->ai_next)
+					continue;
+
 				for (n = 0; n < num_socks; n++) {
 					close(socks[n]);
 				}
@@ -2368,8 +2390,17 @@ x11_create_display_inet(int x11_display_offset, int x11_use_localhost,
 				break;
 			}
 			socks[num_socks++] = sock;
+#ifndef DONT_TRY_OTHER_AF
 			if (num_socks == NUM_SOCKS)
 				break;
+#else
+			if (x11_use_localhost) {
+				if (num_socks == NUM_SOCKS)
+					break;
+			} else {
+				break;
+			}
+#endif
 		}
 		freeaddrinfo(aitop);
 		if (num_socks > 0)

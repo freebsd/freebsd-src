@@ -26,12 +26,11 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: monitor.c,v 1.16 2002/06/21 05:50:51 djm Exp $");
-RCSID("$FreeBSD$");
 
 #include <openssl/dh.h>
 
 #ifdef SKEY
-#include <opie.h>
+#include <skey.h>
 #endif
 
 #include "ssh.h"
@@ -117,6 +116,10 @@ int mm_answer_rsa_response(int, Buffer *);
 int mm_answer_sesskey(int, Buffer *);
 int mm_answer_sessid(int, Buffer *);
 
+#ifdef USE_PAM
+int mm_answer_pam_start(int, Buffer *);
+#endif
+
 static Authctxt *authctxt;
 static BIGNUM *ssh1_challenge = NULL;	/* used for ssh1 rsa auth */
 
@@ -151,6 +154,9 @@ struct mon_table mon_dispatch_proto20[] = {
     {MONITOR_REQ_AUTHSERV, MON_ONCE, mm_answer_authserv},
     {MONITOR_REQ_AUTH2_READ_BANNER, MON_ONCE, mm_answer_auth2_read_banner},
     {MONITOR_REQ_AUTHPASSWORD, MON_AUTH, mm_answer_authpassword},
+#ifdef USE_PAM
+    {MONITOR_REQ_PAM_START, MON_ONCE, mm_answer_pam_start},
+#endif
 #ifdef BSD_AUTH
     {MONITOR_REQ_BSDAUTHQUERY, MON_ISAUTH, mm_answer_bsdauthquery},
     {MONITOR_REQ_BSDAUTHRESPOND, MON_AUTH,mm_answer_bsdauthrespond},
@@ -182,6 +188,9 @@ struct mon_table mon_dispatch_proto15[] = {
     {MONITOR_REQ_KEYALLOWED, MON_ISAUTH, mm_answer_keyallowed},
     {MONITOR_REQ_RSACHALLENGE, MON_ONCE, mm_answer_rsa_challenge},
     {MONITOR_REQ_RSARESPONSE, MON_ONCE|MON_AUTHDECIDE, mm_answer_rsa_response},
+#ifdef USE_PAM
+    {MONITOR_REQ_PAM_START, MON_ONCE, mm_answer_pam_start},
+#endif
 #ifdef BSD_AUTH
     {MONITOR_REQ_BSDAUTHQUERY, MON_ISAUTH, mm_answer_bsdauthquery},
     {MONITOR_REQ_BSDAUTHRESPOND, MON_AUTH,mm_answer_bsdauthrespond},
@@ -189,6 +198,9 @@ struct mon_table mon_dispatch_proto15[] = {
 #ifdef SKEY
     {MONITOR_REQ_SKEYQUERY, MON_ISAUTH, mm_answer_skeyquery},
     {MONITOR_REQ_SKEYRESPOND, MON_AUTH, mm_answer_skeyrespond},
+#endif
+#ifdef USE_PAM
+    {MONITOR_REQ_PAM_START, MON_ONCE, mm_answer_pam_start},
 #endif
     {0, 0, NULL}
 };
@@ -263,6 +275,10 @@ monitor_child_preauth(struct monitor *pmonitor)
 			if (authctxt->pw->pw_uid == 0 &&
 			    !auth_root_allowed(auth_method))
 				authenticated = 0;
+#ifdef USE_PAM
+			if (!do_pam_account(authctxt->pw->pw_name, NULL))
+				authenticated = 0;
+#endif
 		}
 
 		if (ent->flags & MON_AUTHDECIDE) {
@@ -510,7 +526,9 @@ mm_answer_pwnamallow(int socket, Buffer *m)
 	buffer_put_cstring(m, pwent->pw_name);
 	buffer_put_cstring(m, "*");
 	buffer_put_cstring(m, pwent->pw_gecos);
+#ifdef HAVE_PW_CLASS_IN_PASSWD
 	buffer_put_cstring(m, pwent->pw_class);
+#endif
 	buffer_put_cstring(m, pwent->pw_dir);
 	buffer_put_cstring(m, pwent->pw_shell);
 
@@ -527,6 +545,9 @@ mm_answer_pwnamallow(int socket, Buffer *m)
 		monitor_permit(mon_dispatch, MONITOR_REQ_AUTH2_READ_BANNER, 1);
 	}
 
+#ifdef USE_PAM
+	monitor_permit(mon_dispatch, MONITOR_REQ_PAM_START, 1);
+#endif
 
 	return (0);
 }
@@ -657,11 +678,11 @@ mm_answer_bsdauthrespond(int socket, Buffer *m)
 int
 mm_answer_skeyquery(int socket, Buffer *m)
 {
-	struct opie opie;
+	struct skey skey;
 	char challenge[1024];
 	int res;
 
-	res = opiechallenge(&opie, authctxt->user, challenge);
+	res = skeychallenge(&skey, authctxt->user, challenge);
 
 	buffer_clear(m);
 	buffer_put_int(m, res);
@@ -684,8 +705,8 @@ mm_answer_skeyrespond(int socket, Buffer *m)
 
 	authok = (options.challenge_response_authentication &&
 	    authctxt->valid &&
-	    opie_haskey(authctxt->pw->pw_name) == 0 &&
-	    opie_passverify(authctxt->pw->pw_name, response) != -1);
+	    skey_haskey(authctxt->pw->pw_name) == 0 &&
+	    skey_passcheck(authctxt->pw->pw_name, response) != -1);
 
 	xfree(response);
 
@@ -698,6 +719,22 @@ mm_answer_skeyrespond(int socket, Buffer *m)
 	auth_method = "skey";
 
 	return (authok != 0);
+}
+#endif
+
+#ifdef USE_PAM
+int
+mm_answer_pam_start(int socket, Buffer *m)
+{
+	char *user;
+	
+	user = buffer_get_string(m, NULL);
+
+	start_pam(user);
+
+	xfree(user);
+
+	return (0);
 }
 #endif
 
@@ -1454,8 +1491,13 @@ mm_init_compression(struct mm_master *mm)
 static void
 monitor_socketpair(int *pair)
 {
+#ifdef HAVE_SOCKETPAIR
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
 		fatal("%s: socketpair", __func__);
+#else
+	fatal("%s: UsePrivilegeSeparation=yes not supported",
+	    __func__);
+#endif
 	FD_CLOSEONEXEC(pair[0]);
 	FD_CLOSEONEXEC(pair[1]);
 }

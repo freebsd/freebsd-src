@@ -1,5 +1,4 @@
 /*	$OpenBSD: servconf.h,v 1.58 2002/06/20 23:05:55 markus Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -53,7 +52,6 @@ typedef struct {
 						 * for RhostsRsaAuth */
 	int     print_motd;	/* If true, print /etc/motd. */
 	int	print_lastlog;	/* If true, print lastlog */
-	int	check_mail;	/* If true, check for new mail */
 	int     x11_forwarding;	/* If true, permit inet (spoofing) X11 fwd. */
 	int     x11_display_offset;	/* What DISPLAY number to start
 					 * searching at */
@@ -110,7 +108,6 @@ typedef struct {
 	char   *allow_groups[MAX_ALLOW_GROUPS];
 	u_int num_deny_groups;
 	char   *deny_groups[MAX_DENY_GROUPS];
-	unsigned int connections_period;
 
 	u_int num_subsystems;
 	char   *subsystem_name[MAX_SUBSYSTEMS];
@@ -133,6 +130,7 @@ typedef struct {
 
 	char   *authorized_keys_file;	/* File containing public keys */
 	char   *authorized_keys_file2;
+	int	pam_authentication_via_kbd_int;
 }       ServerOptions;
 
 void	 initialize_server_options(ServerOptions *);
