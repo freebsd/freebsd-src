@@ -133,7 +133,7 @@ natm_usr_detach(struct socket *so)
      */
     npcb_free(npcb, NPCB_DESTROY);	/* drain */
     so->so_pcb = NULL;
-    sofree(so);
+    sotryfree(so);
  out:
     splx(s);
     return (error);
@@ -481,7 +481,7 @@ struct proc *p;
 
       npcb_free(npcb, NPCB_DESTROY);	/* drain */
       so->so_pcb = NULL;
-      sofree(so);
+      sotryfree(so);
 
       break;
 

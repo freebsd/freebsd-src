@@ -182,6 +182,12 @@ soo_stat(fp, ub, td)
 	return ((*so->so_proto->pr_usrreqs->pru_sense)(so, ub));
 }
 
+/*
+ * API socket close on file pointer.  We call soclose() to close the 
+ * socket (including initiating closing protocols).  soclose() will
+ * sorele() the file reference but the actual socket will not go away
+ * until the socket's ref count hits 0.
+ */
 /* ARGSUSED */
 int
 soo_close(fp, td)
@@ -189,10 +195,12 @@ soo_close(fp, td)
 	struct thread *td;
 {
 	int error = 0;
+	struct socket *so;
 
 	fp->f_ops = &badfileops;
-	if (fp->f_data)
-		error = soclose((struct socket *)fp->f_data);
-	fp->f_data = 0;
+	if ((so = (struct socket *)fp->f_data) != NULL) {
+		fp->f_data = NULL;
+		error = soclose(so);
+	}
 	return (error);
 }

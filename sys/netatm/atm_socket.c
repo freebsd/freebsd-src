@@ -176,7 +176,7 @@ atm_sock_detach(so)
 	 * Break links and free control blocks
 	 */
 	so->so_pcb = NULL;
-	sofree(so);
+	sotryfree(so);
 
 	atm_free((caddr_t)atp);
 

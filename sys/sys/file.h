@@ -50,6 +50,7 @@ struct thread;
 struct uio;
 struct knote;
 struct vnode;
+struct socket;
 
 /*
  * Kernel descriptor table.
@@ -118,6 +119,9 @@ int fdrop __P((struct file *fp, struct thread *td));
 int fgetvp __P((struct thread *td, int fd, struct vnode **vpp));
 int fgetvp_read __P((struct thread *td, int fd, struct vnode **vpp));
 int fgetvp_write __P((struct thread *td, int fd, struct vnode **vpp));
+
+int fgetsock __P((struct thread *td, int fd, struct socket **spp, u_int *fflagp));
+void fputsock __P((struct socket *sp));
 
 static __inline void
 fhold(fp)

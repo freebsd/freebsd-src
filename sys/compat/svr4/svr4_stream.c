@@ -150,7 +150,6 @@ svr4_sendit(td, s, mp, flags)
 	register struct msghdr *mp;
 	int flags;
 {
-	struct file *fp;
 	struct uio auio;
 	register struct iovec *iov;
 	register int i;
@@ -163,8 +162,7 @@ svr4_sendit(td, s, mp, flags)
 	struct uio ktruio;
 #endif
 
-	error = holdsock(td->td_proc->p_fd, s, &fp);
-	if (error)
+	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
@@ -176,16 +174,14 @@ svr4_sendit(td, s, mp, flags)
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
-			fdrop(fp, td);
-			return (EINVAL);
+			error = EINVAL;
+			goto done1;
 		}
 	}
 	if (mp->msg_name) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
-		if (error) {
-			fdrop(fp, td);
-			return (error);
-		}
+		if (error)
+			goto done1;
 	} else {
 		to = 0;
 	}
@@ -211,7 +207,6 @@ svr4_sendit(td, s, mp, flags)
 	}
 #endif
 	len = auio.uio_resid;
-	so = (struct socket *)fp->f_data;
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, to, &auio, 0, control,
 						     flags, td);
 	if (error) {
@@ -239,7 +234,8 @@ svr4_sendit(td, s, mp, flags)
 bad:
 	if (to)
 		FREE(to, M_SONAME);
-	fdrop(fp, td);
+done1:
+	fputsock(so);
 	return (error);
 }
 
@@ -250,7 +246,6 @@ svr4_recvit(td, s, mp, namelenp)
 	register struct msghdr *mp;
 	caddr_t namelenp;
 {
-	struct file *fp;
 	struct uio auio;
 	register struct iovec *iov;
 	register int i;
@@ -264,8 +259,7 @@ svr4_recvit(td, s, mp, namelenp)
 	struct uio ktruio;
 #endif
 
-	error = holdsock(td->td_proc->p_fd, s, &fp);
-	if (error)
+	if ((error = fgetsock(td, s, &so, NULL)) != 0)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
@@ -277,8 +271,8 @@ svr4_recvit(td, s, mp, namelenp)
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
-			fdrop(fp, td);
-			return (EINVAL);
+			error = EINVAL;
+			goto done1;
 		}
 	}
 #ifdef KTRACE
@@ -291,7 +285,6 @@ svr4_recvit(td, s, mp, namelenp)
 	}
 #endif
 	len = auio.uio_resid;
-	so = (struct socket *)fp->f_data;
 	error = so->so_proto->pr_usrreqs->pru_soreceive(so, &fromsa, &auio,
 	    (struct mbuf **)0, mp->msg_control ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
@@ -365,7 +358,8 @@ out:
 		FREE(fromsa, M_SONAME);
 	if (control)
 		m_freem(control);
-	fdrop(fp, td);
+done1:
+	fputsock(so);
 	return (error);
 }
 
