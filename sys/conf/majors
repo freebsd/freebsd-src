@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.79 1999/07/05 09:09:09 msmith Exp $
+$Id: majors.i386,v 1.80 1999/07/31 09:32:28 jkh Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -46,7 +46,6 @@ blkdev	name		comments
 31	acd		ATAPI CDROM
 32	afd		ATAPI floppy
 33	ast		ATAPI tape
-34	arla		Arla (AFS-clone) driver
 100	??		entries from 100-127 are reserved for local use
 127	??		entries from 100-127 are reserved for local use
 
