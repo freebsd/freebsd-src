@@ -789,8 +789,8 @@ loop:
 			goto loop;
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
-		mtx_unlock(&mntvnode_mtx);
 		VI_LOCK(vp);
+		mtx_unlock(&mntvnode_mtx);
 		dep = VTODE(vp);
 		if (vp->v_type == VNON ||
 		    ((dep->de_flag &
