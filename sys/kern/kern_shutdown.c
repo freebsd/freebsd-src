@@ -540,7 +540,7 @@ panic(const char *fmt, ...)
 
 #ifdef SMP
 	/* Only 1 CPU can panic at a time */
-	s_lock(&panic_lock);
+	mtx_enter(&panic_mtx, MTX_DEF);
 #endif
 
 	bootopt = RB_AUTOBOOT | RB_DUMP;

@@ -228,79 +228,20 @@ globaldata_find(int cpuno)
 	return cpuno_to_globaldata[cpuno];
 }
 
-/* Implementation of simplelocks */
-
-/*
- * Atomically swap the value of *p with val. Return the old value of *p.
- */
-static __inline int
-atomic_xchg(volatile u_int *p, u_int val)
-{
-	u_int32_t oldval, temp;
-
-	__asm__ __volatile__ (
-		: "=&r"(oldval), "=r"(temp), "=m" (*p)
-		: "m"(*p), "r"(val)
-		: "memory");
-	return oldval;
-}
-
-void
-s_lock_init(struct simplelock *lkp)
-{
-
-	lkp->lock_data = 0;
-}
-
-void
-s_lock(struct simplelock *lkp)
-{
-
-	for (;;) {
-		if (s_lock_try(lkp))
-			return;
-
-		/*
-		 * Spin until clear.
-		 */
-		while (lkp->lock_data)
-			;
-	}
-}
-
-int
-s_lock_try(struct simplelock *lkp)
-{
-	u_int32_t oldval, temp;
-
-	__asm__ __volatile__ (
-		: "=&r"(oldval), "=r"(temp), "=m" (lkp->lock_data)
-		: "m"(lkp->lock_data)
-		: "memory");
-
-	if (!oldval) {
-		/*
-		 * It was clear, return success.
-		 */
-		return 1;
-	}
-	return 0;
-}
-
 /* Other stuff */
 
 /* lock around the MP rendezvous */
-static struct simplelock smp_rv_lock;
+static struct mtx smp_rv_mtx;
 
 /* only 1 CPU can panic at a time :) */
-struct simplelock	panic_lock;
+struct mtx panic_mtx;
 
 static void
 init_locks(void)
 {
 
-	s_lock_init(&smp_rv_lock);
-	s_lock_init(&panic_lock);
+	mtx_init(&smp_rv_mtx, "smp rendezvous", MTX_SPIN);
+	mtx_init(&panic_mtx, "panic", MTX_DEF);
 }
 
 void
@@ -436,14 +377,9 @@ smp_rendezvous(void (* setup_func)(void *),
 	void (* teardown_func)(void *),
 	void *arg)
 {
-	int s;
-
-	/* disable interrupts on this CPU, save interrupt status */
-	s = save_intr();
-	disable_intr();
 
 	/* obtain rendezvous lock */
-	s_lock(&smp_rv_lock);		/* XXX sleep here? NOWAIT flag? */
+	mtx_enter(&smp_rv_mtx, MTX_SPIN);
 
 	/* set static function pointers */
 	smp_rv_setup_func = setup_func;
@@ -457,10 +393,7 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rendezvous_action();
 
 	/* release lock */
-	s_unlock(&smp_rv_lock);
-
-	/* restore interrupt flag */
-	restore_intr(s);
+	mtx_exit(&smp_rv_mtx, MTX_SPIN);
 }
 
 static u_int64_t

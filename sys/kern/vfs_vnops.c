@@ -833,9 +833,9 @@ filt_vnattach(struct knote *kn)
 	if ((vp)->v_tag != VT_UFS)
 		return (EOPNOTSUPP);
 
-        simple_lock(&vp->v_pollinfo.vpi_lock);
+	mtx_enter(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 	SLIST_INSERT_HEAD(&vp->v_pollinfo.vpi_selinfo.si_note, kn, kn_selnext);
-        simple_unlock(&vp->v_pollinfo.vpi_lock);
+	mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 
 	return (0);
 }
@@ -845,10 +845,10 @@ filt_vndetach(struct knote *kn)
 {
 	struct vnode *vp = (struct vnode *)kn->kn_fp->f_data;
 
-        simple_lock(&vp->v_pollinfo.vpi_lock);
+	mtx_enter(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 	SLIST_REMOVE(&vp->v_pollinfo.vpi_selinfo.si_note,
 	    kn, knote, kn_selnext);
-        simple_unlock(&vp->v_pollinfo.vpi_lock);
+	mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 }
 
 static int

@@ -62,6 +62,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>		/* XXX debugging */
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -75,9 +76,7 @@
 static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
 struct	rman_head rman_head;
-#ifndef NULL_SIMPLELOCKS
-static	struct simplelock rman_lock; /* mutex to protect rman_head */
-#endif
+static	struct mtx rman_mtx; /* mutex to protect rman_head */
 static	int int_rman_activate_resource(struct rman *rm, struct resource *r,
 				       struct resource **whohas);
 static	int int_rman_deactivate_resource(struct resource *r);
@@ -91,7 +90,7 @@ rman_init(struct rman *rm)
 	if (once == 0) {
 		once = 1;
 		TAILQ_INIT(&rman_head);
-		simple_lock_init(&rman_lock);
+		mtx_init(&rman_mtx, "rman head", MTX_DEF);
 	}
 
 	if (rm->rm_type == RMAN_UNINIT)
@@ -100,14 +99,14 @@ rman_init(struct rman *rm)
 		panic("implement RMAN_GAUGE");
 
 	TAILQ_INIT(&rm->rm_list);
-	rm->rm_slock = malloc(sizeof *rm->rm_slock, M_RMAN, M_NOWAIT);
-	if (rm->rm_slock == 0)
+	rm->rm_mtx = malloc(sizeof *rm->rm_mtx, M_RMAN, M_NOWAIT);
+	if (rm->rm_mtx == 0)
 		return ENOMEM;
-	simple_lock_init(rm->rm_slock);
+	mtx_init(rm->rm_mtx, "rman", MTX_DEF);
 
-	simple_lock(&rman_lock);
+	mtx_enter(&rman_mtx, MTX_DEF);
 	TAILQ_INSERT_TAIL(&rman_head, rm, rm_link);
-	simple_unlock(&rman_lock);
+	mtx_exit(&rman_mtx, MTX_DEF);
 	return 0;
 }
 
@@ -130,7 +129,7 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 	r->r_dev = 0;
 	r->r_rm = rm;
 
-	simple_lock(rm->rm_slock);
+	mtx_enter(rm->rm_mtx, MTX_DEF);
 	for (s = TAILQ_FIRST(&rm->rm_list);	
 	     s && s->r_end < r->r_start;
 	     s = TAILQ_NEXT(s, r_link))
@@ -142,7 +141,7 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 		TAILQ_INSERT_BEFORE(s, r, r_link);
 	}
 
-	simple_unlock(rm->rm_slock);
+	mtx_exit(rm->rm_mtx, MTX_DEF);
 	return 0;
 }
 
@@ -151,10 +150,10 @@ rman_fini(struct rman *rm)
 {
 	struct resource *r;
 
-	simple_lock(rm->rm_slock);
+	mtx_enter(rm->rm_mtx, MTX_DEF);
 	TAILQ_FOREACH(r, &rm->rm_list, r_link) {
 		if (r->r_flags & RF_ALLOCATED) {
-			simple_unlock(rm->rm_slock);
+			mtx_exit(rm->rm_mtx, MTX_DEF);
 			return EBUSY;
 		}
 	}
@@ -168,11 +167,12 @@ rman_fini(struct rman *rm)
 		TAILQ_REMOVE(&rm->rm_list, r, r_link);
 		free(r, M_RMAN);
 	}
-	simple_unlock(rm->rm_slock);
-	simple_lock(&rman_lock);
+	mtx_exit(rm->rm_mtx, MTX_DEF);
+	mtx_enter(&rman_mtx, MTX_DEF);
 	TAILQ_REMOVE(&rman_head, rm, rm_link);
-	simple_unlock(&rman_lock);
-	free(rm->rm_slock, M_RMAN);
+	mtx_exit(&rman_mtx, MTX_DEF);
+	mtx_destroy(rm->rm_mtx);
+	free(rm->rm_mtx, M_RMAN);
 
 	return 0;
 }
@@ -193,7 +193,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 	want_activate = (flags & RF_ACTIVE);
 	flags &= ~RF_ACTIVE;
 
-	simple_lock(rm->rm_slock);
+	mtx_enter(rm->rm_mtx, MTX_DEF);
 
 	for (r = TAILQ_FIRST(&rm->rm_list); 
 	     r && r->r_end < start;
@@ -370,7 +370,7 @@ out:
 		}
 	}
 			
-	simple_unlock(rm->rm_slock);
+	mtx_exit(rm->rm_mtx, MTX_DEF);
 	return (rv);
 }
 
@@ -417,9 +417,9 @@ rman_activate_resource(struct resource *r)
 	struct rman *rm;
 
 	rm = r->r_rm;
-	simple_lock(rm->rm_slock);
+	mtx_enter(rm->rm_mtx, MTX_DEF);
 	rv = int_rman_activate_resource(rm, r, &whohas);
-	simple_unlock(rm->rm_slock);
+	mtx_exit(rm->rm_mtx, MTX_DEF);
 	return rv;
 }
 
@@ -432,28 +432,28 @@ rman_await_resource(struct resource *r, int pri, int timo)
 
 	rm = r->r_rm;
 	for (;;) {
-		simple_lock(rm->rm_slock);
+		mtx_enter(rm->rm_mtx, MTX_DEF);
 		rv = int_rman_activate_resource(rm, r, &whohas);
 		if (rv != EBUSY)
-			return (rv);	/* returns with simplelock */
+			return (rv);	/* returns with mutex held */
 
 		if (r->r_sharehead == 0)
 			panic("rman_await_resource");
 		/*
 		 * splhigh hopefully will prevent a race between
-		 * simple_unlock and tsleep where a process
+		 * mtx_exit and tsleep where a process
 		 * could conceivably get in and release the resource
 		 * before we have a chance to sleep on it.
 		 */
 		s = splhigh();
 		whohas->r_flags |= RF_WANTED;
-		simple_unlock(rm->rm_slock);
+		mtx_exit(rm->rm_mtx, MTX_DEF);
 		rv = tsleep(r->r_sharehead, pri, "rmwait", timo);
 		if (rv) {
 			splx(s);
 			return rv;
 		}
-		simple_lock(rm->rm_slock);
+		mtx_enter(rm->rm_mtx, MTX_DEF);
 		splx(s);
 	}
 }
@@ -478,9 +478,9 @@ rman_deactivate_resource(struct resource *r)
 	struct	rman *rm;
 
 	rm = r->r_rm;
-	simple_lock(rm->rm_slock);
+	mtx_enter(rm->rm_mtx, MTX_DEF);
 	int_rman_deactivate_resource(r);
-	simple_unlock(rm->rm_slock);
+	mtx_exit(rm->rm_mtx, MTX_DEF);
 	return 0;
 }
 
@@ -576,9 +576,9 @@ rman_release_resource(struct resource *r)
 	int	rv;
 	struct	rman *rm = r->r_rm;
 
-	simple_lock(rm->rm_slock);
+	mtx_enter(rm->rm_mtx, MTX_DEF);
 	rv = int_rman_release_resource(rm, r);
-	simple_unlock(rm->rm_slock);
+	mtx_exit(rm->rm_mtx, MTX_DEF);
 	return (rv);
 }
 

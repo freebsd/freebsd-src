@@ -78,8 +78,8 @@ struct namecache;
 
 /*
  * Reading or writing any of these items requires holding the appropriate lock.
- * v_freelist is locked by the global vnode_free_list simple lock.
- * v_mntvnodes is locked by the global mntvnodes simple lock.
+ * v_freelist is locked by the global vnode_free_list mutex.
+ * v_mntvnodes is locked by the global mntvnodes mutex.
  * v_flag, v_usecount, v_holdcount and v_writecount are
  *    locked by the v_interlock mutex.
  * v_pollinfo is locked by the lock contained inside it.
@@ -124,7 +124,7 @@ struct vnode {
 	struct	vnode *v_dd;			/* .. vnode */
 	u_long	v_ddid;				/* .. capability identifier */
 	struct	{
-		struct	simplelock vpi_lock;	/* lock to protect below */
+		struct	mtx vpi_lock;		/* lock to protect below */
 		struct	selinfo vpi_selinfo;	/* identity of poller(s) */
 		short	vpi_events;		/* what they are looking for */
 		short	vpi_revents;		/* what has happened */
@@ -369,7 +369,7 @@ extern struct vnodeop_desc *vnodeop_descs[];
 /*
  * Interlock for scanning list of vnodes attached to a mountpoint
  */
-extern struct simplelock mntvnode_slock;
+extern struct mtx mntvnode_mtx;
 
 /*
  * This macro is very helpful in defining those offsets in the vdesc struct.
@@ -576,7 +576,7 @@ int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,
 int	vtruncbuf __P((struct vnode *vp, struct ucred *cred, struct proc *p,
 		off_t length, int blksize));
 void	vprint __P((char *label, struct vnode *vp));
-int	vrecycle __P((struct vnode *vp, struct simplelock *inter_lkp,
+int	vrecycle __P((struct vnode *vp, struct mtx *inter_lkp,
 	    struct proc *p));
 int 	vn_close __P((struct vnode *vp,
 	    int flags, struct ucred *cred, struct proc *p));

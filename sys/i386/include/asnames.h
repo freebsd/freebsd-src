@@ -233,7 +233,7 @@
 #define	_Giant				Giant
 #define _idle				idle
 #define _imen				imen
-#define _imen_lock			imen_lock
+#define _imen_mtx			imen_mtx
 #define _in_vm86call			in_vm86call
 #define _init386			init386
 #define _init_secondary			init_secondary
@@ -282,8 +282,6 @@
 #define _reg_u_sub			reg_u_sub
 #define _rel_mplock			rel_mplock
 #define _round_reg			round_reg
-#define _s_lock				s_lock
-#define _s_unlock			s_unlock
 #define _sched_ithd			sched_ithd
 #define	_sched_lock			sched_lock
 #define _set_precision_flag_down	set_precision_flag_down
@@ -296,8 +294,6 @@
 #define _smp_rendezvous_action		smp_rendezvous_action
 #define _softclock			softclock
 #define _spending			spending
-#define _ss_lock			ss_lock
-#define _ss_unlock			ss_unlock
 #define _started_cpus			started_cpus
 #define _stopped_cpus			stopped_cpus
 #define _svr4_sigcode			svr4_sigcode

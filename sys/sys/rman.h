@@ -106,7 +106,7 @@ struct	resource {
 
 struct	rman {
 	struct	resource_head 	rm_list;
-	struct	simplelock *rm_slock; /* mutex used to protect rm_list */
+	struct	mtx *rm_mtx;	/* mutex used to protect rm_list */
 	TAILQ_ENTRY(rman)	rm_link; /* link in list of all rmans */
 	u_long	rm_start;	/* index of globally first entry */
 	u_long	rm_end;		/* index of globally last entry */

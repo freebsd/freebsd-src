@@ -238,7 +238,7 @@ typedef struct BASETABLE_ENTRY {
 #define MP_ANNOUNCE_POST	0x19
 
 /* used to hold the AP's until we are ready to release them */
-struct simplelock	ap_boot_lock;
+struct mtx			ap_boot_mtx;
 
 /** XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
 int	current_postcode;
@@ -318,6 +318,9 @@ SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
  * Local data and functions.
  */
 
+/* Set to 1 once we're ready to let the APs out of the pen. */
+static volatile int aps_ready = 0;
+
 static int	mp_capable;
 static u_int	boot_address;
 static u_int	base_memory;
@@ -345,36 +348,40 @@ static void	release_aps(void *dummy);
  */
 
 /* critical region around IO APIC, apic_imen */
-struct simplelock	imen_lock;
+struct mtx		imen_mtx;
 
 /* lock region used by kernel profiling */
-struct simplelock	mcount_lock;
+struct mtx		mcount_mtx;
 
 #ifdef USE_COMLOCK
 /* locks com (tty) data/hardware accesses: a FASTINTR() */
-struct simplelock	com_lock;
+struct mtx		com_mtx;
 #endif /* USE_COMLOCK */
 
 /* lock around the MP rendezvous */
-static struct simplelock smp_rv_lock;
+static struct mtx	smp_rv_mtx;
 
 /* only 1 CPU can panic at a time :) */
-struct simplelock	panic_lock;
+struct mtx		panic_mtx;
 
 static void
 init_locks(void)
 {
-	s_lock_init(&mcount_lock);
+	/*
+	 * XXX The mcount mutex probably needs to be statically initialized,
+	 * since it will be used even in the function calls that get us to this
+	 * point.
+	 */
+	mtx_init(&mcount_mtx, "mcount", MTX_DEF);
 
-	s_lock_init(&imen_lock);
-	s_lock_init(&smp_rv_lock);
-	s_lock_init(&panic_lock);
+	mtx_init(&smp_rv_mtx, "smp rendezvous", MTX_SPIN);
+	mtx_init(&panic_mtx, "panic", MTX_DEF);
 
 #ifdef USE_COMLOCK
-	s_lock_init(&com_lock);
+	mtx_init(&com_mtx, "com", MTX_SPIN);
 #endif /* USE_COMLOCK */
 
-	s_lock_init(&ap_boot_lock);
+	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
 }
 
 /*
@@ -654,9 +661,6 @@ mp_enable(u_int boot_addr)
 
 	/* initialize all SMP locks */
 	init_locks();
-
-	/* obtain the ap_boot_lock */
-	s_lock(&ap_boot_lock);
 
 	/* start each Application Processor */
 	start_all_aps(boot_addr);
@@ -2247,8 +2251,12 @@ ap_init(void)
 {
 	u_int	apic_id;
 
+	/* spin until all the AP's are ready */
+	while (!aps_ready)
+		/* spin */ ;
+
 	/* lock against other AP's that are waking up */
-	s_lock(&ap_boot_lock);
+	mtx_enter(&ap_boot_mtx, MTX_SPIN);
 
 	/* BSP may have changed PTD while we're waiting for the lock */
 	cpu_invltlb();
@@ -2297,7 +2305,7 @@ ap_init(void)
 	}
 
 	/* let other AP's wake up now */
-	s_unlock(&ap_boot_lock);
+	mtx_exit(&ap_boot_mtx, MTX_SPIN);
 
 	/* wait until all the AP's are up */
 	while (smp_started == 0)
@@ -2851,10 +2859,9 @@ smp_rendezvous(void (* setup_func)(void *),
 	       void (* teardown_func)(void *),
 	       void *arg)
 {
-	u_int	efl;
-	
+
 	/* obtain rendezvous lock */
-	s_lock(&smp_rv_lock);		/* XXX sleep here? NOWAIT flag? */
+	mtx_enter(&smp_rv_mtx, MTX_SPIN);
 
 	/* set static function pointers */
 	smp_rv_setup_func = setup_func;
@@ -2864,27 +2871,22 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rv_waiters[0] = 0;
 	smp_rv_waiters[1] = 0;
 
-	/* disable interrupts on this CPU, save interrupt status */
-	efl = read_eflags();
-	write_eflags(efl & ~PSL_I);
-
-	/* signal other processors, which will enter the IPI with interrupts off */
+	/*
+	 * signal other processors, which will enter the IPI with interrupts off
+	 */
 	all_but_self_ipi(XRENDEZVOUS_OFFSET);
 
 	/* call executor function */
 	smp_rendezvous_action();
 
-	/* restore interrupt flag */
-	write_eflags(efl);
-
 	/* release lock */
-	s_unlock(&smp_rv_lock);
+	mtx_exit(&smp_rv_mtx, MTX_SPIN);
 }
 
 void
 release_aps(void *dummy __unused)
 {
-	s_unlock(&ap_boot_lock);
+	atomic_store_rel_int(&aps_ready, 1);
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
