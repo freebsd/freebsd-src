@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.442 1999/01/05 01:58:44 jkh Exp $
+#	$Id: Makefile,v 1.443 1999/01/05 02:09:29 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -456,9 +456,8 @@ release.8: write_mfs_in_kernel dumpnlist
 	@echo "Making the regular boot floppy."
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
-	@cp ${.CURDIR}/texts/*.TXT ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
-	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp ${RD}/mfsfd/stand/help/*.TXT
+	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
 		${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
 	@mv fs-image fs-image.std
