@@ -53,7 +53,7 @@ MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
 CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
-MROFF_CMD?=	groff -Tascii -man
+MROFF_CMD?=	groff -Tascii -mtty-char -man
 
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
