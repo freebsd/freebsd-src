@@ -369,8 +369,8 @@ mdopen(dev_t dev, int flag, int fmt, struct thread *td)
 
 	sc->disk.d_sectorsize = sc->secsize;
 	sc->disk.d_mediasize = (off_t)sc->nsect * sc->secsize;
-	sc->disk.d_fwsectors = 0;
-	sc->disk.d_fwheads = 0;
+	sc->disk.d_fwsectors = sc->nsect > 63 ? 63 : sc->nsect;
+	sc->disk.d_fwheads = 1;
 	sc->opencount++;
 	return (0);
 }
