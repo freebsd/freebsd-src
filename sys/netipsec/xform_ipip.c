@@ -526,7 +526,6 @@ ipip_output(
 		if (m == 0) {
 			DPRINTF(("%s: M_PREPEND failed\n", __func__));
 			ipipstat.ipips_hdrops++;
-			*mp = NULL;
 			error = ENOBUFS;
 			goto bad;
 		}
@@ -610,7 +609,8 @@ nofamily:
 	return 0;
 bad:
 	if (m)
-		m_freem(m), *mp = NULL;
+		m_freem(m);
+	*mp = NULL;
 	return (error);
 }
 
