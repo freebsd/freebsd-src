@@ -557,6 +557,9 @@ netconfig:
     if (!cancel) {
 	DevInfo *di;
 	char temp[512], ifn[255];
+#ifdef PCCARD_ARCH
+	char *pccard;
+#endif
 	int ipv4_enable = FALSE;
 
 	if (hostname[0]) {
