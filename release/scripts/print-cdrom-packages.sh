@@ -92,7 +92,7 @@ CDROM_SET_1="${CDROM_SET_1} x11/kde2"
 # This is the set of "people really want these" packages.  Please add to
 # this list.
 CDROM_SET_1="${CDROM_SET_1} astro/xearth"
-CDROM_SET_1="${CDROM_SET_1} editors/emacs20"
+CDROM_SET_1="${CDROM_SET_1} editors/emacs21"
 CDROM_SET_1="${CDROM_SET_1} editors/vim-lite"
 CDROM_SET_1="${CDROM_SET_1} editors/vim5"
 CDROM_SET_1="${CDROM_SET_1} emulators/mtools"
