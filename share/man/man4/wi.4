@@ -328,11 +328,26 @@ See
 for information on different regulatory domains.
 .Pp
 The Intersil Prism family of chips' host-based access point mode has
-bugs for firmware versions prior to 0.8.3.
-The driver currently precludes hostap functionality on old firmware.
+bugs for station firmware versions prior to 0.8.3.
+The driver currently precludes hostap functionality older station
+firmware.
+The best version of the station firmware for the Prism family of chips
+seems to 1.4.9.
+Some users of Prism 2 and 2.5 based cards report that station firmware
+version 1.3.4 work better for them in hostap than 1.4.9.
+Older versions of the Prism station firmware has a number of issues
+with hostap mode.
+IBSS/adhoc mode appears to work well on station firmware 1.3.1 and
+newer.
+IBSS/adhoc mode also appears to have problems for some people with
+older versions of station firmware.
 .Pp
 Lucent cards prior to firmware version 6.0.4 do not support IBSS
 mode.
+These cards support only the pre 802.11 mode known as
+.Dq "demo ad-hoc mode"
+which doesn't interoperate with stations in IBSS mode.
+.Pp
 .Sh BUGS
 Not all the new messages are documented here, and many of them are
 indications of transient errors that are not indications of serious
