@@ -1,7 +1,12 @@
 PROG= merge
-
 SRCS=	merge.c
-LDADD=	-L${.CURDIR}/../lib/${.CURDIR} -lrcs
+
+.if exists(${.CURDIR}/../lib/obj)
+LDADD=  -L${.CURDIR}/../lib/obj -lrcs
+.else
+LDADD=  -L${.CURDIR}/../lib/ -lrcs
+.endif
+
 CFLAGS+= -I${.CURDIR}/../lib
 
 .include <bsd.prog.mk>
