@@ -40,6 +40,6 @@ opt_linux.h opt_vmpage.h:
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/linux.sh ${DESTDIR}/usr/bin/linux
+		${.CURDIR}/linux.sh ${DESTDIR}/usr/sbin/linux
 
 .include <bsd.kmod.mk>
