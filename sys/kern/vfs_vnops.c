@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.63 1999/01/30 12:21:49 phk Exp $
+ * $Id: vfs_vnops.c,v 1.64 1999/03/26 20:25:21 alc Exp $
  */
 
 #include <sys/param.h>
@@ -55,11 +55,11 @@ static int vn_closefile __P((struct file *fp, struct proc *p));
 static int vn_ioctl __P((struct file *fp, u_long com, caddr_t data, 
 		struct proc *p));
 static int vn_read __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred));
+		struct ucred *cred, int flags));
 static int vn_poll __P((struct file *fp, int events, struct ucred *cred,
 		struct proc *p));
 static int vn_write __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred));
+		struct ucred *cred, int flags));
 
 struct 	fileops vnops =
 	{ vn_read, vn_write, vn_ioctl, vn_poll, vn_closefile };
@@ -272,10 +272,11 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, p)
  * File table vnode read routine.
  */
 static int
-vn_read(fp, uio, cred)
+vn_read(fp, uio, cred, flags)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	int flags;
 {
 	struct vnode *vp = (struct vnode *)fp->f_data;
 	struct proc *p = uio->uio_procp;
@@ -289,7 +290,7 @@ vn_read(fp, uio, cred)
 	if (fp->f_flag & FNONBLOCK)
 		flag |= IO_NDELAY;
 
-	if (uio->uio_offset != -1) {
+	if (flags & FOF_OFFSET) {
 		error = VOP_READ(vp, uio, flag, cred);
 		goto out;
 	}
@@ -335,10 +336,11 @@ out:
  * File table vnode write routine.
  */
 static int
-vn_write(fp, uio, cred)
+vn_write(fp, uio, cred, flags)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	int flags;
 {
 	struct vnode *vp = (struct vnode *)fp->f_data;
 	struct proc *p = uio->uio_procp;
@@ -353,7 +355,7 @@ vn_write(fp, uio, cred)
 		ioflag |= IO_SYNC;
 	VOP_LEASE(vp, p, cred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	if (uio->uio_offset != -1) {
+	if (flags & FOF_OFFSET) {
 		error = VOP_WRITE(vp, uio, ioflag, cred);
 		goto out;
 	}

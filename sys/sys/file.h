@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.3 (Berkeley) 1/9/95
- * $Id: file.h,v 1.15 1997/11/23 10:43:36 bde Exp $
+ * $Id: file.h,v 1.16 1998/06/07 17:12:58 dfr Exp $
  */
 
 #ifndef _SYS_FILE_H_
@@ -65,9 +65,10 @@ struct file {
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
 	struct	fileops {
 		int	(*fo_read)	__P((struct file *fp, struct uio *uio,
-					    struct ucred *cred));
+					    struct ucred *cred, int flags));
 		int	(*fo_write)	__P((struct file *fp, struct uio *uio,
-					    struct ucred *cred));
+					    struct ucred *cred, int flags));
+#define	FOF_OFFSET	1
 		int	(*fo_ioctl)	__P((struct file *fp, u_long com,
 					    caddr_t data, struct proc *p));
 		int	(*fo_poll)	__P((struct file *fp, int events,
