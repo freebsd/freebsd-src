@@ -66,7 +66,7 @@ char const * const hci_vdata2str       (int);
 char const * const hci_hmode2str       (int, char *, int);
 char const * const hci_ver2str         (int);
 char const * const hci_manufacturer2str(int);
-char const * const hci_features2str    (u_int8_t *, char *, int);
+char const * const hci_features2str    (uint8_t *, char *, int);
 char const * const hci_cc2str          (int);
 char const * const hci_con_state2str   (int);
 char const * const hci_status2str      (int);

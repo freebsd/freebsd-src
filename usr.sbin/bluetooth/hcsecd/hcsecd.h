@@ -41,7 +41,7 @@ struct link_key
 {
 	bdaddr_t		 bdaddr; /* remote device BDADDR */
 	char			*name;   /* remote device name */
-	u_int8_t		*key;    /* link key (or NULL if no key) */
+	uint8_t			*key;    /* link key (or NULL if no key) */
 	char			*pin;    /* pin (or NULL if no pin) */
 	LIST_ENTRY(link_key)	 next;   /* link to the next */
 };

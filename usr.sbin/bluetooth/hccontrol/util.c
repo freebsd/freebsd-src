@@ -213,7 +213,7 @@ hci_manufacturer2str(int m)
 } /* hci_manufacturer2str */
 
 char const * const 
-hci_features2str(u_int8_t *features, char *buffer, int size)
+hci_features2str(uint8_t *features, char *buffer, int size)
 {
 	static char const * const	t[][8] = {
 	{ /* byte 0 */
