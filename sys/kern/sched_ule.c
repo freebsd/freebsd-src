@@ -181,6 +181,7 @@ struct kseq	kseq_cpu[MAXCPU];
 static int sched_slice(struct ksegrp *kg);
 static int sched_priority(struct ksegrp *kg);
 void sched_pctcpu_update(struct kse *ke);
+void sched_check_runqs(void);
 int sched_pickcpu(void);
 
 static void
@@ -197,8 +198,6 @@ sched_setup(void *dummy)
 		runq_init(kseq_cpu[i].ksq_curr);
 		runq_init(kseq_cpu[i].ksq_next);
 	}
-	/* CPU0 has proc0 */
-	kseq_cpu[0].ksq_load++;
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -368,7 +367,6 @@ sched_switchin(struct thread *td)
 	if (td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
 	    td->td_priority != td->td_ksegrp->kg_user_pri)
 		curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
-
 }
 
 void
@@ -443,8 +441,14 @@ sched_fork(struct ksegrp *kg, struct ksegrp *child)
 	child->kg_slptime = kg->kg_slptime;
 	child->kg_user_pri = kg->kg_user_pri;
 
+	if (pkse->ke_oncpu != PCPU_GET(cpuid)) {
+		printf("pkse->ke_oncpu = %d\n", pkse->ke_oncpu);
+		printf("cpuid = %d", PCPU_GET(cpuid));
+		Debugger("stop");
+	}
+
 	ckse->ke_slice = pkse->ke_slice;
-	ckse->ke_oncpu = sched_pickcpu();
+	ckse->ke_oncpu = pkse->ke_oncpu; /* sched_pickcpu(); */
 	ckse->ke_runq = NULL;
 	/*
 	 * Claim that we've been running for one second for statistical
@@ -475,7 +479,6 @@ sched_exit(struct ksegrp *kg, struct ksegrp *child)
 	 */
 	ke = FIRST_KSE_IN_KSEGRP(kg);
 	kseq = &kseq_cpu[ke->ke_oncpu];
-	kseq->ksq_load--;
 }
 
 int sched_clock_switches;
@@ -484,7 +487,9 @@ void
 sched_clock(struct thread *td)
 {
 	struct kse *ke;
+#if 0
 	struct kse *nke;
+#endif
 	struct ksegrp *kg;
 	struct kseq *kseq;
 	int cpu;
@@ -497,8 +502,6 @@ sched_clock(struct thread *td)
 	ke = td->td_kse;
 	kg = td->td_ksegrp;
 
-	nke = runq_choose(kseq->ksq_curr);
-
 	if (td->td_kse->ke_flags & KEF_IDLEKSE) {
 #if 0
 		if (nke && nke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE) {
@@ -509,11 +512,15 @@ sched_clock(struct thread *td)
 #endif
 		return;
 	}
+#if 0
+	nke = runq_choose(kseq->ksq_curr);
+
 	if (nke && nke->ke_thread &&
 	    nke->ke_thread->td_priority < td->td_priority) {
 		sched_clock_switches++;
 		ke->ke_flags |= KEF_NEEDRESCHED;
 	}
+#endif
 
 	/*
 	 * We used a tick, decrease our total sleep time.  This decreases our
@@ -538,11 +545,26 @@ sched_clock(struct thread *td)
 		ke->ke_flags |= KEF_NEEDRESCHED;
 		ke->ke_runq = NULL;
 	}
+
 	ke->ke_ticks += 10000;
 	ke->ke_ltick = ticks;
 	/* Go up to one second beyond our max and then trim back down */
 	if (ke->ke_ftick + SCHED_CPU_TICKS + hz < ke->ke_ltick)
 		sched_pctcpu_update(ke);
+}
+
+void sched_print_load(void);
+
+void
+sched_print_load(void)
+{
+	int cpu;
+
+	for (cpu = 0; cpu < mp_maxid; cpu++) {
+		if (CPU_ABSENT(cpu))
+			continue;
+		printf("%d: %d\n", cpu, kseq_cpu[cpu].ksq_load);
+	}
 }
 
 int
@@ -554,9 +576,24 @@ sched_runnable(void)
 	cpu = PCPU_GET(cpuid);
 	kseq = &kseq_cpu[cpu];
 
-	if (runq_check(kseq->ksq_curr) == 0)
-		return (runq_check(kseq->ksq_next));
-	return (1);
+	if (runq_check(kseq->ksq_curr))
+		return (1);
+
+	if (runq_check(kseq->ksq_next))
+		return (1);
+#ifdef SMP
+	if (smp_started) {
+		int i;
+
+		for (i = 0; i < mp_maxid; i++) {
+			if (CPU_ABSENT(i))
+				continue;
+			if (kseq_cpu[i].ksq_load && i != cpu)
+				return (1);
+		}
+	}
+#endif
+	return (0);
 }
 
 void
@@ -573,16 +610,33 @@ sched_userret(struct thread *td)
 	}
 }
 
-struct kse *
-sched_choose(void)
+void
+sched_check_runqs(void)
 {
 	struct kseq *kseq;
+	int cpu;
+
+	for (cpu = 0; cpu < mp_maxid; cpu++) {
+		if (CPU_ABSENT(cpu))
+			continue;
+		kseq = &kseq_cpu[cpu];
+		if (kseq->ksq_load !=
+		    (runq_depth(kseq->ksq_curr) + runq_depth(kseq->ksq_next))) {
+			printf("CPU: %d\tload: %d\tcurr: %d\tnext: %d\n",
+			    cpu, kseq->ksq_load, runq_depth(kseq->ksq_curr),
+			    runq_depth(kseq->ksq_next));
+			Debugger("Imbalance");
+		}
+	}
+}
+
+struct kse * sched_choose_kseq(struct kseq *kseq);
+
+struct kse *
+sched_choose_kseq(struct kseq *kseq)
+{
 	struct kse *ke;
 	struct runq *swap;
-	int cpu;
-	
-	cpu = PCPU_GET(cpuid);
-	kseq = &kseq_cpu[cpu];
 
 	if ((ke = runq_choose(kseq->ksq_curr)) == NULL) {
 		swap = kseq->ksq_curr;
@@ -590,19 +644,66 @@ sched_choose(void)
 		kseq->ksq_next = swap;
 		ke = runq_choose(kseq->ksq_curr);
 	}
+
+	return (ke);
+}
+
+struct kse *
+sched_choose(void)
+{
+	struct kse *ke;
+	int cpu;
+
+	cpu = PCPU_GET(cpuid);
+	ke = sched_choose_kseq(&kseq_cpu[cpu]);
+
 	if (ke) {
 		runq_remove(ke->ke_runq, ke);
 		ke->ke_state = KES_THREAD;
+#ifdef SMP
+		kseq_cpu[cpu].ksq_load--;
+#if 0
+		sched_check_runqs();
+#endif
+#endif
 	}
 
+#ifdef SMP
+	if (ke == NULL && smp_started) {
+		int load;
+		int me;
+		int i;
+
+		me = cpu;
+
+		/*
+		 * Find the cpu with the highest load and steal one proc.
+		 */
+		for (load = 0, i = 0; i < mp_maxid; i++) {
+			if (CPU_ABSENT(i) || i == me)
+				continue;
+			if (kseq_cpu[i].ksq_load > load) {
+				load = kseq_cpu[i].ksq_load;
+				cpu = i;
+			}
+		}
+		if (load) {
+			ke = sched_choose_kseq(&kseq_cpu[cpu]);
+			kseq_cpu[cpu].ksq_load--;
+			ke->ke_state = KES_THREAD;
+			runq_remove(ke->ke_runq, ke);
+			ke->ke_runq = NULL;
+			ke->ke_oncpu = me;
+		}
+
+	}
+#endif
 	return (ke);
 }
 
 void
 sched_add(struct kse *ke)
 {
-	struct kseq *kseq;
-	int cpu;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((ke->ke_thread != NULL), ("runq_add: No thread on KSE"));
@@ -614,12 +715,11 @@ sched_add(struct kse *ke)
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
 	    ("runq_add: process swapped out"));
 
-	/* cpu = PCPU_GET(cpuid); */
-	cpu = ke->ke_oncpu;
-	kseq = &kseq_cpu[cpu];
-	kseq->ksq_load++;
 
 	if (ke->ke_runq == NULL) {
+		struct kseq *kseq;
+
+		kseq = &kseq_cpu[ke->ke_oncpu];
 		if (SCHED_CURR(ke->ke_ksegrp))
 			ke->ke_runq = kseq->ksq_curr;
 		else
@@ -629,23 +729,30 @@ sched_add(struct kse *ke)
 	ke->ke_state = KES_ONRUNQ;
 
 	runq_add(ke->ke_runq, ke);
+#ifdef SMP
+	kseq_cpu[ke->ke_oncpu].ksq_load++;
+#if 0
+	sched_check_runqs();
+#endif
+#endif
 }
 
 void
 sched_rem(struct kse *ke)
 {
-	struct kseq *kseq;
-
 	mtx_assert(&sched_lock, MA_OWNED);
 	/* KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue")); */
-
-	kseq = &kseq_cpu[ke->ke_oncpu];
-	kseq->ksq_load--;
 
 	runq_remove(ke->ke_runq, ke);
 	ke->ke_runq = NULL;
 	ke->ke_state = KES_THREAD;
 	ke->ke_ksegrp->kg_runq_kses--;
+#ifdef SMP
+	kseq_cpu[ke->ke_oncpu].ksq_load--;
+#if 0
+	sched_check_runqs();
+#endif
+#endif
 }
 
 fixpt_t
