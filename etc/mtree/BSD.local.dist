@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.36 1997/11/07 15:38:24 ache Exp $
+#     $Id: BSD.local.dist,v 1.37 1998/03/20 16:53:01 itojun Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -198,6 +198,8 @@
 	    fr_FR.ISO_8859-1
 	    ..
 	    hr_HR.ISO_8859-2
+            ..
+	    hu_HU.ISO_8859-2
             ..
 	    is_IS.ISO_8859-1
             ..
