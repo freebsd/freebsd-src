@@ -86,6 +86,8 @@ char *pname = "crunchgen";
 int verbose, readcache;	/* options */
 int reading_cache;
 
+int list_mode;
+
 /* general library routines */
 
 void status(char *str);
@@ -114,7 +116,7 @@ int main(int argc, char **argv)
     
     if(argc > 0) pname = argv[0];
 
-    while((optc = getopt(argc, argv, "m:c:e:fq")) != -1) {
+    while((optc = getopt(argc, argv, "lm:c:e:fq")) != -1) {
 	switch(optc) {
 	case 'f':	readcache = 0; break;
 	case 'q':	verbose = 0; break;
@@ -122,6 +124,7 @@ int main(int argc, char **argv)
 	case 'm':	strcpy(outmkname, optarg); break;
 	case 'c':	strcpy(outcfname, optarg); break;
 	case 'e':	strcpy(execfname, optarg); break;
+	case 'l':	list_mode++; verbose = 0; break;
 
 	case '?':
 	default:	usage();
@@ -157,6 +160,9 @@ int main(int argc, char **argv)
     }
 
     parse_conf_file();
+    if (list_mode)
+	exit(goterror);
+
     gen_outputs();
 
     exit(goterror);
@@ -323,6 +329,8 @@ void add_prog(char *progname)
     p2->ident = p2->srcdir = p2->objdir = NULL;
     p2->links = p2->objs = NULL;
     p2->goterror = 0;
+    if (list_mode)
+        printf("%s\n",progname);
 }
 
 
@@ -338,8 +346,11 @@ void add_link(int argc, char **argv)
 	goterror = 1;
 	return;
     }
-    for(i=2;i<argc;i++)
+    for(i=2;i<argc;i++) {
+	if (list_mode)
+		printf("%s\n",argv[i]);
 	add_string(&p->links, argv[i]);
+    }
 }
 
 

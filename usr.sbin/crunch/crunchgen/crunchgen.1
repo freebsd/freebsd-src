@@ -31,7 +31,7 @@
 .Nd generates build environment for a crunched binary
 .Sh SYNOPSIS
 .Nm \&crunchgen
-.Op Fl fq
+.Op Fl fql
 .Op Fl m Ar makefile-name
 .Op Fl c Ar c-file-name
 .Op Fl e Ar exec-file-name
@@ -86,6 +86,8 @@ Set crunched binary executable file name to
 The default name is ``<conf-name>''.
 .It Fl f
 Flush cache.  Forces the recalculation of cached parameters.
+.It Fl l
+List names.  Lists the names this binary will respond to.
 .It Fl m Ar makefile-name
 Set output Makefile name to
 .Ar makefile-name .
