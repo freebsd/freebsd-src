@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.197 1999/06/02 21:28:02 brian Exp $
+ * $Id: command.c,v 1.198 1999/06/05 21:35:48 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -143,7 +143,7 @@
 #define NEG_DNS		52
 
 const char Version[] = "2.22";
-const char VersionDate[] = "$Date: 1999/06/02 21:28:02 $";
+const char VersionDate[] = "$Date: 1999/06/05 21:35:48 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -935,16 +935,20 @@ command_Run(struct bundle *bundle, int argc, char const *const *argv,
 {
   if (argc > 0) {
     if (log_IsKept(LogCOMMAND)) {
-      static char buf[LINE_LEN];
+      char buf[LINE_LEN];
       int f, n;
 
-      *buf = '\0';
       if (label) {
         strncpy(buf, label, sizeof buf - 3);
         buf[sizeof buf - 3] = '\0';
         strcat(buf, ": ");
+        n = strlen(buf);
+      } else {
+        *buf = '\0';
+        n = 0;
       }
-      n = strlen(buf);
+      buf[sizeof buf - 1] = '\0';	/* In case we run out of room in buf */
+
       for (f = 0; f < argc; f++) {
         if (n < sizeof buf - 1 && f)
           buf[n++] = ' ';

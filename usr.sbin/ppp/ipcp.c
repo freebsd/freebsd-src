@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.79 1999/06/02 15:59:01 brian Exp $
+ * $Id: ipcp.c,v 1.80 1999/06/08 11:58:27 brian Exp $
  *
  *	TODO:
  *		o Support IPADDRS properly
@@ -504,8 +504,7 @@ static int
 ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
                   struct in_addr hisaddr, int silent)
 {
-  static struct in_addr none = { INADDR_ANY };
-  struct in_addr mask, oaddr;
+  struct in_addr mask, oaddr, none = { INADDR_ANY };
 
   mask = addr2mask(myaddr);
 
