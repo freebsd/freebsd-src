@@ -514,7 +514,8 @@ ftp_retrieve(struct fetch_state *fs)
 	fclose(local);
 	fclose(remote);
 	fclose(ftp);
-	display(fs, size, -1);
+	if (display(fs, size, -1) != 0)
+		return EX_PROTOCOL;
 	adjmodtime(fs);
 	return 0;
 }
