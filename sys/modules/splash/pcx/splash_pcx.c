@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: splash_pcx.c,v 1.1 1999/04/12 13:39:11 des Exp $
+ *	$Id: splash_pcx.c,v 1.2 1999/06/22 14:14:06 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -206,7 +206,7 @@ pcx_draw(video_adapter_t *adp)
     sbpsl = adp->va_line_width;
     sdepth = adp->va_info.vi_depth;
     splanes = adp->va_info.vi_planes;
-    banksize = adp->va_info.vi_window_size;
+    banksize = adp->va_window_size;
     
     for (origin = 0; origin < sheight*sbpsl; origin += banksize) {
 	set_origin(adp, origin);
