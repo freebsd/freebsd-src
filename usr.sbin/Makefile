@@ -74,6 +74,7 @@ SUBDIR=	IPXrouted \
 	pciconf \
 	periodic \
 	pkg_install \
+	pppd \
 	pppstats \
 	procctl \
 	pstat \
@@ -133,8 +134,7 @@ SUBDIR=	IPXrouted \
 	zic
 
 .if ${MACHINE_ARCH} != "amd64"
-SUBDIR+=ppp \
-	pppd
+SUBDIR+=ppp
 .endif
 
 .if !defined(NO_IPFILTER)
