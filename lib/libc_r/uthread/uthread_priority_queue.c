@@ -87,7 +87,7 @@ static int _pq_active = 0;
 int
 _pq_alloc(pq_queue_t *pq, int minprio, int maxprio)
 {
-	int i, ret = 0;
+	int ret = 0;
 	int prioslots = maxprio - minprio + 1;
 
 	if (pq == NULL)
