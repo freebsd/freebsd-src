@@ -43,8 +43,10 @@ static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
 #define setstate osetstate
 #endif
 
+#include <fcntl.h>             /* for srandomdev() */
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>            /* for srandomdev() */
 
 /*
  * random.c:
@@ -275,6 +277,44 @@ srandom(x)
 		for (i = 0; i < 10 * rand_deg; i++)
 			(void)random();
 	}
+}
+
+/*
+ * srandomdev:
+ *
+ * Many programs choose the seed value in a totally predictable manner.
+ * This often causes problems.  We seed the generator using the much more
+ * secure `/dev/random' interface.  Note that this particular seeding
+ * procedure can generate states which are impossible to reproduce by
+ * calling srandom() with any value, since the succeeding terms in the
+ * state buffer are no longer derived from the LC algorithm applied to
+ * a fixed seed.
+ */
+int
+srandomdev()
+{
+	int fd;
+	size_t len;
+
+	if (rand_type == TYPE_0)
+		len = sizeof state[0];
+	else
+		len = rand_deg * sizeof state[0];
+
+	fd = open("/dev/urandom", O_RDONLY, 0);
+	if (fd < 0)
+		return -1;
+	if (read(fd, (void *) state, len) < (ssize_t) len) {
+		close(fd);
+		return -1;
+	}
+	close(fd);
+
+	if (rand_type != TYPE_0) {
+		fptr = &state[rand_sep];
+		rptr = &state[0];
+	}
+	return 0;
 }
 
 /*
