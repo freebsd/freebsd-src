@@ -57,10 +57,11 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <vis.h>
 
+#include "ttymsg.h"
+
 extern char hostname[];
 
 int print_mesg __P((char *, FILE *, CTL_MSG *, char *));
-char *ttymsg __P((struct iovec *, int, char *, int));
 
 /*
  * Announce an invitation to talk.
