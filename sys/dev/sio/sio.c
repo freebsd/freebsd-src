@@ -1048,7 +1048,7 @@ sioattach(dev)
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
 		enable_intr();
 		free(com, M_DEVBUF);
-		return (0);
+		return (ENXIO);
 	}
 	enable_intr();
 	termioschars(&com->it_in);
