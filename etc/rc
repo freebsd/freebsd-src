@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.6 1993/11/25 13:23:46 davidg Exp $
+#	$Id: rc,v 1.7 1993/11/30 16:59:27 rich Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -135,6 +135,11 @@ echo '.'
 
 echo -n starting network daemons:
 
+# Portmapper should always be run, to provide RPC services for inetd.
+if [ -x /usr/sbin/portmap ]; then
+	echo -n ' portmap';		portmap
+fi
+
 # $gated and $routedflags are imported from /etc/netstart.
 # If $gated == YES, gated is used; otherwise routed.
 # If $routedflags == NO, routed isn't run.
@@ -155,11 +160,6 @@ if [ ${rwhod-NO} != "NO" ]; then
 fi
 
 echo -n ' printer';		lpd
-
-# Portmapper should always be run, to provide RPC services for inetd.
-if [ -x /usr/sbin/portmap ]; then
-	echo -n ' portmap';		portmap
-fi
 
 if [ X${nfs_server} = X"YES" -a -r /etc/exports ]; then
 	echo -n ' mountd';		mountd
