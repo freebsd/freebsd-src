@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.246.2.92 1998/09/21 09:06:02 max Exp $
+#	$Id: Makefile,v 1.246.2.93 1998/10/01 09:33:06 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
 # Where "/some/dir" is the pathname of a directory on a some
-# filesystem with at least 600MB of free space, "somename" is what
+# filesystem with at least 1000MB of free space, "somename" is what
 # you want the release to call itself and, optionally, which CVS "tag"
 # name should be used when checking out the sources to build the release
 # (default is HEAD).
@@ -35,11 +35,15 @@ RELEASEPORTSMODULE?=	ports
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
 #NODOC=  YES
+#NOPORTS=  YES
 # Comment the following if you want the release documentation to be
 # in English only.
 ALLLANG= yes
-DOCPORTS= archivers/unzip lang/perl5 textproc/jade textproc/iso8879 \
+DOCPORTS= archivers/unzip textproc/jade textproc/iso8879 \
           textproc/linuxdoc textproc/docbook textproc/sgmlformat
+
+DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
+           INSTALL.TXT RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
@@ -118,7 +122,7 @@ REDOSED=	sed -e 's/dirs/release.1/' -e 's/trees/release.2/' \
 		    -e 's/fixup/release.5/' -e 's/tarbin/release.6/' \
 		    -e 's/tarsrc/release.7/' -e 's/boot\.flp/release.8/' \
 		    -e 's/fixit\.flp/release.9/' -e 's/ftp/ftp.1/' \
-		    -e 's/cdrom/cdrom.1/'
+		    -e 's/cdrom/cdrom.1/' -e 's/doc/doc.1/'
 
 REDOREDO!=	echo ${REDO} | ${REDOSED}
 
@@ -137,17 +141,17 @@ rerelease release:
 	-mkdir -p ${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
-	cd ${.CURDIR}/.. && ${MAKE} install DESTDIR=${CHROOTDIR} NOMAN=1
+	cd ${.CURDIR}/.. && ${MAKE} installworld DESTDIR=${CHROOTDIR} NOMAN=1
 	mkdir ${CHROOTDIR}/${BOOTSTRAPDIR}
 	for i in ${BOOTSTRAPUTILS} ; do \
 		cp -p ${CHROOTDIR}$$i ${CHROOTDIR}/${BOOTSTRAPDIR} ; \
 	done
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs -d ${CVSROOT} co -P ${RELEASESRCMODULE}
+		cvs -R -d ${CVSROOT} co -P ${RELEASESRCMODULE}
 .else
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs -d ${CVSROOT} co -P -r ${RELEASETAG} ${RELEASESRCMODULE}
+		cvs -R -d ${CVSROOT} co -P -r ${RELEASETAG} ${RELEASESRCMODULE}
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
@@ -156,10 +160,10 @@ rerelease release:
 	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
 .endif
 .if !defined(NOPORTS)
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
 .endif
 .if !defined(NODOC)
-	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
+	cd ${CHROOTDIR}/usr && rm -rf doc && cvs -R -d ${CVSROOT} co -P ${RELEASEDOCMODULE}
 	cd ${CHROOTDIR}/usr/ports && for i in ${DOCPORTS}; do \
 	  (cd $$i; make fetch MASTER_SITE_OVERRIDE=file:/usr/ports/distfiles/ \
 	    DISTDIR=${CHROOTDIR}/usr/ports/distfiles ); \
@@ -169,15 +173,15 @@ rerelease release:
 .if make(rerelease)
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d
+	cd ${CHROOTDIR}/usr/src && cvs -R -q update -P -d
 .else
-	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d -r ${RELEASETAG}
+	cd ${CHROOTDIR}/usr/src && cvs -R -q update -P -d -r ${RELEASETAG}
 .endif
 .if !defined(NOPORTS)
-	cd ${CHROOTDIR}/usr/ports && cvs -q update -P -d
+	cd ${CHROOTDIR}/usr/ports && cvs -R -q update -P -d
 .endif
 .if !defined(NODOC)
-	cd ${CHROOTDIR}/usr/doc && cvs -q update -P -d
+	cd ${CHROOTDIR}/usr/doc && cvs -R -q update -P -d
 .endif
 .endif
 .endif
@@ -192,6 +196,7 @@ rerelease release:
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
+	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${CHROOTDIR}/mk
 	echo "export CFLAGS='-O -pipe'"	>> ${CHROOTDIR}/mk
 	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
@@ -244,7 +249,7 @@ rerelease release:
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make objlink"			>> ${CHROOTDIR}/mk
 	echo "(cd obj; rm -f ${REDOREDO})"	>> ${CHROOTDIR}/mk
-	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
+	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
 	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
@@ -486,11 +491,11 @@ release.9:
 	cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	cp ${.CURDIR}/tar.sh ${RD}/fixitfd/stand/tar
 	chmod 555 ${RD}/fixitfd/stand/tar
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/fixitfd \
-		${FIXITINODE} ${FDLABEL}
+	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} \
+		${RD}/fixitfd ${FIXITINODE} ${FDLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
 # Do our last minute floppies directory setup in a convenient place.
-	cp ${.CURDIR}/README.TXT ${RD}/floppies/README.TXT
+	cp ${.CURDIR}/texts/FLOPPIES.TXT ${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 * > CHECKSUM.MD5)
 	touch release.9
 
@@ -501,15 +506,7 @@ ftp.1:
 	mkdir -p ${FD}
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-	cp ${.CURDIR}/ABOUT.TXT ${FD}/ABOUT.TXT
-	cp ${.CURDIR}/ERRATA.TXT ${FD}/ERRATA.TXT
-	cp ${.CURDIR}/LAYOUT.TXT ${FD}/LAYOUT.TXT
-	cp ${.CURDIR}/sysinstall/help/readme.hlp ${FD}/README.TXT
-	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${FD}/HARDWARE.TXT
-	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
-	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${FD}/RELNOTES.TXT
-	cp ${.CURDIR}/sysinstall/help/trouble.hlp ${FD}/TROUBLE.TXT
-	cp ${.CURDIR}/sysinstall/help/upgrade.hlp ${FD}/UPGRADE.TXT
+	for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${FD}; done
 	echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
 	tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
@@ -536,15 +533,7 @@ cdrom.1:
 	cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
-	cp ${.CURDIR}/ABOUT.TXT ${CD_DISC1}/ABOUT.TXT
-	cp ${.CURDIR}/ERRATA.TXT ${CD_DISC1}/ERRATA.TXT
-	cp ${.CURDIR}/LAYOUT.TXT ${CD_DISC1}/LAYOUT.TXT
-	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD_DISC1}/README.TXT
-	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD_DISC1}/HARDWARE.TXT
-	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
-	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
-	cp ${.CURDIR}/sysinstall/help/trouble.hlp ${CD_DISC1}/TROUBLE.TXT
-	cp ${.CURDIR}/sysinstall/help/upgrade.hlp ${CD_DISC1}/UPGRADE.TXT
+	for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; done
 .if !defined(NOPORTS)
 	-rm -rf /usr/ports/distfiles/*
 	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
@@ -560,6 +549,7 @@ doc.1:
 	  cd /usr/ports/$$i && make all install clean FORCE_PKG_REGISTER=yes; \
 	done
 	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
+	touch doc.1
 
 # Various "subroutine" and other supporting targets.
 
@@ -618,6 +608,7 @@ fixit.flp:
 write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
 	${CC} ${CFLAGS} -o write_mfs_in_kernel ${.CURDIR}/write_mfs_in_kernel.c
 
+# Add -DDO_SCSI to CFLAGS to enable scsi frobbing support.
 dumpnlist:	${.CURDIR}/dumpnlist.c
 	${CC} ${CFLAGS} -o dumpnlist ${.CURDIR}/dumpnlist.c
 
