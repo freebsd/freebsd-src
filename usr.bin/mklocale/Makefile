@@ -5,6 +5,5 @@ PROG=	mklocale
 SRCS=	yacc.y lex.l y.tab.h
 CFLAGS+=-I.
 MAN1=	mklocale.1
-SUBDIR= data
 
 .include <bsd.prog.mk>
