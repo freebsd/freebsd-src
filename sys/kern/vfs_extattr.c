@@ -3898,6 +3898,37 @@ extattr_set_fd(td, uap)
 	return (error);
 }
 
+int
+extattr_set_link(td, uap)
+	struct thread *td;
+	struct extattr_set_link_args /* {
+		syscallarg(const char *) path;
+		syscallarg(int) attrnamespace;
+		syscallarg(const char *) attrname;
+		syscallarg(void *) data;
+		syscallarg(size_t) nbytes;
+	} */ *uap;
+{
+	struct nameidata nd;
+	char attrname[EXTATTR_MAXNAMELEN];
+	int error;
+
+	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
+	if (error)
+		return (error);
+
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+
+	error = extattr_set_vp(nd.ni_vp, uap->attrnamespace, attrname,
+	    uap->data, uap->nbytes, td);
+
+	vrele(nd.ni_vp);
+	return (error);
+}
+
 /*-
  * Get a named extended attribute on a file or directory
  * 
@@ -4028,6 +4059,37 @@ extattr_get_fd(td, uap)
 	return (error);
 }
 
+int
+extattr_get_link(td, uap)
+	struct thread *td;
+	struct extattr_get_link_args /* {
+		syscallarg(const char *) path;
+		syscallarg(int) attrnamespace;
+		syscallarg(const char *) attrname;
+		syscallarg(void *) data;
+		syscallarg(size_t) nbytes;
+	} */ *uap;
+{
+	struct nameidata nd;
+	char attrname[EXTATTR_MAXNAMELEN];
+	int error;
+
+	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
+	if (error)
+		return (error);
+
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+
+	error = extattr_get_vp(nd.ni_vp, uap->attrnamespace, attrname,
+	    uap->data, uap->nbytes, td);
+
+	vrele(nd.ni_vp);
+	return (error);
+}
+
 /*
  * extattr_delete_vp(): Delete a named extended attribute on a file or
  *                      directory
@@ -4117,4 +4179,32 @@ extattr_delete_fd(td, uap)
 
 	fdrop(fp, td);
 	return (error);
+}
+
+int
+extattr_delete_link(td, uap)
+	struct thread *td;
+	struct extattr_delete_link_args /* {
+		syscallarg(const char *) path;
+		syscallarg(int) attrnamespace;
+		syscallarg(const char *) attrname;
+	} */ *uap;
+{
+	struct nameidata nd;
+	char attrname[EXTATTR_MAXNAMELEN];
+	int error;
+
+	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
+	if (error)
+		return(error);
+
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
+	if ((error = namei(&nd)) != 0)
+		return(error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+
+	error = extattr_delete_vp(nd.ni_vp, uap->attrnamespace, attrname, td);
+
+	vrele(nd.ni_vp);
+	return(error);
 }
