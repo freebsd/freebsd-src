@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.65 1994/06/15 20:43:20 jkh Exp $
+#	$Id: Makefile,v 1.66 1994/06/15 21:21:50 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -134,19 +134,20 @@ non-crypt:
 	done
 	
 distribution: distrib-dirs
-	install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc
-	install -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN3} ${DESTDIR}/etc
-	install -c -o ${BINOWN} -g ${BINGRP} -m 644 crontab ${DESTDIR}/etc
+	(cd ${.CURDIR}; \
+	install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
+	install -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc; \
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN3} ${DESTDIR}/etc; \
+	install -c -o ${BINOWN} -g ${BINGRP} -m 644 crontab ${DESTDIR}/etc; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/cron/log
+	    ${DESTDIR}/var/cron/log; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 600 \
-	    master.passwd ${DESTDIR}/etc
-	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
+	    master.passwd ${DESTDIR}/etc; \
+	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev
+	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
 .if defined(CDROMDIST)
-	(cd ${DESTDIR}/dev; sh MAKEDEV all)
+	(cd ${DESTDIR}/dev; sh MAKEDEV all) ;
 .endif
 	(cd ${.CURDIR}/root; \
 		install -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
@@ -168,8 +169,6 @@ distribution: distrib-dirs
 	    ${DESTDIR}/etc/dumpdates
 	install -c -o nobody -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
-	install -c -o ${BINOWN} -g ${BINGRP} -m 664 minfree \
-	    ${DESTDIR}/var/crash
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/lpd-errs
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
@@ -182,33 +181,35 @@ distribution: distrib-dirs
 	    ${DESTDIR}/var/log/wtmp
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/run/utmp
-	(cd etc.${MACHINE}; install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    fstab.* ${DESTDIR}/etc)
+	install -c -o ${BINOWN} -g ${BINGRP} -m 664 ${.CURDIR}/minfree \
+	    ${DESTDIR}/var/crash
+	(cd ${.CURDIR}/etc.${MACHINE}; install -c -o ${BINOWN} -g ${BINGRP} \
+	    -m 444 fstab.* ${DESTDIR}/etc)
 .if defined(NOCRYPT)
-	${MAKE} non-crypt
-	(cd ..; NOCRYPT=nocrypt; export NOCRYPT; ${MAKE} install)
+	(cd ${.CURDIR}; ${MAKE} non-crypt)
+	(cd ${.CURDIR}/..; NOCRYPT=nocrypt; export NOCRYPT; ${MAKE} install)
 .else
-	${MAKE} crypt
-	(cd ..; ${MAKE} install)
+	(cd ${.CURDIR}; ${MAKE} crypt)
+	(cd ${.CURDIR}/..; ${MAKE} install
 .endif
-	(cd ../usr.sbin/sendmail/src; \
+	(cd ${.CURDIR}/../usr.sbin/sendmail/src; \
 	    ${MAKE} install; \
 	 cd ../cf/cf; \
 	    ${MAKE} obj; \
 	    ${MAKE} freefall.cf; \
 	    install -o ${BINOWN} -g ${BINGRP} -m 644 obj/freefall.cf \
 	        ${DESTDIR}/etc/sendmail.cf)
-	(cd ../; \
+	(cd ${.CURDIR}/..; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} ${DESTDIR}/)
-	(cd ..; ${MAKE} mdec; )
-	(cd ../share/man; ${MAKE} makedb; )
+	(cd ${.CURDIR}/..; ${MAKE} mdec; )
+	(cd ${.CURDIR}/../share/man; ${MAKE} makedb; )
 .if ${MACHINE} == "tahoe"
-	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS1} \
-	    ${DESTDIR}/)
+	(cd ${.CURDIR}/etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} \
+	    -m 444 ${WCS1} ${DESTDIR}/)
 .endif
 .if ${MACHINE} == "vax"
-	(cd etc.vax; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${PCS} \
-	    ${DESTDIR}/)
+	(cd ${.CURDIR}/etc.vax; install -c -o ${BINOWN} -g ${BINGRP} \
+	    -m 444 ${PCS} ${DESTDIR}/)
 .endif
 
 crunch:
@@ -226,16 +227,16 @@ extract:
 	    ${.CURDIR}/etc.i386/INSTALL_secr.sh ${RELEASEDIR}/tarballs/secrdist
 
 hcx9-distribution:
-	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS2} \
-	    ${DESTDIR}/)
+	(cd ${.CURDIR}/etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} \
+	    -m 444 ${WCS2} ${DESTDIR}/)
 
-kcopy-kernels: ../sys/i386/conf/GENERICAH ../sys/i386/conf/GENERICBT
-	(cd ../sys/compile; rm -rf GENERICAH GENERICBT)
-	(cd ../sys/i386/conf; config GENERICAH; config GENERICBT)
-	(cd ../sys/compile/GENERICAH; ${MAKE} depend; ${MAKE} all; \
+kcopy-kernels: ${.CURDIR}/../sys/i386/conf/GENERICAH ${.CURDIR}/../sys/i386/conf/GENERICBT
+	(cd ${.CURDIR}/../sys/compile; rm -rf GENERICAH GENERICBT)
+	(cd ${.CURDIR}/../sys/i386/conf; config GENERICAH; config GENERICBT)
+	(cd ${.CURDIR}/../sys/compile/GENERICAH; ${MAKE} depend; ${MAKE} all; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd \
 	        ${DESTDIR}/386bsd.GENERICAH)
-	(cd ../sys/compile/GENERICBT; ${MAKE} depend; ${MAKE} all; \
+	(cd ${.CURDIR}/../sys/compile/GENERICBT; ${MAKE} depend; ${MAKE} all; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd \
 	        ${DESTDIR}/386bsd.GENERICBT)
 
@@ -269,7 +270,7 @@ kcopy-floppy:
 
 kcopy_ah.flp:
 	${MAKE} kcopy-floppy
-	(cd ../sys/compile/GENERICAH; \
+	(cd ${.CURDIR}/../sys/compile/GENERICAH; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
@@ -281,7 +282,7 @@ kcopy_ah.flp:
 
 kcopy_bt.flp:
 	${MAKE} kcopy-floppy
-	(cd ../sys/compile/GENERICBT; \
+	(cd ${.CURDIR}/../sys/compile/GENERICBT; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
@@ -308,7 +309,7 @@ cdins-floppy:
 	
 cdins_ah.flp:
 	${MAKE} cdins-floppy
-	(cd ../sys/compile/GENERICAH; \
+	(cd ${.CURDIR}/../sys/compile/GENERICAH; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
@@ -320,7 +321,7 @@ cdins_ah.flp:
 
 cdins_bt.flp:
 	${MAKE} cdins-floppy
-	(cd ../sys/compile/GENERICBT; \
+	(cd ${.CURDIR}/../sys/compile/GENERICBT; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
