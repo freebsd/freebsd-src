@@ -488,7 +488,7 @@ literal:
 					break;
 
 				default:
-					if (!isxdigit(c))
+					if (!isdigit(c) && (base != 16 || !isxdigit(c)))
 						break;
 					n = digittoint(c);
 					if (n >= 16)
