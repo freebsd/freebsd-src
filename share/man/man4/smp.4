@@ -42,10 +42,9 @@ architectures on
 Currently, this includes alpha, i386, ia64, and sparc64.
 Support is enabled using
 .Cd options SMP .
-On most platforms it is permissible to use the SMP
-kernel configuration on non-SMP equipped motherboards.
-The only exception to this rule is the i386 platform.
-.Pp
+It is permissible to use the SMP kernel configuration on non-SMP equipped
+motherboards.
+.Sh I386 NOTES
 For i386 systems, the
 .Nm
 kernel supports motherboards that follow the Intel MP specification,
@@ -53,19 +52,17 @@ version 1.4.
 In addition to
 .Cd options SMP ,
 i386 also requires
-.Cd options APIC_IO .
+.Cd device apic .
 The
 .Xr mptable 1
 command may be used to view the status of multi-processor support.
 .Pp
 .Fx
 supports hyperthreading on Intel CPU's on the i386 platform.
-By default, logical CPUs are not used to execute user processes due to
-performance penalties under common loads.
-To allow the logical CPUs to execute user processes,
-turn off the
+Since using logical CPUs can cause performance penalties under certain loads,
+the logical CPUs can be disabled by setting the 
 .Va machdep.hlt_logical_cpus
-sysctl by setting its value to zero.
+sysctl to one.
 .Sh SEE ALSO
 .Xr mptable 1 ,
 .Xr condvar 9 ,
