@@ -174,13 +174,12 @@ This is used primarily to share common capability information.
 .Sh EXAMPLES
 Here is a short example showing the use of the capability continuation
 feature.
-It defines a 56k mdoem connection on the first serial port, at 115200
-baud, no parity using the hayes command set with standard line editing
+It defines a 56k modem connection on the first serial port at 115200
+baud, no parity using the Hayes command set with standard line editing
 and end of file characters.
-The arpavax entry includes everything in the UNIX-57600 entry, plus
+The arpavax entry includes everything in the UNIX-57600 entry plus
 the phone number for arpavax (in this case an @ character so that it
-retrieved from the enviornment and so as to prevent accidental calling
-of a live number).
+is retrieved from the environment).
 .Bd -literal
 UNIX-57600:\e
 :dv=/dev/cuaa0:el=^D^U^C^S^Q^O@:oe=^D:du:at=hayes:br#115200:pa=none:
