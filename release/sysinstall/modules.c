@@ -62,10 +62,6 @@ moduleInitialize(void)
 	while ((dp = readdir(dirp))) {
 	    if (dp->d_namlen < (sizeof(".ko") - 1)) continue;
 	    if (strcmp(dp->d_name + dp->d_namlen - (sizeof(".ko") - 1), ".ko") == 0) {
-		strcpy(module, dp->d_name);
-		module[dp->d_namlen - (sizeof(".ko") - 1)] = '\0';
-		if (modfind(module) != -1)
-			continue;
 		strcpy(module, MODULESDIR);
 		strcat(module, "/");
 		strcat(module, dp->d_name);
@@ -88,7 +84,7 @@ moduleInitialize(void)
 		    msgDebug("Loading module %s (%s)\n", dp->d_name, desc_str);
 		else
 		    msgDebug("Loading module %s\n", dp->d_name);
-		if (kldload(module) < 0) {
+		if (kldload(module) < 0 && errno != EEXIST) {
 		    if (desc_str[0])
 			msgConfirm("Loading module %s failed\n%s", dp->d_name, desc_str);
 		    else
@@ -197,7 +193,7 @@ kldModuleFire(dialogMenuItem *self) {
     bzero(fname, sizeof(fname));
     snprintf(fname, sizeof(fname), "%s/%s", DISTMOUNT, self->prompt);
 
-    if (kldload(fname) < 0) {
+    if (kldload(fname) < 0 && errno != EEXIST) {
 	if (!variable_get(VAR_NO_ERROR))
 	    msgConfirm("Loading module %s failed\n", fname);
     } else {
