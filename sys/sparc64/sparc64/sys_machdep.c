@@ -34,6 +34,7 @@
 #include <sys/proc.h>
 #include <sys/sysproto.h>
 
+#include <machine/md_var.h>
 #include <machine/utrap.h>
 #include <machine/sysarch.h>
 
@@ -119,9 +120,7 @@ sparc_utrap_install(struct thread *td, char *args)
 		}
 		if (ua.type != UTH_NOCHANGE) {
 			if (ut == NULL) {
-				ut = malloc(sizeof *ut, M_SUBPROC,
-				    M_WAITOK | M_ZERO);
-				ut->ut_refcnt = 1;
+				ut = utrap_alloc();
 				td->td_proc->p_md.md_utrap = ut;
 			}
 			ut->ut_precise[ua.type] = ua.new_precise;
