@@ -30,7 +30,7 @@
 #
 # Guy Helmer <ghelmer@cs.iastate.edu>, 02/23/97
 #
-#	$Id$
+#	$Id: rmuser.perl,v 1.6 1997/03/08 18:04:45 wosch Exp $
 
 sub LOCK_SH {0x01;}
 sub LOCK_EX {0x02;}
@@ -243,7 +243,7 @@ if (-e $file || -l $file) {
 #
 # Remove some pop daemon's leftover file
 
-$file = "$maildir/.${login_name}.pop";
+$file = "$mail_dir/.${login_name}.pop";
 if (-e $file || -l $file) {
     print STDERR "Removing pop daemon's temporary mail file ${file}:";
     unlink $file ||
