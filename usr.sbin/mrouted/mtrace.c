@@ -99,18 +99,20 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) mtrace.c,v 5.1.1.1 1996/12/20 00:43:40 fenner Exp";
+static const char rcsid[] =
+    "$Id$";
 #endif
 
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <memory.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <memory.h>
 #include <string.h>
-#include <ctype.h>
-#include <errno.h>
 #include <syslog.h>
-#include <netdb.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -336,6 +338,7 @@ void			check_vif_state __P((void));
 
 int			main __P((int argc, char *argv[]));
 void			log __P((int, int, char *, ...));
+static void		usage __P((void));
 
 
 /*
@@ -864,7 +867,7 @@ get_netmask(s, dst)
     ifc.ifc_buf = ifbuf;
     ifc.ifc_len = sizeof(ifbuf);
     if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
-	perror("ioctl (SIOCGIFCONF)");
+	warn("ioctl (SIOCGIFCONF)");
 	return (retval);
     }
     i = ifc.ifc_len / sizeof(struct ifreq);
@@ -1054,7 +1057,7 @@ send_recv(dst, type, code, tries, save)
 			   &tv);
 
 	    if (count < 0) {
-		if (errno != EINTR) perror("select");
+		if (errno != EINTR) warn("select");
 		continue;
 	    } else if (count == 0) {
 		printf("* ");
@@ -1067,13 +1070,12 @@ send_recv(dst, type, code, tries, save)
 			       0, (struct sockaddr *)&recvaddr, &socklen);
 
 	    if (recvlen <= 0) {
-		if (recvlen && errno != EINTR) perror("recvfrom");
+		if (recvlen && errno != EINTR) warn("recvfrom");
 		continue;
 	    }
 
 	    if (recvlen < sizeof(struct ip)) {
-		fprintf(stderr,
-			"packet too short (%u bytes) for IP header", recvlen);
+		warnx("packet too short (%u bytes) for IP header", recvlen);
 		continue;
 	    }
 	    ip = (struct ip *) recv_buf;
@@ -1083,8 +1085,7 @@ send_recv(dst, type, code, tries, save)
 	    iphdrlen = ip->ip_hl << 2;
 	    ipdatalen = ip->ip_len;
 	    if (iphdrlen + ipdatalen != recvlen) {
-		fprintf(stderr,
-			"packet shorter (%u bytes) than hdr+data len (%u+%u)\n",
+		warnx("packet shorter (%u bytes) than hdr+data len (%u+%u)",
 			recvlen, iphdrlen, ipdatalen);
 		continue;
 	    }
@@ -1092,8 +1093,7 @@ send_recv(dst, type, code, tries, save)
 	    igmp = (struct igmp *) (recv_buf + iphdrlen);
 	    igmpdatalen = ipdatalen - IGMP_MINLEN;
 	    if (igmpdatalen < 0) {
-		fprintf(stderr,
-			"IP data field too short (%u bytes) for IGMP from %s\n",
+		warnx("IP data field too short (%u bytes) for IGMP from %s",
 			ipdatalen, inet_fmt(ip->ip_src.s_addr, s1));
 		continue;
 	    }
@@ -1172,8 +1172,7 @@ send_recv(dst, type, code, tries, save)
 		 * A match, we'll keep this one.
 		 */
 		if (len > code) {
-		    fprintf(stderr,
-			    "Num hops received (%d) exceeds request (%d)\n",
+		    warnx("num hops received (%d) exceeds request (%d)",
 			    len, code);
 		}
 		rquery->tr_raddr = query->tr_raddr;	/* Insure these are */
@@ -1223,7 +1222,7 @@ passive_mode()
     char timebuf[32];
     int socklen;
     int ipdatalen, iphdrlen, igmpdatalen;
-    int len, recvlen, dummy = 0;
+    int len, recvlen;
     u_int32 smask;
     struct mtrace *remembered = NULL, *m, *n, **nn;
     int pc = 0;
@@ -1241,13 +1240,12 @@ passive_mode()
 	gettimeofday(&tr,0);
 
 	if (recvlen <= 0) {
-	    if (recvlen && errno != EINTR) perror("recvfrom");
+	    if (recvlen && errno != EINTR) warn("recvfrom");
 	    continue;
 	}
 
 	if (recvlen < sizeof(struct ip)) {
-	    fprintf(stderr,
-		    "packet too short (%u bytes) for IP header", recvlen);
+	    warnx("packet too short (%u bytes) for IP header", recvlen);
 	    continue;
 	}
 	ip = (struct ip *) recv_buf;
@@ -1257,8 +1255,7 @@ passive_mode()
 	iphdrlen = ip->ip_hl << 2;
 	ipdatalen = ip->ip_len;
 	if (iphdrlen + ipdatalen != recvlen) {
-	    fprintf(stderr,
-		    "packet shorter (%u bytes) than hdr+data len (%u+%u)\n",
+	    warnx("packet shorter (%u bytes) than hdr+data len (%u+%u)",
 		    recvlen, iphdrlen, ipdatalen);
 	    continue;
 	}
@@ -1266,8 +1263,7 @@ passive_mode()
 	igmp = (struct igmp *) (recv_buf + iphdrlen);
 	igmpdatalen = ipdatalen - IGMP_MINLEN;
 	if (igmpdatalen < 0) {
-	    fprintf(stderr,
-		    "IP data field too short (%u bytes) for IGMP from %s\n",
+	    warnx("IP data field too short (%u bytes) for IGMP from %s",
 		    ipdatalen, inet_fmt(ip->ip_src.s_addr, s1));
 	    continue;
 	}
@@ -1994,16 +1990,14 @@ char *argv[];
     int seed;
     int hopbyhop;
 
-    if (geteuid() != 0) {
-	fprintf(stderr, "mtrace: must be root\n");
-	exit(1);
-    }
+    if (geteuid() != 0)
+	errx(1, "must be root");
 
     init_igmp();
     setuid(getuid());
 
     argv++, argc--;
-    if (argc == 0) goto usage;
+    if (argc == 0) usage();
 
     while (argc > 0 && *argv[0] == '-') {
 	char *p = *argv++;  argc--;
@@ -2024,7 +2018,7 @@ char *argv[];
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
-		    goto usage;
+		    usage();
 	      case 'M':			/* Use multicast for reponse */
 		multicast = TRUE;
 		break;
@@ -2087,7 +2081,7 @@ char *argv[];
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
-		    goto usage;
+		    usage();
 	      case 'm':			/* Max number of hops to trace */
 		if (arg && isdigit(*arg)) {
 		    qno = atoi(arg);
@@ -2096,7 +2090,7 @@ char *argv[];
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
-		    goto usage;
+		    usage();
 	      case 'q':			/* Number of query retries */
 		if (arg && isdigit(*arg)) {
 		    nqueries = atoi(arg);
@@ -2104,13 +2098,13 @@ char *argv[];
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
-		    goto usage;
+		    usage();
 	      case 'g':			/* Last-hop gateway (dest of query) */
 		if (arg && (gwy = host_addr(arg))) {
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
-		    goto usage;
+		    usage();
 	      case 't':			/* TTL for query packet */
 		if (arg && isdigit(*arg)) {
 		    qttl = atoi(arg);
@@ -2119,7 +2113,7 @@ char *argv[];
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
-		    goto usage;
+		    usage();
 	      case 'e':			/* Extra hops past non-responder */
 		if (arg && isdigit(*arg)) {
 		    extrahops = atoi(arg);
@@ -2127,19 +2121,19 @@ char *argv[];
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
-		    goto usage;
+		    usage();
 	      case 'r':			/* Dest for response packet */
 		if (arg && (raddr = host_addr(arg))) {
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
-		    goto usage;
+		    usage();
 	      case 'i':			/* Local interface address */
 		if (arg && (lcl_addr = host_addr(arg))) {
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
-		    goto usage;
+		    usage();
 	      case 'S':			/* Stat accumulation interval */
 		if (arg && isdigit(*arg)) {
 		    statint = atoi(arg);
@@ -2147,9 +2141,9 @@ char *argv[];
 		    if (arg == argv[0]) argv++, argc--;
 		    break;
 		} else
-		    goto usage;
+		    usage();
 	      default:
-		goto usage;
+		usage();
 	    }
 	} while (*p);
     }
@@ -2162,7 +2156,7 @@ char *argv[];
 		qgrp = qsrc;
 		qsrc = 0;
 	    } else {
-		goto usage;
+		usage();
 	    }
 	}
 	argv++, argc--;
@@ -2175,8 +2169,8 @@ char *argv[];
 		u_int32 temp = qdst;
 		qdst = qgrp;
 		qgrp = temp;
-		if (IN_MULTICAST(ntohl(qdst))) goto usage;
-	    } else if (qgrp && !IN_MULTICAST(ntohl(qgrp))) goto usage;
+		if (IN_MULTICAST(ntohl(qdst))) usage();
+	    } else if (qgrp && !IN_MULTICAST(ntohl(qgrp))) usage();
 	}
     }
 
@@ -2186,10 +2180,7 @@ char *argv[];
     }
 
     if (argc > 0) {
-usage:	printf("\
-Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
-              [-S statint] [-t ttl] [-r resp_dest] [-i if_addr] source [receiver] [group]\n");
-	exit(1);
+	usage();
     }
 
     /*
@@ -2204,12 +2195,14 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 	    qgrp = defgrp;
 	if (printstats && numstats != 0 && !tunstats) {
 	    /* Stats are useless without a group */
-	    fprintf(stderr, "mtrace: WARNING: no multicast group specified, so no statistics printed\n");
+	    warnx(
+	"WARNING: no multicast group specified, so no statistics printed");
 	    numstats = 0;
 	}
     } else {
 	if (weak)
-	    fprintf(stderr, "mtrace: WARNING: group was specified so not performing \"weak\" mtrace\n");
+	    warnx(
+	"WARNING: group was specified so not performing \"weak\" mtrace");
     }
 
     /*
@@ -2224,10 +2217,8 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
 
     if (((udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0) ||
 	(connect(udp, (struct sockaddr *) &addr, sizeof(addr)) < 0) ||
-	getsockname(udp, (struct sockaddr *) &addr, &addrlen) < 0) {
-	perror("Determining local address");
-	exit(-1);
-    }
+	getsockname(udp, (struct sockaddr *) &addr, &addrlen) < 0)
+	err(-1, "determining local address");
 
 #ifdef SUNOS5
     /*
@@ -2244,14 +2235,14 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
     
 	error = sysinfo(SI_HOSTNAME, myhostname, sizeof(myhostname));
 	if (error == -1) {
-	    perror("Getting my hostname");
+	    warn("getting my hostname");
 	    exit(-1);
 	}
 
 	hp = gethostbyname(myhostname);
 	if (hp == NULL || hp->h_addrtype != AF_INET ||
 	    hp->h_length != sizeof(addr.sin_addr)) {
-	    perror("Finding IP address for my hostname");
+	    warn("finding IP address for my hostname");
 	    exit(-1);
 	}
 
@@ -2274,7 +2265,7 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
     if (qsrc == 0 && gwy)
 	qsrc = lcl_addr ? lcl_addr : addr.sin_addr.s_addr;
     if (qsrc == 0)
-	goto usage;
+	usage();
     dst_netmask = get_netmask(udp, qdst);
     close(udp);
     if (lcl_addr == 0) lcl_addr = addr.sin_addr.s_addr;
@@ -2342,10 +2333,8 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
       if ((qdst & dst_netmask) == (lcl_addr & dst_netmask)) tdst = query_cast;
       else tdst = qgrp;
     else tdst = gwy;
-    if (tdst == 0 && weak) {
-	fprintf(stderr, "mtrace: -W requires -g if destination is not local.\n");
-	exit(1);
-    }
+    if (tdst == 0 && weak)
+	errx(1, "-W requires -g if destination is not local");
 
     if (IN_MULTICAST(ntohl(tdst))) {
       k_set_loop(1);	/* If I am running on a router, I need to hear this */
@@ -2618,6 +2607,16 @@ printandcontinue:
     } else k_leave(resp_cast, lcl_addr);
 
     return (0);
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "%s\n%s\n%s\n",
+	"usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries]",
+	"              [-g gateway] [-S statint] [-t ttl] [-r resp_dest]",
+	"              [-i if_addr] source [receiver] [group]");
+	exit(1);
 }
 
 void

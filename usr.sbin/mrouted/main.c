@@ -6,8 +6,6 @@
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
- *
- * $Id$
  */
 
 /*
@@ -20,6 +18,12 @@
  */
 
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif
+
+#include <err.h>
 #include "defs.h"
 #ifdef __STDC__
 #include <stdarg.h>
@@ -30,11 +34,6 @@
 
 #ifdef SNMP
 #include "snmp.h"
-#endif
-
-#ifndef lint
-static char rcsid[] =
-	"@(#) $Id$";
 #endif
 
 extern char *configfilename;
@@ -75,6 +74,7 @@ static void restart __P((int));
 static void timer __P((void));
 static void cleanup __P((void));
 static void resetlogging __P((void *));
+static void usage __P((void));
 
 /* To shut up gcc -Wstrict-prototypes */
 int main __P((int argc, char **argv));
@@ -115,10 +115,8 @@ main(argc, argv)
 
     setlinebuf(stderr);
 
-    if (geteuid() != 0) {
-	fprintf(stderr, "mrouted: must be root\n");
-	exit(1);
-    }
+    if (geteuid() != 0)
+	errx(1, "must be root");
 
     argv++, argc--;
     while (argc > 0 && *argv[0] == '-') {
@@ -133,7 +131,7 @@ main(argc, argv)
 		argv++, argc--;
 		configfilename = *argv;
 	    } else
-		goto usage;
+		usage();
 	} else if (strcmp(*argv, "-p") == 0) {
 	    pruning = 0;
 #ifdef SNMP
@@ -145,15 +143,12 @@ main(argc, argv)
 		dest_port = DEFAULT_PORT;
 #endif
 	} else
-	    goto usage;
+	    usage();
 	argv++, argc--;
     }
 
-    if (argc > 0) {
-usage:	fprintf(stderr, 
-		"usage: mrouted [-p] [-c configfile] [-d [debug_level]]\n");
-	exit(1);
-    }
+    if (argc > 0)
+	usage();
 
     if (debug == 0) {
 	/*
@@ -179,7 +174,7 @@ usage:	fprintf(stderr,
 	}
 #else
 	if (setsid() < 0)
-	    perror("setsid");
+	    warn("setsid");
 #endif
 #endif
     }
@@ -389,6 +384,13 @@ usage:	fprintf(stderr,
     }
 }
 
+static void
+usage()
+{
+	fprintf(stderr,
+		"usage: mrouted [-p] [-c configfile] [-d [debug_level]]\n");
+	exit(1);
+}
 
 /*
  * routine invoked every second.  Its main goal is to cycle through
