@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)df.1	8.3 (Berkeley) 5/8/95
-.\"	$Id: df.1,v 1.10 1997/03/13 17:32:39 bde Exp $
+.\"	$Id: df.1,v 1.11 1997/09/18 06:50:26 charnier Exp $
 .\"
 .Dd May 8, 1995
 .Dt DF 1
@@ -44,7 +44,7 @@
 .Op Fl t Ar type
 .Op Ar file | Ar filesystem ...
 .Sh DESCRIPTION
-.Nm
+.Nm Df
 displays statistics about the amount of free disk space on the specified
 .Ar filesystem
 or on the filesystem of which
@@ -72,7 +72,7 @@ This option should be used if it is possible that one or more
 filesystems are in a state such that they will not be able to provide
 statistics without a long delay.
 When this option is specified,
-.Nm df
+.Nm
 will not request new statistics from the filesystems, but will respond
 with the possibly stale statistics that were previously obtained.
 .It Fl t
@@ -84,7 +84,7 @@ to specify the filesystem types for which action should
 .Em not
 be taken.
 For example, the
-.Nm df
+.Nm
 command:
 .Bd -literal -offset indent
 df -t nonfs,mfs
@@ -127,6 +127,6 @@ flags are ignored if a file or filesystem is specified.
 .Xr sysctl 8
 .Sh HISTORY
 A
-.Nm df
+.Nm
 command appeared in
 .At v1 .
