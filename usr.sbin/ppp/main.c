@@ -168,8 +168,8 @@ BringDownServer(int signo)
 static void
 Usage(void)
 {
-  fprintf(stderr,
-	  "Usage: ppp [-auto | -foreground | -background | -direct | -dedicated | -ddial | -interactive]"
+  fprintf(stderr, "Usage: ppp [-auto | -foreground | -background | -direct |"
+          " -dedicated | -ddial | -interactive]"
 #ifndef NOALIAS
           " [-nat]"
 #endif

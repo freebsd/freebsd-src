@@ -509,7 +509,8 @@ chap_Challenge(struct authinfo *authp)
   struct chap *chap = auth2chap(authp);
   int len;
 
-  log_Printf(LogDEBUG, "CHAP%02X: Challenge\n", authp->physical->link.lcp.want_authtype);
+  log_Printf(LogDEBUG, "CHAP%02X: Challenge\n",
+             authp->physical->link.lcp.want_authtype);
 
   len = strlen(authp->physical->dl->bundle->cfg.auth.name);
 
@@ -530,7 +531,7 @@ chap_Challenge(struct authinfo *authp)
 static void
 chap_Success(struct authinfo *authp)
 {
-  char *msg;
+  const char *msg;
   datalink_GotAuthname(authp->physical->dl, authp->in.name);
 #ifdef HAVE_DES
   if (authp->physical->link.lcp.want_authtype == 0x81) {
@@ -561,18 +562,19 @@ chap_Failure(struct authinfo *authp)
 #ifdef HAVE_DES
   char buf[1024];
 #endif
-  char *msg;
+  const char *msg;
 
 #ifdef HAVE_DES
   if (authp->physical->link.lcp.want_authtype == 0x81) {
+    char *ptr;
     int i;
 
-    msg = buf;
-    msg += sprintf(buf, "E=691 R=0 C=");
+    ptr = buf;
+    ptr += sprintf(buf, "E=691 R=0 C=");
     for (i=0; i<16; i++)
-      msg += sprintf(msg, "%02X", *(auth2chap(authp)->challenge.local+1+i));
+      ptr += sprintf(ptr, "%02X", *(auth2chap(authp)->challenge.local+1+i));
     
-    sprintf(msg, " V=3 M=Invalid!");
+    sprintf(ptr, " V=3 M=Invalid!");
     msg = buf;
   } else
 #endif
@@ -889,7 +891,8 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
             if (p->link.lcp.his_authtype == 0x81) {
               if (strncmp(ans, chap->authresponse, 42)) {
                 datalink_AuthNotOk(p->dl);
-	        log_Printf(LogDEBUG, "CHAP81: AuthenticatorResponse: (%s) != ans: (%s)\n", chap->authresponse, ans);
+	        log_Printf(LogDEBUG, "CHAP81: AuthenticatorResponse: (%s)"
+                           " != ans: (%s)\n", chap->authresponse, ans);
                 
               } else {
                 /* Successful login */
