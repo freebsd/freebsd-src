@@ -725,7 +725,7 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 		goto bad;
 	}
 
-	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, als_intr,
+	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_AV, als_intr,
 			   sc, &sc->ih)) {
 		device_printf(dev, "unable to setup interrupt\n");
 		goto bad;
