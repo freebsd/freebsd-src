@@ -556,7 +556,7 @@ ng_make_node(const char *typename, node_p *nodepp)
 
 		/* Not found, try to load it as a loadable module */
 		snprintf(filename, sizeof(filename), "ng_%s", typename);
-		error = linker_load_file(filename, &lf);
+		error = linker_load_module(NULL, filename, NULL, NULL, &lf);
 		if (error != 0)
 			return (error);
 		lf->userrefs++;		/* pretend loaded by the syscall */
