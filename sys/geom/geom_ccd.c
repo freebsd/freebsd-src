@@ -75,21 +75,6 @@
 
 MALLOC_DEFINE(M_CCD, "CCD driver", "Concatenated Disk driver");
 
-#if defined(CCDDEBUG) && !defined(DEBUG)
-#define DEBUG
-#endif
-
-#ifdef DEBUG
-#define CCDB_FOLLOW	0x01
-#define CCDB_INIT	0x02
-#define CCDB_IO		0x04
-#define CCDB_LABEL	0x08
-#define CCDB_VNODE	0x10
-static int ccddebug = CCDB_FOLLOW | CCDB_INIT | CCDB_IO | CCDB_LABEL |
-    CCDB_VNODE;
-SYSCTL_INT(_debug, OID_AUTO, ccddebug, CTLFLAG_RW, &ccddebug, 0, "");
-#endif
-
 static u_int
 ccdunit(dev_t dev) 
 { 
@@ -186,9 +171,6 @@ static void ccdmakedisklabel(struct ccd_s *);
 static int ccdlock(struct ccd_s *);
 static void ccdunlock(struct ccd_s *);
 
-#ifdef DEBUG
-static void printiinfo(struct ccdiinfo *);
-#endif
 
 /*
  * Number of blocks to untouched in front of a component partition.
@@ -314,10 +296,6 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 	off_t mediasize;
 	u_int sectorsize;
 
-#ifdef DEBUG
-	if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
-		printf("ccdinit: unit %d\n", cs->sc_unit);
-#endif
 
 	cs->sc_size = 0;
 
@@ -342,11 +320,6 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 		 */
 		if ((error = copyinstr(cpaths[ix], tmppath,
 		    MAXPATHLEN, &ci->ci_pathlen)) != 0) {
-#ifdef DEBUG
-			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
-				printf("ccd%d: can't copy path, error = %d\n",
-				    cs->sc_unit, error);
-#endif
 			goto fail;
 		}
 		ci->ci_path = malloc(ci->ci_pathlen, M_CCD, M_WAITOK);
@@ -360,11 +333,6 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 		error = VOP_IOCTL(vp, DIOCGMEDIASIZE, (caddr_t)&mediasize,
 		    FREAD, td->td_ucred, td);
 		if (error != 0) {
-#ifdef DEBUG
-			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
-				 printf("ccd%d: %s: ioctl failed, error = %d\n",
-				     cs->sc_unit, ci->ci_path, error);
-#endif
 			goto fail;
 		}
 		/*
@@ -373,11 +341,6 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 		error = VOP_IOCTL(vp, DIOCGSECTORSIZE, (caddr_t)&sectorsize,
 		    FREAD, td->td_ucred, td);
 		if (error != 0) {
-#ifdef DEBUG
-			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
-				 printf("ccd%d: %s: ioctl failed, error = %d\n",
-				     cs->sc_unit, ci->ci_path, error);
-#endif
 			goto fail;
 		}
 		if (sectorsize > maxsecsize)
@@ -393,11 +356,6 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 			size -= size % cs->sc_ileave;
 
 		if (size == 0) {
-#ifdef DEBUG
-			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
-				printf("ccd%d: %s: size == 0\n",
-				    cs->sc_unit, ci->ci_path);
-#endif
 			error = ENODEV;
 			goto fail;
 		}
@@ -417,11 +375,6 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 	 */
 	if ((cs->sc_ileave > 0) &&
 	    (cs->sc_ileave < (maxsecsize / DEV_BSIZE))) {
-#ifdef DEBUG
-		if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
-			printf("ccd%d: interleave must be at least %d\n",
-			    cs->sc_unit, (maxsecsize / DEV_BSIZE));
-#endif
 		error = EINVAL;
 		goto fail;
 	}
@@ -513,10 +466,6 @@ ccdinterleave(struct ccd_s *cs, int unit)
 	int ix;
 	u_long size;
 
-#ifdef DEBUG
-	if (ccddebug & CCDB_INIT)
-		printf("ccdinterleave(%p): ileave %d\n", cs, cs->sc_ileave);
-#endif
 
 	/*
 	 * Allocate an interleave table.  The worst case occurs when each
@@ -550,10 +499,6 @@ ccdinterleave(struct ccd_s *cs, int unit)
 			ii++;
 		}
 		ii->ii_ndisk = 0;
-#ifdef DEBUG
-		if (ccddebug & CCDB_INIT)
-			printiinfo(cs->sc_itable);
-#endif
 		return;
 	}
 
@@ -620,10 +565,6 @@ ccdinterleave(struct ccd_s *cs, int unit)
 		lbn = smallci->ci_size / cs->sc_ileave;
 		size = smallci->ci_size;
 	}
-#ifdef DEBUG
-	if (ccddebug & CCDB_INIT)
-		printiinfo(cs->sc_itable);
-#endif
 }
 
 /* ARGSUSED */
@@ -637,10 +578,6 @@ ccdopen(dev_t dev, int flags, int fmt, struct thread *td)
 
 	if (dev->si_drv1 == dev)
 		return (0);
-#ifdef DEBUG
-	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdopen(%p, %x)\n", dev, flags);
-#endif
 
 	cs = IS_ALLOCATED(unit) ? ccdfind(unit) : ccdnew(unit);
 
@@ -683,10 +620,6 @@ ccdclose(dev_t dev, int flags, int fmt, struct thread *td)
 
 	if (dev->si_drv1 == dev)
 		return (0);
-#ifdef DEBUG
-	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdclose(%p, %x)\n", dev, flags);
-#endif
 
 	if (!IS_ALLOCATED(unit))
 		return (ENXIO);
@@ -720,10 +653,6 @@ ccdstrategy(struct bio *bp)
 		biofinish(bp, NULL, ENXIO);
 		return;
 	}
-#ifdef DEBUG
-	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdstrategy(%p): unit %d\n", bp, unit);
-#endif
 	if (!IS_INITED(cs)) {
 		biofinish(bp, NULL, ENXIO);
 		return;
@@ -798,10 +727,6 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 	daddr_t bn;
 	struct partition *pp;
 
-#ifdef DEBUG
-	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdstart(%p, %p)\n", cs, bp);
-#endif
 
 	/* Record the transaction start  */
 	devstat_start_transaction(&cs->device_stats);
@@ -870,12 +795,6 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 	daddr_t cbn, cboff;
 	off_t cbc;
 
-#ifdef DEBUG
-	if (ccddebug & CCDB_IO)
-		printf("ccdbuffer(%p, %p, %lld, %p, %ld)\n",
-		    (void *)cs, (void *)bp, (long long)bn, (void *)addr,
-		    bcount);
-#endif
 	/*
 	 * Determine which component bn falls in.
 	 */
@@ -995,13 +914,6 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 	cbp->cb_unit = cs->sc_unit;
 	cbp->cb_comp = ci - cs->sc_cinfo;
 
-#ifdef DEBUG
-	if (ccddebug & CCDB_IO)
-		printf(" dev %p(u%ld): cbp %p bn %jd addr %p bcnt %ld\n",
-		       ci->ci_dev, (unsigned long)(ci-cs->sc_cinfo), cbp, 
-		       (intmax_t)cbp->cb_buf.bio_blkno, cbp->cb_buf.bio_data, 
-		       cbp->cb_buf.bio_bcount);
-#endif
 	cb[0] = cbp;
 
 	/*
@@ -1039,18 +951,6 @@ ccdiodone(struct bio *ibp)
 
 	cs = ccdfind(unit);
 	s = splbio();
-#ifdef DEBUG
-	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdiodone(%p)\n", cbp);
-	if (ccddebug & CCDB_IO) {
-		printf("ccdiodone: bp %p bcount %ld resid %ld\n",
-		       bp, bp->bio_bcount, bp->bio_resid);
-		printf(" dev %p(u%d), cbp %p bn %jd addr %p bcnt %ld\n",
-		       cbp->cb_buf.bio_dev, cbp->cb_comp, cbp,
-		       (intmax_t)cbp->cb_buf.bio_blkno, cbp->cb_buf.bio_data,
-		       cbp->cb_buf.bio_bcount);
-	}
-#endif
 	/*
 	 * If an error occured, report it.  If this is a mirrored 
 	 * configuration and the first of two possible reads, do not
@@ -1306,18 +1206,8 @@ ccdioctltoo(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			return (error);
 		}
 
-#ifdef DEBUG
-		if (ccddebug & CCDB_INIT)
-			for (i = 0; i < ccio->ccio_ndisks; ++i)
-				printf("ccdioctl: component %d: %p\n",
-				    i, cpp[i]);
-#endif
 
 		for (i = 0; i < ccio->ccio_ndisks; ++i) {
-#ifdef DEBUG
-			if (ccddebug & CCDB_INIT)
-				printf("ccdioctl: lookedup = %d\n", lookedup);
-#endif
 			if ((error = ccdlookup(cpp[i], td, &vpp[i])) != 0) {
 				for (j = 0; j < lookedup; ++j)
 					(void)vn_close(vpp[j], FREAD|FWRITE,
@@ -1394,11 +1284,6 @@ ccdioctltoo(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			 * cause Bad Things.  Maybe we need to force
 			 * the close to happen?
 			 */
-#ifdef DEBUG
-			if (ccddebug & CCDB_VNODE)
-				vprint("CCDIOCCLR: vnode info",
-				    cs->sc_cinfo[i].ci_vp);
-#endif
 			(void)vn_close(cs->sc_cinfo[i].ci_vp, FREAD|FWRITE,
 			    td->td_ucred, td);
 			free(cs->sc_cinfo[i].ci_path, M_CCD);
@@ -1589,10 +1474,6 @@ ccdlookup(char *path, struct thread *td, struct vnode **vpp)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, path, td);
 	flags = FREAD | FWRITE;
 	if ((error = vn_open(&nd, &flags, 0)) != 0) {
-#ifdef DEBUG
-		if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
-			printf("ccdlookup: vn_open error = %d\n", error);
-#endif
 		return (error);
 	}
 	vp = nd.ni_vp;
@@ -1605,10 +1486,6 @@ ccdlookup(char *path, struct thread *td, struct vnode **vpp)
 	if (!vn_isdisk(vp, &error)) 
 		goto bad;
 
-#ifdef DEBUG
-	if (ccddebug & CCDB_VNODE)
-		vprint("ccdlookup: vnode info", vp);
-#endif
 
 	VOP_UNLOCK(vp, 0, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1670,12 +1547,6 @@ ccdgetdisklabel(dev_t dev)
 	if (errstring != NULL)
 		ccdmakedisklabel(cs);
 
-#ifdef DEBUG
-	/* It's actually extremely common to have unlabeled ccds. */
-	if (ccddebug & CCDB_LABEL)
-		if (errstring != NULL)
-			printf("ccd%d: %s\n", unit, errstring);
-#endif
 }
 
 /*
@@ -1730,19 +1601,3 @@ ccdunlock(struct ccd_s *cs)
 	}
 }
 
-#ifdef DEBUG
-static void
-printiinfo(struct ccdiinfo *ii)
-{
-	int ix, i;
-
-	for (ix = 0; ii->ii_ndisk; ix++, ii++) {
-		printf(" itab[%d]: #dk %d sblk %lld soff %lld",
-		    ix, ii->ii_ndisk, (long long)ii->ii_startblk,
-		    (long long)ii->ii_startoff);
-		for (i = 0; i < ii->ii_ndisk; i++)
-			printf(" %d", ii->ii_index[i]);
-		printf("\n");
-	}
-}
-#endif
