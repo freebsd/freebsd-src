@@ -1966,10 +1966,7 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 			return EINVAL;
 		}
 		lj->lioj_flags |= LIOJ_SIGNAL;
-		lj->lioj_flags &= ~LIOJ_SIGNAL_POSTED;
-	} else
-		lj->lioj_flags &= ~LIOJ_SIGNAL;
-
+	}
 	TAILQ_INSERT_TAIL(&ki->kaio_liojoblist, lj, lioj_list);
 	/*
 	 * Get pointers to the list of I/O requests.
