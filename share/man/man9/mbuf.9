@@ -107,8 +107,8 @@
 .\"
 .Sh DESCRIPTION
 An mbuf is a basic unit of memory management in the kernel IPC subsystem.
-Network packets and socket buffers are stored in mbufs. A network packet
-may span multiple mbufs arranged into a chain
+Network packets and socket buffers are stored in mbufs.
+A network packet may span multiple mbufs arranged into a chain
 .Pq linked list ,
 which allows adding or trimming
 network headers with little overhead.
@@ -118,7 +118,8 @@ reason in order to avoid incompatibilities with future changes, it
 is useful to understand the mbuf's general structure.
 .Pp
 An mbuf consists of a variable-sized header and a small internal
-buffer for data. The mbuf's total size,
+buffer for data.
+The mbuf's total size,
 .Dv MSIZE ,
 is a machine-dependent constant defined in
 .Pa machine/param.h .
@@ -175,15 +176,16 @@ If the
 .Dv M_PKTHDR
 flag is set, a
 .Fa struct pkthdr m_pkthdr
-is added to the mbuf header. It contains a pointer to the interface
+is added to the mbuf header.
+It contains a pointer to the interface
 the packet has been received from
 .Pq Fa struct ifnet *rcvif ,
 and the total packet length
 .Pq Fa int len .
 .Pp
-If small enough, data is stored in the mbuf's internal data buffer. If
-the data is sufficiently large, another mbuf may be added to the chain, or
-external storage may be associated with the mbuf.
+If small enough, data is stored in the mbuf's internal data buffer.
+If the data is sufficiently large, another mbuf may be added to the chain,
+or external storage may be associated with the mbuf.
 .Dv MHLEN
 bytes of data can fit into a mbuf with the
 .Dv M_PKTHDR
@@ -193,12 +195,12 @@ bytes can otherwise.
 .Pp
 If external storage is being associated with an mbuf, the
 .Dv m_ext 
-header is added at the cost of loosing the internal data buffer.  It
-includes a pointer to external storage, the size of the storage, a pointer
-to a function used for freeing the storage, a pointer to
-an optional argument that can be passed to the function, and a pointer 
-to a reference counter. An mbuf using external
-storage has the
+header is added at the cost of loosing the internal data buffer.
+It includes a pointer to external storage, the size of the storage,
+a pointer to a function used for freeing the storage,
+a pointer to an optional argument that can be passed to the function,
+and a pointer to a reference counter.
+An mbuf using external storage has the
 .Dv M_EXT
 flag set.
 .Pp
@@ -207,11 +209,13 @@ buffer,
 .Dv MEXTADD .
 .Pp
 The allocation and management of the reference counter is handled by the
-subsystem. The developer can check whether the reference count for the
+subsystem.
+The developer can check whether the reference count for the
 given mbuf's external storage is greater than 1 with the
 .Dv MEXT_IS_REF
-macro. Similarly, the developer can directly add and remove references, if
-absolutely necessary, with the use of the
+macro.
+Similarly, the developer can directly add and remove references,
+if absolutely necessary, with the use of the
 .Dv MEXT_ADD_REF
 and
 .Dv MEXT_REM_REF
@@ -221,7 +225,8 @@ The system also supplies a default type of external storage buffer called an
 .Dq mbuf cluster .
 Mbuf clusters can be allocated and configured with the use of the
 .Dv MCLGET
-macro. Each cluster is
+macro.
+Each cluster is
 .Dv MCLBYTES
 in size, where MCLBYTES is a machine-dependent constant.
 The system defines an advisory macro
@@ -253,13 +258,15 @@ Allocate an mbuf and initialize it to contain internal data.
 .Fa Mbuf
 will point to the allocated mbuf on success, or be set to
 .Dv NULL
-on failure. The
+on failure.
+The
 .Fa how
 argument is to be set to
 .Dv M_WAIT
 or
 .Dv M_DONTWAIT .
-It specifies if the caller is willing to block if necessary. If 
+It specifies if the caller is willing to block if necessary.
+If 
 .Fa how
 is set to M_WAIT, a failed allocation will result in the caller being put
 to sleep for a designated
@@ -270,11 +277,13 @@ functions and macros have the same argument because they may
 at some point need to allocate new mbufs.
 .It Fn MGETHDR mbuf how type
 Allocate an mbuf and initialize it to contain a packet header
-and internal data. See
+and internal data.
+See
 .Fn MGET
 for details.
 .It Fn MCLGET mbuf how
-Allocate and attach an mbuf cluster to an mbuf. If the macro fails, the
+Allocate and attach an mbuf cluster to an mbuf.
+If the macro fails, the
 .Dv M_EXT
 flag won't be set in the mbuf.
 .It Fn M_PREPEND mbuf len how
@@ -353,7 +362,8 @@ Make a copy of an mbuf chain starting
 .Fa offset
 bytes from the beginning, continuing for 
 .Fa len
-bytes. If
+bytes.
+If
 .Fa len
 is
 .Dv M_COPYALL ,
@@ -372,7 +382,8 @@ copied, only their reference counts are incremented.
 .\"
 .It Fn m_dup mbuf how
 Copy a packet header mbuf chain into a completely new chain, including
-copying any mbuf clusters.  Use this instead of
+copying any mbuf clusters.
+Use this instead of
 .Fn m_copypacket
 when you need a writable copy of an mbuf chain.
 .\"
@@ -394,8 +405,8 @@ starting at
 .Fa offset
 bytes from the beginning of the chain, extending the mbuf chain if necessary.
 .Sy Note :
-It doesn't allocate any clusters, just adds mbufs to the chain. It's safe
-to set
+It doesn't allocate any clusters, just adds mbufs to the chain.
+It's safe to set
 .Fa offset
 beyond the current chain end: zeroed mbufs will be allocated to fill the
 space.
@@ -403,7 +414,8 @@ space.
 .It Fn m_devget buf len offset ifp copy
 Copy data from a device local memory pointed to by
 .Fa buf
-to a mbuf chain. The copy is done using a specified copy routine
+to a mbuf chain.
+The copy is done using a specified copy routine
 .Fa copy ,
 or
 .Fn bcopy
@@ -429,15 +441,16 @@ and friends.
 Partition an mbuf chain in two pieces, returning the tail:
 all but the first
 .Fa len
-bytes. In case of failure, it returns
+bytes.
+In case of failure, it returns
 .Dv NULL
 and attempts to restore the chain to its original state.
 .Sh RETURN VALUES
 See above.
 .Sh HISTORY
 .\" Please correct me if I'm wrong
-Mbufs appeared in an early version of BSD. Besides for being
-used for network packets, they were used
+Mbufs appeared in an early version of BSD.
+Besides for being used for network packets, they were used
 to store various dynamic structures, such as routing table
 entries, interface addresses, protocol control blocks, etc.
 .Sh AUTHORS
