@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.44 1995/05/20 23:33:13 phk Exp $
+ * $Id: install.c,v 1.45 1995/05/21 01:56:01 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,25 +56,6 @@ static void	cpio_extract(void);
 static void	install_configuration_files(void);
 static void	do_final_setup(void);
 
-static Boolean
-preInstallCheck(void)
-{
-    if (!getenv(DISK_PARTITIONED)) {
-	msgConfirm("You need to partition your disk before you can proceed with\nthe installation.");
-
-	return FALSE;
-    }
-    if (!getenv(DISK_LABELLED)) {
-	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
-	return FALSE;
-    }
-    if (!Dists) {
-	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
-	return FALSE;
-    }
-    return TRUE;
-}
-
 static void
 installInitial(void)
 {
@@ -89,6 +70,16 @@ installInitial(void)
     if (alreadyDone)
 	return;
 
+    if (!getenv(DISK_PARTITIONED)) {
+	msgConfirm("You need to partition your disk before you can proceed with\nthe installation.");
+	return;
+    }
+    if (!getenv(DISK_LABELLED)) {
+	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
+	return;
+    }
+
+    /* Figure out what kind of MBR the user wants */
     dmenuOpenSimple(&MenuMBRType);
     mbrContents = NULL;
     cp = getenv("bootManager");
@@ -99,9 +90,8 @@ installInitial(void)
 	    mbrContents = mbr;
     }
 
-    /* If things aren't kosher, or we refuse to proceed, bail. */
-    if (!preInstallCheck()
-	|| msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
+    /* If we refuse to proceed, bail. */
+    if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
 	return;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
@@ -158,12 +148,23 @@ installFinal(void)
     alreadyDone = TRUE;
 }
 
+/*
+ * What happens when we select "GO".  This is broken into a 3 stage installation so that
+ * the user can do a full installation but come back here again to load more distributions,
+ * perhaps from a different media type.  This would allow, for example, the user to load the
+ * majority of the system from CDROM and then use ftp to load just the DES dist.
+ */
 int
 installCommit(char *str)
 {
-    installInitial();
+    if (!Dists) {
+	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
+	return 0;
+    }
     if (!mediaVerify())
 	return 0;
+
+    installInitial();
     distExtractAll();
     installFinal();
     return 0;
