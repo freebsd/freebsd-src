@@ -1905,7 +1905,6 @@ dc_attach(dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct dc_softc));
 
 	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -1949,6 +1948,17 @@ dc_attach(dev)
 
 	sc->dc_btag = rman_get_bustag(sc->dc_res);
 	sc->dc_bhandle = rman_get_bushandle(sc->dc_res);
+
+	/* Allocate interrupt */
+	rid = 0;
+	sc->dc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->dc_irq == NULL) {
+		printf("dc%d: couldn't map interrupt\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
 
 	/* Need this info to decide on a chip type. */
 	sc->dc_info = dc_devtype(dev);
@@ -2141,7 +2151,6 @@ dc_attach(dev)
 		mac = pci_get_ether(dev);
 		if (!mac) {
 			device_printf(dev, "No station address in CIS!\n");
-			bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 			error = ENXIO;
 			goto fail;
 		}
@@ -2165,7 +2174,6 @@ dc_attach(dev)
 
 	if (sc->dc_ldata == NULL) {
 		printf("dc%d: no memory for list buffers!\n", unit);
-		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -2224,8 +2232,6 @@ dc_attach(dev)
 
 	if (error) {
 		printf("dc%d: MII without any PHY!\n", sc->dc_unit);
-		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
-		error = ENXIO;
 		goto fail;
 	}
 
@@ -2288,31 +2294,19 @@ dc_attach(dev)
 	 */
 	ether_ifattach(ifp, eaddr);
 
-	/* Allocate interrupt */
-	rid = 0;
-	sc->dc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-	    RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->dc_irq == NULL) {
-		printf("dc%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
-		error = ENXIO;
-		goto fail;
-	}
-
+	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->dc_irq, INTR_TYPE_NET | 
 	    (IS_MPSAFE ? INTR_MPSAFE : 0),
 	    dc_intr, sc, &sc->dc_intrhand);
 
 	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
-		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 		printf("dc%d: couldn't set up irq\n", unit);
+		goto fail;
 	}
 
 fail:
-	if (error != 0)
-		mtx_destroy(&sc->dc_mtx);
+	if (error)
+		dc_detach(dev);
 	return (error);
 }
 
@@ -2325,24 +2319,29 @@ dc_detach(dev)
 	struct dc_mediainfo	*m;
 
 	sc = device_get_softc(dev);
-
+	KASSERT(mtx_initialized(&sc->dc_mtx), "dc mutex not initialized");
 	DC_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
-	dc_stop(sc);
-	ether_ifdetach(ifp);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev))
+			dc_stop(sc);
+		ether_ifdetach(ifp);
+		device_delete_child(dev, sc->dc_miibus);
+		bus_generic_detach(dev);
+	}
 
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->dc_miibus);
+	if (sc->dc_intrhand)
+		bus_teardown_intr(dev, sc->dc_irq, sc->dc_intrhand);
+	if (sc->dc_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
+	if (sc->dc_res)
+		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 
-	bus_teardown_intr(dev, sc->dc_irq, sc->dc_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
-	bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
-
-	contigfree(sc->dc_ldata, sizeof(struct dc_list_data), M_DEVBUF);
-	if (sc->dc_pnic_rx_buf != NULL)
-		free(sc->dc_pnic_rx_buf, M_DEVBUF);
+	if (sc->dc_ldata)
+		contigfree(sc->dc_ldata, sizeof(struct dc_list_data), M_DEVBUF);
+	free(sc->dc_pnic_rx_buf, M_DEVBUF);
 
 	while(sc->dc_mi != NULL) {
 		m = sc->dc_mi->dc_next;

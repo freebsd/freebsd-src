@@ -832,7 +832,6 @@ wb_attach(dev)
 
 	mtx_init(&sc->wb_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	WB_LOCK(sc);
 
 	/*
 	 * Handle power management nonsense.
@@ -900,18 +899,7 @@ wb_attach(dev)
 
 	if (sc->wb_irq == NULL) {
 		printf("wb%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
 		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->wb_irq, INTR_TYPE_NET,
-	    wb_intr, sc, &sc->wb_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
-		bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
-		printf("wb%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -939,9 +927,6 @@ wb_attach(dev)
 
 	if (sc->wb_ldata == NULL) {
 		printf("wb%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->wb_irq, sc->wb_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
-		bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -967,10 +952,6 @@ wb_attach(dev)
 	 */
 	if (mii_phy_probe(dev, &sc->wb_miibus,
 	    wb_ifmedia_upd, wb_ifmedia_sts)) {
-		bus_teardown_intr(dev, sc->wb_irq, sc->wb_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
-		bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
-		free(sc->wb_ldata_ptr, M_DEVBUF);
 		error = ENXIO;
 		goto fail;
 	}
@@ -979,14 +960,18 @@ wb_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
-	WB_UNLOCK(sc);
-	return(0);
+
+	error = bus_setup_intr(dev, sc->wb_irq, INTR_TYPE_NET,
+	    wb_intr, sc, &sc->wb_intrhand);
+
+	if (error) {
+		printf("wb%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
 
 fail:
 	if (error)
-		device_delete_child(dev, sc->wb_miibus);
-	WB_UNLOCK(sc);
-	mtx_destroy(&sc->wb_mtx);
+		wb_detach(dev);
 
 	return(error);
 }
@@ -999,21 +984,30 @@ wb_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc->wb_mtx), "wb mutex not initialized");
 	WB_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	wb_stop(sc);
-	ether_ifdetach(ifp);
-
 	/* Delete any miibus and phy devices attached to this interface */
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->wb_miibus);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev))
+			wb_stop(sc);
+		ether_ifdetach(ifp);
+		device_delete_child(dev, sc->wb_miibus);
+		bus_generic_detach(dev);
+	}
 
-	bus_teardown_intr(dev, sc->wb_irq, sc->wb_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
-	bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
+	if (sc->wb_intrhand)
+		bus_teardown_intr(dev, sc->wb_irq, sc->wb_intrhand);
+	if (sc->wb_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
+	if (sc->wb_res)
+		bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
 
-	free(sc->wb_ldata_ptr, M_DEVBUF);
+	if (sc->wb_ldata) {
+		contigfree(sc->wb_ldata, sizeof(struct wb_list_data) + 8,
+		    M_DEVBUF);
+	}
 
 	WB_UNLOCK(sc);
 	mtx_destroy(&sc->wb_mtx);

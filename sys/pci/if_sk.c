@@ -1039,20 +1039,18 @@ sk_attach_xmac(dev)
 	struct sk_softc		*sc;
 	struct sk_if_softc	*sc_if;
 	struct ifnet		*ifp;
-	int			i, port;
+	int			i, port, error;
 
 	if (dev == NULL)
 		return(EINVAL);
 
+	error = 0;
 	sc_if = device_get_softc(dev);
 	sc = device_get_softc(device_get_parent(dev));
 	SK_LOCK(sc);
 	port = *(int *)device_get_ivars(dev);
 	free(device_get_ivars(dev), M_DEVBUF);
 	device_set_ivars(dev, NULL);
-	sc_if->sk_dev = dev;
-
-	bzero((char *)sc_if, sizeof(struct sk_if_softc));
 
 	sc_if->sk_dev = dev;
 	sc_if->sk_unit = device_get_unit(dev);
@@ -1125,8 +1123,8 @@ sk_attach_xmac(dev)
 	default:
 		printf("skc%d: unsupported PHY type: %d\n",
 		    sc->sk_unit, sc_if->sk_phytype);
-		SK_UNLOCK(sc);
-		return(ENODEV);
+		error = ENODEV;
+		goto fail_xmac;
 	}
 
 	/* Allocate the descriptor queues. */
@@ -1135,9 +1133,8 @@ sk_attach_xmac(dev)
 
 	if (sc_if->sk_rdata == NULL) {
 		printf("sk%d: no memory for list buffers!\n", sc_if->sk_unit);
-		sc->sk_if[port] = NULL;
-		SK_UNLOCK(sc);
-		return(ENOMEM);
+		error = ENOMEM;
+		goto fail_xmac;
 	}
 
 	bzero(sc_if->sk_rdata, sizeof(struct sk_ring_data));
@@ -1146,11 +1143,8 @@ sk_attach_xmac(dev)
 	if (sk_alloc_jumbo_mem(sc_if)) {
 		printf("sk%d: jumbo buffer allocation failed\n",
 		    sc_if->sk_unit);
-		contigfree(sc_if->sk_rdata,
-		    sizeof(struct sk_ring_data), M_DEVBUF);
-		sc->sk_if[port] = NULL;
-		SK_UNLOCK(sc);
-		return(ENOMEM);
+		error = ENOMEM;
+		goto fail_xmac;
 	}
 
 	ifp = &sc_if->arpcom.ac_if;
@@ -1167,11 +1161,12 @@ sk_attach_xmac(dev)
 	ifp->if_baudrate = 1000000000;
 	ifp->if_snd.ifq_maxlen = SK_TX_RING_CNT - 1;
 
+	callout_handle_init(&sc_if->sk_tick_ch);
+
 	/*
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, sc_if->arpcom.ac_enaddr);
-	callout_handle_init(&sc_if->sk_tick_ch);
 
 	/*
 	 * Do miibus setup.
@@ -1180,16 +1175,19 @@ sk_attach_xmac(dev)
 	if (mii_phy_probe(dev, &sc_if->sk_miibus,
 	    sk_ifmedia_upd, sk_ifmedia_sts)) {
 		printf("skc%d: no PHY found!\n", sc_if->sk_unit);
-		contigfree(sc_if->sk_rdata,
-		    sizeof(struct sk_ring_data), M_DEVBUF);
-		ether_ifdetach(ifp);
-		SK_UNLOCK(sc);
-		return(ENXIO);
+		error = ENXIO;
+		goto fail_xmac;
 	}
 
+fail_xmac:
 	SK_UNLOCK(sc);
+	if (error) {
+		/* Access should be ok even though lock has been dropped */
+		sc->sk_if[port] = NULL;
+		sk_detach_xmac(dev);
+	}
 
-	return(0);
+	return(error);
 }
 
 /*
@@ -1206,11 +1204,9 @@ sk_attach(dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct sk_softc));
 
 	mtx_init(&sc->sk_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	SK_LOCK(sc);
 
 	/*
 	 * Handle power management nonsense.
@@ -1277,18 +1273,7 @@ sk_attach(dev)
 
 	if (sc->sk_irq == NULL) {
 		printf("skc%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
 		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->sk_irq, INTR_TYPE_NET,
-	    sk_intr, sc, &sc->sk_intrhand);
-
-	if (error) {
-		printf("skc%d: couldn't set up irq\n", unit);
-		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
 		goto fail;
 	}
 
@@ -1321,12 +1306,8 @@ sk_attach(dev)
 	default:
 		printf("skc%d: unknown ram size: %d\n",
 		    sc->sk_unit, sk_win_read_1(sc, SK_EPROM0));
-		bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
-		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
 		error = ENXIO;
 		goto fail;
-		break;
 	}
 
 	/* Read and save physical media type */
@@ -1346,9 +1327,6 @@ sk_attach(dev)
 	default:
 		printf("skc%d: unknown media type: 0x%x\n",
 		    sc->sk_unit, sk_win_read_1(sc, SK_PMDTYPE));
-		bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
-		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1371,12 +1349,19 @@ sk_attach(dev)
 	CSR_WRITE_2(sc, SK_LED, SK_LED_GREEN_ON);
 
 	bus_generic_attach(dev);
-	SK_UNLOCK(sc);
-	return(0);
+
+	error = bus_setup_intr(dev, sc->sk_irq, INTR_TYPE_NET,
+	    sk_intr, sc, &sc->sk_intrhand);
+
+	if (error) {
+		printf("skc%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
 
 fail:
-	SK_UNLOCK(sc);
-	mtx_destroy(&sc->sk_mtx);
+	if (error)
+		sk_detach(dev);
+
 	return(error);
 }
 
@@ -1390,16 +1375,24 @@ sk_detach_xmac(dev)
 
 	sc = device_get_softc(device_get_parent(dev));
 	sc_if = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc_if->sk_softc->sk_mtx),
+	    "sk mutex not initialized in sk_detach_xmac");
 	SK_IF_LOCK(sc_if);
 
 	ifp = &sc_if->arpcom.ac_if;
-	sk_stop(sc_if);
-	ether_ifdetach(ifp);
-	bus_generic_detach(dev);
-	if (sc_if->sk_miibus != NULL)
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev))
+			sk_stop(sc_if);
+		ether_ifdetach(ifp);
 		device_delete_child(dev, sc_if->sk_miibus);
-	contigfree(sc_if->sk_cdata.sk_jumbo_buf, SK_JMEM, M_DEVBUF);
-	contigfree(sc_if->sk_rdata, sizeof(struct sk_ring_data), M_DEVBUF);
+		bus_generic_detach(dev);
+	}
+	if (sc_if->sk_cdata.sk_jumbo_buf)
+		contigfree(sc_if->sk_cdata.sk_jumbo_buf, SK_JMEM, M_DEVBUF);
+	if (sc_if->sk_rdata) {
+		contigfree(sc_if->sk_rdata, sizeof(struct sk_ring_data),
+		    M_DEVBUF);
+	}
 	SK_IF_UNLOCK(sc_if);
 
 	return(0);
@@ -1412,17 +1405,23 @@ sk_detach(dev)
 	struct sk_softc		*sc;
 
 	sc = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc->sk_mtx), "sk mutex not initialized");
 	SK_LOCK(sc);
 
-	bus_generic_detach(dev);
-	if (sc->sk_devs[SK_PORT_A] != NULL)
-		device_delete_child(dev, sc->sk_devs[SK_PORT_A]);
-	if (sc->sk_devs[SK_PORT_B] != NULL)
-		device_delete_child(dev, sc->sk_devs[SK_PORT_B]);
+	if (device_is_alive(dev)) {
+		if (sc->sk_devs[SK_PORT_A] != NULL)
+			device_delete_child(dev, sc->sk_devs[SK_PORT_A]);
+		if (sc->sk_devs[SK_PORT_B] != NULL)
+			device_delete_child(dev, sc->sk_devs[SK_PORT_B]);
+		bus_generic_detach(dev);
+	}
 
-	bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
-	bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
+	if (sc->sk_intrhand)
+		bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
+	if (sc->sk_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
+	if (sc->sk_res)
+		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
 
 	SK_UNLOCK(sc);
 	mtx_destroy(&sc->sk_mtx);

@@ -868,7 +868,6 @@ rl_attach(dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct rl_softc));
 
 	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -943,13 +942,13 @@ rl_attach(dev)
 	sc->rl_btag = rman_get_bustag(sc->rl_res);
 	sc->rl_bhandle = rman_get_bushandle(sc->rl_res);
 
+	/* Allocate interrupt */
 	rid = 0;
 	sc->rl_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->rl_irq == NULL) {
 		printf("rl%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -996,8 +995,6 @@ rl_attach(dev)
 		sc->rl_type = RL_8129;
 	else {
 		printf("rl%d: unknown device ID: %x\n", unit, rl_did);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
-		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1015,6 +1012,8 @@ rl_attach(dev)
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			BUS_DMA_ALLOCNOW,	/* flags */
 			&sc->rl_parent_tag);
+	if (error)
+		goto fail;
 
 	/*
 	 * Now allocate a tag for the DMA descriptor lists.
@@ -1030,6 +1029,8 @@ rl_attach(dev)
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			0,			/* flags */
 			&sc->rl_tag);
+	if (error)
+		goto fail;
 
 	/*
 	 * Now allocate a chunk of DMA-able memory based on the
@@ -1039,12 +1040,10 @@ rl_attach(dev)
 	    (void **)&sc->rl_cdata.rl_rx_buf, BUS_DMA_NOWAIT,
 	    &sc->rl_cdata.rl_rx_dmamap);
 
-	if (sc->rl_cdata.rl_rx_buf == NULL) {
+	if (error) {
 		printf("rl%d: no memory for list buffers!\n", unit);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
-		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 		bus_dma_tag_destroy(sc->rl_tag);
-		error = ENXIO;
+		sc->rl_tag = NULL;
 		goto fail;
 	}
 
@@ -1056,11 +1055,6 @@ rl_attach(dev)
 	if (mii_phy_probe(dev, &sc->rl_miibus,
 	    rl_ifmedia_upd, rl_ifmedia_sts)) {
 		printf("rl%d: MII without any phy!\n", sc->rl_unit);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
-		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
-		bus_dmamem_free(sc->rl_tag,
-		    sc->rl_cdata.rl_rx_buf, sc->rl_cdata.rl_rx_dmamap);
-		bus_dma_tag_destroy(sc->rl_tag);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1079,6 +1073,8 @@ rl_attach(dev)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
+	callout_handle_init(&sc->rl_stat_ch);
+
 	/*
 	 * Call MI attach routine.
 	 */
@@ -1089,18 +1085,13 @@ rl_attach(dev)
 
 	if (error) {
 		printf("rl%d: couldn't set up irq\n", unit);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
-		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
-		bus_dmamem_free(sc->rl_tag,
-		    sc->rl_cdata.rl_rx_buf, sc->rl_cdata.rl_rx_dmamap);
-		bus_dma_tag_destroy(sc->rl_tag);
 		goto fail;
 	}
 
-	callout_handle_init(&sc->rl_stat_ch);
 fail:
-	if (error != 0)
-		mtx_destroy(&sc->rl_mtx);
+	if (error)
+		rl_detach(dev);
+
 	return (error);
 }
 
@@ -1112,24 +1103,33 @@ rl_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc->rl_mtx), "rl mutex not initialized");
 	RL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	ether_ifdetach(ifp);
-	rl_stop(sc);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev))
+			rl_stop(sc);
+		ether_ifdetach(ifp);
+		device_delete_child(dev, sc->rl_miibus);
+		bus_generic_detach(dev);
+	}
 
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->rl_miibus);
+	if (sc->rl_intrhand)
+		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
+	if (sc->rl_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
+	if (sc->rl_res)
+		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 
-	bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
-	bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
-
-	bus_dmamap_unload(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap);
-	bus_dmamem_free(sc->rl_tag, sc->rl_cdata.rl_rx_buf,
-	    sc->rl_cdata.rl_rx_dmamap);
-	bus_dma_tag_destroy(sc->rl_tag);
-	bus_dma_tag_destroy(sc->rl_parent_tag);
+	if (sc->rl_tag) {
+		bus_dmamap_unload(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap);
+		bus_dmamem_free(sc->rl_tag, sc->rl_cdata.rl_rx_buf,
+		    sc->rl_cdata.rl_rx_dmamap);
+		bus_dma_tag_destroy(sc->rl_tag);
+	}
+	if (sc->rl_parent_tag)
+		bus_dma_tag_destroy(sc->rl_parent_tag);
 
 	RL_UNLOCK(sc);
 	mtx_destroy(&sc->rl_mtx);

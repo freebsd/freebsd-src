@@ -1127,7 +1127,6 @@ tl_attach(dev)
 	did = pci_get_device(dev);
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct tl_softc));
 
 	t = tl_devs;
 	while(t->tl_name != NULL) {
@@ -1138,12 +1137,12 @@ tl_attach(dev)
 
 	if (t->tl_name == NULL) {
 		device_printf(dev, "unknown device!?\n");
+		error = ENXIO;
 		goto fail;
 	}
 
 	mtx_init(&sc->tl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	TL_LOCK(sc);
 
 	/*
 	 * Map control/status registers.
@@ -1217,19 +1216,8 @@ tl_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->tl_irq == NULL) {
-		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->tl_irq, INTR_TYPE_NET,
-	    tl_intr, sc, &sc->tl_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
-		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
-		device_printf(dev, "couldn't set up irq\n");
 		goto fail;
 	}
 
@@ -1240,9 +1228,6 @@ tl_attach(dev)
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->tl_ldata == NULL) {
-		bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
-		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 		device_printf(dev, "no memory for list buffers!\n");
 		error = ENXIO;
 		goto fail;
@@ -1266,11 +1251,6 @@ tl_attach(dev)
 	 */
 	if (tl_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
 				sc->tl_eeaddr, ETHER_ADDR_LEN)) {
-		bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
-		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
-		contigfree(sc->tl_ldata,
-		    sizeof(struct tl_list_data), M_DEVBUF);
 		device_printf(dev, "failed to read station address\n");
 		error = ENXIO;
 		goto fail;
@@ -1349,12 +1329,19 @@ tl_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
-	TL_UNLOCK(sc);
-	return(0);
+
+	error = bus_setup_intr(dev, sc->tl_irq, INTR_TYPE_NET,
+	    tl_intr, sc, &sc->tl_intrhand);
+
+	if (error) {
+		device_printf(dev, "couldn't set up irq\n");
+		goto fail;
+	}
 
 fail:
-	TL_UNLOCK(sc);
-	mtx_destroy(&sc->tl_mtx);
+	if (error)
+		tl_detach(dev);
+
 	return(error);
 }
 
@@ -1366,22 +1353,29 @@ tl_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc->tl_mtx), "tl mutex not initialized");
 	TL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	tl_stop(sc);
-	ether_ifdetach(ifp);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev))
+			tl_stop(sc);
+		ether_ifdetach(ifp);
+		device_delete_child(dev, sc->tl_miibus);
+		bus_generic_detach(dev);
+	}
 
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->tl_miibus);
-
-	contigfree(sc->tl_ldata, sizeof(struct tl_list_data), M_DEVBUF);
+	if (sc->tl_ldata)
+		contigfree(sc->tl_ldata, sizeof(struct tl_list_data), M_DEVBUF);
 	if (sc->tl_bitrate)
 		ifmedia_removeall(&sc->ifmedia);
 
-	bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
-	bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
+	if (sc->tl_intrhand)
+		bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
+	if (sc->tl_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
+	if (sc->tl_res)
+		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
 
 	TL_UNLOCK(sc);
 	mtx_destroy(&sc->tl_mtx);
