@@ -314,7 +314,6 @@ uhci_init(sc)
 	uhci_run(sc, 0);			/* stop the controller */
 	UWRITE2(sc, UHCI_INTR, 0);		/* disable interrupts */
 
-	/* NWH PR1 The 823C572 resets FLBASEADDR as well, moved busreset up */
 	uhci_busreset(sc);
 	
 	/* Allocate and initialize real frame array. */
@@ -327,8 +326,6 @@ uhci_init(sc)
 	UWRITE2(sc, UHCI_FRNUM, 0);		/* set frame number to 0 */
 	UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&dma)); /* set frame list */
 
-	/* NWH PR1 moved uhci_busreset up */
-	
 	/* Allocate the dummy QH where bulk traffic will be queued. */
 	bsqh = uhci_alloc_sqh(sc);
 	if (!bsqh)
@@ -749,10 +746,10 @@ uhci_check_intr(sc, ii)
 		return;
 	}
  done:
+	usb_untimeout(uhci_timeout, ii, ii->timeout_handle);
 	upipe = (struct uhci_pipe *)ii->reqh->pipe;
 	upipe->pipe.endpoint->toggle = upipe->newtoggle;
 	uhci_ii_done(ii, 0);
-	usb_untimeout(uhci_timeout, ii, ii->timeout_handle);
 }
 
 void
