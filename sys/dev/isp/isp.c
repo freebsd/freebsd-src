@@ -1,5 +1,5 @@
-/* $Id: $ */
-/* isp.c 1.27 */
+/* $Id: isp.c,v 1.7 1998/12/05 01:33:57 mjacob Exp $ */
+/* isp.c 1.28 */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
@@ -768,7 +768,7 @@ isp_fibre_init(isp)
 	icbp->icb_execthrottle = fcp->isp_execthrottle;
 	icbp->icb_retry_delay = fcp->isp_retry_delay;
 	icbp->icb_retry_count = fcp->isp_retry_count;
-	icbp->icb_hardaddr = fcp->isp_loopid;
+	icbp->icb_hardaddr = loopid;
 
 	MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, fcp->isp_wwn);
 	if (icbp->icb_fwoptions & ICBOPT_USE_PORTNAME) {
