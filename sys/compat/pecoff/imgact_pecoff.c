@@ -95,10 +95,10 @@ static struct sysentvec pecoff_sysvec = {
 	sysent,
 	0,
 	0,
+	NULL,
 	0,
-	0,
-	0,
-	0,
+	NULL,
+	NULL,
 	pecoff_fixup,
 	sendsig,
 	sigcode,
@@ -107,7 +107,15 @@ static struct sysentvec pecoff_sysvec = {
 	"FreeBSD PECoff",
 	pecoff_coredump,
 	NULL,
-	MINSIGSTKSZ
+	MINSIGSTKSZ,
+	PAGE_SIZE,
+	VM_MIN_ADDRESS,
+	VM_MAXUSER_ADDRESS,
+	USRSTACK,
+	PS_STRINGS,
+	VM_PROT_ALL,
+	exec_copyout_strings,
+	exec_setregs
 	
 };
 

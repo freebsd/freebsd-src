@@ -79,9 +79,12 @@ struct sysentvec {
 					/* function to dump core, or NULL */
 	int		(*sv_imgact_try)(struct image_params *);
 	int		sv_minsigstksz;	/* minimum signal stack size */
-	int		sv_pagesize;	/* pagesize override */
-	vm_offset_t	sv_maxuser;	/* VM_MAXUSER_ADDRESS override */
-	vm_offset_t	sv_usrstack;	/* USRSTACK override */
+	int		sv_pagesize;	/* pagesize */
+	vm_offset_t	sv_minuser;	/* VM_MIN_ADDRESS */
+	vm_offset_t	sv_maxuser;	/* VM_MAXUSER_ADDRESS */
+	vm_offset_t	sv_usrstack;	/* USRSTACK */
+	vm_offset_t	sv_psstrings;	/* PS_STRINGS */
+	int		sv_stackprot;	/* vm protection for stack */
 	register_t	*(*sv_copyout_strings)(struct image_params *);
 	void		(*sv_setregs)(struct thread *, u_long, u_long, u_long);
 };
@@ -89,6 +92,7 @@ struct sysentvec {
 #ifdef _KERNEL
 extern struct sysentvec aout_sysvec;
 extern struct sysentvec elf_freebsd_sysvec;
+extern struct sysentvec null_sysvec;
 extern struct sysent sysent[];
 
 #define NO_SYSCALL (-1)
