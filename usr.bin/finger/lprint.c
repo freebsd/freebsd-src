@@ -336,7 +336,7 @@ vputc(ch)
 {
 	int meta;
 
-	if (!isascii(ch)) {
+	if (!isprint(ch) && !isascii(ch)) {
 		(void)putchar('M');
 		(void)putchar('-');
 		ch = toascii(ch);
