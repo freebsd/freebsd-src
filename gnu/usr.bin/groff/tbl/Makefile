@@ -4,7 +4,7 @@ PROG=		tbl
 SRCS=		main.cc table.cc
 CFLAGS+=	-I${.CURDIR}/../include
 LDADD+=		${LIBGROFF} -lm
-DPADD+=		${LIBGROFF} ${LIBMATH}
+DPADD+=		${LIBGROFF} ${LIBM}
 
 MANDEPEND=	tbl.1
 CLEANFILES+=	${MANDEPEND}
