@@ -35,6 +35,7 @@
  */
 
 #include <sys/param.h>
+#include <ufs/ffs/fs.h>
 
 /*
  * Bit patterns for identifying fragments in the block map
