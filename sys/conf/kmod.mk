@@ -77,6 +77,7 @@
 # bsd.dep.mk: cleandepend, depend and tags
 #
 
+AWK?=		awk
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 OBJCOPY?=	objcopy
@@ -329,9 +330,9 @@ CLEANFILES+=	vnode_if.${_ext}
 vnode_if.${_ext}: @
 .endif
 .if exists(@)
-vnode_if.${_ext}: @/kern/vnode_if.pl @/kern/vnode_if.src
+vnode_if.${_ext}: @/tools/vnode_if.awk @/kern/vnode_if.src
 .endif
-	perl @/kern/vnode_if.pl -${_ext} @/kern/vnode_if.src
+	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -${_ext}
 .endif
 .endfor
 
