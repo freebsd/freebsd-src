@@ -473,7 +473,11 @@ using the linker command language from a script.
 Use \c
 .I entry\c
 \& as the explicit symbol for beginning execution of your
-program, rather than the default entry point.  for a
+program, rather than the default entry point.  See the `\|\c
+.B ld\c
+\|' entry in `\|\c
+.B info\c
+\|' for a
 discussion of defaults and other ways of specifying the
 entry point.
 
@@ -774,7 +778,7 @@ will be used if it is defined.
 The
 .B \-rpath
 option may also be used on SunOS.  By default, on SunOS, the linker
-will form a runtime search patch out of all the
+will form a runtime search path out of all the
 .B \-L
 options it is given.  If a
 .B \-rpath
@@ -874,7 +878,7 @@ Use \c
 .B text\c
 \& segment of the output file.
 \c
-.I textorg\c
+.I org\c
 \& must be a hexadecimal integer.
 
 .TP
