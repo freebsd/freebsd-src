@@ -75,7 +75,7 @@ sat-expak	64	SAT-EXPAK	# SATNET and Backroom EXPAK
 kryptolan	65	KRYPTOLAN	# Kryptolan
 rvd	66	RVD		# MIT Remote Virtual Disk Protocol
 ippc	67	IPPC		# Internet Pluribus Packet Core
-#	68			# any distributed file system
+#	68			# any distributed filesystem
 sat-mon	69	SAT-MON		# SATNET Monitoring
 visa	70	VISA		# VISA Protocol
 ipcv	71	IPCV		# Internet Packet Core Utility

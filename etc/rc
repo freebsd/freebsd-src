@@ -230,13 +230,13 @@ autoboot)
 			0)
 				;;
 			*)
-			echo 'Automatic file system check failed . . . help!'
+			echo 'Automatic filesystem check failed . . . help!'
 				exit 1
 				;;
 			esac
 			;;
 		*)
-			echo 'Automatic file system check failed . . . help!'
+			echo 'Automatic filesystem check failed . . . help!'
 			exit 1
 			;;
 		esac
@@ -457,7 +457,7 @@ case "`mount -d -a -t nfs 2> /dev/null`" in
 
 	case ${nfsclient_in_kernel} in
 	1)
-		echo -n 'Mounting NFS file systems:'
+		echo -n 'Mounting NFS filesystem:'
 		mount -a -t nfs
 		echo '.'
 		;;
@@ -478,7 +478,7 @@ for i in ${networkfs_types}; do
 	fi
 	case "`mount -d -a -t ${fstype}`" in
 	*mount_${fstype}*)
-	       echo -n "Mounting ${fsdecr} file systems:"
+	       echo -n "Mounting ${fsdecr} filesystems:"
 	       mount -a -t ${fstype}
 	       echo '.'
 	       ;;
@@ -905,7 +905,7 @@ if [ -r /etc/rc.sysctl ]; then
 fi
 
 # Raise kernel security level.  This should be done only after `fsck' has
-# repaired local file systems if you want the securelevel to be greater than 1.
+# repaired local filesystems if you want the securelevel to be greater than 1.
 #
 case ${kern_securelevel_enable} in
 [Yy][Ee][Ss])
