@@ -331,7 +331,7 @@ main(int argc, char **argv)
 			selected[i] = 0;
 			continue;
 		}
-	
+
 		SLIST_FOREACH(li, &rgidlist, li_chain)
 			if (kp->ki_rgid == (gid_t)li->li_number)
 				break;
@@ -399,7 +399,7 @@ main(int argc, char **argv)
 
 			if (kp->ki_start.tv_sec > bestsec ||
 			    (kp->ki_start.tv_sec == bestsec
-			    && kp->ki_start.tv_usec> bestusec)) {
+			    && kp->ki_start.tv_usec > bestusec)) {
 				bestsec = kp->ki_start.tv_sec;
 				bestusec = kp->ki_start.tv_usec;
 				bestidx = i;
