@@ -262,6 +262,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "CT-0405-U Tablet",
 	},
 	{
+	    USB_VENDOR_QTRONIX, USB_PRODUCT_QTRONIX_KEYB_PS2,
+	    0,
+	    "QTronix",
+	    "USB Keyboard with PS/2 mouse",
+	},
+	{
 	    USB_VENDOR_EIZO, USB_PRODUCT_EIZO_HUB,
 	    0,
 	    "EIZO",
@@ -667,6 +673,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_APPLE, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Apple Computer",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_QTRONIX, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "QTronix",
 	    NULL,
 	},
 	{
