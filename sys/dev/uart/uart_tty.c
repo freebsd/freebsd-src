@@ -225,7 +225,8 @@ uart_tty_param(struct tty *tp, struct termios *t)
 		    : UART_PARITY_EVEN;
 	else
 		parity = UART_PARITY_NONE;
-	UART_PARAM(sc, t->c_ospeed, databits, stopbits, parity);
+	if (UART_PARAM(sc, t->c_ospeed, databits, stopbits, parity) != 0)
+		return (EINVAL);
 	UART_SETSIG(sc, UART_SIG_DDTR | UART_SIG_DTR);
 	/* Set input flow control state. */
 	if (!sc->sc_hwiflow) {
