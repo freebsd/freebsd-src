@@ -1,4 +1,10 @@
-@(#) $Header: CHANGES,v 1.47 98/07/25 12:40:16 leres Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.48 1999/10/30 23:50:43 itojun Exp $ (LBL)
+
+Sun Oct 19 JST 1999  itojun@iijlab.net
+	* bring in KAME IPv6/IPsec bpf compiler.
+
+Sometime in 1999
+	* tcpdump.org imported LBL 0.4
 
 v0.4 Sat Jul 25 12:40:09 PDT 1998
 

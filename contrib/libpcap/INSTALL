@@ -1,4 +1,4 @@
-@(#) $Header: INSTALL,v 1.42 98/03/20 18:49:16 vern Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/INSTALL,v 1.42.1.1 1999/10/07 23:46:40 mcr Exp $ (LBL)
 
 To build libpcap, first customize any paths in Makefile.in, then run
 "./configure" (a shell script). The configure script will determine
