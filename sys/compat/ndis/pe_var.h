@@ -418,12 +418,8 @@ typedef struct image_patch_table image_patch_table;
 
 #ifdef __amd64__
 #define	__stdcall
-#define	NDIS_BUS_SPACE_IO	AMD64_BUS_SPACE_IO
-#define	NDIS_BUS_SPACE_MEM	AMD64_BUS_SPACE_MEM
 #else
 #define	__stdcall __attribute__((__stdcall__))
-#define	NDIS_BUS_SPACE_IO	I386_BUS_SPACE_IO
-#define	NDIS_BUS_SPACE_MEM	I386_BUS_SPACE_MEM
 #endif
 
 __BEGIN_DECLS
