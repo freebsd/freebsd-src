@@ -173,6 +173,7 @@ strupr(char *str)
     return(str);
 }
 
+#ifdef _KERNEL
 /* Or strstr (used in debugging mode, also move to libkern) */
 static __inline char *
 strstr(char *s, char *find)
@@ -192,5 +193,6 @@ strstr(char *s, char *find)
     }
     return ((char *)s);
 }
+#endif /* _KERNEL */
 
 #endif /* __ACFREEBSD_H__ */
