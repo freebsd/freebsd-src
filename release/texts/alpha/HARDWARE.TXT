@@ -618,8 +618,7 @@ The 3000/300 series has a half-speed TurboChannel compared to the other
 bus. Caveat empor.
 
 ISDN interface:
-ISDN does not work on FreeBSD (to be honest I don't think there is any 
-operating system, including Tru64 Unix, that can use it). 
+ISDN does not work on FreeBSD. 
 
 Memory:
 DEC3000/300-class uses standard 36 bit, 72 pin Fast Page Mode SIMMs.
@@ -782,13 +781,20 @@ The SRM can boot from Qlogic 10xx boards or the Symbios 53C810[A].
 
 Newer Symbios 810 revisions like the Symbios 810AE are not recognised by
 the SRM on PC164. PC164 SRM does not appear to recognise a Symbios 53C895 
-based host adapter (tested with a Tekram DC-390U2W). Cards like the Tekram 
-DC-390F (Symbios875 based) have been confirmed to work fine on the PC164. 
+based host adapter (tested with a Tekram DC-390U2W). On the other hand 
+some no-name Symbios 53C985 board has been reported to work.
+
+Cards like the Tekram DC-390F (Symbios875 based) have been confirmed to 
+work fine on the PC164. Unfortunately this seems to be dependent on the 
+actual version of the chip/board. 
 
 Symbios 53C825[a] will also work as boot adapter. Diamond FirePort, although 
 based on Symbios chips, is not bootable by the PC164SX SRM. 
 PC164SX is reported to boot fine with Symbios825, Symbios875 and Symbios876 
 based cards.  
+
+In summary: this family of machines is 'blessed' with a challenging 
+compatibility as far as SCSI adapters go.
 
 SRM quirks:
 PC164 the SRM sometimes seems to loose its variable settings. 
