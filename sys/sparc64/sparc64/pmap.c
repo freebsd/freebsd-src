@@ -485,6 +485,9 @@ pmap_bootstrap(vm_offset_t ekva)
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
+	 * NOTE: PMAP_LOCK_INIT() is needed as part of the initialization
+	 * but sparc64 start up is not ready to initialize mutexes yet.
+	 * It is called in machdep.c.
 	 */
 	pm = kernel_pmap;
 	for (i = 0; i < MAXCPU; i++)
@@ -602,14 +605,18 @@ vm_paddr_t
 pmap_extract(pmap_t pm, vm_offset_t va)
 {
 	struct tte *tp;
+	vm_paddr_t pa;
 
 	if (pm == kernel_pmap)
 		return (pmap_kextract(va));
+	PMAP_LOCK(pm);
 	tp = tsb_tte_lookup(pm, va);
 	if (tp == NULL)
-		return (0);
+		pa = 0;
 	else
-		return (TTE_GET_PA(tp) | (va & TTE_GET_PAGE_MASK(tp)));
+		pa = TTE_GET_PA(tp) | (va & TTE_GET_PAGE_MASK(tp));
+	PMAP_UNLOCK(pm);
+	return (pa);
 }
 
 /*
@@ -618,20 +625,35 @@ pmap_extract(pmap_t pm, vm_offset_t va)
  * protection.
  */
 vm_page_t
-pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
+pmap_extract_and_hold(pmap_t pm, vm_offset_t va, vm_prot_t prot)
 {
-	vm_paddr_t pa;
+	struct tte *tp;
 	vm_page_t m;
 
 	m = NULL;
-	mtx_lock(&Giant);
-	if ((pa = pmap_extract(pmap, va)) != 0) {
-		m = PHYS_TO_VM_PAGE(pa);
-		vm_page_lock_queues();
-		vm_page_hold(m);
-		vm_page_unlock_queues();
+	vm_page_lock_queues();
+	if (pm == kernel_pmap) {
+		if (va >= VM_MIN_DIRECT_ADDRESS) {
+			tp = NULL;
+			m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS(va));
+			vm_page_hold(m);
+		} else {
+			tp = tsb_kvtotte(va);
+			if ((tp->tte_data & TD_V) == 0)
+				tp = NULL;
+		}
+	} else {
+		PMAP_LOCK(pm);
+		tp = tsb_tte_lookup(pm, va);
 	}
-	mtx_unlock(&Giant);
+	if (tp != NULL && ((tp->tte_data & TD_SW) ||
+	    (prot & VM_PROT_WRITE) == 0)) {
+		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
+		vm_page_hold(m);
+	}
+	vm_page_unlock_queues();
+	if (pm != kernel_pmap)
+		PMAP_UNLOCK(pm);
 	return (m);
 }
 
@@ -962,6 +984,7 @@ pmap_pinit0(pmap_t pm)
 {
 	int i;
 
+	PMAP_LOCK_INIT(pm);
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = 0;
 	pm->pm_active = 0;
@@ -980,6 +1003,8 @@ pmap_pinit(pmap_t pm)
 	vm_page_t ma[TSB_PAGES];
 	vm_page_t m;
 	int i;
+
+	PMAP_LOCK_INIT(pm);
 
 	/*
 	 * Allocate kva space for the tsb.
@@ -1073,6 +1098,7 @@ pmap_release(pmap_t pm)
 	}
 	VM_OBJECT_UNLOCK(obj);
 	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
+	PMAP_LOCK_DESTROY(pm);
 }
 
 /*
@@ -1130,6 +1156,7 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 	if (PMAP_REMOVE_DONE(pm))
 		return;
 	vm_page_lock_queues();
+	PMAP_LOCK(pm);
 	if (end - start > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, start, end, pmap_remove_tte);
 		tlb_context_demap(pm);
@@ -1142,6 +1169,7 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 		}
 		tlb_range_demap(pm, start, end - 1);
 	}
+	PMAP_UNLOCK(pm);
 	vm_page_unlock_queues();
 }
 
@@ -1208,17 +1236,15 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	    pm->pm_context[PCPU_GET(cpuid)], sva, eva, prot);
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
-		mtx_lock(&Giant);
 		pmap_remove(pm, sva, eva);
-		mtx_unlock(&Giant);
 		return;
 	}
 
 	if (prot & VM_PROT_WRITE)
 		return;
 
-	mtx_lock(&Giant);
 	vm_page_lock_queues();
+	PMAP_LOCK(pm);
 	if (eva - sva > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, sva, eva, pmap_protect_tte);
 		tlb_context_demap(pm);
@@ -1229,8 +1255,8 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		}
 		tlb_range_demap(pm, sva, eva - 1);
 	}
+	PMAP_UNLOCK(pm);
 	vm_page_unlock_queues();
-	mtx_unlock(&Giant);
 }
 
 /*
@@ -1266,6 +1292,9 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	CTR6(KTR_PMAP,
 	    "pmap_enter: ctx=%p m=%p va=%#lx pa=%#lx prot=%#x wired=%d",
 	    pm->pm_context[PCPU_GET(cpuid)], m, va, pa, prot, wired);
+
+	vm_page_lock_queues();
+	PMAP_LOCK(pm);
 
 	/*
 	 * If there is an existing mapping, and the physical address has not
@@ -1331,9 +1360,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (tp != NULL) {
 			CTR0(KTR_PMAP, "pmap_enter: replace");
 			PMAP_STATS_INC(pmap_nenter_replace);
-			vm_page_lock_queues();
 			pmap_remove_tte(pm, NULL, tp, va);
-			vm_page_unlock_queues();
 			tlb_page_demap(pm, va);
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: new");
@@ -1366,6 +1393,8 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 		tsb_tte_enter(pm, m, va, TS_8K, data);
 	}
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pm);
 }
 
 vm_page_t
@@ -1398,6 +1427,7 @@ pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
 	struct tte *tp;
 	u_long data;
 
+	PMAP_LOCK(pm);
 	if ((tp = tsb_tte_lookup(pm, va)) != NULL) {
 		if (wired) {
 			data = atomic_set_long(&tp->tte_data, TD_WIRED);
@@ -1409,6 +1439,7 @@ pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
 				pm->pm_stats.wired_count--;
 		}
 	}
+	PMAP_UNLOCK(pm);
 }
 
 static int
@@ -1437,6 +1468,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 
 	if (dst_addr != src_addr)
 		return;
+	vm_page_lock_queues();
+	PMAP_LOCK(dst_pmap);
 	if (len > PMAP_TSB_THRESH) {
 		tsb_foreach(src_pmap, dst_pmap, src_addr, src_addr + len,
 		    pmap_copy_tte);
@@ -1448,6 +1481,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 		}
 		tlb_range_demap(dst_pmap, src_addr, src_addr + len - 1);
 	}
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(dst_pmap);
 }
 
 void
