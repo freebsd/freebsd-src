@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.5 1997/08/15 23:41:22 jlemon Exp $
+# $Id: Makefile,v 1.6 1997/08/18 18:48:33 jlemon Exp $
 
 PROG=	doscmd
 MAN1=   doscmd.1
@@ -16,7 +16,7 @@ EXEGRP=	bin
 BINMODE=2555
 EXEMODE=444
 
-.if exists(${X11BASE})
+.if exists(${X11BASE}/include) && exists(${X11BASE}/lib/libX11.a)
 CFLAGS+= -I. -I${X11BASE}/include -DDISASSEMBLER
 LDFLAGS+= -L${X11BASE}/lib
 LDADD+=	-lX11 -lgcc -lc
