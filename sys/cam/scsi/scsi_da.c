@@ -1479,8 +1479,8 @@ daprevent(struct cam_periph *periph, int action)
 		     SSD_FULL_SIZE,
 		     5000);
 
-	error = cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
-				  /*sense_flags*/0, &softc->device_stats);
+	error = cam_periph_runccb(ccb, /*error_routine*/NULL, CAM_RETRY_SELTO,
+				  SF_RETRY_UA, &softc->device_stats);
 
 	if (error == 0) {
 		if (action == PR_ALLOW)
