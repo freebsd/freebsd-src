@@ -37,7 +37,7 @@ pkg_perform(char **pkgs)
     signal(SIGINT, cleanup);
 
     /* Overriding action? */
-    if (AllInstalled) {
+    if (AllInstalled || CheckPkg) {
 	if (isdir(LOG_DIR)) {
 	    DIR *dirp;
 	    struct dirent *dp;
@@ -45,10 +45,18 @@ pkg_perform(char **pkgs)
 	    dirp = opendir(LOG_DIR);
 	    if (dirp) {
 		for (dp = readdir(dirp); dp != NULL; dp = readdir(dirp)) {
-		    if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, ".."))
-			err_cnt += pkg_do(dp->d_name);
+		    if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, "..")) {
+			if (CheckPkg) {
+			    if (!strcmp(dp->d_name, CheckPkg))
+				return 0;
+			}
+			else 
+			    err_cnt += pkg_do(dp->d_name);
+		    }
 		}
 		(void)closedir(dirp);
+		if (CheckPkg)
+		    return 1;
 	    }
 	    else
 		++err_cnt;

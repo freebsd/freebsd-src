@@ -63,6 +63,13 @@ Show the de-install script (if any) for each package.
 .B \-r
 Show the requirements script (if any) for each package.
 .TP
+.BI "\-e\ " pkg-name
+If the package identified by
+.I pkg-name
+is currently installed, return 0, otherwise return 1.  This option
+allows you to easily test for the presence of another (perhaps
+prerequisite) package from a script.
+.TP
 .BI "\-l\ " str
 Prefix each catagory of information shown with
 .I str.
