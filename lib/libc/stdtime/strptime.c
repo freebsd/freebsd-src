@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <time.h>
 #include <ctype.h>
-#include <limits.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -444,11 +444,18 @@ label:
 		case 's':
 			{
 			char *cp;
+			int sverrno;
+			long n;
 			time_t t;
 
-			t = strtol(buf, &cp, 10);
-			if (t == LONG_MAX)
+			sverrno = errno;
+			errno = 0;
+			n = strtol(buf, &cp, 10);
+			if (errno == ERANGE || (long)(t = n) != n) {
+				errno = sverrno;
 				return 0;
+			}
+			errno = sverrno;
 			buf = cp;
 			gmtime_r(&t, tm);
 			*GMTp = 1;
