@@ -488,7 +488,7 @@ sendsig(catcher, sig, mask, code)
 		sf.sf_siginfo = (register_t)&sfp->sf_si;
 		sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher;
 
-		/* Fill siginfo structure. */
+		/* Fill in POSIX parts */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
 		sf.sf_si.si_addr = (void *)regs->tf_err;
