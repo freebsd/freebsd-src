@@ -182,7 +182,54 @@ pointer
 .Ft ( char *p ) .
 .El
 .Sh EXAMPLES
-To be continued
+Example 1: Using
+.Fn dlinfo
+to retrieve Link_map structure.
+.Pp
+The following example shows how dynamic library can detect the list
+of shared libraries loaded after caller's one.
+For simplicity, error checking has been omitted.
+.Bd -literal
+     Link_map *map;
+
+     dlinfo(RTLD_SELF, RTLD_DI_LINKMAP, &map);
+
+     while (map != NULL) {
+         printf("%p: %s\n", map->l_addr, map->l_name);
+         map = map->l_next;
+     }
+.Ed
+.Pp
+Example 2: Using
+.Fn dlinfo
+to retrieve the library search paths.
+.Pp
+The following example shows how a dynamic object can inspect the library
+search paths that would be used to locate a simple filename with
+.Fn dlopen .
+For simplicity, error checking has been omitted.
+.Bd -literal
+      Dl_serinfo     _info, *info = &_info;
+      Dl_serpath     *path;
+      unsigned int    cnt;
+
+      /* determine search path count and required buffer size */
+      dlinfo(RTLD_SELF, RTLD_DI_SERINFOSIZE, (void *)info);
+
+      /* allocate new buffer and initialize */
+      info = malloc(_info.dls_size);
+      info->dls_size = _info.dls_size;
+      info->dls_cnt = _info.dls_cnt;
+
+      /* obtain sarch path information */
+      dlinfo(RTLD_SELF, RTLD_DI_SERINFO, (void *)info);
+
+      path = &info->dls_serpath[0];
+
+      for (cnt = 1; cnt <= info->dls_cnt; cnt++, path++) {
+          (void) printf("%2d: %s\n", cnt, path->dls_name);
+      }
+.Ed
 .Sh RETURN VALUES
 .Fn dlinfo
 returns 0 on success, or -1 if error occured.
