@@ -1,4 +1,4 @@
-<!-- $Id: m_scsi.sgml,v 1.1 1995/04/10 02:36:14 jfieber Exp $ -->
+<!-- $Id: scsi.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -13,7 +13,7 @@
       </abstract>
       
 -->
-    <sect><heading>SCSI</heading>
+    <sect><heading>SCSI<label id="scsi"></heading>
 
       <p><em>&copy; 1995, &a.wilko;.</em>
 
@@ -28,7 +28,7 @@
         standard allowing devices from different vendors to work together.
         This effort was recognised in the ANSI SCSI-1 standard.  The SCSI-1
         standard (approx 1985) is now more or less obsolete.  The current
-        standard is SCSI-2 (see <ref id="further-reading" name="Further
+        standard is SCSI-2 (see <ref id="scsi:further-reading" name="Further
         reading">), with SCSI-3 on the drawing boards.
 
         In addition to a physical interconnection standard, SCSI defines a
@@ -177,7 +177,7 @@
             differential SCSI bus was introduced in the SCSI-2 standard.
 
             For connector pinning and connector types please refer to the
-            SCSI-2 standard (see <ref id="further-reading" name="Further
+            SCSI-2 standard (see <ref id="scsi:further-reading" name="Further
             reading">) itself, connectors etc are listed there in
             painstaking detail.
 
@@ -627,7 +627,7 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
             If possible, configure your hostadapter to use slow bus speeds.
         </itemize>
 
-    <sect1><heading>Further reading<label id="further-reading"></>
+    <sect1><heading>Further reading<label id="scsi:further-reading"></>
       <p>
         If you intend to do some serious SCSI hacking, you might want to
         have the official standard at hand:
