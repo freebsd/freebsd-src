@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.74 1995/10/28 23:32:26 pst Exp $
+#	$Id: rc,v 1.75 1995/10/29 12:43:47 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -257,7 +257,11 @@ if [ "$virecovery" != '/var/tmp/vi.recover/recover.*' ]; then
 fi
 
 if [ "X${accounting}" = X"YES" -a -d /var/account ]; then
-	echo 'turning on accounting';	accton /var/account/acct
+	echo 'turning on accounting'
+	if [ ! -e /var/account/acct ]; then
+		touch /var/account/acct
+	fi
+	accton /var/account/acct
 fi
 
 # Now start up miscellaneous daemons that don't belong anywhere else
