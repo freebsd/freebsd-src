@@ -5,10 +5,19 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20010930:
+	ACPI may not interact well with some devices, if devices
+	are not probing or attaching you can disable ACPI by 
+	adding
+		hint.acpi.0.disable="1"
+	to your /boot/device.hints
+
 20010924:
 	The buildworld has been fixed.  You may need to install
 	the 4.x compatibility libraries for some old binaries
-	to work.
+	to work.  You can do this by adding COMPAT4X=YES to your
+	make world command
+		make world COMPAT4X=YES
 
 20010919:
 	There's a bug in the world build process.  The cross-tools
