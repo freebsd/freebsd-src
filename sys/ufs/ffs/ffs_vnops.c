@@ -395,22 +395,9 @@ ffs_read(ap)
 	    uio->uio_offset >= fs->fs_maxfilesize)
 		return (EOVERFLOW);
 
-	bytesinfile = ip->i_size - uio->uio_offset;
-	if (bytesinfile <= 0) {
-		if ((vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
-			ip->i_flag |= IN_ACCESS;
-		return (0);
-	}
-
-
-	/*
-	 * Ok so we couldn't do it all in one vm trick...
-	 * so cycle around trying smaller bites..
-	 */
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
-
 		lbn = lblkno(fs, uio->uio_offset);
 		nextlbn = lbn + 1;
 
@@ -504,15 +491,8 @@ ffs_read(ap)
 			xfersize = size;
 		}
 
-		{
-			/*
-			 * otherwise use the general form
-			 */
-			error =
-				uiomove((char *)bp->b_data + blkoffset,
-					(int)xfersize, uio);
-		}
-
+		error = uiomove((char *)bp->b_data + blkoffset,
+		    (int)xfersize, uio);
 		if (error)
 			break;
 
@@ -597,7 +577,6 @@ ffs_write(ap)
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	ip = VTOI(vp);
 
-
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
 		panic("ffs_write: mode");
@@ -607,9 +586,8 @@ ffs_write(ap)
 	case VREG:
 		if (ioflag & IO_APPEND)
 			uio->uio_offset = ip->i_size;
-		if ((ip->i_flags & APPEND) && uio->uio_offset != ip->i_size) {
+		if ((ip->i_flags & APPEND) && uio->uio_offset != ip->i_size)
 			return (EPERM);
-		}
 		/* FALLTHROUGH */
 	case VLNK:
 		break;
@@ -626,9 +604,8 @@ ffs_write(ap)
 	KASSERT(uio->uio_resid >= 0, ("ffs_write: uio->uio_resid < 0"));
 	KASSERT(uio->uio_offset >= 0, ("ffs_write: uio->uio_offset < 0"));
 	fs = ip->i_fs;
-	if ((uoff_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize) {
+	if ((uoff_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize)
 		return (EFBIG);
-	}
 	/*
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, I don't think it matters.
@@ -660,7 +637,6 @@ ffs_write(ap)
 		xfersize = fs->fs_bsize - blkoffset;
 		if (uio->uio_resid < xfersize)
 			xfersize = uio->uio_resid;
-
 		if (uio->uio_offset + xfersize > ip->i_size)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
@@ -760,8 +736,6 @@ ffs_write(ap)
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
 		error = UFS_UPDATE(vp, 1);
-
-
 	return (error);
 }
 
@@ -948,17 +922,9 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 		return (0);
 	KASSERT(uio->uio_offset >= 0, ("ffs_extread: uio->uio_offset < 0"));
 
-	bytesinfile = dp->di_extsize - uio->uio_offset;
-	if (bytesinfile <= 0) {
-		if ((vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
-			ip->i_flag |= IN_ACCESS;
-		return (0);
-	}
-
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = dp->di_extsize - uio->uio_offset) <= 0)
 			break;
-
 		lbn = lblkno(fs, uio->uio_offset);
 		nextlbn = lbn + 1;
 
