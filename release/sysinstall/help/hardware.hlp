@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.21 1997/10/17 02:29:46 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.22 1997/10/17 06:39:12 msmith Exp $
 
 Contents last changed:  March 27th, 1997
 
@@ -498,6 +498,17 @@ Q: I have this CMD640 IDE controller that is said to be broken.
 A: Yes, it is.  There's a workaround available now and it is enabled
    automatically if this chip is used on your system.
    For the details refer to the manual page of the disk driver (man 4 wd).
+
+
+Q: On a Compaq Aero notebook, I get the message "No floppy devices found!
+   Please check ..." when trying to install from floppy.
+
+A: With Compaq being always a little different from other systems, they
+   do not announce their floppy drive in the CMOS RAM of an Aero notebook.
+   Therefore, the floppy disk driver assumes there is no drive configured.
+   Go to the UserConfig screen, and set the Flags value of the fdc0 device
+   to 0x1.  This pretends the existance of the first floppy drive (as a
+   1.44 MB drive) to the driver without asking the CMOS at all.
 
 Q: When I go to boot my Intel AL440LX ("Atlanta") -based system from the
    hard disk the first time, it stops with a "Read Error" message.

@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: fdc.4,v 1.8 1997/02/22 13:25:23 peter Exp $
+.\"	$Id: fdc.4,v 1.4.2.2 1997/02/28 03:26:50 mpp Exp $
 .\"
 .Dd August 31, 1994
 .Dt FDC 4 i386
@@ -34,7 +34,7 @@
 .Nd
 PC architecture floppy disk controller driver
 .Sh SYNOPSIS
-.Cd "controller fdc0 at isa? port" \&"IO_FD1\&" bio irq 6 drq 2 vector fdintr
+.Cd "controller fdc0 at isa? port" \&"IO_FD1\&" bio "flags 0x1" "irq 6" "drq 2" "vector fdintr"
 .Cd "disk fd0 at fdc0 drive 0
 .Cd "disk fd1 at fdc0 drive 1
 .Pp
@@ -48,6 +48,13 @@ In /dev for each floppy device a number of minor devices are present. The
 indicate the size of the floppy disk (so: 720kB, 1440kB etc). The latter
 are used for formatting disks using fdformat or for accessing different
 density disks in multidensity drive. Example: 720kB disk in a 1.44Mb drive.
+.Pp
+Normally, the driver will ask the system's CMOS memory to obtain the
+floppy drive configuration.  Some machines do not store any form of a
+configuration value in their CMOS.  Use the flags value
+.Ql 0x1
+to pretend a 1.44 MB floppy drive as the first unit, without asking the
+CMOS for it.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It /dev/fd*
