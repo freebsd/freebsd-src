@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.45 1996/05/19 07:36:45 dyson Exp $
+ * $Id: vm_fault.c,v 1.46 1996/05/26 05:30:33 dyson Exp $
  */
 
 /*
@@ -821,10 +821,12 @@ vm_fault_wire(map, start, end)
 
 	for (va = start; va < end; va += PAGE_SIZE) {
 
+/*
 		while( curproc != pageproc &&
 			(cnt.v_free_count <= cnt.v_pageout_free_min)) {
 			VM_WAIT;
 		}
+*/
 
 		rv = vm_fault(map, va, VM_PROT_READ|VM_PROT_WRITE, TRUE);
 		if (rv) {
@@ -1004,6 +1006,15 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 
 	object = m->object;
 	pindex = m->pindex;
+
+	/*
+	 * we don't fault-ahead for device pager
+	 */
+	if (object->type == OBJT_DEVICE) {
+		*reqpage = 0;
+		marray[0] = m;
+		return 1;
+	}
 
 	/*
 	 * if the requested page is not available, then give up now

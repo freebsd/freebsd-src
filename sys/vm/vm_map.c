@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.47 1996/05/23 00:45:54 dyson Exp $
+ * $Id: vm_map.c,v 1.48 1996/05/29 05:12:21 dyson Exp $
  */
 
 /*
@@ -89,6 +89,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
+#include <vm/default_pager.h>
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
@@ -217,8 +218,6 @@ vmspace_alloc(min, max, pageable)
 	register struct vmspace *vm;
 
 	if (mapvmpgcnt == 0 && mapvm == 0) {
-		int s;
-
 		mapvmpgcnt = (cnt.v_page_count * sizeof(struct vm_map_entry) + PAGE_SIZE - 1) / PAGE_SIZE;
 		mapvm_start = mapvm = kmem_alloc_pageable(kernel_map,
 			mapvmpgcnt * PAGE_SIZE);
@@ -1909,14 +1908,10 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 	vm_map_t src_map, dst_map;
 	register vm_map_entry_t src_entry, dst_entry;
 {
-	vm_pindex_t temp_pindex;
-
 	if (src_entry->is_sub_map || dst_entry->is_sub_map)
 		return;
 
 	if (src_entry->wired_count == 0) {
-
-		boolean_t src_needs_copy;
 
 		/*
 		 * If the source entry is marked needs_copy, it is already
@@ -2000,7 +1995,6 @@ vmspace_fork(vm1)
 	vm_map_entry_t new_entry;
 	pmap_t new_pmap;
 	vm_object_t object;
-	vm_page_t p;
 
 	vm_map_lock(old_map);
 

@@ -28,11 +28,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.h,v 1.2 1995/12/11 04:57:58 dyson Exp $
+ *	$Id: default_pager.h,v 1.3 1995/12/14 09:54:48 phk Exp $
  */
 
 #ifndef _DEFAULT_PAGER_H_
 #define _DEFAULT_PAGER_H_ 1
 
+void default_pager_convert_to_swap __P((vm_object_t object));
 
 #endif	/* _DEFAULT_PAGER_H_ */
