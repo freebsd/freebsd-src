@@ -146,10 +146,12 @@ struct isposinfo {
 #define	SNPRINTF		snprintf
 #define	STRNCAT			strncat
 #define	USEC_DELAY		DELAY
-#define	USEC_SLEEP(isp, x)	\
-	ISP_UNLOCK(isp);	\
-	DELAY(x);		\
-	ISP_LOCK(isp)
+#define	USEC_SLEEP(isp, x)		\
+	if (isp->isp_osinfo.intsok)	\
+		ISP_UNLOCK(isp);	\
+	DELAY(x);			\
+	if (isp->isp_osinfo.intsok)	\
+		ISP_LOCK(isp)
 
 #define	NANOTIME_T		struct timespec
 #define	GET_NANOTIME		nanotime
@@ -332,8 +334,10 @@ static INLINE void isp_unlock(struct ispsoftc *);
 static INLINE void
 isp_unlock(struct ispsoftc *isp)
 {
-	if (--isp->isp_osinfo.islocked == 0) {
-		splx(isp->isp_osinfo.splsaved);
+	if (isp->isp_osinfo.islocked) {
+		if (--isp->isp_osinfo.islocked == 0) {
+			splx(isp->isp_osinfo.splsaved);
+		}
 	}
 }
 #endif
