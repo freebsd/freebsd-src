@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)nm.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: nm.c,v 1.11 1997/07/31 06:53:36 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -309,7 +309,7 @@ show_archive(fname, fp)
 				rval = 1;
 			}
 		} else {
-			(void)fseek(fp, (long)-sizeof(exec_head),
+			(void)fseek(fp, -(long)sizeof(exec_head),
 			    SEEK_CUR);
 			if (!print_file_each_line && !table)
 				(void)printf("\n%s:\n", name);
@@ -346,7 +346,7 @@ show_objfile(objname, fp)
 	register struct nlist *names, *np;
 	register int i, nnames, nrawnames;
 	struct exec head;
-	long stabsize;
+	int32_t stabsize;
 	char *stab;
 
 	/* read a.out header */
@@ -359,7 +359,7 @@ show_objfile(objname, fp)
 	 * skip back to the header - the N_-macros return values relative
 	 * to the beginning of the a.out header
 	 */
-	if (fseek(fp, (long)-sizeof(head), SEEK_CUR)) {
+	if (fseek(fp, -(long)sizeof(head), SEEK_CUR)) {
 		warn("%s", objname);
 		return(1);
 	}
@@ -474,7 +474,7 @@ print_symbol(objname, sym)
 	if (table) {
 		printf("%s|", objname);
 		if (SYMBOL_TYPE(sym->n_type) != N_UNDF)
-			(void)printf("%08lx", sym->n_value);
+			(void)printf("%08lx", (u_long)sym->n_value);
 		(void)printf("|");
 		if (IS_DEBUGGER_SYMBOL(sym->n_type))
 			(void)printf("-|%02x %04x %5s|", sym->n_other,
@@ -506,7 +506,7 @@ print_symbol(objname, sym)
 	if (SYMBOL_TYPE(sym->n_type) == N_UNDF)
 		(void)printf("        ");
 	else
-		(void)printf("%08lx", sym->n_value);
+		(void)printf("%08lx", (u_long)sym->n_value);
 
 	/* print type information */
 	if (IS_DEBUGGER_SYMBOL(sym->n_type))
