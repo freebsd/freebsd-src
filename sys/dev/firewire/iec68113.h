@@ -79,3 +79,5 @@ struct dvdbc{
 	u_int8_t payload[77];
 #define	DV_DSF_12	0x80	/* PAL: payload[0] in Header DIF */
 };
+
+#define	DV_PAL	0
