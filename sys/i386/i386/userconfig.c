@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.34 1995/09/20 12:07:22 jkh Exp $
+ **      $Id: userconfig.c,v 1.35 1995/10/06 05:36:51 jkh Exp $
  **/
 
 /**
@@ -2079,7 +2079,7 @@ visuserconfig(void)
 	}
 	if (ret == KEY_EXIT)
 	{
-	    i = yesnocancel(" Save these parameters and exit? (Yes/No/Cancel) ");
+	    i = yesnocancel(" Save these parameters before exiting? (Yes/No/Cancel) ");
 	    switch(i)
 	    {
 	    case 2:				/* cancel */
@@ -2143,7 +2143,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.34 1995/09/20 12:07:22 jkh Exp $
+ *      $Id: userconfig.c,v 1.35 1995/10/06 05:36:51 jkh Exp $
  */
 
 
