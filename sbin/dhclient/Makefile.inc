@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 MAINTAINER=     murray
+
 WARNS=		0
+CFLAGS+= -I${DIST_DIR}/includes
 
 CLIENTBINDIR=	/sbin
 RUNDIR=		/var/run

@@ -6,19 +6,14 @@ DIST_DIR= ${.CURDIR}/../../../contrib/isc-dhcp
 .PATH: ${DIST_DIR}/omapip
 
 LIB=	 omapi
-NOPROFILE=		true
 INTERNALLIB=		true
-NOPIC=			true
 INTERNALSTATICLIB=	true
-NOMAN=			true
 
-SRCS=    protocol.c buffer.c alloc.c result.c connection.c errwarn.c \
-         listener.c dispatch.c generic.c support.c handle.c message.c \
-         convert.c hash.c auth.c inet_addr.c array.c trace.c mrtrace.c \
-         toisc.c
-
-CFLAGS+= -I${DIST_DIR}/includes -I${DIST_DIR}
+SRCS=	alloc.c array.c auth.c buffer.c connection.c convert.c dispatch.c \
+	errwarn.c generic.c handle.c hash.c inet_addr.c listener.c \
+	message.c mrtrace.c protocol.c result.c support.c toisc.c trace.c
 
 MAN=	omapi.3
+NOMAN=	true
 
 .include <bsd.lib.mk>
