@@ -208,7 +208,7 @@ contrib/ipfilter/netinet/ip_state.c	optional ipfilter inet
 contrib/ipfilter/netinet/mlfk_ipl.c	optional ipfilter inet
 contrib/pf/net/if_pflog.c		optional pflog
 contrib/pf/net/if_pfsync.c		optional pfsync
-contrib/pf/net/pf.c			optional pf nowerror
+contrib/pf/net/pf.c			optional pf
 contrib/pf/net/pf_ioctl.c		optional pf
 contrib/pf/net/pf_norm.c		optional pf
 contrib/pf/net/pf_table.c		optional pf
