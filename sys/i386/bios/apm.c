@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.5 1994/10/02 17:40:38 phk Exp $
+ *	$Id: apm.c,v 1.6 1994/11/07 04:23:58 phk Exp $
  */
 
 #include "apm.h"
@@ -72,9 +72,9 @@ setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code_
 	gdt_segs[GAPMDATA_SEL  ].ssd_limit = data_limit;
 
 	/* reflect these changes on physical GDT */
-	ssdtosd(gdt_segs + GAPMCODE32_SEL, gdt + GAPMCODE32_SEL);
-	ssdtosd(gdt_segs + GAPMCODE16_SEL, gdt + GAPMCODE16_SEL);
-	ssdtosd(gdt_segs + GAPMDATA_SEL  , gdt + GAPMDATA_SEL  );
+	ssdtosd(gdt_segs + GAPMCODE32_SEL, &gdt[GAPMCODE32_SEL].sd);
+	ssdtosd(gdt_segs + GAPMCODE16_SEL, &gdt[GAPMCODE16_SEL].sd);
+	ssdtosd(gdt_segs + GAPMDATA_SEL  , &gdt[GAPMDATA_SEL  ].sd);
 }
 
 /* 48bit far pointer */
