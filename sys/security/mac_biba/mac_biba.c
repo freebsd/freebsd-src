@@ -102,6 +102,11 @@ SYSCTL_STRING(_security_mac_biba, OID_AUTO, trusted_interfaces, CTLFLAG_RD,
 TUNABLE_STR("security.mac.biba.trusted_interfaces", trusted_interfaces,
     sizeof(trusted_interfaces));
 
+static int	ptys_equal = 0;
+SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RW,
+    &ptys_equal, 0, "Label pty devices as biba/equal on create");
+TUNABLE_INT("security.mac.biba.ptys_equal", &ptys_equal);
+
 static int	mac_biba_revocation_enabled = 0;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, revocation_enabled, CTLFLAG_RW,
     &mac_biba_revocation_enabled, 0, "Revoke access to objects on relabel");
@@ -460,6 +465,10 @@ mac_biba_create_devfs_device(dev_t dev, struct devfs_dirent *devfs_dirent,
 	    strcmp(dev->si_name, "zero") == 0 ||
 	    strcmp(dev->si_name, "random") == 0 ||
 	    strncmp(dev->si_name, "fd/", strlen("fd/")) == 0)
+		biba_type = MAC_BIBA_TYPE_EQUAL;
+	else if (ptys_equal &&
+	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
+	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
 		biba_type = MAC_BIBA_TYPE_EQUAL;
 	else
 		biba_type = MAC_BIBA_TYPE_HIGH;
