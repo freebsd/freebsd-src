@@ -110,7 +110,6 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 	int unit = DEV2UNIT(dev);
 	int sub = DEV2DMACH(dev);
 	struct fw_xfer *xfer;
-	struct fw_dvbuf *dvbuf;
 	struct fw_bind *fwb;
 	int err = 0;
 
@@ -136,7 +135,10 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		sc->fc->it[sub]->flag &= ~FWXFERQ_RUNNING;
 		sc->fc->itx_disable(sc->fc, sub);
 	}
+#ifdef FWXFERQ_DV
 	if(sc->fc->it[sub]->flag & FWXFERQ_DV){
+		struct fw_dvbuf *dvbuf;
+
 		if((dvbuf = sc->fc->it[sub]->dvproc) != NULL){
 			free(dvbuf->buf, M_DEVBUF);
 			sc->fc->it[sub]->dvproc = NULL;
@@ -156,6 +158,7 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		free(sc->fc->it[sub]->dvbuf, M_DEVBUF);
 		sc->fc->it[sub]->dvbuf = NULL;
 	}
+#endif
 	if(sc->fc->ir[sub]->flag & FWXFERQ_EXTBUF){
 		free(sc->fc->ir[sub]->buf, M_DEVBUF);
 		sc->fc->ir[sub]->buf = NULL;
@@ -359,7 +362,11 @@ fw_write (dev_t dev, struct uio *uio, int ioflag)
 		splx(s);
 		it->stproc = NULL;
 	}
+#ifdef FWXFERQ_DV
 	if(xferq == NULL && !(it->flag & FWXFERQ_DV)){
+#else
+	if (xferq == NULL) {
+#endif
 isoloop:
 		if(it->stproc == NULL){
 			it->stproc = STAILQ_FIRST(&it->stfree);
@@ -400,7 +407,9 @@ isoloop:
 			err = sc->fc->itx_enable(sc->fc, sub);
 		}
 		return err;
-	} if(xferq == NULL && it->flag & FWXFERQ_DV){
+	}
+#ifdef FWXFERQ_DV
+	if(xferq == NULL && it->flag & FWXFERQ_DV){
 dvloop:
 		if(it->dvproc == NULL){
 			it->dvproc = STAILQ_FIRST(&it->dvfree);
@@ -448,6 +457,7 @@ dvloop:
 		}
 		return err;
 	}
+#endif
 	if(xferq != NULL){
 		xfer = fw_xfer_alloc();
 		if(xfer == NULL){
@@ -562,6 +572,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		ichreq->tag =(sc->fc->ir[sub]->flag) >> 2 & 0x3;
 		err = 0;
 		break;
+#ifdef FWXFERQ_DV
 	case FW_SSTDV:
 		ibufreq = (struct fw_isobufreq *)
 			malloc(sizeof(struct fw_isobufreq), M_DEVBUF, M_NOWAIT);
@@ -604,6 +615,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 					&sc->fc->it[sub]->dvbuf[i], link);
 		}
 		break;
+#endif
 	case FW_SSTBUF:
 		ir = sc->fc->ir[sub];
 		it = sc->fc->it[sub];

@@ -445,7 +445,9 @@ struct fw_crom_buf {
 /*
  * FireWire specific system requests.
  */
+#if 0
 #define	FW_SSTDV	_IOWR('S', 85, unsigned int)
+#endif
 #define	FW_SSTBUF	_IOWR('S', 86, struct fw_isobufreq)
 #define	FW_GSTBUF	_IOWR('S', 87, struct fw_isobufreq)
 #define	FW_SRSTREAM	_IOWR('S', 88, struct fw_isochreq)

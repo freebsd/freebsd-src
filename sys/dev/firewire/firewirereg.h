@@ -186,7 +186,9 @@ struct fw_xferq {
 
 #define FWXFERQ_PACKET (1 << 10)
 #define FWXFERQ_BULK (1 << 11)
+#if 0
 #define FWXFERQ_DV (1 << 12)
+#endif
 #define FWXFERQ_MODEMASK (7 << 10)
 
 #define FWXFERQ_EXTBUF (1 << 13)
