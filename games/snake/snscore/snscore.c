@@ -68,10 +68,16 @@ main()
 	struct	passwd	*p;
 
 	fd = fopen(recfile, "r");
+
 	if (fd == NULL) {
 		perror(recfile);
 		exit(1);
 	}
+
+	/* revoke privs */
+	setegid(getgid());
+	setgid(getgid());
+
 	printf("Snake players scores to date\n");
 	fread(&whoallbest, sizeof(short), 1, fd);
 	fread(&allbest, sizeof(short), 1, fd);

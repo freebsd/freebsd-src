@@ -115,6 +115,10 @@ main(argc, argv)
 	int ch;
 	char *p;
 
+	/* revoke */
+	setegid(getgid());
+	setgid(getgid());
+
 	while ((ch = getopt(argc, argv, "")) != EOF)
 		switch (ch) {
 		case '?':

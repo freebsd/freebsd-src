@@ -83,6 +83,10 @@ void main(argc, argv)
 	register char *inbuf;
 	int obs[26], try, winner;
 
+	/* revoke privs */
+	setegid(getgid());
+	setgid(getgid());
+
 	if (argc > 1)
 		printit(argv[1]);
 
