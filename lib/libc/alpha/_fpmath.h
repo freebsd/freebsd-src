@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 David Schultz <dschultz@uclink.Berkeley.EDU>
+ * Copyright (c) 2002, 2003 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
