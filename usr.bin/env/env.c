@@ -39,7 +39,7 @@ static const char copyright[] =
 
 #if 0
 #ifndef lint
-static const char sccsid[] = "@(#)env.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)env.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 #endif
 
@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
 
 extern char **environ;
 
-int main __P((int, char *[]));
-static void usage __P((void));
+static void usage(void);
 
 int
 main(argc, argv)
@@ -93,6 +92,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: env [-] [-i] [name=value ...] [command]\n");
+	    "usage: env [-] [-i] [name=value ...] [utility [argument ...]]\n");
 	exit(1);
 }
