@@ -134,9 +134,9 @@ device		npx0	at nexus? port IO_NPX irq 13
 device		apm0    at nexus? disable flags 0x20 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
-#device		card0
-#device		pcic0	at isa?
-#device		pcic1	at isa?
+device		card0
+device		pcic0	at isa? irq 10 port 0x3e0 iomem 0xd0000
+device		pcic1	at isa? irq 11 port 0x3e2 iomem 0xd4000 disable
 
 # Serial (COM) ports
 device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
