@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.seq#7 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#14 $
  *
  * $FreeBSD$
  */
@@ -112,10 +112,6 @@ dma_queued_scb:
 BEGIN_CRITICAL
 	cmp	NEXT_QUEUED_SCB, A jne abort_qinscb;
 	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
-		if ((ahc->flags & AHC_PAGESCBS) == 0) {
-			cmp	SCBPTR, A je . + 2;
-			mvi	SCBPTR_MISMATCH call set_seqint;
-		}
 		cmp	SCB_TAG, A je . + 2;
 		mvi	SCB_MISMATCH call set_seqint;
 	}
@@ -142,6 +138,16 @@ abort_qinscb:
 	jmp	poll_for_work_loop;
 
 start_selection:
+	/*
+	 * If bus reset interrupts have been disabled (from a previous
+	 * reset), re-enable them now.  Resets are only of interest
+	 * when we have outstanding transactions, so we can safely
+	 * defer re-enabling the interrupt until, as an initiator,
+	 * we start sending out transactions again.
+	 */
+	test	SIMODE1, ENSCSIRST	jnz . + 3;
+	mvi	CLRSINT1, CLRSCSIRSTI;
+	or	SIMODE1, ENSCSIRST;
 	if ((ahc->features & AHC_TWIN) != 0) {
 		and	SINDEX,~SELBUSB,SBLKCTL;/* Clear channel select bit */
 		test	SCB_SCSIID, TWIN_CHNLB jz . + 2;
@@ -195,7 +201,15 @@ selection:
 	mvi	CLRSINT1,CLRBUSFREE;
 	or	SIMODE1, ENBUSFREE;
 
+	/*
+	 * Guard against a bus free after (re)selection
+	 * but prior to enabling the busfree interrupt.  SELDI
+	 * and SELDO will be cleared in that case.
+	 */
 	test	SSTAT0,SELDO	jnz select_out;
+	test	SSTAT0, SELDI	jnz . + 3;
+	and	SIMODE1, ~ENBUSFREE;
+	jmp	poll_for_work;
 	mvi	CLRSINT0, CLRSELDI;
 select_in:
 	if ((ahc->flags & AHC_TARGETROLE) != 0) {
@@ -207,7 +221,16 @@ select_in:
 		 * We've just been selected.  Assert BSY and
 		 * setup the phase for receiving messages
 		 * from the target.
+		 *
+		 * If bus reset interrupts have been disabled (from a
+		 * previous reset), re-enable them now.  Resets are only
+		 * of interest when we have outstanding transactions, so
+		 * we can safely defer re-enabling the interrupt until,
+		 * as a target, we start receiving transactions again.
 		 */
+		test	SIMODE1, ENSCSIRST	jnz . + 3;
+		mvi	CLRSINT1, CLRSCSIRSTI;
+		or	SIMODE1, ENSCSIRST;
 		mvi	SCSISIGO, P_MESGOUT|BSYO;
 
 		/*
@@ -616,7 +639,7 @@ await_busfree:
 	and	SXFRCTL0, ~SPIOEN;
 	test	SSTAT1,REQINIT|BUSFREE	jz .;
 	test	SSTAT1, BUSFREE jnz poll_for_work;
-	mvi	BAD_PHASE call set_seqint;
+	mvi	MISSED_BUSFREE call set_seqint;
 }
 	
 clear_target_state:
@@ -1418,6 +1441,16 @@ mesgin_complete:
  */
 
 /*
+ * If ATN is raised, we still want to give the target a message.
+ * Perhaps there was a parity error on this last message byte.
+ * Either way, the target should take us to message out phase
+ * and then attempt to complete the command again.
+ * XXX - Need a critical section to do this corrctly.  Wait until
+ *       we queue completions.
+	test	SCSISIGI, ATNI jnz mesgin_done;
+ */
+
+/*
  * See if we attempted to deliver a message but the target ingnored us.
  */
 	test	SCB_CONTROL, MK_MESSAGE jz . + 2;
@@ -1469,6 +1502,16 @@ if ((ahc->flags & AHC_INITIATORROLE) != 0) {
  * a reselction.
  */
 mesgin_disconnect:
+	/*
+	 * If ATN is raised, we still want to give the target a message.
+	 * Perhaps there was a parity error on this last message byte
+	 * or we want to abort this command.  Either way, the target
+	 * should take us to message out phase and then attempt to
+	 * disconnect again.
+	 * XXX - Wait for more testing.
+	test	SCSISIGI, ATNI jnz mesgin_done;
+	 */
+
 	or	SCB_CONTROL,DISCONNECTED;
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
 		call	add_scb_to_disc_list;
@@ -1568,7 +1611,7 @@ fetch_busy_target:
 	mov	ARG_1, SINDIR;
 	cmp	ARG_1, SCB_LIST_NULL	je snoop_tag;
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
-		mov	RETURN_1 call findSCB;
+		mov	ARG_1 call findSCB;
 	} else {
 		mov	SCBPTR, RETURN_1;
 	}
@@ -1631,13 +1674,13 @@ setup_SCB_id_lun_okay:
 	}
 	test	SCB_CONTROL,DISCONNECTED jz not_found_cleanup_scb;
 	and	SCB_CONTROL,~DISCONNECTED;
-	mvi	SEQ_FLAGS,IDENTIFY_SEEN;	/* make note of IDENTIFY */
 	test	SCB_CONTROL, TAG_ENB	jnz setup_SCB_tagged;
 	mov	A, SCBPTR;
 	mvi	ARG_1, SCB_LIST_NULL;
 	mov	SAVED_SCSIID	call	set_busy_target;
 	mov	SCBPTR, A;
 setup_SCB_tagged:
+	mvi	SEQ_FLAGS,IDENTIFY_SEEN;	/* make note of IDENTIFY */
 	call	set_transfer_settings;
 	/* See if the host wants to send a message upon reconnection */
 	test	SCB_CONTROL, MK_MESSAGE jz mesgin_done;
@@ -1752,6 +1795,7 @@ assert:
  * removal of the found SCB from the disconnected list.
  */
 if ((ahc->flags & AHC_PAGESCBS) != 0) {
+BEGIN_CRITICAL
 findSCB:
 	mov	A, SINDEX;			/* Tag passed in SINDEX */
 	cmp	DISCONNECTED_SCBH, SCB_LIST_NULL je findSCB_notFound;
@@ -1773,6 +1817,7 @@ rem_scb_from_disc_list:
 	mov	SCBPTR, SINDEX ret;
 rHead:
 	mov	DISCONNECTED_SCBH,SCB_NEXT ret;
+END_CRITICAL
 findSCB_notFound:
 	/*
 	 * We didn't find it.  Page in the SCB.
@@ -1919,7 +1964,7 @@ dma_scb_tohost:
 			mvi	CCSCBCTL, CCSCBRESET;
 			bmov	CCSCBRAM, SCB_BASE, SCB_UPLOAD_SIZE;
 			or	CCSCBCTL, CCSCBEN|CCSCBRESET;
-			cmp	CCSCBCTL, CCSCBDONE|CCSCBEN jne .;
+			test	CCSCBCTL, CCSCBDONE jz .;
 		} else if ((ahc->bugs & AHC_SCBCHAN_UPLOAD_BUG) != 0) {
 			mvi	CCSCBCTL, CCARREN|CCSCBRESET;
 			cmp	CCSCBCTL, ARRDONE|CCARREN jne .;
@@ -2055,6 +2100,7 @@ END_CRITICAL
 
 if ((ahc->flags & AHC_PAGESCBS) != 0) {
 get_free_or_disc_scb:
+BEGIN_CRITICAL
 	cmp	FREE_SCBH, SCB_LIST_NULL jne dequeue_free_scb;
 	cmp	DISCONNECTED_SCBH, SCB_LIST_NULL jne dequeue_disc_scb;
 return_error:
@@ -2062,14 +2108,15 @@ return_error:
 	mvi	SINDEX, SCB_LIST_NULL	ret;
 dequeue_disc_scb:
 	mov	SCBPTR, DISCONNECTED_SCBH;
-dma_up_scb:
+	mov	DISCONNECTED_SCBH, SCB_NEXT;
+END_CRITICAL
 	mvi	DMAPARAMS, FIFORESET;
-	mov	SCB_TAG	call dma_scb;
-unlink_disc_scb:
-	mov	DISCONNECTED_SCBH, SCB_NEXT ret;
+	mov	SCB_TAG	jmp dma_scb;
+BEGIN_CRITICAL
 dequeue_free_scb:
 	mov	SCBPTR, FREE_SCBH;
 	mov	FREE_SCBH, SCB_NEXT ret;
+END_CRITICAL
 
 add_scb_to_disc_list:
 /*

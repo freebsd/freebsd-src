@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.c#9 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.c#18 $
  *
  * $FreeBSD$
  */
@@ -617,19 +617,23 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		u_int lastphase;
 
 		lastphase = ahc_inb(ahc, LASTPHASE);
-		if (lastphase == P_BUSFREE) {
-			printf("%s:%c:%d: Missed busfree.  Curphase = 0x%x\n",
-			       ahc_name(ahc), devinfo.channel, devinfo.target,
-			       ahc_inb(ahc, SCSISIGI));
-			restart_sequencer(ahc);
-			return;
-		} else {
-			printf("%s:%c:%d: unknown scsi bus phase %x.  "
-			       "Attempting to continue\n",
-			       ahc_name(ahc), devinfo.channel, devinfo.target,
-			       ahc_inb(ahc, SCSISIGI));
-		}
-		break; 
+		printf("%s:%c:%d: unknown scsi bus phase %x, "
+		       "lastphase = 0x%x.  Attempting to continue\n",
+		       ahc_name(ahc), devinfo.channel, devinfo.target,
+		       lastphase, ahc_inb(ahc, SCSISIGI));
+		break;
+	}
+	case MISSED_BUSFREE:
+	{
+		u_int lastphase;
+
+		lastphase = ahc_inb(ahc, LASTPHASE);
+		printf("%s:%c:%d: Missed busfree. "
+		       "Lastphase = 0x%x, Curphase = 0x%x\n",
+		       ahc_name(ahc), devinfo.channel, devinfo.target,
+		       lastphase, ahc_inb(ahc, SCSISIGI));
+		restart_sequencer(ahc);
+		return;
 	}
 	case HOST_MSG_LOOP:
 	{
@@ -798,7 +802,6 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 	case ABORT_QINSCB:
 	{
 		printf("%s: Abort QINSCB\n", ahc_name(ahc));
-		DELAY(10000000);
 		break;
 	}
 	case NO_FREE_SCB:
@@ -818,18 +821,6 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		       ahc->scb_data->hscbs[scbptr].tag);
 		ahc_dump_card_state(ahc);
 		panic("for saftey");
-		break;
-	}
-	case SCBPTR_MISMATCH:
-	{
-		u_int scbptr;
-
-		scbptr = ahc_inb(ahc, SCBPTR);
-		printf("SCBPTR wrong.  SCBPTR %d, tag %d, our tag %d\n",
-		       scbptr, ahc_inb(ahc, ARG_1),
-		       ahc->scb_data->hscbs[scbptr].tag);
-		ahc_dump_card_state(ahc);
-		panic("for safety");
 		break;
 	}
 	case OUT_OF_RANGE:
@@ -874,6 +865,7 @@ void
 ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 {
 	u_int	scb_index;
+	u_int	status0;
 	u_int	status;
 	struct	scb *scb;
 	char	cur_channel;
@@ -889,8 +881,12 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		cur_channel = 'A';
 	intr_channel = cur_channel;
 
+	if ((ahc->features & AHC_ULTRA2) != 0)
+		status0 = ahc_inb(ahc, SSTAT0) & IOERR;
+	else
+		status0 = 0;
 	status = ahc_inb(ahc, SSTAT1);
-	if (status == 0) {
+	if (status == 0 && status0 == 0) {
 		if ((ahc->features & AHC_TWIN) != 0) {
 			/* Try the other channel */
 		 	ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) ^ SELBUSB);
@@ -912,10 +908,30 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 	 && (ahc_inb(ahc, SEQ_FLAGS) & IDENTIFY_SEEN) == 0)
 		scb = NULL;
 
-	if ((status & SCSIRSTI) != 0) {
+	if ((ahc->features & AHC_ULTRA2) != 0
+		&& (status0 & IOERR) != 0) {
+		int now_lvd;
+
+		now_lvd = ahc_inb(ahc, SBLKCTL) & ENAB40;
+		printf("%s: Transceiver State Has Changed to %s mode\n",
+		       ahc_name(ahc), now_lvd ? "LVD" : "SE");
+		ahc_outb(ahc, CLRSINT0, CLRIOERR);
+		/*
+		 * When transitioning to SE mode, the reset line
+		 * glitches, triggering an arbitration bug in some
+		 * Ultra2 controllers.  This bug is cleared when we
+		 * assert the reset line.  Since a reset glitch has
+		 * already occurred with this transition and a
+		 * transceiver state change is handled just like
+		 * a bus reset anyway, asserting the reset line
+		 * ourselves is safe.
+		 */
+		ahc_reset_channel(ahc, intr_channel,
+				 /*Initiate Reset*/now_lvd == 0);
+	} else if ((status & SCSIRSTI) != 0) {
 		printf("%s: Someone reset channel %c\n",
 			ahc_name(ahc), intr_channel);
-		ahc_reset_channel(ahc, intr_channel, /* Initiate Reset */FALSE);
+		ahc_reset_channel(ahc, intr_channel, /*Initiate Reset*/FALSE);
 	} else if ((status & SCSIPERR) != 0) {
 		/*
 		 * Determine the bus phase and queue an appropriate message.
@@ -1157,10 +1173,12 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 	}
 }
 
+#define AHC_MAX_STEPS 2000
 void
 ahc_clear_critical_section(struct ahc_softc *ahc)
 {
 	int	stepping;
+	int	steps;
 	u_int	simode0;
 	u_int	simode1;
 
@@ -1168,6 +1186,7 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 		return;
 
 	stepping = FALSE;
+	steps = 0;
 	simode0 = 0;
 	simode1 = 0;
 	for (;;) {
@@ -1188,6 +1207,14 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 		if (i == ahc->num_critical_sections)
 			break;
 
+		if (steps > AHC_MAX_STEPS) {
+			printf("%s: Infinite loop in critical section\n",
+			       ahc_name(ahc));
+			ahc_dump_card_state(ahc);
+			panic("critical section loop");
+		}
+
+		steps++;
 		if (stepping == FALSE) {
 
 			/*
@@ -3998,6 +4025,8 @@ ahc_init(struct ahc_softc *ahc)
 		scsi_conf = ahc_inb(ahc, SCSICONF + 1);
 		ahc_outb(ahc, SXFRCTL1, (scsi_conf & (ENSPCHK|STIMESEL))
 					|term|ENSTIMER|ACTNEGEN);
+		if ((ahc->features & AHC_ULTRA2) != 0)
+			ahc_outb(ahc, SIMODE0, ahc_inb(ahc, SIMODE0)|ENIOERR);
 		ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 		ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN);
 
@@ -4017,6 +4046,8 @@ ahc_init(struct ahc_softc *ahc)
 	ahc_outb(ahc, SXFRCTL1, (scsi_conf & (ENSPCHK|STIMESEL))
 				|term
 				|ENSTIMER|ACTNEGEN);
+	if ((ahc->features & AHC_ULTRA2) != 0)
+		ahc_outb(ahc, SIMODE0, ahc_inb(ahc, SIMODE0)|ENIOERR);
 	ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 	ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN);
 
@@ -5027,7 +5058,8 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 		 * upsetting the current bus.
 		 */
 		ahc_outb(ahc, SBLKCTL, sblkctl ^ SELBUSB);
-		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
+		ahc_outb(ahc, SIMODE1,
+			 ahc_inb(ahc, SIMODE1) & ~(ENBUSFREE|ENSCSIRST));
 		ahc_outb(ahc, SCSISEQ,
 			 ahc_inb(ahc, SCSISEQ) & (ENSELI|ENRSELI|ENAUTOATNP));
 		if (initiate_reset)
@@ -5038,7 +5070,8 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 	} else {
 		/* Case 2: A command from this bus is active or we're idle */
 		ahc_clear_msg_state(ahc);
-		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
+		ahc_outb(ahc, SIMODE1,
+			 ahc_inb(ahc, SIMODE1) & ~(ENBUSFREE|ENSCSIRST));
 		ahc_outb(ahc, SCSISEQ,
 			 ahc_inb(ahc, SCSISEQ) & (ENSELI|ENRSELI|ENAUTOATNP));
 		if (initiate_reset)
@@ -5602,6 +5635,10 @@ ahc_dump_card_state(struct ahc_softc *ahc)
 	uint8_t saved_scbptr;
 
 	saved_scbptr = ahc_inb(ahc, SCBPTR);
+
+	printf("%s: Dumping Card State at SEQADDR 0x%x\n",
+	       ahc_name(ahc),
+	       ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
 
 	printf("SCB count = %d\n", ahc->scb_data->numscbs);
 	/* QINFIFO */
