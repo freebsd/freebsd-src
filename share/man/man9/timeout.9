@@ -1,0 +1,92 @@
+.\"
+.\" Copyright (c) 1996 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id$
+.\" "
+.Dd April 13, 1996
+.Os
+.Dt TIMEOUT 9
+.Sh NAME
+.Nm timeout ,
+.Nm untimeout
+.Nd schedule timer events
+.Sh SYNOPSIS
+.Fd #include <sys/systm.h>
+.Fd #include <sys/kernel.h>
+
+.Ft typedef void \*(lptimeout_t\*(rp \*(lpvoid *\*(rp;
+
+.Ft typedef timeout_t *timeout_func_t;
+
+.Ft void
+.Fn timeout "timeout_func_t func" "void *arg" "int ticks"
+.Ft void
+.Fn untimeout "timeout_func_t func" "void *arg"
+.Sh DESCRIPTION
+The
+.Nm timeout
+facility allows the execution of a function after a specified amount
+of time.  The function
+.Ar func
+is being called with the opaque argument
+.Ar arg
+after
+.Ar ticks
+timer ticks have been elapsed.  It's often convenient to use the
+external variable
+.Dv hz
+to compute the amount of
+.Ar ticks
+to wait.
+.Pp
+If the timeout event should be removed before the timer expires,
+.Nm untimeout
+must be called with the exact
+.Ar func
+and
+.Ar arg
+arguments as the corresponding call to
+.Fn timeout .
+.Pp
+Unlike the functions of
+.Xr sleep 9 ,
+.Fn timeout
+and
+.Fn untimeout
+can be called from within an interrupt context.
+.Sh SEE ALSO
+.Xr sleep 9
+.Sh HISTORY
+The
+.Nm timeout
+facility is very old.
+.Sh BUGS
+Since the timer queue is sorted and uses time differences rather than
+absolute times, inserting and removing timer events can be costly if
+it is done too frequently.
+.Sh AUTHORS
+This man page has been written by
+.ie t J\(:org Wunsch.
+.el Joerg Wunsch.
