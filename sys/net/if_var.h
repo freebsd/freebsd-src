@@ -401,7 +401,7 @@ void	if_up __P((struct ifnet *));
 /*void	ifinit __P((void));*/ /* declared in systm.h for main() */
 int	ifioctl __P((struct socket *, u_long, caddr_t, struct proc *));
 int	ifpromisc __P((struct ifnet *, int));
-struct	ifnet *ifunit __P((char *));
+struct	ifnet *ifunit __P((const char *));
 struct	ifnet *if_withname __P((struct sockaddr *));
 
 int	if_poll_recv_slow __P((struct ifnet *ifp, int *quotap));
@@ -422,6 +422,12 @@ void	ifafree __P((struct ifaddr *));
 struct	ifmultiaddr *ifmaof_ifpforaddr __P((struct sockaddr *,
 					    struct ifnet *));
 int	if_simloop __P((struct ifnet *ifp, struct mbuf *m, int af, int hlen));
+
+void	if_clone_attach __P((struct if_clone *));
+void	if_clone_detach __P((struct if_clone *));
+
+int	if_clone_create __P((char *, int));
+int	if_clone_destroy __P((const char *));
 
 #endif /* _KERNEL */
 

@@ -37,6 +37,8 @@
 #ifndef _NET_IF_H_
 #define	_NET_IF_H_
 
+#include <sys/queue.h>
+
 /*
  * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
  * helps userland compatibility.  (struct timeval ifi_lastchange)
@@ -44,6 +46,40 @@
 #ifndef _KERNEL
 #include <sys/time.h>
 #endif
+
+struct ifnet;
+
+/*
+ * Length of interface external name, including terminating '\0'.
+ * Note: this is the same size as a generic device's external name.
+ */
+#define		IFNAMSIZ	16
+#define		IF_NAMESIZE	IFNAMSIZ
+
+/*
+ * Structure describing a `cloning' interface.
+ */
+struct if_clone {
+	LIST_ENTRY(if_clone) ifc_list;	/* on list of cloners */
+	const char *ifc_name;		/* name of device, e.g. `gif' */
+	size_t ifc_namelen;		/* length of name */
+
+	int	(*ifc_create)(struct if_clone *, int *);
+	void	(*ifc_destroy)(struct ifnet *);
+};
+
+#define IF_CLONE_INITIALIZER(name, create, destroy)			\
+	{ { 0 }, name, sizeof(name) - 1, create, destroy }
+
+/*
+ * Structure used to query names of interface cloners.
+ */
+
+struct if_clonereq {
+	int	ifcr_total;		/* total cloners (out) */
+	int	ifcr_count;		/* room for this many in user buffer */
+	char	*ifcr_buffer;		/* buffer for cloner names */
+};
 
 /*
  * Structure describing information about an interface
@@ -151,8 +187,6 @@ struct ifma_msghdr {
  * remainder may be interface specific.
  */
 struct	ifreq {
-#define	IFNAMSIZ	16
-#define	IF_NAMESIZE	IFNAMSIZ
 	char	ifr_name[IFNAMSIZ];		/* if name, e.g. "en0" */
 	union {
 		struct	sockaddr ifru_addr;
