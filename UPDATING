@@ -9,6 +9,10 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20011202:	p1
+	A security hole in OpenSSH involving `UseLogin yes' has been
+	patched.
+
 20010915:
 	FreeBSD 4.4-RELEASE.
 
