@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.152 1999/04/24 21:01:21 peter Exp $
+#	$Id: BSD.usr.dist,v 1.153 1999/05/02 15:25:40 markm Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -638,6 +638,7 @@
             man7
             ..
             man8
+                alpha
                 i386
                 ..
             ..
