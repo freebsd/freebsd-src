@@ -218,7 +218,7 @@ struct buf {
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
 #define	B_MALLOC	0x00010000	/* malloced b_data */
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
-#define	B_PHYS		0x00040000	/* I/O to user memory. */
+#define	B_000400000	0x00040000	/* Available flag. */
 #define	B_000800000	0x00080000	/* Available flag. */
 #define	B_00100000	0x00100000	/* Available flag. */
 #define	B_DIRTY		0x00200000	/* Needs writing later (in EXT2FS). */
