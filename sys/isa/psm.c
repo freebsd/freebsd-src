@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/selinfo.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 
@@ -137,6 +138,16 @@ typedef struct ringbuf {
     unsigned char buf[PSM_BUFSIZE];
 } ringbuf_t;
 
+/* data buffer */
+typedef struct packetbuf {
+    unsigned char ipacket[16];	/* interim input buffer */
+    int           inputbytes;	/* # of bytes in the input buffer */
+} packetbuf_t;
+
+#ifndef PSM_PACKETQUEUE
+#define PSM_PACKETQUEUE	128
+#endif
+
 /* driver control block */
 struct psm_softc {		/* Driver status information */
     int		  unit;
@@ -152,17 +163,23 @@ struct psm_softc {		/* Driver status information */
     mousemode_t   dflt_mode;	/* default operation mode */
     mousestatus_t status;	/* accumulated mouse movement */
     ringbuf_t     queue;	/* mouse status queue */
-    unsigned char ipacket[16];	/* interim input buffer */
-    int           inputbytes;	/* # of bytes in the input buffer */
+    packetbuf_t   pqueue[PSM_PACKETQUEUE];	/* mouse data queue */
+    int           pqueue_start; /* start of data in queue */
+    int           pqueue_end;   /* end of data in queue */
     int           button;	/* the latest button state */
     int		  xold;	/* previous absolute X position */
     int		  yold;	/* previous absolute Y position */
-    int		  syncerrors;
+    int		  syncerrors; /* XXX: KILL ME! */
     struct timeval inputtimeout;
+    struct timeval lastsoftintr;	/* time of last soft interrupt */
+    struct timeval lastinputerr;	/* time last sync error happened */
     int		  watchdog;	/* watchdog timer flag */
     struct callout_handle callout;	/* watchdog timer call out */
+    struct callout_handle softcallout;	/* buffer timer call out */
     dev_t	  dev;
     dev_t	  bdev;
+    int           lasterr;
+    int           cmdcount;
 };
 static devclass_t psm_devclass;
 #define PSM_SOFTC(unit)	((struct psm_softc*)devclass_get_softc(psm_devclass, unit))
@@ -171,6 +188,7 @@ static devclass_t psm_devclass;
 #define PSM_VALID		0x80
 #define PSM_OPEN		1	/* Device is open */
 #define PSM_ASLP		2	/* Waiting for mouse data */
+#define PSM_SOFTARMED		4	/* Software interrupt armed */
 
 /* driver configuration flags (config) */
 #define PSM_CONFIG_RESOLUTION	0x000f	/* resolution */
@@ -250,8 +268,13 @@ static int doinitialize(struct psm_softc *, mousemode_t *);
 static int doopen(struct psm_softc *, int);
 static int reinitialize(struct psm_softc *, int);
 static char *model_name(int);
+static void psmsoftintr(void *);
 static void psmintr(void *);
 static void psmtimeout(void *);
+static int timeelapsed(const struct timeval *,
+    int, int, const struct timeval *);
+static void dropqueue(struct psm_softc *);
+static void flushpackets(struct psm_softc *);
 
 /* vendor specific features */
 typedef int probefunc_t(struct psm_softc *);
@@ -268,7 +291,7 @@ static probefunc_t enable_4dmouse;
 static probefunc_t enable_4dplus;
 static probefunc_t enable_mmanplus;
 static probefunc_t enable_versapad;
-static int tame_mouse(struct psm_softc *, mousestatus_t *, unsigned char *);
+static int tame_mouse(struct psm_softc *, packetbuf_t *, mousestatus_t *, unsigned char *);
 
 static struct {
     int                 model;
@@ -816,7 +839,7 @@ reinitialize(struct psm_softc *sc, int doinit)
 	disable_aux_dev(sc->kbdc);	/* this may fail; but never mind... */
 	empty_aux_buffer(sc->kbdc, 10);
     }
-    sc->inputbytes = 0;
+    flushpackets(sc);
     sc->syncerrors = 0;
 
     /* try to detect the aux device; are you still there? */
@@ -1323,10 +1346,11 @@ psmopen(dev_t dev, int flag, int fmt, struct thread *td)
     sc->status.dy = 0;
     sc->status.dz = 0;
     sc->button = 0;
+    sc->pqueue_start = 0;
+    sc->pqueue_end = 0;
 
     /* empty input buffer */
-    bzero(sc->ipacket, sizeof(sc->ipacket));
-    sc->inputbytes = 0;
+    flushpackets(sc);
     sc->syncerrors = 0;
 
     /* don't let timeout routines in the keyboard driver to poll the kbdc */
@@ -1454,7 +1478,7 @@ psmclose(dev_t dev, int flag, int fmt, struct thread *td)
 }
 
 static int
-tame_mouse(struct psm_softc *sc, mousestatus_t *status, unsigned char *buf)
+tame_mouse(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *status, unsigned char *buf)
 {
     static unsigned char butmapps2[8] = {
         0,
@@ -1508,7 +1532,7 @@ tame_mouse(struct psm_softc *sc, mousestatus_t *status, unsigned char *buf)
         buf[7] = (~status->button >> 3) & 0x7f;
 	return MOUSE_SYS_PACKETSIZE;
     }
-    return sc->inputbytes;
+    return pb->inputbytes;
 }
 
 static int
@@ -1605,10 +1629,32 @@ block_mouse_data(struct psm_softc *sc, int *c)
      */
     empty_aux_buffer(sc->kbdc, 0);	/* flush the queue */
     read_aux_data_no_wait(sc->kbdc);	/* throw away data if any */
-    sc->inputbytes = 0;
+    flushpackets(sc);
     splx(s);
 
     return 0;
+}
+
+static void
+dropqueue(struct psm_softc *sc)
+{
+
+    	sc->queue.count = 0;
+   	sc->queue.head = 0;
+    	sc->queue.tail = 0;
+	if ((sc->state & PSM_SOFTARMED) != 0) {
+		sc->state &= ~PSM_SOFTARMED;
+		untimeout(psmsoftintr, (void *)(uintptr_t)sc, sc->softcallout);
+	}
+	sc->pqueue_start = sc->pqueue_end;
+}
+
+static void
+flushpackets(struct psm_softc *sc)
+{
+
+	dropqueue(sc);
+	bzero(&sc->pqueue, sizeof(sc->pqueue));
 }
 
 static int
@@ -1951,8 +1997,123 @@ psmtimeout(void *arg)
     sc->callout = timeout(psmtimeout, (void *)(uintptr_t)sc, hz);
 }
 
+static int psmhz = 20;
+SYSCTL_INT(_debug, OID_AUTO, psmhz, CTLFLAG_RW, &psmhz, 0, "");
+
+static int psm_soft_timeout = 500000; /* 0.5 sec */
+SYSCTL_INT(_debug, OID_AUTO, psm_soft_timeout, CTLFLAG_RW,
+    &psm_soft_timeout, 0, "");
+
+static int psmerrsecs = 2;
+SYSCTL_INT(_debug, OID_AUTO, psmerrsecs, CTLFLAG_RW, &psmerrsecs, 0, "");
+static int psmerrusecs = 0;
+SYSCTL_INT(_debug, OID_AUTO, psmerrusecs, CTLFLAG_RW, &psmerrusecs, 0, "");
+static int psmsecs = 0;
+SYSCTL_INT(_debug, OID_AUTO, psmsecs, CTLFLAG_RW, &psmsecs, 0, "");
+static int psmusecs = 500000;
+SYSCTL_INT(_debug, OID_AUTO, psmusecs, CTLFLAG_RW, &psmusecs, 0, "");
+
 static void
 psmintr(void *arg)
+{
+    struct psm_softc *sc = arg;
+    struct timeval now;
+    int c;
+    packetbuf_t *pb;
+    int haderror = 0;
+
+
+    /* read until there is nothing to read */
+    while((c = read_aux_data_no_wait(sc->kbdc)) != -1) {
+    
+        pb = &sc->pqueue[sc->pqueue_end];
+        /* discard the byte if the device is not open */
+        if ((sc->state & PSM_OPEN) == 0)
+            continue;
+    
+	getmicrouptime(&now);
+	if ((pb->inputbytes > 0) && timevalcmp(&now, &sc->inputtimeout, >)) {
+	    log(LOG_DEBUG, "psmintr: delay too long; resetting byte count\n");
+	    pb->inputbytes = 0;
+	    sc->syncerrors = 0;
+	}
+	sc->inputtimeout.tv_sec = PSM_INPUT_TIMEOUT/1000000;
+	sc->inputtimeout.tv_usec = PSM_INPUT_TIMEOUT%1000000;
+	timevaladd(&sc->inputtimeout, &now);
+
+        pb->ipacket[pb->inputbytes++] = c;
+        if (pb->inputbytes < sc->mode.packetsize) 
+	    continue;
+
+#if 0
+        log(LOG_DEBUG, "psmintr: %02x %02x %02x %02x %02x %02x\n",
+	    pb->ipacket[0], pb->ipacket[1], pb->ipacket[2],
+	    pb->ipacket[3], pb->ipacket[4], pb->ipacket[5]);
+#endif
+
+	c = pb->ipacket[0];
+
+	if ((c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
+            log(LOG_DEBUG, "psmintr: out of sync (%04x != %04x) %d"
+		" cmds since last error.\n", 
+		c & sc->mode.syncmask[0], sc->mode.syncmask[1],
+		sc->cmdcount - sc->lasterr);
+	    haderror = 1;
+	    sc->lasterr = sc->cmdcount;
+	    dropqueue(sc);
+	    ++sc->syncerrors;
+	    sc->lastinputerr = now;
+	    if (sc->syncerrors < sc->mode.packetsize) {
+		log(LOG_DEBUG, "psmintr: discard a byte (%d).\n", sc->syncerrors);
+		--pb->inputbytes;
+		bcopy(&pb->ipacket[1], &pb->ipacket[0], pb->inputbytes);
+	    } else if (sc->syncerrors == sc->mode.packetsize) {
+		log(LOG_DEBUG, "psmintr: re-enable the mouse.\n");
+		pb->inputbytes = 0;
+		disable_aux_dev(sc->kbdc);
+		enable_aux_dev(sc->kbdc);
+	    } else if (sc->syncerrors < PSM_SYNCERR_THRESHOLD1) {
+		log(LOG_DEBUG, "psmintr: discard a byte (%d).\n", sc->syncerrors);
+		--pb->inputbytes;
+		bcopy(&pb->ipacket[1], &pb->ipacket[0], pb->inputbytes);
+	    } else if (sc->syncerrors >= PSM_SYNCERR_THRESHOLD1) {
+		log(LOG_DEBUG, "psmintr: reset the mouse.\n");
+		reinitialize(sc, TRUE);
+	    }
+	    continue;
+	}
+	/* if this packet is at all bogus then drop the packet. */
+	if (haderror ||
+	    !timeelapsed(&sc->lastinputerr, psmerrsecs, psmerrusecs, &now)) {
+		pb->inputbytes = 0;
+		haderror = 0;
+		continue;
+	}
+
+	sc->cmdcount++;
+	if (++sc->pqueue_end >= PSM_PACKETQUEUE)
+		sc->pqueue_end = 0;
+	/*
+	 * If we've filled the queue then call the softintr ourselves,
+	 * otherwise schedule the interrupt for later.
+	 */
+	if (!timeelapsed(&sc->lastsoftintr, psmsecs, psmusecs, &now) ||
+	    (sc->pqueue_end == sc->pqueue_start)) {
+    		if ((sc->state & PSM_SOFTARMED) != 0) {
+			sc->state &= ~PSM_SOFTARMED;
+			untimeout(psmsoftintr, arg, sc->softcallout);
+		}
+		psmsoftintr(arg);
+	} else if ((sc->state & PSM_SOFTARMED) == 0) {
+		sc->state |= PSM_SOFTARMED;
+		sc->softcallout = timeout(psmsoftintr, arg,
+		    psmhz < 1 ? 1 : (hz/psmhz));
+	}
+    }
+}
+
+static void
+psmsoftintr(void *arg)
 {
     /*
      * the table to turn PS/2 mouse button bits (MOUSE_PS2_BUTTON?DOWN)
@@ -1980,76 +2141,32 @@ psmintr(void *arg)
     };
     register struct psm_softc *sc = arg;
     mousestatus_t ms;
-    struct timeval tv;
     int x, y, z;
     int c;
     int l;
     int x0, y0;
+    int s;
+    packetbuf_t *pb;
 
-    /* read until there is nothing to read */
-    while((c = read_aux_data_no_wait(sc->kbdc)) != -1) {
-    
-        /* discard the byte if the device is not open */
-        if ((sc->state & PSM_OPEN) == 0)
-            continue;
-    
-	getmicrouptime(&tv);
-	if ((sc->inputbytes > 0) && timevalcmp(&tv, &sc->inputtimeout, >)) {
-	    log(LOG_DEBUG, "psmintr: delay too long; resetting byte count\n");
-	    sc->inputbytes = 0;
-	    sc->syncerrors = 0;
-	}
-	sc->inputtimeout.tv_sec = PSM_INPUT_TIMEOUT/1000000;
-	sc->inputtimeout.tv_usec = PSM_INPUT_TIMEOUT%1000000;
-	timevaladd(&sc->inputtimeout, &tv);
+    getmicrouptime(&sc->lastsoftintr);
 
-        sc->ipacket[sc->inputbytes++] = c;
-        if (sc->inputbytes < sc->mode.packetsize) 
-	    continue;
+    s = spltty();
 
-#if 0
-        log(LOG_DEBUG, "psmintr: %02x %02x %02x %02x %02x %02x\n",
-	    sc->ipacket[0], sc->ipacket[1], sc->ipacket[2],
-	    sc->ipacket[3], sc->ipacket[4], sc->ipacket[5]);
-#endif
-
-	c = sc->ipacket[0];
-
-	if ((c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
-            log(LOG_DEBUG, "psmintr: out of sync (%04x != %04x).\n", 
-		c & sc->mode.syncmask[0], sc->mode.syncmask[1]);
-	    ++sc->syncerrors;
-	    if (sc->syncerrors < sc->mode.packetsize) {
-		log(LOG_DEBUG, "psmintr: discard a byte (%d).\n", sc->syncerrors);
-		--sc->inputbytes;
-		bcopy(&sc->ipacket[1], &sc->ipacket[0], sc->inputbytes);
-	    } else if (sc->syncerrors == sc->mode.packetsize) {
-		log(LOG_DEBUG, "psmintr: re-enable the mouse.\n");
-		sc->inputbytes = 0;
-		disable_aux_dev(sc->kbdc);
-		enable_aux_dev(sc->kbdc);
-	    } else if (sc->syncerrors < PSM_SYNCERR_THRESHOLD1) {
-		log(LOG_DEBUG, "psmintr: discard a byte (%d).\n", sc->syncerrors);
-		--sc->inputbytes;
-		bcopy(&sc->ipacket[1], &sc->ipacket[0], sc->inputbytes);
-	    } else if (sc->syncerrors >= PSM_SYNCERR_THRESHOLD1) {
-		log(LOG_DEBUG, "psmintr: reset the mouse.\n");
-		reinitialize(sc, TRUE);
-	    }
-	    continue;
-	}
-
+    do {
+	
+	pb = &sc->pqueue[sc->pqueue_start];
+	c = pb->ipacket[0];
 	/* 
 	 * A kludge for Kensington device! 
 	 * The MSB of the horizontal count appears to be stored in 
 	 * a strange place.
 	 */
 	if (sc->hw.model == MOUSE_MODEL_THINK)
-	    sc->ipacket[1] |= (c & MOUSE_PS2_XOVERFLOW) ? 0x80 : 0;
+	    pb->ipacket[1] |= (c & MOUSE_PS2_XOVERFLOW) ? 0x80 : 0;
 
         /* ignore the overflow bits... */
-        x = (c & MOUSE_PS2_XNEG) ?  sc->ipacket[1] - 256 : sc->ipacket[1];
-        y = (c & MOUSE_PS2_YNEG) ?  sc->ipacket[2] - 256 : sc->ipacket[2];
+        x = (c & MOUSE_PS2_XNEG) ?  pb->ipacket[1] - 256 : pb->ipacket[1];
+        y = (c & MOUSE_PS2_YNEG) ?  pb->ipacket[2] - 256 : pb->ipacket[2];
 	z = 0;
         ms.obutton = sc->button;		  /* previous button state */
         ms.button = butmap[c & MOUSE_PS2_BUTTONS];
@@ -2071,18 +2188,18 @@ psmintr(void *arg)
 	     * s: wheel data sign bit
 	     * d2-d0: wheel data
 	     */
-	    z = (sc->ipacket[3] & MOUSE_EXPLORER_ZNEG)
-		? (sc->ipacket[3] & 0x0f) - 16 : (sc->ipacket[3] & 0x0f);
-	    ms.button |= (sc->ipacket[3] & MOUSE_EXPLORER_BUTTON4DOWN)
+	    z = (pb->ipacket[3] & MOUSE_EXPLORER_ZNEG)
+		? (pb->ipacket[3] & 0x0f) - 16 : (pb->ipacket[3] & 0x0f);
+	    ms.button |= (pb->ipacket[3] & MOUSE_EXPLORER_BUTTON4DOWN)
 		? MOUSE_BUTTON4DOWN : 0;
-	    ms.button |= (sc->ipacket[3] & MOUSE_EXPLORER_BUTTON5DOWN)
+	    ms.button |= (pb->ipacket[3] & MOUSE_EXPLORER_BUTTON5DOWN)
 		? MOUSE_BUTTON5DOWN : 0;
 	    break;
 
 	case MOUSE_MODEL_INTELLI:
 	case MOUSE_MODEL_NET:
 	    /* wheel data is in the fourth byte */
-	    z = (char)sc->ipacket[3];
+	    z = (char)pb->ipacket[3];
 	    /* some mice may send 7 when there is no Z movement?! XXX */
 	    if ((z >= 7) || (z <= -7))
 		z = 0;
@@ -2123,23 +2240,23 @@ psmintr(void *arg)
 	     */
 	    if (((c & MOUSE_PS2PLUS_SYNCMASK) == MOUSE_PS2PLUS_SYNC)
 		    && (abs(x) > 191)
-		    && MOUSE_PS2PLUS_CHECKBITS(sc->ipacket)) {
+		    && MOUSE_PS2PLUS_CHECKBITS(pb->ipacket)) {
 		/* the extended data packet encodes button and wheel events */
-		switch (MOUSE_PS2PLUS_PACKET_TYPE(sc->ipacket)) {
+		switch (MOUSE_PS2PLUS_PACKET_TYPE(pb->ipacket)) {
 		case 1:
 		    /* wheel data packet */
 		    x = y = 0;
-		    if (sc->ipacket[2] & 0x80) {
+		    if (pb->ipacket[2] & 0x80) {
 			/* horizontal roller count - ignore it XXX*/
 		    } else {
 			/* vertical roller count */
-			z = (sc->ipacket[2] & MOUSE_PS2PLUS_ZNEG)
-			    ? (sc->ipacket[2] & 0x0f) - 16
-			    : (sc->ipacket[2] & 0x0f);
+			z = (pb->ipacket[2] & MOUSE_PS2PLUS_ZNEG)
+			    ? (pb->ipacket[2] & 0x0f) - 16
+			    : (pb->ipacket[2] & 0x0f);
 		    }
-		    ms.button |= (sc->ipacket[2] & MOUSE_PS2PLUS_BUTTON4DOWN)
+		    ms.button |= (pb->ipacket[2] & MOUSE_PS2PLUS_BUTTON4DOWN)
 			? MOUSE_BUTTON4DOWN : 0;
-		    ms.button |= (sc->ipacket[2] & MOUSE_PS2PLUS_BUTTON5DOWN)
+		    ms.button |= (pb->ipacket[2] & MOUSE_PS2PLUS_BUTTON5DOWN)
 			? MOUSE_BUTTON5DOWN : 0;
 		    break;
 		case 2:
@@ -2150,20 +2267,20 @@ psmintr(void *arg)
 		     */
 		    x = y = 0;
 		    /* horizontal count */
-		    if (sc->ipacket[2] & 0x0f)
-			z = (sc->ipacket[2] & MOUSE_SPOINT_WNEG) ? -2 : 2;
+		    if (pb->ipacket[2] & 0x0f)
+			z = (pb->ipacket[2] & MOUSE_SPOINT_WNEG) ? -2 : 2;
 		    /* vertical count */
-		    if (sc->ipacket[2] & 0xf0)
-			z = (sc->ipacket[2] & MOUSE_SPOINT_ZNEG) ? -1 : 1;
+		    if (pb->ipacket[2] & 0xf0)
+			z = (pb->ipacket[2] & MOUSE_SPOINT_ZNEG) ? -1 : 1;
 #if 0
 		    /* vertical count */
-		    z = (sc->ipacket[2] & MOUSE_SPOINT_ZNEG)
-			? ((sc->ipacket[2] >> 4) & 0x0f) - 16
-			: ((sc->ipacket[2] >> 4) & 0x0f);
+		    z = (pb->ipacket[2] & MOUSE_SPOINT_ZNEG)
+			? ((pb->ipacket[2] >> 4) & 0x0f) - 16
+			: ((pb->ipacket[2] >> 4) & 0x0f);
 		    /* horizontal count */
-		    w = (sc->ipacket[2] & MOUSE_SPOINT_WNEG)
-			? (sc->ipacket[2] & 0x0f) - 16
-			: (sc->ipacket[2] & 0x0f);
+		    w = (pb->ipacket[2] & MOUSE_SPOINT_WNEG)
+			? (pb->ipacket[2] & 0x0f) - 16
+			: (pb->ipacket[2] & 0x0f);
 #endif
 		    break;
 		case 0:
@@ -2175,8 +2292,8 @@ psmintr(void *arg)
 		    if (bootverbose)
 			log(LOG_DEBUG, "psmintr: unknown PS2++ packet type %d: "
 				       "0x%02x 0x%02x 0x%02x\n",
-			    MOUSE_PS2PLUS_PACKET_TYPE(sc->ipacket),
-			    sc->ipacket[0], sc->ipacket[1], sc->ipacket[2]);
+			    MOUSE_PS2PLUS_PACKET_TYPE(pb->ipacket),
+			    pb->ipacket[0], pb->ipacket[1], pb->ipacket[2]);
 		    break;
 		}
 	    } else {
@@ -2192,12 +2309,12 @@ psmintr(void *arg)
 
 	case MOUSE_MODEL_NETSCROLL:
 	    /* three addtional bytes encode buttons and wheel events */
-	    ms.button |= (sc->ipacket[3] & MOUSE_PS2_BUTTON3DOWN)
+	    ms.button |= (pb->ipacket[3] & MOUSE_PS2_BUTTON3DOWN)
 		? MOUSE_BUTTON4DOWN : 0;
-	    ms.button |= (sc->ipacket[3] & MOUSE_PS2_BUTTON1DOWN)
+	    ms.button |= (pb->ipacket[3] & MOUSE_PS2_BUTTON1DOWN)
 		? MOUSE_BUTTON5DOWN : 0;
-	    z = (sc->ipacket[3] & MOUSE_PS2_XNEG) 
-		? sc->ipacket[4] - 256 : sc->ipacket[4];
+	    z = (pb->ipacket[3] & MOUSE_PS2_XNEG) 
+		? pb->ipacket[4] - 256 : pb->ipacket[4];
 	    break;
 
 	case MOUSE_MODEL_THINK:
@@ -2231,8 +2348,8 @@ psmintr(void *arg)
 	    ms.button |= (c & MOUSE_PS2VERSA_TAP) ? MOUSE_BUTTON4DOWN : 0;
 	    x = y = 0;
 	    if (c & MOUSE_PS2VERSA_IN_USE) {
-		x0 = sc->ipacket[1] | (((sc->ipacket[4]) & 0x0f) << 8);
-		y0 = sc->ipacket[2] | (((sc->ipacket[4]) & 0xf0) << 4);
+		x0 = pb->ipacket[1] | (((pb->ipacket[4]) & 0x0f) << 8);
+		y0 = pb->ipacket[2] | (((pb->ipacket[4]) & 0xf0) << 4);
 		if (x0 & 0x800)
 		    x0 -= 0x1000;
 		if (y0 & 0x800)
@@ -2272,8 +2389,8 @@ psmintr(void *arg)
 	     * s2: wheel 2 direction
 	     * d2: wheel 2 data
 	     */
-	    x = (sc->ipacket[1] & 0x80) ? sc->ipacket[1] - 256 : sc->ipacket[1];
-	    y = (sc->ipacket[2] & 0x80) ? sc->ipacket[2] - 256 : sc->ipacket[2];
+	    x = (pb->ipacket[1] & 0x80) ? pb->ipacket[1] - 256 : pb->ipacket[1];
+	    y = (pb->ipacket[2] & 0x80) ? pb->ipacket[2] - 256 : pb->ipacket[2];
 	    switch (c & MOUSE_4D_WHEELBITS) {
 	    case 0x10:
 		z = 1;
@@ -2303,11 +2420,11 @@ psmintr(void *arg)
 		 * d1-d0: wheel data
 		 */
 		x = y = 0;
-		if (sc->ipacket[2] & MOUSE_4DPLUS_BUTTON4DOWN)
+		if (pb->ipacket[2] & MOUSE_4DPLUS_BUTTON4DOWN)
 		    ms.button |= MOUSE_BUTTON4DOWN;
-		z = (sc->ipacket[2] & MOUSE_4DPLUS_ZNEG)
-			? ((sc->ipacket[2] & 0x07) - 8)
-			: (sc->ipacket[2] & 0x07) ;
+		z = (pb->ipacket[2] & MOUSE_4DPLUS_ZNEG)
+			? ((pb->ipacket[2] & 0x07) - 8)
+			: (pb->ipacket[2] & 0x07) ;
 	    } else {
 		/* preserve previous button states */
 		ms.button |= ms.obutton & MOUSE_EXTBUTTONS;
@@ -2344,7 +2461,7 @@ psmintr(void *arg)
 	    | (ms.obutton ^ ms.button);
 
 	if (sc->mode.level < PSM_LEVEL_NATIVE)
-	    sc->inputbytes = tame_mouse(sc, &ms, sc->ipacket);
+	    pb->inputbytes = tame_mouse(sc, pb, &ms, pb->ipacket);
 
         sc->status.flags |= ms.flags;
         sc->status.dx += ms.dx;
@@ -2356,23 +2473,27 @@ psmintr(void *arg)
 	sc->watchdog = FALSE;
 
         /* queue data */
-        if (sc->queue.count + sc->inputbytes < sizeof(sc->queue.buf)) {
-	    l = imin(sc->inputbytes, sizeof(sc->queue.buf) - sc->queue.tail);
-	    bcopy(&sc->ipacket[0], &sc->queue.buf[sc->queue.tail], l);
-	    if (sc->inputbytes > l)
-	        bcopy(&sc->ipacket[l], &sc->queue.buf[0], sc->inputbytes - l);
+        if (sc->queue.count + pb->inputbytes < sizeof(sc->queue.buf)) {
+	    l = imin(pb->inputbytes, sizeof(sc->queue.buf) - sc->queue.tail);
+	    bcopy(&pb->ipacket[0], &sc->queue.buf[sc->queue.tail], l);
+	    if (pb->inputbytes > l)
+	        bcopy(&pb->ipacket[l], &sc->queue.buf[0], pb->inputbytes - l);
             sc->queue.tail = 
-		(sc->queue.tail + sc->inputbytes) % sizeof(sc->queue.buf);
-            sc->queue.count += sc->inputbytes;
+		(sc->queue.tail + pb->inputbytes) % sizeof(sc->queue.buf);
+            sc->queue.count += pb->inputbytes;
 	}
-        sc->inputbytes = 0;
+        pb->inputbytes = 0;
 
-        if (sc->state & PSM_ASLP) {
-            sc->state &= ~PSM_ASLP;
-            wakeup( sc);
-    	}
-        selwakeuppri(&sc->rsel, PZERO);
+	if (++sc->pqueue_start >= PSM_PACKETQUEUE)
+		sc->pqueue_start = 0;
+    } while (sc->pqueue_start != sc->pqueue_end);
+    if (sc->state & PSM_ASLP) {
+        sc->state &= ~PSM_ASLP;
+        wakeup( sc);
     }
+    selwakeuppri(&sc->rsel, PZERO);
+    sc->state &= ~PSM_SOFTARMED;
+    splx(s);
 }
 
 static int
@@ -2971,6 +3092,31 @@ psmcpnp_attach(device_t dev)
 	}
 
 	return 0;
+}
+
+/*
+ * Return true if 'now' is earlier than (start + (secs.usecs)).
+ * Now may be NULL and the function will fetch the current time from
+ * getmicrouptime(), or a cached 'now' can be passed in.
+ * All values should be numbers derived from getmicrouptime().
+ */
+static int
+timeelapsed(start, secs, usecs, now)
+	const struct timeval *start, *now;
+	int secs, usecs;
+{
+	struct timeval snow, tv;
+
+	/* if there is no 'now' passed in, the get it as a convience. */
+	if (now == NULL) {
+		getmicrouptime(&snow);
+		now = &snow;
+	}
+	
+	tv.tv_sec = secs;
+	tv.tv_usec = usecs;
+	timevaladd(&tv, start);
+	return (timevalcmp(&tv, now, <));
 }
 
 DRIVER_MODULE(psmcpnp, isa, psmcpnp_driver, psmcpnp_devclass, 0, 0);
