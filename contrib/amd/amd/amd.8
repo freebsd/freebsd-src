@@ -1,0 +1,352 @@
+.\"
+.\" Copyright (c) 1997-1998 Erez Zadok
+.\" Copyright (c) 1989 Jan-Simon Pendry
+.\" Copyright (c) 1989 Imperial College of Science, Technology & Medicine
+.\" Copyright (c) 1989 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Jan-Simon Pendry at Imperial College, London.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\"      This product includes software developed by the University of
+.\"      California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	%W% (Berkeley) %G%
+.\"
+.\" $Id: amd.8,v 5.2.2.1 1992/02/09 15:11:11 jsp beta $
+.\"
+.TH AMD 8 "3 November 1989"
+.SH NAME
+amd \- automatically mount file systems
+.SH SYNOPSIS
+.B amd
+.B \-H
+.br
+.B amd
+[
+.BI \-F " conf_file"
+]
+.br
+.B amd
+[
+.B \-nprvHS
+] [
+.BI \-a " mount_point"
+] [
+.BI \-c " duration"
+] [
+.BI \-d " domain"
+] [
+.BI \-k " kernel-arch"
+] [
+.BI \-l " logfile"
+] [
+.BI \-o " op_sys_ver"
+] [
+.BI \-t " interval.interval"
+] [
+.BI \-w " interval"
+] [
+.BI \-x " log-option"
+] [
+.BI \-y " YP-domain"
+] [
+.BI \-C " cluster-name"
+] [
+.BI \-D " option"
+] [
+.BI \-F " conf_file"
+] [
+.BI \-O " op_sys_name"
+] [
+.BI \-T " tag"
+]
+[
+.I directory
+.I mapname
+.RI [ " \-map-options " ]
+] .\|.\|.
+.SH DESCRIPTION
+.B Amd
+is a daemon that automatically mounts filesystems
+whenever a file or directory
+within that filesystem is accessed.
+Filesystems are automatically unmounted when they
+appear to have become quiescent.
+.LP
+.B Amd
+operates by attaching itself as an
+.SM NFS
+server to each of the specified
+.IB directories .
+Lookups within the specified directories
+are handled by
+.BR amd ,
+which uses the map defined by
+.I mapname
+to determine how to resolve the lookup.
+Generally, this will be a host name, some filesystem information
+and some mount options for the given filesystem.
+.LP
+In the first form depicted above,
+.B amd
+will print a short help string.  In the second form, if no options are
+specified, or the
+.B -F
+is used,
+.B amd
+will read configuration parameters from the file
+.I conf_file
+which defaults to
+.BR /etc/amd.conf .
+The last form is described below.
+.SH OPTIONS
+
+.\"*******************************************************"
+
+.TP
+.BI \-a " temporary-directory"
+Specify an alternative location for the real mount points.
+The default is
+.BR /a .
+
+.TP
+.BI \-c " duration"
+Specify a
+.IR duration ,
+in seconds, that a looked up name remains
+cached when not in use.  The default is 5 minutes.
+
+.TP
+.BI \-d " domain"
+Specify the local domain name.  If this option is not
+given the domain name is determined from the hostname.
+
+.TP
+.BI \-k " kernel-arch"
+Specifies the kernel architecture.  This is used solely
+to set the ${karch} selector.
+
+.TP
+.BI \-l " logfile"
+Specify a logfile in which to record mount and unmount events.
+If
+.I logfile
+is the string
+.B syslog
+then the log messages will be sent to the system log daemon by
+.IR syslog (3).
+The default syslog facility used is LOG_DAEMON.  If you
+wish to change it, append its name to the log file name, delimited by a
+single colon.  For example, if
+.I logfile
+is the string
+.B syslog:local7
+then
+.B Amd
+will log messages via
+.IR syslog (3)
+using the LOG_LOCAL7 facility (if it exists on the system).
+
+.TP
+.B \-n
+Normalize hostnames.
+The name refereed to by ${rhost} is normalized relative to the
+host database before being used.  The effect is to translate
+aliases into ``official'' names.
+
+.TP
+.BI \-o " op_sys_ver"
+Override the compiled-in version number of the operating system.  Useful
+when the built in version is not desired for backward compatibility reasons.
+For example, if the build in version is ``2.5.1'', you can override it to
+``5.5.1'', and use older maps that were written with the latter in mind.
+
+.TP
+.B \-p
+Print PID.
+Outputs the process-id of
+.B amd
+to standard output where it can be saved into a file.
+
+.TP
+.B \-r
+Restart existing mounts.
+.B Amd
+will scan the mount file table to determine which filesystems
+are currently mounted.  Whenever one of these would have
+been auto-mounted,
+.B amd
+.I inherits
+it.
+
+.TP
+.BI \-t " interval.interval"
+Specify the
+.IR interval ,
+in tenths of a second, between NFS/RPC/UDP retries.
+The default is 0.8 seconds.
+The second values alters the restransmit counter.
+Useful defaults are supplied if either or both
+values are missing.
+
+.TP
+.B \-v
+Version.  Displays version and configuration information on standard error.
+
+.TP
+.BI \-w " interval"
+Specify an
+.IR interval ,
+in seconds, between attempts to dismount
+filesystems that have exceeded their cached times.
+The default is 2 minutes.
+
+.TP
+.BI \-x " options"
+Specify run-time logging options.  The options are a comma separated
+list chosen from: fatal, error, user, warn, info, map, stats, all.
+
+.TP
+.BI \-y " domain"
+Specify an alternative NIS domain from which to fetch the NIS maps.
+The default is the system domain name.  This option is ignored if NIS
+support is not available.
+
+.TP
+.BI \-C " cluster-name"
+Specify an alternative HP-UX cluster name to use.
+
+.TP
+.BI \-D " option"
+Select from a variety of debug options.  Prefixing an
+option with the strings
+.B no
+reverses the effect of that option.  Options are cumulative.
+The most useful option is
+.BR all .
+Since
+.I \-D
+is only used for debugging other options are not documented here:
+the current supported set of options is listed by the \-v option
+and a fuller description is available in the program source.
+
+.TP
+.BI \-F " conf_file"
+Specify an amd configuration file to use.  See
+.BR amd.conf (5)
+for description of this file's format.  This configuration file is used to
+specify any options in lieu of typing many of them on the command line.  The
+.I amd.conf
+file includes directives for every command line option amd has, and many
+more that are only available via the configuration file facility.  The
+configuration file specified by this option is processed after all other
+options had been processed, regardless of the actual location of this option
+on the command line.
+
+.TP
+.B \-H
+Print help and usage string.
+
+.TP
+.BI \-O " op_sys_name"
+Override the compiled-in name of the operating system.  Useful when the
+built in name is not desired for backward compatibility reasons.  For
+example, if the build in name is ``sunos5'', you can override it to
+``sos5'', and use older maps which were written with the latter in mind.
+
+.TP
+.B \-S
+Do not lock the running executable pages of amd into memory.  To improve
+amd's performance, systems that support the
+.BR plock (3)
+call, could lock the amd process into memory.  This way there is less chance
+the operating system will schedule, page out, and swap the amd process as
+needed.  This tends improves amd's performance, at the cost of reserving the
+memory used by the amd process (making it unavailable for other processes).
+If this behavior is not desired, use the
+.B \-S
+option.
+
+.TP
+.BI \-T " tag"
+Specify a tag to use with
+.BR amd.conf (5).
+All map entries tagged with
+.I tag
+will be processed.  Map entries that are not tagged are always processed.
+Map entries that are tagged with a tag other than
+.I tag
+will not be processed.
+
+.SH FILES
+.PD 0
+.TP 5
+.B /a
+directory under which filesystems are dynamically mounted
+.TP 5
+.B /etc/amd.conf
+default configuration file
+.PD
+.SH CAVEATS
+Some care may be required when creating a mount map.
+.LP
+Symbolic links on an NFS filesystem can be incredibly inefficient.
+In most implementations of NFS, their interpolations are not cached
+by the kernel and each time a symlink is encountered during a
+.I lookuppn
+translation it costs an RPC call to the NFS server.
+It would appear that a large improvement in real-time
+performance could be gained by adding a cache somewhere.
+Replacing symlinks with a suitable incarnation of the auto-mounter
+results in a large real-time speedup, but also causes a large
+number of process context switches.
+.LP
+A weird imagination is most useful to gain full advantage of all
+the features.
+.SH "SEE ALSO"
+.BR amd.conf (5),
+.BR amq (8),
+.BR domainname (1),
+.BR hostname (1),
+.BR automount (8),
+.BR mount (8),
+.BR umount (8),
+.BR mtab (5),
+.BR syslog (3).
+.LP
+.I "Amd \- The 4.4 BSD Automounter"
+.SH AUTHORS
+Jan-Simon Pendry <jsp@doc.ic.ac.uk>, Department of Computing, Imperial College, London, UK.
+.P
+Erez Zadok <ezk@cs.columbia.edu>, Department of Computer Science, Columbia
+University, New York, USA.
+.P
+Other authors and contributors to am-utils are listed in the
+.B AUTHORS
+file distributed with am-utils.

@@ -1,0 +1,73 @@
+# -*- text -*-
+
+	    LIST OF KNOWN BUGS IN AM-UTILS OR OPERATING SYSTEMS
+
+
+(1) mips-sgi-irix*
+
+[1A] known to have flakey NFS V.3 and TCP.  Amd tends to hang or spin
+infinitely after a few hours or days of use.  Users must install recommended
+patches from vendor.  Patches help, but not all the time.  Otherwise avoid
+using NFS V.3 and TCP on these systems, by setting
+
+	/defaults opts:=vers=2,proto=udp
+
+[1B] yp_all() leaks a file descriptor.  Eventually amd runs out of file
+descriptors and hangs.  Am-utils circumvents this by using its own version
+of yp_all which uses udp and iterats over NIS maps.  The latter isn't as
+reliable as yp_all() which uses TCP, but it is better than hanging.
+
+
+(2) alpha-unknown-linux-gnu (RedHat Linux 4.2)
+
+hasmntopt(mnt, opt) can goes into an infinite loop if opt is any substring
+of mnt->mnt_opts.  Redhat 5.0 does not have this libc bug.  Here is an
+example program:
+
+#include <stdio.h>
+#include <mntent.h>
+main()
+{
+  struct mntent mnt;
+  char *cp;
+  mnt.mnt_opts = "intr,rw,port=1023,timeo=8,foo=br,retrans=110,indirect,map=/usr/local/AMD/etc/amd.proj,boo";
+  cp = hasmntopt(&mnt, "ro");
+  printf("cp = %s\n", cp);
+  exit(0);
+}
+
+
+(3) mips-dec-ultrix4.3
+
+Rainer Orth <ro@TechFak.Uni-Bielefeld.DE> reports
+
+[3A] At least the gcc 2.7.0 fixincludes-mangled <sys/utsname.h> needs a
+forward declaration of struct utsname to avoid lots of gcc warnings:
+
+RCS file: RCS/utsname.h,v
+retrieving revision 1.1
+diff -u -r1.1 utsname.h
+--- utsname.h   1995/06/19 13:07:01     1.1
++++ utsname.h   1998/01/27 12:34:26
+@@ -59,6 +59,7 @@
+ #ifdef KERNEL
+ #include "../h/limits.h"
+ #else /* user mode */
++struct utsname;
+ extern int     uname _PARAMS((struct utsname *));
+ #endif
+ #define __SYS_NMLN 32
+
+[3B] It autoconfigures and compiles cleanly, but currently hangs after a
+couple of hours without leaving any traces in the syslog output.
+
+
+(4) powerpc-ibm-aix4.2.1.0
+
+[4A] "Randall S. Winchester" <rsw@Glue.umd.edu> reports that for amd to
+start, you need to kill and restart rpc.mountd and possibly also make sure
+that nfsd is running.  Normally these are not required.
+
+[4B] "Stefan Vogel" <vogel@physik.unizh.ch> reports that if your amq
+executable dump core unexpectedly, then it may be a bug in gcc 2.7.x.
+Upgrade to gcc 2.8.x or use IBM's xlC compiler.
