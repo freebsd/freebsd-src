@@ -1797,7 +1797,9 @@ union_unlock(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+#if 0
 	struct union_node *un = VTOUNION(ap->a_vp);
+#endif
 	int error;
 
 	KASSERT((un->un_uppervp == NULL || un->un_uppervp->v_usecount > 0), ("uppervp usecount is 0"));
