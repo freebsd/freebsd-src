@@ -164,7 +164,6 @@ static d_open_t ccdopen;
 static d_close_t ccdclose;
 static d_strategy_t ccdstrategy;
 static d_ioctl_t ccdioctl;
-static d_dump_t ccddump;
 static d_psize_t ccdsize;
 
 #define NCCDFREEHIWAT	16
@@ -182,7 +181,7 @@ static struct cdevsw ccd_cdevsw = {
 	/* strategy */	ccdstrategy,
 	/* name */	"ccd",
 	/* maj */	CDEV_MAJOR,
-	/* dump */	ccddump,
+	/* dump */	nodump,
 	/* psize */	ccdsize,
 	/* flags */	D_DISK,
 };
@@ -1583,14 +1582,6 @@ ccdsize(dev_t dev)
 		return (-1);
 
 	return (size);
-}
-
-static int
-ccddump(dev_t dev)
-{
-
-	/* Not implemented. */
-	return ENXIO;
 }
 
 /*
