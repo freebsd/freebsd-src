@@ -1745,9 +1745,6 @@ sogetopt(so, sopt)
 	int	error, optval;
 	struct	linger l;
 	struct	timeval tv;
-#ifdef INET
-	struct accept_filter_arg *afap;
-#endif
 #ifdef MAC
 	struct mac extmac;
 #endif
@@ -1763,23 +1760,9 @@ sogetopt(so, sopt)
 		switch (sopt->sopt_name) {
 #ifdef INET
 		case SO_ACCEPTFILTER:
-			/* Unlocked read. */
-			if ((so->so_options & SO_ACCEPTCONN) == 0)
-				return (EINVAL);
-			MALLOC(afap, struct accept_filter_arg *, sizeof(*afap),
-				M_TEMP, M_WAITOK | M_ZERO);
-			SOCK_LOCK(so);
-			if ((so->so_options & SO_ACCEPTFILTER) != 0) {
-				strcpy(afap->af_name, so->so_accf->so_accept_filter->accf_name);
-				if (so->so_accf->so_accept_filter_str != NULL)
-					strcpy(afap->af_arg, so->so_accf->so_accept_filter_str);
-			}
-			SOCK_UNLOCK(so);
-			error = sooptcopyout(sopt, afap, sizeof(*afap));
-			FREE(afap, M_TEMP);
+			error = do_getopt_accept_filter(so, sopt);
 			break;
 #endif
-
 		case SO_LINGER:
 			SOCK_LOCK(so);
 			l.l_onoff = so->so_options & SO_LINGER;
