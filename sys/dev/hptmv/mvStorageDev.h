@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
+ */
 #ifndef __INCmvStorageDevh
 #define __INCmvStorageDevh
 

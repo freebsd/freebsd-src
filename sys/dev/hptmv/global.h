@@ -29,8 +29,8 @@
 #define _GLOBAL_H_
 
 #include <dev/hptmv/mvOs.h>
-#include <contrib/dev/hptmv/mvSata.h>
-#include <contrib/dev/hptmv/mvStorageDev.h>
+#include <dev/hptmv/mvSata.h>
+#include <dev/hptmv/mvStorageDev.h>
 
 #define COMPANY			"HighPoint Technologies, Inc."
 #define COPYRIGHT		"(c) 2000-2004. HighPoint Technologies, Inc."
@@ -203,11 +203,11 @@ extern void HPTLIBAPI ioctl_ReportEvent(UCHAR event, PVOID param);
 	UCHAR ptr##__buf[512];		\
 	type ptr=(type)ptr##__buf
 
-#include <contrib/dev/hptmv/atapi.h>
-#include <contrib/dev/hptmv/command.h>
-#include <contrib/dev/hptmv/array.h>
-#include <contrib/dev/hptmv/raid5n.h>
-#include <contrib/dev/hptmv/vdevice.h>
+#include <dev/hptmv/atapi.h>
+#include <dev/hptmv/command.h>
+#include <dev/hptmv/array.h>
+#include <dev/hptmv/raid5n.h>
+#include <dev/hptmv/vdevice.h>
 
 int HPTLIBAPI fDeReadWrite(PDevice pDev, ULONG Lba, UCHAR Cmd, void *tmpBuffer);
 void HPTLIBAPI fDeSelectMode(PDevice pDev, UCHAR NewMode);
