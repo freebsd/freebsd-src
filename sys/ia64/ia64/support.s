@@ -63,13 +63,18 @@
  *
  * Arguments:
  *	r14	psr for desired mode
+ *
+ * Modifies:
+ *	r15-r19	scratch
+ *	ar.bsp	tranlated to new mode
  */
 ENTRY(ia64_change_mode, 0)
 
 	rsm	psr.i | psr.ic
-	mov	ar.rsc=0		// turn off RSE
+	mov	r19=ar.rsc		// save rsc while we change mode
 	tbit.nz	p6,p7=r14,17		// physical or virtual ?
 	;;
+	mov	ar.rsc=0		// turn off RSE
 (p6)	mov	r15=7			// RR base for virtual addresses
 (p7)	mov	r15=0			// RR base for physical addresses
 	flushrs				// no dirty registers please
@@ -81,6 +86,7 @@ ENTRY(ia64_change_mode, 0)
 	;;
 	dep	r16=r15,r16,61,3	// new address of ar.bsp
 	dep	r17=r15,r17,61,3	// new address of rp
+	dep	sp=r15,sp,61,3		// new address of sp
 	;;
 	mov	ar.bspstore=r16
 	mov	rp=r17
@@ -98,7 +104,8 @@ ENTRY(ia64_change_mode, 0)
 	;;
 	rfi
 	
-2:	br.ret.sptk.few rp		// now in new mode
+2:	mov	ar.rsc=r19		// restore ar.rsc
+	br.ret.sptk.few rp		// now in new mode
 	
 END(ia64_change_mode)
 
@@ -107,12 +114,17 @@ END(ia64_change_mode)
  *
  * Return:
  *	ret0	psr to restore
+ *
+ * Modifies:
+ *	r15-r18	scratch
+ *	ar.bsp	tranlated to physical mode
+ *	psr.i	cleared
  */
 ENTRY(ia64_physical_mode, 0)
 
 	mov	r14=psr
 	mov	ret0=psr
-	movl	r15=(IA64_PSR_I|IA64_PSR_IT|IA64_PSR_DT|IA64_PSR_RT)
+	movl	r15=(IA64_PSR_I|IA64_PSR_IT|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_DFL|IA64_PSR_DFH)
 	movl	r16=IA64_PSR_BN
 	;;
 	andcm	r14=r14,r15		// clear various xT bits
@@ -124,6 +136,51 @@ ENTRY(ia64_physical_mode, 0)
 
 END(ia64_physical_mode)
 
+/*
+ * ia64_call_efi_physical:	call an EFI procedure in physical mode
+ *
+ * Arguments:
+ *	in0		Address of EFI procedure descriptor
+ *	in1-in5		Arguments to EFI procedure
+ *
+ * Return:
+ *	ret0-ret3	return values from EFI
+ *
+ */
+ENTRY(ia64_call_efi_physical, 6)
+
+	alloc	loc0=ar.pfs,6,4,5,0
+	;;
+	mov	loc1=rp
+	;;
+	br.call.sptk.many rp=ia64_physical_mode
+	;;
+	mov	loc2=r8			// psr to restore mode
+	mov	loc3=gp			// save kernel gp
+	ld8	r14=[in0],8		// function address
+	;;
+	mov	out0=in1
+	mov	out1=in2
+	mov	out2=in3
+	mov	out3=in4
+	mov	out4=in5
+	ld8	gp=[in0]		// function gp value
+	;;
+	mov	b6=r14
+	;;
+	br.call.sptk.many rp=b6		// call EFI procedure
+	mov	gp=loc3			// restore kernel gp
+	;; 
+	mov	r14=loc2		// psr to restore mode
+	br.call.sptk.many rp=ia64_change_mode
+	;;
+	mov	rp=loc1
+	mov	ar.pfs=loc0
+	;;
+	br.ret.sptk.many rp
+
+END(ia64_call_efi_physical)
+	
 /**************************************************************************/
 	
 /*
