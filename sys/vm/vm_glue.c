@@ -494,7 +494,7 @@ vm_thread_swapout(struct thread *td)
 	vm_page_t m;
 	int i, pages;
 
-#ifdef	__alpha
+#ifdef	__alpha__
 	/*
 	 * Make sure we aren't fpcurthread.
 	 */
@@ -546,7 +546,7 @@ vm_thread_swapin(struct thread *td)
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 	pmap_qenter(td->td_kstack, ma, pages);
-#ifdef	__alpha
+#ifdef	__alpha__
 	/*
 	 * The pcb may be at a different physical address now so cache the
 	 * new address.
