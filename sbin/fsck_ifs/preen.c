@@ -38,13 +38,12 @@ static const char sccsid[] = "@(#)preen.c	8.5 (Berkeley) 4/28/95";
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+
 #include <ufs/ufs/dinode.h>
+
+#include <ctype.h>
 #include <fstab.h>
 #include <string.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <ctype.h>
 
 #include "fsck.h"
 
@@ -124,8 +123,7 @@ checkfstab(preen, maxrun, docheck, chkit)
 			maxrun = ndisks;
 		nextdisk = disks;
 		for (passno = 0; passno < maxrun; ++passno) {
-			while ((ret = startdisk(nextdisk, chkit)) != 0 &&
-			    nrun > 0)
+			while ((ret = startdisk(nextdisk, chkit)) && nrun > 0)
 				sleep(10);
 			if (ret)
 				return (ret);
@@ -164,8 +162,8 @@ checkfstab(preen, maxrun, docheck, chkit)
 
 			if (nextdisk == NULL) {
 				if (dk->part) {
-					while ((ret = startdisk(dk, chkit)) != 0
-					    && nrun > 0)
+					while ((ret = startdisk(dk, chkit)) &&
+					    nrun > 0)
 						sleep(10);
 					if (ret)
 						return (ret);
@@ -178,8 +176,8 @@ checkfstab(preen, maxrun, docheck, chkit)
 					    nextdisk->pid == 0)
 						break;
 				}
-				while ((ret = startdisk(nextdisk, chkit)) != 0
-				    && nrun > 0)
+				while ((ret = startdisk(nextdisk, chkit)) &&
+				    nrun > 0)
 					sleep(10);
 				if (ret)
 					return (ret);
@@ -206,7 +204,7 @@ finddisk(name)
 {
 	register struct disk *dk, **dkp;
 	register char *p;
-	size_t len = 0;
+	size_t len;
 
 	for (len = strlen(name), p = name + len - 1; p >= name; --p)
 		if (isdigit(*p)) {

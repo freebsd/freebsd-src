@@ -42,8 +42,6 @@ static const char sccsid[] = "@(#)pass1.c	8.6 (Berkeley) 4/28/95";
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <err.h>
 #include <string.h>
 
@@ -168,7 +166,8 @@ checkinode(inumber, idesc)
 		 * Fake ndb value so direct/indirect block checks below
 		 * will detect any garbage after symlink string.
 		 */
-		if ((dp->di_size < sblock.fs_maxsymlinklen) || dp->di_blocks == 0) {
+		if (dp->di_size < sblock.fs_maxsymlinklen ||
+		    dp->di_blocks == 0) {
 			ndb = howmany(dp->di_size, sizeof(ufs_daddr_t));
 			if (ndb > NDADDR) {
 				j = ndb - NDADDR;
