@@ -116,37 +116,35 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 {
 	mode_t writable_mode;
 	struct archive_extract_dir_entry *le;
+	const struct stat *st;
 	int ret;
 	int restore_pwd;
 
 	restore_pwd = -1;
-	if (S_ISDIR(archive_entry_stat(entry)->st_mode)) {
+	st = archive_entry_stat(entry);
+	if (S_ISDIR(st->st_mode)) {
 		/*
 		 * TODO: Does this really work under all conditions?
 		 *
 		 * E.g., root restores a dir owned by someone else?
 		 */
-		writable_mode = archive_entry_stat(entry)->st_mode | 0700;
+		writable_mode = st->st_mode | 0700;
 
 		/*
 		 * In order to correctly restore non-writable dirs or
 		 * dir timestamps, we need to maintain a fix-up list.
 		 */
-		if (archive_entry_stat(entry)->st_mode != writable_mode ||
+		if (st->st_mode != writable_mode ||
 		    flags & ARCHIVE_EXTRACT_TIME) {
 			le = malloc(sizeof(struct archive_extract_dir_entry));
 			le->next = a->archive_extract_dir_list;
 			a->archive_extract_dir_list = le;
-			le->mode = archive_entry_stat(entry)->st_mode;
-			le->mtime = archive_entry_stat(entry)->st_mtime;
-			le->mtime_nanos =
-			    archive_entry_stat(entry)->st_mtimespec.tv_nsec;
-			le->atime = archive_entry_stat(entry)->st_atime;
-			le->atime_nanos =
-			    archive_entry_stat(entry)->st_atimespec.tv_nsec;
-			le->name =
-			    malloc(strlen(archive_entry_pathname(entry)) + 1);
-			strcpy(le->name, archive_entry_pathname(entry));
+			le->mode = st->st_mode;
+			le->mtime = st->st_mtime;
+			le->mtime_nanos = ARCHIVE_STAT_MTIME_NANOS(st);
+			le->atime = st->st_atime;
+			le->atime_nanos = ARCHIVE_STAT_ATIME_NANOS(st);
+			le->name = strdup(archive_entry_pathname(entry));
 			a->cleanup_archive_extract = archive_extract_cleanup;
 			/* Make sure I can write to this directory. */
 			archive_entry_set_mode(entry, writable_mode);
@@ -167,7 +165,7 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 		/* XXX Update pathname in 'entry' XXX */
 	}
 
-	switch (archive_entry_stat(entry)->st_mode & S_IFMT) {
+	switch (st->st_mode & S_IFMT) {
 	default:
 		/* Fall through, as required by POSIX. */
 	case S_IFREG:
@@ -720,10 +718,10 @@ set_time(struct archive *a, struct archive_entry *entry, int flags)
 		return (ARCHIVE_OK);
 
 	times[1].tv_sec = st->st_mtime;
-	times[1].tv_usec = st->st_mtimespec.tv_nsec / 1000;
+	times[1].tv_usec = ARCHIVE_STAT_MTIME_NANOS(st) / 1000;
 
 	times[0].tv_sec = st->st_atime;
-	times[0].tv_usec = st->st_atimespec.tv_nsec / 1000;
+	times[0].tv_usec = ARCHIVE_STAT_ATIME_NANOS(st) / 1000;
 
 #ifdef HAVE_LUTIMES
 	if (lutimes(archive_entry_pathname(entry), times) != 0) {

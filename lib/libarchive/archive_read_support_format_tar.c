@@ -109,7 +109,7 @@ static int 	pax_attribute(struct archive_entry *, struct stat *,
 		    wchar_t *key, wchar_t *value);
 static int 	pax_header(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *, char *attr);
-static void	pax_time(const wchar_t *, struct timespec *t);
+static void	pax_time(const wchar_t *, int64_t *sec, long *nanos);
 static int	read_body_to_string(struct archive *, struct archive_string *,
 		    const void *h);
 static int64_t	tar_atol(const char *, unsigned);
@@ -884,6 +884,9 @@ static int
 pax_attribute(struct archive_entry *entry, struct stat *st,
     wchar_t *key, wchar_t *value)
 {
+	int64_t s;
+	long n;
+
 	switch (key[0]) {
 	case 'L':
 		/* Our extensions */
@@ -913,13 +916,18 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 			st->st_nlink = tar_atol10(value, wcslen(value));
 		break;
 	case 'a':
-		if (wcscmp(key, L"atime")==0)
-			pax_time(value, &(st->st_atimespec));
+		if (wcscmp(key, L"atime")==0) {
+			pax_time(value, &s, &n);
+			st->st_atime = s;
+			ARCHIVE_STAT_SET_ATIME_NANOS(st, n);
+		}
 		break;
 	case 'c':
-		if (wcscmp(key, L"ctime")==0)
-			pax_time(value, &(st->st_ctimespec));
-		else if (wcscmp(key, L"charset")==0) {
+		if (wcscmp(key, L"ctime")==0) {
+			pax_time(value, &s, &n);
+			st->st_ctime = s;
+			ARCHIVE_STAT_SET_CTIME_NANOS(st, n);
+		} else if (wcscmp(key, L"charset")==0) {
 			/* TODO: Publish charset information in entry. */
 		} else if (wcscmp(key, L"comment")==0) {
 			/* TODO: Publish comment in entry. */
@@ -941,8 +949,11 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
 		}
 		break;
 	case 'm':
-		if (wcscmp(key, L"mtime")==0)
-			pax_time(value, &(st->st_mtimespec));
+		if (wcscmp(key, L"mtime")==0) {
+			pax_time(value, &s, &n);
+			st->st_mtime = s;
+			ARCHIVE_STAT_SET_MTIME_NANOS(st, n);
+		}
 		break;
 	case 'p':
 		if (wcscmp(key, L"path")==0)
@@ -973,7 +984,7 @@ pax_attribute(struct archive_entry *entry, struct stat *st,
  * parse a decimal time value, which may include a fractional portion
  */
 static void
-pax_time(const wchar_t *p, struct timespec *t)
+pax_time(const wchar_t *p, int64_t *ps, long *pn)
 {
 	char digit;
 	int64_t	s;
@@ -1000,10 +1011,10 @@ pax_time(const wchar_t *p, struct timespec *t)
 		++p;
 	}
 
-	t->tv_sec = s * sign;
+	*ps = s * sign;
 
 	/* Calculate nanoseconds. */
-	t->tv_nsec = 0;
+	*pn = 0;
 
 	if (*p != '.')
 		return;
@@ -1012,7 +1023,7 @@ pax_time(const wchar_t *p, struct timespec *t)
 	do {
 		++p;
 		if (*p >= '0' && *p <= '9')
-			t->tv_nsec += (*p - '0') * l;
+			*pn += (*p - '0') * l;
 		else
 			break;
 	} while (l /= 10);
