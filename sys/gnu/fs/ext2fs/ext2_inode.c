@@ -257,7 +257,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = UFS_UPDATE(ovp, &tv, &tv, MNT_WAIT);
+	allerror = UFS_UPDATE(ovp, &tv, &tv, 1);
 
 	/*
 	 * Having written the new inode to disk, save its new configuration
