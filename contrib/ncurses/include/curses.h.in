@@ -31,7 +31,7 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-/* $Id: curses.h.in,v 1.96 2000/09/16 16:11:01 tom Exp $ */
+/* $Id: curses.h.in,v 1.97 2000/12/10 02:00:24 tom Exp $ */
 
 #ifndef __NCURSES_H
 #define __NCURSES_H
@@ -53,6 +53,8 @@
 /* This is defined in more than one ncurses header, for identification */
 #undef  NCURSES_VERSION
 #define NCURSES_VERSION "@NCURSES_MAJOR@.@NCURSES_MINOR@"
+
+#include <ncurses_dll.h>
 
 #ifdef NCURSES_NOMACROS
 #define NCURSES_ATTR_T attr_t
@@ -123,8 +125,8 @@ extern "C" {
 #define WA_VERTICAL	A_VERTICAL
 
 /* colors */
-extern int COLORS;
-extern int COLOR_PAIRS;
+extern NCURSES_EXPORT_VAR(int) COLORS;
+extern NCURSES_EXPORT_VAR(int) COLOR_PAIRS;
 
 #define COLOR_BLACK	0
 #define COLOR_RED	1
@@ -137,7 +139,7 @@ extern int COLOR_PAIRS;
 
 /* line graphics */
 
-extern	chtype acs_map[];
+extern NCURSES_EXPORT_VAR(chtype) acs_map[];
 
 /* VT100 symbols begin here */
 #define ACS_ULCORNER	(acs_map['l'])	/* upper left corner */
@@ -304,33 +306,33 @@ struct _win_st
 	NCURSES_SIZE_T _yoffset; /* real begy is _begy + _yoffset */
 };
 
-extern WINDOW   *stdscr;
-extern WINDOW   *curscr;
-extern WINDOW   *newscr;
+extern NCURSES_EXPORT_VAR(WINDOW *)   stdscr;
+extern NCURSES_EXPORT_VAR(WINDOW *)   curscr;
+extern NCURSES_EXPORT_VAR(WINDOW *)   newscr;
 
-extern int	LINES;
-extern int	COLS;
-extern int	TABSIZE;
+extern NCURSES_EXPORT_VAR(int)	LINES;
+extern NCURSES_EXPORT_VAR(int)	COLS;
+extern NCURSES_EXPORT_VAR(int)	TABSIZE;
 
 /*
  * This global was an undocumented feature under AIX curses.
  */
-extern int ESCDELAY;	/* ESC expire time in milliseconds */
+extern NCURSES_EXPORT_VAR(int) ESCDELAY;	/* ESC expire time in milliseconds */
 
-extern char ttytype[];		/* needed for backward compatibility */
+extern NCURSES_EXPORT_VAR(char) ttytype[];	/* needed for backward compatibility */
 
 /*
  * These functions are extensions - not in XSI Curses.
  */
-extern char *keybound (int, int);
-extern const char *curses_version (void);
-extern int assume_default_colors (int, int);
-extern int define_key (char *, int);
-extern int keyok (int, bool);
-extern int resizeterm (int, int);
-extern int use_default_colors (void);
-extern int use_extended_names (bool);
-extern int wresize (WINDOW *, int, int);
+extern NCURSES_EXPORT(char *) keybound (int, int);
+extern NCURSES_EXPORT(const char *) curses_version (void);
+extern NCURSES_EXPORT(int) assume_default_colors (int, int);
+extern NCURSES_EXPORT(int) define_key (char *, int);
+extern NCURSES_EXPORT(int) keyok (int, bool);
+extern NCURSES_EXPORT(int) resizeterm (int, int);
+extern NCURSES_EXPORT(int) use_default_colors (void);
+extern NCURSES_EXPORT(int) use_extended_names (bool);
+extern NCURSES_EXPORT(int) wresize (WINDOW *, int, int);
 
 /*
  * GCC (and some other compilers) define '__attribute__'; we're using this
@@ -384,478 +386,478 @@ extern int wresize (WINDOW *, int, int);
  * requirements.
  */
 
-extern int addch(const chtype);				/* generated */
-extern int addchnstr(const chtype *, int);		/* generated */
-extern int addchstr(const chtype *);			/* generated */
-extern int addnstr(const char *, int);			/* generated */
-extern int addstr(const char *);			/* generated */
+extern NCURSES_EXPORT(int) addch (const chtype);			/* generated */
+extern NCURSES_EXPORT(int) addchnstr (const chtype *, int);		/* generated */
+extern NCURSES_EXPORT(int) addchstr (const chtype *);			/* generated */
+extern NCURSES_EXPORT(int) addnstr (const char *, int);			/* generated */
+extern NCURSES_EXPORT(int) addstr (const char *);			/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int addnwstr(const wchar_t *, int);		/* missing */
-extern int addwstr(const wchar_t *);			/* missing */
-extern int add_wch(const cchar_t *);			/* missing */
-extern int add_wchnstr(const cchar_t *, int);		/* missing */
-extern int add_wchstr(const cchar_t *);			/* missing */
+extern NCURSES_EXPORT(int) addnwstr (const wchar_t *, int);		/* missing */
+extern NCURSES_EXPORT(int) addwstr (const wchar_t *);			/* missing */
+extern NCURSES_EXPORT(int) add_wch (const cchar_t *);			/* missing */
+extern NCURSES_EXPORT(int) add_wchnstr (const cchar_t *, int);		/* missing */
+extern NCURSES_EXPORT(int) add_wchstr (const cchar_t *);		/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int attroff(NCURSES_ATTR_T);			/* generated */
-extern int attron(NCURSES_ATTR_T);			/* generated */
-extern int attrset(NCURSES_ATTR_T);			/* generated */
-extern int attr_get(attr_t *, short *, void *);		/* generated */
-extern int attr_off(attr_t, void *);			/* generated */
-extern int attr_on(attr_t, void *);			/* generated */
-extern int attr_set(attr_t, short, void *);		/* generated */
-extern int baudrate(void);				/* implemented */
-extern int beep(void);					/* implemented */
-extern int bkgd(chtype);				/* generated */
-extern void bkgdset(chtype);				/* generated */
+extern NCURSES_EXPORT(int) attroff (NCURSES_ATTR_T);			/* generated */
+extern NCURSES_EXPORT(int) attron (NCURSES_ATTR_T);			/* generated */
+extern NCURSES_EXPORT(int) attrset (NCURSES_ATTR_T);			/* generated */
+extern NCURSES_EXPORT(int) attr_get (attr_t *, short *, void *);	/* generated */
+extern NCURSES_EXPORT(int) attr_off (attr_t, void *);			/* generated */
+extern NCURSES_EXPORT(int) attr_on (attr_t, void *);			/* generated */
+extern NCURSES_EXPORT(int) attr_set (attr_t, short, void *);		/* generated */
+extern NCURSES_EXPORT(int) baudrate (void);				/* implemented */
+extern NCURSES_EXPORT(int) beep  (void);				/* implemented */
+extern NCURSES_EXPORT(int) bkgd (chtype);				/* generated */
+extern NCURSES_EXPORT(void) bkgdset (chtype);				/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern void bkgrndset(const cchar_t *);			/* missing */
-extern int bkgrnd(const cchar_t *);			/* missing */
+extern NCURSES_EXPORT(void) bkgrndset (const cchar_t *);		/* missing */
+extern NCURSES_EXPORT(int) bkgrnd (const cchar_t *);			/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int border(chtype,chtype,chtype,chtype,chtype,chtype,chtype,chtype);	/* generated */
+extern NCURSES_EXPORT(int) border (chtype,chtype,chtype,chtype,chtype,chtype,chtype,chtype);	/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int border_set(const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*);	/* missing */
+extern NCURSES_EXPORT(int) border_set (const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int box(WINDOW *, chtype, chtype);		/* generated */
+extern NCURSES_EXPORT(int) box (WINDOW *, chtype, chtype);		/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int box_set(WINDOW *, const cchar_t *, const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) box_set (WINDOW *, const cchar_t *, const cchar_t *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern bool can_change_color(void);			/* implemented */
-extern int cbreak(void);				/* implemented */
-extern int chgat(int, attr_t, short, const void *);	/* generated */
-extern int clear(void);					/* generated */
-extern int clearok(WINDOW *,bool);			/* implemented */
-extern int clrtobot(void);				/* generated */
-extern int clrtoeol(void);				/* generated */
-extern int color_content(short,short*,short*,short*);	/* implemented */
-extern int color_set(short,void*);			/* generated */
-extern int COLOR_PAIR(int);				/* generated */
-extern int copywin(const WINDOW*,WINDOW*,int,int,int,int,int,int,int);	/* implemented */
-extern int curs_set(int);				/* implemented */
-extern int def_prog_mode(void);				/* implemented */
-extern int def_shell_mode(void);			/* implemented */
-extern int delay_output(int);				/* implemented */
-extern int delch(void);					/* generated */
-extern void delscreen(SCREEN *);			/* implemented */
-extern int delwin(WINDOW *);				/* implemented */
-extern int deleteln(void);				/* generated */
-extern WINDOW *derwin(WINDOW *,int,int,int,int);	/* implemented */
-extern int doupdate(void);				/* implemented */
-extern WINDOW *dupwin(WINDOW *);			/* implemented */
-extern int echo(void);					/* implemented */
-extern int echochar(const chtype);			/* generated */
-extern int erase(void);					/* generated */
+extern NCURSES_EXPORT(bool) can_change_color (void);			/* implemented */
+extern NCURSES_EXPORT(int) cbreak (void);				/* implemented */
+extern NCURSES_EXPORT(int) chgat (int, attr_t, short, const void *);	/* generated */
+extern NCURSES_EXPORT(int) clear (void);				/* generated */
+extern NCURSES_EXPORT(int) clearok (WINDOW *,bool);			/* implemented */
+extern NCURSES_EXPORT(int) clrtobot (void);				/* generated */
+extern NCURSES_EXPORT(int) clrtoeol (void);				/* generated */
+extern NCURSES_EXPORT(int) color_content (short,short*,short*,short*);	/* implemented */
+extern NCURSES_EXPORT(int) color_set (short,void*);			/* generated */
+extern NCURSES_EXPORT(int) COLOR_PAIR (int);				/* generated */
+extern NCURSES_EXPORT(int) copywin (const WINDOW*,WINDOW*,int,int,int,int,int,int,int);	/* implemented */
+extern NCURSES_EXPORT(int) curs_set (int);				/* implemented */
+extern NCURSES_EXPORT(int) def_prog_mode (void);			/* implemented */
+extern NCURSES_EXPORT(int) def_shell_mode (void);			/* implemented */
+extern NCURSES_EXPORT(int) delay_output (int);				/* implemented */
+extern NCURSES_EXPORT(int) delch (void);				/* generated */
+extern NCURSES_EXPORT(void) delscreen (SCREEN *);			/* implemented */
+extern NCURSES_EXPORT(int) delwin (WINDOW *);				/* implemented */
+extern NCURSES_EXPORT(int) deleteln (void);				/* generated */
+extern NCURSES_EXPORT(WINDOW *) derwin (WINDOW *,int,int,int,int);	/* implemented */
+extern NCURSES_EXPORT(int) doupdate (void);				/* implemented */
+extern NCURSES_EXPORT(WINDOW *) dupwin (WINDOW *);			/* implemented */
+extern NCURSES_EXPORT(int) echo (void);					/* implemented */
+extern NCURSES_EXPORT(int) echochar (const chtype);			/* generated */
+extern NCURSES_EXPORT(int) erase (void);				/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int echo_wchar(const cchar_t *);			/* missing */
-extern int erasewchar(wchar_t*);			/* missing */
+extern NCURSES_EXPORT(int) echo_wchar (const cchar_t *);		/* missing */
+extern NCURSES_EXPORT(int) erasewchar (wchar_t*);			/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int endwin(void);				/* implemented */
-extern char erasechar(void);				/* implemented */
-extern void filter(void);				/* implemented */
-extern int flash(void);					/* implemented */
-extern int flushinp(void);				/* implemented */
-extern chtype getbkgd(WINDOW *);			/* generated */
+extern NCURSES_EXPORT(int) endwin (void);				/* implemented */
+extern NCURSES_EXPORT(char) erasechar (void);				/* implemented */
+extern NCURSES_EXPORT(void) filter (void);				/* implemented */
+extern NCURSES_EXPORT(int) flash (void);				/* implemented */
+extern NCURSES_EXPORT(int) flushinp (void);				/* implemented */
+extern NCURSES_EXPORT(chtype) getbkgd (WINDOW *);			/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int getbkgrnd(cchar_t *);			/* missing */
-extern int getcchar(const cchar_t *, wchar_t*, attr_t*, short*, void*);	/* missing */
+extern NCURSES_EXPORT(int) getbkgrnd (cchar_t *);			/* missing */
+extern NCURSES_EXPORT(int) getcchar (const cchar_t *, wchar_t*, attr_t*, short*, void*);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int getch(void);					/* generated */
-extern int getnstr(char *, int);			/* generated */
+extern NCURSES_EXPORT(int) getch (void);				/* generated */
+extern NCURSES_EXPORT(int) getnstr (char *, int);			/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int getn_wstr(wint_t *, int);			/* missing */
+extern NCURSES_EXPORT(int) getn_wstr (wint_t *, int);			/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int getstr(char *);				/* generated */
+extern NCURSES_EXPORT(int) getstr (char *);				/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int get_wch(wint_t *);				/* missing */
+extern NCURSES_EXPORT(int) get_wch (wint_t *);				/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern WINDOW *getwin(FILE *);				/* implemented */
+extern NCURSES_EXPORT(WINDOW *) getwin (FILE *);			/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int get_wstr(wint_t *);				/* missing */
+extern NCURSES_EXPORT(int) get_wstr (wint_t *);				/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int halfdelay(int);				/* implemented */
-extern bool has_colors(void);				/* implemented */
-extern bool has_ic(void);				/* implemented */
-extern bool has_il(void);				/* implemented */
-extern int hline(chtype, int);				/* generated */
+extern NCURSES_EXPORT(int) halfdelay (int);				/* implemented */
+extern NCURSES_EXPORT(bool) has_colors (void);				/* implemented */
+extern NCURSES_EXPORT(bool) has_ic (void);				/* implemented */
+extern NCURSES_EXPORT(bool) has_il (void);				/* implemented */
+extern NCURSES_EXPORT(int) hline (chtype, int);				/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int hline_set(const cchar_t *, int);		/* missing */
+extern NCURSES_EXPORT(int) hline_set (const cchar_t *, int);		/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern void idcok(WINDOW *, bool);			/* implemented */
-extern int idlok(WINDOW *, bool);			/* implemented */
-extern void immedok(WINDOW *, bool);			/* implemented */
-extern chtype inch(void);				/* generated */
-extern int inchnstr(chtype *, int);			/* generated */
-extern int inchstr(chtype *);				/* generated */
-extern WINDOW *initscr(void);				/* implemented */
-extern int init_color(short,short,short,short);		/* implemented */
-extern int init_pair(short,short,short);		/* implemented */
-extern int innstr(char *, int);				/* generated */
+extern NCURSES_EXPORT(void) idcok (WINDOW *, bool);			/* implemented */
+extern NCURSES_EXPORT(int) idlok (WINDOW *, bool);			/* implemented */
+extern NCURSES_EXPORT(void) immedok (WINDOW *, bool);			/* implemented */
+extern NCURSES_EXPORT(chtype) inch (void);				/* generated */
+extern NCURSES_EXPORT(int) inchnstr (chtype *, int);			/* generated */
+extern NCURSES_EXPORT(int) inchstr (chtype *);				/* generated */
+extern NCURSES_EXPORT(WINDOW *) initscr (void);				/* implemented */
+extern NCURSES_EXPORT(int) init_color (short,short,short,short);	/* implemented */
+extern NCURSES_EXPORT(int) init_pair (short,short,short);		/* implemented */
+extern NCURSES_EXPORT(int) innstr (char *, int);			/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int innwstr(wchar_t *, int);			/* missing */
+extern NCURSES_EXPORT(int) innwstr (wchar_t *, int);			/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int insch(chtype);				/* generated */
-extern int insdelln(int);				/* generated */
-extern int insertln(void);				/* generated */
-extern int insnstr(const char *, int);			/* generated */
-extern int insstr(const char *);			/* generated */
-extern int instr(char *);				/* generated */
+extern NCURSES_EXPORT(int) insch (chtype);				/* generated */
+extern NCURSES_EXPORT(int) insdelln (int);				/* generated */
+extern NCURSES_EXPORT(int) insertln (void);				/* generated */
+extern NCURSES_EXPORT(int) insnstr (const char *, int);			/* generated */
+extern NCURSES_EXPORT(int) insstr (const char *);			/* generated */
+extern NCURSES_EXPORT(int) instr (char *);				/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int ins_nwstr(const wchar_t *, int);		/* missing */
-extern int ins_wch(const cchar_t *);			/* missing */
-extern int ins_wstr(const wchar_t *);			/* missing */
+extern NCURSES_EXPORT(int) ins_nwstr (const wchar_t *, int);		/* missing */
+extern NCURSES_EXPORT(int) ins_wch (const cchar_t *);			/* missing */
+extern NCURSES_EXPORT(int) ins_wstr (const wchar_t *);			/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int intrflush(WINDOW *,bool);			/* implemented */
+extern NCURSES_EXPORT(int) intrflush (WINDOW *,bool);			/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int inwstr(wchar_t *);				/* missing */
-extern int in_wch(NCURSES_CONST cchar_t *);		/* missing */
-extern int in_wchstr(NCURSES_CONST cchar_t *);		/* missing */
-extern int in_wchnstr(NCURSES_CONST cchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) inwstr (wchar_t *);				/* missing */
+extern NCURSES_EXPORT(int) in_wch (NCURSES_CONST cchar_t *);		/* missing */
+extern NCURSES_EXPORT(int) in_wchstr (NCURSES_CONST cchar_t *);		/* missing */
+extern NCURSES_EXPORT(int) in_wchnstr (NCURSES_CONST cchar_t *, int);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern bool isendwin(void);				/* implemented */
-extern bool is_linetouched(WINDOW *,int);		/* implemented */
-extern bool is_wintouched(WINDOW *);			/* implemented */
-extern NCURSES_CONST char *keyname(int);		/* implemented */
+extern NCURSES_EXPORT(bool) isendwin (void);				/* implemented */
+extern NCURSES_EXPORT(bool) is_linetouched (WINDOW *,int);		/* implemented */
+extern NCURSES_EXPORT(bool) is_wintouched (WINDOW *);			/* implemented */
+extern NCURSES_EXPORT(NCURSES_CONST char *) keyname (int);		/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern char *key_name(wchar_t);				/* missing */
+extern NCURSES_EXPORT(char *) key_name (wchar_t);			/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int keypad(WINDOW *,bool);			/* implemented */
-extern char killchar(void);				/* implemented */
+extern NCURSES_EXPORT(int) keypad (WINDOW *,bool);			/* implemented */
+extern NCURSES_EXPORT(char) killchar (void);				/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int killwchar(wchar_t *);			/* missing */
+extern NCURSES_EXPORT(int) killwchar (wchar_t *);			/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int leaveok(WINDOW *,bool);			/* implemented */
-extern char *longname(void);				/* implemented */
-extern int meta(WINDOW *,bool);				/* implemented */
-extern int move(int, int);				/* generated */
-extern int mvaddch(int, int, const chtype);		/* generated */
-extern int mvaddchnstr(int, int, const chtype *, int);	/* generated */
-extern int mvaddchstr(int, int, const chtype *);	/* generated */
-extern int mvaddnstr(int, int, const char *, int);	/* generated */
-extern int mvaddstr(int, int, const char *);		/* generated */
+extern NCURSES_EXPORT(int) leaveok (WINDOW *,bool);			/* implemented */
+extern NCURSES_EXPORT(char *) longname (void);				/* implemented */
+extern NCURSES_EXPORT(int) meta (WINDOW *,bool);			/* implemented */
+extern NCURSES_EXPORT(int) move (int, int);				/* generated */
+extern NCURSES_EXPORT(int) mvaddch (int, int, const chtype);		/* generated */
+extern NCURSES_EXPORT(int) mvaddchnstr (int, int, const chtype *, int);	/* generated */
+extern NCURSES_EXPORT(int) mvaddchstr (int, int, const chtype *);	/* generated */
+extern NCURSES_EXPORT(int) mvaddnstr (int, int, const char *, int);	/* generated */
+extern NCURSES_EXPORT(int) mvaddstr (int, int, const char *);		/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvaddnwstr(int, int, const wchar_t *, int);	/* missing */
-extern int mvaddwstr(int, int, const wchar_t *);	/* missing */
-extern int mvadd_wch(int, int, const cchar_t *);	/* missing */
-extern int mvadd_wchnstr(int, int, const cchar_t *, int);/* missing */
-extern int mvadd_wchstr(int, int, const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvaddnwstr (int, int, const wchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) mvaddwstr (int, int, const wchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvadd_wch (int, int, const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvadd_wchnstr (int, int, const cchar_t *, int);/* missing */
+extern NCURSES_EXPORT(int) mvadd_wchstr (int, int, const cchar_t *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvchgat(int, int, int, attr_t, short, const void *);	/* generated */
-extern int mvcur(int,int,int,int);			/* implemented */
-extern int mvdelch(int, int);				/* generated */
-extern int mvderwin(WINDOW *, int, int);		/* implemented */
-extern int mvgetch(int, int);				/* generated */
-extern int mvgetnstr(int, int, char *, int);		/* generated */
+extern NCURSES_EXPORT(int) mvchgat (int, int, int, attr_t, short, const void *);	/* generated */
+extern NCURSES_EXPORT(int) mvcur (int,int,int,int);			/* implemented */
+extern NCURSES_EXPORT(int) mvdelch (int, int);				/* generated */
+extern NCURSES_EXPORT(int) mvderwin (WINDOW *, int, int);		/* implemented */
+extern NCURSES_EXPORT(int) mvgetch (int, int);				/* generated */
+extern NCURSES_EXPORT(int) mvgetnstr (int, int, char *, int);		/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvgetn_wstr(int, int, wint_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) mvgetn_wstr (int, int, wint_t *, int);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvgetstr(int, int, char *);			/* generated */
+extern NCURSES_EXPORT(int) mvgetstr (int, int, char *);			/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvget_wch(int, int, wint_t *);		/* missing */
+extern NCURSES_EXPORT(int) mvget_wch (int, int, wint_t *);		/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvget_wstr(int, int, wint_t *);		/* missing */
+extern NCURSES_EXPORT(int) mvget_wstr (int, int, wint_t *);		/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvhline(int, int, chtype, int);		/* generated */
+extern NCURSES_EXPORT(int) mvhline (int, int, chtype, int);		/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvhline_set(int, int, const cchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) mvhline_set (int, int, const cchar_t *, int);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern chtype mvinch(int, int);				/* generated */
-extern int mvinchnstr(int, int, chtype *, int);		/* generated */
-extern int mvinchstr(int, int, chtype *);		/* generated */
-extern int mvinnstr(int, int, char *, int);		/* generated */
+extern NCURSES_EXPORT(chtype) mvinch (int, int);			/* generated */
+extern NCURSES_EXPORT(int) mvinchnstr (int, int, chtype *, int);	/* generated */
+extern NCURSES_EXPORT(int) mvinchstr (int, int, chtype *);		/* generated */
+extern NCURSES_EXPORT(int) mvinnstr (int, int, char *, int);		/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvinnwstr(int, int, wchar_t *, int);		/* missing */
+extern NCURSES_EXPORT(int) mvinnwstr (int, int, wchar_t *, int);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvinsch(int, int, chtype);			/* generated */
-extern int mvinsnstr(int, int, const char *, int);	/* generated */
-extern int mvinsstr(int, int, const char *);		/* generated */
-extern int mvinstr(int, int, char *);			/* generated */
+extern NCURSES_EXPORT(int) mvinsch (int, int, chtype);			/* generated */
+extern NCURSES_EXPORT(int) mvinsnstr (int, int, const char *, int);	/* generated */
+extern NCURSES_EXPORT(int) mvinsstr (int, int, const char *);		/* generated */
+extern NCURSES_EXPORT(int) mvinstr (int, int, char *);			/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvins_nwstr(int, int, const wchar_t *, int);	/* missing */
-extern int mvins_wch(int, int, const cchar_t *);	/* missing */
-extern int mvins_wstr(int, int, const wchar_t *);	/* missing */
-extern int mvinwstr(int, int, wchar_t *);		/* missing */
-extern int mvin_wch(int, int, NCURSES_CONST cchar_t *);	/* missing */
-extern int mvin_wchstr(int, int, NCURSES_CONST cchar_t *);	/* missing */
-extern int mvin_wchnstr(int, int, NCURSES_CONST cchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) mvins_nwstr (int, int, const wchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) mvins_wch (int, int, const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvins_wstr (int, int, const wchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvinwstr (int, int, wchar_t *);		/* missing */
+extern NCURSES_EXPORT(int) mvin_wch (int, int, NCURSES_CONST cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvin_wchstr (int, int, NCURSES_CONST cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvin_wchnstr (int, int, NCURSES_CONST cchar_t *, int);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvprintw(int,int, NCURSES_CONST char *,...)	/* implemented */
+extern NCURSES_EXPORT(int) mvprintw (int,int, NCURSES_CONST char *,...)	/* implemented */
 		GCC_PRINTFLIKE(3,4);
-extern int mvscanw(int,int, NCURSES_CONST char *,...)	/* implemented */
+extern NCURSES_EXPORT(int) mvscanw (int,int, NCURSES_CONST char *,...)	/* implemented */
 		GCC_SCANFLIKE(3,4);
-extern int mvvline(int, int, chtype, int);		/* generated */
+extern NCURSES_EXPORT(int) mvvline (int, int, chtype, int);		/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvvline_set(int, int, const cchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) mvvline_set (int, int, const cchar_t *, int);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvwaddch(WINDOW *, int, int, const chtype);	/* generated */
-extern int mvwaddchnstr(WINDOW *, int, int, const chtype *, int);/* generated */
-extern int mvwaddchstr(WINDOW *, int, int, const chtype *);	/* generated */
-extern int mvwaddnstr(WINDOW *, int, int, const char *, int);	/* generated */
-extern int mvwaddstr(WINDOW *, int, int, const char *);	/* generated */
+extern NCURSES_EXPORT(int) mvwaddch (WINDOW *, int, int, const chtype);	/* generated */
+extern NCURSES_EXPORT(int) mvwaddchnstr (WINDOW *, int, int, const chtype *, int);/* generated */
+extern NCURSES_EXPORT(int) mvwaddchstr (WINDOW *, int, int, const chtype *);	/* generated */
+extern NCURSES_EXPORT(int) mvwaddnstr (WINDOW *, int, int, const char *, int);	/* generated */
+extern NCURSES_EXPORT(int) mvwaddstr (WINDOW *, int, int, const char *);	/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvwaddnwstr(WINDOW *, int, int, const wchar_t *, int);/* missing */
-extern int mvwaddwstr(WINDOW *, int, int, const wchar_t *);	/* missing */
-extern int mvwadd_wch(WINDOW *, int, int, const cchar_t *);	/* missing */
-extern int mvwadd_wchnstr(WINDOW *, int, int, const cchar_t *, int); /* missing */
-extern int mvwadd_wchstr(WINDOW *, int, int, const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvwaddnwstr (WINDOW *, int, int, const wchar_t *, int);/* missing */
+extern NCURSES_EXPORT(int) mvwaddwstr (WINDOW *, int, int, const wchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvwadd_wch (WINDOW *, int, int, const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvwadd_wchnstr (WINDOW *, int, int, const cchar_t *, int); /* missing */
+extern NCURSES_EXPORT(int) mvwadd_wchstr (WINDOW *, int, int, const cchar_t *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvwchgat(WINDOW *, int, int, int, attr_t, short, const void *);/* generated */
-extern int mvwdelch(WINDOW *, int, int);		/* generated */
-extern int mvwgetch(WINDOW *, int, int);		/* generated */
-extern int mvwgetnstr(WINDOW *, int, int, char *, int);	/* generated */
+extern NCURSES_EXPORT(int) mvwchgat (WINDOW *, int, int, int, attr_t, short, const void *);/* generated */
+extern NCURSES_EXPORT(int) mvwdelch (WINDOW *, int, int);		/* generated */
+extern NCURSES_EXPORT(int) mvwgetch (WINDOW *, int, int);		/* generated */
+extern NCURSES_EXPORT(int) mvwgetnstr (WINDOW *, int, int, char *, int);	/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvwgetn_wstr(WINDOW *, int, int, wint_t *, int);/* missing */
+extern NCURSES_EXPORT(int) mvwgetn_wstr (WINDOW *, int, int, wint_t *, int);/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvwgetstr(WINDOW *, int, int, char *);	/* generated */
+extern NCURSES_EXPORT(int) mvwgetstr (WINDOW *, int, int, char *);	/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvwget_wch(WINDOW *, int, int, wint_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvwget_wch (WINDOW *, int, int, wint_t *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvwget_wstr(WINDOW *, int, int, wint_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvwget_wstr (WINDOW *, int, int, wint_t *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvwhline(WINDOW *, int, int, chtype, int);	/* generated */
+extern NCURSES_EXPORT(int) mvwhline (WINDOW *, int, int, chtype, int);	/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvwhline_set(WINDOW *, int, int, const cchar_t *, int);/* missing */
+extern NCURSES_EXPORT(int) mvwhline_set (WINDOW *, int, int, const cchar_t *, int);/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvwin(WINDOW *,int,int);			/* implemented */
-extern chtype mvwinch(WINDOW *, int, int);			/* generated */
-extern int mvwinchnstr(WINDOW *, int, int, chtype *, int);	/* generated */
-extern int mvwinchstr(WINDOW *, int, int, chtype *);		/* generated */
-extern int mvwinnstr(WINDOW *, int, int, char *, int);		/* generated */
+extern NCURSES_EXPORT(int) mvwin (WINDOW *,int,int);			/* implemented */
+extern NCURSES_EXPORT(chtype) mvwinch (WINDOW *, int, int);			/* generated */
+extern NCURSES_EXPORT(int) mvwinchnstr (WINDOW *, int, int, chtype *, int);	/* generated */
+extern NCURSES_EXPORT(int) mvwinchstr (WINDOW *, int, int, chtype *);		/* generated */
+extern NCURSES_EXPORT(int) mvwinnstr (WINDOW *, int, int, char *, int);		/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvwinnwstr(WINDOW *, int, int, wchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) mvwinnwstr (WINDOW *, int, int, wchar_t *, int);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvwinsch(WINDOW *, int, int, chtype);		/* generated */
-extern int mvwinsnstr(WINDOW *, int, int, const char *, int);	/* generated */
-extern int mvwinsstr(WINDOW *, int, int, const char *);		/* generated */
-extern int mvwinstr(WINDOW *, int, int, char *);		/* generated */
+extern NCURSES_EXPORT(int) mvwinsch (WINDOW *, int, int, chtype);		/* generated */
+extern NCURSES_EXPORT(int) mvwinsnstr (WINDOW *, int, int, const char *, int);	/* generated */
+extern NCURSES_EXPORT(int) mvwinsstr (WINDOW *, int, int, const char *);		/* generated */
+extern NCURSES_EXPORT(int) mvwinstr (WINDOW *, int, int, char *);		/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvwins_nwstr(WINDOW *, int,int, const wchar_t *,int); /* missing */
-extern int mvwins_wch(WINDOW *, int, int, const cchar_t *);	/* missing */
-extern int mvwins_wstr(WINDOW *, int, int, const wchar_t *);	/* missing */
-extern int mvwinwstr(WINDOW *, int, int, wchar_t *);		/* missing */
-extern int mvwin_wch(WINDOW *, int, int, NCURSES_CONST cchar_t *);	/* missing */
-extern int mvwin_wchnstr(WINDOW *, int,int, NCURSES_CONST cchar_t *,int); /* missing */
-extern int mvwin_wchstr(WINDOW *, int, int, NCURSES_CONST cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvwins_nwstr (WINDOW *, int,int, const wchar_t *,int); /* missing */
+extern NCURSES_EXPORT(int) mvwins_wch (WINDOW *, int, int, const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvwins_wstr (WINDOW *, int, int, const wchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvwinwstr (WINDOW *, int, int, wchar_t *);		/* missing */
+extern NCURSES_EXPORT(int) mvwin_wch (WINDOW *, int, int, NCURSES_CONST cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) mvwin_wchnstr (WINDOW *, int,int, NCURSES_CONST cchar_t *,int); /* missing */
+extern NCURSES_EXPORT(int) mvwin_wchstr (WINDOW *, int, int, NCURSES_CONST cchar_t *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int mvwprintw(WINDOW*,int,int, NCURSES_CONST char *,...)	/* implemented */
+extern NCURSES_EXPORT(int) mvwprintw (WINDOW*,int,int, NCURSES_CONST char *,...)	/* implemented */
 		GCC_PRINTFLIKE(4,5);
-extern int mvwscanw(WINDOW *,int,int, NCURSES_CONST char *,...)	/* implemented */
+extern NCURSES_EXPORT(int) mvwscanw (WINDOW *,int,int, NCURSES_CONST char *,...)	/* implemented */
 		GCC_SCANFLIKE(4,5);
-extern int mvwvline(WINDOW *,int, int, chtype, int);	/* generated */
+extern NCURSES_EXPORT(int) mvwvline (WINDOW *,int, int, chtype, int);	/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int mvwvline_set(WINDOW *, int,int, const cchar_t *,int); /* missing */
+extern NCURSES_EXPORT(int) mvwvline_set (WINDOW *, int,int, const cchar_t *,int); /* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int napms(int);					/* implemented */
-extern WINDOW *newpad(int,int);				/* implemented */
-extern SCREEN *newterm(NCURSES_CONST char *,FILE *,FILE *);	/* implemented */
-extern WINDOW *newwin(int,int,int,int);			/* implemented */
-extern int nl(void);					/* implemented */
-extern int nocbreak(void);				/* implemented */
-extern int nodelay(WINDOW *,bool);			/* implemented */
-extern int noecho(void);				/* implemented */
-extern int nonl(void);					/* implemented */
-extern void noqiflush(void);				/* implemented */
-extern int noraw(void);					/* implemented */
-extern int notimeout(WINDOW *,bool);			/* implemented */
-extern int overlay(const WINDOW*,WINDOW *);		/* implemented */
-extern int overwrite(const WINDOW*,WINDOW *);		/* implemented */
-extern int pair_content(short,short*,short*);		/* implemented */
-extern int PAIR_NUMBER(int);				/* generated */
-extern int pechochar(WINDOW *, const chtype);		/* implemented */
+extern NCURSES_EXPORT(int) napms (int);					/* implemented */
+extern NCURSES_EXPORT(WINDOW *) newpad (int,int);				/* implemented */
+extern NCURSES_EXPORT(SCREEN *) newterm (NCURSES_CONST char *,FILE *,FILE *);	/* implemented */
+extern NCURSES_EXPORT(WINDOW *) newwin (int,int,int,int);			/* implemented */
+extern NCURSES_EXPORT(int) nl (void);					/* implemented */
+extern NCURSES_EXPORT(int) nocbreak (void);				/* implemented */
+extern NCURSES_EXPORT(int) nodelay (WINDOW *,bool);			/* implemented */
+extern NCURSES_EXPORT(int) noecho (void);				/* implemented */
+extern NCURSES_EXPORT(int) nonl (void);					/* implemented */
+extern NCURSES_EXPORT(void) noqiflush (void);				/* implemented */
+extern NCURSES_EXPORT(int) noraw (void);				/* implemented */
+extern NCURSES_EXPORT(int) notimeout (WINDOW *,bool);			/* implemented */
+extern NCURSES_EXPORT(int) overlay (const WINDOW*,WINDOW *);		/* implemented */
+extern NCURSES_EXPORT(int) overwrite (const WINDOW*,WINDOW *);		/* implemented */
+extern NCURSES_EXPORT(int) pair_content (short,short*,short*);		/* implemented */
+extern NCURSES_EXPORT(int) PAIR_NUMBER (int);				/* generated */
+extern NCURSES_EXPORT(int) pechochar (WINDOW *, const chtype);		/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int pecho_wchar(WINDOW *, const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) pecho_wchar (WINDOW *, const cchar_t *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int pnoutrefresh(WINDOW*,int,int,int,int,int,int);/* implemented */
-extern int prefresh(WINDOW *,int,int,int,int,int,int);	/* implemented */
-extern int printw(NCURSES_CONST char *,...)		/* implemented */
+extern NCURSES_EXPORT(int) pnoutrefresh (WINDOW*,int,int,int,int,int,int);/* implemented */
+extern NCURSES_EXPORT(int) prefresh (WINDOW *,int,int,int,int,int,int);	/* implemented */
+extern NCURSES_EXPORT(int) printw (NCURSES_CONST char *,...)		/* implemented */
 		GCC_PRINTFLIKE(1,2);
-extern int putp(const char *);				/* implemented */
-extern int putwin(WINDOW *, FILE *);			/* implemented */
-extern void qiflush(void);				/* implemented */
-extern int raw(void);					/* implemented */
-extern int redrawwin(WINDOW *);				/* generated */
-extern int refresh(void);				/* generated */
-extern int resetty(void);				/* implemented */
-extern int reset_prog_mode(void);			/* implemented */
-extern int reset_shell_mode(void);			/* implemented */
-extern int ripoffline(int, int (*init)(WINDOW *, int));	/* implemented */
-extern int savetty(void);				/* implemented */
-extern int scanw(NCURSES_CONST char *,...)		/* implemented */
+extern NCURSES_EXPORT(int) putp (const char *);				/* implemented */
+extern NCURSES_EXPORT(int) putwin (WINDOW *, FILE *);			/* implemented */
+extern NCURSES_EXPORT(void) qiflush (void);				/* implemented */
+extern NCURSES_EXPORT(int) raw (void);					/* implemented */
+extern NCURSES_EXPORT(int) redrawwin (WINDOW *);			/* generated */
+extern NCURSES_EXPORT(int) refresh (void);				/* generated */
+extern NCURSES_EXPORT(int) resetty (void);				/* implemented */
+extern NCURSES_EXPORT(int) reset_prog_mode (void);			/* implemented */
+extern NCURSES_EXPORT(int) reset_shell_mode (void);			/* implemented */
+extern NCURSES_EXPORT(int) ripoffline (int, int (*init)(WINDOW *, int));	/* implemented */
+extern NCURSES_EXPORT(int) savetty (void);				/* implemented */
+extern NCURSES_EXPORT(int) scanw (NCURSES_CONST char *,...)		/* implemented */
 		GCC_SCANFLIKE(1,2);
-extern int scr_dump(const char *);			/* implemented */
-extern int scr_init(const char *);			/* implemented */
-extern int scrl(int);					/* generated */
-extern int scroll(WINDOW *);				/* generated */
-extern int scrollok(WINDOW *,bool);			/* implemented */
-extern int scr_restore(const char *);			/* implemented */
-extern int scr_set(const char *);			/* implemented */
+extern NCURSES_EXPORT(int) scr_dump (const char *);			/* implemented */
+extern NCURSES_EXPORT(int) scr_init (const char *);			/* implemented */
+extern NCURSES_EXPORT(int) scrl (int);					/* generated */
+extern NCURSES_EXPORT(int) scroll (WINDOW *);				/* generated */
+extern NCURSES_EXPORT(int) scrollok (WINDOW *,bool);			/* implemented */
+extern NCURSES_EXPORT(int) scr_restore (const char *);			/* implemented */
+extern NCURSES_EXPORT(int) scr_set (const char *);			/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int setcchar(cchar_t *, const wchar_t *, const attr_t, short, const void *);	/* missing */
+extern NCURSES_EXPORT(int) setcchar (cchar_t *, const wchar_t *, const attr_t, short, const void *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int setscrreg(int,int);				/* generated */
-extern SCREEN *set_term(SCREEN *);			/* implemented */
-extern int slk_attroff(const chtype);			/* implemented */
-extern int slk_attr_off(const attr_t, void *);		/* generated:WIDEC */
-extern int slk_attron(const chtype);			/* implemented */
-extern int slk_attr_on(attr_t,void*);			/* generated:WIDEC */
-extern int slk_attrset(const chtype);			/* implemented */
-extern attr_t slk_attr(void);				/* implemented */
-extern int slk_attr_set(const attr_t,short,void*);	/* implemented */
-extern int slk_clear(void);				/* implemented */
-extern int slk_color(short);				/* implemented */
-extern int slk_init(int);				/* implemented */
-extern char *slk_label(int);				/* implemented */
-extern int slk_noutrefresh(void);			/* implemented */
-extern int slk_refresh(void);				/* implemented */
-extern int slk_restore(void);				/* implemented */
-extern int slk_set(int,const char *,int);		/* implemented */
-extern int slk_touch(void);				/* implemented */
+extern NCURSES_EXPORT(int) setscrreg (int,int);				/* generated */
+extern NCURSES_EXPORT(SCREEN *) set_term (SCREEN *);			/* implemented */
+extern NCURSES_EXPORT(int) slk_attroff (const chtype);			/* implemented */
+extern NCURSES_EXPORT(int) slk_attr_off (const attr_t, void *);		/* generated:WIDEC */
+extern NCURSES_EXPORT(int) slk_attron (const chtype);			/* implemented */
+extern NCURSES_EXPORT(int) slk_attr_on (attr_t,void*);			/* generated:WIDEC */
+extern NCURSES_EXPORT(int) slk_attrset (const chtype);			/* implemented */
+extern NCURSES_EXPORT(attr_t) slk_attr (void);				/* implemented */
+extern NCURSES_EXPORT(int) slk_attr_set (const attr_t,short,void*);	/* implemented */
+extern NCURSES_EXPORT(int) slk_clear (void);				/* implemented */
+extern NCURSES_EXPORT(int) slk_color (short);				/* implemented */
+extern NCURSES_EXPORT(int) slk_init (int);				/* implemented */
+extern NCURSES_EXPORT(char *) slk_label (int);				/* implemented */
+extern NCURSES_EXPORT(int) slk_noutrefresh (void);			/* implemented */
+extern NCURSES_EXPORT(int) slk_refresh (void);				/* implemented */
+extern NCURSES_EXPORT(int) slk_restore (void);				/* implemented */
+extern NCURSES_EXPORT(int) slk_set (int,const char *,int);		/* implemented */
+extern NCURSES_EXPORT(int) slk_touch (void);				/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int slk_wset(int, const wchar_t *, int);		/* missing */
+extern NCURSES_EXPORT(int) slk_wset (int, const wchar_t *, int);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int standout(void);				/* generated */
-extern int standend(void);				/* generated */
-extern int start_color(void);				/* implemented */
-extern WINDOW *subpad(WINDOW *, int, int, int, int);	/* implemented */
-extern WINDOW *subwin(WINDOW *,int,int,int,int);	/* implemented */
-extern int syncok(WINDOW *, bool);			/* implemented */
-extern chtype termattrs(void);				/* implemented */
-extern attr_t term_attrs(void);				/* missing */
-extern char *termname(void);				/* implemented */
-extern int tigetflag(NCURSES_CONST char *);		/* implemented */
-extern int tigetnum(NCURSES_CONST char *);		/* implemented */
-extern char *tigetstr(NCURSES_CONST char *);		/* implemented */
-extern void timeout(int);				/* generated */
-extern int touchline(WINDOW *, int, int);		/* generated */
-extern int touchwin(WINDOW *);				/* generated */
-extern char *tparm(NCURSES_CONST char *, ...);		/* implemented */
-extern int typeahead(int);				/* implemented */
-extern int ungetch(int);				/* implemented */
+extern NCURSES_EXPORT(int) standout (void);				/* generated */
+extern NCURSES_EXPORT(int) standend (void);				/* generated */
+extern NCURSES_EXPORT(int) start_color (void);				/* implemented */
+extern NCURSES_EXPORT(WINDOW *) subpad (WINDOW *, int, int, int, int);	/* implemented */
+extern NCURSES_EXPORT(WINDOW *) subwin (WINDOW *,int,int,int,int);	/* implemented */
+extern NCURSES_EXPORT(int) syncok (WINDOW *, bool);			/* implemented */
+extern NCURSES_EXPORT(chtype) termattrs (void);				/* implemented */
+extern NCURSES_EXPORT(attr_t) term_attrs (void);			/* missing */
+extern NCURSES_EXPORT(char *) termname (void);				/* implemented */
+extern NCURSES_EXPORT(int) tigetflag (NCURSES_CONST char *);		/* implemented */
+extern NCURSES_EXPORT(int) tigetnum (NCURSES_CONST char *);		/* implemented */
+extern NCURSES_EXPORT(char *) tigetstr (NCURSES_CONST char *);		/* implemented */
+extern NCURSES_EXPORT(void) timeout (int);				/* generated */
+extern NCURSES_EXPORT(int) touchline (WINDOW *, int, int);		/* generated */
+extern NCURSES_EXPORT(int) touchwin (WINDOW *);				/* generated */
+extern NCURSES_EXPORT(char *) tparm (NCURSES_CONST char *, ...);	/* implemented */
+extern NCURSES_EXPORT(int) typeahead (int);				/* implemented */
+extern NCURSES_EXPORT(int) ungetch (int);				/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int unget_wch(const wchar_t);			/* missing */
+extern NCURSES_EXPORT(int) unget_wch (const wchar_t);			/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int untouchwin(WINDOW *);			/* generated */
-extern void use_env(bool);				/* implemented */
-extern int vidattr(chtype);				/* implemented */
-extern int vid_attr(attr_t, short, void *);		/* generated:WIDEC */
-extern int vidputs(chtype, int (*)(int));		/* implemented */
+extern NCURSES_EXPORT(int) untouchwin (WINDOW *);			/* generated */
+extern NCURSES_EXPORT(void) use_env (bool);				/* implemented */
+extern NCURSES_EXPORT(int) vidattr (chtype);				/* implemented */
+extern NCURSES_EXPORT(int) vid_attr (attr_t, short, void *);		/* generated:WIDEC */
+extern NCURSES_EXPORT(int) vidputs (chtype, int (*)(int));		/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int vid_puts(attr_t, short, void *, int (*)(int)); /* missing */
+extern NCURSES_EXPORT(int) vid_puts (attr_t, short, void *, int (*)(int)); /* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int vline(chtype, int);				/* generated */
+extern NCURSES_EXPORT(int) vline (chtype, int);				/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int vline_set(const cchar_t *, int);		/* missing */
+extern NCURSES_EXPORT(int) vline_set (const cchar_t *, int);		/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int vwprintw(WINDOW *, NCURSES_CONST char *,va_list);	/* implemented */
-extern int vw_printw(WINDOW *, NCURSES_CONST char *,va_list);	/* generated */
-extern int vwscanw(WINDOW *, NCURSES_CONST char *,va_list);	/* implemented */
-extern int vw_scanw(WINDOW *, NCURSES_CONST char *,va_list);	/* generated */
-extern int waddch(WINDOW *, const chtype);		/* implemented */
-extern int waddchnstr(WINDOW *,const chtype *const,int); /* implemented */
-extern int waddchstr(WINDOW *,const chtype *);		/* generated */
-extern int waddnstr(WINDOW *,const char *const,int);	/* implemented */
-extern int waddstr(WINDOW *,const char *);		/* generated */
+extern NCURSES_EXPORT(int) vwprintw (WINDOW *, NCURSES_CONST char *,va_list);	/* implemented */
+extern NCURSES_EXPORT(int) vw_printw (WINDOW *, NCURSES_CONST char *,va_list);	/* generated */
+extern NCURSES_EXPORT(int) vwscanw (WINDOW *, NCURSES_CONST char *,va_list);	/* implemented */
+extern NCURSES_EXPORT(int) vw_scanw (WINDOW *, NCURSES_CONST char *,va_list);	/* generated */
+extern NCURSES_EXPORT(int) waddch (WINDOW *, const chtype);		/* implemented */
+extern NCURSES_EXPORT(int) waddchnstr (WINDOW *,const chtype *const,int); /* implemented */
+extern NCURSES_EXPORT(int) waddchstr (WINDOW *,const chtype *);		/* generated */
+extern NCURSES_EXPORT(int) waddnstr (WINDOW *,const char *const,int);	/* implemented */
+extern NCURSES_EXPORT(int) waddstr (WINDOW *,const char *);		/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int waddwstr(WINDOW *,const wchar_t *);		/* missing */
-extern int waddnwstr(WINDOW *,const wchar_t *,int);	/* missing */
-extern int wadd_wch(WINDOW *,const cchar_t *);		/* missing */
-extern int wadd_wchnstr(WINDOW *,const cchar_t *,int);	/* missing */
-extern int wadd_wchstr(WINDOW *,const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) waddwstr (WINDOW *,const wchar_t *);		/* missing */
+extern NCURSES_EXPORT(int) waddnwstr (WINDOW *,const wchar_t *,int);	/* missing */
+extern NCURSES_EXPORT(int) wadd_wch (WINDOW *,const cchar_t *);		/* missing */
+extern NCURSES_EXPORT(int) wadd_wchnstr (WINDOW *,const cchar_t *,int);	/* missing */
+extern NCURSES_EXPORT(int) wadd_wchstr (WINDOW *,const cchar_t *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int wattron(WINDOW *, int);			/* generated */
-extern int wattroff(WINDOW *, int);			/* generated */
-extern int wattrset(WINDOW *, int);			/* generated */
-extern int wattr_get(WINDOW *, attr_t *, short *, void *);	/* generated */
-extern int wattr_on(WINDOW *, NCURSES_CONST attr_t, void *);	/* implemented */
-extern int wattr_off(WINDOW *, NCURSES_CONST attr_t, void *);	/* implemented */
-extern int wattr_set(WINDOW *, attr_t, short, void *);		/* generated */
-extern int wbkgd(WINDOW *,const chtype);		/* implemented */
-extern void wbkgdset(WINDOW *,chtype);			/* implemented */
+extern NCURSES_EXPORT(int) wattron (WINDOW *, int);			/* generated */
+extern NCURSES_EXPORT(int) wattroff (WINDOW *, int);			/* generated */
+extern NCURSES_EXPORT(int) wattrset (WINDOW *, int);			/* generated */
+extern NCURSES_EXPORT(int) wattr_get (WINDOW *, attr_t *, short *, void *);	/* generated */
+extern NCURSES_EXPORT(int) wattr_on (WINDOW *, NCURSES_CONST attr_t, void *);	/* implemented */
+extern NCURSES_EXPORT(int) wattr_off (WINDOW *, NCURSES_CONST attr_t, void *);	/* implemented */
+extern NCURSES_EXPORT(int) wattr_set (WINDOW *, attr_t, short, void *);		/* generated */
+extern NCURSES_EXPORT(int) wbkgd (WINDOW *,const chtype);		/* implemented */
+extern NCURSES_EXPORT(void) wbkgdset (WINDOW *,chtype);			/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern void wbkgrndset(WINDOW *,const cchar_t *);	/* missing */
-extern int wbkgrnd(WINDOW *,const cchar_t *);		/* missing */
+extern NCURSES_EXPORT(void) wbkgrndset (WINDOW *,const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) wbkgrnd (WINDOW *,const cchar_t *);		/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int wborder(WINDOW *,chtype,chtype,chtype,chtype,chtype,chtype,chtype,chtype);	/* implemented */
+extern NCURSES_EXPORT(int) wborder (WINDOW *,chtype,chtype,chtype,chtype,chtype,chtype,chtype,chtype);	/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int wborder_set(WINDOW *,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*);	/* missing */
+extern NCURSES_EXPORT(int) wborder_set (WINDOW *,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*,const cchar_t*);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int wchgat(WINDOW *, int, attr_t, short, const void *);/* implemented */
-extern int wclear(WINDOW *);				/* implemented */
-extern int wclrtobot(WINDOW *);				/* implemented */
-extern int wclrtoeol(WINDOW *);				/* implemented */
-extern int wcolor_set(WINDOW*,short,void*);		/* implemented */
-extern void wcursyncup(WINDOW *);			/* implemented */
-extern int wdelch(WINDOW *);				/* implemented */
-extern int wdeleteln(WINDOW *);				/* generated */
-extern int wechochar(WINDOW *, const chtype);		/* implemented */
+extern NCURSES_EXPORT(int) wchgat (WINDOW *, int, attr_t, short, const void *);/* implemented */
+extern NCURSES_EXPORT(int) wclear (WINDOW *);				/* implemented */
+extern NCURSES_EXPORT(int) wclrtobot (WINDOW *);			/* implemented */
+extern NCURSES_EXPORT(int) wclrtoeol (WINDOW *);			/* implemented */
+extern NCURSES_EXPORT(int) wcolor_set (WINDOW*,short,void*);		/* implemented */
+extern NCURSES_EXPORT(void) wcursyncup (WINDOW *);			/* implemented */
+extern NCURSES_EXPORT(int) wdelch (WINDOW *);				/* implemented */
+extern NCURSES_EXPORT(int) wdeleteln (WINDOW *);			/* generated */
+extern NCURSES_EXPORT(int) wechochar (WINDOW *, const chtype);		/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int wecho_wchar(WINDOW *, const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) wecho_wchar (WINDOW *, const cchar_t *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int werase(WINDOW *);				/* implemented */
+extern NCURSES_EXPORT(int) werase (WINDOW *);				/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int wgetbkgrnd(WINDOW *, cchar_t *);		/* missing */
+extern NCURSES_EXPORT(int) wgetbkgrnd (WINDOW *, cchar_t *);		/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int wgetch(WINDOW *);				/* implemented */
-extern int wgetnstr(WINDOW *,char *,int);		/* implemented */
+extern NCURSES_EXPORT(int) wgetch (WINDOW *);				/* implemented */
+extern NCURSES_EXPORT(int) wgetnstr (WINDOW *,char *,int);		/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int wgetn_wstr(WINDOW *,wint_t *, int);		/* missing */
+extern NCURSES_EXPORT(int) wgetn_wstr (WINDOW *,wint_t *, int);		/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int wgetstr(WINDOW *, char *);			/* generated */
+extern NCURSES_EXPORT(int) wgetstr (WINDOW *, char *);			/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int wget_wch(WINDOW *, wint_t *);		/* missing */
-extern int wget_wstr(WINDOW *, wint_t *);		/* missing */
+extern NCURSES_EXPORT(int) wget_wch (WINDOW *, wint_t *);		/* missing */
+extern NCURSES_EXPORT(int) wget_wstr (WINDOW *, wint_t *);		/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int whline(WINDOW *, chtype, int);		/* implemented */
+extern NCURSES_EXPORT(int) whline (WINDOW *, chtype, int);		/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int whline_set(WINDOW *, const cchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) whline_set (WINDOW *, const cchar_t *, int);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern chtype winch(WINDOW *);				/* implemented */
-extern int winchnstr(WINDOW *, chtype *, int);		/* implemented */
-extern int winchstr(WINDOW *, chtype *);		/* generated */
-extern int winnstr(WINDOW *, char *, int);		/* implemented */
+extern NCURSES_EXPORT(chtype) winch (WINDOW *);				/* implemented */
+extern NCURSES_EXPORT(int) winchnstr (WINDOW *, chtype *, int);		/* implemented */
+extern NCURSES_EXPORT(int) winchstr (WINDOW *, chtype *);		/* generated */
+extern NCURSES_EXPORT(int) winnstr (WINDOW *, char *, int);		/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int winnwstr(WINDOW *, wchar_t *, int);		/* missing */
+extern NCURSES_EXPORT(int) winnwstr (WINDOW *, wchar_t *, int);		/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int winsch(WINDOW *, chtype);			/* implemented */
-extern int winsdelln(WINDOW *,int);			/* implemented */
-extern int winsertln(WINDOW *);				/* generated */
-extern int winsnstr(WINDOW *, const char *,int);	/* implemented */
-extern int winsstr(WINDOW *, const char *);		/* generated */
-extern int winstr(WINDOW *, char *);			/* generated */
+extern NCURSES_EXPORT(int) winsch (WINDOW *, chtype);			/* implemented */
+extern NCURSES_EXPORT(int) winsdelln (WINDOW *,int);			/* implemented */
+extern NCURSES_EXPORT(int) winsertln (WINDOW *);			/* generated */
+extern NCURSES_EXPORT(int) winsnstr (WINDOW *, const char *,int);	/* implemented */
+extern NCURSES_EXPORT(int) winsstr (WINDOW *, const char *);		/* generated */
+extern NCURSES_EXPORT(int) winstr (WINDOW *, char *);			/* generated */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int wins_nwstr(WINDOW *, const wchar_t *, int);	/* missing */
-extern int wins_wch(WINDOW *, const cchar_t *);		/* missing */
-extern int wins_wstr(WINDOW *, const wchar_t *);	/* missing */
-extern int winwstr(WINDOW *, wchar_t *);		/* missing */
-extern int win_wch(WINDOW *, NCURSES_CONST cchar_t *);	/* missing */
-extern int win_wchnstr(WINDOW *, NCURSES_CONST cchar_t *, int);	/* missing */
-extern int win_wchstr(WINDOW *, NCURSES_CONST cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) wins_nwstr (WINDOW *, const wchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) wins_wch (WINDOW *, const cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) wins_wstr (WINDOW *, const wchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) winwstr (WINDOW *, wchar_t *);		/* missing */
+extern NCURSES_EXPORT(int) win_wch (WINDOW *, NCURSES_CONST cchar_t *);	/* missing */
+extern NCURSES_EXPORT(int) win_wchnstr (WINDOW *, NCURSES_CONST cchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) win_wchstr (WINDOW *, NCURSES_CONST cchar_t *);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int wmove(WINDOW *,int,int);			/* implemented */
-extern int wnoutrefresh(WINDOW *);			/* implemented */
-extern int wprintw(WINDOW *, NCURSES_CONST char *,...)	/* implemented */
+extern NCURSES_EXPORT(int) wmove (WINDOW *,int,int);			/* implemented */
+extern NCURSES_EXPORT(int) wnoutrefresh (WINDOW *);			/* implemented */
+extern NCURSES_EXPORT(int) wprintw (WINDOW *, NCURSES_CONST char *,...)	/* implemented */
 		GCC_PRINTFLIKE(2,3);
-extern int wredrawln(WINDOW *,int,int);			/* implemented */
-extern int wrefresh(WINDOW *);				/* implemented */
-extern int wscanw(WINDOW *, NCURSES_CONST char *,...)	/* implemented */
+extern NCURSES_EXPORT(int) wredrawln (WINDOW *,int,int);		/* implemented */
+extern NCURSES_EXPORT(int) wrefresh (WINDOW *);				/* implemented */
+extern NCURSES_EXPORT(int) wscanw (WINDOW *, NCURSES_CONST char *,...)	/* implemented */
 		GCC_SCANFLIKE(2,3);
-extern int wscrl(WINDOW *,int);				/* implemented */
-extern int wsetscrreg(WINDOW *,int,int);		/* implemented */
-extern int wstandout(WINDOW *);				/* generated */
-extern int wstandend(WINDOW *);				/* generated */
-extern void wsyncdown(WINDOW *);			/* implemented */
-extern void wsyncup(WINDOW *);				/* implemented */
-extern void wtimeout(WINDOW *,int);			/* implemented */
-extern int wtouchln(WINDOW *,int,int,int);		/* implemented */
+extern NCURSES_EXPORT(int) wscrl (WINDOW *,int);			/* implemented */
+extern NCURSES_EXPORT(int) wsetscrreg (WINDOW *,int,int);		/* implemented */
+extern NCURSES_EXPORT(int) wstandout (WINDOW *);			/* generated */
+extern NCURSES_EXPORT(int) wstandend (WINDOW *);			/* generated */
+extern NCURSES_EXPORT(void) wsyncdown (WINDOW *);			/* implemented */
+extern NCURSES_EXPORT(void) wsyncup (WINDOW *);				/* implemented */
+extern NCURSES_EXPORT(void) wtimeout (WINDOW *,int);			/* implemented */
+extern NCURSES_EXPORT(int) wtouchln (WINDOW *,int,int,int);		/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern wchar_t *wunctrl(cchar_t *);			/* missing */
+extern NCURSES_EXPORT(wchar_t *) wunctrl (cchar_t *);			/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
-extern int wvline(WINDOW *,chtype,int);			/* implemented */
+extern NCURSES_EXPORT(int) wvline (WINDOW *,chtype,int);		/* implemented */
 #ifdef _XOPEN_SOURCE_EXTENDED
-extern int wvline_set(WINDOW *, const cchar_t *, int);	/* missing */
+extern NCURSES_EXPORT(int) wvline_set (WINDOW *, const cchar_t *, int);	/* missing */
 #endif /* _XOPEN_SOURCE_EXTENDED */
 
-extern bool mouse_trafo(int*, int*, bool);              /* generated */
+extern NCURSES_EXPORT(bool) mouse_trafo (int*, int*, bool);              /* generated */
 
 /* attributes */
 
@@ -1301,32 +1303,32 @@ typedef struct
 }
 MEVENT;
 
-extern int getmouse(MEVENT *);
-extern int ungetmouse(MEVENT *);
-extern mmask_t mousemask(mmask_t, mmask_t *);
-extern bool wenclose(const WINDOW *, int, int);
-extern int mouseinterval(int);
-extern bool wmouse_trafo(const WINDOW* win,int* y, int* x, bool to_screen);
+extern NCURSES_EXPORT(int) getmouse (MEVENT *);
+extern NCURSES_EXPORT(int) ungetmouse (MEVENT *);
+extern NCURSES_EXPORT(mmask_t) mousemask (mmask_t, mmask_t *);
+extern NCURSES_EXPORT(bool) wenclose (const WINDOW *, int, int);
+extern NCURSES_EXPORT(int) mouseinterval (int);
+extern NCURSES_EXPORT(bool) wmouse_trafo (const WINDOW* win,int* y, int* x, bool to_screen);
 
 #define mouse_trafo(y,x,to_screen) wmouse_trafo(stdscr,y,x,to_screen)
 
 /* other non-XSI functions */
 
-extern int mcprint(char *, int);	/* direct data to printer */
-extern int has_key(int);		/* do we have given key? */
+extern NCURSES_EXPORT(int) mcprint (char *, int);	/* direct data to printer */
+extern NCURSES_EXPORT(int) has_key (int);		/* do we have given key? */
 
 /* Debugging : use with libncurses_g.a */
 
-extern void _tracef(const char *, ...) GCC_PRINTFLIKE(1,2);
-extern void _tracedump(const char *, WINDOW *);
-extern char *_traceattr(attr_t);
-extern char *_traceattr2(int, chtype);
-extern char *_nc_tracebits(void);
-extern char *_tracechar(const unsigned char);
-extern char *_tracechtype(chtype);
-extern char *_tracechtype2(int, chtype);
-extern char *_tracemouse(const MEVENT *);
-extern void trace(const unsigned int);
+extern NCURSES_EXPORT(void) _tracef (const char *, ...) GCC_PRINTFLIKE(1,2);
+extern NCURSES_EXPORT(void) _tracedump (const char *, WINDOW *);
+extern NCURSES_EXPORT(char *) _traceattr (attr_t);
+extern NCURSES_EXPORT(char *) _traceattr2 (int, chtype);
+extern NCURSES_EXPORT(char *) _nc_tracebits (void);
+extern NCURSES_EXPORT(char *) _tracechar (const unsigned char);
+extern NCURSES_EXPORT(char *) _tracechtype (chtype);
+extern NCURSES_EXPORT(char *) _tracechtype2 (int, chtype);
+extern NCURSES_EXPORT(char *) _tracemouse (const MEVENT *);
+extern NCURSES_EXPORT(void) trace (const unsigned int);
 
 /* trace masks */
 #define TRACE_DISABLE	0x0000	/* turn off tracing */
@@ -1347,8 +1349,8 @@ extern void trace(const unsigned int);
 #define TRACE_MAXIMUM	0xffff	/* maximum trace level */
 
 #if defined(TRACE) || defined(NCURSES_TEST)
-extern int _nc_optimize_enable;		/* enable optimizations */
-extern const char *_nc_visbuf(const char *);
+extern NCURSES_EXPORT_VAR(int) _nc_optimize_enable;		/* enable optimizations */
+extern NCURSES_EXPORT(const char *) _nc_visbuf (const char *);
 #define OPTIMIZE_MVCUR		0x01	/* cursor movement optimization */
 #define OPTIMIZE_HASHMAP	0x02	/* diff hashing to detect scrolls */
 #define OPTIMIZE_SCROLL		0x04	/* scroll optimization */

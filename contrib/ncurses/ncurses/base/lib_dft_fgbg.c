@@ -33,13 +33,13 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: lib_dft_fgbg.c,v 1.13 2000/07/07 16:50:27 tom Exp $")
+MODULE_ID("$Id: lib_dft_fgbg.c,v 1.15 2000/12/10 02:43:27 tom Exp $")
 
 /*
  * Modify the behavior of color-pair 0 so that the library doesn't assume that
  * it is white on black.  This is an extension to XSI curses.
  */
-int
+NCURSES_EXPORT(int)
 use_default_colors(void)
 {
     T((T_CALLED("use_default_colors()")));
@@ -50,7 +50,7 @@ use_default_colors(void)
  * Modify the behavior of color-pair 0 so that the library assumes that it
  * is something specific, possibly not white on black.
  */
-int
+NCURSES_EXPORT(int)
 assume_default_colors(int fg, int bg)
 {
     T((T_CALLED("assume_default_colors(%d,%d)"), fg, bg));

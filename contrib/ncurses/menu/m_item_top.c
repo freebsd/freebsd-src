@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_top.c,v 1.4 1999/05/16 17:26:01 juergen Exp $")
+MODULE_ID("$Id: m_item_top.c,v 1.5 2000/12/10 02:16:48 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -49,7 +49,8 @@ MODULE_ID("$Id: m_item_top.c,v 1.4 1999/05/16 17:26:01 juergen Exp $")
 |                    E_BAD_ARGUMENT   - not a menu pointer or invalid row
 |                    E_NOT_CONNECTED  - there are no items for the menu
 +--------------------------------------------------------------------------*/
-int set_top_row(MENU * menu, int row)
+NCURSES_EXPORT(int)
+set_top_row (MENU * menu, int row)
 {
   ITEM *item;
   
@@ -88,7 +89,8 @@ int set_top_row(MENU * menu, int row)
 |
 |   Return Values :  The row number or ERR if there is no row
 +--------------------------------------------------------------------------*/
-int top_row(const MENU * menu)
+NCURSES_EXPORT(int)
+top_row (const MENU * menu)
 {
   if (menu && menu->items && *(menu->items))
     {

@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,17 +31,17 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
-// $Id: cursslk.h,v 1.5 1999/05/16 17:30:08 juergen Exp $
+// $Id: cursslk.h,v 1.7 2001/03/24 21:41:47 tom Exp $
 
-#ifndef _CURSSLK_H
-#define _CURSSLK_H
+#ifndef NCURSES_CURSSLK_H_incl
+#define NCURSES_CURSSLK_H_incl
 
 #include <cursesw.h>
 
-class Soft_Label_Key_Set {
+class NCURSES_IMPEXP Soft_Label_Key_Set {
 public:
   // This inner class represents the attributes of a Soft Label Key (SLK)
-  class Soft_Label_Key {
+  class NCURSES_IMPEXP Soft_Label_Key {
     friend class Soft_Label_Key_Set;
   public:
     typedef enum { Left=0, Center=1, Right=2 } Justification;
@@ -83,10 +83,10 @@ public:
   } Label_Layout;
 
 private:
-  static long count;               // Number of Key Sets
-  static Label_Layout  format;     // Layout of the Key Sets
-  static int  num_labels;          // Number Of Labels in Key Sets
-  bool b_attrInit;                 // Are attributes initialized
+  static long NCURSES_IMPEXP count;               // Number of Key Sets
+  static Label_Layout NCURSES_IMPEXP  format;     // Layout of the Key Sets
+  static int  NCURSES_IMPEXP num_labels;          // Number Of Labels in Key Sets
+  bool NCURSES_IMPEXP b_attrInit;                 // Are attributes initialized
   
   Soft_Label_Key *slk_array;       // The array of SLK's
 
@@ -126,12 +126,12 @@ public:
 
   // This constructor assumes, that you already constructed a Key Set
   // with a layout by the constructor above. This layout will be reused.
-  Soft_Label_Key_Set();
+  NCURSES_IMPEXP Soft_Label_Key_Set();
 
   virtual ~Soft_Label_Key_Set();
 
   // Get Label# i. Label counting starts with 1!
-  Soft_Label_Key& operator[](int i);
+  NCURSES_IMPEXP Soft_Label_Key& operator[](int i);
 
   // Retrieve number of Labels
   inline int labels() const { return num_labels; }          
@@ -202,4 +202,4 @@ public:
   }
 };
 
-#endif // _CURSSLK_H
+#endif // NCURSES_CURSSLK_H_incl

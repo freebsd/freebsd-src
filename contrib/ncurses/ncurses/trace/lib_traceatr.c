@@ -38,12 +38,12 @@
 #include <curses.priv.h>
 #include <term.h>		/* acs_chars */
 
-MODULE_ID("$Id: lib_traceatr.c,v 1.30 2000/07/29 18:06:09 tom Exp $")
+MODULE_ID("$Id: lib_traceatr.c,v 1.32 2000/12/10 03:02:45 tom Exp $")
 
 #define COLOR_OF(c) (c < 0 || c > 7 ? "default" : colors[c].name)
 
 #ifdef TRACE
-char *
+NCURSES_EXPORT(char *)
 _traceattr2(int bufnum, attr_t newmode)
 {
     char *buf = _nc_trace_buf(bufnum, BUFSIZ);
@@ -122,21 +122,21 @@ _traceattr2(int bufnum, attr_t newmode)
     return (strcat(buf, "}"));
 }
 
-char *
+NCURSES_EXPORT(char *)
 _traceattr(attr_t newmode)
 {
     return _traceattr2(0, newmode);
 }
 
 /* Trace 'int' return-values */
-attr_t
+NCURSES_EXPORT(attr_t)
 _nc_retrace_attr_t(attr_t code)
 {
     T((T_RETURN("%s"), _traceattr(code)));
     return code;
 }
 
-char *
+NCURSES_EXPORT(char *)
 _tracechtype2(int bufnum, chtype ch)
 {
     char *buf = _nc_trace_buf(bufnum, BUFSIZ);
@@ -217,24 +217,23 @@ _tracechtype2(int bufnum, chtype ch)
     return (buf);
 }
 
-char *
-_tracechtype(chtype ch)
+NCURSES_EXPORT(char *)
+_tracechtype (chtype ch)
 {
     return _tracechtype2(0, ch);
 }
 
 /* Trace 'chtype' return-values */
-attr_t
-_nc_retrace_chtype(attr_t code)
+NCURSES_EXPORT(attr_t)
+_nc_retrace_chtype (attr_t code)
 {
     T((T_RETURN("%s"), _tracechtype(code)));
     return code;
 }
 
 #else
-extern void _nc_lib_traceatr(void);
-void
-_nc_lib_traceatr(void)
+extern NCURSES_EXPORT(void) _nc_lib_traceatr (void);
+NCURSES_EXPORT(void) _nc_lib_traceatr (void)
 {
 }
 #endif /* TRACE */

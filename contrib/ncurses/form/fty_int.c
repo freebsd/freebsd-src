@@ -13,7 +13,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_int.c,v 1.10 1999/05/16 17:23:22 juergen Exp $")
+MODULE_ID("$Id: fty_int.c,v 1.11 2000/12/09 23:46:12 tom Exp $")
 
 typedef struct {
   int precision;
@@ -155,6 +155,6 @@ static FIELDTYPE typeINTEGER = {
   NULL
 };
 
-FIELDTYPE* TYPE_INTEGER = &typeINTEGER;
+NCURSES_EXPORT_VAR(FIELDTYPE*) TYPE_INTEGER = &typeINTEGER;
 
 /* fty_int.c ends here */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -45,16 +45,18 @@
 #include <termcap.h>		/* ospeed */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tputs.c,v 1.51 2000/10/08 00:22:24 tom Exp $")
+MODULE_ID("$Id: lib_tputs.c,v 1.56 2001/04/21 18:53:53 tom Exp $")
 
-char PC = 0;			/* used by termcap library */
-short ospeed = 0;		/* used by termcap library */
+NCURSES_EXPORT_VAR(char)
+PC = 0;				/* used by termcap library */
+NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed = 0;	/* used by termcap library */
 
-int _nc_nulls_sent = 0;		/* used by 'tack' program */
+NCURSES_EXPORT_VAR(int)
+_nc_nulls_sent = 0;		/* used by 'tack' program */
 
-static int (*my_outch) (int c) = _nc_outch;
+     static int (*my_outch) (int c) = _nc_outch;
 
-int
+NCURSES_EXPORT(int)
 delay_output(int ms)
 {
     T((T_CALLED("delay_output(%d)"), ms));
@@ -75,13 +77,13 @@ delay_output(int ms)
     returnCode(OK);
 }
 
-void
+NCURSES_EXPORT(void)
 _nc_flush(void)
 {
     (void) fflush(NC_OUTPUT);
 }
 
-int
+NCURSES_EXPORT(int)
 _nc_outch(int ch)
 {
 #ifdef TRACE
@@ -109,7 +111,7 @@ _nc_outch(int ch)
  * No surrogates supported (we're storing only one 16-bit Unicode value per
  * cell).
  */
-int
+NCURSES_EXPORT(int)
 _nc_utf8_outch(int ch)
 {
     static const unsigned byteMask = 0xBF;
@@ -168,14 +170,15 @@ _nc_utf8_outch(int ch)
 }
 #endif
 
-int
+NCURSES_EXPORT(int)
 putp(const char *string)
 {
     return tputs(string, 1, _nc_outch);
 }
 
-int
-tputs(const char *string, int affcnt, int (*outc) (int))
+NCURSES_EXPORT(int)
+tputs
+(const char *string, int affcnt, int (*outc) (int))
 {
     bool always_delay;
     bool normal_delay;
@@ -262,25 +265,26 @@ tputs(const char *string, int affcnt, int (*outc) (int))
 		bool mandatory;
 
 		string++;
-		if ((!isdigit(*string) && *string != '.') || !strchr(string, '>')) {
+		if ((!isdigit(CharOf(*string)) && *string != '.')
+		    || !strchr(string, '>')) {
 		    (*outc) ('$');
 		    (*outc) ('<');
 		    continue;
 		}
 
 		number = 0;
-		while (isdigit(*string)) {
+		while (isdigit(CharOf(*string))) {
 		    number = number * 10 + (*string - '0');
 		    string++;
 		}
 		number *= 10;
 		if (*string == '.') {
 		    string++;
-		    if (isdigit(*string)) {
+		    if (isdigit(CharOf(*string))) {
 			number += (*string - '0');
 			string++;
 		    }
-		    while (isdigit(*string))
+		    while (isdigit(CharOf(*string)))
 			string++;
 		}
 

@@ -23,7 +23,7 @@
  * scroll operation worked, and the refresh() code only had to do a
  * partial repaint.
  *
- * $Id: view.c,v 1.31 2000/09/02 18:14:52 tom Exp $
+ * $Id: view.c,v 1.35 2001/01/14 01:39:24 tom Exp $
  */
 
 #include <test.priv.h>
@@ -31,6 +31,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <signal.h>
+#include <time.h>
 
 #if HAVE_TERMIOS_H
 # include <termios.h>
@@ -122,7 +123,7 @@ ch_dup(char *src)
 
     for (j = k = 0; j < len; j++) {
 	if (utf8_mode) {
-	    unsigned c = src[j] & 0xff;
+	    unsigned c = CharOf(src[j]);
 	    /* Combine UTF-8 into Unicode */
 	    if (c < 0x80) {
 		/* We received an ASCII character */
@@ -191,9 +192,12 @@ main(int argc, char *argv[])
     FILE *fp;
     char buf[BUFSIZ];
     int i;
+    int my_delay = 0;
     chtype **olptr;
-    int done = FALSE;
     int length = 0;
+    int value = 0;
+    bool done = FALSE;
+    bool got_number = FALSE;
 #if CAN_RESIZE
     bool use_resize = TRUE;
 #endif
@@ -259,11 +263,11 @@ main(int argc, char *argv[])
 		col = (col | 7) + 1;
 		while ((d - temp) != col)
 		    *d++ = ' ';
-	    } else if (isprint(*d) || utf8_mode) {
+	    } else if (isprint(CharOf(*d)) || utf8_mode) {
 		col++;
 		d++;
 	    } else {
-		sprintf(d, "\\%03o", *s & 0xff);
+		sprintf(d, "\\%03o", CharOf(*s));
 		d += strlen(d);
 		col = (d - temp);
 	    }
@@ -278,16 +282,16 @@ main(int argc, char *argv[])
     (void) nonl();		/* tell curses not to do NL->CR/NL on output */
     (void) cbreak();		/* take input chars one at a time, no wait for \n */
     (void) noecho();		/* don't echo input */
+    nodelay(stdscr, TRUE);
     idlok(stdscr, TRUE);	/* allow use of insert/delete line */
 
     lptr = lines;
     while (!done) {
 	int n, c;
-	bool got_number;
 
-	show_all();
+	if (!got_number)
+	    show_all();
 
-	got_number = FALSE;
 	n = 0;
 	for (;;) {
 #if CAN_RESIZE
@@ -303,13 +307,16 @@ main(int argc, char *argv[])
 		    clrtoeol();
 		}
 		addch(c);
-		n = 10 * n + (c - '0');
+		value = 10 * value + (c - '0');
 		got_number = TRUE;
 	    } else
 		break;
 	}
-	if (!got_number && n == 0)
+	if (got_number && value) {
+	    n = value;
+	} else {
 	    n = 1;
+	}
 
 	switch (c) {
 	case KEY_DOWN:
@@ -368,12 +375,29 @@ main(int argc, char *argv[])
 	case KEY_RESIZE:	/* ignore this; ncurses will repaint */
 	    break;
 #endif
-#if CAN_RESIZE
-	case ERR:
+	case 's':
+	    if (got_number) {
+		halfdelay(my_delay = n);
+	    } else {
+		nodelay(stdscr, FALSE);
+		my_delay = -1;
+	    }
 	    break;
-#endif
+	case ' ':
+	    nodelay(stdscr, TRUE);
+	    my_delay = 0;
+	    break;
+	case ERR:
+	    if (!my_delay)
+		napms(50);
+	    break;
 	default:
 	    beep();
+	    break;
+	}
+	if (c >= KEY_MIN || (c > 0 && !isdigit(c))) {
+	    got_number = FALSE;
+	    value = 0;
 	}
     }
 
@@ -418,6 +442,7 @@ show_all(void)
     int i;
     char temp[BUFSIZ];
     chtype *s;
+    time_t this_time;
 
 #if CAN_RESIZE
     sprintf(temp, "(%3dx%3d) col %d ", LINES, COLS, shift);
@@ -429,6 +454,13 @@ show_all(void)
     move(0, 0);
     printw("%.*s", COLS, temp);
     clrtoeol();
+    this_time = time((time_t *) 0);
+    strcpy(temp, ctime(&this_time));
+    if ((i = strlen(temp)) != 0) {
+	temp[--i] = 0;
+	if (move(0, COLS - i - 2) != ERR)
+	    printw("  %s", temp);
+    }
 
     scrollok(stdscr, FALSE);	/* prevent screen from moving */
     for (i = 1; i < LINES; i++) {

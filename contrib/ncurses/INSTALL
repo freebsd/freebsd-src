@@ -1,4 +1,4 @@
--- $Id: INSTALL,v 1.45 2000/10/08 02:17:57 tom Exp $
+-- $Id: INSTALL,v 1.47 2000/11/05 01:57:24 tom Exp $
 ---------------------------------------------------------------------
              How to install Ncurses/Terminfo on your system
 ---------------------------------------------------------------------
@@ -104,6 +104,8 @@ INSTALLATION PROCEDURE:
 
 	libncurses_p.a (profile)
 
+	libncurses.la (libtool)
+
     If you do not specify any models, the normal and debug libraries will be
     configured.  Typing `configure' with no arguments is equivalent to:
 
@@ -125,6 +127,13 @@ INSTALLATION PROCEDURE:
     of host system and compiler.  We've been testing shared libraries on Linux
     and SunOS with gcc, but more work needs to be done to make shared libraries
     work on other systems.
+
+    If you have libtool installed, you can type
+
+	./configure --with-libtool
+
+    to generate the appropriate static and/or shared libraries for your
+    platform using libtool.
 
     You can make curses and terminfo fall back to an existing file of termcap
     definitions by configuring with --enable-termcap.  If you do this, the
@@ -176,7 +185,8 @@ INSTALLATION PROCEDURE:
     The terminfo(5) manual page must be preprocessed with tbl(1) before
     being formatted by nroff(1).  Modern man(1) implementations tend to do
     this by default, but you may want to look at your version's manual page
-    to be sure.
+    to be sure.  You may also install the manual pages after preprocessing
+    with tbl(1) by specifying the configure option --with-manpage-tbl.
 
     If the system already has a curses library that you need to keep using
     for some bizarre binary-compatibility reason, you'll need to distinguish
@@ -494,6 +504,10 @@ SUMMARY OF CONFIGURE OPTIONS:
 	NOTE:  a few systems build shared libraries with fixed pathnames; this
 	option probably will not work for those configurations.
 
+     --with-libtool
+	Generate libraries with libtool.  If this option is selected, then
+	it overrides all other library model specifications.
+
     --with-manpage-format=XXX
 	Tell the configure script how you would like to install man-pages.  The
 	option value must be one of these:  gzip, compress, BSDI, normal,
@@ -512,6 +526,24 @@ SUMMARY OF CONFIGURE OPTIONS:
 	can be disabled for systems that provide this automatically.  Doing
 	this on systems that do not support symbolic links will result in
 	copying the man-page for each alias.
+
+    --with-manpage-tbl
+	Tell the configure script that you with to preprocess the manpages
+	by running them through tbl to generate tables understandable by
+	nroff.
+
+    --with-ospeed=TYPE
+	Override type of ospeed variable, which is part of the termcap
+	compatibility interface.  In termcap, this is a 'short', which works
+	for a wide range of baudrates because ospeed is not the actual speed
+	but the encoded value, e.g., B9600 would be a small number such as 13. 
+	However the encoding scheme originally allowed for values "only" up to
+	38400bd.  A newer set of definitions past 38400bd is not encoded as
+	compactly, and is not guaranteed to fit into a short (see the function
+	cfgetospeed(), which returns a speed_t for this reason).  In practice,
+	applications that required knowledge of the ospeed variable, i.e.,
+	those using termcap, do not use the higher speeds.  Your application
+	(or system, in general) may or may not.
 
     --with-normal
 	Generate normal (i.e., static) libraries (default).
@@ -558,6 +590,11 @@ SUMMARY OF CONFIGURE OPTIONS:
 	Suppress the configure script's check for Ada95, do not build the
 	Ada95 binding and related demo.
 
+    --without-curses-h
+	Don't install the ncurses header with the name "curses.h".  Rather,
+	install as "ncurses.h" and modify the installed headers and manpages
+	accordingly.
+
     --without-cxx
 	XSI curses declares "bool" as part of the interface.  C++ also declares
 	"bool".  Neither specifies the size and type of booleans, but both
@@ -591,6 +628,12 @@ COMPATIBILITY WITH OLDER VERSIONS OF NCURSES:
     Here are some of the major interface changes, and related problems which
     you may encounter when building a system with different versions of
     ncurses:
+
+    5.2 (October 21, 2000)
+	Interface changes:
+
+	+ revert termcap ospeed variable to 'short' (see discussion of the
+	  --with-ospeed configure option).
 
     5.1 (July 8, 2000)
 	Interface changes:

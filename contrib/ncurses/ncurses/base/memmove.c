@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: memmove.c,v 1.2 1999/02/27 19:55:57 tom Exp $")
+MODULE_ID("$Id: memmove.c,v 1.4 2000/12/10 02:43:28 tom Exp $")
 
 /****************************************************************************
  *  Author: Thomas E. Dickey <dickey@clark.net> 1998                        *
@@ -37,27 +37,33 @@ MODULE_ID("$Id: memmove.c,v 1.2 1999/02/27 19:55:57 tom Exp $")
 #if USE_MY_MEMMOVE
 #define DST ((char *)s1)
 #define SRC ((const char *)s2)
-void * _nc_memmove(void * s1, const void * s2, size_t n)
+NCURSES_EXPORT(void *)
+_nc_memmove(void *s1, const void *s2, size_t n)
 {
-	if (n != 0) {
-		if ((DST+n > SRC) && (SRC+n > DST)) {
-			static	char	*bfr;
-			static	size_t	length;
-			register size_t	j;
-			if (length < n) {
-				length = (n * 3) / 2;
-				bfr = typeRealloc(char,length,bfr);
-			}
-			for (j = 0; j < n; j++)
-				bfr[j] = SRC[j];
-			SRC = bfr;
-		}
-		while (n-- != 0)
-			DST[n] = SRC[n];
+    if (n != 0) {
+	if ((DST + n > SRC) && (SRC + n > DST)) {
+	    static char *bfr;
+	    static size_t length;
+	    register size_t j;
+	    if (length < n) {
+		length = (n * 3) / 2;
+		bfr = typeRealloc(char, length, bfr);
+	    }
+	    for (j = 0; j < n; j++)
+		bfr[j] = SRC[j];
+	    SRC = bfr;
 	}
-	return s1;
+	while (n-- != 0)
+	    DST[n] = SRC[n];
+    }
+    return s1;
 }
 #else
-extern void _nc_memmove(void);	/* quiet's gcc warning */
-void _nc_memmove(void) { } /* nonempty for strict ANSI compilers */
+extern
+NCURSES_EXPORT(void)
+_nc_memmove(void);		/* quiet's gcc warning */
+NCURSES_EXPORT(void)
+_nc_memmove(void)
+{
+}				/* nonempty for strict ANSI compilers */
 #endif /* USE_MY_MEMMOVE */

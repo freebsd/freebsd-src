@@ -48,7 +48,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_raw.c,v 1.8 2000/09/02 18:08:48 tom Exp $")
+MODULE_ID("$Id: lib_raw.c,v 1.10 2000/12/10 02:55:07 tom Exp $")
 
 #if SVR4_TERMIO && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
@@ -72,7 +72,7 @@ MODULE_ID("$Id: lib_raw.c,v 1.8 2000/09/02 18:08:48 tom Exp $")
 #define AFTER(s)
 #endif /* TRACE */
 
-int
+NCURSES_EXPORT(int)
 raw(void)
 {
     T((T_CALLED("raw()")));
@@ -100,7 +100,7 @@ raw(void)
     returnCode(ERR);
 }
 
-int
+NCURSES_EXPORT(int)
 cbreak(void)
 {
     T((T_CALLED("cbreak()")));
@@ -125,7 +125,7 @@ cbreak(void)
     returnCode(_nc_set_tty_mode(&cur_term->Nttyb));
 }
 
-void
+NCURSES_EXPORT(void)
 qiflush(void)
 {
     T((T_CALLED("qiflush()")));
@@ -144,7 +144,7 @@ qiflush(void)
 #endif
 }
 
-int
+NCURSES_EXPORT(int)
 noraw(void)
 {
     T((T_CALLED("noraw()")));
@@ -168,7 +168,7 @@ noraw(void)
     returnCode(_nc_set_tty_mode(&cur_term->Nttyb));
 }
 
-int
+NCURSES_EXPORT(int)
 nocbreak(void)
 {
     T((T_CALLED("nocbreak()")));
@@ -190,7 +190,7 @@ nocbreak(void)
     returnCode(_nc_set_tty_mode(&cur_term->Nttyb));
 }
 
-void
+NCURSES_EXPORT(void)
 noqiflush(void)
 {
     T((T_CALLED("noqiflush()")));
@@ -209,7 +209,7 @@ noqiflush(void)
 #endif
 }
 
-int
+NCURSES_EXPORT(int)
 intrflush(WINDOW *win GCC_UNUSED, bool flag)
 {
     T((T_CALLED("intrflush(%d)"), flag));

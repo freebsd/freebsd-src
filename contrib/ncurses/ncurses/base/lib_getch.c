@@ -40,14 +40,15 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.50 2000/10/09 23:53:57 Ilya.Zakharevich Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.54 2000/12/10 02:43:27 tom Exp $")
 
 #include <fifo_defs.h>
 
-int ESCDELAY = 1000;		/* max interval betw. chars in funkeys, in millisecs */
+NCURSES_EXPORT_VAR(int)
+ESCDELAY = 1000;		/* max interval betw. chars in funkeys, in millisecs */
 
-static inline int
-fifo_peek(void)
+     static inline int
+       fifo_peek(void)
 {
     int ch = SP->_fifo[peek];
     TR(TRACE_IEVENT, ("peeking at %d", peek));
@@ -80,7 +81,7 @@ static inline int
 fifo_push(void)
 {
     int n;
-    unsigned int ch;
+    int ch;
 
     if (tail == -1)
 	return ERR;
@@ -101,7 +102,7 @@ fifo_push(void)
     {
 	unsigned char c2 = 0;
 	n = read(SP->_ifd, &c2, 1);
-	ch = c2 & 0xff;
+	ch = CharOf(c2);
     }
 
 #ifdef HIDE_EINTR
@@ -153,7 +154,7 @@ static int kgetch(WINDOW *);
 	(is_wintouched(win) || (win->_flags & _HASMOVED)) \
 	&& !(win->_flags & _ISPAD))
 
-int
+NCURSES_EXPORT(int)
 wgetch(WINDOW *win)
 {
     int ch;
@@ -235,8 +236,8 @@ wgetch(WINDOW *win)
 	    }
 	} while
 	    (ch == KEY_MOUSE
-	    && (_nc_timed_wait(3, SP->_maxclick, (int *) 0)
-		|| !SP->_mouse_parse(runcount)));
+	     && (_nc_timed_wait(3, SP->_maxclick, (int *) 0)
+		 || !SP->_mouse_parse(runcount)));
 	if (runcount > 0 && ch != KEY_MOUSE) {
 	    /* mouse event sequence ended by keystroke, push it */
 	    ungetch(ch);
@@ -357,7 +358,7 @@ kgetch(WINDOW *win GCC_UNUSED)
 	    TR(TRACE_IEVENT, ("ptr is null"));
 	} else
 	    TR(TRACE_IEVENT, ("ptr=%p, ch=%d, value=%d",
-		    ptr, ptr->ch, ptr->value));
+			      ptr, ptr->ch, ptr->value));
 #endif /* TRACE */
 
 	if (ptr == NULL)

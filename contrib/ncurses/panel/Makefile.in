@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.34 2000/08/26 21:51:28 tom Exp $
+# $Id: Makefile.in,v 1.36 2001/03/24 19:53:31 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2000 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.           #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -54,6 +54,8 @@ libdir		= @libdir@
 includedir	= @includedir@
 datadir		= @datadir@
 
+LIBTOOL		= @LIBTOOL@
+
 INSTALL		= @INSTALL@
 INSTALL_LIB	= @INSTALL@ @INSTALL_LIB@
 INSTALL_DATA	= @INSTALL_DATA@
@@ -73,6 +75,7 @@ CPPFLAGS	= @CPPFLAGS@ \
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 
+CFLAGS_LIBTOOL	= $(CCFLAGS)
 CFLAGS_NORMAL	= $(CCFLAGS)
 CFLAGS_DEBUG	= $(CCFLAGS) @CC_G_OPT@ -DTRACE
 CFLAGS_PROFILE	= $(CCFLAGS) -pg
@@ -80,7 +83,7 @@ CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
 
 CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
 
-LINK		= $(CC)
+LINK		= $(LIBTOOL) $(CC)
 LDFLAGS		= @LDFLAGS@ @LD_MODEL@ @LIBS@
 
 SHLIB_DIRS	= -L../lib -L$(libdir)
@@ -88,6 +91,8 @@ SHLIB_LIST	= $(SHLIB_DIRS) -lncurses@LIB_SUFFIX@ @SHLIB_LIST@
 
 MK_SHARED_LIB	= @MK_SHARED_LIB@
 
+NCURSES_MAJOR	= @NCURSES_MAJOR@
+NCURSES_MINOR	= @NCURSES_MINOR@
 REL_VERSION	= @cf_cv_rel_version@
 ABI_VERSION	= @cf_cv_abi_version@
 
@@ -129,7 +134,7 @@ tags:
 @MAKE_UPPER_TAGS@	etags *.[ch]
 
 mostlyclean ::
-	-rm -f core tags TAGS *~ *.ln *.atac trace
+	-rm -f core tags TAGS *~ *.i *.ln *.atac trace
 
 clean :: mostlyclean
 	-rm -f $(AUTO_SRC)

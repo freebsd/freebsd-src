@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,33 +40,39 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_delwin.c,v 1.9 1998/02/11 12:13:53 tom Exp $")
+MODULE_ID("$Id: lib_delwin.c,v 1.12 2000/12/10 02:43:27 tom Exp $")
 
-static bool have_children(WINDOW *win)
+static bool
+cannot_delete(WINDOW *win)
 {
-	WINDOWLIST *p;
-	for (p = _nc_windows; p != 0; p = p->next) {
-		if (p->win->_flags & _SUBWIN
-		 && p->win->_parent == win)
-			return TRUE;
+    WINDOWLIST *p;
+    bool result = TRUE;
+
+    for (p = _nc_windows; p != 0; p = p->next) {
+	if (p->win == win) {
+	    result = FALSE;
+	} else if ((p->win->_flags & _SUBWIN) != 0
+		   && p->win->_parent == win) {
+	    result = TRUE;
+	    break;
 	}
-	return FALSE;
+    }
+    return result;
 }
 
-int delwin(WINDOW *win)
+NCURSES_EXPORT(int)
+delwin(WINDOW *win)
 {
-	T((T_CALLED("delwin(%p)"), win));
+    T((T_CALLED("delwin(%p)"), win));
 
-	if (win == 0
-	 || have_children(win))
-		returnCode(ERR);
+    if (win == 0
+	|| cannot_delete(win))
+	returnCode(ERR);
 
-	if (win->_flags & _SUBWIN)
-		touchwin(win->_parent);
-	else if (curscr != 0)
-		touchwin(curscr);
+    if (win->_flags & _SUBWIN)
+	touchwin(win->_parent);
+    else if (curscr != 0)
+	touchwin(curscr);
 
-	_nc_freewin(win);
-
-	returnCode(OK);
+    returnCode(_nc_freewin(win));
 }

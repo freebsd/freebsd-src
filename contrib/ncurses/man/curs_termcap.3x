@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_termcap.3x,v 1.13 2000/07/01 20:10:57 tom Exp $
+.\" $Id: curs_termcap.3x,v 1.14 2000/12/02 22:47:14 tom Exp $
 .TH curs_termcap 3X ""
 .ds n 5
 .SH NAME
@@ -41,13 +41,13 @@
 .br
 \fB#include <term.h>\fR
 .br
-\fBint tgetent(const char *bp, char *name);\fR
+\fBint tgetent(char *bp, const char *name);\fR
 .br
-\fBint tgetflag(const char *id);\fR
+\fBint tgetflag(char *id);\fR
 .br
-\fBint tgetnum(const char *id);\fR
+\fBint tgetnum(char *id);\fR
 .br
-\fBchar *tgetstr(const char *id, char **area);\fR
+\fBchar *tgetstr(char *id, char **area);\fR
 .br
 \fBchar *tgoto(const char *cap, int col, int row);\fR
 .br
@@ -78,6 +78,11 @@ The return value will also be copied to the buffer pointed to by \fIarea\fR,
 and the \fIarea\fR value will be updated to point past the null ending
 this value.
 
+Only the first two characters of the \fBid\fR parameter of
+\fBtgetflag\fR,
+\fBtgetnum\fR and
+\fBtgetstr\fR are compared in lookups.
+
 The \fBtgoto\fR routine instantiates the parameters into the given capability.
 The output from this routine is to be passed to \fBtputs\fR.
 
@@ -96,7 +101,11 @@ If you call \fBtgetstr\fR to fetch \fBca\fR or any other parameterized string,
 be aware that it will be returned in terminfo notation, not the older and
 not-quite-compatible termcap notation.  This won't cause problems if all
 you do with it is call \fBtgoto\fR or \fBtparm\fR, which both expand
-terminfo-style.
+terminfo-style strings as terminfo.
+(The \fBtgoto\fR function, if configured to support termcap, will check
+if the string is indeed terminfo-style by looking for "%p" parameters or
+"$<..>" delays, and invoke a termcap-style parser if the string does not
+appear to be terminfo).
 
 Because terminfo conventions for representing padding in string capabilities
 differ from termcap's, \fBtputs("50");\fR will put out a literal "50" rather

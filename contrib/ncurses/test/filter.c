@@ -29,7 +29,7 @@
 /*
  * Author:  Thomas E. Dickey <dickey@clark.net> 1998
  *
- * $Id: filter.c,v 1.4 2000/09/02 18:50:38 tom Exp $
+ * $Id: filter.c,v 1.5 2001/02/24 22:11:58 tom Exp $
  */
 #include <test.priv.h>
 
@@ -69,12 +69,11 @@ new_command(char *buffer, int length, attr_t underline)
 int
 main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 {
-    SCREEN *sp;
     char buffer[80];
     attr_t underline;
 
     filter();
-    sp = newterm((char *) 0, stdout, stdin);
+    (void) newterm((char *) 0, stdout, stdin);
     cbreak();
     keypad(stdscr, TRUE);
 

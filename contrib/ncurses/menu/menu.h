@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -170,82 +170,82 @@ typedef struct tagMENU
 
 /* --------- prototypes for libmenu functions ----------------------------- */
 
-extern ITEM     **menu_items(const MENU *),
-                *current_item(const MENU *),
-                *new_item(const char *,const char *);
+extern NCURSES_EXPORT(ITEM **)	menu_items (const MENU *);
+extern NCURSES_EXPORT(ITEM *)	current_item (const MENU *);
+extern NCURSES_EXPORT(ITEM *)	new_item (const char *,const char *);
 
-extern MENU     *new_menu(ITEM **);
+extern NCURSES_EXPORT(MENU *)	new_menu (ITEM **);
 
-extern Item_Options  item_opts(const ITEM *);
-extern Menu_Options  menu_opts(const MENU *);
+extern NCURSES_EXPORT(Item_Options)	item_opts (const ITEM *);
+extern NCURSES_EXPORT(Menu_Options)	menu_opts (const MENU *);
 
-Menu_Hook       item_init(const MENU *),
-                item_term(const MENU *),
-                menu_init(const MENU *),
-                menu_term(const MENU *);
+extern NCURSES_EXPORT(Menu_Hook)	item_init (const MENU *);
+extern NCURSES_EXPORT(Menu_Hook)	item_term (const MENU *);
+extern NCURSES_EXPORT(Menu_Hook)	menu_init (const MENU *);
+extern NCURSES_EXPORT(Menu_Hook)	menu_term (const MENU *);
 
-extern WINDOW   *menu_sub(const MENU *),
-                *menu_win(const MENU *);
+extern NCURSES_EXPORT(WINDOW *)	menu_sub (const MENU *);
+extern NCURSES_EXPORT(WINDOW *)	menu_win (const MENU *);
 
-extern const char *item_description(const ITEM *),
-                  *item_name(const ITEM *),
-                  *menu_mark(const MENU *),
-                  *menu_request_name(int);
+extern NCURSES_EXPORT(const char *)	item_description (const ITEM *);
+extern NCURSES_EXPORT(const char *)	item_name (const ITEM *);
+extern NCURSES_EXPORT(const char *)	menu_mark (const MENU *);
+extern NCURSES_EXPORT(const char *)	menu_request_name (int);
 
-extern char     *menu_pattern(const MENU *);
+extern NCURSES_EXPORT(char *)	menu_pattern (const MENU *);
 
-extern void     *menu_userptr(const MENU *),
-                *item_userptr(const ITEM *);
+extern NCURSES_EXPORT(void *)	menu_userptr (const MENU *);
+extern NCURSES_EXPORT(void *)	item_userptr (const ITEM *);
 
-extern chtype   menu_back(const MENU *),
-                menu_fore(const MENU *),
-                menu_grey(const MENU *);
+extern NCURSES_EXPORT(chtype)	menu_back (const MENU *);
+extern NCURSES_EXPORT(chtype)	menu_fore (const MENU *);
+extern NCURSES_EXPORT(chtype)	menu_grey (const MENU *);
 
-extern int      free_item(ITEM *),
-                free_menu(MENU *),
-                item_count(const MENU *),
-                item_index(const ITEM *),
-                item_opts_off(ITEM *,Item_Options),
-                item_opts_on(ITEM *,Item_Options),
-                menu_driver(MENU *,int),
-                menu_opts_off(MENU *,Menu_Options),
-                menu_opts_on(MENU *,Menu_Options),
-                menu_pad(const MENU *),
-                pos_menu_cursor(const MENU *),
-                post_menu(MENU *),
-                scale_menu(const MENU *,int *,int *),
-                set_current_item(MENU *menu,ITEM *item),
-                set_item_init(MENU *,void(*)(MENU *)),
-                set_item_opts(ITEM *,Item_Options),
-                set_item_term(MENU *,void(*)(MENU *)),
-                set_item_userptr(ITEM *, void *),
-                set_item_value(ITEM *,bool),
-                set_menu_back(MENU *,chtype),
-                set_menu_fore(MENU *,chtype),
-                set_menu_format(MENU *,int,int),
-                set_menu_grey(MENU *,chtype),
-                set_menu_init(MENU *,void(*)(MENU *)),
-                set_menu_items(MENU *,ITEM **),
-                set_menu_mark(MENU *, const char *),
-                set_menu_opts(MENU *,Menu_Options),
-                set_menu_pad(MENU *,int),
-                set_menu_pattern(MENU *,const char *),
-                set_menu_sub(MENU *,WINDOW *),
-                set_menu_term(MENU *,void(*)(MENU *)),
-                set_menu_userptr(MENU *,void *),
-                set_menu_win(MENU *,WINDOW *),
-                set_top_row(MENU *,int),
-                top_row(const MENU *),
-                unpost_menu(MENU *),
-                menu_request_by_name(const char *),
-                set_menu_spacing(MENU *,int,int,int),
-                menu_spacing(const MENU *,int *,int *,int *);
+extern NCURSES_EXPORT(int)	free_item (ITEM *);
+extern NCURSES_EXPORT(int)	free_menu (MENU *);
+extern NCURSES_EXPORT(int)	item_count (const MENU *);
+extern NCURSES_EXPORT(int)	item_index (const ITEM *);
+extern NCURSES_EXPORT(int)	item_opts_off (ITEM *,Item_Options);
+extern NCURSES_EXPORT(int)	item_opts_on (ITEM *,Item_Options);
+extern NCURSES_EXPORT(int)	menu_driver (MENU *,int);
+extern NCURSES_EXPORT(int)	menu_opts_off (MENU *,Menu_Options);
+extern NCURSES_EXPORT(int)	menu_opts_on (MENU *,Menu_Options);
+extern NCURSES_EXPORT(int)	menu_pad (const MENU *);
+extern NCURSES_EXPORT(int)	pos_menu_cursor (const MENU *);
+extern NCURSES_EXPORT(int)	post_menu (MENU *);
+extern NCURSES_EXPORT(int)	scale_menu (const MENU *,int *,int *);
+extern NCURSES_EXPORT(int)	set_current_item (MENU *menu,ITEM *item);
+extern NCURSES_EXPORT(int)	set_item_init (MENU *,void(*)(MENU *));
+extern NCURSES_EXPORT(int)	set_item_opts (ITEM *,Item_Options);
+extern NCURSES_EXPORT(int)	set_item_term (MENU *,void(*)(MENU *));
+extern NCURSES_EXPORT(int)	set_item_userptr (ITEM *, void *);
+extern NCURSES_EXPORT(int)	set_item_value (ITEM *,bool);
+extern NCURSES_EXPORT(int)	set_menu_back (MENU *,chtype);
+extern NCURSES_EXPORT(int)	set_menu_fore (MENU *,chtype);
+extern NCURSES_EXPORT(int)	set_menu_format (MENU *,int,int);
+extern NCURSES_EXPORT(int)	set_menu_grey (MENU *,chtype);
+extern NCURSES_EXPORT(int)	set_menu_init (MENU *,void(*)(MENU *));
+extern NCURSES_EXPORT(int)	set_menu_items (MENU *,ITEM **);
+extern NCURSES_EXPORT(int)	set_menu_mark (MENU *, const char *);
+extern NCURSES_EXPORT(int)	set_menu_opts (MENU *,Menu_Options);
+extern NCURSES_EXPORT(int)	set_menu_pad (MENU *,int);
+extern NCURSES_EXPORT(int)	set_menu_pattern (MENU *,const char *);
+extern NCURSES_EXPORT(int)	set_menu_sub (MENU *,WINDOW *);
+extern NCURSES_EXPORT(int)	set_menu_term (MENU *,void(*)(MENU *));
+extern NCURSES_EXPORT(int)	set_menu_userptr (MENU *,void *);
+extern NCURSES_EXPORT(int)	set_menu_win (MENU *,WINDOW *);
+extern NCURSES_EXPORT(int)	set_top_row (MENU *,int);
+extern NCURSES_EXPORT(int)	top_row (const MENU *);
+extern NCURSES_EXPORT(int)	unpost_menu (MENU *);
+extern NCURSES_EXPORT(int)	menu_request_by_name (const char *);
+extern NCURSES_EXPORT(int)	set_menu_spacing (MENU *,int,int,int);
+extern NCURSES_EXPORT(int)	menu_spacing (const MENU *,int *,int *,int *);
 
 
-extern bool     item_value(const ITEM *),
-                item_visible(const ITEM *);
+extern NCURSES_EXPORT(bool)	item_value (const ITEM *);
+extern NCURSES_EXPORT(bool)	item_visible (const ITEM *);
 
-void            menu_format(const MENU *,int *,int *);
+extern NCURSES_EXPORT(void)	menu_format (const MENU *,int *,int *);
 
 #ifdef __cplusplus
   }

@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,10 +31,10 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
-// $Id: etip.h.in,v 1.13 1999/09/12 02:01:59 tom Exp $
+// $Id: etip.h.in,v 1.18 2001/04/07 22:45:04 tom Exp $
 
-#ifndef _ETIP_H
-#define _ETIP_H
+#ifndef NCURSES_ETIP_H_incl
+#define NCURSES_ETIP_H_incl 1
 
 // These are substituted at configure/build time
 #ifndef HAVE_BUILTIN_H
@@ -47,6 +47,10 @@
 
 #ifndef HAVE_GPP_BUILTIN_H
 #define HAVE_GPP_BUILTIN_H 0
+#endif
+
+#ifndef HAVE_STRSTREAM_H
+#define HAVE_STRSTREAM_H 0
 #endif
 
 #ifndef HAVE_TYPEINFO
@@ -67,6 +71,14 @@
 
 #ifndef CPP_HAS_PARAM_INIT
 #define CPP_HAS_PARAM_INIT 0
+#endif
+
+#ifndef USE_STDIO_VSCAN
+#define USE_STDIO_VSCAN 0
+#endif
+
+#ifndef USE_STRSTREAM_VSCAN
+#define USE_STRSTREAM_VSCAN 0
 #endif
 
 #ifdef __GNUG__
@@ -104,6 +116,8 @@
 #  include <string.h>
 #endif
 
+#include <ncurses_dll.h>
+
 extern "C" {
 #if HAVE_VALUES_H
 #  include <values.h>
@@ -122,11 +136,11 @@ extern "C" {
 #endif
 
 // Forward Declarations
-class NCursesPanel;
-class NCursesMenu;
-class NCursesForm;
+class NCURSES_IMPEXP NCursesPanel;
+class NCURSES_IMPEXP NCursesMenu;
+class NCURSES_IMPEXP NCursesForm;
 
-class NCursesException
+class NCURSES_IMPEXP NCursesException
 {
 public:
   const char *message;
@@ -145,30 +159,30 @@ public:
   }
 };
 
-class NCursesPanelException : public NCursesException
+class NCURSES_IMPEXP NCursesPanelException : public NCursesException
 {
 public:
   const NCursesPanel* p;
 
-  NCursesPanelException (const char *msg, int err) : 
+  NCursesPanelException (const char *msg, int err) :
     NCursesException (msg, err),
     p ((NCursesPanel*)0)
     {};
 
   NCursesPanelException (const NCursesPanel* panel,
 			 const char *msg,
-			 int err) : 
+			 int err) :
     NCursesException (msg, err),
     p (panel)
     {};
 
-  NCursesPanelException (int err) : 
+  NCursesPanelException (int err) :
     NCursesException ("panel library error", err),
     p ((NCursesPanel*)0)
     {};
 
   NCursesPanelException (const NCursesPanel* panel,
-			 int err) : 
+			 int err) :
     NCursesException ("panel library error", err),
     p (panel)
     {};
@@ -179,30 +193,30 @@ public:
 
 };
 
-class NCursesMenuException : public NCursesException
+class NCURSES_IMPEXP NCursesMenuException : public NCursesException
 {
 public:
   const NCursesMenu* m;
 
-  NCursesMenuException (const char *msg, int err) : 
+  NCursesMenuException (const char *msg, int err) :
     NCursesException (msg, err),
     m ((NCursesMenu *)0)
     {};
 
   NCursesMenuException (const NCursesMenu* menu,
 			const char *msg,
-			int err) : 
+			int err) :
     NCursesException (msg, err),
     m (menu)
     {};
 
-  NCursesMenuException (int err) : 
+  NCursesMenuException (int err) :
     NCursesException ("menu library error", err),
     m ((NCursesMenu *)0)
     {};
 
   NCursesMenuException (const NCursesMenu* menu,
-			int err) : 
+			int err) :
     NCursesException ("menu library error", err),
     m (menu)
     {};
@@ -213,30 +227,30 @@ public:
 
 };
 
-class NCursesFormException : public NCursesException
+class NCURSES_IMPEXP NCursesFormException : public NCursesException
 {
 public:
   const NCursesForm* f;
 
-  NCursesFormException (const char *msg, int err) : 
+  NCursesFormException (const char *msg, int err) :
     NCursesException (msg, err),
     f ((NCursesForm*)0)
     {};
 
   NCursesFormException (const NCursesForm* form,
 			const char *msg,
-			int err) : 
+			int err) :
     NCursesException (msg, err),
     f (form)
     {};
 
-  NCursesFormException (int err) : 
+  NCursesFormException (int err) :
     NCursesException ("form library error", err),
     f ((NCursesForm*)0)
     {};
 
   NCursesFormException (const NCursesForm* form,
-			int err) : 
+			int err) :
     NCursesException ("form library error", err),
     f (form)
     {};
@@ -265,9 +279,9 @@ inline void THROW(const NCursesException *e) {
   if (e)
     cerr << e->message << endl;
   exit(0);
-#endif     
+#endif
 }
 
 #define THROWS(s)
 
-#endif // _ETIP_H
+#endif // NCURSES_ETIP_H_incl

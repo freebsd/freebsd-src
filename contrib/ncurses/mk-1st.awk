@@ -1,4 +1,4 @@
-# $Id: mk-1st.awk,v 1.45 2000/08/19 19:13:19 tom Exp $
+# $Id: mk-1st.awk,v 1.46 2000/10/14 17:57:02 Johnny.C.Lam Exp $
 ##############################################################################
 # Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
 #                                                                            #
@@ -215,6 +215,29 @@ END	{
 					printf "\t-@rm -f so_locations\n"
 				}
 			}
+			else if ( MODEL == "LIBTOOL" )
+			{
+				if ( $2 == "c++" ) {
+					compile="CXX"
+				} else {
+					compile="CC"
+				}
+				end_name = lib_name;
+				printf "../lib/%s : $(%s_OBJS)\n", lib_name, OBJS
+				printf "\tcd ../lib && $(LIBTOOL) $(%s) -o %s $(%s_OBJS:.o=.lo) -rpath $(DESTDIR)$(libdir) -version-info $(NCURSES_MAJOR):$(NCURSES_MINOR)\n", compile, lib_name, OBJS
+				print  ""
+				print  "install \\"
+				print  "install.libs \\"
+				printf "install.%s :: $(DESTDIR)$(libdir) ../lib/%s\n", name, lib_name
+				printf "\t@echo installing ../lib/%s as $(DESTDIR)$(libdir)/%s\n", lib_name, lib_name
+				printf "\tcd ../lib; $(LIBTOOL) $(INSTALL_DATA) %s $(DESTDIR)$(libdir)\n", lib_name
+				print  ""
+				print  "uninstall \\"
+				print  "uninstall.libs \\"
+				printf "uninstall.%s ::\n", name
+				printf "\t@echo uninstalling $(DESTDIR)$(libdir)/%s\n", lib_name
+				printf "\t-@$(LIBTOOL) rm -f $(DESTDIR)$(libdir)/%s\n", lib_name
+			}
 			else
 			{
 				end_name = lib_name;
@@ -266,14 +289,23 @@ END	{
 			print ""
 			print "mostlyclean::"
 			printf "\t-rm -f $(%s_OBJS)\n", OBJS
+			if ( MODEL == "LIBTOOL" ) {
+				printf "\t-rm -f $(%s_OBJS:.o=.lo)\n", OBJS
+			}
 		}
 		else if ( found == 2 )
 		{
 			print ""
 			print "mostlyclean::"
 			printf "\t-rm -f $(%s_OBJS)\n", OBJS
+			if ( MODEL == "LIBTOOL" ) {
+				printf "\t-rm -f $(%s_OBJS:.o=.lo)\n", OBJS
+			}
 			print ""
 			print "clean ::"
 			printf "\t-rm -f $(%s_OBJS)\n", OBJS
+			if ( MODEL == "LIBTOOL" ) {
+				printf "\t-rm -f $(%s_OBJS:.o=.lo)\n", OBJS
+			}
 		}
 	}

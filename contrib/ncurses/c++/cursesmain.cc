@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2001 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,10 +31,10 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
-#include "cursesapp.h"
 #include "internal.h"
+#include "cursesapp.h"
 
-MODULE_ID("$Id: cursesmain.cc,v 1.5 1999/05/16 17:31:22 juergen Exp $")
+MODULE_ID("$Id: cursesmain.cc,v 1.7 2001/03/24 21:25:47 tom Exp $")
 
 /* This is the default implementation of main() for a NCursesApplication.
  * You only have to instantiate a static NCursesApplication object in your

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_newftyp.c,v 1.5 1999/05/16 17:18:54 juergen Exp $")
+MODULE_ID("$Id: fld_newftyp.c,v 1.6 2000/12/10 02:09:38 tom Exp $")
 
 static FIELDTYPE const default_fieldtype = {
   0,                   /* status                                      */
@@ -48,7 +48,7 @@ static FIELDTYPE const default_fieldtype = {
   NULL                 /* enumerate previous function                 */
 };
 
-const FIELDTYPE* _nc_Default_FieldType = &default_fieldtype;
+NCURSES_EXPORT_VAR(const FIELDTYPE*) _nc_Default_FieldType = &default_fieldtype;
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -65,7 +65,8 @@ const FIELDTYPE* _nc_Default_FieldType = &default_fieldtype;
 |
 |   Return Values :  Fieldtype pointer or NULL if error occured
 +--------------------------------------------------------------------------*/
-FIELDTYPE *new_fieldtype(
+NCURSES_EXPORT(FIELDTYPE *)
+new_fieldtype (
  bool (* const field_check)(FIELD *,const void *),
  bool (* const char_check) (int,const void *) )
 {
@@ -102,7 +103,8 @@ FIELDTYPE *new_fieldtype(
 |                    E_CONNECTED     - there are fields referencing the type
 |                    E_BAD_ARGUMENT  - invalid fieldtype pointer
 +--------------------------------------------------------------------------*/
-int free_fieldtype(FIELDTYPE *typ)
+NCURSES_EXPORT(int)
+free_fieldtype (FIELDTYPE *typ)
 {
   if (!typ)
     RETURN(E_BAD_ARGUMENT);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,8 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
-
 /*
 **	lib_scanw.c
 **
@@ -42,70 +40,75 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_scanw.c,v 1.8 1998/04/11 22:54:18 tom Exp $")
+MODULE_ID("$Id: lib_scanw.c,v 1.10 2000/12/10 02:43:27 tom Exp $")
 
 #if !HAVE_VSSCANF
 #if defined(__QNX__)
 extern int vsscanf(const char *str, const char *format, __va_list __arg);
 #else
-extern int vsscanf(const char *str, const char *format, ...);
+extern int vsscanf(const char *str, const char *format,...);
 #endif
 #endif
 
-int vwscanw(WINDOW *win, NCURSES_CONST char *fmt, va_list argp)
+NCURSES_EXPORT(int)
+vwscanw(WINDOW *win, NCURSES_CONST char *fmt, va_list argp)
 {
-char buf[BUFSIZ];
+    char buf[BUFSIZ];
 
-	if (wgetnstr(win, buf, sizeof(buf)-1) == ERR)
-	    return(ERR);
+    if (wgetnstr(win, buf, sizeof(buf) - 1) == ERR)
+	return (ERR);
 
-	return(vsscanf(buf, fmt, argp));
+    return (vsscanf(buf, fmt, argp));
 }
 
-int scanw(NCURSES_CONST char *fmt, ...)
+NCURSES_EXPORT(int)
+scanw(NCURSES_CONST char *fmt,...)
 {
-int code;
-va_list ap;
+    int code;
+    va_list ap;
 
-	T(("scanw(\"%s\",...) called", fmt));
+    T(("scanw(\"%s\",...) called", fmt));
 
-	va_start(ap, fmt);
-	code = vwscanw(stdscr, fmt, ap);
-	va_end(ap);
-	return (code);
+    va_start(ap, fmt);
+    code = vwscanw(stdscr, fmt, ap);
+    va_end(ap);
+    return (code);
 }
 
-int wscanw(WINDOW *win, NCURSES_CONST char *fmt, ...)
+NCURSES_EXPORT(int)
+wscanw(WINDOW *win, NCURSES_CONST char *fmt,...)
 {
-int code;
-va_list ap;
+    int code;
+    va_list ap;
 
-	T(("wscanw(%p,\"%s\",...) called", win, fmt));
+    T(("wscanw(%p,\"%s\",...) called", win, fmt));
 
-	va_start(ap, fmt);
-	code = vwscanw(win, fmt, ap);
-	va_end(ap);
-	return (code);
+    va_start(ap, fmt);
+    code = vwscanw(win, fmt, ap);
+    va_end(ap);
+    return (code);
 }
 
-int mvscanw(int y, int x, NCURSES_CONST char *fmt, ...)
+NCURSES_EXPORT(int)
+mvscanw(int y, int x, NCURSES_CONST char *fmt,...)
 {
-int code;
-va_list ap;
+    int code;
+    va_list ap;
 
-	va_start(ap, fmt);
-	code = (move(y, x) == OK) ? vwscanw(stdscr, fmt, ap) : ERR;
-	va_end(ap);
-	return (code);
+    va_start(ap, fmt);
+    code = (move(y, x) == OK) ? vwscanw(stdscr, fmt, ap) : ERR;
+    va_end(ap);
+    return (code);
 }
 
-int mvwscanw(WINDOW *win, int y, int x, NCURSES_CONST char *fmt, ...)
+NCURSES_EXPORT(int)
+mvwscanw(WINDOW *win, int y, int x, NCURSES_CONST char *fmt,...)
 {
-int code;
-va_list ap;
+    int code;
+    va_list ap;
 
-	va_start(ap, fmt);
-	code = (wmove(win, y, x) == OK) ? vwscanw(win, fmt, ap) : ERR;
-	va_end(ap);
-	return (code);
+    va_start(ap, fmt);
+    code = (wmove(win, y, x) == OK) ? vwscanw(win, fmt, ap) : ERR;
+    va_end(ap);
+    return (code);
 }

@@ -52,10 +52,10 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: comp_parse.c,v 1.41 2000/10/03 09:53:49 tom Exp $")
+MODULE_ID("$Id: comp_parse.c,v 1.48 2001/01/15 00:44:51 tom Exp $")
 
 static void sanity_check(TERMTYPE *);
-void (*_nc_check_termtype) (TERMTYPE *) = sanity_check;
+NCURSES_IMPEXP void NCURSES_API(*_nc_check_termtype) (TERMTYPE *) = sanity_check;
 
 /****************************************************************************
  *
@@ -78,10 +78,11 @@ void (*_nc_check_termtype) (TERMTYPE *) = sanity_check;
  *	   _nc_head                _nc_tail
  */
 
-ENTRY *_nc_head = 0, *_nc_tail = 0;
+NCURSES_EXPORT_VAR(ENTRY *) _nc_head = 0;
+NCURSES_EXPORT_VAR(ENTRY *) _nc_tail = 0;
 
-static void
-enqueue(ENTRY * ep)
+     static void
+       enqueue(ENTRY * ep)
 /* add an entry to the in-core list */
 {
     ENTRY *newp = _nc_copy_entry(ep);
@@ -97,7 +98,7 @@ enqueue(ENTRY * ep)
 	newp->last->next = newp;
 }
 
-void
+NCURSES_EXPORT(void)
 _nc_free_entries(ENTRY * headp)
 /* free the allocated storage consumed by list entries */
 {
@@ -127,7 +128,7 @@ force_bar(char *dst, char *src)
 {
     if (strchr(src, '|') == 0) {
 	size_t len = strlen(src);
-	if (len >= MAX_NAME_SIZE)
+	if (len > MAX_NAME_SIZE)
 	    len = MAX_NAME_SIZE;
 	(void) strncpy(dst, src, len);
 	(void) strcpy(dst + len, "|");
@@ -136,7 +137,7 @@ force_bar(char *dst, char *src)
     return src;
 }
 
-bool
+NCURSES_EXPORT(bool)
 _nc_entry_match(char *n1, char *n2)
 /* do any of the aliases in a pair of terminal names match? */
 {
@@ -161,10 +162,10 @@ _nc_entry_match(char *n1, char *n2)
  *
  ****************************************************************************/
 
-void
+NCURSES_EXPORT(void)
 _nc_read_entry_source(FILE * fp, char *buf,
-    int literal, bool silent,
-    bool(*hook) (ENTRY *))
+		      int literal, bool silent,
+		      bool(*hook) (ENTRY *))
 /* slurp all entries in the given file into core */
 {
     ENTRY thisentry;
@@ -179,7 +180,7 @@ _nc_read_entry_source(FILE * fp, char *buf,
 	memset(&thisentry, 0, sizeof(thisentry));
 	if (_nc_parse_entry(&thisentry, literal, silent) == ERR)
 	    break;
-	if (!isalnum(thisentry.tterm.term_names[0]))
+	if (!isalnum(CharOf(thisentry.tterm.term_names[0])))
 	    _nc_err_abort("terminal names must start with letter or digit");
 
 	/*
@@ -209,7 +210,7 @@ _nc_read_entry_source(FILE * fp, char *buf,
     _nc_suppress_warnings = oldsuppress;
 }
 
-int
+NCURSES_EXPORT(int)
 _nc_resolve_uses(bool fullresolve)
 /* try to resolve all use capabilities */
 {
@@ -226,17 +227,18 @@ _nc_resolve_uses(bool fullresolve)
     for_entry_list(qp) {
 	int matchcount = 0;
 
-	for_entry_list(rp)
+	for_entry_list(rp) {
 	    if (qp > rp
-	    && _nc_entry_match(qp->tterm.term_names, rp->tterm.term_names)) {
-	    matchcount++;
-	    if (matchcount == 1) {
-		(void) fprintf(stderr, "Name collision between %s",
-		    _nc_first_name(qp->tterm.term_names));
-		multiples++;
+		&& _nc_entry_match(qp->tterm.term_names, rp->tterm.term_names)) {
+		matchcount++;
+		if (matchcount == 1) {
+		    (void) fprintf(stderr, "Name collision between %s",
+				   _nc_first_name(qp->tterm.term_names));
+		    multiples++;
+		}
+		if (matchcount >= 1)
+		    (void) fprintf(stderr, " %s", _nc_first_name(rp->tterm.term_names));
 	    }
-	    if (matchcount >= 1)
-		(void) fprintf(stderr, " %s", _nc_first_name(rp->tterm.term_names));
 	}
 	if (matchcount >= 1)
 	    (void) putc('\n', stderr);
@@ -264,14 +266,15 @@ _nc_resolve_uses(bool fullresolve)
 	    _nc_set_type(child);
 
 	    /* first, try to resolve from in-core records */
-	    for_entry_list(rp)
+	    for_entry_list(rp) {
 		if (rp != qp
-		&& _nc_name_match(rp->tterm.term_names, lookfor, "|")) {
-		DEBUG(2, ("%s: resolving use=%s (in core)",
-			child, lookfor));
+		    && _nc_name_match(rp->tterm.term_names, lookfor, "|")) {
+		    DEBUG(2, ("%s: resolving use=%s (in core)",
+			      child, lookfor));
 
-		qp->uses[i].link = rp;
-		foundit = TRUE;
+		    qp->uses[i].link = rp;
+		    foundit = TRUE;
+		}
 	    }
 
 	    /* if that didn't work, try to merge in a compiled entry */
@@ -282,7 +285,7 @@ _nc_resolve_uses(bool fullresolve)
 		memset(&thisterm, 0, sizeof(thisterm));
 		if (_nc_read_entry(lookfor, filename, &thisterm) == 1) {
 		    DEBUG(2, ("%s: resolving use=%s (compiled)",
-			    child, lookfor));
+			      child, lookfor));
 
 		    rp = typeMalloc(ENTRY, 1);
 		    if (rp == 0)
@@ -330,7 +333,7 @@ _nc_resolve_uses(bool fullresolve)
 	    for_entry_list(qp) {
 		if (qp->nuses > 0) {
 		    DEBUG(2, ("%s: attempting merge",
-			    _nc_first_name(qp->tterm.term_names)));
+			      _nc_first_name(qp->tterm.term_names)));
 		    /*
 		     * If any of the use entries we're looking for is
 		     * incomplete, punt.  We'll catch this entry on a
@@ -339,7 +342,7 @@ _nc_resolve_uses(bool fullresolve)
 		    for (i = 0; i < qp->nuses; i++)
 			if (qp->uses[i].link->nuses) {
 			    DEBUG(2, ("%s: use entry %d unresolved",
-				    _nc_first_name(qp->tterm.term_names), i));
+				      _nc_first_name(qp->tterm.term_names), i));
 			    goto incomplete;
 			}
 
@@ -357,7 +360,7 @@ _nc_resolve_uses(bool fullresolve)
 		     */
 		    for (; qp->nuses; qp->nuses--)
 			_nc_merge_entry(&merged,
-			    &qp->uses[qp->nuses - 1].link->tterm);
+					&qp->uses[qp->nuses - 1].link->tterm);
 
 		    /*
 		     * Now merge in the original entry.
@@ -371,6 +374,7 @@ _nc_resolve_uses(bool fullresolve)
 		    FreeIfNeeded(qp->tterm.Numbers);
 		    FreeIfNeeded(qp->tterm.Strings);
 		    qp->tterm = merged;
+		    _nc_wrap_entry(qp, TRUE);
 
 		    /*
 		     * We know every entry is resolvable because name resolution
@@ -392,15 +396,18 @@ _nc_resolve_uses(bool fullresolve)
 	 * entry there should be no cancellation markers.
 	 */
 	for_entry_list(qp) {
-	    for_each_boolean(j, &(qp->tterm))
-		if (qp->tterm.Booleans[j] == CANCELLED_BOOLEAN)
-		qp->tterm.Booleans[j] = ABSENT_BOOLEAN;
-	    for_each_number(j, &(qp->tterm))
+	    for_each_boolean(j, &(qp->tterm)) {
+		if ((int) qp->tterm.Booleans[j] == CANCELLED_BOOLEAN)
+		    qp->tterm.Booleans[j] = ABSENT_BOOLEAN;
+	    }
+	    for_each_number(j, &(qp->tterm)) {
 		if (qp->tterm.Numbers[j] == CANCELLED_NUMERIC)
-		qp->tterm.Numbers[j] = ABSENT_NUMERIC;
-	    for_each_string(j, &(qp->tterm))
+		    qp->tterm.Numbers[j] = ABSENT_NUMERIC;
+	    }
+	    for_each_string(j, &(qp->tterm)) {
 		if (qp->tterm.Strings[j] == CANCELLED_STRING)
-		qp->tterm.Strings[j] = ABSENT_STRING;
+		    qp->tterm.Strings[j] = ABSENT_STRING;
+	    }
 	}
     }
 
@@ -444,14 +451,14 @@ sanity_check(TERMTYPE * tp)
 	bool terminal_entry = !strchr(tp->term_names, '+');
 	if (terminal_entry &&
 	    (PRESENT(set_attributes)
-		|| PRESENT(enter_standout_mode)
-		|| PRESENT(enter_underline_mode)
-		|| PRESENT(enter_blink_mode)
-		|| PRESENT(enter_bold_mode)
-		|| PRESENT(enter_dim_mode)
-		|| PRESENT(enter_secure_mode)
-		|| PRESENT(enter_protected_mode)
-		|| PRESENT(enter_reverse_mode)))
+	     || PRESENT(enter_standout_mode)
+	     || PRESENT(enter_underline_mode)
+	     || PRESENT(enter_blink_mode)
+	     || PRESENT(enter_bold_mode)
+	     || PRESENT(enter_dim_mode)
+	     || PRESENT(enter_secure_mode)
+	     || PRESENT(enter_protected_mode)
+	     || PRESENT(enter_reverse_mode)))
 	    _nc_warning("no exit_attribute_mode");
 #endif /* __UNUSED__ */
 	PAIRED(enter_standout_mode, exit_standout_mode)

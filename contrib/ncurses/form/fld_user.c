@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_user.c,v 1.8 1999/05/16 17:20:09 juergen Exp $")
+MODULE_ID("$Id: fld_user.c,v 1.9 2000/12/10 02:09:38 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -43,7 +43,8 @@ MODULE_ID("$Id: fld_user.c,v 1.8 1999/05/16 17:20:09 juergen Exp $")
 |
 |   Return Values :  E_OK         - on success
 +--------------------------------------------------------------------------*/
-int set_field_userptr(FIELD * field, void  *usrptr)
+NCURSES_EXPORT(int)
+set_field_userptr (FIELD * field, void  *usrptr)
 {
   Normalize_Field( field )->usrptr = usrptr;
   RETURN(E_OK);
@@ -59,7 +60,8 @@ int set_field_userptr(FIELD * field, void  *usrptr)
 |   Return Values :  Value of pointer. If no such pointer has been set,
 |                    NULL is returned
 +--------------------------------------------------------------------------*/
-void *field_userptr(const FIELD *field)
+NCURSES_EXPORT(void *)
+field_userptr (const FIELD *field)
 {
   return Normalize_Field( field )->usrptr;
 }

@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getch.3x,v 1.17 2000/07/01 16:45:36 tom Exp $
+.\" $Id: curs_getch.3x,v 1.18 2001/02/25 00:20:30 tom Exp $
 .TH curs_getch 3X ""
 .SH NAME
 \fBgetch\fR,
@@ -222,6 +222,15 @@ completion.
 Use of the escape key by a programmer for a single character function is
 discouraged, as it will cause a delay of up to one second while the
 keypad code looks for a following function-key sequence.
+
+Note that some keys may be the same as commonly used control
+keys, e.g., KEY_ENTER versus control/M, KEY_BACKSPACE versus control/H.
+Some curses implementations may differ according to whether they
+treat these control keys specially (and ignore the terminfo), or
+use the terminfo definitions.
+\fBNcurses\fR uses the terminfo definition.
+If it says that KEY_ENTER is control/M, \fBgetch\fR, will return KEY_ENTER
+when you press control/M.
 
 When using \fBgetch\fR, \fBwgetch\fR, \fBmvgetch\fR, or
 \fBmvwgetch\fR, nocbreak mode (\fBnocbreak\fR) and echo mode

@@ -47,7 +47,7 @@
 #define __INTERNAL_CAPS_VISIBLE
 #include <term_entry.h>
 
-MODULE_ID("$Id: parse_entry.c,v 1.48 2000/10/03 09:38:48 tom Exp $")
+MODULE_ID("$Id: parse_entry.c,v 1.53 2001/03/03 21:13:09 Todd.C.Miller Exp $")
 
 #ifdef LINT
 static short const parametrized[] =
@@ -195,14 +195,15 @@ _nc_extend_names(ENTRY * entryp, char *name, int token_type)
  *	push back token
  */
 
-int
-_nc_parse_entry(struct entry *entryp, int literal, bool silent)
+NCURSES_EXPORT(int)
+_nc_parse_entry
+(struct entry *entryp, int literal, bool silent)
 {
     int token_type;
     struct name_table_entry const *entry_ptr;
     char *ptr, *base;
 
-    token_type = _nc_get_token();
+    token_type = _nc_get_token(silent);
 
     if (token_type == EOF)
 	return (EOF);
@@ -248,9 +249,9 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 
     entryp->nuses = 0;
 
-    for (token_type = _nc_get_token();
+    for (token_type = _nc_get_token(silent);
 	 token_type != EOF && token_type != NAMES;
-	 token_type = _nc_get_token()) {
+	 token_type = _nc_get_token(silent)) {
 	if (strcmp(_nc_curr_token.tk_name, "use") == 0
 	    || strcmp(_nc_curr_token.tk_name, "tc") == 0) {
 	    entryp->uses[entryp->nuses].name = _nc_save_str(_nc_curr_token.tk_valstring);
@@ -464,12 +465,12 @@ _nc_parse_entry(struct entry *entryp, int literal, bool silent)
 	} else
 	    postprocess_terminfo(&entryp->tterm);
     }
-    _nc_wrap_entry(entryp);
+    _nc_wrap_entry(entryp, FALSE);
 
     return (OK);
 }
 
-int
+NCURSES_EXPORT(int)
 _nc_capcmp(const char *s, const char *t)
 /* compare two string capabilities, stripping out padding */
 {
@@ -481,15 +482,21 @@ _nc_capcmp(const char *s, const char *t)
     for (;;) {
 	if (s[0] == '$' && s[1] == '<') {
 	    for (s += 2;; s++)
-		if (!(isdigit(*s) || *s == '.' || *s == '*' || *s == '/' ||
-		      *s == '>'))
+		if (!(isdigit(CharOf(*s))
+		      || *s == '.'
+		      || *s == '*'
+		      || *s == '/'
+		      || *s == '>'))
 		    break;
 	}
 
 	if (t[0] == '$' && t[1] == '<') {
 	    for (t += 2;; t++)
-		if (!(isdigit(*t) || *t == '.' || *t == '*' || *t == '/' ||
-		      *t == '>'))
+		if (!(isdigit(CharOf(*t))
+		      || *t == '.'
+		      || *t == '*'
+		      || *t == '/'
+		      || *t == '>'))
 		    break;
 	}
 
@@ -507,7 +514,7 @@ _nc_capcmp(const char *s, const char *t)
 }
 
 static void
-append_acs0(string_desc *dst, int code, int src)
+append_acs0(string_desc * dst, int code, int src)
 {
     if (src != 0) {
 	char temp[3];
@@ -519,7 +526,7 @@ append_acs0(string_desc *dst, int code, int src)
 }
 
 static void
-append_acs(string_desc *dst, int code, char *src)
+append_acs(string_desc * dst, int code, char *src)
 {
     if (src != 0 && strlen(src) == 1) {
 	append_acs0(dst, code, *src);
@@ -657,12 +664,12 @@ postprocess_termcap(TERMTYPE * tp, bool has_base)
 	    } else if (PRESENT(carriage_return) && PRESENT(scroll_forward)) {
 		_nc_str_init(&result, buf, sizeof(buf));
 		if (_nc_safe_strcat(&result, carriage_return)
-		 && _nc_safe_strcat(&result, scroll_forward))
+		    && _nc_safe_strcat(&result, scroll_forward))
 		    newline = _nc_save_str(buf);
 	    } else if (PRESENT(carriage_return) && PRESENT(cursor_down)) {
 		_nc_str_init(&result, buf, sizeof(buf));
 		if (_nc_safe_strcat(&result, carriage_return)
-		 && _nc_safe_strcat(&result, cursor_down))
+		    && _nc_safe_strcat(&result, cursor_down))
 		    newline = _nc_save_str(buf);
 	    }
 	}
@@ -813,13 +820,15 @@ postprocess_termcap(TERMTYPE * tp, bool has_base)
 	}
     }
 
-    if (!hard_copy) {
-	if (WANTED(key_backspace))
-	    key_backspace = _nc_save_str(C_BS);
-	if (WANTED(key_left))
-	    key_left = _nc_save_str(C_BS);
-	if (WANTED(key_down))
-	    key_down = _nc_save_str(C_LF);
+    if (!has_base) {
+	if (!hard_copy) {
+	    if (WANTED(key_backspace))
+		key_backspace = _nc_save_str(C_BS);
+	    if (WANTED(key_left))
+		key_left = _nc_save_str(C_BS);
+	    if (WANTED(key_down))
+		key_down = _nc_save_str(C_LF);
+	}
     }
 
     /*
@@ -841,17 +850,17 @@ postprocess_termcap(TERMTYPE * tp, bool has_base)
 	_nc_str_init(&result, buf2, sizeof(buf2));
 	_nc_safe_strcat(&result, acs_chars);
 
-	append_acs (&result, 'j', acs_lrcorner);
-	append_acs (&result, 'k', acs_urcorner);
-	append_acs (&result, 'l', acs_ulcorner);
-	append_acs (&result, 'm', acs_llcorner);
-	append_acs (&result, 'n', acs_plus);
-	append_acs (&result, 'q', acs_hline);
-	append_acs (&result, 't', acs_ltee);
-	append_acs (&result, 'u', acs_rtee);
-	append_acs (&result, 'v', acs_btee);
-	append_acs (&result, 'w', acs_ttee);
-	append_acs (&result, 'x', acs_vline);
+	append_acs(&result, 'j', acs_lrcorner);
+	append_acs(&result, 'k', acs_urcorner);
+	append_acs(&result, 'l', acs_ulcorner);
+	append_acs(&result, 'm', acs_llcorner);
+	append_acs(&result, 'n', acs_plus);
+	append_acs(&result, 'q', acs_hline);
+	append_acs(&result, 't', acs_ltee);
+	append_acs(&result, 'u', acs_rtee);
+	append_acs(&result, 'v', acs_btee);
+	append_acs(&result, 'w', acs_ttee);
+	append_acs(&result, 'x', acs_vline);
 
 	if (buf2[0]) {
 	    acs_chars = _nc_save_str(buf2);
@@ -883,17 +892,17 @@ postprocess_terminfo(TERMTYPE * tp)
 	_nc_str_init(&result, buf2, sizeof(buf2));
 	_nc_safe_strcat(&result, acs_chars);
 
-	append_acs0 (&result, 'l', box_chars_1[0]);	/* ACS_ULCORNER */
-	append_acs0 (&result, 'q', box_chars_1[1]);	/* ACS_HLINE */
-	append_acs0 (&result, 'k', box_chars_1[2]);	/* ACS_URCORNER */
-	append_acs0 (&result, 'x', box_chars_1[3]);	/* ACS_VLINE */
-	append_acs0 (&result, 'j', box_chars_1[4]);	/* ACS_LRCORNER */
-	append_acs0 (&result, 'm', box_chars_1[5]);	/* ACS_LLCORNER */
-	append_acs0 (&result, 'w', box_chars_1[6]);	/* ACS_TTEE */
-	append_acs0 (&result, 'u', box_chars_1[7]);	/* ACS_RTEE */
-	append_acs0 (&result, 'v', box_chars_1[8]);	/* ACS_BTEE */
-	append_acs0 (&result, 't', box_chars_1[9]);	/* ACS_LTEE */
-	append_acs0 (&result, 'n', box_chars_1[10]);	/* ACS_PLUS */
+	append_acs0(&result, 'l', box_chars_1[0]);	/* ACS_ULCORNER */
+	append_acs0(&result, 'q', box_chars_1[1]);	/* ACS_HLINE */
+	append_acs0(&result, 'k', box_chars_1[2]);	/* ACS_URCORNER */
+	append_acs0(&result, 'x', box_chars_1[3]);	/* ACS_VLINE */
+	append_acs0(&result, 'j', box_chars_1[4]);	/* ACS_LRCORNER */
+	append_acs0(&result, 'm', box_chars_1[5]);	/* ACS_LLCORNER */
+	append_acs0(&result, 'w', box_chars_1[6]);	/* ACS_TTEE */
+	append_acs0(&result, 'u', box_chars_1[7]);	/* ACS_RTEE */
+	append_acs0(&result, 'v', box_chars_1[8]);	/* ACS_BTEE */
+	append_acs0(&result, 't', box_chars_1[9]);	/* ACS_LTEE */
+	append_acs0(&result, 'n', box_chars_1[10]);	/* ACS_PLUS */
 
 	if (buf2[0]) {
 	    acs_chars = _nc_save_str(buf2);

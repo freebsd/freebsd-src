@@ -22,10 +22,10 @@
   modified by Juergen Pfeifer (juergen.pfeifer@gmx.net)
 */
 
-#include "cursesw.h"
 #include "internal.h"
+#include "cursesw.h"
 
-MODULE_ID("$Id: cursesw.cc,v 1.17 2000/09/02 18:55:31 tom Exp $")
+MODULE_ID("$Id: cursesw.cc,v 1.21 2001/04/07 22:11:39 tom Exp $")
 
 #define COLORS_NEED_INITIALIZATION  -1
 #define COLORS_NOT_INITIALIZED       0
@@ -45,43 +45,52 @@ bool NCursesWindow::b_initialized = FALSE;
 int
 NCursesWindow::scanw(const char* fmt, ...)
 {
+    int result = ERR;
 #if defined(__GNUG__)
-    va_list args;
-    va_start(args, fmt);
     char buf[BUFSIZ];
-    int result = wgetstr(w, buf);
-    if (result == OK) {
+
+    if (::wgetnstr(w, buf, sizeof(buf)) != ERR) {
+	va_list args;
+	va_start(args, fmt);
+#if USE_STDIO_VSCAN
+	if (::vscanf(fmt, args) != -1)
+	    result = OK;
+#elif USE_STRSTREAM_VSCAN	/* pre-gcc 3.0 */
 	strstreambuf ss(buf, sizeof(buf));
-	result = ss.vscan(fmt, (_IO_va_list)args);
-    }
-    va_end(args);
-    return result;
-#else
-    return ERR;
+	if (ss.vscan(fmt, (_IO_va_list)args) != -1)
+	    result = OK;
 #endif
+	va_end(args);
+    }
+#endif
+    return result;
 }
 
 
 int
 NCursesWindow::scanw(int y, int x, const char* fmt, ...)
 {
+    int result = ERR;
 #if defined(__GNUG__)
-    va_list args;
-    va_start(args, fmt);
     char buf[BUFSIZ];
-    int result = wmove(w, y, x);
-    if (result == OK) {
-	result = wgetstr(w, buf);
-	if (result == OK) {
+
+    if (::wmove(w, y, x) != ERR) {
+	if (::wgetnstr(w, buf, sizeof(buf)) != ERR) {
+	    va_list args;
+	    va_start(args, fmt);
+#if USE_STDIO_VSCAN
+	    if (::vscanf(fmt, args) != -1)
+		result = OK;
+#elif USE_STRSTREAM_VSCAN	/* pre-gcc 3.0 */
 	    strstreambuf ss(buf, sizeof(buf));
-	    result = ss.vscan(fmt, (_IO_va_list)args);
+	    if (ss.vscan(fmt, (_IO_va_list)args) != -1)
+		result = OK;
+#endif
+	    va_end(args);
 	}
     }
-    va_end(args);
-    return result;
-#else
-    return ERR;
 #endif
+    return result;
 }
 
 
@@ -91,7 +100,7 @@ NCursesWindow::printw(const char * fmt, ...)
     va_list args;
     va_start(args, fmt);
     char buf[BUFSIZ];
-    vsprintf(buf, fmt, args);
+    ::vsprintf(buf, fmt, args);
     va_end(args);
     return waddstr(w, buf);
 }
@@ -102,10 +111,10 @@ NCursesWindow::printw(int y, int x, const char * fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    int result = wmove(w, y, x);
+    int result = ::wmove(w, y, x);
     if (result == OK) {
 	char buf[BUFSIZ];
-	vsprintf(buf, fmt, args);
+	::vsprintf(buf, fmt, args);
 	result = waddstr(w, buf);
     }
     va_end(args);
@@ -142,8 +151,7 @@ NCursesWindow::initialize() {
 }
 
 NCursesWindow::NCursesWindow() {
-  if (!b_initialized)
-    initialize();
+  initialize();
 
   w = (WINDOW *)0;
   init();
@@ -154,8 +162,7 @@ NCursesWindow::NCursesWindow() {
 
 NCursesWindow::NCursesWindow(int lines, int cols, int begin_y, int begin_x)
 {
-    if (!b_initialized)
-      initialize();
+    initialize();
 
     w = ::newwin(lines, cols, begin_y, begin_x);
     if (w == 0) {
@@ -170,8 +177,7 @@ NCursesWindow::NCursesWindow(int lines, int cols, int begin_y, int begin_x)
 
 NCursesWindow::NCursesWindow(WINDOW* &window)
 {
-    if (!b_initialized)
-      initialize();
+    initialize();
 
     w = window;
     init();
@@ -183,6 +189,7 @@ NCursesWindow::NCursesWindow(WINDOW* &window)
 NCursesWindow::NCursesWindow(NCursesWindow& win, int l, int c,
 			     int begin_y, int begin_x, char absrel)
 {
+    initialize();
     if (absrel == 'a') { // absolute origin
 	begin_y -= win.begy();
 	begin_x -= win.begx();
@@ -208,6 +215,7 @@ NCursesWindow::NCursesWindow(NCursesWindow& win, int l, int c,
 NCursesWindow::NCursesWindow(NCursesWindow& win,
 				bool do_box NCURSES_PARAM_INIT(TRUE))
 {
+  initialize();
   w = :: derwin(win.w,win.height()-2,win.width()-2,1,1);
   if (w == 0) {
     err_handler("Cannot construct subwindow");
@@ -244,6 +252,7 @@ static RIPOFFINIT* prip = R_INIT;
 extern "C" int _nc_ripoffline(int,int (*init)(WINDOW*,int));
 
 NCursesWindow::NCursesWindow(WINDOW *win, int cols) {
+  initialize();
   w = win;
   assert((w->_maxx+1)==cols);
   alloced = FALSE;
@@ -323,7 +332,7 @@ NCursesWindow::~NCursesWindow()
     }
 
     if (alloced && w != 0)
-	delwin(w);
+	::delwin(w);
 
     if (alloced) {
       --count;
@@ -364,7 +373,7 @@ NCursesWindow::getcolor(int getback) const
     short fore, back;
 
     if (colorInitialized==COLORS_ARE_REALLY_THERE) {
-      if (pair_content((short)PAIR_NUMBER(w->_attrs), &fore, &back))
+      if (::pair_content((short)PAIR_NUMBER(w->_attrs), &fore, &back))
 	err_handler("Can't get color pair");
     }
     else {
@@ -396,7 +405,7 @@ int
 NCursesWindow::setpalette(short fore, short back, short pair)
 {
   if (colorInitialized==COLORS_ARE_REALLY_THERE)
-    return init_pair(pair, fore, back);
+    return ::init_pair(pair, fore, back);
   else
     return OK;
 }

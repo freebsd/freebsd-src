@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: tic.h,v 1.35 2000/09/09 19:47:16 tom Exp $
+ * $Id: tic.h,v 1.38 2001/03/11 15:12:08 tom Exp $
  *	tic.h - Global variables and structures for the terminfo
  *			compiler.
  */
@@ -116,9 +116,9 @@ extern "C" {
 #define DEBUG(n, a)	/*nothing*/
 #endif
 
-extern unsigned _nc_tracing;
-extern void _nc_tracef(char *, ...) GCC_PRINTFLIKE(1,2);
-extern const char *_nc_visbuf(const char *);
+extern NCURSES_EXPORT_VAR(unsigned) _nc_tracing;
+extern NCURSES_EXPORT(void) _nc_tracef (char *, ...) GCC_PRINTFLIKE(1,2);
+extern NCURSES_EXPORT(const char *) _nc_visbuf (const char *);
 
 /*
  * These are the types of tokens returned by the scanner.  The first
@@ -149,7 +149,7 @@ struct token
 	char	*tk_valstring;	/* value of capability (if a string) */
 };
 
-extern	struct token	_nc_curr_token;
+extern NCURSES_EXPORT_VAR(struct token)	_nc_curr_token;
 
 	/*
 	 * List of keynames with their corresponding code.
@@ -159,7 +159,7 @@ struct kn {
 	int code;
 };
 
-extern const struct kn _nc_key_names[];
+extern NCURSES_EXPORT_VAR(const struct kn) _nc_key_names[];
 
 	/*
 	 * Offsets to string capabilities, with the corresponding functionkey
@@ -173,11 +173,11 @@ struct tinfo_fkeys {
 #if	BROKEN_LINKER
 
 #define	_nc_tinfo_fkeys	_nc_tinfo_fkeysf()
-extern struct tinfo_fkeys *_nc_tinfo_fkeysf(void);
+extern NCURSES_EXPORT(struct tinfo_fkeys *) _nc_tinfo_fkeysf (void);
 
 #else
 
-extern struct tinfo_fkeys _nc_tinfo_fkeys[];
+extern NCURSES_EXPORT_VAR(struct tinfo_fkeys) _nc_tinfo_fkeys[];
 
 #endif
 
@@ -202,14 +202,16 @@ struct alias
 	const char	*source;
 };
 
-extern const struct name_table_entry * const _nc_info_hash_table[];
-extern const struct name_table_entry * const _nc_cap_hash_table[];
+extern NCURSES_EXPORT_VAR(int) _nc_tparm_err;
 
-extern const struct alias _nc_capalias_table[];
-extern const struct alias _nc_infoalias_table[];
+extern NCURSES_EXPORT_VAR(const struct name_table_entry * const) _nc_info_hash_table[];
+extern NCURSES_EXPORT_VAR(const struct name_table_entry * const) _nc_cap_hash_table[];
 
-extern const struct name_table_entry	*_nc_get_table(bool);
-extern const struct name_table_entry	* const *_nc_get_hash_table(bool);
+extern NCURSES_EXPORT_VAR(const struct alias) _nc_capalias_table[];
+extern NCURSES_EXPORT_VAR(const struct alias) _nc_infoalias_table[];
+
+extern NCURSES_EXPORT(const struct name_table_entry *) _nc_get_table (bool);
+extern NCURSES_EXPORT(const struct name_table_entry * const *) _nc_get_hash_table (bool);
 
 #define NOTFOUND	((struct name_table_entry *) 0)
 
@@ -238,59 +240,59 @@ extern const struct name_table_entry	* const *_nc_get_hash_table(bool);
 #endif
 
 /* access.c */
-extern char *_nc_basename(char *);
+extern NCURSES_EXPORT(char *) _nc_basename (char *);
 
 /* comp_hash.c: name lookup */
-struct name_table_entry	const *_nc_find_entry(const char *,
-				    const struct name_table_entry *const *);
-struct name_table_entry const *_nc_find_type_entry(const char *,
-					 int,
-					 const struct name_table_entry *);
+extern NCURSES_EXPORT(struct name_table_entry const *) _nc_find_entry
+	(const char *, const struct name_table_entry *const *);
+extern NCURSES_EXPORT(struct name_table_entry const *) _nc_find_type_entry
+	(const char *, int, const struct name_table_entry *);
 
 /* comp_scan.c: lexical analysis */
-extern int  _nc_get_token(void);
-extern void _nc_push_token(int);
-extern void _nc_reset_input(FILE *, char *);
-extern void _nc_panic_mode(char);
-extern int _nc_curr_line;
-extern int _nc_curr_col;
-extern long _nc_curr_file_pos;
-extern long _nc_comment_start, _nc_comment_end;
-extern int _nc_syntax;
-extern long _nc_start_line;
+extern NCURSES_EXPORT(int)  _nc_get_token (bool);
+extern NCURSES_EXPORT(void) _nc_panic_mode (char);
+extern NCURSES_EXPORT(void) _nc_push_token (int);
+extern NCURSES_EXPORT(void) _nc_reset_input (FILE *, char *);
+extern NCURSES_EXPORT_VAR(int) _nc_curr_col;
+extern NCURSES_EXPORT_VAR(int) _nc_curr_line;
+extern NCURSES_EXPORT_VAR(int) _nc_syntax;
+extern NCURSES_EXPORT_VAR(long) _nc_comment_end;
+extern NCURSES_EXPORT_VAR(long) _nc_comment_start;
+extern NCURSES_EXPORT_VAR(long) _nc_curr_file_pos;
+extern NCURSES_EXPORT_VAR(long) _nc_start_line;
 #define SYN_TERMINFO	0
 #define SYN_TERMCAP	1
 
 /* comp_error.c: warning & abort messages */
-extern void _nc_set_source(const char *const name);
-extern void _nc_get_type(char *name);
-extern void _nc_set_type(const char *const name);
-extern void _nc_syserr_abort(const char *const,...) GCC_PRINTFLIKE(1,2) GCC_NORETURN;
-extern void _nc_err_abort(const char *const,...) GCC_PRINTFLIKE(1,2) GCC_NORETURN;
-extern void _nc_warning(const char *const,...) GCC_PRINTFLIKE(1,2);
-extern bool _nc_suppress_warnings;
+extern NCURSES_EXPORT(void) _nc_set_source (const char *const name);
+extern NCURSES_EXPORT(void) _nc_get_type (char *name);
+extern NCURSES_EXPORT(void) _nc_set_type (const char *const name);
+extern NCURSES_EXPORT(void) _nc_syserr_abort (const char *const,...) GCC_PRINTFLIKE(1,2) GCC_NORETURN;
+extern NCURSES_EXPORT(void) _nc_err_abort (const char *const,...) GCC_PRINTFLIKE(1,2) GCC_NORETURN;
+extern NCURSES_EXPORT(void) _nc_warning (const char *const,...) GCC_PRINTFLIKE(1,2);
+extern NCURSES_EXPORT_VAR(bool) _nc_suppress_warnings;
 
 /* comp_expand.c: expand string into readable form */
-extern char *_nc_tic_expand(const char *, bool, int);
+extern NCURSES_EXPORT(char *) _nc_tic_expand (const char *, bool, int);
 
 /* comp_scan.c: decode string from readable form */
-extern char _nc_trans_string(char *, char *);
+extern NCURSES_EXPORT(char) _nc_trans_string (char *, char *);
 
 /* captoinfo.c: capability conversion */
-extern char *_nc_captoinfo(const char *, const char *, int const);
-extern char *_nc_infotocap(const char *, const char *, int const);
+extern NCURSES_EXPORT(char *) _nc_captoinfo (const char *, const char *, int const);
+extern NCURSES_EXPORT(char *) _nc_infotocap (const char *, const char *, int const);
 
 /* lib_tputs.c */
-extern int _nc_nulls_sent;		/* Add one for every null sent */
+extern NCURSES_EXPORT_VAR(int) _nc_nulls_sent;		/* Add one for every null sent */
 
 /* comp_main.c: compiler main */
-extern const char *_nc_progname;
+extern const char * _nc_progname;
 
 /* read_entry.c */
-extern const char *_nc_tic_dir(const char *);
+extern NCURSES_EXPORT(const char *) _nc_tic_dir (const char *);
 
 /* write_entry.c */
-extern int _nc_tic_written(void);
+extern NCURSES_EXPORT(int) _nc_tic_written (void);
 
 #ifdef __cplusplus
 }

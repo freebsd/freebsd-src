@@ -50,13 +50,11 @@ void	_nc_linedump(void)
 
 #include <term.h>
 
-typedef struct
-{
-    unsigned long	hashval;
-    int		oldcount, newcount;
-    int		oldindex, newindex;
-}
-    sym;
+typedef struct {
+    unsigned long hashval;
+    int oldcount, newcount;
+    int oldindex, newindex;
+} sym;
 
 #undef _nc_hash_map
 void	_nc_hash_map(void)
@@ -1241,9 +1239,9 @@ SCREEN	*newterm(
 /* ./base/lib_newwin.c */
 
 #undef _nc_freewin
-void	_nc_freewin(
+int	_nc_freewin(
 		WINDOW	*win)
-		{ /* void */ }
+		{ return(*(int *)0); }
 
 #undef newwin
 WINDOW	*newwin(
@@ -2110,7 +2108,8 @@ char	*_nc_save_str(
 
 #undef _nc_wrap_entry
 void	_nc_wrap_entry(
-		ENTRY	*const ep)
+		ENTRY	*const ep, 
+		bool	copy_strings)
 		{ /* void */ }
 
 #undef _nc_merge_entry
@@ -2137,15 +2136,15 @@ void	_nc_copy_termtype(
 
 #undef _nc_captoinfo
 char	*_nc_captoinfo(
-		 const char *cap, 
-		 const char *s, 
+		const char *cap, 
+		const char *s, 
 		int const parametrized)
 		{ return(*(char **)0); }
 
 #undef _nc_infotocap
 char	*_nc_infotocap(
-		 const char *cap, 
-		 const char *str, 
+		const char *cap, 
+		const char *str, 
 		int const parametrized)
 		{ return(*(char **)0); }
 
@@ -2303,7 +2302,8 @@ struct token _nc_curr_token;
 bool	_nc_disable_period;
 
 #undef _nc_get_token
-int	_nc_get_token(void)
+int	_nc_get_token(
+		bool	silent)
 		{ return(*(int *)0); }
 
 #undef _nc_trans_string
@@ -2400,8 +2400,8 @@ void	_nc_init_acs(void)
 #include <termcap.h>
 
 struct speed {
-    int s;	
-    int sp;	
+    int s;			
+    int sp;			
 };
 
 #undef _nc_baudrate
@@ -2716,7 +2716,7 @@ char	*tparm(
 #undef PC
 char	PC;
 #undef ospeed
-short	ospeed;
+NCURSES_OSPEED	ospeed;
 #undef _nc_nulls_sent
 int	_nc_nulls_sent;
 
@@ -2936,6 +2936,12 @@ int	_nc_read_entry(
 void	_nc_read_termcap(void)
 		{ /* void */ }
 
+#undef _nc_read_termcap_entry
+int	_nc_read_termcap_entry(
+		const char *const tn, 
+		TERMTYPE *const tp)
+		{ return(*(int *)0); }
+
 /* ./tinfo/setbuf.c */
 
 #undef _nc_set_buffer
@@ -2980,8 +2986,8 @@ bool	_nc_safe_strcpy(
 /* ./trace/trace_buf.c */
 
 typedef struct {
-	char *text;
-	size_t size;
+    char *text;
+    size_t size;
 } LIST;
 
 #undef _nc_trace_buf
