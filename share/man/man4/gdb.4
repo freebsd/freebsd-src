@@ -86,11 +86,13 @@ Investigate them from the kernel build directory with:
 .Pp
 In this mode, the system is obviously stopped, so you can only look at it.
 .Ss Debugging a live system with a remote link
+In the following discussion, the term ``local system'' refers to the system
+running the debugger, and ``remote system'' refers to the live system being
+debugged.
+.Pp
 To debug a live system with a remote link, the kernel must be compiled with the
-options
-.Cd options DDB
-and
-.Cd options GDB_REMOTE_CHAT .
+option
+.Cd options DDB .
 The option
 .Cd options BREAK_TO_DEBUGGER 
 enables the debugging machine stop the debugged machine once a connection has
@@ -109,39 +111,39 @@ should be:
 .Bd -literal -offset 5m
 hint.sio.0.flags="0x90"
 .Ed
+.Pp
+To share a console and debug connection on a serial line, use the
+.Cd options GDB_REMOTE_CHAT
+option.
 .Ss Debugging a live system with a remote firewire link
 As with serial debugging, to debug a live system with a firewire link, the
-kernel must be compiled with the options
-.Cd options DDB
-and
-.Cd options GDB_REMOTE_CHAT .
+kernel must be compiled with the option
+.Cd options DDB .
+The 
+.Cd options GDB_REMOTE_CHAT
+is not necessary, since the firewire implementation uses separate ports for the
+console and debug connection.
 .Pp
 A number of steps must be performed to set up a firewire link:
 .Pp
 .Bl -bullet -offset indent -compact
 .It
-First, ensure that the kernels of both systems include firewire support.  
-If it isn't compiled into the kernel, load the klds:
+Ensure that both systems have firewire support, and that the kernel of the
+remote system includes the
+.Nm dcons
+and
+.Nm dcons_crom 
+drivers.
+If they're not compiled into the kernel, load the klds:
 .Bd -literal -offset 5m
-# \f(CBkldload dcons\fP
-# \f(CBkldload dcons_crom\fP
+# \f(CBkldload firewire\fP
+# \f(CBkldload dcons\fP			\fI(remote system only)\fP\/
+# \f(CBkldload dcons_crom\fP		\fI(remote system only)\fP\/
 .Ed
 .Pp
 You should see something like this in the
 .Nm dmesg
-output:
-.Pp
-.Bd -literal -offset 5m
-fwohci0: BUS reset
-fwohci0: node_id=0xc000ffc1, gen=3, CYCLEMASTER mode
-firewire0: 2 nodes, maxhop <= 1, cable IRM = 1 (me)
-firewire0: bus manager 1 (me)
-firewire0: New S400 device ID:000199000003622b
-dcons_crom0: <dcons configuration ROM> on firewire0
-dcons_crom0: bus_addr 0xf93000
-.Ed
-.Pp
-The corresponding output on the other machine looks like this:
+output of the remote system:
 .Pp
 .Bd -literal -offset 5m
 fwohci0: BUS reset
@@ -157,13 +159,28 @@ It's a good idea to load these modules at boot time with the following entry in
 .Pa /boot/loader.conf :
 .Pp
 .Bd -literal -offset 5m
-dcons_enable=YES
+dcons_crom_enable=YES
 .Ed
+.Pp
+This ensures that all three modules are loaded.
+There is no harm in loading
+.Nm dcons
+and
+.Nm dcons_crom
+on the local system, but if you only want to load the firewire module, include
+the following in
+.Pa /boot/loader.conf :
+.Pp
+.Bd -literal -offset 5m
+firewire_enable=YES
+.Ed
+.Pp
 .Pp
 .It
 Next, use
 .Nm fwcontrol 
-to find the firewire node corresponding to the remote machine:
+to find the firewire node corresponding to the remote machine.  
+On the local machine you might see:
 .Pp
 .Bd -literal -offset 5m
 # \f(CBfwcontrol\fP
@@ -189,33 +206,33 @@ node        EUI64        status
 .Pp
 .It
 Next, establish a firewire connection with
-.Nm fwchat :
+.Nm dconschat :
 .Pp
 .Bd -literal -offset 5m
-# \f(CBfwchat -b  -t \f[CBI]target-address\fR
+# \f(CBdconschat -br -G 5556 -t 0x000199000003622b\fP
 .Ed
 .Pp
-.Ar target-address
-is the EUI64 address of the remote node, in this case
-.Li 0x000199000003622b .
-When started in this manner, 
-.Nm fwchat
-establishes two local tunnel connections:
-.Ar localhost:5555
-is a connection to a
-.Nm getty 
-process, which is not of interest here, and
-.Ar localhost:5556
-is a connection to the debugger.
-The port numbers can be changed with the
-.Fl p
-flag to
-.Nm fwcontrol .
-.Pp
+.Ar 0x000199000003622b
+is the EUI64 address of the remote node, as determined from the output of
 .Nm fwcontrol
+above.
+When started in this manner, 
+.Nm dconschat
+establishes a local tunnel connection from port
+.Ar localhost:5556
+to the remote debugger.
+You can also establish a console port connection with the
+.Fl C
+option to the same invocation
+.Nm dconschat .
+See
+.Xr dconschat 8
+for further details.
+.Pp
+.Nm dconschat
 does not return control to the user.  
-You can start it in the background, but sometimes it will produce error
-messages, so it's a good idea to start it in its own window.
+It displays error messages and console output for the remote system, so it's a
+good idea to start it in its own window.
 .Pp
 .It
 Finally, establish connection:
@@ -236,23 +253,29 @@ to load the kld symbols.  That's a less obnoxious interface.
 0xc21bd378 in ?? ()
 .Ed
 .Pp
-.It
-It's currently possible for the two ends of the firewire link to get out of sync
-after a reboot.  
-On the
-.Nm fwchat
-screen you see:
+The
+.Nm trf
+macro assumes a connection on port 5556.
+If you want to use a different port (by changing the invocation of
+.Nm dconschat
+above), use the
+.Nm tr
+macro instead.  
+For example, if you want to use port 4711, run 
+.Nm dconschat
+like this:
+.Pp
 .Bd -literal -offset 5m
-fwchat: get crom faild
+# \f(CBdconschat -br -G 4711 -t 0x000199000003622b\fP
 .Ed
 .Pp
-In this case, stop
-.Nm fwchat
-and perform a firewire bus reset:
+Then establish connection with:
 .Pp
 .Bd -literal -offset 5m
-# \f(CBfwcontrol -r\fP
-# \f(CBfwchat -b -t 0x000199000003622b\fP
+(gdb) \f(CBtr localhost:4711\fP
+0xc21bd378 in ?? ()
+.Ed
+.Pp
 .El
 .Sh COMMANDS
 The user interface to
@@ -430,7 +453,7 @@ This causes the contents of free  memory to be set to
 .Li 0xdeadc0de .
 .It Cm dmesg
 Print the system message buffer.  This corresponds to the
-.Nm dmesg
+.Xr dmesg 8
 command.
 It can take a very long time over a serial line, and it's even slow via firewire
 or local memory due to inefficiencies in
@@ -466,26 +489,32 @@ message to remind you to remove it again.
 This man page was written by 
 .An "Greg Lehey" Aq grog@FreeBSD.org
 .Sh SEE ALSO
+.Xr dconschat 8 ,
 .Xr ddb 4 ,
-.Xr fwchat 8 ,
 .Xr fwcontrol 8 ,
 .Xr gdb 1 ,
+.Xr kldload 8 ,
 .Xr vinumdebug 4 .
 .\" .Sh HISTORY
 .Sh BUGS
-.Bl -bullet -offset indent -compact
+.Bl -bullet -compact
 .It
 .Nm
 was never designed to debug kernels, and it's not a very good match.
 Many problems exist.
 .It
+The
+.Nm gdb
+implementation is very inefficient, and many operations are slow.
+.It
+Serial debugging is even slower, and race conditions can make it difficult to
+run the link at more than 9600 bps.  Firewire connections do not have this
+problem.
+.It
 The debugging macros ``just growed''.  
 In general, the person who wrote them did so while looking for a specific
 problem, so they may not be general enough, and they may behave badly when used
 in ways for which they were not intended, even if those ways make sense.
-.It
-Serial debugging is very slow, and race conditions can make it difficult to run
-the link at more than 9600 bps.  Firewire connections do not have this problem.
 .It
 Many of these commands only work on the ia32 architecture.
 .El
