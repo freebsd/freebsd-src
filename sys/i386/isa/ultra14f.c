@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.56 1997/09/07 04:21:25 bde Exp $
+ *      $Id: ultra14f.c,v 1.57 1997/09/21 21:41:45 gibbs Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
@@ -287,7 +287,6 @@ static void	uha_send_mbox __P((struct uha_data *uha, struct mscp *mscp));
 static timeout_t
 		uha_timeout;
 
-static	struct mscp *cheat;
 static unsigned long int scratch;
 #define	EISA_MAX_SLOTS	16	/* XXX This should go into a comon header */
 static	uha_slot = 0;		/* slot last board was found in */
@@ -1080,7 +1079,6 @@ uha_scsi_cmd(xs)
 		xs->error = XS_DRIVER_STUFFUP;
 		return (TRY_AGAIN_LATER);
 	}
-	cheat = mscp;
 	SC_DEBUG(xs->sc_link, SDEV_DB3, ("start mscp(%p)\n", mscp));
 	mscp->xs = xs;
 
