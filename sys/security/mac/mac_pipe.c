@@ -381,6 +381,10 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_init =
 			    mpe->mpe_function;
 			break;
+		case MAC_SYSCALL:
+			mpc->mpc_ops->mpo_syscall =
+			    mpe->mpe_function;
+			break;
 		case MAC_INIT_BPFDESC:
 			mpc->mpc_ops->mpo_init_bpfdesc =
 			    mpe->mpe_function;
@@ -3213,6 +3217,33 @@ out:
 	return (error);
 }
 
+int
+mac_syscall(struct thread *td, struct mac_syscall_args *uap)
+{
+	struct mac_policy_conf *mpc;
+	char target[MAC_MAX_POLICY_NAME];
+	int error;
+
+	error = copyinstr(SCARG(uap, policy), target, sizeof(target), NULL);
+	if (error)
+		return (error);
+
+	error = ENOSYS;
+	MAC_POLICY_LIST_BUSY();
+	LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {
+		if (strcmp(mpc->mpc_name, target) == 0 &&
+		    mpc->mpc_ops->mpo_syscall != NULL) {
+			error = mpc->mpc_ops->mpo_syscall(td,
+			    SCARG(uap, call), SCARG(uap, arg));
+			goto out;
+		}
+	}
+
+out:
+	MAC_POLICY_LIST_UNBUSY();
+	return (error);
+}
+
 SYSINIT(mac, SI_SUB_MAC, SI_ORDER_FIRST, mac_init, NULL);
 SYSINIT(mac_late, SI_SUB_MAC_LATE, SI_ORDER_FIRST, mac_late_init, NULL);
 
@@ -3255,6 +3286,13 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 
 int
 __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 {
 
 	return (ENOSYS);

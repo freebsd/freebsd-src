@@ -60,6 +60,11 @@
 #define	FREEBSD_MAC_EXTATTR_NAMESPACE	EXTATTR_NAMESPACE_SYSTEM
 
 /*
+ * MAC framework-related constants and limits.
+ */
+#define	MAC_MAX_POLICY_NAME	32
+
+/*
  * XXXMAC: Per-policy structures will be moved from mac.h to per-policy
  * include files once the revised user interface is available.
  */
@@ -166,7 +171,7 @@ int	mac_valid(const mac_t _label);
  * Extensions to POSIX.1e visible in the application namespace.
  */
 int	mac_is_present_np(const char *_policyname);
-int	mac_policy(const char *_policyname, int call, void *arg);
+int	mac_syscall(const char *_policyname, int call, void *arg);
 
 /*
  * System calls wrapped by some POSIX.1e functions.
