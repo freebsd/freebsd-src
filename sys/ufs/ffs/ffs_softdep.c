@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.48 (McKusick) 1/10/00
+ *	from: @(#)ffs_softdep.c	9.49 (McKusick) 1/12/00
  * $FreeBSD$
  */
 
@@ -4227,10 +4227,13 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			 * the full semantics of a synchronous VOP_FSYNC as
 			 * that may end up here again, once for each directory
 			 * level in the filesystem. Instead, we push the blocks
-			 * and wait for them to clear.
+			 * and wait for them to clear. We have to fsync twice
+			 * because the first call may choose to defer blocks
+			 * that still have dependencies, but deferral will
+			 * happen at most once.
 			 */
-			if ((error =
-			    VOP_FSYNC(vp, p->p_ucred, MNT_NOWAIT, p))) {
+			if ((error=VOP_FSYNC(vp, p->p_ucred, MNT_NOWAIT, p)) ||
+			    (error=VOP_FSYNC(vp, p->p_ucred, MNT_NOWAIT, p))) {
 				vput(vp);
 				break;
 			}
