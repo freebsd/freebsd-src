@@ -29,7 +29,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id$
+.\" $Id: cuserid.3,v 1.5 1997/02/22 15:06:05 peter Exp $
 .\"
 .Dd April 10, 1995
 .Os
@@ -53,26 +53,26 @@ The function
 gets the user name associated with the effective UID of the current
 process.  If the argument
 .Fa s
-is non-zero, the name is copied to the buffer it is pointing to,
+is non-NULL, the name is copied to the buffer it points to,
 and that address is being returned.  This buffer must provide space
 for at least
 .Em L_cuserid
-characters, this constant is defined in
+characters. The L_cuserid constant is defined in
 .Pa Aq stdio.h .
 
 If
 .Fa s
-is zero, an internal array is used an its address will be returned.
+is NULL, an internal array is used and its address will be returned.
 .Sh RETURN VALUES
 .Nm cuserid
-returns the address of an array where the name has been stored to.
+returns the address of an array in which the name has been stored.
 
 If the name associated with the effective UID of the current process
 could not be found, either a null pointer will be returned, or
 .Po
 if
 .Fa s
-is non-zero
+is non-NULL
 .Pc
 the buffer
 .Fa s
