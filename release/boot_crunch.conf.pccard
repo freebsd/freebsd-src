@@ -6,7 +6,7 @@ srcdirs /usr/src/usr.sbin/pccard
 
 progs sh find sed test rm
 progs pwd ppp
-progs sysinstall newfs minigzip cpio bad144 fsck ifconfig route slattach
+progs sysinstall newfs minigzip cpio fsck ifconfig route slattach
 progs mount_nfs
 progs dhclient arp
 progs pccardc pccardd
