@@ -36,7 +36,9 @@ __FBSDID("$FreeBSD$");
 		    strcat(where_args, todir); \
 		    if (system(where_args)) { \
 	                cleanup(0); \
-		        errx(2, __FUNCTION__ ": can not invoke %ld byte tar pipeline: %s", \
+		        errx(2, \
+			    "%s: can not invoke %ld byte tar pipeline: %s", \
+			     __FUNCTION__, \
 			     (long)strlen(where_args), where_args); \
 		    } \
 		    strcpy(where_args, STARTSTRING); \
@@ -88,12 +90,12 @@ extract_plist(const char *home, Package *pkg)
     where_args = alloca(maxargs);
     if (!where_args) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": can't get argument list space");
+	errx(2, "%s: can't get argument list space", __FUNCTION__);
     }
     perm_args = alloca(maxargs);
     if (!perm_args) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": can't get argument list space");
+	errx(2, "%s: can't get argument list space", __FUNCTION__);
     }
 
     strcpy(where_args, STARTSTRING);
@@ -130,7 +132,7 @@ extract_plist(const char *home, Package *pkg)
 
 		if (strrchr(p->name,'\'')) {
 		  cleanup(0);
-		  errx(2, __FUNCTION__ ": Bogus filename \"%s\"", p->name);
+		  errx(2, "%s: Bogus filename \"%s\"", __FUNCTION__, p->name);
 		}
 		
 		/* first try to rename it into place */
@@ -159,7 +161,7 @@ extract_plist(const char *home, Package *pkg)
 		    add_count = snprintf(&perm_args[perm_count], maxargs - perm_count, "'%s' ", p->name);
 		    if (add_count < 0 || add_count > maxargs - perm_count) {
 			cleanup(0);
-			errx(2, __FUNCTION__ ": oops, miscounted strings!");
+			errx(2, "%s: oops, miscounted strings!", __FUNCTION__);
 		    }
 		    perm_count += add_count;
 		}
@@ -179,7 +181,7 @@ extract_plist(const char *home, Package *pkg)
 		    add_count = snprintf(&where_args[where_count], maxargs - where_count, " '%s'", p->name);
 		    if (add_count < 0 || add_count > maxargs - where_count) {
 			cleanup(0);
-			errx(2, __FUNCTION__ ": oops, miscounted strings!");
+			errx(2, "%s: oops, miscounted strings!", __FUNCTION__);
 		    }
 		    where_count += add_count;
 		    add_count = snprintf(&perm_args[perm_count],
@@ -187,7 +189,7 @@ extract_plist(const char *home, Package *pkg)
 					 "'%s' ", p->name);
 		    if (add_count < 0 || add_count > maxargs - perm_count) {
 			cleanup(0);
-			errx(2, __FUNCTION__ ": oops, miscounted strings!");
+			errx(2, "%s: oops, miscounted strings!", __FUNCTION__);
 		    }
 		    perm_count += add_count;
 		}
@@ -201,7 +203,7 @@ extract_plist(const char *home, Package *pkg)
 	    if (strcmp(p->name, ".")) {
 		if (!Fake && make_hierarchy(p->name) == FAIL) {
 		    cleanup(0);
-		    errx(2, __FUNCTION__ ": unable to cwd to '%s'", p->name);
+		    errx(2, "%s: unable to cwd to '%s'", __FUNCTION__, p->name);
 		}
 		Directory = p->name;
 	    }
@@ -213,11 +215,13 @@ extract_plist(const char *home, Package *pkg)
 	    if ((strstr(p->name, "%B") || strstr(p->name, "%F") ||
 		 strstr(p->name, "%f")) && last_file == NULL) {
 		cleanup(0);
-		errx(2, __FUNCTION__ ": no last file specified for '%s' command", p->name);
+		errx(2, "%s: no last file specified for '%s' command",
+		    __FUNCTION__, p->name);
 	    }
 	    if (strstr(p->name, "%D") && Directory == NULL) {
 		cleanup(0);
-		errx(2, __FUNCTION__ ": no directory specified for '%s' command", p->name);
+		errx(2, "%s: no directory specified for '%s' command",
+		    __FUNCTION__, p->name);
 	    }
 	    format_cmd(cmd, p->name, Directory, last_file);
 	    PUSHOUT(Directory);
