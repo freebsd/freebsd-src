@@ -777,6 +777,8 @@ ndis_convert_res(arg)
 	block = &sc->ndis_block;
 	dev = sc->ndis_dev;
 
+	SLIST_INIT(&brl_rev);
+
 	rl = malloc(sizeof(ndis_resource_list) +
 	    (sizeof(cm_partial_resource_desc) * (sc->ndis_rescnt - 1)),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
@@ -805,7 +807,6 @@ ndis_convert_res(arg)
 		 * in order to fix this, we have to create our own
 		 * temporary list with the entries in reverse order.
 		 */
-		SLIST_INIT(&brl_rev);
 		SLIST_FOREACH(brle, brl, link) {
 			n = malloc(sizeof(struct resource_list_entry),
 			    M_TEMP, M_NOWAIT);
