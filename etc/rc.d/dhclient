@@ -53,8 +53,9 @@ dhclient_common()
 
 dhclient_prestart()
 {
-	dhclient_common || return 1
-
+	if [ $dhclient_common_error -eq 1 ]; then
+		return 1
+	fi
 	for ifn in ${_cooked_list}; do
 		ifscript_up ${ifn}
 	done
@@ -78,8 +79,9 @@ dhclient_poststart()
 
 dhclient_prestop()
 {
-	dhclient_common || return 1
-
+	if [ $dhclient_common_error -eq 1 ]; then
+		return 1
+	fi
 	for ifn in ${_cooked_list}; do
 		ipx_down ${ifn}
 		ifalias_down ${ifn}
@@ -110,4 +112,11 @@ if [ -n "$2" ]; then
 fi
 
 load_rc_config $name
+dhclient_common_error=0
+dhclient_common || dhclient_common_error=1;
+if [ -n "$_cooked_list" ]; then
+	if [ -s $pidfile ]; then
+		stop_cmd=":"
+	fi
+fi
 run_rc_command "$1"
