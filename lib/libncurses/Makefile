@@ -326,10 +326,10 @@ term.h:		MKterm.h.awk edit_cfg.sh Caps
 # Build tools
 build-tools: make_hash make_keys
 
-make_keys:	make_keys.c names.c curses.h ncurses_def.h
+make_keys:	make_keys.c names.c ncurses_def.h ${HEADERS}
 	${CC} -o $@ ${CFLAGS} ${NCURSES}/ncurses/tinfo/make_keys.c
 
-make_hash:	comp_hash.c hashsize.h curses.h ncurses_def.h
+make_hash:	comp_hash.c hashsize.h ncurses_def.h ${HEADERS}
 	${CC} -o $@ ${CFLAGS} -DMAIN_PROGRAM \
 		${NCURSES}/ncurses/tinfo/comp_hash.c
 
