@@ -4,7 +4,7 @@ NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
 LOCALES=	en_US.ISO_8859-1 \
-		nl_NL.ISO_8859-9 \
+		nl_NL.ISO_8859-1 \
 		ru_RU.KOI8-R
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
