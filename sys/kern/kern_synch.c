@@ -342,7 +342,7 @@ schedcpu(arg)
 		mtx_unlock_spin(&sched_lock);
 	} /* end of process loop */
 	sx_sunlock(&allproc_lock);
-	wakeup((caddr_t)&lbolt);
+	wakeup(&lbolt);
 	callout_reset(&schedcpu_callout, hz, schedcpu, NULL);
 }
 
@@ -632,7 +632,7 @@ restart:
 					maybe_resched(td);
 				} else {
 					p->p_sflag |= PS_SWAPINREQ;
-					wakeup((caddr_t)&proc0);
+					wakeup(&proc0);
 				}
 				/* END INLINE EXPANSION */
 				goto restart;
@@ -680,7 +680,7 @@ restart:
 					break;
 				} else {
 					p->p_sflag |= PS_SWAPINREQ;
-					wakeup((caddr_t)&proc0);
+					wakeup(&proc0);
 				}
 				/* END INLINE EXPANSION */
 				goto restart;
@@ -819,7 +819,7 @@ setrunnable(struct thread *td)
 	td->td_kse->ke_slptime = 0;
 	if ((p->p_sflag & PS_INMEM) == 0) {
 		p->p_sflag |= PS_SWAPINREQ;
-		wakeup((caddr_t)&proc0);
+		wakeup(&proc0);
 	} else {
 		setrunqueue(td);
 		maybe_resched(td);
