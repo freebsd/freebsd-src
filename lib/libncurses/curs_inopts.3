@@ -1,6 +1,6 @@
-.TH curs_inopts 3X ""
+.TH curs_inopts 3 ""
 .SH NAME
-\fBcurs_inopts\fR: \fBcbreak\fR, \fBnocbreak\fR, \fBecho\fR,
+\fBcbreak\fR, \fBnocbreak\fR, \fBecho\fR,
 \fBnoecho\fR, \fBhalfdelay\fR, \fBintrflush\fR, \fBkeypad\fR,
 \fBmeta\fR, \fBnodelay\fR, \fBnotimeout\fR, \fBraw\fR, \fBnoraw\fR,
 \fBnoqiflush\fR, \fBqiflush\fR, \fBtimeout\fR, \fBwtimeout\fR,
@@ -53,7 +53,7 @@ mode.
 Initially the terminal may or may not be in \fBcbreak\fR mode, as the mode is
 inherited; therefore, a program should call \fBcbreak\fR or \fBnocbreak\fR
 explicitly.  Most interactive programs using \fBncurses\fR set the \fBcbreak\fR
-mode.  Note that \fBcbreak\fR overrides \fBraw\fR.  [See curs_getch(3X) for a
+mode.  Note that \fBcbreak\fR overrides \fBraw\fR.  [See curs_getch(3) for a
 discussion of how these routines interact with \fBecho\fR and \fBnoecho\fR.]
 
 The \fBecho\fR and \fBnoecho\fR routines control whether characters typed by
@@ -61,7 +61,7 @@ the user are echoed by \fBgetch\fR as they are typed.  Echoing by the tty
 driver is always disabled, but initially \fBgetch\fR is in echo mode, so
 characters typed are echoed.  Authors of most interactive programs prefer to do
 their own echoing in a controlled area of the screen, or not to echo at all, so
-they disable echoing by calling \fBnoecho\fR.  [See curs_getch(3X) for a
+they disable echoing by calling \fBnoecho\fR.  [See curs_getch(3) for a
 discussion of how these routines interact with \fBcbreak\fR and
 \fBnocbreak\fR.]
 
@@ -161,7 +161,7 @@ The entry points \fBintrflush\fR, \fBqiflush\fR, \fBnoqiflush\fR, and
 \fBtypeahead\fR are not yet implemented in ncurses 1.8.6.  The ncurses
 code does not do typeahead checking during input as SVr4 curses does.
 .SH SEE ALSO
-\fBncurses\fR(3X), \fBcurs_getch\fR(3X), \fBcurs_initscr\fR(3X), \fBtermio\fR(7)
+\fBncurses\fR(3), \fBcurs_getch\fR(3), \fBcurs_initscr\fR(3), \fBtermio\fR(7)
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

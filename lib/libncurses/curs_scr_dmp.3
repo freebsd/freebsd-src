@@ -1,8 +1,8 @@
-.TH curs_scr_dump 3X ""
+.TH curs_scr_dump 3 ""
 .SH NAME
-\fBcurs_scr_dump\fR: \fBscr_dump\fR, \fBscr_restore\fR,
-\fBscr_init\fR, \fBscr_set\fR - read (write) a \fBncurses\fR screen
-from (to) a file
+\fBscr_dump\fR, \fBscr_restore\fR,
+\fBscr_init\fR, 
+\fBscr_set\fR - read (write) a \fBncurses\fR screen from (to) a file
 .SH SYNOPSIS
 \fB#include <ncurses.h>\fR
 
@@ -39,17 +39,17 @@ what is currently on the screen, and also what the program wants on the screen.
 This can be thought of as a screen inheritance function.
 
 To read (write) a window from (to) a file, use the \fBgetwin\fR and
-\fBputwin\fR routines [see \fBcurs_util\fR(3X)].
+\fBputwin\fR routines [see \fBcurs_util\fR(3)].
 .SH RETURN VALUE
 All routines return the integer \fBERR\fR upon failure and \fBOK\fR
 upon success.
 .SH NOTES
 Note that \fBscr_init\fR, \fBscr_set\fR, and \fBscr_restore\fR may be macros.
 .BUGS
-The time-stamp and rmcup/nrrmc checks are not implemented in \fBncurses\fR(3X).
+The time-stamp and rmcup/nrrmc checks are not implemented in \fBncurses\fR(3).
 .SH SEE ALSO
-\fBncurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_refresh\fR(3X),
-\fBcurs_util\fR(3X), \fBsystem\fR(3S)
+\fBncurses\fR(3), \fBcurs_initscr\fR(3), \fBcurs_refresh\fR(3),
+\fBcurs_util\fR(3), \fBsystem\fR(3)
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

@@ -1,8 +1,8 @@
-.TH curs_addch 3X ""
+.TH curs_addch 3 ""
 .SH NAME
-\fBcurs_addch\fR: \fBaddch\fR, \fBwaddch\fR, \fBmvaddch\fR, \fBmvwaddch\fR,
-\fBechochar\fR, \fBwechochar\fR - add a character (with attributes) to a
-\fBncurses\fR window, then advance the cursor
+\fBaddch\fR, \fBwaddch\fR, \fBmvaddch\fR, \fBmvwaddch\fR,
+\fBechochar\fR, 
+\fBwechochar\fR - add a character (with attributes) to a \fBncurses\fR window, then advance the cursor
 .SH SYNOPSIS
 \fB#include <ncurses.h>\fR
 
@@ -40,7 +40,7 @@ Video attributes can be combined with a character by OR-ing them into the
 parameter.  This results in these attributes also being set.  (The intent here
 is that text, including attributes, can be copied from one place to another
 using \fBinch\fR and \fBaddch\fR.)  [see \fBstandout\fR, predefined video
-attribute constants, on the curs_attr(3X) page].
+attribute constants, on the curs_attr(3) page].
 
 The \fBechochar\fR and \fBwechochar\fR routines are functionally equivalent to
 a call to \fBaddch\fR followed by a call to \fBrefresh\fR, or a call to
@@ -102,9 +102,9 @@ however, will not typically produce the corresponding graphic;
 characters such as CR, NL, FF and TAB are typically interpreted by the console
 driver itself, and ESC will be interpreted as the leader of a control sequence.
 .SH SEE ALSO
-\fBncurses\fR(3X), \fBcurs_attr\fR(3X), \fBcurs_clear\fR(3X),
-\fBcurs_inch\fR(3X), \fBcurs_outopts\fR(3X), \fBcurs_refresh\fR(3X),
-\fBputc\fR(3S).
+\fBncurses\fR(3), \fBcurs_attr\fR(3), \fBcurs_clear\fR(3),
+\fBcurs_inch\fR(3), \fBcurs_outopts\fR(3), \fBcurs_refresh\fR(3),
+\fBputc\fR(3).
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:
