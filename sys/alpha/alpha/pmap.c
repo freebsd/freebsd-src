@@ -3176,7 +3176,7 @@ pmap_mapdev(pa, size)
 }
 
 void
-pmap_unmapdev(pa, size)
+pmap_unmapdev(va, size)
 	vm_offset_t va;
 	vm_size_t size;
 {
