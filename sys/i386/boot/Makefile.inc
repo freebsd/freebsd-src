@@ -1,9 +1,9 @@
+#	$Id$
+
 .if exists(${.CURDIR}/../../../../include)
 CFLAGS+=	-nostdinc -I${.CURDIR}/../../../../include
-MKDEP+=		-nostdinc -I${.CURDIR}/../../../../include
 .endif
 CFLAGS+=	-I${.CURDIR}/../../.. -I${.OBJDIR}
-MKDEP+=		-I${.CURDIR}/../../.. -I${.OBJDIR}
 CLEANFILES+=	machine
 
 .if defined(SRCS)
