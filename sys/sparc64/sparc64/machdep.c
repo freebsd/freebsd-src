@@ -63,11 +63,13 @@
 #include <sys/interrupt.h>
 #include <sys/ptrace.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
 #include <sys/ucontext.h>
 #include <sys/user.h>
+#include <sys/ucontext.h>
 #include <sys/exec.h>
 
 #include <dev/ofw/openfirm.h>
@@ -98,15 +100,13 @@
 #include <machine/tick.h>
 #include <machine/tlb.h>
 #include <machine/tstate.h>
+#include <machine/upa.h>
 #include <machine/ver.h>
 
-#define	MD_FETCH(mdp, info, type) ({ \
-	type *__p; \
-	__p = (type *)preload_search_info((mdp), MODINFO_METADATA | (info)); \
-	__p ? *__p : 0; \
-})
-
 typedef int ofw_vec_t(void *);
+
+struct tte *kernel_ttes;
+int kernel_tlb_slots;
 
 int physmem;
 int cold = 1;
@@ -131,7 +131,7 @@ u_long ofw_tba;
 static struct timecounter tick_tc;
 
 static timecounter_get_t tick_get_timecount;
-void sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
+void sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3,
 		  ofw_vec_t *vec);
 void sparc64_shutdown_final(void *dummy, int howto);
 
@@ -194,8 +194,7 @@ tick_get_timecount(struct timecounter *tc)
 }
 
 void
-sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
-	     ofw_vec_t *vec)
+sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 {
 	struct pcpu *pc;
 	vm_offset_t end;
@@ -221,6 +220,10 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
 			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+			kernel_tlb_slots = MD_FETCH(kmdp, MODINFOMD_DTLB_SLOTS,
+			    int);
+			kernel_ttes = (struct tte *)preload_search_info(kmdp,
+			    MODINFO_METADATA | MODINFOMD_DTLB);
 		}
 	}
 
@@ -250,6 +253,10 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 
 #ifdef DDB
 	kdb_init();
+#endif
+
+#ifdef SMP
+	mp_tramp = mp_tramp_alloc();
 #endif
 
 	/*
@@ -296,7 +303,8 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
 	pc->pc_curpcb = thread0.td_pcb;
-	pc->pc_mid = mid;
+	pc->pc_mid = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
+	pc->pc_addr = (vm_offset_t)pcpu0;
 	pc->pc_tlb_ctx = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_min = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;

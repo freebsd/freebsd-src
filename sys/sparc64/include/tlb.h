@@ -85,6 +85,9 @@
 
 #define	MMU_SFSR_W			(1L << MMU_SFSR_W_SHIFT)
 
+extern int kernel_tlb_slots;
+extern struct tte *kernel_ttes;
+
 /*
  * Some tlb operations must be atomical, so no interrupt or trap can be allowed
  * while they are in progress. Traps should not happen, but interrupts need to
