@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.29 1994/02/24 16:39:48 phk Exp $
+ *	$Id: sio.c,v 1.30 1994/02/26 00:04:03 phk Exp $
  */
 
 #include "sio.h"
@@ -270,7 +270,7 @@ static	bool_t	comconsinit;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	commajor;
-struct tty	sio_tty[NSIO];
+struct tty	*sio_tty[NSIO];
 extern	struct tty	*constty;
 extern	u_int	ipending;	/* XXX */
 extern	int	tk_nin;		/* XXX */
@@ -437,7 +437,7 @@ sioattach(isdp)
 	com->modem_ctl_port = iobase + com_mcr;
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
-	com->tp = &sio_tty[unit];
+	com->tp = sio_tty[unit];
 
 	/* attempt to determine UART type */
 	printf("sio%d: type", unit);
@@ -568,7 +568,9 @@ sioopen(dev, flag, mode, p)
 		return (ENXIO);
 #endif /* COM_BIDIR */
 
-	tp = com->tp;
+	
+	sio_tty[unit] = ttymalloc(sio_tty[unit]);
+	tp = com->tp = sio_tty[unit];
 	s = spltty();
 
 #ifdef COM_BIDIR
@@ -722,7 +724,7 @@ bidir_open_top:
 #endif /* COM_BIDIR */
 	       && !(tp->t_state & TS_CARR_ON)) {
 		tp->t_state |= TS_WOPEN;
-		error = ttysleep(tp, (caddr_t)&tp->t_raw, TTIPRI | PCATCH,
+		error = ttysleep(tp, (caddr_t)tp->t_raw, TTIPRI | PCATCH,
 				 ttopen, 0);
 		if (error != 0)
 			break;
@@ -768,6 +770,11 @@ sioclose(dev, flag, mode, p)
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	comhardclose(com);
 	ttyclose(tp);
+	ttyfree(tp);
+#ifdef broken /* session holds a ref to the tty; can't deallocate */
+	sio_tty[UNIT(dev)] = (struct tty *)NULL;
+	com->tp = (struct tty *)NULL;
+#endif
 	return (0);
 }
 
@@ -1184,7 +1191,7 @@ comflush(com)
 		com_events -= LOTS_OF_EVENTS;
 	com->state &= ~(CS_ODONE | CS_BUSY);
 	enable_intr();
-	rbp = &com->tp->t_out;
+	rbp = com->tp->t_out;
 	rbp->rb_hd += com->ocount;
 	rbp->rb_hd = RB_ROLLOVER(rbp, rbp->rb_hd);
 	com->ocount = 0;
@@ -1305,7 +1312,7 @@ repeat:
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
 			continue;
 		if (com->state & CS_RTS_IFLOW
-		    && RB_LEN(&tp->t_raw) + incc >= RB_I_HIGH_WATER
+		    && RB_LEN(tp->t_raw) + incc >= RB_I_HIGH_WATER
 		    && !(tp->t_state & TS_RTS_IFLOW)
 		    /*
 		     * XXX - need RTS flow control for all line disciplines.
@@ -1332,7 +1339,7 @@ repeat:
 			tk_rawcc += incc;
 			tp->t_rawcc += incc;
 			com->delta_error_counts[CE_TTY_BUF_OVERFLOW]
-				+= incc - rb_write(&tp->t_raw, (char *) buf,
+				+= incc - rb_write(tp->t_raw, (char *) buf,
 						   incc);
 			ttwakeup(tp);
 			if (tp->t_state & TS_TTSTOP
@@ -1439,7 +1446,7 @@ retry:
 	enable_intr();
 	while ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
 	       != (LSR_TSRE | LSR_TXRDY)) {
-		error = ttysleep(tp, (caddr_t)&tp->t_raw, TTIPRI | PCATCH,
+		error = ttysleep(tp, (caddr_t)tp->t_raw, TTIPRI | PCATCH,
 				 "sioparam", 1);
 		if (error != 0 && error != EAGAIN) {
 			if (!(tp->t_state & TS_TTSTOP)) {
@@ -1532,10 +1539,10 @@ comstart(tp)
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP))
 		goto out;
-	if (RB_LEN(&tp->t_out) <= tp->t_lowat) {
+	if (RB_LEN(tp->t_out) <= tp->t_lowat) {
 		if (tp->t_state & TS_ASLEEP) {
 			tp->t_state &= ~TS_ASLEEP;
-			wakeup((caddr_t)&tp->t_out);
+			wakeup((caddr_t)tp->t_out);
 		}
 		if (tp->t_wsel) {
 			selwakeup(tp->t_wsel, tp->t_state & TS_WCOLL);
@@ -1547,11 +1554,11 @@ comstart(tp)
 		disable_intr();
 		comintr1(com);
 		enable_intr();
-	} else if (RB_LEN(&tp->t_out) != 0) {
+	} else if (RB_LEN(tp->t_out) != 0) {
 		tp->t_state |= TS_BUSY;
-		com->ocount = RB_CONTIGGET(&tp->t_out);
+		com->ocount = RB_CONTIGGET(tp->t_out);
 		disable_intr();
-		com->obufend = (com->optr = (u_char *) tp->t_out.rb_hd)
+		com->obufend = (com->optr = (u_char *) tp->t_out->rb_hd)
 			      + com->ocount;
 		com->state |= CS_BUSY;
 		comintr1(com);  /* fake interrupt to start output */
