@@ -322,8 +322,12 @@ int main(int argc, char **argv)
      * Ignore SIGPIPEs. They can hurt us if someone does a ypcat
      * and then hits CTRL-C before it terminates.
      */
+    sigaction(SIGPIPE, NULL, &sa);
     sa.sa_handler = SIG_IGN;
+    sa.sa_flags |= SA_RESTART;
     sigaction(SIGPIPE, &sa, NULL);
+    sigaction(SIGCHLD, NULL, &sa);
+    sa.sa_flags |= SA_RESTART;
     sa.sa_handler = reapchild;
     sigaction(SIGCHLD, &sa, NULL);
 
