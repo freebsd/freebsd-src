@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.25 1998/04/19 15:24:44 brian Exp $
+ * $Id: lqr.c,v 1.22.2.26 1998/04/19 23:08:40 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -130,8 +130,10 @@ SendLqrReport(void *v)
   if (p->hdlc.lqm.method & LQM_LQR) {
     if (p->hdlc.lqm.lqr.resent > 5) {
       /* XXX: Should implement LQM strategy */
-      LogPrintf(LogPHASE, "** Too many LQR packets lost **\n");
-      LogPrintf(LogLQM, "LqrOutput: Too many LQR packets lost\n");
+      LogPrintf(LogPHASE, "%s: ** Too many LQR packets lost **\n",
+                lcp->fsm.link->name);
+      LogPrintf(LogLQM, "%s: Too many LQR packets lost\n",
+                lcp->fsm.link->name);
       p->hdlc.lqm.method = 0;
       datalink_Down(p->dl, 0);
     } else {
@@ -143,8 +145,10 @@ SendLqrReport(void *v)
          p->hdlc.lqm.echo.seq_sent - 5 > p->hdlc.lqm.echo.seq_recv) ||
         (p->hdlc.lqm.echo.seq_sent <= 5 &&
          p->hdlc.lqm.echo.seq_sent > p->hdlc.lqm.echo.seq_recv + 5)) {
-      LogPrintf(LogPHASE, "** Too many ECHO LQR packets lost **\n");
-      LogPrintf(LogLQM, "LqrOutput: Too many ECHO LQR packets lost\n");
+      LogPrintf(LogPHASE, "%s: ** Too many ECHO LQR packets lost **\n",
+                lcp->fsm.link->name);
+      LogPrintf(LogLQM, "%s: Too many ECHO LQR packets lost\n",
+                lcp->fsm.link->name);
       p->hdlc.lqm.method = 0;
       datalink_Down(p->dl, 0);
     } else
@@ -186,7 +190,7 @@ LqrInput(struct physical *physical, struct mbuf *bp)
       lastLQR = physical->hdlc.lqm.lqr.peer.PeerInLQRs;
 
       LqrChangeOrder(lqr, &physical->hdlc.lqm.lqr.peer);
-      LqrDump("Input", &physical->hdlc.lqm.lqr.peer);
+      LqrDump(physical->link.name, "Input", &physical->hdlc.lqm.lqr.peer);
       /* we have received an LQR from peer */
       physical->hdlc.lqm.lqr.resent = 0;
 
@@ -227,7 +231,6 @@ StartLqm(struct lcp *lcp)
   StopTimer(&physical->hdlc.lqm.timer);
 
   physical->hdlc.lqm.lqr.peer_timeout = lcp->his_lqrperiod;
-  physical->hdlc.lqm.owner = lcp;
   if (lcp->his_lqrperiod)
     LogPrintf(LogLQM, "Expecting LQR every %d.%02d secs\n",
 	      lcp->his_lqrperiod / 100, lcp->his_lqrperiod % 100);
@@ -271,10 +274,10 @@ StopLqr(struct physical *physical, int method)
 }
 
 void
-LqrDump(const char *message, const struct lqrdata * lqr)
+LqrDump(const char *link, const char *message, const struct lqrdata * lqr)
 {
   if (LogIsKept(LogLQM)) {
-    LogPrintf(LogLQM, "%s:\n", message);
+    LogPrintf(LogLQM, "%s: %s:\n", link, message);
     LogPrintf(LogLQM, "  Magic:          %08x   LastOutLQRs:    %08x\n",
 	      lqr->MagicNumber, lqr->LastOutLQRs);
     LogPrintf(LogLQM, "  LastOutPackets: %08x   LastOutOctets:  %08x\n",

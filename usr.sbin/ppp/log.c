@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.25.2.8 1998/04/14 23:17:08 brian Exp $
+ *	$Id: log.c,v 1.25.2.9 1998/04/24 19:15:43 brian Exp $
  */
 
 #include <sys/types.h>
@@ -42,7 +42,6 @@
 
 static const char *LogNames[] = {
   "Async",
-  "Carrier",
   "CCP",
   "Chat",
   "Command",
@@ -52,7 +51,6 @@ static const char *LogNames[] = {
   "ID0",
   "IPCP",
   "LCP",
-  "Link",
   "LQM",
   "Phase",
   "TCP/IP",

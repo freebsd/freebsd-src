@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.11 1998/04/23 23:50:39 brian Exp $
+ *	$Id: mp.c,v 1.1.2.12 1998/04/24 19:15:45 brian Exp $
  */
 
 #include <sys/types.h>
@@ -71,6 +71,24 @@
 #include "prompt.h"
 #include "id.h"
 #include "arp.h"
+
+void
+peerid_Init(struct peerid *peer)
+{
+  peer->enddisc.class = 0;
+  *peer->enddisc.address = '\0';
+  peer->enddisc.len = 0;
+  *peer->authname = '\0';
+}
+
+int
+peerid_Equal(const struct peerid *p1, const struct peerid *p2)
+{
+  return !strcmp(p1->authname, p2->authname) &&
+         p1->enddisc.class == p2->enddisc.class &&
+         p1->enddisc.len == p2->enddisc.len &&
+         !memcmp(p1->enddisc.address, p2->enddisc.address, p1->enddisc.len);
+}
 
 static u_int32_t
 inc_seq(struct mp *mp, u_int32_t seq)
@@ -139,9 +157,9 @@ mp_Init(struct mp *mp, struct bundle *bundle)
 {
   mp->peer_is12bit = mp->local_is12bit = 0;
   mp->peer_mrru = mp->local_mrru = 0;
-  mp->peer_enddisc.class = 0;
-  *mp->peer_enddisc.address = '\0';
-  mp->peer_enddisc.len = 0;
+
+  peerid_Init(&mp->peer);
+
   mp->seq.out = 0;
   mp->seq.min_in = 0;
   mp->seq.next_in = 0;
@@ -151,6 +169,7 @@ mp_Init(struct mp *mp, struct bundle *bundle)
   mp->link.type = MP_LINK;
   mp->link.name = "mp";
   mp->link.len = sizeof *mp;
+
   throughput_init(&mp->link.throughput);
   memset(mp->link.Queue, '\0', sizeof mp->link.Queue);
   memset(mp->link.proto_in, '\0', sizeof mp->link.proto_in);
@@ -173,11 +192,15 @@ mp_Init(struct mp *mp, struct bundle *bundle)
 }
 
 int
-mp_Up(struct mp *mp, u_short local_mrru, u_short peer_mrru,
-           int local_shortseq, int peer_shortseq)
+mp_Up(struct mp *mp, const struct peerid *peer, u_short local_mrru,
+      u_short peer_mrru, int local_shortseq, int peer_shortseq)
 {
   if (mp->active) {
     /* We're adding a link - do a last validation on our parameters */
+    if (!peerid_Equal(peer, &mp->peer)) {
+      LogPrintf(LogPHASE, "Inappropriate peer !\n");
+      return 0;
+    }
     if (mp->local_mrru != local_mrru ||
         mp->peer_mrru != peer_mrru ||
         mp->local_is12bit != local_shortseq ||
@@ -192,6 +215,7 @@ mp_Up(struct mp *mp, u_short local_mrru, u_short peer_mrru,
     mp->peer_mrru = peer_mrru;
     mp->local_is12bit = local_shortseq;
     mp->peer_is12bit = peer_shortseq;
+    mp->peer = *peer;
 
     throughput_init(&mp->link.throughput);
     memset(mp->link.Queue, '\0', sizeof mp->link.Queue);
@@ -232,6 +256,7 @@ mp_Down(struct mp *mp)
       mp->inbufs = next;
     }
 
+    peerid_Init(&mp->peer);
     mp->active = 0;
   }
 }
@@ -547,33 +572,34 @@ mp_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, "\nMy Side:\n");
   if (mp->active) {
-    prompt_Printf(arg->prompt, " MRRU:      %u\n", mp->local_mrru);
-    prompt_Printf(arg->prompt, " Short Seq: %s\n",
+    prompt_Printf(arg->prompt, " MRRU:          %u\n", mp->local_mrru);
+    prompt_Printf(arg->prompt, " Short Seq:     %s\n",
                   mp->local_is12bit ? "on" : "off");
   }
-  prompt_Printf(arg->prompt, " End Disc:  %s\n",
+  prompt_Printf(arg->prompt, " Discriminator: %s\n",
                 mp_Enddisc(mp->cfg.enddisc.class, mp->cfg.enddisc.address,
                            mp->cfg.enddisc.len));
 
   prompt_Printf(arg->prompt, "\nHis Side:\n");
   if (mp->active) {
-    prompt_Printf(arg->prompt, " Next SEQ:  %u\n", mp->seq.out);
-    prompt_Printf(arg->prompt, " MRRU:      %u\n", mp->peer_mrru);
-    prompt_Printf(arg->prompt, " Short Seq: %s\n",
+    prompt_Printf(arg->prompt, " Auth Name:     %s\n", mp->peer.authname);
+    prompt_Printf(arg->prompt, " Next SEQ:      %u\n", mp->seq.out);
+    prompt_Printf(arg->prompt, " MRRU:          %u\n", mp->peer_mrru);
+    prompt_Printf(arg->prompt, " Short Seq:     %s\n",
                   mp->peer_is12bit ? "on" : "off");
   }
-  prompt_Printf(arg->prompt, " End Disc:  %s\n",
-                mp_Enddisc(mp->peer_enddisc.class, mp->peer_enddisc.address,
-                           mp->peer_enddisc.len));
+  prompt_Printf(arg->prompt,   " Discriminator: %s\n",
+                mp_Enddisc(mp->peer.enddisc.class, mp->peer.enddisc.address,
+                           mp->peer.enddisc.len));
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
   
-  prompt_Printf(arg->prompt, " MRRU:      ");
+  prompt_Printf(arg->prompt, " MRRU:          ");
   if (mp->cfg.mrru)
     prompt_Printf(arg->prompt, "%d (multilink enabled)\n", mp->cfg.mrru);
   else
     prompt_Printf(arg->prompt, "disabled\n");
-  prompt_Printf(arg->prompt, " Short Seq: %s\n",
+  prompt_Printf(arg->prompt, " Short Seq:     %s\n",
                   command_ShowNegval(mp->cfg.shortseq));
 
   return 0;

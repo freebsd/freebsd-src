@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.45 1998/04/23 18:55:50 brian Exp $
+ * $Id: lcp.c,v 1.55.2.46 1998/04/24 19:15:42 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -56,6 +56,11 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "mp.h"
+#include "chat.h"
+#include "auth.h"
+#include "pap.h"
+#include "chap.h"
+#include "datalink.h"
 #include "bundle.h"
 
 /* for received LQRs */
@@ -408,6 +413,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   struct lqrreq *req;
   char request[20], desc[22];
   struct mp *mp;
+  struct physical *p = link2physical(fp->link);
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
@@ -789,12 +795,16 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                 mp_Enddisc(cp[2], cp + 3, length - 3));
       switch (mode_type) {
       case MODE_REQ:
-        if (length-3 < sizeof lcp->fsm.bundle->ncp.mp.peer_enddisc.address &&
-            cp[2] <= MAX_ENDDISC_CLASS) {
-          lcp->fsm.bundle->ncp.mp.peer_enddisc.class = cp[2];
-          lcp->fsm.bundle->ncp.mp.peer_enddisc.len = length-3;
-          memcpy(lcp->fsm.bundle->ncp.mp.peer_enddisc.address, cp+3, length-3);
-          lcp->fsm.bundle->ncp.mp.peer_enddisc.address[length-3] = '\0';
+        if (!p) {
+          LogPrintf(LogLCP, " ENDDISC rejected - not a physical link\n");
+	  goto reqreject;
+        } else if (length-3 < sizeof p->dl->peer.enddisc.address &&
+                   cp[2] <= MAX_ENDDISC_CLASS) {
+          p->dl->peer.enddisc.class = cp[2];
+          p->dl->peer.enddisc.len = length-3;
+          memcpy(p->dl->peer.enddisc.address, cp + 3, length - 3);
+          p->dl->peer.enddisc.address[length - 3] = '\0';
+          /* XXX: If mp->active, compare and NAK with mp->peer ? */
 	  memcpy(dec->ackend, cp, length);
 	  dec->ackend += length;
         } else {
@@ -803,7 +813,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                       cp[2]);
           else
             LogPrintf(LogLCP, " ENDDISC rejected - local max length is %d\n",
-                      sizeof lcp->fsm.bundle->ncp.mp.peer_enddisc.address - 1);
+                      sizeof p->dl->peer.enddisc.address - 1);
 	  goto reqreject;
         }
 	break;

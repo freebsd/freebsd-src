@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.54 1998/04/20 00:20:37 brian Exp $
+ * $Id: modem.c,v 1.77.2.55 1998/04/21 01:02:24 brian Exp $
  *
  *  TODO:
  */
@@ -111,7 +111,7 @@ modem_Create(struct datalink *dl, int type)
   p->desc.Write = modem_DescriptorWrite;
   p->type = type;
 
-  hdlc_Init(&p->hdlc);
+  hdlc_Init(&p->hdlc, &p->link.lcp);
   async_Init(&p->async);
 
   p->fd = -1;

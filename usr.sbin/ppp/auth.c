@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.22 1998/04/19 15:24:34 brian Exp $
+ * $Id: auth.c,v 1.27.2.23 1998/04/23 03:22:43 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -86,17 +86,19 @@ auth_CheckPasswd(const char *name, const char *data, const char *key)
 }
 
 int
-AuthValidate(struct bundle *bundle, const char *fname, const char *system,
-             const char *key, struct physical *physical)
+AuthSelect(struct bundle *bundle, const char *name, struct physical *physical)
 {
-  /* Used by PAP routines */
-
   FILE *fp;
   int n;
   char *vector[5];
   char buff[LINE_LEN];
 
-  fp = OpenSecret(fname);
+  if (*name == '\0') {
+    ipcp_Setup(&bundle->ncp.ipcp);
+    return 1;
+  }
+
+  fp = OpenSecret(SECRETFILE);
   if (fp != NULL) {
     while (fgets(buff, sizeof buff, fp)) {
       if (buff[0] == '#')
@@ -106,20 +108,57 @@ AuthValidate(struct bundle *bundle, const char *fname, const char *system,
       n = MakeArgs(buff, vector, VECSIZE(vector));
       if (n < 2)
         continue;
-      if (strcmp(vector[0], system) == 0)
-        if (auth_CheckPasswd(vector[0], vector[1], key)) {
-	  CloseSecret(fp);
-	  if (n > 2 && !UseHisaddr(bundle, vector[2], 1))
-	      return (0);
-          /* XXX This should be deferred - we may join an existing bundle ! */
-	  ipcp_Setup(&bundle->ncp.ipcp);
-	  if (n > 3)
-	    bundle_SetLabel(bundle, vector[3]);
-	  return 1;		/* Valid */
-        } else {
-          CloseSecret(fp);
-          return 0;		/* Invalid */
-        }
+      if (strcmp(vector[0], name) == 0)
+	CloseSecret(fp);
+/*
+	memset(&bundle->ncp.ipcp.cfg.peer_range, '\0',
+               sizeof bundle->ncp.ipcp.cfg.peer_range);
+*/
+	if (n > 2 && !UseHisaddr(bundle, vector[2], 1))
+	  return 0;
+	ipcp_Setup(&bundle->ncp.ipcp);
+	if (n > 3)
+	  bundle_SetLabel(bundle, vector[3]);
+	return 1;		/* Valid */
+    }
+    CloseSecret(fp);
+  }
+
+#ifndef NOPASSWDAUTH
+  /* Let 'em in anyway - they must have been in the passwd file */
+  ipcp_Setup(&bundle->ncp.ipcp);
+  return 1;
+#else
+  /* Disappeared from ppp.secret ? */
+  return 0;
+#endif
+}
+
+int
+AuthValidate(struct bundle *bundle, const char *system,
+             const char *key, struct physical *physical)
+{
+  /* Used by PAP routines */
+
+  FILE *fp;
+  int n;
+  char *vector[5];
+  char buff[LINE_LEN];
+
+  fp = OpenSecret(SECRETFILE);
+  if (fp != NULL) {
+    while (fgets(buff, sizeof buff, fp)) {
+      if (buff[0] == '#')
+        continue;
+      buff[strlen(buff) - 1] = 0;
+      memset(vector, '\0', sizeof vector);
+      n = MakeArgs(buff, vector, VECSIZE(vector));
+      if (n < 2)
+        continue;
+      if (strcmp(vector[0], system) == 0) {
+	CloseSecret(fp);
+        return auth_CheckPasswd(vector[0], vector[1], key);
+      }
     }
     CloseSecret(fp);
   }
@@ -133,8 +172,8 @@ AuthValidate(struct bundle *bundle, const char *fname, const char *system,
 }
 
 char *
-AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
-              int len, int setaddr, struct physical *physical)
+AuthGetSecret(struct bundle *bundle, const char *system, int len,
+              struct physical *physical)
 {
   /* Used by CHAP routines */
 
@@ -143,7 +182,7 @@ AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
   char *vector[5];
   static char buff[LINE_LEN];
 
-  fp = OpenSecret(fname);
+  fp = OpenSecret(SECRETFILE);
   if (fp == NULL)
     return (NULL);
 
@@ -156,17 +195,7 @@ AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
     if (n < 2)
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
-      if (setaddr)
-	memset(&bundle->ncp.ipcp.cfg.peer_range, '\0',
-               sizeof bundle->ncp.ipcp.cfg.peer_range);
-      if (n > 2 && setaddr)
-	if (UseHisaddr(bundle, vector[2], 1))
-          /* XXX This should be deferred - we may join an existing bundle ! */
-	  ipcp_Setup(&bundle->ncp.ipcp);
-        else
-          return NULL;
-      if (n > 3)
-        bundle_SetLabel(bundle, vector[3]);
+      CloseSecret(fp);
       return vector[1];
     }
   }

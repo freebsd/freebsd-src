@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.17 1998/04/10 13:19:06 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.18 1998/04/18 01:01:20 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -86,6 +86,8 @@ struct datalink {
 
   char *name;			/* Our name */
 
+  struct peerid peer;		/* Peer identification */
+
   struct fsm_parent fsmp;	   /* Our callback functions */
   const struct fsm_parent *parent; /* Our parent */
 
@@ -106,12 +108,14 @@ extern struct datalink *datalink_Create(const char *name, struct bundle *,
                                         const struct fsm_parent *, int);
 extern struct datalink *datalink_Clone(struct datalink *, const char *);
 extern struct datalink *datalink_Destroy(struct datalink *);
+extern void datalink_GotAuthname(struct datalink *, const char *, int);
 extern void datalink_Up(struct datalink *, int, int);
 extern void datalink_Close(struct datalink *, int);
 extern void datalink_Down(struct datalink *, int);
 extern void datalink_StayDown(struct datalink *);
-extern void datalink_Show(struct datalink *, struct prompt *);
 extern void datalink_AuthOk(struct datalink *);
 extern void datalink_AuthNotOk(struct datalink *);
+extern int datalink_Show(struct cmdargs const *);
 extern int datalink_SetRedial(struct cmdargs const *);
 extern int datalink_SetReconnect(struct cmdargs const *);
+extern const char *datalink_State(struct datalink *);

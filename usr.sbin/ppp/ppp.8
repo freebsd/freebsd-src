@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.22 1998/04/23 23:50:40 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.23 1998/04/24 19:15:48 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2154,7 +2154,7 @@ unavailable.  It's not considered polite to use this command.
 Show a list of available commands.  If
 .Ar command
 is specified, show the usage string for that command.
-.It link Ar name command Op Ar args
+.It [data]link Ar name command Op Ar args
 This command may prefix any other command if the user wishes to
 specify which link the command should affect.  This is only
 applicable after multiple links have been created in Multilink
@@ -2861,14 +2861,16 @@ Give a summary of available show commands.
 Show the current IPCP statistics.
 .It show lcp
 Show the current LCP statistics.
-.It show [data]link Op Ar name
-Show link information.
+.It show [data]link
+Show high level link information.
+.It show links
+Show a list of available logical links.
 .It show log
 Show the current log values.
 .It show mem
 Show current memory statistics.
 .It show modem
-Show current modem statistics.
+Show low level link information.
 .It show proto
 Show current protocol totals.
 .It show route

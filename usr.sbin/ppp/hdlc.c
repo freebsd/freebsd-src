@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.27 1998/04/19 15:24:42 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.28 1998/04/23 21:50:09 brian Exp $
  *
  *	TODO:
  */
@@ -97,9 +97,10 @@ static u_short const fcstab[256] = {
 };
 
 void
-hdlc_Init(struct hdlc *hdlc)
+hdlc_Init(struct hdlc *hdlc, struct lcp *lcp)
 {
   memset(hdlc, '\0', sizeof(struct hdlc));
+  hdlc->lqm.owner = lcp;
 }
 
 /*
@@ -212,10 +213,10 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
        * from the last one
        */
       lqr.PeerOutLQRs = ++p->hdlc.lqm.lqr.OutLQRs;
-      LqrDump("LqrOutput", &lqr);
+      LqrDump(l->name, "Output", &lqr);
     } else {
       lqr.PeerOutLQRs = p->hdlc.lqm.lqr.OutLQRs;
-      LqrDump("LqrOutput (again)", &lqr);
+      LqrDump(l->name, "Output (again)", &lqr);
     }
     LqrChangeOrder(&lqr, (struct lqrdata *)MBUF_CTOP(bp));
   }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.44 1998/04/23 18:55:48 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.45 1998/04/23 18:56:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -66,7 +66,6 @@
 #include "command.h"
 #include "datalink.h"
 
-static const char *datalink_State(struct datalink *);
 static void datalink_LoginDone(struct datalink *);
 
 static void
@@ -183,7 +182,7 @@ datalink_LoginDone(struct datalink *dl)
   } else {
     dl->dial_tries = -1;
 
-    hdlc_Init(&dl->physical->hdlc);
+    hdlc_Init(&dl->physical->hdlc, &dl->physical->link.lcp);
     async_Init(&dl->physical->async);
 
     lcp_Setup(&dl->physical->link.lcp, dl->state == DATALINK_READY ?
@@ -422,6 +421,7 @@ datalink_LayerUp(void *v, struct fsm *fp)
   struct datalink *dl = (struct datalink *)v;
 
   if (fp->proto == PROTO_LCP) {
+    datalink_GotAuthname(dl, "", 0);
     dl->physical->link.lcp.auth_ineed = dl->physical->link.lcp.want_auth;
     dl->physical->link.lcp.auth_iwait = dl->physical->link.lcp.his_auth;
     if (dl->physical->link.lcp.his_auth || dl->physical->link.lcp.want_auth) {
@@ -440,12 +440,21 @@ datalink_LayerUp(void *v, struct fsm *fp)
 }
 
 void
+datalink_GotAuthname(struct datalink *dl, const char *name, int len)
+{
+  if (len >= sizeof dl->peer.authname)
+    len = sizeof dl->peer.authname - 1;
+  strncpy(dl->peer.authname, name, len);
+  dl->peer.authname[len] = '\0';
+}
+
+void
 datalink_AuthOk(struct datalink *dl)
 {
   /* XXX: Connect to another ppp instance HERE */
 
   if (dl->physical->link.lcp.want_mrru && dl->physical->link.lcp.his_mrru) {
-    if (!mp_Up(&dl->bundle->ncp.mp,
+    if (!mp_Up(&dl->bundle->ncp.mp, &dl->peer,
                dl->physical->link.lcp.want_mrru,
                dl->physical->link.lcp.his_mrru,
                dl->physical->link.lcp.want_shortseq,
@@ -460,6 +469,7 @@ datalink_AuthOk(struct datalink *dl)
   } else
     ipcp_SetLink(&dl->bundle->ncp.ipcp, &dl->physical->link);
 
+  AuthSelect(dl->bundle, dl->peer.authname, dl->physical);
   FsmUp(&dl->physical->link.ccp.fsm);
   FsmOpen(&dl->physical->link.ccp.fsm);
   dl->state = DATALINK_OPEN;
@@ -483,6 +493,7 @@ datalink_LayerDown(void *v, struct fsm *fp)
   if (fp->proto == PROTO_LCP) {
     switch (dl->state) {
       case DATALINK_OPEN:
+        peerid_Init(&dl->peer);
         FsmDown(&dl->physical->link.ccp.fsm);
         FsmClose(&dl->physical->link.ccp.fsm);
         (*dl->parent->LayerDown)(dl->parent->object, fp);
@@ -555,6 +566,7 @@ datalink_Create(const char *name, struct bundle *bundle,
   dl->cfg.reconnect.timeout = RECONNECT_TIMEOUT;
 
   dl->name = strdup(name);
+  peerid_Init(&dl->peer);
   dl->parent = parent;
   dl->fsmp.LayerStart = datalink_LayerStart;
   dl->fsmp.LayerUp = datalink_LayerUp;
@@ -598,14 +610,19 @@ datalink_Clone(struct datalink *odl, const char *name)
   memcpy(&dl->cfg, &odl->cfg, sizeof dl->cfg);
   mp_linkInit(&dl->mp);
   *dl->phone.list = '\0';
+  dl->phone.next = NULL;
+  dl->phone.alt = NULL;
+  dl->phone.chosen = "N/A";
   dl->bundle = odl->bundle;
   dl->next = NULL;
   memset(&dl->dial_timer, '\0', sizeof dl->dial_timer);
   dl->dial_tries = 0;
   dl->reconnect_tries = 0;
   dl->name = strdup(name);
+  peerid_Init(&dl->peer);
   dl->parent = odl->parent;
   memcpy(&dl->fsmp, &odl->fsmp, sizeof dl->fsmp);
+  dl->fsmp.object = dl;
   authinfo_Init(&dl->pap);
   dl->pap.cfg.fsmretry = odl->pap.cfg.fsmretry;
 
@@ -701,6 +718,7 @@ datalink_Close(struct datalink *dl, int stay)
   /* Please close */
   switch (dl->state) {
     case DATALINK_OPEN:
+      peerid_Init(&dl->peer);
       FsmDown(&dl->physical->link.ccp.fsm);
       FsmClose(&dl->physical->link.ccp.fsm);
       /* fall through */
@@ -725,6 +743,7 @@ datalink_Down(struct datalink *dl, int stay)
   /* Carrier is lost */
   switch (dl->state) {
     case DATALINK_OPEN:
+      peerid_Init(&dl->peer);
       FsmDown(&dl->physical->link.ccp.fsm);
       FsmClose(&dl->physical->link.ccp.fsm);
       /* fall through */
@@ -749,35 +768,55 @@ datalink_StayDown(struct datalink *dl)
   dl->reconnect_tries = 0;
 }
 
-void
-datalink_Show(struct datalink *dl, struct prompt *prompt)
+int
+datalink_Show(struct cmdargs const *arg)
 {
-  prompt_Printf(prompt, "Name: %s\n", dl->name);
-  prompt_Printf(prompt, " State:            %s\n", datalink_State(dl));
-  prompt_Printf(prompt, " CHAP Encryption:  %s\n",
-                dl->chap.using_MSChap ? "MSChap" : "MD5" );
-  prompt_Printf(prompt, "\nDefaults:\n");
-  prompt_Printf(prompt, " Phone List:       %s\n", dl->cfg.phone.list);
-  if (dl->cfg.dial.max)
-    prompt_Printf(prompt, " Dial tries:       %d, delay ", dl->cfg.dial.max);
+  prompt_Printf(arg->prompt, "Name: %s\n", arg->cx->name);
+  prompt_Printf(arg->prompt, " State:            %s\n",
+                datalink_State(arg->cx));
+  prompt_Printf(arg->prompt, " CHAP Encryption:  %s\n",
+                arg->cx->chap.using_MSChap ? "MSChap" : "MD5" );
+  prompt_Printf(arg->prompt, " Peer name:        ");
+  if (*arg->cx->peer.authname)
+    prompt_Printf(arg->prompt, "%s\n", arg->cx->peer.authname);
+  else if (arg->cx->state == DATALINK_OPEN)
+    prompt_Printf(arg->prompt, "None requested\n");
   else
-    prompt_Printf(prompt, " Dial tries:       infinite, delay ");
-  if (dl->cfg.dial.next_timeout > 0)
-    prompt_Printf(prompt, "%ds/", dl->cfg.dial.next_timeout);
+    prompt_Printf(arg->prompt, "N/A\n");
+  prompt_Printf(arg->prompt, " Discriminator:    %s\n",
+                mp_Enddisc(arg->cx->peer.enddisc.class,
+                           arg->cx->peer.enddisc.address,
+                           arg->cx->peer.enddisc.len));
+
+  prompt_Printf(arg->prompt, "\nDefaults:\n");
+  prompt_Printf(arg->prompt, " Phone List:       %s\n",
+                arg->cx->cfg.phone.list);
+  if (arg->cx->cfg.dial.max)
+    prompt_Printf(arg->prompt, " Dial tries:       %d, delay ",
+                  arg->cx->cfg.dial.max);
   else
-    prompt_Printf(prompt, "random/");
-  if (dl->cfg.dial.timeout > 0)
-    prompt_Printf(prompt, "%ds\n", dl->cfg.dial.timeout);
+    prompt_Printf(arg->prompt, " Dial tries:       infinite, delay ");
+  if (arg->cx->cfg.dial.next_timeout > 0)
+    prompt_Printf(arg->prompt, "%ds/", arg->cx->cfg.dial.next_timeout);
   else
-    prompt_Printf(prompt, "random\n");
-  prompt_Printf(prompt, " Reconnect tries:  %d, delay ", dl->cfg.reconnect.max);
-  if (dl->cfg.reconnect.timeout > 0)
-    prompt_Printf(prompt, "%ds\n", dl->cfg.reconnect.timeout);
+    prompt_Printf(arg->prompt, "random/");
+  if (arg->cx->cfg.dial.timeout > 0)
+    prompt_Printf(arg->prompt, "%ds\n", arg->cx->cfg.dial.timeout);
   else
-    prompt_Printf(prompt, "random\n");
-  prompt_Printf(prompt, " Dial Script:      %s\n", dl->cfg.script.dial);
-  prompt_Printf(prompt, " Login Script:     %s\n", dl->cfg.script.login);
-  prompt_Printf(prompt, " Hangup Script:    %s\n", dl->cfg.script.hangup);
+    prompt_Printf(arg->prompt, "random\n");
+  prompt_Printf(arg->prompt, " Reconnect tries:  %d, delay ",
+                arg->cx->cfg.reconnect.max);
+  if (arg->cx->cfg.reconnect.timeout > 0)
+    prompt_Printf(arg->prompt, "%ds\n", arg->cx->cfg.reconnect.timeout);
+  else
+    prompt_Printf(arg->prompt, "random\n");
+  prompt_Printf(arg->prompt, " Dial Script:      %s\n",
+                arg->cx->cfg.script.dial);
+  prompt_Printf(arg->prompt, " Login Script:     %s\n",
+                arg->cx->cfg.script.login);
+  prompt_Printf(arg->prompt, " Hangup Script:    %s\n",
+                arg->cx->cfg.script.hangup);
+  return 0;
 }
 
 int
@@ -859,7 +898,7 @@ static const char *states[] = {
   "open"
 };
 
-static const char *
+const char *
 datalink_State(struct datalink *dl)
 {
   if (dl->state < 0 || dl->state >= sizeof states / sizeof states[0])

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.69 1998/04/23 21:50:05 brian Exp $
+ * $Id: command.c,v 1.131.2.70 1998/04/24 19:15:37 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -194,7 +194,7 @@ CloneCommand(struct cmdargs const *arg)
   if (arg->argc == arg->argn)
     return -1;
 
-  if (!arg->bundle->ncp.mp.active) {
+  if (!arg->bundle->ncp.mp.cfg.mrru) {
     LogPrintf(LogWARN, "clone: Only available in multilink mode\n");
     return 1;
   }
@@ -209,11 +209,6 @@ RemoveCommand(struct cmdargs const *arg)
 {
   if (arg->argc != arg->argn)
     return -1;
-
-  if (!arg->bundle->ncp.mp.active) {
-    LogPrintf(LogWARN, "remove: Only available in multilink mode\n");
-    return 1;
-  }
 
   if (arg->cx->state != DATALINK_CLOSED) {
     LogPrintf(LogWARN, "remove: Cannot delete links that aren't closed\n");
@@ -513,7 +508,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/23 21:50:05 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/24 19:15:37 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -544,16 +539,18 @@ static struct cmdtab const ShowCommands[] = {
   "Show HDLC errors", "show hdlc"},
   {"ipcp", NULL, ReportIpcpStatus, LOCAL_AUTH,
   "Show IPCP status", "show ipcp"},
-  {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX_OPT,
+  {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX,
   "Show LCP status", "show lcp"},
-  {"links", "link", bundle_ShowLinks, LOCAL_AUTH,
+  {"link", "datalink", datalink_Show, LOCAL_AUTH | LOCAL_CX,
+  "Show (high-level) link info", "show link"},
+  {"links", NULL, bundle_ShowLinks, LOCAL_AUTH,
   "Show available link names", "show links"},
   {"log", NULL, log_ShowLevel, LOCAL_AUTH,
   "Show log levels", "show log"},
   {"mem", NULL, ShowMemMap, LOCAL_AUTH,
   "Show memory map", "show mem"},
   {"modem", NULL, modem_ShowStatus, LOCAL_AUTH | LOCAL_CX,
-  "Show modem setups", "show modem"},
+  "Show (low-level) link info", "show modem"},
   {"mp", "multilink", mp_ShowStatus, LOCAL_AUTH,
   "Show multilink setup", "show mp"},
   {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -1352,7 +1349,7 @@ static struct cmdtab const SetCommands[] = {
   "Set login script", "set login chat-script", (const void *) VAR_LOGIN},
   {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set LQR period", "set lqrperiod value", (const void *)VAR_LQRPERIOD},
-  {"mrru", NULL, SetVariable, LOCAL_AUTH, "Set MRRU value (enable multilink)",
+  {"mrru", NULL, SetVariable, LOCAL_AUTH, "Set MRRU value",
   "set mrru value", (const void *)VAR_MRRU},
   {"mru", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set MRU value", "set mru value", (const void *)VAR_MRU},

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.14.2.9 1998/04/05 22:48:19 brian Exp $
+ * $Id: hdlc.h,v 1.14.2.10 1998/04/07 00:53:44 brian Exp $
  *
  *	TODO:
  */
@@ -101,7 +101,7 @@ struct hdlc {
 };
 
 
-extern void hdlc_Init(struct hdlc *);
+extern void hdlc_Init(struct hdlc *, struct lcp *);
 extern void hdlc_StartTimer(struct hdlc *);
 extern void hdlc_StopTimer(struct hdlc *);
 extern int hdlc_ReportStatus(struct cmdargs const *);

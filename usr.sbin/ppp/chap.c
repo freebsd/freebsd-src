@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.23 1998/04/07 00:53:25 brian Exp $
+ * $Id: chap.c,v 1.28.2.24 1998/04/16 00:25:52 brian Exp $
  *
  *	TODO:
  */
@@ -203,9 +203,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
     /*
      * Get a secret key corresponds to the peer
      */
-    keyp = AuthGetSecret(bundle, SECRETFILE, name, namelen,
-			 chp->code == CHAP_RESPONSE,
-			 physical);
+    keyp = AuthGetSecret(bundle, name, namelen, physical);
     if (keyp) {
       /*
        * Compute correct digest value
@@ -227,6 +225,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
        * Compare with the response
        */
       if (memcmp(cp, cdigest, 16) == 0) {
+        datalink_GotAuthname(physical->dl, name, namelen);
 	ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10);
         if (Enabled(bundle, OPT_UTMP))
           Physical_Login(physical, name);

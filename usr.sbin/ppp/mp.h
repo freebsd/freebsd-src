@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.1.2.4 1998/04/23 21:50:13 brian Exp $
+ *	$Id: mp.h,v 1.1.2.5 1998/04/23 23:50:39 brian Exp $
  */
 
 struct mbuf;
@@ -38,45 +38,51 @@ struct cmdargs;
 #define ENDDISC_MAGIC	4
 #define ENDDISC_PSN	5
 
+struct enddisc {
+  u_char class;
+  char address[50];
+  int len;
+};
+
+struct peerid {
+  struct enddisc enddisc;	/* Peers endpoint discriminator */
+  char authname[50];		/* Peers name (authenticated) */
+};
+
+extern void peerid_Init(struct peerid *);
+extern int peerid_Equal(const struct peerid *, const struct peerid *);
+
 struct mp {
   struct link link;
 
   unsigned active : 1;
-  unsigned peer_is12bit : 1;        /* 12 / 24bit seq nos */
+  unsigned peer_is12bit : 1;	/* 12/24bit seq nos */
   unsigned local_is12bit : 1;
   u_short peer_mrru;
   u_short local_mrru;
 
-  struct {
-    u_char class;
-    char address[50];
-    int len;
-  } peer_enddisc;             /* peers endpoint discriminator */
+  struct peerid peer;		/* Who are we talking to */
 
   struct {
-    u_int32_t out;            /* next outgoing seq */
-    u_int32_t min_in;         /* minimum received incoming seq */
-    u_int32_t next_in;        /* next incoming seq to process */
+    u_int32_t out;		/* next outgoing seq */
+    u_int32_t min_in;		/* minimum received incoming seq */
+    u_int32_t next_in;		/* next incoming seq to process */
   } seq;
 
   struct {
-    u_short mrru;             /* Max Reconstructed Receive Unit */
-    unsigned shortseq : 2;    /* I want short Sequence Numbers */
-    struct {
-      u_char class;
-      char address[50];
-      int len;
-    } enddisc;                /* endpoint discriminator */
+    u_short mrru;		/* Max Reconstructed Receive Unit */
+    unsigned shortseq : 2;	/* I want short Sequence Numbers */
+    struct enddisc enddisc;	/* endpoint discriminator */
   } cfg;
 
-  struct mbuf *inbufs;        /* Received fragments */
-  struct fsm_parent fsmp;     /* Our callback functions */
-  struct bundle *bundle;      /* Parent */
+  struct mbuf *inbufs;		/* Received fragments */
+  struct fsm_parent fsmp;	/* Our callback functions */
+  struct bundle *bundle;	/* Parent */
 };
 
 struct mp_link {
-  u_int32_t seq;              /* 12 or 24 bit incoming seq */
-  int weight;                 /* bytes to send with each write */
+  u_int32_t seq;		/* 12 or 24 bit incoming seq */
+  int weight;			/* bytes to send with each write */
 };
 
 struct mp_header {
@@ -87,7 +93,8 @@ struct mp_header {
 
 extern void mp_Init(struct mp *, struct bundle *);
 extern void mp_linkInit(struct mp_link *);
-extern int mp_Up(struct mp *, u_short, u_short, int, int);
+extern int mp_Up(struct mp *, const struct peerid *, u_short, u_short,
+                 int, int);
 extern void mp_Down(struct mp *);
 extern void mp_Input(struct mp *, struct mbuf *, struct physical *);
 extern int mp_FillQueues(struct bundle *);

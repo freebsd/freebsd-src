@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.24 1998/04/07 00:54:12 brian Exp $
+ * $Id: pap.c,v 1.20.2.25 1998/04/16 00:26:12 brian Exp $
  *
  *	TODO:
  */
@@ -129,7 +129,7 @@ PapValidate(struct bundle *bundle, u_char *name, u_char *key,
   LogPrintf(LogDEBUG, "PapValidate: name %s (%d), key %s (%d)\n",
 	    name, nlen, key, klen);
 
-  return AuthValidate(bundle, SECRETFILE, name, key, physical);
+  return AuthValidate(bundle, name, key, physical);
 }
 
 void
@@ -150,6 +150,7 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
       case PAP_REQUEST:
 	cp = (u_char *) (php + 1);
 	if (PapValidate(bundle, cp, cp + *cp + 1, physical)) {
+          datalink_GotAuthname(physical->dl, cp+1, *cp);
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
 	  physical->link.lcp.auth_ineed = 0;
           if (Enabled(bundle, OPT_UTMP))

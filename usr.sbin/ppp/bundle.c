@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.59 1998/04/23 21:50:00 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.60 1998/04/24 19:15:34 brian Exp $
  */
 
 #include <sys/types.h>
@@ -836,14 +836,10 @@ bundle_FillQueues(struct bundle *bundle)
 int
 bundle_ShowLinks(struct cmdargs const *arg)
 {
-  if (arg->cx)
-    datalink_Show(arg->cx, arg->prompt);
-  else {
-    struct datalink *dl;
+  struct datalink *dl;
 
-    for (dl = arg->bundle->links; dl; dl = dl->next)
-      datalink_Show(dl, arg->prompt);
-  }
+  for (dl = arg->bundle->links; dl; dl = dl->next)
+    prompt_Printf(arg->prompt, "Name: %s [%s]\n", dl->name, datalink_State(dl));
 
   return 0;
 }
@@ -860,9 +856,10 @@ bundle_ShowStatus(struct cmdargs const *arg)
   int remaining;
 
   prompt_Printf(arg->prompt, "Phase %s\n", bundle_PhaseName(arg->bundle));
-  prompt_Printf(arg->prompt, " Interface: %s\n", arg->bundle->dev);
+  prompt_Printf(arg->prompt, " Interface:  %s\n", arg->bundle->dev);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
+  prompt_Printf(arg->prompt, " Label:      %s\n", arg->bundle->cfg.label);
   prompt_Printf(arg->prompt, " Auth name:  %s\n", arg->bundle->cfg.auth.name);
   prompt_Printf(arg->prompt, " Idle Timer: ");
   if (arg->bundle->cfg.idle_timeout) {
