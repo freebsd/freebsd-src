@@ -1049,7 +1049,8 @@ bge_chipinit(sc)
 	 * restriction on some ALPHA platforms with early revision 
 	 * 21174 PCI chipsets, such as the AlphaPC 164lx 
 	 */
-	PCI_SETBIT(sc, BGE_PCI_DMA_RW_CTL, BGE_PCI_READ_BNDRY_1024, 4);
+	PCI_SETBIT(sc->bge_dev, BGE_PCI_DMA_RW_CTL,
+	    BGE_PCI_READ_BNDRY_1024BYTES, 4);
 #endif
 
 	/* Set the timer prescaler (always 66Mhz) */
