@@ -107,18 +107,16 @@ characters (with the high bit set) are printed as
 .Ex -std
 .Sh EXAMPLES
 The command:
-.Bd -literal -offset indent
-.Ic cat file1
-.Ed
+.Pp
+.Dl "cat file1"
 .Pp
 will print the contents of
 .Ar file1
 to the standard output.
 .Pp
 The command:
-.Bd -literal -offset indent
-.Ic cat file1 file2 > file3
-.Ed
+.Pp
+.Dl "cat file1 file2 > file3"
 .Pp
 will sequentially print the contents of
 .Ar file1
@@ -134,9 +132,8 @@ See the manual page for your shell (i.e.,
 for more information on redirection.
 .Pp
 The command:
-.Bd -literal -offset indent
-.Ic cat file1 - file2 - file3
-.Ed
+.Pp
+.Dl "cat file1 - file2 - file3"
 .Pp
 will print the contents of
 .Ar file1 ,

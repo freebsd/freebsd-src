@@ -54,10 +54,10 @@ is indicated by
 Each operation is encoded in a
 .Vt "struct sembuf" ,
 which is defined as follows:
-.Bd -literal
 .\"
 .\" From <sys/sem.h>
 .\"
+.Bd -literal
 struct sembuf {
         u_short sem_num;        /* semaphore # */
         short   sem_op;         /* semaphore operation */

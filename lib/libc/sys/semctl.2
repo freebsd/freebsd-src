@@ -56,10 +56,10 @@ For the commands that use the
 argument,
 .Fa "union semun"
 is defined as follows:
-.Bd -literal
 .\"
 .\" From <sys/sem.h>:
 .\"
+.Bd -literal
 union semun {
         int     val;            /* value for SETVAL */
         struct  semid_ds *buf;  /* buffer for IPC_STAT & IPC_SET */
@@ -139,10 +139,10 @@ in any process are cleared.
 The
 .Vt "struct semid_ds"
 is defined as follows:
-.Bd -literal
 .\"
 .\" Taken straight from <sys/sem.h>.
 .\"
+.Bd -literal
 struct semid_ds {
         struct  ipc_perm sem_perm;      /* operation permission struct */
         struct  sem *sem_base;  /* pointer to first semaphore in set */

@@ -122,51 +122,32 @@ In all other cases,
 exits 0 on success, and 1 for all other errors.
 .Sh EXAMPLES
 To see which realtime priority the current process is at:
-.Bd -literal -offset indent -compact
-.Sy "rtprio"
-.Ed
+.Dl rtprio
 .Pp
-To see which realtime priority of process
-.Em 1423 :
-.Bd -literal -offset indent -compact
-.Sy "rtprio 1423"
-.Ed
+To see which realtime priority of process 1423:
+.Dl "rtprio 1423"
 .Pp
 To run
 .Xr cron 8
 at the lowest realtime priority:
-.Bd -literal -offset indent -compact
-.Sy "rtprio 31 cron"
-.Ed
+.Dl "rtprio 31 cron"
 .Pp
-To change the realtime priority of process
-.Em 1423
-to
-.Em 16 :
-.Bd -literal -offset indent -compact
-.Sy "rtprio 16 -1423"
-.Ed
+To change the realtime priority of process 1423 to 16:
+.Dl "rtprio 16 -1423"
 .Pp
 To run
 .Xr tcpdump 1
 without realtime priority:
-.Bd -literal -offset indent -compact
-.Sy "rtprio -t tcpdump"
-.Ed
+.Dl "rtprio -t tcpdump"
 .Pp
-To change the realtime priority of process
-.Em 1423
+To change the realtime priority of process 1423
 to
 .Dv RTP_PRIO_NORMAL
 (non-realtime/normal priority):
-.Bd -literal -offset indent -compact
-.Sy "rtprio -t -1423"
-.Ed
+.Dl "rtprio -t -1423"
 .Pp
 To make depend while not disturbing other machine usage:
-.Bd -literal -offset indent -compact
-.Sy "idprio 31 make depend"
-.Ed
+.Dl "idprio 31 make depend"
 .Sh SEE ALSO
 .Xr nice 1 ,
 .Xr ps 1 ,
