@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.20 1995/10/20 21:57:00 jkh Exp $
+ * $Id: disks.c,v 1.31.2.21 1995/10/22 01:32:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -499,12 +499,26 @@ getBootMgr(int disk)
 {
     extern u_char mbr[], bteasy17[];
     char str[80];
+    char *cp;
+    int i = 0;
 
-    /* Figure out what kind of MBR the user wants */
-    sprintf(str, "Install Boot Manager for %s drive?", disk == 0 ? "first" :
-	    disk == 1 ? "second" : "<illegal>");
-    MenuMBRType.title = str;
-    if (dmenuOpenSimple(&MenuMBRType)) {
+    cp = variable_get(VAR_BOOTMGR);
+    if (!cp) {
+	/* Figure out what kind of MBR the user wants */
+	sprintf(str, "Install Boot Manager for %s drive?", disk == 0 ? "first" :
+		disk == 1 ? "second" : "<illegal>");
+	MenuMBRType.title = str;
+	i = dmenuOpenSimple(&MenuMBRType);
+    }
+    else {
+	if (!strncmp(cp, "boot", 4))
+	    BootMgr = 0;
+	else if (!strcmp(cp, "standard"))
+	    BootMgr = 1;
+	else
+	    BootMgr = 2;
+    }
+    if (cp || i) {
 	switch (BootMgr) {
 	case 0:
 	    return bteasy17;

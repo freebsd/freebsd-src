@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.24 1995/10/22 08:33:14 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.25 1995/10/22 10:25:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,7 +72,7 @@ get_new_host(Device *dev, Boolean tentative)
      */
     ++reselectCount;
 
-    msgConfirm("One of the distributions or packages your specified failed to load from\n"
+    msgConfirm("One of the distributions or packages you specified failed to load from\n"
 	       "the FTP site you selected.  Please select another one from the FTP menu.");
     MenuMediaFTP.title = "Request failed - please select another site";
     i = mediaSetFTP(NULL);
