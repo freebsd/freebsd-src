@@ -754,7 +754,10 @@ isp_pci_intr(void *arg)
 	if (ISP_READ_ISR(isp, &isr, &sema, &mbox) == 0) {
 		isp->isp_intbogus++;
 	} else {
+		int iok = isp->isp_osinfo.intsok;
+		isp->isp_osinfo.intsok = 0;
 		isp_intr(isp, isr, sema, mbox);
+		isp->isp_osinfo.intsok = iok;
 	}
 	ISP_UNLOCK(isp);
 }
@@ -1171,7 +1174,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	u_int8_t scsi_status;
 	ct_entry_t *cto;
 	u_int16_t handle;
-	u_int32_t totxfr, sflags;
+	u_int32_t sflags;
 	int nctios, send_status;
 	int32_t resid;
 	int i, j;
@@ -1253,7 +1256,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		sflags = scsi_status = resid = 0;
 	}
 
-	totxfr = cto->ct_resid = 0;
+	cto->ct_resid = 0;
 	cto->ct_scsi_status = 0;
 
 	pci = (struct isp_pcisoftc *)mp->isp;
@@ -1283,7 +1286,6 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 				cto->ct_dataseg[seg].ds_count = dm_segs->ds_len;
 				cto->ct_dataseg[seg].ds_base = dm_segs->ds_addr;
 				cto->ct_xfrlen += dm_segs->ds_len;
-				totxfr += dm_segs->ds_len;
 				dm_segs++;
 			}
 			cto->ct_seg_count = seg;
@@ -1413,7 +1415,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	bus_dmamap_t *dp;
 	ct2_entry_t *cto;
 	u_int16_t scsi_status, send_status, send_sense, handle;
-	u_int32_t totxfr, datalen;
+	int32_t resid;
 	u_int8_t sense[QLTM_SENSELEN];
 	int nctios, j;
 
@@ -1492,9 +1494,9 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		cto->ct_flags &= ~(CT2_SENDSTATUS|CT2_CCINCR);
 
 		/*
-		 * Preserve residual, which is actually the total count.
+		 * Preserve residual.
 		 */
-		datalen = cto->ct_resid;
+		resid = cto->ct_resid;
 
 		/*
 		 * Save actual SCSI status. We'll reinsert the
@@ -1516,10 +1518,10 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			nctios++;
 		}
 	} else {
-		scsi_status = send_sense = datalen = 0;
+		scsi_status = send_sense = resid = 0;
 	}
 
-	totxfr = cto->ct_resid = 0;
+	cto->ct_resid = 0;
 	cto->rsp.m0.ct_scsi_status = 0;
 	MEMZERO(&cto->rsp, sizeof (cto->rsp));
 
@@ -1545,7 +1547,6 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 				cto->rsp.m0.ct_dataseg[seg].ds_count =
 				    dm_segs->ds_len;
 				cto->rsp.m0.ct_xfrlen += dm_segs->ds_len;
-				totxfr += dm_segs->ds_len;
 				dm_segs++;
 			}
 			cto->ct_seg_count = seg;
@@ -1596,7 +1597,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 				 * Get 'real' residual and set flags based
 				 * on it.
 				 */
-				cto->ct_resid = datalen - totxfr;
+				cto->ct_resid = resid;
 				if (send_sense) {
 					MEMCPY(cto->rsp.m1.ct_resp, sense,
 					    QLTM_SENSELEN);
