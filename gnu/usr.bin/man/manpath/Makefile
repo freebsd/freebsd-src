@@ -1,7 +1,12 @@
 PROG=	manpath
 MAN1=	manpath.1
 SRCS=	manpath.c
-LDADD+=	-L${.CURDIR}/../lib -lman
+
+.if exists(${.CURDIR}/../lib/obj)
+LDADD=  -L${.CURDIR}/../lib/obj -lman
+.else
+LDADD=  -L${.CURDIR}/../lib/ -lman
+.endif
 
 CFLAGS+= -I${.CURDIR}/../lib -DMAIN -DSTDC_HEADERS -DPOSIX -DHAS_TROFF -DDO_UNCOMPRESS -DALT_SYSTEMS
 
