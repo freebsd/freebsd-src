@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.38 1996/05/02 22:25:18 phk Exp $
+ * 	$Id: pmap.h,v 1.39 1996/05/18 03:36:38 dyson Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -115,8 +115,6 @@
 #ifndef LOCORE
 typedef unsigned int *pd_entry_t;
 typedef unsigned int *pt_entry_t;
-struct vm_map;
-struct vm_object;
 
 #define PDESIZE		sizeof(pd_entry_t) /* for assembly files */
 #define PTESIZE		sizeof(pt_entry_t) /* for assembly files */
