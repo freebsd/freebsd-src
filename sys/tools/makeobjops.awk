@@ -283,7 +283,7 @@ function handle_method (static)
 	firstvar = varnames[1];
 
 	if (default == "")
-		default = "0";
+		default = "kobj_error_method";
 
 	# the method description 
 	printh("extern struct kobjop_desc " mname "_desc;");
@@ -293,8 +293,12 @@ function handle_method (static)
 	    line_width, length(prototype)));
 
 	# Print out the method desc
+	printc("struct kobj_method " mname "_method_default = {");
+	printc("\t&" mname "_desc, (kobjop_t) " default);
+	printc("};\n");
+
 	printc("struct kobjop_desc " mname "_desc = {");
-	printc("\t0, (kobjop_t) " default);
+	printc("\t0, &" mname "_method_default");
 	printc("};\n");
 
 	# Print out the method itself
