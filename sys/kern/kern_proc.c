@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.51 1999/05/17 13:28:35 dfr Exp $
+ * $Id: kern_proc.c,v 1.52 1999/05/17 13:50:24 phk Exp $
  */
 
 #include <sys/param.h>
@@ -548,8 +548,8 @@ sysctl_kern_proc SYSCTL_HANDLER_ARGS
 				if ((p->p_flag & P_CONTROLT) == 0 ||
 				    p->p_session == NULL ||
 				    p->p_session->s_ttyp == NULL ||
-				    p->p_session->s_ttyp->t_dev != 
-					udev2dev((udev_t)name[0], 0))
+				    dev2udev(p->p_session->s_ttyp->t_dev) != 
+					(udev_t)name[0])
 					continue;
 				break;
 
