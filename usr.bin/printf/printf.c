@@ -132,7 +132,7 @@ main(argc, argv)
 	 * up the format string.
 	 */
 	skip1 = "#-+ 0";
-	skip2 = "*0123456789";
+	skip2 = "0123456789";
 
 	escape(fmt = format = *argv);		/* backslash interpretation */
 	gargv = ++argv;
@@ -170,21 +170,28 @@ next:		for (start = fmt;; ++fmt) {
 		if (*fmt == '*') {
 			if (getint(&fieldwidth))
 				return (1);
-		} else
+			++fmt;
+		} else {
 			fieldwidth = 0;
 
-		/* skip to possible '.', get following precision */
-		for (; strchr(skip2, *fmt); ++fmt);
-		if (*fmt == '.')
+			/* skip to possible '.', get following precision */
+			for (; strchr(skip2, *fmt); ++fmt);
+		}
+		if (*fmt == '.') {
+			/* precision present? */
 			++fmt;
-		if (*fmt == '*') {
-			if (getint(&precision))
-				return (1);
+			if (*fmt == '*') {
+				if (getint(&precision))
+					return (1);
+				++fmt;
+			} else {
+				precision = 0;
+
+				/* skip to conversion char */
+				for (; strchr(skip2, *fmt); ++fmt);
+			}
 		} else
 			precision = 0;
-
-		/* skip to conversion char */
-		for (; strchr(skip2, *fmt); ++fmt);
 		if (!*fmt) {
 			warnx("missing format character", NULL, NULL);
 			return (1);
@@ -227,7 +234,7 @@ next:		for (start = fmt;; ++fmt) {
 			break;
 		}
 		default:
-			warnx("illegal format character", NULL, NULL);
+			warnx("illegal format character %c",  convch, NULL);
 			return (1);
 		}
 		*fmt = nextch;
