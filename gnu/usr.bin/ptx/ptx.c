@@ -101,7 +101,7 @@ extern int errno;
 
 #include "bumpalloc.h"
 #include "diacrit.h"
-#include "regex.h"
+#include "gnuregex.h"
 
 #ifndef __STDC__
 void *xmalloc ();
