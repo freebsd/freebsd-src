@@ -92,7 +92,7 @@ enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: at.c,v 1.12 1997/03/03 07:58:00 ache Exp $";
+static char rcsid[] = "$Id: at.c,v 1.13 1997/03/29 04:27:56 imp Exp $";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"
@@ -450,6 +450,10 @@ list_jobs()
     time_t runtimer;
     char timestr[TIMESIZE];
     int first=1;
+    
+#ifdef __FreeBSD__
+    (void) setlocale(LC_TIME, "");
+#endif
 
     PRIV_START
 
