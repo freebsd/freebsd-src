@@ -15,6 +15,7 @@ SRCS=	alloc.c hack.Decl.c hack.apply.c hack.bones.c hack.c hack.cmd.c \
 MAN6=	hack.6
 DPADD=	${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-ltermcap -lcompat
+CFLAGS+= -fwritable-strings
 HIDEGAME=hidegame
 
 hack.onames.h: makedefs def.objects.h
