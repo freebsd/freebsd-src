@@ -217,6 +217,8 @@ send_do(int c, int init)
 	set_my_want_state_do(c);
 	do_dont_resp[c]++;
     }
+    if (telnetport < 0)
+	return;
     NET2ADD(IAC, DO);
     NETADD(c);
     printoption("SENT", DO, c);
@@ -232,6 +234,8 @@ send_dont(int c, int init)
 	set_my_want_state_dont(c);
 	do_dont_resp[c]++;
     }
+    if (telnetport < 0)
+	return;
     NET2ADD(IAC, DONT);
     NETADD(c);
     printoption("SENT", DONT, c);
@@ -247,6 +251,8 @@ send_will(int c, int init)
 	set_my_want_state_will(c);
 	will_wont_resp[c]++;
     }
+    if (telnetport < 0)
+	return;
     NET2ADD(IAC, WILL);
     NETADD(c);
     printoption("SENT", WILL, c);
@@ -262,6 +268,8 @@ send_wont(int c, int init)
 	set_my_want_state_wont(c);
 	will_wont_resp[c]++;
     }
+    if (telnetport < 0)
+	return;
     NET2ADD(IAC, WONT);
     NETADD(c);
     printoption("SENT", WONT, c);
@@ -1651,7 +1659,7 @@ telrcv(void)
 	    /* FALLTHROUGH */
 
 	case TS_DATA:
-	    if (c == IAC) {
+	    if (c == IAC && telnetport >= 0) {
 		telrcv_state = TS_IAC;
 		break;
 	    }
@@ -2069,7 +2077,7 @@ telnet(char *user __unusedhere)
     }
 #endif
 #endif
-    if (telnetport) {
+    if (telnetport > 0) {
 #ifdef	AUTHENTICATION
 	if (autologin)
 		send_will(TELOPT_AUTHENTICATION, 1);
