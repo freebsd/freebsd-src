@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.15 1999/02/15 12:36:21 bde Exp $
+# $Id: Makefile,v 1.16 1999/02/16 14:57:58 luoqi Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
@@ -48,8 +48,8 @@ beforeinstall:
 
 .if ${OBJFORMAT} == "aout"
 doscmd: ${LIBCRT0} doscmd_loader.o ${LIBGCC} ${LIBC}
-	ld -e start -dc -dp ${LDFLAGS:M-static:S/-static/-Bstatic/} \
-	    -o doscmd ${LIBCRT0} doscmd_loader.o -L${DESTDIR}${LIBDIR} -lgcc -lc
+	${CC} ${CFLAGS} ${LDFLAGS} -nostdlib -Wl,-e,start,-dc,-dp \
+	    -o doscmd ${LIBCRT0} doscmd_loader.o -lgcc -lc
 
 # Bogusly generated dependency to get doscmd_loader.c looked at by mkdep.
 .depend: doscmd_loader.c
@@ -77,6 +77,6 @@ NEED_LIBNAMES=	yes
 # This must be after bsd.prog.mk is included so that ${OBJS} in the
 # dependency gets expanded.
 doscmd.kernel: crt0.o ${OBJS} ${DPADD}
-	ld -N -Bstatic -T 110000 -o doscmd.kernel ${LDFLAGS:N-static} \
-	    crt0.o ${OBJS} ${LDADD}
+	${CC} ${CFLAGS} ${LDFLAGS} -static -nostdlib -Wl,-N,-T,110000 \
+	    -o doscmd.kernel crt0.o ${OBJS} ${LDADD}
 .endif
