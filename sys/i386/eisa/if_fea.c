@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.7 1997/09/21 21:35:24 gibbs Exp $
+ * $Id: if_fea.c,v 1.8 1998/01/08 23:40:33 eivind Exp $
  */
 
 /*
@@ -30,8 +30,6 @@
  *	This module support the DEFEA EISA FDDI Controller.
  */
 
-#include "opt_inet.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -39,13 +37,8 @@
 #include <sys/device.h>
 #endif
 
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#endif
 
 #if defined(__FreeBSD__)
 #include <i386/eisa/eisaconf.h>

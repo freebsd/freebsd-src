@@ -23,13 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.2 1998/02/04 22:32:07 eivind Exp $
+ *      $Id: busdma_machdep.c,v 1.3 1998/02/06 12:13:04 eivind Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/queue.h>
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>

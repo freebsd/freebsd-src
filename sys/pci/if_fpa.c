@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fpa.c,v 1.5 1998/01/08 23:42:26 eivind Exp $
+ * $Id: if_fpa.c,v 1.6 1998/02/09 06:10:49 eivind Exp $
  *
  */
 
@@ -31,8 +31,6 @@
  *   This module supports the DEC DEFPA PCI FDDI Controller
  */
 
-#include "opt_inet.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -41,11 +39,6 @@
 #endif
 
 #include <net/if.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
 
 #if defined(__FreeBSD__)
 #include "fpa.h"

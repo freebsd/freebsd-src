@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.16 1998/02/09 06:09:52 eivind Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.17 1998/02/18 09:28:36 jkh Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.28 1997/11/17 15:36:49 ws Exp $	*/
 
 /*-
@@ -56,7 +56,6 @@
 #include <sys/buf.h>
 #include <sys/mount.h>		/* to define statfs structure */
 #include <sys/vnode.h>		/* to define vattr structure */
-#include <sys/errno.h>
 
 /*
  * msdosfs include files.

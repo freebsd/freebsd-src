@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.43 1998/01/09 00:51:53 eivind Exp $
+ * $Id: if_ethersubr.c,v 1.44 1998/01/31 07:23:14 eivind Exp $
  */
 
 #include "opt_atalk.h"
@@ -53,9 +53,6 @@
 #include <net/if_llc.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-
-#include <net/ethernet.h>
-#include <net/if_arp.h>
 
 #ifdef INET
 #include <netinet/in.h>
