@@ -1364,7 +1364,9 @@ frdest_t *fdp;
 			i = 1;
 # endif
 # ifndef sparc
+#  ifndef __FreeBSD__
 		ip->ip_id = htons(ip->ip_id);
+#  endif
 		ip->ip_len = htons(ip->ip_len);
 		ip->ip_off = htons(ip->ip_off);
 # endif

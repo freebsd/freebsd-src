@@ -250,7 +250,7 @@ ip_t *ip;
 
 		bo = ip->ip_len;
 		ip->ip_len = htons(bo);
-# if !SOLARIS && !defined(__NetBSD__)
+# if !SOLARIS && !defined(__NetBSD__) && !defined(__FreeBSD__)
 		/* 4.4BSD converts this ip_input.c, but I don't in solaris.c */
 		bo = ip->ip_id;
 		ip->ip_id = htons(bo);
