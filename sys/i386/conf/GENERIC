@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.77.2.22 1998/03/24 01:20:14 jkh Exp $
+#	$Id: GENERIC,v 1.77.2.23 1998/05/06 20:07:23 gibbs Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -45,6 +45,9 @@ controller	pci0
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
+# Unless you know very well what you're doing, leave ft0 at drive 2, or
+# remove the line entirely if you don't need it.  Trying to configure
+# it on another unit might cause surprises, see PR kern/7176.
 tape		ft0	at fdc0 drive 2
 
 options		"CMD640"	# work around CMD640 chip deficiency
