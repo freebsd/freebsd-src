@@ -22,7 +22,7 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \
-\	$Id: loader.4th,v 1.1 1999/03/09 14:06:55 dcs Exp $
+\	$Id: loader.4th,v 1.2 1999/04/24 17:25:25 dcs Exp $
 
 include /boot/support.4th
 
@@ -53,6 +53,18 @@ only forth definitions also support-functions
     load_kernel
     load_modules
   then
+;
+
+\ ***** initialize
+\
+\	Overrides support.4th initialization word with one that does
+\	everything start one does, short of loading the kernel and
+\	modules. Returns a flag
+
+: initialize ( -- flag )
+  s" /boot/defaults/loader.conf" initialize
+  include_conf_files
+  any_conf_read?
 ;
 
 \ ***** read-conf
@@ -189,4 +201,4 @@ only forth definitions also support-functions
 \ Return to strict forth vocabulary
 
 only forth also
- 
+
