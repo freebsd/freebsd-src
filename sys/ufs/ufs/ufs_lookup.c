@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.12 1997/02/22 09:47:49 peter Exp $
+ * $Id: ufs_lookup.c,v 1.13 1997/03/09 06:10:33 mpp Exp $
  */
 
 #include <sys/param.h>
@@ -504,7 +504,6 @@ found:
 		if ((dp->i_mode & ISVTX) &&
 		    cred->cr_uid != 0 &&
 		    cred->cr_uid != dp->i_uid &&
-		    tdp->v_type != VLNK &&
 		    VTOI(tdp)->i_uid != cred->cr_uid) {
 			vput(tdp);
 			return (EPERM);
