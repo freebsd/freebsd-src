@@ -1233,8 +1233,8 @@ config_subdisk(int update)
     if (sd->dev == NULL)
         sd->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(sdno, VINUM_RAWSD_TYPE),
 	    UID_ROOT,
-	    GID_WHEEL,
- 	    S_IRUSR | S_IWUSR,
+	    GID_OPERATOR,
+ 	    S_IRUSR | S_IWUSR | S_IRGRP,
 	    "vinum/sd/%s",
 	    sd->name);
     if (state != sd_unallocated)			    /* we had a specific state to set */
@@ -1428,8 +1428,8 @@ config_plex(int update)
         plex->dev = make_dev(&vinum_cdevsw,
 	    VINUMRMINOR(plexno, VINUM_RAWPLEX_TYPE),
 	    UID_ROOT,
-	    GID_WHEEL,
-            S_IRUSR | S_IWUSR,
+	    GID_OPERATOR,
+            S_IRUSR | S_IWUSR | S_IRGRP,
             "vinum/plex/%s",
             plex->name);
     }
@@ -1564,8 +1564,8 @@ config_volume(int update)
         vol->dev = make_dev(&vinum_cdevsw,
             VINUMRMINOR(volno, VINUM_VOLUME_TYPE),
             UID_ROOT,
-            GID_WHEEL,
-            S_IRUSR | S_IWUSR,
+            GID_OPERATOR,
+            S_IRUSR | S_IWUSR | S_IRGRP,
             "vinum/%s",
             vol->name);
 }
