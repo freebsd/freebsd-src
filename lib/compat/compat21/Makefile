@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1997/02/22 14:57:39 peter Exp $
+# $Id: Makefile,v 1.9 1997/04/03 06:08:27 jkh Exp $
 
 DISTRIBUTION=	compat21
 
@@ -15,7 +15,7 @@ ${lib}:	${lib}.gz.uu
 
 beforeinstall:
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
-		${DESTDIR}${LIBCOMPATDIR}
+		${DESTDIR}${LIBCOMPATDIR}/aout
 
 # Get all the fruit, even though we don't set PROG.
 # XXX bsd.lib.mk has fruitflies, e.g., it fails if LIBS is empty.
