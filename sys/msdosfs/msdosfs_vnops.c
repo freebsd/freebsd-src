@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.34 1996/10/02 05:01:17 dyson Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.34.2.1 1997/02/13 07:27:18 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -582,7 +582,11 @@ msdosfs_read(ap)
 			brelse(bp);
 			return error;
 		}
+		if (uio->uio_segflg != UIO_NOCOPY)
+			dep->de_flag |= DE_RECURSE;
 		error = uiomove(bp->b_data + on, (int) n, uio);
+		if (uio->uio_segflg != UIO_NOCOPY)
+			dep->de_flag &= ~DE_RECURSE;
 		/*
 		 * If we have read everything from this block or have read
 		 * to end of file then we are done with this block.  Mark
@@ -784,7 +788,11 @@ msdosfs_write(ap)
 		/*
 		 * Copy the data from user space into the buf header.
 		 */
+		if (uio->uio_segflg != UIO_NOCOPY)
+			dep->de_flag |= DE_RECURSE;
 		error = uiomove(bp->b_data + croffset, n, uio);
+		if (uio->uio_segflg != UIO_NOCOPY)
+			dep->de_flag &= ~DE_RECURSE;
 
 		/*
 		 * If they want this synchronous then write it and wait for
@@ -1813,9 +1821,15 @@ msdosfs_lock(ap)
 	struct denode *dep = VTODE(ap->a_vp);
 
 	while (dep->de_flag & DE_LOCKED) {
+		if (dep->de_lockholder == curproc->p_pid) {
+			if ((dep->de_flag & DE_RECURSE) == 0)
+				panic("msdosfs_lock: locking against myself");
+			else {
+				++dep->de_lockcount;
+				return 0;
+			}
+		}
 		dep->de_flag |= DE_WANTED;
-		if (dep->de_lockholder == curproc->p_pid)
-			panic("msdosfs_lock: locking against myself");
 		dep->de_lockwaiter = curproc->p_pid;
 		(void) tsleep((caddr_t) dep, PINOD, "msdlck", 0);
 	}
@@ -1833,10 +1847,14 @@ msdosfs_unlock(ap)
 {
 	struct denode *dep = VTODE(ap->a_vp);
 
+	if(dep->de_lockcount > 0) {
+		--dep->de_lockcount;
+		return 0;
+	}
 	if (!(dep->de_flag & DE_LOCKED))
 		panic("msdosfs_unlock: denode not locked");
 	dep->de_lockholder = 0;
-	dep->de_flag &= ~DE_LOCKED;
+	dep->de_flag &= ~(DE_LOCKED|DE_RECURSE);
 	if (dep->de_flag & DE_WANTED) {
 		dep->de_flag &= ~DE_WANTED;
 		wakeup((caddr_t) dep);
