@@ -1062,7 +1062,7 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		if (VOP_ISLOCKED(vp) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
+		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
 		    waitfor == MNT_LAZY)
 			continue;
 		if (vget(vp, LK_EXCLUSIVE, p))

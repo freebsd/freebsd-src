@@ -363,10 +363,10 @@ union_lookup(ap)
 		    uerror,
 		    upperdvp,
 		    upperdvp->v_usecount,
-		    VOP_ISLOCKED(upperdvp),
+		    VOP_ISLOCKED(upperdvp, NULL),
 		    uppervp,
 		    (uppervp ? uppervp->v_usecount : -99),
-		    (uppervp ? VOP_ISLOCKED(uppervp) : -99)
+		    (uppervp ? VOP_ISLOCKED(uppervp, NULL) : -99)
 		));
 
 		/*
@@ -1698,7 +1698,7 @@ union_abortop(ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct proc *p = cnp->cn_proc;
 	struct union_node *un = VTOUNION(ap->a_dvp);
-	int islocked = VOP_ISLOCKED(ap->a_dvp);
+	int islocked = VOP_ISLOCKED(ap->a_dvp, NULL);
 	struct vnode *vp;
 	int error;
 
@@ -1850,7 +1850,7 @@ union_unlock(ap)
 	 */
 
 	if ((un->un_flags & UN_ULOCK) && 
-	    lockstatus(&un->un_lock) != LK_EXCLUSIVE) {
+	    lockstatus(&un->un_lock, NULL) != LK_EXCLUSIVE) {
 		un->un_flags &= ~UN_ULOCK;
 		VOP_UNLOCK(un->un_uppervp, LK_EXCLUSIVE, p);
 	}

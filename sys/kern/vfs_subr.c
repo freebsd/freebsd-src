@@ -990,7 +990,7 @@ sched_sync(void)
 		splx(s);
 
 		while ((vp = LIST_FIRST(slp)) != NULL) {
-			if (VOP_ISLOCKED(vp) == 0) {
+			if (VOP_ISLOCKED(vp, NULL) == 0) {
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 				(void) VOP_FSYNC(vp, p->p_ucred, MNT_LAZY, p);
 				VOP_UNLOCK(vp, 0, p);
@@ -1962,7 +1962,7 @@ DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 			continue;
 		}
 		LIST_FOREACH(vp, &mp->mnt_vnodelist, v_mntvnodes) {
-			if (VOP_ISLOCKED(vp))
+			if (VOP_ISLOCKED(vp, NULL))
 				vprint((char *)0, vp);
 		}
 		simple_lock(&mountlist_slock);
@@ -2450,7 +2450,7 @@ loop:
 			obj = vp->v_object;
 			if (obj == NULL || (obj->flags & OBJ_MIGHTBEDIRTY) == 0)
 				continue;
-			if (VOP_ISLOCKED(vp))
+			if (VOP_ISLOCKED(vp, NULL))
 				continue;
 		}
 

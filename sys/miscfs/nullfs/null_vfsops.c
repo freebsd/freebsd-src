@@ -119,7 +119,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	 * (XXX) VOP_ISLOCKED is needed?
 	 */
 	if ((mp->mnt_vnodecovered->v_op == null_vnodeop_p) &&
-		VOP_ISLOCKED(mp->mnt_vnodecovered)) {
+		VOP_ISLOCKED(mp->mnt_vnodecovered, NULL)) {
 		VOP_UNLOCK(mp->mnt_vnodecovered, 0, p);
 		isvnunlocked = 1;
 	}
@@ -132,7 +132,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	/*
 	 * Re-lock vnode.
 	 */
-	if (isvnunlocked && !VOP_ISLOCKED(mp->mnt_vnodecovered))
+	if (isvnunlocked && !VOP_ISLOCKED(mp->mnt_vnodecovered, NULL))
 		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY, p);
 
 	if (error)
@@ -296,7 +296,7 @@ nullfs_root(mp, vpp)
 	 */
 	vp = MOUNTTONULLMOUNT(mp)->nullm_rootvp;
 	VREF(vp);
-	if (VOP_ISLOCKED(vp)) {
+	if (VOP_ISLOCKED(vp, NULL)) {
 		/*
 		 * XXX
 		 * Should we check type of node?

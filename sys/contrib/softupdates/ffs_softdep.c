@@ -3978,7 +3978,7 @@ loop:
 	 * way to accomplish this is to sync the entire filesystem (luckily
 	 * this happens rarely).
 	 */
-	if (vn_isdisk(vp) && vp->v_specmountpoint && !VOP_ISLOCKED(vp) &&
+	if (vn_isdisk(vp) && vp->v_specmountpoint && !VOP_ISLOCKED(vp, NULL) &&
 	    (error = VFS_SYNC(vp->v_specmountpoint, MNT_WAIT, ap->a_cred,
 	     ap->a_p)) != 0)
 		return (error);
