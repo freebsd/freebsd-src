@@ -54,9 +54,6 @@ auth_encrypt_init(local, remote, name, server)
 #if	defined(AUTHENTICATION)
 	auth_init(name, server);
 #endif
-#ifdef	ENCRYPTION
-	encrypt_init(name, server);
-#endif	/* ENCRYPTION */
 	if (UserNameRequested) {
 		free(UserNameRequested);
 		UserNameRequested = 0;
