@@ -729,17 +729,19 @@ udp_output(inp, m, addr, control, td)
 	int error = 0;
 	int ipflags;
 	u_short fport, lport;
+	int unlock_udbinfo;
 
-	INP_LOCK_ASSERT(inp);
-#ifdef MAC
-	mac_create_mbuf_from_inpcb(inp, m);
-#endif
-
+	/*
+	 * udp_output() may need to temporarily bind or connect the current
+	 * inpcb.  As such, we don't know up front what inpcb locks we will
+	 * need.  Do any work to decide what is needed up front before
+	 * acquiring locks.
+	 */
 	if (len + sizeof(struct udpiphdr) > IP_MAXPACKET) {
-		error = EMSGSIZE;
 		if (control)
 			m_freem(control);
-		goto release;
+		m_freem(m);
+		return EMSGSIZE;
 	}
 
 	src.sin_addr.s_addr = INADDR_ANY;
@@ -749,9 +751,9 @@ udp_output(inp, m, addr, control, td)
 		 * is stored in a single mbuf.
 		 */
 		if (control->m_next) {
-			error = EINVAL;
 			m_freem(control);
-			goto release;
+			m_freem(m);
+			return EINVAL;
 		}
 		for (; control->m_len > 0;
 		    control->m_data += CMSG_ALIGN(cm->cmsg_len),
@@ -787,8 +789,23 @@ udp_output(inp, m, addr, control, td)
 		}
 		m_freem(control);
 	}
-	if (error)
-		goto release;
+	if (error) {
+		m_freem(m);
+		return error;
+	}
+
+	if (src.sin_addr.s_addr != INADDR_ANY ||
+	    addr != NULL) {
+		INP_INFO_WLOCK(&udbinfo);
+		unlock_udbinfo = 1;
+	} else
+		unlock_udbinfo = 0;
+	INP_LOCK(inp);
+
+#ifdef MAC
+	mac_create_mbuf_from_inpcb(inp, m);
+#endif
+
 	laddr = inp->inp_laddr;
 	lport = inp->inp_lport;
 	if (src.sin_addr.s_addr != INADDR_ANY) {
@@ -879,11 +896,17 @@ udp_output(inp, m, addr, control, td)
 	((struct ip *)ui)->ip_tos = inp->inp_ip_tos;	/* XXX */
 	udpstat.udps_opackets++;
 
+	if (unlock_udbinfo)
+		INP_INFO_WUNLOCK(&udbinfo);
 	error = ip_output(m, inp->inp_options, NULL, ipflags,
 	    inp->inp_moptions, inp);
+	INP_UNLOCK(inp);
 	return (error);
 
 release:
+	INP_UNLOCK(inp);
+	if (unlock_udbinfo)
+		INP_INFO_WUNLOCK(&udbinfo);
 	m_freem(m);
 	return (error);
 }
@@ -1065,22 +1088,9 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	    struct mbuf *control, struct thread *td)
 {
 	struct inpcb *inp;
-	int ret;
 
-	INP_INFO_WLOCK(&udbinfo);
 	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&udbinfo);
-		m_freem(m);
-		if (control != NULL)
-			m_freem(control);
-		return EINVAL;
-	}
-	INP_LOCK(inp);
-	ret = udp_output(inp, m, addr, control, td);
-	INP_UNLOCK(inp);
-	INP_INFO_WUNLOCK(&udbinfo);
-	return ret;
+	return udp_output(inp, m, addr, control, td);
 }
 
 int
