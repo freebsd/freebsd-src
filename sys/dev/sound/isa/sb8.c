@@ -60,6 +60,7 @@ static int esschan_setblocksize(void *data, u_int32_t blocksize);
 static int esschan_trigger(void *data, int go);
 static int esschan_getptr(void *data);
 static pcmchan_caps *esschan_getcaps(void *data);
+
 static pcmchan_caps sb_playcaps = {
 	4000, 22050,
 	AFMT_U8,
@@ -84,16 +85,22 @@ static pcmchan_caps sbpro_reccaps = {
 	AFMT_STEREO | AFMT_U8
 };
 
-static pcmchan_caps sb16_playcaps = {
+static pcmchan_caps sb16_hcaps = {
 	5000, 45000,
 	AFMT_STEREO | AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE
 };
 
-static pcmchan_caps sb16_reccaps = {
+static pcmchan_caps sb16_lcaps = {
 	5000, 45000,
 	AFMT_STEREO | AFMT_U8,
 	AFMT_STEREO | AFMT_U8
+};
+
+static pcmchan_caps sb16x_caps = {
+	5000, 49000,
+	AFMT_STEREO | AFMT_U8 /* | AFMT_S16_LE */,
+	AFMT_STEREO | AFMT_U8 /* AFMT_S16_LE */
 };
 
 static pcmchan_caps ess_playcaps = {
@@ -144,16 +151,11 @@ struct sb_chinfo {
 
 struct sb_info {
     	struct resource *io_base;	/* I/O address for the board */
-    	int		     io_rid;
     	struct resource *irq;
-    	int		     irq_rid;
-    	struct resource *drq1; /* play */
-    	int		     drq1_rid;
-    	struct resource *drq2; /* rec */
-    	int		     drq2_rid;
+   	struct resource *drq1;
+    	struct resource *drq2;
     	bus_dma_tag_t    parent_dmat;
 
-    	int dma16, dma8;
     	int bd_id;
     	u_long bd_flags;       /* board-specific flags */
     	struct sb_chinfo pch, rch;
@@ -166,31 +168,25 @@ static int sb_cmd(struct sb_info *sb, u_char val);
 static int sb_cmd1(struct sb_info *sb, u_char cmd, int val);
 static int sb_cmd2(struct sb_info *sb, u_char cmd, int val);
 static u_int sb_get_byte(struct sb_info *sb);
-static int ess_write(struct sb_info *sb, u_char reg, int val);
-static int ess_read(struct sb_info *sb, u_char reg);
-
-/*
- * in the SB, there is a set of indirect "mixer" registers with
- * address at offset 4, data at offset 5
- */
 static void sb_setmixer(struct sb_info *sb, u_int port, u_int value);
 static int sb_getmixer(struct sb_info *sb, u_int port);
-
-static void sb_intr(void *arg);
-static void ess_intr(void *arg);
-static int sb_init(device_t dev, struct sb_info *sb);
 static int sb_reset_dsp(struct sb_info *sb);
 
+static void sb_intr(void *arg);
 static int sb_format(struct sb_chinfo *ch, u_int32_t format);
 static int sb_speed(struct sb_chinfo *ch, int speed);
 static int sb_start(struct sb_chinfo *ch);
 static int sb_stop(struct sb_chinfo *ch);
 
+static int ess_write(struct sb_info *sb, u_char reg, int val);
+static int ess_read(struct sb_info *sb, u_char reg);
+static void ess_intr(void *arg);
 static int ess_format(struct sb_chinfo *ch, u_int32_t format);
 static int ess_speed(struct sb_chinfo *ch, int speed);
 static int ess_start(struct sb_chinfo *ch);
 static int ess_stop(struct sb_chinfo *ch);
 static int ess_abort(struct sb_chinfo *ch);
+
 static int sbmix_init(snd_mixer *m);
 static int sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
 static int sbmix_setrecsrc(snd_mixer *m, u_int32_t src);
@@ -377,20 +373,19 @@ sb_release_resources(struct sb_info *sb, device_t dev)
 {
     	/* should we bus_teardown_intr here? */
     	if (sb->irq) {
-		bus_release_resource(dev, SYS_RES_IRQ, sb->irq_rid, sb->irq);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sb->irq);
 		sb->irq = 0;
     	}
     	if (sb->drq1) {
-		bus_release_resource(dev, SYS_RES_DRQ, sb->drq1_rid, sb->drq1);
+		bus_release_resource(dev, SYS_RES_DRQ, 0, sb->drq1);
 		sb->drq1 = 0;
     	}
     	if (sb->drq2) {
-		bus_release_resource(dev, SYS_RES_DRQ, sb->drq2_rid, sb->drq2);
+		bus_release_resource(dev, SYS_RES_DRQ, 1, sb->drq2);
 		sb->drq2 = 0;
     	}
     	if (sb->io_base) {
-		bus_release_resource(dev, SYS_RES_IOPORT, sb->io_rid,
-				     sb->io_base);
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, sb->io_base);
 		sb->io_base = 0;
     	}
     	free(sb, M_DEVBUF);
@@ -399,184 +394,66 @@ sb_release_resources(struct sb_info *sb, device_t dev)
 static int
 sb_alloc_resources(struct sb_info *sb, device_t dev)
 {
+	int rid;
+
+	rid = 0;
 	if (!sb->io_base)
     		sb->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						 &sb->io_rid, 0, ~0, 1,
+						 &rid, 0, ~0, 1,
 						 RF_ACTIVE);
+	rid = 0;
 	if (!sb->irq)
     		sb->irq = bus_alloc_resource(dev, SYS_RES_IRQ,
-					     &sb->irq_rid, 0, ~0, 1,
+					     &rid, 0, ~0, 1,
 					     RF_ACTIVE);
+	rid = 0;
 	if (!sb->drq1)
     		sb->drq1 = bus_alloc_resource(dev, SYS_RES_DRQ,
-					      &sb->drq1_rid, 0, ~0, 1,
+					      &rid, 0, ~0, 1,
 					      RF_ACTIVE);
-	if (!sb->drq2 && sb->drq2_rid > 0)
+	rid = 1;
+	if (!sb->drq2)
         	sb->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ,
-					      &sb->drq2_rid, 0, ~0, 1,
+					      &rid, 0, ~0, 1,
 					      RF_ACTIVE);
 
     	if (sb->io_base && sb->drq1 && sb->irq) {
-		sb->dma8 = rman_get_start(sb->drq1);
-		isa_dma_acquire(sb->dma8);
-		isa_dmainit(sb->dma8, DSP_BUFFSIZE);
+		isa_dma_acquire(rman_get_start(sb->drq1));
+		isa_dmainit(rman_get_start(sb->drq1), DSP_BUFFSIZE);
 
 		if (sb->drq2) {
-			sb->dma16 = rman_get_start(sb->drq2);
-			isa_dma_acquire(sb->dma16);
-			isa_dmainit(sb->dma16, DSP_BUFFSIZE);
-		} else sb->dma16 = sb->dma8;
-
-		if (sb->dma8 > sb->dma16) {
-			int tmp = sb->dma16;
-			sb->dma16 = sb->dma8;
-			sb->dma8 = tmp;
+			isa_dma_acquire(rman_get_start(sb->drq2));
+			isa_dmainit(rman_get_start(sb->drq2), DSP_BUFFSIZE);
 		}
+
 		return 0;
 	} else return ENXIO;
 }
 
-static int
-sb_identify_board(device_t dev, struct sb_info *sb)
+static void
+sb16_swap(void *v, int dir)
 {
-    	char *fmt = NULL;
-    	static char buf[64];
-	int essver = 0;
+	struct sb_info *sb = v;
+	int pb = sb->pch.buffer->dl;
+	int rb = sb->rch.buffer->dl;
+	int pc = sb->pch.buffer->chan;
+	int rc = sb->rch.buffer->chan;
+	int swp = 0;
 
-    	sb_cmd(sb, DSP_CMD_GETVER);	/* Get version */
-    	sb->bd_id = (sb_get_byte(sb) << 8) | sb_get_byte(sb);
+	if (!pb && !rb) {
+		if (dir == PCMDIR_PLAY && pc < 4) swp = 1;
+		else if (dir == PCMDIR_REC && rc < 4) swp = 1;
+		if (sb->bd_flags & BD_F_SB16X) swp = !swp;
+		if (swp) {
+			int t;
 
-    	switch (sb->bd_id >> 8) {
-    	case 1: /* old sound blaster has nothing... */
-    	case 2:
-		fmt = "SoundBlaster %d.%d" ; /* default */
-		break;
-
-    	case 3:
-		fmt = "SoundBlaster Pro %d.%d";
-		if (sb->bd_id == 0x301) {
-	    		int rev;
-
-	    		/* Try to detect ESS chips. */
-	    		sb_cmd(sb, DSP_CMD_GETID); /* Return ident. bytes. */
-	    		essver = (sb_get_byte(sb) << 8) | sb_get_byte(sb);
-	    		rev = essver & 0x000f;
-	    		essver &= 0xfff0;
-	    		if (essver == 0x4880) {
-				/* the ESS488 can be treated as an SBPRO */
-				fmt = "SoundBlaster Pro (ESS488 rev %d)";
-	    		} else if (essver == 0x6880) {
-				if (rev < 8) fmt = "ESS688 rev %d";
-				else fmt = "ESS1868 rev %d";
-	        		sb->bd_flags |= BD_F_ESS;
-	    		} else return ENXIO;
-	    		sb->bd_id &= 0xff00;
-	    		sb->bd_id |= ((essver & 0xf000) >> 8) | rev;
+			t = sb->pch.buffer->chan;
+			sb->pch.buffer->chan = sb->rch.buffer->chan;
+			sb->rch.buffer->chan = t;
+			sb->pch.buffer->dir = B_WRITE;
+			sb->rch.buffer->dir = B_READ;
 		}
-		break;
-
-    	case 4:
-		sb->bd_flags |= BD_F_SB16;
-		if (sb->bd_flags & BD_F_SB16X) fmt = "SB16 ViBRA16X %d.%d";
-        	else fmt = "SoundBlaster 16 %d.%d";
-		break;
-
-    	default:
-		device_printf(dev, "failed to get SB version (%x)\n",
-			      sb->bd_id);
-		return ENXIO;
-    	}
-    	if (essver) snprintf(buf, sizeof buf, fmt, sb->bd_id & 0x000f);
-	else snprintf(buf, sizeof buf, fmt, sb->bd_id >> 8, sb->bd_id & 0xff);
-    	device_set_desc_copy(dev, buf);
-    	return sb_reset_dsp(sb);
-}
-
-static int
-sb_init(device_t dev, struct sb_info *sb)
-{
-    	int x, irq;
-
-    	sb->bd_flags &= ~BD_F_MIX_MASK;
-    	/* do various initializations depending on board id. */
-    	switch (sb->bd_id >> 8) {
-    	case 1: /* old sound blaster has nothing... */
-		break;
-
-    	case 2:
-		sb->bd_flags |= BD_F_DUP_MIDI;
-		if (sb->bd_id > 0x200) sb->bd_flags |= BD_F_MIX_CT1335;
-		break;
-
-    	case 3:
-		sb->bd_flags |= BD_F_DUP_MIDI | BD_F_MIX_CT1345;
-		break;
-
-    	case 4:
-    		sb->bd_flags |= BD_F_SB16 | BD_F_MIX_CT1745;
-		if (sb->dma16 != sb->dma8) sb->bd_flags |= BD_F_DUPLEX;
-
-		/* soft irq/dma configuration */
-		x = -1;
-		irq = rman_get_start(sb->irq);
-		if      (irq == 5) x = 2;
-		else if (irq == 7) x = 4;
-		else if (irq == 9) x = 1;
-		else if (irq == 10) x = 8;
-		if (x == -1) device_printf(dev,
-					   "bad irq %d (5/7/9/10 valid)\n",
-					   irq);
-		else sb_setmixer(sb, IRQ_NR, x);
-		sb_setmixer(sb, DMA_NR, (1 << sb->dma16) | (1 << sb->dma8));
-		break;
-    	}
-    	return 0;
-}
-
-static int
-sb_probe(device_t dev)
-{
-    	snddev_info *d = device_get_softc(dev);
-    	struct sb_info *sb;
-    	int allocated, i;
-    	int error;
-
-    	if (isa_get_vendorid(dev)) return ENXIO; /* not yet */
-
-    	device_set_desc(dev, "SoundBlaster");
-    	bzero(d, sizeof *d);
-    	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT);
-    	if (!sb) return ENXIO;
-    	bzero(sb, sizeof *sb);
-
-    	allocated = 0;
-    	sb->io_rid = 0;
-    	sb->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &sb->io_rid,
-				    	0, ~0, 16, RF_ACTIVE);
-    	if (!sb->io_base) {
-		BVDDB(printf("sb_probe: no addr, trying (0x220, 0x240)\n"));
-		allocated = 1;
-		sb->io_rid = 0;
-		sb->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						 &sb->io_rid, 0x220, 0x22f,
-						 16, RF_ACTIVE);
-		if (!sb->io_base) {
-		    	sb->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
-							 &sb->io_rid, 0x240,
-							 0x24f, 16, RF_ACTIVE);
-		}
-    	}
-    	if (!sb->io_base) return ENXIO;
-
-    	error = sb_reset_dsp(sb);
-    	if (error) goto no;
-    	error = sb_identify_board(dev, sb);
-    	if (error) goto no;
-no:
-    	i = sb->io_rid;
-    	sb_release_resources(sb, dev);
-    	if (allocated) bus_delete_resource(dev, SYS_RES_IOPORT, i);
-    	return error;
+	}
 }
 
 static int
@@ -584,29 +461,21 @@ sb_doattach(device_t dev, struct sb_info *sb)
 {
     	snddev_info *d = device_get_softc(dev);
     	void *ih;
-    	int error;
     	char status[SND_STATUSLEN];
 
-    	sb->irq_rid = 0;
-    	sb->drq1_rid = 0;
-    	sb->drq2_rid = 1;
     	if (sb_alloc_resources(sb, dev)) goto no;
-    	error = sb_reset_dsp(sb);
-    	if (error) goto no;
-    	error = sb_identify_board(dev, sb);
-    	if (error) goto no;
-
-    	sb_init(dev, sb);
+    	if (sb_reset_dsp(sb)) goto no;
     	mixer_init(d, &sb_mixer, sb);
+
 	if (sb->bd_flags & BD_F_ESS)
 		bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, ess_intr, sb, &ih);
 	else
 		bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &ih);
-
-    	if (sb->bd_flags & BD_F_SB16)
-		pcm_setflags(dev, pcm_getflags(dev) | SD_F_EVILSB16);
-    	if (sb->dma16 == sb->dma8)
+    	if ((sb->bd_flags & BD_F_SB16) && !(sb->bd_flags & BD_F_SB16X))
+		pcm_setswap(dev, sb16_swap);
+    	if (!sb->drq2)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
+
     	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
@@ -618,11 +487,11 @@ sb_doattach(device_t dev, struct sb_info *sb)
 		goto no;
     	}
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %d",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld",
     	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
-		sb->dma8);
-    	if (sb->dma16 != sb->dma8) snprintf(status + strlen(status),
-    		SND_STATUSLEN - strlen(status), ":%d", sb->dma16);
+		rman_get_start(sb->drq1));
+    	if (sb->drq2) snprintf(status + strlen(status),	SND_STATUSLEN - strlen(status),
+		":%ld", rman_get_start(sb->drq2));
 
     	if (pcm_register(dev, sb, 1, 1)) goto no;
 	if (sb->bd_flags & BD_F_ESS) {
@@ -640,57 +509,6 @@ no:
     	sb_release_resources(sb, dev);
     	return ENXIO;
 }
-
-static int
-sb_attach(device_t dev)
-{
-    	struct sb_info *sb;
-    	int flags = device_get_flags(dev);
-
-    	if (flags & DV_F_DUAL_DMA) {
-        	bus_set_resource(dev, SYS_RES_DRQ, 1,
-				 flags & DV_F_DRQ_MASK, 1);
-    	}
-    	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT);
-    	if (!sb) return ENXIO;
-    	bzero(sb, sizeof *sb);
-
-    	/* XXX in probe should set io resource to right val instead of this */
-    	sb->io_rid = 0;
-    	sb->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &sb->io_rid,
-				    	0, ~0, 16, RF_ACTIVE);
-    	if (!sb->io_base) {
-		BVDDB(printf("sb_probe: no addr, trying (0x220, 0x240)\n"));
-		sb->io_rid = 0;
-		sb->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						 &sb->io_rid, 0x220, 0x22f,
-						 16, RF_ACTIVE);
-		if (!sb->io_base) {
-	    		sb->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
-							 &sb->io_rid, 0x240,
-							 0x24f, 16, RF_ACTIVE);
-		}
-    	}
-    	if (!sb->io_base) return ENXIO;
-
-    	return sb_doattach(dev, sb);
-}
-
-static device_method_t sb_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sb_probe),
-	DEVMETHOD(device_attach,	sb_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t sb_driver = {
-	"pcm",
-	sb_methods,
-	sizeof(snddev_info),
-};
-
-DRIVER_MODULE(sb, isa, sb_driver, pcm_devclass, 0, 0);
 
 static void
 sb_intr(void *arg)
@@ -829,6 +647,7 @@ sb_start(struct sb_chinfo *ch)
     	int b16 = (ch->fmt & AFMT_S16_LE)? 1 : 0;
     	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	int l = ch->buffer->dl;
+	int dh = ch->buffer->chan > 3;
 	u_char i1, i2 = 0;
 
 	if (b16) l >>= 1;
@@ -837,7 +656,7 @@ sb_start(struct sb_chinfo *ch)
 	if (sb->bd_flags & BD_F_SB16) {
 	    i1 = DSP_F16_AUTO | DSP_F16_FIFO_ON |
 	         (play? DSP_F16_DAC : DSP_F16_ADC);
-	    i1 |= (b16 && (sb->bd_flags & BD_F_DUPLEX))? DSP_DMA16 : DSP_DMA8;
+	    i1 |= (b16 || dh)? DSP_DMA16 : DSP_DMA8;
 	    i2 = (stereo? DSP_F16_STEREO : 0) | (b16? DSP_F16_SIGNED : 0);
 	    sb_cmd(sb, i1);
 	    sb_cmd2(sb, i2, l);
@@ -999,7 +818,8 @@ sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->buffer = b;
 	ch->buffer->bufsize = DSP_BUFFSIZE;
 	if (chn_allocbuf(ch->buffer, sb->parent_dmat) == -1) return NULL;
-	ch->buffer->chan = (dir == PCMDIR_PLAY)? sb->dma16 : sb->dma8;
+	ch->buffer->chan = (dir == PCMDIR_PLAY)? rman_get_start(sb->drq2)
+					       : rman_get_start(sb->drq1);
 	return ch;
 }
 
@@ -1053,12 +873,14 @@ sbchan_getcaps(void *data)
 {
 	struct sb_chinfo *ch = data;
 	int p = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-	if (ch->parent->bd_id <= 0x200)
+	if (ch->parent->bd_id < 0x300)
 		return p? &sb_playcaps : &sb_reccaps;
-	else if (ch->parent->bd_id >= 0x400)
-		return p? &sb16_playcaps : &sb16_reccaps;
-	else
+	else if (ch->parent->bd_id < 0x400)
 		return p? &sbpro_playcaps : &sbpro_reccaps;
+	else if (ch->parent->bd_flags & BD_F_SB16X)
+		return &sb16x_caps;
+	else
+		return (ch->buffer->chan >= 4)? &sb16_hcaps : &sb16_lcaps;
 }
 /* channel interface for ESS18xx */
 #ifdef notyet
@@ -1253,101 +1075,21 @@ sbmix_setrecsrc(snd_mixer *m, u_int32_t src)
 }
 
 static int
-sbpnp_probe(device_t dev)
-{
-    	char *s = NULL;
-    	u_int32_t logical_id = isa_get_logicalid(dev);
-
-    	switch(logical_id) {
-    	case 0x01000000: /* @@@0001 */
-    		s = "Avance Asound 100";
-		break;
-
-    	case 0x01100000: /* @@@1001 */
-    		s = "Avance Asound 110";
-		break;
-
-    	case 0x01200000: /* @@@2001 */
-        	s = "Avance Logic ALS120";
-		break;
-
-    	case 0x68187316: /* ESS1868 */
-		s = "ESS1868";
-		break;
-
-	case 0x69187316: /* ESS1869 */
-	case 0xacb0110e: /* Compaq's Presario 1621 ESS1869 */
-		s = "ESS1869";
-		break;
-
-	case 0x79187316: /* ESS1879 */
-		s = "ESS1879";
-		break;
-
-	case 0x88187316: /* ESS1888 */
-		s = "ESS1888";
-		break;
-    	}
-    	if (s) {
-		device_set_desc(dev, s);
-		return (0);
-    	}
-    	return ENXIO;
-}
-
-static int
-sbpnp_attach(device_t dev)
-{
-    	struct sb_info *sb;
-    	u_int32_t vend_id = isa_get_vendorid(dev);
-
-    	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT);
-    	if (!sb) return ENXIO;
-    	bzero(sb, sizeof *sb);
-
-    	switch(vend_id) {
-    	case 0xf0008c0e:
-    	case 0x10019305:
-    	case 0x20019305:
-		/* XXX add here the vend_id for other vibra16X cards... */
-		sb->bd_flags = BD_F_SB16X;
-    	}
-    	return sb_doattach(dev, sb);
-}
-
-static device_method_t sbpnp_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sbpnp_probe),
-	DEVMETHOD(device_attach,	sbpnp_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t sbpnp_driver = {
-	"pcm",
-	sbpnp_methods,
-	sizeof(snddev_info),
-};
-
-DRIVER_MODULE(sbpnp, isa, sbpnp_driver, pcm_devclass, 0, 0);
-
-#if NSBC > 0
-#define DESCSTR " PCM Audio"
-static int
 sbsbc_probe(device_t dev)
 {
-    	char *s = NULL;
-	struct sndcard_func *func;
+    	char buf[64];
+	u_int32_t func, ver, r;
 
 	/* The parent device has already been probed. */
-
-	func = device_get_ivars(dev);
-	if (func == NULL || func->func != SCF_PCM)
+	r = BUS_READ_IVAR(device_get_parent(dev), dev, 0, &func);
+	if (func != SCF_PCM)
 		return (ENXIO);
 
-	s = "SB PCM Audio";
+	r = BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
+	ver &= 0x0000ffff;
+	snprintf(buf, sizeof buf, "SB DSP %d.%02d", ver >> 8, ver & 0xff);
+    	device_set_desc_copy(dev, buf);
 
-	device_set_desc(dev, s);
 	return 0;
 }
 
@@ -1355,22 +1097,16 @@ static int
 sbsbc_attach(device_t dev)
 {
     	struct sb_info *sb;
-    	u_int32_t vend_id;
-	device_t sbc;
+	u_int32_t ver;
 
-	sbc = device_get_parent(dev);
-	vend_id = isa_get_vendorid(sbc);
     	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT);
     	if (!sb) return ENXIO;
     	bzero(sb, sizeof *sb);
 
-    	switch(vend_id) {
-    	case 0xf0008c0e:
-    	case 0x10019305:
-    	case 0x20019305:
-		/* XXX add here the vend_id for other vibra16X cards... */
-		sb->bd_flags = BD_F_SB16X;
-    	}
+	BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
+	sb->bd_id = ver & 0x0000ffff;
+	sb->bd_flags = (ver & 0xffff0000) >> 16;
+
     	return sb_doattach(dev, sb);
 }
 
@@ -1390,4 +1126,5 @@ static driver_t sbsbc_driver = {
 
 DRIVER_MODULE(sbsbc, sbc, sbsbc_driver, pcm_devclass, 0, 0);
 
-#endif /* NSBC > 0 */
+
+
