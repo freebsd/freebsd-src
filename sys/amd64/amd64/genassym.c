@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.69 1999/05/12 21:38:40 luoqi Exp $
+ *	$Id: genassym.c,v 1.70 1999/06/01 18:19:38 jlemon Exp $
  */
 
 #include "opt_user_ldt.h"
@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
+#include <sys/errno.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
@@ -55,7 +56,9 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#define KERNEL	/* Avoid userland compatability headers */
 #include <sys/user.h>
+#undef KERNEL
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
