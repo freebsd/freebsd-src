@@ -711,27 +711,13 @@ null_inactive(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct thread *td = ap->a_td;
-	struct null_node *xp = VTONULL(vp);
-	struct vnode *lowervp = xp->null_lowervp;
 
-	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, td);
-	LIST_REMOVE(xp, null_hash);
-	lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
-
-	xp->null_lowervp = NULLVP;
-	if (vp->v_vnlock != NULL) {
-		vp->v_vnlock = &vp->v_lock;	/* we no longer share the lock */
-	} else
-		VOP_UNLOCK(vp, LK_THISLAYER, td);
-
-	vput(lowervp);
 	/*
-	 * Now it is safe to drop references to the lower vnode.
-	 * VOP_INACTIVE() will be called by vrele() if necessary.
+	 * If this is the last reference, then free up the vnode
+	 * so as not to tie up the lower vnodes.
 	 */
-	vrele (lowervp);
-
+	if (vp->v_usecount == 0)
+		vrecycle(vp, NULL, ap->a_td);
 	return (0);
 }
 
@@ -746,9 +732,30 @@ null_reclaim(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
+	struct thread *td = ap->a_td;
 	struct vnode *vp = ap->a_vp;
-	void *vdata = vp->v_data;
+	struct null_node *xp = VTONULL(vp);
+	struct vnode *lowervp = xp->null_lowervp;
+	void *vdata;
 
+	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, td);
+	LIST_REMOVE(xp, null_hash);
+	lockmgr(&null_hashlock, LK_RELEASE, NULL, td);
+
+	xp->null_lowervp = NULLVP;
+	if (vp->v_vnlock != NULL) {
+		vp->v_vnlock = &vp->v_lock;  /* we no longer share the lock */
+	} else
+		VOP_UNLOCK(vp, LK_THISLAYER, td);
+
+	/*
+	 * Now it is safe to drop references to the lower vnode.
+	 * VOP_INACTIVE() will be called by vrele() if necessary.
+	 */
+	vput(lowervp);
+	vrele (lowervp);
+
+	vdata = vp->v_data;
 	vp->v_data = NULL;
 	FREE(vdata, M_NULLFSNODE);
 
