@@ -461,13 +461,6 @@ nextparam:
 		filetype = NODEPEND;
 		goto nextparam;
 	}
-	if (eq(wd, "device-driver")) {
-		if (!ddwarned) {
-			printf("%s: `device-driver' flag ignored.\n", fname);
-			ddwarned++;
-		}
-		goto nextparam;
-	}
 	if (eq(wd, "profiling-routine")) {
 		filetype = PROFILING;
 		goto nextparam;
