@@ -135,7 +135,7 @@ ENTRY(memcpy)
 .Lmemcpy_w_lessthan128:
 	adds	r2, r2, #0x80		/* Adjust for extra sub */
 	ldmeqfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	bxeq	lr			/* Return now if done */
 	subs	r2, r2, #0x20
 	blt	.Lmemcpy_w_lessthan32
 
@@ -160,7 +160,7 @@ ENTRY(memcpy)
 .Lmemcpy_w_lessthan32:
 	adds	r2, r2, #0x20		/* Adjust for extra sub */
 	ldmeqfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	bxeq	lr			/* Return now if done */
 
 	and	r4, r2, #0x18
 	rsbs	r4, r4, #0x18
@@ -187,11 +187,11 @@ ENTRY(memcpy)
 
 	/* Less than 8 bytes remaining */
 	ldmfd	sp!, {r4-r9}
-	moveq	pc, lr			/* Return now if done */
+	bxeq	lr			/* Return now if done */
 	subs	r2, r2, #0x04
 	ldrge	ip, [r1], #0x04
 	strge	ip, [r3], #0x04
-	moveq	pc, lr			/* Return now if done */
+	bxeq	lr			/* Return now if done */
 	addlt	r2, r2, #0x04
 	ldrb	ip, [r1], #0x01
 	cmp	r2, #0x02
@@ -200,7 +200,7 @@ ENTRY(memcpy)
 	ldrgtb	ip, [r1]
 	strgeb	r2, [r3], #0x01
 	strgtb	ip, [r3]
-	mov	pc, lr
+	bx	lr
 
 
 /*
@@ -254,7 +254,7 @@ ENTRY(memcpy)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	bxeq	lr			/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r1, r1, #0x03
 	blt	.Lmemcpy_bad_done
@@ -315,7 +315,7 @@ ENTRY(memcpy)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	bxeq	lr			/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r1, r1, #0x02
 	blt	.Lmemcpy_bad_done
@@ -376,7 +376,7 @@ ENTRY(memcpy)
 
 	adds	r2, r2, #0x10         
 	ldmeqfd	sp!, {r4-r7}
-	moveq	pc, lr			/* Return now if done */
+	bxeq	lr			/* Return now if done */
 	subs	r2, r2, #0x04
 	sublt	r1, r1, #0x01
 	blt	.Lmemcpy_bad_done
@@ -401,7 +401,7 @@ ENTRY(memcpy)
 .Lmemcpy_bad_done:
 	ldmfd	sp!, {r4-r7}
 	adds	r2, r2, #0x04
-	moveq	pc, lr
+	bxeq	lr
 	ldrb	ip, [r1], #0x01
 	cmp	r2, #0x02
 	ldrgeb	r2, [r1], #0x01
@@ -409,7 +409,7 @@ ENTRY(memcpy)
 	ldrgtb	ip, [r1]
 	strgeb	r2, [r3], #0x01
 	strgtb	ip, [r3]
-	mov	pc, lr
+	bx	lr
 
 
 /*
@@ -421,7 +421,7 @@ ENTRY(memcpy)
 #ifndef _STANDALONE
 	add	pc, pc, r2, lsl #2
 	nop
-	mov	pc, lr			/* 0x00 */
+	bx	lr			/* 0x00 */
 	b	.Lmemcpy_bytewise	/* 0x01 */
 	b	.Lmemcpy_bytewise	/* 0x02 */
 	b	.Lmemcpy_bytewise	/* 0x03 */
@@ -442,7 +442,7 @@ ENTRY(memcpy)
 	strb	ip, [r3], #0x01
 	ldrneb	ip, [r1], #0x01
 	bne	1b
-	mov	pc, lr
+	bx	lr
 
 #ifndef _STANDALONE
 /******************************************************************************
@@ -463,7 +463,7 @@ ENTRY(memcpy)
  */
 	ldr	r2, [r1]
 	str	r2, [r0]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -479,7 +479,7 @@ ENTRY(memcpy)
 	orr	r3, r3, r2, lsl #24	/* r3 = 3210 */
 #endif
 	str	r3, [r0]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -494,7 +494,7 @@ ENTRY(memcpy)
 #endif
 	orr	r3, r2, r3, lsl #16
 	str	r3, [r0]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -510,7 +510,7 @@ ENTRY(memcpy)
 	orr	r3, r3, r2, lsl #8	/* r3 = 3210 */
 #endif
 	str	r3, [r0]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -529,7 +529,7 @@ ENTRY(memcpy)
 	strb	r1, [r0, #0x03]
 #endif
 	strh	r3, [r0, #0x01]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -541,7 +541,7 @@ ENTRY(memcpy)
 	strb	r2, [r0]
 	strh	r3, [r0, #0x01]
 	strb	r1, [r0, #0x03]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -562,7 +562,7 @@ ENTRY(memcpy)
 #endif
 	strh	r2, [r0, #0x01]
 	strb	r3, [r0, #0x03]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -574,7 +574,7 @@ ENTRY(memcpy)
 	strb	r2, [r0]
 	strh	r3, [r0, #0x01]
 	strb	r1, [r0, #0x03]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -590,7 +590,7 @@ ENTRY(memcpy)
 	mov	r3, r2, lsr #16
 	strh	r3, [r0, #0x02]
 #endif
-	mov	pc, lr
+	bx	 lr
 	LMEMCPY_4_PAD
 
 /*
@@ -608,7 +608,7 @@ ENTRY(memcpy)
 	orr	r2, r2, r3, lsl #8	/* r2 = xx32 */
 #endif
 	strh	r2, [r0, #0x02]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -618,7 +618,7 @@ ENTRY(memcpy)
 	ldrh	r3, [r1, #0x02]
 	strh	r2, [r0]
 	strh	r3, [r0, #0x02]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -636,7 +636,7 @@ ENTRY(memcpy)
 	orr	r3, r3, r2, lsr #24	/* r3 = 3210 */
 #endif
 	strh	r3, [r0]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -656,7 +656,7 @@ ENTRY(memcpy)
 	strh	r3, [r0, #0x01]
 	strb	r1, [r0, #0x03]
 #endif
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -668,7 +668,7 @@ ENTRY(memcpy)
 	strb	r2, [r0]
 	strh	r3, [r0, #0x01]
 	strb	r1, [r0, #0x03]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -693,7 +693,7 @@ ENTRY(memcpy)
 	mov	r3, r3, lsr #8		/* r3 = ...3 */
 	strb	r3, [r0, #0x03]
 #endif
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 /*
@@ -705,7 +705,7 @@ ENTRY(memcpy)
 	strb	r2, [r0]
 	strh	r3, [r0, #0x01]
 	strb	r1, [r0, #0x03]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_4_PAD
 
 
@@ -729,7 +729,7 @@ ENTRY(memcpy)
 	ldrh	r3, [r1, #0x04]
 	str	r2, [r0]
 	strh	r3, [r0, #0x04]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -747,7 +747,7 @@ ENTRY(memcpy)
 	mov	r3, r3, lsr #8		/* BE:r3 = .345  LE:r3 = .x54 */
 	str	r2, [r0]
 	strh	r3, [r0, #0x04]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -766,7 +766,7 @@ ENTRY(memcpy)
 	str	r2, [r0]
 	strh	r1, [r0, #0x04]
 #endif
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -788,7 +788,7 @@ ENTRY(memcpy)
 #endif
 	str	r2, [r0]
 	strh	r1, [r0, #0x04]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -811,7 +811,7 @@ ENTRY(memcpy)
 #endif
 	strh	r3, [r0, #0x03]
 	strb	r2, [r0, #0x05]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -825,7 +825,7 @@ ENTRY(memcpy)
 	strh	r3, [r0, #0x01]
 	strh	ip, [r0, #0x03]
 	strb	r1, [r0, #0x05]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -852,7 +852,7 @@ ENTRY(memcpy)
 	orr	r3, r3, r1, lsl #8	/* r3 = 4321 */
 	strh	r3, [r0, #0x01]
 #endif
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -866,7 +866,7 @@ ENTRY(memcpy)
 	strh	r3, [r0, #0x01]
 	strh	ip, [r0, #0x03]
 	strb	r1, [r0, #0x05]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -887,7 +887,7 @@ ENTRY(memcpy)
 	strh	r3, [r0]
 	str	r2, [r0, #0x02]
 #endif
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -905,7 +905,7 @@ ENTRY(memcpy)
 #endif
 	strh	r1, [r0]
 	str	r2, [r0, #0x02]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -915,7 +915,7 @@ ENTRY(memcpy)
 	ldr	r3, [r1, #0x02]
 	strh	r2, [r0]
 	str	r3, [r0, #0x02]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -935,7 +935,7 @@ ENTRY(memcpy)
 #endif
 	strh	r3, [r0]
 	str	r1, [r0, #0x02]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -956,7 +956,7 @@ ENTRY(memcpy)
 #endif
 	str	r2, [r0, #0x01]
 	strb	r1, [r0, #0x05]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -970,7 +970,7 @@ ENTRY(memcpy)
 	strh	r3, [r0, #0x01]
 	strh	ip, [r0, #0x03]
 	strb	r1, [r0, #0x05]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -991,7 +991,7 @@ ENTRY(memcpy)
 #endif
 	str	r2, [r0, #0x01]
 	strb	r1, [r0, #0x05]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 /*
@@ -1003,7 +1003,7 @@ ENTRY(memcpy)
 	strb	r2, [r0]
 	str	r3, [r0, #0x01]
 	strb	r1, [r0, #0x05]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_6_PAD
 
 
@@ -1027,7 +1027,7 @@ ENTRY(memcpy)
 	ldr	r3, [r1, #0x04]
 	str	r2, [r0]
 	str	r3, [r0, #0x04]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1048,7 +1048,7 @@ ENTRY(memcpy)
 #endif
 	str	r3, [r0]
 	str	r2, [r0, #0x04]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1068,7 +1068,7 @@ ENTRY(memcpy)
 #endif
 	str	r2, [r0]
 	str	r3, [r0, #0x04]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1089,7 +1089,7 @@ ENTRY(memcpy)
 #endif
 	str	r3, [r0]
 	str	r2, [r0, #0x04]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1114,7 +1114,7 @@ ENTRY(memcpy)
 #endif
 	strh	r1, [r0, #0x01]
 	str	r3, [r0, #0x03]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1128,7 +1128,7 @@ ENTRY(memcpy)
 	strh	r3, [r0, #0x01]
 	str	ip, [r0, #0x03]
 	strb	r1, [r0, #0x07]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1156,7 +1156,7 @@ ENTRY(memcpy)
 #endif
 	strh	ip, [r0, #0x01]
 	str	r3, [r0, #0x03]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1177,7 +1177,7 @@ ENTRY(memcpy)
 #endif
 	str	r2, [r0, #0x03]
 	strb	r1, [r0, #0x07]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1197,7 +1197,7 @@ ENTRY(memcpy)
 #endif
 	str	r2, [r0, #0x02]
 	strh	r3, [r0, #0x06]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1220,7 +1220,7 @@ ENTRY(memcpy)
 #endif
 	str	r1, [r0, #0x02]
 	strh	r3, [r0, #0x06]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1232,7 +1232,7 @@ ENTRY(memcpy)
 	strh	r2, [r0]
 	str	ip, [r0, #0x02]
 	strh	r3, [r0, #0x06]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1255,7 +1255,7 @@ ENTRY(memcpy)
 #endif
 	str	r3, [r0, #0x02]
 	strh	r2, [r0]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1280,7 +1280,7 @@ ENTRY(memcpy)
 	orr	r2, r2, r3, lsl #24	/* r2 = 4321 */
 	str	r2, [r0, #0x01]
 #endif
-	mov	pc, lr
+	bx	 lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1301,7 +1301,7 @@ ENTRY(memcpy)
 #endif
 	str	r2, [r0, #0x01]
 	strb	r1, [r0, #0x07]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1329,7 +1329,7 @@ ENTRY(memcpy)
 #endif
 	str	ip, [r0, #0x01]
 	strh	r1, [r0, #0x05]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /*
@@ -1343,7 +1343,7 @@ ENTRY(memcpy)
 	str	ip, [r0, #0x01]
 	strh	r3, [r0, #0x05]
 	strb	r1, [r0, #0x07]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_8_PAD
 
 /******************************************************************************
@@ -1368,7 +1368,7 @@ ENTRY(memcpy)
 	str	r2, [r0]
 	str	r3, [r0, #0x04]
 	str	r1, [r0, #0x08]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1396,7 +1396,7 @@ ENTRY(memcpy)
 #endif
 	str	r2, [r0, #0x04]
 	str	r1, [r0]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1423,7 +1423,7 @@ ENTRY(memcpy)
 #endif
 	str	r3, [r0, #0x04]
 	str	r1, [r0, #0x08]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1451,7 +1451,7 @@ ENTRY(memcpy)
 #endif
 	str	r3, [r0, #0x04]
 	str	r1, [r0, #0x08]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1480,7 +1480,7 @@ ENTRY(memcpy)
 	str	r2, [r0, #0x03]
 	str	r1, [r0, #0x07]
 	strb	ip, [r0, #0x0b]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1496,7 +1496,7 @@ ENTRY(memcpy)
 	str	ip, [r0, #0x03]
 	str	r2, [r0, #0x07]
 	strb	r1, [r0, #0x0b]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1530,7 +1530,7 @@ ENTRY(memcpy)
 	str	r3, [r0, #0x03]
 	str	r2, [r0, #0x07]
 	strb	r1, [r0, #0x0b]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1560,7 +1560,7 @@ ENTRY(memcpy)
 	str	r3, [r0, #0x03]
 	str	ip, [r0, #0x07]
 	strb	r1, [r0, #0x0b]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1586,7 +1586,7 @@ ENTRY(memcpy)
 	str	r1, [r0, #0x02]
 	str	r3, [r0, #0x06]
 	strh	r2, [r0, #0x0a]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1615,7 +1615,7 @@ ENTRY(memcpy)
 	str	r2, [r0, #0x02]
 	str	r3, [r0, #0x06]
 	strh	r1, [r0, #0x0a]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1629,7 +1629,7 @@ ENTRY(memcpy)
 	str	r3, [r0, #0x02]
 	str	ip, [r0, #0x06]
 	strh	r1, [r0, #0x0a]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1658,7 +1658,7 @@ ENTRY(memcpy)
 	str	r2, [r0, #0x06]
 	str	r3, [r0, #0x02]
 	strh	r1, [r0]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1692,7 +1692,7 @@ ENTRY(memcpy)
 	mov	r1, r1, lsr #16		/* r1 = ...B */
 	strb	r1, [r0, #0x0b]
 #endif
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1722,7 +1722,7 @@ ENTRY(memcpy)
 	str	r3, [r0, #0x05]
 	str	ip, [r0, #0x01]
 	strb	r1, [r0]
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1763,7 +1763,7 @@ ENTRY(memcpy)
 	strh	ip, [r0, #0x09]
 	strb	r1, [r0, #0x0b]
 #endif
-	mov	pc, lr
+	bx	lr
 	LMEMCPY_C_PAD
 
 /*
@@ -1779,5 +1779,5 @@ ENTRY(memcpy)
 	str	ip, [r0, #0x05]
 	strh	r2, [r0, #0x09]
 	strb	r1, [r0, #0x0b]
-	mov	pc, lr
+	bx	lr
 #endif	/* !_STANDALONE */
