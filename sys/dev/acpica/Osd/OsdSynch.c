@@ -37,7 +37,6 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
 
 #define _COMPONENT	ACPI_OS_SERVICES
 MODULE_NAME("SYNCH")
