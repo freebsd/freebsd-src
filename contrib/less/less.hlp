@@ -137,6 +137,8 @@
                   Ignore case in all searches.
   -j [_N]  ....  --jump-target=[_N]
                   Screen position of target lines.
+  -J  ........  --status-column
+                  Display a status column at left edge of screen.
   -k [_f_i_l_e]  .  --lesskey-file=[_f_i_l_e]
                   Use a lesskey file.
   -m  -M  ....  --long-prompt  --LONG-PROMPT
@@ -183,6 +185,9 @@
                   Set shell quote characters.
   -~  ........  --tilde
                   Don't display tildes after end of file.
+  -# [_N]  ....  --shift=[_N]
+                  Horizontal scroll amount (0 = one half screen width)
+
  ---------------------------------------------------------------------------
 
                           LLIINNEE EEDDIITTIINNGG

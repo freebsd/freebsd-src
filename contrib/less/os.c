@@ -99,11 +99,19 @@ iread(fd, buf, len)
 		 * We jumped here from intread.
 		 */
 		reading = 0;
+#if HAVE_SIGPROCMASK
+		{
+		  sigset_t mask;
+		  sigemptyset(&mask);
+		  sigprocmask(SIG_SETMASK, &mask, NULL);
+		}
+#else
 #if HAVE_SIGSETMASK
 		sigsetmask(0);
 #else
 #ifdef _OSK
 		sigmask(~0);
+#endif
 #endif
 #endif
 		return (READ_INTR);

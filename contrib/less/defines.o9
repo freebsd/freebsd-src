@@ -261,6 +261,13 @@
 /* Define if you have the sigsetmask function.  */
 #define HAVE_SIGSETMASK 0
 
+/* Define if you have the sigprocmask function.  */
+#define HAVE_SIGPROCMASK	0
+
+/* Define if you have the sigset_t type and sigemptyset macro */
+#define HAVE_SIGSET_T	0
+#define HAVE_SIGEMPTYSET	0
+
 /* Define if you have the stat function.  */
 #define HAVE_STAT 0
 
