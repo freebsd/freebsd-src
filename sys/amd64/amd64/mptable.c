@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.6 1997/07/07 00:02:55 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.7 1997/07/08 23:42:28 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -51,10 +51,14 @@
 
 #include <i386/i386/cons.h>	/* cngetc() */
 
+#if defined(TEST_CPUSTOP)
+void	db_printf __P((const char *fmt, ...));
+#endif  /* TEST_CPUSTOP */
+
 #if defined(APIC_IO)
-#include <machine/md_var.h>	/* setidt() */
-#include <i386/isa/icu.h>		/* Xinvltlb() */
-#include <i386/isa/intr_machdep.h>	/* Xinvltlb() */
+#include <machine/md_var.h>		/* setidt() */
+#include <i386/isa/icu.h>		/* IPIs */
+#include <i386/isa/intr_machdep.h>	/* IPIs */
 #endif	/* APIC_IO */
 
 #define WARMBOOT_TARGET		0
@@ -189,12 +193,6 @@ typedef struct BASETABLE_ENTRY {
 /*
  * Values to send to the POST hardware.
  */
-#ifndef POSTCODE
-#define POSTCODE(X)
-#define POSTCODE_LO(X)
-#define POSTCODE_HI(X)
-#endif
-
 #define MP_BOOTADDRESS_POST	0x10
 #define MP_PROBE_POST		0x11
 #define MP_START_POST		0x12
@@ -206,10 +204,10 @@ typedef struct BASETABLE_ENTRY {
 #define INSTALL_AP_TRAMP_POST	0x18
 #define START_AP_POST		0x19
 
-/* XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
+/** XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
 int	current_postcode;
 
-/** FIXME: what system files declare these??? */
+/** XXX FIXME: what system files declare these??? */
 extern struct region_descriptor r_gdt, r_idt;
 
 int	mp_ncpus;		/* # of CPUs, including BSP */
@@ -240,11 +238,11 @@ u_int *bootPTD;
 /* Hotwire a 0->4MB V==P mapping */
 extern pt_entry_t KPTphys;
 
-/* virtual address of per-cpu common_tss */
+/* Virtual address of per-cpu common_tss */
 extern struct i386tss common_tss;
 
 /*
- * look for MP compliant motherboard.
+ * Local data and functions.
  */
 
 static int	mp_capable;
@@ -265,7 +263,7 @@ static int	start_ap(int logicalCpu, u_int boot_addr);
 
 
 /*
- * calculate usable address in base memory for AP trampoline code
+ * Calculate usable address in base memory for AP trampoline code.
  */
 u_int
 mp_bootaddress(u_int basemem)
@@ -282,6 +280,9 @@ mp_bootaddress(u_int basemem)
 }
 
 
+/*
+ * Look for an Intel MP spec table (ie, SMP capable hardware).
+ */
 int
 mp_probe(void)
 {
@@ -314,7 +315,7 @@ mp_probe(void)
 	mp_capable = 0;
 	return 0;
 
-found:				/* please forgive the 'goto'! */
+found:
 	/* calculate needed resources */
 	mpfps = (mpfps_t)x;
 	if (mptable_pass1())
@@ -327,7 +328,7 @@ found:				/* please forgive the 'goto'! */
 
 
 /*
- * startup the SMP processors
+ * Startup the SMP processors.
  */
 void
 mp_start(void)
@@ -343,7 +344,7 @@ mp_start(void)
 
 
 /*
- * print various information about the SMP system hardware and setup
+ * Print various information about the SMP system hardware and setup.
  */
 void
 mp_announce(void)
@@ -383,7 +384,7 @@ init_secondary(void)
 
 	r_gdt.rd_limit = sizeof(gdt[0]) * (NGDT + NCPU) - 1;
 	r_gdt.rd_base = (int) gdt;
-	lgdt(&r_gdt);		/* does magic intra-segment return */
+	lgdt(&r_gdt);			/* does magic intra-segment return */
 	lidt(&r_idt);
 	lldt(_default_ldt);
 
@@ -395,7 +396,7 @@ init_secondary(void)
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	ltr(gsel_tss);
 
-	load_cr0(0x8005003b);	/* XXX! */
+	load_cr0(0x8005003b);		/* XXX! */
 
 	PTD[0] = 0;
 	invltlb();
@@ -403,44 +404,44 @@ init_secondary(void)
 
 
 #if defined(APIC_IO)
+/*
+ * Final configuration of the BSP's local APIC:
+ *  - disable 'pic mode'.
+ *  - disable 'virtual wire mode'.
+ *  - enable NMI.
+ */
 void
-configure_local_apic(void)
+bsp_apic_configure(void)
 {
-	u_char  byte;
-	u_int32_t temp;
+	u_char		byte;
+	u_int32_t	temp;
 
+	/* leave 'pic mode' if necessary */
 	if (picmode) {
 		outb(0x22, 0x70);	/* select IMCR */
 		byte = inb(0x23);	/* current contents */
-		byte |= 0x01;	/* mask external INTR */
+		byte |= 0x01;		/* mask external INTR */
 		outb(0x23, byte);	/* disconnect 8259s/NMI */
 	}
 
 	/* mask lint0 (the 8259 'virtual wire' connection) */
 	temp = lapic.lvt_lint0;
-	temp |= APIC_LVT_M;
+	temp |= APIC_LVT_M;		/* set the mask */
 	lapic.lvt_lint0 = temp;
 
         /* setup lint1 to handle NMI */
-#if 1
-        /** XXX FIXME: 
-         *      should we arrange for ALL CPUs to catch NMI???
-         *      it would probably crash, so for now only the BSP
-         *      will catch it
-         */
-        if (cpuid != 0)
-                return;
-#endif /* 0/1 */
-
         temp = lapic.lvt_lint1;
-
-        /* clear fields of interest, preserve undefined fields */
-        temp &= ~(0x1f000 | APIC_LVT_DM | APIC_LVT_VECTOR);
-
-        /* setup for NMI, edge trigger, active hi */
-        temp |= (APIC_LVT_DM_NMI | APIC_LVT_IIPP_INTAHI);
-
+        temp &= ~APIC_LVT_M;		/* clear the mask */
         lapic.lvt_lint1 = temp;
+
+#if defined(TEST_CPUSTOP)
+	printf(">>> CPU%02d bsp_apic_configure() lint0: 0x%08x\n",
+	       cpuid, lapic.lvt_lint0);
+	printf(">>>                            lint1: 0x%08x\n",
+	       lapic.lvt_lint1);
+	printf(">>>                            TPR:   0x%08x\n", lapic.tpr);
+	printf(">>>                            SVR:   0x%08x\n", lapic.svr);
+#endif  /* TEST_CPUSTOP */
 }
 #endif  /* APIC_IO */
 
@@ -463,7 +464,7 @@ mp_enable(u_int boot_addr)
 
 	POSTCODE(MP_ENABLE_POST);
 
-	/* Turn on 4MB of V == P addressing so we can get to MP table */
+	/* turn on 4MB of V == P addressing so we can get to MP table */
 	*(int *)PTD = PG_V | PG_RW | ((u_long)KPTphys & PG_FRAME);
 	invltlb();
 
@@ -1439,7 +1440,7 @@ start_all_aps(u_int boot_addr)
 	mp_lock = 1;	/* this uses a LOGICAL cpu ID, ie BSP == 0 */
 
 	/* initialize BSP's local APIC */
-	apic_initialize(1);
+	apic_initialize();
 
 	/* install the AP 1st level boot code */
 	install_ap_tramp(boot_addr);
@@ -1814,6 +1815,7 @@ stop_cpus( u_int map )
 
 #if defined(DEBUG_CPUSTOP)
 	db_printf("  spun\nstopped, sihits: %d\n", sihits);
+	cngetc();
 #endif /* DEBUG_CPUSTOP */
 
 	return 1;
