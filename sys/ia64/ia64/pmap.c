@@ -735,17 +735,6 @@ pmap_pinit(struct pmap *pmap)
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
 
-/*
- * Wire in kernel global address entries.  To avoid a race condition
- * between pmap initialization and pmap_growkernel, this procedure
- * should be called after the vmspace is attached to the process
- * but before this pmap is activated.
- */
-void
-pmap_pinit2(struct pmap *pmap)
-{
-}
-
 /***************************************************
  * Pmap allocation/deallocation routines.
  ***************************************************/

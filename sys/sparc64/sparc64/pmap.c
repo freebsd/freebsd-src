@@ -1027,12 +1027,6 @@ pmap_pinit(pmap_t pm)
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
 
-void
-pmap_pinit2(pmap_t pmap)
-{
-	/* XXX: Remove this stub when no longer called */
-}
-
 /*
  * Release any resources held by the given physical map.
  * Called when a pmap initialized by pmap_pinit is being released.

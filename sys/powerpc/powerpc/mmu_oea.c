@@ -1443,12 +1443,6 @@ pmap_pinit0(pmap_t pm)
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
 
-void
-pmap_pinit2(pmap_t pmap)
-{
-	/* XXX: Remove this stub when no longer called */
-}
-
 /*
  * Set the physical protection on the specified range of this map as requested.
  */
