@@ -63,7 +63,7 @@ struct fstab {
 	char	*fs_mntops;		/* Mount options ala -o */
 	char	*fs_type;		/* FSTAB_* from fs_mntops */
 	int	fs_freq;		/* dump frequency, in days */
-	int	fs_passno;		/* pass number on parallel dump */
+	int	fs_passno;		/* pass number on parallel fsck */
 };
 
 #include <sys/cdefs.h>
