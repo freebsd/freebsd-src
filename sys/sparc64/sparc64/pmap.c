@@ -345,12 +345,14 @@ pmap_map(vm_offset_t *virt, vm_offset_t pa_start, vm_offset_t pa_end, int prot)
 void
 pmap_kenter(vm_offset_t va, vm_offset_t pa)
 {
+	struct stte *stp;
 	struct tte tte;
 
 	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
 	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) |
 	    TD_MOD | TD_REF | TD_CP | TD_P | TD_W;
-	tsb_tte_enter_kernel(va, tte);
+	stp = tsb_kvtostte(va);
+	stp->st_tte = tte;
 }
 
 /*
@@ -359,7 +361,10 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 void
 pmap_kremove(vm_offset_t va)
 {
-	tsb_remove_kernel(va);
+	struct stte *stp;
+
+	stp = tsb_kvtostte(va);
+	tte_invalidate(&stp->st_tte);
 }
 
 /*
@@ -417,22 +422,37 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		tte.tte_data |= TD_W;
 	if (prot & VM_PROT_EXECUTE) {
 		tte.tte_data |= TD_EXEC;
-		icache_global_flush(&pa);
+		icache_global_flush(pa);
 	}
-
-	if (pm == kernel_pmap) {
-		tsb_tte_enter_kernel(va, tte);
-		return;
-	}
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
+		tte.tte_data |= TD_MNG;
 
 	PMAP_LOCK(pm);
 	if ((stp = tsb_stte_lookup(pm, va)) != NULL) {
-		pv_remove_virt(stp);
+		if (stp->st_tte.tte_data & TD_MNG)
+			pv_remove_virt(stp);
 		tsb_stte_remove(stp);
-		pv_insert(pm, pa, va, stp);
+		if (tte.tte_data & TD_MNG)
+			pv_insert(pm, pa, va, stp);
 		stp->st_tte = tte;
 	} else {
 		tsb_tte_enter(pm, va, tte);
+	}
+	PMAP_UNLOCK(pm);
+}
+
+void
+pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
+{
+	struct stte *stp;
+
+	PMAP_LOCK(pm);
+	for (; start < end; start += PAGE_SIZE) {
+		if ((stp = tsb_stte_lookup(pm, start)) == NULL)
+			continue;
+		if (stp->st_tte.tte_data & TD_MNG)
+			pv_remove_virt(stp);
+		tsb_stte_remove(stp);
 	}
 	PMAP_UNLOCK(pm);
 }
@@ -472,6 +492,7 @@ pmap_pinit(pmap_t pm)
 {
 	struct stte *stp;
 
+	pm->pm_object = vm_object_allocate(OBJT_DEFAULT, 16);
 	pm->pm_context = pmap_context_alloc();
 	pm->pm_active = 0;
 	pm->pm_count = 1;
@@ -679,7 +700,7 @@ pmap_page_exists(pmap_t pmap, vm_page_t m)
 void
 pmap_prefault(pmap_t pmap, vm_offset_t va, vm_map_entry_t entry)
 {
-	TODO;
+	/* XXX */
 }
 
 void
@@ -704,12 +725,6 @@ pmap_reference(pmap_t pm)
 
 void
 pmap_release(pmap_t pmap)
-{
-	TODO;
-}
-
-void
-pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	TODO;
 }
