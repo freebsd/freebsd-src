@@ -42,8 +42,6 @@
 extern device_t isa_bus_device;
 #endif
 
-dev_t dumpdev = NODEV;
-dev_t rootdev = NODEV;
 static device_t nexusdev;
 
 static void configure(void *);

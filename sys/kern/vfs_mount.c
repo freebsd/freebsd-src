@@ -94,6 +94,7 @@ static void	gets(char *cp);
 /* legacy find-root code */
 char		*rootdevnames[2] = {NULL, NULL};
 static int	setrootbyname(char *name);
+dev_t		rootdev = NODEV;
 
 /*
  * Find and mount the root filesystem

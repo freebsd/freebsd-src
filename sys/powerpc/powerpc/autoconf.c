@@ -61,9 +61,6 @@ static const char rcsid[] =
 static void	configure(void *);
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
-dev_t	rootdev = NODEV;
-dev_t	dumpdev = NODEV;
-
 /*
  * Determine i/o configuration for a machine.
  */
