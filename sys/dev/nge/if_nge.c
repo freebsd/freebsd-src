@@ -1292,7 +1292,7 @@ static void nge_rxeof(sc)
 			if (extsts & NGE_RXEXTSTS_IPPKT)
 				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 			if (!(extsts & NGE_RXEXTSTS_IPCSUMERR))
-				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
                 }
 
 #if NVLAN > 0
