@@ -320,9 +320,8 @@ A: Your machine doesn't like the new i586_copyout and i586_copyin code
 
 Q: I have this CMD640 IDE controller that is said to be broken.
 
-A: Yes, it is.  There's a workaround available now and it is enabled
-   automatically if this chip is used on your system.
-   For the details refer to the manual page of the disk driver (man 4 wd).
+A: Yes, it is.  FreeBSD does not support this controller except through
+   the legacy 'wdc' driver.
 
 
 Q: On a Compaq Aero notebook, I get the message "No floppy devices found!
@@ -383,13 +382,6 @@ A: There is a problem with the onboard Ethernet in the Netfinity 3500
    related to the SMP features of the system being misconfigured.  You
    will have to install another Ethernet adapter and avoid attempting
    to configure the onboard adapter at any time.
-
-Q: When I install to my Mylex RAID controller and reboot, I get a register
-   dump, or the system is extremely slow in booting.
-
-A: Due to incompatibilities between the Mylex BIOS and the FreeBSD
-   bootloader, the Mylex BIOS must be disabled.  This means that you 
-   cannot boot from a RAID array at this time.
 
 Q: When I install to my AMI RAID controller and reboot, the kernel 
    cannot mount root, even though the AMI controller was detected.
