@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.34 1998/02/09 06:09:42 eivind Exp $
+ * $Id: fdesc_vnops.c,v 1.35 1998/06/10 06:34:55 peter Exp $
  */
 
 /*
@@ -537,7 +537,7 @@ fdesc_setattr(ap)
 
 	case DTYPE_SOCKET:
 		if (vap->va_flags != VNOVAL)
-			error = ENOPNOTSUPP;
+			error = EOPNOTSUPP;
 		else
 			error = 0;
 		break;
