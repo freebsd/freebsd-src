@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)temp.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: temp.c,v 1.3 1997/07/24 06:56:33 charnier Exp $";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -49,11 +49,11 @@ static const char rcsid[] =
  * Give names to all the temporary files that we will need.
  */
 
-char	tempMail[24];
-char	tempQuit[24];
-char	tempEdit[24];
-char	tempResid[24];
-char	tempMesg[24];
+char	*tempMail;
+char	*tempQuit;
+char	*tempEdit;
+char	*tempResid;
+char	*tempMesg;
 char	*tmpdir;
 
 void
@@ -74,14 +74,23 @@ tinit()
 		tmpdir = cp;
 	}
 
+	tempMail=(char *)malloc(len+sizeof("RsXXXXXX"));
 	strcpy(tempMail, tmpdir);
 	mktemp(strcat(tempMail, "RsXXXXXX"));
+
+	tempResid=(char *)malloc(len+sizeof("RqXXXXXX"));
 	strcpy(tempResid, tmpdir);
 	mktemp(strcat(tempResid, "RqXXXXXX"));
+
+	tempQuit=(char *)malloc(len+sizeof("RmXXXXXX"));
 	strcpy(tempQuit, tmpdir);
 	mktemp(strcat(tempQuit, "RmXXXXXX"));
+
+	tempEdit=(char *)malloc(len+sizeof("ReXXXXXX"));
 	strcpy(tempEdit, tmpdir);
 	mktemp(strcat(tempEdit, "ReXXXXXX"));
+
+	tempMesg=(char *)malloc(len+sizeof("RxXXXXXX"));
 	strcpy(tempMesg, tmpdir);
 	mktemp(strcat(tempMesg, "RxXXXXXX"));
 

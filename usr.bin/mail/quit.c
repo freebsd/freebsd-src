@@ -72,7 +72,7 @@ quit()
 	FILE *ibuf, *obuf, *fbuf, *rbuf, *readstat, *abuf;
 	register struct message *mp;
 	register int c;
-	extern char tempQuit[], tempResid[];
+	extern char *tempQuit, *tempResid;
 	struct stat minfo;
 	char *mbox;
 
