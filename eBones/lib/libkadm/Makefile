@@ -1,10 +1,10 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.5 1995/09/14 04:04:52 gibbs Exp $
+#	$Id: Makefile,v 1.6 1995/09/14 18:16:14 gibbs Exp $
 
 LIB=	kadm
 
 SRCS=	kadm_err.c kadm_stream.c kadm_supp.c kadm_cli_wrap.c
-CFLAGS+=	-I. -I{.CURDIR} -I${KRBOBJDIR} -DPOSIX
+CFLAGS+=	-I. -I${.CURDIR} -I${KRBOBJDIR} -DPOSIX
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s kadm.h \
