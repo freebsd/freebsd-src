@@ -86,6 +86,7 @@ SRCS		+= pam_vinfo.c
 SRCS		+= pam_vprompt.c
 
 MAN		 =
+MAN		+= openpam.3
 MAN		+= openpam_borrow_cred.3
 MAN		+= openpam_free_data.3
 MAN		+= openpam_get_option.3
@@ -99,6 +100,7 @@ MAN		+= pam_acct_mgmt.3
 MAN		+= pam_authenticate.3
 MAN		+= pam_chauthtok.3
 MAN		+= pam_close_session.3
+MAN		+= pam_conv.3
 MAN		+= pam_end.3
 MAN		+= pam_error.3
 MAN		+= pam_get_authtok.3
@@ -123,6 +125,9 @@ MAN		+= pam_sm_open_session.3
 MAN		+= pam_sm_setcred.3
 MAN		+= pam_start.3
 MAN		+= pam_strerror.3
+MAN		+= pam_verror.3
+MAN		+= pam_vinfo.3
+MAN		+= pam_vprompt.3
 
 # Local additions
 SRCS		+= pam_debug_log.c
