@@ -11,7 +11,9 @@
 
 #include <stdio.h>
 #include <signal.h>
-#include <sys/signal.h>
+#ifdef HAVE_SYS_SIGNAL_H
+# include <sys/signal.h>
+#endif
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif

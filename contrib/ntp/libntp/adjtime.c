@@ -2,6 +2,103 @@
 #include <config.h>
 #endif
 
+#ifdef MPE 
+/*
+ * MPE lacks adjtime(), so we define our own.  But note that time slewing has
+ * a sub-second accuracy bug documented in SR 5003462838 which prevents ntpd
+ * from being able to maintain clock synch.  Because of the bug, this adjtime()
+ * implementation as used by ntpd has a side-effect of screwing up the hardware
+ * PDC clock, which will need to be reset with a reboot.
+ *
+ * This problem affects all versions of MPE at the time of this writing (when
+ * MPE/iX 7.0 is the most current).  It only causes bad things to happen when
+ * doing continuous clock synchronization with ntpd; note that you CAN run ntpd
+ * with "disable ntp" in ntp.conf if you wish to provide a time server.
+ *
+ * The one-time clock adjustment functionality of ntpdate and ntp_timeset can
+ * be used without screwing up the PDC clock.
+ * 
+ */
+#include <time.h>
+
+int adjtime(struct timeval *delta, struct timeval *olddelta);
+
+int adjtime(struct timeval *delta, struct timeval *olddelta)
+
+{
+/* Documented, supported MPE system intrinsics. */
+
+extern void GETPRIVMODE(void);
+extern void GETUSERMODE(void);
+
+/* Undocumented, unsupported MPE internal functions. */
+
+extern long long current_correction_usecs(void);
+extern long long get_time(void);
+extern void get_time_change_info(long long *, char *, char *);
+extern long long pdc_time(int *);
+extern void set_time_correction(long long, int, int);
+extern long long ticks_to_micro(long long);
+
+long long big_sec, big_usec, new_correction = 0LL;
+long long prev_correction;
+
+if (delta != NULL) {
+  /* Adjustment required.  Convert delta to 64-bit microseconds. */
+  big_sec = (long)delta->tv_sec;
+  big_usec = delta->tv_usec;
+  new_correction = (big_sec * 1000000LL) + big_usec;
+}
+
+GETPRIVMODE();
+
+/* Determine how much of a previous correction (if any) we're interrupting. */
+prev_correction = current_correction_usecs();
+
+if (delta != NULL) {
+  /* Adjustment required. */
+
+#if 0
+  /* Speculative code disabled until bug SR 5003462838 is fixed.  This bug
+     prevents accurate time slewing, and indeed renders ntpd inoperable. */
+
+  if (prev_correction != 0LL) {
+    /* A previous adjustment did not complete.  Since the PDC UTC clock was
+    immediately jumped at the start of the previous adjustment, we must
+    explicitly reset it to the value of the MPE local time clock minus the
+    time zone offset. */
+
+    char pwf_since_boot, recover_pwf_time;
+    long long offset_ticks, offset_usecs, pdc_usecs_current, pdc_usecs_wanted;
+    int hpe_status;
+
+    get_time_change_info(&offset_ticks, &pwf_since_boot, &recover_pwf_time);
+    offset_usecs = ticks_to_micro(offset_ticks);
+    pdc_usecs_wanted = get_time() - offset_usecs;
+    pdc_usecs_current = pdc_time(&hpe_status);
+    if (hpe_status == 0) 
+      /* Force new PDC time by starting an extra correction. */
+      set_time_correction(pdc_usecs_wanted - pdc_usecs_current,0,1);
+  }
+#endif
+    
+  /* Immediately jump the PDC time to the new value, and then initiate a 
+     gradual MPE time correction slew. */
+  set_time_correction(new_correction,0,1);
+}
+
+GETUSERMODE();
+
+if (olddelta != NULL) {
+  /* Caller wants to know remaining amount of previous correction. */
+  (long)olddelta->tv_sec = prev_correction / 1000000LL;
+  olddelta->tv_usec = prev_correction % 1000000LL;
+}
+
+return 0;
+}
+#endif /* MPE */
+
 #ifdef NEED_HPUX_ADJTIME
 /*************************************************************************/
 /* (c) Copyright Tai Jin, 1988.  All Rights Reserved.                    */

@@ -5,6 +5,11 @@ ConfStr="$PROG"
 
 ConfStr="$ConfStr @VERSION@"
 
+case "$CSET" in
+ '') ;;
+ *) ConfStr="$ConfStr@$CSET" ;;
+esac
+
 case "@LIBRSAREF@" in
  '')
     case "@AUTOKEY@" in

@@ -298,7 +298,7 @@ extern int	state;			/* clock discipline state */
 extern int	tc_counter;		/* poll-adjust counter */
 extern u_long	last_time;		/* time of last clock update (s) */
 extern double	last_offset;		/* last clock offset (s) */
-extern double	allan_xpt;		/* Allan intercept (s) */
+extern u_char	allan_xpt;		/* Allan intercept (s) */
 extern double	sys_error;		/* system RMS error (s) */
 extern double	sys_jitter;		/* system RMS jitter (s) */
 

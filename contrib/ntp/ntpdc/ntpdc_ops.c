@@ -786,7 +786,7 @@ sysinfo(
 
 	(void) fprintf(fp, "system flags:         ");
 	if ((is->flags & (INFO_FLAG_BCLIENT | INFO_FLAG_AUTHENABLE |
-	    INFO_FLAG_NTP | INFO_FLAG_KERNEL| INFO_FLAG_PLL_SYNC |
+	    INFO_FLAG_NTP | INFO_FLAG_KERNEL| INFO_FLAG_CAL |
 	    INFO_FLAG_PPS_SYNC | INFO_FLAG_MONITOR | INFO_FLAG_FILEGEN)) == 0) {
 		(void) fprintf(fp, "none\n");
 	} else {
@@ -802,10 +802,10 @@ sysinfo(
 		    (void) fprintf(fp, "kernel ");
 		if (is->flags & INFO_FLAG_FILEGEN)
 		    (void) fprintf(fp, "stats ");
-		if (is->flags & INFO_FLAG_PLL_SYNC)
-		    (void) fprintf(fp, "kernel_sync ");
+		if (is->flags & INFO_FLAG_CAL)
+		    (void) fprintf(fp, "calibrate ");
 		if (is->flags & INFO_FLAG_PPS_SYNC)
-		    (void) fprintf(fp, "pps_sync ");
+		    (void) fprintf(fp, "pps ");
 		(void) fprintf(fp, "\n");
 	}
 	(void) fprintf(fp, "jitter:               %s s\n",
@@ -1174,6 +1174,13 @@ doconfig(
 		      sizeof(struct conf_peer), (char *)&cpeer, &items,
 		      &itemsize, &dummy, 0);
 	
+	if (res == INFO_ERR_FMT) {
+		(void) fprintf(fp,
+		    "***Retrying command with old conf_peer size\n");
+		res = doquery(IMPL_XNTPD, REQ_CONFIG, 1, 1,
+			      sizeof(struct old_conf_peer), (char *)&cpeer,
+			      &items, &itemsize, &dummy, 0);
+	}
 	if (res == 0)
 	    (void) fprintf(fp, "done!\n");
 	return;
@@ -1256,21 +1263,25 @@ doset(
 	sys.flags = 0;
 	res = 0;
 	for (items = 0; items < pcmd->nargs; items++) {
-		if (STREQ(pcmd->argval[items].string, "pps"))
-		    sys.flags |= SYS_FLAG_PPS;
+		if (STREQ(pcmd->argval[items].string, "auth"))
+			sys.flags |= SYS_FLAG_AUTH;
 		else if (STREQ(pcmd->argval[items].string, "bclient"))
-		    sys.flags |= SYS_FLAG_BCLIENT;
-		else if (STREQ(pcmd->argval[items].string, "monitor"))
-		    sys.flags |= SYS_FLAG_MONITOR;
-		else if (STREQ(pcmd->argval[items].string, "ntp"))
-		    sys.flags |= SYS_FLAG_NTP;
+			sys.flags |= SYS_FLAG_BCLIENT;
+		else if (STREQ(pcmd->argval[items].string, "calibrate"))
+			sys.flags |= SYS_FLAG_CAL;
 		else if (STREQ(pcmd->argval[items].string, "kernel"))
-		    sys.flags |= SYS_FLAG_KERNEL;
+			sys.flags |= SYS_FLAG_KERNEL;
+		else if (STREQ(pcmd->argval[items].string, "monitor"))
+			sys.flags |= SYS_FLAG_MONITOR;
+		else if (STREQ(pcmd->argval[items].string, "ntp"))
+			sys.flags |= SYS_FLAG_NTP;
+		else if (STREQ(pcmd->argval[items].string, "pps"))
+			sys.flags |= SYS_FLAG_PPS;
 		else if (STREQ(pcmd->argval[items].string, "stats"))
-		    sys.flags |= SYS_FLAG_FILEGEN;
+			sys.flags |= SYS_FLAG_FILEGEN;
 		else {
 			(void) fprintf(fp, "Unknown flag %s\n",
-				       pcmd->argval[items].string);
+			    pcmd->argval[items].string);
 			res = 1;
 		}
 	}
