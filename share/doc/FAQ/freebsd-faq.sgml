@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.45 1996/05/29 00:46:01 jkh Exp $
+<date> $Id: freebsd-faq.sgml,v 1.46 1996/07/01 21:07:49 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -2465,7 +2465,7 @@ Zynx            ZX342
         <heading>I'm in <tt>foo.bar.edu</tt>, and I can no longer reach hosts in <tt>bar.edu</tt> by their short names</heading>
         <p>
 	  The current version of <em>BIND</em> that ships with FreeBSD
-	  does no longer provide default abbreviations for non-fully
+	  no longer provides default abbreviations for non-fully
 	  qualified domain names other than the domain you are in.
 	  So an unqualified host <tt>mumble</tt> must either be found
 	  as <tt>mumble.foo.bar.edu</tt>, or it will be searched for
