@@ -624,7 +624,6 @@ network_pass3() {
 			echo ' creating ssh RSA host key';
 			/usr/bin/ssh-keygen -N "" -f /etc/ssh/ssh_host_key
 		fi
-		;;
 		if [ ! -f /etc/ssh/ssh_host_dsa_key ]; then
 			echo ' creating ssh DSA host key';
 			/usr/bin/ssh-keygen -d -N "" -f /etc/ssh/ssh_host_dsa_key
