@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: adduser.8,v 1.13 1996/11/17 03:51:29 wosch Exp $
+.\" $Id: adduser.8,v 1.14 1996/12/23 00:10:16 mpp Exp $
 .Dd Jan, 9, 1995
 .Dt ADDUSER 8
 .Os FreeBSD 2.1
@@ -31,10 +31,12 @@
 .Nd command for adding new users
 .Sh SYNOPSIS
 .Nm adduser
-.Ns [ Fl batch Ar username 
-.Op Ar group,[group]... 
+.Oo
+.Fl batch Ar username
+.Op Ar group Ns , Ns Op Ar group,...
 .Op Ar fullname 
-.Op Ar password ]
+.Op Ar password 
+.Oc
 .Op Fl check_only
 .Op Fl config_create
 .Op Fl dotdir Ar dotdir
