@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.55 1998/03/30 09:51:52 phk Exp $ */
+/* $Id: if_ppp.c,v 1.56 1998/04/06 11:43:10 phk Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -1488,6 +1488,10 @@ ppp_inproc(sc, m)
 	m->m_pkthdr.len -= PPP_HDRLEN;
 	m->m_data += PPP_HDRLEN;
 	m->m_len -= PPP_HDRLEN;
+	if (ipflow_fastforward(m)) {
+	    sc->sc_last_recv = time_second;
+	    return;
+	}
 	schednetisr(NETISR_IP);
 	inq = &ipintrq;
 	sc->sc_last_recv = time_second;	/* update time of last pkt rcvd */

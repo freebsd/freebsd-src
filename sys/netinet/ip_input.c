@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.81 1998/03/30 09:52:56 phk Exp $
+ * $Id: ip_input.c,v 1.82 1998/04/13 17:27:08 phk Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -80,7 +80,7 @@ int rsvp_on = 0;
 static int ip_rsvp_on;
 struct socket *ip_rsvpd;
 
-static int	ipforwarding = 0;
+int	ipforwarding = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_RW,
 	&ipforwarding, 0, "");
 
@@ -878,6 +878,7 @@ ip_slowtimo()
 			}
 		}
 	}
+	ipflow_slowtimo();
 	splx(s);
 }
 
@@ -1381,8 +1382,10 @@ ip_forward(m, srcrt)
 		if (type)
 			ipstat.ips_redirectsent++;
 		else {
-			if (mcopy)
+			if (mcopy) {
+				ipflow_create(&ipforward_rt, mcopy);
 				m_freem(mcopy);
+			}
 			return;
 		}
 	}
