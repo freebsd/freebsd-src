@@ -114,7 +114,7 @@ MDString(string)
 	char buf[33];
 
 	if (rflag)
-		printf("%s (\"%s\")\n", MD5Data(string, len, buf), string);
+		printf("%s \"%s\"\n", MD5Data(string, len, buf), string);
 	else
 		printf("MD5 (\"%s\") = %s\n", string, MD5Data(string, len, buf));
 }
