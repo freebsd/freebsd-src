@@ -201,6 +201,7 @@ i4biprattach(void *dummy)
 
 		NDBGL4(L4_DIALST, "setting dial state to ST_IDLE");
 
+		sc->sc_if.if_softc = sc;
 		sc->sc_state = ST_IDLE;
 		sc->sc_if.if_name = "ipr";
 		sc->sc_if.if_unit = i;
@@ -287,7 +288,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	s = SPLI4B();
 
 	unit = ifp->if_unit;
-	sc = &ipr_softc[unit];
+	sc = ifp->if_softc;
 
 	/* check for IP */
 	
@@ -408,7 +409,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 static int
 i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct ipr_softc *sc = &ipr_softc[ifp->if_unit];
+	struct ipr_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct ifaddr *ifa = (struct ifaddr *)data;
 	int s;
@@ -513,7 +514,7 @@ static void
 iprwatchdog(struct ifnet *ifp)
 {
 	int unit = ifp->if_unit;
-	struct ipr_softc *sc = &ipr_softc[unit];
+	struct ipr_softc *sc = ifp->if_softc;
 	bchan_statistics_t bs;
 	
 	/* get # of bytes in and out from the HSCX driver */ 
