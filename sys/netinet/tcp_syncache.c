@@ -369,16 +369,22 @@ syncache_timer(xslot)
 		if (ticks < nsc->sc_rxttime)
 			break;
 		sc = nsc;
-		nsc = TAILQ_NEXT(sc, sc_timerq);
 		inp = sc->sc_tp->t_inpcb;
 		if (slot == SYNCACHE_MAXREXMTS ||
 		    slot >= tcp_syncache.rexmt_limit ||
 		    inp->inp_gencnt != sc->sc_inp_gencnt) {
+			nsc = TAILQ_NEXT(sc, sc_timerq);
 			syncache_drop(sc, NULL);
 			tcpstat.tcps_sc_stale++;
 			continue;
 		}
+		/*
+		 * syncache_respond() may call back into the syncache to
+		 * to modify another entry, so do not obtain the next
+		 * entry on the timer chain until it has completed.
+		 */
 		(void) syncache_respond(sc, NULL);
+		nsc = TAILQ_NEXT(sc, sc_timerq);
 		tcpstat.tcps_sc_retransmitted++;
 		TAILQ_REMOVE(&tcp_syncache.timerq[slot], sc, sc_timerq);
 		SYNCACHE_TIMEOUT(sc, slot + 1);
