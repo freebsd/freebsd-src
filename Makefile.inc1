@@ -209,6 +209,9 @@ buildworld:
 		rm -rf ${WORLDTMP}/usr/$$dir; \
 	done
 	rm -f ${WORLDTMP}/sys
+	# XXX - Work-around for broken cc/cc_tools/Makefile.
+	# This is beyond dirty...
+	rm -f ${OBJTREE}${.CURDIR}/gnu/usr.bin/cc/cc_tools/.depend
 .endif
 .for _dir in ${USRDIRS}
 	mkdir -p ${WORLDTMP}/${_dir}
