@@ -79,6 +79,7 @@ struct	buf_ops buf_ops_bio = {
 	.bop_name	=	"buf_ops_bio",
 	.bop_write	=	bufwrite,
 	.bop_strategy	=	bufstrategy,
+	.bop_sync	=	bufsync,
 };
 
 /*
@@ -3820,6 +3821,13 @@ bwait(struct buf *bp, u_char pri, const char *wchan)
 	while ((bp->b_flags & B_DONE) == 0)
 		msleep(bp, &bdonelock, pri, wchan, 0);
 	mtx_unlock(&bdonelock);
+}
+
+int
+bufsync(struct bufobj *bo, int waitfor, struct thread *td)
+{
+
+	return (VOP_FSYNC(bo->__bo_vnode, waitfor, td));
 }
 
 void

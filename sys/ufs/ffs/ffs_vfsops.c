@@ -108,6 +108,7 @@ static struct buf_ops ffs_ops = {
 	.bop_name =	"FFS",
 	.bop_write =	bufwrite,
 	.bop_strategy =	ffs_geom_strategy,
+	.bop_sync =	bufsync,
 };
 
 static const char *ffs_opts[] = { "from", "export", NULL };
