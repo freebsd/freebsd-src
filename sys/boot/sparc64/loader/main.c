@@ -268,13 +268,13 @@ mmu_mapin(vm_offset_t va, vm_size_t len)
 				/* The mappings may have changed, be paranoid. */
 				continue;
 			}
-			tte.tte_tag = va >> PAGE_SHIFT;
+			tte.tte_vpn = TV_VPN(va);
 			tte.tte_data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP |
 			    TD_CV | TD_P | TD_W;
 			dtlb_store[--dtlb_slot] = tte;
 			itlb_store[--itlb_slot] = tte;
-			dtlb_enter(dtlb_slot, tte.tte_tag, tte.tte_data);
-			itlb_enter(itlb_slot, tte.tte_tag, tte.tte_data);
+			dtlb_enter(dtlb_slot, tte.tte_vpn, tte.tte_data);
+			itlb_enter(itlb_slot, tte.tte_vpn, tte.tte_data);
 			pa = (vm_offset_t)-1;
 		}
 		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;
