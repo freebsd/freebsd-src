@@ -46,10 +46,7 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
-	struct pam_conv *conv;
-	struct pam_message message, *pmessage;
-	struct pam_response *resp;
-	struct passwd *user_pwd;
+	struct passwd *pwd;
 	struct stat st;
 	int retval, fd;
 	const char *user;
@@ -71,14 +68,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Opened %s file", NOLOGIN);
 
-	user_pwd = getpwnam(user);
-	if (user_pwd && user_pwd->pw_uid == 0) {
-		message.msg_style = PAM_TEXT_INFO;
+	pwd = getpwnam(user);
+	if (pwd && pwd->pw_uid == 0)
 		retval = PAM_SUCCESS;
-	}
 	else {
-		message.msg_style = PAM_ERROR_MSG;
-		if (!user_pwd)
+		if (!pwd)
 			retval = PAM_USER_UNKNOWN;
 		else
 			retval = PAM_AUTH_ERR;
@@ -86,30 +80,31 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	
 	if (fstat(fd, &st) < 0)
 		PAM_RETURN(retval);
-	message.msg = mtmp = malloc(st.st_size + 1);
-	if (!message.msg)
-		PAM_RETURN(retval);
 
-	read(fd, mtmp, st.st_size);
-	mtmp[st.st_size] = '\0';
-
-	pmessage = &message;
-	resp = NULL;
-	pam_get_item(pamh, PAM_CONV, (const void **)&conv);
-	conv->conv(1, (const struct pam_message **)&pmessage, &resp,
-	    conv->appdata_ptr);
-
-	free(mtmp);
-	if (resp)
-		   _pam_drop_reply(resp, 1);
+	mtmp = malloc(st.st_size + 1);
+	if (mtmp != NULL) {
+		read(fd, mtmp, st.st_size);
+		mtmp[st.st_size] = '\0';
+		pam_prompt(pamh, PAM_ERROR_MSG, mtmp, NULL);
+		free(mtmp);
+	}
 	
+	if (retval != PAM_SUCCESS)
+		PAM_VERBOSE_ERROR("Administrator refusing you: %s", NOLOGIN);
+
 	PAM_RETURN(retval);
 }
 
 PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	return PAM_SUCCESS;
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_nologin");
