@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 18, 2004
+.Dd Aug 20, 2004
 .Dt GRAID3 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Cm label
-.Op Fl hnv
+.Op Fl hnrv
 .Ar name
 .Ar prov
 .Ar prov
@@ -46,7 +46,7 @@
 .Op Ar prov Op Ar ...
 .Nm
 .Cm configure
-.Op Fl adhnv
+.Op Fl adhnrRv
 .Ar name
 .Nm
 .Cm rebuild
@@ -106,6 +106,12 @@ Additional options include:
 Hardcode providers' names in metadata.
 .It Fl n
 Turn off autosynchronization of stale components.
+.It Fl r
+Use parity component for reading in round-robin fashion.
+Without this option parity component is not used at all for reading operations
+when device is in complete state.
+With this option specified random I/O read operations are even 40% faster,
+but sequential reads are slower.
 .El
 .It Cm clear
 Clear metadata on the given providers.
@@ -122,6 +128,10 @@ Do not hardcode providers' names in metadata.
 Hardcode providers' names in metadata.
 .It Fl n
 Turn off autosynchronization of stale components.
+.It Fl r
+Turn on round-robin reading.
+.It Fl R
+Turn off round-robin reading.
 .El
 .It Cm rebuild
 Rebuild the given component forcibly.
@@ -167,10 +177,10 @@ Additional options include:
 Be more verbose.
 .El
 .Sh EXAMPLES
-Use 3 disks to setup a RAID3 array. Create a file system, mount it, then unmount
-it and stop device:
+Use 3 disks to setup a RAID3 array (use round-robin reading feature).
+Create a file system, mount it, then unmount it and stop device:
 .Bd -literal -offset indent
-graid3 label -v data da0 da1 da2
+graid3 label -v -r data da0 da1 da2
 newfs /dev/raid3/data
 mount /dev/raid3/data /mnt
 [...]
