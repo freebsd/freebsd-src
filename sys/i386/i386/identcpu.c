@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.57.2.4 1999/07/06 06:49:47 green Exp $
+ *	$Id: identcpu.c,v 1.57.2.5 1999/07/06 17:21:48 green Exp $
  */
 
 #include "opt_cpu.h"
@@ -851,6 +851,20 @@ finishidentcpu(void)
 				cpu_feature = regs[3];	/* edx */
 				break;
 			}
+		}
+	} else if (cpu == CPU_486 && *cpu_vendor == '\0') {
+		/*
+		 * There are BlueLightning CPUs that do not change
+		 * undefined flags by dividing 5 by 2.  In this case,
+		 * the CPU identification routine in locore.s leaves
+		 * cpu_vendor null string and puts CPU_486 into the
+		 * cpu.
+		 */
+		isblue = identblue();
+		if (isblue == IDENTBLUE_IBMCPU) {
+			strcpy(cpu_vendor, "IBM");
+			cpu = CPU_BLUE;
+			return;
 		}
 	}
 }
