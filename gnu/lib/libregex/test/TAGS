@@ -1,0 +1,373 @@
+
+.././regex.c,4137
+#define AT_STRINGS_BEG(3078,98376
+#define AT_STRINGS_END(3079,98449
+#define AT_WORD_BOUNDARY(3093,99002
+#define BUF_PUSH(887,24995
+#define BUF_PUSH_2(895,25208
+#define BUF_PUSH_3(904,25437
+#define DEBUG_POP(2336,74614
+#define DEBUG_PRINT1(471,14296
+#define DEBUG_PRINT1(785,21263
+#define DEBUG_PRINT2(472,14342
+#define DEBUG_PRINT3(473,14398
+#define DEBUG_PRINT3(787,21316
+#define DEBUG_PRINT4(474,14462
+#define DEBUG_PRINT_COMPILED_PATTERN(475,14534
+#define DEBUG_PRINT_COMPILED_PATTERN(789,21386
+#define DEBUG_PRINT_DOUBLE_STRING(477,14637
+#define DEBUG_PUSH(2338,74684
+#define DEBUG_STATEMENT(470,14267
+#define DOUBLE_FAIL_STACK(2299,73230
+#define EVER_MATCHED_SOMETHING(3028,96680
+#define EXTEND_BUFFER(941,26834
+#define EXTRACT_NUMBER(403,12499
+#define EXTRACT_NUMBER(422,12960
+#define EXTRACT_NUMBER_AND_INCR(430,13181
+#define EXTRACT_NUMBER_AND_INCR(448,13583
+#define FAIL_STACK_EMPTY(2271,72289
+#define FAIL_STACK_FULL(2273,72404
+#define FAIL_STACK_PTR_EMPTY(2272,72344
+#define FAIL_STACK_TOP(2274,72473
+#define FIRST_STRING_P(221,5848
+#define FREE_VAR(3100,99186
+#define FREE_VARIABLES(3101,99240
+#define FREE_VARIABLES(3116,99751
+#define GET_BUFFER_SPACE(882,24802
+#define GET_UNSIGNED_NUMBER(1017,29312
+#define INIT_FAIL_STACK(2279,72612
+#define INSERT_JUMP(923,26079
+#define INSERT_JUMP2(927,26236
+#define ISALNUM(147,3407
+#define ISALPHA(148,3455
+#define ISBLANK(135,3062
+#define ISBLANK(137,3116
+#define ISCNTRL(149,3503
+#define ISDIGIT(146,3359
+#define ISGRAPH(140,3185
+#define ISGRAPH(142,3239
+#define ISLOWER(150,3551
+#define ISPRINT(145,3311
+#define ISPUNCT(151,3599
+#define ISSPACE(152,3647
+#define ISUPPER(153,3695
+#define ISXDIGIT(154,3743
+#define IS_ACTIVE(3026,96578
+#define IS_CHAR_CLASS(1035,29793
+#define MATCHED_SOMETHING(3027,96621
+#define MAX(233,6292
+#define MIN(234,6334
+#define PATFETCH(852,23769
+#define PATFETCH_RAW(860,24020
+#define POINTER_TO_OFFSET(3050,97433
+#define POP_FAILURE_ITEM(2331,74426
+#define POP_FAILURE_POINT(2461,79538
+#define PREFETCH(3064,97916
+#define PUSH_FAILURE_ITEM(2327,74253
+#define PUSH_FAILURE_POINT(2352,75048
+#define PUSH_PATTERN_OP(2317,73841
+#define REGEX_REALLOCATE(185,4875
+#define REGEX_REALLOCATE(210,5495
+#define REGEX_TALLOC(227,6137
+#define REG_MATCH_NULL_STRING_P(3025,96511
+#define REG_UNSET(3055,97649
+#define RETALLOC(226,6058
+#define SET_LIST_BIT(1011,29089
+#define SET_REGS_MATCHED(3034,96936
+#define SIGN_EXTEND_CHAR(166,4109
+#define SIGN_EXTEND_CHAR(169,4217
+#define STORE_JUMP(915,25800
+#define STORE_JUMP2(919,25917
+#define STORE_NUMBER(384,11919
+#define STORE_NUMBER_AND_INCR(394,12242
+#define STREQ(231,6244
+#define SYNTAX(120,2790
+#define TALLOC(225,6003
+#define TRANSLATE(873,24503
+#define WORDCHAR_P(3086,98755
+alt_match_null_string_p 4466,149039
+#define assert(782,21217
+at_begline_loc_p 2131,67979
+at_endline_loc_p 2150,68557
+#define bcmp(54,1656
+bcmp_translate 4591,151831
+#define bcopy(57,1726
+typedef char boolean;236,6377
+#define bzero(60,1793
+common_op_match_null_string_p 4503,149895
+compile_range 2200,69997
+} compile_stack_elt_t;990,28602
+} compile_stack_type;998,28748
+extract_number 411,12714
+extract_number_and_incr 438,13370
+} fail_stack_type;2269,72269
+group_in_compile_stack 2172,69174
+group_match_null_string_p 4357,145267
+init_syntax_once 94,2365
+insert_op1 2091,67107
+insert_op2 2110,67475
+#define isascii(131,3018
+typedef int pattern_offset_t;981,28388
+print_compiled_pattern 726,19792
+print_double_string 753,20605
+print_fastmap 486,14835
+print_partial_compiled_pattern 518,15475
+re_comp 4650,153479
+re_compile_fastmap 2532,82428
+re_compile_pattern 4617,152520
+re_exec 4688,154373
+re_match 3136,100557
+re_match_2 3161,101399
+} re_opcode_t;378,11781
+re_search 2844,90872
+re_search_2 2877,91998
+re_set_registers 2817,90247
+re_set_syntax 808,22087
+regcomp 4736,155972
+regerror 4876,160188
+regex_compile 1062,30922
+regexec 4811,158371
+regfree 4920,161247
+} register_info_type;3023,96488
+typedef unsigned regnum_t;974,28172
+store_op1 2063,66535
+store_op2 2076,66768
+typedef const unsigned 2262,72103
+
+.././regex.h,230
+#define _RE_ARGS(394,14981
+#define _RE_ARGS(398,15036
+} reg_errcode_t;270,10874
+typedef unsigned reg_syntax_t;38,1503
+typedef struct re_pattern_buffer regex_t;346,13556
+} regmatch_t;382,14634
+typedef int regoff_t;354,13814
+
+getpagesize.h,84
+#define getpagesize(12,137
+#define getpagesize(15,191
+#define getpagesize(20,302
+
+test.h,436
+#define BRACES_TO_OPS(107,3169
+#define INVALID_PATTERN(110,3328
+#define MATCH_SELF(114,3429
+#define PARENS_TO_OPS(108,3248
+#define SAFE_STRLEN(14,201
+#define TEST_POSITIONED_MATCH(116,3470
+#define TEST_REGISTERS(104,3011
+#define TEST_REGISTERS_2(97,2703
+#define TEST_SEARCH(127,3875
+#define TEST_SEARCH_2(123,3720
+#define TEST_TRUNCATED_MATCH(120,3608
+typedef enum { false = 0, true = 1 } boolean;16,255
+} test_type;33,572
+
+alloca.c,128
+alloca 141,3996
+find_stack_direction 85,2553
+} header;127,3538
+typedef void	*pointer;51,1721
+typedef char	*pointer;53,1778
+
+bsd-interf.c,51
+test_berk_search 8,106
+test_bsd_interface 33,738
+
+debugmalloc.c,395
+#define TRACE(8,143
+#define TRACE1(9,197
+#define TRACE2(10,254
+#define TRACE3(11,319
+#define TRACE4(12,392
+#define USER_ALLOC(61,1440
+typedef char *address;15,480
+} *chunk;54,1225
+chunk_delete 115,2778
+chunk_insert 96,2294
+chunk_to_mem 79,1916
+free 261,5604
+free_list_available 175,3947
+malloc 203,4343
+mem_to_chunk 68,1703
+realloc 242,5309
+validate_list 153,3478
+xsbrk 21,545
+
+emacsmalloc.c,574
+#define ASSERT(178,5884
+#define ASSERT(181,5985
+#define CHAIN(166,5430
+#define bcmp(73,2821
+#define bcopy(72,2777
+#define bzero(74,2868
+calloc 603,15983
+free 484,13255
+get_lim_data 736,18517
+get_lim_data 752,18767
+get_lim_data 759,18860
+getpool 374,10263
+malloc 413,11133
+malloc_init 218,6863
+malloc_mem_free 707,17940
+malloc_mem_used 688,17683
+malloc_stats 663,17320
+malloc_usable_size 233,7147
+memalign 618,16164
+morecore 244,7380
+realloc 541,14424
+#define start_of_data(110,3486
+#define start_of_data(115,3546
+sys_sbrk 815,20804
+valloc 645,17031
+
+fileregex.c,13
+main 11,156
+
+g++malloc.c,1543
+#define UPDATE_STATS(33,1090
+#define UPDATE_STATS(35,1131
+static inline int aligned_OK(343,11189
+void* calloc(1039,28692
+void cfree(1048,28894
+static inline void* chunk2mem(619,19336
+#define clear_inuse(592,18767
+static inline void consollink(716,21398
+static void do_free_stats(544,18016
+static void do_malloc_stats(534,17741
+766,22304
+extern 762,22235
+  for 1260,34165
+void free(1028,28553
+static inline void frontlink(732,21717
+static unsigned int gcd(557,18251
+  if 1212,32427
+  if 1216,32582
+  if 1220,32737
+  if 1224,32880
+  if 1229,33094
+  if 1233,33251
+  if 1238,33463
+  if 1242,33609
+  if 1247,33739
+#define inuse(590,18680
+static inline unsigned int lcm(580,18540
+void* malloc(939,26370
+static mchunkptr malloc_find_space(858,24561
+void malloc_stats(1201,32256
+unsigned int malloc_usable_size(1054,28936
+static volatile void malloc_user_error(286,9757
+static void malloc_user_error(288,9804
+typedef struct malloc_bin* mbinptr;320,10636
+typedef struct malloc_chunk* mchunkptr;309,10247
+static inline mchunkptr mem2chunk(643,19759
+void* memalign(1118,30363
+#define next_chunk(600,18910
+#define prev_chunk(604,19023
+void* realloc(1071,29263
+static inline unsigned int request2size(335,10993
+mchunkptr sanity_check(628,19486
+#define set_inuse(591,18723
+static inline void set_size(609,19149
+static inline mbinptr size2bin(499,16914
+static inline void split(685,20463
+static 768,22312
+static inline void unlink(671,20263
+void* valloc(1194,32107
+typedef volatile void 760,22184
+764,22271
+
+iregex.c,54
+main 20,390
+print_regs 141,2638
+scanstring 87,1839
+
+main.c,13
+main 12,242
+
+malloc-test.c,112
+#define BITS_BLOCK(12,168
+#define BITS_MASK(13,228
+} bits_list_type;6,56
+init_bits_list 16,311
+main(32,621
+
+other.c,18
+test_others 6,96
+
+printchar.c,15
+printchar 2,5
+
+psx-basic.c,23
+test_posix_basic 7,84
+
+psx-extend.c,26
+test_posix_extended 7,88
+
+psx-generic.c,26
+test_posix_generic 8,117
+
+psx-group.c,20
+test_grouping 7,92
+
+psx-interf.c,416
+fill_pmatch 174,4802
+get_error_string 18,260
+init_pattern_buffer 49,1434
+test_compile 67,1925
+test_eflags 245,6876
+test_error_code_allocation 562,16619
+test_error_code_message 524,15247
+test_ignore_case 303,8525
+test_newline 330,9199
+test_nsub 117,3319
+test_pmatch 188,5121
+test_posix_interface 614,18719
+test_posix_match 359,9938
+test_regcomp 138,3725
+test_regerror 592,17621
+test_regexec 394,10783
+
+psx-interv.c,21
+test_intervals 6,93
+
+test.c,607
+#define SET_FASTMAP(447,13999
+#define bcmp(18,362
+#define bcopy(19,415
+#define bzero(20,473
+compile_and_print_pattern 666,19653
+concat 97,2673
+delimiters_to_ops 571,17477
+general_test 115,2996
+invalid_pattern 542,16821
+#define memcmp(26,611
+#define memcpy(27,660
+print_pattern_info 635,18998
+set_all_registers 58,1390
+test_all_registers 506,15567
+test_case_fold 682,19993
+test_fastmap 460,14363
+test_fastmap_search 474,14668
+test_match 776,22235
+test_match_2 766,22040
+test_match_n_times 715,20798
+test_search_return 408,13011
+valid_nonposix_pattern 646,19239
+valid_pattern 557,17182
+
+tregress.c,208
+#define SIMPLE_MATCH(74,1463
+#define SIMPLE_NONMATCH(75,1528
+do_match 78,1599
+itoa 10,199
+simple_compile 44,882
+simple_fail 21,353
+simple_fastmap 55,1115
+simple_search 100,2020
+test_regress 124,2513
+
+upcase.c,0
+
+xmalloc.c,14
+xmalloc 9,87
