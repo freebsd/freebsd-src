@@ -149,13 +149,19 @@ struct addrinfo {
 /*
  * Error return codes from getaddrinfo()
  */
+#if 0
+/* obsoleted */
 #define	EAI_ADDRFAMILY	 1	/* address family for hostname not supported */
+#endif
 #define	EAI_AGAIN	 2	/* temporary failure in name resolution */
 #define	EAI_BADFLAGS	 3	/* invalid value for ai_flags */
 #define	EAI_FAIL	 4	/* non-recoverable failure in name resolution */
 #define	EAI_FAMILY	 5	/* ai_family not supported */
 #define	EAI_MEMORY	 6	/* memory allocation failure */
+#if 0
+/* obsoleted */
 #define	EAI_NODATA	 7	/* no address associated with hostname */
+#endif
 #define	EAI_NONAME	 8	/* hostname nor servname provided, or not known */
 #define	EAI_SERVICE	 9	/* servname not supported for ai_socktype */
 #define	EAI_SOCKTYPE	10	/* ai_socktype not supported */
