@@ -46,6 +46,8 @@
 
 struct bio;
 struct buf;
+struct g_consumer;
+struct g_provider;
 
 struct iodone_chain {
 	long	ic_prev_flags;
@@ -81,13 +83,21 @@ struct bio {
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t	bio_pblkno;               /* physical block number */
 	struct	iodone_chain *bio_done_chain;
+	struct bio *bio_linkage;
+	off_t	bio_length;
+	char	*bio_attribute;
+	off_t	bio_completed;
+	struct g_consumer *bio_from;
+	struct g_provider *bio_to;
 };
 
 /* bio_cmd */
-#define BIO_READ	1
-#define BIO_WRITE	2
-#define BIO_DELETE	4
-#define BIO_FORMAT	8
+#define BIO_READ	0x00000001
+#define BIO_WRITE	0x00000002
+#define BIO_DELETE	0x00000004
+#define BIO_FORMAT	0x00000008
+#define BIO_GETATTR	0x00000010
+#define BIO_SETATTR	0x00000020
 #define BIO_CMD1	0x40000000	/* Available for local hacks */
 #define BIO_CMD2	0x80000000	/* Available for local hacks */
 
