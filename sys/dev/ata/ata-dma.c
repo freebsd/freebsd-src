@@ -48,6 +48,8 @@
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 
+#if NPCI > 0
+
 /* prototypes */
 static void promise_timing(struct ata_softc *, int32_t, int32_t);
 static void hpt366_timing(struct ata_softc *, int32_t, int32_t);
@@ -57,8 +59,6 @@ static void hpt366_timing(struct ata_softc *, int32_t, int32_t);
 #undef vtophys
 #define vtophys(va)	alpha_XXX_dmamap((vm_offset_t)va)
 #endif
-
-#if NPCI > 0
 
 void
 ata_dmainit(struct ata_softc *scp, int32_t device, 
@@ -652,11 +652,10 @@ hpt366_timing(struct ata_softc *scp, int32_t devno, int32_t mode)
 
 #else /* NPCI > 0 */
 
-int32_t
+void
 ata_dmainit(struct ata_softc *scp, int32_t device,
 	    int32_t piomode, int32_t wdmamode, int32_t udmamode)
 {
-    return -1;
 }
 
 int32_t
