@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/saal/sscopdef.h,v 1.3 2003/09/19 12:02:03 hbb Exp $
+ * $Begemot: libunimsg/netnatm/saal/sscopdef.h,v 1.4 2004/07/08 08:22:17 brandt Exp $
  *
  * Definitions of SSCOP constants and parameter blocks. This is seen by
  * the outside world.
@@ -35,6 +35,11 @@
 #define _NETNATM_SAAL_SSCOPDEF_H_
 
 #include <sys/types.h>
+#ifdef _KERNEL
+#include <sys/stdint.h>
+#else
+#include <stdint.h>
+#endif
 
 /*
  * AA-interface signals

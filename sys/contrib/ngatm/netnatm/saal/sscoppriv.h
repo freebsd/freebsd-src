@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/saal/sscoppriv.h,v 1.3 2003/09/19 12:02:03 hbb Exp $
+ * $Begemot: libunimsg/netnatm/saal/sscoppriv.h,v 1.4 2004/07/08 08:22:17 brandt Exp $
  *
  * Private SSCOP definitions.
  *
@@ -37,6 +37,16 @@
 #endif
 #else	/* !_KERNEL */
 #include "sscopcust.h"
+#endif
+
+/* Argh. BSDi */
+#ifndef _BYTE_ORDER
+#ifndef BYTE_ORDER
+#error "_BYTE_ORDER not defined"
+#endif
+#define _BYTE_ORDER	BYTE_ORDER
+#define _LITTLE_ENDIAN	LITTLE_ENDIAN
+#define	_BIG_ENDIAN	BIG_ENDIAN
 #endif
 
 /*

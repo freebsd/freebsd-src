@@ -26,7 +26,7 @@
 #
 # Author: Hartmut Brandt <harti@freebsd.org>
 #
-# $Begemot: libunimsg/atm/msg/genieh.awk,v 1.3 2003/09/19 11:58:15 hbb Exp $
+# $Begemot: libunimsg/netnatm/msg/genieh.awk,v 1.4 2004/07/08 08:22:03 brandt Exp $
 #
 # Generate IE header file
 #

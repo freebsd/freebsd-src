@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/saal/saal_sscop.c,v 1.10 2003/09/19 12:02:03 hbb Exp $
+ * $Begemot: libunimsg/netnatm/saal/saal_sscop.c,v 1.11 2004/07/08 08:22:13 brandt Exp $
  *
  * Core SSCOP code (ITU-T Q.2110)
  */

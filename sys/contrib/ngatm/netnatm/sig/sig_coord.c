@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/sig/sig_coord.c,v 1.6 2003/09/24 10:27:50 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_coord.c,v 1.11 2004/07/08 08:22:20 brandt Exp $
  *
  * Coordinator
  */
@@ -200,7 +200,7 @@ coord_saal_release_indication(struct uni *uni)
  * a call instance. In this case 'cookie' is zero.
  */
 static void
-coord_link_establish_request(struct uni *uni, u_int32_t cookie)
+coord_link_establish_request(struct uni *uni, uint32_t cookie)
 {
 	switch (uni->custat) {
 
@@ -650,7 +650,7 @@ input_call(struct call *c, struct uni_msg *m, struct uni_all *u)
  * Signal handler of the coordinator
  */
 void
-uni_sig_coord(struct uni *uni, enum coord_sig sig, u_int32_t cookie,
+uni_sig_coord(struct uni *uni, enum coord_sig sig, uint32_t cookie,
     struct uni_msg *msg)
 {
 	struct call *c;

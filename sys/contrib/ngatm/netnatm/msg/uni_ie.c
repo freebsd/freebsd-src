@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/msg/uni_ie.c,v 1.12 2003/10/14 15:02:22 hbb Exp $
+ * $Begemot: libunimsg/netnatm/msg/uni_ie.c,v 1.14 2004/07/08 08:22:06 brandt Exp $
  *
  * Private definitions for the IE code file.
  *

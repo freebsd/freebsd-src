@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/saal/sscfupriv.h,v 1.3 2003/09/19 12:02:03 hbb Exp $
+ * $Begemot: libunimsg/netnatm/saal/sscfupriv.h,v 1.3 2003/09/19 12:02:03 hbb Exp $
  *
  * Private SSCF-UNI definitions.
  */
