@@ -97,6 +97,7 @@ ia64/ia64/mp_machdep.c		optional	smp
 ia64/ia64/nexus.c		standard
 ia64/ia64/pal.S			standard
 ia64/ia64/pmap.c		standard
+ia64/ia64/ptrace_machdep.c	standard
 ia64/ia64/sal.c			standard
 ia64/ia64/sapic.c		standard
 ia64/ia64/setjmp.S		standard
