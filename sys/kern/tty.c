@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.33 1995/02/27 19:47:31 ugen Exp $
+ * $Id: tty.c,v 1.34 1995/02/28 00:21:03 pst Exp $
  */
 
 #include "snp.h"
@@ -1098,12 +1098,16 @@ ttyflush(tp, rw)
 	}
 	if ((rw & FREAD) &&
 	    ISSET(tp->t_state, TS_TBLOCK) && tp->t_rawq.c_cc < TTYHOG/5) {
+		int queue_full = 0;
+
 		if (ISSET(tp->t_iflag, IXOFF) &&
 		    tp->t_cc[VSTART] != _POSIX_VDISABLE &&
-		    putc(tp->t_cc[VSTART], &tp->t_outq) == 0 ||
+		    (queue_full = putc(tp->t_cc[VSTART], &tp->t_outq)) == 0 ||
 		    ISSET(tp->t_cflag, CRTS_IFLOW)) {
 			CLR(tp->t_state, TS_TBLOCK);
 			ttstart(tp);
+			if (queue_full) /* try again */
+				SET(tp->t_state, TS_TBLOCK);
 		}
 	}
 	splx(s);
@@ -1137,12 +1141,16 @@ ttyblock(tp)
 	if (total >= TTYHOG / 2 &&
 	    !ISSET(tp->t_state, TS_TBLOCK) &&
 	    (!ISSET(tp->t_lflag, ICANON) || tp->t_canq.c_cc > 0)) {
+		int queue_full = 0;
+
 		if (ISSET(tp->t_iflag, IXOFF) &&
 		    tp->t_cc[VSTOP] != _POSIX_VDISABLE &&
-		    putc(tp->t_cc[VSTOP], &tp->t_outq) == 0 ||
+		    (queue_full = putc(tp->t_cc[VSTOP], &tp->t_outq)) == 0 ||
 		    ISSET(tp->t_cflag, CRTS_IFLOW)) {
 			SET(tp->t_state, TS_TBLOCK);
 			ttstart(tp);
+			if (queue_full) /* try again */
+				CLR(tp->t_state, TS_TBLOCK);
 		}
 	}
 }
@@ -1531,12 +1539,16 @@ read:
 	 */
 	s = spltty();
 	if (ISSET(tp->t_state, TS_TBLOCK) && tp->t_rawq.c_cc < TTYHOG/5) {
+		int queue_full = 0;
+
 		if (ISSET(tp->t_iflag, IXOFF) &&
 		    cc[VSTART] != _POSIX_VDISABLE &&
-		    putc(cc[VSTART], &tp->t_outq) == 0 ||
+		    (queue_full = putc(cc[VSTART], &tp->t_outq)) == 0 ||
 		    ISSET(tp->t_cflag, CRTS_IFLOW)) {
 			CLR(tp->t_state, TS_TBLOCK);
 			ttstart(tp);
+			if (queue_full) /* try again */
+				SET(tp->t_state, TS_TBLOCK);
 		}
 	}
 	splx(s);
