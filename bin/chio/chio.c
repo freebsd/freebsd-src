@@ -38,9 +38,10 @@
 #ifndef lint
 static const char copyright[] =
 	"@(#) Copyright (c) 1996 Jason R. Thorpe.  All rights reserved.";
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/chio.h> 
@@ -54,8 +55,6 @@ static const char rcsid[] =
 
 #include "defs.h"
 #include "pathnames.h"
-
-extern	char *__progname;	/* from crt0.o */
 
 static	void usage(void);
 static	void cleanup(void);
@@ -248,7 +247,7 @@ do_move(const char *cname, int argc, char **argv)
 
  usage:
 	(void) fprintf(stderr, "usage: %s %s "
-	    "<from ET> <from EU> <to ET> <to EU> [inv]\n", __progname, cname);
+	    "<from ET> <from EU> <to ET> <to EU> [inv]\n", getprogname(), cname);
 	return (1);
 }
 
@@ -357,7 +356,7 @@ do_exchange(const char *cname, int argc, char **argv)
 	(void) fprintf(stderr,
 	    "usage: %s %s <src ET> <src EU> <dst1 ET> <dst1 EU>\n"
 	    "       [<dst2 ET> <dst2 EU>] [inv1] [inv2]\n",
-	    __progname, cname);
+	    getprogname(), cname);
 	return (1);
 }
 
@@ -417,7 +416,7 @@ do_position(const char *cname, int argc, char **argv)
 
  usage:
 	(void) fprintf(stderr, "usage: %s %s <to ET> <to EU> [inv]\n",
-	    __progname, cname);
+	    getprogname(), cname);
 	return (1);
 }
 
@@ -460,7 +459,7 @@ do_params(const char *cname, int argc, char **argv)
 	return (0);
 
  usage:
-	(void) fprintf(stderr, "usage: %s %s\n", __progname, cname);
+	(void) fprintf(stderr, "usage: %s %s\n", getprogname(), cname);
 	return (1);
 }
 
@@ -488,7 +487,7 @@ do_getpicker(const char *cname, int argc, char **argv)
 	return (0);
 
  usage:
-	(void) fprintf(stderr, "usage: %s %s\n", __progname, cname);
+	(void) fprintf(stderr, "usage: %s %s\n", getprogname(), cname);
 	return (1);
 }
 
@@ -516,7 +515,7 @@ do_setpicker(const char *cname, int argc, char **argv)
 	return (0);
 
  usage:
-	(void) fprintf(stderr, "usage: %s %s <picker>\n", __progname, cname);
+	(void) fprintf(stderr, "usage: %s %s <picker>\n", getprogname(), cname);
 	return (1);
 }
 
@@ -733,7 +732,7 @@ do_status(const char *cname, int argc, char **argv)
 
  usage:
 	(void) fprintf(stderr, "usage: %s %s [-vVsSbaA] [<element type> [<start-addr> [<end-addr>] ] ]\n",
-		       __progname, cname);
+		       getprogname(), cname);
 	return (1);
 }
 
@@ -756,7 +755,7 @@ do_ielem(const char *cname, int argc, char **argv)
 
  usage:
 	(void) fprintf(stderr, "usage: %s %s [<timeout>]\n",
-		       __progname, cname);
+		       getprogname(), cname);
 	return (1);
 }
 
@@ -841,7 +840,7 @@ do_voltag(const char *cname, int argc, char **argv)
  usage:
 	(void) fprintf(stderr, 
 		       "usage: %s %s [-fca] <element> [<voltag> [<vsn>] ]\n",
-		       __progname, cname);
+		       getprogname(), cname);
 	return 1;
 }
 
@@ -991,7 +990,7 @@ do_return(const char *cname, int argc, char **argv)
 
 usage:
 	(void) fprintf(stderr, "usage: %s %s "
-	    "<from ET> <from EU>\n", __progname, cname);
+	    "<from ET> <from EU>\n", getprogname(), cname);
 	return(1);
 }
 
@@ -1170,6 +1169,6 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: %s [-f changer] command [-<flags>] "
-		"arg1 arg2 [arg3 [...]]\n", __progname);
+		"arg1 arg2 [arg3 [...]]\n", getprogname());
 	exit(1);
 }
