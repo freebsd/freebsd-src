@@ -1228,15 +1228,13 @@ kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss)
 	int error = 0;
 
 	mtx_lock(&Giant);
-
+	PROC_LOCK(p);
 	oonstack = sigonstack(cpu_getstack(td));
 
 	if (oss != NULL) {
-		PROC_LOCK(p);
 		*oss = p->p_sigstk;
 		oss->ss_flags = (p->p_flag & P_ALTSTACK)
 		    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
-		PROC_UNLOCK(p);
 	}
 
 	if (ss != NULL) {
@@ -1253,17 +1251,14 @@ kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss)
 				error = ENOMEM;
 				goto done2;
 			}
-			PROC_LOCK(p);
 			p->p_sigstk = *ss;
 			p->p_flag |= P_ALTSTACK;
-			PROC_UNLOCK(p);
 		} else {
-			PROC_LOCK(p);
 			p->p_flag &= ~P_ALTSTACK;
-			PROC_UNLOCK(p);
 		}
 	}
 done2:
+	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
 	return (error);
 }
