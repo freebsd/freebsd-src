@@ -933,7 +933,7 @@ sysctl_iflist(af, w)
 			ifm->ifm_addrs = info.rti_addrs;
 			error = SYSCTL_OUT(w->w_req,(caddr_t)ifm, len);
 			if (error)
-				return (error);
+				goto done;
 		}
 		while ((ifa = TAILQ_NEXT(ifa, ifa_link)) != 0) {
 			if (af && af != ifa->ifa_addr->sa_family)
@@ -955,12 +955,13 @@ sysctl_iflist(af, w)
 				ifam->ifam_addrs = info.rti_addrs;
 				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
 				if (error)
-					return (error);
+					goto done;
 			}
 		}
 		ifaaddr = netmask = brdaddr = 0;
 	}
-	return (0);
+done:
+	return (error);
 }
 
 static int
