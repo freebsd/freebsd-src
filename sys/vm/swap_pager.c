@@ -702,8 +702,6 @@ swap_pager_copy(srcobject, dstobject, offset, destroysource)
  *	distance.  We do not try to restrict it to the swap device stripe
  *	(that is handled in getpages/putpages).  It probably isn't worth
  *	doing here.
- *
- *	This routine must be called at splvm().
  */
 
 boolean_t
@@ -714,14 +712,17 @@ swap_pager_haspage(object, pindex, before, after)
 	int *after;
 {
 	daddr_t blk0;
+	int s;
 
 	/*
 	 * do we have good backing store at the requested index ?
 	 */
 
+	s = splvm();
 	blk0 = swp_pager_meta_ctl(object, pindex, 0);
 
 	if (blk0 == SWAPBLK_NONE) {
+		splx(s);
 		if (before)
 			*before = 0;
 		if (after)
@@ -764,7 +765,7 @@ swap_pager_haspage(object, pindex, before, after)
 		}
 		*after = (i - 1);
 	}
-
+	splx(s);
 	return (TRUE);
 }
 
