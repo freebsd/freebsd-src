@@ -4,12 +4,18 @@ major breakages in tracking -current.  Not all things will be listed
 here, and it only starts on Novemeber 18, 1998.  If you have an
 earlier version of FreeBSD, you are on your own.
 
+19981231:
+	Postfix, to be committed shortly, will require a new uid (mta)
+	and a new gid (mta).  Add them now and avoid the rush.
+
 19981230:
 	You should install new bootblocks now.  The ELF kernel will
-	become default on Jan 6.  Instructions on upgrading will be
-	forth coming.  In addition, the aout buildworld will be
-	blocked at that time was well.  Upgrade to elf as described in
-	src/Makefile.
+	become default soon.  In addition, you'll need to upgrade
+	your userland programs to ELF before then as well.  Use
+	make aout-to-elf to upgrade your userland programs (old
+	a.out programs in, for example, /usr/local/bin will
+	continue to work, even after the upgrade).  See src/Makefile
+	for more details.
 
 19981202:
 	New groups from 19981201 commented out of mtree, so they
@@ -33,4 +39,4 @@ earlier version of FreeBSD, you are on your own.
 YYYYMMDD:
 	What happened and what you need to do.
 
-$Id: UPDATING,v 1.2 1998/12/24 02:02:09 imp Exp $
+$Id: UPDATING,v 1.3 1998/12/31 06:20:01 imp Exp $
