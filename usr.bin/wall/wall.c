@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
 #endif
 static const char rcsid[] =
-	"$Id: wall.c,v 1.8 1997/08/25 06:43:22 charnier Exp $";
+	"$Id: wall.c,v 1.9 1997/09/15 01:03:16 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -144,10 +144,10 @@ makemsg(fname)
 	time_t now;
 	FILE *fp;
 	int fd;
-	char *p, *whom, hostname[MAXHOSTNAMELEN], lbuf[100], tmpname[15];
+	char *p, *whom, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
 
-	(void)strcpy(tmpname, _PATH_TMP);
-	(void)strcat(tmpname, "/wall.XXXXXX");
+	snprintf(tmpname, sizeof(tmpname), "%s/wall.XXXXXX", _PATH_TMP);
+
 	if (!(fd = mkstemp(tmpname)) || !(fp = fdopen(fd, "r+")))
 		errx(1, "can't open temporary file");
 	(void)unlink(tmpname);
@@ -167,10 +167,12 @@ makemsg(fname)
 		 * in column 80, but that can't be helped.
 		 */
 		(void)fprintf(fp, "\r%79s\r\n", " ");
-		(void)sprintf(lbuf, "Broadcast Message from %s@%s",
+		(void)snprintf(lbuf, sizeof(lbuf), 
+		    "Broadcast Message from %s@%s",
 		    whom, hostname);
 		(void)fprintf(fp, "%-79.79s\007\007\r\n", lbuf);
-		(void)sprintf(lbuf, "        (%s) at %d:%02d ...", ttyname(2),
+		(void)snprintf(lbuf, sizeof(lbuf), 
+		    "        (%s) at %d:%02d ...", ttyname(2),
 		    lt->tm_hour, lt->tm_min);
 		(void)fprintf(fp, "%-79.79s\r\n", lbuf);
 	}
