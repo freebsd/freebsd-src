@@ -26,7 +26,7 @@
 #include <sys/time.h>
 
 #define VERSION "2.0"
-#define MAXSIZE (1024*1024*20)
+#define MAXSIZE (1024*1024*40)
 
 #define SUBSUFF ".ctm"
 #define TMPSUFF ".ctmtmp"
