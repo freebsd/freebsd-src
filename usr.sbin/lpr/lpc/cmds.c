@@ -79,6 +79,7 @@ static const char rcsid[] =
 #define KQT_KILLOK	1
 
 static void	 abortpr(struct printer *_pp, int _dis);
+static char	*args2line(int argc, char **argv);
 static int	 doarg(char *_job);
 static int	 doselect(struct dirent *_d);
 static int	 kill_qtask(const char *lf);
@@ -87,7 +88,7 @@ static int	 sortq(const void *_a, const void *_b);
 static void	 startpr(struct printer *_pp, int _chgenable);
 static int	 touch(struct jobqueue *_jq);
 static void	 unlinkf(char *_name);
-static void	 upstat(struct printer *_pp, const char *_msg);
+static void	 upstat(struct printer *_pp, const char *_msg, int _notify);
 static void	 wrapup_clean(int _laststatus);
 
 /*
@@ -103,11 +104,12 @@ enum	qsel_val {			/* how a given ptr was selected */
 
 static enum qsel_val generic_qselect;	/* indicates how ptr was selected */
 static int generic_initerr;		/* result of initrtn processing */
+static char *generic_msg;		/* if a -msg was specified */
 static char *generic_nullarg;
 static void (*generic_wrapup)(int _last_status);   /* perform rtn wrap-up */
 
 void
-generic(void (*specificrtn)(struct printer *_pp),
+generic(void (*specificrtn)(struct printer *_pp), int cmdopts,
     void (*initrtn)(int _argc, char *_argv[]), int argc, char *argv[])
 {
 	int cmdstatus, more, targc;
@@ -115,7 +117,10 @@ generic(void (*specificrtn)(struct printer *_pp),
 	char **targv;
 
 	if (argc == 1) {
-		printf("usage: %s {all | printer ...}\n", argv[0]);
+		printf("usage: %s  {all | printer ...}", argv[0]);
+		if (cmdopts & LPC_MSGOPT)
+			printf(" [-msg <text> ...]");
+		printf("\n");
 		return;
 	}
 
@@ -135,6 +140,24 @@ generic(void (*specificrtn)(struct printer *_pp),
 	/* this just needs to be a distinct value of type 'char *' */
 	if (generic_nullarg == NULL)
 		generic_nullarg = strdup("");
+
+	/*
+	 * Some commands accept a -msg argument, which indicates that
+	 * all remaining arguments should be combined into a string.
+	 */
+	generic_msg = NULL;
+	if (cmdopts & LPC_MSGOPT) {
+		targc = argc;
+		targv = argv;
+		while (--targc) {
+			++targv;
+			if (strcmp(*targv, "-msg") == 0) {
+				argc -= targc;
+				generic_msg = args2line(targc - 1, targv + 1);
+				break;
+			}
+		}
+	}
 
 	/* call initialization routine, if there is one for this cmd */
 	if (initrtn != NULL) {
@@ -209,7 +232,34 @@ wrapup:
 	if (generic_wrapup) {
 		(*generic_wrapup)(cmdstatus);
 	}
+	if (generic_msg)
+		free(generic_msg);
+}
 
+/*
+ * Convert an argv-array of character strings into a single string.
+ */
+static char *
+args2line(int argc, char **argv)
+{
+	char *cp1, *cend;
+	const char *cp2;
+	char buf[1024];
+
+	if (argc <= 0)
+		return strdup("\n");
+
+	cp1 = buf;
+	cend = buf + sizeof(buf) - 1;		/* save room for '\0' */
+	while (--argc >= 0) {
+		cp2 = *argv++;
+		while ((cp1 < cend) && (*cp1++ = *cp2++))
+			;
+		cp1[-1] = ' ';
+	}
+	cp1[-1] = '\n';
+	*cp1 = '\0';
+	return strdup(buf);
 }
 
 /*
@@ -242,7 +292,10 @@ abortpr(struct printer *pp, int dis)
 				printf("\tcannot disable printing: %s\n",
 				       strerror(errno));
 			else {
-				upstat(pp, "printing disabled\n");
+				/* ..call newer upstat() in obsolete code.. */
+				upstat(pp, "printing disabled\n", 0);
+				/* ..the new upstat() did a setuid(uid).. */
+				seteuid(euid);
 				printf("\tprinting disabled\n");
 			}
 		} else if (errno == ENOENT) {
@@ -252,7 +305,10 @@ abortpr(struct printer *pp, int dis)
 				       strerror(errno));
 			else {
 				(void) close(fd);
-				upstat(pp, "printing disabled\n");
+				/* ..call newer upstat() in obsolete code.. */
+				upstat(pp, "printing disabled\n", 0);
+				/* ..the new upstat() did a setuid(uid).. */
+				seteuid(euid);
 				printf("\tprinting disabled\n");
 				printf("\tno daemon to abort\n");
 			}
@@ -377,14 +433,16 @@ killdone:
  * Write a message into the status file.
  */
 static void
-upstat(struct printer *pp, const char *msg)
+upstat(struct printer *pp, const char *msg, int notifyuser)
 {
-	register int fd;
+	int fd;
 	char statfile[MAXPATHLEN];
 
 	status_file_name(pp, statfile, sizeof statfile);
 	umask(0);
+	seteuid(euid);
 	fd = open(statfile, O_WRONLY|O_CREAT|O_EXLOCK, STAT_FILE_MODE);
+	seteuid(uid);
 	if (fd < 0) {
 		printf("\tcannot create status file: %s\n", strerror(errno));
 		return;
@@ -395,6 +453,12 @@ upstat(struct printer *pp, const char *msg)
 	else
 		(void) write(fd, msg, strlen(msg));
 	(void) close(fd);
+	if (notifyuser) {
+		if ((msg == (char *)NULL) || (strcmp(msg, "\n") == 0))
+			printf("\tstatus message is now set to nothing.\n");
+		else
+			printf("\tstatus message is now: %s", msg);
+	}
 }
 
 /*
@@ -442,11 +506,8 @@ abort_q(struct printer *pp)
 		break;
 	}
 
-	if (setres >= 0) {
-		seteuid(euid);
-		upstat(pp, "printing disabled\n");
-		seteuid(uid);
-	}
+	if (setres >= 0)
+		upstat(pp, "printing disabled\n", 0);
 }
 
 /*
@@ -1133,6 +1194,31 @@ restart_q(struct printer *pp)
 }
 
 /*
+ * Set the status message of each queue listed.  Requires a "-msg"
+ * parameter to indicate the end of the queue list and start of msg text.
+ */
+void
+setstatus_gi(int argc __unused, char *argv[] __unused)
+{
+
+	if (generic_msg == NULL) {
+		printf("You must specify '-msg' before the text of the new status message.\n");
+		generic_initerr = 1;
+	}
+}
+
+void
+setstatus_q(struct printer *pp)
+{
+	char lf[MAXPATHLEN];
+
+	lock_file_name(pp, lf, sizeof lf);
+	printf("%s:\n", pp->printer);
+
+	upstat(pp, generic_msg, 1);
+}
+
+/*
  * Enable printing on the specified printer and startup the daemon.
  */
 void
@@ -1279,7 +1365,7 @@ stop(struct printer *pp)
 			printf("\tcannot disable printing: %s\n",
 			       strerror(errno));
 		else {
-			upstat(pp, "printing disabled\n");
+			upstat(pp, "printing disabled\n", 0);
 			printf("\tprinting disabled\n");
 		}
 	} else if (errno == ENOENT) {
@@ -1289,7 +1375,7 @@ stop(struct printer *pp)
 			       strerror(errno));
 		else {
 			(void) close(fd);
-			upstat(pp, "printing disabled\n");
+			upstat(pp, "printing disabled\n", 0);
 			printf("\tprinting disabled\n");
 		}
 	} else
@@ -1312,11 +1398,8 @@ stop_q(struct printer *pp)
 
 	setres = set_qstate(SQS_STOPP, lf);
 
-	if (setres >= 0) {
-		seteuid(euid);
-		upstat(pp, "printing disabled\n");
-		seteuid(uid);
-	}
+	if (setres >= 0)
+		upstat(pp, "printing disabled\n", 0);
 }
 
 struct	jobqueue **queue;
