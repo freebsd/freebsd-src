@@ -40,7 +40,7 @@ SUBDIR+=rcp
 SUBDIR+=csh
 .endif
 
-.if !defined(NO_SENDMAIL) && !defined(NOUUCP)
+.if !defined(NO_SENDMAIL)
 SUBDIR+=rmail
 .endif
 
