@@ -273,7 +273,6 @@ i386/isa/pcvt/pcvt_vtf.c	optional	vt
 i386/isa/pmtimer.c		optional	pmtimer
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/rc.c			count		rc
-#i386/isa/rp.c			optional	rp
 i386/isa/scd.c			count		scd
 i386/isa/spic.c			optional	spic
 i386/isa/spigot.c		count		spigot
