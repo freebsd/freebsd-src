@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.11 1995/01/05 01:10:12 swallace Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.12 1995/04/19 14:02:00 jkh Exp $";
 #endif
 
 /*
@@ -76,23 +76,35 @@ pkg_perform(char **pkgs)
 static int
 pkg_do(char *pkg)
 {
-    Boolean installed = FALSE;
+    Boolean installed = FALSE, isTMP = FALSE;
     char log_dir[FILENAME_MAX];
-    char home[FILENAME_MAX];
+    char fname[FILENAME_MAX];
     Package plist;
     FILE *fp;
+    char *cp;
+    struct stat sb;
+    int code = 0;
 
-    if (fexists(pkg)) {
-	char fname[FILENAME_MAX];
-	struct stat sb;
+    if (isURL(pkg)) {
+	if ((cp = fileGetURL(pkg)) != NULL) {
+	    strcpy(fname, cp);
+	    isTMP = TRUE;
+	}
+    }
+    else if (fexists(pkg)) {
+	int len;
 
-	if (!getcwd(home, FILENAME_MAX))
+	if (!getcwd(fname, FILENAME_MAX))
 	    upchuck("getcwd");
-
-	if (pkg[0] == '/')
-	    strcpy(fname, pkg);
-	else
-	    sprintf(fname, "%s/%s", home, pkg);
+	len = strlen(fname);
+	snprintf(&fname[len], FILENAME_MAX - len, "/%s", pkg);
+	cp = fname;
+    }
+    else {
+	if ((cp = fileFindByPath(pkg)) != NULL)
+	    strncpy(fname, cp, FILENAME_MAX);
+    }
+    if (cp) {
 	/*
 	 * Apply a crude heuristic to see how much space the package will
 	 * take up once it's unpacked.  I've noticed that most packages
@@ -101,21 +113,24 @@ pkg_do(char *pkg)
 	 */
 	if (stat(fname, &sb) == FAIL) {
 	    whinge("Can't stat package file '%s'.", fname);
-	    return 1;
+	    code = 1;
+	    goto bail;
 	}
 	(void)make_playpen(PlayPen, sb.st_size / 2);
 	if (unpack(fname, "+*")) {
 	    whinge("Error during unpacking, no info for '%s' available.", pkg);
-	    return 1;
+	    code = 1;
+	    goto bail;
 	}
     }
+    /* It's not an ininstalled package, try and find it among the installed */
     else {
 	char *tmp;
 
 	sprintf(log_dir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
 		pkg);
 	if (!fexists(log_dir)) {
-	    whinge("Can't find package '%s' installed or in a file!", pkg);
+	    whinge("Can't find package `%s' installed or in a file!", pkg);
 	    return 1;
 	}
 	if (chdir(log_dir) == FAIL) {
@@ -130,7 +145,8 @@ pkg_do(char *pkg)
     fp = fopen(CONTENTS_FNAME, "r");
     if (!fp) {
 	whinge("Unable to open %s file.", CONTENTS_FNAME);
-	return 1;
+	code = 1;
+	goto bail;
     }
     /* If we have a prefix, add it now */
     read_plist(&plist, fp);
@@ -141,10 +157,10 @@ pkg_do(char *pkg)
      * any sense.
      */
     if (Flags & SHOW_INDEX) {
-	char fname[FILENAME_MAX];
+	char tmp[FILENAME_MAX];
 
-	sprintf(fname, "%-19s ", pkg);
-	show_index(fname, COMMENT_FNAME);
+	snprintf(tmp, FILENAME_MAX, "%-19s ", pkg);
+	show_index(tmp, COMMENT_FNAME);
     }
     else {
 	/* Start showing the package contents */
@@ -174,8 +190,11 @@ pkg_do(char *pkg)
 	    puts(InfoPrefix);
     }
     free_plist(&plist);
+ bail:
     leave_playpen();
-    return 0;
+    if (isTMP)
+	unlink(fname);
+    return code;
 }
 
 void
