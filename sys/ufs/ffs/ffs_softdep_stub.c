@@ -49,7 +49,6 @@
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <ufs/ffs/fs.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ffs/ffs_extern.h>
