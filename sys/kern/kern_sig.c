@@ -99,13 +99,14 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW,
 
 /*
  * Policy -- Can ucred cr1 send SIGIO to process cr2?
+ * XXX: should use suser(), p_cansignal().
  */
 #define CANSIGIO(cr1, cr2) \
 	((cr1)->cr_uid == 0 || \
-	    (cr2)->cr_ruid == (cr2)->cr_ruid || \
-	    (cr2)->cr_uid == (cr2)->cr_ruid || \
-	    (cr2)->cr_ruid == (cr2)->cr_uid || \
-	    (cr2)->cr_uid == (cr2)->cr_uid)
+	    (cr1)->cr_ruid == (cr2)->cr_ruid || \
+	    (cr1)->cr_uid == (cr2)->cr_ruid || \
+	    (cr1)->cr_ruid == (cr2)->cr_uid || \
+	    (cr1)->cr_uid == (cr2)->cr_uid)
 
 int sugid_coredump;
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, 
