@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.41 1999/01/20 19:08:45 mjacob Exp $
+ *      $Id: cam_xpt.c,v 1.42 1999/01/20 23:00:31 mjacob Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -4257,7 +4257,7 @@ xpt_release_simq_timeout(void *arg)
 }
 
 void
-xpt_done(union ccb *done_ccb)
+xpt_done(volatile union ccb *done_ccb)
 {
 	int s;
 

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_buffer.c,v 1.1 1998/09/15 08:22:54 phk Exp $
+ *	@(#) $Id: fore_buffer.c,v 1.2 1998/10/31 20:06:52 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_buffer.c,v 1.1 1998/09/15 08:22:54 phk Exp $");
+__RCSID("@(#) $Id: fore_buffer.c,v 1.2 1998/10/31 20:06:52 phk Exp $");
 #endif
 
 
@@ -690,7 +690,7 @@ fore_buf_free(fup)
 		/*
 		 * Run through Strategy 1 Small queue
 		 */
-		while (bhp = Q_HEAD(fup->fu_buf1s_bq, Buf_handle)) {
+		while ((bhp = Q_HEAD(fup->fu_buf1s_bq, Buf_handle)) != NULL) {
 			caddr_t		cp;
 
 			/*
@@ -712,7 +712,7 @@ fore_buf_free(fup)
 		/*
 		 * Run through Strategy 1 Large queue
 		 */
-		while (bhp = Q_HEAD(fup->fu_buf1l_bq, Buf_handle)) {
+		while ((bhp = Q_HEAD(fup->fu_buf1l_bq, Buf_handle)) != NULL) {
 			caddr_t		cp;
 
 			/*
@@ -742,7 +742,7 @@ fore_buf_free(fup)
 					(BUF1_SM_QUELEN + BUF1_LG_QUELEN),
 				ATM_DEV_NONCACHE);
 		}
-		atm_dev_free((void *)fup->fu_buf1s_stat);
+		atm_dev_free((volatile void *)fup->fu_buf1s_stat);
 		fup->fu_buf1s_stat = NULL;
 		fup->fu_buf1s_statd = NULL;
 		fup->fu_buf1l_stat = NULL;

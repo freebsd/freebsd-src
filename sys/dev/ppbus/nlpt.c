@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.11 1998/12/04 22:00:33 archie Exp $
+ *	$Id: nlpt.c,v 1.12 1999/01/10 12:04:54 nsouch Exp $
  */
 
 /*
@@ -467,7 +467,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	/* request the ppbus only if we don't have it already */
-	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+	if ((err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR)) != 0)
 		return (err);
 
 	s = spltty();
@@ -564,7 +564,7 @@ nlptclose(dev_t dev, int flags, int fmt, struct proc *p)
 	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
-	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+	if ((err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR)) != 0)
 		return (err);
 
 	sc->sc_state &= ~OPEN;
@@ -708,7 +708,7 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 	}
 
 	/* request the ppbus only if we don't have it already */
-	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+	if ((err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR)) != 0)
 		return (err);
 
 	sc->sc_state &= ~INTERRUPTED;

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_if.c,v 1.2 1998/10/31 20:06:52 phk Exp $
+ *	@(#) $Id: fore_if.c,v 1.3 1998/12/04 22:54:45 archie Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_if.c,v 1.2 1998/10/31 20:06:52 phk Exp $");
+__RCSID("@(#) $Id: fore_if.c,v 1.3 1998/12/04 22:54:45 archie Exp $");
 #endif
 
 
@@ -107,7 +107,7 @@ fore_atm_ioctl(code, data, arg)
 		/*
 		 * Copy interface name into response structure
 		 */
-		if ( err = copyout ( ifname, avr->avsp_intf, IFNAMSIZ ) )
+		if ((err = copyout ( ifname, avr->avsp_intf, IFNAMSIZ)) != 0)
 			break;
 
 		/*
@@ -132,7 +132,7 @@ fore_atm_ioctl(code, data, arg)
 			 * Copy stats into user's buffer. Return value is
 			 * amount of data copied.
 			 */
-			if (err = copyout((caddr_t)fup->fu_stats, buf, count))
+			if ((err = copyout((caddr_t)fup->fu_stats, buf, count)) != 0)
 				break;
 			buf += count;
 			buf_len -= count;
@@ -143,7 +143,7 @@ fore_atm_ioctl(code, data, arg)
 		/*
 		 * Record amount we're returning as vendor info...
 		 */
-		if (err = copyout(&count, &avr->avsp_len, sizeof(int)))
+		if ((err = copyout(&count, &avr->avsp_len, sizeof(int))) != 0)
 			break;
 
 		/*

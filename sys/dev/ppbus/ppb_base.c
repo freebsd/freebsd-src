@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_base.c,v 1.5 1998/09/13 18:26:26 nsouch Exp $
+ *	$Id: ppb_base.c,v 1.6 1999/01/10 12:04:54 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -98,9 +98,10 @@ ppb_poll_device(struct ppb_device *dev, int max,
 		case PPB_INTR:
 		default:
 			/* wait 10 ms */
-			if ((error = tsleep((caddr_t)dev, PPBPRI | PCATCH,
-					"ppbpoll", hz/100)) != EWOULDBLOCK)
+			if (((error = tsleep((caddr_t)dev, PPBPRI | PCATCH,
+			    "ppbpoll", hz/100)) != EWOULDBLOCK) != 0) {
 				return (error);
+			}
 			break;
 		}
 	   }
