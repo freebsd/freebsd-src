@@ -18,8 +18,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "dialog.priv.h"
 #include <dialog.h>
+#include "dialog.priv.h"
 #include "colors.h"
 #include "rc.h"
 

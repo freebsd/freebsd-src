@@ -1,11 +1,11 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.1.1.1 1994/10/11 23:30:50 ache Exp $
+# $Id: Makefile,v 1.2 1994/10/12 01:54:38 ache Exp $
 
 LIB=    dialog
 SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
 	radiolist.c textbox.c yesno.c
 
-CFLAGS+= -Wall -Wstrict-prototypes -DHAVE_NCURSES -DLOCALE
+CFLAGS+= -Wall -Wstrict-prototypes -DLOCALE
 
 LDADD+= -lncurses -lmytinfo
 
