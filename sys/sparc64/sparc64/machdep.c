@@ -211,7 +211,6 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	 * Initialize openfirmware (needed for console).
 	 */
 	OF_init(vec);
-	cninit();
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be before the
@@ -230,9 +229,7 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	/*
 	 * Initialize the console before printing anything.
 	 */
-
-	printf("sparc64_init: mdp=%p kmdp=%p boothowto=%d envp=%p end=%#lx\n",
-	    mdp, kmdp, boothowto, kern_envp, end);
+	cninit();
 
 	/*
 	 * Panic is there is no metadata.  Most likely the kernel was booted
@@ -302,35 +299,51 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	thread0->td_kstack = proc0kstack;
 	thread0->td_pcb = (struct pcb *)
 	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	frame0.tf_tstate = TSTATE_IE;
+	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF;
 	thread0->td_frame = &frame0;
 	LIST_INIT(&thread0->td_contested);
 
 	/*
-	 * Initialize the per-cpu pointer so we can set curproc.
+	 * Setup preloaded globals.
 	 */
-	pcpup = &__pcpu;
+
+	ps = rdpr(pstate);
 
 	/*
-	 * Put the pcpu pointer in the alternate and interrupt %g7 also.
-	 * pcpu is tied to %g7. We could therefore also use assignments to
-	 * pcpu here.
-	 * The alternate %g6 additionally points to a small per-cpu stack that
-	 * is used to temporarily store global registers in special spill
-	 * handlers.
+	 * Normal %g7 points to the per-cpu data structure.
 	 */
-	ps = rdpr(pstate);
-	wrpr(pstate, ps, PSTATE_AG);
-	__asm __volatile("mov %0, %%g6" : : "r"
-	    (&__pcpu.pc_alt_stack[ALT_STACK_SIZE - 1]));
 	__asm __volatile("mov %0, %%g7" : : "r" (&__pcpu));
+
+	/*
+	 * Alternate %g5 points to a per-cpu stack for saving alternate
+	 * globals, %g6 points to the current thread's pcb, and %g7 points
+	 * to the per-cpu data structure.
+	 */
+	wrpr(pstate, ps, PSTATE_AG);
+	__asm __volatile("mov %0, %%g5" : : "r"
+	    (&__pcpu.pc_alt_stack[ALT_STACK_SIZE - 1]));
+	__asm __volatile("mov %0, %%g6" : : "r" (thread0->td_pcb));
+	__asm __volatile("mov %0, %%g7" : : "r" (&__pcpu));
+
+	/*
+	 * Interrupt %g6 points to a per-cpu interrupt queue, %g7 points to
+	 * the interrupt vector table.
+	 */
 	wrpr(pstate, ps, PSTATE_IG);
 	__asm __volatile("mov %0, %%g6" : : "r" (&__pcpu.pc_iq));
 	__asm __volatile("mov %0, %%g7" : : "r" (&intr_vectors));
+
+	/*
+	 * MMU %g7 points to the user tsb.  Initialize it to something sane
+	 * here to catch invalid use.
+	 */
+	wrpr(pstate, ps, PSTATE_MG);
+	__asm __volatile("mov %%g0, %%g7" : :);
+
 	wrpr(pstate, ps, 0);
 
 	/*
-	 * Initialize curproc so that mutexes work.
+	 * Initialize curthread so that mutexes work.
 	 */
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, thread0);
@@ -442,7 +455,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		/* Fill siginfo structure. */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void *)tf->tf_type;
+		sf.sf_si.si_addr = (void *)tf->tf_sfar;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		tf->tf_out[1] = code;
@@ -499,10 +512,8 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 
 	if (((uc.uc_mcontext.mc_tpc | uc.uc_mcontext.mc_tnpc) & 3) != 0)
 		return (EINVAL);
-#if 0
 	if (!TSTATE_SECURE(uc.uc_mcontext.mc_tstate))
 		return (EINVAL);
-#endif
 
 	tf = td->td_frame;
 	bcopy(uc.uc_mcontext.mc_global, tf->tf_global,
@@ -589,49 +600,27 @@ ptrace_single_step(struct thread *td)
 void
 setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
+	struct trapframe *tf;
 	struct pcb *pcb;
-	struct frame *fp;
 	u_long sp;
 
-	/* Round the stack down to a multiple of 16 bytes. */
-	sp = ((stack) / 16) * 16;
 	pcb = td->td_pcb;
-	/* XXX: honor the real number of windows... */
+	sp = rounddown(stack, 16);
+	tf = td->td_frame;
+	fp_init_thread(td);
 	bzero(pcb->pcb_rw, sizeof(pcb->pcb_rw));
+	bzero(pcb->pcb_rwsp, sizeof(pcb->pcb_rwsp));
 	pcb->pcb_nsaved = 0;
-	/* The inital window for the process (%cw = 0). */
-	fp = (struct frame *)(td->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	/* Make sure the frames that are frobbed are actually flushed. */
-	__asm __volatile("flushw");
-	mtx_lock_spin(&sched_lock);
-	fp_init_thread(pcb);
-	/* Setup state in the trap frame. */
-	td->td_frame->tf_tstate = TSTATE_IE;
-	td->td_frame->tf_tpc = entry;
-	td->td_frame->tf_tnpc = entry + 4;
-	td->td_frame->tf_pil = 0;
-	/*
-	 * Set up the registers for the user.
-	 * The SCD (2.4.1) mandates:
-	 * - the initial %fp should be 0
-	 * - the initial %sp should point to the top frame, which should be
-	 *   16-byte-aligned
-	 * - %g1, if != 0, passes a function pointer which should be registered
-	 *   with atexit().
-	 */
-	bzero(td->td_frame->tf_out, sizeof(td->td_frame->tf_out));
-	bzero(td->td_frame->tf_global, sizeof(td->td_frame->tf_global));
-	/* Set up user stack. */
-	fp->f_fp = sp - SPOFF;
-	td->td_frame->tf_out[0] = stack;
-	td->td_frame->tf_out[1] = 0;
-	td->td_frame->tf_out[2] = 0;
-	td->td_frame->tf_out[3] = PS_STRINGS;
-	td->td_frame->tf_out[6] = sp - SPOFF - sizeof(struct frame);
-	td->td_retval[0] = td->td_frame->tf_out[0];
-	td->td_retval[1] = td->td_frame->tf_out[1];
-	wr(y, 0, 0);
-	mtx_unlock_spin(&sched_lock);
+	bzero(tf, sizeof (*tf));
+	tf->tf_out[0] = stack;
+	tf->tf_out[3] = PS_STRINGS;
+	tf->tf_out[6] = sp - SPOFF - sizeof(struct frame);
+	tf->tf_tnpc = entry + 4;
+	tf->tf_tpc = entry;
+	tf->tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_MM_TSO;
+
+	td->td_retval[0] = tf->tf_out[0];
+	td->td_retval[1] = tf->tf_out[1];
 }
 
 void
@@ -648,16 +637,14 @@ int
 fill_regs(struct thread *td, struct reg *regs)
 {
 	struct trapframe *tf;
-	struct pcb *pcb;
 
 	tf = td->td_frame;
-	pcb = td->td_pcb;
 	bcopy(tf->tf_global, regs->r_global, sizeof(tf->tf_global));
 	bcopy(tf->tf_out, regs->r_out, sizeof(tf->tf_out));
-	regs->r_tstate = tf->tf_tstate;
-	regs->r_pc = tf->tf_tpc;
 	regs->r_npc = tf->tf_tnpc;
-	regs->r_y = pcb->pcb_y;
+	regs->r_pc = tf->tf_tpc;
+	regs->r_tstate = tf->tf_tstate;
+	regs->r_y = tf->tf_y;
 	return (0);
 }
 
@@ -665,22 +652,18 @@ int
 set_regs(struct thread *td, struct reg *regs)
 {
 	struct trapframe *tf;
-	struct pcb *pcb;
 
 	tf = td->td_frame;
-	pcb = td->td_pcb;
 	if (((regs->r_pc | regs->r_npc) & 3) != 0)
 		return (EINVAL);
-#if 0
 	if (!TSTATE_SECURE(regs->r_tstate))
 		return (EINVAL);
-#endif
 	bcopy(regs->r_global, tf->tf_global, sizeof(regs->r_global));
 	bcopy(regs->r_out, tf->tf_out, sizeof(regs->r_out));
-	tf->tf_tstate = regs->r_tstate;
-	tf->tf_tpc = regs->r_pc;
 	tf->tf_tnpc = regs->r_npc;
-	pcb->pcb_y = regs->r_y;
+	tf->tf_tpc = regs->r_pc;
+	tf->tf_tstate = regs->r_tstate;
+	tf->tf_y = regs->r_y;
 	return (0);
 }
 
@@ -701,23 +684,29 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+	struct trapframe *tf;
 	struct pcb *pcb;
 
 	pcb = td->td_pcb;
+	tf = td->td_frame;
 	bcopy(pcb->pcb_fpstate.fp_fb, fpregs->fr_regs,
 	    sizeof(pcb->pcb_fpstate.fp_fb));
-	fpregs->fr_fsr = pcb->pcb_fpstate.fp_fsr;
+	fpregs->fr_fprs = tf->tf_fprs;
+	fpregs->fr_fsr = tf->tf_fsr;
 	return (0);
 }
 
 int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+	struct trapframe *tf;
 	struct pcb *pcb;
 
 	pcb = td->td_pcb;
+	tf = td->td_frame;
 	bcopy(fpregs->fr_regs, pcb->pcb_fpstate.fp_fb,
 	    sizeof(fpregs->fr_regs));
-	pcb->pcb_fpstate.fp_fsr = fpregs->fr_fsr;
+	tf->tf_fprs = fpregs->fr_fprs;
+	tf->tf_fsr = fpregs->fr_fsr;
 	return (0);
 }
