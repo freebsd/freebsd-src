@@ -178,9 +178,6 @@ struct sbp_ocb {
 };
 #define OCB_ACT_MGM 0
 #define OCB_ACT_CMD 1
-#define OCB_ACT_MASK 3
-#define OCB_RESERVED 0x10
-#define OCB_DONE 0x20
 #define OCB_MATCH(o,s)	(vtophys(&(o)->orb[0]) == ntohl((s)->orb_lo))
 
 
@@ -1158,6 +1155,7 @@ END_DEBUG
 	}
 }
 
+#if 0
 static void
 sbp_doorbell(struct sbp_dev *sdev)
 {
@@ -1176,6 +1174,7 @@ END_DEBUG
 	fp->mode.wreqq.data = htonl(0xf);
 	fw_asyreq(xfer->fc, -1, xfer);
 }
+#endif
 
 static struct fw_xfer *
 sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
@@ -1560,7 +1559,8 @@ END_DEBUG
 		ocb = sbp_dequeue_ocb(sdev, sbp_status);
 		if (ocb == NULL) {
 			sbp_show_sdev_info(sdev, 2);
-			printf("No ocb on the queue\n");
+			printf("No ocb(%x) on the queue\n",
+					ntohl(sbp_status->orb_lo));
 		}
 		break;
 	case 2:
@@ -1637,7 +1637,7 @@ END_DEBUG
 	case ORB_FMT_VED:
 		break;
 	case ORB_FMT_STD:
-		switch(ocb->flags & OCB_ACT_MASK){
+		switch(ocb->flags) {
 		case OCB_ACT_MGM:
 			orb_fun = ntohl(ocb->orb[4]) & ORB_FUN_MSK;
 			switch(orb_fun) {
@@ -1743,8 +1743,7 @@ printf("len %d\n", sbp_status->len);
 		}
 	}
 
-	if (!(ocb->flags & OCB_RESERVED))
-		sbp_free_ocb(sbp, ocb);
+	sbp_free_ocb(sbp, ocb);
 done:
 	if (reset_agent)
 		sbp_agent_reset(sdev);
@@ -2387,9 +2386,7 @@ END_DEBUG
 	
 	ccb = ocb->ccb;
 	prev = sbp_enqueue_ocb(ocb->sdev, ocb);
-	if (prev)
-		sbp_doorbell(ocb->sdev);
-	else
+	if (prev == NULL)
 		sbp_orb_pointer(ocb->sdev, ocb); 
 }
 
@@ -2421,10 +2418,7 @@ SBP_DEBUG(1)
 END_DEBUG
 		if (OCB_MATCH(ocb, sbp_status)) {
 			/* found */
-			if (ocb->flags & OCB_RESERVED)
-				ocb->flags |= OCB_DONE;
-			else
-				STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
+			STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
 			if (ocb->ccb != NULL)
 				untimeout(sbp_timeout, (caddr_t)ocb,
 						ocb->ccb->ccb_h.timeout_ch);
@@ -2433,16 +2427,11 @@ END_DEBUG
 							ocb->dmamap);
 				ocb->dmamap = NULL;
 			}
+			if (next != NULL && sbp_status->src == 1)
+				sbp_orb_pointer(sdev, next); 
 			break;
-		} else {
-			if ((ocb->flags & OCB_RESERVED) &&
-					(ocb->flags & OCB_DONE)) {
-				/* next orb must be fetched already */
-				STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
-				sbp_free_ocb(sdev->target->sbp, ocb);
-			} else
-				order ++;
-		}
+		} else
+			order ++;
 	}
 	splx(s);
 SBP_DEBUG(0)
@@ -2484,7 +2473,6 @@ SBP_DEBUG(1)
 #endif
 			vtophys(&ocb->orb[0]));
 END_DEBUG
-		prev->flags |= OCB_RESERVED;
 		prev->orb[1] = htonl(vtophys(&ocb->orb[0]));
 		prev->orb[0] = 0;
 	}
@@ -2535,11 +2523,16 @@ sbp_abort_ocb(struct sbp_ocb *ocb, int status)
 	sdev = ocb->sdev;
 SBP_DEBUG(1)
 	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_abort_ocb 0x%x\n", status);
+#if __FreeBSD_version >= 500000
+	printf("sbp_abort_ocb 0x%tx\n",
+#else
+	printf("sbp_abort_ocb 0x%x\n",
+#endif
+			vtophys(&ocb->orb[0]));
 	if (ocb->ccb != NULL)
 		sbp_print_scsi_cmd(ocb);
 END_DEBUG
-	if (ocb->ccb != NULL && !(ocb->flags & OCB_DONE)) {
+	if (ocb->ccb != NULL) {
 		untimeout(sbp_timeout, (caddr_t)ocb,
 					ocb->ccb->ccb_h.timeout_ch);
 		ocb->ccb->ccb_h.status = status;
