@@ -507,6 +507,83 @@ vfs_timestamp(tsp)
 }
 
 /*
+ * Get a mount option by its name.
+ *
+ * Return 0 if the option was found.
+ * Return ENOENT if the option wasn't found.
+ * If len is a non-NULL pointer and *len
+ * a integer different from 0, then the size
+ * of the option will be compared with *len and
+ * if they doesn't match, EINVAL is returned.
+ * If len is non-NULL and *len == 0, it will
+ * be filled with the length of the option.
+ * Finally, if buf is non-NULL, it will be
+ * filled with the address of the option.
+ */
+int
+vfs_getopt(opts, name, buf, len)
+	struct vfsoptlist *opts;
+	const char *name;
+	void **buf;
+	int *len;
+{
+	struct vfsopt *opt;
+	int i;
+
+	i = 0;
+	opt = opts->opt;
+	while (i++ < opts->optcnt) {
+		if (strcmp(name, opt->name) == 0) {
+			if (len != NULL) {
+			       	if ((*len != 0) && (*len != opt->len))
+					return (EINVAL);
+				*len = opt->len;
+			}
+			if (buf != NULL)
+				*buf = opt->value;
+			return (0);
+		}
+		opt++;
+	}
+	return (ENOENT);
+}
+
+/*
+ * Find and copy a mount option.
+ * The size of the buffer has to be specified
+ * in len, if it is not big enough, EINVAL is
+ * returned.  Returns ENOENT if the option is
+ * not found.  Otherwise, the number of bytes
+ * actually copied are put in done if it's
+ * non-NULL and 0 is returned.
+ */
+int
+vfs_copyopt(opts, name, dest, len, done)
+	struct vfsoptlist *opts;
+	const char *name;
+	void *dest;
+	int len, *done;
+{
+	struct vfsopt *opt;
+	int i;
+
+	i = 0;
+	opt = opts->opt;
+	while (i++ < opts->optcnt) {
+		if (strcmp(name, opt->name) == 0) {
+			if (len < opt->len)
+				return (EINVAL);
+			bcopy(dest, opt->value, opt->len);
+			if (done != NULL)
+				*done = opt->len;
+			return (0);
+		}
+		opt++;
+	}
+	return (ENOENT);
+}
+
+/*
  * Set vnode attributes to VNOVAL
  */
 void
