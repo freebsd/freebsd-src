@@ -57,7 +57,7 @@ struct part {
 	struct	part *next;		/* forward link of partitions on disk */
 	char	*name;			/* device name */
 	char	*fsname;		/* mounted filesystem name */
-	long	auxdata;		/* auxillary data for application */
+	long	auxdata;		/* auxiliary data for application */
 } *badlist, **badnext = &badlist;
 
 struct disk {
