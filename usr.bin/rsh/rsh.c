@@ -491,7 +491,7 @@ usage()
 {
 
 	(void)fprintf(stderr,
-	    "usage: rsh [-46] [-nd%s]%s[-l login] [-t timeout] host [command]\n",
+	    "usage: rsh [-46] [-ndK%s]%s[-l login] [-t timeout] host [command]\n",
 #ifdef KERBEROS
 #ifdef CRYPT
 	    "x", " [-k realm] ");
