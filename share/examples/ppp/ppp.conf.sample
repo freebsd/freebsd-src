@@ -609,7 +609,9 @@ loginprompt:
             code: \"!/usr/share/examples/ppp/login-auth -display keep:0.0 \
                     AUTHNAME\" MTU \\c ."
 
-# ppp supports ppp over ethernet (PPPoE)
+# ppp supports ppp over ethernet (PPPoE).  Beware, many PPP servers cache
+# the MAC address that connects to them, making it impossible to switch
+# your PPPoE connection between machines.
 #
 # The client should be something like:
 #
