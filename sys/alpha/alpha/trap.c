@@ -89,6 +89,14 @@ static void printtrap __P((const unsigned long, const unsigned long,
 extern char *syscallnames[];
 #endif
 
+void alpha_clear_resched(void);
+
+void
+alpha_clear_resched(void)
+{
+	clear_resched();
+}
+
 /*
  * Define the code needed before returning to user mode, for
  * trap and syscall.
