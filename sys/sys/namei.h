@@ -122,22 +122,26 @@ struct nameidata {
  * name being sought. The caller is responsible for releasing the
  * buffer and for vrele'ing ni_startdir.
  */
-#define	RDONLY		0x000200 /* lookup with read-only semantics */
-#define	HASBUF		0x000400 /* has allocated pathname buffer */
-#define	SAVENAME	0x000800 /* save pathname buffer */
-#define	SAVESTART	0x001000 /* save starting directory */
-#define ISDOTDOT	0x002000 /* current component name is .. */
-#define MAKEENTRY	0x004000 /* entry is to be added to name cache */
-#define ISLASTCN	0x008000 /* this is last component of pathname */
-#define ISSYMLINK	0x010000 /* symlink needs interpretation */
-#define	ISWHITEOUT	0x020000 /* found whiteout */
-#define	DOWHITEOUT	0x040000 /* do whiteouts */
-#define	WILLBEDIR	0x080000 /* new files will be dirs; allow trailing / */
-#define	ISUNICODE	0x100000 /* current component name is unicode*/
-#define	PDIRUNLOCK	0x200000 /* filesystem lookup() unlocked parent dir */
-#define	NOCROSSMOUNT	0x400000 /* do not cross mount points */
-#define	NOMACCHECK	0x800000 /* do not perform MAC checks */
-#define	PARAMASK	0xfffe00 /* mask of parameter descriptors */
+#define	RDONLY		0x0000200 /* lookup with read-only semantics */
+#define	HASBUF		0x0000400 /* has allocated pathname buffer */
+#define	SAVENAME	0x0000800 /* save pathname buffer */
+#define	SAVESTART	0x0001000 /* save starting directory */
+#define ISDOTDOT	0x0002000 /* current component name is .. */
+#define MAKEENTRY	0x0004000 /* entry is to be added to name cache */
+#define ISLASTCN	0x0008000 /* this is last component of pathname */
+#define ISSYMLINK	0x0010000 /* symlink needs interpretation */
+#define	ISWHITEOUT	0x0020000 /* found whiteout */
+#define	DOWHITEOUT	0x0040000 /* do whiteouts */
+#define	WILLBEDIR	0x0080000 /* new files will be dirs; allow trailing / */
+#define	ISUNICODE	0x0100000 /* current component name is unicode*/
+#define	PDIRUNLOCK	0x0200000 /* filesystem lookup() unlocked parent dir */
+#define	NOCROSSMOUNT	0x0400000 /* do not cross mount points */
+#define	NOMACCHECK	0x0800000 /* do not perform MAC checks */
+#define	MPSAFE		0x1000000 /* namei() must acquire Giant if needed. */
+#define	GIANTHELD	0x2000000 /* namei() is holding giant. */
+#define	PARAMASK	0x3fffe00 /* mask of parameter descriptors */
+
+#define	NDHASGIANT(NDP)	(((NDP)->ni_cnd.cn_flags & GIANTHELD) != 0)
 
 /*
  * Initialization of a nameidata structure.
