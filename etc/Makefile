@@ -300,19 +300,19 @@ bin-tarball:
 	(cd ${DESTDIR}; \
 		tar cf - . | gzip --no-name -9 -c | \
 			split -b 240640 - \
-			${RELEASEDIR}/tarballs/bin.tar.gz.)
+			${RELEASEDIR}/tarballs/bin_tgz.)
 
 src-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude usr/src/${CRYPT_LIB} -cf - usr/src | gzip --no-name -9 -c | \
 			split -b 240640 - \
-			${RELEASEDIR}/tarballs/src.tar.gz.)
+			${RELEASEDIR}/tarballs/src_tgz.)
 
 ssrc-tarball:
 	(cd ${DESTDIR}; \
 		tar -cf - usr/src/${CRYPT_LIB} | gzip --no-name -9 -c | \
 			split -b 240640 - \
-			${RELEASEDIR}/tarballs/ssrc.tar.gz.)
+			${RELEASEDIR}/tarballs/ssrc_tgz.)
 
 des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
@@ -343,7 +343,7 @@ des-tarball:
 	(cd ${RELEASEDIR}/tmpdes; \
 		tar cf - . | gzip --no-name -9 -c | \
 			split -b 240640 - \
-			${RELEASEDIR}/tarballs/des.tar.gz.)
+			${RELEASEDIR}/tarballs/des_tgz.)
 	rm -rf ${RELEASEDIR}/tmpdes
 
 distrib-dirs:
