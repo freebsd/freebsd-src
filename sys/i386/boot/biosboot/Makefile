@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.25 1995/01/20 07:52:42 wpaul Exp $
+#	$Id: Makefile,v 1.26 1995/01/24 00:41:50 jkh Exp $
 #
 
 PROG=	boot
@@ -15,10 +15,10 @@ CLEANFILES+=	boot.nohdr boot.strip boot1 boot2
 DPADD=		${LIBC}
 LDFLAGS+=	-N -T 0 -nostdlib
 LDADD=		-lc
-LINKS=		${BINDIR}/sdboot ${BINDIR}/wdboot\
-		${BINDIR}/sdboot ${BINDIR}/fdboot\
-		${BINDIR}/bootsd ${BINDIR}/bootwd\
-		${BINDIR}/bootsd ${BINDIR}/bootfd
+#LINKS=		${BINDIR}/sdboot ${BINDIR}/wdboot\
+#		${BINDIR}/sdboot ${BINDIR}/fdboot\
+#		${BINDIR}/bootsd ${BINDIR}/bootwd\
+#		${BINDIR}/bootsd ${BINDIR}/bootfd
 NOSHARED=	YES
 NOMAN=
 STRIP=
@@ -49,10 +49,16 @@ boot2:		boot.nohdr
 
 all:		boot1 boot2
 
-beforeinstall:
+install:
 	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
-		boot1 ${DESTDIR}${BINDIR}/sdboot
+		boot1 ${DESTDIR}${BINDIR}/boot1
 	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
-		boot2 ${DESTDIR}${BINDIR}/bootsd
+		boot2 ${DESTDIR}${BINDIR}/boot2
+	for i in sd fd wd ; do \
+		( cd ${DESTDIR}${BINDIR} ; \
+		rm -f boot$${i} $${i}boot ; \
+		ln -s boot1 $${i}boot ; \
+		ln -s boot2 boot$${i} ; ) \
+	done
 
 .include <bsd.prog.mk>
