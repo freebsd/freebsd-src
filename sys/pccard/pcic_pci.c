@@ -229,6 +229,9 @@ pcic_pci_probe(device_t dev)
 	case PCI_DEVICE_ID_PCIC_CLPD6832:
 		desc = "Cirrus Logic PD6832 PCI-CardBus Bridge";
 		break;
+	case PCI_DEVICE_ID_PCIC_TI1031:
+		desc = "TI PCI-1031 PCI-PCMCIA Bridge";
+		break;
 	case PCI_DEVICE_ID_PCIC_TI1130:
 		desc = "TI PCI-1130 PCI-CardBus Bridge";
 		break;
@@ -354,6 +357,8 @@ pcic_pci_attach(device_t dev)
                 break;
 	case PCI_DEVICE_ID_PCIC_CLPD6832:
 		pd6832_legacy_init(dev);
+		break;
+	case PCI_DEVICE_ID_PCIC_TI1031:
 		break;
 	}
 
