@@ -805,6 +805,10 @@ txp_rx_reclaim(sc, r)
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 
+		eh = mtod(m, struct ether_header *);
+		/* Remove header from mbuf and pass it on. */
+		m_adj(m, sizeof(struct ether_header));
+
 #if NVLAN > 0
 		if (rxd->rx_stat & RX_STAT_VLAN) {
 			if (vlan_input_tag(eh, m,
@@ -813,11 +817,6 @@ txp_rx_reclaim(sc, r)
 			goto next;
 		}
 #endif
-
-		eh = mtod(m, struct ether_header *);
-		/* Remove header from mbuf and pass it on. */
-		m_adj(m, sizeof(struct ether_header));
-
 		ether_input(ifp, eh, m);
 
 next:
