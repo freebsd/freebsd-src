@@ -192,6 +192,7 @@ collect(fp, smtpmode, requeueflag, hdrp, e)
 				c = *--pbp;
 			else
 			{
+				c = EOF;
 				while (!feof(fp) && !ferror(fp))
 				{
 					errno = 0;
