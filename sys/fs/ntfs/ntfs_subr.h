@@ -30,7 +30,7 @@
 #define	VA_PRELOADED		0x0002
 
 struct ntvattr {
-	struct ntvattr *va_nextp;
+	LIST_ENTRY(ntvattr) 	va_list;
 
 	u_int32_t		va_vflag;
 	struct vnode	       *va_vp;
@@ -99,12 +99,14 @@ int ntfs_attrtontvattr __P(( struct ntfsmount *, struct ntvattr **, struct attr 
 void ntfs_freentvattr __P(( struct ntvattr * ));
 int ntfs_loadntvattrs __P(( struct ntfsmount *, struct vnode *, caddr_t, struct ntvattr **));
 struct ntvattr * ntfs_findntvattr __P(( struct ntfsmount *, struct ntnode *, u_int32_t, cn_t ));
-int ntfs_ntlookup __P(( struct ntfsmount *, struct vnode *, struct componentname *, struct vnode **));
-int ntfs_isnamepermitted __P(( struct ntfsmount *, struct attr_indexentry * ));
-int ntfs_ntvattrrele __P(( struct ntvattr * ));
-int ntfs_ntvattrget __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, cn_t , struct ntvattr **));
-int ntfs_ntget __P(( struct ntfsmount *, ino_t, struct ntnode **));
-void ntfs_ntrele __P(( struct ntnode *));
+int ntfs_ntlookupfile __P((struct ntfsmount *, struct vnode *, struct componentname *, struct vnode **));
+int ntfs_isnamepermitted __P((struct ntfsmount *, struct attr_indexentry * ));
+int ntfs_ntvattrrele __P((struct ntvattr * ));
+int ntfs_ntvattrget __P((struct ntfsmount *, struct ntnode *, u_int32_t, char *, cn_t , struct ntvattr **));
+int ntfs_ntlookup __P((struct ntfsmount *, ino_t, struct ntnode **));
+int ntfs_ntget __P((struct ntnode *));
+void ntfs_ntrele __P((struct ntnode *));
+void ntfs_ntput __P((struct ntnode *));
 int ntfs_loadntnode __P(( struct ntfsmount *, struct ntnode * ));
 int ntfs_ntlookupattr(struct ntfsmount *, char *, int, int *, char **);
 int ntfs_writentvattr_plain(struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *, size_t *);
