@@ -37,7 +37,9 @@ done
 (cd proto_sscop ; sh ./RunTest.sh -u $options)
 (cd proto_sscfu ; sh ./RunTest.sh -u $options)
 (cd proto_uni ; sh ./RunTest.sh -u $options)
+(cd proto_cc ; sh ./RunTest.sh -u $options)
 
 (cd proto_uni ; sh ./RunTest.sh $options)
 (cd proto_sscop ; sh ./RunTest.sh $options)
 (cd proto_sscfu ; sh ./RunTest.sh $options)
+(cd proto_cc ; sh ./RunTest.sh $options)
