@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.5 1995/05/30 06:09:19 rgrimes Exp $
+ * $Id: md5.c,v 1.6 1995/07/12 09:14:46 phk Exp $
  *
  * Derived from:
  */
@@ -21,11 +21,14 @@
  *  documentation and/or software.
  */
 
-#include <stdio.h>
-#include <time.h>
-#include <string.h>
-#include "global.h"
+#include <sys/types.h>
 #include <md5.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+
+#include "global.h"
 
 /*
  * Length of test block, number of test blocks.
