@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.23 1997/06/09 05:10:55 bde Exp $
+ *	$Id: io.c,v 1.24 1997/07/12 10:23:19 joerg Exp $
  */
 
 #include "boot.h"
@@ -258,8 +258,6 @@ gets(char *buf)
 	return 0;
 }
 
-#ifndef CDBOOT
-
 int
 strcmp(const char *s1, const char *s2)
 {
@@ -271,26 +269,22 @@ strcmp(const char *s1, const char *s2)
 	return 1;
 }
 
-#else /* CDBOOT */
-
+#ifdef CDBOOT
 int
-strncasecmp(const char *s1, const char *s2, size_t s)
+strcasecmp(const char *s1, const char *s2)
 {
 	/*
 	 * We only consider ASCII chars and don't anticipate
 	 * control characters (they are invalid in filenames
 	 * anyway).
 	 */
-	while (s > 0 && (*s1 & 0x5f) == (*s2 & 0x5f)) {
+	while ((*s1 & 0x5f) == (*s2 & 0x5f)) {
 		if (!*s1++)
 			return 0;
 		s2++;
 	}
-	if (s == 0)
-		return 0;
 	return 1;
 }
-
 #endif /* !CDBOOT */
 
 void

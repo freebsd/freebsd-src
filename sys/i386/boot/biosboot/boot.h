@@ -24,11 +24,10 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.21 1997/08/31 06:11:26 phk Exp $
+ *	$Id: boot.h,v 1.22 1997/09/24 07:44:34 phk Exp $
  */
 
 #include <sys/param.h>
-#include <sys/lock.h>
 #include <sys/time.h>
 
 #include <ufs/ffs/fs.h>
@@ -81,10 +80,9 @@ void printf(const char *format, ...);
 void putchar(int c);
 void delay1ms(void);
 int gets(char *buf);
-#ifndef CDBOOT
 int strcmp(const char *s1, const char *s2);
-#else /* CDBOOT */
-int strncasecmp(const char *s1, const char *s2, size_t s);
+#ifdef CDBOOT
+int strcasecmp(const char *s1, const char *s2);
 #endif /* !CDBOOT */
 void bcopy(const void *from, void *to, size_t len);
 void twiddle(void);

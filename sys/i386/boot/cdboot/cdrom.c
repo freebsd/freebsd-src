@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cdrom.c,v 1.1 1997/07/11 05:52:39 joerg Exp $
+ * $Id: cdrom.c,v 1.2 1997/12/02 21:13:59 joerg Exp $
  */
 
 
@@ -52,6 +52,7 @@ static u_int32_t curblk, startblk, filesize, offset;
 static int bread(u_int32_t rba, size_t nblks, void *buf);
 static void badread(const char *msg, u_int32_t blkno);
 static struct iso_directory_record *find(const char *path, int list_only);
+static char *get_rr_name(struct iso_directory_record *dirp, size_t *len_ret);
 static int iread(u_char *buf, size_t len,
 		 void (*copyfun)(const void *src, void *dst, size_t size));
 
@@ -207,18 +208,56 @@ xread(u_char *buf, size_t len)
 	return iread(buf, len, pcpy);
 }
 
-/*
- * XXX Todo:
- * Use RR attributes if present
- */
+static char *
+get_rr_name(struct iso_directory_record *dirp, size_t *len_ret)
+{
+	struct rr_header {
+		char	type[2];
+		u_char	len;
+		u_char	version;
+	} *rrp;
+	struct rr_nm_header {
+		struct rr_header rrh;
+		u_char	flags;
+		char	name[0]; /* XXX -- using gcc extension */
+	} *rrnmp;
+	char *cp;
+
+	cp = dirp->name + (u_char)dirp->name_len[0];
+	/* round up to 16-bit boundary; ugly */
+	cp = (char *)(((int)cp + 1) & ~1);
+	rrp = (struct rr_header *)cp;
+
+	if (rrp->type[0] != 'R' || rrp->type[1] != 'R') {
+		DPRINTF(("no RR, "));
+		return 0;
+	}
+
+	DPRINTF(("RR attribs: "));
+	cp += rrp->len;
+	while (cp - (char *)dirp <= (u_char)dirp->length[0]) {
+		rrp = (struct rr_header *)cp;
+		DPRINTF(("%c%c ", rrp->type[0], rrp->type[1]));
+		if (rrp->type[0] == 'N' && rrp->type[1] == 'M') {
+			rrnmp = (struct rr_nm_header *)rrp;
+			*len_ret = rrp->len - sizeof(struct rr_nm_header);
+			return rrnmp->name;
+		}
+		cp += rrp->len;
+	}
+
+	return 0;
+}
+
 static struct iso_directory_record *
 find(const char *path, int list_only)
 {
 	struct iso_directory_record *dirp;
-	char *ptr;
+	char *ptr, *rrname;
 	size_t len, entrylen;
 	char namebuf[256];
 	int i;
+	int (*comp)(const char *, const char *);
 
 	while (*path && *path == '/')
 		path++;
@@ -261,21 +300,18 @@ find(const char *path, int list_only)
 			DPRINTF(("directory\n"));
 			continue;
 		}
+		rrname = get_rr_name(dirp, &len);
+		comp = rrname? strcmp: strcasecmp;
 
-#ifdef DEBUG
-		bcopy(dirp->name, namebuf, len);
+		bcopy(rrname? rrname: dirp->name, namebuf, len);
 		namebuf[len] = 0;
 		DPRINTF(("name `%s'\n", namebuf));
-#else /* !DEBUG */
-		if (list_only) {
-			bcopy(dirp->name, namebuf, len);
-			namebuf[len] = 0;
-			printf("%s ", namebuf);
-		}
-#endif /* DEBUG */
 
-		if (!list_only &&
-		    strncasecmp(path, dirp->name, len) == 0)
+		if (list_only) {
+#ifndef DEBUG
+			printf("%s ", namebuf);
+#endif
+		} else if (comp(path, namebuf) == 0)
 			return dirp;
 	}
 #ifndef DEBUG
