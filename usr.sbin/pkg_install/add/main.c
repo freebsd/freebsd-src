@@ -145,7 +145,7 @@ main(int argc, char **argv)
 		    pkgs[ch] = realpath(*argv, pkgnames[ch]);
 		else {		/* look for the file in the expected places */
 		    if (!(cp = fileFindByPath(NULL, *argv)))
-			warnx("can't find package '%s'", *argv);
+			/* let pkg_do() fail later, so that error is reported */
 		    else
 			pkgs[ch] = strcpy(pkgnames[ch], cp);
 		}
