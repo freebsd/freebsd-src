@@ -41,9 +41,9 @@
 .Nm fhstatfs
 .Nd access file via file handle
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/stat.h>
+.Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
+.Fd #include <sys/stat.h>
 .Ft int
 .Fn fhopen "const fhandle_t *fhp" "int flags"
 .Ft int
