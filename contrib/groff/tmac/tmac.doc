@@ -409,7 +409,7 @@
 .	ie \\n(jM==2 .as b1 \&\\*(A\\n(aP
 .	el .as b1 \&\f\\n(cF\s\\n(cZ\\*(A\\n(aP\fP\s0
 .	ie \\n(aC==\\n(aP \{\
-.		as b1 \&\f\\n(cF\s\\n(cZ
+.		as b1 \f\\n(cF\s\\n(cZ
 .		aZ
 .	\}
 .	el \{\
@@ -2269,18 +2269,16 @@
 .		ie \\n(C\\n(aP>2 .y\\n(C\\n(aP
 .		el \{\
 .			as b1 \&\\*(xR\\*(A\\n(aP\fP\s0
-.			if \\n(aC>\\n(aP \{\
-.				nr aP \\n(aP+1
+.			nr aP \\n(aP+1
+.			if \\n(aC>=\\n(aP \{\
 .				if \\n(C\\n(aP==2 \{\
 .					as b1 \&(\\*(A\\n(aP)
 .					nr aP \\n(aP+1
 .				\}
-.				if \\n(aC>=\\n(aP \{\
-.					c\\n(C\\n(aP
-.				\}
 .			\}
+.			ie \\n(aC>=\\n(aP .c\\n(C\\n(aP
+.			el .aZ
 .		\}
-.		aZ
 .       \}
 .\}
 ..
