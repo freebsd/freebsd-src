@@ -310,6 +310,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SigmaTel", "MSCN", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
 	},
+	{
+		/*
+		 * Neuros USB Digital Audio Computer
+		 * PR: kern/63645
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "NEUROS", "dig. audio comp.",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	d_open_t	daopen;
