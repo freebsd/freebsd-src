@@ -298,6 +298,9 @@ fxp_probe(device_t dev)
 		case FXP_DEVICEID_i82559ER:
 			device_set_desc(dev, "Intel Embedded 10/100 Ethernet");
 			return 0;
+		case FXP_DEVICEID_i82562:
+			device_set_desc(dev, "Intel PLC 10/100 Ethernet");
+			return 0;
 		default:
 			break;
 		}
