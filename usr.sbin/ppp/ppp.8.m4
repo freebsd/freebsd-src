@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.25 1997/02/22 16:10:45 peter Exp $
+.\" $Id: ppp.8,v 1.26 1997/03/13 21:39:41 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -163,7 +163,7 @@ If it doesn't exist, you can create it by running "MAKEDEV tun0"
 User Process PPP written by Toshiharu OHNO.
 
 * If you set your hostname and password in
-.Pa /etc/ppp/ppp.secret,
+.Pa /etc/ppp/ppp.secret ,
 you can't do
 anything except run the quit and help commands *
 
@@ -412,13 +412,18 @@ the delay period is a random value between 0 and 30 seconds.
 .Sq dial_attempts
 is the number of times to try to connect for each outgoing packet
 that is received. The previous value is unchanged if this parameter
-is omitted.
+is omitted.  If a value of zero is specified for
+.Sq dial_attempts ,
+.Nm ppp
+will keep trying until a connection is made.
 .Bd -literal -offset indent
 set redial 10 4
 .Ed
 .Pp
 will attempt to connect 4 times for each outgoing packet that is
-detected with a 10 second delay between each attempt.
+detected with a 10 second delay between each attempt.  If multiple
+phone numbers are specified, the total number of attempts is still
+4 (it does not attempt each number 4 times).
 
 Modifying the dial delay is very useful when running
 .Nm
@@ -638,6 +643,7 @@ for ideas.   ppp-pap-dialup is supposed to be called from
 from a line like
 
 .Dl /AutoPPP/ -     -       /etc/ppp/ppp-pap-dialup
+.El
 
 .Sh SETTING IDLE, LINE QUALITY REQUEST, RETRY TIMER
 
@@ -767,38 +773,183 @@ try to insist that 192.244.177.2 be used first.
 
 .Sh Connecting with your service provider
 
+The following steps should be taken when connecting to your ISP:
+
 .Bl -enum
 .It
-Describe provider's phone number(s) in DialScript: Use the
-.Dq set dial
-or
+Describe your provider's phone number(s) in the dial script using the
 .Dq set phone
-commands.
-.Dq Set phone
-command allows you to set multiply phone numbers for dialing and redialing
-separated by a colon (:).
+command.  This command allows you to set multiple phone numbers for
+dialing and redialing separated by a colon (:).  For example:
+.Bd -literal -offset indent
+set phone "1234567:2345678"
+.Ed
+.Pp
+Here, the first number is attempted.  If the connection fails, the second
+number is attempted immediately.  The redial timeout is ignored (although
+the value of dial_attempts is not - see above).  If the second number
+also fails, the first is tried again after the redial timeout has expired.
+The selected phone number is substituted for the \\T string in the
+.Dq set dial
+command (see below).
+
 .It
-Describe login procedure in LoginScript: Use the
+Set up your redial requirements using
+.Dq set redial .
+For example, if you have a bad telephone line or your provider is
+usually engaged (not so common these days), you may want to specify
+the following:
+.Bd -literal -offset indent
+set redial 10 4
+.Ed
+.Pp
+This says that up to 4 phone calls should be attempted with a pause of 10
+seconds before dialing the first number again.
+
+.It
+Describe your login procedure using the
+.Dq set dial
+and
 .Dq set login
-command.
+commands.  The
+.Dq set dial
+command is used to talk to your modem and establish a link with your
+ISP, for example:
+.Bd -literal -offset indent
+set dial "ABORT BUSY ABORT NO\\\\sCARRIER TIMEOUT 4 \\"\\" ATZ OK-ATZ-OK ATDT\\\\T TIMEOUT 60 CONNECT"
+.Ed
+.Pp
+This modem "chat" string means:
+
+.Bl -bullet
+.It
+Abort if the string "BUSY" or "NO CARRIER" are received.
+.It
+Set the timeout to 4.
+.It
+Expect nothing.
+.It
+Send ATZ.
+.It
+Expect OK.  If that's not received, send ATZ and expect OK.
+.It
+Send ATDTxxxxxxx where xxxxxxx is the next number in the phone list from
+above.
+.It
+Set the timeout to 60.
+.It
+Wait for the CONNECT string.
+.El
+
+Once the connection is established, the login script is executed.  This
+script is written in the same style as the dial script:
+.Bd -literal -offset indent
+set login "TIMEOUT 15 login:-\\\\r-login: awfulhak word: xxx ocol: PPP HELLO"
+.Ed
+.Pp
+This login "chat" string means:
+
+.Bl -bullet
+.It
+Set the timeout to 15 seconds.
+.It
+Expect "login:".  If it's not received, send a carriage return and expect
+"login:" again.
+.It
+Send "awfulhak"
+.It
+Expect "word:" (the tail end of a "Password:" prompt).
+.It
+Send "xxx".
+.It
+Expect "ocol:" (the tail end of a "Protocol:" prompt).
+.It
+Send "PPP".
+.It
+Expect "HELLO".
+.El
+.Pp
+Login scripts vary greatly between ISPs.
+
+.It
+Use
+.Dq set line
+and
+.Dq set sp
+to specify your serial line and speed, for example:
+.Bd -literal -offset indent
+set line /dev/cuaa0
+set sp 115200
+.Ed
+.Pp
+Cuaa0 is the first serial port on FreeBSD.  Cuaa1 is the second etc.  A
+speed of 115200 should be specified if you have a modem capable of bit
+rates of 28800 or more.  In general, the serial speed should be about
+four times the modem speed.
+
 .It
 Use
 .Dq set ifaddr
 command to define the IP address.
 .Bl -bullet
 .It
-If you know what IP address provider uses, then use it as the remote address.
+If you know what IP address your provider uses, then use it as the remote
+address, otherwise choose something like 10.0.0.2/0 (see below).
 .It
-If provider has assigned a particular IP address to you, then use it as
-your address.
+If your provider has assigned a particular IP address to you, then use
+it as your address.
 .It
-If provider assigns your address dynamically, use 0 as your address.
-.It
-If you have no idea which IP addresses to use, then try
-.Dq set ifaddr 0 0 .
+If your provider assigns your address dynamically, choose a suitably
+unobtrusive and unspecific IP number as your address.  10.0.0.1/0 would
+be appropriate.  The bit after the / specifies how many bits of the
+address you consider to be important, so if you wanted to insist on
+something in the class C network 1.2.3.0, you could specify 1.2.3.0/24.
 .El
+.Pp
+An example for a connection where you don't know your IP number or your
+ISPs IP number would be:
+.Bd -literal -offset indent
+set ifaddr 10.0.0.1/0 10.0.0.2/0
+.Ed
+
 .It
-If provider requests that you use PAP/CHAP authentication methods, add
+In most cases, your ISP will also be your default router.  If this is
+the case, add the lines
+.Bd -literal -offset indent
+delete ALL
+add 0 0 HISADDR
+.Ed
+.Pp
+to
+.Pa ppp.conf .
+.Pp
+This tells
+.Nm ppp
+to delete all routing entries already made by
+.Nm ppp ,
+then to add a default route to HISADDR.  HISADDR is a macro meaning the
+"other side"s IP number.
+.Pp
+If you're using dynamic IP numbers, you must also put these two lines
+in the
+.Pa ppp.linkup
+file.  Then, once the link has been established and
+.Nm ppp
+knows the actual IP numbers in use, all previous (and probably incorrect)
+entries are deleted and a default to the correct IP number is added.  Use
+the same label as the one used in
+.Pa ppp.conf .
+.Pp
+If commands are being typed interactively, the only requirement is
+to type
+.Bd -literal -offset indent
+add 0 0 HISADDR
+.Ed
+.Pp
+after a successful dial.
+
+.It
+If your provider requests that you use PAP/CHAP authentication methods, add
 the next lines to your
 .Pa ppp.conf
 file:
@@ -808,11 +959,27 @@ disable chap (or disable pap)
 set authname MyName
 set authkey MyPassword
 .Ed
+
+.It
+It is also worth adding the following line:
+.Bd -literal -offset indent
+set openmode active
+.Ed
+.Pp
+This tells
+.Nm ppp
+to initiate LCP.  Without this line, there's a possibility
+of both sides of the connection just sitting there and looking at
+eachother rather than communicating.
+
 .El
 
 Please refer to
-.Pa /etc/ppp/ppp.conf.iij
-for some real examples.
+.Pa /etc/ppp/ppp.conf.sample
+and
+.Pa /etc/ppp/ppp.linkup.sample
+for some real examples.  The pmdemand label should be appropriate for most
+ISPs.
 
 .Sh Logging facility
 

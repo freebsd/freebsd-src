@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.40 1997/03/13 21:22:07 brian Exp $
+ * $Id: main.c,v 1.41 1997/04/09 17:35:54 ache Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -761,8 +761,12 @@ DoLoop()
       if (modem < 0) {
 	StartRedialTimer();
       } else {
-	tries++;
-	LogPrintf(LOG_CHAT_BIT, "Dial attempt %u\n", tries);
+	tries++;    /* Tries are per number, not per list of numbers. */
+        if (VarDialTries)
+	  LogPrintf(LOG_CHAT_BIT, "Dial attempt %u of %d\n", tries,
+		    VarDialTries);
+        else
+	  LogPrintf(LOG_CHAT_BIT, "Dial attempt %u\n", tries);
 	if (DialModem()) {
 	  sleep(1);	       /* little pause to allow peer starts */
 	  ModemTimeout();
@@ -771,13 +775,20 @@ DoLoop()
 	  tries = 0;
 	} else {
 	  CloseModem();
-	  /* Dial failed. Keep quite during redial wait period. */
-	  StartRedialTimer();
-
 	  if (VarDialTries && tries >= VarDialTries) {
-	      dial_up = FALSE;
-	      tries = 0;
-	  }
+	    /* I give up !  Can't get through :( */
+	    StartRedialTimer();
+	    dial_up = FALSE;
+	    tries = 0;
+	  } else if (VarNextPhone == NULL)
+	    /* Dial failed. Keep quite during redial wait period. */
+	    StartRedialTimer();
+	  else
+	    /*
+	     * Give the modem a chance to recover, then dial the next
+	     * number in our list
+	     */
+	    sleep(1);
 	}
       }
     }
