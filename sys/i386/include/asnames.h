@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.2 1997/05/21 22:56:59 jdp Exp $
+ * $Id: asnames.h,v 1.3 1997/05/25 16:58:03 fsmp Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -64,11 +64,6 @@
 #define _PTD				PTD
 #define _PTDpde				PTDpde
 #define _PTmap				PTmap
-#define _SMPcommon_tss_ptr		SMPcommon_tss_ptr
-#define _SMPcurpcb			SMPcurpcb
-#define _SMPcurproc			SMPcurproc
-#define _SMPnpxproc			SMPnpxproc
-#define _SMPruntime			SMPruntime
 #define _Xalign				Xalign
 #define _Xbnd				Xbnd
 #define _Xbpt				Xbpt
@@ -172,6 +167,7 @@
 #define _bootDataSeg			bootDataSeg
 #define _bootMP				bootMP
 #define _bootMP_size			bootMP_size
+#define _bootPTD			bootPTD
 #define _bootdev			bootdev
 #define _boothowto			boothowto
 #define _bootinfo			bootinfo
@@ -183,6 +179,8 @@
 #define _copyout_vector			copyout_vector
 #define _cpl				cpl
 #define _cpu				cpu
+#define _cpu0prvpage			cpu0prvpage
+#define _cpu0prvpt			cpu0prvpt
 #define _cpu_apic_versions		cpu_apic_versions
 #define _cpu_class			cpu_class
 #define _cpu_feature			cpu_feature
@@ -224,7 +222,6 @@
 #define _intr_unit			intr_unit
 #define _intrcnt			intrcnt
 #define _intrnames			intrnames
-#define _io_apic_base			io_apic_base
 #define _ipending			ipending
 #define _ivectors			ivectors
 #define _kernelname			kernelname

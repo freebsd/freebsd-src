@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.h,v 1.6 1997/05/29 05:57:43 fsmp Exp $
+ *	$Id: mpapic.h,v 1.7 1997/05/31 03:29:06 fsmp Exp $
  */
 
 #ifndef _MACHINE_MPAPIC_H_
@@ -87,11 +87,10 @@ enum busTypes {
  * read 'reg' from 'apic'
  */
 static __inline u_int32_t
-/** XXX APIC_STRUCT */
 io_apic_read(int apic, int reg)
 {
-	ioapic[apic].ioregsel = reg;
-	return ioapic[apic].iowin;
+	ioapic[apic]->ioregsel = reg;
+	return ioapic[apic]->iowin;
 }
 
 
@@ -99,11 +98,10 @@ io_apic_read(int apic, int reg)
  * write 'value' to 'reg' of 'apic'
  */
 static __inline void
-/** XXX APIC_STRUCT */
 io_apic_write(int apic, int reg, u_int32_t value)
 {
-	ioapic[apic].ioregsel = reg;
-	ioapic[apic].iowin = value;
+	ioapic[apic]->ioregsel = reg;
+	ioapic[apic]->iowin = value;
 }
 
 
@@ -113,7 +111,7 @@ io_apic_write(int apic, int reg, u_int32_t value)
 static __inline void
 apic_eoi(void)
 {
-	lapic__eoi = 0;
+	lapic.eoi = 0;
 }
 
 

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic.h,v 1.1 1997/05/28 19:43:45 smp Exp smp $
+ *	$Id: apic.h,v 1.3 1997/05/29 05:57:43 fsmp Exp $
  */
 
 #ifndef _MACHINE_APIC_H_
@@ -222,76 +222,6 @@ typedef struct IOAPIC ioapic_t;
 
 /* default physical locations of LOCAL (CPU) APICs */
 #define DEFAULT_APIC_BASE	0xfee00000
-
-# if defined(LOCORE)
-
-#define APIC_ID			0x020
-#define APIC_VER		0x030
-#define APIC_TPR		0x080
-#define APIC_APR		0x090
-#define APIC_PPR		0x0a0
-#define APIC_EOI		0x0b0
-#define APIC_RR			0x0c0
-#define APIC_LDR		0x0d0
-#define APIC_DFR		0x0e0
-#define APIC_SVR		0x0f0
-#define APIC_ISR		0x100
-#define APIC_ISR0		0x100
-#define APIC_ISR1		0x110
-#define APIC_ISR2		0x120
-#define APIC_TMR		0x180
-#define APIC_IRR		0x200
-#define APIC_IRR0		0x200
-#define APIC_IRR1		0x210
-#define APIC_IRR2		0x220
-#define APIC_ESR		0x280
-#define APIC_ICR_LOW		0x300
-#define APIC_ICR_HI		0x310
-#define APIC_LVTT		0x320
-#define APIC_LVT1		0x350
-#define APIC_LVT2		0x360
-#define APIC_LVT3		0x370
-#define APIC_TICR		0x380
-#define APIC_TCCR		0x390
-#define APIC_TDCR		0x3e0
-
-# else /* !LOCORE */
-
-#if 0  /** XXX APIC_STRUCT */
-/* offsets in apic_base[] */
-#define APIC_ID			(0x020/4)
-#define APIC_VER		(0x030/4)
-#define APIC_TPR		(0x080/4)
-#define APIC_APR		(0x090/4)
-#define APIC_PPR		(0x0a0/4)
-#define APIC_EOI		(0x0b0/4)
-#define APIC_RR			(0x0c0/4)
-#define APIC_LDR		(0x0d0/4)
-#define APIC_DFR		(0x0e0/4)
-#define APIC_SVR		(0x0f0/4)
-#define APIC_ISR		(0x100/4)
-#define APIC_ISR0		(0x100/4)
-#define APIC_ISR1		(0x110/4)
-#define APIC_ISR2		(0x120/4)
-#define APIC_TMR		(0x180/4)
-#define APIC_IRR		(0x200/4)
-#define APIC_IRR0		(0x200/4)
-#define APIC_IRR1		(0x210/4)
-#define APIC_IRR2		(0x220/4)
-#define APIC_ESR		(0x280/4)
-#define APIC_ICR_LOW		(0x300/4)
-#define APIC_ICR_HI		(0x310/4)
-#define APIC_LVTT		(0x320/4)
-#define APIC_LVT1		(0x350/4)
-#define APIC_LVT2		(0x360/4)
-#define APIC_LVT3		(0x370/4)
-#define APIC_TICR		(0x380/4)
-#define APIC_TCCR		(0x390/4)
-#define APIC_TDCR		(0x3e0/4)
-#endif  /** XXX APIC_STRUCT */
-
-# endif /* LOCORE */
-
 
 /* fields in VER */
 #define APIC_VER_VERSION	0x000000ff
@@ -500,46 +430,5 @@ typedef struct IOAPIC ioapic_t;
 # define IOART_DELEXINT	0x00000700	/*       External INTerrupt */
 
 #define IOART_INTVEC	0x000000ff	/* R/W: INTerrupt vector field */
-
-/**
- * XXX FIXME: temproary defines till we get private pages...
- */
-#if 1  /** XXX APIC_STRUCT */
-
-/* XXX when automatically mapped to a virtual page */
-#define lapic__id		lapic->id
-#define lapic__version		lapic->version
-#define lapic__eoi		lapic->eoi
-#define lapic__irr1		lapic->irr1
-#define lapic__lvt_lint0	lapic->lvt_lint0
-#define lapic__lvt_lint1	lapic->lvt_lint1
-#define lapic__tpr		lapic->tpr
-#define lapic__svr		lapic->svr
-#define lapic__icr_lo		lapic->icr_lo
-#define lapic__icr_hi		lapic->icr_hi
-#define lapic__dcr_timer	lapic->dcr_timer
-#define lapic__lvt_timer	lapic->lvt_timer
-#define lapic__icr_timer	lapic->icr_timer
-#define lapic__ccr_timer	lapic->ccr_timer
-
-#else
-
-/* XXX when mapped to a known virtual address */
-#define lapic__id		lapic.id
-#define lapic__version		lapic.version
-#define lapic__eoi		lapic.eoi
-#define lapic__irr1		lapic.irr1
-#define lapic__lvt_lint0	lapic.lvt_lint0
-#define lapic__lvt_lint1	lapic.lvt_lint1
-#define lapic__tpr		lapic.tpr
-#define lapic__svr		lapic.svr
-#define lapic__icr_lo		lapic.icr_lo
-#define lapic__icr_hi		lapic.icr_hi
-#define lapic__dcr_timer	lapic.dcr_timer
-#define lapic__lvt_timer	lapic.lvt_timer
-#define lapic__icr_timer	lapic.icr_timer
-#define lapic__ccr_timer	lapic.ccr_timer
-
-#endif  /** XXX APIC_STRUCT */
 
 #endif /* _MACHINE_APIC_H_ */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.15 1997/05/24 18:35:44 fsmp Exp $
+ * $Id: kern_shutdown.c,v 1.16 1997/06/15 02:03:03 wollman Exp $
  */
 
 #include "opt_ddb.h"
@@ -61,6 +61,9 @@
 #include <machine/clock.h>
 #include <machine/cons.h>
 #include <machine/md_var.h>
+#ifdef SMP
+#include <machine/smp.h>		/* smp_active, cpuid */
+#endif
 
 #include <sys/utsname.h>
 #include <sys/signalvar.h>
@@ -175,8 +178,8 @@ boot(howto)
 
 		spins = 100;
 
-		printf("boot() called on cpu#%d\n", cpunumber());
-		while ((c = cpunumber()) != 0) {
+		printf("boot() called on cpu#%d\n", cpuid);
+		while ((c = cpuid) != 0) {
 			if (spins-- < 1) {
 				printf("timeout waiting for cpu #0!\n");
 				break;
@@ -383,7 +386,7 @@ panic(const char *fmt, ...)
 	va_end(ap);
 	printf("\n");
 #ifdef SMP
-	printf(" cpu#%d\n", cpunumber());
+	printf(" cpuid %d\n", cpuid);
 #endif
 
 #if defined(DDB)
