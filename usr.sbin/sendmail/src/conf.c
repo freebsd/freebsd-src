@@ -1558,7 +1558,7 @@ getla()
 
 /* Non Apollo stuff removed by Don Lewis 11/15/93 */
 #ifndef lint
-static char  rcsid[] = "@(#)$Id: conf.c,v 1.7 1995/05/30 03:52:08 rgrimes Exp $";
+static char  rcsid[] = "@(#)$Id: conf.c,v 1.8 1995/12/02 18:17:13 peter Exp $";
 #endif /* !lint */
 
 #ifdef apollo
@@ -1704,10 +1704,6 @@ refuseconnections()
 # if SPT_TYPE == SPT_PSSTRINGS
 #  include <machine/vmparam.h>
 #  include <sys/exec.h>
-#  ifdef __FreeBSD__
-#   undef PS_STRINGS	/* XXX This is broken due to needing<machine/pmap.h> */
-#   define PROCTITLEPAD	'\0'
-#  endif
 #  ifndef PS_STRINGS	/* hmmmm....  apparently not available after all */
 #   undef SPT_TYPE
 #   define SPT_TYPE	SPT_REUSEARGV
