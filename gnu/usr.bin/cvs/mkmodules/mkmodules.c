@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * mkmodules
  * 
@@ -13,11 +13,9 @@
 
 #include "cvs.h"
 
-#undef PATH_MAX
-#define PATH_MAX        1024    /* max number of bytes in pathname */
-
 #ifndef lint
-static char rcsid[] = "@(#)mkmodules.c 1.39 92/03/31";
+static char rcsid[] = "$CVSid: @(#)mkmodules.c 1.45 94/09/30 $";
+USE(rcsid)
 #endif
 
 #ifndef DBLKSIZ
@@ -30,30 +28,16 @@ char *Rcsbin = RCSBIN_DFLT;
 int noexec = 0;				/* Here only to satisfy use in subr.c */
 int trace = 0;				/* Here only to satisfy use in subr.c */
 
-#if __STDC__
-static int checkout_file (char *file, char *temp);
-static void make_tempfile (char *temp);
-static void mkmodules_usage (void);
-static void rename_rcsfile (char *temp, char *real);
+static int checkout_file PROTO((char *file, char *temp));
+static void make_tempfile PROTO((char *temp));
+static void mkmodules_usage PROTO((void));
+static void rename_rcsfile PROTO((char *temp, char *real));
 
 #ifndef MY_NDBM
-static void rename_dbmfile (char *temp);
-static void write_dbmfile (char *temp);
+static void rename_dbmfile PROTO((char *temp));
+static void write_dbmfile PROTO((char *temp));
 #endif				/* !MY_NDBM */
 
-#else				/* !__STDC__ */
-
-static void make_tempfile ();
-static int checkout_file ();
-static void rename_rcsfile ();
-static void mkmodules_usage ();
-
-#ifndef MY_NDBM
-static void write_dbmfile ();
-static void rename_dbmfile ();
-#endif				/* !MY_NDBM */
-
-#endif				/* __STDC__ */
 
 int
 main (argc, argv)
@@ -62,15 +46,34 @@ main (argc, argv)
 {
     extern char *getenv ();
     char temp[PATH_MAX];
-    char *cp;
+    char *cp, *last, *fname;
 #ifdef MY_NDBM
     DBM *db;
 #endif
+    FILE *fp;
+    char line[512];
+    static struct _checkout_file {
+       char *filename;
+       char *errormsg;
+    } *fileptr, filelist[] = {
+    {CVSROOTADM_LOGINFO, 
+	"no logging of 'cvs commit' messages is done without a %s file"},
+    {CVSROOTADM_RCSINFO,
+	"a %s file can be used to configure 'cvs commit' templates"},
+    {CVSROOTADM_EDITINFO,
+	"a %s file can be used to validate log messages"},
+    {CVSROOTADM_COMMITINFO,
+	"a %s file can be used to configure 'cvs commit' checking"},
+    {CVSROOTADM_IGNORE,
+	"a %s file can be used to specify files to ignore"},
+    {CVSROOTADM_CHECKOUTLIST,
+	"a %s file can specify extra CVSROOT files to auto-checkout"},
+    {NULL, NULL}};
 
     /*
      * Just save the last component of the path for error messages
      */
-    if ((program_name = rindex (argv[0], '/')) == NULL)
+    if ((program_name = strrchr (argv[0], '/')) == NULL)
 	program_name = argv[0];
     else
 	program_name++;
@@ -127,7 +130,7 @@ main (argc, argv)
 	    /* NOTREACHED */
 
 	default:
-	    error (0, 0, 
+	    error (0, 0,
 		"'cvs checkout' is less functional without a %s file",
 		CVSROOTADM_MODULES);
 	    break;
@@ -135,57 +138,63 @@ main (argc, argv)
 
     (void) unlink_file (temp);
 
-    /*
-     * Now, check out the "loginfo" file, so that it is always up-to-date in
-     * the CVSROOT directory.
-     */
-    make_tempfile (temp);
-    if (checkout_file (CVSROOTADM_LOGINFO, temp) == 0)
-	rename_rcsfile (temp, CVSROOTADM_LOGINFO);
-    else
-	error (0, 0, 
-	"no logging of 'cvs commit' messages is done without a %s file",
-	       CVSROOTADM_LOGINFO);
-    (void) unlink_file (temp);
+    /* Checkout the files that need it in CVSROOT dir */
+    for (fileptr = filelist; fileptr && fileptr->filename; fileptr++) {
+	make_tempfile (temp);
+	if (checkout_file (fileptr->filename, temp) == 0)
+	    rename_rcsfile (temp, fileptr->filename);
+#if 0
+	/*
+	 * If there was some problem other than the file not existing,
+	 * checkout_file already printed a real error message.  If the
+	 * file does not exist, it is harmless--it probably just means
+	 * that the repository was created with an old version of CVS
+	 * which didn't have so many files in CVSROOT.
+	 */
+	else if (fileptr->errormsg)
+	    error (0, 0, fileptr->errormsg, fileptr->filename);
+#endif
+	(void) unlink_file (temp);
+    }
 
-    /*
-     * Now, check out the "rcsinfo" file, so that it is always up-to-date in
-     * the CVSROOT directory.
-     */
-    make_tempfile (temp);
-    if (checkout_file (CVSROOTADM_RCSINFO, temp) == 0)
-	rename_rcsfile (temp, CVSROOTADM_RCSINFO);
-    else
-	error (0, 0, 
-	    "a %s file can be used to configure 'cvs commit' templates",
-	    CVSROOTADM_RCSINFO);
-    (void) unlink_file (temp);
+    /* Use 'fopen' instead of 'open_file' because we want to ignore error */
+    fp = fopen (CVSROOTADM_CHECKOUTLIST, "r");
+    if (fp)
+    {
+	/*
+	 * File format:
+	 *  [<whitespace>]<filename><whitespace><error message><end-of-line>
+	 */
+	for (; fgets (line, sizeof (line), fp) != NULL;)
+	{
+	    if ((last = strrchr (line, '\n')) != NULL)
+		*last = '\0';			/* strip the newline */
 
-    /*
-     * Now, check out the "editinfo" file, so that it is always up-to-date in
-     * the CVSROOT directory.
-     */
-    make_tempfile (temp);
-    if (checkout_file (CVSROOTADM_EDITINFO, temp) == 0)
-	rename_rcsfile (temp, CVSROOTADM_EDITINFO);
-    else
-	error (0, 0, 
-	       "a %s file can be used to validate log messages",
-	       CVSROOTADM_EDITINFO);
-    (void) unlink_file (temp);
+	    /* Skip leading white space. */
+	    for (fname = line; *fname && isspace(*fname); fname++)
+		;
 
-    /*
-     * Now, check out the "commitinfo" file, so that it is always up-to-date
-     * in the CVSROOT directory.
-     */
-    make_tempfile (temp);
-    if (checkout_file (CVSROOTADM_COMMITINFO, temp) == 0)
-	rename_rcsfile (temp, CVSROOTADM_COMMITINFO);
-    else
-	error (0, 0, 
-	    "a %s file can be used to configure 'cvs commit' checking",
-	    CVSROOTADM_COMMITINFO);
-    (void) unlink_file (temp);
+	    /* Find end of filename. */
+	    for (cp = fname; *cp && !isspace(*cp); cp++)
+		;
+	    *cp = '\0';
+
+	    make_tempfile (temp);
+	    if (checkout_file (fname, temp) == 0)
+	    {
+		rename_rcsfile (temp, fname);
+	    }
+	    else
+	    {
+		for (cp++; cp < last && *last && isspace(*last); cp++)
+		    ;
+		if (cp < last && *cp)
+		    error (0, 0, cp, fname);
+	    }
+	}
+	(void) fclose (fp);
+    }
+
     return (0);
 }
 
@@ -251,7 +260,7 @@ write_dbmfile (temp)
 	error (1, errno, "cannot open dbm file %s for creation", temp);
     for (cont = 0; fgets (line, sizeof (line), fp) != NULL;)
     {
-	if ((cp = rindex (line, '\n')) != NULL)
+	if ((cp = strrchr (line, '\n')) != NULL)
 	    *cp = '\0';			/* strip the newline */
 
 	/*
@@ -370,8 +379,15 @@ rename_rcsfile (temp, real)
     char *real;
 {
     char bak[50];
+    struct stat statbuf;
+    char rcs[PATH_MAX];
+    
+    /* Set "x" bits if set in original. */
+    (void) sprintf (rcs, "%s%s", real, RCSEXT);
+    statbuf.st_mode = 0; /* in case rcs file doesn't exist, but it should... */
+    (void) stat (rcs, &statbuf);
 
-    if (chmod (temp, 0444) < 0)		/* chmod 444 "temp" */
+    if (chmod (temp, 0444 | (statbuf.st_mode & 0111)) < 0)
 	error (0, errno, "warning: cannot chmod %s", temp);
     (void) sprintf (bak, "%s%s", BAKPREFIX, real);
     (void) unlink_file (bak);		/* rm .#loginfo */

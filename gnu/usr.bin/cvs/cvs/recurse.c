@@ -2,7 +2,7 @@
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * General recursion handler
  * 
@@ -11,18 +11,15 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)recurse.c 1.22 92/04/10";
+static char rcsid[] = "$CVSid: @(#)recurse.c 1.31 94/09/30 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static int do_dir_proc (Node * p);
-static int do_file_proc (Node * p);
-static void addlist (List ** listp, char *key);
-#else
-static int do_file_proc ();
-static int do_dir_proc ();
-static void addlist ();
-#endif				/* __STDC__ */
+static int do_dir_proc PROTO((Node * p, void *closure));
+static int do_file_proc PROTO((Node * p, void *closure));
+static void addlist PROTO((List ** listp, char *key));
+static int unroll_files_proc PROTO((Node *p, void *closure));
+static void addfile PROTO((List **listp, char *dir, char *file));
 
 
 /*
@@ -41,17 +38,35 @@ static char update_dir[PATH_MAX];
 static char *repository = NULL;
 static List *entries = NULL;
 static List *srcfiles = NULL;
-static List *filelist = NULL;
-static List *dirlist = NULL;
+
+static List *filelist = NULL; /* holds list of files on which to operate */
+static List *dirlist = NULL; /* holds list of directories on which to operate */
+
+struct recursion_frame {
+  int (*fileproc)();
+  int (*filesdoneproc) ();
+  Dtype (*direntproc) ();
+  int (*dirleaveproc) ();
+  Dtype flags;
+  int which;
+  int aflag;
+  int readlock;
+  int dosrcs;
+};
 
 /*
- * Called to start a recursive command Command line arguments are processed
- * if present, otherwise the local directory is processed.
+ * Called to start a recursive command.
+ *
+ * Command line arguments dictate the directories and files on which
+ * we operate.  In the special case of no arguments, we default to
+ * ".".
+ *
+ * The general algorythm is as follows.
  */
 int
 start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 		 argc, argv, local, which, aflag, readlock,
-		 update_preload, dosrcs)
+		 update_preload, dosrcs, wd_is_repos)
     int (*fileproc) ();
     int (*filesdoneproc) ();
     Dtype (*direntproc) ();
@@ -64,9 +79,12 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
     int readlock;
     char *update_preload;
     int dosrcs;
+    int wd_is_repos;	/* Set if caller has already cd'd to the repository */
 {
     int i, err = 0;
     Dtype flags;
+    List *files_by_dir = NULL;
+    struct recursion_frame frame;
 
     if (update_preload == NULL)
 	update_dir[0] = '\0';
@@ -89,7 +107,8 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
     if (srcfiles)
 	dellist (&srcfiles);
     if (filelist)
-	dellist (&filelist);
+	dellist (&filelist); /* FIXME-krp: no longer correct. */
+/* FIXME-krp: clean up files_by_dir */
     if (dirlist)
 	dellist (&dirlist);
 
@@ -111,139 +130,128 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc,
 	err += do_recursion (fileproc, filesdoneproc, direntproc,
 			    dirleaveproc, flags, which, aflag,
 			    readlock, dosrcs);
+	return(err);
     }
-    else
+
+
+    /*
+     * There were arguments, so we have to handle them by hand. To do
+     * that, we set up the filelist and dirlist with the arguments and
+     * call do_recursion.  do_recursion recognizes the fact that the
+     * lists are non-null when it starts and doesn't update them.
+     *
+     * explicitly named directories are stored in dirlist.
+     * explicitly named files are stored in filelist.
+     * other possibility is named entities whicha are not currently in
+     * the working directory.
+     */
+    
+    for (i = 0; i < argc; i++)
     {
+	/* if this argument is a directory, then add it to the list of
+	   directories. */
 
-	/*
-	 * There were arguments, so we have to handle them by hand. To do
-	 * that, we set up the filelist and dirlist with the arguments and
-	 * call do_recursion.  do_recursion recognizes the fact that the
-	 * lists are non-null when it starts and doesn't update them
-	 */
-
-	/* look for args with /-s in them */
-	for (i = 0; i < argc; i++)
-	    if (index (argv[i], '/') != NULL)
-		break;
-
-	/* if we didn't find any hard one's, do it the easy way */
-	if (i == argc)
-	{
-	    /* set up the lists */
-	    for (i = 0; i < argc; i++)
-	    {
-		if (isdir (argv[i]))
-		    addlist (&dirlist, argv[i]);
-		else
-		{
-		    if (isdir (CVSADM) || isdir (OCVSADM))
-		    {
-			char *repos;
-			char tmp[PATH_MAX];
-
-			repos = Name_Repository ((char *) NULL, update_dir);
-			(void) sprintf (tmp, "%s/%s", repos, argv[i]);
-			if (isdir (tmp))
-			    addlist (&dirlist, argv[i]);
-			else
-			    addlist (&filelist, argv[i]);
-			free (repos);
-		    }
-		    else
-			addlist (&filelist, argv[i]);
-		}
-	    }
-
-	    /* we aren't recursive if no directories were specified */
-	    if (dirlist == NULL)
-		local = 1;
-
-	    /* process the lists */
-	    err += do_recursion (fileproc, filesdoneproc, direntproc,
-				dirleaveproc, flags, which, aflag,
-				readlock, dosrcs);
-	}
-	/* otherwise - do it the hard way */
+	if (isdir(argv[i]))
+	    addlist (&dirlist, argv[i]);
 	else
 	{
-	    char *cp;
-	    char *dir = (char *) NULL;
-	    char *comp = (char *) NULL;
-	    char *oldupdate = (char *) NULL;
-	    char savewd[PATH_MAX];
+	    /* otherwise, split argument into directory and component names. */
+	    char *dir;
+	    char *comp;
+	    char tmp[PATH_MAX];
+	    char *file_to_try;
 
-	    if (getwd (savewd) == NULL)
-		error (1, 0, "could not get working directory: %s", savewd);
-
-	    for (i = 0; i < argc; i++)
+	    dir = xstrdup (argv[i]);
+	    if ((comp = strrchr (dir, '/')) == NULL)
 	    {
-		/* split the arg into the dir and component parts */
-		dir = xstrdup (argv[i]);
-		if ((cp = rindex (dir, '/')) != NULL)
-		{
-		    *cp = '\0';
-		    comp = xstrdup (cp + 1);
-		    oldupdate = xstrdup (update_dir);
-		    if (update_dir[0] != '\0')
-			(void) strcat (update_dir, "/");
-		    (void) strcat (update_dir, dir);
-		}
-		else
-		{
-		    comp = xstrdup (dir);
-		    if (dir)
-			free (dir);
-		    dir = (char *) NULL;
-		}
-
-		/* chdir to the appropriate place if necessary */
-		if (dir && chdir (dir) < 0)
-		    error (1, errno, "could not chdir to %s", dir);
-
-		/* set up the list */
-		if (isdir (comp))
-		    addlist (&dirlist, comp);
-		else
-		{
-		    if (isdir (CVSADM) || isdir (OCVSADM))
-		    {
-			char *repos;
-			char tmp[PATH_MAX];
-
-			repos = Name_Repository ((char *) NULL, update_dir);
-			(void) sprintf (tmp, "%s/%s", repos, comp);
-			if (isdir (tmp))
-			    addlist (&dirlist, comp);
-			else
-			    addlist (&filelist, comp);
-			free (repos);
-		    }
-		    else
-			addlist (&filelist, comp);
-		}
-
-		/* do the recursion */
-		err += do_recursion (fileproc, filesdoneproc, direntproc,
-				    dirleaveproc, flags, which,
-				    aflag, readlock, dosrcs);
-
-		/* chdir back and fix update_dir if necessary */
-		if (dir && chdir (savewd) < 0)
-		    error (1, errno, "could not chdir to %s", dir);
-		if (oldupdate)
-		{
-		    (void) strcpy (update_dir, oldupdate);
-		    free (oldupdate);
-		}
-
+		/* no dir component.  What we have is an implied "./" */
+		comp = dir;
+		dir = xstrdup(".");
 	    }
-	    if (dir)
-		free (dir);
-	    if (comp)
-		free (comp);
+	    else
+	    {
+		char *p = comp;
+
+		*p++ = '\0';
+		comp = xstrdup (p);
+	    }
+
+	    /* if this argument exists as a file in the current
+	       working directory tree, then add it to the files list.  */
+
+	    if (wd_is_repos)
+	    {
+		/* If doing rtag, we've done a chdir to the repository. */
+		sprintf (tmp, "%s%s", argv[i], RCSEXT);
+		file_to_try = tmp;
+	    }
+	    else
+	      file_to_try = argv[i];
+
+	    if(isfile(file_to_try))
+		addfile (&files_by_dir, dir, comp);
+	    else if (isdir (dir))
+	    {
+		if (isdir (CVSADM) || isdir (OCVSADM))
+		{
+		    /* otherwise, look for it in the repository. */
+		    char *save_update_dir;
+		    char *repos;
+		
+		    /* save & set (aka push) update_dir */
+		    save_update_dir = xstrdup (update_dir);
+
+		    if (*update_dir != '\0')
+			(void) strcat (update_dir, "/");
+
+		    (void) strcat (update_dir, dir);
+		
+		    /* look for it in the repository. */
+		    repos = Name_Repository (dir, update_dir);
+		    (void) sprintf (tmp, "%s/%s", repos, comp);
+		
+		    if (isdir(tmp))
+			addlist (&dirlist, argv[i]);
+		    else
+			addfile (&files_by_dir, dir, comp);
+
+		    (void) sprintf (update_dir, "%s", save_update_dir);
+		    free (save_update_dir);
+		}
+		else
+		    addfile (&files_by_dir, dir, comp);
+	    }
+	    else
+		error (1, 0, "no such directory `%s'", dir);
+
+	    free (dir);
+	    free (comp);
 	}
     }
+
+    /* At this point we have looped over all named arguments and built
+       a coupla lists.  Now we unroll the lists, setting up and
+       calling do_recursion. */
+
+    frame.fileproc = fileproc;
+    frame.filesdoneproc = filesdoneproc;
+    frame.direntproc = direntproc;
+    frame.dirleaveproc = dirleaveproc;
+    frame.flags = flags;
+    frame.which = which;
+    frame.aflag = aflag;
+    frame.readlock = readlock;
+    frame.dosrcs = dosrcs;
+    err += walklist (files_by_dir, unroll_files_proc, (void *) &frame);
+
+    /* then do_recursion on the dirlist. */
+    if (dirlist != NULL)
+	err += do_recursion (frame.fileproc, frame.filesdoneproc,
+			     frame.direntproc, frame.dirleaveproc,
+			     frame.flags, frame.which, frame.aflag,
+			     frame.readlock, frame.dosrcs);
+
+
     return (err);
 }
 
@@ -360,7 +368,7 @@ do_recursion (xfileproc, xfilesdoneproc, xdirentproc, xdirleaveproc,
 	    srcfiles = (List *) NULL;
 
 	/* process the files */
-	err += walklist (filelist, do_file_proc);
+	err += walklist (filelist, do_file_proc, NULL);
 
 	/* unlock it */
 	if (readlock)
@@ -378,7 +386,7 @@ do_recursion (xfileproc, xfilesdoneproc, xdirentproc, xdirleaveproc,
 
     /* process the directories (if necessary) */
     if (dirlist != NULL)
-	err += walklist (dirlist, do_dir_proc);
+	err += walklist (dirlist, do_dir_proc, NULL);
 #ifdef notdef
     else if (dirleaveproc != NULL)
 	err += dirleaveproc(".", err, ".");
@@ -399,8 +407,9 @@ do_recursion (xfileproc, xfilesdoneproc, xdirentproc, xdirleaveproc,
  * Process each of the files in the list with the callback proc
  */
 static int
-do_file_proc (p)
+do_file_proc (p, closure)
     Node *p;
+    void *closure;
 {
     if (fileproc != NULL)
 	return (fileproc (p->key, update_dir, repository, entries, srcfiles));
@@ -412,8 +421,9 @@ do_file_proc (p)
  * Process each of the directories in the list (recursing as we go)
  */
 static int
-do_dir_proc (p)
+do_dir_proc (p, closure)
     Node *p;
+    void *closure;
 {
     char *dir = p->key;
     char savewd[PATH_MAX];
@@ -508,7 +518,7 @@ do_dir_proc (p)
     }
 
     /* put back update_dir */
-    if ((cp = rindex (update_dir, '/')) != NULL)
+    if ((cp = strrchr (update_dir, '/')) != NULL)
 	*cp = '\0';
     else
 	update_dir[0] = '\0';
@@ -517,7 +527,7 @@ do_dir_proc (p)
 }
 
 /*
- * Add a node to a list allocating the list if necessary
+ * Add a node to a list allocating the list if necessary.
  */
 static void
 addlist (listp, key)
@@ -531,5 +541,87 @@ addlist (listp, key)
     p = getnode ();
     p->type = FILES;
     p->key = xstrdup (key);
-    (void) addnode (*listp, p);
+    if (addnode (*listp, p) != 0)
+	freenode (p);
+}
+
+static void
+addfile (listp, dir, file)
+    List **listp;
+    char *dir;
+    char *file;
+{
+    Node *n;
+
+    /* add this dir. */
+    (void) addlist (listp, dir);
+
+    n = findnode (*listp, dir);
+    if (n == NULL)
+    {
+	error (1, 0, "can't find recently added dir node `%s' in start_recursion.",
+	       dir);
+    }
+
+    n->type = DIRS;
+    addlist ((List **) &n->data, file);
+    return;
+}
+
+static int
+unroll_files_proc (p, closure)
+    Node *p;
+    void *closure;
+{
+    Node *n;
+    struct recursion_frame *frame = (struct recursion_frame *) closure;
+    int err = 0;
+    List *save_dirlist;
+    char savewd[PATH_MAX];
+    char *save_update_dir = NULL;
+
+    /* if this dir was also an explicitly named argument, then skip
+       it.  We'll catch it later when we do dirs. */
+    n = findnode (dirlist, p->key);
+    if (n != NULL)
+	return (0);
+
+    /* otherwise, call dorecusion for this list of files. */
+    filelist = (List *) p->data;
+    save_dirlist = dirlist;
+    dirlist = NULL;
+
+    if (strcmp(p->key, ".") != 0)
+    {
+	if (getwd (savewd) == NULL)
+	    error (1, 0, "could not get working directory: %s", savewd);
+
+	if (chdir (p->key) < 0)
+	    error (1, errno, "could not chdir to %s", p->key);
+
+	save_update_dir = xstrdup (update_dir);
+
+	if (*update_dir != '\0')
+	    (void) strcat (update_dir, "/");
+
+	(void) strcat (update_dir, p->key);
+    }
+
+    err += do_recursion (frame->fileproc, frame->filesdoneproc,
+			 frame->direntproc, frame->dirleaveproc,
+			 frame->flags, frame->which, frame->aflag,
+			 frame->readlock, frame->dosrcs);
+
+    if (save_update_dir != NULL)
+    {
+	(void) strcpy (update_dir, save_update_dir);
+	free (save_update_dir);
+
+	if (chdir (savewd) < 0)
+	    error (1, errno, "could not chdir to %s", savewd);
+    }
+
+    dirlist = save_dirlist;
+    filelist = NULL;
+    return(err);
 }

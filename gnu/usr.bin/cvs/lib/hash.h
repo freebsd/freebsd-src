@@ -1,10 +1,10 @@
-/* @(#)hash.h 1.18 92/03/31	 */
+/* $CVSid: @(#)hash.h 1.23 94/10/07 $	 */
 
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  */
 
 /*
@@ -51,27 +51,16 @@ struct entnode
     char *options;
     char *tag;
     char *date;
+    char *conflict;
 };
 typedef struct entnode Entnode;
 
-#if __STDC__
-List *getlist (void);
-Node *findnode (List * list, char *key);
-Node *getnode (void);
-int addnode (List * list, Node * p);
-int walklist (List * list, int (*proc) ());
-void dellist (List ** listp);
-void delnode (Node * p);
-void freenode (Node * p);
-void sortlist (List * list, int (*comp) ());
-#else
-List *getlist ();
-Node *findnode ();
-Node *getnode ();
-int addnode ();
-int walklist ();
-void dellist ();
-void delnode ();
-void freenode ();
-void sortlist ();
-#endif				/* __STDC__ */
+List *getlist PROTO((void));
+Node *findnode PROTO((List * list, char *key));
+Node *getnode PROTO((void));
+int addnode PROTO((List * list, Node * p));
+int walklist PROTO((List * list, int PROTO((*proc)) PROTO((Node *n, void *closure)), void *closure));
+void dellist PROTO((List ** listp));
+void delnode PROTO((Node * p));
+void freenode PROTO((Node * p));
+void sortlist PROTO((List * list, int PROTO((*comp))()));

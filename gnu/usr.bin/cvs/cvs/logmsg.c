@@ -3,36 +3,34 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  */
 
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)logmsg.c 1.40 92/04/10";
+static char rcsid[] = "$CVSid: @(#)logmsg.c 1.48 94/09/29 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static int find_type (Node * p);
-static int fmt_proc (Node * p);
-static int logfile_write (char *repository, char *filter, char *title,
+/* this is slightly dangerous, since it could conflict with other systems'
+ *  own prototype.  
+ */
+#if 0
+/* Which is why I'll nuke this */
+extern int gethostname PROTO((char *name, int len));
+#endif
+
+static int find_type PROTO((Node * p, void *closure));
+static int fmt_proc PROTO((Node * p, void *closure));
+static int logfile_write PROTO((char *repository, char *filter, char *title,
 			  char *message, char *revision, FILE * logfp,
-			  List * changes);
-static int rcsinfo_proc (char *repository, char *template);
-static int title_proc (Node * p);
-static int update_logfile_proc (char *repository, char *filter);
-static void setup_tmpfile (FILE * xfp, char *xprefix, List * changes);
-static int editinfo_proc (char *repository, char *template);
-#else
-static void setup_tmpfile ();
-static int find_type ();
-static int fmt_proc ();
-static int rcsinfo_proc ();
-static int update_logfile_proc ();
-static int title_proc ();
-static int logfile_write ();
-static int editinfo_proc ();
-#endif				/* __STDC__ */
+			  List * changes));
+static int rcsinfo_proc PROTO((char *repository, char *template));
+static int title_proc PROTO((Node * p, void *closure));
+static int update_logfile_proc PROTO((char *repository, char *filter));
+static void setup_tmpfile PROTO((FILE * xfp, char *xprefix, List * changes));
+static int editinfo_proc PROTO((char *repository, char *template));
 
 static FILE *fp;
 static char *strlist;
@@ -42,8 +40,7 @@ static Ctype type;
 /*
  * Puts a standard header on the output which is either being prepared for an
  * editor session, or being sent to a logfile program.  The modified, added,
- * and removed files are included (if any) and formatted to look pretty.
- */
+ * and removed files are included (if any) and formatted to look pretty. */
 static char *prefix;
 static int col;
 static void
@@ -57,30 +54,30 @@ setup_tmpfile (xfp, xprefix, changes)
     prefix = xprefix;
 
     type = T_MODIFIED;
-    if (walklist (changes, find_type) != 0)
+    if (walklist (changes, find_type, NULL) != 0)
     {
 	(void) fprintf (fp, "%sModified Files:\n", prefix);
 	(void) fprintf (fp, "%s\t", prefix);
 	col = 8;
-	(void) walklist (changes, fmt_proc);
+	(void) walklist (changes, fmt_proc, NULL);
 	(void) fprintf (fp, "\n");
     }
     type = T_ADDED;
-    if (walklist (changes, find_type) != 0)
+    if (walklist (changes, find_type, NULL) != 0)
     {
 	(void) fprintf (fp, "%sAdded Files:\n", prefix);
 	(void) fprintf (fp, "%s\t", prefix);
 	col = 8;
-	(void) walklist (changes, fmt_proc);
+	(void) walklist (changes, fmt_proc, NULL);
 	(void) fprintf (fp, "\n");
     }
     type = T_REMOVED;
-    if (walklist (changes, find_type) != 0)
+    if (walklist (changes, find_type, NULL) != 0)
     {
 	(void) fprintf (fp, "%sRemoved Files:\n", prefix);
 	(void) fprintf (fp, "%s\t", prefix);
 	col = 8;
-	(void) walklist (changes, fmt_proc);
+	(void) walklist (changes, fmt_proc, NULL);
 	(void) fprintf (fp, "\n");
     }
 }
@@ -89,8 +86,9 @@ setup_tmpfile (xfp, xprefix, changes)
  * Looks for nodes of a specified type and returns 1 if found
  */
 static int
-find_type (p)
+find_type (p, closure)
     Node *p;
+    void *closure;
 {
     if (p->data == (char *) type)
 	return (1);
@@ -104,8 +102,9 @@ find_type (p)
  * match the one we're looking for
  */
 static int
-fmt_proc (p)
+fmt_proc (p, closure)
     Node *p;
+    void *closure;
 {
     if (p->data == (char *) type)
     {
@@ -131,22 +130,20 @@ fmt_proc (p)
  * 
  */
 void
-do_editor (dir, message, repository, changes)
+do_editor (dir, messagep, repository, changes)
     char *dir;
-    char *message;
+    char **messagep;
     char *repository;
     List *changes;
 {
     static int reuse_log_message = 0;
     char line[MAXLINELEN], fname[L_tmpnam+1];
-    char *orig_message;
     struct stat pre_stbuf, post_stbuf;
     int retcode = 0;
+    char *p;
 
     if (noexec || reuse_log_message)
 	return;
-
-    orig_message = xstrdup (message);	/* save it for later */
 
     /* Create a temporary file */
     (void) tmpnam (fname);
@@ -154,18 +151,19 @@ do_editor (dir, message, repository, changes)
     if ((fp = fopen (fname, "w+")) == NULL)
 	error (1, 0, "cannot create temporary file %s", fname);
 
-    /* set up the file so that the first line is blank if no msg specified */
-    if (*orig_message)
+    if (*messagep)
     {
-	(void) fprintf (fp, "%s", orig_message);
-	if (orig_message[strlen (orig_message) - 1] != '\n')
+	(void) fprintf (fp, "%s", *messagep);
+
+	if ((*messagep)[strlen (*messagep) - 1] != '\n')
 	    (void) fprintf (fp, "\n");
     }
     else
 	(void) fprintf (fp, "\n");
 
-    /* tack templates on if necessary */
-    (void) Parse_Info (CVSROOTADM_RCSINFO, repository, rcsinfo_proc, 1);
+    if (repository != NULL)
+	/* tack templates on if necessary */
+	(void) Parse_Info (CVSROOTADM_RCSINFO, repository, rcsinfo_proc, 1);
 
     (void) fprintf (fp,
   "%s----------------------------------------------------------------------\n",
@@ -176,7 +174,8 @@ do_editor (dir, message, repository, changes)
     if (dir != NULL)
 	(void) fprintf (fp, "%sCommitting in %s\n%s\n", CVSEDITPREFIX,
 			dir, CVSEDITPREFIX);
-    setup_tmpfile (fp, CVSEDITPREFIX, changes);
+    if (changes != NULL)
+	setup_tmpfile (fp, CVSEDITPREFIX, changes);
     (void) fprintf (fp,
   "%s----------------------------------------------------------------------\n",
 		    CVSEDITPREFIX);
@@ -189,7 +188,8 @@ do_editor (dir, message, repository, changes)
     if (editinfo_editor)
 	free (editinfo_editor);
     editinfo_editor = (char *) NULL;
-    (void) Parse_Info (CVSROOTADM_EDITINFO, repository, editinfo_proc, 0);
+    if (repository != NULL)
+	(void) Parse_Info (CVSROOTADM_EDITINFO, repository, editinfo_proc, 0);
 
     /* run the editor */
     run_setup ("%s", editinfo_editor ? editinfo_editor : Editor);
@@ -200,29 +200,47 @@ do_editor (dir, message, repository, changes)
 	       editinfo_editor ? "Logfile verification failed" :
 	       "warning: editor session failed");
 
-    /* put the entire message back into the message variable */
+    /* put the entire message back into the *messagep variable */
+
     fp = open_file (fname, "r");
-    *message = '\0';
-    while (fgets (line, sizeof (line), fp) != NULL)
+
+    if (*messagep)
+	free (*messagep);
+
+    if (stat (fname, &post_stbuf) != 0)
+	    error (1, errno, "cannot find size of temp file %s", fname);
+
+    if (post_stbuf.st_size == 0)
+	*messagep = NULL;
+    else
     {
-	if (strncmp (line, CVSEDITPREFIX, sizeof (CVSEDITPREFIX) - 1) == 0)
-	    continue;
-	if (((int) strlen (message) + (int) strlen (line)) >= MAXMESGLEN)
+	*messagep = (char *) xmalloc (post_stbuf.st_size);
+ 	*messagep[0] = '\0';
+    }
+
+/* !!! XXX FIXME: fgets is broken.  This should not have any line
+   length limits. */
+
+    if (*messagep)
+    {
+	p = *messagep;
+	while (fgets (line, sizeof (line), fp) != NULL)
 	{
-	    error (0, 0, "warning: log message truncated!");
-	    break;
+	    if (strncmp (line, CVSEDITPREFIX, sizeof (CVSEDITPREFIX) - 1) == 0)
+		continue;
+	    (void) strcpy (p, line);
+	    p += strlen (line);
 	}
-	(void) strcat (message, line);
     }
     (void) fclose (fp);
-    if ((stat (fname, &post_stbuf) == 0 &&
-	 pre_stbuf.st_mtime == post_stbuf.st_mtime) ||
-	(*message == '\0' || strcmp (message, "\n") == 0))
+    if (pre_stbuf.st_mtime == post_stbuf.st_mtime ||
+	*messagep == NULL ||
+	strcmp (*messagep, "\n") == 0)
     {
 	for (;;)
 	{
 	    (void) printf ("\nLog message unchanged or not specified\n");
-	    (void) printf ("a)bort, c)continue, e)dit, !)reuse this message unchanged for remaining dirs\n");
+	    (void) printf ("a)bort, c)ontinue, e)dit, !)reuse this message unchanged for remaining dirs\n");
 	    (void) printf ("Action: (continue) ");
 	    (void) fflush (stdout);
 	    *line = '\0';
@@ -241,7 +259,6 @@ do_editor (dir, message, repository, changes)
 	    (void) printf ("Unknown input\n");
 	}
     }
-    free (orig_message);
     (void) unlink_file (fname);
 }
 
@@ -303,6 +320,10 @@ Update_Logfile (repository, xmessage, xrevision, xlogfp, xchanges)
 {
     char *srepos;
 
+    /* nothing to do if the list is empty */
+    if (xchanges == NULL || xchanges->list->next == xchanges->list)
+	return;
+
     /* set up static vars for update_logfile_proc */
     message = xmessage;
     revision = xrevision;
@@ -318,13 +339,13 @@ Update_Logfile (repository, xmessage, xrevision, xlogfp, xchanges)
     strlist[0] = '\0';
 
     type = T_TITLE;
-    (void) walklist (changes, title_proc);
+    (void) walklist (changes, title_proc, NULL);
     type = T_ADDED;
-    (void) walklist (changes, title_proc);
+    (void) walklist (changes, title_proc, NULL);
     type = T_MODIFIED;
-    (void) walklist (changes, title_proc);
+    (void) walklist (changes, title_proc, NULL);
     type = T_REMOVED;
-    (void) walklist (changes, title_proc);
+    (void) walklist (changes, title_proc, NULL);
     title = xmalloc (strlen (srepos) + strlen (strlist) + 1 + 2); /* for 's */
     (void) sprintf (title, "'%s%s'", srepos, strlist);
 
@@ -355,8 +376,9 @@ update_logfile_proc (repository, filter)
  * concatenate each name onto strlist
  */
 static int
-title_proc (p)
+title_proc (p, closure)
     Node *p;
+    void *closure;
 {
     if (p->data == (char *) type)
     {

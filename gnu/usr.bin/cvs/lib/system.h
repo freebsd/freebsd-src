@@ -15,7 +15,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* @(#)system.h 1.14 92/04/10 */
+/* $CVSid: @(#)system.h 1.18 94/09/25 $ */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -52,16 +52,13 @@
 #if !defined(S_ISNWK) && defined(S_IFNWK) /* HP/UX */
 #define S_ISNWK(m) (((m) & S_IFMT) == S_IFNWK)
 #endif
-#if defined(MKFIFO_MISSING)
+#if !defined(HAVE_MKFIFO)
 #define mkfifo(path, mode) (mknod ((path), (mode) | S_IFIFO, 0))
 #endif
 
-#ifdef POSIX
+#if defined(POSIX) || defined(HAVE_UNISTD_H)
 #include <unistd.h>
 #include <limits.h>
-#ifndef PATH_MAX
-#define PATH_MAX pathconf ("/", _PC_PATH_MAX)
-#endif
 #else
 off_t lseek ();
 #endif
@@ -72,7 +69,7 @@ off_t lseek ();
 #include <time.h>
 #endif
 
-#ifdef TIMEB_H_MISSING
+#ifndef HAVE_SYS_TIMEB_H
 struct timeb {
     time_t		time;		/* Seconds since the epoch	*/
     unsigned short	millitm;	/* Field not used		*/
@@ -87,29 +84,66 @@ struct timeb {
 #include <sys/timeb.h>
 #endif
 
-#if defined(FTIME_MISSING) && !defined(HAVE_TIMEZONE)
+#if !defined(HAVE_FTIME) && !defined(HAVE_TIMEZONE)
 #if !defined(timezone)
-extern char *timezone();
+extern long timezone;
 #endif
 #endif
 
-#ifndef POSIX
+
+/*
+**  MAXPATHLEN and PATH_MAX
+**
+**     On most systems MAXPATHLEN is defined in sys/param.h to be 1024. Of
+**     those that this is not true, again most define PATH_MAX in limits.h
+**     or sys/limits.h which usually gets included by limits.h. On the few
+**     remaining systems that neither statement is true, _POSIX_PATH_MAX 
+**     is defined.
+**
+**     So:
+**         1. If PATH_MAX is defined just use it.
+**         2. If MAXPATHLEN is defined but not PATH_MAX, then define
+**            PATH_MAX in terms of MAXPATHLEN.
+**         3. If neither is defined, include limits.h and check for
+**            PATH_MAX again.
+**         4. If PATH_MAX is still not defined but _POSIX_PATH_MAX is,
+**            then define PATH_MAX in terms of _POSIX_PATH_MAX.
+**         5. And if even _POSIX_PATH_MAX doesn't exist just put in
+**            a reasonable value.
+**
+**     This works on:
+**         Sun Sparc 10        SunOS 4.1.3  &  Solaris 1.2
+**         HP 9000/700         HP/UX 8.07   &  HP/UX 9.01
+**         Tektronix XD88/10   UTekV 3.2e
+**         IBM RS6000          AIX 3.2
+**         Dec Alpha           OSF 1 ????
+**         Intel 386           BSDI BSD/386
+**         Apollo              Domain 10.4
+**         NEC                 SVR4
+*/
+
+/* On MOST systems this will get you MAXPATHLEN */
 #include <sys/param.h>
-#endif
 
-#ifndef _POSIX_PATH_MAX
-#define _POSIX_PATH_MAX 255
-#endif
+#ifndef PATH_MAX  
+#  ifdef MAXPATHLEN
+#    define PATH_MAX                 MAXPATHLEN
+#  else
+#    include <limits.h>
+#    ifndef PATH_MAX
+#      ifdef _POSIX_PATH_MAX
+#        define PATH_MAX             _POSIX_PATH_MAX
+#      else
+#        define PATH_MAX             1024
+#      endif  /* _POSIX_PATH_MAX */
+#    endif  /* PATH_MAX   */
+#  endif  /* MAXPATHLEN */
+#endif  /* PATH_MAX   */
 
-#ifndef PATH_MAX
-#ifdef MAXPATHLEN
-#define PATH_MAX MAXPATHLEN
-#else
-#define PATH_MAX _POSIX_PATH_MAX
-#endif
-#endif
 
-#ifdef POSIX
+
+
+#ifdef HAVE_UTIME_H
 #include <utime.h>
 #else
 #ifndef ALTOS
@@ -122,29 +156,33 @@ struct utimbuf
 int utime ();
 #endif
 
-#if defined(USG) || defined(STDC_HEADERS)
+#if STDC_HEADERS || HAVE_STRING_H
 #include <string.h>
-#ifndef STDC_HEADERS
+/* An ANSI string.h and pre-ANSI memory.h might conflict. */
+#if !STDC_HEADERS && HAVE_MEMORY_H
 #include <memory.h>
-#endif
+#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
+
 #ifndef index
 #define index strchr
-#endif
+#endif /* index */
+
 #ifndef rindex
 #define rindex strrchr
-#endif
-#ifndef bcopy
-#define bcopy(from, to, len) memcpy ((to), (from), (len))
-#endif
-#ifndef bzero
-#define bzero(s, n) (void) memset ((s), 0, (n))
-#endif
+#endif /* rindex */
+
 #ifndef bcmp
-#define	bcmp(s1, s2, n) memcmp((s1), (s2), (n))
-#endif
-#else
+#define bcmp(s1, s2, n) memcmp ((s1), (s2), (n))
+#endif /* bcmp */
+
+#ifndef bzero
+#define bzero(s, n) memset ((s), 0, (n))
+#endif /* bzero */
+
+#else /* not STDC_HJEADERS and not HAVE_STRING_H */
 #include <strings.h>
-#endif
+/* memory.h and strings.h conflict on some systems. */
+#endif /* not STDC_HEADERS and not HAVE_STRING_H */
 
 #include <errno.h>
 #ifdef STDC_HEADERS
@@ -157,27 +195,16 @@ char *calloc ();
 extern int errno;
 #endif
 
-#ifdef __GNUC__
-#ifdef bsdi
-#define alloca __builtin_alloca
-#endif
-#else
-#ifdef sparc
-#include <alloca.h>
-#else
-#ifndef _AIX
-/* AIX alloca decl has to be the first thing in the file, bletch! */
-char *alloca ();
-#endif
-#endif
-#endif
-
 #if defined(USG) || defined(POSIX)
-#include <fcntl.h>
 char *getcwd ();
 #else
-#include <sys/file.h>
 char *getwd ();
+#endif
+
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#else
+#include <sys/file.h>
 #endif
 
 #ifndef SEEK_SET
@@ -185,6 +212,7 @@ char *getwd ();
 #define SEEK_CUR 1
 #define SEEK_END 2
 #endif
+
 #ifndef F_OK
 #define F_OK 0
 #define X_OK 1
@@ -192,23 +220,23 @@ char *getwd ();
 #define R_OK 4
 #endif
 
-#ifdef DIRENT
+/* unistd.h defines _POSIX_VERSION on POSIX.1 systems.  */
+#if defined(DIRENT) || defined(_POSIX_VERSION)
 #include <dirent.h>
-#ifdef direct
-#undef direct
-#endif
-#define direct dirent
-#else
-#ifdef SYSNDIR
+#define NLENGTH(dirent) (strlen((dirent)->d_name))
+#else /* not (DIRENT or _POSIX_VERSION) */
+#define dirent direct
+#define NLENGTH(dirent) ((dirent)->d_namlen)
+#ifdef HAVE_SYS_NDIR_H
 #include <sys/ndir.h>
-#else
-#ifdef NDIR
-#include <ndir.h>
-#else /* must be BSD */
+#endif
+#ifdef HAVE_SYS_DIR_H
 #include <sys/dir.h>
-#endif
-#endif
-#endif
+#endif 
+#ifdef HAVE_NDIR_H
+#include <ndir.h>
+#endif 
+#endif /* not (DIRENT or _POSIX_VERSION) */
 
 /* Convert B 512-byte blocks to kilobytes if K is nonzero,
    otherwise return it unchanged. */
@@ -218,6 +246,17 @@ char *getwd ();
 #define lstat stat
 #endif
 
-#ifndef SIGTYPE
-#define SIGTYPE void
+/*
+ * Some UNIX distributions don't include these in their stat.h Defined here
+ * because "config.h" is always included last.
+ */
+#ifndef S_IWRITE
+#define	S_IWRITE	0000200		/* write permission, owner */
 #endif
+#ifndef S_IWGRP
+#define	S_IWGRP		0000020		/* write permission, grougroup */
+#endif
+#ifndef S_IWOTH
+#define	S_IWOTH		0000002		/* write permission, other */
+#endif
+

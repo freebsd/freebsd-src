@@ -15,14 +15,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-#if defined(STDC_HEADERS) || defined(USG)
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#if STDC_HEADERS || HAVE_STRING_H
 #include <string.h>
-#ifndef index
-#define	index strchr
-#endif
-#else
+/* An ANSI string.h and pre-ANSI memory.h might conflict. */
+#if !STDC_HEADERS && HAVE_MEMORY_H
+#include <memory.h>
+#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
+#else /* not STDC_HJEADERS and not HAVE_STRING_H */
 #include <strings.h>
-#endif
+/* memory.h and strings.h conflict on some systems. */
+#endif /* not STDC_HEADERS and not HAVE_STRING_H */
 
 #include <stdio.h>
 
@@ -43,7 +49,7 @@ strip_path (path)
   int stripped = 0;
   char *cp, *slash;
 
-  for (cp = path; (slash = index(cp, '/')) != NULL; cp = slash)
+  for (cp = path; (slash = strchr(cp, '/')) != NULL; cp = slash)
     {
       *slash = '\0';
       if ((!*cp && (cp != path || stripped)) ||

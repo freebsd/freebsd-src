@@ -3,16 +3,17 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  */
 
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)vers_ts.c 1.36 92/03/31";
+static char rcsid[] = "$CVSid: @(#)vers_ts.c 1.45 94/10/07 $";
+USE(rcsid)
 #endif
 
-extern char *ctime ();			/* XXX - should use gmtime/asctime */
+#define ctime(X)	do not use ctime, please
 
 /*
  * Fill in and return a Vers_TS structure "user" is the name of the local
@@ -39,7 +40,7 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 
     /* get a new Vers_TS struct */
     vers_ts = (Vers_TS *) xmalloc (sizeof (Vers_TS));
-    bzero ((char *) vers_ts, sizeof (*vers_ts));
+    memset ((char *) vers_ts, 0, sizeof (*vers_ts));
 
     /*
      * look up the entries file entry and fill in the version and timestamp
@@ -63,6 +64,7 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 
 	vers_ts->vn_user = xstrdup (entdata->version);
 	vers_ts->ts_rcs = xstrdup (entdata->timestamp);
+	vers_ts->ts_conflict = xstrdup (entdata->conflict);
 	if (!tag)
 	{
 	    if (!(sdtp && sdtp->aflag))
@@ -124,8 +126,10 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 	else
 	    rcsdata = NULL;
     }
-    else
+    else if (repository != NULL)
 	rcsdata = RCS_parse (user, repository);
+    else
+	rcsdata = NULL;
 
     if (rcsdata != NULL)
     {
@@ -141,7 +145,7 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 	    else
 		vers_ts->vn_rcs = RCS_getversion (rcsdata, vers_ts->tag,
 					    vers_ts->date, force_tag_match);
-	}
+	} 
 
 	/*
 	 * If the source control file exists and has the requested revision,
@@ -152,16 +156,19 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 	{
 	    struct utimbuf t;
 
+	    memset ((char *) &t, 0, sizeof (t));
 	    if (vers_ts->vn_rcs &&
-	    (t.actime = t.modtime = RCS_getrevtime (rcsdata, vers_ts->vn_rcs,
-						    (char *) 0, 0)) != -1)
+		(t.actime = t.modtime = RCS_getrevtime (rcsdata,
+		 vers_ts->vn_rcs, (char *) 0, 0)) != -1)
 		(void) utime (user, &t);
 	}
     }
 
     /* get user file time-stamp in ts_user */
     if (entries != (List *) NULL)
-	vers_ts->ts_user = time_stamp (user);
+    {
+      vers_ts->ts_user = time_stamp (user);
+    }
 
     return (vers_ts);
 }
@@ -184,13 +191,10 @@ time_stamp (file)
     }
     else
     {
-	ts = xmalloc (51);		/* 51 = 2 ctime strings + NULL */
-	cp = ctime (&sb.st_ctime);	/* copy in the create time */
-	cp[24] = ' ';
+	ts = xmalloc (25);
+	cp = asctime (gmtime (&sb.st_mtime));	/* copy in the modify time */
+	cp[24] = 0;
 	(void) strcpy (ts, cp);
-	cp = ctime (&sb.st_mtime);	/* copy in the modify time */
-	cp[24] = '\0';
-	(void) strcat (ts, cp);
     }
 
     return (ts);
@@ -219,6 +223,8 @@ freevers_ts (versp)
 	free ((*versp)->tag);
     if ((*versp)->date)
 	free ((*versp)->date);
+    if ((*versp)->ts_conflict)
+	free ((*versp)->ts_conflict);
     free ((char *) *versp);
     *versp = (Vers_TS *) NULL;
 }

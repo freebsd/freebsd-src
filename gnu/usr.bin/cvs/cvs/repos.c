@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Name of Repository
  * 
@@ -13,7 +13,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)repos.c 1.28 92/03/31";
+static char rcsid[] = "$CVSid: @(#)repos.c 1.32 94/09/23 $";
+USE(rcsid)
 #endif
 
 char *
@@ -112,7 +113,7 @@ Name_Repository (dir, update_dir)
 	error (1, errno, "cannot read %s", CVSADM_REP);
     }
     (void) fclose (fpin);
-    if ((cp = rindex (repos, '\n')) != NULL)
+    if ((cp = strrchr (repos, '\n')) != NULL)
 	*cp = '\0';			/* strip the newline */
 
     /*
