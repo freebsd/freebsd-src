@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.9 1998/09/20 14:47:01 nsouch Exp $
+ *	$Id: ppc.c,v 1.10 1998/10/22 05:58:40 bde Exp $
  *
  */
 #include "ppc.h"
@@ -61,7 +61,7 @@ static int nppc = 0;
 
 static char *ppc_types[] = {
 	"SMC-like", "SMC FDC37C665GT", "SMC FDC37C666GT", "PC87332", "PC87306",
-	"82091AA", "Generic", "W83877F", "W83877AF", "Winbond", 0
+	"82091AA", "Generic", "W83877F", "W83877AF", "Winbond", "PC87334", 0
 };
 
 /* list of available modes */
@@ -221,27 +221,44 @@ ppc_detect_port(struct ppc_data *ppc)
  */
 static int pc873xx_basetab[] = {0x0398, 0x026e, 0x015c, 0x002e, 0};
 static int pc873xx_porttab[] = {0x0378, 0x03bc, 0x0278, 0};
+static int pc873xx_irqtab[] = {5, 7, 5, 0};
+
+static int pc873xx_regstab[] = {
+	PC873_FER, PC873_FAR, PC873_PTR,
+	PC873_FCR, PC873_PCR, PC873_PMC,
+	PC873_TUP, PC873_SID, PC873_PNP0,
+	PC873_PNP1, PC873_LPTBA, -1
+};
+
+static char *pc873xx_rnametab[] = {
+	"FER", "FAR", "PTR", "FCR", "PCR",
+	"PMC", "TUP", "SID", "PNP0", "PNP1",
+	"LPTBA", NULL
+};
 
 static int
 ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never forced */
 {
     static int	index = 0;
-    int		base, idport;
-    int		val;
+    int		base, idport, irq;
+    int		ptr, pcr, val, i;
     
     while ((idport = pc873xx_basetab[index++])) {
 	
 	/* XXX should check first to see if this location is already claimed */
 
 	/*
-	 * Pull the 873xx through the power-on ID cycle (2.2,1.).  We can't use this
-	 * to locate the chip as it may already have been used by the BIOS.
+	 * Pull the 873xx through the power-on ID cycle (2.2,1.).
+	 * We can't use this to locate the chip as it may already have
+	 * been used by the BIOS.
 	 */
-	(void)inb(idport); (void)inb(idport); (void)inb(idport); (void)inb(idport);
+	(void)inb(idport); (void)inb(idport);
+	(void)inb(idport); (void)inb(idport);
 
 	/*
 	 * Read the SID byte.  Possible values are :
 	 *
+	 * 01010xxx	PC87334
 	 * 0001xxxx	PC87332
 	 * 01110xxx	PC87306
 	 */
@@ -251,14 +268,27 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	    ppc->ppc_type = NS_PC87332;
 	} else if ((val & 0xf8) == 0x70) {
 	    ppc->ppc_type = NS_PC87306;
+	} else if ((val & 0xf8) == 0x50) {
+	    ppc->ppc_type = NS_PC87334;
 	} else {
 	    if (bootverbose && (val != 0xff))
 		printf("PC873xx probe at 0x%x got unknown ID 0x%x\n", idport, val);
 	    continue ;		/* not recognised */
 	}
+
+	/* print registers */
+	if (bootverbose) {
+		printf("PC873xx");
+		for (i=0; pc873xx_regstab[i] != -1; i++) {
+			outb(idport, pc873xx_regstab[i]);
+			printf(" %s=0x%x", pc873xx_rnametab[i],
+						inb(idport + 1) & 0xff);
+		}
+		printf("\n");
+	}
 	
 	/*
-	 * We think we have one.  Is it enabled and where we want it to be?	 
+	 * We think we have one.  Is it enabled and where we want it to be?
 	 */
 	outb(idport, PC873_FER);
 	val = inb(idport + 1);
@@ -276,95 +306,167 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 		       pc873xx_porttab[val], ppc->ppc_base);
 	    continue;
 	}
-	
-	/* 
-	 * This is the port we want.  Can we dink with it to improve
-	 * our chances?
-	 */
+
 	outb(idport, PC873_PTR);
-	val = inb(idport + 1);
-	if (val & PC873_CFGLOCK) {
-	    if (bootverbose)
-		printf("PC873xx locked\n");
+        ptr = inb(idport + 1);
 
-	    /* work out what mode we're in */
-	    ppc->ppc_avm |= PPB_NIBBLE;		/* worst case */
-	    
-	    outb(idport, PC873_PCR);
-	    val = inb(idport + 1);
-	    if ((val & PC873_EPPEN) && (val & PC873_EPP19)) {
-		outb(idport, PC873_PTR);
-		val = inb(idport + 1);
-		if (!(val & PC873_EPPRDIR)) {
-		    ppc->ppc_avm |= PPB_EPP;	/* As we would have done it anwyay */
+	/* get irq settings */
+	if (ppc->ppc_base == 0x378)
+		irq = (ptr & PC873_LPTBIRQ7) ? 7 : 5;
+	else
+		irq = pc873xx_irqtab[val];
+
+	if (bootverbose)
+		printf("PC873xx irq %d at 0x%x\n", irq, ppc->ppc_base);
+	
+	/*
+	 * Check if irq settings are correct
+	 */
+	if (irq != ppc->ppc_irq) {
+		/*
+		 * If the chipset is not locked and base address is 0x378,
+		 * we have another chance
+		 */
+		if (ppc->ppc_base == 0x378 && !(ptr & PC873_CFGLOCK)) {
+			if (ppc->ppc_irq == 7) {
+				outb(idport + 1, (ptr | PC873_LPTBIRQ7));
+				outb(idport + 1, (ptr | PC873_LPTBIRQ7));
+			} else {
+				outb(idport + 1, (ptr & ~PC873_LPTBIRQ7));
+				outb(idport + 1, (ptr & ~PC873_LPTBIRQ7));
+			}
+			if (bootverbose)
+			   printf("PC873xx irq set to %d\n", ppc->ppc_irq);
+		} else {
+			if (bootverbose)
+			   printf("PC873xx sorry, can't change irq setting\n");
 		}
-	    } else if ((val & PC873_ECPEN) && (val & PC873_ECPCLK)) {
-		ppc->ppc_avm |= PPB_PS2;	/* tolerable alternative */
-	    }	    
 	} else {
-	    if (bootverbose)
-		printf("PC873xx unlocked, ");
-
-#if 0	/* broken */
-	    /*
-	     * Frob the zero-wait-state option if possible; it causes
-	     * unreliable operation.
-	     */
-	    outb(idport, PC873_FCR);
-	    val = inb(idport + 1);
-	    if ((ppc->ppc_type == NS_PC87306) ||	/* we are a '306 */
-		!(val & PC873_ZWSPWDN)) {		/* or pin _is_ ZWS */
-		val &= ~PC873_ZWS;
-		outb(idport + 1, val);			/* must disable ZWS */
-		outb(idport + 1, val);
-		
 		if (bootverbose)
-		    printf("ZWS %s, ", (val & PC873_ZWS) ? "enabled" : "disabled");
-	    }
-
-#endif
-	    if (bootverbose)
-		printf("reconfiguring for ");
-	    
-	    /* 
-	     * if the chip is at 0x3bc, we can't use EPP as there's no room
-	     * for the extra registers.
-	     *
-	     * XXX should we use ECP mode always and use the EPP submode?
-	     */
-	    if (ppc->ppc_base != 0x3bc) {
-		if (bootverbose)
-		    printf("EPP 1.9\n");
-		
-		/* configure for EPP 1.9 operation XXX should be configurable */
-		outb(idport, PC873_PCR);
-		val = inb(idport + 1);
-		val &= ~(PC873_ECPEN | PC873_ECPCLK);	/* disable ECP */
-		val |= (PC873_EPPEN | PC873_EPP19);	/* enable EPP */
-		outb(idport + 1, val);
-		outb(idport + 1, val);
-
-		/* enable automatic direction turnover */
-		outb(idport, PC873_PTR);
-		val = inb(idport + 1);
-		val &= ~PC873_EPPRDIR;			/* disable "regular" direction change */
-		outb(idport + 1, val);
-		outb(idport + 1, val);
-
-		/* we are an EPP-32 port */
-		ppc->ppc_avm |= PPB_EPP;
-	    } else {
-		if (bootverbose)
-		    printf("ECP\n");
-		
-		/* configure as an ECP port to get bidirectional operation for now */
-		outb(idport, PC873_PCR);
-		outb(idport + 1, inb(idport + 1) | PC873_ECPEN | PC873_ECPCLK);
-
-		/* we look like a PS/2 port */
-		ppc->ppc_avm |= PPB_PS2;
-	    }
+			printf("PC873xx irq settings are correct\n");
 	}
+
+	outb(idport, PC873_PCR);
+	pcr = inb(idport + 1);
+	
+	if ((ptr & PC873_CFGLOCK) || !chipset_mode) {
+	    if (bootverbose)
+		printf("PC873xx %s", (ptr & PC873_CFGLOCK)?"locked":"unlocked");
+
+	    ppc->ppc_avm |= PPB_NIBBLE;
+	    if (bootverbose)
+		printf(", NIBBLE");
+
+	    if (pcr & PC873_EPPEN) {
+	        ppc->ppc_avm |= PPB_EPP;
+
+		if (bootverbose)
+			printf(", EPP");
+
+		if (pcr & PC873_EPP19)
+			ppc->ppc_epp = EPP_1_9;
+		else
+			ppc->ppc_epp = EPP_1_7;
+
+		if ((ppc->ppc_type == NS_PC87332) && bootverbose) {
+			outb(idport, PC873_PTR);
+			ptr = inb(idport + 1);
+			if (ptr & PC873_EPPRDIR)
+				printf(", Regular mode");
+			else
+				printf(", Automatic mode");
+		}
+	    } else if (pcr & PC873_ECPEN) {
+		ppc->ppc_avm |= PPB_ECP;
+		if (bootverbose)
+			printf(", ECP");
+
+		if (pcr & PC873_ECPCLK)	{		/* XXX */
+			ppc->ppc_avm |= PPB_PS2;
+			if (bootverbose)
+				printf(", PS/2");
+		}
+	    } else {
+		outb(idport, PC873_PTR);
+		ptr = inb(idport + 1);
+		if (ptr & PC873_EXTENDED) {
+			ppc->ppc_avm |= PPB_SPP;
+                        if (bootverbose)
+                                printf(", SPP");
+		}
+	    }
+	} else {
+		if (bootverbose)
+			printf("PC873xx unlocked");
+
+		if (chipset_mode & PPB_ECP) {
+			if ((chipset_mode & PPB_EPP) && bootverbose)
+				printf(", ECP+EPP not supported");
+
+			pcr &= ~PC873_EPPEN;
+			pcr |= (PC873_ECPEN | PC873_ECPCLK);	/* XXX */
+			outb(idport + 1, pcr);
+			outb(idport + 1, pcr);
+
+			if (bootverbose)
+				printf(", ECP");
+
+		} else if (chipset_mode & PPB_EPP) {
+			pcr &= ~(PC873_ECPEN | PC873_ECPCLK);
+			pcr |= (PC873_EPPEN | PC873_EPP19);
+			outb(idport + 1, pcr);
+			outb(idport + 1, pcr);
+
+			ppc->ppc_epp = EPP_1_9;			/* XXX */
+
+			if (bootverbose)
+				printf(", EPP1.9");
+
+			/* enable automatic direction turnover */
+			if (ppc->ppc_type == NS_PC87332) {
+				outb(idport, PC873_PTR);
+				ptr = inb(idport + 1);
+				ptr &= ~PC873_EPPRDIR;
+				outb(idport + 1, ptr);
+				outb(idport + 1, ptr);
+
+				if (bootverbose)
+					printf(", Automatic mode");
+			}
+		} else {
+			pcr &= ~(PC873_ECPEN | PC873_ECPCLK | PC873_EPPEN);
+			outb(idport + 1, pcr);
+			outb(idport + 1, pcr);
+
+			/* configure extended bit in PTR */
+			outb(idport, PC873_PTR);
+			ptr = inb(idport + 1);
+
+			if (chipset_mode & PPB_PS2) {
+				ptr |= PC873_EXTENDED;
+
+				if (bootverbose)
+					printf(", PS/2");
+			
+			} else {
+				/* default to NIBBLE mode */
+				ptr &= ~PC873_EXTENDED;
+
+				if (bootverbose)
+					printf(", NIBBLE");
+			}
+			outb(idport + 1, ptr);
+			outb(idport + 1, ptr);
+		}
+
+		ppc->ppc_avm = chipset_mode;
+	}
+
+	if (bootverbose)
+		printf("\n");
+
+	ppc->ppc_link.adapter = &ppc_generic_adapter;
+	ppc_generic_setmode(ppc->ppc_unit, chipset_mode);
 
 	return(chipset_mode);
     }
@@ -863,10 +965,18 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
 	 *
 	 * after detection, the port must support running in compatible mode
 	 */
-	for (i=0; chipset_detect[i] != NULL; i++) {
-		if ((mode = chipset_detect[i](ppc, chipset_mode)) != -1) {
-			ppc->ppc_mode = mode;
-			break;
+	if (ppc->ppc_flags & 0x40) {
+		if (bootverbose)
+			printf("ppc: chipset forced to generic\n");
+
+		ppc->ppc_mode = ppc_generic_detect(ppc, chipset_mode);
+
+	} else {
+		for (i=0; chipset_detect[i] != NULL; i++) {
+			if ((mode = chipset_detect[i](ppc, chipset_mode)) != -1) {
+				ppc->ppc_mode = mode;
+				break;
+			}
 		}
 	}
 
@@ -1232,6 +1342,9 @@ ppcprobe(struct isa_device *dvp)
 	ppc->ppc_unit = dvp->id_unit;
 	ppc->ppc_type = GENERIC;
 
+	/* store boot flags */
+	ppc->ppc_flags = dvp->id_flags;
+
 	ppc->ppc_mode = PPB_COMPATIBLE;
 	ppc->ppc_epp = (dvp->id_flags & 0x10) >> 4;
 
@@ -1239,7 +1352,7 @@ ppcprobe(struct isa_device *dvp)
 	 * XXX Try and detect if interrupts are working
 	 */
 	if (!(dvp->id_flags & 0x20))
-		ppc->ppc_irq = (dvp->id_irq);
+		ppc->ppc_irq = ffs(dvp->id_irq) - 1;
 
 	ppcdata[ppc->ppc_unit] = ppc;
 	nppc ++;
