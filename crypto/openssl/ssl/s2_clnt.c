@@ -107,7 +107,6 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com).
  *
- * $FreeBSD$
  */
 
 #include "ssl_locl.h"
@@ -146,11 +145,18 @@ SSL_METHOD *SSLv2_client_method(void)
 
 	if (init)
 		{
-		memcpy((char *)&SSLv2_client_data,(char *)sslv2_base_method(),
-			sizeof(SSL_METHOD));
-		SSLv2_client_data.ssl_connect=ssl2_connect;
-		SSLv2_client_data.get_ssl_method=ssl2_get_client_method;
-		init=0;
+		CRYPTO_w_lock(CRYPTO_LOCK_SSL_METHOD);
+
+		if (init)
+			{
+			memcpy((char *)&SSLv2_client_data,(char *)sslv2_base_method(),
+				sizeof(SSL_METHOD));
+			SSLv2_client_data.ssl_connect=ssl2_connect;
+			SSLv2_client_data.get_ssl_method=ssl2_get_client_method;
+			init=0;
+			}
+
+		CRYPTO_w_unlock(CRYPTO_LOCK_SSL_METHOD);
 		}
 	return(&SSLv2_client_data);
 	}
@@ -202,10 +208,13 @@ int ssl2_connect(SSL *s)
 			if (!BUF_MEM_grow(buf,
 				SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER))
 				{
+				if (buf == s->init_buf)
+					buf=NULL;
 				ret= -1;
 				goto end;
 				}
 			s->init_buf=buf;
+			buf=NULL;
 			s->init_num=0;
 			s->state=SSL2_ST_SEND_CLIENT_HELLO_A;
 			s->ctx->stats.sess_connect++;
@@ -332,6 +341,8 @@ int ssl2_connect(SSL *s)
 		}
 end:
 	s->in_handshake--;
+	if (buf != NULL)
+		BUF_MEM_free(buf);
 	if (cb != NULL) 
 		cb(s,SSL_CB_CONNECT_EXIT,ret);
 	return(ret);
@@ -746,8 +757,8 @@ static int client_certificate(SSL *s)
 	if (s->state == SSL2_ST_SEND_CLIENT_CERTIFICATE_A)
 		{
 		i=ssl2_read(s,(char *)&(buf[s->init_num]),
-			SSL2_MAX_CERT_CHALLENGE_LENGTH+1-s->init_num);
-		if (i<(SSL2_MIN_CERT_CHALLENGE_LENGTH+1-s->init_num))
+			SSL2_MAX_CERT_CHALLENGE_LENGTH+2-s->init_num);
+		if (i<(SSL2_MIN_CERT_CHALLENGE_LENGTH+2-s->init_num))
 			return(ssl2_part_read(s,SSL_F_CLIENT_CERTIFICATE,i));
 		s->init_num += i;
 

@@ -68,7 +68,7 @@ lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
 depend:
-	$(MAKEDEPEND) $(INCLUDES) $(DEPFLAG) $(PROGS) $(LIBSRC)
+	$(MAKEDEPEND) -- $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
 
 dclean:
 	$(PERL) -pe 'if (/^# DO NOT DELETE THIS LINE/) {print; exit(0);}' $(MAKEFILE) >Makefile.new
@@ -79,8 +79,10 @@ clean:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-md2_dgst.o: ../../include/openssl/md2.h ../../include/openssl/opensslconf.h
-md2_dgst.o: ../../include/openssl/opensslv.h
+md2_dgst.o: ../../include/openssl/crypto.h ../../include/openssl/md2.h
+md2_dgst.o: ../../include/openssl/opensslconf.h
+md2_dgst.o: ../../include/openssl/opensslv.h ../../include/openssl/safestack.h
+md2_dgst.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 md2_one.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
 md2_one.o: ../../include/openssl/crypto.h ../../include/openssl/e_os.h
 md2_one.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h

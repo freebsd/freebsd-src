@@ -54,8 +54,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 #include "ssl_locl.h"
@@ -309,7 +307,7 @@ void ssl2_free(SSL *s)
 	s2=s->s2;
 	if (s2->rbuf != NULL) OPENSSL_free(s2->rbuf);
 	if (s2->wbuf != NULL) OPENSSL_free(s2->wbuf);
-	memset(s2,0,sizeof *s2);
+	OPENSSL_cleanse(s2,sizeof *s2);
 	OPENSSL_free(s2);
 	s->s2=NULL;
 	}
@@ -378,15 +376,19 @@ SSL_CIPHER *ssl2_get_cipher_by_char(const unsigned char *p)
 		{
 		CRYPTO_w_lock(CRYPTO_LOCK_SSL);
 
-		for (i=0; i<SSL2_NUM_CIPHERS; i++)
-			sorted[i]= &(ssl2_ciphers[i]);
+		if (init)
+			{
+			for (i=0; i<SSL2_NUM_CIPHERS; i++)
+				sorted[i]= &(ssl2_ciphers[i]);
 
-		qsort(  (char *)sorted,
-			SSL2_NUM_CIPHERS,sizeof(SSL_CIPHER *),
-			FP_ICC ssl_cipher_ptr_id_cmp);
+			qsort((char *)sorted,
+				SSL2_NUM_CIPHERS,sizeof(SSL_CIPHER *),
+				FP_ICC ssl_cipher_ptr_id_cmp);
 
+			init=0;
+			}
+			
 		CRYPTO_w_unlock(CRYPTO_LOCK_SSL);
-		init=0;
 		}
 
 	id=0x02000000L|((unsigned long)p[0]<<16L)|
