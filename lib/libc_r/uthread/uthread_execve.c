@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,11 +79,8 @@ execve(const char *name, char *const * argv, char *const * envp)
 		if (i == SIGKILL || i == SIGSTOP) {
 			/* Don't do anything with these signals. */
 		} else {
-			/*
-			 * Check if the running thread is ignoring this
-			 * signal: 
-			 */
-			if (_thread_run->act[i - 1].sa_handler == SIG_IGN) {
+			/* Check if ignoring this signal: */
+			if (_thread_sigact[i - 1].sa_handler == SIG_IGN) {
 				/* Continue to ignore this signal: */
 				act.sa_handler = SIG_IGN;
 			} else {
@@ -92,8 +89,8 @@ execve(const char *name, char *const * argv, char *const * envp)
 			}
 
 			/* Copy the mask and flags for this signal: */
-			act.sa_mask = _thread_run->act[i - 1].sa_mask;
-			act.sa_flags = _thread_run->act[i - 1].sa_flags;
+			act.sa_mask = _thread_sigact[i - 1].sa_mask;
+			act.sa_flags = _thread_sigact[i - 1].sa_flags;
 
 			/* Change the signal action for the process: */
 			_thread_sys_sigaction(i, &act, &oact);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,8 +43,8 @@
 #include "libc_private.h"
 
 int
-_thread_create(pthread_t * thread, const pthread_attr_t * attr,
-	       void *(*start_routine) (void *), void *arg, pthread_t parent)
+pthread_create(pthread_t * thread, const pthread_attr_t * attr,
+	       void *(*start_routine) (void *), void *arg)
 {
 	int             i;
 	int             ret = 0;
@@ -53,8 +53,11 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 	pthread_attr_t	pattr;
 	void           *stack;
 
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
+	/*
+	 * Locking functions in libc are required when there are
+	 * threads other than the initial thread.
+	 */
+	__isthreaded = 1;
 
 	/* Allocate memory for the thread structure: */
 	if ((new_thread = (pthread_t) malloc(sizeof(struct pthread))) == NULL) {
@@ -103,71 +106,33 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Initialise the thread for signals: */
 			new_thread->sigmask = _thread_run->sigmask;
 
-			/*
-			 * Enter a loop to initialise the signal handler
-			 * array: 
-			 */
-			for (i = 1; i < NSIG; i++) {
-				/* Default the signal handler: */
-				sigfillset(&new_thread->act[i - 1].sa_mask);
-				new_thread->act[i - 1].sa_handler = _thread_run->act[i - 1].sa_handler;
-				new_thread->act[i - 1].sa_flags = _thread_run->act[i - 1].sa_flags;
-			}
-
 			/* Initialise the jump buffer: */
-			_thread_sys_setjmp(new_thread->saved_jmp_buf);
+			setjmp(new_thread->saved_jmp_buf);
 
 			/*
 			 * Set up new stack frame so that it looks like it
 			 * returned from a longjmp() to the beginning of
-			 * _thread_start(). Check if this is a user thread: 
+			 * _thread_start().
 			 */
-			if (parent == NULL) {
-				/* Use the user start function: */
 #if	defined(__FreeBSD__)
 #if	defined(__alpha__)
-				new_thread->saved_jmp_buf[0]._jb[2] = (long) _thread_start;
-				new_thread->saved_jmp_buf[0]._jb[4 + R_RA] = 0;
-				new_thread->saved_jmp_buf[0]._jb[4 + R_T12] = (long) _thread_start;
+			new_thread->saved_jmp_buf[0]._jb[2] = (long) _thread_start;
+			new_thread->saved_jmp_buf[0]._jb[4 + R_RA] = 0;
+			new_thread->saved_jmp_buf[0]._jb[4 + R_T12] = (long) _thread_start;
 #else
-				new_thread->saved_jmp_buf[0]._jb[0] = (long) _thread_start;
+			new_thread->saved_jmp_buf[0]._jb[0] = (long) _thread_start;
 #endif
 #elif	defined(__NetBSD__)
 #if	defined(__alpha__)
-				new_thread->saved_jmp_buf[2] = (long) _thread_start;
-				new_thread->saved_jmp_buf[4 + R_RA] = 0;
-				new_thread->saved_jmp_buf[4 + R_T12] = (long) _thread_start;
+			new_thread->saved_jmp_buf[2] = (long) _thread_start;
+			new_thread->saved_jmp_buf[4 + R_RA] = 0;
+			new_thread->saved_jmp_buf[4 + R_T12] = (long) _thread_start;
 #else
-				new_thread->saved_jmp_buf[0] = (long) _thread_start;
+			new_thread->saved_jmp_buf[0] = (long) _thread_start;
 #endif
 #else
 #error	"Don't recognize this operating system!"
 #endif
-			} else {
-				/*
-				 * Use the (funny) signal handler start
-				 * function: 
-				 */
-#if	defined(__FreeBSD__)
-#if	defined(__alpha__)
-				new_thread->saved_jmp_buf[0]._jb[2] = (long) _thread_start_sig_handler;
-				new_thread->saved_jmp_buf[0]._jb[4 + R_RA] = 0;
-				new_thread->saved_jmp_buf[0]._jb[4 + R_T12] = (long) _thread_start_sig_handler;
-#else
-				new_thread->saved_jmp_buf[0]._jb[0] = (int) _thread_start_sig_handler;
-#endif
-#elif	defined(__NetBSD__)
-#if	defined(__alpha__)
-				new_thread->saved_jmp_buf[2] = (long) _thread_start_sig_handler;
-				new_thread->saved_jmp_buf[4 + R_RA] = 0;
-				new_thread->saved_jmp_buf[4 + R_T12] = (long) _thread_start_sig_handler;
-#else
-				new_thread->saved_jmp_buf[0] = (long) _thread_start_sig_handler;
-#endif
-#else
-#error	"Don't recognize this operating system!"
-#endif
-			}
 
 			/* The stack starts high and builds down: */
 #if	defined(__FreeBSD__)
@@ -215,56 +180,25 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->cleanup = NULL;
 			new_thread->queue = NULL;
 			new_thread->qnxt = NULL;
-			new_thread->parent_thread = parent;
 			new_thread->flags = 0;
+
+			/* Lock the thread list: */
+			_lock_thread_list();
 
 			/* Add the thread to the linked list of all threads: */
 			new_thread->nxt = _thread_link_list;
 			_thread_link_list = new_thread;
 
-			/* Return a pointer to the thread structure: */
-			if(thread)
-				(*thread) = new_thread;
+			/* Unlock the thread list: */
+			_unlock_thread_list();
 
-			/* Check if a parent thread was specified: */
-			if (parent != NULL) {
-				/*
-				 * A parent thread was specified, so this is
-				 * a signal handler thread which must now
-				 * wait for the signal handler to complete: 
-				 */
-				PTHREAD_NEW_STATE(parent,PS_SIGTHREAD);
-			} else {
-				/* Schedule the new user thread: */
-				_thread_kern_sched(NULL);
-			}
+			/* Return a pointer to the thread structure: */
+			(*thread) = new_thread;
+
+			/* Schedule the new user thread: */
+			_thread_kern_sched(NULL);
 		}
 	}
-
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
-
-	/* Return the status: */
-	return (ret);
-}
-
-int
-pthread_create(pthread_t * thread, const pthread_attr_t * attr,
-	       void *(*start_routine) (void *), void *arg)
-{
-	int             ret = 0;
-
-	/*
-	 * Locking functions in libc are required when there are
-	 * threads other than the initial thread.
-	 */
-	__isthreaded = 1;
-
-	/*
-	 * Call the low level thread creation function which allows a parent
-	 * thread to be specified: 
-	 */
-	ret = _thread_create(thread, attr, start_routine, arg, NULL);
 
 	/* Return the status: */
 	return (ret);
@@ -278,34 +212,5 @@ _thread_start(void)
 
 	/* This point should never be reached. */
 	PANIC("Thread has resumed after exit");
-}
-
-void
-_thread_start_sig_handler(void)
-{
-	int             sig;
-	long            arg;
-	void            (*sig_routine) (int);
-
-	/*
-	 * Cast the argument from 'void *' to a variable that is NO SMALLER
-	 * than a pointer (otherwise gcc under NetBSD/Alpha will complain): 
-	 */
-	arg = (long) _thread_run->arg;
-
-	/* Cast the argument as a signal number: */
-	sig = (int) arg;
-
-	/* Cast a pointer to the signal handler function: */
-	sig_routine = (void (*) (int)) _thread_run->start_routine;
-
-	/* Call the signal handler function: */
-	(*sig_routine) (sig);
-
-	/* Exit the signal handler thread: */
-	pthread_exit(&arg);
-
-	/* This point should never be reached. */
-	PANIC("Signal handler thread has resumed after exit");
 }
 #endif

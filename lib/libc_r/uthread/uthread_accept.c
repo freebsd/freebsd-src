@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,13 +57,15 @@ accept(int fd, struct sockaddr * name, int *namelen)
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);
+				_thread_run->interrupted = 0;
 
 				/* Schedule the next thread: */
 				_thread_kern_sched_state(PS_FDR_WAIT, __FILE__, __LINE__);
 
 				/* Check if the wait was interrupted: */
-				if (errno == EINTR) {
+				if (_thread_run->interrupted) {
 					/* Return an error status: */
+					errno = EINTR;
 					ret = -1;
 					break;
 				}
@@ -88,8 +90,8 @@ accept(int fd, struct sockaddr * name, int *namelen)
 			ret = -1;
 		}
 		/* 
-                 * If the parent socket was blocking, make sure that
-                 * the new socket is also set blocking here (as the
+		 * If the parent socket was blocking, make sure that
+		 * the new socket is also set blocking here (as the
 		 * call to _thread_fd_table_init() above will always 
 		 * set the new socket flags to non-blocking, as that 
 		 * will be the inherited state of the new socket.

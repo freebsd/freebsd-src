@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -125,8 +125,13 @@ select(int numfds, fd_set * readfds, fd_set * writefds,
 				memcpy(&data.exceptfds, exceptfds, sizeof(data.exceptfds));
 			}
 			_thread_run->data.select_data = &data;
+			_thread_run->interrupted = 0;
 			_thread_kern_sched_state(PS_SELECT_WAIT, __FILE__, __LINE__);
-			ret = data.nfds;
+			if (_thread_run->interrupted) {
+				errno = EINTR;
+				ret = -1;
+			} else
+				ret = data.nfds;
 		}
 	}
 	/* clean up the locks */

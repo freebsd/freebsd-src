@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
+ * Copyright (c) 1997 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,22 +29,37 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  */
-#include <sys/types.h>
-#include <sys/socket.h>
-#ifdef _THREAD_SAFE
+
+#include <stdio.h>
+#include <sched.h>
+#include <unistd.h>
 #include <pthread.h>
+#include "spinlock.h"
 #include "pthread_private.h"
 
-int
-setsockopt(int fd, int level, int optname, const void *optval, int optlen)
+/*
+ * Lock a location for the running thread. Yield to allow other
+ * threads to run if this thread is blocked because the lock is
+ * not available. Note that this function does not sleep. It
+ * assumes that the lock will be available very soon.
+ */
+void
+_spinlock(long *lck)
 {
-	int             ret;
+	do {
+		/*
+		 * Allow other threads to run if the lock is not
+		 * available:
+		 */
+		while (*lck != 0)
+			sched_yield();
 
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
-		ret = _thread_sys_setsockopt(fd, level, optname, optval, optlen);
-		_thread_fd_unlock(fd, FD_RDWR);
-	}
-	return ret;
+	/*
+	 * Try to grab the lock and loop if another thread grabs
+	 * it before we do.
+	 */
+	} while(_atomic_lock(lck,(long) _thread_run));
 }
-#endif

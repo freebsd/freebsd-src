@@ -39,29 +39,38 @@
 #include "pthread_private.h"
 
 /* Static variables: */
-static struct pthread_key key_table[PTHREAD_KEYS_MAX];
+static	struct pthread_key key_table[PTHREAD_KEYS_MAX];
+static	long	key_table_lock	= 0;
 
 int
 pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
 {
+	/* Lock the key table: */
+	_spinlock(&key_table_lock);
+
 	for ((*key) = 0; (*key) < PTHREAD_KEYS_MAX; (*key)++) {
 		if (key_table[(*key)].count == 0) {
 			key_table[(*key)].count++;
 			key_table[(*key)].destructor = destructor;
+
+			/* Unlock the key table: */
+			_atomic_unlock(&key_table_lock);
 			return (0);
 		}
 	}
+
+	/* Unlock the key table: */
+	_atomic_unlock(&key_table_lock);
 	return (EAGAIN);
 }
 
 int
 pthread_key_delete(pthread_key_t key)
 {
-	int             ret;
-	int             status;
+	int ret;
 
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
+	/* Lock the key table: */
+	_spinlock(&key_table_lock);
 
 	if (key < PTHREAD_KEYS_MAX) {
 		switch (key_table[key].count) {
@@ -74,12 +83,11 @@ pthread_key_delete(pthread_key_t key)
 		default:
 			ret = EBUSY;
 		}
-	} else {
+	} else
 		ret = EINVAL;
-	}
 
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
+	/* Unlock the key table: */
+	_atomic_unlock(&key_table_lock);
 	return (ret);
 }
 
@@ -89,14 +97,13 @@ _thread_cleanupspecific(void)
 	void           *data;
 	int             key;
 	int             itr;
-	int             status;
-
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
 
 	for (itr = 0; itr < PTHREAD_DESTRUCTOR_ITERATIONS; itr++) {
 		for (key = 0; key < PTHREAD_KEYS_MAX; key++) {
 			if (_thread_run->specific_data_count) {
+				/* Lock the key table entry: */
+				_spinlock(&key_table[key].access_lock);
+
 				if (_thread_run->specific_data[key]) {
 					data = (void *) _thread_run->specific_data[key];
 					_thread_run->specific_data[key] = NULL;
@@ -106,19 +113,16 @@ _thread_cleanupspecific(void)
 					}
 					key_table[key].count--;
 				}
+
+				/* Unlock the key table entry: */
+				_atomic_unlock(&key_table[key].access_lock);
 			} else {
 				free(_thread_run->specific_data);
-
-				/* Unblock signals: */
-				_thread_kern_sig_unblock(status);
 				return;
 			}
 		}
 	}
 	free(_thread_run->specific_data);
-
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 }
 
 static inline const void **
@@ -136,25 +140,16 @@ pthread_setspecific(pthread_key_t key, const void *value)
 {
 	pthread_t       pthread;
 	int             ret = 0;
-	int             status;
-
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
 
 	/* Point to the running thread: */
 	pthread = _thread_run;
 
-	/*
-	 * Enter a loop for signal handler threads to find the parent thread
-	 * which has the specific data associated with it: 
-	 */
-	while (pthread->parent_thread != NULL) {
-		/* Point to the parent thread: */
-		pthread = pthread->parent_thread;
-	}
-
-	if ((pthread->specific_data) || (pthread->specific_data = pthread_key_allocate_data())) {
+	if ((pthread->specific_data) ||
+	    (pthread->specific_data = pthread_key_allocate_data())) {
 		if ((key < PTHREAD_KEYS_MAX) && (key_table)) {
+			/* Lock the key table entry: */
+			_spinlock(&key_table[key].access_lock);
+
 			if (key_table[key].count) {
 				if (pthread->specific_data[key] == NULL) {
 					if (value != NULL) {
@@ -169,18 +164,16 @@ pthread_setspecific(pthread_key_t key, const void *value)
 				}
 				pthread->specific_data[key] = value;
 				ret = 0;
-			} else {
+			} else
 				ret = EINVAL;
-			}
-		} else {
-			ret = EINVAL;
-		}
-	} else {
-		ret = ENOMEM;
-	}
 
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
+			/* Unlock the key table entry: */
+			_atomic_unlock(&key_table[key].access_lock);
+
+		} else
+			ret = EINVAL;
+	} else
+		ret = ENOMEM;
 	return (ret);
 }
 
@@ -188,31 +181,17 @@ void *
 pthread_getspecific(pthread_key_t key)
 {
 	pthread_t       pthread;
-	int             status;
 	void		*data;
-
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
 
 	/* Point to the running thread: */
 	pthread = _thread_run;
 
-	/*
-	 * Enter a loop for signal handler threads to find the parent thread
-	 * which has the specific data associated with it: 
-	 */
-	while (pthread->parent_thread != NULL) {
-		/* Point to the parent thread: */
-		pthread = pthread->parent_thread;
-	}
-
-	/* Check for errors: */
-	if (pthread == NULL) {
-		/* Return an invalid argument error: */
-		data = NULL;
-	}
 	/* Check if there is specific data: */
-	else if (pthread->specific_data != NULL && (key < PTHREAD_KEYS_MAX) && (key_table)) {
+	if (pthread->specific_data != NULL &&
+	    (key < PTHREAD_KEYS_MAX) && (key_table)) {
+		/* Lock the key table entry: */
+		_spinlock(&key_table[key].access_lock);
+
 		/* Check if this key has been used before: */
 		if (key_table[key].count) {
 			/* Return the value: */
@@ -224,13 +203,12 @@ pthread_getspecific(pthread_key_t key)
 			 */
 			data = NULL;
 		}
-	} else {
+
+		/* Unlock the key table entry: */
+		_atomic_unlock(&key_table[key].access_lock);
+	} else
 		/* No specific data has been created, so just return NULL: */
 		data = NULL;
-	}
-
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 	return (data);
 }
 #endif

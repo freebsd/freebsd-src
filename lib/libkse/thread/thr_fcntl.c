@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,9 +46,6 @@ fcntl(int fd, int cmd,...)
 	int             status;
 	va_list         ap;
 
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
-
 	/* Lock the file descriptor: */
 	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
 		/* Initialise the variable argument list: */
@@ -56,7 +53,7 @@ fcntl(int fd, int cmd,...)
 
 		/* Process according to file control command type: */
 		switch (cmd) {
-			/* Duplicate a file descriptor: */
+		/* Duplicate a file descriptor: */
 		case F_DUPFD:
 			/*
 			 * Get the file descriptor that the caller wants to
@@ -107,8 +104,6 @@ fcntl(int fd, int cmd,...)
 		/* Unlock the file descriptor: */
 		_thread_fd_unlock(fd, FD_RDWR);
 	}
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 
 	/* Return the completion status: */
 	return (ret);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,15 @@ sendto(int fd, const void *msg, size_t len, int flags, const struct sockaddr * t
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);
+				_thread_run->interrupted = 0;
 				_thread_kern_sched_state(PS_FDW_WAIT, __FILE__, __LINE__);
+
+				/* Check if the operation was interrupted: */
+				if (_thread_run->interrupted) {
+					errno = EINTR;
+					ret = -1;
+					break;
+				}
 			} else {
 				ret = -1;
 				break;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.8 1998/04/11 07:47:22 jb Exp $
+ * $Id: uthread_kern.c,v 1.9 1998/04/17 09:37:41 jb Exp $
  *
  */
 #include <errno.h>
@@ -49,15 +49,9 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-/* Static variables: */
-static sigset_t sig_to_block = 0xffffffff;
-static sigset_t sig_to_unblock = 0;
-
 /* Static function prototype definitions: */
 static void 
 _thread_kern_select(int wait_reqd);
-static void 
-_thread_signal(pthread_t pthread, int sig);
 
 void
 _thread_kern_sched(struct sigcontext * scp)
@@ -78,8 +72,12 @@ _thread_kern_sched(struct sigcontext * scp)
 	struct timeval  tv;
 	struct timeval  tv1;
 
-	/* Block signals: */
-	_thread_kern_sig_block(NULL);
+	/*
+	 * Flag the pthread kernel as executing scheduler code
+	 * to avoid a scheduler signal from interrupting this
+	 * execution and calling the scheduler again.
+	 */
+	_thread_kern_in_sched = 1;
 
 	/* Check if this function was called from the signal handler: */
 	if (scp != NULL) {
@@ -101,14 +99,20 @@ __asm__("fnsave %0": :"m"(*fdata));
 		_thread_run->sig_saved = 1;
 	}
 	/* Save the state of the current thread: */
-	else if (_thread_sys_setjmp(_thread_run->saved_jmp_buf) != 0) {
-		/* Unblock signals (just in case): */
-		_thread_kern_sig_unblock(0);
-
+	else if (setjmp(_thread_run->saved_jmp_buf) != 0) {
 		/*
 		 * This point is reached when a longjmp() is called to
 		 * restore the state of a thread. 
+		 *
+		 * This is the normal way out of the scheduler.
 		 */
+		_thread_kern_in_sched = 0;
+
+		/*
+		 * There might be pending signals for this thread, so
+		 * dispatch any that aren't blocked:
+		 */
+		_dispatch_signals();
 		return;
 	} else {
 		/* Flag the jump buffer was the last state saved: */
@@ -135,10 +139,9 @@ __asm__("fnsave %0": :"m"(*fdata));
 			pthread_prv = pthread;
 		}
 		/*
-		 * Check if this thread has detached or if it is a signal
-		 * handler thread: 
+		 * Check if this thread has detached:
 		 */
-		else if (((pthread->attr.flags & PTHREAD_DETACHED) != 0) || pthread->parent_thread != NULL) {
+		else if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
 			/* Check if there is no previous dead thread: */
 			if (pthread_prv == NULL) {
 				/*
@@ -210,41 +213,10 @@ __asm__("fnsave %0": :"m"(*fdata));
 		_thread_kern_select(0);
 
 		/*
-		 * Enter a loop to look for sleeping threads that are ready
-		 * or threads with pending signals that are no longer
-		 * blocked: 
+		 * Enter a loop to look for sleeping threads that are ready:
 		 */
-		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-			/* Enter a loop to process the sending signals: */
-			for (i = 1; i < NSIG; i++) {
-				/*
-				 * Check if there are no pending signals of
-				 * this type: 
-				 */
-				if (pthread->sigpend[i] == 0) {
-				}
-				/* Check if this signal type is not masked: */
-				else if (sigismember(&pthread->sigmask, i) == 0) {
-					/*
-					 * Delete the signal from the set of
-					 * pending signals for this thread: 
-					 */
-					pthread->sigpend[i] -= 1;
-
-					/*
-					 * Act on the signal for the current
-					 * thread: 
-					 */
-					_thread_signal(pthread, i);
-				} else {
-					/*
-					 * This signal is masked, so make
-					 * sure the count does not exceed 1: 
-					 */
-					pthread->sigpend[i] = 1;
-				}
-			}
-
+		for (pthread = _thread_link_list; pthread != NULL;
+		    pthread = pthread->nxt) {
 			/* Check if this thread is to timeout: */
 			if (pthread->state == PS_COND_WAIT ||
 			    pthread->state == PS_SLEEP_WAIT ||
@@ -369,45 +341,6 @@ __asm__("fnsave %0": :"m"(*fdata));
 		 * priority that is ready to run: 
 		 */
 		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-			/* Check if in single-threaded mode: */
-			if (_thread_single != NULL) {
-				/*
-				 * Check if the current thread is
-				 * the thread for which single-threaded
-				 * mode is enabled:
-				 */
-				if (pthread == _thread_single) {
-					/*
-					 * This thread is allowed
-					 * to run.
-					 */
-				} else {
-					/*
-					 * Walk up the signal handler
-                                         * parent thread tree to see
-					 * if the current thread is
-					 * descended from the thread
-					 * for which single-threaded
-					 * mode is enabled.
-					 */
-					pthread_nxt = pthread;
-					while(pthread_nxt != NULL &&
-						pthread_nxt != _thread_single) {
-						pthread_nxt = pthread->parent_thread;
-					}
-					/*
-					 * Check if the current
-					 * thread is not descended
-					 * from the thread for which
-					 * single-threaded mode is
-					 * enabled.
-					 */
-					if (pthread_nxt == NULL)
-						/* Ignore this thread. */
-						continue;
-				}
-			}
-
 			/* Check if the current thread is unable to run: */
 			if (pthread->state != PS_RUNNING) {
 			}
@@ -433,49 +366,11 @@ __asm__("fnsave %0": :"m"(*fdata));
 		 * least recently. 
 		 */
 		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-			/* Check if in single-threaded mode: */
-			if (_thread_single != NULL) {
-				/*
-				 * Check if the current thread is
-				 * the thread for which single-threaded
-				 * mode is enabled:
-				 */
-				if (pthread == _thread_single) {
-					/*
-					 * This thread is allowed
-					 * to run.
-					 */
-				} else {
-					/*
-					 * Walk up the signal handler
-                                         * parent thread tree to see
-					 * if the current thread is
-					 * descended from the thread
-					 * for which single-threaded
-					 * mode is enabled.
-					 */
-					pthread_nxt = pthread;
-					while(pthread_nxt != NULL &&
-						pthread_nxt != _thread_single) {
-						pthread_nxt = pthread->parent_thread;
-					}
-					/*
-					 * Check if the current
-					 * thread is not descended
-					 * from the thread for which
-					 * single-threaded mode is
-					 * enabled.
-					 */
-					if (pthread_nxt == NULL)
-						/* Ignore this thread. */
-						continue;
-				}
-			}
-
 			/* Check if the current thread is unable to run: */
 			if (pthread->state != PS_RUNNING) {
 				/* Ignore threads that are not ready to run. */
 			}
+
 			/*
 			 * Check if the current thread as an agregate
 			 * priority not equal to the highest priority found
@@ -487,6 +382,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 				 * priority. 
 				 */
 			}
+
 			/*
 			 * Check if the current thread reached its time slice
 			 * allocation last time it ran (or if it has not run
@@ -494,6 +390,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 			 */
 			else if (pthread->slice_usec == -1) {
 			}
+
 			/*
 			 * Check if an eligible thread has not been found
 			 * yet, or if the current thread has an inactive time
@@ -526,45 +423,6 @@ __asm__("fnsave %0": :"m"(*fdata));
 			 * priority. 3. Became inactive least recently. 
 			 */
 			for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-				/* Check if in single-threaded mode: */
-				if (_thread_single != NULL) {
-					/*
-					 * Check if the current thread is
-					 * the thread for which single-threaded
-					 * mode is enabled:
-					 */
-					if (pthread == _thread_single) {
-						/*
-						 * This thread is allowed
-						 * to run.
-						 */
-					} else {
-						/*
-						 * Walk up the signal handler
-						 * parent thread tree to see
-						 * if the current thread is
-						 * descended from the thread
-						 * for which single-threaded
-						 * mode is enabled.
-						 */
-						pthread_nxt = pthread;
-						while(pthread_nxt != NULL &&
-							pthread_nxt != _thread_single) {
-							pthread_nxt = pthread->parent_thread;
-						}
-						/*
-						 * Check if the current
-						 * thread is not descended
-						 * from the thread for which
-						 * single-threaded mode is
-						 * enabled.
-						 */
-						if (pthread_nxt == NULL)
-							/* Ignore this thread. */
-							continue;
-					}
-				}
-
 				/*
 				 * Check if the current thread is unable to
 				 * run: 
@@ -804,14 +662,13 @@ __asm__("fnsave %0": :"m"(*fdata));
 				 * was interrupted by a signal: 
 				 */
 				_thread_sys_sigreturn(&_thread_run->saved_sigcontext);
-			} else {
+			} else
 				/*
 				 * Do a longjmp to restart the thread that
 				 * was context switched out (by a longjmp to
 				 * a different thread): 
 				 */
-				_thread_sys_longjmp(_thread_run->saved_jmp_buf, 1);
-			}
+				longjmp(_thread_run->saved_jmp_buf, 1);
 
 			/* This point should not be reached. */
 			PANIC("Thread has returned from sigreturn or longjmp");
@@ -820,243 +677,6 @@ __asm__("fnsave %0": :"m"(*fdata));
 
 	/* There are no more threads, so exit this process: */
 	exit(0);
-}
-
-static void
-_thread_signal(pthread_t pthread, int sig)
-{
-	int		done;
-	long            l;
-	pthread_t       new_pthread;
-	struct sigaction act;
-	void           *arg;
-
-	/*
-	 * Assume that the signal will not be dealt with according
-	 * to the thread state:
-	 */
-	done = 0;
-
-	/* Process according to thread state: */
-	switch (pthread->state) {
-	/* States which do not change when a signal is trapped: */
-	case PS_COND_WAIT:
-	case PS_DEAD:
-	case PS_FDLR_WAIT:
-	case PS_FDLW_WAIT:
-	case PS_FILE_WAIT:
-	case PS_JOIN:
-	case PS_MUTEX_WAIT:
-	case PS_RUNNING:
-	case PS_STATE_MAX:
-	case PS_SIGTHREAD:
-	case PS_SUSPENDED:
-		/* Nothing to do here. */
-		break;
-
-	/* Wait for child: */
-	case PS_WAIT_WAIT:
-		/* Check if the signal is from a child exiting: */
-		if (sig == SIGCHLD) {
-			/* Reset the error: */
-			_thread_seterrno(pthread, 0);
-
-			/* Change the state of the thread to run: */
-			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-		} else {
-			/* Return the 'interrupted' error: */
-			_thread_seterrno(pthread, EINTR);
-
-			/* Change the state of the thread to run: */
-			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-		}
-		pthread->interrupted = 1;
-		break;
-
-	/* Waiting on I/O for zero or more file descriptors: */
-	case PS_SELECT_WAIT:
-		pthread->data.select_data->nfds = -1;
-
-		/* Return the 'interrupted' error: */
-		_thread_seterrno(pthread, EINTR);
-		pthread->interrupted = 1;
-
-		/* Change the state of the thread to run: */
-		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-		break;
-
-	/*
-	 * States that are interrupted by the occurrence of a signal
-	 * other than the scheduling alarm: 
-	 */
-	case PS_FDR_WAIT:
-	case PS_FDW_WAIT:
-	case PS_SLEEP_WAIT:
-	case PS_SIGWAIT:
-		/* Return the 'interrupted' error: */
-		_thread_seterrno(pthread, EINTR);
-		pthread->interrupted = 1;
-
-		/* Change the state of the thread to run: */
-		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-
-		/* Return the signal number: */
-		pthread->signo = sig;
-		break;
-	}
-
-	/*
-	 * Check if this signal has been dealt with, or is being
-	 * ignored:
-	 */
-	if (done || pthread->act[sig - 1].sa_handler == SIG_IGN) {
-		/* Ignore the signal for this thread. */
-	}
-	/* Check if this signal is to use the default handler: */
-	else if (pthread->act[sig - 1].sa_handler == SIG_DFL) {
-		/* Process according to signal type: */
-		switch (sig) {
-		/* Signals which cause core dumps: */
-		case SIGQUIT:
-		case SIGILL:
-		case SIGTRAP:
-		case SIGABRT:
-		case SIGEMT:
-		case SIGFPE:
-		case SIGBUS:
-		case SIGSEGV:
-		case SIGSYS:
-			/* Clear the signal action: */
-			sigfillset(&act.sa_mask);
-			act.sa_handler = SIG_DFL;
-			act.sa_flags = SA_RESTART;
-			_thread_sys_sigaction(sig, &act, NULL);
-
-			/*
-			 * Do a sigreturn back to where the signal was
-			 * detected and a core dump should occur: 
-			 */
-			_thread_sys_sigreturn(&pthread->saved_sigcontext);
-			break;
-
-		/*
-		 * The following signals should terminate the
-		 * process. Do this by clearing the signal action
-		 * and then re-throwing the signal.
-		 */
-		case SIGHUP:
-		case SIGINT:
-		case SIGPIPE:
-		case SIGALRM:
-		case SIGTERM:
-		case SIGXCPU:
-		case SIGXFSZ:
-		case SIGVTALRM:
-		case SIGUSR1:
-		case SIGUSR2:
-		/* These signals stop the process. Also re-throw them. */
-		case SIGTSTP:
-		case SIGTTIN:
-		case SIGTTOU:
-                        /* Clear the signal action: */
-                        sigfillset(&act.sa_mask);
-                        act.sa_handler = SIG_DFL;
-                        act.sa_flags = SA_RESTART;
-                        _thread_sys_sigaction(sig, &act, NULL);
-			/* Re-throw to ourselves. */
-                        kill(getpid(), sig);
-			break;
-
-		case SIGCONT:
-			/*
-			 * If we get this it means that we were
-			 * probably stopped and then continued.
-			 * Reset the handler for the SIGTSTP, SIGTTIN
-			 * and SIGTTOU signals.
-			 */
-
-                	sigfillset(&act.sa_mask);
-	                act.sa_handler = (void (*) ()) _thread_sig_handler;
-			act.sa_flags = SA_RESTART;
-
-                        /* Initialise the signals for default handling: */
-                        if (_thread_sys_sigaction(SIGTSTP, &act, NULL) != 0) {
-                                PANIC("Cannot initialise SIGTSTP signal handler");
-                        }
-                        if (_thread_sys_sigaction(SIGTTIN, &act, NULL) != 0) {
-                                PANIC("Cannot initialise SIGTTIN signal handler");
-                        }
-                        if (_thread_sys_sigaction(SIGTTOU, &act, NULL) != 0) {
-                                PANIC("Cannot initialise SIGTTOU signal handler");
-                        }
-			break;
-
-		/* Default processing for other signals: */
-		default:
-			/*
-			 * ### Default processing is a problem to resolve!     
-			 * ### 
-			 */
-			break;
-		}
-	} else {
-		/*
-		 * Cast the signal number as a long and then to a void
-		 * pointer. Sigh. This is POSIX. 
-		 */
-		l = (long) sig;
-		arg = (void *) l;
-
-		/* Create a signal handler thread, but don't run it yet: */
-		if (_thread_create(&new_pthread, NULL, (void *) pthread->act[sig - 1].sa_handler, arg, pthread) != 0) {
-			/*
-			 * Error creating signal handler thread, so abort
-			 * this process: 
-			 */
-			PANIC("Cannot create signal handler thread");
-		}
-	}
-
-	/* Nothing to return. */
-	return;
-}
-
-void
-_thread_kern_sig_block(int *status)
-{
-	sigset_t        oset;
-
-	/*
-	 * Block all signals so that the process will not be interrupted by
-	 * signals: 
-	 */
-	_thread_sys_sigprocmask(SIG_SETMASK, &sig_to_block, &oset);
-
-	/* Check if the caller wants the current block status returned: */
-	if (status != NULL) {
-		/* Return the previous signal block status: */
-		*status = (oset != 0);
-	}
-	return;
-}
-
-void
-_thread_kern_sig_unblock(int status)
-{
-	sigset_t        oset;
-
-	/*
-	 * Check if the caller thinks that signals weren't blocked when it
-	 * called _thread_kern_sig_block: 
-	 */
-	if (status == 0) {
-		/*
-		 * Unblock all signals so that the process will be
-		 * interrupted when a signal occurs: 
-		 */
-		_thread_sys_sigprocmask(SIG_SETMASK, &sig_to_unblock, &oset);
-	}
-	return;
 }
 
 void
@@ -1382,17 +1002,11 @@ _thread_kern_select(int wait_reqd)
 		 */
 		_thread_kern_in_select = 1;
 
-		/* Unblock all signals: */
-		_thread_kern_sig_unblock(0);
-
 		/*
 		 * Wait for a file descriptor to be ready for read, write, or
 		 * an exception, or a timeout to occur: 
 		 */
 		count = _thread_sys_select(nfds + 1, &fd_set_read, &fd_set_write, &fd_set_except, p_tv);
-
-		/* Block all signals again: */
-		_thread_kern_sig_block(NULL);
 
 		/* Reset the kernel in select flag: */
 		_thread_kern_in_select = 0;
@@ -1426,10 +1040,10 @@ _thread_kern_select(int wait_reqd)
 				 * signal and each byte is the signal number.
 				 * This data is not used, but the fact that
 				 * the signal handler wrote to the pipe *is*
-				 * used to cause the _thread_sys_select call
+				 * used to cause the _select call
 				 * to complete if the signal occurred between
 				 * the time when signals were unblocked and
-				 * the _thread_sys_select select call being
+				 * the _select select call being
 				 * made. 
 				 */
 			}
@@ -1439,36 +1053,22 @@ _thread_kern_select(int wait_reqd)
 	else if (count > 0) {
 		/*
 		 * Point to the time value structure which has been zeroed so
-		 * that the call to _thread_sys_select will not wait: 
+		 * that the call to _select will not wait: 
 		 */
 		p_tv = &tv;
 
 		/* Poll file descrptors without wait: */
 		count = _thread_sys_select(nfds + 1, &fd_set_read, &fd_set_write, &fd_set_except, p_tv);
 	}
+
 	/*
-	 * Check if the select call was interrupted, or some other error
-	 * occurred: 
+	 * Check if any file descriptors are ready:
 	 */
-	if (count < 0) {
-		/* Check if the select call was interrupted: */
-		if (errno == EINTR) {
-			/*
-			 * Interrupted calls are expected. The interrupting
-			 * signal will be in the sigpend array. 
-			 */
-		} else {
-			/* This should not occur: */
-		}
-	}
-	/* Check if no file descriptors are ready: */
-	else if (count == 0) {
-		/* Nothing to do here.                                              */
-	} else {
+	if (count > 0) {
 		/*
 		 * Enter a loop to look for threads waiting on file
 		 * descriptors that are flagged as available by the
-		 * _thread_sys_select syscall: 
+		 * _select syscall: 
 		 */
 		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
 			/* Process according to thread state: */
