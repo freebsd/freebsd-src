@@ -275,6 +275,8 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			/* XXX bad on sb16 */
 	    		p->formats = (rcaps? rcaps->formats : 0xffffffff) &
 			 	     (pcaps? pcaps->formats : 0xffffffff);
+			if (rdch && wrch)
+				p->formats |= (d->flags & SD_F_SIMPLEX)? 0 : AFMT_FULLDUPLEX;
 	    		p->mixers = 1; /* default: one mixer */
 	    		p->inputs = d->mixer.devs;
 	    		p->left = p->right = 100;
