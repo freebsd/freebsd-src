@@ -1,5 +1,5 @@
 #
-#	$Id:$
+# $FreeBSD$
 # rpc 88/08/01 4.0 RPCSRC; from 1.12   88/02/07 SMI
 #
 portmapper	100000	portmap sunrpc

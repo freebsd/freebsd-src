@@ -1,5 +1,5 @@
 # Makefile for uuxqt
-# $Id: Makefile,v 1.8 1997/02/22 15:28:57 peter Exp $
+# $FreeBSD$
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)

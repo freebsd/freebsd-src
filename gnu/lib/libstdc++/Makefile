@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21 1999/04/25 16:59:54 obrien Exp $
+# $FreeBSD$
 
 SRCDIR=	${.CURDIR}/../../../contrib/egcs/libstdc++
 

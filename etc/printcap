@@ -1,5 +1,5 @@
 #	@(#)printcap	5.3 (Berkeley) 6/30/90
-# $Id: printcap,v 1.8 1998/01/04 17:59:24 steve Exp $
+# $FreeBSD$
 
 #
 # This enables a simple local "raw" printer, hooked up to the first

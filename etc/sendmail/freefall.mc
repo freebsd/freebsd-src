@@ -40,7 +40,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: freefall.mc,v 1.13 1999/05/11 03:27:14 jmb Exp $')
+VERSIONID(`$FreeBSD$')
 
 OSTYPE(bsd4.4)
 FEATURE(nullclient, hub.$m)

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.45 1999/04/05 08:48:08 obrien Exp $
+# $FreeBSD$
 
 SUBDIR= awk bc binutils bison cc cpio cvs dc dialog diff diff3 gperf \
 	grep groff gzip man patch ptx rcs sdiff send-pr sort tar texinfo

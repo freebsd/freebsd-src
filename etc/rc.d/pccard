@@ -1,6 +1,6 @@
 #!/bin/sh -
 #	PC-card startup script
-#	$Id: rc.pccard,v 1.16 1999/07/26 01:08:16 obrien Exp $
+# $FreeBSD$
 
 if [ "${pccard_enable}" = "YES" ] ; then
 	if [ "${pccard_mem}" != "DEFAULT" ] ; then

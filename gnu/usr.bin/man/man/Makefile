@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.25 1999/07/05 02:46:20 hoek Exp $
+# $FreeBSD$
 #
 
 PROG=	man

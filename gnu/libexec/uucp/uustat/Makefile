@@ -1,5 +1,5 @@
 # Makefile for uustat
-# $Id$
+# $FreeBSD$
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

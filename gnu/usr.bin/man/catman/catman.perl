@@ -26,7 +26,7 @@
 #
 # /usr/bin/catman - preformat man pages
 #
-# $Id: catman.perl,v 1.11 1998/05/01 13:27:27 des Exp $
+# $FreeBSD$
 
 
 sub usage {

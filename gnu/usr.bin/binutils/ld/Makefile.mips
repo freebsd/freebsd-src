@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.mips,v 1.1 1999/03/01 04:01:56 imp Exp $
+# $FreeBSD$
 #
 
 .if	${MACHINE_ARCH} == "mipseb"

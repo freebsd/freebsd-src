@@ -1,5 +1,5 @@
 #
-# $Id: rc.devfs,v 1.3 1998/10/13 08:25:09 jkh Exp $
+# $FreeBSD$
 #
 # If there is a global system configuration file, suck it in.
 if [ -f /etc/defaults/rc.conf ]; then

@@ -1,4 +1,4 @@
-#	$Id: disktab,v 1.2 1998/09/02 01:34:56 brian Exp $
+# $FreeBSD$
 #
 # Disk geometry and partition layout tables. 
 # Key:

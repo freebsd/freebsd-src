@@ -1,5 +1,5 @@
 # Makefile for uucp
-# $Id$
+# $FreeBSD$
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

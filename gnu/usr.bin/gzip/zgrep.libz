@@ -5,7 +5,7 @@
 # zgrep - Search possibly compressed files for a regular expression. This
 #         version of zgrep(1) depend on a grep(1) linked with libz.
 #
-# $Id$
+# $FreeBSD$
 
 PATH=/bin:/usr/bin; export PATH
 

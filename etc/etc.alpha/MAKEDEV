@@ -129,7 +129,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.10 1999/08/16 16:00:23 sheldonh Exp $
+# $FreeBSD$
 #	from etc.i386 MAKEDEV,v 1.199 1999/05/29 19:36:55 phk Exp
 #
 

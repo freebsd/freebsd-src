@@ -1,5 +1,5 @@
 #
-# $Id$
+# $FreeBSD$
 #
 
 PROG=	find2perl

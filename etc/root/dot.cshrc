@@ -1,4 +1,4 @@
-#	$Id: dot.cshrc,v 1.22 1998/09/13 23:05:47 brian Exp $
+# $FreeBSD$
 #
 #csh .cshrc file
 

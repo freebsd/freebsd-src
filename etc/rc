@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.193 1999/08/06 06:22:43 peter Exp $
+# $FreeBSD$
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile,v 1.16 1998/09/07 05:45:23 jb Exp $
+# $FreeBSD$
 
 .include "config/Makefile.$(MACHINE_ARCH)"
 
