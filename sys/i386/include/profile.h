@@ -31,13 +31,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.7 1996/08/28 20:15:25 bde Exp $
+ * $Id: profile.h,v 1.8 1996/10/17 19:31:59 bde Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_
 #define	_MACHINE_PROFILE_H_
 
 #ifdef KERNEL
+/*
+ * Config generates something to tell the compiler to align functions on 16
+ * byte boundaries.  A strict alignment is good for keeping the tables small.
+ */
+#define	FUNCTION_ALIGNMENT	16
+
 /*
  * The kernel uses assembler stubs instead of unportable inlines.
  * This is mainly to save a little time when profiling is not enabled,
@@ -49,7 +55,7 @@
 #ifdef GUPROF
 #define	CALIB_SCALE	1000
 #define	KCOUNT(p,index)	((p)->kcount[(index) \
-			 / (HISTFRACTION * sizeof(*(p)->kcount))])
+			 / (HISTFRACTION * sizeof(HISTCOUNTER))])
 #define	MCOUNT_DECL(s)
 #define	MCOUNT_ENTER(s)
 #define	MCOUNT_EXIT(s)
@@ -61,6 +67,8 @@
 #endif /* GUPROF */
 
 #else /* !KERNEL */
+
+#define	FUNCTION_ALIGNMENT	4
 
 #define	_MCOUNT_DECL static __inline void _mcount
 
