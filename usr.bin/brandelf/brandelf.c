@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: brandelf.c,v 1.9 1998/04/21 02:31:09 eivind Exp $
+ *  $Id: brandelf.c,v 1.10 1998/04/21 02:44:12 eivind Exp $
  */
 
 #include <elf.h>
@@ -133,7 +133,7 @@ usage()
 static int
 iselftype(const char *elftype) {
 	/* XXX - any more types? */
-	const char *elftypes[] = { "FreeBSD", "Linux" };
+	const char *elftypes[] = { "FreeBSD", "Linux", "SVR4" };
 	int elfwalk;
 
 	for (elfwalk = 0;
