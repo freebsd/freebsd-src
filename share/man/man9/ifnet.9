@@ -283,7 +283,7 @@ Flags describing operational parameters of this interface (see below).
 .It Li "if_capabilities"
 .Pq Li "int"
 Flags describing the capabilities the interface supports (see below).
-.It Li "if_enable"
+.It Li "if_capenable"
 .Pq Li "int"
 Flags describing the enabled capabilties of the interface (see below).
 .\" .It Li "if_ipending"
@@ -455,24 +455,16 @@ and allow, when enabled,
 to offload specific network processing to the interface.
 .Pp
 .Bl -tag -width "IFCAP_NETCONS" -offset indent
-.It Dv IFCAP_HWCSUM
-This interface can do checksum validation for the IP stack on both
-receiving and transmitting data.
-Some interfaces do not have sufficient buffer storage to store frames
-above a certain MTU-size completely.
-The driver for the interface might disable hardware checksum validation
-if the MTU is set above the hardcoded limit.
 .It Dv IFCAP_NETCONS
 This interface can be a network console.
 .It Dv IFCAP_RXCSUM
-This interface can do checksum validation for the IP stack on receiving data.
+This interface can do checksum validation on receiving data.
 Some interfaces do not have sufficient buffer storage to store frames
 above a certain MTU-size completely.
 The driver for the interface might disable hardware checksum validation
 if the MTU is set above the hardcoded limit.
 .It Dv IFCAP_TXCSUM
-This interface can do checksum calculation for the IP stack on transmitting
-data.
+This interface can do checksum calculation on transmitting data.
 .El
 .Ss The if_data structure
 In
