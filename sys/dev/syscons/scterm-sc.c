@@ -557,7 +557,8 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 		case 'B':   /* set bell pitch and duration */
 			if (tcp->num_param == 2) {
 				scp->bell_pitch = tcp->param[0];
-				scp->bell_duration = tcp->param[1];
+				scp->bell_duration = 
+				    (tcp->param[1] * hz + 99) / 100;
 			}
 			break;
 
