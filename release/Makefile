@@ -619,7 +619,7 @@ release.9:
 		ln -sf /stand $$dir; \
 	  done )
 	cp ${RD}/trees/base/sbin/dhclient-script ${RD}/mfsfd/stand
-.if ${TARGET_ARCH} == "i386"
+.if ${TARGET} == "pc98"
 	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
 .endif
 	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
