@@ -134,6 +134,7 @@ pccardInitialize(void)
     int t;
     int i;
     int	pcic_mem = 0xd0000;
+    int beep_newstat;
     char card_device[16];
     char *card_irq = "";
     char temp[256];
@@ -222,6 +223,14 @@ pccardInitialize(void)
 	    restorescr(w);
 	    return;
 	}
+	beep_newstat = 1;
+	if (ioctl(fd, PIOCSBEEP, &beep_newstat) < 0) {
+	    msgNotify("Warning: unable to set pccard insertion beep type for %s",
+		card_device);
+	    restorescr(w);
+	    return;
+	}
+
     }
 
     strcpy(pccardd_cmd, "/stand/pccardd ");
