@@ -984,16 +984,16 @@ fdfree(p)
 }
 
 /*
- * For setuid/setgid programs we don't want to people to use that setuidness
+ * For setugid programs, we don't want to people to use that setugidness
  * to generate error messages which write to a file which otherwise would
- * otherwise be off limits to the proces.
+ * otherwise be off-limits to the process.
  *
  * This is a gross hack to plug the hole.  A better solution would involve
  * a special vop or other form of generalized access control mechanism.  We
  * go ahead and just reject all procfs file systems accesses as dangerous.
  *
  * Since setugidsafety calls this only for fd 0, 1 and 2, this check is
- * sufficient.  We also don't for setugidness since we know we are.
+ * sufficient.  We also don't for check setugidness since we know we are.
  */
 static int
 is_unsafe(struct file *fp)
@@ -1022,15 +1022,13 @@ setugidsafety(p)
 
 	fpp = fdp->fd_ofiles;
 	fdfp = fdp->fd_ofileflags;
-	for (i = 0; i <= fdp->fd_lastfile; i++, fpp++, fdfp++) {
-		if (i > 2)
-			break;
+	for (i = 0; i <= 2 && i <= fdp->fd_lastfile; i++, fpp++, fdfp++) {
 		if (*fpp != NULL && is_unsafe(*fpp)) {
-			if (*fdfp & UF_MAPPED)
-				(void) munmapfd(p, i);
-			(void) closef(*fpp, p);
+			if ((*fdfp & UF_MAPPED) != 0)
+				(void)munmapfd(p, i);
+			(void)closef(*fpp, p);
 			*fpp = NULL;
-			*fdfp = 0;
+			*fdfp = '\0';
 			if (i < fdp->fd_freefile)
 				fdp->fd_freefile = i;
 		}
