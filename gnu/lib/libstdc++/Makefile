@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.17 1999/04/08 07:20:33 obrien Exp $
+# $Id: Makefile,v 1.18 1999/04/08 09:13:39 obrien Exp $
 #
 
 EGCSDIR=	${.CURDIR}/../../../contrib/egcs
@@ -95,7 +95,7 @@ ${file}.o: ${file}.cc
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-${file}.so: ${file}.cc
+${file}.So: ${file}.cc
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc \
 	    -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
@@ -115,7 +115,7 @@ ${file}.o: ${file}.cc
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-${file}.so: ${file}.cc
+${file}.So: ${file}.cc
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -O0 -c ${DIR}/${file}.cc \
 	    -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
