@@ -223,7 +223,7 @@ quiz()
 	int next;
 	char *answer, *s, *t, question[LINE_SZ];
 
-	srandom(time(NULL));
+	srandomdev();
 	guesses = rights = wrongs = 0;
 	for (;;) {
 		if (qsize == 0)

@@ -77,6 +77,7 @@ static char sccsid[] = "@(#)arithmetic.c	8.1 (Berkeley) 5/31/93";
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 char keylist[] = "+-x/";
 char defaultkeys[] = "+-";
@@ -133,7 +134,7 @@ main(argc, argv)
 		usage();
 
 	/* Seed the random-number generator. */
-	srandom((int)time((time_t *)NULL));
+	srandomdev();
 
 	(void)signal(SIGINT, intr);
 

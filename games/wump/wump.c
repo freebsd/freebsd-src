@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)wump.c	8.1 (Berkeley) 5/31/93";
 #include <sys/types.h>
 #include <sys/file.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "pathnames.h"
 
 /* some defines to spec out what our wumpus cave should look like */
@@ -482,7 +483,6 @@ cave_init()
 {
 	register int i, j, k, link;
 	int delta, int_compare();
-	time_t time();
 
 	/*
 	 * This does most of the interesting work in this program actually!
@@ -493,7 +493,7 @@ cave_init()
 	 * than three links, regardless of the quality of the random number
 	 * generator that we're using.
 	 */
-	srandom((int)time((time_t *)0));
+	srandomdev();
 
 	/* initialize the cave first off. */
 	for (i = 1; i <= room_num; ++i)
