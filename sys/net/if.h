@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.23 1995/10/13 19:48:00 wollman Exp $
+ * $Id: if.h,v 1.24 1995/12/05 02:01:37 davidg Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -365,32 +365,25 @@ char	*ether_sprintf __P((u_char *));
 
 void	if_attach __P((struct ifnet *));
 void	if_down __P((struct ifnet *));
-void	if_qflush __P((struct ifqueue *));
-void	if_slowtimo __P((void *));
 void	if_up __P((struct ifnet *));
 #ifdef vax
 void	ifubareset __P((int));
 #endif
-int	ifconf __P((int, caddr_t));
 /*void	ifinit __P((void));*/ /* declared in systm.h for main() */
 int	ifioctl __P((struct socket *, int, caddr_t, struct proc *));
 int	ifpromisc __P((struct ifnet *, int));
 struct	ifnet *ifunit __P((char *));
 
 struct	ifaddr *ifa_ifwithaddr __P((struct sockaddr *));
-struct	ifaddr *ifa_ifwithaf __P((int));
 struct	ifaddr *ifa_ifwithdstaddr __P((struct sockaddr *));
 struct	ifaddr *ifa_ifwithnet __P((struct sockaddr *));
 struct	ifaddr *ifa_ifwithroute __P((int, struct sockaddr *,
 					struct sockaddr *));
 struct	ifaddr *ifaof_ifpforaddr __P((struct sockaddr *, struct ifnet *));
 void	ifafree __P((struct ifaddr *));
-void	link_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 
-int	loioctl __P((struct ifnet *, int, caddr_t));
 int	looutput __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
-void	lortrequest __P((int, struct rtentry *, struct sockaddr *));
 #endif /* KERNEL */
 
 #endif /* !_NET_IF_H_ */
