@@ -73,9 +73,7 @@ oerr()
  * absolute file offset `startoff'. May move map window.
  */
 int
-mapprint(mip, startoff, len)
-	struct mapinfo *mip;
-	off_t startoff, len;
+mapprint(struct mapinfo *mip, off_t startoff, off_t len)
 {
 	int n;
 
@@ -101,9 +99,7 @@ mapprint(mip, startoff, len)
  * aligned.
  */
 int
-maparound(mip, offset)
-	struct mapinfo *mip;
-	off_t offset;
+maparound(struct mapinfo *mip, off_t offset)
 {
 
 	if (mip->start != NULL && munmap(mip->start, mip->maplen) != 0)

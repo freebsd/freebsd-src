@@ -63,6 +63,8 @@ static const char sccsid[] = "@(#)tail.c	8.1 (Berkeley) 6/6/93";
 int Fflag, fflag, rflag, rval;
 const char *fname;
 
+int no_files;
+
 static void obsolete(char **);
 static void usage(void);
 
@@ -138,8 +140,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (fflag && argc > 1)
-		errx(1, "-f option only appropriate for a single file");
+	no_files = argc;
 
 	/*
 	 * If displaying in reverse, don't permit follow option, and convert
@@ -168,6 +169,7 @@ main(int argc, char *argv[])
 		}
 	}
 
+	printf("No files: %d\n", no_files);
 	if (*argv)
 		for (first = 1; (fname = *argv++);) {
 			if ((fp = fopen(fname, "r")) == NULL ||
