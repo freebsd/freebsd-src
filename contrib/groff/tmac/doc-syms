@@ -155,14 +155,18 @@
 .	if "\\$1"2.0.5"  \&\\*(tNFreeBSD\\*(aa 2.0.5\\*(aa\\$2
 .	if "\\$1"2.1"  \&\\*(tNFreeBSD\\*(aa 2.1\\*(aa\\$2
 .	if "\\$1"2.1.5"  \&\\*(tNFreeBSD\\*(aa 2.1.5\\*(aa\\$2
+.	if "\\$1"2.1.6"  \&\\*(tNFreeBSD\\*(aa 2.1.6\\*(aa\\$2
 .	if "\\$1"2.2"  \&\\*(tNFreeBSD\\*(aa 2.2\\*(aa\\$2
+.	if "\\$1"3.0"  \&\\*(tNFreeBSD\\*(aa 3.0\\*(aa\\$2
 .\}
 .if \\n(.$==1 \{\
 .	if "\\$1"2.0"  \&\\*(tNFreeBSD\\*(aa 2.0\\*(aa
 .	if "\\$1"2.0.5"  \&\\*(tNFreeBSD\\*(aa 2.0.5\\*(aa
 .	if "\\$1"2.1"  \&\\*(tNFreeBSD\\*(aa 2.1\\*(aa
 .	if "\\$1"2.1.5"  \&\\*(tNFreeBSD\\*(aa 2.1.5\\*(aa
+.	if "\\$1"2.1.6"  \&\\*(tNFreeBSD\\*(aa 2.1.6\\*(aa
 .	if "\\$1"2.2"  \&\\*(tNFreeBSD\\*(aa 2.2\\*(aa
+.	if "\\$1"3.0"  \&\\*(tNFreeBSD\\*(aa 3.0\\*(aa
 .\}
 ..
 .\" Ns Nx macro - NetBSD
