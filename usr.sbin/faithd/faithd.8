@@ -277,9 +277,9 @@ Before invoking
 .Xr faith 4
 interface has to be configured properly.
 .Bd -literal -offset
-# sysctl -w net.inet6.ip6.accept_rtadv=0
-# sysctl -w net.inet6.ip6.forwarding=1
-# sysctl -w net.inet6.ip6.keepfaith=1
+# sysctl net.inet6.ip6.accept_rtadv=0
+# sysctl net.inet6.ip6.forwarding=1
+# sysctl net.inet6.ip6.keepfaith=1
 # ifconfig faith0 up
 # route add -inet6 3ffe:501:4819:ffff:: -prefixlen 96 ::1
 # route change -inet6 3ffe:501:4819:ffff:: -prefixlen 96 -ifp faith0
