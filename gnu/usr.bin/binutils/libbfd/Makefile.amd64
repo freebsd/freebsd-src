@@ -3,7 +3,7 @@
 .include "${.CURDIR}/Makefile.i386"
 
 #	Get the i386 DEFAULT_VECTOR and VECS.
-I386_VECS:=	${DEFAULT_VECTOR} ${VECS}
+I386_VECS:=	${DEFAULT_VECTOR} # ${VECS}
 
 DEFAULT_VECTOR=	bfd_elf64_x86_64_vec
 
