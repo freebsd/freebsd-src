@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7770.c,v 1.8 1994/12/31 19:31:56 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.9 1995/01/13 02:24:30 gibbs Exp $
  */
 /*
  * TODO:
@@ -51,7 +51,7 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <machine/cpufunc.h>
-#include <i386/isa/aic7xxx.h>
+#include <i386/scsi/aic7xxx.h>
 
 #define PAGESIZ 4096  
 
