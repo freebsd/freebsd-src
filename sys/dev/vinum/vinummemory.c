@@ -36,8 +36,6 @@
  * $Id: vinummemory.c,v 1.20 1999/03/19 03:21:08 grog Exp grog $
  */
 
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 
 #ifdef VINUMDEBUG
