@@ -51,6 +51,10 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
+#if defined(INVARIANTS) && defined(__i386__)
+#include <machine/cpu.h>
+#endif
+
 MALLOC_DEFINE(M_CACHE, "namecache", "Dynamically allocated cache entries");
 MALLOC_DEFINE(M_DEVBUF, "devbuf", "device driver memory");
 MALLOC_DEFINE(M_TEMP, "temp", "misc temporary data buffers");
@@ -134,6 +138,11 @@ malloc(size, type, flags)
 #endif
 	register struct malloc_type *ksp = type;
 
+#if defined(INVARIANTS) && defined(__i386__)
+	if (flags == M_WAITOK)
+		KASSERT(intr_nesting_level == 0,
+		   ("malloc(M_WAITOK) in interrupt context"));
+#endif
 	/*
 	 * Must be at splmem() prior to initializing segment to handle
 	 * potential initialization race.
