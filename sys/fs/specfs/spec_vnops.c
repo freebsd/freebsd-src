@@ -140,7 +140,6 @@ spec_open(ap)
 	dev_t dev = vp->v_rdev;
 	int error;
 	struct cdevsw *dsw;
-	const char *cp;
 
 	if (vp->v_type == VBLK)
 		return (ENXIO);
@@ -194,6 +193,8 @@ spec_open(ap)
 		vp->v_vflag |= VV_ISTTY;
 
 	VOP_UNLOCK(vp, 0, td);
+	dev_ref(dev);
+	cdevsw_ref(dsw);
 	if(!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		if (dsw->d_fdopen != NULL)
@@ -205,6 +206,9 @@ spec_open(ap)
 		error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
 	else
 		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
+	cdevsw_rel(dsw);
+	if (error != 0)
+		dev_rel(dev);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	if (error)
@@ -224,14 +228,6 @@ spec_open(ap)
 	if (vn_isdisk(vp, NULL)) {
 		if (!dev->si_bsize_phys)
 			dev->si_bsize_phys = DEV_BSIZE;
-	}
-	if ((dsw->d_flags & D_DISK) == 0) {
-		cp = devtoname(dev);
-		if (*cp == '#' && (dsw->d_flags & D_NAGGED) == 0) {
-			printf("WARNING: driver %s should register devices with make_dev() (dev_t = \"%s\")\n",
-			    dsw->d_name, cp);
-			dsw->d_flags |= D_NAGGED;
-		}
 	}
 	return (error);
 }
@@ -267,12 +263,16 @@ spec_read(ap)
 
 	dsw = devsw(dev);
 	VOP_UNLOCK(vp, 0, td);
+	KASSERT(dev->si_refcount > 0,
+	    ("specread() on un-referenced dev_t (%s)", devtoname(dev)));
+	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_read(dev, uio, ap->a_ioflag);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_read(dev, uio, ap->a_ioflag);
+	cdevsw_rel(dsw);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
@@ -307,12 +307,16 @@ spec_write(ap)
 	resid = uio->uio_resid;
 
 	VOP_UNLOCK(vp, 0, td);
+	KASSERT(dev->si_refcount > 0,
+	    ("spec_write() on un-referenced dev_t (%s)", devtoname(dev)));
+	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_write(dev, uio, ap->a_ioflag);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_write(dev, uio, ap->a_ioflag);
+	cdevsw_rel(dsw);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
 		vfs_timestamp(&dev->si_ctime);
@@ -342,6 +346,9 @@ spec_ioctl(ap)
 
 	dev = ap->a_vp->v_rdev;
 	dsw = devsw(dev);
+	KASSERT(dev->si_refcount > 0,
+	    ("spec_ioctl() on un-referenced dev_t (%s)", devtoname(dev)));
+	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_ioctl(dev, ap->a_command,
@@ -350,6 +357,7 @@ spec_ioctl(ap)
 	} else 
 		error = dsw->d_ioctl(dev, ap->a_command,
 		    ap->a_data, ap->a_fflag, ap->a_td);
+	cdevsw_rel(dsw);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
 	return (error);
@@ -371,12 +379,16 @@ spec_poll(ap)
 
 	dev = ap->a_vp->v_rdev;
 	dsw = devsw(dev);
+	KASSERT(dev->si_refcount > 0,
+	    ("spec_poll() on un-referenced dev_t (%s)", devtoname(dev)));
+	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
+	cdevsw_rel(dsw);
 	return(error);
 }
 
@@ -394,12 +406,16 @@ spec_kqfilter(ap)
 
 	dev = ap->a_vp->v_rdev;
 	dsw = devsw(dev);
+	KASSERT(dev->si_refcount > 0,
+	    ("spec_kqfilter() on un-referenced dev_t (%s)", devtoname(dev)));
+	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_kqfilter(dev, ap->a_kn);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_kqfilter(dev, ap->a_kn);
+	cdevsw_rel(dsw);
 	return (error);
 }
 
@@ -631,12 +647,17 @@ spec_close(ap)
 		return (0);
 	}
 	VI_UNLOCK(vp);
+	KASSERT(dev->si_refcount > 0,
+	    ("spec_close() on un-referenced dev_t (%s)", devtoname(dev)));
+	cdevsw_ref(dsw);
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
+	cdevsw_rel(dsw);
+	dev_rel(dev);
 	return (error);
 }
 

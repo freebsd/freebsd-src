@@ -1853,6 +1853,7 @@ addalias(nvp, dev)
 {
 
 	KASSERT(nvp->v_type == VCHR, ("addalias on non-special vnode"));
+	dev_ref(dev);
 	nvp->v_rdev = dev;
 	VI_LOCK(nvp);
 	mtx_lock(&spechash_mtx);
@@ -2469,7 +2470,7 @@ vop_revoke(ap)
 		mtx_lock(&spechash_mtx);
 		vq = SLIST_FIRST(&dev->si_hlist);
 		mtx_unlock(&spechash_mtx);
-		if (!vq)
+		if (vq == NULL)
 			break;
 		vgone(vq);
 	}
@@ -2587,11 +2588,12 @@ vgonel(vp, td)
 	 * if it is on one.
 	 */
 	VI_LOCK(vp);
-	if (vp->v_type == VCHR && vp->v_rdev != NULL && vp->v_rdev != NODEV) {
+	if (vp->v_type == VCHR && vp->v_rdev != NODEV) {
 		mtx_lock(&spechash_mtx);
 		SLIST_REMOVE(&vp->v_rdev->si_hlist, vp, vnode, v_specnext);
 		vp->v_rdev->si_usecount -= vp->v_usecount;
 		mtx_unlock(&spechash_mtx);
+		dev_rel(vp->v_rdev);
 		vp->v_rdev = NULL;
 	}
 
