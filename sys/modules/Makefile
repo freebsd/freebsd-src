@@ -50,7 +50,6 @@ SUBDIR=	3dfx \
 	mlx \
 	msdosfs \
 	ncp \
-	netgraph \
 	nfs \
 	nge \
 	nmdm \
@@ -113,6 +112,7 @@ SUBDIR+=aac \
 	fpu \
 	gnufpu \
 	ibcs2 \
+	netgraph \
 	mly \
 	oltr \
 	pecoff \
