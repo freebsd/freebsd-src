@@ -12,7 +12,7 @@
 if ! pkg_info -e team-3.1; then
 	echo "$0: You do not appear to have the team package installed."
 	echo
-	echo "Please see /usr/ports/misc/team-3.1 if you have the ports"
+	echo "Please see /usr/ports/misc/team if you have the ports"
 	echo "collection on your machine, or install the team package from"
 	echo "your CD or the net.  To install team from the net right now,"
 	echo "simply type:"
