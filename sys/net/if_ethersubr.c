@@ -470,7 +470,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 		 * Restore Ethernet header, as needed, in case the
 		 * mbuf chain was replaced by ipfw.
 		 */
-		M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
+		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
 		if (m == NULL) {
 			*m0 = m;
 			return 0;
@@ -894,7 +894,7 @@ discard:
 		 * Put back the ethernet header so netgraph has a
 		 * consistent view of inbound packets.
 		 */
-		M_PREPEND(m, sizeof (struct ether_header), M_NOWAIT);
+		M_PREPEND(m, sizeof (struct ether_header), M_DONTWAIT);
 		(*ng_ether_input_orphan_p)(ifp, m);
 		return;
 	}

@@ -40,14 +40,14 @@
 /*
  * Some hacks for compatibility across SunOS and 4.4BSD.  We emulate malloc
  * and free with mbuf clusters.  We store a pointer to the mbuf in the first
- * word of the mbuf and return 8 bytes passed the start of data (for double
+ * word of the mbuf and return 8 bytes past the start of data (for double
  * word alignment).  We cannot just use offsets because clusters are not at
  * a fixed offset from the associated mbuf.  Sorry for this kludge.
  */
-#define malloc(size, type, canwait) bpf_alloc(size, canwait)
+#define malloc(size, type, canwait)				\
+bpf_alloc(size, (canwait & M_NOWAIT) ? M_DONTWAIT : M_TRYWAIT)
+
 #define free(cp, type) m_free(*(struct mbuf **)(cp - 8))
-#define M_WAITOK M_TRYWAIT
-#define M_NOWAIT M_DONTWAIT
 
 /* This mapping works for our purposes. */
 #define ERESTART EINTR
