@@ -81,15 +81,6 @@ option disables this behavior.
 .El
 .Pp
 If the file
-.Pa /var/run/nologin
-exists,
-.Nm
-displays its contents to the user and exits.
-This is used by
-.Xr shutdown  8
-to prevent users from logging in when the system is about to go down.
-.Pp
-If the file
 .Pa /etc/login.access
 exists,
 .Nm
@@ -104,15 +95,6 @@ exists,
 .Nm
 changes the protection and ownership of certain devices specified in this
 file.
-.Pp
-If the file
-.Pa /etc/skeykeys
-exists,
-.Nm
-will offer S/key password validation if the user has an entry in the file.
-.Pa /etc/skey.access
-controls from which hosts and/or networks the use of S/key passwords are
-obligated.
 .Pp
 Immediately after logging a user in,
 .Nm
@@ -159,12 +141,6 @@ login access control table
 login class capabilities database
 .It Pa /etc/motd
 message-of-the-day
-.It Pa /var/run/nologin
-disallows logins
-.It Pa /etc/skey.access
-skey password control table
-.It Pa /etc/skeykeys
-skey password database
 .It Pa /var/run/utmp
 current logins
 .It Pa /var/log/lastlog
@@ -178,9 +154,8 @@ makes login quieter
 .It Pa /etc/auth.conf
 configure authentication services
 .It Pa /etc/pam.conf
-if
 .Nm
-is configured with PAM support, it uses
+uses
 .Pa /etc/pam.conf
 entries with service name
 .Dq login
@@ -191,16 +166,12 @@ entries with service name
 .Xr csh 1 ,
 .Xr passwd 1 ,
 .Xr rlogin 1 ,
-.Xr skey 1 ,
 .Xr getpass 3 ,
 .Xr fbtab 5 ,
 .Xr login.access 5 ,
 .Xr login.conf 5 ,
-.Xr nologin 5 ,
-.Xr skey.access 5 ,
 .Xr utmp 5 ,
 .Xr environ 7 ,
-.Xr nologin 8 ,
 .Xr pam 8
 .Sh HISTORY
 A

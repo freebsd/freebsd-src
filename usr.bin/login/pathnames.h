@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/9/93
+ * $FreeBSD$
  */
 
 #include <paths.h>
@@ -40,4 +41,3 @@
 #define _PATH_LOGACCESS		"/etc/login.access"
 #define _PATH_FBTAB		"/etc/fbtab"
 #define _PATH_LOGINDEVPERM	"/etc/logindevperm"
-#define _PATH_CHPASS		"/usr/bin/passwd"
