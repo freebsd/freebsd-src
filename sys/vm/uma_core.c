@@ -1496,14 +1496,12 @@ zalloc_start:
 			 * See if we can switch with our free bucket.
 			 */
 			if (cache->uc_freebucket->ub_cnt > 0) {
-				uma_bucket_t swap;
-
 #ifdef UMA_DEBUG_ALLOC
 				printf("uma_zalloc: Swapping empty with alloc.\n");
 #endif
-				swap = cache->uc_freebucket;
+				bucket = cache->uc_freebucket;
 				cache->uc_freebucket = cache->uc_allocbucket;
-				cache->uc_allocbucket = swap;
+				cache->uc_allocbucket = bucket;
 
 				goto zalloc_start;
 			}
@@ -1838,12 +1836,9 @@ zfree_start:
 			 */
 			if (cache->uc_allocbucket->ub_cnt < 
 			    cache->uc_freebucket->ub_cnt) {
-				uma_bucket_t swap;
-
-				swap = cache->uc_freebucket;
+				bucket = cache->uc_freebucket;
 				cache->uc_freebucket = cache->uc_allocbucket;
-				cache->uc_allocbucket = swap;
-
+				cache->uc_allocbucket = bucket;
 				goto zfree_start;
 			}
 		}
