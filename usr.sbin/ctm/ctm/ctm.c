@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.c,v 1.10 1995/03/26 20:09:50 phk Exp $
+ * $Id: ctm.c,v 1.11 1995/05/30 03:47:19 rgrimes Exp $
  *
  * This is the client program of 'CTM'.  It will apply a CTM-patch to a
  * collection of files.
@@ -14,7 +14,6 @@
  * Options we'd like to see:
  *
  * -a 			Attempt best effort.
- * -b <dir>		Base-dir
  * -B <file>		Backup to tar-file.
  * -d <int>		Debug TBD.
  * -m <mail-addr>	Email me instead.
@@ -22,6 +21,7 @@
  * -R <file>		Read list of files to reconstruct.
  *
  * Options we have:
+ * -b <dir>		Base-dir
  * -c			Check it out, don't do anything.
  * -F      		Force
  * -p			Less paranoid.
@@ -29,6 +29,7 @@
  * -q 			Tell us less.
  * -T <tmpdir>.		Temporary files.
  * -v 			Tell us more.
+ * -V <level>		Tell us more level = number of -v
  *
  */
 
@@ -46,16 +47,19 @@ main(int argc, char **argv)
     int c;
     extern int optopt,optind;
     extern char * optarg;
-    FILE *statfile;
     unsigned applied = 0;
+    FILE *statfile;
+    u_char * basedir;
 
+    basedir = NULL;
     Verbose = 1;
     Paranoid = 1;
     setbuf(stderr,0);
     setbuf(stdout,0);
 
-    while((c=getopt(argc,argv,"ab:B:cd:Fm:pPqr:R:T:Vv")) != -1) {
+    while((c=getopt(argc,argv,"ab:B:cd:Fm:pPqr:R:T:V:v")) != -1) {
 	switch (c) {
+	    case 'b': basedir = optarg;	break; /* Base Directory */
 	    case 'c': CheckIt++;	break; /* Only check it */
 	    case 'p': Paranoid--;	break; /* Less Paranoid */
 	    case 'P': Paranoid++;	break; /* More Paranoid */
@@ -63,6 +67,9 @@ main(int argc, char **argv)
 	    case 'v': Verbose++;	break; /* Verbose */
 	    case 'T': TmpDir = optarg;	break;
 	    case 'F': Force = 1;	break;
+	    case 'V': sscanf(optarg,"%d", &c); /* Verbose */
+		      Verbose += c;
+		      break;
 	    case ':':
 		fprintf(stderr,"Option '%c' requires an argument.\n",optopt);
 		stat++;
@@ -85,8 +92,23 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    if((statfile = fopen(CTM_STATUS, "r")) == NULL)
-	fprintf(stderr, "Warning: " CTM_STATUS " not found.\n");
+    if (basedir == NULL) {
+	Buffer = (u_char *)Malloc(BUFSIZ + strlen(SUBSUFF) +1);
+	CatPtr = Buffer;
+	*Buffer  = '\0';
+    } else {
+	Buffer = (u_char *)Malloc(strlen(basedir)+ BUFSIZ + strlen(SUBSUFF) +1);
+	strcpy(Buffer, basedir);
+	CatPtr = Buffer + strlen(basedir);
+	if (CatPtr[-1] != '/') {
+		strcat(Buffer, "/");
+		CatPtr++;
+	}
+    }
+    strcat(Buffer, CTM_STATUS);
+
+    if((statfile = fopen(Buffer, "r")) == NULL)
+	fprintf(stderr, "Warning: %s not found.\n", Buffer);
     else {
 	fscanf(statfile, "%*s %u", &applied);
 	fclose(statfile);
@@ -119,7 +141,7 @@ Proc(char *filename, unsigned applied)
 	p = 0;
 	f = stdin;
     } else if(p && (!strcmp(p,".gz") || !strcmp(p,".Z"))) {
-	p = Malloc(100);
+	p = alloca(20 + strlen(filename));
 	strcpy(p,"gunzip < ");
 	strcat(p,filename);
 	f = popen(p,"r");
@@ -136,7 +158,7 @@ Proc(char *filename, unsigned applied)
     if(Verbose > 1)
 	fprintf(stderr,"Working on <%s>\n",filename);
 
-    if(FileName) Free(FileName);
+    Delete(FileName);
     FileName = String(filename);
 
     /* If we cannot seek, we're doomed, so copy to a tmp-file in that case */
@@ -199,12 +221,11 @@ Proc(char *filename, unsigned applied)
     i=Pass3(f);
 
 exit_and_close:
-    if(!p) {
+    if(!p)
         fclose(f);
-    } else {
+    else
 	pclose(f);
-	Free(p);
-    }
+
     if(i)
 	return i;
 

@@ -10,7 +10,7 @@
 .\"
 .\" CTM and ctm(1) by <phk@login.dknet.dk>
 .\"
-.\" $Id: ctm.1,v 1.2 1995/03/26 20:09:46 phk Exp $
+.\" $Id: ctm.1,v 1.3 1996/01/31 01:58:29 nate Exp $
 .\"
 .Dd Mar 25, 1995
 .Os
@@ -21,7 +21,9 @@
 .Sh SYNOPSIS
 .Nm ctm
 .Op Fl cFpPqv
+.Op Fl b Ar basedir
 .Op Fl T Ar tmpdir
+.Op Fl V Ar level
 .Ar file Op ...
 .Sh DESCRIPTION
 .Nm Ctm
@@ -53,6 +55,15 @@ The
 command runs in a number of passes.  It will process the entire
 input file in each pass, before commencing with the next pass.
 
+Before working one a file
+.Ar name
+.Nm ctm
+first checks for the existence of the file
+.Ar name#ctm .
+If this file exists,
+.Nm ctm
+works on it instead.
+
 Pass 1 will validate that the input file is OK.  The syntax, the data
 and the global MD5 checksum will be checked.  If any of these fail,
 .Nm ctm
@@ -77,6 +88,11 @@ are explicitly prohibited as a security measure.
 
 .Bl -tag -width indent -compact
 
+.It Fl b Ar basedir
+Prepend the path
+.Ar basedir
+on every filename.
+
 .It Fl c
 Check it out, don't do anything.
 
@@ -98,6 +114,11 @@ Put temporary files under
 
 .It Fl v
 Tell us more.
+
+.It Fl V Ar level
+Tell us more.
+.Ar Level
+is the level of verbosity.
 
 .El
 
