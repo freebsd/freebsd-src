@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.42 1995/10/28 15:38:47 phk Exp $
+ *      $Id: bt742a.c,v 1.43 1995/11/04 17:07:08 bde Exp $
  */
 
 /*
@@ -45,10 +45,11 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #endif /* KERNEL */
 
 #include <machine/clock.h>
+
+#include <vm/vm.h>
 
 #include <i386/isa/isa_device.h>
 #include <scsi/scsi_all.h>
