@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.11 1995/09/06 05:39:28 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.12 1995/09/07 04:39:09 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -340,7 +340,7 @@ ffs_getpages(ap)
 	int contigbackwards, contigforwards;
 	int pcontigbackwards, pcontigforwards;
 	int firstcontigpage;
-	int reqlblkno, reqblkno;
+	daddr_t reqlblkno, reqblkno;
 	int poff;
 
 	/*
