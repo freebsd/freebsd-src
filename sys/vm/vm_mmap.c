@@ -1011,10 +1011,8 @@ mlock(td, uap)
 		return (error);
 #endif
 
-	mtx_lock(&Giant);
 	error = vm_map_wire(&td->td_proc->p_vmspace->vm_map, addr,
 		     addr + size, TRUE);
-	mtx_unlock(&Giant);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
