@@ -142,7 +142,7 @@ vop_read(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
     if (bp != NULL)
 	bqrelse(bp);
 
-    return error;
+    return (error);
 }
 
 int
@@ -207,7 +207,8 @@ vop_write(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 
     if (error) {
 	if (ioflag & IO_UNIT) {
-	    VOP_TRUNCATE(vp, osize, ioflag & IO_SYNC, cred, uio->uio_td);
+	    /* call private routine to truncate file. */
+	    your_truncate(vp, osize, ioflag & IO_SYNC, cred, uio->uio_td);
 	    uio->uio_offset -= resid - uio->uio_resid;
 	    uio->uio_resid = resid;
 	}
@@ -216,7 +217,7 @@ vop_write(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	error = VOP_UPDATE(vp, &tv, &tv, 1); /* XXX what does this do? */
     }
 
-    return error;
+    return (error);
 }
 .Ed
 .Sh ERRORS
