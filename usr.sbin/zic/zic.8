@@ -205,6 +205,8 @@ Recognized forms include:
 .fi
 .in -.5i
 .sp
+where hour 0 is midnight at the start of the day,
+and hour 24 is midnight at the end of the day.
 Any of these forms may be followed by the letter
 .B w
 if the given time is local
@@ -272,13 +274,13 @@ This is the name used in creating the time conversion information file for the
 zone.
 .TP
 .B GMTOFF
-The amount of time to add to GMT to get standard time in this zone.
+The amount of time to add to UTC to get standard time in this zone.
 This field has the same format as the
 .B AT
 and
 .B SAVE
 fields of rule lines;
-begin the field with a minus sign if time must be subtracted from GMT.
+begin the field with a minus sign if time must be subtracted from UTC.
 .TP
 .B RULES/SAVE
 The name of the rule(s) that apply in the time zone or,
@@ -299,11 +301,14 @@ a slash (/)
 separates standard and daylight abbreviations.
 .TP
 .B UNTIL
-The time at which the GMT offset or the rule(s) change for a location.
+The time at which the UTC offset or the rule(s) change for a location.
 It is specified as a year, a month, a day, and a time of day.
 If this is specified,
-the time zone information is generated from the given GMT offset
+the time zone information is generated from the given UTC offset
 and rule change until the time specified.
+The month, day, and time of day have the same format as the IN, ON, and AT
+columns of a rule; trailing columns can be omitted, and default to the
+earliest possible value for the missing columns.
 .IP
 The next line must be a
 .q continuation
@@ -389,7 +394,7 @@ The
 field
 should be (an abbreviation of)
 .q Stationary
-if the leap second time given by the other fields should be interpreted as GMT
+if the leap second time given by the other fields should be interpreted as UTC
 or
 (an abbreviation of)
 .q Rolling
@@ -405,4 +410,4 @@ the earliest transition time recorded in the compiled file is correct.
 /usr/local/etc/zoneinfo	standard directory used for created files
 .SH "SEE ALSO"
 newctime(3), tzfile(5), zdump(8)
-.\" @(#)zic.8	7.12
+.\" @(#)zic.8	7.18
