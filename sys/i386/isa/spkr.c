@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.8 1994/04/21 14:21:50 sos Exp $
+ *    $Id: spkr.c,v 1.9 1994/08/13 03:50:14 wollman Exp $
  */
 
 #include "speaker.h"
@@ -329,14 +329,14 @@ size_t	slen;
 	    else
 	    {
 		GETNUM(cp, octave);
-		if (octave >= sizeof(pitchtab) / OCTAVE_NOTES)
+		if (octave >= sizeof(pitchtab) / sizeof(pitchtab[0]) / OCTAVE_NOTES)
 		    octave = DFLT_OCTAVE;
 		octprefix = TRUE;
 	    }
 	    break;
 
 	case '>':
-	    if (octave < sizeof(pitchtab) / OCTAVE_NOTES - 1)
+	    if (octave < sizeof(pitchtab) / sizeof(pitchtab[0]) / OCTAVE_NOTES - 1)
 		octave++;
 	    octprefix = TRUE;
 	    break;
