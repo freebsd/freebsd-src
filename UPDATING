@@ -3,10 +3,17 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19990831:
+	tn3270 has been removed from the based system and added as a port.
+
 19990830:
 	User-visible TCP timers are now expressed in units of 1ms, instead
 	of 500ms, so if you've customized any timer values under
 	``net.inet.tcp'', multiply them by 500 to preserve TCP's behavior.
+
+19990828:
+	RCS Id tags changed to FreeBSD.  This will cause huge cvsup
+	updates.
 
 19990821:
 	On 28-May-1999 libreadline was upgraded from readline-2.2 to
