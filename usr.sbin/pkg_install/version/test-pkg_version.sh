@@ -33,7 +33,7 @@
 #
 
 ECHO=echo
-PKG_VERSION=./pkg_version.pl
+PKG_VERSION=./pkg_version
 
 test-pv ( ) { \
     setvar v1 $1
