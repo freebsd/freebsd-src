@@ -838,7 +838,7 @@ nd6_lookup(addr6, create, ifp)
 			return (NULL);
 	}
 	RT_LOCK_ASSERT(rt);
-	rt->rt_refcnt--;
+	RT_REMREF(rt);
 	/*
 	 * Validation for the entry.
 	 * Note that the check for rt_llinfo is necessary because a cloned
@@ -1834,7 +1834,7 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 		if ((rt->rt_flags & RTF_UP) == 0) {
 			rt0 = rt = rtalloc1((struct sockaddr *)dst, 1, 0UL);
 			if (rt != NULL) {
-				rt->rt_refcnt--;
+				RT_REMREF(rt);
 				RT_UNLOCK(rt);
 				if (rt->rt_ifp != ifp) {
 					/* XXX: loop care? */

@@ -954,7 +954,7 @@ arplookup(addr, create, proxy)
 		return (0);
 #undef ISDYNCLONE
 	} else {
-		rt->rt_refcnt--;
+		RT_REMREF(rt);
 		RT_UNLOCK(rt);
 		return ((struct llinfo_arp *)rt->rt_llinfo);
 	}

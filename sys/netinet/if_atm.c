@@ -320,7 +320,7 @@ atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
 		rt = RTALLOC1(dst, 0);
 		if (rt == NULL)
 			goto bad;	/* failed */
-		rt->rt_refcnt--;	/* don't keep LL references */
+		RT_REMREF(rt);		/* don't keep LL references */
 		if ((rt->rt_flags & RTF_GATEWAY) != 0 || 
 		    (rt->rt_flags & RTF_LLINFO) == 0 ||
 		    /* XXX: are we using LLINFO? */
