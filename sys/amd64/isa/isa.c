@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.57 1995/11/20 13:24:18 bde Exp $
+ *	$Id: isa.c,v 1.58 1995/12/07 12:46:01 davidg Exp $
  */
 
 /*
@@ -936,7 +936,7 @@ register_intr(intr, device_id, flags, handler, maskptr, unit)
 	intr_unit[intr] = unit;
 	setidt(ICU_OFFSET + intr,
 	       flags & RI_FAST ? fastintr[intr] : slowintr[intr],
-	       SDT_SYS386IGT, SEL_KPL);
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	write_eflags(ef);
 	for (cp = intrnames, id = 0; id <= device_id; id++)
 		while (*cp++ != '\0')
@@ -983,7 +983,8 @@ unregister_intr(intr, handler)
 	intr_mptr[intr] = NULL;
 	intr_mask[intr] = HWI_MASK | SWI_MASK;
 	intr_unit[intr] = intr;
-	setidt(ICU_OFFSET + intr, slowintr[intr], SDT_SYS386IGT, SEL_KPL);
+	setidt(ICU_OFFSET + intr, slowintr[intr], SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
 	write_eflags(ef);
 	return (0);
 }
