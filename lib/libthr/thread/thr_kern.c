@@ -52,6 +52,56 @@
 static sigset_t restore;
 
 void
+_thread_critical_enter(pthread_t pthread)
+{
+	sigset_t set;
+	sigset_t sav;
+
+	/*
+	 * Block all signals.
+	 */
+	SIGFILLSET(set);
+
+	/*
+	 * We can not use the global 'restore' set until after we have
+	 * acquired the giant lock.
+	 */
+	_SPINLOCK(&pthread->lock);
+	if (__sys_sigprocmask(SIG_SETMASK, &set, &sav)) {
+		_thread_printf(STDERR_FILENO, "Critical Enter: sig err %d\n",
+		    errno);
+		abort();
+	}
+
+	restore = sav;
+}
+
+void
+_thread_critical_exit(pthread_t pthread)
+{
+	sigset_t set;
+	int error;
+
+	/*
+	 * restore is protected by giant.  We could restore our signal state
+	 * incorrectly if someone else set restore between unlocking giant
+	 * and restoring the signal mask.  To avoid this we cache a copy prior
+	 * to the unlock.
+	 */
+	set = restore;
+
+	/*
+	 * Restore signals.
+	 */
+	if (__sys_sigprocmask(SIG_SETMASK, &set, NULL)) {
+		_thread_printf(STDERR_FILENO, "Critical Exit: sig err %d\n",
+		    errno);
+		abort();
+	}
+	_SPINUNLOCK(&pthread->lock);
+}
+
+void
 GIANT_LOCK(pthread_t pthread)
 {
 	sigset_t set;

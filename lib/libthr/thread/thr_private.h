@@ -727,6 +727,8 @@ void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);
 void	_thread_cancellation_point(void);
 int	_thread_suspend(pthread_t thread, struct timespec *abstime);
+void	_thread_critical_enter(pthread_t);
+void	_thread_critical_exit(pthread_t);
 
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
