@@ -408,6 +408,7 @@ static int pcn_probe(dev)
 			case Am79C971:
 			case Am79C972:
 			case Am79C973:
+			case Am79C975:
 			case Am79C976:
 			case Am79C978:
 				break;
@@ -1225,6 +1226,8 @@ static int pcn_ioctl(ifp, command, data)
 				    PCN_MODE_PROMISC);
 				PCN_CSR_CLRBIT(sc, PCN_CSR_EXTCTL1,
 				    PCN_EXTCTL1_SPND);
+				pcn_csr_write(sc, PCN_CSR_CSR,
+				    PCN_CSR_INTEN|PCN_CSR_START);
 			} else if (ifp->if_flags & IFF_RUNNING &&
 			    !(ifp->if_flags & IFF_PROMISC) &&
 				sc->pcn_if_flags & IFF_PROMISC) {
@@ -1234,6 +1237,8 @@ static int pcn_ioctl(ifp, command, data)
 				    PCN_MODE_PROMISC);
 				PCN_CSR_CLRBIT(sc, PCN_CSR_EXTCTL1,
 				    PCN_EXTCTL1_SPND);
+				pcn_csr_write(sc, PCN_CSR_CSR,
+				    PCN_CSR_INTEN|PCN_CSR_START);
 			} else if (!(ifp->if_flags & IFF_RUNNING))
 				pcn_init(sc);
 		} else {
