@@ -157,8 +157,7 @@ fp-bit.po: config/fp-bit.c
 # defined as optimized assembly code in LIB1ASMFUNCS.
 .if defined(LIB1ASMFUNCS)
 .for sym in ${LIB1ASMFUNCS}
-LIB2FUNCS_1:=	${LIB2FUNCS_1:S/${sym}//g}
-LIB2FUNCS_2:=	${LIB2FUNCS_2:S/${sym}//g}
+LIB2FUNCS:=	${LIB2FUNCS:S/${sym}//g}
 LIB2_DIVMOD_FUNCS:= ${LIB2_DIVMOD_FUNCS:S/${sym}//g}
 .endfor
 .endif
@@ -167,8 +166,7 @@ ASM_T=		${LIB1ASMFUNCS:S/$/.o/}
 ASM_P=		${LIB1ASMFUNCS:S/$/.po/}
 ASM_S=		${LIB1ASMFUNCS:S/$/.So/}
 
-SYMS=		${LIB2FUNCS_1}		\
-		${LIB2FUNCS_2}		\
+SYMS=		${LIB2FUNCS}		\
 		${LIB2_DIVMOD_FUNCS}
 .if ${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "sparc64"
 SYMS+=		${FPBIT_FUNCS} ${DPBIT_FUNCS}
