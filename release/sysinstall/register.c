@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: register.c,v 1.2.2.2 1997/03/15 16:23:36 jkh Exp $
+ * $Id: register.c,v 1.2.2.3 1997/03/21 05:04:35 jkh Exp $
  *
  * Copyright (c) 1997
  *	Jordan Hubbard.  All rights reserved.
@@ -196,6 +196,7 @@ handle_registration(void)
 	if (hotspots[ANNOUNCE_LIST].sel) {
 	    char *cp;
 	    
+	    dialog_clear_norefresh();
 	    cp = msgGetInput(email, "What email address would you like to subscribe under?\n"
 			     "This is a fairly low-traffic mailing list and only generates\n"
 			     "around 5 messages a month, so it's also safe to receive at your\n"
@@ -204,6 +205,7 @@ handle_registration(void)
 		msgConfirm("OK, I won't subscribe to announce at this time.  To do it manually\n"
 			   "yourself, simply send mail to %s.", MAJORDOMO_ADDRESS);
 	    else {
+		dialog_clear_norefresh();
 		if (!vsystem("echo subscribe freebsd-announce %s | mail %s", email, MAJORDOMO_ADDRESS))
 		    msgConfirm("Your request to join the announce mailing list has been sent.\n"
 			      "you should receive notification back in 24 hours or less, otherwise\n"
@@ -220,6 +222,7 @@ handle_registration(void)
 	}
     }
     else {
+	dialog_clear_norefresh();
 	msgConfirm("OK, your registration has been left in the file %s\n"
 		   "When you're connected to the net and ready to send it,\n"
 		   "simply type:  mail %s < %s\n", REGISTRATION_FNAME,

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.77 1997/03/16 04:07:10 jkh Exp $
+ * $Id: menus.c,v 1.42.2.78 1997/03/21 05:04:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -287,7 +287,7 @@ DMenu MenuIndex = {
 /* The initial installation menu */
 DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
-    "Welcome to FreeBSD!",				/* title */
+    "Welcome to FreeBSD! [" RELEASE_NAME "]",			/* title */
     "This is the main menu of the FreeBSD installation system.  Please\n" /* prompt */
     "select one of the options below by using the arrow keys or typing the\n"
     "first character of the option name you're interested in.  Invoke an\n"
@@ -573,9 +573,9 @@ DMenu MenuMediaFTP = {
       { "UK",		"ftp.uk.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.uk.freebsd.org/pub/FreeBSD/" },
       { "UK #2",	"ftp2.uk.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp2.uk.freebsd.org/mirrors/FreeBSD/" },
+	VAR_FTP_PATH "=ftp://ftp2.uk.freebsd.org/pub/FreeBSD/" },
       { "UK #3",	"ftp3.uk.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp3.uk.freebsd.org/pub/unix/FreeBSD/" },
+	VAR_FTP_PATH "=ftp://ftp3.uk.freebsd.org/pub/FreeBSD/" },
       { "USA",		"ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
       { "USA #2",	"ftp2.freebsd.org", NULL, dmenuSetVariable, NULL,

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.46 1997/03/11 17:49:17 jkh Exp $
+ * $Id: dist.c,v 1.36.2.47 1997/03/15 18:01:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -665,7 +665,7 @@ distExtractAll(dialogMenuItem *self)
 
     /* paranoia */
     if (!Dists) {
-	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE) || !Dists)
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
@@ -691,5 +691,3 @@ distExtractAll(dialogMenuItem *self)
     }
     return DITEM_SUCCESS;
 }
-
-    
