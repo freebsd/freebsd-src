@@ -83,7 +83,6 @@ struct old_isa_driver {
 
 extern struct isa_driver  vtdriver;
 extern struct isa_driver advdriver;
-extern struct isa_driver wdcdriver;
 extern struct isa_driver msedriver;
 extern struct isa_driver  ardriver;
 extern struct isa_driver  csdriver;
@@ -198,9 +197,6 @@ static struct old_isa_driver old_drivers[] = {
 
 /* BIO */
 
-#if NWDC > 0
-	{ INTR_TYPE_BIO, &wdcdriver },
-#endif
 #if NMCD > 0
 	{ INTR_TYPE_BIO, &mcddriver },
 #endif
