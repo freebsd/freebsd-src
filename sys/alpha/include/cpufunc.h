@@ -48,7 +48,7 @@ breakpoint(void)
 static __inline critical_t
 critical_enter(void)
 {
-	return (alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH));
+	return (alpha_pal_swpipl(ALPHA_PSL_IPL_MCES));
 }
 
 static __inline void
