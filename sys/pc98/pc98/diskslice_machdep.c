@@ -65,11 +65,11 @@
 static volatile u_char dsi_debug;
 
 
-static int check_part(char *sname, struct dos_partition *dp,
+static int check_part(char *sname, struct pc98_partition *dp,
 			   u_long offset, int nsectors, int ntracks,
 			   u_long mbr_offset);
 static int mbr_setslice(char *sname, struct disklabel *lp,
-			     struct diskslice *sp, struct dos_partition *dp,
+			     struct diskslice *sp, struct pc98_partition *dp,
 			     u_long br_offset);
 
 #define DPBLKNO(cyl,hd,sect) ((cyl)*(lp->d_secpercyl))
@@ -81,7 +81,7 @@ int     atcompat_dsinit(dev_t dev,
 static int
 check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	char	*sname;
-	struct dos_partition *dp;
+	struct pc98_partition *dp;
 	u_long	offset;
 	int	nsectors;
 	int	ntracks;
@@ -172,8 +172,8 @@ dsinit(dev, lp, sspp)
 	struct buf *bp;
 	u_char	*cp;
 	int	dospart;
-	struct dos_partition *dp;
-	struct dos_partition *dp0;
+	struct pc98_partition *dp;
+	struct pc98_partition *dp0;
 	int	error;
 	int	max_ncyls;
 	int	max_nsectors;
@@ -276,7 +276,7 @@ dsinit(dev, lp, sspp)
 		return atcompat_dsinit(dev, lp, sspp);
 	}
 #endif
-	dp0 = (struct dos_partition *)(cp + 512);
+	dp0 = (struct pc98_partition *)(cp + 512);
 
 	/* Guess the geometry. */
 	/*
@@ -381,7 +381,7 @@ mbr_setslice(sname, lp, sp, dp, br_offset)
 	char	*sname;
 	struct disklabel *lp;
 	struct diskslice *sp;
-	struct dos_partition *dp;
+	struct pc98_partition *dp;
 	u_long	br_offset;
 {
 	u_long	offset;
