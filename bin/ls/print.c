@@ -46,6 +46,10 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#ifdef COLORLS
+#include <ctype.h>
+#include <curses.h>
+#endif
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
@@ -54,9 +58,11 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef COLORLS
+#include <term.h>
+#endif
 #include <time.h>
 #include <unistd.h>
-#include <ctype.h>
 
 #include "ls.h"
 #include "extern.h"
@@ -68,6 +74,7 @@ static int	printtype __P((u_int));
 
 #define	IS_NOPRINT(p)	((p)->fts_number == NO_PRINT)
 
+#ifdef COLORLS
 /* Most of these are taken from <sys/stat.h> */
 typedef enum Colors {
     C_DIR,     /* directory */
@@ -87,6 +94,7 @@ typedef enum Colors {
 char *defcolors = "4x5x2x3x1x464301060203";
 
 static int colors[C_NUMCOLORS][2];
+#endif
 
 void
 printscol(dp)
@@ -149,12 +157,16 @@ printlong(dp)
 			printtime(sp->st_ctime);
 		else
 			printtime(sp->st_mtime);
+#ifdef COLORLS
 		if (f_color)
 			(void)colortype(sp->st_mode);
+#endif
 		if (f_octal || f_octal_escape) (void)prn_octal(p->fts_name);
 		else (void)printf("%s", p->fts_name);
+#ifdef COLORLS
 		if (f_color)
-			(void)printf("\033[m");
+			endcolor();
+#endif
 		if (f_type)
 			(void)printtype(sp->st_mode);
 		if (S_ISLNK(sp->st_mode))
@@ -224,6 +236,7 @@ printcol(dp)
 			    dp->s_block);
 			if ((base += numrows) >= num)
 				break;
+#ifdef COLORLS
 			/*
 			 * some terminals get confused if we mix tabs
 			 * with color sequences
@@ -234,6 +247,7 @@ printcol(dp)
 					chcnt = cnt;
 				}
 			else
+#endif
 			while ((cnt = ((chcnt + tabwidth) & ~(tabwidth - 1)))
 			    <= endcol){
 				(void)putchar(f_notabs ? ' ' : '\t');
@@ -264,12 +278,16 @@ printaname(p, inodefield, sizefield)
 	if (f_size)
 		chcnt += printf("%*qd ",
 		    (int)sizefield, howmany(sp->st_blocks, blocksize));
+#ifdef COLORLS
 	if (f_color)
 		(void)colortype(sp->st_mode);
+#endif
 	chcnt += (f_octal || f_octal_escape) ? prn_octal(p->fts_name)
 	                                     : printf("%s", p->fts_name);
+#ifdef COLORLS
 	if (f_color)
-		printf("\033[m");
+		endcolor();
+#endif
 	if (f_type)
 		chcnt += printtype(sp->st_mode);
 	return (chcnt);
@@ -333,19 +351,36 @@ printtype(mode)
 	return (0);
 }
 
+#ifdef COLORLS
+static char tcapbuf[512];
 void
 printcolor(c)
        Colors c;
 {
-	printf("\033[");
+	char *bp = tcapbuf;
+	char *ansiseq;
+
 	if (colors[c][0] != -1) {
-		printf("3%d", colors[c][0]);
-		if (colors[c][1] != -1)
-		    printf(";");
+		ansiseq = tparm(tgetstr("AF", &bp), colors[c][0]);
+		if (ansiseq)
+			putp(ansiseq);
 	}
-	if (colors[c][1] != -1)
-	    printf("4%d", colors[c][1]);
-	printf("m");
+
+	if (colors[c][1] != -1) {
+		ansiseq = tparm(tgetstr("AB", &bp), colors[c][1]);
+		if (ansiseq)
+			putp(ansiseq);
+	}
+}
+
+void
+endcolor()
+{
+	char *bp = tcapbuf;
+	char *ansiseq;
+	ansiseq = tgetstr("se", &bp);
+	if (ansiseq)
+		putp(ansiseq);
 }
 
 int
@@ -422,6 +457,7 @@ char *cs;
 		}
 	}
 }
+#endif /*COLORLS*/
  
 static void
 printlink(p)
