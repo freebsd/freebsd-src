@@ -15,8 +15,8 @@ CFLAGS+= -DL_ENDIAN
 
 WITH_RSA?= YES
 
-SRCS+=		buildinf.h openssl/opensslconf.h
-CLEANFILES+=	buildinf.h openssl/opensslconf.h
+SRCS+=		buildinf.h openssl/opensslconf.h openssl/_evp.h
+CLEANFILES+=	buildinf.h openssl/opensslconf.h openssl/_evp.h
 CLEANDIRS+=	openssl
 
 buildinf.h:
@@ -31,7 +31,12 @@ buildinf.h:
 #	any of ${CRYPTO_HDRS} ${EXTRA_HDRS} will no repopulate openssl/.
 #	This deficiency will be fixed in a later commit.
 
+.ORDER:	openssl/opensslconf.h openssl/_evp.h
+
 openssl/opensslconf.h:  ../libcrypto/opensslconf-${MACHINE_ARCH}.h
 	mkdir -p openssl
 	cp ${.OODATE} ${.TARGET}
 	${INSTALL} ${COPY} -m 444 ${CRYPTO_HDRS} ${EXTRA_HDRS} openssl
+
+openssl/_evp.h: ${LCRYPTO_SRC}/evp/evp.h
+	sed '/^#ifndef NO_IDEA$$/,/^#endif$$/d' ${.OODATE} > ${.TARGET}
