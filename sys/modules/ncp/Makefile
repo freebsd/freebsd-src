@@ -19,7 +19,6 @@ CFLAGS+= -DNCPBURST
 .endif
 
 NOMAN=
-CFLAGS+= -DNCP
 
 opt_inet.h:
 	touch ${.TARGET}
