@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_al.c,v 1.2 1999/05/21 04:42:36 wpaul Exp $
+ *	$Id: if_al.c,v 1.13 1999/05/26 22:48:16 wpaul Exp $
  */
 
 /*
@@ -79,6 +79,9 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+/* Enable workaround for small transmitter bug. */
+#define AL_TX_STALL_WAR
+
 #define AL_USEIOSPACE
 
 /* #define AL_BACKGROUND_AUTONEG */
@@ -87,7 +90,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_al.c,v 1.2 1999/05/21 04:42:36 wpaul Exp $";
+	"$Id: if_al.c,v 1.13 1999/05/26 22:48:16 wpaul Exp $";
 #endif
 
 /*
@@ -1385,6 +1388,7 @@ static void al_txeof(sc)
 		if (sc->al_cdata.al_tx_head == sc->al_cdata.al_tx_tail) {
 			sc->al_cdata.al_tx_head = NULL;
 			sc->al_cdata.al_tx_tail = NULL;
+			ifp->if_flags &= ~IFF_OACTIVE;
 			break;
 		}
 
@@ -1631,6 +1635,7 @@ static void al_start(ifp)
 #endif
 		AL_TXOWN(cur_tx) = AL_TXSTAT_OWN;
 		CSR_WRITE_4(sc, AL_TXSTART, 0xFFFFFFFF);
+#ifdef AL_TX_STALL_WAR
 		/*
 		 * Work around some strange behavior in the Comet. For
 		 * some reason, the transmitter will sometimes wedge if
@@ -1645,6 +1650,7 @@ static void al_start(ifp)
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
+#endif
 	}
 
 	sc->al_cdata.al_tx_tail = cur_tx;
