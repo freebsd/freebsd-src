@@ -32,21 +32,26 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <signal.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "error.h"
 #include "pathnames.h"
 
@@ -59,7 +64,6 @@ Eptr	**files;	/* array of pointers into errors*/
 int	language = INCC;
 
 char	*currentfilename = "????";
-char	*processname;
 char	im_on[] = _PATH_TTY;	/* my tty name */
 
 boolean	query = FALSE;		/* query the operator if touch files */
@@ -69,8 +73,10 @@ boolean	terse	= FALSE;	/* Terse output */
 
 char	*suffixlist = ".*";	/* initially, can touch any file */
 
-int	errorsort();
-void	onintr();
+int errorsort __P((Eptr *, Eptr *));
+void forkvi __P((int, char **));
+void try __P((char *, int, char **));
+
 /*
  *	error [-I ignorename] [-n] [-q] [-t suffixlist] [-s] [-v] [infile]
  *
@@ -114,6 +120,7 @@ void	onintr();
  *	infile:	The error messages come from this file.
  *		Default: stdin
  */
+int
 main(argc, argv)
 	int	argc;
 	char	*argv[];
@@ -127,14 +134,11 @@ main(argc, argv)
 	boolean	pr_summary = FALSE;
 	boolean	edit_files = FALSE;
 
-	processname = argv[0];
-
 	errorfile = stdin;
 	if (argc > 1) for(; (argc > 1) && (argv[1][0] == '-'); argc--, argv++){
 		for (cp = argv[1] + 1; *cp; cp++) switch(*cp){
 		default:
-			fprintf(stderr, "%s: -%c: Unknown flag\n",
-				processname, *cp);
+			warnx("-%c: unknown flag", *cp);
 			break;
 
 		case 'n':	notouch = TRUE;	break;
@@ -159,24 +163,16 @@ main(argc, argv)
 	if (notouch)
 		suffixlist = 0;
 	if (argc > 1){
-		if (argc > 3){
-			fprintf(stderr, "%s: Only takes 0 or 1 arguments\n",
-				processname);
-			exit(3);
-		}
-		if ( (errorfile = fopen(argv[1], "r")) == NULL){
-			fprintf(stderr, "%s: %s: No such file or directory for reading errors.\n",
-				processname, argv[1]);
-			exit(4);
-		}
+		if (argc > 3)
+			errx(3, "only takes 0 or 1 argument");
+		if ( (errorfile = fopen(argv[1], "r")) == NULL)
+			errx(4,
+			     "%s: no such file or directory for reading errors",
+			     argv[1]);
 	}
 	if ( (queryfile = fopen(im_on, "r")) == NULL){
-		if (query){
-			fprintf(stderr,
-				"%s: Can't open \"%s\" to query the user.\n",
-				processname, im_on);
-			exit(9);
-		}
+		if (query)
+			errx(9, "can't open \"%s\" to query the user", im_on);
 	}
 	if (signal(SIGINT, onintr) == SIG_IGN)
 		signal(SIGINT, SIG_IGN);
@@ -213,8 +209,10 @@ main(argc, argv)
 	fflush(stdout);
 	if (touchfiles(nfiles, files, &ed_argc, &ed_argv) && edit_files)
 		forkvi(ed_argc, ed_argv);
+	return(0);
 }
 
+void
 forkvi(argc, argv)
 	int	argc;
 	char	**argv;
@@ -241,6 +239,7 @@ forkvi(argc, argv)
 	fprintf(stdout, "Can't find any editors.\n");
 }
 
+void
 try(name, argc, argv)
 	char	*name;
 	int	argc;
