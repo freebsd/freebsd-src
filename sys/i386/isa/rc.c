@@ -693,7 +693,7 @@ repeat:
 					    || (tp->t_cc[VSTART] == tp->t_cc[VSTOP]))) {
 						tp->t_state &= ~TS_TTSTOP;
 						tp->t_lflag &= ~FLUSHO;
-						ttstart(tp);
+						rc_start(tp);
 					}
 				} else {
 					for (; tptr < eptr; tptr++)
@@ -1468,6 +1468,7 @@ rc_discard_output(rc)
 	rc->rc_optr = rc->rc_obufend;
 	rc->rc_tp->t_state &= ~TS_BUSY;
 	enable_intr();
+	ttwwakeup(rc->rc_tp);
 }
 
 static void
