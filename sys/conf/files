@@ -172,6 +172,8 @@ dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
 dev/lmc/if_lmc.c	optional lmc
 dev/lnc/if_lnc.c	optional lnc
+dev/lnc/if_lnc_isa.c	optional lnc isa
+dev/lnc/if_lnc_pc98.c	optional lnc isa
 dev/lnc/if_lnc_pci.c	optional lnc pci
 dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
