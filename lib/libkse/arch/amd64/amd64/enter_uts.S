@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
  */
 ENTRY(_amd64_enter_uts)
 	addq	%rcx, %rdx	/* get stack base */
-	andq	$-15, %rdx	/* align to 16 bytes */
+	andq	$~0xf, %rdx	/* align to 16 bytes */
 	movq	%rdx, %rsp	/* switch to UTS stack */
 	movq	%rdx, %rbp	/* set frame */
 	pushq	%rsi
