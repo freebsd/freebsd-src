@@ -165,13 +165,6 @@ ed_probe_Novell_generic(device_t dev, int flags)
 
 	/* 8k of memory plus an additional 8k if 16bit */
 	memsize = 8192 + sc->isa16bit * 8192;
-
-#if 0	/* probably not useful - NE boards only come two ways */
-	/* allow kernel config file overrides */
-	if (isa_dev->id_msize)
-		memsize = isa_dev->id_msize;
-#endif
-
 	sc->mem_size = memsize;
 
 	/* NIC memory doesn't start at zero on an NE board */
