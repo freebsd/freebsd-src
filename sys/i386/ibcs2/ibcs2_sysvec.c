@@ -32,6 +32,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/sysent.h>
 #include <sys/signalvar.h>
@@ -75,18 +76,23 @@ static int
 ibcs2_modevent(module_t mod, int type, void *unused)
 {
 	struct proc *p = NULL;
+	int rval = 0;
 
 	switch(type) {
 	case MOD_UNLOAD:
 		/* if this was an ELF module we'd use elf_brand_inuse()... */
+		ALLPROC_LOCK(AP_SHARED);
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
-			if (p->p_sysent == &ibcs2_svr3_sysvec)
-				return EBUSY;
+			if (p->p_sysent == &ibcs2_svr3_sysvec) {
+				rval = EBUSY;
+				break;
+			}
 		}
+		ALLPROC_LOCK(AP_RELEASE);
 	default:
 	        /* do not care */
 	}
-	return 0;
+	return (rval);
 }
 static moduledata_t ibcs2_mod = {
 	"ibcs2",

@@ -154,14 +154,14 @@ elf_brand_inuse(Elf_Brandinfo *entry)
 	struct proc *p;
 	int rval = FALSE;
 
-	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+	ALLPROC_LOCK(AP_SHARED);
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_sysent == entry->sysvec) {
 			rval = TRUE;
 			break;
 		}
 	}
-	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+	ALLPROC_LOCK(AP_RELEASE);
 
 	return (rval);
 }

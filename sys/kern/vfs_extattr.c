@@ -365,7 +365,7 @@ checkdirs(olddp)
 		return;
 	if (VFS_ROOT(olddp->v_mountedhere, &newdp))
 		panic("mount: lost mount");
-	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+	ALLPROC_LOCK(AP_SHARED);
 	LIST_FOREACH(p, &allproc, p_list) {
 		fdp = p->p_fd;
 		if (fdp->fd_cdir == olddp) {
@@ -379,7 +379,7 @@ checkdirs(olddp)
 			fdp->fd_rdir = newdp;
 		}
 	}
-	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+	ALLPROC_LOCK(AP_RELEASE);
 	if (rootvnode == olddp) {
 		vrele(rootvnode);
 		VREF(newdp);

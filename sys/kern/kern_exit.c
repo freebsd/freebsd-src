@@ -264,12 +264,12 @@ exit1(p, rv)
 	 * Remove proc from allproc queue and pidhash chain.
 	 * Place onto zombproc.  Unlink from parent's child list.
 	 */
-	lockmgr(&allproc_lock, LK_EXCLUSIVE, NULL, CURPROC);
+	ALLPROC_LOCK(AP_EXCLUSIVE);
 	LIST_REMOVE(p, p_list);
 	LIST_INSERT_HEAD(&zombproc, p, p_list);
 
 	LIST_REMOVE(p, p_hash);
-	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+	ALLPROC_LOCK(AP_RELEASE);
 	/*
 	 * We have to wait until after releasing this lock before
 	 * changing p_stat.  If we block on a mutex while waiting to
@@ -517,9 +517,9 @@ loop:
 			 * Unlink it from its process group and free it.
 			 */
 			leavepgrp(p);
-			lockmgr(&allproc_lock, LK_EXCLUSIVE, NULL, CURPROC);
+			ALLPROC_LOCK(AP_EXCLUSIVE);
 			LIST_REMOVE(p, p_list);	/* off zombproc */
-			lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+			ALLPROC_LOCK(AP_RELEASE);
 			LIST_REMOVE(p, p_sibling);
 
 			if (--p->p_procsig->ps_refcnt == 0) {
