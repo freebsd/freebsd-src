@@ -91,10 +91,10 @@ static int	ntfs_open __P((struct vop_open_args *ap));
 static int	ntfs_close __P((struct vop_close_args *ap));
 static int	ntfs_readdir __P((struct vop_readdir_args *ap));
 static int	ntfs_lookup __P((struct vop_lookup_args *ap));
-static int	ntfs_bmap __P((struct vop_bmap_args *ap));
 #if defined(__FreeBSD__)
 static int	ntfs_fsync __P((struct vop_fsync_args *ap));
 #else
+static int	ntfs_bmap __P((struct vop_bmap_args *ap));
 static int	ntfs_bypass __P((struct vop_generic_args *ap));
 #endif
 static int	ntfs_pathconf __P((void *));
