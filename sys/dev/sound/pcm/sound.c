@@ -29,7 +29,6 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <sys/sysctl.h>
-#include "opt_devfs.h"
 
 static dev_t 	status_dev = 0;
 static int 	status_isopen = 0;
@@ -88,12 +87,9 @@ nomenclature:
 #define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 
 static devclass_t pcm_devclass;
-#ifdef DEVFS
 int snd_unit;
 TUNABLE_INT_DECL("hw.sndunit", 0, snd_unit);
-#endif
 
-#ifdef DEVFS
 static void
 pcm_makelinks(void *dummy)
 {
@@ -101,7 +97,7 @@ pcm_makelinks(void *dummy)
 	dev_t pdev;
 	static dev_t dsp = 0, dspW = 0, audio = 0, mixer = 0;
 
-	if (pcm_devclass == NULL)
+	if (pcm_devclass == NULL || devfs_present == 0)
 		return;
 	if (dsp) {
 		destroy_dev(dsp);
@@ -151,7 +147,6 @@ sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_hw, OID_AUTO, sndunit, CTLTYPE_INT | CTLFLAG_RW,
             0, sizeof(int), sysctl_hw_sndunit, "I", "");
-#endif
 
 int
 pcm_addchan(device_t dev, int dir, pcm_channel *templ, void *devinfo)
@@ -184,10 +179,8 @@ pcm_addchan(device_t dev, int dir, pcm_channel *templ, void *devinfo)
 		 UID_ROOT, GID_WHEEL, 0666, "audio%d.%d", unit, d->chancount);
 	/* XXX SND_DEV_NORESET? */
 	d->chancount++;
-#ifdef DEVFS
     	if (d->chancount == d->maxchans)
 		pcm_makelinks(NULL);
-#endif
 	return 0;
 }
 
@@ -357,9 +350,7 @@ pcm_unregister(device_t dev)
 	if (d->rec) free(d->rec, M_DEVBUF);
 	if (d->ref) free(d->ref, M_DEVBUF);
 
-#ifdef DEVFS
 	pcm_makelinks(NULL);
-#endif
 	return 0;
 }
 
