@@ -43,39 +43,94 @@
 .Fl a
 .Nm swap[on|off]
 .Ar special_file ...
+.Nm swapctl
+.Fl lshk
+.Nm swapctl
+.Fl AU
+.Nm swapctl
+.Fl a
+.Ar special_file ...
+.Nm swapctl
+.Fl d
+.Ar special_file ...
 .Sh DESCRIPTION
 The
+.Nm swap[on,off,ctl]
+utilties are used to control swap devices in the system.  At boot time all
+swap entries in 
+.Pa /etc/fstab
+are added automatically when the system goes multi-user.
+Swap devices are interleaved and kernels are typically configured
+to handle a maximum of 4 swap devices.  There is no priority mechanism.
+.Pp
+The
 .Nm swapon
-utility is used to specify additional devices on which paging and swapping
-are to take place.
-The system begins by swapping and paging on only a single device
-so that only one disk is required at bootstrap time.
-Calls to
-.Nm swapon
-normally occur in the system multi-user initialization file
-.Pa /etc/rc
-making all swap devices available, so that the paging and swapping
-activity is interleaved across several devices.
+utility adds the specified swap devices to the system.  If the
+.Fl a
+option is used, all swap devices in
+.Pa /etc/fstab
+will be added, unless their ``noauto'' option is also set.
 .Pp
 The
 .Nm swapoff
-utility disables paging and swapping on a device.
-Calls to
-.Nm swapoff
-succeed only if disabling the device would leave enough
-remaining virtual memory to accomodate all running programs.
-.Pp
-Normally, the first form is used:
-.Bl -tag -width indent
-.It Fl a
-All devices marked as ``sw''
-swap devices in
+utility removes the specified swap devices from the system.  If the
+.Fl a
+option is used, all swap devices in
 .Pa /etc/fstab
-are added to or removed from the pool of available swap
-unless their ``noauto'' option is also set.
-.El
+will be removed, unless their ``noauto'' option is also set.
+Note that
+.Nm swapoff
+will fail and refuse to remove a swap device if there is insufficient
+VM (memory + remaining swap devices) to run the system.
+.Nm Swapoff
+must move swapped pages out of the device being removed which could
+lead to high system loads for a period of time, depending on how
+much data has been swapped out to that device.
 .Pp
-The second form is used to configure or disable individual devices.
+The
+.Nm swapctl
+utility exists primarily for those familiar with other BSDs and may be
+used to add, remove, or list swap.  Note that the
+.Fl a
+option is used diferently in
+.Nm swapctl
+and indicates that a specific list of devices should be added.
+The 
+.Fl d
+option indicates that a specific list should be removed.  The
+.Fl A
+and 
+.Fl D
+options to
+.Nm swapctl
+operate on all swap entries in
+.Pa /etc/fstab
+which do not have their ``noauto'' option set.
+.Pp
+Swap information can be generated using the
+.Nm swapinfo
+program,
+.Nm pstat
+.Fl s ,
+or
+.Nm swapctl
+.Fl lshk .
+The
+.Nm swapctl
+utility has the following options for listing swap:
+.Bl -tag -width indent
+.It Fl l
+List the devices making up system swap.
+.It Fl s
+Print a summary line for system swap.
+.It Fl h
+Output values in megabytes.
+.It Fl k
+Output values in kilobytes.
+.Pp
+The BLOCKSIZE environment variable is used if not specifically
+overridden.  512 byte blocks are used by default.
+.El
 .Sh SEE ALSO
 .Xr swapon 2 ,
 .Xr fstab 5 ,
