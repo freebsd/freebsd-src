@@ -75,7 +75,7 @@ static MALLOC_DEFINE(M_MSDOSFSNODE, "MSDOSFS node", "MSDOSFS vnode private part"
  * If deget() succeeds it returns with the gotten denode locked().
  *
  * pmp	     - address of msdosfsmount structure of the filesystem containing
- *	       the denode of interest.  The pm_dev field and the address of
+ *	       the denode of interest.  The address of
  *	       the msdosfsmount structure are used.
  * dirclust  - which cluster bp contains, if dirclust is 0 (root directory)
  *	       diroffset is relative to the beginning of the root directory,
@@ -92,7 +92,6 @@ deget(pmp, dirclust, diroffset, depp)
 {
 	int error;
 	u_int hash;
-	struct cdev *dev = pmp->pm_dev;
 	struct mount *mntp = pmp->pm_mountp;
 	struct direntry *direntptr;
 	struct denode *ldep;
@@ -155,7 +154,6 @@ deget(pmp, dirclust, diroffset, depp)
 	nvp->v_data = ldep;
 	ldep->de_vnode = nvp;
 	ldep->de_flag = 0;
-	ldep->de_dev = dev;
 	ldep->de_dirclust = dirclust;
 	ldep->de_diroffset = diroffset;
 	fc_purge(ldep, 0);	/* init the fat cache for this denode */
