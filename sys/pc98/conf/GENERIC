@@ -117,6 +117,10 @@ device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0
 # PC-9801-100
 device	aic0	at isa? port 0x1840 irq 5 flags 0x10000
 
+device		ncv		# NCR 53C500
+device		nsp		# Workbit Ninja SCSI-3
+device		stg		# TMC 18C30/18C50
+
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
 device		da		# Direct Access (disks)
@@ -197,6 +201,7 @@ device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
+# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		miibus		# MII bus support
 device		dc		# DEC/Intel 21143 and various workalikes
 device		pcn		# AMD Am79C79x PCI 10/100 NICs
