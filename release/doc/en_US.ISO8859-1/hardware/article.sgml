@@ -1420,7 +1420,7 @@
 	  <para>LinkSys EG1032 (32-bit PCI) and EG1064 (64-bit PCI)</para>
         </listitem>
         <listitem>
-	  <para>Netgear GA622T</para>
+	  <para>Netgear GA621 and GA622T</para>
         </listitem>
         <listitem>
 	  <para>SMC EZ Card 1000 (SMC9462TX)</para>
@@ -3006,7 +3006,22 @@
 	</listitem>
       </itemizedlist>
     </para>
-  </sect2>
+
+    <para arch="i386,pc98">Handspring Visor and other PalmOS
+      devices (&man.uvisor.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Handspring Visor</para>
+        </listitem>
+        <listitem>
+	  <para>Palm M125, M500, M505</para>
+        </listitem>
+        <listitem>
+	  <para>Sony Clie 4.0 and 4.1</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+ </sect2>
 
   <sect2>
     <title>Miscellaneous</title>
