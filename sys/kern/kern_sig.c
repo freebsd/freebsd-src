@@ -1123,8 +1123,10 @@ psignal(p, sig)
 		 * be noticed when the process returns through
 		 * trap() or syscall().
 		 */
-		if ((p->p_flag & P_SINTR) == 0)
+		if ((p->p_flag & P_SINTR) == 0) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			goto out;
+		}
 		/*
 		 * Process is sleeping and traced... make it runnable
 		 * so it can discover the signal in issignal() and stop
@@ -1132,15 +1134,14 @@ psignal(p, sig)
 		 */
 		if (p->p_flag & P_TRACED)
 			goto run;
+		mtx_exit(&sched_lock, MTX_SPIN);
 		/*
 		 * If SIGCONT is default (or ignored) and process is
 		 * asleep, we are finished; the process should not
 		 * be awakened.
 		 */
-		mtx_exit(&sched_lock, MTX_SPIN);
 		if ((prop & SA_CONT) && action == SIG_DFL) {
 			SIGDELSET(p->p_siglist, sig);
-			mtx_enter(&sched_lock, MTX_SPIN);
 			goto out;
 		}
 		/*
@@ -1150,10 +1151,8 @@ psignal(p, sig)
 		 * cause the process to run.
 		 */
 		if (prop & SA_STOP) {
-			if (action != SIG_DFL) {
-				mtx_enter(&sched_lock, MTX_SPIN);
+			if (action != SIG_DFL)
 				goto runfast;
-			}
 			/*
 			 * If a child holding parent blocked,
 			 * stopping could cause deadlock.
@@ -1167,21 +1166,21 @@ psignal(p, sig)
 				psignal(p->p_pptr, SIGCHLD);
 			stop(p);
 			PROCTREE_LOCK(PT_RELEASE);
-			mtx_enter(&sched_lock, MTX_SPIN);
 			goto out;
-		} else {
-			mtx_enter(&sched_lock, MTX_SPIN);
+		} else
 			goto runfast;
-		}
-		/*NOTREACHED*/
+		/* NOTREACHED */
 
 	case SSTOP:
 		/*
 		 * If traced process is already stopped,
 		 * then no further action is necessary.
 		 */
-		if (p->p_flag & P_TRACED)
+		if (p->p_flag & P_TRACED) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			goto out;
+		}
+		mtx_exit(&sched_lock, MTX_SPIN);
 
 		/*
 		 * Kill signal always sets processes running.
@@ -1189,7 +1188,6 @@ psignal(p, sig)
 		if (sig == SIGKILL)
 			goto runfast;
 
-		mtx_exit(&sched_lock, MTX_SPIN);
 		if (prop & SA_CONT) {
 			/*
 			 * If SIGCONT is default (or ignored), we continue the
@@ -1203,12 +1201,13 @@ psignal(p, sig)
 			 */
 			if (action == SIG_DFL)
 				SIGDELSET(p->p_siglist, sig);
-			mtx_enter(&sched_lock, MTX_SPIN);
 			if (action == SIG_CATCH)
 				goto runfast;
+			mtx_enter(&sched_lock, MTX_SPIN);
 			if (p->p_wchan == 0)
 				goto run;
 			p->p_stat = SSLEEP;
+			mtx_exit(&sched_lock, MTX_SPIN);
 			goto out;
 		}
 
@@ -1218,7 +1217,6 @@ psignal(p, sig)
 			 * (If we did the shell could get confused.)
 			 */
 			SIGDELSET(p->p_siglist, sig);
-			mtx_enter(&sched_lock, MTX_SPIN);
 			goto out;
 		}
 
@@ -1231,6 +1229,7 @@ psignal(p, sig)
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_wchan && p->p_flag & P_SINTR)
 			unsleep(p);
+		mtx_exit(&sched_lock, MTX_SPIN);
 		goto out;
 
 	default:
@@ -1242,15 +1241,15 @@ psignal(p, sig)
 		if (p == curproc) {
 			mtx_exit(&sched_lock, MTX_SPIN);
 			signotify(p);
-			mtx_enter(&sched_lock, MTX_SPIN);
 		}
 #ifdef SMP
 		else if (p->p_stat == SRUN) {
 			mtx_exit(&sched_lock, MTX_SPIN);
 			forward_signal(p);
-			mtx_enter(&sched_lock, MTX_SPIN);
 		}
 #endif
+		else
+			mtx_exit(&sched_lock, MTX_SPIN);
 		goto out;
 	}
 	/*NOTREACHED*/
@@ -1259,12 +1258,17 @@ runfast:
 	/*
 	 * Raise priority to at least PUSER.
 	 */
+	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_priority > PUSER)
 		p->p_priority = PUSER;
 run:
+	/* If we jump here, sched_lock has to be owned. */
+	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	setrunnable(p);
-out:
 	mtx_exit(&sched_lock, MTX_SPIN);
+out:
+	/* If we jump here, sched_lock should not be owned. */
+	mtx_assert(&sched_lock, MA_NOTOWNED);
 	splx(s);
 }
 
