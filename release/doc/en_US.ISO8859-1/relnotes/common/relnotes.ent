@@ -13,8 +13,5 @@
 
 <!-- Files to be included -->
 
-<!ENTITY artheader SYSTEM "../common/artheader.sgml">
-<!ENTITY sect.intro SYSTEM "../common/intro.sgml">
-<!ENTITY sect.new SYSTEM "../common/new.sgml">
-<!ENTITY sect.upgrading SYSTEM "../common/upgrading.sgml">
+<!ENTITY art SYSTEM "../common/new.sgml">
 

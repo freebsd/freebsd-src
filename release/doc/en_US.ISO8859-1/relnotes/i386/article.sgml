@@ -18,8 +18,5 @@
 ]>
 
 <article>
-  &artheader;
-  &sect.intro;
-  &sect.new;
-  &sect.upgrading;
+  &art;
 </article>
