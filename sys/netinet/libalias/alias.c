@@ -45,9 +45,6 @@
     data connections, while alias_irc.c does the same for IRC
     DCC. Alias_util.c contains a few utility routines.
 
-    This software is placed into the public domain with no restrictions
-    on its distribution.
-
     Version 1.0 August, 1996  (cjm)
 
     Version 1.1 August 20, 1996  (cjm)
