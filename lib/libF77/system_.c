@@ -3,22 +3,34 @@
 #include "f2c.h"
 
 #ifdef KR_headers
+extern char *F77_aloc();
+
+ integer
 system_(s, n) register char *s; ftnlen n;
 #else
 #undef abs
 #undef min
 #undef max
 #include "stdlib.h"
+extern char *F77_aloc(ftnlen, char*);
+
+ integer
 system_(register char *s, ftnlen n)
 #endif
 {
-char buff[1000];
-register char *bp, *blast;
+	char buff0[256], *buff;
+	register char *bp, *blast;
+	integer rv;
 
-blast = buff + (n < 1000 ? n : 1000);
+	buff = bp = n < sizeof(buff0)
+			? buff0 : F77_aloc(n+1, "system_");
+	blast = bp + n;
 
-for(bp = buff ; bp<blast && *s!='\0' ; )
-	*bp++ = *s++;
-*bp = '\0';
-return system(buff);
-}
+	while(bp < blast && *s)
+		*bp++ = *s++;
+	*bp = 0;
+	rv = system(buff);
+	if (buff != buff0)
+		free(buff);
+	return rv;
+	}

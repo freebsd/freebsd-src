@@ -2,7 +2,9 @@
 #include "fio.h"
 #include "fmt.h"
 #include "lio.h"
+
 ftnint L_len;
+int f__Aquote;
 
  static VOID
 donewrec(Void)
@@ -23,20 +25,22 @@ t_putc(int c)
 }
  static VOID
 #ifdef KR_headers
-lwrt_I(n) long n;
+lwrt_I(n) longint n;
 #else
-lwrt_I(long n)
+lwrt_I(longint n)
 #endif
 {
-	char buf[LINTW],*p;
-#ifdef USE_STRLEN
-	(void) sprintf(buf," %ld",n);
-	if(f__recpos+strlen(buf)>=L_len)
-#else
-	if(f__recpos + sprintf(buf," %ld",n) >= L_len)
-#endif
+	char *p;
+	int ndigit, sign;
+
+	p = f__icvt(n, &ndigit, &sign, 10);
+	if(f__recpos + ndigit >= L_len)
 		donewrec();
-	for(p=buf;*p;PUT(*p++));
+	PUT(' ');
+	if (sign)
+		PUT('-');
+	while(*p)
+		PUT(*p++);
 }
  static VOID
 #ifdef KR_headers
@@ -56,14 +60,42 @@ lwrt_A(p,len) char *p; ftnlen len;
 lwrt_A(char *p, ftnlen len)
 #endif
 {
-	int i;
-	if(f__recpos+len>=L_len)
+	int a;
+	char *p1, *pe;
+
+	a = 0;
+	pe = p + len;
+	if (f__Aquote) {
+		a = 3;
+		if (len > 1 && p[len-1] == ' ') {
+			while(--len > 1 && p[len-1] == ' ');
+			pe = p + len;
+			}
+		p1 = p;
+		while(p1 < pe)
+			if (*p1++ == '\'')
+				a++;
+		}
+	if(f__recpos+len+a >= L_len)
 		donewrec();
+	if (a
 #ifndef OMIT_BLANK_CC
-	if (!f__recpos)
-		PUT(' ');
+		|| !f__recpos
 #endif
-	for(i=0;i<len;i++) PUT(*p++);
+		)
+		PUT(' ');
+	if (a) {
+		PUT('\'');
+		while(p < pe) {
+			if (*p == '\'')
+				PUT('\'');
+			PUT(*p++);
+			}
+		PUT('\'');
+		}
+	else
+		while(p < pe)
+			PUT(*p++);
 }
 
  static int
@@ -107,10 +139,12 @@ l_g(char *buf, double n)
 		}
 	sprintf(b, LGFMT, n);
 	switch(*b) {
+#ifndef WANT_LEAD_0
 		case '0':
 			while(b[0] = b[1])
 				b++;
 			break;
+#endif
 		case 'i':
 		case 'I':
 			/* Infinity */
@@ -213,7 +247,7 @@ l_write(ftnint *number, char *ptr, ftnlen len, ftnint type)
 {
 #define Ptr ((flex *)ptr)
 	int i;
-	long x;
+	longint x;
 	double y,z;
 	real *xx;
 	doublereal *yy;
@@ -228,7 +262,7 @@ l_write(ftnint *number, char *ptr, ftnlen len, ftnint type)
 		case TYSHORT:
 			x=Ptr->flshort;
 			goto xint;
-#ifdef TYQUAD
+#ifdef Allow_TYQUAD
 		case TYQUAD:
 			x = Ptr->fllongint;
 			goto xint;
