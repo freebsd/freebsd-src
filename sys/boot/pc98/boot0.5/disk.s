@@ -198,7 +198,7 @@ sasi_1:
 	jmp	sasi_512
 sasi_2:
 	# SASI #2
-	testb	$0x80, %dl
+	testb	$0x40, %dl
 	jz	sasi_256
 	jmp	sasi_512
 
