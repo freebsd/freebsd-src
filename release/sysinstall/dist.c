@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.17 1995/06/04 05:27:33 jkh Exp $
+ * $Id: dist.c,v 1.35.2.18 1995/06/04 11:30:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -212,7 +212,7 @@ distSetEverything(char *str)
     SrcDists = DIST_SRC_ALL;
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
-    XF86FontDists = DIST_XF86_FONT_ALL;
+    XF86FontDists = DIST_XF86_FONTS_ALL;
     return 0;
 }
 
