@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.57 1997/09/07 09:43:44 bde Exp $
+ * $Id: systm.h,v 1.58 1997/09/07 16:20:55 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -92,6 +92,7 @@ int	addlog __P((const char *, ...));
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int,
 		      _BSD_VA_LIST_));
 void	log __P((int, const char *, ...));
+void	logwakeup __P((void));
 int	printf __P((const char *, ...));
 int	sprintf __P((char *buf, const char *, ...));
 void	uprintf __P((const char *, ...));
@@ -112,7 +113,6 @@ int	copyin __P((const void *udaddr, void *kaddr, size_t len));
 int	copyout __P((const void *kaddr, void *udaddr, size_t len));
 
 int	fubyte __P((const void *base));
-int	fuibyte __P((const void *base));
 int	subyte __P((void *base, int byte));
 int	suibyte __P((void *base, int byte));
 int	fuword __P((const void *base));
@@ -139,11 +139,11 @@ void	hardpps __P((struct timeval *tvp, long usec));
 #include <sys/libkern.h>
 
 /* Initialize the world */
-extern void consinit(void);
-extern void usrinfoinit(void);
-extern void cpu_initclocks(void);
-extern void vntblinit(void);
-extern void nchinit(void);
+void	consinit __P((void));
+void	cpu_initclocks __P((void));
+void	nchinit __P((void));
+void	usrinfoinit __P((void));
+void	vntblinit __P((void));
 
 /* Finalize the world. */
 void	shutdown_nice __P((void));
@@ -156,12 +156,10 @@ void	resettodr __P((void));
 void	startrtclock __P((void));
 
 /* Timeouts */
-typedef void (timeout_t)(void *); /* actual timeout function type */
-typedef timeout_t *timeout_func_t; /* a pointer to this type */
+typedef void timeout_t __P((void *));	/* timeout function type */
 
-void timeout(timeout_func_t, void *, int);
-void untimeout(timeout_func_t, void *);
-void	logwakeup __P((void));
+void	timeout __P((timeout_t *, void *, int));
+void	untimeout __P((timeout_t *, void *));
 
 /* Interrupt management */
 void		setdelayed(void);
@@ -205,33 +203,42 @@ extern const intrmask_t soft_imask;    /* interrupts masked with splsoft*() */
 extern const intrmask_t softnet_imask; /* interrupt masked with splnet() */
 extern const intrmask_t softtty_imask; /* interrupt masked with splsofttty() */
 
-/* Various other callout lists that modules might want to know about */
-/* shutdown callout list definitions */
-typedef void (*bootlist_fn)(int,void *);
-int at_shutdown(bootlist_fn function, void *arg, int);
-int rm_at_shutdown(bootlist_fn function, void *arg);
-#define SHUTDOWN_PRE_SYNC 0
-#define SHUTDOWN_POST_SYNC 1
+/*
+ * Various callout lists.
+ */
 
-/* forking */ /* XXX not yet */
-typedef void (*forklist_fn)(struct proc *parent,struct proc *child,int flags);
-int at_fork(forklist_fn function);
-int rm_at_fork(forklist_fn function);
+/* Exit callout list declarations. */
+typedef void (*exitlist_fn) __P((struct proc *procp));
 
-/* exiting */
-typedef void (*exitlist_fn)(struct proc *procp);
-int at_exit(exitlist_fn function);
-int rm_at_exit(exitlist_fn function);
+int	at_exit __P((exitlist_fn function));
+int	rm_at_exit __P((exitlist_fn function));
 
-/* Not exactly a callout LIST, but a callout entry.. 			*/
-/* Allow an external module to define a hardware watchdog tickler	*/
-/* Normally a process would do this, but there are times when the	*/
-/* kernel needs to be able to hold off the watchdog, when the process	*/
-/* is not active, e.g. when dumping core. Costs us a whole 4 bytes to	*/
-/* make this generic. the variable is in kern_shutdown.c */
-typedef void (*watchdog_tickle_fn)(void);
-extern watchdog_tickle_fn wdog_tickler;
+/* Fork callout list declarations. */
+typedef void (*forklist_fn) __P((struct proc *parent, struct proc *child,
+				 int flags));
 
+int	at_fork __P((forklist_fn function));
+int	rm_at_fork __P((forklist_fn function));
+
+/* Shutdown callout list definitions and declarations. */
+#define	SHUTDOWN_PRE_SYNC	0
+#define	SHUTDOWN_POST_SYNC	1
+
+typedef void (*bootlist_fn) __P((int, void *));
+
+int	at_shutdown __P((bootlist_fn function, void *arg, int position));
+int	rm_at_shutdown __P((bootlist_fn function, void *arg));
+
+/*
+ * Not exactly a callout LIST, but a callout entry.
+ * Allow an external module to define a hardware watchdog tickler.
+ * Normally a process would do this, but there are times when the
+ * kernel needs to be able to hold off the watchdog, when the process
+ * is not active, e.g., when dumping core.
+ */
+typedef void (*watchdog_tickle_fn) __P((void));
+
+extern watchdog_tickle_fn	wdog_tickler;
 
 /* 
  * Common `proc' functions are declared here so that proc.h can be included
