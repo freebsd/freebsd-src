@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.5 1998/09/30 00:10:44 imp Exp $
+ *      $Id: aha.c,v 1.6 1998/10/01 04:53:55 imp Exp $
  */
 
 #include <sys/param.h>
@@ -85,7 +85,7 @@
 struct aha_softc *aha_softcs[NAHA];
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define	PRVERBOSE(x) if (bootverbose) printf x
+#define	PRVERB(x) if (bootverbose) printf x
 
 /* Macro to determine that a rev is potentially a new valid one
  * so that the driver doesn't keep breaking on new revs as it
@@ -312,8 +312,7 @@ aha_probe(struct aha_softc* aha)
 		       (u_int8_t*)&board_id, sizeof(board_id),
 		       DEFAULT_CMD_TIMEOUT);
 	if (error != 0) {
-		if (bootverbose)
-			printf("%s: INQUIRE failed %x\n", aha_name(aha), error);
+		PRVERB(("%s: INQUIRE failed %x\n", aha_name(aha), error));
 		return (ENXIO);
 	}
 	aha->fw_major = board_id.firmware_rev_major;
@@ -1370,10 +1369,9 @@ ahareset(struct aha_softc* aha, int hard_reset)
 		DELAY(100);
 	}
 	if (timeout == 0) {
-		if (bootverbose)
-			printf("%s: ahareset - Diagnostic Active failed to "
-				"assert. status = 0x%x\n", aha_name(aha),
-				status);
+		PRVERB(("%s: ahareset - Diagnostic Active failed to "
+			"assert. status = 0x%x\n", aha_name(aha),
+			status));
 		return (ETIMEDOUT);
 	}
 
@@ -1565,9 +1563,7 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 	 * If the command was rejected by the controller, tell the caller.
 	 */
 	if ((status & CMD_INVALID) != 0) {
-		if (bootverbose)
-			printf("%s: Invalid Command 0x%x\n", aha_name(aha), 
-				opcode);
+		PRVERB(("%s: Invalid Command 0x%x\n", aha_name(aha), opcode));
 		/*
 		 * Some early adapters may not recover properly from
 		 * an invalid command.  If it appears that the controller
