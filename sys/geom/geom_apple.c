@@ -34,6 +34,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #ifndef _KERNEL
 #include <stdio.h>
 #include <string.h>
