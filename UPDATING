@@ -17,6 +17,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040727:
+	The size of 'struct ifnet' has changed due to the addition of
+	the IFF_NEEDSGIANT flag (and what it implies).  All kernel
+	modules implementing network interfaces must be recompiled as
+	a result.
+
 20040724:
 	The rc.d/localpkg script now "does the right thing" with respect
 	to ports rc.d scripts. The most disruptive change is that scripts
