@@ -97,17 +97,17 @@ static int randinit;
 static daddr_t alloc(int size, int mode);
 static long calcipg(long lcpg, long bpcg, off_t *usedbp);
 static int charsperline(void);
-static void clrblock (struct fs *, unsigned char *, int);
-static void fsinit (time_t);
+static void clrblock(struct fs *, unsigned char *, int);
+static void fsinit(time_t);
 static int ilog2(int);
-static void initcg (int, time_t);
-static int isblock (struct fs *, unsigned char *, int);
-static void iput (struct dinode *, ino_t);
-static int makedir (struct direct *, int);
-static void rdfs (daddr_t, int, char *);
-static void setblock (struct fs *, unsigned char *, int);
-static void wtfs (daddr_t, int, char *);
-static void wtfsflush (void);
+static void initcg(int, time_t);
+static int isblock(struct fs *, unsigned char *, int);
+static void iput(struct dinode *, ino_t);
+static int makedir(struct direct *, int);
+static void rdfs(daddr_t, int, char *);
+static void setblock(struct fs *, unsigned char *, int);
+static void wtfs(daddr_t, int, char *);
+static void wtfsflush(void);
 
 void
 mkfs(struct partition *pp, char *fsys, int fi, int fo)
@@ -178,7 +178,7 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 		exit(17);
 	}
 	if (sblock.fs_fsize < sectorsize) {
-		printf("increasing fragment size from %d to sectorsize (%d)\n",
+		printf("increasing fragment size from %d to sector size (%d)\n",
 		    sblock.fs_fsize, sectorsize);
 		sblock.fs_fsize = sectorsize;
 	}
@@ -188,12 +188,13 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 		sblock.fs_bsize = MINBSIZE;
 	}
 	if (sblock.fs_bsize < sblock.fs_fsize) {
-		printf("increasing block size from %d to fragsize (%d)\n",
+		printf("increasing block size from %d to fragment size (%d)\n",
 		    sblock.fs_bsize, sblock.fs_fsize);
 		sblock.fs_bsize = sblock.fs_fsize;
 	}
 	if (sblock.fs_fsize * MAXFRAG < sblock.fs_bsize) {
-		printf("increasing fragsize from %d to block size / %d (%d)\n",
+		printf(
+		"increasing fragment size from %d to block size / %d (%d)\n",
 		    sblock.fs_fsize, MAXFRAG, sblock.fs_bsize / MAXFRAG);
 		sblock.fs_fsize = sblock.fs_bsize / MAXFRAG;
 	}
@@ -206,7 +207,7 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 	sblock.fs_frag = numfrags(&sblock, sblock.fs_bsize);
 	sblock.fs_fragshift = ilog2(sblock.fs_frag);
 	if (sblock.fs_frag > MAXFRAG) {
-		printf( "SYSERR: fragsize too small %d (block/frag ratio)\n",
+		printf("fragment size %d is still too small (can't happen)\n",
 		    sblock.fs_bsize / MAXFRAG);
 		exit(21);
 	}
