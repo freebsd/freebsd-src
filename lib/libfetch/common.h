@@ -60,4 +60,15 @@ int		 _fetch_add_entry(struct url_ent **p, int *size, int *len,
 #define DEBUG(x) do { } while (0)
 #endif
 
+/*
+ * I don't really like exporting _http_request() from http.c, but ftp.c
+ * occasionally needs to use an HTTP proxy, and this saves me from adding
+ * a lot of special-case code to http.c to handle those cases.
+ *
+ * Note that _http_request() frees purl, which is way ugly but saves us a
+ * whole lot of trouble.
+ */
+FILE		*_http_request(struct url *URL, char *op, struct url_stat *us,
+			       struct url *purl, char *flags);
+
 #endif
