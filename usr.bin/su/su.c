@@ -213,6 +213,8 @@ main(int argc, char *argv[])
 		errx(1, "pam_start: %s", pam_strerror(pamh, retcode));
 	}
 
+	PAM_SET_ITEM(PAM_RUSER, getlogin());
+
 	gethostname(myhost, sizeof(myhost));
 	PAM_SET_ITEM(PAM_RHOST, myhost);
 
