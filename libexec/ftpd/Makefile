@@ -10,17 +10,18 @@ CFLAGS+=-DINET6
 CFLAGS+=-I${.CURDIR}
 YFLAGS=
 
-LDADD=	-lmd -lcrypt -lutil
 DPADD=	${LIBMD} ${LIBCRYPT} ${LIBUTIL}
+LDADD=	-lmd -lcrypt -lutil
 
 # XXX Kluge! Conversation mechanism needs to be fixed.
-LDADD+=	-lopie
 DPADD+=	${LIBOPIE}
+LDADD+=	-lopie
 
 LSDIR=	../../bin/ls
 .PATH:	${.CURDIR}/${LSDIR}
 SRCS+=	ls.c cmp.c print.c util.c lomac.c
 CFLAGS+=-Dmain=ls_main -I${.CURDIR}/${LSDIR}
+DPADD+=	${LIBM}
 LDADD+=	-lm
 
 .if !defined(NOPAM)
