@@ -46,8 +46,6 @@
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
  */
 
-#include <stddef.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>

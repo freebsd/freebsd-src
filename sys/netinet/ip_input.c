@@ -44,8 +44,6 @@
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 
-#include <stddef.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

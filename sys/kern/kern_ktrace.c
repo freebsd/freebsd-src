@@ -51,9 +51,6 @@
 #include <sys/sysent.h>
 
 #include <vm/vm_zone.h>
-
-#include <stddef.h>
-
 static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 
 #ifdef KTRACE

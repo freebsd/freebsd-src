@@ -105,9 +105,6 @@
 
 #include <net/net_osdep.h>
 
-#ifndef offsetof
-#define offsetof(type, member)	((size_t)(&((type *)0)->member))
-#endif
 #ifndef satosin
 #define satosin(s) ((struct sockaddr_in *)s)
 #endif
