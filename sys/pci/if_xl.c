@@ -1297,7 +1297,6 @@ xl_attach(dev)
 	device_t		dev;
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
-	u_int32_t		command;
 	u_int16_t		xcvr[2];
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
@@ -1389,15 +1388,6 @@ xl_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_IOPORT);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-
-	if (!(command & PCIM_CMD_PORTEN) && !(command & PCIM_CMD_MEMEN)) {
-		printf("xl%d: failed to enable I/O ports and memory mappings!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
 
 	rid = XL_PCI_LOMEM;
 	res = SYS_RES_MEMORY;

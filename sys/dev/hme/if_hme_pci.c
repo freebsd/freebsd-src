@@ -137,7 +137,6 @@ hme_pci_attach(device_t dev)
 	 * gross; but the hme comes up with neither enabled.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_MEMORY);
 
 	sc->sc_pci = 1; /* XXXXX should all be done in bus_dma. */
 	sc->sc_dev = dev;

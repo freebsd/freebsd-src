@@ -154,19 +154,6 @@ hea_pci_attach (dev)
 	error = 0;
 
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
-	if ((command & PCIM_CMD_BUSMASTEREN) == 0) {
-		device_printf(dev, "Unable to enable PCI busmastering.\n");
-		error = ENXIO;
-		goto fail;
-	}
-	if ((command & PCIM_CMD_MEMEN) == 0) {
-		device_printf(dev, "Unable to enable PCI memory resources.\n");
-		error = ENXIO;
-		goto fail;
-	}
 
 	sc->mem_rid = PCIR_MAPS;
 	sc->mem_type = SYS_RES_MEMORY;

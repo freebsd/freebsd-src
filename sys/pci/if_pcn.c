@@ -543,23 +543,12 @@ pcn_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_IOPORT);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
-#ifdef PCN_USEIOSPACE
-	if (!(command & PCIM_CMD_PORTEN)) {
-		printf("pcn%d: failed to enable I/O ports!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-#else
-	if (!(command & PCIM_CMD_MEMEN)) {
-		printf("pcn%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-#endif
+	/* Retreive the chip ID */
+	command = pcn_chip_id(dev);
+	sc->pcn_type = (command >>= 12) & PART_MASK;
+	device_printf(dev, "Chip ID %04x (%s)\n",
+		sc->pcn_type, pcn_chipid_name(sc->pcn_type));
 
 	rid = PCN_RID;
 	sc->pcn_res = bus_alloc_resource(dev, PCN_RES, &rid,

@@ -163,7 +163,6 @@ gem_pci_attach(dev)
 	 * cases not do this for us on sparc64 machines.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_MEMORY);
 
 	sc->sc_dev = dev;
 	sc->sc_pci = 1;		/* XXX */
