@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.75 1995/03/02 04:11:47 jkh Exp $
+#	$Id: MAKEDEV,v 1.76 1995/03/04 12:22:14 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -389,7 +389,19 @@ sd*|vn*|wd*)
 uk*)
 	unit=`expr $i : 'uk\(.*\)'`
 	rm -f uk$unit
-	mknod uk$unit c 27 $unit
+	mknod uk$unit c 31 $unit
+	;;
+
+worm*)
+	unit=`expr $i : 'worm\(.*\)'`
+	rm -f worm$unit
+	mknod worm$unit c 62 $unit
+	;;
+
+pt*)
+	unit=`expr $i : 'pt\(.*\)'`
+	rm -f pt$unit
+	mknod pt$unit c 61 $unit
 	;;
 
 pty*)
