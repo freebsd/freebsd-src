@@ -308,9 +308,9 @@ fi
 
 }
 
-echo    "Welcome to ${OPSYSTEM}."
+echo	"Welcome to ${OPSYSTEM}."
 echo
-echo    "This program is designed to help put ${OPSYSTEM} on a hard disk with"
+echo	"This program is designed to help put ${OPSYSTEM} on a hard disk with"
 echo	"at least $DISKMIN Megabytes of free space."
 echo
 echo 	"If other operating systems are already on the disk, ${OPSYSTEM}"
@@ -330,7 +330,7 @@ resp=${resp:-y}
 case "$resp" in
 y*|Y*)
 	echo
-	echo    "Cool!  Let's get to it..."
+	echo	"Cool!  Let's get to it..."
 	echo
 	echo	"If a mistake is made along the way, don't bail out."
 	echo	"At the end, you have the option to redo the configuration."
@@ -339,9 +339,9 @@ y*|Y*)
 	;;
 *)
 	echo
-	echo    "OK, then.  Enter \`halt' to halt the machine."
-	echo    "Once the machine has halted, remove the floppy,"
-	echo    "and press any key to reboot."
+	echo	"OK, then.  Enter \`halt' to halt the machine."
+	echo	"Once the machine has halted, remove the floppy,"
+	echo	"and press any key to reboot."
 	exit
 	;;
 esac
@@ -356,7 +356,7 @@ drivename=wd0
 drivetype=wd
 sect_fwd=""
 echo
-echo    "First, we need to know the drive type.  This can be can be one of"
+echo	"First, we need to know the drive type.  This can be can be one of"
 echo	"ESDI, SCSI, ST506, or IDE."
 echo -n "Drive type? [${type:-IDE}] "
 read resp junk
@@ -394,10 +394,10 @@ sc*|SC*)
 	;;
 esac
 echo
-echo    "Disk is of device type $drivetype."
+echo	"Disk is of device type $drivetype."
 if [ ! "$partition" ]; then
 	echo
-	echo    "Please wait.  Examining device /dev/r${drivename}d..."
+	echo	"Please wait.  Examining device /dev/r${drivename}d..."
 	get_fdisk_data
 	if [ $? -gt 1 ]; then
 		echo "Hm  - we can't seem to read that drive."
@@ -560,7 +560,7 @@ blocking_factor=${resp:-${blocking_factor:-${DEFBLOCKING}}}
 fragsize=`expr $bytes_per_sect \* $blocking_factor`
 blocksize=`expr $bytes_per_sect \* $blocking_factor \* 8`
 echo
-echo    "$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
+echo	"$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
 echo
 echo	"Minimum swap space is ${swap_cyls_min} cylinders."
 echo	"For running X, if your RAM size is NR Mb, then the recomended swap"
@@ -596,16 +596,16 @@ done
 echo
 swap_offset=`expr $root_offset + $root`
 part_used=`expr $part_used + $swap`
-echo    "" >/etc/disktab
-echo    "$name|${OPSYSTEM} installation generated:\\" >>/etc/disktab
-echo    "	:dt=${type}:ty=winchester:\\" >>/etc/disktab
+echo	"" >/etc/disktab
+echo	"$name|${OPSYSTEM} installation generated:\\" >>/etc/disktab
+echo	"	:dt=${type}:ty=winchester:\\" >>/etc/disktab
 echo -n "	:nc#${cyls_per_disk}:ns#${sects_per_track}" >>/etc/disktab
-echo    ":nt#${tracks_per_cyl}:\\" >>/etc/disktab
-echo    "	:se#${bytes_per_sect}:${sect_fwd}\\" >>/etc/disktab
+echo	":nt#${tracks_per_cyl}:\\" >>/etc/disktab
+echo	"	:se#${bytes_per_sect}:${sect_fwd}\\" >>/etc/disktab
 echo -n "	:pa#${root}:oa#${root_offset}" >>/etc/disktab
-echo    ":ta=4.2BSD:ba#${blocksize}:fa#${fragsize}:\\" >>/etc/disktab
-echo    "	:pb#${swap}:ob#${swap_offset}:tb=swap:\\" >>/etc/disktab
-echo    "	:pc#${partition}:oc#${part_offset}:\\" >>/etc/disktab
+echo	":ta=4.2BSD:ba#${blocksize}:fa#${fragsize}:\\" >>/etc/disktab
+echo	"	:pb#${swap}:ob#${swap_offset}:tb=swap:\\" >>/etc/disktab
+echo	"	:pc#${partition}:oc#${part_offset}:\\" >>/etc/disktab
 ename="";fname="";gname="";hname=""
 if [ $part_used -lt $partition ]; then
 	echo
@@ -620,7 +620,7 @@ while [ $part_used -lt $partition ]; do
 	cyl_left=`expr $whats_left / $cylindersize`
 	mb_left=`expr $whats_left / $mb_sect`
 	echo
-	echo    "$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
+	echo	"$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
 	echo
 	while :; do
 		echo -n "Next partition size (in cylinders)? [${cyl_left}] "
@@ -669,7 +669,7 @@ while [ $part_used -lt $partition ]; do
 	fi
 done
 
-echo    "	:pd#${disksize}:od#0:" >>/etc/disktab
+echo	"	:pd#${disksize}:od#0:" >>/etc/disktab
 sync
 
 # cat /etc/disktab
@@ -696,7 +696,7 @@ esac
 
 
 echo
-echo    "OK!  THIS IS THE LAST CHANCE!!!  Data on the hard disk wil be lost."
+echo	"OK!  THIS IS THE LAST CHANCE!!!  Data on the hard disk wil be lost."
 echo -n "Are you sure you want to install on the hard drive? (yes/no) "
 resp=""
 while [ ! "$resp" ]; do
@@ -705,7 +705,7 @@ while [ ! "$resp" ]; do
 	Yes|yes|YES)
 		verified_install=1
 		echo
-		echo    "OK!  Here we go..."
+		echo	"OK!  Here we go..."
 		;;
 	No|no|NO)
 		echo
@@ -717,9 +717,9 @@ while [ ! "$resp" ]; do
 			;;
 		*)
 			echo
-			echo    "OK, then.  Enter 'halt' to halt the machine."
-			echo    "Once the machine has halted, remove the floppy,"
-			echo    "and press any key to reboot."
+			echo	"OK, then.  Enter 'halt' to halt the machine."
+			echo	"Once the machine has halted, remove the floppy,"
+			echo	"and press any key to reboot."
 			exit
 			;;
 		esac
@@ -739,7 +739,7 @@ echo
 echo -n "Labelling disk..."
 echo y | 
 /sbin/disklabel -w -r ${drivename} $name /usr/mdec/${drivetype}boot /usr/mdec/boot${drivetype} >/dev/null 2>&1
-echo    " done."
+echo	" done."
 
 if [ "$sect_fwd" = "sf:" ]; then
 	echo -n "Initializing bad144 badblock table..."
@@ -757,33 +757,33 @@ if [ "$sect_fwd" = "sf:" ]; then
 	echo " done."
 fi
 
-echo    "Initializing root filesystem, and mounting..."
+echo	"Initializing root filesystem, and mounting..."
 newfs ${rotdelay} /dev/r${drivename}a $name
 mount -v /dev/${drivename}a /mnt
 if [ "$ename" != "" ]; then
 	echo
-	echo    "Initializing $ename filesystem, and mounting..."
+	echo	"Initializing $ename filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}e $name
 	mkdir -p /mnt/$ename
 	mount -v /dev/${drivename}e /mnt/$ename
 fi
 if [ "$fname" != "" ]; then
 	echo
-	echo    "Initializing $fname filesystem, and mounting..."
+	echo	"Initializing $fname filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}f $name
 	mkdir -p /mnt/$fname
 	mount -v /dev/${drivename}f /mnt/$fname
 fi
 if [ "$gname" != "" ]; then
 	echo
-	echo    "Initializing $gname filesystem, and mounting..."
+	echo	"Initializing $gname filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}g $name
 	mkdir -p /mnt/$gname
 	mount -v /dev/${drivename}g /mnt/$gname
 fi
 if [ "$hname" != "" ]; then
 	echo
-	echo    "Initializing $hname filesystem, and mounting..."
+	echo	"Initializing $hname filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}h $name
 	mkdir -p /mnt/$hname
 	mount -v /dev/${drivename}h /mnt/$hname
@@ -800,7 +800,6 @@ while read data; do
 	echo $data
 done <filelist | cpio -pdamu${cpioverbose} /mnt
 IFS=$OIFS
-sync
 
 cd /mnt
 echo "/dev/${drivename}a	/	ufs	rw 1 1" >etc/fstab
@@ -836,8 +835,8 @@ echo "TERM=pc3"
 echo "export TERM"
 echo "mount -at ufs"
 echo "echo" 
-echo "echo    \"Insert second installation floppy in drive and\""
-echo "echo -n \"enter that drive's number (e.g. 0 or 1): [0] \""
+echo "echo	\"Insert second installation floppy in drive and\""
+echo "echo -n	\"enter that drive's number (e.g. 0 or 1): [0] \""
 echo "read resp junk"
 echo "driveno=\${resp:-0}"
 echo "mount -o ro /dev/fd\${driveno}a /mnt"
@@ -846,8 +845,8 @@ echo "install"
 echo "cd /"
 echo "umount /mnt >/dev/null 2>&1"
 echo "echo"
-echo "echo    \"Now insert third installation floppy in drive and\""
-echo "echo -n \"enter that drive's number (e.g. 0 or 1): [0] \""
+echo "echo	\"Now insert third installation floppy in drive and\""
+echo "echo -n	\"enter that drive's number (e.g. 0 or 1): [0] \""
 echo "read resp junk"
 echo "driveno=\${resp:-0}"
 echo "mount -t pcfs -o ro /dev/fd\${driveno}a /mnt"
@@ -856,12 +855,12 @@ echo "cp /mnt/* /usr/distbin/"
 echo "sync"
 echo "umount /mnt >/dev/null 2>&1"
 echo "echo"
-echo "echo    \"OK.  All of the base files are installed.\""
+echo "echo	\"OK.  All of the base files are installed.\""
 echo "echo"
-echo "echo    \"The next step: reboot from the hard disk, and follow\""
-echo "echo    \"more instrutctions.\""
+echo "echo	\"The next step: reboot from the hard disk, and follow\""
+echo "echo	\"more instrutctions.\""
 echo "echo"
-echo "echo    \"To do this, enter 'halt' at the prompt to halt the machine.\""
+echo "echo	\"To do this, enter 'halt' at the prompt to halt the machine.\""
 echo "echo	\"Once the machine has halted, remove the floppy from the disk\""
 echo "echo	\"drive, and hit any key to reboot from the hard disk.\""
 ) >.profile
@@ -869,10 +868,10 @@ echo "echo	\"drive, and hit any key to reboot from the hard disk.\""
 sync
 
 echo
-echo    "The next step:  reboot from the kernel-copy disk, copy a kernel"
-echo    "to the hard disk, and finally reboot from the hard disk."
+echo	"The next step:  reboot from the kernel-copy disk, copy a kernel"
+echo	"to the hard disk, and finally reboot from the hard disk."
 echo
-echo    "To do this, enter 'halt' now to halt the machine.  After it"
+echo	"To do this, enter 'halt' now to halt the machine.  After it"
 echo	"announces that it has halted, remove the floppy from the drive"
 echo	"and insert the kernel-copy disk that was booted before."
 echo	"Press any key to reboot.  When prompted to insert the filesystem"
