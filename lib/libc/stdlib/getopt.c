@@ -89,7 +89,7 @@ getopt(nargc, nargv, ostr)
 			return (-1);
 		if (!*place)
 			++optind;
-		if (opterr && *ostr != ':')
+		if (opterr && *ostr != ':' && optopt != BADCH)
 			(void)fprintf(stderr,
 			    "%s: illegal option -- %c\n", __progname, optopt);
 		return (BADCH);
