@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.0.2.11.2.2 1997/11/12 10:54:11 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.0.2.11.2.6 1997/11/28 00:41:25 darrenr Exp $";
 #endif
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)
@@ -226,7 +226,7 @@ nat_t *nat;
 			 * don't do anything with this packet.
 			 */
 			if (tcp->th_sum != fr_tcpsum(*(mb_t **)fin->fin_mp,
-						     ip, tcp)) {
+						     ip, tcp, ip->ip_len)) {
 				frstats[fin->fin_out].fr_tcpbad++;
 				return -1;
 			}
@@ -246,7 +246,8 @@ nat_t *nat;
 							aps, nat);
 		}
 		if (err == 2) {
-			tcp->th_sum = fr_tcpsum(*(mb_t **)fin->fin_mp, ip, tcp);
+			tcp->th_sum = fr_tcpsum(*(mb_t **)fin->fin_mp, ip,
+						tcp, ip->ip_len);
 			err = 0;
 		}
 		return err;
@@ -296,5 +297,23 @@ void ap_unload()
 		while ((aps = ap_sess_tab[i])) {
 			ap_sess_tab[i] = aps->aps_next;
 			aps_free(aps);
+		}
+}
+
+
+void ap_expire()
+{
+	ap_session_t *aps, **apsp;
+	int i;
+
+	for (i = 0; i < AP_SESS_SIZE; i++)
+		for (apsp = &ap_sess_tab[i]; (aps = *apsp); ) {
+			aps->aps_tout--;
+			if (!aps->aps_tout) {
+				ap_sess_tab[i] = aps->aps_next;
+				aps_free(aps);
+				*apsp = aps->aps_next;
+			} else
+				apsp = &aps->aps_next;
 		}
 }
