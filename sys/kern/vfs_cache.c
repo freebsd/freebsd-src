@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.31 1997/09/04 08:24:44 phk Exp $
+ * $Id: vfs_cache.c,v 1.32 1997/09/24 07:46:52 phk Exp $
  */
 
 #include <sys/param.h>
@@ -100,6 +100,7 @@ static u_long dothits; STATNODE(CTLFLAG_RD, dothits, &dothits);
 static u_long dotdothits; STATNODE(CTLFLAG_RD, dotdothits, &dotdothits);
 static u_long numchecks; STATNODE(CTLFLAG_RD, numchecks, &numchecks);
 static u_long nummiss; STATNODE(CTLFLAG_RD, nummiss, &nummiss);
+static u_long nummisszap; STATNODE(CTLFLAG_RD, nummisszap, &nummisszap);
 static u_long numposzaps; STATNODE(CTLFLAG_RD, numposzaps, &numposzaps);
 static u_long numposhits; STATNODE(CTLFLAG_RD, numposhits, &numposhits);
 static u_long numnegzaps; STATNODE(CTLFLAG_RD, numnegzaps, &numnegzaps);
@@ -192,7 +193,11 @@ cache_lookup(dvp, vpp, cnp)
 
 	/* We failed to find an entry */
 	if (ncp == 0) {
-		nummiss++;
+		if ((cnp->cn_flags & MAKEENTRY) == 0) {
+			nummisszap++;
+		} else {
+			nummiss++;
+		}
 		nchstats.ncs_miss++;
 		return (0);
 	}
