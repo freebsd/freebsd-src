@@ -249,6 +249,7 @@ softdep_flushworklist(oldmnt, countp, p)
 	struct proc *p;
 {
 
+	*countp = 0;
 	return (0);
 }
 
