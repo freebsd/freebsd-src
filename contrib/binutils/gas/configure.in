@@ -241,6 +241,7 @@ changequote([,])dnl
       i386-*-beoself* | i386-*-beos*) fmt=elf bfd_gas=yes ;;
       i386-*-bsd*)          fmt=aout em=386bsd ;;
       i386-*-netbsd0.8)     fmt=aout em=386bsd ;;
+      i386-*-netbsdelf*)    fmt=elf em=nbsd bfd_gas=yes;;
       i386-*-netbsd*)       fmt=aout em=nbsd bfd_gas=yes;;
       i386-*-openbsd*)      fmt=aout em=nbsd bfd_gas=yes;;
       i386-*-linux*aout* | i386-*-linux*oldld)   fmt=aout em=linux ;;
