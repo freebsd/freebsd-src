@@ -37,7 +37,7 @@
 .\"
 .Dd January 19, 1999
 .Dt NG_SOCKET 8
-.Os FreeBSD 3
+.Os FreeBSD 4.0
 .Sh NAME
 .Nm ng_socket
 .Nd netgraph socket node type
@@ -62,7 +62,10 @@ in the protocol family
 using the
 .Xr socket 2
 system call.
-Any control messages received by the node are received using
+Any control messages received by the node 
+and not having a cookie value of 
+.Dv NGM_SOCKET_COOKIE
+are received  by the process, using
 .Xr recvfrom 2 ;
 the socket address argument is a
 .Dv "struct sockaddr_ng"
@@ -104,7 +107,28 @@ There is a user library that simplifies using netgraph sockets; see
 This node type supports hooks with arbitrary names (as long as
 they are unique) and always accepts hook connection requests.
 .Sh CONTROL MESSAGES
-This node type supports only the generic control messages.
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_SOCK_CMD_NOLINGER
+When the last hook is removed from this node, it will shut down as
+if it had received a 
+.Dv NGM_SHUTDOWN
+message. Attempts to access the sockets associated will return
+.Er ENOTCONN .
+.It Dv NGM_SOCK_CMD_LINGER
+This is the default mode. When the last hook is removed, the node will
+continue to exist, ready to accept new hooks until it
+is explicitly shut down.
+.El
+.Pp
+All other messages
+with neither the
+.Dv NGM_SOCKET_COOKIE
+or
+.Dv NGM_GENERIC_COOKIE
+will be passed unaltered up the 
+.Dv NG_CONTROL 
+socket.
 .Sh SHUTDOWN
 This node type shuts down and disappears when both the associated
 .Dv NG_CONTROL
@@ -115,9 +139,18 @@ sockets have been closed, or a
 control message is received. In the latter case, attempts to write
 to the still-open sockets will return
 .Er ENOTCONN .
+If the 
+.Dv NGM_SOCK_CMD_NOLINGER
+message has been received, closure of the last hook will also initiate
+a shutdown of the node.
 .Sh BUGS
 It is not possible to reject the connection of a hook, though any
 data received on that hook can certainly be ignored.
+.Pp
+The controlling process is not notified of all events that an in-kernel node
+would be notified of, e.g. a new hook, or hook removal. We should define
+some node-initiated messages for this purpose (to be sent up the control
+socket).
 .Sh SEE ALSO
 .Xr socket 2 ,
 .Xr netgraph 3 ,
