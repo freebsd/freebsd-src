@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.11 1995/05/30 08:04:59 rgrimes Exp $
+ * $Id: cd9660_node.c,v 1.12 1995/12/03 17:14:33 bde Exp $
  */
 
 #include <sys/param.h>
@@ -204,15 +204,22 @@ loop:
 		*ipp = ip;
 		return 0;
 	}
+
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
+	MALLOC(ip, struct iso_node *, sizeof(struct iso_node), M_ISOFSNODE, M_WAITOK);
+
 	/*
 	 * Allocate a new vnode/iso_node.
 	 */
 	if ((error = getnewvnode(VT_ISOFS, mntp, cd9660_vnodeop_p, &nvp))) {
-		*ipp = 0;
+		*ipp = NULL;
+		FREE(ip, M_ISOFSNODE);
 		return error;
 	}
-	MALLOC(ip, struct iso_node *, sizeof(struct iso_node),
-	       M_ISOFSNODE, M_WAITOK);
 	bzero((caddr_t)ip, sizeof(struct iso_node));
 	nvp->v_data = ip;
 	ip->i_vnode = nvp;
