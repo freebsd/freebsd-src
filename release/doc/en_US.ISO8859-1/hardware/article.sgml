@@ -1319,7 +1319,7 @@
     <para arch="i386">CATC USB-EL1210A-based USB Ethernet NICs (&man.cue.4; driver)
       <itemizedlist>
         <listitem>
-	  <para>Belkin F5U011, Belkin F5U111</para>
+	  <para>Belkin F5U011, F5U111</para>
         </listitem>
         <listitem>
 	  <para>CATC Netmate, Netmate II</para>
