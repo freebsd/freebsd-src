@@ -43,11 +43,9 @@ struct info {
 	int off;				/* turn off */
 	int set;				/* need set */
 	int wset;				/* need window set */
-	int tset;                               /* need timeout set */
 	char *arg;				/* argument */
 	struct termios t;			/* terminal info */
 	struct winsize win;			/* window info */
-	int timeout;                            /* drain wait time */
 };
 
 struct cchar {
