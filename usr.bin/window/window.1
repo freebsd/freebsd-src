@@ -37,7 +37,7 @@
 .\"
 .Dd December 30, 1993
 .Dt WINDOW 1
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm window
 .Nd window environment
@@ -632,10 +632,10 @@ with
 obvious meanings, or it can be a numeric expression,
 in which case a non-zero value is true.
 .Bl -tag -width Fl
-.It Xo
-.Ic alias Ns Po Bq Aq Ar string ,
-.Bq Aq Ar string\-list Pc
-.Xc
+.It Ic alias Ns Po
+.Bq Aq Ar string ,
+.Bq Aq Ar string\-list
+.Pc
 If no argument is given, all currently defined alias macros are
 listed.  Otherwise,
 .Aq Ar string

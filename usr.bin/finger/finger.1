@@ -34,7 +34,7 @@
 .\"
 .Dd August 1, 1997
 .Dt FINGER 1
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm finger
 .Nd user information lookup program
@@ -69,7 +69,7 @@ if a ``:'' is present, or days if a ``d'' is present.
 If it is an
 .Dq * ,
 the login time indicates the time of last login.
-Login time is displayed as the dayname if less than 6 days, else month, day;
+Login time is displayed as the day name if less than 6 days, else month, day;
 hours and minutes, unless more than six months ago, in which case the year
 is displayed rather than the hours and minutes.
 .Pp
@@ -220,7 +220,7 @@ last login data base
 .Xr who 1 ,
 .Xr ttcp 4 ,
 .Xr finger.conf 5 ,
-.Xr fingerd 8 .
+.Xr fingerd 8
 .Rs
 .%A D. Zimmerman
 .%T The Finger User Information Protocol

@@ -229,9 +229,7 @@ has a leading zero, it is interpreted as an octal value, otherwise,
 it's interpreted as a decimal value.
 .El
 .Sh DIAGNOSTICS
-The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Ex -std
 .Sh EXAMPLES
 The following examples are shown as given to the shell:
 .Pp
@@ -249,7 +247,9 @@ Strip out non-printable characters from file1.
 .D1 Li "tr -cd \*q[:print:]\*q < file1"
 .Sh COMPATIBILITY
 System V has historically implemented character ranges using the syntax
-``[c-c]'' instead of the ``c-c'' used by historic BSD implementations and
+``[c-c]'' instead of the ``c-c'' used by historic
+.Bx
+implementations and
 standardized by POSIX.
 System V shell scripts should work under this implementation as long as
 the range is intended to map in another range, i.e. the command

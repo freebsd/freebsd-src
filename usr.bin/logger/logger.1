@@ -34,7 +34,7 @@
 .\"
 .Dd June 6, 1993
 .Dt LOGGER 1
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm logger
 .Nd make entries in the system log
@@ -100,9 +100,7 @@ flag is not
 provided, standard input is logged.
 .El
 .Sh DIAGNOSTICS
-The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Ex -std
 .Sh EXAMPLES
 .Bd -literal -offset indent -compact
 logger System rebooted

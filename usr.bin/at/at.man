@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .Dd April 12, 1995
 .Dt "AT" 1
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm at ,
 .Nm batch ,
@@ -169,10 +169,6 @@ to use
 If neither exists, only the superuser is allowed use of
 .Nm Ns .
 This is the default configuration.
-.Pp
-An empty 
-.Pa _PERM_PATH/at.deny
-means that every user is allowed use these commands.
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl V

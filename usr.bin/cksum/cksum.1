@@ -37,7 +37,7 @@
 .\"
 .Dd April 28, 1995
 .Dt CKSUM 1
-.Os BSD 4.4
+.Os
 .Sh NAME
 .Nm cksum ,
 .Nm sum
@@ -156,11 +156,7 @@ The coefficients of R(x) are considered to be a 32-bit sequence.
 The bit sequence is complemented and the result is the CRC.
 .Ed
 .Sh DIAGNOSTICS
-The
-.Nm
-and
-.Nm sum
-utilities exit 0 on success, and >0 if an error occurs.
+.Ex -std cksum sum
 .Sh SEE ALSO
 .Xr md5 1
 .Pp

@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd June 25, 1995
-.Os FreeBSD
+.Os
 .Dt KILLALL 1
 .Sh NAME
 .Nm killall
@@ -84,7 +84,8 @@ Show only what would be done, but do not send any signal.
 Send a different signal instead of the default
 .Dv TERM .
 The signal may be specified either as a name
-.Pq with \&or without a leading Dv SIG ,
+(with or without a leading
+.Dv SIG ) ,
 or numerically.
 .It Fl u Ar user
 Limit potentially matching processes to those belonging to

@@ -30,10 +30,11 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)strings.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
 .\"
 .Dd June 6, 1993
 .Dt STRINGS 1
-.Os BSD 3
+.Os
 .Sh NAME
 .Nm strings
 .Nd find printable strings in a file

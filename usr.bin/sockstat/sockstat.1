@@ -29,7 +29,7 @@
 .\"
 .Dd April 13, 1999
 .Dt SOCKSTAT 1
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm sockstat
 .Nd list open sockets
@@ -39,25 +39,33 @@
 .Sh DESCRIPTION
 The
 .Nm
-command lists open Internet or Unix domain sockets.
+command lists open Internet or
+.Ux
+domain sockets.
 .Pp
 The following options are available:
 .Bl -tag -width Fl
 .It Fl 4
-Show AF_INET (IPv4) sockets.
+Show
+.Dv AF_INET
+(IPv4) sockets.
 .It Fl 6
-Show AF_INET6 (IPv6) sockets.
+Show
+.Dv AF_INET6
+(IPv6) sockets.
 .It Fl c
 Show connected sockets.
 .It Fl l
 Show listening sockets.
 .It Fl u
-Show AF_LOCAL (Unix) sockets.
+Show
+.Dv AF_LOCAL
+.Pq Ux
+sockets.
 .El
 .Pp
 If neither
-.Fl 4 ,
-.Fl 6
+.Fl 4 , 6
 or
 .Fl u
 is specified,
@@ -85,12 +93,17 @@ The process ID of the command which holds the socket.
 The file descriptor number of the socket.
 .It Li PROTO
 The transport protocol associated with the socket for Internet
-sockets, or the type of socket (stream or datagram) for Unix sockets.
+sockets, or the type of socket (stream or datagram) for
+.Ux
+sockets.
 .It Li ADDRESS
-(Unix sockets only)
+.No ( Ux
+sockets only)
 For bound sockets, this is the filename of the socket.
 For other sockets, it is the name, PID and file descriptor number of
-the peer, or "(none)" if the socket is neither bound nor connected.
+the peer, or
+.Dq Li "(none)"
+if the socket is neither bound nor connected.
 .It Li LOCAL ADDRESS
 (Internet sockets only)
 The address the local end of the socket is bound to (see
@@ -114,4 +127,4 @@ command appeared in
 The
 .Nm
 command and this manual page were written by
-.An Dag-Erling Sm\(/orgrav Aq des@freebsd.org .
+.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .

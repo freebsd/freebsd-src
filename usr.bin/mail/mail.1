@@ -34,7 +34,7 @@
 .\"
 .Dd December 30, 1993
 .Dt MAIL 1
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm mail
 .Nd send and receive mail
@@ -69,8 +69,10 @@ Verbose mode.
 The details of
 delivery are displayed on the user's terminal.
 .It Fl E
-Don't send messages with an empty body. This is useful
-for piping errors from cron scripts.
+Do not send messages with an empty body.
+This is useful for piping errors from
+.Xr cron 8
+scripts.
 .It Fl i
 Ignore tty interrupt signals.
 This is
@@ -79,7 +81,7 @@ particularly useful when using
 on noisy phone lines.
 .It Fl I
 Forces mail to run in interactive mode even when
-input isn't a terminal.
+input is not a terminal.
 In particular, the
 .Sq Ic \&~
 special
@@ -599,7 +601,7 @@ Arguments are of the form
 (no space before or after =) or
 .Ar option .
 Quotation marks may be placed around any part of the assignment statement to
-quote blanks or tabs, i.e.
+quote blanks or tabs, i.e.\&
 .Dq Li "set indentprefix=\*q->\*q"
 .It Ic saveignore
 .Ic Saveignore

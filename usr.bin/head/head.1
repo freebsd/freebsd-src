@@ -34,7 +34,7 @@
 .\"
 .Dd June 6, 1993
 .Dt HEAD 1
-.Os BSD 3
+.Os
 .Sh NAME
 .Nm head
 .Nd display first lines of a file
@@ -60,10 +60,8 @@ header consisting of the string
 where
 .Dq XXX
 is the name of the file.
-.Pp
-The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Sh DIAGNOSTICS
+.Ex -std
 .Sh SEE ALSO
 .Xr tail 1
 .Sh HISTORY

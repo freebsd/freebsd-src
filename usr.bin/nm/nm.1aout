@@ -34,7 +34,7 @@
 .\"
 .Dd June 6, 1993
 .Dt NM 1
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm nm
 .Nd display name list (symbol table)
