@@ -133,8 +133,8 @@ main(int argc, char *argv[])
 
 	if (modfind("g_ccd") < 0) {
 		/* Not present in kernel, try loading it */
-		if (kldload("g_ccd") < 0 || modfind("g_ccd") < 0)
-			warn("g_ccd module not available!");
+		if (kldload("geom_ccd") < 0 || modfind("g_ccd") < 0)
+			warn("geom_ccd module not available!");
 	}
 
 	switch (action) {
