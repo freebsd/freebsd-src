@@ -10,7 +10,7 @@
 .\"
 .\" CTM and ctm(1) by <phk@login.dknet.dk>
 .\"
-.\" $Id$
+.\" $Id: ctm.5,v 1.5 1997/02/22 16:05:20 peter Exp $
 .\"
 .Dd March 25, 1995
 .Os
@@ -21,7 +21,7 @@
 
 .Sh DESCRIPTION
 The
-.Nm ctm
+.Nm
 transfers data in a specific file format, called a CTM delta.
 
 CTM deltas consist of control lines and data chunks.  Each control
@@ -61,7 +61,7 @@ meaning this is a UTC timestamp
 .Pc .
 The
 .Ar prefix
-This field is currently not implemented.
+field is currently not implemented.
 
 .It _END Ar md5
 
@@ -196,15 +196,19 @@ CTM_END 74ddd298d76215ae45a077a4b6a74e9c
 
 .Sh HISTORY
 
-Initial trials ran during the FreeBSD 1.1.5, and many bugs and 
+Initial trials ran during the
+.Fx 1.1.5 ,
+and many bugs and 
 methods were hashed out.
-The CTM system has been made publically available in FreeBSD 2.1.
+The CTM system has been made publically available in
+.Fx 2.1 .
 
 .Sh AUTHORS
 
 The CTM system has been designed and implemented by
-Poul-Henning Kamp
+.An Poul-Henning Kamp
 .Aq phk@FreeBSD.org .
 
-Joerg Wunsch wrote this man-page.
-.Aq joerg@FreeBSD.org .
+.An Joerg Wunsch
+.Aq joerg@FreeBSD.org
+wrote this man-page.
