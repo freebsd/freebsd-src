@@ -6,7 +6,7 @@ MAN=	mount_nwfs.8
 
 MOUNT=	${.CURDIR}/../../sbin/mount
 CFLAGS+= -DNWFS -I${MOUNT}
-WARNS=	0
+WARNS?=	0
 
 .PATH:	${MOUNT}
 

@@ -8,7 +8,7 @@ MAN=	mount_hpfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+=-I${MOUNT} -DHPFS
-WARNS=	0
+WARNS?=	0
 
 .PATH:	${MOUNT}
 

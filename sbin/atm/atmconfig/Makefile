@@ -8,7 +8,7 @@
 PROG=	atmconfig
 SRCS=	main.c diag.c natm.c
 MAN=	atmconfig.8
-WARNS=	9
+WARNS?=	9
 
 FILES=	atmconfig.help
 FILESDIR= /usr/share/doc/atm
