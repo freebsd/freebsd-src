@@ -17,6 +17,12 @@
  * Modification history
  *
  * $Log:	if_ed.c,v $
+ * Revision 1.17  93/07/26  18:40:57  davidg
+ * Added include of systm.h to pick up inlined min/max/bcmp if you have
+ * them in cpufunc.h. Modified wait loop in reset to look a little better.
+ * Added read for talley counters to prevent an infinite loop on old
+ * 8003E's if they (the counters) overflow.
+ * 
  * Revision 1.16  93/07/25  14:27:12  davidg
  * added parans to the previous fix so that it can cope with outb
  * being a macro.
@@ -86,6 +92,7 @@
 #include "bpfilter.h"
 
 #include "param.h"
+#include "systm.h"
 #include "errno.h"
 #include "ioctl.h"
 #include "mbuf.h"
@@ -814,10 +821,8 @@ ed_stop(unit)
 	 *	to 'n' (about 5ms). It shouldn't even take 5us on modern
 	 *	DS8390's, but just in case it's an old one.
 	 */
-	while ((inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RST) == 0) {
-		if (--n == 0)
-			break;
-	}
+	while (((inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RST) == 0) && --n);
+
 }
 
 /*
@@ -1474,13 +1479,24 @@ edintr(unit)
 		}
 
 		/*
-		 * return NIC CR to standard state before looping back
-		 *	to top: page 0, remote DMA complete, start
-		 * (toggling the TXP bit off, even if was just set in the
-		 *	transmit routine, is *okay* - it is 'edge' triggered
-		 *	from low to high)
+		 * return NIC CR to standard state: page 0, remote DMA complete,
+		 * 	start (toggling the TXP bit off, even if was just set
+		 *	in the transmit routine, is *okay* - it is 'edge'
+		 *	triggered from low to high)
 		 */
 		outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2|ED_CR_STA);
+
+		/*
+		 * If the Network Talley Counters overflow, read them to
+		 *	reset them. It appears that old 8390's won't
+		 *	clear the ISR flag otherwise - resulting in an
+		 *	infinite loop.
+		 */
+		if (isr & ED_ISR_CNT) {
+			(void) inb(sc->nic_addr + ED_P0_CNTR0);
+			(void) inb(sc->nic_addr + ED_P0_CNTR1);
+			(void) inb(sc->nic_addr + ED_P0_CNTR2);
+		}
 	}
 }
  
