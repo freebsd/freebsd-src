@@ -156,6 +156,15 @@ int	resource_list_release(struct resource_list *rl,
 			      int type, int rid, struct resource *res);
 
 /*
+ * Print all resources of a specified type, for use in bus_print_child.
+ * The name is printed if at least one resource of the given type is available.
+ * The format ist used to print resource start and end.
+ */
+int	resource_list_print_type(struct resource_list *rl,
+				 const char *name, int type,
+				 const char *format);
+
+/*
  * The root bus, to which all top-level busses are attached.
  */
 extern device_t root_bus;

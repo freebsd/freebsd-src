@@ -1850,6 +1850,34 @@ resource_list_release(struct resource_list *rl,
     return 0;
 }
 
+int
+resource_list_print_type(struct resource_list *rl, const char *name, int type,
+    const char *format)
+{
+	struct resource_list_entry *rle;
+	int printed, retval;
+
+	printed = 0;
+	retval = 0;
+	/* Yes, this is kinda cheating */
+	SLIST_FOREACH(rle, rl, link) {
+		if (rle->type == type) {
+			if (printed == 0)
+				retval += printf(" %s ", name);
+			else
+				retval += printf(",");
+			printed++;
+			retval += printf(format, rle->start);
+			if (rle->count > 1) {
+				retval += printf("-");
+				retval += printf(format, rle->start +
+						 rle->count - 1);
+			}
+		}
+	}
+	return (retval);
+}
+
 /*
  * Call DEVICE_IDENTIFY for each driver.
  */
