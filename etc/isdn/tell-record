@@ -6,7 +6,7 @@
 #
 # $FreeBSD$
 #
-#	last edit-date: [Thu May 20 11:45:21 1999]
+#	last edit-date: [Tue Oct 31 10:59:49 2000]
 #
 #---------------------------------------------------------------------------
 VARDIR=/var/isdn
@@ -86,4 +86,4 @@ if [ -r "${LIBDIR}/beep.al" ]; then
 	dd of=${DEVICE} if=${LIBDIR}/beep.al bs=2k >/dev/null 2>&1
 fi
 
-dd if=${DEVICE} of=${VARDIR}/recorded.msg bs=2k
+dd if=${DEVICE} of=${VARDIR}/recorded.msg bs=2k >/dev/null 2>&1
