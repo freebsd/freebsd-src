@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.130 1995/11/24 14:56:00 bde Exp $
+ *  $Id: syscons.c,v 1.131 1995/11/28 00:17:30 ache Exp $
  */
 
 #include "sc.h"
@@ -169,10 +169,10 @@ mask2attr(struct term_stat *term)
     int attr, mask = term->attr_mask;
 
     if (mask & REVERSE_ATTR) {
-	attr = ((mask & BACKGROUND_CHANGED) ?
+	attr = ((mask & FOREGROUND_CHANGED) ?
 		((term->cur_color & 0xF000) >> 4) :
 		(term->rev_color & 0x0F00)) |
-	       ((mask & FOREGROUND_CHANGED) ?
+	       ((mask & BACKGROUND_CHANGED) ?
 		((term->cur_color & 0x0F00) << 4) :
 		(term->rev_color & 0xF000));
     } else
