@@ -348,10 +348,13 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 void
 tcp_stats(u_long off __unused, char *name, int af __unused)
 {
-	struct tcpstat tcpstat;
+	struct tcpstat tcpstat, zerostat;
 	size_t len = sizeof tcpstat;
 	
-	if (sysctlbyname("net.inet.tcp.stats", &tcpstat, &len, 0, 0) < 0) {
+	if (zflag)
+		memset(&zerostat, 0, len);
+	if (sysctlbyname("net.inet.tcp.stats", &tcpstat, &len,
+	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
 		warn("sysctl: net.inet.tcp.stats");
 		return;
 	}
@@ -446,11 +449,14 @@ tcp_stats(u_long off __unused, char *name, int af __unused)
 void
 udp_stats(u_long off __unused, char *name, int af __unused)
 {
-	struct udpstat udpstat;
+	struct udpstat udpstat, zerostat;
 	size_t len = sizeof udpstat;
 	u_long delivered;
 
-	if (sysctlbyname("net.inet.udp.stats", &udpstat, &len, 0, 0) < 0) {
+	if (zflag)
+		memset(&zerostat, 0, len);
+	if (sysctlbyname("net.inet.udp.stats", &udpstat, &len,
+	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
 		warn("sysctl: net.inet.udp.stats");
 		return;
 	}
@@ -497,10 +503,13 @@ udp_stats(u_long off __unused, char *name, int af __unused)
 void
 ip_stats(u_long off __unused, char *name, int af __unused)
 {
-	struct ipstat ipstat;
+	struct ipstat ipstat, zerostat;
 	size_t len = sizeof ipstat;
 
-	if (sysctlbyname("net.inet.ip.stats", &ipstat, &len, 0, 0) < 0) {
+	if (zflag)
+		memset(&zerostat, 0, len);
+	if (sysctlbyname("net.inet.ip.stats", &ipstat, &len,
+	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
 		warn("sysctl: net.inet.ip.stats");
 		return;
 	}
@@ -577,7 +586,7 @@ static	char *icmpnames[] = {
 void
 icmp_stats(u_long off __unused, char *name, int af __unused)
 {
-	struct icmpstat icmpstat;
+	struct icmpstat icmpstat, zerostat;
 	int i, first;
 	int mib[4];		/* CTL_NET + PF_INET + IPPROTO_ICMP + req */
 	size_t len;
@@ -588,9 +597,13 @@ icmp_stats(u_long off __unused, char *name, int af __unused)
 	mib[3] = ICMPCTL_STATS;
 
 	len = sizeof icmpstat;
-	memset(&icmpstat, 0, len);
-	if (sysctl(mib, 4, &icmpstat, &len, (void *)0, 0) < 0)
-		return;		/* XXX should complain, but not traditional */
+	if (zflag)
+		memset(&zerostat, 0, len);
+	if (sysctl(mib, 4, &icmpstat, &len,
+	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+		warn("sysctl: net.inet.icmp.stats");
+		return;
+	}
 
 	printf("%s:\n", name);
 
@@ -643,10 +656,13 @@ icmp_stats(u_long off __unused, char *name, int af __unused)
 void
 igmp_stats(u_long off __unused, char *name, int af __unused)
 {
-	struct igmpstat igmpstat;
+	struct igmpstat igmpstat, zerostat;
 	size_t len = sizeof igmpstat;
 
-	if (sysctlbyname("net.inet.igmp.stats", &igmpstat, &len, 0, 0) < 0) {
+	if (zflag)
+		memset(&zerostat, 0, len);
+	if (sysctlbyname("net.inet.igmp.stats", &igmpstat, &len,
+	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
 		warn("sysctl: net.inet.igmp.stats");
 		return;
 	}
