@@ -131,6 +131,14 @@ loadlocale(category)
 		return (current_categories[LC_COLLATE]);
 	}
 
+	if (category == LC_TIME) {
+		if (__time_load_locale(new_categories[LC_TIME]) < 0)
+			return (NULL);
+		(void)strcpy(current_categories[LC_TIME],
+		       new_categories[LC_TIME]);
+		return (current_categories[LC_TIME]);
+	}
+
 	if (!strcmp(new_categories[category], "C") ||
 		!strcmp(new_categories[category], "POSIX")) {
 
