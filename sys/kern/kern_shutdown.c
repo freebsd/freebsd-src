@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.40 1998/09/20 16:50:31 dt Exp $
+ * $Id: kern_shutdown.c,v 1.41 1998/10/30 05:41:15 msmith Exp $
  */
 
 #include "opt_ddb.h"
@@ -49,6 +49,7 @@
 #include <sys/buf.h>
 #include <sys/reboot.h>
 #include <sys/proc.h>
+#include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
@@ -223,6 +224,21 @@ boot(howto)
 			printf("%d ", nbusy);
 			sync(&proc0, NULL);
 			DELAY(50000 * iter);
+		}
+		/*
+		 * Count only busy local buffers to prevent forcing 
+		 * a fsck if we're just a client of a wedged NFS server
+		 */
+		nbusy = 0;
+		for (bp = &buf[nbuf]; --bp >= buf; ) {
+			if (((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) 
+			    ||((bp->b_flags & (B_DELWRI | B_INVAL))== B_DELWRI))
+				if(bp->b_dev == NODEV)
+					CIRCLEQ_REMOVE(&mountlist, bp->b_vp->v_mount, mnt_list);
+				else
+					nbusy++;
+
+
 		}
 		if (nbusy) {
 			/*
