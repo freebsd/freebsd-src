@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)group.5	8.3 (Berkeley) 4/19/94
-.\"	$Id: group.5,v 1.9 1997/02/22 13:25:59 peter Exp $
+.\"	$Id: group.5,v 1.10 1997/03/09 12:20:47 wosch Exp $
 .\"
 .Dd September 29, 1994
 .Dt GROUP 5
@@ -59,9 +59,12 @@ The group's decimal ID.
 Group members.
 .El
 .Pp
-Lines whose first non-space/tab character is a pound-sign (#)
-are comments, and are ignored. Blank lines -  only spaces, tabs or 
-newline - are ignored too.
+Lines whose first non-whitespace character is a pound-sign (#)
+are comments, and are ignored. Blank lines which consist 
+only of spaces, tabs or newlines are also ignored.  This feature
+is not enabled by default in
+.Tn FreeBSD
+and must be configured by the administrator with compile-time options.
 .Pp
 The
 .Ar group
@@ -135,7 +138,7 @@ the function where they occurs; see section
 In older implementations, 
 a group cannot have more than 200 members. The maximum line length of
 .Pa /etc/group
-is 1024 characters. Longer lines will be skiped.
+is 1024 characters. Longer lines will be skipped.
 This limitations disappeared in
 .Fx 3.0 .
 Older binaries which are statically linked, depend on old
@@ -169,5 +172,5 @@ The YP/NIS functionality is modeled after
 and first appeared in
 .Tn FreeBSD
 1.1.
-Support for comments are appeared in
+Support for comments first appeared in
 .Fx 3.0 .
