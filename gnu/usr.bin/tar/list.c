@@ -650,7 +650,7 @@ print_header ()
 	  d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
       longie = hstat.st_mtime;
       strftime(timestamp, sizeof(timestamp),
-	       d_first ? "%e %b %H:%M %Y" : "%b %e %H:%M %Y",
+	       d_first ? "%e %b %R %Y" : "%b %e %R %Y",
 	       localtime(&longie));
 
       /* User and group names */
