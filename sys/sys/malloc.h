@@ -46,6 +46,7 @@
 #define	M_NOWAIT	0x0001		/* do not block */
 #define	M_USE_RESERVE	0x0002		/* can alloc out of reserve memory */
 #define	M_ASLEEP	0x0004		/* async sleep on failure */
+#define	M_ZERO		0x0008		/* bzero the allocation */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
