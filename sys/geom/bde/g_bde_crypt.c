@@ -245,8 +245,13 @@ g_bde_max_sector(struct g_bde_key *kp)
  * on a "cold" disk image.
  *
  * We do this by adding the "keyoffset" from the lock to the physical sector
- * number modulus the available number of sectors, since all physical sectors
- * presumably look the same cold, this should be enough.
+ * number modulus the available number of sectors.  Since all physical sectors
+ * presumably look the same cold, this will do.
+ *
+ * As part of the mapping we have to skip the lock sectors which we know
+ * the physical address off.  We also truncate the work packet, respecting
+ * zone boundaries and lock sectors, so that we end up with a sequence of
+ * sectors which are physically contiguous.
  *
  * Shuffling things further is an option, but the incremental frustration is
  * not currently deemed worth the run-time performance hit resulting from the
@@ -257,52 +262,64 @@ g_bde_max_sector(struct g_bde_key *kp)
  */
 
 void
-g_bde_map_sector(struct g_bde_key *kp,
-	uint64_t isector,
-	uint64_t *osector,
-	uint64_t *ksector,
-	u_int *koffset)
+g_bde_map_sector(struct g_bde_work *wp)
 {
 
-	u_int	zone, zoff, zidx, u;
-	uint64_t os;
+	u_int	zone, zoff, u, len;
+	uint64_t ko;
+	struct g_bde_softc *sc;
+	struct g_bde_key *kp;
 
-	/* find which zone and the offset and index in it */
-	zone = isector / kp->zone_cont;
-	zoff = isector % kp->zone_cont;
-	zidx = zoff / kp->sectorsize;
+	sc = wp->softc;
+	kp = &sc->key;
+
+	/* find which zone and the offset in it */
+	zone = wp->offset / kp->zone_cont;
+	zoff = wp->offset % kp->zone_cont;
+
+	/* Calculate the offset of the key in the key sector */
+	wp->ko = (zoff / kp->sectorsize) * G_BDE_SKEYLEN;
+
+	/* restrict length to that zone */
+	len = kp->zone_cont - zoff;
+	if (len < wp->length)
+		wp->length = len;
 
 	/* Find physical sector address */
-	os = zone * kp->zone_width + zoff;
-	os += kp->keyoffset;
-	os %= kp->media_width;
-	os += kp->sector0;
-
-	/* Compensate for lock sectors */
-	for (u = 0; u < G_BDE_MAXKEYS; u++)
-		if (os >= (kp->lsector[u] & ~(kp->sectorsize - 1)))
-			os += kp->sectorsize;
-
-	*osector = os;
+	wp->so = zone * kp->zone_width + zoff;
+	wp->so += kp->keyoffset;
+	wp->so %= kp->media_width;
+	wp->so += kp->sector0;
 
 	/* The key sector is the last in this zone. */
-	os = (1 + zone) * kp->zone_width - kp->sectorsize;
-	os += kp->keyoffset;
-	os %= kp->media_width;
-	os += kp->sector0; 
+	wp->kso = zone * kp->zone_width + kp->zone_cont;
+	wp->kso += kp->keyoffset;
+	wp->kso %= kp->media_width;
+	wp->kso += kp->sector0; 
 
-	for (u = 0; u < G_BDE_MAXKEYS; u++)
-		if (os >= (kp->lsector[u] & ~(kp->sectorsize - 1)))
-			os += kp->sectorsize;
-	*ksector = os;
+	/* Compensate for lock sectors */
+	for (u = 0; u < G_BDE_MAXKEYS; u++) {
+		/* Find the start of this lock sector */
+		ko = kp->lsector[u] & ~(kp->sectorsize - 1);
 
-	*koffset = zidx * G_BDE_SKEYLEN;
+		if (wp->kso >= ko)
+			wp->kso += kp->sectorsize;
+
+		if (wp->so >= ko) {
+			/* lock sector before work packet */
+			wp->so += kp->sectorsize;
+		} else if ((wp->so + wp->length) > ko) {
+			/* lock sector in work packet, truncate */
+			wp->length = ko - wp->so;
+		}
+	}
 
 #if 0
-	printf("off %jd %jd %jd %u\n",
-	    (intmax_t)isector,
-	    (intmax_t)*osector,
-	    (intmax_t)*ksector,
-	    *koffset);
+	printf("off %jd len %jd so %jd ko %jd kso %u\n",
+	    (intmax_t)wp->offset,
+	    (intmax_t)wp->length,
+	    (intmax_t)wp->so,
+	    (intmax_t)wp->kso,
+	    wp->ko);
 #endif
 }
