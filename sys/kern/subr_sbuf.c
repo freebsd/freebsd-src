@@ -204,16 +204,8 @@ sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len)
 		return (0);
 	if (len > (s->s_size - s->s_len - 1))
 		len = s->s_size - s->s_len - 1;
-	switch (copyin(uaddr, s->s_buf + s->s_len, len)) {
-	case ENAMETOOLONG:
-		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
-		/* fall through */
-	case 0:
-		s->s_len += len;
-		break;
-	default:
-		return (-1);	/* XXX */
-	}
+	if (copyin(uaddr, s->s_buf + s->s_len, len) != 0)
+		return (-1);
 	
 	return (0);
 }
