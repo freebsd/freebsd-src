@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.h,v 1.3 1998/08/21 03:29:40 jb Exp $
+ *      $Id: rtld.h,v 1.4 1998/09/02 02:51:12 jdp Exp $
  */
 
 #ifndef RTLD_H /* { */
@@ -88,15 +88,19 @@ typedef struct Struct_Obj_Entry {
     Elf_Addr *got;		/* GOT table */
     const Elf_Rel *rel;		/* Relocation entries */
     unsigned long relsize;	/* Size in bytes of relocation info */
+    const Elf_Rela *rela;	/* Relocation entries with addend */
+    unsigned long relasize;	/* Size in bytes of addend relocation info */
     const Elf_Rel *pltrel;	/* PLT relocation entries */
     unsigned long pltrelsize;	/* Size in bytes of PLT relocation info */
+    const Elf_Rela *pltrela;	/* PLT relocation entries with addend */
+    unsigned long pltrelasize;	/* Size in bytes of PLT addend reloc info */
     const Elf_Sym *symtab;	/* Symbol table */
     const char *strtab;		/* String table */
     unsigned long strsize;	/* Size in bytes of string table */
 
-    const Elf_Word *buckets;	/* Hash table buckets array */
+    const Elf_Addr *buckets;	/* Hash table buckets array */
     unsigned long nbuckets;	/* Number of buckets */
-    const Elf_Word *chains;	/* Hash table chain array */
+    const Elf_Addr *chains;	/* Hash table chain array */
     unsigned long nchains;	/* Number of chains */
 
     const char *rpath;		/* Search path specified in object */
@@ -122,5 +126,18 @@ extern Obj_Entry *map_object(int);
 extern void *xcalloc(size_t);
 extern void *xmalloc(size_t);
 extern char *xstrdup(const char *);
+extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
+
+/*
+ * Function declarations.
+ */
+int do_copy_relocations(Obj_Entry *);
+int reloc_non_plt(Obj_Entry *, Obj_Entry *);
+int reloc_plt(Obj_Entry *, bool);
+unsigned long elf_hash(const char *);
+const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
+  const Obj_Entry **, bool);
+const Elf_Sym *symlook_obj(const char *, unsigned long,
+  const Obj_Entry *, bool);
 
 #endif /* } */

@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)malloc.c	5.11 (Berkeley) 2/23/91";*/
-static char *rcsid = "$Id: malloc.c,v 1.2 1996/01/19 18:36:54 jdp Exp $";
+static char *rcsid = "$Id: malloc.c,v 1.1.1.1 1998/03/07 19:24:35 jdp Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -156,7 +156,8 @@ malloc(nbytes)
 	size_t nbytes;
 {
   	register union overhead *op;
-  	register int bucket, n;
+  	register int bucket;
+	register long n;
 	register unsigned amt;
 
 	/*
@@ -168,7 +169,7 @@ malloc(nbytes)
 		if (morepages(NPOOLPAGES) == 0)
 			return NULL;
 		op = (union overhead *)(pagepool_start);
-  		n = n - sizeof (*op) - ((int)op & (n - 1));
+  		n = n - sizeof (*op) - ((long)op & (n - 1));
 		if (n < 0)
 			n += pagesz;
   		if (n) {
@@ -462,12 +463,12 @@ int	n;
 
 	if (pagepool_end - pagepool_start > pagesz) {
 		caddr_t	addr = (caddr_t)
-			(((int)pagepool_start + pagesz - 1) & ~(pagesz - 1));
+			(((long)pagepool_start + pagesz - 1) & ~(pagesz - 1));
 		if (munmap(addr, pagepool_end - addr) != 0)
 			warn("morepages: munmap %p", addr);
 	}
 
-	offset = (int)pagepool_start - ((int)pagepool_start & ~(pagesz - 1));
+	offset = (long)pagepool_start - ((long)pagepool_start & ~(pagesz - 1));
 
 	if ((pagepool_start = mmap(0, n * pagesz,
 			PROT_READ|PROT_WRITE,

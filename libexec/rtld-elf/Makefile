@@ -1,17 +1,25 @@
 #
-#	$Id: Makefile,v 1.2 1998/04/30 07:47:58 dfr Exp $
+#	$Id: Makefile,v 1.3 1998/08/17 04:59:15 jdp Exp $
 #
 
 PROG=		ld-elf.so.1
-SRCS=		rtld_start.S rtld.c map_object.c malloc.c xmalloc.c debug.c
+SRCS=		rtld_start.S rtld.c map_object.c malloc.c xmalloc.c debug.c \
+		reloc.c
 NOMAN=		true
-CFLAGS+=	-elf -fpic -DFREEBSD_ELF
-CFLAGS+=	-Wall
-LDFLAGS+=	-elf -nostdlib -Wl,-Bshareable,-Bsymbolic
+CFLAGS+=	-fpic -Wall -DFREEBSD_ELF -I${.CURDIR}
 LDADD+=		-lc_pic
+
+.if	${MACHINE_ARCH} == "alpha"
+CFLAGS+=	-mno-fp-regs
+LDFLAGS+=	-nostdlib -Wl,-Bshareable,-Bsymbolic -e .rtld_start
+.elif	${MACHINE_ARCH} == "i386"
+CFLAGS+=	-elf
+LDFLAGS+=	-elf -nostdlib -Wl,-Bshareable,-Bsymbolic
+.endif
+
 # Atomic installation with "-C" is very important for this program.
 INSTALLFLAGS+=	-C
 
-.PATH: ${.CURDIR}/${MACHINE}
+.PATH: ${.CURDIR}/${MACHINE_ARCH}
 
 .include <bsd.prog.mk>
