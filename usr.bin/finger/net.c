@@ -118,7 +118,7 @@ netfinger(name)
 static int
 do_protocol(const char *name, const struct addrinfo *ai)
 {
-	int cnt, error, line_len, s;
+	int cnt, line_len, s;
 	register FILE *fp;
 	register int c, lastc;
 	struct iovec iov[3];
@@ -145,7 +145,7 @@ do_protocol(const char *name, const struct addrinfo *ai)
 		iov[msg.msg_iovlen++].iov_len = 3;
 	}
 	/* send the name followed by <CR><LF> */
-	iov[msg.msg_iovlen].iov_base = name;
+	iov[msg.msg_iovlen].iov_base = (char *)name;
 	iov[msg.msg_iovlen++].iov_len = strlen(name);
 	iov[msg.msg_iovlen].iov_base = "\r\n";
 	iov[msg.msg_iovlen++].iov_len = 2;
