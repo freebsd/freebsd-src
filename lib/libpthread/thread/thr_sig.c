@@ -347,9 +347,9 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	err_save = errno;
 	timeout_save = curthread->timeout;
 	intr_save = curthread->interrupted;
-	/* Get a fresh copy of signal mask, for thread dump only */
-	curthread->sigmask = ucp->uc_sigmask;
 	_kse_critical_enter();
+	/* Get a fresh copy of signal mask */
+	curthread->sigmask = ucp->uc_sigmask;
 	KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
 	sigfunc = _thread_sigact[sig - 1].sa_sigaction;
 	sa_flags = _thread_sigact[sig - 1].sa_flags & SA_SIGINFO;
@@ -394,6 +394,7 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	curthread->interrupted = intr_save;
 	_kse_critical_enter();
 	curthread->sigmask = ucp->uc_sigmask;
+	SIG_CANTMASK(curthread->sigmask);
 	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
 	DBG_MSG("<<< _thr_sig_handler(%d)\n", sig);
 }
@@ -478,6 +479,7 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	 * Restore the thread's signal mask.
 	 */
 	curthread->sigmask = ucp->uc_sigmask;
+	SIG_CANTMASK(curthread->sigmask);
 	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		__sys_sigprocmask(SIG_SETMASK, &ucp->uc_sigmask, NULL);
 	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
