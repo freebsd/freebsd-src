@@ -1,0 +1,88 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt07	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.NH
+Strings
+.PP
+Obviously if a paper contains a large number of occurrences
+of an acute accent over a letter `e',
+typing
+.BD \eo"e\e\'"
+for each \*e
+would be a great nuisance.
+.PP
+Fortunately,
+.UL troff
+provides a way in which you can store an arbitrary
+collection of text in a `string',
+and thereafter use the string name as a shorthand
+for its contents.
+Strings are one of several
+.UL troff
+mechanisms whose judicious use
+lets you type a document
+with less effort and organize
+it
+so that extensive format changes
+can be made with few editing changes.
+.PP
+A reference to a string is replaced by whatever
+text
+the string was defined as.
+Strings are defined with the command
+.BD .ds .
+The line
+.P1
+\&^ds e \eo"e\e'"
+.P2
+defines the string
+.BD e
+to have the value
+.BD \eo"e\e\'"
+.PP
+String names may be either one or two characters long,
+and are referred to by
+.BD \e*x
+for one character names or
+.BD \e*(xy
+for two character names.
+Thus to get
+t\*el\*ephone,
+given the definition of the string
+.BD e
+as above,
+we can say
+t\e*el\e*ephone.
+.PP
+If a string must begin with blanks, define it as
+.P1
+\&.ds xx "      text
+.P2
+The double quote signals the beginning of the definition.
+There is no trailing quote;
+the end of the line terminates the string.
+.PP
+A string may actually be several lines long;
+if
+.UL troff
+encounters a 
+.BD \e
+at the end of
+.ul
+any
+line, it is thrown away and the next line
+added to the current one.
+So you can make a long string simply by ending each line
+but the last with a backslash:
+.P1
+\&^ds xx this \e
+is a very \e
+long string
+.P2
+.PP
+Strings may be defined in terms of other strings, or even in terms of themselves;
+we will discuss some of these possibilities later.
