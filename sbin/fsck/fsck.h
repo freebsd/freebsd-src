@@ -42,16 +42,35 @@
 #define	MAXBUFSPACE	40*1024	/* maximum space to allocate to buffers */
 #define	INOBUFSIZE	56*1024	/* size of buffer to read inodes in pass1 */
 
-#ifndef BUFSIZ
-#define BUFSIZ 1024
-#endif
-
+/*
+ * Each inode on the filesystem is described by the following structure.
+ * The linkcnt is initially set to the value in the inode. Each time it
+ * is found during the descent in passes 2, 3, and 4 the count is
+ * decremented. Any inodes whose count is non-zero after pass 4 needs to
+ * have its link count adjusted by the value remaining in ino_linkcnt.
+ */
+struct inostat {
+	char	ino_state;	/* state of inode, see below */
+	char	ino_type;	/* type of inode */
+	short	ino_linkcnt;	/* number of links not found */
+};
+/*
+ * Inode states.
+ */
 #define	USTATE	01		/* inode not allocated */
 #define	FSTATE	02		/* inode is file */
 #define	DSTATE	03		/* inode is directory */
 #define	DFOUND	04		/* directory found during descent */
 #define	DCLEAR	05		/* directory is to be cleared */
 #define	FCLEAR	06		/* file is to be cleared */
+/*
+ * Inode state information is contained on per cylinder group lists
+ * which are described by the following structure.
+ */
+struct inostatlist {
+	long	il_numalloced;	/* number of inodes allocated in this cg */
+	struct inostat *il_stat;/* inostat info for this cylinder group */
+} *inostathead;
 
 /*
  * buffer cache structure.
@@ -163,11 +182,12 @@ struct inoinfo {
 	ufs_daddr_t i_blks[1];		/* actually longer */
 } **inphead, **inpsort;
 long numdirs, listmax, inplast;
+long countdirs;			/* number of directories we actually found */
 
 char	*cdevname;		/* name of device being checked */
 long	dev_bsize;		/* computed value of DEV_BSIZE */
 long	secsize;		/* actual disk sector size */
-char	fflag;			/* force fs check (ignore clean flag) */
+char	fflag;			/* force check, ignore clean flag */
 char	nflag;			/* assume a no response */
 char	yflag;			/* assume a yes response */
 int	bflag;			/* location of alternate super block */
@@ -177,23 +197,19 @@ int	doinglevel1;		/* converting to new cylinder group format */
 int	doinglevel2;		/* converting to new inode format */
 int	newinofmt;		/* filesystem has new inode format */
 char	usedsoftdep;		/* just fix soft dependency inconsistencies */
-char	resolved;		/* cleared if unresolved changes => not clean */
 char	preen;			/* just fix normal inconsistencies */
+char	rerun;			/* rerun fsck. Only used in non-preen mode */
+int	returntosingle;		/* 1 => return to single user mode on exit */
+char	resolved;		/* cleared if unresolved changes => not clean */
 char	hotroot;		/* checking root device */
 char	havesb;			/* superblock has been read */
 int	fsmodified;		/* 1 => write done to file system */
 int	fsreadfd;		/* file descriptor for reading file system */
 int	fswritefd;		/* file descriptor for writing file system */
-int	returntosingle;		/* return to single user mode */
-int	rerun;			/* rerun fsck. Only used in non-preen mode */
 
 ufs_daddr_t maxfsblock;		/* number of blocks in the file system */
 char	*blockmap;		/* ptr to primary blk allocation map */
 ino_t	maxino;			/* number of inodes in file system */
-ino_t	lastino;		/* last inode in use */
-char	*statemap;		/* ptr to inode state table */
-u_char	*typemap;		/* ptr to inode type table */
-short	*lncntp;		/* ptr to link count table */
 
 ino_t	lfdir;			/* lost & found directory inode number */
 char	*lfname;		/* lost & found directory name */
@@ -219,6 +235,7 @@ struct	dinode zino;
 
 struct fstab;
 
+
 void		adjust __P((struct inodesc *, int lcnt));
 ufs_daddr_t	allocblk __P((long frags));
 ino_t		allocdir __P((ino_t parent, ino_t request, int mode));
@@ -239,6 +256,7 @@ int		chkrange __P((ufs_daddr_t blk, int cnt));
 void		ckfini __P((int markclean));
 int		ckinode __P((struct dinode *dp, struct inodesc *));
 void		clri __P((struct inodesc *, char *type, int flag));
+int		clearentry __P((struct inodesc *));
 void		direrror __P((ino_t ino, char *errmesg));
 int		dirscan __P((struct inodesc *));
 int		dofix __P((struct inodesc *, char *msg));
@@ -262,7 +280,8 @@ void		getpathname __P((char *namebuf, ino_t curdir, ino_t ino));
 struct dinode  *ginode __P((ino_t inumber));
 void		inocleanup __P((void));
 void		inodirty __P((void));
-int		linkup __P((ino_t orphan, ino_t parentdir));
+struct inostat *inoinfo __P((ino_t inum));
+int		linkup __P((ino_t orphan, ino_t parentdir, char *name));
 int		makeentry __P((ino_t parent, ino_t ino, char *name));
 void		panic __P((const char *fmt, ...));
 void		pass1 __P((void));
@@ -278,6 +297,6 @@ void		pinode __P((ino_t ino));
 void		propagate __P((void));
 void		pwarn __P((const char *fmt, ...));
 int		reply __P((char *question));
-void		resetinodebuf __P((void));
+void		setinodebuf __P((ino_t));
 int		setup __P((char *dev));
 void		voidquit __P((int));
