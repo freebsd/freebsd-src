@@ -98,12 +98,17 @@ struct snd_mixer;
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
 
+struct snddev_channel {
+	SLIST_ENTRY(snddev_channel) link;
+	struct pcm_channel *channel;
+};
+
 #define SND_STATUSLEN	64
 /* descriptor of audio device */
 struct snddev_info {
-	struct pcm_channel *play, *rec, **aplay, **arec, *fakechan;
-	int *ref;
-	unsigned playcount, reccount, chancount, maxchans;
+	SLIST_HEAD(, snddev_channel) channels;
+	struct pcm_channel **aplay, **arec, *fakechan;
+	unsigned chancount, maxchans;
 	struct snd_mixer *mixer;
 	unsigned flags;
 	void *devinfo;
@@ -192,6 +197,15 @@ int fkchan_kill(struct pcm_channel *c);
 #endif
 
 SYSCTL_DECL(_hw_snd);
+
+struct pcm_channel *pcm_chnalloc(struct snddev_info *d, int direction);
+int pcm_chnfree(struct pcm_channel *c);
+int pcm_chnref(struct pcm_channel *c, int ref);
+
+struct pcm_channel *pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo);
+int pcm_chn_destroy(struct pcm_channel *ch);
+int pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
+int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch);
 
 int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
 int pcm_register(device_t dev, void *devinfo, int numplay, int numrec);
