@@ -59,7 +59,7 @@ dofs_vn () {
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} ${FSIMG}
 
-	trap "umount ${MNT}; vnconfig -u /dev/r${VNDEVICE}" EXIT
+	trap "umount ${MNT}; vnconfig -u /dev/r${VNDEVICE}; rm -f /dev/*vnn*" EXIT
 
 	disklabel -w ${BOOT} ${VNDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 0 /dev/r${VNDEVICE}c
@@ -80,8 +80,6 @@ dofs_vn () {
 	echo "***     ${FSINODE} bytes/inode, $7 left"
 	break;
     done
-
-    rm -f /dev/*vnn*
 }
 
 dofs_md () {
