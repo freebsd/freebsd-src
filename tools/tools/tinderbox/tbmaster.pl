@@ -130,13 +130,14 @@ sub history($$$) {
     my $end = shift;
     my $success = shift;
 
-    my $history = strftime("%Y-%m-%d %H:%M:%S\t", localtime($start));
+    my $history = expand('HOSTNAME') . "\t";
+    $history .= strftime("%Y-%m-%d %H:%M:%S\t", localtime($start));
     $history .= strftime("%Y-%m-%d %H:%M:%S\t", localtime($end));
     $history .= expand('ARCH') . "\t";
     $history .= expand('MACHINE') . "\t";
     my $date = expand('DATE');
     if ($date) {
-	$date =~ s/\s+/\t/g;
+	$date =~ s/\s+/ /g;
 	$history .= expand('BRANCH') . ":" . expand('DATE') . "\t";
     } else {
 	$history .= expand('BRANCH') . "\t";
