@@ -4,7 +4,7 @@
 
      This is the 2.0 version of the FAQ for FreeBSD 2.0
 
-     $Id: freebsd-faq.sgml,v 1.2 1995/05/10 00:11:01 jfieber Exp $
+     $Id: freebsd-faq.sgml,v 1.3 1995/05/17 09:18:45 roberto Exp $
 -->
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
 
@@ -244,10 +244,8 @@
 
           <descrip>
             <tag/South Africa/
-              <tt>braae.ru.ac.za:/pub/FreeBSD/securedist/</tt><p>
-              <tt>owl.und.ac.za</tt> (currently uncertain)
-            <tag/Iceland/
-              <tt>ftp.veda.is:/pub/crypt/FreeBSD/</tt>
+              <tt>skeleton.mikom.csir.co.za:/pub/FreeBSD</tt><newline>
+              <tt>storm.sea.uct.ac.za:/pub/FreeBSD</tt>
           </descrip>
 
           The non-US <tt/securedist/ can be used as a direct replacement
