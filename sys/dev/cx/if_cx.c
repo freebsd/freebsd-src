@@ -7,7 +7,7 @@
  * Copyright (C) 1994-2002 Cronyx Engineering.
  * Author: Serge Vakulenko, <vak@cronyx.ru>
  *
- * Copyright (C) 1999-2003 Cronyx Engineering.
+ * Copyright (C) 1999-2004 Cronyx Engineering.
  * Rewritten on DDK, ported to NETGRAPH, rewritten for FreeBSD 3.x-5.x by
  * Kurakin Roman, <rik@cronyx.ru>
  *
@@ -19,7 +19,7 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
- * Cronyx Id: if_cx.c,v 1.1.2.18 2003/11/27 14:30:03 rik Exp $
+ * Cronyx Id: if_cx.c,v 1.1.2.22 2004/02/05 17:10:19 rik Exp $
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #if __FreeBSD_version >= 400000
 #   include <machine/resource.h>
-#if __FreeBSD_version <= 501000
+#   if __FreeBSD_version <= 501000
 #       include <i386/isa/intr_machdep.h>
 #   endif
 #endif
@@ -879,7 +879,11 @@ static int cx_attach (device_t dev)
 			printf ("%s: cannot make common node\n", d->name);
 			channel [b->num*NCHAN + c->num] = 0;
 			c->sys = 0;
-			contigfree (d, sizeof (d), M_DEVBUF);
+#if __FreeBSD_version < 400000
+			free (d, M_DEVBUF);
+#else
+			contigfree (d, sizeof (*d), M_DEVBUF);
+#endif
 			continue;
 		}
 #if __FreeBSD_version >= 500000
@@ -899,7 +903,11 @@ static int cx_attach (device_t dev)
 #endif
 			channel [b->num*NCHAN + c->num] = 0;
 			c->sys = 0;
-			contigfree (d, sizeof (d), M_DEVBUF);
+#if __FreeBSD_version < 400000
+			free (d, M_DEVBUF);
+#else
+			contigfree (d, sizeof (*d), M_DEVBUF);
+#endif
 			continue;
 		}
 		d->lo_queue.ifq_maxlen = IFQ_MAXLEN;
@@ -1058,7 +1066,7 @@ static int cx_detach (device_t dev)
 			continue;
 		
 		/* Deallocate buffers. */
-		contigfree (d, sizeof(d), M_DEVBUF);
+		contigfree (d, sizeof (*d), M_DEVBUF);
 	}
 	bd->board = 0;
 	adapter [b->num] = 0;
@@ -2905,12 +2913,7 @@ static int cx_load (void)
 	if (!i) {
 		/* Deactivate the timeout routine. And soft interrupt*/
 		untimeout (cx_timeout, 0, timeout_handle);
-#if __FreeBSD_version >= 500000
-		ithread_remove_handler (cx_fast_ih);
-		ithread_remove_handler (cx_slow_ih);
-#else
 		unregister_swi (SWI_TTY, cx_softintr);
-#endif
 		return ENXIO;
 	}
 	return 0;
@@ -2943,8 +2946,15 @@ static int cx_unload (void)
 	s = splhigh ();
 
 	/* Deactivate the timeout routine. And soft interrupt*/
-	untimeout (cx_timeout, 0, timeout_handle);
-	unregister_swi (SWI_TTY, cx_softintr);
+	for (i=0; i<NCX; ++i) {
+		cx_board_t *b = adapter [i];
+
+		if (!b || ! b->port)
+			continue;
+		untimeout (cx_timeout, 0, timeout_handle);
+		unregister_swi (SWI_TTY, cx_softintr);
+		break;
+	}
 
 	for (i=0; i<NCX*NCHAN; ++i) {
 		drv_t *d = channel[i];
@@ -3036,6 +3046,8 @@ static int cx_unload (void)
 
 	for (i=0; i<NCX; ++i) {
 		cx_board_t *b = adapter [i];
+		if (!b)
+			continue;
 		adapter [b->num] = 0;
 		free (b, M_DEVBUF);
 	}
