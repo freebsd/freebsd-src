@@ -748,7 +748,7 @@ install_drive(int drive, u_char *path)
 
     /* check that DOS considers this a valid drive */
     if (drive < 0 || drive >= lol->lastdrive) {
-	debug(D_REDIR, "Drive %c beyond limit of %c)\n",
+	debug(D_REDIR, "Drive %c beyond limit of %c\n",
 	      drntol(drive), drntol(lol->lastdrive - 1));
 	return;
     }
@@ -793,7 +793,7 @@ intff(regcontext_t *REGS)
 {
 
     if (lol && sda) {				/* already been called? */
-	debug(D_REDIR, "redirector duplicate install ignored\n");
+	debug(D_REDIR, "redirector duplicate install ignored");
 	return;
     }
     lol = (LOL *)MAKEPTR(R_BX, R_DX);	/* where DOS keeps its goodies */
