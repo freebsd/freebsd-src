@@ -28,6 +28,11 @@
 #define CONFIG_GUSMAX
 #endif
 
+#include "sscape.h"
+#if NSSCAPE != 0 && !defined(CONFIG_SSCAPE)
+#define CONFIG_SSCAPE
+#endif
+
 #include "trix.h"
 #if NTRIX > 0
 #define INCLUDE_TRIX_BOOT
@@ -35,7 +40,7 @@
 #define CONFIG_YM3812
 #endif
 
-#if defined(CONFIG_GUSMAX) || ( NTRIX > 0 )
+#if defined(CONFIG_GUSMAX) || ( NSSCAPE > 0 ) || ( NTRIX > 0 )
 #define CONFIG_AD1848
 #endif
 
@@ -86,9 +91,7 @@
 #define CONFIG_YM3812
 #endif
 
-#include "sscape.h"
-
-#define ALLOW_SELECT
+#define ALLOW_POLL
 
 /* #undef  CONFIG_PAS */
 /* #undef  CONFIG_ADLIB */

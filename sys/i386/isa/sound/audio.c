@@ -36,6 +36,11 @@
 
 #define ON		1
 #define OFF		0
+int
+DMAbuf_poll(int dev, struct fileinfo * file, int events, select_table * wait);
+
+int
+audio_poll(int dev, struct fileinfo * file, int events, select_table * wait);
 
 static int      wr_buff_no[MAX_AUDIO_DEV];
 	/* != -1, if there is a incomplete output block in the queue. */
@@ -426,11 +431,11 @@ audio_ioctl(int dev, struct fileinfo * file, u_int cmd, ioctl_arg arg)
 	}
 }
 
-#ifdef ALLOW_SELECT
-	/*
+#ifdef ALLOW_POLL
+/*
  * XXX should we use spltty() in the select calls ? - lr970714
  *
-	 */
+ */
 
 int
 audio_poll(int dev, struct fileinfo * file, int events, select_table * wait)
@@ -459,6 +464,6 @@ audio_poll(int dev, struct fileinfo * file, int events, select_table * wait)
  }
     return 0;
 }
-#endif				/* ALLOW_SELECT */
+#endif				/* ALLOW_POLL */
 
 #endif

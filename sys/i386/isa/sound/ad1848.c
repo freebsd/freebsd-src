@@ -407,7 +407,7 @@ ad1848_mixer_set(ad1848_info * devc, int dev, int value)
     if (mix_devices[dev][RIGHT_CHN].nbits == 0)	/* Mono control */
 	right = left;
 
-    retvol = left | (left << 8);
+    retvol = left | (right << 8);
 
     /* Scale volumes */
     left = mix_cvt[left];
@@ -913,12 +913,14 @@ ad1848_prepare_for_IO(int dev, int bsize, int bcount)
     if (devc->irq_mode)
 	return 0;
 
-    flags = splhigh();
     fs = devc->speed_bits | (devc->format_bits << 5);
 
     if (devc->channels > 1)
 	fs |= 0x10;
     old_fs = fs;
+
+    flags = splhigh();
+
     if (devc->mode == MD_1845) {	/* Use alternate speed select regs */
 	fs &= 0xf0;	/* Mask off the rate select bits */
 
@@ -927,6 +929,7 @@ ad1848_prepare_for_IO(int dev, int bsize, int bcount)
     }
 
     ad_enter_MCE(devc);	/* Enables changes to the format select reg */
+
     ad_write(devc, 8, fs);
 
     /*
@@ -946,36 +949,13 @@ ad1848_prepare_for_IO(int dev, int bsize, int bcount)
 	 */
 	AD_WAIT_INIT(10000);
     }
-    ad_leave_MCE(devc);	/* Starts the calibration process. */
 
-    /* amancio */
-    ad_enter_MCE(devc);	/* Enables changes to the format select reg */
-
-    ad_write(devc, 8, fs);
-    /*
-     * Write to I8 starts resyncronization. Wait until it completes.
-     */
-    AD_WAIT_INIT(10000);
     ad_write(devc, 9, ad_read(devc, 9) & ~0x08);
-    /* ad_write (devc, 9, ad_read (devc, 9) | 0x08);	 */
 
-    /*
-     * If mode == 2 (CS4231), set I28 also. It's the capture format
-     * register.
-     */
-    if (devc->mode != MD_1848) {
-	ad_write(devc, 28, fs);
+    ad_leave_MCE(devc);
 
-	/*
-	 * Write to I28 starts resyncronization. Wait until it
-	 * completes.
-	 */
-	AD_WAIT_INIT(10000);
-    }
-
-    ad_leave_MCE(devc);	/* Starts the calibration process. */
-    /* amancio */
     splx(flags);
+
     devc->xfer_count = 0;
 #ifdef CONFIG_SEQUENCER
     if (dev == timer_installed && devc->timer_running)
@@ -998,31 +978,27 @@ ad1848_halt(int dev)
     ad1848_info    *devc = (ad1848_info *) audio_devs[dev]->devc;
     u_long   flags;
     int             timeout;
+
     flags = splhigh();
 
     ad_mute(devc);
-    ad_enter_MCE(devc);
-    ad_write(devc, 9, ad_read(devc, 9) & ~0x03);	/* Stop DMA */
-    ad_write(devc, 9, ad_read(devc, 9) | 0x8);
 
     ad_write(devc, 9, ad_read(devc, 9) & ~0x03);	/* Stop DMA */
-    /*
-     * ad_write (devc, 15, 0);	 Clear DMA counter ad_write (devc,
-     * 14, 0);	 Clear DMA counter
-     */
+
+    ad_write(devc, 14, 0);	/* Clear DMA counter */
+    ad_write(devc, 15, 0);	/* Clear DMA counter */
 
     if (devc->mode != MD_1848) {
 	ad_write(devc, 30, 0);	/* Clear DMA counter */
 	ad_write(devc, 31, 0);	/* Clear DMA counter */
     }
-    for (timeout = 0; timeout < 1000 && !(inb(io_Status(devc)) & 0x80);
+
+    for (timeout = 0; timeout < 1000 && !(inb(io_Status(devc)) & 0x01);
 	 timeout++);	/* Wait for interrupt */
 
-    ad_write(devc, 9, ad_read(devc, 9) & ~0x03);	/* Stop DMA */
     outb(io_Status(devc), 0);	/* Clear interrupt status */
-    outb(io_Status(devc), 0);	/* Clear interrupt status */
+
     devc->irq_mode = 0;
-    ad_leave_MCE(devc);
 
     /* DMAbuf_reset_dma (dev); */
     splx(flags);
@@ -1499,7 +1475,7 @@ ad1848_init(char *name, int io_base, int irq,
 	    irq2dev[-irq] = devc->dev_no = my_dev;
 
 	audio_devs[my_dev]->otherside = -1 ;
-	audio_devs[my_dev]->flags = DMA_AUTOMODE | DMA_DUPLEX;
+	audio_devs[my_dev]->flags |= DMA_AUTOMODE | DMA_DUPLEX;
 	audio_devs[my_dev]->dmachan1 = dma_playback;
 	audio_devs[my_dev]->dmachan2 = dma_capture;
 	audio_devs[my_dev]->buffsize = DSP_BUFFSIZE;
