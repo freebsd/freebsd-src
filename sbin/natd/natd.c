@@ -89,6 +89,7 @@ static void	RefreshAddr (int);
 static void	ParseOption (const char* option, const char* parms, int cmdLine);
 static void	ReadConfigFile (const char* fileName);
 static void	SetupPortRedirect (const char* parms);
+static void	SetupProtoRedirect(const char* parms);
 static void	SetupAddressRedirect (const char* parms);
 static void	SetupPptpAlias (const char* parms);
 static void	StrToAddr (const char* str, struct in_addr* addr);
@@ -861,6 +862,7 @@ enum Option {
 	AliasAddress,
 	InterfaceName,
 	RedirectPort,
+	RedirectProto,
 	RedirectAddress,
 	ConfigFile,
 	DynamicMode,
@@ -1031,6 +1033,14 @@ static struct OptionInfo optionTable[] = {
 		"redirect_port",
 		NULL },
 
+	{ RedirectProto,
+		0,
+		String,
+	        "proto local_addr [public_addr] [remote_addr]",
+		"redirect packets of a given proto",
+		"redirect_proto",
+		NULL },
+
 	{ RedirectAddress,
 		0,
 		String,
@@ -1198,6 +1208,10 @@ static void ParseOption (const char* option, const char* parms, int cmdLine)
 
 	case RedirectPort:
 		SetupPortRedirect (strValue);
+		break;
+
+	case RedirectProto:
+		SetupProtoRedirect(strValue);
 		break;
 
 	case RedirectAddress:
@@ -1486,6 +1500,62 @@ void SetupPortRedirect (const char* parms)
 			ptr = strtok(NULL, ",");
 		}
 	}
+}
+
+void
+SetupProtoRedirect(const char* parms)
+{
+	char		buf[128];
+	char*		ptr;
+	struct in_addr	localAddr;
+	struct in_addr	publicAddr;
+	struct in_addr	remoteAddr;
+	int		proto;
+	char*		protoName;
+	struct protoent *protoent;
+
+	strcpy (buf, parms);
+/*
+ * Extract protocol.
+ */
+	protoName = strtok(buf, " \t");
+	if (!protoName)
+		errx(1, "redirect_proto: missing protocol");
+
+	protoent = getprotobyname(protoName);
+	if (protoent == NULL)
+		errx(1, "redirect_proto: unknown protocol %s", protoName);
+	else
+		proto = protoent->p_proto;
+/*
+ * Extract local address.
+ */
+	ptr = strtok(NULL, " \t");
+	if (!ptr)
+		errx(1, "redirect_proto: missing local address");
+	else
+		StrToAddr(ptr, &localAddr);
+/*
+ * Extract optional public address.
+ */
+	ptr = strtok(NULL, " \t");
+	if (ptr)
+		StrToAddr(ptr, &publicAddr);
+	else
+		publicAddr.s_addr = INADDR_ANY;
+/*
+ * Extract optional remote address.
+ */
+	ptr = strtok(NULL, " \t");
+	if (ptr)
+		StrToAddr(ptr, &remoteAddr);
+	else
+		remoteAddr.s_addr = INADDR_ANY;
+/*
+ * Create aliasing link.
+ */
+	(void)PacketAliasRedirectProto(localAddr, remoteAddr, publicAddr,
+				       proto);
 }
 
 void SetupAddressRedirect (const char* parms)

@@ -35,6 +35,7 @@ Network Address Translation Daemon
 .Op Fl interface Ar interface
 .Op Fl config Ar configfile
 .Op Fl redirect_port Ar linkspec
+.Op Fl redirect_proto Ar linkspec
 .Op Fl redirect_address Ar linkspec
 .Op Fl reverse
 .Op Fl proxy_only
@@ -139,7 +140,26 @@ be sent to the telnet port on the inside1 machine.
 will redirect incoming connections on ports 3300-3399 to host
 inside2, ports 2300-2399.
 The mapping is 1:1 meaning port 3300 maps to 2300, 3301 maps to 2301, etc.
-
+.It Fl redirect_proto Ar proto localIP Xo
+.Op Ar publicIP Op Ar remoteIP
+.Xc
+Redirect incoming IP packets of protocol
+.Ar proto
+.Pq see Xr protocols 5
+destined for
+.Ar publicIP
+address to a
+.Ar localIP
+address and vice versa.
+.Pp
+If
+.Ar publicIP
+is not specified, then the default aliasing address is used.
+If
+.Ar remoteIP
+is specified, then only packets coming from/to
+.Ar remoteIP
+will match the rule.
 .It Fl redirect_address Ar localIP publicIP
 Redirect traffic for public IP address to a machine on the local
 network.
