@@ -77,3 +77,4 @@ int	get_desc(char *fname, char **name, char **comment,
 		 char **desc, long *size, char *tmp_file);
 int	exec_catch_errors(char *prog, char *arg, char *fout);
 int	already_installed(char *name);
+void    install_pkgs_indir(void);
