@@ -79,7 +79,7 @@ static void       frecverr __P((const char *, ...));
 static int        noresponse __P((void));
 static void       rcleanup __P((int));
 static int        read_number __P((char *));
-static int        readfile __P((char *, int));
+static int        readfile __P((struct printer *pp, char *, int));
 static int        readjob __P((struct printer *pp));
 
 
@@ -156,14 +156,18 @@ readjob(pp)
 		cp = line;
 		do {
 			if ((size = read(1, cp, 1)) != 1) {
-				if (size < 0)
+				if (size < 0) {
 					frecverr("%s: lost connection",
 					    pp->printer);
+					/*NOTREACHED*/
+				}
 				return (cfcnt);
 			}
 		} while (*cp++ != '\n' && (cp - line + 1) < sizeof(line));
-		if (cp - line + 1 >= sizeof(line))
-			frecverr("readjob overflow");
+		if (cp - line + 1 >= sizeof(line)) {
+			frecverr("%s: readjob overflow", pp->printer);
+			/*NOTREACHED*/
+		}
 		*--cp = '\0';
 		cp = line;
 		switch (*cp++) {
@@ -196,7 +200,7 @@ readjob(pp)
 				(void) write(1, "\2", 1);
 				continue;
 			}
-			if (!readfile(tfname, size)) {
+			if (!readfile(pp, tfname, size)) {
 				rcleanup(0);
 				continue;
 			}
@@ -221,17 +225,20 @@ readjob(pp)
 			}
 			(void) strncpy(dfname, cp, sizeof(dfname) - 1);
 			dfname[sizeof(dfname) - 1] = '\0';
-			if (strchr(dfname, '/'))
+			if (strchr(dfname, '/')) {
 				frecverr("readjob: %s: illegal path name",
 					dfname);
+				/*NOTREACHED*/
+			}
 			dfcnt++;
 			trstat_init(pp, dfname, dfcnt);
-			(void) readfile(dfname, size);
+			(void) readfile(pp, dfname, size);
 			trstat_write(pp, TR_RECVING, size, givenid, from,
 				     givenhost);
 			continue;
 		}
 		frecverr("protocol screwup: %s", line);
+		/*NOTREACHED*/
 	}
 }
 
@@ -239,7 +246,8 @@ readjob(pp)
  * Read files send by lpd and copy them to the spooling directory.
  */
 static int
-readfile(file, size)
+readfile(pp, file, size)
+	struct printer *pp;
 	char *file;
 	int size;
 {
@@ -249,8 +257,11 @@ readfile(file, size)
 	int fd, err;
 
 	fd = open(file, O_CREAT|O_EXCL|O_WRONLY, FILMOD);
-	if (fd < 0)
-		frecverr("readfile: %s: illegal path name: %m", file);
+	if (fd < 0) {
+		frecverr("%s: readfile: error on open(%s): %m",
+			 pp->printer, file);
+		/*NOTREACHED*/
+	}
 	ack();
 	err = 0;
 	for (i = 0; i < size; i += BUFSIZ) {
@@ -260,8 +271,10 @@ readfile(file, size)
 			amt = size - i;
 		do {
 			j = read(1, cp, amt);
-			if (j <= 0)
-				frecverr("lost connection");
+			if (j <= 0) {
+				frecverr("%s: lost connection", pp->printer);
+				/*NOTREACHED*/
+			}
 			amt -= j;
 			cp += j;
 		} while (amt > 0);
@@ -274,15 +287,17 @@ readfile(file, size)
 		}
 	}
 	(void) close(fd);
-	if (err)
-		frecverr("%s: write error", file);
+	if (err) {
+		frecverr("%s: write error on close(%s)", pp->printer, file);
+		/*NOTREACHED*/
+	}
 	if (noresponse()) {		/* file sent had bad data in it */
 		if (strchr(file, '/') == NULL)
 			(void) unlink(file);
-		return(0);
+		return (0);
 	}
 	ack();
-	return(1);
+	return (1);
 }
 
 static int
@@ -290,8 +305,10 @@ noresponse()
 {
 	char resp;
 
-	if (read(1, &resp, 1) != 1)
-		frecverr("lost connection");
+	if (read(1, &resp, 1) != 1) {
+		frecverr("lost connection in noresponse()");
+		/*NOTREACHED*/
+	}
 	if (resp == '\0')
 		return(0);
 	return(1);
