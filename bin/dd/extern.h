@@ -60,3 +60,4 @@ extern const u_char a2e_32V[], a2e_POSIX[];
 extern const u_char e2a_32V[], e2a_POSIX[];
 extern const u_char a2ibm_32V[], a2ibm_POSIX[];
 extern u_char casetab[];
+extern char fill_char;
