@@ -11,3 +11,6 @@ CFLAGS+= -DPC98
 .endif
 
 .include <bsd.prog.mk>
+
+test:	${PROG}
+	sh ${.CURDIR}/runtest.sh
