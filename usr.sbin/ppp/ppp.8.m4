@@ -1,4 +1,30 @@
+.\"
+.\" Copyright (c) 2001 Brian Somers <brian@Awfulhak.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
 .\" $FreeBSD$
+.\"
 .Dd September 20, 1995
 .Dt PPP 8
 .Os
@@ -28,9 +54,7 @@ tunnel device driver (tun).
 .Pp
 The
 .Fl nat
-flag (or
-.Fl alias
-flag for backwards compatibility) does the equivalent of a
+flag does the equivalent of a
 .Dq nat enable yes ,
 enabling
 .Nm Ns No 's
@@ -225,7 +249,7 @@ The
 .Em PPP
 host acts as a masquerading gateway.
 IP addresses as well as TCP and
-UDP port numbers are aliased for outgoing packets and de-aliased for
+UDP port numbers are NAT'd for outgoing packets and de-NAT'd for
 returning packets.
 .It Supports background PPP connections.
 In background mode, if
@@ -1575,20 +1599,18 @@ in your profile).
 .Sh NETWORK ADDRESS TRANSLATION (PACKET ALIASING)
 The
 .Fl nat
-.Pq \&or Fl alias
 command line option enables network address translation (a.k.a. packet
 aliasing).
 This allows the
 .Nm
 host to act as a masquerading gateway for other computers over
 a local area network.
-Outgoing IP packets are aliased so that they appear to come from the
+Outgoing IP packets are NAT'd so that they appear to come from the
 .Nm
-host, and incoming packets are de-aliased so that they are routed
+host, and incoming packets are de-NAT'd so that they are routed
 to the correct machine on the local area network.
-Packet aliasing allows computers on private, unregistered
-subnets to have Internet access, although they are invisible
-from the outside world.
+NAT allows computers on private, unregistered subnets to have Internet
+access, although they are invisible from the outside world.
 In general, correct
 .Nm
 operation should first be verified with network address translation disabled.
@@ -3259,10 +3281,6 @@ if used with the
 .Fl direct
 flag.
 .Pp
-For backwards compatibility, the word
-.Dq alias
-may be used in place of
-.Dq nat .
 If nat is enabled on your system (it may be omitted at compile time),
 the following commands are possible:
 .Bl -tag -width 2n
@@ -3385,7 +3403,7 @@ are 10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16.
 .El
 .Pp
 These commands are also discussed in the file
-.Pa README.alias
+.Pa README.nat
 which comes with the source distribution.
 .Pp
 .It Op !\& Ns Xo
