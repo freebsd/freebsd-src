@@ -53,7 +53,7 @@ int fp = 0;
 
 static bool_t xdr_my_xfr(register XDR *xdrs, xfr *objp)
 {
-	while(1) {
+	while (1) {
 		if (!xdr_xfr(xdrs, objp))
 			return(FALSE);
 		if (objp->ok == TRUE) {
@@ -65,7 +65,7 @@ static bool_t xdr_my_xfr(register XDR *xdrs, xfr *objp)
 		}
 		xdr_free(xdr_xfr, (char *)objp);
 		if (objp->ok == FALSE) {
-			switch(objp->xfr_u.xfrstat) {
+			switch (objp->xfr_u.xfrstat) {
 			case(XFR_DONE):
 				return(TRUE);
 				break;

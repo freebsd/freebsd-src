@@ -197,7 +197,7 @@ main(argc, argv)
 	int ch;
 
 	while ((ch = getopt(argc, argv, "p:h")) != -1) {
-		switch(ch) {
+		switch (ch) {
 		case 'p':
 			yp_dir = optarg;
 			break;

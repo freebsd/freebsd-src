@@ -69,17 +69,17 @@ char *dom, *server;
 	int r;
 	unsigned long server_addr;
 
-	if( (port=htons(getrpcport(server, YPPROG, YPPROC_NULL, IPPROTO_UDP))) == 0)
+	if ((port = htons(getrpcport(server, YPPROG, YPPROC_NULL, IPPROTO_UDP))) == 0)
 		errx(1, "%s not running ypserv", server);
 
 	bzero(&ypsd, sizeof ypsd);
 
-	if( (hp = gethostbyname (server)) != NULL ) {
+	if ((hp = gethostbyname (server)) != NULL) {
 		/* is this the most compatible way?? */
 		bcopy (hp->h_addr_list[0],
 		       (u_long *)&ypsd.ypsetdom_binding.ypbind_binding_addr,
 		       sizeof (unsigned long));
-	} else if( (long)(server_addr = inet_addr (server)) == -1) {
+	} else if ((long)(server_addr = inet_addr (server)) == -1) {
 		errx(1, "can't find address for %s", server);
 	} else
 		bcopy (&server_addr,
@@ -95,21 +95,21 @@ char *dom, *server;
 	tv.tv_usec = 0;
 	sock = RPC_ANYSOCK;
 	client = clntudp_create(sin, YPBINDPROG, YPBINDVERS, tv, &sock);
-	if (client==NULL) {
+	if (client == NULL) {
 		warnx("can't yp_bind, reason: %s", yperr_string(YPERR_YPBIND));
-		return YPERR_YPBIND;
+		return (YPERR_YPBIND);
 	}
 	client->cl_auth = authunix_create_default();
 
 	r = clnt_call(client, YPBINDPROC_SETDOM,
 		xdr_ypbind_setdom, &ypsd, xdr_void, NULL, tv);
-	if(r) {
+	if (r) {
 		warnx("sorry, cannot ypset for domain %s on host", dom);
 		clnt_destroy(client);
-		return YPERR_YPBIND;
+		return (YPERR_YPBIND);
 	}
 	clnt_destroy(client);
-	return 0;
+	return (0);
 }
 
 int
@@ -127,15 +127,15 @@ char **argv;
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-	while( (c=getopt(argc, argv, "h:d:")) != -1)
-		switch(c) {
+	while ((c = getopt(argc, argv, "h:d:")) != -1)
+		switch (c) {
 		case 'd':
 			domainname = optarg;
 			break;
 		case 'h':
-			if( (sin.sin_addr.s_addr=inet_addr(optarg)) == -1) {
+			if ((sin.sin_addr.s_addr = inet_addr(optarg)) == -1) {
 				hent = gethostbyname(optarg);
-				if(hent==NULL)
+				if (hent == NULL)
 					errx(1, "host %s unknown", optarg);
 				bcopy(&hent->h_addr_list[0], &sin.sin_addr,
 					sizeof sin.sin_addr);
@@ -145,7 +145,7 @@ char **argv;
 			usage();
 		}
 
-	if(optind + 1 != argc )
+	if (optind + 1 != argc)
 		usage();
 
 	if (bind_tohost(&sin, domainname, argv[optind]))
