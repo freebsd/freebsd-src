@@ -255,6 +255,7 @@ kernel-install kernel-install.debug:
 	fi
 .if exists(${DESTDIR}${KODIR})
 .if exists(${DESTDIR}${KODIR}.old)
+	@-chflags -R noschg ${DESTDIR}${KODIR}.old
 	-rm -rf ${DESTDIR}${KODIR}.old
 .endif
 	mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old
@@ -264,6 +265,7 @@ kernel-install kernel-install.debug:
 		${KERNEL_KO}${.TARGET:S/kernel-install//} ${DESTDIR}${KODIR}
 
 kernel-reinstall kernel-reinstall.debug:
+	@-chflags -R noschg ${DESTDIR}${KODIR}
 	install -c -m 555 -o root -g wheel \
 		${KERNEL_KO}${.TARGET:S/kernel-reinstall//} ${DESTDIR}${KODIR}
 
