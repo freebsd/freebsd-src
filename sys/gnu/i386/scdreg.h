@@ -19,7 +19,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * $Id$
+ * $Id: scdreg.h,v 1.2 1995/01/29 22:51:41 jkh Exp $
  *
  */
 
@@ -108,7 +108,8 @@ struct sony_subchannel_position_data {
 };
 
 struct sony_tracklist {
-	u_char :8;
+      u_char adr :4; /* xcdplayer needs these two values */
+      u_char ctl :4;
 	u_char track;
 	u_char start_msf[3];
 };
