@@ -787,9 +787,11 @@ release.10:
 		mkdir -p dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp \
 		usr/share/misc
 	@cp ${RD}/trees/base/etc/spwd.db ${RD}/trees/base/etc/group \
-		${RD}/trees/base/etc/protocols ${RD}/fixitfd/etc
-	@cp ${RD}/trees/base/usr/share/misc/scsi_modes \
-		${RD}/fixitfd/usr/share/misc
+		${RD}/fixitfd/etc
+	@sed -e 's/#.*//' ${RD}/trees/base/etc/protocols \
+		> ${RD}/fixitfd/etc/protocols
+	@sed -e 's/#.*//' ${RD}/trees/base/usr/share/misc/scsi_modes \
+		> ${RD}/fixitfd/usr/share/misc/scsi_modes
 	@cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
 	@cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	@cp ${.CURDIR}/scripts/tar.sh ${RD}/fixitfd/stand/tar
