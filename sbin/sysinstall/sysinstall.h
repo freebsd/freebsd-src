@@ -48,7 +48,7 @@
 
 #define COPYRIGHT_FILE	"/COPYRIGHT"
 #define README_FILE	"/README"
-#define HELPME_FILE	"/HELPME"
+#define HELPME_FILE	"/DISKSPACE.FAQ"
 
 #ifndef EXTERN
 #  define EXTERN extern
