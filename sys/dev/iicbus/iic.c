@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.c,v 1.1.2.9 1998/08/13 17:10:42 son Exp $
+ *	$Id: iic.c,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -90,9 +90,9 @@ static	d_write_t	iicwrite;
 static	d_read_t	iicread;
 static	d_ioctl_t	iicioctl;
 
-#define CDEV_MAJOR 15
+#define CDEV_MAJOR 25
 static struct cdevsw iic_cdevsw = 
-	{ iicopen,	iicclose,	iicread,	iicwrite,	/*15*/
+	{ iicopen,	iicclose,	iicread,	iicwrite,	/*25*/
 	  iicioctl,	nullstop,	nullreset,	nodevtotty,	/*iic*/
 	  seltrue,	nommap,		nostrat,	"iic",	NULL,	-1 };
 
@@ -253,5 +253,6 @@ iic_drvinit(void *unused)
 
 CDEV_DRIVER_MODULE(iic, iicbus, iic_driver, iic_devclass, CDEV_MAJOR,
 			iic_cdevsw, 0, 0);
-
+#if 0
 SYSINIT(iicdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,iic_drvinit,NULL)
+#endif
