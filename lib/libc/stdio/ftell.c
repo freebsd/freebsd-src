@@ -114,8 +114,8 @@ get_real_pos:
 		 * those from ungetc) cause the position to be
 		 * smaller than that in the underlying object.
 		 */
-		pos -= fp->_r;
-		if (pos < 0) {
+		if ((pos -= fp->_r) < 0 ||
+		    (HASUB(fp) && (pos -= fp->_ur) < 0)) {
 			fp->_p = fp->_bf._base;
 			fp->_r = 0;
 			if (HASUB(fp))
@@ -123,16 +123,6 @@ get_real_pos:
 			if (spos == -1)
 				goto get_real_pos;
 			pos = spos;
-		} else if (HASUB(fp)) {
-			pos -= fp->_ur;
-			if (pos < 0) {
-				fp->_p = fp->_bf._base;
-				fp->_r = 0;
-				FREEUB(fp);
-				if (spos == -1)
-					goto get_real_pos;
-				pos = spos;
-			}
 		}
 	} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
 		/*
