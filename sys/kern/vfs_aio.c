@@ -1207,6 +1207,9 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	struct aiocblist *aiocbe;
 	struct aioproclist *aiop;
 	struct kaioinfo *ki;
+	struct kevent kev;
+	struct kqueue *kq;
+	struct file *kq_fp;
 
 	if ((aiocbe = TAILQ_FIRST(&aio_freejobs)) != NULL)
 		TAILQ_REMOVE(&aio_freejobs, aiocbe, list);
@@ -1303,16 +1306,18 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 
 	fhold(fp);
 
-	/*
-	 * XXX  
-	 * Figure out how to do this properly.  This currently won't
-	 * work on the alpha, since we're passing in a pointer via
-	 * aio_lio_opcode, which is an int.
-	 */
-	{
-		struct kevent kev, *kevp;
-		struct kqueue *kq;
-		struct file *kq_fp;
+	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_KEVENT) {
+		kev.ident = aiocbe->uaiocb.aio_sigevent.sigev_notify_kqueue;
+		kev.udata = aiocbe->uaiocb.aio_sigevent.sigev_value.sigval_ptr;
+	}
+	else {
+		/*
+		 * This method for requesting kevent-based notification won't
+		 * work on the alpha, since we're passing in a pointer
+		 * via aio_lio_opcode, which is an int.  Use the SIGEV_KEVENT-
+		 * based method instead.
+		 */
+		struct kevent *kevp;
 
 		kevp = (struct kevent *)job->aio_lio_opcode;
 		if (kevp == NULL)
@@ -1321,27 +1326,26 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		error = copyin((caddr_t)kevp, (caddr_t)&kev, sizeof(kev));
 		if (error)
 			goto aqueue_fail;
-
-		if ((u_int)kev.ident >= fdp->fd_nfiles ||
-		    (kq_fp = fdp->fd_ofiles[kev.ident]) == NULL ||
-		    (kq_fp->f_type != DTYPE_KQUEUE)) {
-			error = EBADF;
-			goto aqueue_fail;
-		}
-        	kq = (struct kqueue *)kq_fp->f_data;
-		kev.ident = (u_long)aiocbe;
-		kev.filter = EVFILT_AIO;
-		kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
-		error = kqueue_register(kq, &kev, p);
-aqueue_fail:
-		if (error) {
-			TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
-			if (type == 0)
-				suword(&job->_aiocb_private.error, error);
-			goto done;
-		}
-no_kqueue:
 	}
+	if ((u_int)kev.ident >= fdp->fd_nfiles ||
+	    (kq_fp = fdp->fd_ofiles[kev.ident]) == NULL ||
+	    (kq_fp->f_type != DTYPE_KQUEUE)) {
+		error = EBADF;
+		goto aqueue_fail;
+	}
+	kq = (struct kqueue *)kq_fp->f_data;
+	kev.ident = (uintptr_t)aiocbe;
+	kev.filter = EVFILT_AIO;
+	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
+	error = kqueue_register(kq, &kev, p);
+aqueue_fail:
+	if (error) {
+		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+		if (type == 0)
+			suword(&job->_aiocb_private.error, error);
+		goto done;
+	}
+no_kqueue:
 
 	suword(&job->_aiocb_private.error, EINPROGRESS);
 	aiocbe->uaiocb._aiocb_private.error = EINPROGRESS;
