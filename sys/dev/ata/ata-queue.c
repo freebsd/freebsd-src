@@ -315,20 +315,21 @@ ata_completed(void *context, int pending)
 static void
 ata_timeout(struct ata_request *request)
 {
+    struct ata_channel *ch = request->device->channel;
+    int quiet = request->flags & ATA_R_QUIET;
+
     /* clear timeout etc */
     request->timeout_handle.callout = NULL;
-#if 0
-    /* call interrupt to try finish up the command */
-    request->device->channel->hw.interrupt(request->device->channel);
 
-    if (request->device->channel->running == NULL) {
-	if (!(request->flags & ATA_R_QUIET))
+    /* call hw.interrupt to try finish up the command */
+    ch->hw.interrupt(request->device->channel);
+    if (ch->running != request) {
+	if (!quiet)
 	    ata_prtdev(request->device,
 		       "WARNING - %s recovered from missing interrupt\n",
 		       ata_cmd2str(request));
 	return;
     }
-#endif
 
     /* if this was a DMA request stop the engine to be on the safe side */
     if (request->flags & ATA_R_DMA) {
