@@ -596,11 +596,9 @@ printcpuinfo(void)
 	case CPUCLASS_286:
 		printf("286");
 		break;
-#if defined(I386_CPU)
 	case CPUCLASS_386:
 		printf("386");
 		break;
-#endif
 #if defined(I486_CPU)
 	case CPUCLASS_486:
 		printf("486");
@@ -742,23 +740,18 @@ panicifcpuunsupported(void)
 {
 
 #if !defined(lint)
-#if !defined(I386_CPU) && !defined(I486_CPU) && !defined(I586_CPU) && !defined(I686_CPU)
+#if !defined(I486_CPU) && !defined(I586_CPU) && !defined(I686_CPU)
 #error This kernel is not configured for one of the supported CPUs
 #endif
 #else /* lint */
 #endif /* lint */
-#if defined(I386_CPU) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU))
-#error I386_CPU is mutually exclusive with the other cpu types.
-#endif
 	/*
 	 * Now that we have told the user what they have,
 	 * let them know if that machine type isn't configured.
 	 */
 	switch (cpu_class) {
 	case CPUCLASS_286:	/* a 286 should not make it this far, anyway */
-#if !defined(I386_CPU)
 	case CPUCLASS_386:
-#endif
 #if !defined(I486_CPU)
 	case CPUCLASS_486:
 #endif

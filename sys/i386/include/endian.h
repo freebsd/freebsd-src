@@ -98,20 +98,10 @@ __extension__ ({ register __uint32_t __X = (x); \
 
 #endif	/* __OPTIMIZE__ */
 
-#if defined(_KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
-
 #define __byte_swap_int_var(x) \
 __extension__ ({ register __uint32_t __X = (x); \
    __asm ("bswap %0" : "+r" (__X)); \
    __X; })
-#else
-
-#define __byte_swap_int_var(x) \
-__extension__ ({ register __uint32_t __X = (x); \
-   __asm ("xchgb %h0, %b0\n\trorl $16, %0\n\txchgb %h0, %b0" \
-       : "+q" (__X)); \
-   __X; })
-#endif
 
 #ifdef __OPTIMIZE__
 
