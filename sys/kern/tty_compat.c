@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.13 1995/05/30 08:06:09 rgrimes Exp $
+ * $Id: tty_compat.c,v 1.14 1995/08/01 23:27:36 ache Exp $
  */
 
 /*
@@ -78,7 +78,10 @@ static struct speedtab compatspeeds[] = {
 	{ 0,	0 },
 	{ -1,	-1 },
 };
-extern int validspeed[];     /* in tty.c */
+static int compatspcodes[] = {
+	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200,
+	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200,
+};
 
 int ttsetcompat(tp, com, data, term)
 	register struct tty *tp;
@@ -95,11 +98,11 @@ int ttsetcompat(tp, com, data, term)
 		if ((speed = sg->sg_ispeed) > MAX_SPEED || speed < 0)
 			return(EINVAL);
 		else
-			term->c_ispeed = validspeed[speed];
+			term->c_ispeed = compatspcodes[speed];
 		if ((speed = sg->sg_ospeed) > MAX_SPEED || speed < 0)
 			return(EINVAL);
 		else
-			term->c_ospeed = validspeed[speed];
+			term->c_ospeed = compatspcodes[speed];
 		term->c_cc[VERASE] = sg->sg_erase;
 		term->c_cc[VKILL] = sg->sg_kill;
 		tp->t_flags = (tp->t_flags&0xffff0000) | (sg->sg_flags&0xffff);
