@@ -1,20 +1,28 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.37 1994/08/24 11:44:45 sos Exp $
+#	$Id: files.i386,v 1.38 1994/08/24 22:37:56 ats Exp $
 #
 i386/i386/autoconf.c		standard	device-driver
+i386/i386/conf.c		standard
 i386/i386/cons.c		standard
 i386/i386/db_disasm.c		optional	ddb
 i386/i386/db_interface.c	optional	ddb
 i386/i386/db_trace.c		optional	ddb
+i386/i386/exception.s		standard
 i386/i386/in_cksum.c		optional	inet
+# locore.s needs to be handled in Makefile to put it first.  Otherwise it's
+# now normal.
+# i386/i386/locore.s		standard
+i386/i386/machdep.c		standard
 i386/i386/math_emulate.c	optional	math_emulate
 i386/i386/mem.c			standard
 i386/i386/microtime.s		standard
 i386/i386/ns_cksum.c		optional	ns
 i386/i386/pmap.c		standard
 i386/i386/procfs_machdep.c	optional	procfs
+i386/i386/support.s		standard
+i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
 i386/i386/vm_machdep.c		standard
@@ -36,7 +44,6 @@ i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aha1742.c		optional	ahb	device-driver
 i386/isa/bt742a.c		optional	bt	device-driver
 i386/isa/clock.c		standard
-i386/isa/com.c			optional	com	device-driver
 i386/isa/fd.c			optional	fd	device-driver
 i386/isa/ft.c			optional	ft	device-driver
 i386/isa/elink.c		optional	ie	device-driver
@@ -49,7 +56,6 @@ i386/isa/if_is.c		optional	is	device-driver
 i386/isa/if_ix.c		optional	ix	device-driver
 i386/isa/if_le.c		optional	le	device-driver
 i386/isa/isa.c			optional	isa	device-driver
-i386/isa/lpa.c			optional	lpa	device-driver
 i386/isa/lpt.c			optional	lpt	device-driver
 i386/isa/mcd.c			optional	mcd	device-driver
 i386/isa/mse.c			optional	mse	device-driver
