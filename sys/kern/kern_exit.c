@@ -114,6 +114,7 @@ exit1(struct thread *td, int rv)
 	struct ucred *tracecred;
 #endif
 	struct plimit *plim;
+	int refcnt;
 
 	/*
 	 * Drop Giant if caller has it.  Eventually we should warn about
@@ -254,7 +255,6 @@ retry:
 	}
 	mtx_unlock(&ppeers_lock);
 
-	mtx_lock(&Giant);	
 	/* The next two chunks should probably be moved to vmspace_exit. */
 	vm = p->p_vmspace;
 	/*
@@ -272,8 +272,11 @@ retry:
 	 * by vmspace_exit() (which decrements exitingcnt) cleans up the
 	 * remainder.
 	 */
-	++vm->vm_exitingcnt;
-	if (--vm->vm_refcnt == 0) {
+	atomic_add_int(&vm->vm_exitingcnt, 1);
+	do
+		refcnt = vm->vm_refcnt;
+	while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt - 1));
+	if (refcnt == 1) {
 		shmexit(vm);
 		pmap_remove_pages(vmspace_pmap(vm), vm_map_min(&vm->vm_map),
 		    vm_map_max(&vm->vm_map));
@@ -281,6 +284,7 @@ retry:
 		    vm_map_max(&vm->vm_map));
 	}
 
+	mtx_lock(&Giant);	
 	sx_xlock(&proctree_lock);
 	if (SESS_LEADER(p)) {
 		struct session *sp;
