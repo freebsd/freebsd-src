@@ -162,7 +162,9 @@ SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
 #define DEVNAME_SIM	"umass-sim"
 
 #define UMASS_MAX_TRANSFER_SIZE		65536
-#define UMASS_DEFAULT_TRANSFER_SPEED	1000
+/* Approximate maximum transfer speeds (assumes 33% overhead). */
+#define UMASS_FULL_TRANSFER_SPEED	1000
+#define UMASS_HIGH_TRANSFER_SPEED	40000
 #define UMASS_FLOPPY_TRANSFER_SPEED	20
 
 #define UMASS_TIMEOUT			5000 /* msecs */
@@ -2495,9 +2497,15 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->max_lun = 0;
 		} else {
 			if (sc->quirks & FLOPPY_SPEED) {
-			    cpi->base_transfer_speed = UMASS_FLOPPY_TRANSFER_SPEED;
+				cpi->base_transfer_speed =
+				    UMASS_FLOPPY_TRANSFER_SPEED;
+			} else if (usbd_get_speed(sc->sc_udev) ==
+			    USB_SPEED_HIGH) {
+				cpi->base_transfer_speed =
+				    UMASS_HIGH_TRANSFER_SPEED;
 			} else {
-			    cpi->base_transfer_speed = UMASS_DEFAULT_TRANSFER_SPEED;
+				cpi->base_transfer_speed =
+				    UMASS_FULL_TRANSFER_SPEED;
 			}
 			cpi->max_lun = sc->maxlun;
 		}
