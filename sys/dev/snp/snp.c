@@ -23,6 +23,7 @@
 #include <sys/conf.h>
 #include <sys/poll.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
 #include <sys/snoop.h>
 #include <sys/vnode.h>
 
@@ -63,6 +64,9 @@ static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
  * module load time.
  */
 static int snooplinedisc;
+
+
+static LIST_HEAD(, snoop) snp_sclist = LIST_HEAD_INITIALIZER(&snp_sclist);
 
 static struct tty	*snpdevtotty __P((dev_t dev));
 static void		snp_clone __P((void *arg, char *name,
@@ -361,6 +365,8 @@ snpopen(dev, flag, mode, p)
 	 */
 	snp->snp_tty = NULL;
 	snp->snp_target = NODEV;
+
+	LIST_INSERT_HEAD(&snp_sclist, snp, snp_list);
 	return (0);
 }
 
@@ -413,6 +419,7 @@ snpclose(dev, flags, fmt, p)
 
 	snp = dev->si_drv1;
 	snp->snp_blen = 0;
+	LIST_REMOVE(snp, snp_list);
 	free(snp->snp_buf, M_SNP);
 	snp->snp_flags &= ~SNOOP_OPEN;
 	dev->si_drv1 = NULL;
@@ -583,7 +590,8 @@ snp_modevent(mod, type, data)
 		cdevsw_add(&snp_cdevsw);
 		break;
 	case MOD_UNLOAD:
-		/* XXX don't unload if busy. */
+		if (!LIST_EMPTY(&snp_sclist))
+			return (EBUSY);
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
 		ldisc_deregister(snooplinedisc);
 		cdevsw_remove(&snp_cdevsw);
