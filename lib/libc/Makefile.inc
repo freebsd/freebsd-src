@@ -1,7 +1,22 @@
-#	$Id: Makefile.inc,v 1.2 1997/10/15 16:29:08 bde Exp $
+#	$Id: Makefile.inc,v 1.3 1997/10/16 13:46:42 bde Exp $
 #
 # This file contains make rules that are shared by libc and libc_r.
 #
+# Define (empty) variables so that make doesn't give substitution
+# errors if the included makefiles don't change these:
+MDSRCS=
+MISRCS=
+MDASM=
+MIASM=
+NOASM=
+
+#
+# If there is a machine dependent makefile, use it:
+#
+.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/Makefile.inc)
+.include "${.CURDIR}/../libc/${MACHINE_ARCH}/Makefile.inc"
+.endif
+
 .include "${.CURDIR}/../libc/db/Makefile.inc"
 .include "${.CURDIR}/../libc/compat-43/Makefile.inc"
 .include "${.CURDIR}/../libc/gen/Makefile.inc"
@@ -9,7 +24,9 @@
 .include "${.CURDIR}/../libc/locale/Makefile.inc"
 .include "${.CURDIR}/../libc/net/Makefile.inc"
 .include "${.CURDIR}/../libc/nls/Makefile.inc"
+.if !defined(NO_QUAD)
 .include "${.CURDIR}/../libc/quad/Makefile.inc"
+.endif
 .include "${.CURDIR}/../libc/regex/Makefile.inc"
 .include "${.CURDIR}/../libc/stdio/Makefile.inc"
 .include "${.CURDIR}/../libc/stdlib/Makefile.inc"
@@ -23,9 +40,13 @@ CFLAGS+= -DYP
 .include "${.CURDIR}/../libc/yp/Makefile.inc"
 .endif
 
+# If there are no machine dependent sources, append all the
+# machine-independent sources:
+.if empty(MDSRCS)
+SRCS+=	${MISRCS}
+.else
 # Append machine-dependent sources, then append machine-independent sources
 # for which there is no machine-dependent variant.
-.if !empty(MDSRCS)
 SRCS+=	${MDSRCS}
 .for _src in ${MISRCS}
 .if ${MDSRCS:R:M${_src:R}} == ""
