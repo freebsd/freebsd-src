@@ -152,16 +152,14 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD, 0, "SCHED");
+SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD, 0, "Scheduler");
 
-#define SCHD_NAME	"4bsd"
-#define SCHD_NAME_LEN	4
-SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, SCHD_NAME, SCHD_NAME_LEN,
-	      "System is using the 4BSD scheduler");
+SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "4BSD", 0,
+    "Scheduler name");
 
-SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof sched_quantum, sysctl_kern_quantum, "I",
-	"Roundrobin scheduling quantum in microseconds");
+SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT | CTLFLAG_RW,
+    0, sizeof sched_quantum, sysctl_kern_quantum, "I",
+    "Roundrobin scheduling quantum in microseconds");
 
 /*
  * Arrange to reschedule if necessary, taking the priorities and

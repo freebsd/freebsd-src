@@ -61,12 +61,10 @@ SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 static void sched_setup(void *dummy);
 SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
 
-static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "SCHED");
+static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
 
-#define ULE_NAME	"ule"
-#define ULE_NAME_LEN	3
-SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, ULE_NAME, ULE_NAME_LEN,
-	      "System is using the ULE scheduler");
+SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "ule", 0,
+    "Scheduler name");
 
 static int slice_min = 1;
 SYSCTL_INT(_kern_sched, OID_AUTO, slice_min, CTLFLAG_RW, &slice_min, 0, "");
