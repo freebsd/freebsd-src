@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/* From: NetBSD: types.h,v 1.8 1997/04/06 08:47:45 cgd Exp */
-
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -34,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
+ *	$NetBSD: types.h,v 1.8 1997/04/06 08:47:45 cgd Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_MACHTYPES_H_
@@ -42,11 +41,11 @@
 #include <sys/cdefs.h>
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-typedef struct _physadr {
+typedef	struct _physadr {
 	long	r[1];
 } *physadr;
 
-typedef struct label_t {
+typedef	struct label_t {
 	long	val[10];
 } label_t;
 #endif
@@ -56,8 +55,8 @@ typedef	long		vm_ooffset_t;
 typedef	unsigned long	vm_pindex_t;
 typedef	unsigned long	vm_size_t;
 
-typedef __int64_t		register_t;
-typedef __uint64_t		u_register_t;
+typedef	__int64_t	register_t;
+typedef	__uint64_t	u_register_t;
 
 #ifdef _KERNEL
 typedef	long		intfptr_t;
@@ -65,9 +64,9 @@ typedef	unsigned long	uintfptr_t;
 #endif
 
 /* Critical section value */
-typedef register_t		critical_t;
+typedef	register_t	critical_t;
 
 /* Interrupt mask (spl, xxx_imask, etc) */
-typedef __uint32_t		intrmask_t;
+typedef	__uint32_t	intrmask_t;
 
 #endif	/* _MACHTYPES_H_ */

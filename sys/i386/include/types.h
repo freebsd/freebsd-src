@@ -38,12 +38,12 @@
 #define	_MACHINE_TYPES_H_
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-typedef struct _physadr {
-	int r[1];
+typedef	struct _physadr {
+	int	r[1];
 } *physadr;
 
-typedef struct label_t {
-	int val[6];
+typedef	struct label_t {
+	int	val[6];
 } label_t;
 #endif
 
@@ -61,12 +61,12 @@ typedef	unsigned int	uintfptr_t;
 #endif
 
 /* Critical section value */
-typedef register_t		critical_t;
+typedef	register_t	critical_t;
 
 /* Interrupt mask (spl, xxx_imask, etc) */
-typedef __uint32_t		intrmask_t;
+typedef	__uint32_t	intrmask_t;
 
 /* Interrupt handler function type. */
-typedef	void			ointhand2_t __P((int _device_id));
+typedef	void		ointhand2_t __P((int _device_id));
 
 #endif /* !_MACHINE_TYPES_H_ */
