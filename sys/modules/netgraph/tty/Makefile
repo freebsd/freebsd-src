@@ -3,5 +3,6 @@
 
 KMOD=		ng_tty
 SRCS= 		ng_tty.c
+NOMAN=
 
 .include <bsd.kmod.mk>

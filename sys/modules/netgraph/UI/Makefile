@@ -3,5 +3,6 @@
 
 KMOD=		ng_UI
 SRCS= 		ng_UI.c
+NOMAN=
 
 .include <bsd.kmod.mk>

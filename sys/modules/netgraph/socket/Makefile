@@ -3,5 +3,6 @@
 
 KMOD=		ng_socket
 SRCS= 		ng_socket.c
+NOMAN=
 
 .include <bsd.kmod.mk>
