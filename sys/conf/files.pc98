@@ -129,8 +129,6 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_pc98.c		standard
 geom/geom_pc98_enc.c		standard
-libkern/ffsl.c			standard
-libkern/flsl.c			standard
 i386/bios/apm.c			optional	apm
 i386/i386/apic_vector.s		optional	apic
 i386/i386/atomic.c		standard				\
@@ -211,8 +209,8 @@ i386/linux/linux_machdep.c	optional	compat_linux
 i386/linux/linux_ptrace.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
-i386/pci/pci_cfgreg.c		optional	pci
 i386/pci/pci_bus.c		optional	pci
+i386/pci/pci_cfgreg.c		optional	pci
 i386/pci/pci_pir.c		optional	pci
 i386/svr4/svr4_locore.s		optional	compat_svr4		\
 	dependency	"svr4_assym.h"	\
@@ -310,6 +308,8 @@ i4b/layer1/itjc/i4b_itjc_l1fsm.c	optional	itjc
 kern/imgact_aout.c		optional	compat_aout
 kern/imgact_gzip.c		optional	gzip
 libkern/divdi3.c		standard
+libkern/ffsl.c			standard
+libkern/flsl.c			standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
@@ -343,10 +343,10 @@ pc98/pc98/syscons_pc98.c	optional	sc
 pc98/pc98/wd.c			count		wdc
 pc98/pc98/wd_cd.c		count		wcd wdc
 pccard/mecia.c			optional	mecia card
-pci/agp_intel.c			optional	agp
-pci/agp_via.c			optional	agp
-pci/agp_sis.c			optional	agp
 pci/agp_ali.c			optional	agp
 pci/agp_amd.c			optional	agp
 pci/agp_i810.c			optional	agp
+pci/agp_intel.c			optional	agp
 pci/agp_nvidia.c		optional	agp
+pci/agp_sis.c			optional	agp
+pci/agp_via.c			optional	agp
