@@ -1171,7 +1171,7 @@ checklabel(struct disklabel *lp)
 				case '\0':
 					break;
 				default:
-					warnx("unknown multiplier prefix '%c' for partition %c (should be K, M, G or T)",
+					warnx("unknown multiplier suffix '%c' for partition %c (should be K, M, G or T)",
 					    part_size_type[i], i + 'a');
 					break;
 				}
