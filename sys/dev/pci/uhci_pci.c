@@ -183,15 +183,12 @@ uhci_pci_attach(parent, self, aux)
 
 	sc->sc_dmatag = pa->pa_dmat;
 
-
 	/* Enable the device. */
 	csr = pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_COMMAND_STATUS_REG);
 	pci_conf_write(pa->pa_pc, pa->pa_tag, PCI_COMMAND_STATUS_REG,
 		       csr | PCI_COMMAND_MASTER_ENABLE);
 
 	/* Map and establish the interrupt. */
-               return EFAULT;
-
 	if (pci_intr_map(pc, pa->pa_intrtag, pa->pa_intrpin,
 	    pa->pa_intrline, &ih)) {
 		printf("%s: couldn't map interrupt\n", 
@@ -245,19 +242,15 @@ uhci_pci_attach(parent, self, aux)
 #elif defined(__FreeBSD__)
 
 static void
-uhci_pci_attach(config_id, unit)
-        pcici_t config_id;
-        int unit;
+uhci_pci_attach(pcici_t config_id, int unit)
 {
-	int irq;
 	int id;
 	char *typestr;
-	char devinfo[256];
 	usbd_status r;
 	uhci_softc_t *sc = NULL;
-	int legsup;
 
 	sc = malloc(sizeof(uhci_softc_t), M_DEVBUF, M_NOWAIT);
+	/* Do not free it below, intr might use the sc */
 	if ( sc == NULL ) {
 		printf("usb%d: could not allocate memory", unit);
 		return;
@@ -265,7 +258,6 @@ uhci_pci_attach(config_id, unit)
 	memset(sc, 0, sizeof(uhci_softc_t));
 
 	sc->sc_iobase = pci_conf_read(config_id,PCI_UHCI_BASE_REG) & 0xffe0;
-	sc->sc_int    = pci_conf_read(config_id,PCI_INTERRUPT_REG) & 0xff;
 	sc->unit      = unit;
 
 	if ( !pci_map_int(config_id, (pci_inthand_t *)uhci_intr,
@@ -274,8 +266,10 @@ uhci_pci_attach(config_id, unit)
 		return;                    
 	}
 
-	if (bootverbose) {
-		printf("usb%d: interrupting at %d\n", unit, sc->sc_int);
+#ifndef USBVERBOSE
+	if (bootverbose)
+#endif
+	{
 		switch(pci_conf_read(config_id, PCI_USBREV) & PCI_USBREV_MASK) {
 		case PCI_USBREV_PRE_1_0:
 			typestr = "pre 1.0";
@@ -287,7 +281,9 @@ uhci_pci_attach(config_id, unit)
 			typestr = "unknown";
 			break;
 		}
-		printf("usb%d: USB version %s\n", unit, typestr);
+		printf("usb%d: USB version %s, interrupting at %d\n", unit,
+			typestr,
+			(int)pci_conf_read(config_id,PCI_INTERRUPT_REG) & 0xff);
 	}
 
 	/* Figure out vendor for root hub descriptor. */
@@ -296,13 +292,6 @@ uhci_pci_attach(config_id, unit)
 		sprintf(sc->sc_vendor, "Intel");
 	else
 		sprintf(sc->sc_vendor, "Vendor 0x%04x", PCI_VENDOR(id));
-
-	r = uhci_init(sc);
-	if (r != USBD_NORMAL_COMPLETION) {
-		printf("usb%d: init failed, error=%d\n", unit, r);
-		return;
-	}
-
 
 	/* We add a child to the root bus. After PCI configuration
 	 * has completed the root bus will start to probe and
@@ -317,9 +306,19 @@ uhci_pci_attach(config_id, unit)
 	 * structure in spe.
 	 */
 	sc->sc_bus.bdev = device_add_child(root_bus, "usb", unit, sc);
-	if (!sc->sc_bus.bdev)
+	if (!sc->sc_bus.bdev) {
 		DEVICE_ERROR(sc->sc_bus.bdev,
 			("unable to add USB device to root bus\n"));
+		return;
+	}
+
+	r = uhci_init(sc);
+	if (r != USBD_NORMAL_COMPLETION) {
+		printf("usb%d: init failed, error=%d\n", unit, r);
+		device_delete_child(root_bus, sc->sc_bus.bdev);
+		return;
+	}
+
 
 	id = pci_conf_read(config_id, PCI_ID_REG);
 	switch (id) {
