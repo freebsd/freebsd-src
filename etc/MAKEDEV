@@ -102,7 +102,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.125 1996/10/22 20:41:03 se Exp $
+#	$Id: MAKEDEV,v 1.126 1996/10/25 15:01:33 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -760,7 +760,7 @@ cuac?)
 		rm -f cuac$name cuaic$name cualc$name
 		mknod cuac$name c $major `expr $minor + 128`
 		mknod cuaic$name c $major `expr $minor + 32 + 128`
-		mknod cualc$name c $major `expr $minor + 64 + 192`
+		mknod cualc$name c $major `expr $minor + 64 + 128`
 		chown uucp.dialer cuac$name cuaic$name cualc$name
 	done
 	umask 77
@@ -885,7 +885,7 @@ cuaD?)
 		rm -f cua*D$name
 		mknod cuaD$name c $major `expr $minor + 128`
 		mknod cuaiD$name c $major `expr $minor + 32 + 128`
-		mknod cualD$name c $major `expr $minor + 64 + 192`
+		mknod cualD$name c $major `expr $minor + 64 + 128`
 		chown uucp.dialer cua*D$name
 	done
 	umask 77
