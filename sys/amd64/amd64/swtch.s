@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.48 1997/04/26 11:45:24 peter Exp $
+ *	$Id: swtch.s,v 1.49 1997/04/28 08:39:48 fsmp Exp $
  */
 
 #include "npx.h"
 #include "opt_user_ldt.h"
-#include "opt_smp.h"
 #include "opt_smp_privpages.h"
 
 #include <sys/rtprio.h>
