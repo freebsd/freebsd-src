@@ -74,6 +74,7 @@
 
 #define PCI_OHCI_VENDORID_ALI		0x10b9
 #define PCI_OHCI_VENDORID_AMD756	0x1022
+#define PCI_OHCI_VENDORID_APPLE		0x106b
 #define PCI_OHCI_VENDORID_CMDTECH	0x1095
 #define PCI_OHCI_VENDORID_COMPAQ	0x0e11
 #define PCI_OHCI_VENDORID_NEC		0x1033
@@ -94,6 +95,8 @@ static const char *ohci_device_usb0670	 = "CMD Tech 670 (USB0670) USB controller
 static const char *ohci_device_usb0673	 = "CMD Tech 673 (USB0673) USB controller";
 #define PCI_OHCI_DEVICEID_SIS5571	0x70011039
 static const char *ohci_device_sis5571	 = "SiS 5571 USB controller";
+#define PCI_OHCI_DEVICEID_KEYLARGO	0x0019106b
+static const char *ohci_device_keylargo	 = "Apple KeyLargo USB controller";
 
 static const char *ohci_device_generic   = "OHCI (generic) USB controller";
 
@@ -123,6 +126,8 @@ ohci_pci_match(device_t self)
 		return (ohci_device_nec);
 	case PCI_OHCI_DEVICEID_SIS5571:
 		return (ohci_device_sis5571);
+	case PCI_OHCI_DEVICEID_KEYLARGO:
+		return (ohci_device_keylargo);
 	default:
 		if (   pci_get_class(self)    == PCIC_SERIALBUS
 		    && pci_get_subclass(self) == PCIS_SERIALBUS_USB
