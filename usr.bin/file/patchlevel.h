@@ -1,11 +1,17 @@
 #define	FILE_VERSION_MAJOR	3
-#define	patchlevel		14
+#define	patchlevel		19
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.1.1.1 1994/09/03 19:16:23 csgr Exp $
+ * $Id: patchlevel.h,v 1.2 1995/05/30 06:30:06 rgrimes Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.2  1995/05/30 06:30:06  rgrimes
+ * Remove trailing whitespace.
+ *
+ * Revision 1.1.1.2  1996/01/22 22:31:44  mpp
+ * Upgrade to file version 3.19.
+ *
  * Revision 1.1.1.1  1994/09/03  19:16:23  csgr
  * Bring in file 3.14 by Ian Darwin (and Christos Zoulas)
  *
@@ -15,6 +21,38 @@
  *
  * The following file was removed:
  * - Magdir/Makefile
+ *
+ * Revision 1.19  1995/10/27  23:14:46  christos
+ * Ability to parse colon separated list of magic files
+ * New LEGAL.NOTICE
+ * Various magic file changes
+ *
+ * Revision 1.18  1995/05/20  22:09:21  christos
+ * Passed incorrect argument to eatsize().
+ * Use %ld and %lx where appropriate.
+ * Remove unused variables
+ * ELF support for both big and little endian
+ * Fixes for small files again.
+ *
+ * Revision 1.17  1995/04/28  17:29:13  christos
+ * - Incorrect nroff detection fix from der Mouse
+ * - Lost and incorrect magic entries.
+ * - Added ELF stripped binary detection [in C; ugh]
+ * - Look for $MAGIC to find the magic file.
+ * - Eat trailing size specifications from numbers i.e. ignore 10L
+ * - More fixes for very short files
+ *
+ * Revision 1.16  1995/03/25  22:06:45  christos
+ * - use strtoul() where it exists.
+ * - fix sign-extend bug
+ * - try to detect tar archives before nroff files, otherwise
+ *   tar files where the first file starts with a . will not work
+ *
+ * Revision 1.15  1995/01/21  21:03:35  christos
+ * Added CSECTION for the file man page
+ * Added version flag -v
+ * Fixed bug with -f input flag (from iorio@violet.berkeley.edu)
+ * Lots of magic fixes and reorganization...
  *
  * Revision 1.14  1994/05/03  17:58:23  christos
  * changes from mycroft@gnu.ai.mit.edu (Charles Hannum) for unsigned
