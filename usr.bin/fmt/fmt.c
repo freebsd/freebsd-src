@@ -134,7 +134,7 @@ fmt(fi)
 	FILE *fi;
 {
 	char linebuf[BUFSIZ], canonb[BUFSIZ];
-	register char *cp, *cp2;
+	register char *cp, *cp2, cc;
 	register int c, col;
 
 	c = getc(fi);
@@ -151,7 +151,7 @@ fmt(fi)
 				c = getc(fi);
 				continue;
 			}
-			if ((c < ' ' || c >= 0177) && c != '\t') {
+			if (!isprint(c) && c != '\t') {
 				c = getc(fi);
 				continue;
 			}
@@ -172,11 +172,11 @@ fmt(fi)
 		col = 0;
 		cp = linebuf;
 		cp2 = canonb;
-		while (c = *cp++) {
-			if (c != '\t') {
+		while (cc = *cp++) {
+			if (cc != '\t') {
 				col++;
 				if (cp2-canonb < BUFSIZ-1)
-					*cp2++ = c;
+					*cp2++ = cc;
 				continue;
 			}
 			do {
@@ -211,7 +211,7 @@ prefix(line)
 	register char *cp, **hp;
 	register int np, h;
 
-	if (strlen(line) == 0) {
+	if (!*line) {
 		oflush();
 		putchar('\n');
 		return;
