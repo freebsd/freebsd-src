@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.12 1995/04/11 17:54:25 ache Exp $
+ * $Id: tty_compat.c,v 1.17 1995/08/02 12:53:14 ache Exp $
  */
 
 /*
@@ -80,8 +80,21 @@ static struct speedtab compatspeeds[] = {
 };
 static int compatspcodes[] = {
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200,
-	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200,
+	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200
 };
+
+static
+int ttcompatspeedtab(speed, table)
+	int speed;
+	register struct speedtab *table;
+{
+	if (speed == 0)
+		return (0); /* hangup */
+	for ( ; table->sp_speed > 0; table++)
+		if (table->sp_speed <= speed) /* nearest one, rounded down */
+			return (table->sp_code);
+	return (1); /* 50, min and not hangup */
+}
 
 int ttsetcompat(tp, com, data, term)
 	register struct tty *tp;
@@ -97,12 +110,16 @@ int ttsetcompat(tp, com, data, term)
 
 		if ((speed = sg->sg_ispeed) > MAX_SPEED || speed < 0)
 			return(EINVAL);
-		else
+		else if (speed != ttcompatspeedtab(tp->t_ispeed, compatspeeds))
 			term->c_ispeed = compatspcodes[speed];
+		else
+			term->c_ispeed = tp->t_ispeed;
 		if ((speed = sg->sg_ospeed) > MAX_SPEED || speed < 0)
 			return(EINVAL);
-		else
+		else if (speed != ttcompatspeedtab(tp->t_ospeed, compatspeeds))
 			term->c_ospeed = compatspcodes[speed];
+		else
+			term->c_ospeed = tp->t_ospeed;
 		term->c_cc[VERASE] = sg->sg_erase;
 		term->c_cc[VKILL] = sg->sg_kill;
 		tp->t_flags = (tp->t_flags&0xffff0000) | (sg->sg_flags&0xffff);
@@ -187,16 +204,12 @@ ttcompat(tp, com, data, flag)
 	case TIOCGETP: {
 		register struct sgttyb *sg = (struct sgttyb *)data;
 		register cc_t *cc = tp->t_cc;
-		register speed;
 
-		speed = ttspeedtab(tp->t_ospeed, compatspeeds);
-		sg->sg_ospeed = (speed == -1) ? MAX_SPEED : speed;
+		sg->sg_ospeed = ttcompatspeedtab(tp->t_ospeed, compatspeeds);
 		if (tp->t_ispeed == 0)
 			sg->sg_ispeed = sg->sg_ospeed;
-		else {
-			speed = ttspeedtab(tp->t_ispeed, compatspeeds);
-			sg->sg_ispeed = (speed == -1) ? MAX_SPEED : speed;
-		}
+		else
+			sg->sg_ispeed = ttcompatspeedtab(tp->t_ispeed, compatspeeds);
 		sg->sg_erase = cc[VERASE];
 		sg->sg_kill = cc[VKILL];
 		sg->sg_flags = tp->t_flags = ttcompatgetflags(tp);

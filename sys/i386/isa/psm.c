@@ -55,7 +55,6 @@
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/ioctl.h>
-#include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
@@ -150,8 +149,10 @@ int psmprobe(struct isa_device *dvp)
 
 	ioport=dvp->id_iobase;
 	unit=dvp->id_unit;
+#ifndef PSM_NO_RESET
 	psm_write_dev(ioport,0xff); /* Reset aux device */
 	psm_poll_status();
+#endif
 	outb(ioport+CNTRL,0xa9);
 	psm_poll_status();
 	outb(ioport+CNTRL,0xaa);
@@ -354,7 +355,7 @@ int psmread(dev_t dev, struct uio *uio, int flag)
 	return(error);
 }
 
-int psmioctl(dev_t dev, caddr_t addr, int cmd, int flag, struct proc *p)
+int psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct psm_softc *sc;
 	struct mouseinfo info;

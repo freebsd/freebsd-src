@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.11 1995/04/12 20:47:59 wollman Exp $
+ * $Id: mse.c,v 1.14 1995/09/08 11:07:50 bde Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -53,7 +53,6 @@
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/ioctl.h>
-#include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/devconf.h>
 
@@ -242,9 +241,11 @@ mseattach(idp)
  * Exclusive open the mouse, initialize it and enable interrupts.
  */
 int
-mseopen(dev, flag)
+mseopen(dev, flags, fmt, p)
 	dev_t dev;
-	int flag;
+	int flags;
+	int fmt;
+	struct proc *p;
 {
 	register struct mse_softc *sc;
 	int s;
@@ -273,9 +274,11 @@ mseopen(dev, flag)
  * mseclose: just turn off mouse innterrupts.
  */
 int
-mseclose(dev, flag)
+mseclose(dev, flags, fmt, p)
 	dev_t dev;
-	int flag;
+	int flags;
+	int fmt;
+	struct proc *p;
 {
 	struct mse_softc *sc = &mse_sc[MSE_UNIT(dev)];
 	int s;
@@ -294,9 +297,10 @@ mseclose(dev, flag)
  * (Yes this is cheesy, but it makes the X386 server happy, so...)
  */
 int
-mseread(dev, uio)
+mseread(dev, uio, ioflag)
 	dev_t dev;
 	struct uio *uio;
+	int ioflag;
 {
 	register struct mse_softc *sc = &mse_sc[MSE_UNIT(dev)];
 	int xfer, s, error;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.12 1995/03/30 14:33:03 sos Exp $
+ *	$Id: pcaudio.c,v 1.13 1995/05/30 08:02:55 rgrimes Exp $
  */
 
 #include "pca.h"
@@ -81,8 +81,8 @@ static int pca_initialized = 0;
 void pcaintr(struct clockframe *frame);
 int pcaprobe(struct isa_device *dvp);
 int pcaattach(struct isa_device *dvp);
-int pcaclose(dev_t dev, int flag);
-int pcaopen(dev_t dev, int flag);
+int pcaclose(dev_t dev, int flags, int fmt, struct proc *p);
+int pcaopen(dev_t dev, int flags, int fmt, struct proc *p);
 int pcawrite(dev_t dev, struct uio *uio, int flag);
 int pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p);
 int pcaselect(dev_t dev, int rw, struct proc *p);
@@ -257,7 +257,7 @@ pcaattach(struct isa_device *dvp)
 
 
 int
-pcaopen(dev_t dev, int flag)
+pcaopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	/* audioctl device can always be opened */
 	if (minor(dev) == 128)
@@ -285,7 +285,7 @@ pcaopen(dev_t dev, int flag)
 
 
 int
-pcaclose(dev_t dev, int flag)
+pcaclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	/* audioctl device can always be closed */
 	if (minor(dev) == 128)

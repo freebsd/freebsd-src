@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.17 1995/04/11 17:53:14 ache Exp $
+ * $Id: tty.h,v 1.31 1995/07/31 22:50:08 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -90,11 +90,11 @@ struct tty {
 					/* Set hardware state. */
 	int	(*t_param) __P((struct tty *, struct termios *));
 	void	*t_sc;			/* XXX: net/if_sl.c:sl_softc. */
-	short	t_column;		/* Tty output column. */
-	short	t_rocount, t_rocol;	/* Tty. */
-	short	t_hiwat;		/* High water mark. */
-	short	t_lowat;		/* Low water mark. */
-	short	t_gen;			/* Generation number. */
+	int	t_column;		/* Tty output column. */
+	int	t_rocount, t_rocol;	/* Tty. */
+	int	t_hiwat;		/* High water mark. */
+	int	t_lowat;		/* Low water mark. */
+	int	t_gen;			/* Generation number. */
 };
 
 #define	t_cc		t_termios.c_cc
@@ -118,7 +118,9 @@ struct tty {
 #define	IBUFSIZ	384			/* Should be >= max value of MIN. */
 #define	OBUFSIZ	100
 
+#ifndef TTYHOG
 #define	TTYHOG	1024
+#endif
 
 #ifdef KERNEL
 #define	TTMAXHIWAT	roundup(2048, CBSIZE)
@@ -128,7 +130,7 @@ struct tty {
 #endif
 
 /* These flags are kept in t_state. */
-#define	TS_ASLEEP	0x00001		/* Process waiting for tty. */
+#define	TS_SO_OLOWAT	0x00001		/* Wake up when output <= low water. */
 #define	TS_ASYNC	0x00002		/* Tty in async I/O mode. */
 #define	TS_BUSY		0x00004		/* Draining output. */
 #define	TS_CARR_ON	0x00008		/* Carrier is present. */
@@ -137,7 +139,9 @@ struct tty {
 #define	TS_TBLOCK	0x00040		/* Further input blocked. */
 #define	TS_TIMEOUT	0x00080		/* Wait for output char processing. */
 #define	TS_TTSTOP	0x00100		/* Output paused. */
+#ifdef notyet
 #define	TS_WOPEN	0x00200		/* Open in progress. */
+#endif
 #define	TS_XCLUDE	0x00400		/* Tty requires exclusivity. */
 
 /* State for intra-line fancy editing work. */
@@ -147,16 +151,20 @@ struct tty {
 #define	TS_LNCH		0x04000		/* Next character is literal. */
 #define	TS_TYPEN	0x08000		/* Retyping suspended input (PENDIN). */
 #define	TS_LOCAL	(TS_BKSL | TS_CNTTB | TS_ERASE | TS_LNCH | TS_TYPEN)
-/*
- * Snoop state,we need this as we have no other indication of
- * begin snoopped.
- */
-#define TS_SNOOP	0x10000		/* There is snoop on device */
-/*
- * States for serial devices
- */
-#define TS_CAN_BYPASS_L_RINT 0x20000    /* device in "raw" mode */
 
+/* Extras. */
+#define	TS_CAN_BYPASS_L_RINT 0x010000	/* Device in "raw" mode. */
+#define	TS_CONNECTED	0x020000	/* Connection open. */
+#define	TS_SNOOP	0x040000	/* Device is being snooped on. */
+#define	TS_SO_OCOMPLETE	0x080000	/* Wake up when output completes. */
+#define	TS_ZOMBIE	0x100000	/* Connection lost. */
+
+/* Hardware flow-control-invoked bits. */
+#define	TS_CAR_OFLOW	0x200000	/* For MDMBUF (XXX handle in driver). */
+#ifdef notyet
+#define	TS_CTS_OFLOW	0x400000	/* For CCTS_OFLOW. */
+#define	TS_DSR_OFLOW	0x800000	/* For CDSR_OFLOW. */
+#endif
 
 /* Character type information. */
 #define	ORDINARY	0
@@ -195,12 +203,17 @@ struct speedtab {
 #define	isbackground(p, tp)						\
 	(isctty((p), (tp)) && (p)->p_pgrp != (tp)->t_pgrp)
 
+/* Unique sleep addresses. */
+#define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
+#define	TSA_HUP_OR_INPUT(tp)	((void *)&(tp)->t_rawq.c_cf)
+#define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq.c_cl)
+#define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
+#define	TSA_PTC_READ(tp)	((void *)&(tp)->t_outq.c_cf)
+#define	TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
+#define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
+
 #ifdef KERNEL
 extern	struct tty *constty;	/* Temporary virtual console. */
-extern	struct ttychars ttydefaults;
-
-/* Symbolic sleep message strings. */
-extern	 char ttyin[], ttyout[], ttopen[], ttclos[], ttybg[], ttybuf[];
 
 int	 b_to_q __P((char *cp, int cc, struct clist *q));
 void	 catq __P((struct clist *from, struct clist *to));
@@ -218,7 +231,7 @@ int	 unputc __P((struct clist *q));
 int	ttcompat __P((struct tty *tp, int com, caddr_t data, int flag));
 int     ttsetcompat __P((struct tty *tp, int *com, caddr_t data, struct termios *term));
 
-int	 nullmodem __P((struct tty *tp, int flag));
+void	 termioschars __P((struct termios *t));
 int	 tputchar __P((int c, struct tty *tp));
 int	 ttioctl __P((struct tty *tp, int com, void *data, int flag));
 int	 ttread __P((struct tty *tp, struct uio *uio, int flag));
@@ -230,6 +243,8 @@ int	 ttspeedtab __P((int speed, struct speedtab *table));
 int	 ttstart __P((struct tty *tp));
 void	 ttwakeup __P((struct tty *tp));
 int	 ttwrite __P((struct tty *tp, struct uio *uio, int flag));
+void	 ttwwakeup __P((struct tty *tp));
+void	 ttyblock __P((struct tty *tp));
 void	 ttychars __P((struct tty *tp));
 int	 ttycheckoutq __P((struct tty *tp, int wait));
 int	 ttyclose __P((struct tty *tp));
@@ -239,10 +254,6 @@ int	 ttyinput __P((int c, struct tty *tp));
 int	 ttylclose __P((struct tty *tp, int flag));
 int	 ttymodem __P((struct tty *tp, int flag));
 int	 ttyopen __P((dev_t device, struct tty *tp));
-int	 ttyoutput __P((int c, struct tty *tp));
-void	 ttypend __P((struct tty *tp));
-void	 ttyretype __P((struct tty *tp));
-void	 ttyrub __P((int c, struct tty *tp));
 int	 ttysleep __P((struct tty *tp,
 	    void *chan, int pri, char *wmesg, int timeout));
 int	 ttywait __P((struct tty *tp));
@@ -251,6 +262,10 @@ struct tty *ttymalloc __P((void));
 void     ttyfree __P((struct tty *));
 
 /* From tty_tty.c. */
+/*
+ * XXX misplaced - these are just the cdev functions for a particular
+ * driver.
+ */
 int	cttyioctl __P((dev_t dev, int cmd, caddr_t addr, int flag,
 		       struct proc *p));
 int	cttyopen __P((dev_t dev, int flag, int mode, struct proc *p));

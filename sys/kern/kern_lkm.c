@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.12 1995/04/20 05:08:31 wpaul Exp $
+ * $Id: kern_lkm.c,v 1.15 1995/09/08 11:08:34 bde Exp $
  */
 
 /*
@@ -174,11 +174,12 @@ lkmcclose(dev, flag, mode, p)
 
 /*ARGSUSED*/
 int
-lkmcioctl(dev, cmd, data, flag)
+lkmcioctl(dev, cmd, data, flag, p)
 	dev_t dev;
 	int cmd;
 	caddr_t data;
 	int flag;
+	struct proc *p;
 {
 	int err = 0;
 	int i;
@@ -464,10 +465,13 @@ lkmcioctl(dev, cmd, data, flag)
  * Place holder for system call slots reserved for loadable modules.
  */
 int
-lkmnosys()
+lkmnosys(p, args, retval)
+	struct proc *p;
+	struct nosys_args *args;
+	int *retval;
 {
 
-	return(nosys());
+	return(nosys(p, args, retval));
 }
 
 /*
@@ -478,7 +482,11 @@ lkmnosys()
  * Place holder for device switch slots reserved for loadable modules.
  */
 int
-lkmenodev()
+lkmenodev(dev, flags, fmt, p)
+	dev_t dev;
+	int flags;
+	int fmt;
+	struct proc *p;
 {
 
 	return(enodev());

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.20 1995/05/30 08:08:11 rgrimes Exp $
+ * $Id: if_sl.c,v 1.28 1995/07/31 21:01:36 bde Exp $
  */
 
 /*
@@ -190,7 +190,7 @@ static timeout_t sl_outfill;
 
 static struct linesw slipdisc =
 	{ slopen, slclose, ttyerrio, ttyerrio, sltioctl,
-	  slinput, slstart, nullmodem };
+	  slinput, slstart, ttymodem };
 
 /*
  * Called from boot code to establish sl interfaces.
@@ -313,8 +313,7 @@ slclose(tp,flag)
 	register struct sl_softc *sc;
 	int s;
 
-	if (ttywflush(tp))
-		ttyflush(tp, FREAD | FWRITE);
+	ttyflush(tp, FREAD | FWRITE);
 	/*
 	 * XXX the placement of the following spl is misleading.  tty
 	 * interrupts must be blocked across line discipline switches
@@ -444,8 +443,7 @@ sloutput(ifp, m, dst, rtp)
 		m_freem(m);
 		return (ENETDOWN);
 	}
-	if ((sc->sc_ttyp->t_state & TS_CARR_ON) == 0 &&
-	    (sc->sc_ttyp->t_cflag & CLOCAL) == 0) {
+	if ((sc->sc_ttyp->t_state & TS_CONNECTED) == 0) {
 		m_freem(m);
 		return (EHOSTUNREACH);
 	}
@@ -495,17 +493,19 @@ slstart(tp)
 
 	for (;;) {
 		/*
-		 * If there is more in the output queue, just send it now.
-		 * We are being called in lieu of ttstart and must do what
-		 * it would.
+		 * Call output process whether or not there is more in the
+		 * output queue.  We are being called in lieu of ttstart
+		 * and must do what it would.
 		 */
+		(*tp->t_oproc)(tp);
+
 		if (tp->t_outq.c_cc != 0) {
 			if (sc != NULL)
 				sc->sc_flags &= ~SC_OUTWAIT;
-			(*tp->t_oproc)(tp);
 			if (tp->t_outq.c_cc > SLIP_HIWAT)
 				return 0;
 		}
+
 		/*
 		 * This happens briefly when the line shuts down.
 		 */
@@ -731,8 +731,7 @@ slinput(c, tp)
 	sc = (struct sl_softc *)tp->t_sc;
 	if (sc == NULL)
 		return 0;
-	if (c & TTY_ERRORMASK || ((tp->t_state & TS_CARR_ON) == 0 &&
-	    (tp->t_cflag & CLOCAL) == 0)) {
+	if (c & TTY_ERRORMASK || (tp->t_state & TS_CONNECTED) == 0) {
 		sc->sc_flags |= SC_ERROR;
 		return 0;
 	}

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117.4.3 1995/08/20 02:20:38 davidg Exp $
+ *  $Id: syscons.c,v 1.124 1995/08/16 22:36:43 nate Exp $
  */
 
 #include "sc.h"
@@ -352,12 +352,11 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 	scparam(tp, &tp->t_termios);
 	ttsetwater(tp);
+	(*linesw[tp->t_line].l_modem)(tp, 1);
     }
     else
 	if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0)
 	    return(EBUSY);
-    tp->t_state |= TS_CARR_ON;
-    tp->t_cflag |= CLOCAL;
     if (!console[minor(dev)])
 	console[minor(dev)] = alloc_scp();
     return((*linesw[tp->t_line].l_open)(dev, tp));
@@ -1102,13 +1101,7 @@ scstart(struct tty *tp)
 	    s = spltty();
 	}
 	tp->t_state &= ~TS_BUSY;
-	if (rbp->c_cc <= tp->t_lowat) {
-	    if (tp->t_state & TS_ASLEEP) {
-		tp->t_state &= ~TS_ASLEEP;
-		wakeup((caddr_t)rbp);
-	    }
-	    selwakeup(&tp->t_wsel);
-	}
+	ttwwakeup(tp);
     }
     splx(s);
 }
