@@ -4896,7 +4896,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		if (request_ccb->ccb_h.status != CAM_REQ_CMP) {
 			struct cam_ed *device;
 			struct cam_et *target;
-			int s;
+			int s, phl;
 
 			/*
 			 * If we already probed lun 0 successfully, or
@@ -4905,16 +4905,24 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			 * the next lun.
 			 */
 			target = request_ccb->ccb_h.path->target;
+			/*
+			 * We may touch devices that we don't
+			 * hold references too, so ensure they
+			 * don't disappear out from under us.
+			 * The target above is referenced by the
+			 * path in the request ccb.
+			 */
+			phl = 0;
 			s = splcam();
 			device = TAILQ_FIRST(&target->ed_entries);
-			if (device != NULL)
-				device = TAILQ_NEXT(device, links);
+			if (device != NULL) {
+				phl = device->quirk->quirks & CAM_QUIRK_HILUNS;
+				if (device->lun_id == 0)
+					device = TAILQ_NEXT(device, links);
+			}
 			splx(s);
-
 			if ((lun_id != 0) || (device != NULL)) {
-				/* Try the next lun */
-				if (lun_id < (CAM_SCSI2_MAXLUN-1) ||
-				    (device->quirk->quirks & CAM_QUIRK_HILUNS))
+				if (lun_id < (CAM_SCSI2_MAXLUN-1) || phl)
 					lun_id++;
 			}
 		} else {
