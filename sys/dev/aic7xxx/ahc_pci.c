@@ -180,12 +180,13 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 		regs_id = AHC_PCI_IOADDR;
 		regs = bus_alloc_resource(ahc->dev_softc, regs_type,
 					  &regs_id, 0, ~0, 1, RF_ACTIVE);
-		ahc->tag = rman_get_bustag(regs);
-		ahc->bsh = rman_get_bushandle(regs);
-		command &= ~PCIM_CMD_MEMEN;
-		ahc_pci_write_config(ahc->dev_softc,
-				     PCIR_COMMAND,
-				     command, /*bytes*/1);
+		if (regs) {
+			ahc->tag = rman_get_bustag(regs);
+			ahc->bsh = rman_get_bushandle(regs);
+			command &= ~PCIM_CMD_MEMEN;
+			ahc_pci_write_config(ahc->dev_softc, PCIR_COMMAND,
+					     command, /*bytes*/1);
+		}
 	}
 	ahc->platform_data->regs_res_type = regs_type;
 	ahc->platform_data->regs_res_id = regs_id;
