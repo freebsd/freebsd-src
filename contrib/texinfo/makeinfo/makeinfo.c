@@ -1151,53 +1151,6 @@ print_version_info ()
   printf ("makeinfo (GNU %s %s) %d.%d\n", PACKAGE, VERSION,
           major_version, minor_version);
 }
-
-/* **************************************************************** */
-/*								    */
-/*			Generic Utilities			    */
-/*								    */
-/* **************************************************************** */
-
-static void
-memory_error (callers_name, bytes_wanted)
-     char *callers_name;
-     int bytes_wanted;
-{
-  char printable_string[80];
-
-  sprintf (printable_string,
-	   "Virtual memory exhausted in %s ()!  Needed %d bytes.",
-	   callers_name, bytes_wanted);
-
-  error (printable_string);
-  abort ();
-}
-
-/* Just like malloc, but kills the program in case of fatal error. */
-void *
-xmalloc (nbytes)
-     unsigned int nbytes;
-{
-  void *temp = (void *) malloc (nbytes);
-
-  if (nbytes && temp == (void *)NULL)
-    memory_error ("xmalloc", nbytes);
-
-  return (temp);
-}
-
-/* Like realloc (), but barfs if there isn't enough memory. */
-void *
-xrealloc (pointer, nbytes)
-     void *pointer;
-     unsigned int nbytes;
-{
-  void *temp;
-
-  if (!pointer)
-    temp = (void *)xmalloc (nbytes);
-  else
-    temp = (void *)realloc (pointer, nbytes);
 
   if (nbytes && temp == (void *)NULL)
     memory_error ("xrealloc", nbytes);
