@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.95 1996/03/31 15:53:19 joerg Exp $
+ *	$Id: if_ed.c,v 1.96 1996/04/08 01:25:22 davidg Exp $
  */
 
 /*
@@ -170,6 +170,7 @@ static u_long ds_crc(u_char *ep);
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
+
 /*
  *	PC-Card (PCMCIA) specific code.
  */
@@ -178,8 +179,7 @@ static void edunload(struct pccard_dev *);	/* Disable driver */
 static void edsuspend(struct pccard_dev *);	/* Suspend driver */
 static int edinit(struct pccard_dev *, int);	/* init device */
 
-static struct pccard_drv ed_info =
-	{
+static struct pccard_drv ed_info = {
 	"ed",
 	card_intr,
 	edunload,
@@ -187,64 +187,63 @@ static struct pccard_drv ed_info =
 	edinit,
 	0,			/* Attributes - presently unused */
 	&net_imask		/* Interrupt mask for device */
-				/* This should also include net_imask?? */
-	};
+				/* XXX - Should this also include net_imask? */
+};
+
 /*
- * Called when a power down is wanted. Shuts down the
- * device and configures the device as unavailable (but
- * still loaded...). A resume is done by calling
- * edinit with first=0. This is called when the user suspends
- * the system, or the APM code suspends the system.
+ *	Called when a power down is requested. Shuts down the
+ *	device and configures the device as unavailable (but
+ *	still loaded...). A resume is done by calling
+ *	edinit with first=0. This is called when the user suspends
+ *	the system, or the APM code suspends the system.
  */
 static void
 edsuspend(struct pccard_dev *dp)
 {
 	printf("ed%d: suspending\n", dp->isahd.id_unit);
 }
+
 /*
  *	Initialize the device - called from Slot manager.
- *	if first is set, then initially check for
- *	the device's existence before initialising it.
- *	Once initialised, the device table may be set up.
+ *	If first is set, then check for the device's existence
+ *	before initializing it.  Once initialized, the device table may
+ *	be set up.
  */
 static int
 edinit(struct pccard_dev *dp, int first)
 {
 	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
-/*
- *	validate unit number.
- */
+
+	/* validate unit number. */
 	if (first) {
 		if (dp->isahd.id_unit >= NED)
 			return(ENODEV);
-/*
- *	Probe the device. If a value is returned, the
- *	device was found at the location.
- */
-		
+		/*
+		 * Probe the device. If a value is returned, the
+		 * device was found at the location.
+		 */
 		sc->gone = 0;
-		if (ed_probe_pccard(&dp->isahd,dp->misc)==0) {
+		if (ed_probe_pccard(&dp->isahd,dp->misc)==0)
 			return(ENXIO);
-		}
-		if (ed_attach(&dp->isahd)==0) {
+		if (ed_attach(&dp->isahd)==0)
 			return(ENXIO);
-		}
 	}
-/*
- *	XXX TODO:
- *	If it was already inited before, the device structure
- *	should be already initialised. Here we should
- *	reset (and possibly restart) the hardware, but
- *	I am not sure of the best way to do this...
- */
+	/*
+	 * XXX TODO:
+	 * If it was initialized before, the device structure
+	 * should also be initialized.  We should
+	 * reset (and possibly restart) the hardware, but
+	 * I am not sure of the best way to do this...
+	 */
 	return(0);
 }
+
 /*
  *	edunload - unload the driver and clear the table.
  *	XXX TODO:
- *	This is called usually when the card is ejected, but
- *	can be caused by the modunload of a controller driver.
- *	The idea is reset the driver's view of the device
+ *	This is usually called when the card is ejected, but
+ *	can be caused by a modunload of a controller driver.
+ *	The idea is to reset the driver's view of the device
  *	and ensure that any driver entry points such as
  *	read and write do not hang.
  */
@@ -354,13 +353,14 @@ ed_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
 	int     nports;
+
 #if NCRD > 0
-/*
- *	If PC-Card probe required, then register driver with
- *	slot manager.
- */
-		pccard_add_driver(&ed_info);
-#endif /* NCRD > 0 */
+	/*
+	 * If PC-Card probe required, then register driver with
+	 * slot manager.
+	 */
+	pccard_add_driver(&ed_info);
+#endif
 
 #ifndef DEV_LKM
 	ed_registerdev(isa_dev, "Ethernet adapter");
