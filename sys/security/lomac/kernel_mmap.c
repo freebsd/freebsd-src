@@ -207,7 +207,7 @@ mmap(td, uap)
 		/* Address range must be all in user VM space. */
 		if (VM_MAXUSER_ADDRESS > 0 && addr + size > VM_MAXUSER_ADDRESS)
 			return (EINVAL);
-#ifndef i386
+#ifndef __i386__
 		if (VM_MIN_ADDRESS > 0 && addr < VM_MIN_ADDRESS)
 			return (EINVAL);
 #endif
