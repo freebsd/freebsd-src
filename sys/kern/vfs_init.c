@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.31 1997/10/26 20:26:33 phk Exp $
+ * $Id: vfs_init.c,v 1.32 1998/02/09 06:09:33 eivind Exp $
  */
 
 
@@ -44,6 +44,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <vm/vm_zone.h>
@@ -228,7 +229,7 @@ static void
 vfsinit(dummy)
 	void *dummy;
 {
-	struct vfsconf **vfc;
+	struct vfsconf **vfc, *vfsp;
 	int maxtypenum;
 
 	namei_zone = zinit("NAMEI", MAXPATHLEN, 0, 0, 2);
@@ -252,14 +253,15 @@ vfsinit(dummy)
 	vattr_null(&va_null);
 	maxtypenum = 0;
 	vfc = (struct vfsconf **)vfs_set.ls_items;
-	vfsconf = *vfc;		/* simulate Lite2 vfsconf array */
-	while (*vfc) {
-		struct vfsconf *vfsp = *vfc;
-
-		vfc++;
-		vfsp->vfc_next = *vfc;
-		if (maxtypenum <= vfsp->vfc_typenum)
-			maxtypenum = vfsp->vfc_typenum + 1;
+	vfsconf = *vfc;
+	for (; *vfc != NULL; maxtypenum++, vfc++) {
+		vfsp = *vfc;
+		vfsp->vfc_next = *(vfc + 1);
+		vfsp->vfc_typenum = maxtypenum;
+		if (vfsp->vfc_vfsops->vfs_oid != NULL) {
+			vfsp->vfc_vfsops->vfs_oid->oid_number = maxtypenum;
+			sysctl_order_all();
+		}
 		(*vfsp->vfc_vfsops->vfs_init)(vfsp);
 	}
 	/* next vfc_typenum to be used */

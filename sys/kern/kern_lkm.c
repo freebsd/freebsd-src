@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.53 1998/08/10 14:27:34 bde Exp $
+ * $Id: kern_lkm.c,v 1.54 1998/08/15 22:42:20 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -44,6 +44,7 @@
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/exec.h>
 #include <sys/lkm.h>
@@ -77,6 +78,16 @@ static int	lkm_state = LKMS_IDLE;
 
 static struct lkm_table	lkmods[MAXLKMS];	/* table of loaded modules */
 static struct lkm_table	*curp;			/* global for in-progress ops */
+
+/*
+ * XXX this bloat just exands the sysctl__vfs linker set a little so that
+ * we can attach sysctls for VFS LKMs without expanding the linker set.
+ * Currently (1998/09/06), only one VFS uses sysctls, so 2 extra linker
+ * set slots are more than sufficient.
+ */
+extern struct linker_set sysctl__vfs;
+SYSCTL_INT(_vfs, OID_AUTO, lkm0, CTLFLAG_RD, &lkm_v, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, lkm1, CTLFLAG_RD, &lkm_v, 0, "");
 
 static int	_lkm_dev __P((struct lkm_table *lkmtp, int cmd));
 static int	_lkm_exec __P((struct lkm_table *lkmtp, int cmd));
@@ -600,6 +611,8 @@ _lkm_vfs(lkmtp, cmd)
 	int cmd;
 {
 	struct lkm_vfs *args = lkmtp->private.lkm_vfs;
+	struct linker_set *l;
+	struct sysctl_oid **oidpp;
 	struct vfsconf *vfc = args->lkm_vfsconf;
 	struct vfsconf *vfsp, *prev_vfsp;
 	int i, maxtypenum;
@@ -617,14 +630,21 @@ _lkm_vfs(lkmtp, cmd)
 			}
 		}
 
-		i = args->lkm_offset = vfc->vfc_typenum;
-		if (i < 0) {
-			i = maxvfsconf;
+		args->lkm_offset = vfc->vfc_typenum = maxvfsconf++;
+		if (vfc->vfc_vfsops->vfs_oid != NULL) {
+			l = &sysctl__vfs;
+			for (i = l->ls_length,
+			    oidpp = (struct sysctl_oid **)l->ls_items;
+			    i--; oidpp++) {
+				if (!*oidpp || *oidpp == &sysctl___vfs_lkm0 ||
+				    *oidpp == &sysctl___vfs_lkm1) {
+					*oidpp = vfc->vfc_vfsops->vfs_oid;
+					(*oidpp)->oid_number = vfc->vfc_typenum;
+					sysctl_order_all();
+					break;
+				}
+			}
 		}
-		args->lkm_offset = vfc->vfc_typenum = i;
-
-		if (maxvfsconf <= i)
-			maxvfsconf = i + 1;
 
 		vfsp->vfc_next = vfc;
 		vfc->vfc_next = NULL;
@@ -664,6 +684,19 @@ _lkm_vfs(lkmtp, cmd)
 		}
 
 		prev_vfsp->vfc_next = vfsp->vfc_next;
+
+		if (vfsp->vfc_vfsops->vfs_oid != NULL) {
+			l = &sysctl__vfs;
+			for (i = l->ls_length,
+			    oidpp = (struct sysctl_oid **)l->ls_items;
+			    i--; oidpp++) {
+				if (*oidpp == vfsp->vfc_vfsops->vfs_oid) {
+					*oidpp = NULL;
+					sysctl_order_all();
+					break;
+				}
+			}
+		}
 
 		/*
 		 * Maintain maxvfsconf.
