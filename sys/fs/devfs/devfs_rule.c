@@ -614,9 +614,6 @@ devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de)
 	if (dr->dr_icond & DRC_PATHPTRN)
 		if (!devfs_rule_matchpath(dk, de))
 			goto nomatch;
-	if (dr->dr_icond & DRC_MAJOR)
-		if (dev == NULL || major(dev) != dr->dr_major)
-			goto nomatch;
 
 	return (1);
 
