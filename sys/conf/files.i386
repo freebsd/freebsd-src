@@ -121,7 +121,6 @@ dev/cm/if_cm_isa.c		optional	cm isa
 dev/cx/csigma.c			optional	cx
 dev/cx/cxddk.c			optional	cx
 dev/cx/if_cx.c			optional	cx
-dev/dgb/dgb.c			count		dgb
 dev/ed/if_ed_isa.c		optional	ed isa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga

@@ -65,7 +65,7 @@
 55	*i4b_ctl	ISDN4BSD
 56	*i4b_tel	ISDN4BSD
 57	*i4b_rbch	ISDN4BSD
-58	*dgb		Digiboard PC/Xe
+58	-		Was dgb: Digiboard PC/Xe
 59	*i4b_trace	ISDN4BSD
 60	*i4b_i4bdrv	ISDN4BSD
 61	*pt		SCSI "processor target"
