@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.57 1998/03/30 09:54:23 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.58 1998/05/06 05:29:38 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -166,7 +166,8 @@ static void nfs_convert_diskless __P((void));
 static void nfs_convert_oargs __P((struct nfs_args *args,
 				   struct onfs_args *oargs));
 
-static int nfs_iosize(nmp)
+static int
+nfs_iosize(nmp)
 	struct nfsmount* nmp;
 {
 	int iosize;
@@ -182,58 +183,57 @@ static int nfs_iosize(nmp)
 	return iosize;
 }
 
-static void nfs_convert_oargs(args,oargs)
-     struct nfs_args *args;
-     struct onfs_args *oargs;
+static void
+nfs_convert_oargs(args, oargs)
+	struct nfs_args *args;
+	struct onfs_args *oargs;
 {
-  args->version = NFS_ARGSVERSION;
-  args->addr = oargs->addr;
-  args->addrlen = oargs->addrlen;
-  args->sotype = oargs->sotype;
-  args->proto = oargs->proto;
-  args->fh = oargs->fh;
-  args->fhsize = oargs->fhsize;
-  args->flags = oargs->flags;
-  args->wsize = oargs->wsize;
-  args->rsize = oargs->rsize;
-  args->readdirsize = oargs->readdirsize;
-  args->timeo = oargs->timeo;
-  args->retrans = oargs->retrans;
-  args->maxgrouplist = oargs->maxgrouplist;
-  args->readahead = oargs->readahead;
-  args->leaseterm = oargs->leaseterm;
-  args->deadthresh = oargs->deadthresh;
-  args->hostname = oargs->hostname;
+	args->version = NFS_ARGSVERSION;
+	args->addr = oargs->addr;
+	args->addrlen = oargs->addrlen;
+	args->sotype = oargs->sotype;
+	args->proto = oargs->proto;
+	args->fh = oargs->fh;
+	args->fhsize = oargs->fhsize;
+	args->flags = oargs->flags;
+	args->wsize = oargs->wsize;
+	args->rsize = oargs->rsize;
+	args->readdirsize = oargs->readdirsize;
+	args->timeo = oargs->timeo;
+	args->retrans = oargs->retrans;
+	args->maxgrouplist = oargs->maxgrouplist;
+	args->readahead = oargs->readahead;
+	args->leaseterm = oargs->leaseterm;
+	args->deadthresh = oargs->deadthresh;
+	args->hostname = oargs->hostname;
 }
 
 static void
 nfs_convert_diskless()
 {
-  bcopy(&nfs_diskless.myif, &nfsv3_diskless.myif,
-	sizeof(struct ifaliasreq));
-  bcopy(&nfs_diskless.mygateway, &nfsv3_diskless.mygateway,
-	sizeof(struct sockaddr_in));
-  nfs_convert_oargs(&nfsv3_diskless.swap_args,&nfs_diskless.swap_args);
-  nfsv3_diskless.swap_fhsize = NFSX_V2FH;
-  bcopy(nfs_diskless.swap_fh,nfsv3_diskless.swap_fh,NFSX_V2FH);
-  bcopy(&nfs_diskless.swap_saddr,&nfsv3_diskless.swap_saddr,
-	sizeof(struct sockaddr_in));
-  bcopy(nfs_diskless.swap_hostnam,nfsv3_diskless.swap_hostnam,
-	MNAMELEN);
-  nfsv3_diskless.swap_nblks = nfs_diskless.swap_nblks;
-  bcopy(&nfs_diskless.swap_ucred, &nfsv3_diskless.swap_ucred,
-	sizeof(struct ucred));
-  nfs_convert_oargs(&nfsv3_diskless.root_args,&nfs_diskless.root_args);
-  nfsv3_diskless.root_fhsize = NFSX_V2FH;
-  bcopy(nfs_diskless.root_fh,nfsv3_diskless.root_fh,NFSX_V2FH);
-  bcopy(&nfs_diskless.root_saddr,&nfsv3_diskless.root_saddr,
-	sizeof(struct sockaddr_in));
-  bcopy(nfs_diskless.root_hostnam,nfsv3_diskless.root_hostnam,
-	MNAMELEN);
-  nfsv3_diskless.root_time = nfs_diskless.root_time;
-  bcopy(nfs_diskless.my_hostnam,nfsv3_diskless.my_hostnam,
-	MAXHOSTNAMELEN);
-  nfs_diskless_valid = 3;
+	bcopy(&nfs_diskless.myif, &nfsv3_diskless.myif,
+		sizeof(struct ifaliasreq));
+	bcopy(&nfs_diskless.mygateway, &nfsv3_diskless.mygateway,
+		sizeof(struct sockaddr_in));
+	nfs_convert_oargs(&nfsv3_diskless.swap_args,&nfs_diskless.swap_args);
+	nfsv3_diskless.swap_fhsize = NFSX_V2FH;
+	bcopy(nfs_diskless.swap_fh,nfsv3_diskless.swap_fh,NFSX_V2FH);
+	bcopy(&nfs_diskless.swap_saddr,&nfsv3_diskless.swap_saddr,
+		sizeof(struct sockaddr_in));
+	bcopy(nfs_diskless.swap_hostnam,nfsv3_diskless.swap_hostnam, MNAMELEN);
+	nfsv3_diskless.swap_nblks = nfs_diskless.swap_nblks;
+	bcopy(&nfs_diskless.swap_ucred, &nfsv3_diskless.swap_ucred,
+		sizeof(struct ucred));
+	nfs_convert_oargs(&nfsv3_diskless.root_args,&nfs_diskless.root_args);
+	nfsv3_diskless.root_fhsize = NFSX_V2FH;
+	bcopy(nfs_diskless.root_fh,nfsv3_diskless.root_fh,NFSX_V2FH);
+	bcopy(&nfs_diskless.root_saddr,&nfsv3_diskless.root_saddr,
+		sizeof(struct sockaddr_in));
+	bcopy(nfs_diskless.root_hostnam,nfsv3_diskless.root_hostnam, MNAMELEN);
+	nfsv3_diskless.root_time = nfs_diskless.root_time;
+	bcopy(nfs_diskless.my_hostnam,nfsv3_diskless.my_hostnam,
+		MAXHOSTNAMELEN);
+	nfs_diskless_valid = 3;
 }
 
 /*
@@ -267,7 +267,7 @@ nfs_statfs(mp, sbp, p)
 	vp = NFSTOV(np);
 	cred = crget();
 	cred->cr_ngroups = 1;
-	if (v3 && (nmp->nm_flag & NFSMNT_GOTFSINFO) == 0)
+	if (v3 && (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
 		(void)nfs_fsinfo(nmp, vp, cred, p);
 	nfsstats.rpccnt[NFSPROC_FSSTAT]++;
 	nfsm_reqhead(vp, NFSPROC_FSSTAT, NFSX_FH(v3));
@@ -364,7 +364,7 @@ nfs_fsinfo(nmp, vp, cred, p)
 		if (max < nmp->nm_readdirsize) {
 			nmp->nm_readdirsize = max;
 		}
-		nmp->nm_flag |= NFSMNT_GOTFSINFO;
+		nmp->nm_state |= NFSSTA_GOTFSINFO;
 	}
 	nfsm_reqdone;
 	return (error);
@@ -766,6 +766,27 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	if (nmp->nm_readdirsize > nmp->nm_rsize)
 		nmp->nm_readdirsize = nmp->nm_rsize;
 
+	if ((argp->flags & NFSMNT_ACREGMIN) && argp->acregmin >= 0)
+		nmp->nm_acregmin = argp->acregmin;
+	else
+		nmp->nm_acregmin = NFS_MINATTRTIMO;
+	if ((argp->flags & NFSMNT_ACREGMAX) && argp->acregmax >= 0)
+		nmp->nm_acregmax = argp->acregmax;
+	else
+		nmp->nm_acregmax = NFS_MAXATTRTIMO;
+	if ((argp->flags & NFSMNT_ACDIRMIN) && argp->acdirmin >= 0)
+		nmp->nm_acdirmin = argp->acdirmin;
+	else
+		nmp->nm_acdirmin = NFS_MINDIRATTRTIMO;
+	if ((argp->flags & NFSMNT_ACDIRMAX) && argp->acdirmax >= 0)
+		nmp->nm_acdirmax = argp->acdirmax;
+	else
+		nmp->nm_acdirmax = NFS_MAXDIRATTRTIMO;
+	if (nmp->nm_acdirmin > nmp->nm_acdirmax)
+		nmp->nm_acdirmin = nmp->nm_acdirmax;
+	if (nmp->nm_acregmin > nmp->nm_acregmax)
+		nmp->nm_acregmin = nmp->nm_acregmax;
+
 	if ((argp->flags & NFSMNT_MAXGRPS) && argp->maxgrouplist >= 0 &&
 		argp->maxgrouplist <= NFS_MAXGRPS)
 		nmp->nm_numgrps = argp->maxgrouplist;
@@ -872,13 +893,13 @@ nfs_unmount(mp, mntflags, p)
 	/*
 	 * Must handshake with nqnfs_clientd() if it is active.
 	 */
-	nmp->nm_flag |= NFSMNT_DISMINPROG;
+	nmp->nm_state |= NFSSTA_DISMINPROG;
 	while (nmp->nm_inprog != NULLVP)
 		(void) tsleep((caddr_t)&lbolt, PSOCK, "nfsdism", 0);
 	error = vflush(mp, vp, flags);
 	if (error) {
 		vput(vp);
-		nmp->nm_flag &= ~NFSMNT_DISMINPROG;
+		nmp->nm_state &= ~NFSSTA_DISMINPROG;
 		return (error);
 	}
 
@@ -887,7 +908,7 @@ nfs_unmount(mp, mntflags, p)
 	 * For NQNFS, let the server daemon free the nfsmount structure.
 	 */
 	if (nmp->nm_flag & (NFSMNT_NQNFS | NFSMNT_KERB))
-		nmp->nm_flag |= NFSMNT_DISMNT;
+		nmp->nm_state |= NFSSTA_DISMNT;
 
 	/*
 	 * There are two reference counts and one lock to get rid of here.

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.3 (Berkeley) 3/30/95
- * $Id: nfsmount.h,v 1.12 1997/05/10 16:12:03 dfr Exp $
+ * $Id: nfsmount.h,v 1.13 1997/08/16 19:16:05 wollman Exp $
  */
 
 
@@ -48,6 +48,7 @@
  */
 struct	nfsmount {
 	int	nm_flag;		/* Flags for soft/hard... */
+	int	nm_state;		/* Internal state flags */
 	struct	mount *nm_mountp;	/* Vfs structure for this filesystem */
 	int	nm_numgrps;		/* Max. size of groupslist */
 	u_char	nm_fh[NFSX_V3FHMAX];	/* File handle of root dir */
@@ -70,6 +71,10 @@ struct	nfsmount {
 	int	nm_readdirsize;		/* Size of a readdir rpc */
 	int	nm_readahead;		/* Num. of blocks to readahead */
 	int	nm_leaseterm;		/* Term (sec) for NQNFS lease */
+	int	nm_acdirmin;		/* Directory attr cache min lifetime */
+	int	nm_acdirmax;		/* Directory attr cache max lifetime */
+	int	nm_acregmin;		/* Reg file attr cache min lifetime */
+	int	nm_acregmax;		/* Reg file attr cache max lifetime */
 	CIRCLEQ_HEAD(, nfsnode) nm_timerhead; /* Head of lease timer queue */
 	struct vnode *nm_inprog;	/* Vnode in prog by nqnfs_clientd() */
 	uid_t	nm_authuid;		/* Uid for authenticator */
