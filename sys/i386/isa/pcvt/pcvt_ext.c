@@ -2685,7 +2685,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	{
 
 #if PCVT_NETBSD > 9 || PCVT_FREEBSD >= 200
-		struct trapframe *fp = (struct trapframe *)p->p_md.md_regs;
+		struct trapframe *fp = p->p_md.md_regs;
 #elif PCVT_NETBSD || (PCVT_FREEBSD && PCVT_FREEBSD > 102)
 		struct trapframe *fp = (struct trapframe *)p->p_regs;
 #else
@@ -2712,7 +2712,7 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	{
 
 #if PCVT_NETBSD > 9 || PCVT_FREEBSD >= 200
-		struct trapframe *fp = (struct trapframe *)p->p_md.md_regs;
+		struct trapframe *fp = p->p_md.md_regs;
 		fp->tf_eflags &= ~PSL_IOPL;
 #elif PCVT_NETBSD || (PCVT_FREEBSD && PCVT_FREEBSD > 102)
 		struct trapframe *fp = (struct trapframe *)p->p_regs;
