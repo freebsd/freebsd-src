@@ -478,9 +478,9 @@ kdebug_secpolicyindex(spidx)
 	printf("secpolicyindex{ dir=%u prefs=%u prefd=%u ul_proto=%u\n",
 		spidx->dir, spidx->prefs, spidx->prefd, spidx->ul_proto);
 
-	ipsec_hexdump((caddr_t)&spidx->src, spidx->src.__ss_len);
+	ipsec_hexdump((caddr_t)&spidx->src, spidx->src.ss_len);
 	printf("\n");
-	ipsec_hexdump((caddr_t)&spidx->dst, spidx->dst.__ss_len);
+	ipsec_hexdump((caddr_t)&spidx->dst, spidx->dst.ss_len);
 	printf("}\n");
 
 	return;
@@ -497,9 +497,9 @@ kdebug_secasindex(saidx)
 	printf("secasindex{ mode=%u proto=%u\n",
 		saidx->mode, saidx->proto);
 
-	ipsec_hexdump((caddr_t)&saidx->src, saidx->src.__ss_len);
+	ipsec_hexdump((caddr_t)&saidx->src, saidx->src.ss_len);
 	printf("\n");
-	ipsec_hexdump((caddr_t)&saidx->dst, saidx->dst.__ss_len);
+	ipsec_hexdump((caddr_t)&saidx->dst, saidx->dst.ss_len);
 	printf("\n");
 
 	return;

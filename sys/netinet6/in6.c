@@ -935,16 +935,16 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, p)
 	case SIOCALIFADDR:
 	case SIOCDLIFADDR:
 		/* address must be specified on ADD and DELETE */
-		if (iflr->addr.__ss_family != AF_INET6)
+		if (iflr->addr.ss_family != AF_INET6)
 			return EINVAL;
-		if (iflr->addr.__ss_len != sizeof(struct sockaddr_in6))
+		if (iflr->addr.ss_len != sizeof(struct sockaddr_in6))
 			return EINVAL;
 		/* XXX need improvement */
-		if (iflr->dstaddr.__ss_family
-		 && iflr->dstaddr.__ss_family != AF_INET6)
+		if (iflr->dstaddr.ss_family
+		 && iflr->dstaddr.ss_family != AF_INET6)
 			return EINVAL;
-		if (iflr->dstaddr.__ss_family
-		 && iflr->dstaddr.__ss_len != sizeof(struct sockaddr_in6))
+		if (iflr->dstaddr.ss_family
+		 && iflr->dstaddr.ss_len != sizeof(struct sockaddr_in6))
 			return EINVAL;
 		break;
 	default: /*shouldn't happen*/
@@ -992,7 +992,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, p)
 		bcopy(iflr->iflr_name, ifra.ifra_name,
 			sizeof(ifra.ifra_name));
 
-		bcopy(&iflr->addr, &ifra.ifra_addr, iflr->addr.__ss_len);
+		bcopy(&iflr->addr, &ifra.ifra_addr, iflr->addr.ss_len);
 		if (hostid) {
 			/* fill in hostid part */
 			ifra.ifra_addr.sin6_addr.s6_addr32[2] =
@@ -1001,9 +1001,9 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, p)
 				hostid->s6_addr32[3];
 		}
 
-		if (iflr->dstaddr.__ss_family) {	/*XXX*/
+		if (iflr->dstaddr.ss_family) {	/*XXX*/
 			bcopy(&iflr->dstaddr, &ifra.ifra_dstaddr,
-				iflr->dstaddr.__ss_len);
+				iflr->dstaddr.ss_len);
 			if (hostid) {
 				ifra.ifra_dstaddr.sin6_addr.s6_addr32[2] =
 					hostid->s6_addr32[2];
