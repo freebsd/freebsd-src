@@ -40,7 +40,7 @@ mkobj(let) {
 	    )
 	);
 }
-	
+
 
 struct obj zeroobj;
 

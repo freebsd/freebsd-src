@@ -106,7 +106,7 @@ log_score(list_em)
 		return (-1);
 	}
 	/*
-	 * This is done to take advantage of stdio, while still 
+	 * This is done to take advantage of stdio, while still
 	 * allowing a O_CREAT during the open(2) of the log file.
 	 */
 	fp = fdopen(fd, "r+");
@@ -126,10 +126,10 @@ log_score(list_em)
 	}
 	for (;;) {
 		good = fscanf(fp, "%s %s %s %d %d %d",
-			score[num_scores].name, 
-			score[num_scores].host, 
+			score[num_scores].name,
+			score[num_scores].host,
 			score[num_scores].game,
-			&score[num_scores].planes, 
+			&score[num_scores].planes,
 			&score[num_scores].time,
 			&score[num_scores].real_time);
 		if (good != 6 || ++num_scores >= NUM_SCORES)
@@ -137,7 +137,7 @@ log_score(list_em)
 	}
 	if (!test_mode && !list_em) {
 		if ((pw = (struct passwd *) getpwuid(getuid())) == NULL) {
-			fprintf(stderr, 
+			fprintf(stderr,
 				"getpwuid failed for uid %d.  Who are you?\n",
 				getuid());
 			return (-1);
@@ -187,7 +187,7 @@ log_score(list_em)
 					if (num_scores < NUM_SCORES)
 						num_scores++;
 					bcopy(&score[i],
-						&score[num_scores - 1], 
+						&score[num_scores - 1],
 						sizeof (score[i]));
 					bcopy(&thisscore, &score[i],
 						sizeof (score[i]));
@@ -197,7 +197,7 @@ log_score(list_em)
 			}
 		}
 		if (!found && !changed && num_scores < NUM_SCORES) {
-			bcopy(&thisscore, &score[num_scores], 
+			bcopy(&thisscore, &score[num_scores],
 				sizeof (score[num_scores]));
 			num_scores++;
 			changed++;
@@ -212,7 +212,7 @@ log_score(list_em)
 			rewind(fp);
 			for (i = 0; i < num_scores; i++)
 				fprintf(fp, "%s %s %s %d %d %d\n",
-					score[i].name, score[i].host, 
+					score[i].name, score[i].host,
 					score[i].game, score[i].planes,
 					score[i].time, score[i].real_time);
 		} else {
@@ -230,7 +230,7 @@ log_score(list_em)
 	/* lock will evaporate upon close */
 #endif
 	fclose(fp);
-	printf("%2s:  %-8s  %-8s  %-18s  %4s  %9s  %4s\n", "#", "name", "host", 
+	printf("%2s:  %-8s  %-8s  %-18s  %4s  %9s  %4s\n", "#", "name", "host",
 		"game", "time", "real time", "planes safe");
 	puts("-------------------------------------------------------------------------------");
 	for (i = 0; i < num_scores; i++) {

@@ -71,7 +71,7 @@ main(argc,argv)
 	sprintf(optsfile, "%s/.larnopts",ptr);	/* the .larnopts filename */
 
 /*
- *	now malloc the memory for the dungeon 
+ *	now malloc the memory for the dungeon
  */
 	cell = (struct cel *)malloc(sizeof(struct cel)*(MAXLEVEL+MAXVLEVEL)*MAXX*MAXY);
 	if (cell == 0) died(-285);	/* malloc failure */
@@ -96,13 +96,13 @@ main(argc,argv)
 #endif VT100
 
 /*
- *	now make scoreboard if it is not there (don't clear) 
+ *	now make scoreboard if it is not there (don't clear)
  */
 	if (access(scorefile,0) == -1) /* not there */
 		makeboard();
 
 /*
- *	now process the command line arguments 
+ *	now process the command line arguments
  */
 	for (i=1; i<argc; i++)
 		{
@@ -128,7 +128,7 @@ main(argc,argv)
 
 			case '0': case '1': case '2': case '3': case '4': case '5':
 			case '6': case '7': case '8': case '9':	/* for hardness */
-						sscanf(&argv[i][1],"%d",&hard);	
+						sscanf(&argv[i][1],"%d",&hard);
 						break;
 
 			case 'h':	/* print out command line arguments */
@@ -174,7 +174,7 @@ main(argc,argv)
 				argv[0] = psname;   execv(psname,argv);
 				}
 			}
-		else 
+		else
 			unlink(psname);
 		}
 
@@ -317,7 +317,7 @@ showwear()
 	}
 
 /*
-	function to show the things player can wield only 
+	function to show the things player can wield only
  */
 showwield()
 	{
@@ -442,7 +442,7 @@ show1(idx,str2)
 show3(index)
 	register int index;
 	{
-	switch(iven[index]) 
+	switch(iven[index])
 		{
 		case OPOTION:	show1(index,potionname);  break;
 		case OSCROLL:	show1(index,scrollname);  break;
@@ -530,7 +530,7 @@ parse()
 
 			case '?':	yrepcount=0;	help(); nomove=1; return;	/*	give the help screen*/
 
-			case 'S':	clear();  lprcat("Saving . . ."); lflush();  
+			case 'S':	clear();  lprcat("Saving . . ."); lflush();
 						savegame(savefilename); wizard=1; died(-257);	/*	save the game - doesn't return	*/
 
 			case 'Z':	yrepcount=0;	if (c[LEVEL]>9) { oteleport(1); return; }
@@ -622,7 +622,7 @@ parse()
 						return;
 #endif
 #endif
-			case 'P':	cursors(); 
+			case 'P':	cursors();
 						if (outstanding_taxes>0)
 							lprintf("\nYou presently owe %d gp in taxes.",(long)outstanding_taxes);
 						else
@@ -654,7 +654,7 @@ run(dir)
 /*
 	function to wield a weapon
  */
-wield()	
+wield()
 	{
 	register int i;
 	while (1)
@@ -722,7 +722,7 @@ dropobj()
 	while (1)
 		{
 		if ((i = whatitem("drop"))=='\33')  return;
-		if (i=='*') showstr(); else 
+		if (i=='*') showstr(); else
 			{
 			if (i=='.')	/* drop some gold */
 				{
@@ -743,7 +743,7 @@ dropobj()
 					{ *p=OKGOLD; i=amt/1000; amt = 1000*i; }
 				else
 					{ *p=OKGOLD; i=32767; amt = 32767000L; }
-				c[GOLD] -= amt; 
+				c[GOLD] -= amt;
 				lprintf("You drop %d gold pieces",(long)amt);
 				iarg[playerx][playery]=i; bottomgold();
 				know[playerx][playery]=0; dropflag=1;  return;

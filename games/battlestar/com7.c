@@ -72,7 +72,7 @@ fighton:
 				hurt = rnd(50)%(WEIGHT-carrying)-card(injuries,NUMOFINJURIES)-encumber - exhaustion;
 			else if (testbit(inven,KNIFE) || testbit(inven,MALLET) || testbit(inven,CHAIN) || testbit(inven,MACE) || testbit(inven,HALBERD))
 				hurt = rnd(15) - card(injuries,NUMOFINJURIES) - exhaustion;
-			else 
+			else
 				hurt = rnd(7) - encumber;
 			if (hurt < 5)
 				switch(rnd(3)){
@@ -233,7 +233,7 @@ fighton:
 			cypher();
 			time--;
 			break;
-		
+
 		default:
 			puts("You don't have a chance, he is too quick.");
 			break;

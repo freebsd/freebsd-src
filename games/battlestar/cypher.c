@@ -79,19 +79,19 @@ cypher()
 					return(-1);
 				lflag = 0;
 				break;
-			 
+
 			 case AHEAD:
 				if (!move(ahead, AHEAD))
 					return(-1);
 				lflag = 0;
 				break;
-			 
+
 			 case BACK:
 				if (!move(back, BACK))
 					return(-1);
 				lflag = 0;
 				break;
-			 
+
 			 case SHOOT:
 				if (wordnumber < wordcount && wordvalue[wordnumber+1] == EVERYTHING){
 					for (n=0; n < NUMOFOBJECTS; n++)
@@ -102,7 +102,7 @@ cypher()
 				wordnumber++;
 				wordnumber++;
 				}
-				else 
+				else
 					shoot();
 				break;
 
@@ -116,7 +116,7 @@ cypher()
 				wordnumber++;
 				wordnumber++;
 				}
-				else 
+				else
 					take(location[position].objects);
 				break;
 
@@ -131,7 +131,7 @@ cypher()
 				wordnumber++;
 				wordnumber++;
 				}
-				else 
+				else
 					drop("Dropped");
 				break;
 
@@ -146,7 +146,7 @@ cypher()
 							wordnumber = throw(wordvalue[wordnumber] == KICK ? "Kicked" : "Thrown");
 						}
 					wordnumber += 2;
-				} else 
+				} else
 					throw(wordvalue[wordnumber] == KICK ? "Kicked" : "Thrown");
 				break;
 
@@ -159,7 +159,7 @@ cypher()
 						}
 					wordnumber += 2;
 				}
-				else 
+				else
 					takeoff();
 				break;
 
@@ -174,7 +174,7 @@ cypher()
 						}
 					wordnumber += 2;
 				}
-				else 
+				else
 					draw();
 				break;
 
@@ -189,7 +189,7 @@ cypher()
 						}
 					wordnumber += 2;
 				}
-				else 
+				else
 					puton();
 				break;
 
@@ -203,7 +203,7 @@ cypher()
 						}
 					wordnumber += 2;
 				}
-				else 
+				else
 					wearit();
 				break;
 
@@ -218,7 +218,7 @@ cypher()
 						}
 					wordnumber += 2;
 				}
-				else 
+				else
 					eat();
 				break;
 
@@ -239,7 +239,7 @@ cypher()
 				}
 				else
 					puts("You aren't carrying anything.");
-					
+
 				if (ucard(wear)){
 					puts("\nYou are wearing:\n");
 					for (n=0; n < NUMOFOBJECTS; n++)
@@ -272,7 +272,7 @@ cypher()
 						puts("\nYour match splutters out.");
 						matchlight = 0;
 					}
-				} else 
+				} else
 					puts("I can't see anything.");
 				return(-1);
 				break;
@@ -320,7 +320,7 @@ cypher()
 			 else
 				 puts("You aren't a wizard.");
 			 break;
-				
+
 			 case SCORE:
 				printf("\tPLEASURE\tPOWER\t\tEGO\n");
 				printf("\t%3d\t\t%3d\t\t%3d\n\n",pleasure,power,ego);
@@ -373,7 +373,7 @@ cypher()
 			 case LAUNCH:
 				if (!launch())
 					return(-1);
-				else 
+				else
 					lflag = 0;
 				break;
 
@@ -420,7 +420,7 @@ cypher()
 				return(-1);
 				break;
 
-			 
+
 		}
 		if (wordnumber < wordcount && *words[wordnumber++] == ',')
 			continue;

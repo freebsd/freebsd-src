@@ -18,7 +18,7 @@
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: wmove(), _filbuf(), clearok(), waddstr(), wrefresh(), 
+/ MODULES CALLED: wmove(), _filbuf(), clearok(), waddstr(), wrefresh(),
 /	wclrtoeol()
 /
 / GLOBAL INPUTS: Echo, _iob[], Wizard, *stdscr
@@ -212,9 +212,9 @@ inputoption()
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: fork(), exit(), wait(), death(), alarm(), execl(), wmove(), 
-/	getgid(), signal(), getenv(), wclear(), setuid(), getuid(), setgid(), 
-/	crmode(), clearok(), waddstr(), cleanup(), wrefresh(), leavegame(), 
+/ MODULES CALLED: fork(), exit(), wait(), death(), alarm(), execl(), wmove(),
+/	getgid(), signal(), getenv(), wclear(), setuid(), getuid(), setgid(),
+/	crmode(), clearok(), waddstr(), cleanup(), wrefresh(), leavegame(),
 /	getanswer()
 /
 / GLOBAL INPUTS: Player, *stdscr
@@ -300,10 +300,10 @@ unsigned	savealarm;	/* to save alarm value */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: alarm(), wmove(), waddch(), signal(), setjmp(), strchr(), 
+/ MODULES CALLED: alarm(), wmove(), waddch(), signal(), setjmp(), strchr(),
 /	_filbuf(), clearok(), toupper(), wrefresh(), mvprintw(), wclrtoeol()
 /
-/ GLOBAL INPUTS: catchalarm(), Echo, _iob[], _ctype[], *stdscr, Timeout, 
+/ GLOBAL INPUTS: catchalarm(), Echo, _iob[], _ctype[], *stdscr, Timeout,
 /	Timeoenv[]
 /
 / GLOBAL OUTPUTS: _iob[]

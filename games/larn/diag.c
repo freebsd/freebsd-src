@@ -87,7 +87,7 @@ diag()
 	for (j=0; j<SPNUM; j++)
 		{
 		lprc(' ');	lprcat(spelcode[j]);
-		lprintf(" %21s  %s\n",spelname[j],speldescript[j]); 
+		lprintf(" %21s  %s\n",spelname[j],speldescript[j]);
 		}
 
 	lprcat("\n\nFor the c[] array:\n");

@@ -512,7 +512,7 @@ newpos ()  {
 		for (i = 0; i < c; i++)
 			tputs (ND,1,addbuf);
 		break;
-	
+
 						/* down and over */
 	case  3:
 		for (i = 0; i < r-curr; i++)
@@ -520,7 +520,7 @@ newpos ()  {
 		for (i = 0; i < c-curc; i++)
 			tputs (ND,1,addbuf);
 		break;
-	
+
 						/* down and back */
 	case  4:
 		for (i = 0; i < r-curr; i++)
@@ -528,7 +528,7 @@ newpos ()  {
 		for (i = 0; i < curc-c; i++)
 			addbuf ('\010');
 		break;
-	
+
 						/* CR and up and over */
 	case  5:
 		addbuf ('\015');
@@ -537,7 +537,7 @@ newpos ()  {
 		for (i = 0; i < c; i++)
 			tputs (ND,1,addbuf);
 		break;
-	
+
 						/* up and over */
 	case  6:
 		for (i = 0; i < curr-r; i++)
@@ -545,7 +545,7 @@ newpos ()  {
 		for (i = 0; i < c-curc; i++)
 			tputs (ND,1,addbuf);
 		break;
-	
+
 						/* up and back */
 	case  7:
 		for (i = 0; i < curr-r; i++)

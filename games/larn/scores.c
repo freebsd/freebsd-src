@@ -13,8 +13,8 @@
  *	showallscores()	Function to show scores and the iven lists that go with them
  *	sortboard()		Function to sort the scoreboard
  *	newscore(score, whoo, whyded, winner) 	Function to add entry to scoreboard
- *	new1sub(score,i,whoo,taxes) 		  Subroutine to put player into a 
- *	new2sub(score,i,whoo,whyded)	 	  Subroutine to put player into a 
+ *	new1sub(score,i,whoo,taxes) 		  Subroutine to put player into a
+ *	new2sub(score,i,whoo,whyded)	 	  Subroutine to put player into a
  *	died(x) 	Subroutine to record who played larn, and what the score was
  *	diedsub(x) Subroutine to print out a line showing player when he is killed
  *	diedlog() 	Subroutine to read a log file and print it out in ascii format
@@ -187,7 +187,7 @@ long paytaxes(x)
 /*
  *	winshou()		Subroutine to print out the winning scoreboard
  *
- *	Returns the number of players on scoreboard that were shown 
+ *	Returns the number of players on scoreboard that were shown
  */
 winshou()
 	{
@@ -224,7 +224,7 @@ winshou()
  *		int x;
  *
  *	Enter with 0 to list the scores, enter with 1 to list inventories too
- *	Returns the number of players on scoreboard that were shown 
+ *	Returns the number of players on scoreboard that were shown
  */
 shou(x)
 	int x;
@@ -275,7 +275,7 @@ showscores()
 	{
 	register int i,j;
 	lflush();  lcreat((char*)0);  if (readboard()<0) return;
-	i=winshou();	j=shou(0);	
+	i=winshou();	j=shou(0);
 	if (i+j == 0) lprcat(esb); else lprc('\n');
 	lflush();
 	}
@@ -369,7 +369,7 @@ newscore(score, whoo, whyded, winner)
 	}
 
 /*
- *	new1sub(score,i,whoo,taxes) 	  Subroutine to put player into a 
+ *	new1sub(score,i,whoo,taxes) 	  Subroutine to put player into a
  *		int score,i,whyded,taxes;		  winning scoreboard entry if his score
  *		char *whoo; 					  is high enough
  *
@@ -395,7 +395,7 @@ new1sub(score,i,whoo,taxes)
 	}
 
 /*
- *	new2sub(score,i,whoo,whyded)	 	  Subroutine to put player into a 
+ *	new2sub(score,i,whoo,whyded)	 	  Subroutine to put player into a
  *		int score,i,whyded,taxes;		  non-winning scoreboard entry if his
  *		char *whoo; 					  score is high enough
  *
@@ -611,7 +611,7 @@ diedlog()
  *	it will try to make a new entry in the file.  Only returns -1 if can't
  *	find him in the file, and can't make a new entry in the file.
  *	Format of playerids file:
- *			Id # in ascii     \n     character name     \n   
+ *			Id # in ascii     \n     character name     \n
  */
 static int havepid= -1;	/* playerid # if previously done */
 getplid(nam)

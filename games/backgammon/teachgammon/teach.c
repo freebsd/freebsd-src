@@ -108,45 +108,45 @@ char	**argv;
 	init();
 	while (i)
 		switch (i)  {
-		
+
 		case 1:
 			leave();
-		
+
 		case 2:
 			if (i = text(intro1))
 				break;
 			wrboard();
 			if (i = text(intro2))
 				break;
-		
+
 		case 3:
 			if (i = text(moves))
 				break;
-		
+
 		case 4:
 			if (i = text(remove))
 				break;
-		
+
 		case 5:
 			if (i = text(hits))
 				break;
-		
+
 		case 6:
 			if (i = text(endgame))
 				break;
-		
+
 		case 7:
 			if (i = text(doubl))
 				break;
-		
+
 		case 8:
 			if (i = text(stragy))
 				break;
-		
+
 		case 9:
 			if (i = text(prog))
 				break;
-		
+
 		case 10:
 			if (i = text(lastch))
 				break;

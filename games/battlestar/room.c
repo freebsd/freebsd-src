@@ -79,7 +79,7 @@ struct room here;
 			ahead = here.north;
 			back = here.south;
 			break;
-		
+
 		case SOUTH:
 			left = here.east;
 			right = here.west;
@@ -143,7 +143,7 @@ char option;
 					return("left");
 				case EAST:
 					return("ahead");
-				case WEST:	
+				case WEST:
 					return(option == '+' ? "behind you" : "back");
 			}
 

@@ -60,7 +60,7 @@
 #define CONJ	5
 
 	/* words numbers */
-#define KNIFE		0 
+#define KNIFE		0
 #define SWORD		1
 #define LAND		2
 #define WOODSMAN 	3
@@ -175,7 +175,7 @@
 #define RIDE	1047
 #define DRIVE	1048
 #define SCORE	1049
-#define BURY	1050 
+#define BURY	1050
 #define JUMP	1051
 #define KICK	1052
 
@@ -192,7 +192,7 @@
 #define	CANTLAUNCH	0
 #define LAUNCHED	1
 #define CANTSEE		2
-#define CANTMOVE	3 
+#define CANTMOVE	3
 #define JINXED		4
 #define DUG		5
 #define NUMOFNOTES	6

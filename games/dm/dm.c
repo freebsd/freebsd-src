@@ -243,7 +243,7 @@ load()
  */
 users()
 {
-	
+
 	register int nusers, utmp;
 	struct utmp buf;
 

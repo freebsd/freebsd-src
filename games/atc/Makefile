@@ -11,7 +11,7 @@ GAMES=	ATC_scores Game_List Killer crossover default easy game_2
 CLEANFILES=grammar.c y.tab.h lex.c
 HIDEGAME=hidegame
 
-beforeinstall: 
+beforeinstall:
 	(cd ${.CURDIR}/games; install -c -o ${BINOWN} -g ${BINGRP} -m 400 \
 	    ${GAMES} ${DESTDIR}/usr/share/games/atc)
 

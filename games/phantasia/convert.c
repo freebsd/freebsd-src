@@ -24,7 +24,7 @@ char	Newpfile[] = DEST/newcharacs";		/* new format file */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: time(), exit(), fread(), fopen(), srandom(), floor(), 
+/ MODULES CALLED: time(), exit(), fread(), fopen(), srandom(), floor(),
 /	random(), strcmp(), fwrite(), strcpy(), fclose(), fprintf()
 /
 / GLOBAL INPUTS: _iob[], Oldplayer, Newplayer

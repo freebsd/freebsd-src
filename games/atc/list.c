@@ -99,7 +99,7 @@ delete(l, p)
 {
 	if (l->head == NULL)
 		loser(p, "deleted a non-existant plane! Get help!");
-	
+
 	if (l->head == p && l->tail == p)
 		l->head = l->tail = NULL;
 	else if (l->head == p) {

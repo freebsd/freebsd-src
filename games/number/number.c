@@ -68,7 +68,7 @@ static char	*name1[] = {
 	"trillion",	"quadrillion",	"quintillion",	"sextillion",
 	"septillion",	"octillion",	"nonillion",	"decillion",
 	"undecillion",	"duodecillion",	"tredecillion",	"quattuordecillion",
-	"quindecillion",		"sexdecillion",	
+	"quindecillion",		"sexdecillion",
 	"septendecillion",		"octodecillion",
 	"novemdecillion",		"vigintillion",
 };
