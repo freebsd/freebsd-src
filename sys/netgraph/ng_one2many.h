@@ -44,7 +44,7 @@
 
 /* Node type name and magic cookie */
 #define NG_ONE2MANY_NODE_TYPE		"one2many"
-#define NGM_ONE2MANY_COOKIE		971111383
+#define NGM_ONE2MANY_COOKIE		1100897444
 
 /* Hook names */
 #define NG_ONE2MANY_HOOK_ONE		"one"
@@ -63,6 +63,7 @@
 
 /* Algorithms for detecting link failure (XXX only one so far) */
 #define NG_ONE2MANY_FAIL_MANUAL		1	/* use enabledLinks[] array */
+#define NG_ONE2MANY_FAIL_NOTIFY		2	/* listen to flow control msgs */
 
 /* Node configuration structure */
 struct ng_one2many_config {
