@@ -534,7 +534,7 @@ configXDesktop(dialogMenuItem *self)
 	}
     }
     else if (!strcmp(desk, "fvwm2")) {
-	ret = package_add("fvwm2");
+	ret = package_add("fvwm");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("fvwm2"))
 	    write_root_xprofile("xterm &\nexec fvwm2\n");
     }
