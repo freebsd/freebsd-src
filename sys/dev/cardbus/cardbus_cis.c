@@ -413,7 +413,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 	switch (CARDBUS_CIS_SPACE(*start)) {
 	case CARDBUS_CIS_ASI_TUPLE:
 		/* CIS in tuple space need no initialization */
-		return (NULL);
+		return ((struct resource*)~0UL);
 	case CARDBUS_CIS_ASI_BAR0:
 	case CARDBUS_CIS_ASI_BAR1:
 	case CARDBUS_CIS_ASI_BAR2:
@@ -595,24 +595,24 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	int count;
-	struct resource_list *rl = &dinfo->pci.resources;
 	struct resource_list_entry *rle;
 	struct resource_list_entry **barlist;
 	int tmp;
 	u_int32_t mem_psize = 0, mem_nsize = 0, io_size = 0;
 	struct resource *res;
-	u_int32_t start, end;
-	int rid, flags, irq;
+	u_int32_t start,end;
+	int rid, flags;
 
 	count = 0;
-	SLIST_FOREACH(rle, rl, link)
+	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
 		count++;
+	}
 	if (count == 0)
 		return (0);
 	barlist = malloc(sizeof(struct resource_list_entry*) * count, M_DEVBUF,
 	    M_WAITOK);
 	count = 0;
-	SLIST_FOREACH(rle, rl, link) {
+	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
 		barlist[count] = rle;
 		if (rle->type == SYS_RES_IOPORT) {
 			io_size += rle->count;
@@ -654,11 +654,6 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		res = bus_alloc_resource(cbdev, SYS_RES_MEMORY, &rid, 0,
 		    (dinfo->mprefetchable & dinfo->mbelow1mb)?0xFFFFF:~0UL,
 		    mem_psize, flags);
-		if (res == NULL) { /* XXX need cleanup*/
-		    device_printf(cbdev, "Unable to allocate memory for "
-		      "prefetchable memory.\n");
-		    return (ENOMEM);
-		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
 		DEVPRINTF((cbdev, "Prefetchable memory at %x-%x\n", start, end));
@@ -684,22 +679,20 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 					DEVPRINTF((cbdev, "Cannot pre-allocate "
 					    "prefetchable memory, will try as "
 					    "non-prefetchable.\n"));
-					continue;
+				} else {
+					barlist[tmp]->start =
+					    rman_get_start(barlist[tmp]->res);
+					barlist[tmp]->end =
+					    rman_get_end(barlist[tmp]->res);
+					pci_write_config(child,
+					    barlist[tmp]->rid,
+					    barlist[tmp]->start, 4);
+					DEVPRINTF((cbdev, "Prefetchable memory "
+					    "rid=%x at %lx-%lx\n",
+					    barlist[tmp]->rid,
+					    barlist[tmp]->start,
+					    barlist[tmp]->end));
 				}
-				barlist[tmp]->start =
-				    rman_get_start(barlist[tmp]->res);
-				barlist[tmp]->end =
-				    rman_get_end(barlist[tmp]->res);
-				pci_write_config(child,
-				    barlist[tmp]->rid,
-				    barlist[tmp]->start, 4);
-				bus_release_resource(cbdev, SYS_RES_MEMORY,
-				    barlist[tmp]->rid, barlist[tmp]->res);
-				DEVPRINTF((cbdev, "Prefetchable memory "
-				    "rid=%x at %lx-%lx\n",
-				    barlist[tmp]->rid,
-				    barlist[tmp]->start,
-				    barlist[tmp]->end));
 			}
 		}
 	}
@@ -726,11 +719,6 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		res = bus_alloc_resource(cbdev, SYS_RES_MEMORY, &rid, 0,
 		    ((~dinfo->mprefetchable) & dinfo->mbelow1mb)?0xFFFFF:~0UL,
 		    mem_nsize, flags);
-		if (res == NULL) { /* XXX need cleanup*/
-		    device_printf(cbdev, "Unable to allocate memory for "
-		      "non-prefetchable memory.\n");
-		    return (ENOMEM);
-		}
 		start = rman_get_start(res);
 		end = rman_get_end(res);
 		DEVPRINTF((cbdev, "Non-prefetchable memory at %x-%x\n",
@@ -759,9 +747,6 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 					barlist[tmp]->res);
 				pci_write_config(child, barlist[tmp]->rid,
 				    barlist[tmp]->start, 4);
-				bus_release_resource(cbdev, SYS_RES_MEMORY,
-				    barlist[tmp]->rid, barlist[tmp]->res);
-				barlist[tmp]->res = NULL;
 				DEVPRINTF((cbdev, "Non-prefetchable memory "
 				    "rid=%x at %lx-%lx (%lx)\n",
 				    barlist[tmp]->rid, barlist[tmp]->start,
@@ -789,19 +774,14 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		 * (XXX: Perhaps there might be a better way to do this?)
 		 */
 		rid = 0;
-		res = bus_alloc_resource(cbdev, SYS_RES_IOPORT, &rid, 0, ~0UL,
-		    io_size, flags);
-		if (res == NULL) { /* XXX need cleanup*/
-		    device_printf(cbdev, "Unable to allocate I/O ports\n");
-		    return (ENOMEM);
-		}
+		res = bus_alloc_resource(cbdev, SYS_RES_IOPORT, &rid, 0,
+		    (dinfo->ibelow1mb)?0xFFFFF:~0UL, io_size, flags);
 		start = rman_get_start(res);
 		end = rman_get_end(res);
 		DEVPRINTF((cbdev, "IO port at %x-%x\n", start, end));
 		/*
 		 * Now that we know the region is free, release it and hand it
-		 * out piece by piece. XXX Need to interlock with the RM
-		 * so we don't race here.
+		 * out piece by piece.
 		 */
 		bus_release_resource(cbdev, SYS_RES_IOPORT, rid, res);
 		for (tmp = 0; tmp < count; tmp++) {
@@ -821,32 +801,26 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 				    rman_get_start(barlist[tmp]->res);
 				barlist[tmp]->end =
 				    rman_get_end(barlist[tmp]->res);
-				pci_write_config(child, barlist[tmp]->rid,
-				    barlist[tmp]->start, 4);
-				bus_release_resource(cbdev, SYS_RES_IOPORT,
-				    barlist[tmp]->rid, barlist[tmp]->res);
-				barlist[tmp]->res = NULL;
-				DEVPRINTF((cbdev, "IO port rid=%x at %lx-%lx\n",
-				    barlist[tmp]->rid, barlist[tmp]->start,
-				    barlist[tmp]->end));
+			pci_write_config(child, barlist[tmp]->rid,
+			    barlist[tmp]->start, 4);
+			DEVPRINTF((cbdev, "IO port rid=%x at %lx-%lx\n",
+			    barlist[tmp]->rid, barlist[tmp]->start,
+			    barlist[tmp]->end));
 			}
 		}
 	}
 
 	/* Allocate IRQ */
+	/* XXX: Search CIS for IRQ description */
 	rid = 0;
 	res = bus_alloc_resource(cbdev, SYS_RES_IRQ, &rid, 0, ~0UL, 1,
 	    RF_SHAREABLE);
-	if (res == NULL) { /* XXX need cleanup*/
-		device_printf(cbdev, "Unable to allocate IRQ\n");
-		return (ENOMEM);
-	}
-	irq = rman_get_start(res);
-	resource_list_add(rl, SYS_RES_IRQ, rid, irq, irq, 1);
-	dinfo->pci.cfg.intline = irq;
-	pci_write_config(child, PCIR_INTLINE, irq, 1);
-	printf("Allocating IRQ %d\n", irq);
-	bus_release_resource(cbdev, SYS_RES_IRQ, rid, res);
+	resource_list_add(&dinfo->pci.resources, SYS_RES_IRQ, rid,
+	    rman_get_start(res), rman_get_end(res), 1);
+	rle = resource_list_find(&dinfo->pci.resources, SYS_RES_IRQ, rid);
+	rle->res = res;
+	dinfo->pci.cfg.intline = rman_get_start(res);
+	pci_write_config(child, PCIR_INTLINE, rman_get_start(res), 1);
 
 	return (0);
 }
@@ -859,17 +833,15 @@ static void
 cardbus_add_map(device_t cbdev, device_t child, int reg)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
-	struct resource_list *rl = &dinfo->pci.resources;
+	struct resource_list_entry *rle;
 	u_int32_t size;
 	u_int32_t testval;
 	int type;
 
-	testval = pci_read_config(child, reg, 4);
-	type = (testval & 1) ? SYS_RES_IOPORT : SYS_RES_MEMORY;
-	if (resource_list_find(rl, type, reg) != NULL)
-		return;
-
-	/* XXX Should just be able to use pci_add_map */
+	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
+		if (rle->rid == reg)
+			return;
+	}
 
 	if (reg == CARDBUS_ROM_REG)
 		testval = CARDBUS_ROM_ADDRMASK;
@@ -888,9 +860,9 @@ cardbus_add_map(device_t cbdev, device_t child, int reg)
 		type = SYS_RES_IOPORT;
 
 	size = CARDBUS_MAPREG_MEM_SIZE(testval);
-	device_printf(cbdev, "BAR not in CIS: type = %d, id=%x, size=%x\n",
- 	    type, reg, size);
-	resource_list_add(rl, type, reg, 0UL, ~0UL, size);
+	device_printf(cbdev, "Resource not specified in CIS: id=%x, size=%x\n",
+	    reg, size);
+	resource_list_add(&dinfo->pci.resources, type, reg, 0UL, ~0UL, size);
 }
 
 static void
@@ -911,8 +883,7 @@ cardbus_pickup_maps(device_t cbdev, device_t child)
 	}
 
 	for (q = &cardbus_quirks[0]; q->devid; q++) {
-		if (q->devid == ((dinfo->pci.cfg.device << 16) |
-		      dinfo->pci.cfg.vendor)
+		if (q->devid == ((dinfo->pci.cfg.device << 16) | dinfo->pci.cfg.vendor)
 		    && q->type == CARDBUS_QUIRK_MAP_REG) {
 			cardbus_add_map(cbdev, child, q->arg1);
 		}
