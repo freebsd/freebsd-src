@@ -612,13 +612,11 @@ acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     switch(notify) {
     case TZ_NOTIFY_TEMPERATURE:
 	/* temperature change occurred */
-	device_printf(sc->tz_dev, "notified of temperature reaching setpoint\n");
 	AcpiOsQueueForExecution(OSD_PRIORITY_HIGH, (OSD_EXECUTION_CALLBACK)acpi_tz_monitor, sc);
 	break;
     case TZ_NOTIFY_DEVICES:
     case TZ_NOTIFY_LEVELS:
 	/* zone devices/setpoints changed */
-	device_printf(sc->tz_dev, "notified of zone configuration change\n");
 	AcpiOsQueueForExecution(OSD_PRIORITY_HIGH, (OSD_EXECUTION_CALLBACK)acpi_tz_establish, sc);
 	break;
     default:
