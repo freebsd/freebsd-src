@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.22.2.8 1998/03/22 07:41:49 jkh Exp $
+ * $Id: disk.c,v 1.22.2.9 1998/03/23 03:28:04 jkh Exp $
  *
  */
 
@@ -306,7 +306,7 @@ Disk_Names()
     memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
     k = 0;
 	for (j = 0; device_list[j]; j++) {
-		for (i = 0; i < 10; i++) {
+		for (i = 0; i < MAX_NO_DISKS; i++) {
 			sprintf(diskname, "%s%d", device_list[j], i);
 			sprintf(disk, "/dev/r%s", diskname);
 			if (stat(disk, &st) || !(st.st_mode & S_IFCHR))
