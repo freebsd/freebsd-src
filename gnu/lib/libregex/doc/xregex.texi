@@ -2091,7 +2091,7 @@ pattern.
 
 For example, when you match @samp{((a)(b))} against @samp{ab}, you get:
 
-@itemize
+@itemize @bullet
 @item
 0 in @code{@w{@var{regs}->}start[0]} and 2 in @code{@w{@var{regs}->}end[0]} 
 
@@ -2113,7 +2113,7 @@ about what the group @emph{last} matched.
 For example, when you match the pattern @samp{(a)*} against the string
 @samp{aa}, you get:
 
-@itemize
+@itemize @bullet
 @item
 0 in @code{@w{@var{regs}->}start[0]} and 2 in @code{@w{@var{regs}->}end[0]} 
 
@@ -2131,7 +2131,7 @@ sets @code{@w{@var{regs}->}start[@var{i}]} and
 For example, when you match the pattern @samp{(a)*b} against
 the string @samp{b}, you get:
 
-@itemize
+@itemize @bullet
 @item
 0 in @code{@w{@var{regs}->}start[0]} and 1 in @code{@w{@var{regs}->}end[0]} 
 
@@ -2148,7 +2148,7 @@ zero-length string.
 For example, when you match the pattern @samp{(a*)b} against the string
 @samp{b}, you get:
 
-@itemize
+@itemize @bullet
 @item
 0 in @code{@w{@var{regs}->}start[0]} and 1 in @code{@w{@var{regs}->}end[0]} 
 
@@ -2164,7 +2164,7 @@ pattern.
 For example, when you match the pattern @samp{(a*)} against the empty
 string, you get:
 
-@itemize
+@itemize @bullet
 @item
 0 in @code{@w{@var{regs}->}start[0]} and 0 in @code{@w{@var{regs}->}end[0]} 
 
@@ -2185,7 +2185,7 @@ For example, when you match the pattern @samp{((a*)b)*} against the
 string @samp{abb}, @w{group 2} last matches the empty string, so you
 get what it previously matched:
 
-@itemize
+@itemize @bullet
 @item
 0 in @code{@w{@var{regs}->}start[0]} and 3 in @code{@w{@var{regs}->}end[0]} 
 
@@ -2200,7 +2200,7 @@ When you match the pattern @samp{((a)*b)*} against the string
 @samp{abb}, @w{group 2} doesn't participate in the last match, so you
 get:
 
-@itemize
+@itemize @bullet
 @item
 0 in @code{@w{@var{regs}->}start[0]} and 3 in @code{@w{@var{regs}->}end[0]} 
 
@@ -2223,7 +2223,7 @@ and the function sets
 For example, when you match the pattern @samp{((a)*b)*c} against the
 string @samp{c}, you get:
 
-@itemize
+@itemize @bullet
 @item
 0 in @code{@w{@var{regs}->}start[0]} and 1 in @code{@w{@var{regs}->}end[0]} 
 
