@@ -346,7 +346,6 @@ ip_input(struct mbuf *m)
 		ipstat.ips_badlen++;
 		goto bad;
 	}
-	NTOHS(ip->ip_id);
 	NTOHS(ip->ip_off);
 
 	/*
@@ -692,10 +691,8 @@ found:
 				ip->ip_len += hlen;
 				HTONS(ip->ip_len);
 				HTONS(ip->ip_off);
-				HTONS(ip->ip_id);
 				ip->ip_sum = 0;
 				ip->ip_sum = in_cksum_hdr(ip);
-				NTOHS(ip->ip_id);
 				NTOHS(ip->ip_off);
 				NTOHS(ip->ip_len);
 				ip->ip_len -= hlen;
@@ -725,7 +722,6 @@ found:
 		ip->ip_len += hlen;
 		HTONS(ip->ip_len);
 		HTONS(ip->ip_off);
-		HTONS(ip->ip_id);
 
 		/* Deliver packet to divert input routine */
 		ip_divert_cookie = divert_cookie;
