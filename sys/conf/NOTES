@@ -1971,6 +1971,7 @@ device		card	1
 # alpm		Acer Aladdin-IV/V/Pro2 Power Management Unit
 # ichsmb	Intel ICH SMBus controller chips (82801AA, 82801AB, 82801BA)
 # viapm		VIA VT82C586B/596B/686A and VT8233 Power Management Unit 
+# amdpm		AMD 756 Power Management Unit
 #
 device		smbus		# Bus support, required for smb below.
 
