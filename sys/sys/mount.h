@@ -46,12 +46,12 @@
 #include <sys/mac.h>
 #include <sys/ucred.h>
 #include <sys/queue.h>
-#include <sys/uio.h>
 #ifdef _KERNEL
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #endif
 
+struct iovec;
 struct netcred;
 struct netexport;
 
