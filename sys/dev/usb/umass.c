@@ -730,7 +730,7 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	if (UGETW(dd->idVendor) == USB_VENDOR_YEDATA
 	    && UGETW(dd->idProduct) == USB_PRODUCT_YEDATA_FLASHBUSTERU) {
 
-		/* Revisions < 1.28 do not handle the inerrupt endpoint
+		/* Revisions < 1.28 do not handle the interrupt endpoint
 		 * very well.
 		 */
 		if (UGETW(dd->bcdDevice) < 0x128) {
@@ -984,14 +984,14 @@ USB_ATTACH(umass)
 	}
 	/* Open the intr-in pipe if the protocol is CBI with CCI.
 	 * Note: early versions of the Zip drive do have an interrupt pipe, but
-	 * this pipe is unused
+	 * this pipe is unused.
 	 *
 	 * We do not open the interrupt pipe as an interrupt pipe, but as a
 	 * normal bulk endpoint. We send an IN transfer down the wire at the
 	 * appropriate time, because we know exactly when to expect data on
 	 * that endpoint. This saves bandwidth, but more important, makes the
 	 * code for handling the data on that endpoint simpler. No data
-	 * arriving concurently.
+	 * arriving concurrently.
 	 */
 	if (sc->proto & UMASS_PROTO_CBI_I) {
 		err = usbd_open_pipe(sc->iface, sc->intrin,
@@ -1155,7 +1155,7 @@ umass_setup_transfer(struct umass_softc *sc, usbd_pipe_handle pipe,
 {
 	usbd_status err;
 
-	/* Initialiase a USB transfer and then schedule it */
+	/* Initialise a USB transfer and then schedule it */
 
 	(void) usbd_setup_xfer(xfer, pipe, (void *) sc, buffer, buflen, flags,
 			sc->timeout, sc->state);
@@ -1179,7 +1179,7 @@ umass_setup_ctrl_transfer(struct umass_softc *sc, usbd_device_handle udev,
 {
 	usbd_status err;
 
-	/* Initialiase a USB control transfer and then schedule it */
+	/* Initialise a USB control transfer and then schedule it */
 
 	(void) usbd_setup_default_xfer(xfer, udev, (void *) sc,
 			sc->timeout, req, buffer, buflen, flags, sc->state);
@@ -1404,7 +1404,7 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 	 * Annex A of the Bulk-Only specification.
 	 * Each state first does the error handling of the previous transfer
 	 * and then prepares the next transfer.
-	 * Each transfer is done asynchroneously so after the request/transfer
+	 * Each transfer is done asynchronously so after the request/transfer
 	 * has been submitted you will find a 'return;'.
 	 */
 
@@ -1758,7 +1758,7 @@ umass_cbi_reset(struct umass_softc *sc, int status)
 	 *
 	 * First send a reset request to the device. Then clear
 	 * any possibly stalled bulk endpoints.
-
+	 *
 	 * This is done in 3 steps, states:
 	 * TSTATE_CBI_RESET1
 	 * TSTATE_CBI_RESET2
@@ -1778,7 +1778,7 @@ umass_cbi_reset(struct umass_softc *sc, int status)
 	sc->transfer_state = TSTATE_CBI_RESET1;
 	sc->transfer_status = status;
 
-	/* The 0x1d code is the SEND DIAGNOSTIC command. To distingiush between
+	/* The 0x1d code is the SEND DIAGNOSTIC command. To distinguish between
 	 * the two the last 10 bytes of the cbl is filled with 0xff (section
 	 * 2.2 of the CBI spec).
 	 */
@@ -1789,7 +1789,7 @@ umass_cbi_reset(struct umass_softc *sc, int status)
 
 	umass_cbi_adsc(sc, sc->cbl, SEND_DIAGNOSTIC_CMDLEN,
 		       sc->transfer_xfer[XFER_CBI_RESET1]);
-	/* XXX if the command fails we should reset the port on the bub */
+	/* XXX if the command fails we should reset the port on the hub */
 }
 
 Static void
