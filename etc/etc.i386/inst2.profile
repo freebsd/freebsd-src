@@ -191,8 +191,8 @@ load_fd()
 	fi
 	while [ "$drive" != "q" ]
 	do
-		device=/dev/fd0a
-		[ "$drive" = "B" ] && device=/dev/fd1a
+		device=/dev/fd0
+		[ "$drive" = "B" ] && device=/dev/fd1
 		[ "$drive" = "C" ] && device=${msdos_device}
 		echo; 
 		if [ "$drive" != "C" ]; then
