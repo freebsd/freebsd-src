@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2005
+.Dd February 14, 2005
 .Dt CPUFREQ 4
 .Os
 .Sh NAME
@@ -161,12 +161,18 @@ If
 .Fa priority
 is higher than the current active level, that level will be saved and
 overridden with the new level.
+If a level is already saved, the new level is set without overwriting
+the older saved level.
 If
 .Fn cpufreq_set
 is called with a
 .Dv NULL
 .Fa level ,
-the saved level (if any) will be restored.
+the saved level will be restored.
+If there is no saved level,
+.Fn cpufreq_set
+will return
+.Er ENXIO .
 If
 .Fa priority
 is lower than the current active level's priority, this method returns
@@ -250,8 +256,7 @@ interface:
 .Xr longrun 4 ,
 .Xr p4tcc 4 .
 .Pp
-Priorities and notification of unrequested frequency changes are not
-implemented yet.
+Notification of CPU and bus frequency changes is not implemented yet.
 .Pp
 When multiple CPUs offer frequency control, they cannot be set to different
 levels and must all offer the same frequency settings.
