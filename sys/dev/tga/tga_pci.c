@@ -190,7 +190,8 @@ tga_attach(device_t dev)
 	}
 #ifdef FB_INSTALL_CDEV
 	sc->cdevsw = &tga_cdevsw;
-	sc->devt = make_dev(sc->cdevsw, unit, 0, 0, 02660, "tga%x", unit);
+	sc->devt = make_dev(sc->cdevsw, unit, UID_ROOT, GID_WHEEL, 0600,
+	    "tga%x", unit);
 #endif /* FB_INSTALL_CDEV */
 	goto done;
 fail:
