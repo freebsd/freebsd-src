@@ -1169,9 +1169,6 @@ union descriptor ldt[NLDT];		/* local descriptor table */
 struct region_descriptor r_gdt, r_idt;
 #endif
 
-#ifndef SMP
-extern struct segment_descriptor common_tssd, *tss_gdt;
-#endif
 int private_tss;			/* flag indicating private tss */
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)

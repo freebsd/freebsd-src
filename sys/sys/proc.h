@@ -444,17 +444,6 @@ extern u_long pidhash;
 extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
 extern u_long pgrphash;
 
-#ifndef SET_CURPROC
-#define SET_CURPROC(p)	(curproc = (p))
-#endif
-
-#ifndef curproc
-extern struct proc *curproc;		/* Current running proc. */
-extern struct proc *prevproc;		/* Previously running proc. */
-extern struct proc *idleproc;		/* Current idle proc. */
-extern int switchticks;			/* `ticks' at last context switch. */
-extern struct timeval switchtime;	/* Uptime at last context switch */
-#endif
 extern struct proc proc0;		/* Process slot for swapper. */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */

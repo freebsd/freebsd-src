@@ -125,6 +125,16 @@ _global_globaldata(void)
 #else /* !(SMP || KLD_MODULE) */
 
 extern u_int	astpending;
+extern struct i386tss common_tss;
+extern struct segment_descriptor common_tssd;
+extern struct pcb *curpcb;		/* Our current running pcb. */
+extern struct proc *curproc;		/* Current running proc. */
+extern struct proc *idleproc;		/* Current idle proc. */
+extern u_char	intr_nesting_level;
+extern struct proc *npxproc;
+extern int switchticks;			/* `ticks' at last context switch. */
+extern struct timeval switchtime;	/* Uptime at last context switch. */
+extern struct segment_descriptor *tss_gdt;
 
 #endif /* SMP || KLD_MODULE */
 
@@ -174,10 +184,6 @@ GLOBAL_FUNC(witness_spin_check)
 #define	GLOBALDATA		(&globaldata)
 #endif
 
-#ifndef	curproc
-struct proc;
-extern struct proc *curproc;
-#endif
 #define	CURTHD			curproc
 #define	CURPROC			curproc
 
