@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
  * The previous signal state is restored.
  */
 
-#define SOFTFLOAT /* XXX */
 ENTRY(setjmp)
 	/* Block all signals and retrieve the old signal mask */
 	stmfd	sp!, {r0, r14}
