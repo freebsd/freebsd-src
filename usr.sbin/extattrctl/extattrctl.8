@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm extattrctl
-.Nd manage FFS extended attributes
+.Nd manage UFS1 extended attributes
 .Sh SYNOPSIS
 .Nm
 .Cm start
@@ -65,7 +65,7 @@
 .Ar attrname
 .Sh DESCRIPTION
 .Nm
-is the management utility for extended attributes over the FFS file system.
+is the management utility for extended attributes over the UFS1 file system.
 .Nm
 allows the starting and stopping of extended attributes on a file system,
 as well as initialization of attribute backing files, and enabling and
@@ -78,7 +78,7 @@ Operation must be one of the following:
 .It Cm start Ar path
 Start extended attribute support on the file system named using
 .Ar path .
-The file system must be an FFS file system, and the FFS_EXTATTR kernel
+The file system must be an UFS1 file system, and the UFS_EXTATTR kernel
 option must have been enabled.
 .It Cm stop Ar path
 Stop extended attribute support on the file system named using
