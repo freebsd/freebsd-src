@@ -8,6 +8,11 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20021023:       p1
+	Correct bug in the tar(1) contains_dot_dot function allowing
+	files to be extracted outside the intended directory tree.
+	Correct kadmind buffer overflow.
+
 20021010:
 	FreeBSD 4.7-RELEASE.
 
