@@ -1375,7 +1375,7 @@ sk_detach_xmac(dev)
 
 	ifp = &sc_if->arpcom.ac_if;
 	/* These should only be active if attach_xmac succeeded */
-	if (device_is_alive(dev)) {
+	if (device_is_attached(dev)) {
 		sk_stop(sc_if);
 		ether_ifdetach(ifp);
 	}
