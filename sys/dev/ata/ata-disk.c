@@ -242,9 +242,9 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
     }
     while ((bp = bufq_first(&adp->queue))) {
 	bufq_remove(&adp->queue, bp); 
-	request->bp->b_error = ENXIO;
-	request->bp->b_flags |= B_ERROR;
-	biodone(request->bp);
+	bp->b_error = ENXIO;
+	bp->b_flags |= B_ERROR;
+	biodone(bp);
     }
     disk_invalidate(&adp->disk);
     disk_destroy(adp->dev);
