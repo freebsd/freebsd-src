@@ -165,10 +165,10 @@ static driver_t __CONCAT(dname,_driver) = { \
 
 #define USB_MATCH(dname) \
 static int \
-__CONCAT(dname,_match)(device_t device)
+__CONCAT(dname,_match)(device_t self)
 
 #define USB_MATCH_START(dname, uaa) \
-        struct usb_attach_arg *uaa = device_get_ivars(device)
+        struct usb_attach_arg *uaa = device_get_ivars(self)
 
 #define USB_ATTACH(dname) \
 static int \

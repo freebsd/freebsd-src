@@ -168,7 +168,7 @@ USB_MATCH(ukbd)
 
 	keyboard_switch_t *sw;
 	void *arg[4];
-	int unit = device_get_unit(device);
+	int unit = device_get_unit(self);
 
 	sw = kbd_get_switch(DRIVER_NAME);
 	if (sw == NULL)
@@ -177,7 +177,7 @@ USB_MATCH(ukbd)
 	arg[0] = (void *)uaa;
 	arg[1] = (void *)ukbd_intr;
 	arg[2] = (void *)ukbd_disconnect;
-	arg[3] = (void *)device;
+	arg[3] = (void *)self;
 	if ((*sw->probe)(unit, (void *)arg, 0))
 		return (UMATCH_NONE);
 
