@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.78 1996/03/24 13:16:45 paul Exp $
+#	$Id: Makefile,v 1.79 1996/05/04 07:12:07 markm Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -116,6 +116,7 @@ bootstrap:
 	cd ${.CURDIR}/usr.bin/xlint/lint1 && ${MAKE} ${MK_FLAGS} install
 	cd ${.CURDIR}/usr.bin/xlint/lint2 && ${MAKE} ${MK_FLAGS} install
 	cd ${.CURDIR}/usr.bin/xlint/xlint && ${MAKE} ${MK_FLAGS} install
+	cd ${.CURDIR}/usr.bin/lex && ${MAKE} ${MK_FLAGS} bootstrap all install
 
 reinstall:	hierarchy mk includes
 	@echo "--------------------------------------------------------------"
