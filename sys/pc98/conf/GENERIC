@@ -204,27 +204,14 @@ device		awi
 # Xircom pccard ethernet
 device		xe
 
+#device		joy
 
-# The VoxWare sound drivers
-#device	snd
-#device	sb
-#device	sbxvi
-#device	sbmidi
-#device	opl
-#device	nss
-#device	mss
-#device	mpu
-
-#device	joy
-
-# The newpcm driver (use INSTEAD of snd0 and all VOXWARE drivers!).
-#
 # Windows Sound System
-#device	pcm
+#device		pcm
 #
 # Sound Blaster 16 (This device need the bridge driver.)
-#device	pcm
-#device	sbc
+#device		pcm
+#device		sbc
 
 # Pseudo devices - the number indicates how many units to allocated.
 device		random		# Entropy device
