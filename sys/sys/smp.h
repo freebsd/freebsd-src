@@ -17,6 +17,33 @@
 #ifndef LOCORE
 
 #ifdef SMP
+
+/*
+ * Topology of a NUMA or HTT system.
+ *
+ * The top level topology is an array of pointers to groups.  Each group
+ * contains a bitmask of cpus in its group or subgroups.  It may also
+ * contain a pointer to an array of child groups.
+ *
+ * The bitmasks at non leaf groups may be used by consumers who support
+ * a smaller depth than the hardware provides.
+ *
+ * The topology may be omitted by systems where all CPUs are equal.
+ */
+
+struct cpu_group {
+	u_int	cg_mask;		/* Mask of cpus in this group. */
+	int	cg_count;		/* Count of cpus in this group. */
+	int	cg_children;		/* Number of children groups. */
+	struct cpu_group *cg_child;	/* Optional child group. */
+};
+
+struct cpu_top {
+	int	ct_count;		/* Count of groups. */
+	struct cpu_group *ct_group;	/* Array of pointers to cpu groups. */
+};
+
+extern struct cpu_top *smp_topology;
 extern void (*cpustop_restartfunc)(void);
 extern int mp_ncpus;
 extern int smp_active;
