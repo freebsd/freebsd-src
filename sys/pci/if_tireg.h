@@ -1037,16 +1037,12 @@ struct ti_event_desc {
 #define TI_MSLOTS	256
 #define TI_JSLOTS	384
 
-#define TI_JRAWLEN (TI_JUMBO_FRAMELEN + ETHER_ALIGN + sizeof(u_int64_t))
+#define TI_JRAWLEN (TI_JUMBO_FRAMELEN + ETHER_ALIGN)
 #define TI_JLEN (TI_JRAWLEN + (sizeof(u_int64_t) - \
 	(TI_JRAWLEN % sizeof(u_int64_t))))
 #define TI_JPAGESZ PAGE_SIZE
 #define TI_RESID (TI_JPAGESZ - (TI_JLEN * TI_JSLOTS) % TI_JPAGESZ)
 #define TI_JMEM ((TI_JLEN * TI_JSLOTS) + TI_RESID)
-
-struct ti_jslot {
-	caddr_t			ti_buf;
-};
 
 /*
  * Ring structures. Most of these reside in host memory and we tell
@@ -1087,7 +1083,7 @@ struct ti_chain_data {
 	struct mbuf		*ti_rx_jumbo_chain[TI_JUMBO_RX_RING_CNT];
 	struct mbuf		*ti_rx_mini_chain[TI_MINI_RX_RING_CNT];
 	/* Stick the jumbo mem management stuff here too. */
-	struct ti_jslot		ti_jslots[TI_JSLOTS];
+	caddr_t			ti_jslots[TI_JSLOTS];
 	void			*ti_jumbo_buf;
 };
 

@@ -614,20 +614,12 @@ static int ti_alloc_jumbo_mem(sc)
 
 	/*
 	 * Now divide it up into 9K pieces and save the addresses
-	 * in an array. Note that we play an evil trick here by using
-	 * the first few bytes in the buffer to hold the the address
-	 * of the softc structure for this interface. This is because
-	 * ti_jfree() needs it, but it is called by the mbuf management
-	 * code which will not pass it to us explicitly.
+	 * in an array.
 	 */
 	ptr = sc->ti_cdata.ti_jumbo_buf;
 	for (i = 0; i < TI_JSLOTS; i++) {
-		u_int64_t		**aptr;
-		aptr = (u_int64_t **)ptr;
-		aptr[0] = (u_int64_t *)sc;
-		ptr += sizeof(u_int64_t);
-		sc->ti_cdata.ti_jslots[i].ti_buf = ptr;
-		ptr += (TI_JLEN - sizeof(u_int64_t));
+		sc->ti_cdata.ti_jslots[i] = ptr;
+		ptr += TI_JLEN;
 		entry = malloc(sizeof(struct ti_jpool_entry), 
 			       M_DEVBUF, M_NOWAIT);
 		if (entry == NULL) {
@@ -662,7 +654,7 @@ static void *ti_jalloc(sc)
 
 	SLIST_REMOVE_HEAD(&sc->ti_jfree_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc->ti_jinuse_listhead, entry, jpool_entries);
-	return(sc->ti_cdata.ti_jslots[entry->slot].ti_buf);
+	return(sc->ti_cdata.ti_jslots[entry->slot]);
 }
 
 /*
@@ -673,19 +665,17 @@ static void ti_jfree(buf, args)
 	void			*args;
 {
 	struct ti_softc		*sc;
-	u_int64_t		**aptr;
 	int		        i;
 	struct ti_jpool_entry   *entry;
 
 	/* Extract the softc struct pointer. */
-	aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
-	sc = (struct ti_softc *)(aptr[0]);
+	sc = (struct ti_softc *)args;
 
 	if (sc == NULL)
-		panic("ti_jfree: can't find softc pointer!");
+		panic("ti_jfree: didn't get softc pointer!");
 
 	/* calculate the slot this buffer belongs to */
-	i = ((vm_offset_t)aptr 
+	i = ((vm_offset_t)buf
 	     - (vm_offset_t)sc->ti_cdata.ti_jumbo_buf) / TI_JLEN;
 
 	if ((i < 0) || (i >= TI_JSLOTS))
@@ -824,7 +814,8 @@ static int ti_newbuf_jumbo(sc, i, m)
 		/* Attach the buffer to the mbuf. */
 		m_new->m_data = (void *) buf;
 		m_new->m_len = m_new->m_pkthdr.len = TI_JUMBO_FRAMELEN;
-		MEXTADD(m_new, buf, TI_JUMBO_FRAMELEN, ti_jfree, NULL);
+		MEXTADD(m_new, buf, TI_JUMBO_FRAMELEN, ti_jfree,
+		    (struct ti_softc *)sc);
 	} else {
 		m_new = m;
 		m_new->m_data = m_new->m_ext.ext_buf;
