@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.24 1998/08/15 17:26:36 markm Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -20,7 +20,8 @@ SRCS=	add.c admin.c buffer.c checkin.c checkout.c classify.c client.c \
 	server.c status.c subr.c tag.c update.c vers_ts.c version.c watch.c \
 	wrapper.c zlib.c
 
-CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../lib -I${CVSDIR}/src -I${CVSDIR}/lib -DHAVE_CONFIG_H
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../lib -DHAVE_CONFIG_H \
+	-I${CVSDIR}/src -I${CVSDIR}/lib -I${CVSDIR}/diff
 
 DPADD+=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
 LDADD+=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz

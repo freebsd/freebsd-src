@@ -1,3 +1,56 @@
+1998-08-06  David Masterson of kla-tencor.com
+
+	* util.c (flush_output): Don't prototype.
+
+Thu Jul  2 16:34:38 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	Simplify the callback interface:
+	* diffrun.h: Don't include <stdarg.h> or <varargs.h>.
+	(struct diff_callbacks): Remove printf_output field.
+	* util.c: Include <stdarg.h> or <varargs.h>.
+	(printf_output): Use vasprintf and write_output callback rather
+	than printf_output callback.
+	* diff3.c (read_diff): Don't set my_callbacks.printf_output.
+
+Thu Jun 18 12:43:53 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* diffrun.h: New file.
+	* diff.h: Include diffrun.h.
+	(callbacks): New EXTERN variable.
+	(write_output, printf_output, flush_output): Declare.
+	* diff.c (diff_run): Add parameter callbacks_arg.  Use callback
+	functions rather than writing to stdout.  Don't open a file if
+	there is a write_output callback.  Call perror_with_name rather
+	than perror.
+	(usage): Use callbacks if defined rather than writing to stdout.
+	(compare_files): Call flush_output rather than fflush (outfile).
+	* diff3.c: Include diffrun.h.  Change several functions to use
+	output functions from util.c rather than direct printing.  Use
+	diff_error and friends rather than printing to stderr.  Set global
+	variable outfile.
+	(outfile, callbacks): Declare.
+	(write_output, printf_output, flush_output): Declare.
+	(diff3_run): Add parameter callbacks_arg.  Use callback functions
+	rather than writing to stdout.
+	(usage): Use callbacks if defined rather than writing to stdout.
+	(read_diff): Preserve callbacks and outfile around call to
+	diff_run.
+	* util.c (perror_with_name): Use error callback if defined.
+	(pfatal_with_name, diff_error): Likewise.
+	(message5): Use printf_output and write_output.
+	(print_message_queue, print_1_line, output_1_line): Likewise.
+	(begin_output): Reject paginate_flag if there are output
+	callbacks.
+	(write_output, printf_output, flush_output): New functions.
+	* context.c: Change all output to outfile to use printf_output and
+	write_output.
+	* ed.c: Likewise.
+	* ifdef.c: Likewise.
+	* normal.c: Likewise.
+	* side.c: Likewise.
+	* Makefile.in (SOURCES): Add diffrun.h.
+	($(OBJECTS)): Depend upon diffrun.h.
+
 Fri Jan 16 14:58:19 1998  Larry Jones  <larry.jones@sdrc.com>
 
 	* diff.c, diff3.c: Plug memory leaks.

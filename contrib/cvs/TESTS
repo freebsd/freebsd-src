@@ -14,13 +14,14 @@ disks are slow or over-loaded.
 The tests work in /tmp/cvs-sanity (which the tests create) by default.
 If for some reason you want them to work in a different directory, you
 can set the TESTDIR environment variable to the desired location
-before running them.  In particular, using SGI's Irix 6, the tests
-will fail if TESTDIR is an XFS filesystem (which /tmp often is);
-you'll want to set TESTDIR to a non-XFS filesystem.
+before running them.
 
 You will probably need GNU expr, which is part of the GNU sh-utils
-package (this is just for running the tests; CVS itself doesn't use
-expr).
+package.  You may also need sort from the GNU textutils; Solaris
+in particular has been reported to have a sort program which does not
+behave the way that the testsuite expects (with Solaris, lines
+starting with tabs sort before blank lines).  These programs are just
+for running the tests; CVS itself doesn't require expr or sort.
 
 If there is some unexpected output, that is a failure which can be
 somewhat hard to track down.  Finding out which test is producing the

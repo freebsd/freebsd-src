@@ -200,7 +200,6 @@ static int accept_hrec PROTO((struct hrec * hr, struct hrec * lr));
 static int select_hrec PROTO((struct hrec * hr));
 static int sort_order PROTO((const PTR l, const PTR r));
 static int within PROTO((char *find, char *string));
-static time_t date_and_time PROTO((char *date_str));
 static void expand_modules PROTO((void));
 static void read_hrecs PROTO((char *fname));
 static void report_hrecs PROTO((void));
@@ -242,8 +241,8 @@ static char *tz_name = "+0000";
 static char *since_rev;
 static char *since_tag;
 static char *backto;
-/* -D option, or 0 if not specified.  */
-static time_t since_date;
+/* -D option, or 0 if not specified.  RCS format.  */
+static char * since_date;
 
 static struct hrec *last_since_tag;
 static struct hrec *last_backto;
@@ -364,18 +363,6 @@ sort_order (l, r)
     return (left->idx - right->idx);
 }
 
-static time_t
-date_and_time (date_str)
-    char *date_str;
-{
-    time_t t;
-
-    t = get_date (date_str, (struct timeb *) NULL);
-    if (t == (time_t) - 1)
-	error (1, 0, "Can't parse date/time: %s", date_str);
-    return (t);
-}
-
 int
 history (argc, argv)
     int argc;
@@ -432,14 +419,16 @@ history (argc, argv)
 		    error (0, 0, "date overriding rev/tag/backto");
 		    *since_rev = *since_tag = *backto = '\0';
 		}
-		since_date = date_and_time (optarg);
+		since_date = Make_Date (optarg);
 		break;
 	    case 'b':			/* Since specified file/Repos */
 		if (since_date || *since_rev || *since_tag)
 		{
 		    error (0, 0, "backto overriding date/rev/tag");
 		    *since_rev = *since_tag = '\0';
-		    since_date = 0;
+		    if (since_date != NULL)
+			free (since_date);
+		    since_date = NULL;
 		}
 		free (backto);
 		backto = xstrdup (optarg);
@@ -461,7 +450,9 @@ history (argc, argv)
 		{
 		    error (0, 0, "rev overriding date/tag/backto");
 		    *since_tag = *backto = '\0';
-		    since_date = 0;
+		    if (since_date != NULL)
+			free (since_date);
+		    since_date = NULL;
 		}
 		free (since_rev);
 		since_rev = xstrdup (optarg);
@@ -471,7 +462,9 @@ history (argc, argv)
 		{
 		    error (0, 0, "tag overriding date/marker/file/repos");
 		    *since_rev = *backto = '\0';
-		    since_date = 0;
+		    if (since_date != NULL)
+			free (since_date);
+		    since_date = NULL;
 		}
 		free (since_tag);
 		since_tag = xstrdup (optarg);
@@ -564,7 +557,7 @@ history (argc, argv)
 	if (histfile)
 	    send_arg("-X");
 	if (since_date)
-	    option_with_arg ("-D", asctime (gmtime (&since_date)));
+	    client_senddate (since_date);
 	if (backto[0] != '\0')
 	    option_with_arg ("-b", backto);
 	for (f1 = file_list; f1 < &file_list[file_count]; ++f1)
@@ -683,6 +676,8 @@ history (argc, argv)
     qsort ((PTR) hrec_head, hrec_count, sizeof (struct hrec), sort_order);
     report_hrecs ();
     free (fname);
+    if (since_date != NULL)
+	free (since_date);
     free (since_rev);
     free (since_tag);
     free (backto);
@@ -1157,7 +1152,7 @@ select_hrec (hr)
     /* "Since" checking:  The argument parser guarantees that only one of the
      *			  following four choices is set:
      *
-     * 1. If "since_date" is set, it contains a Unix time_t specified on the
+     * 1. If "since_date" is set, it contains the date specified on the
      *    command line. hr->date fields earlier than "since_date" are ignored.
      * 2. If "since_rev" is set, it contains either an RCS "dotted" revision
      *    number (which is of limited use) or a symbolic TAG.  Each RCS file
@@ -1177,8 +1172,12 @@ select_hrec (hr)
      */
     if (since_date)
     {
-	if (hr->date < since_date)
+	char *ourdate = date_from_time_t (hr->date);
+
+	if (RCS_datecmp (ourdate, since_date) < 0)
 	    return (0);
+
+	free (ourdate);
     }
     else if (*since_rev)
     {

@@ -31,7 +31,7 @@ static const char *const status_usage[] =
 };
 
 int
-status (argc, argv)
+cvsstatus (argc, argv)
     int argc;
     char **argv;
 {

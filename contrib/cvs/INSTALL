@@ -118,14 +118,15 @@ HPPA:
 	HPPA running HP-UX 9 (1.8)
         HPPA 1.1 running HP-UX A.09.03 (1.5.95) (footnote 8)
         HPPA 1.1 running HP-UX A.09.04 (1.7.1)
-	HPPA 9000/735 running HP-UX A.09.05 (1.8.87)
+	HPPA running HP-UX 9.05 (1.9)
 	HPPA running HP-UX 10.01 (1.7)
-	HPPA running HP-UX 10.20 using gcc 2.7.2.2 (1.9.14)
+	HPPA running HP-UX 10.20 (1.9, 1.9.14)
 	NextSTEP 3.3 (1.7)
 i386 family:
 	Solaris 2.4 using gcc (about 1.4A2)
 	UnixWare v1.1.1 using gcc (about 1.4A2)
 	Unixware 2.1 (1.8.86)
+	Unixware 7 (1.9.29)
 	ISC 4.0.1 (1.8.87)
 	Linux (kernel 1.2.x) (1.8.86)
 	Linux (kernel 2.0.x, RedHat 4.2) (1.9)
@@ -133,7 +134,7 @@ i386 family:
 	FreeBSD 2.1.5-stable (1.8.87)
 	NextSTEP 3.3 (1.7)
 	SCO Unix 3.2.4.2, gcc 2.7.2 (1.8.87) (footnote 4)
-	SCO OpenServer 5 (1.8.86)
+	SCO OpenServer 5 (1.9.29)
 	Sequent Dynix/PTX 4.1.4 (1.9.20 or so + patches)
 	Lynx 2.3.0 080695 (1.6.86) (footnote 9)
 	Windows NT 3.51 (1.8.86 client; 1.8.3 local)
@@ -164,7 +165,7 @@ MIPS:
 PowerPC or RS/6000:
 	IBM RS/6000 running AIX 3.1 using gcc and cc (1.6.86)
 	IBM RS/6000 running AIX 3.2.5 (1.8)
-	IBM RS/6000 running AIX 4.1 using gcc and cc (about 1.4A2) (footnote 1)
+	IBM RS/6000 running AIX 4.1 (1.9)
 	Lynx 2.3.1 120495 (1.6.86) (footnote 9)
 	Lynx 2.5 (1.9) (footnote 10)
 SPARC:
@@ -178,11 +179,6 @@ SPARC:
 VAX:
 	VAX running VMS 6.2 (1.9+patches, client-only)
 	  (see README.VMS for information on necessary hacks).
-
-(footnote 1)
-	AIX 4.1 systems fail to run "configure" due to bugs in their
-	"/bin/sh" implementation.  You might want to try feeding the
-	configure script to "bash" ported to AIX 4.1.  (about 1.4A2).
 
 (footnote 2)
 	Some Irix 4.0 systems may core dump in malloc while running

@@ -1,5 +1,5 @@
 /* Support routines for GNU DIFF.
-   Copyright (C) 1988, 1989, 1992, 1993, 1994, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1992, 1993, 1994, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -18,6 +18,16 @@ along with GNU DIFF; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "diff.h"
+
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+
+#ifndef strerror
+extern char *strerror ();
+#endif
 
 /* Queue up one-line messages to be printed at the end,
    when -l is specified.  Each message is recorded with a `struct msg'.  */
@@ -48,9 +58,15 @@ perror_with_name (text)
      char const *text;
 {
   int e = errno;
-  fprintf (stderr, "%s: ", diff_program_name);
-  errno = e;
-  perror (text);
+
+  if (callbacks && callbacks->error)
+    (*callbacks->error) ("%s: %s", text, strerror (e));
+  else
+    {
+      fprintf (stderr, "%s: ", diff_program_name);
+      errno = e;
+      perror (text);
+    }
 }
 
 /* Use when a system call returns non-zero status and that is fatal.  */
@@ -61,9 +77,14 @@ pfatal_with_name (text)
 {
   int e = errno;
   print_message_queue ();
-  fprintf (stderr, "%s: ", diff_program_name);
-  errno = e;
-  perror (text);
+  if (callbacks && callbacks->error)
+    (*callbacks->error) ("%s: %s", text, strerror (e));
+  else
+    {
+      fprintf (stderr, "%s: ", diff_program_name);
+      errno = e;
+      perror (text);
+    }
   DIFF_ABORT (2);
 }
 
@@ -74,9 +95,14 @@ void
 diff_error (format, arg, arg1)
      char const *format, *arg, *arg1;
 {
-  fprintf (stderr, "%s: ", diff_program_name);
-  fprintf (stderr, format, arg, arg1);
-  fprintf (stderr, "\n");
+  if (callbacks && callbacks->error)
+    (*callbacks->error) (format, arg, arg1);
+  else
+    {
+      fprintf (stderr, "%s: ", diff_program_name);
+      fprintf (stderr, format, arg, arg1);
+      fprintf (stderr, "\n");
+    }
 }
 
 /* Print an error message containing the string TEXT, then exit.  */
@@ -119,8 +145,8 @@ message5 (format, arg1, arg2, arg3, arg4)
   else
     {
       if (sdiff_help_sdiff)
-	putc (' ', outfile);
-      fprintf (outfile, format, arg1, arg2, arg3, arg4);
+	write_output (" ", 1);
+      printf_output (format, arg1, arg2, arg3, arg4);
     }
 }
 
@@ -132,7 +158,7 @@ print_message_queue ()
   struct msg *m;
 
   for (m = msg_chain; m; m = m->next)
-    fprintf (outfile, m->format, m->arg1, m->arg2, m->arg3, m->arg4);
+    printf_output (m->format, m->arg1, m->arg2, m->arg3, m->arg4);
 }
 
 /* Call before outputting the results of comparing files NAME0 and NAME1
@@ -179,6 +205,9 @@ begin_output ()
      it says that we must print only the last component of the pathnames.
      This requirement is silly and does not match historical practice.  */
   sprintf (name, "diff%s %s %s", switch_string, current_name0, current_name1);
+
+  if (paginate_flag && callbacks && callbacks->write_output)
+    fatal ("can't paginate when using library callbacks");
 
   if (paginate_flag)
     {
@@ -243,7 +272,7 @@ begin_output ()
       /* If handling multiple files (because scanning a directory),
 	 print which files the following output is about.  */
       if (current_depth > 0)
-	fprintf (outfile, "%s\n", name);
+	printf_output ("%s\n", name);
     }
 
   free (name);
@@ -292,6 +321,68 @@ finish_output ()
     }
 
   output_in_progress = 0;
+}
+
+/* Write something to the output file.  */
+
+void
+write_output (text, len)
+     char const *text;
+     size_t len;
+{
+  if (callbacks && callbacks->write_output)
+    (*callbacks->write_output) (text, len);
+  else if (len == 1)
+    putc (*text, outfile);
+  else
+    fwrite (text, sizeof (char), len, outfile);
+}
+
+/* Printf something to the output file.  */
+
+#ifdef __STDC__
+#define VA_START(args, lastarg) va_start(args, lastarg)
+#else /* ! __STDC__ */
+#define VA_START(args, lastarg) va_start(args)
+#endif /* __STDC__ */
+
+void
+#if defined (__STDC__)
+printf_output (const char *format, ...)
+#else
+printf_output (format, va_alist)
+     char const *format;
+     va_dcl
+#endif
+{
+  va_list args;
+
+  VA_START (args, format);
+  if (callbacks && callbacks->write_output)
+    {
+      char *p;
+
+      p = NULL;
+      vasprintf (&p, format, args);
+      if (p == NULL)
+	fatal ("out of memory");
+      (*callbacks->write_output) (p, strlen (p));
+      free (p);
+    }
+  else
+    vfprintf (outfile, format, args);
+  va_end (args);
+}
+
+/* Flush the output file.  */
+
+void
+flush_output ()
+{
+  if (callbacks && callbacks->flush_output)
+    (*callbacks->flush_output) ();
+  else
+    fflush (outfile);
 }
 
 /* Compare two lines (typically one from each input file)
@@ -469,7 +560,6 @@ print_1_line (line_flag, line)
      char const * const *line;
 {
   char const *text = line[0], *limit = line[1]; /* Help the compiler.  */
-  FILE *out = outfile; /* Help the compiler some more.  */
   char const *flag_format = 0;
 
   /* If -T was specified, use a Tab between the line-flag and the text.
@@ -479,13 +569,13 @@ print_1_line (line_flag, line)
   if (line_flag && *line_flag)
     {
       flag_format = tab_align_flag ? "%s\t" : "%s ";
-      fprintf (out, flag_format, line_flag);
+      printf_output (flag_format, line_flag);
     }
 
   output_1_line (text, limit, flag_format, line_flag);
 
   if ((!line_flag || line_flag[0]) && limit[-1] != '\n')
-    fprintf (out, "\n\\ No newline at end of file\n");
+    printf_output ("\n\\ No newline at end of file\n");
 }
 
 /* Output a line from TEXT up to LIMIT.  Without -t, output verbatim.
@@ -498,13 +588,15 @@ output_1_line (text, limit, flag_format, line_flag)
      char const *text, *limit, *flag_format, *line_flag;
 {
   if (!tab_expand_flag)
-    fwrite (text, sizeof (char), limit - text, outfile);
+    write_output (text, limit - text);
   else
     {
-      register FILE *out = outfile;
       register unsigned char c;
       register char const *t = text;
       register unsigned column = 0;
+      /* CC is used to avoid taking the address of the register
+         variable C.  */
+      char cc;
 
       while (t < limit)
 	switch ((c = *t++))
@@ -514,15 +606,15 @@ output_1_line (text, limit, flag_format, line_flag)
 	      unsigned spaces = TAB_WIDTH - column % TAB_WIDTH;
 	      column += spaces;
 	      do
-		putc (' ', out);
+		write_output (" ", 1);
 	      while (--spaces);
 	    }
 	    break;
 
 	  case '\r':
-	    putc (c, out);
+	    write_output ("\r", 1);
 	    if (flag_format && t < limit && *t != '\n')
-	      fprintf (out, flag_format, line_flag);
+	      printf_output (flag_format, line_flag);
 	    column = 0;
 	    break;
 
@@ -530,13 +622,14 @@ output_1_line (text, limit, flag_format, line_flag)
 	    if (column == 0)
 	      continue;
 	    column--;
-	    putc (c, out);
+	    write_output ("\b", 1);
 	    break;
 
 	  default:
 	    if (ISPRINT (c))
 	      column++;
-	    putc (c, out);
+	    cc = c;
+	    write_output (&cc, 1);
 	    break;
 	  }
     }
@@ -598,9 +691,9 @@ print_number_range (sepchar, file, a, b)
      In this case, we should print the line number before the range,
      which is B.  */
   if (trans_b > trans_a)
-    fprintf (outfile, "%d%c%d", trans_a, sepchar, trans_b);
+    printf_output ("%d%c%d", trans_a, sepchar, trans_b);
   else
-    fprintf (outfile, "%d", trans_b);
+    printf_output ("%d", trans_b);
 }
 
 /* Look at a hunk of edit script and report the range of lines in each file

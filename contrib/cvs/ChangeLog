@@ -1,3 +1,86 @@
+1998-08-06  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Update for SCO OpenServer 5 (reported by Jeffery
+	Cann).
+
+1998-08-01  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Add Unixware 7 (reported by Phillip Porch).
+
+1998-07-29  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvsnt.mak: For rcscmds.c, also include files from the diff
+	directory.  Plus of course the usual voluminous "because Visual
+	C++ 4.0 feels like it" changes.
+
+Tue Jul 28 22:16:48 1998  Noel Cragg  <noel@swish.red-bean.com>
+
+	* Makefile.in (dist): unset the GZIP shell variable before calling
+ 	gzip to avoid invocation problems.
+
+Sun Jul 26 16:22:21 1998  Noel Cragg  <noel@swish.red-bean.com>
+
+	* NEWS: add info about TopLevelAdmin.
+
+1998-07-20  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Update entries for HPUX and AIX (based on a submission
+	from Andreas Ley).
+
+1998-06-25  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.VMS: We generally don't need GNU patch any more.
+
+1998-06-03  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TESTS: Don't mention the version of Solaris; Mark Borges says
+	that it applies to Solaris 2.5 as well as 2.6.
+
+1998-06-02  Assar Westerlund  <assar@sics.se>
+
+	* configure.in: Test for GSS_C_NT_HOSTBASED_SERVICE in gssapi.h.
+	* acconfig.h: Add undef for HAVE_GSS_C_NT_HOSTBASED_SERVICE.
+	* configure, config.h.in: Rebuild.
+
+1998-06-01  Assar Westerlund  <assar@sics.se>
+	and Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Check for GSSAPI headers individually.  Use a
+	different set of GSSPI libraries if gssapi.h rather than
+	gssapi/gssapi.h is found.  Adds Heimdal support.
+	* configure, config.h.in: Rebuild.
+
+1998-05-25  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.spec (%description): Rewrite to be slightly more verbose
+	about the basic features.  Don't try to mention what CVS lacks.
+
+1998-05-23  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* BUGS: Remove items about binary file bugs which were fixed
+	approximately 6 months ago.
+
+1998-04-28  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TESTS: Add note about Solaris sort program (reported by Mark
+	D. Baushke).
+
+1998-03-16  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in: Simplify test for shadow password support since
+	the code now handles the case where shadow passwords are supported
+	but are not in use.
+	* configure: Regenerated.
+
+1998-03-07  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TESTS: Remove note about SGI's XFS.  Someone reports that it
+	works (I would assume due to the 13 Feb 1998, and earlier, changes
+	to sanity.sh).
+
+	* NEWS: Add item about PreservePermissions.  Fix unclear wording
+	in gserver item.
+
 1998-03-04  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* acconfig.h, configure.in: Add PRESERVE_PERMISSIONS_SUPPORT and
