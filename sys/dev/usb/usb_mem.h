@@ -55,7 +55,7 @@ typedef struct usb_dma_block {
 } usb_dma_block_t;
 
 #ifdef __FreeBSD__
-#define DMAADDR(dma, o) ((uint32_t)(uintptr_t)(((char *)(dma)->block->segs[0].ds_addr) + (dma)->offs + (o)))
+#define DMAADDR(dma, o) ((dma)->block->segs[0].ds_addr + (dma)->offs + (o))
 #else
 #define DMAADDR(dma, o) (((char *)(dma)->block->map->dm_segs[0].ds_addr) + (dma)->offs + (o))
 #endif
