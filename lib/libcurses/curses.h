@@ -367,6 +367,7 @@ int	 __waddch __P((WINDOW *, __LDATA *));
 #define	max(a,b)	(a > b ? a : b)
 
 /* Private externs. */
+extern char      DB;
 extern int	 __echoit;
 extern int	 __endwin;
 extern int	 __pfast;

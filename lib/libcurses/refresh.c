@@ -39,8 +39,6 @@ static char sccsid[] = "@(#)refresh.c	8.4 (Berkeley) 8/4/94";
 
 #include "curses.h"
 
-extern char DB;
-
 static int curwin;
 static short ly, lx;
 

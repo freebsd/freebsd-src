@@ -44,8 +44,6 @@ static char sccsid[] = "@(#)setterm.c	8.7 (Berkeley) 7/27/94";
 
 #include "curses.h"
 
-extern char DB;
-
 #undef ospeed
 extern short ospeed;
 
