@@ -102,7 +102,5 @@ static void
 perr(msg)
 	char *msg;
 {
-	extern char *name;
-
 	(void)printf("%s: %s: %s\n", name, msg, strerror(errno));
 }
