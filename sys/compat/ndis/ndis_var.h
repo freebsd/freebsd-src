@@ -1177,6 +1177,7 @@ extern int ndis_convert_res(void *);
 extern int ndis_alloc_amem(void *);
 extern void ndis_free_packet(ndis_packet *);
 extern void ndis_free_bufs(ndis_buffer *);
+extern void ndis_free_buf(ndis_buffer *);
 extern int ndis_reset_nic(void *);
 extern int ndis_halt_nic(void *);
 extern int ndis_shutdown_nic(void *);
