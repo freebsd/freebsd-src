@@ -29,11 +29,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/fcntl.h>
-/*#include <machine/ioctl_meteor.h>*/
-#include "/sys/i386/include/ioctl_meteor.h"
+#include <dev/bktr/ioctl_meteor.h>
 
 typedef unsigned char uint8;
 typedef signed char int8;
