@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.67 1999/04/16 21:22:24 peter Exp $
+ *	$Id: npx.c,v 1.68 1999/05/06 09:44:55 bde Exp $
  */
 
 #include "npx.h"
@@ -194,8 +194,7 @@ static int
 npx_probe(dev)
 	device_t dev;
 {
-/*#ifdef SMP*/
-#if 1
+#ifdef SMP
 
 	return npx_probe1(dev);
 
@@ -281,8 +280,7 @@ npx_probe1(dev)
 	 */
 	fninit();
 
-/*#ifdef SMP*/
-#if 1
+#ifdef SMP
 	/*
 	 * Exception 16 MUST work for SMP.
 	 */
