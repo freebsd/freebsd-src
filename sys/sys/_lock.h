@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_LOCK_TYPES_H_
-#define	_SYS_LOCK_TYPES_H_
+#ifndef _SYS__LOCK_H_
+#define	_SYS__LOCK_H_
 
 struct lock_object {
 	struct	lock_class *lo_class;
@@ -40,4 +40,4 @@ struct lock_object {
 	struct	witness *lo_witness;
 };
 
-#endif /* !_SYS_LOCK_TYPES_H_ */
+#endif /* !_SYS__LOCK_H_ */
