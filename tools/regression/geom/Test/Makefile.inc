@@ -3,14 +3,14 @@
 PROG =		testprg
 NOMAN =		no
 NOOBJ =		youbet
-CFLAGS +=	-g -W -Wall -Wstrict-prototypes -Wmissing-prototypes
-CFLAGS +=	-Wpointer-arith -static -I/usr/src/sys -I../..
+CFLAGS +=	-gstabs -static 
+CFLAGS +=	-I/usr/src/sys -I../..
 CFLAGS +=	-DKERNELSIM -pthread
 LDADD +=	-L../../GLib -lG 
 LDADD +=	-lbsdxml
 DPADD +=	../../GLib/libG.a
 CLEANFILES +=	_* *.core
-WARNS=		2
+WARNS=		5
 
 foo:
 	echo ${SRCS}
