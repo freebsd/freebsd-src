@@ -861,8 +861,7 @@ wdstart(int ctrlr)
 			sector = (blknum >> 0) & 0xff; 
 			cylin = (blknum >> 8) & 0xffff;
 			head = ((blknum >> 24) & 0xf) | WDSD_LBA; 
-		}
-		else {
+		} else {
 			cylin = blknum / secpercyl;
 			head = (blknum % secpercyl) / secpertrk;
 			sector = blknum % secpertrk;
@@ -2096,8 +2095,8 @@ wddump(dev_t dev)
 	blkoff += ds_offset;
 
 #if 0
-	pg("part %x, nblocks %d, dumplo %d num %d\n",
-	   part, nblocks, dumplo, num);
+	printf("part %d, nblocks %lu, dumplo %ld num %ld\n",
+	    part, nblocks, dumplo, num);
 #endif
 
 	/* Check transfer bounds against partition size. */
@@ -2130,9 +2129,12 @@ wddump(dev_t dev)
 		blkcnt = num;
 		if (blkcnt > MAXTRANSFER)
 			blkcnt = MAXTRANSFER;
-		/* Keep transfer within current cylinder. */
-		if ((blknum + blkcnt - 1) / secpercyl != blknum / secpercyl)
-			blkcnt = secpercyl - (blknum % secpercyl);
+		if ((du->dk_flags & DKFL_LBA) == 0) {
+			/* XXX keep transfer within current cylinder. */
+			if ((blknum + blkcnt - 1) / secpercyl !=
+			    blknum / secpercyl)
+				 blkcnt = secpercyl - (blknum % secpercyl);
+		}
 		blknext = blknum + blkcnt;
 
 		/*
@@ -2168,14 +2170,21 @@ wddump(dev_t dev)
 out:
 
 		/* Compute disk address. */
-		cylin = blknum / secpercyl;
-		head = (blknum % secpercyl) / secpertrk;
-		sector = blknum % secpertrk;
+		if (du->dk_flags & DKFL_LBA) {
+			sector = (blknum >> 0) & 0xff;
+			cylin = (blknum >> 8) & 0xffff;
+			head = ((blknum >> 24) & 0xf) | WDSD_LBA;
+		} else {
+			cylin = blknum / secpercyl;
+			head = (blknum % secpercyl) / secpertrk;
+			sector = blknum % secpertrk;
+		}
 
 #if 0
 		/* Let's just talk about this first... */
-		pg("cylin l%d head %ld sector %ld addr 0x%x count %ld",
-		   cylin, head, sector, addr, blkcnt);
+		printf("cylin %ld head %ld sector %ld addr %p count %ld\n",
+		    cylin, head, sector, addr, blkcnt);
+		cngetc();
 #endif
 
 		/* Do the write. */
