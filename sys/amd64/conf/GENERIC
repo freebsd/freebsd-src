@@ -137,6 +137,7 @@ device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
 device ed1 at isa? port 0x300 net irq  5 iomem 0xd8000 vector edintr
 device ie0 at isa? port 0x360 net irq  7 iomem 0xd0000 vector ieintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
+#device ex0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector exintr
 device fe0 at isa? port 0x300 net irq ? vector feintr
 device ix0 at isa? port 0x300 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
