@@ -246,3 +246,4 @@ static driver_t hea_pci_driver = {
 
 DRIVER_MODULE(hea, pci, hea_pci_driver, hea_devclass, 0, 0);
 MODULE_DEPEND(hea, pci, 1, 1, 1);
+MODULE_DEPEND(hea, hea, 1, 1, 1);

@@ -93,6 +93,8 @@
 
 devclass_t hea_devclass;
 
+static int hea_modevent(module_t, int, void *);
+
 int
 hea_alloc (device_t dev)
 {
@@ -157,18 +159,6 @@ hea_attach (device_t dev)
 	sc = (struct hea_softc *)device_get_softc(dev);
 	eup = &sc->eup;
 	error = 0;
-
-	eni_vcc_zone = uma_zcreate("eni vcc", sizeof(Eni_vcc), NULL,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	if (eni_vcc_zone == NULL)
-		panic("hea_attach: uma_zcreate vcc");
-	uma_zone_set_max(eni_vcc_zone, 100);
-	
-	eni_nif_zone = uma_zcreate("eni nif", sizeof(struct atm_nif), NULL,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	if (eni_nif_zone == NULL)
-		panic("hea_attach: uma_zcreate nif");
-	uma_zone_set_max(eni_nif_zone, 52);
 
 	/*
 	 * Start initializing it
@@ -342,9 +332,6 @@ hea_detach (device_t dev)
 
 	hea_free(dev);
 
-	uma_zdestroy(eni_vcc_zone);
-	uma_zdestroy(eni_nif_zone);
-
 	return (error);
 }
 
@@ -391,3 +378,48 @@ hea_reset (device_t dev)
 
 	return;
 }
+
+static int
+hea_modevent (module_t mod, int type, void *data)
+{
+	int error;
+
+	error = 0;
+
+	switch (type) {
+	case MOD_LOAD:
+
+		eni_nif_zone = uma_zcreate("eni nif", sizeof(struct atm_nif),
+			NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+		if (eni_nif_zone == NULL)
+			panic("%s(): uma_zcreate nif", __func__);
+		uma_zone_set_max(eni_nif_zone, 52);
+
+		eni_vcc_zone = uma_zcreate("eni vcc", sizeof(Eni_vcc),
+			NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+		if (eni_vcc_zone == NULL)
+			panic("%s(): uma_zcreate vcc", __func__);
+		uma_zone_set_max(eni_vcc_zone, 100);
+
+		break;
+	
+	case MOD_UNLOAD:
+
+		uma_zdestroy(eni_nif_zone);
+		uma_zdestroy(eni_vcc_zone);
+
+		break;
+	default:
+		break;
+	}
+
+	return (error);
+}
+
+static moduledata_t hea_moduledata = {
+	"hea",
+	hea_modevent,
+	NULL
+};
+DECLARE_MODULE(hea, hea_moduledata, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+MODULE_VERSION(hea, 1);
