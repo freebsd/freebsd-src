@@ -1,11 +1,20 @@
 #!/bin/sh 
-# This writes a skeleton driver and puts it into the kernel tree for you
-#arg1 is lowercase "foo" 
+# This writes a skeleton driver and puts it into the kernel tree for you.
+# It also adds FOO and files.FOO configuration files so you can compile
+# a kernel with your FOO driver linked in.
+# To do so:
+# cd /sys/i386/conf; config FOO; cd ../../compile/FOO; make depend; make
 #
-# It also creates a directory under /usr/src/lkm to help you create
-#loadable kernel modules, though without much use except for development.
+# More interestingly, it creates a modules/foo directory
+# which it populates, to allow you to compile a FOO module
+# which can be lonked with your presently running kernel (if you feel brave).
+# To do so:
+# cd /sys/modules/foo; make depend; make; make install; kldload foo
+#
+# arg1 to this script is expected to be lowercase "foo" 
 #
 # Trust me, RUN THIS SCRIPT :)
+#
 # $FreeBSD$"
 #
 #-------cut here------------------
@@ -22,6 +31,31 @@ TOP=`pwd`
 
 RCS_KEYWORD=FreeBSD
 
+if [ -d ${TOP}/modules/${1} ]
+then
+	echo "There appears to already be a module called ${1}"
+	echo -n "Should it be overwritten? [Y]"
+	read VAL
+	if [ "-z" "$VAL" ]
+	then
+	  VAL=YES
+	fi
+	case ${VAL} in 
+	[yY]*)
+	  echo "Cleaning up from prior runs"
+	  rm -rf ${TOP}/dev/${1}
+	  rm -rf ${TOP}/modules/${1}
+	  rm ${TOP}/i386/conf/files.${UPPER}
+	  rm ${TOP}/i386/conf/${UPPER}
+	  rm ${TOP}/sys/${1}io.h
+	  ;;
+	*)
+	  exit 1
+	  ;;
+	esac
+fi
+
+echo "The following files will be created:"
 echo ${TOP}/modules/${1}
 echo ${TOP}/i386/conf/files.${UPPER}
 echo ${TOP}/i386/conf/${UPPER}
@@ -31,19 +65,8 @@ echo ${TOP}/sys/${1}io.h
 echo ${TOP}/modules/${1}
 echo ${TOP}/modules/${1}/Makefile
 
-rm -rf ${TOP}/dev/${1}
-rm -rf ${TOP}/modules/${1}
-rm ${TOP}/i386/conf/files.${UPPER}
-rm ${TOP}/i386/conf/${UPPER}
-rm ${TOP}/sys/${1}io.h
 
-if [ -d ${TOP}/modules/${1} ]
-then
-	echo "There appears to already be a module called ${1}"
-	exit 1
-else
 	mkdir ${TOP}/modules/${1}
-fi
 
 #######################################################################
 #######################################################################
@@ -80,18 +103,6 @@ if [ ! -d ${TOP}/dev/${1} ]
 then
 	mkdir -p ${TOP}/dev/${1}
 fi
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -145,14 +156,15 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
 #include "isa_if.h"
 #include <sys/${1}io.h>		/* ${1} IOCTL definitions */
 
-#define ${UPPER}DEV2SOFTC(dev) ((dev)->si_drv1)
-#define ${UPPER}_INB(port) bus_space_read_1( bt, bh, (port))
-#define ${UPPER}_OUTB(port, val) bus_space_write_1( bt, bh, (port), (val))
+/* XXX These should be defined in terms of bus-space ops */
+#define ${UPPER}_INB(port) inb(port_start)
+#define ${UPPER}_OUTB(port, val) ( port_start, (val))
 #define SOME_PORT 123
 #define EXPECTED_VALUE 0x42
 
 
 /* Function prototypes (these should all be static) */
+static void ${1}_isa_identify (driver_t *, device_t);
 static int ${1}_isa_probe (device_t);
 static int ${1}_isa_attach (device_t);
 static int ${1}_isa_detach (device_t);
@@ -189,9 +201,9 @@ static struct cdevsw ${1}_cdevsw = {
 /* 
  * device specific Misc defines 
  */
-#define BUFFERSIZE 1024
-#define NUMPORTS 4
-#define MEMSIZE	1024*1024 /* imaginable h/w buffer size */
+#define BUFFERSIZE	1024
+#define NUMPORTS	4
+#define MEMSIZE		(4 * 1024) /* imaginable h/w buffer size */
 
 /*
  * One of these per allocated device
@@ -210,7 +222,7 @@ struct ${1}_softc {
 	device_t device;
 	dev_t dev;
 	void	*intr_cookie;
-	char	buffer[BUFFERSIZE];
+	char	buffer[BUFFERSIZE];	/* if we needed to buffer something */
 } ;
 
 typedef	struct ${1}_softc *sc_p;
@@ -224,6 +236,7 @@ static struct isa_pnp_id ${1}_ids[] = {
 };
 
 static device_method_t ${1}_methods[] = {
+	DEVMETHOD(device_identify,	${1}_isa_identify),
 	DEVMETHOD(device_probe,		${1}_isa_probe),
 	DEVMETHOD(device_attach,	${1}_isa_attach),
 	DEVMETHOD(device_detach,	${1}_isa_detach),
@@ -238,7 +251,76 @@ static driver_t ${1}_isa_driver = {
 
 DRIVER_MODULE(${1}, isa, ${1}_isa_driver, ${1}_devclass, 0, 0);
 
+/*
+ * Here list some port addresses we might expect our widget to appear at:
+ */
+static struct localhints {
+	int ioport;
+	int irq;
+	int drq;
+	int mem;
+} res[] = {
+	{ 0x210, 11, 2, 0xcd000},
+	{ 0x310, 12, 3, 0xdd000},
+	{ 0x320, 9, 6, 0xd4000},
+	{0,0,0,0}
+};
 
+#define MAXHINTS 10 /* just an arbitrary safty limit */
+/*
+ * Called once when the driver is somehow connected with the bus.
+ * Addentries into the bus's list of likely devices, so that
+ * our 'probe routine' will be called for them.
+ * This is similar to what the 'hints' code achieves, except this is
+ * loadable with the driver.
+ */
+static void
+${1}_isa_identify (driver_t *driver, device_t parent)
+{
+	u_int32_t	irq=0;
+	u_int32_t	ioport;
+	device_t	child;
+	int i;
+
+
+	/*
+	 * If we've already got ${UPPER} attached somehow, don't try again.
+	 */
+	if (device_find_child(parent, "${1}", 0)) {
+		printf("${UPPER}: already attached\n");
+		return;
+	}
+/* XXX look at dev/acpica/acpi_isa.c for use of ISA_ADD_CONFIG() macro */
+/* XXX What is ISA_SET_CONFIG_CALLBACK(parent, child, pnpbios_set_config, 0) ?*/
+	for (i = 0; i < MAXHINTS; i++) {
+		if (((ioport = res[i].ioport) == 0)
+		&&  ((irq = res[i].irq) == 0)) {
+			return; /* we've added all our local hints */
+		}
+
+		child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "${1}", -1);
+		bus_set_resource(child, SYS_RES_IOPORT,	0, ioport, NUMPORTS);
+		bus_set_resource(child, SYS_RES_IRQ,	0, irq, 1);
+		bus_set_resource(child, SYS_RES_DRQ,	0, res[i].drq, 1);
+		bus_set_resource(child, SYS_RES_MEMORY,	0, res[i].mem, MEMSIZE);
+
+#if 0
+		/*
+		 * If we wanted to pretend PNP found it
+		 * we could do this, and put matching entries
+		 * in the PNP table, but I think it's probably too hacky.
+		 * As you see, some people have done it though.
+		 */
+		isa_set_vendorid(child, PNP_EISAID("ESS1888"));
+		isa_set_logicalid(child, PNP_EISAID("ESS1888"));
+#endif
+		/* see isa/isahint.c for hints being added in */
+
+
+	}
+
+	return;
+}
 /*
  * The ISA code calls this for each device it knows about,
  * whether via the PNP code or via the hints etc.
@@ -247,41 +329,83 @@ static int
 ${1}_isa_probe (device_t device)
 {
 	int error;
+	device_t parent = device_get_parent(device);
 	sc_p scp = device_get_softc(device);
+	u_long	port_start, port_count;
+
 
 	bzero(scp, sizeof(*scp));
 	scp->device = device;
 
 	/*
-	 * Check for a PNP match..
+	 * Check this device for a PNP match in our table..
 	 * There are several possible outcomes.
-	 * error == 0		We match a PNP device (possibly several?).
-	 * error == ENXIO,	It is a PNP device but not ours.
+	 * error == 0		We match a PNP ).
+	 * error == ENXIO,	It is a PNP device but not in out table.
 	 * error == ENOENT,	I is not a PNP device.. try heuristic probes.
 	 *    -- logic from if_ed_isa.c, added info from isa/isa_if.m:
 	 */
-	error = ISA_PNP_PROBE(device_get_parent(device), device, ${1}_ids);
+	error = ISA_PNP_PROBE(parent, device, ${1}_ids);
 	switch (error) {
 	case 0:
 		/*
 		 * We found a PNP device.
 		 * Do nothing, as it's all done in attach()
 		 */
+	        /*
+		 * If we don't have the resources we need then
+		 * we need to abort.
+		 * Possibly this indicates the device was already found
+		 * in a PCI or 'hints' based probe.
+		 * (remove any that do not apply to 'foo' devices)
+		 */
+		if ((bus_get_resource_start(device, SYS_RES_IOPORT, 0) == 0)
+		||  (bus_get_resource_start(device, SYS_RES_MEMORY, 0) == 0)
+		||  (bus_get_resource_start(device, SYS_RES_DRQ, 0) == 0)
+		||  (bus_get_resource_start(device, SYS_RES_IRQ, 0) == 0)) {
+			    return (ENOENT);
+		 }
 		break;
 	case ENOENT:
 		/*
 		 * Well it didn't show up in the PNP tables
 		 * so look directly at known ports (if we have any)
 		 * in case we are looking for an old pre-PNP card.
+		 * 
+		 * Hopefully the  'identify' routine will have picked these
+		 * up for us first.
 		 *
 		 * I think the ports etc should come from a 'hints' section
 		 * buried somewhere. XXX - still not figured out.
 		 * which is read in by code in isa/isahint.c
+		 * and kern/subr_bus.c to create resource entries.
+		 * Somehow we can get to those resource entries
+		 * from the device_t but I don't know how yet.
+		 * (looks like the 'identify' routine can do this)
 		 */
-#if 0 /* till I work out how to find ht eport from the hints */
+	        /*
+		 * If we don't have the resources we need then
+		 * we need to abort.
+		 * Possibly this indicates the device was already found
+		 * in a PCI or 'hints' based probe.
+		 * Maybe it was mistakenly mentionned twice in the
+		 * hints or 'indentify' code.
+		 * (remove any that do not apply to 'foo' devices)
+		 */
+		if ((bus_get_resource_start(device, SYS_RES_IOPORT, 0) == 0)
+		||  (bus_get_resource_start(device, SYS_RES_MEMORY, 0) == 0)
+		||  (bus_get_resource_start(device, SYS_RES_DRQ, 0) == 0)
+		||  (bus_get_resource_start(device, SYS_RES_IRQ, 0) == 0)) {
+			    return (error);
+		}
+
+		 error = bus_get_resource(device, SYS_RES_IOPORT, 0,
+			&port_start, &port_count);
+
+
 		if ( ${UPPER}_INB(SOME_PORT) != EXPECTED_VALUE) {
 			/* 
-			 * It isn't what we expected, so quit looking for it.
+			 * It isn't what we hoped, so quit looking for it.
 			 */
 			error = ENXIO;
 		} else {
@@ -290,7 +414,6 @@ ${1}_isa_probe (device_t device)
 			 */
 			error = 0;
 		}
-#endif
 		break;
 	case  ENXIO:
 		/* not ours, leave imediatly */
@@ -400,7 +523,7 @@ ${1}_allocate_resources(device_t device)
 		goto errexit;
 	}
 
-	scp->res_memory = bus_alloc_resource(device, SYS_RES_IOPORT,
+	scp->res_memory = bus_alloc_resource(device, SYS_RES_MEMORY,
 			&scp->rid_memory, 0ul, ~0ul, MSIZE, RF_ACTIVE);
 	if (scp->res_memory == NULL) {
 		goto errexit;
@@ -468,14 +591,14 @@ ${1}intr(void *arg)
 static int
 ${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
-	sc_p scp	= ${UPPER}DEV2SOFTC(dev);
-	bus_space_handle_t  bh = scp->bh;
-	bus_space_tag_t bt = scp->bt;
+	sc_p scp	= dev->si_drv1;
 
 	switch (cmd) {
 	case DHIOCRESET:
 		/* whatever resets it */
+#if 0
 		${UPPER}_OUTB(SOME_PORT, 0xff) ;
+#endif
 		break;
 	default:
 		return ENXIO;
@@ -489,7 +612,7 @@ ${1}ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 static int
 ${1}open(dev_t dev, int oflags, int devtype, struct proc *p)
 {
-	sc_p scp	= ${UPPER}DEV2SOFTC(dev);
+	sc_p scp	= dev->si_drv1;
 
 	/* 
 	 * Do processing
@@ -500,7 +623,7 @@ ${1}open(dev_t dev, int oflags, int devtype, struct proc *p)
 static int
 ${1}close(dev_t dev, int fflag, int devtype, struct proc *p)
 {
-	sc_p scp	= ${UPPER}DEV2SOFTC(dev);
+	sc_p scp	= dev->si_drv1;
 
 	/* 
 	 * Do processing
@@ -511,7 +634,7 @@ ${1}close(dev_t dev, int fflag, int devtype, struct proc *p)
 static int
 ${1}read(dev_t dev, struct uio *uio, int ioflag)
 {
-	sc_p scp	= ${UPPER}DEV2SOFTC(dev);
+	sc_p scp	= dev->si_drv1;
 	int	 toread;
 
 
@@ -526,7 +649,7 @@ ${1}read(dev_t dev, struct uio *uio, int ioflag)
 static int
 ${1}write(dev_t dev, struct uio *uio, int ioflag)
 {
-	sc_p scp	= ${UPPER}DEV2SOFTC(dev);
+	sc_p scp	= dev->si_drv1;
 	int	towrite;
 
 	/* 
@@ -540,10 +663,11 @@ ${1}write(dev_t dev, struct uio *uio, int ioflag)
 static int
 ${1}mmap(dev_t dev, vm_offset_t offset, int nprot)
 {
-	sc_p scp	= ${UPPER}DEV2SOFTC(dev);
+	sc_p scp	= dev->si_drv1;
 
 	/* 
-	 * Do processing
+	 * Given a byte offset into your device, return the PHYSICAL
+	 * page number that it would map to.
 	 */
 #if 0	/* if we had a frame buffer or whatever.. do this */
 	if (offset > FRAMEBUFFERSIZE - PAGE_SIZE) {
@@ -558,7 +682,7 @@ ${1}mmap(dev_t dev, vm_offset_t offset, int nprot)
 static int
 ${1}poll(dev_t dev, int which, struct proc *p)
 {
-	sc_p scp	= ${UPPER}DEV2SOFTC(dev);
+	sc_p scp	= dev->si_drv1;
 
 	/* 
 	 * Do processing
