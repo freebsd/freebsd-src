@@ -137,21 +137,6 @@ tcp_slowtimo()
 	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
-/*
- * Cancel all timers for TCP tp.
- *
- * XXXRW: This appears to be unused.
- */
-void
-tcp_canceltimers(tp)
-	struct tcpcb *tp;
-{
-	callout_stop(tp->tt_2msl);
-	callout_stop(tp->tt_persist);
-	callout_stop(tp->tt_keep);
-	callout_stop(tp->tt_rexmt);
-}
-
 int	tcp_syn_backoff[TCP_MAXRXTSHIFT + 1] =
     { 1, 1, 1, 1, 1, 2, 4, 8, 16, 32, 64, 64, 64 };
 
