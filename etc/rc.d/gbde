@@ -49,7 +49,8 @@ find_gbde_devices()
 			# Ignore swap devices
 			case "$type" in
 			swap)
-				continue;;
+				continue
+				;;
 			esac
 
 			case "$options" in
