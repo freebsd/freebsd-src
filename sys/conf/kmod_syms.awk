@@ -10,7 +10,7 @@ BEGIN {
 }
 
 # De-list symbols from the export list.
-// {
+{
         if (ARGIND == 1)
                 nextfile
         delete syms[$0]
