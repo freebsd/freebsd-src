@@ -257,8 +257,7 @@ in6_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	if ((rt->rt_flags & (RTF_LLINFO | RTF_HOST)) != RTF_HOST)
 		return;
 
-	if ((rt->rt_flags & (RTF_WASCLONED | RTPRF_OURS))
-	   != RTF_WASCLONED)
+	if ((rt->rt_flags & (RTF_WASCLONED | RTPRF_OURS)) != RTF_WASCLONED)
 		return;
 
 	/*
@@ -347,7 +346,9 @@ in6_rtqtimo(void *rock)
 	arg.nextstop = time_second + rtq_timeout;
 	arg.draining = arg.updating = 0;
 	s = splnet();
+	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
 	splx(s);
 
 	/*
@@ -374,7 +375,9 @@ in6_rtqtimo(void *rock)
 		arg.found = arg.killed = 0;
 		arg.updating = 1;
 		s = splnet();
+		RADIX_NODE_HEAD_LOCK(rnh);
 		rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 		splx(s);
 	}
 
@@ -426,7 +429,9 @@ in6_mtutimo(void *rock)
 	arg.rnh = rnh;
 	arg.nextstop = time_second + MTUTIMO_DEFAULT;
 	s = splnet();
+	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_mtuexpire, &arg);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
 	splx(s);
 
 	atv.tv_usec = 0;
@@ -451,7 +456,9 @@ in6_rtqdrain()
 	arg.draining = 1;
 	arg.updating = 0;
 	s = splnet();
+	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
 	splx(s);
 }
 #endif

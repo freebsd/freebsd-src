@@ -869,7 +869,9 @@ atm_nif_detach(nip)
 	for (i = 1; i <= AF_MAX; i++) {
 		if ((rnh = rt_tables[i]) == NULL)
 			continue;
+		RADIX_NODE_HEAD_LOCK(rnh);
 		(void) rnh->rnh_walktree(rnh, atm_netif_rtdel, ifp);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 	}
 
 	/*

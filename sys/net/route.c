@@ -132,7 +132,12 @@ rtalloc1(dst, report, ignflags)
 	/*
 	 * Look up the address in the table for that Address Family
 	 */
-	if (rnh && (rn = rnh->rnh_matchaddr((caddr_t)dst, rnh)) &&
+	if (rnh == NULL) {
+		rtstat.rts_unreach++;
+		goto miss2;
+	}
+	RADIX_NODE_HEAD_LOCK(rnh);
+	if ((rn = rnh->rnh_matchaddr((caddr_t)dst, rnh)) &&
 	    ((rn->rn_flags & RNF_ROOT) == 0)) {
 		/*
 		 * If we find it and it's not the root node, then
@@ -178,6 +183,7 @@ rtalloc1(dst, report, ignflags)
 			rt_missmsg(RTM_ADD, &info, rt->rt_flags, 0);
 		} else
 			rt->rt_refcnt++;
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 	} else {
 		/*
 		 * Either we hit the root or couldn't find any match,
@@ -185,7 +191,9 @@ rtalloc1(dst, report, ignflags)
 		 * "caint get there frm here"
 		 */
 		rtstat.rts_unreach++;
-	miss:	if (report) {
+	miss:
+		RADIX_NODE_HEAD_UNLOCK(rnh);
+	miss2:	if (report) {
 			/*
 			 * If required, report the failure to the supervising
 			 * Authorities.
@@ -211,8 +219,7 @@ rtfree(rt)
 	/*
 	 * find the tree for that address family
 	 */
-	register struct radix_node_head *rnh =
-		rt_tables[rt_key(rt)->sa_family];
+	struct radix_node_head *rnh = rt_tables[rt_key(rt)->sa_family];
 
 	if (rt == 0 || rnh == 0)
 		panic("rtfree");
@@ -222,7 +229,7 @@ rtfree(rt)
 	 * and there is a close function defined, call the close function
 	 */
 	rt->rt_refcnt--;
-	if(rnh->rnh_close && rt->rt_refcnt == 0) {
+	if (rnh->rnh_close && rt->rt_refcnt == 0) {
 		rnh->rnh_close((struct radix_node *)rt, rnh);
 	}
 
@@ -270,7 +277,8 @@ rtfree(rt)
 	}
 }
 
-#define	equal(a1, a2) (bcmp((caddr_t)(a1), (caddr_t)(a2), (a1)->sa_len) == 0)
+/* compare two sockaddr structures */
+#define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
 
 /*
  * Force a routing table entry to the specified
@@ -306,7 +314,7 @@ rtredirect(dst, gateway, netmask, flags, src, rtp)
 	 * going down recently.
 	 */
 	if (!(flags & RTF_DONE) && rt &&
-	     (!equal(src, rt->rt_gateway) || rt->rt_ifa != ifa))
+	     (!sa_equal(src, rt->rt_gateway) || rt->rt_ifa != ifa))
 		error = EINVAL;
 	else if (ifa_ifwithaddr(gateway))
 		error = EHOSTUNREACH;
@@ -538,6 +546,7 @@ rtrequest1(req, info, ret_nrt)
 	 */
 	if ((rnh = rt_tables[dst->sa_family]) == 0)
 		senderr(EAFNOSUPPORT);
+	RADIX_NODE_HEAD_LOCK(rnh);
 	/*
 	 * If we are adding a host route then we don't want to put
 	 * a netmask in the tree, nor do we want to clone it.
@@ -763,6 +772,7 @@ rtrequest1(req, info, ret_nrt)
 		error = EOPNOTSUPP;
 	}
 bad:
+	RADIX_NODE_HEAD_UNLOCK(rnh);
 	splx(s);
 	return (error);
 #undef dst
@@ -1002,8 +1012,10 @@ rt_setgate(rt0, dst, gate)
 		struct rtfc_arg arg;
 		arg.rnh = rnh;
 		arg.rt0 = rt;
+		RADIX_NODE_HEAD_LOCK(rnh);
 		rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt),
 				       rt_fixchange, &arg);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 	}
 
 	return 0;
@@ -1079,11 +1091,16 @@ rtinit(ifa, cmd, flags)
 		 * Look up an rtentry that is in the routing tree and
 		 * contains the correct info.
 		 */
-		if ((rnh = rt_tables[dst->sa_family]) == NULL ||
-		    (rn = rnh->rnh_lookup(dst, netmask, rnh)) == NULL ||
+		if ((rnh = rt_tables[dst->sa_family]) == NULL)
+			goto bad;
+		RADIX_NODE_HEAD_LOCK(rnh);
+		error = ((rn = rnh->rnh_lookup(dst, netmask, rnh)) == NULL ||
 		    (rn->rn_flags & RNF_ROOT) ||
 		    ((struct rtentry *)rn)->rt_ifa != ifa ||
-		    !equal(SA(rn->rn_key), dst)) {
+		    !sa_equal(SA(rn->rn_key), dst));
+		RADIX_NODE_HEAD_UNLOCK(rnh);
+		if (error) {
+bad:
 			if (m)
 				(void) m_free(m);
 			return (flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
