@@ -80,7 +80,7 @@ static const char rcsid[] =
 
 #ifdef USE_PAM
 #include <security/pam_appl.h>
-#include <security/pam_misc.h>
+#include <security/openpam.h>
 #include <sys/wait.h>
 #endif /* USE_PAM */
 
@@ -643,7 +643,7 @@ main(argc, argv)
 			PAM_END;
 			exit(0);
 		} else {
-			if ((e = pam_end(pamh, PAM_DATA_SILENT)) != PAM_SUCCESS)
+			if ((e = pam_end(pamh, 0)) != PAM_SUCCESS)
 				syslog(LOG_ERR, "pam_end: %s",
 				    pam_strerror(pamh, e));
 		}
@@ -768,7 +768,7 @@ auth_pam()
 	const void *item;
 	int rval;
 	int e;
-	static struct pam_conv conv = { misc_conv, NULL };
+	static struct pam_conv conv = { openpam_ttyconv, NULL };
 
 	if ((e = pam_start("login", username, &conv, &pamh)) != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_start: %s", pam_strerror(pamh, e));
