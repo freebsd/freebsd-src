@@ -108,7 +108,7 @@ fmt_argv(argv, cmd, maxlen)
 	if (ap == NULL)
 		sprintf(cp, "(%.*s)", maxlen, cmd);
 	else if (strncmp(cmdpart(argv[0]), cmd, maxlen) != 0)
-		sprintf(cp, "%s (%.*s)", ap, maxlen, cmd);
+		sprintf(cp, "%s(%.*s)", ap, maxlen, cmd);
 	else
 		(void) strcpy(cp, ap);
 	return (cp);
