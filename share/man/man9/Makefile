@@ -37,6 +37,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	device_ids.9 \
 	device_probe_and_attach.9 device_quiet.9 device_set_desc.9 \
 	device_set_flags.9 devstat.9 devsw.9 devtoname.9 driver.9 \
+	domain.9 \
 	extattr.9 \
 	fetch.9 \
 	get_cyclecounter.9 \
@@ -232,6 +233,14 @@ MLINKS+=device_set_desc.9 device_set_desc_copy.9
 MLINKS+=device_set_flags.9 device_get_flags.9
 MLINKS+=devclass_add_driver.9 devclass_delete_driver.9
 MLINKS+=devclass_add_driver.9 devclass_find_driver.9
+
+MLINKS+=domain.9 net_add_domain.9
+MLINKS+=domain.9 pfctlinput.9
+MLINKS+=domain.9 pfctlinput2.9
+MLINKS+=domain.9 pffindproto.9
+MLINKS+=domain.9 pffindtype.9
+MLINKS+=domain.9 DOMAIN_SET.9
+
 MLINKS+=BUS_READ_IVAR.9 BUS_WRITE_IVAR.9
 MLINKS+=BUS_SETUP_INTR.9 bus_setup_intr.9
 MLINKS+=BUS_SETUP_INTR.9 BUS_TEARDOWN_INTR.9
