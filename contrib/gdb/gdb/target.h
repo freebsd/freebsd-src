@@ -46,6 +46,7 @@ enum strata {
 	dummy_stratum,		/* The lowest of the low */
 	file_stratum,		/* Executable files, etc */
 	core_stratum,		/* Core dump files */
+	kcore_stratum,		/* Kernel core files */
 	download_stratum,	/* Downloading of remote targets */
 	process_stratum		/* Executing processes */
 };
