@@ -729,9 +729,18 @@ kseq_transfer(struct kseq *kseq, struct kse *ke, int class)
 	struct kseq_group *ksg;
 	int cpu;
 
+	if (smp_started == 0)
+		return (0);
 	cpu = 0;
 	ksg = kseq->ksq_group;
 
+	/*
+	 * If there are any idle groups, give them our extra load.  The
+	 * threshold at which we start to reassign kses has a large impact
+	 * on the overall performance of the system.  Tuned too high and
+	 * some CPUs may idle.  Too low and there will be excess migration
+	 * and context swiches.
+	 */
 	/*
 	 * XXX This ksg_transferable might work better if we were checking
 	 * against a global group load.  As it is now, this prevents us from
@@ -1588,15 +1597,9 @@ sched_add(struct thread *td)
 		return;
 	}
 	/*
-	 * If there are any idle groups, give them our extra load.  The
-	 * threshold at which we start to reassign kses has a large impact
-	 * on the overall performance of the system.  Tuned too high and
-	 * some CPUs may idle.  Too low and there will be excess migration
-	 * and context swiches.
+	 * If we had been idle, clear our bit in the group and potentially
+	 * the global bitmap.  If not, see if we should transfer this thread.
 	 */
-	if (kseq->ksq_load > 1 && KSE_CAN_MIGRATE(ke, class))
-		if (kseq_transfer(kseq, ke, class))
-			return;
 	if ((class == PRI_TIMESHARE || class == PRI_REALTIME) &&
 	    (kseq->ksq_group->ksg_idlemask & PCPU_GET(cpumask)) != 0) {
 		/*
@@ -1610,7 +1613,9 @@ sched_add(struct thread *td)
 		 * Now remove ourselves from the group specific idle mask.
 		 */
 		kseq->ksq_group->ksg_idlemask &= ~PCPU_GET(cpumask);
-	}
+	} else if (kseq->ksq_load > 1 && KSE_CAN_MIGRATE(ke, class))
+		if (kseq_transfer(kseq, ke, class))
+			return;
 #endif
         if (td->td_priority < curthread->td_priority)
                 curthread->td_flags |= TDF_NEEDRESCHED;
