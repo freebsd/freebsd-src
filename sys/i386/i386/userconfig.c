@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.123 1999/01/12 00:19:33 eivind Exp $
+ **      $Id: userconfig.c,v 1.124 1999/01/14 06:22:05 jdp Exp $
  **/
 
 /**
@@ -110,7 +110,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/linker_set.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
@@ -2516,7 +2516,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.123 1999/01/12 00:19:33 eivind Exp $
+ *      $Id: userconfig.c,v 1.124 1999/01/14 06:22:05 jdp Exp $
  */
 
 #include "scbus.h"
