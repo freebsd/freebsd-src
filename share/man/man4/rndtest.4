@@ -32,18 +32,21 @@
 .Nm rndtest
 .Nd FIPS 140-2 random number generator test monitor
 .Sh SYNOPSIS
-.Cd device rndtest
+.Cd "device rndtest"
 .Sh DESCRIPTION
 The
 .Nm
-driver ``hooks up'' to hardware crypto devices to monitor the
+driver
+.Dq "hooks up"
+to hardware crypto devices to monitor the
 entropy data passed to the
 .Xr random 4
 subsystem.
 This data is periodically tested for FIPS 140-2 compliance and
 statistics are collected.
 If the harvested entropy fails any of the FIPS test suite, then
-it is discarded and testing is continuously applied until ``good data''
+it is discarded and testing is continuously applied until
+.Dq "good data"
 is received from the device.
 Failures are optionally reported on the console.
 .Sh SEE ALSO
@@ -53,7 +56,8 @@ Failures are optionally reported on the console.
 .Xr ubsec 4 ,
 .Xr crypto 9
 .Sh HISTORY
-The idea for this and the original code came from Jason L. Wright.
+The idea for this and the original code came from
+.An "Jason L. Wright" .
 The
 .Nm
 device driver first appeared in
@@ -64,4 +68,4 @@ this should not be necessary.
 This feature might better be integrated into the
 .Xr random 4
 subsystem where it can be used applied to devices that claim to supply
-``pure entropy''.
+.Dq "pure entropy" .

@@ -37,10 +37,10 @@
 .Sh NAME
 .Nm PAE
 .Sh SYNOPSIS
-.Cd options PAE
+.Cd "options PAE"
 .Sh DESCRIPTION
 The
-.Nm
+.Dv PAE
 option provides support for the physical address extensions capability
 of the
 .Tn Intel
@@ -49,35 +49,35 @@ and above CPUs,
 and allows for up to 64 gigabytes of memory to be used in systems capable
 of supporting it.
 With the
-.Nm
+.Dv PAE
 option, memory above 4 gigabytes is simply added to the general page pool.
 The system makes no distinction between memory above or below 4 gigabytes,
 and no specific facility is provided for a process or the kernel to access
 more memory than they would otherwise be able to access, through a sliding
 window or otherwise.
 .Sh SEE ALSO
-.Xr smp 4
-.Xr tuning 7
+.Xr smp 4 ,
+.Xr tuning 7 ,
 .Xr config 8
 .Sh HISTORY
 The
-.Nm
+.Dv PAE
 option first appeared in
 .Fx 5.1 .
 .Sh AUTHORS
 .An Jake Burkholder Aq jake@FreeBSD.org
 .Sh BUGS
-Since kld modules are not compiled with the same options headers that
+Since KLD modules are not compiled with the same options headers that
 the kernel is compiled with,
 they must not be loaded into a kernel compiled with the
-.Nm
+.Dv PAE
 option.
 .Pp
 Many devices or their device drivers are not capable of direct memory access
 to physical addresses above 4 gigabytes.
 In order to make use of direct memory access IO in a system with more than
 4 gigabytes of memory when the
-.Nm
+.Dv PAE
 option is used,
 these drivers must use a facility for remapping or substituting physical
 memory which is not accessible to the device.
@@ -86,16 +86,16 @@ One such facility is provided by the
 interface.
 Device drivers which do not account for such devices will not work reliably
 in a system with more than 4 gigabytes of memory when the
-.Nm
+.Dv PAE
 option is used,
 and may cause data corruption.
 The
-.Nm
+.Pa PAE
 kernel configuration file includes the
-.Nm
+.Dv PAE
 option, and explicitly excludes all device drivers which are known to not work
 or have not been tested in a system with the
-.Nm
+.Dv PAE
 option and more than 4 gigabytes of memory.
 .Pp
 Many parameters which determine how memory is used in the kernel are based on
@@ -110,11 +110,12 @@ to the kernel,
 or to reduce the amount of a specific resource that is heavily used,
 in order to avoid running out of virtual address space.
 The
-.Nm KVA_PAGES
+.Dv KVA_PAGES
 option may be used to increase the kernel virtual address space,
 and the
-.Nm kern.maxvnodes
-sysctl may be used to decrease the number of vnodes allowed,
+.Va kern.maxvnodes
+.Xr sysctl 8
+may be used to decrease the number of vnodes allowed,
 an example of a resource that the kernel is likely to overallocate in
 large memory configurations.
 For optimal performance and stability it may be necessary to consult the

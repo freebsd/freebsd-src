@@ -1,7 +1,7 @@
-.\" 
+.\"
 .\" Copyright (c) 2001-2003, Shunsuke Akiyama <akiyama@FreeBSD.org>.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -10,7 +10,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -22,16 +22,15 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
-.\" 
+.\"
 .Dd May 3, 2003
 .Dt RUE 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm rue
-.Nd
-RealTek RTL8150 USB To Fast Ethernet controller driver
+.Nd "RealTek RTL8150 USB To Fast Ethernet controller driver"
 .Sh SYNOPSIS
 .Cd "device uhci"
 .Cd "device ohci"
@@ -45,7 +44,7 @@ driver provides support for USB Ethernet adapters based on the RealTek
 RTL8150 USB to Fast Ethernet controller chip.
 This includes the Melco Inc. LUA-KTX and the GREEN HOUSE GH-USB100B.
 .Pp
-The RTL8150 contains a integrated Fast Ethernet MAC, which supports
+The RTL8150 contains an integrated Fast Ethernet MAC, which supports
 both 10 and 100Mbps speeds in either full or half duplex.
 Although designed to interface with
 100Mbps peripheral, the existing USB standard specifies a maximum
@@ -56,42 +55,40 @@ achieve 100Mbps speeds with this device.
 The
 .Nm
 driver supports the following media types:
-.Pp
-.Bl -tag -width xxxxxxxxxxxxxxxx
-.It autoselect
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
 Enable auto selection of the media type and options.
 The user can manually override
 the auto selected mode by adding media options to the
 .Pa /etc/rc.conf
 file.
-.It 10baseT/UTP
+.It Cm 10baseT/UTP
 Set 10Mbps operation.
 The
-.Ar mediaopt
+.Cm mediaopt
 option can also be used to select either
-.Ar full-duplex
+.Cm full-duplex
 or
-.Ar half-duplex
+.Cm half-duplex
 modes.
-.It 100baseTX
+.It Cm 100baseTX
 Set 100Mbps (Fast Ethernet) operation.
 The
-.Ar mediaopt
+.Cm mediaopt
 option can also be used to select either
-.Ar full-duplex
+.Cm full-duplex
 or
-.Ar half-duplex
+.Cm half-duplex
 modes.
 .El
 .Pp
 The
 .Nm
 driver supports the following media options:
-.Pp
-.Bl -tag -width xxxxxxxxxxxxxxxx
-.It full-duplex
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm full-duplex
 Force full duplex operation.
-.It half-duplex
+.It Cm half-duplex
 Force half duplex operation.
 .El
 .Pp
@@ -107,13 +104,14 @@ before a timeout expired.
 The driver failed to allocate an mbuf for the transmitter ring.
 .It "rue%d: no memory for rx list"
 The driver failed to allocate an mbuf for the receiver ring.
+.El
 .Sh SEE ALSO
 .Xr arp 4 ,
-.Xr netintro 4 , 
+.Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr ifconfig 8
 .Rs
-.%T ReakTek RTL8150 data sheet
+.%T "ReakTek RTL8150 data sheet"
 .%O ftp://ftp.realtek.com.tw/lancard/data_sheet/8150/
 .Re
 .Sh HISTORY
