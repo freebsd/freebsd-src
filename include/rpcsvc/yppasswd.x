@@ -70,6 +70,6 @@ struct yppasswd {
 
 #ifdef RPC_HDR
 %#include <sys/cdefs.h>
-%extern int _yppasswd __P(( char * , struct x_passwd * ));
+%extern int _yppasswd( char * , struct x_passwd * );
 %#define yppasswd(x,y) _yppasswd(x,y)
 #endif
