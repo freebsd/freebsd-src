@@ -181,7 +181,6 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 #ifdef IPSEC
 	int needipsectun = 0;
 	struct secpolicy *sp = NULL;
-	struct socket *so = inp ? inp->inp_socket : NULL;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 #endif /* IPSEC */
