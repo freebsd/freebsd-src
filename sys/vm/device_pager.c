@@ -74,6 +74,7 @@ static uma_zone_t fakepg_zone;
 
 static vm_page_t dev_pager_getfake(vm_paddr_t);
 static void dev_pager_putfake(vm_page_t);
+static void dev_pager_updatefake(vm_page_t, vm_paddr_t);
 
 struct pagerops devicepagerops = {
 	.pgo_init =	dev_pager_init,
@@ -224,19 +225,36 @@ dev_pager_getpages(object, m, count, reqpage)
 	KASSERT(ret == 0, ("dev_pager_getpage: map function returns error"));
 	mtx_unlock(&Giant);
 
-	/*
-	 * Replace the passed in reqpage page with our own fake page and
-	 * free up the all of the original pages.
-	 */
-	page = dev_pager_getfake(paddr);
-	VM_OBJECT_LOCK(object);
-	TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist, page, pageq);
-	vm_page_lock_queues();
-	for (i = 0; i < count; i++)
-		vm_page_free(m[i]);
-	vm_page_unlock_queues();
-	vm_page_insert(page, object, offset);
-	m[reqpage] = page;
+	if ((m[reqpage]->flags & PG_FICTITIOUS) != 0) {
+		/*
+		 * If the passed in reqpage page is a fake page, update it with
+		 * the new physical address.
+		 */
+		dev_pager_updatefake(m[reqpage], paddr);
+		VM_OBJECT_LOCK(object);
+		if (count > 1) {
+			vm_page_lock_queues();
+			for (i = 0; i < count; i++) {
+				if (i != reqpage)
+					vm_page_free(m[i]);
+			}
+			vm_page_unlock_queues();
+		}
+	} else {
+		/*
+		 * Replace the passed in reqpage page with our own fake page and
+		 * free up the all of the original pages.
+		 */
+		page = dev_pager_getfake(paddr);
+		VM_OBJECT_LOCK(object);
+		TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist, page, pageq);
+		vm_page_lock_queues();
+		for (i = 0; i < count; i++)
+			vm_page_free(m[i]);
+		vm_page_unlock_queues();
+		vm_page_insert(page, object, offset);
+		m[reqpage] = page;
+	}
 
 	return (VM_PAGER_OK);
 }
@@ -295,4 +313,14 @@ dev_pager_putfake(m)
 	if (!(m->flags & PG_FICTITIOUS))
 		panic("dev_pager_putfake: bad page");
 	uma_zfree(fakepg_zone, m);
+}
+
+static void
+dev_pager_updatefake(m, paddr)
+	vm_page_t m;
+	vm_paddr_t paddr;
+{
+	if (!(m->flags & PG_FICTITIOUS))
+		panic("dev_pager_updatefake: bad page");
+	m->phys_addr = paddr;
 }
