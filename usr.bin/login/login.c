@@ -382,9 +382,9 @@ main(argc, argv)
 			refused("Home directory not available", "HOMEDIR", 1);
 		if (chdir("/") < 0) 
 			refused("Cannot find root directory", "ROOTDIR", 1);
-		pwd->pw_dir = "/";
 		if (!quietlog || *pwd->pw_dir)
 			printf("No home directory.\nLogging in with home = \"/\".\n");
+		pwd->pw_dir = "/";
 	}
 	(void)seteuid(euid);
 	(void)setegid(egid);
