@@ -157,12 +157,14 @@ static void cache_drain(uma_zone_t);
 static void bucket_drain(uma_zone_t, uma_bucket_t);
 static void zone_drain(uma_zone_t);
 static void zone_ctor(void *, int, void *);
+static void zone_dtor(void *, int, void *);
 static void zero_init(void *, int);
 static void zone_small_init(uma_zone_t zone);
 static void zone_large_init(uma_zone_t zone);
 static void zone_foreach(void (*zfunc)(uma_zone_t));
 static void zone_timeout(uma_zone_t zone);
 static void hash_expand(struct uma_hash *);
+static void hash_free(struct uma_hash *hash);
 static void uma_timeout(void *);
 static void uma_startup3(void);
 static void *uma_zalloc_internal(uma_zone_t, void *, int, uma_bucket_t);
@@ -302,8 +304,8 @@ hash_expand(struct uma_hash *hash)
 	struct slabhead *newhash;
 	struct slabhead *oldhash;
 	uma_slab_t slab;
-	int hzonefree;
-	int hashsize;
+	int oldsize;
+	int newsize;
 	int alloc;
 	int hval;
 	int i;
@@ -314,40 +316,34 @@ hash_expand(struct uma_hash *hash)
  	 * hash zone, or malloc.  The hash zone is used for the initial hash
 	 */
 
-	hashsize = hash->uh_hashsize;
+	oldsize = hash->uh_hashsize;
 	oldhash = hash->uh_slab_hash;
-
-	if (hashsize == UMA_HASH_SIZE_INIT)
-		hzonefree = 1;
-	else
-		hzonefree = 0;
-
 
 	/* We're just going to go to a power of two greater */
 	if (hash->uh_hashsize)  {
-		alloc = sizeof(hash->uh_slab_hash[0]) * (hash->uh_hashsize * 2);
+		newsize = oldsize * 2;
+		alloc = sizeof(hash->uh_slab_hash[0]) * newsize;
 		/* XXX Shouldn't be abusing DEVBUF here */
 		newhash = (struct slabhead *)malloc(alloc, M_DEVBUF, M_NOWAIT);
 		if (newhash == NULL) {
 			return;
 		}
-		hash->uh_hashsize *= 2;
 	} else {
 		alloc = sizeof(hash->uh_slab_hash[0]) * UMA_HASH_SIZE_INIT;
 		newhash = uma_zalloc_internal(hashzone, NULL, M_WAITOK, NULL);
-		hash->uh_hashsize = UMA_HASH_SIZE_INIT;
+		newsize = UMA_HASH_SIZE_INIT;
 	}
 
 	bzero(newhash, alloc);
 
-	hash->uh_hashmask = hash->uh_hashsize - 1;
+	hash->uh_hashmask = newsize - 1;
 
 	/*
 	 * I need to investigate hash algorithms for resizing without a
 	 * full rehash.
 	 */
 
-	for (i = 0; i < hashsize; i++)
+	for (i = 0; i < oldsize; i++)
 		while (!SLIST_EMPTY(&hash->uh_slab_hash[i])) {
 			slab = SLIST_FIRST(&hash->uh_slab_hash[i]);
 			SLIST_REMOVE_HEAD(&hash->uh_slab_hash[i], us_hlink);
@@ -355,16 +351,25 @@ hash_expand(struct uma_hash *hash)
 			SLIST_INSERT_HEAD(&newhash[hval], slab, us_hlink);
 		}
 
-	if (hash->uh_slab_hash) {
-		if (hzonefree)
-			uma_zfree_internal(hashzone,
-			    hash->uh_slab_hash, NULL, 0);
-		else
-			free(hash->uh_slab_hash, M_DEVBUF);
-	}
+	if (oldhash) 
+		hash_free(hash);
+
 	hash->uh_slab_hash = newhash;
+	hash->uh_hashsize = newsize;
 
 	return;
+}
+
+static void
+hash_free(struct uma_hash *hash)
+{
+	if (hash->uh_hashsize == UMA_HASH_SIZE_INIT)
+		uma_zfree_internal(hashzone,
+		    hash->uh_slab_hash, NULL, 0);
+	else
+		free(hash->uh_slab_hash, M_DEVBUF);
+
+	hash->uh_slab_hash = NULL;
 }
 
 /*
@@ -493,6 +498,7 @@ cache_drain(uma_zone_t zone)
  *
  * Arguments:
  *	zone  The zone to free pages from
+ *	all   Should we drain all items?
  *
  * Returns:
  *	Nothing.
@@ -525,7 +531,7 @@ zone_drain(uma_zone_t zone)
 	printf("%s working set size: %llu free items: %u\n",
 	    zone->uz_name, (unsigned long long)zone->uz_wssize, zone->uz_free);
 #endif
-	extra = zone->uz_wssize - zone->uz_free;
+	extra = zone->uz_free - zone->uz_wssize;
 	extra /= zone->uz_ipers;
 
 	/* extra is now the number of extra slabs that we can free */
@@ -1013,6 +1019,46 @@ zone_ctor(void *mem, int size, void *udata)
 		CPU_LOCK_INIT(zone, cpu);
 }
 
+/* 
+ * Zone header dtor.  This frees all data, destroys locks, frees the hash table
+ * and removes the zone from the global list.
+ *
+ * Arguments/Returns follow uma_dtor specifications
+ *	udata  unused
+ */
+
+static void
+zone_dtor(void *arg, int size, void *udata)
+{
+	uma_zone_t zone;
+	int cpu;
+
+	zone = (uma_zone_t)arg;
+
+	mtx_lock(&uma_mtx);
+	LIST_REMOVE(zone, uz_link);
+	mtx_unlock(&uma_mtx);
+
+	ZONE_LOCK(zone);
+	zone->uz_wssize = 0;
+	ZONE_UNLOCK(zone);
+
+	zone_drain(zone);
+	ZONE_LOCK(zone);
+	if (zone->uz_free != 0)
+		printf("Zone %s was not empty.  Lost %d pages of memory.\n",
+		    zone->uz_name, zone->uz_pages);
+
+	if ((zone->uz_flags & UMA_ZFLAG_INTERNAL) != 0)
+		for (cpu = 0; cpu < maxcpu; cpu++)
+			CPU_LOCK_FINI(zone, cpu);
+
+	if ((zone->uz_flags & UMA_ZFLAG_OFFPAGE) != 0)
+		hash_free(&zone->uz_hash);
+
+	ZONE_UNLOCK(zone);
+	ZONE_LOCK_FINI(zone);
+}
 /*
  * Traverses every zone in the system and calls a callback
  *
@@ -1063,7 +1109,7 @@ uma_startup(void *bootmem)
 	args.size = sizeof(struct uma_zone) +
 	    (sizeof(struct uma_cache) * (maxcpu - 1));
 	args.ctor = zone_ctor;
-	args.dtor = NULL;
+	args.dtor = zone_dtor;
 	args.uminit = zero_init;
 	args.fini = NULL;
 	args.align = 32 - 1;
@@ -1169,6 +1215,13 @@ uma_zcreate(char *name, int size, uma_ctor ctor, uma_dtor dtor, uma_init uminit,
 	args.flags = flags;
 
 	return (uma_zalloc_internal(zones, &args, M_WAITOK, NULL));
+}
+
+/* See uma.h */
+void
+uma_zdestroy(uma_zone_t zone)
+{
+	uma_zfree_internal(zones, zone, NULL, 0);
 }
 
 /* See uma.h */
