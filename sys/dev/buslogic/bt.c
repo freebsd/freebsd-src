@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.17 1999/04/18 19:03:50 peter Exp $
+ *      $Id: bt.c,v 1.18 1999/04/23 23:28:19 gibbs Exp $
  */
 
  /*
@@ -79,8 +79,6 @@
 #ifndef MAX
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
-
-struct bt_softc *bt_softcs[NBT];
 
 /* MailBox Management functions */
 static __inline void	btnextinbox(struct bt_softc *bt);
