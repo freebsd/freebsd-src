@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
+ * $Id: vinum.c,v 1.20 1998/10/29 02:15:30 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -164,7 +164,6 @@ vinumattach(void *dummy)
     ioctl_reply = NULL;					    /* no reply on longjmp */
 }
 
-
 /* Check if we have anything open.  If so, return 0 (not inactive),
  * otherwise 1 (inactive) */
 int 
@@ -231,16 +230,17 @@ free_vinum(int cleardrive)
 }
 
 #ifdef ACTUALLY_LKM_NOT_KERNEL				    /* stuff for LKMs */
+
 MOD_MISC(vinum);
 
 /*
  * Function called when loading the driver.
  */
+
 STATIC int 
 vinum_load(struct lkm_table *lkmtp, int cmd)
 {
     BROKEN_GDB;
-/*   Debugger ("vinum_load"); */
     vinumattach(NULL);
     return 0;						    /* OK */
 }
@@ -293,15 +293,15 @@ vinum_mod(struct lkm_table *lkmtp, int cmd, int ver)
 
 #else /* not LKM */
 
-STATIC int
+STATIC int 
 vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 {
-    struct sync_args dummyarg = {0};
+    struct sync_args dummyarg =
+    {0};
 
     BROKEN_GDB;
     switch (type) {
     case MOD_LOAD:
-	/* Debugger ("vinum_load"); */
 	vinumattach(NULL);
 	return 0;					    /* OK */
     case MOD_UNLOAD:
@@ -317,7 +317,8 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
     return 0;
 }
 
-moduledata_t vinum_mod = {
+moduledata_t vinum_mod =
+{
     "vinum",
     vinum_modevent,
     0
@@ -525,15 +526,12 @@ vinumsize(dev_t dev)
     struct volume *vol;
     int size;
 
-/* XXX This is bogus.  We don't need to open
- * a device to find its size */
     vol = &VOL[VOLNO(dev)];
 
     if (vol->state == volume_up)
 	size = vol->size;
     else
 	return 0;					    /* err on the size of conservatism */
-
 
     return size;
 }
