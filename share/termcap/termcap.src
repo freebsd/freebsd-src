@@ -4200,6 +4200,27 @@ rxvt|rxvt terminal emulator (X Window System):\
 	:te=\E[?47l\E8:ti=\E7\E[?47h:ue=\E[24m:up=\E[A:us=\E[4m:\
 	:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:vs=\E[?25h:
 
+# Termcap entry for Eterm, taken from the sources of Eterm-0.9.1
+# From Jeremy Norris <ishmael27@home.com>
+Eterm|Eterm-color|Eterm with xterm-style color support (X Window System):\
+	:am:bw:eo:km:mi:ms:xn:xo:\
+	:co#80:it#8:li#24:lm#0:\
+	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
+	:K1=\E[7~:K2=\EOu:K3=\E[5~:K4=\E[8~:K5=\E[6~:LE=\E[%dD:\
+	:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:as=^N:bl=^G:cd=\E[J:\
+	:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%d;%dH:cr=^M:\
+	:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:do=\E[B:\
+	:ec=\E[%dX:ei=\E[4l:ho=\E[H:i1=\E[?47l\E>\E[?1l:ic=\E[@:\
+	:im=\E[4h:is=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;3;4;6l\E[4l:\
+	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
+	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:kD=\E[3~:\
+	:kI=\E[2~:kN=\E[6~:kP=\E[5~:kb=^H:kd=\E[B:ke=:kh=\E[7~:\
+	:kl=\E[D:kr=\E[C:ks=:ku=\E[A:le=^H:mb=\E[5m:md=\E[1m:\
+	:me=\E[m\017:mr=\E[7m:nd=\E[C:rc=\E8:\
+	:sc=\E7:se=\E[27m:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
+	:te=\E[2J\E[?47l\E8:ti=\E7\E[?47h:ue=\E[24m:up=\E[A:\
+	:us=\E[4m:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:
+
 #
 # END OF TERMCAP
 #  ------------------------
