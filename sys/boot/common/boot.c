@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.4 1998/10/02 16:22:26 msmith Exp $
+ *	$Id: boot.c,v 1.5 1998/10/07 02:38:26 msmith Exp $
  */
 
 /*
@@ -166,7 +166,7 @@ int
 autoboot(int delay, char *prompt)
 {
     time_t	when, otime, ntime;
-    int		c, yes;
+    int		c, yes, cr;
     char	*argv[2], *cp, *ep;
 
     autoboot_tried = 1;
@@ -185,6 +185,7 @@ autoboot(int delay, char *prompt)
     otime = time(NULL);
     when = otime + delay;	/* when to boot */
     yes = 0;
+    cr = 0;
 
     /* XXX could try to work out what we might boot */
     printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or any other key for command prompt." : prompt);
@@ -199,11 +200,14 @@ autoboot(int delay, char *prompt)
 	ntime = time(NULL);
 	if (ntime >= when) {
 	    yes = 1;
+	    if (cr)
+		putchar('\n');
 	    break;
 	}
 	if (ntime != otime) {
 	    printf("\rBooting [%s] in %d seconds...", getbootfile(0), (int)(when - ntime));
 	    otime = ntime;
+	    cr = 1;
 	}
     }
     if (yes) {
