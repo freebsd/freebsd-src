@@ -207,7 +207,7 @@ TargFreeGN (void *gnp)
 
 
     free(gn->name);
-    efree(gn->path);
+    free(gn->path);
 
     Lst_Destroy(gn->iParents, NOFREE);
     Lst_Destroy(gn->cohorts, NOFREE);

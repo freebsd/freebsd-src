@@ -284,7 +284,7 @@ CondDoDefined (int argLen, char *arg)
     } else {
 	result = FALSE;
     }
-    efree(p1);
+    free(p1);
     arg[argLen] = savec;
     return (result);
 }

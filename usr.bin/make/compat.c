@@ -115,7 +115,7 @@ CompatInterrupt (int signo)
 	if (!noExecute && eunlink(file) != -1) {
 	    printf ("*** %s removed\n", file);
 	}
-	efree(p1);
+	free(p1);
 
 	/*
 	 * Run .INTERRUPT only if hit with interrupt signal
@@ -435,7 +435,7 @@ CompatMake (void *gnp, void *pgnp)
 	if (Lst_Member (gn->iParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set (IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
-	    efree(p1);
+	    free(p1);
 	}
 
 	/*
@@ -569,7 +569,7 @@ CompatMake (void *gnp, void *pgnp)
 	    char *p1;
 
 	    printf ("\n\nStop in %s.\n", Var_Value(".CURDIR", gn, &p1));
-	    efree(p1);
+	    free(p1);
 	    exit (1);
 	}
     } else if (gn->made == ERROR) {
@@ -582,7 +582,7 @@ CompatMake (void *gnp, void *pgnp)
 	if (Lst_Member (gn->iParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set (IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
-	    efree(p1);
+	    free(p1);
 	}
 	switch(gn->made) {
 	    case BEINGMADE:

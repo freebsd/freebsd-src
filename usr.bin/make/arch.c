@@ -149,7 +149,7 @@ ArchFree(void *ap)
 	free(Hash_GetValue(entry));
 
     free(a->name);
-    efree(a->fnametab);
+    free(a->fnametab);
     Hash_DeleteTable(&a->members);
     free(a);
 }
@@ -650,7 +650,7 @@ ArchStatMember (char *archive, char *member, Boolean hash)
 badarch:
     fclose (arch);
     Hash_DeleteTable (&ar->members);
-    efree(ar->fnametab);
+    free(ar->fnametab);
     free (ar);
     return (NULL);
 }
@@ -915,8 +915,8 @@ Arch_Touch (GNode *gn)
     arch = ArchFindMember(Var_Value (ARCHIVE, gn, &p1),
 			  Var_Value (TARGET, gn, &p2),
 			  &arh, "r+");
-    efree(p1);
-    efree(p2);
+    free(p1);
+    free(p2);
     snprintf(arh.ar_date, sizeof(arh.ar_date), "%-12ld", (long) now);
 
     if (arch != NULL) {
@@ -986,8 +986,8 @@ Arch_MTime(GNode *gn)
     arhPtr = ArchStatMember (Var_Value (ARCHIVE, gn, &p1),
 			     Var_Value (TARGET, gn, &p2),
 			     TRUE);
-    efree(p1);
-    efree(p2);
+    free(p1);
+    free(p2);
 
     if (arhPtr != NULL) {
 	modTime = (int) strtol(arhPtr->ar_date, NULL, 10);

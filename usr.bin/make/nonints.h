@@ -73,9 +73,6 @@ int PrintAddr(void *, void *);
 void Finish(int);
 char *estrdup(const char *);
 void *emalloc(size_t);
-/* efree(x) works when x==NULL. STDC behavior, may need some different
- * definition for cross-builds on deficient systems */
-#define	efree	free
 void *erealloc(void *, size_t);
 void enomem(void);
 int eunlink(const char *);
