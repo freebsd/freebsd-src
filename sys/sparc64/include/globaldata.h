@@ -34,6 +34,9 @@
 
 #include <sys/queue.h>
 
+#include <machine/frame.h>
+#include <machine/intr_machdep.h>
+
 #define	ALT_STACK_SIZE	128
 
 /*
@@ -55,22 +58,19 @@ struct globaldata {
 	u_int	gd_other_cpus;			/* all other cpus */
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	struct	lock_list_entry *gd_spinlocks;
-#ifdef KTR_PERCPU
-	int	gd_ktr_idx;			/* Index into trace table */
-	char	*gd_ktr_buf;
-	char	gd_ktr_buf_data[0];
-#endif
-	struct	intr_queue *gd_iq;
-	struct	intr_vector *gd_ivt;
 
-	/* Alternate global stack */
-	u_long	gd_alt_stack[ALT_STACK_SIZE];
-
-	/* Watch point support. */
-	u_int	gd_wp_insn;
+	struct	intr_queue gd_iq;		/* interrupt queuq */
+	u_long	gd_alt_stack[ALT_STACK_SIZE];	/* alternate global stack */
+	u_int	gd_wp_insn;			/* watch point support */
 	u_long	gd_wp_pstate;
 	u_long	gd_wp_va;
 	int	gd_wp_mask;
+
+#ifdef KTR_PERCPU
+	int	gd_ktr_idx;			/* index into trace table */
+	char	*gd_ktr_buf;
+	char	gd_ktr_buf_data[0];
+#endif
 };
 
 #endif	/* _KERNEL */
