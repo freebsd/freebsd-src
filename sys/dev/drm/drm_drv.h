@@ -566,17 +566,18 @@ static int DRM(takedown)( drm_device_t *dev )
 			map = list->map;
 			switch ( map->type ) {
 			case _DRM_REGISTERS:
+				DRM(ioremapfree)(map);
+				/* FALLTHROUGH */
 			case _DRM_FRAME_BUFFER:
 #if __REALLY_HAVE_MTRR
-				if ( map->mtrr >= 0 ) {
-					int __unused mtrr;
+				if (map->mtrr) {
+					int __unused retcode;
 
-					mtrr = DRM(mtrr_del)(map->offset,
+					retcode = DRM(mtrr_del)(map->offset,
 					    map->size, DRM_MTRR_WC);
-					DRM_DEBUG("mtrr_del=%d\n", mtrr);
+					DRM_DEBUG("mtrr_del = %d", retcode);
 				}
 #endif
-				DRM(ioremapfree)( map );
 				break;
 			case _DRM_SHM:
 				DRM(free)(map->handle,
@@ -680,12 +681,9 @@ static int DRM(init)( device_t nbdev )
 #endif /* __MUST_HAVE_AGP */
 #if __REALLY_HAVE_MTRR
 	if (dev->agp) {
-		int retcode;
-		
-		retcode = DRM(mtrr_add)(dev->agp->info.ai_aperture_base,
-		    dev->agp->info.ai_aperture_size, DRM_MTRR_WC);
-		if (retcode == 0)
-			dev->agp->agp_mtrr=1;
+		if (DRM(mtrr_add)(dev->agp->info.ai_aperture_base,
+		    dev->agp->info.ai_aperture_size, DRM_MTRR_WC) == 0)
+			dev->agp->mtrr = 1;
 	}
 #endif /* __REALLY_HAVE_MTRR */
 #endif /* __REALLY_HAVE_AGP */
@@ -743,12 +741,12 @@ static void DRM(cleanup)(drm_device_t *dev)
 #endif
 
 #if __REALLY_HAVE_AGP && __REALLY_HAVE_MTRR
-	if ( dev->agp && dev->agp->agp_mtrr >= 0) {
-		int __unused mtrr;
+	if (dev->agp && dev->agp->mtrr) {
+		int __unused retcode;
 
-		mtrr = DRM(mtrr_del)(dev->agp->info.ai_aperture_base,
+		retcode = DRM(mtrr_del)(dev->agp->info.ai_aperture_base,
 		    dev->agp->info.ai_aperture_size, DRM_MTRR_WC);
-		DRM_DEBUG("mtrr_del=%d\n", mtrr);
+		DRM_DEBUG("mtrr_del = %d", retcode);
 	}
 #endif
 

@@ -88,7 +88,7 @@ int DRM(addmap)( DRM_IOCTL_ARGS )
 	map->size = request.size;
 	map->type = request.type;
 	map->flags = request.flags;
-	map->mtrr   = -1;
+	map->mtrr = 0;
 	map->handle = 0;
 	
 	/* Only allow shared memory to be removable since we only keep enough
@@ -105,28 +105,23 @@ int DRM(addmap)( DRM_IOCTL_ARGS )
 		DRM(free)( map, sizeof(*map), DRM_MEM_MAPS );
 		return DRM_ERR(EINVAL);
 	}
+	if (map->offset + map->size < map->offset) {
+		DRM(free)(map, sizeof(*map), DRM_MEM_MAPS);
+		return DRM_ERR(EINVAL);
+	}
 
 	switch ( map->type ) {
 	case _DRM_REGISTERS:
-	case _DRM_FRAME_BUFFER:
-		if ( map->offset + map->size < map->offset ) {
-			DRM(free)( map, sizeof(*map), DRM_MEM_MAPS );
-			return DRM_ERR(EINVAL);
-		}
-#if __REALLY_HAVE_MTRR
-		if ( map->type == _DRM_FRAME_BUFFER ||
-		     (map->flags & _DRM_WRITE_COMBINING) ) {
-			int mtrr;
-			     
-			mtrr = DRM(mtrr_add)(map->offset, map->size,
-			     DRM_MTRR_WC);
-			if (mtrr == 0)
-				map->mtrr = 1;
-		}
-#endif /* __REALLY_HAVE_MTRR */
 		DRM_IOREMAP(map, dev);
+		if (!(map->flags & _DRM_WRITE_COMBINING))
+			break;
+		/* FALLTHROUGH */
+	case _DRM_FRAME_BUFFER:
+#if __REALLY_HAVE_MTRR
+		if (DRM(mtrr_add)(map->offset, map->size, DRM_MTRR_WC) == 0)
+			map->mtrr = 1;
+#endif
 		break;
-
 	case _DRM_SHM:
 		map->handle = (void *)DRM(alloc)(map->size, DRM_MEM_SAREA);
 		DRM_DEBUG( "%lu %d %p\n",
@@ -153,7 +148,7 @@ int DRM(addmap)( DRM_IOCTL_ARGS )
 #if __REALLY_HAVE_AGP
 	case _DRM_AGP:
 		map->offset += dev->agp->base;
-		map->mtrr   = dev->agp->agp_mtrr; /* for getmap */
+		map->mtrr   = dev->agp->mtrr; /* for getmap */
 		break;
 #endif
 	case _DRM_SCATTER_GATHER:
@@ -232,12 +227,12 @@ int DRM(rmmap)( DRM_IOCTL_ARGS )
 	case _DRM_REGISTERS:
 	case _DRM_FRAME_BUFFER:
 #if __REALLY_HAVE_MTRR
-		if (map->mtrr >= 0) {
-			int __unused mtrr;
+		if (map->mtrr) {
+			int __unused retcode;
 			
-			mtrr = DRM(mtrr_del)(map->offset, map->size,
+			retcode = DRM(mtrr_del)(map->offset, map->size,
 			    DRM_MTRR_WC);
-			DRM_DEBUG("mtrr_del = %d\n", mtrr);
+			DRM_DEBUG("mtrr_del = %d\n", retcode);
 		}
 #endif
 		DRM(ioremapfree)(map);
