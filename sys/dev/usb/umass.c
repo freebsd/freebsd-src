@@ -725,6 +725,11 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	    UGETW(dd->idProduct) == USB_PRODUCT_MSYSTEMS_DISKONKEY2) {
 		sc->proto = UMASS_PROTO_ATAPI | UMASS_PROTO_BBB;
 	}
+	if (UGETW(dd->idVendor) == USB_VENDOR_NEODIO &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_NEODIO_ND3260) {
+		sc->proto = UMASS_PROTO_SCSI | UMASS_PROTO_BBB;
+		sc->quirks |= FORCE_SHORT_INQUIRY;
+	}
 	if (UGETW(dd->idVendor) == USB_VENDOR_PANASONIC &&
 	    UGETW(dd->idProduct) == USB_PRODUCT_PANASONIC_KXLCB20AN) {
 		sc->proto = UMASS_PROTO_SCSI | UMASS_PROTO_BBB;
