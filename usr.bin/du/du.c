@@ -326,8 +326,7 @@ linkchk(FTSENT *p)
 	struct links_entry *le, **new_buckets;
 	struct stat *st;
 	size_t i, new_size;
-	int count;
-	int hash;
+	int count, hash;
 
 	st = p->fts_statp;
 
@@ -336,14 +335,13 @@ linkchk(FTSENT *p)
 		number_buckets = links_hash_initial_size;
 		buckets = malloc(number_buckets * sizeof(buckets[0]));
 		if (buckets == NULL)
-			errx(1, "No memory for hardlink detection.");
+			errx(1, "No memory for hardlink detection");
 		for (i = 0; i < number_buckets; i++)
 			buckets[i] = NULL;
 	}
 
 	/* If the hash table is getting too full, enlarge it. */
 	if (number_entries > number_buckets * 10 && !stop_allocating) {
-
 		new_size = number_buckets * 2;
 		new_buckets = malloc(new_size * sizeof(struct links_entry *));
 		count = 0;
@@ -360,7 +358,7 @@ linkchk(FTSENT *p)
 
 		if (new_buckets == NULL) {
 			stop_allocating = 1;
-			warnx("No more memory for tracking hard links.");
+			warnx("No more memory for tracking hard links");
 		} else {
 			memset(new_buckets, 0,
 			    new_size * sizeof(struct links_entry *));
@@ -428,7 +426,7 @@ linkchk(FTSENT *p)
 		le = malloc(sizeof(struct links_entry));
 	if (le == NULL) {
 		stop_allocating = 1;
-		warnx("No more memory for tracking hard links.");
+		warnx("No more memory for tracking hard links");
 		return (0);
 	}
 	le->dev = st->st_dev;
