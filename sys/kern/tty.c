@@ -1015,7 +1015,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		if (t != tp->t_line) {
 			s = spltty();
 			ttyld_close(tp, flag);
-			error = (*linesw[t].l_open)(device, tp);
+			error = (*linesw[t]->l_open)(device, tp);
 			if (error) {
 				(void)ttyld_open(tp, device);
 				splx(s);
@@ -2772,9 +2772,9 @@ ttyldoptim(struct tty *tp)
 	    && (!(t->c_iflag & PARMRK)
 		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
 	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
-	    && linesw[tp->t_line].l_rint == ttyinput)
+	    && linesw[tp->t_line]->l_rint == ttyinput)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	return (linesw[tp->t_line].l_hotchar);
+	return (linesw[tp->t_line]->l_hotchar);
 }
