@@ -64,7 +64,6 @@
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
 
-#include <machine/pcb.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
@@ -116,11 +115,10 @@ watchdog_tickle_fn wdog_tickler = NULL;
  */
 const char *panicstr;
 
-int dumping;				 /* system is dumping */
-dev_t dumpdev = NODEV;
+int dumping;				/* system is dumping */
+static struct dumperinfo dumper;	/* our selected dumper */
 
 static void boot(int) __dead2;
-static void dumpsys(void);
 static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);
 static void shutdown_panic(void *junk, int howto);
@@ -178,7 +176,6 @@ shutdown_nice(int howto)
 	return;
 }
 static int	waittime = -1;
-static struct pcb dumppcb;
 
 static void
 print_uptime(void)
@@ -334,8 +331,11 @@ boot(int howto)
 	 */
 	EVENTHANDLER_INVOKE(shutdown_post_sync, howto);
 	splhigh();
-	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold)
-		dumpsys();
+	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP &&
+	    !cold && dumper.dumper != NULL && !dumping) {
+			dumping++;
+			dumpsys(&dumper);
+	}
 
 	/* Now that we're going to really halt the system... */
 	EVENTHANDLER_INVOKE(shutdown_final, howto);
@@ -410,172 +410,6 @@ shutdown_reset(void *junk, int howto)
 	/* cpu_boot(howto); */ /* doesn't do anything at the moment */
 	cpu_reset();
 	/* NOTREACHED */ /* assuming reset worked */
-}
-
-/*
- * Magic number for savecore
- *
- * exported (symorder) and used at least by savecore(8)
- *
- */
-static u_long const	dumpmag = 0x8fca0101UL;	
-
-static int	dumpsize = 0;		/* also for savecore */
-
-static int	dodump = 1;
-
-SYSCTL_INT(_machdep, OID_AUTO, do_dump, CTLFLAG_RW, &dodump, 0,
-    "Try to perform coredump on kernel panic");
-
-static int
-setdumpdev(dev_t dev)
-{
-	int psize;
-	long newdumplo;
-
-	if (dev == NODEV) {
-		dumpdev = dev;
-		return (0);
-	}
-	if (devsw(dev) == NULL)
-		return (ENXIO);		/* XXX is this right? */
-	if (devsw(dev)->d_psize == NULL)
-		return (ENXIO);		/* XXX should be ENODEV ? */
-	psize = devsw(dev)->d_psize(dev);
-	if (psize == -1)
-		return (ENXIO);		/* XXX should be ENODEV ? */
-	/*
-	 * XXX should clean up checking in dumpsys() to be more like this.
-	 */
-	newdumplo = psize - Maxmem * (PAGE_SIZE / DEV_BSIZE);
-	if (newdumplo <= LABELSECTOR)
-		return (ENOSPC);
-	dumpdev = dev;
-	dumplo = newdumplo;
-	return (0);
-}
-
-
-/* ARGSUSED */
-static void
-dump_conf(void *dummy)
-{
-	char *path;
-	dev_t dev;
-
-	path = malloc(MNAMELEN, M_TEMP, M_WAITOK);
-	if (TUNABLE_STR_FETCH("dumpdev", path, MNAMELEN) != 0) {
-		dev = getdiskbyname(path);
-		if (dev != NODEV)
-			dumpdev = dev;
-	}
-	free(path, M_TEMP);
-	if (setdumpdev(dumpdev) != 0)
-		dumpdev = NODEV;
-}
-
-SYSINIT(dump_conf, SI_SUB_DUMP_CONF, SI_ORDER_FIRST, dump_conf, NULL)
-
-static int
-sysctl_kern_dumpdev(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	udev_t ndumpdev;
-
-	ndumpdev = dev2udev(dumpdev);
-	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
-	if (error == 0 && req->newptr != NULL)
-		error = setdumpdev(udev2dev(ndumpdev, 0));
-	return (error);
-}
-
-SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
-	0, sizeof dumpdev, sysctl_kern_dumpdev, "T,dev_t", "");
-
-/*
- * Doadump comes here after turning off memory management and
- * getting on the dump stack, either when called above, or by
- * the auto-restart code.
- */
-static void
-dumpsys(void)
-{
-	int	error;
-
-	savectx(&dumppcb);
-	if (!dodump)
-		return;
-	if (dumpdev == NODEV)
-		return;
-	if (!(devsw(dumpdev)))
-		return;
-	if (!(devsw(dumpdev)->d_dump))
-		return;
-	if (dumping++) {
-		dumping--;
-		printf("Dump already in progress, bailing...\n");
-		return;
-	}
-	dumpsize = Maxmem;
-	printf("\ndumping to dev %s, offset %ld\n", devtoname(dumpdev), dumplo);
-	printf("dump ");
-	error = (*devsw(dumpdev)->d_dump)(dumpdev);
-	dumping--;
-	if (error == 0) {
-		printf("succeeded\n");
-		return;
-	}
-	printf("failed, reason: ");
-	switch (error) {
-	case ENODEV:
-		printf("device doesn't support a dump routine\n");
-		break;
-
-	case ENXIO:
-		printf("device bad\n");
-		break;
-
-	case EFAULT:
-		printf("device not ready\n");
-		break;
-
-	case EINVAL:
-		printf("area improper\n");
-		break;
-
-	case EIO:
-		printf("i/o error\n");
-		break;
-
-	case EINTR:
-		printf("aborted from console\n");
-		break;
-
-	default:
-		printf("unknown, error = %d\n", error);
-		break;
-	}
-}
-
-int
-dumpstatus(vm_offset_t addr, off_t count)
-{
-	int c;
-
-	if (addr % (1024 * 1024) == 0) {
-#ifdef HW_WDOG
-		if (wdog_tickler)
-			(*wdog_tickler)();
-#endif   
-		printf("%ld ", (long)(count / (1024 * 1024)));
-	}
-
-	if ((c = cncheckc()) == 0x03)
-		return -1;
-	else if (c != -1)
-		printf("[CTRL-C to abort] ");
-	
-	return 0;
 }
 
 #ifdef SMP
@@ -697,3 +531,26 @@ kproc_shutdown(void *arg, int howto)
 	else
 		printf("stopped\n");
 }
+
+/* Registration of dumpers */
+int
+set_dumper(struct dumperinfo *di)
+{
+	if (di == NULL) {
+		bzero(&dumper, sizeof dumper);
+		return (0);
+	}
+	if (dumper.dumper != NULL)
+		return (EBUSY);
+	dumper = *di;
+	return (0);
+}
+
+#ifndef __i386__
+void
+dumpsys(struct dumperinfo *di __unused)
+{
+
+	printf("Kernel dumps not implemented on this architecture\n");
+}
+#endif

@@ -228,13 +228,6 @@ disk_invalidate (struct disk *disk)
 {
 }
 
-int
-disk_dumpcheck(dev_t dev, u_int *count, u_int *blkno, u_int *secsize)
-{
-
-	return (ENXIO);
-}
-
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, disklabel, CTLFLAG_RD,
     0, sizeof(struct disklabel), "sizeof(struct disklabel)");
