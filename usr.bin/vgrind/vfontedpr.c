@@ -540,7 +540,7 @@ putKcp (start, end, force)
 	if (idx) {
 	    if (*start == ' ' || *start == '\t') {
 		if (xfld == 0)	
-		    printf("");
+		    printf("\001");
 		printf("\t");
 		xfld = 1;
 		while (*start == ' ' || *start == '\t')
