@@ -36,11 +36,20 @@
 static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: mcount.c,v 1.9 1997/02/22 14:58:27 peter Exp $";
+	"$Id: mcount.c,v 1.10 1998/03/09 04:42:19 jb Exp $";
 #endif
 
 #ifndef __NETBSD_SYSCALLS
+
+#ifdef KERNEL
 #include <sys/param.h>
+#else
+/* Kludge to get fptrint_t declared. */
+#define	KERNEL
+#include <sys/param.h>
+#undef KERNEL
+#endif
+
 #include <sys/gmon.h>
 #ifdef KERNEL
 #include <sys/systm.h>
@@ -325,4 +334,4 @@ mexitcount(selfpc)
 }
 #endif /* GUPROF */
 
-#endif
+#endif /* !__NETBSD_SYSCALLS */
