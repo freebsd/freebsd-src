@@ -258,7 +258,7 @@ zwrite(cookie, wbp, num)
 	if (fwrite(magic_header,
 	    sizeof(char), sizeof(magic_header), fp) != sizeof(magic_header))
 		return (-1);
-	tmp = (u_char)(BITS | block_compress);
+	tmp = (u_char)((maxbits) | block_compress);
 	if (fwrite(&tmp, sizeof(char), sizeof(tmp), fp) != sizeof(tmp))
 		return (-1);
 
