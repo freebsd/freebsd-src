@@ -401,7 +401,6 @@ main(int argc, char *argv[])
 		case 'v':		/* log facility and priority */
 		  	LogFacPri++;
 			break;
-		case '?':
 		default:
 			usage();
 		}
@@ -664,8 +663,12 @@ printline(const char *hname, char *msg)
 	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 		pri = DEFUPRI;
 
-	/* don't allow users to log kernel messages */
-	if (LOG_FAC(pri) == LOG_KERN && !KeepKernFac)
+	/*
+	 * Don't allow users to log kernel messages.
+	 * NOTE: since LOG_KERN == 0 this will also match
+	 *       messages with no facility specified.
+	 */
+	if ((pri & LOG_FACMASK) == LOG_KERN && !KeepKernFac)
 		pri = LOG_MAKEPRI(LOG_USER, LOG_PRI(pri));
 
 	q = line;
