@@ -418,7 +418,7 @@ mbuf_init(void *dummy)
 	 * Allocate all the required counters for clusters.  This makes
 	 * cluster allocations/deallocations much faster.
 	 */
-	cl_refcntmap = (u_int *)kmem_malloc(mb_list_clust.ml_map,
+	cl_refcntmap = (u_int *)kmem_malloc(mb_list_mbuf.ml_map,
 	    roundup(nmbclusters * sizeof(u_int), MSIZE), M_NOWAIT);
 	if (cl_refcntmap == NULL)
 		goto bad;
