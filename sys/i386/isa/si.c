@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.65 1998/01/31 07:23:09 eivind Exp $
+ *	$Id: si.c,v 1.66 1998/02/13 12:45:55 phk Exp $
  */
 
 #ifndef lint
@@ -73,11 +73,19 @@ static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,199
 #include <machine/si.h>
 #include <machine/stdarg.h>
 
+#include "pci.h"
+#if NPCI > 0
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+#endif
+
 #include "si.h"
 
 /*
  * This device driver is designed to interface the Specialix International
  * range of serial multiplexor cards (SI/XIO) to BSDI/386 on an ISA bus machine.
+ *
+ * [ 10/22/97 - And also on PCI machines -NS ]
  *
  * The controller is interfaced to the host via dual port ram
  * and a (programmable - SIHOST2) interrupt at IRQ 11,12 or 15.
@@ -113,6 +121,30 @@ static	void	si_modem_state __P((struct si_port *pp, struct tty *tp, int hi_ip));
 struct isa_driver sidriver =
 	{ siprobe, siattach, "si" };
 
+#if NPCI > 0
+
+/*
+ * NOTE! No checking is done to make sure that PCI and ISA unit numbers
+ * don't collide. Surely something evil would result. Don't let it happen
+ * to you.
+ */
+
+static char *sipciprobe __P((pcici_t, pcidi_t));
+static void sipciattach __P((pcici_t, int));
+
+static u_long sipcicount;
+
+static struct pci_device sipcidev = {
+	"si",
+	sipciprobe,
+	sipciattach,
+	&sipcicount,
+	NULL,
+};
+
+DATA_SET (pcidevice_set, sipcidev);
+
+#endif
 
 static	d_open_t	siopen;
 static	d_close_t	siclose;
@@ -147,9 +179,17 @@ static int si_debug = 0;	/* data, not bss, so it's patchable */
 
 static struct tty *si_tty;
 
-/* where the firmware lives; defined in si_code.c */
+/* where the firmware lives; defined in si_code.c and si_jet.c */
+/* old: si_code.c */
 extern int si_dsize;
 extern unsigned char si_download[];
+/* new: si_jet.c */
+extern int si3_dsize;
+extern unsigned char si3_download[];
+extern unsigned short si3_bootloadaddr;
+extern int si3_bsize;
+extern unsigned char si3_bootstrap[];
+
 
 struct si_softc {
 	int 		sc_type;	/* adapter type */
@@ -250,7 +290,83 @@ static char *si_type[] = {
 	"SI2",				/* MCA */
 	"SIHOST2",
 	"SIEISA",
+	"SIPCI",
+	"SXPCI",
+	"SXISA",
 };
+
+#if NPCI > 0
+
+static char *
+sipciprobe(configid, deviceid)
+pcici_t configid;
+pcidi_t deviceid;
+{
+	switch (deviceid)
+	{
+		case 0x400011cb:
+			return("Specialix SI/XIO PCI host card");
+			break;
+		case 0x200011cb:
+			if (pci_conf_read(configid, SIJETSSIDREG) == 0x020011cb)
+				return("Specialix SX PCI host card");
+			else
+				return NULL;
+			break;
+		default:
+			return NULL;
+	}
+	/*NOTREACHED*/
+}
+
+void
+sipciattach(configid, unit)
+pcici_t configid;
+int unit;
+{
+	struct isa_device id;
+	vm_offset_t vaddr,paddr;
+	u_long mapval = 0;	/* shut up gcc, should not be needed */
+
+	switch ( pci_conf_read(configid, 0) >> 16 )
+	{
+		case 0x4000:
+			si_softc[unit].sc_type = SIPCI;
+			mapval = SIPCIBADR;
+		break;
+		case 0x2000:
+			si_softc[unit].sc_type = SIJETPCI;
+			mapval = SIJETBADR;
+		break;
+	}
+	if (!pci_map_mem(configid, mapval, &vaddr, &paddr))
+	{
+		printf("si%d: couldn't map memory\n", unit);
+	}
+
+	/*
+	 * We're cheating here a little bit. The argument to an ISA
+	 * interrupt routine is the unit number. The argument to a
+	 * PCI interrupt handler is a void *, but we're simply going
+	 * to be lazy and hand it the unit number.
+	 */
+	if (!pci_map_int(configid, (pci_inthand_t *) siintr, (void *)unit, &tty_imask)) {
+		printf("si%d: couldn't map interrupt\n", unit);
+	}
+	si_softc[unit].sc_typename = si_type[si_softc[unit].sc_type];
+
+	/*
+	 * More cheating: We're going to dummy up a struct isa_device
+	 * and call the other attach routine. We don't really have to
+	 * fill in very much of the structure, since we filled in a
+	 * little of the soft state already.
+	 */
+	id.id_unit=unit;
+	id.id_maddr=(caddr_t) vaddr;
+	siattach(&id);
+}
+
+#endif
 
 /* Look for a valid board at the given mem addr */
 static int
@@ -353,9 +469,34 @@ fail:
 		return(0);
 	}
 	/*
-	 * OK, now to see if whatever responded is really an SI card.
-	 * Try for a MK II first (SIHOST2)
+	 * Let's look first for a JET ISA card, since that's pretty easy
 	 */
+	DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
+		"si%d: JET first check - 0x%x\n",
+		id->id_unit, (*(maddr+SIJETIDBASE))));
+	if (*(maddr+SIJETIDBASE) != (SISPLXID&0xff))
+		goto try_mk2;
+	DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
+		"si%d: JET second check - 0x%x\n",
+		id->id_unit, (*(maddr+SIJETIDBASE+2))));
+	if (*(maddr+SIJETIDBASE+2) != ((SISPLXID&0xff00)>>8))
+		goto try_mk2;
+	/* It must be a Jet ISA or RIO card */
+	DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
+		"si%d: JET id check - 0x%x\n",
+		id->id_unit, (*(maddr+SIUNIQID))));
+	if ((*(maddr+SIUNIQID) & 0xf0) !=0x20)
+		goto try_mk2;
+	/* It must be a Jet ISA SI/XIO card */
+	*(maddr + SIJETCONFIG) = 0;
+	type = SIJETISA;
+	ramsize = SIJET_RAMSIZE;
+	goto got_card;
+	/*
+	 * OK, now to see if whatever responded is really an SI card.
+	 * Try for a MK II next (SIHOST2)
+	 */
+try_mk2:
 	for (i=SIPLSIG; i<SIPLSIG+8; i++)
 		if ((*(maddr+i) & 7) != (~(BYTE)i & 7))
 			goto try_mk1;
@@ -441,6 +582,12 @@ bad_irq:
 		}
 		id->id_msize = SIHOST_MEMSIZE;
 		break;
+	case SIJETISA:
+		if ((id->id_irq&(IRQ9|IRQ10|IRQ11|IRQ12|IRQ15)) == 0) {
+			goto bad_irq;
+		}
+		id->id_msize = SIJET_MEMSIZE;
+		break;
 	case SIEISA:
 		id->id_msize = SIEISA_MEMSIZE;
 		break;
@@ -479,17 +626,45 @@ siattach(id)
 	sc->sc_maddr = id->id_maddr;
 	sc->sc_irq = id->id_irq;
 
+	DPRINT((0, DBG_AUTOBOOT, "si%d: type: %s paddr: %x maddr: %x\n", unit,
+		sc->sc_typename, sc->sc_paddr, sc->sc_maddr));
+
 	sc->sc_ports = NULL;			/* mark as uninitialised */
 
 	maddr = sc->sc_maddr;
 
 	/*
 	 * OK, now lets download the firmware and try and boot the CPU..
+	 *
+	 * You can't use bcopy, since some cards won't take 32 bit writes.
 	 */
-
-	DPRINT((0, DBG_DOWNLOAD, "si%d: si_download: nbytes %d\n",
-		id->id_unit, si_dsize));
-	bcopy(si_download, maddr, si_dsize);
+	if ((sc->sc_type == SIJETISA) || (sc->sc_type == SIJETPCI))
+	{
+		DPRINT((0, DBG_DOWNLOAD, "si%d: jet_download: nbytes %d\n",
+			id->id_unit, si3_dsize));
+		{
+			u_int i;
+			for (i=0;i<si3_dsize;i++)
+				maddr[i]=si3_download[i];
+		}
+		DPRINT((0, DBG_DOWNLOAD, "si%d: jet_bootstrap: nbytes %d -> %x\n",
+			id->id_unit, si3_bsize, si3_bootloadaddr));
+		{
+			u_int i;
+			for (i=0;i<si3_bsize;i++)
+				maddr[i+si3_bootloadaddr]=si3_bootstrap[i];
+		}
+	}
+	else
+	{
+		DPRINT((0, DBG_DOWNLOAD, "si%d: si_download: nbytes %d\n",
+			id->id_unit, si_dsize));
+		{
+			u_int i;
+			for (i=0;i<si_dsize;i++)
+				maddr[i]=si_download[i];
+		}
+	}
 
 	switch (sc->sc_type) {
 	case SIEISA:
@@ -506,6 +681,20 @@ siattach(id)
 		 * these one day, if FreeBSD ever supports it.
 		 */
 		return 0;
+	case SIPCI:
+		/* modify the Z280 firmware to tell it that it's on a PCI */
+		*(maddr+0x42) = 1;
+		*(maddr+SIPCIRESET) = 1;
+		*(maddr+SIPCIINTCL) = 0;
+		break;
+	case SIJETPCI:
+		*(maddr+SIJETRESET) = 0;
+		*(maddr+SIJETCONFIG) = SIJETBUSEN|SIJETIRQEN;
+		break;
+	case SIJETISA:
+		*(maddr+SIJETRESET) = 0;
+		*(maddr+SIJETCONFIG) = SIJETBUSEN|SIJETIRQEN|(sc->sc_irq<<4);
+		break;
 	case SIHOST:
 		*(maddr+SIRESET_CL) = 0;
 		*(maddr+SIINTCL_CL) = 0;
@@ -1688,7 +1877,7 @@ si_poll(void *nothing)
 		regp = (struct si_reg *)sc->sc_maddr;
 		/*
 		 * See if there has been a pending interrupt for 2 seconds
-		 * or so. The test <int_scounter >= 200) won't correspond
+		 * or so. The test (int_scounter >= 200) won't correspond
 		 * to 2 seconds if int_count gets changed.
 		 */
 		if (regp->int_pending != 0) {
@@ -1779,6 +1968,17 @@ siintr(int unit)
 			((volatile struct si_reg *)maddr)->int_pending = 0;
 			*(maddr+SIPLIRQCLR) = 0x00;
 			*(maddr+SIPLIRQCLR) = 0x10;
+			break;
+		case SIPCI:
+			maddr = sc->sc_maddr;
+			((volatile struct si_reg *)maddr)->int_pending = 0;
+			*(maddr+SIPCIINTCL) = 0x0;
+			break;
+		case SIJETPCI:
+		case SIJETISA:
+			maddr = sc->sc_maddr;
+			((volatile struct si_reg *)maddr)->int_pending = 0;
+			*(maddr+SIJETINTCL) = 0x0;
 			break;
 		case SIEISA:
 #if NEISA > 0
