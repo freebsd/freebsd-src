@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Jan 12 14:52:05 2001]
+ *	last edit-date: [Tue May  8 10:19:36 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -533,9 +533,9 @@ i4btelread(dev_t dev, struct uio *uio, int ioflag)
 		s = splimp();
 		IF_LOCK(sc->isdn_linktab->rx_queue);
 
-		while(IF_QEMPTY(sc->isdn_linktab->rx_queue) &&
-			(sc->devstate & ST_ISOPEN)          &&
-			(sc->devstate & ST_CONNECTED))		
+		while((sc->devstate & ST_ISOPEN)        &&
+		      (sc->devstate & ST_CONNECTED)	&&
+		      IF_QEMPTY(sc->isdn_linktab->rx_queue))		
 		{
 			sc->devstate |= ST_RDWAITDATA;
 
