@@ -417,10 +417,10 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
  * sleep waiting for it), or if we need to recurse on it.
  */
 void
-_mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
+_mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
+    int line)
 {
 	struct turnstile *ts;
-	struct thread *td = curthread;
 #if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
 	struct thread *owner;
 #endif
@@ -562,7 +562,8 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
  * is handled inline.
  */
 void
-_mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
+_mtx_lock_spin(struct mtx *m, struct thread *td, int opts, const char *file,
+    int line)
 {
 	int i = 0;
 
@@ -570,7 +571,7 @@ _mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
 	for (;;) {
-		if (_obtain_lock(m, curthread))
+		if (_obtain_lock(m, td))
 			break;
 
 		/* Give interrupts a chance while we spin. */
