@@ -66,6 +66,8 @@ STATIC void vinumattach(void *);
 
 STATIC int vinum_modevent(module_t mod, modeventtype_t type, void *unused);
 
+STATIC void vinum_clone(void *arg, char *name, int namelen, dev_t *dev);
+
 struct _vinum_conf vinum_conf;				    /* configuration information */
 
 dev_t vinum_daemon_dev;
@@ -79,6 +81,10 @@ dev_t vinum_super_dev;
 void
 vinumattach(void *dummy)
 {
+    int i, rv;
+    char *cp, *cp1, *cp2, **drives, *drivep;
+    size_t alloclen;
+
     /* modload should prevent multiple loads, so this is worth a panic */
     if ((vinum_conf.flags & VF_LOADED) != 0)
 	panic("vinum: already loaded");
@@ -135,6 +141,63 @@ vinumattach(void *dummy)
     bzero(SD, sizeof(struct sd) * INITIAL_SUBDISKS);
     vinum_conf.subdisks_allocated = INITIAL_SUBDISKS;	    /* number of sd slots allocated */
     vinum_conf.subdisks_used = 0;			    /* and number in use */
+
+    EVENTHANDLER_REGISTER(dev_clone, vinum_clone, 0, 1000);
+
+    /*
+     * See if the loader has passed us any of the
+     * autostart options.
+     */
+    cp = drivep = NULL;
+#ifndef VINUM_AUTOSTART
+    if ((cp = getenv("vinum.autostart")) != NULL) {
+	freeenv(cp);
+	cp = NULL;
+#endif
+	rv = kernel_sysctlbyname(&thread0, "kern.disks",
+				 NULL, NULL,
+				 NULL, 0,
+				 &alloclen);
+	if (rv)
+	    log(LOG_NOTICE,
+		"sysctlbyname(\"kern.disks\") failed, rv = %d\n",
+		rv);
+	else {
+	    drivep = malloc(alloclen, M_TEMP, 0 /* M_WAITOK */);
+	    (void)kernel_sysctlbyname(&thread0, "kern.disks",
+				      drivep, &alloclen,
+				      NULL, 0,
+				      NULL);
+	    goto start;
+	}
+#ifndef VINUM_AUTOSTART
+    } else
+#endif
+	if ((cp = getenv("vinum.drives")) != NULL) {
+	  start:
+	    for (cp1 = cp? cp: drivep, i = 0, drives = 0;
+		 *cp1 != '\0';
+		 i++) {
+		cp2 = cp1;
+		while (*cp1 != '\0' && *cp1 != ',' && *cp1 != ' ')
+		    cp1++;
+		if (*cp1 != '\0')
+		    *cp1++ = '\0';
+		drives = realloc(drives,
+				 (unsigned long)((i + 1) * sizeof(char *)),
+				 M_TEMP, 0 /* M_WAITOK */);
+		drives[i] = cp2;
+	    }
+	    if (i == 0)
+		goto bailout;
+	    rv = vinum_scandisk(drives, i);
+	    if (rv)
+		log(LOG_NOTICE, "vinum_scandisk() returned %d\n", rv);
+	  bailout:
+	    freeenv(cp);
+	    free(drives, M_TEMP);
+	    free(drivep, M_TEMP);
+	}
 }
 
 /*
@@ -490,6 +553,25 @@ vinumsize(dev_t dev)
 	return 0;					    /* err on the size of conservatism */
 
     return size;
+}
+
+void
+vinum_clone(void *arg, char *name, int namelen, dev_t *dev)
+{
+	struct volume *vol;
+	int i;
+
+	if (*dev != NODEV)
+		return;
+	if (strncmp(name, "vinum/", sizeof("vinum/") - 1) != 0)
+		return;
+
+	name += sizeof("vinum/") - 1;
+	if ((i = find_volume(name, 0)) == -1)
+		return;
+
+	vol = &VOL[i];
+	*dev = vol->dev;
 }
 
 /* Local Variables: */
