@@ -209,7 +209,7 @@ Set the time to wait for a trace response to
 seconds (default 3 seconds).
 .El
 .Sh USAGE
-.SS How It Works
+.Ss How It Works
 The technique used by the
 .Nm traceroute
 tool to trace unicast network paths will not work for IP multicast
@@ -255,7 +255,7 @@ and comparing the output packet counts from one hop with the input
 packet counts of the next hop allows the calculation of packet rate
 and packet loss statistics for each hop to isolate congestion
 problems.
-.SS Finding the Last-Hop Router
+.Ss Finding the Last-Hop Router
 The trace query must be sent to the multicast router which is the
 last hop on the path from the
 .Ar source
@@ -288,7 +288,7 @@ address may not be the desired interface for the path from the source.
 In that case, the desired interface should be specified explicitly as
 the
 .Ar receiver .
-.SS Directing the Response
+.Ss Directing the Response
 By default,
 .Nm
 first attempts to trace the full reverse path, unless the number of
