@@ -23,14 +23,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:
+ *	$Id$
  */
 
 #ifndef _SYS_DISKSLICE_H_
 #define	_SYS_DISKSLICE_H_
 
+#define	BASE_SLICE		2
+#define	COMPATIBILITY_SLICE	0
 #define	MAX_SLICES		32
-#define	WHOLE_DISK_SLICE	0
+#define	WHOLE_DISK_SLICE	1
 
 struct	diskslice {
 	u_long	ds_offset;		/* starting sector */
@@ -44,6 +46,7 @@ struct	diskslice {
 };
 
 struct diskslices {
+	int	dss_first_bsd_slice;	/* COMPATIBILTY_SLICE is mapped here */
 	u_int	dss_nslices;		/* actual dimension of dss_slices[] */
 	struct diskslice
 		dss_slices[MAX_SLICES];	/* actually usually less */
@@ -69,6 +72,7 @@ int	dsinit __P((char *dname, dev_t dev, d_strategy_t *strat,
 int	dsioctl __P((dev_t dev, int cmd, caddr_t data, int flags,
 		     struct diskslices *ssp, d_strategy_t *strat,
 		     ds_setgeom_t *setgeom));
+int	dsisopen __P((struct diskslices *ssp));
 int	dsopen __P((char *dname, dev_t dev, int mode, struct diskslices **sspp,
 		    struct disklabel *lp, d_strategy_t *strat,
 		    ds_setgeom_t *setgeom));
