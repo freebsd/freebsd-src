@@ -776,8 +776,8 @@ getinfo(ls)
 	GETSYSCTL("vm.stats.vm.v_cache_count", ls->v_cache_count);
 	GETSYSCTL("vfs.bufspace", ls->bufspace);
 	GETSYSCTL("kern.maxvnodes", ls->desiredvnodes);
-	GETSYSCTL("debug.numvnodes", ls->numvnodes);
-	GETSYSCTL("debug.freevnodes", ls->freevnodes);
+	GETSYSCTL("vfs.numvnodes", ls->numvnodes);
+	GETSYSCTL("vfs.freevnodes", ls->freevnodes);
 	GETSYSCTL("vfs.cache.nchstats", ls->nchstats);
 	GETSYSCTL("vfs.numdirtybuffers", ls->numdirtybuffers);
 	getsysctl("hw.intrcnt", ls->intrcnt, nintr * sizeof(u_long));
