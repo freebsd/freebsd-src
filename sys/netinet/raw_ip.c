@@ -385,8 +385,7 @@ rip_ctlinput(cmd, sa, vip)
 
 	switch (cmd) {
 	case PRC_IFDOWN:
-		for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
-		     ia = TAILQ_NEXT(ia, ia_link)) {
+		TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
 			if (ia->ia_ifa.ifa_addr == sa
 			    && (ia->ia_flags & IFA_ROUTE)) {
 				/*
@@ -406,8 +405,7 @@ rip_ctlinput(cmd, sa, vip)
 		break;
 
 	case PRC_IFUP:
-		for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
-		     ia = TAILQ_NEXT(ia, ia_link)) {
+		TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
 			if (ia->ia_ifa.ifa_addr == sa)
 				break;
 		}

@@ -733,18 +733,16 @@ tcp_drain()
 	 * 	where we're really low on mbufs, this is potentially
 	 *  	usefull.	
 	 */
-		for (inpb = LIST_FIRST(tcbinfo.listhead); inpb;
-	    		inpb = LIST_NEXT(inpb, inp_list)) {
-				if ((tcpb = intotcpcb(inpb))) {
-					while ((te = LIST_FIRST(&tcpb->t_segq))
-					       != NULL) {
+		LIST_FOREACH(inpb, tcbinfo.listhead, inp_list) {
+			if ((tcpb = intotcpcb(inpb))) {
+				while ((te = LIST_FIRST(&tcpb->t_segq))
+			            != NULL) {
 					LIST_REMOVE(te, tqe_q);
 					m_freem(te->tqe_m);
 					FREE(te, M_TSEGQ);
 				}
 			}
 		}
-
 	}
 }
 
