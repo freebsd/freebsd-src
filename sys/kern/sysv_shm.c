@@ -784,7 +784,7 @@ shmsys(td, uap)
 	struct thread *td;
 	/* XXX actually varargs. */
 	struct shmsys_args /* {
-		u_int	which;
+		int	which;
 		int	a2;
 		int	a3;
 		int	a4;
@@ -794,7 +794,8 @@ shmsys(td, uap)
 
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
-	if (uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))
+	if (uap->which < 0 ||
+	    uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))
 		return (EINVAL);
 	mtx_lock(&Giant);
 	error = (*shmcalls[uap->which])(td, &uap->a2);
