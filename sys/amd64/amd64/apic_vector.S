@@ -42,7 +42,6 @@
 
 #include <machine/asmacros.h>
 #include <machine/apicreg.h>
-#include <machine/smptests.h>
 
 #include "assym.s"
 
@@ -50,19 +49,48 @@
  * Macros to create and destroy a trap frame.
  */
 #define PUSH_FRAME							\
-	pushl	$0 ;		/* dummy error code */			\
-	pushl	$0 ;		/* dummy trap type */			\
-	pushal ;		/* 8 ints */				\
-	pushl	%ds ;		/* save data and extra segments ... */	\
-	pushl	%es ;							\
-	pushl	%fs
+	subq	$TF_RIP,%rsp ;	/* skip dummy tf_err and tf_trapno */	\
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
+	jz	1f ;		/* Yes, dont swapgs again */		\
+	swapgs ;							\
+1:	movq	%rdi,TF_RDI(%rsp) ;					\
+	movq	%rsi,TF_RSI(%rsp) ;					\
+	movq	%rdx,TF_RDX(%rsp) ;					\
+	movq	%rcx,TF_RCX(%rsp) ;					\
+	movq	%r8,TF_R8(%rsp) ;					\
+	movq	%r9,TF_R9(%rsp) ;					\
+	movq	%rax,TF_RAX(%rsp) ;					\
+	movq	%rbx,TF_RBX(%rsp) ;					\
+	movq	%rbp,TF_RBP(%rsp) ;					\
+	movq	%r10,TF_R10(%rsp) ;					\
+	movq	%r11,TF_R11(%rsp) ;					\
+	movq	%r12,TF_R12(%rsp) ;					\
+	movq	%r13,TF_R13(%rsp) ;					\
+	movq	%r14,TF_R14(%rsp) ;					\
+	movq	%r15,TF_R15(%rsp)
 
 #define POP_FRAME							\
-	popl	%fs ;							\
-	popl	%es ;							\
-	popl	%ds ;							\
-	popal ;								\
-	addl	$4+4,%esp
+	movq	TF_RDI(%rsp),%rdi ;					\
+	movq	TF_RSI(%rsp),%rsi ;					\
+	movq	TF_RDX(%rsp),%rdx ;					\
+	movq	TF_RCX(%rsp),%rcx ;					\
+	movq	TF_R8(%rsp),%r8 ;					\
+	movq	TF_R9(%rsp),%r9 ;					\
+	movq	TF_RAX(%rsp),%rax ;					\
+	movq	TF_RBX(%rsp),%rbx ;					\
+	movq	TF_RBP(%rsp),%rbp ;					\
+	movq	TF_R10(%rsp),%r10 ;					\
+	movq	TF_R11(%rsp),%r11 ;					\
+	movq	TF_R12(%rsp),%r12 ;					\
+	movq	TF_R13(%rsp),%r13 ;					\
+	movq	TF_R14(%rsp),%r14 ;					\
+	movq	TF_R15(%rsp),%r15 ;					\
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
+	jz	1f ;		/* keep kernel GS.base */		\
+	cli ;								\
+	swapgs ;							\
+1:	addq	$TF_RIP,%rsp	/* skip over tf_err, tf_trapno */
+
 
 /*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
@@ -76,21 +104,15 @@
 	SUPERALIGN_TEXT ;						\
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
-	movl	$KDSEL, %eax ;	/* reload with kernel's data segment */	\
-	mov	%ax, %ds ;						\
-	mov	%ax, %es ;						\
-	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
-	mov	%ax, %fs ;						\
-	movl	lapic, %edx ;	/* pointer to local APIC */		\
-	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
+	movq	lapic, %rdx ;	/* pointer to local APIC */		\
+	movl	LA_ISR + 16 * (index)(%rdx), %eax ;	/* load ISR */	\
 	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
 	jz	2f ;							\
 	addl	$(32 * index),%eax ;					\
 1: ;									\
 	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX avoid double count */	\
-	pushl	%eax ;		/* pass the IRQ */			\
+	movq	%rax, %rdi ;	/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
-	addl	$4, %esp ;	/* discard parameter */			\
 	MEXITCOUNT ;							\
 	jmp	doreti ;						\
 2:	movl	$-1, %eax ;	/* send a vector of -1 */		\
@@ -109,7 +131,7 @@ IDTVEC(spuriousint)
 
 	/* No EOI cycle used here */
 
-	iret
+	iretq
 
 MCOUNT_LABEL(bintr2)
 	ISR_VEC(1, apic_isr1)
@@ -128,32 +150,19 @@ MCOUNT_LABEL(eintr2)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(invltlb)
-	pushl	%eax
-	pushl	%ds
-	movl	$KDSEL, %eax		/* Kernel data selector */
-	mov	%ax, %ds
+	pushq	%rax
 
-#ifdef COUNT_XINVLTLB_HITS
-	pushl	%fs
-	movl	$KPSEL, %eax		/* Private space selector */
-	mov	%ax, %fs
-	movl	PCPU(CPUID), %eax
-	popl	%fs
-	incl	xhits_gbl(,%eax,4)
-#endif /* COUNT_XINVLTLB_HITS */
+	movq	%cr3, %rax		/* invalidate the TLB */
+	movq	%rax, %cr3
 
-	movl	%cr3, %eax		/* invalidate the TLB */
-	movl	%eax, %cr3
-
-	movl	lapic, %eax
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
+	movq	lapic, %rax
+	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
 
 	lock
 	incl	smp_tlb_wait
 
-	popl	%ds
-	popl	%eax
-	iret
+	popq	%rax
+	iretq
 
 /*
  * Single page TLB shootdown
@@ -161,32 +170,19 @@ IDTVEC(invltlb)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(invlpg)
-	pushl	%eax
-	pushl	%ds
-	movl	$KDSEL, %eax		/* Kernel data selector */
-	mov	%ax, %ds
+	pushq	%rax
 
-#ifdef COUNT_XINVLTLB_HITS
-	pushl	%fs
-	movl	$KPSEL, %eax		/* Private space selector */
-	mov	%ax, %fs
-	movl	PCPU(CPUID), %eax
-	popl	%fs
-	incl	xhits_pg(,%eax,4)
-#endif /* COUNT_XINVLTLB_HITS */
+	movq	smp_tlb_addr1, %rax
+	invlpg	(%rax)			/* invalidate single page */
 
-	movl	smp_tlb_addr1, %eax
-	invlpg	(%eax)			/* invalidate single page */
-
-	movl	lapic, %eax
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
+	movq	lapic, %rax
+	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
 
 	lock
 	incl	smp_tlb_wait
 
-	popl	%ds
-	popl	%eax
-	iret
+	popq	%rax
+	iretq
 
 /*
  * Page range TLB shootdown.
@@ -194,38 +190,25 @@ IDTVEC(invlpg)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(invlrng)
-	pushl	%eax
-	pushl	%edx
-	pushl	%ds
-	movl	$KDSEL, %eax		/* Kernel data selector */
-	mov	%ax, %ds
+	pushq	%rax
+	pushq	%rdx
 
-#ifdef COUNT_XINVLTLB_HITS
-	pushl	%fs
-	movl	$KPSEL, %eax		/* Private space selector */
-	mov	%ax, %fs
-	movl	PCPU(CPUID), %eax
-	popl	%fs
-	incl	xhits_rng(,%eax,4)
-#endif /* COUNT_XINVLTLB_HITS */
-
-	movl	smp_tlb_addr1, %edx
-	movl	smp_tlb_addr2, %eax
-1:	invlpg	(%edx)			/* invalidate single page */
-	addl	$PAGE_SIZE, %edx
-	cmpl	%eax, %edx
+	movq	smp_tlb_addr1, %rdx
+	movq	smp_tlb_addr2, %rax
+1:	invlpg	(%rdx)			/* invalidate single page */
+	addq	$PAGE_SIZE, %rdx
+	cmpq	%rax, %rdx
 	jb	1b
 
-	movl	lapic, %eax
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
+	movq	lapic, %rax
+	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
 
 	lock
 	incl	smp_tlb_wait
 
-	popl	%ds
-	popl	%edx
-	popl	%eax
-	iret
+	popq	%rdx
+	popq	%rax
+	iretq
 
 /*
  * Forward hardclock to another CPU.  Pushes a clockframe and calls
@@ -235,18 +218,11 @@ IDTVEC(invlrng)
 	SUPERALIGN_TEXT
 IDTVEC(hardclock)
 	PUSH_FRAME
-	movl	$KDSEL, %eax	/* reload with kernel's data segment */
-	mov	%ax, %ds
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
 
-	movl	lapic, %edx
-	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
+	movq	lapic, %rdx
+	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
 
-	pushl	$0		/* XXX convert trapframe to clockframe */
 	call	forwarded_hardclock
-	addl	$4, %esp	/* XXX convert clockframe to trapframe */
 	MEXITCOUNT
 	jmp	doreti
 
@@ -258,20 +234,13 @@ IDTVEC(hardclock)
 	SUPERALIGN_TEXT
 IDTVEC(statclock)
 	PUSH_FRAME
-	movl	$KDSEL, %eax	/* reload with kernel's data segment */
-	mov	%ax, %ds
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
 
-	movl	lapic, %edx
-	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
+	movq	lapic, %rdx
+	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
 
 	FAKE_MCOUNT(13*4(%esp))
 
-	pushl	$0		/* XXX convert trapframe to clockframe */
 	call	forwarded_statclock
-	addl	$4, %esp	/* XXX convert clockframe to trapframe */
 	MEXITCOUNT
 	jmp	doreti
 
@@ -287,14 +256,9 @@ IDTVEC(statclock)
 	SUPERALIGN_TEXT
 IDTVEC(cpuast)
 	PUSH_FRAME
-	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
 
-	movl	lapic, %edx
-	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
+	movq	lapic, %rdx
+	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
 
 	FAKE_MCOUNT(13*4(%esp))
 
@@ -311,63 +275,41 @@ IDTVEC(cpuast)
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(cpustop)
-	pushl	%ebp
-	movl	%esp, %ebp
-	pushl	%eax
-	pushl	%ecx
-	pushl	%edx
-	pushl	%ds			/* save current data segment */
-	pushl	%es
-	pushl	%fs
+	PUSH_FRAME
 
-	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
-
-	movl	lapic, %eax
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
+	movq	lapic, %rax
+	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
 
 	movl	PCPU(CPUID), %eax
 	imull	$PCB_SIZE, %eax
-	leal	CNAME(stoppcbs)(%eax), %eax
-	pushl	%eax
-	call	CNAME(savectx)		/* Save process context */
-	addl	$4, %esp
+	leaq	stoppcbs(%rax), %rdi
+	call	savectx			/* Save process context */
 		
 	movl	PCPU(CPUID), %eax
 
 	lock
-	btsl	%eax, CNAME(stopped_cpus) /* stopped_cpus |= (1<<id) */
+	btsl	%eax, stopped_cpus	/* stopped_cpus |= (1<<id) */
 1:
-	btl	%eax, CNAME(started_cpus) /* while (!(started_cpus & (1<<id))) */
+	btl	%eax, started_cpus	/* while (!(started_cpus & (1<<id))) */
 	jnc	1b
 
 	lock
-	btrl	%eax, CNAME(started_cpus) /* started_cpus &= ~(1<<id) */
+	btrl	%eax, started_cpus	/* started_cpus &= ~(1<<id) */
 	lock
-	btrl	%eax, CNAME(stopped_cpus) /* stopped_cpus &= ~(1<<id) */
+	btrl	%eax, stopped_cpus	/* stopped_cpus &= ~(1<<id) */
 
 	test	%eax, %eax
 	jnz	2f
 
-	movl	CNAME(cpustop_restartfunc), %eax
-	test	%eax, %eax
+	movq	cpustop_restartfunc, %rax
+	testq	%rax, %rax
 	jz	2f
-	movl	$0, CNAME(cpustop_restartfunc)	/* One-shot */
+	movq	$0, cpustop_restartfunc	/* One-shot */
 
-	call	*%eax
+	call	*%rax
 2:
-	popl	%fs
-	popl	%es
-	popl	%ds			/* restore previous data segment */
-	popl	%edx
-	popl	%ecx
-	popl	%eax
-	movl	%ebp, %esp
-	popl	%ebp
-	iret
+	POP_FRAME
+	iretq
 
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.
@@ -378,19 +320,13 @@ IDTVEC(cpustop)
 	SUPERALIGN_TEXT
 IDTVEC(rendezvous)
 	PUSH_FRAME
-	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
-
 	call	smp_rendezvous_action
-
-	movl	lapic, %eax
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
-	POP_FRAME
-	iret
+	movq	lapic, %rax
+	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	POP_FRAME			/* Why not doreti? */
+	iretq
 	
+#ifdef LAZY_SWITCH
 /*
  * Clean up when we lose out on the lazy context switch optimization.
  * ie: when we are about to release a PTD but a cpu is still borrowing it.
@@ -398,16 +334,10 @@ IDTVEC(rendezvous)
 	SUPERALIGN_TEXT
 IDTVEC(lazypmap)
 	PUSH_FRAME
-	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
-
 	call	pmap_lazyfix_action
-
-	movl	lapic, %eax	
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
-	POP_FRAME
-	iret
+	movq	lapic, %rax	
+	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	POP_FRAME			/* Why not doreti? */
+	iretq
+#endif
 #endif /* SMP */

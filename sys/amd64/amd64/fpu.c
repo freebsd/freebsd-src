@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cputypes.h>
 #include <machine/frame.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
@@ -62,8 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/segments.h>
 #include <machine/ucontext.h>
-
-#include <amd64/isa/intr_machdep.h>
 
 /*
  * Floating point support.

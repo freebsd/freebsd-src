@@ -80,12 +80,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#ifdef SMP
+#include <machine/smp.h>
+#endif
 #include <machine/tss.h>
-
-#include <amd64/isa/icu.h>
-#include <amd64/isa/intr_machdep.h>
 
 #include <ddb/ddb.h>
 
@@ -564,6 +565,11 @@ trap_fatal(frame, eva)
 		printf("\n\nFatal trap %d: %s while in %s mode\n",
 			type, trap_msg[type],
 			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
+#ifdef SMP
+	/* two separate prints in case of a trap on an unmapped page */
+	printf("cpuid = %d; ", PCPU_GET(cpuid));
+	printf("apic id = %02x\n", PCPU_GET(apic_id));
+#endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%lx\n", eva);
 		printf("fault code		= %s %s, %s\n",
@@ -631,6 +637,11 @@ void
 dblfault_handler()
 {
 	printf("\nFatal double fault\n");
+#ifdef SMP
+	/* two separate prints in case of a trap on an unmapped page */
+	printf("cpuid = %d; ", PCPU_GET(cpuid));
+	printf("apic id = %02x\n", PCPU_GET(apic_id));
+#endif
 	panic("double fault");
 }
 

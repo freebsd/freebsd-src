@@ -323,6 +323,15 @@ mem_range_attr_set(struct mem_range_desc *mrd, int *arg)
 	return (mem_range_softc.mr_op->set(&mem_range_softc, mrd, arg));
 }
 
+#ifdef SMP
+void
+mem_range_AP_init(void)
+{
+	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
+		(mem_range_softc.mr_op->initAP(&mem_range_softc));
+}
+#endif
+
 static int
 mem_modevent(module_t mod, int type, void *data)
 {

@@ -221,7 +221,8 @@ struct md_page {
 struct pmap {
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	u_long			pm_active;	/* active on cpus */
+	u_int			pm_active;	/* active on cpus */
+	/* spare u_int here due to padding */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
 };

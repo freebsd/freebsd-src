@@ -42,6 +42,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_atalk.h"
+#include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
@@ -101,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/clock.h>
 #include <machine/specialreg.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/proc.h>
@@ -108,9 +110,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/perfmon.h>
 #endif
 #include <machine/tss.h>
+#ifdef SMP
+#include <machine/smp.h>
+#endif
 
 #include <amd64/isa/icu.h>
-#include <amd64/isa/intr_machdep.h>
+
+#include <isa/isareg.h>
 #include <isa/rtc.h>
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
@@ -146,7 +152,9 @@ vm_paddr_t phys_avail[10];
 struct kva_md_info kmi;
 
 static struct trapframe proc0_tf;
-static struct pcpu __pcpu;
+struct region_descriptor r_gdt, r_idt;
+
+struct pcpu __pcpu[MAXCPU];
 
 struct mtx icu_lock;
 
@@ -196,7 +204,6 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 
-	/* For SMP, we delay the cpu_setregs() until after SMP startup. */
 	cpu_setregs();
 }
 
@@ -589,13 +596,13 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
  * Initialize segments & interrupt table
  */
 
-struct user_segment_descriptor gdt[NGDT];/* global descriptor table */
+struct user_segment_descriptor gdt[NGDT * MAXCPU];/* global descriptor table */
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 
 static char dblfault_stack[PAGE_SIZE] __aligned(16);
 
-struct amd64tss common_tss;
+struct amd64tss common_tss[MAXCPU];
 
 /* software prototypes -- in more palatable form */
 struct soft_segment_descriptor gdt_segs[] = {
@@ -755,6 +762,15 @@ ssdtosyssd(ssd, sd)
 	sd->sd_gran  = ssd->ssd_gran;
 }
 
+#if !defined(DEV_ATPIC) && defined(DEV_ISA)
+#include <isa/isavar.h>
+u_int
+isa_irq_pending(void)
+{
+
+	return (0);
+}
+#endif
 
 #define PHYSMAP_SIZE	(2 * 8)
 
@@ -783,7 +799,6 @@ static void
 getmemsize(caddr_t kmdp, u_int64_t first)
 {
 	int i, physmap_idx, pa_indx;
-	u_int extmem;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
 	char *cp;
@@ -802,12 +817,9 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * ie: an int32_t immediately precedes smap.
 	 */
 	smapbase = (struct bios_smap *)preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_SMAP);
-	if (smapbase == 0)
-		smapbase = (struct bios_smap *)preload_search_info(kmdp, MODINFO_METADATA | 0x0009);	/* Old value for MODINFOMD_SMAP */
-	if (smapbase == 0) {
+	if (smapbase == NULL)
 		panic("No BIOS smap info from loader!");
-		goto deep_shit;
-	}
+
 	smapsize = *((u_int32_t *)smapbase - 1);
 	smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
 
@@ -816,14 +828,11 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			printf("SMAP type=%02x base=%016lx len=%016lx\n",
 			    smap->type, smap->base, smap->length);
 
-		if (smap->type != 0x01) {
+		if (smap->type != 0x01)
 			continue;
-		}
 
-		if (smap->length == 0) {
-next_run:
+		if (smap->length == 0)
 			continue;
-		}
 
 		for (i = 0; i <= physmap_idx; i += 2) {
 			if (smap->base < physmap[i + 1]) {
@@ -836,6 +845,7 @@ next_run:
 
 		if (smap->base == physmap[physmap_idx + 1]) {
 			physmap[physmap_idx + 1] += smap->length;
+next_run:
 			continue;
 		}
 
@@ -850,69 +860,23 @@ next_run:
 	}
 
 	/*
-	 * Perform "base memory" related probes & setup based on SMAP
+	 * Find the 'base memory' segment for SMP
 	 */
-deep_shit:
-	if (basemem == 0) {
-		for (i = 0; i <= physmap_idx; i += 2) {
-			if (physmap[i] == 0x00000000) {
-				basemem = physmap[i + 1] / 1024;
-				break;
-			}
+	basemem = 0;
+	for (i = 0; i <= physmap_idx; i += 2) {
+		if (physmap[i] == 0x00000000) {
+			basemem = physmap[i + 1] / 1024;
+			break;
 		}
-
-		if (basemem == 0) {
-			basemem = rtcin(RTC_BASELO) + (rtcin(RTC_BASEHI) << 8);
-		}
-
-		if (basemem == 0) {
-			basemem = 640;
-		}
-
-		if (basemem > 640) {
-			printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
-				basemem);
-			basemem = 640;
-		}
-
-#if 0
-		for (pa = trunc_page(basemem * 1024);
-		     pa < ISA_HOLE_START; pa += PAGE_SIZE)
-			pmap_kenter(KERNBASE + pa, pa);
-#endif
 	}
+	if (basemem == 0)
+		panic("BIOS smap did not include a basemem segment!");
 
-	if (physmap[1] != 0)
-		goto physmap_done;
+#ifdef SMP
+	/* make hole for AP bootstrap code */
+	physmap[1] = mp_bootaddress(physmap[1] / 1024);
+#endif
 
-	/*
-	 * Prefer the RTC value for extended memory.
-	 */
-	extmem = rtcin(RTC_EXTLO) + (rtcin(RTC_EXTHI) << 8);
-
-	/*
-	 * Special hack for chipsets that still remap the 384k hole when
-	 * there's 16MB of memory - this really confuses people that
-	 * are trying to use bus mastering ISA controllers with the
-	 * "16MB limit"; they only have 16MB, but the remapping puts
-	 * them beyond the limit.
-	 *
-	 * If extended memory is between 15-16MB (16-17MB phys address range),
-	 *	chop it to 15MB.
-	 */
-	if ((extmem > 15 * 1024) && (extmem < 16 * 1024))
-		extmem = 15 * 1024;
-
-	physmap[0] = 0;
-	physmap[1] = basemem * 1024;
-	physmap_idx = 2;
-	physmap[physmap_idx] = 0x100000;
-	physmap[physmap_idx + 1] = physmap[physmap_idx] + extmem * 1024;
-
-physmap_done:
-	/*
-	 * Now, physmap contains a map of physical memory.
-	 */
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
 	 * highest page of the physical address space.  It should be
@@ -929,7 +893,8 @@ physmap_done:
 	 * hw.physmem is a size in bytes; we also allow k, m, and g suffixes
 	 * for the appropriate modifiers.  This overrides MAXMEM.
 	 */
-	if ((cp = getenv("hw.physmem")) != NULL) {
+	cp = getenv("hw.physmem");
+	if (cp != NULL) {
 		u_int64_t AllowMem, sanity;
 		char *ep;
 
@@ -1106,10 +1071,17 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 {
 	caddr_t kmdp;
 	int gsel_tss, off, x;
-	struct region_descriptor r_gdt, r_idt;
 	struct pcpu *pc;
 	u_int64_t msr;
 	char *env;
+
+#ifdef DEV_ISA
+	/* Preemptively mask the atpics and leave them shut down */
+	outb(IO_ICU1 + ICU_IMR_OFFSET, 0xff);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, 0xff);
+#else
+#error "have you forgotten the isa device?";
+#endif
 
 	/* Turn on PTE NX (no execute) bit */
 	msr = rdmsr(MSR_EFER) | EFER_NXE;
@@ -1146,7 +1118,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/*
 	 * make gdt memory segments
 	 */
-	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&common_tss;
+	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&common_tss[0];
 
 	for (x = 0; x < NGDT; x++) {
 		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1))
@@ -1157,7 +1129,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	r_gdt.rd_base =  (long) gdt;
 	lgdt(&r_gdt);
-	pc = &__pcpu;
+	pc = &__pcpu[0];
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
@@ -1166,6 +1138,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
+	PCPU_SET(tssp, &common_tss[0]);
 
 	/*
 	 * Initialize mutexes.
@@ -1211,8 +1184,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	cninit();
 
-#ifdef DEV_ISA
-	isa_defaultirq();
+#ifdef DEV_ATPIC
+	atpic_startup();
 #endif
 
 #ifdef DDB
@@ -1225,12 +1198,14 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	initializecpu();	/* Initialize CPU registers */
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	common_tss.tss_rsp0 = thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb);
+	common_tss[0].tss_rsp0 = thread0.td_kstack + \
+	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb);
 	/* Ensure the stack is aligned to 16 bytes */
-	common_tss.tss_rsp0 &= ~0xF;
+	common_tss[0].tss_rsp0 &= ~0xF;
+	PCPU_SET(rsp0, common_tss[0].tss_rsp0);
 
 	/* doublefault stack space, runs on ist1 */
-	common_tss.tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
+	common_tss[0].tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];
 
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);

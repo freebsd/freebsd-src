@@ -1,6 +1,8 @@
 # $FreeBSD$
 # Options specific to AMD64 platform kernels
 
+AUTO_EOI_1		opt_auto_eoi.h
+AUTO_EOI_2		opt_auto_eoi.h
 MAXMEM
 PERFMON			opt_perfmon.h
 
@@ -29,3 +31,5 @@ PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 IA32
+NO_MIXED_MODE
+DEV_ATPIC		opt_atpic.h

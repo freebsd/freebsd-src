@@ -76,10 +76,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
-
-#include <amd64/isa/icu.h>
-#include <amd64/isa/intr_machdep.h>
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <machine/bus.h>
+#include <machine/intr_machdep.h>
 #include <sys/rman.h>
 #include <sys/interrupt.h>
 
@@ -64,8 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #include <amd64/isa/isa.h>
 #endif
-#include <amd64/isa/icu.h>
-#include <amd64/isa/intr_machdep.h>
 #include <sys/rtprio.h>
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
@@ -156,14 +155,11 @@ nexus_probe(device_t dev)
 	 * multi-ISA-bus systems.  PCI interrupts are routed to the ISA
 	 * component, so in a way, PCI can be a partial child of an ISA bus(!).
 	 * APIC interrupts are global though.
-	 *
-	 * XXX We depend on the AT PIC driver correctly claiming IRQ 2
-	 *     to prevent its reuse elsewhere.
 	 */
 	irq_rman.rm_start = 0;
 	irq_rman.rm_type = RMAN_ARRAY;
 	irq_rman.rm_descr = "Interrupt request lines";
-	irq_rman.rm_end = 15;
+	irq_rman.rm_end = NUM_IO_INTS - 1;
 	if (rman_init(&irq_rman)
 	    || rman_manage_region(&irq_rman,
 				  irq_rman.rm_start, irq_rman.rm_end))
@@ -428,7 +424,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	if (error)
 		return (error);
 
-	error = inthand_add(device_get_nameunit(child), irq->r_start,
+	error = intr_add_handler(device_get_nameunit(child), irq->r_start,
 	    ihand, arg, flags, cookiep);
 
 	return (error);
@@ -437,7 +433,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
-	return (inthand_remove(ih));
+	return (intr_remove_handler(ih));
 }
 
 static int
