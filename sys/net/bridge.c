@@ -656,6 +656,8 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	    goto forward ;
 	if (src == NULL)
 	    goto forward ; /* do not apply to packets from ether_output */
+	if (ntohs(eh->ether_type) != ETHERTYPE_IP)
+	    goto forward ; /* not an IP packet, ipfw is not appropriate */
 	/*
 	 * In this section, canfree=1 means m is the same as *m0.
 	 * canfree==0 means m is a copy. We need to make a copy here
