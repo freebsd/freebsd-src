@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: srvr_nfs.c,v 5.2.2.1 1992/02/09 15:09:06 jsp beta $
+ * $Id: srvr_nfs.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 
@@ -662,6 +662,19 @@ find_nfs_srvr(mntfs *mf)
     }
   }
 #endif /* MNTTAB_OPT_PROTO */
+
+/* XXX: do we want to do this unconditionally of #define's? */
+/* #if defined(MNTTAB_OPT_VERS ) && defined( MNTTAB_OPT_PROTO ) */
+  {
+    char *nfsv2_opt = hasmntopt(&mnt, "nfsv2");
+    if (nfsv2_opt) {
+  	nfs_version = (unsigned long)2;	/* nullify any ``vers=X'' statements */
+  	nfs_proto = "udp";		/* nullify any ``proto=tcp'' stmts */
+    	plog(XLOG_WARNING, "found compatiblity option \"nfsv2\": set options"
+	    " vers=2, proto=udp for host %s", host);
+    }
+  }
+/*#endif*/ /* MNTTAB_OPT_VERS && MNTTAB_OPT_PROTO */
 
   /*
    * lookup host address and canonical name
