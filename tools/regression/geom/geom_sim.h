@@ -35,19 +35,21 @@
  * $FreeBSD$
  */
 
+#include <pthread.h>
+
+pthread_cond_t ptc_up, ptc_down, ptc_event;
+pthread_mutex_t ptm_up, ptm_down, ptm_event;
 
 /* bio.h */
 
 struct bio {
 	enum {
 	    BIO_INVALID = 0,
-	    BIO_READ,
-	    BIO_WRITE,
-	    BIO_FREE,
-	    BIO_DELETE,
-	    BIO_FORMAT,
-	    BIO_GETATTR,
-	    BIO_SETATTR
+	    BIO_READ = 1,
+	    BIO_WRITE = 2,
+	    BIO_DELETE = 4,
+	    BIO_GETATTR = 8,
+	    BIO_SETATTR = 16
 	}			bio_cmd;
 	struct { int foo; }	stats;
 	TAILQ_ENTRY(bio)	bio_queue;
@@ -66,7 +68,11 @@ struct bio {
 	struct bio		*bio_linkage;
 	int			bio_flags;
 #define BIO_DONE		0x1
+#define BIO_ERROR		0x2
 };
+
+void biodone(struct bio *bp);
+int biowait(struct bio *bp, const char *wchan);
 
 /* geom_dev.c */
 void g_dev_init(void *junk);
@@ -76,6 +82,7 @@ int g_dev_request(char *name, struct bio *bp);
 /* geom_kernsim.c */
 struct thread {
 	char 	*name;
+	pthread_t	tid;
 	int	pid;
 	void 	*wchan;
 	const char    *wmesg;
@@ -90,7 +97,7 @@ int     tsleep __P((void *chan, int pri, const char *wmesg, int timo));
 #define PPAUSE 0
 extern int hz;
 
-void new_thread(int (*func)(void *arg), char *name);
+void new_thread(void *(*func)(void *arg), char *name);
 
 extern int bootverbose;
 #define KASSERT(cond, txt) do {if (!(cond)) {printf txt; conff("err"); abort();}} while(0)
@@ -139,7 +146,7 @@ void g_bsd_init(void);
 void g_mbr_init(void);
 void g_mbrext_init(void);
 
-int thread_sim(void *ptr);
+void *thread_sim(void *ptr);
 
 void dumpf(char *file);
 void conff(char *file);
