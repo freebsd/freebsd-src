@@ -192,7 +192,7 @@ address of the outgoing packet and then correctly put it back for
 any incoming packets.  For TCP and UDP, ports are also re-mapped.
 
 For ICMP echo/timestamp requests and replies, the following scheme
-is used: the id number is replaced by an alias for the outgoing
+is used: the ID number is replaced by an alias for the outgoing
 packet.
 
 ICMP error messages are handled by looking at the IP fragment
@@ -201,7 +201,7 @@ in the data section of the message.
 For TCP and UDP protocols, a port number is chosen for an outgoing
 packet, and then incoming packets are identified by IP address and
 port numbers.  For TCP packets, there is additional logic in the event
-that sequence and ack numbers have been altered (as is the case for
+that sequence and ACK numbers have been altered (as in the case for
 FTP data port commands).
 
 The port numbers used by the packet aliasing module are not true
@@ -661,21 +661,32 @@ PptpAliasIn(struct ip *pip)
   the dest IP address of the packet to our inside
   machine.
 */
-    struct in_addr alias_addr;
+    struct alias_link *link;
 
-    if (!GetPptpAlias (&alias_addr))
-	return PKT_ALIAS_IGNORED;
+/* Return if proxy-only mode is enabled */
+    if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+        return PKT_ALIAS_OK;
 
-    if (pip->ip_src.s_addr != alias_addr.s_addr) {
+    if (packetAliasMode & PKT_ALIAS_DENY_PPTP)
+        return PKT_ALIAS_IGNORED;
 
-	    DifferentialChecksum(&pip->ip_sum,
-				 (u_short *) &alias_addr,
-				 (u_short *) &pip->ip_dst,
-				 2);
-	    pip->ip_dst = alias_addr;
+    link = FindPptpIn(pip->ip_src, pip->ip_dst);
+    if (link != NULL)
+    {
+        struct in_addr original_address;
+
+        original_address = GetOriginalAddress(link);
+
+/* Restore original IP address */
+        DifferentialChecksum(&pip->ip_sum,
+                             (u_short *) &original_address,
+                             (u_short *) &pip->ip_dst,
+                             2);
+        pip->ip_dst = original_address;
+
+	return(PKT_ALIAS_OK);
     }
-
-    return PKT_ALIAS_OK;
+    return(PKT_ALIAS_IGNORED);
 }
 
 
@@ -687,22 +698,32 @@ PptpAliasOut(struct ip *pip)
   only thing which is done in this case is to alias
   the source IP address of the packet.
 */
-    struct in_addr alias_addr;
+    struct alias_link *link;
 
-    if (!GetPptpAlias (&alias_addr))
-	return PKT_ALIAS_IGNORED;
+/* Return if proxy-only mode is enabled */
+    if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+        return PKT_ALIAS_OK;
 
-    if (pip->ip_src.s_addr == alias_addr.s_addr) {
+    if (packetAliasMode & PKT_ALIAS_DENY_PPTP)
+        return PKT_ALIAS_IGNORED;
 
-	    alias_addr = FindAliasAddress(pip->ip_src);
-	    DifferentialChecksum(&pip->ip_sum,
-				 (u_short *) &alias_addr,
-				 (u_short *) &pip->ip_src,
-				 2);
-	    pip->ip_src = alias_addr;
+    link = FindPptpOut(pip->ip_src, pip->ip_dst);
+    if (link != NULL)
+    {
+        struct in_addr alias_address;
+
+        alias_address = GetAliasAddress(link);
+
+/* Change source address */
+        DifferentialChecksum(&pip->ip_sum,
+                             (u_short *) &alias_address,
+                             (u_short *) &pip->ip_src,
+                             2);
+        pip->ip_src = alias_address;
+
+        return(PKT_ALIAS_OK);
     }
-
-    return PKT_ALIAS_OK;
+    return(PKT_ALIAS_IGNORED);
 }
 
 
@@ -902,7 +923,7 @@ TcpAliasIn(struct ip *pip)
         accumulate -= *sptr++;
         accumulate -= *sptr;
 
-/* If this is a proxy, then modify the tcp source port  and
+/* If this is a proxy, then modify the TCP source port and
    checksum accumulation */
         if (proxy_port != 0)
         {
@@ -918,7 +939,7 @@ TcpAliasIn(struct ip *pip)
             accumulate -= *sptr;
         }
 
-/* See if ack number needs to be modified */
+/* See if ACK number needs to be modified */
         if (GetAckModified(link) == 1)
         {
             int delta;
@@ -989,7 +1010,7 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
         return PKT_ALIAS_OK;
 
 /* If this is a transparent proxy, save original destination,
-   then alter the destination and adust checksums */
+   then alter the destination and adjust checksums */
     dest_port = tc->th_dport;
     dest_address = pip->ip_dst;
     if (proxy_type != 0)
@@ -1044,7 +1065,7 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
         alias_port = GetAliasPort(link);
         alias_address = GetAliasAddress(link);
 
-/* Monitor tcp connection state */
+/* Monitor TCP connection state */
         TcpMonitorOut(pip, link);
 
 /* Special processing for IP encoding protocols */
@@ -1114,7 +1135,7 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
 
 The packet aliasing module has a limited ability for handling IP
 fragments.  If the ICMP, TCP or UDP header is in the first fragment
-received, then the id number of the IP packet is saved, and other
+received, then the ID number of the IP packet is saved, and other
 fragments are identified according to their ID number and IP address
 they were sent from.  Pointers to unresolved fragments can also be
 saved and recalled when a header fragment is seen.
@@ -1358,7 +1379,7 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
     addr_save = GetDefaultAliasAddress();
     if (packetAliasMode & PKT_ALIAS_UNREGISTERED_ONLY)
     {
-        unsigned int addr;
+        u_long addr;
         int iclass;
 
         iclass = 0;

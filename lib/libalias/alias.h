@@ -54,6 +54,8 @@ struct alias_link;
     extern int
     PacketAliasPptp(struct in_addr);
 
+    extern struct alias_link *
+    PacketAliasRedirectPptp(struct in_addr, struct in_addr, struct in_addr);
 
     extern struct alias_link *
     PacketAliasRedirectAddr(struct in_addr,
@@ -113,13 +115,12 @@ struct alias_link;
 	port it chooses.  This will avoid interference with the host
 	machine.  Fully specified links do not require this.  This bit
         is set after a call to PacketAliasInit(), so it is a default
-        mode of operation.*/
+        mode of operation. */
 #define PKT_ALIAS_USE_SOCKETS 0x08
 
 /* If PKT_ALIAS_UNREGISTERED_ONLY is set, then only packets with
-	unregistered source addresses will be aliased (along with those
-	of the ppp host maching itself.  Private addresses are those
-        in the following ranges:
+	unregistered source addresses will be aliased.  Private
+	addresses are those in the following ranges:
 		10.0.0.0     ->   10.255.255.255
 		172.16.0.0   ->   172.31.255.255
 		192.168.0.0  ->   192.168.255.255  */
@@ -128,7 +129,7 @@ struct alias_link;
 /* If PKT_ALIAS_RESET_ON_ADDR_CHANGE is set, then the table of dynamic
 	aliasing links will be reset whenever PacketAliasSetAddress()
         changes the default aliasing address.  If the default aliasing
-        address is left unchanged by this functions call, then the
+        address is left unchanged by this function call, then the
         table of dynamic aliasing links will be left intact.  This
         bit is set after a call to PacketAliasInit(). */
 #define PKT_ALIAS_RESET_ON_ADDR_CHANGE 0x20
@@ -150,6 +151,10 @@ struct alias_link;
 /* If PKT_ALIAS_REVERSE is set, the actions of PacketAliasIn()
       and PacketAliasOut() are reversed */
 #define PKT_ALIAS_REVERSE 0x80
+
+/* If PKT_ALIAS_DENY_PPTP is set, then PPTP sessions will be
+	prevented by the aliasing engine.  */
+#define PKT_ALIAS_DENY_PPTP 0x200
 
 /* Return Codes */
 #define PKT_ALIAS_ERROR -1
