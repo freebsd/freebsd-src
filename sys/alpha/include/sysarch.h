@@ -51,7 +51,7 @@
 union descriptor;
 
 __BEGIN_DECLS
-int		alpha_sethae __P((u_int64_t));
+int		alpha_sethae(u_int64_t);
 __END_DECLS
 #endif
 

@@ -59,8 +59,7 @@ MODULE_DEPEND(osf1, sysvshm, 1, 1, 1);
 
 int osf1_szsigcode;
 extern char sigcode[];
-static int osf1_freebsd_fixup __P((long **stack_base,
-				   struct image_params *imgp));
+static int osf1_freebsd_fixup(long **stack_base, struct image_params *imgp);
 
 struct sysentvec osf1_sysvec = {
 	OSF1_SYS_MAXSYSCALL,

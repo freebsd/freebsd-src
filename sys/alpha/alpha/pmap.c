@@ -326,31 +326,30 @@ static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
 
-static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
-static pv_entry_t get_pv_entry __P((void));
-static void	alpha_protection_init __P((void));
-static void	pmap_changebit __P((vm_page_t m, int bit, boolean_t setem));
+static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
+static pv_entry_t get_pv_entry(void);
+static void	alpha_protection_init(void);
+static void	pmap_changebit(vm_page_t m, int bit, boolean_t setem);
 
-static void	pmap_remove_all __P((vm_page_t m));
-static vm_page_t pmap_enter_quick __P((pmap_t pmap, vm_offset_t va,
-				      vm_page_t m, vm_page_t mpte));
-static int pmap_remove_pte __P((pmap_t pmap, pt_entry_t* ptq, vm_offset_t sva));
-static void pmap_remove_page __P((struct pmap *pmap, vm_offset_t va));
-static int pmap_remove_entry __P((struct pmap *pmap, vm_page_t m,
-					vm_offset_t va));
-static void pmap_insert_entry __P((pmap_t pmap, vm_offset_t va,
-		vm_page_t mpte, vm_page_t m));
+static void	pmap_remove_all(vm_page_t m);
+static vm_page_t pmap_enter_quick(pmap_t pmap, vm_offset_t va,
+				      vm_page_t m, vm_page_t mpte);
+static int pmap_remove_pte(pmap_t pmap, pt_entry_t* ptq, vm_offset_t sva);
+static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
+static int pmap_remove_entry(struct pmap *pmap, vm_page_t m, vm_offset_t va);
+static void pmap_insert_entry(pmap_t pmap, vm_offset_t va,
+		vm_page_t mpte, vm_page_t m);
 
-static vm_page_t pmap_allocpte __P((pmap_t pmap, vm_offset_t va));
+static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
-static int pmap_release_free_page __P((pmap_t pmap, vm_page_t p));
-static vm_page_t _pmap_allocpte __P((pmap_t pmap, unsigned ptepindex));
-static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
-static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
+static int pmap_release_free_page(pmap_t pmap, vm_page_t p);
+static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
+static vm_page_t pmap_page_lookup(vm_object_t object, vm_pindex_t pindex);
+static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 static void *pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 #ifdef SMP
-static void pmap_invalidate_page_action __P((void *arg));
-static void pmap_invalidate_all_action __P((void *arg));
+static void pmap_invalidate_page_action(void *arg);
+static void pmap_invalidate_all_action(void *arg);
 #endif
 
 
@@ -3394,8 +3393,8 @@ pmap_pid_dump(int pid)
 
 #if defined(DEBUG)
 
-static void	pads __P((pmap_t pm));
-void		pmap_pvdump __P((vm_offset_t pa));
+static void	pads(pmap_t pm);
+void		pmap_pvdump(vm_offset_t pa);
 
 /* print address space of pmap*/
 static void

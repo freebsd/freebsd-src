@@ -49,13 +49,13 @@ typedef union {
 } prom_return_t;
 
 #ifdef STANDALONE
-int	getchar __P((void));
-int	prom_open __P((char *, int));
-void	putchar __P((int));
+int	getchar(void);
+int	prom_open(char *, int);
+void	putchar(int);
 #endif
 
-void	prom_halt __P((int)) __attribute__((__noreturn__));
-int	prom_getenv __P((int, char *, int));
+void	prom_halt(int) __attribute__((__noreturn__));
+int	prom_getenv(int, char *, int);
 
 #endif
 
@@ -95,14 +95,14 @@ int	prom_getenv __P((int, char *, int));
 
 #ifndef ASSEMBLER
 #ifdef _KERNEL
-void	promcnattach __P((int));
-void	promcndetach __P((void));
-void	promcnputc __P((dev_t, int));
-int	promcngetc __P((dev_t));
-int	promcncheckc __P((dev_t));
+void	promcnattach(int);
+void	promcndetach(void);
+void	promcnputc(dev_t, int);
+int	promcngetc(dev_t);
+int	promcncheckc(dev_t);
 
-u_int64_t	prom_dispatch __P((u_int64_t, u_int64_t, u_int64_t, u_int64_t,
-		    u_int64_t));
-void		init_bootstrap_console __P((void));
+u_int64_t	prom_dispatch(u_int64_t, u_int64_t, u_int64_t, u_int64_t,
+		    u_int64_t);
+void		init_bootstrap_console(void);
 #endif /* _KERNEL */
 #endif /* ASSEMBLER */

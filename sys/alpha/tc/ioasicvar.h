@@ -49,11 +49,11 @@ struct ioasic_dev {
 };
 
 
-char      *ioasic_lance_ether_address __P((void));
+char      *ioasic_lance_ether_address(void);
 /*
  * Interrupt establishment/disestablishment functions
  */
 
-void    ioasic_intr_establish __P((device_t, void *, tc_intrlevel_t,
-            void (*)(void *), void *));
-void    ioasic_intr_disestablish __P((device_t, void *));
+void    ioasic_intr_establish(device_t, void *, tc_intrlevel_t,
+            void (*)(void *), void *);
+void    ioasic_intr_disestablish(device_t, void *);

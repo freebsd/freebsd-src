@@ -51,16 +51,16 @@
 #endif
 static int comcnrate = CONSPEED;
 
-void st6600_init __P((void));
-static void st6600_cons_init __P((void));
-static void st6600_intr_init __P((void));
+void st6600_init(void);
+static void st6600_cons_init(void);
+static void st6600_intr_init(void);
 
 #define ST6600_PCI_IRQ_BEGIN 8
 #define ST6600_PCI_MAX_IRQ  63
 
-extern int siocnattach __P((int, int));
-extern int siogdbattach __P((int, int));
-extern int sccnattach __P((void));
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+extern int sccnattach(void);
 
 void
 st6600_init()

@@ -104,9 +104,9 @@ struct tcds_softc {
 
 static int tcds_probe(device_t dev);
 static int tcds_attach(device_t dev);
-static void tcds_intrnull __P((void *));
+static void tcds_intrnull(void *);
 static void tcds_lance_dma_setup(void *v);
-static int  tcds_intr __P((void *));
+static int  tcds_intr(void *);
 
 
 
@@ -342,7 +342,7 @@ tcds_intr_establish(tcds, cookie, level, func, arg)
         device_t tcds;
         void *cookie, *arg;
         tc_intrlevel_t level;
-        int (*func) __P((void *));
+        int (*func)(void *);
 {
         struct tcds_softc *sc = device_get_softc(tcds);
         u_long slot;

@@ -53,13 +53,13 @@
 #endif
 static int comcnrate = CONSPEED;
 
-void dec_axppci_33_init __P((void));
-static void dec_axppci_33_cons_init __P((void));
-static void dec_axppci_33_intr_map  __P((void *));
+void dec_axppci_33_init(void);
+static void dec_axppci_33_cons_init(void);
+static void dec_axppci_33_intr_map(void *);
 
-extern int siocnattach __P((int, int));
-extern int siogdbattach __P((int, int));
-extern int sccnattach __P((void));
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+extern int sccnattach(void);
 
 const struct alpha_variation_table dec_axppci_33_variations[] = {
 	{ 0, "Alpha PC AXPpci33 (\"NoName\")" },

@@ -71,21 +71,21 @@
 #endif
 #include <alpha/alpha/db_instruction.h>		/* for handle_opdec() */
 
-unsigned long	Sfloat_to_reg __P((unsigned int));
-unsigned int	reg_to_Sfloat __P((unsigned long));
-unsigned long	Tfloat_reg_cvt __P((unsigned long));
+unsigned long	Sfloat_to_reg(unsigned int);
+unsigned int	reg_to_Sfloat(unsigned long);
+unsigned long	Tfloat_reg_cvt(unsigned long);
 #ifdef FIX_UNALIGNED_VAX_FP
-unsigned long	Ffloat_to_reg __P((unsigned int));
-unsigned int	reg_to_Ffloat __P((unsigned long));
-unsigned long	Gfloat_reg_cvt __P((unsigned long));
+unsigned long	Ffloat_to_reg(unsigned int);
+unsigned int	reg_to_Ffloat(unsigned long);
+unsigned long	Gfloat_reg_cvt(unsigned long);
 #endif
 
-int		unaligned_fixup __P((unsigned long, unsigned long,
-		    unsigned long, struct thread *));
+int		unaligned_fixup(unsigned long, unsigned long,
+		    unsigned long, struct thread *);
 int		handle_opdec(struct thread *td, u_int64_t *ucodep);
 
-static void printtrap __P((const unsigned long, const unsigned long,
-      const unsigned long, const unsigned long, struct trapframe *, int, int));
+static void printtrap(const unsigned long, const unsigned long,
+      const unsigned long, const unsigned long, struct trapframe *, int, int);
 
 #ifdef WITNESS
 extern char *syscallnames[];

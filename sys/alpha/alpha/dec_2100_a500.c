@@ -49,13 +49,13 @@
 #endif
 static int comcnrate = CONSPEED;
 
-void dec_2100_a500_init __P((int));
-static void dec_2100_a500_cons_init __P((void));
-static void dec_2100_a500_intr_init  __P((void ));
+void dec_2100_a500_init(int);
+static void dec_2100_a500_cons_init(void);
+static void dec_2100_a500_intr_init(void );
 
-extern int siocnattach __P((int, int));
-extern int siogdbattach __P((int, int));
-extern int sccnattach __P((void));
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+extern int sccnattach(void);
 
 void
 dec_2100_a500_init(cputype)

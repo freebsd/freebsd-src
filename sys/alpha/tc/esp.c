@@ -70,28 +70,28 @@
 
 int esp_debug = 0; /*ESP_SHOWPHASE|ESP_SHOWMISC|ESP_SHOWTRAC|ESP_SHOWCMDS;*/
 
-/*static*/ void	espattach	__P((device_t, device_t, void *));
-/*static*/ int	espmatch	__P((device_t, void *, void *));
-/*static*/ int	espprint	__P((void *, char *));
-/*static*/ u_int	esp_adapter_info __P((struct esp_softc *));
-/*static*/ void	espreadregs	__P((struct esp_softc *));
-/*static*/ void	espselect	__P((struct esp_softc *,
-				     u_char, u_char, u_char *, u_char));
-/*static*/ void	esp_scsi_reset	__P((struct esp_softc *));
-/*static*/ void	esp_reset	__P((struct esp_softc *));
-/*static*/ void	esp_init	__P((struct esp_softc *, int));
-/*static*/ int	esp_scsi_cmd	__P((struct scsi_xfer *));
-/*static*/ int	esp_poll	__P((struct esp_softc *, struct ecb *));
-/*static*/ void	esp_sched	__P((struct esp_softc *));
-/*static*/ void	esp_done	__P((struct ecb *));
-/*static*/ void	esp_msgin	__P((struct esp_softc *));
-/*static*/ void	esp_msgout	__P((struct esp_softc *));
-/*static*/ int	espintr		__P((struct esp_softc *));
-/*static*/ void	esp_timeout	__P((void *arg));
-/*static*/ void	esp_abort	__P((struct esp_softc *, struct ecb *));
-static  u_int32_t esp_info	__P((int));
-int esp_stp2cpb __P((struct esp_softc *, int));
-int esp_cpb2stp __P((struct esp_softc *, int));
+/*static*/ void	espattach	(device_t, device_t, void *);
+/*static*/ int	espmatch	(device_t, void *, void *);
+/*static*/ int	espprint	(void *, char *);
+/*static*/ u_int	esp_adapter_info(struct esp_softc *);
+/*static*/ void	espreadregs	(struct esp_softc *);
+/*static*/ void	espselect	(struct esp_softc *,
+				     u_char, u_char, u_char *, u_char);
+/*static*/ void	esp_scsi_reset	(struct esp_softc *);
+/*static*/ void	esp_reset	(struct esp_softc *);
+/*static*/ void	esp_init	(struct esp_softc *, int);
+/*static*/ int	esp_scsi_cmd	(struct scsi_xfer *);
+/*static*/ int	esp_poll	(struct esp_softc *, struct ecb *);
+/*static*/ void	esp_sched	(struct esp_softc *);
+/*static*/ void	esp_done	(struct ecb *);
+/*static*/ void	esp_msgin	(struct esp_softc *);
+/*static*/ void	esp_msgout	(struct esp_softc *);
+/*static*/ int	espintr		(struct esp_softc *);
+/*static*/ void	esp_timeout	(void *arg);
+/*static*/ void	esp_abort	(struct esp_softc *, struct ecb *);
+static  u_int32_t esp_info	(int);
+int esp_stp2cpb(struct esp_softc *, int);
+int esp_cpb2stp(struct esp_softc *, int);
 
 static void esp_min_phys (struct  buf *);
 static int esp_probe(device_t dev);

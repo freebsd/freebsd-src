@@ -78,8 +78,8 @@ static alpha_chipset_t tsunami_chipset = {
 	tsunami_write_hae,
 };
 
-static void tsunami_intr_enable  __P((int));
-static void tsunami_intr_disable __P((int));
+static void tsunami_intr_enable(int);
+static void tsunami_intr_disable(int);
 
 /* 
  * There doesn't appear to be an hae on this platform

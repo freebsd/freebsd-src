@@ -19,7 +19,7 @@
 
 
 typedef u_long	osf1_sigset_t;
-typedef void	(*osf1_handler_t) __P((int));
+typedef void	(*osf1_handler_t)(int);
 
 struct osf1_sigaction {
 	osf1_handler_t	osa_handler;
@@ -57,11 +57,11 @@ struct osf1_sigaltstack {
 
 
 extern int osf1_to_linux_sig[];
-void bsd_to_osf1_sigaltstack __P((const struct sigaltstack *, struct osf1_sigaltstack *));
-void bsd_to_osf1_sigset __P((const sigset_t *, osf1_sigset_t *));
-void osf1_to_bsd_sigaltstack __P((const struct osf1_sigaltstack *, struct sigaltstack *));
-void osf1_to_bsd_sigset __P((const osf1_sigset_t *, sigset_t *));
-void osf1_sendsig __P((sig_t, int , sigset_t *, u_long ));
+void bsd_to_osf1_sigaltstack(const struct sigaltstack *, struct osf1_sigaltstack *);
+void bsd_to_osf1_sigset(const sigset_t *, osf1_sigset_t *);
+void osf1_to_bsd_sigaltstack(const struct osf1_sigaltstack *, struct sigaltstack *);
+void osf1_to_bsd_sigset(const osf1_sigset_t *, sigset_t *);
+void osf1_sendsig(sig_t, int , sigset_t *, u_long );
 
 
 #endif /* !_OSF1_SIGNAL_H */
