@@ -1154,10 +1154,10 @@ fd_attach(device_t dev)
 		cdevsw_add(&fd_cdevsw);	/* XXX */
 		cdevsw_add_done = 1;
 	}
-	EVENTHANDLER_REGISTER(dev_clone, fd_clone, 0, 1000);
 	fd = device_get_softc(dev);
-	make_dev(&fd_cdevsw, fd->fdu << 6,
-	    UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
+	fd->clonetag = EVENTHANDLER_REGISTER(dev_clone, fd_clone, 0, 1000);
+	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu << 6,
+				 UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
 	devstat_add_entry(&fd->device_stats, device_get_name(dev), 
 			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
