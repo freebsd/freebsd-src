@@ -1,4 +1,5 @@
 /* $FreeBSD$ */
+/* isp_pci.c 1.18 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -270,7 +271,11 @@ isp_pci_attach(config_id, unit)
 	    pcs->pci_st == IO_SPACE_MAPPING? "I/O" : "Memory");
 
 	isp = &pcs->pci_isp;
+#if	__FreeBSD_version >= 300006
 	(void) snprintf(isp->isp_name, sizeof(isp->isp_name), "isp%d", unit);
+#else
+	(void) sprintf(isp->isp_name, "isp%d", unit);
+#endif
 	isp->isp_osinfo.unit = unit;
 
 	data = pci_conf_read(config_id, PCI_ID_REG);
