@@ -1,4 +1,4 @@
-# $Id$
+# $Id: secure-supfile,v 1.2 1995/12/10 02:39:22 gibbs Exp $
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # International secure distribution from the current (new and experimental)
@@ -26,5 +26,5 @@
 #		The directory that is the prefix must exist in order for
 #		SUP to transfer files successfully.
 
-eBones release=current host=sup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr/src delete old compress use-rel-suffix
-secure release=current host=sup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr/src delete old compress use-rel-suffix
+src-eBones release=current host=sup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr/src delete old compress use-rel-suffix
+src-secure release=current host=sup.internat.freebsd.org hostbase=/home base=/usr prefix=/usr/src delete old compress use-rel-suffix
