@@ -152,9 +152,9 @@ static const struct execsw **execsw;
 
 #ifndef _SYS_SYSPROTO_H_
 struct execve_args {
-        char    *fname; 
-        char    **argv;
-        char    **envv; 
+	char    *fname; 
+	char    **argv;
+	char    **envv; 
 };
 #endif
 
