@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.c,v 1.14.2.5 1998/05/01 19:25:01 brian Exp $
+ *	$Id: loadalias.c,v 1.16 1998/05/21 21:46:19 brian Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,11 @@
 #include "id.h"
 #include "loadalias.h"
 
+#if __FreeBSD__ >= 3
+#define _PATH_ALIAS_PREFIX "libalias.so.2.5"	/* dlopen() searches */
+#else
 #define _PATH_ALIAS_PREFIX "/usr/lib/libalias.so.2."
+#endif
 
 #define off(item) ((int)&(((struct aliasHandlers *)0)->item))
 #define entry(a) { off(a), "_PacketAlias" #a }
