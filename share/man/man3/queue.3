@@ -57,13 +57,17 @@
 .Nm LIST_INSERT_BEFORE ,
 .Nm LIST_INSERT_HEAD ,
 .Nm LIST_REMOVE ,
+.Nm TAILQ_EMPTY ,
 .Nm TAILQ_ENTRY ,
+.Nm TAILQ_FIRST ,
 .Nm TAILQ_HEAD ,
 .Nm TAILQ_INIT ,
 .Nm TAILQ_INSERT_AFTER ,
 .Nm TAILQ_INSERT_BEFORE ,
 .Nm TAILQ_INSERT_HEAD ,
 .Nm TAILQ_INSERT_TAIL ,
+.Nm TAILQ_LAST ,
+.Nm TAILQ_NEXT ,
 .Nm TAILQ_REMOVE ,
 .Nm CIRCLEQ_ENTRY ,
 .Nm CIRCLEQ_HEAD ,
@@ -103,13 +107,17 @@ lists, tail queues, and circular queues
 .Fn LIST_INSERT_HEAD "LIST_HEAD *head" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
 .sp
+.Fn TAILQ_EMPTY "TAILQ_HEAD *head"
 .Fn TAILQ_ENTRY "TYPE"
+.Fn TAILQ_FIRST "TAILQ_HEAD *head"
 .Fn TAILQ_HEAD "HEADNAME" "TYPE"
 .Fn TAILQ_INIT "TAILQ_HEAD *head"
 .Fn TAILQ_INSERT_AFTER "TAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_BEFORE "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_HEAD "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_TAIL "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
+.Fn TAILQ_LAST "TAILQ_HEAD *head"
+.Fn TAILQ_NEXT "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
 .sp
 .Fn CIRCLEQ_ENTRY "TYPE"
@@ -626,9 +634,18 @@ and
 are user selectable.)
 .Pp
 The macro
+.Nm TAILQ_EMPTY
+evaluates to true if there are no items on the tail queue.
+.Pp
+The macro
 .Nm TAILQ_ENTRY
 declares a structure that connects the elements in
 the tail queue.
+.Pp
+The macro
+.Nm TAILQ_FIRST
+returns the first item on the tail queue or NULL if the tail queue
+is empty.
 .Pp
 The macro
 .Nm TAILQ_INIT
@@ -662,6 +679,15 @@ before the element
 .Fa listelm .
 .Pp
 The macro
+.Nm TAILQ_LAST
+returns the last item on the tail queue.
+If the tail queue is empty the return value is undefined.
+.Pp
+The macro
+.Nm TAILQ_NEXT
+returns the next item on the tail queue, or NULL this item is the last.
+.Pp
+The macro
 .Nm TAILQ_REMOVE
 removes the element
 .Fa elm
@@ -693,18 +719,19 @@ TAILQ_INSERT_BEFORE(n2, n3, entries);
 TAILQ_REMOVE(&head, n2, entries);	/* Deletion. */
 free(n2);
 					/* Forward traversal. */
-for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next)
+for (np = TAILQ_FIRST(&head); np != NULL; np = TAILQ_NEXT(np, entries))
 	np-> ...
 					/* TailQ Deletion. */
-while (head.tqh_first != NULL) {
-	n1 = head.tqh_first;
+while (!TAILQ_EMPTY(head)) {
+	n1 = TAILQ_FIRST(&head);
 	TAILQ_REMOVE(&head, head.tqh_first, entries);
 	free(n1);
 }
 					/* Faster TailQ Deletion. */
-n1 = head.tqh_first;
+
+n1 = TAILQ_FIRST(&head);
 while (n1 != NULL) {
-	n2 = n1->entries.tqe_next;
+	n2 = TAILQ_NEXT(n1, entries);
 	free(n1);
 	n1 = n2;
 }
