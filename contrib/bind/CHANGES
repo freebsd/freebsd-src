@@ -1,3 +1,59 @@
+	--- 8.2.3-T6B released ---
+
+1029.	[bug]		incredibly busy systems could starve handle_needs().
+
+1028.	[protocol]	unrecognized TSIG was returning NOERROR (now NOTAUTH).
+
+1027.	[support]	INSIST(), ENSURE(), et al, now always have sideeffects.
+
+1026.	[port]		some kernels bogusly return tv_usec>1000000 from
+			gettimeofday().  panic and dump core when this happens.
+
+1025.	[proto]		NOTIFY messages should have AA.
+
+1024.	[bug]		we were unwilling to use the last 10 octets of a
+			response buffer in certain transaction types.
+
+1023.	[port]		HP-UX 10.20 was looping inside contrib/dnssigner.
+
+1022.	[port]		ensure that all handled signals are unblocked.
+
+1021.	[bug]		the "host" command wasn't properly printing SRV RR's.
+
+1020.	[contrib]	new "updatehosts" (V1.1.0) contributed by author.
+
+1019.	[port]		separate CFLAGS and CPPFLAGS for unusual builds.
+
+1018.	[bug]		When maintain_ixfr_base is set to "no" a zones IXFR
+			file was still being written too.
+
+1017.	[doc]		resolver(3) was out of date with respect to recent API
+			changes.
+
+1016.	[bug]		nslookup wasn't properly printing SIG RR's.
+
+1015.	[bug]		when merging group information gr_name and gr_passwd
+			could be left pointing at freed memory.
+
+1014.	[bug]		iquery: DoS (potential), information leak.
+
+1013.	[bug]		mangled hostent structures returned by
+			gethostbyname_r() and friends.
+
+1012.	[doc]		add named-bootconf example to INSTALL.
+
+1011.	[bug]		if spawnxfer() fails we should return immediately.
+
+1010.	[bug]		bad responses to the initial IXFR/SOA query could
+			result in using an uninitalised variable.
+		
+1009.	[port]		Add support for darwin / Mac OS X
+
+1008.	[doc]		specify allow-query default in named.conf.
+
+1007.	[bug]		only set STREAM_AXFRIXFR if the original query is
+			an IXFR.
+
 	--- 8.2.3-T5B (RC3) released ---
 
 1006.	[port]		Windows/NT does not have fchown().
@@ -38,7 +94,7 @@
 
  991.	[protocol]	send A6 glue records in xfr.
 
- 990.	[bug]		we could loose track of a bottom of zone cut is the
+ 990.	[bug]		we could loose track of a bottom of zone cut if the
 			write buffer filled up at just the correct moment.
 
  989.	[bug]		apply to "fetch-glue no;" to notify processing.  need

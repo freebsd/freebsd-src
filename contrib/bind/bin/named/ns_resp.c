@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_resp.c,v 8.143 2000/05/09 07:38:38 vixie Exp $";
+static const char rcsid[] = "$Id: ns_resp.c,v 8.144 2000/07/11 08:26:09 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -614,7 +614,8 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	 */
 	if (hp->opcode == NS_NOTIFY_OP) {
 		ns_info(ns_log_notify,
-			"Received NOTIFY answer from %s for \"%s %s %s\"",
+		      "Received NOTIFY answer (%sAA) from %s for \"%s %s %s\"",
+			hp->aa ? "" : "!",
 			inet_ntoa(from.sin_addr), 
 			*(qp->q_name) ? qp->q_name : ".",
 			p_class(qp->q_class), p_type(qp->q_type));
@@ -2367,6 +2368,7 @@ sysquery(const char *dname, int class, int type,
 	hp = (HEADER *) qp->q_msg;
 	hp->id = qp->q_nsid = htons(nsid_next());
 	hp->rd = (qp->q_addr[qp->q_curaddr].forwarder ? 1 : 0);
+	hp->aa = (opcode == NS_NOTIFY_OP);
 
 	/* First check for an already pending query for this data. */
 	for (oqp = nsqhead; oqp != NULL; oqp = oqp->q_link) {
