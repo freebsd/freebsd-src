@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.85 1997/05/26 14:42:24 se Exp $
+ *	$Id: intr_machdep.c,v 1.1 1997/06/02 08:19:04 dfr Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -55,13 +55,28 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <i386/isa/isa_device.h>
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
+#include <pc98/pc98/epsonio.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
 #include "vector.h"
 
 #include <i386/isa/intr_machdep.h>
 #include <sys/interrupt.h>
+
+/* XXX should be in suitable include files */
+#ifdef PC98
+#define	ICU_IMR_OFFSET		2		/* IO_ICU{1,2} + 2 */
+#define	ICU_SLAVEID			7
+#else
+#define	ICU_IMR_OFFSET		1		/* IO_ICU{1,2} + 1 */
+#define	ICU_SLAVEID			2
+#endif
 
 #ifdef APIC_IO
 /*
@@ -107,11 +122,16 @@ static inthand_t *slowintr[ICU_LEN] = {
 
 static inthand2_t isa_strayintr;
 
+#ifdef PC98
+#define NMI_PARITY 0x04
+#define NMI_EPARITY 0x02
+#else
 #define NMI_PARITY (1 << 7)
 #define NMI_IOCHAN (1 << 6)
 #define ENMI_WATCHDOG (1 << 7)
 #define ENMI_BUSTIMER (1 << 6)
 #define ENMI_IOSTATUS (1 << 5)
+#endif
 
 /*
  * Handle a NMI, possibly a machine check.
@@ -121,6 +141,19 @@ int
 isa_nmi(cd)
 	int cd;
 {
+#ifdef PC98
+ 	int port = inb(0x33);
+	if (epson_machine_id == 0x20)
+		epson_outb(0xc16, epson_inb(0xc16) | 0x1);
+	if (port & NMI_PARITY) {
+		panic("BASE RAM parity error, likely hardware failure.");
+	} else if (port & NMI_EPARITY) {
+		panic("EXTENDED RAM parity error, likely hardware failure.");
+	} else {
+		printf("\nNMI Resume ??\n");
+		return(0);
+	}
+#else /* IBM-PC */
 	int isa_port = inb(0x61);
 	int eisa_port = inb(0x461);
 	if(isa_port & NMI_PARITY) {
@@ -137,6 +170,7 @@ isa_nmi(cd)
 		printf("\nNMI ISA %x, EISA %x\n", isa_port, eisa_port);
 		return(0);
 	}
+#endif
 }
 
 /*
@@ -154,26 +188,41 @@ isa_defaultirq()
 
 	/* initialize 8259's */
 	outb(IO_ICU1, 0x11);		/* reset; program device, four bytes */
-	outb(IO_ICU1+1, NRSVIDT);	/* starting at this vector index */
-	outb(IO_ICU1+1, 1<<2);		/* slave on line 2 */
+
+	outb(IO_ICU1+ICU_IMR_OFFSET, NRSVIDT);	/* starting at this vector index */
+	outb(IO_ICU1+ICU_IMR_OFFSET, IRQ_SLAVE);		/* slave on line 7 */
+#ifdef PC98
 #ifdef AUTO_EOI_1
-	outb(IO_ICU1+1, 2 | 1);		/* auto EOI, 8086 mode */
+	outb(IO_ICU1+ICU_IMR_OFFSET, 0x1f);		/* (master) auto EOI, 8086 mode */
 #else
-	outb(IO_ICU1+1, 1);		/* 8086 mode */
+	outb(IO_ICU1+ICU_IMR_OFFSET, 0x1d);		/* (master) 8086 mode */
 #endif
-	outb(IO_ICU1+1, 0xff);		/* leave interrupts masked */
+#else /* IBM-PC */
+#ifdef AUTO_EOI_1
+	outb(IO_ICU1+ICU_IMR_OFFSET, 2 | 1);		/* auto EOI, 8086 mode */
+#else
+	outb(IO_ICU1+ICU_IMR_OFFSET, 1);		/* 8086 mode */
+#endif
+#endif /* PC98 */
+	outb(IO_ICU1+ICU_IMR_OFFSET, 0xff);		/* leave interrupts masked */
 	outb(IO_ICU1, 0x0a);		/* default to IRR on read */
+#ifndef PC98
 	outb(IO_ICU1, 0xc0 | (3 - 1));	/* pri order 3-7, 0-2 (com2 first) */
+#endif /* !PC98 */
 
 	outb(IO_ICU2, 0x11);		/* reset; program device, four bytes */
-	outb(IO_ICU2+1, NRSVIDT+8);	/* staring at this vector index */
-	outb(IO_ICU2+1,2);		/* my slave id is 2 */
+	outb(IO_ICU2+ICU_IMR_OFFSET, NRSVIDT+8); /* staring at this vector index */
+	outb(IO_ICU2+ICU_IMR_OFFSET, ICU_SLAVEID);         /* my slave id is 7 */
+#ifdef PC98
+	outb(IO_ICU2+ICU_IMR_OFFSET,9);              /* 8086 mode */
+#else /* IBM-PC */
 #ifdef AUTO_EOI_2
-	outb(IO_ICU2+1, 2 | 1);		/* auto EOI, 8086 mode */
+	outb(IO_ICU2+ICU_IMR_OFFSET, 2 | 1);		/* auto EOI, 8086 mode */
 #else
-	outb(IO_ICU2+1,1);		/* 8086 mode */
+	outb(IO_ICU2+ICU_IMR_OFFSET,1);		/* 8086 mode */
 #endif
-	outb(IO_ICU2+1, 0xff);		/* leave interrupts masked */
+#endif /* PC98 */
+	outb(IO_ICU2+ICU_IMR_OFFSET, 0xff);          /* leave interrupts masked */
 	outb(IO_ICU2, 0x0a);		/* default to IRR on read */
 }
 
@@ -263,7 +312,7 @@ update_intr_masks(void)
 #if defined(APIC_IO)
 		/* no 8259 SLAVE to ignore */
 #else
-		if (intr==2) continue;	/* ignore 8259 SLAVE output */
+		if (intr==ICU_SLAVEID) continue;	/* ignore 8259 SLAVE output */
 #endif /* APIC_IO */
 		maskptr = intr_mptr[intr];
 		if (!maskptr) continue;
@@ -360,7 +409,7 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 #if defined(APIC_IO)
 	if ((u_int)intr >= ICU_LEN)	/* no 8259 SLAVE to ignore */
 #else
-	if ((u_int)intr >= ICU_LEN || intr == 2)
+	if ((u_int)intr >= ICU_LEN || intr == ICU_SLAVEID)
 #endif /* APIC_IO */
 	if (intr_handler[intr] != isa_strayintr)
 		return (EBUSY);
