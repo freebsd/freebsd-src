@@ -48,10 +48,7 @@
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufs_extern.h>
-
+#include <gnu/ext2fs/inode.h>
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
@@ -164,11 +161,11 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	 * Determine the number of levels of indirection.
 	 */
 	pref = 0;
-	if ((error = ufs_getlbns(vp, bn, indirs, &num)) != 0)
+	if ((error = ext2_getlbns(vp, bn, indirs, &num)) != 0)
 		return(error);
 #if DIAGNOSTIC
 	if (num < 1)
-		panic ("ext2_balloc: ufs_getlbns returned indirect block");
+		panic ("ext2_balloc: ext2_getlbns returned indirect block");
 #endif
 	/*
 	 * Fetch the first indirect block allocating if necessary.

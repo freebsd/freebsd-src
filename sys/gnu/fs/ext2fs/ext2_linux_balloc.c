@@ -35,9 +35,8 @@
 #include <sys/mount.h>
 #include <sys/vnode.h>
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/ufsmount.h>
+#include <gnu/ext2fs/inode.h>
+#include <gnu/ext2fs/ext2_mount.h>
 #include <gnu/ext2fs/ext2_extern.h>
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
@@ -61,13 +60,13 @@ static void read_block_bitmap (struct mount * mp,
 			       unsigned int block_group,
 			       unsigned long bitmap_nr)
 {
-	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+	struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 	struct ext2_group_desc * gdp;
 	struct buffer_head * bh;
 	int    error;
 	
 	gdp = get_group_desc (mp, block_group, NULL);
-	if ((error = bread (VFSTOUFS(mp)->um_devvp, 
+	if ((error = bread (VFSTOEXT2(mp)->um_devvp,
 		fsbtodb(sb, gdp->bg_block_bitmap),sb->s_blocksize, NOCRED, &bh)) != 0)
 		panic ( "read_block_bitmap: "
 			    "Cannot read block bitmap - "
@@ -93,7 +92,7 @@ static int load__block_bitmap (struct mount * mp,
 			       unsigned int block_group)
 {
 	int i, j;
-	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+	struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 	unsigned long block_bitmap_number;
 	struct buffer_head * block_bitmap;
 
@@ -152,7 +151,7 @@ static int load__block_bitmap (struct mount * mp,
 static __inline int load_block_bitmap (struct mount * mp,
 				       unsigned int block_group)
 {
-	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+	struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 	if (sb->s_loaded_block_bitmaps > 0 &&
 	    sb->s_block_bitmap_number[0] == block_group)
 		return 0;
@@ -168,7 +167,7 @@ static __inline int load_block_bitmap (struct mount * mp,
 void ext2_free_blocks (struct mount * mp, unsigned long block,
 		       unsigned long count)
 {
-	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+	struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 	struct buffer_head * bh;
 	struct buffer_head * bh2;
 	unsigned long block_group;
@@ -182,13 +181,13 @@ void ext2_free_blocks (struct mount * mp, unsigned long block,
 		printf ("ext2_free_blocks: nonexistent device");
 		return;
 	}
-	lock_super (VFSTOUFS(mp)->um_devvp);
+	lock_super (VFSTOEXT2(mp)->um_devvp);
 	if (block < es->s_first_data_block || 
 	    (block + count) > es->s_blocks_count) {
 		printf ( "ext2_free_blocks: "
 			    "Freeing blocks not in datazone - "
 			    "block = %lu, count = %lu", block, count);
-		unlock_super (VFSTOUFS(mp)->um_devvp);
+		unlock_super (VFSTOEXT2(mp)->um_devvp);
 		return;
 	}
 
@@ -238,7 +237,7 @@ void ext2_free_blocks (struct mount * mp, unsigned long block,
 	}
 ****/
 	sb->s_dirt = 1;
-	unlock_super (VFSTOUFS(mp)->um_devvp);
+	unlock_super (VFSTOEXT2(mp)->um_devvp);
 	return;
 }
 
@@ -253,7 +252,7 @@ int ext2_new_block (struct mount * mp, unsigned long goal,
 		    u_int32_t * prealloc_count,
 		    u_int32_t * prealloc_block)
 {
-	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+	struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 	struct buffer_head * bh;
 	struct buffer_head * bh2;
 	char * p, * r;
@@ -269,7 +268,7 @@ int ext2_new_block (struct mount * mp, unsigned long goal,
 		printf ("ext2_new_block: nonexistent device");
 		return 0;
 	}
-	lock_super (VFSTOUFS(mp)->um_devvp);
+	lock_super (VFSTOEXT2(mp)->um_devvp);
 
         ext2_debug ("goal=%lu.\n", goal);
 
@@ -356,7 +355,7 @@ repeat:
 			break;
 	}
 	if (k >= sb->s_groups_count) {
-		unlock_super (VFSTOUFS(mp)->um_devvp);
+		unlock_super (VFSTOEXT2(mp)->um_devvp);
 		return 0;
 	}
 	bitmap_nr = load_block_bitmap (mp, i);
@@ -372,7 +371,7 @@ repeat:
 	if (j >= EXT2_BLOCKS_PER_GROUP(sb)) {
 		printf ( "ext2_new_block: "
 			 "Free blocks count corrupted for block group %d", i);
-		unlock_super (VFSTOUFS(mp)->um_devvp);
+		unlock_super (VFSTOEXT2(mp)->um_devvp);
 		return 0;
 	}
 
@@ -439,7 +438,7 @@ got_block:
 		printf ( "ext2_new_block: "
 			    "block >= blocks count - "
 			    "block_group = %d, block=%d", i, j);
-		unlock_super (VFSTOUFS(mp)->um_devvp);
+		unlock_super (VFSTOEXT2(mp)->um_devvp);
 		return 0;
 	}
 
@@ -450,14 +449,14 @@ got_block:
 	mark_buffer_dirty(bh2);
 	es->s_free_blocks_count--;
 	sb->s_dirt = 1;
-	unlock_super (VFSTOUFS(mp)->um_devvp);
+	unlock_super (VFSTOEXT2(mp)->um_devvp);
 	return j;
 }
 
 #ifdef unused
 static unsigned long ext2_count_free_blocks (struct mount * mp)
 {
-	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+	struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 #ifdef EXT2FS_DEBUG
 	struct ext2_super_block * es;
 	unsigned long desc_count, bitmap_count, x;
@@ -465,7 +464,7 @@ static unsigned long ext2_count_free_blocks (struct mount * mp)
 	struct ext2_group_desc * gdp;
 	int i;
 	
-	lock_super (VFSTOUFS(mp)->um_devvp);
+	lock_super (VFSTOEXT2(mp)->um_devvp);
 	es = sb->s_es;
 	desc_count = 0;
 	bitmap_count = 0;
@@ -482,7 +481,7 @@ static unsigned long ext2_count_free_blocks (struct mount * mp)
 	}
 	ext2_debug( "stored = %lu, computed = %lu, %lu\n",
 	       es->s_free_blocks_count, desc_count, bitmap_count);
-	unlock_super (VFSTOUFS(mp)->um_devvp);
+	unlock_super (VFSTOEXT2(mp)->um_devvp);
 	return bitmap_count;
 #else
 	return sb->s_es->s_free_blocks_count;
@@ -520,7 +519,7 @@ int ext2_group_sparse(int group)
 #ifdef unused
 static void ext2_check_blocks_bitmap (struct mount * mp)
 {
-	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
+	struct ext2_sb_info *sb = VFSTOEXT2(mp)->um_e2fs;
 	struct buffer_head * bh;
 	struct ext2_super_block * es;
 	unsigned long desc_count, bitmap_count, x;
@@ -529,7 +528,7 @@ static void ext2_check_blocks_bitmap (struct mount * mp)
 	struct ext2_group_desc * gdp;
 	int i, j;
 
-	lock_super (VFSTOUFS(mp)->um_devvp);
+	lock_super (VFSTOEXT2(mp)->um_devvp);
 	es = sb->s_es;
 	desc_count = 0;
 	bitmap_count = 0;
@@ -586,7 +585,7 @@ static void ext2_check_blocks_bitmap (struct mount * mp)
 			    "Wrong free blocks count in super block, "
 			    "stored = %lu, counted = %lu",
 			    (unsigned long) es->s_free_blocks_count, bitmap_count);
-	unlock_super (VFSTOUFS(mp)->um_devvp);
+	unlock_super (VFSTOEXT2(mp)->um_devvp);
 }
 #endif /* unused */
 

@@ -38,19 +38,6 @@
 #define umode_t mode_t
 #define loff_t  off_t
 
-/* the Linux implementation of EXT2 stores some information about
- * an inode in a ext2_inode_info structure which is part of the incore
- * inode in Linux
- * I decided to use the "spare" fields instead - we'll see how this
- * works out
- */
-
-#define i_block_group		i_spare[0]
-#define i_next_alloc_block	i_spare[1]
-#define i_next_alloc_goal	i_spare[2]
-#define i_prealloc_block	i_din.di_spare[0]
-#define i_prealloc_count	i_din.di_spare[1]
-
 /*
  * The second extended filesystem constants/structures
  */
@@ -264,14 +251,6 @@ struct ext2_group_desc
 #define	EXT2_IOC_SETVERSION		_IOW('v', 2, long)
 
 /*
- * Only declare `struct ext2_inode' if <ufs/ufs/inode.h> hasn't made things
- * difficult by #defining i_mode and other struct members.  The details of
- * the struct are only needed in ext2_inode_cnv.c where the ext2fs on-disk
- * inode is converted to a ufs in-core inode.
- */
-#ifndef i_mode
-
-/*
  * Structure of an inode on the disk
  */
 struct ext2_inode {
@@ -350,8 +329,6 @@ struct ext2_inode {
 #define i_fsize		osd2.masix2.m_i_fsize
 #define i_reserved2	osd2.masix2.m_i_reserved2
 #endif
-
-#endif /* i_mode */
 
 /*
  * File system states
