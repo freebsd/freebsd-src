@@ -71,4 +71,14 @@ _sendmsg(int fd, const struct msghdr *msg, int flags)
 	return (ret);
 }
 
-__strong_reference(_sendmsg, sendmsg);
+ssize_t
+sendmsg(int fd, const struct msghdr *msg, int flags)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _sendmsg(fd, msg, flags);
+	_thread_leave_cancellation_point();
+
+	return (ret);
+}
