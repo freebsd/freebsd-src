@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.27 1997/10/27 00:38:46 jkh Exp $
+ *	$Id: vmparam.h,v 1.28 1998/02/05 03:31:53 dyson Exp $
  */
 
 
@@ -117,7 +117,23 @@
 
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE
-#define VM_KMEM_SIZE		(32 * 1024 * 1024)
+#define VM_KMEM_SIZE		(12 * 1024 * 1024)
+#endif
+
+/*
+ * How many physical pages per KVA page allocated.
+ * min(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE), VM_KMEM_SIZE_MAX)
+ * is the total KVA space allocated for kmem_map.
+ */
+#ifndef VM_KMEM_SIZE_SCALE
+#define	VM_KMEM_SIZE_SCALE	(3)
+#endif
+
+/*
+ * Ceiling on amount of kmem_map kva space.
+ */
+#ifndef VM_KMEM_SIZE_MAX
+#define	VM_KMEM_SIZE_MAX	(80 * 1024 * 1024)
 #endif
 
 /* initial pagein size of beginning of executable file */
