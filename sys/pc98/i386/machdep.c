@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.20 1996/12/15 09:18:48 kato Exp $
+ *	$Id: machdep.c,v 1.21 1996/12/17 13:26:17 kato Exp $
  */
 
 #include "npx.h"
@@ -396,37 +396,6 @@ again:
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-
-	/*
-	 * In verbose mode, print out the BIOS's idea of the disk geometries.
-	 */
-	if (bootverbose) {
-		printf("BIOS Geometries:\n");
-		for (i = 0; i < N_BIOS_GEOM; i++) {
-			unsigned long bios_geom;
-			int max_cylinder, max_head, max_sector;
-
-			bios_geom = bootinfo.bi_bios_geom[i];
-
-			/*
-			 * XXX the bootstrap punts a 1200K floppy geometry
-			 * when the get-disk-geometry interrupt fails.  Skip
-			 * drives that have this geometry.
-			 */
-			if (bios_geom == 0x4f010f)
-				continue;
-
-			printf(" %x:%08lx ", i, bios_geom);
-			max_cylinder = bios_geom >> 16;
-			max_head = (bios_geom >> 8) & 0xff;
-			max_sector = bios_geom & 0xff;
-			printf(
-		"0..%d=%d cylinders, 0..%d=%d heads, 1..%d=%d sectors\n",
-			       max_cylinder, max_cylinder + 1,
-			       max_head, max_head + 1,
-			       max_sector, max_sector);
-		}
-	}
 }
 
 int
