@@ -2,7 +2,7 @@
  * Structure and function declartaions for the
  * SCSI Sequential Access Peripheral driver for CAM.
  *
- * Copyright (c) 1997 Justin T. Gibbs
+ * Copyright (c) 1999, 2000 Matthew Jacob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -170,7 +170,7 @@ struct scsi_erase
 struct scsi_dev_conf_page {
 	u_int8_t pagecode;	/* 0x10 */
 	u_int8_t pagelength;	/* 0x0e */
-	u_int8_t byte2;
+	u_int8_t byte2;		/* CAP, CAF, Active Format */
 	u_int8_t active_partition;
 	u_int8_t wb_full_ratio;
 	u_int8_t rb_empty_ratio;
@@ -189,23 +189,27 @@ struct scsi_dev_conf_page {
 	u_int8_t sel_comp_alg;
 #define	SA_COMP_NONE		0x00
 #define	SA_COMP_DEFAULT		0x01
-	u_int8_t reserved;
+	/* the following is 'reserved' in SCSI-2 but is defined in SSC-r22 */
+	u_int8_t extra_wp;
+#define	SA_ASOC_WP		0x04	/* Associated Write Protect */
+#define	SA_PERS_WP		0x02	/* Persistent Write Protect */
+#define	SA_PERM_WP		0x01	/* Permanent Write Protect */
 };
 
 /* from SCSI-3: SSC-Rev10 (6/97) */
 struct scsi_data_compression_page {
 	u_int8_t page_code;	/* 0x0f */
-	u_int8_t page_length;
+	u_int8_t page_length;	/* 0x0e */
+	u_int8_t dce_and_dcc;
 #define SA_DCP_DCE		0x80 	/* Data compression enable */
 #define SA_DCP_DCC		0x40	/* Data compression capable */
-	u_int8_t dce_and_dcc;
+	u_int8_t dde_and_red;
 #define SA_DCP_DDE		0x80	/* Data decompression enable */
 #define SA_DCP_RED_MASK		0x60	/* Report Exception on Decomp. */
 #define SA_DCP_RED_SHAMT	5
 #define SA_DCP_RED_0		0x00
 #define SA_DCP_RED_1		0x20
 #define SA_DCP_RED_2		0x40
-	u_int8_t dde_and_red;
 	u_int8_t comp_algorithm[4];
 	u_int8_t decomp_algorithm[4];
 	u_int8_t reserved[4];
