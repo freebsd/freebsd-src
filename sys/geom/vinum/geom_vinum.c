@@ -93,8 +93,12 @@ gv_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 		bp2 = g_clone_bio(bp);
-		bp2->bio_done = g_std_done;
-		g_io_request(bp2, LIST_FIRST(&gp->consumer));
+		if (bp2 == NULL)
+			g_io_deliver(bp, ENOMEM);
+		else {
+			bp2->bio_done = g_std_done;
+			g_io_request(bp2, LIST_FIRST(&gp->consumer));
+		}
 		return;
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
