@@ -38,111 +38,213 @@
 #include <pci/pcivar.h>
 #include <alpha/pci/tsunamireg.h>
 #include <alpha/pci/tsunamivar.h>
+#include <alpha/pci/pcibus.h>
+#include <machine/resource.h>
+#include <machine/bwx.h>
 
+#include "alphapci_if.h"
+#include "pcib_if.h"
+
+struct tsunami_hose_softc {
+	struct bwx_space io;	/* accessor for ports */
+	struct bwx_space mem;	/* accessor for memory */
+	struct rman	io_rman; /* resource manager for ports */
+	struct rman	mem_rman; /* resource manager for memory */
+};
 
 static devclass_t	pcib_devclass;
-
-int tsunami_hoses[TSUNAMI_MAXHOSES+1] = {1,-1,-1,-1,-1};
-
-int tsunami_maxhoseno = 0;
-
-extern int tsunami_num_pchips;
-
-/* 
- * This comment attempts to explain why and how we are mapping from
- * the DEQ assigned bus numbers to the FreeBSD assigned numbers.
- *
- * FreeBSD must number buses with monotonically increasing numbers for a 
- * variety of reasons (pciconf, newbus, etc).  
- *
- * DEQ numbers them (from what I can tell) on a per-hose bases. And
- * for some reason they seem to always leave bus 1 unused.
- * 
- * When generating config space addrs, we need to know if we are
- * directly on the primary bus on that hose, or if we are behind a ppb.
- * We keep track of this by assigning hoses monotonically increasing
- * numbers.  This fits nicely with DEQ not using bus number 1; I
- * assume that is what it as intended for. I guess we'll see if they 
- * come out with a system using more than one pchip..
- *
- * Next, we must attempt to map the FreeBSD assigned numbers to the
- * numbers assigned by DEQ in order to generate proper config space 
- * addrs.  We store the next number past the 0th bus of our hose and
- * do subtraction to determine what the DEQ number should have been,
- * given a FreeBSD bus number.  This is disgusting & quite possibly
- * wrong.  
- */
-
-int
-tsunami_bus_within_hose(int hose, int bus)
-{
-	if (hose == bus)
-		return 0;
-	else 
-		return ( (bus - tsunami_hoses[hose]) + 1);
-}
-
-/* 
- * this function supports pciconf ioctls 
- */
-
-int 
-tsunami_hose_from_bus(int bus)
-{
-	int i;
-
-	if (bus < tsunami_maxhoseno)
-		return bus;
-
-	for (i = 1; i <= TSUNAMI_MAXHOSES && tsunami_hoses[i] != -1; i++){
-		if(tsunami_hoses[i] >= bus)
-			return i-1;
-	}
-
-	return i-1;
-}
 
 
 static int
 tsunami_pcib_probe(device_t dev)
 {
-	static int error;
+	struct tsunami_hose_softc *sc = device_get_softc(dev);
 	device_t child;
-	int lastbus;
 
 	device_set_desc(dev, "21271 PCI host bus adapter");
 
 	child = device_add_child(dev, "pci", -1);
 
-	if (tsunami_maxhoseno) {
-		    lastbus = (device_get_unit(child) - 1);
-		    if (lastbus == 0) /* didn't have a ppb on hose 0 */
-			    lastbus++;
-		    tsunami_hoses[tsunami_maxhoseno] = lastbus;
-	}
-	if ((error = device_delete_child(dev, child)))
-		panic("tsunami_pcib_probe: device_delete_child failed\n");
-	
-	child = device_add_child(dev, "pci", tsunami_maxhoseno);
+	bwx_init_space(&sc->io, KV(TSUNAMI_IO(device_get_unit(dev))));
+	bwx_init_space(&sc->mem, KV(TSUNAMI_MEM(device_get_unit(dev))));
 
-	if (tsunami_maxhoseno != device_get_unit(child)) {
-		printf("tsunami_pcib_probe: wanted unit %d ", 
-		    tsunami_maxhoseno);
-		printf(" got unit %d\n", device_get_unit(child));
-		panic("tsunami_pcib_probe: incorrect bus numbering");
+	sc->io_rman.rm_start = 0;
+	sc->io_rman.rm_end = ~0u;
+	sc->io_rman.rm_type = RMAN_ARRAY;
+	sc->io_rman.rm_descr = "I/O ports";
+	if (rman_init(&sc->io_rman)
+	    || rman_manage_region(&sc->io_rman, 0x0, (1L << 32)))
+		panic("tsunami_pcib_probe: io_rman");
+
+	sc->mem_rman.rm_start = 0;
+	sc->mem_rman.rm_end = ~0u;
+	sc->mem_rman.rm_type = RMAN_ARRAY;
+	sc->mem_rman.rm_descr = "I/O memory";
+	if (rman_init(&sc->mem_rman)
+	    || rman_manage_region(&sc->mem_rman, 0x0, (1L << 32)))
+		panic("tsunami_pcib_probe: mem_rman");
+
+	/*
+	 * Replace the temporary bootstrap spaces with real onys. This
+	 * isn't stictly necessary but it keeps things tidy.
+	 */
+	if (device_get_unit(dev) == 0) {
+		busspace_isa_io = (kobj_t) &sc->io;
+		busspace_isa_mem = (kobj_t) &sc->mem;
 	}
-	tsunami_maxhoseno++;
+
 	return 0;
 }
 
 static int
 tsunami_pcib_read_ivar(device_t dev, device_t child, int which, u_long *result)
 {
-	if (which == PCIB_IVAR_HOSE) {
-		*result = *(int*) device_get_ivars(dev);
-		return 0;
+	if (which == PCIB_IVAR_BUS) {
+		*result = 0;
 	}
 	return ENOENT;
+}
+
+static void *
+tsunami_pcib_cvt_dense(device_t dev, vm_offset_t addr)
+{
+	int h = device_get_unit(dev);
+	addr &= 0xffffffffUL;
+	return (void *) KV(addr | TSUNAMI_MEM(h));
+}
+
+static void *
+tsunami_pcib_cvt_bwx(device_t dev, vm_offset_t addr)
+{
+	int h = device_get_unit(dev);
+	addr &= 0xffffffffUL;
+	return (void *) KV(addr | TSUNAMI_MEM(h));
+}
+
+static kobj_t
+tsunami_pcib_get_bustag(device_t dev, int type)
+{
+	struct tsunami_hose_softc *sc = device_get_softc(dev);
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return (kobj_t) &sc->io;
+
+	case SYS_RES_MEMORY:
+		return (kobj_t) &sc->mem;
+	}
+
+	return 0;
+}
+
+static struct rman *
+tsunami_pcib_get_rman(device_t dev, int type)
+{
+	struct tsunami_hose_softc *sc = device_get_softc(dev);
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return &sc->io_rman;
+
+	case SYS_RES_MEMORY:
+		return &sc->mem_rman;
+	}
+
+	return 0;
+}
+
+static int
+tsunami_pcib_maxslots(device_t dev)
+{
+	return 31;
+}
+
+static void
+tsunami_clear_abort(void)
+{
+	alpha_mb();
+	alpha_pal_draina();	
+}
+
+static int
+tsunami_check_abort(void)
+{
+/*	u_int32_t errbits;*/
+	int ba = 0;
+
+	alpha_pal_draina();	
+	alpha_mb();
+#if 0
+	errbits = REGVAL(TSUNAMI_CSR_TSUNAMI_ERR);
+	if (errbits & (TSUNAMI_ERR_RCVD_MAS_ABT|TSUNAMI_ERR_RCVD_TAR_ABT))
+		ba = 1;
+
+	if (errbits) {
+		REGVAL(TSUNAMI_CSR_TSUNAMI_ERR) = errbits;
+		alpha_mb();
+		alpha_pal_draina();
+	}
+#endif
+	return ba;
+}
+
+#define TSUNAMI_CFGADDR(b, s, f, r, h)				\
+	KV(TSUNAMI_CONF(h) | ((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
+
+#define CFGREAD(h, b, s, f, r, op, width, type) do {	\
+        vm_offset_t va;					\
+	type data;					\
+	va = TSUNAMI_CFGADDR(b, s, f, r, h);		\
+	tsunami_clear_abort();				\
+	if (badaddr((caddr_t)va, width)) {		\
+		tsunami_check_abort();			\
+		return ~0;				\
+	}						\
+	data = ##op##(va);				\
+	if (tsunami_check_abort())			\
+		return ~0;				\
+	return data;					\
+} while (0)
+
+#define CFGWRITE(h, b, s, f, r, data, op, width) do {	\
+        vm_offset_t va;					\
+	va = TSUNAMI_CFGADDR(b, s, f, r, h);		\
+	tsunami_clear_abort();				\
+	if (badaddr((caddr_t)va, width))		\
+		return;					\
+	##op##(va, data);				\
+	tsunami_check_abort();				\
+} while (0)
+
+static u_int32_t
+tsunami_pcib_read_config(device_t dev, int b, int s, int f,
+			 int reg, int width)
+{
+	int h = device_get_unit(dev);
+	switch (width) {
+	case 1:
+		CFGREAD(h, b, s, f, reg, ldbu, 1, u_int8_t);
+	case 2:
+		CFGREAD(h, b, s, f, reg, ldwu, 2, u_int16_t);
+	case 4:
+		CFGREAD(h, b, s, f, reg, ldl, 4, u_int32_t);
+	}
+	return ~0;
+}
+
+static void
+tsunami_pcib_write_config(device_t dev, int b, int s, int f,
+			  int reg, u_int32_t val, int width)
+{
+	int h = device_get_unit(dev);
+	switch (width) {
+	case 1:
+		CFGWRITE(h, b, s, f, reg, val, stb, 1);
+	case 2:
+		CFGWRITE(h, b, s, f, reg, val, stw, 2);
+	case 4:
+		CFGWRITE(h, b, s, f, reg, val, stl, 4);
+	}
 }
 
 static device_method_t tsunami_pcib_methods[] = {
@@ -153,12 +255,23 @@ static device_method_t tsunami_pcib_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	tsunami_pcib_read_ivar),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pci_release_resource),
+	DEVMETHOD(bus_activate_resource, pci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	alpha_platform_pci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	alpha_platform_pci_teardown_intr),
+
+	/* alphapci interface */
+	DEVMETHOD(alphapci_cvt_dense,	tsunami_pcib_cvt_dense),
+	DEVMETHOD(alphapci_cvt_bwx,	tsunami_pcib_cvt_bwx),
+	DEVMETHOD(alphapci_get_bustag,	tsunami_pcib_get_bustag),
+	DEVMETHOD(alphapci_get_rman,	tsunami_pcib_get_rman),
+
+	/* pcib interface */
+	DEVMETHOD(pcib_maxslots,	tsunami_pcib_maxslots),
+	DEVMETHOD(pcib_read_config,	tsunami_pcib_read_config),
+	DEVMETHOD(pcib_write_config,	tsunami_pcib_write_config),
 
 	{ 0, 0 }
 };
@@ -167,7 +280,7 @@ static device_method_t tsunami_pcib_methods[] = {
 static driver_t tsunami_pcib_driver = {
 	"pcib",
 	tsunami_pcib_methods,
-	1,
+	sizeof(struct tsunami_hose_softc),
 };
 
 

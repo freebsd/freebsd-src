@@ -39,6 +39,7 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <machine/clock.h>
+#include <machine/bus.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 

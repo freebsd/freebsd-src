@@ -88,6 +88,9 @@
 #include <alpha/pci/pcibus.h>
 #include <pci/pcivar.h>
 
+#include "alphapci_if.h"
+#include "pcib_if.h"
+
 static devclass_t	dwlpx_devclass;
 static device_t		dwlpxs[DWLPX_NIONODE][DWLPX_NHOSE];
 
@@ -101,6 +104,10 @@ struct dwlpx_softc {
 	vm_offset_t	dmem_base;	/* dense memory */
 	vm_offset_t	smem_base;	/* sparse memory */
 	vm_offset_t	io_base;	/* sparse i/o */
+	struct swiz_space io_space;	/* accessor for ports */
+	struct swiz_space mem_space;    /* accessor for memory */
+	struct rman	io_rman;	/* resource manager for ports */
+	struct rman	mem_rman;	/* resource manager for memory */
 	int		bushose;	/* our bus && hose */
 	u_int		:	26,
 		nhpc 	:	2,	/* how many HPCs */
@@ -108,33 +115,7 @@ struct dwlpx_softc {
 		sgmapsz	:	3;	/* Scatter Gather map size */
 };
 
-static int dwlpx_probe(device_t dev);
-static int dwlpx_attach(device_t dev);
-
-static int dwlpx_setup_intr(device_t, device_t, struct resource *, int,
-    driver_intr_t *, void *, void **);
-static int
-dwlpx_teardown_intr(device_t, device_t, struct resource *, void *);
 static driver_intr_t dwlpx_intr;
-
-static device_method_t dwlpx_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		dwlpx_probe),
-	DEVMETHOD(device_attach,	dwlpx_attach),
-
-	/* Bus interface */
-	DEVMETHOD(bus_setup_intr,	dwlpx_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	dwlpx_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	pci_release_resource),
-	DEVMETHOD(bus_activate_resource,	pci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	pci_deactivate_resource),
-
-	{ 0, 0 }
-};
-static driver_t dwlpx_driver = {
-	"dwlpx", dwlpx_methods, sizeof (struct dwlpx_softc)
-};
 
 static u_int32_t imaskcache[DWLPX_NIONODE][DWLPX_NHOSE][NHPC];
 static void dwlpx_eintr(unsigned long);
@@ -152,390 +133,8 @@ static void dwlpx_eintr(unsigned long);
 #define	DWLPx_SG_MAPPED_SIZE(x)		((x) * PAGE_SIZE)
 static void dwlpx_dma_init(struct dwlpx_softc *);
 
-
-
 #define DWLPX_SOFTC(dev)	(struct dwlpx_softc *) device_get_softc(dev)
 static struct dwlpx_softc *dwlpx_root;
-
-static alpha_chipset_inb_t	dwlpx_inb;
-static alpha_chipset_inw_t	dwlpx_inw;
-static alpha_chipset_inl_t	dwlpx_inl;
-static alpha_chipset_outb_t	dwlpx_outb;
-static alpha_chipset_outw_t	dwlpx_outw;
-static alpha_chipset_outl_t	dwlpx_outl;
-static alpha_chipset_readb_t	dwlpx_readb;
-static alpha_chipset_readw_t	dwlpx_readw;
-static alpha_chipset_readl_t	dwlpx_readl;
-static alpha_chipset_writeb_t	dwlpx_writeb;
-static alpha_chipset_writew_t	dwlpx_writew;
-static alpha_chipset_writel_t	dwlpx_writel;
-static alpha_chipset_maxdevs_t	dwlpx_maxdevs;
-static alpha_chipset_cfgreadb_t	dwlpx_cfgreadb;
-static alpha_chipset_cfgreadw_t	dwlpx_cfgreadw;
-static alpha_chipset_cfgreadl_t	dwlpx_cfgreadl;
-static alpha_chipset_cfgwriteb_t dwlpx_cfgwriteb;
-static alpha_chipset_cfgwritew_t dwlpx_cfgwritew;
-static alpha_chipset_cfgwritel_t dwlpx_cfgwritel;
-
-static alpha_chipset_t dwlpx_chipset = {
-	dwlpx_inb,
-	dwlpx_inw,
-	dwlpx_inl,
-	dwlpx_outb,
-	dwlpx_outw,
-	dwlpx_outl,
-	dwlpx_readb,
-	dwlpx_readw,
-	dwlpx_readl,
-	dwlpx_writeb,
-	dwlpx_writew,
-	dwlpx_writel,
-	dwlpx_maxdevs,
-	dwlpx_cfgreadb,
-	dwlpx_cfgreadw,
-	dwlpx_cfgreadl,
-	dwlpx_cfgwriteb,
-	dwlpx_cfgwritew,
-	dwlpx_cfgwritel,
-};
-
-#define	DWLPX_IONODE(port)	((port >> 29) & 0x7)
-#define	DWLPX_HOSE(port)	((port >> 27) & 0x3)
-#define	DWLPX_INST(port)	dwlpxs[DWLPX_IONODE(port)][DWLPX_HOSE(port)]
-#define	DWLPX_ADDR(port)	(port & 0x07ffffff)
-
-static u_int8_t
-dwlpx_inb(u_int32_t port)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(port));
-	return SPARSE_READ_BYTE(sc->io_base, DWLPX_ADDR(port));
-}
-
-static u_int16_t
-dwlpx_inw(u_int32_t port)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(port));
-	return SPARSE_READ_WORD(sc->io_base, DWLPX_ADDR(port));
-}
-
-static u_int32_t
-dwlpx_inl(u_int32_t port)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(port));
-	return SPARSE_READ_LONG(sc->io_base, DWLPX_ADDR(port));
-}
-
-static void
-dwlpx_outb(u_int32_t port, u_int8_t data)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(port));
-	SPARSE_WRITE_BYTE(sc->io_base, DWLPX_ADDR(port), data);
-	alpha_mb();
-}
-
-static void
-dwlpx_outw(u_int32_t port, u_int16_t data)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(port));
-	SPARSE_WRITE_WORD(sc->io_base, DWLPX_ADDR(port), data);
-	alpha_mb();
-}
-
-static void
-dwlpx_outl(u_int32_t port, u_int32_t data)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(port));
-	SPARSE_WRITE_LONG(sc->io_base, DWLPX_ADDR(port), data);
-	alpha_mb();
-}
-
-static u_int8_t
-dwlpx_readb(u_int32_t pa)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(pa));
-	return SPARSE_READ_BYTE(sc->smem_base, DWLPX_ADDR(pa));
-}
-
-static u_int16_t
-dwlpx_readw(u_int32_t pa)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(pa));
-	return SPARSE_READ_WORD(sc->smem_base, DWLPX_ADDR(pa));
-}
-
-static u_int32_t
-dwlpx_readl(u_int32_t pa)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(pa));
-	return SPARSE_READ_LONG(sc->smem_base, DWLPX_ADDR(pa));
-}
-
-static void
-dwlpx_writeb(u_int32_t pa, u_int8_t data)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(pa));
-	SPARSE_WRITE_BYTE(sc->smem_base, DWLPX_ADDR(pa), data);
-	alpha_mb();
-}
-
-static void
-dwlpx_writew(u_int32_t pa, u_int16_t data)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(pa));
-	SPARSE_WRITE_WORD(sc->smem_base, DWLPX_ADDR(pa), data);
-	alpha_mb();
-}
-
-static void
-dwlpx_writel(u_int32_t pa, u_int32_t data)
-{
-	struct dwlpx_softc *sc = DWLPX_SOFTC(DWLPX_INST(pa));
-	SPARSE_WRITE_LONG(sc->smem_base, DWLPX_ADDR(pa), data);
-	alpha_mb();
-}
-
-static int
-dwlpx_maxdevs(u_int b)
-{
-	return (DWLPX_MAXDEV);
-}
-
-static u_int32_t dwlpx_cfgread(u_int, u_int, u_int, u_int, u_int, int);
-static void dwlpx_cfgwrite(u_int, u_int, u_int, u_int, u_int, int, u_int32_t);
-
-#if	0
-#define	RCFGP	printf
-#else
-#define	RCFGP	if (0) printf
-#endif
-
-
-static u_int32_t
-dwlpx_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
-{
-	struct dwlpx_softc *sc;
-	device_t dev;
-	u_int32_t *dp, data, rvp, pci_idsel, hpcdev;
-	unsigned long paddr;
-	int hose, ionode;
-	int s = 0, i;
-
-	RCFGP("CFGREAD %u.%u.%u.%u.%u.%d", bh, bus, slot, func, off, sz);
-
-	rvp = data = ~0;
-	if (bh == (u_int8_t)-1)
-		bh = bus >> 4;
-	ionode = ((bh >> 2) & 0x7);
-	hose = (bh & 0x3);
-	dev = dwlpxs[ionode][hose];
-	if (dev == (device_t) 0) {
-		RCFGP(" (no dev)\n");
-		return (data);
-	}
-	sc = DWLPX_SOFTC(dev);
-	bus &= 0xf;
-
-	if (sc->nhpc < 1) {
-		RCFGP(" (no hpcs)\n");
-		return (data);
-	} else if (sc->nhpc < 2 && slot >= 4) {
-		RCFGP(" (bad hpcs (%d) <> bad slot (%d))\n", sc->nhpc, slot);
-		return (data);
-	} else if (sc->nhpc < 3 && slot >= 8) {
-		RCFGP(" (bad hpcs (%d) <> bad slot (%d))\n", sc->nhpc, slot);
-		return (data);
-	} else if (slot >= DWLPX_MAXDEV) {
-		RCFGP(" (bad slot (%d))\n", slot);
-		return (data);
-	}
-	hpcdev = slot >> 2;
-	pci_idsel = (1 << ((slot & 0x3) + 2));
-	paddr = (hpcdev << 22) | (pci_idsel << 16) | (func << 13);
-
-	if (bus) {
-		paddr &= 0x1fffff;
-		paddr |= (bus << 21);
-		alpha_pal_draina();
-		s = splhigh();
-		/*
-		 * Set up HPCs for type 1 cycles.
-		 */
-		for (i = 0; i < sc->nhpc; i++) {
-			rvp = REGVAL(PCIA_CTL(i)+sc->sysbase) | PCIA_CTL_T1CYC;
-			alpha_mb();
-			REGVAL(PCIA_CTL(i) + sc->sysbase) = rvp;
-			alpha_mb();
-		}
-	}
-
-	paddr |= ((unsigned long) ((off >> 2) << 7));
-	paddr |= ((sz - 1) << 3);
-	paddr |= DWLPX_PCI_CONF;
-	paddr |= ((unsigned long) hose) << 34;
-	paddr |= ((unsigned long) ionode) << 36;
-	paddr |= 1L << 39;
-
-	dp = (u_int32_t *)KV(paddr);
-	RCFGP(" hose %d node%d paddr 0x%lx", bh, ionode+4, paddr);
-	if (badaddr(dp, sizeof (*dp)) == 0) {
-		data = *dp;
-	}
-	if (bus) {
-		alpha_pal_draina();
-		for (i = 0; i < sc->nhpc; i++) {
-			rvp = REGVAL(PCIA_CTL(i)+sc->sysbase) & ~PCIA_CTL_T1CYC;
-			alpha_mb();
-			REGVAL(PCIA_CTL(i) + sc->sysbase) = rvp;
-			alpha_mb();
-		}
-		(void) splx(s);
-	}
-
-	if (data != ~0) {
-		if (sz == 1) {
-			rvp = SPARSE_BYTE_EXTRACT(off, data);
-		} else if (sz == 2) {
-			rvp = SPARSE_WORD_EXTRACT(off, data);
-		} else {
-			rvp = data;
-		}
-	} else {
-		rvp = data;
-	}
-	RCFGP(" data %x->0x%x\n", data, rvp);
-	return (rvp);
-}
-
-#if	0
-#define	WCFGP	printf
-#else
-#define	WCFGP	if (0) printf
-#endif
-
-static void
-dwlpx_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
-	int sz, u_int32_t data)
-{
-	int hose, ionode;
-	int s = 0, i;
-	u_int32_t *dp, rvp, pci_idsel, hpcdev;
-	unsigned long paddr;
-	struct dwlpx_softc *sc;
-	device_t dev;
-
-	WCFGP("CFGWRITE %u.%u.%u.%u.%u.%d", bh, bus, slot, func, off, sz);
-	if (bh == (u_int8_t)-1)
-		bh = bus >> 4;
-	ionode = ((bh >> 2) & 0x7);
-	hose = (bh & 0x3);
-	dev = dwlpxs[ionode][hose];
-	if (dev == (device_t) 0) {
-		WCFGP(" (no dev)\n");
-		return;
-	}
-	sc = DWLPX_SOFTC(dev);
-	bus &= 0xf;
-
-	if (sc->nhpc < 1) {
-		WCFGP(" (no hpcs)\n");
-		return;
-	} else if (sc->nhpc < 2 && slot >= 4) {
-		WCFGP(" (bad hpcs (%d) <> bad slot (%d))\n", sc->nhpc, slot);
-		return;
-	} else if (sc->nhpc < 3 && slot >= 8) {
-		WCFGP(" (bad hpcs (%d) <> bad slot (%d))\n", sc->nhpc, slot);
-		return;
-	} else if (slot >= DWLPX_MAXDEV) {
-		WCFGP(" (bad slot (%d))\n", slot);
-		return;
-	}
-	hpcdev = slot >> 2;
-	pci_idsel = (1 << ((slot & 0x3) + 2));
-	paddr = (hpcdev << 22) | (pci_idsel << 16) | (func << 13);
-	bus = 0;
-
-	if (bus) {
-		paddr &= 0x1fffff;
-		paddr |= (bus << 21);
-		alpha_pal_draina();
-		s = splhigh();
-		/*
-		 * Set up HPCs for type 1 cycles.
-		 */
-		for (i = 0; i < sc->nhpc; i++) {
-			rvp = REGVAL(PCIA_CTL(i)+sc->sysbase) | PCIA_CTL_T1CYC;
-			alpha_mb();
-			REGVAL(PCIA_CTL(i) + sc->sysbase) = rvp;
-			alpha_mb();
-		}
-	}
-
-	paddr |= ((unsigned long) ((off >> 2) << 7));
-	paddr |= ((sz - 1) << 3);
-	paddr |= DWLPX_PCI_CONF;
-	paddr |= ((unsigned long) hose) << 34;
-	paddr |= ((unsigned long) ionode) << 36;
-	paddr |= 1L << 39;
-	dp = (u_int32_t *)KV(paddr);
-	WCFGP(" hose %d node%d paddr 0x%lx\n", bh, ionode+4, paddr);
-	if (badaddr(dp, sizeof (*dp)) == 0) {
-		u_int32_t new_data;
-		if (sz == 1) {
-			new_data = SPARSE_BYTE_INSERT(off, data);
-		} else if (sz == 2) {
-			new_data = SPARSE_WORD_INSERT(off, data);
-		} else  {
-			new_data = data;
-		}
-		*dp = new_data;
-	}
-	if (bus) {
-		alpha_pal_draina();
-		for (i = 0; i < sc->nhpc; i++) {
-			rvp = REGVAL(PCIA_CTL(i)+sc->sysbase) & ~PCIA_CTL_T1CYC;
-			alpha_mb();
-			REGVAL(PCIA_CTL(i) + sc->sysbase) = rvp;
-			alpha_mb();
-		}
-		(void) splx(s);
-	}
-}
-
-static u_int8_t
-dwlpx_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	return (u_int8_t) dwlpx_cfgread(h, b, s, f, r, 1);
-}
-
-static u_int16_t
-dwlpx_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	return (u_int16_t) dwlpx_cfgread(h, b, s, f, r, 2);
-}
-
-static u_int32_t
-dwlpx_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	return dwlpx_cfgread(h, b, s, f, r, 4);
-}
-
-static void
-dwlpx_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
-{
-	dwlpx_cfgwrite(h, b, s, f, r, 1, (u_int32_t) data);
-}
-
-static void
-dwlpx_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
-{
-	dwlpx_cfgwrite(h, b, s, f, r, 2, (u_int32_t) data);
-}
-
-static void
-dwlpx_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
-{
-	dwlpx_cfgwrite(h, b, s, f, r, 4, (u_int32_t) data);
-}
 
 static int
 dwlpx_probe(device_t dev)
@@ -586,7 +185,7 @@ dwlpx_probe(device_t dev)
 		pci_init_resources();
 	}
 
-	child = device_add_child(dev, "pcib", device_get_unit(dev));
+	child = device_add_child(dev, "pci", -1);
 	device_set_ivars(child, &sc->bushose);
 	return (0);
 }
@@ -604,14 +203,34 @@ dwlpx_attach(device_t dev)
 	io = kft_get_node(dev) - 4;
 	hose = kft_get_hosenum(dev);
 
-	chipset = dwlpx_chipset;
-	/* chipset.intrdev = dev; */
-
 	sc->sysbase	= DWLPX_BASE(io + 4, hose);
 	regs		= (vm_offset_t) KV(sc->sysbase);
 	sc->dmem_base	= regs + DWLPX_PCI_DENSE;
 	sc->smem_base	= regs + DWLPX_PCI_SPARSE;
 	sc->io_base	= regs + DWLPX_PCI_IOSPACE;
+
+	/*
+	 * Maybe initialise busspace_isa_io and busspace_isa_mem
+	 * here. Does the 8200 actually have any ISA slots?
+	 */
+	swiz_init_space(&sc->io_space, sc->io_base);
+	swiz_init_space(&sc->mem_space, sc->smem_base);
+
+	sc->io_rman.rm_start = 0;
+	sc->io_rman.rm_end = ~0u;
+	sc->io_rman.rm_type = RMAN_ARRAY;
+	sc->io_rman.rm_descr = "I/O ports";
+	if (rman_init(&sc->io_rman)
+	    || rman_manage_region(&sc->io_rman, 0x0, (1L << 32)))
+		panic("dwlpx_attach: io_rman");
+
+	sc->mem_rman.rm_start = 0;
+	sc->mem_rman.rm_end = ~0u;
+	sc->mem_rman.rm_type = RMAN_ARRAY;
+	sc->mem_rman.rm_descr = "I/O memory";
+	if (rman_init(&sc->mem_rman)
+	    || rman_manage_region(&sc->mem_rman, 0x0, (1L << 32)))
+		panic("dwlpx_attach: mem_rman");
 
 	/*
 	 * Set up interrupt stuff for this DWLPX.
@@ -757,6 +376,7 @@ static int
 dwlpx_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
        driver_intr_t *intr, void *arg, void **cookiep)
 {
+	struct dwlpx_softc *sc = DWLPX_SOFTC(dev);
 	int slot, ionode, hose, error, vector, intpin;
 	
 	error = rman_activate_resource(irq);
@@ -765,9 +385,8 @@ dwlpx_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 
 	intpin = pci_get_intpin(child);
 	slot = pci_get_slot(child);
-	hose = pci_get_hose(child);
-	ionode = hose >> 2;
-	hose &= 0x3;
+	ionode = sc->bushose >> 2;
+	hose = sc->bushose & 0x3;
 
 	vector = DWLPX_MVEC(ionode, hose, slot);
 	error = alpha_setup_intr(vector, intr, arg, cookiep,
@@ -783,17 +402,256 @@ dwlpx_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 static int
 dwlpx_teardown_intr(device_t dev, device_t child, struct resource *irq, void *c)
 {
+	struct dwlpx_softc *sc = DWLPX_SOFTC(dev);
 	int slot, ionode, hose, vector, intpin;
 
 	intpin = pci_get_intpin(child);
 	slot = pci_get_slot(child);
-	hose = pci_get_hose(child);
-	ionode = hose >> 2;
-	hose &= 0x3;
+	ionode = sc->bushose >> 2;
+	hose = sc->bushose & 0x3;
 	vector = DWLPX_MVEC(ionode, hose, slot);
 	dwlpx_enadis_intr(vector, intpin, 0);
 	alpha_teardown_intr(c);
 	return rman_deactivate_resource(irq);
+}
+
+static int
+dwlpx_read_ivar(device_t dev, device_t child, int which, u_long *result)
+{
+	switch (which) {
+	case  PCIB_IVAR_BUS:
+		*result = 0;
+		return 0;
+	}
+	return ENOENT;
+}
+
+static void *
+dwlpx_cvt_dense(device_t dev, vm_offset_t addr)
+{
+	struct dwlpx_softc *sc = DWLPX_SOFTC(dev);
+
+	addr &= 0xffffffffUL;
+	return (void *) KV(addr | sc->dmem_base);
+	
+}
+
+static kobj_t
+dwlpx_get_bustag(device_t dev, int type)
+{
+	struct dwlpx_softc *sc = DWLPX_SOFTC(dev);
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return (kobj_t) &sc->io_space;
+
+	case SYS_RES_MEMORY:
+		return (kobj_t) &sc->mem_space;
+	}
+
+	return 0;
+}
+
+static struct rman *
+dwlpx_get_rman(device_t dev, int type)
+{
+	struct dwlpx_softc *sc = DWLPX_SOFTC(dev);
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return &sc->io_rman;
+
+	case SYS_RES_MEMORY:
+		return &sc->mem_rman;
+	}
+
+	return 0;
+}
+
+static int
+dwlpx_maxslots(device_t dev)
+{
+	return (DWLPX_MAXDEV);
+}
+
+static u_int32_t
+dwlpx_read_config(device_t dev, int bus, int slot, int func,
+		  int off, int sz)
+{
+	struct dwlpx_softc *sc = DWLPX_SOFTC(dev);
+	u_int32_t *dp, data, rvp, pci_idsel, hpcdev;
+	unsigned long paddr;
+	int hose, ionode;
+	int secondary = 0, s = 0, i;
+
+	rvp = data = ~0;
+
+	ionode = ((sc->bushose >> 2) & 0x7);
+	hose = (sc->bushose & 0x3);
+
+	if (sc->nhpc < 1)
+		return (data);
+	else if (sc->nhpc < 2 && slot >= 4)
+		return (data);
+	else if (sc->nhpc < 3 && slot >= 8)
+		return (data);
+	else if (slot >= DWLPX_MAXDEV)
+		return (data);
+	hpcdev = slot >> 2;
+	pci_idsel = (1 << ((slot & 0x3) + 2));
+	paddr = (hpcdev << 22) | (pci_idsel << 16) | (func << 13);
+
+	if (secondary) {
+		paddr &= 0x1fffff;
+		paddr |= (secondary << 21);
+
+#if	0
+		printf("read secondary %d reg %x (paddr %lx)",
+		    secondary, offset, tag);
+#endif
+
+		alpha_pal_draina();
+		s = splhigh();
+		/*
+		 * Set up HPCs for type 1 cycles.
+		 */
+		for (i = 0; i < sc->nhpc; i++) {
+			rvp = REGVAL(PCIA_CTL(i)+sc->sysbase) | PCIA_CTL_T1CYC;
+			alpha_mb();
+			REGVAL(PCIA_CTL(i) + sc->sysbase) = rvp;
+			alpha_mb();
+		}
+	}
+
+	paddr |= ((unsigned long) ((off >> 2) << 7));
+	paddr |= ((sz - 1) << 3);
+	paddr |= DWLPX_PCI_CONF;
+	paddr |= ((unsigned long) hose) << 34;
+	paddr |= ((unsigned long) ionode) << 36;
+	paddr |= 1L << 39;
+
+	dp = (u_int32_t *)KV(paddr);
+
+#if	0
+printf("CFGREAD %d.%d.%d.%d.%d.%d.%d -> paddr 0x%lx",
+ionode+4, hose, bus, slot, func, off, sz, paddr);
+#endif
+
+	if (badaddr(dp, sizeof (*dp)) == 0) {
+		data = *dp;
+	}
+
+	if (secondary) {
+		alpha_pal_draina();
+		for (i = 0; i < sc->nhpc; i++) {
+			rvp = REGVAL(PCIA_CTL(i)+sc->sysbase) & ~PCIA_CTL_T1CYC;
+			alpha_mb();
+			REGVAL(PCIA_CTL(i) + sc->sysbase) = rvp;
+			alpha_mb();
+		}
+		(void) splx(s);
+	}
+
+	if (data != ~0) {
+		if (sz == 1) {
+			rvp = SPARSE_BYTE_EXTRACT(off, data);
+		} else if (sz == 2) {
+			rvp = SPARSE_WORD_EXTRACT(off, data);
+		} else {
+			rvp = data;
+		}
+	} else {
+		rvp = data;
+	}
+
+#if	0
+printf(" data 0x%x -> 0x%x\n", data, rvp);
+#endif
+	return (rvp);
+}
+
+static void
+dwlpx_write_config(device_t dev, int bus, int slot, int func,
+		   int off, u_int32_t data, int sz)
+{
+	struct dwlpx_softc *sc = DWLPX_SOFTC(dev);
+	int hose, ionode;
+	int secondary = 0, s = 0, i;
+	u_int32_t *dp, rvp, pci_idsel, hpcdev;
+	unsigned long paddr;
+
+	ionode = ((sc->bushose >> 2) & 0x7);
+	hose = (sc->bushose & 0x3);
+
+	if (sc->nhpc < 1)
+		return;
+	else if (sc->nhpc < 2 && slot >= 4)
+		return;
+	else if (sc->nhpc < 3 && slot >= 8)
+		return;
+	else if (slot >= DWLPX_MAXDEV)
+		return;
+	hpcdev = slot >> 2;
+	pci_idsel = (1 << ((slot & 0x3) + 2));
+	paddr = (hpcdev << 22) | (pci_idsel << 16) | (func << 13);
+
+	if (secondary) {
+		paddr &= 0x1fffff;
+		paddr |= (secondary << 21);
+
+#if	0
+		printf("write secondary %d reg %x (paddr %lx)",
+		    secondary, offset, tag);
+#endif
+
+		alpha_pal_draina();
+		s = splhigh();
+		/*
+		 * Set up HPCs for type 1 cycles.
+		 */
+		for (i = 0; i < sc->nhpc; i++) {
+			rvp = REGVAL(PCIA_CTL(i)+sc->sysbase) | PCIA_CTL_T1CYC;
+			alpha_mb();
+			REGVAL(PCIA_CTL(i) + sc->sysbase) = rvp;
+			alpha_mb();
+		}
+	}
+
+	paddr |= ((unsigned long) ((off >> 2) << 7));
+	paddr |= ((sz - 1) << 3);
+	paddr |= DWLPX_PCI_CONF;
+	paddr |= ((unsigned long) hose) << 34;
+	paddr |= ((unsigned long) ionode) << 36;
+	paddr |= 1L << 39;
+
+	dp = (u_int32_t *)KV(paddr);
+	if (badaddr(dp, sizeof (*dp)) == 0) {
+		u_int32_t new_data;
+		if (sz == 1) {
+			new_data = SPARSE_BYTE_INSERT(off, data);
+		} else if (sz == 2) {
+			new_data = SPARSE_WORD_INSERT(off, data);
+		} else  {
+			new_data = data;
+		}
+
+#if	0
+printf("CFGWRITE %d.%d.%d.%d.%d.%d.%d paddr 0x%lx data 0x%x -> 0x%x\n",
+ionode+4, hose, bus, slot, func, off, sz, paddr, data, new_data);
+#endif
+
+		*dp = new_data;
+	}
+	if (secondary) {
+		alpha_pal_draina();
+		for (i = 0; i < sc->nhpc; i++) {
+			rvp = REGVAL(PCIA_CTL(i)+sc->sysbase) & ~PCIA_CTL_T1CYC;
+			alpha_mb();
+			REGVAL(PCIA_CTL(i) + sc->sysbase) = rvp;
+			alpha_mb();
+		}
+		(void) splx(s);
+	}
 }
 
 static void
@@ -971,4 +829,36 @@ dwlpx_eintr(unsigned long vec)
 	}
 }
 
-DRIVER_MODULE(dwlpx, kft, dwlpx_driver, dwlpx_devclass, 0, 0);
+static device_method_t dwlpx_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		dwlpx_probe),
+	DEVMETHOD(device_attach,	dwlpx_attach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,	dwlpx_read_ivar),
+	DEVMETHOD(bus_setup_intr,	dwlpx_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	dwlpx_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pci_release_resource),
+	DEVMETHOD(bus_activate_resource, pci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
+
+	/* alphapci interface */
+	DEVMETHOD(alphapci_cvt_dense,	dwlpx_cvt_dense),
+	DEVMETHOD(alphapci_get_bustag,	dwlpx_get_bustag),
+	DEVMETHOD(alphapci_get_rman,	dwlpx_get_rman),
+
+	/* pcib interface */
+	DEVMETHOD(pcib_maxslots,	dwlpx_maxslots),
+	DEVMETHOD(pcib_read_config,	dwlpx_read_config),
+	DEVMETHOD(pcib_write_config,	dwlpx_write_config),
+
+	{ 0, 0 }
+};
+
+static driver_t dwlpx_driver = {
+	"pcib", dwlpx_methods, sizeof (struct dwlpx_softc)
+};
+
+DRIVER_MODULE(pcib, kft, dwlpx_driver, dwlpx_devclass, 0, 0);

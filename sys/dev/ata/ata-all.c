@@ -519,7 +519,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
     struct ata_pci_softc *sc = device_get_softc(dev);
     int masterdev = pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV;
-    int unit = (int)device_get_ivars(child);
+    int unit = (intptr_t)device_get_ivars(child);
     int myrid;
 
     if (type == SYS_RES_IOPORT) {

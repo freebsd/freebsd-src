@@ -83,6 +83,7 @@
 #include <machine/rpb.h>
 #include <machine/cpuconf.h>
 #include <machine/clock.h>
+#include <machine/bus.h>
 
 #include <alpha/pci/apecsvar.h>
 #include <alpha/pci/ciavar.h>

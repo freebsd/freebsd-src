@@ -26,4 +26,6 @@
  * $FreeBSD$
  */
 
+extern vm_offset_t	t2_csr_base;
+
 extern void t2_init(void);

@@ -70,4 +70,26 @@
 #define SPARSE_WRITE_LONG(base, o, d)	\
 	SPARSE_WRITE(base + SPARSE_LONG_OFFSET(o), d)
 
+#ifdef _KERNEL
+
+/*
+ * A kernel object for accessing memory-like spaces (port and
+ * memory spaces) using SWIZ instructions.
+ */
+
+typedef u_int32_t (*swiz_sethae_fn)(void *arg, u_int32_t hae);
+
+struct swiz_space {
+	struct alpha_busspace_ops *ops;
+	u_int64_t	base;		/* base address of space */
+	swiz_sethae_fn	sethae;		/* function to set HAE */
+	void		*arg;		/* arg to sethae() */
+};
+
+void swiz_init_space(struct swiz_space *swiz, u_int64_t base);
+void swiz_init_space_hae(struct swiz_space *swiz, u_int64_t base,
+			 swiz_sethae_fn sethae, void *arg);
+
+#endif /* _KERNEL */
+
 #endif /* !_MACHINE_SWIZ_H_ */

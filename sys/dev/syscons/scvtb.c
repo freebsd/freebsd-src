@@ -34,6 +34,7 @@
 
 #include <machine/console.h>
 #include <machine/md_var.h>
+#include <machine/bus.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>

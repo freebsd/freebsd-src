@@ -65,241 +65,13 @@ struct irongate_softc {
 
 #define IRONGATE_SOFTC(dev)	(struct irongate_softc*) device_get_softc(dev)
 
-static alpha_chipset_inb_t	irongate_inb;
-static alpha_chipset_inw_t	irongate_inw;
-static alpha_chipset_inl_t	irongate_inl;
-static alpha_chipset_outb_t	irongate_outb;
-static alpha_chipset_outw_t	irongate_outw;
-static alpha_chipset_outl_t	irongate_outl;
-static alpha_chipset_readb_t	irongate_readb;
-static alpha_chipset_readw_t	irongate_readw;
-static alpha_chipset_readl_t	irongate_readl;
-static alpha_chipset_writeb_t	irongate_writeb;
-static alpha_chipset_writew_t	irongate_writew;
-static alpha_chipset_writel_t	irongate_writel;
-static alpha_chipset_maxdevs_t	irongate_maxdevs;
-static alpha_chipset_cfgreadb_t	irongate_cfgreadb;
-static alpha_chipset_cfgreadw_t	irongate_cfgreadw;
-static alpha_chipset_cfgreadl_t	irongate_cfgreadl;
-static alpha_chipset_cfgwriteb_t irongate_cfgwriteb;
-static alpha_chipset_cfgwritew_t irongate_cfgwritew;
-static alpha_chipset_cfgwritel_t irongate_cfgwritel;
-static alpha_chipset_addrcvt_t   irongate_cvt_dense, irongate_cvt_bwx;
-
 static alpha_chipset_read_hae_t	irongate_read_hae;
 static alpha_chipset_write_hae_t irongate_write_hae;
 
 static alpha_chipset_t irongate_chipset = {
-	irongate_inb,
-	irongate_inw,
-	irongate_inl,
-	irongate_outb,
-	irongate_outw,
-	irongate_outl,
-	irongate_readb,
-	irongate_readw,
-	irongate_readl,
-	irongate_writeb,
-	irongate_writew,
-	irongate_writel,
-	irongate_maxdevs,
-	irongate_cfgreadb,
-	irongate_cfgreadw,
-	irongate_cfgreadl,
-	irongate_cfgwriteb,
-	irongate_cfgwritew,
-	irongate_cfgwritel,
-	irongate_cvt_dense,
-	irongate_cvt_bwx,
 	irongate_read_hae,
 	irongate_write_hae,
 };
-
-static u_int8_t
-irongate_inb(u_int32_t port)
-{
-	alpha_mb();
-	return ldbu(KV(IRONGATE_IO + port));
-}
-
-static u_int16_t
-irongate_inw(u_int32_t port)
-{
-	alpha_mb();
-	return ldwu(KV(IRONGATE_IO + port));
-}
-
-static u_int32_t
-irongate_inl(u_int32_t port)
-{
-	alpha_mb();
-	return ldl(KV(IRONGATE_IO + port));
-}
-
-static void
-irongate_outb(u_int32_t port, u_int8_t data)
-{
-	stb(KV(IRONGATE_IO + port), data);
-	alpha_mb();
-}
-
-static void
-irongate_outw(u_int32_t port, u_int16_t data)
-{
-	stw(KV(IRONGATE_IO + port), data);
-	alpha_mb();
-}
-
-static void
-irongate_outl(u_int32_t port, u_int32_t data)
-{
-	stl(KV(IRONGATE_IO + port), data);
-	alpha_mb();
-}
-
-static u_int8_t
-irongate_readb(u_int32_t pa)
-{
-	alpha_mb();
-	return ldbu(KV(IRONGATE_MEM + pa));
-}
-
-static u_int16_t
-irongate_readw(u_int32_t pa)
-{
-	alpha_mb();
-	return ldwu(KV(IRONGATE_MEM + pa));
-}
-
-static u_int32_t
-irongate_readl(u_int32_t pa)
-{
-	alpha_mb();
-	return ldl(KV(IRONGATE_MEM + pa));
-}
-
-static void
-irongate_writeb(u_int32_t pa, u_int8_t data)
-{
-	stb(KV(IRONGATE_MEM + pa), data);
-	alpha_mb();
-}
-
-static void
-irongate_writew(u_int32_t pa, u_int16_t data)
-{
-	stw(KV(IRONGATE_MEM + pa), data);
-	alpha_mb();
-}
-
-static void
-irongate_writel(u_int32_t pa, u_int32_t data)
-{
-	stl(KV(IRONGATE_MEM + pa), data);
-	alpha_mb();
-}
-
-static int
-irongate_maxdevs(u_int b)
-{
-	return 12;		/* XXX */
-}
-
-static void
-irongate_clear_abort(void)
-{
-	alpha_mb();
-	alpha_pal_draina();	
-}
-
-static int
-irongate_check_abort(void)
-{
-	alpha_pal_draina();	
-	alpha_mb();
-
-	return 0;
-}
-
-#define IRONGATE_CFGADDR(b, s, f, r)				\
-	KV(IRONGATE_CONF | ((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
-
-#define CFGREAD(h, b, s, f, r, op, width, type)			\
-        vm_offset_t va;						\
-	type data;						\
-	va = IRONGATE_CFGADDR(b, s, f, r);			\
-	irongate_clear_abort();					\
-	if (badaddr((caddr_t)va, width)) {			\
-		irongate_check_abort();				\
-		return ~0;					\
-	}							\
-	data = ##op##(va);					\
-	if (irongate_check_abort())				\
-		return ~0;					\
-	return data;			
-
-#define CFWRITE(h, b, s, f, r, data, op, width)			\
-        vm_offset_t va;						\
-	va = IRONGATE_CFGADDR(b, s, f, r);			\
-	irongate_clear_abort();					\
-	if (badaddr((caddr_t)va, width)) 			\
-		return;						\
-	##op##(va, data);					\
-	irongate_check_abort();
-
-
-
-
-static u_int8_t
-irongate_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	CFGREAD(h, b, s, f, r, ldbu, 1, u_int8_t)
-}
-
-static u_int16_t
-irongate_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	CFGREAD(h, b, s, f, r, ldwu, 2, u_int16_t)
-}
-
-static u_int32_t
-irongate_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	CFGREAD(h, b, s, f, r, ldl, 4, u_int32_t)
-}
-
-static void
-irongate_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
-{
-	CFWRITE(h, b, s, f, r, data, stb, 1)	
-}
-
-static void
-irongate_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
-{	
-	CFWRITE(h, b, s, f, r, data, stw, 2)
-}
-
-static void
-irongate_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
-{
-	CFWRITE(h, b, s, f, r, data, stl, 4)
-}
-
-
-vm_offset_t
-irongate_cvt_bwx(vm_offset_t addr)
-{
-        addr &= 0xffffffffUL;
-	return (KV(addr | IRONGATE_MEM));
-}
-
-vm_offset_t
-irongate_cvt_dense(vm_offset_t addr)
-{
-	return irongate_cvt_bwx(addr);
-}
-
 
 /* 
  * There doesn't appear to be an hae on this platform
@@ -347,12 +119,19 @@ void
 irongate_init()
 {
 	static int initted = 0;
+	struct bwx_space io_space, mem_space;
 
 	if (initted) return;
 	initted = 1;
 
 	chipset = irongate_chipset;
 	alpha_XXX_dmamap_or = 0UL;
+
+	bwx_init_space(&io_space, KV(IRONGATE_IO));
+	bwx_init_space(&mem_space, KV(IRONGATE_MEM));
+
+	busspace_isa_io = (kobj_t) &io_space;
+	busspace_isa_mem = (kobj_t) &mem_space;
 
 	if (platform.pci_intr_init)
 		platform.pci_intr_init();
@@ -377,10 +156,6 @@ irongate_probe(device_t dev)
 static int
 irongate_attach(device_t dev)
 {
-	u_int8_t value;
-	pcicfgregs southbridge;
-
-
 	irongate_init();
 
 	if (!platform.iointr)	/* XXX */
@@ -394,22 +169,6 @@ irongate_attach(device_t dev)
 	chipset_dense = IRONGATE_MEM;
 	/* no s/g support in this chipset, must use bounce-buffers */
 	chipset.sgmap = NULL;	
-
-	/*  
-	 * XXX  -- The SRM console doesn't properly initialize
-	 * the AcerLabs M1533C southbridge.  We must turn off 32-bit 
-	 * DMA support.
-	 */
-
-	southbridge.hose = 0;
-	southbridge.bus  = 0;
-	southbridge.slot = 7;
-	southbridge.func = 0;
-	if ((0x153310b9 == pci_cfgread(&southbridge, PCIR_DEVVENDOR, 4))) {
-		value = (u_int8_t)pci_cfgread(&southbridge, 0x42, 1);	
-		value &= ~0x40;
-		pci_cfgwrite(&southbridge, 0x42, 0, 1);
-	}
 
 	bus_generic_attach(dev);
 

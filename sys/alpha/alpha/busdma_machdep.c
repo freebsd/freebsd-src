@@ -513,7 +513,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	} while (buflen > 0);
 
 	if (buflen != 0) {
-		printf("bus_dmamap_load: Too many segs! buf_len = 0x%lx\n",
+		printf("bus_dmamap_load: Too many segs! buf_len = 0x%x\n",
 		       buflen);
 		error = EFBIG;
 	}

@@ -67,301 +67,16 @@ static volatile tsunami_pchip *pchip[2] = {pchip0, pchip1};
 
 #define TSUNAMI_SOFTC(dev)	(struct tsunami_softc*) device_get_softc(dev)
 
-static alpha_chipset_inb_t	tsunami_inb;
-static alpha_chipset_inw_t	tsunami_inw;
-static alpha_chipset_inl_t	tsunami_inl;
-static alpha_chipset_outb_t	tsunami_outb;
-static alpha_chipset_outw_t	tsunami_outw;
-static alpha_chipset_outl_t	tsunami_outl;
-static alpha_chipset_readb_t	tsunami_readb;
-static alpha_chipset_readw_t	tsunami_readw;
-static alpha_chipset_readl_t	tsunami_readl;
-static alpha_chipset_writeb_t	tsunami_writeb;
-static alpha_chipset_writew_t	tsunami_writew;
-static alpha_chipset_writel_t	tsunami_writel;
-static alpha_chipset_maxdevs_t	tsunami_maxdevs;
-static alpha_chipset_cfgreadb_t	tsunami_cfgreadb;
-static alpha_chipset_cfgreadw_t	tsunami_cfgreadw;
-static alpha_chipset_cfgreadl_t	tsunami_cfgreadl;
-static alpha_chipset_cfgwriteb_t tsunami_cfgwriteb;
-static alpha_chipset_cfgwritew_t tsunami_cfgwritew;
-static alpha_chipset_cfgwritel_t tsunami_cfgwritel;
-static alpha_chipset_addrcvt_t   tsunami_cvt_dense, tsunami_cvt_bwx;
-
 static alpha_chipset_read_hae_t	tsunami_read_hae;
 static alpha_chipset_write_hae_t tsunami_write_hae;
 
 static alpha_chipset_t tsunami_chipset = {
-	tsunami_inb,
-	tsunami_inw,
-	tsunami_inl,
-	tsunami_outb,
-	tsunami_outw,
-	tsunami_outl,
-	tsunami_readb,
-	tsunami_readw,
-	tsunami_readl,
-	tsunami_writeb,
-	tsunami_writew,
-	tsunami_writel,
-	tsunami_maxdevs,
-	tsunami_cfgreadb,
-	tsunami_cfgreadw,
-	tsunami_cfgreadl,
-	tsunami_cfgwriteb,
-	tsunami_cfgwritew,
-	tsunami_cfgwritel,
-	tsunami_cvt_dense,
-	tsunami_cvt_bwx,
 	tsunami_read_hae,
 	tsunami_write_hae,
 };
 
-/*
- * This setup will only allow for one additional hose
- */
-
-#define ADDR_TO_HOSE(x)    ((x)  >> 31)
-#define STRIP_HOSE(x)      ((x) & 0x7fffffff)
-
 static void tsunami_intr_enable  __P((int));
 static void tsunami_intr_disable __P((int));
-
-static u_int8_t
-tsunami_inb(u_int32_t port)
-{
-	int hose = ADDR_TO_HOSE(port);
-	port = STRIP_HOSE(port);
-	alpha_mb();
-	return ldbu(KV(TSUNAMI_IO(hose) + port));
-}
-
-static u_int16_t
-tsunami_inw(u_int32_t port)
-{
-	int hose = ADDR_TO_HOSE(port);
-	port = STRIP_HOSE(port);
-	alpha_mb();
-	return ldwu(KV(TSUNAMI_IO(hose) + port));
-}
-
-static u_int32_t
-tsunami_inl(u_int32_t port)
-{
-	int hose = ADDR_TO_HOSE(port);
-	port = STRIP_HOSE(port);
-	alpha_mb();
-	return ldl(KV(TSUNAMI_IO(hose) + port));
-}
-
-static void
-tsunami_outb(u_int32_t port, u_int8_t data)
-{
-	int hose = ADDR_TO_HOSE(port);
-	port = STRIP_HOSE(port);
-	stb(KV(TSUNAMI_IO(hose) + port), data);
-	alpha_mb();
-}
-
-static void
-tsunami_outw(u_int32_t port, u_int16_t data)
-{
-	int hose = ADDR_TO_HOSE(port);
-	port = STRIP_HOSE(port);
-	stw(KV(TSUNAMI_IO(hose) + port), data);
-	alpha_mb();
-}
-
-static void
-tsunami_outl(u_int32_t port, u_int32_t data)
-{
-	int hose = ADDR_TO_HOSE(port);
-	port = STRIP_HOSE(port);
-	stl(KV(TSUNAMI_IO(hose) + port), data);
-	alpha_mb();
-}
-
-static u_int8_t
-tsunami_readb(u_int32_t pa)
-{
-	int hose = ADDR_TO_HOSE(pa);
-	pa = STRIP_HOSE(pa);
-	alpha_mb();
-	return ldbu(KV(TSUNAMI_MEM(hose) + pa));
-}
-
-static u_int16_t
-tsunami_readw(u_int32_t pa)
-{
-	int hose = ADDR_TO_HOSE(pa);
-	pa = STRIP_HOSE(pa);
-	alpha_mb();
-	return ldwu(KV(TSUNAMI_MEM(hose) + pa));
-}
-
-static u_int32_t
-tsunami_readl(u_int32_t pa)
-{
-	int hose = ADDR_TO_HOSE(pa);
-	pa = STRIP_HOSE(pa);
-	alpha_mb();
-	return ldl(KV(TSUNAMI_MEM(hose) + pa));
-}
-
-static void
-tsunami_writeb(u_int32_t pa, u_int8_t data)
-{
-	int hose = ADDR_TO_HOSE(pa);
-	pa = STRIP_HOSE(pa);
-	stb(KV(TSUNAMI_MEM(hose) + pa), data);
-	alpha_mb();
-}
-
-static void
-tsunami_writew(u_int32_t pa, u_int16_t data)
-{
-	int hose = ADDR_TO_HOSE(pa);
-	pa = STRIP_HOSE(pa);
-	stw(KV(TSUNAMI_MEM(hose) + pa), data);
-	alpha_mb();
-}
-
-static void
-tsunami_writel(u_int32_t pa, u_int32_t data)
-{
-	int hose = ADDR_TO_HOSE(pa);
-	pa = STRIP_HOSE(pa);
-	stl(KV(TSUNAMI_MEM(hose) + pa), data);
-	alpha_mb();
-}
-
-static int
-tsunami_maxdevs(u_int b)
-{
-	return 12;		/* XXX */
-}
-
-static void
-tsunami_clear_abort(void)
-{
-	alpha_mb();
-	alpha_pal_draina();	
-}
-
-static int
-tsunami_check_abort(void)
-{
-/*	u_int32_t errbits;*/
-	int ba = 0;
-
-	alpha_pal_draina();	
-	alpha_mb();
-#if 0
-	errbits = REGVAL(TSUNAMI_CSR_TSUNAMI_ERR);
-	if (errbits & (TSUNAMI_ERR_RCVD_MAS_ABT|TSUNAMI_ERR_RCVD_TAR_ABT))
-		ba = 1;
-
-	if (errbits) {
-		REGVAL(TSUNAMI_CSR_TSUNAMI_ERR) = errbits;
-		alpha_mb();
-		alpha_pal_draina();
-	}
-#endif
-	return ba;
-}
-
-#define TSUNAMI_CFGADDR(b, s, f, r, h)				\
-	KV(TSUNAMI_CONF(h) | ((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
-
-#define CFGREAD(h, b, s, f, r, op, width, type)			\
-	int bus;						\
-        vm_offset_t va;						\
-	type data;						\
-	if (h == (u_int8_t)-1)					\
-		h = tsunami_hose_from_bus(b);			\
-	bus = tsunami_bus_within_hose(h, b);			\
-	va = TSUNAMI_CFGADDR(bus, s, f, r, h);			\
-	tsunami_clear_abort();					\
-	if (badaddr((caddr_t)va, width)) {			\
-		tsunami_check_abort();				\
-		return ~0;					\
-	}							\
-	data = ##op##(va);					\
-	if (tsunami_check_abort())				\
-		return ~0;					\
-	return data;			
-
-#define CFWRITE(h, b, s, f, r, data, op, width)			\
-	int bus;						\
-        vm_offset_t va;						\
-	if (h == (u_int8_t)-1)					\
-		h = tsunami_hose_from_bus(b);			\
-	bus = tsunami_bus_within_hose(h, b);			\
-	va = TSUNAMI_CFGADDR(bus, s, f, r, h);			\
-	tsunami_clear_abort();					\
-	if (badaddr((caddr_t)va, width)) 			\
-		return;						\
-	##op##(va, data);					\
-	tsunami_check_abort();
-
-
-
-
-static u_int8_t
-tsunami_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	CFGREAD(h, b, s, f, r, ldbu, 1, u_int8_t)
-}
-
-static u_int16_t
-tsunami_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	CFGREAD(h, b, s, f, r, ldwu, 2, u_int16_t)
-}
-
-static u_int32_t
-tsunami_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	CFGREAD(h, b, s, f, r, ldl, 4, u_int32_t)
-}
-
-static void
-tsunami_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
-{
-	CFWRITE(h, b, s, f, r, data, stb, 1)	
-}
-
-static void
-tsunami_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
-{	
-	CFWRITE(h, b, s, f, r, data, stw, 2)
-}
-
-static void
-tsunami_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
-{
-	CFWRITE(h, b, s, f, r, data, stl, 4)
-}
-
-
-vm_offset_t
-tsunami_cvt_bwx(vm_offset_t addr)
-{
-	int hose;
-	vm_offset_t laddr;
-	laddr = addr & 0xffffffffUL;
-	hose = ADDR_TO_HOSE(laddr);
-	laddr = STRIP_HOSE(addr);
-        laddr |=  TSUNAMI_MEM(hose);
-	return (KV(laddr));
-}
-
-vm_offset_t
-tsunami_cvt_dense(vm_offset_t addr)
-{
-	return tsunami_cvt_bwx(addr);
-}
-
 
 /* 
  * There doesn't appear to be an hae on this platform
@@ -394,10 +109,6 @@ static device_method_t tsunami_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,      bus_generic_print_child),
-	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	pci_release_resource),
-	DEVMETHOD(bus_activate_resource, pci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	tsunami_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	tsunami_teardown_intr),
 
@@ -478,7 +189,7 @@ tsunami_sgmap_invalidate(void)
 }
 
 static void
-tsunami_sgmap_map(void *arg, vm_offset_t ba, vm_offset_t pa)
+tsunami_sgmap_map(void *arg, bus_addr_t ba, vm_offset_t pa)
 {
 	u_int64_t *sgtable = arg;
 	int index = alpha_btop(ba - TSUNAMI_SGMAP_BASE);
@@ -522,9 +233,20 @@ void
 tsunami_init()
 {
 	static int initted = 0;
+	static struct bwx_space io_space;
+	static struct bwx_space mem_space;
 
 	if (initted) return;
 	initted = 1;
+
+	/*
+	 * Define two temporary spaces for bootstrap i/o on hose 0.
+	 */
+	bwx_init_space(&io_space, KV(TSUNAMI_IO(0)));
+	bwx_init_space(&mem_space, KV(TSUNAMI_MEM(0)));
+
+	busspace_isa_io = (kobj_t) &io_space;
+	busspace_isa_mem = (kobj_t) &mem_space;
 
 	chipset = tsunami_chipset;
 	platform.pci_intr_enable =  tsunami_intr_enable;
@@ -539,7 +261,6 @@ static int
 tsunami_probe(device_t dev)
 {
 	device_t child;
-	int *hose;
 	int i;
 	if (tsunami0)
 		return ENXIO;
@@ -554,17 +275,12 @@ tsunami_probe(device_t dev)
 	isa_init_intr();
 
 	for(i = 0; i < tsunami_num_pchips; i++) {
-		hose = malloc(sizeof(int), M_DEVBUF, M_NOWAIT);
-		*hose = i;
 		child = device_add_child(dev, "pcib", i);
-		device_set_ivars(child, hose);
 		pchip_init(pchip[i], i);		
 	}
 
 	return 0;
 }
-
-	
 
 static int
 tsunami_attach(device_t dev)

@@ -52,6 +52,9 @@
 #include <alpha/pci/pcibus.h>
 #include <pci/pcivar.h>
 
+#include "alphapci_if.h"
+#include "pcib_if.h"
+
 static devclass_t	mcpcia_devclass;
 
 /* We're only allowing for one MCBUS right now */
@@ -67,41 +70,17 @@ struct mcpcia_softc {
 	vm_offset_t	smem_base;	/* sparse memory */
 	vm_offset_t	io_base;	/* sparse i/o */
 	int		mcpcia_inst;	/* our mcpcia instance # */
+	struct swiz_space io_space;	/* accessor for ports */
+	struct swiz_space mem_space;  /* accessor for memory */
+	struct rman	io_rman;	/* resource manager for ports */
+	struct rman	mem_rman;	/* resource manager for memory */
 };
 static struct mcpcia_softc *mcpcia_eisa = NULL;
 extern void dec_kn300_cons_init(void);
 
-
-static int mcpcia_probe(device_t dev);
-static int mcpcia_attach(device_t dev);
-
-static int mcpcia_setup_intr(device_t, device_t, struct resource *, int,
-    driver_intr_t *, void *, void **);
-static int
-mcpcia_teardown_intr(device_t, device_t, struct resource *, void *);
 static driver_intr_t mcpcia_intr;
 static void mcpcia_enable_intr(struct mcpcia_softc *, int);
 static void mcpcia_disable_intr(struct mcpcia_softc *, int);
-
-
-static device_method_t mcpcia_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,			mcpcia_probe),
-	DEVMETHOD(device_attach,		mcpcia_attach),
-
-	/* Bus interface */
-	DEVMETHOD(bus_setup_intr,		mcpcia_setup_intr),
-	DEVMETHOD(bus_teardown_intr,		mcpcia_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,		pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,		pci_release_resource),
-	DEVMETHOD(bus_activate_resource,	pci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	pci_deactivate_resource),
-
-	{ 0, 0 }
-};
-static driver_t mcpcia_driver = {
-	"mcpcia", mcpcia_methods, sizeof (struct mcpcia_softc)
-};
 
 /*
  * SGMAP window for ISA: 8M at 8M
@@ -129,353 +108,11 @@ do {									\
 } while (0)
 
 static void mcpcia_dma_init(struct mcpcia_softc *);
-static void mcpcia_sgmap_map(void *, vm_offset_t, vm_offset_t);
+static void mcpcia_sgmap_map(void *, bus_addr_t, vm_offset_t);
 
 #define MCPCIA_SOFTC(dev)	(struct mcpcia_softc *) device_get_softc(dev)
 
 static struct mcpcia_softc *mcpcia_root;
-
-static alpha_chipset_inb_t	mcpcia_inb;
-static alpha_chipset_inw_t	mcpcia_inw;
-static alpha_chipset_inl_t	mcpcia_inl;
-static alpha_chipset_outb_t	mcpcia_outb;
-static alpha_chipset_outw_t	mcpcia_outw;
-static alpha_chipset_outl_t	mcpcia_outl;
-static alpha_chipset_readb_t	mcpcia_readb;
-static alpha_chipset_readw_t	mcpcia_readw;
-static alpha_chipset_readl_t	mcpcia_readl;
-static alpha_chipset_writeb_t	mcpcia_writeb;
-static alpha_chipset_writew_t	mcpcia_writew;
-static alpha_chipset_writel_t	mcpcia_writel;
-static alpha_chipset_maxdevs_t	mcpcia_maxdevs;
-static alpha_chipset_cfgreadb_t	mcpcia_cfgreadb;
-static alpha_chipset_cfgreadw_t	mcpcia_cfgreadw;
-static alpha_chipset_cfgreadl_t	mcpcia_cfgreadl;
-static alpha_chipset_cfgwriteb_t mcpcia_cfgwriteb;
-static alpha_chipset_cfgwritew_t mcpcia_cfgwritew;
-static alpha_chipset_cfgwritel_t mcpcia_cfgwritel;
-
-static alpha_chipset_t mcpcia_chipset = {
-	mcpcia_inb,
-	mcpcia_inw,
-	mcpcia_inl,
-	mcpcia_outb,
-	mcpcia_outw,
-	mcpcia_outl,
-	mcpcia_readb,
-	mcpcia_readw,
-	mcpcia_readl,
-	mcpcia_writeb,
-	mcpcia_writew,
-	mcpcia_writel,
-	mcpcia_maxdevs,
-	mcpcia_cfgreadb,
-	mcpcia_cfgreadw,
-	mcpcia_cfgreadl,
-	mcpcia_cfgwriteb,
-	mcpcia_cfgwritew,
-	mcpcia_cfgwritel,
-};
-
-#define	MCPCIA_NMBR(port)	((port >> 30) & 0x3)
-#define	MCPCIA_INST(port)	mcpcias[MCPCIA_NMBR(port)]
-#define	MCPCIA_ADDR(port)	(port & 0x3fffffff)
-
-static u_int8_t
-mcpcia_inb(u_int32_t port)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(port));
-	if (port < (1 << 16)) {
-		if (mcpcia_eisa == NULL) {
-			return (0xff);
-		}
-		return SPARSE_READ_BYTE(mcpcia_eisa->io_base, port);
-	}
-	return SPARSE_READ_BYTE(sc->io_base, MCPCIA_ADDR(port));
-}
-
-static u_int16_t
-mcpcia_inw(u_int32_t port)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(port));
-	if (port < (1 << 16)) {
-		if (mcpcia_eisa == NULL) {
-			return (0xffff);
-		}
-		return SPARSE_READ_WORD(mcpcia_eisa->io_base, port);
-	}
-	return SPARSE_READ_WORD(sc->io_base, MCPCIA_ADDR(port));
-}
-
-static u_int32_t
-mcpcia_inl(u_int32_t port)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(port));
-	return SPARSE_READ_LONG(sc->io_base, MCPCIA_ADDR(port));
-}
-
-static void
-mcpcia_outb(u_int32_t port, u_int8_t data)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(port));
-	if (port < (1 << 16)) {
-		if (mcpcia_eisa)
-			SPARSE_WRITE_BYTE(mcpcia_eisa->io_base, port, data);
-	} else {
-		SPARSE_WRITE_BYTE(sc->io_base, MCPCIA_ADDR(port), data);
-	}
-	alpha_mb();
-}
-
-static void
-mcpcia_outw(u_int32_t port, u_int16_t data)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(port));
-	if (port < (1 << 16)) {
-		if (mcpcia_eisa)
-			SPARSE_WRITE_WORD(mcpcia_eisa->io_base, port, data);
-	} else {
-		SPARSE_WRITE_WORD(sc->io_base, MCPCIA_ADDR(port), data);
-	}
-	alpha_mb();
-}
-
-static void
-mcpcia_outl(u_int32_t port, u_int32_t data)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(port));
-	SPARSE_WRITE_LONG(sc->io_base, MCPCIA_ADDR(port), data);
-	alpha_mb();
-}
-
-static u_int8_t
-mcpcia_readb(u_int32_t pa)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(pa));
-	if (pa < (8 << 20)) {
-		if (mcpcia_eisa == NULL) {
-			return (0xff);
-		}
-		return SPARSE_READ_BYTE(mcpcia_eisa->smem_base, pa);
-	}
-	return SPARSE_READ_BYTE(sc->smem_base, MCPCIA_ADDR(pa));
-}
-
-static u_int16_t
-mcpcia_readw(u_int32_t pa)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(pa));
-	if (pa < (8 << 20)) {
-		if (mcpcia_eisa == NULL) {
-			return (0xffff);
-		}
-		return SPARSE_READ_WORD(mcpcia_eisa->smem_base, pa);
-	}
-	return SPARSE_READ_WORD(sc->smem_base, MCPCIA_ADDR(pa));
-}
-
-static u_int32_t
-mcpcia_readl(u_int32_t pa)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(pa));
-	return SPARSE_READ_LONG(sc->smem_base, MCPCIA_ADDR(pa));
-}
-
-static void
-mcpcia_writeb(u_int32_t pa, u_int8_t data)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(pa));
-	if (pa < (8 << 20)) {
-		if (mcpcia_eisa)
-			SPARSE_WRITE_BYTE(mcpcia_eisa->smem_base, pa, data);
-	} else {
-		SPARSE_WRITE_BYTE(sc->smem_base, MCPCIA_ADDR(pa), data);
-	}
-	alpha_mb();
-}
-
-static void
-mcpcia_writew(u_int32_t pa, u_int16_t data)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(pa));
-	if (pa < (8 << 20)) {
-		if (mcpcia_eisa)
-			SPARSE_WRITE_WORD(mcpcia_eisa->smem_base, pa, data);
-	} else {
-		SPARSE_WRITE_WORD(sc->smem_base, MCPCIA_ADDR(pa), data);
-	}
-	alpha_mb();
-}
-
-static void
-mcpcia_writel(u_int32_t pa, u_int32_t data)
-{
-	struct mcpcia_softc *sc = MCPCIA_SOFTC(MCPCIA_INST(pa));
-	SPARSE_WRITE_LONG(sc->smem_base, MCPCIA_ADDR(pa), data);
-	alpha_mb();
-}
-
-static int
-mcpcia_maxdevs(u_int b)
-{
-	return (MCPCIA_MAXDEV);
-}
-
-static u_int32_t mcpcia_cfgread(u_int, u_int, u_int, u_int, u_int, int);
-static void mcpcia_cfgwrite(u_int, u_int, u_int, u_int, u_int, int, u_int32_t);
-
-#if	0
-#define	RCFGP	printf
-#else
-#define	RCFGP	if (0) printf
-#endif
-
-static u_int32_t
-mcpcia_cfgread(u_int bh, u_int bus, u_int slot, u_int func, u_int off, int sz)
-{
-	device_t dev;
-	struct mcpcia_softc *sc;
-	u_int32_t *dp, data, rvp;
-	u_int64_t paddr;
-
-	RCFGP("CFGREAD %u.%u.%u.%u.%u.%d", bh, bus, slot, func, off, sz);
-	rvp = data = ~0;
-	if (bh == (u_int8_t)-1)
-		bh = bus >> 4;
-	dev = mcpcias[bh];
-	if (dev == (device_t) 0) {
-		RCFGP(" (no dev)\n");
-		return (data);
-	}
-	sc = MCPCIA_SOFTC(dev);
-	bus &= 0xf;
-
-	/*
-	 * There's nothing in slot 0 on a primary bus.
-	 */
-	if (bus == 0 && (slot < 1 || slot >= MCPCIA_MAXDEV)) {
-		RCFGP(" (no slot)\n");
-		return (data);
-	}
-
-	paddr = bus << 21;
-	paddr |= slot << 16;
-	paddr |= func << 13;
-	paddr |= ((sz - 1) << 3);
-	paddr |= ((unsigned long) ((off >> 2) << 7));
-	paddr |= MCPCIA_PCI_CONF;
-	paddr |= sc->sysbase;
-	dp = (u_int32_t *)KV(paddr);
-	RCFGP(" hose %d MID%d paddr 0x%lx", bh, mcbus_get_mid(dev), paddr);
-	if (badaddr(dp, sizeof (*dp)) == 0) {
-		data = *dp;
-	}
-	if (data != ~0) {
-		if (sz == 1) {
-			rvp = SPARSE_BYTE_EXTRACT(off, data);
-		} else if (sz == 2) {
-			rvp = SPARSE_WORD_EXTRACT(off, data);
-		} else {
-			rvp = data;
-		}
-	} else {
-		rvp = data;
-	}
-	RCFGP(" data %x->0x%x\n", data, rvp);
-	return (rvp);
-}
-
-#if	0
-#define	WCFGP	printf
-#else
-#define	WCFGP	if (0) printf
-#endif
-
-static void
-mcpcia_cfgwrite(u_int bh, u_int bus, u_int slot, u_int func, u_int off,
-	int sz, u_int32_t data)
-{
-	device_t dev;
-	struct mcpcia_softc *sc;
-	u_int32_t *dp;
-	u_int64_t paddr;
-
-	WCFGP("CFGWRITE %u.%u.%u.%u.%u.%d", bh, bus, slot, func, off, sz);
-	if (bh == (u_int8_t)-1)
-		bh = bus >> 4;
-	dev = mcpcias[bh];
-	if (dev == (device_t) 0) {
-		WCFGP(" (no dev)\n");
-		return;
-	}
-	sc = MCPCIA_SOFTC(dev);
-	bus &= 0xf;
-
-	/*
-	 * There's nothing in slot 0 on a primary bus.
-	 */
-	if (bus == 0 && (slot < 1 || slot >= MCPCIA_MAXDEV)) {
-		WCFGP(" (no slot)\n");
-		return;
-	}
-
-	paddr = bus << 21;
-	paddr |= slot << 16;
-	paddr |= func << 13;
-	paddr |= ((sz - 1) << 3);
-	paddr |= ((unsigned long) ((off >> 2) << 7));
-	paddr |= MCPCIA_PCI_CONF;
-	paddr |= sc->sysbase;
-	dp = (u_int32_t *)KV(paddr);
-	WCFGP(" hose %d MID%d paddr 0x%lx\n", bh, mcbus_get_mid(dev), paddr);
-	if (badaddr(dp, sizeof (*dp)) == 0) {
-		u_int32_t new_data;
-		if (sz == 1) {
-			new_data = SPARSE_BYTE_INSERT(off, data);
-		} else if (sz == 2) {
-			new_data = SPARSE_WORD_INSERT(off, data);
-		} else  {
-			new_data = data;
-		}
-		*dp = new_data;
-	}
-}
-
-static u_int8_t
-mcpcia_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	return (u_int8_t) mcpcia_cfgread(h, b, s, f, r, 1);
-}
-
-static u_int16_t
-mcpcia_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	return (u_int16_t) mcpcia_cfgread(h, b, s, f, r, 2);
-}
-
-static u_int32_t
-mcpcia_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
-{
-	return mcpcia_cfgread(h, b, s, f, r, 4);
-}
-
-static void
-mcpcia_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
-{
-	mcpcia_cfgwrite(h, b, s, f, r, 1, (u_int32_t) data);
-}
-
-static void
-mcpcia_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
-{
-	mcpcia_cfgwrite(h, b, s, f, r, 2, (u_int32_t) data);
-}
-
-static void
-mcpcia_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
-{
-	mcpcia_cfgwrite(h, b, s, f, r, 4, (u_int32_t) data);
-}
 
 static int
 mcpcia_probe(device_t dev)
@@ -503,7 +140,7 @@ mcpcia_probe(device_t dev)
 	if (unit == 0) {
 		pci_init_resources();
 	}
-	child = device_add_child(dev, "pcib", unit);
+	child = device_add_child(dev, "pci", -1);
 	device_set_ivars(child, &sc->mcpcia_inst);
 	return (0);
 }
@@ -518,7 +155,6 @@ mcpcia_attach(device_t dev)
 	int mid, gid, rval;
 	void *intr;
 
-	chipset = mcpcia_chipset;
 	mid = mcbus_get_mid(dev);
 	gid = mcbus_get_gid(dev);
 
@@ -530,6 +166,25 @@ mcpcia_attach(device_t dev)
 	sc->smem_base	= regs + MCPCIA_PCI_SPARSE;
 	sc->io_base	= regs + MCPCIA_PCI_IOSPACE;
 
+	swiz_init_space(&sc->io_space, sc->io_base);
+	swiz_init_space(&sc->mem_space, sc->smem_base);
+
+	sc->io_rman.rm_start = 0;
+	sc->io_rman.rm_end = ~0u;
+	sc->io_rman.rm_type = RMAN_ARRAY;
+	sc->io_rman.rm_descr = "I/O ports";
+	if (rman_init(&sc->io_rman)
+	    || rman_manage_region(&sc->io_rman, 0x0, (1L << 32)))
+		panic("mcpcia_attach: io_rman");
+
+	sc->mem_rman.rm_start = 0;
+	sc->mem_rman.rm_end = ~0u;
+	sc->mem_rman.rm_type = RMAN_ARRAY;
+	sc->mem_rman.rm_descr = "I/O memory";
+	if (rman_init(&sc->mem_rman)
+	    || rman_manage_region(&sc->mem_rman, 0x0, (1L << 32)))
+		panic("mcpcia_attach: mem_rman");
+
 	/*
  	 * Disable interrupts and clear errors prior to probing
 	 */
@@ -537,7 +192,6 @@ mcpcia_attach(device_t dev)
 	REGVAL(MCPCIA_INT_MASK1(sc)) = 0;
 	REGVAL(MCPCIA_CAP_ERR(sc)) = 0xFFFFFFFF;
 	alpha_mb();
-
 
 	/*
 	 * Say who we are
@@ -569,7 +223,12 @@ mcpcia_attach(device_t dev)
 	    BUS_SETUP_INTR(p, dev, NULL, INTR_TYPE_MISC, mcpcia_intr, 0, &intr);
 	if (rval == 0) {
 		if (sc == mcpcia_eisa) {
+			busspace_isa_io = (struct alpha_busspace *)
+				&sc->io_space;
+			busspace_isa_mem = (struct alpha_busspace *)
+				&sc->mem_space;
 			printf("Attaching Real Console\n");
+			mcpcia_enable_intr(sc, 16);
 			dec_kn300_cons_init();
 			/*
 			 * Enable EISA interrupts.
@@ -681,8 +340,159 @@ mcpcia_teardown_intr(device_t dev, device_t child, struct resource *i, void *c)
 	return (rman_deactivate_resource(i));
 }
 
+static int
+mcpcia_read_ivar(device_t dev, device_t child, int which, u_long *result)
+{
+	switch (which) {
+	case  PCIB_IVAR_BUS:
+		*result = 0;
+		return 0;
+	}
+	return ENOENT;
+}
+
+static void *
+mcpcia_cvt_dense(device_t dev, vm_offset_t addr)
+{
+	struct mcpcia_softc *sc = MCPCIA_SOFTC(dev);
+
+	addr &= 0xffffffffUL;
+	return (void *) KV(addr | sc->dmem_base);
+	
+}
+
+static struct alpha_busspace *
+mcpcia_get_bustag(device_t dev, int type)
+{
+	struct mcpcia_softc *sc = MCPCIA_SOFTC(dev);
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return (struct alpha_busspace *) &sc->io_space;
+
+	case SYS_RES_MEMORY:
+		return (struct alpha_busspace *) &sc->mem_space;
+	}
+
+	return 0;
+}
+
+static struct rman *
+mcpcia_get_rman(device_t dev, int type)
+{
+	struct mcpcia_softc *sc = MCPCIA_SOFTC(dev);
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		return &sc->io_rman;
+
+	case SYS_RES_MEMORY:
+		return &sc->mem_rman;
+	}
+
+	return 0;
+}
+
+static int
+mcpcia_maxslots(device_t dev)
+{
+	return (MCPCIA_MAXDEV);
+}
+
+static u_int32_t
+mcpcia_read_config(device_t dev, int bus, int slot, int func,
+		   int off, int sz)
+{
+	struct mcpcia_softc *sc = MCPCIA_SOFTC(dev);
+	u_int32_t *dp, data, rvp;
+	u_int64_t paddr;
+
+	rvp = data = ~0;
+
+	/*
+	 * There's nothing in slot 0 on a primary bus.
+	 */
+	if (bus == 0 && (slot < 1 || slot >= MCPCIA_MAXDEV))
+		return (data);
+
+	paddr = bus << 21;
+	paddr |= slot << 16;
+	paddr |= func << 13;
+	paddr |= ((sz - 1) << 3);
+	paddr |= ((unsigned long) ((off >> 2) << 7));
+	paddr |= MCPCIA_PCI_CONF;
+	paddr |= sc->sysbase;
+	dp = (u_int32_t *)KV(paddr);
+
+#if	0
+printf("CFGREAD MID %d %d.%d.%d sz %d off %d -> paddr 0x%x",
+mcbus_get_mid(dev), bus , slot, func, sz, off, paddr);
+#endif
+	if (badaddr(dp, sizeof (*dp)) == 0) {
+		data = *dp;
+	}
+	if (data != ~0) {
+		if (sz == 1) {
+			rvp = SPARSE_BYTE_EXTRACT(off, data);
+		} else if (sz == 2) {
+			rvp = SPARSE_WORD_EXTRACT(off, data);
+		} else {
+			rvp = data;
+		}
+	} else {
+		rvp = data;
+	}
+
+#if	0
+printf(" data 0x%x -> 0x%x\n", data, rvp);
+#endif
+	return (rvp);
+}
+
 static void
-mcpcia_sgmap_map(void *arg, vm_offset_t ba, vm_offset_t pa)
+mcpcia_write_config(device_t dev, int bus, int slot, int func,
+		    int off, u_int32_t data, int sz)
+{
+	struct mcpcia_softc *sc = MCPCIA_SOFTC(dev);
+	u_int32_t *dp;
+	u_int64_t paddr;
+
+	/*
+	 * There's nothing in slot 0 on a primary bus.
+	 */
+	if (bus != 0 && (slot < 1 || slot >= MCPCIA_MAXDEV))
+		return;
+
+	paddr = bus << 21;
+	paddr |= slot << 16;
+	paddr |= func << 13;
+	paddr |= ((sz - 1) << 3);
+	paddr |= ((unsigned long) ((off >> 2) << 7));
+	paddr |= MCPCIA_PCI_CONF;
+	paddr |= sc->sysbase;
+	dp = (u_int32_t *)KV(paddr);
+
+	if (badaddr(dp, sizeof (*dp)) == 0) {
+		u_int32_t new_data;
+		if (sz == 1) {
+			new_data = SPARSE_BYTE_INSERT(off, data);
+		} else if (sz == 2) {
+			new_data = SPARSE_WORD_INSERT(off, data);
+		} else  {
+			new_data = data;
+		}
+
+#if	0
+printf("CFGWRITE MID%d %d.%d.%d sz %d off %d paddr %lx, data %x new_data %x\n",
+mcbus_get_mid(dev), bus , slot, func, sz, off, paddr, data, new_data);
+#endif
+
+		*dp = new_data;
+	}
+}
+
+static void
+mcpcia_sgmap_map(void *arg, bus_addr_t ba, vm_offset_t pa)
 {
 	u_int64_t *sgtable = arg;
 	int index = alpha_btop(ba - MCPCIA_ISA_SG_MAPPED_BASE);
@@ -807,4 +617,37 @@ mcpcia_intr(void *arg)
 
 	alpha_dispatch_intr(NULL, vec);
 }
-DRIVER_MODULE(mcpcia, mcbus, mcpcia_driver, mcpcia_devclass, 0, 0);
+
+static device_method_t mcpcia_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,			mcpcia_probe),
+	DEVMETHOD(device_attach,		mcpcia_attach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,		bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,		mcpcia_read_ivar),
+	DEVMETHOD(bus_setup_intr,		mcpcia_setup_intr),
+	DEVMETHOD(bus_teardown_intr,		mcpcia_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,		pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,		pci_release_resource),
+	DEVMETHOD(bus_activate_resource,	pci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	pci_deactivate_resource),
+
+	/* alphapci interface */
+	DEVMETHOD(alphapci_cvt_dense,		mcpcia_cvt_dense),
+	DEVMETHOD(alphapci_get_bustag,		mcpcia_get_bustag),
+	DEVMETHOD(alphapci_get_rman,		mcpcia_get_rman),
+
+	/* pcib interface */
+	DEVMETHOD(pcib_maxslots,		mcpcia_maxslots),
+	DEVMETHOD(pcib_read_config,		mcpcia_read_config),
+	DEVMETHOD(pcib_write_config,		mcpcia_write_config),
+
+	{ 0, 0 }
+};
+
+static driver_t mcpcia_driver = {
+	"pcib", mcpcia_methods, sizeof (struct mcpcia_softc)
+};
+
+DRIVER_MODULE(pcib, mcbus, mcpcia_driver, mcpcia_devclass, 0, 0);
