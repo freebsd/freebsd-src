@@ -1989,10 +1989,8 @@ r_statetrans(mousestatus_t *a1, mousestatus_t *a2, int trans)
 			mouse_button_state =
 			    states[mouse_button_state].s[A_TIMEOUT];
 			changed = TRUE;
-		} else {
+		} else
 			a2->dx = a2->dy = 0;
-			mouse_move_delayed++;
-		}
 	} else
 		mouse_move_delayed = 0;
 	if (mouse_button_state != states[mouse_button_state].s[trans])
