@@ -41,6 +41,7 @@ fi
 
 # setup the output directory
 output_dir=$2
+echo ">>> preparing output directory: ${output_dir}"
 case $output_dir in
 	/*)
 		;;
@@ -68,6 +69,7 @@ fi
 
 # setup the work directory
 work_dir=$1
+echo ">>> preparing work directory: ${work_dir}"
 if [ -r ${work_dir} ]; then
 	if ! rm -rf ${work_dir}; then
 		echo "Could not remove ${work_dir}!"
@@ -97,6 +99,7 @@ if ! mkdir ${work_dir}/ports; then
 fi
 
 # check out the XFree86 and XFree86-contrib ports and set them up
+echo ">>> checking out ports"
 if ! ( cd ${work_dir}/ports && \
     cvs -R -d ${CVSROOT} co -P XFree86 XFree86-contrib ); then
 	echo "Could not checkout the XFree86 port!"
@@ -104,6 +107,7 @@ if ! ( cd ${work_dir}/ports && \
 	usage
 fi
 if [ -r  XF86.patch ]; then
+	echo ">>> patching ports"
 	if ! patch -d ${work_dir}/ports/XFree86 < XF86.patch; then
 		echo "Could not patch the XFree86 port!"
 		echo
@@ -112,6 +116,7 @@ if [ -r  XF86.patch ]; then
 fi
 
 # actually build X
+echo ">>> building X"
 if ! ( cd ${work_dir}/ports/XFree86 && \
     make BUILD_XDIST=yes DISTDIR=/usr/ports/distfiles \
     DESTDIR=${work_dir}/base NO_PKG_REGISTER=yes all install ); then
@@ -128,6 +133,7 @@ if ! ( cd ${work_dir}/ports/XFree86-contrib && \
 fi
 
 # now package up the bindists
+echo ">>> building bindist"
 bindist_dir=${work_dir}/ports/XFree86/work/xc/programs/Xserver/hw/xfree86/etc/bindist
 if ! cp ${bindist_dir}/FreeBSD-ELF/* ${work_dir}/dist; then
 	echo "Could not copy over distribution lists!"
