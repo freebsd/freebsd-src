@@ -26,10 +26,7 @@
  * $FreeBSD$
  */
 
-#include "atkbdc.h"
 #include "opt_kbd.h"
-
-#if NATKBDC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -265,5 +262,3 @@ atkbdc_write_ivar(device_t bus, device_t dev, int index, u_long val)
 }
 
 DRIVER_MODULE(atkbdc, isa, atkbdc_driver, atkbdc_devclass, 0, 0);
-
-#endif /* NATKBDC > 0 */

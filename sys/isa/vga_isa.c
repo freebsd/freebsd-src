@@ -26,12 +26,9 @@
  * $FreeBSD$
  */
 
-#include "vga.h"
 #include "opt_vga.h"
 #include "opt_fb.h"
 #include "opt_syscons.h"	/* should be removed in the future, XXX */
-
-#if NVGA > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -219,5 +216,3 @@ isavga_mmap(dev_t dev, vm_offset_t offset, int prot)
 }
 
 #endif /* FB_INSTALL_CDEV */
-
-#endif /* NVGA > 0 */

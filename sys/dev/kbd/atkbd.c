@@ -26,11 +26,8 @@
  * $FreeBSD$
  */
 
-#include "atkbd.h"
 #include "opt_kbd.h"
 #include "opt_atkbd.h"
-
-#if NATKBD > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1393,5 +1390,3 @@ typematic(int delay, int rate)
 	value |= i;
 	return value;
 }
-
-#endif /* NATKBD > 0 */
