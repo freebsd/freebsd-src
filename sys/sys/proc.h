@@ -369,7 +369,7 @@ struct kse {
 		KES_IDLE = 0x10,
 		KES_ONRUNQ,
 		KES_UNQUEUED, /* in transit */
-		KES_RUNNING
+		KES_THREAD	/* slaved to thread state */
 	} ke_state;     /* (j) S* process status. */
 	void 		*ke_mailbox;	/* the userland mailbox address */
 	struct thread	*ke_tdspare;	/* spare thread for upcalls */

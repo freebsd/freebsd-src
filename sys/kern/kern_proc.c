@@ -212,10 +212,8 @@ kse_link(struct kse *ke, struct ksegrp *kg)
 {
 	struct proc *p = kg->kg_proc;
 
-KASSERT((ke->ke_state != KES_ONRUNQ), ("linking suspect kse on run queue"));
 	TAILQ_INSERT_HEAD(&kg->kg_kseq, ke, ke_kglist);
 	kg->kg_kses++;
-KASSERT((ke->ke_state != KES_IDLE), ("already on idle queue"));
 	ke->ke_state = KES_IDLE;
 	TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
 	kg->kg_idle_kses++;
