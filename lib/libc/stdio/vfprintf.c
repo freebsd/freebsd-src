@@ -264,7 +264,7 @@ __uqtoa(val, endp, base, octzero, xdigs)
 #define	BUF		(MAXEXP+MAXFRACT+1)	/* + decimal point */
 #define	DEFPREC		6
 
-static char *cvt __P((double, int, int, char *, int *, int, int *));
+static char *cvt __P((double, int, int, char *, int *, int, int *, char **));
 static int exponent __P((char *, int, int));
 
 #else /* no FLOATING_POINT */
@@ -310,6 +310,7 @@ vfprintf(fp, fmt0, ap)
 	int expsize;		/* character count for expstr */
 	int ndig;		/* actual number of digits returned by cvt */
 	char expstr[7];		/* buffer for exponent string */
+	char *dtoaresult;	/* buffer allocated by dtoa */
 #endif
 	u_long	ulval;		/* integer arguments %[diouxX] */
 	u_quad_t uqval;		/* %q integers */
@@ -418,6 +419,9 @@ vfprintf(fp, fmt0, ap)
         }
         
 
+#ifdef FLOATING_POINT
+	dtoaresult = NULL;
+#endif
 	FLOCKFILE(fp);
 	/* sorry, fprintf(read_only_file, "") returns EOF, not 0 */
 	if (cantwrite(fp)) {
@@ -608,8 +612,12 @@ fp_begin:		if (prec == -1)
 				break;
 			}
 			flags |= FPT;
+			if (dtoaresult != NULL) {
+				free(dtoaresult);
+				dtoaresult = NULL;
+			}
 			cp = cvt(_double, prec, flags, &softsign,
-				&expt, ch, &ndig);
+				&expt, ch, &ndig, &dtoaresult);
 			if (ch == 'g' || ch == 'G') {
 				if (expt <= -4 || expt > prec)
 					ch = (ch == 'g') ? 'e' : 'E';
@@ -865,6 +873,10 @@ number:			if ((dprec = prec) >= 0)
 done:
 	FLUSH();
 error:
+#ifdef FLOATING_POINT
+	if (dtoaresult != NULL)
+		free(dtoaresult);
+#endif
 	if (__sferror(fp))
 		ret = EOF;
 	FUNLOCKFILE(fp);
@@ -1203,13 +1215,14 @@ __grow_type_table (nextarg, typetable, tablesize)
 
 #ifdef FLOATING_POINT
 
-extern char *__dtoa __P((double, int, int, int *, int *, char **));
+extern char *__dtoa __P((double, int, int, int *, int *, char **, char **));
 
 static char *
-cvt(value, ndigits, flags, sign, decpt, ch, length)
+cvt(value, ndigits, flags, sign, decpt, ch, length, dtoaresultp)
 	double value;
 	int ndigits, flags, *decpt, ch, *length;
 	char *sign;
+	char **dtoaresultp;
 {
 	int mode, dsgn;
 	char *digits, *bp, *rve;
@@ -1231,7 +1244,8 @@ cvt(value, ndigits, flags, sign, decpt, ch, length)
 		*sign = '-';
 	} else
 		*sign = '\000';
-	digits = __dtoa(value, mode, ndigits, decpt, &dsgn, &rve);
+	digits = __dtoa(value, mode, ndigits, decpt, &dsgn, &rve,
+			dtoaresultp);
 	if ((ch != 'g' && ch != 'G') || flags & ALT) {
 		/* print trailing zeros */
 		bp = digits + ndigits;
