@@ -427,6 +427,9 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	}
 #ifdef INET6
 	if (isipv6) {
+		ip6->ip6_flow = 0;
+		ip6->ip6_vfc = IPV6_VERSION;
+		ip6->ip6_nxt = IPPROTO_TCP;
 		ip6->ip6_plen = htons((u_short)(sizeof (struct tcphdr) +
 						tlen));
 		tlen += sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
