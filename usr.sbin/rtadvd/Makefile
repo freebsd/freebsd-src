@@ -20,7 +20,4 @@ SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c dump.c
 
 CFLAGS+= -DINET6 -DHAVE_ARC4RANDOM -DHAVE_POLL_H -DROUTEINFO
 
-DPADD=	${LIBCOMPAT}
-LDADD=	-lcompat
-
 .include <bsd.prog.mk>
