@@ -3,7 +3,7 @@
 
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.17 2004/10/11 06:16:43 den Exp $
 
-     Original revision: 1.761.2.36
+     Original revision: 1.761.2.37
 -->
 
 <articleinfo>
@@ -534,6 +534,9 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 
   <sect2 id="contrib">
     <title>Стороннее программное обеспечение</title>
+
+    <para><application>BIND</application> был обновлен с версии
+      9.3.0 до версии 9.3.1.</para>
 
     <para><application>Heimdal</application> был обновлен с
       0.6.1 до 0.6.3.</para>
