@@ -275,14 +275,16 @@ the F=S flag is set on the Mlocal line.  Those with .mc files who need to
 add the flag can do so by adding the following line to their your .mc file
 and regenerating the sendmail.cf file:
     MODIFY_MAILER_FLAGS(`LOCAL', `+S')dnl
-Note that FEATURE(`local_lmtp') already does this.
+Note that FEATURE(`local_lmtp') already does this. [MERGED]
 
-The default /etc/mail/sendmail.cf disables the SMTP EXPN and VRFY commands.
+The default /etc/mail/sendmail.cf disables the SMTP EXPN and VRFY
+commands. [MERGED]
 
-vacation(1) has been updated to use the version included with sendmail.
+vacation(1) has been updated to use the version included with
+sendmail. [MERGED]
 
 The sendmail(8) configuration building tools are installed in
-/usr/share/sendmail/cf/.
+/usr/share/sendmail/cf/. [MERGED]
 
 awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
 of non-critical bugs and includes a few performance tweaks.
