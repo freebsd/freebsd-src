@@ -68,6 +68,23 @@ mfmsr(void)
 }
 
 static __inline void
+mtsrin(vm_offset_t va, register_t value)
+{
+
+	__asm __volatile ("mtsrin %0,%1" :: "r"(value), "r"(va));
+}
+
+static __inline register_t
+mfsrin(vm_offset_t va)
+{
+	register_t	value;
+
+	__asm __volatile ("mfsrin %0,%1" : "=r"(value) : "r"(va));
+
+	return (value);
+}
+
+static __inline void
 mtdec(register_t value)
 {
 
