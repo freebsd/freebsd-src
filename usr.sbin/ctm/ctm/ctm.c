@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.c,v 1.13 1996/04/29 21:02:28 phk Exp $
+ * $Id: ctm.c,v 1.14 1996/08/30 10:20:52 phk Exp $
  *
  * This is the client program of 'CTM'.  It will apply a CTM-patch to a
  * collection of files.
@@ -50,8 +50,6 @@ main(int argc, char **argv)
 {
     int stat=0, err=0;
     int c;
-    extern int optopt,optind;
-    extern char * optarg;
     unsigned applied = 0;
     FILE *statfile;
     struct CTM_Filter *nfilter = NULL;	/* new filter */
@@ -90,10 +88,8 @@ main(int argc, char **argv)
 	    case 'e':				/* filter expressions */
 	    case 'x':
 		if (NULL == (nfilter =  Malloc(sizeof(struct CTM_Filter)))) {
-			fprintf(stderr, 
-				"Out of memory for expressions: \"%s\"\n",
-			  	optarg);
-			 stat++;
+			warnx("out of memory for expressions: \"%s\"", optarg);
+			stat++;
 			break;
 		}
 
@@ -106,7 +102,7 @@ main(int argc, char **argv)
 
 			regerror(err, &nfilter->CompiledRegex, errmsg, 
 				sizeof(errmsg));
-			fprintf(stderr, "Regular expression: \"%s\"\n", errmsg);
+			warnx("regular expression: \"%s\"", errmsg);
 			stat++;
 			break;
 		}
@@ -125,21 +121,21 @@ main(int argc, char **argv)
 		}
 		break;
 	    case ':':
-		fprintf(stderr,"Option '%c' requires an argument.\n",optopt);
+		warnx("option '%c' requires an argument",optopt);
 		stat++;
 		break;
 	    case '?':
-		fprintf(stderr,"Option '%c' not supported.\n",optopt);
+		warnx("option '%c' not supported",optopt);
 		stat++;
 		break;
 	    default:
-		fprintf(stderr,"Option '%c' not yet implemented.\n",optopt);
+		warnx("option '%c' not yet implemented",optopt);
 		break;
 	}
     }
 
     if(stat) {
-	fprintf(stderr,"%d errors during option processing\n",stat);
+	warnx("%d errors during option processing",stat);
 	return Exit_Pilot;
     }
     stat = Exit_Done;
@@ -166,7 +162,7 @@ main(int argc, char **argv)
     else
 	if((statfile = fopen(Buffer, "r")) == NULL) {
 	    if (Verbose > 0)
-	    	fprintf(stderr, "Warning: %s not found.\n", Buffer);
+	    	warnx("warning: %s not found", Buffer);
 	} else {
 	    fscanf(statfile, "%*s %u", &applied);
 	    fclose(statfile);
@@ -184,7 +180,7 @@ main(int argc, char **argv)
 	stat = Exit_OK;
 
     if(Verbose > 0)
-	fprintf(stderr,"Exit(%d)\n",stat);
+	warnx("exit(%d)",stat);
 
     if (FilterList)
 	for (nfilter = FilterList; nfilter; ) {
@@ -210,13 +206,13 @@ Proc(char *filename, unsigned applied)
 	strcpy(p,"gunzip < ");
 	strcat(p,filename);
 	f = popen(p,"r");
-	if(!f) { perror(p); return Exit_Garbage; }
+	if(!f) { warn("%s", p); return Exit_Garbage; }
     } else {
 	p = 0;
 	f = fopen(filename,"r");
     }
     if(!f) {
-	perror(filename);
+	warn("%s", filename);
 	return Exit_Garbage;
     }
 
@@ -233,7 +229,7 @@ Proc(char *filename, unsigned applied)
 	int i;
 
 	if(!f2) {
-	    perror(fn);
+	    warn("%s", fn);
 	    fclose(f);
 	    return Exit_Broke;
 	}
@@ -265,7 +261,7 @@ Proc(char *filename, unsigned applied)
     } else {
 	pclose(f);
 	f = popen(p,"r");
-	if(!f) { perror(p); return Exit_Broke; }
+	if(!f) { warn("%s", p); return Exit_Broke; }
     }
 
     i=Pass2(f);
@@ -275,7 +271,7 @@ Proc(char *filename, unsigned applied)
     } else {
 	pclose(f);
 	f = popen(p,"r");
-	if(!f) { perror(p); return Exit_Broke; }
+	if(!f) { warn("%s", p); return Exit_Broke; }
     }
 
     if(i) {
@@ -300,7 +296,7 @@ Proc(char *filename, unsigned applied)
 	} else {
 	    pclose(f);
 	    f = popen(p,"r");
-	    if(!f) { perror(p); return Exit_Broke; }
+	    if(!f) { warn("%s", p); return Exit_Broke; }
 	}
     }
 

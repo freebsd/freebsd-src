@@ -6,23 +6,24 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.h,v 1.9 1996/04/29 21:02:29 phk Exp $
+ * $Id: ctm.h,v 1.10 1996/08/30 10:20:53 phk Exp $
  *
  */
 
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <md5.h>
-#include <ctype.h>
-#include <string.h>
-#include <errno.h>
-#include <time.h>
+#include <regex.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/time.h>
-#include <regex.h>
 
 #define VERSION "2.0"
 #define MAXSIZE (1024*1024*10)

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass2.c,v 1.12 1996/04/29 21:02:30 phk Exp $
+ * $Id: ctm_pass2.c,v 1.13 1996/08/30 10:20:56 phk Exp $
  *
  */
 
@@ -209,13 +209,13 @@ Pass2(FILE *fd)
 			}
 			fprintf(ed,"e %s\n", name);
 			if (cnt != fwrite(trash,1,cnt,ed)) {
-			    perror(name);
+			    warn("%s", name);
 			    pclose(ed);
 			    WRONG
 			}
 			fprintf(ed,"w %s\n",p);
 			if (pclose(ed)) {
-			    perror(p);
+			    warn("%s", p);
 			    WRONG
 			}
 			if(strcmp(md5,MD5File(p,md5_1))) {
