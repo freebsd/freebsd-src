@@ -99,7 +99,7 @@
 
 #define	TCP_MAXRXTSHIFT	12			/* maximum retransmits */
 
-#define	TCPTV_DELACK	(hz / PR_FASTHZ)	/* 200mS timeout */
+#define	TCPTV_DELACK	(hz / PR_FASTHZ)	/* 200ms timeout */
 
 #ifdef	TCPTIMERS
 static char *tcptimers[] =
@@ -116,14 +116,6 @@ static char *tcptimers[] =
 	else if ((u_long)(tv) > (u_long)(tvmax)) \
 		(tv) = (tvmax); \
 } while(0)
-
-/*
- * Convert slow-timeout ticks to timer ticks.  We don't really want to do
- * this as it is rather expensive, so this is only a transitional stage
- * until we are able to update all the code which counts timer ticks.
- */
-#define	TCPT_TICKS(stt)		((stt) * hz / PR_SLOWHZ)
-#define	TCPT_SLOWHZ(tt)		(((tt) * PR_SLOWHZ) / hz)
 
 #ifdef KERNEL
 extern int tcp_keepinit;		/* time to establish connection */
