@@ -665,15 +665,20 @@ in_setpeeraddr(so, nam)
  * cmds that are uninteresting (e.g., no error in the map).
  * Call the protocol specific routine (if any) to report
  * any errors for each matching socket.
+ *
+ * If tcp_seq_check != 0 it also checks if tcp_sequence is
+ * a valid TCP sequence number for the session.
  */
 void
-in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
+in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify, tcp_sequence, tcp_seq_check)
 	struct inpcbhead *head;
 	struct sockaddr *dst;
 	u_int fport_arg, lport_arg;
 	struct in_addr laddr;
 	int cmd;
 	void (*notify) __P((struct inpcb *, int));
+	u_int32_t tcp_sequence;
+	int tcp_seq_check;
 {
 	register struct inpcb *inp, *oinp;
 	struct in_addr faddr;
@@ -716,6 +721,19 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
 		    (fport && inp->inp_fport != fport)) {
 			inp = inp->inp_list.le_next;
 			continue;
+		}
+		/*
+		 * If tcp_seq_check is set, then skip sessions where
+		 * the sequence number is not one of a unacknowledged
+		 * packet.
+		 *
+		 * If it doesn't match, we break the loop, as only a
+		 * single session can match on src/dst ip addresses 
+		 * and TCP port numbers.
+		 */
+		if ((tcp_seq_check == 1) && (tcp_seq_vs_sess(inp, tcp_sequence) == 0)) {
+			inp = inp->inp_list.le_next;
+			break;
 		}
 		oinp = inp;
 		inp = inp->inp_list.le_next;
