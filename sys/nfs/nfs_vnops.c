@@ -469,7 +469,7 @@ nfs_open(ap)
 #ifdef DIAGNOSTIC
 		printf("open eacces vtyp=%d\n",vp->v_type);
 #endif
-		return (EACCES);
+		return (EOPNOTSUPP);
 	}
 	/*
 	 * Get a valid lease. If cached data is stale, flush it.
@@ -1014,9 +1014,14 @@ nfs_read(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 
-	if (vp->v_type != VREG)
-		return (EPERM);
-	return (nfs_bioread(vp, ap->a_uio, ap->a_ioflag, ap->a_cred));
+	switch (vp->v_type) {
+	case VREG:
+		return (nfs_bioread(vp, ap->a_uio, ap->a_ioflag, ap->a_cred));
+	case VDIR:
+		return (EISDIR);
+	default:
+		return (EOPNOTSUPP);
+	}
 }
 
 /*
