@@ -414,6 +414,7 @@ void	tcp_rndiss_init __P((void));
 tcp_seq	tcp_rndiss_next __P((void));
 u_int16_t
 	tcp_rndiss_encrypt __P((u_int16_t));
+tcp_seq tcp_new_isn __P((void));
 
 #endif /* _KERNEL */
 

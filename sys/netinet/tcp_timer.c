@@ -133,6 +133,8 @@ tcp_slowtimo()
 
 	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
 
+	tcp_iss += TCP_ISSINCR/PR_SLOWHZ;
+
 	splx(s);
 }
 
