@@ -35,56 +35,12 @@
 #include "dev/drm/tdfx.h"
 #include "dev/drm/drmP.h"
 
-#define DRIVER_AUTHOR		"VA Linux Systems Inc."
-
-#define DRIVER_NAME		"tdfx"
-#define DRIVER_DESC		"3dfx Banshee/Voodoo3+"
-#define DRIVER_DATE		"20010216"
-
-#define DRIVER_MAJOR		1
-#define DRIVER_MINOR		0
-#define DRIVER_PATCHLEVEL	0
-
-#ifndef PCI_VENDOR_ID_3DFX
-#define PCI_VENDOR_ID_3DFX 0x121A
-#endif
-#ifndef PCI_DEVICE_ID_3DFX_VOODOO5
-#define PCI_DEVICE_ID_3DFX_VOODOO5 0x0009
-#endif
-#ifndef PCI_DEVICE_ID_3DFX_VOODOO4
-#define PCI_DEVICE_ID_3DFX_VOODOO4 0x0007
-#endif
-#ifndef PCI_DEVICE_ID_3DFX_VOODOO3_3000 /* Voodoo3 3000 */
-#define PCI_DEVICE_ID_3DFX_VOODOO3_3000 0x0005
-#endif
-#ifndef PCI_DEVICE_ID_3DFX_VOODOO3_2000 /* Voodoo3 3000 */
-#define PCI_DEVICE_ID_3DFX_VOODOO3_2000 0x0004
-#endif
-#ifndef PCI_DEVICE_ID_3DFX_BANSHEE
-#define PCI_DEVICE_ID_3DFX_BANSHEE 0x0003
-#endif
-
-/* List acquired from http://www.yourvote.com/pci/pcihdr.h and xc/xc/programs/Xserver/hw/xfree86/common/xf86PciInfo.h
- * Please report to anholt@teleport.com inaccuracies or if a chip you have works that is marked unsupported here.
- */
-drm_chipinfo_t DRM(devicelist)[] = {
-	{0x121a, 0x0003, 1, "3dfx Voodoo Banshee"},
-	{0x121a, 0x0004, 1, "3dfx Voodoo3 2000"},
-	{0x121a, 0x0005, 1, "3dfx Voodoo3 3000"},
-	{0x121a, 0x0007, 1, "3dfx Voodoo4"},
-	{0x121a, 0x0009, 1, "3dfx Voodoo5"},
-	{0, 0, 0, NULL}
-};
-
-
 #include "dev/drm/drm_auth.h"
 #include "dev/drm/drm_bufs.h"
 #include "dev/drm/drm_context.h"
 #include "dev/drm/drm_dma.h"
 #include "dev/drm/drm_drawable.h"
 #include "dev/drm/drm_drv.h"
-
-
 #include "dev/drm/drm_fops.h"
 #include "dev/drm/drm_ioctl.h"
 #include "dev/drm/drm_lock.h"

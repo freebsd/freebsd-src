@@ -81,6 +81,26 @@
    [DRM_IOCTL_NR(DRM_IOCTL_R128_INDIRECT)]   = { r128_cce_indirect, 1, 1 }, \
    [DRM_IOCTL_NR(DRM_IOCTL_R128_GETPARAM)]   = { r128_getparam, 1, 0 },
 
+#define DRIVER_PCI_IDS							\
+	{0x1002, 0x4c45, 0, "ATI Rage 128 Mobility LE (PCI)"},		\
+	{0x1002, 0x4c46, 0, "ATI Rage 128 Mobility LF (AGP)"},		\
+	{0x1002, 0x4d46, 0, "ATI Rage 128 Mobility MF (AGP)"},		\
+	{0x1002, 0x4d4c, 0, "ATI Rage 128 Mobility ML (AGP)"},		\
+	{0x1002, 0x5044, 0, "ATI Rage 128 Pro PD (PCI)"},		\
+	{0x1002, 0x5046, 0, "ATI Rage 128 Pro PF (AGP)"},		\
+	{0x1002, 0x5050, 0, "ATI Rage 128 Pro PP (PCI)"},		\
+	{0x1002, 0x5052, 0, "ATI Rage 128 Pro PR (PCI)"},		\
+	{0x1002, 0x5245, 0, "ATI Rage 128 RE (PCI)"},			\
+	{0x1002, 0x5246, 0, "ATI Rage 128 RF (AGP)"},			\
+	{0x1002, 0x5247, 0, "ATI Rage 128 RG (AGP)"},			\
+	{0x1002, 0x524b, 0, "ATI Rage 128 RK (PCI)"},			\
+	{0x1002, 0x524c, 0, "ATI Rage 128 RL (AGP)"},			\
+	{0x1002, 0x534d, 0, "ATI Rage 128 SM (AGP)"},			\
+	{0x1002, 0x5446, 0, "ATI Rage 128 Pro Ultra TF (AGP)"},		\
+	{0x1002, 0x544C, 0, "ATI Rage 128 Pro Ultra TL (AGP)"},		\
+	{0x1002, 0x5452, 0, "ATI Rage 128 Pro Ultra TR (AGP)"},		\
+	{0, 0, 0, NULL}
+
 /* Driver customization:
  */
 #define DRIVER_PRERELEASE() do {					\
@@ -99,7 +119,7 @@
 /* DMA customization:
  */
 #define __HAVE_DMA		1
-#define __HAVE_DMA_IRQ		1
+#define __HAVE_IRQ		1
 #define __HAVE_VBL_IRQ		1
 #define __HAVE_SHARED_IRQ       1
 

@@ -126,4 +126,61 @@ int DRM(unbind_agp)(agp_memory *handle)
 	return DRM(agp_unbind_memory)(handle);
 }
 #endif /* __REALLY_HAVE_AGP */
+
+#ifdef __FreeBSD__
+int
+DRM(mtrr_add)(unsigned long offset, size_t size, int flags)
+{
+	int act;
+	struct mem_range_desc mrdesc;
+
+	mrdesc.mr_base = offset;
+	mrdesc.mr_len = size;
+	mrdesc.mr_flags = flags;
+	act = MEMRANGE_SET_UPDATE;
+	bcopy(DRIVER_NAME, &mrdesc.mr_owner, strlen(DRIVER_NAME));
+	return mem_range_attr_set(&mrdesc, &act);
+}
+
+int
+DRM(mtrr_del)(unsigned long offset, size_t size, int flags)
+{
+	int act;
+	struct mem_range_desc mrdesc;
+
+	mrdesc.mr_base = offset;
+	mrdesc.mr_len = size;
+	mrdesc.mr_flags = flags;
+	act = MEMRANGE_SET_REMOVE;
+	bcopy(DRIVER_NAME, &mrdesc.mr_owner, strlen(DRIVER_NAME));
+	return mem_range_attr_set(&mrdesc, &act);
+}
+#elif defined(__NetBSD__)
+int
+DRM(mtrr_add)(unsigned long offset, size_t size, int flags)
+{
+	struct mtrr mtrrmap;
+	int one = 1;
+
+	mtrrmap.base = offset;
+	mtrrmap.len = size;
+	mtrrmap.type = flags;
+	mtrrmap.flags = MTRR_VALID;
+	return mtrr_set(&mtrrmap, &one, NULL, MTRR_GETSET_KERNEL);
+}
+
+int
+DRM(mtrr_del)(unsigned long offset, size_t size, int flags)
+{
+	struct mtrr mtrrmap;
+	int one = 1;
+
+	mtrrmap.base = offset;
+	mtrrmap.len = size;
+	mtrrmap.type = flags;
+	mtrrmap.flags = 0;
+	return mtrr_set(&mtrrmap, &one, NULL, MTRR_GETSET_KERNEL);
+}
+#endif
+
 #endif /* DEBUG_MEMORY */

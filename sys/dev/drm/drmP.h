@@ -50,8 +50,8 @@
 #ifndef __HAVE_DMA
 #define __HAVE_DMA		0
 #endif
-#ifndef __HAVE_DMA_IRQ
-#define __HAVE_DMA_IRQ		0
+#ifndef __HAVE_IRQ
+#define __HAVE_IRQ		0
 #endif
 
 #define DRM_DEBUG_CODE 0	  /* Include debugging code (if > 1, then
@@ -119,14 +119,18 @@ typedef struct drm_file drm_file_t;
 #define DRM_MIN(a,b) ((a)<(b)?(a):(b))
 #define DRM_MAX(a,b) ((a)>(b)?(a):(b))
 
-#define DRM_LEFTCOUNT(x) (((x)->rp + (x)->count - (x)->wp) % ((x)->count + 1))
-#define DRM_BUFCOUNT(x) ((x)->count - DRM_LEFTCOUNT(x))
-#define DRM_WAITCOUNT(dev,idx) DRM_BUFCOUNT(&dev->queuelist[idx]->waitlist)
-
 #define DRM_GET_PRIV_SAREA(_dev, _ctx, _map) do {	\
 	(_map) = (_dev)->context_sareas[_ctx];		\
 } while(0)
 
+
+typedef struct drm_pci_id_list
+{
+	int vendor;
+	int device;
+	long driver_private;
+	char *name;
+} drm_pci_id_list_t;
 
 typedef struct drm_ioctl_desc {
 	int		     (*func)(DRM_IOCTL_ARGS);
@@ -170,17 +174,6 @@ typedef struct drm_buf {
 	void		  *dev_private;  /* Per-buffer private storage       */
 } drm_buf_t;
 
-				/* bufs is one longer than it has to be */
-typedef struct drm_waitlist {
-	int		  count;	/* Number of possible buffers	   */
-	drm_buf_t	  **bufs;	/* List of pointers to buffers	   */
-	drm_buf_t	  **rp;		/* Read pointer			   */
-	drm_buf_t	  **wp;		/* Write pointer		   */
-	drm_buf_t	  **end;	/* End pointer			   */
-	DRM_SPINTYPE	  read_lock;
-	DRM_SPINTYPE	  write_lock;
-} drm_waitlist_t;
-
 typedef struct drm_freelist {
 	int		  initialized; /* Freelist in use		   */
 	atomic_t	  count;       /* Number of free buffers	   */
@@ -188,7 +181,6 @@ typedef struct drm_freelist {
 
 	int		  low_mark;    /* Low water mark		   */
 	int		  high_mark;   /* High water mark		   */
-	DRM_SPINTYPE   lock;
 } drm_freelist_t;
 
 typedef struct drm_buf_entry {
@@ -224,10 +216,17 @@ struct drm_file {
 typedef struct drm_lock_data {
 	drm_hw_lock_t	  *hw_lock;	/* Hardware lock		   */
 	DRMFILE		  filp;	        /* Unique identifier of holding process (NULL is kernel)*/
-	wait_queue_head_t lock_queue;	/* Queue of blocked processes	   */
+	int		  lock_queue;	/* Queue of blocked processes	   */
 	unsigned long	  lock_time;	/* Time of last lock in jiffies	   */
 } drm_lock_data_t;
 
+/* This structure, in the drm_device_t, is always initialized while the device
+ * is open.  dev->dma_lock protects the incrementing of dev->buf_use, which
+ * when set marks that no further bufs may be allocated until device teardown
+ * occurs (when the last open of the device has closed).  The high/low
+ * watermarks of bufs are only touched by the X Server, and thus not
+ * concurrently accessed, so no locking is needed.
+ */
 typedef struct drm_device_dma {
 	drm_buf_entry_t	  bufs[DRM_MAX_ORDER+1];
 	int		  buf_count;
@@ -319,8 +318,15 @@ struct drm_device {
 	int		  flags;	/* Flags to open(2)		   */
 
 				/* Locks */
-	DRM_SPINTYPE	  count_lock;	/* For open_count, buf_use, buf_alloc */
-	struct lock       dev_lock;	/* For others			   */
+#if defined(__FreeBSD__) && __FreeBSD_version > 500000
+#if __HAVE_DMA
+	struct mtx	  dma_lock;	/* protects dev->dma */
+#endif
+#if __HAVE_IRQ
+	struct mtx	  irq_lock; /* protects irq condition checks */
+#endif
+	struct mtx	  dev_lock;	/* protects everything else */
+#endif
 				/* Usage Counters */
 	int		  open_count;	/* Outstanding files open	   */
 	int		  buf_use;	/* Buffers in use -- cannot alloc  */
@@ -335,8 +341,8 @@ struct drm_device {
 	drm_file_list_t   files;
 	drm_magic_head_t  magiclist[DRM_HASH_SIZE];
 
-				/* Memory management */
-	drm_map_list_t	  *maplist;	/* Linked list of regions	   */
+	/* Linked list of mappable regions. Protected by dev_lock */
+	drm_map_list_t	  *maplist;
 
 	drm_local_map_t	  **context_sareas;
 	int		  max_context;
@@ -357,18 +363,13 @@ struct drm_device {
 #endif
 	void		  *irqh;	/* Handle from bus_setup_intr      */
 	atomic_t	  context_flag;	/* Context swapping flag	   */
-	struct callout    timer;	/* Timer for delaying ctx switch   */
 	int		  last_context;	/* Last current context		   */
 #if __FreeBSD_version >= 400005
 	struct task       task;
 #endif
 #if __HAVE_VBL_IRQ
-   	wait_queue_head_t vbl_queue;	/* vbl wait channel */
+   	int		  vbl_queue;	/* vbl wait channel */
    	atomic_t          vbl_received;
-#if 0 /* vbl signals are untested */
-	struct drm_vbl_sig_list vbl_sig_list;
-	DRM_SPINTYPE      vbl_lock;
-#endif
 #endif
 
 #ifdef __FreeBSD__
@@ -390,14 +391,6 @@ struct drm_device {
 
 extern int	     DRM(flags);
 
-				/* Authentication (drm_auth.h) */
-extern int           DRM(add_magic)(drm_device_t *dev, drm_file_t *priv, 
-				    drm_magic_t magic);
-extern int           DRM(remove_magic)(drm_device_t *dev, drm_magic_t magic);
-
-				/* Driver support (drm_drv.h) */
-extern int           DRM(version)( DRM_IOCTL_ARGS );
-
 				/* Memory management support (drm_memory.h) */
 extern void	     DRM(mem_init)(void);
 extern void	     DRM(mem_uninit)(void);
@@ -408,6 +401,8 @@ extern void	     *DRM(realloc)(void *oldpt, size_t oldsize, size_t size,
 extern void	     DRM(free)(void *pt, size_t size, int area);
 extern void	     *DRM(ioremap)(drm_device_t *dev, drm_local_map_t *map);
 extern void	     DRM(ioremapfree)(drm_local_map_t *map);
+extern int	 DRM(mtrr_add)(unsigned long offset, size_t size, int flags);
+extern int	 DRM(mtrr_del)(unsigned long offset, size_t size, int flags);
 
 #if __REALLY_HAVE_AGP
 extern agp_memory    *DRM(alloc_agp)(int pages, u32 type);
@@ -445,26 +440,21 @@ extern int	     DRM(dma_setup)(drm_device_t *dev);
 extern void	     DRM(dma_takedown)(drm_device_t *dev);
 extern void	     DRM(free_buffer)(drm_device_t *dev, drm_buf_t *buf);
 extern void	     DRM(reclaim_buffers)(drm_device_t *dev, DRMFILE filp);
-#if __HAVE_DMA_IRQ
+#endif
+
+#if __HAVE_IRQ
+				/* IRQ support (drm_irq.h) */
 extern int           DRM(irq_install)( drm_device_t *dev, int irq );
 extern int           DRM(irq_uninstall)( drm_device_t *dev );
-extern irqreturn_t   DRM(dma_service)( DRM_IRQ_ARGS );
+extern irqreturn_t   DRM(irq_handler)( DRM_IRQ_ARGS );
 extern void          DRM(driver_irq_preinstall)( drm_device_t *dev );
 extern void          DRM(driver_irq_postinstall)( drm_device_t *dev );
 extern void          DRM(driver_irq_uninstall)( drm_device_t *dev );
-#if __HAVE_DMA_IRQ_BH
-extern void          DRM(dma_immediate_bh)( DRM_TASKQUEUE_ARGS );
+#if __HAVE_IRQ_BH
+extern void          DRM(irq_immediate_bh)( DRM_TASKQUEUE_ARGS );
 #endif
 #endif
 
-				/* Buffer list support (drm_lists.h) */
-#if __HAVE_DMA_WAITLIST
-extern int	     DRM(waitlist_create)(drm_waitlist_t *bl, int count);
-extern int	     DRM(waitlist_destroy)(drm_waitlist_t *bl);
-extern int	     DRM(waitlist_put)(drm_waitlist_t *bl, drm_buf_t *buf);
-extern drm_buf_t     *DRM(waitlist_get)(drm_waitlist_t *bl);
-#endif
-#endif /* __HAVE_DMA */
 #if __HAVE_VBL_IRQ
 extern int           DRM(vblank_wait)(drm_device_t *dev, unsigned int *vbl_seq);
 extern void          DRM(vbl_send_signals)( drm_device_t *dev );
@@ -499,6 +489,8 @@ extern int            DRM(ati_pcigart_cleanup)(drm_device_t *dev,
 /* Locking IOCTL support (drm_drv.h) */
 extern int		DRM(lock)(DRM_IOCTL_ARGS);
 extern int		DRM(unlock)(DRM_IOCTL_ARGS);
+extern int		DRM(version)( DRM_IOCTL_ARGS );
+extern int		DRM(setversion)( DRM_IOCTL_ARGS );
 
 /* Misc. IOCTL support (drm_ioctl.h) */
 extern int		DRM(irq_busid)(DRM_IOCTL_ARGS);
@@ -539,8 +531,8 @@ extern int		DRM(freebufs)(DRM_IOCTL_ARGS);
 extern int		DRM(mapbufs)(DRM_IOCTL_ARGS);
 #endif
 
-/* DMA support (drm_dma.h) */
-#if __HAVE_DMA
+/* IRQ support (drm_irq.h) */
+#if __HAVE_IRQ || __HAVE_DMA
 extern int		DRM(control)(DRM_IOCTL_ARGS);
 #endif
 #if __HAVE_VBL_IRQ

@@ -46,7 +46,7 @@ DRM(pci_alloc)(drm_device_t *dev, size_t size, size_t align, dma_addr_t maxaddr,
 {
 	void *vaddr;
 
-	vaddr = contigmalloc(size, DRM(M_DRM), M_WAITOK, 0ul, maxaddr, align,
+	vaddr = contigmalloc(size, DRM(M_DRM), M_NOWAIT, 0ul, maxaddr, align,
 	    0);
 	*busaddr = vtophys(vaddr);
 	
