@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.6 1997/02/22 16:00:57 peter Exp $
+ *	$Id: main.c,v 1.7 1997/07/06 07:38:30 jhay Exp $
  */
 
 #ifndef lint
@@ -147,8 +147,13 @@ main(argc, argv)
 			argv++, argc--;
 			continue;
 		}
+		if (strcmp(*argv, "-N") == 0) {
+			dognreply = 0;
+			argv++, argc--;
+			continue;
+		}
 		fprintf(stderr,
-			"usage: ipxrouted [ -s ] [ -q ] [ -t ] [ -g ] [ -l ]\n");
+			"usage: ipxrouted [ -s ] [ -q ] [ -t ] [ -g ] [ -l ] [ -N ]\n");
 		exit(1);
 	}
 	
