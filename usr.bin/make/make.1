@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id: make.1,v 1.15 1998/11/15 05:51:55 bde Exp $
+.\"	$Id: make.1,v 1.19 1999/08/11 17:52:55 chris Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -43,6 +43,7 @@
 .Op Fl Beiknqrstv
 .Op Fl D Ar variable
 .Op Fl d Ar flags
+.Op Fl E Ar variable
 .Op Fl f Ar makefile
 .Op Fl I Ar directory
 .Bk -words
@@ -118,9 +119,12 @@ Print debugging information about target list maintenance.
 .It Ar v
 Print debugging information about variable assignment.
 .El
+.It Fl E Ar variable
+Specify a variable whose environment value (if any) will override
+macro assignments within makefiles.
 .It Fl e
-Specify that environment variables override macro assignments within
-makefiles.
+Specify that environment values override macro assignments within
+makefiles for all variables.
 .It Fl f Ar makefile
 Specify a makefile to read instead of the default
 .Ql Pa makefile
@@ -455,6 +459,21 @@ is set to the value of
 for all programs which
 .Nm make
 executes.
+.It Ev VPATH
+Directories in addition to
+.Ql Ev PATH
+through which
+.Nm make
+will search in order to find programs specified in the Makefile.
+.Pp
+.Ev VPATH
+exists
+solely
+for backward compatibility.
+It is
+.Em strongly recommended
+that you do not use this variable in your Makefiles.
+.Ef
 .El
 .Pp
 Variable expansion may be modified to select or modify each word of the
@@ -488,6 +507,10 @@ This is identical to
 .Ql Cm M ,
 but selects all words which do not match
 the rest of the modifier.
+.It Cm Q
+Quotes every shell meta-character in the variable, so that it can be passed
+safely through recursive invocations of
+.Nm make .
 .It Cm R
 Replaces each word in the variable with everything but its suffix.
 .Sm off
