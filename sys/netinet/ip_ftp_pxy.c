@@ -2,7 +2,7 @@
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
  *
- * $Id: ip_ftp_pxy.c,v 2.7.2.17 2000/10/19 15:40:40 darrenr Exp $
+ * $Id: ip_ftp_pxy.c,v 2.7.2.18 2000/10/27 14:02:10 darrenr Exp $
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
@@ -252,6 +252,7 @@ int dlen;
 		tcp2->th_dport = 0; /* XXX - don't specify remote port */
 		fi.fin_data[0] = ntohs(sp);
 		fi.fin_data[1] = 0;
+		fi.fin_dlen = sizeof(*tcp2);
 		fi.fin_dp = (char *)tcp2;
 		swip = ip->ip_src;
 		ip->ip_src = nat->nat_inip;
@@ -467,6 +468,7 @@ int dlen;
 		tcp2->th_sport = 0;		/* XXX - fake it for nat_new */
 		tcp2->th_off = 5;
 		fi.fin_data[0] = a5 << 8 | a6;
+		fi.fin_dlen = sizeof(*tcp2);
 		tcp2->th_dport = htons(fi.fin_data[0]);
 		fi.fin_data[1] = 0;
 		fi.fin_dp = (char *)tcp2;
