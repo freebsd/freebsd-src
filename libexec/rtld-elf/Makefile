@@ -4,7 +4,7 @@ MAINTAINER=	jdp
 PROG=		ld-elf.so.1
 SRCS=		rtld_start.S rtld.c lockdflt.c map_object.c malloc.c \
 		xmalloc.c debug.c reloc.c
-MAN1=		rtld.1
+MAN=		rtld.1
 CFLAGS+=	-Wall -DFREEBSD_ELF -I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
 LDFLAGS+=	-nostdlib -e .rtld_start
 INSTALLFLAGS+=	-fschg -C

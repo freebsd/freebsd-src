@@ -1,5 +1,7 @@
+# $FreeBSD$
+
 PROG=	sysinstall
-MAN8=	sysinstall.8
+MAN=	sysinstall.8
 
 BINDIR=/stand
 NOSHARED=YES

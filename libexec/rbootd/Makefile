@@ -3,6 +3,6 @@
 
 PROG=	rbootd
 SRCS=	bpf.c conf.c parseconf.c rbootd.c rmpproto.c utils.c
-MAN8=	rbootd.8
+MAN=	rbootd.8
 
 .include <bsd.prog.mk>

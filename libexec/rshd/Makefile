@@ -3,7 +3,7 @@
 
 PROG=	rshd
 SRCS=	rshd.c
-MAN8=	rshd.8
+MAN=	rshd.8
 
 #CFLAGS+= -DCRYPT
 

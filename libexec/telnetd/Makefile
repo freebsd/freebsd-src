@@ -11,6 +11,6 @@ SRCS=	global.c slc.c state.c sys_term.c telnetd.c \
 	termstat.c utility.c
 DPADD=	${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
 LDADD=	-lutil -ltermcap -ltelnet
-MAN8=	telnetd.8
+MAN=	telnetd.8
 
 .include <bsd.prog.mk>

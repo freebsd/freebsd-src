@@ -5,15 +5,16 @@ MAINSRC=${.CURDIR}/../../usr.bin/at
 .include "${MAINSRC}/Makefile.inc"
 
 PROG=	atrun
-MAN8=	atrun.8
 SRCS=	atrun.c gloadavg.c
+MAN=	atrun.8
 
 BINDIR=	${ATLIB_DIR}
-CLEANFILES= ${MAN8}
+CLEANFILES= ${MAN}
 
 CFLAGS+=-I${MAINSRC} -I${.CURDIR}
 
-${MAN8}: atrun.man
+atrun.8: atrun.man
+	@${ECHO} Making ${.TARGET:T} from ${.ALLSRC:T}; \
 	sed -e \
 		"s@_ATSPOOL_DIR@$(ATSPOOL_DIR)@g; \
 		s@_ATJOB_DIR@$(ATJOB_DIR)@g; \
