@@ -855,7 +855,7 @@ bwrite(struct buf * bp)
 	splx(s);
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
-	BUF_STRATEGY(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = bufwait(bp);

@@ -2952,7 +2952,7 @@ nfs_writebp(struct buf *bp, int force, struct thread *td)
 	if (force)
 		bp->b_flags |= B_WRITEINPROG;
 	BUF_KERNPROC(bp);
-	BUF_STRATEGY(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 
 	if( (oldflags & B_ASYNC) == 0) {
 		int rtval = bufwait(bp);
