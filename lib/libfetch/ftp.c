@@ -874,7 +874,7 @@ _ftp_cached_connect(struct url *url, struct url *purl, const char *flags)
 		return (NULL);
 	if (cached_connection)
 		_ftp_disconnect(cached_connection);
-	cached_connection = conn;
+	cached_connection = _fetch_ref(conn);
 	memcpy(&cached_host, url, sizeof *url);
 	return (conn);
 }
