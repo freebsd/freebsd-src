@@ -745,17 +745,17 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		td->td_retval[0] = indx;
 		return 0;
 	}
-
-	/* assert that vn_open created a backing object if one is needed */
-	KASSERT(!vn_canvmio(vp) || VOP_GETVOBJECT(vp, NULL) == 0,
-		("open: vmio vnode has no backing object after vn_open"));
-
 	fp->f_data = vp;
 	fp->f_flag = flags & FMASK;
 	fp->f_ops = &vnops;
 	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
 	FILEDESC_UNLOCK(fdp);
 	FILE_UNLOCK(fp);
+
+	/* assert that vn_open created a backing object if one is needed */
+	KASSERT(!vn_canvmio(vp) || VOP_GETVOBJECT(vp, NULL) == 0,
+		("open: vmio vnode has no backing object after vn_open"));
+
 	VOP_UNLOCK(vp, 0, td);
 	if (flags & (O_EXLOCK | O_SHLOCK)) {
 		lf.l_whence = SEEK_SET;
