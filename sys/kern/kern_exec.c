@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.89 1998/12/16 16:06:27 bde Exp $
+ *	$Id: kern_exec.c,v 1.90 1998/12/16 16:28:57 bde Exp $
  */
 
 #include <sys/param.h>
@@ -66,8 +66,11 @@
 
 static long *exec_copyout_strings __P((struct image_params *));
 
-SYSCTL_LONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, 0, PS_STRINGS, "");
-SYSCTL_LONG(_kern, KERN_USRSTACK, usrstack, CTLFLAG_RD, 0, USRSTACK, "");
+static long ps_strings = PS_STRINGS;
+SYSCTL_LONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, &ps_strings, "");
+
+static long usrstack = USRSTACK;
+SYSCTL_LONG(_kern, KERN_USRSTACK, usrstack, CTLFLAG_RD, &usrstack, "");
 
 /*
  * Each of the items is a pointer to a `const struct execsw', hence the
