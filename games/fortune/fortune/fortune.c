@@ -1364,10 +1364,8 @@ usage()
 #ifdef	DEBUG
 	(void) fprintf(stderr, "D");
 #endif	/* DEBUG */
-	(void) fprintf(stderr, "f");
-	(void) fprintf(stderr, "i");
-	(void) fprintf(stderr, "losw]");
+	(void) fprintf(stderr, "efilosw]");
 	(void) fprintf(stderr, " [-m pattern]");
-	(void) fprintf(stderr, "[[#%%] file/directory/all]\n");
+	(void) fprintf(stderr, " [[N%%] file/directory/all]\n");
 	exit(1);
 }
