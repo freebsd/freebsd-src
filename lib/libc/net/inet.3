@@ -40,6 +40,8 @@
 .Nm inet_addr ,
 .Nm inet_network ,
 .Nm inet_ntoa ,
+.Nm inet_ntop ,
+.Nm inet_pton ,
 .Nm inet_makeaddr ,
 .Nm inet_lnaof ,
 .Nm inet_netof
@@ -57,6 +59,10 @@
 .Fn inet_network "const char *cp"
 .Ft char *
 .Fn inet_ntoa "struct in_addr in"
+.Ft const char *
+.Fn inet_ntop "int af" "const void *src" "char *dst" "size_t size"
+.Ft int
+.Fn inet_pton "int af" "const char *src" "void *dst"
 .Ft struct in_addr 
 .Fn inet_makeaddr "unsigned long net" "unsigned long lna"
 .Ft unsigned long 
@@ -73,6 +79,23 @@ interpret character strings representing
 numbers expressed in the Internet standard
 .Ql \&.
 notation.
+.Pp
+The
+.Fn inet_pton
+function converts a presentation format address (that is, printable form
+as held in a character string) to network format (usually a
+.Ft struct in_addr
+or some other internal binary representation, in network byte order).
+It returns 1 if the address was valid for the specified address family, or
+0 if the address wasn't parseable in the specified address family, or -1
+if some system error occurred (in which case
+.Va errno
+will have been set).
+This function is presently valid for
+.Dv AF_INET
+and
+.Dv AF_INET6 .
+.Pp
 The
 .Fn inet_aton
 routine interprets the specified character string as an Internet address,
@@ -86,6 +109,21 @@ and
 functions return numbers suitable for use
 as Internet addresses and Internet network
 numbers, respectively.
+.Pp
+The function
+.Fn inet_ntop
+converts an address from network format (usually a
+.Ft struct in_addr
+or some other binary form, in network byte order) to presentation format
+(suitable for external display purposes).
+It returns NULL if a system error occurs (in which case,
+.Va errno
+will have been set), or it returns a pointer to the destination string.
+This function is presently valid for
+.Dv AF_INET
+and
+.Dv AF_INET6 .
+.Pp
 The routine
 .Fn inet_ntoa
 takes an Internet address and returns an
@@ -187,6 +225,25 @@ for malformed requests.
 .Xr getnetent 3 ,
 .Xr hosts 5 ,
 .Xr networks 5
+.Rs
+.%R RFC
+.%N 2373
+.%D July 1998
+.%T "IP Version 6 Addressing Architecture"
+.Re
+.Sh STANDARDS
+The
+.Nm inet_ntop
+and
+.Nm inet_pton
+functions conform to
+.St -xns5.2d2.0 .
+Note that
+.Nm inet_pton
+does not accept 1-, 2-, or 3-part  dotted addresses; all four parts
+must be specified.
+This is a narrower input set than that accepted by
+.Nm inet_aton .
 .Sh HISTORY
 These
 functions appeared in 
