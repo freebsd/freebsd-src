@@ -92,6 +92,11 @@ Three special label values exist:
 .It Li mls/high Ta dominates all other labels
 .El
 .Pp
+The
+.Dq mls/equal
+label may be applied to subjects and objects for which no enforcement of the
+MLS security policy is desired.
+.Pp
 The MLS model enforces the following basic restrictions:
 .Bl -bullet
 .It
@@ -132,7 +137,7 @@ In general, object labels are represented in the following form:
 For example:
 .Pp
 .Bd -literal -offset indent
-mls/10:2+3+6++10
+mls/10:2+3+6
 mls/low
 .Ed
 .Pp
@@ -149,7 +154,7 @@ In general, subject labels are represented in the following form:
 .Pp
 For example:
 .Bd -literal -offset indent
-mls/10:2+3+6(5-20:2+3+4+5+6)
+mls/10:2+3+6(5:2+3-20:2+3+4+5+6)
 mls/high(low-high)
 .Ed
 .Pp
@@ -163,6 +168,29 @@ In the case of the network interface, the single label element references
 the default label for packets received over the interface, and the range
 represents the range of acceptable labels of packets to be transmitted over
 the interface.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+MIBs are available for fine-tuning the enforcement of this MAC policy.
+.Bl -tag -width security.mac.mls.enabled
+.It Va security.mac.mls.enabled
+Enables the enforcement of the MLS confidentiality policy
+(Default: 1)
+.It Va security.mac.mls.ptys_equal
+Label
+.Sm off
+.Xr pty 4
+s
+.Sm on
+as
+.Dq mls/equal
+upon creation
+(Default: 0)
+.It Va security.mac.mls.revocation_enabled
+Revoke access to objects if the label is changed to a more sensitive
+level than the subject
+(Default: 0)
+.El
 .Sh IMPLEMENTATION NOTES
 Currently, the
 .Nm
