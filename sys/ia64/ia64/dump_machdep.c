@@ -41,6 +41,12 @@
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
+/*
+ * Don't touch the first SIZEOF_METADATA bytes on the dump device. This
+ * is to protect us from metadata and to protect metadata from us.
+ */
+#define	SIZEOF_METADATA		(64*1024)
+
 #define	MD_ALIGN(x)	(((off_t)(x) + EFI_PAGE_MASK) & ~EFI_PAGE_MASK)
 #define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
 
@@ -251,6 +257,10 @@ dumpsys(struct dumperinfo *di)
 	hdrgap = fileofs - DEV_ALIGN(hdrsz);
 
 	/* Determine dump offset on device. */
+	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
+		error = ENOSPC;
+		goto fail;
+	}
 	dumplo = di->mediaoffset + di->mediasize - dumpsize;
 	dumplo -= sizeof(kdh) * 2;
 
