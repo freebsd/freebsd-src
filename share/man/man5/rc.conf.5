@@ -619,6 +619,63 @@ This variable contains flags passed to the
 .Xr ipfs 8
 program.
 .\" ----- end of added ipf hook ---------------------------------
+.It Va pf_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+Setting this to
+.Dq Li YES
+enables
+.Xr pf 4
+packet filtering.
+.Pp
+Typical usage will require putting
+.Bd -literal
+pf_enable="YES"
+.Ed
+.Pp
+into
+.Pa /etc/rc.conf
+and editing
+.Pa /etc/pf.conf
+appropriately.
+.Pp
+Having
+.Bd -literal
+options PFIL_HOOKS
+options RANDOM_IP_ID
+.Ed
+.Pp
+in the kernel configuration file is required for use as a
+.Xr kld 4
+module.
+.Pp
+.Bd -literal
+device pf
+.Ed
+.Pp
+builds it into the kernel.
+.It Va pf_rules
+.Pq Vt str
+Path to pf ruleset configuration file
+(default
+.Pa /etc/pf.conf ) .
+.It Va pf_program
+.Pq Vt str
+Path to
+.Xr pfctl 8
+(default
+.Pa /sbin/pfctl ) .
+.It Va pf_flags
+.Pq Vt str
+If
+.Va pf_enable
+is set to
+.Dq Li YES ,
+these flags are passed to the
+.Xr pfctl 8
+program when loading the ruleset.
 .It Va tcp_extensions
 .Pq Vt bool
 Set to
