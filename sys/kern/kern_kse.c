@@ -436,9 +436,7 @@ thread_userret(struct proc *p, struct ksegrp *kg, struct kse *ke,
 	int error = 0;
 
 	if (ke->ke_tdspare == NULL) {
-		mtx_lock(&Giant);
 		ke->ke_tdspare = thread_alloc();
-		mtx_unlock(&Giant);
 	}
 	if (td->td_flags & TDF_UNBOUND) {
 		/*
