@@ -1,21 +1,21 @@
 ;; Frv Machine Description
-;; Copyright (C) 1999, 2000, 2001 Free Software Foundation, Inc.
+;; Copyright (C) 1999, 2000, 2001, 2004 Free Software Foundation, Inc.
 ;; Contributed by Red Hat, Inc.
 
-;; This file is part of GNU CC.
+;; This file is part of GCC.
 
-;; GNU CC is free software; you can redistribute it and/or modify
+;; GCC is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
-;; GNU CC is distributed in the hope that it will be useful,
+;; GCC is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU CC; see the file COPYING.  If not, write to
+;; along with GCC; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 59 Temple Place - Suite 330,
 ;; Boston, MA 02111-1307, USA.
 
@@ -304,7 +304,7 @@
 
 ;; Instruction type
 
-;; The table below summarises the types of media instruction and their
+;; The table below summarizes the types of media instruction and their
 ;; scheduling classification.  Headings are:
 
 ;; Type:	the name of the define_attr type
@@ -463,7 +463,7 @@
           first regular expression *and* the reservation described by
           the second regular expression *and* etc.
 
-       4. "*" is used for convinience and simply means sequence in
+       4. "*" is used for convenience and simply means sequence in
           which the regular expression are repeated NUMBER times with
           cycle advancing (see ",").
 
@@ -1118,7 +1118,7 @@
 
 ;; Note - it is the backend's responsibility to fill any unfilled delay slots
 ;; at assembler generation time.  This is usually done by adding a special print
-;; operand to the delayed insrtuction, and then in the PRINT_OPERAND function
+;; operand to the delayed instruction, and then in the PRINT_OPERAND function
 ;; calling dbr_sequence_length() to determine how many delay slots were filled.
 ;; For example:
 ;;
@@ -1364,7 +1364,7 @@
 
 ;; Note - it is best to only have one movsi pattern and to handle
 ;; all the various contingencies by the use of alternatives.  This
-;; allows reload the greatest amount of flexability (since reload will
+;; allows reload the greatest amount of flexibility (since reload will
 ;; only choose amoungst alternatives for a selected insn, it will not
 ;; replace the insn with another one).
 
@@ -1374,7 +1374,7 @@
 ;; constants into memory when the destination is a floating-point register.
 ;; That may make a function use a PIC pointer when it didn't before, and we
 ;; cannot change PIC usage (and hence stack layout) so late in the game.
-;; The resulting sequences for loading cosntants into FPRs are preferable
+;; The resulting sequences for loading constants into FPRs are preferable
 ;; even when we're not generating PIC code.
 
 (define_insn "*movsi_load"
@@ -2754,22 +2754,11 @@
 
 ;; Subtraction  No need to worry about constants, since the compiler
 ;; canonicalizes them into adddi3's.
-(define_expand "subdi3"
-  [(parallel [(set (match_operand:DI 0 "integer_register_operand" "")
-		   (minus:DI (match_operand:DI 1 "integer_register_operand" "")
-			     (match_operand:DI 2 "integer_register_operand" "")))
-	      (clobber (match_dup 3))])]
-  ""
-  "
-{
-  operands[3] = gen_reg_rtx (CCmode);
-}")
-
-(define_insn_and_split "*subdi3_internal"
+(define_insn_and_split "subdi3"
   [(set (match_operand:DI 0 "integer_register_operand" "=&e,e,e")
 	(minus:DI (match_operand:DI 1 "integer_register_operand" "e,0,e")
 		  (match_operand:DI 2 "integer_register_operand" "e,e,0")))
-   (clobber (match_operand:CC 3 "icc_operand" "=t,t,t"))]
+   (clobber (match_scratch:CC 3 "=t,t,t"))]
   ""
   "#"
   "reload_completed"
@@ -2841,6 +2830,31 @@
    subx %1,%.,%0,%3"
   [(set_attr "length" "4")
    (set_attr "type" "int")])
+
+(define_insn_and_split "negdi2"
+  [(set (match_operand:DI 0 "integer_register_operand" "=&e,e")
+	(neg:DI (match_operand:DI 1 "integer_register_operand" "e,0")))
+   (clobber (match_scratch:CC 2 "=t,t"))]
+  ""
+  "#"
+  "reload_completed"
+  [(match_dup 3)
+   (match_dup 4)]
+  "
+{
+  rtx op0_high = gen_highpart (SImode, operands[0]);
+  rtx op1_high = gen_rtx_REG (SImode, GPR_FIRST);
+  rtx op2_high = gen_highpart (SImode, operands[1]);
+  rtx op0_low  = gen_lowpart (SImode, operands[0]);
+  rtx op1_low  = op1_high;
+  rtx op2_low  = gen_lowpart (SImode, operands[1]);
+  rtx op3 = operands[2];
+
+  operands[3] = gen_subdi3_lower (op0_low, op1_low, op2_low, op3);
+  operands[4] = gen_subdi3_upper (op0_high, op1_high, op2_high, op3);
+}"
+  [(set_attr "length" "8")
+   (set_attr "type" "multi")])
 
 ;; Multiplication (same size)
 ;; (define_insn "muldi3"
@@ -3314,7 +3328,7 @@
 ;;   "anddi3 %0,%1,%2"
 ;;   [(set_attr "length" "4")])
 
-;; Includive OR, 64 bit integers
+;; Inclusive OR, 64 bit integers
 ;; (define_insn "iordi3"
 ;;   [(set (match_operand:DI 0 "register_operand" "=r")
 ;; 	(ior:DI (match_operand:DI 1 "register_operand" "%r")
@@ -5456,7 +5470,7 @@
   if (GET_CODE (operands[2]) != CONST_INT)
     abort ();
 
-  /* If we can't generate an immediate instruction, promote to register */
+  /* If we can't generate an immediate instruction, promote to register.  */
   if (! IN_RANGE_P (INTVAL (range), -2048, 2047))
     range = force_reg (SImode, range);
 
@@ -5482,11 +5496,11 @@
 
   emit_cmp_and_jump_insns (indx, range, GTU, NULL_RTX, SImode, 1, fail);
 
-  /* Move the table address to a register */
+  /* Move the table address to a register.  */
   treg = gen_reg_rtx (Pmode);
   emit_insn (gen_movsi (treg, gen_rtx_LABEL_REF (VOIDmode, table)));
 
-  /* scale index-low by wordsize */
+  /* Scale index-low by wordsize.  */
   scale = gen_reg_rtx (SImode);
   emit_insn (gen_ashlsi3 (scale, indx, GEN_INT (2)));
 
@@ -7379,7 +7393,7 @@
   [(set_attr "length" "4")
    (set_attr "type" "mqsath")])
 
-;; Set hi/lo instrctions: type "mset"
+;; Set hi/lo instructions: type "mset"
 
 (define_insn "mhsetlos"
   [(set (match_operand:SI 0 "fpr_operand" "=f")

@@ -1,6 +1,6 @@
 /* This is a software floating point library which can be used
    for targets without hardware floating point. 
-   Copyright (C) 1994, 1995, 1996, 1997, 1998, 2000, 2001, 2002, 2003
+   Copyright (C) 1994, 1995, 1996, 1997, 1998, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
 This file is free software; you can redistribute it and/or modify it
@@ -44,7 +44,9 @@ Boston, MA 02111-1307, USA.  */
    to one copy, then compile both copies and add them to libgcc.a.  */
 
 #include "tconfig.h"
-#include "fp-bit.h"
+#include "coretypes.h"
+#include "tm.h"
+#include "config/fp-bit.h"
 
 /* The following macros can be defined to change the behavior of this file:
    FLOAT: Implement a `float', aka SFmode, fp library.  If this is not
@@ -208,7 +210,11 @@ pack_d ( fp_number_type *  src)
       exp = EXPMAX;
       if (src->class == CLASS_QNAN || 1)
 	{
+#ifdef QUIET_NAN_NEGATED
+	  fraction |= QUIET_NAN - 1;
+#else
 	  fraction |= QUIET_NAN;
+#endif
 	}
     }
   else if (isinf (src))
@@ -324,58 +330,76 @@ pack_d ( fp_number_type *  src)
 #else
 # if defined TFLOAT && defined HALFFRACBITS
  {
-   halffractype high, low;
+   halffractype high, low, unity;
+   int lowsign, lowexp;
 
-   high = (fraction >> (FRACBITS - HALFFRACBITS));
-   high &= (((fractype)1) << HALFFRACBITS) - 1;
-   high |= ((fractype) (exp & ((1 << EXPBITS) - 1))) << HALFFRACBITS;
-   high |= ((fractype) (sign & 1)) << (HALFFRACBITS | EXPBITS);
+   unity = (halffractype) 1 << HALFFRACBITS;
 
-   low = (halffractype)fraction &
-     ((((halffractype)1) << (FRACBITS - HALFFRACBITS)) - 1);
+   /* Set HIGH to the high double's significand, masking out the implicit 1.
+      Set LOW to the low double's full significand.  */
+   high = (fraction >> (FRACBITS - HALFFRACBITS)) & (unity - 1);
+   low = fraction & (unity * 2 - 1);
+
+   /* Get the initial sign and exponent of the low double.  */
+   lowexp = exp - HALFFRACBITS - 1;
+   lowsign = sign;
+
+   /* HIGH should be rounded like a normal double, making |LOW| <=
+      0.5 ULP of HIGH.  Assume round-to-nearest.  */
+   if (exp < EXPMAX)
+     if (low > unity || (low == unity && (high & 1) == 1))
+       {
+	 /* Round HIGH up and adjust LOW to match.  */
+	 high++;
+	 if (high == unity)
+	   {
+	     /* May make it infinite, but that's OK.  */
+	     high = 0;
+	     exp++;
+	   }
+	 low = unity * 2 - low;
+	 lowsign ^= 1;
+       }
+
+   high |= (halffractype) exp << HALFFRACBITS;
+   high |= (halffractype) sign << (HALFFRACBITS + EXPBITS);
 
    if (exp == EXPMAX || exp == 0 || low == 0)
      low = 0;
    else
      {
-       exp -= HALFFRACBITS + 1;
-
-       while (exp > 0
-	      && low < ((halffractype)1 << HALFFRACBITS))
+       while (lowexp > 0 && low < unity)
 	 {
 	   low <<= 1;
-	   exp--;
+	   lowexp--;
 	 }
 
-       if (exp <= 0)
+       if (lowexp <= 0)
 	 {
 	   halffractype roundmsb, round;
+	   int shift;
 
-	   exp = -exp + 1;
-
-	   roundmsb = (1 << (exp - 1));
+	   shift = 1 - lowexp;
+	   roundmsb = (1 << (shift - 1));
 	   round = low & ((roundmsb << 1) - 1);
 
-	   low >>= exp;
-	   exp = 0;
+	   low >>= shift;
+	   lowexp = 0;
 
-	   if (round > roundmsb || (round == roundmsb && (low & 1)))
+	   if (round > roundmsb || (round == roundmsb && (low & 1) == 1))
 	     {
 	       low++;
-	       if (low >= ((halffractype)1 << HALFFRACBITS))
-		 /* We don't shift left, since it has just become the
-		    smallest normal number, whose implicit 1 bit is
-		    now indicated by the non-zero exponent.  */
-		 exp++;
+	       if (low == unity)
+		 /* LOW rounds up to the smallest normal number.  */
+		 lowexp++;
 	     }
 	 }
 
-       low &= ((halffractype)1 << HALFFRACBITS) - 1;
-       low |= ((fractype) (exp & ((1 << EXPBITS) - 1))) << HALFFRACBITS;
-       low |= ((fractype) (sign & 1)) << (HALFFRACBITS | EXPBITS);
+       low &= unity - 1;
+       low |= (halffractype) lowexp << HALFFRACBITS;
+       low |= (halffractype) lowsign << (HALFFRACBITS + EXPBITS);
      }
-
-   dst.value_raw = (((fractype) high) << HALFSHIFT) | low;
+   dst.value_raw = ((fractype) high << HALFSHIFT) | low;
  }
 # else
   dst.value_raw = fraction & ((((fractype)1) << FRACBITS) - (fractype)1);
@@ -469,8 +493,16 @@ unpack_d (FLO_union_type * src, fp_number_type * dst)
 	 xlow >>= -shift;
        if (sign == lowsign)
 	 fraction += xlow;
-       else
+       else if (fraction >= xlow)
 	 fraction -= xlow;
+       else
+	 {
+	   /* The high part is a power of two but the full number is lower.
+	      This code will leave the implicit 1 in FRACTION, but we'd
+	      have added that below anyway.  */
+	   fraction = (((fractype) 1 << FRACBITS) - xlow) << 1;
+	   exp--;
+	 }
      }
  }
 # else
@@ -523,7 +555,11 @@ unpack_d (FLO_union_type * src, fp_number_type * dst)
       else
 	{
 	  /* Nonzero fraction, means nan */
+#ifdef QUIET_NAN_NEGATED
+	  if ((fraction & QUIET_NAN) == 0)
+#else
 	  if (fraction & QUIET_NAN)
+#endif
 	    {
 	      dst->class = CLASS_QNAN;
 	    }

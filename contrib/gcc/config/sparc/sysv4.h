@@ -3,20 +3,20 @@
    Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com).
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -48,13 +48,6 @@ Boston, MA 02111-1307, USA.  */
 #undef SKIP_ASM_OP
 #undef SET_ASM_OP	/* Has no equivalent.  See ASM_OUTPUT_DEF below.  */
 
-/* Provide a set of pre-definitions and pre-assertions appropriate for
-   the SPARC running svr4.  __svr4__ is our extension.  */
-
-#undef  CPP_PREDEFINES
-#define CPP_PREDEFINES \
-"-Dsparc -Dunix -D__svr4__ -Asystem=unix -Asystem=svr4"
-
 /* The native assembler can't compute differences between symbols in different
    sections when generating pic code, so we must put jump tables in the
    text section.  */
@@ -66,7 +59,7 @@ Boston, MA 02111-1307, USA.  */
 #undef ASM_SPEC
 #define ASM_SPEC \
   "%{v:-V} %{Qy:} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Yd,*} %{Wa,*:%*} \
-   %{fpic:-K PIC} %{fPIC:-K PIC} %(asm_cpu)"
+   %{fpic|fPIC|fpie|fPIE:-K PIC} %(asm_cpu)"
 
 /* Define the names of various pseudo-op used by the SPARC/svr4 assembler.
    Note that many of these are different from the typical pseudo-ops used
@@ -93,7 +86,7 @@ Boston, MA 02111-1307, USA.  */
 #undef ASM_OUTPUT_CASE_LABEL
 #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, JUMPTABLE)		\
 do { ASM_OUTPUT_ALIGN ((FILE), Pmode == SImode ? 2 : 3);		\
-     ASM_OUTPUT_INTERNAL_LABEL ((FILE), PREFIX, NUM);			\
+     (*targetm.asm_out.internal_label) ((FILE), PREFIX, NUM);		\
    } while (0)
 
 /* This is how to equate one symbol to another symbol.  The syntax used is
@@ -160,11 +153,6 @@ do { ASM_OUTPUT_ALIGN ((FILE), Pmode == SImode ? 2 : 3);		\
 /* Switch into a generic section.  */
 #undef TARGET_ASM_NAMED_SECTION
 #define TARGET_ASM_NAMED_SECTION  sparc_elf_asm_named_section
-
-/* A C statement (sans semicolon) to output to the stdio stream
-   FILE the assembler definition of uninitialized global DECL named
-   NAME whose size is SIZE bytes and alignment is ALIGN bytes.
-   Try to use asm_output_aligned_bss to implement this macro.  */
 
 #undef ASM_OUTPUT_ALIGNED_BSS
 #define ASM_OUTPUT_ALIGNED_BSS(FILE, DECL, NAME, SIZE, ALIGN) \

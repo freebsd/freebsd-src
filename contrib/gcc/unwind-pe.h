@@ -1,5 +1,5 @@
 /* Exception handling and frame unwind runtime interface routines.
-   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -7,6 +7,15 @@
    under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
+
+   In addition to the permissions in the GNU General Public License, the
+   Free Software Foundation gives you unlimited permission to link the
+   compiled version of this file into combinations with other programs,
+   and to distribute those combinations without any restriction coming
+   from the use of this file.  (The General Public License restrictions
+   do apply in other respects; for example, they cover modification of
+   the file, and distribution when not linked into a combined
+   executable.)
 
    GCC is distributed in the hope that it will be useful, but WITHOUT
    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
@@ -21,6 +30,9 @@
 /* @@@ Really this should be out of line, but this also causes link
    compatibility problems with the base ABI.  This is slightly better
    than duplicating code, however.  */
+
+#ifndef GCC_UNWIND_PE_H
+#define GCC_UNWIND_PE_H
 
 /* If using C++, references to abort have to be qualified with std::.  */
 #if __cplusplus
@@ -52,6 +64,8 @@
 #define DW_EH_PE_indirect	0x80
 
 
+#ifndef NO_SIZE_OF_ENCODED_VALUE
+
 /* Given an encoding, return the number of bytes the format occupies.
    This is only defined for fixed-size encodings, and so does not
    include leb128.  */
@@ -75,6 +89,8 @@ size_of_encoded_value (unsigned char encoding)
     }
   __gxx_abort ();
 }
+
+#endif
 
 #ifndef NO_BASE_OF_ENCODED_VALUE
 
@@ -124,7 +140,7 @@ read_uleb128 (const unsigned char *p, _Unwind_Word *val)
   do
     {
       byte = *p++;
-      result |= (byte & 0x7f) << shift;
+      result |= ((_Unwind_Word)byte & 0x7f) << shift;
       shift += 7;
     }
   while (byte & 0x80);
@@ -146,14 +162,14 @@ read_sleb128 (const unsigned char *p, _Unwind_Sword *val)
   do
     {
       byte = *p++;
-      result |= (byte & 0x7f) << shift;
+      result |= ((_Unwind_Word)byte & 0x7f) << shift;
       shift += 7;
     }
   while (byte & 0x80);
 
   /* Sign-extend a negative value.  */
   if (shift < 8 * sizeof(result) && (byte & 0x40) != 0)
-    result |= -(1L << shift);
+    result |= -(((_Unwind_Word)1L) << shift);
 
   *val = (_Unwind_Sword) result;
   return p;
@@ -178,7 +194,7 @@ read_encoded_value_with_base (unsigned char encoding, _Unwind_Ptr base,
       signed s8 __attribute__ ((mode (DI)));
     } __attribute__((__packed__));
 
-  union unaligned *u = (union unaligned *) p;
+  const union unaligned *u = (const union unaligned *) p;
   _Unwind_Internal_Ptr result;
 
   if (encoding == DW_EH_PE_aligned)
@@ -186,7 +202,7 @@ read_encoded_value_with_base (unsigned char encoding, _Unwind_Ptr base,
       _Unwind_Internal_Ptr a = (_Unwind_Internal_Ptr) p;
       a = (a + sizeof (void *) - 1) & - sizeof(void *);
       result = *(_Unwind_Internal_Ptr *) a;
-      p = (const unsigned char *) (a + sizeof (void *));
+      p = (const unsigned char *) (_Unwind_Internal_Ptr) (a + sizeof (void *));
     }
   else
     {
@@ -271,3 +287,5 @@ read_encoded_value (struct _Unwind_Context *context, unsigned char encoding,
 }
 
 #endif
+
+#endif /* unwind-pe.h */

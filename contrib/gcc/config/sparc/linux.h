@@ -1,36 +1,39 @@
 /* Definitions for SPARC running Linux-based GNU systems with ELF.
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004
+   Free Software Foundation, Inc.
    Contributed by Eddie C. Dost (ecd@skynet.be)
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#define LINUX_DEFAULT_ELF
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define_std ("unix");		\
+	builtin_define_std ("linux");		\
+	builtin_define ("__gnu_linux__");	\
+	builtin_assert ("system=linux");	\
+	builtin_assert ("system=unix");		\
+	builtin_assert ("system=posix");	\
+    }						\
+  while (0)
 
 /* Don't assume anything about the header files.  */
 #define NO_IMPLICIT_EXTERN_C
-
-/* GNU/Linux uses ctype from glibc.a. I am not sure how complete it is.
-   For now, we play safe. It may change later.  */
-
-#if 0
-#undef MULTIBYTE_CHARS
-#define MULTIBYTE_CHARS 1
-#endif
 
 #undef MD_EXEC_PREFIX
 #undef MD_STARTFILE_PREFIX
@@ -46,12 +49,14 @@ Boston, MA 02111-1307, USA.  */
   "%{!shared: \
      %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
    crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+#elif defined HAVE_LD_PIE
+#define STARTFILE_SPEC \
+  "%{!shared: %{pg|p:gcrt1.o%s;pie:Scrt1.o%s;:crt1.o%s}}\
+   crti.o%s %{static:crtbeginT.o%s;shared|pie:crtbeginS.o%s;:crtbegin.o%s}"
 #else
 #define STARTFILE_SPEC \
-  "%{!shared: \
-     %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
-   crti.o%s %{static:crtbeginT.o%s}\
-   %{!static:%{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
+  "%{!shared: %{pg|p:gcrt1.o%s;:crt1.o%s}}\
+   crti.o%s %{static:crtbeginT.o%s;shared|pie:crtbeginS.o%s;:crtbegin.o%s}"
 #endif
 
 /* Provide a ENDFILE_SPEC appropriate for GNU/Linux.  Here we tack on
@@ -63,7 +68,7 @@ Boston, MA 02111-1307, USA.  */
 #undef  ENDFILE_SPEC
 #define ENDFILE_SPEC \
   "%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
-   %{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
+   %{shared|pie:crtendS.o%s;:crtend.o%s} crtn.o%s"
 
 /* This is for -profile to use -lc_p instead of -lc.  */
 #undef	CC1_SPEC
@@ -98,17 +103,14 @@ Boston, MA 02111-1307, USA.  */
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 32
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__ELF__ -Dunix -D__sparc__ -D__gnu_linux__ -Dlinux -Asystem=unix -Asystem=posix"
-
 #undef CPP_SUBTARGET_SPEC
 #ifdef USE_GNULIBC_1
 #define CPP_SUBTARGET_SPEC \
-"%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} \
+"%{fPIC|fPIE|fpic|fpie:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} \
 %{mlong-double-128:-D__LONG_DOUBLE_128__}"
 #else
 #define CPP_SUBTARGET_SPEC \
-"%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} \
+"%{fPIC|fPIE|fpic|fpie:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} \
 %{pthread:-D_REENTRANT} %{mlong-double-128:-D__LONG_DOUBLE_128__}"
 #endif
 
@@ -152,15 +154,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  LINK_SPEC
 #ifdef USE_GNULIBC_1
-#ifndef LINUX_DEFAULT_ELF
-#define LINK_SPEC "-m elf32_sparc -Y P,/usr/lib %{shared:-shared} \
-  %{!shared: \
-    %{!ibcs: \
-      %{!static: \
-        %{rdynamic:-export-dynamic} \
-        %{!dynamic-linker:-dynamic-linker /lib/elf/ld-linux.so.1} \
-        %{!rpath:-rpath /lib/elf/}} %{static:-static}}}"
-#else
 #define LINK_SPEC "-m elf32_sparc -Y P,/usr/lib %{shared:-shared} \
   %{!shared: \
     %{!ibcs: \
@@ -168,7 +161,6 @@ Boston, MA 02111-1307, USA.  */
         %{rdynamic:-export-dynamic} \
         %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.1}} \
         %{static:-static}}}"
-#endif
 #else
 #define LINK_SPEC "-m elf32_sparc -Y P,/usr/lib %{shared:-shared} \
   %{!mno-relax:%{!r:-relax}} \
@@ -184,8 +176,8 @@ Boston, MA 02111-1307, USA.  */
    It's safe to pass -s always, even if -g is not used.  */
 #undef ASM_SPEC
 #define ASM_SPEC \
-  "%{V} %{v:%{!V:-V}} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Wa,*:%*} -s %{fpic:-K PIC} \
-   %{fPIC:-K PIC} %(asm_cpu) %(asm_relax)"
+  "%{V} %{v:%{!V:-V}} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Wa,*:%*} -s \
+   %{fpic|fPIC|fpie|fPIE:-K PIC} %(asm_cpu) %(asm_relax)"
 
 /* Same as sparc.h */
 #undef DBX_REGISTER_NUMBER
@@ -205,13 +197,6 @@ do {									\
 
 #undef  LOCAL_LABEL_PREFIX
 #define LOCAL_LABEL_PREFIX  "."
-
-/* This is how to output a definition of an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.  */
-
-#undef  ASM_OUTPUT_INTERNAL_LABEL
-#define ASM_OUTPUT_INTERNAL_LABEL(FILE,PREFIX,NUM)	\
-  fprintf (FILE, ".L%s%d:\n", PREFIX, NUM)
 
 /* This is how to output a reference to an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.  */
@@ -245,8 +230,18 @@ do {									\
 #define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 64
 #endif
 
+#undef DITF_CONVERSION_LIBFUNCS
+#define DITF_CONVERSION_LIBFUNCS 1
+
 #if !defined(USE_GNULIBC_1) && defined(HAVE_LD_EH_FRAME_HDR)
 #define LINK_EH_SPEC "%{!static:--eh-frame-hdr} "
+#endif
+
+#ifdef HAVE_AS_TLS
+#undef TARGET_SUN_TLS
+#undef TARGET_GNU_TLS
+#define TARGET_SUN_TLS 0
+#define TARGET_GNU_TLS 1
 #endif
 
 /* Don't be different from other Linux platforms in this regard.  */
@@ -255,6 +250,14 @@ do {									\
 /* We use GNU ld so undefine this so that attribute((init_priority)) works.  */
 #undef CTORS_SECTION_ASM_OP
 #undef DTORS_SECTION_ASM_OP
+
+#define TARGET_ASM_FILE_END file_end_indicate_exec_stack
+
+/* Determine whether the the entire c99 runtime is present in the
+   runtime library.  */
+#define TARGET_C99_FUNCTIONS 1
+
+#define TARGET_HAS_F_SETLKW
 
 #undef LINK_GCC_C_SEQUENCE_SPEC
 #define LINK_GCC_C_SEQUENCE_SPEC \

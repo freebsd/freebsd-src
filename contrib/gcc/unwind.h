@@ -1,5 +1,5 @@
 /* Exception handling and frame unwind runtime interface routines.
-   Copyright (C) 2001, 2003 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -27,6 +27,9 @@
 
 /* This is derived from the C++ ABI for IA-64.  Where we diverge
    for cross-architecture compatibility are noted with "@@@".  */
+
+#ifndef _UNWIND_H
+#define _UNWIND_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -205,7 +208,7 @@ _Unwind_GetDataRelBase (struct _Unwind_Context *_C)
 }
 
 static inline _Unwind_Ptr
-_Unwind_GetTextRelBase (struct _Unwind_Context *_C)
+_Unwind_GetTextRelBase (struct _Unwind_Context *_C __attribute__ ((__unused__)))
 {
   abort ();
   return 0;
@@ -225,3 +228,5 @@ extern void * _Unwind_FindEnclosingFunction (void *pc);
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* unwind.h */

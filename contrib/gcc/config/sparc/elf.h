@@ -1,26 +1,23 @@
-/* Definitions of target machine for GNU compiler,
+/* Definitions of target machine for GCC,
    for SPARC running in an embedded environment using the ELF file format.
    Copyright (C) 1997 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
-
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dsparc -D__elf__"
 
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC "crt0.o%s crti.o%s crtbegin.o%s"
@@ -45,14 +42,9 @@ Boston, MA 02111-1307, USA.  */
 #undef STDC_0_IN_SYSTEM_HEADERS
 
 /* We don't want to use the Solaris2 specific long long int conversion
-   routines.  */
-#undef INIT_SUBTARGET_OPTABS
-#define INIT_SUBTARGET_OPTABS
+   routines or 64-bit integer multiply and divide routines.  */
+#undef SUN_CONVERSION_LIBFUNCS
+#define SUN_CONVERSION_LIBFUNCS 0
 
-/* ??? We haven't added Solaris2 equivalent 64 bit library routines to
-   lb1sp*.asm, so we need to avoid using them.  */
-#undef MULDI3_LIBCALL
-#undef DIVDI3_LIBCALL
-#undef UDIVDI3_LIBCALL
-#undef MODDI3_LIBCALL
-#undef UMODDI3_LIBCALL
+#undef SUN_INTEGER_MULTIPLY_64
+#define SUN_INTEGER_MULTIPLY_64 0

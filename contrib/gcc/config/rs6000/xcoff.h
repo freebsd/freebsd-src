@@ -1,24 +1,23 @@
 /* Definitions of target machine for GNU compiler,
    for some generic XCOFF file format
-   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+   This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   GCC is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published
+   by the Free Software Foundation; either version 2, or (at your
+   option) any later version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GCC is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+   License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
-
+   You should have received a copy of the GNU General Public License
+   along with GCC; see the file COPYING.  If not, write to the
+   Free Software Foundation, 59 Temple Place - Suite 330, Boston,
+   MA 02111-1307, USA.  */
 
 #define TARGET_OBJECT_FORMAT OBJECT_XCOFF
 
@@ -70,9 +69,14 @@ Boston, MA 02111-1307, USA.  */
    BIGGEST_ALIGNMENT is 64, so align the sections that much.  */
 
 #define EXTRA_SECTION_FUNCTIONS				\
-							\
+  READ_ONLY_DATA_SECTION_FUNCTION			\
+  PRIVATE_DATA_SECTION_FUNCTION				\
+  READ_ONLY_PRIVATE_DATA_SECTION_FUNCTION		\
+  TOC_SECTION_FUNCTION
+
+#define READ_ONLY_DATA_SECTION_FUNCTION			\
 void							\
-read_only_data_section ()				\
+read_only_data_section (void)				\
 {							\
   if (in_section != read_only_data)			\
     {							\
@@ -80,10 +84,11 @@ read_only_data_section ()				\
 	       xcoff_read_only_section_name);		\
       in_section = read_only_data;			\
     }							\
-}							\
-							\
+}
+
+#define PRIVATE_DATA_SECTION_FUNCTION			\
 void							\
-private_data_section ()					\
+private_data_section (void)				\
 {							\
   if (in_section != private_data)			\
     {							\
@@ -91,10 +96,11 @@ private_data_section ()					\
 	       xcoff_private_data_section_name);	\
       in_section = private_data;			\
     }							\
-}							\
-							\
+}
+
+#define READ_ONLY_PRIVATE_DATA_SECTION_FUNCTION		\
 void							\
-read_only_private_data_section ()			\
+read_only_private_data_section (void)			\
 {							\
   if (in_section != read_only_private_data)		\
     {							\
@@ -102,16 +108,18 @@ read_only_private_data_section ()			\
 	       xcoff_private_data_section_name);	\
       in_section = read_only_private_data;		\
     }							\
-}							\
-							\
+}
+
+#define TOC_SECTION_FUNCTION				\
 void							\
-toc_section ()						\
+toc_section (void)					\
 {							\
   if (TARGET_MINIMAL_TOC)				\
     {							\
-      /* toc_section is always called at least once from ASM_FILE_START, \
-	 so this is guaranteed to always be defined once and only once   \
-	 in each file.  */						 \
+      /* toc_section is always called at least once	\
+         from rs6000_xcoff_file_start, so this is	\
+	 guaranteed to always be defined once and	\
+	 only once in each file.  */			\
       if (! toc_initialized)				\
 	{						\
 	  fputs ("\t.toc\nLCTOC..1:\n", asm_out_file);	\
@@ -164,7 +172,6 @@ toc_section ()						\
 #define TARGET_ASM_SELECT_SECTION  rs6000_xcoff_select_section
 #define TARGET_ASM_SELECT_RTX_SECTION  rs6000_xcoff_select_rtx_section
 #define TARGET_ASM_UNIQUE_SECTION  rs6000_xcoff_unique_section
-#define TARGET_ENCODE_SECTION_INFO  rs6000_xcoff_encode_section_info
 #define TARGET_STRIP_NAME_ENCODING  rs6000_xcoff_strip_name_encoding
 #define TARGET_SECTION_TYPE_FLAGS  rs6000_xcoff_section_type_flags
 
@@ -175,15 +182,8 @@ toc_section ()						\
 #define RESTORE_FP_SUFFIX ""
 
 /* Function name to call to do profiling.  */
-#undef RS6000_MCOUNT
+#undef  RS6000_MCOUNT
 #define RS6000_MCOUNT ".__mcount"
-
-/* Function names to call to do floating point truncation.  */
-
-#undef RS6000_ITRUNC
-#define RS6000_ITRUNC "__itrunc"
-#undef RS6000_UITRUNC
-#define RS6000_UITRUNC "__uitrunc"
 
 /* This outputs NAME to FILE up to the first null or '['.  */
 
@@ -202,53 +202,11 @@ toc_section ()						\
 /* Globalizing directive for a label.  */
 #define GLOBAL_ASM_OP "\t.globl "
 
-/* Output at beginning of assembler file.
-
-   Initialize the section names for the RS/6000 at this point.
-
-   Specify filename, including full path, to assembler.
-
-   We want to go into the TOC section so at least one .toc will be emitted.
-   Also, in order to output proper .bs/.es pairs, we need at least one static
-   [RW] section emitted.
-
-   Finally, declare mcount when profiling to make the assembler happy.  */
-
-#define ASM_FILE_START(FILE)					\
-{								\
-  rs6000_gen_section_name (&xcoff_bss_section_name,		\
-			   main_input_filename, ".bss_");	\
-  rs6000_gen_section_name (&xcoff_private_data_section_name,	\
-			   main_input_filename, ".rw_");	\
-  rs6000_gen_section_name (&xcoff_read_only_section_name,	\
-			   main_input_filename, ".ro_");	\
-								\
-  fputs ("\t.file\t", FILE);                                    \
-  output_quoted_string (FILE, main_input_filename);             \
-  fputc ('\n', FILE);                                           \
-  if (TARGET_64BIT)						\
-    fputs ("\t.machine\t\"ppc64\"\n", FILE);			\
-  toc_section ();						\
-  if (write_symbols != NO_DEBUG)				\
-    private_data_section ();					\
-  text_section ();						\
-  if (profile_flag)						\
-    fprintf (FILE, "\t.extern %s\n", RS6000_MCOUNT);		\
-  rs6000_file_start (FILE, TARGET_CPU_DEFAULT);			\
-}
-
-/* Output at end of assembler file.
-
-   On the RS/6000, referencing data should automatically pull in text.  */
-
-#define ASM_FILE_END(FILE)					\
-{								\
-  text_section ();						\
-  fputs ("_section_.text:\n", FILE);				\
-  data_section ();						\
-  fputs (TARGET_32BIT						\
-	 ? "\t.long _section_.text\n" : "\t.llong _section_.text\n", FILE); \
-}
+#undef TARGET_ASM_FILE_START
+#define TARGET_ASM_FILE_START rs6000_xcoff_file_start
+#define TARGET_ASM_FILE_END rs6000_xcoff_file_end
+#undef TARGET_ASM_FILE_START_FILE_DIRECTIVE
+#define TARGET_ASM_FILE_START_FILE_DIRECTIVE false
 
 /* This macro produces the initial definition of a function name.
    On the RS/6000, we need to place an extra '.' in the function name and
@@ -258,17 +216,11 @@ toc_section ()						\
    `text_section' call previously done.  We do have to go back to that
    csect, however.
 
-   We also record that the function exists in the current compilation
-   unit, reachable by short branch, by setting SYMBOL_REF_FLAG.
-
    The third and fourth parameters to the .function pseudo-op (16 and 044)
    are placeholders which no longer have any use.  */
 
 #define ASM_DECLARE_FUNCTION_NAME(FILE,NAME,DECL)		\
-{ rtx sym_ref = XEXP (DECL_RTL (DECL), 0);			\
-  if ((*targetm.binds_local_p) (DECL))				\
-    SYMBOL_REF_FLAG (sym_ref) = 1;				\
-  if (TREE_PUBLIC (DECL))					\
+{ if (TREE_PUBLIC (DECL))					\
     {								\
       if (!RS6000_WEAK || !DECL_WEAK (decl))			\
 	{							\
@@ -296,11 +248,7 @@ toc_section ()						\
   putc ('.', FILE);						\
   RS6000_OUTPUT_BASENAME (FILE, NAME);				\
   fputs (":\n", FILE);						\
-  if (write_symbols == XCOFF_DEBUG				\
-      /* When called before targetm.asm_out.output_mi_thunk,	\
-	 we won't be emitting the rest of the debug info that	\
-	 goes along with this, leading to assembler errors.  */ \
-      && !(current_function_is_thunk && !no_new_pseudos))	\
+  if (write_symbols != NO_DEBUG)				\
     xcoffout_declare_function (FILE, DECL, NAME);		\
 }
 
@@ -311,7 +259,7 @@ toc_section ()						\
 
 /* This says how to output an external.  */
 
-#undef ASM_OUTPUT_EXTERNAL
+#undef  ASM_OUTPUT_EXTERNAL
 #define ASM_OUTPUT_EXTERNAL(FILE, DECL, NAME)				\
 { rtx _symref = XEXP (DECL_RTL (DECL), 0);				\
   if ((TREE_CODE (DECL) == VAR_DECL					\
@@ -325,12 +273,6 @@ toc_section ()						\
     }									\
 }
 
-/* This is how to output an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.  */
-
-#define ASM_OUTPUT_INTERNAL_LABEL(FILE,PREFIX,NUM)	\
-  fprintf (FILE, "%s..%u:\n", (PREFIX), (unsigned) (NUM))
-
 /* This is how to output an internal label prefix.  rs6000.c uses this
    when generating traceback tables.  */
 
@@ -338,11 +280,11 @@ toc_section ()						\
   fprintf (FILE, "%s..", PREFIX)
 
 /* This is how to output a label for a jump table.  Arguments are the same as
-   for ASM_OUTPUT_INTERNAL_LABEL, except the insn for the jump table is
+   for (*targetm.asm_out.internal_label), except the insn for the jump table is
    passed.  */
 
 #define ASM_OUTPUT_CASE_LABEL(FILE,PREFIX,NUM,TABLEINSN)	\
-{ ASM_OUTPUT_ALIGN (FILE, 2); ASM_OUTPUT_INTERNAL_LABEL (FILE, PREFIX, NUM); }
+{ ASM_OUTPUT_ALIGN (FILE, 2); (*targetm.asm_out.internal_label) (FILE, PREFIX, NUM); }
 
 /* This is how to store into the string LABEL
    the symbol_ref name of an internal numbered label where
@@ -362,7 +304,7 @@ toc_section ()						\
 #define SKIP_ASM_OP "\t.space "
 
 #define ASM_OUTPUT_SKIP(FILE,SIZE)  \
-  fprintf (FILE, "%s%u\n", SKIP_ASM_OP, (SIZE))
+  fprintf (FILE, "%s"HOST_WIDE_INT_PRINT_UNSIGNED"\n", SKIP_ASM_OP, (SIZE))
 
 /* This says how to output an assembler line
    to define a global common symbol.  */
@@ -373,12 +315,12 @@ toc_section ()						\
   do { fputs (COMMON_ASM_OP, (FILE));			\
        RS6000_OUTPUT_BASENAME ((FILE), (NAME));		\
        if ((ALIGN) > 32)				\
-	 fprintf ((FILE), ",%u,%u\n", (SIZE),		\
+	 fprintf ((FILE), ","HOST_WIDE_INT_PRINT_UNSIGNED",%u\n", (SIZE), \
 		  exact_log2 ((ALIGN) / BITS_PER_UNIT)); \
        else if ((SIZE) > 4)				\
-         fprintf ((FILE), ",%u,3\n", (SIZE));		\
+         fprintf ((FILE), ","HOST_WIDE_INT_PRINT_UNSIGNED",3\n", (SIZE)); \
        else						\
-	 fprintf ((FILE), ",%u\n", (SIZE));		\
+	 fprintf ((FILE), ","HOST_WIDE_INT_PRINT_UNSIGNED"\n", (SIZE)); \
   } while (0)
 
 /* This says how to output an assembler line
@@ -392,7 +334,8 @@ toc_section ()						\
 #define ASM_OUTPUT_LOCAL(FILE, NAME, SIZE, ROUNDED)	\
   do { fputs (LOCAL_COMMON_ASM_OP, (FILE));		\
        RS6000_OUTPUT_BASENAME ((FILE), (NAME));		\
-       fprintf ((FILE), ",%u,%s\n", (TARGET_32BIT ? (SIZE) : (ROUNDED)), \
+       fprintf ((FILE), ","HOST_WIDE_INT_PRINT_UNSIGNED",%s\n", \
+		(TARGET_32BIT ? (SIZE) : (ROUNDED)),	\
 		xcoff_bss_section_name);		\
      } while (0)
 

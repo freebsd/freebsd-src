@@ -29,36 +29,35 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "cpphash.h"
 #include "intl.h"
 
-static void print_location PARAMS ((cpp_reader *, unsigned int, unsigned int));
+static void print_location (cpp_reader *, fileline, unsigned int);
 
 /* Print the logical file location (LINE, COL) in preparation for a
    diagnostic.  Outputs the #include chain if it has changed.  A line
    of zero suppresses the include stack, and outputs the program name
    instead.  */
 static void
-print_location (pfile, line, col)
-     cpp_reader *pfile;
-     unsigned int line, col;
+print_location (cpp_reader *pfile, fileline line, unsigned int col)
 {
-  if (!pfile->buffer || line == 0)
+  if (line == 0)
     fprintf (stderr, "%s: ", progname);
   else
     {
       const struct line_map *map;
+      unsigned int lin;
 
-      map = lookup_line (&pfile->line_maps, line);
-      print_containing_files (&pfile->line_maps, map);
+      map = linemap_lookup (&pfile->line_maps, line);
+      linemap_print_containing_files (&pfile->line_maps, map);
 
-      line = SOURCE_LINE (map, line);
+      lin = SOURCE_LINE (map, line);
       if (col == 0)
 	col = 1;
 
-      if (line == 0)
+      if (lin == 0)
 	fprintf (stderr, "%s:", map->to_file);
       else if (CPP_OPTION (pfile, show_column) == 0)
-	fprintf (stderr, "%s:%u:", map->to_file, line);
+	fprintf (stderr, "%s:%u:", map->to_file, lin);
       else
-	fprintf (stderr, "%s:%u:%u:", map->to_file, line, col);
+	fprintf (stderr, "%s:%u:%u:", map->to_file, lin, col);
 
       fputc (' ', stderr);
     }
@@ -70,48 +69,46 @@ print_location (pfile, line, col)
    the correct place by default.  Returns 0 if the error has been
    suppressed.  */
 int
-_cpp_begin_message (pfile, code, line, column)
-     cpp_reader *pfile;
-     int code;
-     unsigned int line, column;
+_cpp_begin_message (cpp_reader *pfile, int code, fileline line,
+		    unsigned int column)
 {
-  int level = DL_EXTRACT (code);
+  int level = CPP_DL_EXTRACT (code);
 
   switch (level)
     {
-    case DL_WARNING:
-    case DL_PEDWARN:
+    case CPP_DL_WARNING:
+    case CPP_DL_PEDWARN:
       if (CPP_IN_SYSTEM_HEADER (pfile)
 	  && ! CPP_OPTION (pfile, warn_system_headers))
 	return 0;
       /* Fall through.  */
 
-    case DL_WARNING_SYSHDR:
+    case CPP_DL_WARNING_SYSHDR:
       if (CPP_OPTION (pfile, warnings_are_errors)
-	  || (level == DL_PEDWARN && CPP_OPTION (pfile, pedantic_errors)))
+	  || (level == CPP_DL_PEDWARN && CPP_OPTION (pfile, pedantic_errors)))
 	{
 	  if (CPP_OPTION (pfile, inhibit_errors))
 	    return 0;
-	  level = DL_ERROR;
+	  level = CPP_DL_ERROR;
 	  pfile->errors++;
 	}
       else if (CPP_OPTION (pfile, inhibit_warnings))
 	return 0;
       break;
 
-    case DL_ERROR:
+    case CPP_DL_ERROR:
       if (CPP_OPTION (pfile, inhibit_errors))
 	return 0;
       /* ICEs cannot be inhibited.  */
-    case DL_ICE:
+    case CPP_DL_ICE:
       pfile->errors++;
       break;
     }
 
   print_location (pfile, line, column);
-  if (DL_WARNING_P (level))
+  if (CPP_DL_WARNING_P (level))
     fputs (_("warning: "), stderr);
-  else if (level == DL_ICE)
+  else if (level == CPP_DL_ICE)
     fputs (_("internal error: "), stderr);
 
   return 1;
@@ -126,64 +123,52 @@ _cpp_begin_message (pfile, code, line, column)
 
 /* Print an error at the location of the previously lexed token.  */
 void
-cpp_error VPARAMS ((cpp_reader * pfile, int level, const char *msgid, ...))
+cpp_error (cpp_reader * pfile, int level, const char *msgid, ...)
 {
-  unsigned int line, column;
+  fileline line;
+  unsigned int column;
+  va_list ap;
+  
+  va_start (ap, msgid);
 
-  VA_OPEN (ap, msgid);
-  VA_FIXEDARG (ap, cpp_reader *, pfile);
-  VA_FIXEDARG (ap, int, level);
-  VA_FIXEDARG (ap, const char *, msgid);
-
-  if (pfile->buffer)
+  if (CPP_OPTION (pfile, traditional))
     {
-      if (CPP_OPTION (pfile, traditional))
-	{
-	  if (pfile->state.in_directive)
-	    line = pfile->directive_line;
-	  else
-	    line = pfile->line;
-	  column = 0;
-	}
+      if (pfile->state.in_directive)
+	line = pfile->directive_line;
       else
-	{
-	  line = pfile->cur_token[-1].line;
-	  column = pfile->cur_token[-1].col;
-	}
+	line = pfile->line;
+      column = 0;
     }
   else
-    line = column = 0;
+    {
+      line = pfile->cur_token[-1].line;
+      column = pfile->cur_token[-1].col;
+    }
 
   if (_cpp_begin_message (pfile, level, line, column))
     v_message (msgid, ap);
 
-  VA_CLOSE (ap);
+  va_end (ap);
 }
 
 /* Print an error at a specific location.  */
 void
-cpp_error_with_line VPARAMS ((cpp_reader *pfile, int level,
-			      unsigned int line, unsigned int column,
-			      const char *msgid, ...))
+cpp_error_with_line (cpp_reader *pfile, int level,
+		     fileline line, unsigned int column,
+		     const char *msgid, ...)
 {
-  VA_OPEN (ap, msgid);
-  VA_FIXEDARG (ap, cpp_reader *, pfile);
-  VA_FIXEDARG (ap, int, level);
-  VA_FIXEDARG (ap, unsigned int, line);
-  VA_FIXEDARG (ap, unsigned int, column);
-  VA_FIXEDARG (ap, const char *, msgid);
+  va_list ap;
+  
+  va_start (ap, msgid);
 
   if (_cpp_begin_message (pfile, level, line, column))
     v_message (msgid, ap);
 
-  VA_CLOSE (ap);
+  va_end (ap);
 }
 
 void
-cpp_errno (pfile, level, msgid)
-     cpp_reader *pfile;
-     int level;
-     const char *msgid;
+cpp_errno (cpp_reader *pfile, int level, const char *msgid)
 {
   if (msgid[0] == '\0')
     msgid = _("stdout");

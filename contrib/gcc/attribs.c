@@ -1,6 +1,6 @@
 /* Functions dealing with attribute handling, used by most front ends.
    Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002 Free Software Foundation, Inc.
+   2002, 2003 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,6 +21,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "tree.h"
 #include "flags.h"
 #include "toplev.h"
@@ -33,7 +35,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "target.h"
 #include "langhooks.h"
 
-static void init_attributes		PARAMS ((void));
+static void init_attributes (void);
 
 /* Table of the tables of attributes (common, language, format, machine)
    searched.  */
@@ -51,7 +53,7 @@ static const struct attribute_spec empty_attribute_table[] =
    if --enable-checking.  */
 
 static void
-init_attributes ()
+init_attributes (void)
 {
   size_t i;
 
@@ -132,16 +134,10 @@ init_attributes ()
    information, in the form of a bitwise OR of flags in enum attribute_flags
    from tree.h.  Depending on these flags, some attributes may be
    returned to be applied at a later stage (for example, to apply
-   a decl attribute to the declaration rather than to its type).  If
-   ATTR_FLAG_BUILT_IN is not set and *NODE is a DECL, then also consider
-   whether there might be some default attributes to apply to this DECL;
-   if so, decl_attributes will be called recursively with those attributes
-   and ATTR_FLAG_BUILT_IN set.  */
+   a decl attribute to the declaration rather than to its type).  */
 
 tree
-decl_attributes (node, attributes, flags)
-     tree *node, attributes;
-     int flags;
+decl_attributes (tree *node, tree attributes, int flags)
 {
   tree a;
   tree returned_attrs = NULL_TREE;
@@ -151,10 +147,6 @@ decl_attributes (node, attributes, flags)
 
   (*targetm.insert_attributes) (*node, &attributes);
 
-  if (DECL_P (*node) && TREE_CODE (*node) == FUNCTION_DECL
-      && !(flags & (int) ATTR_FLAG_BUILT_IN))
-    (*lang_hooks.insert_default_attributes) (*node);
-
   for (a = attributes; a; a = TREE_CHAIN (a))
     {
       tree name = TREE_PURPOSE (a);
@@ -162,6 +154,7 @@ decl_attributes (node, attributes, flags)
       tree *anode = node;
       const struct attribute_spec *spec = NULL;
       bool no_add_attrs = 0;
+      tree fn_ptr_tmp = NULL_TREE;
       size_t i;
 
       for (i = 0; i < ARRAY_SIZE (attribute_tables); i++)
@@ -230,9 +223,18 @@ decl_attributes (node, attributes, flags)
 	      && (TREE_CODE (TREE_TYPE (*anode)) == FUNCTION_TYPE
 		  || TREE_CODE (TREE_TYPE (*anode)) == METHOD_TYPE))
 	    {
-	      if (!(flags & (int) ATTR_FLAG_TYPE_IN_PLACE))
-		*anode = build_type_copy (*anode);
-	      anode = &TREE_TYPE (*anode);
+	      /* OK, this is a bit convoluted.  We can't just make a copy
+		 of the pointer type and modify its TREE_TYPE, because if
+		 we change the attributes of the target type the pointer
+		 type needs to have a different TYPE_MAIN_VARIANT.  So we
+		 pull out the target type now, frob it as appropriate, and
+		 rebuild the pointer type later.
+
+	         This would all be simpler if attributes were part of the
+	         declarator, grumble grumble.  */
+	      fn_ptr_tmp = TREE_TYPE (*anode);
+	      anode = &fn_ptr_tmp;
+	      flags &= ~(int) ATTR_FLAG_TYPE_IN_PLACE;
 	    }
 	  else if (flags & (int) ATTR_FLAG_FUNCTION_NEXT)
 	    {
@@ -299,6 +301,19 @@ decl_attributes (node, attributes, flags)
 								  old_attrs));
 	    }
 	}
+
+      if (fn_ptr_tmp)
+	{
+	  /* Rebuild the function pointer type and put it in the
+	     appropriate place.  */
+	  fn_ptr_tmp = build_pointer_type (fn_ptr_tmp);
+	  if (DECL_P (*node))
+	    TREE_TYPE (*node) = fn_ptr_tmp;
+	  else if (TREE_CODE (*node) == POINTER_TYPE)
+	    *node = fn_ptr_tmp;
+	  else
+	    abort ();
+	}
     }
 
   return returned_attrs;
@@ -315,9 +330,7 @@ decl_attributes (node, attributes, flags)
    resulting attributes together the way decl_attributes expects them.  */
 
 void
-split_specs_attrs (specs_attrs, declspecs, prefix_attributes)
-     tree specs_attrs;
-     tree *declspecs, *prefix_attributes;
+split_specs_attrs (tree specs_attrs, tree *declspecs, tree *prefix_attributes)
 {
   tree t, s, a, next, specs, attrs;
 
@@ -392,8 +405,7 @@ split_specs_attrs (specs_attrs, declspecs, prefix_attributes)
    A warning is issued for every ignored attribute.  */
 
 tree
-strip_attrs (specs_attrs)
-     tree specs_attrs;
+strip_attrs (tree specs_attrs)
 {
   tree specs, attrs;
 
@@ -408,4 +420,3 @@ strip_attrs (specs_attrs)
 
   return specs;
 }
-

@@ -1,5 +1,5 @@
 /* stw.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2003 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -278,12 +278,12 @@ ffestw_display_state (void)
    ffestw_init_0();  */
 
 void
-ffestw_init_0 ()
+ffestw_init_0 (void)
 {
   ffestw b;
 
-  ffestw_stack_top_ = b = (ffestw) malloc_new_kp (malloc_pool_image (),
-					  "FFESTW stack base", sizeof (*b));
+  ffestw_stack_top_ = b = malloc_new_kp (malloc_pool_image (),
+					 "FFESTW stack base", sizeof (*b));
   b->uses_ = 0;			/* catch if anyone uses, kills, &c this
 				   block. */
   b->next_ = NULL;
@@ -324,7 +324,7 @@ ffestw_new (void)
 {
   ffestw b;
 
-  b = (ffestw) malloc_new_kp (malloc_pool_image (), "FFESTW", sizeof (*b));
+  b = malloc_new_kp (malloc_pool_image (), "FFESTW", sizeof (*b));
   b->uses_ = 1;
 
   return b;

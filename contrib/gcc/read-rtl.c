@@ -1,5 +1,6 @@
-/* RTL reader for GNU C Compiler.
-   Copyright (C) 1987, 1988, 1991, 1994, 1997, 1998, 1999, 2000, 2001, 2002
+/* RTL reader for GCC.
+   Copyright (C) 1987, 1988, 1991, 1994, 1997, 1998, 1999, 2000, 2001, 2002,
+   2003
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -19,26 +20,28 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-#include "hconfig.h"
+#include "bconfig.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "rtl.h"
 #include "obstack.h"
 #include "hashtab.h"
 
 static htab_t md_constants;
 
-static void fatal_with_file_and_line PARAMS ((FILE *, const char *, ...))
+static void fatal_with_file_and_line (FILE *, const char *, ...)
   ATTRIBUTE_PRINTF_2 ATTRIBUTE_NORETURN;
-static void fatal_expected_char PARAMS ((FILE *, int, int)) ATTRIBUTE_NORETURN;
-static void read_name		PARAMS ((char *, FILE *));
-static char *read_string	PARAMS ((struct obstack *, FILE *, int));
-static char *read_quoted_string	PARAMS ((struct obstack *, FILE *));
-static char *read_braced_string	PARAMS ((struct obstack *, FILE *));
-static void read_escape		PARAMS ((struct obstack *, FILE *));
-static hashval_t def_hash	PARAMS ((const void *));
-static int def_name_eq_p PARAMS ((const void *, const void *));
-static void read_constants PARAMS ((FILE *infile, char *tmp_char));
-static void validate_const_int PARAMS ((FILE *, const char *));
+static void fatal_expected_char (FILE *, int, int) ATTRIBUTE_NORETURN;
+static void read_name (char *, FILE *);
+static char *read_string (struct obstack *, FILE *, int);
+static char *read_quoted_string (struct obstack *, FILE *);
+static char *read_braced_string (struct obstack *, FILE *);
+static void read_escape (struct obstack *, FILE *);
+static hashval_t def_hash (const void *);
+static int def_name_eq_p (const void *, const void *);
+static void read_constants (FILE *infile, char *tmp_char);
+static void validate_const_int (FILE *, const char *);
 
 /* Subroutines of read_rtx.  */
 
@@ -49,15 +52,14 @@ int read_rtx_lineno = 1;
 const char *read_rtx_filename = "<unknown>";
 
 static void
-fatal_with_file_and_line VPARAMS ((FILE *infile, const char *msg, ...))
+fatal_with_file_and_line (FILE *infile, const char *msg, ...)
 {
   char context[64];
   size_t i;
   int c;
+  va_list ap;
 
-  VA_OPEN (ap, msg);
-  VA_FIXEDARG (ap, FILE *, infile);
-  VA_FIXEDARG (ap, const char *, msg);
+  va_start (ap, msg);
 
   fprintf (stderr, "%s:%d: ", read_rtx_filename, read_rtx_lineno);
   vfprintf (stderr, msg, ap);
@@ -78,7 +80,7 @@ fatal_with_file_and_line VPARAMS ((FILE *infile, const char *msg, ...))
   fprintf (stderr, "%s:%d: following context is `%s'\n",
 	   read_rtx_filename, read_rtx_lineno, context);
 
-  VA_CLOSE (ap);
+  va_end (ap);
   exit (1);
 }
 
@@ -86,9 +88,7 @@ fatal_with_file_and_line VPARAMS ((FILE *infile, const char *msg, ...))
    invalid data.  */
 
 static void
-fatal_expected_char (infile, expected_c, actual_c)
-     FILE *infile;
-     int expected_c, actual_c;
+fatal_expected_char (FILE *infile, int expected_c, int actual_c)
 {
   fatal_with_file_and_line (infile, "expected character `%c', found `%c'",
 			    expected_c, actual_c);
@@ -100,8 +100,7 @@ fatal_expected_char (infile, expected_c, actual_c)
    Tools such as genflags use this function.  */
 
 int
-read_skip_spaces (infile)
-     FILE *infile;
+read_skip_spaces (FILE *infile)
 {
   int c;
 
@@ -153,9 +152,7 @@ read_skip_spaces (infile)
    It is terminated by any of the punctuation chars of rtx printed syntax.  */
 
 static void
-read_name (str, infile)
-     char *str;
-     FILE *infile;
+read_name (char *str, FILE *infile)
 {
   char *p;
   int c;
@@ -206,9 +203,7 @@ read_name (str, infile)
 /* Subroutine of the string readers.  Handles backslash escapes.
    Caller has read the backslash, but not placed it into the obstack.  */
 static void
-read_escape (ob, infile)
-     struct obstack *ob;
-     FILE *infile;
+read_escape (struct obstack *ob, FILE *infile)
 {
   int c = getc (infile);
 
@@ -261,9 +256,7 @@ read_escape (ob, infile)
 /* Read a double-quoted string onto the obstack.  Caller has scanned
    the leading quote.  */
 static char *
-read_quoted_string (ob, infile)
-     struct obstack *ob;
-     FILE *infile;
+read_quoted_string (struct obstack *ob, FILE *infile)
 {
   int c;
 
@@ -291,17 +284,17 @@ read_quoted_string (ob, infile)
    scanned the leading brace.  Note that unlike quoted strings,
    the outermost braces _are_ included in the string constant.  */
 static char *
-read_braced_string (ob, infile)
-     struct obstack *ob;
-     FILE *infile;
+read_braced_string (struct obstack *ob, FILE *infile)
 {
   int c;
   int brace_depth = 1;  /* caller-processed */
+  unsigned long starting_read_rtx_lineno = read_rtx_lineno;
 
   obstack_1grow (ob, '{');
   while (brace_depth)
     {
       c = getc (infile); /* Read the string  */
+
       if (c == '\n')
 	read_rtx_lineno++;
       else if (c == '{')
@@ -313,6 +306,10 @@ read_braced_string (ob, infile)
 	  read_escape (ob, infile);
 	  continue;
 	}
+      else if (c == EOF)
+	fatal_with_file_and_line
+	  (infile, "missing closing } for opening brace on line %lu",
+	   starting_read_rtx_lineno);
 
       obstack_1grow (ob, c);
     }
@@ -326,10 +323,7 @@ read_braced_string (ob, infile)
    and dispatch to the appropriate string constant reader.  */
 
 static char *
-read_string (ob, infile, star_if_braced)
-     struct obstack *ob;
-     FILE *infile;
-     int star_if_braced;
+read_string (struct obstack *ob, FILE *infile, int star_if_braced)
 {
   char *stringbuf;
   int saw_paren = 0;
@@ -366,9 +360,10 @@ read_string (ob, infile, star_if_braced)
 /* Provide a version of a function to read a long long if the system does
    not provide one.  */
 #if HOST_BITS_PER_WIDE_INT > HOST_BITS_PER_LONG && !defined(HAVE_ATOLL) && !defined(HAVE_ATOQ)
+HOST_WIDE_INT atoll (const char *);
+
 HOST_WIDE_INT
-atoll (p)
-    const char *p;
+atoll (const char *p)
 {
   int neg = 0;
   HOST_WIDE_INT tmp_wide;
@@ -402,8 +397,7 @@ atoll (p)
 
 /* Given a constant definition, return a hash code for its name.  */
 static hashval_t
-def_hash (def)
-     const void *def;
+def_hash (const void *def)
 {
   unsigned result, i;
   const char *string = ((const struct md_constant *) def)->name;
@@ -415,8 +409,7 @@ def_hash (def)
 
 /* Given two constant definitions, return true if they have the same name.  */
 static int
-def_name_eq_p (def1, def2)
-     const void *def1, *def2;
+def_name_eq_p (const void *def1, const void *def2)
 {
   return ! strcmp (((const struct md_constant *) def1)->name,
 		   ((const struct md_constant *) def2)->name);
@@ -426,9 +419,7 @@ def_name_eq_p (def1, def2)
    to read a name or number into.  Process a define_constants directive,
    starting with the optional space after the "define_constants".  */
 static void
-read_constants (infile, tmp_char)
-     FILE *infile;
-     char *tmp_char;
+read_constants (FILE *infile, char *tmp_char)
 {
   int c;
   htab_t defs;
@@ -484,18 +475,14 @@ read_constants (infile, tmp_char)
    a pointer a pointer to the constant definition and INFO.
    Stops when CALLBACK returns zero.  */
 void
-traverse_md_constants (callback, info)
-     htab_trav callback;
-     void *info;
+traverse_md_constants (htab_trav callback, void *info)
 {
   if (md_constants)
     htab_traverse (md_constants, callback, info);
 }
 
 static void
-validate_const_int (infile, string)
-     FILE *infile;
-     const char *string;
+validate_const_int (FILE *infile, const char *string)
 {
   const char *cp;
   int valid = 1;
@@ -520,8 +507,7 @@ validate_const_int (infile, string)
    the utilities gen*.c that construct C code from machine descriptions.  */
 
 rtx
-read_rtx (infile)
-     FILE *infile;
+read_rtx (FILE *infile)
 {
   int i, j;
   RTX_CODE tmp_code;
@@ -650,7 +636,7 @@ again:
 	    {
 	      ungetc (c, infile);
 	      list_counter++;
-	      obstack_ptr_grow (&vector_stack, (PTR) read_rtx (infile));
+	      obstack_ptr_grow (&vector_stack, read_rtx (infile));
 	    }
 	  if (list_counter > 0)
 	    {

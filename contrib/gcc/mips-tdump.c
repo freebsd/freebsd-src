@@ -1,5 +1,5 @@
 /* Read and manage MIPS symbol tables from object modules.
-   Copyright (C) 1991, 1994, 1995, 1997, 1998, 1999, 2000, 2001
+   Copyright (C) 1991, 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2003
    Free Software Foundation, Inc.
    Contributed by hartzell@boulder.colorado.edu,
    Rewritten by meissner@osf.org.
@@ -23,6 +23,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
+#include "version.h"
 #ifdef index
 #undef index
 #endif
@@ -31,6 +34,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #else
 #include "mips/a.out.h"
 #endif /* CROSS_COMPILE */
+
+/* Include getopt.h for the sake of getopt_long.  */
+#include "getopt.h"
 
 #ifndef MIPS_IS_STAB
 /* Macros for mips-tfile.c to encapsulate stabs in ECOFF, and for
@@ -207,6 +213,8 @@ int	 want_line	= 0;	/* print line numbers */
 int	 want_rfd	= 0;	/* print relative file desc's */
 int	 want_scope	= 0;	/* print scopes for every symbol */
 int	 tfile		= 0;	/* no global header file */
+int	 version	= 0;    /* print version # */
+int	 verbose	= 0;
 int	 tfile_fd;		/* file descriptor of .T file */
 off_t	 tfile_offset;		/* current offset in .T file */
 scope_t	*cur_scope	= 0;	/* list of active scopes */
@@ -226,19 +234,19 @@ ulong	*rfile_desc;		/* relative file tables */
 PDR	*proc_desc;		/* procedure tables */
 
 /* Forward reference for functions.  */
-static PTR read_seek			PARAMS ((PTR, size_t, off_t, const char *));
-static void read_tfile			PARAMS ((void));
-static void print_global_hdr		PARAMS ((struct filehdr *));
-static void print_sym_hdr		PARAMS ((HDRR *));
-static void print_file_desc		PARAMS ((FDR *, int));
-static void print_symbol		PARAMS ((SYMR *, int, const char *, AUXU *, int, FDR *));
-static void print_aux			PARAMS ((AUXU, int, int));
-static void emit_aggregate		PARAMS ((char *, AUXU, AUXU, const char *, FDR *));
-static const char *st_to_string		PARAMS ((st_t));
-static const char *sc_to_string		PARAMS ((sc_t));
-static const char *glevel_to_string	PARAMS ((glevel_t));
-static const char *lang_to_string	PARAMS ((lang_t));
-static const char *type_to_string	PARAMS ((AUXU *, int, FDR *));
+static void *read_seek (void *, size_t, off_t, const char *);
+static void read_tfile (void);
+static void print_global_hdr (struct filehdr *);
+static void print_sym_hdr (HDRR *);
+static void print_file_desc (FDR *, int);
+static void print_symbol (SYMR *, int, const char *, AUXU *, int, FDR *);
+static void print_aux (AUXU, int, int);
+static void emit_aggregate (char *, AUXU, AUXU, const char *, FDR *);
+static const char *st_to_string (st_t);
+static const char *sc_to_string (sc_t);
+static const char *glevel_to_string (glevel_t);
+static const char *lang_to_string (lang_t);
+static const char *type_to_string (AUXU *, int, FDR *);
 
 extern char *optarg;
 extern int   optind;
@@ -252,15 +260,22 @@ const struct {const short code; const char string[10];} stab_names[]  = {
 #undef __define_stab
 };
 
-
-/* Read some bytes at a specified location, and return a pointer.  */
+/* Command line options for getopt_long.  */
 
-static PTR
-read_seek (ptr, size, offset, context)
-     PTR ptr;			/* pointer to buffer or NULL */
-     size_t size;		/* # bytes to read */
-     off_t offset;		/* offset to read at */
-     const char *context;	/* context for error message */
+static const struct option options[] =
+{
+  { "version", 0, 0, 'V' },
+  { "verbose", 0, 0, 'v' },
+  { 0, 0, 0, 0 }
+};
+
+/* Read some bytes at a specified location, and return a pointer.
+   Read_seek takes a pointer PTR to a buffer or NULL and reads SIZE
+   bytes from offset OFFSET.  In case of errors CONTEXT is used as
+   error message.  */
+
+static void *
+read_seek (void *ptr, size_t size, off_t offset,  const char *context)
 {
   long read_size = 0;
 
@@ -292,8 +307,7 @@ read_seek (ptr, size, offset, context)
 /* Convert language code to string format.  */
 
 static const char *
-lang_to_string (lang)
-     lang_t lang;
+lang_to_string (lang_t lang)
 {
   switch (lang)
     {
@@ -315,8 +329,7 @@ lang_to_string (lang)
 /* Convert storage class to string.  */
 
 static const char *
-sc_to_string(storage_class)
-     sc_t storage_class;
+sc_to_string (sc_t storage_class)
 {
   switch(storage_class)
     {
@@ -353,8 +366,7 @@ sc_to_string(storage_class)
 /* Convert symbol type to string.  */
 
 static const char *
-st_to_string(symbol_type)
-     st_t symbol_type;
+st_to_string (st_t symbol_type)
 {
   switch(symbol_type)
     {
@@ -394,8 +406,7 @@ st_to_string(symbol_type)
 /* Convert debug level to string.  */
 
 static const char *
-glevel_to_string (g_level)
-     glevel_t g_level;
+glevel_to_string (glevel_t g_level)
 {
   switch(g_level)
     {
@@ -407,15 +418,12 @@ glevel_to_string (g_level)
 
   return "??";
 }
-     
+
 
 /* Convert the type information to string format.  */
 
 static const char *
-type_to_string (aux_ptr, index, fdp)
-     AUXU *aux_ptr;
-     int index;
-     FDR *fdp;
+type_to_string (AUXU *aux_ptr, int index, FDR *fdp)
 {
   AUXU u;
   struct qual {
@@ -725,8 +733,7 @@ type_to_string (aux_ptr, index, fdp)
 /* Print out the global file header for object files.  */
 
 static void
-print_global_hdr (ptr)
-     struct filehdr *ptr;
+print_global_hdr (struct filehdr *ptr)
 {
   char *time = ctime ((time_t *)&ptr->f_timdat);
   ushort flags = ptr->f_flags;
@@ -780,8 +787,7 @@ print_global_hdr (ptr)
 /* Print out the symbolic header.  */
 
 static void
-print_sym_hdr (sym_ptr)
-     HDRR *sym_ptr;
+print_sym_hdr (HDRR *sym_ptr)
 {
   int width = 20;
 
@@ -854,13 +860,8 @@ print_sym_hdr (sym_ptr)
 /* Print out a symbol.  */
 
 static void
-print_symbol (sym_ptr, number, strbase, aux_base, ifd, fdp)
-     SYMR *sym_ptr;
-     int number;
-     const char *strbase;
-     AUXU *aux_base;
-     int ifd;
-     FDR *fdp;
+print_symbol (SYMR *sym_ptr, int number, const char *strbase, AUXU *aux_base,
+	      int ifd, FDR *fdp)
 {
   sc_t storage_class = (sc_t) sym_ptr->sc;
   st_t symbol_type   = (st_t) sym_ptr->st;
@@ -883,7 +884,7 @@ print_symbol (sym_ptr, number, strbase, aux_base, ifd, fdp)
 	if (want_scope)
 	  {
 	    if (free_scope == (scope_t *) 0)
-	      scope_ptr = (scope_t *) xmalloc (sizeof (scope_t));
+	      scope_ptr = xmalloc (sizeof (scope_t));
 	    else
 	      {
 		scope_ptr = free_scope;
@@ -937,7 +938,7 @@ print_symbol (sym_ptr, number, strbase, aux_base, ifd, fdp)
 	if (want_scope)
 	  {
 	    if (free_scope == (scope_t *) 0)
-	      scope_ptr = (scope_t *) xmalloc (sizeof (scope_t));
+	      scope_ptr = xmalloc (sizeof (scope_t));
 	    else
 	      {
 		scope_ptr = free_scope;
@@ -1034,10 +1035,7 @@ print_symbol (sym_ptr, number, strbase, aux_base, ifd, fdp)
 /* Print out a word from the aux. table in various formats.  */
 
 static void
-print_aux (u, auxi, used)
-     AUXU u;
-     int auxi;
-     int used;
+print_aux (AUXU u, int auxi, int used)
 {
   printf ("\t%s#%-5d %11ld, [%4ld/%7ld], [%2d %1d:%1d %1x:%1x:%1x:%1x:%1x:%1x]\n",
 	  (used) ? "  " : "* ",
@@ -1060,20 +1058,15 @@ print_aux (u, auxi, used)
 /* Write aggregate information to a string.  */
 
 static void
-emit_aggregate (string, u, u2, which, fdp)
-     char *string;
-     AUXU u;
-     AUXU u2;
-     const char *which;
-     FDR *fdp;
+emit_aggregate (char *string, AUXU u, AUXU u2, const char *which, FDR *fdp)
 {
   unsigned int ifd = u.rndx.rfd;
   unsigned int index = u.rndx.index;
   const char *name;
-  
+
   if (ifd == ST_RFDESCAPE)
     ifd = u2.isym;
-  
+
   /* An ifd of -1 is an opaque type.  An escaped index of 0 is a
      struct return type of a procedure compiled without -g.  */
   if (ifd == 0xffffffff
@@ -1089,7 +1082,7 @@ emit_aggregate (string, u, u2, which, fdp)
 	fdp = &file_desc[rfile_desc[fdp->rfdBase + ifd]];
       name = &l_strings[fdp->issBase + l_symbols[index + fdp->isymBase].iss];
     }
-  
+
   sprintf (string,
 	   "%s %s { ifd = %u, index = %u }",
 	   which, name, ifd, index);
@@ -1100,24 +1093,22 @@ emit_aggregate (string, u, u2, which, fdp)
    procedures, and line numbers within it.  */
 
 static void
-print_file_desc (fdp, number)
-     FDR *fdp;
-     int number;
+print_file_desc (FDR *fdp, int number)
 {
   char *str_base;
   AUXU *aux_base;
   int symi, pdi;
   int width = 20;
   char *used_base;
-  
-  str_base = l_strings + fdp->issBase;  
+
+  str_base = l_strings + fdp->issBase;
   aux_base = aux_symbols + fdp->iauxBase;
   used_base = aux_used + (aux_base - aux_symbols);
 
   printf ("\nFile #%d, \"%s\"\n\n",
 	  number,
 	  fdp->rss != issNil ? str_base + fdp->rss : "<unknown>");
-    
+
   printf ("    Name index  = %-10ld Readin      = %s\n",
 	  (long) fdp->rss, (fdp->fReadin) ? "Yes" : "No");
 
@@ -1187,7 +1178,7 @@ print_file_desc (fdp, number)
   if (want_scope && cur_scope != (scope_t *) 0)
     printf ("\n    Warning scope does not start at 0!\n");
 
-  /* 
+  /*
    * print the info about the symbol table.
    */
   printf ("\n    There are %lu local symbols, starting at %lu\n",
@@ -1240,7 +1231,7 @@ print_file_desc (fdp, number)
 	}
     }
 
-  /* 
+  /*
    * do the procedure descriptors.
    */
   printf ("\n    There are %lu procedure descriptor entries, ", (ulong) fdp->cpd);
@@ -1328,18 +1319,17 @@ print_file_desc (fdp, number)
 /* Read in the portions of the .T file that we will print out.  */
 
 static void
-read_tfile ()
+read_tfile (void)
 {
   short magic;
   off_t sym_hdr_offset = 0;
 
-  (void) read_seek ((PTR) &magic, sizeof (magic), (off_t) 0, "Magic number");
+  read_seek (&magic, sizeof (magic), 0, "Magic number");
   if (!tfile)
     {
       /* Print out the global header, since this is not a T-file.  */
 
-      (void) read_seek ((PTR) &global_hdr, sizeof (global_hdr), (off_t) 0,
-			"Global file header");
+      read_seek (&global_hdr, sizeof (global_hdr), 0, "Global file header");
 
       print_global_hdr (&global_hdr);
 
@@ -1352,87 +1342,60 @@ read_tfile ()
       sym_hdr_offset = global_hdr.f_symptr;
     }
 
-  (void) read_seek ((PTR) &sym_hdr,
-		    sizeof (sym_hdr),
-		    sym_hdr_offset,
-		    "Symbolic header");
+  read_seek (&sym_hdr, sizeof (sym_hdr), sym_hdr_offset, "Symbolic header");
 
   print_sym_hdr (&sym_hdr);
 
-  lines = (LINER *) read_seek (NULL,
-			       sym_hdr.cbLine,
-			       sym_hdr.cbLineOffset,
-			       "Line numbers");
+  lines = read_seek (NULL, sym_hdr.cbLine, sym_hdr.cbLineOffset,
+		     "Line numbers");
 
-  dense_nums = (DNR *) read_seek (NULL,
-				  sym_hdr.idnMax * sizeof (DNR),
-				  sym_hdr.cbDnOffset,
-				  "Dense numbers");
+  dense_nums = read_seek (NULL, sym_hdr.idnMax * sizeof (DNR),
+			  sym_hdr.cbDnOffset, "Dense numbers");
 
-  proc_desc = (PDR *) read_seek (NULL,
-				 sym_hdr.ipdMax * sizeof (PDR),
-				 sym_hdr.cbPdOffset,
-				 "Procedure tables");
+  proc_desc = read_seek (NULL, sym_hdr.ipdMax * sizeof (PDR),
+			 sym_hdr.cbPdOffset, "Procedure tables");
 
-  l_symbols = (SYMR *) read_seek (NULL,
-				  sym_hdr.isymMax * sizeof (SYMR),
-				  sym_hdr.cbSymOffset,
-				  "Local symbols");
+  l_symbols = read_seek (NULL, sym_hdr.isymMax * sizeof (SYMR),
+			 sym_hdr.cbSymOffset, "Local symbols");
 
-  opt_symbols = (OPTR *) read_seek (NULL,
-				    sym_hdr.ioptMax * sizeof (OPTR),
-				    sym_hdr.cbOptOffset,
-				    "Optimization symbols");
+  opt_symbols = read_seek (NULL, sym_hdr.ioptMax * sizeof (OPTR),
+			   sym_hdr.cbOptOffset, "Optimization symbols");
 
-  aux_symbols = (AUXU *) read_seek (NULL,
-				    sym_hdr.iauxMax * sizeof (AUXU),
-				    sym_hdr.cbAuxOffset,
-				    "Auxiliary symbols");
+  aux_symbols = read_seek (NULL, sym_hdr.iauxMax * sizeof (AUXU),
+			   sym_hdr.cbAuxOffset, "Auxiliary symbols");
 
   if (sym_hdr.iauxMax > 0)
     aux_used = xcalloc (sym_hdr.iauxMax, 1);
 
-  l_strings = (char *) read_seek (NULL,
-				  sym_hdr.issMax,
-				  sym_hdr.cbSsOffset,
-				  "Local string table");
+  l_strings = read_seek (NULL, sym_hdr.issMax,
+			 sym_hdr.cbSsOffset, "Local string table");
 
-  e_strings = (char *) read_seek (NULL,
-				  sym_hdr.issExtMax,
-				  sym_hdr.cbSsExtOffset,
-				  "External string table");
+  e_strings = read_seek (NULL, sym_hdr.issExtMax,
+			 sym_hdr.cbSsExtOffset, "External string table");
 
-  file_desc = (FDR *) read_seek (NULL,
-				 sym_hdr.ifdMax * sizeof (FDR),
-				 sym_hdr.cbFdOffset,
-				 "File tables");
+  file_desc = read_seek (NULL, sym_hdr.ifdMax * sizeof (FDR),
+			 sym_hdr.cbFdOffset, "File tables");
 
-  rfile_desc = (ulong *) read_seek (NULL,
-				    sym_hdr.crfd * sizeof (ulong),
-				    sym_hdr.cbRfdOffset,
-				    "Relative file tables");
+  rfile_desc = read_seek (NULL, sym_hdr.crfd * sizeof (ulong),
+			  sym_hdr.cbRfdOffset, "Relative file tables");
 
-  e_symbols = (EXTR *) read_seek (NULL,
-				  sym_hdr.iextMax * sizeof (EXTR),
-				  sym_hdr.cbExtOffset,
-				  "External symbols");
+  e_symbols = read_seek (NULL, sym_hdr.iextMax * sizeof (EXTR),
+			 sym_hdr.cbExtOffset, "External symbols");
 }
 
 
 
-extern int main PARAMS ((int, char **));
+extern int main (int, char **);
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   int i, opt;
 
   /*
    * Process arguments
    */
-  while ((opt = getopt (argc, argv, "alrst")) != EOF)
+  while ((opt = getopt_long (argc, argv, "alrsvt", options, NULL)) != -1)
     switch (opt)
       {
       default:	errors++;	break;
@@ -1440,10 +1403,35 @@ main (argc, argv)
       case 'l': want_line++;	break;	/* print line numbers */
       case 'r': want_rfd++;	break;	/* print relative fd's */
       case 's':	want_scope++;	break;	/* print scope info */
-      case 't': tfile++;	break;	/* this is a tfile (without header), and not a .o */
+      case 'v': verbose++;	break;  /* print version # */
+      case 'V': version++;	break;  /* print version # */
+      case 't': tfile++;	break;	/* this is a tfile (without header),
+					   and not a .o */
       }
 
-  if (errors || optind != argc - 1)
+  if (version)
+    {
+      printf ("mips-tdump (GCC) %s\n", version_string);
+      fputs ("Copyright (C) 2003 Free Software Foundation, Inc.\n", stdout);
+      fputs ("This is free software; see the source for copying conditions.  There is NO\n\
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+             stdout);
+      exit (0);
+    }
+
+  if (optind != argc - 1)
+    errors++;
+
+  if (verbose || errors)
+    {
+      fprintf (stderr, "mips-tdump (GCC) %s", version_string);
+#ifdef TARGET_VERSION
+      TARGET_VERSION;
+#endif
+      fputc ('\n', stderr);
+    }
+
+  if (errors)
     {
       fprintf (stderr, "Calling Sequence:\n");
       fprintf (stderr, "\t%s [-alrst] <object-or-T-file>\n", argv[0]);
@@ -1454,6 +1442,7 @@ main (argc, argv)
       fprintf (stderr, "\t-r Print out relative file descriptors.\n");
       fprintf (stderr, "\t-s Print out the current scopes for an item.\n");
       fprintf (stderr, "\t-t Assume there is no global header (ie, a T-file).\n");
+      fprintf (stderr, "\t-v Print program version.\n");
       return 1;
     }
 
@@ -1504,7 +1493,7 @@ main (argc, argv)
   for (i = 0; i < sym_hdr.ifdMax; i++)
     print_file_desc (&file_desc[i], i);
 
-  /* 
+  /*
    * Print the external symbols.
    */
   want_scope = 0;		/* scope info is meaning for extern symbols */

@@ -1,5 +1,5 @@
 /* Map logical line numbers to (source file, line number) pairs.
-   Copyright (C) 2001
+   Copyright (C) 2001, 2003
    Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
@@ -25,14 +25,12 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include "line-map.h"
 #include "intl.h"
 
-static void trace_include
-  PARAMS ((const struct line_maps *, const struct line_map *));
+static void trace_include (const struct line_maps *, const struct line_map *);
 
 /* Initialize a line map set.  */
 
 void
-init_line_maps (set)
-     struct line_maps *set;
+linemap_init (struct line_maps *set)
 {
   set->maps = 0;
   set->allocated = 0;
@@ -45,8 +43,7 @@ init_line_maps (set)
 /* Free a line map set.  */
 
 void
-free_line_maps (set)
-     struct line_maps *set;
+linemap_free (struct line_maps *set)
 {
   if (set->maps)
     {
@@ -64,20 +61,22 @@ free_line_maps (set)
 }
 
 /* Add a mapping of logical source line to physical source file and
-   line number.  Ther text pointed to by TO_FILE must have a lifetime
-   at least as long as the final call to lookup_line ().
+   line number.
+
+   The text pointed to by TO_FILE must have a lifetime
+   at least as long as the final call to lookup_line ().  An empty
+   TO_FILE means standard input.  If reason is LC_LEAVE, and
+   TO_FILE is NULL, then TO_FILE, TO_LINE and SYSP are given their
+   natural values considering the file we are returning to.
 
    FROM_LINE should be monotonic increasing across calls to this
-   function.  */
+   function.  A call to this function can relocate the previous set of
+   maps, so any stored line_map pointers should not be used.  */
 
 const struct line_map *
-add_line_map (set, reason, sysp, from_line, to_file, to_line)
-     struct line_maps *set;
-     enum lc_reason reason;
-     unsigned int sysp;
-     unsigned int from_line;
-     const char *to_file;
-     unsigned int to_line;
+linemap_add (struct line_maps *set, enum lc_reason reason,
+	     unsigned int sysp, source_location from_line,
+	     const char *to_file, unsigned int to_line)
 {
   struct line_map *map;
 
@@ -87,11 +86,13 @@ add_line_map (set, reason, sysp, from_line, to_file, to_line)
   if (set->used == set->allocated)
     {
       set->allocated = 2 * set->allocated + 256;
-      set->maps = (struct line_map *)
-	xrealloc (set->maps, set->allocated * sizeof (struct line_map));
+      set->maps = xrealloc (set->maps, set->allocated * sizeof (struct line_map));
     }
 
   map = &set->maps[set->used++];
+
+  if (to_file && *to_file == '\0')
+    to_file = "<stdin>";
 
   /* If we don't keep our line maps consistent, we can easily
      segfault.  Don't rely on the client to do it for us.  */
@@ -104,9 +105,15 @@ add_line_map (set, reason, sysp, from_line, to_file, to_line)
 
       if (MAIN_FILE_P (map - 1))
 	{
+	  if (to_file == NULL)
+	    {
+	      set->depth--;
+	      set->used--;
+	      return NULL;
+	    }
 	  error = true;
-	  reason = LC_RENAME;
-	  from = map - 1;
+          reason = LC_RENAME;
+          from = map - 1;
 	}
       else
 	{
@@ -137,8 +144,8 @@ add_line_map (set, reason, sysp, from_line, to_file, to_line)
 
   if (reason == LC_ENTER)
     {
+      map->included_from = set->depth == 0 ? -1 : (int) (set->used - 2);
       set->depth++;
-      map->included_from = set->used - 2;
       if (set->trace_includes)
 	trace_include (set, map);
     }
@@ -159,9 +166,7 @@ add_line_map (set, reason, sysp, from_line, to_file, to_line)
    the list is sorted and we can use a binary search.  */
 
 const struct line_map *
-lookup_line (set, line)
-     struct line_maps *set;
-     unsigned int line;
+linemap_lookup (struct line_maps *set, source_location line)
 {
   unsigned int md, mn = 0, mx = set->used;
 
@@ -185,9 +190,8 @@ lookup_line (set, line)
    the most recently listed stack is the same as the current one.  */
 
 void
-print_containing_files (set, map)
-     struct line_maps *set;
-     const struct line_map *map;
+linemap_print_containing_files (struct line_maps *set,
+				const struct line_map *map)
 {
   if (MAIN_FILE_P (map) || set->last_listed == map->included_from)
     return;
@@ -223,9 +227,7 @@ print_containing_files (set, map)
 /* Print an include trace, for e.g. the -H option of the preprocessor.  */
 
 static void
-trace_include (set, map)
-     const struct line_maps *set;
-     const struct line_map *map;
+trace_include (const struct line_maps *set, const struct line_map *map)
 {
   unsigned int i = set->depth;
 

@@ -1,26 +1,29 @@
 /* Perform optimizations on tree structure.
-   Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2004
+   Free Software Foundation, Inc.
    Written by Mark Michell (mark@codesourcery.com).
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify it
+GCC is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful, but
+GCC is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to the Free
+along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "tree.h"
 #include "cp-tree.h"
 #include "rtl.h"
@@ -29,7 +32,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "integrate.h"
 #include "toplev.h"
 #include "varray.h"
-#include "ggc.h"
 #include "params.h"
 #include "hashtab.h"
 #include "debug.h"
@@ -37,28 +39,16 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* Prototypes.  */
 
-static tree calls_setjmp_r PARAMS ((tree *, int *, void *));
-static void update_cloned_parm PARAMS ((tree, tree));
-static void dump_function PARAMS ((enum tree_dump_index, tree));
+static tree calls_setjmp_r (tree *, int *, void *);
+static void update_cloned_parm (tree, tree);
+static void dump_function (enum tree_dump_index, tree);
 
 /* Optimize the body of FN.  */
 
 void
-optimize_function (fn)
-     tree fn;
+optimize_function (tree fn)
 {
   dump_function (TDI_original, fn);
-
-  /* While in this function, we may choose to go off and compile
-     another function.  For example, we might instantiate a function
-     in the hopes of inlining it.  Normally, that wouldn't trigger any
-     actual RTL code-generation -- but it will if the template is
-     actually needed.  (For example, if it's address is taken, or if
-     some other function already refers to the template.)  If
-     code-generation occurs, then garbage collection will occur, so we
-     must protect ourselves, just as we do while building up the body
-     of the function.  */
-  ++function_depth;
 
   if (flag_inline_trees
       /* We do not inline thunks, as (a) the backend tries to optimize
@@ -68,12 +58,8 @@ optimize_function (fn)
       && !DECL_THUNK_P (fn))
     {
       optimize_inline_calls (fn);
-
       dump_function (TDI_inlined, fn);
     }
-  
-  /* Undo the call to ggc_push_context above.  */
-  --function_depth;
   
   dump_function (TDI_optimized, fn);
 }
@@ -81,10 +67,8 @@ optimize_function (fn)
 /* Called from calls_setjmp_p via walk_tree.  */
 
 static tree
-calls_setjmp_r (tp, walk_subtrees, data)
-     tree *tp;
-     int *walk_subtrees ATTRIBUTE_UNUSED;
-     void *data ATTRIBUTE_UNUSED;
+calls_setjmp_r (tree *tp, int *walk_subtrees ATTRIBUTE_UNUSED,
+                void *data ATTRIBUTE_UNUSED)
 {
   /* We're only interested in FUNCTION_DECLS.  */
   if (TREE_CODE (*tp) != FUNCTION_DECL)
@@ -98,9 +82,8 @@ calls_setjmp_r (tp, walk_subtrees, data)
    occasionally return a nonzero value even when FN does not actually
    call `setjmp'.  */
 
-int
-calls_setjmp_p (fn)
-     tree fn;
+bool
+calls_setjmp_p (tree fn)
 {
   return walk_tree_without_duplicates (&DECL_SAVED_TREE (fn),
 				       calls_setjmp_r,
@@ -113,9 +96,7 @@ calls_setjmp_p (fn)
    debugging generation code will be able to find the original PARM.  */
 
 static void
-update_cloned_parm (parm, cloned_parm)
-     tree parm;
-     tree cloned_parm;
+update_cloned_parm (tree parm, tree cloned_parm)
 {
   DECL_ABSTRACT_ORIGIN (cloned_parm) = parm;
 
@@ -136,12 +117,10 @@ update_cloned_parm (parm, cloned_parm)
    necessary.  Returns nonzero if there's no longer any need to
    process the main body.  */
 
-int
-maybe_clone_body (fn)
-     tree fn;
+bool
+maybe_clone_body (tree fn)
 {
   tree clone;
-  int first = 1;
 
   /* We only clone constructors and destructors.  */
   if (!DECL_MAYBE_IN_CHARGE_CONSTRUCTOR_P (fn)
@@ -155,7 +134,7 @@ maybe_clone_body (fn)
      list.  */
   for (clone = TREE_CHAIN (fn);
        clone && DECL_CLONED_FUNCTION_P (clone);
-       clone = TREE_CHAIN (clone), first = 0)
+       clone = TREE_CHAIN (clone))
     {
       tree parm;
       tree clone_parm;
@@ -165,7 +144,6 @@ maybe_clone_body (fn)
       /* Update CLONE's source position information to match FN's.  */
       DECL_SOURCE_LOCATION (clone) = DECL_SOURCE_LOCATION (fn);
       DECL_INLINE (clone) = DECL_INLINE (fn);
-      DID_INLINE_FUNC (clone) = DID_INLINE_FUNC (fn);
       DECL_DECLARED_INLINE_P (clone) = DECL_DECLARED_INLINE_P (fn);
       DECL_COMDAT (clone) = DECL_COMDAT (fn);
       DECL_WEAK (clone) = DECL_WEAK (fn);
@@ -176,6 +154,7 @@ maybe_clone_body (fn)
       DECL_INTERFACE_KNOWN (clone) = DECL_INTERFACE_KNOWN (fn);
       DECL_NOT_REALLY_EXTERN (clone) = DECL_NOT_REALLY_EXTERN (fn);
       TREE_PUBLIC (clone) = TREE_PUBLIC (fn);
+      DECL_VISIBILITY (clone) = DECL_VISIBILITY (fn);
 
       /* Adjust the parameter names and locations.  */
       parm = DECL_ARGUMENTS (fn);
@@ -192,13 +171,8 @@ maybe_clone_body (fn)
 	clone_parm = TREE_CHAIN (clone_parm);
       for (; parm;
 	   parm = TREE_CHAIN (parm), clone_parm = TREE_CHAIN (clone_parm))
-	{
-	  /* Update this parameter.  */
-	  update_cloned_parm (parm, clone_parm);
-	  /* We should only give unused information for one clone.  */
-	  if (!first)
-	    TREE_USED (clone_parm) = 1;
-	}
+	/* Update this parameter.  */
+	update_cloned_parm (parm, clone_parm);
 
       /* Start processing the function.  */
       push_to_top_level ();
@@ -258,10 +232,6 @@ maybe_clone_body (fn)
       /* Clone the body.  */
       clone_body (clone, fn, decl_map);
 
-      /* There are as many statements in the clone as in the
-	 original.  */
-      DECL_NUM_STMTS (clone) = DECL_NUM_STMTS (fn);
-
       /* Clean up.  */
       splay_tree_delete (decl_map);
 
@@ -271,7 +241,7 @@ maybe_clone_body (fn)
       /* Now, expand this function into RTL, if appropriate.  */
       finish_function (0);
       BLOCK_ABSTRACT_ORIGIN (DECL_INITIAL (clone)) = DECL_INITIAL (fn);
-      expand_body (clone);
+      expand_or_defer_fn (clone);
       pop_from_top_level ();
     }
 
@@ -282,9 +252,7 @@ maybe_clone_body (fn)
 /* Dump FUNCTION_DECL FN as tree dump PHASE.  */
 
 static void
-dump_function (phase, fn)
-     enum tree_dump_index phase;
-     tree fn;
+dump_function (enum tree_dump_index phase, tree fn)
 {
   FILE *stream;
   int flags;
@@ -296,7 +264,7 @@ dump_function (phase, fn)
 	       decl_as_string (fn, TFF_DECL_SPECIFIERS));
       fprintf (stream, " (%s)\n",
 	       decl_as_string (DECL_ASSEMBLER_NAME (fn), 0));
-      fprintf (stream, ";; enabled by -%s\n", dump_flag_name (phase));
+      fprintf (stream, ";; enabled by -fdump-%s\n", dump_flag_name (phase));
       fprintf (stream, "\n");
       
       dump_node (fn, TDF_SLIM | flags, stream);

@@ -1,5 +1,6 @@
 /* Generate check macros for tree codes.
-   Copyright (C) 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2002, 2003
+   Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -18,10 +19,12 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-#include "hconfig.h"
+#include "bconfig.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 
-#define DEFTREECODE(SYM, NAME, TYPE, LEN)   STRINGX(SYM),
+#define DEFTREECODE(SYM, NAME, TYPE, LEN) #SYM,
 
 static const char *const tree_codes[] = {
 #include "tree.def"
@@ -30,22 +33,18 @@ static const char *const tree_codes[] = {
 (char*) 0
 };
 
-static void usage PARAMS ((void));
+static void usage (void);
 
 static void
-usage ()
+usage (void)
 {
   fputs ("Usage: gencheck\n", stderr);
 }
 
-extern int main PARAMS ((int, char **));
-
 int
-main (argc, argv)
-     int argc;
-     char **argv ATTRIBUTE_UNUSED;
+main (int argc, char **argv ATTRIBUTE_UNUSED)
 {
-  int i;
+  int i, j;
 
   switch (argc)
     {
@@ -61,10 +60,18 @@ main (argc, argv)
   puts ("#ifndef GCC_TREE_CHECK_H");
   puts ("#define GCC_TREE_CHECK_H\n");
 
+  /* Print macros for checks based on each of the tree code names.  However,
+     since we include the tree nodes from all languages, we must check
+     for duplicate names to avoid defining the same macro twice.  */
   for (i = 0; tree_codes[i]; i++)
     {
-      printf ("#define %s_CHECK(t)\tTREE_CHECK (t, %s)\n",
-	      tree_codes[i], tree_codes[i]);
+      for (j = 0; j < i; j++)
+	if (strcmp (tree_codes[i], tree_codes[j]) == 0)
+	  break;
+
+      if (i == j)
+	printf ("#define %s_CHECK(t)\tTREE_CHECK (t, %s)\n",
+		tree_codes[i], tree_codes[i]);
     }
 
   puts ("\n#endif /* GCC_TREE_CHECK_H */");
