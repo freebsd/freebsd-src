@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.51 1999/01/21 08:29:10 dillon Exp $
+ * $Id: vm_kern.c,v 1.52 1999/01/21 09:38:20 dillon Exp $
  */
 
 /*
@@ -339,12 +339,6 @@ retry:
 			if ((flags & M_NOWAIT) == 0) {
 				VM_WAIT;
 				goto retry;
-			}
-			while (i != 0) {
-				i -= PAGE_SIZE;
-				m = vm_page_lookup(kmem_object,
-					OFF_TO_IDX(offset + i));
-				vm_page_free(m);
 			}
 			vm_map_delete(map, addr, addr + size);
 			vm_map_unlock(map);
