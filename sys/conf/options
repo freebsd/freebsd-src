@@ -39,6 +39,8 @@ AHC_TMODE_ENABLE	opt_aic7xxx.h	# Bitmap of units to enable
 AHC_DUMP_EEPROM		opt_aic7xxx.h	# Dump the contents of our
 					# configuration prom.
 
+AHC_DEBUG_SEQUENCER	opt_aic7xxx.h	# Enable diagnostic sequencer code
+
 ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 					# mapped I/O
 
