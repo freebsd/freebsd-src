@@ -2,6 +2,6 @@
 
 PROG=	udpconnectjail
 NO_MAN=	yes
-WARNS=	3
+WARNS?=	2
 
 .include <bsd.prog.mk>
