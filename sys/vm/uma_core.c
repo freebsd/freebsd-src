@@ -1366,6 +1366,8 @@ uma_zalloc_internal(uma_zone_t zone, void *udata, int wait, int *isitem, int cpu
 				CPU_UNLOCK(zone, cpu);
 				cache = NULL;
 				cpu = -1;
+				if (isitem != NULL)
+					*isitem = 1;
 			}
 		}
 	}
