@@ -484,6 +484,12 @@
       to be incompletely populated on fresh installs has been
       fixed.</para>
 
+    <para>It is now possible to make releases of &os;
+      5-CURRENT on a &os; 4-STABLE host and vice versa.  Cross-architecture
+      (building a release for a target architecture on a host of a
+      different architecture) releases are also possible.  See
+      &man.release.7; for details.</para>
+
   </sect2>
 </sect1>
 
