@@ -934,7 +934,7 @@ npxsave(addr)
 	PCPU_SET(npxproc, NULL);
 }
 
-#ifdef I586_CPU
+#ifdef I586_CPU_XXX
 static long
 timezero(funcname, func)
 	const char *funcname;
