@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm rl
-.Nd RealTek 8129/8139/8139C+ fast ethernet device driver
+.Nd RealTek 8129/8139 fast ethernet device driver
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device rl"
@@ -120,20 +120,9 @@ supports both 10 and 100Mbps speeds in either full or half duplex.
 The 8129 can support the same speeds and modes given an appropriate
 PHY chip.
 .Pp
-Support is also provided for the special C+ mode of the 8139C+ chip.
-By default, the 8139C+ is back backwards compatible with the 8139, but
-in C+ mode it supports advanced features such as descriptor-based DMA,
-64-bit addressing, TCP/IP checksum offload on both receive and transmit,
-hardware VLAN tag insertion and extraction, and TCP large send.
-When used with an 8139C+ chip, the
-.Nm
-driver makes use of all of these features, except for TCP large send,
-since there is currently no OS support for it. Transmit interrupt
-moderation is also used to improve performance at high frame rates.
-The receive and transmit checksum offload capabilities are on by default
-but can be toggled off using the
-.Xr ifconfig 8
-command.
+Note: support for the 8139C+ chip is provided by the
+.Xr re 4
+driver.
 .Pp
 The
 .Nm

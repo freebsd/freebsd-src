@@ -136,8 +136,12 @@
 #define RL_TXCFG_MAXDMA		0x00000700	/* max DMA burst size */
 #define RL_TXCFG_CRCAPPEND	0x00010000	/* CRC append (0 = yes) */
 #define RL_TXCFG_LOOPBKTST	0x00060000	/* loopback test */
+#define RL_TXCFG_IFG2		0x00080000	/* 8169 only */
 #define RL_TXCFG_IFG		0x03000000	/* interframe gap */
 #define RL_TXCFG_HWREV		0x7CC00000
+
+#define RL_LOOPTEST_OFF		0x00000000
+#define RL_LOOPTEST_ON		0x00020000
 
 #define RL_HWREV_8169		0x00000000
 #define RL_HWREV_8110		0x00800000
@@ -184,6 +188,7 @@
 #define RL_ISR_TX_ERR		0x0008
 #define RL_ISR_RX_OVERRUN	0x0010
 #define RL_ISR_PKT_UNDERRUN	0x0020
+#define RL_ISR_LINKCHG		0x0020	/* 8169 only */
 #define RL_ISR_FIFO_OFLOW	0x0040	/* 8139 only */
 #define RL_ISR_TX_DESC_UNAVAIL	0x0080	/* C+ only */
 #define RL_ISR_SWI		0x0100	/* C+ only */
@@ -198,7 +203,7 @@
 	RL_ISR_PCS_TIMEOUT|RL_ISR_SYSTEM_ERR)
 
 #define RL_INTRS_CPLUS	\
-	(RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_TX_ERR|		\
+	(RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_TX_ERR|			\
 	RL_ISR_RX_OVERRUN|RL_ISR_PKT_UNDERRUN|RL_ISR_FIFO_OFLOW|	\
 	RL_ISR_PCS_TIMEOUT|RL_ISR_SYSTEM_ERR|RL_ISR_TIMEOUT_EXPIRED)
 
@@ -401,8 +406,8 @@
 #define RL_MIN_FRAMELEN		60
 #define RL_TXTHRESH(x)		((x) << 11)
 #define RL_TX_THRESH_INIT	96
-#define RL_RX_FIFOTHRESH	RL_RXFIFO_256BYTES
-#define RL_RX_MAXDMA		RL_RXDMA_1024BYTES /*RL_RXDMA_UNLIMITED*/
+#define RL_RX_FIFOTHRESH	RL_RXFIFO_NOTHRESH
+#define RL_RX_MAXDMA		RL_RXDMA_UNLIMITED
 #define RL_TX_MAXDMA		RL_TXDMA_2048BYTES
 
 #define RL_RXCFG_CONFIG (RL_RX_FIFOTHRESH|RL_RX_MAXDMA|RL_RX_BUF_SZ)
@@ -524,7 +529,7 @@ struct rl_desc {
 
 #define RL_RDESC_CMD_EOR	0x40000000
 #define RL_RDESC_CMD_OWN	0x80000000
-#define RL_RDESC_CMD_BUFLEN	0x00001FFF
+#define RL_RDESC_CMD_BUFLEN	0x00003FFF
 
 #define RL_RDESC_STAT_OWN	0x80000000
 #define RL_RDESC_STAT_EOR	0x40000000
@@ -544,7 +549,7 @@ struct rl_desc {
 #define RL_RDESC_STAT_IPSUMBAD	0x00008000	/* IP header checksum bad */
 #define RL_RDESC_STAT_UDPSUMBAD	0x00004000	/* UDP checksum bad */
 #define RL_RDESC_STAT_TCPSUMBAD	0x00002000	/* TCP checksum bad */
-#define RL_RDESC_STAT_FRAGLEN	0x00001FFF	/* RX'ed frame/frag len */
+#define RL_RDESC_STAT_FRAGLEN	0x00003FFF	/* RX'ed frame/frag len */
 
 #define RL_RDESC_VLANCTL_TAG	0x00010000	/* VLAN tag available
 						   (rl_vlandata valid)*/
@@ -591,10 +596,21 @@ struct rl_stats {
 #define RL_OWN(x)		(le32toh((x)->rl_cmdstat) & RL_RDESC_STAT_OWN)
 #define RL_RXBYTES(x)		(le32toh((x)->rl_cmdstat) &	\
 				 RL_RDESC_STAT_FRAGLEN)
-#define RL_PKTSZ(x)		((x) >> 3)
+#define RL_PKTSZ(x)		((x)/* >> 3*/)
 
 #define RL_ADDR_LO(y)	((u_int64_t) (y) & 0xFFFFFFFF)
 #define RL_ADDR_HI(y)	((u_int64_t) (y) >> 32)
+
+#define RL_JUMBO_FRAMELEN	9018
+#define RL_JUMBO_MTU		(RL_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
+#define RL_JSLOTS		128
+  
+#define RL_JRAWLEN (RL_JUMBO_FRAMELEN + ETHER_ALIGN + sizeof(u_int64_t))
+#define RL_JLEN (RL_JRAWLEN + (sizeof(u_int64_t) - \
+	(RL_JRAWLEN % sizeof(u_int64_t))))
+#define RL_JPAGESZ PAGE_SIZE
+#define RL_RESID (RL_JPAGESZ - (RL_JLEN * RL_JSLOTS) % RL_JPAGESZ)
+#define RL_JMEM ((RL_JLEN * RL_JSLOTS) + RL_RESID)
 
 struct rl_softc;
 
@@ -649,6 +665,10 @@ struct rl_softc {
 	struct rl_list_data	rl_ldata;
 	struct callout_handle	rl_stat_ch;
 	struct mtx		rl_mtx;
+	struct mbuf		*rl_head;
+	struct mbuf		*rl_tail;
+	u_int32_t		rl_hwrev;
+	int			rl_testmode;
 	int			suspended;	/* 0 = normal  1 = suspended */
 #ifdef DEVICE_POLLING
 	int			rxcycles;
@@ -667,7 +687,7 @@ struct rl_softc {
 /*
  * register space access macros
  */
-#define	CSR_WRITE_STREAM_4(sc, reg, val)	\
+#define CSR_WRITE_STREAM_4(sc, reg, val)	\
 	bus_space_write_stream_4(sc->rl_btag, sc->rl_bhandle, reg, val)
 #define CSR_WRITE_4(sc, reg, val)	\
 	bus_space_write_4(sc->rl_btag, sc->rl_bhandle, reg, val)
