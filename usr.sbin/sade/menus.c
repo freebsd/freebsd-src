@@ -1354,6 +1354,7 @@ DMenu MenuInstallCustom = {
       { NULL } },
 };
 
+#ifdef __i386__
 #ifdef PC98
 /* IPL type menu */
 DMenu MenuIPLType = {
@@ -1394,6 +1395,7 @@ DMenu MenuMBRType = {
       { NULL } },
 };
 #endif /* PC98 */
+#endif /* __i386__ */
 
 /* Final configuration menu */
 DMenu MenuConfigure = {
