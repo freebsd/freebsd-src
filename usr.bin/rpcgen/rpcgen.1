@@ -8,9 +8,9 @@
 .Nm rpcgen
 .Nd an RPC protocol compiler
 .Sh SYNOPSIS
-.Nm rpcgen
+.Nm
 .Ar infile
-.Nm rpcgen
+.Nm
 .Op Fl a
 .Op Fl b
 .Op Fl C
@@ -25,7 +25,7 @@
 .Op Fl T
 .Op Fl Y Ar pathname
 .Ar infile
-.Nm rpcgen
+.Nm
 .Oo
 .Fl c |
 .Fl h |
@@ -38,11 +38,11 @@
 .Oc
 .Op Fl o Ar outfile
 .Op Ar infile
-.Nm rpcgen
+.Nm
 .Op Fl s Ar nettype
 .Op Fl o Ar outfile
 .Op Ar infile
-.Nm rpcgen
+.Nm
 .Op Fl n Ar netid
 .Op Fl o Ar outfile
 .Op Ar infile
@@ -193,7 +193,7 @@ accepts the standard input.
 The C preprocessor,
 .Em cc -E
 is run on the input file before it is actually interpreted by
-.Nm Ns .
+.Nm .
 For each type of output file,
 .Nm
 defines a special preprocessor symbol for use by the
@@ -216,7 +216,7 @@ Any line beginning with
 .Dq %
 is passed directly into the output file,
 uninterpreted by
-.Nm Ns .
+.Nm .
 To specify the path name of the C preprocessor use
 .Fl Y
 flag.

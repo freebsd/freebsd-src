@@ -37,7 +37,7 @@
 .Nm doscmd
 .Nd run a subset of real-mode DOS programs
 .Sh SYNOPSIS
-.Nm doscmd
+.Nm
 .Fl 23AbDEfHIMOPRrtVvXxYz
 .Fl c Ar file
 .Fl d Ar file
@@ -60,7 +60,7 @@ or it can be used to emulate a PC and boot DOS,
 which allows it to run a larger variety of DOS applications.
 It should be noted that MS DOS 6.2 and higher appear
 to cause difficulties for
-.Nm doscmd.
+.Nm .
 To boot DOS, either provide the 
 .Fl b
 flag or omit the
@@ -75,18 +75,18 @@ and
 are ignored.
 .Pp
 Although 
-.Nm doscmd
+.Nm
 only provides a subset of DOS, it is sufficient to run a variety of
 programs, including, but not limited to, compilers, assemblers and
 linker-loaders.
 .Pp
 The various flags available to
-.Nm doscmd
+.Nm
 are:
 .Bl -tag -width indent
 .It Fl 2
 Enable debugging traces of every trap to the
-.Nm doscmd
+.Nm
 emulator from the DOS program.
 Note that some traps are handled in the kernel and hence will not
 be traced.
@@ -275,14 +275,14 @@ Enable debugging of the EMS operations.
 .\"
 .It Fl z
 Cause
-.Nm doscmd
+.Nm
 to pause just prior to jumping to the DOS program.
 Very little use except for developing
-.Nm doscmd .
+.Nm .
 .El
 .Pp
 When starting up,
-.Nm doscmd
+.Nm
 attempts to read a configuration file.  First the file
 .Cm .doscmdrc
 in the current directory.  If not found there, the
@@ -318,7 +318,7 @@ is tried.
 .Ar path
 .Xc
 Assigns the
-.Nm BSD/OS
+.Tn BSD/OS
 directory
 .Ar path
 to be assigned as the specified drive.  If the
@@ -510,18 +510,17 @@ the DOS environment.  These are:
 .It Cm MS_VERSION
 The value of this variable is used to determine the version of DOS that
 should be reported by
-.Nm doscmd .
+.Nm .
 Note that
-.Nm doscmd
+.Nm
 will not change the way
 it works, just the way it reports.  By default this value is
 .Cm 410 ,
 which corresponds to
-.Nm "MS DOS
-version
-.Nm 4.1 .
+.Tn "MS DOS
+version 4.1.
 To change it to version 3.2 (the default in previous versions of
-.Nm doscmd )
+.Nm )
 use the value of
 .Cm 320 .
 .It Cm X11_FONT
@@ -540,9 +539,9 @@ to let the X server find it.
 .Sh FILE TRANSLATION
 .Nm Doscmd
 translates
-.Nm BSD/OS
+.Tn BSD/OS
 file names into 
-.Nm DOS
+.Tn DOS
 file names by converting to all upper case and eliminating any invalid
 character.  It does not make any attempt to convert ASCII files into
 the
@@ -729,7 +728,7 @@ naming problems.
 .Sh DIAGNOSTICS
 .Pp
 If
-.Nm doscmd
+.Nm
 encounters an interrupt which is unimplemented, it will print a message
 such as:
 .Pp
@@ -757,5 +756,5 @@ in the source directory (normally
 .An Paul Borman
 .Sh HISTORY
 The
-.Nm doscmd
+.Nm
 program first appeared in BSD/386.

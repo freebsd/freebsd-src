@@ -108,17 +108,17 @@ has.
 Arguments containing white space or embedded shell metacharacters
 generally will not survive intact;  this looks easy to fix but
 isn't. People trying to fix 
-.Nm getopt
+.Nm
 or the example in this manpage should check the history of this file
 in
 .Fx .
 .Pp
 The error message for an invalid option is identified as coming
 from
-.Nm getopt
+.Nm
 rather than from the shell procedure containing the invocation
 of
-.Nm getopt ;
+.Nm ;
 this again is hard to fix.
 .Pp
 The precise best way to use the

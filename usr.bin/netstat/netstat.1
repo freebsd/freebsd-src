@@ -39,38 +39,38 @@
 .Nm netstat
 .Nd show network status
 .Sh SYNOPSIS
-.Nm netstat
+.Nm
 .Op Fl AaLln
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
-.Nm netstat
+.Nm
 .Op Fl bdghilmnrs
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
-.Nm netstat
+.Nm
 .Op Fl bdn
 .Op Fl I Ar interface
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar wait
-.Nm netstat
+.Nm
 .Op Fl p Ar protocol
 .Op Fl M Ar core
 .Op Fl N Ar system
-.Nm netstat
+.Nm
 .Op Fl p Ar protocol
 .Op Fl i
 .Op Fl I Ar Interface
-.Nm netstat
+.Nm
 .Op Fl s
 .Op Fl f Ar address_family
 .Op Fl i
 .Op Fl I Ar Interface
 .Sh DESCRIPTION
 The
-.Nm netstat
+.Nm
 command symbolically displays the contents of various network-related
 data structures.
 There are a number of output formats,
@@ -82,7 +82,7 @@ data structures according to the option selected.
 Using the third form, with a
 .Ar wait
 interval specified,
-.Nm netstat
+.Nm
 will continuously display the information regarding packet
 traffic on the configured network interfaces.
 The fourth form displays statistics about the named protocol.
@@ -217,7 +217,7 @@ Extract the name list from the specified system instead of the default
 .Pa /kernel .
 .It Fl n
 Show network addresses as numbers (normally
-.Nm netstat
+.Nm
 interprets addresses and attempts to display them
 symbolically).
 This option may be used with any of the display formats.
@@ -337,7 +337,7 @@ sent using that route.  The interface entry indicates the network
 interface utilized for the route.
 .Pp
 When
-.Nm netstat
+.Nm
 is invoked with the
 .Fl w
 option and a
@@ -366,7 +366,7 @@ option.
 .Xr vmstat 8
 .Sh HISTORY
 The
-.Nm netstat
+.Nm
 command appeared in
 .Bx 4.2 .
 .Pp
