@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -98,10 +98,6 @@ struct	in6_ifaddr {
 	struct	sockaddr_in6 ia_prefixmask; /* prefix mask */
 	u_int32_t	ia_plen;		/* prefix length */
 	struct	in6_ifaddr *ia_next;	/* next in6 list of IP6 addresses */
-#if !(defined(__FreeBSD__) && __FreeBSD__ >= 3)
-	LIST_HEAD(in6_multihead, in6_multi) ia6_multiaddrs;
-					/* list of multicast addresses */
-#endif
 	int	ia6_flags;
 
 	struct	in6_addrlifetime ia6_lifetime;	/* NULL = infty */
@@ -189,7 +185,7 @@ struct icmp6_ifstat {
 	u_int64_t	ifs6_in_mlddone;
 
 	/*
-	 * Output statistics. We should solve unresolved routing problem...  
+	 * Output statistics. We should solve unresolved routing problem...
 	 */
 	/* ipv6IfIcmpOutMsgs, total # of output messages */
 	u_int64_t	ifs6_out_msg;
@@ -428,34 +424,14 @@ extern struct	ifqueue ip6intrq;		/* IP6 packet input queue */
 extern struct	in6_addr zeroin6_addr;
 extern u_char	inet6ctlerrmap[];
 extern u_long	in6_maxmtu;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IPMADDR);
 #endif /* MALLOC_DECLARE */
-#endif
 
 /*
  * Macro for finding the internet address structure (in6_ifaddr) corresponding
  * to a given interface (ifnet structure).
  */
-#if defined(__bsdi__) || (defined(__FreeBSD__) && __FreeBSD__ < 3)
-
-#define	IFP_TO_IA6(ifp, ia)				\
-/* struct ifnet *ifp; */				\
-/* struct in6_ifaddr *ia; */				\
-do {									\
-	struct ifaddr *ifa;						\
-	for (ifa = (ifp)->if_addrlist; ifa; ifa = ifa->ifa_next) {	\
-		if (!ifa->ifa_addr)					\
-			continue;					\
-		if (ifa->ifa_addr->sa_family == AF_INET6)		\
-			break;						\
-	}								\
-	(ia) = (struct in6_ifaddr *)ifa;				\
-} while (0)
-
-#else
-
 #define	IFP_TO_IA6(ifp, ia)				\
 /* struct ifnet *ifp; */				\
 /* struct in6_ifaddr *ia; */				\
@@ -471,8 +447,6 @@ do {									\
 } while (0)
 #endif /* _KERNEL */
 
-#endif
-
 /*
  * Multi-cast membership entry.  One for each group/ifp that a PCB
  * belongs to.
@@ -486,20 +460,14 @@ struct	in6_multi {
 	LIST_ENTRY(in6_multi)	in6m_entry; /* list glue */
 	struct	in6_addr in6m_addr;	/* IP6 multicast address */
 	struct	ifnet *in6m_ifp;	/* back pointer to ifnet */
-#if !(defined(__FreeBSD__) && __FreeBSD__ >= 3)
-	struct	in6_ifaddr *in6m_ia;    /* back pointer to in6_ifaddr */ 
-#else
 	struct	ifmultiaddr *in6m_ifma;	/* back pointer to ifmultiaddr */
-#endif
 	u_int	in6m_refcount;		/* # membership claims by sockets */
 	u_int	in6m_state;		/* state of the membership */
 	u_int	in6m_timer;		/* MLD6 listener report timer */
 };
 
 #ifdef _KERNEL
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 extern LIST_HEAD(in6_multihead, in6_multi) in6_multihead;
-#endif
 
 /*
  * Structure used by macros below to remember position when stepping through
@@ -515,8 +483,6 @@ struct	in6_multistep {
  * address on a given interface. If no matching record is found, "in6m"
  * returns NLL.
  */
-
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 
 #define	IN6_LOOKUP_MULTI(addr, ifp, in6m)			\
 /* struct in6_addr addr; */					\
@@ -557,61 +523,6 @@ do { \
 		IN6_NEXT_MULTI((step), (in6m)); \
 } while(0)
 
-#else /* not FreeBSD3 */
-
-#define	IN6_LOOKUP_MULTI(addr, ifp, in6m)			\
-/* struct in6_addr addr; */					\
-/* struct ifnet *ifp; */					\
-/* struct in6_multi *in6m; */					\
-do {								\
-	register struct in6_ifaddr *ia;				\
-								\
-	IFP_TO_IA6((ifp), ia);					\
-	if (ia == NULL)						\
-	  	(in6m) = NULL;					\
-	else							\
-		for ((in6m) = ia->ia6_multiaddrs.lh_first;	\
-		     (in6m) != NULL &&				\
-		     !IN6_ARE_ADDR_EQUAL(&(in6m)->in6m_addr, &(addr));	\
-		     (in6m) = in6m->in6m_entry.le_next)		\
-			continue;				\
-} while (0)
-
-/*
- * Macro to step through all of the in6_multi records, one at a time.
- * The current position is remembered in "step", which the caller must
- * provide.  IN6_FIRST_MULTI(), below, must be called to initialize "step"
- * and get the first record.  Both macros return a NULL "in6m" when there
- * are no remaining records.
- */
-#define	IN6_NEXT_MULTI(step, in6m)					\
-/* struct in6_multistep step; */					\
-/* struct in6_multi *in6m; */						\
-do {									\
-	if (((in6m) = (step).i_in6m) != NULL)				\
-		(step).i_in6m = (in6m)->in6m_entry.le_next;		\
-	else								\
-		while ((step).i_ia != NULL) {				\
-			(in6m) = (step).i_ia->ia6_multiaddrs.lh_first;	\
-			(step).i_ia = (step).i_ia->ia_next;		\
-			if ((in6m) != NULL) {				\
-				(step).i_in6m = (in6m)->in6m_entry.le_next; \
-				break;					\
-			}						\
-		}							\
-} while (0)
-
-#define	IN6_FIRST_MULTI(step, in6m)		\
-/* struct in6_multistep step; */		\
-/* struct in6_multi *in6m */			\
-do {						\
-	(step).i_ia = in6_ifaddr;		\
-	(step).i_in6m = NULL;			\
-	IN6_NEXT_MULTI((step), (in6m));		\
-} while (0)
-
-#endif /* not FreeBSD3 */
-
 int	 in6_ifinit __P((struct ifnet *,
 			struct in6_ifaddr *, struct sockaddr_in6 *, int));
 struct	 in6_multi *in6_addmulti __P((struct in6_addr *, struct ifnet *,
@@ -621,12 +532,8 @@ void	 in6_ifscrub __P((struct ifnet *, struct in6_ifaddr *));
 extern int	in6_ifindex2scopeid __P((int));
 extern int	in6_mask2len __P((struct in6_addr *));
 extern void	in6_len2mask __P((struct in6_addr *, int));
-#if !defined(__bsdi__) && !(defined(__FreeBSD__) && __FreeBSD__ < 3)
 int	 in6_control __P((struct socket *,
-			 u_long, caddr_t, struct ifnet *, struct proc *));
-#else
-int	 in6_control __P((struct socket *, u_long, caddr_t, struct ifnet *));
-#endif
+			  u_long, caddr_t, struct ifnet *, struct proc *));
 void	 in6_savemkludge __P((struct in6_ifaddr *));
 void	 in6_setmaxmtu   __P((void));
 void	 in6_restoremkludge __P((struct in6_ifaddr *, struct ifnet *));

@@ -56,10 +56,14 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
+#endif
+#ifdef INET6
+#include <netinet6/nd6.h>
+#include <netinet6/in6_ifattach.h>
 #endif
 
 #ifdef IPX
@@ -112,7 +116,7 @@ extern u_char	aarp_org_code[3];
 #include <net/if_vlan_var.h>
 #endif /* NVLAN > 0 */
 
-static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **, 
+static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **,
 				    struct sockaddr *));
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #define senderr(e) do { error = (e); goto bad;} while (0)
@@ -146,7 +150,7 @@ static struct ng_type typestruct = {
 	ngether_connect,
 	ngether_rcvdata,
 	ngether_rcvdata,
-	ngether_disconnect 
+	ngether_disconnect
 };
 
 #define AC2NG(AC) ((node_p)((AC)->ac_ng))
@@ -212,6 +216,17 @@ ether_output(ifp, m0, dst, rt0)
 			return (0);	/* if not yet resolved */
 		off = m->m_pkthdr.len - m->m_len;
 		type = htons(ETHERTYPE_IP);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (!nd6_storelladdr(&ac->ac_if, rt, m, dst, (u_char *)edst)) {
+			/* this must be impossible, so we bark */
+			printf("nd6_storelladdr failed\n");
+			return(0);
+		}
+		off = m->m_pkthdr.len - m->m_len;
+		type = htons(ETHERTYPE_IPV6);
 		break;
 #endif
 #ifdef IPX
@@ -530,6 +545,12 @@ ether_input(ifp, eh, m)
 		inq = &ipxintrq;
 		break;
 #endif
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		schednetisr(NETISR_IPV6);
+		inq = &ip6intrq;
+		break;
+#endif
 #ifdef NS
 	case 0x8137: /* Novell Ethernet_II Ethernet TYPE II */
 		schednetisr(NETISR_NS);
@@ -741,6 +762,9 @@ ether_ifattach(ifp)
 #ifdef	NETGRAPH
 	ngether_init(ifp);
 #endif /* NETGRAPH */
+#ifdef INET6
+	in6_ifattach_getifid(ifp);
+#endif
 }
 
 SYSCTL_DECL(_net_link);
@@ -778,7 +802,7 @@ ether_ioctl(ifp, command, data)
 
 			if (ipx_nullhost(*ina))
 				ina->x_host =
-				    *(union ipx_host *) 
+				    *(union ipx_host *)
 			            ac->ac_enaddr;
 			else {
 				bcopy((caddr_t) ina->x_host.c_host,
@@ -856,11 +880,14 @@ ether_resolvemulti(ifp, llsa, sa)
 {
 	struct sockaddr_dl *sdl;
 	struct sockaddr_in *sin;
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+#endif
 	u_char *e_addr;
 
 	switch(sa->sa_family) {
 	case AF_LINK:
-		/* 
+		/*
 		 * No mapping needed. Just check that it's a valid MC address.
 		 */
 		sdl = (struct sockaddr_dl *)sa;
@@ -889,9 +916,28 @@ ether_resolvemulti(ifp, llsa, sa)
 		*llsa = (struct sockaddr *)sdl;
 		return 0;
 #endif
+#ifdef INET6
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)sa;
+		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
+			return EADDRNOTAVAIL;
+		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
+		       M_WAITOK);
+		sdl->sdl_len = sizeof *sdl;
+		sdl->sdl_family = AF_LINK;
+		sdl->sdl_index = ifp->if_index;
+		sdl->sdl_type = IFT_ETHER;
+		sdl->sdl_nlen = 0;
+		sdl->sdl_alen = ETHER_ADDR_LEN;
+		sdl->sdl_slen = 0;
+		e_addr = LLADDR(sdl);
+		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);
+		*llsa = (struct sockaddr *)sdl;
+		return 0;
+#endif
 
 	default:
-		/* 
+		/*
 		 * Well, the text isn't quite right, but it's the name
 		 * that counts...
 		 */
@@ -976,8 +1022,8 @@ ngether_constructor(node_p *nodep)
 
 /*
  * Give our ok for a hook to be added...
- * 
- * Allow one hook at a time (rawdata). 
+ *
+ * Allow one hook at a time (rawdata).
  * It can eiteh rdivert everything or only unclaimed packets.
  */
 static	int
@@ -1014,10 +1060,10 @@ ngether_rcvmsg(node_p node,
 
 	ifp = node->private;
 	switch (msg->header.typecookie) {
-	    case	NGM_ETHER_COOKIE: 
+	    case	NGM_ETHER_COOKIE:
 		error = EINVAL;
 		break;
-	    case	NGM_GENERIC_COOKIE: 
+	    case	NGM_GENERIC_COOKIE:
 		switch(msg->header.cmd) {
 		    case NGM_TEXT_STATUS: {
 			    char	*arg;
@@ -1025,10 +1071,10 @@ ngether_rcvmsg(node_p node,
 			    int resplen = sizeof(struct ng_mesg) + 512;
 			    MALLOC(*resp, struct ng_mesg *, resplen,
 					M_NETGRAPH, M_NOWAIT);
-			    if (*resp == NULL) { 
+			    if (*resp == NULL) {
 				error = ENOMEM;
 				break;
-			    }       
+			    }
 			    bzero(*resp, resplen);
 			    arg = (*resp)->data;
 
@@ -1135,10 +1181,10 @@ bad:
  * pass an mbuf out to the connected hook
  * More complicated than just an m_prepend, as it tries to save later nodes
  * from needing to do lots of m_pullups.
- */	     
+ */	
 static void
 ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
-{       
+{
 	int room;
 	node_p node = AC2NG(ac);
 	struct ether_header *eh2;
@@ -1150,15 +1196,15 @@ ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
 		eh2 = mtod(m, struct ether_header *) - 1;
 		if ( eh == eh2) {
 			/*
-			 * This is the case so just move the markers back to 
+			 * This is the case so just move the markers back to
 			 * re-include it. We lucked out.
 			 * This allows us to avoid a yucky m_pullup
 			 * in later nodes if it works.
-			 */ 
-			m->m_len += sizeof(*eh); 
+			 */
+			m->m_len += sizeof(*eh);
 			m->m_data -= sizeof(*eh);
 			m->m_pkthdr.len += sizeof(*eh);
-		} else { 
+		} else {
 			/*
 			 * Alternatively there may be room even though
 			 * it is stored somewhere else. If so, copy it in.
@@ -1170,7 +1216,7 @@ ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
 			 * that fall into these cases. So we are not optimising
 			 * contorted cases.
 			 */
-	      
+	
 			if (m->m_flags & M_EXT) {
 				room = (mtod(m, caddr_t) - m->m_ext.ext_buf);
 				if (room > m->m_ext.ext_size) /* garbage */
@@ -1178,14 +1224,14 @@ ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
 			} else {
 				room = (mtod(m, caddr_t) - m->m_pktdat);
 			}
-			if (room > sizeof (*eh)) {  
+			if (room > sizeof (*eh)) {
 				/* we have room, just copy it and adjust */
 				m->m_len += sizeof(*eh);
 				m->m_data -= sizeof(*eh);
 				m->m_pkthdr.len += sizeof(*eh);
 			} else {
 				/*
-				 * Doing anything more is likely to get more 
+				 * Doing anything more is likely to get more
 				 * expensive than it's worth..
 				 * it's probable that everything else is in one
 				 * big lump. The next node will do an m_pullup()
@@ -1230,7 +1276,7 @@ ngether_connect(hook_p hook)
 /*
  * notify on hook disconnection (destruction)
  *
- * For this type, removal of the last lins no effect. The interface can run 
+ * For this type, removal of the last lins no effect. The interface can run
  * independently.
  * Since we have no per-hook information, this is rather simple.
  */

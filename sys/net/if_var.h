@@ -166,6 +166,10 @@ typedef void if_init_f_t __P((void *));
 #define	if_xmitquota	if_data.ifi_xmitquota
 #define if_rawoutput(if, m, sa) if_output(if, m, sa, (struct rtentry *)0)
 
+/* for compatibility with other BSDs */
+#define	if_addrlist	if_addrhead
+#define	if_list		if_link
+
 /*
  * Bit values in if_ipending
  */
@@ -270,16 +274,19 @@ struct ifaddr {
 };
 #define	IFA_ROUTE	RTF_UP		/* route installed */
 
+/* for compatibility with other BSDs */
+#define	ifa_list	ifa_link
+
 /*
  * The prefix structure contains information about one prefix
  * of an interface.  They are maintained by the different address families,
  * are allocated and attached when an prefix or an address is set,
- * and are linked together so all prfefixes for an interface can be located.
+ * and are linked together so all prefixes for an interface can be located.
  */
 struct ifprefix {
 	struct	sockaddr *ifpr_prefix;	/* prefix of interface */
 	struct	ifnet *ifpr_ifp;	/* back-pointer to interface */
-	TAILQ_ENTRY(ifprefix)	*ifpr_list; /* queue macro glue */
+	TAILQ_ENTRY(ifprefix) ifpr_list; /* queue macro glue */
 	u_char	ifpr_plen;		/* prefix length in bits */
 	u_char	ifpr_type;		/* protocol dependent prefix type */
 };
@@ -321,7 +328,7 @@ int	ether_output __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
 int	ether_ioctl __P((struct ifnet *, int, caddr_t));
 
-int	if_addmulti __P((struct ifnet *, struct sockaddr *, 
+int	if_addmulti __P((struct ifnet *, struct sockaddr *,
 			 struct ifmultiaddr **));
 int	if_allmulti __P((struct ifnet *, int));
 void	if_attach __P((struct ifnet *));
@@ -352,7 +359,7 @@ struct	ifaddr *ifa_ifwithroute __P((int, struct sockaddr *,
 struct	ifaddr *ifaof_ifpforaddr __P((struct sockaddr *, struct ifnet *));
 void	ifafree __P((struct ifaddr *));
 
-struct	ifmultiaddr *ifmaof_ifpforaddr __P((struct sockaddr *, 
+struct	ifmultiaddr *ifmaof_ifpforaddr __P((struct sockaddr *,
 					    struct ifnet *));
 int	if_simloop __P((struct ifnet *ifp, struct mbuf *m,
 		struct sockaddr *dst, int hlen));

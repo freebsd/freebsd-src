@@ -355,6 +355,12 @@ struct socket *
 int	sooptcopyin __P((struct sockopt *sopt, void *buf, size_t len,
 			 size_t minlen));
 int	sooptcopyout __P((struct sockopt *sopt, void *buf, size_t len));
+
+/* XXX; prepare mbuf for (__FreeBSD__ < 3) routines. */
+int	soopt_getm __P((struct sockopt *sopt, struct mbuf **mp));
+int	soopt_mcopyin __P((struct sockopt *sopt, struct mbuf *m));
+int	soopt_mcopyout __P((struct sockopt *sopt, struct mbuf *m));
+
 int	sopoll __P((struct socket *so, int events, struct ucred *cred,
 		    struct proc *p));
 int	soreceive __P((struct socket *so, struct sockaddr **paddr,

@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 #        On the handling of kernel options
-# 
+#
 # All kernel options should be listed in LINT, with suitable
 # descriptions.  Negative options (options that make some code not
 # compile) should be commented out; LINT should compile as much code
@@ -10,7 +10,7 @@
 # possible to have a full compile-test.  If necessary, you can include
 # "opt_lint.h" and check for COMPILING_LINT to get maximum code
 # coverage.
-# 
+#
 # All new options shall also be listed in either "conf/options" or
 # "<machine>/conf/options.<machine>".  Options that affect a single
 # source-file <xxx>.[c|s] should be directed into "opt_<xxx>.h", while
@@ -20,7 +20,7 @@
 # only some files.  Note that the effect of listing only an option
 # without a header-file-name in conf/options (and cousins) is that the
 # last convention is followed.
-# 
+#
 # This handling scheme is not yet fully implemented.
 #
 #
@@ -103,8 +103,8 @@ FFS
 NFS
 NWFS
 
-# If you are following the conditions in the copyright, 
-# you can enable soft-updates which will speed up a lot of thigs 
+# If you are following the conditions in the copyright,
+# you can enable soft-updates which will speed up a lot of thigs
 # and make the system safer from crashes at the same time.
 # otherwise a STUB module will be compiled in.
 SOFTUPDATES	opt_ffs.h
@@ -216,6 +216,10 @@ BRIDGE			opt_bdg.h
 MROUTING		opt_mrouting.h
 INET			opt_inet.h
 INET6			opt_inet.h
+IPSEC			opt_ipsec.h
+IPSEC_ESP		opt_ipsec.h
+IPSEC_DEBUG		opt_ipsec.h
+IPSEC_IPV6FWD		opt_ipsec.h
 IPDIVERT
 DUMMYNET		opt_ipdn.h
 IPFILTER_LKM		opt_ipfilter.h
@@ -224,6 +228,10 @@ IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPFIREWALL_DEFAULT_TO_ACCEPT	opt_ipfw.h
 IPFIREWALL_FORWARD		opt_ipfw.h
+IPV6FIREWALL		opt_ip6fw.h
+IPV6FIREWALL_VERBOSE	opt_ip6fw.h
+IPV6FIREWALL_VERBOSE_LIMIT	opt_ip6fw.h
+IPV6FIREWALL_DEFAULT_TO_ACCEPT	opt_ip6fw.h
 IPSTEALTH
 IPX			opt_ipx.h
 IPXIP			opt_ipx.h

@@ -483,6 +483,7 @@ net/rtsock.c		standard
 net/slcompress.c	optional ppp
 net/slcompress.c	optional sl
 net/zlib.c		optional ppp_deflate
+net/net_osdep.c		standard
 netatalk/aarp.c		optional netatalk
 netatalk/at_control.c	optional netatalk
 netatalk/at_proto.c	optional netatalk
@@ -612,6 +613,25 @@ netinet/tcp_subr.c	optional inet
 netinet/tcp_timer.c	optional inet
 netinet/tcp_usrreq.c	optional inet
 netinet/udp_usrreq.c	optional inet
+netinet6/in6.c		optional inet6
+netinet6/in6_ifattach.c	optional inet6
+netinet6/in6_cksum.c	optional inet6
+netinet6/in6_pcb.c	optional inet6
+netinet6/in6_proto.c	optional inet6
+netinet6/in6_rmx.c	optional inet6
+netinet6/in6_prefix.c	optional inet6
+netinet6/dest6.c	optional inet6
+netinet6/frag6.c	optional inet6
+netinet6/icmp6.c	optional inet6
+netinet6/ip6_input.c	optional inet6
+netinet6/ip6_forward.c	optional inet6
+netinet6/ip6_output.c	optional inet6
+netinet6/route6.c	optional inet6
+netinet6/mld6.c		optional inet6
+netinet6/nd6.c		optional inet6
+netinet6/nd6_nbr.c	optional inet6
+netinet6/nd6_rtr.c	optional inet6
+netinet6/raw_ip6.c	optional inet6
 netipx/ipx.c		optional ipx
 netipx/ipx_cksum.c	optional ipx
 netipx/ipx_input.c	optional ipx

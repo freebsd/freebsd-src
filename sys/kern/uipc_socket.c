@@ -64,7 +64,7 @@ MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
 SYSCTL_DECL(_kern_ipc);
 
 static int somaxconn = SOMAXCONN;
-SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW, 
+SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW,
     &somaxconn, 0, "Maximum pending socket connection queue size");
 
 /*
@@ -1216,6 +1216,117 @@ integer:
 		}
 		return (error);
 	}
+}
+
+/* XXX; prepare mbuf for (__FreeBSD__ < 3) routines. */
+int
+soopt_getm(struct sockopt *sopt, struct mbuf **mp)
+{
+	struct mbuf *m, *m_prev;
+	int sopt_size = sopt->sopt_valsize;
+
+	MGET(m, sopt->sopt_p ? M_WAIT : M_DONTWAIT, MT_DATA);
+	if (m == 0)
+		return ENOBUFS;
+	if (sopt_size > MLEN) {
+		MCLGET(m, sopt->sopt_p ? M_WAIT : M_DONTWAIT);
+		if ((m->m_flags & M_EXT) == 0) {
+			m_free(m);
+			return ENOBUFS;
+		}
+		m->m_len = min(MCLBYTES, sopt_size);
+	} else {
+		m->m_len = min(MLEN, sopt_size);
+	}
+	sopt_size -= m->m_len;
+	*mp = m;
+	m_prev = m;
+
+	while (sopt_size) {
+		MGET(m, sopt->sopt_p ? M_WAIT : M_DONTWAIT, MT_DATA);
+		if (m == 0) {
+			m_freem(*mp);
+			return ENOBUFS;
+		}
+		if (sopt_size > MLEN) {
+			MCLGET(m, sopt->sopt_p ? M_WAIT : M_DONTWAIT);
+			if ((m->m_flags & M_EXT) == 0) {
+				m_freem(*mp);
+				return ENOBUFS;
+			}
+			m->m_len = min(MCLBYTES, sopt_size);
+		} else {
+			m->m_len = min(MLEN, sopt_size);
+		}
+		sopt_size -= m->m_len;
+		m_prev->m_next = m;
+		m_prev = m;
+	}
+	return 0;
+}
+
+/* XXX; copyin sopt data into mbuf chain for (__FreeBSD__ < 3) routines. */
+int
+soopt_mcopyin(struct sockopt *sopt, struct mbuf *m)
+{
+	struct mbuf *m0 = m;
+
+	if (sopt->sopt_val == NULL)
+		return 0;
+	while (m != NULL && sopt->sopt_valsize >= m->m_len) {
+		if (sopt->sopt_p != NULL) {
+			int error;
+
+			error = copyin(sopt->sopt_val, mtod(m, char *),
+				       m->m_len);
+			if (error != 0) {
+				m_freem(m0);
+				return(error);
+			}
+		} else
+			bcopy(sopt->sopt_val, mtod(m, char *), m->m_len);
+		sopt->sopt_valsize -= m->m_len;
+		(caddr_t)sopt->sopt_val += m->m_len;
+		m = m->m_next;
+	}
+	if (m != NULL) /* should be allocated enoughly at ip6_sooptmcopyin() */
+		panic("ip6_sooptmcopyin");
+	return 0;
+}
+
+/* XXX; copyout mbuf chain data into soopt for (__FreeBSD__ < 3) routines. */
+int
+soopt_mcopyout(struct sockopt *sopt, struct mbuf *m)
+{
+	struct mbuf *m0 = m;
+	size_t valsize = 0;
+
+	if (sopt->sopt_val == NULL)
+		return 0;
+	while (m != NULL && sopt->sopt_valsize >= m->m_len) {
+		if (sopt->sopt_p != NULL) {
+			int error;
+
+			error = copyout(mtod(m, char *), sopt->sopt_val,
+				       m->m_len);
+			if (error != 0) {
+				m_freem(m0);
+				return(error);
+			}
+		} else
+			bcopy(mtod(m, char *), sopt->sopt_val, m->m_len);
+	       sopt->sopt_valsize -= m->m_len;
+	       (caddr_t)sopt->sopt_val += m->m_len;
+	       valsize += m->m_len;
+	       m = m->m_next;
+	}
+	if (m != NULL) {
+		/* enough soopt buffer should be given from user-land */
+		m_freem(m0);
+		return(EINVAL);
+	}
+	sopt->sopt_valsize = valsize;
+	return 0;
 }
 
 void
