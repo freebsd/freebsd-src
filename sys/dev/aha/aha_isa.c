@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aha_isa.c,v 1.7 1999/04/16 21:22:19 peter Exp $
+ *	$Id: aha_isa.c,v 1.8 1999/05/08 18:20:55 peter Exp $
  */
 
 #include "pnp.h"
@@ -182,7 +182,7 @@ aha_isa_attach(dev)
 	filter_arg = NULL;
 	lowaddr = BUS_SPACE_MAXADDR_24BIT;
 
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/0, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/1, /*boundary*/0,
                                lowaddr, /*highaddr*/BUS_SPACE_MAXADDR,
                                filter, filter_arg,
                                /*maxsize*/BUS_SPACE_MAXSIZE_24BIT,

@@ -1884,6 +1884,7 @@ SRBdone(struct amd_softc *amd, struct amd_srb *pSRB)
 
 	status = pSRB->TargetStatus;
 	pccb->ccb_h.status = CAM_REQ_CMP;
+	pccb->ccb_h.status = CAM_REQ_CMP;
 	if (pSRB->SRBFlag & AUTO_REQSENSE) {
 		pSRB->SRBFlag &= ~AUTO_REQSENSE;
 		pSRB->AdaptStatus = 0;
@@ -1991,6 +1992,7 @@ SRBdone(struct amd_softc *amd, struct amd_srb *pSRB)
 		} else {	/* No error */
 			pSRB->AdaptStatus = 0;
 			pSRB->TargetStatus = 0;
+			pcsio->resid = 0;
 			/* there is no error, (sense is invalid)  */
 		}
 	}
@@ -2279,7 +2281,7 @@ amd_init(int unit, pcici_t config_id)
 	amd->tag = I386_BUS_SPACE_IO;
 	amd->bsh = pci_conf_read(config_id, PCI_MAP_REG_START) & 0xFFFE;
 	/* DMA tag for mapping buffers into device visible space. */
-	if (bus_dma_tag_create(/*parent_dmat*/NULL, /*alignment*/0,
+	if (bus_dma_tag_create(/*parent_dmat*/NULL, /*alignment*/1,
 			       /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
