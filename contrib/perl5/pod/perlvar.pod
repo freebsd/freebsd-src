@@ -687,6 +687,11 @@ program sees.  This is more useful as a way of indicating the current
 program state than it is for hiding the program you're running.
 (Mnemonic: same as B<sh> and B<ksh>.)
 
+Note for BSD users: setting C<$0> does not completely remove "perl"
+from the ps(1) output.  For example, setting C<$0> to C<"foobar"> will
+result in C<"perl: foobar (perl)">.  This is an operating system
+feature.
+
 =item $[
 
 The index of the first element in an array, and of the first character

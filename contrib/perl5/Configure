@@ -487,6 +487,7 @@ d_setpgrp2=''
 d_bsdsetpgrp=''
 d_setpgrp=''
 d_setprior=''
+d_setproctitle=''
 d_setpwent=''
 d_setregid=''
 d_setresgid=''
@@ -620,6 +621,7 @@ i_grp=''
 i_iconv=''
 i_ieeefp=''
 i_inttypes=''
+i_libutil=''
 i_limits=''
 i_locale=''
 i_machcthr=''
@@ -995,7 +997,7 @@ defvoidused=15
 libswanted='sfio socket bind inet nsl nm ndbm gdbm dbm db malloc dl'
 libswanted="$libswanted dld ld sun m c cposix posix"
 libswanted="$libswanted ndir dir crypt sec"
-libswanted="$libswanted ucb bsd BSD PW x iconv"
+libswanted="$libswanted ucb bsd BSD PW x iconv util"
 : We probably want to search /usr/shlib before most other libraries.
 : This is only used by the lib/ExtUtils/MakeMaker.pm routine extliblist.
 glibpth=`echo " $glibpth " | sed -e 's! /usr/shlib ! !'`
@@ -10934,6 +10936,10 @@ eval $inlibc
 set setpriority d_setprior
 eval $inlibc
 
+: see if setproctitle exists
+set setproctitle d_setproctitle
+eval $inlibc
+
 : see if setpwent exists
 set setpwent d_setpwent
 eval $inlibc
@@ -14175,6 +14181,10 @@ eval $inhdr
 set ieeefp.h i_ieeefp
 eval $inhdr
 
+: see if this is a libutil.h system
+set libutil.h i_libutil
+eval $inhdr
+
 : see if locale.h is available
 set locale.h i_locale
 eval $inhdr
@@ -15321,6 +15331,7 @@ d_setpgid='$d_setpgid'
 d_setpgrp2='$d_setpgrp2'
 d_setpgrp='$d_setpgrp'
 d_setprior='$d_setprior'
+d_setproctitle='$d_setproctitle'
 d_setpwent='$d_setpwent'
 d_setregid='$d_setregid'
 d_setresgid='$d_setresgid'
@@ -15467,6 +15478,7 @@ i_grp='$i_grp'
 i_iconv='$i_iconv'
 i_ieeefp='$i_ieeefp'
 i_inttypes='$i_inttypes'
+i_libutil='$i_libutil'
 i_limits='$i_limits'
 i_locale='$i_locale'
 i_machcthr='$i_machcthr'
