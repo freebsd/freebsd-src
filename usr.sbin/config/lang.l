@@ -55,13 +55,12 @@ struct kt {
 	{ "args",	ARGS },
 	{ "at",		AT },
 	{ "bio",	BIO },		/* XXX going away */
-	{ "bus",	BUS },		/* XXX going away */
+	{ "bus",	BUS },
 	{ "cam",	CAM },		/* XXX going away */
 	{ "conflicts",	CONFLICTS },
 	{ "config",	CONFIG },
 	{ "controller",	CONTROLLER },
 	{ "cpu",	CPU },
-	{ "csr",	CSR },
 	{ "device",	DEVICE },
 	{ "disable",	DISABLE },
 	{ "disk",	DISK },
@@ -70,7 +69,6 @@ struct kt {
 	{ "dumps",	DUMPS },
 	{ "flags",	FLAGS },
 	{ "ident",	IDENT },
-	{ "interleave",	INTERLEAVE },
 	{ "iomem",	IOMEM },
 	{ "iosiz",	IOSIZ },
 	{ "irq",	IRQ },
@@ -107,7 +105,7 @@ int octal __P((char *));
 int hex __P((char *));
 
 %}
-WORD	[A-Za-z_][-A-Za-z_]*
+WORD	[-A-Za-z_][-A-Za-z_]*
 %%
 {WORD}		{
 			int i;
@@ -142,6 +140,11 @@ WORD	[A-Za-z_][-A-Za-z_]*
 			tprintf("#X:%x ", yylval.val);
 			return NUMBER;
 		}
+-[1-9][0-9]*	{
+			yylval.val = atoi(yytext);
+			tprintf("#D:%d ", yylval.val);
+			return NUMBER;
+		}
 [1-9][0-9]*	{
 			yylval.val = atoi(yytext);
 			tprintf("#D:%d ", yylval.val);
@@ -150,9 +153,6 @@ WORD	[A-Za-z_][-A-Za-z_]*
 [0-9]"."[0-9]*	{
 			yylval.val = (int) (60 * atof(yytext) + 0.5);
 			return FPNUMBER;
-		}
-"-"		{
-			return MINUS;
 		}
 "?"		{
 			yylval.val = -1;
