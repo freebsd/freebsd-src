@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.36 1998/09/15 10:23:17 gibbs Exp $
+ * $Id: disk.c,v 1.37 1998/09/30 21:40:51 jkh Exp $
  *
  */
 
@@ -258,8 +258,13 @@ Debug_Disk(struct disk *d)
 	printf("  bios_geom=%lu/%lu/%lu = %lu\n",
 		d->bios_cyl,d->bios_hd,d->bios_sect,
 		d->bios_cyl*d->bios_hd*d->bios_sect);
+#if defined(__i386__)
 	printf("  boot1=%p, boot2=%p, bootmgr=%p\n",
 		d->boot1,d->boot2,d->bootmgr);
+#elif defined(__alpha__)
+	printf("  boot1=%p, bootmgr=%p\n",
+		d->boot1,d->bootmgr);
+#endif
 	Debug_Chunk(d->chunks);
 }
 
@@ -270,7 +275,9 @@ Free_Disk(struct disk *d)
 	if(d->name) free(d->name);
 	if(d->bootmgr) free(d->bootmgr);
 	if(d->boot1) free(d->boot1);
+#if defined(__i386__)
 	if(d->boot2) free(d->boot2);
+#endif
 	free(d);
 }
 
@@ -288,6 +295,7 @@ Clone_Disk(struct disk *d)
 		d2->bootmgr = malloc(DOSPARTOFF);
 		memcpy(d2->bootmgr,d->bootmgr,DOSPARTOFF);
 	}
+#if defined(__i386__)
 	if(d2->boot1) {
 		d2->boot1 = malloc(512);
 		memcpy(d2->boot1,d->boot1,512);
@@ -296,6 +304,12 @@ Clone_Disk(struct disk *d)
 		d2->boot2 = malloc(512*15);
 		memcpy(d2->boot2,d->boot2,512*15);
 	}
+#elif defined(__alpha__)
+	if(d2->boot1) {
+		d2->boot1 = malloc(512*15);
+		memcpy(d2->boot1,d->boot1,512*15);
+	}
+#endif
 	return d2;
 }
 
@@ -362,6 +376,7 @@ Set_Boot_Mgr(struct disk *d, const u_char *b)
 void
 Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 {
+#if defined(__i386__)
 	if (d->boot1) free(d->boot1);
 	d->boot1 = malloc(512);
 	if(!d->boot1) err(1,"malloc failed");
@@ -370,6 +385,12 @@ Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 	d->boot2 = malloc(15*512);
 	if(!d->boot2) err(1,"malloc failed");
 	memcpy(d->boot2,b2,15*512);
+#elif defined(__alpha__)
+	if (d->boot1) free(d->boot1);
+	d->boot1 = malloc(15*512);
+	if(!d->boot1) err(1,"malloc failed");
+	memcpy(d->boot1,b1,15*512);
+#endif
 }
 
 const char *

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.20 1997/02/22 15:06:25 peter Exp $
 
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
@@ -44,12 +44,19 @@ MLINKS+=	libdisk.3 Open_Disk.3 \
 
 BOOTS=/usr/mdec
 
+.if ${MACHINE_ARCH} == "i386"
 data.c:	${.CURDIR}/libdisk.h ${BOOTS}/boot1 ${BOOTS}/boot2
 	file2c 'const unsigned char boot1[] = {' '};' \
                 < ${BOOTS}/boot1 > tmp.c
 	file2c 'const unsigned char boot2[] = {' '};' \
                 < ${BOOTS}/boot2 >> tmp.c
 	mv -f tmp.c data.c
+.elif ${MACHINE_ARCH} == "alpha"
+data.c:	${.CURDIR}/libdisk.h ${BOOTS}/boot1
+	file2c 'const unsigned char boot1[] = {' '};' \
+                < ${BOOTS}/boot1 > tmp.c
+	mv -f tmp.c data.c
+.endif
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/libdisk.h \
