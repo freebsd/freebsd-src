@@ -88,7 +88,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		nargs = sof - sol;
 		if (nargs > 8)
 			nargs = 8;
-		if (bsp >= IA64_RR_BASE(5)) {
+		if (bsp >= (u_int64_t *)IA64_RR_BASE(5)) {
 			for (i = 0; i < nargs; i++) {
 				p = ia64_rse_register_address(bsp, 32 + i);
 				db_read_bytes((vm_offset_t) p, sizeof(reg),
