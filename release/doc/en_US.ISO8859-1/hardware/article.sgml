@@ -809,6 +809,18 @@
       </itemizedlist>
     <para>
 
+    <para arch="i386">PCI SCSI host adapters using the Tekram
+	TRM-S1040 SCSI chipset (trm driver)
+      <itemizedlist>
+	<listitem>
+	  <para>Tekram DC395U/UW/F</para>
+	</listitem>
+	<listitem>
+	  <para>Tekram DC315U</para>
+	</listitem>
+      </itemizedlist>
+    <para>
+
     <para>With all supported SCSI controllers, full support is
     provided for SCSI-I, SCSI-II, and SCSI-III peripherals, including
     hard disks, optical disks, tape drives (including DAT, 8mm
@@ -2986,6 +2998,18 @@
     </para>
     <para arch="i386,pc98">Serial devices
       <itemizedlist>
+        <listitem>
+	  <para>Belkin F5U103 and F5U120 (ubsa driver)</para>
+        </listitem>
+        <listitem>
+	  <para>e-Tek Labs Kwik232 (ubsa driver)</para>
+        </listitem>
+        <listitem>
+	  <para>GoHubs GoCOM232 (ubsa driver)</para>
+        </listitem>
+        <listitem>
+	  <para>Peracom single port serial adapter (ubsa driver)</para>
+        </listitem>
         <listitem>
 	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4; driver)</para>
         </listitem>
