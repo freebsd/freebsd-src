@@ -168,7 +168,7 @@ static const char rcsid[] =
 #define	PVO_WIRED		0x0010		/* PVO entry is wired */
 #define	PVO_MANAGED		0x0020		/* PVO entry is managed */
 #define	PVO_EXECUTABLE		0x0040		/* PVO entry is executable */
-#define	PVO_BOOTSTRAP		0x0004		/* PVO entry allocated during
+#define	PVO_BOOTSTRAP		0x0080		/* PVO entry allocated during
 						   bootstrap */
 #define	PVO_VADDR(pvo)		((pvo)->pvo_vaddr & ~ADDR_POFF)
 #define	PVO_ISEXECUTABLE(pvo)	((pvo)->pvo_vaddr & PVO_EXECUTABLE)
