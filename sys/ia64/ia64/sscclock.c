@@ -35,17 +35,14 @@
 #include <machine/clockvar.h>
 
 struct ssc_time {
-	u_int16_t year;
-	u_int8_t month;
-	u_int8_t day;
-	u_int8_t hour;
-	u_int8_t minute;
-	u_int8_t second;
-	u_int8_t pad1;
-	u_int32_t nanosecond;
-	int16_t timezone;
-	u_int8_t daylight;
-	u_int8_t pad2;
+	int	year;
+	int	month;
+	int	day;
+	int	hour;
+	int	minute;
+	int	second;
+	int	msec;
+	int	wday;
 };
 
 #define SSC_GET_RTC			65
@@ -73,7 +70,6 @@ sscclock_init(device_t dev)
 static void
 sscclock_get(device_t dev, time_t base, struct clocktime *ct)
 {
-#if 0
 	struct ssc_time time;
 
 	ssc(ia64_tpa((vm_offset_t) &time), 0, 0, 0, SSC_GET_RTC);
@@ -81,13 +77,10 @@ sscclock_get(device_t dev, time_t base, struct clocktime *ct)
 	ct->sec = time.second;
 	ct->min = time.minute;
 	ct->hour = time.hour;
-	ct->dow = 0;		/* XXX */
+	ct->dow = time.wday;
 	ct->day = time.day;
-	ct->mon = time.month;
+	ct->mon = time.month + 1;
 	ct->year = time.year;
-#else
-	bzero(ct, sizeof(struct clocktime));
-#endif
 }
 
 /*
@@ -96,6 +89,7 @@ sscclock_get(device_t dev, time_t base, struct clocktime *ct)
 static void
 sscclock_set(device_t dev, struct clocktime *ct)
 {
+	printf("sscclock: TODR not set\n");
 }
 
 static int
