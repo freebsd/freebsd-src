@@ -325,13 +325,14 @@ waking up the device quickly.
 This flag will enable a piece of code in the 
 .Nm
 driver to hook
-the `resume' event and exercise some harmless I/O operations to the
+the `resume' event and exercise some harmless I/O operations on the
 device.
 .It bit 14 INITAFTERSUSPEND
 This flag adds more drastic action for the above problem.
-It will make the
+It will cause the
 .Nm
-driver to reset and re-initialize the pointing device after the resume event.
+driver to reset and re-initialize the pointing device
+after the `resume' event.
 It has no effect unless the
 .Em HOOKRESUME
 flag is set as well.
