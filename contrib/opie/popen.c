@@ -23,6 +23,7 @@ License Agreement applies to this software.
 	Modified at NRL for OPIE 2.0.
 	Originally from BSD.
 
+$FreeBSD$
 */
 /*
  * Copyright (c) 1988, 1993, 1994
@@ -84,6 +85,9 @@ License Agreement applies to this software.
 
 #include "opie.h"
 
+#define MAXUSRARGS	100
+#define MAXGLOBARGS	1000
+
 char **ftpglob __P((register char *));
 char **copyblk __P((char **));
 VOIDRET blkfree __P((char **));
@@ -103,7 +107,7 @@ FILE *ftpd_popen FUNCTION((program, type), char *program AND char *type)
   char *cp;
   FILE *iop;
   int argc, gargc, pdes[2];
-  char **pop, *argv[100], *gargv[1000], *vv[2];
+  char **pop, *argv[MAXUSRARGS], *gargv[MAXGLOBARGS], *vv[2];
 
   if ((*type != 'r' && *type != 'w') || type[1])
     return (NULL);
@@ -112,13 +116,15 @@ FILE *ftpd_popen FUNCTION((program, type), char *program AND char *type)
     return (NULL);
 
   /* break up string into pieces */
-  for (argc = 0, cp = program;; cp = NULL)
+  for (argc = 0, cp = program; argc < MAXUSRARGS-1; cp = NULL) {
     if (!(argv[argc++] = strtok(cp, " \t\n")))
       break;
+  }
+  argv[argc - 1] = NULL;
 
   /* glob each piece */
   gargv[0] = argv[0];
-  for (gargc = argc = 1; argv[argc]; argc++) {
+  for (gargc = argc = 1; argv[argc] && gargc < (MAXGLOBARGS-1); argc++) {
     if (!(pop = (char **) ftpglob(argv[argc]))) {
       /* globbing failed */
       vv[0] = argv[argc];
@@ -126,7 +132,7 @@ FILE *ftpd_popen FUNCTION((program, type), char *program AND char *type)
       pop = (char **) copyblk(vv);
     }
     argv[argc] = (char *) pop;	/* save to free later */
-    while (*pop && gargc < 1000)
+    while (*pop && gargc < MAXGLOBARGS-1)
       gargv[gargc++] = *pop++;
   }
   gargv[gargc] = NULL;
