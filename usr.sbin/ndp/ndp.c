@@ -637,7 +637,12 @@ again:;
 			    sizeof(host_buf), NULL, 0,
 			    NI_WITHSCOPEID | (nflag ? NI_NUMERICHOST : 0));
 		if (cflag == 1) {
+#ifdef RTF_WASCLONED
+			if (rtm->rtm_flags & RTF_WASCLONED)
+				delete(host_buf);
+#else
 			delete(host_buf);
+#endif
 			continue;
 		}
 		gettimeofday(&time, 0);
