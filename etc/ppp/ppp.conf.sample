@@ -4,14 +4,14 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.3 1995/04/22 17:14:21 amurai Exp $
+# $Id: ppp.conf.sample,v 1.3.4.2 1996/06/05 02:37:04 jkh Exp $
 #
 #################################################################
 #
 # Default setup. Executed always when PPP is invoked.
 #
 default:
- set device /dev/cua01
+ set device /dev/cuaa1
  set speed 38400
  disable lqr
  deny lqr
@@ -36,9 +36,15 @@ simplesite:
  set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
  set timeout 120
 #
-# If peer reqires to use CHAP, don't forget to supply authname and authkey.
+# Multi-phone example
 #
-# If you'd like to use CHAP to authentificate peer, comment out the line
+multiphone:
+ set phone 12345678:12345679:12345670:12345671
+ set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
+#
+# If peer requires to use CHAP, don't forget to supply authname and authkey.
+#
+# If you'd like to use CHAP to authentication peer, comment out the line
 # ``enable chap'' below. You also need to prepare /etc/ppp.secret.
 #
 # If remote system sends its system name within CHAP packet and it is
@@ -54,7 +60,7 @@ chapsite:
  set authname MySystemName
  set authkey  OurSecretKey
 #
-# To speak PAP is just smilar to CHAP
+# To speak PAP is just similar to CHAP
 #
 papsite:
  set phone 12345678
@@ -76,8 +82,8 @@ ondemand:
  set phone 1234567
  set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
  set timeout 120
- set ifaddr 192.244.185.226 192.244.176.44
- add 0 255.255.255.0 192.244.176.44
+ set ifaddr 192.244.185.226 192.244.176.44 255.255.255.0
+ add 0 0 192.244.176.44
 #
 # Another on demand example
 #  If peer assign some IP address for us, and we can't predict it
@@ -87,8 +93,8 @@ pmdemend:
  set phone 1234567
  set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
  set timeout 120
- set ifaddr 0 192.244.176.44
- add 0 255.255.255.0 192.244.176.44
+ set ifaddr 0 192.244.176.44 255.255.255.0
+ add 0 0 192.244.176.44
 #
 # Example to validate incoming user with CHAP
 #  Invod as ``ppp -direct users'' from login script. User's system name
@@ -106,8 +112,8 @@ users:
 # Example of Callback Request
 #
 #  Here, we assume that peer will hangup the line and initiates a callback
-#  after successful authentification. We simply use chat script capabiluty
-#  and wait for a "NO CARRIRER" response from our modem.
+#  after successful authentication. We simply use chat script capability
+#  and wait for a "NO CARRIER" response from our modem.
 #
 #  % ppp callback
 #

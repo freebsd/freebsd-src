@@ -1,4 +1,4 @@
-# $Id: hosts,v 1.5.4.1 1995/11/19 17:53:28 jkh Exp $
+# $Id: hosts,v 1.5.4.3 1996/06/05 02:36:29 jkh Exp $
 #
 # Host Database
 # This file should contain the addresses and aliases
@@ -8,14 +8,12 @@
 #
 #
 127.0.0.1		localhost localhost.my.domain
-# for the no-configured-network case.
-127.0.0.1		myname.my.domain
 #
 # Imaginary network.
 #10.0.0.2		myname.my.domain myname
 #10.0.0.3		myfriend.my.domain myfriend
 #
-# According to RFC 1597, you can use the following IP networks for
+# According to RFC 1918, you can use the following IP networks for
 # private nets which will never be connected to the Internet:
 #
 #	10.0.0.0	-   10.255.255.255

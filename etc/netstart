@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.32.4.3 1995/08/25 07:21:46 davidg Exp $
+#	$Id: netstart,v 1.32.4.5 1996/06/05 02:36:32 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -23,9 +23,14 @@ if [ -n "$defaultdomainname" -a "x$defaultdomainname" != "xNO" ] ; then
 	domainname $defaultdomainname
 fi
 
+# If IP filtering
+if [ -n "$firewall" -a "x$firewall" != "xNO" -a -f /etc/rc.firewall ] ; then
+	sh /etc/rc.firewall
+fi
+
 #
 # XXX This is known to cause an error if /usr is nfs mounted since it
-# will not be avaliable until after the network is up :-(.  Once the
+# will not be available until after the network is up :-(.  Once the
 # relocation of sysctl to /sbin is done that problem will go away.
 #
 if [ -n "$tcp_extensions" -a "x$tcp_extensions" = "xNO" ] ; then
@@ -49,28 +54,20 @@ if [ -n "$defaultrouter" -a "x$defaultrouter" != "xNO" ] ; then
 fi
 
 # Set up any static routes.  This should be done before router discovery.
-for i in ${static_routes}; do
-	eval route_args=\$route_${i}
-	route add ${route_args}
-done
+if [ "x${static_routes}" != "x" ]; then
+	for i in ${static_routes}; do
+		eval route_args=\$route_${i}
+		route add ${route_args}
+	done
+fi
 
 if [ "x$gateway" != "xNO" ]; then
 	echo 'configuring host as a gateway.'
-	sysctl -w net.inet.ip.forwarding=1
+	sysctl -w net.inet.ip.forwarding=1 >/dev/null 2>&1
 fi
 
-if [ "x$gated" != "xNO" -o "x$routedflags" != "xNO" ] ; then
-	echo -n starting routing daemons:
-
-	# $gated and $routedflags are imported from /etc/sysconfig.
-	# If $gated == YES, gated is used; otherwise routed.
-	# If $routedflags == NO, routed isn't run.
-
-	if [ "X${gated}" = X"YES" -a -r /etc/gated.conf ]; then
-		echo -n	' gated';	/usr/local/sbin/gated $gatedflags
-	elif [ "X${routedflags}" != X"NO" ]; then
-		echo -n ' routed';	routed $routedflags
-	fi
-
+if [ "x$router" != "xNO" ] ; then
+	echo -n starting routing daemon:
+	echo -n " ${router}";	${router} ${routerflags}
 	echo '.'
 fi
