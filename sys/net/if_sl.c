@@ -66,9 +66,8 @@
  */
 
 #include "opt_inet.h"
-#if !defined(KLD_MODULE)
 #include "opt_slip.h"
-#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
