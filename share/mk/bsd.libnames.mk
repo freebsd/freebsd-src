@@ -58,11 +58,12 @@ LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a	# XXX doesn't exist
 MINUSLPAM?=	-lpam
 .if defined(NOSHARED) && ${NOSHARED} != "no" && ${NOSHARED} != "NO"
 .ifdef MAKE_KERBEROS4
-LIBPAM+=	${LIBKRB} ${LIBDES}
-MINUSLPAM+=	-lkrb -ldes
+LIBPAM+=	${LIBKRB} ${LIBDES} ${LIBCOM_ERR}
+MINUSLPAM+=	-lkrb -ldes -lcom_err
 .endif
-LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBSKEY} ${LIBCRYPT} ${LIBMD}
-MINUSLPAM+=	-lradius -ltacplus -lskey -lcrypt -lmd
+LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBSKEY} ${LIBCRYPT} ${LIBMD} \
+		${LIBUTIL}
+MINUSLPAM+=	-lradius -ltacplus -lskey -lcrypt -lmd -lutil
 .endif
 
 LIBPC?=		${DESTDIR}${LIBDIR}/libpc.a	# XXX doesn't exist
