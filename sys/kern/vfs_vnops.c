@@ -869,7 +869,7 @@ debug_vn_lock(vp, flags, td, filename, line)
 	do {
 		if ((flags & LK_INTERLOCK) == 0)
 			VI_LOCK(vp);
-		if ((vp->v_iflag & VI_XLOCK) && vp->v_vxproc != curthread) {
+		if ((vp->v_iflag & VI_XLOCK) && vp->v_vxthread != curthread) {
 			if ((flags & LK_NOWAIT) != 0) {
 				VI_UNLOCK(vp);
 				return (ENOENT);
