@@ -53,8 +53,11 @@ ACPI_MODULE_NAME("THERMAL")
 #define TZ_NOTIFY_LEVELS	0x81
 #define TZ_NOTIFY_DEVICES	0x82
 
-/* Check for temperature changes every 30 seconds by default */
-#define TZ_POLLRATE	30
+/* Check for temperature changes every 10 seconds by default */
+#define TZ_POLLRATE	10
+
+/* Make sure the reported temperature is valid for this number of polls. */
+#define TZ_VALIDCHECKS	3
 
 /* ACPI spec defines this */
 #define TZ_NUMLEVELS	10
@@ -70,7 +73,6 @@ struct acpi_tz_zone {
     int		tsp;
     int		tzp;
 };
-
 
 struct acpi_tz_softc {
     device_t			tz_dev;
@@ -95,6 +97,7 @@ struct acpi_tz_softc {
     
     struct acpi_tz_zone 	tz_zone;	/*Thermal zone parameters*/
     int				tz_tmp_updating;
+    int				tz_validchecks;
 };
 
 static int	acpi_tz_probe(device_t dev);
@@ -472,18 +475,22 @@ acpi_tz_monitor(void *Context)
     /* XXX (de)activate any passive cooling that may be required. */
 
     /*
-     * If we have just become _HOT or _CRT, warn the user.
-     *
-     * We should actually shut down at this point, but it's not clear
-     * that some systems don't actually map _CRT to the same value as _AC0.
+     * If the temperature is at _HOT or _CRT, increment our event count.
+     * If it has occurred enough times, shutdown the system.  This is
+     * needed because some systems will report an invalid high temperature
+     * for one poll cycle.  It is suspected this is due to the embedded
+     * controller timing out.  A typical value is 138C for one cycle on
+     * a system that is otherwise 65C.
      */
-    if ((newflags & (TZ_THFLAG_HOT | TZ_THFLAG_CRT)) != 0 && 
-	(sc->tz_thflags & (TZ_THFLAG_HOT | TZ_THFLAG_CRT)) == 0) {
-
-	device_printf(sc->tz_dev,
-	    "WARNING - current temperature (%d.%dC) exceeds system limits\n",
-		      TZ_KELVTOC(sc->tz_temperature));
-	shutdown_nice(RB_POWEROFF);
+    if ((newflags & (TZ_THFLAG_HOT | TZ_THFLAG_CRT)) != 0) {
+	if (++sc->tz_validchecks == TZ_VALIDCHECKS) {
+	    device_printf(sc->tz_dev,
+		"WARNING - current temperature (%d.%dC) exceeds safe limits\n",
+		TZ_KELVTOC(sc->tz_temperature));
+	    shutdown_nice(RB_POWEROFF);
+	}
+    } else {
+	sc->tz_validchecks = 0;
     }
     sc->tz_thflags = newflags;
 
