@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.8 1995/09/22 18:28:21 peter Exp $
+ *	$Id: si.c,v 1.9 1995/09/22 20:00:12 peter Exp $
  */
 
 #ifndef lint
@@ -95,7 +95,7 @@ static void sihardclose __P((struct si_port *pp));
 static void sidtrwakeup __P((void *chan));
 
 void	sistop	__P((struct tty *tp, int rw));
-void	siintr	__P((int bdnum));
+void	siintr	__P((int unit));
 int	siparam __P((struct tty *, struct termios *));
 
 extern	void	si_registerdev __P((struct isa_device *id));
@@ -122,8 +122,6 @@ extern int si_dsize;
 extern unsigned char si_download[];
 
 struct si_softc {
-	struct device	sc_dev;  	/* base device */
-
 	int 		sc_type;	/* adapter type */
 	char 		*sc_typename;	/* adapter type string */
 
@@ -1627,9 +1625,9 @@ si_poll(void *nothing)
 	int lost, oldspl;
 
 	DPRINT((0, DBG_POLL, "si_poll()\n"));
+	oldspl = spltty();
 	if (in_intr)
 		goto out;
-	oldspl = spltty();
 	lost = 0;
 	for (i=0; i<NSI; i++) {
 		sc = &si_softc[i];
@@ -1654,9 +1652,9 @@ si_poll(void *nothing)
 	}
 	if (lost)
 		siintr(-1);	/* call intr with fake vector */
+out:
 	splx(oldspl);
 
-out:
 	timeout(si_poll, (caddr_t)0L, POLL_INTERVAL);
 }
 #endif	/* ifdef POLL */
@@ -1669,9 +1667,8 @@ out:
 static BYTE rxbuf[SLXOS_BUFFERSIZE];	/* input staging area */
 
 void
-siintr(int bdnum)
+siintr(int unit)
 {
-	struct si_softc *Isc = NULL;
 	register struct si_softc *sc;
 
 	register struct si_port *pp;
@@ -1682,21 +1679,13 @@ siintr(int bdnum)
 	int x, card, port, n, i;
 	volatile BYTE *z;
 	BYTE c;
-	static int in_poll = 0;
 
-	if (bdnum < 0) {
-		Isc = NULL;
-		in_poll = 1;
-	} else {
-		Isc = &si_softc[bdnum];
-	}
-
-	DPRINT((0, (Isc == 0)?DBG_POLL:DBG_INTR, "siintr(0x%x)\n", Isc));
-	if (in_intr != 0) {
-		if (Isc == NULL)	/* should never happen */
+	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "siintr(%d)\n", unit));
+	if (in_intr) {
+		if (unit < 0)	/* should never happen */
 			return;
 		printf("SLXOS si%d: Warning interrupt handler re-entered\n",
-			Isc==0 ? -1 : Isc->sc_dev.dv_unit);
+			unit);
 		return;
 	}
 	in_intr = 1;
@@ -1888,8 +1877,8 @@ siintr(int bdnum)
 		} /* end of for (all ports on this controller) */
 	} /* end of for (all controllers) */
 
-	in_poll = in_intr = 0;
-	DPRINT((0, (Isc==0)?DBG_POLL:DBG_INTR, "end of siintr()\n"));
+	in_intr = 0;
+	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "end siintr(%d)\n", unit));
 }
 
 /*
