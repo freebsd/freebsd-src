@@ -37,4 +37,9 @@ SUBDIR=	UI \
 SUBDIR+=	mppc
 .endif
 
+.if ${MACHINE_ARCH} == "i386"
+# Things that don't compile on alpha or are aout specific:
+SUBDIR+= bluetooth
+.endif
+
 .include <bsd.subdir.mk>
