@@ -91,7 +91,7 @@
   086   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
   088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
-  089   scr03  scr03  scr03  scr03  scr03  scr03  scr03  scr03   N
+  089   cr     cr     nl     nl     cr     cr     nl     nl      O
   090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     N
   092   nscr   nop    debug  nop    nop    nop    nop    nop     O
@@ -120,12 +120,4 @@
   115   '/'    '?'    nop    nop    248    '?'    nop    nop     O
   116   nop    nop    nop    nop    nop    nop    nop    nop     O
   117   nop    nop    nop    nop    nop    nop    nop    nop     O
-  118   nop    nop    nop    nop    nop    nop    nop    nop     O
-  119   nop    nop    nop    nop    nop    nop    nop    nop     O
-  120   nop    nop    nop    nop    nop    nop    nop    nop     O
-  121   nop    nop    nop    nop    nop    nop    nop    nop     O
-  122   nop    nop    nop    nop    nop    nop    nop    nop     O
-  123   nop    nop    nop    nop    nop    nop    nop    nop     O
-  124   nop    nop    nop    nop    nop    nop    nop    nop     O
-  125   nop    nop    nop    nop    nop    nop    nop    nop     O
-  126   '.'    '.'    '.'    '.'    '.'    '.'    '.'    '.'     N
+  118   nop    nop    nop 

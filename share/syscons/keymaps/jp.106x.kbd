@@ -92,7 +92,7 @@
   086   nop    nop    nop    nop    nop    nop    nop    nop     O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
   088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
-  089   cr     cr     cr     cr     cr     cr     cr     cr      O
+  089   cr     cr     nl     nl     cr     cr     nl     nl      O
   090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     O
   092   nscr   nop    debug  nop    nop    nop    nop    nop     O
