@@ -314,6 +314,22 @@ pcic_pci_cardbus_init(device_t dev)
 
 	/* Turn off legacy address */
 	pci_write_config(dev, CB_PCI_LEGACY16_IOADDR, 0, 2);
+
+	/* 
+	 * Write zeros into the remaining BARs.  This seems to turn off
+	 * the pci configuration of these things and make the cardbus
+	 * bridge use the values for memory programmed into the pcic
+	 * registers.
+	 */
+	pci_write_config(dev, CB_PCI_MEMBASE0, 0, 4);
+	pci_write_config(dev, CB_PCI_MEMLIMIT0, 0, 4);
+	pci_write_config(dev, CB_PCI_MEMBASE1, 0, 4);
+	pci_write_config(dev, CB_PCI_MEMLIMIT1, 0, 4);
+	pci_write_config(dev, CB_PCI_IOBASE0, 0, 4);
+	pci_write_config(dev, CB_PCI_IOLIMIT0, 0, 4);
+	pci_write_config(dev, CB_PCI_IOBASE1, 0, 4);
+	pci_write_config(dev, CB_PCI_IOLIMIT1, 0, 4);
+
 	return;
 }
 
