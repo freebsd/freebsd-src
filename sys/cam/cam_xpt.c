@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.10 1998/09/22 04:53:23 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.11 1998/09/22 20:41:12 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -166,6 +166,9 @@ struct cam_ed {
 #define CAM_DEV_REL_ON_COMPLETE		0x04
 #define CAM_DEV_REL_ON_QUEUE_EMPTY	0x08
 #define CAM_DEV_RESIZE_QUEUE_NEEDED	0x10
+#define CAM_DEV_TAG_AFTER_COUNT		0x20
+	u_int32_t	 tag_delay_count;
+#define	CAM_TAG_DELAY_COUNT		5
 	u_int32_t	 refcount;
 	struct		 callout_handle c_handle;
 };
@@ -291,7 +294,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		 * can handle instead of determining this automatically.
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "WN321010S*", "*" },
-		/*quirks*/0, /*mintags*/0, /*maxtags*/32
+		/*quirks*/0, /*mintags*/2, /*maxtags*/32
 	},
         {
 		/*
@@ -305,19 +308,20 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
         },
 	{
-		/* I can't believe I need a quirk for DPT volumes. */
-		{
-			T_ANY, SIP_MEDIA_FIXED|SIP_MEDIA_REMOVABLE,
-			"DPT", "*", "*"
-		},
-		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/64
-	},
-	{
 		/* Really only one LUN */
 		{
 			T_ENCLOSURE, SIP_MEDIA_FIXED, "SUN", "SENA*", "*"
 		},
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/* I can't believe we need a quirk for DPT volumes. */
+		{
+			T_ANY, SIP_MEDIA_FIXED|SIP_MEDIA_REMOVABLE,
+			"DPT", "*", "*"
+		},
+		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS,
+		/*mintags*/0, /*maxtags*/255
 	},
 	{
 		/*
@@ -347,9 +351,10 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
 		  /*vendor*/"*", /*product*/"*", /*revision*/"*"
 		},
-		/*quirks*/0, /*mintags*/2, /*maxtags*/64
+		/*quirks*/0, /*mintags*/2, /*maxtags*/255
 	},
 };
+
 typedef enum {
 	DM_RET_COPY		= 0x01,
 	DM_RET_FLAG_MASK	= 0x0f,
@@ -596,6 +601,7 @@ static void	 probecleanup(struct cam_periph *periph);
 static void	 xpt_find_quirk(struct cam_ed *device);
 static void	 xpt_set_transfer_settings(struct ccb_trans_settings *cts,
 					   int async_update);
+static void	 xpt_start_tags(struct cam_path *path);
 static __inline int xpt_schedule_dev_allocq(struct cam_eb *bus,
 					    struct cam_ed *dev);
 static __inline int xpt_schedule_dev_sendq(struct cam_eb *bus,
@@ -1298,7 +1304,9 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 			&& cts.sync_offset != 0) {
 			printf(")");
 		}
-		if (path->device->inq_flags & SID_CmdQue) {
+
+		if (path->device->inq_flags & SID_CmdQue
+		 || path->device->flags & CAM_DEV_TAG_AFTER_COUNT) {
 			printf(", Tagged Queueing Enabled");
 		}
 
@@ -3884,16 +3892,11 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 				continue;
 
 			/*
-			 * We'll need this path for either one of these two
-			 * async callback codes.  Basically, we need to
-			 * compile our own path instead of just using the path
-			 * the user passes in since the user may well have
-			 * passed in a wildcardded path.  I'm not really
-			 * sure why anyone would want to wildcard a path for
-			 * either one of these async callbacks, but we need
-			 * to be able to handle it if they do.
+			 * We need our own path with wildcards expanded to
+			 * handle certain types of events.
 			 */
 			if ((async_code == AC_SENT_BDR)
+			 || (async_code == AC_BUS_RESET)
 			 || (async_code == AC_INQ_CHANGED))
 				status = xpt_compile_path(&newpath, NULL,
 							  bus->path_id,
@@ -3901,6 +3904,29 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 							  device->lun_id);
 			else
 				status = CAM_REQ_CMP; /* silence the compiler */
+
+			if ((path->device->inq_flags & SID_CmdQue
+			  || path->device->flags & CAM_DEV_TAG_AFTER_COUNT)
+			 && (async_code == AC_SENT_BDR
+			  || async_code == AC_BUS_RESET)) {
+				struct ccb_trans_settings cts;
+
+				/*
+				 * Give controllers a chance to renegotiate
+				 * before starting tag operations.  We
+				 * "toggle" tagged queuing off then on
+				 * which causesthe tag enable command delay
+				 * counter to come into effect.
+				 */
+				xpt_setup_ccb(&cts.ccb_h, &newpath, 1);
+				cts.flags = 0;
+				cts.valid = CCB_TRANS_TQ_VALID;
+				xpt_set_transfer_settings(&cts,
+							 /*async_update*/TRUE);
+				cts.flags = CCB_TRANS_TAG_ENB;
+				xpt_set_transfer_settings(&cts,
+							 /*async_update*/TRUE);
+			}
 
 			/*
 			 * If we send a BDR, freeze the device queue for
@@ -5302,27 +5328,33 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, int async_update)
 	 * the queue so that we don't overlap tagged and non-tagged
 	 * commands.
 	 */
+	qfrozen = FALSE;
 	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0
 	 && (((cts->flags & CCB_TRANS_TAG_ENB) != 0
 	   && (device->inq_flags & SID_CmdQue) == 0)
 	  || ((cts->flags & CCB_TRANS_TAG_ENB) == 0
 	   && (device->inq_flags & SID_CmdQue) != 0))) {
-		int newopenings;
-
-		xpt_freeze_devq(cts->ccb_h.path, /*count*/1);
-		qfrozen = TRUE;
 
 		if ((cts->flags & CCB_TRANS_TAG_ENB) != 0) {
-			newopenings = min(device->quirk->maxtags,
-					  sim->max_tagged_dev_openings);
-	  		device->inq_flags |= SID_CmdQue;
+			/*
+			 * Delay change to use tags until after a
+			 * few commands have gone to this device so
+			 * the controller has time to perform transfer
+			 * negotiations without tagged messages getting
+			 * in the way.
+			 */
+			if (device->tag_delay_count == 0)
+				device->tag_delay_count = CAM_TAG_DELAY_COUNT;
+			device->flags |= CAM_DEV_TAG_AFTER_COUNT;
 		} else {
-			newopenings = sim->max_dev_openings;
+			xpt_freeze_devq(cts->ccb_h.path, /*count*/1);
+			qfrozen = TRUE;
 	  		device->inq_flags &= ~SID_CmdQue;
+			xpt_dev_ccbq_resize(cts->ccb_h.path,
+					    sim->max_dev_openings);
+			device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
+			device->tag_delay_count = 0;
 		}
-		xpt_dev_ccbq_resize(cts->ccb_h.path, newopenings);
-	} else {
-		qfrozen = FALSE;
 	}
 
 	if (async_update == FALSE)
@@ -5341,6 +5373,30 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, int async_update)
 		    = 0;
 		xpt_action((union ccb *)&crs);
 	}
+}
+
+static void
+xpt_start_tags(struct cam_path *path) {
+	struct ccb_relsim crs;
+	struct cam_ed *device;
+	struct cam_sim *sim;
+	int    newopenings;
+
+	device = path->device;
+	sim = path->bus->sim;
+	device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
+	xpt_freeze_devq(path, /*count*/1);
+	device->inq_flags |= SID_CmdQue;
+	newopenings = min(device->quirk->maxtags, sim->max_tagged_dev_openings);
+	xpt_dev_ccbq_resize(path, sim->max_dev_openings);
+	xpt_setup_ccb(&crs.ccb_h, path, /*priority*/1);
+	crs.ccb_h.func_code = XPT_REL_SIMQ;
+	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
+	crs.openings
+	    = crs.release_timeout 
+	    = crs.qfrozen_cnt
+	    = 0;
+	xpt_action((union ccb *)&crs);
 }
 
 static int busses_to_config;
@@ -5655,6 +5711,10 @@ camisr(cam_isrq_t *queue)
 				xpt_release_devq(ccb_h->path->device,
 						 /*run_queue*/TRUE);
 			}
+
+			if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
+			 && (--dev->tag_delay_count == 0))
+				xpt_start_tags(ccb_h->path);
 
 			if ((dev->ccbq.queue.entries > 0)
 			 && (dev->qfrozen_cnt == 0)
