@@ -45,16 +45,16 @@ int	sched_runnable(void);
 /* 
  * Proc related scheduling hooks.
  */
-void	sched_exit(struct proc *p, struct proc *child);
-void	sched_fork(struct proc *p, struct proc *child);
+void	sched_exit(struct proc *p, struct thread *childtd);
+void	sched_fork(struct thread *td, struct proc *child);
 
 /*
  * KSE Groups contain scheduling priority information.  They record the
  * behavior of groups of KSEs and threads.
  */
 void	sched_class(struct ksegrp *kg, int class);
-void	sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child);
-void	sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child);
+void	sched_exit_ksegrp(struct ksegrp *kg, struct thread *childtd);
+void	sched_fork_ksegrp(struct thread *td, struct ksegrp *child);
 void	sched_nice(struct proc *p, int nice);
 
 /*
@@ -90,8 +90,8 @@ static __inline void sched_unpin(void);
 /*
  * These interfaces will eventually be removed.
  */
-void	sched_exit_kse(struct kse *ke, struct kse *child);
-void	sched_fork_kse(struct kse *ke, struct kse *child);
+void	sched_exit_kse(struct kse *ke, struct thread *childtd);
+void	sched_fork_kse(struct thread *td, struct kse *child);
 
 /*
  * These procedures tell the process data structure allocation code how
