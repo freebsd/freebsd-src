@@ -1256,8 +1256,10 @@ vm_object_split(vm_map_entry_t entry)
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
 		vm_object_pip_wakeup(orig_object);
 	}
+	vm_page_lock_queues();
 	TAILQ_FOREACH(m, &new_object->memq, listq)
 		vm_page_wakeup(m);
+	vm_page_unlock_queues();
 	entry->object.vm_object = new_object;
 	entry->offset = 0LL;
 	vm_object_deallocate(orig_object);
@@ -1940,14 +1942,15 @@ vm_freeze_copyopts(vm_object_t object, vm_pindex_t froma, vm_pindex_t toa)
 				pmap_remove_all(m_in);
 				vm_page_unlock_queues();
 				pmap_copy_page(m_in, m_out);
+				vm_page_lock_queues();
 				m_out->valid = m_in->valid;
 				vm_page_dirty(m_out);
-				vm_page_lock_queues();
 				vm_page_activate(m_out);
-				vm_page_unlock_queues();
 				vm_page_wakeup(m_in);
-			}
+			} else
+				vm_page_lock_queues();
 			vm_page_wakeup(m_out);
+			vm_page_unlock_queues();
 		}
 
 		object->shadow_count--;
