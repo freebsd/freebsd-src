@@ -78,9 +78,15 @@ main(int argc, char **argv)
 			force = 1;
 			break;
 		case 'F':
-			/* We can never run in background */
+			/*
+			 * We can never run in the background.  We must exit
+			 * silently with a nonzero exit code so that fsck(8)
+			 * can probe our support for -F.  The exit code
+			 * doesn't really matter, but we use an unusual one
+			 * in case someone tries -F directly.  The -F flag
+			 * is intentionally left out of the usage message.
+			 */
 			exit(5);
-			break;
 		case 'n':
 			alwaysno = 1;
 			alwaysyes = preen = 0;
