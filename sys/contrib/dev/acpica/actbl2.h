@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl2.h - ACPI Specification Revision 2.0 Tables
- *       $Revision: 28 $
+ *       $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -142,7 +142,7 @@
 /*
  * ACPI 2.0 Root System Description Table (RSDT)
  */
-typedef struct
+typedef struct rsdt_descriptor_rev2
 {
     ACPI_TABLE_HEADER       Header;                 /* ACPI table header */
     UINT32                  TableOffsetEntry [1];   /* Array of pointers to  */
@@ -153,7 +153,7 @@ typedef struct
 /*
  * ACPI 2.0 Extended System Description Table (XSDT)
  */
-typedef struct
+typedef struct xsdt_descriptor_rev2
 {
     ACPI_TABLE_HEADER       Header;                 /* ACPI table header */
     UINT64                  TableOffsetEntry [1];   /* Array of pointers to  */
@@ -164,9 +164,9 @@ typedef struct
 /*
  * ACPI 2.0 Firmware ACPI Control Structure (FACS)
  */
-typedef struct
+typedef struct facs_descriptor_rev2
 {
-    NATIVE_CHAR             Signature[4];           /* ACPI signature */
+    char                    Signature[4];           /* ACPI signature */
     UINT32                  Length;                 /* Length of structure, in bytes */
     UINT32                  HardwareSignature;      /* Hardware configuration signature */
     UINT32                  FirmwareWakingVector;   /* 32bit physical address of the Firmware Waking Vector. */
@@ -183,7 +183,7 @@ typedef struct
 /*
  * ACPI 2.0 Generic Address Structure (GAS)
  */
-typedef struct
+typedef struct acpi_generic_address
 {
     UINT8                   AddressSpaceId;         /* Address space where struct or register exists. */
     UINT8                   RegisterBitWidth;       /* Size in bits of given register */
@@ -197,7 +197,7 @@ typedef struct
 /*
  * ACPI 2.0 Fixed ACPI Description Table (FADT)
  */
-typedef struct
+typedef struct fadt_descriptor_rev2
 {
     ACPI_TABLE_HEADER       Header;             /* ACPI table header */
     UINT32                  V1_FirmwareCtrl;    /* 32-bit physical address of FACS */
@@ -268,7 +268,7 @@ typedef struct
     ACPI_GENERIC_ADDRESS    XGpe0Blk;           /* Extended General Purpose AcpiEvent 0 Reg Blk address */
     ACPI_GENERIC_ADDRESS    XGpe1Blk;           /* Extended General Purpose AcpiEvent 1 Reg Blk address */
 
-}  FADT_DESCRIPTOR_REV2;
+} FADT_DESCRIPTOR_REV2;
 
 
 #pragma pack()

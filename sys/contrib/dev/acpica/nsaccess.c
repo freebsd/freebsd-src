@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 165 $
+ *              $Revision: 171 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -198,6 +198,20 @@ AcpiNsRootInitialize (void)
          */
         if (InitVal->Val)
         {
+            ACPI_STRING Val;
+
+            Status = AcpiOsPredefinedOverride(InitVal, &Val);
+            if (ACPI_FAILURE (Status))
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not override predefined %s\n",
+                    InitVal->Name));
+            }
+
+            if (!Val)
+            {
+                Val = InitVal->Val;
+            }
+
             /*
              * Entry requests an initial value, allocate a
              * descriptor for it.
@@ -218,7 +232,7 @@ AcpiNsRootInitialize (void)
             {
             case ACPI_TYPE_METHOD:
                 ObjDesc->Method.ParamCount =
-                        (UINT8) ACPI_STRTOUL (InitVal->Val, NULL, 10);
+                        (UINT8) ACPI_STRTOUL (Val, NULL, 10);
                 ObjDesc->Common.Flags |= AOPOBJ_DATA_VALID;
 
 #if defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
@@ -232,7 +246,7 @@ AcpiNsRootInitialize (void)
             case ACPI_TYPE_INTEGER:
 
                 ObjDesc->Integer.Value =
-                        (ACPI_INTEGER) ACPI_STRTOUL (InitVal->Val, NULL, 10);
+                        (ACPI_INTEGER) ACPI_STRTOUL (Val, NULL, 10);
                 break;
 
 
@@ -241,8 +255,8 @@ AcpiNsRootInitialize (void)
                 /*
                  * Build an object around the static string
                  */
-                ObjDesc->String.Length = (UINT32) ACPI_STRLEN (InitVal->Val);
-                ObjDesc->String.Pointer = InitVal->Val;
+                ObjDesc->String.Length = (UINT32) ACPI_STRLEN (Val);
+                ObjDesc->String.Pointer = Val;
                 ObjDesc->Common.Flags |= AOPOBJ_STATIC_POINTER;
                 break;
 
@@ -251,7 +265,7 @@ AcpiNsRootInitialize (void)
 
                 ObjDesc->Mutex.Node = NewNode;
                 ObjDesc->Mutex.SyncLevel =
-                            (UINT16) ACPI_STRTOUL (InitVal->Val, NULL, 10);
+                            (UINT16) ACPI_STRTOUL (Val, NULL, 10);
 
                 if (ACPI_STRCMP (InitVal->Name, "_GL_") == 0)
                 {
@@ -337,7 +351,7 @@ UnlockAndExit:
 ACPI_STATUS
 AcpiNsLookup (
     ACPI_GENERIC_STATE      *ScopeInfo,
-    NATIVE_CHAR             *Pathname,
+    char                    *Pathname,
     ACPI_OBJECT_TYPE        Type,
     ACPI_INTERPRETER_MODE   InterpreterMode,
     UINT32                  Flags,
@@ -345,7 +359,7 @@ AcpiNsLookup (
     ACPI_NAMESPACE_NODE     **ReturnNode)
 {
     ACPI_STATUS             Status;
-    NATIVE_CHAR             *Path = Pathname;
+    char                    *Path = Pathname;
     ACPI_NAMESPACE_NODE     *PrefixNode;
     ACPI_NAMESPACE_NODE     *CurrentNode = NULL;
     ACPI_NAMESPACE_NODE     *ThisNode = NULL;
@@ -355,7 +369,7 @@ AcpiNsLookup (
     ACPI_OBJECT_TYPE        TypeToCheckFor;
     ACPI_OBJECT_TYPE        ThisSearchType;
     UINT32                  SearchParentFlag = ACPI_NS_SEARCH_PARENT;
-    UINT32                  LocalFlags = Flags & ~(ACPI_NS_ERROR_IF_FOUND | 
+    UINT32                  LocalFlags = Flags & ~(ACPI_NS_ERROR_IF_FOUND |
                                                    ACPI_NS_SEARCH_PARENT);
 
 
@@ -393,17 +407,17 @@ AcpiNsLookup (
         PrefixNode = ScopeInfo->Scope.Node;
         if (ACPI_GET_DESCRIPTOR_TYPE (PrefixNode) != ACPI_DESC_TYPE_NAMED)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%p] Not a namespace node\n", 
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "[%p] Not a namespace node\n",
                 PrefixNode));
             return_ACPI_STATUS (AE_AML_INTERNAL);
         }
 
         /*
-         * This node might not be a actual "scope" node (such as a 
-         * Device/Method, etc.)  It could be a Package or other object node.  
+         * This node might not be a actual "scope" node (such as a
+         * Device/Method, etc.)  It could be a Package or other object node.
          * Backup up the tree to find the containing scope node.
          */
-        while (!AcpiNsOpensScope (PrefixNode->Type) && 
+        while (!AcpiNsOpensScope (PrefixNode->Type) &&
                 PrefixNode->Type != ACPI_TYPE_ANY)
         {
             PrefixNode = AcpiNsGetParentNode (PrefixNode);
@@ -454,7 +468,7 @@ AcpiNsLookup (
 
             Path++;
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                 "Path is absolute from root [%p]\n", ThisNode));
         }
         else
@@ -499,7 +513,7 @@ AcpiNsLookup (
             if (SearchParentFlag == ACPI_NS_NO_UPSEARCH)
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                    "Search scope is [%4.4s], path has %d carat(s)\n", 
+                    "Search scope is [%4.4s], path has %d carat(s)\n",
                     ThisNode->Name.Ascii, NumCarats));
             }
         }
@@ -633,7 +647,7 @@ AcpiNsLookup (
 
                 ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                     "Name [%4.4s] not found in scope [%4.4s] %p\n",
-                    (char *) &SimpleName, (char *) &CurrentNode->Name, 
+                    (char *) &SimpleName, (char *) &CurrentNode->Name,
                     CurrentNode));
             }
 
@@ -665,7 +679,7 @@ AcpiNsLookup (
 
             ACPI_REPORT_WARNING (
                 ("NsLookup: Type mismatch on %4.4s (%s), searching for (%s)\n",
-                (char *) &SimpleName, AcpiUtGetTypeName (ThisNode->Type), 
+                (char *) &SimpleName, AcpiUtGetTypeName (ThisNode->Type),
                 AcpiUtGetTypeName (TypeToCheckFor)));
         }
 

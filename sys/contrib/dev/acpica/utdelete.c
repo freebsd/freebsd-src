@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utdelete - object deletion and reference count utilities
- *              $Revision: 92 $
+ *              $Revision: 95 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -169,6 +169,8 @@ AcpiUtDeleteInternalObj (
 
         if (!(Object->Common.Flags & AOPOBJ_STATIC_POINTER))
         {
+            /* But only if it is NOT a pointer into an ACPI table */
+
             ObjPointer = Object->String.Pointer;
         }
         break;
@@ -181,7 +183,12 @@ AcpiUtDeleteInternalObj (
 
         /* Free the actual buffer */
 
-        ObjPointer = Object->Buffer.Pointer;
+        if (!(Object->Common.Flags & AOPOBJ_STATIC_POINTER))
+        {
+            /* But only if it is NOT a pointer into an ACPI table */
+
+            ObjPointer = Object->Buffer.Pointer;
+        }
         break;
 
 
@@ -436,7 +443,7 @@ AcpiUtUpdateRefCount (
      * Sanity check the reference count, for debug purposes only.
      * (A deleted object will have a huge reference count)
      */
-    if (Count > MAX_REFERENCE_COUNT)
+    if (Count > ACPI_MAX_REFERENCE_COUNT)
     {
 
         ACPI_DEBUG_PRINT ((ACPI_DB_WARN,

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmutils - AML disassembler utilities
- *              $Revision: 5 $
+ *              $Revision: 8 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,7 +128,7 @@
 
 /* Data used in keeping track of fields */
 #if 0
-const NATIVE_CHAR               *AcpiGbl_FENames[NUM_FIELD_NAMES] =
+const char                      *AcpiGbl_FENames[ACPI_NUM_FIELD_NAMES] =
 {
     "skip",
     "?access?"
@@ -136,7 +136,7 @@ const NATIVE_CHAR               *AcpiGbl_FENames[NUM_FIELD_NAMES] =
 #endif
 
 
-const NATIVE_CHAR               *AcpiGbl_MatchOps[NUM_MATCH_OPS] =
+const char                      *AcpiGbl_MatchOps[ACPI_NUM_MATCH_OPS] =
 {
     "MTR",
     "MEQ",
@@ -149,7 +149,7 @@ const NATIVE_CHAR               *AcpiGbl_MatchOps[NUM_MATCH_OPS] =
 
 /* Access type decoding */
 
-const NATIVE_CHAR               *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES] =
+const char                      *AcpiGbl_AccessTypes[ACPI_NUM_ACCESS_TYPES] =
 {
     "AnyAcc",
     "ByteAcc",
@@ -162,7 +162,7 @@ const NATIVE_CHAR               *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES] =
 
 /* Lock rule decoding */
 
-const NATIVE_CHAR               *AcpiGbl_LockRule[NUM_LOCK_RULES] =
+const char                      *AcpiGbl_LockRule[ACPI_NUM_LOCK_RULES] =
 {
     "NoLock",
     "Lock"
@@ -170,7 +170,7 @@ const NATIVE_CHAR               *AcpiGbl_LockRule[NUM_LOCK_RULES] =
 
 /* Update rule decoding */
 
-const NATIVE_CHAR               *AcpiGbl_UpdateRules[NUM_UPDATE_RULES] =
+const char                      *AcpiGbl_UpdateRules[ACPI_NUM_UPDATE_RULES] =
 {
     "Preserve",
     "WriteAsOnes",

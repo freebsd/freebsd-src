@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 64 $
+ *              $Revision: 66 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -366,7 +366,7 @@ AcpiDbCountNamespaceObjects (
 
 ACPI_STATUS
 AcpiDbDisplayStatistics (
-    NATIVE_CHAR             *TypeArg)
+    char                    *TypeArg)
 {
     UINT32                  i;
     UINT32                  Type;

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg3 - AML execution - opcodes with 3 arguments
- *              $Revision: 15 $
+ *              $Revision: 17 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -240,7 +240,7 @@ AcpiExOpcode_3A_1T_1R (
     ACPI_OPERAND_OBJECT     *ReturnDesc = NULL;
     char                    *Buffer;
     ACPI_STATUS             Status = AE_OK;
-    NATIVE_UINT             Index;
+    ACPI_NATIVE_UINT        Index;
     ACPI_SIZE               Length;
 
 
@@ -264,7 +264,7 @@ AcpiExOpcode_3A_1T_1R (
 
         /* Get the Integer values from the objects */
 
-        Index = (NATIVE_UINT) Operand[1]->Integer.Value;
+        Index = (ACPI_NATIVE_UINT) Operand[1]->Integer.Value;
         Length = (ACPI_SIZE) Operand[2]->Integer.Value;
 
         /*

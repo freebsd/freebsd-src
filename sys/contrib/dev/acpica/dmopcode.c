@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmopcode - AML disassembler, specific AML opcodes
- *              $Revision: 79 $
+ *              $Revision: 81 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -335,7 +335,7 @@ AcpiDmMatchKeyword (
 {
 
 
-    if (Op->Common.Value.Integer32 >= NUM_MATCH_OPS)
+    if (Op->Common.Value.Integer32 >= ACPI_NUM_MATCH_OPS)
     {
         AcpiOsPrintf ("/* Unknown Match Keyword encoding */");
     }

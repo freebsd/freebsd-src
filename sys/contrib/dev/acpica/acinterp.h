@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 142 $
+ *       $Revision: 145 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -183,7 +183,8 @@ UINT32
 AcpiExConvertToAscii (
     ACPI_INTEGER            Integer,
     UINT32                  Base,
-    UINT8                   *String);
+    UINT8                   *String,
+    UINT8                   MaxLength);
 
 /*
  * exfield - ACPI AML (p-code) execution - field manipulation
@@ -545,10 +546,10 @@ void
 AcpiExDumpOperands (
     ACPI_OPERAND_OBJECT     **Operands,
     ACPI_INTERPRETER_MODE   InterpreterMode,
-    NATIVE_CHAR             *Ident,
+    char                    *Ident,
     UINT32                  NumLevels,
-    NATIVE_CHAR             *Note,
-    NATIVE_CHAR             *ModuleName,
+    char                    *Note,
+    char                    *ModuleName,
     UINT32                  LineNumber);
 
 void
@@ -586,7 +587,7 @@ AcpiExOutAddress (
  * exnames - interpreter/scanner name load/execute
  */
 
-NATIVE_CHAR *
+char *
 AcpiExAllocateNameString (
     UINT32                  PrefixCount,
     UINT32                  NumNameSegs);
@@ -598,13 +599,13 @@ AcpiExGoodChar (
 ACPI_STATUS
 AcpiExNameSegment (
     UINT8                   **InAmlAddress,
-    NATIVE_CHAR             *NameString);
+    char                    *NameString);
 
 ACPI_STATUS
 AcpiExGetNameString (
     ACPI_OBJECT_TYPE        DataType,
     UINT8                   *InAmlAddress,
-    NATIVE_CHAR             **OutNameString,
+    char                    **OutNameString,
     UINT32                  *OutNameLength);
 
 ACPI_STATUS
@@ -720,12 +721,12 @@ AcpiExDigitsNeeded (
 void
 AcpiExEisaIdToString (
     UINT32                  NumericId,
-    NATIVE_CHAR             *OutString);
+    char                    *OutString);
 
 void
 AcpiExUnsignedIntegerToString (
     ACPI_INTEGER            Value,
-    NATIVE_CHAR             *OutString);
+    char                    *OutString);
 
 
 /*
