@@ -6,10 +6,10 @@ CLEANFILES+= ${LOCALES:S/$/.out/g}
 LOCALES=        ja_JP.EUC \
 		ja_JP.SJIS \
 		ko_KR.EUC \
-		lt_LN.ASCII \
-		lt_LN.ISO_8859-1 \
-		lt_LN.ISO_8859-2 \
-		lt_LN.DIS_8859-15 \
+		la_LN.ASCII \
+		la_LN.ISO_8859-1 \
+		la_LN.ISO_8859-2 \
+		la_LN.DIS_8859-15 \
 		ru_SU.CP866 \
 		ru_SU.ISO_8859-5 \
 		ru_SU.KOI8-R \
@@ -39,15 +39,15 @@ afterinstall:
 		${locale}.out ${LOCALEDIR}/${locale}/LC_CTYPE
 .endfor
 .for link in ${LATIN1LINKS}
-	ln -fs ../lt_LN.ISO_8859-1/LC_CTYPE \
+	ln -fs ../la_LN.ISO_8859-1/LC_CTYPE \
 		       ${LOCALEDIR}/${link}.ISO_8859-1/LC_CTYPE
 .endfor
 .for link in ${LATIN1LINKS}
-	ln -fs ../lt_LN.DIS_8859-15/LC_CTYPE \
+	ln -fs ../la_LN.DIS_8859-15/LC_CTYPE \
 		       ${LOCALEDIR}/${link}.DIS_8859-15/LC_CTYPE
 .endfor
 .for link in ${LATIN2LINKS}
-	ln -fs ../lt_LN.ISO_8859-2/LC_CTYPE \
+	ln -fs ../la_LN.ISO_8859-2/LC_CTYPE \
 		${LOCALEDIR}/${link}.ISO_8859-2/LC_CTYPE
 .endfor
 	ln -fs ../ja_JP.SJIS/LC_CTYPE \

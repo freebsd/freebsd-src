@@ -10,10 +10,10 @@ LOCALES=	cs_CZ.ISO_8859-2 \
 		es_ES.ISO_8859-1 \
 		is_IS.DIS_8859-15 \
 		is_IS.ISO_8859-1 \
-		lt_LN.ASCII      \
-		lt_LN.DIS_8859-15 \
-		lt_LN.ISO_8859-1 \
-		lt_LN.ISO_8859-2 \
+		la_LN.ASCII      \
+		la_LN.DIS_8859-15 \
+		la_LN.ISO_8859-1 \
+		la_LN.ISO_8859-2 \
 		ru_SU.CP866 \
 		ru_SU.ISO_8859-5 \
 		ru_SU.KOI8-R \
@@ -50,9 +50,9 @@ es_ES.DIS_8859-15.out:  map.DIS_8859-15
 es_ES.ISO_8859-1.out:   map.ISO_8859-1
 is_IS.DIS_8859-15.out:  map.DIS_8859-15
 is_IS.ISO_8859-1.out:   map.ISO_8859-1
-lt_LN.DIS_8859-15.out:  map.DIS_8859-15
-lt_LN.ISO_8859-1.out:   map.ISO_8859-1
-lt_LN.ISO_8859-2.out:   map.ISO_8859-2
+la_LN.DIS_8859-15.out:  map.DIS_8859-15
+la_LN.ISO_8859-1.out:   map.ISO_8859-1
+la_LN.ISO_8859-2.out:   map.ISO_8859-2
 ru_SU.CP866.out:        map.CP866
 ru_SU.ISO_8859-5.out:   map.ISO_8859-5
 ru_SU.KOI8-R.out:       map.KOI8-R
@@ -66,7 +66,7 @@ afterinstall:
 		${locale}.out ${LOCALEDIR}/${locale}/LC_COLLATE
 .endfor
 .for link in ${ASCIILINKS}
-	ln -fs ../lt_LN.ASCII/LC_COLLATE \
+	ln -fs ../la_LN.ASCII/LC_COLLATE \
 	       ${LOCALEDIR}/${link}/LC_COLLATE
 .endfor
 .for link in ${ZHLINKS}
@@ -74,15 +74,15 @@ afterinstall:
 	       ${LOCALEDIR}/${link}/LC_COLLATE
 .endfor
 .for link in ${LATIN1LINKS}
-	ln -fs ../lt_LN.ISO_8859-1/LC_COLLATE \
+	ln -fs ../la_LN.ISO_8859-1/LC_COLLATE \
 	       ${LOCALEDIR}/${link}.ISO_8859-1/LC_COLLATE
 .endfor
 .for link in ${LATIN1LINKS}
-	ln -fs ../lt_LN.DIS_8859-15/LC_COLLATE \
+	ln -fs ../la_LN.DIS_8859-15/LC_COLLATE \
 	       ${LOCALEDIR}/${link}.DIS_8859-15/LC_COLLATE
 .endfor
 .for link in ${LATIN2LINKS}
-	ln -fs ../lt_LN.ISO_8859-2/LC_COLLATE \
+	ln -fs ../la_LN.ISO_8859-2/LC_COLLATE \
 	       ${LOCALEDIR}/${link}.ISO_8859-2/LC_COLLATE
 .endfor
 .for link in ${DELINKS}
