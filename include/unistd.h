@@ -188,7 +188,7 @@ int	 ttyslot __P((void));
 unsigned int	 ualarm __P((unsigned int, unsigned int));
 int	 undelete __P((const char *));
 int	 unwhiteout __P((const char *));
-void	 usleep __P((unsigned int));
+int	 usleep __P((unsigned int));
 void	*valloc __P((size_t));			/* obsoleted by malloc() */
 pid_t	 vfork __P((void));
 
