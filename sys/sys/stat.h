@@ -36,18 +36,20 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.12 (Berkeley) 6/16/95
- * $Id: stat.h,v 1.7 1996/03/11 02:15:04 hsu Exp $
+ * $Id: stat.h,v 1.8 1996/09/19 18:21:17 nate Exp $
  */
 
 #ifndef _SYS_STAT_H_
 #define	_SYS_STAT_H_
 
+#ifndef KERNEL
 /*
  * XXX we need this for struct timespec.  We get miscellaneous namespace
- * pollution with it.  struct timespace itself is namespace pollution if
+ * pollution with it.  struct timespec itself is namespace pollution if
  * _POSIX_SOURCE is defined.
  */
 #include <sys/time.h>
+#endif
 
 #ifndef _POSIX_SOURCE
 struct ostat {
@@ -147,12 +149,10 @@ struct stat {
 #define	S_ISCHR(m)	(((m) & 0170000) == 0020000)	/* char special */
 #define	S_ISBLK(m)	(((m) & 0170000) == 0060000)	/* block special */
 #define	S_ISREG(m)	(((m) & 0170000) == 0100000)	/* regular file */
-#define	S_ISFIFO(m)	(((m) & 0170000) == 0010000 || \
-			 ((m) & 0170000) == 0140000)	/* fifo or socket */
+#define	S_ISFIFO(m)	(((m) & 0170000) == 0010000)	/* fifo or socket */
 #ifndef _POSIX_SOURCE
 #define	S_ISLNK(m)	(((m) & 0170000) == 0120000)	/* symbolic link */
-#define	S_ISSOCK(m)	(((m) & 0170000) == 0010000 || \
-			 ((m) & 0170000) == 0140000)	/* fifo or socket */
+#define	S_ISSOCK(m)	(((m) & 0170000) == 0140000)	/* socket */
 #define	S_ISWHT(m)	(((m) & 0170000) == 0160000)	/* whiteout */
 #endif
 
