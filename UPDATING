@@ -5,6 +5,13 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000625:
+	From approximately this date forward, one must have the crypto
+	system installed in order to build the system and kernel.  While
+	not technically strictly true, one should treat it as true and
+	grab the crypto bits.  If you are grabbing CVS trees, src-all
+	and cvs-crypto should be treated as if they were required.
+
 20000624:
 	Mark Murray just committed the first parts of a cleanup of
 	/dev/zero, et al.  This is also cleaning up /dev/random.
