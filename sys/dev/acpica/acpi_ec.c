@@ -754,6 +754,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
     EC_STATUS	EcStatus;
     ACPI_STATUS	Status;
     int		i, period, retval;
+    static int	EcDbgMaxDelay;
 
     mtx_assert(&sc->ec_mtx, MA_OWNED);
     Status = AE_NO_HARDWARE_RESPONSE;
@@ -808,6 +809,15 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
 	    retval = msleep(&sc->ec_csrvalue, &sc->ec_mtx, PZERO, "ecpoll",
 			    10/*ms*/);
 	}
+    }
+
+    /* Calculate new delay and print it if it exceeds the max. */
+    if (period == 1000)
+	period += i * 10000;
+    if (period > EcDbgMaxDelay) {
+	EcDbgMaxDelay = period;
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+		    "info: new max delay is %d us\n", period);
     }
 
     return (Status);
