@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.154 1999/06/28 07:10:55 phk Exp $
+#	$Id: Makefile.i386,v 1.155 1999/06/28 07:19:51 phk Exp $
 #
 # Makefile for FreeBSD
 #
@@ -46,7 +46,7 @@ CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 # Use the default object format for genassym, etc.
-GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
+GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -UKERNEL
 
 # Select the correct set of tools. Can't set OBJFORMAT here because it
 # doesn't get exported into the environment, and if it were exported
