@@ -50,6 +50,7 @@ ypclnt_t	*ypclnt_new(const char *, const char *, const char *);
 void		 ypclnt_free(ypclnt_t *);
 void		 ypclnt_error(ypclnt_t *, const char *, const char *, ...);
 int		 ypclnt_connect(ypclnt_t *);
+int		 ypclnt_havepasswdd(ypclnt_t *);
 int		 ypclnt_passwd(ypclnt_t *, const struct passwd *, const char *);
 
 #if defined(DEBUG) && defined(__GNUC__)

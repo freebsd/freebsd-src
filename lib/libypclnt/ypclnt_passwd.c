@@ -56,8 +56,13 @@
 static int yppasswd_remote(ypclnt_t *, const struct passwd *, const char *);
 static int yppasswd_local(ypclnt_t *, const struct passwd *, const char *);
 
+/*
+ * Determines the availability of rpc.yppasswdd.  Returns -1 for not
+ * available (or unable to determine), 0 for available, 1 for available in
+ * master mode.
+ */
 int
-ypclnt_passwd(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
+ypclnt_havepasswdd(ypclnt_t *ypclnt)
 {
 	struct addrinfo hints, *res;
 	int sd;
@@ -71,7 +76,7 @@ ypclnt_passwd(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 
 	/* if we're not root, use remote method */
 	if (getuid() != 0)
-		goto remote;
+		return (0);
 
 	/* try to determine if we are the server */
 	memset(&hints, 0, sizeof(hints));
@@ -79,24 +84,39 @@ ypclnt_passwd(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = 0;
 	if (getaddrinfo(ypclnt->server, NULL, &hints, &res) != 0)
-		goto remote;
+		return (0);
 	sd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (sd == -1) {
 		freeaddrinfo(res);
-		goto remote;
+		return (0);
 	}
 	if (bind(sd, res->ai_addr, res->ai_addrlen) == -1) {
 		close(sd);
 		freeaddrinfo(res);
-		goto remote;
+		return (0);
 	}
 	freeaddrinfo(res);
 	close(sd);
-	YPCLNT_DEBUG("using local update method");
-	return (yppasswd_local(ypclnt, pwd, passwd));
- remote:
-	YPCLNT_DEBUG("using remote update method");
-	return (yppasswd_remote(ypclnt, pwd, passwd));
+	return (1);
+}
+
+/*
+ * Updates the NIS user information for the specified user.
+ */
+int
+ypclnt_passwd(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
+{
+	switch (ypclnt_havepasswdd(ypclnt)) {
+	case 0:
+		YPCLNT_DEBUG("using remote update method");
+		return (yppasswd_remote(ypclnt, pwd, passwd));
+	case 1:
+		YPCLNT_DEBUG("using local update method");
+		return (yppasswd_local(ypclnt, pwd, passwd));
+	default:
+		YPCLNT_DEBUG("no rpc.yppasswdd");
+		return (-1);
+	}
 }
 
 /*
@@ -127,7 +147,7 @@ yppasswd_local(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 	    (yppwd.newpw.pw_gecos = strdup(pwd->pw_gecos)) == NULL ||
 	    (yppwd.newpw.pw_dir = strdup(pwd->pw_dir)) == NULL ||
 	    (yppwd.newpw.pw_shell = strdup(pwd->pw_shell)) == NULL ||
-	    (yppwd.oldpass = strdup(passwd)) == NULL) {
+	    (yppwd.oldpass = strdup(passwd ? passwd : "")) == NULL) {
 		ypclnt_error(ypclnt, __func__, strerror(errno));
 		ret = -1;
 		goto done;
@@ -210,7 +230,7 @@ yppasswd_remote(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 	    (yppwd.newpw.pw_gecos = strdup(pwd->pw_gecos)) == NULL ||
 	    (yppwd.newpw.pw_dir = strdup(pwd->pw_dir)) == NULL ||
 	    (yppwd.newpw.pw_shell = strdup(pwd->pw_shell)) == NULL ||
-	    (yppwd.oldpass = strdup(passwd)) == NULL) {
+	    (yppwd.oldpass = strdup(passwd ? passwd : "")) == NULL) {
 		ypclnt_error(ypclnt, __func__, strerror(errno));
 		ret = -1;
 		goto done;
