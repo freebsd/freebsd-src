@@ -1068,7 +1068,7 @@ open(p, uap)
 			goto bad;
 	}
 	/* assert that vn_open created a backing object if one is needed */
-	KASSERT(!vn_canvmio(vp) || vp->v_object != NULL,
+	KASSERT(!vn_canvmio(vp) || VOP_GETVOBJECT(vp, NULL) == 0,
 		("open: vmio vnode has no backing object after vn_open"));
 	p->p_retval[0] = indx;
 	return (0);
@@ -2637,6 +2637,7 @@ fsync(p, uap)
 	struct vnode *vp;
 	struct mount *mp;
 	struct file *fp;
+	vm_object_t obj;
 	int error;
 
 	if ((error = getvnode(p->p_fd, SCARG(uap, fd), &fp)) != 0)
@@ -2645,8 +2646,8 @@ fsync(p, uap)
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	if (vp->v_object)
-		vm_object_page_clean(vp->v_object, 0, 0, 0);
+	if (VOP_GETVOBJECT(vp, &obj) == 0)
+		vm_object_page_clean(obj, 0, 0, 0);
 	error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, p);
 #ifdef SOFTUPDATES
 	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP))
@@ -3415,7 +3416,7 @@ fhopen(p, uap)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		fp->f_flag |= FHASLOCK;
 	}
-	if ((vp->v_type == VREG) && (vp->v_object == NULL))
+	if ((vp->v_type == VREG) && (VOP_GETVOBJECT(vp, NULL) != 0))
 		vfs_object_create(vp, p, p->p_ucred);
 
 	VOP_UNLOCK(vp, 0, p);
