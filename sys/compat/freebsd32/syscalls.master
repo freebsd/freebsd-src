@@ -64,8 +64,8 @@
 15	NOPROTO	{ int chmod(char *path, int mode); }
 16	NOPROTO	{ int chown(char *path, int uid, int gid); }
 17	MNOPROTO { int obreak(char *nsize); } break obreak_args int
-18	STD	{ int freebsd32_getfsstat(struct statfs32 *buf, long bufsize, \
-		    int flags); }
+18	COMPAT4	{ int freebsd32_getfsstat(struct statfs32 *buf, \
+		    long bufsize, int flags); }
 19	OBSOL	olseek
 20	MNOPROTO { pid_t getpid(void); }
 21	NOPROTO	{ int mount(char *type, char *path, int flags, \
@@ -232,8 +232,9 @@
 ; XXX this is a problem!!!
 155	UNIMPL	nfssvc
 156	OBSOL	ogetdirentries
-157	STD	{ int freebsd32_statfs(char *path, struct statfs32 *buf); }
-158	STD	{ int freebsd32_fstatfs(int fd, struct statfs32 *buf); }
+157	COMPAT4	{ int freebsd32_statfs(char *path, \
+		    struct statfs32 *buf); }
+158	COMPAT4	{ int freebsd32_fstatfs(int fd, struct statfs32 *buf);}
 159	UNIMPL	nosys
 160	UNIMPL	nosys
 161	NOPROTO	{ int getfh(char *fname, struct fhandle *fhp); }
@@ -414,8 +415,8 @@
 295	UNIMPL	nosys
 296	UNIMPL	nosys
 ; XXX 297 is 300 in NetBSD 
-297	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
-		    struct statfs *buf); }
+297	COMPAT4	{ int freebsd32_fhstatfs(const struct fhandle *u_fhp, \
+		    struct statfs32 *buf); }
 298	NOPROTO	{ int fhopen(const struct fhandle *u_fhp, int flags); }
 299	NOPROTO	{ int fhstat(const struct fhandle *u_fhp, struct stat *sb); }
 ; syscall numbers for FreeBSD
@@ -550,10 +551,12 @@
 		    u_int32_t offsethi, size_t nbytes, struct sf_hdtr *hdtr, \
 		    off_t *sbytes, int flags); }
 394	UNIMPL	mac_syscall
-395	UNIMPL	nosys
-396	UNIMPL	nosys
-397	UNIMPL	nosys
-398	UNIMPL	nosys
+395	NOPROTO	{ int getfsstat(struct statfs *buf, long bufsize, \
+		    int flags); }
+396	NOPROTO	{ int statfs(char *path, struct statfs *buf); }
+397	NOPROTO	{ int fstatfs(int fd, struct statfs *buf); }
+398	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
+		    struct statfs *buf); }
 399	UNIMPL	nosys
 ; XXX implement these?
 400	UNIMPL	ksem_close

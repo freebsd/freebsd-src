@@ -140,15 +140,15 @@ copy_statfs(struct statfs *in, struct statfs32 *out)
 	bcopy(in->f_fstypename,
 	      out->f_fstypename, MFSNAMELEN);
 	bcopy(in->f_mntonname,
-	      out->f_mntonname, MNAMELEN);
+	      out->f_mntonname, min(MNAMELEN, FREEBSD4_MNAMELEN));
 	CP(*in, *out, f_syncreads);
 	CP(*in, *out, f_asyncreads);
 	bcopy(in->f_mntfromname,
-	      out->f_mntfromname, MNAMELEN);
+	      out->f_mntfromname, min(MNAMELEN, FREEBSD4_MNAMELEN));
 }
 
 int
-freebsd32_getfsstat(struct thread *td, struct freebsd32_getfsstat_args *uap)
+freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfsstat_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -870,7 +870,7 @@ freebsd32_adjtime(struct thread *td, struct freebsd32_adjtime_args *uap)
 }
 
 int
-freebsd32_statfs(struct thread *td, struct freebsd32_statfs_args *uap)
+freebsd4_freebsd32_statfs(struct thread *td, struct freebsd4_freebsd32_statfs_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -897,7 +897,7 @@ freebsd32_statfs(struct thread *td, struct freebsd32_statfs_args *uap)
 }
 
 int
-freebsd32_fstatfs(struct thread *td, struct freebsd32_fstatfs_args *uap)
+freebsd4_freebsd32_fstatfs(struct thread *td, struct freebsd4_freebsd32_fstatfs_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -911,6 +911,33 @@ freebsd32_fstatfs(struct thread *td, struct freebsd32_fstatfs_args *uap)
 		uap->buf = (struct statfs32 *)p;
 	}
 	error = fstatfs(td, (struct fstatfs_args *) uap);
+	if (error)
+		return (error);
+	if (p32) {
+		error = copyin(p, &s, sizeof(s));
+		if (error)
+			return (error);
+		copy_statfs(&s, &s32);
+		error = copyout(&s32, p32, sizeof(s32));
+	}
+	return (error);
+}
+
+int
+freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatfs_args *uap)
+{
+	int error;
+	caddr_t sg;
+	struct statfs32 *p32, s32;
+	struct statfs *p = NULL, s;
+
+	p32 = uap->buf;
+	if (p32) {
+		sg = stackgap_init();
+		p = stackgap_alloc(&sg, sizeof(struct statfs));
+		uap->buf = (struct statfs32 *)p;
+	}
+	error = fhstatfs(td, (struct fhstatfs_args *) uap);
 	if (error)
 		return (error);
 	if (p32) {
