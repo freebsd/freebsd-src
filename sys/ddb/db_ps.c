@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: db_ps.c,v 1.10 1995/12/10 19:08:08 bde Exp $
+ *	$Id: db_ps.c,v 1.11 1996/03/11 05:53:59 hsu Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -83,6 +83,10 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 				db_printf("\n");
 				return;
 			}
+		}
+		if (p == NULL) {
+			printf("oops, ran out of processes early!\n");
+			break;
 		}
 		pp = p->p_pptr;
 		if (pp == NULL)
