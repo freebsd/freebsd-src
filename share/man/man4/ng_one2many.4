@@ -183,7 +183,7 @@ through
   ngctl msg fxp2: setautosrc 0
   # Configure all four links as up
   ngctl msg fxp0:upper \\
-    setconfig "{ xmitAlg=1 failAlg=1 enabledLinks={ 1 1 1 1 } }"
+    setconfig "{ xmitAlg=1 failAlg=1 enabledLinks=[ 1 1 1 1 ] }"
   # Bring up interface
   ifconfig fxp0 192.168.1.1 netmask 0xfffffffc
 .Ed
