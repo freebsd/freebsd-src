@@ -125,7 +125,7 @@ div_init(void)
 	divcbinfo.hashbase = hashinit(1, M_PCB, &divcbinfo.hashmask);
 	divcbinfo.porthashbase = hashinit(1, M_PCB, &divcbinfo.porthashmask);
 	divcbinfo.ipi_zone = uma_zcreate("divcb", sizeof(struct inpcb),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(divcbinfo.ipi_zone, maxsockets);
 }
 
