@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.74 1999/04/20 09:10:47 kato Exp $
+ **      $Id: userconfig.c,v 1.75 1999/04/25 04:06:43 kato Exp $
  **/
 
 /**
@@ -375,10 +375,13 @@ static DEV_INFO device_info[] = {
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
 {"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},
 {"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
-{"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
+{"matcd",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
 {"wt",          "Wangtek/Archive QIC-02 Tape drive",	0,		CLS_STORAGE},
+{"wd",		"IDE or ST506 compatible storage device", FLG_INVISIBLE, CLS_STORAGE},
+{"fd",		"Floppy disk device",			FLG_INVISIBLE,	CLS_STORAGE},
 {"amd",	        "Tekram DC-390(T) / AMD 53c974 based PCI SCSI",	FLG_FIXED, CLS_STORAGE},
 
+{"plip",	"Parallel Port IP link",		FLG_FIXED,	CLS_NETWORK},
 {"cs",          "IBM EtherJet, CS89x0-based Ethernet adapters",0,	CLS_NETWORK},
 #ifdef PC98
 {"ed",          "NS8390 Ethernet adapters",	0,	CLS_NETWORK},
@@ -424,6 +427,8 @@ static DEV_INFO device_info[] = {
 {"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
 {"ppc",         "Parallel Port chipset",		0,		CLS_COMMS},
+{"ppi",		"Generic Parallel Port I/O device",	FLG_FIXED,	CLS_COMMS},
+{"lpt",         "Line Printer driver",			FLG_FIXED,	CLS_COMMS},
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
 {"uhci",        "UHCI USB host controller driver",	FLG_IMMUTABLE,	CLS_COMMS},
 {"ohci",        "OHCI USB host controller driver",	FLG_IMMUTABLE,	CLS_COMMS},
@@ -2533,7 +2538,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.74 1999/04/20 09:10:47 kato Exp $
+ *      $Id: userconfig.c,v 1.75 1999/04/25 04:06:43 kato Exp $
  */
 
 #include "scbus.h"
