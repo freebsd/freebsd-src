@@ -597,8 +597,17 @@ g_bde_worker(void *arg)
 				mtx_unlock(&sc->worklist_mutex);
 				g_bde_crypt_write(wp);
 				mtx_lock(&sc->worklist_mutex);
-				g_bde_start_write(wp->sp);
-				g_bde_start_write(wp->ksp);
+				error = g_bde_start_write(wp->sp);
+				if (error) {
+					g_bde_contribute(wp->bp, wp->length, error);
+					g_bde_release_keysector(wp);
+					g_bde_delete_sector(sc, wp->sp);
+					g_bde_delete_work(wp);
+					break;
+				}
+				error = g_bde_start_write(wp->ksp);
+				if (wp->error == 0)
+					wp->error = error;
 				break;
 			case BIO_DELETE:
 				wp->state = FINISH;
