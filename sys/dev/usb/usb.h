@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.h,v 1.66 2002/07/11 21:14:34 augustss Exp $	*/
+/*	$NetBSD: usb.h,v 1.67 2002/08/22 10:08:34 augustss Exp $	*/
 /*	$FreeBSD$    */
 
 /*
@@ -392,11 +392,14 @@ typedef struct {
 #define UDCLASS_COMM		0x02
 #define UDCLASS_HID		0x00
 #define UDCLASS_HUB		0x09
-#define  UDSUBCLASS_HUB		0
-#define  UDPROTO_FSHUB		0
-#define  UDPROTO_HSHUBSTT	1
-#define  UDPROTO_HSHUBMTT	2
+#define  UDSUBCLASS_HUB		0x00
+#define  UDPROTO_FSHUB		0x00
+#define  UDPROTO_HSHUBSTT	0x01
+#define  UDPROTO_HSHUBMTT	0x02
 #define UDCLASS_MASS		0x00
+#define UDCLASS_WIRELESS	0xe0
+#define  UDSUBCLASS_RF		0x01
+#define   UDPROTO_BLUETOOTH	0x01
 
 /* Interface class codes */
 #define UICLASS_UNSPEC		0x00
@@ -463,6 +466,10 @@ typedef struct {
 #define   UIPROTO_DATA_VENDOR		0xff    /* Vendor specific */
 
 #define UICLASS_FIRM_UPD	0x0c
+
+#define UICLASS_WIRELESS	0xe0
+#define  UISUBCLASS_RF			0x01
+#define   UIPROTO_BLUETOOTH		0x01
 
 #define UICLASS_APPL_SPEC	0xfe
 #define  UISUBCLASS_FIRMWARE_DOWNLOAD	1
