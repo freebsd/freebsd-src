@@ -437,24 +437,6 @@ vm_map_clear_recursive(vm_map_t map)
 	mtx_unlock((map)->lock.lk_interlock);
 }
 
-vm_offset_t
-vm_map_min(vm_map_t map)
-{
-	return (map->min_offset);
-}
-
-vm_offset_t
-vm_map_max(vm_map_t map)
-{
-	return (map->max_offset);
-}
-
-struct pmap *
-vm_map_pmap(vm_map_t map)
-{
-	return (map->pmap);
-}
-
 struct pmap *
 vmspace_pmap(struct vmspace *vmspace)
 {
@@ -496,7 +478,6 @@ vm_map_create(pmap_t pmap, vm_offset_t min, vm_offset_t max)
 static void
 _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 {
-	GIANT_REQUIRED;
 
 	map->header.next = map->header.prev = &map->header;
 	map->system_map = 0;

@@ -149,6 +149,9 @@ struct vm_map_entry {
  *	and free tsleep/waking up 'map' and the underlying lockmgr also
  *	sleeping and waking up on 'map'.  The lockup occurs when the map fills
  *	up.  The 'exec' map, for example.
+ *
+ * List of locks
+ *	(c)	const until freed
  */
 struct vm_map {
 	struct vm_map_entry header;	/* List of entries */
@@ -160,10 +163,30 @@ struct vm_map {
 	vm_map_entry_t hint;		/* hint for quick lookups */
 	unsigned int timestamp;		/* Version number */
 	vm_map_entry_t first_free;	/* First free space hint */
-	struct pmap *pmap;		/* Physical map */
-#define	min_offset		header.start
-#define max_offset		header.end
+	pmap_t pmap;			/* (c) Physical map */
+#define	min_offset	header.start	/* (c) */
+#define	max_offset	header.end	/* (c) */
 };
+
+#ifdef	_KERNEL
+static __inline vm_offset_t
+vm_map_max(vm_map_t map)
+{
+	return (map->max_offset);
+}
+
+static __inline vm_offset_t
+vm_map_min(vm_map_t map)
+{
+	return (map->min_offset);
+}
+
+static __inline pmap_t
+vm_map_pmap(vm_map_t map)
+{
+	return (map->pmap);
+}
+#endif	/* _KERNEL */
 
 /* 
  * Shareable process virtual address space.
@@ -222,9 +245,6 @@ int vm_map_lock_upgrade(vm_map_t map);
 void vm_map_lock_downgrade(vm_map_t map);
 void vm_map_set_recursive(vm_map_t map);
 void vm_map_clear_recursive(vm_map_t map);
-vm_offset_t vm_map_min(vm_map_t map);
-vm_offset_t vm_map_max(vm_map_t map);
-struct pmap *vm_map_pmap(vm_map_t map);
 
 struct pmap *vmspace_pmap(struct vmspace *vmspace);
 long vmspace_resident_count(struct vmspace *vmspace);
