@@ -598,8 +598,7 @@ _libkrb5= kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl
 
 build-tools:
 .for _tool in bin/csh bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
-    ${_libroken4} ${_libkrb5} lib/libncurses ${_share} usr.bin/xlint \
-    usr.sbin/sysinstall
+    ${_libroken4} ${_libkrb5} lib/libncurses ${_share} usr.sbin/sysinstall
 	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
 
