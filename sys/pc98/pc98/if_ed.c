@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.9 1997/09/17 09:10:05 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.10 1997/10/13 08:57:49 kato Exp $
  */
 
 /*
@@ -62,6 +62,7 @@
 #include "bpfilter.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
@@ -207,8 +208,8 @@ static int ed_probe_HP_pclanp	__P((struct isa_device *));
 void *ed_attach_NE2000_pci	__P((int, int));
 #endif
 
-#include "crd.h"
-#if NCRD > 0
+#include "card.h"
+#if NCARD > 0
 static int ed_probe_pccard	__P((struct isa_device *, u_char *));
 #endif
 
@@ -238,7 +239,7 @@ static void    ed_setrcr(struct ed_softc *);
 
 static u_long ds_crc(u_char *ep);
 
-#if NCRD > 0
+#if NCARD > 0
 #include <sys/select.h>
 #include <pccard/card.h>
 #include <pccard/driver.h>
@@ -247,79 +248,43 @@ static u_long ds_crc(u_char *ep);
 /*
  *	PC-Card (PCMCIA) specific code.
  */
-static int card_intr(struct pccard_dev *);	/* Interrupt handler */
-static void edunload(struct pccard_dev *);	/* Disable driver */
-static void edsuspend(struct pccard_dev *);	/* Suspend driver */
-static int edinit(struct pccard_dev *, int);	/* init device */
+static int edinit(struct pccard_devinfo *);		/* init device */
+static void edunload(struct pccard_devinfo *);		/* Disable driver */
+static int card_intr(struct pccard_devinfo *);		/* Interrupt handler */
 
-static struct pccard_drv ed_info = {
+static struct pccard_device ed_info = {
 	"ed",
-	card_intr,
-	edunload,
-	edsuspend,
 	edinit,
+	edunload,
+	card_intr,
 	0,			/* Attributes - presently unused */
 	&net_imask		/* Interrupt mask for device */
 				/* XXX - Should this also include net_imask? */
 };
 
-/*
- *	Called when a power down is requested. Shuts down the
- *	device and configures the device as unavailable (but
- *	still loaded...). A resume is done by calling
- *	edinit with first=0. This is called when the user suspends
- *	the system, or the APM code suspends the system.
- */
-static void
-edsuspend(struct pccard_dev *dp)
-{
-	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
-        /*
-	 * Some 'ed' cards will generate a interrupt as they go away, 
-	 * and by the time the interrupt handler gets to the card,
-	 * the interrupt can't be cleared.
-	 * By setting gone here, we tell the handler to ignore the
-	 * interrupt when it happens.
-	 */
-        sc->gone = 1;		/* avoid spinning endlessly in interrupt handler */
-
-	printf("ed%d: suspending\n", dp->isahd.id_unit);
-}
+DATA_SET(pccarddrv_set, ed_info);
 
 /*
  *	Initialize the device - called from Slot manager.
- *	If first is set, then check for the device's existence
- *	before initializing it.  Once initialized, the device table may
- *	be set up.
  */
 static int
-edinit(struct pccard_dev *dp, int first)
+edinit(struct pccard_devinfo *devi)
 {
-	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
+	struct ed_softc *sc = &ed_softc[devi->isahd.id_unit];
 
 	/* validate unit number. */
-	if (first) {
-		if (dp->isahd.id_unit >= NED)
-			return(ENODEV);
-		/*
-		 * Probe the device. If a value is returned, the
-		 * device was found at the location.
-		 */
-		sc->gone = 0;
-		if (ed_probe_pccard(&dp->isahd,dp->misc)==0)
-			return(ENXIO);
-		if (ed_attach_isa(&dp->isahd)==0)
-			return(ENXIO);
-	} else {
-	        sc->gone = 0;	/* reenable after a suspend */
-	}
+	if (devi->isahd.id_unit >= NED)
+		return(ENODEV);
 	/*
-	 * XXX TODO:
-	 * If it was initialized before, the device structure
-	 * should also be initialized.  We should
-	 * reset (and possibly restart) the hardware, but
-	 * I am not sure of the best way to do this...
+	 * Probe the device. If a value is returned, the
+	 * device was found at the location.
 	 */
+	sc->gone = 0;
+	if (ed_probe_pccard(&devi->isahd, devi->misc) == 0)
+		return(ENXIO);
+	if (ed_attach_isa(&devi->isahd) == 0)
+		return(ENXIO);
+
 	return(0);
 }
 
@@ -333,19 +298,19 @@ edinit(struct pccard_dev *dp, int first)
  *	read and write do not hang.
  */
 static void
-edunload(struct pccard_dev *dp)
+edunload(struct pccard_devinfo *devi)
 {
-	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
+	struct ed_softc *sc = &ed_softc[devi->isahd.id_unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	if (sc->gone) {
-		printf("ed%d: already unloaded\n", dp->isahd.id_unit);
+		printf("ed%d: already unloaded\n", devi->isahd.id_unit);
 		return;
 	}
 	ifp->if_flags &= ~IFF_RUNNING;
 	if_down(ifp);
 	sc->gone = 1;
-	printf("ed%d: unload\n", dp->isahd.id_unit);
+	printf("ed%d: unload\n", devi->isahd.id_unit);
 }
 
 /*
@@ -353,12 +318,12 @@ edunload(struct pccard_dev *dp)
  *	front end of PC-Card handler.
  */
 static int
-card_intr(struct pccard_dev *dp)
+card_intr(struct pccard_devinfo *devi)
 {
-	edintr_sc(&ed_softc[dp->isahd.id_unit]);
+	edintr_sc(&ed_softc[devi->isahd.id_unit]);
 	return(1);
 }
-#endif /* NCRD > 0 */
+#endif /* NCARD > 0 */
 
 struct isa_driver eddriver = {
 	ed_probe,
@@ -438,14 +403,6 @@ ed_probe(isa_dev)
 #define EDNPORTS	nports98
 #else
 #define EDNPORTS	nports
-#endif
-
-#if NCRD > 0
-	/*
-	 * If PC-Card probe required, then register driver with
-	 * slot manager.
-	 */
-	pccard_add_driver(&ed_info);
 #endif
 
 #ifdef PC98
@@ -1600,8 +1557,7 @@ ed_probe_Novell(isa_dev)
 				       isa_dev->id_unit, isa_dev->id_flags);
 }
 
-#if NCRD > 0
-
+#if NCARD > 0
 /*
  * Probe framework for pccards.  Replicates the standard framework, 
  * minus the pccard driver registration and ignores the ether address
@@ -1625,7 +1581,7 @@ ed_probe_pccard(isa_dev, ether)
 	return (0);
 }
 
-#endif /* NCRD > 0 */
+#endif /* NCARD > 0 */
 
 #define	ED_HPP_TEST_SIZE	16
 
