@@ -174,7 +174,7 @@
     <filename>GENERIC</filename> kernels. &merged;</para>
 
     <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
-    along with the <varname>hw.physmem</varname> environment variable, can be
+    along with the <varname>hw.physmem</varname> loader tunable, can be
     used to artificially reduce the memory size of a machine for
     testing (or other purposes). &merged;</para>
 
