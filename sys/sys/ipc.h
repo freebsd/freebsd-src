@@ -82,9 +82,10 @@ struct ipc_perm {
 #define	IPCID_TO_SEQ(id)	(((id) >> 16) & 0xffff)
 #define	IXSEQ_TO_IPCID(ix,perm)	(((perm.seq) << 16) | (ix & 0xffff))
 
+struct thread;
 struct proc;
 
-int	ipcperm __P((struct proc *, struct ipc_perm *, int));
+int	ipcperm __P((struct thread *, struct ipc_perm *, int));
 extern void (*semexit_hook)(struct proc *);
 extern void (*shmfork_hook)(struct proc *, struct proc *);
 extern void (*shmexit_hook)(struct proc *);

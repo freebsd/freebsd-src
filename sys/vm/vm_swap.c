@@ -188,8 +188,8 @@ struct swapon_args {
  */
 /* ARGSUSED */
 int
-swapon(p, uap)
-	struct proc *p;
+swapon(td, uap)
+	struct thread *td;
 	struct swapon_args *uap;
 {
 	struct vattr attr;
@@ -198,8 +198,7 @@ swapon(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-
-	error = suser(p);
+	error = suser_td(td);
 	if (error)
 		goto done2;
 
@@ -212,7 +211,7 @@ swapon(p, uap)
 		goto done2;
 	}
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->name, p);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->name, td);
 	error = namei(&nd);
 	if (error)
 		goto done2;
@@ -221,14 +220,14 @@ swapon(p, uap)
 	vp = nd.ni_vp;
 
 	if (vn_isdisk(vp, &error))
-		error = swaponvp(p, vp, vp->v_rdev, 0);
+		error = swaponvp(td, vp, vp->v_rdev, 0);
 	else if (vp->v_type == VREG && vp->v_tag == VT_NFS &&
-	    (error = VOP_GETATTR(vp, &attr, p->p_ucred, p)) == 0) {
+	    (error = VOP_GETATTR(vp, &attr, td->td_proc->p_ucred, td)) == 0) {
 		/*
 		 * Allow direct swapping to NFS regular files in the same
 		 * way that nfs_mountroot() sets up diskless swapping.
 		 */
-		error = swaponvp(p, vp, NODEV, attr.va_size / DEV_BSIZE);
+		error = swaponvp(td, vp, NODEV, attr.va_size / DEV_BSIZE);
 	}
 
 	if (error)
@@ -250,8 +249,8 @@ done2:
  * XXX locking when multiple swapon's run in parallel
  */
 int
-swaponvp(p, vp, dev, nblks)
-	struct proc *p;
+swaponvp(td, vp, dev, nblks)
+	struct thread *td;
 	struct vnode *vp;
 	dev_t dev;
 	u_long nblks;
@@ -263,6 +262,7 @@ swaponvp(p, vp, dev, nblks)
 	swblk_t dvbase;
 	int error;
 	u_long aligned_nblks;
+	struct proc *p = td->td_proc;
 
 	if (!swapdev_vp) {
 		error = getnewvnode(VT_NON, NULL, swapdev_vnodeop_p,
@@ -282,19 +282,19 @@ swaponvp(p, vp, dev, nblks)
 	}
 	return EINVAL;
     found:
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = VOP_OPEN(vp, FREAD | FWRITE, p->p_ucred, p);
-	(void) VOP_UNLOCK(vp, 0, p);
+	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = VOP_OPEN(vp, FREAD | FWRITE, p->p_ucred, td);
+	(void) VOP_UNLOCK(vp, 0, td);
 	if (error)
 		return (error);
 
 	if (nblks == 0 && dev != NODEV && (devsw(dev)->d_psize == 0 ||
 	    (nblks = (*devsw(dev)->d_psize) (dev)) == -1)) {
-		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
+		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, td);
 		return (ENXIO);
 	}
 	if (nblks == 0) {
-		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
+		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, td);
 		return (ENXIO);
 	}
 
@@ -305,7 +305,7 @@ swaponvp(p, vp, dev, nblks)
 	if (nblks > 0x40000000 / BLIST_META_RADIX / nswdev) {
 		printf("exceeded maximum of %d blocks per swap unit\n",
 			0x40000000 / BLIST_META_RADIX / nswdev);
-		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
+		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, td);
 		return (ENXIO);
 	}
 	/*

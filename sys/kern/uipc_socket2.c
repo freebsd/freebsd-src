@@ -221,10 +221,10 @@ sonewconn(head, connstatus)
 }
 
 struct socket *
-sonewconn3(head, connstatus, p)
+sonewconn3(head, connstatus, td)
 	register struct socket *head;
 	int connstatus;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct socket *so;
 
@@ -240,7 +240,7 @@ sonewconn3(head, connstatus, p)
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_proto = head->so_proto;
 	so->so_timeo = head->so_timeo;
-	so->so_cred = p ? p->p_ucred : head->so_cred;
+	so->so_cred = td ? td->td_proc->p_ucred : head->so_cred;
 	crhold(so->so_cred);
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
 	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
@@ -391,11 +391,11 @@ soreserve(so, sndcc, rcvcc)
 	register struct socket *so;
 	u_long sndcc, rcvcc;
 {
-	struct proc *p = curproc;
+	struct thread *td = curthread;
 
-	if (sbreserve(&so->so_snd, sndcc, so, p) == 0)
+	if (sbreserve(&so->so_snd, sndcc, so, td) == 0)
 		goto bad;
-	if (sbreserve(&so->so_rcv, rcvcc, so, p) == 0)
+	if (sbreserve(&so->so_rcv, rcvcc, so, td) == 0)
 		goto bad2;
 	if (so->so_rcv.sb_lowat == 0)
 		so->so_rcv.sb_lowat = 1;
@@ -416,21 +416,21 @@ bad:
  * if buffering efficiency is near the normal case.
  */
 int
-sbreserve(sb, cc, so, p)
+sbreserve(sb, cc, so, td)
 	struct sockbuf *sb;
 	u_long cc;
 	struct socket *so;
-	struct proc *p;
+	struct thread *td;
 {
 
 	/*
-	 * p will only be NULL when we're in an interrupt
+	 * td will only be NULL when we're in an interrupt
 	 * (e.g. in tcp_input())
 	 */
 	if ((u_quad_t)cc > (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES))
 		return (0);
 	if (!chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, cc,
-	    p ? p->p_rlimit[RLIMIT_SBSIZE].rlim_cur : RLIM_INFINITY)) {
+	    td ? td->td_proc->p_rlimit[RLIMIT_SBSIZE].rlim_cur : RLIM_INFINITY)) {
 		return (0);
 	}
 	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
@@ -876,7 +876,7 @@ pru_accept_notsupp(struct socket *so, struct sockaddr **nam)
 }
 
 int
-pru_connect_notsupp(struct socket *so, struct sockaddr *nam, struct proc *p)
+pru_connect_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	return EOPNOTSUPP;
 }
@@ -889,13 +889,13 @@ pru_connect2_notsupp(struct socket *so1, struct socket *so2)
 
 int
 pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
-		    struct ifnet *ifp, struct proc *p)
+		    struct ifnet *ifp, struct thread *td)
 {
 	return EOPNOTSUPP;
 }
 
 int
-pru_listen_notsupp(struct socket *so, struct proc *p)
+pru_listen_notsupp(struct socket *so, struct thread *td)
 {
 	return EOPNOTSUPP;
 }

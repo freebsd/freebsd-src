@@ -81,10 +81,10 @@ static u_int schedclk2;
 void
 interrupt(u_int64_t vector, struct trapframe *framep)
 {
-	struct proc *p;
+	struct thread *td;
 
-	p = curproc;
-	atomic_add_int(&p->p_intr_nesting_level, 1);
+	td = curthread;
+	atomic_add_int(&td->td_intr_nesting_level, 1);
 	switch (vector) {
 	case 240:	/* clock interrupt */
 		CTR0(KTR_INTR, "clock interrupt");
@@ -107,7 +107,7 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		panic("unexpected interrupt: vec %ld\n", vector);
 		/* NOTREACHED */
 	}
-	atomic_subtract_int(&p->p_intr_nesting_level, 1);
+	atomic_subtract_int(&td->td_intr_nesting_level, 1);
 }
 
 

@@ -89,6 +89,7 @@ typedef struct pmap_statistics *pmap_statistics_t;
 #ifdef _KERNEL
 
 struct proc;
+struct thread;
 
 #ifdef __alpha__
 void		 pmap_page_is_free __P((vm_page_t m));
@@ -138,7 +139,11 @@ void		 pmap_new_proc __P((struct proc *p));
 void		 pmap_dispose_proc __P((struct proc *p));
 void		 pmap_swapout_proc __P((struct proc *p));
 void		 pmap_swapin_proc __P((struct proc *p));
-void		 pmap_activate __P((struct proc *p));
+void		 pmap_new_thread __P((struct thread *td));
+void		 pmap_dispose_thread __P((struct thread *td));
+void		 pmap_swapout_thread __P((struct thread *td));
+void		 pmap_swapin_thread __P((struct thread *td));
+void		 pmap_activate __P((struct thread *td));
 vm_offset_t	 pmap_addr_hint __P((vm_object_t obj, vm_offset_t addr, vm_size_t size));
 void		*pmap_kenter_temporary __P((vm_offset_t pa, int i));
 void		 pmap_init2 __P((void));

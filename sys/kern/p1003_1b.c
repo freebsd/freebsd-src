@@ -56,10 +56,10 @@ MALLOC_DEFINE(M_P31B, "p1003.1b", "Posix 1003.1B");
  * start to use this when they shouldn't.  That will be removed if annoying.
  */
 int
-syscall_not_present(struct proc *p, const char *s, struct nosys_args *uap)
+syscall_not_present(struct thread *td, const char *s, struct nosys_args *uap)
 {
 	log(LOG_ERR, "cmd %s pid %d tried to use non-present %s\n",
-			p->p_comm, p->p_pid, s);
+			td->td_proc->p_comm, td->td_proc->p_pid, s);
 
 	/* a " return nosys(p, uap); " here causes a core dump.
 	 */
@@ -105,9 +105,10 @@ static int sched_attach(void)
 /* 
  * MPSAFE
  */
-int sched_setparam(struct proc *p,
+int sched_setparam(struct thread *td,
 	struct sched_setparam_args *uap)
 {
+	struct thread *targettd;
 	struct proc *targetp;
 	int e;
 	struct sched_param sched_param;
@@ -118,7 +119,8 @@ int sched_setparam(struct proc *p,
 
 	mtx_lock(&Giant);
 	if (uap->pid == 0) {
-		targetp = p;
+		targetp = td->td_proc;
+		targettd = td;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(uap->pid);
@@ -126,12 +128,13 @@ int sched_setparam(struct proc *p,
 			e = ESRCH;
 			goto done2;
 		}
+		targettd = &targetp->p_thread; /* XXXKSE */
 	}
 
-	e = p_cansched(p, targetp);
+	e = p_cansched(td->td_proc, targetp);
 	PROC_UNLOCK(targetp);
 	if (e == 0) {
-		e = ksched_setparam(&p->p_retval[0], ksched, targetp,
+		e = ksched_setparam(&td->td_retval[0], ksched, targettd,
 			(const struct sched_param *)&sched_param);
 	}
 done2:
@@ -142,16 +145,18 @@ done2:
 /* 
  * MPSAFE
  */
-int sched_getparam(struct proc *p,
+int sched_getparam(struct thread *td,
 	struct sched_getparam_args *uap)
 {
 	int e;
 	struct sched_param sched_param;
+	struct thread *targettd;
 	struct proc *targetp;
 
 	mtx_lock(&Giant);
 	if (uap->pid == 0) {
-		targetp = p;
+		targetp = td->td_proc;
+		targettd = td;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(uap->pid);
@@ -159,28 +164,31 @@ int sched_getparam(struct proc *p,
 			e = ESRCH;
 			goto done2;
 		}
+		targettd = &targetp->p_thread; /* XXXKSE */
 	}
 
-	e = p_cansee(p, targetp);
+	e = p_cansee(td->td_proc, targetp);
 	PROC_UNLOCK(targetp);
 	if (e)
 		goto done2;
 
-	e = ksched_getparam(&p->p_retval[0], ksched, targetp, &sched_param);
+	e = ksched_getparam(&td->td_retval[0], ksched, targettd, &sched_param);
 	if (e == 0)
 		e = copyout(&sched_param, uap->param, sizeof(sched_param));
 done2:
 	mtx_unlock(&Giant);
 	return (e);
 }
+
 /* 
  * MPSAFE
  */
-int sched_setscheduler(struct proc *p,
+int sched_setscheduler(struct thread *td,
 	struct sched_setscheduler_args *uap)
 {
 	int e;
 	struct sched_param sched_param;
+	struct thread *targettd;
 	struct proc *targetp;
 
 	e = copyin(uap->param, &sched_param, sizeof(sched_param));
@@ -189,7 +197,8 @@ int sched_setscheduler(struct proc *p,
 
 	mtx_lock(&Giant);
 	if (uap->pid == 0) {
-		targetp = p;
+		targetp = td->td_proc;
+		targettd = td;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(uap->pid);
@@ -197,31 +206,34 @@ int sched_setscheduler(struct proc *p,
 			e = ESRCH;
 			goto done2;
 		}
+		targettd = &targetp->p_thread; /* XXXKSE */
 	}
 
-	e = p_cansched(p, targetp);
+	e = p_cansched(td->td_proc, targetp);
 	PROC_UNLOCK(targetp);
 	if (e == 0) {
-		e = ksched_setscheduler(&p->p_retval[0], ksched,
-			targetp, uap->policy,
-			(const struct sched_param *)&sched_param);
+		e = ksched_setscheduler(&td->td_retval[0], ksched, targettd,
+			uap->policy, (const struct sched_param *)&sched_param);
 	}
 done2:
 	mtx_unlock(&Giant);
 	return (e);
 }
+
 /* 
  * MPSAFE
  */
-int sched_getscheduler(struct proc *p,
+int sched_getscheduler(struct thread *td,
 	struct sched_getscheduler_args *uap)
 {
 	int e;
+	struct thread *targettd;
 	struct proc *targetp;
 
 	mtx_lock(&Giant);
 	if (uap->pid == 0) {
-		targetp = p;
+		targetp = td->td_proc;
+		targettd = td;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(uap->pid);
@@ -229,67 +241,75 @@ int sched_getscheduler(struct proc *p,
 			e = ESRCH;
 			goto done2;
 		}
+		targettd = &targetp->p_thread; /* XXXKSE */
 	}
 
-	e = p_cansee(p, targetp);
+	e = p_cansee(td->td_proc, targetp);
 	PROC_UNLOCK(targetp);
 	if (e == 0)
-		e = ksched_getscheduler(&p->p_retval[0], ksched, targetp);
+		e = ksched_getscheduler(&td->td_retval[0], ksched, targettd);
 
 done2:
 	mtx_unlock(&Giant);
 	return (e);
 }
+
 /* 
  * MPSAFE
  */
-int sched_yield(struct proc *p,
+int sched_yield(struct thread *td,
 	struct sched_yield_args *uap)
 {
 	int error;
 
 	mtx_lock(&Giant);
-	error = ksched_yield(&p->p_retval[0], ksched);
+	error = ksched_yield(&td->td_retval[0], ksched);
 	mtx_unlock(&Giant);
 	return (error);
 }
+
 /* 
  * MPSAFE
  */
-int sched_get_priority_max(struct proc *p,
+int sched_get_priority_max(struct thread *td,
 	struct sched_get_priority_max_args *uap)
 {
 	int error;
 
 	mtx_lock(&Giant);
-	error = ksched_get_priority_max(&p->p_retval[0], ksched, uap->policy);
+	error = ksched_get_priority_max(&td->td_retval[0], ksched, uap->policy);
 	mtx_unlock(&Giant);
 	return (error);
 }
+
 /* 
  * MPSAFE
  */
-int sched_get_priority_min(struct proc *p,
+int sched_get_priority_min(struct thread *td,
 	struct sched_get_priority_min_args *uap)
 {
 	int error;
+
 	mtx_lock(&Giant);
-	error = ksched_get_priority_min(&p->p_retval[0], ksched, uap->policy);
+	error = ksched_get_priority_min(&td->td_retval[0], ksched, uap->policy);
 	mtx_unlock(&Giant);
 	return (error);
 }
+
 /* 
  * MPSAFE
  */
-int sched_rr_get_interval(struct proc *p,
+int sched_rr_get_interval(struct thread *td,
 	struct sched_rr_get_interval_args *uap)
 {
 	int e;
+	struct thread *targettd;
 	struct proc *targetp;
 
 	mtx_lock(&Giant);
 	if (uap->pid == 0) {
-		targetp = p;
+		targettd = td;
+		targetp = td->td_proc;
 		PROC_LOCK(targetp);
 	} else {
 		targetp = pfind(uap->pid);
@@ -297,12 +317,13 @@ int sched_rr_get_interval(struct proc *p,
 			e = ESRCH;
 			goto done2;
 		}
+		targettd = &targetp->p_thread; /* XXXKSE */
 	}
 
-	e = p_cansee(p, targetp);
+	e = p_cansee(td->td_proc, targetp);
 	PROC_UNLOCK(targetp);
 	if (e == 0) {
-		e = ksched_rr_get_interval(&p->p_retval[0], ksched, targetp,
+		e = ksched_rr_get_interval(&td->td_retval[0], ksched, targettd,
 			uap->interval);
 	}
 done2:

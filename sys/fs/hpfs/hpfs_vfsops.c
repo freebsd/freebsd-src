@@ -64,37 +64,37 @@ MALLOC_DEFINE(M_HPFSNO, "HPFS node", "HPFS node structure");
 
 static int	hpfs_root __P((struct mount *, struct vnode **));
 static int	hpfs_statfs __P((struct mount *, struct statfs *,
-				 struct proc *));
-static int	hpfs_unmount __P((struct mount *, int, struct proc *));
+				 struct thread *));
+static int	hpfs_unmount __P((struct mount *, int, struct thread *));
 static int	hpfs_vget __P((struct mount *mp, ino_t ino,
 			       struct vnode **vpp));
 static int	hpfs_mountfs __P((register struct vnode *, struct mount *, 
-				  struct hpfs_args *, struct proc *));
+				  struct hpfs_args *, struct thread *));
 static int	hpfs_vptofh __P((struct vnode *, struct fid *));
 static int	hpfs_fhtovp __P((struct mount *, struct fid *,
 				 struct vnode **));
 
 #if !defined(__FreeBSD__)
 static int	hpfs_quotactl __P((struct mount *, int, uid_t, caddr_t,
-				   struct proc *));
-static int	hpfs_start __P((struct mount *, int, struct proc *));
+				   struct lwp *));
+static int	hpfs_start __P((struct mount *, int, struct lwp *));
 static int	hpfs_sync __P((struct mount *, int, struct ucred *,
-			       struct proc *));
+			       struct lwp *));
 #endif
 
 #if defined(__FreeBSD__)
 struct sockaddr;
 static int	hpfs_mount __P((struct mount *, char *, caddr_t,
-				struct nameidata *, struct proc *));
+				struct nameidata *, struct thread *));
 static int	hpfs_init __P((struct vfsconf *));
 static int	hpfs_uninit __P((struct vfsconf *));
 #else /* defined(__NetBSD__) */
 static int	hpfs_mount __P((struct mount *, const char *, void *,
-				struct nameidata *, struct proc *));
+				struct nameidata *, struct thread *));
 static void	hpfs_init __P((void));
 static int	hpfs_mountroot __P((void));
 static int	hpfs_sysctl __P((int *, u_int, void *, size_t *, void *,
-				 size_t, struct proc *));
+				 size_t, struct thread *));
 static int	hpfs_checkexp __P((struct mount *, struct mbuf *,
 				   int *, struct ucred **));
 #endif
@@ -127,14 +127,14 @@ hpfs_checkexp(mp, nam, exflagsp, credanonp)
 #if !defined(__FreeBSD__)
 /*ARGSUSED*/
 static int
-hpfs_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
+hpfs_sysctl(name, namelen, oldp, oldlenp, newp, newlen, td)
 	int *name;
 	u_int namelen;
 	void *oldp;
 	size_t *oldlenp;
 	void *newp;
 	size_t newlen;
-	struct proc *p;
+	struct lwp *td;
 {
 	return (EINVAL);
 }
@@ -179,12 +179,14 @@ hpfs_mount (
 #if defined(__FreeBSD__)
 	char *path,
 	caddr_t data,
+	struct nameidata *ndp,
+	struct thread *td )
 #else /* defined(__NetBSD__) */
 	const char *path,
 	void *data,
-#endif
 	struct nameidata *ndp,
-	struct proc *p )
+	struct lwp *l )
+#endif
 {
 	u_int		size;
 	int		err = 0;
@@ -237,7 +239,11 @@ hpfs_mount (
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
+#ifdef __FreeBSD__
+	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+#else
+	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, l);
+#endif
 	err = namei(ndp);
 	if (err) {
 		/* can't get devvp!*/
@@ -282,7 +288,7 @@ hpfs_mount (
 			&size);				/* real size*/
 	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 
-	err = hpfs_mountfs(devvp, mp, &args, p);
+	err = hpfs_mountfs(devvp, mp, &args, td);
 	if (err)
 		goto error_2;
 
@@ -292,7 +298,7 @@ hpfs_mount (
 	 *
 	 * This code is common to root and non-root mounts
 	 */
-	(void)VFS_STATFS(mp, &mp->mnt_stat, p);
+	(void)VFS_STATFS(mp, &mp->mnt_stat, td);
 
 	goto success;
 
@@ -312,11 +318,11 @@ success:
  * Common code for mount and mountroot
  */
 int
-hpfs_mountfs(devvp, mp, argsp, p)
+hpfs_mountfs(devvp, mp, argsp, td)
 	register struct vnode *devvp;
 	struct mount *mp;
 	struct hpfs_args *argsp;
-	struct proc *p;
+	struct thread *td;
 {
 	int error, ncount, ronly;
 	struct sublock *sup;
@@ -345,19 +351,19 @@ hpfs_mountfs(devvp, mp, argsp, p)
 		return (EBUSY);
 
 #if defined(__FreeBSD__)
-	VN_LOCK(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0);
-	VOP__UNLOCK(devvp, 0, p);
+	VN_LOCK(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = vinvalbuf(devvp, V_SAVE, td->td_proc->p_ucred, td, 0, 0);
+	VOP__UNLOCK(devvp, 0, td);
 #else
-	error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0);
+	error = vinvalbuf(devvp, V_SAVE, td->td_proc->p_ucred, td, 0, 0);
 #endif
 	if (error)
 		return (error);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	VN_LOCK(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
-	VOP__UNLOCK(devvp, 0, p);
+	VN_LOCK(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td);
+	VOP__UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
 
@@ -443,7 +449,7 @@ failed:
 #else
 	devvp->v_specflags &= ~SI_MOUNTEDON;
 #endif
-	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, p);
+	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, td);
 	return (error);
 }
 
@@ -452,7 +458,7 @@ static int
 hpfs_start (
 	struct mount *mp,
 	int flags,
-	struct proc *p )
+	struct lwp *td )
 {
 	return (0);
 }
@@ -462,7 +468,7 @@ static int
 hpfs_unmount( 
 	struct mount *mp,
 	int mntflags,
-	struct proc *p)
+	struct thread *td)
 {
 	int error, flags, ronly;
 	register struct hpfsmount *hpmp = VFSTOHPFS(mp);
@@ -489,9 +495,9 @@ hpfs_unmount(
 	hpmp->hpm_devvp->v_specflags &= ~SI_MOUNTEDON;
 #endif
 
-	vinvalbuf(hpmp->hpm_devvp, V_SAVE, NOCRED, p, 0, 0);
+	vinvalbuf(hpmp->hpm_devvp, V_SAVE, NOCRED, td, 0, 0);
 	error = VOP_CLOSE(hpmp->hpm_devvp, ronly ? FREAD : FREAD|FWRITE,
-		NOCRED, p);
+		NOCRED, td);
 
 	vrele(hpmp->hpm_devvp);
 
@@ -527,7 +533,7 @@ static int
 hpfs_statfs(
 	struct mount *mp,
 	struct statfs *sbp,
-	struct proc *p)
+	struct thread *td)
 {
 	struct hpfsmount *hpmp = VFSTOHPFS(mp);
 
@@ -562,7 +568,7 @@ hpfs_sync (
 	struct mount *mp,
 	int waitfor,
 	struct ucred *cred,
-	struct proc *p)
+	struct lwp *td)
 {
 	return (0);
 }
@@ -573,7 +579,7 @@ hpfs_quotactl (
 	int cmds,
 	uid_t uid,
 	caddr_t arg,
-	struct proc *p)
+	struct lwp *td)
 {
 	printf("hpfs_quotactl():\n");
 	return (EOPNOTSUPP);
@@ -628,7 +634,7 @@ hpfs_vget(
 	struct vnode *vp;
 	struct hpfsnode *hp;
 	struct buf *bp;
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	int error;
 
 	dprintf(("hpfs_vget(0x%x): ",ino));
@@ -637,7 +643,7 @@ hpfs_vget(
 	hp = NULL;
 	vp = NULL;
 
-	if ((*vpp = hpfs_hphashvget(hpmp->hpm_dev, ino, p)) != NULL) {
+	if ((*vpp = hpfs_hphashvget(hpmp->hpm_dev, ino, td)) != NULL) {
 		dprintf(("hashed\n"));
 		return (0);
 	}
@@ -686,14 +692,14 @@ hpfs_vget(
 	hp->h_devvp = hpmp->hpm_devvp;
 	VREF(hp->h_devvp);
 
-	error = VN_LOCK(vp, LK_EXCLUSIVE, p);
+	error = VN_LOCK(vp, LK_EXCLUSIVE, td);
 	if (error) {
 		vput(vp);
 		return (error);
 	}
 
 	do {
-		if ((*vpp = hpfs_hphashvget(hpmp->hpm_dev, ino, p)) != NULL) {
+		if ((*vpp = hpfs_hphashvget(hpmp->hpm_dev, ino, td)) != NULL) {
 			dprintf(("hashed2\n"));
 			vput(vp);
 			return (0);

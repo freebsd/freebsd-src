@@ -45,14 +45,14 @@
 #define IBCS2_SECURE_SETLUID 2
 
 int
-ibcs2_secure(struct proc *p, struct ibcs2_secure_args *uap)
+ibcs2_secure(struct thread *td, struct ibcs2_secure_args *uap)
 {
 	switch (uap->cmd) {
 
 	case IBCS2_SECURE_GETLUID:		/* get login uid */
-		PROC_LOCK(p);
-		p->p_retval[0] = p->p_ucred->cr_uid;
-		PROC_UNLOCK(p);
+		PROC_LOCK(td->td_proc);
+		td->td_retval[0] = td->td_proc->p_ucred->cr_uid;
+		PROC_UNLOCK(td->td_proc);
 		return 0;
 
 	case IBCS2_SECURE_SETLUID:		/* set login uid */
@@ -66,7 +66,7 @@ ibcs2_secure(struct proc *p, struct ibcs2_secure_args *uap)
 }
 
 int
-ibcs2_lseek(struct proc *p, register struct ibcs2_lseek_args *uap)
+ibcs2_lseek(struct thread *td, register struct ibcs2_lseek_args *uap)
 {
 	struct lseek_args largs;
 	int error;
@@ -74,7 +74,7 @@ ibcs2_lseek(struct proc *p, register struct ibcs2_lseek_args *uap)
 	largs.fd = uap->fd;
 	largs.offset = uap->offset;
 	largs.whence = uap->whence;
-	error = lseek(p, &largs);
+	error = lseek(td, &largs);
 	return (error);
 }
 
@@ -83,7 +83,7 @@ ibcs2_lseek(struct proc *p, register struct ibcs2_lseek_args *uap)
 #include <sys/un.h>     
 
 int
-spx_open(struct proc *p, void *uap)
+spx_open(struct thread *td, void *uap)
 {
 	struct socket_args sock;
 	struct connect_args conn;
@@ -96,7 +96,7 @@ spx_open(struct proc *p, void *uap)
 	sock.domain = AF_UNIX;
 	sock.type = SOCK_STREAM;
 	sock.protocol = 0;
-	error = socket(p, &sock);
+	error = socket(td, &sock);
 	if (error)
 		return error;
 
@@ -108,17 +108,17 @@ spx_open(struct proc *p, void *uap)
 	  strlen(Xaddr->sun_path) + 1;
 	copyout("/tmp/.X11-unix/X0", Xaddr->sun_path, 18);
 
-	conn.s = fd = p->p_retval[0];
+	conn.s = fd = td->td_retval[0];
 	conn.name = (caddr_t)Xaddr;
 	conn.namelen = sizeof(struct sockaddr_un);
-	error = connect(p, &conn);
+	error = connect(td, &conn);
 	if (error) {
 		struct close_args cl;
 		cl.fd = fd;
-		close(p, &cl);
+		close(td, &cl);
 		return error;
 	}
-	p->p_retval[0] = fd;
+	td->td_retval[0] = fd;
 	return 0;
 }
 #endif /* SPX_HACK */

@@ -225,7 +225,7 @@ SYSCTL_PROC(_kern, OID_AUTO, disks, CTLTYPE_STRING | CTLFLAG_RD, 0, NULL,
  */
 
 static int
-diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
+diskopen(dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	dev_t pdev;
 	struct disk *dp;
@@ -249,7 +249,7 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	if (!dsisopen(dp->d_slice)) {
 		if (!pdev->si_iosize_max)
 			pdev->si_iosize_max = dev->si_iosize_max;
-		error = dp->d_devsw->d_open(pdev, oflags, devtype, p);
+		error = dp->d_devsw->d_open(pdev, oflags, devtype, td);
 	}
 
 	/* Inherit properties from the whole/raw dev_t */
@@ -261,7 +261,7 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	error = dsopen(dev, devtype, dp->d_dsflags, &dp->d_slice, &dp->d_label);
 
 	if (!dsisopen(dp->d_slice)) 
-		dp->d_devsw->d_close(pdev, oflags, devtype, p);
+		dp->d_devsw->d_close(pdev, oflags, devtype, td);
 out:	
 	dp->d_flags &= ~DISKFLAG_LOCK;
 	if (dp->d_flags & DISKFLAG_WANTED) {
@@ -273,7 +273,7 @@ out:
 }
 
 static int
-diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
+diskclose(dev_t dev, int fflag, int devtype, struct thread *td)
 {
 	struct disk *dp;
 	int error;
@@ -286,7 +286,7 @@ diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
 		return (ENXIO);
 	dsclose(dev, devtype, dp->d_slice);
 	if (!dsisopen(dp->d_slice))
-		error = dp->d_devsw->d_close(dp->d_dev, fflag, devtype, p);
+		error = dp->d_devsw->d_close(dp->d_dev, fflag, devtype, td);
 	return (error);
 }
 
@@ -325,7 +325,7 @@ diskstrategy(struct bio *bp)
 }
 
 static int
-diskioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
+diskioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct disk *dp;
 	int error;
@@ -337,7 +337,7 @@ diskioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		return (ENXIO);
 	error = dsioctl(dev, cmd, data, fflag, &dp->d_slice);
 	if (error == ENOIOCTL)
-		error = dp->d_devsw->d_ioctl(dev, cmd, data, fflag, p);
+		error = dp->d_devsw->d_ioctl(dev, cmd, data, fflag, td);
 	return (error);
 }
 

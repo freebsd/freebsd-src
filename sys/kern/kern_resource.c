@@ -84,10 +84,11 @@ struct getpriority_args {
  * MPSAFE
  */
 int
-getpriority(curp, uap)
-	struct proc *curp;
+getpriority(td, uap)
+	struct thread *td;
 	register struct getpriority_args *uap;
 {
+	struct proc *curp = td->td_proc;
 	register struct proc *p;
 	register int low = PRIO_MAX + 1;
 	int error = 0;
@@ -97,13 +98,13 @@ getpriority(curp, uap)
 	switch (uap->which) {
 	case PRIO_PROCESS:
 		if (uap->who == 0)
-			low = curp->p_nice;
+			low = td->td_ksegrp->kg_nice;
 		else {
 			p = pfind(uap->who);
 			if (p == NULL)
 				break;
 			if (p_cansee(curp, p) == 0)
-				low = p->p_nice;
+				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
 			PROC_UNLOCK(p);
 		}
 		break;
@@ -116,8 +117,8 @@ getpriority(curp, uap)
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
-			if (!p_cansee(curp, p) && p->p_nice < low)
-				low = p->p_nice;
+			if (!p_cansee(curp, p) && p->p_ksegrp.kg_nice /* XXXKSE */  < low)
+				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
 		}
 		break;
 	}
@@ -129,8 +130,8 @@ getpriority(curp, uap)
 		LIST_FOREACH(p, &allproc, p_list)
 			if (!p_cansee(curp, p) &&
 			    p->p_ucred->cr_uid == uap->who &&
-			    p->p_nice < low)
-				low = p->p_nice;
+			    p->p_ksegrp.kg_nice /* XXXKSE */  < low)
+				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
 		sx_sunlock(&allproc_lock);
 		break;
 
@@ -140,7 +141,7 @@ getpriority(curp, uap)
 	}
 	if (low == PRIO_MAX + 1 && error == 0)
 		error = ESRCH;
-	curp->p_retval[0] = low;
+	td->td_retval[0] = low;
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -157,10 +158,11 @@ struct setpriority_args {
  */
 /* ARGSUSED */
 int
-setpriority(curp, uap)
-	struct proc *curp;
+setpriority(td, uap)
+	struct thread *td;
 	register struct setpriority_args *uap;
 {
+	struct proc *curp = td->td_proc;
 	register struct proc *p;
 	int found = 0, error = 0;
 
@@ -201,12 +203,13 @@ setpriority(curp, uap)
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
 		sx_slock(&allproc_lock);
-		LIST_FOREACH(p, &allproc, p_list)
+		FOREACH_PROC_IN_SYSTEM(p) {
 			if (p->p_ucred->cr_uid == uap->who &&
 			    !p_cansee(curp, p)) {
 				error = donice(curp, p, uap->prio);
 				found++;
 			}
+		}
 		sx_sunlock(&allproc_lock);
 		break;
 
@@ -233,10 +236,10 @@ donice(curp, chgp, n)
 		n = PRIO_MAX;
 	if (n < PRIO_MIN)
 		n = PRIO_MIN;
-	if (n < chgp->p_nice && suser(curp))
+	if (n < chgp->p_ksegrp.kg_nice /* XXXKSE */  && suser(curp))
 		return (EACCES);
-	chgp->p_nice = n;
-	(void)resetpriority(chgp);
+	chgp->p_ksegrp.kg_nice /* XXXKSE */  = n;
+	(void)resetpriority(&chgp->p_ksegrp); /* XXXKSE */
 	return (0);
 }
 
@@ -258,10 +261,11 @@ struct rtprio_args {
  */
 /* ARGSUSED */
 int
-rtprio(curp, uap)
-	struct proc *curp;
+rtprio(td, uap)
+	struct thread *td;
 	register struct rtprio_args *uap;
 {
+	struct proc *curp = td->td_proc;
 	register struct proc *p;
 	struct rtprio rtp;
 	int error;
@@ -285,7 +289,7 @@ rtprio(curp, uap)
 		if ((error = p_cansee(curp, p)))
 			break;
 		mtx_lock_spin(&sched_lock);
-		pri_to_rtp(&p->p_pri, &rtp);
+		pri_to_rtp(&p->p_ksegrp.kg_pri /* XXXKSE */ , &rtp);
 		mtx_unlock_spin(&sched_lock);
 		error = copyout(&rtp, uap->rtp, sizeof(struct rtprio));
 		break;
@@ -317,7 +321,7 @@ rtprio(curp, uap)
 			}
 		}
 		mtx_lock_spin(&sched_lock);
-		error = rtp_to_pri(&rtp, &p->p_pri);
+		error = rtp_to_pri(&rtp, &p->p_ksegrp.kg_pri);
 		mtx_unlock_spin(&sched_lock);
 		break;
 	default:
@@ -387,8 +391,8 @@ struct osetrlimit_args {
  */
 /* ARGSUSED */
 int
-osetrlimit(p, uap)
-	struct proc *p;
+osetrlimit(td, uap)
+	struct thread *td;
 	register struct osetrlimit_args *uap;
 {
 	struct orlimit olim;
@@ -401,7 +405,7 @@ osetrlimit(p, uap)
 	lim.rlim_cur = olim.rlim_cur;
 	lim.rlim_max = olim.rlim_max;
 	mtx_lock(&Giant);
-	error = dosetrlimit(p, uap->which, &lim);
+	error = dosetrlimit(td, uap->which, &lim);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -417,10 +421,11 @@ struct ogetrlimit_args {
  */
 /* ARGSUSED */
 int
-ogetrlimit(p, uap)
-	struct proc *p;
+ogetrlimit(td, uap)
+	struct thread *td;
 	register struct ogetrlimit_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct orlimit olim;
 	int error;
 
@@ -450,8 +455,8 @@ struct __setrlimit_args {
  */
 /* ARGSUSED */
 int
-setrlimit(p, uap)
-	struct proc *p;
+setrlimit(td, uap)
+	struct thread *td;
 	register struct __setrlimit_args *uap;
 {
 	struct rlimit alim;
@@ -461,17 +466,18 @@ setrlimit(p, uap)
 	    copyin((caddr_t)uap->rlp, (caddr_t)&alim, sizeof (struct rlimit))))
 		return (error);
 	mtx_lock(&Giant);
-	error = dosetrlimit(p, uap->which, &alim);
+	error = dosetrlimit(td, uap->which, &alim);
 	mtx_unlock(&Giant);
 	return (error);
 }
 
 int
-dosetrlimit(p, which, limp)
-	struct proc *p;
+dosetrlimit(td, which, limp)
+	struct thread *td;
 	u_int which;
 	struct rlimit *limp;
 {
+	struct proc *p = td->td_proc;
 	register struct rlimit *alimp;
 	int error;
 
@@ -582,11 +588,12 @@ struct __getrlimit_args {
  */
 /* ARGSUSED */
 int
-getrlimit(p, uap)
-	struct proc *p;
+getrlimit(td, uap)
+	struct thread *td;
 	register struct __getrlimit_args *uap;
 {
 	int error;
+	struct proc *p = td->td_proc;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
@@ -610,85 +617,102 @@ calcru(p, up, sp, ip)
 {
 	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
 	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
+	u_int64_t uut = 0, sut = 0, iut = 0;
 	int s;
 	struct timeval tv;
+	struct kse *ke;
+	struct ksegrp *kg;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	/* XXX: why spl-protect ?  worst case is an off-by-one report */
-	s = splstatclock();
-	ut = p->p_uticks;
-	st = p->p_sticks;
-	it = p->p_iticks;
-	splx(s);
 
-	tt = ut + st + it;
-	if (tt == 0) {
-		st = 1;
-		tt = 1;
-	}
+	FOREACH_KSEGRP_IN_PROC(p, kg) {
+		/* we could accumulate per ksegrp and per process here*/
+		FOREACH_KSE_IN_GROUP(kg, ke) {
+			s = splstatclock();
+			ut = ke->ke_uticks;
+			st = ke->ke_sticks;
+			it = ke->ke_iticks;
+			splx(s);
 
-	tu = p->p_runtime;
-	if (p == curproc) {
+			tt = ut + st + it;
+			if (tt == 0) {
+				st = 1;
+				tt = 1;
+			}
+		
+			tu = p->p_runtime;
+			if (ke == curthread->td_kse) {
 		/*
 		 * Adjust for the current time slice.  This is actually fairly
 		 * important since the error here is on the order of a time
 		 * quantum, which is much greater than the sampling error.
+		 * XXXKSE use a different test due to threads on other 
+		 * processors also being 'current'.
 		 */
-		microuptime(&tv);
-		if (timevalcmp(&tv, PCPU_PTR(switchtime), <))
-			printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
-			    PCPU_GET(switchtime.tv_sec), PCPU_GET(switchtime.tv_usec),
-			    tv.tv_sec, tv.tv_usec);
-		else
-			tu += (tv.tv_usec - PCPU_GET(switchtime.tv_usec)) +
-			    (tv.tv_sec - PCPU_GET(switchtime.tv_sec)) *
-			    (int64_t)1000000;
-	}
-	ptu = p->p_uu + p->p_su + p->p_iu;
-	if (tu < ptu || (int64_t)tu < 0) {
-		/* XXX no %qd in kernel.  Truncate. */
-		printf("calcru: negative time of %ld usec for pid %d (%s)\n",
-		       (long)tu, p->p_pid, p->p_comm);
-		tu = ptu;
-	}
+				microuptime(&tv);
+				if (timevalcmp(&tv, PCPU_PTR(switchtime), <))
+					printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
+			    		    PCPU_GET(switchtime.tv_sec),
+					    PCPU_GET(switchtime.tv_usec),
+			    			tv.tv_sec, tv.tv_usec);
+				else
+					tu += (tv.tv_usec
+						- PCPU_GET(switchtime.tv_usec))
+						+ (tv.tv_sec
+						  - PCPU_GET(switchtime.tv_sec))
+					      * (int64_t)1000000;
+			}
+			ptu = ke->ke_uu + ke->ke_su + ke->ke_iu;
+			if (tu < ptu || (int64_t)tu < 0) {
+				/* XXX no %qd in kernel.  Truncate. */
+				printf("calcru: negative time of %ld usec for pid %d (%s)\n",
+		       		(long)tu, p->p_pid, p->p_comm);
+				tu = ptu;
+			}
 
-	/* Subdivide tu. */
-	uu = (tu * ut) / tt;
-	su = (tu * st) / tt;
-	iu = tu - uu - su;
-
-	/* Enforce monotonicity. */
-	if (uu < p->p_uu || su < p->p_su || iu < p->p_iu) {
-		if (uu < p->p_uu)
-			uu = p->p_uu;
-		else if (uu + p->p_su + p->p_iu > tu)
-			uu = tu - p->p_su - p->p_iu;
-		if (st == 0)
-			su = p->p_su;
-		else {
-			su = ((tu - uu) * st) / (st + it);
-			if (su < p->p_su)
-				su = p->p_su;
-			else if (uu + su + p->p_iu > tu)
-				su = tu - uu - p->p_iu;
-		}
-		KASSERT(uu + su + p->p_iu <= tu,
-		    ("calcru: monotonisation botch 1"));
-		iu = tu - uu - su;
-		KASSERT(iu >= p->p_iu,
-		    ("calcru: monotonisation botch 2"));
-	}
-	p->p_uu = uu;
-	p->p_su = su;
-	p->p_iu = iu;
-
-	up->tv_sec = uu / 1000000;
-	up->tv_usec = uu % 1000000;
-	sp->tv_sec = su / 1000000;
-	sp->tv_usec = su % 1000000;
+			/* Subdivide tu. */
+			uu = (tu * ut) / tt;
+			su = (tu * st) / tt;
+			iu = tu - uu - su;
+		
+			/* Enforce monotonicity. */
+			if (uu < ke->ke_uu || su < ke->ke_su || iu < ke->ke_iu) {
+				if (uu < ke->ke_uu)
+					uu = ke->ke_uu;
+				else if (uu + ke->ke_su + ke->ke_iu > tu)
+					uu = tu - ke->ke_su - ke->ke_iu;
+				if (st == 0)
+					su = ke->ke_su;
+				else {
+					su = ((tu - uu) * st) / (st + it);
+					if (su < ke->ke_su)
+						su = ke->ke_su;
+					else if (uu + su + ke->ke_iu > tu)
+						su = tu - uu - ke->ke_iu;
+				}
+				KASSERT(uu + su + ke->ke_iu <= tu,
+		    		("calcru: monotonisation botch 1"));
+				iu = tu - uu - su;
+				KASSERT(iu >= ke->ke_iu,
+		    		("calcru: monotonisation botch 2"));
+			}
+			ke->ke_uu = uu;
+			ke->ke_su = su;
+			ke->ke_iu = iu;
+			uut += uu;
+			sut += su;
+			iut += iu;
+		
+		} /* end kse loop */
+	} /* end kseg loop */
+	up->tv_sec = uut / 1000000;
+	up->tv_usec = uut % 1000000;
+	sp->tv_sec = sut / 1000000;
+	sp->tv_usec = sut % 1000000;
 	if (ip != NULL) {
-		ip->tv_sec = iu / 1000000;
-		ip->tv_usec = iu % 1000000;
+		ip->tv_sec = iut / 1000000;
+		ip->tv_usec = iut % 1000000;
 	}
 }
 
@@ -703,10 +727,11 @@ struct getrusage_args {
  */
 /* ARGSUSED */
 int
-getrusage(p, uap)
-	register struct proc *p;
+getrusage(td, uap)
+	register struct thread *td;
 	register struct getrusage_args *uap;
 {
+	struct proc *p = td->td_proc;
 	register struct rusage *rup;
 	int error = 0;
 

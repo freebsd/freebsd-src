@@ -62,7 +62,7 @@ extern int debug;					    /* debug flags */
     }
 #ifndef _KERNEL
 struct vnode;
-struct proc;
+struct thread;
 #endif
 
 #ifdef _KERNEL
@@ -117,7 +117,7 @@ void remove_plex_entry(int plexno, int force, int recurse);
 void remove_volume_entry(int volno, int force, int recurse);
 
 void checkdiskconfig(char *);
-int open_drive(struct drive *, struct proc *, int);
+int open_drive(struct drive *, struct thread *, int);
 void close_drive(struct drive *drive);
 void close_locked_drive(struct drive *drive);
 int driveio(struct drive *, char *, size_t, off_t, int);
@@ -245,7 +245,7 @@ void FFree(void *mem, char *, int);
 #define LOCKDRIVE(d) lockdrive (d, __FILE__, __LINE__)
 #else
 #define Malloc(x)  malloc((x), M_DEVBUF, \
-	curproc->p_intr_nesting_level == 0? M_WAITOK: M_NOWAIT)
+	curthread->td_proc->p_intr_nesting_level == 0? M_WAITOK: M_NOWAIT)
 #define Free(x)    free((x), M_DEVBUF)
 #define LOCKDRIVE(d) lockdrive (d)
 #endif

@@ -141,7 +141,7 @@ static struct extend_array *ptperiphs;
 #endif
 
 static int
-ptopen(dev_t dev, int flags, int fmt, struct proc *p)
+ptopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct pt_softc *softc;
@@ -185,7 +185,7 @@ ptopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-ptclose(dev_t dev, int flag, int fmt, struct proc *p)
+ptclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	pt_softc *softc;
@@ -678,7 +678,7 @@ pterror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 }
 
 static int
-ptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+ptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct pt_softc *softc;

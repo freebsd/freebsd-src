@@ -345,7 +345,7 @@ void	rip6_ctlinput __P((int, struct sockaddr *, void *));
 int	rip6_ctloutput __P((struct socket *so, struct sockopt *sopt));
 int	rip6_output __P((struct mbuf *, ...));
 int	rip6_usrreq __P((struct socket *,
-	    int, struct mbuf *, struct mbuf *, struct mbuf *, struct proc *));
+	    int, struct mbuf *, struct mbuf *, struct mbuf *, struct thread *));
 
 int	dest6_input __P((struct mbuf **, int *, int));
 int	none_input __P((struct mbuf **, int *, int));

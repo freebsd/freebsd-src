@@ -95,7 +95,7 @@ _sx_slock(struct sx *sx, const char *file, int line)
 {
 
 	mtx_lock(&sx->sx_lock);
-	KASSERT(sx->sx_xholder != curproc,
+	KASSERT(sx->sx_xholder != curthread,
 	    ("%s (%s): slock while xlock is held @ %s:%d\n", __FUNCTION__,
 	    sx->sx_object.lo_name, file, line));
 
@@ -148,7 +148,7 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 	 * xlock while in here, we consider it API abuse and put it under
 	 * INVARIANTS.
 	 */
-	KASSERT(sx->sx_xholder != curproc,
+	KASSERT(sx->sx_xholder != curthread,
 	    ("%s (%s): xlock already held @ %s:%d", __FUNCTION__,
 	    sx->sx_object.lo_name, file, line));
 
@@ -163,7 +163,7 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 
 	/* Acquire an exclusive lock. */
 	sx->sx_cnt--;
-	sx->sx_xholder = curproc;
+	sx->sx_xholder = curthread;
 
 	LOCK_LOG_LOCK("XLOCK", &sx->sx_object, 0, 0, file, line);
 	WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
@@ -178,7 +178,7 @@ _sx_try_xlock(struct sx *sx, const char *file, int line)
 	mtx_lock(&sx->sx_lock);
 	if (sx->sx_cnt == 0) {
 		sx->sx_cnt--;
-		sx->sx_xholder = curproc;
+		sx->sx_xholder = curthread;
 		LOCK_LOG_TRY("XLOCK", &sx->sx_object, 0, 1, file, line);
 		WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE | LOP_TRYLOCK, file,
 		    line);
@@ -256,7 +256,7 @@ _sx_try_upgrade(struct sx *sx, const char *file, int line)
 
 	if (sx->sx_cnt == 1) {
 		sx->sx_cnt = -1;
-		sx->sx_xholder = curproc;
+		sx->sx_xholder = curthread;
 
 		LOCK_LOG_TRY("XUPGRADE", &sx->sx_object, 0, 1, file, line);
 		WITNESS_UPGRADE(&sx->sx_object, LOP_EXCLUSIVE | LOP_TRYLOCK,

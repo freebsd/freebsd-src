@@ -283,7 +283,7 @@ devfs_populate(struct devfs_mount *dm)
 
 	if (dm->dm_generation == devfs_generation)
 		return (0);
-	lockmgr(&dm->dm_lock, LK_UPGRADE, 0, curproc);
+	lockmgr(&dm->dm_lock, LK_UPGRADE, 0, curthread);
 	if (devfs_noverflow && dm->dm_overflow == NULL) {
 		i = devfs_noverflow * sizeof (struct devfs_dirent *);
 		MALLOC(dm->dm_overflow, struct devfs_dirent **, i,
@@ -358,7 +358,7 @@ devfs_populate(struct devfs_mount *dm)
 #endif
 		}
 	}
-	lockmgr(&dm->dm_lock, LK_DOWNGRADE, 0, curproc);
+	lockmgr(&dm->dm_lock, LK_DOWNGRADE, 0, curthread);
 	return (0);
 }
 

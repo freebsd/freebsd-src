@@ -90,7 +90,7 @@ interrupt(a0, a1, a2, framep)
 	unsigned long a0, a1, a2;
 	struct trapframe *framep;
 {
-	struct proc *p;
+	struct thread *td;
 #ifdef SMP
 	critical_t s;
 #endif
@@ -102,18 +102,20 @@ interrupt(a0, a1, a2, framep)
 	s = critical_enter();
 #endif
 	globalp = (struct globaldata *) alpha_pal_rdval();
-	p = curproc;
+	td = curthread;
 #ifdef SMP
-	p->p_md.md_kernnest++;
+	td->td_md.md_kernnest++;
 	critical_exit(s);
 #endif
-	atomic_add_int(&p->p_intr_nesting_level, 1);
+	atomic_add_int(&td->td_intr_nesting_level, 1);
+#ifndef KSTACK_GUARD
 #ifndef SMP
 	{
-		if ((caddr_t) framep < (caddr_t) p->p_addr + 1024) {
+		if ((caddr_t) framep < (caddr_t) td->td_pcb + 1024) {
 			panic("possible stack overflow\n");
 		}
 	}
+#endif
 #endif
 
 	framep->tf_regs[FRAME_TRAPARG_A0] = a0;
@@ -161,7 +163,7 @@ interrupt(a0, a1, a2, framep)
 		    a0, a1, a2);
 		/* NOTREACHED */
 	}
-	atomic_subtract_int(&p->p_intr_nesting_level, 1);
+	atomic_subtract_int(&td->td_intr_nesting_level, 1);
 }
 
 void
@@ -472,7 +474,7 @@ alpha_clock_interrupt(struct trapframe *framep)
 #ifdef SMP
 		} else {
 			mtx_lock_spin(&sched_lock);
-			hardclock_process(curproc, TRAPF_USERMODE(framep));
+			hardclock_process(curthread, TRAPF_USERMODE(framep));
 			if ((schedclk2 & 0x7) == 0)
 				statclock_process(curproc, TRAPF_PC(framep),
 				    TRAPF_USERMODE(framep));

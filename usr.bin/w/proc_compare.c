@@ -117,9 +117,9 @@ proc_compare(p1, p2)
 	/*
 	 * favor one sleeping in a non-interruptible sleep
 	 */
-	if (p1->ki_sflag & PS_SINTR && (p2->ki_sflag & PS_SINTR) == 0)
+	if (p1->ki_tdflags & TDF_SINTR && (p2->ki_tdflags & TDF_SINTR) == 0)
 		return (1);
-	if (p2->ki_sflag & PS_SINTR && (p1->ki_sflag & PS_SINTR) == 0)
+	if (p2->ki_tdflags & TDF_SINTR && (p1->ki_tdflags & TDF_SINTR) == 0)
 		return (0);
 	return (p2->ki_pid > p1->ki_pid);		/* tie - return highest pid */
 }

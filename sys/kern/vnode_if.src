@@ -59,7 +59,7 @@
 #
 vop_islocked {
 	IN struct vnode *vp;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -126,7 +126,7 @@ vop_open {
 	IN struct vnode *vp;
 	IN int mode;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -136,7 +136,7 @@ vop_close {
 	IN struct vnode *vp;
 	IN int fflag;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -146,7 +146,7 @@ vop_access {
 	IN struct vnode *vp;
 	IN int mode;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -156,7 +156,7 @@ vop_getattr {
 	IN struct vnode *vp;
 	OUT struct vattr *vap;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -166,7 +166,7 @@ vop_setattr {
 	IN struct vnode *vp;
 	IN struct vattr *vap;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -194,7 +194,7 @@ vop_write {
 #
 vop_lease {
 	IN struct vnode *vp;
-	IN struct proc *p;
+	IN struct thread *td;
 	IN struct ucred *cred;
 	IN int flag;
 };
@@ -208,7 +208,7 @@ vop_ioctl {
 	IN caddr_t data;
 	IN int fflag;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -218,7 +218,7 @@ vop_poll {
 	IN struct vnode *vp;
 	IN int events;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -244,7 +244,7 @@ vop_fsync {
 	IN struct vnode *vp;
 	IN struct ucred *cred;
 	IN int waitfor;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -341,7 +341,7 @@ vop_readlink {
 #
 vop_inactive {
 	IN struct vnode *vp;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -349,7 +349,7 @@ vop_inactive {
 #
 vop_reclaim {
 	IN struct vnode *vp;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -358,7 +358,7 @@ vop_reclaim {
 vop_lock {
 	IN struct vnode *vp;
 	IN int flags;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -367,7 +367,7 @@ vop_lock {
 vop_unlock {
 	IN struct vnode *vp;
 	IN int flags;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -479,7 +479,7 @@ vop_getacl {
 	IN acl_type_t type;
 	OUT struct acl *aclp;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -490,7 +490,7 @@ vop_setacl {
 	IN acl_type_t type;
 	IN struct acl *aclp;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -501,7 +501,7 @@ vop_aclcheck {
 	IN acl_type_t type;
 	IN struct acl *aclp;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -513,7 +513,7 @@ vop_getextattr {
 	IN const char *name;
 	INOUT struct uio *uio;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -525,7 +525,7 @@ vop_setextattr {
 	IN const char *name;
 	INOUT struct uio *uio;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #
@@ -534,7 +534,7 @@ vop_setextattr {
 vop_createvobject {
 	IN struct vnode *vp;
 	IN struct ucred *cred;
-	IN struct proc *p;
+	IN struct thread *td;
 };
 
 #

@@ -434,7 +434,7 @@ vnode_pager_input_smlfs(object, m)
 			/* build a minimal buffer header */
 			bp->b_iocmd = BIO_READ;
 			bp->b_iodone = vnode_pager_iodone;
-			bp->b_rcred = bp->b_wcred = curproc->p_ucred;
+			bp->b_rcred = bp->b_wcred = curthread->td_proc->p_ucred;
 			if (bp->b_rcred != NOCRED)
 				crhold(bp->b_rcred);
 			if (bp->b_wcred != NOCRED)
@@ -527,9 +527,9 @@ vnode_pager_input_old(object, m)
 		auio.uio_segflg = UIO_SYSSPACE;
 		auio.uio_rw = UIO_READ;
 		auio.uio_resid = size;
-		auio.uio_procp = curproc;
+		auio.uio_td = curthread;
 
-		error = VOP_READ(vp, &auio, 0, curproc->p_ucred);
+		error = VOP_READ(vp, &auio, 0, curthread->td_proc->p_ucred);
 		if (!error) {
 			int count = size - auio.uio_resid;
 
@@ -754,7 +754,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = vnode_pager_iodone;
 	/* B_PHYS is not set, but it is nice to fill this in */
-	bp->b_rcred = bp->b_wcred = curproc->p_ucred;
+	bp->b_rcred = bp->b_wcred = curthread->td_proc->p_ucred;
 	if (bp->b_rcred != NOCRED)
 		crhold(bp->b_rcred);
 	if (bp->b_wcred != NOCRED)
@@ -983,8 +983,8 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	auio.uio_segflg = UIO_NOCOPY;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_resid = maxsize;
-	auio.uio_procp = (struct proc *) 0;
-	error = VOP_WRITE(vp, &auio, ioflags, curproc->p_ucred);
+	auio.uio_td = (struct thread *) 0;
+	error = VOP_WRITE(vp, &auio, ioflags, curthread->td_proc->p_ucred);
 	cnt.v_vnodeout++;
 	cnt.v_vnodepgsout += ncount;
 
@@ -1005,7 +1005,7 @@ struct vnode *
 vnode_pager_lock(object)
 	vm_object_t object;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 
 	GIANT_REQUIRED;
 
@@ -1018,7 +1018,7 @@ vnode_pager_lock(object)
 
 		/* XXX; If object->handle can change, we need to cache it. */
 		while (vget(object->handle,
-			LK_NOPAUSE | LK_SHARED | LK_RETRY | LK_CANRECURSE, p)) {
+			LK_NOPAUSE | LK_SHARED | LK_RETRY | LK_CANRECURSE, td)){
 			if ((object->flags & OBJ_DEAD) || (object->type != OBJT_VNODE))
 				return NULL;
 			printf("vnode_pager_lock: retrying\n");

@@ -109,7 +109,7 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, verbose, CTLTYPE_INT | CTLFLAG_RW,
             0, sizeof(int), sysctl_hw_sndverbose, "I", "");
 
 static int
-sndstat_open(dev_t i_dev, int flags, int mode, struct proc *p)
+sndstat_open(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	intrmask_t s;
 	int err;
@@ -137,7 +137,7 @@ sndstat_open(dev_t i_dev, int flags, int mode, struct proc *p)
 }
 
 static int
-sndstat_close(dev_t i_dev, int flags, int mode, struct proc *p)
+sndstat_close(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	intrmask_t s;
 

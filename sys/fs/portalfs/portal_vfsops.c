@@ -62,23 +62,23 @@
 static MALLOC_DEFINE(M_PORTALFSMNT, "PORTAL mount", "PORTAL mount structure");
 
 static int	portal_mount __P((struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct proc *p));
+				  struct nameidata *ndp, struct thread *td));
 static int	portal_unmount __P((struct mount *mp, int mntflags,
-				    struct proc *p));
+				    struct thread *td));
 static int	portal_root __P((struct mount *mp, struct vnode **vpp));
 static int	portal_statfs __P((struct mount *mp, struct statfs *sbp,
-				   struct proc *p));
+				   struct thread *td));
 
 /*
  * Mount the per-process file descriptors (/dev/fd)
  */
 static int
-portal_mount(mp, path, data, ndp, p)
+portal_mount(mp, path, data, ndp, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
 	struct nameidata *ndp;
-	struct proc *p;
+	struct thread *td;
 {
 	struct file *fp;
 	struct portal_args args;
@@ -99,12 +99,12 @@ portal_mount(mp, path, data, ndp, p)
 	if (error)
 		return (error);
 
-	error = holdsock(p->p_fd, args.pa_socket, &fp);
+	error = holdsock(td->td_proc->p_fd, args.pa_socket, &fp);
 	if (error)
 		return (error);
 	so = (struct socket *) fp->f_data;
 	if (so->so_proto->pr_domain->dom_family != AF_UNIX) {
-		fdrop(fp, p);
+		fdrop(fp, td);
 		return (ESOCKTNOSUPPORT);
 	}
 
@@ -118,7 +118,7 @@ portal_mount(mp, path, data, ndp, p)
 	if (error) {
 		FREE(fmp, M_PORTALFSMNT);
 		FREE(pn, M_TEMP);
-		fdrop(fp, p);
+		fdrop(fp, td);
 		return (error);
 	}
 
@@ -144,16 +144,16 @@ portal_mount(mp, path, data, ndp, p)
 	bcopy("portal", mp->mnt_stat.f_mntfromname, sizeof("portal"));
 #endif
 
-	(void)portal_statfs(mp, &mp->mnt_stat, p);
-	fdrop(fp, p);
+	(void)portal_statfs(mp, &mp->mnt_stat, td);
+	fdrop(fp, td);
 	return (0);
 }
 
 static int
-portal_unmount(mp, mntflags, p)
+portal_unmount(mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
-	struct proc *p;
+	struct thread *td;
 {
 	int error, flags = 0;
 
@@ -186,7 +186,7 @@ portal_unmount(mp, mntflags, p)
 	 * Discard reference to underlying file.  Must call closef because
 	 * this may be the last reference.
 	 */
-	closef(VFSTOPORTAL(mp)->pm_server, (struct proc *) 0);
+	closef(VFSTOPORTAL(mp)->pm_server, (struct thread *) 0);
 	/*
 	 * Finally, throw away the portalmount structure
 	 */
@@ -200,7 +200,7 @@ portal_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp;
 
 	/*
@@ -208,16 +208,16 @@ portal_root(mp, vpp)
 	 */
 	vp = VFSTOPORTAL(mp)->pm_root;
 	VREF(vp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	*vpp = vp;
 	return (0);
 }
 
 static int
-portal_statfs(mp, sbp, p)
+portal_statfs(mp, sbp, td)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct proc *p;
+	struct thread *td;
 {
 
 	sbp->f_flags = 0;

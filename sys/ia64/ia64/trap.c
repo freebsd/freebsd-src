@@ -69,7 +69,7 @@
 #include <ddb/ddb.h>
 #endif
 
-static int unaligned_fixup(struct trapframe *framep, struct proc *p);
+static int unaligned_fixup(struct trapframe *framep, struct thread *td);
 
 #ifdef WITNESS
 extern char *syscallnames[];
@@ -160,10 +160,10 @@ printtrap(int vector, int imm, struct trapframe *framep, int isfatal, int user)
 	printf("    cr.isr      = 0x%lx\n", framep->tf_cr_isr);
 	printf("    cr.ifa      = 0x%lx\n", framep->tf_cr_ifa);
 	printf("    cr.iim      = 0x%x\n", imm);
-	printf("    curproc     = %p\n", curproc);
-	if (curproc != NULL)
-		printf("        pid = %d, comm = %s\n", curproc->p_pid,
-		       curproc->p_comm);
+	printf("    curthread   = %p\n", curthread);
+	if (curthread != NULL)
+		printf("        pid = %d, comm = %s\n",
+		       curthread->td_proc->p_pid, curthread->td_proc->p_comm);
 	printf("\n");
 }
 
@@ -177,6 +177,7 @@ printtrap(int vector, int imm, struct trapframe *framep, int isfatal, int user)
 void
 trap(int vector, int imm, struct trapframe *framep)
 {
+	struct thread *td;
 	struct proc *p;
 	int i;
 	u_int64_t ucode;
@@ -184,13 +185,14 @@ trap(int vector, int imm, struct trapframe *framep)
 	int user;
 
 	cnt.v_trap++;
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 	ucode = 0;
 
 	user = ((framep->tf_cr_ipsr & IA64_PSR_CPL) == IA64_PSR_CPL_USER);
 	if (user) {
-		sticks = p->p_sticks;
-		p->p_frame = framep;
+		sticks = td->td_kse->ke_sticks;
+		td->td_frame = framep;
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 	}
@@ -204,7 +206,7 @@ trap(int vector, int imm, struct trapframe *framep)
 		 */
 		if (user) {
 			mtx_lock(&Giant);
-			if ((i = unaligned_fixup(framep, p)) == 0) {
+			if ((i = unaligned_fixup(framep, td)) == 0) {
 				mtx_unlock(&Giant);
 				goto out;
 			}
@@ -246,15 +248,15 @@ trap(int vector, int imm, struct trapframe *framep)
 
 	case IA64_VEC_DISABLED_FP:
 		/*
-		 * on exit from the kernel, if proc == fpcurproc,
+		 * on exit from the kernel, if thread == fpcurthread,
 		 * FP is enabled.
 		 */
-		if (PCPU_GET(fpcurproc) == p) {
-			printf("trap: fp disabled for fpcurproc == %p", p);
+		if (PCPU_GET(fpcurthread) == td) {
+			printf("trap: fp disabled for fpcurthread == %p", td);
 			goto dopanic;
 		}
 	
-		ia64_fpstate_switch(p);
+		ia64_fpstate_switch(td);
 		goto out;
 		break;
 
@@ -276,12 +278,11 @@ trap(int vector, int imm, struct trapframe *framep)
 		 * when they are running.
 			 */
 		if (!user &&
-		    p != NULL &&
-		    p->p_addr->u_pcb.pcb_onfault ==
-		    (unsigned long)fswintrberr &&
-		    p->p_addr->u_pcb.pcb_accessaddr == va) {
-			framep->tf_cr_iip = p->p_addr->u_pcb.pcb_onfault;
-			p->p_addr->u_pcb.pcb_onfault = 0;
+		    td != NULL &&
+		    td->td_pcb->pcb_onfault == (unsigned long)fswintrberr &&
+		    td->td_pcb->pcb_accessaddr == va) {
+			framep->tf_cr_iip = td->td_pcb->pcb_onfault;
+			td->td_pcb->pcb_onfault = 0;
 			goto out;
 		}
 		mtx_lock(&Giant);
@@ -301,8 +302,8 @@ trap(int vector, int imm, struct trapframe *framep)
 		 */
 		if (!user 
 		    && ((va >= VM_MIN_KERNEL_ADDRESS) 
-			|| (p == NULL) 
-			|| (p->p_addr->u_pcb.pcb_onfault == 0))) {
+			|| (td == NULL) 
+			|| (td->td_pcb->pcb_onfault == 0))) {
 			if (va >= trunc_page(PS_STRINGS
 					     - szsigcode
 					     - SPARE_USRSPACE)
@@ -405,7 +406,7 @@ trap(int vector, int imm, struct trapframe *framep)
 	trapsignal(p, i, ucode);
 out:
 	if (user)
-		userret(p, framep, sticks);
+		userret(td, framep, sticks);
 	if (mtx_owned(&Giant))
 		mtx_unlock(&Giant);
 	return;
@@ -439,15 +440,18 @@ void
 syscall(int code, u_int64_t *args, struct trapframe *framep)
 {
 	struct sysent *callp;
+	struct thread *td;
 	struct proc *p;
 	int error = 0;
 	u_int64_t oldip, oldri;
 	u_int sticks;
 
 	cnt.v_syscall++;
-	p = curproc;
-	p->p_frame = framep;
-	sticks = p->p_sticks;
+	td = curthread;
+	p = td->td_proc;
+
+	td->td_frame = framep;
+	sticks = td->td_kse->ke_sticks;
 
 	mtx_lock(&Giant);
 	/*
@@ -463,7 +467,7 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	}
 			   
 #ifdef DIAGNOSTIC
-	ia64_fpstate_check(p);
+	ia64_fpstate_check(td);
 #endif
 
 	if (p->p_sysent->sv_prepsyscall) {
@@ -496,19 +500,19 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 		ktrsyscall(p->p_tracep, code, (callp->sy_narg & SYF_ARGMASK), args);
 #endif
 	if (error == 0) {
-		p->p_retval[0] = 0;
-		p->p_retval[1] = 0;
+		td->td_retval[0] = 0;
+		td->td_retval[1] = 0;
 
 		STOPEVENT(p, S_SCE, (callp->sy_narg & SYF_ARGMASK));
 
-		error = (*callp->sy_call)(p, args);
+		error = (*callp->sy_call)(td, args);
 	}
 
 
 	switch (error) {
 	case 0:
-		framep->tf_r[FRAME_R8] = p->p_retval[0];
-		framep->tf_r[FRAME_R9] = p->p_retval[1];
+		framep->tf_r[FRAME_R8] = td->td_retval[0];
+		framep->tf_r[FRAME_R9] = td->td_retval[1];
 		framep->tf_r[FRAME_R10] = 0;
 		break;
 	case ERESTART:
@@ -530,10 +534,10 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 		break;
 	}
 
-	userret(p, framep, sticks);
+	userret(td, framep, sticks);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET))
-		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
+		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
 #endif
 	mtx_unlock(&Giant);
 
@@ -545,7 +549,7 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	STOPEVENT(p, S_SCX, code);
 
 #ifdef WITNESS
-	if (witness_list(p)) {
+	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
 		    syscallnames[code]);
 	}
@@ -558,21 +562,25 @@ extern int	ia64_unaligned_print, ia64_unaligned_fix;
 extern int	ia64_unaligned_sigbus;
 
 static int
-unaligned_fixup(struct trapframe *framep, struct proc *p)
+unaligned_fixup(struct trapframe *framep, struct thread *td)
 {
 	vm_offset_t va = framep->tf_cr_ifa;
 	int doprint, dofix, dosigbus;
 	int signal, size = 0;
 	unsigned long uac;
+	struct proc *p;
 
 	/*
 	 * Figure out what actions to take.
 	 */
 
-	if (p)
-		uac = p->p_md.md_flags & MDP_UAC_MASK;
-	else
+	if (td) {
+		uac = td->td_md.md_flags & MDP_UAC_MASK;
+		p = td->td_proc;
+	} else {
 		uac = 0;
+		p = NULL;
+	}
 
 	doprint = ia64_unaligned_print && !(uac & MDP_UAC_NOPRINT);
 	dofix = ia64_unaligned_fix && !(uac & MDP_UAC_NOFIX);
@@ -593,7 +601,7 @@ unaligned_fixup(struct trapframe *framep, struct proc *p)
 	 */
 	if (doprint) {
 		uprintf("pid %d (%s): unaligned access: va=0x%lx pc=0x%lx\n",
-			p->p_pid, p->p_comm, va, p->p_frame->tf_cr_iip);
+			p->p_pid, p->p_comm, va, td->td_frame->tf_cr_iip);
 	}
 
 	/*

@@ -138,12 +138,12 @@ SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL)
  */
 /* ARGSUSED */
 int
-reboot(struct proc *p, struct reboot_args *uap)
+reboot(struct thread *td, struct reboot_args *uap)
 {
 	int error;
 
 	mtx_lock(&Giant);
-	if ((error = suser(p)) == 0)
+	if ((error = suser_td(td)) == 0)
 		boot(uap->opt);
 	mtx_unlock(&Giant);
 	return (error);
@@ -237,7 +237,7 @@ boot(int howto)
 		waittime = 0;
 		printf("\nsyncing disks... ");
 
-		sync(&proc0, NULL);
+		sync(thread0, NULL);
 
 		/*
 		 * With soft updates, some buffers that are
@@ -262,13 +262,13 @@ boot(int howto)
 			if (nbusy < pbusy)
 				iter = 0;
 			pbusy = nbusy;
-			sync(&proc0, NULL);
- 			if (curproc != NULL) {
+			sync(thread0, NULL);
+ 			if (curthread != NULL) {
 				DROP_GIANT_NOSWITCH();
    				for (subiter = 0; subiter < 50 * iter; subiter++) {
      					mtx_lock_spin(&sched_lock);
-     					setrunqueue(curproc);
-					curproc->p_stats->p_ru.ru_nvcsw++;
+     					setrunqueue(curthread);
+					curthread->td_proc->p_stats->p_ru.ru_nvcsw++;
      					mi_switch(); /* Allow interrupt threads to run */
      					mtx_unlock_spin(&sched_lock);
      					DELAY(1000);

@@ -44,7 +44,7 @@
 
 /* Forward declare these structures referenced from prototypes below. */
 struct mbuf;
-struct proc;
+struct thread;
 struct sockaddr;
 struct socket;
 struct sockopt;
@@ -86,7 +86,7 @@ typedef	void	pr_slowtimo_t (void);
 typedef	void	pr_drain_t (void);
 
 typedef int	pr_usrreq_t(struct socket *, int, struct mbuf *,
-			     struct mbuf *, struct mbuf *, struct proc *);
+			     struct mbuf *, struct mbuf *, struct thread *);
 
 struct protosw {
 	short	pr_type;		/* socket type used for */
@@ -199,17 +199,17 @@ struct pr_usrreqs {
 	int	(*pru_abort) __P((struct socket *so));
 	int	(*pru_accept) __P((struct socket *so, struct sockaddr **nam));
 	int	(*pru_attach) __P((struct socket *so, int proto,
-				   struct proc *p));
+				   struct thread *td));
 	int	(*pru_bind) __P((struct socket *so, struct sockaddr *nam,
-				 struct proc *p));
+				 struct thread *td));
 	int	(*pru_connect) __P((struct socket *so, struct sockaddr *nam,
-				    struct proc *p));
+				    struct thread *td));
 	int	(*pru_connect2) __P((struct socket *so1, struct socket *so2));
 	int	(*pru_control) __P((struct socket *so, u_long cmd, caddr_t data,
-				    struct ifnet *ifp, struct proc *p));
+				    struct ifnet *ifp, struct thread *td));
 	int	(*pru_detach) __P((struct socket *so));
 	int	(*pru_disconnect) __P((struct socket *so));
-	int	(*pru_listen) __P((struct socket *so, struct proc *p));
+	int	(*pru_listen) __P((struct socket *so, struct thread *td));
 	int	(*pru_peeraddr) __P((struct socket *so, 
 				     struct sockaddr **nam));
 	int	(*pru_rcvd) __P((struct socket *so, int flags));
@@ -217,7 +217,7 @@ struct pr_usrreqs {
 				   int flags));
 	int	(*pru_send) __P((struct socket *so, int flags, struct mbuf *m, 
 				 struct sockaddr *addr, struct mbuf *control,
-				 struct proc *p));
+				 struct thread *td));
 #define	PRUS_OOB	0x1
 #define	PRUS_EOF	0x2
 #define	PRUS_MORETOCOME	0x4
@@ -237,22 +237,22 @@ struct pr_usrreqs {
 	int	(*pru_sosend) __P((struct socket *so, struct sockaddr *addr,
 				   struct uio *uio, struct mbuf *top,
 				   struct mbuf *control, int flags,
-				   struct proc *p));
+				   struct thread *td));
 	int	(*pru_soreceive) __P((struct socket *so, 
 				      struct sockaddr **paddr,
 				      struct uio *uio, struct mbuf **mp0,
 				      struct mbuf **controlp, int *flagsp));
 	int	(*pru_sopoll) __P((struct socket *so, int events,
-				     struct ucred *cred, struct proc *p));
+				     struct ucred *cred, struct thread *td));
 };
 
 int	pru_accept_notsupp __P((struct socket *so, struct sockaddr **nam));
 int	pru_connect_notsupp __P((struct socket *so, struct sockaddr *nam,
-				 struct proc *p));
+				 struct thread *td));
 int	pru_connect2_notsupp __P((struct socket *so1, struct socket *so2));
 int	pru_control_notsupp __P((struct socket *so, u_long cmd, caddr_t data,
-				 struct ifnet *ifp, struct proc *p));
-int	pru_listen_notsupp __P((struct socket *so, struct proc *p));
+				 struct ifnet *ifp, struct thread *td));
+int	pru_listen_notsupp __P((struct socket *so, struct thread *td));
 int	pru_rcvd_notsupp __P((struct socket *so, int flags));
 int	pru_rcvoob_notsupp __P((struct socket *so, struct mbuf *m, int flags));
 int	pru_sense_null __P((struct socket *so, struct stat *sb));

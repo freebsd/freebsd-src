@@ -554,11 +554,11 @@ extern struct nfsnodehashhead *nfsnodehashtbl;
 extern u_long nfsnodehash;
 
 struct nfssvc_args;
-extern int nfssvc(struct proc *, struct nfssvc_args *, int *);
+extern int nfssvc(struct thread *, struct nfssvc_args *, int *);
 
 LIST_HEAD(nfsnodehashhead, nfsnode);
 
-int nfs_webnamei __P((struct nameidata *, struct vnode *, struct proc *));
+int nfs_webnamei __P((struct nameidata *, struct vnode *, struct thread *));
 
 u_quad_t
 nfs_curusec() 
@@ -950,7 +950,7 @@ nfsm_disct(mdp, dposp, siz, left, cp2)
 {
 	register struct mbuf *mp, *mp2;
 	register int siz2, xfer;
-	register caddr_t p;
+	register caddr_t ptr;
 
 	mp = *mdp;
 	while (left == 0) {
@@ -973,10 +973,10 @@ nfsm_disct(mdp, dposp, siz, left, cp2)
 		mp->m_next = mp2;
 		mp->m_len -= left;
 		mp = mp2;
-		*cp2 = p = mtod(mp, caddr_t);
-		bcopy(*dposp, p, left);		/* Copy what was left */
+		*cp2 = ptr = mtod(mp, caddr_t);
+		bcopy(*dposp, ptr, left);		/* Copy what was left */
 		siz2 = siz-left;
-		p += left;
+		ptr += left;
 		mp2 = mp->m_next;
 		/* Loop around copying up the siz2 bytes */
 		while (siz2 > 0) {
@@ -984,10 +984,10 @@ nfsm_disct(mdp, dposp, siz, left, cp2)
 				return (EBADRPC);
 			xfer = (siz2 > mp2->m_len) ? mp2->m_len : siz2;
 			if (xfer > 0) {
-				bcopy(mtod(mp2, caddr_t), p, xfer);
+				bcopy(mtod(mp2, caddr_t), ptr, xfer);
 				NFSMADV(mp2, xfer);
 				mp2->m_len -= xfer;
-				p += xfer;
+				ptr += xfer;
 				siz2 -= xfer;
 			}
 			if (siz2 > 0)
@@ -1464,7 +1464,7 @@ nfs_getattrcache(vp, vaper)
  * released by the caller.
  */
 int
-nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
+nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, td, kerbflag, pubflag)
 	register struct nameidata *ndp;
 	fhandle_t *fhp;
 	int len;
@@ -1473,7 +1473,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	struct mbuf **mdp;
 	caddr_t *dposp;
 	struct vnode **retdirp;
-	struct proc *p;
+	struct thread *td;
 	int kerbflag, pubflag;
 {
 	register int i, rem;
@@ -1613,7 +1613,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	 * becuase lookup() will dereference ni_startdir.
 	 */
 
-	cnp->cn_proc = p;
+	cnp->cn_thread = td;
 	VREF(dp);
 	ndp->ni_startdir = dp;
 
@@ -1649,7 +1649,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 		 * Validate symlink
 		 */
 		if ((cnp->cn_flags & LOCKPARENT) && ndp->ni_pathlen == 1)
-			VOP_UNLOCK(ndp->ni_dvp, 0, p);
+			VOP_UNLOCK(ndp->ni_dvp, 0, td);
 		if (!pubflag) {
 			error = EINVAL;
 			goto badlink2;
@@ -1670,7 +1670,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 		auio.uio_offset = 0;
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_SYSSPACE;
-		auio.uio_procp = (struct proc *)0;
+		auio.uio_td = (struct thread *)0;
 		auio.uio_resid = MAXPATHLEN;
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
 		if (error) {
@@ -1924,7 +1924,7 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag, pubflag)
 	int kerbflag;
 	int pubflag;
 {
-	struct proc *p = curproc; /* XXX */
+	struct thread *td = curthread; /* XXX */
 	register struct mount *mp;
 	register int i;
 	struct ucred *credanon;
@@ -1988,7 +1988,7 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag, pubflag)
 	nfsrv_object_create(*vpp);
 
 	if (!lockflag)
-		VOP_UNLOCK(*vpp, 0, p);
+		VOP_UNLOCK(*vpp, 0, td);
 	return (0);
 }
 
@@ -2196,8 +2196,8 @@ nfsrv_object_create(vp)
 
 	if (vp == NULL || vp->v_type != VREG)
 		return (1);
-	return (vfs_object_create(vp, curproc,
-				  curproc ? curproc->p_ucred : NULL));
+	return (vfs_object_create(vp, curthread,
+			  curthread ? curthread->td_proc->p_ucred : NULL));
 }
 
 /*

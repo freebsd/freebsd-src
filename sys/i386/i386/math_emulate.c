@@ -98,8 +98,8 @@ math_emulate(struct trapframe * info)
 	u_int32_t oldeip;
 
 	/* ever used fp? */
-	if ((((struct pcb *)curproc->p_addr)->pcb_flags & FP_SOFTFP) == 0) {
-		((struct pcb *)curproc->p_addr)->pcb_flags |= FP_SOFTFP;
+	if ((curthread->td_pcb->pcb_flags & FP_SOFTFP) == 0) {
+		curthread->td_pcb->pcb_flags |= FP_SOFTFP;
 		I387.cwd = 0x037f;
 		I387.swd = 0x0000;
 		I387.twd = 0x0000;
@@ -604,7 +604,7 @@ static int __regoffset[] = {
 	tEAX, tECX, tEDX, tEBX, tESP, tEBP, tESI, tEDI
 };
 
-#define REG(x) (((int *)curproc->p_frame)[__regoffset[(x)]])
+#define REG(x) (((int *)curthread->td_frame)[__regoffset[(x)]])
 
 static char *
 sib(struct trapframe * info, int mod)

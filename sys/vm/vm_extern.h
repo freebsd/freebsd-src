@@ -47,16 +47,16 @@ struct vnode;
 #ifdef _KERNEL
 
 #ifdef TYPEDEF_FOR_UAP
-int getpagesize __P((struct proc * p, void *, int *));
-int madvise __P((struct proc *, void *, int *));
-int mincore __P((struct proc *, void *, int *));
-int mprotect __P((struct proc *, void *, int *));
-int msync __P((struct proc *, void *, int *));
-int munmap __P((struct proc *, void *, int *));
-int obreak __P((struct proc *, void *, int *));
-int sbrk __P((struct proc *, void *, int *));
-int sstk __P((struct proc *, void *, int *));
-int swapon __P((struct proc *, void *, int *));
+int getpagesize __P((struct thread *, void *, int *));
+int madvise __P((struct thread *, void *, int *));
+int mincore __P((struct thread *, void *, int *));
+int mprotect __P((struct thread *, void *, int *));
+int msync __P((struct thread *, void *, int *));
+int munmap __P((struct thread *, void *, int *));
+int obreak __P((struct thread *, void *, int *));
+int sbrk __P((struct thread *, void *, int *));
+int sstk __P((struct thread *, void *, int *));
+int swapon __P((struct thread *, void *, int *));
 #endif
 
 int grow __P((struct proc *, size_t));
@@ -71,8 +71,8 @@ void kmem_free_wakeup __P((vm_map_t, vm_offset_t, vm_size_t));
 void kmem_init __P((vm_offset_t, vm_offset_t));
 vm_offset_t kmem_malloc __P((vm_map_t, vm_size_t, boolean_t));
 vm_map_t kmem_suballoc __P((vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t));
-void munmapfd __P((struct proc *, int));
-int swaponvp __P((struct proc *, struct vnode *, dev_t , u_long));
+void munmapfd __P((struct thread *, int));
+int swaponvp __P((struct thread *, struct vnode *, dev_t , u_long));
 void swapout_procs __P((int));
 int useracc __P((caddr_t, int, int));
 int vm_fault __P((vm_map_t, vm_offset_t, vm_prot_t, int));
@@ -80,7 +80,7 @@ void vm_fault_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t
 void vm_fault_unwire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fault_wire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fault_user_wire __P((vm_map_t, vm_offset_t, vm_offset_t));
-void vm_forkproc __P((struct proc *, struct proc *, int));
+void vm_forkproc __P((struct thread *, struct proc *, int));
 void vm_waitproc __P((struct proc *));
 int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, void *, vm_ooffset_t));
 vm_offset_t vm_page_alloc_contig __P((vm_offset_t, vm_offset_t, vm_offset_t, vm_offset_t));

@@ -62,11 +62,14 @@
  * MPSAFE
  */
 void
-userret(p, frame, oticks)
-	struct proc *p;
+userret(td, frame, oticks)
+	struct thread *td;
 	struct trapframe *frame;
 	u_int oticks;
 {
+	struct proc *p = td->td_proc;
+	struct kse *ke = td->td_kse; 
+	struct ksegrp *kg = td->td_ksegrp;
 	int sig;
 
 	mtx_lock(&Giant);
@@ -77,8 +80,8 @@ userret(p, frame, oticks)
 	mtx_unlock(&Giant);
 
 	mtx_lock_spin(&sched_lock);
-	p->p_pri.pri_level = p->p_pri.pri_user;
-	if (p->p_sflag & PS_NEEDRESCHED) {
+	kg->kg_pri.pri_level = kg->kg_pri.pri_user;
+	if (ke->ke_flags & KEF_NEEDRESCHED) {
 		/*
 		 * Since we are curproc, a clock interrupt could
 		 * change our priority without changing run queues
@@ -88,7 +91,7 @@ userret(p, frame, oticks)
 		 * indicated by our priority.
 		 */
 		DROP_GIANT_NOSWITCH();
-		setrunqueue(p);
+		setrunqueue(td);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
@@ -105,9 +108,10 @@ userret(p, frame, oticks)
 	/*
 	 * Charge system time if profiling.
 	 */
-	if (p->p_sflag & PS_PROFIL)
-		addupc_task(p, TRAPF_PC(frame),
-			    ((u_int)p->p_sticks - oticks) * psratio);
+	if (p->p_sflag & PS_PROFIL) {
+		addupc_task(ke, TRAPF_PC(frame),
+			    (u_int)(ke->ke_sticks - oticks) * psratio);
+	}
 }
 
 /*
@@ -119,42 +123,47 @@ void
 ast(framep)
 	struct trapframe *framep;
 {
-	struct proc *p = CURPROC;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	struct kse *ke = td->td_kse;
 	u_int prticks, sticks;
 	critical_t s;
 	int sflag;
+	int flags;
 #if defined(DEV_NPX) && !defined(SMP)
 	int ucode;
 #endif
 
 	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
 #ifdef WITNESS
-	if (witness_list(p))
+	if (witness_list(td))
 		panic("Returning to user mode with mutex(s) held");
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);
 	s = critical_enter();
-	while ((p->p_sflag & (PS_ASTPENDING | PS_NEEDRESCHED)) != 0) {
+	while ((ke->ke_flags & (KEF_ASTPENDING | KEF_NEEDRESCHED)) != 0) {
 		critical_exit(s);
-		p->p_frame = framep;
+		td->td_frame = framep;
 		/*
 		 * This updates the p_sflag's for the checks below in one
 		 * "atomic" operation with turning off the astpending flag.
 		 * If another AST is triggered while we are handling the
 		 * AST's saved in sflag, the astpending flag will be set and
 		 * we will loop again.
+		 * XXXKSE  Can't do it atomically in KSE
 		 */
 		mtx_lock_spin(&sched_lock);
-		sticks = p->p_sticks;
+		sticks = ke->ke_sticks;
 		sflag = p->p_sflag;
-		p->p_sflag &= ~(PS_OWEUPC | PS_ALRMPEND | PS_PROFPEND |
-		    PS_ASTPENDING);
+		flags = ke->ke_flags;
+		p->p_sflag &= ~(PS_PROFPEND | PS_ALRMPEND);
+		ke->ke_flags &= ~(KEF_OWEUPC | KEF_ASTPENDING);
 		cnt.v_soft++;
-		if (sflag & PS_OWEUPC) {
+		if (flags & KEF_OWEUPC) {
 			prticks = p->p_stats->p_prof.pr_ticks;
 			p->p_stats->p_prof.pr_ticks = 0;
 			mtx_unlock_spin(&sched_lock);
-			addupc_task(p, p->p_stats->p_prof.pr_addr, prticks);
+			addupc_task(ke, p->p_stats->p_prof.pr_addr, prticks);
 		} else
 			mtx_unlock_spin(&sched_lock);
 		if (sflag & PS_ALRMPEND) {
@@ -178,7 +187,7 @@ ast(framep)
 			PROC_UNLOCK(p);
 		}
 
-		userret(p, framep, sticks);
+		userret(td, framep, sticks);
 		s = critical_enter();
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);

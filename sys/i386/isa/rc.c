@@ -715,10 +715,10 @@ rc_stop(tp, rw)
 }
 
 static	int
-rcopen(dev, flag, mode, p)
+rcopen(dev, flag, mode, td)
 	dev_t           dev;
 	int             flag, mode;
-	struct proc    *p;
+	struct thread  *td;
 {
 	register struct rc_chans *rc;
 	register struct tty      *tp;
@@ -764,7 +764,7 @@ again:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser(p)) {
+		    suser_td(td)) {
 			error = EBUSY;
 			goto out;
 		}
@@ -810,10 +810,10 @@ out:
 }
 
 static	int
-rcclose(dev, flag, mode, p)
+rcclose(dev, flag, mode, td)
 	dev_t           dev;
 	int             flag, mode;
-	struct proc    *p;
+	struct thread  *td;
 {
 	register struct rc_chans *rc;
 	register struct tty      *tp;
@@ -1064,18 +1064,18 @@ struct rc_softc         *rcb;
 }
 
 static	int
-rcioctl(dev, cmd, data, flag, p)
+rcioctl(dev, cmd, data, flag, td)
 dev_t           dev;
 u_long          cmd;
 int		flag;
 caddr_t         data;
-struct proc     *p;
+struct thread  *td;
 {
 	register struct rc_chans       *rc = &rc_chans[GET_UNIT(dev)];
 	register int                    s, error;
 	struct tty                     *tp = rc->rc_tp;
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error != ENOIOCTL)
 		return (error);
 	error = ttioctl(tp, cmd, data, flag);
@@ -1118,7 +1118,7 @@ struct proc     *p;
 		break;
 
 	    case TIOCMSDTRWAIT:
-		error = suser(p);
+		error = suser_td(td);
 		if (error != 0) {
 			splx(s);
 			return (error);

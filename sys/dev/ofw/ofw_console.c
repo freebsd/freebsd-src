@@ -86,7 +86,7 @@ static int	stdin;
 static int	stdout;
 
 static int
-ofw_dev_open(dev_t dev, int flag, int mode, struct proc *p)
+ofw_dev_open(dev_t dev, int flag, int mode, struct thread *td)
 {
 	struct	tty *tp;
 	int	unit;
@@ -114,7 +114,7 @@ ofw_dev_open(dev_t dev, int flag, int mode, struct proc *p)
 		ttsetwater(tp);
 
 		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) && suser(p)) {
+	} else if ((tp->t_state & TS_XCLUDE) && suser_td(td)) {
 		return (EBUSY);
 	}
 
@@ -133,7 +133,7 @@ ofw_dev_open(dev_t dev, int flag, int mode, struct proc *p)
 }
 
 static int
-ofw_dev_close(dev_t dev, int flag, int mode, struct proc *p)
+ofw_dev_close(dev_t dev, int flag, int mode, struct thread *td)
 {
 	int	unit;
 	struct	tty *tp;
@@ -152,7 +152,7 @@ ofw_dev_close(dev_t dev, int flag, int mode, struct proc *p)
 }
 
 static int
-ofw_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+ofw_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int	unit;
 	struct	tty *tp;
@@ -165,7 +165,7 @@ ofw_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		return (ENXIO);
 	}
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error != ENOIOCTL) {
 		return (error);
 	}

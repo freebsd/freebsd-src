@@ -48,10 +48,10 @@ IDTVEC(vec_name) ;							\
 	movl	$KPSEL,%eax ;						\
 	mov	%ax,%fs ;						\
 	FAKE_MCOUNT(13*4(%esp)) ;					\
-	movl	PCPU(CURPROC),%ebx ;					\
-	incl	P_INTR_NESTING_LEVEL(%ebx) ;				\
+	movl	PCPU(CURTHREAD),%ebx ;					\
+	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 	pushl	intr_unit + (irq_num) * 4 ;				\
-	call	*intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
+	call	*intr_handler + (irq_num) * 4 ;	/* do the work ASAP */	\
 	addl	$4, %esp ;						\
 	movl	$0, lapic+LA_EOI ;					\
 	lock ; 								\
@@ -59,7 +59,7 @@ IDTVEC(vec_name) ;							\
 	movl	intr_countp + (irq_num) * 4, %eax ;			\
 	lock ; 								\
 	incl	(%eax) ;						\
-	decl	P_INTR_NESTING_LEVEL(%ebx) ;				\
+	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 	MEXITCOUNT ;							\
 	jmp	doreti
 
@@ -152,8 +152,8 @@ IDTVEC(vec_name) ;							\
 	MASK_LEVEL_IRQ(irq_num) ;					\
 	EOI_IRQ(irq_num) ;						\
 0: ;									\
-	movl	PCPU(CURPROC),%ebx ;					\
-	incl	P_INTR_NESTING_LEVEL(%ebx) ;				\
+	movl	PCPU(CURTHREAD),%ebx ;					\
+	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 ;	 								\
   /* entry point used by doreti_unpend for HWIs. */			\
 __CONCAT(Xresume,irq_num): ;						\
@@ -162,7 +162,7 @@ __CONCAT(Xresume,irq_num): ;						\
 	call	sched_ithd ;						\
 	addl	$4, %esp ;		/* discard the parameter */	\
 ;									\
-	decl	P_INTR_NESTING_LEVEL(%ebx) ;				\
+	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 	MEXITCOUNT ;							\
 	jmp	doreti
 
@@ -227,10 +227,10 @@ Xhardclock:
 
 	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
-	movl	PCPU(CURPROC),%ebx
-	incl	P_INTR_NESTING_LEVEL(%ebx)
+	movl	PCPU(CURTHREAD),%ebx
+	incl	TD_INTR_NESTING_LEVEL(%ebx)
 	call	forwarded_hardclock
-	decl	P_INTR_NESTING_LEVEL(%ebx)
+	decl	TD_INTR_NESTING_LEVEL(%ebx)
 	MEXITCOUNT
 	jmp	doreti
 
@@ -252,10 +252,10 @@ Xstatclock:
 	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	FAKE_MCOUNT(13*4(%esp))
-	movl	PCPU(CURPROC),%ebx
-	incl	P_INTR_NESTING_LEVEL(%ebx)
+	movl	PCPU(CURTHREAD),%ebx
+	incl	TD_INTR_NESTING_LEVEL(%ebx)
 	call	forwarded_statclock
-	decl	P_INTR_NESTING_LEVEL(%ebx)
+	decl	TD_INTR_NESTING_LEVEL(%ebx)
 	MEXITCOUNT
 	jmp	doreti
 

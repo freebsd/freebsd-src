@@ -252,7 +252,7 @@ ad_detach(struct ad_softc *adp, int flush)
 }
 
 static int
-adopen(dev_t dev, int flags, int fmt, struct proc *p)
+adopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct ad_softc *adp = dev->si_drv1;
 
@@ -262,7 +262,7 @@ adopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-adclose(dev_t dev, int flags, int fmt, struct proc *p)
+adclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct ad_softc *adp = dev->si_drv1;
 

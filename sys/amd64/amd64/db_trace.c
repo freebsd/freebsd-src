@@ -291,13 +291,15 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	boolean_t first;
 	struct pcb *pcb;
 	struct proc *p;
+	struct thread *td;
 	pid_t pid;
 
 	if (count == -1)
 		count = 1024;
 
 	if (!have_addr) {
-		p = curproc;
+		td = curthread;
+		p = td->td_proc;
 		frame = (struct i386_frame *)ddb_regs.tf_ebp;
 		if (frame == NULL)
 			frame = (struct i386_frame *)(ddb_regs.tf_esp - 4);
@@ -310,8 +312,9 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 		 * The pcb for curproc is not valid at this point,
 		 * so fall back to the default case.
 		 */
-		if (pid == curproc->p_pid) {
-			p = curproc;
+		if (pid == curthread->td_proc->p_pid) {
+			td = curthread;
+			p = td->td_proc;
 			frame = (struct i386_frame *)ddb_regs.tf_ebp;
 			if (frame == NULL)
 				frame = (struct i386_frame *)
@@ -333,7 +336,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 				db_printf("pid %d swapped out\n", pid);
 				return;
 			}
-			pcb = &p->p_addr->u_pcb;
+			pcb = p->p_thread.td_pcb;	/* XXXKSE */
 			frame = (struct i386_frame *)pcb->pcb_ebp;
 			if (frame == NULL)
 				frame = (struct i386_frame *)

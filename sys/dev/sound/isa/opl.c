@@ -764,7 +764,7 @@ oplsbc_attach(device_t dev)
 }
 
 static int
-opl_open(dev_t i_dev, int flags, int mode, struct proc *p)
+opl_open(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	sc_p scp;
 	mididev_info *devinfo;
@@ -805,7 +805,7 @@ opl_open(dev_t i_dev, int flags, int mode, struct proc *p)
 }
 
 static int
-opl_close(dev_t i_dev, int flags, int mode, struct proc *p)
+opl_close(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	sc_p scp;
 	mididev_info *devinfo;
@@ -838,7 +838,7 @@ opl_close(dev_t i_dev, int flags, int mode, struct proc *p)
 }
 
 static int
-opl_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
+opl_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	sc_p scp;
 	mididev_info *devinfo;

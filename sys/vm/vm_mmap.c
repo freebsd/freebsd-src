@@ -112,8 +112,8 @@ vmmapentry_rsrc_init(dummy)
  */
 /* ARGSUSED */
 int
-sbrk(p, uap)
-	struct proc *p;
+sbrk(td, uap)
+	struct thread *td;
 	struct sbrk_args *uap;
 {
 	/* Not yet implemented */
@@ -133,8 +133,8 @@ struct sstk_args {
  */
 /* ARGSUSED */
 int
-sstk(p, uap)
-	struct proc *p;
+sstk(td, uap)
+	struct thread *td;
 	struct sstk_args *uap;
 {
 	/* Not yet implemented */
@@ -152,12 +152,12 @@ struct getpagesize_args {
 
 /* ARGSUSED */
 int
-ogetpagesize(p, uap)
-	struct proc *p;
+ogetpagesize(td, uap)
+	struct thread *td;
 	struct getpagesize_args *uap;
 {
 	/* MP SAFE */
-	p->p_retval[0] = PAGE_SIZE;
+	td->td_retval[0] = PAGE_SIZE;
 	return (0);
 }
 #endif				/* COMPAT_43 || COMPAT_SUNOS */
@@ -196,11 +196,11 @@ struct mmap_args {
  * MPSAFE
  */
 int
-mmap(p, uap)
-	struct proc *p;
+mmap(td, uap)
+	struct thread *td;
 	struct mmap_args *uap;
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp = NULL;
 	struct vnode *vp;
 	vm_offset_t addr;
@@ -210,7 +210,7 @@ mmap(p, uap)
 	int flags, error;
 	int disablexworkaround;
 	off_t pos;
-	struct vmspace *vms = p->p_vmspace;
+	struct vmspace *vms = td->td_proc->p_vmspace;
 	vm_object_t obj;
 
 	addr = (vm_offset_t) uap->addr;
@@ -358,7 +358,7 @@ mmap(p, uap)
 			if (securelevel >= 1)
 				disablexworkaround = 1;
 			else
-				disablexworkaround = suser(p);
+				disablexworkaround = suser_td(td);
 			if (vp->v_type == VCHR && disablexworkaround &&
 			    (flags & (MAP_PRIVATE|MAP_COPY))) {
 				error = EINVAL;
@@ -396,7 +396,7 @@ mmap(p, uap)
 					struct vattr va;
 					if ((error =
 					    VOP_GETATTR(vp, &va,
-						        p->p_ucred, p))) {
+						        td->td_proc->p_ucred, td))) {
 						goto done;
 					}
 					if ((va.va_flags &
@@ -433,11 +433,11 @@ mmap(p, uap)
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle, pos);
 	if (error == 0)
-		p->p_retval[0] = (register_t) (addr + pageoff);
+		td->td_retval[0] = (register_t) (addr + pageoff);
 	mtx_lock(&Giant);
 done:
 	if (fp)
-		fdrop(fp, p);
+		fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -455,8 +455,8 @@ struct ommap_args {
 };
 #endif
 int
-ommap(p, uap)
-	struct proc *p;
+ommap(td, uap)
+	struct thread *td;
 	struct ommap_args *uap;
 {
 	struct mmap_args nargs;
@@ -492,7 +492,7 @@ ommap(p, uap)
 		nargs.flags |= MAP_FIXED;
 	nargs.fd = uap->fd;
 	nargs.pos = uap->pos;
-	return (mmap(p, &nargs));
+	return (mmap(td, &nargs));
 }
 #endif				/* COMPAT_43 */
 
@@ -508,8 +508,8 @@ struct msync_args {
  * MPSAFE
  */
 int
-msync(p, uap)
-	struct proc *p;
+msync(td, uap)
+	struct thread *td;
 	struct msync_args *uap;
 {
 	vm_offset_t addr;
@@ -534,7 +534,7 @@ msync(p, uap)
 
 	mtx_lock(&Giant);
 
-	map = &p->p_vmspace->vm_map;
+	map = &td->td_proc->p_vmspace->vm_map;
 
 	/*
 	 * XXX Gak!  If size is zero we are supposed to sync "all modified
@@ -588,8 +588,8 @@ struct munmap_args {
  * MPSAFE
  */
 int
-munmap(p, uap)
-	struct proc *p;
+munmap(td, uap)
+	struct thread *td;
 	struct munmap_args *uap;
 {
 	vm_offset_t addr;
@@ -620,7 +620,7 @@ munmap(p, uap)
 		return (EINVAL);
 #endif
 	mtx_lock(&Giant);
-	map = &p->p_vmspace->vm_map;
+	map = &td->td_proc->p_vmspace->vm_map;
 	/*
 	 * Make sure entire range is allocated.
 	 */
@@ -636,14 +636,14 @@ munmap(p, uap)
 
 #if 0
 void
-munmapfd(p, fd)
-	struct proc *p;
+munmapfd(td, fd)
+	struct thread *td;
 	int fd;
 {
 	/*
 	 * XXX should unmap any regions mapped to this file
 	 */
-	p->p_fd->fd_ofileflags[fd] &= ~UF_MAPPED;
+	td->td_proc->p_fd->fd_ofileflags[fd] &= ~UF_MAPPED;
 }
 #endif
 
@@ -658,8 +658,8 @@ struct mprotect_args {
  * MPSAFE
  */
 int
-mprotect(p, uap)
-	struct proc *p;
+mprotect(td, uap)
+	struct thread *td;
 	struct mprotect_args *uap;
 {
 	vm_offset_t addr;
@@ -683,7 +683,7 @@ mprotect(p, uap)
 		return(EINVAL);
 
 	mtx_lock(&Giant);
-	ret = vm_map_protect(&p->p_vmspace->vm_map, addr,
+	ret = vm_map_protect(&td->td_proc->p_vmspace->vm_map, addr,
 		     addr + size, prot, FALSE);
 	mtx_unlock(&Giant);
 	switch (ret) {
@@ -706,8 +706,8 @@ struct minherit_args {
  * MPSAFE
  */
 int
-minherit(p, uap)
-	struct proc *p;
+minherit(td, uap)
+	struct thread *td;
 	struct minherit_args *uap;
 {
 	vm_offset_t addr;
@@ -727,7 +727,7 @@ minherit(p, uap)
 		return(EINVAL);
 
 	mtx_lock(&Giant);
-	ret = vm_map_inherit(&p->p_vmspace->vm_map, addr, addr+size,
+	ret = vm_map_inherit(&td->td_proc->p_vmspace->vm_map, addr, addr+size,
 		    inherit);
 	mtx_unlock(&Giant);
 
@@ -753,8 +753,8 @@ struct madvise_args {
  */
 /* ARGSUSED */
 int
-madvise(p, uap)
-	struct proc *p;
+madvise(td, uap)
+	struct thread *td;
 	struct madvise_args *uap;
 {
 	vm_offset_t start, end;
@@ -787,7 +787,7 @@ madvise(p, uap)
 	end = round_page((vm_offset_t) uap->addr + uap->len);
 	
 	mtx_lock(&Giant);
-	ret = vm_map_madvise(&p->p_vmspace->vm_map, start, end, uap->behav);
+	ret = vm_map_madvise(&td->td_proc->p_vmspace->vm_map, start, end, uap->behav);
 	mtx_unlock(&Giant);
 	return (ret ? EINVAL : 0);
 }
@@ -805,8 +805,8 @@ struct mincore_args {
  */
 /* ARGSUSED */
 int
-mincore(p, uap)
-	struct proc *p;
+mincore(td, uap)
+	struct thread *td;
 	struct mincore_args *uap;
 {
 	vm_offset_t addr, first_addr;
@@ -838,8 +838,8 @@ mincore(p, uap)
 	vec = uap->vec;
 
 	mtx_lock(&Giant);
-	map = &p->p_vmspace->vm_map;
-	pmap = vmspace_pmap(p->p_vmspace);
+	map = &td->td_proc->p_vmspace->vm_map;
+	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 
 	vm_map_lock_read(map);
 RestartScan:
@@ -1001,8 +1001,8 @@ struct mlock_args {
  * MPSAFE
  */
 int
-mlock(p, uap)
-	struct proc *p;
+mlock(td, uap)
+	struct thread *td;
 	struct mlock_args *uap;
 {
 	vm_offset_t addr;
@@ -1025,17 +1025,17 @@ mlock(p, uap)
 		return (EAGAIN);
 
 #ifdef pmap_wired_count
-	if (size + ptoa(pmap_wired_count(vm_map_pmap(&p->p_vmspace->vm_map))) >
-	    p->p_rlimit[RLIMIT_MEMLOCK].rlim_cur)
+	if (size + ptoa(pmap_wired_count(vm_map_pmap(&td->td_proc->p_vmspace->vm_map))) >
+	    td->td_proc->p_rlimit[RLIMIT_MEMLOCK].rlim_cur)
 		return (ENOMEM);
 #else
-	error = suser(p);
+	error = suser_td(td);
 	if (error)
 		return (error);
 #endif
 
 	mtx_lock(&Giant);
-	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr,
+	error = vm_map_user_pageable(&td->td_proc->p_vmspace->vm_map, addr,
 		     addr + size, FALSE);
 	mtx_unlock(&Giant);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
@@ -1051,8 +1051,8 @@ struct mlockall_args {
  * MPSAFE
  */
 int
-mlockall(p, uap)
-	struct proc *p;
+mlockall(td, uap)
+	struct thread *td;
 	struct mlockall_args *uap;
 {
 	/* mtx_lock(&Giant); */
@@ -1070,8 +1070,8 @@ struct mlockall_args {
  * MPSAFE
  */
 int
-munlockall(p, uap)
-	struct proc *p;
+munlockall(td, uap)
+	struct thread *td;
 	struct munlockall_args *uap;
 {
 	/* mtx_lock(&Giant); */
@@ -1089,8 +1089,8 @@ struct munlock_args {
  * MPSAFE
  */
 int
-munlock(p, uap)
-	struct proc *p;
+munlock(td, uap)
+	struct thread *td;
 	struct munlock_args *uap;
 {
 	vm_offset_t addr;
@@ -1110,13 +1110,13 @@ munlock(p, uap)
 		return (EINVAL);
 
 #ifndef pmap_wired_count
-	error = suser(p);
+	error = suser_td(td);
 	if (error)
 		return (error);
 #endif
 
 	mtx_lock(&Giant);
-	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr,
+	error = vm_map_user_pageable(&td->td_proc->p_vmspace->vm_map, addr,
 		     addr + size, TRUE);
 	mtx_unlock(&Giant);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
@@ -1143,7 +1143,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	int rv = KERN_SUCCESS;
 	vm_ooffset_t objsize;
 	int docow;
-	struct proc *p = curproc;
+	struct thread *td = curthread;
 
 	if (size == 0)
 		return (0);
@@ -1192,7 +1192,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			struct vattr vat;
 			int error;
 
-			error = VOP_GETATTR(vp, &vat, p->p_ucred, p);
+			error = VOP_GETATTR(vp, &vat, td->td_proc->p_ucred, td);
 			if (error) {
 				mtx_unlock(&Giant);
 				return (error);

@@ -62,11 +62,11 @@
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
 struct oshmctl_args;
-static int oshmctl __P((struct proc *p, struct oshmctl_args *uap));
+static int oshmctl __P((struct thread *td, struct oshmctl_args *uap));
 
-static int shmget_allocate_segment __P((struct proc *p,
+static int shmget_allocate_segment __P((struct thread *td,
     struct shmget_args *uap, int mode));
-static int shmget_existing __P((struct proc *p, struct shmget_args *uap,
+static int shmget_existing __P((struct thread *td, struct shmget_args *uap,
     int mode, int segnum));
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
@@ -97,7 +97,7 @@ struct shmmap_state {
 static void shm_deallocate_segment __P((struct shmid_ds *));
 static int shm_find_segment_by_key __P((key_t));
 static struct shmid_ds *shm_find_segment_by_shmid __P((int));
-static int shm_delete_mapping __P((struct proc *, struct shmmap_state *));
+static int shm_delete_mapping __P((struct proc *p, struct shmmap_state *));
 static void shmrealloc __P((void));
 static void shminit __P((void));
 static int sysvshm_modload __P((struct module *, int, void *));
@@ -237,21 +237,20 @@ struct shmdt_args {
  * MPSAFE
  */
 int
-shmdt(p, uap)
-	struct proc *p;
+shmdt(td, uap)
+	struct thread *td;
 	struct shmdt_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct shmmap_state *shmmap_s;
 	int i;
 	int error = 0;
 
 	mtx_lock(&Giant);
-
 	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
-
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
  	if (shmmap_s == NULL) {
 		error = EINVAL;
@@ -285,10 +284,11 @@ struct shmat_args {
  * MPSAFE
  */
 int
-shmat(p, uap)
-	struct proc *p;
+shmat(td, uap)
+	struct thread *td;
 	struct shmat_args *uap;
 {
+	struct proc *p = td->td_proc;
 	int i, flags;
 	struct shmid_ds *shmseg;
 	struct shmmap_state *shmmap_s = NULL;
@@ -300,12 +300,10 @@ shmat(p, uap)
 	int error = 0;
 
 	mtx_lock(&Giant);
-
 	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
-
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
 	if (shmmap_s == NULL) {
 		size = shminfo.shmseg * sizeof(struct shmmap_state);
@@ -319,7 +317,7 @@ shmat(p, uap)
 		error = EINVAL;
 		goto done2;
 	}
-	error = ipcperm(p, &shmseg->shm_perm,
+	error = ipcperm(td, &shmseg->shm_perm,
 	    (uap->shmflg & SHM_RDONLY) ? IPC_R : IPC_R|IPC_W);
 	if (error)
 		goto done2;
@@ -376,7 +374,7 @@ shmat(p, uap)
 	shmseg->shm_lpid = p->p_pid;
 	shmseg->shm_atime = time_second;
 	shmseg->shm_nattch++;
-	p->p_retval[0] = attach_va;
+	td->td_retval[0] = attach_va;
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -404,8 +402,8 @@ struct oshmctl_args {
  * MPSAFE
  */
 static int
-oshmctl(p, uap)
-	struct proc *p;
+oshmctl(td, uap)
+	struct thread *td;
 	struct oshmctl_args *uap;
 {
 #ifdef COMPAT_43
@@ -414,12 +412,10 @@ oshmctl(p, uap)
 	struct oshmid_ds outbuf;
 
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
-
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
 	if (shmseg == NULL) {
 		error = EINVAL;
@@ -427,7 +423,7 @@ oshmctl(p, uap)
 	}
 	switch (uap->cmd) {
 	case IPC_STAT:
-		error = ipcperm(p, &shmseg->shm_perm, IPC_R);
+		error = ipcperm(td, &shmseg->shm_perm, IPC_R);
 		if (error)
 			goto done2;
 		outbuf.shm_perm = shmseg->shm_perm;
@@ -445,7 +441,7 @@ oshmctl(p, uap)
 		break;
 	default:
 		/* XXX casting to (sy_call_t *) is bogus, as usual. */
-		error = ((sy_call_t *)shmctl)(p, uap);
+		error = ((sy_call_t *)shmctl)(td, uap);
 		break;
 	}
 done2:
@@ -468,8 +464,8 @@ struct shmctl_args {
  * MPSAFE
  */
 int
-shmctl(p, uap)
-	struct proc *p;
+shmctl(td, uap)
+	struct thread *td;
 	struct shmctl_args *uap;
 {
 	int error = 0;
@@ -477,12 +473,10 @@ shmctl(p, uap)
 	struct shmid_ds *shmseg;
 
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
-
 	shmseg = shm_find_segment_by_shmid(uap->shmid);
 	if (shmseg == NULL) {
 		error = EINVAL;
@@ -490,7 +484,7 @@ shmctl(p, uap)
 	}
 	switch (uap->cmd) {
 	case IPC_STAT:
-		error = ipcperm(p, &shmseg->shm_perm, IPC_R);
+		error = ipcperm(td, &shmseg->shm_perm, IPC_R);
 		if (error)
 			goto done2;
 		error = copyout((caddr_t)shmseg, uap->buf, sizeof(inbuf));
@@ -498,7 +492,7 @@ shmctl(p, uap)
 			goto done2;
 		break;
 	case IPC_SET:
-		error = ipcperm(p, &shmseg->shm_perm, IPC_M);
+		error = ipcperm(td, &shmseg->shm_perm, IPC_M);
 		if (error)
 			goto done2;
 		error = copyin(uap->buf, (caddr_t)&inbuf, sizeof(inbuf));
@@ -512,7 +506,7 @@ shmctl(p, uap)
 		shmseg->shm_ctime = time_second;
 		break;
 	case IPC_RMID:
-		error = ipcperm(p, &shmseg->shm_perm, IPC_M);
+		error = ipcperm(td, &shmseg->shm_perm, IPC_M);
 		if (error)
 			goto done2;
 		shmseg->shm_perm.key = IPC_PRIVATE;
@@ -544,8 +538,8 @@ struct shmget_args {
 #endif
 
 static int
-shmget_existing(p, uap, mode, segnum)
-	struct proc *p;
+shmget_existing(td, uap, mode, segnum)
+	struct thread *td;
 	struct shmget_args *uap;
 	int mode;
 	int segnum;
@@ -568,23 +562,23 @@ shmget_existing(p, uap, mode, segnum)
 	}
 	if ((uap->shmflg & (IPC_CREAT | IPC_EXCL)) == (IPC_CREAT | IPC_EXCL))
 		return EEXIST;
-	error = ipcperm(p, &shmseg->shm_perm, mode);
+	error = ipcperm(td, &shmseg->shm_perm, mode);
 	if (error)
 		return error;
 	if (uap->size && uap->size > shmseg->shm_segsz)
 		return EINVAL;
-	p->p_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
+	td->td_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
 	return 0;
 }
 
 static int
-shmget_allocate_segment(p, uap, mode)
-	struct proc *p;
+shmget_allocate_segment(td, uap, mode)
+	struct thread *td;
 	struct shmget_args *uap;
 	int mode;
 {
 	int i, segnum, shmid, size;
-	struct ucred *cred = p->p_ucred;
+	struct ucred *cred = td->td_proc->p_ucred;
 	struct shmid_ds *shmseg;
 	struct shm_handle *shm_handle;
 
@@ -641,7 +635,7 @@ shmget_allocate_segment(p, uap, mode)
 	shmseg->shm_perm.mode = (shmseg->shm_perm.mode & SHMSEG_WANTED) |
 	    (mode & ACCESSPERMS) | SHMSEG_ALLOCATED;
 	shmseg->shm_segsz = uap->size;
-	shmseg->shm_cpid = p->p_pid;
+	shmseg->shm_cpid = td->td_proc->p_pid;
 	shmseg->shm_lpid = shmseg->shm_nattch = 0;
 	shmseg->shm_atime = shmseg->shm_dtime = 0;
 	shmseg->shm_ctime = time_second;
@@ -655,7 +649,7 @@ shmget_allocate_segment(p, uap, mode)
 		shmseg->shm_perm.mode &= ~SHMSEG_WANTED;
 		wakeup((caddr_t)shmseg);
 	}
-	p->p_retval[0] = shmid;
+	td->td_retval[0] = shmid;
 	return 0;
 }
 
@@ -663,26 +657,24 @@ shmget_allocate_segment(p, uap, mode)
  * MPSAFE
  */
 int
-shmget(p, uap)
-	struct proc *p;
+shmget(td, uap)
+	struct thread *td;
 	struct shmget_args *uap;
 {
 	int segnum, mode;
 	int error;
 
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
-
 	mode = uap->shmflg & ACCESSPERMS;
 	if (uap->key != IPC_PRIVATE) {
 	again:
 		segnum = shm_find_segment_by_key(uap->key);
 		if (segnum >= 0) {
-			error = shmget_existing(p, uap, mode, segnum);
+			error = shmget_existing(td, uap, mode, segnum);
 			if (error == EAGAIN)
 				goto again;
 			goto done2;
@@ -692,7 +684,7 @@ shmget(p, uap)
 			goto done2;
 		}
 	}
-	error = shmget_allocate_segment(p, uap, mode);
+	error = shmget_allocate_segment(td, uap, mode);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -702,8 +694,8 @@ done2:
  * MPSAFE
  */
 int
-shmsys(p, uap)
-	struct proc *p;
+shmsys(td, uap)
+	struct thread *td;
 	/* XXX actually varargs. */
 	struct shmsys_args /* {
 		u_int	which;
@@ -715,17 +707,15 @@ shmsys(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-
-	if (!jail_sysvipc_allowed && jailed(p->p_ucred)) {
+	if (!jail_sysvipc_allowed && jailed(td->td_proc->p_ucred)) {
 		error = ENOSYS;
 		goto done2;
 	}
-
 	if (uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0])) {
 		error = EINVAL;
 		goto done2;
 	}
-	error = (*shmcalls[uap->which])(p, &uap->a2);
+	error = (*shmcalls[uap->which])(td, &uap->a2);
 done2:
 	mtx_unlock(&Giant);
 	return (error);

@@ -83,6 +83,7 @@ void mi_startup(void);				/* Should be elsewhere */
 static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
+struct	thread *thread0;
 static struct procsig procsig0;
 static struct filedesc0 filedesc0;
 static struct plimit limit0;
@@ -90,7 +91,6 @@ static struct vmspace vmspace0;
 struct	proc *initproc;
 
 int cmask = CMASK;
-extern	struct user *proc0paddr;
 extern int fallback_elf_brand;
 
 struct	vnode *rootvp;
@@ -273,10 +273,17 @@ proc0_init(void *dummy __unused)
 	register struct proc		*p;
 	register struct filedesc0	*fdp;
 	register unsigned i;
+	struct thread *td;
 
 	GIANT_REQUIRED;
-
+	/*
+	 * This assumes the proc0 struct has already been linked
+	 * using proc_linkup() in the machine specific initialisation
+	 * e.g. i386_init()
+	 */
 	p = &proc0;
+	td = thread0;
+	mtx_init(&p->p_mtx, "process lock", MTX_DEF);
 
 	/*
 	 * Initialize magic number.
@@ -321,11 +328,11 @@ proc0_init(void *dummy __unused)
 	p->p_flag = P_SYSTEM;
 	p->p_sflag = PS_INMEM;
 	p->p_stat = SRUN;
-	p->p_nice = NZERO;
-	p->p_pri.pri_class = PRI_TIMESHARE;
-	p->p_pri.pri_level = PVM;
-	p->p_pri.pri_native = PUSER;
-	p->p_pri.pri_user = PUSER;
+	p->p_ksegrp.kg_nice = NZERO;
+	p->p_ksegrp.kg_pri.pri_class = PRI_TIMESHARE;
+	p->p_ksegrp.kg_pri.pri_level = PVM;
+	p->p_ksegrp.kg_pri.pri_native = PUSER;
+	p->p_ksegrp.kg_pri.pri_user = PUSER;
 
 	p->p_peers = 0;
 	p->p_leader = p;
@@ -333,7 +340,7 @@ proc0_init(void *dummy __unused)
 	bcopy("swapper", p->p_comm, sizeof ("swapper"));
 
 	callout_init(&p->p_itcallout, 0);
-	callout_init(&p->p_slpcallout, 1);
+	callout_init(&td->td_slpcallout, 1);
 
 	/* Create credentials. */
 	p->p_ucred = crget();
@@ -381,14 +388,13 @@ proc0_init(void *dummy __unused)
 	vm_map_init(&vmspace0.vm_map, round_page(VM_MIN_ADDRESS),
 	    trunc_page(VM_MAXUSER_ADDRESS));
 	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);
-	p->p_addr = proc0paddr;				/* XXX */
 
 	/*
 	 * We continue to place resource usage info and signal
 	 * actions in the user struct so they're pageable.
 	 */
-	p->p_stats = &p->p_addr->u_stats;
-	p->p_sigacts = &p->p_addr->u_sigacts;
+	p->p_stats = &p->p_uarea->u_stats;
+	p->p_sigacts = &p->p_uarea->u_sigacts;
 
 	/*
 	 * Charge root for one process.
@@ -467,13 +473,15 @@ start_init(void *dummy)
 	int options, error;
 	char *var, *path, *next, *s;
 	char *ucp, **uap, *arg0, *arg1;
+	struct thread *td;
 	struct proc *p;
 
 	mtx_lock(&Giant);
 
 	GIANT_REQUIRED;
 
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
 
 	/* Get the vnode for '/'.  Set p->p_fd->fd_cdir to reference it. */
 	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode))
@@ -482,7 +490,7 @@ start_init(void *dummy)
 	VREF(p->p_fd->fd_cdir);
 	p->p_fd->fd_rdir = rootvnode;
 	VREF(p->p_fd->fd_rdir);
-	VOP_UNLOCK(rootvnode, 0, p);
+	VOP_UNLOCK(rootvnode, 0, td);
 
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
@@ -573,7 +581,7 @@ start_init(void *dummy)
 		 * Otherwise, return via fork_trampoline() all the way
 		 * to user mode as init!
 		 */
-		if ((error = execve(p, &args)) == 0) {
+		if ((error = execve(td, &args)) == 0) {
 			mtx_unlock(&Giant);
 			return;
 		}
@@ -597,7 +605,7 @@ create_init(const void *udata __unused)
 {
 	int error;
 
-	error = fork1(&proc0, RFFDG | RFPROC | RFSTOPPED, &initproc);
+	error = fork1(thread0, RFFDG | RFPROC | RFSTOPPED, &initproc);
 	if (error)
 		panic("cannot fork init: %d\n", error);
 	PROC_LOCK(initproc);
@@ -606,7 +614,7 @@ create_init(const void *udata __unused)
 	mtx_lock_spin(&sched_lock);
 	initproc->p_sflag |= PS_INMEM;
 	mtx_unlock_spin(&sched_lock);
-	cpu_set_fork_handler(initproc, start_init, NULL);
+	cpu_set_fork_handler(&initproc->p_thread, start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)
 
@@ -619,7 +627,7 @@ kick_init(const void *udata __unused)
 
 	mtx_lock_spin(&sched_lock);
 	initproc->p_stat = SRUN;
-	setrunqueue(initproc);
+	setrunqueue(&initproc->p_thread); /* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)

@@ -384,14 +384,14 @@ ipxip_route(so, sopt)
 	ifr_ipxip.ifr_name[4] = '0' + ipxipif.if_unit - 1;
 	ifr_ipxip.ifr_dstaddr = *(struct sockaddr *)ipx_dst;
 	ipx_control(so, (int)SIOCSIFDSTADDR, (caddr_t)&ifr_ipxip,
-			(struct ifnet *)ifn, sopt->sopt_p);
+			(struct ifnet *)ifn, sopt->sopt_td);
 
 	/* use any of our addresses */
 	satoipx_addr(ifr_ipxip.ifr_addr).x_host = 
 			ipx_ifaddr->ia_addr.sipx_addr.x_host;
 
 	return (ipx_control(so, (int)SIOCSIFADDR, (caddr_t)&ifr_ipxip,
-			(struct ifnet *)ifn, sopt->sopt_p));
+			(struct ifnet *)ifn, sopt->sopt_td));
 }
 
 static int

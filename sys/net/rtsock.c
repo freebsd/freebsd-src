@@ -102,7 +102,7 @@ rts_abort(struct socket *so)
 /* pru_accept is EOPNOTSUPP */
 
 static int
-rts_attach(struct socket *so, int proto, struct proc *p)
+rts_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct rawcb *rp;
 	int s, error;
@@ -154,21 +154,21 @@ rts_attach(struct socket *so, int proto, struct proc *p)
 }
 
 static int
-rts_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
+rts_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	int s, error;
 	s = splnet();
-	error = raw_usrreqs.pru_bind(so, nam, p); /* xxx just EINVAL */
+	error = raw_usrreqs.pru_bind(so, nam, td); /* xxx just EINVAL */
 	splx(s);
 	return error;
 }
 
 static int
-rts_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
+rts_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	int s, error;
 	s = splnet();
-	error = raw_usrreqs.pru_connect(so, nam, p); /* XXX just EINVAL */
+	error = raw_usrreqs.pru_connect(so, nam, td); /* XXX just EINVAL */
 	splx(s);
 	return error;
 }
@@ -232,11 +232,11 @@ rts_peeraddr(struct socket *so, struct sockaddr **nam)
 
 static int
 rts_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-	 struct mbuf *control, struct proc *p)
+	 struct mbuf *control, struct thread *td)
 {
 	int s, error;
 	s = splnet();
-	error = raw_usrreqs.pru_send(so, flags, m, nam, control, p);
+	error = raw_usrreqs.pru_send(so, flags, m, nam, control, td);
 	splx(s);
 	return error;
 }

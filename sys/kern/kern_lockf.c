@@ -242,25 +242,29 @@ lf_setlock(lock)
 		if ((lock->lf_flags & F_POSIX) &&
 		    (block->lf_flags & F_POSIX)) {
 			register struct proc *wproc;
+			struct thread *td;
 			register struct lockf *waitblock;
 			int i = 0;
 
 			/* The block is waiting on something */
+			/* XXXKSE this is not complete under threads */
 			wproc = (struct proc *)block->lf_id;
 			mtx_lock_spin(&sched_lock);
-			while (wproc->p_wchan &&
-			       (wproc->p_wmesg == lockstr) &&
-			       (i++ < maxlockdepth)) {
-				waitblock = (struct lockf *)wproc->p_wchan;
-				/* Get the owner of the blocking lock */
-				waitblock = waitblock->lf_next;
-				if ((waitblock->lf_flags & F_POSIX) == 0)
-					break;
-				wproc = (struct proc *)waitblock->lf_id;
-				if (wproc == (struct proc *)lock->lf_id) {
-					mtx_unlock_spin(&sched_lock);
-					free(lock, M_LOCKF);
-					return (EDEADLK);
+			FOREACH_THREAD_IN_PROC(wproc, td) {
+				while (td->td_wchan &&
+				    (td->td_wmesg == lockstr) &&
+				    (i++ < maxlockdepth)) {
+					waitblock = (struct lockf *)td->td_wchan;
+					/* Get the owner of the blocking lock */
+					waitblock = waitblock->lf_next;
+					if ((waitblock->lf_flags & F_POSIX) == 0)
+						break;
+					wproc = (struct proc *)waitblock->lf_id;
+					if (wproc == (struct proc *)lock->lf_id) {
+						mtx_unlock_spin(&sched_lock);
+						free(lock, M_LOCKF);
+						return (EDEADLK);
+					}
 				}
 			}
 			mtx_unlock_spin(&sched_lock);

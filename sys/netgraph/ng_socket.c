@@ -117,7 +117,7 @@ static int	ng_attach_data(struct socket *so);
 static int	ng_attach_cntl(struct socket *so);
 static int	ng_attach_common(struct socket *so, int type);
 static void	ng_detach_common(struct ngpcb *pcbp, int type);
-/*static int	ng_internalize(struct mbuf *m, struct proc *p); */
+/*static int	ng_internalize(struct mbuf *m, struct thread *p); */
 
 static int	ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp);
 static int	ng_bind(struct sockaddr *nam, struct ngpcb *pcbp);
@@ -162,11 +162,11 @@ LIST_HEAD(, ngpcb) ngsocklist;
 ***************************************************************/
 
 static int
-ngc_attach(struct socket *so, int proto, struct proc *p)
+ngc_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
-	if (suser(p))
+	if (suser_td(td))
 		return (EPERM);
 	if (pcbp != NULL)
 		return (EISCONN);
@@ -186,7 +186,7 @@ ngc_detach(struct socket *so)
 
 static int
 ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
-	 struct mbuf *control, struct proc *p)
+	 struct mbuf *control, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
@@ -200,7 +200,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		goto release;
 	}
 #ifdef	NOTYET
-	if (control && (error = ng_internalize(control, p))) {
+	if (control && (error = ng_internalize(control, td))) {
 		if (pcbp->sockdata == NULL) {
 			error = ENOTCONN;
 			goto release;
@@ -287,7 +287,7 @@ release:
 }
 
 static int
-ngc_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
+ngc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
@@ -297,7 +297,7 @@ ngc_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 }
 
 static int
-ngc_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
+ngc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 printf(" program tried to connect control socket to remote node\n ");
 	/*
@@ -312,7 +312,7 @@ printf(" program tried to connect control socket to remote node\n ");
 ***************************************************************/
 
 static int
-ngd_attach(struct socket *so, int proto, struct proc *p)
+ngd_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
@@ -334,7 +334,7 @@ ngd_detach(struct socket *so)
 
 static int
 ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
-	 struct mbuf *control, struct proc *p)
+	 struct mbuf *control, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
@@ -402,7 +402,7 @@ release:
 }
 
 static int
-ngd_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
+ngd_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
@@ -567,9 +567,9 @@ ng_detach_common(struct ngpcb *pcbp, int which)
  * which after all is the purpose of this whole system.
  */
 static int
-ng_internalize(struct mbuf *control, struct proc *p)
+ng_internalize(struct mbuf *control, struct thread *td)
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	struct file *fp;
 	struct vnode *vn;

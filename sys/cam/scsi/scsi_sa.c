@@ -440,7 +440,7 @@ static struct cdevsw sa_cdevsw = {
 static struct extend_array *saperiphs;
 
 static int
-saopen(dev_t dev, int flags, int fmt, struct proc *p)
+saopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;
@@ -504,7 +504,7 @@ saopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-saclose(dev_t dev, int flag, int fmt, struct proc *p)
+saclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	sa_softc *softc;
@@ -761,7 +761,7 @@ sastrategy(struct bio *bp)
 }
 
 static int
-saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
+saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;

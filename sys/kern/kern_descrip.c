@@ -90,16 +90,16 @@ static struct cdevsw fildesc_cdevsw = {
 	/* flags */	0,
 };
 
-static int do_dup __P((struct filedesc *fdp, int old, int new, register_t *retval, struct proc *p));
+static int do_dup __P((struct filedesc *fdp, int old, int new, register_t *retval, struct thread *td));
 static int badfo_readwrite __P((struct file *fp, struct uio *uio,
-    struct ucred *cred, int flags, struct proc *p));
+    struct ucred *cred, int flags, struct thread *td));
 static int badfo_ioctl __P((struct file *fp, u_long com, caddr_t data,
-    struct proc *p));
+    struct thread *td));
 static int badfo_poll __P((struct file *fp, int events,
-    struct ucred *cred, struct proc *p));
+    struct ucred *cred, struct thread *td));
 static int badfo_kqfilter __P((struct file *fp, struct knote *kn));
-static int badfo_stat __P((struct file *fp, struct stat *sb, struct proc *p));
-static int badfo_close __P((struct file *fp, struct proc *p));
+static int badfo_stat __P((struct file *fp, struct stat *sb, struct thread *td));
+static int badfo_close __P((struct file *fp, struct thread *td));
 
 /*
  * Descriptor management.
@@ -121,13 +121,14 @@ struct getdtablesize_args {
  */
 /* ARGSUSED */
 int
-getdtablesize(p, uap)
-	struct proc *p;
+getdtablesize(td, uap)
+	struct thread *td;
 	struct getdtablesize_args *uap;
 {
+	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
-	p->p_retval[0] = 
+	td->td_retval[0] = 
 	    min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
 	mtx_unlock(&Giant);
 	return (0);
@@ -150,11 +151,12 @@ struct dup2_args {
  */
 /* ARGSUSED */
 int
-dup2(p, uap)
-	struct proc *p;
+dup2(td, uap)
+	struct thread *td;
 	struct dup2_args *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
+	struct proc *p = td->td_proc;
+	register struct filedesc *fdp = td->td_proc->p_fd;
 	register u_int old = uap->from, new = uap->to;
 	int i, error;
 
@@ -168,12 +170,12 @@ retry:
 		goto done2;
 	}
 	if (old == new) {
-		p->p_retval[0] = new;
+		td->td_retval[0] = new;
 		error = 0;
 		goto done2;
 	}
 	if (new >= fdp->fd_nfiles) {
-		if ((error = fdalloc(p, new, &i)))
+		if ((error = fdalloc(td, new, &i)))
 			goto done2;
 		if (new != i)
 			panic("dup2: fdalloc");
@@ -182,7 +184,7 @@ retry:
 		 */
 		goto retry;
 	}
-	error = do_dup(fdp, (int)old, (int)new, p->p_retval, p);
+	error = do_dup(fdp, (int)old, (int)new, td->td_retval, td);
 done2:
 	mtx_unlock(&Giant);
 	return(error);
@@ -201,8 +203,8 @@ struct dup_args {
  */
 /* ARGSUSED */
 int
-dup(p, uap)
-	struct proc *p;
+dup(td, uap)
+	struct thread *td;
 	struct dup_args *uap;
 {
 	register struct filedesc *fdp;
@@ -211,14 +213,14 @@ dup(p, uap)
 
 	mtx_lock(&Giant);
 	old = uap->fd;
-	fdp = p->p_fd;
+	fdp = td->td_proc->p_fd;
 	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL) {
 		error = EBADF;
 		goto done2;
 	}
-	if ((error = fdalloc(p, 0, &new)))
+	if ((error = fdalloc(td, 0, &new)))
 		goto done2;
-	error = do_dup(fdp, (int)old, new, p->p_retval, p);
+	error = do_dup(fdp, (int)old, new, td->td_retval, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -239,10 +241,11 @@ struct fcntl_args {
  */
 /* ARGSUSED */
 int
-fcntl(p, uap)
-	struct proc *p;
+fcntl(td, uap)
+	struct thread *td;
 	register struct fcntl_args *uap;
 {
+	register struct proc *p = td->td_proc;
 	register struct filedesc *fdp;
 	register struct file *fp;
 	register char *pop;
@@ -269,13 +272,13 @@ fcntl(p, uap)
 			error = EINVAL;
 			break;
 		}
-		if ((error = fdalloc(p, newmin, &i)))
+		if ((error = fdalloc(td, newmin, &i)))
 			break;
-		error = do_dup(fdp, uap->fd, i, p->p_retval, p);
+		error = do_dup(fdp, uap->fd, i, td->td_retval, td);
 		break;
 
 	case F_GETFD:
-		p->p_retval[0] = *pop & 1;
+		td->td_retval[0] = *pop & 1;
 		break;
 
 	case F_SETFD:
@@ -283,7 +286,7 @@ fcntl(p, uap)
 		break;
 
 	case F_GETFL:
-		p->p_retval[0] = OFLAGS(fp->f_flag);
+		td->td_retval[0] = OFLAGS(fp->f_flag);
 		break;
 
 	case F_SETFL:
@@ -291,33 +294,33 @@ fcntl(p, uap)
 		fp->f_flag &= ~FCNTLFLAGS;
 		fp->f_flag |= FFLAGS(uap->arg & ~O_ACCMODE) & FCNTLFLAGS;
 		tmp = fp->f_flag & FNONBLOCK;
-		error = fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, p);
+		error = fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, td);
 		if (error) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			break;
 		}
 		tmp = fp->f_flag & FASYNC;
-		error = fo_ioctl(fp, FIOASYNC, (caddr_t)&tmp, p);
+		error = fo_ioctl(fp, FIOASYNC, (caddr_t)&tmp, td);
 		if (!error) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			break;
 		}
 		fp->f_flag &= ~FNONBLOCK;
 		tmp = 0;
-		(void)fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, p);
-		fdrop(fp, p);
+		(void)fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, td);
+		fdrop(fp, td);
 		break;
 
 	case F_GETOWN:
 		fhold(fp);
-		error = fo_ioctl(fp, FIOGETOWN, (caddr_t)p->p_retval, p);
-		fdrop(fp, p);
+		error = fo_ioctl(fp, FIOGETOWN, (caddr_t)td->td_retval, td);
+		fdrop(fp, td);
 		break;
 
 	case F_SETOWN:
 		fhold(fp);
-		error = fo_ioctl(fp, FIOSETOWN, (caddr_t)&uap->arg, p);
-		fdrop(fp, p);
+		error = fo_ioctl(fp, FIOSETOWN, (caddr_t)&uap->arg, td);
+		fdrop(fp, td);
 		break;
 
 	case F_SETLKW:
@@ -339,14 +342,14 @@ fcntl(p, uap)
 		error = copyin((caddr_t)(intptr_t)uap->arg, (caddr_t)&fl,
 		    sizeof(fl));
 		if (error) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			break;
 		}
 		if (fl.l_whence == SEEK_CUR) {
 			if (fp->f_offset < 0 ||
 			    (fl.l_start > 0 &&
 			     fp->f_offset > OFF_MAX - fl.l_start)) {
-				fdrop(fp, p);
+				fdrop(fp, td);
 				error = EOVERFLOW;
 				break;
 			}
@@ -380,8 +383,9 @@ fcntl(p, uap)
 			error = EINVAL;
 			break;
 		}
-		fdrop(fp, p);
+		fdrop(fp, td);
 		break;
+
 	case F_GETLK:
 		if (fp->f_type != DTYPE_VNODE) {
 			error = EBADF;
@@ -396,12 +400,12 @@ fcntl(p, uap)
 		error = copyin((caddr_t)(intptr_t)uap->arg, (caddr_t)&fl,
 		    sizeof(fl));
 		if (error) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			break;
 		}
 		if (fl.l_type != F_RDLCK && fl.l_type != F_WRLCK &&
 		    fl.l_type != F_UNLCK) {
-			fdrop(fp, p);
+			fdrop(fp, td);
 			error = EINVAL;
 			break;
 		}
@@ -410,7 +414,7 @@ fcntl(p, uap)
 			     fp->f_offset > OFF_MAX - fl.l_start) ||
 			    (fl.l_start < 0 &&
 			     fp->f_offset < OFF_MIN - fl.l_start)) {
-				fdrop(fp, p);
+				fdrop(fp, td);
 				error = EOVERFLOW;
 				break;
 			}
@@ -418,7 +422,7 @@ fcntl(p, uap)
 		}
 		error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_GETLK,
 			    &fl, F_POSIX);
-		fdrop(fp, p);
+		fdrop(fp, td);
 		if (error == 0) {
 			error = copyout((caddr_t)&fl,
 				    (caddr_t)(intptr_t)uap->arg, sizeof(fl));
@@ -437,11 +441,11 @@ done2:
  * Common code for dup, dup2, and fcntl(F_DUPFD).
  */
 static int
-do_dup(fdp, old, new, retval, p)
+do_dup(fdp, old, new, retval, td)
 	register struct filedesc *fdp;
 	register int old, new;
 	register_t *retval;
-	struct proc *p;
+	struct thread *td;
 {
 	struct file *fp;
 	struct file *delfp;
@@ -454,7 +458,7 @@ do_dup(fdp, old, new, retval, p)
 	delfp = fdp->fd_ofiles[new];
 #if 0
 	if (delfp && (fdp->fd_ofileflags[new] & UF_MAPPED))
-		(void) munmapfd(p, new);
+		(void) munmapfd(td, new);
 #endif
 
 	/*
@@ -474,7 +478,7 @@ do_dup(fdp, old, new, retval, p)
 	 * close() were performed on it).
 	 */
 	if (delfp)
-		(void) closef(delfp, p);
+		(void) closef(delfp, td);
 	return (0);
 }
 
@@ -549,7 +553,7 @@ fsetown(pgid, sigiop)
 		 * restrict FSETOWN to the current process or process
 		 * group for maximum safety.
 		 */
-		if (proc->p_session != curproc->p_session) {
+		if (proc->p_session != curthread->td_proc->p_session) {
 			PROC_UNLOCK(proc);
 			return (EPERM);
 		}
@@ -569,7 +573,7 @@ fsetown(pgid, sigiop)
 		 * restrict FSETOWN to the current process or process
 		 * group for maximum safety.
 		 */
-		if (pgrp->pg_session != curproc->p_session)
+		if (pgrp->pg_session != curthread->td_proc->p_session)
 			return (EPERM);
 
 		proc = NULL;
@@ -584,8 +588,8 @@ fsetown(pgid, sigiop)
 		sigio->sio_pgrp = pgrp;
 	}
 	sigio->sio_pgid = pgid;
-	crhold(curproc->p_ucred);
-	sigio->sio_ucred = curproc->p_ucred;
+	crhold(curthread->td_proc->p_ucred);
+	sigio->sio_ucred = curthread->td_proc->p_ucred;
 	sigio->sio_myref = sigiop;
 	s = splhigh();
 	*sigiop = sigio;
@@ -616,8 +620,8 @@ struct close_args {
  */
 /* ARGSUSED */
 int
-close(p, uap)
-	struct proc *p;
+close(td, uap)
+	struct thread *td;
 	struct close_args *uap;
 {
 	register struct filedesc *fdp;
@@ -626,7 +630,7 @@ close(p, uap)
 	int error = 0;
 
 	mtx_lock(&Giant);
-	fdp = p->p_fd;
+	fdp = td->td_proc->p_fd;
 	if ((unsigned)fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL) {
 		error = EBADF;
@@ -634,7 +638,7 @@ close(p, uap)
 	}
 #if 0
 	if (fdp->fd_ofileflags[fd] & UF_MAPPED)
-		(void) munmapfd(p, fd);
+		(void) munmapfd(td, fd);
 #endif
 	fdp->fd_ofiles[fd] = NULL;
 	fdp->fd_ofileflags[fd] = 0;
@@ -648,8 +652,8 @@ close(p, uap)
 	if (fd < fdp->fd_freefile)
 		fdp->fd_freefile = fd;
 	if (fd < fdp->fd_knlistsize)
-		knote_fdclose(p, fd);
-	error = closef(fp, p);
+		knote_fdclose(td, fd);
+	error = closef(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return(error);
@@ -670,11 +674,11 @@ struct ofstat_args {
  */
 /* ARGSUSED */
 int
-ofstat(p, uap)
-	struct proc *p;
+ofstat(td, uap)
+	struct thread *td;
 	register struct ofstat_args *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp = td->td_proc->p_fd;
 	register struct file *fp;
 	struct stat ub;
 	struct ostat oub;
@@ -688,12 +692,12 @@ ofstat(p, uap)
 		goto done2;
 	}
 	fhold(fp);
-	error = fo_stat(fp, &ub, p);
+	error = fo_stat(fp, &ub, td);
 	if (error == 0) {
 		cvtstat(&ub, &oub);
 		error = copyout((caddr_t)&oub, (caddr_t)uap->sb, sizeof (oub));
 	}
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -714,8 +718,8 @@ struct fstat_args {
  */
 /* ARGSUSED */
 int
-fstat(p, uap)
-	struct proc *p;
+fstat(td, uap)
+	struct thread *td;
 	register struct fstat_args *uap;
 {
 	register struct filedesc *fdp;
@@ -724,7 +728,7 @@ fstat(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-	fdp = p->p_fd;
+	fdp = td->td_proc->p_fd;
 
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
@@ -732,10 +736,10 @@ fstat(p, uap)
 		goto done2;
 	}
 	fhold(fp);
-	error = fo_stat(fp, &ub, p);
+	error = fo_stat(fp, &ub, td);
 	if (error == 0)
 		error = copyout((caddr_t)&ub, (caddr_t)uap->sb, sizeof (ub));
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -755,8 +759,8 @@ struct nfstat_args {
  */
 /* ARGSUSED */
 int
-nfstat(p, uap)
-	struct proc *p;
+nfstat(td, uap)
+	struct thread *td;
 	register struct nfstat_args *uap;
 {
 	register struct filedesc *fdp;
@@ -767,19 +771,19 @@ nfstat(p, uap)
 
 	mtx_lock(&Giant);
 
-	fdp = p->p_fd;
+	fdp = td->td_proc->p_fd;
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
 		error = EBADF;
 		goto done2;
 	}
 	fhold(fp);
-	error = fo_stat(fp, &ub, p);
+	error = fo_stat(fp, &ub, td);
 	if (error == 0) {
 		cvtnstat(&ub, &nub);
 		error = copyout((caddr_t)&nub, (caddr_t)uap->sb, sizeof (nub));
 	}
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -799,8 +803,8 @@ struct fpathconf_args {
  */
 /* ARGSUSED */
 int
-fpathconf(p, uap)
-	struct proc *p;
+fpathconf(td, uap)
+	struct thread *td;
 	register struct fpathconf_args *uap;
 {
 	struct filedesc *fdp;
@@ -809,7 +813,7 @@ fpathconf(p, uap)
 	int error = 0;
 
 	mtx_lock(&Giant);
-	fdp = p->p_fd;
+	fdp = td->td_proc->p_fd;
 
 	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
@@ -826,19 +830,19 @@ fpathconf(p, uap)
 			error = EINVAL;
 			goto done2;
 		}
-		p->p_retval[0] = PIPE_BUF;
+		td->td_retval[0] = PIPE_BUF;
 		error = 0;
 		break;
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		vp = (struct vnode *)fp->f_data;
-		error = VOP_PATHCONF(vp, uap->name, p->p_retval);
+		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
 		break;
 	default:
 		error = EOPNOTSUPP;
 		break;
 	}
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return(error);
@@ -851,12 +855,13 @@ static int fdexpand;
 SYSCTL_INT(_debug, OID_AUTO, fdexpand, CTLFLAG_RD, &fdexpand, 0, "");
 
 int
-fdalloc(p, want, result)
-	struct proc *p;
+fdalloc(td, want, result)
+	struct thread *td;
 	int want;
 	int *result;
 {
-	register struct filedesc *fdp = p->p_fd;
+	struct proc *p = td->td_proc;
+	register struct filedesc *fdp = td->td_proc->p_fd;
 	register int i;
 	int lim, last, nfiles;
 	struct file **newofile;
@@ -930,11 +935,12 @@ fdalloc(p, want, result)
  * are available to the process p.
  */
 int
-fdavail(p, n)
-	struct proc *p;
+fdavail(td, n)
+	struct thread *td;
 	register int n;
 {
-	register struct filedesc *fdp = p->p_fd;
+	struct proc *p = td->td_proc;
+	register struct filedesc *fdp = td->td_proc->p_fd;
 	register struct file **fpp;
 	register int i, lim, last;
 
@@ -956,11 +962,12 @@ fdavail(p, n)
  * a file decriptor for the process that refers to it.
  */
 int
-falloc(p, resultfp, resultfd)
-	register struct proc *p;
+falloc(td, resultfp, resultfd)
+	register struct thread *td;
 	struct file **resultfp;
 	int *resultfd;
 {
+	struct proc *p = td->td_proc;
 	register struct file *fp, *fq;
 	int error, i;
 
@@ -982,7 +989,7 @@ falloc(p, resultfp, resultfd)
 	 * allocating the slot, else a race might have shrunk it if we had
 	 * allocated it before the malloc.
 	 */
-	if ((error = fdalloc(p, 0, &i))) {
+	if ((error = fdalloc(td, 0, &i))) {
 		nfiles--;
 		FREE(fp, M_FILE);
 		return (error);
@@ -1023,11 +1030,11 @@ ffree(fp)
  * Build a new filedesc structure.
  */
 struct filedesc *
-fdinit(p)
-	struct proc *p;
+fdinit(td)
+	struct thread *td;
 {
 	register struct filedesc0 *newfdp;
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp = td->td_proc->p_fd;
 
 	MALLOC(newfdp, struct filedesc0 *, sizeof(struct filedesc0),
 	    M_FILEDESC, M_WAITOK | M_ZERO);
@@ -1067,10 +1074,10 @@ fdshare(p)
  * Copy a filedesc structure.
  */
 struct filedesc *
-fdcopy(p)
-	struct proc *p;
+fdcopy(td)
+	struct thread *td;
 {
-	register struct filedesc *newfdp, *fdp = p->p_fd;
+	register struct filedesc *newfdp, *fdp = td->td_proc->p_fd;
 	register struct file **fpp;
 	register int i;
 
@@ -1144,10 +1151,10 @@ fdcopy(p)
  * Release a filedesc structure.
  */
 void
-fdfree(p)
-	struct proc *p;
+fdfree(td)
+	struct thread *td;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp = td->td_proc->p_fd;
 	struct file **fpp;
 	register int i;
 
@@ -1164,7 +1171,7 @@ fdfree(p)
 	fpp = fdp->fd_ofiles;
 	for (i = fdp->fd_lastfile; i-- >= 0; fpp++) {
 		if (*fpp)
-			(void) closef(*fpp, p);
+			(void) closef(*fpp, td);
 	}
 	if (fdp->fd_nfiles > NDFILE)
 		FREE(fdp->fd_ofiles, M_FILEDESC);
@@ -1206,10 +1213,10 @@ is_unsafe(struct file *fp)
  * Make this setguid thing safe, if at all possible.
  */
 void
-setugidsafety(p)
-	struct proc *p;
+setugidsafety(td)
+	struct thread *td;
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 	register int i;
 
 	/* Certain daemons might not have file descriptors. */
@@ -1228,10 +1235,10 @@ setugidsafety(p)
 
 #if 0
 			if ((fdp->fd_ofileflags[i] & UF_MAPPED) != 0)
-				(void) munmapfd(p, i);
+				(void) munmapfd(td, i);
 #endif
 			if (i < fdp->fd_knlistsize)
-				knote_fdclose(p, i);
+				knote_fdclose(td, i);
 			/*
 			 * NULL-out descriptor prior to close to avoid
 			 * a race while close blocks.
@@ -1241,7 +1248,7 @@ setugidsafety(p)
 			fdp->fd_ofileflags[i] = 0;
 			if (i < fdp->fd_freefile)
 				fdp->fd_freefile = i;
-			(void) closef(fp, p);
+			(void) closef(fp, td);
 		}
 	}
 	while (fdp->fd_lastfile > 0 && fdp->fd_ofiles[fdp->fd_lastfile] == NULL)
@@ -1252,10 +1259,10 @@ setugidsafety(p)
  * Close any files on exec?
  */
 void
-fdcloseexec(p)
-	struct proc *p;
+fdcloseexec(td)
+	struct thread *td;
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 	register int i;
 
 	/* Certain daemons might not have file descriptors. */
@@ -1273,10 +1280,10 @@ fdcloseexec(p)
 
 #if 0
 			if (fdp->fd_ofileflags[i] & UF_MAPPED)
-				(void) munmapfd(p, i);
+				(void) munmapfd(td, i);
 #endif
 			if (i < fdp->fd_knlistsize)
-				knote_fdclose(p, i);
+				knote_fdclose(td, i);
 			/*
 			 * NULL-out descriptor prior to close to avoid
 			 * a race while close blocks.
@@ -1286,7 +1293,7 @@ fdcloseexec(p)
 			fdp->fd_ofileflags[i] = 0;
 			if (i < fdp->fd_freefile)
 				fdp->fd_freefile = i;
-			(void) closef(fp, p);
+			(void) closef(fp, td);
 		}
 	}
 	while (fdp->fd_lastfile > 0 && fdp->fd_ofiles[fdp->fd_lastfile] == NULL)
@@ -1300,10 +1307,11 @@ fdcloseexec(p)
  * that was being passed in a message.
  */
 int
-closef(fp, p)
+closef(fp, td)
 	register struct file *fp;
-	register struct proc *p;
+	register struct thread *td;
 {
+	struct proc *p = td->td_proc;
 	struct vnode *vp;
 	struct flock lf;
 
@@ -1325,13 +1333,13 @@ closef(fp, p)
 		vp = (struct vnode *)fp->f_data;
 		(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_UNLCK, &lf, F_POSIX);
 	}
-	return (fdrop(fp, p));
+	return (fdrop(fp, td));
 }
 
 int
-fdrop(fp, p)
+fdrop(fp, td)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 {
 	struct flock lf;
 	struct vnode *vp;
@@ -1350,7 +1358,7 @@ fdrop(fp, p)
 		(void) VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
 	}
 	if (fp->f_ops != &badfileops)
-		error = fo_close(fp, p);
+		error = fo_close(fp, td);
 	else
 		error = 0;
 	ffree(fp);
@@ -1374,11 +1382,11 @@ struct flock_args {
  */
 /* ARGSUSED */
 int
-flock(p, uap)
-	struct proc *p;
+flock(td, uap)
+	struct thread *td;
 	register struct flock_args *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp = td->td_proc->p_fd;
 	register struct file *fp;
 	struct vnode *vp;
 	struct flock lf;
@@ -1433,21 +1441,21 @@ done2:
  */
 /* ARGSUSED */
 static int
-fdopen(dev, mode, type, p)
+fdopen(dev, mode, type, td)
 	dev_t dev;
 	int mode, type;
-	struct proc *p;
+	struct thread *td;
 {
 
 	/*
-	 * XXX Kludge: set curproc->p_dupfd to contain the value of the
+	 * XXX Kludge: set curthread->td_dupfd to contain the value of the
 	 * the file descriptor being sought for duplication. The error
 	 * return ensures that the vnode for this device will be released
 	 * by vn_open. Open will detect this special error and take the
 	 * actions in dupfdopen below. Other callers of vn_open or VOP_OPEN
 	 * will simply report the error.
 	 */
-	p->p_dupfd = dev2unit(dev);
+	td->td_dupfd = dev2unit(dev);
 	return (ENODEV);
 }
 
@@ -1455,8 +1463,8 @@ fdopen(dev, mode, type, p)
  * Duplicate the specified descriptor to a free descriptor.
  */
 int
-dupfdopen(p, fdp, indx, dfd, mode, error)
-	struct proc *p;
+dupfdopen(td, fdp, indx, dfd, mode, error)
+	struct thread *td;
 	struct filedesc *fdp;
 	int indx, dfd;
 	int mode;
@@ -1498,7 +1506,7 @@ dupfdopen(p, fdp, indx, dfd, mode, error)
 		fp = fdp->fd_ofiles[indx];
 #if 0
 		if (fp && fdp->fd_ofileflags[indx] & UF_MAPPED)
-			(void) munmapfd(p, indx);
+			(void) munmapfd(td, indx);
 #endif
 		fdp->fd_ofiles[indx] = wfp;
 		fdp->fd_ofileflags[indx] = fdp->fd_ofileflags[dfd];
@@ -1510,7 +1518,7 @@ dupfdopen(p, fdp, indx, dfd, mode, error)
 		 * used to own.  Release it.
 		 */
 		if (fp)
-			fdrop(fp, p);
+			fdrop(fp, td);
 		return (0);
 
 	case ENXIO:
@@ -1520,7 +1528,7 @@ dupfdopen(p, fdp, indx, dfd, mode, error)
 		fp = fdp->fd_ofiles[indx];
 #if 0
 		if (fp && fdp->fd_ofileflags[indx] & UF_MAPPED)
-			(void) munmapfd(p, indx);
+			(void) munmapfd(td, indx);
 #endif
 		fdp->fd_ofiles[indx] = fdp->fd_ofiles[dfd];
 		fdp->fd_ofiles[dfd] = NULL;
@@ -1532,7 +1540,7 @@ dupfdopen(p, fdp, indx, dfd, mode, error)
 		 * used to own.  Release it.
 		 */
 		if (fp)
-			fdrop(fp, p);
+			fdrop(fp, td);
 		/*
 		 * Complete the clean up of the filedesc structure by
 		 * recomputing the various hints.
@@ -1630,11 +1638,11 @@ struct fileops badfileops = {
 };
 
 static int
-badfo_readwrite(fp, uio, cred, flags, p)
+badfo_readwrite(fp, uio, cred, flags, td)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 	int flags;
 {
 
@@ -1642,22 +1650,22 @@ badfo_readwrite(fp, uio, cred, flags, p)
 }
 
 static int
-badfo_ioctl(fp, com, data, p)
+badfo_ioctl(fp, com, data, td)
 	struct file *fp;
 	u_long com;
 	caddr_t data;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (EBADF);
 }
 
 static int
-badfo_poll(fp, events, cred, p)
+badfo_poll(fp, events, cred, td)
 	struct file *fp;
 	int events;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (0);
@@ -1673,19 +1681,19 @@ badfo_kqfilter(fp, kn)
 }
 
 static int
-badfo_stat(fp, sb, p)
+badfo_stat(fp, sb, td)
 	struct file *fp;
 	struct stat *sb;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (EBADF);
 }
 
 static int
-badfo_close(fp, p)
+badfo_close(fp, td)
 	struct file *fp;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (EBADF);

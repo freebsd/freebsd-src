@@ -71,12 +71,12 @@ typedef struct {
     long	f_weitek[33]; 	/* weitek */
 } svr4_fregset_t;
 
-struct proc;
+struct thread;
 struct svr4_ucontext;
 
-void svr4_getcontext __P((struct proc *, struct svr4_ucontext *,
+void svr4_getcontext __P((struct thread *, struct svr4_ucontext *,
 			  sigset_t *, int));
-int svr4_setcontext __P((struct proc *p, struct svr4_ucontext *));
+int svr4_setcontext __P((struct thread *p, struct svr4_ucontext *));
 
 typedef struct {
 	svr4_gregset_t	greg;

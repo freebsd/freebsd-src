@@ -110,21 +110,21 @@ struct specinfo {
 
 struct bio;
 struct buf;
-struct proc;
+struct thread;
 struct uio;
 struct knote;
 
-typedef int d_open_t __P((dev_t dev, int oflags, int devtype, struct proc *p));
-typedef int d_close_t __P((dev_t dev, int fflag, int devtype, struct proc *p));
+typedef int d_open_t __P((dev_t dev, int oflags, int devtype, struct thread *td));
+typedef int d_close_t __P((dev_t dev, int fflag, int devtype, struct thread *td));
 typedef void d_strategy_t __P((struct bio *bp));
 typedef int d_ioctl_t __P((dev_t dev, u_long cmd, caddr_t data,
-			   int fflag, struct proc *p));
+			   int fflag, struct thread *td));
 typedef int d_dump_t __P((dev_t dev));
 typedef int d_psize_t __P((dev_t dev));
 
 typedef int d_read_t __P((dev_t dev, struct uio *uio, int ioflag));
 typedef int d_write_t __P((dev_t dev, struct uio *uio, int ioflag));
-typedef int d_poll_t __P((dev_t dev, int events, struct proc *p));
+typedef int d_poll_t __P((dev_t dev, int events, struct thread *td));
 typedef int d_kqfilter_t __P((dev_t dev, struct knote *kn));
 typedef int d_mmap_t __P((dev_t dev, vm_offset_t offset, int nprot));
 
@@ -133,7 +133,7 @@ typedef int l_close_t __P((struct tty *tp, int flag));
 typedef int l_read_t __P((struct tty *tp, struct uio *uio, int flag));
 typedef int l_write_t __P((struct tty *tp, struct uio *uio, int flag));
 typedef int l_ioctl_t __P((struct tty *tp, u_long cmd, caddr_t data,
-			   int flag, struct proc *p));
+			   int flag, struct thread *td));
 typedef int l_rint_t __P((int c, struct tty *tp));
 typedef int l_start_t __P((struct tty *tp));
 typedef int l_modem_t __P((struct tty *tp, int flag));

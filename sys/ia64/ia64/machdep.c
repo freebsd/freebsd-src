@@ -86,7 +86,9 @@ struct bootinfo bootinfo;
 struct mtx sched_lock;
 struct mtx Giant;
 
-char proc0paddr[UPAGES * PAGE_SIZE];
+extern char kstack[]; 
+struct user *proc0uarea;
+vm_offset_t proc0kstack;
 
 char machine[] = "ia64";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
@@ -546,11 +548,23 @@ ia64_init()
 
 	}
 
+	proc_linkup(&proc0);
+	/*
+	 * Init mapping for u page(s) for proc 0
+	 */
+	proc0uarea = (struct user *)pmap_steal_memory(UAREA_PAGES * PAGE_SIZE);
+	proc0kstack = (vm_offset_t)kstack;
+	proc0.p_uarea = proc0uarea;
+	thread0 = &proc0.p_thread;
+	thread0->td_kstack = proc0kstack;
+	thread0->td_pcb = (struct pcb *)
+	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	/*
 	 * Setup the global data for the bootstrap cpu.
 	 */
 	{
-		size_t sz = round_page(UPAGES * PAGE_SIZE);
+		/* This is not a 'struct user' */
+		size_t sz = round_page(KSTACK_PAGES * PAGE_SIZE);
 		globalp = (struct globaldata *) pmap_steal_memory(sz);
 		globaldata_init(globalp, 0, sz);
 		ia64_set_k4((u_int64_t) globalp);
@@ -568,18 +582,18 @@ ia64_init()
 	 * Set the kernel sp, reserving space for an (empty) trapframe,
 	 * and make proc0's trapframe pointer point to it for sanity.
 	 * Initialise proc0's backing store to start after u area.
+	 *
+	 * XXX what is all this +/- 16 stuff?
 	 */
-	proc0.p_addr->u_pcb.pcb_sp =
-	    (u_int64_t)proc0.p_addr + USPACE - sizeof(struct trapframe) - 16;
-	proc0.p_addr->u_pcb.pcb_bspstore = (u_int64_t) (proc0.p_addr + 1);
-	proc0.p_frame =
-	    (struct trapframe *)(proc0.p_addr->u_pcb.pcb_sp + 16);
+	thread0->td_frame = (struct trapframe *)thread0->td_pcb - 1;
+	thread0->td_pcb->pcb_sp = (u_int64_t)thread0->td_frame - 16;
+	thread0->td_pcb->pcb_bspstore = (u_int64_t)proc0kstack;
 
 	/* Setup curproc so that mutexes work */
-	PCPU_SET(curproc, &proc0);
+	PCPU_SET(curthread, thread0);
 	PCPU_SET(spinlocks, NULL);
 
-	LIST_INIT(&proc0.p_contested);
+	LIST_INIT(&thread0->td_contested);
 
 	/*
 	 * Initialise mutexes.
@@ -739,16 +753,19 @@ DELAY(int n)
 void
 sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
-	struct proc *p = curproc;
+	struct proc *p;
+	struct thread *td;
 	struct trapframe *frame;
 	struct sigacts *psp;
 	struct sigframe sf, *sfp;
 	u_int64_t sbs = 0;
 	int oonstack, rndfsize;
 
+	td = curthread;
+	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
-	frame = p->p_frame;
+	frame = td->td_frame;
 	oonstack = sigonstack(frame->tf_r[FRAME_SP]);
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
 
@@ -843,12 +860,12 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 #if 0
 	/* save the floating-point state, if necessary, then copy it. */
-	ia64_fpstate_save(p, 1);
-	sf.sf_uc.uc_mcontext.mc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
-	bcopy(&p->p_addr->u_pcb.pcb_fp,
+	ia64_fpstate_save(td, 1);
+	sf.sf_uc.uc_mcontext.mc_ownedfp = td->td_md.md_flags & MDP_FPUSED;
+	bcopy(&td->td_pcb->pcb_fp,
 	      (struct fpreg *)sf.sf_uc.uc_mcontext.mc_fpregs,
 	      sizeof(struct fpreg));
-	sf.sf_uc.uc_mcontext.mc_fp_control = p->p_addr->u_pcb.pcb_fp_control;
+	sf.sf_uc.uc_mcontext.mc_fp_control = td->td_pcb.pcb_fp_control;
 #endif
 
 	/*
@@ -907,7 +924,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  */
 #ifdef COMPAT_43
 int
-osigreturn(struct proc *p,
+osigreturn(struct thread *td,
 	struct osigreturn_args /* {
 		struct osigcontext *sigcntxp;
 	} */ *uap)
@@ -927,18 +944,20 @@ osigreturn(struct proc *p,
  */
 
 int
-sigreturn(struct proc *p,
+sigreturn(struct thread *td,
 	struct sigreturn_args /* {
 		ucontext_t *sigcntxp;
 	} */ *uap)
 {
 	ucontext_t uc, *ucp;
 	struct pcb *pcb;
-	struct trapframe *frame = p->p_frame;
+	struct trapframe *frame = td->td_frame;
 	struct __mcontext *mcp;
+	struct proc *p;
 
 	ucp = uap->sigcntxp;
-	pcb = &p->p_addr->u_pcb;
+	pcb = td->td_pcb;
+	p = td->td_proc;
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
@@ -1000,12 +1019,11 @@ sigreturn(struct proc *p,
 	PROC_UNLOCK(p);
 
 	/* XXX ksc.sc_ownedfp ? */
-	ia64_fpstate_drop(p);
+	ia64_fpstate_drop(td);
 #if 0
 	bcopy((struct fpreg *)uc.uc_mcontext.mc_fpregs,
-	      &p->p_addr->u_pcb.pcb_fp, sizeof(struct fpreg));
-	p->p_addr->u_pcb.pcb_fp_control =
-		uc.uc_mcontext.mc_fp_control;
+	      &td->td_pcb->pcb_fp, sizeof(struct fpreg));
+	td->td_pcb->pcb_fp_control = uc.uc_mcontext.mc_fp_control;
 #endif
 
 #ifdef DEBUG
@@ -1039,11 +1057,11 @@ cpu_halt(void)
  * Clear registers on exec
  */
 void
-setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
+setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct trapframe *frame;
 
-	frame = p->p_frame;
+	frame = td->td_frame;
 
 	/*
 	 * Make sure that we restore the entire trapframe after an
@@ -1069,25 +1087,25 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	 * Setup the new backing store and make sure the new image
 	 * starts executing with an empty register stack frame.
 	 */
-	frame->tf_ar_bspstore = p->p_md.md_bspstore;
+	frame->tf_ar_bspstore = td->td_md.md_bspstore;
 	frame->tf_ndirty = 0;
 	frame->tf_cr_ifs = (1L<<63); /* ifm=0, v=1 */
 	frame->tf_ar_rsc = 0xf;	/* user mode rsc */
 	frame->tf_ar_fpsr = IA64_FPSR_DEFAULT;
 
-	p->p_md.md_flags &= ~MDP_FPUSED;
-	ia64_fpstate_drop(p);
+	td->td_md.md_flags &= ~MDP_FPUSED;
+	ia64_fpstate_drop(td);
 }
 
 int
-ptrace_set_pc(struct proc *p, unsigned long addr)
+ptrace_set_pc(struct thread *td, unsigned long addr)
 {
 	/* TODO set pc in trapframe */
 	return 0;
 }
 
 int
-ptrace_single_step(struct proc *p)
+ptrace_single_step(struct thread *td)
 {
 	/* TODO arrange for user process to single step */
 	return 0;
@@ -1100,8 +1118,8 @@ ia64_pa_access(vm_offset_t pa)
 }
 
 int
-fill_regs(p, regs)
-	struct proc *p;
+fill_regs(td, regs)
+	struct thread *td;
 	struct reg *regs;
 {
 	/* TODO copy trapframe to regs */
@@ -1109,8 +1127,8 @@ fill_regs(p, regs)
 }
 
 int
-set_regs(p, regs)
-	struct proc *p;
+set_regs(td, regs)
+	struct thread *td;
 	struct reg *regs;
 {
 	/* TODO copy regs to trapframe */
@@ -1118,29 +1136,29 @@ set_regs(p, regs)
 }
 
 int
-fill_fpregs(p, fpregs)
-	struct proc *p;
+fill_fpregs(td, fpregs)
+	struct thread *td;
 	struct fpreg *fpregs;
 {
 	/* TODO copy fpu state to fpregs */
-	ia64_fpstate_save(p, 0);
+	ia64_fpstate_save(td, 0);
 
 #if 0
-	bcopy(&p->p_addr->u_pcb.pcb_fp, fpregs, sizeof *fpregs);
+	bcopy(&td->td_pcb->pcb_fp, fpregs, sizeof *fpregs);
 #endif
 	return (0);
 }
 
 int
-set_fpregs(p, fpregs)
-	struct proc *p;
+set_fpregs(td, fpregs)
+	struct thread *td;
 	struct fpreg *fpregs;
 {
 	/* TODO copy fpregs fpu state */
-	ia64_fpstate_drop(p);
+	ia64_fpstate_drop(td);
 
 #if 0
-	bcopy(fpregs, &p->p_addr->u_pcb.pcb_fp, sizeof *fpregs);
+	bcopy(fpregs, &td->td_pcb->pcb_fp, sizeof *fpregs);
 #endif
 	return (0);
 }
@@ -1236,11 +1254,11 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 	CTLFLAG_RW, &wall_cmos_clock, 0, "");
 
 void
-ia64_fpstate_check(struct proc *p)
+ia64_fpstate_check(struct thread *td)
 {
-	if ((p->p_frame->tf_cr_ipsr & IA64_PSR_DFH) == 0)
-		if (p != PCPU_GET(fpcurproc))
-			panic("ia64_check_fpcurproc: bogus");
+	if ((td->td_frame->tf_cr_ipsr & IA64_PSR_DFH) == 0)
+		if (td != PCPU_GET(fpcurthread))
+			panic("ia64_check_fpcurthread: bogus");
 }
 
 /*
@@ -1251,17 +1269,17 @@ ia64_fpstate_check(struct proc *p)
  * by generating a disabled fp trap.
  */
 void
-ia64_fpstate_save(struct proc *p, int write)
+ia64_fpstate_save(struct thread *td, int write)
 {
-	if (p == PCPU_GET(fpcurproc)) {
+	if (td == PCPU_GET(fpcurthread)) {
 		/*
 		 * Save the state in the pcb.
 		 */
-		savehighfp(p->p_addr->u_pcb.pcb_highfp);
+		savehighfp(td->td_pcb->pcb_highfp);
 
 		if (write) {
-			p->p_frame->tf_cr_ipsr |= IA64_PSR_DFH;
-			PCPU_SET(fpcurproc, NULL);
+			td->td_frame->tf_cr_ipsr |= IA64_PSR_DFH;
+			PCPU_SET(fpcurthread, NULL);
 		}
 	}
 }
@@ -1272,11 +1290,11 @@ ia64_fpstate_save(struct proc *p, int write)
  * (e.g. on sigreturn).
  */
 void
-ia64_fpstate_drop(struct proc *p)
+ia64_fpstate_drop(struct thread *td)
 {
-	if (p == PCPU_GET(fpcurproc)) {
-		p->p_frame->tf_cr_ipsr |= IA64_PSR_DFH;
-		PCPU_SET(fpcurproc, NULL);
+	if (td == PCPU_GET(fpcurthread)) {
+		td->td_frame->tf_cr_ipsr |= IA64_PSR_DFH;
+		PCPU_SET(fpcurthread, NULL);
 	}
 }
 
@@ -1285,24 +1303,24 @@ ia64_fpstate_drop(struct proc *p)
  * from the pcb.
  */
 void
-ia64_fpstate_switch(struct proc *p)
+ia64_fpstate_switch(struct thread *td)
 {
-	if (PCPU_GET(fpcurproc)) {
+	if (PCPU_GET(fpcurthread)) {
 		/*
 		 * Dump the old fp state if its valid.
 		 */
-		savehighfp(PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_highfp);
-		PCPU_GET(fpcurproc)->p_frame->tf_cr_ipsr |= IA64_PSR_DFH;
+		savehighfp(PCPU_GET(fpcurthread)->td_pcb->pcb_highfp);
+		PCPU_GET(fpcurthread)->td_frame->tf_cr_ipsr |= IA64_PSR_DFH;
 	}
 
 	/*
 	 * Remember the new FP owner and reload its state.
 	 */
-	PCPU_SET(fpcurproc, p);
-	restorehighfp(p->p_addr->u_pcb.pcb_highfp);
-	p->p_frame->tf_cr_ipsr &= ~IA64_PSR_DFH;
+	PCPU_SET(fpcurthread, td);
+	restorehighfp(td->td_pcb->pcb_highfp);
+	td->td_frame->tf_cr_ipsr &= ~IA64_PSR_DFH;
 
-	p->p_md.md_flags |= MDP_FPUSED;
+	td->td_md.md_flags |= MDP_FPUSED;
 }
 
 /*

@@ -47,8 +47,8 @@ void	kproc_start __P((const void *));
 int     kthread_create __P((void (*)(void *), void *, struct proc **,
 	    int flags, const char *, ...)) __printflike(5, 6);
 void    kthread_exit __P((int)) __dead2;
-int	kthread_resume __P((struct proc *));
-int	kthread_suspend __P((struct proc *, int));
-void	kthread_suspend_check __P((struct proc *));
+int	kthread_resume __P((struct proc *)); /* XXXKSE */
+int	kthread_suspend __P((struct proc *, int)); /* XXXKSE */
+void	kthread_suspend_check __P((struct proc *)); /* XXXKSE */
 
 #endif /* !_SYS_KTHREAD_H_ */

@@ -80,7 +80,7 @@ extern union ipx_host ipx_broadhost;
 struct ifnet;
 struct ipx_addr;
 struct mbuf;
-struct proc;
+struct thread;
 struct route;
 struct sockaddr;
 struct socket;
@@ -89,7 +89,7 @@ struct sockopt;
 void	ipx_abort __P((struct ipxpcb *ipxp));
 u_short	ipx_cksum __P((struct mbuf *m, int len));
 int	ipx_control __P((struct socket *so, u_long cmd, caddr_t data,
-			 struct ifnet *ifp, struct proc *p));
+			 struct ifnet *ifp, struct thread *td));
 void	ipx_ctlinput __P((int cmd, struct sockaddr *arg_as_sa, void *dummy));
 int	ipx_ctloutput __P((struct socket *so, struct sockopt *sopt));
 void	ipx_drop __P((struct ipxpcb *ipxp, int errno));

@@ -435,7 +435,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 			 (*vidsw[(a)->va_index]->ioctl)((a), (c), (caddr_t)(d)))
 
 int
-sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
+sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
     scr_stat *scp;
     video_adapter_t *adp;

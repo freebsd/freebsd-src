@@ -78,8 +78,7 @@ procfs_dotype(curp, p, pfs, uio)
 }
 
 int
-procfs_validtype(p)
-	struct proc *p;
+procfs_validtype(struct thread *td)
 {
-	return ((p->p_flag & P_SYSTEM) == 0);
+	return ((td->td_proc->p_flag & P_SYSTEM) == 0);
 }

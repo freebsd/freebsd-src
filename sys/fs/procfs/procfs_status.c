@@ -145,8 +145,14 @@ procfs_dostatus(curp, p, pfs, uio)
 	}
 	DOCHECK();
 
-	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " %s",
-		(p->p_wchan && p->p_wmesg) ? p->p_wmesg : "nochan");
+	if (p->p_flag & P_KSES) {
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " %s",
+			"-kse- ");
+	} else {
+		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " %s",
+			(p->p_thread.td_wchan && p->p_thread.td_wmesg) ?
+			    p->p_thread.td_wmesg : "nochan");
+	}
 	DOCHECK();
 
 	cr = p->p_ucred;

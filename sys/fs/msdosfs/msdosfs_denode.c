@@ -125,7 +125,7 @@ msdosfs_hashget(dev, dirclust, diroff)
 	u_long dirclust;
 	u_long diroff;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct denode *dep;
 	struct vnode *vp;
 
@@ -139,7 +139,7 @@ loop:
 			vp = DETOV(dep);
 			mtx_lock(&vp->v_interlock);
 			mtx_unlock(&dehash_mtx);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
 				goto loop;
 			return (dep);
 		}
@@ -209,7 +209,7 @@ deget(pmp, dirclust, diroffset, depp)
 	struct denode *ldep;
 	struct vnode *nvp;
 	struct buf *bp;
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct timeval tv;
 
 #ifdef MSDOSFS_DEBUG
@@ -278,7 +278,7 @@ deget(pmp, dirclust, diroffset, depp)
 	 * of at the start of msdosfs_hashins() so that reinsert() can
 	 * call msdosfs_hashins() with a locked denode.
 	 */
-	if (VOP_LOCK(nvp, LK_EXCLUSIVE, p) != 0)
+	if (VOP_LOCK(nvp, LK_EXCLUSIVE, td) != 0)
 		panic("deget: unexpected lock failure");
 
 	/*
@@ -414,12 +414,12 @@ deupdat(dep, waitfor)
  * Truncate the file described by dep to the length specified by length.
  */
 int
-detrunc(dep, length, flags, cred, p)
+detrunc(dep, length, flags, cred, td)
 	struct denode *dep;
 	u_long length;
 	int flags;
 	struct ucred *cred;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 	int allerror;
@@ -520,7 +520,7 @@ detrunc(dep, length, flags, cred, p)
 	dep->de_FileSize = length;
 	if (!isadir)
 		dep->de_flag |= DE_UPDATE|DE_MODIFIED;
-	allerror = vtruncbuf(DETOV(dep), cred, p, length, pmp->pm_bpcluster);
+	allerror = vtruncbuf(DETOV(dep), cred, td, length, pmp->pm_bpcluster);
 #ifdef MSDOSFS_DEBUG
 	if (allerror)
 		printf("detrunc(): vtruncbuf error %d\n", allerror);
@@ -671,12 +671,12 @@ int
 msdosfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	int error = 0;
 
 #ifdef MSDOSFS_DEBUG
@@ -702,14 +702,14 @@ msdosfs_inactive(ap)
 	       dep, dep->de_refcnt, vp->v_mount->mnt_flag, MNT_RDONLY);
 #endif
 	if (dep->de_refcnt <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-		error = detrunc(dep, (u_long) 0, 0, NOCRED, p);
+		error = detrunc(dep, (u_long) 0, 0, NOCRED, td);
 		dep->de_flag |= DE_UPDATE;
 		dep->de_Name[0] = SLOT_DELETED;
 	}
 	deupdat(dep, 0);
 
 out:
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	/*
 	 * If we are done with the denode, reclaim it
 	 * so that it can be reused immediately.
@@ -719,6 +719,6 @@ out:
 	       dep->de_Name[0]);
 #endif
 	if (dep->de_Name[0] == SLOT_DELETED)
-		vrecycle(vp, NULL, p);
+		vrecycle(vp, NULL, td);
 	return (error);
 }

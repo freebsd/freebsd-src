@@ -169,7 +169,7 @@ relchns(dev_t dev, struct pcm_channel *rdch, struct pcm_channel *wrch, u_int32_t
 }
 
 static int
-dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
+dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	struct pcm_channel *rdch, *wrch;
 	struct snddev_info *d;
@@ -229,9 +229,9 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 		if (rdch == NULL) {
 			/* not already open, try to get a channel */
 			if (devtype == SND_DEV_DSPREC)
-				rdch = pcm_chnalloc(d, PCMDIR_REC, p->p_pid, PCMCHAN(i_dev));
+				rdch = pcm_chnalloc(d, PCMDIR_REC, td->td_proc->p_pid, PCMCHAN(i_dev));
 			else
-				rdch = pcm_chnalloc(d, PCMDIR_REC, p->p_pid, -1);
+				rdch = pcm_chnalloc(d, PCMDIR_REC, td->td_proc->p_pid, -1);
 			if (!rdch) {
 				/* no channel available, exit */
 				pcm_unlock(d);
@@ -251,7 +251,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 		/* open for write */
 		if (wrch == NULL) {
 			/* not already open, try to get a channel */
-			wrch = pcm_chnalloc(d, PCMDIR_PLAY, p->p_pid, -1);
+			wrch = pcm_chnalloc(d, PCMDIR_PLAY, td->td_proc->p_pid, -1);
 			if (!wrch) {
 				/* no channel available */
 				if (rdch && (flags & FREAD)) {
@@ -310,7 +310,7 @@ dsp_open(dev_t i_dev, int flags, int mode, struct proc *p)
 }
 
 static int
-dsp_close(dev_t i_dev, int flags, int mode, struct proc *p)
+dsp_close(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	struct pcm_channel *rdch, *wrch;
 	struct snddev_info *d;
@@ -429,7 +429,7 @@ dsp_write(dev_t i_dev, struct uio *buf, int flag)
 }
 
 static int
-dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
+dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
     	struct pcm_channel *wrch, *rdch;
 	struct snddev_info *d;
@@ -446,7 +446,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		dev_t pdev;
 
 		pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(PCMUNIT(i_dev), SND_DEV_CTL, 0));
-		return mixer_ioctl(pdev, cmd, arg, mode, p);
+		return mixer_ioctl(pdev, cmd, arg, mode, td);
 	}
 
     	s = spltty();
@@ -961,7 +961,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 }
 
 static int
-dsp_poll(dev_t i_dev, int events, struct proc *p)
+dsp_poll(dev_t i_dev, int events, struct thread *td)
 {
 	struct pcm_channel *wrch = NULL, *rdch = NULL;
 	intrmask_t s;
@@ -974,12 +974,12 @@ dsp_poll(dev_t i_dev, int events, struct proc *p)
 	if (wrch) {
 		e = (events & (POLLOUT | POLLWRNORM));
 		if (e)
-			ret |= chn_poll(wrch, e, p);
+			ret |= chn_poll(wrch, e, td);
 	}
 	if (rdch) {
 		e = (events & (POLLIN | POLLRDNORM));
 		if (e)
-			ret |= chn_poll(rdch, e, p);
+			ret |= chn_poll(rdch, e, td);
 	}
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 

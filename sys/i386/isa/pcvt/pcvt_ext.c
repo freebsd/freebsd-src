@@ -2392,8 +2392,9 @@ vgapage(int new_screen)
  *	ioctl handling for VT_USL mode
  *---------------------------------------------------------------------------*/
 int
-usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 {
+	struct proc *p = td->td_proc;
 	int i, j, error, opri;
 	struct vt_mode newmode;
 
@@ -2613,9 +2614,9 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		/* grant the process IO access; only allowed if euid == 0 */
 		/* and insecure */
 	{
-		struct trapframe *fp = p->p_frame;
+		struct trapframe *fp = td->td_frame;
 
-		error = suser(p);
+		error = suser_td(td);
 		if (error != 0)
 			return (error);
 		if (securelevel > 0)
@@ -2629,7 +2630,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case KDDISABIO:
 		/* abandon IO access permission */
 	{
-		struct trapframe *fp = p->p_frame;
+		struct trapframe *fp = td->td_frame;
 		fp->tf_eflags &= ~PSL_IOPL;
 		return 0;
 	}

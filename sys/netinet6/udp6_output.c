@@ -121,12 +121,12 @@
 #define udp6s_opackets	udps_opackets
 
 int
-udp6_output(in6p, m, addr6, control, p)
+udp6_output(in6p, m, addr6, control, td)
 	struct in6pcb *in6p;
 	struct mbuf *m;
 	struct mbuf *control;
 	struct sockaddr *addr6;
-	struct proc *p;
+	struct thread *td;
 {
 	u_int32_t ulen = m->m_pkthdr.len;
 	u_int32_t plen = sizeof(struct udphdr) + ulen;
@@ -142,7 +142,7 @@ udp6_output(in6p, m, addr6, control, p)
 	struct sockaddr_in6 tmp;
 
 	priv = 0;
-	if (p && !suser(p))
+	if (td && !suser_td(td))
 		priv = 1;
 	if (control) {
 		if ((error = ip6_setpktoptions(control, &opt, priv, 0)) != 0)
@@ -215,7 +215,7 @@ udp6_output(in6p, m, addr6, control, p)
 			goto release;
 		}
 		if (in6p->in6p_lport == 0 &&
-		    (error = in6_pcbsetport(laddr, in6p, p)) != 0)
+		    (error = in6_pcbsetport(laddr, in6p, td)) != 0)
 			goto release;
 	} else {
 		if (IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr)) {

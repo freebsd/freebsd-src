@@ -560,7 +560,7 @@ pmap_pageable(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 }
 
 /*
- * Create the kernel stack and user structure for a new process.  This
+ * Create the user structure for a new process.  This
  * routine directly affects the performance of fork().
  */
 void
@@ -573,16 +573,16 @@ pmap_new_proc(struct proc *p)
 
 	o = p->p_upages_obj;
 	if (o  == NULL) {
-		o = vm_object_allocate(OBJT_DEFAULT, UPAGES);
+		o = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
 		p->p_upages_obj = o;
 	}
-	u = (vm_offset_t)p->p_addr;
+	u = (vm_offset_t)p->p_uarea;
 	if (u == 0) {
-		u = kmem_alloc_nofault(kernel_map, UPAGES * PAGE_SIZE);
+		u = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
 		KASSERT(u != NULL, ("pmap_new_proc: u area\n"));
-		p->p_addr = (struct user *)u;
+		p->p_uarea = (struct user *)u;
 	}
-	for (i = 0; i < UPAGES; i++) {
+	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_grab(o, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 		m->wire_count++;
 		cnt.v_wire_count++;
@@ -603,13 +603,69 @@ pmap_dispose_proc(struct proc *p)
 	int i;
 
 	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_addr;
-	for (i = 0; i < UPAGES; i++) {
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_lookup(upobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_proc: upage already missing?");
 		vm_page_busy(m);
 		pmap_kremove(up + i * PAGE_SIZE);
+		vm_page_unwire(m, 0);
+		vm_page_free(m);
+	}
+}
+
+/*
+ * Create the kernel stack for a new thread.  This
+ * routine directly affects the performance of fork().
+ */
+void
+pmap_new_thread(struct thread *td)
+{
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+	u_int i;
+
+	ksobj = td->td_kstack_obj;
+	if (ksobj == NULL) {
+		ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
+		td->td_kstack_obj = ksobj;
+	}
+	ks = td->td_kstack;
+	if (ks == 0) {
+		ks = kmem_alloc_nofault(kernel_map, KSTACK_PAGES * PAGE_SIZE);
+		KASSERT(ks != NULL, ("pmap_new_thread: kstack\n"));
+		td->td_kstack = ks;
+	}
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		m->wire_count++;
+		cnt.v_wire_count++;
+		pmap_kenter(ks + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
+		vm_page_wakeup(m);
+		vm_page_flag_clear(m, PG_ZERO);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+}
+
+void
+pmap_dispose_thread(struct thread *td)
+{
+	vm_object_t ksobj;
+	vm_offset_t ks;
+	vm_page_t m;
+	int i;
+
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		m = vm_page_lookup(ksobj, i);
+		if (m == NULL)
+			panic("pmap_dispose_proc: upage already missing?");
+		vm_page_busy(m);
+		pmap_kremove(ks + i * PAGE_SIZE);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
@@ -664,7 +720,7 @@ pmap_ts_referenced(vm_page_t m)
 }
 
 void
-pmap_activate(struct proc *p)
+pmap_activate(struct thread *td)
 {
 	TODO;
 }
@@ -836,6 +892,18 @@ pmap_swapin_proc(struct proc *p)
 
 void
 pmap_swapout_proc(struct proc *p)
+{
+	TODO;
+}
+
+void
+pmap_swapin_thread(struct thread *td)
+{
+	TODO;
+}
+
+void
+pmap_swapout_thread(struct thread *td)
 {
 	TODO;
 }

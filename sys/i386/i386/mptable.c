@@ -26,7 +26,7 @@
  */
 
 #include "opt_cpu.h"
-#include "opt_upages.h"
+#include "opt_kstack_pages.h"
 
 #ifdef SMP
 #include <machine/smptests.h>
@@ -1960,8 +1960,8 @@ start_all_aps(u_int boot_addr)
 		SMPpt[pg] = (pt_entry_t)(PG_V | PG_RW | vtophys(gd));
 
 		/* allocate and set up an idle stack data page */
-		stack = (char *)kmem_alloc(kernel_map, UPAGES*PAGE_SIZE);
-		for (i = 0; i < UPAGES; i++)
+		stack = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE); /* XXXKSE */
+		for (i = 0; i < KSTACK_PAGES; i++)
 			SMPpt[pg + 1 + i] = (pt_entry_t)
 			    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
@@ -1977,7 +1977,7 @@ start_all_aps(u_int boot_addr)
 		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 #endif
 
-		bootSTK = &SMP_prvspace[x].idlestack[UPAGES*PAGE_SIZE];
+		bootSTK = &SMP_prvspace[x].idlekstack[KSTACK_PAGES * PAGE_SIZE];
 		bootAP = x;
 
 		/* attempt to start the Application Processor */
@@ -2019,8 +2019,8 @@ start_all_aps(u_int boot_addr)
 	 */
 
 	/* Allocate and setup BSP idle stack */
-	stack = (char *)kmem_alloc(kernel_map, UPAGES * PAGE_SIZE);
-	for (i = 0; i < UPAGES; i++)
+	stack = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
+	for (i = 0; i < KSTACK_PAGES; i++)
 		SMPpt[1 + i] = (pt_entry_t)
 		    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
 
@@ -2241,7 +2241,7 @@ ap_init(void)
 	 * Set curproc to our per-cpu idleproc so that mutexes have
 	 * something unique to lock with.
 	 */
-	PCPU_SET(curproc, PCPU_GET(idleproc));
+	PCPU_SET(curthread, PCPU_GET(idlethread));
 	PCPU_SET(spinlocks, NULL);
 
 	/* lock against other AP's that are waking up */
@@ -2323,7 +2323,7 @@ forwarded_statclock(struct trapframe frame)
 {
 
 	mtx_lock_spin(&sched_lock);
-	statclock_process(curproc, TRAPF_PC(&frame), TRAPF_USERMODE(&frame));
+	statclock_process(curthread->td_kse, TRAPF_PC(&frame), TRAPF_USERMODE(&frame));
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -2354,7 +2354,7 @@ forwarded_hardclock(struct trapframe frame)
 {
 
 	mtx_lock_spin(&sched_lock);
-	hardclock_process(curproc, TRAPF_USERMODE(&frame));
+	hardclock_process(curthread, TRAPF_USERMODE(&frame));
 	mtx_unlock_spin(&sched_lock);
 }
 

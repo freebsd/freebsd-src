@@ -216,6 +216,7 @@ static dpt_sig_S ASR_sig = {
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/disklabel.h>
+#include <sys/proc.h>
 #include <sys/bus.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -457,17 +458,17 @@ STATIC int            asr_ioctl __P((
                         IN u_long     cmd,
                         INOUT caddr_t data,
                         int           flag,
-                        struct proc * proc));
+                        struct thread * td));
 STATIC int            asr_open __P((
                         IN dev_t         dev,
                         int32_t          flags,
                         int32_t          ifmt,
-                        IN struct proc * proc));
+                        IN struct thread * td));
 STATIC int            asr_close __P((
                         dev_t         dev,
                         int           flags,
                         int           ifmt,
-                        struct proc * proc));
+                        struct thread * td));
 STATIC int            asr_intr __P((
                         IN Asr_softc_t * sc));
 STATIC void           asr_timeout __P((
@@ -3863,7 +3864,7 @@ asr_open(
         IN dev_t         dev,
         int32_t          flags,
         int32_t          ifmt,
-        IN struct proc * proc)
+        IN struct thread * td)
 {
         int              s;
         OUT int          error;
@@ -3876,7 +3877,7 @@ asr_open(
         s = splcam ();
         if (ASR_ctlr_held) {
                 error = EBUSY;
-        } else if ((error = suser(proc)) == 0) {
+        } else if ((error = suser(td->td_proc)) == 0) {
                 ++ASR_ctlr_held;
         }
         splx(s);
@@ -3888,12 +3889,12 @@ asr_close(
         dev_t         dev,
         int           flags,
         int           ifmt,
-        struct proc * proc)
+        struct thread * td)
 {
         UNREFERENCED_PARAMETER(dev);
         UNREFERENCED_PARAMETER(flags);
         UNREFERENCED_PARAMETER(ifmt);
-        UNREFERENCED_PARAMETER(proc);
+        UNREFERENCED_PARAMETER(td);
 
         ASR_ctlr_held = 0;
         return (0);
@@ -4387,13 +4388,13 @@ asr_ioctl(
         IN u_long     cmd,
         INOUT caddr_t data,
         int           flag,
-        struct proc * proc)
+        struct thread * td)
 {
         int           i, j;
         OUT int       error = 0;
         Asr_softc_t * sc = ASR_get_sc (dev);
         UNREFERENCED_PARAMETER(flag);
-        UNREFERENCED_PARAMETER(proc);
+        UNREFERENCED_PARAMETER(td);
 
         if (sc != (Asr_softc_t *)NULL)
         switch(cmd) {

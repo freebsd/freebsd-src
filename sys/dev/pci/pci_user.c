@@ -60,11 +60,11 @@
  * This is the user interface to PCI configuration space.
  */
 
-static int	pci_open(dev_t dev, int oflags, int devtype, struct proc *p);
-static int	pci_close(dev_t dev, int flag, int devtype, struct proc *p);
+static d_open_t 	pci_open;
+static d_close_t	pci_close;
 static int	pci_conf_match(struct pci_match_conf *matches, int num_matches,
 			       struct pci_conf *match_buf);
-static int	pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p);
+static d_ioctl_t	pci_ioctl;
 
 #define	PCI_CDEV	78
 
@@ -85,7 +85,7 @@ struct cdevsw pcicdev = {
 };
   
 static int
-pci_open(dev_t dev, int oflags, int devtype, struct proc *p)
+pci_open(dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	if ((oflags & FWRITE) && securelevel > 0) {
 		return EPERM;
@@ -94,7 +94,7 @@ pci_open(dev_t dev, int oflags, int devtype, struct proc *p)
 }
 
 static int
-pci_close(dev_t dev, int flag, int devtype, struct proc *p)
+pci_close(dev_t dev, int flag, int devtype, struct thread *td)
 {
 	return 0;
 }
@@ -167,7 +167,7 @@ pci_conf_match(struct pci_match_conf *matches, int num_matches,
 }
 
 static int
-pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	device_t pci, pcib;
 	struct pci_io *io;

@@ -276,7 +276,7 @@ struct ntp_adjtime_args {
  * MPSAFE
  */
 int
-ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
+ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 {
 	struct timex ntv;	/* temporary structure */
 	long freq;		/* frequency ns/s) */
@@ -300,7 +300,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	mtx_lock(&Giant);
 	modes = ntv.modes;
 	if (modes)
-		error = suser(p);
+		error = suser_td(td);
 	if (error)
 		goto done2;
 	s = splclock();
@@ -416,9 +416,9 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	    time_status & STA_PPSJITTER) ||
 	    (time_status & STA_PPSFREQ &&
 	    time_status & (STA_PPSWANDER | STA_PPSERROR))) {
-		p->p_retval[0] = TIME_ERROR;
+		td->td_retval[0] = TIME_ERROR;
 	} else {
-		p->p_retval[0] = time_state;
+		td->td_retval[0] = time_state;
 	}
 done2:
 	mtx_unlock(&Giant);

@@ -79,7 +79,7 @@ MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
 static MALLOC_DEFINE(M_ATEXIT, "atexit", "atexit callback");
 
-static int wait1 __P((struct proc *, struct wait_args *, int));
+static int wait1 __P((struct thread *, struct wait_args *, int));
 
 /*
  * callout list for things to do at exit time
@@ -99,14 +99,15 @@ static struct exit_list_head exit_list = TAILQ_HEAD_INITIALIZER(exit_list);
  * MPSAFE
  */
 void
-sys_exit(p, uap)
-	struct proc *p;
+sys_exit(td, uap)
+	struct thread *td;
 	struct sys_exit_args /* {
 		int	rval;
 	} */ *uap;
 {
+
 	mtx_lock(&Giant);
-	exit1(p, W_EXITCODE(uap->rval, 0));
+	exit1(td, W_EXITCODE(uap->rval, 0));
 	/* NOTREACHED */
 }
 
@@ -116,10 +117,11 @@ sys_exit(p, uap)
  * status and rusage for wait().  Check for child processes and orphan them.
  */
 void
-exit1(p, rv)
-	register struct proc *p;
+exit1(td, rv)
+	register struct thread *td;
 	int rv;
 {
+	struct proc *p = td->td_proc;
 	register struct proc *q, *nq;
 	register struct vmspace *vm;
 	struct exitlist *ep;
@@ -131,6 +133,9 @@ exit1(p, rv)
 		    WTERMSIG(rv), WEXITSTATUS(rv));
 		panic("Going nowhere without my init!");
 	}
+
+/* XXXXKSE */
+/* MUST abort all other threads before proceeding past this point */
 
 	aio_proc_rundown(p);
 
@@ -189,7 +194,7 @@ exit1(p, rv)
 	 * Close open files and release open-file table.
 	 * This may block!
 	 */
-	fdfree(p);
+	fdfree(&p->p_thread); /* XXXKSE */
 
 	/*
 	 * Remove ourself from our leader's peer list and wake our leader.
@@ -264,7 +269,7 @@ exit1(p, rv)
 	} else
 		PROC_UNLOCK(p);
 	fixjobc(p, p->p_pgrp, 0);
-	(void)acct_process(p);
+	(void)acct_process(td);
 #ifdef KTRACE
 	/*
 	 * release trace file
@@ -385,7 +390,7 @@ exit1(p, rv)
 	 * The address space is released by "vmspace_free(p->p_vmspace)"
 	 * in vm_waitproc();
 	 */
-	cpu_exit(p);
+	cpu_exit(td);
 
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
@@ -413,8 +418,8 @@ exit1(p, rv)
  * MPSAFE, the dirty work is handled by wait1().
  */
 int
-owait(p, uap)
-	struct proc *p;
+owait(td, uap)
+	struct thread *td;
 	register struct owait_args /* {
 		int     dummy;
 	} */ *uap;
@@ -425,7 +430,7 @@ owait(p, uap)
 	w.rusage = NULL;
 	w.pid = WAIT_ANY;
 	w.status = NULL;
-	return (wait1(p, &w, 1));
+	return (wait1(td, &w, 1));
 }
 #endif /* COMPAT_43 */
 
@@ -433,19 +438,20 @@ owait(p, uap)
  * MPSAFE, the dirty work is handled by wait1().
  */
 int
-wait4(p, uap)
-	struct proc *p;
+wait4(td, uap)
+	struct thread *td;
 	struct wait_args *uap;
 {
-	return (wait1(p, uap, 0));
+
+	return (wait1(td, uap, 0));
 }
 
 /*
  * MPSAFE
  */
 static int
-wait1(q, uap, compat)
-	register struct proc *q;
+wait1(td, uap, compat)
+	register struct thread *td;
 	register struct wait_args /* {
 		int pid;
 		int *status;
@@ -455,10 +461,11 @@ wait1(q, uap, compat)
 	int compat;
 {
 	register int nfound;
-	register struct proc *p, *t;
+	register struct proc *q, *p, *t;
 	int status, error;
 
 	mtx_lock(&Giant);
+	q = td->td_proc;
 	if (uap->pid == 0)
 		uap->pid = -q->p_pgid;
 	if (uap->options &~ (WUNTRACED|WNOHANG|WLINUXCLONE)) {
@@ -491,20 +498,31 @@ loop:
 		nfound++;
 		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SZOMB) {
-			/* charge childs scheduling cpu usage to parent */
-			if (curproc->p_pid != 1) {
-				curproc->p_estcpu =
-				    ESTCPULIM(curproc->p_estcpu + p->p_estcpu);
+			/*
+			 * charge childs scheduling cpu usage to parent
+			 * XXXKSE assume only one thread & kse & ksegrp
+			 * keep estcpu in each ksegrp
+			 * so charge it to the ksegrp that did the wait
+			 * since process estcpu is sum of all ksegrps,
+			 * this is strictly as expected.
+			 * Assume that the child process aggregated all 
+			 * tke estcpu into the 'build-in' ksegrp.
+			 * XXXKSE
+			 */
+			if (curthread->td_proc->p_pid != 1) {
+				curthread->td_ksegrp->kg_estcpu =
+				    ESTCPULIM(curthread->td_ksegrp->kg_estcpu +
+				    p->p_ksegrp.kg_estcpu);
 			}
 
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
 
-			q->p_retval[0] = p->p_pid;
+			td->td_retval[0] = p->p_pid;
 #ifdef COMPAT_43
 			if (compat)
-				q->p_retval[1] = p->p_xstat;
+				td->td_retval[1] = p->p_xstat;
 			else
 #endif
 			if (uap->status) {
@@ -583,7 +601,7 @@ loop:
 				FREE(p->p_args, M_PARGS);
 
 			if (--p->p_procsig->ps_refcnt == 0) {
-				if (p->p_sigacts != &p->p_addr->u_sigacts)
+				if (p->p_sigacts != &p->p_uarea->u_sigacts)
 					FREE(p->p_sigacts, M_SUBPROC);
 			        FREE(p->p_procsig, M_SUBPROC);
 				p->p_procsig = NULL;
@@ -607,10 +625,10 @@ loop:
 			p->p_flag |= P_WAITED;
 			PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
-			q->p_retval[0] = p->p_pid;
+			td->td_retval[0] = p->p_pid;
 #ifdef COMPAT_43
 			if (compat) {
-				q->p_retval[1] = W_STOPCODE(p->p_xstat);
+				td->td_retval[1] = W_STOPCODE(p->p_xstat);
 				error = 0;
 			} else
 #endif
@@ -631,7 +649,7 @@ loop:
 		goto done2;
 	}
 	if (uap->options & WNOHANG) {
-		q->p_retval[0] = 0;
+		td->td_retval[0] = 0;
 		error = 0;
 		goto done2;
 	}

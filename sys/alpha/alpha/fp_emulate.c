@@ -221,10 +221,10 @@ static fp_register_t fp_cvtql(union alpha_instruction ins,
     return ret;
 }
 
-static int fp_emulate(union alpha_instruction ins, struct proc *p)
+static int fp_emulate(union alpha_instruction ins, struct thread *td)
 {
-	u_int64_t control = p->p_addr->u_pcb.pcb_fp_control;
-	struct fpreg *fpregs = &p->p_addr->u_pcb.pcb_fp;
+	u_int64_t control = td->td_pcb->pcb_fp_control;
+	struct fpreg *fpregs = &td->td_pcb->pcb_fp;
 	static fp_opcode_handler *ops[16] = {
 		fp_add,		/* 0 */
 		fp_sub,		/* 1 */
@@ -261,7 +261,7 @@ static int fp_emulate(union alpha_instruction ins, struct proc *p)
 	 * them. We are potentially going to modify the fp state, so
 	 * cancel fpcurproc too.
 	 */
-	alpha_fpstate_save(p, 1);
+	alpha_fpstate_save(td, 1);
 
 	/*
 	 * Decode and execute the instruction.
@@ -288,7 +288,7 @@ static int fp_emulate(union alpha_instruction ins, struct proc *p)
 
 		/* Record the exception in the software control word. */
 		control |= (status >> IEEE_STATUS_TO_FPCR_SHIFT);
-		p->p_addr->u_pcb.pcb_fp_control = control;
+		td->td_pcb->pcb_fp_control = control;
 
 		/* Regenerate the control register */
 		fpcr = fpregs->fpr_cr & FPCR_DYN_MASK;
@@ -323,9 +323,9 @@ static int fp_emulate(union alpha_instruction ins, struct proc *p)
  * emulating it in software.  Return non-zero if the completion was
  * successful, otherwise zero.
  */
-int fp_software_completion(u_int64_t regmask, struct proc *p)
+int fp_software_completion(u_int64_t regmask, struct thread *td)
 {
-	struct trapframe *frame = p->p_frame;
+	struct trapframe *frame = td->td_frame;
 	u_int64_t pc = frame->tf_regs[FRAME_PC];
 	int error;
 
@@ -394,7 +394,7 @@ int fp_software_completion(u_int64_t regmask, struct proc *p)
 			 * instructions in the trap shadow, so this
 			 * must be the one which generated the trap.
 			 */
-			if (fp_emulate(ins, p)) {
+			if (fp_emulate(ins, td)) {
 				/*
 				 * Restore pc to the first instruction
 				 * in the trap shadow.

@@ -59,22 +59,22 @@
 static MALLOC_DEFINE(M_FDESCMNT, "FDESC mount", "FDESC mount structure");
 
 static int	fdesc_mount __P((struct mount *mp, char *path, caddr_t data,
-				 struct nameidata *ndp, struct proc *p));
+				 struct nameidata *ndp, struct thread *td));
 static int	fdesc_unmount __P((struct mount *mp, int mntflags,
-				   struct proc *p));
+				   struct thread *td));
 static int	fdesc_statfs __P((struct mount *mp, struct statfs *sbp,
-				  struct proc *p));
+				  struct thread *td));
   
 /*
  * Mount the per-process file descriptors (/dev/fd)
  */
 static int
-fdesc_mount(mp, path, data, ndp, p)
+fdesc_mount(mp, path, data, ndp, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
 	struct nameidata *ndp;
-	struct proc *p;
+	struct thread *td;
 {
 	int error = 0;
 	struct fdescmount *fmp;
@@ -86,7 +86,7 @@ fdesc_mount(mp, path, data, ndp, p)
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);
 
-	error = fdesc_allocvp(Froot, FD_ROOT, mp, &rvp, p);
+	error = fdesc_allocvp(Froot, FD_ROOT, mp, &rvp, td);
 	if (error)
 		return (error);
 
@@ -102,15 +102,15 @@ fdesc_mount(mp, path, data, ndp, p)
 
 	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy("fdesc", mp->mnt_stat.f_mntfromname, sizeof("fdesc"));
-	(void)fdesc_statfs(mp, &mp->mnt_stat, p);
+	(void)fdesc_statfs(mp, &mp->mnt_stat, td);
 	return (0);
 }
 
 static int
-fdesc_unmount(mp, mntflags, p)
+fdesc_unmount(mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 	int flags = 0;
@@ -143,7 +143,7 @@ fdesc_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp;
 
 	/*
@@ -151,16 +151,16 @@ fdesc_root(mp, vpp)
 	 */
 	vp = VFSTOFDESC(mp)->f_root;
 	VREF(vp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	*vpp = vp;
 	return (0);
 }
 
 static int
-fdesc_statfs(mp, sbp, p)
+fdesc_statfs(mp, sbp, td)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct proc *p;
+	struct thread *td;
 {
 	struct filedesc *fdp;
 	int lim;
@@ -174,8 +174,8 @@ fdesc_statfs(mp, sbp, p)
 	 * limit is ever reduced below the current number
 	 * of open files... ]
 	 */
-	lim = p->p_rlimit[RLIMIT_NOFILE].rlim_cur;
-	fdp = p->p_fd;
+	lim = td->td_proc->p_rlimit[RLIMIT_NOFILE].rlim_cur;
+	fdp = td->td_proc->p_fd;
 	last = min(fdp->fd_nfiles, lim);
 	freefd = 0;
 	for (i = fdp->fd_freefile; i < last; i++)

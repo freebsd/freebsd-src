@@ -39,14 +39,14 @@ extern	int	Maxmem;
 
 struct	dbreg;
 struct	fpreg;
-struct	proc;
+struct	thread;
 struct	reg;
 
 void	cpu_halt(void);
 void	cpu_reset(void);
-int	fill_dbregs(struct proc *p, struct dbreg *dbregs);
-int	fill_fpregs(struct proc *p, struct fpreg *fpregs);
-int	fill_regs(struct proc *p, struct reg *regs);
+int	fill_dbregs(struct thread *td, struct dbreg *dbregs);
+int	fill_fpregs(struct thread *td, struct fpreg *fpregs);
+int	fill_regs(struct thread *td, struct reg *regs);
 void	swi_vm(void *v);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

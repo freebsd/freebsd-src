@@ -56,7 +56,7 @@ pfs_access(struct vop_access_args *va)
 	struct vattr vattr;
 	int error;
 	
-	error = VOP_GETATTR(vn, &vattr, va->a_cred, va->a_p);
+	error = VOP_GETATTR(vn, &vattr, va->a_cred, va->a_td);
 	if (error)
 		return (error);
 	error = vaccess(vn->v_type, vattr.va_mode, vattr.va_uid,
@@ -230,7 +230,7 @@ pfs_read(struct vop_read_args *va)
 		return (EIO);
 	}
 
-	error = (pn->pn_func)(curproc, proc, pn, sb);
+	error = (pn->pn_func)(curthread, proc, pn, sb);
 
 	if (proc != NULL)
 		PRELE(proc);
@@ -392,7 +392,7 @@ pfs_readlink(struct vop_readlink_args *va)
 	/* sbuf_new() can't fail with a static buffer */
 	sbuf_new(&sb, buf, sizeof buf, 0);
 
-	error = (pn->pn_func)(curproc, proc, pn, &sb);
+	error = (pn->pn_func)(curthread, proc, pn, &sb);
 
 	if (proc != NULL)
 		PRELE(proc);

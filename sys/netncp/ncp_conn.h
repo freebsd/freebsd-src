@@ -195,33 +195,33 @@ struct ncp_conn {
 int  ncp_conn_init(void);
 int  ncp_conn_destroy(void);
 int  ncp_conn_alloc(struct ncp_conn_args *cap,
-	struct proc *p, struct ucred *cred, struct ncp_conn **connid);
+	struct thread *td, struct ucred *cred, struct ncp_conn **connid);
 int  ncp_conn_free(struct ncp_conn *conn);
 int  ncp_conn_access(struct ncp_conn *conn,struct ucred *cred,mode_t mode);
-int  ncp_conn_lock(struct ncp_conn *conn,struct proc *p,struct ucred *cred,int mode);
-void ncp_conn_unlock(struct ncp_conn *conn,struct proc *p);
-int  ncp_conn_assert_locked(struct ncp_conn *conn,char *checker,struct proc *p);
+int  ncp_conn_lock(struct ncp_conn *conn,struct thread *td, struct ucred *cred,int mode);
+void ncp_conn_unlock(struct ncp_conn *conn,struct thread *td);
+int  ncp_conn_assert_locked(struct ncp_conn *conn,char *checker,struct thread *td);
 void ncp_conn_invalidate(struct ncp_conn *ncp);
 int  ncp_conn_invalid(struct ncp_conn *ncp);
 /*int  ncp_conn_ref(struct ncp_conn *conn, pid_t pid);
 int  ncp_conn_rm_ref(struct ncp_conn *conn, pid_t pid, int force);
 void ncp_conn_list_rm_ref(pid_t pid);*/
-int  ncp_conn_getbyref(int connRef,struct proc *p,struct ucred *cred, int mode,
+int  ncp_conn_getbyref(int connRef,struct thread *td, struct ucred *cred, int mode,
 	struct ncp_conn **connpp);
-int  ncp_conn_getbyli(struct ncp_conn_loginfo *li,struct proc *p,struct ucred *cred, 
+int  ncp_conn_getbyli(struct ncp_conn_loginfo *li,struct thread *td, struct ucred *cred, 
 	int mode, struct ncp_conn **connpp);
 int  ncp_conn_setprimary(struct ncp_conn *conn, int on);
-int  ncp_conn_locklist(int flags, struct proc *p);
-void ncp_conn_unlocklist(struct proc *p);
-int  ncp_conn_gethandle(struct ncp_conn *conn, struct proc *p, struct ncp_handle **handle);
-int  ncp_conn_puthandle(struct ncp_handle *handle, struct proc *p, int force);
-int  ncp_conn_findhandle(int connHandle, struct proc *p, struct ncp_handle **handle);
-int  ncp_conn_getattached(struct ncp_conn_args *li,struct proc *p,struct ucred *cred,int mode, struct ncp_conn **connpp);
-int  ncp_conn_putprochandles(struct proc *p);
+int  ncp_conn_locklist(int flags, struct thread *td);
+void ncp_conn_unlocklist(struct thread *td);
+int  ncp_conn_gethandle(struct ncp_conn *conn, struct thread *td, struct ncp_handle **handle);
+int  ncp_conn_puthandle(struct ncp_handle *handle, struct thread *td, int force);
+int  ncp_conn_findhandle(int connHandle, struct thread *td, struct ncp_handle **handle);
+int  ncp_conn_getattached(struct ncp_conn_args *li,struct thread *td, struct ucred *cred,int mode, struct ncp_conn **connpp);
+int  ncp_conn_putprochandles(struct thread *td);
 int  ncp_conn_getinfo(struct ncp_conn *ncp, struct ncp_conn_stat *ncs);
 
 int  ncp_conn_reconnect(struct ncp_conn *ncp);
-int  ncp_conn_login(struct ncp_conn *conn, struct proc *p, struct ucred *cred);
+int  ncp_conn_login(struct ncp_conn *conn, struct thread *td, struct ucred *cred);
 
 extern struct ncp_conn_head conn_list;
 extern int ncp_burst_enabled;

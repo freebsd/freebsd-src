@@ -85,7 +85,7 @@ struct mbuf;
 struct sockaddr;
 struct socket;
 struct domain;
-struct proc;
+struct thread;
 struct ip6_hdr;
 struct icmp6_hdr;
 struct in6_addr;
@@ -140,7 +140,7 @@ struct ip6protosw {
 /* user-protocol hook */
 	int	(*pr_usrreq)		/* user request: see list below */
 			__P((struct socket *, int, struct mbuf *,
-			     struct mbuf *, struct mbuf *, struct proc *));
+			     struct mbuf *, struct mbuf *, struct thread *));
 
 /* utility hooks */
 	void	(*pr_init)		/* initialization hook */

@@ -119,7 +119,7 @@ ifs_lookup(ap)
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	int error, lockparent, wantparent;
-	struct proc *p = cnp->cn_proc;
+	struct thread *td = cnp->cn_thread;
 	ufs_daddr_t inodenum;
 	char *endp;
 
@@ -140,12 +140,12 @@ ifs_lookup(ap)
 		return (EPERM);
 	}	
 	/* Deal with the '.' directory */
-	/* VOP_UNLOCK(vdp, 0, p); */
+	/* VOP_UNLOCK(vdp, 0, td); */
 	if (cnp->cn_namelen == 1 && *(cnp->cn_nameptr) == '.') {
 		/* We don't unlock the parent dir since the're the same */
 		*vpp = vdp; 
 		VREF(vdp);
-		/* vn_lock(vdp, LK_SHARED | LK_RETRY, p); */
+		/* vn_lock(vdp, LK_SHARED | LK_RETRY, td); */
 		return (0);
 	}
 	/* 
@@ -155,12 +155,12 @@ ifs_lookup(ap)
 	if ((cnp->cn_namelen) == 7 && (strncmp(cnp->cn_nameptr, "newfile", 7) == 0)) {
 		if (nameiop == CREATE) {
 			/* Check for write permissions in . */
-			error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc);
+			error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
 			if (error)
 				return (error);
 			*vpp = NULL;
 		        if (!lockparent || !(flags & ISLASTCN))
-               			 VOP_UNLOCK(pdp, 0, p);
+               			 VOP_UNLOCK(pdp, 0, td);
 			cnp->cn_flags |= SAVENAME;
 			return (EJUSTRETURN);
 		} else {
@@ -246,7 +246,7 @@ ifs_lookup(ap)
 	if (error)
 		return (error);
 	if (!lockparent || !(flags & ISLASTCN))
-		VOP_UNLOCK(pdp, 0, p);
+		VOP_UNLOCK(pdp, 0, td);
 	*vpp = tdp;
 	return (0);
 }

@@ -238,14 +238,15 @@ svr4_fixup(register_t **stack_base, struct image_params *imgp)
  * Code shamelessly stolen by Mark Newton from IBCS2 emulation code.
  */
 int
-svr4_emul_find(p, sgp, prefix, path, pbuf, cflag)
-	struct proc	 *p;
+svr4_emul_find(td, sgp, prefix, path, pbuf, cflag)
+	struct thread	 *td;
 	caddr_t		 *sgp;		/* Pointer to stackgap memory */
 	const char	 *prefix;
 	char		 *path;
 	char		**pbuf;
 	int		  cflag;
 {
+	struct proc	 	*p = td->td_proc;
 	struct nameidata	 nd;
 	struct nameidata	 ndroot;
 	struct vattr		 vat;
@@ -292,7 +293,7 @@ svr4_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		for (cp = &ptr[len] - 1; *cp != '/'; cp--);
 		*cp = '\0';
 
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, p);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
 
 		if ((error = namei(&nd)) != 0) {
 			free(buf, M_TEMP);
@@ -303,7 +304,7 @@ svr4_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		*cp = '/';
 	}
 	else {
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, p);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
 
 		if ((error = namei(&nd)) != 0) {
 			free(buf, M_TEMP);
@@ -320,7 +321,7 @@ svr4_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		 * to the emulation root directory. This is expensive :-(
 		 */
 		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, svr4_emul_path,
-		       p);
+		       td);
 
 		if ((error = namei(&ndroot)) != 0) {
 			/* Cannot happen! */
@@ -330,11 +331,11 @@ svr4_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		}
 		NDFREE(&ndroot, NDF_ONLY_PNBUF);
 
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, p->p_ucred, p)) != 0) {
+		if ((error = VOP_GETATTR(nd.ni_vp, &vat, p->p_ucred, td)) != 0) {
 			goto done;
 		}
 
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, p->p_ucred, p))
+		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, p->p_ucred, td))
 		    != 0) {
 			goto done;
 		}

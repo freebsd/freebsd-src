@@ -571,10 +571,10 @@ umodemparam(tp, t)
 }
 
 int
-umodemopen(dev, flag, mode, p)
+umodemopen(dev, flag, mode, td)
 	dev_t dev;
 	int flag, mode;
-	struct proc *p;
+	struct thread *td;
 {
 	int unit = UMODEMUNIT(dev);
 	struct umodem_softc *sc;
@@ -599,7 +599,7 @@ umodemopen(dev, flag, mode, p)
 
 	if (ISSET(tp->t_state, TS_ISOPEN) &&
 	    ISSET(tp->t_state, TS_XCLUDE) &&
-	    suser(p))
+	    suser_td(td))
 		return (EBUSY);
 
 	/*
@@ -781,10 +781,10 @@ umodemreadcb(xfer, p, status)
 }
 
 int
-umodemclose(dev, flag, mode, p)
+umodemclose(dev, flag, mode, td)
 	dev_t dev;
 	int flag, mode;
-	struct proc *p;
+	struct thread *td;
 {
 	struct umodem_softc *sc;
 	struct tty *tp;
@@ -924,12 +924,12 @@ umodemtty(dev)
 }
 
 int
-umodemioctl(dev, cmd, data, flag, p)
+umodemioctl(dev, cmd, data, flag, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t data;
 	int flag;
-	struct proc *p;
+	struct thread *td;
 {
 	struct umodem_softc *sc;
 	struct tty *tp;
@@ -946,12 +946,12 @@ umodemioctl(dev, cmd, data, flag, p)
  
 	DPRINTF(("umodemioctl: cmd=0x%08lx\n", cmd));
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error >= 0)
 		return (error);
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-	error = ttioctl(tp, cmd, data, flag, p);
+	error = ttioctl(tp, cmd, data, flag, td);
 #elif defined(__FreeBSD__)
 	error = ttioctl(tp, cmd, data, flag);
 #endif

@@ -39,6 +39,7 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/random.h>
 #include <sys/selinfo.h>
@@ -138,18 +139,18 @@ SYSCTL_PROC(_kern_random_sys_harvest, OID_AUTO, interrupt,
 	random_check_boolean, "I", "Harvest IRQ entropy");
 
 static int
-random_open(dev_t dev, int flags, int fmt, struct proc *p)
+random_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
-	if ((flags & FWRITE) && (securelevel > 0 || suser(p)))
+	if ((flags & FWRITE) && (securelevel > 0 || suser(td->td_proc)))
 		return EPERM;
 	else
 		return 0;
 }
 
 static int
-random_close(dev_t dev, int flags, int fmt, struct proc *p)
+random_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
-	if ((flags & FWRITE) && !(securelevel > 0 || suser(p)))
+	if ((flags & FWRITE) && !(securelevel > 0 || suser(td->td_proc)))
 		random_reseed();
 	return 0;
 }
@@ -201,7 +202,7 @@ random_write(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-random_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+random_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	switch (cmd) {
 	/* Really handled in upper layer */
@@ -214,7 +215,7 @@ random_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 }
 
 static int
-random_poll(dev_t dev, int events, struct proc *p)
+random_poll(dev_t dev, int events, struct thread *td)
 {
 	int	revents;
 
@@ -223,7 +224,7 @@ random_poll(dev_t dev, int events, struct proc *p)
 		if (random_systat.seeded)
 			revents = events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(p, &random_systat.rsel);
+			selrecord(curthread, &random_systat.rsel);
 	}
 	return revents;
 }

@@ -74,13 +74,13 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
-static int	pollscan __P((struct proc *, struct pollfd *, u_int));
-static int	pollholddrop __P((struct proc *, struct pollfd *, u_int, int));
-static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int));
-static int	selholddrop __P((struct proc *, fd_mask *, fd_mask *, int, int));
-static int	dofileread __P((struct proc *, struct file *, int, void *,
+static int	pollscan __P((struct thread *, struct pollfd *, u_int));
+static int	pollholddrop __P((struct thread *, struct pollfd *, u_int, int));
+static int	selscan __P((struct thread *, fd_mask **, fd_mask **, int));
+static int	selholddrop __P((struct thread *, fd_mask *, fd_mask *, int, int));
+static int	dofileread __P((struct thread *, struct file *, int, void *,
 		    size_t, off_t, int));
-static int	dofilewrite __P((struct proc *, struct file *, int,
+static int	dofilewrite __P((struct thread *, struct file *, int,
 		    const void *, size_t, off_t, int));
 
 struct file*
@@ -113,18 +113,18 @@ struct read_args {
  * MPSAFE
  */
 int
-read(p, uap)
-	struct proc *p;
+read(td, uap)
+	struct thread *td;
 	register struct read_args *uap;
 {
 	register struct file *fp;
 	int error;
 
 	mtx_lock(&Giant);
-	if ((fp = holdfp(p->p_fd, uap->fd, FREAD)) != NULL) {
-		error = dofileread(p, fp, uap->fd, uap->buf,
+	if ((fp = holdfp(td->td_proc->p_fd, uap->fd, FREAD)) != NULL) {
+		error = dofileread(td, fp, uap->fd, uap->buf,
 			    uap->nbyte, (off_t)-1, 0);
-		fdrop(fp, p);
+		fdrop(fp, td);
 	} else {
 		error = EBADF;
 	}
@@ -148,23 +148,23 @@ struct pread_args {
  * MPSAFE
  */
 int
-pread(p, uap)
-	struct proc *p;
+pread(td, uap)
+	struct thread *td;
 	register struct pread_args *uap;
 {
 	register struct file *fp;
 	int error;
 
 	mtx_lock(&Giant);
-	if ((fp = holdfp(p->p_fd, uap->fd, FREAD)) == NULL) {
+	if ((fp = holdfp(td->td_proc->p_fd, uap->fd, FREAD)) == NULL) {
 		error = EBADF;
 	} else if (fp->f_type != DTYPE_VNODE) {
 		error = ESPIPE;
-		fdrop(fp, p);
+		fdrop(fp, td);
 	} else {
-		error = dofileread(p, fp, uap->fd, uap->buf, uap->nbyte, 
+		error = dofileread(td, fp, uap->fd, uap->buf, uap->nbyte, 
 			    uap->offset, FOF_OFFSET);
-		fdrop(fp, p);
+		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
 	return(error);
@@ -174,8 +174,8 @@ pread(p, uap)
  * Code common for read and pread
  */
 int
-dofileread(p, fp, fd, buf, nbyte, offset, flags)
-	struct proc *p;
+dofileread(td, fp, fd, buf, nbyte, offset, flags)
+	struct thread *td;
 	struct file *fp;
 	int fd, flags;
 	void *buf;
@@ -201,12 +201,12 @@ dofileread(p, fp, fd, buf, nbyte, offset, flags)
 	auio.uio_resid = nbyte;
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 #ifdef KTRACE
 	/*
 	 * if tracing, save a copy of iovec
 	 */
-	if (KTRPOINT(p, KTR_GENIO)) {
+	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
 		ktriov = aiov;
 		ktruio = auio;
 		didktr = 1;
@@ -214,7 +214,7 @@ dofileread(p, fp, fd, buf, nbyte, offset, flags)
 #endif
 	cnt = nbyte;
 
-	if ((error = fo_read(fp, &auio, fp->f_cred, flags, p))) {
+	if ((error = fo_read(fp, &auio, fp->f_cred, flags, td))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -224,10 +224,10 @@ dofileread(p, fp, fd, buf, nbyte, offset, flags)
 	if (didktr && error == 0) {
 		ktruio.uio_iov = &ktriov;
 		ktruio.uio_resid = cnt;
-		ktrgenio(p->p_tracep, fd, UIO_READ, &ktruio, error);
+		ktrgenio(td->td_proc->p_tracep, fd, UIO_READ, &ktruio, error);
 	}
 #endif
-	p->p_retval[0] = cnt;
+	td->td_retval[0] = cnt;
 	return (error);
 }
 
@@ -245,8 +245,8 @@ struct readv_args {
  * MPSAFE
  */
 int
-readv(p, uap)
-	struct proc *p;
+readv(td, uap)
+	struct thread *td;
 	register struct readv_args *uap;
 {
 	register struct file *fp;
@@ -262,7 +262,7 @@ readv(p, uap)
 	struct uio ktruio;
 #endif
 	mtx_lock(&Giant);
-	fdp = p->p_fd;
+	fdp = td->td_proc->p_fd;
 
 	if ((fp = holdfp(fdp, uap->fd, FREAD)) == NULL) {
 		error = EBADF;
@@ -285,7 +285,7 @@ readv(p, uap)
 	auio.uio_iovcnt = uap->iovcnt;
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 	auio.uio_offset = -1;
 	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
 		goto done;
@@ -302,14 +302,14 @@ readv(p, uap)
 	/*
 	 * if tracing, save a copy of iovec
 	 */
-	if (KTRPOINT(p, KTR_GENIO))  {
+	if (KTRPOINT(td->td_proc, KTR_GENIO))  {
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
 		ktruio = auio;
 	}
 #endif
 	cnt = auio.uio_resid;
-	if ((error = fo_read(fp, &auio, fp->f_cred, 0, p))) {
+	if ((error = fo_read(fp, &auio, fp->f_cred, 0, td))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -320,15 +320,15 @@ readv(p, uap)
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
 			ktruio.uio_resid = cnt;
-			ktrgenio(p->p_tracep, uap->fd, UIO_READ, &ktruio,
+			ktrgenio(td->td_proc->p_tracep, uap->fd, UIO_READ, &ktruio,
 			    error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
 #endif
-	p->p_retval[0] = cnt;
+	td->td_retval[0] = cnt;
 done:
-	fdrop(fp, p);
+	fdrop(fp, td);
 	if (needfree)
 		FREE(needfree, M_IOV);
 done2:
@@ -350,18 +350,18 @@ struct write_args {
  * MPSAFE
  */
 int
-write(p, uap)
-	struct proc *p;
+write(td, uap)
+	struct thread *td;
 	register struct write_args *uap;
 {
 	register struct file *fp;
 	int error;
 
 	mtx_lock(&Giant);
-	if ((fp = holdfp(p->p_fd, uap->fd, FWRITE)) != NULL) {
-		error = dofilewrite(p, fp, uap->fd, uap->buf, uap->nbyte,
+	if ((fp = holdfp(td->td_proc->p_fd, uap->fd, FWRITE)) != NULL) {
+		error = dofilewrite(td, fp, uap->fd, uap->buf, uap->nbyte,
 			    (off_t)-1, 0);
-		fdrop(fp, p);
+		fdrop(fp, td);
 	} else {
 		error = EBADF;
 	}
@@ -385,31 +385,31 @@ struct pwrite_args {
  * MPSAFE
  */
 int
-pwrite(p, uap)
-	struct proc *p;
+pwrite(td, uap)
+	struct thread *td;
 	register struct pwrite_args *uap;
 {
 	register struct file *fp;
 	int error;
 
 	mtx_lock(&Giant);
-	if ((fp = holdfp(p->p_fd, uap->fd, FWRITE)) == NULL) {
+	if ((fp = holdfp(td->td_proc->p_fd, uap->fd, FWRITE)) == NULL) {
 		error = EBADF;
 	} else if (fp->f_type != DTYPE_VNODE) {
 		error = ESPIPE;
-		fdrop(fp, p);
+		fdrop(fp, td);
 	} else {
-		error = dofilewrite(p, fp, uap->fd, uap->buf, uap->nbyte,
+		error = dofilewrite(td, fp, uap->fd, uap->buf, uap->nbyte,
 			    uap->offset, FOF_OFFSET);
-		fdrop(fp, p);
+		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
 	return(error);
 }
 
 static int
-dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
-	struct proc *p;
+dofilewrite(td, fp, fd, buf, nbyte, offset, flags)
+	struct thread *td;
 	struct file *fp;
 	int fd, flags;
 	const void *buf;
@@ -435,12 +435,12 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 	auio.uio_resid = nbyte;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 #ifdef KTRACE
 	/*
 	 * if tracing, save a copy of iovec and uio
 	 */
-	if (KTRPOINT(p, KTR_GENIO)) {
+	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
 		ktriov = aiov;
 		ktruio = auio;
 		didktr = 1;
@@ -449,14 +449,14 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 	cnt = nbyte;
 	if (fp->f_type == DTYPE_VNODE)
 		bwillwrite();
-	if ((error = fo_write(fp, &auio, fp->f_cred, flags, p))) {
+	if ((error = fo_write(fp, &auio, fp->f_cred, flags, td))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 		if (error == EPIPE) {
-			PROC_LOCK(p);
-			psignal(p, SIGPIPE);
-			PROC_UNLOCK(p);
+			PROC_LOCK(td->td_proc);
+			psignal(td->td_proc, SIGPIPE);
+			PROC_UNLOCK(td->td_proc);
 		}
 	}
 	cnt -= auio.uio_resid;
@@ -464,10 +464,10 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 	if (didktr && error == 0) {
 		ktruio.uio_iov = &ktriov;
 		ktruio.uio_resid = cnt;
-		ktrgenio(p->p_tracep, fd, UIO_WRITE, &ktruio, error);
+		ktrgenio(td->td_proc->p_tracep, fd, UIO_WRITE, &ktruio, error);
 	}
 #endif
-	p->p_retval[0] = cnt;
+	td->td_retval[0] = cnt;
 	return (error);
 }
 
@@ -485,8 +485,8 @@ struct writev_args {
  * MPSAFE
  */
 int
-writev(p, uap)
-	struct proc *p;
+writev(td, uap)
+	struct thread *td;
 	register struct writev_args *uap;
 {
 	register struct file *fp;
@@ -503,7 +503,7 @@ writev(p, uap)
 #endif
 
 	mtx_lock(&Giant);
-	fdp = p->p_fd;
+	fdp = td->td_proc->p_fd;
 	if ((fp = holdfp(fdp, uap->fd, FWRITE)) == NULL) {
 		error = EBADF;
 		goto done2;
@@ -526,7 +526,7 @@ writev(p, uap)
 	auio.uio_iovcnt = uap->iovcnt;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_procp = p;
+	auio.uio_td = td;
 	auio.uio_offset = -1;
 	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
 		goto done;
@@ -543,7 +543,7 @@ writev(p, uap)
 	/*
 	 * if tracing, save a copy of iovec and uio
 	 */
-	if (KTRPOINT(p, KTR_GENIO))  {
+	if (KTRPOINT(td->td_proc, KTR_GENIO))  {
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
 		ktruio = auio;
@@ -552,14 +552,14 @@ writev(p, uap)
 	cnt = auio.uio_resid;
 	if (fp->f_type == DTYPE_VNODE)
 		bwillwrite();
-	if ((error = fo_write(fp, &auio, fp->f_cred, 0, p))) {
+	if ((error = fo_write(fp, &auio, fp->f_cred, 0, td))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 		if (error == EPIPE) {
-			PROC_LOCK(p);
-			psignal(p, SIGPIPE);
-			PROC_UNLOCK(p);
+			PROC_LOCK(td->td_proc);
+			psignal(td->td_proc, SIGPIPE);
+			PROC_UNLOCK(td->td_proc);
 		}
 	}
 	cnt -= auio.uio_resid;
@@ -568,15 +568,15 @@ writev(p, uap)
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
 			ktruio.uio_resid = cnt;
-			ktrgenio(p->p_tracep, uap->fd, UIO_WRITE, &ktruio,
+			ktrgenio(td->td_proc->p_tracep, uap->fd, UIO_WRITE, &ktruio,
 			    error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
 #endif
-	p->p_retval[0] = cnt;
+	td->td_retval[0] = cnt;
 done:
-	fdrop(fp, p);
+	fdrop(fp, td);
 	if (needfree)
 		FREE(needfree, M_IOV);
 done2:
@@ -599,8 +599,8 @@ struct ioctl_args {
  */
 /* ARGSUSED */
 int
-ioctl(p, uap)
-	struct proc *p;
+ioctl(td, uap)
+	struct thread *td;
 	register struct ioctl_args *uap;
 {
 	register struct file *fp;
@@ -617,7 +617,7 @@ ioctl(p, uap)
 	} ubuf;
 
 	mtx_lock(&Giant);
-	fdp = p->p_fd;
+	fdp = td->td_proc->p_fd;
 	if ((u_int)uap->fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
 		error = EBADF;
@@ -663,7 +663,7 @@ ioctl(p, uap)
 			if (error) {
 				if (memp)
 					free(memp, M_IOCTLOPS);
-				fdrop(fp, p);
+				fdrop(fp, td);
 				goto done2;
 			}
 		} else {
@@ -686,7 +686,7 @@ ioctl(p, uap)
 			fp->f_flag |= FNONBLOCK;
 		else
 			fp->f_flag &= ~FNONBLOCK;
-		error = fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, p);
+		error = fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, td);
 		break;
 
 	case FIOASYNC:
@@ -694,11 +694,11 @@ ioctl(p, uap)
 			fp->f_flag |= FASYNC;
 		else
 			fp->f_flag &= ~FASYNC;
-		error = fo_ioctl(fp, FIOASYNC, (caddr_t)&tmp, p);
+		error = fo_ioctl(fp, FIOASYNC, (caddr_t)&tmp, td);
 		break;
 
 	default:
-		error = fo_ioctl(fp, com, data, p);
+		error = fo_ioctl(fp, com, data, td);
 		/*
 		 * Copy any data to user, size was
 		 * already set and checked above.
@@ -709,7 +709,7 @@ ioctl(p, uap)
 	}
 	if (memp)
 		free(memp, M_IOCTLOPS);
-	fdrop(fp, p);
+	fdrop(fp, td);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -733,8 +733,8 @@ struct select_args {
  * MPSAFE
  */
 int
-select(p, uap)
-	register struct proc *p;
+select(td, uap)
+	register struct thread *td;
 	register struct select_args *uap;
 {
 	/*
@@ -755,8 +755,8 @@ select(p, uap)
 
 	mtx_lock(&Giant);
 
-	if (uap->nd > p->p_fd->fd_nfiles)
-		uap->nd = p->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
+	if (uap->nd > td->td_proc->p_fd->fd_nfiles)
+		uap->nd = td->td_proc->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
 
 	/*
 	 * Allocate just enough bits for the non-null fd_sets.  Use the
@@ -828,16 +828,16 @@ select(p, uap)
 		atv.tv_sec = 0;
 		atv.tv_usec = 0;
 	}
-	selholddrop(p, hibits, hobits, uap->nd, 1);
+	selholddrop(td, hibits, hobits, uap->nd, 1);
 	timo = 0;
-	PROC_LOCK(p);
+	PROC_LOCK(td->td_proc);
 retry:
 	ncoll = nselcoll;
-	p->p_flag |= P_SELECT;
-	PROC_UNLOCK(p);
-	error = selscan(p, ibits, obits, uap->nd);
-	PROC_LOCK(p);
-	if (error || p->p_retval[0])
+	td->td_flags |= TDF_SELECT;
+	PROC_UNLOCK(td->td_proc);
+	error = selscan(td, ibits, obits, uap->nd);
+	PROC_LOCK(td->td_proc);
+	if (error || td->td_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
 		getmicrouptime(&rtv);
@@ -845,15 +845,15 @@ retry:
 			/*
 			 * An event of our interest may occur during locking a process.
 			 * In order to avoid missing the event that occured during locking
-			 * the process, test P_SELECT and rescan file descriptors if
+			 * the process, test TDF_SELECT and rescan file descriptors if
 			 * necessary.
 			 */
-			if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
+			if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
 				ncoll = nselcoll;
-				p->p_flag |= P_SELECT;
-				PROC_UNLOCK(p);
-				error = selscan(p, ibits, obits, uap->nd);
-				PROC_LOCK(p);
+				td->td_flags |= TDF_SELECT;
+				PROC_UNLOCK(td->td_proc);
+				error = selscan(td, ibits, obits, uap->nd);
+				PROC_LOCK(td->td_proc);
 			}
 			goto done;
 		}
@@ -862,20 +862,20 @@ retry:
 		timo = ttv.tv_sec > 24 * 60 * 60 ?
 		    24 * 60 * 60 * hz : tvtohz(&ttv);
 	}
-	p->p_flag &= ~P_SELECT;
+	td->td_flags &= ~TDF_SELECT;
 
 	if (timo > 0)
-		error = cv_timedwait_sig(&selwait, &p->p_mtx, timo);
+		error = cv_timedwait_sig(&selwait, &td->td_proc->p_mtx, timo);
 	else
-		error = cv_wait_sig(&selwait, &p->p_mtx);
+		error = cv_wait_sig(&selwait, &td->td_proc->p_mtx);
 	
 	if (error == 0)
 		goto retry;
 
 done:
-	p->p_flag &= ~P_SELECT;
-	PROC_UNLOCK(p);
-	selholddrop(p, hibits, hobits, uap->nd, 0);
+	td->td_flags &= ~TDF_SELECT;
+	PROC_UNLOCK(td->td_proc);
+	selholddrop(td, hibits, hobits, uap->nd, 0);
 done_noproclock:
 	/* select is not restarted after signals... */
 	if (error == ERESTART)
@@ -903,12 +903,12 @@ done_noproclock:
 }
 
 static int
-selholddrop(p, ibits, obits, nfd, hold)
-	struct proc *p;
+selholddrop(td, ibits, obits, nfd, hold)
+	struct thread *td;
 	fd_mask *ibits, *obits;
 	int nfd, hold;
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 	int i, fd;
 	fd_mask bits;
 	struct file *fp;
@@ -930,19 +930,19 @@ selholddrop(p, ibits, obits, nfd, hold)
 				obits[(fd)/NFDBITS] |=
 				    ((fd_mask)1 << ((fd) % NFDBITS));
 			} else
-				fdrop(fp, p);
+				fdrop(fp, td);
 		}
 	}
 	return (0);
 }
 
 static int
-selscan(p, ibits, obits, nfd)
-	struct proc *p;
+selscan(td, ibits, obits, nfd)
+	struct thread *td;
 	fd_mask **ibits, **obits;
 	int nfd;
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 	int msk, i, fd;
 	fd_mask bits;
 	struct file *fp;
@@ -962,7 +962,7 @@ selscan(p, ibits, obits, nfd)
 				fp = fdp->fd_ofiles[fd];
 				if (fp == NULL)
 					return (EBADF);
-				if (fo_poll(fp, flag[msk], fp->f_cred, p)) {
+				if (fo_poll(fp, flag[msk], fp->f_cred, td)) {
 					obits[msk][(fd)/NFDBITS] |=
 					    ((fd_mask)1 << ((fd) % NFDBITS));
 					n++;
@@ -970,7 +970,7 @@ selscan(p, ibits, obits, nfd)
 			}
 		}
 	}
-	p->p_retval[0] = n;
+	td->td_retval[0] = n;
 	return (0);
 }
 
@@ -988,8 +988,8 @@ struct poll_args {
  * MPSAFE
  */
 int
-poll(p, uap)
-	struct proc *p;
+poll(td, uap)
+	struct thread *td;
 	struct poll_args *uap;
 {
 	caddr_t bits;
@@ -1011,7 +1011,8 @@ poll(p, uap)
 	 * least enough for the current limits.  We want to be reasonably
 	 * safe, but not overly restrictive.
 	 */
-	if (nfds > p->p_rlimit[RLIMIT_NOFILE].rlim_cur && nfds > FD_SETSIZE) {
+	if ((nfds > td->td_proc->p_rlimit[RLIMIT_NOFILE].rlim_cur) &&
+	    (nfds > FD_SETSIZE)) {
 		error = EINVAL;
 		goto done2;
 	}
@@ -1043,16 +1044,16 @@ poll(p, uap)
 		atv.tv_sec = 0;
 		atv.tv_usec = 0;
 	}
-	pollholddrop(p, heldbits, nfds, 1);
+	pollholddrop(td, heldbits, nfds, 1);
 	timo = 0;
-	PROC_LOCK(p);
+	PROC_LOCK(td->td_proc);
 retry:
 	ncoll = nselcoll;
-	p->p_flag |= P_SELECT;
-	PROC_UNLOCK(p);
-	error = pollscan(p, (struct pollfd *)bits, nfds);
-	PROC_LOCK(p);
-	if (error || p->p_retval[0])
+	td->td_flags |= TDF_SELECT;
+	PROC_UNLOCK(td->td_proc);
+	error = pollscan(td, (struct pollfd *)bits, nfds);
+	PROC_LOCK(td->td_proc);
+	if (error || td->td_retval[0])
 		goto done;
 	if (atv.tv_sec || atv.tv_usec) {
 		getmicrouptime(&rtv);
@@ -1060,15 +1061,15 @@ retry:
 			/*
 			 * An event of our interest may occur during locking a process.
 			 * In order to avoid missing the event that occured during locking
-			 * the process, test P_SELECT and rescan file descriptors if
+			 * the process, test TDF_SELECT and rescan file descriptors if
 			 * necessary.
 			 */
-			if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
+			if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
 				ncoll = nselcoll;
-				p->p_flag |= P_SELECT;
-				PROC_UNLOCK(p);
-				error = pollscan(p, (struct pollfd *)bits, nfds);
-				PROC_LOCK(p);
+				td->td_flags |= TDF_SELECT;
+				PROC_UNLOCK(td->td_proc);
+				error = pollscan(td, (struct pollfd *)bits, nfds);
+				PROC_LOCK(td->td_proc);
 			}
 			goto done;
 		}
@@ -1077,18 +1078,18 @@ retry:
 		timo = ttv.tv_sec > 24 * 60 * 60 ?
 		    24 * 60 * 60 * hz : tvtohz(&ttv);
 	}
-	p->p_flag &= ~P_SELECT;
+	td->td_flags &= ~TDF_SELECT;
 	if (timo > 0)
-		error = cv_timedwait_sig(&selwait, &p->p_mtx, timo);
+		error = cv_timedwait_sig(&selwait, &td->td_proc->p_mtx, timo);
 	else
-		error = cv_wait_sig(&selwait, &p->p_mtx);
+		error = cv_wait_sig(&selwait, &td->td_proc->p_mtx);
 	if (error == 0)
 		goto retry;
 
 done:
-	p->p_flag &= ~P_SELECT;
-	PROC_UNLOCK(p);
-	pollholddrop(p, heldbits, nfds, 0);
+	td->td_flags &= ~TDF_SELECT;
+	PROC_UNLOCK(td->td_proc);
+	pollholddrop(td, heldbits, nfds, 0);
 done_noproclock:
 	/* poll is not restarted after signals... */
 	if (error == ERESTART)
@@ -1111,13 +1112,13 @@ done2:
 }
 
 static int
-pollholddrop(p, fds, nfd, hold)
-	struct proc *p;
+pollholddrop(td, fds, nfd, hold)
+	struct thread *td;
 	struct pollfd *fds;
 	u_int nfd;
 	int hold;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp = td->td_proc->p_fd;
 	int i;
 	struct file *fp;
 
@@ -1131,19 +1132,19 @@ pollholddrop(p, fds, nfd, hold)
 				} else
 					fds->revents = 0;
 			} else if(fp != NULL && fds->revents)
-				fdrop(fp, p);
+				fdrop(fp, td);
 		}
 	}
 	return (0);
 }
 
 static int
-pollscan(p, fds, nfd)
-	struct proc *p;
+pollscan(td, fds, nfd)
+	struct thread *td;
 	struct pollfd *fds;
 	u_int nfd;
 {
-	register struct filedesc *fdp = p->p_fd;
+	register struct filedesc *fdp = td->td_proc->p_fd;
 	int i;
 	struct file *fp;
 	int n = 0;
@@ -1165,13 +1166,13 @@ pollscan(p, fds, nfd)
 				 * POLLERR if appropriate.
 				 */
 				fds->revents = fo_poll(fp, fds->events,
-				    fp->f_cred, p);
+				    fp->f_cred, td);
 				if (fds->revents != 0)
 					n++;
 			}
 		}
 	}
-	p->p_retval[0] = n;
+	td->td_retval[0] = n;
 	return (0);
 }
 
@@ -1190,22 +1191,34 @@ struct openbsd_poll_args {
  * MPSAFE
  */
 int
-openbsd_poll(p, uap)
-	register struct proc *p;
+openbsd_poll(td, uap)
+	register struct thread *td;
 	register struct openbsd_poll_args *uap;
 {
-	return (poll(p, (struct poll_args *)uap));
+	return (poll(td, (struct poll_args *)uap));
 }
 
 /*ARGSUSED*/
 int
-seltrue(dev, events, p)
+seltrue(dev, events, td)
 	dev_t dev;
 	int events;
-	struct proc *p;
+	struct thread *td;
 {
 
 	return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
+}
+
+static int
+find_thread_in_proc(struct proc *p, struct thread *td)
+{
+	struct thread *td2;
+	FOREACH_THREAD_IN_PROC(p, td2) {
+		if (td2 == td) {
+			return (1);
+		}
+	}
+	return (0);
 }
 
 /*
@@ -1213,18 +1226,22 @@ seltrue(dev, events, p)
  */
 void
 selrecord(selector, sip)
-	struct proc *selector;
+	struct thread *selector;
 	struct selinfo *sip;
 {
 	struct proc *p;
 	pid_t mypid;
 
-	mypid = selector->p_pid;
-	if (sip->si_pid == mypid)
+	mypid = selector->td_proc->p_pid;
+	if ((sip->si_pid == mypid) &&
+	    (sip->si_thread == selector)) { /* XXXKSE should be an ID? */
 		return;
-	if (sip->si_pid && (p = pfind(sip->si_pid))) {
+	}
+	if (sip->si_pid &&
+	    (p = pfind(sip->si_pid)) &&
+	    (find_thread_in_proc(p, sip->si_thread))) {
 		mtx_lock_spin(&sched_lock);
-	    	if (p->p_wchan == (caddr_t)&selwait) {
+	    	if (sip->si_thread->td_wchan == (caddr_t)&selwait) {
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
 			sip->si_flags |= SI_COLL;
@@ -1234,6 +1251,7 @@ selrecord(selector, sip)
 		PROC_UNLOCK(p);
 	}
 	sip->si_pid = mypid;
+	sip->si_thread = selector;
 }
 
 /*
@@ -1243,6 +1261,7 @@ void
 selwakeup(sip)
 	register struct selinfo *sip;
 {
+	struct thread *td;
 	register struct proc *p;
 
 	if (sip->si_pid == 0)
@@ -1254,17 +1273,22 @@ selwakeup(sip)
 	}
 	p = pfind(sip->si_pid);
 	sip->si_pid = 0;
+	td = sip->si_thread;
 	if (p != NULL) {
+		if (!find_thread_in_proc(p, td)) {
+			PROC_UNLOCK(p); /* lock is in pfind() */;
+			return;
+		}
 		mtx_lock_spin(&sched_lock);
-		if (p->p_wchan == (caddr_t)&selwait) {
-			if (p->p_stat == SSLEEP)
-				setrunnable(p);
+		if (td->td_wchan == (caddr_t)&selwait) {
+			if (td->td_proc->p_stat == SSLEEP)
+				setrunnable(td);
 			else
-				cv_waitq_remove(p);
+				cv_waitq_remove(td);
 		} else
-			p->p_flag &= ~P_SELECT;
+			td->td_flags &= ~TDF_SELECT;
 		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(p);
+		PROC_UNLOCK(p); /* Lock is in pfind() */
 	}
 }
 

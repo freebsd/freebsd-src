@@ -91,7 +91,7 @@ static struct proc_target {
 	u_char	pt_namlen;
 	char	*pt_name;
 	pfstype	pt_pfstype;
-	int	(*pt_valid) __P((struct proc *p));
+	int	(*pt_valid) __P((struct thread *p));
 } proc_targets[] = {
 #define N(s) sizeof(s)-1, s
 	/*	  name		type		validp */
@@ -133,7 +133,7 @@ procfs_open(ap)
 		struct vnode *a_vp;
 		int  a_mode;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
@@ -143,7 +143,7 @@ procfs_open(ap)
 	p2 = PFIND(pfs->pfs_pid);
 	if (p2 == NULL)
 		return (ENOENT);
-	if (pfs->pfs_pid && p_cansee(ap->a_p, p2)) {
+	if (pfs->pfs_pid && p_cansee(ap->a_td->td_proc, p2)) {
 		error = ENOENT;
 		goto out;
 	}
@@ -156,7 +156,7 @@ procfs_open(ap)
 			goto out;
 		}
 
-		p1 = ap->a_p;
+		p1 = ap->a_td->td_proc;
 		error = p_candebug(p1, p2);
 		if (error)
 			return (error);
@@ -185,7 +185,7 @@ procfs_close(ap)
 		struct vnode *a_vp;
 		int  a_fflag;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
@@ -235,7 +235,7 @@ procfs_ioctl(ap)
 	struct procfs_status *psp;
 	unsigned char flags;
 
-	p = ap->a_p;
+	p = ap->a_td->td_proc;
 	procp = pfind(pfs->pfs_pid);
 	if (procp == NULL) {
 		return ENOTTY;
@@ -380,7 +380,7 @@ procfs_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
@@ -407,7 +407,7 @@ procfs_getattr(ap)
 			return (ENOENT);
 		}
 
-		if (p_cansee(ap->a_p, procp)) {
+		if (p_cansee(ap->a_td->td_proc, procp)) {
 			PROC_UNLOCK(procp);
 			return (ENOENT);
 		}
@@ -569,7 +569,7 @@ procfs_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 
@@ -603,7 +603,7 @@ procfs_access(ap)
 		struct vnode *a_vp;
 		int a_mode;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
@@ -621,7 +621,7 @@ procfs_access(ap)
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == NULL)
 			return (ENOENT);
-		if (p_cansee(ap->a_p, procp)) {
+		if (p_cansee(ap->a_td->td_proc, procp)) {
 			PROC_UNLOCK(procp);
 			return (ENOENT);
 		}
@@ -629,7 +629,7 @@ procfs_access(ap)
         }
 
 	vap = &vattr;
-	error = VOP_GETATTR(vp, vap, ap->a_cred, ap->a_p);
+	error = VOP_GETATTR(vp, vap, ap->a_cred, ap->a_td);
 	if (error)
 		return (error);
 
@@ -658,12 +658,13 @@ procfs_lookup(ap)
 	struct vnode **vpp = ap->a_vpp;
 	struct vnode *dvp = ap->a_dvp;
 	char *pname = cnp->cn_nameptr;
-	struct proc *curp = cnp->cn_proc;
+	struct proc *curp = cnp->cn_thread->td_proc;
 	struct proc_target *pt;
 	pid_t pid;
 	struct pfsnode *pfs;
 	struct proc *p;
 	int i;
+	struct thread *td;
 
 	*vpp = NULL;
 
@@ -708,13 +709,14 @@ procfs_lookup(ap)
 			return (procfs_root(dvp->v_mount, vpp));
 
 		p = PFIND(pfs->pfs_pid);
+		td = &p->p_thread;		/* XXXKSE */
 		if (p == NULL)
 			break;
 
 		for (pt = proc_targets, i = 0; i < nproc_targets; pt++, i++) {
 			if (cnp->cn_namelen == pt->pt_namlen &&
 			    bcmp(pt->pt_name, pname, cnp->cn_namelen) == 0 &&
-			    (pt->pt_valid == NULL || (*pt->pt_valid)(p)))
+			    (pt->pt_valid == NULL || (*pt->pt_valid)(td)))
 				goto found;
 		}
 		PROC_UNLOCK(p);
@@ -735,11 +737,11 @@ procfs_lookup(ap)
  * Does this process have a text file?
  */
 int
-procfs_validfile(p)
-	struct proc *p;
+procfs_validfile(td)
+	struct thread *td;
 {
 
-	return (procfs_findtextvp(p) != NULLVP);
+	return (procfs_findtextvp(td->td_proc) != NULLVP);
 }
 
 /*
@@ -765,6 +767,7 @@ procfs_readdir(ap)
 	struct pfsnode *pfs;
 	int count, error, i, off;
 	static u_int delen;
+	struct thread *td;
 
 	if (!delen) {
 
@@ -794,16 +797,17 @@ procfs_readdir(ap)
 		struct proc_target *pt;
 
 		p = PFIND(pfs->pfs_pid);
+		td = &p->p_thread;	/* XXXKSE */
 		if (p == NULL)
 			break;
-		if (p_cansee(curproc, p)) {
+		if (p_cansee(curthread->td_proc, p)) {
 			PROC_UNLOCK(p);
 			break;
 		}
 
 		for (pt = &proc_targets[i];
 		     uio->uio_resid >= delen && i < nproc_targets; pt++, i++) {
-			if (pt->pt_valid && (*pt->pt_valid)(p) == 0)
+			if (pt->pt_valid && (*pt->pt_valid)(td) == 0)
 				continue;
 
 			dp->d_reclen = delen;
@@ -864,11 +868,11 @@ procfs_readdir(ap)
 					p = LIST_NEXT(p, p_list);
 					if (p == NULL)
 						goto done;
-					if (p_cansee(curproc, p))
+					if (p_cansee(curthread->td_proc, p))
 						continue;
 					pcnt++;
 				}
-				while (p_cansee(curproc, p)) {
+				while (p_cansee(curthread->td_proc, p)) {
 					p = LIST_NEXT(p, p_list);
 					if (p == NULL)
 						goto done;

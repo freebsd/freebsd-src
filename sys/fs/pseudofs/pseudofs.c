@@ -51,7 +51,7 @@ SYSCTL_NODE(_vfs, OID_AUTO, pfs, CTLFLAG_RW, 0,
  */
 int
 pfs_mount(struct pfs_info *pi, struct mount *mp, char *path, caddr_t data,
-	  struct nameidata *ndp, struct proc *p)
+	  struct nameidata *ndp, struct thread *td)
 {
 	struct statfs *sbp;
   
@@ -79,7 +79,7 @@ pfs_mount(struct pfs_info *pi, struct mount *mp, char *path, caddr_t data,
  * Unmount a pseudofs instance
  */
 int
-pfs_unmount(struct mount *mp, int mntflags, struct proc *p)
+pfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 {
 	struct pfs_info *pi;
 	int error;
@@ -108,7 +108,7 @@ pfs_root(struct mount *mp, struct vnode **vpp)
  * Return filesystem stats
  */
 int
-pfs_statfs(struct mount *mp, struct statfs *sbp, struct proc *p)
+pfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 {
 	bcopy(&mp->mnt_stat, sbp, sizeof *sbp);
 	return (0);

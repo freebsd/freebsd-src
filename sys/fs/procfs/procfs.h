@@ -119,14 +119,14 @@ void procfs_exit __P((struct proc *));
 int procfs_freevp __P((struct vnode *));
 int procfs_allocvp __P((struct mount *, struct vnode **, long, pfstype));
 struct vnode *procfs_findtextvp __P((struct proc *));
-int procfs_sstep __P((struct proc *));
-void procfs_fix_sstep __P((struct proc *));
-int procfs_read_regs __P((struct proc *, struct reg *));
-int procfs_write_regs __P((struct proc *, struct reg *));
-int procfs_read_fpregs __P((struct proc *, struct fpreg *));
-int procfs_write_fpregs __P((struct proc *, struct fpreg *));
-int procfs_read_dbregs __P((struct proc *, struct dbreg *));
-int procfs_write_dbregs __P((struct proc *, struct dbreg *));
+int procfs_sstep __P((struct thread *));
+void procfs_fix_sstep __P((struct thread *));
+int procfs_read_regs __P((struct thread *, struct reg *));
+int procfs_write_regs __P((struct thread *, struct reg *));
+int procfs_read_fpregs __P((struct thread *, struct fpreg *));
+int procfs_write_fpregs __P((struct thread *, struct fpreg *));
+int procfs_read_dbregs __P((struct thread *, struct dbreg *));
+int procfs_write_dbregs __P((struct thread *, struct dbreg *));
 int procfs_donote __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_doregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_dofpregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
@@ -140,12 +140,12 @@ int procfs_docmdline __P((struct proc *, struct proc *, struct pfsnode *pfsp, st
 int procfs_dorlimit __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 
 /* functions to check whether or not files should be displayed */
-int procfs_validfile __P((struct proc *));
-int procfs_validfpregs __P((struct proc *));
-int procfs_validregs __P((struct proc *));
-int procfs_validdbregs __P((struct proc *));
-int procfs_validmap __P((struct proc *));
-int procfs_validtype __P((struct proc *));
+int procfs_validfile __P((struct thread *));
+int procfs_validfpregs __P((struct thread *));
+int procfs_validregs __P((struct thread *));
+int procfs_validdbregs __P((struct thread *));
+int procfs_validmap __P((struct thread *));
+int procfs_validtype __P((struct thread *));
 
 #define PROCFS_LOCKED	0x01
 #define PROCFS_WANT	0x02

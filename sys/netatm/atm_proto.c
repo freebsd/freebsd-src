@@ -158,10 +158,10 @@ atm_proto_notsupp1(so)
  *
  */
 int
-atm_proto_notsupp2(so, addr, p)
+atm_proto_notsupp2(so, addr, td)
 	struct socket	*so;
 	struct sockaddr	*addr;
-	struct proc	*p;
+	struct thread	*td;
 {
 	return (EOPNOTSUPP);
 }
@@ -203,13 +203,13 @@ atm_proto_notsupp3(so, addr)
  *
  */
 int
-atm_proto_notsupp4(so, i, m, addr, m2, p)
+atm_proto_notsupp4(so, i, m, addr, m2, td)
 	struct socket	*so;
 	int		i;
 	KBuffer		*m;
 	struct sockaddr	*addr;
 	KBuffer		*m2;
-	struct proc	*p;
+	struct thread	*td;
 {
 	return (EOPNOTSUPP);
 }

@@ -260,8 +260,8 @@ bsd_to_svr4_sigaltstack(bss, sss)
 }
 
 int
-svr4_sys_sigaction(p, uap)
-	register struct proc *p;
+svr4_sys_sigaction(td, uap)
+	register struct thread *td;
 	struct svr4_sys_sigaction_args *uap;
 {
 	struct svr4_sigaction *nisa, *oisa, tmpisa;
@@ -270,7 +270,7 @@ svr4_sys_sigaction(p, uap)
 	caddr_t sg;
 	int error;
 
-	DPRINTF(("@@@ svr4_sys_sigaction(%d, %d, %d)\n", p->p_pid,
+	DPRINTF(("@@@ svr4_sys_sigaction(%d, %d, %d)\n", td->td_proc->p_pid,
 			SCARG(uap, signum),
 			SVR4_SVR42BSD_SIG(SCARG(uap, signum))));
 	
@@ -307,7 +307,7 @@ svr4_sys_sigaction(p, uap)
 	SCARG(&sa, act) = nbsa;
 	SCARG(&sa, oact) = obsa;
 
-	if ((error = sigaction(p, &sa)) != 0)
+	if ((error = sigaction(td, &sa)) != 0)
 		return error;
 
 	if (oisa != NULL) {
@@ -322,8 +322,8 @@ svr4_sys_sigaction(p, uap)
 }
 
 int 
-svr4_sys_sigaltstack(p, uap)
-	register struct proc *p;
+svr4_sys_sigaltstack(td, uap)
+	register struct thread *td;
 	struct svr4_sys_sigaltstack_args *uap;
 {
 	struct svr4_sigaltstack *nsss, *osss, tmpsss;
@@ -332,7 +332,7 @@ svr4_sys_sigaltstack(p, uap)
 	caddr_t sg;
 	int error, *retval;
 
-	retval = p->p_retval;
+	retval = td->td_retval;
 	sg = stackgap_init();
 	nsss = SCARG(uap, nss);
 	osss = SCARG(uap, oss);
@@ -355,7 +355,7 @@ svr4_sys_sigaltstack(p, uap)
 	SCARG(&sa, ss) = nbss;
 	SCARG(&sa, oss) = obss;
 
-	if ((error = sigaltstack(p, &sa)) != 0)
+	if ((error = sigaltstack(td, &sa)) != 0)
 		return error;
 
 	if (obss != NULL) {
@@ -373,15 +373,15 @@ svr4_sys_sigaltstack(p, uap)
  * Stolen from the ibcs2 one
  */
 int
-svr4_sys_signal(p, uap)
-	register struct proc *p;
+svr4_sys_signal(td, uap)
+	register struct thread *td;
 	struct svr4_sys_signal_args *uap;
 {
 	int signum;
-	int error, *retval = p->p_retval;
+	int error, *retval = td->td_retval;
 	caddr_t sg = stackgap_init();
 
-	DPRINTF(("@@@ svr4_sys_signal(%d)\n", p->p_pid));
+	DPRINTF(("@@@ svr4_sys_signal(%d)\n", td->td_proc->p_pid));
 
 	signum = SVR4_SVR42BSD_SIG(SVR4_SIGNO(SCARG(uap, signum)));
 	if (signum <= 0 || signum > SVR4_NSIG)
@@ -413,7 +413,7 @@ svr4_sys_signal(p, uap)
 
 			if ((error = copyout(&sa, nbsa, sizeof(sa))) != 0)
 				return error;
-			if ((error = sigaction(p, &sa_args)) != 0) {
+			if ((error = sigaction(td, &sa_args)) != 0) {
 				DPRINTF(("signal: sigaction failed: %d\n",
 					 error));
 				*retval = (int)SVR4_SIG_ERR;
@@ -437,7 +437,7 @@ sighold:
 			SCARG(&sa, how) = SIG_BLOCK;
 			SCARG(&sa, set) = set;
 			SCARG(&sa, oset) = NULL;
-			return sigprocmask(p, &sa);
+			return sigprocmask(td, &sa);
 		}
 
 	case SVR4_SIGRELSE_MASK:
@@ -451,7 +451,7 @@ sighold:
 			SCARG(&sa, how) = SIG_UNBLOCK;
 			SCARG(&sa, set) = set;
 			SCARG(&sa, oset) = NULL;
-			return sigprocmask(p, &sa);
+			return sigprocmask(td, &sa);
 		}
 
 	case SVR4_SIGIGNORE_MASK:
@@ -469,7 +469,7 @@ sighold:
 			sa.sa_flags = 0;
 			if ((error = copyout(&sa, bsa, sizeof(sa))) != 0)
 				return error;
-			if ((error = sigaction(p, &sa_args)) != 0) {
+			if ((error = sigaction(td, &sa_args)) != 0) {
 				DPRINTF(("sigignore: sigaction failed\n"));
 				return error;
 			}
@@ -482,12 +482,12 @@ sighold:
 			sigset_t *set;
 
 			set = stackgap_alloc(&sg, sizeof(sigset_t));
-			PROC_LOCK(p);
-			*set = p->p_sigmask;
-			PROC_UNLOCK(p);
+			PROC_LOCK(td->td_proc);
+			*set = td->td_proc->p_sigmask;
+			PROC_UNLOCK(td->td_proc);
 			SIGDELSET(*set, signum);
 			SCARG(&sa, sigmask) = set;
-			return sigsuspend(p, &sa);
+			return sigsuspend(td, &sa);
 		}
 
 	default:
@@ -497,20 +497,20 @@ sighold:
 
 
 int
-svr4_sys_sigprocmask(p, uap)
-	struct proc *p;
+svr4_sys_sigprocmask(td, uap)
+	struct thread *td;
 	struct svr4_sys_sigprocmask_args *uap;
 {
 	svr4_sigset_t sss;
 	sigset_t bss;
 	int error = 0, *retval;
 
-	retval = p->p_retval;
+	retval = td->td_retval;
 	if (SCARG(uap, oset) != NULL) {
 		/* Fix the return value first if needed */
-		PROC_LOCK(p);
-		bsd_to_svr4_sigset(&p->p_sigmask, &sss);
-		PROC_UNLOCK(p);
+		PROC_LOCK(td->td_proc);
+		bsd_to_svr4_sigset(&td->td_proc->p_sigmask, &sss);
+		PROC_UNLOCK(td->td_proc);
 		if ((error = copyout(&sss, SCARG(uap, oset), sizeof(sss))) != 0)
 			return error;
 	}
@@ -524,50 +524,50 @@ svr4_sys_sigprocmask(p, uap)
 
 	svr4_to_bsd_sigset(&sss, &bss);
 
-	PROC_LOCK(p);
+	PROC_LOCK(td->td_proc);
 	switch (SCARG(uap, how)) {
 	case SVR4_SIG_BLOCK:
-		SIGSETOR(p->p_sigmask, bss);
-		SIG_CANTMASK(p->p_sigmask);
+		SIGSETOR(td->td_proc->p_sigmask, bss);
+		SIG_CANTMASK(td->td_proc->p_sigmask);
 		break;
 
 	case SVR4_SIG_UNBLOCK:
-		SIGSETNAND(p->p_sigmask, bss);
+		SIGSETNAND(td->td_proc->p_sigmask, bss);
 		break;
 
 	case SVR4_SIG_SETMASK:
-		p->p_sigmask = bss;
-		SIG_CANTMASK(p->p_sigmask);
+		td->td_proc->p_sigmask = bss;
+		SIG_CANTMASK(td->td_proc->p_sigmask);
 		break;
 
 	default:
 		error = EINVAL;
 		break;
 	}
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(td->td_proc);
 
 	return error;
 }
 
 int
-svr4_sys_sigpending(p, uap)
-	struct proc *p;
+svr4_sys_sigpending(td, uap)
+	struct thread *td;
 	struct svr4_sys_sigpending_args *uap;
 {
 	sigset_t bss;
 	int *retval;
 	svr4_sigset_t sss;
 
-	DPRINTF(("@@@ svr4_sys_sigpending(%d)\n", p->p_pid));
-	retval = p->p_retval;
+	DPRINTF(("@@@ svr4_sys_sigpending(%d)\n", td->td_proc->p_pid));
+	retval = td->td_retval;
 	switch (SCARG(uap, what)) {
 	case 1:	/* sigpending */
 		if (SCARG(uap, mask) == NULL)
 			return 0;
-		PROC_LOCK(p);
-		bss = p->p_siglist;
-		SIGSETAND(bss, p->p_sigmask);
-		PROC_UNLOCK(p);
+		PROC_LOCK(td->td_proc);
+		bss = td->td_proc->p_siglist;
+		SIGSETAND(bss, td->td_proc->p_sigmask);
+		PROC_UNLOCK(td->td_proc);
 		bsd_to_svr4_sigset(&bss, &sss);
 		break;
 
@@ -590,8 +590,8 @@ svr4_sys_sigpending(p, uap)
 }
 
 int
-svr4_sys_sigsuspend(p, uap)
-	register struct proc *p;
+svr4_sys_sigsuspend(td, uap)
+	register struct thread *td;
 	struct svr4_sys_sigsuspend_args *uap;
 {
 	svr4_sigset_t sss;
@@ -607,26 +607,26 @@ svr4_sys_sigsuspend(p, uap)
 	svr4_to_bsd_sigset(&sss, bss);
 
 	SCARG(&sa, sigmask) = bss;
-	return sigsuspend(p, &sa);
+	return sigsuspend(td, &sa);
 }
 
 
 int
-svr4_sys_kill(p, uap)
-	register struct proc *p;
+svr4_sys_kill(td, uap)
+	register struct thread *td;
 	struct svr4_sys_kill_args *uap;
 {
 	struct kill_args ka;
 
 	SCARG(&ka, pid) = SCARG(uap, pid);
 	SCARG(&ka, signum) = SVR4_SVR42BSD_SIG(SCARG(uap, signum));
-	return kill(p, &ka);
+	return kill(td, &ka);
 }
 
 
 int 
-svr4_sys_context(p, uap)
-	register struct proc *p;
+svr4_sys_context(td, uap)
+	register struct thread *td;
 	struct svr4_sys_context_args *uap;
 {
 	struct svr4_ucontext uc;
@@ -634,11 +634,11 @@ svr4_sys_context(p, uap)
 
 	switch (uap->func) {
 	case 0:
-		PROC_LOCK(p);
+		PROC_LOCK(td->td_proc);
 		DPRINTF(("getcontext(%p)\n", uap->uc));
-		svr4_getcontext(p, &uc, &p->p_sigmask,
-		    sigonstack(cpu_getstack(p)));
-		PROC_UNLOCK(p);
+		svr4_getcontext(td, &uc, &td->td_proc->p_sigmask,
+		    sigonstack(cpu_getstack(td)));
+		PROC_UNLOCK(td->td_proc);
 		return copyout(&uc, uap->uc, sizeof(uc));
 
 	case 1: 
@@ -654,7 +654,7 @@ svr4_sys_context(p, uap)
 							uc.uc_sigmask.bits[i]));
 		}
 #endif
-		return svr4_setcontext(p, &uc);
+		return svr4_setcontext(td, &uc);
 
 	default:
 		DPRINTF(("context(%d, %p)\n", uap->func,
@@ -665,12 +665,12 @@ svr4_sys_context(p, uap)
 }
 
 int
-svr4_sys_pause(p, uap)
-	register struct proc *p;
+svr4_sys_pause(td, uap)
+	register struct thread *td;
 	struct svr4_sys_pause_args *uap;
 {
 	struct sigsuspend_args bsa;
 
-	SCARG(&bsa, sigmask) = &p->p_sigmask;
-	return sigsuspend(p, &bsa);
+	SCARG(&bsa, sigmask) = &td->td_proc->p_sigmask;
+	return sigsuspend(td, &bsa);
 }

@@ -124,25 +124,30 @@ struct ia64_fdesc {
  * ready to run and return to user mode.
  */
 void
-cpu_fork(p1, p2, flags)
-	register struct proc *p1, *p2;
+cpu_fork(td1, p2, flags)
+	register struct thread *td1;
+	register struct proc *p2;
 	int flags;
 {
-	struct user *up;
+	struct proc *p1;
+	struct thread *td2;
 	struct trapframe *p2tf;
 	u_int64_t bspstore, *p1bs, *p2bs, rnatloc, rnat;
 
 	if ((flags & RFPROC) == 0)
 		return;
 
-	p2->p_frame = p1->p_frame;
-	p2->p_md.md_flags = p1->p_md.md_flags & (MDP_FPUSED | MDP_UAC_MASK);
+	p1 = td1->td_proc;
+	td2 = &p2->p_thread;
+	td2->td_pcb = (struct pcb *)
+	    (td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	td2->td_md.md_flags = td1->td_md.md_flags & (MDP_FPUSED | MDP_UAC_MASK);
 
 	/*
 	 * Copy floating point state from the FP chip to the PCB
 	 * if this process has state stored there.
 	 */
-	ia64_fpstate_save(p1, 0);
+	ia64_fpstate_save(td1, 0);
 
 	/*
 	 * Copy pcb and stack from proc p1 to p2.  We do this as
@@ -150,15 +155,15 @@ cpu_fork(p1, p2, flags)
 	 * stack.  The stack and pcb need to agree. Make sure that the 
 	 * new process has FEN disabled.
 	 */
-	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
+	bcopy(td1->td_pcb, td2->td_pcb, sizeof(struct pcb));
 
 	/*
 	 * Set the floating point state.
 	 */
 #if 0
-	if ((p2->p_addr->u_pcb.pcb_fp_control & IEEE_INHERIT) == 0) {
-		p2->p_addr->u_pcb.pcb_fp_control = 0;
-		p2->p_addr->u_pcb.pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
+	if ((td2->td_pcb->pcb_fp_control & IEEE_INHERIT) == 0) {
+		td2->td_pcb->pcb_fp_control = 0;
+		td2->td_pcb->pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
 						   | FPCR_INVD | FPCR_DZED
 						   | FPCR_OVFD | FPCR_INED
 						   | FPCR_UNFD);
@@ -170,9 +175,9 @@ cpu_fork(p1, p2, flags)
 	 * is started, to resume here, returning nonzero from setjmp.
 	 */
 #ifdef DIAGNOSTIC
-	if (p1 != curproc)
+	if (td1 != curthread)
 		panic("cpu_fork: curproc");
-	ia64_fpstate_check(p1);
+	ia64_fpstate_check(td1);
 #endif
 
 	/*
@@ -182,25 +187,24 @@ cpu_fork(p1, p2, flags)
 	 * copy trapframe from parent so return to user mode
 	 * will be to right address, with correct registers.
 	 */
-	p2->p_frame = (struct trapframe *)
-	    ((char *)p2->p_addr + USPACE - sizeof(struct trapframe));
-	bcopy(p1->p_frame, p2->p_frame, sizeof(struct trapframe));
+	td2->td_frame = (struct trapframe *)td2->td_pcb - 1;
+	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
 
 	/*
 	 * Set up return-value registers as fork() libc stub expects.
 	 */
-	p2tf = p2->p_frame;
+	p2tf = td2->td_frame;
 	p2tf->tf_r[FRAME_R8] = 0; 	/* child's pid (linux) 	*/
 	p2tf->tf_r[FRAME_R9] = 1;	/* is child (FreeBSD) 	*/
 	p2tf->tf_r[FRAME_R10] = 0;	/* no error 		*/
 
 	/*
 	 * Turn off RSE for a moment and work out our current
-	 * ar.bspstore. This assumes that p1==curproc. Also
+	 * ar.bspstore. This assumes that td1==curthread. Also
 	 * flush dirty regs to ensure that the user's stacked
 	 * regs are written out to backing store.
 	 *
-	 * We could cope with p1!=curproc by digging values
+	 * We could cope with td1!=curthread by digging values
 	 * out of its PCB but I don't see the point since
 	 * current usage never allows it.
 	 */
@@ -208,23 +212,23 @@ cpu_fork(p1, p2, flags)
 	__asm __volatile("flushrs;;" ::: "memory");
 	__asm __volatile("mov %0=ar.bspstore" : "=r"(bspstore));
 
-	p1bs = (u_int64_t *) (p1->p_addr + 1);
-	p2bs = (u_int64_t *) (p2->p_addr + 1);
+	p1bs = (u_int64_t *)td1->td_kstack;
+	p2bs = (u_int64_t *)td2->td_kstack;
 
 	/*
-	 * Copy enough of p1's backing store to include all
+	 * Copy enough of td1's backing store to include all
 	 * the user's stacked regs.
 	 */
-	bcopy(p1bs, p2bs, p1->p_frame->tf_ndirty);
+	bcopy(p1bs, p2bs, td1->td_frame->tf_ndirty);
 	/*
-	 * To calculate the ar.rnat for p2, we need to decide
-	 * if p1's ar.bspstore has advanced past the place
+	 * To calculate the ar.rnat for td2, we need to decide
+	 * if td1's ar.bspstore has advanced past the place
 	 * where the last ar.rnat which covers the user's
 	 * saved registers would be placed. If so, we read
-	 * that one from memory, otherwise we take p1's
+	 * that one from memory, otherwise we take td1's
 	 * current ar.rnat.
 	 */
-	rnatloc = (u_int64_t)p1bs + p1->p_frame->tf_ndirty;
+	rnatloc = (u_int64_t)p1bs + td1->td_frame->tf_ndirty;
 	rnatloc |= 0x1f8;
 	if (bspstore > rnatloc)
 		rnat = *(u_int64_t *) rnatloc;
@@ -242,21 +246,22 @@ cpu_fork(p1, p2, flags)
 	 * should work since the child will normally return
 	 * straight into exception_restore.
 	 */
-	up = p2->p_addr;
-	up->u_pcb.pcb_bspstore = (u_int64_t)p2bs + p1->p_frame->tf_ndirty;
-	up->u_pcb.pcb_rnat = rnat;
-	up->u_pcb.pcb_pfs = 0;
+	td2->td_pcb->pcb_bspstore = (u_int64_t)p2bs + td1->td_frame->tf_ndirty;
+	td2->td_pcb->pcb_rnat = rnat;
+	td2->td_pcb->pcb_pfs = 0;
 
 	/*
 	 * Arrange for continuation at fork_return(), which
 	 * will return to exception_restore().  Note that the
 	 * child process doesn't stay in the kernel for long!
+	 *
+	 * XXX what is this +/- 16 stuff here?
 	 */
-	up->u_pcb.pcb_sp = (u_int64_t)p2tf - 16;	
-	up->u_pcb.pcb_r4 = (u_int64_t)fork_return;
-	up->u_pcb.pcb_r5 = FDESC_FUNC(exception_restore);
-	up->u_pcb.pcb_r6 = (u_int64_t)p2;
-	up->u_pcb.pcb_b0 = FDESC_FUNC(fork_trampoline);
+	td2->td_pcb->pcb_sp = (u_int64_t)p2tf - 16;	
+	td2->td_pcb->pcb_r4 = (u_int64_t)fork_return;
+	td2->td_pcb->pcb_r5 = FDESC_FUNC(exception_restore);
+	td2->td_pcb->pcb_r6 = (u_int64_t)td2;
+	td2->td_pcb->pcb_b0 = FDESC_FUNC(fork_trampoline);
 }
 
 /*
@@ -266,13 +271,13 @@ cpu_fork(p1, p2, flags)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(p, func, arg)
-	struct proc *p;
+cpu_set_fork_handler(td, func, arg)
+	struct thread *td;
 	void (*func) __P((void *));
 	void *arg;
 {
-	p->p_addr->u_pcb.pcb_r4 = (u_int64_t) func;
-	p->p_addr->u_pcb.pcb_r6 = (u_int64_t) arg;
+	td->td_pcb->pcb_r4 = (u_int64_t) func;
+	td->td_pcb->pcb_r6 = (u_int64_t) arg;
 }
 
 /*
@@ -281,11 +286,11 @@ cpu_set_fork_handler(p, func, arg)
  * When the proc is reaped, cpu_wait() will gc the VM state.
  */
 void
-cpu_exit(p)
-	register struct proc *p;
+cpu_exit(td)
+	register struct thread *td;
 {
 
-	ia64_fpstate_drop(p);
+	ia64_fpstate_drop(td);
 }
 
 void
@@ -307,14 +312,22 @@ cpu_throw(void)
  * Dump the machine specific header information at the start of a core dump.
  */
 int
-cpu_coredump(p, vp, cred)
-	struct proc *p;
+cpu_coredump(td, vp, cred)
+	struct thread *td;
 	struct vnode *vp;
 	struct ucred *cred;
 {
+	int error;
 
-	return (vn_rdwr(UIO_WRITE, vp, (caddr_t) p->p_addr, ctob(UPAGES),
-	    (off_t)0, UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, p));
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) td->td_proc->p_uarea,
+	    ctob(UAREA_PAGES), (off_t)0,
+	    UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, td);
+	if (error)
+		return error;
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) td->td_kstack,
+	    ctob(KSTACK_PAGES), (off_t)0,
+	    UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, td);
+	return error;
 }
 
 /*

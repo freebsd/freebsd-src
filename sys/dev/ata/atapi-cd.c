@@ -33,6 +33,7 @@
 #include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/disklabel.h>
@@ -499,7 +500,7 @@ msf2lba(u_int8_t m, u_int8_t s, u_int8_t f)
 }
 
 static int
-acdopen(dev_t dev, int flags, int fmt, struct proc *p)
+acdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct acd_softc *cdp = dev->si_drv1;
     
@@ -523,7 +524,7 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int 
-acdclose(dev_t dev, int flags, int fmt, struct proc *p)
+acdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct acd_softc *cdp = dev->si_drv1;
     
@@ -542,7 +543,7 @@ acdclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int 
-acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
     struct acd_softc *cdp = dev->si_drv1;
     int error = 0;
@@ -595,7 +596,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	break;
 
     case CDIOCRESET:
-	error = suser(p);
+	error = suser(td->td_proc);
 	if (error)
 	    break;
 	error = atapi_test_ready(cdp->atp);

@@ -52,23 +52,23 @@
 MALLOC_DEFINE(M_DEVFS, "DEVFS", "DEVFS data");
 
 static int	devfs_mount __P((struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct proc *p));
+				  struct nameidata *ndp, struct thread *td));
 static int	devfs_unmount __P((struct mount *mp, int mntflags,
-				  struct proc *p));
+				  struct thread *td));
 static int	devfs_root __P((struct mount *mp, struct vnode **vpp));
 static int	devfs_statfs __P((struct mount *mp, struct statfs *sbp,
-				   struct proc *p));
+				   struct thread *td));
 
 /*
  * Mount the filesystem
  */
 static int
-devfs_mount(mp, path, data, ndp, p)
+devfs_mount(mp, path, data, ndp, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
 	struct nameidata *ndp;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 	struct devfs_mount *fmp;
@@ -101,20 +101,20 @@ devfs_mount(mp, path, data, ndp, p)
 		FREE(fmp, M_DEVFS);
 		return (error);
 	}
-	VOP_UNLOCK(rvp, 0, p);
+	VOP_UNLOCK(rvp, 0, td);
 
 	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy("devfs", mp->mnt_stat.f_mntfromname, sizeof("devfs"));
-	(void)devfs_statfs(mp, &mp->mnt_stat, p);
+	(void)devfs_statfs(mp, &mp->mnt_stat, td);
 
 	return (0);
 }
 
 static int
-devfs_unmount(mp, mntflags, p)
+devfs_unmount(mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
-	struct proc *p;
+	struct thread *td;
 {
 	int error;
 	int flags = 0;
@@ -142,13 +142,13 @@ devfs_root(mp, vpp)
 	struct vnode **vpp;
 {
 	int error;
-	struct proc *p;
+	struct thread *td;
 	struct vnode *vp;
 	struct devfs_mount *dmp;
 
-	p = curproc;					/* XXX */
+	td = curthread;					/* XXX */
 	dmp = VFSTODEVFS(mp);
-	error = devfs_allocv(dmp->dm_rootdir, mp, &vp, p);
+	error = devfs_allocv(dmp->dm_rootdir, mp, &vp, td);
 	if (error)
 		return (error);
 	vp->v_flag |= VROOT;
@@ -157,10 +157,10 @@ devfs_root(mp, vpp)
 }
 
 static int
-devfs_statfs(mp, sbp, p)
+devfs_statfs(mp, sbp, td)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct proc *p;
+	struct thread *td;
 {
 
 	sbp->f_flags = 0;

@@ -52,7 +52,7 @@
 
 #include <machine/frame.h>
 
-#define	cpu_getstack(p)		(alpha_pal_rdusp())
+#define	cpu_getstack(td)		(alpha_pal_rdusp())
 
 /*
  * Arguments to hardclock and gatherstats encapsulate the previous
@@ -99,7 +99,7 @@ struct clockframe {
 #ifdef _KERNEL
 
 struct pcb;
-struct proc;
+struct thread;
 struct reg;
 struct rpb;
 struct trapframe;
@@ -116,10 +116,10 @@ void	XentSys __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
 void	XentUna __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
 void	alpha_init __P((u_long, u_long, u_long, u_long, u_long));
 int	alpha_pa_access __P((u_long));
-void	alpha_fpstate_check __P((struct proc *p));
-void	alpha_fpstate_save __P((struct proc *p, int write));
-void	alpha_fpstate_drop __P((struct proc *p));
-void	alpha_fpstate_switch __P((struct proc *p));
+void	alpha_fpstate_check __P((struct thread *p));
+void	alpha_fpstate_save __P((struct thread *p, int write));
+void	alpha_fpstate_drop __P((struct thread *p));
+void	alpha_fpstate_switch __P((struct thread *p));
 int	badaddr	__P((void *, size_t));
 int	badaddr_read __P((void *, size_t, void *));
 u_int64_t console_restart __P((u_int64_t, u_int64_t, u_int64_t));
@@ -138,7 +138,7 @@ void	regdump __P((struct trapframe *));
 void	regtoframe __P((struct reg *, struct trapframe *));
 void	savectx __P((struct pcb *));
 void	set_iointr __P((void (*)(void *, unsigned long)));
-void    switch_exit __P((struct proc *));			/* MAGIC */
+void    switch_exit __P((struct thread *));			/* MAGIC */
 void	fork_trampoline __P((void));				/* MAGIC */
 void	syscall __P((u_int64_t, struct trapframe *));
 void	trap __P((unsigned long, unsigned long, unsigned long, unsigned long,

@@ -53,7 +53,7 @@ static __inline void *stackgap_alloc(caddr_t *, size_t);
 static __inline caddr_t
 stackgap_init()
 {
-#define szsigcode (*(curproc->p_sysent->sv_szsigcode))
+#define szsigcode (*(curthread->td_proc->p_sysent->sv_szsigcode))
         return (caddr_t)(((caddr_t)PS_STRINGS) - szsigcode - SPARE_USRSPACE);
 }
 
@@ -68,7 +68,7 @@ stackgap_alloc(sgp, sz)
 }
 
 extern const char svr4_emul_path[];
-int svr4_emul_find __P((struct proc *, caddr_t *, const char *, char *,
+int svr4_emul_find __P((struct thread *, caddr_t *, const char *, char *,
 			char **, int));
 
 #define CHECKALT(p, sgp, path, i)					\

@@ -156,7 +156,7 @@ ufs_lookup(ap)
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
-	struct proc *p = cnp->cn_proc;
+	struct thread *td = cnp->cn_thread;
 
 	bp = NULL;
 	slotoffset = -1;
@@ -400,7 +400,7 @@ notfound:
 		 * Access for write is interpreted as allowing
 		 * creation of files in the directory.
 		 */
-		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc);
+		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
 		if (error)
 			return (error);
 		/*
@@ -445,7 +445,7 @@ notfound:
 		 */
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent) {
-			VOP_UNLOCK(vdp, 0, p);
+			VOP_UNLOCK(vdp, 0, td);
 			cnp->cn_flags |= PDIRUNLOCK;
 		}
 		return (EJUSTRETURN);
@@ -490,7 +490,7 @@ found:
 		/*
 		 * Write access to directory required to delete files.
 		 */
-		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc);
+		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread);
 		if (error)
 			return (error);
 		/*
@@ -509,10 +509,10 @@ found:
 			return (0);
 		}
 		if (flags & ISDOTDOT)
-			VOP_UNLOCK(vdp, 0, p);	/* race to get the inode */
+			VOP_UNLOCK(vdp, 0, td);	/* race to get the inode */
 		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
 		if (flags & ISDOTDOT) {
-			if (vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, p) != 0)
+			if (vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, td) != 0)
 				cnp->cn_flags |= PDIRUNLOCK;
 		}
 		if (error)
@@ -524,14 +524,14 @@ found:
 		 * implements append-only directories.
 		 */
 		if ((dp->i_mode & ISVTX) &&
-		    VOP_ACCESS(vdp, VADMIN, cred, cnp->cn_proc) &&
-		    VOP_ACCESS(tdp, VADMIN, cred, cnp->cn_proc)) {
+		    VOP_ACCESS(vdp, VADMIN, cred, cnp->cn_thread) &&
+		    VOP_ACCESS(tdp, VADMIN, cred, cnp->cn_thread)) {
 			vput(tdp);
 			return (EPERM);
 		}
 		*vpp = tdp;
 		if (!lockparent) {
-			VOP_UNLOCK(vdp, 0, p);
+			VOP_UNLOCK(vdp, 0, td);
 			cnp->cn_flags |= PDIRUNLOCK;
 		}
 		return (0);
@@ -544,7 +544,7 @@ found:
 	 * regular file, or empty directory.
 	 */
 	if (nameiop == RENAME && wantparent && (flags & ISLASTCN)) {
-		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc)) != 0)
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread)) != 0)
 			return (error);
 		/*
 		 * Careful about locking second inode.
@@ -553,10 +553,10 @@ found:
 		if (dp->i_number == dp->i_ino)
 			return (EISDIR);
 		if (flags & ISDOTDOT)
-			VOP_UNLOCK(vdp, 0, p);	/* race to get the inode */
+			VOP_UNLOCK(vdp, 0, td);	/* race to get the inode */
 		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
 		if (flags & ISDOTDOT) {
-			if (vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, p) != 0)
+			if (vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, td) != 0)
 				cnp->cn_flags |= PDIRUNLOCK;
 		}
 		if (error)
@@ -564,7 +564,7 @@ found:
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent) {
-			VOP_UNLOCK(vdp, 0, p);
+			VOP_UNLOCK(vdp, 0, td);
 			cnp->cn_flags |= PDIRUNLOCK;
 		}
 		return (0);
@@ -591,15 +591,15 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(pdp, 0, p);	/* race to get the inode */
+		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
 		cnp->cn_flags |= PDIRUNLOCK;
 		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0) {
-			if (vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p) == 0)
+			if (vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td) == 0)
 				cnp->cn_flags &= ~PDIRUNLOCK;
 			return (error);
 		}
 		if (lockparent && (flags & ISLASTCN)) {
-			if ((error = vn_lock(pdp, LK_EXCLUSIVE, p)) != 0) {
+			if ((error = vn_lock(pdp, LK_EXCLUSIVE, td)) != 0) {
 				vput(tdp);
 				return (error);
 			}
@@ -614,7 +614,7 @@ found:
 		if (error)
 			return (error);
 		if (!lockparent || !(flags & ISLASTCN)) {
-			VOP_UNLOCK(pdp, 0, p);
+			VOP_UNLOCK(pdp, 0, td);
 			cnp->cn_flags |= PDIRUNLOCK;
 		}
 		*vpp = tdp;
@@ -739,7 +739,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	struct buf *newdirbp;
 {
 	struct ucred *cr;
-	struct proc *p;
+	struct thread *td;
 	int newentrysize;
 	struct inode *dp;
 	struct buf *bp;
@@ -748,8 +748,8 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	int error, ret, blkoff, loc, spacefree, flags;
 	char *dirbuf;
 
-	p = curproc;	/* XXX */
-	cr = p->p_ucred;
+	td = curthread;	/* XXX */
+	cr = td->td_proc->p_ucred;
 
 	dp = VTOI(dvp);
 	newentrysize = DIRSIZ(OFSFMT(dvp), dirp);
@@ -818,10 +818,10 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			if ((error = BUF_WRITE(bp)))
 				return (error);
 			if (tvp != NULL)
-				VOP_UNLOCK(tvp, 0, p);
-			error = VOP_FSYNC(dvp, p->p_ucred, MNT_WAIT, p);
+				VOP_UNLOCK(tvp, 0, td);
+			error = VOP_FSYNC(dvp, td->td_proc->p_ucred, MNT_WAIT, td);
 			if (tvp != NULL)
-				vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, p);
+				vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, td);
 			return (error);
 		}
 		if (DOINGASYNC(dvp)) {
@@ -966,14 +966,14 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	 */
 	if (error == 0 && dp->i_endoff && dp->i_endoff < dp->i_size) {
 		if (tvp != NULL)
-			VOP_UNLOCK(tvp, 0, p);
+			VOP_UNLOCK(tvp, 0, td);
 #ifdef UFS_DIRHASH
 		if (dp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);
 #endif
-		(void) UFS_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC, cr, p);
+		(void) UFS_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC, cr, td);
 		if (tvp != NULL)
-			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, p);
+			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
 	return (error);
 }
@@ -1159,7 +1159,7 @@ ufs_dirempty(ip, parentino, cred)
 
 	for (off = 0; off < ip->i_size; off += dp->d_reclen) {
 		error = vn_rdwr(UIO_READ, ITOV(ip), (caddr_t)dp, MINDIRSIZ, off,
-		   UIO_SYSSPACE, IO_NODELOCKED, cred, &count, (struct proc *)0);
+		   UIO_SYSSPACE, IO_NODELOCKED, cred, &count, (struct thread *)0);
 		/*
 		 * Since we read MINDIRSIZ, residual must
 		 * be 0 unless we're at end of file.
@@ -1230,7 +1230,7 @@ ufs_checkpath(source, target, cred)
 		}
 		error = vn_rdwr(UIO_READ, vp, (caddr_t)&dirbuf,
 			sizeof (struct dirtemplate), (off_t)0, UIO_SYSSPACE,
-			IO_NODELOCKED, cred, (int *)0, (struct proc *)0);
+			IO_NODELOCKED, cred, (int *)0, (struct thread *)0);
 		if (error != 0)
 			break;
 #		if (BYTE_ORDER == LITTLE_ENDIAN)

@@ -133,7 +133,7 @@ iic_attach(device_t dev)
 }
 
 static int
-iicopen (dev_t dev, int flags, int fmt, struct proc *p)
+iicopen (dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));
 
@@ -149,7 +149,7 @@ iicopen (dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-iicclose(dev_t dev, int flags, int fmt, struct proc *p)
+iicclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));
 
@@ -227,7 +227,7 @@ iicread(dev_t dev, struct uio * uio, int ioflag)
 }
 
 static int
-iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
+iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	device_t iicdev = IIC_DEVICE(minor(dev));
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));

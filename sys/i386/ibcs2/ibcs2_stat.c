@@ -95,8 +95,8 @@ cvt_statfs(sp, buf, len)
 }	
 
 int
-ibcs2_statfs(p, uap)
-	struct proc *p;
+ibcs2_statfs(td, uap)
+	struct thread *td;
 	struct ibcs2_statfs_args *uap;
 {
 	register struct mount *mp;
@@ -105,23 +105,23 @@ ibcs2_statfs(p, uap)
 	struct nameidata nd;
 	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	mp = nd.ni_vp->v_mount;
 	sp = &mp->mnt_stat;
 	vrele(nd.ni_vp);
-	if ((error = VFS_STATFS(mp, sp, p)) != 0)
+	if ((error = VFS_STATFS(mp, sp, td)) != 0)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	return cvt_statfs(sp, (caddr_t)SCARG(uap, buf), SCARG(uap, len));
 }
 
 int
-ibcs2_fstatfs(p, uap)
-	struct proc *p;
+ibcs2_fstatfs(td, uap)
+	struct thread *td;
 	struct ibcs2_fstatfs_args *uap;
 {
 	struct file *fp;
@@ -129,19 +129,19 @@ ibcs2_fstatfs(p, uap)
 	register struct statfs *sp;
 	int error;
 
-	if ((error = getvnode(p->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 	sp = &mp->mnt_stat;
-	if ((error = VFS_STATFS(mp, sp, p)) != 0)
+	if ((error = VFS_STATFS(mp, sp, td)) != 0)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	return cvt_statfs(sp, (caddr_t)SCARG(uap, buf), SCARG(uap, len));
 }
 
 int
-ibcs2_stat(p, uap)
-	struct proc *p;
+ibcs2_stat(td, uap)
+	struct thread *td;
 	struct ibcs2_stat_args *uap;
 {
 	struct stat st;
@@ -150,11 +150,11 @@ ibcs2_stat(p, uap)
 	int error;
 	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(st));
 
-	if ((error = stat(p, &cup)) != 0)
+	if ((error = stat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, ub), &st, sizeof(st))) != 0)
@@ -165,8 +165,8 @@ ibcs2_stat(p, uap)
 }
 
 int
-ibcs2_lstat(p, uap)
-	struct proc *p;
+ibcs2_lstat(td, uap)
+	struct thread *td;
 	struct ibcs2_lstat_args *uap;
 {
 	struct stat st;
@@ -175,11 +175,11 @@ ibcs2_lstat(p, uap)
 	int error;
 	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, SCARG(uap, path));
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(st));
 
-	if ((error = lstat(p, &cup)) != 0)
+	if ((error = lstat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, ub), &st, sizeof(st))) != 0)
@@ -190,8 +190,8 @@ ibcs2_lstat(p, uap)
 }
 
 int
-ibcs2_fstat(p, uap)
-	struct proc *p;
+ibcs2_fstat(td, uap)
+	struct thread *td;
 	struct ibcs2_fstat_args *uap;
 {
 	struct stat st;
@@ -203,7 +203,7 @@ ibcs2_fstat(p, uap)
 	SCARG(&cup, fd) = SCARG(uap, fd);
 	SCARG(&cup, sb) = stackgap_alloc(&sg, sizeof(st));
 
-	if ((error = fstat(p, &cup)) != 0)
+	if ((error = fstat(td, &cup)) != 0)
 		return error;
 
 	if ((error = copyin(SCARG(&cup, sb), &st, sizeof(st))) != 0)
@@ -214,8 +214,8 @@ ibcs2_fstat(p, uap)
 }
 
 int
-ibcs2_utssys(p, uap)
-	struct proc *p;
+ibcs2_utssys(td, uap)
+	struct thread *td;
 	struct ibcs2_utssys_args *uap;
 {
 	switch (SCARG(uap, flag)) {

@@ -271,7 +271,6 @@ extern struct route_cb route_cb;
 extern struct radix_node_head *rt_tables[AF_MAX+1];
 
 struct ifmultiaddr;
-struct proc;
 
 void	 route_init __P((void));
 void	 rt_ifmsg __P((struct ifnet *));

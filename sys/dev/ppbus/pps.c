@@ -125,7 +125,7 @@ ppsattach(device_t dev)
 }
 
 static	int
-ppsopen(dev_t dev, int flags, int fmt, struct proc *p)
+ppsopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct pps_data *sc = UNITOSOFTC(unit);
@@ -154,7 +154,7 @@ ppsopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static	int
-ppsclose(dev_t dev, int flags, int fmt, struct proc *p)
+ppsclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct pps_data *sc = UNITOSOFTC(unit);
@@ -193,7 +193,7 @@ ppsintr(void *arg)
 }
 
 static int
-ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
+ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	u_int unit = minor(dev);
 	struct pps_data *sc = UNITOSOFTC(unit);

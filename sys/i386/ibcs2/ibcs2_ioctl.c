@@ -57,7 +57,7 @@ static void stio2stios  __P((struct ibcs2_termio *, struct ibcs2_termios *));
 
 
 int
-ibcs2_gtty(struct proc *p, struct ibcs2_gtty_args *args)
+ibcs2_gtty(struct thread *td, struct ibcs2_gtty_args *args)
 {
 	struct ioctl_args ioctl_arg;
 
@@ -65,11 +65,11 @@ ibcs2_gtty(struct proc *p, struct ibcs2_gtty_args *args)
 	ioctl_arg.com = TIOCGETC;
 	ioctl_arg.data = (caddr_t)args->buf;
 
-	return ioctl(p, &ioctl_arg);
+	return ioctl(td, &ioctl_arg);
 }
 
 int
-ibcs2_stty(struct proc *p, struct ibcs2_stty_args *args)
+ibcs2_stty(struct thread *td, struct ibcs2_stty_args *args)
 {
 	struct ioctl_args ioctl_arg;
 
@@ -77,7 +77,7 @@ ibcs2_stty(struct proc *p, struct ibcs2_stty_args *args)
 	ioctl_arg.com = TIOCSETC;
 	ioctl_arg.data = (caddr_t)args->buf;
 
-	return ioctl(p, &ioctl_arg);
+	return ioctl(td, &ioctl_arg);
 }
 
 
@@ -336,10 +336,11 @@ stio2stios(t, ts)
 }
 
 int
-ibcs2_ioctl(p, uap)
-	struct proc *p;
+ibcs2_ioctl(td, uap)
+	struct thread *td;
 	struct ibcs2_ioctl_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
 	int error;
@@ -365,7 +366,7 @@ ibcs2_ioctl(p, uap)
 		struct ibcs2_termios sts;
 		struct ibcs2_termio st;
 	
-		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts, p)) != 0)
+		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts, td)) != 0)
 			return error;
 	
 		btios2stios (&bts, &sts);
@@ -401,7 +402,7 @@ ibcs2_ioctl(p, uap)
 		}
 
 		/* get full BSD termios so we don't lose information */
-		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts, p)) != 0) {
+		if ((error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bts, td)) != 0) {
 			DPRINTF(("ibcs2_ioctl(%d): TCSET ctl failed fd %d ",
 				 p->p_pid, SCARG(uap, fd)));
 			return error;
@@ -416,7 +417,7 @@ ibcs2_ioctl(p, uap)
 		stios2btios(&sts, &bts);
 
 		return fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_TCSETA + TIOCSETA,
-			      (caddr_t)&bts, p);
+			      (caddr_t)&bts, td);
 	    }
 
 	case IBCS2_XCSETA:
@@ -432,7 +433,7 @@ ibcs2_ioctl(p, uap)
 		}
 		stios2btios (&sts, &bts);
 		return fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_XCSETA + TIOCSETA,
-			      (caddr_t)&bts, p);
+			      (caddr_t)&bts, td);
 	    }
 
 	case IBCS2_OXCSETA:
@@ -448,7 +449,7 @@ ibcs2_ioctl(p, uap)
 		}
 		stios2btios (&sts, &bts);
 		return fo_ioctl(fp, SCARG(uap, cmd) - IBCS2_OXCSETA + TIOCSETA,
-			      (caddr_t)&bts, p);
+			      (caddr_t)&bts, td);
 	    }
 
 	case IBCS2_TCSBRK:
@@ -463,9 +464,9 @@ ibcs2_ioctl(p, uap)
 			DPRINTF(("ibcs2_ioctl(%d): TCXONC ", p->p_pid));
 			return ENOSYS;
 		case 2:
-			return fo_ioctl(fp, TIOCSTOP, (caddr_t)0, p);
+			return fo_ioctl(fp, TIOCSTOP, (caddr_t)0, td);
 		case 3:
-			return fo_ioctl(fp, TIOCSTART, (caddr_t)1, p);
+			return fo_ioctl(fp, TIOCSTART, (caddr_t)1, td);
 		default:
 			return EINVAL;
 		}
@@ -488,16 +489,16 @@ ibcs2_ioctl(p, uap)
 		default:
 			return EINVAL;
 		}
-		return fo_ioctl(fp, TIOCFLUSH, (caddr_t)&arg, p);
+		return fo_ioctl(fp, TIOCFLUSH, (caddr_t)&arg, td);
 	    }
 
 	case IBCS2_TIOCGWINSZ:
 		SCARG(uap, cmd) = TIOCGWINSZ;
-		return ioctl(p, (struct ioctl_args *)uap);
+		return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_TIOCSWINSZ:
 		SCARG(uap, cmd) = TIOCSWINSZ;
-		return ioctl(p, (struct ioctl_args *)uap);
+		return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_TIOCGPGRP:
 		PROC_LOCK(p);
@@ -512,7 +513,7 @@ ibcs2_ioctl(p, uap)
 
 		SCARG(&sa, pid) = 0;
 		SCARG(&sa, pgid) = (int)SCARG(uap, data);
-		if ((error = setpgid(p, &sa)) != 0)
+		if ((error = setpgid(td, &sa)) != 0)
 			return error;
 		return 0;
 	    }
@@ -548,96 +549,96 @@ ibcs2_ioctl(p, uap)
 	case IBCS2_KDGKBMODE:        /* get keyboard translation mode */
 	        SCARG(uap, cmd) = KDGKBMODE;
 /* printf("ioctl KDGKBMODE = %x\n", SCARG(uap, cmd));*/
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDSKBMODE:        /* set keyboard translation mode */
 	        SCARG(uap, cmd) = KDSKBMODE;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDMKTONE:        /* sound tone */
 	        SCARG(uap, cmd) = KDMKTONE;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDGETMODE:        /* get text/graphics mode */  
 	        SCARG(uap, cmd) = KDGETMODE;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDSETMODE:       /* set text/graphics mode */
 	        SCARG(uap, cmd) = KDSETMODE;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDSBORDER:       /* set ega color border */
 	        SCARG(uap, cmd) = KDSBORDER;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDGKBSTATE:
 	        SCARG(uap, cmd) = KDGKBSTATE;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDSETRAD:
 	        SCARG(uap, cmd) = KDSETRAD;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDENABIO:       /* enable direct I/O to ports */
 	        SCARG(uap, cmd) = KDENABIO;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDDISABIO:       /* disable direct I/O to ports */
 	        SCARG(uap, cmd) = KDDISABIO;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KIOCSOUND:       /* start sound generation */
 	        SCARG(uap, cmd) = KIOCSOUND;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDGKBTYPE:       /* get keyboard type */
 	        SCARG(uap, cmd) = KDGKBTYPE;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDGETLED:       /* get keyboard LED status */
 	        SCARG(uap, cmd) = KDGETLED;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_KDSETLED:       /* set keyboard LED status */
 	        SCARG(uap, cmd) = KDSETLED;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	    /* Xenix keyboard and display ioctl's from sys/kd.h -- type 'k' */
 	case IBCS2_GETFKEY:      /* Get function key */
 	        SCARG(uap, cmd) = GETFKEY;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_SETFKEY:      /* Set function key */
 	        SCARG(uap, cmd) = SETFKEY;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_GIO_SCRNMAP:      /* Get screen output map table */
 	        SCARG(uap, cmd) = GIO_SCRNMAP;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_PIO_SCRNMAP:      /* Set screen output map table */
 	        SCARG(uap, cmd) = PIO_SCRNMAP;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_GIO_KEYMAP:      /* Get keyboard map table */
 	        SCARG(uap, cmd) = GIO_KEYMAP;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	case IBCS2_PIO_KEYMAP:      /* Set keyboard map table */
 	        SCARG(uap, cmd) = PIO_KEYMAP;
-	        return ioctl(p, (struct ioctl_args *)uap);
+	        return ioctl(td, (struct ioctl_args *)uap);
 
 	    /* socksys */
 	case IBCS2_SIOCSOCKSYS:
-		return ibcs2_socksys(p, (struct ibcs2_socksys_args *)uap);
+		return ibcs2_socksys(td, (struct ibcs2_socksys_args *)uap);
 
 	case IBCS2_I_NREAD:     /* STREAMS */
 	        SCARG(uap, cmd) = FIONREAD;
-		return ioctl(p, (struct ioctl_args *)uap);
+		return ioctl(td, (struct ioctl_args *)uap);
 
 	default:
 		DPRINTF(("ibcs2_ioctl(%d): unknown cmd 0x%lx ",
-			 p->p_pid, SCARG(uap, cmd)));
+			 td->proc->p_pid, SCARG(uap, cmd)));
 		return ENOSYS;
 	}
 	return ENOSYS;

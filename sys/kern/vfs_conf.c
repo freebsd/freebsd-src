@@ -227,7 +227,7 @@ vfs_mountroot_try(char *mountfrom)
 	 */
 	strncpy(mp->mnt_stat.f_mntonname, "/", MNAMELEN);
 
-	error = VFS_MOUNT(mp, NULL, NULL, NULL, curproc);
+	error = VFS_MOUNT(mp, NULL, NULL, NULL, curthread);
 
 done:
 	if (vfsname != NULL)
@@ -236,7 +236,7 @@ done:
 		free(path, M_MOUNT);
 	if (error != 0) {
 		if (mp != NULL) {
-			vfs_unbusy(mp, curproc);
+			vfs_unbusy(mp, curthread);
 			free(mp, M_MOUNT);
 		}
 		printf("Root mount failed: %d\n", error);
@@ -249,7 +249,7 @@ done:
 
 		/* sanity check system clock against root filesystem timestamp */
 		inittodr(mp->mnt_time);
-		vfs_unbusy(mp, curproc);
+		vfs_unbusy(mp, curthread);
 	}
 	return(error);
 }

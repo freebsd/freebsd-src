@@ -142,7 +142,7 @@ union	savefpu {
 
 #ifdef _KERNEL
 int	npxdna __P((void));
-void	npxexit __P((struct proc *p));
+void	npxexit __P((struct thread *td));
 void	npxinit __P((int control));
 void	npxsave __P((union savefpu *addr));
 int	npxtrap __P((void));

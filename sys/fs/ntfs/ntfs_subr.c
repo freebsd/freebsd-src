@@ -227,7 +227,7 @@ ntfs_ntvattrget(
 		   vget() */
 		error = ntfs_vgetex(ntmp->ntm_mountp, aalp->al_inumber,
 				NTFS_A_DATA, NULL, LK_EXCLUSIVE,
-				VG_EXT, curproc, &newvp);
+				VG_EXT, curthread, &newvp);
 		if (error) {
 			printf("ntfs_ntvattrget: CAN'T VGET INO: %d\n",
 			       aalp->al_inumber);

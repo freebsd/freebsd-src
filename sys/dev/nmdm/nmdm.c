@@ -152,10 +152,10 @@ nmdminit(n)
 
 /*ARGSUSED*/
 static	int
-nmdmopen(dev, flag, devtype, p)
+nmdmopen(dev, flag, devtype, td)
 	dev_t dev;
 	int flag, devtype;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct tty *tp, *tp2;
 	int error;
@@ -203,9 +203,9 @@ nmdmopen(dev, flag, devtype, p)
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-	} else if (tp->t_state & TS_XCLUDE && suser(p)) {
+	} else if (tp->t_state & TS_XCLUDE && suser_td(td)) {
 		return (EBUSY);
-	} else if (pti->pt_prison != p->p_ucred->cr_prison) {
+	} else if (pti->pt_prison != td->td_proc->p_ucred->cr_prison) {
 		return (EBUSY);
 	}
 
@@ -255,10 +255,10 @@ nmdmopen(dev, flag, devtype, p)
 }
 
 static	int
-nmdmclose(dev, flag, mode, p)
+nmdmclose(dev, flag, mode, td)
 	dev_t dev;
 	int flag, mode;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct tty *tp, *tp2;
 	int err;
@@ -485,12 +485,12 @@ nmdmstop(tp, flush)
 
 /*ARGSUSED*/
 static	int
-nmdmioctl(dev, cmd, data, flag, p)
+nmdmioctl(dev, cmd, data, flag, td)
 	dev_t dev;
 	u_long cmd;
 	caddr_t data;
 	int flag;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct tty *tp = dev->si_tty;
 	struct nm_softc *pti = dev->si_drv1;
@@ -502,7 +502,7 @@ nmdmioctl(dev, cmd, data, flag, p)
 	GETPARTS(tp, ourpart, otherpart);
 	tp2 = &otherpart->nm_tty;
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error == ENOIOCTL)
 		 error = ttioctl(tp, cmd, data, flag);
 	if (error == ENOIOCTL) {

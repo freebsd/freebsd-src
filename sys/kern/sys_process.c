@@ -202,10 +202,11 @@ struct ptrace_args {
 #endif
 
 int
-ptrace(curp, uap)
-	struct proc *curp;
+ptrace(td, uap)
+	struct thread *td;
 	struct ptrace_args *uap;
 {
+	struct proc *curp = td->td_proc;
 	struct proc *p;
 	struct iovec iov;
 	struct uio uio;
@@ -314,14 +315,14 @@ ptrace(curp, uap)
 	/*
 	 * Single step fixup ala procfs
 	 */
-	FIX_SSTEP(p);
+	FIX_SSTEP(&p->p_thread);	/* XXXKSE */
 #endif
 
 	/*
 	 * Actually do the requests
 	 */
 
-	curp->p_retval[0] = 0;
+	td->td_retval[0] = 0;
 
 	switch (uap->req) {
 	case PT_TRACE_ME:
@@ -356,15 +357,15 @@ ptrace(curp, uap)
 		PHOLD(p);
 
 		if (uap->req == PT_STEP) {
-			if ((error = ptrace_single_step (p))) {
+			if ((error = ptrace_single_step (td))) {
 				PRELE(p);
 				return error;
 			}
 		}
 
 		if (uap->addr != (caddr_t)1) {
-			fill_kinfo_proc (p, &p->p_addr->u_kproc);
-			if ((error = ptrace_set_pc (p,
+			fill_kinfo_proc (p, &p->p_uarea->u_kproc);
+			if ((error = ptrace_set_pc (td,
 			    (u_long)(uintfptr_t)uap->addr))) {
 				PRELE(p);
 				return error;
@@ -403,7 +404,7 @@ ptrace(curp, uap)
 		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SSTOP) {
 			p->p_xstat = uap->data;
-			setrunnable(p);
+			setrunnable(&p->p_thread); /* XXXKSE */
 			mtx_unlock_spin(&sched_lock);
 		} else {
 			mtx_unlock_spin(&sched_lock);
@@ -421,7 +422,7 @@ ptrace(curp, uap)
 	case PT_READ_I:
 	case PT_READ_D:
 		/* write = 0 set above */
-		iov.iov_base = write ? (caddr_t)&uap->data : (caddr_t)curp->p_retval;
+		iov.iov_base = write ? (caddr_t)&uap->data : (caddr_t)td->td_retval;
 		iov.iov_len = sizeof(int);
 		uio.uio_iov = &iov;
 		uio.uio_iovcnt = 1;
@@ -429,7 +430,7 @@ ptrace(curp, uap)
 		uio.uio_resid = sizeof(int);
 		uio.uio_segflg = UIO_SYSSPACE;	/* ie: the uap */
 		uio.uio_rw = write ? UIO_WRITE : UIO_READ;
-		uio.uio_procp = p;
+		uio.uio_td = td;
 		error = procfs_domem(curp, p, NULL, &uio);
 		if (uio.uio_resid != 0) {
 			/*
@@ -460,7 +461,7 @@ ptrace(curp, uap)
 		/* write = 0 above */
 #endif /* PT_SETREGS */
 #if defined(PT_SETREGS) || defined(PT_GETREGS)
-		if (!procfs_validregs(p))	/* no P_SYSTEM procs please */
+		if (!procfs_validregs(td))	/* no P_SYSTEM procs please */
 			return EINVAL;
 		else {
 			iov.iov_base = uap->addr;
@@ -471,7 +472,7 @@ ptrace(curp, uap)
 			uio.uio_resid = sizeof(struct reg);
 			uio.uio_segflg = UIO_USERSPACE;
 			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
-			uio.uio_procp = curp;
+			uio.uio_td = td;
 			return (procfs_doregs(curp, p, NULL, &uio));
 		}
 #endif /* defined(PT_SETREGS) || defined(PT_GETREGS) */
@@ -486,7 +487,7 @@ ptrace(curp, uap)
 		/* write = 0 above */
 #endif /* PT_SETFPREGS */
 #if defined(PT_SETFPREGS) || defined(PT_GETFPREGS)
-		if (!procfs_validfpregs(p))	/* no P_SYSTEM procs please */
+		if (!procfs_validfpregs(td))	/* no P_SYSTEM procs please */
 			return EINVAL;
 		else {
 			iov.iov_base = uap->addr;
@@ -497,7 +498,7 @@ ptrace(curp, uap)
 			uio.uio_resid = sizeof(struct fpreg);
 			uio.uio_segflg = UIO_USERSPACE;
 			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
-			uio.uio_procp = curp;
+			uio.uio_td = td;
 			return (procfs_dofpregs(curp, p, NULL, &uio));
 		}
 #endif /* defined(PT_SETFPREGS) || defined(PT_GETFPREGS) */
@@ -512,7 +513,7 @@ ptrace(curp, uap)
 		/* write = 0 above */
 #endif /* PT_SETDBREGS */
 #if defined(PT_SETDBREGS) || defined(PT_GETDBREGS)
-		if (!procfs_validdbregs(p))	/* no P_SYSTEM procs please */
+		if (!procfs_validdbregs(td))	/* no P_SYSTEM procs please */
 			return EINVAL;
 		else {
 			iov.iov_base = uap->addr;
@@ -523,7 +524,7 @@ ptrace(curp, uap)
 			uio.uio_resid = sizeof(struct dbreg);
 			uio.uio_segflg = UIO_USERSPACE;
 			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
-			uio.uio_procp = curp;
+			uio.uio_td = td;
 			return (procfs_dodbregs(curp, p, NULL, &uio));
 		}
 #endif /* defined(PT_SETDBREGS) || defined(PT_GETDBREGS) */

@@ -328,7 +328,7 @@ loranattach(struct isa_device *isdp)
 }
 
 static	int
-loranopen (dev_t dev, int flags, int fmt, struct proc *p)
+loranopen (dev_t dev, int flags, int fmt, struct thread *td)
 {
 	int idx;
 
@@ -340,7 +340,7 @@ loranopen (dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static	int
-loranclose(dev_t dev, int flags, int fmt, struct proc *p)
+loranclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	return(0);
 }

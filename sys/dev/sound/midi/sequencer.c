@@ -131,7 +131,7 @@ struct seq_softc {
 	 */
 	int output_threshould; /* Sequence output threshould */
 	snd_sync_parm sync_parm; /* AIOSYNC parameter set */
-	struct proc *sync_proc; /* AIOSYNCing process */
+	struct thread *sync_thread; /* AIOSYNCing thread */
 };
 
 typedef struct seq_softc *sc_p;
@@ -187,8 +187,8 @@ static int seq_local(sc_p scp, u_char *event);
 static int seq_sysex(sc_p scp, u_char *event);
 static void seq_timer(void *arg);
 static int seq_reset(sc_p scp);
-static int seq_openmidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p);
-static int seq_closemidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p);
+static int seq_openmidi(sc_p scp, mididev_info *md, int flags, int mode, struct thread *p);
+static int seq_closemidi(sc_p scp, mididev_info *md, int flags, int mode, struct thread *p);
 static void seq_panic(sc_p scp);
 static int seq_sync(sc_p scp);
 
@@ -268,7 +268,7 @@ seq_initunit(int unit)
 }
 
 int
-seq_open(dev_t i_dev, int flags, int mode, struct proc *p)
+seq_open(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	int unit;
 	sc_p scp;
@@ -319,7 +319,7 @@ seq_open(dev_t i_dev, int flags, int mode, struct proc *p)
 }
 
 int
-seq_close(dev_t i_dev, int flags, int mode, struct proc *p)
+seq_close(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	int unit;
 	sc_p scp;
@@ -551,7 +551,7 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 }
 
 int
-seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
+seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	int unit, midiunit, ret, tmp, arg2;
 	sc_p scp;
@@ -644,7 +644,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 			TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
 				if ((md->flags & MIDI_F_WRITING) != 0) {
 					arg2 = *(int *)arg;
-					midi_ioctl(MIDIMKDEV(major(i_dev), md->unit, SND_DEV_MIDIN), cmd, (caddr_t)&arg2, mode, p);
+					midi_ioctl(MIDIMKDEV(major(i_dev), md->unit, SND_DEV_MIDIN), cmd, (caddr_t)&arg2, mode, td);
 				}
 			}
 
@@ -661,7 +661,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 			TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
 				if ((md->flags & MIDI_F_WRITING) != 0) {
 					arg2 = *(int *)arg;
-					midi_ioctl(MIDIMKDEV(major(i_dev), md->unit, SND_DEV_MIDIN), cmd, (caddr_t)&arg2, mode, p);
+					midi_ioctl(MIDIMKDEV(major(i_dev), md->unit, SND_DEV_MIDIN), cmd, (caddr_t)&arg2, mode, td);
 				}
 			}
 
@@ -773,7 +773,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		mtx_unlock(&sd->flagqueue_mtx);
 		if (ret != 0)
 			break;
-		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
+		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, td);
 		break;
 	case SNDCTL_SEQ_NRSYNTHS:
 		*(int *)arg = mididev_info_number();
@@ -790,7 +790,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		mtx_unlock(&sd->flagqueue_mtx);
 		if (ret != 0)
 			break;
-		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
+		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, td);
 		break;
 	case SNDCTL_FM_4OP_ENABLE:
 		midiunit = *(int *)arg;
@@ -799,7 +799,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		mtx_unlock(&sd->flagqueue_mtx);
 		if (ret != 0)
 			break;
-		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
+		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, td);
 		break;
 	case SNDCTL_SYNTH_INFO:
 		synthinfo = (struct synth_info *)arg;
@@ -809,7 +809,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		mtx_unlock(&sd->flagqueue_mtx);
 		if (ret != 0)
 			break;
-		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
+		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, td);
 		break;
 	case SNDCTL_SEQ_OUTOFBAND:
 		event = (struct seq_event_rec *)arg;
@@ -825,7 +825,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		mtx_unlock(&sd->flagqueue_mtx);
 		if (ret != 0)
 			break;
-		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
+		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, td);
 		break;
 	case SNDCTL_PMGR_IFACE:
 		patinfo = (struct patmgr_info *)arg;
@@ -835,7 +835,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		mtx_unlock(&sd->flagqueue_mtx);
 		if (ret != 0)
 			break;
-		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
+		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, td);
 		break;
 	case SNDCTL_PMGR_ACCESS:
 		patinfo = (struct patmgr_info *)arg;
@@ -845,7 +845,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		mtx_unlock(&sd->flagqueue_mtx);
 		if (ret != 0)
 			break;
-		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
+		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, td);
 		break;
 	case SNDCTL_SEQ_THRESHOLD:
 		tmp = *(int *)arg;
@@ -871,7 +871,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		mtx_unlock(&sd->flagqueue_mtx);
 		if (ret != 0)
 			break;
-		ret = midi_ioctl(MIDIMKDEV(major(i_dev), 0, SND_DEV_MIDIN), cmd, arg, mode, p);
+		ret = midi_ioctl(MIDIMKDEV(major(i_dev), 0, SND_DEV_MIDIN), cmd, arg, mode, td);
 		break;
 	}
 
@@ -879,7 +879,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 }
 
 int
-seq_poll(dev_t i_dev, int events, struct proc *p)
+seq_poll(dev_t i_dev, int events, struct thread *td)
 {
 	int unit, ret, lim;
 	sc_p scp;
@@ -916,7 +916,7 @@ seq_poll(dev_t i_dev, int events, struct proc *p)
 			lim = sd->midi_dbuf_out.unit_size;
 		if (sd->midi_dbuf_out.fl < lim)
 			/* No enough space, record select. */
-			selrecord(p, &sd->midi_dbuf_out.sel);
+			selrecord(td, &sd->midi_dbuf_out.sel);
 		else
 			/* We can write now. */
 			ret |= events & (POLLOUT | POLLWRNORM);
@@ -932,7 +932,7 @@ seq_poll(dev_t i_dev, int events, struct proc *p)
 			lim = sd->midi_dbuf_in.unit_size;
 		if (sd->midi_dbuf_in.rl < lim)
 			/* No data ready, record select. */
-			selrecord(p, &sd->midi_dbuf_in.sel);
+			selrecord(td, &sd->midi_dbuf_in.sel);
 		else
 			/* We can write now. */
 			ret |= events & (POLLIN | POLLRDNORM);
@@ -1849,7 +1849,7 @@ seq_timer(void *arg)
 }
 
 static int
-seq_openmidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p)
+seq_openmidi(sc_p scp, mididev_info *md, int flags, int mode, struct thread *td)
 {
 	int midiunit, err, insync;
 
@@ -1859,7 +1859,7 @@ seq_openmidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p)
 
 	DEB(printf("seq_openmidi: opening midi unit %d.\n", midiunit));
 
-	err = midi_open(MIDIMKDEV(MIDI_CDEV_MAJOR, midiunit, SND_DEV_MIDIN), flags, mode, p);
+	err = midi_open(MIDIMKDEV(MIDI_CDEV_MAJOR, midiunit, SND_DEV_MIDIN), flags, mode, td);
 	if (err != 0) {
 		printf("seq_openmidi: failed to open midi device %d.\n", midiunit);
 		return (err);
@@ -1887,7 +1887,7 @@ seq_openmidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p)
 }
 
 static int
-seq_closemidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p)
+seq_closemidi(sc_p scp, mididev_info *md, int flags, int mode, struct thread *td)
 {
 	int midiunit, insync;
 
@@ -1901,7 +1901,7 @@ seq_closemidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p)
 
 	DEB(printf("seq_closemidi: closing midi unit %d.\n", midiunit));
 
-	midi_close(MIDIMKDEV(MIDI_CDEV_MAJOR, midiunit, SND_DEV_MIDIN), flags, mode, p);
+	midi_close(MIDIMKDEV(MIDI_CDEV_MAJOR, midiunit, SND_DEV_MIDIN), flags, mode, td);
 	mtx_lock(&md->flagqueue_mtx);
 	md->intr = NULL;
 	md->intrarg = NULL;
@@ -2152,7 +2152,7 @@ lookup_mididev(sc_p scp, int unit, int mode, mididev_info **mdp)
 		if (md->unit == unit) {
 			*mdp = md;
 			if (mode == LOOKUP_CLOSE)
-				return seq_closemidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
+				return seq_closemidi(scp, md, scp->fflags, MIDIDEV_MODE, curthread);
 
 			return (md != NULL && MIDICONFED(md)) ? 0 : ENXIO;
 		}
@@ -2162,7 +2162,7 @@ lookup_mididev(sc_p scp, int unit, int mode, mididev_info **mdp)
 		md = get_mididev_info_unit(unit);
 		if (md != NULL) {
 			*mdp = md;
-			ret = seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
+			ret = seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curthread);
 			return ret;
 		}
 	}
@@ -2172,22 +2172,22 @@ lookup_mididev(sc_p scp, int unit, int mode, mididev_info **mdp)
 
 /* XXX These functions are actually redundant. */
 static int
-seqopen(dev_t i_dev, int flags, int mode, struct proc * p)
+seqopen(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_SEQ:
-		return seq_open(i_dev, flags, mode, p);
+		return seq_open(i_dev, flags, mode, td);
 	}
 
 	return (ENXIO);
 }
 
 static int
-seqclose(dev_t i_dev, int flags, int mode, struct proc * p)
+seqclose(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_SEQ:
-		return seq_close(i_dev, flags, mode, p);
+		return seq_close(i_dev, flags, mode, td);
 	}
 
 	return (ENXIO);
@@ -2216,22 +2216,22 @@ seqwrite(dev_t i_dev, struct uio * buf, int flag)
 }
 
 static int
-seqioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
+seqioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_SEQ:
-		return seq_ioctl(i_dev, cmd, arg, mode, p);
+		return seq_ioctl(i_dev, cmd, arg, mode, td);
 	}
 
 	return (ENXIO);
 }
 
 static int
-seqpoll(dev_t i_dev, int events, struct proc * p)
+seqpoll(dev_t i_dev, int events, struct thread *td)
 {
 	switch (MIDIDEV(i_dev)) {
 	case MIDI_DEV_SEQ:
-		return seq_poll(i_dev, events, p);
+		return seq_poll(i_dev, events, td);
 	}
 
 	return (ENXIO);

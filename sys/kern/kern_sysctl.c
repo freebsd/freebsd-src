@@ -836,7 +836,7 @@ sysctl_new_kernel(struct sysctl_req *req, void *p, size_t l)
 }
 
 int
-kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
+kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
     size_t *oldlenp, void *new, size_t newlen, size_t *retval)
 {
 	int error = 0;
@@ -844,7 +844,7 @@ kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 
 	bzero(&req, sizeof req);
 
-	req.p = p;
+	req.p = td->td_proc;
 
 	if (oldlenp) {
 		req.oldlen = *oldlenp;
@@ -896,7 +896,7 @@ kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 }
 
 int
-kernel_sysctlbyname(struct proc *p, char *name, void *old, size_t *oldlenp,
+kernel_sysctlbyname(struct thread *td, char *name, void *old, size_t *oldlenp,
     void *new, size_t newlen, size_t *retval)
 {
         int oid[CTL_MAXNAME];
@@ -907,12 +907,12 @@ kernel_sysctlbyname(struct proc *p, char *name, void *old, size_t *oldlenp,
 	oid[1] = 3;		/* name2oid */
 	oidlen = sizeof(oid);
 
-	error = kernel_sysctl(p, oid, 2, oid, &oidlen,
+	error = kernel_sysctl(td, oid, 2, oid, &oidlen,
 	    (void *)name, strlen(name), &plen);
 	if (error)
 		return (error);
 
-	error = kernel_sysctl(p, oid, plen / sizeof(int), old, oldlenp,
+	error = kernel_sysctl(td, oid, plen / sizeof(int), old, oldlenp,
 	    new, newlen, retval);
 	return (error);
 }
@@ -1066,7 +1066,7 @@ struct sysctl_args {
  * MPSAFE
  */
 int
-__sysctl(struct proc *p, struct sysctl_args *uap)
+__sysctl(struct thread *td, struct sysctl_args *uap)
 {
 	int error, name[CTL_MAXNAME];
 	size_t j;
@@ -1080,7 +1080,7 @@ __sysctl(struct proc *p, struct sysctl_args *uap)
 
 	mtx_lock(&Giant);
 
-	error = userland_sysctl(p, name, uap->namelen,
+	error = userland_sysctl(td, name, uap->namelen,
 		uap->old, uap->oldlenp, 0,
 		uap->new, uap->newlen, &j);
 	if (error && error != ENOMEM)
@@ -1100,7 +1100,7 @@ done2:
  * must be in kernel space.
  */
 int
-userland_sysctl(struct proc *p, int *name, u_int namelen, void *old,
+userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
     size_t *oldlenp, int inkernel, void *new, size_t newlen, size_t *retval)
 {
 	int error = 0;
@@ -1108,7 +1108,7 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 
 	bzero(&req, sizeof req);
 
-	req.p = p;
+	req.p = td->td_proc;
 
 	if (oldlenp) {
 		if (inkernel) {
@@ -1245,7 +1245,7 @@ struct getkerninfo_args {
  * MPSAFE
  */
 int
-ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
+ogetkerninfo(struct thread *td, struct getkerninfo_args *uap)
 {
 	int error, name[6];
 	size_t size;
@@ -1262,14 +1262,14 @@ ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 		name[3] = (uap->op & 0xff0000) >> 16;
 		name[4] = uap->op & 0xff;
 		name[5] = uap->arg;
-		error = userland_sysctl(p, name, 6, uap->where, uap->size,
+		error = userland_sysctl(td, name, 6, uap->where, uap->size,
 			0, 0, 0, &size);
 		break;
 
 	case KINFO_VNODE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_VNODE;
-		error = userland_sysctl(p, name, 2, uap->where, uap->size,
+		error = userland_sysctl(td, name, 2, uap->where, uap->size,
 			0, 0, 0, &size);
 		break;
 
@@ -1278,35 +1278,35 @@ ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 		name[1] = KERN_PROC;
 		name[2] = uap->op & 0xff;
 		name[3] = uap->arg;
-		error = userland_sysctl(p, name, 4, uap->where, uap->size,
+		error = userland_sysctl(td, name, 4, uap->where, uap->size,
 			0, 0, 0, &size);
 		break;
 
 	case KINFO_FILE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_FILE;
-		error = userland_sysctl(p, name, 2, uap->where, uap->size,
+		error = userland_sysctl(td, name, 2, uap->where, uap->size,
 			0, 0, 0, &size);
 		break;
 
 	case KINFO_METER:
 		name[0] = CTL_VM;
 		name[1] = VM_METER;
-		error = userland_sysctl(p, name, 2, uap->where, uap->size,
+		error = userland_sysctl(td, name, 2, uap->where, uap->size,
 			0, 0, 0, &size);
 		break;
 
 	case KINFO_LOADAVG:
 		name[0] = CTL_VM;
 		name[1] = VM_LOADAVG;
-		error = userland_sysctl(p, name, 2, uap->where, uap->size,
+		error = userland_sysctl(td, name, 2, uap->where, uap->size,
 			0, 0, 0, &size);
 		break;
 
 	case KINFO_CLOCKRATE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_CLOCKRATE;
-		error = userland_sysctl(p, name, 2, uap->where, uap->size,
+		error = userland_sysctl(td, name, 2, uap->where, uap->size,
 			0, 0, 0, &size);
 		break;
 
@@ -1380,7 +1380,7 @@ ogetkerninfo(struct proc *p, struct getkerninfo_args *uap)
 		break;
 	}
 	if (error == 0) {
-		p->p_retval[0] = needed ? needed : size;
+		td->td_retval[0] = needed ? needed : size;
 		if (uap->size) {
 			error = copyout((caddr_t)&size, (caddr_t)uap->size,
 				    sizeof(size));

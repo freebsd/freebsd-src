@@ -1519,7 +1519,7 @@ out_fdc(struct fdc_data *fdc, int x)
  * auxiliary functions).
  */
 int
-Fdopen(dev_t dev, int flags, int mode, struct proc *p)
+Fdopen(dev_t dev, int flags, int mode, struct thread *td)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 	int type = FDTYPE(minor(dev));
@@ -1614,7 +1614,7 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 }
 
 int
-fdclose(dev_t dev, int flags, int mode, struct proc *p)
+fdclose(dev_t dev, int flags, int mode, struct thread *td)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 	struct fd_data *fd;
@@ -2473,7 +2473,7 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 }
 
 static int
-fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
  	fdu_t fdu;
  	fd_p fd;
@@ -2545,7 +2545,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 	case FD_STYPE:                  /* set drive type */
 		/* this is considered harmful; only allow for superuser */
-		if (suser(p) != 0)
+		if (suser_td(td) != 0)
 			return (EPERM);
 		*fd->ft = *(struct fd_type *)addr;
 		break;
@@ -2569,7 +2569,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 #endif
 
 	case FD_CLRERR:
-		if (suser(p) != 0)
+		if (suser_td(td) != 0)
 			return (EPERM);
 		fd->fdc->fdc_errs = 0;
 		break;

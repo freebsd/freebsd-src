@@ -78,7 +78,7 @@ static MALLOC_DEFINE(M_NFSSVC, "NFS srvsock", "Nfs server structure");
 /* Global defs. */
 extern int32_t (*nfsrv3_procs[NFS_NPROCS]) __P((struct nfsrv_descript *nd,
 					    struct nfssvc_sock *slp,
-					    struct proc *procp,
+					    struct thread *td,
 					    struct mbuf **mreqp));
 extern int nfs_numasync;
 extern time_t nqnfsstarttime;
@@ -92,7 +92,7 @@ static int nuidhash_max = NFS_MAXUIDHASH;
 #ifndef NFS_NOSERVER
 static void	nfsrv_zapsock __P((struct nfssvc_sock *slp));
 #endif
-static int	nfssvc_iod __P((struct proc *));
+static int	nfssvc_iod __P((struct thread *));
 
 #define	TRUE	1
 #define	FALSE	0
@@ -110,8 +110,9 @@ static int modify_flag = 0;
 static void	nfsd_rt __P((int sotype, struct nfsrv_descript *nd,
 			     int cacherep));
 static int	nfssvc_addsock __P((struct file *, struct sockaddr *,
-				    struct proc *));
-static int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
+					struct thread *));
+static int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,
+					struct thread *));
 
 static int nfs_privport = 0;
 SYSCTL_INT(_vfs_nfs, NFS_NFSPRIVPORT, nfs_privport, CTLFLAG_RW, &nfs_privport, 0, "");
@@ -140,8 +141,8 @@ struct nfssvc_args {
  * MPSAFE
  */
 int
-nfssvc(p, uap)
-	struct proc *p;
+nfssvc(td, uap)
+	struct thread *td;
 	register struct nfssvc_args *uap;
 {
 #ifndef NFS_NOSERVER
@@ -165,13 +166,13 @@ nfssvc(p, uap)
 		
 		error = copyin(uap->argp, &la, sizeof(la));
 		if (error == 0)
-			error = nfslockdans(p, &la);
+			error = nfslockdans(td->td_proc, &la);
 		goto done2;
 	}
 	/*
 	 * Must be super user
 	 */
-	error = suser(p);
+	error = suser_td(td);
 	if (error)
 		goto done2;
 	while (nfssvc_sockhead_flag & SLP_INIT) {
@@ -179,7 +180,7 @@ nfssvc(p, uap)
 		(void) tsleep((caddr_t)&nfssvc_sockhead, PSOCK, "nfsd init", 0);
 	}
 	if (uap->flag & NFSSVC_BIOD)
-		error = nfssvc_iod(p);
+		error = nfssvc_iod(td);
 #ifdef NFS_NOSERVER
 	else
 		error = ENXIO;
@@ -189,7 +190,7 @@ nfssvc(p, uap)
 		if (error)
 			goto done2;
 		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-			ncd.ncd_dirp, p);
+			ncd.ncd_dirp, td);
 		error = namei(&nd);
 		if (error)
 			goto done2;
@@ -206,13 +207,13 @@ nfssvc(p, uap)
 			goto done2;
 		}
 		nmp->nm_state |= NFSSTA_MNTD;
-		error = nqnfs_clientd(nmp, p->p_ucred, &ncd, uap->flag,
-			uap->argp, p);
+		error = nqnfs_clientd(nmp, td->td_proc->p_ucred, &ncd, uap->flag,
+			uap->argp, td);
 	} else if (uap->flag & NFSSVC_ADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
 		if (error)
 			goto done2;
-		error = holdsock(p->p_fd, nfsdarg.sock, &fp);
+		error = holdsock(td->td_proc->p_fd, nfsdarg.sock, &fp);
 		if (error)
 			goto done2;
 		/*
@@ -224,12 +225,12 @@ nfssvc(p, uap)
 			error = getsockaddr(&nam, nfsdarg.name,
 					    nfsdarg.namelen);
 			if (error) {
-				fdrop(fp, p);
+				fdrop(fp, td);
 				goto done2;
 			}
 		}
-		error = nfssvc_addsock(fp, nam, p);
-		fdrop(fp, p);
+		error = nfssvc_addsock(fp, nam, td);
+		fdrop(fp, td);
 	} else {
 		error = copyin(uap->argp, (caddr_t)nsd, sizeof (*nsd));
 		if (error)
@@ -327,7 +328,7 @@ nfssvc(p, uap)
 		}
 		if ((uap->flag & NFSSVC_AUTHINFAIL) && (nfsd = nsd->nsd_nfsd))
 			nfsd->nfsd_flag |= NFSD_AUTHFAIL;
-		error = nfssvc_nfsd(nsd, uap->argp, p);
+		error = nfssvc_nfsd(nsd, uap->argp, td);
 	}
 #endif /* NFS_NOSERVER */
 	if (error == EINTR || error == ERESTART)
@@ -342,10 +343,10 @@ done2:
  * Adds a socket to the list for servicing by nfsds.
  */
 static int
-nfssvc_addsock(fp, mynam, p)
+nfssvc_addsock(fp, mynam, td)
 	struct file *fp;
 	struct sockaddr *mynam;
-	struct proc *p;
+	struct thread *td;
 {
 	register int siz;
 	register struct nfssvc_sock *slp;
@@ -439,10 +440,10 @@ nfssvc_addsock(fp, mynam, p)
  * until it is killed by a signal.
  */
 static int
-nfssvc_nfsd(nsd, argp, p)
+nfssvc_nfsd(nsd, argp, td)
 	struct nfsd_srvargs *nsd;
 	caddr_t argp;
-	struct proc *p;
+	struct thread *td;
 {
 	register int siz;
 	register struct nfssvc_sock *slp;
@@ -461,7 +462,7 @@ nfssvc_nfsd(nsd, argp, p)
 		nsd->nsd_nfsd = nfsd = (struct nfsd *)
 			malloc(sizeof (struct nfsd), M_NFSD, M_WAITOK | M_ZERO);
 		s = splnet();
-		nfsd->nfsd_procp = p;
+		nfsd->nfsd_td = td;
 		TAILQ_INSERT_TAIL(&nfsd_head, nfsd, nfsd_chain);
 		nfs_numnfsd++;
 	} else
@@ -622,10 +623,10 @@ nfssvc_nfsd(nsd, argp, p)
 			if (writes_todo || (nd->nd_procnum == NFSPROC_WRITE &&
 			    procrastinate > 0 && !notstarted))
 			    error = nfsrv_writegather(&nd, slp,
-				nfsd->nfsd_procp, &mreq);
+				nfsd->nfsd_td, &mreq);
 			else
 			    error = (*(nfsrv3_procs[nd->nd_procnum]))(nd,
-				slp, nfsd->nfsd_procp, &mreq);
+				slp, nfsd->nfsd_td, &mreq);
 			if (mreq == NULL)
 				break;
 			if (error != 0 && error != NFSERR_RETVOID) {
@@ -757,7 +758,7 @@ nfsrv_zapsock(slp)
 		so->so_upcall = NULL;
 		so->so_upcallarg = NULL;
 		soshutdown(so, 2);
-		closef(fp, (struct proc *)0);
+		closef(fp, (struct thread *)0);
 		if (slp->ns_nam)
 			FREE(slp->ns_nam, M_SONAME);
 		m_freem(slp->ns_raw);
@@ -935,8 +936,8 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, defect, CTLFLAG_RW, &nfs_defect, 0, "");
  * Never returns unless it fails or gets killed.
  */
 static int
-nfssvc_iod(p)
-	struct proc *p;
+nfssvc_iod(td)
+	struct thread *td;
 {
 	register struct buf *bp;
 	register int i, myiod;
@@ -965,7 +966,7 @@ nfssvc_iod(p)
 		   && error == 0) {
 		if (nmp)
 		    nmp->nm_bufqiods--;
-		nfs_iodwant[myiod] = p;
+		nfs_iodwant[myiod] = td->td_proc;
 		nfs_iodmount[myiod] = NULL;
 		error = tsleep((caddr_t)&nfs_iodwant[myiod],
 			PWAIT | PCATCH, "nfsidl", 0);
@@ -988,9 +989,9 @@ nfssvc_iod(p)
 		    wakeup(&nmp->nm_bufq);
 		}
 		if (bp->b_iocmd == BIO_READ)
-		    (void) nfs_doio(bp, bp->b_rcred, (struct proc *)0);
+		    (void) nfs_doio(bp, bp->b_rcred, (struct thread *)0);
 		else
-		    (void) nfs_doio(bp, bp->b_wcred, (struct proc *)0);
+		    (void) nfs_doio(bp, bp->b_wcred, (struct thread *)0);
 		/*
 		 * If there are more than one iod on this mount, then defect
 		 * so that the iods can be shared out fairly between the mounts
@@ -1029,7 +1030,7 @@ nfs_getauth(nmp, rep, cred, auth_str, auth_len, verf_str, verf_len, key)
 		nmp->nm_state |= NFSSTA_WANTAUTH;
 		(void) tsleep((caddr_t)&nmp->nm_authtype, PSOCK,
 			"nfsauth1", 2 * hz);
-		error = nfs_sigintr(nmp, rep, rep->r_procp);
+		error = nfs_sigintr(nmp, rep, rep->r_td->td_proc);
 		if (error) {
 			nmp->nm_state &= ~NFSSTA_WANTAUTH;
 			return (error);
@@ -1049,7 +1050,7 @@ nfs_getauth(nmp, rep, cred, auth_str, auth_len, verf_str, verf_len, key)
 	while ((nmp->nm_state & NFSSTA_HASAUTH) == 0 && error == 0) {
 		(void) tsleep((caddr_t)&nmp->nm_authlen, PSOCK,
 			"nfsauth2", 2 * hz);
-		error = nfs_sigintr(nmp, rep, rep->r_procp);
+		error = nfs_sigintr(nmp, rep, rep->r_td->td_proc);
 	}
 	if (nmp->nm_state & NFSSTA_AUTHERR) {
 		nmp->nm_state &= ~NFSSTA_AUTHERR;

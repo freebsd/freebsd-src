@@ -77,26 +77,27 @@ static void svr4_getsiginfo __P((union svr4_siginfo *, int, u_long, caddr_t));
 
 #if defined(__NetBSD__)
 void
-svr4_setregs(p, epp, stack)
-	struct proc *p;
+svr4_setregs(td, epp, stack)
+	struct thread *td;
 	struct exec_package *epp;
 	u_long stack;
 {
-	register struct pcb *pcb = &p->p_addr->u_pcb;
+	register struct pcb *pcb = td->td_pcb;
 
 	pcb->pcb_savefpu.sv_env.en_cw = __SVR4_NPXCW__;
-	setregs(p, epp, stack, 0UL);
+	setregs(td, epp, stack, 0UL);
 }
 #endif /* __NetBSD__ */
 
 void
-svr4_getcontext(p, uc, mask, oonstack)
-	struct proc *p;
+svr4_getcontext(td, uc, mask, oonstack)
+	struct thread *td;
 	struct svr4_ucontext *uc;
 	sigset_t *mask;
 	int oonstack;
 {
-	struct trapframe *tf = p->p_frame;
+	struct proc *p = td->td_proc;
+	struct trapframe *tf = td->td_frame;
 	svr4_greg_t *r = uc->uc_mcontext.greg;
 	struct svr4_sigaltstack *s = &uc->uc_stack;
 #if defined(DONE_MORE_SIGALTSTACK_WORK)
@@ -104,7 +105,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 	struct sigaltstack *sf;
 #endif
 
-	PROC_LOCK(p);
+	PROC_LOCK(td->td_proc);
 #if defined(DONE_MORE_SIGALTSTACK_WORK)
 	psp = p->p_sigacts;
 	sf = &p->p_sigstk;
@@ -122,7 +123,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 		r[SVR4_X86_FS] = tf->tf_vm86_fs;
 		r[SVR4_X86_ES] = tf->tf_vm86_es;
 		r[SVR4_X86_DS] = tf->tf_vm86_ds;
-		r[SVR4_X86_EFL] = get_vflags(p);
+		r[SVR4_X86_EFL] = get_vflags(td);
 	} else
 #endif
 	{
@@ -162,7 +163,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 	s->ss_size = 16384;
 	s->ss_flags = 0;
 #endif
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(td->td_proc);
 
 	/*
 	 * Set the signal mask
@@ -186,24 +187,25 @@ svr4_getcontext(p, uc, mask, oonstack)
  * a machine fault.
  */
 int
-svr4_setcontext(p, uc)
-	struct proc *p;
+svr4_setcontext(td, uc)
+	struct thread *td;
 	struct svr4_ucontext *uc;
 {
 #if defined(DONE_MORE_SIGALTSTACK_WORK)
 	struct sigacts *psp;
 #endif
+	struct proc *p = td->td_proc;
 	register struct trapframe *tf;
 	svr4_greg_t *r = uc->uc_mcontext.greg;
 	struct svr4_sigaltstack *s = &uc->uc_stack;
 	struct sigaltstack *sf;
 	sigset_t mask;
 
-	PROC_LOCK(p);
+	PROC_LOCK(td->td_proc);
 #if defined(DONE_MORE_SIGALTSTACK_WORK)
-	psp = p->p_sigacts;
+	psp = td->td_proc->p_sigacts;
 #endif
-	sf = &p->p_sigstk;
+	sf = &td->td_proc->p_sigstk;
 
 	/*
 	 * XXX:
@@ -219,7 +221,7 @@ svr4_setcontext(p, uc)
 
 	DPRINTF(("svr4_setcontext(%d)\n", p->p_pid));
 
-	tf = p->p_frame;
+	tf = td->td_frame;
 
 	/*
 	 * Restore register context.
@@ -231,7 +233,7 @@ svr4_setcontext(p, uc)
 		tf->tf_vm86_fs = r[SVR4_X86_FS];
 		tf->tf_vm86_es = r[SVR4_X86_ES];
 		tf->tf_vm86_ds = r[SVR4_X86_DS];
-		set_vflags(p, r[SVR4_X86_EFL]);
+		set_vflags(td, r[SVR4_X86_EFL]);
 	} else
 #endif
 	{
@@ -293,7 +295,7 @@ svr4_setcontext(p, uc)
 		SIG_CANTMASK(mask);
 		p->p_sigmask = mask;
 	}
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(td->td_proc);
 
 	return 0; /*EJUSTRETURN;*/
 }
@@ -409,7 +411,8 @@ svr4_sendsig(catcher, sig, mask, code)
 	sigset_t *mask;
 	u_long code;
 {
-	register struct proc *p = curproc;
+	register struct thread *td = curthread;
+	struct proc *p = td->td_proc;
 	register struct trapframe *tf;
 	struct svr4_sigframe *fp, frame;
 	struct sigacts *psp;
@@ -421,7 +424,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 
-	tf = p->p_frame;
+	tf = td->td_frame;
 	oonstack = sigonstack(tf->tf_esp);
 
 	/*
@@ -435,7 +438,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	} else {
 		fp = (struct svr4_sigframe *)tf->tf_esp - 1;
 	}
-	PROC_UNLOCK(p);
+	PROC_UNLOCK(td->td_proc);
 
 	/* 
 	 * Build the argument list for the signal handler.
@@ -447,7 +450,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	 *	  modify many kernel files to enable that]
 	 */
 
-	svr4_getcontext(p, &frame.sf_uc, mask, oonstack);
+	svr4_getcontext(td, &frame.sf_uc, mask, oonstack);
 #if defined(DEBUG_SVR4)
 	printf("obtained ucontext\n");
 #endif
@@ -469,8 +472,8 @@ svr4_sendsig(catcher, sig, mask, code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
-		PROC_LOCK(p);
-		sigexit(p, SIGILL);
+		PROC_LOCK(td->td_proc);
+		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
 #if defined(__NetBSD__)
@@ -502,8 +505,8 @@ svr4_sendsig(catcher, sig, mask, code)
 
 
 int
-svr4_sys_sysarch(p, v)
-	struct proc *p;
+svr4_sys_sysarch(td, v)
+	struct thread *td;
 	struct svr4_sys_sysarch_args *v;
 {
 	struct svr4_sys_sysarch_args *uap = v;
@@ -583,7 +586,7 @@ svr4_sys_sysarch(p, v)
 				return error;
 			}
 
-			return sys_sysarch(p, &ua, retval);
+			return sys_sysarch(td, &ua, retval);
 		}
 #endif
 

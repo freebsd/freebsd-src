@@ -81,7 +81,7 @@ kthread_create(void (*func)(void *), void *arg,
 	if (!proc0.p_stats /* || proc0.p_stats->p_start.tv_sec == 0 */)
 		panic("kthread_create called too soon");
 
-	error = fork1(&proc0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags, &p2);
+	error = fork1(thread0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags, &p2);
 	if (error)
 		return error;
 
@@ -102,14 +102,14 @@ kthread_create(void (*func)(void *), void *arg,
 	va_end(ap);
 
 	/* call the processes' main()... */
-	cpu_set_fork_handler(p2, func, arg);
+	cpu_set_fork_handler(&p2->p_thread, func, arg); /* XXXKSE */
 
 	/* Delay putting it on the run queue until now. */
 	mtx_lock_spin(&sched_lock);
 	p2->p_sflag |= PS_INMEM;
 	if (!(flags & RFSTOPPED)) {
 		p2->p_stat = SRUN;
-		setrunqueue(p2);
+		setrunqueue(&p2->p_thread); /* XXXKSE */
 	}
 	mtx_unlock_spin(&sched_lock);
 
@@ -125,7 +125,7 @@ kthread_exit(int ecode)
 	proc_reparent(curproc, initproc);
 	PROC_UNLOCK(curproc);
 	sx_xunlock(&proctree_lock);
-	exit1(curproc, W_EXITCODE(ecode, 0));
+	exit1(curthread, W_EXITCODE(ecode, 0));
 }
 
 /*

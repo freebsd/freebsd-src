@@ -70,15 +70,15 @@ ENTRY(suword, 2)
 (p6)	br.dpnt.few fusufault
 
 	movl	r14=fusufault			// set up fault handler.
-	add	r15=GD_CURPROC,r13		// find curproc
+	add	r15=GD_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=P_ADDR,r15			// find pcb
+	add	r15=TD_PCB,r15			// find pcb
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=U_PCB_ONFAULT,r15
+	add	r15=PCB_ONFAULT,r15
 	;;
 	st8	[r15]=r14
 	;;
@@ -98,15 +98,15 @@ ENTRY(subyte, 2)
 (p6)	br.dpnt.few fusufault
 
 	movl	r14=fusufault			// set up fault handler.
-	add	r15=GD_CURPROC,r13		// find curproc
+	add	r15=GD_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=P_ADDR,r15			// find pcb
+	add	r15=TD_PCB,r15			// find pcb
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=U_PCB_ONFAULT,r15
+	add	r15=PCB_ONFAULT,r15
 	;;
 	st8	[r15]=r14
 	;;
@@ -126,15 +126,15 @@ ENTRY(fuword, 1)
 (p6)	br.dpnt.few fusufault
 
 	movl	r14=fusufault			// set up fault handler.
-	add	r15=GD_CURPROC,r13		// find curproc
+	add	r15=GD_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=P_ADDR,r15			// find pcb
+	add	r15=TD_PCB,r15			// find pcb
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=U_PCB_ONFAULT,r15
+	add	r15=PCB_ONFAULT,r15
 	;;
 	st8	[r15]=r14
 	;;
@@ -153,15 +153,15 @@ ENTRY(fubyte, 1)
 (p6)	br.dpnt.few fusufault
 
 	movl	r14=fusufault			// set up fault handler.
-	add	r15=GD_CURPROC,r13		// find curproc
+	add	r15=GD_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=P_ADDR,r15			// find pcb
+	add	r15=TD_PCB,r15			// find pcb
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=U_PCB_ONFAULT,r15
+	add	r15=PCB_ONFAULT,r15
 	;;
 	st8	[r15]=r14
 	;;
@@ -242,15 +242,15 @@ ENTRY(copyinstr, 4)
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=GD_CURPROC,r13		// find curproc
+	add	r15=GD_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=P_ADDR,r15			// find pcb
+	add	r15=TD_PCB,r15			// find pcb
 	;;
 	ld8	r15=[r15]
 	;;
-	add	loc2=U_PCB_ONFAULT,r15
+	add	loc2=PCB_ONFAULT,r15
 	;;
 	st8	[loc2]=r14
 	;;
@@ -277,15 +277,15 @@ ENTRY(copyoutstr, 4)
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=GD_CURPROC,r13		// find curproc
+	add	r15=GD_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=P_ADDR,r15			// find pcb
+	add	r15=TD_PCB,r15			// find pcb
 	;;
 	ld8	r15=[r15]
 	;;
-	add	loc2=U_PCB_ONFAULT,r15
+	add	loc2=PCB_ONFAULT,r15
 	;;
 	st8	[loc2]=r14
 	;;
@@ -392,15 +392,15 @@ ENTRY(copyin, 3)
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=GD_CURPROC,r13		// find curproc
+	add	r15=GD_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=P_ADDR,r15			// find pcb
+	add	r15=TD_PCB,r15			// find pcb
 	;;
 	ld8	r15=[r15]
 	;;
-	add	loc2=U_PCB_ONFAULT,r15
+	add	loc2=PCB_ONFAULT,r15
 	;;
 	st8	[loc2]=r14
 	;;
@@ -427,15 +427,15 @@ ENTRY(copyout, 3)
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=GD_CURPROC,r13		// find curproc
+	add	r15=GD_CURTHREAD,r13		// find curthread
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=P_ADDR,r15			// find pcb
+	add	r15=TD_PCB,r15			// find pcb
 	;;
 	ld8	r15=[r15]
 	;;
-	add	loc2=U_PCB_ONFAULT,r15
+	add	loc2=PCB_ONFAULT,r15
 	;;
 	st8	[loc2]=r14
 	;;
@@ -453,11 +453,11 @@ END(copyout)
 
 ENTRY(copyerr, 0)
 
-	add	r14=GD_CURPROC,r13 ;;		// find curproc
+	add	r14=GD_CURTHREAD,r13 ;;		// find curthread
 	ld8	r14=[r14] ;;
-	add	r14=P_ADDR,r14 ;;		// curproc->p_addr
+	add	r14=TD_PCB,r14 ;;		// curthread->td_addr
 	ld8	r14=[r14] ;;
-	add	r14=U_PCB_ONFAULT,r14 ;;	// &curproc->p_addr->u_pcb.pcb_onfault
+	add	r14=PCB_ONFAULT,r14 ;;		// &curthread->td_pcb->pcb_onfault
 	st8	[r14]=r0			// reset fault handler
 	
 	mov	ret0=EFAULT			// return EFAULT

@@ -64,7 +64,7 @@ struct timezone tz;
  * timers when they expire.
  */
 
-static int	nanosleep1 __P((struct proc *p, struct timespec *rqt,
+static int	nanosleep1 __P((struct thread *td, struct timespec *rqt,
 		    struct timespec *rmt));
 static int	settime __P((struct timeval *));
 static void	timevalfix __P((struct timeval *));
@@ -151,8 +151,8 @@ struct clock_gettime_args {
  */
 /* ARGSUSED */
 int
-clock_gettime(p, uap)
-	struct proc *p;
+clock_gettime(td, uap)
+	struct thread *td;
 	struct clock_gettime_args *uap;
 {
 	struct timespec ats;
@@ -177,8 +177,8 @@ struct clock_settime_args {
  */
 /* ARGSUSED */
 int
-clock_settime(p, uap)
-	struct proc *p;
+clock_settime(td, uap)
+	struct thread *td;
 	struct clock_settime_args *uap;
 {
 	struct timeval atv;
@@ -186,7 +186,7 @@ clock_settime(p, uap)
 	int error;
 
 	mtx_lock(&Giant);
-	if ((error = suser(p)) != 0)
+	if ((error = suser_td(td)) != 0)
 		goto done2;
 	if (SCARG(uap, clock_id) != CLOCK_REALTIME) {
 		error = EINVAL;
@@ -214,8 +214,8 @@ struct clock_getres_args {
 #endif
 
 int
-clock_getres(p, uap)
-	struct proc *p;
+clock_getres(td, uap)
+	struct thread *td;
 	struct clock_getres_args *uap;
 {
 	struct timespec ts;
@@ -235,8 +235,8 @@ clock_getres(p, uap)
 static int nanowait;
 
 static int
-nanosleep1(p, rqt, rmt)
-	struct proc *p;
+nanosleep1(td, rqt, rmt)
+	struct thread *td;
 	struct timespec *rqt, *rmt;
 {
 	struct timespec ts, ts2, ts3;
@@ -285,8 +285,8 @@ struct nanosleep_args {
  */
 /* ARGSUSED */
 int
-nanosleep(p, uap)
-	struct proc *p;
+nanosleep(td, uap)
+	struct thread *td;
 	struct nanosleep_args *uap;
 {
 	struct timespec rmt, rqt;
@@ -304,7 +304,7 @@ nanosleep(p, uap)
 			goto done2;
 		}
 	}
-	error = nanosleep1(p, &rqt, &rmt);
+	error = nanosleep1(td, &rqt, &rmt);
 	if (error && SCARG(uap, rmtp)) {
 		int error2;
 
@@ -328,8 +328,8 @@ struct gettimeofday_args {
  */
 /* ARGSUSED */
 int
-gettimeofday(p, uap)
-	struct proc *p;
+gettimeofday(td, uap)
+	struct thread *td;
 	register struct gettimeofday_args *uap;
 {
 	struct timeval atv;
@@ -363,8 +363,8 @@ struct settimeofday_args {
  */
 /* ARGSUSED */
 int
-settimeofday(p, uap)
-	struct proc *p;
+settimeofday(td, uap)
+	struct thread *td;
 	struct settimeofday_args *uap;
 {
 	struct timeval atv;
@@ -373,7 +373,7 @@ settimeofday(p, uap)
 
 	mtx_lock(&Giant);
 
-	if ((error = suser(p)))
+	if ((error = suser_td(td)))
 		goto done2;
 	/* Verify all parameters before changing time. */
 	if (uap->tv) {
@@ -414,8 +414,8 @@ struct adjtime_args {
  */
 /* ARGSUSED */
 int
-adjtime(p, uap)
-	struct proc *p;
+adjtime(td, uap)
+	struct thread *td;
 	register struct adjtime_args *uap;
 {
 	struct timeval atv;
@@ -424,7 +424,7 @@ adjtime(p, uap)
 
 	mtx_lock(&Giant);
 
-	if ((error = suser(p)))
+	if ((error = suser_td(td)))
 		goto done2;
 	error = copyin((caddr_t)uap->delta, (caddr_t)&atv,
 		    sizeof(struct timeval));
@@ -502,10 +502,11 @@ struct getitimer_args {
  */
 /* ARGSUSED */
 int
-getitimer(p, uap)
-	struct proc *p;
+getitimer(td, uap)
+	struct thread *td;
 	register struct getitimer_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct timeval ctv;
 	struct itimerval aitv;
 	int s;
@@ -553,10 +554,11 @@ struct setitimer_args {
  */
 /* ARGSUSED */
 int
-setitimer(p, uap)
-	struct proc *p;
+setitimer(td, uap)
+	struct thread *td;
 	register struct setitimer_args *uap;
 {
+	struct proc *p = td->td_proc;
 	struct itimerval aitv;
 	struct timeval ctv;
 	register struct itimerval *itvp;
@@ -572,7 +574,7 @@ setitimer(p, uap)
 	mtx_lock(&Giant);
 
 	if ((uap->itv = uap->oitv) &&
-	    (error = getitimer(p, (struct getitimer_args *)uap))) {
+	    (error = getitimer(td, (struct getitimer_args *)uap))) {
 		goto done2;
 	}
 	if (itvp == 0) {

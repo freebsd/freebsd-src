@@ -47,12 +47,12 @@
  */
 struct proc;
 struct nosys_args;
-extern int syscall_not_present(struct proc *, const char *, struct nosys_args *);
+extern int syscall_not_present(struct thread *, const char *, struct nosys_args *);
 
 #define SYSCALL_NOT_PRESENT_GEN(SC) \
-int SC (struct proc *p, struct SC##_args *uap) \
+int SC (struct thread *td, struct SC##_args *uap) \
 { \
-	return syscall_not_present(p, #SC , (struct nosys_args *)uap); \
+	return syscall_not_present(td, #SC , (struct nosys_args *)uap); \
 }
 
 
@@ -95,13 +95,13 @@ int ksched_attach(struct ksched **);
 int ksched_detach(struct ksched *);
 
 int ksched_setparam(register_t *, struct ksched *,
-	struct proc *, const struct sched_param *);
+	struct thread *, const struct sched_param *);
 int ksched_getparam(register_t *, struct ksched *,
-	struct proc *, struct sched_param *);
+	struct thread *, struct sched_param *);
 
 int ksched_setscheduler(register_t *, struct ksched *,
-	struct proc *, int, const struct sched_param *);
-int ksched_getscheduler(register_t *, struct ksched *, struct proc *);
+	struct thread *, int, const struct sched_param *);
+int ksched_getscheduler(register_t *, struct ksched *, struct thread *);
 
 int ksched_yield(register_t *, struct ksched *);
 
@@ -109,7 +109,7 @@ int ksched_get_priority_max(register_t *, struct ksched *, int);
 int ksched_get_priority_min(register_t *, struct ksched *, int);
 
 int ksched_rr_get_interval(register_t *, struct ksched *,
-	struct proc *, struct timespec *);
+	struct thread *, struct timespec *);
 
 #endif /* _KPOSIX_PRIORITY_SCHEDULING */
 

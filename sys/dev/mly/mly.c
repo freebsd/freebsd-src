@@ -2790,7 +2790,7 @@ mly_print_controller(int controller)
  * Accept an open operation on the control device.
  */
 static int
-mly_user_open(dev_t dev, int flags, int fmt, struct proc *p)
+mly_user_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
     struct mly_softc	*sc = devclass_get_softc(devclass_find("mly"), unit);
@@ -2803,7 +2803,7 @@ mly_user_open(dev_t dev, int flags, int fmt, struct proc *p)
  * Accept the last close on the control device.
  */
 static int
-mly_user_close(dev_t dev, int flags, int fmt, struct proc *p)
+mly_user_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
     struct mly_softc	*sc = devclass_get_softc(devclass_find("mly"), unit);
@@ -2816,7 +2816,8 @@ mly_user_close(dev_t dev, int flags, int fmt, struct proc *p)
  * Handle controller-specific control operations.
  */
 static int
-mly_user_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+mly_user_ioctl(dev_t dev, u_long cmd, caddr_t addr,
+				int32_t flag, struct thread *td)
 {
     struct mly_softc		*sc = (struct mly_softc *)dev->si_drv1;
     struct mly_user_command	*uc = (struct mly_user_command *)addr;

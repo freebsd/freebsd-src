@@ -130,7 +130,7 @@ ffs_fsync(ap)
 		struct vnode *a_vp;
 		struct ucred *a_cred;
 		int a_waitfor;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -147,7 +147,7 @@ ffs_fsync(ap)
 	 * out from underneath us.
 	 */
 	if (ip->i_flags & SF_SNAPSHOT)
-		VOP_UNLOCK(vp, 0, ap->a_p);
+		VOP_UNLOCK(vp, 0, ap->a_td);
 	wait = (ap->a_waitfor == MNT_WAIT);
 	if (vn_isdisk(vp, NULL)) {
 		lbn = INT_MAX;
@@ -291,6 +291,6 @@ loop:
 	splx(s);
 	error = UFS_UPDATE(vp, wait);
 	if (ip->i_flags & SF_SNAPSHOT)
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_p);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
 	return (error);
 }

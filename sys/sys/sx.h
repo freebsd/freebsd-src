@@ -43,7 +43,7 @@ struct sx {
 	int		sx_shrd_wcnt;	/* Number of slock waiters. */
 	struct cv	sx_excl_cv;	/* xlock waiters. */
 	int		sx_excl_wcnt;	/* Number of xlock waiters. */
-	struct proc	*sx_xholder;	/* Thread presently holding xlock. */
+	struct thread	*sx_xholder;	/* Thread presently holding xlock. */
 };
 
 #ifdef _KERNEL
@@ -80,7 +80,7 @@ void	_sx_downgrade(struct sx *sx, const char *file, int line);
 	witness_assert(&(sx)->sx_object, LA_SLOCKED, file, line)
 #else
 #define	_SX_ASSERT_LOCKED(sx, file, line) do {				\
-	KASSERT(((sx)->sx_cnt > 0 || (sx)->sx_xholder == curproc),	\
+	KASSERT(((sx)->sx_cnt > 0 || (sx)->sx_xholder == curthread),	\
 	    ("Lock %s not locked @ %s:%d", (sx)->sx_object.lo_name,	\
 	    file, line));						\
 } while (0)
@@ -96,7 +96,7 @@ void	_sx_downgrade(struct sx *sx, const char *file, int line);
  * SX_ASSERT_XLOCKED() detects and guarantees that *we* own the xlock.
  */
 #define	_SX_ASSERT_XLOCKED(sx, file, line) do {				\
-	KASSERT(((sx)->sx_xholder == curproc),				\
+	KASSERT(((sx)->sx_xholder == curthread),				\
 	    ("Lock %s not exclusively locked @ %s:%d",			\
 	    (sx)->sx_object.lo_name, file, line));			\
 } while (0)

@@ -157,13 +157,14 @@ struct knote {
 #define kn_fp		kn_ptr.p_fp
 };
 
+struct thread;
 struct proc;
 
 extern void	knote(struct klist *list, long hint);
-extern void	knote_remove(struct proc *p, struct klist *list);
-extern void	knote_fdclose(struct proc *p, int fd);
+extern void	knote_remove(struct thread *p, struct klist *list);
+extern void	knote_fdclose(struct thread *p, int fd);
 extern int 	kqueue_register(struct kqueue *kq,
-		    struct kevent *kev, struct proc *p);
+		    struct kevent *kev, struct thread *p);
 
 #else 	/* !_KERNEL */
 

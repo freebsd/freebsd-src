@@ -552,7 +552,7 @@ ascintr(int unit)
  ***/
 
 STATIC int
-ascopen(dev_t dev, int flags, int fmt, struct proc *p)
+ascopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
   struct asc_unit *scu;
   int unit;
@@ -647,7 +647,7 @@ asc_startread(struct asc_unit *scu)
  ***/
 
 STATIC int
-ascclose(dev_t dev, int flags, int fmt, struct proc *p)
+ascclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
   int unit = UNIT(minor(dev));
   struct asc_unit *scu = unittab + unit;
@@ -794,7 +794,7 @@ ascread(dev_t dev, struct uio *uio, int ioflag)
  ***/
 
 STATIC int
-ascioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
+ascioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
   int unit = UNIT(minor(dev));
   struct asc_unit *scu = unittab + unit;
@@ -859,7 +859,7 @@ ascioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 }
 
 STATIC int
-ascpoll(dev_t dev, int events, struct proc *p)
+ascpoll(dev_t dev, int events, struct thread *td)
 {
     int unit = UNIT(minor(dev));
     struct asc_unit *scu = unittab + unit;
@@ -875,7 +875,7 @@ ascpoll(dev_t dev, int events, struct proc *p)
 	    if (!(scu->flags & DMA_ACTIVE))
 		dma_restart(scu);
 	    
-	    selrecord(p, &scu->selp);
+	    selrecord(td, &scu->selp);
 	}
     }
     splx(sps);

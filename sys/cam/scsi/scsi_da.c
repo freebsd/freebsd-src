@@ -378,7 +378,7 @@ static SLIST_HEAD(,da_softc) softc_list;
 static struct extend_array *daperiphs;
 
 static int
-daopen(dev_t dev, int flags, int fmt, struct proc *p)
+daopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
@@ -501,7 +501,7 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-daclose(dev_t dev, int flag, int fmt, struct proc *p)
+daclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
@@ -651,7 +651,7 @@ dastrategy(struct bio *bp)
 #endif
 
 static int
-daioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+daioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;

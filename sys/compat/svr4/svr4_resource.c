@@ -128,8 +128,8 @@ svr4_to_native_rl(rl)
 	((svr4_rlim64_t)(l)) != SVR4_RLIM64_SAVED_MAX)
 
 int
-svr4_sys_getrlimit(p, uap)
-	register struct proc *p;
+svr4_sys_getrlimit(td, uap)
+	register struct thread *td;
 	struct svr4_sys_getrlimit_args *uap;
 {
 	int rl = svr4_to_native_rl(SCARG(uap, which));
@@ -141,7 +141,7 @@ svr4_sys_getrlimit(p, uap)
 
 	/* For p_rlimit. */
 	mtx_assert(&Giant, MA_OWNED);
-	blim = p->p_rlimit[rl];
+	blim = td->td_proc->p_rlimit[rl];
 
 	/*
 	 * Our infinity, is their maxfiles.
@@ -175,8 +175,8 @@ svr4_sys_getrlimit(p, uap)
 
 
 int
-svr4_sys_setrlimit(p, uap)
-	register struct proc *p;
+svr4_sys_setrlimit(td, uap)
+	register struct thread *td;
 	struct svr4_sys_setrlimit_args *uap;
 {
 	int rl = svr4_to_native_rl(SCARG(uap, which));
@@ -189,7 +189,7 @@ svr4_sys_setrlimit(p, uap)
 
 	/* For p_rlimit. */
 	mtx_assert(&Giant, MA_OWNED);
-	limp = &p->p_rlimit[rl];
+	limp = &td->td_proc->p_rlimit[rl];
 
 	if ((error = copyin(SCARG(uap, rlp), &slim, sizeof(slim))) != 0)
 		return error;
@@ -221,13 +221,13 @@ svr4_sys_setrlimit(p, uap)
 	else if (slim.rlim_cur == SVR4_RLIM_SAVED_CUR)
 		blim.rlim_cur = limp->rlim_cur;
 
-	return dosetrlimit(p, rl, &blim);
+	return dosetrlimit(td, rl, &blim);
 }
 
 
 int
-svr4_sys_getrlimit64(p, uap)
-	register struct proc *p;
+svr4_sys_getrlimit64(td, uap)
+	register struct thread *td;
 	struct svr4_sys_getrlimit64_args *uap;
 {
 	int rl = svr4_to_native_rl(SCARG(uap, which));
@@ -239,7 +239,7 @@ svr4_sys_getrlimit64(p, uap)
 
 	/* For p_rlimit. */
 	mtx_assert(&Giant, MA_OWNED);
-	blim = p->p_rlimit[rl];
+	blim = td->td_proc->p_rlimit[rl];
 
 	/*
 	 * Our infinity, is their maxfiles.
@@ -273,8 +273,8 @@ svr4_sys_getrlimit64(p, uap)
 
 
 int
-svr4_sys_setrlimit64(p, uap)
-	register struct proc *p;
+svr4_sys_setrlimit64(td, uap)
+	register struct thread *td;
 	struct svr4_sys_setrlimit64_args *uap;
 {
 	int rl = svr4_to_native_rl(SCARG(uap, which));
@@ -287,7 +287,7 @@ svr4_sys_setrlimit64(p, uap)
 
 	/* For p_rlimit. */
 	mtx_assert(&Giant, MA_OWNED);
-	limp = &p->p_rlimit[rl];
+	limp = &td->td_proc->p_rlimit[rl];
 
 	if ((error = copyin(SCARG(uap, rlp), &slim, sizeof(slim))) != 0)
 		return error;
@@ -319,5 +319,5 @@ svr4_sys_setrlimit64(p, uap)
 	else if (slim.rlim_cur == SVR4_RLIM64_SAVED_CUR)
 		blim.rlim_cur = limp->rlim_cur;
 
-	return dosetrlimit(p, rl, &blim);
+	return dosetrlimit(td, rl, &blim);
 }

@@ -131,10 +131,10 @@ spec_open(ap)
 		struct vnode *a_vp;
 		int  a_mode;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	struct vnode *vp = ap->a_vp;
 	dev_t dev = vp->v_rdev;
 	int error;
@@ -191,9 +191,9 @@ spec_open(ap)
 	if (dsw->d_flags & D_TTY)
 		vp->v_flag |= VISTTY;
 
-	VOP_UNLOCK(vp, 0, p);
-	error = (*dsw->d_open)(dev, ap->a_mode, S_IFCHR, p);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	VOP_UNLOCK(vp, 0, td);
+	error = (*dsw->d_open)(dev, ap->a_mode, S_IFCHR, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	if (error)
 		return (error);
@@ -238,7 +238,7 @@ spec_read(ap)
 	} */ *ap;
 {
 	struct vnode *vp;
-	struct proc *p;
+	struct thread *td;
 	struct uio *uio;
 	dev_t dev;
 	int error, resid;
@@ -246,15 +246,15 @@ spec_read(ap)
 	vp = ap->a_vp;
 	dev = vp->v_rdev;
 	uio = ap->a_uio;
-	p = uio->uio_procp;
+	td = uio->uio_td;
 	resid = uio->uio_resid;
 
 	if (resid == 0)
 		return (0);
 
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	error = (*devsw(dev)->d_read) (dev, uio, ap->a_ioflag);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		getnanotime(&dev->si_atime);
 	return (error);
@@ -274,7 +274,7 @@ spec_write(ap)
 	} */ *ap;
 {
 	struct vnode *vp;
-	struct proc *p;
+	struct thread *td;
 	struct uio *uio;
 	dev_t dev;
 	int error, resid;
@@ -282,12 +282,12 @@ spec_write(ap)
 	vp = ap->a_vp;
 	dev = vp->v_rdev;
 	uio = ap->a_uio;
-	p = uio->uio_procp;
+	td = uio->uio_td;
 	resid = uio->uio_resid;
 
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	error = (*devsw(dev)->d_write) (dev, uio, ap->a_ioflag);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
 		getnanotime(&dev->si_ctime);
 		dev->si_mtime = dev->si_ctime;
@@ -307,14 +307,14 @@ spec_ioctl(ap)
 		caddr_t  a_data;
 		int  a_fflag;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	dev_t dev;
 
 	dev = ap->a_vp->v_rdev;
 	return ((*devsw(dev)->d_ioctl)(dev, ap->a_command, 
-	    ap->a_data, ap->a_fflag, ap->a_p));
+	    ap->a_data, ap->a_fflag, ap->a_td));
 }
 
 /* ARGSUSED */
@@ -324,13 +324,13 @@ spec_poll(ap)
 		struct vnode *a_vp;
 		int  a_events;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	dev_t dev;
 
 	dev = ap->a_vp->v_rdev;
-	return (*devsw(dev)->d_poll)(dev, ap->a_events, ap->a_p);
+	return (*devsw(dev)->d_poll)(dev, ap->a_events, ap->a_td);
 }
 
 /* ARGSUSED */
@@ -359,7 +359,7 @@ spec_fsync(ap)
 		struct vnode *a_vp;
 		struct ucred *a_cred;
 		int  a_waitfor;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -563,11 +563,11 @@ spec_close(ap)
 		struct vnode *a_vp;
 		int  a_fflag;
 		struct ucred *a_cred;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	dev_t dev = vp->v_rdev;
 
 	/*
@@ -579,10 +579,10 @@ spec_close(ap)
 	 * if the reference count is 2 (this last descriptor
 	 * plus the session), release the reference from the session.
 	 */
-	if (vcount(vp) == 2 && p && (vp->v_flag & VXLOCK) == 0 &&
-	    vp == p->p_session->s_ttyvp) {
+	if (vcount(vp) == 2 && td && (vp->v_flag & VXLOCK) == 0 &&
+	    vp == td->td_proc->p_session->s_ttyvp) {
 		vrele(vp);
-		p->p_session->s_ttyvp = NULL;
+		td->td_proc->p_session->s_ttyvp = NULL;
 	}
 	/*
 	 * We do not want to really close the device if it
@@ -600,7 +600,7 @@ spec_close(ap)
 	} else if (vcount(vp) > 1) {
 		return (0);
 	}
-	return (devsw(dev)->d_close(dev, ap->a_fflag, S_IFCHR, p));
+	return (devsw(dev)->d_close(dev, ap->a_fflag, S_IFCHR, td));
 }
 
 /*
@@ -716,7 +716,7 @@ spec_getpages(ap)
 	bp->b_iodone = spec_getpages_iodone;
 
 	/* B_PHYS is not set, but it is nice to fill this in. */
-	bp->b_rcred = bp->b_wcred = curproc->p_ucred;
+	bp->b_rcred = bp->b_wcred = curthread->td_proc->p_ucred;
 	if (bp->b_rcred != NOCRED)
 		crhold(bp->b_rcred);
 	if (bp->b_wcred != NOCRED)

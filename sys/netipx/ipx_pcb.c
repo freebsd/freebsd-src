@@ -53,10 +53,10 @@
 static struct	ipx_addr zeroipx_addr;
 
 int
-ipx_pcballoc(so, head, p)
+ipx_pcballoc(so, head, td)
 	struct socket *so;
 	struct ipxpcb *head;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct ipxpcb *ipxp;
 
@@ -72,10 +72,10 @@ ipx_pcballoc(so, head, p)
 }
 	
 int
-ipx_pcbbind(ipxp, nam, p)
+ipx_pcbbind(ipxp, nam, td)
 	register struct ipxpcb *ipxp;
 	struct sockaddr *nam;
-	struct proc *p;
+	struct thread *td;
 {
 	register struct sockaddr_ipx *sipx;
 	u_short lport = 0;
@@ -99,7 +99,7 @@ ipx_pcbbind(ipxp, nam, p)
 		int error;
 
 		if (aport < IPXPORT_RESERVED &&
-		    p != NULL && (error = suser(p)) != 0)
+		    td != NULL && (error = suser_td(td)) != 0)
 			return (error);
 		if (ipx_pcblookup(&zeroipx_addr, lport, 0))
 			return (EADDRINUSE);
@@ -125,10 +125,10 @@ noname:
  * then pick one.
  */
 int
-ipx_pcbconnect(ipxp, nam, p)
+ipx_pcbconnect(ipxp, nam, td)
 	struct ipxpcb *ipxp;
 	struct sockaddr *nam;
-	struct proc *p;
+	struct thread *td;
 {
 	struct ipx_ifaddr *ia;
 	register struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)nam;
@@ -242,7 +242,7 @@ ipx_pcbconnect(ipxp, nam, p)
 	if (ipx_pcblookup(&sipx->sipx_addr, ipxp->ipxp_lport, 0))
 		return (EADDRINUSE);
 	if (ipxp->ipxp_lport == 0)
-		ipx_pcbbind(ipxp, (struct sockaddr *)NULL, p);
+		ipx_pcbbind(ipxp, (struct sockaddr *)NULL, td);
 
 	/* XXX just leave it zero if we can't find a route */
 

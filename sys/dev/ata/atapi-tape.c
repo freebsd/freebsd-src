@@ -255,7 +255,7 @@ ast_describe(struct ast_softc *stp)
 }
 
 static int
-astopen(dev_t dev, int flags, int fmt, struct proc *p)
+astopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct ast_softc *stp = dev->si_drv1;
 
@@ -281,7 +281,7 @@ astopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int 
-astclose(dev_t dev, int flags, int fmt, struct proc *p)
+astclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct ast_softc *stp = dev->si_drv1;
 
@@ -310,7 +310,7 @@ astclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int 
-astioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+astioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
     struct ast_softc *stp = dev->si_drv1;
     int error = 0;

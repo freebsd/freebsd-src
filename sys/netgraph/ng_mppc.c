@@ -388,6 +388,9 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 
 	/* Oops */
 	panic("%s: unknown hook", __FUNCTION__);
+#ifdef RESTARTABLE_PANICS
+	return (EINVAL);
+#endif
 }
 
 /*

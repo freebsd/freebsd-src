@@ -35,7 +35,7 @@
  *
  */
 
-#include "opt_upages.h"
+#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,10 +65,10 @@
 
 
 
-static int i386_get_ldt	__P((struct proc *, char *));
-static int i386_set_ldt	__P((struct proc *, char *));
-static int i386_get_ioperm	__P((struct proc *, char *));
-static int i386_set_ioperm	__P((struct proc *, char *));
+static int i386_get_ldt	__P((struct thread *, char *));
+static int i386_set_ldt	__P((struct thread *, char *));
+static int i386_get_ioperm	__P((struct thread *, char *));
+static int i386_set_ioperm	__P((struct thread *, char *));
 #ifdef SMP
 static void set_user_ldt_rv	__P((struct pcb *));
 #endif
@@ -81,28 +81,28 @@ struct sysarch_args {
 #endif
 
 int
-sysarch(p, uap)
-	struct proc *p;
+sysarch(td, uap)
+	struct thread *td;
 	register struct sysarch_args *uap;
 {
 	int error = 0;
 
 	switch(uap->op) {
 	case I386_GET_LDT:
-		error = i386_get_ldt(p, uap->parms);
+		error = i386_get_ldt(td, uap->parms);
 		break;
 
 	case I386_SET_LDT:
-		error = i386_set_ldt(p, uap->parms);
+		error = i386_set_ldt(td, uap->parms);
 		break;
 	case I386_GET_IOPERM:
-		error = i386_get_ioperm(p, uap->parms);
+		error = i386_get_ioperm(td, uap->parms);
 		break;
 	case I386_SET_IOPERM:
-		error = i386_set_ioperm(p, uap->parms);
+		error = i386_set_ioperm(td, uap->parms);
 		break;
 	case I386_VM86:
-		error = vm86_sysarch(p, uap->parms);
+		error = vm86_sysarch(td, uap->parms);
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -112,7 +112,7 @@ sysarch(p, uap)
 }
 
 int
-i386_extend_pcb(struct proc *p)
+i386_extend_pcb(struct thread *td)
 {
 	int i, offset;
 	u_long *addr;
@@ -127,12 +127,18 @@ i386_extend_pcb(struct proc *p)
 		0,			/* default 32 size */
 		0			/* granularity */
 	};
+	struct proc *p = td->td_proc;
 
+	if (td->td_proc->p_flag & P_KSES)
+		return (EINVAL);		/* XXXKSE */
+/* XXXKSE  All the code below only works in 1:1   needs changing */
 	ext = (struct pcb_ext *)kmem_alloc(kernel_map, ctob(IOPAGES+1));
 	if (ext == 0)
 		return (ENOMEM);
 	bzero(ext, sizeof(struct pcb_ext)); 
-	ext->ext_tss.tss_esp0 = (unsigned)p->p_addr + ctob(UPAGES) - 16;
+	/* -16 is so we can convert a trapframe into vm86trapframe inplace */
+	ext->ext_tss.tss_esp0 = td->td_kstack + ctob(KSTACK_PAGES) -
+	    sizeof(struct pcb) - 16;
 	ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	/*
 	 * The last byte of the i/o map must be followed by an 0xff byte.
@@ -153,21 +159,21 @@ i386_extend_pcb(struct proc *p)
 	ssd.ssd_limit -= ((unsigned)&ext->ext_tss - (unsigned)ext);
 	ssdtosd(&ssd, &ext->ext_tssd);
 
-	KASSERT(p == curproc, ("giving a TSS to non-curproc"));
-	KASSERT(p->p_addr->u_pcb.pcb_ext == 0, ("already have a TSS!"));
+	KASSERT(p == curthread->td_proc, ("giving a TSS to non-curproc"));
+	KASSERT(td->td_pcb->pcb_ext == 0, ("already have a TSS!"));
 	mtx_lock_spin(&sched_lock);
-	p->p_addr->u_pcb.pcb_ext = ext;
+	td->td_pcb->pcb_ext = ext;
 	
 	/* switch to the new TSS after syscall completes */
-	p->p_sflag |= PS_NEEDRESCHED;
+	td->td_kse->ke_flags |= KEF_NEEDRESCHED;
 	mtx_unlock_spin(&sched_lock);
 
 	return 0;
 }
 
 static int
-i386_set_ioperm(p, args)
-	struct proc *p;
+i386_set_ioperm(td, args)
+	struct thread *td;
 	char *args;
 {
 	int i, error;
@@ -177,7 +183,7 @@ i386_set_ioperm(p, args)
 	if ((error = copyin(args, &ua, sizeof(struct i386_ioperm_args))) != 0)
 		return (error);
 
-	if ((error = suser(p)) != 0)
+	if ((error = suser_td(td)) != 0)
 		return (error);
 	if (securelevel > 0)
 		return (EPERM);
@@ -188,10 +194,10 @@ i386_set_ioperm(p, args)
 	 * cause confusion.  This probably requires a global 'usage registry'.
 	 */
 
-	if (p->p_addr->u_pcb.pcb_ext == 0)
-		if ((error = i386_extend_pcb(p)) != 0)
+	if (td->td_pcb->pcb_ext == 0)
+		if ((error = i386_extend_pcb(td)) != 0)
 			return (error);
-	iomap = (char *)p->p_addr->u_pcb.pcb_ext->ext_iomap;
+	iomap = (char *)td->td_pcb->pcb_ext->ext_iomap;
 
 	if (ua.start + ua.length > IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
@@ -206,8 +212,8 @@ i386_set_ioperm(p, args)
 }
 
 static int
-i386_get_ioperm(p, args)
-	struct proc *p;
+i386_get_ioperm(td, args)
+	struct thread *td;
 	char *args;
 {
 	int i, state, error;
@@ -219,12 +225,12 @@ i386_get_ioperm(p, args)
 	if (ua.start >= IOPAGES * PAGE_SIZE * NBBY)
 		return (EINVAL);
 
-	if (p->p_addr->u_pcb.pcb_ext == 0) {
+	if (td->td_pcb->pcb_ext == 0) {
 		ua.length = 0;
 		goto done;
 	}
 
-	iomap = (char *)p->p_addr->u_pcb.pcb_ext->ext_iomap;
+	iomap = (char *)td->td_pcb->pcb_ext->ext_iomap;
 
 	i = ua.start;
 	state = (iomap[i >> 3] >> (i & 7)) & 1;
@@ -351,12 +357,12 @@ user_ldt_free(struct pcb *pcb)
 }
 
 static int
-i386_get_ldt(p, args)
-	struct proc *p;
+i386_get_ldt(td, args)
+	struct thread *td;
 	char *args;
 {
 	int error = 0;
-	struct pcb *pcb = &p->p_addr->u_pcb;
+	struct pcb *pcb = td->td_pcb;
 	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
 	int nldt, num;
 	union descriptor *lp;
@@ -388,19 +394,19 @@ i386_get_ldt(p, args)
 
 	error = copyout(lp, uap->descs, num * sizeof(union descriptor));
 	if (!error)
-		p->p_retval[0] = num;
+		td->td_retval[0] = num;
 
 	return(error);
 }
 
 static int
-i386_set_ldt(p, args)
-	struct proc *p;
+i386_set_ldt(td, args)
+	struct thread *td;
 	char *args;
 {
 	int error = 0, i, n;
 	int largest_ld;
-	struct pcb *pcb = &p->p_addr->u_pcb;
+	struct pcb *pcb = td->td_pcb;
 	struct pcb_ldt *pcb_ldt = pcb->pcb_ldt;
 	struct i386_ldt_args ua, *uap = &ua;
 	caddr_t old_ldt_base;
@@ -530,7 +536,7 @@ i386_set_ldt(p, args)
 	    &((union descriptor *)(pcb_ldt->ldt_base))[uap->start],
 	    uap->num * sizeof(union descriptor));
 	if (!error)
-		p->p_retval[0] = uap->start;
+		td->td_retval[0] = uap->start;
 	critical_exit(savecrit);
 
 	return(error);

@@ -62,9 +62,9 @@ int ksched_attach(struct ksched **p)
 	return 0;
 }
 
-int ksched_detach(struct ksched *p)
+int ksched_detach(struct ksched *ks)
 {
-	p31b_free(p);
+	p31b_free(ks);
 
 	return 0;
 }
@@ -94,13 +94,13 @@ int ksched_detach(struct ksched *p)
 #define P1B_PRIO_MAX rtpprio_to_p4prio(RTP_PRIO_MIN)
 
 static __inline int
-getscheduler(register_t *ret, struct ksched *ksched, struct proc *p)
+getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
 {
 	struct rtprio rtp;
 	int e = 0;
 
 	mtx_lock_spin(&sched_lock);
-	pri_to_rtp(&p->p_pri, &rtp);
+	pri_to_rtp(&td->td_ksegrp->kg_pri, &rtp);
 	mtx_unlock_spin(&sched_lock);
 	switch (rtp.type)
 	{
@@ -121,31 +121,31 @@ getscheduler(register_t *ret, struct ksched *ksched, struct proc *p)
 }
 
 int ksched_setparam(register_t *ret, struct ksched *ksched,
-	struct proc *p, const struct sched_param *param)
+	struct thread *td, const struct sched_param *param)
 {
 	register_t policy;
 	int e;
 
-	e = getscheduler(&policy, ksched, p);
+	e = getscheduler(&policy, ksched, td);
 
 	if (e == 0)
 	{
 		if (policy == SCHED_OTHER)
 			e = EINVAL;
 		else
-			e = ksched_setscheduler(ret, ksched, p, policy, param);
+			e = ksched_setscheduler(ret, ksched, td, policy, param);
 	}
 
 	return e;
 }
 
 int ksched_getparam(register_t *ret, struct ksched *ksched,
-	struct proc *p, struct sched_param *param)
+	struct thread *td, struct sched_param *param)
 {
 	struct rtprio rtp;
 
 	mtx_lock_spin(&sched_lock);
-	pri_to_rtp(&p->p_pri, &rtp);
+	pri_to_rtp(&td->td_ksegrp->kg_pri, &rtp);
 	mtx_unlock_spin(&sched_lock);
 	if (RTP_PRIO_IS_REALTIME(rtp.type))
 		param->sched_priority = rtpprio_to_p4prio(rtp.prio);
@@ -161,7 +161,7 @@ int ksched_getparam(register_t *ret, struct ksched *ksched,
  *
  */
 int ksched_setscheduler(register_t *ret, struct ksched *ksched,
-	struct proc *p, int policy, const struct sched_param *param)
+	struct thread *td, int policy, const struct sched_param *param)
 {
 	int e = 0;
 	struct rtprio rtp;
@@ -179,8 +179,8 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 				? RTP_PRIO_FIFO : RTP_PRIO_REALTIME;
 
 			mtx_lock_spin(&sched_lock);
-			rtp_to_pri(&rtp, &p->p_pri);
-			p->p_sflag |= PS_NEEDRESCHED;
+			rtp_to_pri(&rtp, &td->td_ksegrp->kg_pri);
+			td->td_last_kse->ke_flags |= KEF_NEEDRESCHED; /* XXXKSE */
 			mtx_unlock_spin(&sched_lock);
 		}
 		else
@@ -194,7 +194,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 			rtp.type = RTP_PRIO_NORMAL;
 			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
 			mtx_lock_spin(&sched_lock);
-			rtp_to_pri(&rtp, &p->p_pri);
+			rtp_to_pri(&rtp, &td->td_ksegrp->kg_pri);
 
 			/* XXX Simply revert to whatever we had for last
 			 *     normal scheduler priorities.
@@ -202,7 +202,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 			 *     on the scheduling code: You must leave the
 			 *     scheduling info alone.
 			 */
-			p->p_sflag |= PS_NEEDRESCHED;
+			td->td_last_kse->ke_flags |= KEF_NEEDRESCHED; /* XXXKSE */
 			mtx_unlock_spin(&sched_lock);
 		}
 		break;
@@ -211,9 +211,9 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 	return e;
 }
 
-int ksched_getscheduler(register_t *ret, struct ksched *ksched, struct proc *p)
+int ksched_getscheduler(register_t *ret, struct ksched *ksched, struct thread *td)
 {
-	return getscheduler(ret, ksched, p);
+	return getscheduler(ret, ksched, td);
 }
 
 /* ksched_yield: Yield the CPU.
@@ -221,7 +221,7 @@ int ksched_getscheduler(register_t *ret, struct ksched *ksched, struct proc *p)
 int ksched_yield(register_t *ret, struct ksched *ksched)
 {
 	mtx_lock_spin(&sched_lock);
-	curproc->p_sflag |= PS_NEEDRESCHED;
+	curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
 	mtx_unlock_spin(&sched_lock);
 	return 0;
 }
@@ -271,7 +271,7 @@ int ksched_get_priority_min(register_t *ret, struct ksched *ksched, int policy)
 }
 
 int ksched_rr_get_interval(register_t *ret, struct ksched *ksched,
-	struct proc *p, struct timespec *timespec)
+	struct thread *td, struct timespec *timespec)
 {
 	*timespec = ksched->rr_interval;
 

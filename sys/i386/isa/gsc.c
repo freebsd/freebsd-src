@@ -563,7 +563,7 @@ gscattach(struct isa_device *isdp)
  */
 
 static	int
-gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
+gscopen  (dev_t dev, int flags, int fmt, struct thread *td)
 {
   struct gsc_unit *scu;
   int unit;
@@ -630,7 +630,7 @@ gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
  */
 
 static	int
-gscclose (dev_t dev, int flags, int fmt, struct proc *p)
+gscclose (dev_t dev, int flags, int fmt, struct thread *td)
 {
   int unit = UNIT(minor(dev));
   struct gsc_unit *scu = unittab + unit;
@@ -753,7 +753,7 @@ gscread  (dev_t dev, struct uio *uio, int ioflag)
  */
 
 static	int
-gscioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+gscioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
   int unit = UNIT(minor(dev));
   struct gsc_unit *scu = unittab + unit;

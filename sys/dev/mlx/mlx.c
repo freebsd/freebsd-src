@@ -714,7 +714,7 @@ mlx_submit_buf(struct mlx_softc *sc, mlx_bio *bp)
  * Accept an open operation on the control device.
  */
 int
-mlx_open(dev_t dev, int flags, int fmt, struct proc *p)
+mlx_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
     struct mlx_softc	*sc = devclass_get_softc(mlx_devclass, unit);
@@ -727,7 +727,7 @@ mlx_open(dev_t dev, int flags, int fmt, struct proc *p)
  * Accept the last close on the control device.
  */
 int
-mlx_close(dev_t dev, int flags, int fmt, struct proc *p)
+mlx_close(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int			unit = minor(dev);
     struct mlx_softc	*sc = devclass_get_softc(mlx_devclass, unit);
@@ -740,7 +740,7 @@ mlx_close(dev_t dev, int flags, int fmt, struct proc *p)
  * Handle controller-specific control operations.
  */
 int
-mlx_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+mlx_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
     int				unit = minor(dev);
     struct mlx_softc		*sc = devclass_get_softc(mlx_devclass, unit);
@@ -927,7 +927,7 @@ mlx_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
  */
 int
 mlx_submit_ioctl(struct mlx_softc *sc, struct mlx_sysdrive *drive, u_long cmd, 
-		caddr_t addr, int32_t flag, struct proc *p)
+		caddr_t addr, int32_t flag, struct thread *td)
 {
     int				*arg = (int *)addr;
     int				error, result;

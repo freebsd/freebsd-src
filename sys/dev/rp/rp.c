@@ -954,10 +954,10 @@ rp_releaseresource(CONTROLLER_t *ctlp)
 }
 
 int
-rpopen(dev, flag, mode, p)
+rpopen(dev, flag, mode, td)
 	dev_t	dev;
 	int	flag, mode;
-	struct	proc	*p;
+	struct	thread	*td;
 {
 	struct	rp_port *rp;
 	int	unit, port, mynor, umynor, flags;  /* SG */
@@ -1008,7 +1008,7 @@ open_top:
 				goto open_top;
 			}
 		}
-		if(tp->t_state & TS_XCLUDE && suser(p) != 0) {
+		if(tp->t_state & TS_XCLUDE && suser_td(td) != 0) {
 			splx(oldspl);
 			error = EBUSY;
 			goto out2;
@@ -1113,10 +1113,10 @@ out2:
 }
 
 int
-rpclose(dev, flag, mode, p)
+rpclose(dev, flag, mode, td)
 	dev_t	dev;
 	int	flag, mode;
-	struct	proc	*p;
+	struct	thread	*td;
 {
 	int	oldspl, unit, mynor, umynor, port; /* SG */
 	struct	rp_port *rp;
@@ -1228,12 +1228,12 @@ rpdtrwakeup(void *chan)
 }
 
 int
-rpioctl(dev, cmd, data, flag, p)
+rpioctl(dev, cmd, data, flag, td)
 	dev_t	dev;
 	u_long	cmd;
 	caddr_t data;
 	int	flag;
-	struct	proc	*p;
+	struct	thread	*td;
 {
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
@@ -1265,7 +1265,7 @@ rpioctl(dev, cmd, data, flag, p)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(p);
+			error = suser_td(td);
 			if(error != 0)
 				return(error);
 			*ct = *(struct termios *)data;
@@ -1322,7 +1322,7 @@ rpioctl(dev, cmd, data, flag, p)
 
 	t = &tp->t_termios;
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if(error != ENOIOCTL) {
 		return(error);
 	}
@@ -1410,7 +1410,7 @@ rpioctl(dev, cmd, data, flag, p)
 		*(int *)data = result;
 		break;
 	case TIOCMSDTRWAIT:
-		error = suser(p);
+		error = suser_td(td);
 		if(error != 0) {
 			splx(oldspl);
 			return(error);

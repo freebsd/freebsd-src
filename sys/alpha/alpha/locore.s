@@ -114,10 +114,10 @@
 	mov	v0, globalp
 
 	/*
-	 * Switch to proc0's PCB, which is at U_PCB off of proc0paddr.
+	 * Switch to proc0's PCB.
 	 */
-	lda	t0,proc0			/* get phys addr of pcb */
-	ldq	a0,P_MD_PCBPADDR(t0)
+	ldq	t0,thread0		/* get phys addr of pcb */
+	ldq	a0,TD_MD_PCBPADDR(t0)
 	SWITCH_CONTEXT
 
 	/*
@@ -308,12 +308,6 @@ LEAF(restorefpstate, 1)
 	RET
 	END(restorefpstate)
 
-	.data
-	EXPORT(proc0paddr)
-	.quad	0
-	
-	.text
-	
 /* XXX: make systat/vmstat happy */
 	.data
 EXPORT(intrnames)

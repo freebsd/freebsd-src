@@ -87,14 +87,17 @@ nfs_dolock(ap)
 {
 	LOCKD_MSG msg;
 	struct nameidata nd;
-	struct proc *p;
+	struct thread *td;
 	uid_t	saved_uid;
 	struct vnode *vp, *wvp;
 	int error, error1;
 	struct flock *fl;
 	int fmode, ioflg;
+	struct proc *p;
 
-	p = curproc;
+	td = curthread;
+	p = td->td_proc;
+
 	vp = ap->a_vp;
 	fl = ap->a_fl;
 
@@ -148,7 +151,7 @@ nfs_dolock(ap)
 	 * complain that the user's file is missing, which isn't the case.
 	 * Note that we use proc0's cred, so the fifo is opened as root.
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, _PATH_LCKFIFO, p);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, _PATH_LCKFIFO, td);
 
 	/*
 	 * XXX Hack to temporarily allow this process (regardless of it's creds)
@@ -166,15 +169,15 @@ nfs_dolock(ap)
 		return (error == ENOENT ? EOPNOTSUPP : error);
 	}
 	wvp = nd.ni_vp;
-	VOP_UNLOCK(wvp, 0, p);		/* vn_open leaves it locked */
+	VOP_UNLOCK(wvp, 0, td);		/* vn_open leaves it locked */
 
 
 	ioflg = IO_UNIT;
 	for (;;) {
-		VOP_LEASE(wvp, p, proc0.p_ucred, LEASE_WRITE);
+		VOP_LEASE(wvp, td, proc0.p_ucred, LEASE_WRITE);
 
 		error = vn_rdwr(UIO_WRITE, wvp, (caddr_t)&msg, sizeof(msg), 0,
-		    UIO_SYSSPACE, ioflg, proc0.p_ucred, NULL, p);
+		    UIO_SYSSPACE, ioflg, proc0.p_ucred, NULL, td);
 
 		if (error && (((ioflg & IO_NDELAY) == 0) || error != EAGAIN)) {
 			break;
@@ -224,7 +227,7 @@ nfs_dolock(ap)
 		break;
 	}
 
-	if ((error1 = vn_close(wvp, FWRITE, proc0.p_ucred, p)) && error == 0)
+	if ((error1 = vn_close(wvp, FWRITE, proc0.p_ucred, td)) && error == 0)
 		return (error1);
 
 	return (error);
