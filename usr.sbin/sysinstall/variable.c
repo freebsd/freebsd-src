@@ -171,8 +171,8 @@ variable_get_value(char *var, char *prompt, int dirty)
     return cp;
 }
 
-/* Check if value passed in data (in the form "variable=value") is equal to value of 
-   variable stored in env */
+/* Check if value passed in data (in the form "variable=value") is
+   equal to value of variable stored in env */
 int
 variable_check(char *data)
 {
@@ -226,4 +226,34 @@ dump_variables(dialogMenuItem *unused)
     fclose(fp);
 
     return DITEM_SUCCESS;
+}
+
+/* Free all of the variables, useful to really start over as when the
+   user selects "restart" from the interrupt menu. */
+void
+free_variables(void)
+{
+    Variable *vp;
+
+    /* Free the variables from our list, if we have one.. */
+    if (!VarHead)
+	return;
+    else if (!VarHead->next) {
+	unsetenv(VarHead->name);
+	safe_free(VarHead->name);
+	safe_free(VarHead->value);
+	free(VarHead);
+	VarHead = NULL;
+    }
+    else {
+	for (vp = VarHead; vp; ) {
+	    Variable *save = vp;
+	    unsetenv(vp->name);
+	    safe_free(vp->name);
+	    safe_free(vp->value);
+	    vp = vp->next;
+	    safe_free(save);
+	}
+	VarHead = NULL;
+    }
 }
