@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.11 1994/10/12 19:38:03 sos Exp $
+ *	$Id: imgact_coff.c,v 1.1 1994/10/14 08:53:13 sos Exp $
  */
 
 #include <sys/param.h>
@@ -114,12 +114,15 @@ printf("%s(%d):  vm_mmap(&vmspace->vm_map, &0x%08lx, 0x%x, 0x%x, "
 	map_len = round_page(memsz) - trunc_page(filsz);
 
 if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d): vm_allocate(&vmspace->vm_map, &0x%08lx, 0x%x, FALSE)\n",
+printf("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, 0x%x, FALSE)\n",
 	__FILE__, __LINE__, map_addr, map_len);
 }
 
-	if (error = vm_allocate(&vmspace->vm_map, &map_addr, map_len, FALSE))
-		return error;
+	if (map_len != 0) {
+		error = vm_map_find(&vmspace->vm_map, NULL, 0, &map_addr, map_len, FALSE);
+		if (error)
+			return error;
+	}
 
 	if (error = vm_mmap(kernel_map, &data_buf, PAGE_SIZE,
 			     VM_PROT_READ, VM_PROT_READ, MAP_FILE,
@@ -128,8 +131,8 @@ printf("%s(%d): vm_allocate(&vmspace->vm_map, &0x%08lx, 0x%x, FALSE)\n",
 
 	bcopy(data_buf, map_addr, copy_len);
 
-	if (vm_deallocate(kernel_map, data_buf, PAGE_SIZE))
-		panic("load_coff_section vm_deallocate failed");
+	if (vm_map_remove(kernel_map, data_buf, data_buf + PAGE_SIZE))
+		panic("load_coff_section vm_map_remove failed");
 
 	return 0;
 }
@@ -250,8 +253,8 @@ coff_load_file(struct proc *p, char *name)
   	error = 0;
 
  	dealloc_and_fail:
-  	if (vm_deallocate(kernel_map, ptr, PAGE_SIZE))
-    		panic(__FUNCTION__ " vm_deallocate failed");
+	if (vm_map_remove(kernel_map, ptr, ptr + PAGE_SIZE))
+    		panic(__FUNCTION__ " vm_map_remove failed");
 
  fail:
   	vput(nd.ni_vp);
@@ -373,8 +376,8 @@ printf("%s(%d):  shared library %s\n", __FILE__, __LINE__, libname);
 	      		if (error)
 			break;
 	    	}
-	    	if (vm_deallocate(kernel_map, buf, len))
-	      		panic("exec_coff_imgact vm_deallocate failed");
+		if (vm_map_remove(kernel_map, buf, buf + len))
+	      		panic("exec_coff_imgact vm_map_remove failed");
 	    	if (error)
 	      		return error;
 	  	}
@@ -433,11 +436,11 @@ printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
 
 
 if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d): vm_allocate(&vmspace->vm_map, &0x%08lx, 1, FALSE)\n",
+printf("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, PAGE_SIZE, FALSE)\n",
 	__FILE__, __LINE__, hole);
 printf("imgact: error = %d\n", error);
 }
-	error = vm_allocate(&vmspace->vm_map, &hole, 1, FALSE);
+	error = vm_map_find(&vmspace->vm_map, NULL, 0, &hole, PAGE_SIZE, FALSE);
 
 if (ibcs2_trace & IBCS2_TRACE_COFF) {
 printf("IBCS2: start vm_dsize = 0x%x, vm_daddr = 0x%x end = 0x%x\n", 
