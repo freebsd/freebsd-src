@@ -153,24 +153,21 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	vm_object_t backing_object, object = NULL;
 	vm_offset_t pageno = 0;		/* page number */
 	vm_prot_t reqprot;
-	int error, writing;
+	int error, refcnt, writing;
 
-	mtx_lock(&Giant);
 	/*
 	 * if the vmspace is in the midst of being deallocated or the
 	 * process is exiting, don't try to grab anything.  The page table
 	 * usage in that process can be messed up.
 	 */
 	vm = p->p_vmspace;
-	if ((p->p_flag & P_WEXIT)) {
-		mtx_unlock(&Giant);
+	if ((p->p_flag & P_WEXIT))
 		return (EFAULT);
-	}
-	if (vm->vm_refcnt < 1) {
-		mtx_unlock(&Giant);
-		return (EFAULT);
-	}
-	++vm->vm_refcnt;
+	do {
+		if ((refcnt = vm->vm_refcnt) < 1)
+			return (EFAULT);
+	} while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt + 1));
+
 	/*
 	 * The map we want...
 	 */
@@ -278,7 +275,6 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	} while (error == 0 && uio->uio_resid > 0);
 
 	vmspace_free(vm);
-	mtx_unlock(&Giant);
 	return (error);
 }
 

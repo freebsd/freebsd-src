@@ -868,7 +868,7 @@ aio_daemon(void *uproc)
 				 * refer to it.
 				 */
 				mycp->p_vmspace = userp->p_vmspace;
-				mycp->p_vmspace->vm_refcnt++;
+				atomic_add_int(&mycp->p_vmspace->vm_refcnt, 1);
 				
 				/* Activate the new mapping. */
 				pmap_activate(FIRST_THREAD_IN_PROC(mycp));
