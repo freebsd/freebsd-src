@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.122 1999/05/11 10:08:10 jb Exp $
+ * $Id: init_main.c,v 1.123 1999/06/30 15:33:32 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -52,6 +52,7 @@
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/kthread.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
@@ -180,7 +181,6 @@ mi_startup(framep)
 	register struct sysinit **sipp;		/* system initialization*/
 	register struct sysinit **xipp;		/* interior loop of sort*/
 	register struct sysinit *save;		/* bubble*/
-	struct proc *p2;
 
 	/*
 	 * Copy the locore.s frame pointer for proc0, this is forked into
@@ -220,28 +220,8 @@ restart:
 		if ((*sipp)->subsystem == SI_SUB_DONE)
 			continue;
 
-		switch( (*sipp)->type) {
-		case SI_TYPE_DEFAULT:
-			/* no special processing*/
-			(*((*sipp)->func))((*sipp)->udata);
-			break;
-
-		case SI_TYPE_KTHREAD:
-			/* kernel thread*/
-			if (fork1(&proc0, RFMEM|RFFDG|RFPROC, &p2))
-				panic("fork kernel thread");
-			cpu_set_fork_handler(p2, (*sipp)->func, (*sipp)->udata);
-			break;
-
-		case SI_TYPE_KPROCESS:
-			if (fork1(&proc0, RFFDG|RFPROC, &p2))
-				panic("fork kernel process");
-			cpu_set_fork_handler(p2, (*sipp)->func, (*sipp)->udata);
-			break;
-
-		default:
-			panic("init_main: unrecognized init type");
-		}
+		/* Call function */
+		(*((*sipp)->func))((*sipp)->udata);
 
 		/* Check off the one we're just done */
 		(*sipp)->subsystem = SI_SUB_DONE;
@@ -258,42 +238,6 @@ restart:
 
 	panic("Shouldn't get here!");
 	/* NOTREACHED*/
-}
-
-
-/*
- * Start a kernel process.  This is called after a fork() call in
- * mi_startup() in the file kern/init_main.c.
- *
- * This function is used to start "internal" daemons.
- */
-/* ARGSUSED*/
-void
-kproc_start(udata)
-	const void *udata;
-{
-	const struct kproc_desc	*kp = udata;
-	struct proc		*p = curproc;
-
-#ifdef DIAGNOSTIC
-	printf("Start pid=%d <%s>\n",p->p_pid, kp->arg0);
-#endif
-
-	/* save a global descriptor, if desired*/
-	if( kp->global_procpp != NULL)
-		*kp->global_procpp	= p;
-
-	/* this is a non-swapped system process*/
-	p->p_flag |= P_INMEM | P_SYSTEM;
-
-	/* set up arg0 for 'ps', et al*/
-	strcpy( p->p_comm, kp->arg0);
-
-	/* call the processes' main()...*/
-	(*kp->func)();
-
-	/* NOTREACHED */
-	panic("kproc_start: %s", kp->arg0);
 }
 
 
@@ -551,29 +495,26 @@ SYSINIT(retrofit, SI_SUB_ROOT_FDTAB, SI_ORDER_FIRST, xxx_vfs_root_fdtab, NULL)
  ***************************************************************************
  */
 
-static void kthread_init __P((const void *dummy));
-SYSINIT_KP(init,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kthread_init, NULL)
-
-
 extern void prepare_usermode __P((void));
-static void start_init __P((struct proc *p));
+static void create_init __P((const void *dummy));
+static void start_init __P((void *dummy));
+SYSINIT(init,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, create_init, NULL)
 
-/* ARGSUSED*/
+/*
+ * Like kthread_create(), but runs in it's own address space.
+ */
 static void
-kthread_init(dummy)
-	const void *dummy;
+create_init(udata)
+	const void *udata;
 {
-	/* Create process 1 (init(8)). */
-	start_init(curproc);
+	int error;
 
-	prepare_usermode();
-
-	/*
-	 * This returns to the fork trampoline, then to user mode.
-	 */
-	return;	
+	error = fork1(&proc0, RFFDG | RFPROC, &initproc);
+	if (error)
+		panic("cannot fork init: %d\n", error);
+	initproc->p_flag |= P_INMEM | P_SYSTEM;
+	cpu_set_fork_handler(initproc, start_init, NULL);
 }
-
 
 /*
  * List of paths to try when searching for "init".
@@ -591,16 +532,17 @@ SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0, "");
  * The program is invoked with one argument containing the boot flags.
  */
 static void
-start_init(p)
-	struct proc *p;
+start_init(dummy)
+	void *dummy;
 {
 	vm_offset_t addr;
 	struct execve_args args;
 	int options, error;
 	char *var, *path, *next, *s;
 	char *ucp, **uap, *arg0, *arg1;
+	struct proc *p;
 
-	initproc = p;
+	p = curproc;
 
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
@@ -681,11 +623,13 @@ start_init(p)
 		 * Now try to exec the program.  If can't for any reason
 		 * other than it doesn't exist, complain.
 		 *
-		 * Otherwise return to mi_startup() which returns to btext
-		 * which completes the system startup.
+		 * Otherwise, return via the fork trampoline all the way
+		 * to user mode as init!
 		 */
-		if ((error = execve(p, &args)) == 0)
+		if ((error = execve(p, &args)) == 0) {
+			prepare_usermode();
 			return;
+		}
 		if (error != ENOENT)
 			printf("exec %.*s: error %d\n", (int)(next - path), 
 			    path, error);
