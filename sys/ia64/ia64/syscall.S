@@ -242,9 +242,6 @@ ENTRY(epc_syscall, 8)
 	.prologue
 	.unwabi		@svr4, 'E'
 	.save		rp, r0
-
-	rsm		psr.i
-	;;
 {	.mmi
 	mov		r16=ar.rsc
 	mov		ar.rsc=0
@@ -380,7 +377,7 @@ ENTRY(epc_syscall, 8)
 	;;
 }
 {	.mlx
-	ssm		psr.dfh|psr.ac|psr.i
+	ssm		psr.dfh|psr.ac
 	movl		gp=__gp
 	;;
 }
@@ -473,20 +470,20 @@ epc_syscall_return:
 }
 {	.mmi
 	loadrs
-	mov		r14=ar.k5
+	mov		ar.k7=r31
 	mov		sp=r16
 	;;
 }
 {	.mmi
 	mov		r30=ar.bspstore
 	;;
-	mov		ar.bspstore=r21
+	mov		r14=ar.k5
 	dep		r30=0,r30,0,9
 	;;
 }
 {	.mmi
 	mov		ar.k6=r30
-	mov		ar.k7=r31
+	mov		ar.bspstore=r21
 	mov		r13=r23
 	;;
 }
