@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_msg.c,v 1.4 1997/07/20 09:39:44 bde Exp $
+ * $Id: ibcs2_msg.c,v 1.5 1997/11/06 19:28:34 phk Exp $
  */
 
 /*
@@ -93,8 +93,8 @@ ibcs2_poll(p, uap)
 	tmp_select.tv = timeout;
 
 	for (i = 0; i < uap->nfds; i++) {
-		if (error = copyin(uap->fds + i*sizeof(struct ibcs2_poll),
-				   &conv, sizeof(conv)))
+		if ((error = copyin(uap->fds + i*sizeof(struct ibcs2_poll),
+				   &conv, sizeof(conv))) != 0)
 			return error;
 		conv.revents = 0;
 		if (conv.fd < 0 || conv.fd > FD_SETSIZE)
@@ -107,7 +107,7 @@ ibcs2_poll(p, uap)
 			FD_SET(conv.fd, writefds);
 		FD_SET(conv.fd, exceptfds);
 	}
-	if (error = select(p, &tmp_select))
+	if ((error = select(p, &tmp_select)) != 0)
 		return error;
 	if (p->p_retval[0] == 0)
 		return 0;
@@ -129,9 +129,9 @@ ibcs2_poll(p, uap)
 			if (conv.revents)
 				++p->p_retval[0];
 		}
-		if (error = copyout(&conv,
+		if ((error = copyout(&conv,
 				    uap->fds + i*sizeof(struct ibcs2_poll),
-				    sizeof(conv)))
+				    sizeof(conv))) != 0)
 			return error;
 	}
 	return 0;

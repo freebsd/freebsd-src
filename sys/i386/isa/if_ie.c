@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.57 1998/10/22 05:58:39 bde Exp $
+ *	$Id: if_ie.c,v 1.58 1998/12/10 01:49:49 archie Exp $
  */
 
 /*
@@ -211,15 +211,15 @@ static void	find_ie_mem_size(int unit);
 static void	chan_attn_timeout(void *rock);
 static int	command_and_wait(int unit, int command,
 				 void volatile * pcmd, int);
-static void	run_tdr(int unit, struct ie_tdr_cmd * cmd);
+static void	run_tdr(int unit, volatile struct ie_tdr_cmd * cmd);
 static int	ierint(int unit, struct ie_softc * ie);
 static int	ietint(int unit, struct ie_softc * ie);
 static int	iernr(int unit, struct ie_softc * ie);
 static void	start_receiver(int unit);
 static __inline int ieget(int, struct ie_softc *, struct mbuf **,
 			  struct ether_header *, int *);
-static caddr_t	setup_rfa(caddr_t ptr, struct ie_softc * ie);
-static int	mc_setup(int, caddr_t, volatile struct ie_sys_ctl_block *);
+static v_caddr_t setup_rfa(v_caddr_t ptr, struct ie_softc * ie);
+static int	mc_setup(int, v_caddr_t, volatile struct ie_sys_ctl_block *);
 static void	ie_mc_reset(int unit);
 
 #ifdef DEBUG
@@ -317,7 +317,7 @@ static struct ie_softc {
 
 	volatile struct ie_xmit_cmd **xmit_cmds;	/* ntxbufs worth */
 	volatile struct ie_xmit_buf **xmit_buffs;	/* ntxbufs worth */
-	u_char	 **xmit_cbuffs;				/* ntxbufs worth */
+	volatile u_char	 **xmit_cbuffs;			/* ntxbufs worth */
 	int	 xmit_count;
 
 	struct	 ie_en_addr mcast_addrs[MAXMCAST + 1];
@@ -820,7 +820,7 @@ ieattach(struct isa_device *dvp)
 	    (volatile struct ie_xmit_cmd **)&ie->cbuffs[ie->nrxbufs];
 	ie->xmit_buffs =
 	    (volatile struct ie_xmit_buf **)&ie->xmit_cmds[ie->ntxbufs];
-	ie->xmit_cbuffs = (u_char **)&ie->xmit_buffs[ie->ntxbufs];
+	ie->xmit_cbuffs = (volatile u_char **)&ie->xmit_buffs[ie->ntxbufs];
 
 	ifp->if_softc = ie;
 	ifp->if_unit = unit;
@@ -1017,7 +1017,7 @@ ietint(int unit, struct ie_softc *ie)
 	 * that we should do it.
 	 */
 	if (ie->want_mcsetup) {
-		mc_setup(unit, (caddr_t) ie->xmit_cbuffs[0], ie->scb);
+		mc_setup(unit, (v_caddr_t) ie->xmit_cbuffs[0], ie->scb);
 		ie->want_mcsetup = 0;
 	}
 	/* Wish I knew why this seems to be necessary... */
@@ -1036,14 +1036,14 @@ static int
 iernr(int unit, struct ie_softc *ie)
 {
 #ifdef doesnt_work
-	setup_rfa((caddr_t) ie->rframes[0], ie);
+	setup_rfa((v_caddr_t) ie->rframes[0], ie);
 
 	ie->scb->ie_recv_list = MK_16(MEM, ie_softc[unit].rframes[0]);
 	command_and_wait(unit, IE_RU_START, 0, 0);
 #else
 	/* This doesn't work either, but it doesn't hang either. */
 	command_and_wait(unit, IE_RU_DISABLE, 0, 0);	/* just in case */
-	setup_rfa((caddr_t) ie->rframes[0], ie);	/* ignore cast-qual */
+	setup_rfa((v_caddr_t) ie->rframes[0], ie);	/* ignore cast-qual */
 
 	ie->scb->ie_recv_list = MK_16(MEM, ie_softc[unit].rframes[0]);
 	command_and_wait(unit, IE_RU_START, 0, 0);	/* was ENABLE */
@@ -1260,7 +1260,7 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp,
 	/*
 	 * Snarf the Ethernet header.
 	 */
-	bcopy((caddr_t) ie->cbuffs[i], (caddr_t) ehp, sizeof *ehp);
+	bcopy((v_caddr_t) ie->cbuffs[i], (caddr_t) ehp, sizeof *ehp);
 	/* ignore cast-qual warning here */
 
 	/*
@@ -1348,8 +1348,8 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp,
 		if (thislen > m->m_len - thismboff) {
 			int	newlen = m->m_len - thismboff;
 
-			bcopy((caddr_t) (ie->cbuffs[head] + offset),
-			      mtod(m, caddr_t) +thismboff, (unsigned) newlen);
+			bcopy((v_caddr_t) (ie->cbuffs[head] + offset),
+			      mtod(m, v_caddr_t) +thismboff, (unsigned) newlen);
 			/* ignore cast-qual warning */
 			m = m->m_next;
 			thismboff = 0;	/* new mbuf, so no offset */
@@ -1365,7 +1365,7 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp,
 		 * pointers, and so on.
 		 */
 		if (thislen < m->m_len - thismboff) {
-			bcopy((caddr_t) (ie->cbuffs[head] + offset),
+			bcopy((v_caddr_t) (ie->cbuffs[head] + offset),
 			    mtod(m, caddr_t) +thismboff, (unsigned) thislen);
 			thismboff += thislen;	/* we are this far into the
 						 * mbuf */
@@ -1377,7 +1377,7 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp,
 		 * buffer's contents into the current mbuf.  Do the
 		 * combination of the above actions.
 		 */
-		bcopy((caddr_t) (ie->cbuffs[head] + offset),
+		bcopy((v_caddr_t) (ie->cbuffs[head] + offset),
 		      mtod(m, caddr_t) + thismboff, (unsigned) thislen);
 		m = m->m_next;
 		thismboff = 0;		/* new mbuf, start at the beginning */
@@ -1425,7 +1425,7 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 
 #endif
 
-	bcopy((caddr_t) (ie->rframes[num]), &rfd,
+	bcopy((v_caddr_t) (ie->rframes[num]), &rfd,
 	      sizeof(struct ie_recv_frame_desc));
 
 	/*
@@ -1547,7 +1547,7 @@ iestart(struct ifnet *ifp)
 {
 	struct	 ie_softc *ie = ifp->if_softc;
 	struct	 mbuf *m0, *m;
-	unsigned char *buffer;
+	volatile unsigned char *buffer;
 	u_short	 len;
 
 	/*
@@ -1585,7 +1585,7 @@ iestart(struct ifnet *ifp)
 		 */
 		if (ie->arpcom.ac_if.if_bpf)
 			bpf_tap(&ie->arpcom.ac_if,
-				ie->xmit_cbuffs[ie->xmit_count], len);
+				(void *)ie->xmit_cbuffs[ie->xmit_count], len);
 #endif
 
 		ie->xmit_buffs[ie->xmit_count]->ie_xmit_flags =
@@ -1640,7 +1640,7 @@ check_ie_present(int unit, caddr_t where, unsigned size)
 
 	scp = (volatile struct ie_sys_conf_ptr *) (uintptr_t)
 	      (realbase + IE_SCP_ADDR);
-	bzero((char *) scp, sizeof *scp);
+	bzero((volatile char *) scp, sizeof *scp);
 
 	/*
 	 * First we put the ISCP at the bottom of memory; this tests to make
@@ -1649,13 +1649,13 @@ check_ie_present(int unit, caddr_t where, unsigned size)
 	 * operation.
 	 */
 	iscp = (volatile struct ie_int_sys_conf_ptr *) where;
-	bzero((char *)iscp, sizeof *iscp);
+	bzero((volatile char *)iscp, sizeof *iscp);
 
 	scb = (volatile struct ie_sys_ctl_block *) where;
-	bzero((char *)scb, sizeof *scb);
+	bzero((volatile char *)scb, sizeof *scb);
 
 	scp->ie_bus_use = ie_softc[unit].bus_use;	/* 8-bit or 16-bit */
-	scp->ie_iscp_ptr = (caddr_t) ((volatile caddr_t) iscp -
+	scp->ie_iscp_ptr = (v_caddr_t) ((volatile caddr_t) iscp -
 				      (volatile caddr_t) (volatile uintptr_t)
 				      realbase);
 
@@ -1678,10 +1678,10 @@ check_ie_present(int unit, caddr_t where, unsigned size)
 	iscp = (void *) Align((caddr_t) (uintptr_t)
 			      (realbase + IE_SCP_ADDR -
 			       sizeof(struct ie_int_sys_conf_ptr)));
-	bzero((char *) iscp, sizeof *iscp);	/* ignore cast-qual */
+	bzero((volatile char *) iscp, sizeof *iscp);	/* ignore cast-qual */
 
-	scp->ie_iscp_ptr = (caddr_t) ((caddr_t) iscp -
-				      (caddr_t) (uintptr_t) realbase);
+	scp->ie_iscp_ptr = (v_caddr_t) ((v_caddr_t) iscp -
+				      (v_caddr_t) (uintptr_t) realbase);
 	/* ignore cast-qual */
 
 	iscp->ie_busy = 1;
@@ -1973,7 +1973,7 @@ command_and_wait(int unit, int cmd, volatile void *pcmd, int mask)
  * Run the time-domain reflectometer...
  */
 static void
-run_tdr(int unit, struct ie_tdr_cmd *cmd)
+run_tdr(int unit, volatile struct ie_tdr_cmd *cmd)
 {
 	int	result;
 
@@ -2026,10 +2026,10 @@ start_receiver(int unit)
  * Here is a helper routine for iernr() and ieinit().  This sets up
  * the RFA.
  */
-static caddr_t
-setup_rfa(caddr_t ptr, struct ie_softc * ie)
+static v_caddr_t
+setup_rfa(v_caddr_t ptr, struct ie_softc * ie)
 {
-	volatile struct ie_recv_frame_desc *rfd = (void *) ptr;
+	volatile struct ie_recv_frame_desc *rfd = (volatile void *)ptr;
 	volatile struct ie_recv_buf_desc *rbd;
 	int	i;
 	int	unit = ie - &ie_softc[0];
@@ -2037,11 +2037,11 @@ setup_rfa(caddr_t ptr, struct ie_softc * ie)
 	/* First lay them out */
 	for (i = 0; i < ie->nframes; i++) {
 		ie->rframes[i] = rfd;
-		bzero((char *) rfd, sizeof *rfd);	/* ignore cast-qual */
+		bzero((volatile char *) rfd, sizeof *rfd);	/* ignore cast-qual */
 		rfd++;
 	}
 
-	ptr = (caddr_t) Align((caddr_t) rfd);	/* ignore cast-qual */
+	ptr = (v_caddr_t) Align((v_caddr_t) rfd);	/* ignore cast-qual */
 
 	/* Now link them together */
 	for (i = 0; i < ie->nframes; i++) {
@@ -2057,17 +2057,17 @@ setup_rfa(caddr_t ptr, struct ie_softc * ie)
 	 * set aside a bit of slop in each buffer, to make sure that we have
 	 * enough space to hold a single frame in every buffer.
 	 */
-	rbd = (void *) ptr;
+	rbd = (volatile void *) ptr;
 
 	for (i = 0; i < ie->nrxbufs; i++) {
 		ie->rbuffs[i] = rbd;
-		bzero((char *)rbd, sizeof *rbd);
+		bzero((volatile char *)rbd, sizeof *rbd);
 		ptr = (caddr_t) Align(ptr + sizeof *rbd);
 		rbd->ie_rbd_length = IE_RBUF_SIZE;
 		rbd->ie_rbd_buffer = MK_24(MEM, ptr);
-		ie->cbuffs[i] = (void *) ptr;
+		ie->cbuffs[i] = (volatile void *) ptr;
 		ptr += IE_RBUF_SIZE;
-		rbd = (void *) ptr;
+		rbd = (volatile void *) ptr;
 	}
 
 	/* Now link them together */
@@ -2100,18 +2100,18 @@ setup_rfa(caddr_t ptr, struct ie_softc * ie)
  * Call at splimp().
  */
 static int
-mc_setup(int unit, caddr_t ptr,
+mc_setup(int unit, v_caddr_t ptr,
 	 volatile struct ie_sys_ctl_block * scb)
 {
 	struct ie_softc *ie = &ie_softc[unit];
-	volatile struct ie_mcast_cmd *cmd = (void *) ptr;
+	volatile struct ie_mcast_cmd *cmd = (volatile void *) ptr;
 
 	cmd->com.ie_cmd_status = 0;
 	cmd->com.ie_cmd_cmd = IE_CMD_MCAST | IE_CMD_LAST;
 	cmd->com.ie_cmd_link = 0xffff;
 
 	/* ignore cast-qual */
-	bcopy((caddr_t) ie->mcast_addrs, (caddr_t) cmd->ie_mcast_addrs,
+	bcopy((v_caddr_t) ie->mcast_addrs, (v_caddr_t) cmd->ie_mcast_addrs,
 	      ie->mcast_count * sizeof *ie->mcast_addrs);
 
 	cmd->ie_mcast_bytes = ie->mcast_count * 6;	/* grrr... */
@@ -2138,16 +2138,16 @@ ieinit(int unit)
 {
 	struct ie_softc *ie = &ie_softc[unit];
 	volatile struct ie_sys_ctl_block *scb = ie->scb;
-	caddr_t ptr;
+	v_caddr_t ptr;
 	int	i;
 
-	ptr = (caddr_t) Align((caddr_t) scb + sizeof *scb);
+	ptr = (v_caddr_t) Align((v_caddr_t) scb + sizeof *scb);
 
 	/*
 	 * Send the configure command first.
 	 */
 	{
-		volatile struct ie_config_cmd *cmd = (void *) ptr;
+		volatile struct ie_config_cmd *cmd = (volatile void *) ptr;
 
 		ie_setup_config(cmd, ie->promisc,
 				ie->hard_type == IE_STARLAN10);
@@ -2167,14 +2167,14 @@ ieinit(int unit)
 	 * Now send the Individual Address Setup command.
 	 */
 	{
-		volatile struct ie_iasetup_cmd *cmd = (void *) ptr;
+		volatile struct ie_iasetup_cmd *cmd = (volatile void *) ptr;
 
 		cmd->com.ie_cmd_status = 0;
 		cmd->com.ie_cmd_cmd = IE_CMD_IASETUP | IE_CMD_LAST;
 		cmd->com.ie_cmd_link = 0xffff;
 
-		bcopy((char *)ie_softc[unit].arpcom.ac_enaddr,
-		      (char *)&cmd->ie_address, sizeof cmd->ie_address);
+		bcopy((volatile char *)ie_softc[unit].arpcom.ac_enaddr,
+		      (volatile char *)&cmd->ie_address, sizeof cmd->ie_address);
 		scb->ie_command_list = MK_16(MEM, cmd);
 		if (command_and_wait(unit, IE_CU_START, cmd, IE_STAT_COMPL)
 		    || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
@@ -2187,7 +2187,7 @@ ieinit(int unit)
 	/*
 	 * Now run the time-domain reflectometer.
 	 */
-	run_tdr(unit, (void *) ptr);
+	run_tdr(unit, (volatile void *) ptr);
 
 	/*
 	 * Acknowledge any interrupts we have generated thus far.
@@ -2206,25 +2206,25 @@ ieinit(int unit)
 
 	/* transmit command buffers */
 	for (i = 0; i < ie->ntxbufs; i++) {
-		ie->xmit_cmds[i] = (void *) ptr;
+		ie->xmit_cmds[i] = (volatile void *) ptr;
 		ptr += sizeof *ie->xmit_cmds[i];
 		ptr = Align(ptr);
-		ie->xmit_buffs[i] = (void *)ptr;
+		ie->xmit_buffs[i] = (volatile void *)ptr;
 		ptr += sizeof *ie->xmit_buffs[i];
 		ptr = Align(ptr);
 	}
 
 	/* transmit buffers */
 	for (i = 0; i < ie->ntxbufs - 1; i++) {
-		ie->xmit_cbuffs[i] = (void *)ptr;
+		ie->xmit_cbuffs[i] = (volatile void *)ptr;
 		ptr += IE_BUF_LEN;
 		ptr = Align(ptr);
 	}
-	ie->xmit_cbuffs[ie->ntxbufs - 1] = (void *) ptr;
+	ie->xmit_cbuffs[ie->ntxbufs - 1] = (volatile void *) ptr;
 
 	for (i = 1; i < ie->ntxbufs; i++) {
-		bzero((caddr_t) ie->xmit_cmds[i], sizeof *ie->xmit_cmds[i]);
-		bzero((caddr_t) ie->xmit_buffs[i], sizeof *ie->xmit_buffs[i]);
+		bzero((v_caddr_t) ie->xmit_cmds[i], sizeof *ie->xmit_cmds[i]);
+		bzero((v_caddr_t) ie->xmit_buffs[i], sizeof *ie->xmit_buffs[i]);
 	}
 
 	/*
@@ -2426,7 +2426,7 @@ print_rbd(volatile struct ie_recv_buf_desc * rbd)
 	printf("RBD at %p:\n"
 	       "actual %04x, next %04x, buffer %p\n"
 	       "length %04x, mbz %04x\n",
-	       (void *) rbd,
+	       (volatile void *) rbd,
 	       rbd->ie_rbd_actual, rbd->ie_rbd_next,
 	       (void *) rbd->ie_rbd_buffer,
 	       rbd->ie_rbd_length, rbd->mbz);

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.41 1998/09/15 18:16:37 sos Exp $
+ *	$Id: kbdtables.h,v 1.42 1998/11/18 08:33:58 kato Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
@@ -1132,7 +1132,7 @@ static keymap_t key_map = { 0x6C,	/* icelandic iso8859 keymap */
 
 #if !defined(DKKEYMAP) && !defined(UKKEYMAP) && !defined(GRKEYMAP) && !defined(SWKEYMAP) && !defined(RUKEYMAP) && !defined(ISKEYMAP) && !defined(ESKEYMAP) && !defined(PC98)
 #define ISO_ACCENTCHARS
-static keymap_t key_map = { 0x6C,	/* US iso8859 keymap */
+static keymap_t key_map = { 0x6C, {	/* US iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -1246,7 +1246,7 @@ static keymap_t key_map = { 0x6C,	/* US iso8859 keymap */
 /* sc=69 */ F(62), F(62), F(62), F(62), F(62), F(62), F(62), F(62), 0xFF, 0x00,
 /* sc=6a */ F(63), F(63), F(63), F(63), F(63), F(63), F(63), F(63), 0xFF, 0x00,
 /* sc=6b */ F(64), F(64), F(64), F(64), F(64), F(64), F(64), F(64), 0xFF, 0x00,
-};
+} };
 #endif
 
 #if defined(NO_ACCENTCHARS)

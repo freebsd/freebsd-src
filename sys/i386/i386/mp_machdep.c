@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.87 1999/01/12 00:19:31 eivind Exp $
+ *	$Id: mp_machdep.c,v 1.88 1999/01/20 04:24:22 jkh Exp $
  */
 
 #include "opt_smp.h"
@@ -378,7 +378,7 @@ mp_probe(void)
 	POSTCODE(MP_PROBE_POST);
 
 	/* see if EBDA exists */
-	if (segment = (u_long) * (u_short *) (KERNBASE + 0x40e)) {
+	if ((segment = (u_long) * (u_short *) (KERNBASE + 0x40e)) != 0) {
 		/* search first 1K of EBDA */
 		target = (u_int32_t) (segment << 4);
 		if ((x = search_for_sig(target, 1024 / 4)) >= 0)

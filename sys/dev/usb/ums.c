@@ -375,7 +375,7 @@ static int
 ums_detach(device_t self)
 {
 	struct ums_softc *sc = device_get_softc(self);
-	char *devinfo = (char *) device_get_desc(self);
+	const char *devinfo = device_get_desc(self);
 
 	if (sc->sc_enabled) {
 		usbd_abort_pipe(sc->sc_intrpipe);
@@ -386,7 +386,7 @@ ums_detach(device_t self)
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 	if (devinfo) {
 		device_set_desc(self, NULL);
-		free(devinfo, M_USB);
+		free((void *)devinfo, M_USB);
 	}
 	free(sc->sc_loc_btn, M_USB);
 	free(sc->sc_ibuf, M_USB);
