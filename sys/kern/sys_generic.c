@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.44 1999/01/27 21:49:57 dillon Exp $
+ * $Id: sys_generic.c,v 1.45 1999/01/29 08:10:35 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -104,6 +104,70 @@ read(p, uap)
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_offset = -1;
+	if (uap->nbyte > INT_MAX)
+		return (EINVAL);
+	auio.uio_resid = uap->nbyte;
+	auio.uio_rw = UIO_READ;
+	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_procp = p;
+#ifdef KTRACE
+	/*
+	 * if tracing, save a copy of iovec
+	 */
+	if (KTRPOINT(p, KTR_GENIO))
+		ktriov = aiov;
+#endif
+	cnt = uap->nbyte;
+	if ((error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred)))
+		if (auio.uio_resid != cnt && (error == ERESTART ||
+		    error == EINTR || error == EWOULDBLOCK))
+			error = 0;
+	cnt -= auio.uio_resid;
+#ifdef KTRACE
+	if (KTRPOINT(p, KTR_GENIO) && error == 0)
+		ktrgenio(p->p_tracep, uap->fd, UIO_READ, &ktriov, cnt, error);
+#endif
+	p->p_retval[0] = cnt;
+	return (error);
+}
+
+/*
+ * pread system call.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct pread_args {
+	int	fd;
+	void	*buf;
+	size_t	nbyte;
+        off_t   offset;
+};
+#endif
+/* ARGSUSED */
+int
+pread(p, uap)
+	struct proc *p;
+	register struct pread_args *uap;
+{
+	register struct file *fp;
+	register struct filedesc *fdp = p->p_fd;
+	struct uio auio;
+	struct iovec aiov;
+	long cnt, error = 0;
+#ifdef KTRACE
+	struct iovec ktriov;
+#endif
+
+	if (((u_int)uap->fd) >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL ||
+	    (fp->f_flag & FREAD) == 0)
+		return (EBADF);
+	if (fp->f_type != DTYPE_VNODE)
+		return (ESPIPE);
+	aiov.iov_base = (caddr_t)uap->buf;
+	aiov.iov_len = uap->nbyte;
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_offset = uap->offset;
 	if (uap->nbyte > INT_MAX)
 		return (EINVAL);
 	auio.uio_resid = uap->nbyte;
@@ -253,6 +317,73 @@ write(p, uap)
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_offset = -1;
+	if (uap->nbyte > INT_MAX)
+		return (EINVAL);
+	auio.uio_resid = uap->nbyte;
+	auio.uio_rw = UIO_WRITE;
+	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_procp = p;
+#ifdef KTRACE
+	/*
+	 * if tracing, save a copy of iovec
+	 */
+	if (KTRPOINT(p, KTR_GENIO))
+		ktriov = aiov;
+#endif
+	cnt = uap->nbyte;
+	if ((error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred))) {
+		if (auio.uio_resid != cnt && (error == ERESTART ||
+		    error == EINTR || error == EWOULDBLOCK))
+			error = 0;
+		if (error == EPIPE)
+			psignal(p, SIGPIPE);
+	}
+	cnt -= auio.uio_resid;
+#ifdef KTRACE
+	if (KTRPOINT(p, KTR_GENIO) && error == 0)
+		ktrgenio(p->p_tracep, uap->fd, UIO_WRITE,
+		    &ktriov, cnt, error);
+#endif
+	p->p_retval[0] = cnt;
+	return (error);
+}
+
+/*
+ * pwrite system call
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct pwrite_args {
+	int	fd;
+	const void *buf;
+	size_t	nbyte;
+        off_t   offset;
+};
+#endif
+int
+pwrite(p, uap)
+	struct proc *p;
+	register struct pwrite_args *uap;
+{
+	register struct file *fp;
+	register struct filedesc *fdp = p->p_fd;
+	struct uio auio;
+	struct iovec aiov;
+	long cnt, error = 0;
+#ifdef KTRACE
+	struct iovec ktriov;
+#endif
+
+	if (((u_int)uap->fd) >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[uap->fd]) == NULL ||
+	    (fp->f_flag & FWRITE) == 0)
+		return (EBADF);
+	if (fp->f_type != DTYPE_VNODE)
+		return (ESPIPE);
+	aiov.iov_base = (caddr_t)uap->buf;
+	aiov.iov_len = uap->nbyte;
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_offset = uap->offset;
 	if (uap->nbyte > INT_MAX)
 		return (EINVAL);
 	auio.uio_resid = uap->nbyte;

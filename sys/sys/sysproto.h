@@ -542,6 +542,18 @@ struct	shmsys_args {
 	int	a3;	char a3_[PAD_(int)];
 	int	a4;	char a4_[PAD_(int)];
 };
+struct	pread_args {
+	int	fd;	char fd_[PAD_(int)];
+	void *	buf;	char buf_[PAD_(void *)];
+	size_t	nbyte;	char nbyte_[PAD_(size_t)];
+	off_t	offset;	char offset_[PAD_(off_t)];
+};
+struct	pwrite_args {
+	int	fd;	char fd_[PAD_(int)];
+	const void *	buf;	char buf_[PAD_(const void *)];
+	size_t	nbyte;	char nbyte_[PAD_(size_t)];
+	off_t	offset;	char offset_[PAD_(off_t)];
+};
 struct	ntp_adjtime_args {
 	struct timex *	tp;	char tp_[PAD_(struct timex *)];
 };
@@ -1014,6 +1026,8 @@ int	rtprio __P((struct proc *, struct rtprio_args *));
 int	semsys __P((struct proc *, struct semsys_args *));
 int	msgsys __P((struct proc *, struct msgsys_args *));
 int	shmsys __P((struct proc *, struct shmsys_args *));
+int	pread __P((struct proc *, struct pread_args *));
+int	pwrite __P((struct proc *, struct pwrite_args *));
 int	ntp_adjtime __P((struct proc *, struct ntp_adjtime_args *));
 int	setgid __P((struct proc *, struct setgid_args *));
 int	setegid __P((struct proc *, struct setegid_args *));
