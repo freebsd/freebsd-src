@@ -138,6 +138,10 @@ cat >${TOP}/dev/${1}/${1}.c <<DONE
  * \$${RCS_KEYWORD}: $
  */
 
+/*
+ * http://www.daemonnews.org/200008/isa.html is required reading.
+ * hopefully it will make it's way into the handbook.
+ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -222,6 +226,7 @@ struct ${1}_softc {
 	device_t device;
 	dev_t dev;
 	void	*intr_cookie;
+	void	*vaddr;			/* Virtual address of mem resource */
 	char	buffer[BUFFERSIZE];	/* if we needed to buffer something */
 } ;
 
@@ -230,9 +235,9 @@ typedef	struct ${1}_softc *sc_p;
 static devclass_t ${1}_devclass;
 
 static struct isa_pnp_id ${1}_ids[] = {
-	{0x12345678, "ABCco Widget"},
-	{0xfedcba98, "shining moon Widget ripoff"},
-	{0}
+	{0x12345678,	"ABCco Widget"},
+	{0xfedcba98,	"shining moon Widget ripoff"},
+	{0,		NULL}
 };
 
 static device_method_t ${1}_methods[] = {
@@ -268,11 +273,34 @@ static struct localhints {
 
 #define MAXHINTS 10 /* just an arbitrary safty limit */
 /*
- * Called once when the driver is somehow connected with the bus.
- * Addentries into the bus's list of likely devices, so that
+ * Called once when the driver is somehow connected with the bus,
+ * (Either linked in and the bus is started, or loaded as a module).
+ *
+ * The aim of this routine in an ISA driver is to add child entries to
+ * the parent bus so that it looks as if the devices were detected by
+ * some pnp-like method, or at least mentionned in the hints.
+ *
+ * For NON-PNP "dumb" devices:
+ * Add entries into the bus's list of likely devices, so that
  * our 'probe routine' will be called for them.
  * This is similar to what the 'hints' code achieves, except this is
  * loadable with the driver.
+ * In the 'dumb' case we end up with more children than needed but
+ * some (or all) of them will fail probe() and only waste a little memory.
+ *
+ * For NON-PNP "Smart" devices:
+ * If the device has a NON-PNP way of being detected and setting/sensing
+ * the card, then do that here and add a child for each set of
+ * hardware found. 
+ *
+ * For PNP devices:
+ * If the device is always PNP capable then this function can be removed.
+ *
+ * If the device is mentionned in the 'hints' file then this
+ * function can be removed. All devices mentionned in the hints
+ * file get added as children for probing, whether or not the
+ * driver is linked in. So even as a module it MAY still be there.
+ * See isa/isahint.c for hints being added in.
  */
 static void
 ${1}_isa_identify (driver_t *driver, device_t parent)
@@ -285,6 +313,7 @@ ${1}_isa_identify (driver_t *driver, device_t parent)
 
 	/*
 	 * If we've already got ${UPPER} attached somehow, don't try again.
+	 * Maybe it was in the hints file. or it was loaded before.
 	 */
 	if (device_find_child(parent, "${1}", 0)) {
 		printf("${UPPER}: already attached\n");
@@ -304,26 +333,34 @@ ${1}_isa_identify (driver_t *driver, device_t parent)
 		bus_set_resource(child, SYS_RES_DRQ,	0, res[i].drq, 1);
 		bus_set_resource(child, SYS_RES_MEMORY,	0, res[i].mem, MEMSIZE);
 
+
 #if 0
 		/*
 		 * If we wanted to pretend PNP found it
 		 * we could do this, and put matching entries
 		 * in the PNP table, but I think it's probably too hacky.
 		 * As you see, some people have done it though.
+		 * Basically EISA (remember that?) would do this I think
 		 */
 		isa_set_vendorid(child, PNP_EISAID("ESS1888"));
 		isa_set_logicalid(child, PNP_EISAID("ESS1888"));
 #endif
-		/* see isa/isahint.c for hints being added in */
-
-
 	}
+#if 0
+	Do some smart probing (e.g. like the lnc driver)
+	and add a child for each one found.
+#endif
 
 	return;
 }
 /*
  * The ISA code calls this for each device it knows about,
  * whether via the PNP code or via the hints etc.
+ * If the device nas no PNP capabilities, remove all the 
+ * PNP entries, but keep the call to ISA_PNP_PROBE()
+ * As it will guard against accidentally recognising
+ * foreign hardware. This is because we will be called to check against
+ * ALL PNP hardware.
  */
 static int
 ${1}_isa_probe (device_t device)
@@ -352,19 +389,6 @@ ${1}_isa_probe (device_t device)
 		 * We found a PNP device.
 		 * Do nothing, as it's all done in attach()
 		 */
-	        /*
-		 * If we don't have the resources we need then
-		 * we need to abort.
-		 * Possibly this indicates the device was already found
-		 * in a PCI or 'hints' based probe.
-		 * (remove any that do not apply to 'foo' devices)
-		 */
-		if ((bus_get_resource_start(device, SYS_RES_IOPORT, 0) == 0)
-		||  (bus_get_resource_start(device, SYS_RES_MEMORY, 0) == 0)
-		||  (bus_get_resource_start(device, SYS_RES_DRQ, 0) == 0)
-		||  (bus_get_resource_start(device, SYS_RES_IRQ, 0) == 0)) {
-			    return (ENOENT);
-		 }
 		break;
 	case ENOENT:
 		/*
@@ -375,57 +399,80 @@ ${1}_isa_probe (device_t device)
 		 * Hopefully the  'identify' routine will have picked these
 		 * up for us first.
 		 *
-		 * I think the ports etc should come from a 'hints' section
-		 * buried somewhere. XXX - still not figured out.
+		 * The ports etc should come from a 'hints' section
 		 * which is read in by code in isa/isahint.c
-		 * and kern/subr_bus.c to create resource entries.
-		 * Somehow we can get to those resource entries
-		 * from the device_t but I don't know how yet.
-		 * (looks like the 'identify' routine can do this)
+		 * and kern/subr_bus.c to create resource entries,
+		 * or have been added by the 'identify routine above.
+		 *
+		 * First make a temporary resource reservation.
+		 * If we can't get the resources we need then
+		 * we need to abort.  Possibly this indicates
+		 * the resources were used by another device.
 		 */
-	        /*
-		 * If we don't have the resources we need then
-		 * we need to abort.
-		 * Possibly this indicates the device was already found
-		 * in a PCI or 'hints' based probe.
-		 * Maybe it was mistakenly mentionned twice in the
-		 * hints or 'indentify' code.
-		 * (remove any that do not apply to 'foo' devices)
-		 */
-		if ((bus_get_resource_start(device, SYS_RES_IOPORT, 0) == 0)
-		||  (bus_get_resource_start(device, SYS_RES_MEMORY, 0) == 0)
-		||  (bus_get_resource_start(device, SYS_RES_DRQ, 0) == 0)
-		||  (bus_get_resource_start(device, SYS_RES_IRQ, 0) == 0)) {
-			    return (error);
+		if ((error = (${1}_allocate_resources(device)))) {
+			error = ENXIO;
+			goto errexit;
 		}
 
-		 error = bus_get_resource(device, SYS_RES_IOPORT, 0,
+		/*
+		 * find out the values of any resources we
+		 * need for our dumb probe.
+		 */
+		error = bus_get_resource(device, SYS_RES_IOPORT, 0,
 			&port_start, &port_count);
 
 
-		if ( ${UPPER}_INB(SOME_PORT) != EXPECTED_VALUE) {
+		/* dummy heuristic type probe */
+		if ( inb(port_start) != EXPECTED_VALUE) {
 			/* 
 			 * It isn't what we hoped, so quit looking for it.
 			 */
 			error = ENXIO;
 		} else {
+			u_long membase = bus_get_resource_start(device,
+					SYS_RES_MEMORY, 0 /*rid*/);
+			u_long memsize;
+			/*
+			 * If we discover in some way that the device has
+			 * XXX bytes of memory window, we can override
+			 * or set the memory size in the child resource list.
+			 */
+			memsize = inb(port_start + 1) * 1024; /* for example */
+			error = bus_set_resource(device, SYS_RES_MEMORY,
+				/*rid*/0, membase, memsize);
 			/*
 			 * We found one..
+			 * Return -2 if we would LIKE the device
+			 * Return -1 if we want it a lot
+			 * Return 0 if we MUST get the device
+			 * This allows drivers to 'bid' for a device.
 			 */
-			error = 0;
+			device_set_desc(device, "ACME Widget model 1234");
+			error = 0; /* we really want it */
 		}
+		/*
+		 * Unreserve the resources for now because
+		 * another driver may bid for device too.
+		 * If we lose the bid, but still hold the resouces, we will
+		 * effectively have diabled the other driver from getting them
+		 * which will result in neither driver getting the device.
+		 * We will ask for them again in attach if we win.
+		 */
+		${1}_deallocate_resources(device);
 		break;
 	case  ENXIO:
-		/* not ours, leave imediatly */
+		/* It was PNP but not ours, leave imediatly */
 	default:
 		error = ENXIO;
 	}
+errexit:
 	return (error);
 }
 
 /*
- * Called if the probe succeeded.
+ * Called if the probe succeeded and our bid won the device.
  * We can be destructive here as we know we have the device.
+ * This is the first place we can be sure we have a softc structure.
  */
 static int
 ${1}_isa_attach (device_t device)
@@ -433,8 +480,6 @@ ${1}_isa_attach (device_t device)
 	int	unit	= device_get_unit(device);
 	sc_p	scp	= device_get_softc(device);
 	device_t parent	= device_get_parent(device);
-	bus_space_handle_t  bh;
-	bus_space_tag_t bt;
 
 	scp->dev->si_drv1 = scp;
 	scp->dev = make_dev(&${1}_cdevsw, 0,
@@ -444,10 +489,20 @@ ${1}_isa_attach (device_t device)
 		goto errexit;
 	}
 
-	scp->bt = bt = rman_get_bustag(scp->res_ioport);
-	scp->bh = bh = rman_get_bushandle(scp->res_ioport);
+	scp->bt = rman_get_bustag(scp->res_ioport);
+	scp->bh = rman_get_bushandle(scp->res_ioport);
 
 	/* register the interrupt handler */
+	/*
+	 * The type should be one of:
+	 *	INTR_TYPE_TTY
+	 *	(INTR_TYPE_TTY | INTR_TYPE_FAST) 
+	 *	INTR_TYPE_BIO 
+	 *	INTR_TYPE_CAM 
+	 *	INTR_TYPE_NET 
+	 *	INTR_TYPE_MISC 
+	 * This will probably change with SMPng.
+	 */
 	if (scp->res_irq) {
 		/* default to the tty mask for registration */  /* XXX */
 		if (BUS_SETUP_INTR(parent, device, scp->res_irq, INTR_TYPE_TTY,
@@ -455,6 +510,12 @@ ${1}_isa_attach (device_t device)
 			/* do something if successfull */
 		}
 	}
+
+	/*
+	 * If we want to access the memory we will need
+	 * to know where it was mapped.
+	 */
+	scp->vaddr = rman_get_virtual(scp->res_memory);
 	return 0;
 
 errexit:
@@ -495,6 +556,7 @@ ${1}_isa_detach (device_t device)
 	 * deallocate any system resources we may have
 	 * allocated on behalf of this driver.
 	 */
+	scp->vaddr = NULL;
 	return ${1}_deallocate_resources(device);
 }
 
@@ -512,7 +574,7 @@ ${1}_allocate_resources(device_t device)
 	}
 
 	scp->res_irq = bus_alloc_resource(device, SYS_RES_IRQ,
-			&scp->rid_irq, 0ul, ~0ul, 1, RF_SHAREABLE);
+			&scp->rid_irq, 0ul, ~0ul, 1, RF_SHAREABLE|RF_ACTIVE);
 	if (scp->res_irq == NULL) {
 		goto errexit;
 	}
@@ -528,7 +590,6 @@ ${1}_allocate_resources(device_t device)
 	if (scp->res_memory == NULL) {
 		goto errexit;
 	}
-
 	return (0);
 
 errexit:
