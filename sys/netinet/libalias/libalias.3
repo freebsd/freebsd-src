@@ -376,6 +376,14 @@ is called to change the address after
 .Fn PacketAliasRedirectPort
 is called, a zero reference will track this change.
 .Pp
+If the link is further set up to operate for a load sharing, then
+.Fa local_addr
+and
+.Fa local_port
+are ignored, and are selected dynamically from the server pool, as described in
+.Fn PacketAliasAddServer
+below.
+.Pp
 If
 .Fa remote_addr
 is zero, this indicates to redirect packets from any remote address.
@@ -434,6 +442,12 @@ is called to change the address after
 .Fn PacketAliasRedirectAddr
 is called, a zero reference will track this change.
 .Pp
+If the link is further set up to operate for a load sharing, then
+.Fa local_addr
+is ignored, and is selected dynamically from the server pool, as described in
+.Fn PacketAliasAddServer
+below.
+.Pp
 If subsequent calls to
 .Fn PacketAliasRedirectAddr
 use the same aliasing address, all new incoming traffic to this aliasing
@@ -469,6 +483,52 @@ This function returns a pointer which can subsequently be used by
 If
 .Dv NULL
 is returned, then the function call did not complete successfully.
+.Ed
+.Pp
+.Ft int
+.Fo PacketAliasAddServer
+.Fa "struct alias_link *link"
+.Fa "struct in_addr addr"
+.Fa "u_short port"
+.Fc
+.Bd -ragged -offset indent
+This function sets the
+.Fa link
+up for Load Sharing using IP Network Address Translation (RFC 2391, LSNAT).
+LSNAT operates as follows.
+A client attempts to access a server by using the server virtual address.
+The LSNAT router transparently redirects the request to one of the hosts
+in server pool, selected using a real-time load sharing algorithm.
+Multiple sessions may be initiated from the same client, and each session
+could be directed to a different host based on load balance across server
+pool hosts at the time.
+If load share is desired for just a few specific services, the configuration
+on LSNAT could be defined to restrict load share for just the services
+desired.
+.Pp
+Currently, only the simplest selection algorithm is implemented, where a
+host is selected on a round-robin basis only, without regard to load on
+the host.
+.Pp
+First, the
+.Fa link
+is created by either
+.Fn PacketAliasRedirectPort
+or
+.Fn PacketAliasRedirectAddr .
+Then,
+.Fn PacketAliasAddServer
+is called multiple times to add entries to the
+.Fa link Ns 's
+server pool.
+.Pp
+For links created with
+.Fn PacketAliasRedirectAddr ,
+the
+.Fa port
+argument is ignored and could have any value, e.g. htons(~0).
+.Pp
+This function returns 0 on success, -1 otherwise.
 .Ed
 .Pp
 .Ft void
