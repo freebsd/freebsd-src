@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.67 1998/01/10 14:54:05 phk Exp $
+ * $Id: systm.h,v 1.68 1998/01/14 20:48:01 phk Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -180,11 +180,13 @@ void		setsoftclock(void);
 void		setsoftnet(void);
 void		setsoftcambio(void);
 void		setsoftcamnet(void);
+void		setsoftvm(void);
 void		setsofttty(void);
 void		schedsoftnet(void);
 void		schedsofttty(void);
 void		schedsoftcamnet(void);
 void		schedsoftcambio(void);
+void		schedsoftvm(void);
 void		spl0(void);
 intrmask_t	softclockpending(void);
 intrmask_t	splbio(void);
@@ -201,6 +203,7 @@ intrmask_t	splsoftcambio(void);
 intrmask_t	splsoftcamnet(void);
 intrmask_t	splsoftclock(void);
 intrmask_t	splsofttty(void);
+intrmask_t	splsoftvm(void);
 intrmask_t	splstatclock(void);
 intrmask_t	spltty(void);
 intrmask_t	splvm(void);
