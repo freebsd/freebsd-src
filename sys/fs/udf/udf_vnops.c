@@ -186,11 +186,11 @@ static mode_t
 udf_permtomode(struct udf_node *node)
 {
 	uint32_t perm;
-	uint32_t flags;
+	uint16_t flags;
 	mode_t mode;
 
-	perm = node->fentry->perm;
-	flags = node->fentry->icbtag.flags;
+	perm = le32toh(node->fentry->perm);
+	flags = le16toh(node->fentry->icbtag.flags);
 
 	mode = perm & UDF_FENTRY_PERM_USER_MASK;
 	mode |= ((perm & UDF_FENTRY_PERM_GRP_MASK) >> 2);
@@ -256,7 +256,7 @@ udf_isaleapyear(int year)
 static void
 udf_timetotimespec(struct timestamp *time, struct timespec *t)
 {
-	int i, lpyear, daysinyear;
+	int i, lpyear, daysinyear, year;
 	union {
 		uint16_t	u_tz_offset;
 		int16_t		s_tz_offset;
@@ -265,7 +265,8 @@ udf_timetotimespec(struct timestamp *time, struct timespec *t)
 	t->tv_nsec = 0;
 
 	/* DirectCD seems to like using bogus year values */
-	if (time->year < 1970) {
+	year = le16toh(time->year);
+	if (year < 1970) {
 		t->tv_sec = 0;
 		return;
 	}
@@ -277,18 +278,18 @@ udf_timetotimespec(struct timestamp *time, struct timespec *t)
 	t->tv_sec += time->day * 3600 * 24;
 
 	/* Calclulate the month */
-	lpyear = udf_isaleapyear(time->year);
+	lpyear = udf_isaleapyear(year);
 	for (i = 1; i < time->month; i++)
 		t->tv_sec += mon_lens[lpyear][i] * 3600 * 24;
 
 	/* Speed up the calculation */
-	if (time->year > 1979)
+	if (year > 1979)
 		t->tv_sec += 315532800;
-	if (time->year > 1989)
+	if (year > 1989)
 		t->tv_sec += 315619200;
-	if (time->year > 1999)
+	if (year > 1999)
 		t->tv_sec += 315532800;
-	for (i = 2000; i < time->year; i++) {
+	for (i = 2000; i < year; i++) {
 		daysinyear = udf_isaleapyear(i) + 365 ;
 		t->tv_sec += daysinyear * 3600 * 24;
 	}
@@ -297,7 +298,7 @@ udf_timetotimespec(struct timestamp *time, struct timespec *t)
 	 * Calculate the time zone.  The timezone is 12 bit signed 2's
 	 * compliment, so we gotta do some extra magic to handle it right.
 	 */
-	tz.u_tz_offset = time->type_tz;
+	tz.u_tz_offset = le16toh(time->type_tz);
 	tz.u_tz_offset &= 0x0fff;
 	if (tz.u_tz_offset & 0x0800)
 		tz.u_tz_offset |= 0xf000;	/* extend the sign to 16 bits */
@@ -326,13 +327,13 @@ udf_getattr(struct vop_getattr_args *a)
 	vap->va_fsid = dev2udev(node->i_dev);
 	vap->va_fileid = node->hash_id;
 	vap->va_mode = udf_permtomode(node);
-	vap->va_nlink = fentry->link_cnt;
+	vap->va_nlink = le16toh(fentry->link_cnt);
 	/*
 	 * XXX The spec says that -1 is valid for uid/gid and indicates an
 	 * invalid uid/gid.  How should this be represented?
 	 */
-	vap->va_uid = (fentry->uid == -1) ? 0 : fentry->uid;
-	vap->va_gid = (fentry->gid == -1) ? 0 : fentry->gid;
+	vap->va_uid = (le32toh(fentry->uid) == -1) ? 0 : le32toh(fentry->uid);
+	vap->va_gid = (le32toh(fentry->gid) == -1) ? 0 : le32toh(fentry->gid);
 	udf_timetotimespec(&fentry->atime, &vap->va_atime);
 	udf_timetotimespec(&fentry->mtime, &vap->va_mtime);
 	vap->va_ctime = vap->va_mtime; /* XXX Stored as an Extended Attribute */
@@ -345,24 +346,25 @@ udf_getattr(struct vop_getattr_args *a)
 		 * make it appear so.
 		 */
 		if (fentry->logblks_rec != 0) {
-			vap->va_size = fentry->logblks_rec * node->udfmp->bsize;
+			vap->va_size =
+			    le64toh(fentry->logblks_rec) * node->udfmp->bsize;
 		} else {
 			vap->va_size = node->udfmp->bsize;
 		}
 	} else {
-		vap->va_size = fentry->inf_len;
+		vap->va_size = le64toh(fentry->inf_len);
 	}
 	vap->va_flags = 0;
 	vap->va_gen = 1;
 	vap->va_blocksize = node->udfmp->bsize;
-	vap->va_bytes = fentry->inf_len;
+	vap->va_bytes = le64toh(fentry->inf_len);
 	vap->va_type = vp->v_type;
 	vap->va_filerev = 0; /* XXX */
 	return (0);
 }
 
 /*
- * File specific ioctls.  DeCSS candidate?
+ * File specific ioctls.
  */
 static int
 udf_ioctl(struct vop_ioctl_args *a)
@@ -411,7 +413,7 @@ udf_read(struct vop_read_args *a)
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 
-	fsize = node->fentry->inf_len;
+	fsize = le64toh(node->fentry->inf_len);
 
 	while (uio->uio_offset < fsize && uio->uio_resid > 0) {
 		offset = uio->uio_offset;
@@ -602,7 +604,7 @@ udf_getfid(struct udf_dirstream *ds)
 	 * looking for the l_iu and l_fi fields.
 	 */
 	if (ds->off + UDF_FID_SIZE > ds->size ||
-	    ds->off + fid->l_iu + fid->l_fi + UDF_FID_SIZE > ds->size) {
+	    ds->off + le16toh(fid->l_iu) + fid->l_fi + UDF_FID_SIZE > ds->size){
 
 		/* Copy what we have of the fid into a buffer */
 		frag_size = ds->size - ds->off;
@@ -649,7 +651,7 @@ udf_getfid(struct udf_dirstream *ds)
 		 * copy in the rest of the fid from the new
 		 * allocation.
 		 */
-		total_fid_size = UDF_FID_SIZE + fid->l_iu + fid->l_fi;
+		total_fid_size = UDF_FID_SIZE + le16toh(fid->l_iu) + fid->l_fi;
 		if (total_fid_size > ds->udfmp->bsize) {
 			printf("udf: invalid FID\n");
 			ds->error = EIO;
@@ -660,7 +662,7 @@ udf_getfid(struct udf_dirstream *ds)
 
 		ds->fid_fragment = 1;
 	} else {
-		total_fid_size = fid->l_iu + fid->l_fi + UDF_FID_SIZE;
+		total_fid_size = le16toh(fid->l_iu) + fid->l_fi + UDF_FID_SIZE;
 	}
 
 	/*
@@ -733,7 +735,7 @@ udf_readdir(struct vop_readdir_args *a)
 	 * Iterate through the file id descriptors.  Give the parent dir
 	 * entry special attention.
 	 */
-	ds = udf_opendir(node, uio->uio_offset, node->fentry->inf_len,
+	ds = udf_opendir(node, uio->uio_offset, le64toh(node->fentry->inf_len),
 	    node->udfmp);
 
 	while ((fid = udf_getfid(ds)) != NULL) {
@@ -918,7 +920,7 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	flags = a->a_cnp->cn_flags;
 	nameptr = a->a_cnp->cn_nameptr;
 	namelen = a->a_cnp->cn_namelen;
-	fsize = node->fentry->inf_len;
+	fsize = le64toh(node->fentry->inf_len);
 	td = a->a_cnp->cn_thread;
 
 	/*
@@ -1077,8 +1079,8 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
 		 * allocation descriptor field of the file entry.
 		 */
 		fentry = node->fentry;
-		*data = &fentry->data[fentry->l_ea];
-		*size = fentry->l_ad;
+		*data = &fentry->data[le32toh(fentry->l_ea)];
+		*size = le32toh(fentry->l_ad);
 		return (0);
 	} else if (error != 0) {
 		return (error);
@@ -1120,7 +1122,7 @@ udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint3
 	fentry = node->fentry;
 	tag = &fentry->icbtag;
 
-	switch (tag->strat_type) {
+	switch (le16toh(tag->strat_type)) {
 	case 4:
 		break;
 
@@ -1133,7 +1135,7 @@ udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint3
 		return (ENODEV);
 	}
 
-	switch (tag->flags & 0x7) {
+	switch (le16toh(tag->flags) & 0x7) {
 	case 0:
 		/*
 		 * The allocation descriptor field is filled with short_ad's.
@@ -1143,11 +1145,12 @@ udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint3
 		do {
 			offset -= icblen;
 			ad_offset = sizeof(struct short_ad) * ad_num;
-			if (ad_offset > fentry->l_ad) {
+			if (ad_offset > le32toh(fentry->l_ad)) {
 				printf("File offset out of bounds\n");
 				return (EINVAL);
 			}
-			icb = GETICB(long_ad, fentry, fentry->l_ea + ad_offset);
+			icb = GETICB(long_ad, fentry,
+			    le32toh(fentry->l_ea) + ad_offset);
 			icblen = GETICBLEN(short_ad, icb);
 			ad_num++;
 		} while(offset >= icblen);
@@ -1167,17 +1170,18 @@ udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint3
 		do {
 			offset -= icblen;
 			ad_offset = sizeof(struct long_ad) * ad_num;
-			if (ad_offset > fentry->l_ad) {
+			if (ad_offset > le32toh(fentry->l_ad)) {
 				printf("File offset out of bounds\n");
 				return (EINVAL);
 			}
-			icb = GETICB(long_ad, fentry, fentry->l_ea + ad_offset);
+			icb = GETICB(long_ad, fentry,
+			    le32toh(fentry->l_ea) + ad_offset);
 			icblen = GETICBLEN(long_ad, icb);
 			ad_num++;
 		} while(offset >= icblen);
 
 		lsector = (offset >> udfmp->bshift) +
-		    ((struct long_ad *)(icb))->loc.lb_num;
+		    le32toh(((struct long_ad *)(icb))->loc.lb_num);
 
 		*max_size = GETICBLEN(long_ad, icb);
 
@@ -1207,9 +1211,11 @@ udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint3
 	 */
 	if (udfmp->s_table != NULL) {
 		for (i = 0; i< udfmp->s_table_entries; i++) {
-			p_offset = lsector - udfmp->s_table->entries[i].org;
+			p_offset =
+			    lsector - le32toh(udfmp->s_table->entries[i].org);
 			if ((p_offset < udfmp->p_sectors) && (p_offset >= 0)) {
-				*sector = udfmp->s_table->entries[i].map +
+				*sector =
+				   le32toh(udfmp->s_table->entries[i].map) +
 				    p_offset;
 				break;
 			}
