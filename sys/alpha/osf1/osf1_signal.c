@@ -672,6 +672,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_regs[FRAME_A1] = code;
 	frame->tf_regs[FRAME_A2] = (u_int64_t)sip;
 	frame->tf_regs[FRAME_A3]  = (u_int64_t)catcher;		/* a3 is pv */
+	frame->tf_regs[FRAME_FLAGS] = 0;   	/* full restore */
 	alpha_pal_wrusp((unsigned long)sip);
 }
 
@@ -726,6 +727,7 @@ osf1_sigreturn(struct proc *p,
 	p->p_md.md_tf->tf_regs[FRAME_PC] = ksc.sc_pc;
 	p->p_md.md_tf->tf_regs[FRAME_PS] =
 	    (ksc.sc_ps | ALPHA_PSL_USERSET) & ~ALPHA_PSL_USERCLR;
+	p->p_md.md_tf->tf_regs[FRAME_FLAGS] = 0; /* full restore */
 
 	alpha_pal_wrusp(ksc.sc_regs[R_SP]);
 
