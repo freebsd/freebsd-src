@@ -2505,13 +2505,14 @@ tn(argc, argv)
 	    goto fail;
     }
     res0 = res;
+ af_again:
     if (srcroute != 0) {
         char hostbuf[BUFSIZ];
 
-	strncpy(hostbuf, hostp, BUFSIZ - 1);
-	hostbuf[BUFSIZ - 1] = '\0';
-    af_again:
-	if (af_error != 0)
+	if (af_error == 0) { /* save intermediate hostnames for retry */
+		strncpy(hostbuf, hostp, BUFSIZ - 1);
+		hostbuf[BUFSIZ - 1] = '\0';
+	} else
 		hostp = hostbuf;
 	srp = 0;
 	result = sourceroute(res, hostp, &srp, &srlen, &proto, &opt);
@@ -2571,8 +2572,8 @@ tn(argc, argv)
 
 	if (src_addr != NULL) {
 	    for (src_res = src_res0; src_res != 0; src_res = src_res->ai_next)
-	        if (src_res->ai_family != res->ai_family)
-		    continue;
+	        if (src_res->ai_family == res->ai_family)
+		    break;
 	    if (src_res == NULL)
 		src_res = src_res0;
 	    if (bind(net, src_res->ai_addr, src_res->ai_addrlen) == -1) {
@@ -2580,18 +2581,24 @@ tn(argc, argv)
 	        if (family == AF_UNSPEC && af_error == 0 &&
 		    switch_af(&res) == 1) {
 		    af_error = 1;
+		    (void) NetClose(net);
 		    goto af_again;
 		}
 #endif
 		perror("bind");
+		(void) NetClose(net);
 		goto fail;
 	    }
 	}
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
-	if (setpolicy(net, res, ipsec_policy_in) < 0)
+	if (setpolicy(net, res, ipsec_policy_in) < 0) {
+		(void) NetClose(net);
 		goto fail;
-	if (setpolicy(net, res, ipsec_policy_out) < 0)
+	}
+	if (setpolicy(net, res, ipsec_policy_out) < 0) {
+		(void) NetClose(net);
 		goto fail;
+	}
 #endif
 
 	if (connect(net, res->ai_addr, res->ai_addrlen) < 0) {
@@ -2614,6 +2621,7 @@ tn(argc, argv)
 		continue;
 	    }
 	    perror("telnet: Unable to connect to remote host");
+	    (void) NetClose(net);
 	    goto fail;
 	}
 	connected++;
