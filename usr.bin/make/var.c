@@ -135,7 +135,7 @@ static void VarPossiblyExpand(char **, GNode *);
 static Var *VarFind(char *, GNode *, int);
 static void VarAdd(char *, char *, GNode *);
 static void VarDelete(void *);
-static char *VarGetPattern(GNode *, int, char **, int, int *, int *,
+static char *VarGetPattern(GNode *, int, char **, int, int *, size_t *,
 			   VarPattern *);
 static char *VarModify(char *,
 		       Boolean (*)(const char *, Boolean, Buffer, void *),
@@ -482,7 +482,7 @@ Var_Append(char *name, char *val, GNode *ctxt)
 	Buf_AddBytes(v->val, strlen(val), (Byte *)val);
 
 	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, name,
-	       (char *)Buf_GetAll(v->val, (int *)NULL)));
+	       (char *)Buf_GetAll(v->val, (size_t *)NULL)));
 
 	if (v->flags & VAR_FROM_ENV) {
 	    /*
@@ -552,7 +552,7 @@ Var_Value(char *name, GNode *ctxt, char **frp)
     free(name);
     *frp = NULL;
     if (v != NULL) {
-	char *p = (char *)Buf_GetAll(v->val, (int *)NULL);
+	char *p = (char *)Buf_GetAll(v->val, (size_t *)NULL);
 
 	if (v->flags & VAR_FROM_ENV) {
 	    Buf_Destroy(v->val, FALSE);
@@ -600,7 +600,7 @@ VarModify(char *str, Boolean (*modProc)(const char *, Boolean, Buffer, void *),
 	addSpace = (*modProc)(av[i], addSpace, buf, datum);
 
     Buf_AddByte (buf, '\0');
-    str = (char *)Buf_GetAll(buf, (int *)NULL);
+    str = (char *)Buf_GetAll(buf, (size_t *)NULL);
     Buf_Destroy(buf, FALSE);
     return (str);
 }
@@ -636,7 +636,7 @@ VarSortWords(char *str, int (*cmp)(const void *, const void *))
 		Buf_AddBytes(buf, strlen(av[i]), (Byte *)av[i]);
 		Buf_AddByte(buf, (Byte)((i < ac - 1) ? ' ' : '\0'));
 	}
-	str = (char *)Buf_GetAll(buf, (int *)NULL);
+	str = (char *)Buf_GetAll(buf, (size_t *)NULL);
 	Buf_Destroy(buf, FALSE);
 	return (str);
 }
@@ -672,11 +672,11 @@ SortIncreasing(const void *l, const void *r)
  */
 static char *
 VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
-    int *length, VarPattern *pattern)
+    size_t *length, VarPattern *pattern)
 {
     char *cp;
     Buffer buf = Buf_Init(0);
-    int junk;
+    size_t junk;
 
     if (length == NULL)
 	length = &junk;
@@ -708,7 +708,7 @@ VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
 	    } else {
 		if (flags == NULL || (*flags & VAR_NOSUBST) == 0) {
 		    char   *cp2;
-		    int	    len;
+		    size_t len;
 		    Boolean freeIt;
 
 		    /*
@@ -851,7 +851,8 @@ VarREError(int err, regex_t *pat, const char *str)
  *-----------------------------------------------------------------------
  */
 char *
-Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
+Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
+    Boolean *freePtr)
 {
     char	    *tstr;    	/* Pointer into str */
     Var	    	    *v;	    	/* Variable in invocation */
@@ -941,7 +942,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 	 */
 	for (tstr = str + 2; *tstr != '\0' && *tstr != endc && *tstr != ':'; tstr++)
 		if (*tstr == '$') {
-			int	rlen;
+			size_t rlen;
 			Boolean	rfree;
 			char*	rval = Var_Parse(tstr, ctxt, err, &rlen, &rfree);
 
@@ -970,7 +971,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 	*tstr = '\0';
 
 	Buf_AddByte(buf, (Byte)'\0');
-	str = Buf_GetAll(buf, (int *)NULL);
+	str = Buf_GetAll(buf, (size_t *)NULL);
 	vlen = strlen(str);
 
 	v = VarFind(str, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
@@ -1005,7 +1006,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 			 * the only one who sets these things and we sure don't
 			 * put nested invocations in them...
 			 */
-			val = (char *)Buf_GetAll(v->val, (int *)NULL);
+			val = (char *)Buf_GetAll(v->val, (size_t *)NULL);
 
 			if (str[1] == 'D') {
 			    val = VarModify(val, VarHead, (void *)NULL);
@@ -1116,7 +1117,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
      * been dynamically-allocated, so it will need freeing when we
      * return.
      */
-    str = (char *)Buf_GetAll(v->val, (int *)NULL);
+    str = (char *)Buf_GetAll(v->val, (size_t *)NULL);
     if (strchr(str, '$') != (char *)NULL) {
 	str = Var_Subst(NULL, str, ctxt, err);
 	*freePtr = TRUE;
@@ -1252,7 +1253,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 				 * substitution and recurse.
 				 */
 				char	    *cp2;
-				int	    len;
+				size_t len;
 				Boolean	    freeIt;
 
 				cp2 = Var_Parse(cp, ctxt, err, &len, &freeIt);
@@ -1316,7 +1317,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 			    cp++;
 			} else if ((*cp == '$') && (cp[1] != del)) {
 			    char    *cp2;
-			    int	    len;
+			    size_t len;
 			    Boolean freeIt;
 
 			    cp2 = Var_Parse(cp, ctxt, err, &len, &freeIt);
@@ -1463,7 +1464,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 			    Buf_AddByte(buf, (Byte)tolower(*cp));
 
 			Buf_AddByte(buf, (Byte)'\0');
-			newStr = (char *)Buf_GetAll(buf, (int *)NULL);
+			newStr = (char *)Buf_GetAll(buf, (size_t *)NULL);
 			Buf_Destroy(buf, FALSE);
 
 			cp = tstr + 1;
@@ -1503,7 +1504,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 			    Buf_AddByte(buf, (Byte)toupper(*cp));
 
 			Buf_AddByte(buf, (Byte)'\0');
-			newStr = (char *)Buf_GetAll(buf, (int *)NULL);
+			newStr = (char *)Buf_GetAll(buf, (size_t *)NULL);
 			Buf_Destroy(buf, FALSE);
 
 			cp = tstr + 1;
@@ -1669,7 +1670,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
     if (v->flags & VAR_FROM_ENV) {
 	Boolean	  destroy = FALSE;
 
-	if (str != (char *)Buf_GetAll(v->val, (int *)NULL)) {
+	if (str != (char *)Buf_GetAll(v->val, (size_t *)NULL)) {
 	    destroy = TRUE;
 	} else {
 	    /*
@@ -1724,7 +1725,7 @@ Var_Subst(char *var, char *str, GNode *ctxt, Boolean undefErr)
 {
     Buffer  	  buf;	    	    /* Buffer for forming things */
     char    	  *val;		    /* Value to substitute for a variable */
-    int	    	  length;   	    /* Length of the variable invocation */
+    size_t	  length;   	    /* Length of the variable invocation */
     Boolean 	  doFree;   	    /* Set true if val should be freed */
     static Boolean errorReported;   /* Set true if an error has already
 				     * been reported to prevent a plethora
@@ -1862,7 +1863,7 @@ Var_Subst(char *var, char *str, GNode *ctxt, Boolean undefErr)
     }
 
     Buf_AddByte(buf, '\0');
-    str = (char *)Buf_GetAll(buf, (int *)NULL);
+    str = (char *)Buf_GetAll(buf, (size_t *)NULL);
     Buf_Destroy(buf, FALSE);
     return (str);
 }
@@ -1946,7 +1947,7 @@ VarPrintVar(void *vp, void *dummy __unused)
 {
     Var    *v = (Var *) vp;
 
-    printf("%-16s = %s\n", v->name, (char *)Buf_GetAll(v->val, (int *)NULL));
+    printf("%-16s = %s\n", v->name, (char *)Buf_GetAll(v->val, (size_t *)NULL));
     return (0);
 }
 

@@ -114,7 +114,7 @@ For_Eval(char *line)
 
     if (forLevel == 0) {
 	Buffer	    buf;
-	int	    varlen;
+	size_t varlen;
 
 	for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
 	    continue;
@@ -248,7 +248,7 @@ ForExec(void *namep, void *argp)
 {
     char *name = namep;
     For *arg = argp;
-    int len;
+    size_t len;
 
     Var_Set(arg->var, name, VAR_GLOBAL);
     DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));

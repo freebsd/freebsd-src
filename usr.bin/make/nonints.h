@@ -137,7 +137,7 @@ void Var_Append(char *, char *, GNode *);
 Boolean Var_Exists(char *, GNode *);
 char *Var_Value(char *, GNode *, char **);
 char *Var_Quote(const char *);
-char *Var_Parse(char *, GNode *, Boolean, int *, Boolean *);
+char *Var_Parse(char *, GNode *, Boolean, size_t *, Boolean *);
 char *Var_Subst(char *, char *, GNode *, Boolean);
 char *Var_GetTail(char *);
 char *Var_GetHead(char *);

@@ -195,7 +195,7 @@ Arch_ParseArchive(char **linePtr, Lst nodeLst, GNode *ctxt)
 	     * Variable spec, so call the Var module to parse the puppy
 	     * so we can safely advance beyond it...
 	     */
-	    int 	length;
+	    size_t length;
 	    Boolean	freeIt;
 	    char	*result;
 
@@ -237,11 +237,11 @@ Arch_ParseArchive(char **linePtr, Lst nodeLst, GNode *ctxt)
 		 * Variable spec, so call the Var module to parse the puppy
 		 * so we can safely advance beyond it...
 		 */
-		int 	length;
+		size_t length;
 		Boolean	freeIt;
 		char	*result;
 
-		result=Var_Parse(cp, ctxt, TRUE, &length, &freeIt);
+		result = Var_Parse(cp, ctxt, TRUE, &length, &freeIt);
 		if (result == var_Error) {
 		    return (FAILURE);
 		} else {
