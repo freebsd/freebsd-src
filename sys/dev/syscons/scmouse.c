@@ -532,11 +532,15 @@ mouse_cut_word(scr_stat *scp)
 static void
 mouse_cut_line(scr_stat *scp)
 {
+    int len;
     int from;
 
     if (scp->status & MOUSE_VISIBLE) {
 	from = (scp->mouse_pos / scp->xsize) * scp->xsize;
 	mouse_do_cut(scp, from, from + scp->xsize - 1);
+	len = strlen(cut_buffer);
+	if (cut_buffer[len - 1] == '\r')
+	    cut_buffer[len - 1] = '\0';
 	scp->status |= MOUSE_CUTTING;
     }
 }
