@@ -1466,7 +1466,14 @@ init386(first)
 	 * memory probe.
 	 */
 	if (Maxmem >= 0x4000)
+#ifdef PC98
+	{
+		Maxmem = 0x4000;	/* XXX */
 		speculative_mprobe = TRUE;
+	}
+#else
+		speculative_mprobe = TRUE;
+#endif
 	else
 		speculative_mprobe = FALSE;
 
@@ -1518,7 +1525,7 @@ init386(first)
 		/* skip system area */
 		if (target_page>=ptoa(Maxmem_under16M) &&
 				target_page < ptoa(4096))
-			page_bad = TRUE;
+			continue;
 #endif
 		/*
 		 * map page into kernel: valid, read/write, non-cacheable
