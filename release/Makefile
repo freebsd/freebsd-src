@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.137 1995/04/13 20:21:06 jkh Exp $
+#	$Id: Makefile,v 1.138 1995/04/19 01:19:57 phk Exp $
 #
 # How to roll a release:
 #
@@ -22,16 +22,16 @@ CPIO2=  scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
 FAQS=	README MIRROR.SITES
 
 # define this to use a vn device instead of the floppy drive
-# vn driver can still do odd bogosities.  don't use it.
-# VNDEVICE=		vn0
+VNDEVICE=		vn0
 
-# work dir for floppies
-MNT=			/mnt
 
+# which floppy to use, if VNDEVICE isn't defined.
+FDDEVICE=		fd0
 # define FDFORMAT to format physical floppies
 FDFORMAT=		yes
 
-FDDEVICE=		fd0
+# mountpoint for filesystems.
+MNT=			/mnt
 FDCYLS=			80
 FDCYLSIZE=		15k
 FDLABEL=		fd1200
@@ -262,7 +262,6 @@ release.7:
 		( rm -f OK ; find . -print ; touch OK ; echo OK ) | \
 		cpio -H newc -oa | gzip -9 -c | dd conv=osync ) \
 		> ${RD}/floppies/cpio.flp
-	gzip -1 -c < ${RD}/floppies/cpio.flp > ${RD}/floppies/cpio.flp.gz
 	touch release.7
 
 # Make binary dists, notice that secure dist isn't finished yet.
@@ -378,7 +377,7 @@ doTARBALL:
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9
+		release.7 release.8 release.9 release.10
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 	@echo "Release done"
 
@@ -430,7 +429,5 @@ doFLOPPY:
 		bs=${FDCYLSIZE} count=${FDCYLS}
 .endif
 	mv ${RD}/floppies/${FLOPPY}.tmp ${RD}/floppies/${FLOPPY}.flp
-	gzip -9 -c < ${RD}/floppies/${FLOPPY}.flp \
-		> ${RD}/floppies/${FLOPPY}.flp.gz
 
 .include <bsd.prog.mk>
