@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.263.2.1.2.37 2001/06/03 03:41:12 ca Exp $
+#	$Id: README,v 8.263.2.1.2.38 2001/08/15 22:07:11 gshapiro Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -114,6 +114,7 @@ HESIOD		Support for Hesiod (from the DEC/Athena distribution).  You
 		must already have Hesiod support on your system for this to
 		work.  You may be able to get this to work with the MIT/Athena
 		version of Hesiod, but that's likely to be a lot of work.
+		BIND 8.X also includes Hesiod support.
 LDAPMAP		Lightweight Directory Access Protocol support.  You will
 		have to install the UMich or OpenLDAP
 		(http://www.openldap.org/) ldap and lber libraries to use
@@ -1729,4 +1730,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.263.2.1.2.37 $, last update $Date: 2001/06/03 03:41:12 $ )
+(Version $Revision: 8.263.2.1.2.38 $, last update $Date: 2001/08/15 22:07:11 $ )

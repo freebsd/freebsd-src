@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: clock.c,v 8.52.18.17 2001/07/31 23:04:59 ca Exp $";
+static char id[] = "@(#)$Id: clock.c,v 8.52.18.18 2001/08/14 16:07:04 ca Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -426,6 +426,8 @@ pend_signal(sig)
 		abort();
 
 		/* NOTREACHED */
+		/* shut up stupid compiler warning on HP-UX 11 */
+		sigbit = 0;
 		break;
 	}
 
