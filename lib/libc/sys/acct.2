@@ -82,8 +82,9 @@ space once again becomes available.
 On error -1 is returned.
 The file must exist and the call may be exercised only by the super-user.
 .Sh ERRORS
-.Fn Acct
-will fail if one of the following is true:
+The
+.Fn acct
+function will fail if one of the following is true:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The caller is not the super-user.
