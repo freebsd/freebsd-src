@@ -104,12 +104,17 @@ void	fatal();
 #define	DESCPG		16	/* desired fs_cpg */
 
 /*
- * ROTDELAY gives the minimum number of milliseconds to initiate
- * another disk transfer on the same cylinder. It is used in
- * determining the rotationally optimal layout for disk blocks
- * within a file; the default of fs_rotdelay is 4ms.
+ * Once upon a time...
+ *    ROTDELAY gives the minimum number of milliseconds to initiate
+ *    another disk transfer on the same cylinder. It is used in
+ *    determining the rotationally optimal layout for disk blocks
+ *    within a file; the default of fs_rotdelay is 4ms.
+ *
+ * ...but now we make this 0 to disable the rotdelay delay because
+ * modern drives with read/write-behind achieve higher performance
+ * without the delay.
  */
-#define ROTDELAY	4
+#define ROTDELAY	0
 
 /*
  * MAXBLKPG determines the maximum number of data blocks which are
@@ -126,13 +131,18 @@ void	fatal();
 #define	NFPI		4
 
 /*
- * For each cylinder we keep track of the availability of blocks at different
- * rotational positions, so that we can lay out the data to be picked
- * up with minimum rotational latency.  NRPOS is the default number of
- * rotational positions that we distinguish.  With NRPOS of 8 the resolution
- * of our summary information is 2ms for a typical 3600 rpm drive.
+ * Once upon a time...
+ *    For each cylinder we keep track of the availability of blocks at different
+ *    rotational positions, so that we can lay out the data to be picked
+ *    up with minimum rotational latency.  NRPOS is the default number of
+ *    rotational positions that we distinguish.  With NRPOS of 8 the resolution
+ *    of our summary information is 2ms for a typical 3600 rpm drive.
+ *
+ * ...but now we make this 1 (which disables the rotational position table)
+ * because modern drives with read-ahead and write-behind do better without
+ * the rotational position table.
  */
-#define	NRPOS		8	/* number distinct rotational positions */
+#define	NRPOS		0	/* number distinct rotational positions */
 
 
 int	mfs;			/* run as the memory based filesystem */
@@ -269,7 +279,7 @@ main(argc, argv)
 				fatal("%s: bad free space %%\n", optarg);
 			break;
 		case 'n':
-			if ((nrpos = atoi(optarg)) <= 0)
+			if ((nrpos = atoi(optarg)) < 0)
 				fatal("%s: bad rotational layout count\n",
 				    optarg);
 			break;
