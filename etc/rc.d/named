@@ -29,7 +29,7 @@ extra_commands="reload"
 #
 chroot_autoupdate()
 {
-	# Copy devices if neccessary. Preserve everything (perms,
+	# Copy devices if necessary. Preserve everything (perms,
 	# ownership, mod times).
 	#
 	if [ ! -c "${named_chrootdir}/dev/null" ]; then
