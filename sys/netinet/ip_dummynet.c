@@ -1246,7 +1246,7 @@ dropit:
     if (q)
 	q->drops++ ;
     m_freem(m);
-    return ENOBUFS ;
+    return ( (fs && (fs->flags_fs & DN_NOERROR)) ? 0 : ENOBUFS);
 }
 
 /*
