@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.42 1995/11/05 00:16:36 jkh Exp $
+ * $Id: menus.c,v 1.42.2.43 1995/11/07 10:45:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -189,8 +189,6 @@ guaranteed to carry the full range of possible distributions.",
 "install",
 { { "Primary Site",		"ftp.freebsd.org",
 	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/", 0, 0		},
-  { "Secondary Site",		"freefall.freebsd.org",
-	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=ftp://freefall.freebsd.org/pub/FreeBSD/", 0, 0		},
   { "Other",			"Specify some other ftp site by URL",
 	DMENU_SET_VARIABLE,	VAR_FTP_PATH "=other", 0, 0						},
   { "Australia",		"ftp.physics.usyd.edu.au",
@@ -679,7 +677,8 @@ DMenu MenuMBRType = {
 "to do so (limitations in the PC BIOS usually prevent this otherwise).\n"
 "If you do not want a boot selector, or wish to replace an existing\n"
 "one, select \"standard\".  If you would prefer your Master Boot\n"
-"Record to remain untouched then select \"none\".",
+"Record to remain untouched then select \"none\".  NOTE:  PC-DOS users\n"
+"will almost certainly NOT want to select one!",
     "Press F1 to read the installation guide",
     "install",
     { { "BootMgr",		"Install the FreeBSD Boot Manager (\"Booteasy\")",
