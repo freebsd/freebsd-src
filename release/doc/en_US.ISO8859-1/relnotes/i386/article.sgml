@@ -11,6 +11,8 @@
 %trademarks;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+<!ENTITY % urls.ent PUBLIC "-//FreeBSD//ENTITIES DocBook URL Entities//EN">
+%urls.ent;
 <!ENTITY % sections SYSTEM "../common/relnotes.ent"> %sections;
 
 <!-- Architecture-specific customization -->
