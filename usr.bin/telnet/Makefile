@@ -36,6 +36,9 @@
 
 PROG=	telnet
 
+SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
+	terminal.c tn3270.c utilities.c
+
 CFLAGS+=-DKLUDGELINEMODE -DUSE_TERMIO #-DAUTHENTICATION -DENCRYPTION
 CFLAGS+=-DENV_HACK
 CFLAGS+=-DSKEY
@@ -55,10 +58,12 @@ CFLAGS+=-DINET6
 CFLAGS+=-DIPSEC
 DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
+.else
+.PATH:	${.CURDIR}/../../lib/libtelnet
+# XXX This was copied from lib/libtelnet/Makefile.
+SRCS+=	genget.c getent.c misc.c
+CFLAGS+= -DHAS_CGETENT
 .endif
-
-SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
-	terminal.c tn3270.c utilities.c
 
 # These are the sources that have encryption stuff in them.
 CRYPT_SRC= authenc.c commands.c externs.h main.c network.c
