@@ -65,20 +65,18 @@ static const char rcsid[] =
 
 #define REPORT_PERIOD (30*60)
 
-static void fake __P((int));
-static void usage __P((void));
+static void fake(int);
+static void usage(void);
 
 static void
-fake(unused)
-	int unused __unused;
+fake(int unused __unused)
 {
 
 	/* Do nothing. */
 }
 
-int main(argc, argv)
-	int argc;
-	char **argv;
+int
+main(int argc, char *argv[])
 {
 	struct tm local;
 	struct timeval tv, *stv;
@@ -376,7 +374,7 @@ recalculate:
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 		"usage: adjkerntz -i",
