@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.1 1998/06/10 10:54:08 dfr Exp $
+#	$Id: files.alpha,v 1.2 1998/06/14 13:45:06 dfr Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -17,12 +17,15 @@ font8x16.o			optional	std8x16font		\
 alpha/alpha/autoconf.c		standard	device-driver
 alpha/alpha/cpuconf.c		standard
 alpha/alpha/dec_kn8ae.c		optional	dec_kn8ae
+alpha/alpha/dec_eb164.c		optional	dec_eb164
 alpha/alpha/mountroot.c		optional	slice
 alpha/alpha/ipl_funcs.c		standard
 alpha/alpha/pal.s		standard
 alpha/alpha/cons.c		standard
 alpha/alpha/prom.c		standard
+alpha/alpha/promcons.c		standard
 alpha/alpha/prom_disp.s		standard
+alpha/alpha/alpha-gdbstub.c	optional	ddb
 alpha/alpha/db_disasm.c		optional	ddb
 alpha/alpha/db_interface.c	optional	ddb
 alpha/alpha/db_trace.c		optional	ddb
@@ -72,7 +75,11 @@ mcclock_if.h			standard					\
 	compile-with	"sh $S/kern/makedevops.sh -h $S/dev/dec/mcclock_if.m"	\
 	no-obj no-implicit-rule before-depend					\
 	clean		"mcclock_if.h"
+alpha/pci/cia.c			optional	cia
+alpha/pci/pci_eb164_intr.s	optional	cia
+alpha/isa/mcclock_isa.c		optional	cia
 alpha/pci/pcibus.c		optional	pci
+kern/link_elf.c			standard
 kern/subr_bus.c			standard
 kern/device_if.m		standard					\
 	dependency	"$S/kern/makedevops.sh"					\
@@ -110,3 +117,6 @@ libkern/alpha/htonl.S		standard
 libkern/alpha/htons.S		standard
 libkern/alpha/ntohl.S		standard
 libkern/alpha/ntohs.S		standard
+isa/sio.c			optional	sio device-driver
+
+
