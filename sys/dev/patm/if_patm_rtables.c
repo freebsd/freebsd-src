@@ -5,9 +5,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/types.h>
 
 const u_int patm_rtables_size = 128 * (4 + 2 * 16);
