@@ -1,5 +1,5 @@
 /* ieee.c -- Read and write IEEE-695 debugging information.
-   Copyright (C) 1996, 1998, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1998, 1999, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -30,6 +30,7 @@
 #include "libiberty.h"
 #include "debug.h"
 #include "budbg.h"
+#include "filenames.h"
 
 /* This structure holds an entry on the block stack.  */
 
@@ -4926,6 +4927,7 @@ ieee_start_compilation_unit (p, filename)
 {
   struct ieee_handle *info = (struct ieee_handle *) p;
   const char *modname;
+  const char *backslash;
   char *c, *s;
   unsigned int nindx;
 
@@ -4937,16 +4939,20 @@ ieee_start_compilation_unit (p, filename)
 
   info->filename = filename;
   modname = strrchr (filename, '/');
+  /* We could have a mixed forward/back slash case.  */
+  backslash = strrchr (modname, '\\');
+  if (backslash > modname)
+    modname = backslash;
+
   if (modname != NULL)
     ++modname;
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+  else if (filename[0] && filename[1] == ':')
+    modname = filename + 2;
+#endif
   else
-    {
-      modname = strrchr (filename, '\\');
-      if (modname != NULL)
-	++modname;
-      else
-	modname = filename;
-    }
+    modname = filename;
+
   c = xstrdup (modname);
   s = strrchr (c, '.');
   if (s != NULL)
@@ -5194,22 +5200,25 @@ ieee_add_bb11 (info, sec, low, high)
     }
   else
     {
-      const char *filename, *modname;
+      const char *filename, *modname, *backslash;
       char *c, *s;
 
       /* Start the enclosing BB10 block.  */
       filename = bfd_get_filename (info->abfd);
       modname = strrchr (filename, '/');
+      backslash = strrchr (modname, '\\');
+      if (backslash > modname)
+	modname = backslash;
+
       if (modname != NULL)
 	++modname;
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+      else if (filename[0] && filename[1] == ':')
+	modname = filename + 2;
+#endif
       else
-	{
-	  modname = strrchr (filename, '\\');
-	  if (modname != NULL)
-	    ++modname;
-	  else
-	    modname = filename;
-	}
+	modname = filename;
+
       c = xstrdup (modname);
       s = strrchr (c, '.');
       if (s != NULL)

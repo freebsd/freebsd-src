@@ -1,3 +1,72 @@
+2000-05-30  Alan Modra  <alan@linuxcare.com.au>
+
+	* objdump.c (display_target_list): Use bfd_close_all_done, not
+	bfd_close to fix crash caused by 2000-05-24 change.
+
+2000-05-26  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* ar.c: Include filenames.h.
+	(normalize) [HAVE_DOS_BASED_FILE_SYSTEM]: Support backslashes
+	and drive letters in file names.
+	(main): Support backslashes and drive letters in argv[0].  Drop
+	the .exe suffix, if any, in argv[0] if is_ranlib is negative.  Use
+	FILENAME_CMP instead of strcmp to compare file names.
+	(open_inarch) [__GO32__]: Don't ifdef errno != ENOENT test for
+	DJGPP v2.
+	(do_quick_append) [__GO32__]: Ditto.
+	(get_pos_bfd, delete_members, move_members, replace_members):
+	Compare file names with FILENAME_CMP.
+
+	* bucomm.c: Include filenames.h.
+	(make_tempname) [HAVE_DOS_BASED_FILE_SYSTEM]: Support mixed
+	forward/backward slashes and drive letters in file names.
+
+	* ieee.c (ieee_start_compilation_unit, ieee_add_bb11): Support
+	mixed forward/backward slashes and drive letters in file names.
+
+	* strings.c (O_BINARY, setmode, SET_BINARY): Define.
+	(main) [SET_BINARY]: Use SET_BINARY to switch stdin into binary
+	mode.
+
+	* objcopy.c: Include filenames.h.
+	(main) [HAVE_DOS_BASED_FILE_SYSTEM]: Drop the .exe suffix
+	before comparing to "strip".
+	Use FILENAME_CMP to compare file names.
+
+	* arsup.c: Include filenames.h.
+	(map_over_list, ar_delete, ar_replace, ar_extract): Use
+	FILENAME_CMP to compare file names.
+	(ar_open): Prepend "tmp-" instead of appending "-tmp", to create
+	the temporary file name.
+
+	* configure.in: Check for setmode.
+	* configure: Regenerate.
+
+2000-05-24  Alan Modra  <alan@linuxcare.com.au>
+
+	* objdump.c (display_target_list): Close the bfd.
+	(display_info_table): Likewise.
+
+2000-05-23  Philip Blundell  <pb@futuretv.com>
+
+	* configure.in: Set version to 2.10.
+	* configure: Regenerate.
+
+2000-05-02  H.J. Lu  <hjl@gnu.org>
+
+	* readelf.c (get_osabi_name): Handle ELFOSABI_NONE instead of
+	ELFOSABI_SYSV. Also handle ELFOSABI_NETBSD, ELFOSABI_HURD,
+	ELFOSABI_SOLARIS, ELFOSABI_MONTEREY, ELFOSABI_IRIX,
+	ELFOSABI_FREEBSD, ELFOSABI_TRU64, ELFOSABI_MODESTO
+	and ELFOSABI_OPENBSD.
+
+2000-04-14  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* arlex.l: Add directives to increase lex buffer size.
+
+	* objdump.c, readelf.c: Don't include strarg.h or varargs.h. They are
+        already included by bucomm.h.
+
 2000-04-10  Philippe De Muyter  <phdm@macqel.be>
 
 	* readelf (dynamic_segment_mips_val): Call `sprintf', not

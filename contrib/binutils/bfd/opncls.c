@@ -486,7 +486,7 @@ bfd_close_all_done (abfd)
 	  int mask = umask (0);
 	  umask (mask);
 	  chmod (abfd->filename,
-		 (0x777
+		 (0777
 		  & (buf.st_mode | ((S_IXUSR | S_IXGRP | S_IXOTH) &~ mask))));
 	}
     }

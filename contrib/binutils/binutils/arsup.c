@@ -1,5 +1,5 @@
 /* arsup.c - Archive support for MRI compatibility
-   Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 1999
+   Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -31,6 +31,7 @@ style librarian command syntax + 1 word LIST
 #include "arsup.h"
 #include "libiberty.h"
 #include "bucomm.h"
+#include "filenames.h"
 
 static void map_over_list
   PARAMS ((bfd *, void (*function) (bfd *, bfd *), struct list *));
@@ -76,7 +77,7 @@ map_over_list (arch, function, list)
 	  for (head = arch->next; head; head = head->next) 
 	    {
 	      if (head->filename != NULL
-		  && strcmp (ptr->name, head->filename) == 0)
+		  && FILENAME_CMP (ptr->name, head->filename) == 0)
 		{
 		  found = true;
 		  function (head, prev);
@@ -160,7 +161,9 @@ DEFUN(ar_open,(name, t),
 {
   char *tname = (char *) xmalloc (strlen (name) + 10);
   real_name = name;
-  sprintf(tname, "%s-tmp", name);
+  /* Prepend tmp- to the beginning, to avoid file-name clashes after
+     truncation on filesystems with limited namespaces (DOS).  */
+  sprintf(tname, "tmp-%s", name);
   obfd = bfd_openw(tname, NULL);
 
   if (!obfd) {
@@ -289,7 +292,7 @@ DEFUN(ar_delete, (list),
       bfd **prev = &(obfd->archive_head);
       int found = 0;
       while (member) {
-	if (strcmp(member->filename, list->name) == 0) {
+	if (FILENAME_CMP(member->filename, list->name) == 0) {
 	  *prev = member->next;
 	  found = 1;
 	}
@@ -346,7 +349,7 @@ DEFUN(ar_replace, (list),
       int found = 0;
       while (member) 
       {
-	if (strcmp(member->filename, list->name) == 0) 
+	if (FILENAME_CMP(member->filename, list->name) == 0) 
 	{
 	  /* Found the one to replace */
 	  bfd *abfd = bfd_openr(list->name, 0);
@@ -437,7 +440,7 @@ DEFUN(ar_extract,(list),
       int found = 0;
       while (member && !found) 
       {
-	if (strcmp(member->filename, list->name) == 0) 
+	if (FILENAME_CMP(member->filename, list->name) == 0) 
 	{
 	  extract_file(member);
 	  found = 1;

@@ -29,12 +29,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "debug.h"
 #include "budbg.h"
 
-#ifdef ANSI_PROTOTYPES
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
 /* Internal headers for the ELF .stab-dump code - sorry.  */
 #define	BYTES_IN_WORD	32
 #include "aout/aout64.h"
@@ -2657,6 +2651,7 @@ display_target_list ()
 	{
 	  if (bfd_get_error () != bfd_error_invalid_operation)
 	    nonfatal (p->name);
+	  bfd_close_all_done (abfd);
 	  continue;
 	}
 
@@ -2664,6 +2659,7 @@ display_target_list ()
 	if (bfd_set_arch_mach (abfd, (enum bfd_architecture) a, 0))
 	  printf ("  %s\n",
 		  bfd_printable_arch_mach ((enum bfd_architecture) a, 0));
+      bfd_close_all_done (abfd);
     }
   unlink (dummy_name);
   free (dummy_name);
@@ -2731,6 +2727,8 @@ display_info_table (first, last)
 		  putchar ('-');
 		putchar (' ');
 	      }
+	    if (abfd != NULL)
+	      bfd_close_all_done (abfd);
 	  }
 	putchar ('\n');
       }

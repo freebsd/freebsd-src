@@ -45,6 +45,7 @@ enum bfd_architecture
 #define bfd_mach_m68030 5
 #define bfd_mach_m68040 6
 #define bfd_mach_m68060 7
+#define bfd_mach_cpu32  8
   bfd_arch_vax,        /* DEC Vax */   
   bfd_arch_i960,       /* Intel 960 */
      /* The order of the following is important.
@@ -72,8 +73,9 @@ enum bfd_architecture
 #define bfd_mach_sparc_sparclite       3
 #define bfd_mach_sparc_v8plus          4
 #define bfd_mach_sparc_v8plusa         5  /* with ultrasparc add'ns */
-#define bfd_mach_sparc_v9              6
-#define bfd_mach_sparc_v9a             7  /* with ultrasparc add'ns */
+#define bfd_mach_sparc_sparclite_le    6
+#define bfd_mach_sparc_v9              7
+#define bfd_mach_sparc_v9a             8  /* with ultrasparc add'ns */
  /* Nonzero if MACH has the v9 instruction set.  */
 #define bfd_mach_sparc_v9_p(mach) \
   ((mach) >= bfd_mach_sparc_v8plus && (mach) <= bfd_mach_sparc_v9a)
@@ -83,6 +85,7 @@ enum bfd_architecture
 #define bfd_mach_mips4000              4000
 #define bfd_mach_mips4010              4010
 #define bfd_mach_mips4100              4100
+#define bfd_mach_mips4111              4111
 #define bfd_mach_mips4300              4300
 #define bfd_mach_mips4400              4400
 #define bfd_mach_mips4600              4600
@@ -95,9 +98,11 @@ enum bfd_architecture
   bfd_arch_i386,       /* Intel 386 */
 #define bfd_mach_i386_i386 0
 #define bfd_mach_i386_i8086 1
+#define bfd_mach_i386_i386_intel_syntax 2
   bfd_arch_we32k,      /* AT&T WE32xxx */
   bfd_arch_tahoe,      /* CCI/Harris Tahoe */
   bfd_arch_i860,       /* Intel 860 */
+  bfd_arch_i370,       /* IBM 360/370 Mainframes */
   bfd_arch_romp,       /* IBM ROMP PC/RT */
   bfd_arch_alliant,    /* Alliant */
   bfd_arch_convex,     /* Convex */
@@ -111,34 +116,61 @@ enum bfd_architecture
   bfd_arch_rs6000,     /* IBM RS/6000 */
   bfd_arch_hppa,       /* HP PA RISC */
   bfd_arch_d10v,       /* Mitsubishi D10V */
+#define bfd_mach_d10v          0
+#define bfd_mach_d10v_ts2      2
+#define bfd_mach_d10v_ts3      3
+  bfd_arch_d30v,       /* Mitsubishi D30V */
   bfd_arch_z8k,        /* Zilog Z8000 */
 #define bfd_mach_z8001         1
 #define bfd_mach_z8002         2
   bfd_arch_h8500,      /* Hitachi H8/500 */
   bfd_arch_sh,         /* Hitachi SH */
 #define bfd_mach_sh            0
+#define bfd_mach_sh2        0x20
+#define bfd_mach_sh_dsp     0x2d
 #define bfd_mach_sh3        0x30
+#define bfd_mach_sh3_dsp    0x3d
 #define bfd_mach_sh3e       0x3e
 #define bfd_mach_sh4        0x40
   bfd_arch_alpha,      /* Dec Alpha */
+#define bfd_mach_alpha_ev4  0x10
+#define bfd_mach_alpha_ev5  0x20
+#define bfd_mach_alpha_ev6  0x30
   bfd_arch_arm,        /* Advanced Risc Machines ARM */
 #define bfd_mach_arm_2         1
-#define bfd_mach_arm_2a                2
+#define bfd_mach_arm_2a        2
 #define bfd_mach_arm_3         3
 #define bfd_mach_arm_3M        4
-#define bfd_mach_arm_4                 5
+#define bfd_mach_arm_4         5
 #define bfd_mach_arm_4T        6
+#define bfd_mach_arm_5         7
+#define bfd_mach_arm_5T        8
   bfd_arch_ns32k,      /* National Semiconductors ns32000 */
   bfd_arch_w65,        /* WDC 65816 */
   bfd_arch_tic30,      /* Texas Instruments TMS320C30 */
+  bfd_arch_tic80,      /* TI TMS320c80 (MVP) */
   bfd_arch_v850,       /* NEC V850 */
 #define bfd_mach_v850          0
+#define bfd_mach_v850e         'E'
+#define bfd_mach_v850ea        'A'
   bfd_arch_arc,        /* Argonaut RISC Core */
 #define bfd_mach_arc_base 0
   bfd_arch_m32r,       /* Mitsubishi M32R/D */
 #define bfd_mach_m32r          0  /* backwards compatibility */
+#define bfd_mach_m32rx         'x'
   bfd_arch_mn10200,    /* Matsushita MN10200 */
   bfd_arch_mn10300,    /* Matsushita MN10300 */
+#define bfd_mach_mn10300               300
+#define bfd_mach_am33          330
+  bfd_arch_fr30,
+#define bfd_mach_fr30          0x46523330
+  bfd_arch_mcore,
+  bfd_arch_pj,
+  bfd_arch_avr,        /* Atmel AVR microcontrollers */
+#define bfd_mach_avr1          1
+#define bfd_mach_avr2          2
+#define bfd_mach_avr3          3
+#define bfd_mach_avr4          4
   bfd_arch_last
   @};
 @end example
@@ -351,4 +383,27 @@ Return a printable string representing the architecture and
 machine type. 
 
 This routine is depreciated.
+
+@findex bfd_octets_per_byte
+@subsubsection @code{bfd_octets_per_byte}
+@strong{Synopsis}
+@example
+unsigned int bfd_octets_per_byte(bfd *abfd);
+@end example
+@strong{Description}@*
+Return the number of octets (8-bit quantities) per target byte
+(minimum addressable unit).  In most cases, this will be one, but some
+DSP targets have 16, 32, or even 48 bits per byte.
+
+@findex bfd_arch_mach_octets_per_byte
+@subsubsection @code{bfd_arch_mach_octets_per_byte}
+@strong{Synopsis}
+@example
+unsigned int bfd_arch_mach_octets_per_byte(enum bfd_architecture arch,
+    unsigned long machine);
+@end example
+@strong{Description}@*
+See bfd_octets_per_byte.
+This routine is provided for those cases where a bfd * is not
+available
 
