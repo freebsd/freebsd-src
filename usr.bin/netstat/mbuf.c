@@ -84,12 +84,11 @@ mbpr(mbaddr)
 	register struct mbtypes *mp;
 
 	if (nmbtypes != 256) {
-		fprintf(stderr,
-		    "%s: unexpected change to mbstat; check source\n", prog);
+		warnx("unexpected change to mbstat; check source");
 		return;
 	}
 	if (mbaddr == 0) {
-		fprintf(stderr, "%s: mbstat: symbol not in namelist\n", prog);
+		warnx("mbstat: symbol not in namelist");
 		return;
 	}
 	if (kread(mbaddr, (char *)&mbstat, sizeof (mbstat)))
