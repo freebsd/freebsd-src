@@ -186,7 +186,7 @@ _get_curthread(void)
 /*
  * Get the current kse.
  *
- * Line _kcb_get(), this can only be called while in a critical region.
+ * Like _kcb_get(), this can only be called while in a critical region.
  */
 static __inline struct kse *
 _get_curkse(void)
