@@ -505,8 +505,19 @@ p_command:
 
 	call	set_stcnt_from_hcnt
 
-	mvi	0x3d		call dma	# SCSIEN|SDMAEN|HDMAEN|
-						#   DIRECTION|FIFORESET
+	mvi	DFCNTRL, 0x3d			/*  SCSIEN|SDMAEN|HDMAEN
+						 * |DIRECTION|FIFORESET
+						 */
+p_command_dma:
+	test	SSTAT0, SDONE		jnz p_command_dma_done
+	test	SSTAT1, PHASEMIS	jz  p_command_dma
+	test	SSTAT0, SDONE		jnz p_command_dma_done
+	clr	DFCNTRL
+	jmp	ITloop
+p_command_dma_done:
+	and	DFCNTRL, 0xc7		/* ~(SCSIEN|SDMAEN|HDMAEN) */
+p_command_dma_clear:
+	test	DFCNTRL, 0x38		jnz p_command_dma_clear
 	jmp	ITloop
 
 /*
@@ -929,10 +940,12 @@ dma4:
  * actually off first lest we get an ILLSADDR.
  */
 dma5:
-	/* disable DMA, but maintain WIDEODD */
-	and	DFCNTRL,WIDEODD
+	/* Don't clobber an inprogress host data transfer */
+	test	DFSTATUS, MREQPEND	jnz dma5
+	/* disable DMA */
+	and	DFCNTRL, 0xc7		/* ~(SCSIEN|SDMAEN|HDMAEN|DIRECTION) */
 dma6:
-	test	DFCNTRL,0x38	jnz dma6  /* SCSIENACK|SDMAENACK|HDMAENACK */
+	test	DFCNTRL, HDMAENACK	jnz dma6 
 return:
 	ret
 
