@@ -513,7 +513,6 @@ main(int ac, char **av)
 	pwcopy.pw_passwd = xstrdup(pw->pw_passwd);
 	pwcopy.pw_uid = pw->pw_uid;
 	pwcopy.pw_gid = pw->pw_gid;
-	pwcopy.pw_class = xstrdup(pw->pw_class);
 	pwcopy.pw_dir = xstrdup(pw->pw_dir);
 	pwcopy.pw_shell = xstrdup(pw->pw_shell);
 	pwcopy.pw_class = xstrdup(pw->pw_class);
