@@ -1289,11 +1289,7 @@ thread_exit(void)
 	}
 	/* XXX Shouldn't cpu_throw() here. */
 	mtx_assert(&sched_lock, MA_OWNED);
-#if !defined(__powerpc__) 
 	cpu_throw(td, choosethread());
-#else
-	cpu_throw();
-#endif
 	panic("I'm a teapot!");
 	/* NOTREACHED */
 }
