@@ -88,6 +88,7 @@ struct bio {
 #define BIO_WRITE	0x02
 #define BIO_DELETE	0x04
 #define BIO_GETATTR	0x08
+#define BIO_CMD0	0x20	/* Available for local hacks */
 #define BIO_CMD1	0x40	/* Available for local hacks */
 #define BIO_CMD2	0x80	/* Available for local hacks */
 
@@ -113,6 +114,7 @@ int biowait(struct bio *bp, const char *wchan);
 
 void bioq_disksort(struct bio_queue_head *ap, struct bio *bp);
 struct bio *bioq_first(struct bio_queue_head *head);
+struct bio *bioq_takefirst(struct bio_queue_head *head);
 void bioq_flush(struct bio_queue_head *head, struct devstat *stp, int error);
 void bioq_init(struct bio_queue_head *head);
 void bioq_insert_tail(struct bio_queue_head *head, struct bio *bp);
