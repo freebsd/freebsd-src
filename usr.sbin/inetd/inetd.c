@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.26 1997/09/19 06:26:31 charnier Exp $";
+	"$Id: inetd.c,v 1.27 1997/10/27 22:03:47 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -119,6 +119,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
@@ -166,6 +167,7 @@ struct	servtab {
 	short	se_numchild;		/* current number of children */
 	pid_t	*se_pids;		/* array of child pids */
 	char	*se_user;		/* user name to run as */
+	char    *se_group;              /* group name to run as */
 #ifdef  LOGIN_CAP
 	char    *se_class;              /* login class name to run with */
 #endif
@@ -275,6 +277,7 @@ main(argc, argv, envp)
 {
 	struct servtab *sep;
 	struct passwd *pwd;
+	struct group *grp;
 	struct sigvec sv;
 	int tmpint, ch, dofork;
 	pid_t pid;
@@ -519,6 +522,20 @@ main(argc, argv, envp)
 						recv(0, buf, sizeof (buf), 0);
 					_exit(EX_NOUSER);
 				}
+				grp = NULL;
+				if (   sep->se_group != NULL
+				    && (grp = getgrnam(sep->se_group)) == NULL
+				   ) {
+					syslog(LOG_ERR,
+					    "%s/%s: %s: No such group",
+						sep->se_service, sep->se_proto,
+						sep->se_group);
+					if (sep->se_socktype != SOCK_STREAM)
+						recv(0, buf, sizeof (buf), 0);
+					_exit(EX_NOUSER);
+				}
+				if (grp != NULL)
+					pwd->pw_gid = grp->gr_gid;
 #ifdef LOGIN_CAP
 				if ((lc = login_getclass(sep->se_class)) == NULL) {
 					/* error syslogged by getclass */
@@ -645,7 +662,6 @@ config(signo)
 	int signo;
 {
 	struct servtab *sep, *new, **sepp;
-	struct passwd *pwd;
 	long omask;
 
 	if (!setconfig()) {
@@ -655,10 +671,16 @@ config(signo)
 	for (sep = servtab; sep; sep = sep->se_next)
 		sep->se_checked = 0;
 	while ((new = getconfigent())) {
-		if ((pwd = getpwnam(new->se_user)) == NULL) {
+		if (getpwnam(new->se_user) == NULL) {
 			syslog(LOG_ERR,
 				"%s/%s: No such user '%s', service ignored",
 				new->se_service, new->se_proto, new->se_user);
+			continue;
+		}
+		if (new->se_group && getgrnam(new->se_group) == NULL) {
+			syslog(LOG_ERR,
+				"%s/%s: No such group '%s', service ignored",
+				new->se_service, new->se_proto, new->se_group);
 			continue;
 		}
 #ifdef LOGIN_CAP
@@ -702,14 +724,12 @@ config(signo)
 			      }
 			}
 			sep->se_accept = new->se_accept;
-			if (new->se_user)
-				SWAP(sep->se_user, new->se_user);
+			SWAP(sep->se_user, new->se_user);
+			SWAP(sep->se_group, new->se_group);
 #ifdef LOGIN_CAP
-			if (new->se_class)
-				SWAP(sep->se_class, new->se_class);
+			SWAP(sep->se_class, new->se_class);
 #endif
-			if (new->se_server)
-				SWAP(sep->se_server, new->se_server);
+			SWAP(sep->se_server, new->se_server);
 			for (i = 0; i < MAXARGV; i++)
 				SWAP(sep->se_argv[i], new->se_argv[i]);
 			sigsetmask(omask);
@@ -1160,6 +1180,11 @@ more:
 	} else
 		sep->se_class = newstr(RESOURCE_RC);
 #endif
+	if ((s = strrchr(sep->se_user, ':')) != NULL) {
+		*s = '\0';
+		sep->se_group = newstr(s + 1);
+	} else
+		sep->se_group = NULL;
 	sep->se_server = newstr(sskip(&cp));
 	if (strcmp(sep->se_server, "internal") == 0) {
 		struct biltin *bi;
@@ -1216,6 +1241,8 @@ freeconfig(cp)
 		free(cp->se_proto);
 	if (cp->se_user)
 		free(cp->se_user);
+	if (cp->se_group)
+		free(cp->se_group);
 #ifdef LOGIN_CAP
 	if (cp->se_class)
 		free(cp->se_class);
@@ -1644,12 +1671,12 @@ print_service(action, sep)
 {
 	fprintf(stderr,
 #ifdef LOGIN_CAP
-	    "%s: %s proto=%s accept=%d max=%d user=%s class=%s builtin=%x server=%s\n",
+	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s class=%s builtin=%x server=%s\n",
 #else
-	    "%s: %s proto=%s accept=%d max=%d user=%s builtin=%x server=%s\n",
+	    "%s: %s proto=%s accept=%d max=%d user=%s group=%s builtin=%x server=%s\n",
 #endif
 	    action, sep->se_service, sep->se_proto,
-	    sep->se_accept, sep->se_maxchild, sep->se_user,
+	    sep->se_accept, sep->se_maxchild, sep->se_user, sep->se_group,
 #ifdef LOGIN_CAP
 	    sep->se_class,
 #endif
