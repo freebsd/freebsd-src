@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2001
+.Dd September 12, 2004
 .Dt UPLCOM 4
 .Os
 .Sh NAME
@@ -45,6 +45,15 @@
 .Sh SYNOPSIS
 .Cd "device uplcom"
 .Cd "device ucom"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Prolific PL-2303 USB-to-RS232 Bridge chip.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
 .Sh HARDWARE
 The
 .Nm
@@ -78,15 +87,6 @@ SOURCENEXT KeikaiDenwa 8 (with and without charger)
 .It
 Sony Ericsson USB Cable (Susteen USB Data Cable)
 .El
-.Sh DESCRIPTION
-The
-.Nm
-driver provides support for the Prolific PL-2303 USB-to-RS232 Bridge chip.
-.Pp
-The device is accessed through the
-.Xr ucom 4
-driver which makes it behave like a
-.Xr tty 4 .
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
