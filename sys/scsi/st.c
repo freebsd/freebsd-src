@@ -12,20 +12,11 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- */
-
-/*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  * major changes by Julian Elischer (julian@jules.dialix.oz.au) May 1993
+ *
+ *	$Id$
  */
-
 
 /*
  * To do:
@@ -247,17 +238,17 @@ struct	scsi_switch *scsi_switch;
 	{
 		if(st_test_ready(unit,SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT))
 		{
-			printf("\tst%d: tape present: %d blocks of %d bytes\n",
+			printf("st%d: tape present: %d blocks of %d bytes\n",
 				unit, st->numblks, st->media_blksiz);
 		}
 		else
 		{
-			printf("\tst%d: drive empty\n", unit);
+			printf("st%d: drive empty\n", unit);
 		}
 	}
 	else
 	{
-		printf("\tst%d: drive offline\n", unit);
+		printf("st%d: drive offline\n", unit);
 	}
 	/*******************************************************\
 	* Set up the bufs for this device			*
@@ -308,7 +299,7 @@ int	unit;
 	if (scsi_inquire(st->ctlr, st->targ, st->lu, st->sc_sw, &inqbuf,
 		SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT) != COMPLETE)
 	{
-		printf("	st%d: couldn't get device type, using default\n", unit);
+		printf("st%d: couldn't get device type, using default\n", unit);
 		return;
 	}
 	if((inqbuf.version & SID_ANSII) == 0)
@@ -346,7 +337,7 @@ int	unit;
 		if ((strcmp(manu, finger->manu) == 0 )
 		&& (strcmp(model2, finger->model) == 0 ))
 		{
-			printf("	st%d: %s is a known rogue\n", unit,finger->name);
+			printf("st%d: %s is a known rogue\n", unit,finger->name);
 			st->modes[0]	=	finger->modes[0];
 			st->modes[1]	=	finger->modes[1];
 			st->modes[2]	=	finger->modes[2];
@@ -426,12 +417,12 @@ stopen(dev)
 #endif
 	if(!(st_test_ready(unit,0)))
 	{
-		printf("st%d not ready\n",unit);
+		printf("st%d: not ready\n",unit);
 		return(EIO);
 	}
 	if(!(st_test_ready(unit,0))) /* first may get 'unit attn' */
 	{
-		printf("st%d not ready\n",unit);
+		printf("st%d: not ready\n",unit);
 		return(EIO);
 	}
 
@@ -1113,7 +1104,7 @@ struct	scsi_xfer	*xs;
 				{       /* don't wake the job, ok? */
 					return;
 				}
-				printf("device busy");
+				printf("st%d: device busy\n", unit);
 				xs->flags |= ITSDONE;
 			}
 
@@ -1219,7 +1210,8 @@ caddr_t arg;
 			}
 			else
 			{
-				printf("rewind failed, unit still loaded\n");
+				printf("st%d: rewind failed, unit still loaded\n",
+					unit);
 			}
 			break;
 		case MTNOP:	/* no operation, sets status only */
@@ -1399,7 +1391,7 @@ int	unit,flags;
 			flags | SCSI_DATA_IN) != 0)
 	{
 		if(!(flags & SCSI_SILENT))
-			printf("could not get blk limits for unit %d\n", unit);
+			printf("st%d: could not get blk limits\n", unit);
 		st->flags &= ~ST_INFO_VALID;
 		return(FALSE);
 	} 
@@ -1489,7 +1481,7 @@ int	unit,flags;
 			flags | SCSI_DATA_IN) != 0)
 	{
 		if(!(flags & SCSI_SILENT))
-			printf("could not mode sense for unit %d\n", unit);
+			printf("st%d: could not mode sense\n", unit);
 		st->flags &= ~ST_INFO_VALID;
 		return(FALSE);
 	} 
@@ -1589,7 +1581,7 @@ int	unit,flags,dsty_code;
 			flags | SCSI_DATA_OUT) != 0)
 	{
 		if(!(flags & SCSI_SILENT))
-			printf("could not mode select for unit %d\n", unit);
+			printf("st%d: could not mode select\n", unit);
 		st->flags &= ~ST_INFO_VALID;
 		return(FALSE);
 	} 
@@ -1619,7 +1611,7 @@ int	unit,number,what,flags;
 			flags) != 0)
 	{
 		if(!(flags & SCSI_SILENT))
-			printf("could not space st%d\n", unit);
+			printf("st%d: could not space\n", unit);
 		st_data[unit].flags &= ~ST_INFO_VALID;
 		return(FALSE);
 	}
@@ -1646,7 +1638,7 @@ int	unit,number,flags;
 			flags) != 0)
 	{
 		if(!(flags & SCSI_SILENT))
-			printf("could not write_filemarks st%d\n", unit);
+			printf("st%d: could not write_filemarks\n", unit);
 		st_data[unit].flags &= ~ST_INFO_VALID;
 		return(FALSE);
 	}
@@ -1703,7 +1695,7 @@ int	unit,type,flags;
 			flags) != 0)
 	{
 		if(!(flags & SCSI_SILENT))
-			printf("cannot prevent/allow on st%d\n", unit);
+			printf("st%d: cannot prevent/allow\n", unit);
 		st_data[unit].flags &= ~ST_INFO_VALID;
 		return(FALSE);
 	}
@@ -1730,7 +1722,7 @@ int	unit,immed,flags;
 			flags) != 0)
 	{
 		if(!(flags & SCSI_SILENT))
-			printf("could not rewind st%d\n", unit);
+			printf("st%d: could not rewind\n", unit);
 		st_data[unit].flags &= ~ST_INFO_VALID;
 		return(FALSE);
 	}
@@ -1965,7 +1957,7 @@ struct	scsi_xfer	*xs;
 			}
 			else
 			{ /* makes no sense.. complain */
-				printf("BAD length error?");
+				printf("st%d: BAD length error?\n", unit);
 			}
 		}/* there may be some other error. check the rest */
 
@@ -1982,22 +1974,19 @@ struct	scsi_xfer	*xs;
 				printf("st%d: soft error(corrected) ", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf("block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			if(!(sense->ext.extended.flags & SSD_ILI))
 				xs->resid = 0; /* XXX check this */
 			return(ESUCCESS);
 		case	0x2:
-			if(!silent) printf("st%d: not ready\n ", unit); 
+			if(!silent) printf("st%d: not ready\n", unit); 
 			return(ENODEV);
 		case	0x3:
 			if(!silent)
@@ -2005,27 +1994,24 @@ struct	scsi_xfer	*xs;
 				printf("st%d: medium error ", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf("block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(EIO);
 		case	0x4:
-			if(!silent) printf("st%d: non-media hardware failure\n ",
+			if(!silent) printf("st%d: non-media hardware failure\n",
 				unit); 
 			return(EIO);
 		case	0x5:
-			if(!silent) printf("st%d: illegal request\n ", unit); 
+			if(!silent) printf("st%d: illegal request\n", unit); 
 			return(EINVAL);
 		case	0x6:
-			if(!silent) printf("st%d: Unit attention.\n ", unit); 
+			if(!silent) printf("st%d: Unit attention.\n", unit); 
 			st_data[unit].flags &= ~(ST_AT_FILEMARK|ST_AT_EOM);
 			st_data[unit].flags &= ~ST_INFO_VALID;
 			if (st_data[unit].flags & ST_OPEN) /* TEMP!!!! */
@@ -2035,96 +2021,79 @@ struct	scsi_xfer	*xs;
 		case	0x7:
 			if(!silent)
 			{
-				printf("st%d: attempted protection violation "
-								, unit); 
+				printf("st%d: attempted protection violation",
+					unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(EACCES);
 		case	0x8:
 			if(!silent)
 			{
-				printf("st%d: fixed block wrong size \n "
-							, unit); 
+				printf("st%d: fixed block wrong size",
+					unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("requested size: %d (decimal)\n",
+			   		printf(" requested size: %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(EIO);
 		case	0x9:
-			if(!silent) printf("st%d: vendor unique\n",
-				unit); 
+			if(!silent) printf("st%d: vendor unique\n", unit); 
 			return(EIO);
 		case	0xa:
-			if(!silent) printf("st%d: copy aborted\n ",
-				unit); 
+			if(!silent) printf("st%d: copy aborted\n", unit); 
 			return(EIO);
 		case	0xb:
-			if(!silent) printf("st%d: command aborted\n ",
-				unit); 
+			if(!silent) printf("st%d: command aborted\n", unit); 
 			return(EIO);
 		case	0xc:
 			if(!silent)
 			{
-				printf("st%d: search returned\n ", unit); 
+				printf("st%d: search returned", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(ESUCCESS);
 		case	0xd:
-			if(!silent) printf("st%d: volume overflow\n ",
-				unit); 
+			if(!silent) printf("st%d: volume overflow\n ", unit); 
 			return(ENOSPC);
 		case	0xe:
 			if(!silent)
 			{
-			 	printf("st%d: verify miscompare\n ", unit); 
+			 	printf("st%d: verify miscompare", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(EIO);
 		case	0xf:
-			if(!silent) printf("st%d: unknown error key\n ",
-				unit); 
+			if(!silent) printf("st%d: unknown error key\n", unit); 
 			return(EIO);
 		}
 		break;
@@ -2134,14 +2103,20 @@ struct	scsi_xfer	*xs;
 	\***************************************************************/
 	default:
 		{
-			if(!silent) printf("st%d: error code %d\n",
+			if(!silent) printf("st%d: error code %d",
 				unit,
 				sense->error_code & SSD_ERRCODE);
-		if(sense->error_code & SSD_ERRCODE_VALID)
-			if(!silent) printf("block no. %d (decimal)\n",
-			(sense->ext.unextended.blockhi <<16),
-			+ (sense->ext.unextended.blockmed <<8),
-			+ (sense->ext.unextended.blocklow ));
+			if(sense->error_code & SSD_ERRCODE_VALID)
+			{
+				if(!silent)
+				{
+					printf(" block no. %d (decimal)",
+					(sense->ext.unextended.blockhi <<16),
+					+ (sense->ext.unextended.blockmed <<8),
+					+ (sense->ext.unextended.blocklow ));
+				}
+				printf("\n");
+			}
 		}
 		return(EIO);
 	}

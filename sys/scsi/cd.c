@@ -12,18 +12,9 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- */
-static	char rev[] = "$Revision: 1.5 $";
-
-/*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
+ *	$Id$
  */
 
 #define SPLCD splbio
@@ -132,7 +123,8 @@ struct	scsi_switch *scsi_switch;
 	\*******************************************************/
 	if( unit >= NCD)
 	{
-		printf("Too many scsi CDs..(%d > %d) reconfigure kernel\n",(unit + 1),NCD);
+		printf("Too many scsi CDs..(%d > %d) reconfigure kernel\n",
+			(unit + 1),NCD);
 		return(0);
 	}
 	/*******************************************************\
@@ -159,11 +151,11 @@ struct	scsi_switch *scsi_switch;
 	cd_get_parms(unit,  SCSI_NOSLEEP |  SCSI_NOMASK);
 	if(dp->disksize)
 	{
-		printf("cd present\n");
+		printf("cd%d: cd present\n", unit);
 	}
 	else
 	{
-		printf("drive empty\n");
+		printf("cd%d: drive empty\n", unit);
 	}
 	cd->flags |= CDINIT;
 	return;
@@ -328,7 +320,7 @@ int	flags;
 	{
 		if (cd_xfer_block_wait[unit])
 		{
-			printf("doing a wakeup from NOMASK mode\n");
+			printf("cd%d: doing a wakeup from NOMASK mode\n", unit);
 			wakeup((caddr_t)&cd_free_xfer[unit]);
 		}
 		xs->next = cd_free_xfer[unit];
@@ -1018,7 +1010,7 @@ cd_size(unit, flags)
 			2000,
 			flags) != 0)
 	{
-		printf("could not get size of unit %d\n", unit);
+		printf("cd%d: could not get size\n", unit);
 		return(0);
 	} else {
 		size = rdcap.addr_0 + 1 ;
@@ -1265,7 +1257,7 @@ int     unit,type,flags;
                         0) != 0)
                 {
                  if(!(flags & SCSI_SILENT))
-                         printf("cannot prevent/allow on cd%d\n", unit);
+                         printf("cd%d: cannot prevent/allow\n", unit);
                  return(0);
                 }
         }
@@ -1415,7 +1407,7 @@ int	datalen;
 		xs = cd_get_xs(unit,flags); /* should wait unless booting */
 		if(!xs)
 		{
-			printf("cd_scsi_cmd%d: controller busy"
+			printf("cd%d: scsi_cmd controller busy"
  					" (this should never happen)\n",unit); 
 				return(EBUSY);
 		}
@@ -1539,10 +1531,10 @@ struct	scsi_xfer *xs;
 		case	0x1:
 			if(!silent)
 			{
-				printf("cd%d: soft error(corrected) ", unit); 
+				printf("cd%d: soft error(corrected)", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			  		printf("block no. %d (decimal)",
+			  		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
@@ -1552,16 +1544,15 @@ struct	scsi_xfer *xs;
 			}
 			return(ESUCCESS);
 		case	0x2:
-			if(!silent)printf("cd%d: not ready\n ",
-				unit); 
+			if(!silent)printf("cd%d: not ready\n", unit); 
 			return(ENODEV);
 		case	0x3:
 			if(!silent)
 			{
-				printf("cd%d: medium error ", unit); 
+				printf("cd%d: medium error", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			  		printf("block no. %d (decimal)",
+			  		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
@@ -1571,15 +1562,15 @@ struct	scsi_xfer *xs;
 			}
 			return(EIO);
 		case	0x4:
-			if(!silent)printf("cd%d: non-media hardware failure\n ",
+			if(!silent)printf("cd%d: non-media hardware failure\n",
 				unit); 
 			return(EIO);
 		case	0x5:
-			if(!silent)printf("cd%d: illegal request\n ",
+			if(!silent)printf("cd%d: illegal request\n",
 				unit); 
 			return(EINVAL);
 		case	0x6:
-			if(!silent)printf("cd%d: Unit attention.\n ", unit); 
+			if(!silent)printf("cd%d: Unit attention\n", unit); 
 			if (cd_data[unit].openparts)
 			cd_data[unit].flags &= ~(CDVALID | CDHAVELABEL);
 			{
@@ -1589,11 +1580,11 @@ struct	scsi_xfer *xs;
 		case	0x7:
 			if(!silent)
 			{
-				printf("cd%d: attempted protection violation ",
+				printf("cd%d: attempted protection violation",
 						unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 			  	{
-					printf("block no. %d (decimal)\n",
+					printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
@@ -1605,11 +1596,11 @@ struct	scsi_xfer *xs;
 		case	0x8:
 			if(!silent)
 			{
-				printf("cd%d: block wrong state (worm)\n ",
-				unit); 
+				printf("cd%d: block wrong state (worm)",
+					unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			  		printf("block no. %d (decimal)\n",
+			  		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
@@ -1619,25 +1610,21 @@ struct	scsi_xfer *xs;
 			}
 			return(EIO);
 		case	0x9:
-			if(!silent)printf("cd%d: vendor unique\n",
-				unit); 
+			if(!silent)printf("cd%d: vendor unique\n", unit); 
 			return(EIO);
 		case	0xa:
-			if(!silent)printf("cd%d: copy aborted\n ",
-				unit); 
+			if(!silent)printf("cd%d: copy aborted\n", unit); 
 			return(EIO);
 		case	0xb:
-			if(!silent)printf("cd%d: command aborted\n ",
-				unit); 
+			if(!silent)printf("cd%d: command aborted\n", unit); 
 			return(EIO);
 		case	0xc:
 			if(!silent)
 			{
-				printf("cd%d: search returned\n ",
-					unit); 
+				printf("cd%d: search returned", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			  		printf("block no. %d (decimal)\n",
+			  		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
@@ -1647,17 +1634,15 @@ struct	scsi_xfer *xs;
 			}
 			return(ESUCCESS);
 		case	0xd:
-			if(!silent)printf("cd%d: volume overflow\n ",
-				unit); 
+			if(!silent)printf("cd%d: volume overflow\n", unit); 
 			return(ENOSPC);
 		case	0xe:
 			if(!silent)
 			{
-				printf("cd%d: verify miscompare\n ",
-				unit); 
+				printf("cd%d: verify miscompare", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			  		printf("block no. %d (decimal)\n",
+			  		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
@@ -1667,22 +1652,27 @@ struct	scsi_xfer *xs;
 			}
 			return(EIO);
 		case	0xf:
-			if(!silent)printf("cd%d: unknown error key\n ",
-				unit); 
+			if(!silent)printf("cd%d: unknown error key\n", unit); 
 			return(EIO);
 		}
 		break;
 	}
 	default:
 		{
-			if(!silent)printf("cd%d: error code %d\n",
-				unit,
-				sense->error_code & SSD_ERRCODE);
-		if(sense->error_code & SSD_ERRCODE_VALID)
-			if(!silent)printf("block no. %d (decimal)\n",
-			(sense->ext.unextended.blockhi <<16)
-			+ (sense->ext.unextended.blockmed <<8)
-			+ (sense->ext.unextended.blocklow ));
+			if(!silent)
+			{
+				printf("cd%d: error code %d",
+					unit,
+					sense->error_code & SSD_ERRCODE);
+				if(sense->error_code & SSD_ERRCODE_VALID)
+				{
+					printf(" block no. %d (decimal)",
+					(sense->ext.unextended.blockhi <<16)
+					+ (sense->ext.unextended.blockmed <<8)
+					+ (sense->ext.unextended.blocklow ));
+				}	
+				printf("\n");
+			}
 		}
 		return(EIO);
 	}
@@ -1697,6 +1687,7 @@ cdsize(dev_t dev)
 	return (-1);
 }
 
+#if 0
 show_mem(address,num)
 unsigned char   *address;
 int     num;
@@ -1711,4 +1702,4 @@ int     num;
 	}
 	printf("\n------------------------------\n");
 }
-
+#endif

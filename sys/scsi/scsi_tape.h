@@ -1,38 +1,4 @@
 /*
- * HISTORY
- * $Log:	scsi_tape.h,v $
- * Revision 1.5  93/08/05  21:38:14  julian
- * fix the definitionof the last byte of each scsi command.
- * 
- * Revision 1.4  93/08/01  02:39:40  julian
- * compiles.. no mode bitfields
- * 
- * Revision 1.3  93/07/31  23:05:40  root
- * removed all bitfields
- * 
- * Revision 1.2  93/05/10  23:57:23  root
- * added some special stuff for some OLD scsi tapes (CIPHER ST150S)
- * 
- * Revision 1.1  93/04/12  21:51:06  root
- * checkin for 'jules'
- * 
- * Revision 1.2  1993/01/26  18:39:08  julian
- * add the 'write protected' bit in the device status struct.
- *
- * Revision 1.1  1992/09/26  22:10:21  julian
- * Initial revision
- *
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- * 
- */
-
-/*
  * SCSI tape interface description
  */
 
@@ -50,20 +16,14 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- */
-
-/*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
+ *
+ *	$Id$
  */
-
-
-
-
 
 /*
  * SCSI command format
  */
-
 
 struct scsi_rw_tape
 {
