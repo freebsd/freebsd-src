@@ -192,16 +192,18 @@ void	root_bus_configure(void);
 
 int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 				      int rid, struct resource *r);
-struct resource *bus_generic_alloc_resource(device_t bus, device_t child,
-					    int type, int *rid,
-					    u_long start, u_long end,
-					    u_long count, u_int flags);
+struct resource *
+	bus_generic_alloc_resource(device_t bus, device_t child,
+				   int type, int *rid,
+				   u_long start, u_long end,
+				   u_long count, u_int flags);
 int	bus_generic_attach(device_t dev);
 int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
-int	bus_generic_get_resource_list (device_t, device_t, struct resource_list *);
+struct resource_list *
+	bus_generic_get_resource_list (device_t, device_t);
 int	bus_print_child_header(device_t dev, device_t child);
 int	bus_print_child_footer(device_t dev, device_t child);
 int	bus_generic_print_child(device_t dev, device_t child);
@@ -215,12 +217,16 @@ int	bus_generic_setup_intr(device_t dev, device_t child,
 			       struct resource *irq, int flags,
 			       driver_intr_t *intr, void *arg, void **cookiep);
 
-struct resource *bus_generic_rl_alloc_resource (device_t, device_t, int, int *,
-						u_long, u_long, u_long, u_int);
+struct resource *
+	bus_generic_rl_alloc_resource (device_t, device_t, int, int *,
+				       u_long, u_long, u_long, u_int);
 void	bus_generic_rl_delete_resource (device_t, device_t, int, int);
-int	bus_generic_rl_get_resource (device_t, device_t, int, int, u_long *, u_long *);
-int	bus_generic_rl_set_resource (device_t, device_t, int, int, u_long, u_long);
-int	bus_generic_rl_release_resource(device_t, device_t, int, int, struct resource *);
+int	bus_generic_rl_get_resource (device_t, device_t, int, int, u_long *,
+				     u_long *);
+int	bus_generic_rl_set_resource (device_t, device_t, int, int, u_long,
+				     u_long);
+int	bus_generic_rl_release_resource (device_t, device_t, int, int,
+					 struct resource *);
 
 int	bus_generic_shutdown(device_t dev);
 int	bus_generic_suspend(device_t dev);
