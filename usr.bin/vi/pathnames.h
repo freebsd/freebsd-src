@@ -9,7 +9,7 @@
 #endif
 
 #ifndef	_PATH_MSGCAT
-#define	_PATH_MSGCAT	"./"
+#define _PATH_MSGCAT    "/usr/share/vi/catalog/"
 #endif
 
 #ifndef	_PATH_NEXRC
