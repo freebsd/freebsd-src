@@ -2331,6 +2331,7 @@ static Command cmdtab[] = {
 	{ "logout",	logouthelp,	logout,		1 },
 	{ "display",	displayhelp,	display,	0 },
 	{ "mode",	modestring,	modecmd,	0 },
+	{ "telnet",	openhelp,	tn,		0 },
 	{ "open",	openhelp,	tn,		0 },
 	{ "quit",	quithelp,	quit,		0 },
 	{ "send",	sendhelp,	sendcmd,	0 },
