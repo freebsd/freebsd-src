@@ -691,6 +691,7 @@ pcm_unregister(device_t dev)
 	chn_kill(d->fakechan);
 	fkchan_kill(d->fakechan);
 
+	sndstat_unregister(dev);
 	snd_mtxfree(d->lock);
 	return 0;
 }
