@@ -20,22 +20,22 @@ cd $SOURCEDIR
 # Note that base.aa is REQUIRED to be able to use the source tree for
 # building in.
 #
-cat base.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
+cat base.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
 
 #
 # The following are optional
 #
-cat bin.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat contrib.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat etc.aa	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat games.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat gnu.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat include.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat lib.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-#NO_EXPORT#cat libcrypt.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat libexec.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat sbin.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat share.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat sys.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat usrbin.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
-cat usrsbin.*	| gunzip | tar --directory ${EXTRACT_TARGET} -xpf -
+cat bin.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat contrib.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat etc.aa	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat games.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat gnu.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat include.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat lib.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+#NO_EXPORT#cat libcrypt.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat libexec.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat sbin.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat share.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat sys.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat usrbin.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
+cat usrsbin.*	| gunzip | tar --unlink --directory ${EXTRACT_TARGET} -xpf -
