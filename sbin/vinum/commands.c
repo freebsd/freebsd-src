@@ -83,7 +83,7 @@ vinum_create(int argc, char *argv[], char *arg0[])
 	fprintf(stderr, "Can't open %s: %s\n", argv[0], strerror(errno));
 	return;
     }
-    if (ioctl(superdev, VINUM_STARTCONFIG, NULL)) {	    /* can't get config? */
+    if (ioctl(superdev, VINUM_STARTCONFIG, &force)) {	    /* can't get config? */
 	printf("Can't configure: %s (%d)\n", strerror(errno), errno);
 	return;
     }
