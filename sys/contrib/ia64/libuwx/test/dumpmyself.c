@@ -1,25 +1,3 @@
-/*
- * Copyright (c) 2002,2003 Hewlett-Packard Company
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- */
-
 #include "uwx.h"
 #include "uwx_self.h"
 
@@ -29,6 +7,8 @@ struct uwx_self_info *cbinfo;
 extern int uwx_get_frame_info(struct uwx_env *uenv);
 
 extern void dump_context(uint64_t *context);
+
+extern void prime_registers();
 
 int main(int argc, char **argv)
 {
@@ -46,55 +26,80 @@ int main(int argc, char **argv)
     uwx_self_init_context(uenv);
     printf("In main():\n");
     dump_context((uint64_t *)uenv);
-    (void) f1();
+    prime_registers();
     uwx_free(uenv);
     return 0;
 }
 
-int f1(void)
+int func1(void)
 {
     uwx_self_init_context(uenv);
-    printf("In f1():\n");
+    printf("In func1():\n");
     dump_context((uint64_t *)uenv);
-    return f2();
+    return func2();
 }
 
-int f2(void)
+int func2(void)
 {
     uwx_self_init_context(uenv);
-    printf("In f2():\n");
+    printf("In func2():\n");
     dump_context((uint64_t *)uenv);
-    return f3();
+    return func3();
 }
 
-int f3(void)
+int func3(void)
 {
     uwx_self_init_context(uenv);
-    printf("In f3():\n");
+    printf("In func3():\n");
     dump_context((uint64_t *)uenv);
-    return f4();
+    return func4();
 }
 
-int f4(void)
+int func4(void)
 {
     int status;
     int foo[10];
-    f5(foo);
+    uint64_t *p;
+    uint64_t disp;
+    uint64_t val;
+
+    func5(foo);
     uwx_self_init_context(uenv);
-    printf("In f4():\n");
+    uwx_init_history(uenv);
+    printf("In func4():\n");
     dump_context((uint64_t *)uenv);
     for (;;) {
 	status = uwx_step(uenv);
-	printf("uwx_step returned %d\n", status);
-	if (status != UWX_OK)
+	if (status != UWX_OK) {
+	    printf("uwx_step returned %d\n", status);
 	    break;
+	}
+	status = uwx_get_reg(uenv, UWX_REG_PFS, &val);
+	if (status != UWX_OK) {
+	    printf("uwx_get_reg returned %d\n", status);
+	    break;
+	}
 	printf("After step:\n");
 	dump_context((uint64_t *)uenv);
+	status = uwx_get_spill_loc(uenv, UWX_REG_IP, &disp);
+	if (status == UWX_OK) {
+	    p = (uint64_t *)(disp & ~0x7LL);
+	    if ((disp & 0x7) == UWX_DISP_RSTK(0))
+		printf("IP spilled to backing store %08x = %08x\n",
+						    (int)p, (int)(*p));
+	    else if ((disp & 0x7) == UWX_DISP_MSTK(0))
+		printf("IP spilled to mem stack %08x = %08x\n",
+						    (int)p, (int)(*p));
+	    else if ((disp & 0x7) == UWX_DISP_REG(0))
+		printf("IP found in register %08x\n", (int)disp >> 4);
+	    else
+		printf("IP history not available\n");
+	}
     }
     return 0;
 }
 
-int f5(int *foo)
+int func5(int *foo)
 {
     foo[0] = 0;
     return 0;
