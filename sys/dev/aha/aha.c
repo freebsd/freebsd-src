@@ -58,9 +58,6 @@
  * $FreeBSD$
  */
 
-/* #include "pnp.h" */
-#define NPNP 0
-
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/malloc.h>
@@ -83,11 +80,6 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#if NPNP > 0
-#include <i386/isa/isa_device.h>
-#include <i386/isa/pnp.h>		/* XXX pnp isn't x86 only */
-#endif
- 
 #include <dev/aha/ahareg.h>
 
 struct aha_softc *aha_softcs[NAHATOT];
