@@ -34,9 +34,13 @@
  * Machine-dependent defines for new kernel debugger.
  */
 
+#include "opt_simos.h"
+
 #include <sys/param.h>
 #include <vm/vm.h>
 #include <machine/frame.h>
+
+#define DB_NO_AOUT
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	long		db_expr_t;	/* expression - signed */
@@ -47,18 +51,25 @@ db_regs_t		ddb_regs;	/* register state */
 
 #define	PC_REGS(regs)	((db_addr_t)(regs)->tf_regs[FRAME_PC])
 
+#ifdef SIMOS
+#define	BKPT_INST	0x000000aa	/* gentrap instruction */
+#else
 #define	BKPT_INST	0x00000080	/* breakpoint instruction */
+#endif
 #define	BKPT_SIZE	(4)		/* size of breakpoint inst */
 #define	BKPT_SET(inst)	(BKPT_INST)
 
-#if 0
 #define	FIXUP_PC_AFTER_BREAK \
-	(ddb_regs.tf_regs[FRAME_PC] -= BKPT_SIZE)
-#endif
+	(ddb_regs.tf_regs[FRAME_PC] -= BKPT_SIZE);
 
 #define	SOFTWARE_SSTEP	1		/* no hardware support */
+#ifdef SIMOS
+#define	IS_BREAKPOINT_TRAP(type, code)	((type) == ALPHA_KENTRY_IF && \
+					 (code) == ALPHA_IF_CODE_GENTRAP)
+#else
 #define	IS_BREAKPOINT_TRAP(type, code)	((type) == ALPHA_KENTRY_IF && \
 					 (code) == ALPHA_IF_CODE_BPT)
+#endif
 #define	IS_WATCHPOINT_TRAP(type, code)	0
 
 /*
@@ -106,7 +117,6 @@ int	ddb_trap __P((unsigned long, unsigned long, unsigned long,
 /*
  * We use Elf64 symbols in DDB.
  */
-#define	DB_ELF_SYMBOLS
 #define	DB_ELFSIZE	64
 
 #endif	/* _ALPHA_DB_MACHDEP_H_ */
