@@ -358,20 +358,6 @@ CTASSERT(sizeof (struct dos_partition) == 16);
 
 #define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
 
-#ifdef __alpha__
-struct disklabel_alphahack {
-	struct disklabel dl;
-	char pad[4];
-};
-#define DIOCGDINFO_ALPHAHACK	_IOR('d', 101, struct disklabel_alphahack)/* get */
-#define DIOCSDINFO_ALPHAHACK	_IOW('d', 102, struct disklabel_alphahack)/* set */
-#define DIOCWDINFO_ALPHAHACK	_IOW('d', 103, struct disklabel_alphahack)/* set, update disk */
-#define DIOCGDVIRGIN_ALPHAHACK	_IOR('d', 105, struct disklabel_alphahack)/* get virgin label */
-#ifdef CTASSERT
-CTASSERT(sizeof(struct disklabel_alphahack) == 280);
-#endif
-#endif
-
 #ifdef _KERNEL
 
 /*
