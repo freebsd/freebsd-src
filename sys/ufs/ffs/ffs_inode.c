@@ -152,8 +152,6 @@ ffs_truncate(vp, length, flags, cred, td)
 
 	oip = VTOI(ovp);
 	fs = oip->i_fs;
-	if (fs->fs_ronly)
-		panic("ffs_truncate: read-only filesystem");
 	if (length < 0)
 		return (EINVAL);
 	if (length > fs->fs_maxfilesize)
@@ -173,6 +171,8 @@ ffs_truncate(vp, length, flags, cred, td)
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
 		return (UFS_UPDATE(ovp, 0));
 	}
+	if (fs->fs_ronly)
+		panic("ffs_truncate: read-only filesystem");
 #ifdef QUOTA
 	error = getinoquota(oip);
 	if (error)
