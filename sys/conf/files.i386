@@ -1,18 +1,32 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.128 1996/02/26 00:58:38 gibbs Exp $
+#	$Id: files.i386,v 1.129 1996/03/02 03:48:11 pst Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
 	compile-with	"${CC} -Wall -o $@ $>"				   \
 	no-obj no-implicit-rule						   \
 	clean		"aic7xxx_asm"
+#
 aic7xxx_seq.h			optional	ahc	device-driver	   \
 	compile-with	"./aic7xxx_asm -o $@ $S/dev/aic7xxx/aic7xxx.seq"   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"aic7xxx_seq.h"					   \
 	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq aic7xxx_asm"
+#
+linux_genassym			optional	linux			   \
+	dependency 	"$S/i386/linux/linux_genassym.c $S/i386/linux/linux.h" \
+	compile-with	"${CC} ${CFLAGS} -o $@ $<"			   \
+	no-obj no-implicit-rule						   \
+	clean		"linux_genassym"
+#
+linux_assym.h			optional	linux			   \
+	dependency 	"linux_genassym"		   \
+	compile-with	"./linux_genassym > $@"				   \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"linux_assym.h"
+#
 i386/scsi/93cx6.c		optional	ahc	device-driver
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -37,7 +51,6 @@ i386/i386/mem.c			standard
 i386/i386/microtime.s		standard
 i386/i386/ns_cksum.c		optional	ns
 i386/i386/pmap.c		standard
-# used by ptrace now
 i386/i386/procfs_machdep.c	standard
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
@@ -64,8 +77,6 @@ i386/ibcs2/ibcs2_errno.c	optional 	ibcs2
 i386/ibcs2/ibcs2_sysent.c	optional 	ibcs2
 i386/ibcs2/ibcs2_sysvec.c	optional 	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
-#i386/ibcs2/imgact_elf.c	optional	svr4
-#i386/ibcs2/imgact_xout.c	optional	ibcs2
 i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aic6360.c              optional        aic     device-driver
 i386/isa/ata.c			optional	ata	device-driver
@@ -187,14 +198,16 @@ i386/isa/wt.c			optional	wt	device-driver
 i386/linux/imgact_linux.c	optional	linux
 i386/linux/linux_dummy.c	optional	linux
 i386/linux/linux_file.c		optional	linux
-i386/linux/linux_generic.c	optional	linux
 i386/linux/linux_ioctl.c	optional	linux
 i386/linux/linux_ipc.c		optional	linux
+i386/linux/linux_locore.s	optional	linux
 i386/linux/linux_misc.c		optional	linux
 i386/linux/linux_signal.c	optional	linux
 i386/linux/linux_socket.c	optional	linux
 i386/linux/linux_stats.c	optional	linux
 i386/linux/linux_sysent.c	optional	linux
+i386/linux/linux_sysvec.c	optional	linux
+i386/linux/linux_util.c		optional	linux
 i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
 	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h aic7xxx_seq.h"
 i386/scsi/bt.c			optional	bt	device-driver

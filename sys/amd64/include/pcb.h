@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.9 1995/08/17 11:30:03 davidg Exp $
+ *	$Id: pcb.h,v 1.10 1996/01/23 02:39:24 davidg Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -68,7 +68,6 @@ struct pcb {
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
 	u_char	pcb_inl;	/* intr_nesting_level at context switch */
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
-	long	pcb_sigc[8];	/* XXX signal code trampoline */
 };
 
 /*

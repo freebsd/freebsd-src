@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.3 1995/12/29 22:12:10 sos Exp $
+ *	$Id: linux.h,v 1.4 1996/01/30 22:56:29 mpp Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -55,8 +55,55 @@ typedef struct {
 } linux_sigaction_t;
 typedef int linux_key_t;
 
+/*
+ * The Linux sigcontext, pretty much a standard 386 trapframe.
+ */
+
+struct linux_sigcontext {
+	int	sc_gs;
+	int	sc_fs;
+	int     sc_es;
+	int     sc_ds;
+	int     sc_edi;
+	int     sc_esi;
+	int     sc_ebp;
+	int	sc_esp;
+	int     sc_ebx;
+	int     sc_edx;
+	int     sc_ecx;
+	int     sc_eax;
+	int     sc_trapno;
+	int     sc_err;
+	int     sc_eip;
+	int     sc_cs;
+	int     sc_eflags;
+	int     sc_esp_at_signal;
+	int     sc_ss;
+	int	sc_387;
+	int	sc_mask;
+	int	sc_cr2;
+};
+
+/*
+ * We make the stack look like Linux expects it when calling a signal
+ * handler, but use the BSD way of calling the handler and sigreturn().
+ * This means that we need to pass the pointer to the handler too.
+ * It is appended to the frame to not interfere with the rest of it.
+ */
+
+struct linux_sigframe {
+	int	sf_sig;
+	struct	linux_sigcontext sf_sc;
+	sig_t	sf_handler;
+};
+
 extern int bsd_to_linux_signal[];
 extern int linux_to_bsd_signal[];
+
+extern struct sysentvec linux_sysvec;
+
+struct image_params;
+int	linux_fixup __P((int **stack_base, struct image_params *iparams));
 
 /* misc defines */
 #define LINUX_NAME_MAX		255
@@ -421,9 +468,14 @@ extern int linux_to_bsd_signal[];
 #define LINUX_SNDCTL_DSP_GETISPACE	0x500D
 #define LINUX_SNDCTL_DSP_NONBLOCK	0x500E
 
-#ifdef KERNEL
-caddr_t	ua_alloc_init __P((int len));
-caddr_t	ua_alloc __P((int len));
-#endif
+/* Socket system defines */
+#define LINUX_SIOCGIFCONF		0x8912
+#define LINUX_SIOCGIFFLAGS		0x8913
+#define LINUX_SIOCGIFADDR		0x8915
+#define LINUX_SIOCGIFDSTADDR		0x8917
+#define LINUX_SIOCGIFBRDADDR		0x8919
+#define LINUX_SIOCGIFNETMASK		0x891b
+#define LINUX_SIOCADDMULTI		0x8931
+#define LINUX_SIOCDELMULTI		0x8932
 
 #endif /* !_I386_LINUX_LINUX_H_ */

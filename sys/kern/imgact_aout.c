@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.21 1995/12/15 02:57:40 peter Exp $
+ *	$Id: imgact_aout.c,v 1.22 1996/01/19 03:57:54 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,6 @@ exec_aout_imgact(imgp)
 	unsigned long bss_size;
 	int error;
 
-#if defined(COMPAT_LINUX) || defined(LINUX)
 	/*
 	 * Linux and *BSD binaries look very much alike,
 	 * only the machine id is different:
@@ -71,7 +70,6 @@ exec_aout_imgact(imgp)
 	if (((a_out->a_magic >> 16) & 0xff) != 0x86 &&
 	    ((a_out->a_magic >> 16) & 0xff) != 0)
                 return -1;
-#endif /* COMPAT_LINUX || defined(LINUX) */
 
 	/*
 	 * Set file/virtual offset based on a.out variant.

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: ibcs2_sysvec.c,v 1.1 1995/10/10 07:59:11 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,8 @@
 extern int bsd_to_ibcs2_sig[];
 extern int bsd_to_ibcs2_errno[];
 extern struct sysent ibcs2_sysent[IBCS2_SYS_MAXSYSCALL];
+extern int szsigcode;
+extern char sigcode[];
 
 struct sysentvec ibcs2_svr3_sysvec = {
         sizeof (ibcs2_sysent) / sizeof (ibcs2_sysent[0]),
@@ -46,5 +48,9 @@ struct sysentvec ibcs2_svr3_sysvec = {
         bsd_to_ibcs2_sig,
         ELAST,
         bsd_to_ibcs2_errno,
-	0
+	0,		/* fixup */
+	0,		/* sendsig, ignore */
+	sigcode,	/* use generic trampoline */
+	&szsigcode,	/* use generic trampoline size */
+	0		/* prepsyscall */
 };
