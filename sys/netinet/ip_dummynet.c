@@ -429,6 +429,8 @@ transmit_event(struct dn_pipe *pipe)
 {
     struct dn_pkt *pkt ;
 
+    DUMMYNET_LOCK_ASSERT();
+
     while ( (pkt = pipe->head) && DN_KEY_LEQ(pkt->output_time, curr_time) ) {
 	/*
 	 * first unlink, then call procedures, since ip_input() can invoke
@@ -436,6 +438,8 @@ transmit_event(struct dn_pipe *pipe)
 	 */
 	pipe->head = DN_NEXT(pkt) ;
 
+	/* XXX: drop the lock for now to avoid LOR's */
+	DUMMYNET_UNLOCK();
 	/*
 	 * The actual mbuf is preceded by a struct dn_pkt, resembling an mbuf
 	 * (NOT A REAL one, just a small block of malloc'ed memory) with
@@ -496,6 +500,7 @@ transmit_event(struct dn_pipe *pipe)
 	    break ;
 	}
 	free(pkt, M_DUMMYNET);
+	DUMMYNET_LOCK();
     }
     /* if there are leftover packets, put into the heap for next event */
     if ( (pkt = pipe->head) )
