@@ -358,6 +358,7 @@ struct thread {
 #define	TDP_INKTR	0x0002 /* Thread is currently in KTR code. */
 #define	TDP_INKTRACE	0x0004 /* Thread is currently in KTRACE code. */
 #define	TDP_UPCALLING	0x0008 /* This thread is doing an upcall. */
+#define	TDP_COWINPROGRESS 0x0010 /* Snapshot copy-on-write in progress. */
 
 #define	TDI_SUSPENDED	0x0001	/* On suspension queue. */
 #define	TDI_SLEEPING	0x0002	/* Actually asleep! (tricky). */
@@ -641,8 +642,6 @@ struct proc {
 					/* (not to user) */
 #define	P_PROTECTED	0x100000 /* Do not kill on memory overcommit. */
 #define	P_SIGEVENT	0x200000 /* Process pending signals changed */
-/* Should be moved to machine-dependent areas. */
-#define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_ALTSTACK	0x2000000 /* Have alternate signal stack. */
