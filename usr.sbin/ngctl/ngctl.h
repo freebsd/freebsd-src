@@ -42,7 +42,6 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/select.h>
-#include <sys/linker.h>
 
 #include <stdio.h>
 #include <stdlib.h>
