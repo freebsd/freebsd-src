@@ -70,7 +70,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static char rcsid[] = "$Id: named-xfer.c,v 1.4 1995/08/20 21:49:40 peter Exp $";
+static char rcsid[] = "$Id: named-xfer.c,v 1.5 1996/01/07 05:48:49 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -79,7 +79,9 @@ static char rcsid[] = "$Id: named-xfer.c,v 1.4 1995/08/20 21:49:40 peter Exp $";
 #include <sys/socket.h>
 
 #include <netinet/in.h>
+#ifdef ISO
 #include <netiso/iso.h>
+#endif
 #if defined(__osf__)
 # include <sys/mbuf.h>
 # include <net/route.h>
@@ -1155,7 +1157,9 @@ print_output(msg, msglen, rrp)
 	register HEADER *hp = (HEADER *) msg;
 	u_int32_t addr, ttl;
 	int i, j, tab, result, class, type, dlen, n1, n;
+#ifdef ISO
 	struct iso_addr isoa;
+#endif
 	char data[BUFSIZ];
 	u_char *cp1, *cp2, *temp_ptr;
 	char *cdata, *origin, *proto, dname[MAXDNAME];
@@ -1538,6 +1542,7 @@ print_output(msg, msglen, rrp)
 		(void) fputs("\"\n", dbfp);
 		break;
 
+#ifdef ISO
 	case T_NSAP:
 		isoa.isoa_len = n;
 		if (isoa.isoa_len > sizeof(isoa.isoa_genaddr))
@@ -1545,6 +1550,7 @@ print_output(msg, msglen, rrp)
 		bcopy(cp, isoa.isoa_genaddr, isoa.isoa_len);
 		fprintf(dbfp, "%s\n", iso_ntoa(&isoa));
 		break;
+#endif
 
 	case T_UINFO:
 		(void) fprintf(dbfp, "\"%s\"\n", cp);

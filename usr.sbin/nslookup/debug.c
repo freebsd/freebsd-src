@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)debug.c	5.26 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: debug.c,v 1.3 1995/05/30 03:49:13 rgrimes Exp $";
+static char rcsid[] = "$Id: debug.c,v 1.4 1995/08/20 22:32:46 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -72,7 +72,9 @@ static char rcsid[] = "$Id: debug.c,v 1.3 1995/05/30 03:49:13 rgrimes Exp $";
 
 #include <sys/param.h>
 #include <netinet/in.h>
+#ifdef ISO
 #include <netiso/iso.h>
+#endif
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 #include <resolv.h>
@@ -254,7 +256,9 @@ Print_rr(cp, msg, eom, file)
 	int type, class, dlen, n, c;
 	u_int32_t rrttl, ttl;
 	struct in_addr inaddr;
+#ifdef ISO
 	struct iso_addr isoa;
+#endif
 	u_char *cp1, *cp2;
 	int debug;
 
@@ -462,6 +466,7 @@ doname:
 		(void) fputs("\"\n", file);
   		break;
 
+#ifdef ISO
 	case T_NSAP:
 		isoa.isoa_len = dlen;
 		if (isoa.isoa_len > sizeof(isoa.isoa_genaddr))
@@ -470,6 +475,7 @@ doname:
 		fprintf(file, "\tnsap = %s\n", iso_ntoa(&isoa));
 		cp += dlen;
   		break;
+#endif
 
 	case T_UINFO:
 		fprintf(file,"\tuser info = %s\n", cp);

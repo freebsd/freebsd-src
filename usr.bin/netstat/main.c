@@ -180,6 +180,7 @@ struct protox nsprotox[] = {
 	  0,		0 }
 };
 
+#ifdef ISO
 struct protox isoprotox[] = {
 	{ ISO_TP,	N_TPSTAT,	1,	iso_protopr,
 	  tp_stats,	"tp" },
@@ -192,8 +193,13 @@ struct protox isoprotox[] = {
 	{ -1,		-1,		0,	0,
 	  0,		0 }
 };
+#endif
 
-struct protox *protoprotox[] = { protox, ipxprotox, nsprotox, isoprotox, NULL };
+struct protox *protoprotox[] = { protox, ipxprotox, nsprotox, 
+#ifdef ISO
+					 isoprotox, 
+#endif
+					 NULL };
 
 static void printproto __P((struct protox *, char *));
 static void usage __P((void));
@@ -246,8 +252,10 @@ main(argc, argv)
 				af = AF_INET;
 			else if (strcmp(optarg, "unix") == 0)
 				af = AF_UNIX;
+#ifdef ISO
 			else if (strcmp(optarg, "iso") == 0)
 				af = AF_ISO;
+#endif
 			else {
 				errx(1, "%s: unknown address family", optarg);
 			}
@@ -419,9 +427,11 @@ main(argc, argv)
 	if (af == AF_NS || af == AF_UNSPEC)
 		for (tp = nsprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
+#ifdef ISO
 	if (af == AF_ISO || af == AF_UNSPEC)
 		for (tp = isoprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
+#endif
 	if ((af == AF_UNIX || af == AF_UNSPEC) && !sflag)
 		unixpr(nl[N_UNIXSW].n_value);
 	exit(0);

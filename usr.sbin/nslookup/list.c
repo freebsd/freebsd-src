@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)list.c	5.23 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: list.c,v 1.3 1995/05/30 03:49:15 rgrimes Exp $";
+static char rcsid[] = "$Id: list.c,v 1.4 1995/08/20 22:32:47 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -73,7 +73,9 @@ static char rcsid[] = "$Id: list.c,v 1.3 1995/05/30 03:49:15 rgrimes Exp $";
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#ifdef ISO
 #include <netiso/iso.h>
+#endif
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 #include <resolv.h>
@@ -595,7 +597,9 @@ PrintListInfo(file, msg, eom, qtype, domain)
     u_int32_t		ttl;
     int			n, pref;
     struct in_addr	inaddr;
+#ifdef ISO
     struct iso_addr	isoa;
+#endif
     char		name[NAME_LEN];
     char		name2[NAME_LEN];
     Boolean		stripped;
@@ -802,6 +806,7 @@ PrintListInfo(file, msg, eom, qtype, domain)
 		}
 		break;
 
+#ifdef ISO
 	    case T_NSAP:
 		isoa.isoa_len = dlen;
 		if (isoa.isoa_len > sizeof(isoa.isoa_genaddr))
@@ -809,6 +814,7 @@ PrintListInfo(file, msg, eom, qtype, domain)
 		bcopy(cp, isoa.isoa_genaddr, isoa.isoa_len);
 		fprintf(file, " %s", iso_ntoa(&isoa));
 		break;
+#endif
 
 	    case T_MINFO:
 	    case T_RP:

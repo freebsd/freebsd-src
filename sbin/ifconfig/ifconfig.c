@@ -72,9 +72,11 @@ static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #include <netns/ns.h>
 #include <netns/ns_if.h>
 
+#ifdef ISO
 #define EON
 #include <netiso/iso.h>
 #include <netiso/iso_var.h>
+#endif
 #include <sys/protosw.h>
 
 #include <ctype.h>
@@ -90,8 +92,10 @@ static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 
 struct	ifreq		ifr, ridreq;
 struct	ifaliasreq	addreq;
+#ifdef ISO
 struct	iso_ifreq	iso_ridreq;
 struct	iso_aliasreq	iso_addreq;
+#endif
 struct	sockaddr_in	netmask;
 
 char	name[32];
@@ -110,7 +114,11 @@ extern	int errno;
 
 int	setifflags(), setifaddr(), setifdstaddr(), setifnetmask();
 int	setifmetric(), setifmtu(), setifbroadaddr(), setifipdst();
-int	notealias(), setsnpaoffset(), setnsellength(), notrailers();
+int	notealias();
+#ifdef ISO
+int	setsnpaoffset(), setnsellength();
+#endif
+int	notrailers();
 
 #define	NEXTARG		0xffffff
 
@@ -139,8 +147,10 @@ struct	cmd {
 	{ "metric",	NEXTARG,	setifmetric },
 	{ "broadcast",	NEXTARG,	setifbroadaddr },
 	{ "ipdst",	NEXTARG,	setifipdst },
+#ifdef ISO
 	{ "snpaoffset",	NEXTARG,	setsnpaoffset },
 	{ "nsellength",	NEXTARG,	setnsellength },
+#endif
 	{ "link0",	IFF_LINK0,	setifflags },
 	{ "-link0",	-IFF_LINK0,	setifflags },
 	{ "link1",	IFF_LINK1,	setifflags },
@@ -162,7 +172,9 @@ struct	cmd {
 int	in_status(), in_getaddr();
 int	ipx_status(), ipx_getaddr();
 int	xns_status(), xns_getaddr();
+#ifdef ISO
 int	iso_status(), iso_getaddr();
+#endif
 int	ether_status();
 
 /* Known address families */
@@ -183,8 +195,10 @@ struct afswtch {
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 	{ "ns", AF_NS, xns_status, xns_getaddr,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
+#ifdef ISO
 	{ "iso", AF_ISO, iso_status, iso_getaddr,
 	     SIOCDIFADDR_ISO, SIOCAIFADDR_ISO, C(iso_ridreq), C(iso_addreq) },
+#endif
 	{ "ether", AF_INET, ether_status, NULL },	/* XXX not real!! */
 	{ 0,	0,	    0,		0 }
 };
@@ -408,8 +422,10 @@ ifconfig(argc,argv,af,rafp)
 		}
 		argc--, argv++;
 	}
+#ifdef ISO
 	if (af == AF_ISO)
 		adjust_nsellength();
+#endif
 	if (setipdst && af==AF_IPX) {
 		struct ipxip_req rq;
 		int size = sizeof(rq);
@@ -574,11 +590,13 @@ setifmtu(val)
 		perror("ioctl (set mtu)");
 }
 
+#ifdef ISO
 setsnpaoffset(val)
 	char *val;
 {
 	iso_addreq.ifra_snpaoffset = atoi(val);
 }
+#endif
 
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6NOTRAILERS\7RUNNING\10NOARP\
@@ -764,6 +782,7 @@ xns_status(force)
 	putchar('\n');
 }
 
+#ifdef ISO
 iso_status(force)
 	int force;
 {
@@ -803,7 +822,7 @@ iso_status(force)
 
 	putchar('\n');
 }
-
+#endif
 
 ether_status()
 {
@@ -940,6 +959,7 @@ char *addr;
 		printf("Attempt to set XNS netmask will be ineffectual\n");
 }
 
+#ifdef ISO
 #define SISO(x) ((struct sockaddr_iso *) &(x))
 struct sockaddr_iso *sisotab[] = {
 SISO(iso_ridreq.ifr_Addr), SISO(iso_addreq.ifra_addr),
@@ -985,3 +1005,4 @@ adjust_nsellength()
 	fixnsel(sisotab[ADDR]);
 	fixnsel(sisotab[DSTADDR]);
 }
+#endif
