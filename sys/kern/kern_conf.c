@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kern_conf.c,v 1.16 1997/02/22 09:39:03 peter Exp $
  */
 
 #include <sys/param.h>
@@ -132,7 +132,7 @@ int TTYPE##_add(dev_t *descrip,						\
 		/*							\
 		 * Search the table looking for a slot...		\
 		 */							\
-		for (i = ALLOCSTART; i < NXXXDEV; i++)				\
+		for (i = ALLOCSTART; i < NXXXDEV; i++)			\
 			if (TTYPE[i] == NULL)				\
 				break;		/* found one! */	\
 		/* out of allocable slots? */				\
@@ -163,7 +163,7 @@ int TTYPE##_add(dev_t *descrip,						\
 ADDENTRY(bdevsw, nblkdev,bdevsw_ALLOCSTART)
 ADDENTRY(cdevsw, nchrdev,cdevsw_ALLOCSTART)
 
-/* Maybe the author might indicate what the f*@# tehis is for? */
+/* Maybe the author might indicate what the f*@# this is for? */
 
 void
 cdevsw_make(struct bdevsw *from)
