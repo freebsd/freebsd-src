@@ -90,7 +90,6 @@
 #include "pap.h"
 #include "cbcp.h"
 #include "datalink.h"
-#include "probe.h"
 
 
 static u_short default_urgent_tcp_ports[] = {
@@ -134,9 +133,8 @@ ncp_Init(struct ncp *ncp, struct bundle *bundle)
   ipcp_Init(&ncp->ipcp, bundle, &bundle->links->physical->link,
             &bundle->fsm);
 #ifndef NOINET6
-  if (probe.ipv6_available)
-    ipv6cp_Init(&ncp->ipv6cp, bundle, &bundle->links->physical->link,
-                &bundle->fsm);
+  ipv6cp_Init(&ncp->ipv6cp, bundle, &bundle->links->physical->link,
+              &bundle->fsm);
 #endif
 }
 
@@ -145,8 +143,7 @@ ncp_Destroy(struct ncp *ncp)
 {
   ipcp_Destroy(&ncp->ipcp);
 #ifndef NOINET6
-  if (probe.ipv6_available)
-    ipv6cp_Destroy(&ncp->ipv6cp);
+  ipv6cp_Destroy(&ncp->ipv6cp);
 #endif
 
   if (ncp->cfg.urgent.tcp.maxports) {
@@ -175,7 +172,7 @@ ncp_fsmStart(struct ncp *ncp, struct bundle *bundle)
 #ifndef NOINET6
   }
 
-  if (probe.ipv6_available && Enabled(bundle, OPT_IPV6CP)) {
+  if (Enabled(bundle, OPT_IPV6CP)) {
     fsm_Up(&ncp->ipv6cp.fsm);
     fsm_Open(&ncp->ipv6cp.fsm);
     res++;
@@ -212,8 +209,7 @@ ncp_SetLink(struct ncp *ncp, struct link *l)
 {
   ipcp_SetLink(&ncp->ipcp, l);
 #ifndef NOINET6
-  if (probe.ipv6_available)
-    ipv6cp_SetLink(&ncp->ipv6cp, l);
+  ipv6cp_SetLink(&ncp->ipv6cp, l);
 #endif
 }
 
@@ -281,8 +277,7 @@ ncp_QueueLen(struct ncp *ncp)
 
   result = ipcp_QueueLen(&ncp->ipcp);
 #ifndef NOINET6
-  if (probe.ipv6_available)
-    result += ipv6cp_QueueLen(&ncp->ipv6cp);
+  result += ipv6cp_QueueLen(&ncp->ipv6cp);
 #endif
   result += mp_QueueLen(&ncp->mp);	/* Usually empty */
 
@@ -309,10 +304,9 @@ ncp_DeleteQueues(struct ncp *ncp)
       m_freem(m_dequeue(q));
 
 #ifndef NOINET6
-  if (probe.ipv6_available)
-    for (q = ipv6cp->Queue; q < ipv6cp->Queue + IPV6CP_QUEUES(ipv6cp); q++)
-      while (q->top)
-        m_freem(m_dequeue(q));
+  for (q = ipv6cp->Queue; q < ipv6cp->Queue + IPV6CP_QUEUES(ipv6cp); q++)
+    while (q->top)
+      m_freem(m_dequeue(q));
 #endif
 
   link_DeleteQueue(&mp->link);	/* Usually empty anyway */
@@ -358,9 +352,7 @@ ncp_PushPacket(struct ncp *ncp, int *af, struct link *l)
   int res;
 
 #ifndef NOINET6
-  if (!probe.ipv6_available)
-    res = ipcp_PushPacket(&bundle->ncp.ipcp, l);
-  else if (*af == AF_INET) {
+  if (*af == AF_INET) {
     if ((res = ipcp_PushPacket(&bundle->ncp.ipcp, l)))
       *af = AF_INET6;
     else
@@ -456,9 +448,8 @@ ncp_Show(struct cmdargs const *arg)
   int p;
 
 #ifndef NOINET6
-  if (probe.ipv6_available)
-    prompt_Printf(arg->prompt, "Next queued AF: %s\n",
-                  ncp->afq == AF_INET6 ? "inet6" : "inet");
+  prompt_Printf(arg->prompt, "Next queued AF: %s\n",
+                ncp->afq == AF_INET6 ? "inet6" : "inet");
 #endif
 
   if (ncp->route) {
@@ -511,8 +502,7 @@ ncp_LayersOpen(struct ncp *ncp)
 
   n = !!(ncp->ipcp.fsm.state == ST_OPENED);
 #ifndef NOINET6
-  if (probe.ipv6_available)
-    n += !!(ncp->ipv6cp.fsm.state == ST_OPENED);
+  n += !!(ncp->ipv6cp.fsm.state == ST_OPENED);
 #endif
 
   return n;
@@ -528,10 +518,9 @@ ncp_LayersUnfinished(struct ncp *ncp)
     n++;
 
 #ifndef NOINET6
-  if (probe.ipv6_available)
-    if (ncp->ipv6cp.fsm.state > ST_CLOSED ||
-        ncp->ipv6cp.fsm.state == ST_STARTING)
-      n++;
+  if (ncp->ipv6cp.fsm.state > ST_CLOSED ||
+      ncp->ipv6cp.fsm.state == ST_STARTING)
+    n++;
 #endif
 
   return n;
@@ -545,10 +534,9 @@ ncp_Close(struct ncp *ncp)
     fsm_Close(&ncp->ipcp.fsm);
 
 #ifndef NOINET6
-  if (probe.ipv6_available)
-    if (ncp->ipv6cp.fsm.state > ST_CLOSED ||
-        ncp->ipv6cp.fsm.state == ST_STARTING)
-      fsm_Close(&ncp->ipv6cp.fsm);
+  if (ncp->ipv6cp.fsm.state > ST_CLOSED ||
+      ncp->ipv6cp.fsm.state == ST_STARTING)
+    fsm_Close(&ncp->ipv6cp.fsm);
 #endif
 }
 
@@ -557,7 +545,6 @@ ncp2initial(struct ncp *ncp)
 {
   fsm2initial(&ncp->ipcp.fsm);
 #ifndef NOINET6
-  if (probe.ipv6_available)
-    fsm2initial(&ncp->ipv6cp.fsm);
+  fsm2initial(&ncp->ipv6cp.fsm);
 #endif
 }
