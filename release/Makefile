@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.247 1996/11/02 18:58:07 jkh Exp $
+#	$Id: Makefile,v 1.248 1996/11/03 08:52:31 joerg Exp $
 #
 # How to roll a release:
 #
@@ -211,7 +211,7 @@ release.4:
 		${MAKE} -f $${j}_crunch.mk all NOCRYPT=yes \
 		    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
-		true || rm -rf $${j}_crunch ; \
+		true || { rm -rf $${j}_crunch ; false ; } ; \
 	done
 	touch release.4
 
