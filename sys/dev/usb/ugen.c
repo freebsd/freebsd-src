@@ -68,7 +68,7 @@
 #ifdef UGEN_DEBUG
 #define DPRINTF(x)	if (ugendebug) logprintf x
 #define DPRINTFN(n,x)	if (ugendebug>(n)) logprintf x
-int	ugendebug = 10;
+int	ugendebug = 0;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -167,6 +167,7 @@ USB_MATCH(ugen)
 USB_ATTACH(ugen)
 {
 	USB_ATTACH_START(ugen, sc, uaa);
+	usbd_device_handle udev;
 	char devinfo[1024];
 	usbd_status err;
 	int conf;
@@ -175,8 +176,19 @@ USB_ATTACH(ugen)
 	USB_ATTACH_SETUP;
 	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
 
-	sc->sc_udev = uaa->device;
-	conf = 1;		/* XXX should not hard code 1 */
+	sc->sc_udev = udev = uaa->device;
+
+	/* First set configuration index 0, the default one for ugen. */
+	err = usbd_set_config_index(udev, 0, 0);
+	if (err) {
+		printf("%s: setting configuration index 0 failed\n", 
+		       USBDEVNAME(sc->sc_dev));
+		sc->sc_dying = 1;
+		USB_ATTACH_ERROR_RETURN;
+	}
+	conf = usbd_get_config_descriptor(udev)->bConfigurationValue;
+
+	/* Set up all the local state for this configuration. */
 	err = ugen_set_config(sc, conf);
 	if (err) {
 		printf("%s: setting configuration %d failed\n", 
@@ -311,6 +323,7 @@ ugenopen(dev, flag, mode, p)
 		sc->sc_is_open[USB_CONTROL_ENDPOINT] = 1;
 		return (0);
 	}
+
 	/* Make sure there are pipes for all directions. */
 	for (dir = OUT; dir <= IN; dir++) {
 		if (flag & (dir == OUT ? FWRITE : FREAD)) {
@@ -754,7 +767,7 @@ ugenintr(xfer, addr, status)
 		return;
 	}
 
-	usbd_get_xfer_status(xfer, 0, 0, &count, 0);
+	usbd_get_xfer_status(xfer, NULL, NULL, &count, NULL);
 	ibuf = sce->ibuf;
 
 	DPRINTFN(5, ("ugenintr: xfer=%p status=%d count=%d\n", 
