@@ -355,7 +355,7 @@ acpi_ec_attach(device_t dev)
 {
     struct acpi_ec_softc	*sc;
     ACPI_STATUS			Status;
-
+    int errval = 0;
     FUNCTION_TRACE(__func__);
 
     /*
@@ -373,7 +373,8 @@ acpi_ec_attach(device_t dev)
     if ((sc->ec_data_res = bus_alloc_resource(sc->ec_dev, SYS_RES_IOPORT, &sc->ec_data_rid,
 					      0, ~0, 1, RF_ACTIVE)) == NULL) {
 	device_printf(dev, "can't allocate data port\n");
-	return_VALUE(ENXIO);
+	errval = ENXIO;
+	goto out;
     }
     sc->ec_data_tag = rman_get_bustag(sc->ec_data_res);
     sc->ec_data_handle = rman_get_bushandle(sc->ec_data_res);
@@ -382,7 +383,8 @@ acpi_ec_attach(device_t dev)
     if ((sc->ec_csr_res = bus_alloc_resource(sc->ec_dev, SYS_RES_IOPORT, &sc->ec_csr_rid,
 					     0, ~0, 1, RF_ACTIVE)) == NULL) {
 	device_printf(dev, "can't allocate command/status port\n");
-	return_VALUE(ENXIO);
+	errval = ENXIO;
+	goto out;
     }
     sc->ec_csr_tag = rman_get_bustag(sc->ec_csr_res);
     sc->ec_csr_handle = rman_get_bushandle(sc->ec_csr_res);
@@ -396,7 +398,8 @@ acpi_ec_attach(device_t dev)
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching GPE\n"));
     if ((Status = acpi_EvaluateInteger(sc->ec_handle, "_GPE", &sc->ec_gpebit)) != AE_OK) {
 	device_printf(dev, "can't evaluate _GPE - %s\n", AcpiFormatException(Status));
-	return_VALUE(ENXIO);
+	errval =ENXIO;
+	goto out;
     }
 
     /*
@@ -411,7 +414,8 @@ acpi_ec_attach(device_t dev)
 					EcGpeHandler, sc)) != AE_OK) {
 	device_printf(dev, "can't install GPE handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
-	return_VALUE(ENXIO);
+	errval = ENXIO;
+	goto out;
     }
 
     /* 
@@ -423,11 +427,19 @@ acpi_ec_attach(device_t dev)
 	device_printf(dev, "can't install address space handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
 	panic("very suck");
-	return_VALUE(ENXIO);
+	errval = ENXIO;
+	goto out;
     }
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attach complete\n"));
-
     return_VALUE(0);
+ out:
+    if(sc->ec_csr_res)
+	bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_csr_rid, 
+			     sc->ec_csr_res);
+    if(sc->ec_data_res)
+        bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_data_rid,
+			     sc->ec_data_res);
+    return_VALUE(errval);
 }
 
 static void
