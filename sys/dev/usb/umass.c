@@ -636,6 +636,15 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		return(UMATCH_VENDOR_PRODUCT);
 	}
 
+	if (UGETW(dd->idVendor) == USB_VENDOR_MICROTECH
+	    && UGETW(dd->idProduct) == USB_PRODUCT_MICROTECH_DPCM) {
+		/* the cameramate does not provide valid
+		   class/subclass information. fake it. */
+		sc->proto = PROTO_SCSI | PROTO_CBI;
+		sc->quirks |= NO_TEST_UNIT_READY | NO_START_STOP;
+		return(UMATCH_VENDOR_PRODUCT);
+	}
+
 	id = usbd_get_interface_descriptor(iface);
 	if (id == NULL || id->bInterfaceClass != UCLASS_MASS)
 		return(UMATCH_NONE);
