@@ -1364,7 +1364,7 @@ psignal(p, sig)
 			 * The signal is not ignored or caught.
 			 */
 			mtx_lock_spin(&sched_lock);
-			thread_unsuspend(p);	/* Checks if should do it. */
+			thread_unsuspend(p);
 			mtx_unlock_spin(&sched_lock);
 			goto out;
 		}
@@ -1373,7 +1373,9 @@ psignal(p, sig)
 			/*
 			 * Already stopped, don't need to stop again
 			 * (If we did the shell could get confused).
+			 * Just make sure the signal STOP bit set.
 			 */
+			p->p_flag |= P_STOPPED_SGNL;
 			SIGDELSET(p->p_siglist, sig);
 			goto out;
 		}
@@ -1383,10 +1385,8 @@ psignal(p, sig)
 		 * If a thread is sleeping interruptibly, simulate a
 		 * wakeup so that when it is continued it will be made
 		 * runnable and can look at the signal.  However, don't make
-		 * the process runnable, leave it stopped.
+		 * the PROCESS runnable, leave it stopped.
 		 * It may run a bit until it hits a thread_suspend_check().
-		 *
-		 * XXXKSE I don't understand this at all.
 		 */
 		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC(p, td) {
@@ -1403,6 +1403,8 @@ psignal(p, sig)
 		/*
 		 * XXXKSE  What about threads that are waiting on mutexes?
 		 * Shouldn't they abort too?
+		 * No, hopefully mutexes are short lived.. They'll
+		 * eventually hit thread_suspend_check().
 		 */
 	}  else if (p->p_state == PRS_NORMAL) {
 		if (prop & SA_CONT) {
@@ -1419,6 +1421,7 @@ psignal(p, sig)
 		 * cause the process to run.
 		 */
 		if (prop & SA_STOP) {
+			int should_signal = 1;
 			if (action != SIG_DFL)
 				goto runfast;
 
@@ -1430,8 +1433,22 @@ psignal(p, sig)
 				goto out;
 			SIGDELSET(p->p_siglist, sig);
 			p->p_xstat = sig;
-			PROC_LOCK(p->p_pptr);
-			if (!(p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP))
+			PROC_LOCK(p->p_pptr); /* XXX un-needed? */
+#if 0
+			FOREACH_THREAD_IN_PROC(p, td) {
+				if (td->td_state == TDS_RUNNING) {
+					/*
+					 * all other states must be in
+					 * the kernel
+					 */
+					should_signal = 0;
+					break;
+				}
+			}
+/* don't enable until the equivalent code is in thread_suspend_check() */
+#endif
+			if (!(p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) &&
+			    should_signal)
 				psignal(p->p_pptr, SIGCHLD);
 			PROC_UNLOCK(p->p_pptr);
 			stop(p);

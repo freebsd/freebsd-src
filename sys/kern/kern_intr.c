@@ -351,6 +351,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 {
 	struct int_entropy entropy;
 	struct thread *td;
+	struct thread *ctd;
 	struct proc *p;
 
 	/*
@@ -359,13 +360,14 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	if ((ithread == NULL) || TAILQ_EMPTY(&ithread->it_handlers))
 		return (EINVAL);
 
+	ctd = curthread;
 	/*
 	 * If any of the handlers for this ithread claim to be good
 	 * sources of entropy, then gather some.
 	 */
 	if (harvest.interrupt && ithread->it_flags & IT_ENTROPY) {
 		entropy.vector = ithread->it_vector;
-		entropy.proc = curthread->td_proc;;
+		entropy.proc = ctd->td_proc;;
 		random_harvest(&entropy, sizeof(entropy), 2, 0,
 		    RANDOM_INTERRUPT);
 	}
@@ -390,13 +392,12 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		CTR2(KTR_INTR, "%s: setrunqueue %d", __func__, p->p_pid);
 		setrunqueue(td);
 		if (do_switch &&
-		    (curthread->td_critnest == 1)/* &&
-		    (curthread->td_state == TDS_RUNNING) XXXKSE*/) {
-#if 0 /* not needed in KSE */
-			if (curthread != PCPU_GET(idlethread))
-				setrunqueue(curthread);
-#endif
-			curthread->td_proc->p_stats->p_ru.ru_nivcsw++;
+		    (ctd->td_critnest == 1) ) {
+			KASSERT((ctd->td_state == TDS_RUNNING),
+			    ("ithread_schedule: Bad state for curthread."));
+			ctd->td_proc->p_stats->p_ru.ru_nivcsw++;
+			if (ctd->td_kse->ke_flags & KEF_IDLEKSE)
+				ctd->td_state = TDS_UNQUEUED;
 			mi_switch();
 		} else {
 			curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
