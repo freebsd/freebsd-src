@@ -62,7 +62,6 @@
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/ipl.h>
 #include <machine/mpapic.h>
 #include <machine/psl.h>
 #include <machine/segments.h>

@@ -44,7 +44,6 @@
 #include <sys/devicestat.h>
 #include <sys/cons.h>
 
-#include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/bootinfo.h>
 

@@ -55,7 +55,6 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
-#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/linker.h>

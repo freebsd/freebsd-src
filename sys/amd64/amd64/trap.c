@@ -55,7 +55,6 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
-#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
