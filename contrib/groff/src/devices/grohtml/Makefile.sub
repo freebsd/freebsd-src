@@ -12,5 +12,4 @@ CCSRCS=\
   $(srcdir)/output.cc
 HDRS=\
   $(srcdir)/html.h \
-  $(srcdir)/html-chars.h \
   $(srcdir)/html-text.h

@@ -6,39 +6,53 @@ win32
 
 Here two ports using the gcc compiler and other GNU tools:
 
-  Thomer M. Gil <tmgil@cs.vu.nl>:
+. Cygwin:
 
-    http://www.cs.vu.nl/~tmgil/misc/wingroff.html
+    http://sources.redhat.com/cygwin/
 
-  Kees Zeelenberg <c.zeelenberg@hccnet.nl>:
+  Look for a convenient mirror site in
 
-    http://gnuwin32.sourceforge.net/
+    http://sources.redhat.com/cygwin/mirrors.html
+
+  At any of this mirrors, groff can be found in the directory
+  latest/groff.
+
+. Kees Zeelenberg <c.zeelenberg@hccnet.nl>:
+
+    http://gnuwin32.sourceforge.net/packages/groffl.htm
+
+  This port includes grap-1.10 and deroff-1.7.
 
 dos
 ---
 
-Binaries for Eli Zaretskii's port using the djgpp compiler
-are available from
+Binaries for Eli Zaretskii's port using the djgpp compiler are available
+from
 
   ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2gnu/gro*b.zip
 
 and its mirrors; for installation details please read `arch/djgpp/README'.
+This port also runs on win32 systems, except Win2K.
 
 grap
 ----
 
 An implementation of Kernighan & Bentley's grap language for typesetting
 graphs.  Written by Ted Faber <faber@lunabase.org>.  The actual version
-can be found at 
+can be found at
 
   http://www.lunabase.org/~faber/Vault/software/grap/
 
-A djgpp port which runs on MS-DOS and all Win32 systems (Win95, Win98,
+A djgpp port which runs on dos and most win32 systems (Win95, Win98,
 WinNT) done by Kees Zeelenberg <c.zeelenberg@hccnet.nl> is available from
 
   ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2apps/
 
 It is intended to be used with the djgpp port of groff.
+
+A win32 port is included in the groff package available from
+
+    http://gnuwin32.sourceforge.net/
 
 plot2dev
 --------
@@ -67,7 +81,7 @@ everything is available from
   http://www.primate.wisc.edu/software/troffcvt/
 
 unroff
-______
+------
 
 From the README file:
 
@@ -88,8 +102,8 @@ deroff
 Deroff removes roff constructs from documents for the purpose of indexing,
 spell checking etc.
 
-Michael Haardt's <michael@moria.de> implementation is a little smarter than
-traditional implementations, because it knows about certain -man and
+Michael Haardt's <michael@moria.de> implementation is a little smarter
+than traditional implementations, because it knows about certain -man and
 -mm macros.  It is able to generate a word list for spell checking tools
 or omit headers for sentence analysis tools.  It can further generate
 cpp-style #line lines.
@@ -102,6 +116,10 @@ Win95, Win98, WinNT) is available from
   ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2apps/
 
 and its mirrors.
+
+A win32 port of version 1.7 is available from
+
+  http://gnuwin32.sourceforge.net/
 
 miscellaneous
 -------------
@@ -125,9 +143,9 @@ miscellaneous
     things to ASCII text.  Amongst other things, it breaks lines at new
     sentences, reduces upper-case acronyms by one point size, adds
     diacriticals, changes simple quotes into smart quotes, and makes a few
-    simple grammar checks.  The best way to see what it does is to run it as
-    a sed script file (or files) on a text file and then compare the output
-    file with the original.
+    simple grammar checks.  The best way to see what it does is to run it
+    as a sed script file (or files) on a text file and then compare the
+    output file with the original.
 
   o `DropCaps' is a troff script which replaces the initial letters of
     paragraphs immediately after H1 and H2 headings with drop-capitals of
@@ -148,7 +166,8 @@ miscellaneous
 documentation
 -------------
 
-Many documents related to the original versions of troff, ditroff, pic, and
-others can be accessed from the following web page:
+Many documents related to the original versions of troff, ditroff, pic,
+and others can be accessed from the following web pages:
 
   http://www.cs.bell-labs.com/cm/cs/cstr.html
+  http://www.cs.bell-labs.com/cm/cs/papers.html

@@ -77,11 +77,12 @@
 #endif
 
 #ifndef _
-/* This is for other GNU distributions with internationalized messages.
-   When compiling libc, the _ macro is predefined.  */
-# ifdef HAVE_LIBINTL_H
+/* This is for other GNU distributions with internationalized messages.  */
+# if defined HAVE_LIBINTL_H || defined _LIBC
 #  include <libintl.h>
-#  define _(msgid)	gettext (msgid)
+#  ifndef _
+#   define _(msgid)	gettext (msgid)
+#  endif
 # else
 #  define _(msgid)	(msgid)
 # endif
@@ -521,6 +522,9 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
   if (optstring[0] == ':')
     print_errors = 0;
 
+  if (argc < 1)
+    return -1;
+
   optarg = NULL;
 
   if (optind == 0 || !__getopt_initialized)
@@ -670,7 +674,10 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
 		pfound = p;
 		indfound = option_index;
 	      }
-	    else
+	    else if (long_only
+		     || pfound->has_arg != p->has_arg
+		     || pfound->flag != p->flag
+		     || pfound->val != p->val)
 	      /* Second or later nonexact match found.  */
 	      ambig = 1;
 	  }

@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -87,7 +88,7 @@ static const char *number_value_to_ascii(int value, char format, int width)
   case '1':
     if (width <= 0)
       return i_to_a(value);
-    else if (width > sizeof(buf) - 2)
+    else if (width > int(sizeof(buf) - 2))
       sprintf(buf, "%.*d", int(sizeof(buf) - 2), int(value));
     else
       sprintf(buf, "%.*d", width, int(value));

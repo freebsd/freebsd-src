@@ -158,7 +158,8 @@ indexname=Ind
 common_words_file=$(datasubdir)/eign
 
 # manroot is the root of the man page directory tree.
-manroot=@mandir@
+mandir=@mandir@
+manroot=$(mandir)
 
 # man1ext is the man section for user commands.
 man1ext=1

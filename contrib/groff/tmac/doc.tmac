@@ -54,7 +54,7 @@
 .cp 0
 .
 .
-.if ((\n[.x] == 0) : ((\n[.x] == 1) & (\n[.y] < 17))) \
+.if (\n[.x]\n[.y] < 117) \
 .  ab You need GNU troff version 1.17 or higher to run this version of mdoc!
 .
 .
@@ -2583,6 +2583,24 @@
 .nr doc-display-fi-stack0 0
 .
 .
+.\" NS doc-display-ft-stackXXX global register
+.\" NS   stack of saved fonts
+.\" NS
+.\" NS limit:
+.\" NS   doc-display-depth
+.
+.nr doc-display-ft-stack0 0
+.
+.
+.\" NS doc-display-ps-stackXXX global register
+.\" NS   stack of saved font sizes
+.\" NS
+.\" NS limit:
+.\" NS   doc-display-depth
+.
+.nr doc-display-ps-stack0 0
+.
+.
 .\" NS Bd user macro
 .\" NS   begin display
 .\" NS
@@ -2594,6 +2612,8 @@
 .\" NS   doc-display-depth
 .\" NS   doc-display-ad-stackXXX
 .\" NS   doc-display-fi-stackXXX
+.\" NS   doc-display-ft-stackXXX
+.\" NS   doc-display-ps-stackXXX
 .\" NS   doc-display-file
 .\" NS   doc-display-indent-stackXXX
 .\" NS   doc-display-type-stackXXX
@@ -2623,8 +2643,8 @@
 .
 .  ie        "\$1"-literal" \{\
 .    ds doc-display-type-stack\n[doc-display-depth] literal
-.    nr doc-curr-font \n[.f]
-.    nr doc-curr-size \n[.ps]
+.    nr doc-display-ft-stack\n[doc-display-depth] \n[.f]
+.    nr doc-display-ps-stack\n[doc-display-depth] \n[.ps]
 .
 .    ie t \{\
 .      nop \*[doc-Li-font]\c
@@ -2816,8 +2836,8 @@
 .  \}
 .
 .  if "\*[doc-display-type-stack\n[doc-display-depth]]"literal" \{\
-.    ft \n[doc-curr-font]
-.    ps \n[doc-curr-size]u
+.    ft \n[doc-display-ft-stack\n[doc-display-depth]]
+.    ps \n[doc-display-ps-stack\n[doc-display-depth]]u
 .  \}
 .
 .  in -\n[doc-display-indent-stack\n[doc-display-depth]]u
@@ -3231,6 +3251,8 @@
 .    nr doc-display-indent-stack\n[doc-reg-dsgv]-saved \n[doc-display-indent-stack\n[doc-reg-dsgv]]
 .    nr doc-display-ad-stack\n[doc-reg-dsgv]-saved \n[doc-display-ad-stack\n[doc-reg-dsgv]]
 .    nr doc-display-fi-stack\n[doc-reg-dsgv]-saved \n[doc-display-fi-stack\n[doc-reg-dsgv]]
+.    nr doc-display-ft-stack\n[doc-reg-dsgv]-saved \n[doc-display-ft-stack\n[doc-reg-dsgv]]
+.    nr doc-display-ps-stack\n[doc-reg-dsgv]-saved \n[doc-display-ps-stack\n[doc-reg-dsgv]]
 .    nr doc-reg-dsgv +1
 .  \}
 .
@@ -3368,6 +3390,8 @@
 .    nr doc-display-indent-stack\n[doc-reg-drgv] \n[doc-display-indent-stack\n[doc-reg-drgv]-saved]
 .    nr doc-display-ad-stack\n[doc-reg-drgv] \n[doc-display-ad-stack\n[doc-reg-drgv]-saved]
 .    nr doc-display-fi-stack\n[doc-reg-drgv] \n[doc-display-fi-stack\n[doc-reg-drgv]-saved]
+.    nr doc-display-ft-stack\n[doc-reg-drgv] \n[doc-display-ft-stack\n[doc-reg-drgv]-saved]
+.    nr doc-display-ps-stack\n[doc-reg-drgv] \n[doc-display-ps-stack\n[doc-reg-drgv]-saved]
 .    nr doc-reg-drgv +1
 .  \}
 .
@@ -3654,6 +3678,10 @@
 .  nh
 .  doc-item-box\n[doc-list-depth]
 .
+.  if \n[doc-in-files-section] \
+.    if n \
+.      ds doc-Pa-font "\*[doc-saved-Pa-font]
+.
 .  nr doc-in-list 0
 .  doc-reset-args
 ..
@@ -3692,6 +3720,10 @@
 .    nr doc-have-space 1
 .  \}
 .
+.  if \n[doc-in-files-section] \
+.    if n \
+.      ds doc-Pa-font "\*[doc-saved-Pa-font]
+.
 .  nr doc-in-list 0
 .  doc-reset-args
 ..
@@ -3714,6 +3746,10 @@
 .  nh
 .  doc-item-box\n[doc-list-depth]
 .  br
+.
+.  if \n[doc-in-files-section] \
+.    if n \
+.      ds doc-Pa-font "\*[doc-saved-Pa-font]
 .
 .  nr doc-in-list 0
 .  doc-reset-args
@@ -6054,24 +6090,16 @@
 .
 .\" XXX: what does this function without `-std'?
 .
-.  if !\n[.$] \{\
-.    tm Usage: .Rv [-std] (#\n[.c])
+.  if \n[doc-arg-limit] \{\
+.    tm Usage: .Rv not callable by other macros (#\n[.c])
+.    doc-reset-args
 .    return
 .  \}
 .
-.  \" .ds doc-macro-name Rv
-.  \" .nr doc-arg-ptr 0
-.  \" .nr lR +1
-.  \" .ds doc-arg1 \$2
-.  \" .ds doc-arg2 \$3
-.  \" .ds doc-arg3 \$4
-.  \" .ds doc-arg4 \$5
-.  \" .ds doc-arg5 \$6
-.  \" .ds doc-arg6 \$7
-.  \" .ds doc-arg7 \$8
-.  \" .ds doc-arg8 \$9
-.  \" .
-.  \" .nr doc-num-args (\n[.$] - 1)
+.  if !\n[.$] \{\
+.    tm Usage: .Rv [-std] <function> (#\n[.c])
+.    return
+.  \}
 .
 .  if "\$1"-std" \{\
 .    nr doc-reg-Rv \*[doc-section]
