@@ -1,4 +1,4 @@
-.\"	$Id: divert.4,v 1.2.2.3 1997/02/06 11:38:42 brian Exp $
+.\"	$Id: divert.4,v 1.2.2.4 1997/06/23 00:34:18 julian Exp $
 .\"
 .Dd June 18, 1996
 .Dt DIVERT 4
@@ -77,20 +77,21 @@ unmodified to
 .Xr sendto 2
 simplifies things.
 .Sh LOOP AVOIDANCE
-To avoid having a packet sent from a divert socket rediverted back
-to the same socket, use the
-.Xr sendto 2
-system call supplying any non-zero destination port number.
-This indicates to
-.Xr ipfw 8
-and other diverting mechanisms to not divert the packet back
-to the same socket it was written from.
+Packets written into a divert socket (using
+.Xr sendto 2 )
+are never rediverted back to the same socket.  This means that a
+given packet (either incoming or outgoing) will be diverted to a
+given socket once and once only.
 .Pp
-Since
-.Xr ipfw
-checks incoming as well as outgoing packets,
-a packet written as incoming may get checked twice.
-Loop avoidance will be enabled for both checks.
+.Xr Ipfw 8
+rules are executed in order, each time the packet passes through
+the kernel, but only up until a matching
+.Nm
+rule applies.  On the second pass, after the packet has been diverted,
+the divert rule is ignored and any subsequent
+.Xr ipfw 8
+rules are applied.  For this reason, it is normally best to specify your
+divert rules prior to any others.
 .Sh DETAILS
 To enable divert sockets, your kernel must be compiled with the option
 .Dv IPDIVERT .
