@@ -241,8 +241,13 @@
     <sect3>
       <title>Contributed Software</title>
 
+      <para>All of the <application>bzip2</application> suite of
+        applications is now installed in the base system (in
+        particular, <command>bzip2recover</command> is now built and
+        installed.</para>
+
       <para><application>cvs</application> has been updated to
-	1.11.2.</para>
+	a snapshot of 1.11.2.1, as of 1 December 2002.</para>
 
       <para><application>Heimdal Kerberos</application> has been updated to
 	0.5.1.</para>
