@@ -226,8 +226,8 @@ struct wds {
 int wdsprobe(struct isa_device *);
 void wds_minphys(struct buf *);
 struct wds_req *wdsr_alloc(int);
-int32 wds_scsi_cmd(struct scsi_xfer *);
-u_int32 wds_adapter_info(int);
+int32_t wds_scsi_cmd(struct scsi_xfer *);
+u_int32_t wds_adapter_info(int);
 int wdsintr(int);
 int wds_done(int, struct wds_cmd *, u_char);
 int wdsattach(struct isa_device *);
@@ -321,7 +321,7 @@ wdsr_alloc(int unit)
   return r;
 }
 
-int32
+int32_t
 wds_scsi_cmd(struct scsi_xfer *sxp)
 {
   struct wds_req *r;
@@ -439,7 +439,7 @@ wds_scsi_cmd(struct scsi_xfer *sxp)
   return SUCCESSFULLY_QUEUED;
 }
 
-u_int32
+u_int32_t
 wds_adapter_info(int unit)
 {
   return 1;

@@ -6,7 +6,7 @@
  * met: 1. Redistributions of source code must retain the above copyright
  * notice, this list of conditions and the following disclaimer. 2. The name
  * of the author may not be used to endorse or promote products derived from
- * this software withough specific prior written permission
+ * this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.7 1995/04/10 21:25:06 jkh Exp $
+ *  $Id: if_epreg.h,v 1.11 1996/02/06 18:50:42 wollman Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -63,6 +63,7 @@ struct ep_softc {
     short cur_len;
     caddr_t bpf;		/* BPF  "magic cookie"		 */
     u_short ep_connectors;	/* Connectors on this card.	 */
+    u_char ep_connector;	/* Configured connector.	 */
     int stat;			/* some flags */
 #define         F_RX_FIRST   0x1
 #define         F_WAIT_TRAIL 0x2
@@ -70,6 +71,12 @@ struct ep_softc {
 #define		F_PROMISC    0x8
 
 #define         F_ACCESS_32_BITS 0x100
+
+    struct ep_board *epb;
+
+    int unit;
+
+    struct kern_devconf* kdc;
 
 #ifdef  EP_LOCAL_STATS
     short tx_underrun;
@@ -80,6 +87,16 @@ struct ep_softc {
     short rx_overrunl;
 #endif
 };
+
+struct ep_board {
+	int epb_addr;	/* address of this board */
+	char epb_used;	/* was this entry already used for configuring ? */
+				/* data from EEPROM for later use */
+	u_short eth_addr[3];	/* Ethernet address */
+	u_short prod_id;	/* product ID */
+	u_short res_cfg;	/* resource configuration */
+};
+
 
 /*
  * Some global constants
@@ -100,6 +117,7 @@ struct ep_softc {
 #define EP_LAST_TAG     0xd7
 #define EP_MAX_BOARDS   16
 #define EP_ID_PORT      0x100
+#define EP_IOSIZE	16	/* 16 bytes of I/O space used. */
 
 /*
  * some macros to acces long named fields
@@ -128,7 +146,7 @@ struct ep_softc {
 /**************************************************************************
  *									  *
  * These define the EEPROM data structure.  They are used in the probe
- * function to verify the existance of the adapter after having sent
+ * function to verify the existence of the adapter after having sent
  * the ID_Sequence.
  *
  * There are others but only the ones we use are defined here.
@@ -433,6 +451,12 @@ struct ep_softc {
 #define ETHER_MAX			1536
 #define RX_BYTES_MASK			(u_short) (0x07ff)
 
- /* EISA support */
-#define EP_EISA_START                    0x1000
-#define EP_EISA_W0                       0x0c80
+extern	struct ep_board ep_board[];
+extern	int ep_boards;
+extern	u_long ep_unit;
+extern	struct ep_softc *ep_alloc __P((int unit, struct ep_board *epb));
+extern	void ep_free __P((struct ep_softc *sc));
+extern	void  ep_intr __P((void *sc));
+extern 	int ep_attach __P((struct ep_softc *sc));
+
+extern	u_int16_t get_e __P((struct ep_softc *sc, int offset));

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.50.4.2 1996/01/13 10:46:49 davidg Exp $
+ *	$Id: isa.c,v 1.50.4.3 1996/03/06 23:20:42 bde Exp $
  */
 
 /*
@@ -108,7 +108,7 @@ struct kern_devconf kdc_isa0 = {
 	&kdc_cpu0,		/* parent is the CPU */
 	0,			/* no parentdata */
 	DC_BUSY,		/* busses are always busy */
-	"ISA or EISA bus",
+	"ISA bus",
 	DC_CLS_BUS		/* class */
 };
 
