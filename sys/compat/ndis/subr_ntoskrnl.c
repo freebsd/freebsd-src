@@ -34,6 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/ctype.h>
+#include <sys/unistd.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -44,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
+#include <sys/kthread.h>
 
 #include <machine/atomic.h>
 #include <machine/clock.h>
@@ -58,8 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/resource_var.h>
-#include <compat/ndis/ndis_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
+#include <compat/ndis/ndis_var.h>
 
 #define __regparm __attribute__((regparm(3)))
 
@@ -77,9 +80,16 @@ __stdcall static void *ntoskrnl_iobuildsynchfsdreq(uint32_t, void *,
 	void *, uint32_t, uint32_t *, void *, void *);
 __stdcall static uint32_t ntoskrnl_iofcalldriver(/*void *, void * */ void);
 __stdcall static void ntoskrnl_iofcompletereq(/*void *, uint8_t*/ void);
-__stdcall static uint32_t ntoskrnl_waitforobj(void *, uint32_t,
-	uint32_t, uint8_t, void *);
-__stdcall static void ntoskrnl_initevent(void *, uint32_t, uint8_t);
+__stdcall static uint32_t ntoskrnl_waitforobj(nt_dispatch_header *, uint32_t,
+	uint32_t, uint8_t, int64_t *);
+__stdcall static uint32_t ntoskrnl_waitforobjs(uint32_t,
+	nt_dispatch_header **, uint32_t, uint32_t, uint32_t, uint8_t,
+	int64_t *, wait_block *);
+__stdcall static void ntoskrnl_init_event(nt_kevent *, uint32_t, uint8_t);
+__stdcall static void ntoskrnl_clear_event(nt_kevent *);
+__stdcall static uint32_t ntoskrnl_read_event(nt_kevent *);
+__stdcall static uint32_t ntoskrnl_set_event(nt_kevent *, uint32_t, uint8_t);
+__stdcall static uint32_t ntoskrnl_reset_event(nt_kevent *);
 __stdcall static void ntoskrnl_writereg_ushort(uint16_t *, uint16_t);
 __stdcall static uint16_t ntoskrnl_readreg_ushort(uint16_t *);
 __stdcall static void ntoskrnl_writereg_ulong(uint32_t *, uint32_t);
@@ -120,7 +130,12 @@ __stdcall static uint32_t
 __stdcall static uint32_t
 	ntoskrnl_interlock_dec(/*volatile uint32_t * */ void);
 __stdcall static void ntoskrnl_freemdl(ndis_buffer *);
+__stdcall static uint32_t ntoskrnl_sizeofmdl(void *, size_t);
+__stdcall static void ntoskrnl_build_npaged_mdl(ndis_buffer *);
 __stdcall static void *ntoskrnl_mmaplockedpages(ndis_buffer *, uint8_t);
+__stdcall static void *ntoskrnl_mmaplockedpages_cache(ndis_buffer *,
+	uint8_t, uint32_t, void *, uint32_t, uint32_t);
+__stdcall static void ntoskrnl_munmaplockedpages(void *, ndis_buffer *);
 __stdcall static void ntoskrnl_init_lock(kspin_lock *);
 __stdcall static size_t ntoskrnl_memcmp(const void *, const void *, size_t);
 __stdcall static void ntoskrnl_init_ansi_string(ndis_ansi_string *, char *);
@@ -132,16 +147,35 @@ __stdcall static ndis_status ntoskrnl_unicode_to_int(ndis_unicode_string *,
 	uint32_t, uint32_t *);
 static int atoi (const char *);
 static long atol (const char *);
+static void ntoskrnl_time(uint64_t *);
 __stdcall static uint8_t ntoskrnl_wdmver(uint8_t, uint8_t);
+static void ntoskrnl_thrfunc(void *);
+__stdcall static ndis_status ntoskrnl_create_thread(ndis_handle *,
+	uint32_t, void *, ndis_handle, void *, void *, void *);
+__stdcall static ndis_status ntoskrnl_thread_exit(ndis_status);
+__stdcall static ndis_status ntoskrnl_devprop(device_object *, uint32_t,
+	uint32_t, void *, uint32_t *);
+__stdcall static void ntoskrnl_init_mutex(kmutant *, uint32_t);
+__stdcall static uint32_t ntoskrnl_release_mutex(kmutant *, uint8_t);
+__stdcall static uint32_t ntoskrnl_read_mutex(kmutant *);
+__stdcall static ndis_status ntoskrnl_objref(ndis_handle, uint32_t, void *,
+    uint8_t, void **, void **);
+__stdcall static void ntoskrnl_objderef(/*void * */ void);
+__stdcall static uint32_t ntoskrnl_zwclose(ndis_handle);
 __stdcall static void dummy(void);
 
 static struct mtx *ntoskrnl_interlock;
+struct mtx *ntoskrnl_dispatchlock;
 extern struct mtx_pool *ndis_mtxpool;
+static int ntoskrnl_kth = 0;
+static struct nt_objref_head ntoskrnl_reflist;
 
 int
 ntoskrnl_libinit()
 {
 	ntoskrnl_interlock = mtx_pool_alloc(ndis_mtxpool);
+	ntoskrnl_dispatchlock = mtx_pool_alloc(ndis_mtxpool);
+	TAILQ_INIT(&ntoskrnl_reflist);
 	return(0);
 }
 
@@ -276,24 +310,375 @@ ntoskrnl_iofcompletereq(/*irp, prioboost*/)
 	return;
 }
 
+void
+ntoskrnl_wakeup(arg)
+	void			*arg;
+{
+	nt_dispatch_header	*obj;
+	wait_block		*w;
+	list_entry		*e;
+	struct thread		*td;
+
+	obj = arg;
+
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	obj->dh_sigstate = TRUE;
+	e = obj->dh_waitlisthead.nle_flink;
+	while (e != &obj->dh_waitlisthead) {
+		w = (wait_block *)e;
+		td = w->wb_kthread;
+		if (td->td_proc->p_flag & P_KTHREAD)
+			kthread_resume(td->td_proc);
+		else
+			wakeup(td);
+		/*
+		 * For synchronization objects, only wake up
+		 * the first waiter.
+		 */
+		if (obj->dh_type == EVENT_TYPE_SYNC)
+			break;
+		e = e->nle_flink;
+	}
+	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	return;
+}
+
+static void 
+ntoskrnl_time(tval)
+	uint64_t                *tval;
+{
+	struct timespec		ts;
+
+	nanotime(&ts);
+	*tval = (uint64_t)ts.tv_nsec / 100 + (uint64_t)ts.tv_sec * 10000000 +
+	    11644473600;
+
+	return;
+}
+
+/*
+ * KeWaitForSingleObject() is a tricky beast, because it can be used
+ * with several different object types: semaphores, timers, events,
+ * mutexes and threads. Semaphores don't appear very often, but the
+ * other object types are quite common. KeWaitForSingleObject() is
+ * what's normally used to acquire a mutex, and it can be used to
+ * wait for a thread termination.
+ *
+ * The Windows NDIS API is implemented in terms of Windows kernel
+ * primitives, and some of the object manipulation is duplicated in
+ * NDIS. For example, NDIS has timers and events, which are actually
+ * Windows kevents and ktimers. Now, you're supposed to only use the
+ * NDIS variants of these objects within the confines of the NDIS API,
+ * but there are some naughty developers out there who will use
+ * KeWaitForSingleObject() on NDIS timer and event objects, so we
+ * have to support that as well. Conseqently, our NDIS timer and event
+ * code has to be closely tied into our ntoskrnl timer and event code,
+ * just as it is in Windows.
+ *
+ * KeWaitForSingleObject() may do different things for different kinds
+ * of objects:
+ *
+ * - For events, we check if the event has been signalled. If the
+ *   event is already in the signalled state, we just return immediately,
+ *   otherwise we wait for it to be set to the signalled state by someone
+ *   else calling KeSetEvent(). Events can be either synchronization or
+ *   notification events.
+ *
+ * - For timers, if the timer has already fired and the timer is in
+ *   the signalled state, we just return, otherwise we wait on the
+ *   timer. Unlike an event, timers get signalled automatically when
+ *   they expire rather than someone having to trip them manually.
+ *   Timers initialized with KeInitializeTimer() are always notification
+ *   events: KeInitializeTimerEx() lets you initialize a timer as
+ *   either a notification or synchronization event.
+ *
+ * - For mutexes, we try to acquire the mutex and if we can't, we wait
+ *   on the mutex until it's available and then grab it. When a mutex is
+ *   released, it enters the signaled state, which wakes up one of the
+ *   threads waiting to acquire it. Mutexes are always synchronization
+ *   events.
+ *
+ * - For threads, the only thing we do is wait until the thread object
+ *   enters a signalled state, which occurs when the thread terminates.
+ *   Threads are always notification events.
+ *
+ * A notification event wakes up all threads waiting on an object. A
+ * synchronization event wakes up just one. Also, a synchronization event
+ * is auto-clearing, which means we automatically set the event back to
+ * the non-signalled state once the wakeup is done.
+ *
+ * The problem with KeWaitForSingleObject() is that it can be called
+ * either from the main kernel 'process' or from a kthread. When sleeping
+ * inside a kernel thread, we need to use kthread_resume(), but that
+ * won't work in the kernel context proper. So if kthread_resume() returns
+ * EINVAL, we need to use tsleep() instead.
+ */
+
 __stdcall static uint32_t
 ntoskrnl_waitforobj(obj, reason, mode, alertable, timeout)
-	void			*obj;
+	nt_dispatch_header	*obj;
 	uint32_t		reason;
 	uint32_t		mode;
 	uint8_t			alertable;
-	void			*timeout;
+	int64_t			*timeout;
 {
-	return(0);
+	struct thread		*td = curthread;
+	kmutant			*km;
+	wait_block		w;
+	struct timeval		tv;
+	int			error = 0;
+	uint64_t		curtime;
+
+	if (obj == NULL)
+		return(STATUS_INVALID_PARAMETER);
+
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	/*
+	 * See if the object is a mutex. If so, and we already own
+	 * it, then just increment the acquisition count and return.
+         *
+         * For any other kind of object, see if it's already in the
+	 * signalled state, and if it is, just return. If the object
+         * is marked as a synchronization event, reset the state to
+         * unsignalled.
+	 */
+
+	if (obj->dh_size == OTYPE_MUTEX) {
+		km = (kmutant *)obj;
+		if (km->km_ownerthread == NULL ||
+		    km->km_ownerthread == curthread->td_proc) {
+			obj->dh_sigstate = FALSE;
+			km->km_acquirecnt++;
+			km->km_ownerthread = curthread->td_proc;
+			mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+			return (STATUS_SUCCESS);
+		}
+	} else if (obj->dh_sigstate == TRUE) {
+		if (obj->dh_type == EVENT_TYPE_SYNC)
+			obj->dh_sigstate = FALSE;
+		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		return (STATUS_SUCCESS);
+	}
+
+	w.wb_object = obj;
+	w.wb_kthread = td;
+
+	INSERT_LIST_HEAD((&obj->dh_waitlisthead), (&w.wb_waitlist));
+
+	/*
+	 * The timeout value is specified in 100 nanosecond units
+	 * and can be a positive or negative number. If it's positive,
+	 * then the timeout is absolute, and we need to convert it
+	 * to an absolute offset relative to now in order to use it.
+	 * If it's negative, then the timeout is relative and we
+	 * just have to convert the units.
+	 */
+
+	if (timeout != NULL) {
+		if (*timeout < 0) {
+			tv.tv_sec = - (*timeout) / 10000000 ;
+			tv.tv_usec = (- (*timeout) / 10) -
+			    (tv.tv_sec * 1000000);
+		} else {
+			ntoskrnl_time(&curtime);
+			tv.tv_sec = ((*timeout) - curtime) / 10000000 ;
+			tv.tv_usec = ((*timeout) - curtime) / 10 -
+			    (tv.tv_sec * 1000000);
+		}
+	}
+
+	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	if (td->td_proc->p_flag & P_KTHREAD)
+		error = kthread_suspend(td->td_proc,
+		    timeout == NULL ? 0 : tvtohz(&tv));
+	else
+		error = tsleep(td, PPAUSE|PDROP, "ndisws",
+		    timeout == NULL ? 0 : tvtohz(&tv));
+
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	/* We timed out. Leave the object alone and return status. */
+
+	if (error == EWOULDBLOCK) {
+		REMOVE_LIST_ENTRY((&w.wb_waitlist));
+		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		return(STATUS_TIMEOUT);
+	}
+
+	/*
+	 * Mutexes are always synchronization objects, which means
+         * if several threads are waiting to acquire it, only one will
+         * be woken up. If that one is us, and the mutex is up for grabs,
+         * grab it.
+	 */
+
+	if (obj->dh_size == OTYPE_MUTEX) {
+		km = (kmutant *)obj;
+		if (km->km_ownerthread == NULL) {
+			km->km_ownerthread = curthread->td_proc;
+			km->km_acquirecnt++;
+		}
+	}
+
+	if (obj->dh_type == EVENT_TYPE_SYNC)
+		obj->dh_sigstate = FALSE;
+	REMOVE_LIST_ENTRY((&w.wb_waitlist));
+
+	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	return(STATUS_SUCCESS);
 }
 
-__stdcall static void
-ntoskrnl_initevent(event, type, state)
-	void			*event;
-	uint32_t		type;
-	uint8_t			state;
+__stdcall static uint32_t
+ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
+	alertable, timeout, wb_array)
+	uint32_t		cnt;
+	nt_dispatch_header	*obj[];
+	uint32_t		wtype;
+	uint32_t		reason;
+	uint32_t		mode;
+	uint8_t			alertable;
+	int64_t			*timeout;
+	wait_block		*wb_array;
 {
-	return;
+	struct thread		*td = curthread;
+	kmutant			*km;
+	wait_block		_wb_array[THREAD_WAIT_OBJECTS];
+	wait_block		*w;
+	struct timeval		tv;
+	int			i, wcnt = 0, widx = 0, error = 0;
+	uint64_t		curtime;
+	struct timespec		t1, t2;
+
+	if (cnt > MAX_WAIT_OBJECTS)
+		return(STATUS_INVALID_PARAMETER);
+	if (cnt > THREAD_WAIT_OBJECTS && wb_array == NULL)
+		return(STATUS_INVALID_PARAMETER);
+
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	if (wb_array == NULL)
+		w = &_wb_array[0];
+	else
+		w = wb_array;
+
+	/* First pass: see if we can satisfy any waits immediately. */
+
+	for (i = 0; i < cnt; i++) {
+		if (obj[i]->dh_size == OTYPE_MUTEX) {
+			km = (kmutant *)obj[i];
+			if (km->km_ownerthread == NULL ||
+			    km->km_ownerthread == curthread->td_proc) {
+				obj[i]->dh_sigstate = FALSE;
+				km->km_acquirecnt++;
+				km->km_ownerthread = curthread->td_proc;
+				if (wtype == WAITTYPE_ANY) {
+					mtx_pool_unlock(ndis_mtxpool,
+					    ntoskrnl_dispatchlock);
+					return (STATUS_WAIT_0 + i);
+				}
+			}
+		} else if (obj[i]->dh_sigstate == TRUE) {
+			if (obj[i]->dh_type == EVENT_TYPE_SYNC)
+				obj[i]->dh_sigstate = FALSE;
+			if (wtype == WAITTYPE_ANY) {
+				mtx_pool_unlock(ndis_mtxpool,
+				    ntoskrnl_dispatchlock);
+				return (STATUS_WAIT_0 + i);
+			}
+		}
+	}
+
+	/*
+	 * Second pass: set up wait for anything we can't
+	 * satisfy immediately.
+	 */
+
+	for (i = 0; i < cnt; i++) {
+		if (obj[i]->dh_sigstate == TRUE)
+			continue;
+		INSERT_LIST_HEAD((&obj[i]->dh_waitlisthead),
+		    (&w[i].wb_waitlist));
+		w[i].wb_kthread = td;
+		w[i].wb_object = obj[i];
+		wcnt++;
+	}
+
+	if (timeout != NULL) {
+		if (*timeout < 0) {
+			tv.tv_sec = - (*timeout) / 10000000 ;
+			tv.tv_usec = (- (*timeout) / 10) -
+			    (tv.tv_sec * 1000000);
+		} else {
+			ntoskrnl_time(&curtime);
+			tv.tv_sec = ((*timeout) - curtime) / 10000000 ;
+			tv.tv_usec = ((*timeout) - curtime) / 10 -
+			    (tv.tv_sec * 1000000);
+		}
+	}
+
+	while (wcnt) {
+		nanotime(&t1);
+		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+		if (td->td_proc->p_flag & P_KTHREAD)
+			error = kthread_suspend(td->td_proc,
+			    timeout == NULL ? 0 : tvtohz(&tv));
+		else
+			error = tsleep(td, PPAUSE|PCATCH, "ndisws",
+			    timeout == NULL ? 0 : tvtohz(&tv));
+
+		mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		nanotime(&t2);
+
+		for (i = 0; i < cnt; i++) {
+			if (obj[i]->dh_size == OTYPE_MUTEX) {
+				km = (kmutant *)obj;
+				if (km->km_ownerthread == NULL) {
+					km->km_ownerthread =
+					    curthread->td_proc;
+					km->km_acquirecnt++;
+				}
+			}
+			if (obj[i]->dh_sigstate == TRUE) {
+				widx = i;
+				if (obj[i]->dh_type == EVENT_TYPE_SYNC)
+					obj[i]->dh_sigstate = FALSE;
+				REMOVE_LIST_ENTRY((&w[i].wb_waitlist));
+				wcnt--;
+			}
+		}
+
+		if (error || wtype == WAITTYPE_ANY)
+			break;
+
+		if (*timeout != NULL) {
+			tv.tv_sec -= (t2.tv_sec - t1.tv_sec);
+			tv.tv_usec -= (t2.tv_nsec - t1.tv_nsec) / 1000;
+		}
+	}
+
+	if (wcnt) {
+		for (i = 0; i < cnt; i++)
+			REMOVE_LIST_ENTRY((&w[i].wb_waitlist));
+	}
+
+	if (error == EWOULDBLOCK) {
+		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		return(STATUS_TIMEOUT);
+	}
+
+	if (wtype == WAITTYPE_ANY && wcnt) {
+		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		return(STATUS_WAIT_0 + widx);
+	}
+
+	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	return(STATUS_SUCCESS);
 }
 
 __stdcall static void
@@ -658,12 +1043,54 @@ ntoskrnl_freemdl(mdl)
         return;
 }
 
+__stdcall static uint32_t
+ntoskrnl_sizeofmdl(vaddr, len)
+	void			*vaddr;
+	size_t			len;
+{
+	uint32_t		l;
+
+        l = sizeof(struct ndis_buffer) +
+	    (sizeof(uint32_t) * SPAN_PAGES(vaddr, len));
+
+	return(l);
+}
+
+__stdcall static void
+ntoskrnl_build_npaged_mdl(mdl)
+	ndis_buffer		*mdl;
+{
+	mdl->nb_mappedsystemva = (char *)mdl->nb_startva + mdl->nb_byteoffset;
+	return;
+}
+
 __stdcall static void *
 ntoskrnl_mmaplockedpages(buf, accessmode)
 	ndis_buffer		*buf;
 	uint8_t			accessmode;
 {
 	return(MDL_VA(buf));
+}
+
+__stdcall static void *
+ntoskrnl_mmaplockedpages_cache(buf, accessmode, cachetype, vaddr,
+    bugcheck, prio)
+	ndis_buffer		*buf;
+	uint8_t			accessmode;
+	uint32_t		cachetype;
+	void			*vaddr;
+	uint32_t		bugcheck;
+	uint32_t		prio;
+{
+	return(MDL_VA(buf));
+}
+
+__stdcall static void
+ntoskrnl_munmaplockedpages(vaddr, buf)
+	void			*vaddr;
+	ndis_buffer		*buf;
+{
+	return;
 }
 
 /*
@@ -847,6 +1274,263 @@ ntoskrnl_wdmver(major, minor)
 	return(FALSE);
 }
 
+__stdcall static ndis_status
+ntoskrnl_devprop(devobj, regprop, buflen, prop, reslen)
+	device_object		*devobj;
+	uint32_t		regprop;
+	uint32_t		buflen;
+	void			*prop;
+	uint32_t		*reslen;
+{
+	ndis_miniport_block	*block;
+
+	block = devobj->do_rsvd;
+
+	switch (regprop) {
+	case DEVPROP_DRIVER_KEYNAME:
+		ndis_ascii_to_unicode(__DECONST(char *,
+		    device_get_nameunit(block->nmb_dev)), (uint16_t **)&prop);
+		*reslen = strlen(device_get_nameunit(block->nmb_dev)) * 2;
+		break;
+	default:
+		return(STATUS_INVALID_PARAMETER_2);
+		break;
+	}
+
+	return(STATUS_SUCCESS);
+}
+
+__stdcall static void
+ntoskrnl_init_mutex(kmutex, level)
+	kmutant			*kmutex;
+	uint32_t		level;
+{
+	INIT_LIST_HEAD((&kmutex->km_header.dh_waitlisthead));
+	kmutex->km_abandoned = FALSE;
+	kmutex->km_apcdisable = 1;
+	kmutex->km_header.dh_sigstate = TRUE;
+	kmutex->km_header.dh_type = EVENT_TYPE_SYNC;
+	kmutex->km_header.dh_size = OTYPE_MUTEX;
+	kmutex->km_acquirecnt = 0;
+	kmutex->km_ownerthread = NULL;
+	return;
+}
+
+__stdcall static uint32_t
+ntoskrnl_release_mutex(kmutex, kwait)
+	kmutant			*kmutex;
+	uint8_t			kwait;
+{
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	if (kmutex->km_ownerthread != curthread->td_proc) {
+		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		return(STATUS_MUTANT_NOT_OWNED);
+	}
+	kmutex->km_acquirecnt--;
+	if (kmutex->km_acquirecnt == 0) {
+		kmutex->km_ownerthread = NULL;
+		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		ntoskrnl_wakeup(&kmutex->km_header);
+	} else
+		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	return(kmutex->km_acquirecnt);
+}
+
+__stdcall static uint32_t
+ntoskrnl_read_mutex(kmutex)
+	kmutant			*kmutex;
+{
+	return(kmutex->km_header.dh_sigstate);
+}
+
+__stdcall static void
+ntoskrnl_init_event(kevent, type, state)
+	nt_kevent		*kevent;
+	uint32_t		type;
+	uint8_t			state;
+{
+	INIT_LIST_HEAD((&kevent->k_header.dh_waitlisthead));
+	kevent->k_header.dh_sigstate = state;
+	kevent->k_header.dh_type = type;
+	kevent->k_header.dh_size = OTYPE_EVENT;
+	return;
+}
+
+__stdcall static uint32_t
+ntoskrnl_reset_event(kevent)
+	nt_kevent		*kevent;
+{
+	uint32_t		prevstate;
+
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+	prevstate = kevent->k_header.dh_sigstate;
+	kevent->k_header.dh_sigstate = FALSE;
+	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
+
+	return(prevstate);
+}
+
+__stdcall static uint32_t
+ntoskrnl_set_event(kevent, increment, kwait)
+	nt_kevent		*kevent;
+	uint32_t		increment;
+	uint8_t			kwait;
+{
+	uint32_t		prevstate;
+
+	prevstate = kevent->k_header.dh_sigstate;
+	ntoskrnl_wakeup(&kevent->k_header);
+
+	return(prevstate);
+}
+
+__stdcall static void
+ntoskrnl_clear_event(kevent)
+	nt_kevent		*kevent;
+{
+	kevent->k_header.dh_sigstate = FALSE;
+	return;
+}
+
+__stdcall static uint32_t
+ntoskrnl_read_event(kevent)
+	nt_kevent		*kevent;
+{
+	return(kevent->k_header.dh_sigstate);
+}
+
+__stdcall static ndis_status
+ntoskrnl_objref(handle, reqaccess, otype, accessmode, object, handleinfo)
+	ndis_handle		handle;
+	uint32_t		reqaccess;
+	void			*otype;
+	uint8_t			accessmode;
+	void			**object;
+	void			**handleinfo;
+{
+	nt_objref		*nr;
+
+	nr = malloc(sizeof(nt_objref), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (nr == NULL)
+		return(NDIS_STATUS_FAILURE);
+
+	INIT_LIST_HEAD((&nr->no_dh.dh_waitlisthead));
+	nr->no_obj = handle;
+	nr->no_dh.dh_size = OTYPE_THREAD;
+	TAILQ_INSERT_TAIL(&ntoskrnl_reflist, nr, link);
+	*object = nr;
+
+	return(NDIS_STATUS_SUCCESS);
+}
+
+__stdcall static void
+ntoskrnl_objderef(/*object*/void)
+{
+	void			*object;
+	nt_objref		*nr;
+
+	__asm__ __volatile__ ("" : "=c" (object));
+
+	nr = object;
+	TAILQ_REMOVE(&ntoskrnl_reflist, nr, link);
+	free(nr, M_DEVBUF);
+
+	return;
+}
+
+__stdcall static uint32_t
+ntoskrnl_zwclose(handle)
+	ndis_handle		handle;
+{
+	return(STATUS_SUCCESS);
+}
+
+/*
+ * This is here just in case the thread returns without calling
+ * PsTerminateSystemThread().
+ */
+static void
+ntoskrnl_thrfunc(arg)
+	void			*arg;
+{
+	thread_context		*thrctx;
+	__stdcall uint32_t (*tfunc)(void *);
+	void			*tctx;
+	uint32_t		rval;
+
+	thrctx = arg;
+	tfunc = thrctx->tc_thrfunc;
+	tctx = thrctx->tc_thrctx;
+	free(thrctx, M_TEMP);
+
+	rval = tfunc(tctx);
+
+	ntoskrnl_thread_exit(rval);
+	return; /* notreached */
+}
+
+__stdcall static ndis_status
+ntoskrnl_create_thread(handle, reqaccess, objattrs, phandle,
+	clientid, thrfunc, thrctx)
+	ndis_handle		*handle;
+	uint32_t		reqaccess;
+	void			*objattrs;
+	ndis_handle		phandle;
+	void			*clientid;
+	void			*thrfunc;
+	void			*thrctx;
+{
+	int			error;
+	char			tname[128];
+	thread_context		*tc;
+	struct proc		*p;
+
+	tc = malloc(sizeof(thread_context), M_TEMP, M_NOWAIT);
+	if (tc == NULL)
+		return(NDIS_STATUS_FAILURE);
+
+	tc->tc_thrctx = thrctx;
+	tc->tc_thrfunc = thrfunc;
+
+	sprintf(tname, "windows kthread %d", ntoskrnl_kth);
+	error = kthread_create(ntoskrnl_thrfunc, tc, &p,
+	    RFHIGHPID, 0, tname);
+	*handle = p;
+
+	ntoskrnl_kth++;
+
+	return(error);
+}
+
+/*
+ * In Windows, the exit of a thread is an event that you're allowed
+ * to wait on, assuming you've obtained a reference to the thread using
+ * ObReferenceObjectByHandle(). Unfortunately, the only way we can
+ * simulate this behavior is to register each thread we create in a
+ * reference list, and if someone holds a reference to us, we poke
+ * them.
+ */
+__stdcall static ndis_status
+ntoskrnl_thread_exit(status)
+	ndis_status		status;
+{
+	struct nt_objref	*nr;
+
+	TAILQ_FOREACH(nr, &ntoskrnl_reflist, link) {
+		if (nr->no_obj != curthread->td_proc)
+			continue;
+		ntoskrnl_wakeup(&nr->no_dh);
+		break;
+	}
+
+	ntoskrnl_kth--;
+
+        mtx_lock(&Giant);
+        kthread_exit(0);
+	return(0);	/* notreached */
+}
+
 __stdcall static void
 dummy()
 {
@@ -880,7 +1564,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "IofCompleteRequest",		(FUNC)ntoskrnl_iofcompletereq },
 	{ "IoBuildSynchronousFsdRequest", (FUNC)ntoskrnl_iobuildsynchfsdreq },
 	{ "KeWaitForSingleObject",	(FUNC)ntoskrnl_waitforobj },
-	{ "KeInitializeEvent",		(FUNC)ntoskrnl_initevent },
+	{ "KeWaitForMultipleObjects",	(FUNC)ntoskrnl_waitforobjs },
 	{ "_allmul",			(FUNC)_allmul },
 	{ "_alldiv",			(FUNC)_alldiv },
 	{ "_allrem",			(FUNC)_allrem },
@@ -912,9 +1596,37 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "InterlockedIncrement",	(FUNC)ntoskrnl_interlock_inc },
 	{ "InterlockedDecrement",	(FUNC)ntoskrnl_interlock_dec },
 	{ "IoFreeMdl",			(FUNC)ntoskrnl_freemdl },
+	{ "MmSizeOfMdl",		(FUNC)ntoskrnl_sizeofmdl },
 	{ "MmMapLockedPages",		(FUNC)ntoskrnl_mmaplockedpages },
+	{ "MmMapLockedPagesSpecifyCache",
+					(FUNC)ntoskrnl_mmaplockedpages_cache },
+	{ "MmUnmapLockedPages",		(FUNC)ntoskrnl_munmaplockedpages },
+	{ "MmBuildMdlForNonPagedPool",	(FUNC)ntoskrnl_build_npaged_mdl },
 	{ "KeInitializeSpinLock",	(FUNC)ntoskrnl_init_lock },
 	{ "IoIsWdmVersionAvailable",	(FUNC)ntoskrnl_wdmver },
+	{ "IoGetDeviceProperty",	(FUNC)ntoskrnl_devprop },
+	{ "KeInitializeMutex",		(FUNC)ntoskrnl_init_mutex },
+	{ "KeReleaseMutex",		(FUNC)ntoskrnl_release_mutex },
+	{ "KeReadStateMutex",		(FUNC)ntoskrnl_read_mutex },
+	{ "KeInitializeEvent",		(FUNC)ntoskrnl_init_event },
+	{ "KeSetEvent",			(FUNC)ntoskrnl_set_event },
+	{ "KeResetEvent",		(FUNC)ntoskrnl_reset_event },
+	{ "KeClearEvent",		(FUNC)ntoskrnl_clear_event },
+	{ "KeReadStateEvent",		(FUNC)ntoskrnl_read_event },
+#ifdef notyet
+	{ "KeInitializeTimer",
+	{ "KeInitializeTimerEx",
+	{ "KeCancelTimer",
+	{ "KeSetTimer",
+	{ "KeSetTimerEx",
+	{ "KeReadStateTimer",
+	{ "KeInitializeDpc",
+#endif
+	{ "ObReferenceObjectByHandle",	(FUNC)ntoskrnl_objref },
+	{ "ObfDereferenceObject",	(FUNC)ntoskrnl_objderef },
+	{ "ZwClose",			(FUNC)ntoskrnl_zwclose },
+	{ "PsCreateSystemThread",	(FUNC)ntoskrnl_create_thread },
+	{ "PsTerminateSystemThread",	(FUNC)ntoskrnl_thread_exit },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't

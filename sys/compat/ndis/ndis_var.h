@@ -793,12 +793,14 @@ struct ndis_config_parm {
 
 typedef struct ndis_config_parm ndis_config_parm;
 
+#ifdef notdef
 struct ndis_list_entry {
 	struct ndis_list_entry *nle_flink;
 	struct ndis_list_entry *nle_blink;
 };
 
 typedef struct ndis_list_entry ndis_list_entry;
+#endif
 
 struct ndis_bind_paths {
 	uint32_t		nbp_number;
@@ -807,19 +809,23 @@ struct ndis_bind_paths {
 
 typedef struct ndis_bind_paths ndis_bind_paths;
 
+#ifdef notdef
 struct dispatch_header {
 	uint8_t			dh_type;
 	uint8_t			dh_abs;
 	uint8_t			dh_size;
 	uint8_t			dh_inserted;
 	uint32_t		dh_sigstate;
-	ndis_list_entry		dh_waitlisthead;
+	list_entry		dh_waitlisthead;
 };
+#endif
+
+#define dispatch_header nt_dispatch_header
 
 struct ndis_ktimer {
 	struct dispatch_header	nk_header;
 	uint64_t		nk_duetime;
-	ndis_list_entry		nk_timerlistentry;
+	list_entry		nk_timerlistentry;
 	void			*nk_dpc;
 	uint32_t		nk_period;
 };
@@ -843,7 +849,7 @@ struct ndis_kdpc {
 	uint16_t		nk_type;
 	uint8_t			nk_num;
 	uint8_t			nk_importance;
-	ndis_list_entry		nk_dpclistentry;
+	list_entry		nk_dpclistentry;
 	ndis_kdpc_func		nk_deferedfunc;
 	void			*nk_deferredctx;
 	void			*nk_sysarg1;
@@ -1355,7 +1361,7 @@ struct ndis_miniport_block {
 	ndis_miniport_interrupt	*nmb_interrupt;
 	uint32_t		nmb_flags;
 	uint32_t		nmb_pnpflags;
-	ndis_list_entry		nmb_packetlist;
+	list_entry		nmb_packetlist;
 	ndis_packet		*nmb_firstpendingtxpacket;
 	ndis_packet		*nmb_returnpacketqueue;
 	uint32_t		nmb_requestbuffer;
@@ -1426,6 +1432,7 @@ struct ndis_miniport_block {
 	 */
 	struct ifnet		*nmb_ifp;
 	uint8_t			nmb_dummybuf[128];
+	device_object		nmb_devobj;
 	ndis_config_parm	nmb_replyparm;
 	int			nmb_pciidx;
 	device_t		nmb_dev;
