@@ -637,7 +637,7 @@ ppp(8) has gained the tcpmssfixup option, which adjusts outgoing TCP
 SYN packets so that the maximum receive segment size is no larger than
 allowed by the interface MTU.
 
-libscrypt and libdescrypt have been unified to provide a configurable
+libcrypt and libdescrypt have been unified to provide a configurable
 password authentication hash library.  Both the md5 and des hash methods
 are provided unless the des hash is specifically compiled out.
 
