@@ -1058,19 +1058,90 @@ AcceptableAddr(const struct in_range *prange, struct in_addr ipaddr)
 }
 
 static void
+ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
+{
+  struct bundle *bundle = ipcp->fsm.bundle;
+  struct iface *iface = bundle->iface;
+  int n;
+
+  if (iplist_isvalid(&ipcp->cfg.peer_list)) {
+    if (ip.s_addr == INADDR_ANY ||
+        iplist_ip2pos(&ipcp->cfg.peer_list, ip) < 0 ||
+        ipcp_SetIPaddress(bundle, ipcp->cfg.my_range.ipaddr, ip, 1)) {
+      log_Printf(LogIPCP, "%s: Address invalid or already in use\n",
+                 inet_ntoa(ip));
+      /*
+       * If we've already had a valid address configured for the peer,
+       * try NAKing with that so that we don't have to upset things
+       * too much.
+       */
+      for (n = 0; n < iface->in_addrs; n++)
+        if (iplist_ip2pos(&ipcp->cfg.peer_list, iface->in_addr[n].brd) >= 0) {
+          ipcp->peer_ip = iface->in_addr[n].brd;
+          break;
+        }
+
+      if (n == iface->in_addrs)
+        /* Just pick an IP number from our list */
+        ipcp->peer_ip = ChooseHisAddr(bundle, ipcp->cfg.my_range.ipaddr);
+
+      if (ipcp->peer_ip.s_addr == INADDR_ANY) {
+        *dec->rejend++ = TY_IPADDR;
+        *dec->rejend++ = 6;
+        memcpy(dec->rejend, &ip.s_addr, 4);
+        dec->rejend += 4;
+      } else {
+        *dec->nakend++ = TY_IPADDR;
+        *dec->nakend++ = 6;
+        memcpy(dec->nakend, &ipcp->peer_ip.s_addr, 4);
+        dec->nakend += 4;
+      }
+      return;
+    }
+  } else if (!AcceptableAddr(&ipcp->cfg.peer_range, ip)) {
+    /*
+     * If the destination address is not acceptable, NAK with what we
+     * want to use.
+     */
+    *dec->nakend++ = TY_IPADDR;
+    *dec->nakend++ = 6;
+    for (n = 0; n < iface->in_addrs; n++)
+      if ((iface->in_addr[n].brd.s_addr & ipcp->cfg.peer_range.mask.s_addr)
+          == (ipcp->cfg.peer_range.ipaddr.s_addr &
+              ipcp->cfg.peer_range.mask.s_addr)) {
+        /* We prefer the already-configured address */
+        memcpy(dec->nakend, &iface->in_addr[n].brd.s_addr, 4);
+        break;
+      }
+
+    if (n == iface->in_addrs)
+      memcpy(dec->nakend, &ipcp->peer_ip.s_addr, 4);
+
+    dec->nakend += 4;
+    return;
+  }
+
+  ipcp->peer_ip = ip;
+  *dec->ackend++ = TY_IPADDR;
+  *dec->ackend++ = 6;
+  memcpy(dec->ackend, &ip.s_addr, 4);
+  dec->ackend += 4;
+}
+
+static void
 IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                  struct fsm_decode *dec)
 {
   /* Deal with incoming PROTO_IPCP */
-  struct iface *iface = fp->bundle->iface;
   struct ipcp *ipcp = fsm2ipcp(fp);
-  int type, length, gotdnsnak, n;
+  int type, length, gotdnsnak, ipaddr_req;
   u_int32_t compproto;
   struct compreq *pcomp;
   struct in_addr ipaddr, dstipaddr, have_ip;
   char tbuff[100], tbuff2[100];
 
   gotdnsnak = 0;
+  ipaddr_req = 0;
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
@@ -1090,66 +1161,8 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-        if (iplist_isvalid(&ipcp->cfg.peer_list)) {
-          if (ipaddr.s_addr == INADDR_ANY ||
-              iplist_ip2pos(&ipcp->cfg.peer_list, ipaddr) < 0 ||
-              ipcp_SetIPaddress(fp->bundle, ipcp->cfg.my_range.ipaddr,
-                                ipaddr, 1)) {
-            log_Printf(LogIPCP, "%s: Address invalid or already in use\n",
-                      inet_ntoa(ipaddr));
-            /*
-             * If we've already had a valid address configured for the peer,
-             * try NAKing with that so that we don't have to upset things
-             * too much.
-             */
-            for (n = 0; n < iface->in_addrs; n++)
-              if (iplist_ip2pos(&ipcp->cfg.peer_list, iface->in_addr[n].brd)
-                  >=0) {
-                ipcp->peer_ip = iface->in_addr[n].brd;
-                break;
-              }
-
-            if (n == iface->in_addrs)
-              /* Just pick an IP number from our list */
-              ipcp->peer_ip = ChooseHisAddr
-                (fp->bundle, ipcp->cfg.my_range.ipaddr);
-
-            if (ipcp->peer_ip.s_addr == INADDR_ANY) {
-	      memcpy(dec->rejend, cp, length);
-	      dec->rejend += length;
-            } else {
-	      memcpy(dec->nakend, cp, 2);
-	      memcpy(dec->nakend + 2, &ipcp->peer_ip.s_addr, length - 2);
-	      dec->nakend += length;
-            }
-	    break;
-          }
-	} else if (!AcceptableAddr(&ipcp->cfg.peer_range, ipaddr)) {
-	  /*
-	   * If destination address is not acceptable, NAK with what we
-	   * want to use.
-	   */
-	  memcpy(dec->nakend, cp, 2);
-          for (n = 0; n < iface->in_addrs; n++)
-            if ((iface->in_addr[n].brd.s_addr &
-                 ipcp->cfg.peer_range.mask.s_addr)
-                == (ipcp->cfg.peer_range.ipaddr.s_addr &
-                    ipcp->cfg.peer_range.mask.s_addr)) {
-              /* We prefer the already-configured address */
-	      memcpy(dec->nakend + 2, &iface->in_addr[n].brd.s_addr,
-                     length - 2);
-              break;
-            }
-
-          if (n == iface->in_addrs)
-	    memcpy(dec->nakend + 2, &ipcp->peer_ip.s_addr, length - 2);
-
-	  dec->nakend += length;
-	  break;
-	}
-	ipcp->peer_ip = ipaddr;
-	memcpy(dec->ackend, cp, length);
-	dec->ackend += length;
+        ipaddr_req = 1;
+        ipcp_ValidateReq(ipcp, ipaddr, dec);
 	break;
 
       case MODE_NAK:
@@ -1396,6 +1409,11 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   }
 
   if (mode_type != MODE_NOP) {
+    if (mode_type == MODE_REQ && !ipaddr_req) {
+      /* We *REQUIRE* that the peer requests an IP address */
+      ipaddr.s_addr = INADDR_ANY;
+      ipcp_ValidateReq(ipcp, ipaddr, dec);
+    }
     if (dec->rejend != dec->rej) {
       /* rejects are preferred */
       dec->ackend = dec->ack;
