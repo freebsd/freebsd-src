@@ -262,7 +262,7 @@ trap(frame)
 			break;
 
 		case T_PAGEFLT:		/* page fault */
-			if (td->td_flags & TDF_SA)
+			if (td->td_pflags & TDP_SA)
 				thread_user_enter(p, td);
 			i = trap_pfault(&frame, TRUE);
 			if (i == -1)

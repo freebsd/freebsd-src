@@ -1490,7 +1490,7 @@ trapsignal(struct thread *td, int sig, u_long code)
 	int error;
 
 	p = td->td_proc;
-	if (td->td_flags & TDF_SA) {
+	if (td->td_pflags & TDP_SA) {
 		if (td->td_mailbox == NULL)
 			thread_user_enter(p, td);
 		PROC_LOCK(p);
@@ -1524,7 +1524,7 @@ trapsignal(struct thread *td, int sig, u_long code)
 			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
 			    &td->td_sigmask, code);
 #endif
-		if (!(td->td_flags & TDF_SA))
+		if (!(td->td_pflags & TDP_SA))
 			(*p->p_sysent->sv_sendsig)(
 				ps->ps_sigact[_SIG_IDX(sig)], sig,
 				&td->td_sigmask, code);
@@ -2291,7 +2291,7 @@ postsig(sig)
 		mtx_lock(&ps->ps_mtx);
 	}
 
-	if (!(td->td_flags & TDF_SA && td->td_mailbox) &&
+	if (!(td->td_pflags & TDP_SA && td->td_mailbox) &&
 	    action == SIG_DFL) {
 		/*
 		 * Default action, where the default is to kill
@@ -2301,7 +2301,7 @@ postsig(sig)
 		sigexit(td, sig);
 		/* NOTREACHED */
 	} else {
-		if (td->td_flags & TDF_SA && td->td_mailbox) {
+		if (td->td_pflags & TDP_SA && td->td_mailbox) {
 			if (sig == SIGKILL) {
 				mtx_unlock(&ps->ps_mtx);
 				sigexit(td, sig);
@@ -2350,7 +2350,7 @@ postsig(sig)
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
-		if (td->td_flags & TDF_SA && td->td_mailbox)
+		if (td->td_pflags & TDP_SA && td->td_mailbox)
 			thread_signal_add(curthread, sig);
 		else
 			(*p->p_sysent->sv_sendsig)(action, sig,
