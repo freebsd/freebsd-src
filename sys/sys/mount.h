@@ -459,6 +459,7 @@ extern struct vfsconfhead vfsconf;
 struct mount_args;
 struct nameidata;
 struct sysctl_req;
+struct mntarg;
 
 typedef int vfs_cmount_t(char *path, void *data, int flags, struct thread *td);
 typedef int vfs_omount_t(struct mount *mp, char *path, caddr_t data,
@@ -559,10 +560,14 @@ extern	char *mountrootfsname;
  * exported vnode operations
  */
 int	dounmount(struct mount *, int, struct thread *);
-struct mntarg;
-struct mntarg *mount_arg(struct mntarg *ma, const char *name, const void *val, int len);
+
+void free_mntarg(struct mntarg *ma);
+struct mntarg *mount_argb(struct mntarg *ma, int flag, const char *name);
 int	kernel_mount(struct mntarg *ma, int flags);
 int	kernel_vmount(int flags, ...);
+struct mntarg *mount_arg(struct mntarg *ma, const char *name, const void *val, int len);
+struct mntarg *mount_argf(struct mntarg *ma, const char *name, const char *fmt, ...);
+struct mntarg *mount_argsu(struct mntarg *ma, const char *name, const void *val, int len);
 struct vfsconf *vfs_byname(const char *);
 struct vfsconf *vfs_byname_kld(const char *, struct thread *td, int *);
 void	vfs_event_signal(fsid_t *, u_int32_t, intptr_t);
