@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.50 1997/12/05 19:55:42 bde Exp $
+ *	$Id: devfs_vnops.c,v 1.51 1998/01/02 07:31:06 julian Exp $
  */
 
 #include <sys/param.h>
@@ -1220,6 +1220,7 @@ devfs_symlink(struct vop_symlink_args *ap)
 
 DBPRINT(("symlink\n"));
 	if(err = devfs_vntodn(ap->a_dvp,&dnp)) {
+		vput(ap->a_dvp);
 		return err;
 	}
 		
