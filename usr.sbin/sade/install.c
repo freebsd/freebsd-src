@@ -499,8 +499,11 @@ installNovice(dialogMenuItem *self)
 	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE))
 	    return DITEM_FAILURE | DITEM_RESTORE;
-	
-	if (!Dists && msgYesNo("No distributions selected.  Revisit the distributions menu?"))
+
+	if (Dists)
+	    break;
+
+	if (msgYesNo("No distributions selected.  Revisit the distributions menu?"))
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
