@@ -103,6 +103,7 @@ SUBDIR=	alias \
 	lockf \
 	logger \
 	login \
+	logins \
 	logname \
 	look \
 	lorder \
