@@ -375,10 +375,9 @@ cmdscanner(top)
 #ifndef SMALL
 		if (!editing) {
 #endif /* !SMALL */
-			if (fromatty) {
+			if (fromatty)
 				fputs(prompt(), stdout);
-				(void)fflush(stdout);
-			}
+			(void)fflush(stdout);
 			if (fgets(line, sizeof(line), stdin) == NULL)
 				quit(0, 0);
 			num = strlen(line);
