@@ -725,6 +725,7 @@ terminal_prep_terminal ()
   ttybuff.sg_flags |= CBREAK;
   ioctl (tty, TIOCSETN, &ttybuff);
 #endif /* !HAVE_TERMIO_H */
+  terminal_begin_using_terminal();
 }
 
 /* Restore the tty settings back to what they were before we started using
