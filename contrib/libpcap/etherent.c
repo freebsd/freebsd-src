@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: etherent.c,v 1.19 96/07/15 00:48:47 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: etherent.c,v 1.20 96/09/26 23:28:00 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

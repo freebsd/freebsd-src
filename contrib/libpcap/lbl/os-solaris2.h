@@ -18,25 +18,17 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: os-solaris2.h,v 1.16 96/07/05 22:11:23 leres Exp $ (LBL)
+ * @(#) $Header: os-solaris2.h,v 1.17 96/11/29 15:17:49 leres Exp $ (LBL)
  */
-
-/* Signal routines are this type */
-#define SIGRET void
-/* Signal routines use "return SIGRETVAL;" */
-#define SIGRETVAL
-/* The wait() status variable is this type */
-#define WAITSTATUS int
-
-#define major(x)	((int)(((unsigned)(x)>>8)&0377))
-#define minor(x)	((int)((x)&0377))
 
 /* Prototypes missing in SunOS 5 */
 int	daemon(int, int);
 int	dn_expand(u_char *, u_char *, u_char *, u_char *, int);
 int	dn_skipname(u_char *, u_char *);
+int	flock(int, int);
 int	getdtablesize(void);
 int	gethostname(char *, int);
+int	getpagesize(void);
 char	*getusershell(void);
 char	*getwd(char *);
 int	iruserok(u_int, int, char *, char *);
@@ -60,54 +52,3 @@ void	unsetenv(const char *);
 struct	timeval;
 #endif
 int	utimes(const char *, struct timeval *);
-
-/* Solaris signal compat */
-#ifndef sigmask
-#define sigmask(m)	(1 << ((m)-1))
-#endif
-#ifndef signal
-#define signal(s, f)	sigset(s, f)
-#endif
-
-/* Solaris random compat */
-#ifndef srandom
-#define srandom(seed) srand48((long)seed)
-#endif
-#ifndef random
-#define random() lrand48()
-#endif
-
-#ifndef CBREAK
-#define CBREAK	O_CBREAK
-#define CRMOD	O_CRMOD
-#define RAW	O_RAW
-#define TBDELAY	O_TBDELAY
-#endif
-
-#ifndef TIOCPKT_DATA
-#define		TIOCPKT_DATA		0x00	/* data packet */
-#define		TIOCPKT_FLUSHREAD	0x01	/* flush packet */
-#define		TIOCPKT_FLUSHWRITE	0x02	/* flush packet */
-#define		TIOCPKT_STOP		0x04	/* stop output */
-#define		TIOCPKT_START		0x08	/* start output */
-#define		TIOCPKT_NOSTOP		0x10	/* no more ^S, ^Q */
-#define		TIOCPKT_DOSTOP		0x20	/* now do ^S ^Q */
-#define		TIOCPKT_IOCTL		0x40	/* state change of pty driver */
-#endif
-
-#ifndef STDERR_FILENO
-#define STDERR_FILENO 2
-#define STDOUT_FILENO 1
-#define STDIN_FILENO 0
-#endif
-
-#ifndef FD_SET
-#define FD_SET(n, p)	((p)->fds_bits[0] |= (1<<(n)))
-#define FD_CLR(n, p)	((p)->fds_bits[0] &= ~(1<<(n)))
-#define FD_ISSET(n, p)	((p)->fds_bits[0] & (1<<(n)))
-#define FD_ZERO(p)	((p)->fds_bits[0] = 0)
-#endif
-
-#ifndef S_ISTXT
-#define S_ISTXT S_ISVTX
-#endif

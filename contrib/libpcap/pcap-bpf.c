@@ -19,8 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static  char rcsid[] =
-    "@(#)$Header: pcap-bpf.c,v 1.26 96/07/15 00:48:50 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: pcap-bpf.c,v 1.28 96/12/10 23:14:56 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>			/* optionally get BSD define */
