@@ -91,7 +91,6 @@ vm_map_t clean_map=0;
 vm_map_t buffer_map=0;
 vm_map_t mb_map=0;
 int mb_map_full=0;
-vm_map_t phys_map=0;
 
 /*
  *	kmem_alloc_pageable:
