@@ -33,7 +33,7 @@
 <!ENTITY release.manpath.xfree86       "4.3.0">
 <!ENTITY release.manpath.netbsd        "1.6.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "4.7-stable">
+<!ENTITY release.manpath.freebsd       "4.8-stable">
 
 <!-- Text constants which probably don't need to be changed.-->
 
