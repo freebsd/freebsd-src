@@ -61,7 +61,7 @@ static char sccsid[] = "@(#) from_local.c 1.2 93/11/16 21:50:02";
 
 /* How many interfaces could there be on a computer? */
 
-#define	MAX_LOCAL 16
+#define	MAX_LOCAL 256	/* overkill */
 static int num_local = -1;
 static struct in_addr addrs[MAX_LOCAL];
 
