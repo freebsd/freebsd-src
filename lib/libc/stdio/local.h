@@ -74,6 +74,8 @@ extern int	__ungetc(int, FILE *);
 extern wint_t	__ungetwc(wint_t, FILE *);
 extern int	__vfprintf(FILE *, const char *, __va_list);
 extern int	__vfwprintf(FILE *, const wchar_t *, __va_list);
+extern int	__vfwscanf(FILE * __restrict, const wchar_t * __restrict,
+		    __va_list);
 
 extern int	__sdidinit;
 
