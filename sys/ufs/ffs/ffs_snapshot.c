@@ -229,7 +229,7 @@ restart:
 	/*
 	 * Allocate copies for the superblock and its summary information.
 	 */
-	error = UFS_BALLOC(vp, (off_t)(SBOFF), fs->fs_bsize, KERNCRED, 0, &nbp);
+	error = UFS_BALLOC(vp, (off_t)(SBOFF), SBSIZE, KERNCRED, 0, &nbp);
 	if (error)
 		goto out;
 	bawrite(nbp);
@@ -379,7 +379,9 @@ restart:
 	bcopy(fs->fs_csp, copy_fs->fs_csp, fs->fs_cssize);
 	(char *)space += fs->fs_cssize;
 	loc = howmany(fs->fs_cssize, fs->fs_fsize);
-	if ((len = fragnum(fs, loc) * fs->fs_fsize) > 0) {
+	i = fs->fs_frag - loc % fs->fs_frag;
+	len = (i == fs->fs_frag) ? 0 : i * fs->fs_fsize;
+	if (len > 0) {
 		if ((error = bread(ip->i_devvp,
 		    fsbtodb(fs, fs->fs_csaddr + loc),
 		    len, KERNCRED, &bp)) != 0) {
@@ -741,7 +743,7 @@ ffs_snapremove(vp)
 	struct buf *ibp;
 	struct fs *fs;
 	ufs_daddr_t blkno, dblk;
-	int error, loc, last;
+	int error, numblks, loc, last;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
@@ -767,12 +769,16 @@ ffs_snapremove(vp)
 	 */
 	for (blkno = 1; blkno < NDADDR; blkno++) {
 		dblk = ip->i_db[blkno];
-		if (dblk == BLK_NOCOPY || dblk == BLK_SNAP ||
-		    (dblk == blkstofrags(fs, blkno) &&
-		     ffs_snapblkfree(ip, dblk, fs->fs_bsize)))
+		if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
 			ip->i_db[blkno] = 0;
+		else if ((dblk == blkstofrags(fs, blkno) &&
+		     ffs_snapblkfree(ip, dblk, fs->fs_bsize))) {
+			ip->i_blocks -= btodb(fs->fs_bsize);
+			ip->i_db[blkno] = 0;
+		}
 	}
-	for (blkno = NDADDR; blkno < fs->fs_size; blkno += NINDIR(fs)) {
+	numblks = howmany(ip->i_size, fs->fs_bsize);
+	for (blkno = NDADDR; blkno < numblks; blkno += NINDIR(fs)) {
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
 		    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
 		if (error)
@@ -781,10 +787,13 @@ ffs_snapremove(vp)
 			last = NINDIR(fs);
 		for (loc = 0; loc < last; loc++) {
 			dblk = ((ufs_daddr_t *)(ibp->b_data))[loc];
-			if (dblk == BLK_NOCOPY || dblk == BLK_SNAP ||
-			    (dblk == blkstofrags(fs, blkno) &&
-			     ffs_snapblkfree(ip, dblk, fs->fs_bsize)))
+			if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
 				((ufs_daddr_t *)(ibp->b_data))[loc] = 0;
+			else if ((dblk == blkstofrags(fs, blkno) &&
+			     ffs_snapblkfree(ip, dblk, fs->fs_bsize))) {
+				ip->i_blocks -= btodb(fs->fs_bsize);
+				((ufs_daddr_t *)(ibp->b_data))[loc] = 0;
+			}
 		}
 		bawrite(ibp);
 	}
