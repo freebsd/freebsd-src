@@ -30,13 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.9.2.4 1997/12/08 01:08:02 steve Exp $
+ *	$Id: asmacros.h,v 1.9.2.5 1997/12/09 14:43:22 steve Exp $
  */
 
 #ifndef _MACHINE_ASMACROS_H_
 #define _MACHINE_ASMACROS_H_
 
-#ifdef KERNEL
 #include <sys/cdefs.h>
 
 /* XXX too much duplication in various asm*.h's. */
@@ -122,92 +121,5 @@
 #define MCOUNT_LABEL(name)
 #define MEXITCOUNT
 #endif /* GPROF */
-
-#else /* !KERNEL */
-
-#include "/usr/src/lib/libc/i386/DEFS.h"	/* XXX blech */
-
-/*
- * In the !KERNEL case, this header is only (ab)used in lib/msun/i387.
- * Use it to generate code to select between the generic math functions 
- * and the i387 ones.
- */
-#undef ENTRY
-#define	ANAME(x)	CNAME(__CONCAT(__i387_,x))
-#define	ASELNAME(x)	CNAME(__CONCAT(__arch_select_,x))
-#define	AVECNAME(x)	CNAME(__CONCAT(__arch_,x))
-#define	GNAME(x)	CNAME(__CONCAT(__generic_,x))
-
-/* Don't bother profiling this. */
-#ifdef PIC
-#define	ARCH_DISPATCH(x) \
-			_START_ENTRY; \
-			.globl CNAME(x); .type CNAME(x),@function; CNAME(x): ; \
-			PIC_PROLOGUE; \
-			movl PIC_GOT(AVECNAME(x)),%eax; \
-			PIC_EPILOGUE; \
-			jmpl *(%eax)
-
-#define	ARCH_SELECT(x)	_START_ENTRY; \
-			.type ASELNAME(x),@function; \
-			ASELNAME(x): \
-			PIC_PROLOGUE; \
-			call PIC_PLT(CNAME(__get_hw_float)); \
-			testl %eax,%eax; \
-			movl PIC_GOT(ANAME(x)),%eax; \
-			jne 8f; \
-			movl PIC_GOT(GNAME(x)),%eax; \
-			8: \
-			movl PIC_GOT(AVECNAME(x)),%edx; \
-			movl %eax,(%edx); \
-			PIC_EPILOGUE; \
-			jmpl *%eax
-#else /* !PIC */
-#define	ARCH_DISPATCH(x) \
-			_START_ENTRY; \
-			.globl CNAME(x); .type CNAME(x),@function; CNAME(x): ; \
-			jmpl *AVECNAME(x)
-
-#define	ARCH_SELECT(x)	_START_ENTRY; \
-			.type ASELNAME(x),@function; \
-			ASELNAME(x): \
-			call CNAME(__get_hw_float); \
-			testl %eax,%eax; \
-			movl $ANAME(x),%eax; \
-			jne 8f; \
-			movl $GNAME(x),%eax; \
-			8: \
-			movl %eax,AVECNAME(x); \
-			jmpl *%eax
-#endif /* PIC */
-
-#define	ARCH_VECTOR(x)	.data; .align 2; \
-			.globl AVECNAME(x); \
-			.type AVECNAME(x),@object; \
-			.size AVECNAME(x),4; \
-			AVECNAME(x): .long ASELNAME(x)
-
-#ifdef PROF
-
-#define	ALTENTRY(x)	ENTRY(x); jmp 9f
-#define	ENTRY(x)	ARCH_VECTOR(x); ARCH_SELECT(x); ARCH_DISPATCH(x); \
-			_START_ENTRY; \
-			.globl ANAME(x); .type ANAME(x),@function; ANAME(x):; \
-			call HIDENAME(mcount); 9:
-
-#else /* !PROF */
-
-#define	ALTENTRY(x)	ENTRY(x)
-#define	ENTRY(x)	ARCH_VECTOR(x); ARCH_SELECT(x); ARCH_DISPATCH(x); \
-			_START_ENTRY; \
-			.globl ANAME(x); .type ANAME(x),@function; ANAME(x):
-
-#endif /* PROF */
-
-#ifndef RCSID
-#define RCSID(a)
-#endif
-
-#endif /* KERNEL */
 
 #endif /* !_MACHINE_ASMACROS_H_ */

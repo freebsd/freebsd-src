@@ -35,17 +35,17 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.7 1996/10/31 17:50:45 dyson Exp $
+ *	$Id: SYS.h,v 1.7.2.1 1997/02/14 11:08:47 bde Exp $
  */
 
 #include <sys/syscall.h>
 #include "DEFS.h"
 
-#define	SYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(x); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
+#define	SYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); \
+			ENTRY(x); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	RSYSCALL(x)	SYSCALL(x); ret
 
 #define	PSEUDO(x,y)	ENTRY(x); lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
-#define	CALL(x,y)	call CNAME(y); addl $4*x,%esp
 /* gas messes up offset -- although we don't currently need it, do for BCS */
 #define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
 
@@ -58,14 +58,17 @@
  * RSYSCALL(). This avoids the need to #ifdef _THREAD_SAFE everywhere
  * that the renamed function needs to be called.
  */
-#ifdef _THREAD_SAFE	/* in case */
+#ifdef _THREAD_SAFE
 /*
  * For the thread_safe versions, we prepend _thread_sys_ to the function
  * name so that the 'C' wrapper can go around the real name.
  */
-#define	PSYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(__CONCAT(_thread_sys_,x)); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
+#define	PSYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); \
+			ENTRY(__CONCAT(_thread_sys_,x)); \
+			lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	PRSYSCALL(x)	PSYSCALL(x); ret
-#define	PPSEUDO(x,y)	ENTRY(__CONCAT(_thread_sys_,x)); lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
+#define	PPSEUDO(x,y)	ENTRY(__CONCAT(_thread_sys_,x)); \
+			lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
 #else
 /*
  * The non-threaded library defaults to traditional syscalls where
@@ -81,5 +84,3 @@
 #else
 #define KERNCALL	LCALL(7,0)	/* The old way */
 #endif
-
-#define	ASMSTR		.asciz

@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asmacros.h>
+#include <machine/asm.h>
 
-RCSID("$Id: e_exp.S,v 1.3.2.2 1997/12/08 01:07:22 steve Exp $")
+RCSID("$Id: e_exp.S,v 1.3.2.3 1997/12/09 14:42:54 steve Exp $")
 
 /* e^x = 2^(x * log2(e)) */
 ENTRY(__ieee754_exp)

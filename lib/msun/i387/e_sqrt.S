@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asmacros.h>
+#include <machine/asm.h>
 
-RCSID("$Id: e_sqrt.S,v 1.2.8.1 1997/12/08 01:07:27 steve Exp $")
+RCSID("$Id: e_sqrt.S,v 1.2.8.2 1997/12/09 14:43:02 steve Exp $")
 
 ENTRY(__ieee754_sqrt)
 	fldl	4(%esp)
