@@ -233,6 +233,7 @@ all)
 	sh MAKEDEV fd0 fd1				# bdev, floppy disk
 	sh MAKEDEV da0 da1 da2 da3 			# bdev, SCSI disk
 	sh MAKEDEV ad0 ad1 ad2 ad3 			# bdev, ATA disk
+	sh MAKEDEV ar0 ar1				# bdev, ATA RAID disk
 	sh MAKEDEV acd0 afd0 ast0			# bdev, ATAPI devices
 	sh MAKEDEV wd0 wd1 wd2 wd3			# bdev, OLD disk
 	sh MAKEDEV wcd0 wfd0 wst0			# bdev, OLD ATAPI devs
@@ -365,10 +366,11 @@ wt*)
 	;;
 
 # Individual slices.
-ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
+ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	ad*s*) name=ad; chr=116;;
+	ar*s*) name=ar; chr=157;;
 	afd*s*) name=afd; chr=118;;
 	amrd*s*) name=amrd; chr=133;;
 	da*s*) name=da;  chr=13;;
@@ -547,10 +549,11 @@ fd*)
 	umask 77
 	;;
 
-ad*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
+ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	ad*) name=ad; chr=116;;
+	ar*) name=ar; chr=157;;
 	afd*) name=afd; chr=118;;
 	amrd*) name=amrd; chr=133;;
 	da*) name=da;  chr=13;;
