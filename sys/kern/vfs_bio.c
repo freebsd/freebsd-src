@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.162 1998/04/17 22:36:51 des Exp $
+ * $Id: vfs_bio.c,v 1.163 1998/05/01 15:04:35 peter Exp $
  */
 
 /*
@@ -1322,7 +1322,8 @@ inmem(struct vnode * vp, daddr_t blkno)
 		m = vm_page_lookup(obj, OFF_TO_IDX(off + toff));
 		if (!m)
 			return 0;
-		if (vm_page_is_valid(m, (vm_offset_t) (toff + off), tinc) == 0)
+		if (vm_page_is_valid(m,
+		    (vm_offset_t) ((toff + off) & PAGE_MASK), tinc) == 0)
 			return 0;
 	}
 	return 1;
