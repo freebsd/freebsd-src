@@ -18,9 +18,11 @@
 .Ft void
 .Fn des_setparity "char *key"
 .Sh DESCRIPTION
+The
 .Fn ecb_crypt
 and
 .Fn cbc_crypt
+functions
 implement the
 .Tn NBS
 .Tn DES
@@ -30,12 +32,16 @@ These routines are faster and more general purpose than
 They also are able to utilize
 .Tn DES
 hardware if it is available.
+The
 .Fn ecb_crypt
+function
 encrypts in
 .Tn ECB
 (Electronic Code Book)
 mode, which encrypts blocks of data independently.
+The
 .Fn cbc_crypt
+function
 encrypts in
 .Tn CBC
 (Cipher Block Chaining)

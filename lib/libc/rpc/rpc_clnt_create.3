@@ -119,7 +119,9 @@ The following operations are valid for connectionless transports only:
 .Pp
 The retry timeout is the time that RPC
 waits for the server to reply before retransmitting the request.
+The
 .Fn clnt_control
+function
 returns
 .Dv TRUE
 on success and
@@ -139,7 +141,9 @@ The transports are tried in left to right order in
 .Ev NETPATH
 environment variable or in top to bottom order in
 the netconfig database.
+The
 .Fn clnt_create
+function
 tries all the transports of the
 .Fa nettype
 class available from the
@@ -336,7 +340,9 @@ without any kernel or networking interference.
 This routine returns
 .Dv NULL
 if it fails.
+The
 .Fn clnt_raw_create
+function
 should be called after
 .Fn svc_raw_create .
 .It Fn clnt_tli_create
@@ -406,7 +412,9 @@ except
 .Fn clnt_tp_create
 tries only one transport specified through
 .Fa netconf .
+The
 .Fn clnt_tp_create
+function
 creates a client handle for the program
 .Fa prognum ,
 the version
@@ -466,7 +474,9 @@ The address
 should not be
 .Dv NULL
 and should point to the actual address of the remote program.
+The
 .Fn clnt_vc_create
+function
 does not consult the remote rpcbind service for this information.
 .It Xo
 .Vt "struct rpc_createerr" Va rpc_createerr ;

@@ -46,7 +46,9 @@
 .Ft DB *
 .Fn dbopen "const char *file" "int flags" "int mode" "DBTYPE type" "const void *openinfo"
 .Sh DESCRIPTION
-.Fn Dbopen
+The
+.Fn dbopen
+function
 is the library interface to database files.
 The supported file formats are btree, hashed and UNIX file oriented.
 The btree format is a representation of a sorted, balanced tree structure.
@@ -60,7 +62,9 @@ in their respective manual pages
 and
 .Xr recno 3 .
 .Pp
-.Fn Dbopen
+The
+.Fn dbopen
+function
 opens
 .Fa file
 for reading and/or writing.
@@ -131,7 +135,9 @@ is
 each access method will use defaults appropriate for the system
 and the access method.
 .Pp
-.Fn Dbopen
+The
+.Fn dbopen
+function
 returns a pointer to a
 .Ft DB
 structure on success and

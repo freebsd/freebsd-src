@@ -98,7 +98,9 @@ function is a reentrant version of
 The context pointer
 .Fa last
 must be provided on each call.
+The
 .Fn strtok_r
+function
 may also be used to nest two parsing loops within one another, as
 long as separate context pointers are used.
 .Pp

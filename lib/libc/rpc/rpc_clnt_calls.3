@@ -166,7 +166,9 @@ Take the same arguments as
 but instead of sending a message to the standard error
 indicating why an RPC
 call failed, return a pointer to a string which contains the message.
+The
 .Fn clnt_sperrno
+function
 is normally used instead of
 .Fn clnt_perrno
 when the program does not have a standard error (as a program
@@ -240,7 +242,9 @@ Warning:
 broadcast file descriptors are limited in size to the
 maximum transfer size of that transport.
 For Ethernet, this value is 1500 bytes.
+The
 .Fn rpc_broadcast
+function
 uses
 .Dv AUTH_SYS
 credentials by default (see

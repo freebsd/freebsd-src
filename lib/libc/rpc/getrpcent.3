@@ -27,10 +27,12 @@
 .Ft void
 .Fn endrpcent void
 .Sh DESCRIPTION
+The
 .Fn getrpcent ,
 .Fn getrpcbyname ,
 and
 .Fn getrpcbynumber
+functions
 each return a pointer to an object with the
 following structure
 containing the broken-out
@@ -54,10 +56,14 @@ A zero terminated list of alternate names for the rpc program.
 The rpc program number for this service.
 .El
 .Pp
+The
 .Fn getrpcent
+function
 reads the next line of the file, opening the file if necessary.
 .Pp
+The
 .Fn setrpcent
+function
 opens and rewinds the file.  If the
 .Fa stayopen
 flag is non-zero,
@@ -68,12 +74,16 @@ the other
 .Dq getrpc
 calls).
 .Pp
+The
 .Fn endrpcent
+function
 closes the file.
 .Pp
+The
 .Fn getrpcbyname
 and
 .Fn getrpcbynumber
+functions
 sequentially search from the beginning
 of the file until a matching rpc program name or
 program number is found, or until end-of-file is encountered.

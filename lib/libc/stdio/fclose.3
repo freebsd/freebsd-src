@@ -77,7 +77,9 @@ for any of the errors specified for the routines
 or
 .Xr fflush 3 .
 .Sh NOTES
+The
 .Fn fclose
+function
 does not handle NULL arguments; they will result in a segmentation
 violation.
 This is intentional - it makes it easier to make sure programs written
