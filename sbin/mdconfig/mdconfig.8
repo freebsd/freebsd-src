@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 10, 2004
+.Dd November 6, 2004
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -98,14 +98,12 @@ A file specified with
 .Fl f Ar file
 becomes the backingstore for this memory disk.
 .It Cm swap
-Swap pace is used to back this memory disk.
+Swap space is used to back this memory disk.
 .El
 .It Fl f Ar file
 Filename to use for the vnode type memory disk.
 .It Fl l
-Enumerate configured
-.Xr md 4
-devices.
+List configured devices.
 If given with
 .Fl u ,
 display details about that particular device.
