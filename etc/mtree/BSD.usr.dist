@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.151 1999/02/11 16:30:55 brian Exp $
+#	$Id: BSD.usr.dist,v 1.152 1999/04/24 21:01:21 peter Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -33,7 +33,7 @@
 	stallion
 	..
 	perl
-		5.00502
+		5.00503
 			B
 			..
 			CGI
