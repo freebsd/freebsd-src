@@ -212,8 +212,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 
 	/*
 	 * Adjust this thread's priority.
-	 *
-	 * XXX: do we need to save priority in td_base_pri?
 	 */
 	mtx_lock_spin(&sched_lock);
 	sched_prio(td, priority & PRIMASK);
