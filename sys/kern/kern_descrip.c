@@ -1216,7 +1216,7 @@ fdcheckstd(p)
                        NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, "/dev/null",
                            p);
                        flags = FREAD | FWRITE;
-                       error = vn_open(&nd, &flags, 0);
+                       error = vn_open(&nd, flags, 0);
                        if (error != 0) {
                                fdp->fd_ofiles[i] = NULL;
                                fdrop(fp, p);
