@@ -102,7 +102,7 @@ See also system keyword
 If this keyword is omitted the system default is used.
 (optional)
 .It Li add-prefix
-If set to 
+If set to
 .Em on ,
 for incoming numbers, have a look at the "type of number" indicator and
 adjust the number as specified by the
@@ -218,15 +218,15 @@ The supported access rights are:
 In conjunction with the
 .Em add-prefix
 switch (see above), specify the prefix number string for incoming numbers
-with the international number tag. If aliases are used, they have to be 
-adjusted accordingly.
+with the international number tag.
+If aliases are used, they have to be adjusted accordingly.
 (optional)
 .It Li prefix-national
 In conjunction with the
 .Em add-prefix
 switch (see above), specify the prefix number string for incoming numbers
-with the national number tag. If aliases are used, they have to be
-adjusted accordingly.
+with the national number tag.
+If aliases are used, they have to be adjusted accordingly.
 (optional)
 .It Li ratesfile
 Specifies the name of the ratesfile.
@@ -386,9 +386,10 @@ The currently configurable values are:
 .Pp
 .Bl -tag -width Ds -compact
 .It Ar dov
-This connection is a 
+This connection is a
 .Em Dov (Data over Voice)
-connection. The b1protocol keyword must be set to
+connection.
+The b1protocol keyword must be set to
 .Em hdlc .
 This feature is experimental and does work on outgoing calls only.
 .El
