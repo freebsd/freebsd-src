@@ -1,5 +1,5 @@
 /*	$NetBSD: uhub.c,v 1.14 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: uhub.c,v 1.5 1999/01/07 23:31:34 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -81,9 +81,26 @@ void uhub_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
 
 /*void uhub_disco __P((void *));*/
 
-USB_DECLARE_DRIVER_NAME(usb, uhub);
+USB_DECLARE_DRIVER(uhub);
 
-/* FIXME what does FreeBSD need? */
+#if defined(__FreeBSD__)
+devclass_t uhubroot_devclass;
+
+static device_method_t uhubroot_methods[] = {
+        DEVMETHOD(device_probe, uhub_match),
+        DEVMETHOD(device_attach, uhub_attach),
+	/* detach is not allowed for a root hub */
+        {0,0}
+};
+
+static driver_t uhubroot_driver = {
+        "uhub",
+        uhubroot_methods,
+        DRIVER_TYPE_MISC,
+        sizeof(struct uhub_softc)
+};
+#endif
+
 #if defined(__NetBSD__)
 struct cfattach uhub_uhub_ca = {
 	sizeof(struct uhub_softc), uhub_match, uhub_attach
@@ -499,5 +516,6 @@ uhub_intr(reqh, addr, status)
 }
 
 #if defined(__FreeBSD__)
-DRIVER_MODULE(uhub, usb, uhub_driver, uhub_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(uhub, usb, uhubroot_driver, uhubroot_devclass, 0, 0);
+DRIVER_MODULE(uhub, uhub, uhub_driver, uhub_devclass, usbd_driver_load, 0);
 #endif

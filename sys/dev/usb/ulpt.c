@@ -446,6 +446,6 @@ ulpt_detach(device_t self)
 	return 0;
 }
 
-CDEV_DRIVER_MODULE(ulpt, usb, ulpt_driver, ulpt_devclass,
+CDEV_DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass,
 			ULPT_CDEV_MAJOR, ulpt_cdevsw, usbd_driver_load, 0);
 #endif

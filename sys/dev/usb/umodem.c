@@ -137,6 +137,6 @@ umodem_detach(device_t self)
 #endif
 
 #if defined(__FreeBSD__)
-DRIVER_MODULE(umodem, usb, umodem_driver, umodem_devclass, usbd_driver_load,0);
+DRIVER_MODULE(umodem, uhub, umodem_driver, umodem_devclass, usbd_driver_load,0);
 #endif
 
