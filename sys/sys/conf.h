@@ -283,7 +283,7 @@ const char *devtoname __P((dev_t dev));
 void	freedev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 dev_t	makebdev __P((int maj, int min));
-dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)) __printflike(6, 7);
+dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const char *fmt, ...)) __printflike(6, 7);
 int	lminor __P((dev_t dev));
 void	setconf __P((void));
 
