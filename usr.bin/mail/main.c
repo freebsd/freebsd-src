@@ -35,6 +35,8 @@
 static char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
+static const char rcsid[] =
+        "$FreeBSD$";
 #endif /* not lint */
 
 #ifndef lint
@@ -110,6 +112,7 @@ main(argc, argv)
 			 * Next argument is person to pretend to be.
 			 */
 			myname = optarg;
+                        unsetenv("MAIL");
 			break;
 		case 'i':
 			/*
