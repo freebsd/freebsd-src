@@ -57,7 +57,7 @@
 #include <geom/geom_slice.h>
 #include <machine/endian.h>
 
-#define BSD_CLASS_NAME "SUNLABEL-class"
+#define SUNLABEL_CLASS_NAME "SUNLABEL-class"
 
 struct g_sunlabel_softc {
 	int foo;
@@ -98,7 +98,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	g_trace(G_T_TOPOLOGY, "g_sunlabel_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
 	if (flags == G_TF_NORMAL &&
-	    !strcmp(pp->geom->class->name, BSD_CLASS_NAME))
+	    !strcmp(pp->geom->class->name, SUNLABEL_CLASS_NAME))
 		return (NULL);
 	gp = g_slice_new(mp, 8, pp, &cp, &ms, sizeof *ms, g_sunlabel_start);
 	if (gp == NULL)
@@ -185,7 +185,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 }
 
 static struct g_class g_sunlabel_class = {
-	BSD_CLASS_NAME,
+	SUNLABEL_CLASS_NAME,
 	g_sunlabel_taste,
 	g_slice_access,
 	g_slice_orphan,
