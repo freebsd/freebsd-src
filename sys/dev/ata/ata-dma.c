@@ -284,15 +284,56 @@ ata_dmainit(struct ata_softc *scp, int device,
 	break;
 
     case 0x522910b9:	/* AcerLabs Aladdin IV/V */
-	/* the Aladdin doesn't support ATAPI DMA on both master & slave */
-	if (scp->devices & ATA_ATAPI_MASTER && scp->devices & ATA_ATAPI_SLAVE) {
+	/* the older Aladdin doesn't support ATAPI DMA on both master & slave */
+	if (pci_get_revid(parent) < 0xC2 &&
+	    scp->devices & ATA_ATAPI_MASTER && scp->devices & ATA_ATAPI_SLAVE) {
 	    ata_printf(scp, device,
 		       "Aladdin: two atapi devices on this channel, no DMA\n");
 	    break;
 	}
-	if (udmamode >= 2 && pci_get_revid(parent) >= 0x20) {
-	    int32_t word54 = pci_read_config(parent, 0x54, 4);
+	if (udmamode >= 5 && pci_get_revid(parent) >= 0xC4) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device,
+			   "%s setting UDMA5 on Aladdin chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		int32_t word54 = pci_read_config(parent, 0x54, 4);
 	
+		pci_write_config(parent, 0x4b,
+				 pci_read_config(parent, 0x4b, 1) | 0x01, 1);
+		word54 &= ~(0x000f000f << (devno << 2));
+		word54 |= (0x000f0005 << (devno << 2));
+		pci_write_config(parent, 0x54, word54, 4);
+		pci_write_config(parent, 0x53, 
+				 pci_read_config(parent, 0x53, 1) | 0x03, 1);
+		scp->mode[ATA_DEV(device)] = ATA_UDMA5;
+		return;
+	    }
+	}
+	if (udmamode >= 4 && pci_get_revid(parent) >= 0xC2) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device,
+			   "%s setting UDMA4 on Aladdin chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		int32_t word54 = pci_read_config(parent, 0x54, 4);
+	
+		pci_write_config(parent, 0x4b,
+				 pci_read_config(parent, 0x4b, 1) | 0x01, 1);
+		word54 &= ~(0x000f000f << (devno << 2));
+		word54 |= (0x00080005 << (devno << 2));
+		pci_write_config(parent, 0x54, word54, 4);
+		pci_write_config(parent, 0x53, 
+				 pci_read_config(parent, 0x53, 1) | 0x03, 1);
+		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
+		return;
+	    }
+	}
+	if (udmamode >= 2 && pci_get_revid(parent) >= 0x20) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -300,6 +341,8 @@ ata_dmainit(struct ata_softc *scp, int device,
 			   "%s setting UDMA2 on Aladdin chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
+		int32_t word54 = pci_read_config(parent, 0x54, 4);
+	
 		word54 &= ~(0x000f000f << (devno << 2));
 		word54 |= (0x000a0005 << (devno << 2));
 		pci_write_config(parent, 0x54, word54, 4);
