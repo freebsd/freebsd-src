@@ -18,9 +18,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/filio.h>
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-#include <sys/ioctl_compat.h>
-#endif
 #include <sys/malloc.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
@@ -28,7 +25,6 @@
 #include <sys/kernel.h>
 #include <sys/snoop.h>
 #include <sys/vnode.h>
-#include <sys/conf.h>
 
 static	d_open_t	snpopen;
 static	d_close_t	snpclose;
@@ -55,10 +51,6 @@ static struct cdevsw snp_cdevsw = {
 };
 
 
-#ifndef MIN
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#endif
-
 static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
 
 #define ttytosnp(t) (struct snoop *)(t)->t_sc
@@ -76,13 +68,13 @@ dsnwrite(struct tty *tp, struct uio *uio, int flag)
 {
 	struct snoop *snp = ttytosnp(tp);
 	int error = 0;
-	char ibuf[1024];
+	char ibuf[512];
 	int ilen;
 	struct iovec iov;
 	struct uio uio2;
 
-	while (uio->uio_resid) {
-		ilen = MIN(sizeof(ibuf), uio->uio_resid);
+	while (uio->uio_resid > 0) {
+		ilen = imin(sizeof(ibuf), uio->uio_resid);
 		error = uiomove(ibuf, ilen, uio);
 		if (error)
 			break;
@@ -125,9 +117,9 @@ snpdevtotty (dev)
 	struct cdevsw	*cdp;
 
 	cdp = devsw(dev);
-	if (cdp && cdp->d_flags & D_TTY)
-		return (dev->si_tty);
-	return (NULL);
+	if (cdp == NULL || (cdp->d_flags & D_TTY) == 0)
+		return (NULL);
+	return (dev->si_tty);
 }
 
 #define SNP_INPUT_BUF	5	/* This is even too much, the maximal
@@ -163,7 +155,7 @@ tty_input:
 		return (EIO);
 
 	while (uio->uio_resid > 0) {
-		len = MIN(uio->uio_resid, SNP_INPUT_BUF);
+		len = imin(uio->uio_resid, SNP_INPUT_BUF);
 		if ((error = uiomove(c, len, uio)) != 0)
 			return (error);
 		for (i=0; i < len; i++) {
@@ -207,7 +199,7 @@ snpread(dev, uio, flag)
 	n = snp->snp_len;
 
 	while (snp->snp_len > 0 && uio->uio_resid > 0 && error == 0) {
-		len = MIN(uio->uio_resid, snp->snp_len);
+		len = min((unsigned)uio->uio_resid, snp->snp_len);
 		from = (caddr_t)(snp->snp_buf + snp->snp_base);
 		if (len == 0)
 			break;
@@ -236,16 +228,6 @@ snpread(dev, uio, flag)
 
 	return error;
 }
-
-int
-snpinc(struct snoop *snp, char c)
-{
-        char    buf;
-
-	buf = c;
-        return (snpin(snp, &buf, 1));
-}
-
 
 int
 snpin(snp, buf, n)

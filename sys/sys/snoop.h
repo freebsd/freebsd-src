@@ -60,7 +60,6 @@ struct snoop {
 /* XXX several wrong storage classes and types here. */
 int	snpdown __P((struct snoop *snp));
 int	snpin __P((struct snoop *snp, char *buf, int n));
-int	snpinc __P((struct snoop *snp, char c));
 #endif /* _KERNEL */
 
 /*
