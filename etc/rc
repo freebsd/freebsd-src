@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.103 1996/10/28 08:28:02 joerg Exp $
+#	$Id: rc,v 1.105 1996/11/03 14:41:58 joerg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -92,7 +92,7 @@ if [ -f /etc/sysconfig ]; then
 fi
 
 # Add additional swapfile, if configured.
-if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -f /dev/vn0b ]; then
+if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
 	echo "Adding $swapfile as additional swap."
 	/usr/sbin/vnconfig /dev/vn0b $swapfile && swapon /dev/vn0b
 fi
