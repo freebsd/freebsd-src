@@ -1437,11 +1437,14 @@ ip_ctloutput(so, sopt)
 			case IP_TTL:
 				inp->inp_ip_ttl = optval;
 				break;
-#define	OPTSET(bit) \
-	if (optval) \
-		inp->inp_flags |= bit; \
-	else \
-		inp->inp_flags &= ~bit;
+#define	OPTSET(bit) do {						\
+	INP_LOCK(inp);							\
+	if (optval)							\
+		inp->inp_flags |= bit;					\
+	else								\
+		inp->inp_flags &= ~bit;					\
+	INP_UNLOCK(inp);						\
+} while (0)
 
 			case IP_RECVOPTS:
 				OPTSET(INP_RECVOPTS);
@@ -1489,6 +1492,7 @@ ip_ctloutput(so, sopt)
 			if (error)
 				break;
 
+			INP_LOCK(inp);
 			switch (optval) {
 			case IP_PORTRANGE_DEFAULT:
 				inp->inp_flags &= ~(INP_LOWPORT);
@@ -1509,6 +1513,7 @@ ip_ctloutput(so, sopt)
 				error = EINVAL;
 				break;
 			}
+			INP_UNLOCK(inp);
 			break;
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
