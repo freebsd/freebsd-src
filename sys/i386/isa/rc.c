@@ -46,7 +46,6 @@
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -185,7 +184,6 @@ static void rc_hardclose        __P((struct rc_chans *));
 static int  rc_modctl           __P((struct rc_chans *, int, int));
 static void rc_start            __P((struct tty *));
 static int  rc_param            __P((struct tty *, struct termios *));
-static void rc_registerdev      __P((struct isa_device *id));
 static void rc_reinit           __P((struct rc_softc *));
 #ifdef RCDEBUG
 static void printrcflags();
@@ -227,32 +225,6 @@ rcprobe(dvp)
 	return 0xF;
 }
 
-static struct kern_devconf kdc_rc[NRC] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"rc", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,        /* state */
-	"RISCom/8 multiport card",
-	DC_CLS_SERIAL		/* class */
-} };
-
-static void
-rc_registerdev(id)
-	struct isa_device *id;
-{
-	int	unit;
-
-	unit = id->id_unit;
-	if (unit != 0)
-		kdc_rc[unit] = kdc_rc[0];
-	kdc_rc[unit].kdc_unit = unit;
-	kdc_rc[unit].kdc_isa = id;
-	kdc_rc[unit].kdc_state = DC_UNKNOWN;
-	dev_attach(&kdc_rc[unit]);
-}
-
 static int
 rcattach(dvp)
 	struct  isa_device      *dvp;
@@ -272,8 +244,6 @@ rcattach(dvp)
 	/*rcb->rcb_chipid = 0x10 + dvp->id_unit;*/
 	printf("rc%d: %d chans, firmware rev. %c\n", dvp->id_unit,
 		CD180_NCHAN, (rcin(CD180_GFRCR) & 0xF) + 'A');
-
-	rc_registerdev(dvp);
 
 	for (chan = 0; chan < CD180_NCHAN; chan++, rc++) {
 		rc->rc_rcb     = rcb;

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.15 1996/03/23 19:29:10 fenner Exp $
+ * $Id: if_pdq.c,v 1.16 1996/06/18 01:22:40 bde Exp $
  *
  */
 
@@ -97,7 +97,6 @@
 #if NFEA > 0
 #include <i386/isa/icu.h>
 #ifdef __FreeBSD__
-#include <sys/devconf.h>
 #include <i386/isa/isa_device.h>
 #endif
 #ifdef __bsdi__
@@ -619,26 +618,6 @@ pdq_eisa_devinit(
 }
 
 #ifdef __FreeBSD__
-static struct kern_devconf kdc_fea[NFEA] = { {
-        0, 0, 0,                /* filled in by dev_attach */
-        "fea", 0, { MDDT_ISA, 0, "net" },
-        isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-        &kdc_isa0,              /* parent */
-        0,                      /* parentdata */
-        DC_BUSY,                /* host adapters are always ``in use'' */
-        "DEC DEFEA EISA FDDI Controller"
-} };
-
-static inline void
-pdq_eisa_registerdev(
-    struct isa_device *id)
-{
-    if (id->id_unit)
-	kdc_fea[id->id_unit] = kdc_fea[0];
-    kdc_fea[id->id_unit].kdc_unit = id->id_unit;
-    kdc_fea[id->id_unit].kdc_parentdata = id;
-    dev_attach(&kdc_fea[id->id_unit]);
-}
 
 static int pdq_eisa_slots = ~1;
 
@@ -707,7 +686,6 @@ pdq_eisa_attach(
 
     bcopy((caddr_t) sc->sc_pdq->pdq_hwaddr.lanaddr_bytes, sc->sc_ac.ac_enaddr, 6);
     pdq_ifattach(sc, pdq_eisa_ifinit, pdq_eisa_ifreset, pdq_eisa_ifwatchdog);
-    pdq_eisa_registerdev(id);
     return 1;
 }
 

@@ -46,7 +46,6 @@
 #include <sys/time.h>
 
 #include <sys/systm.h>
-#include <sys/devconf.h>
 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -60,7 +59,6 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-#include <machine/devconf.h>
 #include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
@@ -148,7 +146,6 @@ struct ctlr
 
 	/* Device configuration structure:
 	 */
-	struct kern_devconf kdc;
 #ifdef DEVFS
 	void *devfs_token;
 #endif
@@ -368,36 +365,6 @@ reset(struct ctlr *ctlr)
 	ad_clear(ctlr);
 }
 
-static int
-labpc_goaway(struct kern_devconf *kdc, int force)
-{
-	if(force) {
-		dev_detach(kdc);
-		return 0;
-	} else {
-		return EBUSY;   /* XXX fix */
-	}
-}
-
-static struct kern_devconf kdc_template = {
-      0, 0, 0,                /* filled in by dev_attach */
-      "labpc", 0, { MDDT_ISA, 0, "tty" },
-      isa_generic_externalize, 0, labpc_goaway, ISA_EXTERNALLEN,
-      &kdc_isa0,              /* parent */
-      0,                      /* parentdata */
-      DC_UNKNOWN,
-      "?"                     /* Description (filled in later ) */
-};
-
-static inline void
-labpc_registerdev(struct isa_device *id)
-{
-	struct kern_devconf *kdc = &labpcs[id->id_unit]->kdc;
-	kdc->kdc_unit = id->id_unit;
-	kdc->kdc_parentdata = id;
-	dev_attach(kdc);
-}
-
 /* overrun: slam the start convert register and OVERRUN should get set:
  */
 static u_char
@@ -484,14 +451,6 @@ labpcprobe(struct isa_device *dev)
 		l->base = ctlr->base;
 		dev->id_unit = l->unit = unit;
 
-		l->kdc = kdc_template;
-		l->kdc.kdc_state = DC_IDLE;
-
-		if ((status & LABPCPLUS) == 0)
-			l->kdc.kdc_description = "National Instrument's LabPC+";
-		else
-			l->kdc.kdc_description = "National Instrument's LabPC";
-
 		unit++;
 		return 0x20;
 	}
@@ -511,7 +470,6 @@ labpcattach(struct isa_device *dev)
 
 	ctlr->sample_us = (1000000.0 / (double)LABPC_DEFAULT_HERZ) + .50;
 	reset(ctlr);
-    labpc_registerdev(dev);
 
 	ctlr->min_tmo = LABPC_MIN_TMO;
 
@@ -766,7 +724,6 @@ labpcopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if ( (ctlr->flags & BUSY) == 0)
 	{
 		ctlr->flags |= BUSY;
-		ctlr->kdc.kdc_state = DC_BUSY;
 
 		reset(ctlr);
 
@@ -790,7 +747,6 @@ labpcclose(dev_t dev, int flags, int fmt, struct proc *p)
 
 	(*ctlr->stop)(ctlr);
 
-	ctlr->kdc.kdc_state = DC_IDLE;
 	ctlr->flags &= ~BUSY;
 
 	return 0;

@@ -26,7 +26,6 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/ioctl.h>
-#include <sys/devconf.h>
 #include <sys/disklabel.h>
 #include <sys/cdio.h>
 #include <sys/conf.h>
@@ -61,7 +60,7 @@ static struct cdevsw wcd_cdevsw =
 #ifndef ATAPI_STATIC
 static
 #endif
-int  wcdattach(struct atapi*, int, struct atapi_params*, int, struct kern_devconf*);
+int  wcdattach(struct atapi*, int, struct atapi_params*, int);
 
 #define NUNIT   (NWDC*2)                /* Max. number of devices */
 #define UNIT(d) ((minor(d) >> 3) & 3)   /* Unit part of minor device number */
@@ -223,7 +222,6 @@ struct wcd {
 	struct cappage cap;             /* Capabilities page info */
 	struct audiopage aumask;        /* Audio page mask */
 	struct subchan subchan;         /* Subchannel info */
-	struct kern_devconf cf;         /* Driver configuration info */
 	char description[80];           /* Device description */
 #ifdef	DEVFS
 	void	*ra_devfs_token;
@@ -244,19 +242,11 @@ static int wcd_read_toc (struct wcd *t);
 static int wcd_request_wait (struct wcd *t, u_char cmd, u_char a1, u_char a2,
 	u_char a3, u_char a4, u_char a5, u_char a6, u_char a7, u_char a8,
 	u_char a9, char *addr, int count);
-static int wcd_externalize (struct kern_devconf*, struct sysctl_req *);
-static int wcd_goaway (struct kern_devconf *kdc, int force);
 static void wcd_describe (struct wcd *t);
 static int wcd_open(dev_t dev, int rawflag);
 static int wcd_setchan (struct wcd *t,
 	u_char c0, u_char c1, u_char c2, u_char c3);
 static int wcd_eject (struct wcd *t, int closeit);
-
-static struct kern_devconf cftemplate = {
-	0, 0, 0, "wcd", 0, { MDDT_DISK, 0 },
-	wcd_externalize, 0, wcd_goaway, DISK_EXTERNALLEN,
-	0, 0, DC_IDLE, "ATAPI compact disc",
-};
 
 /*
  * Dump the array in hexadecimal format for debugging purposes.
@@ -271,23 +261,11 @@ static void wcd_dump (int lun, char *label, void *data, int len)
 	printf ("\n");
 }
 
-static int wcd_externalize (struct kern_devconf *kdc, struct sysctl_req *req)
-{
-	return disk_externalize (wcdtab[kdc->kdc_unit]->unit, req);
-}
-
-static int wcd_goaway (struct kern_devconf *kdc, int force)
-{
-	dev_detach (kdc);
-	return 0;
-}
-
 #ifndef ATAPI_STATIC
 static
 #endif
 int 
-wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
-	struct kern_devconf *parent)
+wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 {
 	struct wcd *t;
 	struct atapires result;
@@ -344,16 +322,6 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 			wcd_dump (t->lun, "cap", &t->cap, sizeof t->cap);
 	}
 
-	/* Register driver */
-	t->cf = cftemplate;
-	t->cf.kdc_unit = t->lun;
-	t->cf.kdc_parent = parent;
-	t->cf.kdc_description = t->description;
-	strcpy (t->description, cftemplate.kdc_description);
-	strcat (t->description, ": ");
-	strncpy (t->description + strlen(t->description),
-		ap->model, sizeof(ap->model));
-	dev_attach (&t->cf);
 
 #ifdef DEVFS
 	t->ra_devfs_token = 
@@ -582,7 +550,6 @@ static void wcd_start (struct wcd *t)
 		blkno>>24, blkno>>16, blkno>>8, blkno, 0, nblk>>8, nblk, 0, 0,
 		0, 0, 0, 0, 0, (u_char*) bp->b_un.b_addr, bp->b_bcount,
 		wcd_done, t, bp);
-	t->cf.kdc_state = DC_BUSY;
 }
 
 static void wcd_done (struct wcd *t, struct buf *bp, int resid,
@@ -595,7 +562,6 @@ static void wcd_done (struct wcd *t, struct buf *bp, int resid,
 	} else
 		bp->b_resid = resid;
 	biodone (bp);
-	t->cf.kdc_state = DC_IDLE;
 	wcd_start (t);
 }
 
@@ -639,11 +605,9 @@ static int wcd_request_wait (struct wcd *t, u_char cmd, u_char a1, u_char a2,
 {
 	struct atapires result;
 
-	t->cf.kdc_state = DC_BUSY;
 	result = atapi_request_wait (t->ata, t->unit, cmd,
 		a1, a2, a3, a4, a5, a6, a7, a8, a9, 0, 0, 0, 0, 0, 0,
 		addr, count);
-	t->cf.kdc_state = DC_IDLE;
 	if (result.code) {
 		wcd_error (t, result);
 		return (EIO);
@@ -1078,10 +1042,8 @@ static int wcd_eject (struct wcd *t, int closeit)
 	struct atapires result;
 
 	/* Try to stop the disc. */
-	t->cf.kdc_state = DC_BUSY;
 	result = atapi_request_wait (t->ata, t->unit, ATAPI_START_STOP,
 		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	t->cf.kdc_state = DC_IDLE;
 
 	if (result.code == RES_ERR &&
 	    ((result.error & AER_SKEY) == AER_SK_NOT_READY ||

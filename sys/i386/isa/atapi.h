@@ -195,7 +195,6 @@ struct atapidrv {                       /* delayed attach info */
 	int unit;                       /* drive unit, 0/1 */
 	int port;                       /* controller base port */
 	int attached;                   /* the drive is attached */
-	struct kern_devconf *parent;    /* the devconf info pattern */
 };
 
 struct wcd;
@@ -223,7 +222,6 @@ struct atapi {                          /* ATAPI controller data */
 	u_char           slow : 1;      /* slow reaction device */
 	u_char           attached[2];   /* units are attached to subdrivers */
 	struct atapi_params *params[2]; /* params for units 0,1 */
-	struct kern_devconf *parent;    /* parent configuration pattern */
 	struct atapicmd *queue;         /* queue of commands to perform */
 	struct atapicmd *tail;          /* tail of queue */
 	struct atapicmd *free;          /* queue of free command blocks */
@@ -232,7 +230,6 @@ struct atapi {                          /* ATAPI controller data */
 
 #ifdef KERNEL
 struct atapi;
-struct kern_devconf;
 
 extern struct atapidrv atapi_drvtab[4]; /* delayed attach info */
 extern int atapi_ndrv;                  /* the number of potential drives */
@@ -248,7 +245,7 @@ extern struct atapi *atapi_tab;         /* the table of atapi controllers */
 #endif
 
 #ifndef ATAPI_MODULE
-int atapi_attach (int ctlr, int unit, int port, struct kern_devconf*);
+int atapi_attach (int ctlr, int unit, int port);
 #endif
 
 /*

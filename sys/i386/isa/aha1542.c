@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.59 1996/06/12 05:03:34 gpalmer Exp $
+ *      $Id: aha1542.c,v 1.60 1996/07/20 22:02:44 joerg Exp $
  */
 
 /*
@@ -42,7 +42,6 @@
 #endif	/* KERNEL */
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
-#include <sys/devconf.h>
 
 #ifdef	KERNEL
 #include <sys/kernel.h>
@@ -381,27 +380,6 @@ struct isa_driver ahadriver =
     "aha"
 };
 
-static struct kern_devconf kdc_aha[NAHA] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"aha", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* always start out here */
-	"Adaptec 154x-series SCSI host adapter",
-	DC_CLS_MISC		/* SCSI host adapters aren't special */
-} };
-
-static inline void
-aha_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_aha[id->id_unit] = kdc_aha[0];
-	kdc_aha[id->id_unit].kdc_unit = id->id_unit;
-	kdc_aha[id->id_unit].kdc_parentdata = id;
-	dev_attach(&kdc_aha[id->id_unit]);
-}
-
 #endif	/* KERNEL */
 
 static int ahaunit = 0;
@@ -605,10 +583,6 @@ ahaprobe(dev)
 	ahadata[unit] = aha;
 	aha->aha_base = dev->id_iobase;
 
-#ifndef DEV_LKM
-	aha_registerdev(dev);
-#endif
-
 	/*
 	 * Try initialise a unit at this location
 	 * sets up dma and bus speed, loads aha->aha_int
@@ -675,7 +649,6 @@ ahaattach(dev)
 	/*
 	 * ask the adapter what subunits are present
 	 */
-	kdc_aha[unit].kdc_state = DC_BUSY; /* host adapters are always busy */
 	scsi_attachdevs(scbus);
 
 	return 1;

@@ -43,7 +43,6 @@
 extern struct cdevsw cx_cdevsw;
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#include <sys/devconf.h>
 #define watchdog_func_t void(*)(struct ifnet *)
 #define start_func_t    void(*)(struct ifnet*)
 
@@ -99,13 +98,6 @@ static unsigned short drq_valid_values [] = { 5, 6, 7, 0 };
 static unsigned short port_valid_values [] = {
 	0x240, 0x260, 0x280, 0x300, 0x320, 0x380, 0x3a0, 0,
 };
-
-static char cxdescription [80];
-struct kern_devconf kdc_cx [NCX] = { {
-	0, 0, 0, "cx", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, &kdc_isa0, 0,
-	DC_IDLE, cxdescription, DC_CLS_SERIAL
-} };
 
 /*
  * Check that the value is contained in the list of correct values.
@@ -298,13 +290,6 @@ cxattach (struct isa_device *id)
 	if (unit == 0)
 		timeout ((timeout_func_t) cxtimeout, 0, hz*5);
 
-	if (unit != 0)
-		kdc_cx[unit] = kdc_cx[0];
-	kdc_cx[unit].kdc_unit = unit;
-	kdc_cx[unit].kdc_isa = id;
-	sprintf (cxdescription, "Cronyx-Sigma-%s sync/async serial adapter",
-		b->name);
-	dev_attach (&kdc_cx[unit]);
 	printf ("cx%d: <Cronyx-%s>\n", unit, b->name);
 #ifdef DEVFS
 	cx_devfs_token =
@@ -418,8 +403,6 @@ cxup (cx_chan_t *c)
 
 		/* The interface is up, start it */
 	        print (("cx%d.%d: cxup\n", c->board->num, c->num));
-
-		kdc_cx[c->board->num].kdc_state = DC_BUSY;
 
 		/* Initialize channel, enable receiver and transmitter */
 		cx_cmd (port, CCR_INITCH | CCR_ENRX | CCR_ENTX);

@@ -106,13 +106,6 @@ static void vgapelinit(void);	/* read initial VGA DAC palette */
 static int pcvt_xmode_set(int on, struct proc *p); /* initialize for X mode */
 #endif /* XSERVER && !PCVT_USL_VT_COMPAT */
 
-#if PCVT_FREEBSD > 205
-static struct kern_devconf kdc_vt[];
-static inline void vt_registerdev(struct isa_device *id, const char *name);
-static char vt_description[];
-#define VT_DESCR_LEN 40
-#endif /* PCVT_FREEBSD > 205 */
-
 static	d_open_t	pcopen;
 static	d_close_t	pcclose;
 static	d_read_t	pcread;
@@ -133,35 +126,6 @@ struct tty *
 pcdevtotty(Dev_t dev)
 {
 	return get_pccons(dev);
-}
-
-static char vt_descr[VT_DESCR_LEN] = "Graphics console: ";
-
-static struct kern_devconf kdc_vt[NVT] = {
-    0, 0, 0,        		/* filled in by dev_attach */
-    "vt", 0, { MDDT_ISA, 0, "tty" },
-    isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-    &kdc_isa0,      		/* parent */
-    0,          		/* parentdata */
-    DC_UNCONFIGURED,		/* until we know it better */
-    vt_descr
-};
-
-static inline void
-vt_registerdev(struct isa_device *id, const char *name)
-{
-    if(id->id_unit)
-	kdc_vt[id->id_unit] = kdc_vt[0];
-
-    kdc_vt[id->id_unit].kdc_unit = id->id_unit;
-    kdc_vt[id->id_unit].kdc_isa = id;
-
-    /* XXX only vt0 currently allowed */
-    strncpy(vt_descr + sizeof("Graphics console: ") - 1,
-	    name,
-	    VT_DESCR_LEN - sizeof("Graphics console: "));
-
-    dev_attach(&kdc_vt[id->id_unit]);
 }
 
 #endif /* PCVT_FREEBSD > 205 */
@@ -369,11 +333,6 @@ pcattach(struct isa_device *dev)
 	async_update(UPDATE_START);	/* start asynchronous updates */
 
 #if PCVT_FREEBSD > 205
-	/* mark the device busy now if we are the console */
-	kdc_vt[dev->id_unit].kdc_state =
-		pcvt_is_console? DC_IDLE: DC_BUSY;
-	vt_registerdev(dev, (char *)vga_string(vga_type));
-
 	{
 	dev_t dev = makedev(CDEV_MAJOR, 0);
 
@@ -543,14 +502,6 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 		splx(s);
 	}
 
-#if PCVT_FREEBSD > 205
-	if(retval == 0)
-	{
-		/* XXX currently, only one vt device is supported */
-		kdc_vt[0].kdc_state = DC_BUSY;
-	}
-#endif
-
 	return(retval);
 }
 
@@ -594,14 +545,6 @@ pcclose(Dev_t dev, int flag, int mode, struct proc *p)
 	reset_usl_modes(vsx);
 
 #endif /* PCVT_USL_VT_COMPAT */
-
-#if PCVT_FREEBSD > 205
-	if(!pcvt_is_console)
-	{
-		/* XXX currently, only one vt device is supported */
-		kdc_vt[0].kdc_state = DC_IDLE;
-	}
-#endif
 
 	return(0);
 }

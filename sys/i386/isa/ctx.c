@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.18 1996/06/18 01:22:15 bde Exp $
+ *	$Id: ctx.c,v 1.19 1996/06/25 20:29:52 bde Exp $
  */
 
 /*
@@ -119,7 +119,6 @@
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/devconf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -173,33 +172,10 @@ static struct ctx_soft_registers {
 }       ctx_sr[NCTX];
 
 
-static struct kern_devconf kdc_ctx[NCTX] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"ctx", 0, { MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* always start out here */
-	"CORTEX-I frame grabber",
-	DC_CLS_MISC
-} };
-
-static inline void
-ctx_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_ctx[id->id_unit] = kdc_ctx[0];
-	kdc_ctx[id->id_unit].kdc_unit = id->id_unit;
-	kdc_ctx[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_ctx[id->id_unit]);
-}
-
 static int
 ctxprobe(struct isa_device * devp)
 {
 	int     status;
-
-	ctx_registerdev(devp);
 
 	if (inb(devp->id_iobase) == 0xff)	/* 0xff only if board absent */
 		status = 0;
@@ -221,7 +197,6 @@ ctxattach(struct isa_device * devp)
 	sr->iobase = devp->id_iobase;
 	sr->maddr = devp->id_maddr;
 	sr->msize = devp->id_msize;
-	kdc_ctx[devp->id_unit].kdc_state = DC_IDLE;
 	return (1);
 #ifdef DEVFS
 	sr->devfs_token = 
@@ -255,7 +230,6 @@ ctxopen(dev_t dev, int flags, int fmt, struct proc *p)
 		return (ENOMEM);
 
 	sr->flag = OPEN;
-	kdc_ctx[unit].kdc_state = DC_BUSY;
 
 /*
 	Set up the shadow registers.  We don't actually write these
@@ -293,7 +267,6 @@ ctxclose(dev_t dev, int flags, int fmt, struct proc *p)
 
 	unit = UNIT(minor(dev));
 	ctx_sr[unit].flag = 0;
-	kdc_ctx[unit].kdc_state = DC_IDLE;
 	free(ctx_sr[unit].lutp, M_DEVBUF);
 	ctx_sr[unit].lutp = NULL;
 	return (0);

@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.50 1996/08/03 00:21:44 peter Exp $
+ *	$Id: si.c,v 1.51 1996/08/12 17:12:07 peter Exp $
  */
 
 #ifndef lint
@@ -53,7 +53,6 @@ static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,199
 #include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
-#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -105,7 +104,6 @@ static void sidtrwakeup __P((void *chan));
 
 static int	siparam __P((struct tty *, struct termios *));
 
-static	void	si_registerdev __P((struct isa_device *id));
 static	int	siprobe __P((struct isa_device *id));
 static	int	siattach __P((struct isa_device *id));
 static	void	si_modem_state __P((struct si_port *pp, struct tty *tp, int hi_ip));
@@ -163,7 +161,6 @@ struct si_softc {
 	int		sc_irq;		/* copy of attach irq */
 	int		sc_eisa_iobase;	/* EISA io port address */
 	int		sc_eisa_irqbits;
-	struct kern_devconf sc_kdc;
 #ifdef	DEVFS
 	struct {
 		void	*ttyd;
@@ -253,31 +250,6 @@ static char *si_type[] = {
 	"SIEISA",
 };
 
-
-static struct kern_devconf si_kdc[NSI] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"si", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parent data */
-	DC_UNCONFIGURED,	/* state */
-	"Specialix SI/XIO Host adapter",
-	DC_CLS_SERIAL,		/* class */
-} };
-
-static void
-si_registerdev(id)
-	struct isa_device *id;
-{
-	if (id->id_unit != 0) {
-		bcopy(&si_kdc[0], &si_kdc[id->id_unit], sizeof(si_kdc[0]));
-	}
-	si_kdc[id->id_unit].kdc_unit = id->id_unit;
-	si_kdc[id->id_unit].kdc_isa = id;
-	si_kdc[id->id_unit].kdc_state = DC_UNCONFIGURED;
-	dev_attach(&si_kdc[id->id_unit]);
-}
-
 /* Look for a valid board at the given mem addr */
 static int
 siprobe(id)
@@ -289,8 +261,6 @@ siprobe(id)
 	volatile BYTE was, *ux;
 	volatile unsigned char *maddr;
 	unsigned char *paddr;
-
-	si_registerdev(id);
 
 	si_pollrate = POLLHZ;		/* default 10 per second */
 #ifdef REALPOLL
@@ -644,9 +614,6 @@ mem_fail:
 		goto mem_fail;
 	bzero(tp, sizeof(*tp) * nport);
 	si_tty = tp;
-
-	/* mark the device state as attached */
-	si_kdc[unit].kdc_state = DC_BUSY;
 
 	/*
 	 * Scan round the ports again, this time initialising.

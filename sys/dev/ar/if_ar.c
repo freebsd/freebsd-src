@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.8 1996/04/12 19:57:44 jhay Exp $
+ * $Id: if_ar.c,v 1.9 1996/06/25 20:29:56 bde Exp $
  */
 
 /*
@@ -71,7 +71,6 @@
 #include <net/bpfdesc.h>
 #endif
 
-#include <sys/devconf.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
@@ -116,7 +115,6 @@ static struct ar_hardc {
 
 	sca_regs *sca;
 
-	struct kern_devconf kdc;
 }ar_hardc[NAR];
 
 struct ar_softc {
@@ -148,7 +146,6 @@ struct ar_softc {
 	int scano;
 	int scachan;
 
-	struct kern_devconf kdc;
 };
 
 static int arprobe(struct isa_device *id);
@@ -181,28 +178,6 @@ static int irqtable[16] = {
 
 struct isa_driver ardriver = {arprobe, arattach, "arc"};
 
-static struct kern_devconf kdc_ar_template = { 
-	0, 0, 0, 
-	"ar", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, 
-	&kdc_isa0, 
-	0,
-	DC_UNCONFIGURED, 
-	"Arnet SYNC/570i Port",
-	DC_CLS_NETIF
-};
-
-static struct kern_devconf kdc_arc_template = { 
-	0, 0, 0, 
-	"arc", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN, 
-	&kdc_isa0, 
-	0,
-	DC_UNCONFIGURED, 
-	"Arnet SYNC/570i Adapter",
-	DC_CLS_NETIF
-};
-
 static void ar_xmit(struct ar_softc *sc);
 static void arstart(struct ifnet *ifp);
 static int arioctl(struct ifnet *ifp, int cmd, caddr_t data);
@@ -223,33 +198,6 @@ static void ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr);
 static void ar_msci_intr(struct ar_hardc *hc, int scano, u_char isr);
 static void ar_timer_intr(struct ar_hardc *hc, int scano, u_char isr);
 
-static inline void
-ar_registerdev(int ctlr, int unit)
-{
-	struct ar_softc *sc;
-	
-	sc = &ar_hardc[ctlr].sc[unit];
-	sc->kdc = kdc_ar_template;
-
-	sc->kdc.kdc_unit = ar_hardc[ctlr].startunit + unit;
-	sc->kdc.kdc_parentdata = &ar_hardc[ctlr].kdc;
-	dev_attach(&sc->kdc);
-}
-
-static inline void
-arc_registerdev(struct isa_device *dvp)
-{
-        int unit = dvp->id_unit;
-	struct ar_hardc *hc = &ar_hardc[dvp->id_unit];
-
-	hc->kdc = kdc_arc_template;
-
-        hc->kdc.kdc_unit = unit;
-        hc->kdc.kdc_parentdata = dvp;
-        dev_attach(&hc->kdc);
-}
-
-
 /*
  * Register the Adapter.
  * Probe to see if it is there.
@@ -265,7 +213,6 @@ arprobe(struct isa_device *id)
 	/*
 	 * Register the card.
 	 */
-	arc_registerdev(id);
 
 	/*
 	 * Now see if the card is realy there.
@@ -314,15 +261,6 @@ arprobe(struct isa_device *id)
 	case AR_IFACE_COMBO:
 		printf("ar%d: WARNING: The COMBO interface is untested.\n",
 			id->id_unit);
-		break;
-	}
-
-	switch(hc->numports) {
-	case 2:
-		hc->kdc.kdc_description = "Arnet SYNC/570i 2 Port Adapter";
-		break;
-	case 4:
-		hc->kdc.kdc_description = "Arnet SYNC/570i 4 Port Adapter";
 		break;
 	}
 
@@ -375,8 +313,6 @@ arattach(struct isa_device *id)
 		hc->revision,
 		iface);
 	
-	hc->kdc.kdc_state = DC_BUSY;
-
 	arc_init(id);
 
 	sc = hc->sc;
@@ -394,8 +330,6 @@ arattach(struct isa_device *id)
 		sc->scano = unit / NCHAN;
 		sc->scachan = unit%NCHAN;
 
-		ar_registerdev(id->id_unit, unit);
-
 		ar_init_rx_dmac(sc);
 		ar_init_tx_dmac(sc);
 		ar_init_msci(sc);
@@ -412,8 +346,6 @@ arattach(struct isa_device *id)
 		ifp->if_watchdog = arwatchdog;
 
 		sc->ifsppp.pp_flags = PP_KEEPALIVE;
-
-		sc->kdc.kdc_state = DC_IDLE;
 
 		printf("ar%d: Adapter %d, port %d.\n",
 			sc->unit,
@@ -759,7 +691,6 @@ ar_up(struct ar_softc *sc)
 
 	TRC(printf("ar%d: sca %p, msci %p, ch %d\n",
 		sc->unit, sca, msci, sc->scachan));
-	sc->kdc.kdc_state = DC_BUSY;
 
 	/*
 	 * Enable transmitter and receiver.
@@ -801,8 +732,6 @@ ar_down(struct ar_softc *sc)
 {
 	sca_regs *sca = sc->hc->sca;
 	msci_channel *msci = &sca->msci[sc->scachan];
-
-	sc->kdc.kdc_state = DC_IDLE;
 
 	/*
 	 * Disable transmitter and receiver.

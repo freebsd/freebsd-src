@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.51 1996/07/19 13:20:04 amurai Exp $
+ *  $Id: if_ep.c,v 1.52 1996/07/27 12:40:31 amurai Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -66,7 +66,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/devconf.h>
 #endif
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -122,8 +121,6 @@ static	int eeprom_rdy __P((struct ep_softc *sc));
 static	int ep_isa_probe __P((struct isa_device *));
 static struct ep_board * ep_look_for_board_at __P((struct isa_device *is));
 static	int ep_isa_attach __P((struct isa_device *));
-static	void ep_isa_registerdev __P((struct ep_softc *sc,
-				     struct isa_device *id));
 static	int epioctl __P((struct ifnet * ifp, int, caddr_t));
 static	void epmbuffill __P((caddr_t, int));
 static	void epmbufempty __P((struct ep_softc *));
@@ -153,17 +150,6 @@ struct isa_driver epdriver = {
     ep_isa_attach,
     "ep",
     0
-};
-
-static struct kern_devconf kdc_isa_ep = {
-    0, 0, 0,			/* filled in by dev_attach */
-    "ep", 0, { MDDT_ISA, 0, "net" },
-    isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-    &kdc_isa0,		/* parent */
-    0,			/* parentdata */
-    DC_UNCONFIGURED,		/* state */
-    "3Com 3C509 Ethernet adapter",
-    DC_CLS_NETIF		/* class */
 };
 
 #include "crd.h"
@@ -225,7 +211,6 @@ ep_pccard_init(dp, first)
 	    return (ENXIO);
 	}
 	ep_unit++;
-        ep_isa_registerdev(sc, is);
     }
 
     /* get_e() requires these. */
@@ -258,7 +243,6 @@ ep_pccard_init(dp, first)
     }
 
     if (!first) {
-	sc->kdc->kdc_state = DC_IDLE;
 	sc->gone = 0;
 	printf("ep%d: resumed.\n", is->id_unit);
 	epinit(sc);
@@ -307,11 +291,10 @@ ep_unload(dp)
 {
     struct ep_softc *sc = ep_softc[dp->isahd.id_unit];
 
-    if (sc->kdc->kdc_state == DC_UNCONFIGURED) {
+    if (sc->gone) {
         printf("ep%d: already unloaded\n", dp->isahd.id_unit);
 	return;
     }
-    sc->kdc->kdc_state = DC_UNCONFIGURED;
     sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING;
     sc->gone = 1;
     printf("ep%d: unload\n", dp->isahd.id_unit);
@@ -330,24 +313,6 @@ card_intr(dp)
 }
 
 #endif /* NCRD > 0 */
-
-static void
-ep_isa_registerdev(sc, id)
-    struct ep_softc *sc;
-    struct isa_device *id;
-{
-    sc->kdc = (struct kern_devconf *)malloc(sizeof(struct kern_devconf),
-					    M_DEVBUF, M_NOWAIT);
-    if (!sc->kdc) {
-	printf("WARNING: ep_isa_registerdev unable to malloc! "
-	       "Device kdc will not be registerd\n");
-	return;
-    }
-    bcopy(&kdc_isa_ep, sc->kdc, sizeof(kdc_isa_ep));
-    sc->kdc->kdc_unit = sc->unit;
-    sc->kdc->kdc_parentdata = id;
-    dev_attach(sc->kdc);
-}
 
 static int
 eeprom_rdy(sc)
@@ -552,8 +517,6 @@ ep_isa_probe(is)
 
     is->id_unit = ep_unit++;
 
-    ep_isa_registerdev(sc, is);
-
     /*
      * The iobase was found and MFG_ID was 0x6d50. PROD_ID should be
      * 0x9[0-f]50
@@ -693,7 +656,6 @@ ep_attach(sc)
     }
 
     /* device attach does transition from UNCONFIGURED to IDLE state */
-    sc->kdc->kdc_state=DC_IDLE;
 
     /*
      * Fill the hardware address into ifa_addr if we find an AF_LINK entry.
@@ -1428,7 +1390,6 @@ epioctl(ifp, cmd, data)
 	ifp->if_flags |= IFF_UP;
 
 	/* netifs are BUSY when UP */
-	sc->kdc->kdc_state=DC_BUSY;
 
 	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
@@ -1488,10 +1449,6 @@ epioctl(ifp, cmd, data)
 	}
 	break;
       case SIOCSIFFLAGS:
-	/* UP controls BUSY/IDLE */
-	sc->kdc->kdc_state= ( (ifp->if_flags & IFF_UP)
-		? DC_BUSY
-		: DC_IDLE );
 
 	if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
 	    ifp->if_flags &= ~IFF_RUNNING;

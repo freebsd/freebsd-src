@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.52 1996/09/02 21:23:04 se Exp $
+**  $Id: pci.c,v 1.53 1996/09/05 21:28:51 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -53,13 +53,11 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h> /* declaration of wakeup(), used by vm.h */
-#include <sys/devconf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <sys/devconf.h>
 
 #include <i386/isa/isa_device.h>	/* XXX inthand2_t */
 
@@ -77,21 +75,7 @@
 **========================================================
 */
 
-extern struct kern_devconf kdc_cpu0;
-
-struct kern_devconf kdc_pci0 = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"pci", 0, { MDDT_BUS, 0 },
-	0, 0, 0, BUS_EXTERNALLEN,
-	&kdc_cpu0,		/* parent is the CPU */
-	0,			/* no parentdata */
-	DC_BUSY,		/* busses are always busy */
-	"PCI bus",
-	DC_CLS_BUS		/* class */
-};
-
 struct pci_devconf {
-	struct kern_devconf pdc_kdc;
 	struct pci_info     pdc_pi;
 };
 
@@ -122,10 +106,6 @@ struct pcicb {
 	u_long		pcicb_p_membase;
 	u_long		pcicb_p_memlimit;
 };
-
-static int pci_externalize (struct kern_devconf *, struct sysctl_req *);
-
-static int pci_internalize (struct kern_devconf *, struct sysctl_req *);
 
 static void
 not_supported (pcici_t tag, u_long type);
@@ -677,27 +657,7 @@ pci_bus_config (void)
 		pdcp -> pdc_pi.pi_bus    = bus_no;
 		pdcp -> pdc_pi.pi_device = device;
 		pdcp -> pdc_pi.pi_func   = func;
-
-		pdcp -> pdc_kdc.kdc_name = dvp->pd_name;
-		pdcp -> pdc_kdc.kdc_unit = unit;
-
-		pdcp -> pdc_kdc.kdc_md.mddc_devtype = MDDT_PCI;
-
-		pdcp -> pdc_kdc.kdc_externalize = pci_externalize;
-		pdcp -> pdc_kdc.kdc_internalize = pci_internalize;
-
-		pdcp -> pdc_kdc.kdc_datalen     = PCI_EXTERNAL_LEN;
-		pdcp -> pdc_kdc.kdc_parent	= &kdc_pci0;
-		pdcp -> pdc_kdc.kdc_parentdata  = &pdcp->pdc_pi;
-		pdcp -> pdc_kdc.kdc_state       = DC_UNKNOWN;
-		pdcp -> pdc_kdc.kdc_description = name;
-		pdcp -> pdc_kdc.kdc_shutdown	= dvp->pd_shutdown;
-
-		/*
-		**	And register this device
-		*/
-
-		dev_attach (&pdcp->pdc_kdc);
+		pdcp -> pdc_pi.pi_unit   = unit;
 
 		/*
 		**	attach device
@@ -936,8 +896,6 @@ void pci_configure()
 	/*
 	**	hello world ..
 	*/
-
-	dev_attach(&kdc_pci0);
 
 	pciroots = 1;
 	while (pciroots--) {
@@ -1194,39 +1152,6 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	*pa = paddr;
 
 	return (1);
-}
-
-/*------------------------------------------------------------
-**
-**	Interface functions for the devconf module.
-**
-**------------------------------------------------------------
-*/
-
-static int
-pci_externalize (struct kern_devconf *kdcp, struct sysctl_req *req)
-{
-	struct pci_externalize_buffer buffer;
-	struct pci_info * pip = kdcp->kdc_parentdata;
-	pcici_t tag;
-	int	i;
-
-	tag = pcibus->pb_tag (pip->pi_bus, pip->pi_device, pip->pi_func);
-
-	buffer.peb_pci_info	= *pip;
-
-	for (i=0; i<PCI_EXT_CONF_LEN; i++) {
-		buffer.peb_config[i] = pci_conf_read (tag, i*4);
-	};
-
-	return SYSCTL_OUT(req, &buffer, sizeof buffer);
-}
-
-
-static int
-pci_internalize (struct kern_devconf *kdcp, struct sysctl_req *re)
-{
-	return EOPNOTSUPP;
 }
 
 /*-----------------------------------------------------------------------

@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.21 1996/06/25 20:30:18 bde Exp $
+ *	$Id: if_ix.c,v 1.22 1996/08/06 21:14:08 phk Exp $
  */
 
 #include "ix.h"
@@ -41,7 +41,6 @@
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
@@ -174,28 +173,6 @@ static void ixeeprom_clock(int, int);
 RRR */
 
 struct	isa_driver ixdriver = {ixprobe, ixattach, "ix"};
-
-static struct kern_devconf kdc_ix_template = {
-	0, 0, 0,                /* filled in by dev_attach */
-	"ix", 0, { MDDT_ISA, 0, "net" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,              /* parent */
-	0,                      /* parentdata */
-	DC_UNCONFIGURED,        /* state */
-	"",                     /* description */
-	DC_CLS_NETIF            /* class */
-};
-
-static inline void
-ix_registerdev(struct isa_device *id, const char *descr)
-{
-	struct kern_devconf *kdc = &ix_softc[id->id_unit].kdc;
-	*kdc = kdc_ix_template;
-	kdc->kdc_unit = id->id_unit;
-	kdc->kdc_parentdata = id;
-	kdc->kdc_description = descr;
-	dev_attach(kdc);
-}
 
 /*
  * Enable the interrupt signal on the board so that it may interrupt
@@ -552,10 +529,6 @@ ixprobe(struct isa_device *dvp) {
 	sc->flags = IXF_NONE;	/* make sure the flag word is NONE */
 	status = IX_IO_PORTS;
 
-#ifndef DEV_LKM
-	ix_registerdev(dvp, "Ethernet adapter: Intel EtherExpress16");
-#endif /* not DEV_LKM */
-
 ixprobe_exit:
 	DEBUGBEGIN(DEBUGPROBE)
 	DEBUGDO(printf ("ixprobe exited\n");)
@@ -608,7 +581,6 @@ ixattach(struct isa_device *dvp) {
 
 	if_attach(ifp);
 	ether_ifattach(ifp);
-	sc->kdc.kdc_state = DC_IDLE;
 
 	printf("ix%d: address %6D\n", unit, sc->arpcom.ac_enaddr, ":");
 	return(0);
@@ -630,8 +602,6 @@ ixinit(int unit) {
 	DEBUGBEGIN(DEBUGINIT)
 	DEBUGDO(printf("ixinit:");)
 	DEBUGEND
-
-	sc->kdc.kdc_state = DC_BUSY;
 
 	/* Put bart into loopback until we are done intializing to
 	 * make sure that packets don't hit the wire */
@@ -1454,8 +1424,6 @@ ixstop(struct ifnet *ifp) {
 
 	/* force the 82586 reset pin high */
 	outb(sc->iobase + ee_ctrl, I586_RESET);
-
-	sc->kdc.kdc_state = DC_IDLE;
 
 	DEBUGBEGIN(DEBUGSTOP)
 	DEBUGDO(printf("ixstop exiting\n");)

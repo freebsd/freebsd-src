@@ -38,8 +38,6 @@
 #   if __FreeBSD__ < 2
 #      include <machine/pio.h>
 #      define RB_GETC(q) getc(q)
-#   else /* BSD 4.4 Lite */
-#      include <sys/devconf.h>
 #   endif
 #endif
 #ifdef __bsdi__
@@ -84,7 +82,6 @@ timeout_t cxtimeout;
 extern cx_board_t cxboard [NCX];        /* adapter state structures */
 extern cx_chan_t *cxchan [NCX*NCHAN];   /* unit to channel struct pointer */
 #if __FreeBSD__ >= 2
-extern struct kern_devconf kdc_cx [NCX];
 static struct tty cx_tty [NCX*NCHAN];          /* tty data */
 
 static	d_open_t	cxopen;
@@ -238,10 +235,6 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 		return (error);
 #if __FreeBSD__ >= 2
 	error = (*linesw[tp->t_line].l_open) (dev, tp);
-	if (tp->t_state & TS_ISOPEN)
-		/* Mark the board busy on the first startup.
-		 * Never goes idle. */
-		kdc_cx[c->board->num].kdc_state = DC_BUSY;
 #else
 	error = (*linesw[tp->t_line].l_open) (dev, tp, 0);
 #endif

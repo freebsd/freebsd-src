@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.19 1996/04/13 12:18:43 bde Exp $
+ * $Id: asc.c,v 1.20 1996/06/18 01:22:12 bde Exp $
  */
 
 #include "asc.h"
@@ -67,7 +67,6 @@
 
 #include <machine/asc_ioctl.h>
 
-#include <sys/devconf.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ascreg.h>
@@ -213,26 +212,6 @@ static struct cdevsw asc_cdevsw =
 	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
 	  ascselect,    nommap,         NULL,	"asc",	NULL,	-1 };
 
-static struct kern_devconf kdc_asc[NASC] = { {
-	0, 0, 0,                /* filled in by dev_attach */
-	"asc", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,        /* state */
-	"GI1904 Hand scanner",
-	DC_CLS_MISC
-} };
-
-static inline void
-asc_registerdev(struct isa_device *id)
-{
-        if(id->id_unit)
-                kdc_asc[id->id_unit] = kdc_asc[0];
-        kdc_asc[id->id_unit].kdc_unit = id->id_unit;
-        kdc_asc[id->id_unit].kdc_isa = id;
-        dev_attach(&kdc_asc[id->id_unit]);
-}
 #define STATIC static
 #else
 #define STATIC
@@ -476,8 +455,6 @@ ascattach(struct isa_device *isdp)
 #else
     scu->selp.si_flags=0;
     scu->selp.si_pid=(pid_t)0;
-    kdc_asc[isdp->id_unit].kdc_state = DC_BUSY; /* XXX don't know better */
-    asc_registerdev(isdp);
 #endif
 #ifdef DEVFS
 #define ASC_UID 0

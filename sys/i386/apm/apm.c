@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.46 1996/07/11 16:35:12 nate Exp $
+ *	$Id: apm.c,v 1.47 1996/08/28 17:54:17 bde Exp $
  */
 
 #include "apm.h"
@@ -42,7 +42,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 #include <i386/apm/apm_setup.h>
 
 static int apm_display_off __P((void));
@@ -66,18 +65,6 @@ struct apm_softc {
 #endif
 };
 
-static struct kern_devconf kdc_apm = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"apm", 0, { MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"Advanced Power Management BIOS",
-	DC_CLS_MISC		/* class */
-};
-
-
 static struct apm_softc apm_softc;
 static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 
@@ -96,17 +83,6 @@ static struct cdevsw apm_cdevsw =
 	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
 	  apmioctl,	nostop,		nullreset,	nodevtotty,/* APM */
 	  seltrue,	nommap,		NULL ,	"apm"	,NULL,	-1};
-
-static void
-apm_registerdev(struct isa_device *id)
-{
-	if (kdc_apm.kdc_isa)
-		return;
-	kdc_apm.kdc_state = DC_UNCONFIGURED;
-	kdc_apm.kdc_unit = 0;
-	kdc_apm.kdc_isa = id;
-	dev_attach(&kdc_apm);
-}
 
 /* setup APM GDT discriptors */
 static void
@@ -601,7 +577,6 @@ apmprobe(struct isa_device *dvp)
 		printf("apm: Only one APM driver supported.\n");
 		return 0;
 	}
-	apm_registerdev(dvp);
 	switch (apm_version) {
 	case APMINI_CANTFIND:
 		/* silent */
@@ -756,8 +731,6 @@ apmattach(struct isa_device *dvp)
 	sc->minorversion = 0;
 	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
 	printf("apm: running in APM 1.0 compatible mode\n");
-	kcd_apm.kdc_description =
-		"Advanced Power Management BIOS (1.0 compatability mode)",
 #else
 	/* Try to kick bios into 1.1 or greater mode */
 	apm_driver_version();
@@ -819,7 +792,6 @@ apmattach(struct isa_device *dvp)
         apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
 
 	apm_event_enable(sc);
-	kdc_apm.kdc_state = DC_IDLE;
 
 	sc->initialized = 1;
 
@@ -872,11 +844,9 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		}
 		break;
 	case APMIO_ENABLE:
-		kdc_apm.kdc_state = DC_BUSY;
 		apm_event_enable(sc);
 		break;
 	case APMIO_DISABLE:
-		kdc_apm.kdc_state = DC_IDLE;
 		apm_event_disable(sc);
 		break;
 	case APMIO_HALTCPU:

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.71 1996/07/14 10:46:46 joerg Exp $
+ *      $Id: cd.c,v 1.72 1996/07/23 21:52:18 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -36,7 +36,6 @@
 #include <sys/cdio.h>
 #include <sys/errno.h>
 #include <sys/disklabel.h>
-#include <sys/devconf.h>
 #include <sys/dkstat.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
@@ -158,33 +157,9 @@ static struct scsi_device cd_switch =
 #define CD_START	1
 #define CD_EJECT	-2
 
-static int
-cd_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
-{
-	return scsi_externalize(SCSI_LINK(&cd_switch, kdc->kdc_unit), req);
-}
-
-static struct kern_devconf kdc_cd_template = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"cd", 0, MDDC_SCSI,
-	cd_externalize, 0, scsi_goaway, SCSI_EXTERNALLEN,
-	&kdc_scbus0,		/* parent - XXX should be host adapter*/
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
-};
-
 static inline void
 cd_registerdev(int unit)
 {
-	struct kern_devconf *kdc;
-
-	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
-	if(!kdc) return;
-	*kdc = kdc_cd_template;
-	kdc->kdc_unit = unit;
-	kdc->kdc_description = cd_switch.desc;
-	/* XXX should set parentdata */
-	dev_attach(kdc);
 	if(dk_ndrive < DK_NDRIVE) {
 		sprintf(dk_names[dk_ndrive], "cd%d", unit);
 		dk_wpms[dk_ndrive] = (150*1024/2);

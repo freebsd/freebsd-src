@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.20 1996/08/02 06:10:48 peter Exp $
+ *	$Id: od.c,v 1.21 1996/08/17 20:50:26 joerg Exp $
  */
 
 /*
@@ -84,7 +84,6 @@
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
 #include <vm/vm.h>
-#include <sys/devconf.h>
 #include <sys/dkstat.h>
 #include <machine/md_var.h>
 
@@ -184,32 +183,9 @@ static struct scsi_device od_switch =
 	od_strategy,
 };
 
-static int
-od_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
-{
-	return scsi_externalize(SCSI_LINK(&od_switch, kdc->kdc_unit), req);
-}
-
-static struct kern_devconf kdc_od_template = {
-	0, 0, 0,		/* filled in by dev_attach */
-	"od", 0, MDDC_SCSI,
-	od_externalize, 0, scsi_goaway, SCSI_EXTERNALLEN,
-	&kdc_scbus0,		/* XXX parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
-};
-
 static inline void
 od_registerdev(int unit)
 {
-	struct kern_devconf *kdc;
-
-	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
-	if(!kdc) return;
-	*kdc = kdc_od_template;
-	kdc->kdc_unit = unit;
-	kdc->kdc_description = od_switch.desc;
-	dev_attach(kdc);
 	if(dk_ndrive < DK_NDRIVE) {
 		sprintf(dk_names[dk_ndrive], "od%d", unit);
 		dk_wpms[dk_ndrive] = (4*1024*1024/2);	/* 4MB/sec */
