@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: nfs_nqlease.c,v 1.3 1994/08/02 07:52:08 davidg Exp $
  */
 
 /*
@@ -389,8 +389,9 @@ nqsrv_instimeq(lp, duration)
 	tlp = nqthead.th_chain[1];
 	while (tlp->lc_expiry > newexpiry && tlp != (struct nqlease *)&nqthead)
 		tlp = tlp->lc_chain1[1];
-	if (tlp == nqthead.th_chain[1])
+	if (tlp == nqthead.th_chain[1]) {
 		NQSTORENOVRAM(newexpiry);
+	}
 	insque(lp, tlp);
 }
 
