@@ -283,6 +283,8 @@ void gen_find_action()
 		indent_puts( "yy_lp = yy_accept[yy_current_state];" );
 
 		outn(
+		"goto find_rule; /* avoid `defined but not used' warning */");
+		outn(
 		"find_rule: /* we branch to this label when backing up */" );
 
 		indent_puts(
