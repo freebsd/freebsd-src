@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.18 1995/01/24 17:33:22 jkh Exp $
+#	$Id: bsd.prog.mk,v 1.19 1995/01/24 17:50:30 jkh Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -29,6 +29,7 @@ LIBCURSES?=	${DESTDIR}/usr/lib/libcurses.a
 LIBDES?=	${DESTDIR}/usr/lib/libdes.a	# XXX doesn't exist
 LIBDIALOG?=	${DESTDIR}/usr/lib/libdialog.a
 LIBEDIT?=	${DESTDIR}/usr/lib/libedit.a
+LIBFORMS?=	${DESTDIR}/usr/lib/libforms.a
 LIBGCC?=	${DESTDIR}/usr/lib/libgcc.a
 LIBGNUMALLOC?=	${DESTDIR}/usr/lib/libgnumalloc.a
 LIBGNUREGEX?=	${DESTDIR}/usr/lib/libgnuregex.a
@@ -47,6 +48,7 @@ LIBREADLINE?=	${DESTDIR}/usr/lib/libreadline.a
 LIBRESOLV?=	${DESTDIR}/usr/lib/libresolv.a
 LIBRPCSVC?=	${DESTDIR}/usr/lib/librpcsvc.a
 LIBSCRYPT?=	${DESTDIR}/usr/lib/libscrypt.a	# XXX don't use, use LIBCRYPT
+LIBSCSI?=	${DESTDIR}/usr/lib/libscsi.a
 LIBSKEY?=	${DESTDIR}/usr/lib/libskey.a
 LIBTELNET?=	${DESTDIR}/usr/lib/libtelnet.a
 LIBTERMCAP?=	${DESTDIR}/usr/lib/libtermcap.a
