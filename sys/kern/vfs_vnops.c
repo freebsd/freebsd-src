@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.42 1997/11/29 01:33:10 dyson Exp $
+ * $Id: vfs_vnops.c,v 1.43 1997/12/06 04:11:11 sef Exp $
  */
 
 #include <sys/param.h>
@@ -510,7 +510,9 @@ vn_lock(vp, flags, p)
 		if (vp->v_flag & VXLOCK) {
 			vp->v_flag |= VXWANT;
 			simple_unlock(&vp->v_interlock);
-			tsleep((caddr_t)vp, PINOD, "vn_lock", 0);
+			if (tsleep((caddr_t)vp, PINOD, "vn_lock", 100*5)) {
+				vprint("vn_lock:", vp);
+			}
 			error = ENOENT;
 		} else {
 			error = VOP_LOCK(vp, flags | LK_NOPAUSE | LK_INTERLOCK, p);

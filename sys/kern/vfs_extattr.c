@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.86 1997/12/16 17:40:31 eivind Exp $
+ * $Id: vfs_syscalls.c,v 1.87 1997/12/27 02:56:23 bde Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -430,7 +430,6 @@ dounmount(mp, flags, p)
 
 	mp->mnt_flag &=~ MNT_ASYNC;
 	vfs_msync(mp, MNT_NOWAIT);
-	vnode_pager_umount(mp);	/* release cached vnodes */
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	if (((mp->mnt_flag & MNT_RDONLY) ||
 	     (error = VFS_SYNC(mp, MNT_WAIT, p->p_ucred, p)) == 0) ||
@@ -1263,8 +1262,6 @@ unlink(p, uap)
 		 */
 		if (vp->v_flag & VROOT)
 			error = EBUSY;
-		else
-			(void) vnode_pager_uncache(vp, p);
 	}
 
 	if (!error) {
@@ -2160,9 +2157,9 @@ fsync(p, uap)
 	if (error = getvnode(p->p_fd, SCARG(uap, fd), &fp))
 		return (error);
 	vp = (struct vnode *)fp->f_data;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(vp, LK_EXCLUSIVE, p);
 	if (vp->v_object) {
-		vm_object_page_clean(vp->v_object, 0, 0 ,0, FALSE);
+		vm_object_page_clean(vp->v_object, 0, 0 ,0);
 	}
 	error = VOP_FSYNC(vp, fp->f_cred,
 		(vp->v_mount && (vp->v_mount->mnt_flag & MNT_ASYNC)) ? 
@@ -2242,7 +2239,6 @@ out:
 			VOP_LEASE(fromnd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 		if (tvp) {
 			VOP_LEASE(tvp, p, p->p_ucred, LEASE_WRITE);
-			(void) vnode_pager_uncache(tvp, p);
 		}
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
 				   tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);

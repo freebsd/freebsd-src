@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.38 1997/09/21 04:24:24 dyson Exp $
+ * $Id: vm_object.h,v 1.39 1997/12/19 09:03:16 dyson Exp $
  */
 
 /*
@@ -84,7 +84,6 @@ typedef enum obj_type objtype_t;
 
 struct vm_object {
 	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
-	TAILQ_ENTRY(vm_object) cached_list; /* list of cached (persistent) objects */
 	TAILQ_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	TAILQ_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
 	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
@@ -142,11 +141,8 @@ struct vm_object {
 #define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
 
 #ifdef	KERNEL
-extern int vm_object_cache_max;
 
 TAILQ_HEAD(object_q, vm_object);
-
-extern struct object_q vm_object_cached_list; /* list of objects persisting */
 
 extern struct object_q vm_object_list;	/* list of allocated objects */
 
@@ -170,13 +166,12 @@ vm_object_pip_wakeup(vm_object_t object)
 
 vm_object_t vm_object_allocate __P((objtype_t, vm_size_t));
 void _vm_object_allocate __P((objtype_t, vm_size_t, vm_object_t));
-void vm_object_cache_clear __P((void));
 boolean_t vm_object_coalesce __P((vm_object_t, vm_pindex_t, vm_size_t, vm_size_t));
 void vm_object_collapse __P((vm_object_t));
 void vm_object_copy __P((vm_object_t, vm_pindex_t, vm_object_t *, vm_pindex_t *, boolean_t *));
 void vm_object_deallocate __P((vm_object_t));
 void vm_object_init __P((void));
-void vm_object_page_clean __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t, boolean_t));
+void vm_object_page_clean __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t));
 void vm_object_page_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t));
 void vm_object_pmap_copy __P((vm_object_t, vm_pindex_t, vm_pindex_t));
 void vm_object_pmap_copy_1 __P((vm_object_t, vm_pindex_t, vm_pindex_t));
