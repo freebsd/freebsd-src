@@ -19,8 +19,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-egp.c,v 1.21 96/07/14 19:38:59 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-egp.c,v 1.23 96/11/05 13:30:35 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -182,7 +182,7 @@ egpnrprint(register const struct egp_packet *egp, register u_int length)
 		TCHECK2(cp[0], 1);
 		distances = *cp++;
 		printf(" %s %s ",
-		       gateways < egp->egp_intgw ? "int" : "ext",
+		       gateways < (int)egp->egp_intgw ? "int" : "ext",
 		       ipaddr_string(&addr));
 
 		comma = "";

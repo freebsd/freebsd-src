@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static  char rcsid[] =
-	"@(#)$Header: print-sl.c,v 1.38 96/07/15 18:23:25 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-sl.c,v 1.41 96/12/10 23:19:42 leres Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_NET_SLIP_H
@@ -139,7 +139,7 @@ sliplink_print(register const u_char *p, register const struct ip *ip,
 
 	case TYPE_UNCOMPRESSED_TCP:
 		/*
-		 * The connection id is stored in the IP protcol field.
+		 * The connection id is stored in the IP protocol field.
 		 * Get it from the link layer since sl_uncompress_tcp()
 		 * has restored the IP header copy to IPPROTO_TCP.
 		 */
@@ -243,6 +243,7 @@ compressed_sl_print(const u_char *chdr, const struct ip *ip,
 #include <sys/types.h>
 #include <sys/time.h>
 
+#include <pcap.h>
 #include <stdio.h>
 
 #include "interface.h"

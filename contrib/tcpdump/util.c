@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: util.c,v 1.52 96/07/15 18:22:54 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: util.c,v 1.55 96/09/26 23:36:51 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -296,42 +296,34 @@ read_infile(char *fname)
 	return (cp);
 }
 
+/*
+ * Returns the difference between gmt and local time in seconds.
+ * Use gmtime() and localtime() to keep things simple.
+ */
 int32_t
-gmt2local()
+gmt2local(void)
 {
-	register int t;
-#if !defined(HAVE_ALTZONE) && !defined(HAVE_TIMEZONE)
-	struct timeval tv;
-	struct timezone tz;
-	register struct tm *tm;
-#endif
+	register int dt, dir;
+	register struct tm *gmt, *loc;
+	time_t t;
+	struct tm sgmt;
 
-	t = 0;
-#if !defined(HAVE_ALTZONE) && !defined(HAVE_TIMEZONE)
-	if (gettimeofday(&tv, &tz) < 0)
-		error("gettimeofday");
-	tm = localtime((time_t *)&tv.tv_sec);
-#ifdef HAVE_TM_GMTOFF
-	t = tm->tm_gmtoff;
-#else
-	t = tz.tz_minuteswest * -60;
-	/* XXX Some systems need this, some auto offset tz_minuteswest... */
-	if (tm->tm_isdst)
-		t += 60 * 60;
-#endif
-#endif
+	t = time(NULL);
+	gmt = &sgmt;
+	*gmt = *gmtime(&t);
+	loc = localtime(&t);
+	dt = (loc->tm_hour - gmt->tm_hour) * 60 * 60 +
+	    (loc->tm_min - gmt->tm_min) * 60;
 
-#ifdef HAVE_TIMEZONE
-	tzset();
-	t = -timezone;
-	if (daylight)
-		t += 60 * 60;
-#endif
+	/*
+	 * If the year or julian day is different, we span 00:00 GMT
+	 * and must add or subtract a day. Check the year first to
+	 * avoid problems when the julian day wraps.
+	 */
+	dir = loc->tm_year - gmt->tm_year;
+	if (dir == 0)
+		dir = loc->tm_yday - gmt->tm_yday;
+	dt += dir * 24 * 60 * 60;
 
-#ifdef HAVE_ALTZONE
-	tzset();
-	t = -altzone;
-#endif
-
-	return (t);
+	return (dt);
 }

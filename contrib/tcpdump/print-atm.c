@@ -19,8 +19,8 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-atm.c,v 1.7 96/07/23 14:17:21 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-atm.c,v 1.8 96/09/26 23:36:41 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

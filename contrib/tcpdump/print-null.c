@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#)$Header: print-null.c,v 1.19 96/07/14 19:39:02 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-null.c,v 1.22 96/12/10 23:18:58 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -46,14 +46,18 @@ struct rtentry;
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
+#include <pcap.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "interface.h"
 #include "addrtoname.h"
-#include "pcap.h"
+#include "interface.h"
 
 #define	NULL_HDRLEN 4
+
+#ifndef AF_NS
+#define AF_NS		6		/* XEROX NS protocols */
+#endif
 
 static void
 null_print(const u_char *p, const struct ip *ip, u_int length)

@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: Makefile.in,v 1.195 96/07/16 23:52:06 leres Exp $ (LBL)
+# @(#) $Header: Makefile.in,v 1.198 96/12/05 22:12:11 leres Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -30,6 +30,10 @@ exec_prefix = @exec_prefix@
 BINDEST = @sbindir@
 # Pathname of directory to install the man page
 MANDEST = @mandir@
+
+# VPATH
+srcdir = @srcdir@
+VPATH = @srcdir@
 
 #
 # You shouldn't need to edit anything below here.
@@ -53,18 +57,17 @@ INSTALL = @INSTALL@
 # problem if you don't own the file but can write to the directory.
 .c.o:
 	@rm -f $@
-	$(CC) $(CFLAGS) -c $*.c
+	$(CC) $(CFLAGS) -c $(srcdir)/$*.c
 
-CSRC =	tcpdump.c addrtoname.c \
-	print-ether.c print-ip.c print-arp.c print-tcp.c \
-	print-udp.c print-atalk.c print-domain.c print-tftp.c \
-	print-bootp.c print-nfs.c print-icmp.c print-igrp.c \
-	print-sl.c print-ppp.c print-rip.c print-snmp.c \
-	print-ntp.c print-null.c print-egp.c print-ospf.c \
-	print-fddi.c print-llc.c print-sunrpc.c print-wb.c \
-	print-decnet.c print-isoclns.c print-ipx.c \
-	print-atm.c print-dvmrp.c print-pim.c print-krb.c \
-	util.c machdep.c bpf_dump.c parsenfsfh.c
+CSRC =	tcpdump.c \
+	print-arp.c print-atalk.c print-atm.c print-bootp.c \
+	print-decnet.c print-domain.c print-dvmrp.c print-egp.c \
+	print-ether.c print-fddi.c print-gre.c print-icmp.c \
+	print-igrp.c print-ip.c print-ipx.c print-isoclns.c print-krb.c \
+	print-llc.c print-nfs.c print-ntp.c print-null.c print-ospf.c \
+	print-pim.c print-ppp.c print-rip.c print-sl.c print-snmp.c \
+	print-sunrpc.c print-tcp.c print-tftp.c print-udp.c print-wb.c \
+	addrtoname.c bpf_dump.c machdep.c parsenfsfh.c util.c
 LOCALSRC =
 GENSRC = version.c
 
@@ -79,6 +82,7 @@ HDR =   addrtoname.h appletalk.h bootp.h decnet.h \
 
 TAGHDR = \
 	/usr/include/arpa/tftp.h \
+	/usr/include/net/if_arp.h \
 	/usr/include/net/slip.h \
 	/usr/include/netinet/if_ether.h \
 	/usr/include/netinet/in.h \
@@ -96,15 +100,16 @@ tcpdump: $(OBJ) @V_PCAPDEP@
 	$(CC) $(CFLAGS) -o $@ $(OBJ) $(LIBS)
 
 version.o: version.c
-version.c: VERSION
+version.c: $(srcdir)/VERSION
 	@rm -f $@
-	sed -e 's/.*/char version[] = "&";/' VERSION > $@
+	sed -e 's/.*/char version[] = "&";/' $(srcdir)/VERSION > $@
 
 install: force
 	$(INSTALL) -m 550 -o bin -g @V_GROUP@ tcpdump $(DESTDIR)$(BINDEST)
 
 install-man: force
-	$(INSTALL) -m 444 -o bin -g bin tcpdump.1 $(DESTDIR)$(MANDEST)/man1
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/tcpdump.1 \
+	    $(DESTDIR)$(MANDEST)/man1
 
 lint:	$(GENSRC) force
 	lint -hbxn $(SRC) | \

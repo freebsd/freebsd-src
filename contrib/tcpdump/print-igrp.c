@@ -22,8 +22,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-"@(#) $Header: print-igrp.c,v 1.4 96/07/23 14:04:55 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-igrp.c,v 1.6 96/12/10 23:27:35 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

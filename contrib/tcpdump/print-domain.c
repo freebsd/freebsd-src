@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-domain.c,v 1.35 96/07/23 14:17:22 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-domain.c,v 1.37 96/12/10 23:21:06 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -323,7 +323,7 @@ ns_rprint(register const u_char *cp, register const u_char *bp)
 	        printf(" %.*s", len, cp);
 		break;
 	}
-	return (rp);		/* XXX This isn't always right*/
+	return (rp);		/* XXX This isn't always right */
 }
 
 void
