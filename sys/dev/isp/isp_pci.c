@@ -56,7 +56,7 @@ static void isp_pci_wr_reg_1080 __P((struct ispsoftc *, int, u_int16_t));
 #endif
 static int isp_pci_mbxdma __P((struct ispsoftc *));
 static int isp_pci_dmasetup __P((struct ispsoftc *, ISP_SCSI_XFER_T *,
-	ispreq_t *, u_int8_t *, u_int8_t));
+	ispreq_t *, u_int16_t *, u_int16_t));
 static void
 isp_pci_dmateardown __P((struct ispsoftc *, ISP_SCSI_XFER_T *, u_int32_t));
 
@@ -314,9 +314,13 @@ isp_pci_probe(pcici_t tag, pcidi_t type)
 static void
 isp_pci_attach(pcici_t cfid, int unit)
 {
+#ifdef	SCSI_ISP_WWN
+	const char *name = SCSI_ISP_WWN;
+	char *vtp = NULL;
+#endif
 	int mapped, prefer_mem_map, bitmap;
 	pci_port_t io_port;
-	u_int32_t data, linesz, psize, basetype;
+	u_int32_t data, rev, linesz, psize, basetype;
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp;
 	vm_offset_t vaddr, paddr;
@@ -408,6 +412,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 		    pcs->pci_st == IO_SPACE_MAPPING? "I/O" : "Memory");
 
 	data = pci_conf_read(cfid, PCI_ID_REG);
+	rev = pci_conf_read(cfid, PCI_CLASS_REG) & 0xff;	/* revision */
 	pcs->pci_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
 	pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS_OFF;
 	pcs->pci_poff[SXP_BLOCK >> _BLK_REG_SHFT] = PCI_SXP_REGS_OFF;
@@ -451,8 +456,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 		psize = sizeof (fcparam);
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2100_OFF;
-		data = pci_conf_read(cfid, PCI_CLASS_REG);
-		if ((data & 0xff) < 3) {
+		if (rev < 3) {
 			/*
 			 * XXX: Need to get the actual revision
 			 * XXX: number of the 2100 FB. At any rate,
@@ -481,6 +485,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 	bzero(isp->isp_param, psize);
 	isp->isp_mdvec = mdvp;
 	isp->isp_type = basetype;
+	isp->isp_revision = rev;
 	(void) snprintf(isp->isp_name, sizeof (isp->isp_name), "isp%d", unit);
 	isp->isp_osinfo.unit = unit;
 
@@ -583,30 +588,37 @@ isp_pci_attach(pcici_t cfid, int unit)
 		if (bitmap & (1 << unit))
 			isp->isp_confopts &= ~ISP_CFG_FULL_DUPLEX;
 	}
+	/*
+	 * Look for overriding WWN. This is a Node WWN so it binds to
+	 * all FC instances. A Port WWN will be constructed from it
+	 * as appropriate.
+	 */
+#ifdef	SCSI_ISP_WWN
+	isp->isp_osinfo.default_wwn = strtoq(name, &vtp, 16);
+	if (vtp != name && *vtp == 0) {
+		isp->isp_confopts |= ISP_CFG_OWNWWN;
+	} else
+#endif
+	if (!getenv_quad("isp_wwn", (quad_t *) &isp->isp_osinfo.default_wwn)) {
+		int i;
+		u_int64_t seed = (u_int64_t) (intptr_t) isp;
 
-	if (getenv_int("isp_seed", &isp->isp_osinfo.seed)) {
-		isp->isp_osinfo.seed <<= 8;
-		isp->isp_osinfo.seed += (unit + 1);
-	} else {
-		/*
-		 * poor man's attempt at pseudo randomness.
-		 */
-		long i = (intptr_t) isp;
-
-		i >>= 5;
-		i &= 0x7;
-
+		seed <<= 16;
+		seed &= ((1LL << 48) - 1LL);
 		/*
 		 * This isn't very random, but it's the best we can do for
-		 * the real edge case of cards that don't have WWNs.
+		 * the real edge case of cards that don't have WWNs. If
+		 * you recompile a new vers.c, you'll get a different WWN.
 		 */
-		isp->isp_osinfo.seed += ((int) cfid->bus) << 16;
-		isp->isp_osinfo.seed += ((int) cfid->slot) << 8;
-		isp->isp_osinfo.seed += ((int) cfid->func);
-		while (version[i])
-			isp->isp_osinfo.seed += (int) version[i++];
-		isp->isp_osinfo.seed <<= 8;
-		isp->isp_osinfo.seed += (unit + 1);
+		for (i = 0; version[i] != 0; i++) {
+			seed += version[i];
+		}
+		/*
+		 * Make sure the top nibble has something vaguely sensible.
+		 */
+		isp->isp_osinfo.default_wwn |= (4LL << 60) | seed;
+	} else {
+		isp->isp_confopts |= ISP_CFG_OWNWWN;
 	}
 	(void) getenv_int("isp_debug", &isp_debug);
 	ISP_LOCK(isp);
@@ -921,8 +933,8 @@ typedef struct {
 	struct ispsoftc *isp;
 	ISP_SCSI_XFER_T *ccb;
 	ispreq_t *rq;
-	u_int8_t *iptrp;
-	u_int8_t optr;
+	u_int16_t *iptrp;
+	u_int16_t optr;
 	u_int error;
 } mush_t;
 
@@ -938,8 +950,8 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	bus_dmamap_t *dp;
 	bus_dma_segment_t *eseg;
 	ispreq_t *rq;
-	u_int8_t *iptrp;
-	u_int8_t optr;
+	u_int16_t *iptrp;
+	u_int16_t optr;
 	ispcontreq_t *crq;
 	int drq, seglim, datalen;
 
@@ -1051,7 +1063,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 static int
 isp_pci_dmasetup(struct ispsoftc *isp, ISP_SCSI_XFER_T *ccb, ispreq_t *rq,
-	u_int8_t *iptrp, u_int8_t optr)
+	u_int16_t *iptrp, u_int16_t optr)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	struct ccb_hdr *ccb_h;
