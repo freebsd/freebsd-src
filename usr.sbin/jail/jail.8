@@ -39,7 +39,7 @@ make obj
 make all
 make install DESTDIR=$D
 cd etc
-make distribution DESTDIR=$D
+make distribution DESTDIR=$D NO_MAKEDEV=yes
 cd $D/dev
 sh MAKEDEV jail
 cd $D
