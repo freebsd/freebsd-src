@@ -50,7 +50,11 @@
         ..
     ..
     g++
-        std
+        backward
+        ..
+        bits
+        ..
+        ext
         ..
     ..
     isc
