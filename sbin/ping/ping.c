@@ -1579,25 +1579,25 @@ fill(bp, patp)
 static void
 usage()
 {
-	(void)fprintf(stderr,
-#ifdef IPSEC
-#ifdef IPSEC_POLICY_IPSEC
-"%s\n%s\n%s%s\n%s\n",
-#else
-"%s\n%s\n%s\n%s\n",
-#endif
-#else
-"%s\n%s\n%s\n%s\n",
-#endif
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 
-"usage: ping [-AaDdfnoQqRrv] [-c count] [-i wait] [-l preload]",
-"            [-M mask | time] [-m ttl] [-p pattern] [-S src_addr]",
-"            [-s packetsize] [-t timeout] [-z tos]",
+"usage: ping [-AaDdfnoQqRrv] [-c count] [-i wait] [-l preload] [-M mask | time]",
+"            [-m ttl]"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
-" [-P policy]",
+" [-P policy]"
 #endif
 #endif
-"            [host | [-L] [-I iface] [-T ttl] mcast-group]");
+" [-p pattern] [-S src_addr] [-s packetsize]",
+"            [-t timeout] [-z tos] host",
+"       ping [-AaDdfLnoQqRrv] [-c count] [-I iface] [-i wait] [-l preload]",
+"            [-M mask | time] [-m ttl]"
+#ifdef IPSEC
+#ifdef IPSEC_POLICY_IPSEC
+" [-P policy]"
+#endif
+#endif
+" [-p pattern] [-S src_addr]",
+"            [-s packetsize] [-T ttl] [-t timeout] [-z tos] mcast-group");
 	exit(EX_USAGE);
 }
