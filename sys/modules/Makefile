@@ -154,6 +154,9 @@ SUBDIR=	${_3dfx} \
 	${_pcfclock} \
 	pcn \
 	${_pecoff} \
+	${_pf} \
+	${_pflog} \
+	${_pfsync} \
 	plip \
 	${_pmc} \
 	portalfs \
@@ -263,6 +266,12 @@ _random=	random
 
 .if !defined(NO_IPFILTER) || defined(ALL_MODULES)
 _ipfilter=	ipfilter
+.endif
+
+.if !defined(NO_PF) || defined(ALL_MODULES)
+_pf=		pf
+_pflog=		pflog
+_pfsync=	pfsync
 .endif
 
 .if ${MACHINE_ARCH} == "i386"

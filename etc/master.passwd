@@ -14,6 +14,7 @@ sshd:*:22:22::0:0:Secure Shell Daemon:/var/empty:/sbin/nologin
 smmsp:*:25:25::0:0:Sendmail Submission User:/var/spool/clientmqueue:/sbin/nologin
 mailnull:*:26:26::0:0:Sendmail Default User:/var/spool/mqueue:/sbin/nologin
 bind:*:53:53::0:0:Bind Sandbox:/:/sbin/nologin
+proxy:*:62:62::0:0:Packet Filter pseudo-user:/nonexistent:/sbin/nologin
 uucp:*:66:66::0:0:UUCP pseudo-user:/var/spool/uucppublic:/usr/libexec/uucp/uucico
 pop:*:68:6::0:0:Post Office Owner:/nonexistent:/sbin/nologin
 www:*:80:80::0:0:World Wide Web Owner:/nonexistent:/sbin/nologin
