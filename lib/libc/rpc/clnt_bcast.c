@@ -417,7 +417,7 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 		outlen_pmap = xdr_getpos(xdrs);
 		xdr_destroy(xdrs);
 	}
-#endif				PORTMAP
+#endif				/* PORTMAP */
 
 	/*
 	 * Basic loop: broadcast the packets to transports which
