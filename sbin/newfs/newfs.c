@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <paths.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -254,8 +255,10 @@ main(int argc, char *argv[])
 				    optarg);
 			break;
 		case 's':
-			if ((fssize = atoi(optarg)) <= 0)
-				errx(1, "%s: bad file system size", optarg);
+			errno = 0;
+			fssize = strtoimax(optarg, NULL, 0);
+			if (errno != 0)
+				err(1, "%s: bad file system size", optarg);
 			break;
 		case '?':
 		default:
@@ -295,8 +298,8 @@ main(int argc, char *argv[])
 		if (fssize == 0)
 			fssize = mediasize / sectorsize;
 		else if (fssize > mediasize / sectorsize)
-			errx(1, "%s: maximum file system size is %u",
-			    special, (u_int)(mediasize / sectorsize));
+			errx(1, "%s: maximum file system size is %jd",
+			    special, (off_t)(mediasize / sectorsize));
 	}
 	pp = NULL;
 	lp = getdisklabel(special);
