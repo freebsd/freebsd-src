@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.18 1997/05/08 09:19:56 kato Exp $
+ *	$Id: npx.c,v 1.19 1997/05/31 12:43:17 kato Exp $
  */
 
 #include "npx.h"
@@ -69,7 +69,7 @@
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
-
+#include <i386/isa/intr_machdep.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #else
