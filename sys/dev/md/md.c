@@ -350,6 +350,8 @@ g_md_access(struct g_provider *pp, int r, int w, int e)
 	struct md_s *sc;
 
 	sc = pp->geom->softc;
+	if (sc == NULL)
+		return (ENXIO);
 	r += pp->acr;
 	w += pp->acw;
 	e += pp->ace;
@@ -899,6 +901,14 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 	return (0);
 }
 
+static void
+md_zapit(void *p, int cancel)
+{
+	if (cancel)
+		return;
+	g_wither_geom(p, ENXIO);
+}
+
 static int
 mddestroy(struct md_s *sc, struct thread *td)
 {
@@ -907,11 +917,11 @@ mddestroy(struct md_s *sc, struct thread *td)
 
 	mtx_destroy(&sc->queue_mtx);
 	if (sc->gp) {
-		sc->gp->flags |= G_GEOM_WITHER;
 		sc->gp->softc = NULL;
+		g_waitfor_event(md_zapit, sc->gp, M_WAITOK, sc->gp, NULL);
+		sc->gp = NULL;
+		sc->pp = NULL;
 	}
-	if (sc->pp)
-		g_orphan_provider(sc->pp, ENXIO);
 	sc->flags |= MD_SHUTDOWN;
 	wakeup(sc);
 	while (sc->procp != NULL)
