@@ -238,7 +238,7 @@ bscmdstart(ti, flags)
 	struct bsccb *cb;
 	struct bs_softc *bsc = ti->ti_bsc;
 
-	if ((cb = ti->ti_ctab.tqh_first) == NULL)
+	if ((cb = TAILQ_FIRST(&ti->ti_ctab)) == NULL)
 	{
 		if (bsc->sc_nexus == NULL)
 			bshoststart(bsc, NULL);
@@ -281,7 +281,7 @@ bscmddone(ti)
 	struct targ_info *ti;
 {
 	struct bs_softc *bsc = ti->ti_bsc;
-	struct bsccb *cb = ti->ti_ctab.tqh_first;
+	struct bsccb *cb = TAILQ_FIRST(&ti->ti_ctab);
 	union ccb *ccb;
 	int error;
 
@@ -386,7 +386,7 @@ bscmddone(ti)
 		}
 
 		bs_free_ccb(cb);
-		cb = ti->ti_ctab.tqh_first;
+		cb = TAILQ_FIRST(&ti->ti_ctab);
 
 	}
 	while (cb != NULL && (cb->bsccb_flags & BSITSDONE) != 0);
@@ -415,12 +415,12 @@ bshoststart(bsc, ti)
 again:
 	if (ti == NULL)
 	{
-		if ((ti = bsc->sc_sttab.tqh_first) == NULL)
+		if ((ti = TAILQ_FIRST(&bsc->sc_sttab)) == NULL)
 			return;
 		bs_hostque_delete(bsc, ti);
 	}
 
-	if ((cb = ti->ti_ctab.tqh_first) == NULL)
+	if ((cb = TAILQ_FIRST(&ti->ti_ctab)) == NULL)
 	{
 		bs_printf(ti, "bshoststart", "Warning: No ccb");
 		BS_SETUP_PHASE(FREE);
@@ -450,8 +450,8 @@ again:
 	{
 		struct targ_info *tmpti;
 
-		for (tmpti = bsc->sc_titab.tqh_first; tmpti;
-		     tmpti = tmpti->ti_tchain.tqe_next)
+		for (tmpti = TAILQ_FIRST(&bsc->sc_titab); tmpti;
+		     tmpti = TAILQ_NEXT(tmpti, ti_tchain))
 			if (tmpti->ti_phase >= DISCONNECTED)
 				goto retry;
 	}
@@ -615,7 +615,7 @@ bs_reselect(bsc)
 	/* confirm nexus */
 	BS_HOST_START
 	bshw_setup_ctrl_reg(bsc, ti->ti_cfgflags);
-	if (ti->ti_ctab.tqh_first == NULL || ti->ti_phase != DISCONNECTED)
+	if (TAILQ_FIRST(&ti->ti_ctab) == NULL || ti->ti_phase != DISCONNECTED)
 	{
 		bs_printf(ti, "reselect", "phase mismatch");
 		BS_SETUP_PHASE(UNDEF)
@@ -670,7 +670,7 @@ bs_poll_timeout(bsc, s)
 
 	bs_printf(NULL, s, "timeout");
 	bsc->sc_flags |= BSRESET;
-	if ((ti = bsc->sc_nexus) && ti->ti_ctab.tqh_first)
+	if ((ti = bsc->sc_nexus) && TAILQ_FIRST(&ti->ti_ctab))
 		ti->ti_error |= BSTIMEOUT;
 }
 
@@ -835,7 +835,7 @@ bs_quick_abort(ti, msg)
 {
 	struct bsccb *cb;
 
-	if ((cb = ti->ti_ctab.tqh_first) == NULL)
+	if ((cb = TAILQ_FIRST(&ti->ti_ctab)) == NULL)
 		return;
 
 	cb->msgoutlen = 1;
@@ -869,7 +869,7 @@ bs_msgin_ext(ti)
 	struct targ_info *ti;
 {
 	struct bs_softc *bsc = ti->ti_bsc;
-	struct bsccb *cb = ti->ti_ctab.tqh_first;
+	struct bsccb *cb = TAILQ_FIRST(&ti->ti_ctab);
 	int count;
 	u_int reqlen;
 	u_int32_t *ptr;
@@ -942,7 +942,7 @@ bs_msg_reject(ti)
 	struct targ_info *ti;
 {
 	struct bs_softc *bsc = ti->ti_bsc;
-	struct bsccb *cb = ti->ti_ctab.tqh_first;
+	struct bsccb *cb = TAILQ_FIRST(&ti->ti_ctab);
 	char *s = "unexpected msg reject";
 
 	switch (ti->ti_ophase)
@@ -1196,7 +1196,7 @@ bs_disconnect_phase(bsc, ti, cb)
 		ti->ti_flags &= ~BSNEXUS;
 #endif	/* BS_DIAG */
 		BS_SETUP_PHASE(FREE);
-		if (cb || bsc->sc_sttab.tqh_first == NULL)
+		if (cb || TAILQ_FIRST(&bsc->sc_sttab) == NULL)
 		{
 			BS_HOST_TERMINATE;
 			bscmdstart(ti, BSCMDSTART);
@@ -1374,7 +1374,7 @@ bs_sequencer(bsc)
 	}
 
 	ti = bsc->sc_nexus;
-	if (ti == NULL || (cb = ti->ti_ctab.tqh_first) == NULL)
+	if (ti == NULL || (cb = TAILQ_FIRST(&ti->ti_ctab)) == NULL)
 	{
 		bs_debug_print_all(bsc);
 		bs_printf(ti, "bsintr", "no nexus");
@@ -1591,7 +1591,7 @@ bs_scsi_cmd_poll_internal(cti)
 
 	/* setup timeout count */
 	if ((ti = bsc->sc_nexus) == NULL ||
-	    (cb = ti->ti_ctab.tqh_first) == NULL)
+	    (cb = TAILQ_FIRST(&ti->ti_ctab)) == NULL)
 		waits = BS_DEFAULT_TIMEOUT_SECOND * 1000000;
 	else
 		waits = cb->tcmax * 1000000;
@@ -1602,7 +1602,7 @@ bs_scsi_cmd_poll_internal(cti)
 		if ((ti = bsc->sc_ti[i]) != NULL)
 		{
 			ti->ti_flags |= BSFORCEIOPOLL;
-			if ((cb = ti->ti_ctab.tqh_first) != NULL)
+			if ((cb = TAILQ_FIRST(&ti->ti_ctab)) != NULL)
 				cb->bsccb_flags |= BSFORCEIOPOLL;
 		}
 	}
@@ -1658,7 +1658,7 @@ bs_scsi_cmd_poll(cti, targetcb)
 		{
 			if (bs_scsi_cmd_poll_internal(cti) != COMPLETE)
 			{
-				if ((ti = bsc->sc_nexus) && ti->ti_ctab.tqh_first)
+				if ((ti = bsc->sc_nexus) && TAILQ_FIRST(&ti->ti_ctab))
 					ti->ti_error |= (BSTIMEOUT | BSABNORMAL);
 				bs_reset_nexus(bsc);
 			}

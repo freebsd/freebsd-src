@@ -367,7 +367,7 @@ esp_init(sc, doreset)
 			esp_done(ecb);
 			sc->sc_nexus = NULL;
 		}
-		while ((ecb = sc->nexus_list.tqh_first) != NULL) {
+		while ((ecb = TAILQ_FIRST(&sc->nexus_list)) != NULL) {
 			ecb->xs->error = XS_TIMEOUT;
 			esp_done(ecb);
 		}
@@ -550,7 +550,7 @@ esp_scsi_cmd(xs)
 
 	/* Get a esp command block */
 	s = splbio();
-	ecb = sc->free_list.tqh_first;
+	ecb = TAILQ_FIRST(&sc->free_list);
 	if (ecb) {
 		TAILQ_REMOVE(&sc->free_list, ecb, chain);
 		ECB_SETQ(ecb, ECB_QNONE);
@@ -657,7 +657,7 @@ esp_sched(sc)
 	 * Find first ecb in ready queue that is for a target/lunit
 	 * combinations that is not busy.
 	 */
-	for (ecb = sc->ready_list.tqh_first; ecb; ecb = ecb->chain.tqe_next) {
+	TAILQ_FOREACH(ecb, &sc->ready_list, chain) {
 		sc_link = ecb->xs->sc_link;
 		t = sc_link->target;
 		if (!(sc->sc_tinfo[t].lubusy & (1 << sc_link->lun))) {
@@ -1080,8 +1080,8 @@ printf("%s: unimplemented message: %d\n", device_get_nameunit(sc->sc_dev), sc->s
 			 * singly linked list.
 			 */
 			lunit = sc->sc_imess[0] & 0x07;
-			for (ecb = sc->nexus_list.tqh_first; ecb;
-			     ecb = ecb->chain.tqe_next) {
+			for (ecb = TAILQ_FIRST(&sc->nexus_list); ecb;
+			     ecb = TAILQ_NEXT(ecb, chain)) {
 				sc_link = ecb->xs->sc_link;
 				if (sc_link->lun == lunit &&
 				    sc->sc_selid == (1<<sc_link->target)) {

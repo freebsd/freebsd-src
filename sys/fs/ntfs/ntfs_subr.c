@@ -123,7 +123,7 @@ ntfs_findvattr(ntmp, ip, lvapp, vapp, type, name, namelen, vcn)
 
 	*lvapp = NULL;
 	*vapp = NULL;
-	for (vap = ip->i_valist.lh_first; vap; vap = vap->va_list.le_next) {
+	LIST_FOREACH(vap, &ip->i_valist, va_list) {
 		ddprintf(("ntfs_findvattr: type: 0x%x, vcn: %d - %d\n", \
 			  vap->va_type, (u_int32_t) vap->va_vcnstart, \
 			  (u_int32_t) vap->va_vcnend));
@@ -452,13 +452,13 @@ ntfs_ntput(ip)
 		dprintf(("ntfs_ntput: deallocating ntnode: %d\n",
 			ip->i_number));
 
-		if (ip->i_fnlist.lh_first)
+		if (LIST_FIRST(&ip->i_fnlist))
 			panic("ntfs_ntput: ntnode has fnodes\n");
 
 		ntfs_nthashrem(ip);
 
-		while (ip->i_valist.lh_first != NULL) {
-			vap = ip->i_valist.lh_first;
+		while (LIST_FIRST(&ip->i_valist) != NULL) {
+			vap = LIST_FIRST(&ip->i_valist);
 			LIST_REMOVE(vap,va_list);
 			ntfs_freentvattr(vap);
 		}
@@ -719,7 +719,7 @@ ntfs_fget(
 	dprintf(("ntfs_fget: ino: %d, attrtype: 0x%x, attrname: %s\n",
 		ip->i_number,attrtype, attrname?attrname:""));
 	*fpp = NULL;
-	for (fp = ip->i_fnlist.lh_first; fp != NULL; fp = fp->f_fnlist.le_next){
+	LIST_FOREACH(fp, &ip->i_fnlist, f_fnlist){
 		dprintf(("ntfs_fget: fnode: attrtype: %d, attrname: %s\n",
 			fp->f_attrtype, fp->f_attrname?fp->f_attrname:""));
 

@@ -330,7 +330,7 @@ at_aarpinput( struct arpcom *ac, struct mbuf *m)
 	 * Since we don't know the net, we just look for the first
 	 * phase 1 address on the interface.
 	 */
-	for (aa = (struct at_ifaddr *)ac->ac_if.if_addrhead.tqh_first; aa;
+	for (aa = (struct at_ifaddr *)TAILQ_FIRST(&ac->ac_if.if_addrhead); aa;
 		aa = (struct at_ifaddr *)aa->aa_ifa.ifa_link.tqe_next) {
 	    if ( AA_SAT( aa )->sat_family == AF_APPLETALK &&
 		    ( aa->aa_flags & AFA_PHASE2 ) == 0 ) {
@@ -526,7 +526,7 @@ aarpprobe( void *arg )
      * interface with the same address as we're looking for. If the
      * net is phase 2, generate an 802.2 and SNAP header.
      */
-    for (aa = (struct at_ifaddr *)ac->ac_if.if_addrhead.tqh_first; aa;
+    for (aa = (struct at_ifaddr *)TAILQ_FIRST(&ac->ac_if.if_addrhead); aa;
 	    aa = (struct at_ifaddr *)aa->aa_ifa.ifa_link.tqe_next) {
 	if ( AA_SAT( aa )->sat_family == AF_APPLETALK &&
 		( aa->aa_flags & AFA_PROBING )) {

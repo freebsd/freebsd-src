@@ -769,7 +769,7 @@ msdosfs_unmount(mp, mntflags, p)
 		printf("id %lu, mount %p, op %p\n",
 		    vp->v_id, vp->v_mount, vp->v_op);
 		printf("freef %p, freeb %p, mount %p\n",
-		    vp->v_freelist.tqe_next, vp->v_freelist.tqe_prev,
+		    TAILQ_NEXT(vp, v_freelist), vp->v_freelist.tqe_prev,
 		    vp->v_mount);
 		printf("cleanblkhd %p, dirtyblkhd %p, numoutput %ld, type %d\n",
 		    TAILQ_FIRST(&vp->v_cleanblkhd),

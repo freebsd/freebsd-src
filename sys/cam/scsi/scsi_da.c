@@ -956,8 +956,7 @@ daasync(void *callback_arg, u_int32_t code,
 		 * that will occur.
 		 */
 		softc->flags |= DA_FLAG_RETRY_UA;
-		for (ccbh = LIST_FIRST(&softc->pending_ccbs);
-		     ccbh != NULL; ccbh = LIST_NEXT(ccbh, periph_links.le))
+		LIST_FOREACH(ccbh, &softc->pending_ccbs, periph_links.le)
 			ccbh->ccb_state |= DA_CCB_RETRY_UA;
 		splx(s);
 		/* FALLTHROUGH*/

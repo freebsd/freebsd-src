@@ -391,7 +391,7 @@ iphack:
 	 */
 	m0 = m;
 	pfh = pfil_hook_get(PFIL_IN, &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
-	for (; pfh; pfh = pfh->pfil_link.tqe_next)
+	for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
 		if (pfh->pfil_func) {
 			rv = pfh->pfil_func(ip, hlen,
 					    m->m_pkthdr.rcvif, 0, &m0);

@@ -329,7 +329,7 @@ vm_pager_object_lookup(pg_list, handle)
 {
 	register vm_object_t object;
 
-	for (object = TAILQ_FIRST(pg_list); object != NULL; object = TAILQ_NEXT(object,pager_object_list))
+	TAILQ_FOREACH(object, pg_list, pager_object_list)
 		if (object->handle == handle)
 			return (object);
 	return (NULL);

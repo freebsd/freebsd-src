@@ -135,8 +135,7 @@ vlan_setmulti(struct ifnet *ifp)
 	}
 
 	/* Now program new ones. */
-	for (ifma = LIST_FIRST(&ifp->if_multiaddrs);
-	    ifma != NULL;ifma = LIST_NEXT(ifma, ifma_link)) {
+	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		mc = malloc(sizeof(struct vlan_mc_entry), M_DEVBUF, M_NOWAIT);

@@ -1282,7 +1282,7 @@ dummynet_flush()
     s = splimp() ;
 
     /* remove all references to pipes ...*/
-    for (chain= ip_fw_chain.lh_first ; chain; chain = chain->chain.le_next)
+    for (chain= LIST_FIRST(&ip_fw_chain) ; chain; chain = LIST_NEXT(chain, chain))
 	chain->rule->pipe_ptr = NULL ;
     /* prevent future matches... */
     p = all_pipes ;
@@ -1658,7 +1658,7 @@ delete_pipe(struct dn_pipe *p)
 	else
 	    a->next = b->next ;
 	/* remove references to this pipe from the ip_fw rules. */
-	for (chain = ip_fw_chain.lh_first ; chain; chain = chain->chain.le_next)
+	for (chain = LIST_FIRST(&ip_fw_chain) ; chain; chain = LIST_NEXT(chain, chain))
 	    if (chain->rule->pipe_ptr == &(b->fs))
 		chain->rule->pipe_ptr = NULL ;
 
@@ -1692,7 +1692,7 @@ delete_pipe(struct dn_pipe *p)
 	else
 	    a->next = b->next ;
 	/* remove references to this flow_set from the ip_fw rules. */
-	for (chain = ip_fw_chain.lh_first; chain; chain = chain->chain.le_next)
+	LIST_FOREACH(chain, &ip_fw_chain, chain)
 	    if (chain->rule->pipe_ptr == b)
 		chain->rule->pipe_ptr = NULL ;
 

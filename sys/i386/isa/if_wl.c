@@ -682,7 +682,7 @@ wlinit(void *xsc)
 	printf("wl%d: entered wlinit()\n",sc->unit);
 #endif
 #if defined(__FreeBSD__) && __FreeBSD_version >= 300000
-    if (ifp->if_addrhead.tqh_first == (struct ifaddr *)0) {
+    if (TAILQ_FIRST(&ifp->if_addrhead) == (struct ifaddr *)0) {
 #else
     if (ifp->if_addrlist == (struct ifaddr *)0) {
 #endif
@@ -2060,8 +2060,8 @@ wlconfig(int unit)
     outw(PIOP1(base), AC_MCSETUP|AC_CW_EL);		/* ac_command */
     outw(PIOR1(base), OFFSET_CU + 8);
 #if defined(__FreeBSD__) && __FreeBSD_version >= 300000
-    for (ifma = sc->wl_if.if_multiaddrs.lh_first; ifma;
-	 ifma = ifma->ifma_link.le_next) {
+    for (ifma = LIST_FIRST(&sc->wl_if.if_multiaddrs); ifma;
+	 ifma = LIST_NEXT(ifma, ifma_link)) {
 	if (ifma->ifma_addr->sa_family != AF_LINK)
 	    continue;
 	

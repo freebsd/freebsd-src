@@ -146,7 +146,7 @@ static void
 bdg_promisc_off(int clear_used)
 {
     struct ifnet *ifp ;
-    for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link) ) {
+    TAILQ_FOREACH(ifp, &ifnet, if_link) {
 	if ( (ifp2sc[ifp->if_index].flags & IFF_BDG_PROMISC) ) {
 	    int s, ret ;
 	    s = splimp();
@@ -173,7 +173,7 @@ bdg_promisc_on()
     struct ifnet *ifp ;
     int s ;
 
-    for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link) ) {
+    TAILQ_FOREACH(ifp, &ifnet, if_link) {
 	if ( !BDG_USED(ifp) )
 	    continue ;
 	if ( 0 == ( ifp->if_flags & IFF_UP) ) {

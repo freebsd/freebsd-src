@@ -985,7 +985,7 @@ uhci_intr(void *arg)
 	 * We scan all interrupt descriptors to see if any have
 	 * completed.
 	 */
-	for (ii = LIST_FIRST(&sc->sc_intrhead); ii; ii = LIST_NEXT(ii, list))
+	LIST_FOREACH(ii, &sc->sc_intrhead, list)
 		uhci_check_intr(sc, ii);
 
 	DPRINTFN(10, ("%s: uhci_intr: exit\n", USBDEVNAME(sc->sc_bus.bdev)));
