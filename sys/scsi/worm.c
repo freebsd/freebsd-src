@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.47 1997/10/27 21:09:27 jmz Exp $
+ *      $Id: worm.c,v 1.48 1997/12/02 21:07:07 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -263,6 +263,9 @@ wormattach(struct scsi_link *sc_link)
 	int mynor;
 #endif
 	struct scsi_data *worm = sc_link->sd;
+
+	if (sc_link->devmodes == 0)
+		printf(", warning: unknown drive type", unit);
 
 	bufq_init(&worm->buf_queue);
 
@@ -493,6 +496,14 @@ worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 
 	if (sc_link->flags & SDEV_OPEN)
 		return EBUSY;
+
+	/*
+	 * Unknown drive type: only the control device can be opened
+	 * in this case, so scsi(8) and things like cdrecord will
+	 * work.
+	 */
+	if (sc_link->devmodes == 0)
+		return ENXIO;
 
 	/*
 	 * Check that it is still responding and ok.
