@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.42 1996/12/17 01:36:37 wosch Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.43 1996/12/21 00:49:07 ache Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -463,8 +463,8 @@ for this domain.
 <url url="ftp://ftp2.uk.FreeBSD.ORG/pub/walnut.creek/FreeBSD"
 	name="ftp://ftp2.uk.FreeBSD.ORG/pub/walnut.creek/FreeBSD"><newline>
 <item>
-<url url="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"
-	name="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"><newline>
+<url url="ftp://ftp3.uk.FreeBSD.ORG/pub/unix/FreeBSD"
+	name="ftp://ftp3.uk.FreeBSD.ORG/pub/unix/FreeBSD"><newline>
 
 </itemize>
 
