@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.46 1996/01/16 13:07:14 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.47 1996/05/11 04:39:53 bde Exp $
  */
 
 /*
@@ -886,11 +886,10 @@ link(p, uap, retval)
 	if (error)
 		return (error);
 	vp = nd.ni_vp;
-	if (vp->v_type != VDIR ||
-	    (error = suser(p->p_ucred, &p->p_acflag)) == 0) {
+	if (vp->v_type == VDIR)
+		error = EPERM;		/* POSIX */
+	else {
 		NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, uap->link, p);
-		if (vp->v_type == VDIR)
-			nd.ni_cnd.cn_flags |= WILLBEDIR; 
 		error = namei(&nd);
 		if (!error) {
 			if (nd.ni_vp != NULL) {
@@ -990,10 +989,13 @@ unlink(p, uap, retval)
 	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
 	VOP_LOCK(vp);
 
-	if (vp->v_type != VDIR ||
-	    (error = suser(p->p_ucred, &p->p_acflag)) == 0) {
+	if (vp->v_type == VDIR)
+		error = EPERM;		/* POSIX */
+	else {
 		/*
 		 * The root of a mounted filesystem cannot be deleted.
+		 *
+		 * XXX: can this only be a VDIR case?
 		 */
 		if (vp->v_flag & VROOT)
 			error = EBUSY;
