@@ -11,7 +11,6 @@ FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	iso-8x8.fnt iso-8x14.fnt iso-8x16.fnt \
 	iso02-8x8.fnt iso02-8x14.fnt iso02-8x16.fnt \
 	iso-thin-8x16.fnt iso15-thin-8x16.fnt \
-	iso-8859-2-8x16.fnt \
 	koi8-r-8x8.fnt koi8-r-8x14.fnt koi8-r-8x16.fnt \
 	koi8-rb-8x16.fnt koi8-rc-8x16.fnt \
 	swiss-8x16.fnt swiss-8x8.fnt \

@@ -55,9 +55,9 @@ MENU:pl:Wybierz czcionkÍ ekranow±
 MENU:es:Escoja la tipografÌa de pantalla
 #
 FONT:en:cp437-8x16.fnt
-FONT:de,fr,es:iso-8x16.fnt
+FONT:de,fr,es,is,it,sv,da,fi,nl,no,pt:iso-8x16.fnt
 FONT:ru:koi8-r-8x16.fnt
-FONT:pl:iso02-8x16.fnt
+FONT:hr,hu,pl,cs:iso02-8x16.fnt
 #
 cp437-8x14.fnt:en:Codepage 437 English, 8x14
 cp437-8x14.fnt:de:Codeseite 437 Englisch, 8x14
@@ -136,33 +136,33 @@ cp865-thin-8x8.fnt:es:P·gina de cÛdigos 865 noruego, 8x8 (fina)
 
 cp866-8x8.fnt:en:Codepage 866 Russian, 8x8
 cp866-8x8.fnt:de:Codeseite 866 Russisch, 8x8
-cp866-8x8.fnt:ru:˚“…∆‘ 866 “’””À… , 8x8
-cp866-8x8.fnt:ru:˚“…∆‘ 866 “’””À… , 8x8
+cp866-8x8.fnt:ru:˚“…∆‘ cp866 “’””À… , 8x8
+cp866-8x8.fnt:fr:Code page 866 Russe, 8x8
 cp866-8x8.fnt:es:P·gina de cÛdigos 866 ruso, 8x8
 
 cp866-8x14.fnt:en:Codepage 866 Russian, 8x14
 cp866-8x14.fnt:de:Codeseite 866 Russisch, 8x14
-cp866-8x14.fnt:ru:˚“…∆‘ 866 “’””À… , 8x14
+cp866-8x14.fnt:ru:˚“…∆‘ cp866 “’””À… , 8x14
 cp866-8x14.fnt:fr:Code page 866 Russe, 8x14
 cp866-8x14.fnt:es:P·gina de cÛdigos 866 ruso, 8x14
 
 cp866-8x16.fnt:en:Codepage 866 Russian, 8x16
 cp866-8x16.fnt:de:Codeseite 866 Russisch, 8x16
-cp866-8x16.fnt:ru:˚“…∆‘ 866 “’””À… , 8x16
+cp866-8x16.fnt:ru:˚“…∆‘ cp866 “’””À… , 8x16
 cp866-8x16.fnt:fr:Code page 866 Russe, 8x16
 cp866-8x16.fnt:es:P·gina de cÛdigos 866 ruso, 8x16
 
-cp866b-8x16.fnt:en:Codepage 866b Russian, 8x16
-cp866b-8x16.fnt:de:Codeseite 866b Russisch, 8x16
-cp866b-8x16.fnt:ru:˚“…∆‘ 866b “’””À… , 8x16
-cp866b-8x16.fnt:fr:Code page 866b Russe, 8x16
-cp866b-8x16.fnt:es:P·gina de cÛdigos 866b ruso, 8x16
+cp866b-8x16.fnt:en:Codepage 866 (b) Russian, 8x16
+cp866b-8x16.fnt:de:Codeseite 866 (b) Russisch, 8x16
+cp866b-8x16.fnt:ru:˚“…∆‘ cp866 (b) “’””À… , 8x16
+cp866b-8x16.fnt:fr:Code page 866 (b) Russe, 8x16
+cp866b-8x16.fnt:es:P·gina de cÛdigos 866 (b) ruso, 8x16
 
-cp866c-8x16.fnt:en:Codepage 866c Russian, 8x16
-cp866c-8x16.fnt:de:Codeseite 866c Russisch, 8x16
-cp866c-8x16.fnt:ru:˚“…∆‘ 866c “’””À… , 8x16
-cp866c-8x16.fnt:fr:Code page 866c Russe, 8x16
-cp866c-8x16.fnt:es:P·gina de cÛdigos 866c ruso, 8x16
+cp866c-8x16.fnt:en:Codepage 866 (c) Russian, 8x16
+cp866c-8x16.fnt:de:Codeseite 866 (c) Russisch, 8x16
+cp866c-8x16.fnt:ru:˚“…∆‘ cp866 (c) “’””À… , 8x16
+cp866c-8x16.fnt:fr:Code page 866 (c) Russe, 8x16
+cp866c-8x16.fnt:es:P·gina de cÛdigos 866 (c) ruso, 8x16
 
 iso-8x14.fnt:en:ISO-8859-1 West European, 8x14
 iso-8x14.fnt:de:ISO-8859-1 Westeuropa, 8x14
@@ -189,21 +189,17 @@ iso-8x8.fnt:de:ISO-8859-1 Westeuropa, 8x8
 iso-8x8.fnt:fr:ISO-8859-1 Est europÈen, 8x8
 iso-8x8.fnt:es:ISO-8859-1 europeo occidental, 8x8
 
-iso-8859-2-8x16.fnt:en:ISO-8859-2 Central European, 8x16
-iso-8859-2-8x16.fnt:de:ISO-8859-2 Mitteleuropa, 8x16
-iso-8859-2-8x16.fnt:es:ISO-8859-2 centroeuropeo, 8x16
+iso02-8x16.fnt:en:ISO-8859-2 Central European, 8x16
+iso02-8x16.fnt:de:ISO-8859-2 Mitteleuropa, 8x16
+iso02-8x16.fnt:es:ISO-8859-2 centroeuropeo, 8x16
 
-iso02-8x16.fnt:en:Polish ISO-8859-2, 8x16
-iso02-8x16.fnt:pl:Polska ISO-8859-2, 8x16
-iso02-8x16.fnt:es:ISO-8859-2 polaco, 8x16
+iso02-8x14.fnt:en:ISO-8859-2 Central European, 8x14
+iso02-8x14.fnt:de:ISO-8859-2 Mitteleuropa, 8x14
+iso02-8x14.fnt:es:ISO-8859-2 centroeuropeo, 8x14
 
-iso02-8x14.fnt:en:Polish ISO-8859-2, 8x14
-iso02-8x14.fnt:pl:Polska ISO-8859-2, 8x14
-iso02-8x14.fnt:es:ISO-8859-2 polaco, 8x14
-
-iso02-8x8.fnt:en:Polish ISO-8859-2, 8x8
-iso02-8x8.fnt:pl:Polska ISO-8859-2, 8x8
-iso02-8x8.fnt:es:ISO-8859-2 polaco, 8x8
+iso02-8x8.fnt:en:ISO-8859-2 Central European, 8x8
+iso02-8x8.fnt:de:ISO-8859-2 Mitteleuropa, 8x8
+iso02-8x8.fnt:es:ISO-8859-2 centroeuropeo, 8x8
 
 koi8-r-8x14.fnt:en:Russian koi8-r, 8x14
 koi8-r-8x14.fnt:de:Russisch koi8-r, 8x14
@@ -223,17 +219,17 @@ koi8-r-8x8.fnt:ru:Ú’””À…  €“…∆‘ koi8-r, 8x8
 koi8-r-8x8.fnt:fr:Russe koi8-r, 8x8
 koi8-r-8x8.fnt:es:koi8-r ruso, 8x8
 
-koi8-rb-8x16.fnt:en:Russian koi8-rb, 8x16
-koi8-rb-8x16.fnt:de:Russisch koi8-rb, 8x16
-koi8-rb-8x16.fnt:ru:Ú’””À…  €“…∆‘ koi8-rb, 8x16
-koi8-rb-8x16.fnt:fr:Russe koi8-rb, 8x16
-koi8-rb-8x16.fnt:es:koi8-rb ruso, 8x16
+koi8-rb-8x16.fnt:en:Russian koi8-r (b), 8x16
+koi8-rb-8x16.fnt:de:Russisch koi8-r (b), 8x16
+koi8-rb-8x16.fnt:ru:Ú’””À…  €“…∆‘ koi8-r (b), 8x16
+koi8-rb-8x16.fnt:fr:Russe koi8-r (b), 8x16
+koi8-rb-8x16.fnt:es:koi8-r (b) ruso, 8x16
 
-koi8-rc-8x16.fnt:en:Russian koi8-rc, 8x16
-koi8-rc-8x16.fnt:de:Russisch koi8-rc, 8x16
-koi8-rc-8x16.fnt:ru:Ú’””À…  €“…∆‘ koi8-rc, 8x16
-koi8-rc-8x16.fnt:fr:Russe koi8-rc, 8x16
-koi8-rc-8x16.fnt:es:koi8-rc ruso, 8x16
+koi8-rc-8x16.fnt:en:Russian koi8-r (c), 8x16
+koi8-rc-8x16.fnt:de:Russisch koi8-r (c), 8x16
+koi8-rc-8x16.fnt:ru:Ú’””À…  €“…∆‘ koi8-r (c), 8x16
+koi8-rc-8x16.fnt:fr:Russe koi8-r (c), 8x16
+koi8-rc-8x16.fnt:es:koi8-r (c) ruso, 8x16
 
 # (fset 'langnew
 #   "\M-}\C-p\C-k\C-y\C-m\C-y\M-}")
