@@ -41,7 +41,7 @@ $FreeBSD$
  * List of known USB vendors
  */
 
-vendor KLSI		0x03e8	Kawasaki LSI
+vendor AOX		0x03e8	Aox Inc.
 vendor HP		0x03f0	Hewlett Packard
 vendor NEC		0x0409	NEC
 vendor KODAK		0x040a	Eastman Kodak Corp.
@@ -97,6 +97,7 @@ vendor APPLE		0x05ac	Apple Computer
 vendor QTRONIX		0x05c7	Qtronix Corp
 vendor ELSA		0x05cc	ELSA Gmbh
 vendor EIZONANAO	0x05e7	EIZO Nanao
+vendor KLSI		0x05e9	Kawasaki LSI
 vendor PIENGINEERING	0x05f3  P.I. Engineering
 vendor CHIC		0x05fe	Chic Technology
 vendor MACALLY		0x0618	Macally
@@ -119,8 +120,8 @@ vendor INTEL		0x8086	Intel
  * List of known products.  Grouped by vendor.
  */
 
-/* Kawasaki LSI products */
-product KLSI USB101		0x0008	USB ethernet
+/* AOX Inc. products */
+product AOX USB101		0x0008	USB ethernet controller engine
 
 /* HP products */
 product HP 4100C		0x0101	Scanjet 4100C
