@@ -1,6 +1,6 @@
 <!--
 	$FreeBSD$
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.7 2002/10/12 18:21:25 ue Exp $
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.8 2002/10/13 16:40:33 ue Exp $
 	basiert auf: 1.6
 -->
 
@@ -76,13 +76,13 @@
               (("netbsd")  (string-append u "&" "manpath=NetBSD+1.5"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+Ports"))
               (else        (string-append u "&" "manpath=FreeBSD+5.0-current")))))
+      ]]>
 
-       (define (toc-depth nd)
-         (if (string=? (gi nd) (normalize "book"))
+      (define (toc-depth nd)
+        (if (string=? (gi nd) (normalize "book"))
             3
             3))
 
-      ]]>
     </style-specification-body>
   </style-specification>
 
