@@ -704,12 +704,6 @@ uhci_dumpregs(uhci_softc_t *sc)
 		     UREAD2(sc, UHCI_PORTSC2)));
 }
 
-Static void
-uhci_dump_ii(uhci_intr_info_t *ii)
-{
-	printf("Fill me in");
-}
-
 void
 uhci_dump_td(uhci_soft_td_t *p)
 {
@@ -812,6 +806,55 @@ uhci_dump_tds(uhci_soft_td_t *std)
 			break;
 	}
 }
+
+Static void
+uhci_dump_ii(uhci_intr_info_t *ii)
+{
+	usbd_pipe_handle pipe;
+	usb_endpoint_descriptor_t *ed;
+	usbd_device_handle dev;
+
+#ifdef DIAGNOSTIC
+#define DONE ii->isdone
+#else
+#define DONE 0
+#endif
+        if (ii == NULL) {
+                printf("ii NULL\n");
+                return;
+        }
+        if (ii->xfer == NULL) {
+		printf("ii %p: done=%d xfer=NULL\n",
+		       ii, DONE);
+                return;
+        }
+        pipe = ii->xfer->pipe;
+        if (pipe == NULL) {
+		printf("ii %p: done=%d xfer=%p pipe=NULL\n",
+		       ii, DONE, ii->xfer);
+                return;
+	}
+        if (pipe->endpoint == NULL) {
+		printf("ii %p: done=%d xfer=%p pipe=%p pipe->endpoint=NULL\n",
+		       ii, DONE, ii->xfer, pipe);
+                return;
+	}
+        if (pipe->device == NULL) {
+		printf("ii %p: done=%d xfer=%p pipe=%p pipe->device=NULL\n",
+		       ii, DONE, ii->xfer, pipe);
+                return;
+	}
+        ed = pipe->endpoint->edesc;
+        dev = pipe->device;
+	printf("ii %p: done=%d xfer=%p dev=%p vid=0x%04x pid=0x%04x addr=%d pipe=%p ep=0x%02x attr=0x%02x\n",
+	       ii, DONE, ii->xfer, dev,
+	       UGETW(dev->ddesc.idVendor),
+	       UGETW(dev->ddesc.idProduct),
+	       dev->address, pipe,
+	       ed->bEndpointAddress, ed->bmAttributes);
+#undef DONE
+}
+
 #endif
 
 /*
