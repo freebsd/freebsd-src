@@ -2,29 +2,24 @@
 /* Written by Pace Willisson (pace@blitz.com) 
  * and placed in the public domain
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00148
- * --------------------         -----   ----------------------
- *
- * 20 Apr 93	J. T. Conklin		Many fixes for () and other such things
+ * /b/source/CVS/src/bin/expr/expr.y,v 1.6 1993/06/14 19:59:07 jtc Exp
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-
+  
 enum valtype {
 	integer, string
 } ;
-    
+
 struct val {
 	enum valtype type;
 	union {
 		char *s;
 		int   i;
 	} u;
-};
+} ;
 
 struct val *result;
 struct val *op_or ();
@@ -536,59 +531,50 @@ struct val *a, *b;
 	return r;
 }
 	
-#include <regexp.h>
+#include <regex.h>
+#define SE_MAX	30
 
 struct val *
 op_colon (a, b)
 struct val *a, *b;
 {
-	regexp *rp;
-	char *newexp;
-	char *p;
-	char *q;
+	regex_t rp;
+	regmatch_t rm[SE_MAX];
+	char errbuf[256];
+	int eval;
+	char *newpat;
+	struct val *v;
 
-	newexp = malloc (3 * strlen (b->u.s));
-	p = b->u.s;
-	q = newexp;
+	/* patterns are anchored to the beginning of the line */
+	newpat = malloc (strlen (b->u.s) + 2);
+	strcpy (newpat, "^");
+	strcat (newpat, b->u.s);
 
-	*q++ = '^';
-	while (*p) {
-		if (*p == '\\') {
-			p++;
-			if (*p == '(' || *p == ')') {
-				*q++ = *p++;
-			} else {
-				*q++ = '\\';
-				*q++ = *p++;
-			}
-		} else if (*p == '(' || *p == ')') {
-			*q++ = '\\';
-			*q++ = *p++;
-		} else {
-			*q++ = *p++;
-		}
+	/* compile regular expression */
+	if ((eval = regcomp (&rp, newpat, 0)) != 0) {
+		regerror (eval, &rp, errbuf, sizeof(errbuf));
+		fprintf (stderr, "expr: %s\n", errbuf);
+		exit (2);
 	}
-	*q = 0;
-				
-	if ((rp = regcomp (newexp)) == NULL)
-		yyerror ("invalid regular expression");
+	free (newpat);
 
-	if (regexec (rp, a->u.s)) {
-		if (rp->startp[1]) {
-			rp->endp[1][0] = 0;
-			return (make_str (rp->startp[1]));
+	/* compare string against pattern */
+	if (regexec(&rp, a->u.s, SE_MAX, rm, 0) == 0) {
+		if (rm[1].rm_so >= 0) {
+			*(a->u.s + rm[1].rm_eo) = 0;
+			v = make_str (a->u.s + rm[1].rm_so);
+
 		} else {
-			return (make_integer (rp->endp[0] - rp->startp[0]));
+			v = make_integer (rm[0].rm_eo - rm[0].rm_so);
 		}
 	} else {
-		return (make_integer (0));
+		v = make_integer (0);
 	}
-}
 
-void
-regerror (s)
-const char *s;
-{
-	fprintf (stderr, "expr: %s\n", s);
-	exit (2);
+	/* free arguments and pattern buffer */
+	free_value (a);
+	free_value (b);
+	regfree (&rp);
+
+	return v;
 }
