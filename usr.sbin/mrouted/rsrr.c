@@ -32,28 +32,16 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rsrr.c,v 1.6 1998/01/16 07:17:45 charnier Exp $";
 #endif /* not lint */
 
 #ifdef RSRR
 
 #include "defs.h"
 #include <sys/param.h>
-#if (defined(BSD) && (BSD >= 199103))
-#include <stddef.h>
+#ifdef HAVE_SA_LEN
+#include <stddef.h>	/* for offsetof */
 #endif
-
-/* Taken from prune.c */
-/*
- * checks for scoped multicast addresses
- */
-#define GET_SCOPE(gt) { \
-	register int _i; \
-	if (((gt)->gt_mcastgrp & 0xff000000) == 0xef000000) \
-	    for (_i = 0; _i < numvifs; _i++) \
-		if (scoped_addr(_i, (gt)->gt_mcastgrp)) \
-		    VIFM_SET(_i, (gt)->gt_scope); \
-	}
 
 /*
  * Exported variables.
@@ -77,6 +65,7 @@ static void	rsrr_accept __P((int recvlen));
 static void	rsrr_accept_iq __P((void));
 static int	rsrr_accept_rq __P((struct rsrr_rq *route_query, int flags,
 					struct gtable *gt_notify));
+static void	rsrr_read __P((int, fd_set *));
 static int	rsrr_send __P((int sendlen));
 static void	rsrr_cache __P((struct gtable *gt,
 					struct rsrr_rq *route_query));
@@ -95,7 +84,7 @@ rsrr_init()
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sun_family = AF_UNIX;
     strcpy(serv_addr.sun_path, RSRR_SERV_PATH);
-#if (defined(BSD) && (BSD >= 199103))
+#ifdef HAVE_SA_LEN
     servlen = offsetof(struct sockaddr_un, sun_path) +
 		strlen(serv_addr.sun_path);
     serv_addr.sun_len = servlen;
@@ -106,22 +95,17 @@ rsrr_init()
     if (bind(rsrr_socket, (struct sockaddr *) &serv_addr, servlen) < 0)
 	log(LOG_ERR, errno, "Can't bind RSRR socket");
 
-    if (register_input_handler(rsrr_socket,rsrr_read) < 0)
+    if (register_input_handler(rsrr_socket, rsrr_read) < 0)
 	log(LOG_WARNING, 0, "Couldn't register RSRR as an input handler");
 }
 
 /* Read a message from the RSRR socket */
-void
+static void
 rsrr_read(f, rfd)
 	int f;
 	fd_set *rfd;
 {
     register int rsrr_recvlen;
-#ifdef SYSV
-    sigset_t block, oblock;
-#else
-    register int omask;
-#endif
     
     bzero((char *) &client_addr, sizeof(client_addr));
     rsrr_recvlen = recvfrom(rsrr_socket, rsrr_recv_buf, sizeof(rsrr_recv_buf),
@@ -131,21 +115,7 @@ rsrr_read(f, rfd)
 	    log(LOG_ERR, errno, "RSRR recvfrom");
 	return;
     }
-#ifdef SYSV
-    (void)sigemptyset(&block);
-    (void)sigaddset(&block, SIGALRM);
-    if (sigprocmask(SIG_BLOCK, &block, &oblock) < 0)
-	log(LOG_ERR, errno, "sigprocmask");
-#else
-    /* Use of omask taken from main() */
-    omask = sigblock(sigmask(SIGALRM));
-#endif
     rsrr_accept(rsrr_recvlen);
-#ifdef SYSV
-    (void)sigprocmask(SIG_SETMASK, &oblock, (sigset_t *)NULL);
-#else
-    (void)sigsetmask(omask);
-#endif
 }
 
 /* Accept a message from the reservation protocol and take
@@ -179,7 +149,8 @@ rsrr_accept(recvlen)
 	switch (rsrr->type) {
 	  case RSRR_INITIAL_QUERY:
 	    /* Send Initial Reply to client */
-	    log(LOG_INFO, 0, "Received Initial Query\n");
+	    IF_DEBUG(DEBUG_RSRR)
+	    log(LOG_DEBUG, 0, "Received Initial Query\n");
 	    rsrr_accept_iq();
 	    break;
 	  case RSRR_ROUTE_QUERY:
@@ -192,7 +163,8 @@ rsrr_accept(recvlen)
 	    }
 	    /* Get the query */
 	    route_query = (struct rsrr_rq *) (rsrr_recv_buf + RSRR_HEADER_LEN);
-	    log(LOG_INFO, 0,
+	    IF_DEBUG(DEBUG_RSRR)
+	    log(LOG_DEBUG, 0,
 		"Received Route Query for src %s grp %s notification %d",
 		inet_fmt(route_query->source_addr.s_addr, s1),
 		inet_fmt(route_query->dest_addr.s_addr,s2),
@@ -258,7 +230,8 @@ rsrr_accept_iq()
     sendlen = RSRR_HEADER_LEN + numvifs*RSRR_VIF_LEN;
     
     /* Send it. */
-    log(LOG_INFO, 0, "Send RSRR Initial Reply");
+    IF_DEBUG(DEBUG_RSRR)
+    log(LOG_DEBUG, 0, "Send RSRR Initial Reply");
     rsrr_send(sendlen);
 }
 
@@ -279,7 +252,7 @@ rsrr_accept_rq(route_query,flags,gt_notify)
     struct rsrr_rr *route_reply;
     struct gtable *gt,local_g;
     struct rtentry *r;
-    int sendlen,i;
+    int sendlen;
     u_long mcastgrp;
     
     /* Set up message */
@@ -311,8 +284,10 @@ rsrr_accept_rq(route_query,flags,gt_notify)
 	rsrr->flags = flags;
 	/* Include the routing entry. */
 	route_reply->in_vif = gt_notify->gt_route->rt_parent;
-	route_reply->out_vif_bm = gt_notify->gt_grpmems;
-
+	if (BIT_TST(flags,RSRR_NOTIFICATION_BIT))
+	    route_reply->out_vif_bm = gt_notify->gt_grpmems;
+	else
+	    route_reply->out_vif_bm = 0;
     } else if (find_src_grp(route_query->source_addr.s_addr, 0,
 			    route_query->dest_addr.s_addr)) {
 
@@ -351,17 +326,7 @@ rsrr_accept_rq(route_query,flags,gt_notify)
 	    gt->gt_route        = r;
 	    
 	    /* obtain the multicast group membership list */
-	    for (i = 0; i < numvifs; i++) {
-		if (VIFM_ISSET(i, r->rt_children) && 
-		    !(VIFM_ISSET(i, r->rt_leaves)))
-		    VIFM_SET(i, gt->gt_grpmems);
-		
-		if (VIFM_ISSET(i, r->rt_leaves) && grplst_mem(i, mcastgrp))
-		    VIFM_SET(i, gt->gt_grpmems);
-	    }
-	    
-	    GET_SCOPE(gt);
-	    gt->gt_grpmems &= ~gt->gt_scope;
+	    determine_forwvifs(gt);
 	    
 	    /* Include the routing entry. */
 	    route_reply->in_vif = gt->gt_route->rt_parent;
@@ -373,13 +338,9 @@ rsrr_accept_rq(route_query,flags,gt_notify)
 	}
     }
     
-    if (gt_notify)
-	log(LOG_INFO, 0, "Route Change: Send RSRR Route Reply");
-
-    else
-	log(LOG_INFO, 0, "Send RSRR Route Reply");
-
-    log(LOG_INFO, 0, "for src %s dst %s in vif %d out vif %d\n",
+    IF_DEBUG(DEBUG_RSRR)
+    log(LOG_DEBUG, 0, "%sSend RSRR Route Reply for src %s dst %s in vif %d out vif %d\n",
+	gt_notify ? "Route Change: " : "",
 	inet_fmt(route_reply->source_addr.s_addr,s1),
 	inet_fmt(route_reply->dest_addr.s_addr,s2),
 	route_reply->in_vif,route_reply->out_vif_bm);
@@ -439,6 +400,7 @@ rsrr_cache(gt,route_query)
 	    } else {
 		/* Update */
 		rc->route_query.query_id = route_query->query_id;
+		IF_DEBUG(DEBUG_RSRR)
 		log(LOG_DEBUG, 0,
 			"Update cached query id %ld from client %s\n",
 			rc->route_query.query_id, rc->client_addr.sun_path);
@@ -461,6 +423,7 @@ rsrr_cache(gt,route_query)
     rc->client_length = client_length;
     rc->next = gt->gt_rsrr_cache;
     gt->gt_rsrr_cache = rc;
+    IF_DEBUG(DEBUG_RSRR)
     log(LOG_DEBUG, 0, "Cached query id %ld from client %s\n",
 	   rc->route_query.query_id,rc->client_addr.sun_path);
 }
@@ -482,6 +445,7 @@ rsrr_cache_send(gt,notify)
     rcnp = &gt->gt_rsrr_cache;
     while ((rc = *rcnp) != NULL) {
 	if (rsrr_accept_rq(&rc->route_query,flags,gt) < 0) {
+	    IF_DEBUG(DEBUG_RSRR)
 	    log(LOG_DEBUG, 0, "Deleting cached query id %ld from client %s\n",
 		   rc->route_query.query_id,rc->client_addr.sun_path);
 	    /* Delete cache entry. */
@@ -500,7 +464,9 @@ rsrr_cache_clean(gt)
 {
     struct rsrr_cache *rc,*rc_next;
 
-    printf("cleaning cache for group %s\n",inet_fmt(gt->gt_mcastgrp, s1));
+    IF_DEBUG(DEBUG_RSRR)
+    log(LOG_DEBUG, 0, "cleaning cache for group %s\n",
+			inet_fmt(gt->gt_mcastgrp, s1));
     rc = gt->gt_rsrr_cache;
     while (rc) {
 	rc_next = rc->next;

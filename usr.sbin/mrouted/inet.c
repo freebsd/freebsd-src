@@ -5,11 +5,14 @@
  *
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
+ *
+ *
+ * inet.c,v 3.8.4.2 1998/01/06 01:57:44 fenner Exp
  */
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: inet.c,v 1.9 1998/01/16 07:17:42 charnier Exp $";
 #endif /* not lint */
 
 #include "defs.h"

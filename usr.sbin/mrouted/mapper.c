@@ -1,5 +1,7 @@
 /* Mapper for connections between MRouteD multicast routers.
  * Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
+ *
+ * mapper.c,v 3.8.4.3 1998/01/06 01:57:47 fenner Exp
  */
 
 /*
@@ -21,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mapper.c,v 1.12 1998/01/16 07:17:43 charnier Exp $";
+	"$Id: mapper.c,v 1.13 1998/06/09 05:01:30 imp Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -910,7 +912,7 @@ int main(argc, argv)
 	int addrlen = sizeof(addr);
 
 	addr.sin_family = AF_INET;
-#if (defined(BSD) && (BSD >= 199103))
+#ifdef HAVE_SA_LEN
 	addr.sin_len = sizeof addr;
 #endif
 	addr.sin_addr.s_addr = dvmrp_group;

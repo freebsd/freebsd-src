@@ -7,7 +7,8 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id$
+ * $Id: dvmrp.h,v 1.7 1997/02/22 16:06:52 peter Exp $
+ * dvmrp.h,v 3.8.4.5 1997/11/18 23:25:57 fenner Exp
  */
 
 /*
@@ -152,13 +153,8 @@
 #define LEAF_CONFIRMATION_TIME	200	/* time to consider subnet a leaf   */
 
 #define NEIGHBOR_PROBE_INTERVAL	10	/* periodic neighbor probe interval */
-#define NEIGHBOR_EXPIRE_TIME	140	/* time to consider neighbor gone   */
-
-#define GROUP_QUERY_INTERVAL	125	/* periodic group query interval    */
-#define GROUP_EXPIRE_TIME	270	/* time to consider group gone      */
-#define LEAVE_EXPIRE_TIME	3	/* " " after receiving a leave	    */
-/* Note: LEAVE_EXPIRE_TIME should ideally be shorter, but the resolution of
- * the timer in mrouted doesn't allow us to make it any shorter. */
+#define NEIGHBOR_EXPIRE_TIME	30	/* time to consider neighbor gone   */
+#define OLD_NEIGHBOR_EXPIRE_TIME 140	/* time to consider neighbor gone   */
 
 #define UNREACHABLE		32	/* "infinity" metric, must be <= 64 */
 #define DEFAULT_METRIC		1	/* default subnet/tunnel metric     */
@@ -166,9 +162,11 @@
 
 #define MAX_RATE_LIMIT      	100000 	/* max rate limit      	    	    */
 #define DEFAULT_PHY_RATE_LIMIT  0 	/* default phyint rate limit  	    */
-#define DEFAULT_TUN_RATE_LIMIT	500	/* default tunnel rate limit	    */
+#define DEFAULT_TUN_RATE_LIMIT	0	/* default tunnel rate limit	    */
 
 #define DEFAULT_CACHE_LIFETIME 	300   	/* kernel route entry discard time  */
+#define MIN_CACHE_LIFETIME	60	/* minimum allowed cache lifetime   */
+#define AVERAGE_PRUNE_LIFETIME 	7200   	/* average lifetime of prunes sent  */
+#define	MIN_PRUNE_LIFETIME	120	/* minimum allowed prune lifetime   */
 #define GRAFT_TIMEOUT_VAL	5	/* retransmission time for grafts   */
-
-#define OLD_AGE_THRESHOLD	2
+#define	PRUNE_REXMIT_VAL	3	/* initial time for prune rexmission*/

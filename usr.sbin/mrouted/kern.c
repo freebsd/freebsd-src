@@ -5,21 +5,59 @@
  *
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
+ *
+ *
+ * kern.c,v 3.8.4.10 1998/01/06 02:00:51 fenner Exp
  */
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kern.c,v 1.10 1998/01/16 07:17:42 charnier Exp $";
 #endif /* not lint */
 
 #include "defs.h"
 
-void k_set_rcvbuf(bufsize)
+int curttl = 0;
+
+void k_set_rcvbuf(bufsize, minsize)
     int bufsize;
+    int minsize;
 {
+    int delta = bufsize / 2;
+    int iter = 0;
+
+    /*
+     * Set the socket buffer.  If we can't set it as large as we
+     * want, search around to try to find the highest acceptable
+     * value.  The highest acceptable value being smaller than
+     * minsize is a fatal error.
+     */
     if (setsockopt(igmp_socket, SOL_SOCKET, SO_RCVBUF,
-		   (char *)&bufsize, sizeof(bufsize)) < 0)
-	log(LOG_ERR, errno, "setsockopt SO_RCVBUF %u", bufsize);
+		(char *)&bufsize, sizeof(bufsize)) < 0) {
+	bufsize -= delta;
+	while (1) {
+	    iter++;
+	    if (delta > 1)
+		delta /= 2;
+
+	    if (setsockopt(igmp_socket, SOL_SOCKET, SO_RCVBUF,
+			(char *)&bufsize, sizeof(bufsize)) < 0) {
+		    bufsize -= delta;
+	    } else {
+		    if (delta < 1024)
+			break;
+		    bufsize += delta;
+	    }
+	}
+	if (bufsize < minsize) {
+	    log(LOG_ERR, 0, "OS-allowed buffer size %u < app min %u",
+		bufsize, minsize);
+	    /*NOTREACHED*/
+	}
+    }
+    IF_DEBUG(DEBUG_KERN)
+    log(LOG_DEBUG, 0, "Got %d byte buffer size in %d iterations",
+	    bufsize, iter);
 }
 
 
@@ -37,12 +75,15 @@ void k_hdr_include(bool)
 void k_set_ttl(t)
     int t;
 {
+#ifndef RAW_OUTPUT_IS_RAW
     u_char ttl;
 
     ttl = t;
     if (setsockopt(igmp_socket, IPPROTO_IP, IP_MULTICAST_TTL,
 		   (char *)&ttl, sizeof(ttl)) < 0)
 	log(LOG_ERR, errno, "setsockopt IP_MULTICAST_TTL %u", ttl);
+#endif
+    curttl = t;
 }
 
 
@@ -141,7 +182,7 @@ void k_add_vif(vifi, v)
 
     if (setsockopt(igmp_socket, IPPROTO_IP, MRT_ADD_VIF,
 		   (char *)&vc, sizeof(vc)) < 0)
-	log(LOG_ERR, errno, "setsockopt MRT_ADD_VIF");
+	log(LOG_ERR, errno, "setsockopt MRT_ADD_VIF on vif %d", vifi);
 }
 
 
@@ -183,7 +224,8 @@ void k_add_rg(origin, g)
 #ifdef DEBUG_MFC
 	md_log(MD_ADD_FAIL, origin, g->gt_mcastgrp);
 #endif
-	log(LOG_WARNING, errno, "setsockopt MRT_ADD_MFC");
+	log(LOG_WARNING, errno, "setsockopt MRT_ADD_MFC",
+		inet_fmt(origin, s1), inet_fmt(g->gt_mcastgrp, s2));
     }
 }
 
@@ -214,7 +256,8 @@ int k_del_rg(origin, g)
 #ifdef DEBUG_MFC
 	md_log(MD_DEL_FAIL, origin, g->gt_mcastgrp);
 #endif
-	log(LOG_WARNING, errno, "setsockopt MRT_DEL_MFC");
+	log(LOG_WARNING, errno, "setsockopt MRT_DEL_MFC of (%s %s)",
+		inet_fmt(origin, s1), inet_fmt(g->gt_mcastgrp, s2));
     }
 
     return retval;
@@ -239,3 +282,63 @@ int k_get_version()
     return vers;
 #endif
 }
+
+#if 0
+/*
+ * Get packet counters
+ */
+int
+k_get_vif_count(vifi, icount, ocount, ibytes, obytes)
+    vifi_t vifi;
+    int *icount, *ocount, *ibytes, *obytes;
+{
+    struct sioc_vif_req vreq;
+    int retval = 0;
+
+    vreq.vifi = vifi;
+    if (ioctl(udp_socket, SIOCGETVIFCNT, (char *)&vreq) < 0) {
+	log(LOG_WARNING, errno, "SIOCGETVIFCNT on vif %d", vifi);
+	vreq.icount = vreq.ocount = vreq.ibytes =
+		vreq.obytes = 0xffffffff;
+	retval = 1;
+    }
+    if (icount)
+	*icount = vreq.icount;
+    if (ocount)
+	*ocount = vreq.ocount;
+    if (ibytes)
+	*ibytes = vreq.ibytes;
+    if (obytes)
+	*obytes = vreq.obytes;
+    return retval;
+}
+
+/*
+ * Get counters for a desired source and group.
+ */
+int
+k_get_sg_count(src, grp, pktcnt, bytecnt, wrong_if)
+    u_int32 src;
+    u_int32 grp;
+    struct sg_count *retval;
+{
+    struct sioc_sg_req sgreq;
+    int retval = 0;
+
+    sgreq.src.s_addr = src;
+    sgreq.grp.s_addr = grp;
+    if (ioctl(udp_socket, SIOCGETSGCNT, (char *)&sgreq) < 0) {
+	log(LOG_WARNING, errno, "SIOCGETSGCNT on (%s %s)",
+	    inet_fmt(src, s1), inet_fmt(grp, s2));
+	sgreq.pktcnt = sgreq.bytecnt = sgreq.wrong_if = 0xffffffff;
+	return 1;
+    }
+    if (pktcnt)
+    	*pktcnt = sgreq.pktcnt;
+    if (bytecnt)
+    	*bytecnt = sgreq.bytecnt;
+    if (wrong_if)
+    	*wrong_if = sgreq.wrong_if;
+    return retval;
+}
+#endif
