@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.52 1997/02/22 09:39:04 peter Exp $
+ *	$Id: kern_exec.c,v 1.53 1997/03/31 11:10:55 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -160,8 +160,10 @@ interpret:
 	 */
 	error = exec_check_permissions(imgp);
 
-	if (error)
+	if (error) {
+		VOP_UNLOCK(imgp->vp, 0, p);
 		goto exec_fail_dealloc;
+	}
 
 	/*
 	 * Get the image header, which we define here as meaning the first
