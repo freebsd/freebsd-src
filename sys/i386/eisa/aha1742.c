@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.58 1997/03/23 06:26:39 bde Exp $
+ *      $Id: aha1742.c,v 1.59 1997/07/20 06:31:08 bde Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh, it compiles as a program too.. look */
@@ -35,8 +35,6 @@
 #include <vm/pmap.h>
 
 #include <i386/eisa/eisaconf.h>
-#else
-#define	NAHB	1
 #endif /*KERNEL */
 
 /* */
