@@ -1,10 +1,14 @@
-#	$Id: Makefile,v 1.3 1995/12/11 01:23:42 peter Exp $
+#	$Id: Makefile,v 1.4 1995/12/11 01:58:47 peter Exp $
 
-SUBDIR=	 pcl-cvs
+.include "${.CURDIR}/../Makefile.inc"
 
-SCRIPTS= ccvs-rsh rcs2log clmerge cln_hist commit_prep cvs_acls cvscheck \
+.PATH:	${CVSDIR}/contrib
+.PATH:	${CVSDIR}/man
+
+SCRIPTS= rcs2log clmerge cln_hist commit_prep cvs_acls cvscheck \
 	 log log_accum mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs \
-	 easy-import
+
+#	 easy-import
 
 FILES=	 README cvscheck.man cvshelp.man descend.man intro.doc
 
@@ -27,11 +31,14 @@ all:	${SCRIPTS}
 
 
 beforeinstall:
+.for file in ${SCRIPTS}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${SCRIPTS} ${DESTDIR}${EXAMPDIR}/contrib
+		${file} ${DESTDIR}${EXAMPDIR}/contrib
+.endfor
+.for file in ${FILES}
 	cd ${.CURDIR} ; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
-		${FILES} ${DESTDIR}${EXAMPDIR}/contrib
+		${CVSDIR}/contrib/${file} ${DESTDIR}${EXAMPDIR}/contrib
+.endfor
 
-.include "../../Makefile.inc"
 .include <bsd.prog.mk>

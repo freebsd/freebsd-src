@@ -1,4 +1,10 @@
-#	$Id: Makefile,v 1.12 1995/12/11 02:22:27 peter Exp $
+#	$Id: Makefile,v 1.13 1995/12/11 04:24:02 peter Exp $
+
+.include "${.CURDIR}/../Makefile.inc"
+
+.PATH:	${CVSDIR}/src
+.PATH:	${CVSDIR}/lib
+.PATH:	${CVSDIR}/man
 
 PROG=	cvs
 MAN1=	cvs.1
@@ -10,11 +16,12 @@ SRCS=	add.c admin.c checkin.c checkout.c classify.c client.c commit.c \
 	release.c remove.c repos.c root.c rtag.c server.c status.c tag.c \
 	update.c vers_ts.c wrapper.c
 
-CFLAGS+= -I${.CURDIR}/../lib -DHAVE_CONFIG_H
+SRCS+=	subr.c error.c filesubr.c version.c myndbm.c fileattr.c watch.c run.c \
+	hash.c edit.c mkmodules.c scramble.c
 
-DPADD+=	${LIBCVS} ${LIBGNUREGEX} ${LIBMD}
-LDADD+=	-lcvs -lgnuregex -lmd
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../lib -I${CVSDIR}/src -I${CVSDIR}/lib -DHAVE_CONFIG_H
 
-.include "../../Makefile.inc"
+DPADD+=	${LIBCVS} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT}
+LDADD+=	-lcvs -lgnuregex -lmd -lcrypt
+
 .include <bsd.prog.mk>
-
