@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.10 1995/06/29 07:07:00 davidg Exp $
+ * $Id: kern_time.c,v 1.11 1995/11/12 06:43:02 bde Exp $
  */
 
 #include <sys/param.h>
@@ -108,6 +108,8 @@ settimeofday(p, uap, retval)
 	if (uap->tv &&
 	    (error = copyin((caddr_t)uap->tv, (caddr_t)&atv, sizeof(atv))))
 		return (error);
+	if (atv.tv_usec < 0 || atv.tv_usec >= 1000000)
+		return (EINVAL);
 	if (uap->tzp &&
 	    (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz, sizeof(atz))))
 		return (error);
@@ -117,12 +119,11 @@ settimeofday(p, uap, retval)
 		/* nb. delta.tv_usec may be < 0, but this is OK here */
 		delta.tv_sec = atv.tv_sec - time.tv_sec;
 		delta.tv_usec = atv.tv_usec - time.tv_usec;
-		time = atv;
+		time = atv;	/* XXX should avoid skew in tv_usec */
 		(void) splsoftclock();
+		timevalfix(&delta);
 		timevaladd(&boottime, &delta);
-		timevalfix(&boottime);
 		timevaladd(&runtime, &delta);
-		timevalfix(&runtime);
 		LEASE_UPDATETIME(delta.tv_sec);
 		splx(s);
 		resettodr();
@@ -281,7 +282,8 @@ setitimer(p, uap, retval)
 	if (itvp && (error = copyin((caddr_t)itvp, (caddr_t)&aitv,
 	    sizeof(struct itimerval))))
 		return (error);
-	if ((uap->itv = uap->oitv) && (error = getitimer(p, uap, retval)))
+	if ((uap->itv = uap->oitv) &&
+	    (error = getitimer(p, (struct getitimer_args *)uap, retval)))
 		return (error);
 	if (itvp == 0)
 		return (0);
