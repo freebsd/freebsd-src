@@ -310,6 +310,8 @@ extern struct sx topology_lock;
 		sx_xlock(&topology_lock);			\
 	} while (0)
 
+#define g_topology_try_lock()	sx_try_xlock(&topology_lock)
+
 #define g_topology_unlock()					\
 	do {							\
 		sx_xunlock(&topology_lock);			\
