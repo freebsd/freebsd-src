@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.75 1997/02/22 09:33:01 peter Exp $
+ *	$Id: vm_machdep.c,v 1.76 1997/03/22 04:28:16 dyson Exp $
  */
 
 #include "npx.h"
@@ -847,41 +847,51 @@ grow(p, sp)
 }
 
 /*
- * prototype routine to implement the pre-zeroed page mechanism
- * this routine is called from the idle loop.
+ * Implement the pre-zeroed page mechanism.
+ * This routine is called from the idle loop.
  */
 int
-vm_page_zero_idle() {
+vm_page_zero_idle()
+{
+	static int free_rover;
 	vm_page_t m;
-	static int free_rover = 0;
-/* XXX
- * We stop zeroing pages when there are sufficent prezeroed pages.
- * This threshold isn't really needed, except we want to
- * bypass unneeded calls to vm_page_list_find, and the
- * associated cache flush and latency.  The pre-zero will
- * still be called when there are significantly more
- * non-prezeroed pages than zeroed pages.  The threshold
- * of half the number of reserved pages is arbitrary, but
- * approximately the right amount.  Eventually, we should
- * perhaps interrupt the zero operation when a process
- * is found to be ready to run.
- */
-	if (((cnt.v_free_count - vm_page_zero_count) > (cnt.v_free_reserved / 2)) &&
-#ifdef NOT_NEEDED
-		(cnt.v_free_count > cnt.v_interrupt_free_min) &&
+	int s;
+
+#ifdef WRONG
+	if (cnt.v_free_count <= cnt.v_interrupt_free_min) 
+		return (0);
 #endif
-		(m = vm_page_list_find(PQ_FREE, free_rover))) {
+	/*
+	 * XXX
+	 * We stop zeroing pages when there are sufficent prezeroed pages.
+	 * This threshold isn't really needed, except we want to
+	 * bypass unneeded calls to vm_page_list_find, and the
+	 * associated cache flush and latency.  The pre-zero will
+	 * still be called when there are significantly more
+	 * non-prezeroed pages than zeroed pages.  The threshold
+	 * of half the number of reserved pages is arbitrary, but
+	 * approximately the right amount.  Eventually, we should
+	 * perhaps interrupt the zero operation when a process
+	 * is found to be ready to run.
+	 */
+	if (cnt.v_free_count - vm_page_zero_count <= cnt.v_free_reserved / 2)
+		return (0);
+	s = splvm();
+	enable_intr();
+	m = vm_page_list_find(PQ_FREE, free_rover);
+	if (m != NULL) {
 		--(*vm_page_queues[m->queue].lcnt);
 		TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
-		enable_intr();
+		splx(s);
 		pmap_zero_page(VM_PAGE_TO_PHYS(m));
-		disable_intr();
+		(void)splvm();
 		m->queue = PQ_ZERO + m->pc;
 		++(*vm_page_queues[m->queue].lcnt);
 		TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m, pageq);
 		free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
 		++vm_page_zero_count;
-		return 1;
 	}
-	return 0;
+	splx(s);
+	disable_intr();
+	return (1);
 }
