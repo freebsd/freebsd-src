@@ -344,7 +344,7 @@ typedef struct ukbd_state {
 #define	INTRENABLED	(1 << 0)
 #define	DISCONNECTED	(1 << 1)
 
-	struct callout_handle ks_timeout_handle;
+	usb_callout_t ks_timeout_handle;
 
 	int		ks_mode;	/* input mode (K_XLATE,K_RAW,K_CODE) */
 	int		ks_flags;	/* flags */
@@ -405,7 +405,7 @@ KEYBOARD_DRIVER(ukbd, ukbdsw, ukbd_configure);
 /* local functions */
 Static int		ukbd_enable_intr(keyboard_t *kbd, int on,
 					 usbd_intr_t *func);
-Static timeout_t	ukbd_timeout;
+Static void		ukbd_timeout(void *arg);
 
 Static int		ukbd_getc(ukbd_state_t *state);
 Static int		probe_keyboard(struct usb_attach_arg *uaa, int flags);
@@ -573,7 +573,7 @@ ukbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		state->ks_iface = uaa->iface;
 		state->ks_uaa = uaa;
 		state->ks_ifstate = 0;
-		callout_handle_init(&state->ks_timeout_handle);
+		usb_callout_init(state->ks_timeout_handle);
 		/*
 		 * FIXME: set the initial value for lock keys in ks_state
 		 * according to the BIOS data?
@@ -643,8 +643,7 @@ ukbd_term(keyboard_t *kbd)
 	state = (ukbd_state_t *)kbd->kb_data;
 	DPRINTF(("ukbd_term: ks_ifstate=0x%x\n", state->ks_ifstate));
 
-	untimeout(ukbd_timeout, (void *)kbd, state->ks_timeout_handle);
-	callout_handle_init(&state->ks_timeout_handle);
+	usb_uncallout(state->ks_timeout_handle, ukbd_timeout, kbd);
 
 	if (state->ks_ifstate & INTRENABLED)
 		ukbd_enable_intr(kbd, FALSE, NULL);
@@ -685,7 +684,7 @@ ukbd_timeout(void *arg)
 	state = (ukbd_state_t *)kbd->kb_data;
 	s = splusb();
 	(*kbdsw[kbd->kb_index]->intr)(kbd, (void *)USBD_NORMAL_COMPLETION);
-	state->ks_timeout_handle = timeout(ukbd_timeout, arg, hz/40);
+	usb_callout(state->ks_timeout_handle, hz / 40, ukbd_timeout, arg);
 	splx(s);
 }
 
