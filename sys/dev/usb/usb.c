@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.43 2000/03/29 18:24:53 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.47 2000/08/24 14:12:34 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -169,11 +169,6 @@ Static int usb_dev_open = 0;
 Static void usb_add_event(int, struct usb_event *);
 
 Static int usb_get_next_event(struct usb_event *);
-
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-/* Flag to see if we are in the cold boot process. */
-extern int cold;
-#endif
 
 Static const char *usbrev_str[] = USBREV_STR;
 
