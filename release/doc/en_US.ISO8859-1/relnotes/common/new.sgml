@@ -385,6 +385,9 @@
 	work better, and some problems with timeouts should be
 	resolved.</para>
 
+      <para>The &man.ips.4; driver now supports the recent
+	Adaptec ServeRAID series SCSI controller cards.</para>
+
       <para>The &man.umass.4; driver now supports the missing
 	ATAPI MMC commands and handles the timeout properly.</para>
     </sect3>
