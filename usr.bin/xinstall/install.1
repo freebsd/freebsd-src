@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: install.1,v 1.9 1997/02/22 19:57:54 peter Exp $
 .\"
 .Dd September 22, 1996
 .Dt INSTALL 1
@@ -102,10 +102,9 @@ then warn about files that aren't installed with
 Create directories. 
 Missing parent directories are created as required.
 .It Fl f
-Specify the target's file flags.
-(See
+Specify the target's file flags; see
 .Xr chflags 1
-for a list of possible flags and their meanings.)
+for a list of possible flags and their meanings.
 .It Fl g
 Specify a group. A numeric GID is allowed.
 .It Fl m
@@ -132,11 +131,11 @@ number of systems and binary types.
 .El
 .Pp
 By default,
-.Nm install
+.Nm
 preserves all file flags, with the exception of the ``nodump'' flag.
 .Pp
 The
-.Nm install
+.Nm
 utility attempts to prevent moving a file onto itself.
 .Pp
 Installing
@@ -166,10 +165,10 @@ are created in the target directory.
 .Xr chown 8
 .Sh HISTORY
 The
-.Nm install
+.Nm
 utility appeared in
 .Bx 4.2 .
 .Sh BUGS
 Temporary files may be left in the target directory if
-.Nm install
+.Nm
 exits abnormally.
