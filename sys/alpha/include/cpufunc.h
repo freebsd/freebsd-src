@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.1 1998/06/10 10:54:51 dfr Exp $
+ *	$Id: cpufunc.h,v 1.2 1998/07/22 08:25:39 dfr Exp $
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
@@ -33,6 +33,16 @@
 
 #include <sys/types.h>
 #include <machine/chipset.h>
+
+#ifdef __GNUC__
+
+static __inline void
+breakpoint(void)
+{
+	__asm __volatile("call_pal 0x81"); /* XXX bugchk */
+}
+
+#endif
 
 #define inb(port)		chipset.inb(port)
 #define inw(port)		chipset.inw(port)
