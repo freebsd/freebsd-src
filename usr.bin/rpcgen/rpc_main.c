@@ -205,7 +205,7 @@ main(argc, argv)
 				EXTEND, "_svc.c", cmd.mflag, cmd.nflag);
 		if (tblflag) {
 			reinitialize();
-		t_output(cmd.infile, "-DRPC_TBL", EXTEND, "_tbl.i");
+			t_output(cmd.infile, "-DRPC_TBL", EXTEND, "_tbl.i");
 		}
 
 		if (allfiles) {
@@ -474,12 +474,30 @@ char *generate_guard(pathname)
 	filename = strrchr(pathname, '/');  /* find last component */
 	filename = ((filename == 0) ? pathname : filename+1);
 	guard = xstrdup(filename);
-	/* convert to upper case */
-	tmp = guard;
-	while (*tmp) {
+	/* convert to a valid C macro name, and upper case
+	 * =~ m,[A-Za-z_][A-Za-z_0-9]*,   else map other chars to '_'.
+	 */
+	for (tmp = guard; '\000' != *tmp; ++tmp) {
 		if (islower(*tmp))
 			*tmp = toupper(*tmp);
-		tmp++;
+		else if (isupper(*tmp) || '_' == *tmp)
+			/* OK for C */;
+		else if (tmp == guard)
+			*tmp = '_';
+		else if (isdigit(*tmp))
+			/* OK for all but first character */;
+		else if ('.' == *tmp) {
+			*tmp = '\000';
+			break;
+		} else
+			*tmp = '_';
+	}
+	/* When the filename started with "." (wow, the is Poor Form)
+	 * lets put in the word "DOT" so we don't violate ANSI's reservation
+	 * of macros that start with "_" -- rpc at ksb.npcguild.org
+	 */
+	if ('\000' == *guard) {
+		guard = "DOT";
 	}
 	guard = extendfile(guard, "_H_RPCGEN");
 	return (guard);
