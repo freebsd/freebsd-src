@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.h#24 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.h#27 $
  *
  * $FreeBSD$
  */
@@ -209,9 +209,15 @@ typedef enum {
 	AHC_MULTIROLE	= 0x40000,	/* Space for two roles at a time */
 	AHC_REMOVABLE	= 0x80000,	/* Hot-Swap supported */
 	AHC_AIC7770_FE	= AHC_FENONE,
-	AHC_AIC7850_FE	= AHC_SPIOCAP|AHC_AUTOPAUSE|AHC_TARGETMODE,
-	AHC_AIC7855_FE	= AHC_AIC7850_FE,
-	AHC_AIC7860_FE	= AHC_AIC7850_FE|AHC_ULTRA,
+	/*
+	 * The real 7850 does not support Ultra modes, but there are
+	 * several cards that use the generic 7850 PCI ID even though
+	 * they are using an Ultra capable chip (7859/7860).  We start
+	 * out with the AHC_ULTRA feature set and then check the DEVSTATUS
+	 * register to determine if the capability is really present.
+	 */
+	AHC_AIC7850_FE	= AHC_SPIOCAP|AHC_AUTOPAUSE|AHC_TARGETMODE|AHC_ULTRA,
+	AHC_AIC7860_FE	= AHC_AIC7850_FE,
 	AHC_AIC7870_FE	= AHC_TARGETMODE,
 	AHC_AIC7880_FE	= AHC_AIC7870_FE|AHC_ULTRA,
 	/*
@@ -328,12 +334,6 @@ typedef enum {
 					   */
 	AHC_BIOS_ENABLED      = 0x80000,
 	AHC_ALL_INTERRUPTS    = 0x100000,
-	AHC_ULTRA_DISABLED    = 0x200000, /*
-					   * The precision resistor for
-					   * ultra transmission speeds is
-					   * missing, so we must limit
-					   * ourselves to fast SCSI.
-					   */
 	AHC_PAGESCBS	      = 0x400000, /* Enable SCB paging */
 	AHC_EDGE_INTERRUPT    = 0x800000  /* Device uses edge triggered ints */
 } ahc_flag;
@@ -660,7 +660,7 @@ struct ahc_transinfo {
  * Per-initiator current, goal and user transfer negotiation information. */
 struct ahc_initiator_tinfo {
 	uint8_t scsirate;		/* Computed value for SCSIRATE reg */
-	struct ahc_transinfo current;
+	struct ahc_transinfo curr;
 	struct ahc_transinfo goal;
 	struct ahc_transinfo user;
 };
@@ -749,12 +749,19 @@ struct seeprom_config {
 #define		CFSUPREM	0x0001	/* support all removeable drives */
 #define		CFSUPREMB	0x0002	/* support removeable boot drives */
 #define		CFBIOSEN	0x0004	/* BIOS enabled */
-/*		UNUSED		0x0008	*/
+#define		CFBIOS_BUSSCAN	0x0008	/* Have the BIOS Scan the Bus */
 #define		CFSM2DRV	0x0010	/* support more than two drives */
-#define		CF284XEXTEND	0x0020	/* extended translation (284x cards) */	
 #define		CFSTPWLEVEL	0x0010	/* Termination level control */
+#define		CF284XEXTEND	0x0020	/* extended translation (284x cards) */	
+#define		CFCTRL_A	0x0020	/* BIOS displays Ctrl-A message */	
+#define		CFTERM_MENU	0x0040	/* BIOS displays termination menu */	
 #define		CFEXTEND	0x0080	/* extended translation enabled */
 #define		CFSCAMEN	0x0100	/* SCAM enable */
+#define		CFMSG_LEVEL	0x0600	/* BIOS Message Level */
+#define			CFMSG_VERBOSE	0x0000
+#define			CFMSG_SILENT	0x0200
+#define			CFMSG_DIAG	0x0400
+#define		CFBOOTCD	0x0800  /* Support Bootable CD-ROM */
 /*		UNUSED		0xff00	*/
 
 /*
@@ -769,7 +776,7 @@ struct seeprom_config {
 #define		CFWSTERM	0x0008	/* SCSI high byte termination */
 #define		CFSPARITY	0x0010	/* SCSI parity */
 #define		CF284XSTERM     0x0020	/* SCSI low byte term (284x cards) */	
-#define		CFMULTILUN	0x0020	/* SCSI low byte term (284x cards) */	
+#define		CFMULTILUN	0x0020
 #define		CFRESETB	0x0040	/* reset SCSI bus at boot */
 #define		CFCLUSTERENB	0x0080	/* Cluster Enable */
 #define		CFBOOTCHAN	0x0300	/* probe this channel first */
@@ -1135,6 +1142,7 @@ void			ahc_freeze_devq(struct ahc_softc *ahc, struct scb *scb);
 int			ahc_reset_channel(struct ahc_softc *ahc, char channel,
 					  int initiate_reset);
 void			ahc_restart(struct ahc_softc *ahc);
+void			ahc_calc_residual(struct scb *scb);
 /*************************** Utility Functions ********************************/
 struct ahc_phase_table_entry*
 			ahc_lookup_phase_entry(int phase);
@@ -1170,8 +1178,15 @@ void			ahc_set_syncrate(struct ahc_softc *ahc,
 					 u_int period, u_int offset,
 					 u_int ppr_options,
 					 u_int type, int paused);
+typedef enum {
+	AHC_QUEUE_NONE,
+	AHC_QUEUE_BASIC,
+	AHC_QUEUE_TAGGED
+} ahc_queue_alg;
+
 void			ahc_set_tags(struct ahc_softc *ahc,
-				     struct ahc_devinfo *devinfo, int enable);
+				     struct ahc_devinfo *devinfo,
+				     ahc_queue_alg alg);
 
 /**************************** Target Mode *************************************/
 #ifdef AHC_TARGET_MODE

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#19 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#21 $
  *
  * $FreeBSD$
  */
@@ -188,7 +188,7 @@ ahc_name(struct ahc_softc *ahc)
 
 /*********************** Miscelaneous Support Functions ***********************/
 
-static __inline int	ahc_check_residual(struct scb *scb);
+static __inline void	ahc_update_residual(struct scb *scb);
 static __inline struct ahc_initiator_tinfo *
 			ahc_fetch_transinfo(struct ahc_softc *ahc,
 					    char channel, u_int our_id,
@@ -211,15 +211,16 @@ static __inline uint32_t
  * Determine whether the sequencer reported a residual
  * for this SCB/transaction.
  */
-static __inline int
-ahc_check_residual(struct scb *scb)
+static __inline void
+ahc_update_residual(struct scb *scb)
 {
-	struct status_pkt *sp;
+	uint32_t sgptr;
 
-	sp = &scb->hscb->shared_data.status;
-	if ((scb->hscb->sgptr & SG_RESID_VALID) != 0)
-		return (1);
-	return (0);
+	sgptr = ahc_le32toh(scb->hscb->sgptr);
+	if ((sgptr & SG_RESID_VALID) != 0)
+		ahc_calc_residual(scb);
+	else
+		ahc_set_residual(scb, 0);
 }
 
 /*

@@ -41,7 +41,9 @@
 #define AHC_NEW_TRAN_SETTINGS
 #endif /* CAM_NEW_TRAN_CODE */
 #include <opt_aic7xxx.h>	/* for config options */
-#include <pci.h>		/* for NPCI */
+#ifndef NPCI
+#include <pci.h>
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -96,6 +98,9 @@
 	(SCB_GET_CHANNEL(ahc, scb) == 'A' ? (ahc)->platform_data->sim \
 					  : (ahc)->platform_data->sim_b)
 
+#ifndef offsetof
+#define offsetof(type, member)  ((size_t)(&((type *)0)->member))
+#endif
 /************************* Forward Declarations *******************************/
 typedef device_t ahc_dev_softc_t;
 typedef union ccb *ahc_io_ctx_t;
@@ -144,10 +149,10 @@ typedef union ccb *ahc_io_ctx_t;
  * transfer is as fragmented as possible and unaligned, this turns out to
  * be the number of paged sized transfers in MAXPHYS plus an extra element
  * to handle any unaligned residual.  The sequencer fetches SG elements
- * in 128 byte chucks, so make the number per-transaction a nice multiple
- * of 16 (8 byte S/G elements).
+ * in cacheline sized chucks, so make the number per-transaction an even
+ * multiple of 16 which should align us on even the largest of cacheline
+ * boundaries. 
  */
-/* XXX Worth the space??? */
 #define AHC_NSEG (roundup(btoc(MAXPHYS) + 1, 16))
 
 /* This driver supports target mode */
@@ -505,5 +510,5 @@ ahc_platform_flushwork(struct ahc_softc *ahc)
 timeout_t ahc_timeout;
 void	  ahc_done(struct ahc_softc *ahc, struct scb *scb);
 void	  ahc_send_async(struct ahc_softc *, char /*channel*/,
-			 u_int /*target*/, u_int /*lun*/, ac_code);
+			 u_int /*target*/, u_int /*lun*/, ac_code, void *arg);
 #endif  /* _AIC7XXX_FREEBSD_H_ */

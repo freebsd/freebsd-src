@@ -29,22 +29,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7770.c#9 $
+ * $Id: //depot/src/aic7xxx/aic7770.c#11 $
  *
  * $FreeBSD$
  */
 
-#ifdef	__linux__
-#include "aic7xxx_linux.h"
-#include "aic7xxx_inline.h"
-#include "aic7xxx_93cx6.h"
-#endif
-
-#ifdef	__FreeBSD__
 #include <dev/aic7xxx/aic7xxx_freebsd.h>
 #include <dev/aic7xxx/aic7xxx_inline.h>
 #include <dev/aic7xxx/aic7xxx_93cx6.h>
-#endif
 
 #define ID_AIC7770	0x04907770
 #define ID_AHA_274x	0x04907771
@@ -139,10 +131,6 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 	if ((intdef & EDGE_TRIG) != 0)
 		ahc->flags |= AHC_EDGE_INTERRUPT;
 
-	error = aic7770_map_int(ahc, irq);
-	if (error != 0)
-		return (error);
-
 	switch (probe_config.chip & (AHC_EISA|AHC_VL)) {
 	case AHC_EISA:
 	{
@@ -211,6 +199,10 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 	 * Link this softc in with all other ahc instances.
 	 */
 	ahc_softc_insert(ahc);
+
+	error = aic7770_map_int(ahc, irq);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Enable the board's BUS drivers

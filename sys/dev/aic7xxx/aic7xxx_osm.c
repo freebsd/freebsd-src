@@ -49,6 +49,7 @@ static int     ahc_debug = AHC_DEBUG;
 #if UNUSED
 static void	ahc_dump_targcmd(struct target_cmd *cmd);
 #endif
+static int	ahc_modevent(module_t mod, int type, void *data);
 static void	ahc_action(struct cam_sim *sim, union ccb *ccb);
 static void	ahc_get_tran_settings(struct ahc_softc *ahc,
 				      int our_id, char channel,
@@ -572,9 +573,9 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			update_type |= AHC_TRANS_GOAL;
 			discenable = &tstate->discenable;
 			tagenable = &tstate->tagenable;
-			tinfo->current.protocol_version =
+			tinfo->curr.protocol_version =
 			    cts->protocol_version;
-			tinfo->current.transport_version =
+			tinfo->curr.transport_version =
 			    cts->transport_version;
 			tinfo->goal.protocol_version =
 			    cts->protocol_version;
@@ -777,7 +778,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			 && tinfo->user.transport_version >= 3) {
 				tinfo->goal.transport_version =
 				    tinfo->user.transport_version;
-				tinfo->current.transport_version =
+				tinfo->curr.transport_version =
 				    tinfo->user.transport_version;
 			}
 			
@@ -932,7 +933,7 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 					devinfo.target, &tstate);
 	
 	if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
-		tinfo = &targ_info->current;
+		tinfo = &targ_info->curr;
 	else
 		tinfo = &targ_info->user;
 	
@@ -990,7 +991,7 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 					devinfo.target, &tstate);
 	
 	if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
-		tinfo = &targ_info->current;
+		tinfo = &targ_info->curr;
 	else
 		tinfo = &targ_info->user;
 	
@@ -1206,7 +1207,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 
 	mask = SCB_GET_TARGET_MASK(ahc, scb);
 	scb->hscb->scsirate = tinfo->scsirate;
-	scb->hscb->scsioffset = tinfo->current.offset;
+	scb->hscb->scsioffset = tinfo->curr.offset;
 	if ((tstate->ultraenb & mask) != 0)
 		scb->hscb->control |= ULTRAENB;
 
@@ -1767,7 +1768,7 @@ ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 
 void
 ahc_send_async(struct ahc_softc *ahc, char channel, u_int target,
-		u_int lun, ac_code code)
+		u_int lun, ac_code code, void *opt_arg)
 {
 	struct	ccb_trans_settings cts;
 	struct cam_path *path;
@@ -1782,8 +1783,12 @@ ahc_send_async(struct ahc_softc *ahc, char channel, u_int target,
 
 	switch (code) {
 	case AC_TRANSFER_NEG:
+	{
 #ifdef AHC_NEW_TRAN_SETTINGS
+		struct	ccb_trans_settings_scsi *scsi;
+	
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		scsi = &cts.proto_specific.scsi;
 #else
 		cts.flags = CCB_TRANS_CURRENT_SETTINGS;
 #endif
@@ -1794,7 +1799,25 @@ ahc_send_async(struct ahc_softc *ahc, char channel, u_int target,
 							  : ahc->our_id_b,
 				      channel, &cts);
 		arg = &cts;
+#ifdef AHC_NEW_TRAN_SETTINGS
+		scsi->valid &= ~CTS_SCSI_VALID_TQ;
+		scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+#else
+		cts.valid &= ~CCB_TRANS_TQ_VALID;
+		cts.flags &= ~CCB_TRANS_TAG_ENB;
+#endif
+		if (opt_arg == NULL)
+			break;
+		if (*((ahc_queue_alg *)opt_arg) == AHC_QUEUE_TAGGED)
+#ifdef AHC_NEW_TRAN_SETTINGS
+			scsi->flags |= ~CTS_SCSI_FLAGS_TAG_ENB;
+		scsi->valid |= CTS_SCSI_VALID_TQ;
+#else
+			cts.flags |= CCB_TRANS_TAG_ENB;
+		cts.valid |= CCB_TRANS_TQ_VALID;
+#endif
 		break;
+	}
 	case AC_SENT_BDR:
 	case AC_BUS_RESET:
 		break;
@@ -1906,3 +1929,20 @@ ahc_dump_targcmd(struct target_cmd *cmd)
 	}
 }
 #endif
+
+static int
+ahc_modevent(module_t mod, int type, void *data)
+{
+	/* XXX Deal with busy status on unload. */
+	return 0;
+}
+  
+static moduledata_t ahc_mod = {
+	"ahc",
+	ahc_modevent,
+	NULL
+};
+
+DECLARE_MODULE(ahc, ahc_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+MODULE_DEPEND(ahc, cam, 1, 1, 1);
+MODULE_VERSION(ahc, 1);

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.seq#24 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#27 $
  *
  * $FreeBSD$
  */
@@ -153,7 +153,9 @@ selection:
 	 * the kernel driver if it happens.
 	 */
 	mvi	CLRSINT1,CLRBUSFREE;
-	or	SIMODE1, ENBUSFREE;
+	if ((ahc->features & AHC_DT) == 0) {
+		or	SIMODE1, ENBUSFREE;
+	}
 
 	/*
 	 * Guard against a bus free after (re)selection
@@ -706,16 +708,16 @@ disable_ccsgen_fetch_done:
 	test	CCSGCTL, CCSGEN jnz .;
 	ret;
 idle_loop:
+	/*
+	 * Do we need any more segments for this transfer?
+	 */
+	test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jnz return;
+
 	/* Did we just finish fetching segs? */
 	cmp	CCSGCTL, CCSGEN|CCSGDONE je idle_sgfetch_complete;
 
 	/* Are we actively fetching segments? */
 	test	CCSGCTL, CCSGEN jnz return;
-
-	/*
-	 * Do we need any more segments?
-	 */
-	test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jnz return;
 
 	/*
 	 * Do we have any prefetch left???
@@ -885,7 +887,11 @@ data_phase_loop:
 	and	DMAPARAMS, DIRECTION;
 	mov	DFCNTRL, DMAPARAMS;
 	or	SXFRCTL1,BITBUCKET;
-	test	SSTAT1,PHASEMIS	jz .;
+	if ((ahc->features & AHC_DT) == 0) {
+		test	SSTAT1,PHASEMIS	jz .;
+	} else {
+		test	SCSIPHASE, DATA_PHASE_MASK jnz .;
+	}
 	and	SXFRCTL1, ~BITBUCKET;
 	mvi	DATA_OVERRUN call set_seqint;
 	jmp	ITloop;
@@ -906,54 +912,48 @@ ultra2_dma_loop:
 		 * completes or the target changes phase.
 		 */
 		test	SG_CACHE_SHADOW, LAST_SEG_DONE jnz ultra2_dmafinish;
-		if ((ahc->flags & AHC_TARGETROLE) != 0) {
-			 /*
-			  * As a target, we control the phases,
-			  * so ignore PHASEMIS.
-			  */
-			test	SSTAT0, TARGET jnz ultra2_dma_loop;
-		}
-		if ((ahc->flags & AHC_INITIATORROLE) != 0) {
-			test	SSTAT1,PHASEMIS	jz ultra2_dma_loop;
+		if ((ahc->features & AHC_DT) == 0) {
+			if ((ahc->flags & AHC_TARGETROLE) != 0) {
+				 /*
+				  * As a target, we control the phases,
+				  * so ignore PHASEMIS.
+				  */
+				test	SSTAT0, TARGET jnz ultra2_dma_loop;
+			}
+			if ((ahc->flags & AHC_INITIATORROLE) != 0) {
+				test	SSTAT1,PHASEMIS	jz ultra2_dma_loop;
+			}
+		} else {
+			test	DFCNTRL, SCSIEN jnz ultra2_dma_loop;
 		}
 
 ultra2_dmafinish:
-		test	DFCNTRL, DIRECTION jnz ultra2_dmafifoempty;
-		if ((ahc->features & AHC_DT) == 0) {
-			and	DFCNTRL, ~SCSIEN;
-			test	DFCNTRL, SCSIEN jnz .;
-		}
-ultra2_dmafifoflush:
+		/*
+		 * The transfer has terminated either due to a phase
+		 * change, and/or the completion of the last segment.
+		 * We have two goals here.  Do as much other work
+		 * as possible while the data fifo drains on a read
+		 * and respond as quickly as possible to the standard
+		 * messages (save data pointers/disconnect and command
+		 * complete) that usually follow a data phase.
+		 */
 		if ((ahc->bugs & AHC_AUTOFLUSH_BUG) != 0) {
 			/*
-			 * On Rev A of the aic7890, the autoflush
-			 * features doesn't function correctly.
-			 * Perform an explicit manual flush.  During
-			 * a manual flush, the FIFOEMP bit becomes
-			 * true every time the PCI FIFO empties
-			 * regardless of the state of the SCSI FIFO.
-			 * It can take up to 4 clock cycles for the
-			 * SCSI FIFO to get data into the PCI FIFO
-			 * and for FIFOEMP to de-assert.  Here we
-			 * guard against this condition by making
-			 * sure the FIFOEMP bit stays on for 5 full
-			 * clock cycles.
+			 * On chips with broken auto-flush, start
+			 * the flushing process now.  We'll poke
+			 * the chip from time to time to keep the
+			 * flush process going as we complete the
+			 * data phase.
 			 */
 			or	DFCNTRL, FIFOFLUSH;
-			test	DFSTATUS, FIFOEMP jz ultra2_dmafifoflush;
-			test	DFSTATUS, FIFOEMP jz ultra2_dmafifoflush;
-			test	DFSTATUS, FIFOEMP jz ultra2_dmafifoflush;
-			test	DFSTATUS, FIFOEMP jz ultra2_dmafifoflush;
 		}
-		test	DFSTATUS, FIFOEMP jz ultra2_dmafifoflush;
-ultra2_dmafifoempty:
-		/* Don't clobber an inprogress host data transfer */
-		test	DFSTATUS, MREQPEND	jnz ultra2_dmafifoempty;
-ultra2_dmahalt:
-		and     DFCNTRL, ~(SCSIEN|HDMAEN);
-		test	DFCNTRL, SCSIEN|HDMAEN jnz .;
-
 		/*
+		 * We assume that, even though data may still be
+		 * transferring to the host, that the SCSI side of
+		 * the DMA engine is now in a static state.  This
+		 * allows us to update our notion of where we are
+		 * in this transfer.
+		 *
 		 * If, by chance, we stopped before being able
 		 * to fetch additional segments for this transfer,
 		 * yet the last S/G was completely exhausted,
@@ -964,14 +964,14 @@ ultra2_dmahalt:
 		 * If we happened to stop on the last segment, then
 		 * our residual information is still correct from
 		 * the idle loop and there is no need to perform
-		 * any fixups.  Just jump to data_phase_finish.
+		 * any fixups.
 		 */
 ultra2_ensure_sg:
 		test	SG_CACHE_SHADOW, LAST_SEG jz ultra2_shvalid;
 		/* Record if we've consumed all S/G entries */
-		test	SG_CACHE_SHADOW, LAST_SEG_DONE jz data_phase_finish;
+		test    SSTAT2, SHVALID	jnz residuals_correct;
 		or	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL;
-		jmp	data_phase_finish;
+		jmp	residuals_correct;
 
 ultra2_shvalid:
                 test    SSTAT2, SHVALID	jnz sgptr_fixup;
@@ -1001,6 +1001,62 @@ sgptr_fixup_done:
 		test	SG_CACHE_SHADOW, ODD_SEG jz . + 2;
 		or	DATA_COUNT_ODD, 0x1;
 		clr	SCB_RESIDUAL_DATACNT[3]; /* We are not the last seg */
+residuals_correct:
+		/*
+		 * Go ahead and shut down the DMA engine now.
+		 * In the future, we'll want to handle end of
+		 * transfer messages prior to doing this, but this
+		 * requires similar restructuring for pre-ULTRA2
+		 * controllers.
+		 */
+		test	DMAPARAMS, DIRECTION jnz ultra2_fifoempty;
+ultra2_fifoflush:
+		if ((ahc->features & AHC_DT) == 0) {
+			if ((ahc->bugs & AHC_AUTOFLUSH_BUG) != 0) {
+				/*
+				 * On Rev A of the aic7890, the autoflush
+				 * feature doesn't function correctly.
+				 * Perform an explicit manual flush.  During
+				 * a manual flush, the FIFOEMP bit becomes
+				 * true every time the PCI FIFO empties
+				 * regardless of the state of the SCSI FIFO.
+				 * It can take up to 4 clock cycles for the
+				 * SCSI FIFO to get data into the PCI FIFO
+				 * and for FIFOEMP to de-assert.  Here we
+				 * guard against this condition by making
+				 * sure the FIFOEMP bit stays on for 5 full
+				 * clock cycles.
+				 */
+				or	DFCNTRL, FIFOFLUSH;
+				test	DFSTATUS, FIFOEMP jz ultra2_fifoflush;
+				test	DFSTATUS, FIFOEMP jz ultra2_fifoflush;
+				test	DFSTATUS, FIFOEMP jz ultra2_fifoflush;
+				test	DFSTATUS, FIFOEMP jz ultra2_fifoflush;
+			}
+			test	DFSTATUS, FIFOEMP jz ultra2_fifoflush;
+		} else {
+			/*
+			 * We enable the auto-ack feature on DT capable
+			 * controllers.  This means that the controller may
+			 * have already transferred some overrun bytes into
+			 * the data FIFO and acked them on the bus.  The only
+			 * way to detect this situation is to wait for
+			 * LAST_SEG_DONE to come true on a completed transfer
+			 * and then test to see if the data FIFO is non-empty.
+			 */
+			test	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL jz . + 4;
+			test	SG_CACHE_SHADOW, LAST_SEG_DONE jz .;
+			test	DFSTATUS, FIFOEMP jnz ultra2_fifoempty;
+			/* Overrun */
+			jmp	data_phase_loop;
+			test	DFSTATUS, FIFOEMP jz .;
+		}
+ultra2_fifoempty:
+		/* Don't clobber an inprogress host data transfer */
+		test	DFSTATUS, MREQPEND	jnz ultra2_fifoempty;
+ultra2_dmahalt:
+		and     DFCNTRL, ~(SCSIEN|HDMAEN);
+		test	DFCNTRL, SCSIEN|HDMAEN jnz .;
 	} else {
 		/* If we are the last SG block, tell the hardware. */
 		if ((ahc->bugs & AHC_PCI_MWI_BUG) != 0
@@ -1159,7 +1215,11 @@ data_phase_finish:
 	}
 	if ((ahc->flags & AHC_INITIATORROLE) != 0) {
 		test	SSTAT1, REQINIT jz .;
-		test	SSTAT1,PHASEMIS	jz data_phase_loop;
+		if ((ahc->features & AHC_DT) == 0) {
+			test	SSTAT1,PHASEMIS	jz data_phase_loop;
+		} else {
+			test	SCSIPHASE, DATA_PHASE_MASK jnz data_phase_loop;
+		}
 	}
 
 data_phase_done:
@@ -1263,7 +1323,7 @@ p_command_from_host:
 	jmp	p_command_loop;
 p_command_embedded:
 	/*
-	 * The data fifo seems to require 4 byte alligned
+	 * The data fifo seems to require 4 byte aligned
 	 * transfers from the sequencer.  Force this to
 	 * be the case by clearing HADDR[0] even though
 	 * we aren't going to touch host memeory.
@@ -1299,13 +1359,17 @@ p_command_embedded:
 		or	DFCNTRL, FIFOFLUSH;
 	}
 p_command_loop:
-	test	SSTAT0, SDONE jnz . + 2;
-	test    SSTAT1, PHASEMIS jz p_command_loop;
-	/*
-	 * Wait for our ACK to go-away on it's own
-	 * instead of being killed by SCSIEN getting cleared.
-	 */
-	test	SCSISIGI, ACKI jnz .;
+	if ((ahc->features & AHC_DT) == 0) {
+		test	SSTAT0, SDONE jnz . + 2;
+		test    SSTAT1, PHASEMIS jz p_command_loop;
+		/*
+		 * Wait for our ACK to go-away on it's own
+		 * instead of being killed by SCSIEN getting cleared.
+		 */
+		test	SCSISIGI, ACKI jnz .;
+	} else {
+		test	DFCNTRL, SCSIEN jnz p_command_loop;
+	}
 	and	DFCNTRL, ~(SCSIEN|SDMAEN|HDMAEN);
 	test	DFCNTRL, (SCSIEN|SDMAEN|HDMAEN) jnz .;
 	if ((ahc->features & AHC_ULTRA2) != 0) {
@@ -1349,7 +1413,12 @@ p_status:
  * reason.
  */
 p_mesgout_retry:
-	or	SCSISIGO,ATNO,LASTPHASE;/* turn on ATN for the retry */
+	/* Turn on ATN for the retry */
+	if ((ahc->features & AHC_DT) == 0) {
+		or	SCSISIGO, ATNO, LASTPHASE;
+	} else {
+		mvi	SCSISIGO, ATNO;
+	}
 p_mesgout:
 	mov	SINDEX, MSG_OUT;
 	cmp	SINDEX, MSG_IDENTIFYFLAG jne p_mesgout_from_host;
@@ -1546,10 +1615,17 @@ mesgin_disconnect:
  * only if we've actually been into a data phase to change them.  This
  * protects against bogus data in scratch ram and the residual counts
  * since they are only initialized when we go into data_in or data_out.
+ * Ack the message as soon as possible.  For chips without S/G pipelining,
+ * we can only ack the message after SHADDR has been saved.  On these
+ * chips, SHADDR increments with every bus transaction, even PIO.
  */
 mesgin_sdptrs:
-	test	SEQ_FLAGS, DPHASE	jz mesgin_done;
-
+	if ((ahc->features & AHC_ULTRA2) != 0) {
+		mov	NONE,SCSIDATL;		/*dummy read from latch to ACK*/
+		test	SEQ_FLAGS, DPHASE	jz ITloop;
+	} else {
+		test	SEQ_FLAGS, DPHASE	jz mesgin_done;
+	}
 	/*
 	 * The SCB_SGPTR becomes the next one we'll download,
 	 * and the SCB_DATAPTR becomes the current SHADDR.
@@ -1558,13 +1634,17 @@ mesgin_sdptrs:
 	 */
 	if ((ahc->features & AHC_CMD_CHAN) != 0) {
 		bmov	SCB_DATAPTR, SHADDR, 4;
+		if ((ahc->features & AHC_ULTRA2) == 0) {
+			mov	NONE,SCSIDATL;	/*dummy read from latch to ACK*/
+		}
 		bmov	SCB_DATACNT, SCB_RESIDUAL_DATACNT, 8;
 	} else {
 		mvi	DINDEX, SCB_DATAPTR;
 		mvi	SHADDR call bcopy_4;
+		mov	NONE,SCSIDATL;	/*dummy read from latch to ACK*/
 		mvi	SCB_RESIDUAL_DATACNT call bcopy_8;
 	}
-	jmp	mesgin_done;
+	jmp	ITloop;
 
 /*
  * Restore pointers message?  Data pointers are recopied from the
@@ -1742,7 +1822,11 @@ not_found:
 	jmp	mesgin_done;
 
 mk_mesg:
-	or	SCSISIGO,ATNO,LASTPHASE;/* turn on ATNO */
+	if ((ahc->features & AHC_DT) == 0) {
+		or	SCSISIGO, ATNO, LASTPHASE;
+	} else {
+		mvi	SCSISIGO, ATNO;
+	}
 	mov	MSG_OUT,SINDEX ret;
 
 /*
@@ -1789,7 +1873,7 @@ if ((ahc->flags & AHC_TARGETROLE) != 0) {
  * from out to in, wait an additional data release delay before continuing.
  */
 change_phase:
-	/* Wait for preceding I/O session to complete. */
+	/* Wait for preceeding I/O session to complete. */
 	test	SCSISIGI, ACKI jnz .;
 
 	/* Change the phase */
@@ -1915,7 +1999,9 @@ phase_lock:
 	test	SSTAT1, REQINIT jz phase_lock;
 	test	SSTAT1, SCSIPERR jnz phase_lock_perr;
 phase_lock_latch_phase:
-	and	SCSISIGO, PHASE_MASK, SCSISIGI;
+	if ((ahc->features & AHC_DT) == 0) {
+		and	SCSISIGO, PHASE_MASK, SCSISIGI;
+	}
 	and	LASTPHASE, PHASE_MASK, SCSISIGI ret;
 
 if ((ahc->features & AHC_CMD_CHAN) == 0) {
