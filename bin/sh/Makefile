@@ -22,6 +22,7 @@ CFLAGS+=-DSHELL -I. -I${.CURDIR}
 # for debug:
 # CFLAGS+= -g -DDEBUG=2
 WARNS=	0
+WFORMAT=0
 
 .PATH:	${.CURDIR}/bltin \
 	${.CURDIR}/../../bin/test

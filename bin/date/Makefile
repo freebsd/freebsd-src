@@ -4,6 +4,7 @@
 PROG=	date
 SRCS=	date.c netdate.c vary.c
 WARNS=	0
+WFORMAT=0
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 

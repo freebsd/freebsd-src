@@ -12,6 +12,8 @@ MAN=	rmail.8
 CFLAGS+=-I${SENDMAIL_DIR}/include
 WARNS=	0
 
+WFORMAT?=	0
+
 .if exists(${.OBJDIR}/../../lib/libsmutil)
 LIBSMUTILDIR:=	${.OBJDIR}/../../lib/libsmutil
 .else
