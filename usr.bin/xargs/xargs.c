@@ -52,19 +52,12 @@ static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#if (__FreeBSD_version >= 450002 && __FreeBSD_version < 500000) || \
-    __FreeBSD_version >= 500017
-#define HAS_LANGINFO
-#endif
-
 #include <sys/wait.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#ifdef HAS_LANGINFO
 #include <langinfo.h>
-#endif
 #include <locale.h>
 #include <paths.h>
 #include <regex.h>
@@ -590,13 +583,7 @@ prompt(void)
 	(void)fprintf(stderr, "?...");
 	(void)fflush(stderr);
 	if ((response = fgetln(ttyfp, &rsize)) == NULL ||
-	    regcomp(&cre,
-#ifdef HAS_LANGINFO
-		nl_langinfo(YESEXPR),
-#else
-		"^[yY]",
-#endif
-		REG_BASIC) != 0) {
+	    regcomp(&cre, nl_langinfo(YESEXPR), REG_BASIC) != 0) {
 		(void)fclose(ttyfp);
 		return (0);
 	}

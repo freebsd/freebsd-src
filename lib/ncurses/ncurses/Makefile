@@ -25,11 +25,7 @@ BROKEN_LINKER=		0
 BUILTIN_BOOL=		1
 BOOL_TYPE=		0
 HAVE_VSSCANF=		1
-.if defined(BOOTSTRAPPING) && !exists(/usr/include/stdbool.h)
-HEADER_STDBOOL=		0
-.else
 HEADER_STDBOOL=		1
-.endif
 TYPE_OF_BOOL=		unsigned char
 TYPEOF_CHTYPE=		long
 WIDEC_SHIFT=		8
