@@ -144,7 +144,7 @@ will display fewer devices if there aren't
 devices present.
 .It Fl N
 Extract the name list from the specified system instead of the default
-.Dq Pa /kernel .
+.Dq Pa /boot/kernel/kernel .
 .It Fl o
 Display old-style
 .Nm
@@ -350,8 +350,8 @@ average milliseconds per transaction
 .El
 .El
 .Sh FILES
-.Bl -tag -width /dev/kmem -compact
-.It Pa /kernel
+.Bl -tag -width /boot/kernel/kernel -compact
+.It Pa /boot/kernel/kernel
 Default kernel namelist.
 .It Pa /dev/kmem
 Default memory file.
