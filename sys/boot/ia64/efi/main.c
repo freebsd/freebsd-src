@@ -128,12 +128,6 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	bcache_init(32, 512);		/* 16k XXX tune this */
 
 	find_pal_proc();
-	printf("ia64_pal_entry=0x%lx\n", ia64_pal_entry);
-
-	res = ia64_call_pal_static(PAL_CACHE_SUMMARY, 0, 0, 0);
-	printf("status=%d\n", res.pal_status);
-	printf("cache_levels=%d\n", res.pal_result[0]);
-	printf("unique_caches=%d\n", res.pal_result[1]);
 
 	/*
 	 * March through the device switch probing for things.
@@ -423,7 +417,6 @@ print_trs(int type)
 	pager_output("V RID    Virtual Page  Physical Page PgSz ED AR PL D A MA  P KEY\n");
 	for (i = 0; i <= maxtr; i++) {
 		char lbuf[128];
-		struct ia64_pte *pte;
 
 		bzero(&buf, sizeof(buf));
 		res = ia64_call_pal_stacked(PAL_VM_TR_READ, i, type,
@@ -438,7 +431,7 @@ print_trs(int type)
 			buf.pte.pte_ma = 0;
 		sprintf(lbuf,
 			"%d %06x %013x %013x %4s %d  %d  %d  %d %d %-3s %d %06x\n",
-			res.pal_result[0] != 0,
+			buf.ifa.ifa_ig & 1,
 			buf.rr.rr_rid,
 			buf.ifa.ifa_vpn,
 			buf.pte.pte_ppn,
@@ -454,6 +447,8 @@ print_trs(int type)
 		pager_output(lbuf);
 	}
 	pager_close();
+
+	return CMD_OK;
 }
 
 COMMAND_SET(itr, "itr", "print instruction TRs", command_itr);
