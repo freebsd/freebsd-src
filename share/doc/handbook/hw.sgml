@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.64 1997/02/28 14:20:57 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.65 1997/03/21 01:36:18 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -180,7 +180,7 @@ Slippery when wet.  Beware of dog.
 
   <sect2><heading>Video Cards<label id="hw:video"></heading>
     <p>If you can also afford to buy a commercial X server for US&dollar;99
-    from <htmlurl url="http://www.xinside.com/"
+    from <htmlurl url="http://www.xig.com/"
     name="Xi Graphics, Inc. (formerly X Inside, Inc)"> then I can heartily
     recommend the <htmlurl url="http://www.matrox.com/" name="Matrox">
     <htmlurl url="http://www.matrox.com/mgaweb/brochure.htm"
