@@ -157,6 +157,6 @@ struct ast_softc {
     struct bio_queue_head	queue;		/* queue of i/o requests */
     struct atapi_params		*param;		/* drive parameters table */
     struct ast_cappage		cap;		/* capabilities page info */
-    struct devstat		stats;		/* devstat entry */
+    struct devstat		*stats;		/* devstat entry */
     dev_t			dev1, dev2;	/* device place holders */
 };
