@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.33 1995/03/20 10:20:42 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.34 1995/03/21 01:11:44 davidg Exp $
  */
 
 /*
@@ -1158,8 +1158,6 @@ retryoutput:
 		VOP_UNLOCK(vp);
 		return rtvals[0];
 	}
-	tv = time;
-	VOP_UPDATE(vp, &tv, &tv, 0);
 
 	/*
 	 * if the filesystem has a small blocksize, then use the small block
