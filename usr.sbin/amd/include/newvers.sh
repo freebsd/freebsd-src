@@ -5,8 +5,8 @@
 #
 
 if [ -e $1 ]; then
-	eval `egrep '^[A-Z]+=' $1 | grep -v COPYRIGHT`
-	OS=`echo ${TYPE} | tr '[A-Z]' '[a-z]'`
+	eval `LANG=C egrep '^[A-Z]+=' $1 | grep -v COPYRIGHT`
+	OS=`echo ${TYPE} | LANG=C tr 'A-Z' 'a-z'`
 	echo '/* Define name and version of host machine (eg. solaris2.5.1) */'
 	echo "#define HOST_OS \"${OS}${REVISION}\""
 	echo '/* Define only name of host machine OS (eg. solaris2) */'
@@ -18,10 +18,10 @@ else
 cat << __NO_newvers_sh
 
 /* Define name and version of host machine (eg. solaris2.5.1) */
-#define HOST_OS "`uname -s | tr '[A-Z]' '[a-z]'``uname -r`"
+#define HOST_OS "`uname -s | LANG=C tr 'A-Z' 'a-z'``uname -r`"
 
 /* Define only name of host machine OS (eg. solaris2) */
-#define HOST_OS_NAME "`uname -s | tr '[A-Z]' '[a-z]'``uname -r | sed -e 's/\..*$//'`"
+#define HOST_OS_NAME "`uname -s | LANG=C tr 'A-Z' 'a-z'``uname -r | sed -e 's/\..*$//'`"
 
 /* Define only version of host machine (eg. 2.5.1) */
 #define HOST_OS_VERSION "`uname -r | sed -e 's/[-([:alpha:]].*//'`"
