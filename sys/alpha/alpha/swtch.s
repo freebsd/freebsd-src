@@ -1,4 +1,4 @@
-/* $Id: swtch.s,v 1.5 1998/08/23 16:05:54 dfr Exp $ */
+/* $Id: swtch.s,v 1.6 1998/11/15 18:25:15 dfr Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*
@@ -324,16 +324,18 @@ Lsetfpenable:
 	cmovne	t0, 1, a0
 	call_pal PAL_OSF1_wrfen
 
+Lrestoreregs:
 	/* set the hae register if this process has specified a value */
 	ldq	t0, curproc
+	beq	t0, Lnohae
 	ldq	t1, P_MD_FLAGS(t0)
 	and	t1, MDP_HAEUSED
-	beq	t1, Lrestoreregs
+	beq	t1, Lnohae
 	ldq	a0, P_MD_HAE(t0)
 	ldq	pv, chipset + CHIPSET_WRITE_HAE
 	CALL((pv))
+Lnohae:	
 
-Lrestoreregs:
 	/* restore the registers, and return */
 	bsr	ra, exception_restore_regs	/* jmp/CALL trashes pv/t12 */
 	ldq	ra,(FRAME_RA*8)(sp)
