@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2002 Poul-Henning Kamp
+ *
+ * Copyright (c) 2002 Peter Grehan.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,9 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,155 +27,240 @@
  * $FreeBSD$
  */
 
+/*
+ * GEOM module for Apple Partition Maps
+ *  As described in 'Inside Macintosh Vol 3: About the SCSI Manager -
+ *    The Structure of Block Devices"
+ */
 
 #include <sys/param.h>
 #ifndef _KERNEL
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <signal.h>
+#include <sys/param.h>
+#include <stdlib.h>
 #include <err.h>
 #else
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/conf.h>
-#include <sys/bio.h>
 #include <sys/malloc.h>
+#include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #endif
+
+#include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
-#include <machine/endian.h>
 
 #define APPLE_CLASS_NAME "APPLE"
 
-struct g_apple_softc {
-	int nheads;
-	int nsects;
-	int nalt;
+#define NAPMPART  16	/* Max partitions */
+
+struct apm_partition {
+	char       am_sig[2];
+	u_int32_t  am_mapcnt;
+	u_int32_t  am_start;
+	u_int32_t  am_partcnt;
+	char       am_name[32];
+	char       am_type[32];	
 };
+
+struct g_apple_softc {
+	u_int16_t dd_bsiz;
+	u_int32_t dd_blkcnt;
+	u_int16_t dd_drvrcnt;
+	u_int32_t am_mapcnt0;
+	struct apm_partition apmpart[NAPMPART];
+};
+
+static void
+g_dec_drvrdesc(u_char *ptr, struct g_apple_softc *sc)
+{
+	sc->dd_bsiz = g_dec_be2(ptr + 2);
+	sc->dd_blkcnt = g_dec_be4(ptr + 4);
+	sc->dd_drvrcnt = g_dec_be4(ptr + 16);
+}
+
+static void
+g_dec_apple_partition(u_char *ptr, struct apm_partition *d)
+{
+	d->am_sig[0] = ptr[0];
+	d->am_sig[1] = ptr[1];
+	d->am_mapcnt = g_dec_be4(ptr + 4);
+	d->am_start = g_dec_be4(ptr + 8);
+	d->am_partcnt = g_dec_be4(ptr + 12);
+	memcpy(d->am_name, ptr + 16, 32);
+	memcpy(d->am_type, ptr + 48, 32);
+}
 
 static int
 g_apple_start(struct bio *bp)
 {
+	struct g_provider *pp;
 	struct g_geom *gp;
-	struct g_apple_softc *ms;
+	struct g_apm_softc *mp;
 	struct g_slicer *gsp;
 
-	gp = bp->bio_to->geom;
+	pp = bp->bio_to;
+	gp = pp->geom;
 	gsp = gp->softc;
-	ms = gsp->softc;
+	mp = gsp->softc;
+	if (bp->bio_cmd == BIO_GETATTR) {
+		if (g_handleattr_off_t(bp, "APM::offset",
+		    gsp->slices[pp->index].offset))
+			return (1);
+	}
 	return (0);
 }
 
 static void
-g_apple_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
+g_apple_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, 
+    struct g_consumer *cp __unused, struct g_provider *pp)
 {
+	struct g_apple_softc *mp;
 	struct g_slicer *gsp;
-	struct g_apple_softc *ms;
 
 	gsp = gp->softc;
-	ms = gsp->softc;
+	mp = gsp->softc;
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
-	if (indent == NULL) {
-		sbuf_printf(sb, " sc %u hd %u alt %u",
-		    ms->nsects, ms->nheads, ms->nalt);
+	if (pp != NULL) {
+		if (indent == NULL)
+			sbuf_printf(sb, " n %s ty %s",
+			    mp->apmpart[pp->index].am_name,
+			    mp->apmpart[pp->index].am_type);
+		else {
+			sbuf_printf(sb, "%s<name>%s</name>\n", indent,
+			    mp->apmpart[pp->index].am_name);
+			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
+			    mp->apmpart[pp->index].am_type);
+		}
 	}
 }
 
+#if 0
+static void
+g_apple_print()
+{
+
+	/* XXX */
+}
+#endif
+
 static struct g_geom *
-g_apple_taste(struct g_class *mp, struct g_provider *pp, int flags)
+g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	int error, i;
-	u_char *buf;
+	int error, i, npart;
 	struct g_apple_softc *ms;
-	u_int sectorsize, pssize;
-	off_t mediasize, o;
 	struct g_slicer *gsp;
+	struct apm_partition *apm;
+	u_int sectorsize;
+	u_char *buf;
 
-	g_trace(G_T_TOPOLOGY, "g_apple_taste(%s,%s)", mp->name, pp->name);
+	g_trace(G_T_TOPOLOGY, "apple_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
-	if (flags == G_TF_NORMAL &&
-	    !strcmp(pp->geom->class->name, APPLE_CLASS_NAME))
-		return (NULL);
-	gp = g_slice_new(mp, 8, pp, &cp, &ms, sizeof *ms, g_apple_start);
+	gp = g_slice_new(mp, NAPMPART, pp, &cp, &ms, sizeof *ms, g_apple_start);
 	if (gp == NULL)
 		return (NULL);
 	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_apple_dumpconf;
+	npart = 0;
 	while (1) {	/* a trick to allow us to use break */
-		if (gp->rank != 2 && flags == G_TF_NORMAL)
+		if (gp->rank != 2 && insist == 0)
 			break;
+
 		sectorsize = cp->provider->sectorsize;
-		if (sectorsize < 512)
+		if (sectorsize != 512)
 			break;
-		gsp->frontstuff = 16 * sectorsize;
-		mediasize = cp->provider->mediasize;
+
+		/*
+		 * Reserve the driver record. XXX Should the partition
+		 * map be included ?
+		 */
+		gsp->frontstuff = sectorsize;
+
 		buf = g_read_data(cp, 0, sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;
 
-
-		/* The second last short is a magic number */
-		if (g_dec_be2(buf + 0) != 0x4552)
+		/*
+		 * Test for the sector 0 driver record signature, and 
+		 * validate sector and disk size
+		 */
+		if (buf[0] != 'E' && buf[1] != 'R') {
+			g_free(buf);
 			break;
-		g_hexdump(buf, 26);
-		pssize = g_dec_be2(buf + 2);
-		printf("sbSig:		0x%04x\n", g_dec_be2(buf + 0));
-		printf("sbBlksize:	%u\n", g_dec_be2(buf + 2));
-		printf("sbBlkCount:	%u\n", g_dec_be4(buf + 4));
-		printf("sbDevType:	%u\n", g_dec_be2(buf + 8));
-		printf("sbDevId:	%u\n", g_dec_be2(buf + 10));
-		printf("sbData:		%u\n", g_dec_be4(buf + 12));
-		printf("sbDrvCount:	%u\n", g_dec_be2(buf + 16));
-		printf("ddBlock:	%u\n", g_dec_be4(buf + 18));
-		printf("ddSize:		%u\n", g_dec_be2(buf + 22));
-		printf("ddType:		%u\n", g_dec_be2(buf + 24));
+		}
+		g_dec_drvrdesc(buf, ms);
+		g_free(buf);
 
-		i = 0;
-		for (o = sectorsize; ; o += sectorsize) {
-			buf = g_read_data(cp, o, sectorsize, &error);
-			if (buf == NULL || error != 0)
-				break;
-			if (g_dec_be2(buf + 0) != 0x504d)
-				break;
-			g_hexdump(buf, 136);
-			printf("pmSig:		0x%04x\n", g_dec_be2(buf + 0));
-			printf("pmSigPad:	0x%04x\n", g_dec_be2(buf + 2));
-			printf("pmMapBlkCnt:	%u\n", g_dec_be4(buf + 4));
-			printf("pmPyPartStart:	%u\n", g_dec_be4(buf + 8));
-			printf("pmPartBlkCnt:	%u\n", g_dec_be4(buf + 12));
-			printf("pmPartName:\n");
-			g_hexdump(buf + 16, 32);
-			printf("pmPartType:\n");
-			g_hexdump(buf + 48, 32);
-			printf("pmLgDataStart:	%u\n", g_dec_be4(buf + 80));
-			printf("pmDataCnt:	%u\n", g_dec_be4(buf + 84));
-			printf("pmPartStatus:	0x%x\n", g_dec_be4(buf + 88));
-			printf("pmLgBootStart:	%u\n", g_dec_be4(buf + 92));
-			printf("pmBootSize:	%u\n", g_dec_be4(buf + 96));
-			printf("pmBootAddr:	%u\n", g_dec_be4(buf + 100));
-			printf("pmBootAddr2:	%u\n", g_dec_be4(buf + 104));
-			printf("pmBootEntry:	%u\n", g_dec_be4(buf + 108));
-			printf("pmBootEntry2:	%u\n", g_dec_be4(buf + 112));
-			printf("pmBootCksum:	%u\n", g_dec_be4(buf + 116));
-			printf("pmProcessor:\n");
-			g_hexdump(buf + 120, 16);
+		if (ms->dd_bsiz != 512) {
+			break;
+		}
+
+		/*
+		 * Read in the first partition map
+		 */
+		buf = g_read_data(cp, sectorsize, sectorsize,  &error);
+		if (buf == NULL || error != 0)
+			break;
+
+		/*
+		 * Decode the first partition: it's another indication of
+		 * validity, as well as giving the size of the partition
+		 * map
+		 */
+		apm = &ms->apmpart[0];
+		g_dec_apple_partition(buf, apm);
+		g_free(buf);
+		
+		if (apm->am_sig[0] != 'P' || apm->am_sig[1] != 'M')
+			break;
+		ms->am_mapcnt0 = apm->am_mapcnt;
+	       
+		buf = g_read_data(cp, 2 * sectorsize, 
+		    (NAPMPART - 1) * sectorsize,  &error);
+		if (buf == NULL || error != 0)
+			break;
+
+		for (i = 1; i < NAPMPART; i++) {
+			g_dec_apple_partition(buf + ((i - 1) * sectorsize),
+			    &ms->apmpart[i]);
+		}
+
+		npart = 0;
+		for (i = 0; i < NAPMPART; i++) {
+			apm = &ms->apmpart[i];
+
+			/*
+			 * Validate partition sig and global mapcount
+			 */
+			if (apm->am_sig[0] != 'P' ||
+			    apm->am_sig[1] != 'M')
+				continue;
+			if (apm->am_mapcnt != ms->am_mapcnt0)
+				continue;
+
+			if (bootverbose) {
+				printf("APM Slice %d (%s/%s) on %s:\n", 
+				    i + 1, apm->am_name, apm->am_type, 
+				    gp->name);
+				/* g_apple_print(i, dp + i); */
+			}
+			npart++;
 			g_topology_lock();
 			g_slice_config(gp, i, G_SLICE_CONFIG_SET,
-			    (off_t)g_dec_be4(buf + 8) * pssize,
-			    (off_t)g_dec_be4(buf + 12) * pssize,
+			    (off_t)apm->am_start << 9ULL,
+			    (off_t)apm->am_partcnt << 9ULL,
 			    sectorsize,
-			    "%sp%d", pp->name, i);
-			i++;
+			    "%ss%d", gp->name, i + 1);
 			g_topology_unlock();
 		}
 		break;
-
 	}
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
@@ -188,7 +271,8 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	return (gp);
 }
 
-static struct g_class g_apple_class = {
+
+static struct g_class g_apple_class	= {
 	APPLE_CLASS_NAME,
 	g_apple_taste,
 	NULL,
