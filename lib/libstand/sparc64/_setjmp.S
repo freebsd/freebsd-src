@@ -65,17 +65,15 @@ __FBSDID("$FreeBSD$");
  * by restoring the previous context.
  */
 
-ENTRY(setjmp)
+ENTRY(_setjmp)
 	stx	%sp, [%o0 + _JB_SP]
 	stx	%o7, [%o0 + _JB_PC]
 	stx	%fp, [%o0 + _JB_FP]
 	retl
 	 clr	%o0
-END(setjmp)
+END(_setjmp)
 
-	.weak	CNAME(longjmp)
-	.set	CNAME(longjmp),CNAME(__longjmp)
-ENTRY(__longjmp)
+ENTRY(_longjmp)
 	mov	1, %g1
 	movrnz	%o1, %o1, %g1
 	mov	%o0, %g2
@@ -97,4 +95,4 @@ ENTRY(__longjmp)
 3:	ldx	[%g2 + _JB_PC], %o7
 	retl
 	 mov	%g1, %o0
-END(__longjmp)
+END(_longjmp)
