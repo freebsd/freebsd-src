@@ -1412,16 +1412,16 @@ SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)
  */
 
 void
-bpf_tap(ifp, pkt, pktlen)
-	struct ifnet *ifp;
+bpf_tap(bp, pkt, pktlen)
+	struct bpf_if *bp;
 	register u_char *pkt;
 	register u_int pktlen;
 {
 }
 
 void
-bpf_mtap(ifp, m)
-	struct ifnet *ifp;
+bpf_mtap(bp, m)
+	struct bpf_if *bp;
 	struct mbuf *m;
 {
 }
