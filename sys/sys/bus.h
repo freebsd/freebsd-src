@@ -88,6 +88,7 @@ enum intr_type {
 	INTR_TYPE_CAM = 8,
 	INTR_TYPE_MISC = 16,
 	INTR_TYPE_CLK = 32,
+	INTR_TYPE_AV = 64,
 	INTR_FAST = 128,
 	INTR_EXCL = 256,		/* exclusive interrupt */
 	INTR_MPSAFE = 512,		/* this interrupt is SMP safe */

@@ -76,7 +76,7 @@ ithread_priority(enum intr_type flags)
 	u_char pri;
 
 	flags &= (INTR_TYPE_TTY | INTR_TYPE_BIO | INTR_TYPE_NET |
-	    INTR_TYPE_CAM | INTR_TYPE_MISC | INTR_TYPE_CLK);
+	    INTR_TYPE_CAM | INTR_TYPE_MISC | INTR_TYPE_CLK | INTR_TYPE_AV);
 	switch (flags) {
 	case INTR_TYPE_TTY:
 		pri = PI_TTYLOW;
@@ -93,6 +93,9 @@ ithread_priority(enum intr_type flags)
 		break;
 	case INTR_TYPE_CAM:
 		pri = PI_DISK;          /* XXX or PI_CAM? */
+		break;
+	case INTR_TYPE_AV:		/* Audio/video */
+		pri = PI_AV;
 		break;
 	case INTR_TYPE_CLK:
 		pri = PI_REALTIME;
