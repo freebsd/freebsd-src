@@ -333,8 +333,8 @@ RTM_CHANGE.
 As such, only the super-user may modify
 the routing tables.
 .Sh DIAGNOSTICS
-.Bl -tag -width Ds
-.It Sy "add [host \&| network ] %s: gateway %s flags %x"
+.Bl -diag
+.It "add [host \&| network ] %s: gateway %s flags %x"
 The specified route is being added to the tables.  The
 values printed are from the routing table entry supplied
 in the 
@@ -344,21 +344,21 @@ If the gateway address used was not the primary address of the gateway
 (the first one returned by
 .Xr gethostbyname 3 ) ,
 the gateway address is printed numerically as well as symbolically.
-.It Sy "delete [ host \&| network ] %s: gateway %s flags %x" 
+.It "delete [ host \&| network ] %s: gateway %s flags %x" 
 As above, but when deleting an entry.
-.It Sy "%s %s done"
+.It "%s %s done"
 When the 
 .Cm flush
 command is specified, each routing table entry deleted
 is indicated with a message of this form.
-.It Sy "Network is unreachable"
+.It "Network is unreachable"
 An attempt to add a route failed because the gateway listed was not
 on a directly-connected network.
 The next-hop gateway must be given.
-.It Sy "not in table"
+.It "not in table"
 A delete operation was attempted for an entry which
 wasn't present in the tables.
-.It Sy "routing table overflow"
+.It "routing table overflow"
 An add operation was attempted, but the system was
 low on resources and was unable to allocate memory
 to create the new entry.
