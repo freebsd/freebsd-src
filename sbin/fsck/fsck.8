@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 23, 1996
+.Dd April 25, 2001
 .Dt FSCK 8
 .Os
 .Sh NAME
@@ -75,12 +75,18 @@ the background checking is started asynchonously
 so that other system activity can proceed
 even on the filesystems that are being checked.
 .Pp
-If no filesystems are specified
+If no filesystems are specified,
 .Nm
 reads the table
 .Pa /etc/fstab
 to determine which filesystems to check.
-Only partitions in fstab that are mounted ``rw,'' ``rq'' or ``ro''
+Only partitions in
+.Pa /etc/fstab
+that are mounted
+.Dq rw ,
+.Dq rq
+or
+.Dq ro
 and that have non-zero pass number are checked.
 Filesystems with pass number 1 (normally just the root filesystem)
 are always checked one at a time.
@@ -183,7 +189,7 @@ file system type, in the same format as
 file system table
 .El
 .Sh SEE ALSO
-.Xr mount 8 ,
 .Xr fstab 5 ,
+.Xr fsck_ffs 8 ,
 .Xr fsck_msdos 8 ,
-.Xr fsck_ffs 8
+.Xr mount 8
