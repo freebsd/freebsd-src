@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.513 1998/12/27 12:40:07 phk Exp $
+#	$Id: LINT,v 1.514 1998/12/27 12:44:54 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -817,13 +817,6 @@ options		"NTIMECOUNTER=20"
 # attach to PnP cards for drivers that support it and allows you to
 # configure cards from USERCONFIG.  See pnp(4) for more info.
 controller	pnp0
-
-# The pcvt console driver (vt220 compatible).
-device		vt0	at isa? port IO_KBD conflicts tty irq 1
-options		XSERVER			# support for running an X server.
-options		FAT_CURSOR		# start with block cursor
-# This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
-options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 
 # The syscons console driver (sco color console compatible).
 device		sc0	at isa? port IO_KBD conflicts tty irq 1
