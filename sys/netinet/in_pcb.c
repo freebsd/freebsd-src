@@ -1119,7 +1119,7 @@ in_pcbrehash(inp)
 	u_int32_t hashkey_faddr;
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
-	/* XXX? INP_LOCK_ASSERT(inp); */
+	INP_LOCK_ASSERT(inp);
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
 		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
