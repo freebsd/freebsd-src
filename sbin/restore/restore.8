@@ -205,7 +205,8 @@ The
 .Fl r
 flag precludes an interactive file extraction and can be
 detrimental to one's health if not used carefully (not to mention
-the disk). An example:
+the disk).
+An example:
 .Bd -literal -offset indent
 newfs /dev/da0s1a
 mount /dev/da0s1a /mnt
@@ -279,7 +280,8 @@ tries to determine the media block size dynamically.
 Normally,
 .Nm
 will try to determine dynamically whether the dump was made from an
-old (pre-4.4) or new format file system.  The
+old (pre-4.4) or new format file system.
+The
 .Fl c
 flag disables this check, and only allows reading a dump in the old
 format.
@@ -472,8 +474,10 @@ thus a full dump must be done to get a new set of directories
 reflecting the new inode numbering,
 even though the contents of the files is unchanged.
 .Pp
-To do a network restore, you have to run restore as root.  This is due
-to the previous security history of dump and restore.  (restore is
+To do a network restore, you have to run restore as root.
+This is due
+to the previous security history of dump and restore.
+(restore is
 written to be setuid root, but we are not certain all bugs are gone
 from the restore code - run setuid at your own risk.)
 .Pp

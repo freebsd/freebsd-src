@@ -121,7 +121,8 @@ the string is used to specify a dial sequence.
 No string written by default.
 You can specify several
 .Fl s Ar stringN
-arguments to use with each try, f.e. several host phone numbers.
+arguments to use with each try, f.e.
+several host phone numbers.
 .It Fl A Ar annexname
 The
 .Nm
@@ -144,11 +145,13 @@ Disable modem control (waiting for carrier and carrier drop sense) for
 .Ar device .
 Modem control is enabled by default.
 .It Fl U Ar upscript
-Specify a script to run when a SLIP interface becomes connected.  This may
+Specify a script to run when a SLIP interface becomes connected.
+This may
 contain
 .Xr ifconfig 8 ,
 .Xr route 8 ,
-and other appropriate commands.  The arguments that
+and other appropriate commands.
+The arguments that
 are passed to the script are "slX up".
 Default value is
 .Pa /sbin/ifconfig .
@@ -158,8 +161,10 @@ passed via
 .Ev LINE
 environment variable.
 .It Fl D Ar downscript
-Specify a script to run when a SLIP connection goes away.  The arguments that
-are passed to the script are "slX down". Default value is
+Specify a script to run when a SLIP connection goes away.
+The arguments that
+are passed to the script are "slX down".
+Default value is
 .Pa /sbin/ifconfig .
 Dial sequence number (see
 .Fl s )
