@@ -1,8 +1,9 @@
-.\"     $KAME: stf.4,v 1.6 2000/03/11 08:01:51 itojun Exp $
+.\"	$FreeBSD$
+.\"     $KAME: stf.4,v 1.24 2000/06/07 23:35:18 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -14,7 +15,7 @@
 .\" 3. Neither the name of the project nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,11 +28,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
-.\"
 .Dd March 6, 2000
 .Dt STF 4
-.Os KAME
+.Os
 .Sh NAME
 .Nm stf
 .Nd
@@ -45,7 +44,19 @@ interface supports
 .Dq 6to4
 IPv6 in IPv4 encapsulation.
 It can tunnel IPv6 traffic over IPv4, as specified in
-.Li draft-ietf-ngtrans-6to4-03.txt .
+.Li draft-ietf-ngtrans-6to4-06.txt .
+.Pp
+For ordinary nodes in 6to4 site, you do not need
+.Nm
+interface.
+The
+.Nm
+interface is necessary for site border router
+.Po
+called
+.Dq 6to4 router
+in the specification
+.Pc .
 .Pp
 Due to the way 6to4 protocol is specified,
 .Nm
@@ -66,10 +77,15 @@ matches
 where
 .Li xxyy:zzuu
 is a hexadecimal notation of an IPv4 address for the node.
+IPv4 address can be taken from any of interfaces your node has.
+Since the specification forbids the use of IPv4 private address,
+the address needs to be a global IPv4 address.
 .It
-The interface identifier portion
+Subnet identifier portion
+.Pq 48th to 63rd bit
+and interface identifier portion
 .Pq lower 64 bits
-is properly filled to avoid address collisions.
+are properly filled to avoid address collisions.
 .El
 .Pp
 If you would like the node to behave as a relay router,
@@ -79,10 +95,9 @@ the node would consider any 6to4 destination as
 If you would like to restrict 6to4 peers to be inside certain IPv4 prefix,
 you may want to configure IPv6 prefix length as
 .Dq 16 + IPv4 prefix length .
-.\"(Not yet implemented on 4.0)
-.\".Nm
-.\"interface will check the IPv4 source address on packets,
-.\"if the IPv6 prefix length is larger than 16.
+.Nm
+interface will check the IPv4 source address on packets,
+if the IPv6 prefix length is larger than 16.
 .Pp
 .Nm
 can be configured to be ECN friendly.
@@ -102,23 +117,40 @@ fabricated IPv6 packet to your node.
 Also, malicious party can inject an IPv6 packet with fabricated source address
 to make your node generate improper tunnelled packet.
 Administrators must take caution when enabling the interface.
+To prevent possible attacks,
+.Nm
+interface filters out the following packets.
+Note that the checks are no way complete:
+.Bl -bullet
+.It
+Packets with IPv4 unspecified addrss as outer IPv4 source/destination
+.Pq Li 0.0.0.0/8
+.It
+Packets with loopback address as outer IPv4 source/destination
+.Pq Li 127.0.0.0/8
+.It
+Packets with IPv4 multicast address as outer IPv4 source/destination
+.Pq Li 224.0.0.0/4
+.It
+Packets with limited broadcast address as outer IPv4 source/destination
+.Pq Li 255.0.0.0/8
+.It
+Packets with subnet broadcast address as outer IPv4 source/destination.
+The check is made against subnet broadcast addresses for
+all of the directly connected subnets.
+.It
+Packets that does not pass ingress filtering.
+Outer IPv4 source address must meet the IPv4 topology on the routing table.
+.It
+The same set of rules are appplied against the IPv4 address embedded into
+inner IPv6 address, if the IPv6 address matches 6to4 prefix.
+.El
+.Pp
 It is recommended to filter/audit
 incoming IPv4 packet with IP protocol number 41, as necessary.
-.\"To prevent possible DoS attacks,
-.\"(No check yet on 4.0, but such packets won't go through IPv4 cloud.)
-.\".Nm
-.\"interface filters out packets with the following property:
-.\".Bl -bullet
-.\".It
-.\"Packets with 6to4 address based on 0.0.0.0, as inner destination/source
-.\".It
-.\"Packets with 6to4 address based on 255.255.255.255,
-.\" as inner destination/source
-.\".El
-.\".Pp
-You may also want to reject encapsulated IPv6 packets with
-suspicious 6to4 addresses, like
-.Li 2002:7f00::/24.
+It is also recommended to filter/audit encapsulated IPv6 packets as well.
+You may also want to run normal ingress filter against inner IPv6 address
+to avoid spoofing.
 .\"
 .Sh EXAMPLES
 Note that
@@ -132,12 +164,14 @@ written in hexadecimals.
 	prefixlen 16 alias
 .Ed
 .Pp
-The following configuration sends packets to IPv4 destination 10.1.0.0/16
-only
-.Pq IPv6 prefix length = 32 .
+The following configuration accepts packets from IPv4 source
+.Li 9.1.0.0/16
+only.
+It emits 6to4 packet only for IPv6 destination 2002:0901::/32
+.Pq IPv4 destination will match Li 9.1.0.0/16 .
 .Bd -literal
-# ifconfig ne0 inet 10.1.2.3 netmask 0xffff0000
-# ifconfig stf0 inet6 2002:0a01:0203:0000:a00:5aff:fe38:6f86 \\
+# ifconfig ne0 inet 9.1.2.3 netmask 0xffff0000
+# ifconfig stf0 inet6 2002:0901:0203:0000:a00:5aff:fe38:6f86 \\
 	prefixlen 32 alias
 .Ed
 .\"
@@ -149,8 +183,8 @@ only
 .%A Brian Carpenter
 .%A Keith Moore
 .%T "Connection of IPv6 Domains via IPv4 Clouds without Explicit Tunnels"
-.%D October 1999
-.%N draft-ietf-ngtrans-6to4-03.txt
+.%D June 2000
+.%N draft-ietf-ngtrans-6to4-06.txt
 .%O work in progress
 .Re
 .Rs
@@ -158,7 +192,7 @@ only
 .%T "Possible abuse against IPv6 transition technologies"
 .%D March 2000
 .%N draft-itojun-ipv6-transition-abuse-00.txt
-.%O work in progress
+.%O work in progress, http://playground.iijlab.net/i-d/draft-itojun-ipv6-transition-abuse-00.txt
 .Re
 .\"
 .Sh HISTORY
