@@ -50,7 +50,7 @@ struct	reg;
 struct	pcpu;
 
 void	cpu_halt(void);
-void	cpu_identify(u_int clock);
+void	cpu_identify(u_long vers, u_int clock, u_int id);
 void	cpu_reset(void);
 void	cpu_setregs(struct pcpu *pc);
 int	is_physical_memory(vm_offset_t addr);

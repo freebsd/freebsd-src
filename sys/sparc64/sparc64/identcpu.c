@@ -28,15 +28,13 @@ SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
 int cpu_impl;
 
 void
-cpu_identify(unsigned int freq)
+cpu_identify(u_long vers, u_int freq, u_int id)
 {
 	const char *manus;
 	const char *impls;
-	unsigned long vers;
 
 	manus = NULL;
 	impls = NULL;
-	vers = rdpr(ver);
 
 	switch (VER_MANUF(vers)) {
 	case 0x04:
@@ -77,7 +75,7 @@ cpu_identify(unsigned int freq)
 	}
 
 	snprintf(cpu_model, sizeof(cpu_model), "%s %s", manus, impls);
-	printf("CPU: %s %s Processor (%d.%02d MHZ CPU)\n", manus, impls,
+	printf("cpu%d: %s %s Processor (%d.%02d MHZ CPU)\n", id, manus, impls,
 	    (freq + 4999) / 1000000, ((freq + 4999) / 10000) % 100);
 	if (bootverbose) {
 		printf("  mask=0x%lx maxtl=%ld maxwin=%ld\n", VER_MASK(vers),
