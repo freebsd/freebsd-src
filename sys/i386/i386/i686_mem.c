@@ -79,6 +79,8 @@ static struct mem_range_desc	*mem_range_match(struct mem_range_softc *sc,
 						 struct mem_range_desc *mrd);
 static void			i686_mrfetch(struct mem_range_softc *sc);
 static int			i686_mtrrtype(int flags);
+static int			i686_mrt2mtrr(int flags, int oldval);
+static int			i686_mtrrconflict(int flag1, int flag2);
 static void			i686_mrstore(struct mem_range_softc *sc);
 static void			i686_mrstoreone(void *arg);
 static struct mem_range_desc	*i686_mtrrfixsearch(struct mem_range_softc *sc,
@@ -94,29 +96,35 @@ static int			i686_mrsetvariable(struct mem_range_softc *sc,
 static int i686_mtrrtomrt[] = {
     MDF_UNCACHEABLE,
     MDF_WRITECOMBINE,
-    0,
-    0,
+    MDF_UNKNOWN,
+    MDF_UNKNOWN,
     MDF_WRITETHROUGH,
     MDF_WRITEPROTECT,
     MDF_WRITEBACK
 };
 
+#define MTRRTOMRTLEN (sizeof(i686_mtrrtomrt) / sizeof(i686_mtrrtomrt[0]))
+
+static int
+i686_mtrr2mrt(int val) {
+	if (val < 0 || val >= MTRRTOMRTLEN)
+		return MDF_UNKNOWN;
+	return i686_mtrrtomrt[val];
+}
+
 /* 
- * i686 MTRR conflict matrix for overlapping ranges 
- *
- * Specifically, this matrix allows writeback and uncached ranges
- * to overlap (the overlapped region is uncached).  The array index
- * is the translated i686 code for the flags (because they map well).
+ * i686 MTRR conflicts. Writeback and uncachable may overlap.
  */
-static int i686_mtrrconflict[] = {
-    MDF_WRITECOMBINE | MDF_WRITETHROUGH | MDF_WRITEPROTECT,
-    MDF_ATTRMASK,
-    0,
-    0,
-    MDF_ATTRMASK,
-    MDF_ATTRMASK,
-    MDF_WRITECOMBINE | MDF_WRITETHROUGH | MDF_WRITEPROTECT
-};
+static int
+i686_mtrrconflict(int flag1, int flag2) {
+	flag1 &= MDF_ATTRMASK;
+	flag2 &= MDF_ATTRMASK;
+	if (flag1 == flag2 ||
+	    (flag1 == MDF_WRITEBACK && flag2 == MDF_UNCACHEABLE) ||
+	    (flag2 == MDF_WRITEBACK && flag1 == MDF_UNCACHEABLE))
+		return 0;
+	return 1;
+}
 
 /*
  * Look for an exactly-matching range.
@@ -155,7 +163,7 @@ i686_mrfetch(struct mem_range_softc *sc)
 	    msrv = rdmsr(msr);
 	    for (j = 0; j < 8; j++, mrd++) {
 		mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
-		    i686_mtrrtomrt[msrv & 0xff] |
+		    i686_mtrr2mrt(msrv & 0xff) |
 		    MDF_ACTIVE;
 		if (mrd->mr_owner[0] == 0)
 		    strcpy(mrd->mr_owner, mem_owner_bios);
@@ -167,7 +175,7 @@ i686_mrfetch(struct mem_range_softc *sc)
 	    msrv = rdmsr(msr);
 	    for (j = 0; j < 8; j++, mrd++) {
 		mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
-		    i686_mtrrtomrt[msrv & 0xff] |
+		    i686_mtrr2mrt(msrv & 0xff) |
 		    MDF_ACTIVE;
 		if (mrd->mr_owner[0] == 0)
 		    strcpy(mrd->mr_owner, mem_owner_bios);
@@ -179,7 +187,7 @@ i686_mrfetch(struct mem_range_softc *sc)
 	    msrv = rdmsr(msr);
 	    for (j = 0; j < 8; j++, mrd++) {
 		mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
-		    i686_mtrrtomrt[msrv & 0xff] |
+		    i686_mtrr2mrt(msrv & 0xff) |
 		    MDF_ACTIVE;
 		if (mrd->mr_owner[0] == 0)
 		    strcpy(mrd->mr_owner, mem_owner_bios);
@@ -193,7 +201,7 @@ i686_mrfetch(struct mem_range_softc *sc)
     for (; (mrd - sc->mr_desc) < sc->mr_ndesc; msr += 2, mrd++) {
 	msrv = rdmsr(msr);
 	mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
-	    i686_mtrrtomrt[msrv & 0xff];
+	    i686_mtrr2mrt(msrv & 0xff);
 	mrd->mr_base = msrv & 0x0000000ffffff000LL;
 	msrv = rdmsr(msr + 1);
 	mrd->mr_flags = (msrv & 0x800) ? 
@@ -219,13 +227,23 @@ i686_mtrrtype(int flags)
 
     flags &= MDF_ATTRMASK;
 
-    for (i = 0; i < (sizeof(i686_mtrrtomrt) / sizeof(i686_mtrrtomrt[0])); i++) {
-	if (i686_mtrrtomrt[i] == 0)
+    for (i = 0; i < MTRRTOMRTLEN; i++) {
+	if (i686_mtrrtomrt[i] == MDF_UNKNOWN)
 	    continue;
 	if (flags == i686_mtrrtomrt[i])
 	    return(i);
     }
     return(-1);
+}
+
+static int
+i686_mrt2mtrr(int flags, int oldval)
+{
+	int val;
+
+	if ((val = i686_mtrrtype(flags)) == -1)
+		return oldval & 0xff;
+	return val & 0xff;
 }
 
 /*
@@ -262,7 +280,7 @@ i686_mrstoreone(void *arg)
 {
     struct mem_range_softc 	*sc = (struct mem_range_softc *)arg;
     struct mem_range_desc	*mrd;
-    u_int64_t			msrv;
+    u_int64_t			omsrv, msrv;
     int				i, j, msr;
     u_int			cr4save;
 
@@ -280,9 +298,10 @@ i686_mrstoreone(void *arg)
 	msr = MSR_MTRR64kBase;
 	for (i = 0; i < (MTRR_N64K / 8); i++, msr++) {
 	    msrv = 0;
+	    omsrv = rdmsr(msr);
 	    for (j = 7; j >= 0; j--) {
 		msrv = msrv << 8;
-		msrv |= (i686_mtrrtype((mrd + j)->mr_flags) & 0xff);
+		msrv |= i686_mrt2mtrr((mrd + j)->mr_flags, omsrv >> (j*8));
 	    }
 	    wrmsr(msr, msrv);
 	    mrd += 8;
@@ -290,9 +309,10 @@ i686_mrstoreone(void *arg)
 	msr = MSR_MTRR16kBase;
 	for (i = 0; i < (MTRR_N16K / 8); i++, msr++) {
 	    msrv = 0;
+	    omsrv = rdmsr(msr);
 	    for (j = 7; j >= 0; j--) {
 		msrv = msrv << 8;
-		msrv |= (i686_mtrrtype((mrd + j)->mr_flags) & 0xff);
+		msrv |= i686_mrt2mtrr((mrd + j)->mr_flags, omsrv >> (j*8));
 	    }
 	    wrmsr(msr, msrv);
 	    mrd += 8;
@@ -300,9 +320,10 @@ i686_mrstoreone(void *arg)
 	msr = MSR_MTRR4kBase;
 	for (i = 0; i < (MTRR_N4K / 8); i++, msr++) {
 	    msrv = 0;
+	    omsrv = rdmsr(msr);
 	    for (j = 7; j >= 0; j--) {
 		msrv = msrv << 8;
-		msrv |= (i686_mtrrtype((mrd + j)->mr_flags) & 0xff);
+		msrv |= i686_mrt2mtrr((mrd + j)->mr_flags, omsrv >> (j*8));
 	    }
 	    wrmsr(msr, msrv);
 	    mrd += 8;
@@ -313,9 +334,10 @@ i686_mrstoreone(void *arg)
     msr = MSR_MTRRVarBase;
     for (; (mrd - sc->mr_desc) < sc->mr_ndesc; msr += 2, mrd++) {
 	/* base/type register */
+	omsrv = rdmsr(msr);
 	if (mrd->mr_flags & MDF_ACTIVE) {
 	    msrv = mrd->mr_base & 0x0000000ffffff000LL;
-	    msrv |= (i686_mtrrtype(mrd->mr_flags) & 0xff);
+	    msrv |= i686_mrt2mtrr(mrd->mr_flags, omsrv);
 	} else {
 	    msrv = 0;
 	}
@@ -416,8 +438,7 @@ i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *
 	    /* non-exact overlap ? */
 	    if (mroverlap(curr_md, mrd)) {
 		/* between conflicting region types? */
-		if ((i686_mtrrconflict[i686_mtrrtype(curr_md->mr_flags)] & mrd->mr_flags) ||
-		    (i686_mtrrconflict[i686_mtrrtype(mrd->mr_flags)] & curr_md->mr_flags))
+		if (i686_mtrrconflict(curr_md->mr_flags, mrd->mr_flags))
 		    return(EINVAL);
 	    }
 	} else if (free_md == NULL) {
@@ -450,7 +471,7 @@ i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
     case MEMRANGE_SET_UPDATE:
 	/* make sure that what's being asked for is even possible at all */
 	if (!mrvalid(mrd->mr_base, mrd->mr_len) ||
-	    (i686_mtrrtype(mrd->mr_flags & MDF_ATTRMASK) == -1))
+	    i686_mtrrtype(mrd->mr_flags) == -1)
 	    return(EINVAL);
 
 #define FIXTOP	((MTRR_N64K * 0x10000) + (MTRR_N16K * 0x4000) + (MTRR_N4K * 0x1000))
