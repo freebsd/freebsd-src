@@ -299,8 +299,11 @@ vm_waitproc(p)
 	GIANT_REQUIRED;
 	cpu_wait(p);
 	pmap_dispose_proc(p);		/* drop per-process resources */
-	FOREACH_THREAD_IN_PROC(p, td)
+/* XXXKSE by here there should not be any threads left! */
+	FOREACH_THREAD_IN_PROC(p, td) {
+		panic("vm_waitproc: Survivor thread!");
 		pmap_dispose_thread(td);
+	}
 	vmspace_exitfree(p);		/* and clean-out the vmspace */
 }
 
@@ -355,7 +358,7 @@ faultin(p)
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC (p, td)
-			if (td->td_proc->p_stat == SRUN)	/* XXXKSE */
+			if (td->td_state == TDS_RUNQ)	/* XXXKSE */
 				setrunqueue(td);
 
 		p->p_sflag |= PS_INMEM;
@@ -371,7 +374,7 @@ faultin(p)
  * is enough space for them.  Of course, if a process waits for a long
  * time, it will be swapped in anyway.
  *
- *  XXXKSE - KSEGRP with highest priority counts..
+ *  XXXKSE - process with the thread with highest priority counts..
  *
  * Giant is still held at this point, to be released in tsleep.
  */
@@ -381,6 +384,7 @@ scheduler(dummy)
 	void *dummy;
 {
 	struct proc *p;
+	struct thread *td;
 	int pri;
 	struct proc *pp;
 	int ppri;
@@ -399,11 +403,14 @@ loop:
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		struct ksegrp *kg;
+		if (p->p_sflag & (PS_INMEM | PS_SWAPPING)) {
+			continue;
+		}
 		mtx_lock_spin(&sched_lock);
-		if (p->p_stat == SRUN
-		&& (p->p_sflag & (PS_INMEM | PS_SWAPPING)) == 0) {
-			/* Find the minimum sleeptime for the process */
-			FOREACH_KSEGRP_IN_PROC(p, kg) {
+		FOREACH_THREAD_IN_PROC(p, td) {
+			/* Only consider runnable threads */
+			if (td->td_state == TDS_RUNQ) {
+				kg = td->td_ksegrp;
 				pri = p->p_swtime + kg->kg_slptime;
 				if ((p->p_sflag & PS_SWAPINREQ) == 0) {
 					pri -= kg->kg_nice * 8;
@@ -438,6 +445,7 @@ loop:
 
 	/*
 	 * We would like to bring someone in. (only if there is space).
+	 * [What checks the space? ]
 	 */
 	PROC_LOCK(p);
 	faultin(p);
@@ -478,6 +486,7 @@ swapout_procs(action)
 int action;
 {
 	struct proc *p;
+	struct thread *td;
 	struct ksegrp *kg;
 	struct proc *outp, *outp2;
 	int outpri, outpri2;
@@ -489,13 +498,13 @@ int action;
 	outpri = outpri2 = INT_MIN;
 retry:
 	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		struct vmspace *vm;
 		int minslptime = 100000;
 		
 		PROC_LOCK(p);
 		if (p->p_lock != 0 ||
-		    (p->p_flag & (P_TRACED|P_SYSTEM|P_WEXIT)) != 0) {
+		    (p->p_flag & (P_STOPPED_SNGL|P_TRACED|P_SYSTEM|P_WEXIT)) != 0) {
 			PROC_UNLOCK(p);
 			continue;
 		}
@@ -512,14 +521,15 @@ retry:
 			continue;
 		}
 
-		switch (p->p_stat) {
+		switch (p->p_state) {
 		default:
+			/* Don't swap out processes in any sort
+			 * of 'special' state. */
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
 			continue;
 
-		case SSLEEP:
-		case SSTOP:
+		case PRS_NORMAL:
 			/*
 			 * do not swapout a realtime process
 			 * Check all the thread groups..
@@ -537,13 +547,18 @@ retry:
 				 * Also guarantee swap_idle_threshold1
 				 * time in memory.
 				 */
-				if (((FIRST_THREAD_IN_PROC(p)->td_priority) < PSOCK) ||
-				    (kg->kg_slptime < swap_idle_threshold1)) {
+				if (kg->kg_slptime < swap_idle_threshold1) {
 					mtx_unlock_spin(&sched_lock);
 					PROC_UNLOCK(p);
 					goto nextproc;
 				}
-
+				FOREACH_THREAD_IN_PROC(p, td) {
+					if ((td->td_priority) < PSOCK) {
+						mtx_unlock_spin(&sched_lock);
+						PROC_UNLOCK(p);
+						goto nextproc;
+					}
+				}
 				/*
 				 * If the system is under memory stress,
 				 * or if we are swapping
@@ -624,14 +639,13 @@ swapout(p)
 	p->p_sflag |= PS_SWAPPING;
 	PROC_UNLOCK(p);
 	FOREACH_THREAD_IN_PROC (p, td)
-		if (td->td_proc->p_stat == SRUN)	/* XXXKSE */
+		if (td->td_state == TDS_RUNQ)	/* XXXKSE */
 			remrunqueue(td);	/* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 
 	pmap_swapout_proc(p);
 	FOREACH_THREAD_IN_PROC(p, td)
 		pmap_swapout_thread(td);
-
 	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_SWAPPING;
 	p->p_swtime = 0;

@@ -145,6 +145,67 @@ exit1(td, rv)
 	/*
 	 * XXXXKSE: MUST abort all other threads before proceeding past here.
 	 */
+	PROC_LOCK(p);
+	if (p->p_flag & P_KSES) {
+		/*
+		 * First check if some other thread got here before us..
+		 * if so, act apropriatly, (exit or suspend);
+		 */
+		thread_suspend_check(0);
+		/*
+		 * Here is a trick..
+		 * We need to free up our KSE to process other threads
+		 * so that we can safely set the UNBOUND flag
+		 * (whether or not we have a mailbox) as we are NEVER
+		 * going to return to the user.
+		 * The flag will not be set yet if we are exiting
+		 * because of a signal, pagefault, or similar
+		 * (or even an exit(2) from the UTS).
+		 */
+		td->td_flags |= TDF_UNBOUND;
+
+		/*
+		 * Kill off the other threads. This requires
+		 * Some co-operation from other parts of the kernel
+		 * so it may not be instant.
+		 * With this state set:
+		 * Any thread entering the kernel from userspace will
+		 * thread_exit() in trap().  Any thread attempting to
+		 * sleep will return immediatly
+		 * with EINTR or EWOULDBLOCK, which will hopefully force them
+		 * to back out to userland, freeing resources as they go, and
+		 * anything attempting to return to userland will thread_exit()
+		 * from userret().  thread_exit() will unsuspend us
+		 * when the last other thread exits.
+		 */
+		if (thread_single(SNGLE_EXIT)) {
+			panic ("Exit: Single threading fouled up");
+		}
+		/*
+		 * All other activity in this process is now stopped.
+		 * Remove excess KSEs and KSEGRPS. XXXKSE (when we have them)
+		 * ... 
+		 * Turn off threading support.
+		 */
+		p->p_flag &= ~P_KSES;
+		td->td_flags &= ~TDF_UNBOUND;
+		thread_single_end(); 	/* Don't need this any more. */
+	}
+	/*
+	 * With this state set:
+	 * Any thread entering the kernel from userspace will thread_exit()
+	 * in trap().  Any thread attempting to sleep will return immediatly
+	 * with EINTR or EWOULDBLOCK, which will hopefully force them
+	 * to back out to userland, freeing resources as they go, and
+	 * anything attempting to return to userland will thread_exit()
+	 * from userret().  thread_exit() will do a wakeup on p->p_numthreads
+	 * if it transitions to 1.
+	 */
+
+	p->p_flag |= P_WEXIT;
+	PROC_UNLOCK(p);
+	if (td->td_kse->ke_mdstorage)
+		cpu_free_kse_mdstorage(td->td_kse);
 
 	/* Are we a task leader? */
 	PROC_LOCK(p);
@@ -185,7 +246,6 @@ exit1(td, rv)
 	 */
 	PROC_LOCK(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
-	p->p_flag |= P_WEXIT;
 	SIGEMPTYSET(p->p_siglist);
 	PROC_UNLOCK(p);
 	if (timevalisset(&p->p_realtimer.it_value))
@@ -434,22 +494,24 @@ exit1(td, rv)
 
 	/*
 	 * We have to wait until after releasing all locks before
-	 * changing p_stat.  If we block on a mutex then we will be
+	 * changing p_state.  If we block on a mutex then we will be
 	 * back at SRUN when we resume and our parent will never
 	 * harvest us.
 	 */
-	p->p_stat = SZOMB;
+	p->p_state = PRS_ZOMBIE;
 
 	wakeup(p->p_pptr);
 	PROC_UNLOCK(p->p_pptr);
-	PROC_UNLOCK(p);
-
 	cnt.v_swtch++;
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 
-	cpu_sched_exit(td);
-	cpu_throw();
+	cpu_sched_exit(td); /* XXXKSE check if this should be in thread_exit */
+	/*
+	 * Make sure this thread is discarded from the zombie.
+	 * This will also release this thread's reference to the ucred.
+	 */
+	thread_exit();
 	panic("exit1");
 }
 
@@ -504,6 +566,8 @@ wait1(td, uap, compat)
 	register int nfound;
 	register struct proc *p, *q, *t;
 	int status, error;
+	struct kse *ke;
+	struct ksegrp *kg;
 
 	q = td->td_proc;
 	if (uap->pid == 0) {
@@ -540,7 +604,7 @@ loop:
 		}
 
 		nfound++;
-		if (p->p_stat == SZOMB) {
+		if (p->p_state == PRS_ZOMBIE) {
 			/*
 			 * charge childs scheduling cpu usage to parent
 			 * XXXKSE assume only one thread & kse & ksegrp
@@ -656,6 +720,21 @@ loop:
 			}
 
 			/*
+			 * There should only be one KSE/KSEGRP but
+			 * do it right anyhow.
+			 */
+			FOREACH_KSEGRP_IN_PROC(p, kg) {
+				FOREACH_KSE_IN_GROUP(kg, ke) {
+					/* Free the KSE spare thread. */
+					if (ke->ke_tdspare != NULL) {
+						thread_free(ke->ke_tdspare);
+						p->p_kse.ke_tdspare = NULL;
+					}
+				}
+			}
+			thread_reap();	/* check for zombie threads */
+
+			/*
 			 * Give vm and machine-dependent layer a chance
 			 * to free anything that cpu_exit couldn't
 			 * release while still running in process context.
@@ -669,7 +748,7 @@ loop:
 			mtx_unlock(&Giant);
 			return (0);
 		}
-		if (p->p_stat == SSTOP && (p->p_flag & P_WAITED) == 0 &&
+		if (P_SHOULDSTOP(p) && ((p->p_flag & P_WAITED) == 0) &&
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
 			p->p_flag |= P_WAITED;
 			sx_xunlock(&proctree_lock);

@@ -109,7 +109,7 @@
 #define UMA_SLAB_MASK	(PAGE_SIZE - 1)	/* Mask to get back to the page */
 #define UMA_SLAB_SHIFT	PAGE_SHIFT	/* Number of bits PAGE_MASK */
 
-#define UMA_BOOT_PAGES		15	/* Number of pages allocated for startup */
+#define UMA_BOOT_PAGES		30	/* Number of pages allocated for startup */
 #define UMA_WORKING_TIME	20	/* Seconds worth of items to keep */
 
 

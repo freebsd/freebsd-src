@@ -1100,7 +1100,12 @@ pmap_dispose_thread(td)
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
 	ptek = vtopte(ks);
+#ifdef KSTACK_GUARD
+	ks -= PAGE_SIZE;
+	for (i = 1; i < (KSTACK_PAGES + 1); i++) {
+#else
 	for (i = 0; i < KSTACK_PAGES; i++) {
+#endif
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_thread: kstack already missing?");
@@ -1116,16 +1121,17 @@ pmap_dispose_thread(td)
 #ifdef I386_CPU
 	invltlb();
 #endif
-
 	/*
-	 * If the thread got swapped out some of its KSTACK might have gotten
-	 * swapped.  Just get rid of the object to clean up the swap use
-	 * proactively.  NOTE! might block waiting for paging I/O to complete.
+	 * Free the space that this stack was mapped to in the kernel
+	 * address map.
 	 */
-	if (ksobj->type == OBJT_SWAP) {
-		td->td_kstack_obj = NULL;
-		vm_object_deallocate(ksobj);
-	}
+#ifdef KSTACK_GUARD
+	kmem_free(kernel_map, ks, (KSTACK_PAGES + 1) * PAGE_SIZE);
+#else
+	kmem_free(kernel_map, ks, KSTACK_PAGES * PAGE_SIZE);
+#endif
+	vm_object_deallocate(ksobj);
+	td->td_kstack_obj = NULL; /* play it safe */
 }
 
 /*

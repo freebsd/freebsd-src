@@ -62,7 +62,7 @@
  * relative to process (curp)
  */
 #define TRACE_WAIT_P(curp, p) \
-	((p)->p_stat == SSTOP && \
+	 (P_SHOULDSTOP(p) && \
 	 (p)->p_pptr == (curp) && \
 	 ((p)->p_flag & P_TRACED))
 
@@ -262,6 +262,7 @@ out:
 	 */
 	case PROCFS_CTL_RUN:
 		PROC_UNLOCK(p);
+		p->p_flag &= ~P_STOPPED_SGNL;	/* this uses SIGSTOP */
 		break;
 
 	/*
@@ -272,27 +273,26 @@ out:
 	case PROCFS_CTL_WAIT:
 		if (p->p_flag & P_TRACED) {
 			while (error == 0 &&
-					(p->p_stat != SSTOP) &&
+					(P_SHOULDSTOP(p)) &&
 					(p->p_flag & P_TRACED) &&
 					(p->p_pptr == td->td_proc))
 				error = msleep((caddr_t) p, &p->p_mtx,
 						PWAIT|PCATCH, "procfsx", 0);
 			if (error == 0 && !TRACE_WAIT_P(td->td_proc, p))
 				error = EBUSY;
-		} else
-			while (error == 0 && p->p_stat != SSTOP)
+		} else {
+			while (error == 0 && P_SHOULDSTOP(p))
 				error = msleep((caddr_t) p, &p->p_mtx,
 						PWAIT|PCATCH, "procfs", 0);
+		}
 		PROC_UNLOCK(p);
 		return (error);
-
 	default:
 		panic("procfs_control");
 	}
 
 	mtx_lock_spin(&sched_lock);
-	if (p->p_stat == SSTOP)
-		setrunnable(FIRST_THREAD_IN_PROC(p)); /* XXXKSE */
+	thread_unsuspend(p); /* If it can run, let it do so. */
 	mtx_unlock_spin(&sched_lock);
 	return (0);
 }
@@ -349,6 +349,7 @@ procfs_doprocctl(PFS_FILL_ARGS)
 #endif
 				mtx_lock_spin(&sched_lock);
 				/* XXXKSE: */
+				p->p_flag &= ~P_STOPPED_SGNL;
 				setrunnable(FIRST_THREAD_IN_PROC(p));
 				mtx_unlock_spin(&sched_lock);
 			} else

@@ -44,6 +44,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
+#include <sys/kse.h>
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <sys/tty.h>
@@ -111,44 +112,28 @@ procinit()
 	uihashinit();
 }
 
-/*
- * Note that we do not link to the proc's ucred here
- * The thread is linked as if running but no KSE assigned
- */
-static  void
-thread_link(struct thread *td, struct ksegrp *kg)
-{
-	struct proc *p = kg->kg_proc;
-
-	td->td_proc     = p;
-	td->td_ksegrp   = kg;
-	td->td_last_kse = &p->p_kse;
-
-	TAILQ_INSERT_HEAD(&p->p_threads, td, td_plist);
-	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
-	td->td_critnest = 0;
-	td->td_kse      = NULL;
-	cpu_thread_link(td);
-}
-
 /* 
  * KSE is linked onto the idle queue.
  */
-static void
+void
 kse_link(struct kse *ke, struct ksegrp *kg)
 {
 	struct proc *p = kg->kg_proc;
 
+KASSERT((ke->ke_state != KES_ONRUNQ), ("linking suspect kse on run queue"));
 	TAILQ_INSERT_HEAD(&kg->kg_kseq, ke, ke_kglist);
 	kg->kg_kses++;
+KASSERT((ke->ke_state != KES_IDLE), ("already on idle queue"));
+	ke->ke_state = KES_IDLE;
 	TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
+	kg->kg_idle_kses++;
 	ke->ke_proc	= p;
 	ke->ke_ksegrp	= kg;
 	ke->ke_thread	= NULL;
 	ke->ke_oncpu = NOCPU;
 }
 
-static void
+void
 ksegrp_link(struct ksegrp *kg, struct proc *p)
 {
 
@@ -159,10 +144,13 @@ ksegrp_link(struct ksegrp *kg, struct proc *p)
 	TAILQ_INIT(&kg->kg_iq);		/* all kses in ksegrp */
 	kg->kg_proc	= p;
 /* the following counters are in the -zero- section and may not need clearing */
+	kg->kg_numthreads = 0;
 	kg->kg_runnable = 0;
 	kg->kg_kses = 0;
+	kg->kg_idle_kses = 0;
 	kg->kg_runq_kses = 0; /* XXXKSE change name */
 /* link it in now that it's consitant */
+	p->p_numksegrps++;
 	TAILQ_INSERT_HEAD(&p->p_ksegrps, kg, kg_ksegrp);
 }
 
@@ -177,30 +165,13 @@ proc_linkup(struct proc *p, struct ksegrp *kg,
 
 	TAILQ_INIT(&p->p_ksegrps);	     /* all ksegrps in proc */
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
+	TAILQ_INIT(&p->p_suspended);	     /* Threads suspended */
 
 	ksegrp_link(kg, p);
 	kse_link(ke, kg);
 	thread_link(td, kg);
-	/* link them together for 1:1 */
-	td->td_kse = ke;
-	ke->ke_thread = td;
 }
 
-/* temporary version is ultra simple while we are in 1:1 mode */
-struct thread *
-thread_get(struct proc *p)
-{
-	struct thread *td = &p->p_xxthread;
-
-	return (td);
-}
-
-
-/*********************
-* STUB KSE syscalls
-*********************/
-
-/* struct thread_wakeup_args { struct thread_mailbox *tmbx; }; */
 int
 thread_wakeup(struct thread *td, struct  thread_wakeup_args *uap)
 {
@@ -219,7 +190,11 @@ int
 kse_yield(struct thread *td, struct kse_yield_args *uap)
 {
 
-	return(ENOSYS);
+	PROC_LOCK(td->td_proc);
+	mtx_lock_spin(&sched_lock);
+	thread_exit();
+	/* NOTREACHED */
+	return(0);
 }
 
 int kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
@@ -228,16 +203,80 @@ int kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	return(ENOSYS);
 }
 
-
-int
-kse_new(struct thread *td, struct kse_new_args *uap)
+/* 
+ * No new KSEG: first call: use current KSE, don't schedule an upcall
+ * All other situations, do alloate a new KSE and schedule an upcall on it.
+ */
 /* struct kse_new_args {
 	struct kse_mailbox *mbx;
 	int	new_grp_flag;
 }; */
+int
+kse_new(struct thread *td, struct kse_new_args *uap)
 {
+	struct kse *newkse;
+	struct proc *p;
+	struct kse_mailbox mbx;
+	int err;
 
-	return (ENOSYS);
+	p = td->td_proc;
+	if ((err = copyin(uap->mbx, &mbx, sizeof(mbx))))
+		return (err);
+	PROC_LOCK(p);
+	/*
+	 * If we have no KSE mode set, just set it, and skip KSE and KSEGRP
+	 * creation.  You cannot request a new group with the first one as
+	 * you are effectively getting one. Instead, go directly to saving
+	 * the upcall info.
+	 */
+	if ((td->td_proc->p_flag & P_KSES) || (uap->new_grp_flag)) {
+
+		return (EINVAL);	/* XXX */
+		/*
+		 * If newgroup then create the new group.
+		 * Check we have the resources for this.
+		 */
+		/* Copy lots of fields from the current KSEGRP.  */
+		/* Create the new KSE */
+		/* Copy lots of fields from the current KSE.  */
+	} else {
+		/*
+		 * We are switching to KSEs so just
+		 * use the preallocated ones for this call.
+		 * XXXKSE if we have to initialise any fields for KSE
+		 * mode operation, do it here.
+		 */
+		newkse = td->td_kse;
+	}
+	/*
+	 * Fill out the KSE-mode specific fields of the new kse.
+	 */
+	PROC_UNLOCK(p);
+	mtx_lock_spin(&sched_lock);
+	mi_switch();	/* Save current registers to PCB. */
+	mtx_unlock_spin(&sched_lock);
+	newkse->ke_upcall = mbx.kmbx_upcall;
+	newkse->ke_stackbase  = mbx.kmbx_stackbase;
+	newkse->ke_stacksize = mbx.kmbx_stacksize;
+	newkse->ke_mailbox = uap->mbx;
+	cpu_save_upcall(td, newkse);
+	/* Note that we are the returning syscall */
+	td->td_retval[0] = 0;
+	td->td_retval[1] = 0;
+
+	if ((td->td_proc->p_flag & P_KSES) || (uap->new_grp_flag)) {
+		thread_schedule_upcall(td, newkse);
+	} else {
+		/*
+		 * Don't set this until we are truely ready, because
+		 * things will start acting differently.  Return to the
+		 * calling code for the first time.  Assuming we set up
+		 * the mailboxes right, all syscalls after this will be
+		 * asynchronous.
+		 */
+		td->td_proc->p_flag |= P_KSES;
+	}
+	return (0);
 }
 
 /*
@@ -554,7 +593,7 @@ fixjobc(p, pgrp, entering)
 	LIST_FOREACH(p, &p->p_children, p_sibling) {
 		if ((hispgrp = p->p_pgrp) != pgrp &&
 		    hispgrp->pg_session == mysession &&
-		    p->p_stat != SZOMB) {
+		    p->p_state != PRS_ZOMBIE) {
 			PGRP_LOCK(hispgrp);
 			if (entering)
 				hispgrp->pg_jobc++;
@@ -583,7 +622,7 @@ orphanpg(pg)
 
 	mtx_lock_spin(&sched_lock);
 	LIST_FOREACH(p, &pg->pg_members, p_pglist) {
-		if (p->p_stat == SSTOP) {
+		if (P_SHOULDSTOP(p)) {
 			mtx_unlock_spin(&sched_lock);
 			LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 				PROC_LOCK(p);
@@ -674,7 +713,9 @@ fill_kinfo_proc(p, kp)
 		kp->ki_sigcatch = p->p_procsig->ps_sigcatch;
 	}
 	mtx_lock_spin(&sched_lock);
-	if (p->p_stat != SIDL && p->p_stat != SZOMB && p->p_vmspace != NULL) {
+	if (p->p_state != PRS_NEW &&
+	    p->p_state != PRS_ZOMBIE &&
+	    p->p_vmspace != NULL) {
 		struct vmspace *vm = p->p_vmspace;
 
 		kp->ki_size = vm->vm_map.size;
@@ -697,35 +738,65 @@ fill_kinfo_proc(p, kp)
 		    p->p_stats->p_cru.ru_stime.tv_usec;
 	}
 	td = FIRST_THREAD_IN_PROC(p);
-	if (td->td_wmesg != NULL)
-		strncpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg) - 1);
-	if (p->p_stat == SMTX) {
-		kp->ki_kiflag |= KI_MTXBLOCK;
-		strncpy(kp->ki_mtxname, td->td_mtxname,
-		    sizeof(kp->ki_mtxname) - 1);
+	if (!(p->p_flag & P_KSES)) {
+		if (td->td_wmesg != NULL) {
+			strncpy(kp->ki_wmesg, td->td_wmesg,
+			    sizeof(kp->ki_wmesg) - 1);
+		}
+		if (td->td_state == TDS_MTX) {
+			kp->ki_kiflag |= KI_MTXBLOCK;
+			strncpy(kp->ki_mtxname, td->td_mtxname,
+			    sizeof(kp->ki_mtxname) - 1);
+		}
 	}
-	kp->ki_stat = p->p_stat;
+
+	if (p->p_state == PRS_NORMAL) { /*  XXXKSE very aproximate */
+		if ((td->td_state == TDS_RUNQ) ||
+		    (td->td_state == TDS_RUNNING)) {
+			kp->ki_stat = SRUN;
+		} else if (td->td_state == TDS_SLP) {
+			kp->ki_stat = SSLEEP;
+		} else if (P_SHOULDSTOP(p)) {
+			kp->ki_stat = SSTOP;
+		} else if (td->td_state == TDS_MTX) {
+			kp->ki_stat = SMTX;
+		} else {
+			kp->ki_stat = SWAIT;
+		}
+	} else if (p->p_state == PRS_ZOMBIE) {
+		kp->ki_stat = SZOMB;
+	} else {
+		kp->ki_stat = SIDL;
+	}
+
 	kp->ki_sflag = p->p_sflag;
 	kp->ki_swtime = p->p_swtime;
 	kp->ki_pid = p->p_pid;
 	/* vvv XXXKSE */
-	bintime2timeval(&p->p_runtime, &tv);
-	kp->ki_runtime = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
-	kp->ki_pctcpu = p->p_kse.ke_pctcpu;
-	kp->ki_estcpu = td->td_ksegrp->kg_estcpu;
-	kp->ki_slptime = td->td_ksegrp->kg_slptime;
-	kp->ki_wchan = td->td_wchan;
-	kp->ki_pri.pri_level = td->td_priority;
-	kp->ki_pri.pri_user = td->td_ksegrp->kg_user_pri;
-	kp->ki_pri.pri_class = td->td_ksegrp->kg_pri_class;
-	kp->ki_pri.pri_native = td->td_base_pri;
-	kp->ki_nice = td->td_ksegrp->kg_nice;
-	kp->ki_rqindex = p->p_kse.ke_rqindex;
-	kp->ki_oncpu = p->p_kse.ke_oncpu;
-	kp->ki_lastcpu = td->td_lastcpu;
-	kp->ki_tdflags = td->td_flags;
-	kp->ki_pcb = td->td_pcb;
-	kp->ki_kstack = (void *)td->td_kstack;
+	if (!(p->p_flag & P_KSES)) {
+		bintime2timeval(&p->p_runtime, &tv);
+		kp->ki_runtime = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
+		kp->ki_pctcpu = p->p_kse.ke_pctcpu;
+		kp->ki_estcpu = p->p_ksegrp.kg_estcpu;
+		kp->ki_slptime = p->p_ksegrp.kg_slptime;
+		kp->ki_wchan = td->td_wchan;
+		kp->ki_pri.pri_level = td->td_priority;
+		kp->ki_pri.pri_user = p->p_ksegrp.kg_user_pri;
+		kp->ki_pri.pri_class = p->p_ksegrp.kg_pri_class;
+		kp->ki_pri.pri_native = td->td_base_pri;
+		kp->ki_nice = p->p_ksegrp.kg_nice;
+		kp->ki_rqindex = p->p_kse.ke_rqindex;
+		kp->ki_oncpu = p->p_kse.ke_oncpu;
+		kp->ki_lastcpu = td->td_lastcpu;
+		kp->ki_tdflags = td->td_flags;
+		kp->ki_pcb = td->td_pcb;
+		kp->ki_kstack = (void *)td->td_kstack;
+	} else {
+		kp->ki_oncpu = -1;
+		kp->ki_lastcpu = -1;
+		kp->ki_tdflags = -1;
+		/* All the reast are 0 */
+	}
 	/* ^^^ XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 	sp = NULL;
@@ -878,7 +949,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			/*
 			 * Skip embryonic processes.
 			 */
-			if (p->p_stat == SIDL) {
+			if (p->p_state == PRS_NEW) {
 				PROC_UNLOCK(p);
 				continue;
 			}

@@ -90,7 +90,7 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 	if (error == 0)
 		error = uiomove(kv, kl, uio);
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
-		if (p->p_stat != SSTOP)
+		if (!P_SHOULDSTOP(p)) /* XXXKSE should be P_TRACED? */
 			error = EBUSY;
 		else
 			/* XXXKSE: */
