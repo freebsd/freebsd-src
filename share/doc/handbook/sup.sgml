@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.19 1996/10/24 11:23:06 asami Exp $ -->
+<!-- $Id: sup.sgml,v 1.20 1996/11/07 12:32:05 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -136,6 +136,7 @@ ports-russian:    /usr/ports/russian    Russian support
 ports-security:	  /usr/ports/security	``security'' utilities, for better or for worse
 ports-shells:	  /usr/ports/shells	various UN*X shells
 ports-sysutils:	  /usr/ports/sysutils	system utilities
+ports-vietnamese: /usr/ports/vietnamese	Vietnamese support
 ports-www:	  /usr/ports/www	software related to the world wide web
 ports-x11:	  /usr/ports/x11	X11 software
 </verb>
@@ -145,6 +146,7 @@ ports-x11:	  /usr/ports/x11	X11 software
 ports-all:	  /usr/ports		the whole ports tree
 </verb>
 
+<!-- The following is currently not available (and probably will never return)
 <p>If you want to keep updated on the original source of the ports,
 you can also add this to your supfile.  But note that this collection
 is <em>enormous</em>, and unless you are an ftp site mirroring the
@@ -153,3 +155,4 @@ entire FreeBSD tree (but cannot use ``mirror'' for some reason), you
 <verb>
 ports-distfiles: /usr/ports/distfiles	original tarballs
 </verb>
+-->
