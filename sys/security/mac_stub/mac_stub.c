@@ -1058,14 +1058,6 @@ stub_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
-    struct label *label, int prot)
-{
-
-	return (0);
-}
-
-static int
 stub_check_vnode_open(struct ucred *cred, struct vnode *vp,
     struct label *filelabel, int acc_mode)
 {
@@ -1377,7 +1369,6 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_vnode_listextattr = stub_check_vnode_listextattr,
 	.mpo_check_vnode_lookup = stub_check_vnode_lookup,
 	.mpo_check_vnode_mmap = stub_check_vnode_mmap,
-	.mpo_check_vnode_mprotect = stub_check_vnode_mprotect,
 	.mpo_check_vnode_open = stub_check_vnode_open,
 	.mpo_check_vnode_poll = stub_check_vnode_poll,
 	.mpo_check_vnode_read = stub_check_vnode_read,
