@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* $NetBSD: db_disasm.c,v 1.4 1997/09/16 22:52:40 thorpej Exp $ */
 
 /* 

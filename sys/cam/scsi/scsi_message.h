@@ -1,3 +1,10 @@
+/* $FreeBSD$ */
+
+/*
+ * This file is in the public domain.
+ * $FreeBSD$
+ */
+
 /* Messages (1 byte) */		     /* I/T (M)andatory or (O)ptional */
 #define MSG_CMDCOMPLETE		0x00 /* M/M */
 #define MSG_EXTENDED		0x01 /* O/O */

@@ -1,4 +1,3 @@
-/* $NetBSD: tlsbmem.c,v 1.6 1998/01/12 10:21:25 thorpej Exp $ */
 /* $FreeBSD$ */
 
 /*

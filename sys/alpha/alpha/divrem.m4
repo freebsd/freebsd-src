@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: divrem.m4,v 1.5 1996/10/17 04:26:25 cgd Exp $	*/
 
 /*
