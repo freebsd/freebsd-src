@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.96 1999/01/23 06:00:27 dillon Exp $
+ * $Id: vm_fault.c,v 1.97 1999/01/24 00:55:04 dillon Exp $
  */
 
 /*
@@ -760,7 +760,7 @@ readrest:
 		 * any swap backing since the page is now dirty.
 		 */
 		if (fault_flags & VM_FAULT_DIRTY) {
-			fs.m->dirty = VM_PAGE_BITS_ALL;
+			vm_page_dirty(fs.m);
 			vm_pager_page_unswapped(fs.m);
 		}
 	}

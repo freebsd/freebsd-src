@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.12 1998/10/28 13:36:49 dg Exp $
+ *	$Id: pmap.c,v 1.13 1999/01/21 08:29:02 dillon Exp $
  */
 
 /*
@@ -1068,9 +1068,9 @@ pmap_swapout_proc(p)
 	for(i=0;i<UPAGES;i++) {
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_swapout_proc: upage already missing???");
-		m->dirty = VM_PAGE_BITS_ALL;
+		vm_page_dirty(m);
 		vm_page_unwire(m, 0);
-		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
+		pmap_kremove((vm_offset_t)p->p_addr + PAGE_SIZE * i);
 	}
 }
 
@@ -2980,7 +2980,7 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 	vm_page_flag_set(ppv->pv_vm_page, PG_REFERENCED);
 	if (write) {
 		ppv->pv_flags |= PV_TABLE_MOD;
-		ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
+		vm_page_dirty(ppv->pv_vm_page);
 		faultoff |= PG_FOW;
 	}
 	pmap_changebit(pa, faultoff, FALSE);
