@@ -267,6 +267,7 @@ struct ciss_notify_cdb
 #define CISS_NOTIFY_HOTPLUG_FAN			2
 #define CISS_NOTIFY_HOTPLUG_POWER		3
 #define CISS_NOTIFY_HOTPLUG_REDUNDANT		4
+#define CISS_NOTIFY_HOTPLUG_NONDISK		5
 
 #define CISS_NOTIFY_HARDWARE		2
 #define CISS_NOTIFY_HARDWARE_CABLES		0
@@ -511,11 +512,13 @@ struct ciss_bmic_id_ldrive {
 #define CISS_LDRIVE_RAID5	3
 #define CISS_LDRIVE_RAID51	4
 #define CISS_LDRIVE_RAIDADG	5
-    u_int8_t	res1[2];
-#if 0	/* only for identify logical drive extended (0x18) */
+    u_int8_t	res1;
+    u_int8_t	bios_disable_flag;
+    u_int8_t	res2;
     u_int32_t	logical_drive_identifier;
     char	logical_drive_label[64];
-#endif
+    u_int64_t	big_blocks_available;
+    u_int8_t	res3[410];
 } __attribute__ ((packed));
 
 /* CISS_BMIC_ID_LSTATUS */
@@ -561,6 +564,8 @@ struct ciss_bmic_id_lstatus {
     u_int8_t	spare_to_replace_map[CISS_BIG_MAP_ENTRIES];
     u_int8_t	replaced_marked_ok_map[CISS_BIG_MAP_ENTRIES / 8];
     u_int8_t	drive_rebuilding;
+    u_int64_t	big_blocks_to_recover;
+    u_int8_t	res4[28];
 } __attribute__ ((packed));
 
 /* CISS_BMIC_ID_CTLR */
