@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.15 1998/12/04 21:41:18 archie Exp $
+ *	$Id: ide_pci.c,v 1.16 1998/12/10 01:52:16 archie Exp $
  */
 
 #include "pci.h"
@@ -898,7 +898,7 @@ mkcookie(int iobase_wd,
 	return cp;
 }
 
-static char *
+static const char *
 ide_pci_probe(pcici_t tag, pcidi_t type)
 {
 	u_long data;

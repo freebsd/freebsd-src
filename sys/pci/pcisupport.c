@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.77 1998/12/07 21:58:48 archie Exp $
+**  $Id: pcisupport.c,v 1.78 1998/12/09 01:33:03 eivind Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -62,7 +62,7 @@
 **---------------------------------------------------------
 */
 
-static	char*	chipset_probe (pcici_t tag, pcidi_t type);
+static	const char*	chipset_probe (pcici_t tag, pcidi_t type);
 static	void	chipset_attach(pcici_t tag, int unit);
 static	u_long	chipset_count;
 
@@ -161,7 +161,7 @@ fixwsc_natoma(pcici_t tag)
 }
 		
 
-static char*
+static const char*
 chipset_probe (pcici_t tag, pcidi_t type)
 {
 	unsigned	rev;
@@ -845,7 +845,7 @@ chipset_attach (pcici_t config_id, int unit)
 **---------------------------------------------------------
 */
 
-static	char*	vga_probe  (pcici_t tag, pcidi_t type);
+static	const char*	vga_probe  (pcici_t tag, pcidi_t type);
 static	void	vga_attach (pcici_t tag, int unit);
 static	u_long	vga_count;
 
@@ -859,7 +859,7 @@ static struct pci_device vga_device = {
 
 DATA_SET (pcidevice_set, vga_device);
 
-static char* vga_probe (pcici_t tag, pcidi_t typea)
+static const char* vga_probe (pcici_t tag, pcidi_t typea)
 {
 	int data = pci_conf_read(tag, PCI_CLASS_REG);
 	u_int id = pci_conf_read(tag, PCI_ID_REG);
@@ -1196,7 +1196,7 @@ static void vga_attach (pcici_t tag, int unit)
 **---------------------------------------------------------
 */
 
-static	char*	lkm_probe  (pcici_t tag, pcidi_t type);
+static	const char*	lkm_probe  (pcici_t tag, pcidi_t type);
 static	void	lkm_attach (pcici_t tag, int unit);
 static	u_long	lkm_count;
 
@@ -1210,7 +1210,7 @@ static struct pci_device lkm_device = {
 
 DATA_SET (pcidevice_set, lkm_device);
 
-static char*
+static const char*
 lkm_probe (pcici_t tag, pcidi_t type)
 {
 	/*
@@ -1231,7 +1231,7 @@ lkm_attach (pcici_t tag, int unit)
 **---------------------------------------------------------
 */
 
-static	char*	ign_probe  (pcici_t tag, pcidi_t type);
+static	const char*	ign_probe  (pcici_t tag, pcidi_t type);
 static	void	ign_attach (pcici_t tag, int unit);
 static	u_long	ign_count;
 
@@ -1245,7 +1245,7 @@ static struct pci_device ign_device = {
 
 DATA_SET (pcidevice_set, ign_device);
 
-static char*
+static const char*
 ign_probe (pcici_t tag, pcidi_t type)
 {
 	switch (type) {
