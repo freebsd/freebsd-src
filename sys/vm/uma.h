@@ -408,7 +408,7 @@ void uma_zone_set_freef(uma_zone_t zone, uma_free freef);
 #define UMA_SLAB_KMEM	0x02		/* Slab alloced from kmem_map */
 #define UMA_SLAB_KMAP	0x04		/* Slab alloced from kernel_map */
 #define UMA_SLAB_PRIV	0x08		/* Slab alloced from priv allocator */
-#define UMA_SLAB_OFFP	0x10		/* Slab is managed seperately  */
+#define UMA_SLAB_OFFP	0x10		/* Slab is managed separately  */
 #define UMA_SLAB_MALLOC	0x20		/* Slab is a large malloc slab */
 /* 0x40 and 0x80 are available */
 
