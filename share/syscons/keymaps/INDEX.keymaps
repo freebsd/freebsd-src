@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.9.2.1 1998/01/30 10:55:42 yokota Exp $
+# $Id: INDEX.keymaps,v 1.9.2.2 1998/02/13 03:48:11 yokota Exp $
 #
 # database for kbdmap(8) 
 #
@@ -36,17 +36,17 @@ be.iso.kbd:en:Belgian ISO-8859-1
 be.iso.kbd:de:Belgisch ISO-8859-1
 be.iso.kbd:pt:Belga ISO-8859-1
 
-br275.iso.kbd:en:Brazilian 275 keyboard ISO-8859-1
-br275.iso.kbd:de:Brasilianische Tastatur 275 ISO-8859-1
-br275.iso.kbd:pt:Teclado brasileiro 275 ISO-8859-1
+br275.iso.kbd:en:Brazilian 275 ISO-8859-1
+br275.iso.kbd:de:Brasilianische 275 ISO-8859-1
+br275.iso.kbd:pt:Brasileiro 275 ISO-8859-1
 
-br275.iso.acc.kbd:en:Brazilian 275 keyboard ISO-8859-1 (accent keys)
-br275.iso.acc.kbd:de:Brasilianische Tastatur 275 ISO-8859-1 (accent keys)
-br275.iso.acc.kbd:pt:Teclado brasileiro 275 ISO-8859-1 (com acentos)
+br275.iso.acc.kbd:en:Brazilian 275 ISO-8859-1 (accent keys)
+br275.iso.acc.kbd:de:Brasilianische 275 ISO-8859-1 (accent keys)
+br275.iso.acc.kbd:pt:Brasileiro 275 ISO-8859-1 (com acentos)
 
-br275.cp850.kbd:en:Brazilian 275 keyboard Codepage 850
-br275.cp850.kbd:de:Brasilianische Tastatur 275 Codeseite 850
-br275.cp850.kbd:pt:Teclado brasileiro 275 Codepage 850
+br275.cp850.kbd:en:Brazilian 275 Codepage 850
+br275.cp850.kbd:de:Brasilianische 275 Codeseite 850
+br275.cp850.kbd:pt:Brasileiro 275 Codepage 850
 
 danish.iso.kbd:en:Danish ISO-8859-1
 danish.iso.kbd:da:Dansk ISO-8859-1
