@@ -1025,13 +1025,25 @@ RCS_magicrev (rcs, rev)
     char *rev;
 {
     int rev_num;
-    char *xrev, *test_branch;
+    char *xrev, *test_branch, *local_branch_num;
 
     xrev = xmalloc (strlen (rev) + 14); /* enough for .0.number */
     check_rev = xrev;
 
+    local_branch_num = getenv("CVS_LOCAL_BRANCH_NUM");
+    if (local_branch_num)
+    {
+      rev_num = atoi(local_branch_num);
+      if (rev_num < 2)
+	rev_num = 2;
+      else
+	rev_num &= ~1;
+    }
+    else
+      rev_num = 2;
+
     /* only look at even numbered branches */
-    for (rev_num = 2; ; rev_num += 2)
+    for ( ; ; rev_num += 2)
     {
 	/* see if the physical branch exists */
 	(void) sprintf (xrev, "%s.%d", rev, rev_num);
