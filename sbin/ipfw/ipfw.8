@@ -284,9 +284,14 @@ Currently there is no method for filtering out specific types of ICMP
 packets. Either you don't filter ICMP at all, or all ICMP packets are
 filtered.
 .Pp
-The system has a rule weighting system for the firewall chain. This
-means that rules are not used in the order that they are specified. To
-see what rule ordering is used, use the
+The system has an optional rule weighting system for the firewall chain.
+This means that rules are not used in the order that they are specified.
+To enable this feature, you need to recompile your kernel, see the
+.I LINT
+configuration for details.
+In general you do not want that.
+.Pp
+To see what rule ordering is used, use the
 .Em list
 command.
 .Pp
