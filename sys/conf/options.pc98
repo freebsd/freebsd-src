@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.78 1999/01/18 08:38:07 kato Exp $
+#	$Id: options.pc98,v 1.79 1999/02/16 11:12:42 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -104,6 +104,8 @@ EISA_SLOTS		opt_eisa.h
 FDC_DEBUG			opt_fdc.h
 FDC_PRINT_BOGUS_CHIPTYPE	opt_fdc.h
 FDC_YE				opt_fdc.h
+
+FE_8BIT_SUPPORT		opt_fe.h
 
 # pcvt(4) has a bunch of options
 FAT_CURSOR		opt_pcvt.h
