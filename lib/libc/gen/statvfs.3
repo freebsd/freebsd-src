@@ -137,12 +137,21 @@ through this interface.
 The
 .Fn statvfs
 and
-.Fn statfs
+.Fn fstatvfs
 functions may fail for any of the reasons documented for
 .Xr statfs 2
+or
+.Xr fstatfs 2 
 and
-.Xr pathconf 3 ,
-plus the following:
+.Xr pathconf 3
+or
+.Xr fpathconf 3 ,
+respectively.
+In addition,
+.Fn statvfs
+and
+.Fn fstatvfs
+functions may also fail for the following reason:
 .Bl -tag -width Er
 .It Bq Er EOVERFLOW
 One or more of the filesystem statistics has a value which cannot be
