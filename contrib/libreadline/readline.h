@@ -147,6 +147,7 @@ extern char *rl_get_keymap_name ();
 
 extern int rl_bind_key (), rl_bind_key_in_map ();
 extern int rl_unbind_key (), rl_unbind_key_in_map ();
+extern int rl_unbind_function_in_map (), rl_unbind_command_in_map ();
 extern int rl_set_key ();
 extern int rl_generic_bind ();
 extern int rl_parse_and_bind ();
