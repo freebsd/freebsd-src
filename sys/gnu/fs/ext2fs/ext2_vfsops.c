@@ -74,8 +74,6 @@ static vfs_sync_t		ext2_sync;
 static vfs_vget_t		ext2_vget;
 static vfs_fhtovp_t		ext2_fhtovp;
 static vfs_vptofh_t		ext2_vptofh;
-static vfs_init_t		ext2_init;
-static vfs_uninit_t		ext2_uninit;
 static vfs_mount_t		ext2_mount;
 
 MALLOC_DEFINE(M_EXT2NODE, "EXT2 node", "EXT2 vnode private part");
@@ -83,12 +81,10 @@ static MALLOC_DEFINE(M_EXT2MNT, "EXT2 mount", "EXT2 mount structure");
 
 static struct vfsops ext2fs_vfsops = {
 	.vfs_fhtovp =		ext2_fhtovp,
-	.vfs_init =		ext2_init,
 	.vfs_mount =		ext2_mount,
 	.vfs_root =		ext2_root,	/* root inode via vget */
 	.vfs_statfs =		ext2_statfs,
 	.vfs_sync =		ext2_sync,
-	.vfs_uninit =		ext2_uninit,
 	.vfs_unmount =		ext2_unmount,
 	.vfs_vget =		ext2_vget,
 	.vfs_vptofh =		ext2_vptofh,
@@ -98,8 +94,6 @@ VFS_SET(ext2fs_vfsops, ext2fs, 0);
 
 #define bsd_malloc malloc
 #define bsd_free free
-
-static int ext2fs_inode_hash_lock;
 
 static int	ext2_check_sb_compat(struct ext2_super_block *es, struct cdev *dev,
 		    int ronly);
@@ -921,27 +915,14 @@ ext2_vget(mp, ino, flags, vpp)
 	int i, error;
 	int used_blocks;
 
-	ump = VFSTOEXT2(mp);
-	dev = ump->um_dev;
-restart:
-	if ((error = ext2_ihashget(dev, ino, flags, vpp)) != 0)
+	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
+	if (error)
 		return (error);
 	if (*vpp != NULL)
 		return (0);
 
-	/*
-	 * Lock out the creation of new entries in the FFS hash table in
-	 * case getnewvnode() or MALLOC() blocks, otherwise a duplicate
-	 * may occur!
-	 */
-	if (ext2fs_inode_hash_lock) {
-		while (ext2fs_inode_hash_lock) {
-			ext2fs_inode_hash_lock = -1;
-			tsleep(&ext2fs_inode_hash_lock, PVM, "e2vget", 0);
-		}
-		goto restart;
-	}
-	ext2fs_inode_hash_lock = 1;
+	ump = VFSTOEXT2(mp);
+	dev = ump->um_dev;
 
 	/*
 	 * If this MALLOC() is performed after the getnewvnode()
@@ -950,34 +931,43 @@ restart:
 	 * which will cause a panic because ext2_sync() blindly
 	 * dereferences vp->v_data (as well it should).
 	 */
-	MALLOC(ip, struct inode *, sizeof(struct inode), M_EXT2NODE, M_WAITOK);
+	ip = malloc(sizeof(struct inode), M_EXT2NODE, M_WAITOK | M_ZERO);
 
 	/* Allocate a new vnode/inode. */
 	if ((error = getnewvnode("ext2fs", mp, &ext2_vnodeops, &vp)) != 0) {
-		if (ext2fs_inode_hash_lock < 0)
-			wakeup(&ext2fs_inode_hash_lock);
-		ext2fs_inode_hash_lock = 0;
 		*vpp = NULL;
-		FREE(ip, M_EXT2NODE);
+		free(ip, M_EXT2NODE);
 		return (error);
 	}
-	bzero((caddr_t)ip, sizeof(struct inode));
 	vp->v_data = ip;
 	ip->i_vnode = vp;
 	ip->i_e2fs = fs = ump->um_e2fs;
 	ip->i_dev = dev;
 	ip->i_number = ino;
-	/*
-	 * Put it onto its hash chain and lock it so that other requests for
-	 * this inode will block if they arrive while we are sleeping waiting
-	 * for old data structures to be purged or for the contents of the
-	 * disk portion of this inode to be read.
-	 */
-	ext2_ihashins(ip);
 
-	if (ext2fs_inode_hash_lock < 0)
-		wakeup(&ext2fs_inode_hash_lock);
-	ext2fs_inode_hash_lock = 0;
+	/*
+	 * Exclusively lock the vnode before adding to hash. Note, that we
+	 * must not release nor downgrade the lock (despite flags argument
+	 * says) till it is fully initialized.
+	 */
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, curthread);
+
+	/*
+	 * Atomicaly (in terms of vfs_hash operations) check the hash for
+	 * duplicate of vnode being created and add it to the hash. If a
+	 * duplicate vnode was found, it will be vget()ed from hash for us.
+	 */
+	if ((error = vfs_hash_insert(vp, ino, flags, curthread, vpp)) != 0) {
+		vput(vp);
+		*vpp = NULL;
+		return (error);
+	}
+
+	/* We lost the race, then throw away our vnode and return existing */
+	if (*vpp != NULL) {
+		vput(vp);
+		return (0);
+	}
 
 	/* Read in the disk contents for the inode, copy into the inode. */
 #if 0
@@ -1157,21 +1147,5 @@ ext2_root(mp, vpp, td)
 	if (error)
 		return (error);
 	*vpp = nvp;
-	return (0);
-}
-
-static int
-ext2_init(struct vfsconf *vfsp)
-{
-
-	ext2_ihashinit();
-	return (0);
-}
-
-static int
-ext2_uninit(struct vfsconf *vfsp)
-{
-
-	ext2_ihashuninit();
 	return (0);
 }
