@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)set.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)set.c	8.2 (Berkeley) 3/22/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -813,9 +813,13 @@ plist(p)
 {
     register struct varent *c;
     register len;
+    sigset_t sigset;
 
-    if (setintr)
-	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+    if (setintr) {
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGINT);
+	sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+    }
 
     for (;;) {
 	while (p->v_left)

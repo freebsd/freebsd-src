@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)ls.1	8.6 (Berkeley) 4/18/94
+.\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\"
-.Dd April 18, 1994
+.Dd July 29, 1994
 .Dt LS 1
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm ls
-.Op Fl ACFLRTacdfiloqrstu1
+.Op Fl ACFLRTWacdfiloqrstu1
 .Op Ar file ...
 .Sh DESCRIPTION
 For each operand that names a
@@ -81,7 +81,8 @@ Force multi-column output; this is the default when output is to a terminal.
 Display a slash (/) immediately after each pathname
 that is a directory, an asterisk (*) after each that is
 executable,
-and an at sign (@) after each symbolic link.
+an at sign (@) after each symbolic link,
+and a percent sign (%) after each whiteout.
 .\" and a vertical bar (|) after each that is a
 .\" .Tn FIFO . 
 .It Fl L
@@ -92,6 +93,8 @@ Recursively list subdirectories encountered.
 .It Fl T
 Display complete time information for the file, including
 month, day, hour, minute, second, and year.
+.It Fl W
+Display whiteouts when scanning directories.
 .It Fl a
 Include directory entries whose names begin with a
 dot (.).
@@ -213,6 +216,8 @@ Symbolic link.
 Socket link.
 .\" .It Sy p
 .\" .Tn FIFO .
+.It Sy w
+Whiteout.
 .It Sy \-
 Regular file.
 .El

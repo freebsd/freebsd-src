@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)hist.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)hist.c	8.2 (Berkeley) 3/22/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -121,11 +121,15 @@ dohist(v, t)
     struct command *t;
 {
     int     n, rflg = 0, hflg = 0;
+    sigset_t sigset;
 
     if (getn(value(STRhistory)) == 0)
 	return;
-    if (setintr)
-	(void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+    if (setintr) {
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGINT);
+	sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+    }
     while (*++v && **v == '-') {
 	Char   *vp = *v;
 

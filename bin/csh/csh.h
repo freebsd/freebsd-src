@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)csh.h	8.1 (Berkeley) 5/31/93
+ *	@(#)csh.h	8.2 (Berkeley) 4/29/95
  */
 
 /*
@@ -186,8 +186,8 @@ jmp_buf reslab;
 #define	setexit()	(setjmp(reslab))
 #define	reset()		longjmp(reslab, 1)
  /* Should use structure assignment here */
-#define	getexit(a)	bcopy((char *)reslab, ((char *)(a)), sizeof reslab)
-#define	resexit(a)	bcopy((char *)(a), (char *)reslab, sizeof reslab)
+#define	getexit(a)	memmove((a), reslab, sizeof reslab)
+#define	resexit(a)	memmove(reslab, (a), sizeof reslab)
 
 Char   *gointr;			/* Label for an onintr transfer */
 

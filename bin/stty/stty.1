@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)stty.1	8.4 (Berkeley) 4/18/94
+.\"     @(#)stty.1	8.5 (Berkeley) 6/1/94
 .\"
-.Dd April 18, 1994
+.Dd June 1, 1994
 .Dt STTY 1
 .Os
 .Sh NAME
@@ -124,6 +124,7 @@ If
 the output baud rate is set to
 zero, modem control is
 no longer asserted.
+.ne 1i
 .It Cm speed Ar number
 This sets both
 .Cm ispeed
@@ -199,6 +200,7 @@ receives
 or if
 .Cm ixany
 is set, any character restarts output.
+.ne 1i
 .It Cm ixoff Pq Fl ixoff
 Request that the system send (not
 send)
@@ -294,6 +296,7 @@ Echo (do not echo)
 after
 .Dv KILL
 character.
+.ne 1i
 .It Cm echoke Pq Fl echoke
 The
 .Dv KILL
@@ -445,6 +448,7 @@ columns.
 .It Cm cols Ar number
 is an alias for
 .Cm columns.
+.ne 1i
 .It Cm rows Ar number
 The terminal size is recorded as having
 .Ar number
@@ -530,6 +534,7 @@ Same as
 .It Cm decctlq Pq Fl decctlq
 The converse of
 .Cm ixany .
+.ne 1i
 .It Cm crterase Pq Fl crterase
 Same as
 .Cm echoe .

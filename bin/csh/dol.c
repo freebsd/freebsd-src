@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)dol.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)dol.c	8.2 (Berkeley) 4/29/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -846,16 +846,9 @@ heredoc(term)
     bool    quoted;
     char   *tmp;
 
-    if (creat(tmp = short2str(shtemp), 0600) < 0)
+    tmp = short2str(shtemp);
+    if (open(tmp, O_RDWR | O_CREAT | O_TRUNC, 0600) < 0)
 	stderror(ERR_SYSTEM, tmp, strerror(errno));
-    (void) close(0);
-    if (open(tmp, O_RDWR) < 0) {
-	int     oerrno = errno;
-
-	(void) unlink(tmp);
-	errno = oerrno;
-	stderror(ERR_SYSTEM, tmp, strerror(errno));
-    }
     (void) unlink(tmp);		/* 0 0 inode! */
     Dv[0] = term;
     Dv[1] = NULL;

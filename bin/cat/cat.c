@@ -41,7 +41,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)cat.c	8.1 (Berkeley) 7/19/93";
+static char sccsid[] = "@(#)cat.c	8.2 (Berkeley) 4/27/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -73,7 +73,7 @@ main(argc, argv)
 	extern int optind;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "benstuv")) != EOF)
+	while ((ch = getopt(argc, argv, "benstuv")) != -1)
 		switch (ch) {
 		case 'b':
 			bflag = nflag = 1;	/* -b implies -n */
@@ -96,6 +96,7 @@ main(argc, argv)
 		case 'v':
 			vflag = 1;
 			break;
+		default:
 		case '?':
 			(void)fprintf(stderr,
 			    "usage: cat [-benstuv] [-] [file ...]\n");
@@ -240,7 +241,7 @@ raw_cat(rfd)
 			err(1, "%s", filename);
 		bsize = MAX(sbuf.st_blksize, 1024);
 		if ((buf = malloc((u_int)bsize)) == NULL)
-			err(1, "");
+			err(1, NULL);
 	}
 	while ((nr = read(rfd, buf, bsize)) > 0)
 		for (off = 0; nr; nr -= nw, off += nw)

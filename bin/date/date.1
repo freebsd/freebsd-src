@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)date.1	8.2 (Berkeley) 11/17/93
+.\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\"
-.Dd November 17, 1993
+.Dd April 28, 1995
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -104,9 +104,11 @@ The format string may contain any of the conversion specifications described
 in the 
 .Xr strftime 3
 manual page, as well as any arbitrary text.
+A <newline> character is always output after the characters specified by
+the format string.
 The format string for the default display is:
 .Bd -literal -offset indent
-``%a %b %e %H:%M:%S %Z n''.
+``%a %b %e %H:%M:%S %Z %Y''.
 .Ed
 .Pp
 If an operand does not have a leading plus sign, it is interpreted as
@@ -136,7 +138,7 @@ and years are handled automatically.
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
-date ``+DATE: %m/%d/%y%nTIME: %H:%M:0n''
+date ``+DATE: %m/%d/%y%nTIME: %H:%M:%S''
 .Ed
 .Pp
 will display:

@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)csh.c	8.2 (Berkeley) 10/12/93";
+static char sccsid[] = "@(#)csh.c	8.4 (Berkeley) 4/29/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -116,7 +116,8 @@ main(argc, argv)
     register char *tcp;
     register int f;
     register char **tempv;
-    struct sigvec osv;
+    struct sigaction oact;
+    sigset_t sigset;
 
     cshin = stdin;
     cshout = stdout;
@@ -266,16 +267,14 @@ main(argc, argv)
      * only if we are the login shell.
      */
     /* parents interruptibility */
-    (void) sigvec(SIGINT, NULL, &osv);
-    parintr = (void (*) ()) osv.sv_handler;
-    (void) sigvec(SIGTERM, NULL, &osv);
-    parterm = (void (*) ()) osv.sv_handler;
+    (void) sigaction(SIGINT, NULL, &oact);
+    parintr = oact.sa_handler;
+    (void) sigaction(SIGTERM, NULL, &oact);
+    parterm = oact.sa_handler;
 
-    if (loginsh) {
-	(void) signal(SIGHUP, phup);	/* exit processing on HUP */
-	(void) signal(SIGXCPU, phup);	/* ...and on XCPU */
-	(void) signal(SIGXFSZ, phup);	/* ...and on XFSZ */
-    }
+    (void) signal(SIGHUP, phup);	/* exit processing on HUP */
+    (void) signal(SIGXCPU, phup);	/* ...and on XCPU */
+    (void) signal(SIGXFSZ, phup);	/* ...and on XFSZ */
 
     /*
      * Process the arguments.
@@ -450,7 +449,9 @@ main(argc, argv)
 	if (!quitit)		/* Wary! */
 	    (void) signal(SIGQUIT, SIG_IGN);
 	(void) signal(SIGINT, pintr);
-	(void) sigblock(sigmask(SIGINT));
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGINT);
+	sigprocmask(SIG_BLOCK, &sigset, NULL);
 	(void) signal(SIGTERM, SIG_IGN);
 	if (quitit == 0 && arginp == 0) {
 	    (void) signal(SIGTSTP, SIG_IGN);
@@ -518,7 +519,11 @@ notty:
 	{
 	    int     osetintr = setintr;
 	    sig_t   oparintr = parintr;
-	    sigset_t omask = sigblock(sigmask(SIGINT));
+	    sigset_t osigset;
+
+	    sigemptyset(&sigset);
+	    sigaddset(&sigset, SIGINT);
+	    sigprocmask(SIG_BLOCK, &sigset, &osigset);
 
 	    setintr = 0;
 	    parintr = SIG_IGN;	/* Disable onintr */
@@ -531,7 +536,7 @@ notty:
 	    if (loginsh)
 		(void) srcfile(_PATH_DOTLOGIN, 0, 0);
 #endif
-	    (void) sigsetmask(omask);
+	    sigprocmask(SIG_SETMASK, &osigset, NULL);
 	    setintr = osetintr;
 	    parintr = oparintr;
 	}
@@ -688,7 +693,7 @@ srcunit(unit, onlyown, hflg)
     bool    otell = cantell;
 
     struct Bin saveB;
-    volatile sigset_t omask;
+    sigset_t sigset, osigset;
     jmp_buf oldexit;
 
     /* The (few) real local variables */
@@ -719,12 +724,14 @@ srcunit(unit, onlyown, hflg)
      */
     insource = 1;
     getexit(oldexit);
-    omask = 0;
 
-    if (setintr)
-	omask = sigblock(sigmask(SIGINT));
+    if (setintr) {
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGINT);
+	sigprocmask(SIG_BLOCK, &sigset, &osigset);
+    }
     /* Setup the new values of the state stuff saved above */
-    bcopy((char *) &B, (char *) &(saveB), sizeof(B));
+    memmove(&saveB, &B, sizeof(B));
     fbuf = NULL;
     fseekp = feobp = fblocks = 0;
     oSHIN = SHIN, SHIN = unit, arginp = 0, onelflg = 0;
@@ -740,14 +747,14 @@ srcunit(unit, onlyown, hflg)
      * interrupted.
      */
     if (setintr)
-	(void) sigsetmask(omask);
+	sigprocmask(SIG_SETMASK, &osigset, NULL);
     settell();
 
     if ((my_reenter = setexit()) == 0)
 	process(0);		/* 0 -> blow away on errors */
 
     if (setintr)
-	(void) sigsetmask(omask);
+	sigprocmask(SIG_SETMASK, &osigset, NULL);
     if (oSHIN >= 0) {
 	register int i;
 
@@ -758,7 +765,7 @@ srcunit(unit, onlyown, hflg)
 	xfree((ptr_t) fbuf);
 
 	/* Reset input arena */
-	bcopy((char *) &(saveB), (char *) &B, sizeof(B));
+	memmove(&B, &saveB, sizeof(B));
 
 	(void) close(SHIN), SHIN = oSHIN;
 	arginp = oarginp, onelflg = oonelflg;
@@ -807,7 +814,8 @@ rechist()
   	    (void) Strcat(buf, STRsldthist);
   	}
 
-  	if ((fp = creat(short2str(hfile), 0600)) == -1) 
+  	if ((fp = open(short2str(hfile), O_WRONLY | O_CREAT | O_TRUNC,
+	    0600)) == -1) 
   	    return;
 
 	oldidfds = didfds;
@@ -899,7 +907,7 @@ int sig;
 	    while ((np = np->p_friends) != pp);
 	}
     }
-    _exit(sig);
+    xexit(sig);
 }
 
 Char   *jobargv[2] = {STRjobs, 0};
@@ -924,11 +932,14 @@ pintr1(wantnl)
     bool    wantnl;
 {
     Char **v;
-    sigset_t omask;
+    sigset_t sigset, osigset;
 
-    omask = sigblock((sigset_t) 0);
+    sigemptyset(&sigset);
+    sigprocmask(SIG_BLOCK, &sigset, &osigset);
     if (setintr) {
-	(void) sigsetmask(omask & ~sigmask(SIGINT));
+	sigset = osigset;
+	sigdelset(&sigset, SIGINT);
+	sigprocmask(SIG_SETMASK, &sigset, NULL);
 	if (pjobs) {
 	    pjobs = 0;
 	    (void) fprintf(cshout, "\n");
@@ -936,7 +947,8 @@ pintr1(wantnl)
 	    stderror(ERR_NAME | ERR_INTR);
 	}
     }
-    (void) sigsetmask(omask & ~sigmask(SIGCHLD));
+    sigdelset(&osigset, SIGCHLD);
+    sigprocmask(SIG_SETMASK, &osigset, NULL);
     (void) fpurge(cshout);
     (void) endpwent();
 
@@ -982,6 +994,7 @@ process(catch)
 {
     jmp_buf osetexit;
     struct command *t = savet;
+    sigset_t sigset;
 
     savet = NULL;
     getexit(osetexit);
@@ -995,8 +1008,11 @@ process(catch)
 	/*
 	 * Interruptible during interactive reads
 	 */
-	if (setintr)
-	    (void) sigsetmask(sigblock((sigset_t) 0) & ~sigmask(SIGINT));
+	if (setintr) {
+	    sigemptyset(&sigset);
+	    sigaddset(&sigset, SIGINT);
+	    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+	}
 
 	/*
 	 * For the sake of reset()
@@ -1060,7 +1076,7 @@ process(catch)
 	 * The parser may lose space if interrupted.
 	 */
 	if (setintr)
-	    (void) sigblock(sigmask(SIGINT));
+	    sigprocmask(SIG_BLOCK, &sigset, NULL);
 
 	/*
 	 * Save input text on the history list if reading in old history, or it

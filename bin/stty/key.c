@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)key.c	8.3 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)key.c	8.4 (Berkeley) 2/20/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -190,13 +190,14 @@ f_extproc(ip)
 	struct info *ip;
 {
 
-	if (ip->set) {
-		int tmp = 1;
-		(void)ioctl(ip->fd, TIOCEXT, &tmp);
-	} else {
+	if (ip->off) {
 		int tmp = 0;
 		(void)ioctl(ip->fd, TIOCEXT, &tmp);
+	} else {
+		int tmp = 1;
+		(void)ioctl(ip->fd, TIOCEXT, &tmp);
 	}
+	ip->set = 1;
 }
 
 void

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)netdate.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)netdate.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -82,6 +82,7 @@ netsettime(tval)
 		return (retval = 2);
 	}
 
+	memset(&dest, 0, sizeof(dest));
 	dest.sin_port = sp->s_port;
 	dest.sin_family = AF_INET;
 	dest.sin_addr.s_addr = htonl((u_long)INADDR_ANY);
