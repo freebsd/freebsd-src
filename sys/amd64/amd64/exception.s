@@ -47,11 +47,6 @@
 
 #include "assym.s"
 
-#ifdef SMP
-#define	MOVL_KPSEL_EAX	movl	$KPSEL,%eax
-#else
-#define	MOVL_KPSEL_EAX
-#endif
 #define	SEL_RPL_MASK	0x0003
 
 	.text
@@ -172,7 +167,7 @@ IDTVEC(fpu)
 	mov	$KDSEL,%ax
 	mov	%ax,%ds
 	mov	%ax,%es
-	MOVL_KPSEL_EAX
+	mov	$KPSEL,%ax
 	mov	%ax,%fs
 	FAKE_MCOUNT(13*4(%esp))
 
@@ -213,7 +208,7 @@ alltraps_with_regs_pushed:
 	mov	$KDSEL,%ax
 	mov	%ax,%ds
 	mov	%ax,%es
-	MOVL_KPSEL_EAX
+	mov	$KPSEL,%ax
 	mov	%ax,%fs
 	FAKE_MCOUNT(13*4(%esp))
 calltrap:
@@ -253,7 +248,7 @@ IDTVEC(syscall)
 	mov	$KDSEL,%ax		/* switch to kernel segments */
 	mov	%ax,%ds
 	mov	%ax,%es
-	MOVL_KPSEL_EAX
+	mov	$KPSEL,%ax
 	mov	%ax,%fs
 	movl	TF_ERR(%esp),%eax	/* copy saved eflags to final spot */
 	movl	%eax,TF_EFLAGS(%esp)
@@ -287,7 +282,7 @@ IDTVEC(int0x80_syscall)
 	mov	$KDSEL,%ax		/* switch to kernel segments */
 	mov	%ax,%ds
 	mov	%ax,%es
-	MOVL_KPSEL_EAX
+	mov	$KPSEL,%ax
 	mov	%ax,%fs
 	movl	$2,TF_ERR(%esp)		/* sizeof "int 0x80" */
 	FAKE_MCOUNT(13*4(%esp))
@@ -308,8 +303,7 @@ ENTRY(fork_trampoline)
 #ifdef SMP
 	cmpl	$0,PCPU(SWITCHTIME)
 	jne	1f
-	movl	$GD_SWITCHTIME,%eax
-	addl	%fs:0,%eax
+	PCPU_ADDR(SWITCHTIME, %eax)
 	pushl	%eax
 	call	_microuptime
 	popl	%edx

@@ -82,7 +82,8 @@ _global_globaldata(void)
 	return (val);
 }
 
-#if defined(SMP) || defined(KLD_MODULE)
+/* #if defined(SMP) || defined(KLD_MODULE) */
+#if 1
 /*
  * The following set of macros works for UP kernel as well, but for maximum
  * performance we allow the global variables to be accessed directly. On the
@@ -179,11 +180,7 @@ GLOBAL_FUNC(prv_PADDR1)
 
 GLOBAL_FUNC(witness_spin_check)
 
-#ifdef SMP
 #define	GLOBALDATA		GLOBAL_RVALUE(globaldata, struct globaldata *)
-#else
-#define	GLOBALDATA		(&globaldata)
-#endif
 
 #define	CURTHD			curproc
 #define	CURPROC			curproc

@@ -48,19 +48,9 @@
 	.set    gd_idlestack_top,PS_IDLESTACK_TOP
 #endif
 
-	/*
-	 * Define layout of the global data.  On SMP this lives in
-	 * the per-cpu address space, otherwise it's in the data segment.
-	 */
 	.globl	globaldata
-#ifndef SMP
-	.data
-	ALIGN_DATA
-globaldata:
-	.space	GD_SIZEOF		/* in data segment */
-#else
 	.set	globaldata,0
-#endif
+
 	.globl	gd_curproc, gd_curpcb, gd_npxproc, gd_idleproc
 	.globl	gd_astpending, gd_common_tss, gd_switchtime, gd_switchticks
 	.globl	gd_intr_nesting_level
