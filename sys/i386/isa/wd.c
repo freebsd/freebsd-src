@@ -76,6 +76,7 @@
 #include "uio.h"
 #include "malloc.h"
 #include "machine/cpu.h"
+#include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 #include "i386/isa/icu.h"
 #include "i386/isa/wdreg.h"
@@ -200,7 +201,7 @@ wdprobe(struct isa_device *dvp)
 
 	(void) inb(wdc+wd_error);	/* XXX! */
 	outb(wdc+wd_ctlr, WDCTL_4BIT);
-	return (1);
+	return (IO_WDCSIZE);
 
 nodevice:
 	free(du, M_TEMP);
