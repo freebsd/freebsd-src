@@ -188,8 +188,9 @@ in_pcbbind(inp, nam, p)
 		if (sin->sin_family != AF_INET)
 			return (EAFNOSUPPORT);
 #endif
-		if (prison_ip(p, 0, &sin->sin_addr.s_addr))
-			return(EINVAL);
+		if (sin->sin_addr.s_addr != INADDR_ANY)
+			if (prison_ip(p, 0, &sin->sin_addr.s_addr))
+				return(EINVAL);
 		lport = sin->sin_port;
 		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 			/*
@@ -261,8 +262,9 @@ in_pcbbind(inp, nam, p)
 		ushort first, last;
 		int count;
 
-		if (prison_ip(p, 0, &inp->inp_laddr.s_addr ))
-			return (EINVAL);
+		if (inp->inp_laddr.s_addr != INADDR_ANY)
+			if (prison_ip(p, 0, &inp->inp_laddr.s_addr ))
+				return (EINVAL);
 		inp->inp_flags |= INP_ANONPORT;
 
 		if (inp->inp_flags & INP_HIGHPORT) {
@@ -332,6 +334,8 @@ in_pcbbind(inp, nam, p)
 		}
 	}
 	inp->inp_lport = lport;
+	if (prison_ip(p, 0, &inp->inp_laddr.s_addr))
+		return (EINVAL);
 	if (in_pcbinshash(inp) != 0) {
 		inp->inp_laddr.s_addr = INADDR_ANY;
 		inp->inp_lport = 0;
@@ -379,10 +383,10 @@ in_pcbladdr(inp, nam, plocal_sin)
 #define sintosa(sin)	((struct sockaddr *)(sin))
 #define ifatoia(ifa)	((struct in_ifaddr *)(ifa))
 		if (sin->sin_addr.s_addr == INADDR_ANY)
-		    sin->sin_addr = IA_SIN(in_ifaddrhead.tqh_first)->sin_addr;
+		    sin->sin_addr = IA_SIN(TAILQ_FIRST(&in_ifaddrhead))->sin_addr;
 		else if (sin->sin_addr.s_addr == (u_long)INADDR_BROADCAST &&
-		  (in_ifaddrhead.tqh_first->ia_ifp->if_flags & IFF_BROADCAST))
-		    sin->sin_addr = satosin(&in_ifaddrhead.tqh_first->ia_broadaddr)->sin_addr;
+		  (TAILQ_FIRST(&in_ifaddrhead)->ia_ifp->if_flags & IFF_BROADCAST))
+		    sin->sin_addr = satosin(&TAILQ_FIRST(&in_ifaddrhead)->ia_broadaddr)->sin_addr;
 	}
 	if (inp->inp_laddr.s_addr == INADDR_ANY) {
 		register struct route *ro;
@@ -427,7 +431,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 				ia = ifatoia(ifa_ifwithnet(sintosa(sin)));
 			sin->sin_port = fport;
 			if (ia == 0)
-				ia = in_ifaddrhead.tqh_first;
+				ia = TAILQ_FIRST(&in_ifaddrhead);
 			if (ia == 0)
 				return (EADDRNOTAVAIL);
 		}
@@ -444,8 +448,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 			imo = inp->inp_moptions;
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
-				for (ia = in_ifaddrhead.tqh_first; ia;
-				     ia = ia->ia_link.tqe_next)
+				TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link)
 					if (ia->ia_ifp == ifp)
 						break;
 				if (ia == 0)
@@ -476,9 +479,19 @@ in_pcbconnect(inp, nam, p)
 	struct proc *p;
 {
 	struct sockaddr_in *ifaddr;
-	register struct sockaddr_in *sin = (struct sockaddr_in *)nam;
+	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
+	struct sockaddr_in sa;
 	int error;
 
+	if (inp->inp_laddr.s_addr == INADDR_ANY && p->p_prison != NULL) {
+		bzero(&sa, sizeof (sa));
+		sa.sin_addr.s_addr = htonl(p->p_prison->pr_ip);
+		sa.sin_len=sizeof (sa);
+		sa.sin_family = AF_INET;
+		error = in_pcbbind(inp, (struct sockaddr *)&sa, p);
+		if (error)
+			return (error);
+	}
 	/*
 	 *   Call inner routine, to assign local interface address.
 	 */
@@ -582,8 +595,8 @@ in_setsockaddr(so, nam)
 	/*
 	 * Do the malloc first in case it blocks.
 	 */
-	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
-	bzero(sin, sizeof *sin);
+	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
+		M_WAITOK | M_ZERO);
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 
@@ -614,8 +627,8 @@ in_setpeeraddr(so, nam)
 	/*
 	 * Do the malloc first in case it blocks.
 	 */
-	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
-	bzero(sin, sizeof (*sin));
+	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
+		M_WAITOK | M_ZERO);
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 
@@ -665,7 +678,7 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
 
 	errno = inetctlerrmap[cmd];
 	s = splnet();
-	for (inp = head->lh_first; inp != NULL;) {
+	for (inp = LIST_FIRST(head); inp != NULL;) {
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV4) == 0) {
 			inp = LIST_NEXT(inp, inp_list);
@@ -676,11 +689,11 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
 		    inp->inp_socket == 0 || inp->inp_lport != lport ||
 		    inp->inp_laddr.s_addr != laddr.s_addr ||
 		    inp->inp_fport != fport) {
-			inp = inp->inp_list.le_next;
+			inp = LIST_NEXT(inp, inp_list);
 			continue;
 		}
 		oinp = inp;
-		inp = inp->inp_list.le_next;
+		inp = LIST_NEXT(inp, inp_list);
 		if (notify)
 			(*notify)(oinp, errno);
 	}
@@ -713,7 +726,8 @@ in_pcbnotifyall(head, dst, cmd, notify)
 			continue;
 		}
 #endif
-		if (inp->inp_faddr.s_addr != faddr.s_addr || inp->inp_socket == 0) {
+		if (inp->inp_faddr.s_addr != faddr.s_addr ||
+			 inp->inp_socket == 0) {
 				inp = LIST_NEXT(inp, inp_list);
 				continue;
 		}
@@ -799,7 +813,7 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 		 * matches the local address and port we're looking for.
 		 */
 		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
-		for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
+		LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
 			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
@@ -829,7 +843,7 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 		 */
 		porthash = &pcbinfo->porthashbase[INP_PCBPORTHASH(lport,
 		    pcbinfo->porthashmask)];
-		for (phd = porthash->lh_first; phd != NULL; phd = phd->phd_hash.le_next) {
+		LIST_FOREACH(phd, porthash, phd_hash) {
 			if (phd->phd_port == lport)
 				break;
 		}
@@ -838,8 +852,7 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 			 * Port is in use by one or more PCBs. Look for best
 			 * fit.
 			 */
-			for (inp = phd->phd_pcblist.lh_first; inp != NULL;
-			    inp = inp->inp_portlist.le_next) {
+			LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
 				wildcard = 0;
 #ifdef INET6
 				if ((inp->inp_vflag & INP_IPV4) == 0)
@@ -889,7 +902,7 @@ in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard,
 	 * First look for an exact match.
 	 */
 	head = &pcbinfo->hashbase[INP_PCBHASH(faddr.s_addr, lport, fport, pcbinfo->hashmask)];
-	for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
+	LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV4) == 0)
 			continue;
@@ -911,7 +924,7 @@ in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard,
 #endif /* defined(INET6) */
 
 		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
-		for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
+		LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
 			if ((inp->inp_vflag & INP_IPV4) == 0)
 				continue;
@@ -978,7 +991,7 @@ in_pcbinshash(inp)
 	/*
 	 * Go through port list and look for a head for this lport.
 	 */
-	for (phd = pcbporthash->lh_first; phd != NULL; phd = phd->phd_hash.le_next) {
+	LIST_FOREACH(phd, pcbporthash, phd_hash) {
 		if (phd->phd_port == inp->inp_lport)
 			break;
 	}
@@ -1040,7 +1053,7 @@ in_pcbremlists(inp)
 
 		LIST_REMOVE(inp, inp_hash);
 		LIST_REMOVE(inp, inp_portlist);
-		if (phd->phd_pcblist.lh_first == NULL) {
+		if (LIST_FIRST(&phd->phd_pcblist) == NULL) {
 			LIST_REMOVE(phd, phd_hash);
 			free(phd, M_PCB);
 		}
