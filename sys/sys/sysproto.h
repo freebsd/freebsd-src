@@ -1062,7 +1062,7 @@ struct kse_exit_args {
 	register_t dummy;
 };
 struct kse_wakeup_args {
-	register_t dummy;
+	char mbx_l_[PADL_(struct kse_mailbox *)]; struct kse_mailbox * mbx; char mbx_r_[PADR_(struct kse_mailbox *)];
 };
 struct kse_create_args {
 	char mbx_l_[PADL_(struct kse_mailbox *)]; struct kse_mailbox * mbx; char mbx_r_[PADR_(struct kse_mailbox *)];
