@@ -1,7 +1,5 @@
 /*
- * LP (Laptop Package)
- *
- * Copyright (C) 1994 by HOSOKAWA Tatasumi <hosokawa@mt.cs.keio.ac.jp>
+ * Copyright (C) 1994 by Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>
  *
  * This software may be used, modified, copied, distributed, and sold,
  * in both source and binary form provided that the above copyright and
@@ -15,7 +13,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: apmconf.c,v 1.7 1997/09/02 06:37:48 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
