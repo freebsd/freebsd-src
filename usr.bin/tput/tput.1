@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)tput.1	8.2 (Berkeley) 3/19/94
+.\"	$Id$
 .\"
 .Dd March 19, 1994
 .Dt TPUT 1
@@ -38,32 +39,37 @@
 .Nm tput
 .Nd terminal capability interface
 .Sh SYNOPSIS
-.Nm tput
+.Nm
 .Op Fl T Ar term
 .Ar attribute
 .Sh DESCRIPTION
-.Nm Tput
-makes terminal-dependent information available to users or shell
+The
+.Nm
+command makes terminal-dependent information available to users or shell
 applications.
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl T
 The terminal name as specified in the
 .Xr termcap
-database, for example, ``vt100'' or ``xterm''.
+database, for example,
+.Dq vt100
+or
+.Dq xterm .
 If not specified,
-.Nm tput
+.Nm
 retrieves the
 .Dq Ev TERM
 variable from the environment.
 .El
 .Pp
-.Nm Tput
-outputs a string if the
+The
+.Nm
+command outputs a string if the
 .Ar attribute
 is of type string; a number if it is of type integer.
 Otherwise,
-.Nm tput
+.Nm
 exits 0 if the terminal has the capability and 1 if it does not,
 without further action.
 .Pp
@@ -80,36 +86,41 @@ The following special attributes are available:
 .It clear
 Clear the screen (the
 .Xr termcap
-``cl'' sequence).
+.Dq cl
+sequence).
 .It init
 Initialize the terminal (the
 .Xr termcap
-``is'' sequence).
+.Dq is
+sequence).
 .It longname
 Print the descriptive name of the user's terminal type.
 .It reset
 Reset the terminal (the
 .Xr termcap
-``rs'' sequence).
+.Dq rs
+sequence).
 .Sh DIAGNOSTICS
 The exit value of
-.Nm tput
+.Nm
 is based on the last attribute specified.
 If the attribute is of type string or of type integer,
-.Nm tput
+.Nm
 exits 0 if the attribute is defined for this terminal type and 1
 if it is not.
 If the attribute is of type boolean,
-.Nm tput
+.Nm
 exits 0 if the terminal has this attribute, and 1 if it does not.
-.Nm Tput
-exits 2 if any error occurred.
+The
+.Nm
+command exits 2 if any error occurred.
 .Sh SEE ALSO
 .Xr termcap 3 ,
 .Xr termcap 5
 .Sh BUGS
-.Nm Tput
-can't really distinguish between different types of attributes.
+The
+.Nm
+command can't really distinguish between different types of attributes.
 .Pp
 Some termcap entries depend upon having a
 .Sq %
@@ -121,5 +132,5 @@ stderr.
 .Sh HISTORY
 The
 .Nm
-command appears in
+command appeared in
 .Bx 4.4 .
