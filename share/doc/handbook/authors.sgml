@@ -1,4 +1,4 @@
-<!-- $Id: authors.sgml,v 1.8 1995/09/25 04:53:27 jfieber Exp $ -->
+<!-- $Id: authors.sgml,v 1.9 1995/10/01 04:43:12 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -38,6 +38,14 @@ and double quotes.
 <!ENTITY a.gpalmer "Gary Palmer 
   <tt><htmlurl url='mailto:gpalmer@FreeBSD.org' 
   name='&lt;gpalmer@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.gryphon "Coranth Gryphon
+  <tt><htmlurl url='mailto:gryphon@healer.com'
+  name='&lt;gryphon@healer.com&gt;'></tt>">
+
+<!ENTITY a.jehamby "Jake Hamby
+  <tt><htmlurl url='mailto:jehamby@lightside.com'
+  name='&lt;jehamby@lightside.com&gt;'></tt>">
 
 <!ENTITY a.jfieber "John Fieber 
   <tt><htmlurl url='mailto:jfieber@FreeBSD.org' 

@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.6 1995/08/12 21:33:24 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.7 1995/09/27 00:46:29 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -82,11 +82,11 @@ are each, in their own way, quite significant to the project.
    FreeBSD maintainers.  This is done with the <tt>diff(1)</tt> command,
    with the `context diff' form being preferred.  For example:
 <tscreen><verb>
-diff -c &lt;oldfile&gt &lt;newfile&gt;
+diff -c oldfile newfile
 </verb></tscreen>
 or
 <tscreen><verb>
-diff -c -r &lt;olddir&gt &lt;newdir&gt;
+diff -c -r olddir newdir
 </verb></tscreen>
    would generate such a set of context diffs for the given source file
    or directory hierarchy.  See the man page for <tt>diff(1)</tt> for more
@@ -193,7 +193,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.6 1995/08/12 21:33:24 jkh Exp $
+	$Id: submitters.sgml,v 1.7 1995/09/27 00:46:29 jmz Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
