@@ -117,11 +117,13 @@ main(argc, argv)
 {
 	SVCXPRT *xprt;
 	int sock, c;
+	char **hosts = NULL;
+	int nhosts = 0;
 	struct sockaddr_in addr;
 	int len = sizeof(struct sockaddr_in);
 	register struct pmaplist *pml;
 
-	while ((c = getopt(argc, argv, "dv")) != -1) {
+	while ((c = getopt(argc, argv, "dvh:")) != -1) {
 		switch (c) {
 
 		case 'd':
@@ -130,6 +132,12 @@ main(argc, argv)
 
 		case 'v':
 			verboselog = 1;
+			break;
+
+		case 'h':
+			++nhosts;
+			hosts = realloc(hosts, nhosts * sizeof(char *));
+			hosts[nhosts - 1] = optarg;
 			break;
 
 		default:
@@ -143,22 +151,45 @@ main(argc, argv)
 	openlog("portmap", debugging ? LOG_PID | LOG_PERROR : LOG_PID,
 	    LOG_DAEMON);
 
-	if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
-		syslog(LOG_ERR, "cannot create udp socket: %m");
-		exit(1);
-	}
-
-	addr.sin_addr.s_addr = 0;
+	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(PMAPPORT);
-	if (bind(sock, (struct sockaddr *)&addr, len) != 0) {
-		syslog(LOG_ERR, "cannot bind udp: %m");
-		exit(1);
-	}
 
-	if ((xprt = svcudp_create(sock)) == (SVCXPRT *)NULL) {
-		syslog(LOG_ERR, "couldn't do udp_create");
-		exit(1);
+	/*
+	 * If no hosts were specified, just bind to INADDR_ANY.  Otherwise
+	 * make sure 127.0.0.1 is added to the list.
+	 */
+	++nhosts;
+	hosts = realloc(hosts, nhosts * sizeof(char *));
+	if (nhosts == 1)
+		hosts[0] = "0.0.0.0";
+	else
+		hosts[nhosts - 1] = "127.0.0.1";
+
+	/*
+	 * Add UDP socket(s) - bind to specific IPs if asked to
+	 */
+	while (nhosts > 0) {
+	    --nhosts;
+
+	    if (inet_aton(hosts[nhosts], &addr.sin_addr) < 0) {
+		    syslog(LOG_ERR, "bad IP address: %s", hosts[nhosts]);
+		    exit(1);
+	    }
+	    if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+		    syslog(LOG_ERR, "cannot create udp socket: %m");
+		    exit(1);
+	    }
+
+	    if (bind(sock, (struct sockaddr *)&addr, len) != 0) {
+		    syslog(LOG_ERR, "cannot bind udp: %m");
+		    exit(1);
+	    }
+
+	    if ((xprt = svcudp_create(sock)) == (SVCXPRT *)NULL) {
+		    syslog(LOG_ERR, "couldn't do udp_create");
+		    exit(1);
+	    }
 	}
 	/* make an entry for ourself */
 	pml = (struct pmaplist *)malloc((u_int)sizeof(struct pmaplist));
@@ -169,6 +200,10 @@ main(argc, argv)
 	pml->pml_map.pm_port = PMAPPORT;
 	pmaplist = pml;
 
+	/*
+	 * Add TCP socket
+	 */
+	addr.sin_addr.s_addr = 0;
 	if ((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 		syslog(LOG_ERR, "cannot create tcp socket: %m");
 		exit(1);
