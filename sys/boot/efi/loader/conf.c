@@ -53,6 +53,7 @@ static const char rcsid[] =
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
+	&netdev,
 	&efifs_dev,
 	NULL
 };
@@ -60,8 +61,14 @@ struct devsw *devsw[] = {
 struct fs_ops *file_system[] = {
 	&efi_fsops,
 	&ufs_fsops,
+	&nfs_fsops,
 	&zipfs_fsops,
 	NULL
+};
+
+struct netif_driver *netif_drivers[] = {
+	&efi_net,
+	NULL,
 };
 
 /* Exported for ia64 only */
@@ -79,7 +86,7 @@ struct file_format *file_formats[] = {
 /* 
  * Consoles 
  *
- * We don't prototype these in libalpha.h because they require
+ * We don't prototype these in efiboot.h because they require
  * data structures from bootstrap.h as well.
  */
 extern struct console efi_console;
