@@ -326,7 +326,7 @@
 #define WI_HCR_HOLD		0x000f
 #define WI_HCR_EEHOLD		0x00ce
 
-#define WI_COR_OFFSET	0x3e0	/* Bogus for sure! */
+#define WI_COR_OFFSET	0x3e0	/* OK for PCI, must be bogus for pccard */
 #define WI_COR_VALUE	0x41
 
 /*
