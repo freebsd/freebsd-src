@@ -111,7 +111,7 @@ sighandler (int signo)
 		printf ("  -> Suspender thread signal handler caught signal %d\n",
 			signo);
 		sigprocmask (SIG_SETMASK, NULL, &set);
-		if (set != suspender_mask)
+		if (memcmp(&set, &suspender_mask, sizeof(set)))
 			printf ("  >>> FAIL: sigsuspender signal handler running "
 				"with incorrect mask.\n");
 	}
@@ -231,7 +231,7 @@ int main (int argc, char *argv[])
 	sleep (1);
 	send_process_signal (SIGURG);
 	sleep (1);
-	if (sigcounts[SIGURG] != 3)
+	if (sigcounts[SIGURG] != 2)
 		printf ("FAIL: sigsuspend doesn't wake up for SIGURG.\n");
 
 	/*
