@@ -32,9 +32,23 @@
 #define _PSEUDOFS_H_INCLUDED
 
 /*
+ * Opaque structures
+ */
+struct mount;
+struct nameidata;
+struct proc;
+struct sbuf;
+struct statfs;
+struct thread;
+struct uio;
+struct vfsconf;
+struct vnode;
+
+/*
  * Limits and constants
  */
 #define PFS_NAMELEN		24
+#define PFS_FSNAMELEN		16	/* equal to MFSNAMELEN */
 #define PFS_DELEN		(8 + PFS_NAMELEN)
 
 typedef enum {
@@ -122,7 +136,7 @@ typedef int (*pfs_ioctl_t)(PFS_IOCTL_ARGS);
  * pfs_info: describes a pseudofs instance
  */
 struct pfs_info {
-	char			 pi_name[MFSNAMELEN];
+	char			 pi_name[PFS_FSNAMELEN];
 	pfs_init_t		 pi_init;
 	pfs_init_t		 pi_uninit;
 	/* members below this line aren't initialized */
