@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.14 1998/12/17 00:06:52 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.15 1999/01/14 06:14:14 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -2684,6 +2684,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 			} else
 				ahc_handle_ign_wide_residue(ahc, devinfo);
 		}
+		break;
 	}
 	case MSG_EXTENDED:
 	{
@@ -2869,6 +2870,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct cam_path *path,
 			reject = TRUE;
 			break;
 		}
+		break;
 	}
 	case MSG_ABORT:
 	case MSG_ABORT_TAG:
