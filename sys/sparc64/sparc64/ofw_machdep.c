@@ -29,6 +29,8 @@
  * Some OpenFirmware helper functions that are likely machine dependent.
  */
 
+#include "opt_ofw_pci.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 
@@ -59,6 +61,21 @@ OF_getetheraddr(device_t dev, u_char *addr)
 }
 
 int
+OF_getetheraddr2(device_t dev, u_char *addr)
+{
+	phandle_t node;
+
+#ifdef OFW_NEWPCI
+	node = ofw_pci_get_node(dev);
+#else
+	node = ofw_pci_node(dev);
+#endif
+	if (node <= 0)
+	       return (-1);
+	return (OF_getprop(node, "local-mac-address", addr, ETHER_ADDR_LEN));
+}
+
+int
 OF_decode_addr(phandle_t node, int *space, bus_addr_t *addr)
 {
 	char name[32];
@@ -76,7 +93,7 @@ OF_decode_addr(phandle_t node, int *space, bus_addr_t *addr)
 	int cs, i, rsz, type;
 
 	bus = OF_parent(node);
-	if (bus == NULL)
+	if (bus == 0)
 		return (ENXIO);
 	if (OF_getprop(bus, "name", name, sizeof(name)) == -1)
 		return (ENXIO);
@@ -102,7 +119,7 @@ OF_decode_addr(phandle_t node, int *space, bus_addr_t *addr)
 		/* Find the topmost PCI node (the host bridge) */
 		while (1) {
 			pbus = OF_parent(bus);
-			if (pbus == NULL)
+			if (pbus == 0)
 				return (ENXIO);
 			if (OF_getprop(pbus, "name", name, sizeof(name)) == -1)
 				return (ENXIO);
