@@ -55,7 +55,7 @@
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
-#include <i386/linux/linux_util.h>
+#include <compat/linux/linux_util.h>
 
 MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 
