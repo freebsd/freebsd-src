@@ -278,8 +278,6 @@ pathsearch(const char *pathname)
 	struct direct *dp;
 	char *path, *name, buffer[MAXPATHLEN];
 
-	printf("Looking for %s\n", pathname);
-
 	strcpy(buffer, pathname);
 	path = buffer;
 	ino = ROOTINO;
