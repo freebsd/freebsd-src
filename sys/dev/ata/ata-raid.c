@@ -969,6 +969,7 @@ ar_rebuild(void *arg)
     int disk, s, count = 0, error = 0;
     caddr_t buffer;
 
+    mtx_lock(&Giant);
     if ((rdp->flags & (AR_F_READY|AR_F_DEGRADED)) != (AR_F_READY|AR_F_DEGRADED))
 	kthread_exit(EEXIST);
 
