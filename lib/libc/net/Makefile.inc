@@ -6,7 +6,7 @@
 
 SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c getaddrinfo.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
-	getifaddrs.c getnameinfo.c \
+	getifaddrs.c getifmaddrs.c getnameinfo.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
 	getproto.c getprotoent.c getprotoname.c getservbyname.c \
 	getservbyport.c getservent.c herror.c hesiod.c inet_addr.c \
@@ -40,7 +40,7 @@ nslexer.c: nslexer.l nsparser.h
 .endif
 
 MAN+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
-	getifaddrs.3 getipnodebyname.3 \
+	getifaddrs.3 getifmaddrs.3 getipnodebyname.3 \
 	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 hesiod.3 \
 	if_indextoname.3 \
 	inet.3 inet_net.3 \
@@ -59,6 +59,7 @@ MLINKS+=gethostbyname.3 endhostent.3 gethostbyname.3 gethostbyaddr.3 \
 	gethostbyname.3 herror.3 gethostbyname.3 hstrerror.3 \
 	gethostbyname.3 sethostent.3
 MLINKS+=getifaddrs.3 freeifaddrs.3
+MLINKS+=getifmaddrs.3 freeifmaddrs.3
 MLINKS+=getipnodebyname.3 getipnodebyaddr.3 getipnodebyname.3 freehostent.3
 MLINKS+=getnetent.3 endnetent.3 getnetent.3 getnetbyaddr.3 \
 	getnetent.3 getnetbyname.3 getnetent.3 setnetent.3
