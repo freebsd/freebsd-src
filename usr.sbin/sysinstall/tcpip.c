@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.46 1996/09/01 08:17:14 jkh Exp $
+ * $Id: tcpip.c,v 1.47 1996/10/05 12:16:49 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -249,8 +249,7 @@ tcpOpenDialog(Device *devp)
 	msgFatal("Cannot open TCP/IP dialog window!!");
 
     /* Say where our help comes from */
-    systemHelpFile(TCP_HELPFILE, help);
-    use_helpfile(help);
+    use_helpfile(systemHelpFile(TCP_HELPFILE, help));
 
     /* Setup a nice screen for us to splat stuff onto */
     draw_box(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X, TCP_DIALOG_HEIGHT, TCP_DIALOG_WIDTH, dialog_attr, border_attr);

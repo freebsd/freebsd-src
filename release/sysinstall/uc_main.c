@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.8 1996/10/05 11:56:50 jkh Exp $
+ * $Id: uc_main.c,v 1.9 1996/10/05 13:30:43 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -79,10 +79,9 @@ uc_open(char *name){
 	strncpy(kname, getbootfile(), 79);
     else
 	strncpy(kname, name, 79);
-    
+
     if (isDebug())
 	msgDebug("uc_open: kernel name is %s, incore = %d\n", kname, incore);
-    
     kern = (struct kernel *)malloc(sizeof(struct kernel));
 
 #ifdef KERN_NO_SYMBOLS
@@ -103,23 +102,29 @@ uc_open(char *name){
 	nl = (struct nlist *)malloc((size + 1) * sizeof(struct nlist));
 	for (i = 0; i < size; i++) {
 	    char name[255];
+	    int c1;
+	    unsigned int uc1;
+	    short d1;
+	    unsigned long v1;
 
-	    if (fgets(name, 255, fp) == NULL) {
-		msgDebug("Unable to read symbol name from symbol file.\n");
-		free(kern);
-		return NULL;
+	    if (fscanf(fp, "%s %u %d %hd %ld\n", name, &uc1, &c1, &d1, &v1) == 5) {
+		nl[i].n_name = strdup(name);
+		nl[i].n_type = (unsigned char)uc1;
+		nl[i].n_other = (char)c1;
+		nl[i].n_desc = d1;
+		nl[i].n_value = v1;
+		if (isDebug())
+		    msgDebug("Entry %d, decoded: \"%s\", %d %d %hd %ld\n", i, nl[i].n_name, nl[i].n_type, nl[i].n_other, nl[i].n_desc, nl[i].n_value);
 	    }
-	    if (name[0] == '\n')
-		name[0] = '\0';
-	    nl[i].n_name = strdup(name);
-	    if (fscanf(fp, "%d %d %d %ld\n",
-		       &(nl[i].n_type), &(nl[i].n_other), &(nl[i].n_desc), &(nl[i].n_value)) != 4) {
+	    else {
+		nl[i].n_name = "";
 		nl[i].n_type = 0;
 		nl[i].n_other = 0;
 		nl[i].n_desc = 0;
 		nl[i].n_value = 0;
 	    }
 	}
+	nl[i].n_name = NULL;
 	fclose(fp);
     	kern->nl = nl;
 	i = 0;
@@ -148,7 +153,6 @@ uc_open(char *name){
 	    msgDebug("uc_open: Unable to open /dev/kmem.\n");
 	    return kern;
 	}
-	
 	kern->core = (caddr_t)NULL;
 	kern->incore = 1;
 	kern->size = 0;
@@ -194,9 +198,8 @@ uc_open(char *name){
 	    return kern;
 	}
     }
-    
+
     kern->fd = kd;
-    
     if (isDebug())
 	msgDebug("uc_open: getting isa information\n");
     get_isa_info(kern);
