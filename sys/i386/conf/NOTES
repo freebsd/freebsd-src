@@ -1267,12 +1267,6 @@ hint.npx.0.irq="13"
 device		acpica
 options		ACPI_DEBUG
 
-# ACPI Experimental Driver
-#device		acpi
-#options 	ACPI_DEBUG
-#!options	ACPI_NO_ENABLE_ON_BOOT
-#options 	AML_DEBUG
-
 #
 # Optional devices:
 #
