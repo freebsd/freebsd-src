@@ -394,7 +394,6 @@ adlink_intr(void *arg)
 
 static struct cdevsw adlink_cdevsw = {
 	.d_open =	adlink_open,
-	.d_close =	nullclose,
 	.d_ioctl =	adlink_ioctl,
 	.d_mmap =	adlink_mmap,
 	.d_name =	"adlink",

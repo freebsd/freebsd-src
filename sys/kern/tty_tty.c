@@ -39,7 +39,6 @@ static	d_open_t	cttyopen;
 
 static struct cdevsw ctty_cdevsw = {
 	.d_open =	cttyopen,
-	.d_close =	nullclose,
 	.d_name =	"ctty",
 	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,

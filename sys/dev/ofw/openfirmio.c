@@ -67,8 +67,6 @@ static d_ioctl_t openfirm_ioctl;
 #define	OPENFIRM_MINOR	0
 
 static struct cdevsw openfirm_cdevsw = {
-	.d_open =	nullopen,
-	.d_close =	nullclose,
 	.d_ioctl =	openfirm_ioctl,
 	.d_name =	"openfirm",
 };

@@ -65,8 +65,6 @@ __FBSDID("$FreeBSD$");
 static d_ioctl_t g_ctl_ioctl;
 
 static struct cdevsw g_ctl_cdevsw = {
-	.d_open =	nullopen,
-	.d_close =	nullclose,
 	.d_ioctl =	g_ctl_ioctl,
 	.d_name =	"g_ctl",
 };
