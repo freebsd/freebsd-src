@@ -950,6 +950,7 @@ ifinfo(argc, argv)
 	}
 
 	printf("linkmtu=%d", ND.linkmtu);
+	printf(", maxmtu=%d", ND.maxmtu);
 	printf(", curhlim=%d", ND.chlim);
 	printf(", basereachable=%ds%dms",
 	    ND.basereachable / 1000, ND.basereachable % 1000);
