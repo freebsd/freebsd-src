@@ -48,8 +48,9 @@
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <machine/clock.h>
 #include <sys/cons.h>
+
+#include <machine/clock.h>
 #include <machine/console.h>
 #include <machine/psl.h>
 #include <machine/pc/display.h>
@@ -90,7 +91,7 @@ static default_attr kernel_default = {
 static	int		sc_console_unit = -1;
 static  scr_stat    	*sc_console;
 static	struct tty	*sc_console_tty;
-static  void	   	*kernel_console_ts;
+static	void		*kernel_console_ts;
 
 static  char        	init_done = COLD;
 static  char		shutdown_in_progress = FALSE;
