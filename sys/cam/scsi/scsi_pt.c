@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.6 1999/05/07 07:03:01 phk Exp $
+ *      $Id: scsi_pt.c,v 1.7 1999/05/09 01:25:32 ken Exp $
  */
 
 #include <sys/param.h>
@@ -479,11 +479,6 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 				"due to status 0x%x\n", status);
 		break;
 	}
-	case AC_LOST_DEVICE:
-	{
-		cam_periph_invalidate(periph);
-		break;
-	}
 	case AC_SENT_BDR:
 	case AC_BUS_RESET:
 	{
@@ -502,12 +497,10 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		     ccbh != NULL; ccbh = LIST_NEXT(ccbh, periph_links.le))
 			ccbh->ccb_state |= PT_CCB_RETRY_UA;
 		splx(s);
-		break;
+		/* FALLTHROUGH */
 	}
-	case AC_TRANSFER_NEG:
-	case AC_SCSI_AEN:
-	case AC_UNSOL_RESEL:
 	default:
+		cam_periph_async(periph, code, path, arg);
 		break;
 	}
 }
