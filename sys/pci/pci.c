@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.23.4.5 1996/01/19 19:21:03 se Exp $
+**  $Id: pci.c,v 1.23.4.6 1996/06/26 04:36:49 davidg Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -773,23 +773,14 @@ pci_bus_config (void)
 				**	Bridge was configured by the bios.
 				**	Read out the mapped io region.
 				*/
-				u_int reg, data, mask;
+				unsigned reg;
 
 				reg = pci_conf_read (tag,
 					PCI_PCI_BRIDGE_IO_REG);
-				pci_conf_write(tag,
-					PCI_PCI_BRIDGE_IO_REG, 0xFFFF);
-				data = pci_conf_read (tag,
-					PCI_PCI_BRIDGE_IO_REG);
-				pci_conf_write(tag,
-					PCI_PCI_BRIDGE_IO_REG, reg & 0xffff);
-
-				mask = (0xFF00 ^ (data & 0xFF00)) | 0xFF;
-
 				this->pcicb_iobase  =
 					PCI_PPB_IOBASE_EXTRACT (reg);
 				this->pcicb_iolimit =
-					PCI_PPB_IOLIMIT_EXTRACT(reg) | mask;
+					PCI_PPB_IOLIMIT_EXTRACT(reg);
 
 				/*
 				**	Note the used io space.
@@ -804,25 +795,17 @@ pci_bus_config (void)
 				**	Bridge was configured by the bios.
 				**	Read out the mapped memory regions.
 				*/
-				u_int reg, data, mask;
+				unsigned reg;
 
 				/*
 				**	non prefetchable memory
 				*/
 				reg = pci_conf_read (tag,
 					PCI_PCI_BRIDGE_MEM_REG);
-				pci_conf_write(tag,
-					PCI_PCI_BRIDGE_MEM_REG, 0xFFFFFFFF);
-				data = pci_conf_read (tag,
-					PCI_PCI_BRIDGE_MEM_REG);
-				pci_conf_write(tag,
-					PCI_PCI_BRIDGE_MEM_REG, reg);
-
-				mask = 0xFFFFFFFF ^ (data & 0xFFFF0000);
 				this->pcicb_membase  =
 					PCI_PPB_MEMBASE_EXTRACT (reg);
 				this->pcicb_memlimit =
-					PCI_PPB_MEMLIMIT_EXTRACT(reg) | mask;
+					PCI_PPB_MEMLIMIT_EXTRACT(reg);
 
 				/*
 				**	Register used memory space.
@@ -836,18 +819,10 @@ pci_bus_config (void)
 				*/
 				reg = pci_conf_read (tag,
 					PCI_PCI_BRIDGE_PMEM_REG);
-				pci_conf_write(tag,
-					PCI_PCI_BRIDGE_PMEM_REG, 0xFFFFFFFF);
-				data = pci_conf_read (tag,
-					PCI_PCI_BRIDGE_PMEM_REG);
-				pci_conf_write(tag,
-					PCI_PCI_BRIDGE_PMEM_REG, reg);
-
-				mask = 0xFFFFFFFF ^ (data & 0xFFFF0000);
 				this->pcicb_p_membase=
 					PCI_PPB_MEMBASE_EXTRACT (reg);
 				this->pcicb_p_memlimit=
-					PCI_PPB_MEMLIMIT_EXTRACT(reg) | mask;
+					PCI_PPB_MEMLIMIT_EXTRACT(reg);
 
 				/*
 				**	Register used memory space.
