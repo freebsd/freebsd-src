@@ -124,3 +124,6 @@ Version 2.5: December, 1997 (ee)
     - Added PKT_ALIAS_PUNCH_FW mode for firewall
       bypass of FTP/IRC DCC data connections.  Also added
       improved TCP connection monitoring.
+
+Version 2.6: May, 1998 (amurai)
+    - Added supporting routine for NetBios over TCP/IP.
