@@ -921,7 +921,7 @@ fprintlog(f, flags, msg)
 	struct iovec *v;
 	struct addrinfo *r;
 	int i, l, lsent = 0;
-	char line[MAXLINE + 1], repbuf[80], greetings[200], *wmsg;
+	char line[MAXLINE + 1], repbuf[80], greetings[200], *wmsg = NULL;
 	const char *msgret;
 
 	v = iov;
