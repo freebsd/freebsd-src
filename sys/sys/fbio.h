@@ -36,7 +36,7 @@
  *
  *	@(#)fbio.h	8.2 (Berkeley) 10/30/93
  *
- * $Id: fbio.h,v 1.5 1997/02/22 09:45:12 peter Exp $
+ * $Id: fbio.h,v 1.6 1999/06/22 14:13:43 yokota Exp $
  */
 
 #ifndef _SYS_FBIO_H_
@@ -230,6 +230,7 @@ struct video_info {
 #define V_INFO_MM_DIRECT 3
 #define V_INFO_MM_CGA	 100
 #define V_INFO_MM_HGC	 101
+#define V_INFO_MM_VGAX	 102
     /* for MM_PACKED and MM_DIRECT only */
     int			vi_pixel_size;	/* in bytes */
     /* for MM_DIRECT only */
