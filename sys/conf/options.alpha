@@ -75,3 +75,6 @@ TIMER_FREQ			opt_clock.h
 COMPAT_LINUX		opt_dontuse.h
 DEBUG_LINUX		opt_linux.h
 COMPAT_OSF1		opt_dontuse.h
+
+# Device options
+DEV_SPLASH		opt_splash.h

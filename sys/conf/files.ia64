@@ -58,7 +58,7 @@ dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
-dev/fb/splash.c			count		splash
+dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		count		atkbdc
