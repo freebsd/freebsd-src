@@ -543,7 +543,7 @@ int21_09(regcontext_t *REGS)
     int		len;
     
     /* pointer to string */
-    addr = (char *)N_GETPTR(R_DS, R_DX);
+    addr = (char *)MAKEPTR(R_DS, R_DX);
 
     /* walk string looking for terminator or overlength */
     for (len = 0; len < 10000; len++, addr++) {
@@ -568,7 +568,7 @@ int21_0a(regcontext_t *REGS)
     int			n;
     
     /* pointer to buffer */
-    addr = (unsigned char *)N_GETPTR(R_DS, R_DL);
+    addr = (unsigned char *)MAKEPTR(R_DS, R_DL);
 
     /* capacity of buffer */
     avail = addr[0];
@@ -634,7 +634,7 @@ int21_0b(regcontext_t *REGS)
 	return(0);
     }
     /* XXX tty_peek is broken */
-    n = tty_peek(&REGS->sc, poll_cnt ? 0 : TTYF_POLL) ? 0xff : 0;
+    n = tty_peek(REGS, poll_cnt ? 0 : TTYF_POLL) ? 0xff : 0;
     if (n < 0)			/* control-break */
 	return (0);
     R_AL = n;			/* will be 0 or 0xff */
@@ -703,7 +703,7 @@ static int
 int21_1a(regcontext_t *REGS)
 {
     debug(D_FILE_OPS, "set dta to %x:%x\n", R_DS, R_DX);
-    disk_transfer_addr = N_GETVEC(R_DS, R_DX);
+    disk_transfer_addr = MAKEVEC(R_DS, R_DX);
     return(0);
 }
 
@@ -731,7 +731,7 @@ static int
 int21_25(regcontext_t *REGS)
 {
     debug(D_MEMORY, "%02x -> %04x:%04x\n", R_AL, R_DS, R_DX);
-    ivec[R_AL] = N_GETVEC(R_DS, R_DX);
+    ivec[R_AL] = MAKEVEC(R_DS, R_DX);
     return(0);
 }
 
@@ -871,7 +871,7 @@ int21_2d(regcontext_t *REGS)
 static int
 int21_2f(regcontext_t *REGS)
 {
-    N_PUTVEC(R_ES, R_BX, disk_transfer_addr);
+    PUTVEC(R_ES, R_BX, disk_transfer_addr);
     debug(D_FILE_OPS, "get dta at %x:%x\n", R_ES, R_BX);
     return(0);
 }
@@ -980,7 +980,7 @@ int21_33(regcontext_t *REGS)
 static int
 int21_34(regcontext_t *REGS)
 {
-    N_PUTVEC(R_ES, R_BX, (u_long)InDOS);
+    PUTVEC(R_ES, R_BX, (u_long)InDOS);
     return(0);
 }
 
@@ -992,7 +992,7 @@ int21_34(regcontext_t *REGS)
 static int
 int21_35(regcontext_t *REGS)
 {
-    N_PUTVEC(R_ES, R_BX, ivec[R_AL]);
+    PUTVEC(R_ES, R_BX, ivec[R_AL]);
     debug(D_MEMORY, "%02x <- %04x:%04x\n", R_AL, R_ES, R_BX);
     return(0);
 }
@@ -1038,8 +1038,8 @@ int21_38(regcontext_t *REGS)
 	debug(D_HALF, "warning: set country code ignored");
 	return(0);
     }
-    addr = (char *)N_GETPTR(R_DS, R_DX);
-    N_PUTVEC(countryinfo.ciCaseMapSegment, countryinfo.ciCaseMapOffset,
+    addr = (char *)MAKEPTR(R_DS, R_DX);
+    PUTVEC(countryinfo.ciCaseMapSegment, countryinfo.ciCaseMapOffset,
 	   upcase_vector);
     memcpy(addr, &countryinfo, sizeof(countryinfo));
     return(0);
@@ -1060,7 +1060,7 @@ int21_dirfn(regcontext_t *REGS)
     char	fname[PATH_MAX],tname[PATH_MAX];
     int		drive;
 
-    error = translate_filename((u_char *)N_GETPTR(R_DS, R_DX), fname, &drive);
+    error = translate_filename((u_char *)MAKEPTR(R_DS, R_DX), fname, &drive);
     if (error)
 	return (error);
 
@@ -1081,7 +1081,7 @@ int21_dirfn(regcontext_t *REGS)
 	error = unlink(fname);
 	break;
     case 0x56:		/* rename - some extra work */
-	error = translate_filename((u_char *)GETPTR(R_ES, R_DI), tname, &drive);
+	error = translate_filename((u_char *)MAKEPTR(R_ES, R_DI), tname, &drive);
 	if (error)
 	    return (error);
 
@@ -1114,8 +1114,8 @@ int21_dirfn(regcontext_t *REGS)
 static int
 int21_3b(regcontext_t *REGS)
 {
-    debug(D_FILE_OPS, "chdir(%s)\n",(u_char *)N_GETPTR(R_DS, R_DX));
-    return(dos_setcwd((u_char *)N_GETPTR(R_DS, R_DX)));
+    debug(D_FILE_OPS, "chdir(%s)\n",(u_char *)MAKEPTR(R_DS, R_DX));
+    return(dos_setcwd((u_char *)MAKEPTR(R_DS, R_DX)));
 }
 
 /*
@@ -1138,14 +1138,14 @@ int21_open(regcontext_t *REGS)
     
     switch(R_AH) {
     case 0x3c:			/* creat */
-	pname = (char *)N_GETPTR(R_DS, R_DX);
+	pname = (char *)MAKEPTR(R_DS, R_DX);
 	action = 0x12;		/* create/truncate regardless */
 	mode = O_RDWR;
 	debug(D_FILE_OPS, "creat");
 	break;
 
     case 0x3d:			/* open */
-	pname = (char *)N_GETPTR(R_DS, R_DX);
+	pname = (char *)MAKEPTR(R_DS, R_DX);
 	action = 0x01;		/* fail if not exist, open if exists */
 	switch (R_AL & 3) {
 	case 0:
@@ -1164,14 +1164,14 @@ int21_open(regcontext_t *REGS)
 	break;
 	
     case 0x5b:			/* creat new */
-    	pname = (char *)N_GETPTR(R_DS, R_DL);
+    	pname = (char *)MAKEPTR(R_DS, R_DL);
 	action = 0x10;		/* create if not exist, fail if exists */
 	mode = O_RDWR;
 	debug(D_FILE_OPS, "creat_new");
 	break;
 
     case 0x6c:			/* multipurpose */
-	pname = (char *)N_GETPTR(R_DS, R_SI);
+	pname = (char *)MAKEPTR(R_DS, R_SI);
 	action = R_DX;
 	switch (R_BL & 3) {
 	case 0:
@@ -1275,7 +1275,7 @@ int21_3f(regcontext_t *REGS)
     int		nbytes,n;
     int		avail;
     
-    addr = (char *)N_GETPTR(R_DS, R_DX);
+    addr = (char *)MAKEPTR(R_DS, R_DX);
 
     debug(D_FILE_OPS, "read(%d, %d)\n", R_BX, R_CX);
 	
@@ -1313,7 +1313,7 @@ int21_40(regcontext_t *REGS)
     char	*addr;
     int		nbytes,n;
     
-    addr = (char *)N_GETPTR(R_DS, R_DX);
+    addr = (char *)MAKEPTR(R_DS, R_DX);
     nbytes = R_CX;
 
     debug(D_FILE_OPS, "write(%d, %d)\n", R_BX, nbytes);
@@ -1411,7 +1411,7 @@ int21_43(regcontext_t *REGS)
     int		mode;
     int		drive;
     
-    error = translate_filename((u_char *)N_GETPTR(R_DS, R_DX), fname, &drive);
+    error = translate_filename((u_char *)MAKEPTR(R_DS, R_DX), fname, &drive);
     if (error)
 	return (error);
 
@@ -1582,7 +1582,7 @@ int21_47(regcontext_t *REGS)
 	n = diskdrive;
 
     p = (char *)dos_getcwd(n) + 1;
-    addr = (char *)N_GETPTR(R_DS, R_SI);
+    addr = (char *)MAKEPTR(R_DS, R_SI);
 
     nbytes = strlen(p);
     if (nbytes > 63)
@@ -1661,15 +1661,15 @@ int21_4b(regcontext_t *REGS)
     char	*fname[PATH_MAX];
     u_short	*param;
     
-    debug(D_EXEC, "exec(%s)\n",(u_char *)N_GETPTR(R_DS, R_DX));
+    debug(D_EXEC, "exec(%s)\n",(u_char *)MAKEPTR(R_DS, R_DX));
 
-    if ((fd = open_prog((u_char *)N_GETPTR(R_DS, R_DX))) < 0) {
+    if ((fd = open_prog((u_char *)MAKEPTR(R_DS, R_DX))) < 0) {
 	debug(D_EXEC, "%s: command not found\n", fname);
 	return (FILE_NOT_FOUND);
     }
 
     /* child */
-    param = (u_short *)N_GETPTR(R_ES, R_BX);
+    param = (u_short *)MAKEPTR(R_ES, R_BX);
 
     switch (R_AL) {
     case 0x00: /* load and execute */
@@ -1735,7 +1735,7 @@ int21_find(regcontext_t *REGS)
 	
     switch (R_AH) {
     case 0x4e:		/* find first */
-	error = find_first((u_char *)N_GETPTR(R_DS, R_DX), R_CX, &dosdir, dta);
+	error = find_first((u_char *)MAKEPTR(R_DS, R_DX), R_CX, &dosdir, dta);
 	break;
     case 0x4f:
 	error = find_next(&dosdir, dta);
@@ -1891,7 +1891,7 @@ int21_5a(regcontext_t *REGS)
     int		fd;
     
     /* get and check proposed path */
-    pname = (char *)N_GETPTR(R_DS, R_DX);
+    pname = (char *)MAKEPTR(R_DS, R_DX);
     error = translate_filename(pname, fname, &drive);
     if (error)
 	return (error);
@@ -1920,8 +1920,8 @@ int21_5a(regcontext_t *REGS)
 static int
 int21_60(regcontext_t *REGS)
 {
-    return(dos_makepath((char *)GETPTR(R_DS, R_SI),
-			(char *)GETPTR(R_ES, R_DI)));
+    return(dos_makepath((char *)MAKEPTR(R_DS, R_SI),
+			(char *)MAKEPTR(R_ES, R_DI)));
 }
 
 /*
@@ -2066,7 +2066,7 @@ int21_fcb(regcontext_t *REGS)
     int			nbytes,n;
 
 
-    fcbp = (struct fcb *)GETPTR(R_DS, R_DX);
+    fcbp = (struct fcb *)MAKEPTR(R_DS, R_DX);
 
     switch (R_AH) {
 	
@@ -2201,14 +2201,14 @@ int21_fcb(regcontext_t *REGS)
 	debug(D_FILE_OPS,"parse filename: flag=%d, ", R_AL);
 
 	R_AX = parse_filename(R_AL,
-			      (char *)N_GETPTR(R_DS, R_SI),
-			      (char *)N_GETPTR(R_ES, R_DI),
+			      (char *)MAKEPTR(R_DS, R_SI),
+			      (char *)MAKEPTR(R_ES, R_DI),
 			      &nbytes);
 	debug(D_FILE_OPS, "%d %s, FCB: %d, %.11s\n",
 	      nbytes,
-	      N_GETPTR(R_DS, R_SI),
-	      *(int *)N_GETPTR(R_ES, R_DI),
-	      N_GETPTR(R_ES, R_DI) + 1);
+	      MAKEPTR(R_DS, R_SI),
+	      *(int *)MAKEPTR(R_ES, R_DI),
+	      MAKEPTR(R_ES, R_DI) + 1);
 	
 	R_SI += nbytes;
 	break;

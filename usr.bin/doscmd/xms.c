@@ -482,7 +482,7 @@ int2f_43(regcontext_t *REGS)
 	break;
 
     case 0x10:			/* get handler address */
-	N_PUTVEC(R_ES, R_BX, xms_vector);
+	PUTVEC(R_ES, R_BX, xms_vector);
 	break;
 
     default:
@@ -721,7 +721,7 @@ xms_entry(regcontext_t *REGS)
 	    int n;
 
 	    debug(D_XMS, "XMS: Move EMM block: ");
-	    eptr = (struct EMM *)N_GETPTR(R_DS, R_SI);
+	    eptr = (struct EMM *)MAKEPTR(R_DS, R_SI);
 
 	    /* Sanity check: Don't allow eptr pointing to emulator data */
 	    if (((u_long)eptr + sizeof(struct EMM)) >= 0x100000) {

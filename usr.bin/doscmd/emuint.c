@@ -57,7 +57,7 @@ emuint(regcontext_t *REGS)
     func = R_AH;
     subfunc = R_AL;
 
-    R_AX = N_POP(REGS);
+    R_AX = POP(REGS);
 
     /* Call the function handler, subfunction is ignored, if unused */
     switch (func)
@@ -101,7 +101,7 @@ emuint(regcontext_t *REGS)
             fprintf(stderr, " `redir.com' as soon as possible.\n");
             fprintf(stderr, "*** This compatability hack is not permanent.\n");
             fprintf(stderr, "***\n");
-            N_PUSH(R_AX, REGS);
+            PUSH(R_AX, REGS);
             R_BX = R_ES;
             R_DX = R_DI;
             R_DI = R_DS;

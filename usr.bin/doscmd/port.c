@@ -246,7 +246,7 @@ insb(regcontext_t *REGS, int port)
 	else
 		in_handler = inb_nullport;
 	data = (*in_handler)(port);
-	*(u_char *)N_GETPTR(R_ES, R_DI) = data;
+	*(u_char *)MAKEPTR(R_ES, R_DI) = data;
 	debug(D_PORT, "INS on port %02x -> %02x\n", port, data);
 
 	if (R_FLAGS & PSL_D)
@@ -284,7 +284,7 @@ insx(regcontext_t *REGS, int port)
 	else
 		in_handler = inb_nullport;
 	data = (*in_handler)(port);
-	*(u_char *)N_GETPTR(R_ES, R_DI) = data;
+	*(u_char *)MAKEPTR(R_ES, R_DI) = data;
 	debug(D_PORT, "INS on port %02x -> %02x\n", port, data);
 
 	if ((port >= MINPORT) && (port < MAXPORT))
@@ -292,7 +292,7 @@ insx(regcontext_t *REGS, int port)
 	else
 		in_handler = inb_nullport;
 	data = (*in_handler)(port + 1);
-	((u_char *)N_GETPTR(R_ES, R_DI))[1] = data;
+	((u_char *)MAKEPTR(R_ES, R_DI))[1] = data;
 	debug(D_PORT, "INS on port %02x -> %02x\n", port, data);
 
 	if (R_FLAGS & PSL_D)
@@ -347,7 +347,7 @@ outsb(regcontext_t *REGS, int port)
 		out_handler = portsw[port].p_outb;
 	else
 		out_handler = outb_nullport;
-	value = *(u_char *)N_GETPTR(R_ES, R_DI);
+	value = *(u_char *)MAKEPTR(R_ES, R_DI);
 	debug(D_PORT, "OUT on port %02x <- %02x\n", port, value);
 	(*out_handler)(port, value);
 
@@ -367,7 +367,7 @@ outsx(regcontext_t *REGS, int port)
 		out_handler = portsw[port].p_outb;
 	else
 		out_handler = outb_nullport;
-	value = *(u_char *)N_GETPTR(R_ES, R_DI);
+	value = *(u_char *)MAKEPTR(R_ES, R_DI);
 	debug(D_PORT, "OUT on port %02x <- %02x\n", port, value);
 	(*out_handler)(port, value);
 
@@ -375,7 +375,7 @@ outsx(regcontext_t *REGS, int port)
 		out_handler = portsw[port + 1].p_outb;
 	else
 		out_handler = outb_nullport;
-	value = ((u_char *)N_GETPTR(R_ES, R_DI))[1];
+	value = ((u_char *)MAKEPTR(R_ES, R_DI))[1];
 	debug(D_PORT, "OUT on port %02x <- %02x\n", port+1, value);
 	(*out_handler)(port + 1, value);
 
