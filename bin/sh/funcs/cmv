@@ -33,7 +33,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)cmv	8.2 (Berkeley) 5/4/95
-#	$Id: cmv,v 1.2 1994/09/24 02:58:33 davidg Exp $
+#	$FreeBSD$
 
 # Conditional move--don't replace an existing file.
 

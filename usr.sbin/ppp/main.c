@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.26 1996/12/22 17:29:31 jkh Exp $
+ * $FreeBSD$
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.

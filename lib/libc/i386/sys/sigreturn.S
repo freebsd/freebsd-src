@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigreturn.S,v 1.4 1996/05/05 07:56:19 peter Exp $
+ *	$FreeBSD$
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sigreturn.S,v 1.4 1996/05/05 07:56:19 peter Exp $"
+	.asciz "$FreeBSD$"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"

@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 PROG=	stlstats
 NOMAN=	#oops

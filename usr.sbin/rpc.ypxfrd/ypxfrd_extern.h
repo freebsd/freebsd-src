@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfrd_extern.h,v 1.3 1996/06/02 17:24:20 wpaul Exp $
+ *	$FreeBSD$
  */
 
 #ifndef MAX_CHILDREN

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1994/05/18 08:00:44 csgr Exp $
+#	$FreeBSD$
 
 PROG=	ac
 MAN8=	ac.8

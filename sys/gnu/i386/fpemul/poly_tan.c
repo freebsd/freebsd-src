@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *      $Id: poly_tan.c,v 1.5 1995/05/30 07:57:52 rgrimes Exp $
+ *      $FreeBSD$
  *
  */
 

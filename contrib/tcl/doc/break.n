@@ -6,7 +6,7 @@
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
 '\" SCCS: @(#) break.n 1.6 96/03/25 20:10:27
-'\" $Id$
+'\" $FreeBSD$
 '\" 
 .so man.macros
 .TH break n "" Tcl "Tcl Built-In Commands"

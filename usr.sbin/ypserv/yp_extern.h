@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_extern.h,v 1.4 1996/12/24 07:52:52 wpaul Exp $
+ *	$FreeBSD$
  */
 #include <stdio.h>
 #include <string.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id: fifo_vnops.c,v 1.17 1996/09/03 14:22:23 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -34,7 +34,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)nodetypes	8.2 (Berkeley) 5/4/95
-#	$Id: nodetypes,v 1.2 1994/09/24 02:58:03 davidg Exp $
+#	$FreeBSD$
 
 # This file describes the nodes used in parse trees.  Unindented lines
 # contain a node type followed by a structure tag.  Subsequent indented

@@ -1,4 +1,4 @@
 #	from: @(#)Makefile.vax	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile.vax,v 1.3 1993/10/02 20:58:23 pk Exp $
+#	$FreeBSD$
 
 SRCS+=		tc-vax.c atof-vax.c

@@ -6,7 +6,7 @@
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
 '\" SCCS: @(#) continue.n 1.6 96/03/25 20:12:09
-'\" $Id$
+'\" $FreeBSD$
 '\" 
 .so man.macros
 .TH continue n "" Tcl "Tcl Built-In Commands"

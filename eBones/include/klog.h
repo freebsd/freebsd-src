@@ -7,7 +7,7 @@
  * type of message may be selectively turned on or off.
  *
  *	from: klog.h,v 4.7 89/01/24 17:55:07 jon Exp $
- *	$Id: klog.h,v 1.3 1995/07/18 16:36:30 mark Exp $
+ *	$FreeBSD$
  */
 
 #ifndef KLOG_DEFS

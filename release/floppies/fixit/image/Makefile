@@ -1,5 +1,5 @@
 ###
-#	$Id: Makefile,v 1.214 1996/05/02 08:18:28 jkh Exp $
+#	$FreeBSD$
 #
 # What are we if we weren't told..
 CRUNCH?= fixit

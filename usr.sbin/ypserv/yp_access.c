@@ -53,7 +53,7 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_access.c,v 1.11 1996/10/24 18:58:22 wpaul Exp $";
+static const char rcsid[] = "$FreeBSD$";
 #endif
 
 extern int debug;

@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: load_store.c,v 1.5 1996/06/25 20:29:21 bde Exp $
+ *    $FreeBSD$
  *
  */
 

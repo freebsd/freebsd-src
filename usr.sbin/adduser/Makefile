@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1996/11/04 17:21:08 wosch Exp $
+#	$FreeBSD$
 
 SCRIPTS= adduser.perl rmuser.perl addgroup.tcl rmgroup.sh
 MAN8=	 adduser.8    rmuser.8    addgroup.8   rmgroup.8

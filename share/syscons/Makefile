@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1993/09/30 23:24:48 jkh Exp $
+#	$FreeBSD$
 
 SUBDIR= fonts keymaps scrnmaps
 

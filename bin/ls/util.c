@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.5 1996/03/31 16:14:11 ache Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1996/12/30 07:31:43 jkh Exp $
+# $FreeBSD$
 
 DISTRIBUTION=	compat1x
 

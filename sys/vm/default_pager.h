@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.h,v 1.4 1996/05/31 00:37:55 dyson Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _DEFAULT_PAGER_H_

@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.4 1996/11/11 09:08:11 hsu Exp $
+#	$FreeBSD$
 
 CPLUSPLUSLIB=	cpluspluslib
 

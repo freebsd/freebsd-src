@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.2 1995/10/31 23:07:13 peter Exp $
+#	$FreeBSD$
 
 PROG=	chat
 SRCS=	chat.c

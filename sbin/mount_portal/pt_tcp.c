@@ -36,7 +36,7 @@
  *
  *	@(#)pt_tcp.c	8.3 (Berkeley) 3/27/94
  *
- * $Id: pt_tcp.c,v 1.1.1.1 1994/05/26 06:34:34 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

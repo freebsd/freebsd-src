@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.35 1996/11/30 22:41:35 dyson Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_BUF_H_

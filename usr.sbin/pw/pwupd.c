@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pwupd.c,v 1.2 1996/12/21 15:35:44 davidn Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

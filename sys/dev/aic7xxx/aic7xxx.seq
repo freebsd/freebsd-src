@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.51 1996/11/22 08:25:20 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$FreeBSD$"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"

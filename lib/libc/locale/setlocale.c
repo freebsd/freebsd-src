@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: setlocale.c,v 1.10 1996/11/26 08:00:17 ache Exp $
+ * $FreeBSD$
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id$";
+	"$FreeBSD$";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)

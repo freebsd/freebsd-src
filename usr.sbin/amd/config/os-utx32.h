@@ -1,4 +1,4 @@
-/* $Id: os-utx32.h,v 5.2.1.1 90/10/21 22:31:11 jsp Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Gould UTX/32 definitions for Amd (automounter)

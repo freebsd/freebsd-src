@@ -1,6 +1,6 @@
 # Makefile for libgroff
 #
-# $Id$
+# $FreeBSD$
 #
 .include "../Makefile.inc"
 

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.51 1996/10/28 11:34:42 phk Exp $
+ * $FreeBSD$
  */
 
 #include "opt_rlimit.h"

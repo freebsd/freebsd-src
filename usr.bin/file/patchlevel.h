@@ -3,9 +3,12 @@
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.2 1995/05/30 06:30:06 rgrimes Exp $
+ * $FreeBSD$
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.3  1996/01/23 12:40:20  mpp
+ * Merged changes to resolve conflicts with file 3.19 import.
+ *
  * Revision 1.2  1995/05/30 06:30:06  rgrimes
  * Remove trailing whitespace.
  *

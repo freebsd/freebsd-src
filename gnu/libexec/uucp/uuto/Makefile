@@ -1,5 +1,5 @@
 # Makefile for uuto
-# $Id: Makefile,v 1.5 1995/05/13 12:57:44 ache Exp $
+# $FreeBSD$
 
 BINDIR=		$(bindir)
 CLEANFILES+=	$(ONESHPROG)

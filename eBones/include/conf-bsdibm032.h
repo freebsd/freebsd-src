@@ -6,7 +6,7 @@
  * Machine-type definitions: IBM 032 (RT/PC)
  *
  *	from: conf-bsdibm032.h,v 4.0 89/01/23 09:58:01 jtkohl Exp $
- *	$Id: conf-bsdibm032.h,v 1.3 1995/07/18 16:36:08 mark Exp $
+ *	$FreeBSD$
  */
 
 #define BSDUNIX

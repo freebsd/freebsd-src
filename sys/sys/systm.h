@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.47 1996/10/12 16:11:55 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_SYSTM_H_

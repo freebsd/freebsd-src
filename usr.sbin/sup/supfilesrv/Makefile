@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1996/09/05 17:15:54 bde Exp $
+# $FreeBSD$
 
 PROG=	supfilesrv
 SRCS=	supfilesrv.c

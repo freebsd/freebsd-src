@@ -1,4 +1,4 @@
-# $Id: standard-supfile,v 1.6 1996/08/28 14:06:32 ache Exp $
+# $FreeBSD$
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # source distribution from the current (new and experimental) development

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.32 1996/09/08 10:44:12 phk Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_

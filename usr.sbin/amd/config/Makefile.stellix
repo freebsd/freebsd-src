@@ -1,6 +1,6 @@
 #	@(#)Makefile.stellix	8.1 (Berkeley) 6/6/93
 #
-# $Id: Makefile.stellix,v 5.2.2.1 1992/02/09 15:10:45 jsp beta $
+# $FreeBSD$
 #
 # Extra Makefile definitions for STELLIX
 #

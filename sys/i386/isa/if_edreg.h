@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_edreg.h,v 1.20 1996/01/30 22:55:38 mpp Exp $
+ * $FreeBSD$
  */
 /*
  * National Semiconductor DS8390 NIC register definitions

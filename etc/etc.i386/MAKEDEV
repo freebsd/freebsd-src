@@ -102,7 +102,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.130 1996/12/30 20:51:36 joerg Exp $
+#	$FreeBSD$
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH

@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* $Id: uncompr.c,v 1.8 1996/01/30 21:59:26 me Exp $ */
+/* $FreeBSD$ */
 
 #include "zlib.h"
 

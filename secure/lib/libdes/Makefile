@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.4 (Berkeley) 5/7/91
-#	$Id: Makefile,v 1.3 1996/07/29 18:01:39 markm Exp $
+#	$FreeBSD$
 
 LIB=	des
 SRCS=	cbc3_enc.c cbc_cksm.c cbc_enc.c  cfb64enc.c cfb_enc.c  \

@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: fgetst.c,v 4.0 89/01/23 10:08:31 jtkohl Exp $
- *	$Id: fgetst.c,v 1.3 1995/07/18 16:38:23 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: fgetst.c,v 1.3 1995/07/18 16:38:23 mark Exp $";
+"$FreeBSD$";
 #endif	/* lint */
 #endif
 

@@ -15,13 +15,13 @@
  *   -l[ifetime]
  *
  *	from: kinit.c,v 4.12 90/03/20 16:11:15 jon Exp $
- *	$Id: kinit.c,v 1.4 1995/09/07 21:37:29 markm Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kinit.c,v 1.4 1995/09/07 21:37:29 markm Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

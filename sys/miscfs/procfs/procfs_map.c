@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.4 1996/07/27 19:47:04 dyson Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

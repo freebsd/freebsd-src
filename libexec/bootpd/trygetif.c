@@ -1,7 +1,7 @@
 /*
  * trygetif.c - test program for getif.c
  *
- *	$Id$
+ *	$FreeBSD$
  */
 
 #include <sys/types.h>

@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "$Id: parse_netgroup.c,v 1.2 1996/05/12 17:17:44 wpaul Exp $";
+static char sccsid[] = "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -52,7 +52,7 @@ static char sccsid[] = "$Id: parse_netgroup.c,v 1.2 1996/05/12 17:17:44 wpaul Ex
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: parse_netgroup.c,v 1.2 1996/05/12 17:17:44 wpaul Exp $";
+static const char rcsid[] = "$FreeBSD$";
 #endif
 
 /*

@@ -3,7 +3,7 @@
  *
  * (C) 1991 Linus Torvalds
  *
- *	$Id: math_emu.h,v 1.2 1993/10/16 14:15:02 rgrimes Exp $
+ *	$FreeBSD$
  */
 #ifndef _LINUX_MATH_EMU_H
 #define _LINUX_MATH_EMU_H

@@ -1,7 +1,7 @@
 /* 
  * patchlevel.h 
  *
- *	$Id$
+ *	$FreeBSD$
  */
 
 #define VERSION 	"2.4"

@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ipcs.c,v 1.5 1996/05/30 02:18:44 pst Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

@@ -5,7 +5,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
         Klas Heggemann <klas@nada.kth.se>
 
-	$Id: callbootd.c,v 1.2 1995/03/26 03:15:39 wpaul Exp $
+	$FreeBSD$
 */
 
 

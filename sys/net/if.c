@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.40 1997/01/08 13:20:24 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

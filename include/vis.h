@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vis.h	8.1 (Berkeley) 6/2/93
- *	$Id$
+ *	$FreeBSD$
  */
 
 #ifndef _VIS_H_

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parse.c,v 1.14 1996/10/08 04:06:05 steve Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: decomp_ticket.c,v 4.12 89/05/16 18:44:46 jtkohl Exp $
- *	$Id: decomp_ticket.c,v 1.3 1995/07/18 16:38:15 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: decomp_ticket.c,v 1.3 1995/07/18 16:38:15 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

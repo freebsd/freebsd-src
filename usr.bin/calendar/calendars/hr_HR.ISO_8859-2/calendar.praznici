@@ -1,7 +1,7 @@
 /*
  * hrvatski praznici
  *
- * $Id: calendar.praznici,v 1.1 1996/02/09 14:35:02 wosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _hr_HR_ISO_8859_2_praznici

@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_cred.c,v 4.10 89/05/31 17:46:22 jtkohl Exp $
- *	$Id: get_cred.c,v 1.3 1995/07/18 16:38:28 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: get_cred.c,v 1.3 1995/07/18 16:38:28 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

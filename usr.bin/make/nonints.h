@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)nonints.h	8.3 (Berkeley) 3/19/94
- *	$Id$
+ *	$FreeBSD$
  */
 
 /* arch.c */

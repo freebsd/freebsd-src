@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1996/01/05 09:09:30 graichen Exp $
+#	$FreeBSD$
 
 PROG=	spray
 MAN8=	spray.8

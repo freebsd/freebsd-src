@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1997/01/13 09:54:38 jkh Exp $
+# $FreeBSD$
 #
 
 TEXIDIR=	${.CURDIR}/../../../../contrib/texinfo

@@ -29,7 +29,7 @@
 /*
  * MS-DOS (FAT) file system structure definitions.
  *
- * $Id$
+ * $FreeBSD$
  */
 
 #ifndef DOSFS_H

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppush_extern.h,v 1.5 1996/01/12 06:21:52 wpaul Exp $
+ *	$FreeBSD$
  */
 
 /* Privately defined error codes. */

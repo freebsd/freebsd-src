@@ -1,4 +1,4 @@
-#	$Id: $
+#	$FreeBSD$
 
 PROG=		apm
 LINKS=		${BINDIR}/apm ${BINDIR}/zzz

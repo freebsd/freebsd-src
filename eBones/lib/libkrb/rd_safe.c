@@ -13,13 +13,13 @@
  * Steve Miller    Project Athena  MIT/DEC
  *
  *	from: rd_safe.c,v 4.12 89/01/23 15:16:16 steiner Exp $
- *	$Id: rd_safe.c,v 1.3 1995/07/18 16:39:34 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: rd_safe.c,v 1.3 1995/07/18 16:39:34 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

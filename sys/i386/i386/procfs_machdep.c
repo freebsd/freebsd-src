@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- *	$Id: procfs_machdep.c,v 1.5 1995/12/07 12:45:37 davidg Exp $
+ *	$FreeBSD$
  */
 
 /*

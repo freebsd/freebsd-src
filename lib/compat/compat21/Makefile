@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1996/12/31 02:39:40 bde Exp $
+# $FreeBSD$
 
 DISTRIBUTION=	compat21
 

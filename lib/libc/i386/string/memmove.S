@@ -32,12 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: memmove.S,v 1.2 1995/01/23 01:29:02 davidg Exp $
+ *	$FreeBSD$
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-        .asciz "$Id: memmove.S,v 1.2 1995/01/23 01:29:02 davidg Exp $"
+        .asciz "$FreeBSD$"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

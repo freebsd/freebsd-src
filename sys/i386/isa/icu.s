@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.26 1996/10/30 22:38:46 asami Exp $
+ *	$FreeBSD$
  */
 
 /*

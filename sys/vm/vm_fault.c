@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.61 1997/01/01 04:45:02 dyson Exp $
+ * $FreeBSD$
  */
 
 /*

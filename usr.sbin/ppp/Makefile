@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1996/12/12 14:39:16 jkh Exp $
+#	$FreeBSD$
 
 PROG=	ppp
 SRCS=	async.c auth.c ccp.c chap.c chat.c command.c filter.c fsm.c hdlc.c \

@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.28 1996/11/14 07:06:25 ache Exp $ */
+/* $FreeBSD$ */
 
 #include <sys/types.h>
 #include <sys/socket.h>

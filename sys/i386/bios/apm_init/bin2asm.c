@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: bin2asm.c,v 1.3 1995/02/17 02:22:33 phk Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

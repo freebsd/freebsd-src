@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.48 1996/09/06 23:08:11 phk Exp $
+ *      $FreeBSD$
  */
 
 #include <sys/types.h>

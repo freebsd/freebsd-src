@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.55 1997/01/05 21:46:40 max Exp $ -->
+<!-- $FreeBSD$ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>

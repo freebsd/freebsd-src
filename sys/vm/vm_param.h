@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_param.h,v 1.5 1995/12/10 02:34:29 bde Exp $
+ * $FreeBSD$
  */
 
 /*

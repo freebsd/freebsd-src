@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: stime.c,v 4.5 88/11/15 16:58:05 jtkohl Exp $
- *	$Id: stime.c,v 1.3 1995/07/18 16:39:46 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: stime.c,v 1.3 1995/07/18 16:39:46 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

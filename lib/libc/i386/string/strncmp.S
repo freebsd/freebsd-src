@@ -27,12 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: strncmp.S,v 1.2 1994/12/27 13:12:34 bde Exp $
+ *	$FreeBSD$
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-        .asciz "$Id: strncmp.S,v 1.2 1994/12/27 13:12:34 bde Exp $"
+        .asciz "$FreeBSD$"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

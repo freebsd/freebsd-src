@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: lock.h,v 1.4 1995/07/13 08:48:14 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

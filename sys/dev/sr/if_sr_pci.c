@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr_p.c,v 1.1 1996/10/29 03:53:21 jhay Exp $
+ * $FreeBSD$
  */
 
 #include "pci.h"

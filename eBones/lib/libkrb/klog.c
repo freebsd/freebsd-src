@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: klog.c,v 4.6 88/12/01 14:06:05 jtkohl Exp $
- *	$Id: klog.c,v 1.3 1995/07/18 16:38:52 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: klog.c,v 1.3 1995/07/18 16:38:52 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

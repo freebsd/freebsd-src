@@ -14,7 +14,7 @@
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.13 1996/08/30 16:44:36 jhay Exp $
+ * $FreeBSD$
  */
 #undef DEBUG
 

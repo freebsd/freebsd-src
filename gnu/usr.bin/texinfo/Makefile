@@ -1,5 +1,5 @@
 #
-# $Id$
+# $FreeBSD$
 #
 
 SUBDIR= libtxi makeinfo info install-info doc

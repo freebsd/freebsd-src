@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id: Makefile,v 1.2 1995/02/08 21:27:09 bde Exp $
+#	$FreeBSD$
 
 VOLUME=	psd/19.curses
 SRCS=	Master

@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: netwrite.c,v 4.1 88/11/15 16:48:58 jtkohl Exp $";
- *	$Id: netwrite.c,v 1.3 1995/07/18 16:39:22 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: netwrite.c,v 1.3 1995/07/18 16:39:22 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

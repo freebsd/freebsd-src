@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.h,v 1.2 1996/12/01 19:05:45 sos Exp $
+ * $FreeBSD$
  */
 
 #ifndef _I386_ISA_KBDIO_H_

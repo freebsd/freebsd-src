@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)memalloc.h	8.2 (Berkeley) 5/4/95
- *	$Id: memalloc.h,v 1.2 1994/09/24 02:57:51 davidg Exp $
+ *	$FreeBSD$
  */
 
 struct stackmark {

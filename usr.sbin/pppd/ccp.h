@@ -24,7 +24,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id: ccp.h,v 1.4 1995/04/24 06:00:54 paulus Exp $
+ * $FreeBSD$
  */
 
 typedef struct ccp_options {

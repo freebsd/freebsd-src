@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.38 1996/07/31 12:36:10 bde Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

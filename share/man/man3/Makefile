@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/13/93
-#	$Id: Makefile,v 1.9 1996/05/29 00:58:47 wosch Exp $
+#	$FreeBSD$
 
 MAN3=	assert.3 bitstring.3 end.3 fpgetround.3 intro.3 pthread.3 queue.3 \
 	stdarg.3 sysexits.3

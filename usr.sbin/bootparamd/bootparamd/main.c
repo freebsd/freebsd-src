@@ -6,7 +6,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
         Klas Heggemann <klas@nada.kth.se>
 
 
-	$Id: main.c,v 1.2 1995/05/30 03:46:28 rgrimes Exp $
+	$FreeBSD$
 
 */
 

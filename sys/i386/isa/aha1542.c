@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.63 1996/10/08 21:08:14 bde Exp $
+ *      $FreeBSD$
  */
 
 /*

@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.17 1996/03/10 07:04:47 gibbs Exp $
+ * $FreeBSD$
  */
 
 /*

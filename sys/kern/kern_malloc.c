@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.23 1996/05/18 22:33:13 dyson Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

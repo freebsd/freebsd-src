@@ -1,3 +1,3 @@
-#	$Id$
+#	$FreeBSD$
 
 BINDIR?=	/usr/sbin

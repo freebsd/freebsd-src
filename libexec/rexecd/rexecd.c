@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rexecd.c,v 1.8 1996/09/22 21:54:45 wosch Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

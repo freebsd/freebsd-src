@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)shell.h	8.2 (Berkeley) 5/4/95
- *	$Id: shell.h,v 1.7 1996/12/14 06:19:30 steve Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -4,7 +4,7 @@
  *		   information if recognized
  *	uncompress(method, old, n, newch) - uncompress old into new,
  *					    using method, return sizeof new
- * $Id: compress.c,v 1.2 1995/05/30 06:30:00 rgrimes Exp $
+ * $FreeBSD$
  */
 #include <stdio.h>
 #include <stdlib.h>

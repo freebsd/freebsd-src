@@ -1,7 +1,7 @@
 /* 
- * $Id: rk_lib.c,v 1.1.1.1 1995/09/15 06:09:30 gibbs Exp $
+ * $FreeBSD$
  * $Source: /home/ncvs/src/eBones/lib/librkinit/rk_lib.c,v $
- * $Author: gibbs $
+ * $Author: pst $
  *
  * This file contains the non-rpc top-level rkinit library routines.
  * The routines in the rkinit library that should be called from clients
@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id: rk_lib.c,v 1.1.1.1 1995/09/15 06:09:30 gibbs Exp $";
+static char *rcsid = "$FreeBSD$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>

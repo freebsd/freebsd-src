@@ -41,7 +41,7 @@
  *
  *	@(#)disk.h	8.1 (Berkeley) 6/2/93
  *
- * $Id: disk.h,v 1.4 1995/11/23 07:24:23 dyson Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_DISK_H_

@@ -37,7 +37,7 @@
 @c
 @c	@(#)amdref.texinfo	8.1 (Berkeley) 6/6/93
 @c
-@c $Id: amdref.texinfo,v 1.1.1.1 1994/05/26 05:22:11 rgrimes Exp $
+@c $FreeBSD$
 @c
 @setfilename amdref.info
 @c @setfilename /usr/local/emacs/info/amd

@@ -1,6 +1,6 @@
 <!--
 
-  $Id: linuxdoc-html.ts,v 1.1.1.1 1996/09/08 02:37:39 jfieber Exp $
+  $FreeBSD$
 
   Copyright (C) 1996
        John R. Fieber.  All rights reserved.

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.72 1996/07/23 21:52:31 phk Exp $
+ * $FreeBSD$
  */
 
 /*

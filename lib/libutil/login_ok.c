@@ -20,7 +20,7 @@
  *
  * Support allow/deny lists in login class capabilities
  *
- *	$Id$
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

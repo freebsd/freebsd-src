@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.3 1996/10/29 03:52:51 jhay Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1996/11/04 20:58:58 torstenb Exp $
+#	$FreeBSD$
 
 PROG =	rpc.rusersd
 SRCS =	rusersd.c rusers_proc.c

@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.4 1996/01/08 04:13:22 peter Exp $
+	$FreeBSD$
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from IBCS2).

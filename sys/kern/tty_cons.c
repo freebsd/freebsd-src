@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.48 1996/10/16 00:19:38 julian Exp $
+ *	$FreeBSD$
  */
 
 #include <sys/param.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.2 1996/12/22 15:54:15 wpaul Exp $
+ *	$FreeBSD$
  *
  */
 #include <stdio.h>
@@ -47,7 +47,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dblookup.c,v 1.2 1996/12/22 15:54:15 wpaul Exp $";
+static const char rcsid[] = "$FreeBSD$";
 #endif
 
 int ypdb_debug = 0;

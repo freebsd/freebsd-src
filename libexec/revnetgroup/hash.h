@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hash.h,v 1.2 1996/05/12 17:17:42 wpaul Exp $
+ *	$FreeBSD$
  */
 
 /* Groupname entry hung off a member_entry node. */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slip.h	8.1 (Berkeley) 2/12/94
- * $Id: slip.h,v 1.5 1995/04/28 18:47:29 ache Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NET_SLIP_H_

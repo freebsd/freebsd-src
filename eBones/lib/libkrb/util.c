@@ -6,13 +6,13 @@
  * Miscellaneous debug printing utilities
  *
  *	from: util.c,v 4.8 89/01/17 22:02:08 wesommer Exp $
- *	$Id: util.c,v 1.3 1995/07/18 16:39:54 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: util.c,v 1.3 1995/07/18 16:39:54 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

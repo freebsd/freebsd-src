@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: inflate.c,v 1.5 1995/04/15 06:54:13 phk Exp $
+ * $FreeBSD$
  *
  *
  */

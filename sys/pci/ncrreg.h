@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrreg.h,v 1.4 1996/10/11 19:50:12 se Exp $
+**  $FreeBSD$
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **

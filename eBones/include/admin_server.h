@@ -6,7 +6,7 @@
  * Include file for the Kerberos administration server.
  *
  *	from: admin_server.h,v 4.7 89/01/11 11:59:42 steiner Exp $
- *	$Id: admin_server.h,v 1.3 1995/07/18 16:36:03 mark Exp $
+ *	$FreeBSD$
  */
 
 #ifndef ADMIN_SERVER_DEFS

@@ -62,7 +62,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_u_add.s,v 1.3 1994/06/10 07:44:56 rich Exp $
+ *     $FreeBSD$
  *
  */
 

@@ -26,7 +26,7 @@
 #
 # makewhatis -- update the whatis database in the man directories.
 #
-# $Id: makewhatis.perl,v 1.10 1996/05/22 00:57:42 wosch Exp $
+# $FreeBSD$
 
 
 sub usage {

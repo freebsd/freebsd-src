@@ -15,13 +15,13 @@
  * Steve Miller    Project Athena  MIT/DEC
  *
  *	from: rd_priv.c,v 4.14 89/04/28 11:59:42 jtkohl Exp $
- *	$Id: rd_priv.c,v 1.3 1995/07/18 16:39:31 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[]=
-"$Id: rd_priv.c,v 1.3 1995/07/18 16:39:31 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

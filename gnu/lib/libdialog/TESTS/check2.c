@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: check2.c,v 1.1 1996/01/01 03:45:23 jkh Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

@@ -1,7 +1,7 @@
 /*
  * History
  *
- * $Id: calendar.history,v 1.2 1996/01/29 00:32:58 wosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _calendar_history_

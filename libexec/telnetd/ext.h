@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ext.h	8.2 (Berkeley) 12/15/93
- *	$Id$
+ *	$FreeBSD$
  */
 
 /*

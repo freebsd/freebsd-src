@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.6 1996/11/11 14:03:33 bde Exp $
+ *	$FreeBSD$
  */
 
 /*

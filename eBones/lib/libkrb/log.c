@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: log.c,v 4.7 88/12/01 14:15:14 jtkohl Exp $
- *	$Id: log.c,v 1.3 1995/07/18 16:39:09 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: log.c,v 1.3 1995/07/18 16:39:09 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: s_copysign.S,v 1.1.1.1 1994/08/19 09:40:00 jkh Exp $")
+RCSID("$FreeBSD$")
 
 ENTRY(copysign)
 	movl	16(%esp),%edx

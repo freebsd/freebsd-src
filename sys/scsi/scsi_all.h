@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.12 1995/04/14 15:10:29 dufault Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.12 1996/08/30 01:59:46 peter Exp $
+# $FreeBSD$
 
 LIB=    pcap
 SRCS=	grammar.c tokdefs.h pcap-bpf.c \

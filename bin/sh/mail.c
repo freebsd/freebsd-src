@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mail.c,v 1.3 1996/09/01 10:20:35 peter Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

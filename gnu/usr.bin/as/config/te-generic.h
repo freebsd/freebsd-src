@@ -6,7 +6,7 @@
  * compile, and copying as an aid for testing and porting.  xoxorich.
  */
 /*
- * $Id: te-generic.h,v 1.1 1993/10/02 20:59:49 pk Exp $
+ * $FreeBSD$
  */
 
 

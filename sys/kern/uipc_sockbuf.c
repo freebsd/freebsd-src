@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.16 1996/10/11 19:26:35 pst Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

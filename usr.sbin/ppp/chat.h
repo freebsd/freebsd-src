@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.h,v 1.1 1996/01/11 17:48:39 phk Exp $
+ * $FreeBSD$
  *
  */
 #ifndef _CHAT_H_

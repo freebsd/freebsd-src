@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.6 1996/10/23 07:24:29 asami Exp $
+ *	$FreeBSD$
  */
 
 

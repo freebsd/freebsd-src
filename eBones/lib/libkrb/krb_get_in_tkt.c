@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: der: krb_get_in_tkt.c,v 4.19 89/07/18 16:31:31 jtkohl Exp $
- *	$Id: krb_get_in_tkt.c,v 1.3 1995/07/18 16:39:04 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: krb_get_in_tkt.c,v 1.3 1995/07/18 16:39:04 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.4 1996/10/23 07:24:52 asami Exp $
+$FreeBSD$
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.

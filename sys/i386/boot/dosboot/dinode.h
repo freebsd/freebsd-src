@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dinode.h	7.10 (Berkeley) 5/8/91
- *	$Id: dinode.h,v 1.5 1993/12/19 22:51:07 alm Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _UFS_DINODE_H_

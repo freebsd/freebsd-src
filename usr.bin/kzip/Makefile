@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/10/06 02:42:11 peter Exp $
+#	$FreeBSD$
 
 PROG=	kzip
 MAN8=	kzip.8

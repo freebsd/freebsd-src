@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.16 1996/07/14 10:46:52 joerg Exp $
+ *      $FreeBSD$
  */
 
 #include "opt_bounce.h"

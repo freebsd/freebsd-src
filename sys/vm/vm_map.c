@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.65 1997/01/01 04:45:03 dyson Exp $
+ * $FreeBSD$
  */
 
 /*

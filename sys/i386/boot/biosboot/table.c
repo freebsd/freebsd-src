@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.12 1996/07/12 05:25:47 bde Exp $
+ *	$FreeBSD$
  */
 
 /*

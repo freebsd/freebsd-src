@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.9 1996/05/11 20:48:28 phk Exp $
+ * $FreeBSD$
  *
  * TODO:
  *      o Validate magic number received from peer.

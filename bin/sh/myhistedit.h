@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)myhistedit.h	8.2 (Berkeley) 5/4/95
- *	$Id: myhistedit.h,v 1.3 1996/09/01 10:21:00 peter Exp $
+ *	$FreeBSD$
  */
 
 #include <histedit.h>

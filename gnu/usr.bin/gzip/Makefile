@@ -1,5 +1,5 @@
 #       @(#)Makefile    5.3 (Berkeley) 5/12/90
-#	$Id: Makefile,v 1.11 1996/07/02 23:01:01 wosch Exp $
+#	$FreeBSD$
 
 PROG=	gzip
 SRCS=	gzip.c zip.c deflate.c trees.c bits.c unzip.c inflate.c util.c \

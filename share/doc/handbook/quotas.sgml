@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      disk quotas under FreeBSD.  By Mike Pritchard, 1996.
 
-     $Id: quotas.sgml,v 1.2 1996/03/31 21:17:17 mpp Exp $
+     $FreeBSD$
 
      The FreeBSD Documentation Project
 

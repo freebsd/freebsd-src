@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)options.h	8.2 (Berkeley) 4/18/94
- *	$Id$
+ *	$FreeBSD$
  */
 
 /*

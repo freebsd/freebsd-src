@@ -29,7 +29,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: pdb.c,v 1.2 1995/05/30 03:51:41 rgrimes Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include <sys/types.h>

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: slstat.c,v 1.8 1996/12/10 17:00:45 wollman Exp $";
+	"$FreeBSD$";
 #endif
 
 #include <sys/param.h>

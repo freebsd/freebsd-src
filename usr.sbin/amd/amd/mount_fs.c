@@ -37,7 +37,7 @@
  *
  *	@(#)mount_fs.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: mount_fs.c,v 5.2.2.2 1992/05/31 16:35:45 jsp Exp $
+ * $FreeBSD$
  *
  */
 

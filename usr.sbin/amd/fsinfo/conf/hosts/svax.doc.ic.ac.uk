@@ -1,4 +1,4 @@
-// $Id: svax.doc.ic.ac.uk,v 1.1.1.1 1994/05/26 05:22:20 rgrimes Exp $
+// $FreeBSD$
 // svax
 
 #define FSTYPE_UFS	4.2

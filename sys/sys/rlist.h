@@ -16,7 +16,7 @@
  *		rlist_alloc(&swapmap, 100, &loc); obtain 100 sectors from swap
  *
  *	from: unknown?
- *	$Id: rlist.h,v 1.8 1996/01/30 23:01:12 mpp Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _SYS_RLIST_H_

@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id: auth.h,v 1.5 1996/01/31 08:02:11 hsu Exp $
+ *	$FreeBSD$
  */
 
 /*

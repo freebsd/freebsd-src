@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.23 1996/12/23 12:20:03 joerg Exp $ -->
+<!-- $FreeBSD$ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>

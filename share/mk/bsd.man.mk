@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.16 1996/09/16 14:13:40 peter Exp $
+#	$FreeBSD$
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 

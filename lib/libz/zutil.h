@@ -8,7 +8,7 @@
    subject to change. Applications should only use zlib.h.
  */
 
-/* $Id: zutil.h,v 1.16 1996/07/24 13:41:13 me Exp $ */
+/* $FreeBSD$ */
 
 #ifndef _Z_UTIL_H
 #define _Z_UTIL_H

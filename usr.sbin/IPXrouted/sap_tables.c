@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_tables.c,v 1.9 1995/10/11 18:57:29 jhay Exp $
+ *	$FreeBSD$
  */
 
 #include "defs.h"

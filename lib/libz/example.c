@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* $Id: example.c,v 1.16 1996/05/23 17:11:28 me Exp $ */
+/* $FreeBSD$ */
 
 #include <stdio.h>
 #include "zlib.h"

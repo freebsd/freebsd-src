@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.7 1996/07/30 21:15:58 markm Exp $
+#	$FreeBSD$
 
 FILES=	kparse.h krb.h krb_db.h
 

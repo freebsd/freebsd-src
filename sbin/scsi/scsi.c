@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.11 1996/04/06 11:00:28 joerg Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1996/10/08 20:25:36 wollman Exp $
+#	$FreeBSD$
 
 MAN9=	at_shutdown.9 at_fork.9 at_exit.9 copy.9 devfs_add_devswf.9 \
 	devfs_link.9 fetch.9 ifnet.9 intro.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \

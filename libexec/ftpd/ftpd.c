@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.26 1996/11/20 22:13:51 pst Exp $
+ *	$FreeBSD$
  */
 
 #if 0

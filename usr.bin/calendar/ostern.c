@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: ostern.c,v 1.4 1996/05/11 20:44:20 ache Exp $
+ * 	$FreeBSD$
  */
 
 #include <stdio.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1996/11/15 07:39:42 jkh Exp $
+#	$FreeBSD$
 
 SUBDIR= FreeBSD ISO docbook transpec
 FILES=	CATALOG

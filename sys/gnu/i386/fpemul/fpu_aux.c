@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: fpu_aux.c,v 1.4 1995/12/14 09:50:21 phk Exp $
+ *     $FreeBSD$
  *
  */
 

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id$
+#	$FreeBSD$
 
 VOLUME=	usd/19.memacros
 SRCS=	intro.me

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)exec.h	8.1 (Berkeley) 6/11/93
- *	$Id: imgact_aout.h,v 1.4 1995/07/26 17:25:48 davidg Exp $
+ *	$FreeBSD$
  */
 
 #ifndef	_IMGACT_AOUT_H_

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.1 1996/10/13 01:09:23 davidg Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.25 1996/05/06 17:42:12 wollman Exp $
+ * $FreeBSD$
  */
 
 /*

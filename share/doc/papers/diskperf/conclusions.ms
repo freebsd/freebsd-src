@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)conclusions.ms	6.2 (Berkeley) 4/16/91
-.\"	$Id$
+.\"	$FreeBSD$
 .\"
 .ds RH Conclusions
 .NH

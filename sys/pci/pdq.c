@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.8 1996/01/24 21:12:23 phk Exp $
+ * $FreeBSD$
  *
  * Revision 1.8  1995/03/14  01:52:52  thomas
  * Update for new FreeBSD PCI Interrupt interface

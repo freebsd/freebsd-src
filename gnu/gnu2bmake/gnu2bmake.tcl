@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $FreeBSD$
 #
 #######################################################################
 # Generic procedures usable in the process of gnu-to-bmake jobs.
@@ -166,7 +166,7 @@ proc makefile_macro {macro dir {makefile Makefile}} {
 proc mk_prog {ddir name list {make ""}} {
     sh "mkdir $ddir/$name"
     set f [open $ddir/$name/Makefile w]
-    puts $f "#\n# \$Id\$\n#\n"
+    puts $f "#\n# \$FreeBSD$\n#\n"
     puts $f "PROG =\t$name"
     puts $f "SRCS =\t[lsort $list]"
     foreach i $make {puts $f $i}
@@ -184,7 +184,7 @@ proc mk_prog {ddir name list {make ""}} {
 proc mk_lib {ddir name list {make ""}} {
     sh "mkdir $ddir/$name"
     set f [open $ddir/$name/Makefile w]
-    puts $f "#\n# \$Id\$\n#\n"
+    puts $f "#\n# \$FreeBSD$\n#\n"
     puts $f "SRCS =\t[lsort $list]"
     puts $f "LIB =\t$name"
     foreach i $make {puts $f $i}

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.38 1996/04/11 18:43:37 bde Exp $
+ * $FreeBSD$
  */
 
 /*

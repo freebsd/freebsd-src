@@ -1,5 +1,5 @@
 # Makefile for uux
-# $Id: Makefile,v 1.2 1994/05/31 05:46:38 ache Exp $
+# $FreeBSD$
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

@@ -1,5 +1,5 @@
 #       @(#)Makefile	8.1 (Berkeley) 5/31/93
-#	$Id$
+#	$FreeBSD$
 
 # To install on versions prior to BSD 4.4 the following may have to be
 # defined with CFLAGS +=

@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-# $Id: scsiformat.sh,v 1.1 1995/09/17 12:47:01 joerg Exp $
+# $FreeBSD$
 #
 # scsiformat [-qw] [-p page-control] raw-device-name
 #

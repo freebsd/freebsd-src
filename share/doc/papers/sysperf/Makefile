@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	1.6 (Berkeley) 6/8/93
-#	$Id$
+#	$FreeBSD$
 
 VOLUME=	papers
 DOC=	sysperf

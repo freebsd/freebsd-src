@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: kt.c,v 4.9 89/10/25 19:03:35 qjb Exp $
- *	$Id: in_tkt.c,v 1.4 1995/09/07 21:38:04 markm Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: in_tkt.c,v 1.4 1995/09/07 21:38:04 markm Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.19 1996/09/20 05:56:36 nate Exp $
+ * $FreeBSD$
  */
 
 /*

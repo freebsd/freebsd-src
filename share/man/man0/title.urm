@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)title.urm	8.7 (Berkeley) 4/20/94
-.\"	$Id: title.urm,v 1.3 1996/10/05 18:37:20 wosch Exp $
+.\"	$FreeBSD$
 .\"
 .af % i
 .EH ''''

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1996/08/21 00:57:26 peter Exp $
+# $FreeBSD$
 
 BINDIR?=	${INFODIR}
 

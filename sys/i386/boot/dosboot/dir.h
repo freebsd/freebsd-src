@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dir.h	7.3 (Berkeley) 2/5/91
- *	$Id: dir.h,v 1.2 1993/10/16 17:16:31 rgrimes Exp $
+ *	$FreeBSD$
  */
 
 /*

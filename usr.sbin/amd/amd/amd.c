@@ -37,7 +37,7 @@
  *
  *	@(#)amd.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: amd.c,v 1.2 1995/08/24 10:22:06 dfr Exp $
+ * $FreeBSD$
  *
  */
 

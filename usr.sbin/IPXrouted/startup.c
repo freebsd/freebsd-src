@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: startup.c,v 1.3 1996/02/20 23:11:24 julian Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

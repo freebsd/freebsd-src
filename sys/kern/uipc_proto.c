@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_proto.c,v 1.6 1995/12/14 08:32:08 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

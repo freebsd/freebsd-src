@@ -20,7 +20,7 @@
 #
 # usage: xrs manpages ...
 #
-# $Id$
+# $FreeBSD$
 
 sub mysort {
 

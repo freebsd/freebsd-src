@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: fpu_etc.c,v 1.3 1994/06/10 07:44:24 rich Exp $
+ *    $FreeBSD$
  *
  */
 

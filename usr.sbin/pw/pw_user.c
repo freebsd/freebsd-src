@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.11 1997/01/03 04:42:18 davidn Exp $
+ *	$FreeBSD$
  */
 
 #include <unistd.h>

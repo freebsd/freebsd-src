@@ -6,13 +6,13 @@
  * routine to convert hostname into realm name.
  *
  *	from: getrealm.c,v 4.6 90/01/02 13:35:56 jtkohl Exp $
- *	$Id: getrealm.c,v 1.3 1995/07/18 16:38:46 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: getrealm.c,v 1.3 1995/07/18 16:38:46 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

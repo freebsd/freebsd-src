@@ -21,7 +21,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.c,v 1.3 1997/01/07 13:32:04 davidn Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

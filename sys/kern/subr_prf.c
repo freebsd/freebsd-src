@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.38 1996/08/19 20:07:07 julian Exp $
+ * $FreeBSD$
  */
 
 #include "opt_ddb.h"

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.11 1996/05/08 04:28:36 gpalmer Exp $
+ *	$FreeBSD$
  */
 
 /*
