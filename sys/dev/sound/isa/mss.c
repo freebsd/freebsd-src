@@ -357,7 +357,7 @@ mss_close(dev_t dev, int flags, int mode, struct proc * p)
 }
 
 static int
-mss_ioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc * p)
+mss_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 {
     snddev_info *d;
     int unit;
