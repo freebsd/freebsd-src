@@ -606,6 +606,25 @@ isp_pci_attach(device_t dev)
             "fullduplex", &tval) == 0 && tval != 0) {
 		isp->isp_confopts |= ISP_CFG_FULL_DUPLEX;
 	}
+#ifdef	ISP_FW_CRASH_DUMP
+	tval = 0;
+        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "fw_dump_enable", &tval) == 0 && tval != 0) {
+		size_t amt = 0;
+		if (IS_2200(isp)) {
+			amt = QLA2200_RISC_IMAGE_DUMP_SIZE;
+		} else if (IS_23XX(isp)) {
+			amt = QLA2300_RISC_IMAGE_DUMP_SIZE;
+		}
+		if (amt) {
+			FCPARAM(isp)->isp_dump_data =
+			    malloc(amt, M_DEVBUF, M_WAITOK | M_ZERO);
+		} else {
+			device_printf(dev,
+			    "f/w crash dumps not supported for this model\n");
+		}
+	}
+#endif
 
 	sptr = 0;
         if (resource_string_value(device_get_name(dev), device_get_unit(dev),
