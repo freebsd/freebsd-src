@@ -1,5 +1,5 @@
 #
- # $FreeBSD$
+# $FreeBSD$
 #
 # This Makefile provides an easy way to generate the configuration
 # file and database maps for the sendmail(8) daemon.
@@ -25,11 +25,13 @@
 #
 # ------------------------------------------------------------------------
 #
-# This makefile uses `freebsd.mc' as the default .mc file.  This can
+# This makefile uses `<HOSTNAME>.mc' as the default .mc file.  This can
 # be changed by defining SENDMAIL_MC in /etc/make.conf, e.g.:
 #
 #		   SENDMAIL_MC=/etc/mail/myconfig.mc
 #
+# If '<HOSTNAME>.mc' does not exist, it is created using 'freebsd.mc'
+# as a template.
 # ------------------------------------------------------------------------
 #
 # The Makefile knows about the following maps:
@@ -37,7 +39,14 @@
 # uucpdomain, virtusertable
 #
 
-SENDMAIL_MC?=		freebsd.mc
+.ifndef SENDMAIL_MC
+SENDMAIL_MC!=           hostname
+SENDMAIL_MC:=           ${SENDMAIL_MC}.mc
+
+${SENDMAIL_MC}: freebsd.mc
+	cp freebsd.mc ${SENDMAIL_MC}
+.endif
+
 INSTALL_CF=		${SENDMAIL_MC:R}.cf
 
 SENDMAIL_ALIASES?=	/etc/mail/aliases
