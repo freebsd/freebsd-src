@@ -164,7 +164,6 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	int flags = 0;
 	va_list ap;
 	struct putchar_arg pca;
-	int retval;
 	struct session *sess = NULL;
 
 	if (pri != -1)
@@ -189,7 +188,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	pca.tty = tp;
 	pca.flags = flags;
 	va_start(ap, fmt);
-	retval = kvprintf(fmt, putchar, &pca, 10, ap);
+	kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 	if (sess != NULL) {
 		SESS_LOCK(sess);
@@ -228,7 +227,6 @@ void
 log(int level, const char *fmt, ...)
 {
 	va_list ap;
-	int retval;
 	struct putchar_arg pca;
 
 	pca.tty = NULL;
@@ -236,7 +234,7 @@ log(int level, const char *fmt, ...)
 	pca.flags = log_open ? TOLOG : TOCONS;
 
 	va_start(ap, fmt);
-	retval = kvprintf(fmt, putchar, &pca, 10, ap);
+	kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 
 	msgbuftrigger = 1;
@@ -683,7 +681,6 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 		case 't':
 			tflag = 1;
 			goto reswitch;
-			break;
 		case 'u':
 			base = 10;
 			goto handle_nosign;
