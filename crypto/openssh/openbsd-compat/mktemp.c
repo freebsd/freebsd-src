@@ -39,7 +39,7 @@
 #ifndef HAVE_MKDTEMP
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$OpenBSD: mktemp.c,v 1.14 2002/01/02 20:18:32 deraadt Exp $";
+static char rcsid[] = "$OpenBSD: mktemp.c,v 1.16 2002/05/27 18:20:45 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #ifdef HAVE_CYGWIN
@@ -102,11 +102,11 @@ _gettemp(path, doopen, domkdir, slen)
 		return (0);
 	}
 	pid = getpid();
-	while (*trv == 'X' && pid != 0) {
+	while (trv >= path && *trv == 'X' && pid != 0) {
 		*trv-- = (pid % 10) + '0';
 		pid /= 10;
 	}
-	while (*trv == 'X') {
+	while (trv >= path && *trv == 'X') {
 		char c;
 
 		pid = (arc4random() & 0xffff) % (26+26);
