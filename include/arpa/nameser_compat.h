@@ -173,6 +173,7 @@ typedef struct {
 #define	T_SRV		ns_t_srv
 #define T_ATMA		ns_t_atma
 #define T_NAPTR		ns_t_naptr
+#define T_OPT		ns_t_opt
 #define	T_IXFR		ns_t_ixfr
 #define T_AXFR		ns_t_axfr
 #define T_MAILB		ns_t_mailb

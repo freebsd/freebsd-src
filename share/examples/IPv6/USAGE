@@ -626,4 +626,38 @@ Configuration at Host-A:
                 -E rc5-cbc "kamekame"
                 -A hmac-md5 "this is the test" ;
 
+<<<EDNS0>>>
+
+EDNS0 is defined in RFC2671.  With EDNS0, the resolver library can tell DNS
+server of its receiving buffer size, and permit DNS server to transmit large
+reply packet.  EDNS0 is necessary to take advantage of larger minimum MTU
+in IPv6.  KAME libinet6 includes resolver side support for EDNS0.
+Server side support for EDNS0 is included in ISC BIND9.
+
+	query packet with EDNS0
+	tells receive buffer size
+KAME box -----------------------------> BIND9 DNS server
+KAME box <----------------------------- BIND9 DNS server
+	can transmit jumbo reply, since DNS server
+	knows receive buffer size of KAME box
+
+How to play with it:
+- prepare KAME box and BIND9 DNS server (can be a same node)
+- add the following into /etc/resolv.conf on KAME box:
+	options edns0		<--- enables EDNS0
+	nameserver <IPv4 or v6 address of BIND9 box>
+- run applications compiled with libinet6 (like /usr/local/v6/bin/telnet),
+  see EDNS0 packet fly on the wire by tcpdump or some other method.
+
+Caveats:
+- BIND 4/8 DNS server will choke with EDNS0 packet, so you must not
+  turn the option on if you have BIND 4/8 DNS server.  If you enable
+  "options edns0" against BIND 4/8 DNS server, you will never be able
+  to resolve names.
+- If you use IPv6 UDP as DNS transport, path MTU discovery may
+  affect the traffic.  KAME box tries to fragment packet to 1280
+  bytes, however, BIND9 may not.
+- Some of our platforms do not use our extended resolver code in libinet6.
+  See COVERAGE for detail.
+
 							<end of USAGE>
