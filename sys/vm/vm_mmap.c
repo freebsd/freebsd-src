@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.10 1995/02/21 01:22:46 davidg Exp $
+ * $Id: vm_mmap.c,v 1.11 1995/02/22 08:40:54 davidg Exp $
  */
 
 /*
@@ -657,10 +657,15 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		object->pager = pager;
 	} else {
 		/*
-		 * Lose vm_object_lookup() reference.
+		 * Lose vm_object_lookup() reference. Retain reference
+		 * gained by vm_pager_allocate().
 		 */
 		vm_object_deallocate(object);
 	}
+	/*
+	 * At this point, our actions above have gained a total of
+	 * one reference to the object, and we have a pager.
+	 */
 
 	/*
 	 * Anonymous memory, shared file, or character special file.
@@ -669,9 +674,8 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		rv = vm_map_find(map, object, foff, addr, size, fitit);
 		if (rv != KERN_SUCCESS) {
 			/*
-			 * Lose reference gained by vm_pager_allocate(). This
-			 * will also destroy the pager if noone else holds a
-			 * reference.
+			 * Lose the object reference. This will also destroy
+			 * the pager if there are no other references.
 			 */
 			vm_object_deallocate(object);
 			goto out;
@@ -697,13 +701,25 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			tmap = vm_map_create(NULL, off, off + size, TRUE);
 			rv = vm_map_find(tmap, object, foff, &off, size, FALSE);
 			if (rv != KERN_SUCCESS) {
+				/*
+				 * Deallocate and delete the temporary map.
+				 * Note that since the object insertion
+				 * above has failed, the vm_map_deallocate
+				 * doesn't lose the object reference - we
+				 * must do it explicitly.
+				 */
 				vm_object_deallocate(object);
 				vm_map_deallocate(tmap);
 				goto out;
 			}
-
 			rv = vm_map_copy(map, tmap, *addr, size, off,
 		   	 FALSE, FALSE);
+			/*
+			 * Deallocate temporary map. XXX - depending
+			 * on events, this may leave the object with
+			 * no net gain in reference count! ...this
+			 * needs to be looked at!
+			 */
 			vm_map_deallocate(tmap);
 			if (rv != KERN_SUCCESS)
 				goto out;
@@ -711,17 +727,21 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		} else {
 			vm_object_t user_object;
 
+			/*
+			 * Create a new object and make the original object
+			 * the backing object. NOTE: the object reference gained
+			 * above is now changed into the reference held by
+			 * user_object. Since we don't map 'object', we want
+			 * only this one reference.
+			 */
 			user_object = vm_object_allocate( size);
 			user_object->shadow = object;
 			TAILQ_INSERT_TAIL(&object->reverse_shadow_head,
 				    user_object, reverse_shadow_list);
 
-			object->ref_count += 1;
-
 			rv = vm_map_find(map, user_object, foff, addr, size, fitit);
 			if( rv != KERN_SUCCESS) {
 				vm_object_deallocate(user_object);
-				vm_object_deallocate(object);
 				goto out;
 			}
 			
