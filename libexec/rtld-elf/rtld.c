@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.9 1998/09/15 21:07:52 jdp Exp $
+ *      $Id: rtld.c,v 1.10 1998/09/16 02:54:08 jdp Exp $
  */
 
 /*
@@ -81,6 +81,7 @@ static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *);
+static int load_preload_objects(void);
 static Obj_Entry *load_object(char *);
 static Obj_Entry *obj_from_addr(const void *);
 static int relocate_objects(Obj_Entry *, bool);
@@ -122,6 +123,8 @@ static bool trust;		/* False for setuid and setgid programs */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
 static char *ld_library_path;	/* Environment variable for search path */
+static char *ld_preload;	/* Environment variable for libraries to
+				   load first */
 static char *ld_tracing;	/* Called from ldd to print libs */
 static Obj_Entry **main_tail;	/* Value of obj_tail after loading main and
 				   its needed shared libraries */
@@ -219,6 +222,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (trust) {
 	ld_debug = getenv("LD_DEBUG");
 	ld_library_path = getenv("LD_LIBRARY_PATH");
+	ld_preload = getenv("LD_PRELOAD");
     }
     ld_tracing = getenv("LD_TRACE_LOADED_OBJECTS");
 
@@ -266,6 +270,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     *obj_tail = obj_main;
     obj_tail = &obj_main->next;
     obj_main->refcount++;
+
+    dbg("loading LD_PRELOAD libraries");
+    if (load_preload_objects() == -1)
+	die();
 
     dbg("loading needed objects");
     if (load_needed_objects(obj_main) == -1)
@@ -892,6 +900,33 @@ load_needed_objects(Obj_Entry *first)
     return 0;
 }
 
+static int
+load_preload_objects(void)
+{
+    char *p = ld_preload;
+
+    if (p == NULL)
+	return NULL;
+
+    p += strspn(p, ":;");
+    while (*p != '\0') {
+	size_t len = strcspn(p, ":;");
+	char *path;
+	char savech;
+
+	savech = p[len];
+	p[len] = '\0';
+	if ((path = find_library(p, NULL)) == NULL)
+	    return -1;
+	if (load_object(path) == NULL)
+	    return -1;	/* XXX - cleanup */
+	p[len] = savech;
+	p += len;
+	p += strspn(p, ":;");
+    }
+    return 0;
+}
+
 /*
  * Load a shared object into memory, if it is not already loaded.  The
  * argument must be a string allocated on the heap.  This function assumes
@@ -973,6 +1008,8 @@ relocate_objects(Obj_Entry *first, bool bind_now)
     Obj_Entry *obj;
 
     for (obj = first;  obj != NULL;  obj = obj->next) {
+	if (obj != &obj_rtld)
+	    dbg("relocating \"%s\"", obj->path);
 	if (obj->nbuckets == 0 || obj->nchains == 0 || obj->buckets == NULL ||
 	    obj->symtab == NULL || obj->strtab == NULL) {
 	    _rtld_error("%s: Shared object has no run-time symbol table",
