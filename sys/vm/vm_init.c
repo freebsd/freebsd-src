@@ -86,6 +86,8 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
+long physmem;
+
 /*
  * System initialization
  */
