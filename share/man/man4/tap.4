@@ -8,7 +8,7 @@
 .Nm tap
 .Nd Ethernet tunnel software network interface
 .Sh SYNOPSIS
-.Cd pseudo-device tap
+.Cd device tap
 .Sh DESCRIPTION
 The
 .Nm
@@ -49,7 +49,7 @@ and
 and thus can be used with
 .Xr ifconfig 8
 like any other Ethernet interface. When the system chooses to transmit
-an Ethernet frame on the network interface, the frame can be read from 
+an Ethernet frame on the network interface, the frame can be read from
 the control device
 (it appears as
 .Dq input
@@ -72,7 +72,7 @@ if the interface is not
 .Dq ready .
 Once the interface is ready,
 .Fn read
-will return an Ethernet frame if one is available; if not, it will 
+will return an Ethernet frame if one is available; if not, it will
 either block until one is or return
 .Er EWOULDBLOCK ,
 depending on whether non-blocking I/O has been enabled. If the frame
@@ -141,13 +141,13 @@ signals into the argument
 value.
 .It Dv SIOCGIFADDR
 Retrieve the Media Access Control
-.Pq Dv MAC 
+.Pq Dv MAC
 address of the
 .Dq remote
 side. This command is used by the VMware port and expected to be executed on
 descriptor, associated with control device
 (usually
-.Pa /dev/vmnet Ns Sy N 
+.Pa /dev/vmnet Ns Sy N
 or
 .Pa /dev/tap Ns Sy N ) .
 The
@@ -181,14 +181,14 @@ writes are always non-blocking.
 .Pp
 On the last close of the data device, the interface is
 brought down
-(as if with  
+(as if with
 .Dq ifconfig tap Ns Sy N No down )
 unless the devices is a VMnet device.
-All queued frames are thrown away. If the interface is up when the data 
-device is not open, output frames are thrown away rather than 
+All queued frames are thrown away. If the interface is up when the data
+device is not open, output frames are thrown away rather than
 letting them pile up.
 .Pp
-The 
+The
 .Nm
 device is also can be used with the VMware port as a replacement
 for the old VMnet device driver. The driver uses the minor number
@@ -197,24 +197,24 @@ to select between
 and
 .Nm vmnet
 devices. VMnet minor numbers begin at
-.Va 0x10000 
+.Va 0x10000
 +
-.Va N . 
+.Va N .
 Where
-.Va N 
-is a VMnet unit number. In this case control device is expected to be 
+.Va N
+is a VMnet unit number. In this case control device is expected to be
 .Pa /dev/vmnet Ns Sy N ,
 and network interface will be
 .Sy vmnet Ns Ar N .
 Additionally, VMnet devices do not ifconfig themselves down when the
-control device is closed. Everything else is the same. 
+control device is closed. Everything else is the same.
 .Pp
 In addition to mentioned above
 .Xr ioctl 2
 there is one additional one for the VMware port.
 .Bl -tag -width VMIO_SIOCSETMACADDR
 .It Dv VMIO_SIOCSIFFLAGS
-VMware 
+VMware
 .Dv SIOCSIFFLAGS .
 .El
 .Sh SEE ALSO

@@ -14,7 +14,7 @@ Contents:
 
 	 1. How do I get started with synchronous PPP (sPPP) ?
 	 2. does anyone know a software that can receive/send fax over ISDN ?
-	 3. does i4b callback only work with setups where the remote end 
+	 3. does i4b callback only work with setups where the remote end
 		returns a busy ?
 	 4. trouble with kernel options IPFIREWALL and IPDIVERT and natd
 	 5. I want to use -r with isdnd but it does not work
@@ -51,68 +51,68 @@ Contents:
   entries should have been automatically made in /sys/conf/files for you.
   For NetBSD it isn't quite as simple since NetBSD/install-netbsd.sh does
   not do it for you.
-  
+
   Then all you need to do is put an entry like this:
-  
-  	pseudo-device   "i4bisppp"      4
-  
+
+  	device   "i4bisppp"      4
+
   into your kernel configuration file (if it's not already there) and
   generate and boot the new kernel. The above line will give you 4
   sPPP interfaces - isp0 to isp3.
-  
+
   Then just modify /etc/isdn/isdnd.rc (see the example in etc-isdn/isdnd.rc)
   to suit your needs (telephone numbers, etc).
-  
+
   The next step is to read the ispppcontrol man page and then to look at
   etc/rc.isdn-PPP. ispppcontrol is a very important component in getting
   sPPP working correctly and the ispppcontrol lines in your /etc/rc.isdn
   must be correct.
-  
+
   In my experience there are two things which can cause problems:
-  
+
   1) the authproto line has to agree with what your ISP desires. In
      general I've found that it's best to have something like this -
-  
+
   	ispppcontrol <interface> myauthproto={pap,chap} myauthname=<AuthName>
   		myauthsecret=<AuthSecret> hisauthproto=none callin
-  
+
      The "hisauthproto=none" is usually needed because the ISP does not want
      to authorise himself to you; he expects you to authorize yourself to him !
      I once forgot to set hisauthproto and it took me quite a while to figure
      out why I couldn't connect.
-  
+
   2) the IP address at your ISP's end must be correct.
-  
+
   How can I find out (1) whether my ISP wants pap or chap and (2) what his
   IP address is ? you might ask. Generally, your ISP should have provide
   this information to you. But, if he didn't, or you've mislayed the
   documentation (as I did), there's still hope.
-  
+
   Fortunately, J"org Wunsch implemented the sPPP kernel code so that it
   provides all the information required if the interface is configured
   with the debug flag set (e.g. ``ifconfig isp0 debug''). It's just a
   little cryptic.
-  
+
   By the way, I suggest turning the debug flag on until you have things
   working and then turning it off. The debug output is rather voluminous
   and could fill up your /var partition, otherwise.
-  
+
   The debug output will appear on the console and also be logged to
   /var/log/messages (under FreeBSD) unless you changed /etc/syslog.conf.
-  
+
   A. How to figure out the authproto
   ----------------------------------
-  
+
   Here is an example where I configured isp0 with myauthproto=pap, my
   ISP wanted chap, but was willing to accept pap:
-  
+
   /kernel: isp0: lcp up(starting)
   /kernel: isp0: lcp output <conf-req id=0x7 len=10 5-6-34-e4-30-5a>
   /kernel: isp0: lcp input(req-sent): <conf-req id=0x1 len=30 0-4-0-0-1-4-5-
   f4-3-5-c2-23-5-11-4-5-f4-13-9-3-0-c0-7b-6e-fe-b5>
          ^^^^^
              |___ c223 is chap, it's what the ISP wants to use
-  
+
   /kernel: isp0: lcp parse opts:  0x0 [rej]  mru  auth-proto  0x11 [rej]
   x13 [rej]  send conf-rej (I didn't agree)
   /kernel: isp0: lcp output <conf-rej id=0x1 len=21 0-4-0-0-11-4-5-f4-13-9-3-
@@ -126,17 +126,17 @@ Contents:
   /kernel: isp0: lcp output <conf-nak id=0x2 len=9 3-5-c0-23-5>
                                                          ^^^^^
                                                              |___ c023 is pap
-  
+
   /kernel: isp0: lcp input(ack-rcvd): <conf-req id=0x3 len=12 1-4-5-f4-3-4-
   c0-23> (he agrees to use pap)
   /kernel: isp0: lcp parse opts:  mru  auth-proto
   /kernel: isp0: lcp parse opt values:  mru 1524  auth-proto  send conf-ack
   /kernel: isp0: lcp output <conf-ack id=0x3 len=12 1-4-5-f4-3-4-c0-23>
   					he agrees to use pap ___|^^^^^
-  
+
   so, if you have problems in the lcp phase, check which authentication method
   your ISP wants to use. Usually chap is prefered, but pap will be accepted.
-  
+
   B. How to figure out the ISP's IP address
   -----------------------------------------
 
@@ -146,28 +146,28 @@ Contents:
 
 	Jan Riedinger writes:
 	---------------------
-	>I further think Gary should mention 
+	>I further think Gary should mention
 	>in the FAQ in the section "B. How to figure out the ISP's IP address
-	>that it isn't normaly necessary to do it because of the auto 
+	>that it isn't normaly necessary to do it because of the auto
 	>address negotiation.
 
 	Gary answers:
 	-------------
-	I think you're right. I wrote that stuff before the support for 
+	I think you're right. I wrote that stuff before the support for
 	negotiation of the IPS's address was added to if_spppsubr.c.
 
 	======================================================================
 
-  
+
   I also intentionally configured the interface with the wrong address for
   my ISP, like this:
-  
+
   	ifconfig isp0 0.0.0.0 10.0.0.1 debug link1
-  
+
   this means that I want the ISP to assign me an address (the 0.0.0.0) and
   that I expect him to use 10.0.0.1 (which is wrong). Here's the result:
   (note that these addresses have been changed by me)
-  
+
   /kernel: isp0: phase network
   /kernel: isp0: ipcp open(initial)
   /kernel: isp0: ipcp up(starting)
@@ -180,7 +180,7 @@ Contents:
   /kernel: isp0: ipcp nak opts:  address [wantaddr 12.34.56.78] [agree]
                                                      ^^^^^
                                                          |___ he assigns me this
-  
+
   /kernel: isp0: ipcp output <conf-req id=0xa len=10 3-6-c3-b4-eb-63>
   /kernel: isp0: ipcp input(req-sent): <conf-req id=0x2 len=10 3-6-62-4c-36-20>
   /kernel: isp0: ipcp parse opts:  address
@@ -191,16 +191,16 @@ Contents:
   /kernel: isp0: ipcp output <conf-nak id=0x2 len=10 3-6-a-0-0-1>
   	I expect a different address and (incorrectly) reject what he wants.
   	I tell him that I expect 10.0.0.1. After this the connection fails.
-  
+
   Anyway, I now know that his address is really 98.76.54.32 and can use
   it to correctly configure the interface.
-  
+
   With the correct IP address I shoulkd now be able to connect with no
   problems. As stated above, the authorization protocol is normally not
   so important since most ISPs are willing to use pap, although chap is
   more secure. Generally, I'd try chap first and only switch to pap if
   the ISP doesn't accept it.
-  
+
   (by Gary Jennejohn, Home - garyj@muc.de, Work - garyj@fkr.dec.com)
 
 
@@ -209,12 +209,12 @@ Contents:
 ================================================================================
 
  > Hi,
- > 
+ >
  > does anyone know a software that can receive/send fax over ISDN? I am
  > using a Fritz!Card, which can handle group 3 (analogous) fax, but I
  > can't find any hint in the i4b software that this is supported in any
  > way.
- 
+
 This is probably not implemented.
 
 Implementing G3 fax in ISDN would mean simulating an analog modem
@@ -224,7 +224,7 @@ which you had to run FFT analysis on and then interpret.
 
 In addition you have to do this in realtime, to be able to deal with
 the timing involved in the fax protocol, something neither
-FreeBSD or Linux is good at in their native form.. 
+FreeBSD or Linux is good at in their native form..
 
 A third point is that a software simulated faxmodem usually does not
 work well. I tested Teles software faxmodem in Win-95 towards an Ericsson V34
@@ -259,14 +259,14 @@ a configurable time and the calls back. Information on who has called and
 who is to be called back relies on the ISDN calling party number information
 and stuff statically configured in the routers (or isnd's) configuration.
 
-The other type of callback (not supported by i4b right now) means: the 
+The other type of callback (not supported by i4b right now) means: the
 called system accepts the connection and starts ppp negotiation. During this
-the ppp's aggree to do a callback. Information on who called in and who is 
+the ppp's aggree to do a callback. Information on who called in and who is
 going to be called back is subject to the authentication/negotiation already
 done by the two ppp's. Then ppp closes down, the connection is disconnected
 and the called system calls back.
 
-I've never seen someone actually use the second type due to its obvious 
+I've never seen someone actually use the second type due to its obvious
 disadvantages. It may be usefull if you travel, call in from an unknown
 number and want to be called back at that number.
 
@@ -282,12 +282,12 @@ Martin Husemann <martin@rumolt.teuto.de>
 This section
 > Trying to build a router/gateway between my privat Ethernet and
 > the Internet (via my ISP), I have problems with I4B or NAT (I think:).
-> 
+>
 > The 2.2.5-R kernel with options IPFIREWALL and IPDIVERT works fine
 > with ISDN4BSD 0.50-alpha and firewall rule 'pass all from any to any'.
 > However, when I add 'divert natd all from any to any via isp0'
 > and start natd, name server lookups to the ISP's NS don't work.
-> 
+>
 > Also, ping and nslookup fails from any other internal host.
 
 I had exactly the same problems. natd doesn't seem to get a message if
@@ -309,9 +309,9 @@ sleep 5
 kill -HUP $pid
 
 It looks ugly, but at least for me it works. The two sleeps are necessary
-since I have to wait for ppp negotiation to complete (I don't get a message 
-from isdnd for that). If I'm lucky I have my connection after 3 seconds, 
-but 8 seconds should suffice for worst case (the first HUP without a sleep 
+since I have to wait for ppp negotiation to complete (I don't get a message
+from isdnd for that). If I'm lucky I have my connection after 3 seconds,
+but 8 seconds should suffice for worst case (the first HUP without a sleep
 sometimes even succeeded on an slow 486/33 with 8MB RAM, more HUPs don't hurt).
 
 I'm really interested in some more elegant method.
@@ -348,20 +348,20 @@ So am I, let's see what may come out of the discussion on the list.
 ================================================================================
 
 > > Use isdnd in fullscreen mode.
-> 
+>
 > I tried that already, but got an error when I start isdnd that way:
-> 
+>
 >       /usr/local/bin/isdnd -d 0xf9 -f -r /dev/ttyv1 -t cons25
-> 
+>
 > root is logged in on device /dev/ttyv1, the message in /var/log/messages looks like:
-> 
+>
 > "May 22 11:52:28 asterix isdnd[4160]: ERR ERROR, cannot setup tty as controlling terminal: Operation not permitted"
-> 
+>
 > How can I give this device permission ?
-  
+
 
 In case you want to use switch "-r" noone else _must_ use the tty you redirect
-to, you have to remove the getty from the virtual terminal in /etc/ttys and 
+to, you have to remove the getty from the virtual terminal in /etc/ttys and
 restart the init process.
 
 
@@ -382,7 +382,7 @@ are named:
 	"tell-record"	calling number as answer, message is recorded
 	"isdntel.sh"	answers and records messages; by using the
 			program "isdntel", one has the control over
-			the recorded messages in the directory 
+			the recorded messages in the directory
 			"/var/isdn". Look at "man isdntel" and
 			"man isdntelctl".
 
@@ -477,7 +477,7 @@ it all worked without the smallest problem, great data rates :)
 I tried hard to found what the something special was I changed in the BIOS
 settings, but I just couldnt get isdnd back to its stupid behaviour it
 showed all the time before, but I would recommend everybody who has this
-kind of problem to look into his BIOS. 
+kind of problem to look into his BIOS.
 
 			(from Meike Aulbach, strange@stoned.rhein-main.de)
 
@@ -521,7 +521,7 @@ out the PNP-stuff with my Sedlbauer-card soon too though.
 10. Incoming alert - what does it mean ?
 ================================================================================
 
-In the log on vty6 (isdnd full screen log) I'm seeing 
+In the log on vty6 (isdnd full screen log) I'm seeing
 
 16.07.98 11:42:35 CHD 00001 rwth rate 90 sec/unit (rate)
 16.07.98 11:42:35 CHD 00001 rwth dialing from 4191236 to 441291234
@@ -559,7 +559,7 @@ This one seems to be specific for the Netherlands. (-hm)
 
 Question:
 
-I'm trying to get i4b running on my new FreeBSD 2.2.8 system. The kernel 
+I'm trying to get i4b running on my new FreeBSD 2.2.8 system. The kernel
 compiles smootly and everything is looking fine until it's time to dial.
 I get the following error:
 
@@ -568,11 +568,11 @@ Feb 10 20:31:00 goofy isdnd[498]: CHD 00018 I4BPPP cause 101: Message not compat
 Feb 10 20:31:00 goofy isdnd[498]: ERR set_channel_idle: controller [0], invalid channel [-1]!
 Feb 10 20:31:00 goofy isdnd[498]: ERR msg_disconnect_ind: set_channel_idle failed!
 
-The remote site is a Cisco 4000 type router.  I used debug to take a view at 
+The remote site is a Cisco 4000 type router.  I used debug to take a view at
 the ISDN events on the router but according to that the call doesn't arrive
-over there. 
+over there.
 
-Same hardware has worked fine with FreeBSD 2.2.6/i4b 0.63. 
+Same hardware has worked fine with FreeBSD 2.2.6/i4b 0.63.
 
 Who knows what's wrong?
 
@@ -587,7 +587,7 @@ EXCLUDING the city code... so if you live in Utrecht and your number is
 I have seen this in several locations in the Netherlands for years, not
 just with i4b, but also with differentt isdn equipment.. why? guess it
 simply depends on which operator defines your line or what exchange it
-is connected to... :P 
+is connected to... :P
 What I found is that what solved this with other isdn hardware/software,
 also solves it for i4b.. ie.. make sure the local phone number is
 specified, and is specified without the city code.
@@ -659,8 +659,8 @@ I've only seen the problems against old linux kernels (about two years ago),
 are there still machines out there that have such a broken TCP/IP stack? We
 should start to blame the vendors...
 
-	(by Gary Jennejohn, garyj@muc.de, with additions from 
-	 Harold Gutch <logix@foobar.franken.de> and 
+	(by Gary Jennejohn, garyj@muc.de, with additions from
+	 Harold Gutch <logix@foobar.franken.de> and
 	 Martin Husemann <martin@rumolt.teuto.de>).
 
 
@@ -672,7 +672,7 @@ Question:
 
 The system is FreeBSD 3.1-RELEASE with i4b-00.80.00-beta-070599 [...]
 
-I'm trying to compile a Kernel with support for my AVM Fritz!PCI card, 
+I'm trying to compile a Kernel with support for my AVM Fritz!PCI card,
 however, when compiling, it fails with the following error
 
 sh ../../conf/newvers.sh GENERIC -DAVM_A1_PCI
@@ -680,9 +680,9 @@ cc -c -O -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit  -Wnested-
 externs
 -Wstrict-prototypes -Wmissing-prototypes  -Wpointer-arith -Winline -
 Wuninitializ
-ed -Wformat -Wunused  -fformat-extensions -ansi  -nostdinc -I- -I. -I../.. 
+ed -Wformat -Wunused  -fformat-extensions -ansi  -nostdinc -I- -I. -I../..
 -I/us
-r/include -DAVM_A1_PCI -DKERNEL -DVM_STACK -include opt_global.h -elf  
+r/include -DAVM_A1_PCI -DKERNEL -DVM_STACK -include opt_global.h -elf
 vers.c
 loading kernel
 i4b_isic_pci.o: In function `i4b_pci_attach':
@@ -696,17 +696,17 @@ Solution:
 =========
 
 > I have added
-> 
+>
 > i4b/layer1/i4b_avm_fritz_pci.c  optional        isic    device-driver
-> 
-> and am recomiling at the moment, but given that it's a 486, it could take 
+>
+> and am recomiling at the moment, but given that it's a 486, it could take
 > some time :-)
 
-The problem appears to be that overinstall.sh does not update files.i386 
-and options.i386, and that AVM_A1_PCI was added after 3.1-RELEASE and 
-hence is not defined. 
+The problem appears to be that overinstall.sh does not update files.i386
+and options.i386, and that AVM_A1_PCI was added after 3.1-RELEASE and
+hence is not defined.
 
-Manually editing these files (using install.sh as a guide) allows the 
+Manually editing these files (using install.sh as a guide) allows the
 kernel to compile cleanly.
 
 
@@ -735,8 +735,8 @@ I suggest using newsyslog(8). Adding a line like:
 
 /var/log/isdn.log               664  100   *    168   Z  /var/run/isdnd.pid
 
-to /etc/newsyslog.conf will do the job (here: once a week, for the next 
-100 weeks) with compression of the old log. 
+to /etc/newsyslog.conf will do the job (here: once a week, for the next
+100 weeks) with compression of the old log.
 
 This is the standard method for other daemons (apache, etc.).
 
@@ -789,7 +789,7 @@ Patch for i4b version 0.71 or older:
   			/* suggest a zero one */
 ! 			p[2] = p[3] = p[4] = p[5] = 0;
   			break;
-  
+
   		case LCP_OPT_MRU:
 --- 2056,2062 ----
   			if (debug)
@@ -797,13 +797,13 @@ Patch for i4b version 0.71 or older:
   			/* suggest a zero one */
 ! 			/* p[2] = p[3] = p[4] = p[5] = 0; */
   			break;
-  
+
   		case LCP_OPT_MRU:
 ***************
 *** 2668,2678 ****
   					addlog("%s [not agreed] ",
   						sppp_dotted_quad(desiredaddr));
-  
+
 - 				p[2] = hisaddr >> 24;
 - 				p[3] = hisaddr >> 16;
 - 				p[4] = hisaddr >> 8;
@@ -815,7 +815,7 @@ Patch for i4b version 0.71 or older:
 --- 2668,2678 ----
   					addlog("%s [not agreed] ",
   						sppp_dotted_quad(desiredaddr));
-  
+
   			}
 + 			p[2] = hisaddr >> 24;
 + 			p[3] = hisaddr >> 16;
@@ -893,7 +893,7 @@ flags have changed from 19 to 20.
 NOTE: this is the procedure used as of end of July 1999, it may change in
       the near future!
 
-Get the current ppp sources from 
+Get the current ppp sources from
 
 	http://www.freebsd.org/~brian
 
@@ -907,7 +907,7 @@ Make and install the result.
 Have a look at the user-ppp directory and the end of etc-isdn/isdnd.rc.sample
 for ppp and i4b sample configurations to get things up and running.
 
-More information to ppp setup can be found at 
+More information to ppp setup can be found at
 
 	http://www.Awfulhak.org/ppp.html
 	http://www.freebsd.org/handbook/ppp-and-slip.html
@@ -967,11 +967,11 @@ sehen, warum das passiert.
 25. How to properly operate isdnd's fullscreen output in a 132x60 vty
 ================================================================================
 
-Q: I'm using allscreens_flags="132x60" in /etc/rc.conf but the vty gets 
-   switched after isdnd is started, so isdnd didn't know about the new 
+Q: I'm using allscreens_flags="132x60" in /etc/rc.conf but the vty gets
+   switched after isdnd is started, so isdnd didn't know about the new
    dimensions of the screen.
 
-A: This one's easy: 
+A: This one's easy:
    In /etc/rc.isdn change
         isdn_ttype=cons25
    to
@@ -1041,7 +1041,7 @@ From: Joost Mulders <dhcp@j-mulders.demon.nl>
 ================================================================================
 
 > Some time I get follow message at console:
-> 
+>
 > i4b-L2 i4b_rxd_ack: ((N(R)-1)=35) != (UA=36) !!!
 
 A layer 2 error occured. These types of errors are automatically
@@ -1070,7 +1070,7 @@ A: i just found out what i did wrong ...
    isdn_fsdev="NO"
    isdn_flags=""
 
-   had to do that if i want to run isdnd as an daemon service, 'cause the 
+   had to do that if i want to run isdnd as an daemon service, 'cause the
    defaults in /etc/defaults/rc.conf are:
 
    isdn_fsdev="/dev/ttyv4"         # Output device for fullscreen mode (or NO for daemon mode).
