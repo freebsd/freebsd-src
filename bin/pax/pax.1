@@ -1064,13 +1064,13 @@ gives the verbose table of contents for an archive stored in
 .Pa filename .
 .Pp
 The following commands:
-.Dl mkdir /tmp/foo
-.Dl cd /tmp/bar
-.Dl pax -rw .\ /tmp/foo
+.Dl mkdir /tmp/to
+.Dl cd /tmp/from
+.Dl pax -rw .\ /tmp/to
 will copy the entire
-.Pa /tmp/bar
+.Pa /tmp/from
 directory hierarchy to
-.Pa /tmp/foo .
+.Pa /tmp/to .
 .Pp
 The command:
 .Dl pax -r -s ',^//*usr//*,,' -f a.pax
