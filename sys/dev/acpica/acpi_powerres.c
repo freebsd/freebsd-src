@@ -471,7 +471,7 @@ acpi_pwr_reference_resource(ACPI_OBJECT *obj, void *arg)
     /* create/look up the resource */
     if (ACPI_FAILURE(status = acpi_pwr_register_resource(res))) {
 	DEBUG_PRINT(TRACE_OBJECTS, ("couldn't register power resource %s - %s\n",
-				    obj->String.Pointer, acpi_strerror(status)));
+				    obj->String.Pointer, AcpiFormatException(status)));
 	return_VOID;
     }
     if ((rp = acpi_pwr_find_resource(res)) == NULL) {
@@ -534,7 +534,7 @@ acpi_pwr_switch_power(void)
 	if (cur != ACPI_PWR_ON) {
 	    if (ACPI_FAILURE(status = AcpiEvaluateObject(rp->ap_resource, "_ON", NULL, NULL))) {
 		DEBUG_PRINT(TRACE_OBJECTS, ("failed to switch %s on - %s\n", 
-					    acpi_name(rp->ap_resource), acpi_strerror(status)));
+					    acpi_name(rp->ap_resource), AcpiFormatException(status)));
 	    } else {
 		DEBUG_PRINT(TRACE_OBJECTS, ("switched %s on\n", acpi_name(rp->ap_resource)));
 	    }
@@ -568,7 +568,7 @@ acpi_pwr_switch_power(void)
 	if (cur != ACPI_PWR_OFF) {
 	    if (ACPI_FAILURE(status = AcpiEvaluateObject(rp->ap_resource, "_OFF", NULL, NULL))) {
 		DEBUG_PRINT(TRACE_OBJECTS, ("failed to switch %s off - %s\n", 
-					    acpi_name(rp->ap_resource), acpi_strerror(status)));
+					    acpi_name(rp->ap_resource), AcpiFormatException(status)));
 	    } else {
 		DEBUG_PRINT(TRACE_OBJECTS, ("switched %s off\n", acpi_name(rp->ap_resource)));
 	    }

@@ -160,12 +160,12 @@ acpi_isa_identify(driver_t *driver, device_t bus)
      * we are likely to support.
      */
     if ((status = AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &parent)) != AE_OK) {
-	device_printf(bus, "no ACPI _SB_ scope - %s\n", acpi_strerror(status));
+	device_printf(bus, "no ACPI _SB_ scope - %s\n", AcpiFormatException(status));
 	return_VOID;
     }
 
     if ((status = AcpiWalkNamespace(ACPI_TYPE_DEVICE, parent, 100, acpi_isa_identify_child, bus, NULL)) != AE_OK)
-	device_printf(bus, "AcpiWalkNamespace on _SB_ failed - %s\n", acpi_strerror(status));
+	device_printf(bus, "AcpiWalkNamespace on _SB_ failed - %s\n", AcpiFormatException(status));
 
     return_VOID;
 }

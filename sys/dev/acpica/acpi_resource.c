@@ -67,7 +67,7 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
      */
     if (((status = acpi_GetIntoBuffer(handle, AcpiGetPossibleResources, &buf)) != AE_OK) &&
 	((status = acpi_GetIntoBuffer(handle, AcpiGetCurrentResources, &buf)) != AE_OK)) {
-	device_printf(dev, "can't fetch ACPI resources - %s\n", acpi_strerror(status));
+	device_printf(dev, "can't fetch ACPI resources - %s\n", AcpiFormatException(status));
 	return_ACPI_STATUS(status);
     }
     DEBUG_PRINT(TRACE_RESOURCES, ("got %d bytes of resources\n", buf.Length));
