@@ -112,8 +112,6 @@ agp_amd_alloc_gatt(device_t dev)
 	 * Allocate the page directory.
 	 */
 	gatt->ag_vdir = malloc(AGP_PAGE_SIZE, M_AGP, M_NOWAIT);
-	bzero(gatt->ag_vdir, AGP_PAGE_SIZE);
-
 	if (!gatt->ag_vdir) {
 		if (bootverbose)
 			device_printf(dev,
@@ -122,6 +120,8 @@ agp_amd_alloc_gatt(device_t dev)
 		free(gatt, M_AGP);
 		return 0;
 	}
+	bzero(gatt->ag_vdir, AGP_PAGE_SIZE);
+
 	gatt->ag_pdir = vtophys((vm_offset_t) gatt->ag_vdir);
 	if(bootverbose)
 		device_printf(dev, "gatt -> ag_pdir %8x\n",
@@ -133,14 +133,7 @@ agp_amd_alloc_gatt(device_t dev)
 	if(bootverbose)
 		device_printf(dev, "allocating GATT for %d AGP page entries\n", 
 			gatt->ag_entries);
-	gatt->ag_virtual = malloc(entries * sizeof(u_int32_t), M_AGP,
-			M_NOWAIT);
-	if(!gatt->ag_virtual) {
-		if(bootverbose)
-			device_printf(dev, "allocation failed\n");
-		free(gatt, M_AGP);
-		return 0;
-	}
+
 	gatt->ag_physical = vtophys((vm_offset_t) gatt->ag_virtual);
 
 	/*
