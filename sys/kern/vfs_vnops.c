@@ -850,7 +850,7 @@ vn_poll(fp, events, active_cred, td)
 	struct vnode *vp;
 	int error;
 
-	GIANT_REQUIRED;
+	mtx_lock(&Giant);
 
 	vp = fp->f_vnode;
 #ifdef MAC
@@ -861,6 +861,7 @@ vn_poll(fp, events, active_cred, td)
 #endif
 
 	error = VOP_POLL(vp, events, fp->f_cred, td);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
