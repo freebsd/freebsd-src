@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cd.c,v 1.10 1996/12/23 22:16:35 steve Exp $
+ *	$Id: cd.c,v 1.11 1996/12/23 22:29:03 steve Exp $
  */
 
 #ifndef lint
@@ -46,7 +46,6 @@ static char const sccsid[] = "@(#)cd.c	8.2 (Berkeley) 5/4/95";
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <limits.h>
 
 /*
  * The cd and pwd commands.
@@ -132,11 +131,16 @@ docd(dest, print)
 
 	TRACE(("docd(\"%s\", %d) called\n", dest, print));
 	INTOFF;
-	if (chdir(dest) < 0) {
+	updatepwd(dest);
+	if (chdir(stackblock()) < 0) {
 		INTON;
 		return -1;
 	}
-	updatepwd(dest);
+	hashcd();				/* update command hash table */
+	if (prevdir)
+		ckfree(prevdir);
+	prevdir = curdir;
+	curdir = savestr(stackblock());
 	INTON;
 	if (print && iflag)
 		out1fmt("%s\n", stackblock());
@@ -170,9 +174,8 @@ getcomponent()
 
 
 /*
- * Update curdir (the name of the current directory) in response to a
- * cd command.  We also call hashcd to let the routines in exec.c know
- * that the current directory has changed.
+ * Determine the new working directory, but don't actually enforce
+ * any changes.
  */
 STATIC void
 updatepwd(dir)
@@ -181,7 +184,6 @@ updatepwd(dir)
 	char *new;
 	char *p;
 
-	hashcd();				/* update command hash table */
 	cdcomppath = stalloc(strlen(dir) + 1);
 	scopy(dir, cdcomppath);
 	STARTSTACKSTR(new);
@@ -206,12 +208,6 @@ updatepwd(dir)
 	if (new == stackblock())
 		STPUTC('/', new);
 	STACKSTRNUL(new);
-	INTOFF;
-	if (prevdir)
-		ckfree(prevdir);
-	prevdir = curdir;
-	curdir = savestr(stackblock());
-	INTON;
 }
 
 
@@ -220,7 +216,7 @@ pwdcmd(argc, argv)
 	int argc;
 	char **argv;
 {
-	if(!getpwd())
+	if (!getpwd())
 		error("getcwd() failed: %s", strerror(errno));
 	out1str(curdir);
 	out1c('\n');
