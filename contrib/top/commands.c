@@ -86,6 +86,7 @@ o       - specify sort order (read, write, fault, total)\n", stdout);
 	fputs("\
 r       - renice a process\n\
 s       - change number of seconds to delay between updates\n\
+S       - toggle the displaying of system processes\n\
 u       - display processes for only one user (+ selects all users)\n\
 \n\
 \n", stdout);

@@ -229,6 +229,9 @@ Change the number of processes to display (prompt for new number).
 Change the number of seconds to delay between displays
 (prompt for new number).
 .TP
+.B S
+Toggle the display of system processes.
+.TP
 .B k
 Send a signal (\*(lqkill\*(rq by default) to a list of processes.  This
 acts similarly to the command
