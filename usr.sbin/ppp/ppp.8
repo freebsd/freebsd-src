@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.7 1995/05/24 05:51:29 jkh Exp $
+.\" $Id: ppp.8,v 1.8 1995/05/26 17:35:54 jkh Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -396,8 +396,8 @@ peer agrees (or requests it).
 .LP
 
 .LP
- To disable CCP/predictor functionality completely, use the ``disable pred''
-and ``deny pred'' commands.
+ To disable CCP/predictor functionality completely, use the ``disable pred1''
+and ``deny pred1'' commands.
 .LP
 
 .SH Controlling IP address
