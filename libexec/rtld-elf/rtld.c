@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.17 1999/04/05 02:36:40 jdp Exp $
+ *      $Id: rtld.c,v 1.18 1999/04/07 02:43:11 jdp Exp $
  */
 
 /*
@@ -1306,7 +1306,7 @@ dladdr(const void *addr, Dl_info *info)
     info->dli_sname = NULL;
 
     /*
-     * Walk the symbol list looking for the symbol whosse address is
+     * Walk the symbol list looking for the symbol whose address is
      * closest to the address sent in.
      */
     for (symoffset = 0; symoffset < obj->nchains; symoffset++) {
@@ -1320,7 +1320,7 @@ dladdr(const void *addr, Dl_info *info)
             continue;
 
         /*
-         *If the symbol is greater than the specified address, or if it
+         * If the symbol is greater than the specified address, or if it
          * is further away from addr than the current nearest symbol,
          * then reject it.
          */
