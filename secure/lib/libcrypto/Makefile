@@ -350,17 +350,13 @@ beforeinstall:  openssl/opensslconf.h openssl/evp.h
 .include <bsd.lib.mk>
 
 .if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
-.SUFFIXES:	.o .pl
-.SUFFIXES:	.po .pl
-.SUFFIXES:	.So .pl
-.pl.o:
-	perl -I${PERLPATH} $(.ALLSRC) elf ${CPUTYPE:Mi386:S/i//} > $(.PREFIX).pl.s ; ${AS} ${AFLAGS} $(.PREFIX).pl.s -o $(.TARGET)
+CLEANFILES+=	${SRCS:M*.pl:S/.pl$/.cmt/} ${SRCS:M*.pl:S/.pl$/.s/}
+.SUFFIXES:	.pl .cmt
+.pl.cmt:
+	perl -I${PERLPATH} ${.ALLSRC} elf ${CPUTYPE:Mi386:S/i//} > ${.TARGET}
 
-.pl.po:
-	perl -I${PERLPATH} $(.ALLSRC) elf ${CPUTYPE:Mi386:S/i//} > $(.PREFIX).pl.s ; ${AS} ${AFLAGS} $(.PREFIX).pl.s -o $(.TARGET)
-
-.pl.So:
-	perl -I${PERLPATH} $(.ALLSRC) elf ${CPUTYPE:Mi386:S/i//} > $(.PREFIX).pl.s ; ${AS} ${AFLAGS} $(.PREFIX).pl.s -o $(.TARGET)
+.cmt.s:
+	tr -d "'" < ${.ALLSRC} > ${.TARGET}
 .endif
 
 afterinstall:
