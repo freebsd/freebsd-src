@@ -25,8 +25,6 @@ fi
 
 if [ $# -lt 1 ]; then
 	echo "usage: $0 input-file"
-elif [ ! -f $1 ]; then
-	echo "$0: $1 is not a valid file."
 elif [ "`id -u`" != "0" ]; then
 	echo "Sorry, this must be done as root."
 else
