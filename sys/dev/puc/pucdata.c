@@ -48,6 +48,34 @@ __FBSDID("$FreeBSD$");
 #define COM_FREQ	DEFAULT_RCLK
 
 const struct puc_device_description puc_devices[] = {
+	{   "Comtrol RocketPort 550/16 part A",
+	    {	0x11fe,	0x8016,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 4 },
+	    },
+	},
+	{   "Comtrol RocketPort 550/16 part B",
+	    {	0x11fe,	0x8017,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x20, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x28, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x30, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x38, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x40, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x48, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x50, COM_FREQ * 4 },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x58, COM_FREQ * 4 },
+	    },
+	},
 	/*
 	 * XXX no entry because I have no data:
 	 * XXX Dolphin Peripherals 4006 (single parallel)
