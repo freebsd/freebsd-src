@@ -684,8 +684,6 @@ ng_netflow_expire(void *arg)
 		 * rare situation that inactive 1-packet flow will wake up.
 		 * When cache has reached CACHELOWAT, we expire all inactive flows,
 		 * until cache gets of sane size.
-		 * 
-		 * When this record's refcount is > 0, we skip it. (XXX)
 		 */
 		if (used <= CACHELOWAT && !INACTIVE(fle))
 			goto finish;
