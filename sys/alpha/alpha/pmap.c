@@ -2734,7 +2734,9 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 	int changed;
 	int s;
 
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (!pmap_initialized || (m->flags & PG_FICTITIOUS) ||
+	    (!setem && bit == (PG_UWE|PG_KWE) &&
+	     (m->flags & PG_WRITEABLE) == 0))
 		return;
 
 	s = splvm();
@@ -2776,6 +2778,8 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 		if (changed)
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 	}
+	if (!setem && bit == (PG_UWE|PG_KWE))
+		vm_page_flag_clear(m, PG_WRITEABLE);
 	splx(s);
 }
 
