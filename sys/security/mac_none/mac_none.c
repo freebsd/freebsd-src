@@ -127,7 +127,7 @@ mac_none_destroy_label(struct label *label)
 
 static int
 mac_none_externalize_label(struct label *label, char *element_name,
-    char *element_data, size_t size, size_t *len, int *claimed)
+    struct sbuf *sb, int *claimed)
 {
 
 	return (0);

@@ -60,6 +60,7 @@ struct mac_policy_conf;
 struct mbuf;
 struct mount;
 struct pipe;
+struct sbuf;
 struct socket;
 struct ucred;
 struct uio;
@@ -114,23 +115,17 @@ struct mac_policy_ops {
 	void	(*mpo_copy_vnode_label)(struct label *src,
 		    struct label *dest);
 	int	(*mpo_externalize_cred_label)(struct label *label,
-		    char *element_name, char *buffer, size_t buflen,
-		    size_t *len, int *claimed);
+		    char *element_name, struct sbuf *sb, int *claimed);
 	int	(*mpo_externalize_ifnet_label)(struct label *label,
-		    char *element_name, char *buffer, size_t buflen,
-		    size_t *len, int *claimed);
+		    char *element_name, struct sbuf *sb, int *claimed);
 	int	(*mpo_externalize_pipe_label)(struct label *label,
-		    char *element_name, char *buffer, size_t buflen,
-		    size_t *len, int *claimed);
+		    char *element_name, struct sbuf *sb, int *claimed);
 	int	(*mpo_externalize_socket_label)(struct label *label,
-		    char *element_name, char *buffer, size_t buflen,
-		    size_t *len, int *claimed);
+		    char *element_name, struct sbuf *sb, int *claimed);
 	int	(*mpo_externalize_socket_peer_label)(struct label *label,
-		    char *element_name, char *buffer, size_t buflen,
-		    size_t *len, int *claimed);
+		    char *element_name, struct sbuf *sb, int *claimed);
 	int	(*mpo_externalize_vnode_label)(struct label *label,
-		    char *element_name, char *buffer, size_t buflen,
-		    size_t *len, int *claimed);
+		    char *element_name, struct sbuf *sb, int *claimed);
 	int	(*mpo_internalize_cred_label)(struct label *label,
 		    char *element_name, char *element_data, int *claimed);
 	int	(*mpo_internalize_ifnet_label)(struct label *label,

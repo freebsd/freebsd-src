@@ -46,6 +46,7 @@
 #include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
@@ -102,15 +103,18 @@ mac_partition_destroy_label(struct label *label)
 
 static int
 mac_partition_externalize_label(struct label *label, char *element_name,
-    char *element_data, size_t size, size_t *len, int *claimed)
+    struct sbuf *sb, int *claimed)
 {
 
 	if (strcmp(MAC_PARTITION_LABEL_NAME, element_name) != 0)
 		return (0);
 
 	(*claimed)++;
-	*len = snprintf(element_data, size, "%ld", SLOT(label));
-	return (0);
+
+	if (sbuf_printf(sb, "%ld", SLOT(label)) == -1)
+		return (EINVAL);
+	else
+		return (0);
 }
 
 static int
