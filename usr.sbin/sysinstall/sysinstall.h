@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.155 1999/02/02 15:57:13 jkh Exp $
+ * $Id: sysinstall.h,v 1.156 1999/02/05 22:15:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,7 +104,7 @@
 #define VAR_CONFIG_FILE			"configFile"
 #define VAR_FTP_DIR			"ftpDirectory"
 #define VAR_FTP_PASS			"ftpPass"
-#define VAR_FTP_PATH			"ftp"
+#define VAR_FTP_PATH			"_ftpPath"
 #define VAR_FTP_PORT			"ftpPort"
 #define VAR_FTP_STATE			"ftpState"
 #define VAR_FTP_USER			"ftpUser"
@@ -159,7 +159,7 @@
 #define VAR_UFS_PATH			"ufs"
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"
-#define VAR_XF86_CONFIG			"xf86config"
+#define VAR_XF86_CONFIG			"_xf86config"
 
 #define DEFAULT_TAPE_BLOCKSIZE	"20"
 
