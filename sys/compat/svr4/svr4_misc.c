@@ -618,10 +618,10 @@ svr4_sys_fchroot(td, uap)
 		return error;
 	}
 	VREF(vp);
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 	vpold = fdp->fd_rdir;
 	fdp->fd_rdir = vp;
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 	if (vpold != NULL)
 		vrele(vpold);
 	fdrop(fp, td);
