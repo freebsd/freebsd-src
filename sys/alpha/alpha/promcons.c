@@ -61,16 +61,14 @@
 
 static	d_open_t	promopen;
 static	d_close_t	promclose;
-static	d_read_t	promread;
-static	d_write_t	promwrite;
 static	d_ioctl_t	promioctl;
 
 #define CDEV_MAJOR 97
 static struct cdevsw prom_cdevsw = {
 	/* open */	promopen,
 	/* close */	promclose,
-	/* read */	promread,
-	/* write */	promwrite,
+	/* read */	ttyread,
+	/* write */	ttywrite,
 	/* ioctl */	promioctl,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
@@ -158,28 +156,6 @@ promclose(dev, flag, mode, p)
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	ttyclose(tp);
 	return 0;
-}
- 
-int
-promread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
-{
-	struct tty *tp = &prom_tty[minor(dev)];
-
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
-}
- 
-int
-promwrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
-{
-	struct tty *tp = &prom_tty[minor(dev)];
- 
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
  
 int

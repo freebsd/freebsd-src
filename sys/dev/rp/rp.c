@@ -794,7 +794,6 @@ static	char	driver_name[] = "rp";
 
 static	d_open_t	rpopen;
 static	d_close_t	rpclose;
-static	d_read_t	rpread;
 static	d_write_t	rpwrite;
 static	d_ioctl_t	rpioctl;
 
@@ -802,7 +801,7 @@ static	d_ioctl_t	rpioctl;
 static struct cdevsw rp_cdevsw = {
 	/* open */	rpopen,
 	/* close */	rpclose,
-	/* read */	rpread,
+	/* read */	ttyread,
 	/* write */	rpwrite,
 	/* ioctl */	rpioctl,
 	/* poll */	ttypoll,
@@ -856,9 +855,6 @@ static	int	rpparam __P((struct tty *, struct termios *));
 static	void	rpstart __P((struct tty *));
 static	void	rpstop __P((struct tty *, int));
 static	void	rphardclose	__P((struct rp_port *));
-#define rpmap	nomap
-#define rpreset noreset
-#define rpstrategy	nostrategy
 static	void	rp_disc_optim	__P((struct tty *tp, struct termios *t,
 						struct rp_port	*rp));
 
@@ -1500,30 +1496,6 @@ rphardclose(struct rp_port *rp)
 	rp->active_out = FALSE;
 	wakeup(&rp->active_out);
 	wakeup(TSA_CARR_ON(tp));
-}
-
-static
-int
-rpread(dev, uio, flag)
-	dev_t	dev;
-	struct	uio	*uio;
-	int	flag;
-{
-	struct	rp_port *rp;
-	struct	tty	*tp;
-	int	unit, mynor, umynor, port, error = 0; /* SG */
-
-   umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
-	port  = (minor(dev) & 0x1f);                /* SG */
-	mynor = (port + umynor);                    /* SG */
-   unit = minor_to_unit[mynor];                /* SG */
-
-	if(IS_CONTROL(dev))
-		return(ENODEV);
-	rp = rp_addr(unit) + port;
-	tp = rp->rp_tty;
-	error = (*linesw[tp->t_line].l_read)(tp, uio, flag);
-	return(error);
 }
 
 static

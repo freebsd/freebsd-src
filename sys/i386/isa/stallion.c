@@ -438,8 +438,6 @@ static int	stlattach(struct isa_device *idp);
 
 STATIC	d_open_t	stlopen;
 STATIC	d_close_t	stlclose;
-STATIC	d_read_t	stlread;
-STATIC	d_write_t	stlwrite;
 STATIC	d_ioctl_t	stlioctl;
 
 /*
@@ -532,8 +530,8 @@ COMPAT_PCI_DRIVER (stlpci, stlpcidriver);
 static struct cdevsw stl_cdevsw = {
 	/* open */	stlopen,
 	/* close */	stlclose,
-	/* read */	stlread,
-	/* write */	stlwrite,
+	/* read */	ttyread,
+	/* write */	ttywrite,
 	/* ioctl */	stlioctl,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
@@ -898,23 +896,6 @@ STATIC int stlclose(dev_t dev, int flag, int mode, struct proc *p)
 
 /*****************************************************************************/
 
-STATIC int stlread(dev_t dev, struct uio *uiop, int flag)
-{
-	stlport_t	*portp;
-
-#if DEBUG
-	printf("stlread(dev=%s,uiop=%p,flag=%x)\n", devtoname(dev),
-		(void *) uiop, flag);
-#endif
-
-	portp = stl_dev2port(dev);
-	if (portp == (stlport_t *) NULL)
-		return(ENODEV);
-	return((*linesw[portp->tty.t_line].l_read)(&portp->tty, uiop, flag));
-}
-
-/*****************************************************************************/
-
 #if VFREEBSD >= 220
 
 STATIC void stl_stop(struct tty *tp, int rw)
@@ -939,23 +920,6 @@ STATIC int stlstop(struct tty *tp, int rw)
 }
 
 #endif
-
-/*****************************************************************************/
-
-STATIC int stlwrite(dev_t dev, struct uio *uiop, int flag)
-{
-	stlport_t	*portp;
-
-#if DEBUG
-	printf("stlwrite(dev=%s,uiop=%p,flag=%x)\n", devtoname(dev),
-		(void *) uiop, flag);
-#endif
-
-	portp = stl_dev2port(dev);
-	if (portp == (stlport_t *) NULL)
-		return(ENODEV);
-	return((*linesw[portp->tty.t_line].l_write)(&portp->tty, uiop, flag));
-}
 
 /*****************************************************************************/
 
