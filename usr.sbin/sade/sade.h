@@ -171,6 +171,7 @@
 #define VAR_NO_HOME			"noHome"
 #define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
+#define	VAR_OSF1_ENABLE			"osf1_enable"
 #define VAR_NTPDATE_FLAGS		"ntpdate_flags"
 #define VAR_PACKAGE			"package"
 #define VAR_PARTITION			"partition"
@@ -480,8 +481,13 @@ extern int	configResolv(dialogMenuItem *self);
 extern int	configPackages(dialogMenuItem *self);
 extern int	configSaver(dialogMenuItem *self);
 extern int	configSaverTimeout(dialogMenuItem *self);
+#ifdef WITH_LINUX
 extern int	configLinux(dialogMenuItem *self);
+#endif
 extern int	configNTP(dialogMenuItem *self);
+#ifdef __alpha__
+extern int	configOSF1(dialogMenuItem *self);
+#endif
 extern int	configUsers(dialogMenuItem *self);
 extern int	configXSetup(dialogMenuItem *self);
 extern int	configXDesktop(dialogMenuItem *self);
