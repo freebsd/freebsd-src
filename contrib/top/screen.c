@@ -7,6 +7,8 @@
  *
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
+ *
+ * $FreeBSD$
  */
 
 /*  This file contains the routines that interface to termcap and stty/gtty.
@@ -71,7 +73,6 @@ char *start_standout;
 char *end_standout;
 char *terminal_init;
 char *terminal_end;
-short ospeed;
 
 #ifdef SGTTY
 static struct sgttyb old_settings;
