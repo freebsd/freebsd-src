@@ -1475,7 +1475,7 @@ ad1848_init(char *name, int io_base, int irq,
 	    irq2dev[-irq] = devc->dev_no = my_dev;
 
 	audio_devs[my_dev]->otherside = -1 ;
-	audio_devs[my_dev]->flags |= DMA_AUTOMODE | DMA_DUPLEX;
+	audio_devs[my_dev]->flags |= DMA_AUTOMODE;
 	audio_devs[my_dev]->dmachan1 = dma_playback;
 	audio_devs[my_dev]->dmachan2 = dma_capture;
 	audio_devs[my_dev]->buffsize = DSP_BUFFSIZE;
