@@ -50,9 +50,9 @@
 #include <dev/xe/if_xereg.h>
 #include <dev/xe/if_xevar.h>
 
-#include "card_if.h"
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccarddevs.h>
+#include "card_if.h"
 
 #define XE_VENDOR_ID_XIRCOM 0x0105
 #define XE_VENDOR_ID_COMPAQ_1 0x0138
