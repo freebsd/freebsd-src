@@ -892,7 +892,7 @@
 
 
 /* Define name of host machine's cpu (eg. sparc) */
-#define HOST_CPU "i386"
+/* #define HOST_CPU "i386" */
 
 /* Define name of host machine's architecture (eg. sun4) */
 /* #define HOST_ARCH "i386" */
