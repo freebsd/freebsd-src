@@ -67,7 +67,7 @@ getpass(prompt)
 	 * note - blocking signals isn't necessarily the
 	 * right thing, but we leave it for now.
 	 */
-	omask = sigblock(sigmask(SIGINT)|sigmask(SIGTSTP));
+	omask = sigblock(sigmask(SIGTSTP));
 	(void)tcgetattr(fileno(fp), &term);
 	if (echo = (term.c_lflag & ECHO)) {
 		term.c_lflag &= ~ECHO;
