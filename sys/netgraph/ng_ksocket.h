@@ -43,6 +43,8 @@
 #ifndef _NETGRAPH_KSOCKET_H_
 #define _NETGRAPH_KSOCKET_H_
 
+#include <sys/socket.h>
+
 /* Node type name and magic cookie */
 #define NG_KSOCKET_NODE_TYPE	"ksocket"
 #define NGM_KSOCKET_COOKIE	942710669
@@ -67,6 +69,21 @@ struct ng_ksocket_sockopt {
 	  { "value",		(svtype)		},	\
 	  { NULL },						\
 	}							\
+}
+
+/* For NGM_KSOCKET_ACCEPT control message responses */
+struct ng_ksocket_accept {
+	u_int32_t	nodeid;		/* node ID of connected ksocket */
+	struct sockaddr	addr;		/* peer's address (variable length) */
+};
+
+/* Keep this in sync with the above structure definition */
+#define	NGM_KSOCKET_ACCEPT_INFO {					\
+	{								\
+	  { "nodeid",		&ng_parse_hint32_type		  },	\
+	  { "addr",		&ng_ksocket_generic_sockaddr_type },	\
+	  { NULL }							\
+	}								\
 }
 
 /* Netgraph commands */
