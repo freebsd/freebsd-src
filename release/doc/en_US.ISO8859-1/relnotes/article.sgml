@@ -136,6 +136,9 @@
       variable; &man.dmesg.8; no longer needs to be SGID
       <groupname>kmem</groupname>. &merged;</para>
 
+    <para>The kernel environment is now dynamic, and can be changed
+      via the new &man.kenv.2; system call.</para>
+
     <para>The &man.kqueue.2; event notification facility was added to
       the &os; kernel.  This is a new interface which is able to
       replace &man.poll.2;/&man.select.2;, offering improved
@@ -2139,6 +2142,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.kenv.1;, a command to dump the kernel environment, has
       been added. &merged;</para>
 
+    <para>&man.kenv.1; now has the ability to set or delete kernel
+      environment variables.</para>
+
     <para>&man.keyinfo.1; is now a C program, rather than a Perl
       script. &merged;</para>
 
@@ -2170,7 +2176,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       particular date and time. &merged;</para>
 
     <para>&man.last.1; now supports a <option>-y</option> flag, which
-      causes the year to be included in the session start time.</para>
+      causes the year to be included in the session start time. &merged;</para>
 
     <para>The &man.lastlogin.8; utility, which prints the last login
       time of each user, has been imported from
@@ -2357,6 +2363,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       pathnames to be excluded when creating and verifying prototypes.
       This makes it easier to use &man.mtree.8; as a part of an
       intrusion-detection system. &merged;</para>
+
+    <para>&man.mv.1; now takes a (nonstandard) <option>-n</option> to
+      automatically answer <quote>no</quote> when it would ask to
+      overwrite a file.</para>
 
     <para>&man.natd.8; now supports a
       <option>-log_ipfw_denied</option> option to log packets that
