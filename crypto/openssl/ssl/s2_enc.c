@@ -54,7 +54,11 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ *
+ * $FreeBSD$
  */
+
+#ifndef NO_SSL2
 
 #include <stdio.h>
 #include "ssl_locl.h"
@@ -178,3 +182,4 @@ void ssl2_mac(SSL *s, unsigned char *md, int send)
 	/* some would say I should zero the md context */
 	}
 
+#endif
