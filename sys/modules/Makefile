@@ -139,7 +139,7 @@ SUBDIR=	3dfx \
 SUBDIR+=ext2fs
 .endif
 
-.if !defined(NO_IPFILTER) && ${MACHINE_ARCH} != "ia64"
+.if !defined(NO_IPFILTER)
 SUBDIR+=ipfilter
 .endif
 
@@ -249,22 +249,41 @@ SUBDIR+=aic \
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
+# Modules not enabled on ia64 (as compared to i386) include:
+#	aac acpi aout apm atspeaker drm fpu gnufpu ibcs2 linprocfs linux ncv
+#	nsp oltr pecoff s3 sbni stg vesa
 SUBDIR+=aic \
+	ar \
 	arcnet \
+	asr \
+	bktr \
+	cardbus \
+	cbb \
 	ciss \
 	cm \
 	coff \
 	el \
 	em \
+	ep \
+	exca \
 	fe \
+	hea \
+	hfa \
 	iir \
+	lomac \
 	mly \
+	netgraph \
+	pccard \
 	ray \
+	rc \
 	scsi_low \
 	smbfs \
+	sound \
 	splash \
+	sppp \
 	sr \
 	streams \
+	vinum \
 	wi \
 	xe
 .endif
