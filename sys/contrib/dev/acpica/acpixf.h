@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -356,11 +356,12 @@ AcpiInstallGpeHandler (
 
 ACPI_STATUS
 AcpiAcquireGlobalLock (
-    void);
+    UINT32                  Timeout,
+    UINT32                  *Handle);
 
 ACPI_STATUS
 AcpiReleaseGlobalLock (
-    void);
+    UINT32                  Handle);
 
 ACPI_STATUS
 AcpiRemoveGpeHandler (
