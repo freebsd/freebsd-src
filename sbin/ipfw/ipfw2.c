@@ -70,6 +70,11 @@ int
 		verbose;
 
 #define	IP_MASK_ALL	0xffffffff
+/*
+ * the following macro returns an error message if we run out of
+ * arguments.
+ */
+#define NEED1(msg)      {if (!ac) errx(EX_USAGE, msg);}
 
 /*
  * _s_x is a structure that stores a string <-> token pairs, used in
@@ -2122,6 +2127,7 @@ delete(int ac, char *av[])
 	memset(&p, 0, sizeof p);
 
 	av++; ac--;
+	NEED1("missing rule specification");
 	if (ac > 0 && !strncmp(*av, "set", strlen(*av))) {
 		do_set = 1;	/* delete set */
 		ac--; av++;
@@ -2178,12 +2184,6 @@ fill_iface(ipfw_insn_if *cmd, char *arg)
 	} else if (!inet_aton(arg, &cmd->p.ip))
 		errx(EX_DATAERR, "bad ip address ``%s''", arg);
 }
-
-/*
- * the following macro returns an error message if we run out of
- * arguments.
- */
-#define	NEED1(msg)	{if (!ac) errx(EX_USAGE, msg);}
 
 static void
 config_pipe(int ac, char **av)
