@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: NetBSD: if_hme_pci.c,v 1.7 2001/10/05 17:49:43 thorpej Exp
+ *	from: NetBSD: if_hme_pci.c,v 1.14 2004/03/17 08:58:23 martin Exp
  */
 
 #include <sys/cdefs.h>
@@ -44,8 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <machine/bus.h>
+#if defined(__powerpc__) || defined(__sparc64__)
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
+#endif
 #include <machine/resource.h>
 
 #include <sys/rman.h>
@@ -116,12 +118,16 @@ DRIVER_MODULE(hme, pci, hme_pci_driver, hme_devclass, 0, 0);
 MODULE_DEPEND(hme, pci, 1, 1, 1);
 MODULE_DEPEND(hme, ether, 1, 1, 1);
 
+#define	PCI_VENDOR_SUN			0x108e
+#define	PCI_PRODUCT_SUN_EBUS		0x1000
+#define	PCI_PRODUCT_SUN_HMENETWORK	0x1001
+
 int
 hme_pci_probe(device_t dev)
 {
 
-	if (pci_get_vendor(dev) == 0x108e &&
-	    pci_get_device(dev) ==  0x1001) {
+	if (pci_get_vendor(dev) == PCI_VENDOR_SUN &&
+	    pci_get_device(dev) ==  PCI_PRODUCT_SUN_HMENETWORK) {
 		device_set_desc(dev, "Sun HME 10/100 Ethernet");
 		return (0);
 	}
@@ -134,6 +140,40 @@ hme_pci_attach(device_t dev)
 	struct hme_pci_softc *hsc = device_get_softc(dev);
 	struct hme_softc *sc = &hsc->hsc_hme;
 	int error = 0;
+#if !(defined(__powerpc__) || defined(__sparc64__))
+	device_t *children, ebus_dev;
+	struct resource *ebus_rres;
+	bus_space_handle_t romh;
+	bus_space_tag_t romt;
+	int dataoff, ebus_rrid, slot, vpdoff;
+	int i, nchildren;
+	uint8_t buf[32];
+	static const uint8_t promhdr[] = { 0x55, 0xaa };
+#define	PROMHDR_PTR_DATA	0x18
+	static const uint8_t promdat[] = {
+		0x50, 0x43, 0x49, 0x52,	/* "PCIR" */
+		PCI_VENDOR_SUN & 0xff, PCI_VENDOR_SUN >> 8,
+		PCI_PRODUCT_SUN_HMENETWORK & 0xff,
+		PCI_PRODUCT_SUN_HMENETWORK >> 8
+	};
+#define	PROMDATA_PTR_VPD	0x08
+#define	PROMDATA_DATA2		0x0a
+	static const uint8_t promdat2[] = {
+		0x18, 0x00,		/* structure length */
+		0x00,			/* structure revision */
+		0x00,			/* interface revision */
+		PCIS_NETWORK_ETHERNET,	/* subclass code */
+		PCIC_NETWORK		/* class code */
+	};
+#define	PCI_VPDRES_ISLARGE(x)			((x) & 0x80)
+#define	PCI_VPDRES_LARGE_NAME(x)		((x) & 0x7f)
+#define	PCI_VPDRES_TYPE_VPD			0x10	/* large */
+	struct pci_vpd {
+		 uint8_t	vpd_key0;
+		 uint8_t	vpd_key1;
+		 uint8_t	vpd_len;
+	} *vpd;
+#endif
 
 	pci_enable_busmaster(dev);
 	/*
@@ -186,7 +226,116 @@ hme_pci_attach(device_t dev)
 	bus_space_subregion(hsc->hsc_memt, hsc->hsc_memh, 0x7000, 0x1000,
 	    &sc->sc_mifh);
 
+#if defined(__powerpc__) || defined(__sparc64__)
 	OF_getetheraddr(dev, sc->sc_arpcom.ac_enaddr);
+#else
+	/*
+	 * Dig out VPD (vital product data) and read NA (network address).
+	 *
+	 * The PCI HME is a PCIO chip, which is composed of two functions:
+	 *	function 0: PCI-EBus2 bridge, and
+	 *	function 1: HappyMeal Ethernet controller.
+	 *
+	 * The VPD of HME resides in the Boot PROM (PCI FCode) attached
+	 * to the EBus bridge and can't be accessed via the PCI capability
+	 * pointer.
+	 * ``Writing FCode 3.x Programs'' (newer ones, dated 1997 and later)
+	 * chapter 2 describes the data structure.
+	 *
+	 * We don't have a MI EBus driver since no EBus device exists
+	 * (besides the FCode PROM) on add-on HME boards. The ``no driver
+	 * attached'' message for function 0 therefore is what is expected.
+	 */
+
+	/* Search accompanying EBus bridge. */
+	slot = pci_get_slot(dev);
+	if (device_get_children(device_get_parent(dev), &children,
+	    &nchildren) != 0) {
+		device_printf(dev, "could not get children\n");
+		error = ENXIO;
+		goto fail_sres;
+	}
+	ebus_dev = NULL;
+	for (i = 0; i < nchildren; i++) {
+		if (pci_get_class(children[i]) == PCIC_BRIDGE &&
+		    pci_get_vendor(children[i]) == PCI_VENDOR_SUN &&
+		    pci_get_device(children[i]) ==  PCI_PRODUCT_SUN_EBUS &&
+		    pci_get_slot(children[i]) == slot) {
+			ebus_dev = children[i];
+			break;
+		}
+	}
+	if (ebus_dev == NULL) {
+		device_printf(dev, "could not find EBus bridge\n");
+		error = ENXIO;
+		goto fail_children;
+	}
+
+	/* Map EBus bridge PROM registers. */
+#define	PCI_EBUS2_BOOTROM	0x10
+	ebus_rrid = PCI_EBUS2_BOOTROM;
+	if ((ebus_rres = bus_alloc_resource_any(ebus_dev, SYS_RES_MEMORY,
+	    &ebus_rrid, RF_ACTIVE)) == NULL) {
+		device_printf(dev, "could not map PROM registers\n");
+		error = ENXIO;
+		goto fail_children;
+	}
+	romt = rman_get_bustag(ebus_rres);
+	romh = rman_get_bushandle(ebus_rres);
+
+	/* Read PCI expansion PROM header. */
+	bus_space_read_region_1(romt, romh, 0, buf, sizeof(buf));
+	if (memcmp(buf, promhdr, sizeof(promhdr)) != 0 ||
+	    (dataoff = (buf[PROMHDR_PTR_DATA] |
+	    (buf[PROMHDR_PTR_DATA + 1] << 8))) < 0x1c) {
+		device_printf(dev, "unexpected PCI expansion PROM header\n");
+		error = ENXIO;
+		goto fail_rres;
+	}
+
+	/* Read PCI expansion PROM data. */
+	bus_space_read_region_1(romt, romh, dataoff, buf, sizeof(buf));
+	if (memcmp(buf, promdat, sizeof(promdat)) != 0 ||
+	    memcmp(buf + PROMDATA_DATA2, promdat2, sizeof(promdat2)) != 0 ||
+	    (vpdoff = (buf[PROMDATA_PTR_VPD] |
+	    (buf[PROMDATA_PTR_VPD + 1] << 8))) < 0x1c) {
+		device_printf(dev, "unexpected PCI expansion PROM data\n");
+		error = ENXIO;
+		goto fail_rres;
+	}
+
+	/*
+	 * Read PCI VPD.
+	 * The VPD of HME is not in PCI 2.2 standard format. The length in
+	 * the resource header is in big endian, and resources are not
+	 * properly terminated (only one resource and no end tag).
+	 */
+	bus_space_read_region_1(romt, romh, vpdoff, buf, sizeof(buf));
+	vpd = (void *)(buf + 3);
+	if (PCI_VPDRES_ISLARGE(buf[0]) == 0 ||
+	    PCI_VPDRES_LARGE_NAME(buf[0]) != PCI_VPDRES_TYPE_VPD ||
+	    /* buf[1] != 0 || buf[2] != 9 || */ /*len*/
+	    vpd->vpd_key0 != 0x4e /* N */ ||
+	    vpd->vpd_key1 != 0x41 /* A */ ||
+	    vpd->vpd_len != ETHER_ADDR_LEN) {
+		device_printf(dev, "unexpected PCI VPD\n");
+		error = ENXIO;
+		goto fail_rres;
+	}
+	if (buf + 6 == NULL) {
+		device_printf(dev, "could not read network address\n");
+		error = ENXIO;
+		goto fail_rres;
+	}
+	bcopy(buf + 6, sc->sc_arpcom.ac_enaddr, ETHER_ADDR_LEN);
+
+fail_rres:
+	bus_release_resource(ebus_dev, SYS_RES_MEMORY, ebus_rrid, ebus_rres);
+fail_children:
+	free(children, M_TEMP);
+	if (error != 0)
+		goto fail_sres;
+#endif
 
 	sc->sc_burst = 64;	/* XXX */
 
