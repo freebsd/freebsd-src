@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: sysctl.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.18 1998/08/25 07:38:19 dfr Exp $";
+	"$Id: sysctl.c,v 1.19 1998/11/08 19:27:43 phk Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static int	Aflag, aflag, nflag, wflag, Xflag, bflag;
+static int	Aflag, aflag, bflag, dflag, nflag, wflag, Xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(char *);
@@ -70,11 +70,12 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: sysctl [-bnX] variable ...",
-		"       sysctl [-bnX] -w variable=value ...",
-		"       sysctl [-bnX] -a",
-		"       sysctl [-bnX] -A");
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+		"usage: sysctl [-bdn] variable ...",
+		"       sysctl [-bn] -w variable=value ...",
+		"       sysctl [-bdn] -a",
+		"       sysctl [-bdn] -A",
+		"       sysctl [-bdn] -X");
 	exit(1);
 }
 
@@ -85,11 +86,12 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabnwX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabdnwX")) != -1) {
 		switch (ch) {
 		case 'A': Aflag = 1; break;
 		case 'a': aflag = 1; break;
 		case 'b': bflag = 1; break;
+		case 'd': dflag = 1; break;
 		case 'n': nflag = 1; break;
 		case 'w': wflag = 1; break;
 		case 'X': Xflag = Aflag = 1; break;
@@ -99,6 +101,8 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (wflag && (Aflag || aflag || dflag))
+		usage();
 	if (Aflag || aflag)
 		exit (sysctl_all(0, 0));
 	if (argc == 0)
@@ -336,13 +340,34 @@ static int
 show_var(int *oid, int nlen)
 {
 	u_char buf[BUFSIZ], *val, *p;
-	char name[BUFSIZ], *fmt;
+	char name[BUFSIZ], descr[BUFSIZ], *fmt;
 	int qoid[CTL_MAXNAME+2];
 	int i;
 	size_t j, len;
 	u_int kind;
 	int (*func)(int, void *) = 0;
 
+	qoid[0] = 0;
+	memcpy(qoid + 2, oid, nlen * sizeof(int));
+
+	qoid[1] = 1;
+	j = sizeof name;
+	i = sysctl(qoid, nlen + 2, name, &j, 0, 0);
+	if (i || !j)
+		err(1, "sysctl name %d %d %d", i, j, errno);
+
+	if (dflag) {
+		qoid[1] = 5;
+		j = sizeof descr;
+		i = sysctl(qoid, nlen + 2, descr, &j, 0, 0);
+		if (i || !j)
+			err(1, "sysctl name %d %d %d", i, j, errno);
+		if (!nflag)
+			printf("%s: ", name);
+		printf("%s", descr[0] ? descr : "[no description]");
+		return (0);
+	}
+	
 	/* find an estimate of how much we need for this var */
 	j = 0;
 	i = sysctl(oid, nlen, 0, &j, 0, 0);
@@ -359,10 +384,7 @@ show_var(int *oid, int nlen)
 		return (0);
 	}
 
-	qoid[0] = 0;
 	qoid[1] = 4;
-	memcpy(qoid + 2, oid, nlen * sizeof(int));
-
 	j = sizeof buf;
 	i = sysctl(qoid, nlen + 2, buf, &j, 0, 0);
 	if (i || !j)
@@ -371,12 +393,6 @@ show_var(int *oid, int nlen)
 	kind = *(u_int *)buf;
 
 	fmt = (char *)(buf + sizeof(u_int));
-
-	qoid[1] = 1;
-	j = sizeof name;
-	i = sysctl(qoid, nlen + 2, name, &j, 0, 0);
-	if (i || !j)
-		err(1, "sysctl name %d %d %d", i, j, errno);
 
 	p = val;
 	switch (*fmt) {
