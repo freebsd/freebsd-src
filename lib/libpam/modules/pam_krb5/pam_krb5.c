@@ -105,7 +105,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	krb5_get_init_creds_opt opts;
 	struct passwd *pwd;
 	int retval;
-	const char *sourceuser, *user, *pass, *service;
+	const char *user, *pass;
+	const void *sourceuser, *service, *item;
 	char *principal, *princ_name, *ccache_name, luser[32], *srvdup;
 
 	retval = pam_get_user(pamh, &user, USER_PROMPT);
@@ -114,18 +115,18 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Got user: %s", user);
 
-	retval = pam_get_item(pamh, PAM_RUSER, (const void **)&sourceuser);
+	retval = pam_get_item(pamh, PAM_RUSER, &sourceuser);
 	if (retval != PAM_SUCCESS)
 		return (retval);
 
-	PAM_LOG("Got ruser: %s", sourceuser);
+	PAM_LOG("Got ruser: %s", (const char *)sourceuser);
 
 	service = NULL;
-	pam_get_item(pamh, PAM_SERVICE, (const void **)&service);
+	pam_get_item(pamh, PAM_SERVICE, &service);
 	if (service == NULL)
 		service = "unknown";
 
-	PAM_LOG("Got service: %s", service);
+	PAM_LOG("Got service: %s", (const char *)service);
 
 	krbret = krb5_init_context(&pam_context);
 	if (krbret != 0) {
@@ -153,7 +154,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	/* Get principal name */
 	if (openpam_get_option(pamh, PAM_OPT_AUTH_AS_SELF))
-		asprintf(&principal, "%s/%s", sourceuser, user);
+		asprintf(&principal, "%s/%s", (const char *)sourceuser, user);
 	else
 		principal = strdup(user);
 
@@ -208,7 +209,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		if (retval != PAM_SUCCESS)
 			goto cleanup2;
 
-		retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
+		retval = pam_get_item(pamh, PAM_USER, &item);
 		if (retval != PAM_SUCCESS)
 			goto cleanup2;
 
@@ -283,7 +284,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Credentials stash verified");
 
-	retval = pam_get_data(pamh, "ccache", (const void **)&ccache_name);
+	retval = pam_get_data(pamh, "ccache", &item);
 	if (retval == PAM_SUCCESS) {
 		krb5_cc_destroy(pam_context, ccache);
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
@@ -343,7 +344,8 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	krb5_cc_cursor cursor;
 	struct passwd *pwd = NULL;
 	int retval;
-	const char *cache_name, *q, *user;
+	const char *cache_name, *q;
+	const void *user, *cache_data;
 	char *cache_name_buf = NULL, *p;
 
 	uid_t euid;
@@ -364,11 +366,11 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	PAM_LOG("Establishing credentials");
 
 	/* Get username */
-	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
+	retval = pam_get_item(pamh, PAM_USER, &user);
 	if (retval != PAM_SUCCESS)
 		return (retval);
 
-	PAM_LOG("Got user: %s", user);
+	PAM_LOG("Got user: %s", (const char *)user);
 
 	krbret = krb5_init_context(&pam_context);
 	if (krbret != 0) {
@@ -384,14 +386,14 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	PAM_LOG("Got euid, egid: %d %d", euid, egid);
 
 	/* Retrieve the temporary cache */
-	retval = pam_get_data(pamh, "ccache", (const void **)&cache_name);
+	retval = pam_get_data(pamh, "ccache", &cache_data);
 	if (retval != PAM_SUCCESS) {
 		retval = PAM_CRED_UNAVAIL;
 		goto cleanup3;
 	}
-	krbret = krb5_cc_resolve(pam_context, cache_name, &ccache_temp);
+	krbret = krb5_cc_resolve(pam_context, cache_data, &ccache_temp);
 	if (krbret != 0) {
-		PAM_LOG("Error krb5_cc_resolve(\"%s\"): %s", cache_name,
+		PAM_LOG("Error krb5_cc_resolve(\"%s\"): %s", (const char *)cache_data,
 		    krb5_get_err_text(pam_context, krbret));
 		retval = PAM_SERVICE_ERR;
 		goto cleanup3;
@@ -579,15 +581,15 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	krb5_ccache ccache;
 	krb5_principal princ;
 	int retval;
-	const char *user, *ccache_name;
+	const void *user, *ccache_name;
 
-	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
+	retval = pam_get_item(pamh, PAM_USER, &user);
 	if (retval != PAM_SUCCESS)
 		return (retval);
 
-	PAM_LOG("Got user: %s", user);
+	PAM_LOG("Got user: %s", (const char *)user);
 
-	retval = pam_get_data(pamh, "ccache", (const void **)&ccache_name);
+	retval = pam_get_data(pamh, "ccache", &ccache_name);
 	if (retval != PAM_SUCCESS)
 		return (PAM_SUCCESS);
 
@@ -601,15 +603,15 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Context initialised");
 
-	krbret = krb5_cc_resolve(pam_context, ccache_name, &ccache);
+	krbret = krb5_cc_resolve(pam_context, (const char *)ccache_name, &ccache);
 	if (krbret != 0) {
-		PAM_LOG("Error krb5_cc_resolve(\"%s\"): %s", ccache_name,
+		PAM_LOG("Error krb5_cc_resolve(\"%s\"): %s", (const char *)ccache_name,
 		    krb5_get_err_text(pam_context, krbret));
 		krb5_free_context(pam_context);
 		return (PAM_PERM_DENIED);
 	}
 
-	PAM_LOG("Got ccache %s", ccache_name);
+	PAM_LOG("Got ccache %s", (const char *)ccache_name);
 
 
 	krbret = krb5_cc_get_principal(pam_context, ccache, &princ);
@@ -622,7 +624,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Got principal");
 
-	if (krb5_kuserok(pam_context, princ, user))
+	if (krb5_kuserok(pam_context, princ, (const char *)user))
 		retval = PAM_SUCCESS;
 	else
 		retval = PAM_PERM_DENIED;
@@ -652,17 +654,18 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	krb5_get_init_creds_opt opts;
 	krb5_data result_code_string, result_string;
 	int result_code, retval;
-	const char *user, *pass;
+	const char *pass;
+	const void *user;
 	char *princ_name, *passdup;
 
 	if (!(flags & PAM_UPDATE_AUTHTOK))
 		return (PAM_AUTHTOK_ERR);
 
-	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
+	retval = pam_get_item(pamh, PAM_USER, &user);
 	if (retval != PAM_SUCCESS)
 		return (retval);
 
-	PAM_LOG("Got user: %s", user);
+	PAM_LOG("Got user: %s", (const char *)user);
 
 	krbret = krb5_init_context(&pam_context);
 	if (krbret != 0) {
@@ -677,7 +680,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	PAM_LOG("Credentials options initialised");
 
 	/* Get principal name */
-	krbret = krb5_parse_name(pam_context, user, &princ);
+	krbret = krb5_parse_name(pam_context, (const char *)user, &princ);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_parse_name(): %s",
 		    krb5_get_err_text(pam_context, krbret));
