@@ -550,7 +550,7 @@ int trace_init = 1;
 
 #else
 extern struct audio_operations *audio_devs[MAX_AUDIO_DEV];
-int num_audiodevs;
+extern int num_audiodevs;
 extern struct mixer_operations *mixer_devs[MAX_MIXER_DEV];
 extern int      num_mixers;
 extern struct synth_operations *synth_devs[MAX_SYNTH_DEV + MAX_MIDI_DEV];
