@@ -59,7 +59,7 @@ struct ufs_extattr_per_mount;
 /* This structure describes the UFS specific mount structure data. */
 struct ufsmount {
 	struct	mount *um_mountp;		/* filesystem vfs structure */
-	struct cdev *um_dev;				/* device mounted */
+	struct cdev *um_dev;			/* device mounted */
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 	u_long	um_fstype;			/* type of filesystem */
 	struct	fs *um_fs;			/* pointer to superblock */
