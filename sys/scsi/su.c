@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.4 1995/03/04 20:51:07 dufault Exp $
+ *      $Id: su.c,v 1.5 1995/05/03 18:09:20 dufault Exp $
  *
  * Tabstops 4
  */
@@ -71,22 +71,6 @@
  */
 #define OLD_DEV(NEWDEV, OLDDEV) ((OLDDEV) | ((NEWDEV) & 0x080000FF))
 
-/* XXX: These are taken from, and perhaps belong in, conf.c
- */
-#define nxopen		(d_open_t *)enxio
-#define	nxclose		(d_close_t *)enxio
-#define	nxread		(d_rdwr_t *)enxio
-#define	nxwrite		nxread
-#define	nxstrategy	(d_strategy_t *)enxio
-#define	nxioctl		(d_ioctl_t *)enxio
-#define	nxdump		(d_dump_t *)enxio
-#define nxstop		(d_stop_t *)enxio
-#define nxreset		(d_reset_t *)enxio
-#define nxselect	(d_select_t *)enxio
-#define nxmmap		(d_mmap_t *)enxio
-#define	nxdevtotty	(d_ttycv_t *)nullop
-#define zerosize	(d_psize_t *)0
-
 /* bnxio, cnxio: non existent device entries
  */
 static struct bdevsw bnxio = {
@@ -95,7 +79,7 @@ static struct bdevsw bnxio = {
 	nxstrategy,
 	nxioctl,
 	nxdump,
-	zerosize,
+	nxpsize,
 	0
 };
 

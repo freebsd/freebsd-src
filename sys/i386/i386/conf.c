@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.103 1995/10/28 16:57:52 markm Exp $
+ *	$Id: conf.c,v 1.104 1995/11/04 13:23:09 bde Exp $
  */
 
 #include <sys/param.h>
@@ -54,34 +54,12 @@
 #include <sys/tty.h>
 #include <sys/conf.h>
 
+/* Bogus defines for compatibility. */
+#define	noioc		noioctl
+#define	nostrat		nostrategy
+#define zerosize	nopsize
 
 /* Lots of bogus defines for shorthand purposes */
-#define noopen		(d_open_t *)enodev
-#define noclose		(d_close_t *)enodev
-#define noread		(d_rdwr_t *)enodev
-#define nowrite		noread
-#define noioc		(d_ioctl_t *)enodev
-#define nostop		(d_stop_t *)enodev
-#define noselect	(d_select_t *)enodev
-#define nostrat		nostrategy
-#define nodump		(d_dump_t *)enodev
-#define	nodevtotty	(d_ttycv_t *)nullop
-
-#define nxopen		(d_open_t *)enxio
-#define	nxclose		(d_close_t *)enxio
-#define	nxread		(d_rdwr_t *)enxio
-#define	nxwrite		nxread
-#define	nxstrategy	(d_strategy_t *)enxio
-#define	nxioctl		(d_ioctl_t *)enxio
-#define	nxdump		(d_dump_t *)enxio
-#define nxstop		(d_stop_t *)enxio
-#define nxreset		(d_reset_t *)enxio
-#define nxselect	(d_select_t *)enxio
-#define nxmmap		nommap		/* must return -1, not ENXIO */
-#define	nxdevtotty	(d_ttycv_t *)nullop
-
-#define zerosize	(d_psize_t *)0
-
 int lkmenodev();
 #define	lkmopen		(d_open_t *)lkmenodev
 #define	lkmclose	(d_close_t *)lkmenodev
@@ -307,7 +285,7 @@ int lkmenodev();
 #define swclose		noclose
 #define swioctl		noioc
 #define swdump		nodump
-#define swsize		(d_psize_t *)enodev
+#define swsize		zerosize
 
 
 struct bdevsw	bdevsw[] =

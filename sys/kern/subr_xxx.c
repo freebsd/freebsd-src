@@ -31,61 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_xxx.c,v 1.3 1994/08/02 07:42:36 davidg Exp $
+ * $Id: subr_xxx.c,v 1.4 1995/09/10 21:35:51 bde Exp $
  */
 
 /*
- * Miscellaneous trivial functions, including many
- * that are often inline-expanded or done in assembler.
+ * Miscellaneous trivial functions.
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-
-#include <machine/cpu.h>
-
-extern int enosys __P((void));
-
-/*
- * Unsupported device function (e.g. writing to read-only device).
- */
-int
-enodev()
-{
-
-	return (ENODEV);
-}
-
-/*
- * Unconfigured device function; driver not configured.
- */
-int
-enxio()
-{
-
-	return (ENXIO);
-}
-
-/*
- * Unsupported ioctl function.
- */
-int
-enoioctl()
-{
-
-	return (ENOTTY);
-}
-
-/*
- * Unsupported system function.
- * This is used for an otherwise-reasonable operation
- * that is not supported by the current system binary.
- */
-int
-enosys()
-{
-
-	return (ENOSYS);
-}
 
 /*
  * Return error for operation not supported
@@ -108,19 +61,100 @@ nullop()
 	return (0);
 }
 
-/*
- * Specific `no' and `null' operations.
- * XXX the general ones are bogus.
- * XXX device functions may belong elsewhere.
- */
-
 #include <sys/conf.h>
 
+/*
+ * Unsupported devswitch functions (e.g. for writing to read-only device).
+ * XXX may belong elsewhere.
+ */
+
 int
-noreset(dummy)
-	int dummy;
+noopen(dev, flags, fmt, p)
+	dev_t dev;
+	int flags;
+	int fmt;
+	struct proc *p;
 {
 
+	return (ENODEV);
+}
+
+int
+noclose(dev, flags, fmt, p)
+	dev_t dev;
+	int flags;
+	int fmt;
+	struct proc *p;
+{
+
+	return (ENODEV);
+}
+
+int
+noread(dev, uio, ioflag)
+	dev_t dev;
+	struct uio *uio;
+	int ioflag;
+{
+
+	return (ENODEV);
+}
+
+int
+nowrite(dev, uio, ioflag)
+	dev_t dev;
+	struct uio *uio;
+	int ioflag;
+{
+
+	return (ENODEV);
+}
+
+int
+noioctl(dev, cmd, data, flags, p)
+	dev_t dev;
+	int cmd;
+	caddr_t data;
+	int flags;
+	struct proc *p;
+{
+
+	return (ENODEV);
+}
+
+void
+nostop(tp, rw)
+	struct tty *tp;
+	int rw;
+{
+
+}
+
+int
+noreset(dev)
+	dev_t dev;
+{
+
+	printf("noreset(0x%x) called\n", dev);
+	return (ENODEV);
+}
+
+struct tty *
+nodevtotty(dev)
+	dev_t dev;
+{
+
+	return (NULL);
+}
+
+int
+noselect(dev, rw, p)
+	dev_t dev;
+	int rw;
+	struct proc *p;
+{
+
+	/* XXX is this distinguished from 1 for data available? */
 	return (ENODEV);
 }
 
@@ -135,22 +169,29 @@ nommap(dev, offset, nprot)
 	return (-1);
 }
 
-void
-nostrategy(bp)
-	struct buf *bp;
+int
+nodump(dev)
+	dev_t dev;
 {
 
+	return (ENODEV);
 }
+
+/*
+ * Null devswitch functions (for when the operation always succeeds).
+ * XXX may belong elsewhere.
+ * XXX not all are here (e.g., seltrue() isn't).
+ */
 
 /*
  * XXX this is probably bogus.  Any device that uses it isn't checking the
  * minor number.
  */
 int
-nullopen(dev, flag, mode, p)
+nullopen(dev, flags, fmt, p)
 	dev_t dev;
-	int flag;
-	int mode;
+	int flags;
+	int fmt;
 	struct proc *p;
 {
 
@@ -158,28 +199,102 @@ nullopen(dev, flag, mode, p)
 }
 
 int
-nullclose(dev, flag, mode, p)
+nullclose(dev, flags, fmt, p)
 	dev_t dev;
-	int flag;
-	int mode;
+	int flags;
+	int fmt;
 	struct proc *p;
 {
 
 	return (0);
 }
 
-void
-nullstop(tp, rw)
-	struct tty *tp;
+/*
+ * Unconfigured devswitch functions (for unconfigured drivers).
+ * XXX may belong elsewhere.
+ */
+
+int
+nxopen(dev, flags, fmt, p)
+	dev_t dev;
+	int flags;
+	int fmt;
+	struct proc *p;
+{
+
+	return (ENXIO);
+}
+
+/*
+ * XXX all nx functions except nxopen() should probably go away.  They
+ * probably can't be called for non-open devices.
+ */
+
+int
+nxclose(dev, flags, fmt, p)
+	dev_t dev;
+	int flags;
+	int fmt;
+	struct proc *p;
+{
+
+	printf("nxclose(0x%x) called\n", dev);
+	return (ENXIO);
+}
+
+int
+nxread(dev, uio, ioflag)
+	dev_t dev;
+	struct uio *uio;
+	int ioflag;
+{
+
+	printf("nxread(0x%x) called\n", dev);
+	return (ENXIO);
+}
+
+int
+nxwrite(dev, uio, ioflag)
+	dev_t dev;
+	struct uio *uio;
+	int ioflag;
+{
+
+	printf("nxwrite(0x%x) called\n", dev);
+	return (ENXIO);
+}
+
+int
+nxioctl(dev, cmd, data, flags, p)
+	dev_t dev;
+	int cmd;
+	caddr_t data;
+	int flags;
+	struct proc *p;
+{
+
+	printf("nxioctl(0x%x) called\n", dev);
+	return (ENXIO);
+}
+
+int
+nxselect(dev, rw, p)
+	dev_t dev;
 	int rw;
+	struct proc *p;
 {
 
+	printf("nxselect(0x%x) called\n", dev);
+
+	/* XXX is this distinguished from 1 for data available? */
+	return (ENXIO);
 }
 
 int
-nullreset(foo)
-	int foo;
+nxdump(dev)
+	dev_t dev;
 {
 
-	return (0);
+	printf("nxdump(0x%x) called\n", dev);
+	return (ENXIO);
 }

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.26 1995/10/22 09:37:45 davidg Exp $
+ * $Id: nfs_vnops.c,v 1.27 1995/10/29 15:33:15 phk Exp $
  */
 
 /*
@@ -96,6 +96,8 @@ static int	nfsfifo_read __P((struct vop_read_args *));
 static int	nfsfifo_write __P((struct vop_write_args *));
 static int	nfsspec_close __P((struct vop_close_args *));
 static int	nfsfifo_close __P((struct vop_close_args *));
+static int	nfs_ioctl __P((struct vop_ioctl_args *));
+static int	nfs_select __P((struct vop_select_args *));
 static int	nfs_flush __P((struct vnode *,struct ucred *,int,struct proc *,int));
 static int	nfs_setattrrpc __P((struct vnode *,struct vattr *,struct ucred *,struct proc *));
 static	int	nfs_lookup __P((struct vop_lookup_args *));
@@ -3381,4 +3383,27 @@ nfsfifo_close(ap)
 		}
 	}
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
+}
+
+static int
+nfs_ioctl(ap)
+	struct vop_ioctl_args *ap;
+{
+
+	/*
+	 * XXX we were once bogusly enoictl() which returned this (ENOTTY).
+	 * Probably we should return ENODEV.
+	 */
+	return (ENOTTY);
+}
+
+static int
+nfs_select(ap)
+	struct vop_select_args *ap;
+{
+
+	/*
+	 * We were once bogusly seltrue() which returns 1.  Is this right?
+	 */
+	return (1);
 }
