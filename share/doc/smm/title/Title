@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)Title	8.2 (Berkeley) 4/19/94
+.\" $FreeBSD$
 .\"
 .ps 18
 .vs 22
@@ -45,7 +46,7 @@ UNIX System Manager's Manual
 4.4 Berkeley Software Distribution
 .sp |5.75i
 .ft R
-.pt 12
+.ps 12
 .vs 16
 .ce
 June, 1993
@@ -143,61 +144,3 @@ are included.
 The views and conclusions contained in this manual are those of the
 authors and should not be interpreted as representing official policies,
 either expressed or implied, of the Regents of the University of California.
-.br
-.ll 6.5i
-.lt 6.5i
-.po .75i
-.in 0i
-.af % i
-.ds ET\"
-.de HD
-.po 0
-.lt 7.4i
-.tl ''''
-.lt
-.po
-'sp 18p
-.if o .tl '\\*(ET''\\*(OT'
-.if e .tl '\\*(OT''\\*(ET'
-'sp 18p
-.ns
-..
-.de FO
-'sp 18p
-.if e .tl '\s9\\*(Dt''\\*(Ed\s0'
-.if o .tl '\s9\\*(Ed''\\*(Dt\s0'
-'bp
-..
-.wh 0 HD
-.wh -60p FO
-.bp 5
-.ds ET \s9\f2Table \|of \|Contents\fP\s0
-.ds OT - % -
-.ce
-.\" \f3TABLE \|OF \|CONTENTS\fP
-.nr x .5i
-.in +\nxu
-.nf
-.ta \n(.lu-\nxuR
-.de xx
-\\$1\f3 \a \fP\\$2
-..
-.de t
-.sp 1v
-.ne .5i
-.cs 3
-.ti -.5i
-.ss 18
-\f3\s9\\$2. \\$3\s0\fP
-.ss 12
-.if t .sp .5v
-.cs 3 36
-.ds Ed Section \\$2
-.ds Dt \\$3
-.so \\$1
-..
-.\" .t /usr/src/share/man/man0/toc8 8 "System Maintenance"
-.in -.5i
-.cs 3
-.if n .ta 8n 16n 24n 32n 40n 48n 56n 64n 72n 80n
-.if t .ta .5i 1i 1.5i 2i 2.5i 3i 3.5i 4i 4.5i 5i 5.5i 6i 6.5i
