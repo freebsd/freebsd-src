@@ -1743,7 +1743,7 @@ sched_sync(void)
 			VOP_UNLOCK(vp, 0, td);
 			vn_finished_write(mp);
 			VI_LOCK(vp);
-			if ((vp->v_iflag | VI_ONWORKLST) != 0) {
+			if ((vp->v_iflag & VI_ONWORKLST) != 0) {
 				/*
 				 * Put us back on the worklist.  The worklist
 				 * routine will remove us from our current
