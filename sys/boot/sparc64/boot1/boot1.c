@@ -35,46 +35,54 @@ __FBSDID("$FreeBSD$");
 
 #define BSIZEMAX	8192
 
-/*
- * This structure will be refined along with the addition of a bootpath
- * parsing routine when it is necessary to cope with bootpaths that are
- * not in the exact <devpath>@<controller>,<disk>:<partition> format and
- * for which we need to evaluate the disklabel ourselves.
- */ 
-struct disk {
-	int meta;
+typedef int putc_func_t(int c, void *arg);
+typedef int32_t ofwh_t;
+
+struct sp_data {
+	char	*sp_buf;
+	u_int	sp_len;
+	u_int	sp_size;
 };
-struct disk dsk;
 
 static const char digits[] = "0123456789abcdef";
 
 static char bootpath[128];
 static char bootargs[128];
 
-static int kflag;
+static ofwh_t bootdev;
+
+static struct fs fs;
+static ino_t inomap;
+static char blkbuf[BSIZEMAX];
+static unsigned int fsblks;
 
 static uint32_t fs_off;
 
-typedef int putc_func_t(int c, void *arg);
-
 int main(int ac, char **av);
 
-static void exit(int);
+static void exit(int) __dead2;
 static void load(const char *);
 static ino_t lookup(const char *);
 static ssize_t fsread(ino_t, void *, size_t);
 static int dskread(void *, u_int64_t, int);
 
+static void usage(void);
+
 static void bcopy(const void *src, void *dst, size_t len);
 static void bzero(void *b, size_t len);
 
+static int mount(const char *device);
+
+static void panic(const char *fmt, ...) __dead2;
 static int printf(const char *fmt, ...);
-static int vprintf(const char *fmt, va_list ap);
 static int putchar(int c, void *arg);
+static int vprintf(const char *fmt, va_list ap);
+static int vsnprintf(char *str, size_t sz, const char *fmt, va_list ap);
 
 static int __printf(const char *fmt, putc_func_t *putc, void *arg, va_list ap);
 static int __putc(int c, void *arg);
 static int __puts(const char *s, putc_func_t *putc, void *arg);
+static int __sputc(int c, void *arg);
 static char *__uitoa(char *buf, u_int val, int base);
 static char *__ultoa(char *buf, u_long val, int base);
 
@@ -82,7 +90,6 @@ static char *__ultoa(char *buf, u_long val, int base);
  * Open Firmware interface functions
  */
 typedef u_int64_t	ofwcell_t;
-typedef int32_t		ofwh_t;
 typedef u_int32_t	u_ofwh_t;
 typedef int (*ofwfp_t)(ofwcell_t []);
 ofwfp_t ofw;			/* the prom Open Firmware entry */
@@ -94,6 +101,7 @@ int ofw_getprop(ofwh_t, const char *, void *, size_t);
 int ofw_read(ofwh_t, void *, size_t);
 int ofw_write(ofwh_t, const void *, size_t);
 int ofw_seek(ofwh_t, u_int64_t);
+void ofw_exit(void) __dead2;
 
 ofwh_t bootdevh;
 ofwh_t stdinh, stdouth;
@@ -121,10 +129,6 @@ ofw_init(int d, int d1, int d2, int d3, ofwfp_t ofwaddr)
 
 	bootargs[sizeof(bootargs) - 1] = '\0';
 	bootpath[sizeof(bootpath) - 1] = '\0';
-
-	if ((bootdevh = ofw_open(bootpath)) == -1) {
-		printf("Could not open boot device.\n");
-	}
 
 	ac = 0;
 	p = bootargs;
@@ -287,7 +291,8 @@ ofw_exit(void)
 	args[1] = 0;
 	args[2] = 0;
 
-	(*ofw)(args);
+	for (;;)
+		(*ofw)(args);
 }
 
 static void
@@ -350,11 +355,8 @@ main(int ac, char **av)
 		switch (av[i][0]) {
 		case '-':
 			switch (av[i][1]) {
-			case 'k':
-				kflag = 1;
-				break;
 			default:
-				break;
+				usage();
 			}
 			break;
 		default:
@@ -366,8 +368,20 @@ main(int ac, char **av)
 	printf(" \n>> FreeBSD/sparc64 boot block\n"
 	"   Boot path:   %s\n"
 	"   Boot loader: %s\n", bootpath, path);
+
+	if (mount(bootpath) == -1)
+		panic("mount");
+
 	load(path);
 	return (1);
+}
+
+static void
+usage(void)
+{
+
+	printf("usage: boot device [/path/to/loader]\n");
+	exit(1);
 }
 
 static void
@@ -375,6 +389,28 @@ exit(int code)
 {
 
 	ofw_exit();
+}
+
+static int
+mount(const char *device)
+{
+
+	if ((bootdev = ofw_open(device)) == -1) {
+		printf("mount: can't open device\n");
+		return (-1);
+	}
+	if (dskread(blkbuf, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE)) {
+		printf("mount: can't read superblock\n");
+		return (-1);
+	}
+	inomap = 0;
+	bcopy(blkbuf, &fs, sizeof(fs));
+	if (fs.fs_magic != FS_MAGIC) {
+		printf("mount: not ufs\n");
+		return (-1);
+	}
+	fsblks = fs.fs_bsize >> DEV_BSHIFT;
+	return (0);
 }
 
 static void
@@ -415,7 +451,7 @@ load(const char *fname)
 		if (ph.p_filesz != ph.p_memsz)
 			bzero(p + ph.p_filesz, ph.p_memsz - ph.p_filesz);
 	}
-	ofw_close(bootdevh);
+	ofw_close(bootdev);
 	(*(void (*)(int, int, int, int, ofwfp_t))eh.e_entry)(0, 0, 0, 0, ofw);
 }
 
@@ -457,29 +493,13 @@ lookup(const char *path)
 static ssize_t
 fsread(ino_t inode, void *buf, size_t nbyte)
 {
-	static struct fs fs;
 	static struct dinode din;
-	static char blkbuf[BSIZEMAX];
 	static ufs_daddr_t indbuf[BSIZEMAX / sizeof(ufs_daddr_t)];
-	static ino_t inomap;
 	static ufs_daddr_t blkmap, indmap;
-	static unsigned int fsblks;
 	char *s;
 	ufs_daddr_t lbn, addr;
 	size_t n, nb, off;
 
-	if (!dsk.meta) {
-		inomap = 0;
-		if (dskread(blkbuf, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE))
-			return (-1);
-		bcopy(blkbuf, &fs, sizeof(fs));
-		if (fs.fs_magic != FS_MAGIC) {
-			printf("Not ufs\n");
-			return (-1);
-		}
-		fsblks = fs.fs_bsize >> DEV_BSHIFT;
-		dsk.meta++;
-	}
 	if (!inode)
 		return (0);
 	if (inomap != inode) {
@@ -537,9 +557,23 @@ dskread(void *buf, u_int64_t lba, int nblk)
 	 * That means, if we read from offset zero on an open instance handle,
 	 * we should read from offset zero of that partition.
 	 */
-	ofw_seek(bootdevh, lba * DEV_BSIZE);
-	ofw_read(bootdevh, buf, nblk * DEV_BSIZE);
+	ofw_seek(bootdev, lba * DEV_BSIZE);
+	ofw_read(bootdev, buf, nblk * DEV_BSIZE);
 	return (0);
+}
+
+static void
+panic(const char *fmt, ...)
+{
+	char buf[128];
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof buf, fmt, ap);
+	printf("panic: %s\n", buf);
+	va_end(ap);
+
+	exit(1);
 }
 
 static int
@@ -555,15 +589,6 @@ printf(const char *fmt, ...)
 }
 
 static int
-vprintf(const char *fmt, va_list ap)
-{
-	int ret;
-
-	ret = __printf(fmt, putchar, 0, ap);
-	return (ret);
-}
-
-static int
 putchar(int c, void *arg)
 {
 	char buf;
@@ -575,6 +600,28 @@ putchar(int c, void *arg)
 	buf = c;
 	ofw_write(stdouth, &buf, 1);
 	return (1);
+}
+
+static int
+vprintf(const char *fmt, va_list ap)
+{
+	int ret;
+
+	ret = __printf(fmt, putchar, 0, ap);
+	return (ret);
+}
+
+static int
+vsnprintf(char *str, size_t sz, const char *fmt, va_list ap)
+{
+	struct sp_data sp;
+	int ret;
+
+	sp.sp_buf = str;
+	sp.sp_len = 0;
+	sp.sp_size = sz;
+	ret = __printf(fmt, __sputc, &sp, ap);
+	return (ret);
 }
 
 static int
@@ -685,6 +732,18 @@ reswitch:	c = *fmt++;
 		}
 	}
 	return (ret);
+}
+
+static int
+__sputc(int c, void *arg)
+{
+	struct sp_data *sp;
+
+	sp = arg;
+	if (sp->sp_len < sp->sp_size)
+		sp->sp_buf[sp->sp_len++] = c;
+	sp->sp_buf[sp->sp_len] = '\0';
+	return (1);
 }
 
 static int
