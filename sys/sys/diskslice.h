@@ -23,14 +23,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.4 1995/02/22 21:24:21 bde Exp $
+ *	$Id: diskslice.h,v 1.5 1995/03/04 11:05:44 bde Exp $
  */
 
 #ifndef _SYS_DISKSLICE_H_
 #define	_SYS_DISKSLICE_H_
 
+#include <sys/ioccom.h>
+
 #define	BASE_SLICE		2
 #define	COMPATIBILITY_SLICE	0
+#define	DIOCGSLICEINFO		_IOR('d', 111, struct diskslices)
+#define	DIOCSYNCSLICEINFO	_IOW('d', 112, int)
 #define	MAX_SLICES		32
 #define	WHOLE_DISK_SLICE	1
 

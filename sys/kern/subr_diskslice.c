@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.8 1995/03/04 11:42:27 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.9 1995/04/24 06:04:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -281,6 +281,8 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 	d_strategy_t *strat;
 	ds_setgeom_t *setgeom;
 {
+	u_char	bopenmask;
+	u_char	copenmask;
 	int	error;
 	struct disklabel *lp;
 	int	old_wlabel;
@@ -312,6 +314,10 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 		((struct partinfo *)data)->disklab = lp;
 		((struct partinfo *)data)->part
 			= &lp->d_partitions[dkpart(dev)];
+		return (0);
+
+	case DIOCGSLICEINFO:
+		*(struct diskslices *)data = *ssp;
 		return (0);
 
 	case DIOCSBAD:
@@ -354,6 +360,23 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 			free(sp->ds_label, M_DEVBUF);
 		set_ds_label(ssp, slice, lp);
 		return (0);
+
+	case DIOCSYNCSLICEINFO:
+		if (slice != WHOLE_DISK_SLICE || dkpart(dev) != RAW_PART)
+			return (EINVAL);
+		bopenmask = sp->ds_bopenmask;
+		copenmask = sp->ds_copenmask;
+		sp->ds_bopenmask &= ~(1 << RAW_PART);
+		sp->ds_copenmask &= ~(1 << RAW_PART);
+		sp->ds_openmask &= ~(1 << RAW_PART);
+		lp = malloc(sizeof *lp, M_DEVBUF, M_WAITOK);
+		*lp = *ssp->dss_slices[WHOLE_DISK_SLICE].ds_label;
+		error = dsopen("SYNCSLICES", dev, 0, &ssp, lp, strat, setgeom);
+		sp->ds_bopenmask = bopenmask;
+		sp->ds_copenmask = copenmask;
+		sp->ds_openmask = bopenmask | copenmask;
+		free(lp, M_DEVBUF);
+		return (error);
 
 	case DIOCWDINFO:
 		error = dsioctl(dev, DIOCSDINFO, data, flags, ssp, strat,
