@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.82 1998/04/06 03:37:55 kato Exp $
+ *  $Id: syscons.c,v 1.83 1998/04/16 16:35:23 kato Exp $
  */
 
 #include "sc.h"
@@ -2782,11 +2782,17 @@ switch_scr(scr_stat *scp, u_int next_scr)
 	    return EINVAL;
 	}
     }
+
     /* delay switch if actively updating screen */
     if (write_in_progress || blink_in_progress) {
 	delayed_next_scr = next_scr+1;
 	return 0;
     }
+
+    /* Stop the screensaver */
+    if (scrn_blanked > 0)
+      stop_scrn_saver(current_saver);
+
     switch_in_progress = TRUE;
     old_scp = cur_console;
     new_scp = console[next_scr];
