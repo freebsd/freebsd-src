@@ -581,14 +581,14 @@ putKcp (start, end, force)
 		if (i > 0) {
 		    ps("\\*(+K");
 		    do
-			putcp(*start++);
+			putcp((unsigned char)*start++);
 		    while (--i > 0);
 		    ps("\\*(-K");
 		    continue;
 		}
 	    }
 
-	putcp (*start++);
+	putcp ((unsigned char)*start++);
     }
 }
 
