@@ -14,3 +14,21 @@
 	only.
 
 ################################################################################
+# Tset Snum_ide_disks DSet the number of IDE disks when booting from a SCSI disk
+
+	set num_ide_disks=<value>
+
+	When booting from a SCSI disk on a system with one or more IDE disks,
+	and where the IDE disks are the default boot device, it is necessary
+	to tell the kernel how many IDE disks there are in order to have it
+	correctly locate the SCSI disk you are booting from.
+
+################################################################################
+# Tset Sboot_userconfig DStart userconfig when the kernel is booted
+
+	set boot_userconfig
+
+	Indicates that the kernel's interactive device configuration program
+	should be run when the kernel is booted.
+
+################################################################################

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.18 1998/11/04 03:42:36 msmith Exp $
+# $Id: Makefile,v 1.19 1998/11/12 07:40:51 jkh Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -29,7 +29,7 @@ LIBFICL=	${.CURDIR}/../../ficl/libficl.a
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
-CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym
+CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym ${BASE}.help
 
 CFLAGS+=	-Wall
 LDFLAGS=	-nostdlib -static -Ttext 0x1000
@@ -68,13 +68,25 @@ vers.o:
 	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
-${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT}
+${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help
 	btxld -v -f aout -e 0x100000 -o ${.TARGET} -l ${BTXLDR} -b ${BTXKERN} \
 		${BASE}.bin
 
 ${BASE}.bin: ${BASE}.sym
 	cp ${.ALLSRC} ${.TARGET}
 	strip ${.TARGET}
+
+${BASE}.help: help.common help.i386
+	perl ${.CURDIR}/../../common/merge_help.pl ${.ALLSRC} > ${.TARGET}
+
+beforeinstall:
+.if exists(${.OBJDIR}/loader.help)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.OBJDIR}/${BASE}.help \
+		${DESTDIR}/boot
+.else
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/${BASE}.help \
+		${DESTDIR}/boot
+.endif
 
 # Cannot use ${OBJS} above this line
 .include <bsd.prog.mk>

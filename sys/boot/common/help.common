@@ -105,7 +105,7 @@
 	The set command is used to set variables.
 
 ################################################################################
-# Tset Sauotboot_delay DSet the default autoboot delay
+# Tset Sautoboot_delay DSet the default autoboot delay
 
 	set autoboot_delay=<value>
 
@@ -119,6 +119,45 @@
 	The default search path for bootable kernels is /kernel,/kernel.old.
 	It may be overridden by setting the bootfile variable to a 
 	semicolon-separated list of paths, which will be searched for in turn.
+
+################################################################################
+# Tset Sboot_askname DPrompt for root device when kernel is booted
+
+	set boot_askname
+
+	Instructs the kernel to prompt the user for the name of the root device
+	when the kernel is booted.
+
+################################################################################
+# Tset Sboot_ddb DDrop to the kernel debugger (DDB) when the kernel is loaded
+
+	set boot_ddb
+
+	Instructs the kernel to start in the DDB debugger, rather than
+	proceeding to initialise when booted.
+
+################################################################################
+# Tset Sboot_gdb DSelect gdb-remote mode for kernel debugger
+
+	set boot_gdb
+
+	Selects gdb-remote mode for the kernel debugger by default.
+
+################################################################################
+# Tset Sboot_single DRequest the kernel start in single-user mode
+
+	set boot_single
+
+	Prevents the kernel from initiating a multi-user startup, single-user
+	mode will be entered when the kernel has finished device probes.
+
+################################################################################
+# Tset Sboot_verbose DDisplay verbose device probes and debugging information
+
+	set boot_verbose
+
+	Setting this variable causes extra debugging information to be printed
+	by the kernel during the boot phase.
 
 ################################################################################
 # Tset Sconsole DSet the current console
