@@ -6,7 +6,7 @@ PROG=	ssh
 BINMODE=4555
 .endif
 LINKS=	${BINDIR}/ssh ${BINDIR}/slogin
-MLINKS=	ssh.1 slogin.1
+MLINKS=	ssh.1 slogin.1 ssh_config.5
 
 SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
 	sshconnect.c sshconnect1.c sshconnect2.c

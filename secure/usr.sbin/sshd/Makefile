@@ -10,7 +10,7 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	auth2-none.c auth2-passwd.c auth2-pubkey.c \
 	auth2-hostbased.c auth2-kbdint.c \
 	auth-pam.c auth2-pam.c
-MAN=	sshd.8
+MAN=	sshd.8 sshd_config.5
 
 CFLAGS+= -DLIBWRAP -DHAVE_LOGIN_CAP -DUSE_PAM -DHAVE_PAM_GETENVLIST
 
