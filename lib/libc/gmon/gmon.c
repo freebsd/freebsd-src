@@ -35,8 +35,6 @@
 static char sccsid[] = "@(#)gmon.c	8.1 (Berkeley) 6/4/93";
 #endif
 
-#ifndef __alpha__
-
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/gmon.h>
@@ -48,7 +46,7 @@ static char sccsid[] = "@(#)gmon.c	8.1 (Berkeley) 6/4/93";
 #include <fcntl.h>
 #include <unistd.h>
 
-#if defined(__ELF__)
+#if defined(__ELF__) && defined(i386)
 extern char *minbrk asm (".minbrk");
 #else
 extern char *minbrk asm ("minbrk");
@@ -233,8 +231,7 @@ moncontrol(mode)
 
 	if (mode) {
 		/* start */
-		profil((char *)p->kcount, p->kcountsize, (int)p->lowpc,
-		    s_scale);
+		profil((char *)p->kcount, p->kcountsize, p->lowpc, s_scale);
 		p->state = GMON_PROF_ON;
 	} else {
 		/* stop */
@@ -262,6 +259,3 @@ hertz()
 		return(0);
 	return (1000000 / tim.it_interval.tv_usec);
 }
-
-
-#endif
