@@ -72,8 +72,10 @@ int	 locc __P((int, char *, u_int));
 void	 qsort __P((void *base, size_t nmemb, size_t size,
 		    int (*compar)(const void *, const void *)));
 u_long	 random __P((void));
-char	*index __P((const char *, int));
-char	*rindex __P((const char *, int));
+char	*index __P((char *, int));
+char	*rindex __P((char *, int));
+const char *c_index __P((const char *, int));
+const char *c_rindex __P((const char *, int));
 int	 scanc __P((u_int, const u_char *, const u_char *, int));
 int	 skpc __P((int, int, char *));
 void	 srandom __P((u_long));
