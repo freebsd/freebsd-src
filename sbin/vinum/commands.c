@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: commands.c,v 1.5 1999/01/18 03:36:32 grog Exp grog $ */
+/* $Id: commands.c,v 1.10 1999/03/23 04:54:59 grog Exp $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -111,7 +111,7 @@ vinum_create(int argc, char *argv[], char *arg0[])
 	    /* XXX at the moment, we reset the config
 	     * lock on error, so try to get it again.
 	     * If we fail, don't cry again */
-	    if (ioctl(superdev, VINUM_STARTCONFIG, NULL))   /* can't get config? */
+	    if (ioctl(superdev, VINUM_STARTCONFIG, &force)) /* can't get config? */
 		return;
 	}
     }
@@ -144,7 +144,7 @@ vinum_read(int argc, char *argv[], char *arg0[])
 	strcat(buffer, " ");
     }
 
-    if (ioctl(superdev, VINUM_STARTCONFIG, NULL)) {	    /* can't get config? */
+    if (ioctl(superdev, VINUM_STARTCONFIG, &force)) {	    /* can't get config? */
 	fprintf(stderr, "Can't configure: %s (%d)\n", strerror(errno), errno);
 	return;
     }
