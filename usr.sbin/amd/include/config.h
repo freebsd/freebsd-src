@@ -124,7 +124,7 @@
 #define HAVE_FS_CDFS 1
 
 /* Define if have TFS filesystem */
-#define HAVE_FS_TFS 1
+/* #undef HAVE_FS_TFS */
 
 /* Define if have TMPFS filesystem */
 /* #undef HAVE_FS_TMPFS */
@@ -182,7 +182,7 @@
 #define MOUNT_TYPE_CDFS "cd9660"
 
 /* Mount(2) type/name for TFS filesystem */
-#define MOUNT_TYPE_TFS "tfs"
+/* #undef MOUNT_TYPE_TFS */
 
 /* Mount(2) type/name for TMPFS filesystem */
 /* #undef MOUNT_TYPE_TMPFS */
@@ -241,7 +241,7 @@
 #define MNTTAB_TYPE_CDFS "cd9660"
 
 /* Mount-table entry name for TFS filesystem */
-#define MNTTAB_TYPE_TFS "tfs"
+/* #undef MNTTAB_TYPE_TFS */
 
 /* Mount-table entry name for TMPFS filesystem */
 /* #undef MNTTAB_TYPE_TMPFS */
@@ -957,7 +957,7 @@
 #define PACKAGE "am-utils"
 
 /* Define version of package (must be defined by configure.in) */
-#define VERSION "6.0.2s2"
+#define VERSION "6.0.3s1"
 
 /* We [FREEBSD-NATIVE] pick some parameters from our local config file */
 #include "config_local.h"
@@ -1939,73 +1939,76 @@
  * Existence of external definitions.
  */
 
-/* does sys_errlist[] exist? */
+/* does extern definition for sys_errlist[] exist? */
 #define HAVE_EXTERN_SYS_ERRLIST 1
 
-/* does optarg exist? */
+/* does extern definition for optarg exist? */
 #define HAVE_EXTERN_OPTARG 1
 
-/* does clnt_spcreateerror() exist? */
+/* does extern definition for clnt_spcreateerror() exist? */
 #define HAVE_EXTERN_CLNT_SPCREATEERROR 1
 
-/* does clnt_sperrno() exist? */
+/* does extern definition for clnt_sperrno() exist? */
 #define HAVE_EXTERN_CLNT_SPERRNO 1
 
-/* does free() exist? */
+/* does extern definition for free() exist? */
 #define HAVE_EXTERN_FREE 1
 
-/* does get_myaddress() exist? */
+/* does extern definition for get_myaddress() exist? */
 #define HAVE_EXTERN_GET_MYADDRESS 1
 
-/* does getccent() (hpux) exist? */
+/* does extern definition for getccent() (hpux) exist? */
 /* #undef HAVE_EXTERN_GETCCENT */
 
-/* does getdomainname() exist? */
+/* does extern definition for getdomainname() exist? */
 #define HAVE_EXTERN_GETDOMAINNAME 1
 
-/* does gethostname() exist? */
+/* does extern definition for gethostname() exist? */
 #define HAVE_EXTERN_GETHOSTNAME 1
 
-/* does getlogin() exist? */
+/* does extern definition for getlogin() exist? */
 #define HAVE_EXTERN_GETLOGIN 1
 
-/* does gettablesize() exist? */
+/* does extern definition for gettablesize() exist? */
 /* #undef HAVE_EXTERN_GETTABLESIZE */
 
-/* does getpagesize() exist? */
+/* does extern definition for getpagesize() exist? */
 #define HAVE_EXTERN_GETPAGESIZE 1
 
-/* does innetgr() exist? */
+/* does extern definition for innetgr() exist? */
 /* #undef HAVE_EXTERN_INNETGR */
 
-/* does mkstemp() exist? */
+/* does extern definition for mkstemp() exist? */
 #define HAVE_EXTERN_MKSTEMP 1
 
-/* does sbrk() exist? */
+/* does extern definition for sbrk() exist? */
 #define HAVE_EXTERN_SBRK 1
 
-/* does seteuid() exist? */
+/* does extern definition for seteuid() exist? */
 #define HAVE_EXTERN_SETEUID 1
 
-/* does setitimer() exist? */
+/* does extern definition for setitimer() exist? */
 #define HAVE_EXTERN_SETITIMER 1
 
-/* does strcasecmp() exist? */
+/* does extern definition for strcasecmp() exist? */
 #define HAVE_EXTERN_STRCASECMP 1
 
-/* does strdup() exist? */
+/* does extern definition for strdup() exist? */
 #define HAVE_EXTERN_STRDUP 1
 
-/* does strstr() exist? */
+/* does extern definition for strstr() exist? */
 #define HAVE_EXTERN_STRSTR 1
 
-/* does usleep() exist? */
+/* does extern definition for usleep() exist? */
 #define HAVE_EXTERN_USLEEP 1
 
-/* does wait3() exist? */
+/* does extern definition for wait3() exist? */
 #define HAVE_EXTERN_WAIT3 1
 
-/* does xdr_opaque_auth() exist? */
+/* does extern definition for vsnprintf() exist? */
+#define HAVE_EXTERN_VSNPRINTF 1
+
+/* does extern definition for xdr_opaque_auth() exist? */
 #define HAVE_EXTERN_XDR_OPAQUE_AUTH 1
 
 /****************************************************************************/
