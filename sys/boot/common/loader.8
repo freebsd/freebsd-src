@@ -163,7 +163,7 @@ is loaded.
 .Op Fl n
 .Op Aq message
 .Xc
-Displays a text on the screen.
+Displays text on the screen.
 A new line will be printed unless
 .Fl n
 is specified.
@@ -181,10 +181,10 @@ will list the topics available.
 .Pp
 .It Ic include Ar file Op Ar
 Process script files.
-Each file is, at a turn, completely read into memory,
-and then have each of its lines passed to the command line interpreter.
+Each file, in turn, is completely read into memory,
+and then each of its lines is passed to the command line interpreter.
 If any error is returned by the interpreter, the include
-commands aborts immediately, without reading any other files, and
+command aborts immediately, without reading any other files, and
 returns an error itself (see
 .Sx ERRORS ) .
 .Pp
@@ -192,13 +192,13 @@ returns an error itself (see
 .Op Fl t Ar type
 .Ar file Cm ...
 .Xc
-Loads a kernel, kernel loadable module (kld), or a file of opaque
+Loads a kernel, kernel loadable module (kld), or file of opaque
 contents tagged as being of the type
 .Ar type .
-Kernel and modules can be either in a.out or elf format.
+Kernel and modules can be either in a.out or ELF format.
 Any arguments passed after the name of the file to be loaded
 will be passed as arguments to that file.
-Notice, though, that, at the present, this does not work for the kernel.
+Currently, argument passing does not work for the kernel.
 .Pp
 .It Ic ls Xo
 .Op Fl l
@@ -232,7 +232,7 @@ displayed.
 .Pp
 .It Ic pnpscan Op Fl v
 Scans for Plug-and-Play devices.
-This is not functional at the present.
+This is not functional at present.
 .Pp
 .It Ic read Xo
 .Op Fl t Ar seconds
@@ -285,13 +285,13 @@ There are ANS Forth's
 .Em environmental queries ,
 and a separate space of environment variables used by builtins, which
 are not directly available to Forth words.
-It is the later ones that this session covers.
+It is the latter type that this section covers.
 .Pp
-Environment variables can be set and unset through the use of the
+Environment variables can be set and unset through the
 .Ic set
 and
 .Ic unset
-builtins, and have their value interactively examined through the
+builtins, and can have their values interactively examined through the
 use of the
 .Ic show
 builtin.
@@ -303,12 +303,12 @@ after the system has been booted.
 .Pp
 A few variables are set automatically by
 .Nm .
-Others can affect either
+Others can affect the behavior of either
 .Nm
-or kernel's behavior at boot.
-While some of these may require a value,
-others define behavior just by being set.
-These are described below.
+or the kernel at boot.
+Some options may require a value,
+while others define behavior just by being set.
+Both types of builtin variables are described below.
 .Bl -tag -width bootfile
 .It Va acpi_load
 Unset this to disable automatic loading of the ACPI module.
@@ -338,12 +338,12 @@ Instructs the kernel to prompt the user for the name of the root device
 when the kernel is booted.
 .It Va boot_ddb
 Instructs the kernel to start in the DDB debugger, rather than
-proceeding to initialise when booted.
+proceeding to initialize when booted.
 .It Va boot_gdb
 Selects gdb-remote mode for the kernel debugger by default.
 .It Va boot_single
-Prevents the kernel from initiating a multi-user startup, single-user
-mode will be entered when the kernel has finished device probes.
+Prevents the kernel from initiating a multi-user startup; instead single-user
+mode will be entered when the kernel has finished device probing.
 .It Va boot_userconfig
 Requests that the kernel's interactive device configuration program
 be run when the kernel is booted.
@@ -360,9 +360,10 @@ Defines the current console.
 Selects the default device.
 Syntax for devices is odd.
 .It Va init_path
-Sets the list of binaries which the kernel will try to run as initial
+Sets the list of binaries which the kernel will try to run as the initial
 process.
-The default is
+The first matching binary is used.
+The default list is
 .Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:/stand/sysinstall .
 .It Va interpret
 Has the value
@@ -371,12 +372,12 @@ if the Forth's current state is interpreting.
 .It Va LINES
 Define the number of lines on the screen, to be used by the pager.
 .It Va module_path
-Sets the list of directories which will be searched in for modules
+Sets the list of directories which will be searched for modules
 named in a load command or implicitly required by a dependency.
 The default value for this variable is
 .Dq Li /boot/kernel;/boot/modules .
 .It Va num_ide_disks
-Sets the number of IDE disks as a work around for some problems in
+Sets the number of IDE disks as a workaround for some problems in
 finding the root disk at boot.
 This has been deprecated in favor of
 .Va root_disk_unit .
@@ -388,8 +389,8 @@ Defaults to
 .Dq Li "${currdev}>" .
 .It Va root_disk_unit
 If the code which detects the disk unit number for the root disk is
-confused, eg. by a mix of SCSI and IDE disks, or IDE disks with
-gaps in the sequence (eg. no primary slave), the unit number can
+confused, e.g. by a mix of SCSI and IDE disks, or IDE disks with
+gaps in the sequence (e.g. no primary slave), the unit number can
 be forced by setting this variable.
 .It Va rootdev
 By default the value of
@@ -400,9 +401,9 @@ This can be overridden by setting
 .Va rootdev
 explicitly.
 .It Va dumpdev
-A name of device where the kernel can save a crash dump in the case
+The name of a device where the kernel can save a crash dump in case
 of a panic.
-This automatically sets
+This automatically sets the
 .Va kern.dumpdev
 .Xr sysctl 3
 MIB variable.
@@ -527,7 +528,7 @@ Useful for things like
 character.
 .It
 \e" , \e' and \e$ will escape these characters, preventing them from
-receiving special semantics on the step 2 described below.
+receiving special treatment in Step 2, described below.
 .It
 \e\e will be replaced with a single \e .
 .It
@@ -544,7 +545,7 @@ or
 with the value of the environment variable
 .Va VARIABLE .
 .It
-Passes multiple space-delimited arguments to the builtin command called.
+Space-delimited arguments are passed to the called builtin command.
 Spaces can also be escaped through the use of \e\e .
 .El
 .Pp
@@ -587,9 +588,9 @@ or
 .Ic execute
 is processed
 .Ef
-\&! This is particular annoying for programs that want or need to
-treat exceptions.
-In this case, it is recommended to use a proxy.
+\&! This is particularly annoying for programs that want or need to
+handle exceptions.
+In this case, the use of a proxy is recommended.
 For example:
 .Dl : (boot) boot ;
 .Sh FICL
@@ -613,15 +614,15 @@ one line at a time.
 .Pp
 The words available to
 .Tn FICL
-can be classified in four groups.
+can be classified into four groups.
 The
 .Tn ANS
 Forth standard words, extra
 .Tn FICL
 words, extra
 .Fx
-words, and the builtin commands.
-The later were already described.
+words, and the builtin commands;
+the latter were already described.
 The
 .Tn ANS
 Forth standard words are listed in the
@@ -672,10 +673,10 @@ Closes a file.
 .It Ic fkey Pq Ar fd -- char
 Reads a single character from a file.
 .It Ic fload Pq Ar fd --
-Process file
+Processes a file
 .Em fd .
 .It Ic fopen Pq Ar addr len mode Li -- Ar fd
-Open a file.
+Opens a file.
 Returns a file descriptor, or \-1 in case of failure.
 The
 .Ar mode
@@ -774,7 +775,7 @@ Boot in single user mode:
 .Pp
 .Dl boot -s
 .Pp
-Loads kernel's user configuration file.
+Load kernel's user configuration file.
 Notice that a kernel must be loaded before any other
 .Ic load
 command is attempted.
@@ -783,7 +784,7 @@ load kernel
 load -t userconfig_script /boot/kernel.conf
 .Ed
 .Pp
-Loads the kernel, a splash screen, and then autoboots in five seconds.
+Load the kernel, a splash screen, and then autoboot in five seconds.
 .Bd -literal -offset indent
 load kernel
 load splash_bmp
@@ -791,9 +792,9 @@ load -t splash_image_data /boot/chuckrulez.bmp
 autoboot 5
 .Ed
 .Pp
-Sets the disk unit of the root device to 2, and then boots.
-This would be needed in the case of a two IDE disks system,
-with the second IDE hardwired to wd2 instead of wd1.
+Set the disk unit of the root device to 2, and then boot.
+This would be needed in a system with two IDE disks,
+with the second IDE disk hardwired to wd2 instead of wd1.
 .Bd -literal -offset indent
 set root_disk_unit=2
 boot /kernel
