@@ -475,7 +475,6 @@ abortit:
 			return (ENOENT);
 		}
 		error = VOP_REMOVE(fdvp, fvp, fcnp);
-		/* XXX - temporarily preserve previous behavior */
 		if (fdvp == fvp)
 			vrele(fdvp);
 		else
