@@ -137,8 +137,8 @@ typedef struct pte	pt_entry_t;	/* Mach page table entry */
 #define	LASTPTDI	(NPTEPG-1)	/* reserved for the future (unused) */
 #define	APTDPTDI	(LASTPTDI-1)	/* alt ptd entry that points to APTD */
 #define	RSVDPTDI	(APTDPTDI-3)	/* reserved for the near future */
-#define	KPTDI_FIRST	(RSVDPTDI-NKPDE)/* start of kernel virtual pde's */
-#define	PTDPTDI		(KPTDI_FIRST-1)	/* ptd entry that points to ptd! */
+#define	KPTDI		(RSVDPTDI-NKPDE)/* start of kernel virtual pde's */
+#define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
 #define	UPTDI		(PTDPTDI-1)	/* ptd entry for u./kernel&user stack */
 
 /*
