@@ -1,5 +1,5 @@
 LIB=		ftpio
-CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${.CURDIR} -Wall
 SRCS=		ftpio.c
 MAN3=		ftpio.3
 
