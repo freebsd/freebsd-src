@@ -72,7 +72,7 @@ fi
 ############
 # If you just configured ipfw in the kernel as a tool to solve network
 # problems or you just want to disallow some particular kinds of traffic
-# they you will want to change the default policy to open.  You can also
+# then you will want to change the default policy to open.  You can also
 # do this as your only action by setting the firewall_type to ``open''.
 
 # $fwcmd add 65000 pass all from any to any
