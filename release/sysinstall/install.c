@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.13 1995/10/03 23:36:45 jkh Exp $
+ * $Id: install.c,v 1.71.2.14 1995/10/04 07:54:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -221,7 +221,7 @@ installFixit(char *str)
     end_dialog();
     DialogActive = FALSE;
     /* Try to leach a big /tmp off the fixit floppy */
-    if (access("/tmp", X_OK))
+    if (!file_executable("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
     /* Link the spwd.db file */
     (void)symlink("/mnt2/etc/spwd.db", "/etc/spwd.db");
@@ -241,6 +241,33 @@ installFixit(char *str)
     return FALSE;
 }
 
+int
+installUpgrade(char *str)
+{
+    /* Storyboard:
+       1. Verify that user has mounted/newfs flagged all desired directories
+       for upgrading.  Should have selected a / at the very least, with
+       warning for no /usr.  If not, throw into partition/disklabel editors
+       with appropriate popup info in-between.
+
+       2. If BIN distribution selected, backup /etc to some location -
+       prompt user for this location.
+
+       3. Extract distributions.  Warn if BIN distribution not among those
+          selected.
+
+       4. If BIN extracted, do fixups - read in old sysconfig and try to
+       intelligently merge the old values into the new sysconfig (only replace
+       something if set in old and still defaulted or disabled in new).
+
+       Some fixups might be:  copy these files back from old:  passwd files, group file, fstab, exports, hosts,
+       make.conf, host.conf, ???
+
+       Spawn a shell and invite user to look around before exiting.
+       */
+    return 0;
+}
+  
 int
 installExpress(char *str)
 {
@@ -326,7 +353,7 @@ installFixup(void)
     int i;
 
     /* XXX At some point maybe we want to make the selection of kernel configurable here XXX */
-    if (access("/kernel", R_OK) && !access("/kernel.GENERIC", R_OK)) {
+    if (!file_readable("/kernel") && file_readable("/kernel.GENERIC")) {
 	if (vsystem("ln -f /kernel.GENERIC /kernel")) {
 	    msgConfirm("Unable to link /kernel into place!");
 	}
@@ -578,8 +605,8 @@ create_termcap(void)
     };
     const char **cp;
 
-    if (access("/usr/share/misc/termcap", R_OK)) {
-	system("mkdir -p /usr/share/misc");
+    if (!file_readable("/usr/share/misc/termcap")) {
+	Mkdir("/usr/share/misc", NULL);
 	fp = fopen("/usr/share/misc/termcap", "w");
 	if (!fp) {
 	    msgConfirm("Unable to initialize termcap file. Some screen-oriented\n"

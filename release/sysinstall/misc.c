@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.11.2.2 1995/06/01 22:32:06 jkh Exp $
+ * $Id: misc.c,v 1.12 1995/06/11 19:30:05 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -179,7 +179,7 @@ Mkdir(char *ipath, void *data)
     int final=0;
     char *p, *path;
 
-    if (access(ipath, R_OK) == 0)
+    if (file_readable(ipath))
 	return 0;
 
     path = strdup(ipath);

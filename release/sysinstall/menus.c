@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.12 1995/10/03 23:36:50 jkh Exp $
+ * $Id: menus.c,v 1.42.2.13 1995/10/04 07:54:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -67,11 +67,13 @@ option by pressing [ENTER].",		/* prompt */
   { "Options",			"Go to options editor.",			/* O */
 	DMENU_CALL,		optionsEditor, 0, 0		},
   { "Express",			"Begin a quick installation",			/* E */
-	DMENU_CALL,		&installExpress, 0, 0		},
+	DMENU_CALL,		installExpress, 0, 0		},
   { "Custom",			"Begin a custom installation",			/* C */
 	DMENU_SUBMENU,		&MenuInstallCustom, 0, 0	},
   { "Fixit",			"Mount fixit floppy and go into repair mode",	/* F */
-	DMENU_CALL,		&installFixit, 0, 0		},
+	DMENU_CALL,		installFixit, 0, 0		},
+  { "Upgrade",			"Upgrade an existing 2.0.5 system",		/* U */
+	DMENU_CALL,		installUpgrade, 0, 0		},
   { "Configure",		"Do post-install configuration of FreeBSD",	/* C (dup) */
 	DMENU_SUBMENU,		&MenuConfigure, 0, 0		},
   { "Quit",			"Exit this menu (and the installation)",	/* Q */
@@ -582,7 +584,9 @@ details on the type of distribution you wish to have, where you wish\n\
 to install it from and how you wish to allocate disk storage to FreeBSD.",
     "Press F1 to read the installation guide",
     "install",
-    { { "Partition",	"Allocate disk space for FreeBSD",
+    { { "Options",	"Go to Options screen",
+	DMENU_CALL,	optionsEditor, 0, 0			},
+      { "Partition",	"Allocate disk space for FreeBSD",
 	DMENU_CALL,	diskPartitionEditor, 0, 0		},
       { "Label",	"Label allocated disk partitions",
 	DMENU_CALL,	diskLabelEditor, 0, 0			},
@@ -590,12 +594,10 @@ to install it from and how you wish to allocate disk storage to FreeBSD.",
 	DMENU_SUBMENU,	&MenuInstallType, 0, 0			},
       { "Media",	"Choose the installation media type",
 	DMENU_SUBMENU,	&MenuMedia, 0, 0			},
-      { "Extract",	"Extract selected distributions",
-	DMENU_CALL,	distExtractAll, 0, 0			},
-      { "Options",	"Go to Options screen",
-	DMENU_CALL,	optionsEditor, 0, 0			},
       { "Commit",	"Perform any pending Partition/Label/Extract actions",
 	DMENU_CALL,	installCommit, 0, 0			},
+      { "Extract",	"Just do distribution extract step",
+	DMENU_CALL,	distExtractAll, 0, 0			},
       { "Exit",		"Exit this menu (returning to previous)",
 	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },

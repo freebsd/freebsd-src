@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.5 1995/10/03 23:36:55 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.6 1995/10/04 07:54:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -402,6 +402,7 @@ extern void	globalsInit(void);
 extern int	installCommit(char *str);
 extern int	installExpress(char *str);
 extern int	installFixit(char *str);
+extern int	installUpgrade(char *str);
 extern int	installSelectRelease(char *str);
 extern Boolean	installFixup(void);
 extern Boolean	installFilesystems(void);
