@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.88 1998/10/13 09:05:57 peter Exp $ */
+/*	$Id: if_de.c,v 1.89 1998/10/14 08:31:26 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -39,11 +39,6 @@
  */
 #define	TULIP_HDR_DATA
 
-#ifdef __FreeBSD__
-#include "opt_inet.h"
-#include "opt_ipx.h"
-#endif
-
 #ifdef __NetBSD__
 #include "opt_inet.h"
 #include "opt_ns.h"
@@ -60,6 +55,21 @@
 #include <machine/clock.h>
 #elif defined(__bsdi__) || defined(__NetBSD__)
 #include <sys/device.h>
+#endif
+
+#if defined(__FreeBSD__)
+/* In case somebody is trying to run this on an older 2.2 or 3.0 */
+#ifndef __FreeBSD_version	/* defined in sys/param.h on current code */
+#if __FreeBSD__ >= 3
+#define __FreeBSD_version 300000
+#else
+#define __FreeBSD_version 200000
+#endif
+#endif
+#if __FreeBSD_version >= 300000
+#include "opt_inet.h"
+#include "opt_ipx.h"
+#endif
 #endif
 
 #if defined(__NetBSD__)
@@ -112,14 +122,6 @@
 #include <pci/pcivar.h>
 #include <pci/dc21040reg.h>
 #define	DEVAR_INCLUDE	"pci/if_devar.h"
-#endif
-/* In case somebody is trying to run this on an older 2.2 or 3.0 */
-#ifndef __FreeBSD_version	/* defined in sys/param.h on current code */
-#if __FreeBSD__ >= 3
-#define __FreeBSD_version 300000
-#else
-#define __FreeBSD_version 200000
-#endif
 #endif
 #endif /* __FreeBSD__ */
 
