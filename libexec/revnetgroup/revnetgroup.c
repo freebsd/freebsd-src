@@ -35,13 +35,17 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id$
+ *	$Id: revnetgroup.c,v 1.1.1.1 1995/10/26 16:25:29 wpaul Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "hash.h"
+
+#ifndef lint
+static const char rcsid[] = "$Id$";
+#endif
 
 #define LINSIZ 1024
 
@@ -71,17 +75,17 @@ char *prog;
 extern char *optarg;
 
 main(argc, argv)
-int argc;
-char *argv[0];
+	int argc;
+	char *argv[];
 {
 	FILE *fp;
 	char readbuf[LINSIZ];
 	struct group_entry *gcur;
 	struct member_entry *mcur;
 	char *host, *user, *domain;
-	char ch;
+	int ch;
 	char *key = NULL, *data = NULL;
-	int hosts, i;
+	int hosts = -1, i;
 
 	if (argc < 2)
 		usage(argv[0]);
@@ -89,9 +93,17 @@ char *argv[0];
 	while ((ch = getopt(argc, argv, "uhf:")) != EOF) {
 		switch(ch) {
 		case 'u':
+			if (hosts != -1) {
+				warnx("please use only one of -u or -h");
+				usage(argv[0]);
+			}
 			hosts = 0;
 			break;
 		case 'h':
+			if (hosts != -1) {
+				warnx("please use only one of -u or -h");
+				usage(argv[0]);
+			}
 			hosts = 1;
 			break;
 		case 'f':
@@ -102,6 +114,9 @@ char *argv[0];
 			break;
 		}
 	}
+
+	if (hosts == -1)
+		usage(argv[0]);
 
 	if (strcmp(netgroup, "-")) {
 		if ((fp = fopen(netgroup, "r")) == NULL) {
