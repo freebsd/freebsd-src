@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)profil.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: profil.2,v 1.6 1997/04/11 18:47:07 bde Exp $
+.\"	$Id: profil.2,v 1.7 1997/06/23 04:02:01 steve Exp $
 .\"
 .Dd June 4, 1993
 .Dt PROFIL 2
@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft int
-.Fn profil "char *samples" "int size" "int offset" "int scale"
+.Fn profil "char *samples" "size_t size" "vm_offset_t offset" "int scale"
 .Sh DESCRIPTION
 The
 .Fn profil
