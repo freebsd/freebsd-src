@@ -82,9 +82,6 @@
 #include <machine/rse.h>
 #include <machine/unwind.h>
 
-void ia64_probe_sapics(void);
-void map_pal_code(void);
-
 #ifdef SKI
 extern void ia64_ski_init(void);
 #endif
