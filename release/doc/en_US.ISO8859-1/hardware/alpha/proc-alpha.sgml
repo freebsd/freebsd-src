@@ -971,7 +971,12 @@ cpu	EV5</programlisting>
       SRM console code can be loaded from floppy into the Flash ROM.</para>
 
       <para>The IDE interface of the AlphaPC64 is not bootable from the 
-      SRM console.</para>
+      SRM console. Enabling it requires the following line in the kernel
+      configuration file:</para>
+ 
+      <programlisting>device ata</programlisting>
+
+      <para>The ATA interface uses irq 14.</para>
 
       <para>Note that the boards require a power supply that supplies
       3.3 Volts for the CPU.</para>
