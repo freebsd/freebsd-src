@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.59 1995/07/13 08:47:26 davidg Exp $
+ *	$Id: pmap.c,v 1.60 1995/07/28 11:21:06 davidg Exp $
  */
 
 /*
@@ -90,6 +90,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/user.h>
+#include <sys/msgbuf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -99,12 +100,6 @@
 #include <machine/md_var.h>
 
 #include <i386/isa/isa.h>
-
-/*
- * Allocate various and sundry SYSMAPs used in the days of old VM
- * and not yet converted.  XXX.
- */
-#define BSDVM_COMPAT	1
 
 /*
  * Get PDEs and PTEs for user/kernel address space
@@ -138,7 +133,6 @@ vm_offset_t avail_end;		/* PA of last available physical page */
 vm_size_t mem_size;		/* memory size in bytes */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
-int i386pagesperpage;		/* PAGE_SIZE / I386_PAGE_SIZE */
 boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 vm_offset_t vm_first_phys, vm_last_phys;
 
@@ -148,12 +142,8 @@ static void pmap_alloc_pv_entry();
 static inline pv_entry_t get_pv_entry();
 int nkpt;
 
-
 extern vm_offset_t clean_sva, clean_eva;
 extern int cpu_class;
-
-#if BSDVM_COMPAT
-#include <sys/msgbuf.h>
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -164,7 +154,6 @@ caddr_t CADDR1, CADDR2, ptvmmap;
 pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp;
 
-#endif
 
 void
 init_pv_entries(int);
@@ -326,33 +315,34 @@ pmap_activate(pmap, pcbp)
 
 /*
  *	Bootstrap the system enough to run with virtual memory.
- *	Map the kernel's code and data, and allocate the system page table.
  *
- *	On the I386 this is called after mapping has already been enabled
+ *	On the i386 this is called after mapping has already been enabled
  *	and just syncs the pmap module with what has already been done.
  *	[We can't call it easily with mapping off since the kernel is not
  *	mapped with PA == VA, hence we would have to relocate every address
  *	from the linked base (virtual) address "KERNBASE" to the actual
  *	(physical) address starting relative to 0]
  */
-
-#define DMAPAGES 8
 void
 pmap_bootstrap(firstaddr, loadaddr)
 	vm_offset_t firstaddr;
 	vm_offset_t loadaddr;
 {
-#if BSDVM_COMPAT
 	vm_offset_t va;
 	pt_entry_t *pte;
 
-#endif
+	avail_start = firstaddr;
 
-	avail_start = firstaddr + DMAPAGES * NBPG;
-
-	virtual_avail = (vm_offset_t) KERNBASE + avail_start;
+	/*
+	 * XXX The calculation of virtual_avail is wrong. It's NKPT*NBPG too
+	 * large. It should instead be correctly calculated in locore.s and
+	 * not based on 'first' (which is a physical address, not a virtual
+	 * address, for the start of unused physical memory). The kernel
+	 * page tables are NOT double mapped and thus should not be included
+	 * in this calculation.
+	 */
+	virtual_avail = (vm_offset_t) KERNBASE + firstaddr;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
-	i386pagesperpage = PAGE_SIZE / NBPG;
 
 	/*
 	 * Initialize protection array.
@@ -371,9 +361,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 	kernel_pmap->pm_count = 1;
 	nkpt = NKPT;
 
-#if BSDVM_COMPAT
 	/*
-	 * Allocate all the submaps we need
+	 * Reserve some special page table entries/VA space for temporary
+	 * mapping of pages.
 	 */
 #define	SYSMAP(c, p, v, n)	\
 	v = (c)va; va += ((n)*NBPG); p = pte; pte += (n);
@@ -381,26 +371,26 @@ pmap_bootstrap(firstaddr, loadaddr)
 	va = virtual_avail;
 	pte = pmap_pte(kernel_pmap, va);
 
-	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
-	    SYSMAP(caddr_t, CMAP2, CADDR2, 1)
-	    SYSMAP(caddr_t, ptmmap, ptvmmap, 1)
-	    SYSMAP(struct msgbuf *, msgbufmap, msgbufp, 1)
-	    virtual_avail = va;
-#endif
 	/*
-	 * Reserve special hunk of memory for use by bus dma as a bounce
-	 * buffer (contiguous virtual *and* physical memory).
+	 * CMAP1/CMAP2 are used for zeroing and copying pages.
 	 */
-	{
-		isaphysmem = va;
+	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
+	SYSMAP(caddr_t, CMAP2, CADDR2, 1)
 
-		virtual_avail = pmap_map(va, firstaddr,
-		    firstaddr + DMAPAGES * NBPG, VM_PROT_ALL);
-	}
+	/*
+	 * ptmmap is used for reading arbitrary physical pages via /dev/mem.
+	 */
+	SYSMAP(caddr_t, ptmmap, ptvmmap, 1)
+
+	/*
+	 * msgbufmap is used to map the system message buffer.
+	 */
+	SYSMAP(struct msgbuf *, msgbufmap, msgbufp, 1)
+
+	virtual_avail = va;
 
 	*(int *) CMAP1 = *(int *) CMAP2 = *(int *) PTD = 0;
 	pmap_update();
-
 }
 
 /*
@@ -417,19 +407,6 @@ pmap_init(phys_start, phys_end)
 	vm_offset_t addr;
 	vm_size_t npg, s;
 	int i;
-
-	/*
-	 * Now that kernel map has been allocated, we can mark as unavailable
-	 * regions which we have mapped in locore.
-	 */
-	addr = atdevbase;
-	(void) vm_map_find(kernel_map, NULL, (vm_offset_t) 0,
-	    &addr, (0x100000 - 0xa0000), FALSE);
-
-	addr = (vm_offset_t) KERNBASE + IdlePTD;
-	vm_object_reference(kernel_object);
-	(void) vm_map_find(kernel_map, kernel_object, addr,
-	    &addr, (4 + NKPDE) * NBPG, FALSE);
 
 	/*
 	 * calculate the number of pv_entries needed
