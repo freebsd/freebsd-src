@@ -175,7 +175,7 @@ static struct old_isa_driver old_drivers[] = {
 #if NLABPC > 0
 	{ INTR_TYPE_TTY, &labpcdriver },
 #endif
-#if NRCD > 0
+#if NRC > 0
 	{ INTR_TYPE_TTY, &rcdriver },
 #endif
 #if NRP > 0
