@@ -31,8 +31,7 @@
 #ifdef _KERNEL
 #define	NULL	(void *)0
 #else
-/* XXX remove the '|| defined(__amd64__)' case when the gcc33 port is updated */
-#if defined(__LP64__) || defined(__amd64__)
+#if defined(__LP64__)
 #define	NULL	0L
 #else
 #define	NULL	0
