@@ -37,6 +37,7 @@ NOASM=
 .include "${.CURDIR}/../libc/string/Makefile.inc"
 .include "${.CURDIR}/../libc/sys/Makefile.inc"
 .include "${.CURDIR}/../libc/rpc/Makefile.inc"
+.include "${.CURDIR}/../libc/uuid/Makefile.inc"
 .include "${.CURDIR}/../libc/xdr/Makefile.inc"
 .if !defined(NO_YP_LIBC)
 CFLAGS+= -DYP
