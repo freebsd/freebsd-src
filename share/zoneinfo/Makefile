@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 NOBIN=
 CLEANFILES+=	yearistype

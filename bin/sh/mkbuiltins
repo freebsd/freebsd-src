@@ -35,7 +35,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkbuiltins	8.2 (Berkeley) 5/4/95
-#	$FreeBSD$
+#	$Id$
 
 temp=/tmp/ka$$
 havejobs=0

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)echo.c	8.2 (Berkeley) 5/4/95
- *	$FreeBSD$
+ *	$Id$
  */
 
 /*
