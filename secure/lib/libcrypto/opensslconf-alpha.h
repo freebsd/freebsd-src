@@ -173,3 +173,5 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 
 #endif /* DES_DEFAULT_OPTIONS */
 #endif /* HEADER_DES_LOCL_H */
+/* The Kerberos 5 support is MIT-specific. */
+#define OPENSSL_NO_KRB5
