@@ -1,3 +1,5 @@
+/*	$KAME: inet_addr.c,v 1.5 2001/08/20 02:32:40 itojun Exp $	*/
+
 /*
  * ++Copyright++ 1983, 1990, 1993
  * -

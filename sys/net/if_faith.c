@@ -1,4 +1,4 @@
-/*	$KAME: if_faith.c,v 1.21 2001/02/20 07:59:26 itojun Exp $	*/
+/*	$KAME: if_faith.c,v 1.23 2001/12/17 13:55:29 sumikawa Exp $	*/
 
 /*
  * Copyright (c) 1982, 1986, 1993

@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: in6_rmx.c,v 1.10 2001/05/24 05:44:58 itojun Exp $	*/
+/*	$KAME: in6_rmx.c,v 1.11 2001/07/26 06:53:16 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -433,7 +433,7 @@ in6_mtutimo(void *rock)
 	atv.tv_sec = arg.nextstop;
 	if (atv.tv_sec < time_second) {
 		printf("invalid mtu expiration time on routing table\n");
-		arg.nextstop = time_second + 30;	/*last resort*/
+		arg.nextstop = time_second + 30;	/* last resort */
 	}
 	timeout(in6_mtutimo, rock, tvtohz(&atv));
 }

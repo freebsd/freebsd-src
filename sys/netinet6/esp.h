@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: esp.h,v 1.16 2000/10/18 21:28:00 itojun Exp $	*/
+/*	$KAME: esp.h,v 1.19 2001/09/04 08:43:19 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -43,30 +43,30 @@
 
 struct esp {
 	u_int32_t	esp_spi;	/* ESP */
-	/*variable size, 32bit bound*/	/* Initialization Vector */
-	/*variable size*/		/* Payload data */
-	/*variable size*/		/* padding */
-	/*8bit*/			/* pad size */
-	/*8bit*/			/* next header */
-	/*8bit*/			/* next header */
-	/*variable size, 32bit bound*/	/* Authentication data (new IPsec) */
+	/* variable size, 32bit bound */	/* Initialization Vector */
+	/* variable size */		/* Payload data */
+	/* variable size */		/* padding */
+	/* 8bit */			/* pad size */
+	/* 8bit */			/* next header */
+	/* 8bit */			/* next header */
+	/* variable size, 32bit bound */ /* Authentication data (new IPsec) */
 };
 
 struct newesp {
 	u_int32_t	esp_spi;	/* ESP */
 	u_int32_t	esp_seq;	/* Sequence number */
-	/*variable size*/		/* (IV and) Payload data */
-	/*variable size*/		/* padding */
-	/*8bit*/			/* pad size */
-	/*8bit*/			/* next header */
-	/*8bit*/			/* next header */
-	/*variable size, 32bit bound*/	/* Authentication data */
+	/* variable size */		/* (IV and) Payload data */
+	/* variable size */		/* padding */
+	/* 8bit */			/* pad size */
+	/* 8bit */			/* next header */
+	/* 8bit */			/* next header */
+	/* variable size, 32bit bound *//* Authentication data */
 };
 
 struct esptail {
 	u_int8_t	esp_padlen;	/* pad length */
 	u_int8_t	esp_nxt;	/* Next header */
-	/*variable size, 32bit bound*/	/* Authentication data (new IPsec)*/
+	/* variable size, 32bit bound *//* Authentication data (new IPsec)*/
 };
 
 #ifdef _KERNEL
@@ -104,6 +104,6 @@ extern size_t esp_hdrsiz __P((struct ipsecrequest *));
 extern int esp_schedule __P((const struct esp_algorithm *, struct secasvar *));
 extern int esp_auth __P((struct mbuf *, size_t, size_t,
 	struct secasvar *, u_char *));
-#endif /*_KERNEL*/
+#endif /* _KERNEL */
 
-#endif /*_NETINET6_ESP_H_*/
+#endif /* _NETINET6_ESP_H_ */

@@ -1,4 +1,4 @@
-/*	$KAME: rsh.c,v 1.5 2001/02/15 17:28:04 itojun Exp $	*/
+/*	$KAME: rsh.c,v 1.7 2001/09/05 01:10:30 itojun Exp $	*/
 
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.
@@ -69,7 +69,7 @@ rsh_relay(int s_src, int s_dst)
 	tv.tv_usec = 0;
 	error = select(256, &readfds, NULL, NULL, &tv);
 	if (error == -1)
-		exit_failure("select %d: %s", s_src, ERRSTR);
+		exit_failure("select %d: %s", s_src, strerror(errno));
 	else if (error == 0)
 		exit_failure("connection timeout");
 
@@ -102,7 +102,7 @@ relay(int src, int dst)
 
 	switch (n) {
 	case -1:
-		exit_failure(ERRSTR);
+		exit_failure("%s", strerror(errno));
 	case 0:
 		if (s_rcv == src) {
 			/* half close */
@@ -180,7 +180,7 @@ rsh_dual_relay(int s_src, int s_dst)
 
 		error = select(256, &readfds, NULL, NULL, &tv);
 		if (error == -1)
-			exit_failure("select 4 sockets: %s", ERRSTR);
+			exit_failure("select 4 sockets: %s", strerror(errno));
 		else if (error == 0)
 			exit_failure("connection timeout");
 
@@ -208,5 +208,5 @@ rsh_dual_relay(int s_src, int s_dst)
 	/* NOTREACHED */
 
  bad:
-	exit_failure(ERRSTR);
+	exit_failure("%s", strerror(errno));
 }

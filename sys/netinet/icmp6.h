@@ -312,7 +312,7 @@ struct nd_opt_route_info {	/* route info */
 	u_int8_t	nd_opt_rti_prefixlen;
 	u_int8_t	nd_opt_rti_flags;
 	u_int32_t	nd_opt_rti_lifetime;
-	/* followed by prefix */
+	/* prefix follows */
 } __attribute__((__packed__));
 
 /*
@@ -541,7 +541,11 @@ struct icmp6stat {
 	u_quad_t icp6s_tooshort;	/* packet < sizeof(struct icmp6_hdr) */
 	u_quad_t icp6s_checksum;	/* bad checksum */
 	u_quad_t icp6s_badlen;		/* calculated bound mismatch */
-	u_quad_t icp6s_reflect;		/* number of responses */
+	/*
+	 * number of responses: this member is inherited from netinet code, but
+	 * for netinet6 code, it is already available in icp6s_outhist[].
+	 */
+	u_quad_t icp6s_reflect;
 	u_quad_t icp6s_inhist[256];	
 	u_quad_t icp6s_nd_toomanyopt;	/* too many ND options */
 	struct icmp6errstat icp6s_outerrhist;

@@ -105,7 +105,7 @@ static int in6_ifattach_loopback __P((struct ifnet *));
 static int
 get_rand_ifid(ifp, in6)
 	struct ifnet *ifp;
-	struct in6_addr *in6;	/*upper 64bits are preserved */
+	struct in6_addr *in6;	/* upper 64bits are preserved */
 {
 	MD5_CTX ctxt;
 	u_int8_t digest[16];
@@ -156,8 +156,9 @@ generate_tmp_ifid(seed0, seed1, ret)
 			val32 = random() ^ tv.tv_usec;
 			bcopy(&val32, seed + sizeof(val32) * i, sizeof(val32));
 		}
-	} else
+	} else {
 		bcopy(seed0, seed, 8);
+	}
 
 	/* copy the right-most 64-bits of the given address */
 	/* XXX assumption on the size of IFID */
@@ -227,7 +228,7 @@ generate_tmp_ifid(seed0, seed1, ret)
 static int
 get_hw_ifid(ifp, in6)
 	struct ifnet *ifp;
-	struct in6_addr *in6;	/*upper 64bits are preserved */
+	struct in6_addr *in6;	/* upper 64bits are preserved */
 {
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
@@ -360,7 +361,7 @@ found:
 static int
 get_ifid(ifp0, altifp, in6)
 	struct ifnet *ifp0;
-	struct ifnet *altifp;	/*secondary EUI64 source*/
+	struct ifnet *altifp;	/* secondary EUI64 source */
 	struct in6_addr *in6;
 {
 	struct ifnet *ifp;
@@ -479,7 +480,7 @@ in6_ifattach_linklocal(ifp, altifp)
 
 	/*
 	 * Do not let in6_update_ifa() do DAD, since we need a random delay
-	 * before sending an NS at the first time the inteface becomes up.
+	 * before sending an NS at the first time the interface becomes up.
 	 * Instead, in6_if_up() will start DAD with a proper random delay.
 	 */
 	ifra.ifra_flags |= IN6_IFF_NODAD;
@@ -487,7 +488,8 @@ in6_ifattach_linklocal(ifp, altifp)
 	/*
 	 * Now call in6_update_ifa() to do a bunch of procedures to configure
 	 * a link-local address. We can set NULL to the 3rd argument, because
-	 * we know there's no other link-local address on the interface.
+	 * we know there's no other link-local address on the interface
+	 * and therefore we are adding one (instead of updating one).
 	 */
 	if ((error = in6_update_ifa(ifp, &ifra, NULL)) != 0) {
 		/*
@@ -513,7 +515,7 @@ in6_ifattach_linklocal(ifp, altifp)
 #ifdef DIAGNOSTIC
 	if (!ia) {
 		panic("ia == NULL in in6_ifattach_linklocal");
-		/*NOTREACHED*/
+		/* NOTREACHED */
 	}
 #endif
 	if (in6if_do_dad(ifp) && (ifp->if_flags & IFF_POINTOPOINT) == 0) {
@@ -597,15 +599,15 @@ in6_ifattach_loopback(ifp)
 	ifra.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
 	ifra.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
 
-	/* we don't need to perfrom DAD on loopback interfaces. */
+	/* we don't need to perform DAD on loopback interfaces. */
 	ifra.ifra_flags |= IN6_IFF_NODAD;
 
 	/* skip registration to the prefix list. XXX should be temporary. */
 	ifra.ifra_flags |= IN6_IFF_NOPFX;
 
 	/*
-	 * We can set NULL to the 3rd arg. See comments in
-	 * in6_ifattach_linklocal().
+	 * We are sure that this is a newly assigned address, so we can set
+	 * NULL to the 3rd arg.
 	 */
 	if ((error = in6_update_ifa(ifp, &ifra, NULL)) != 0) {
 		log(LOG_ERR, "in6_ifattach_loopback: failed to configure "
@@ -644,7 +646,7 @@ in6_nigroup(ifp, name, namelen, in6)
 	while (p && *p && *p != '.' && p - name < namelen)
 		p++;
 	if (p - name > sizeof(n) - 1)
-		return -1;	/*label too long*/
+		return -1;	/* label too long */
 	l = p - name;
 	strncpy(n, name, l);
 	n[(int)l] = '\0';
@@ -798,8 +800,10 @@ in6_ifattach(ifp, altifp)
 #ifdef IFT_STF
 	case IFT_STF:
 		/*
-		 * 6to4 interface is a very speical kind of beast.
-		 * no multicast, no linklocal (based on 03 draft).
+		 * 6to4 interface is a very special kind of beast.
+		 * no multicast, no linklocal.  RFC2529 specifies how to make
+		 * linklocals for 6to4 interface, but there's no use and
+		 * it is rather harmful to have one.
 		 */
 		goto statinit;
 #endif

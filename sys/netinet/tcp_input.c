@@ -497,6 +497,8 @@ tcp_input(m, off0)
 	 * Because ip6_savecontrol() is going to parse the mbuf to
 	 * search for data to be passed up to user-land, it wants mbuf
 	 * parameters to be unchanged.
+	 * XXX: the call of ip6_savecontrol() has been obsoleted based on
+	 * latest version of the advanced API (20020110).
 	 */
 	drop_hdrlen = off0 + off;
 

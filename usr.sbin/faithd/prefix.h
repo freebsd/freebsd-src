@@ -1,4 +1,4 @@
-/*	$KAME: prefix.h,v 1.3 2000/11/19 11:45:38 itojun Exp $	*/
+/*	$KAME: prefix.h,v 1.4 2001/09/05 03:04:21 itojun Exp $	*/
 /*	$FreeBSD$	*/
 
 /*

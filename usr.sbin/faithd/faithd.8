@@ -1,4 +1,4 @@
-.\"	$KAME: faithd.8,v 1.30 2001/05/24 20:47:56 itojun Exp $
+.\"	$KAME: faithd.8,v 1.33 2001/09/05 03:04:20 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -267,6 +267,9 @@ permit the connection.
 .Pp
 The directives are evaluated in sequence,
 and the first matching entry will be effective.
+If there is no match
+.Pq if we reach the end of the ruleset
+the traffic will be denied.
 .Pp
 With inetd mode,
 traffic may be filtered by using access control functionality in
@@ -297,15 +300,15 @@ as follows:
 If you would like to provide local telnet service via
 .Xr telnetd 8
 on
-.Pa /usr/local/v6/libexec/telnetd ,
+.Pa /usr/libexec/telnetd ,
 use the following command line:
 .Bd -literal -offset
-# faithd telnet /usr/local/v6/libexec/telnetd telnetd
+# faithd telnet /usr/libexec/telnetd telnetd
 .Ed
 .Pp
 If you would like to pass extra arguments to the local daemon:
 .Bd -literal -offset
-# faithd ftp /usr/local/v6/libexec/ftpd ftpd -l
+# faithd ftp /usr/libexec/ftpd ftpd -l
 .Ed
 .Pp
 Here are some other examples.
@@ -314,8 +317,8 @@ You may need
 to translate rsh/rlogin services.
 .Bd -literal -offset
 # faithd ssh
-# faithd login /usr/local/v6/libexec/rlogin rlogind
-# faithd shell /usr/local/v6/libexec/rshd rshd
+# faithd login /usr/libexec/rlogin rlogind
+# faithd shell /usr/libexec/rshd rshd
 .Ed
 .Pp
 However, you should be careful when translating rlogin or rsh
@@ -377,9 +380,9 @@ on error.
 .%A Jun-ichiro itojun Hagino
 .%A Kazu Yamamoto
 .%T "An IPv6-to-IPv4 transport relay translator"
-.%R internet draft
-.%N draft-ietf-ngtrans-tcpudp-relay-04.txt
-.%O work in progress material
+.%B RFC3142
+.%O ftp://ftp.isi.edu/in-notes/rfc3142.txt
+.%D June 2001
 .Re
 .\"
 .Sh HISTORY
