@@ -27,21 +27,22 @@
 .\"	last edit-date: [Sat Jul 21 13:37:00 2001]
 .\"
 .Dd July 28, 1999
-.Dt i4brunppp 8
+.Dt I4BRUNPPP 8
 .Sh NAME
 .Nm i4brunppp
-.Nd is used to interface i4b to userland ppp in server mode
+.Nd interface i4b to userland ppp in server mode
 .Sh DESCRIPTION
 .Nm i4brunppp
 is part of the isdn4bsd package and is used to interface i4b to the so-called
 userland
 .Xr ppp 8
 when dialling into an i4b machine.
-.Pp
 .Sh FILES
-/dev/i4brbchX
-.Sh AUTHOR
+.Bl -tag -width ".Pa /dev/i4brbchX"
+.It Pa /dev/i4brbchX
+.El
+.Sh AUTHORS
 The
 .Nm
-utility and this manpage were written by Hellmuth Michaelis. He can be
-contacted at hm@freebsd.org.
+utility and this manpage were written by
+.An Hellmuth Michaelis Aq hm@FreeBSD.org .
