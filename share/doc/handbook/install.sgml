@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.3 1995/07/06 14:24:59 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.4 1995/07/14 21:44:31 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -71,6 +71,10 @@
 	recommended).  Support for generic IDE or ESDI drive
 	configurations, various SCSI controller, network and
 	serial cards is also provided.
+
+	A minimum of four megabytes of RAM is required to run FreeBSD.
+	To run the X-window system, eight megabytes of RAM is the
+	recommended minimum.
 
 	Following is a list of all disk controllers and ethernet
 	cards currently known to work with FreeBSD.  Other
