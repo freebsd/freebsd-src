@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.187 1995/11/17 16:49:40 asami Exp $
+# $Id: bsd.port.mk,v 1.188 1995/11/26 12:35:49 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -404,6 +404,18 @@ configure:
 	@${DO_NADA}
 package:
 	@${DO_NADA}
+.endif
+
+.if defined(ALL_HOOK)
+all:
+	@/usr/bin/env CURDIR=${.CURDIR} DISTNAME=${DISTNAME} \
+	  DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} WRKSRC=${WRKSRC} \
+	  PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
+	  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
+	  DEPENDS="${DEPENDS}" BUILD_DEPENDS="${BUILD_DEPENDS}" \
+	  RUN_DEPENDS="${RUN_DEPENDS}" X11BASE=${X11BASE} \
+	${ALL_HOOK}
+
 .endif
 
 .if !target(all)
