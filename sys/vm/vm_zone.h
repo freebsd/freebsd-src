@@ -11,10 +11,10 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.h,v 1.10 1998/04/25 04:50:03 dyson Exp $
+ * $Id: vm_zone.h,v 1.11 1999/01/08 17:31:30 eivind Exp $
  */
 
-#if !defined(_SYS_ZONE_H)
+#ifndef _SYS_ZONE_H
 
 #define _SYS_ZONE_H
 
@@ -76,7 +76,7 @@ _zalloc(vm_zone_t z)
 {
 	void *item;
 
-#if defined(INVARIANTS)
+#ifdef INVARIANTS
 	if (z == 0)
 		zerror(ZONE_ERROR_INVALID);
 #endif
@@ -86,7 +86,7 @@ _zalloc(vm_zone_t z)
 
 	item = z->zitems;
 	z->zitems = ((void **) item)[0];
-#if defined(INVARIANTS)
+#ifdef INVARIANTS
 	if (((void **) item)[1] != (void *) ZENTRY_FREE)
 		zerror(ZONE_ERROR_NOTFREE);
 	((void **) item)[1] = 0;
@@ -101,7 +101,7 @@ static __inline__ void
 _zfree(vm_zone_t z, void *item)
 {
 	((void **) item)[0] = z->zitems;
-#if defined(INVARIANTS)
+#ifdef INVARIANTS
 	if (((void **) item)[1] == (void *) ZENTRY_FREE)
 		zerror(ZONE_ERROR_ALREADYFREE);
 	((void **) item)[1] = (void *) ZENTRY_FREE;
@@ -123,7 +123,7 @@ zalloc(vm_zone_t z)
 static __inline__ void
 zfree(vm_zone_t z, void *item)
 {
-#if defined(SMP)
+#ifdef SMP
 	zfreei(z, item);
 #else
 	_zfree(z, item);

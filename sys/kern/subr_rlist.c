@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.27 1998/08/05 14:06:04 dg Exp $
+ *	$Id: subr_rlist.c,v 1.28 1999/01/08 17:31:12 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -139,11 +139,11 @@ rlist_free(rlh, start, end)
 			break;
 		if (prev_rlp) {
 			KASSERT(prev_rlp->rl_end + 1 != cur_rlp->rl_start,
-				("rlist_free: missed coalesce opportunity"));
+			    ("rlist_free: missed coalesce opportunity"));
 			KASSERT(prev_rlp->rl_end != cur_rlp->rl_start,
-				("rlist_free: entries overlap"));
+			    ("rlist_free: entries overlap"));
 			KASSERT(prev_rlp->rl_end <= cur_rlp->rl_start,
-				("entries out of order"));
+			    ("entries out of order"));
 		}
 		prev_rlp = cur_rlp;
 		cur_rlp = cur_rlp->rl_next;

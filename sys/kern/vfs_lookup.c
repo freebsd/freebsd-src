@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.29 1999/01/05 18:49:52 eivind Exp $
+ * $Id: vfs_lookup.c,v 1.30 1999/01/08 17:31:16 eivind Exp $
  */
 
 #include "opt_ktrace.h"
@@ -91,9 +91,9 @@ namei(ndp)
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_proc->p_ucred;
 	KASSERT(cnp->cn_cred && cnp->cn_proc, ("namei: bad cred/proc"));
 	KASSERT((cnp->cn_nameiop & (~OPMASK)) == 0,
-		("namei: nameiop contaminated with flags"));
+	    ("namei: nameiop contaminated with flags"));
 	KASSERT((cnp->cn_flags & OPMASK) == 0,
-		("namei: flags contaminated with nameiops"));
+	    ("namei: flags contaminated with nameiops"));
 	fdp = cnp->cn_proc->p_fd;
 
 	/*
@@ -670,7 +670,7 @@ relookup(dvp, vpp, cnp)
 	 * Check for symbolic link
 	 */
 	KASSERT(dp->v_type != VLNK || !(cnp->cn_flags & FOLLOW),
-		("relookup: symlink found.\n"));
+	    ("relookup: symlink found.\n"));
 
 	/*
 	 * Disallow directory write attempts on read-only file systems.

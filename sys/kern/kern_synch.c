@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.70 1998/12/21 07:41:51 dillon Exp $
+ * $Id: kern_synch.c,v 1.71 1999/01/08 17:31:10 eivind Exp $
  */
 
 #include "opt_ktrace.h"
@@ -401,11 +401,8 @@ tsleep(ident, priority, wmesg, timo)
 		splx(s);
 		return (0);
 	}
-
 	KASSERT(p != NULL, ("tsleep1"));
-	KASSERT(ident != NULL && p->p_stat == SRUN,
-		("tsleep"));
-
+	KASSERT(ident != NULL && p->p_stat == SRUN, ("tsleep"));
 	/*
 	 * Process may be sitting on a slpque if asleep() was called, remove
 	 * it before re-adding.
