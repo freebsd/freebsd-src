@@ -479,11 +479,15 @@ v86mon.2:	cmpb $0xf4,%al			# HLT?
 		jne v86mon.7			# No (ignore)
 		jmp intrtn			# Return to user mode
 v86mon.3:	cmpb $0xf,%al			# Is
-		jne v86mon.4			#  this
+		jne v86mon.3.1			#  this
 		cmpb $0x20,(%esi)		#  a
-		jne v86mon.4			#  MOV EAX,CR0
+		jne v86mon.3.1			#  MOV EAX,CR0
 		cmpb $0xc0,0x1(%esi)		#  instruction?
 		je v86mov			# Yes
+v86mon.3.1:	cmpb $0x30,(%esi)		# Is it a WRMSR?
+		je v86wrmsr			# Yes
+		cmpb $0x32,(%esi)		# Is it a RDMSR?
+		je v86rdmsr			# Yes
 v86mon.4:	cmpb $0xfa,%al			# CLI?
 		je v86cli			# Yes
 		cmpb $0xfb,%al			# STI?
@@ -521,6 +525,24 @@ v86mov: 	movl %cr0,%eax			# CR0 to
 		incl %esi			# Adjust
 		incl %esi			#  IP
 		jmp v86mon.7			# Finish up
+#
+# Emulate WRMSR
+#
+v86wrmsr:	movl 0x18(%ebp),%ecx		# Get user's %ecx (MSR to write)
+		movl 0x14(%ebp),%edx		# Load the value
+		movl 0x1c(%ebp),%eax		#  to write
+		wrmsr				# Write MSR
+		incl %esi			# Adjust IP
+		jmp v86mon.7			# Finish up
+#
+# Emulate RDMSR
+#
+v86rdmsr:	movl 0x18(%ebp),%ecx		# MSR to read
+		rdmsr				# Read the MSR
+		movl %eax,0x1c(%ebp)		# Return the value of
+		movl %edx,0x14(%ebp)		#  the MSR to the user
+		incl %esi			# Adjust IP
+		jmp v86mon.7
 #
 # Emulate CLI.
 #
