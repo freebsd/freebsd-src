@@ -89,15 +89,7 @@ SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RW,
 #endif
 
 /* difference of usbd interface */
-#if defined(__FreeBSD__)
-#if (__FreeBSD__ >= 4)
-  #define USBDI 1
-#else
-  #define USBDI 0
-#endif
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-  #define USBDI 1
-#endif
+#define USBDI 1
 
 #define RIO_OUT 0
 #define RIO_IN  1
@@ -123,7 +115,6 @@ d_ioctl_t urioioctl;
 
 #define URIO_CDEV_MAJOR	143
 
-#if (__FreeBSD__ >= 4)
 Static struct cdevsw urio_cdevsw = {
 	urioopen,	urioclose,	urioread,	uriowrite,
  	urioioctl,	nopoll,		nommap,		nostrategy,
@@ -136,17 +127,6 @@ Static struct cdevsw urio_cdevsw = {
 #define RIO_UE_GET_DIR(p) ((UE_GET_DIR(p) == UE_DIR_IN) ? RIO_IN :\
 		 	  ((UE_GET_DIR(p) == UE_DIR_OUT) ? RIO_OUT :\
 			    				   RIO_NODIR))
-#else
-Static struct cdevsw urio_cdevsw = {
-	urioopen,	urioclose,	urioread,	uriowrite,
-	urioioctl,	nostop,		nullreset,	nodevtotty,
-	seltrue,	nommap,		nostrat,
-	"urio",		NULL,		-1
-};
-#define USBBASEDEVICE bdevice
-#define RIO_UE_GET_DIR(p) UE_GET_IN(p)
-#endif
-
 #endif  /*defined(__FreeBSD__)*/
 
 #define	URIO_BBSIZE	1024
@@ -277,12 +257,10 @@ USB_ATTACH(urio)
 	}
 
 #if defined(__FreeBSD__)
- #if (__FreeBSD__ >= 4)
 	/* XXX no error trapping, no storing of dev_t */
 	sc->sc_dev_t = make_dev(&urio_cdevsw, device_get_unit(self),
 			UID_ROOT, GID_OPERATOR,
 			0644, "urio%d", device_get_unit(self));
- #endif
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
 	usbd_add_drv_event(USB_EVENT_DRIVER_ATTACH, sc->sc_udev,
 			   USBDEV(sc->sc_dev));
@@ -701,11 +679,5 @@ urio_detach(device_t self)
 	return 0;
 }
 
-#if (__FreeBSD__ >= 4)
 DRIVER_MODULE(urio, uhub, urio_driver, urio_devclass, usbd_driver_load, 0);
-#else
-CDEV_DRIVER_MODULE(urio, uhub, urio_driver, urio_devclass,
-			URIO_CDEV_MAJOR, urio_cdevsw, usbd_driver_load, 0);
-#endif
-
 #endif
