@@ -1,37 +1,39 @@
 #---------------------------------------------------------------------------
 #
-#	example fragment of a kernel config file to include all
-#	parts of isdn4bsd. This file should be appended to your
-#	kernel config file and then edited (stripped down) to
-#	match your hardware configuration.
+#	Example fragment of a FreeBSD 4.x kernel config 
+#	file which includes all parts of isdn4bsd.
 #
-#	last edit-date: [Sun May 27 09:56:41 2001]
+#	This file can be appended to your kernel config
+#	file and then edited (stripped down) to match your
+#	hardware configuration.
+#
+#	last edit-date: [Mon Aug 13 14:24:02 2001]
 #
 # $FreeBSD$
 #
 #---------------------------------------------------------------------------
 
 # Siemens/Infineon chipsets
-device		isic	4
+device		isic0
 
 # Winbond chipset
-device		iwic	4
+device		iwic0
 
 # AVM Fritz PCI
-device		ifpi	4
+device		ifpi0
 
 # Teles 16.3c
-device		ihfc	4
+device		ihfc0
 
 # NETjet-S / Teles PCI-TJ
-device          itjc	4
+device          itjc0
 
 # AVM Fritz PnP
-device          ifpnp	4
+device          ifpnp0
 
 # AVM B1/T1
 device		"i4bcapi"
-device		iavc	4
+device		iavc0
 
 # enable some ISA cards within the "isic" driver
 options		TEL_S0_8
@@ -55,24 +57,24 @@ options		EICON_DIVA
 options		ELSA_QS1PCI
 
 # protocol stack
-device		"i4bq921"
-device		"i4bq931"
-device		"i4b"
+pseudo-device	"i4bq921"
+pseudo-device	"i4bq931"
+pseudo-device	"i4b"
 
 # control devices
-device		"i4btrc"	4
-device		"i4bctl"
-device		"i4brbch"	4
-device		"i4btel"	2
+pseudo-device	"i4btrc"	4
+pseudo-device	"i4bctl"
+pseudo-device	"i4brbch"	4
+pseudo-device	"i4btel"	2
 
 # IP over raw HDLC
 options		IPR_VJ
-device		"i4bipr"	4
+pseudo-device	"i4bipr"	4
 
 # kernel sppp/isppp
-device		"i4bisppp"	4
+pseudo-device	"i4bisppp"	4
 
 # Netgraph interface
-#options         NETGRAPH
-#device		"i4bing"	4
+options         NETGRAPH
+pseudo-device	"i4bing"	4
 
