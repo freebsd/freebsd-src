@@ -66,7 +66,6 @@ int dlclose __P((void *));
 const char *dlerror __P((void));
 void *dlopen __P((const char *, int));
 void *dlsym __P((void *, const char *));
-int dlversion __P((void));
 __END_DECLS
 
 #endif /* !_DLFCN_H_ */
