@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.15 1995/12/29 13:21:10 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.16 1996/03/28 14:27:26 scrappy Exp $
  *
  *  Digiboard driver.
  *
@@ -863,7 +863,7 @@ load_fep:
 		port->devfs_token.tty = 
 			devfs_add_devswf(&dgb_cdevsw,
 					 (unit*32)+i+64,/*mytical number*/
-					 DV_CHR, 0, 0, 0600, idgb%d.%d", unit, 
+					 DV_CHR, 0, 0, 0600, "idgb%d.%d", unit, 
 					 i);
 
 		port->devfs_token.tty = 
