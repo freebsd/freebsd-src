@@ -165,7 +165,7 @@ start_gr()
 		_gr_yp_enabled = 0;
 		while((line = fgetln(_gr_fp, &linelen)) != NULL) {
 			if(line[0] == '+') {
-				if(line[1] && !_gr_yp_enabled) {
+				if(line[1] && line[1] != ':' && !_gr_yp_enabled) {
 					_gr_yp_enabled = 1;
 				} else {
 					_gr_yp_enabled = -1;
@@ -218,9 +218,12 @@ grscan(search, gid, name)
 	register char *cp, **m;
 	char *bp;
 #ifdef YP
-	int _ypfound = 0;
+	int _ypfound;
 #endif;
 	for (;;) {
+#ifdef YP
+		_ypfound = 0;
+#endif
 		if (!fgets(line, sizeof(line), _gr_fp))
 			return(0);
 		bp = line;
@@ -251,11 +254,17 @@ grscan(search, gid, name)
 					return(0);
 				}
 			} else {
-				if (!_getypgroup(&_gr_group, &_gr_group.gr_name[1],
+				cp = &_gr_group.gr_name[1];
+				if (search && name != NULL)
+					if (strcmp(cp, name))
+						continue;
+				if (!_getypgroup(&_gr_group, cp,
 						"group.byname"))
 					continue;
+				if (search && name == NULL)
+					if (gid != _gr_group.gr_gid)
+						continue;
 			/* We're going to override -- tell the world. */
-				members[0] = NULL;
 				_ypfound++;
 			}
 		}
@@ -268,17 +277,47 @@ grscan(search, gid, name)
 				continue;
 			}
 		}
-		if ((_gr_group.gr_passwd = strsep(&bp, ":\n")) == NULL)
-			break;;
-		if (!(cp = strsep(&bp, ":\n")))
-			continue;
 #ifdef YP
+		if ((cp = strsep(&bp, ":\n")) == NULL)
+			if (_ypfound)
+				return(1);
+			else
+				break;
+		if (strlen(cp) || !_ypfound)
+			_gr_group.gr_passwd = cp;
+#else
+		if ((_gr_group.gr_passwd = strsep(&bp, ":\n")) == NULL)
+			break;
+#endif
+		if (!(cp = strsep(&bp, ":\n")))
+			if (_ypfound)
+				return(1);
+			else
+				continue;
+#ifdef YP
+		/*
+		 * Hurm. Should we be doing this? We allow UIDs to
+		 * be overridden -- what about GIDs?
+		 */
 		if (!_ypfound)
 #endif
 		_gr_group.gr_gid = atoi(cp);
 		if (search && name == NULL && _gr_group.gr_gid != gid)
 			continue;
 		cp = NULL;
+		if (bp == NULL) /* !!! Must check for this! */
+			break;
+#ifdef YP
+		if ((cp = strsep(&bp, ":\n")) == NULL)
+			break;
+
+		if (!strlen(cp) && _ypfound)
+			return(1);
+		else
+			members[0] = NULL;
+		bp = cp;
+		cp = NULL;
+#endif
 		for (m = _gr_group.gr_mem = members;; bp++) {
 			if (m == &members[MAXGRP - 1])
 				break;
@@ -376,8 +415,8 @@ _getypgroup(struct group *gr, const char *name, char *map)
 	if(s) *s = '\0';
 
 	if(resultlen >= sizeof resultbuf) return 0;
-	strcpy(resultbuf, result);
-	result = resultbuf;
+	strncpy(resultbuf, result, resultlen);
+	free(result);
 	return(_gr_breakout_yp(gr, resultbuf));
 
 }
