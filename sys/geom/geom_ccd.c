@@ -322,6 +322,7 @@ ccdattach()
 	bzero(ccd_softc, num * sizeof(struct ccd_softc));
 	bzero(ccddevs, num * sizeof(struct ccddevice));
 
+	cdevsw_add(&ccd_cdevsw);
 	/* XXX: is this necessary? */
 	for (i = 0; i < numccd; ++i)
 		ccddevs[i].ccd_dk = -1;
@@ -351,7 +352,7 @@ ccd_modevent(mod, type, data)
 	return (error);
 }
 
-DEV_MODULE(ccd, CDEV_MAJOR, BDEV_MAJOR, ccd_cdevsw, ccd_modevent, NULL);
+DEV_MODULE(ccd, ccd_modevent, NULL);
 
 static int
 ccdinit(ccd, cpaths, p)
