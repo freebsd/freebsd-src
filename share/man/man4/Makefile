@@ -41,6 +41,7 @@ MAN=	aac.4 \
 	ciss.4 \
 	cm.4 \
 	cnw.4 \
+	cpufreq.4 \
 	crypto.4 \
 	cue.4 \
 	cy.4 \
