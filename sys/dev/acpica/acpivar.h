@@ -108,7 +108,8 @@ struct acpi_object_list {
 };
 
 static __inline struct acpi_object_list *
-acpi_AllocObjectList(int nobj) {
+acpi_AllocObjectList(int nobj)
+{
     struct acpi_object_list	*l;
     int				i;
 
@@ -133,7 +134,8 @@ acpi_AllocObjectList(int nobj) {
 #define ACPI_IVAR_PRIVATE	0x102
 
 static __inline ACPI_HANDLE
-acpi_get_handle(device_t dev) {
+acpi_get_handle(device_t dev)
+{
     ACPI_HANDLE	h;
 
     if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, (uintptr_t *)&h))
@@ -142,12 +144,15 @@ acpi_get_handle(device_t dev) {
 }
 	    
 static __inline int
-acpi_set_handle(device_t dev, ACPI_HANDLE h) {
+acpi_set_handle(device_t dev, ACPI_HANDLE h)
+{
+
     return(BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, (uintptr_t)h));
 }
 	    
 static __inline int
-acpi_get_magic(device_t dev) {
+acpi_get_magic(device_t dev)
+{
     int	m;
 
     if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, (uintptr_t *)&m))
@@ -156,12 +161,15 @@ acpi_get_magic(device_t dev) {
 }
 
 static __inline int
-acpi_set_magic(device_t dev, int m) {
+acpi_set_magic(device_t dev, int m)
+{
+
     return(BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, (uintptr_t)m));
 }
 
 static __inline void *
-acpi_get_private(device_t dev) {
+acpi_get_private(device_t dev)
+{
     void *p;
 
     if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, (uintptr_t *)&p))
@@ -170,7 +178,9 @@ acpi_get_private(device_t dev) {
 }
 
 static __inline int
-acpi_set_private(device_t dev, void *p) {
+acpi_set_private(device_t dev, void *p)
+{
+
     return(BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, (uintptr_t)p));
 }
 
