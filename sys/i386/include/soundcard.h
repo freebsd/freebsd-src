@@ -1,5 +1,3 @@
-#ifndef SOUNDCARD_H
-#define SOUNDCARD_H
 /*
  * Copyright by Hannu Savolainen 1993
  *
@@ -37,10 +35,13 @@
   * hannu@voxware.pp.fi
   */
 
+#ifndef	_MACHINE_SOUNDCARD_H_
+#define	_MACHINE_SOUNDCARD_H_
+
 #define SOUND_VERSION	301
 #define VOXWARE
 
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
 
 /*
  *	Supported card ID numbers (Should be somewhere else?)
@@ -1044,5 +1045,6 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 					   perror("Write patch: /dev/sequencer");}
 #define SEQ_WRPATCH2(patchx, len)	(seqbuf_dump(), write(seqfd, (char*)(patchx), len))
 
-#endif
-#endif
+#endif /* !KERNEL_SPAM */
+
+#endif /* !_MACHINE_SOUNDCARD_H_ */

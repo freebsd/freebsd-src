@@ -1,6 +1,9 @@
 /* Shared between kernel & process */
-#ifndef _SYS_WORMIO_H_
-#define _SYS_WORMIO_H_
+
+#ifndef	_SYS_WORMIO_H_
+#define	_SYS_WORMIO_H_
+
+#include <sys/ioccom.h>
 
 /***************************************************************\
 * Ioctls for the WORM drive					*
@@ -57,6 +60,4 @@ struct wormio_fixation
 
 #define WORMIOCFIXATION		_IOW('W', 22, struct wormio_fixation)
 
-
-#endif /* _SYS_WORMIO_H_ */
-
+#endif /* !_SYS_WORMIO_H_ */

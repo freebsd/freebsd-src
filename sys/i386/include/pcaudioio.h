@@ -25,11 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudioio.h,v 1.5 1996/01/30 22:54:42 mpp Exp $
+ *	$Id: pcaudioio.h,v 1.6 1996/07/17 20:18:42 joerg Exp $
  */
 
-#ifndef _PCAUDIOIO_H_
-#define	_PCAUDIOIO_H_
+#ifndef	_MACHINE_PCAUDIOIO_H_
+#define	_MACHINE_PCAUDIOIO_H_
+
+#include <sys/ioccom.h>
 
 typedef struct audio_prinfo {
 	unsigned	sample_rate;	/* samples per second */
@@ -77,4 +79,4 @@ typedef struct audio_info {
 #define AUDIO_COMPAT_DRAIN	_IO('P', 1)
 #define AUDIO_COMPAT_FLUSH	_IO('P', 0)
 
-#endif /*!_PCAUDIOIO_H*/
+#endif /* !_MACHINE_PCAUDIOIO_H_ */

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: perfmon.h,v 1.1 1996/03/26 19:57:56 wollman Exp $
  */
 
 /*
@@ -34,12 +34,13 @@
  * Pentium Pro CPUs.
  */
 
-#ifndef _MACHINE_PERFMON_H_
-#define _MACHINE_PERFMON_H_	1
+#ifndef	_MACHINE_PERFMON_H_
+#define	_MACHINE_PERFMON_H_
  
 #ifndef KERNEL
-#include <sys/ioccom.h>
+#include <sys/types.h>
 #endif
+#include <sys/ioccom.h>
 
 #define	NPMC	2
 
@@ -258,4 +259,4 @@ int	perfmon_ioctl __P((dev_t, int, caddr_t, int, struct proc *));
 #define	PMC5_DATA_RW		40
 #define	PMC5_DATA_RW_MISS	41
 
-#endif /* _MACHINE_PERFMON_H_ */
+#endif /* !_MACHINE_PERFMON_H_ */
