@@ -11,6 +11,8 @@
 SRCS=		config_local.h mount.h nfs_prot.h
 CLEANFILES=	${SRCS}
 
+all: ${SRCS}
+
 config_local.h: newvers.sh
 	@rm -f ${.TARGET}
 	sh ${.ALLSRC} > ${.TARGET}
