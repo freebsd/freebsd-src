@@ -77,7 +77,7 @@ extern int __mb_cur_max;
 
 __BEGIN_DECLS
 __dead void
-	 abort __P((void));
+	 abort __P((void)) __dead2;
 __pure int
 	 abs __P((int));
 int	 atexit __P((void (*)(void)));
@@ -90,7 +90,7 @@ void	*calloc __P((size_t, size_t));
 __pure div_t
 	 div __P((int, int));
 __dead void
-	 exit __P((int));
+	 exit __P((int)) __dead2;
 void	 free __P((void *));
 char	*getenv __P((const char *));
 __pure long
