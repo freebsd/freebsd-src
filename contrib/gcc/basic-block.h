@@ -1,5 +1,5 @@
 /* Define control and data flow tables, and regsets.
-   Copyright (C) 1987, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1997, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,6 +20,8 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "bitmap.h"
+#include "sbitmap.h"
+#include "varray.h"
 
 typedef bitmap regset;		/* Head of register set linked list.  */
 
@@ -94,29 +96,65 @@ do {									\
 /* Grow any tables needed when the number of registers is calculated
    or extended.  For the linked list allocation, nothing needs to
    be done, other than zero the statistics on the first allocation.  */
-#define MAX_REGNO_REG_SET(NUM_REGS, NEW_P, RENUMBER_P)
+#define MAX_REGNO_REG_SET(NUM_REGS, NEW_P, RENUMBER_P) 
+
+/* Control flow edge information.  */
+typedef struct edge_def {
+  /* Links through the predecessor and successor lists.  */
+  struct edge_def *pred_next, *succ_next;
+
+  /* The two blocks at the ends of the edge.  */
+  struct basic_block_def *src, *dest;
+
+  /* Instructions queued on the edge.  */
+  rtx insns;
+
+  /* Auxiliary info specific to a pass.  */
+  void *aux;
+
+  int flags;			/* see EDGE_* below  */
+  int probability;		/* biased by REG_BR_PROB_BASE */
+} *edge;
+
+#define EDGE_FALLTHRU		1
+#define EDGE_CRITICAL		2
+#define EDGE_ABNORMAL		4
+#define EDGE_ABNORMAL_CALL	8
+#define EDGE_EH			16
+#define EDGE_FAKE		32
+
+
+/* Basic block information indexed by block number.  */
+typedef struct basic_block_def {
+  /* The first and last insns of the block.  */
+  rtx head, end;
+
+  /* The edges into and out of the block.  */
+  edge pred, succ;
+
+  /* Liveness info.  */
+  regset local_set;
+  regset global_live_at_start;
+  regset global_live_at_end;
+
+  /* Auxiliary info specific to a pass.  */
+  void *aux;
+
+  /* The index of this block.  */
+  int index;
+  /* The loop depth of this block plus one.  */
+  int loop_depth;
+} *basic_block;
 
 /* Number of basic blocks in the current function.  */
 
 extern int n_basic_blocks;
 
-/* Index by basic block number, get first insn in the block.  */
+/* Index by basic block number, get basic block struct info.  */
 
-extern rtx *basic_block_head;
+extern varray_type basic_block_info;
 
-/* Index by basic block number, get last insn in the block.  */
-
-extern rtx *basic_block_end;
-
-/* Index by basic block number, determine whether the block can be reached
-   through a computed jump.  */
-
-extern char *basic_block_computed_jump_target;
-
-/* Index by basic block number, get address of regset
-   describing the registers live at the start of that block.  */
-
-extern regset *basic_block_live_at_start;
+#define BASIC_BLOCK(N)  (VARRAY_BB (basic_block_info, (N)))
 
 /* What registers are live at the setjmp call.  */
 
@@ -176,91 +214,49 @@ extern void free_int_list               PROTO ((int_list_block **));
 
 /* Stuff for recording basic block info.  */
 
-#define BLOCK_HEAD(B)      basic_block_head[(B)]
-#define BLOCK_END(B)       basic_block_end[(B)]
+#define BLOCK_HEAD(B)      (BASIC_BLOCK (B)->head)
+#define BLOCK_END(B)       (BASIC_BLOCK (B)->end)
 
 /* Special block numbers [markers] for entry and exit.  */
 #define ENTRY_BLOCK (-1)
 #define EXIT_BLOCK (-2)
 
-/* from flow.c */
-extern void free_regset_vector PROTO ((regset *, int nelts));
-extern int *uid_block_number;
-#define BLOCK_NUM(INSN)    uid_block_number[INSN_UID (INSN)]
+/* Similarly, block pointers for the edge list.  */
+extern struct basic_block_def entry_exit_blocks[2];
+#define ENTRY_BLOCK_PTR	(&entry_exit_blocks[0])
+#define EXIT_BLOCK_PTR	(&entry_exit_blocks[1])
 
-extern void compute_preds_succs PROTO ((int_list_ptr *, int_list_ptr *,
-				        int *, int *));
-extern void dump_bb_data       PROTO ((FILE *, int_list_ptr *, int_list_ptr *));
-extern void free_bb_mem        PROTO ((void));
+/* from flow.c */
+extern void free_regset_vector		PROTO ((regset *, int nelts));
+
+extern varray_type basic_block_for_insn;
+#define BLOCK_FOR_INSN(INSN)  VARRAY_BB (basic_block_for_insn, INSN_UID (INSN))
+#define BLOCK_NUM(INSN)	      (BLOCK_FOR_INSN (INSN)->index + 0)
+
+extern void set_block_for_insn		PROTO ((rtx, basic_block));
+
+extern void dump_bb_data		PROTO ((FILE *, int_list_ptr *,
+						int_list_ptr *, int));
+extern void free_bb_mem			PROTO ((void));
 extern void free_basic_block_vars	PROTO ((int));
 
-
-/* Simple bitmaps.
-   It's not clear yet whether using bitmap.[ch] will be a win.
-   It should be straightforward to convert so for now we keep things simple
-   while more important issues are dealt with.  */
+extern basic_block split_edge		PROTO ((edge));
+extern void insert_insn_on_edge		PROTO ((rtx, edge));
+extern void commit_edge_insertions	PROTO ((void));
 
-#define SBITMAP_ELT_BITS HOST_BITS_PER_WIDE_INT
-#define SBITMAP_ELT_TYPE unsigned HOST_WIDE_INT
-
-typedef struct simple_bitmap_def {
-  /* Number of bits.  */
-  int n_bits;
-  /* Size in elements.  */
-  int size;
-  /* Size in bytes.  */
-  int bytes;
-  /* The elements.  */
-  SBITMAP_ELT_TYPE elms[1];
-} *sbitmap;
-
-typedef SBITMAP_ELT_TYPE *sbitmap_ptr;
-
-/* Return the set size needed for N elements.  */
-#define SBITMAP_SET_SIZE(n) (((n) + SBITMAP_ELT_BITS - 1) / SBITMAP_ELT_BITS)
-
-/* set bit number bitno in the bitmap */
-#define SET_BIT(bitmap, bitno) \
-do { \
-  (bitmap)->elms [(bitno) / SBITMAP_ELT_BITS] |= (SBITMAP_ELT_TYPE) 1 << (bitno) % SBITMAP_ELT_BITS; \
-} while (0)
-
-/* test if bit number bitno in the bitmap is set */
-#define TEST_BIT(bitmap, bitno) \
-((bitmap)->elms [(bitno) / SBITMAP_ELT_BITS] & ((SBITMAP_ELT_TYPE) 1 << (bitno) % SBITMAP_ELT_BITS))
-
-/* reset bit number bitno in the bitmap  */
-#define RESET_BIT(bitmap, bitno) \
-do { \
-  (bitmap)->elms [(bitno) / SBITMAP_ELT_BITS] &= ~((SBITMAP_ELT_TYPE) 1 << (bitno) % SBITMAP_ELT_BITS); \
-} while (0)
-
-extern void dump_sbitmap       PROTO ((FILE *, sbitmap));
-extern void dump_sbitmap_vector PROTO ((FILE *, char *, char *,
-					sbitmap *, int));
-extern sbitmap sbitmap_alloc PROTO ((int));
-extern sbitmap *sbitmap_vector_alloc PROTO ((int, int));
-extern void sbitmap_copy PROTO ((sbitmap, sbitmap));
-extern void sbitmap_zero PROTO ((sbitmap));
-extern void sbitmap_ones PROTO ((sbitmap));
-extern void sbitmap_vector_zero PROTO ((sbitmap *, int));
-extern void sbitmap_vector_ones PROTO ((sbitmap *, int));
-extern int sbitmap_union_of_diff PROTO ((sbitmap, sbitmap, sbitmap, sbitmap));
-extern void sbitmap_difference PROTO ((sbitmap, sbitmap, sbitmap));
-extern void sbitmap_not PROTO ((sbitmap, sbitmap));
-extern int sbitmap_a_or_b_and_c PROTO ((sbitmap, sbitmap, sbitmap, sbitmap));
-extern int sbitmap_a_and_b_or_c PROTO ((sbitmap, sbitmap, sbitmap, sbitmap));
-extern int sbitmap_a_and_b PROTO ((sbitmap, sbitmap, sbitmap));
-extern int sbitmap_a_or_b PROTO ((sbitmap, sbitmap, sbitmap));
-extern void sbitmap_intersect_of_predsucc PROTO ((sbitmap, sbitmap *,
-						  int, int_list_ptr *));
-extern void sbitmap_intersect_of_predecessors PROTO ((sbitmap, sbitmap *, int,
-						      int_list_ptr *));
-extern void sbitmap_intersect_of_successors PROTO ((sbitmap, sbitmap *, int,
-						    int_list_ptr *));
-extern void sbitmap_union_of_predecessors PROTO ((sbitmap, sbitmap *, int,
-						  int_list_ptr *));
-extern void sbitmap_union_of_successors PROTO ((sbitmap, sbitmap *, int,
+extern void compute_preds_succs		PROTO ((int_list_ptr *, int_list_ptr *,
+						int *, int *));
+extern void compute_dominators		PROTO ((sbitmap *, sbitmap *,
+						int_list_ptr *,
 						int_list_ptr *));
-extern void compute_dominators PROTO ((sbitmap *, sbitmap *,
-				       int_list_ptr *, int_list_ptr *));
+extern void compute_immediate_dominators	PROTO ((int *, sbitmap *));
+
+/* In lcm.c */
+extern void pre_lcm 			PROTO ((int, int, int_list_ptr *,
+						int_list_ptr *,
+						sbitmap *, sbitmap *,
+						sbitmap *, sbitmap *));
+extern void pre_rev_lcm 		PROTO ((int, int, int_list_ptr *,
+						int_list_ptr *,
+						sbitmap *, sbitmap *,
+						sbitmap *, sbitmap *));

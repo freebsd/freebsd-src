@@ -1,5 +1,5 @@
 /* Expands front end tree to back end RTL for GNU C-Compiler
-   Copyright (C) 1987, 88, 89, 92-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 89, 92-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -88,45 +88,6 @@ static rtx last_block_end_note;
 /* Number of binding contours started so far in this function.  */
 
 int block_start_count;
-
-/* Nonzero if function being compiled needs to
-   return the address of where it has put a structure value.  */
-
-extern int current_function_returns_pcc_struct;
-
-/* Label that will go on parm cleanup code, if any.
-   Jumping to this label runs cleanup code for parameters, if
-   such code must be run.  Following this code is the logical return label.  */
-
-extern rtx cleanup_label;
-
-/* Label that will go on function epilogue.
-   Jumping to this label serves as a "return" instruction
-   on machines which require execution of the epilogue on all returns.  */
-
-extern rtx return_label;
-
-/* Offset to end of allocated area of stack frame.
-   If stack grows down, this is the address of the last stack slot allocated.
-   If stack grows up, this is the address for the next slot.  */
-extern int frame_offset;
-
-/* Label to jump back to for tail recursion, or 0 if we have
-   not yet needed one for this function.  */
-extern rtx tail_recursion_label;
-
-/* Place after which to insert the tail_recursion_label if we need one.  */
-extern rtx tail_recursion_reentry;
-
-/* Location at which to save the argument pointer if it will need to be
-   referenced.  There are two cases where this is done: if nonlocal gotos
-   exist, or if vars whose is an offset from the argument pointer will be
-   needed by inner routines.  */
-
-extern rtx arg_pointer_save_area;
-
-/* Chain of all RTL_EXPRs that have insns in them.  */
-extern tree rtl_expr_chain;
 
 /* Functions and data structures for expanding case statements.  */
 
@@ -306,7 +267,7 @@ struct nesting
 	  /* Number of range exprs in case statement.  */
 	  int num_ranges;
 	  /* Name of this kind of statement, for warnings.  */
-	  char *printname;
+	  const char *printname;
 	  /* Used to save no_line_numbers till we see the first case label.
 	     We set this to -1 when we see the first case label in this
 	     case statement.  */
@@ -425,8 +386,12 @@ struct label_chain
 static int using_eh_for_cleanups_p = 0;
 
 
+static int n_occurrences		PROTO((int, const char *));
 static void expand_goto_internal	PROTO((tree, rtx, rtx));
 static int expand_fixup			PROTO((tree, rtx, rtx));
+static rtx expand_nl_handler_label	PROTO((rtx, rtx));
+static void expand_nl_goto_receiver	PROTO((void));
+static void expand_nl_goto_receivers	PROTO((struct nesting *));
 static void fixup_gotos			PROTO((struct nesting *, rtx, tree,
 					       rtx, int));
 static void expand_null_return_1	PROTO((rtx, int));
@@ -583,12 +548,14 @@ expand_computed_goto (exp)
 
   emit_queue ();
   /* Be sure the function is executable.  */
-  if (flag_check_memory_usage)
+  if (current_function_check_memory_usage)
     emit_library_call (chkr_check_exec_libfunc, 1,
 		       VOIDmode, 1, x, ptr_mode);
 
   do_pending_stack_adjust ();
   emit_indirect_jump (x);
+
+  current_function_has_computed_jump = 1;
 }
 
 /* Handle goto statements and the labels that they can go to.  */
@@ -631,16 +598,18 @@ void
 declare_nonlocal_label (label)
      tree label;
 {
+  rtx slot = assign_stack_local (Pmode, GET_MODE_SIZE (Pmode), 0);
+
   nonlocal_labels = tree_cons (NULL_TREE, label, nonlocal_labels);
   LABEL_PRESERVE_P (label_rtx (label)) = 1;
-  if (nonlocal_goto_handler_slot == 0)
+  if (nonlocal_goto_handler_slots == 0)
     {
-      nonlocal_goto_handler_slot
-	= assign_stack_local (Pmode, GET_MODE_SIZE (Pmode), 0);
       emit_stack_save (SAVE_NONLOCAL,
 		       &nonlocal_goto_stack_level,
 		       PREV_INSN (tail_recursion_reentry));
     }
+  nonlocal_goto_handler_slots
+    = gen_rtx_EXPR_LIST (VOIDmode, slot, nonlocal_goto_handler_slots);
 }
 
 /* Generate RTL code for a `goto' statement with target label LABEL.
@@ -659,7 +628,15 @@ expand_goto (label)
     {
       struct function *p = find_function_data (context);
       rtx label_ref = gen_rtx_LABEL_REF (Pmode, label_rtx (label));
-      rtx temp;
+      rtx temp, handler_slot;
+      tree link;
+
+      /* Find the corresponding handler slot for this label.  */
+      handler_slot = p->nonlocal_goto_handler_slots;
+      for (link = p->nonlocal_labels; TREE_VALUE (link) != label;
+	   link = TREE_CHAIN (link))
+	handler_slot = XEXP (handler_slot, 1);
+      handler_slot = XEXP (handler_slot, 0);
 
       p->has_nonlocal_label = 1;
       current_function_has_nonlocal_goto = 1;
@@ -672,7 +649,7 @@ expand_goto (label)
 #if HAVE_nonlocal_goto
       if (HAVE_nonlocal_goto)
 	emit_insn (gen_nonlocal_goto (lookup_static_chain (label),
-				      copy_rtx (p->nonlocal_goto_handler_slot),
+				      copy_rtx (handler_slot),
 				      copy_rtx (p->nonlocal_goto_stack_level),
 				      label_ref));
       else
@@ -694,7 +671,7 @@ expand_goto (label)
 
 	  /* Get addr of containing function's current nonlocal goto handler,
 	     which will do any cleanups and then jump to the label.  */
-	  addr = copy_rtx (p->nonlocal_goto_handler_slot);
+	  addr = copy_rtx (handler_slot);
 	  temp = copy_to_reg (replace_rtx (addr, virtual_stack_vars_rtx,
 					   hard_frame_pointer_rtx));
 	  
@@ -707,13 +684,10 @@ expand_goto (label)
 
 	  emit_stack_restore (SAVE_NONLOCAL, addr, NULL_RTX);
 
-	  /* Put in the static chain register the nonlocal label address.  */
-	  emit_move_insn (static_chain_rtx, label_ref);
 	  /* USE of hard_frame_pointer_rtx added for consistency; not clear if
 	     really needed.  */
 	  emit_insn (gen_rtx_USE (VOIDmode, hard_frame_pointer_rtx));
 	  emit_insn (gen_rtx_USE (VOIDmode, stack_pointer_rtx));
-	  emit_insn (gen_rtx_USE (VOIDmode, static_chain_rtx));
 	  emit_indirect_jump (temp);
 	}
      }
@@ -1102,8 +1076,18 @@ fixup_gotos (thisblock, stack_level, cleanup_list, first_insn, dont_jump_in)
 	  f->stack_level = stack_level;
       }
 }
-
-
+
+/* Return the number of times character C occurs in string S.  */
+static int
+n_occurrences (c, s)
+     int c;
+     const char *s;
+{
+  int n = 0;
+  while (*s)
+    n += (*s++ == c);
+  return n;
+}
 
 /* Generate RTL for an asm statement (explicit assembler code).
    BODY is a STRING_CST node containing the assembler code text,
@@ -1113,7 +1097,7 @@ void
 expand_asm (body)
      tree body;
 {
-  if (flag_check_memory_usage)
+  if (current_function_check_memory_usage)
     {
       error ("`asm' cannot be used with `-fcheck-memory-usage'");
       return;
@@ -1160,6 +1144,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
   /* Vector of RTX's of evaluated output operands.  */
   rtx *output_rtx = (rtx *) alloca (noutputs * sizeof (rtx));
   int *inout_opnum = (int *) alloca (noutputs * sizeof (int));
+  rtx *real_output_rtx = (rtx *) alloca (noutputs * sizeof (rtx));
   enum machine_mode *inout_mode
     = (enum machine_mode *) alloca (noutputs * sizeof (enum machine_mode));
   /* The insn we have emitted.  */
@@ -1169,7 +1154,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
   if (noutputs == 0)
     vol = 1;
 
-  if (flag_check_memory_usage)
+  if (current_function_check_memory_usage)
     {
       error ("`asm' cannot be used with `-fcheck-memory-usage'");
       return;
@@ -1190,14 +1175,47 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 
   last_expr_type = 0;
 
+  /* Check that the number of alternatives is constant across all
+     operands.  */
+  if (outputs || inputs)
+    {
+      tree tmp = TREE_PURPOSE (outputs ? outputs : inputs);
+      int nalternatives = n_occurrences (',', TREE_STRING_POINTER (tmp));
+      tree next = inputs;
+
+      if (nalternatives + 1 > MAX_RECOG_ALTERNATIVES)
+	{
+	  error ("too many alternatives in `asm'");
+	  return;
+	}
+      
+      tmp = outputs;
+      while (tmp)
+	{
+	  char *constraint = TREE_STRING_POINTER (TREE_PURPOSE (tmp));
+	  if (n_occurrences (',', constraint) != nalternatives)
+	    {
+	      error ("operand constraints for `asm' differ in number of alternatives");
+	      return;
+	    }
+	  if (TREE_CHAIN (tmp))
+	    tmp = TREE_CHAIN (tmp);
+	  else
+	    tmp = next, next = 0;
+	}
+    }
+
   for (i = 0, tail = outputs; tail; tail = TREE_CHAIN (tail), i++)
     {
       tree val = TREE_VALUE (tail);
       tree type = TREE_TYPE (val);
+      char *constraint;
+      char *p;
+      int c_len;
       int j;
-      int found_equal = 0;
-      int found_plus = 0;
+      int is_inout = 0;
       int allows_reg = 0;
+      int allows_mem = 0;
 
       /* If there's an erroneous arg, emit no insn.  */
       if (TREE_TYPE (val) == error_mark_node)
@@ -1208,29 +1226,62 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	 the worst that happens if we get it wrong is we issue an error
 	 message.  */
 
-      for (j = 0; j < TREE_STRING_LENGTH (TREE_PURPOSE (tail)) - 1; j++)
-	switch (TREE_STRING_POINTER (TREE_PURPOSE (tail))[j])
+      c_len = TREE_STRING_LENGTH (TREE_PURPOSE (tail)) - 1;
+      constraint = TREE_STRING_POINTER (TREE_PURPOSE (tail));
+
+      /* Allow the `=' or `+' to not be at the beginning of the string,
+	 since it wasn't explicitly documented that way, and there is a
+	 large body of code that puts it last.  Swap the character to
+	 the front, so as not to uglify any place else.  */
+      switch (c_len)
+	{
+	default:
+	  if ((p = strchr (constraint, '=')) != NULL)
+	    break;
+	  if ((p = strchr (constraint, '+')) != NULL)
+	    break;
+	case 0:
+	  error ("output operand constraint lacks `='");
+	  return;
+	}
+
+      if (p != constraint)
+	{
+	  j = *p;
+	  bcopy (constraint, constraint+1, p-constraint);
+	  *constraint = j;
+
+	  warning ("output constraint `%c' for operand %d is not at the beginning", j, i);
+	}
+
+      is_inout = constraint[0] == '+';
+      /* Replace '+' with '='.  */
+      constraint[0] = '=';
+      /* Make sure we can specify the matching operand.  */
+      if (is_inout && i > 9)
+	{
+	  error ("output operand constraint %d contains `+'", i);
+	  return;
+	}
+
+      for (j = 1; j < c_len; j++)
+	switch (constraint[j])
 	  {
 	  case '+':
-	    /* Make sure we can specify the matching operand.  */
-	    if (i > 9)
+	  case '=':
+	    error ("operand constraint contains '+' or '=' at illegal position.");
+	    return;
+
+	  case '%':
+	    if (i + 1 == ninputs + noutputs)
 	      {
-		error ("output operand constraint %d contains `+'", i);
+		error ("`%%' constraint used with last operand");
 		return;
 	      }
-
-	    /* Replace '+' with '='.  */
-	    TREE_STRING_POINTER (TREE_PURPOSE (tail))[j] = '=';
-	    found_plus = 1;
 	    break;
 
-	  case '=':
-	    found_equal = 1;
-	    break;
-
-	  case '?':  case '!':  case '*':  case '%':  case '&':
-	  case 'V':  case 'm':  case 'o':  case '<':  case '>':
-	  case 'E':  case 'F':  case 'G':  case 'H':  case 'X':
+	  case '?':  case '!':  case '*':  case '&':
+	  case 'E':  case 'F':  case 'G':  case 'H':
 	  case 's':  case 'i':  case 'n':
 	  case 'I':  case 'J':  case 'K':  case 'L':  case 'M':
 	  case 'N':  case 'O':  case 'P':  case ',':
@@ -1244,29 +1295,42 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	    error ("matching constraint not valid in output operand");
 	    break;
 
-	  case 'p':  case 'g':  case 'r':
+	  case 'V':  case 'm':  case 'o':
+	    allows_mem = 1;
+	    break;
+
+	  case '<':  case '>':
+          /* ??? Before flow, auto inc/dec insns are not supposed to exist,
+             excepting those that expand_call created.  So match memory
+	     and hope.  */
+	    allows_mem = 1;
+	    break;
+
+	  case 'g':  case 'X':
+	    allows_reg = 1;
+	    allows_mem = 1;
+	    break;
+
+	  case 'p': case 'r':
 	  default:
 	    allows_reg = 1;
 	    break;
 	  }
-
-      if (! found_equal && ! found_plus)
-	{
-	  error ("output operand constraint lacks `='");
-	  return;
-	}
 
       /* If an output operand is not a decl or indirect ref and our constraint
 	 allows a register, make a temporary to act as an intermediate.
 	 Make the asm insn write into that, then our caller will copy it to
 	 the real output operand.  Likewise for promoted variables.  */
 
-      if (TREE_CODE (val) == INDIRECT_REF
+      real_output_rtx[i] = NULL_RTX;
+      if ((TREE_CODE (val) == INDIRECT_REF
+	   && allows_mem)
 	  || (TREE_CODE_CLASS (TREE_CODE (val)) == 'd'
+	      && (allows_mem || GET_CODE (DECL_RTL (val)) == REG)
 	      && ! (GET_CODE (DECL_RTL (val)) == REG
 		    && GET_MODE (DECL_RTL (val)) != TYPE_MODE (type)))
 	  || ! allows_reg
-	  || found_plus)
+	  || is_inout)
 	{
 	  if (! allows_reg)
 	    mark_addressable (TREE_VALUE (tail));
@@ -1277,6 +1341,13 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 
 	  if (! allows_reg && GET_CODE (output_rtx[i]) != MEM)
 	    error ("output number %d not directly addressable", i);
+	  if (! allows_mem && GET_CODE (output_rtx[i]) == MEM)
+	    {
+    	      real_output_rtx[i] = protect_from_queue (output_rtx[i], 1);
+	      output_rtx[i] = gen_reg_rtx (GET_MODE (output_rtx[i]));
+	      if (is_inout)
+		emit_move_insn (output_rtx[i], real_output_rtx[i]);
+	    }
 	}
       else
 	{
@@ -1284,7 +1355,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	  TREE_VALUE (tail) = make_tree (type, output_rtx[i]);
 	}
 
-      if (found_plus)
+      if (is_inout)
 	{
 	  inout_mode[ninout] = TYPE_MODE (TREE_TYPE (TREE_VALUE (tail)));
 	  inout_opnum[ninout++] = i;
@@ -1316,13 +1387,18 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
   for (tail = inputs; tail; tail = TREE_CHAIN (tail))
     {
       int j;
-      int allows_reg = 0;
+      int allows_reg = 0, allows_mem = 0;
+      char *constraint, *orig_constraint;
+      int c_len;
+      rtx op;
 
       /* If there's an erroneous arg, emit no insn,
 	 because the ASM_INPUT would get VOIDmode
 	 and that could cause a crash in reload.  */
       if (TREE_TYPE (TREE_VALUE (tail)) == error_mark_node)
 	return;
+
+      /* ??? Can this happen, and does the error message make any sense? */
       if (TREE_PURPOSE (tail) == NULL_TREE)
 	{
 	  error ("hard register `%s' listed as input operand to `asm'",
@@ -1330,18 +1406,38 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	  return;
 	}
 
-      /* Make sure constraint has neither `=' nor `+'.  */
+      c_len = TREE_STRING_LENGTH (TREE_PURPOSE (tail)) - 1;
+      constraint = TREE_STRING_POINTER (TREE_PURPOSE (tail));
+      orig_constraint = constraint;
 
-      for (j = 0; j < TREE_STRING_LENGTH (TREE_PURPOSE (tail)) - 1; j++)
-	switch (TREE_STRING_POINTER (TREE_PURPOSE (tail))[j])
+      /* Make sure constraint has neither `=', `+', nor '&'.  */
+
+      for (j = 0; j < c_len; j++)
+	switch (constraint[j])
 	  {
-	  case '+':   case '=':
-	    error ("input operand constraint contains `%c'",
-		   TREE_STRING_POINTER (TREE_PURPOSE (tail))[j]);
-	    return;
+	  case '+':  case '=':  case '&':
+	    if (constraint == orig_constraint)
+	      {
+	        error ("input operand constraint contains `%c'", constraint[j]);
+	        return;
+	      }
+	    break;
 
-	  case '?':  case '!':  case '*':  case '%':  case '&':
-	  case 'V':  case 'm':  case 'o':  case '<':  case '>':
+	  case '%':
+	    if (constraint == orig_constraint
+		&& i + 1 == ninputs - ninout)
+	      {
+		error ("`%%' constraint used with last operand");
+		return;
+	      }
+	    break;
+
+	  case 'V':  case 'm':  case 'o':
+	    allows_mem = 1;
+	    break;
+
+	  case '<':  case '>':
+	  case '?':  case '!':  case '*':
 	  case 'E':  case 'F':  case 'G':  case 'H':  case 'X':
 	  case 's':  case 'i':  case 'n':
 	  case 'I':  case 'J':  case 'K':  case 'L':  case 'M':
@@ -1358,56 +1454,81 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	       operands to memory.  */
 	  case '0':  case '1':  case '2':  case '3':  case '4':
 	  case '5':  case '6':  case '7':  case '8':  case '9':
-	    if (TREE_STRING_POINTER (TREE_PURPOSE (tail))[j]
-		>= '0' + noutputs)
+	    if (constraint[j] >= '0' + noutputs)
 	      {
 		error
 		  ("matching constraint references invalid operand number");
 		return;
 	      }
 
+	    /* Try and find the real constraint for this dup.  */
+	    if ((j == 0 && c_len == 1)
+		|| (j == 1 && c_len == 2 && constraint[0] == '%'))
+	      {
+		tree o = outputs;
+		for (j = constraint[j] - '0'; j > 0; --j)
+		  o = TREE_CHAIN (o);
+	
+		c_len = TREE_STRING_LENGTH (TREE_PURPOSE (o)) - 1;
+		constraint = TREE_STRING_POINTER (TREE_PURPOSE (o));
+		j = 0;
+		break;
+	      }
+
 	    /* ... fall through ... */
 
-	  case 'p':  case 'g':  case 'r':
+	  case 'p':  case 'r':
 	  default:
 	    allows_reg = 1;
 	    break;
+
+	  case 'g':
+	    allows_reg = 1;
+	    allows_mem = 1;
+	    break;
 	  }
 
-      if (! allows_reg)
+      if (! allows_reg && allows_mem)
 	mark_addressable (TREE_VALUE (tail));
 
-      XVECEXP (body, 3, i)      /* argvec */
-	= expand_expr (TREE_VALUE (tail), NULL_RTX, VOIDmode, 0);
-      if (CONSTANT_P (XVECEXP (body, 3, i))
-	  && ! general_operand (XVECEXP (body, 3, i),
-				TYPE_MODE (TREE_TYPE (TREE_VALUE (tail)))))
+      op = expand_expr (TREE_VALUE (tail), NULL_RTX, VOIDmode, 0);
+
+      if (asm_operand_ok (op, constraint) <= 0)
 	{
 	  if (allows_reg)
-	    XVECEXP (body, 3, i)
-	      = force_reg (TYPE_MODE (TREE_TYPE (TREE_VALUE (tail))),
-			   XVECEXP (body, 3, i));
+	    op = force_reg (TYPE_MODE (TREE_TYPE (TREE_VALUE (tail))), op);
+	  else if (!allows_mem)
+	    warning ("asm operand %d probably doesn't match constraints", i);
+	  else if (CONSTANT_P (op))
+	    op = force_const_mem (TYPE_MODE (TREE_TYPE (TREE_VALUE (tail))),
+				  op);
+	  else if (GET_CODE (op) == REG
+		   || GET_CODE (op) == SUBREG
+		   || GET_CODE (op) == CONCAT)
+	    {
+	      tree type = TREE_TYPE (TREE_VALUE (tail));
+	      rtx memloc = assign_temp (type, 1, 1, 1);
+
+	      emit_move_insn (memloc, op);
+	      op = memloc;
+	    }
+	  else if (GET_CODE (op) == MEM && MEM_VOLATILE_P (op))
+	    /* We won't recognize volatile memory as available a
+	       memory_operand at this point.  Ignore it.  */
+	    ;
+	  else if (queued_subexp_p (op))
+	    ;
 	  else
-	    XVECEXP (body, 3, i)
-	      = force_const_mem (TYPE_MODE (TREE_TYPE (TREE_VALUE (tail))),
-				 XVECEXP (body, 3, i));
+	    /* ??? Leave this only until we have experience with what
+	       happens in combine and elsewhere when constraints are
+	       not satisfied.  */
+	    warning ("asm operand %d probably doesn't match constraints", i);
 	}
+      XVECEXP (body, 3, i) = op;
 
-      if (! allows_reg
-	  && (GET_CODE (XVECEXP (body, 3, i)) == REG
-	      || GET_CODE (XVECEXP (body, 3, i)) == SUBREG
-	      || GET_CODE (XVECEXP (body, 3, i)) == CONCAT))
-	{
-	  tree type = TREE_TYPE (TREE_VALUE (tail));
-	  rtx memloc = assign_temp (type, 1, 1, 1);
-
-	  emit_move_insn (memloc, XVECEXP (body, 3, i));
-	  XVECEXP (body, 3, i) = memloc;
-	}
-	  
       XVECEXP (body, 4, i)      /* constraints */
 	= gen_rtx_ASM_INPUT (TYPE_MODE (TREE_TYPE (TREE_VALUE (tail))),
-			     TREE_STRING_POINTER (TREE_PURPOSE (tail)));
+			     orig_constraint);
       i++;
     }
 
@@ -1509,6 +1630,12 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
       insn = emit_insn (body);
     }
 
+  /* For any outputs that needed reloading into registers, spill them
+     back to where they belong.  */
+  for (i = 0; i < noutputs; ++i)
+    if (real_output_rtx[i])
+      emit_move_insn (real_output_rtx[i], output_rtx[i]);
+
   free_temp_slots ();
 }
 
@@ -1539,13 +1666,10 @@ expand_expr_stmt (exp)
     exp = build1 (ADDR_EXPR, build_pointer_type (TREE_TYPE (exp)), exp);
 
   last_expr_type = TREE_TYPE (exp);
-  if (flag_syntax_only && ! expr_stmts_for_value)
-    last_expr_value = 0;
-  else
-    last_expr_value = expand_expr (exp,
-				   (expr_stmts_for_value
-				    ? NULL_RTX : const0_rtx),
-				   VOIDmode, 0);
+  last_expr_value = expand_expr (exp,
+				 (expr_stmts_for_value
+				  ? NULL_RTX : const0_rtx),
+				 VOIDmode, 0);
 
   /* If all we do is reference a volatile value in memory,
      copy it to a register to be sure it is actually touched.  */
@@ -1561,12 +1685,12 @@ expand_expr_stmt (exp)
 	  rtx lab = gen_label_rtx ();
 	  
 	  /* Compare the value with itself to reference it.  */
-	  emit_cmp_insn (last_expr_value, last_expr_value, EQ,
-			 expand_expr (TYPE_SIZE (last_expr_type),
-				      NULL_RTX, VOIDmode, 0),
-			 BLKmode, 0,
-			 TYPE_ALIGN (last_expr_type) / BITS_PER_UNIT);
-	  emit_jump_insn ((*bcc_gen_fctn[(int) EQ]) (lab));
+	  emit_cmp_and_jump_insns (last_expr_value, last_expr_value, EQ,
+				   expand_expr (TYPE_SIZE (last_expr_type),
+						NULL_RTX, VOIDmode, 0),
+				   BLKmode, 0,
+				   TYPE_ALIGN (last_expr_type) / BITS_PER_UNIT,
+				   lab);
 	  emit_label (lab);
 	}
     }
@@ -1917,13 +2041,9 @@ expand_loop_continue_here ()
 void
 expand_end_loop ()
 {
-  register rtx insn;
-  register rtx start_label;
-  rtx last_test_insn = 0;
-  int num_insns = 0;
-    
-  insn = get_last_insn ();
-  start_label = loop_stack->data.loop.start_label;
+  rtx start_label = loop_stack->data.loop.start_label;
+  rtx insn = get_last_insn ();
+  int needs_end_jump = 1;
 
   /* Mark the continue-point at the top of the loop if none elsewhere.  */
   if (start_label == loop_stack->data.loop.continue_label)
@@ -1931,9 +2051,77 @@ expand_end_loop ()
 
   do_pending_stack_adjust ();
 
-  /* If optimizing, perhaps reorder the loop.  If the loop starts with
-     a loop exit, roll that to the end where it will optimize together
-     with the jump back.
+  /* If optimizing, perhaps reorder the loop.
+     First, try to use a condjump near the end.
+     expand_exit_loop_if_false ends loops with unconditional jumps,
+     like this:
+
+     if (test) goto label;
+     optional: cleanup
+     goto loop_stack->data.loop.end_label
+     barrier
+     label:
+
+     If we find such a pattern, we can end the loop earlier.  */
+
+  if (optimize
+      && GET_CODE (insn) == CODE_LABEL
+      && LABEL_NAME (insn) == NULL
+      && GET_CODE (PREV_INSN (insn)) == BARRIER)
+    {
+      rtx label = insn;
+      rtx jump = PREV_INSN (PREV_INSN (label));
+
+      if (GET_CODE (jump) == JUMP_INSN
+	  && GET_CODE (PATTERN (jump)) == SET
+	  && SET_DEST (PATTERN (jump)) == pc_rtx
+	  && GET_CODE (SET_SRC (PATTERN (jump))) == LABEL_REF
+	  && (XEXP (SET_SRC (PATTERN (jump)), 0)
+	      == loop_stack->data.loop.end_label))
+	{
+	  rtx prev;
+
+	  /* The test might be complex and reference LABEL multiple times,
+	     like the loop in loop_iterations to set vtop.  To handle this,
+	     we move LABEL.  */
+	  insn = PREV_INSN (label);
+	  reorder_insns (label, label, start_label);
+
+	  for (prev = PREV_INSN (jump); ; prev = PREV_INSN (prev))
+	   {
+	      /* We ignore line number notes, but if we see any other note,
+		 in particular NOTE_INSN_BLOCK_*, NOTE_INSN_EH_REGION_*,
+		 NOTE_INSN_LOOP_*, we disable this optimization.  */
+	      if (GET_CODE (prev) == NOTE)
+		{
+		  if (NOTE_LINE_NUMBER (prev) < 0)
+		    break;
+		  continue;
+		}
+	      if (GET_CODE (prev) == CODE_LABEL)
+		break;
+	      if (GET_CODE (prev) == JUMP_INSN)
+		{
+		  if (GET_CODE (PATTERN (prev)) == SET
+		      && SET_DEST (PATTERN (prev)) == pc_rtx
+		      && GET_CODE (SET_SRC (PATTERN (prev))) == IF_THEN_ELSE
+		      && (GET_CODE (XEXP (SET_SRC (PATTERN (prev)), 1))
+			  == LABEL_REF)
+		      && XEXP (XEXP (SET_SRC (PATTERN (prev)), 1), 0) == label)
+		    {
+		      XEXP (XEXP (SET_SRC (PATTERN (prev)), 1), 0)
+			= start_label;
+		      emit_note_after (NOTE_INSN_LOOP_END, prev);
+		      needs_end_jump = 0;
+		    }
+		  break;
+		}
+	   }
+	}
+    }
+
+     /* If the loop starts with a loop exit, roll that to the end where
+     it will optimize together with the jump back.
 
      We look for the conditional branch to the exit, except that once
      we find such a branch, we don't look past 30 instructions.
@@ -1944,7 +2132,7 @@ expand_end_loop ()
          if (test) goto end_label;
 	 body;
 	 goto start_label;
-	 end_label;
+	 end_label:
 	 
      transform it to look like:
 
@@ -1954,11 +2142,13 @@ expand_end_loop ()
 	 start_label:
 	 if (test) goto end_label;
 	 goto newstart_label;
-	 end_label;
+	 end_label:
 
      Here, the `test' may actually consist of some reasonably complex
      code, terminating in a test.  */
+
   if (optimize
+      && needs_end_jump
       &&
       ! (GET_CODE (insn) == JUMP_INSN
 	 && GET_CODE (PATTERN (insn)) == SET
@@ -1966,6 +2156,8 @@ expand_end_loop ()
 	 && GET_CODE (SET_SRC (PATTERN (insn))) == IF_THEN_ELSE))
     {
       int eh_regions = 0;
+      int num_insns = 0;
+      rtx last_test_insn = NULL_RTX;
 
       /* Scan insns from the top of the loop looking for a qualified
 	 conditional exit.  */
@@ -2000,6 +2192,10 @@ expand_end_loop ()
 		       move code out of an exception region.  */
 		    abort ();
 		}
+
+	      /* We must not walk into a nested loop.  */
+	      if (NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_BEG)
+		break;
 
 	      /* We already know this INSN is a NOTE, so there's no
 		 point in looking at it to see if it's a JUMP.  */
@@ -2042,31 +2238,46 @@ expand_end_loop ()
 	        So we don't look for tests within an EH region.  */
 	    continue;
 
-	  if (GET_CODE (insn) == JUMP_INSN && GET_CODE (PATTERN (insn)) == SET
-	      && SET_DEST (PATTERN (insn)) == pc_rtx
-	      && GET_CODE (SET_SRC (PATTERN (insn))) == IF_THEN_ELSE
-	      && ((GET_CODE (XEXP (SET_SRC (PATTERN (insn)), 1)) == LABEL_REF
-		   && ((XEXP (XEXP (SET_SRC (PATTERN (insn)), 1), 0)
-			== loop_stack->data.loop.end_label)
-		       || (XEXP (XEXP (SET_SRC (PATTERN (insn)), 1), 0)
-			   == loop_stack->data.loop.alt_end_label)))
-		  || (GET_CODE (XEXP (SET_SRC (PATTERN (insn)), 2)) == LABEL_REF
-		      && ((XEXP (XEXP (SET_SRC (PATTERN (insn)), 2), 0)
-			   == loop_stack->data.loop.end_label)
-			  || (XEXP (XEXP (SET_SRC (PATTERN (insn)), 2), 0)
-			      == loop_stack->data.loop.alt_end_label)))))
-	    last_test_insn = insn;
-
-	  if (last_test_insn == 0 && GET_CODE (insn) == JUMP_INSN
+	  if (GET_CODE (insn) == JUMP_INSN 
 	      && GET_CODE (PATTERN (insn)) == SET
-	      && SET_DEST (PATTERN (insn)) == pc_rtx
-	      && GET_CODE (SET_SRC (PATTERN (insn))) == LABEL_REF
-	      && ((XEXP (SET_SRC (PATTERN (insn)), 0)
-		   == loop_stack->data.loop.end_label)
-		  || (XEXP (SET_SRC (PATTERN (insn)), 0)
-		      == loop_stack->data.loop.alt_end_label)))
-	    /* Include BARRIER.  */
-	    last_test_insn = NEXT_INSN (insn);
+	      && SET_DEST (PATTERN (insn)) == pc_rtx)
+	    {
+	      /* This is indeed a jump.  */
+	      rtx dest1 = NULL_RTX;
+	      rtx dest2 = NULL_RTX;
+	      rtx potential_last_test;
+	      if (GET_CODE (SET_SRC (PATTERN (insn))) == IF_THEN_ELSE)
+		{
+		  /* A conditional jump.  */
+		  dest1 = XEXP (SET_SRC (PATTERN (insn)), 1);
+		  dest2 = XEXP (SET_SRC (PATTERN (insn)), 2);
+		  potential_last_test = insn;
+		}
+	      else
+		{
+		  /* An unconditional jump.  */
+		  dest1 = SET_SRC (PATTERN (insn));
+		  /* Include the BARRIER after the JUMP.  */
+		  potential_last_test = NEXT_INSN (insn);
+		}
+
+	      do {
+		if (dest1 && GET_CODE (dest1) == LABEL_REF
+		    && ((XEXP (dest1, 0) 
+			 == loop_stack->data.loop.alt_end_label)
+			|| (XEXP (dest1, 0) 
+			    == loop_stack->data.loop.end_label)))
+		  {
+		    last_test_insn = potential_last_test;
+		    break;
+		  }
+
+		/* If this was a conditional jump, there may be
+		   another label at which we should look.  */
+		dest1 = dest2;
+		dest2 = NULL_RTX;
+	      } while (dest1);
+	    }
 	}
 
       if (last_test_insn != 0 && last_test_insn != get_last_insn ())
@@ -2125,8 +2336,11 @@ expand_end_loop ()
 	}
     }
 
-  emit_jump (start_label);
-  emit_note (NULL_PTR, NOTE_INSN_LOOP_END);
+  if (needs_end_jump)
+    {
+      emit_jump (start_label);
+      emit_note (NULL_PTR, NOTE_INSN_LOOP_END);
+    }
   emit_label (loop_stack->data.loop.end_label);
 
   POPSTACK (loop_stack);
@@ -2200,6 +2414,14 @@ expand_exit_loop_if_false (whichloop, cond)
   emit_label (label);
 
   return 1;
+}
+
+/* Return nonzero if the loop nest is empty.  Else return zero.  */
+
+int
+stmt_loop_nest_empty ()
+{
+  return (loop_stack == NULL);
 }
 
 /* Return non-zero if we should preserve sub-expressions as separate
@@ -2442,6 +2664,7 @@ expand_return (retval)
       tree expr;
 
       do_jump (TREE_OPERAND (retval_rhs, 0), label, NULL_RTX);
+      start_cleanup_deferral ();
       expr = build (MODIFY_EXPR, TREE_TYPE (TREE_TYPE (current_function_decl)),
 		    DECL_RESULT (current_function_decl),
 		    TREE_OPERAND (retval_rhs, 1));
@@ -2454,35 +2677,14 @@ expand_return (retval)
 		    TREE_OPERAND (retval_rhs, 2));
       TREE_SIDE_EFFECTS (expr) = 1;
       expand_return (expr);
+      end_cleanup_deferral ();
       return;
     }
 
-  /* For tail-recursive call to current function,
-     just jump back to the beginning.
-     It's unsafe if any auto variable in this function
-     has its address taken; for simplicity,
-     require stack frame to be empty.  */
-  if (optimize && retval_rhs != 0
-      && frame_offset == 0
-      && TREE_CODE (retval_rhs) == CALL_EXPR
-      && TREE_CODE (TREE_OPERAND (retval_rhs, 0)) == ADDR_EXPR
-      && TREE_OPERAND (TREE_OPERAND (retval_rhs, 0), 0) == current_function_decl
-      /* Finish checking validity, and if valid emit code
-	 to set the argument variables for the new call.  */
-      && tail_recursion_args (TREE_OPERAND (retval_rhs, 1),
-			      DECL_ARGUMENTS (current_function_decl)))
-    {
-      if (tail_recursion_label == 0)
-	{
-	  tail_recursion_label = gen_label_rtx ();
-	  emit_label_after (tail_recursion_label,
-			    tail_recursion_reentry);
-	}
-      emit_queue ();
-      expand_goto_internal (NULL_TREE, tail_recursion_label, last_insn);
-      emit_barrier ();
-      return;
-    }
+  /* Attempt to optimize the call if it is tail recursive.  */
+  if (optimize_tail_recursion (retval_rhs, last_insn))
+    return;
+
 #ifdef HAVE_return
   /* This optimization is safe if there are local cleanups
      because expand_null_return takes care of them.
@@ -2564,7 +2766,8 @@ expand_return (retval)
       int big_endian_correction = 0;
       int bytes = int_size_in_bytes (TREE_TYPE (retval_rhs));
       int n_regs = (bytes + UNITS_PER_WORD - 1) / UNITS_PER_WORD;
-      int bitsize = MIN (TYPE_ALIGN (TREE_TYPE (retval_rhs)),BITS_PER_WORD);
+      int bitsize = MIN (TYPE_ALIGN (TREE_TYPE (retval_rhs)),
+			 (unsigned int)BITS_PER_WORD);
       rtx *result_pseudos = (rtx *) alloca (sizeof (rtx) * n_regs);
       rtx result_reg, src = NULL_RTX, dst = NULL_RTX;
       rtx result_val = expand_expr (retval_rhs, NULL_RTX, VOIDmode, 0);
@@ -2686,6 +2889,49 @@ drop_through_at_end_p ()
   return insn && GET_CODE (insn) != BARRIER;
 }
 
+/* Test CALL_EXPR to determine if it is a potential tail recursion call
+   and emit code to optimize the tail recursion.  LAST_INSN indicates where
+   to place the jump to the tail recursion label.  Return TRUE if the
+   call was optimized into a goto.
+
+   This is only used by expand_return, but expand_call is expected to
+   use it soon.  */
+
+int
+optimize_tail_recursion (call_expr, last_insn)
+     tree call_expr;
+     rtx last_insn;
+{
+  /* For tail-recursive call to current function,
+     just jump back to the beginning.
+     It's unsafe if any auto variable in this function
+     has its address taken; for simplicity,
+     require stack frame to be empty.  */
+  if (optimize && call_expr != 0
+      && frame_offset == 0
+      && TREE_CODE (call_expr) == CALL_EXPR
+      && TREE_CODE (TREE_OPERAND (call_expr, 0)) == ADDR_EXPR
+      && TREE_OPERAND (TREE_OPERAND (call_expr, 0), 0) == current_function_decl
+      /* Finish checking validity, and if valid emit code
+	 to set the argument variables for the new call.  */
+      && tail_recursion_args (TREE_OPERAND (call_expr, 1),
+			      DECL_ARGUMENTS (current_function_decl)))
+    {
+      if (tail_recursion_label == 0)
+	{
+	  tail_recursion_label = gen_label_rtx ();
+	  emit_label_after (tail_recursion_label,
+			    tail_recursion_reentry);
+	}
+      emit_queue ();
+      expand_goto_internal (NULL_TREE, tail_recursion_label, last_insn);
+      emit_barrier ();
+      return 1;
+    }
+
+  return 0;
+}
+
 /* Emit code to alter this function's formal parms for a tail-recursive call.
    ACTUALS is a list of actual parameter expressions (chain of TREE_LISTs).
    FORMALS is the chain of decls of formals.
@@ -2900,9 +3146,177 @@ remember_end_note (block)
   last_block_end_note = NULL_RTX;
 }
 
+/* Emit a handler label for a nonlocal goto handler.
+   Also emit code to store the handler label in SLOT before BEFORE_INSN.  */
+
+static rtx
+expand_nl_handler_label (slot, before_insn)
+     rtx slot, before_insn;
+{
+  rtx insns;
+  rtx handler_label = gen_label_rtx ();
+
+  /* Don't let jump_optimize delete the handler.  */
+  LABEL_PRESERVE_P (handler_label) = 1;
+
+  start_sequence ();
+  emit_move_insn (slot, gen_rtx_LABEL_REF (Pmode, handler_label));
+  insns = get_insns ();
+  end_sequence ();
+  emit_insns_before (insns, before_insn);
+
+  emit_label (handler_label);
+
+  return handler_label;
+}
+
+/* Emit code to restore vital registers at the beginning of a nonlocal goto
+   handler.  */
+static void
+expand_nl_goto_receiver ()
+{
+#ifdef HAVE_nonlocal_goto
+  if (! HAVE_nonlocal_goto)
+#endif
+    /* First adjust our frame pointer to its actual value.  It was
+       previously set to the start of the virtual area corresponding to
+       the stacked variables when we branched here and now needs to be
+       adjusted to the actual hardware fp value.
+
+       Assignments are to virtual registers are converted by
+       instantiate_virtual_regs into the corresponding assignment
+       to the underlying register (fp in this case) that makes
+       the original assignment true.
+       So the following insn will actually be
+       decrementing fp by STARTING_FRAME_OFFSET.  */
+    emit_move_insn (virtual_stack_vars_rtx, hard_frame_pointer_rtx);
+
+#if ARG_POINTER_REGNUM != HARD_FRAME_POINTER_REGNUM
+  if (fixed_regs[ARG_POINTER_REGNUM])
+    {
+#ifdef ELIMINABLE_REGS
+      /* If the argument pointer can be eliminated in favor of the
+	 frame pointer, we don't need to restore it.  We assume here
+	 that if such an elimination is present, it can always be used.
+	 This is the case on all known machines; if we don't make this
+	 assumption, we do unnecessary saving on many machines.  */
+      static struct elims {int from, to;} elim_regs[] = ELIMINABLE_REGS;
+      size_t i;
+
+      for (i = 0; i < sizeof elim_regs / sizeof elim_regs[0]; i++)
+	if (elim_regs[i].from == ARG_POINTER_REGNUM
+	    && elim_regs[i].to == HARD_FRAME_POINTER_REGNUM)
+	  break;
+
+      if (i == sizeof elim_regs / sizeof elim_regs [0])
+#endif
+	{
+	  /* Now restore our arg pointer from the address at which it
+	     was saved in our stack frame.
+	     If there hasn't be space allocated for it yet, make
+	     some now.  */
+	  if (arg_pointer_save_area == 0)
+	    arg_pointer_save_area
+	      = assign_stack_local (Pmode, GET_MODE_SIZE (Pmode), 0);
+	  emit_move_insn (virtual_incoming_args_rtx,
+			  /* We need a pseudo here, or else
+			     instantiate_virtual_regs_1 complains.  */
+			  copy_to_reg (arg_pointer_save_area));
+	}
+    }
+#endif
+
+#ifdef HAVE_nonlocal_goto_receiver
+  if (HAVE_nonlocal_goto_receiver)
+    emit_insn (gen_nonlocal_goto_receiver ());
+#endif
+}
+
+/* Make handlers for nonlocal gotos taking place in the function calls in
+   block THISBLOCK.  */
+
+static void
+expand_nl_goto_receivers (thisblock)
+     struct nesting *thisblock;
+{
+  tree link;
+  rtx afterward = gen_label_rtx ();
+  rtx insns, slot;
+  rtx label_list;
+  int any_invalid;
+
+  /* Record the handler address in the stack slot for that purpose,
+     during this block, saving and restoring the outer value.  */
+  if (thisblock->next != 0)
+    for (slot = nonlocal_goto_handler_slots; slot; slot = XEXP (slot, 1))
+      {
+	rtx save_receiver = gen_reg_rtx (Pmode);
+	emit_move_insn (XEXP (slot, 0), save_receiver);
+
+	start_sequence ();
+	emit_move_insn (save_receiver, XEXP (slot, 0));
+	insns = get_insns ();
+	end_sequence ();
+	emit_insns_before (insns, thisblock->data.block.first_insn);
+      }
+
+  /* Jump around the handlers; they run only when specially invoked.  */
+  emit_jump (afterward);
+
+  /* Make a separate handler for each label.  */
+  link = nonlocal_labels;
+  slot = nonlocal_goto_handler_slots;
+  label_list = NULL_RTX;
+  for (; link; link = TREE_CHAIN (link), slot = XEXP (slot, 1))
+    /* Skip any labels we shouldn't be able to jump to from here,
+       we generate one special handler for all of them below which just calls
+       abort.  */
+    if (! DECL_TOO_LATE (TREE_VALUE (link)))
+      {
+	rtx lab;
+	lab = expand_nl_handler_label (XEXP (slot, 0),
+				       thisblock->data.block.first_insn);
+	label_list = gen_rtx_EXPR_LIST (VOIDmode, lab, label_list);
+
+	expand_nl_goto_receiver ();
+
+	/* Jump to the "real" nonlocal label.  */
+	expand_goto (TREE_VALUE (link));
+      }
+
+  /* A second pass over all nonlocal labels; this time we handle those
+     we should not be able to jump to at this point.  */
+  link = nonlocal_labels;
+  slot = nonlocal_goto_handler_slots;
+  any_invalid = 0;
+  for (; link; link = TREE_CHAIN (link), slot = XEXP (slot, 1))
+    if (DECL_TOO_LATE (TREE_VALUE (link)))
+      {
+	rtx lab;
+	lab = expand_nl_handler_label (XEXP (slot, 0),
+				       thisblock->data.block.first_insn);
+	label_list = gen_rtx_EXPR_LIST (VOIDmode, lab, label_list);
+	any_invalid = 1;
+      }
+
+  if (any_invalid)
+    {
+      expand_nl_goto_receiver ();
+      emit_library_call (gen_rtx_SYMBOL_REF (Pmode, "abort"), 0,
+			 VOIDmode, 0);
+      emit_barrier ();
+    }
+
+  nonlocal_goto_handler_labels = label_list;
+  emit_label (afterward);
+}
+
 /* Generate RTL code to terminate a binding contour.
-   VARS is the chain of VAR_DECL nodes
-   for the variables bound in this contour.
+
+   VARS is the chain of VAR_DECL nodes for the variables bound in this
+   contour.  There may actually be other nodes in this chain, but any
+   nodes other than VAR_DECLS are ignored.
+
    MARK_ENDS is nonzero if we should put a note at the beginning
    and end of this binding contour.
 
@@ -2939,7 +3353,8 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 
   if (warn_unused)
     for (decl = vars; decl; decl = TREE_CHAIN (decl))
-      if (! TREE_USED (decl) && TREE_CODE (decl) == VAR_DECL
+      if (TREE_CODE (decl) == VAR_DECL 
+	  && ! TREE_USED (decl)
 	  && ! DECL_IN_SYSTEM_HEADER (decl)
 	  && DECL_NAME (decl) && ! DECL_ARTIFICIAL (decl)) 
 	warning_with_decl (decl, "unused variable `%s'");
@@ -2950,7 +3365,7 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
       emit_label (thisblock->exit_label);
     }
 
-  /* If necessary, make a handler for nonlocal gotos taking
+  /* If necessary, make handlers for nonlocal gotos taking
      place in the function calls in this block.  */
   if (function_call_count != thisblock->data.block.function_call_count
       && nonlocal_labels
@@ -2961,119 +3376,7 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 	     special to do when you jump out of it.  */
 	  : (thisblock->data.block.cleanups != 0
 	     || thisblock->data.block.stack_level != 0)))
-    {
-      tree link;
-      rtx afterward = gen_label_rtx ();
-      rtx handler_label = gen_label_rtx ();
-      rtx save_receiver = gen_reg_rtx (Pmode);
-      rtx insns;
-
-      /* Don't let jump_optimize delete the handler.  */
-      LABEL_PRESERVE_P (handler_label) = 1;
-
-      /* Record the handler address in the stack slot for that purpose,
-	 during this block, saving and restoring the outer value.  */
-      if (thisblock->next != 0)
-	{
-	  emit_move_insn (nonlocal_goto_handler_slot, save_receiver);
-
-	  start_sequence ();
-	  emit_move_insn (save_receiver, nonlocal_goto_handler_slot);
-	  insns = get_insns ();
-	  end_sequence ();
-	  emit_insns_before (insns, thisblock->data.block.first_insn);
-	}
-
-      start_sequence ();
-      emit_move_insn (nonlocal_goto_handler_slot,
-		      gen_rtx_LABEL_REF (Pmode, handler_label));
-      insns = get_insns ();
-      end_sequence ();
-      emit_insns_before (insns, thisblock->data.block.first_insn);
-
-      /* Jump around the handler; it runs only when specially invoked.  */
-      emit_jump (afterward);
-      emit_label (handler_label);
-
-#ifdef HAVE_nonlocal_goto
-      if (! HAVE_nonlocal_goto)
-#endif
-	/* First adjust our frame pointer to its actual value.  It was
-	   previously set to the start of the virtual area corresponding to
-	   the stacked variables when we branched here and now needs to be
-	   adjusted to the actual hardware fp value.
-
-	   Assignments are to virtual registers are converted by
-	   instantiate_virtual_regs into the corresponding assignment
-	   to the underlying register (fp in this case) that makes
-	   the original assignment true.
-	   So the following insn will actually be
-	   decrementing fp by STARTING_FRAME_OFFSET.  */
-	emit_move_insn (virtual_stack_vars_rtx, hard_frame_pointer_rtx);
-
-#if ARG_POINTER_REGNUM != HARD_FRAME_POINTER_REGNUM
-      if (fixed_regs[ARG_POINTER_REGNUM])
-	{
-#ifdef ELIMINABLE_REGS
-	  /* If the argument pointer can be eliminated in favor of the
-	     frame pointer, we don't need to restore it.  We assume here
-	     that if such an elimination is present, it can always be used.
-	     This is the case on all known machines; if we don't make this
-	     assumption, we do unnecessary saving on many machines.  */
-	  static struct elims {int from, to;} elim_regs[] = ELIMINABLE_REGS;
-	  size_t i;
-
-	  for (i = 0; i < sizeof elim_regs / sizeof elim_regs[0]; i++)
-	    if (elim_regs[i].from == ARG_POINTER_REGNUM
-		&& elim_regs[i].to == HARD_FRAME_POINTER_REGNUM)
-	      break;
-
-	  if (i == sizeof elim_regs / sizeof elim_regs [0])
-#endif
-	    {
-	      /* Now restore our arg pointer from the address at which it
-		 was saved in our stack frame.
-		 If there hasn't be space allocated for it yet, make
-		 some now.  */
-	      if (arg_pointer_save_area == 0)
-		arg_pointer_save_area
-		  = assign_stack_local (Pmode, GET_MODE_SIZE (Pmode), 0);
-	      emit_move_insn (virtual_incoming_args_rtx,
-			      /* We need a pseudo here, or else
-				 instantiate_virtual_regs_1 complains.  */
-			      copy_to_reg (arg_pointer_save_area));
-	    }
-	}
-#endif
-
-#ifdef HAVE_nonlocal_goto_receiver
-      if (HAVE_nonlocal_goto_receiver)
-	emit_insn (gen_nonlocal_goto_receiver ());
-#endif
-
-      /* The handler expects the desired label address in the static chain
-	 register.  It tests the address and does an appropriate jump
-	 to whatever label is desired.  */
-      for (link = nonlocal_labels; link; link = TREE_CHAIN (link))
-	/* Skip any labels we shouldn't be able to jump to from here.  */
-	if (! DECL_TOO_LATE (TREE_VALUE (link)))
-	  {
-	    rtx not_this = gen_label_rtx ();
-	    rtx this = gen_label_rtx ();
-	    do_jump_if_equal (static_chain_rtx,
-			      gen_rtx_LABEL_REF (Pmode, DECL_RTL (TREE_VALUE (link))),
-			      this, 0);
-	    emit_jump (not_this);
-	    emit_label (this);
-	    expand_goto (TREE_VALUE (link));
-	    emit_label (not_this);
-	  }
-      /* If label is not recognized, abort.  */
-      emit_library_call (gen_rtx_SYMBOL_REF (Pmode, "abort"), 0,
-			 VOIDmode, 0);
-      emit_barrier ();
-      emit_label (afterward);
-    }
+    expand_nl_goto_receivers (thisblock);
 
   /* Don't allow jumping into a block that has a stack level.
      Cleanups are allowed, though.  */
@@ -3127,7 +3430,7 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 	{
 	  emit_stack_restore (thisblock->next ? SAVE_BLOCK : SAVE_FUNCTION,
 			      thisblock->data.block.stack_level, NULL_RTX);
-	  if (nonlocal_goto_handler_slot != 0)
+	  if (nonlocal_goto_handler_slots != 0)
 	    emit_stack_save (SAVE_NONLOCAL, &nonlocal_goto_stack_level,
 			     NULL_RTX);
 	}
@@ -3157,11 +3460,8 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 
   if (obey_regdecls)
     for (decl = vars; decl; decl = TREE_CHAIN (decl))
-      {
-	rtx rtl = DECL_RTL (decl);
-	if (TREE_CODE (decl) == VAR_DECL && rtl != 0)
-	  use_variable (rtl);
-      }
+      if (TREE_CODE (decl) == VAR_DECL && DECL_RTL (decl))
+	use_variable (DECL_RTL (decl));
 
   /* Restore the temporary level of TARGET_EXPRs.  */
   target_temp_slot_level = thisblock->data.block.target_temp_slot_level;
@@ -3174,8 +3474,6 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
   /* Pop the stack slot nesting and free any slots at this level.  */
   pop_temp_slots ();
 }
-
-
 
 /* Generate RTL for the automatic variable declaration DECL.
    (Other kinds of declarations are simply ignored if seen here.)  */
@@ -3214,7 +3512,7 @@ expand_decl (decl)
 	/* An initializer is going to decide the size of this array.
 	   Until we know the size, represent its address with a reg.  */
 	DECL_RTL (decl) = gen_rtx_MEM (BLKmode, gen_reg_rtx (Pmode));
-      MEM_IN_STRUCT_P (DECL_RTL (decl)) = AGGREGATE_TYPE_P (type);
+      MEM_SET_IN_STRUCT_P (DECL_RTL (decl), AGGREGATE_TYPE_P (type));
     }
   else if (DECL_MODE (decl) != BLKmode
 	   /* If -ffloat-store, don't put explicit float vars
@@ -3225,7 +3523,7 @@ expand_decl (decl)
 	   && ! TREE_ADDRESSABLE (decl)
 	   && (DECL_REGISTER (decl) || ! obey_regdecls)
 	   /* if -fcheck-memory-usage, check all variables.  */
-	   && ! flag_check_memory_usage)
+	   && ! current_function_check_memory_usage)
     {
       /* Automatic variable that can go in a register.  */
       int unsignedp = TREE_UNSIGNED (type);
@@ -3263,13 +3561,9 @@ expand_decl (decl)
 	  oldaddr = XEXP (DECL_RTL (decl), 0);
 	}
 
-      DECL_RTL (decl)
-	= assign_stack_temp (DECL_MODE (decl),
-			     ((TREE_INT_CST_LOW (DECL_SIZE (decl))
-			       + BITS_PER_UNIT - 1)
-			      / BITS_PER_UNIT),
-			     1);
-      MEM_IN_STRUCT_P (DECL_RTL (decl)) = AGGREGATE_TYPE_P (TREE_TYPE (decl));
+      DECL_RTL (decl) = assign_temp (TREE_TYPE (decl), 1, 1, 1);
+      MEM_SET_IN_STRUCT_P (DECL_RTL (decl),
+			   AGGREGATE_TYPE_P (TREE_TYPE (decl)));
 
       /* Set alignment we actually gave this decl.  */
       DECL_ALIGN (decl) = (DECL_MODE (decl) == BLKmode ? BIGGEST_ALIGNMENT
@@ -3284,7 +3578,8 @@ expand_decl (decl)
 
       /* If this is a memory ref that contains aggregate components,
 	 mark it as such for cse and loop optimize.  */
-      MEM_IN_STRUCT_P (DECL_RTL (decl)) = AGGREGATE_TYPE_P (TREE_TYPE (decl));
+      MEM_SET_IN_STRUCT_P (DECL_RTL (decl),
+			   AGGREGATE_TYPE_P (TREE_TYPE (decl)));
 #if 0
       /* If this is in memory because of -ffloat-store,
 	 set the volatile bit, to prevent optimizations from
@@ -3330,7 +3625,8 @@ expand_decl (decl)
 
       /* If this is a memory ref that contains aggregate components,
 	 mark it as such for cse and loop optimize.  */
-      MEM_IN_STRUCT_P (DECL_RTL (decl)) = AGGREGATE_TYPE_P (TREE_TYPE (decl));
+      MEM_SET_IN_STRUCT_P (DECL_RTL (decl),
+			   AGGREGATE_TYPE_P (TREE_TYPE (decl)));
 
       /* Indicate the alignment we actually gave this variable.  */
 #ifdef STACK_BOUNDARY
@@ -3663,7 +3959,7 @@ expand_anon_union_decl (decl, cleanup, decl_elts)
 	  else
 	    {
 	      DECL_RTL (decl_elt) = gen_rtx_MEM (mode, copy_rtx (XEXP (x, 0)));
-	      MEM_IN_STRUCT_P (DECL_RTL (decl_elt)) = MEM_IN_STRUCT_P (x);
+	      MEM_COPY_ATTRIBUTES (DECL_RTL (decl_elt), x);
 	      RTX_UNCHANGING_P (DECL_RTL (decl_elt)) = RTX_UNCHANGING_P (x);
 	    }
 	}
@@ -3857,7 +4153,7 @@ expand_start_case (exit_flag, expr, type, printname)
      int exit_flag;
      tree expr;
      tree type;
-     char *printname;
+     const char *printname;
 {
   register struct nesting *thiscase = ALLOC_NESTING ();
 
@@ -4705,7 +5001,7 @@ void
 expand_end_case (orig_index)
      tree orig_index;
 {
-  tree minval, maxval, range, orig_minval;
+  tree minval = NULL_TREE, maxval = NULL_TREE, range, orig_minval;
   rtx default_label = 0;
   register struct case_node *n;
   unsigned int count;
@@ -4833,7 +5129,7 @@ expand_end_case (orig_index)
 #endif /* CASE_VALUES_THRESHOLD */
 
       else if (TREE_INT_CST_HIGH (range) != 0
-	       || count < CASE_VALUES_THRESHOLD
+	       || count < (unsigned int) CASE_VALUES_THRESHOLD
 	       || ((unsigned HOST_WIDE_INT) (TREE_INT_CST_LOW (range))
 		   > 10 * count)
 #ifndef ASM_OUTPUT_ADDR_DIFF_ELT
@@ -4953,8 +5249,8 @@ expand_end_case (orig_index)
 				      index_expr, minval);
 		  minval = integer_zero_node;
 		  index = expand_expr (index_expr, NULL_RTX, VOIDmode, 0);
-		  emit_cmp_insn (rangertx, index, LTU, NULL_RTX, omode, 1, 0);
-		  emit_jump_insn (gen_bltu (default_label));
+		  emit_cmp_and_jump_insns (rangertx, index, LTU, NULL_RTX,
+					   omode, 1, 0, default_label);
 		  /* Now we can safely truncate.  */
 		  index = convert_to_mode (index_mode, index, 0);
 		}
@@ -5123,8 +5419,8 @@ do_jump_if_equal (op1, op2, label, unsignedp)
       enum machine_mode mode = GET_MODE (op1);
       if (mode == VOIDmode)
 	mode = GET_MODE (op2);
-      emit_cmp_insn (op1, op2, EQ, NULL_RTX, mode, unsignedp, 0);
-      emit_jump_insn (gen_beq (label));
+      emit_cmp_and_jump_insns (op1, op2, EQ, NULL_RTX, mode, unsignedp,
+			       0, label);
     }
 }
 
@@ -5532,11 +5828,7 @@ emit_case_nodes (index, node, default_label, index_type)
 {
   /* If INDEX has an unsigned type, we must make unsigned branches.  */
   int unsignedp = TREE_UNSIGNED (index_type);
-  typedef rtx rtx_function ();
-  rtx_function *gen_bgt_pat = unsignedp ? gen_bgtu : gen_bgt;
-  rtx_function *gen_bge_pat = unsignedp ? gen_bgeu : gen_bge;
-  rtx_function *gen_blt_pat = unsignedp ? gen_bltu : gen_blt;
-  rtx_function *gen_ble_pat = unsignedp ? gen_bleu : gen_ble;
+  typedef rtx rtx_fn ();
   enum machine_mode mode = GET_MODE (index);
 
   /* See if our parents have already tested everything for us.
@@ -5562,20 +5854,19 @@ emit_case_nodes (index, node, default_label, index_type)
 
 	  if (node_is_bounded (node->right, index_type))
 	    {
-	      emit_cmp_insn (index, expand_expr (node->high, NULL_RTX,
-						 VOIDmode, 0),
-			     GT, NULL_RTX, mode, unsignedp, 0);
-
-	      emit_jump_insn ((*gen_bgt_pat) (label_rtx (node->right->code_label)));
+	      emit_cmp_and_jump_insns (index, expand_expr (node->high, NULL_RTX,
+							   VOIDmode, 0),
+				        GT, NULL_RTX, mode, unsignedp, 0,
+					label_rtx (node->right->code_label));
 	      emit_case_nodes (index, node->left, default_label, index_type);
 	    }
 
 	  else if (node_is_bounded (node->left, index_type))
 	    {
-	      emit_cmp_insn (index, expand_expr (node->high, NULL_RTX,
-						 VOIDmode, 0),
-			     LT, NULL_RTX, mode, unsignedp, 0);
-	      emit_jump_insn ((*gen_blt_pat) (label_rtx (node->left->code_label)));
+	      emit_cmp_and_jump_insns (index, expand_expr (node->high, NULL_RTX,
+							   VOIDmode, 0),
+				       LT, NULL_RTX, mode, unsignedp, 0,
+				       label_rtx (node->left->code_label));
 	      emit_case_nodes (index, node->right, default_label, index_type);
 	    }
 
@@ -5588,10 +5879,10 @@ emit_case_nodes (index, node, default_label, index_type)
 		= build_decl (LABEL_DECL, NULL_TREE, NULL_TREE);
 
 	      /* See if the value is on the right.  */
-	      emit_cmp_insn (index, expand_expr (node->high, NULL_RTX,
-						 VOIDmode, 0),
-			     GT, NULL_RTX, mode, unsignedp, 0);
-	      emit_jump_insn ((*gen_bgt_pat) (label_rtx (test_label)));
+	      emit_cmp_and_jump_insns (index, expand_expr (node->high, NULL_RTX,
+							   VOIDmode, 0),
+				       GT, NULL_RTX, mode, unsignedp, 0,
+				       label_rtx (test_label));
 
 	      /* Value must be on the left.
 		 Handle the left-hand subtree.  */
@@ -5619,10 +5910,11 @@ emit_case_nodes (index, node, default_label, index_type)
 	    {
 	      if (!node_has_low_bound (node, index_type))
 		{
-		  emit_cmp_insn (index, expand_expr (node->high, NULL_RTX,
-						     VOIDmode, 0),
-				 LT, NULL_RTX, mode, unsignedp, 0);
-		  emit_jump_insn ((*gen_blt_pat) (default_label));
+		  emit_cmp_and_jump_insns (index, expand_expr (node->high,
+							       NULL_RTX,
+							       VOIDmode, 0),
+					   LT, NULL_RTX, mode, unsignedp, 0,
+					   default_label);
 		}
 
 	      emit_case_nodes (index, node->right, default_label, index_type);
@@ -5659,10 +5951,11 @@ emit_case_nodes (index, node, default_label, index_type)
 	    {
 	      if (!node_has_high_bound (node, index_type))
 		{
-		  emit_cmp_insn (index, expand_expr (node->high, NULL_RTX,
-						     VOIDmode, 0),
-				 GT, NULL_RTX, mode, unsignedp, 0);
-		  emit_jump_insn ((*gen_bgt_pat) (default_label));
+		  emit_cmp_and_jump_insns (index, expand_expr (node->high,
+							       NULL_RTX,
+							       VOIDmode, 0),
+					   GT, NULL_RTX, mode, unsignedp, 0,
+					   default_label);
 		}
 
 	      emit_case_nodes (index, node->left, default_label, index_type);
@@ -5692,28 +5985,32 @@ emit_case_nodes (index, node, default_label, index_type)
 	     then handle the two subtrees.  */
 	  tree test_label = 0;
 
-	  emit_cmp_insn (index, expand_expr (node->high, NULL_RTX,
-					     VOIDmode, 0),
-			 GT, NULL_RTX, mode, unsignedp, 0);
 
 	  if (node_is_bounded (node->right, index_type))
 	    /* Right hand node is fully bounded so we can eliminate any
 	       testing and branch directly to the target code.  */
-	    emit_jump_insn ((*gen_bgt_pat) (label_rtx (node->right->code_label)));
+	    emit_cmp_and_jump_insns (index, expand_expr (node->high, NULL_RTX,
+							 VOIDmode, 0),
+				     GT, NULL_RTX, mode, unsignedp, 0,
+				     label_rtx (node->right->code_label));
 	  else
 	    {
 	      /* Right hand node requires testing.
 		 Branch to a label where we will handle it later.  */
 
 	      test_label = build_decl (LABEL_DECL, NULL_TREE, NULL_TREE);
-	      emit_jump_insn ((*gen_bgt_pat) (label_rtx (test_label)));
+	      emit_cmp_and_jump_insns (index, expand_expr (node->high, NULL_RTX,
+							   VOIDmode, 0),
+				       GT, NULL_RTX, mode, unsignedp, 0,
+				       label_rtx (test_label));
 	    }
 
 	  /* Value belongs to this node or to the left-hand subtree.  */
 
-	  emit_cmp_insn (index, expand_expr (node->low, NULL_RTX, VOIDmode, 0),
-			 GE, NULL_RTX, mode, unsignedp, 0);
-	  emit_jump_insn ((*gen_bge_pat) (label_rtx (node->code_label)));
+	  emit_cmp_and_jump_insns (index, expand_expr (node->low, NULL_RTX,
+						       VOIDmode, 0),
+				   GE, NULL_RTX, mode, unsignedp, 0,
+				   label_rtx (node->code_label));
 
 	  /* Handle the left-hand subtree.  */
 	  emit_case_nodes (index, node->left, default_label, index_type);
@@ -5737,18 +6034,18 @@ emit_case_nodes (index, node, default_label, index_type)
 	     if they are possible.  */
 	  if (!node_has_low_bound (node, index_type))
 	    {
-	      emit_cmp_insn (index, expand_expr (node->low, NULL_RTX,
-						 VOIDmode, 0),
-			     LT, NULL_RTX, mode, unsignedp, 0);
-	      emit_jump_insn ((*gen_blt_pat) (default_label));
+	      emit_cmp_and_jump_insns (index, expand_expr (node->low, NULL_RTX,
+							   VOIDmode, 0),
+				       LT, NULL_RTX, mode, unsignedp, 0,
+				       default_label);
 	    }
 
 	  /* Value belongs to this node or to the right-hand subtree.  */
 
-	  emit_cmp_insn (index, expand_expr (node->high, NULL_RTX,
-					     VOIDmode, 0),
-			 LE, NULL_RTX, mode, unsignedp, 0);
-	  emit_jump_insn ((*gen_ble_pat) (label_rtx (node->code_label)));
+	  emit_cmp_and_jump_insns (index, expand_expr (node->high, NULL_RTX,
+						       VOIDmode, 0),
+				   LE, NULL_RTX, mode, unsignedp, 0,
+				   label_rtx (node->code_label));
 
 	  emit_case_nodes (index, node->right, default_label, index_type);
 	}
@@ -5759,17 +6056,18 @@ emit_case_nodes (index, node, default_label, index_type)
 	     if they are possible.  */
 	  if (!node_has_high_bound (node, index_type))
 	    {
-	      emit_cmp_insn (index, expand_expr (node->high, NULL_RTX,
-						 VOIDmode, 0),
-			     GT, NULL_RTX, mode, unsignedp, 0);
-	      emit_jump_insn ((*gen_bgt_pat) (default_label));
+	      emit_cmp_and_jump_insns (index, expand_expr (node->high, NULL_RTX,
+							   VOIDmode, 0),
+				       GT, NULL_RTX, mode, unsignedp, 0,
+				       default_label);
 	    }
 
 	  /* Value belongs to this node or to the left-hand subtree.  */
 
-	  emit_cmp_insn (index, expand_expr (node->low, NULL_RTX, VOIDmode, 0),
-			 GE, NULL_RTX, mode, unsignedp, 0);
-	  emit_jump_insn ((*gen_bge_pat) (label_rtx (node->code_label)));
+	  emit_cmp_and_jump_insns (index, expand_expr (node->low, NULL_RTX,
+						       VOIDmode, 0),
+				   GE, NULL_RTX, mode, unsignedp, 0,
+				   label_rtx (node->code_label));
 
 	  emit_case_nodes (index, node->left, default_label, index_type);
 	}
@@ -5782,18 +6080,18 @@ emit_case_nodes (index, node, default_label, index_type)
 
 	  if (!node_has_high_bound (node, index_type))
 	    {
-	      emit_cmp_insn (index, expand_expr (node->high, NULL_RTX,
-						 VOIDmode, 0),
-			     GT, NULL_RTX, mode, unsignedp, 0);
-	      emit_jump_insn ((*gen_bgt_pat) (default_label));
+	      emit_cmp_and_jump_insns (index, expand_expr (node->high, NULL_RTX,
+							   VOIDmode, 0),
+				       GT, NULL_RTX, mode, unsignedp, 0,
+				       default_label);
 	    }
 
 	  if (!node_has_low_bound (node, index_type))
 	    {
-	      emit_cmp_insn (index, expand_expr (node->low, NULL_RTX,
-						 VOIDmode, 0),
-			     LT, NULL_RTX, mode, unsignedp, 0);
-	      emit_jump_insn ((*gen_blt_pat) (default_label));
+	      emit_cmp_and_jump_insns (index, expand_expr (node->low, NULL_RTX,
+							   VOIDmode, 0),
+				       LT, NULL_RTX, mode, unsignedp, 0,
+				       default_label);
 	    }
 
 	  emit_jump (label_rtx (node->code_label));

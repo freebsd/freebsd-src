@@ -1,5 +1,5 @@
 /* Provide a call-back mechanism for handling error output.
-   Copyright (C) 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1993, 94-98, 1999 Free Software Foundation, Inc.
    Contributed by Jason Merrill (jason@cygnus.com)
 
    This file is part of GNU CC.
@@ -22,13 +22,8 @@ Boston, MA 02111-1307, USA.  */
 #include "config.h"
 #include "system.h"
 #include "tree.h"
+#include "cp-tree.h"
 #include "toplev.h"
-
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 /* cp_printer is the type of a function which converts an argument into
    a string for digestion by printf.  The cp_printer function should deal
@@ -45,25 +40,19 @@ int cp_silent = 0;
 
 typedef void errorfn ();	/* deliberately vague */
 
-extern char* cp_file_of PROTO((tree));
-extern int   cp_line_of PROTO((tree));
+static void cp_thing PROTO ((errorfn *, int, const char *, va_list));
 
 #define STRDUP(f) (ap = (char *) alloca (strlen (f) +1), strcpy (ap, (f)), ap)
 
 /* This function supports only `%s', `%d', `%%', and the C++ print
    codes.  */
 
-#ifdef __STDC__
-static void
-cp_thing (errorfn *errfn, int atarg1, const char *format, va_list ap)
-#else
 static void
 cp_thing (errfn, atarg1, format, ap)
      errorfn *errfn;
      int atarg1;
      const char *format;
      va_list ap;
-#endif
 {
   static char *buf;
   static long buflen;
@@ -155,18 +144,15 @@ cp_thing (errfn, atarg1, format, ap)
 	}
       else if (*f == '%')
 	{
-	  /* A `%%' has occurred in the input string.  Since the
-	     string we produce here will be passed to vprintf we must
-	     preserve both `%' characters.  */
+	  /* A `%%' has occurred in the input string. Replace it with
+	     a `%' in the formatted message buf. */
 
-	  len += 2;
-	  if (len > buflen)
+	  if (++len > buflen)
 	    {
 	      buflen = len;
 	      buf = xrealloc (buf, len);
 	    }
-	  strcpy (buf + offset, "%%");
-	  offset += 2;
+	  buf[offset++] = '%';
 	}
       else
 	{
@@ -196,88 +182,170 @@ cp_thing (errfn, atarg1, format, ap)
     {
       char *file = cp_file_of (atarg);
       int   line = cp_line_of (atarg);
-      (*errfn) (file, line, buf);
+      (*errfn) (file, line, "%s", buf);
     }
   else
-    (*errfn) (buf);
+    (*errfn) ("%s", buf);
 
 }
 
-#ifdef __STDC__
-#define DECLARE(name) void name (const char *format, ...)
-#define INIT va_start (ap, format)
-#else
-#define DECLARE(name) void name (format, va_alist) char *format; va_dcl
-#define INIT va_start (ap)
+void
+cp_error VPROTO((const char *format, ...))
+{
+#ifndef ANSI_PROTOTYPES
+  char *format;
+#endif
+  va_list ap;
+
+  VA_START (ap, format);
+
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, char *);
 #endif
 
-DECLARE (cp_error)
-{
-  va_list ap;
-  INIT;
   if (! cp_silent)
     cp_thing ((errorfn *) error, 0, format, ap);
   va_end (ap);
 }
 
-DECLARE (cp_warning)
+void
+cp_warning VPROTO((const char *format, ...))
 {
+#ifndef ANSI_PROTOTYPES
+  char *format;
+#endif
   va_list ap;
-  INIT;
+
+  VA_START (ap, format);
+
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, char *);
+#endif
+
   if (! cp_silent)
     cp_thing ((errorfn *) warning, 0, format, ap);
   va_end (ap);
 }
 
-DECLARE (cp_pedwarn)
+void
+cp_pedwarn VPROTO((const char *format, ...))
 {
+#ifndef ANSI_PROTOTYPES
+  char *format;
+#endif
   va_list ap;
-  INIT;
+
+  VA_START (ap, format);
+
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, char *);
+#endif
+
   if (! cp_silent)
     cp_thing ((errorfn *) pedwarn, 0, format, ap);
   va_end (ap);
 }
 
-DECLARE (cp_compiler_error)
+void
+cp_compiler_error VPROTO((const char *format, ...))
 {
-  extern errorfn compiler_error;
+#ifndef ANSI_PROTOTYPES
+  char *format;
+#endif
   va_list ap;
-  INIT;
+
+  VA_START (ap, format);
+
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, char *);
+#endif
+
   if (! cp_silent)
-    cp_thing (compiler_error, 0, format, ap);
+    cp_thing ((errorfn *) compiler_error, 0, format, ap);
   va_end (ap);
 }
 
-DECLARE (cp_sprintf)
+void
+cp_deprecated (msg)
+  const char *msg;
 {
+  extern int warn_deprecated;
+  if (!warn_deprecated)
+    return;
+  cp_warning ("%s is deprecated.", msg);
+  cp_warning ("Please see the documentation for details.");
+}
+
+void
+cp_sprintf VPROTO((const char *format, ...))
+{
+#ifndef ANSI_PROTOTYPES
+  char *format;
+#endif
   va_list ap;
-  INIT;
+
+  VA_START (ap, format);
+
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, char *);
+#endif
+
   cp_thing ((errorfn *) sprintf, 0, format, ap);
   va_end (ap);
 }
 
-DECLARE (cp_error_at)
+void
+cp_error_at VPROTO((const char *format, ...))
 {
+#ifndef ANSI_PROTOTYPES
+  char *format;
+#endif
   va_list ap;
-  INIT;
+
+  VA_START (ap, format);
+
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, char *);
+#endif
+
   if (! cp_silent)
     cp_thing ((errorfn *) error_with_file_and_line, 1, format, ap);
   va_end (ap);
 }
 
-DECLARE (cp_warning_at)
+void
+cp_warning_at VPROTO((const char *format, ...))
 {
+#ifndef ANSI_PROTOTYPES
+  char *format;
+#endif
   va_list ap;
-  INIT;
+
+  VA_START (ap, format);
+
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, char *);
+#endif
+
   if (! cp_silent)
     cp_thing ((errorfn *) warning_with_file_and_line, 1, format, ap);
   va_end (ap);
 }
 
-DECLARE (cp_pedwarn_at)
+void
+cp_pedwarn_at VPROTO((const char *format, ...))
 {
+#ifndef ANSI_PROTOTYPES
+  char *format;
+#endif
   va_list ap;
-  INIT;
+
+  VA_START (ap, format);
+
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, char *);
+#endif
+
   if (! cp_silent)
     cp_thing ((errorfn *) pedwarn_with_file_and_line, 1, format, ap);
   va_end (ap);

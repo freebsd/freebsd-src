@@ -1,5 +1,5 @@
 # Makefile for GNU C++ compiler.
-#   Copyright (C) 1987, 88, 90-5, 1998 Free Software Foundation, Inc.
+#   Copyright (C) 1987, 88, 90-5, 1998, 1999 Free Software Foundation, Inc.
 
 #This file is part of GNU CC.
 
@@ -34,6 +34,10 @@
 # Suppress smart makes who think they know how to automake Yacc files
 .y.c:
 
+# It defines the c++ interface name. It should be changed when the
+# c++ interface is changed.
+INTERFACE = 2
+
 # Variables that exist for you to override.
 # See below for how to change them for certain systems.
 
@@ -55,7 +59,7 @@ X_CPPFLAGS =
 T_CPPFLAGS =
 
 CC = @CC@
-BBISON = `if [ -f ../../bison/bison ] ; then echo ../../bison/bison -L $(srcdir)/../../bison/ ;  else echo bison ; fi`
+BISON = `if [ -f ../../bison/bison ] ; then echo ../../bison/bison -L $(srcdir)/../../bison/ ;  else echo bison ; fi`
 BISONFLAGS =
 LEX = `if [ -f ../../flex/flex ] ; then echo ../../flex/flex ;  else echo flex ; fi`
 LEXFLAGS =
@@ -101,6 +105,12 @@ VPATH = @srcdir@
 
 # Additional system libraries to link with.
 CLIB=
+ 
+# Top build directory, relative to here.
+top_builddir = ..
+
+# Internationalization library.
+INTLLIBS = @INTLLIBS@
 
 # Change this to a null string if obstacks are installed in the
 # system library.
@@ -150,13 +160,14 @@ SUBDIR_MALLOC = `if [ x$(MALLOC) != x ]; then echo ../$(MALLOC); else true; fi`
 
 # How to link with both our special library facilities
 # and the system's installed libraries.
-LIBS = $(SUBDIR_OBSTACK) $(SUBDIR_USE_ALLOCA) $(SUBDIR_MALLOC) $(CLIB)
+LIBS = $(SUBDIR_OBSTACK) $(SUBDIR_USE_ALLOCA) $(SUBDIR_MALLOC) \
+  $(INTLLIBS) $(CLIB)
 
 # Specify the directories to be searched for header files.
 # Both . and srcdir are used, in that order,
 # so that tm.h and config.h will be found in the compilation
 # subdirectory rather than in the source directory.
-INCLUDES = -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I$(srcdir)/../config
+INCLUDES = -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I$(srcdir)/../config -I$(srcdir)/../../include
 
 # Always use -I$(srcdir)/config when compiling.
 .c.o:
@@ -184,9 +195,8 @@ OBJS = `cat ../stamp-objlist` ../c-common.o ../c-pragma.o
 OBJDEPS = ../stamp-objlist ../c-common.o ../c-pragma.o
 
 compiler: ../cc1plus$(exeext)
-../cc1plus$(exeext): $(P) $(CXX_OBJS) $(OBJDEPS) $(LIBDEPS)
-	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ \
-	      $(CXX_OBJS) $(OBJS) $(LIBS)
+../cc1plus$(exeext): $(P) $(OBJDEPS) $(CXX_OBJS) $(LIBDEPS)
+	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(CXX_OBJS) $(LIBS)
 
 Makefile: $(srcdir)/Makefile.in $(srcdir)/../configure
 	cd ..; $(SHELL) config.status
@@ -215,7 +225,7 @@ parse.o : $(PARSE_C) $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h lex.h \
 	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(BIG_SWITCHFLAG) \
   `echo $(PARSE_C) | sed 's,^\./,,'`
 
-CONFLICTS = expect 26 shift/reduce conflicts and 42 reduce/reduce conflicts.
+CONFLICTS = expect 30 shift/reduce conflicts and 42 reduce/reduce conflicts.
 $(PARSE_H) : $(PARSE_C)
 $(PARSE_C) : $(srcdir)/parse.y
 	@echo $(CONFLICTS)
@@ -231,33 +241,35 @@ $(PARSE_C) : $(srcdir)/parse.y
 #	cp $(PARSE_C) y.tab.c
 #	touch stamp-parse
 
-# hash.h really depends on $(srcdir)/gxx.gperf.
-# But this would screw things for people that don't have gperf,
-# if gxx.gpref got touched, say.
-# Thus you have to remove hash.h to force it to be re-made.
-$(srcdir)/hash.h:
-	gperf -p -j1 -g -o -t -N is_reserved_word '-k1,4,7,$$' \
-		$(srcdir)/gxx.gperf >$(srcdir)/hash.h
+# We used to try to protect people from having to rerun gperf.  But,
+# the C front-end already requires this if c-parse.gperf is changed,
+# so we should be consistent.
+$(srcdir)/hash.h: $(srcdir)/gxx.gperf
+	gperf -L C -F ', 0, 0' -p -j1 -g -o -t -N is_reserved_word \
+		'-k1,4,7,$$' $(srcdir)/gxx.gperf >$(srcdir)/hash.h
 
-spew.o : spew.c $(CONFIG_H) $(CXX_TREE_H) \
-  $(PARSE_H) $(srcdir)/../flags.h lex.h $(srcdir)/../system.h
+spew.o : spew.c $(CONFIG_H) $(CXX_TREE_H) $(PARSE_H) $(srcdir)/../flags.h \
+  lex.h $(srcdir)/../system.h $(srcdir)/../toplev.h
 lex.o : lex.c $(CONFIG_H) $(CXX_TREE_H) \
   $(PARSE_H) input.c $(srcdir)/../flags.h hash.h lex.h \
   $(srcdir)/../c-pragma.h $(srcdir)/../system.h $(srcdir)/../toplev.h \
-  $(srcdir)/../output.h
+  $(srcdir)/../output.h $(srcdir)/../mbchar.h
 decl.o : decl.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
   lex.h decl.h $(srcdir)/../stack.h $(srcdir)/../output.h  \
-  $(srcdir)/../except.h $(srcdir)/../system.h $(srcdir)/../toplev.h
+  $(srcdir)/../except.h $(srcdir)/../system.h $(srcdir)/../toplev.h \
+  $(srcdir)/../hash.h
 decl2.o : decl2.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
   lex.h decl.h $(EXPR_H) $(srcdir)/../except.h \
   $(srcdir)/../output.h $(srcdir)/../except.h $(srcdir)/../system.h \
-  $(srcdir)/../toplev.h $(srcdir)/../dwarf2out.h $(srcdir)/../dwarfout.h
+  $(srcdir)/../toplev.h $(srcdir)/../dwarf2out.h $(srcdir)/../dwarfout.h \
+  $(srcdir)/../../include/splay-tree.h $(srcdir)/../varray.h
 typeck2.o : typeck2.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
   $(srcdir)/../system.h $(srcdir)/../toplev.h
 typeck.o : typeck.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h $(RTL_H) \
   $(EXPR_H) $(srcdir)/../system.h $(srcdir)/../toplev.h
 class.o : class.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
-  $(srcdir)/../system.h $(srcdir)/../toplev.h
+  $(srcdir)/../system.h $(srcdir)/../toplev.h \
+  $(srcdir)/../../include/splay-tree.h
 call.o : call.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
   $(srcdir)/../system.h $(srcdir)/../toplev.h
 friend.o : friend.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h $(RTL_H) \
@@ -266,9 +278,11 @@ init.o : init.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h $(RTL_H) \
   $(EXPR_H) $(srcdir)/../system.h $(srcdir)/../toplev.h
 method.o : method.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../system.h \
   $(srcdir)/../toplev.h
-cvt.o : cvt.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../system.h
+cvt.o : cvt.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../system.h decl.h \
+  $(srcdir)/../flags.h $(srcdir)/../toplev.h $(srcdir)/../convert.h
 search.o : search.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../stack.h \
-  $(srcdir)/../flags.h $(srcdir)/../system.h $(srcdir)/../toplev.h
+  $(srcdir)/../flags.h $(srcdir)/../system.h $(srcdir)/../toplev.h \
+  $(srcdir)/../varray.h
 tree.o : tree.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../flags.h \
   $(srcdir)/../system.h $(srcdir)/../toplev.h
 ptree.o : ptree.c $(CONFIG_H) $(CXX_TREE_H) $(srcdir)/../system.h
@@ -308,32 +322,3 @@ TAGS: force
 .PHONY: TAGS
 
 force:
-
-g++FAQ.info:	$(srcdir)/g++FAQ.texi
-	$(MAKEINFO) --no-split -o ./g++FAQ.info $(srcdir)/g++FAQ.texi
-
-# Preprocess the texi file so that the final document will have
-# hyperlinks.
-# It would be nice if texi2html could do something like this itself.
-
-# Assumption 1: the FAQ puts all http: and ftp: links in a @file{...}.
-# Assumption 2: newsgroups are like @file{comp.foo}
-# Assumption 3: email addresses match the regexp shown.
-
-g++FAQ.html:	$(srcdir)/g++FAQ.texi
-	mkdir work
-	sed -e 's?@file{\([fth]*p://[^}]*\)}?@strong{<A HREF="\1">\1</A>}?' \
-	    -e 's?@file{\(comp\.[-a-z+.]*\)}?<A HREF="news:\1">\1</A>?' \
-	    -e 's?@file{\(gnu\.[-a-z+.]*\)}?<A HREF="news:\1">\1</A>?' \
-	    -e 's?\([.+a-zA-Z0-9-]*@@[.a-zA-Z0-9-]*[a-zA-Z0-9]\)?<A HREF="mailto:\1">\1</A>?' \
-	    $(srcdir)/g++FAQ.texi > work/g++FAQ.texi
-	cd work; texi2html g++FAQ.texi
-	mv work/*.html .
-	rm -r work
-
-# Make plain-text form.
-
-g++FAQ.txt:	$(srcdir)/g++FAQ.texi
-	$(MAKEINFO) --no-split --no-headers -o - $(srcdir)/g++FAQ.texi |\
-		sed '/^Concept Index/,$$d' > g++FAQ.txt
-

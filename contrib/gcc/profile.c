@@ -1,5 +1,5 @@
 /* Calculate branch probabilities, and basic block execution counts. 
-   Copyright (C) 1990, 91-94, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91-94, 96-98, 1999 Free Software Foundation, Inc.
    Contributed by James E. Wilson, UC Berkeley/Cygnus Support;
    based on some ideas from Dain Samples of UC Berkeley.
    Further mangling by Bob Manson, Cygnus Support.
@@ -18,7 +18,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 /* ??? Really should not put insns inside of LIBCALL sequences, when putting
    insns after a call, should look for the insn setting the retval, and
@@ -52,8 +53,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "output.h"
 #include "gcov-io.h"
 #include "toplev.h"
-
-extern char * xmalloc ();
 
 /* One of these is dynamically created whenever we identify an arc in the
    function.  */
@@ -1408,7 +1407,7 @@ expand_spanning_tree (block)
 
 void
 init_branch_prob (filename)
-     char *filename;
+  const char *filename;
 {
   long len;
   int i;
@@ -1668,7 +1667,13 @@ output_func_start_profiler ()
   TREE_PUBLIC (fndecl) = 1;
   DECL_ASSEMBLER_NAME (fndecl) = fnname;
   DECL_RESULT (fndecl) = build_decl (RESULT_DECL, NULL_TREE, void_type_node);
+
+  fndecl = pushdecl (fndecl);
+  rest_of_decl_compilation (fndecl, 0, 1, 0);
+  announce_function (fndecl);
   current_function_decl = fndecl;
+  DECL_INITIAL (fndecl) = error_mark_node;
+  temporary_allocation ();
   pushlevel (0);
   make_function_rtl (fndecl);
   init_function_start (fndecl, input_filename, lineno);

@@ -18,21 +18,21 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
 #include "hash.h"
 #include "demangle.h"
 #include "toplev.h"
+#include "collect2.h"
 
 #define MAX_ITERATIONS 17
 
 /* Obstack allocation and deallocation routines.  */
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
-
-extern char * xmalloc PARAMS((unsigned));
 
 /* Defined in collect2.c.  */
 extern int vflag, debug;
@@ -47,7 +47,8 @@ extern int prepends_underscore;
 
 static int tlink_verbose;
 
-/* Hash table code.  */
+/* Hash table boilerplate for working with hash.[ch].  We have hash tables
+   for symbol names, file names, and demangled symbols.  */
 
 typedef struct symbol_hash_entry
 {
@@ -75,11 +76,46 @@ typedef struct demangled_hash_entry
 
 static struct hash_table symbol_table;
 
+static struct hash_entry * symbol_hash_newfunc PARAMS ((struct hash_entry *,
+							struct hash_table *,
+							hash_table_key));
+static struct symbol_hash_entry * symbol_hash_lookup PARAMS ((const char *,
+							      boolean));
+static struct hash_entry * file_hash_newfunc PARAMS ((struct hash_entry *,
+						      struct hash_table *,
+						      hash_table_key));
+static struct file_hash_entry * file_hash_lookup PARAMS ((const char *));
+static struct hash_entry * demangled_hash_newfunc PARAMS ((struct hash_entry *,
+							   struct hash_table *,
+							   hash_table_key));
+static struct demangled_hash_entry *
+  demangled_hash_lookup PARAMS ((const char *, boolean));
+static void symbol_push PARAMS ((symbol *));
+static symbol * symbol_pop PARAMS ((void));
+static void file_push PARAMS ((file *));
+static file * file_pop PARAMS ((void));
+static void tlink_init PARAMS ((void));
+static int tlink_execute PARAMS ((char *, char **, char *));
+static char * frob_extension PARAMS ((char *, const char *));
+static char * obstack_fgets PARAMS ((FILE *, struct obstack *));
+static char * tfgets PARAMS ((FILE *));
+static char * pfgets PARAMS ((FILE *));
+static void freadsym PARAMS ((FILE *, file *, int));
+static void read_repo_file PARAMS ((file *));
+static void maybe_tweak PARAMS ((char *, file *));
+static int recompile_files PARAMS ((void));
+static int read_repo_files PARAMS ((char **));
+static void demangle_new_symbols PARAMS ((void));
+static int scan_linker_output PARAMS ((const char *));
+
+/* Create a new entry for the symbol hash table.
+   Passed to hash_table_init.  */
+
 static struct hash_entry *
 symbol_hash_newfunc (entry, table, string)
      struct hash_entry *entry;
      struct hash_table *table;
-     const char *string;
+     hash_table_key string;
 {
   struct symbol_hash_entry *ret = (struct symbol_hash_entry *) entry;
   if (ret == NULL)
@@ -89,8 +125,6 @@ symbol_hash_newfunc (entry, table, string)
       if (ret == NULL)
 	return NULL;
     }
-  ret = ((struct symbol_hash_entry *)
-     	 hash_newfunc ((struct hash_entry *) ret, table, string));
   ret->file = NULL;
   ret->chosen = 0;
   ret->tweaking = 0;
@@ -98,22 +132,28 @@ symbol_hash_newfunc (entry, table, string)
   return (struct hash_entry *) ret;
 }
 
+/* Look up an entry in the symbol hash table.  */
+
 static struct symbol_hash_entry *
 symbol_hash_lookup (string, create)
      const char *string;
      boolean create;
 {
   return ((struct symbol_hash_entry *)
-	  hash_lookup (&symbol_table, string, create, true));
+	  hash_lookup (&symbol_table, (hash_table_key) string, 
+		       create, &string_copy));
 }
 
 static struct hash_table file_table;
+
+/* Create a new entry for the file hash table.
+   Passed to hash_table_init.  */
 
 static struct hash_entry *
 file_hash_newfunc (entry, table, string)
      struct hash_entry *entry;
      struct hash_table *table;
-     const char *string;
+     hash_table_key string;
 {
    struct file_hash_entry *ret = (struct file_hash_entry *) entry;
   if (ret == NULL)
@@ -123,8 +163,6 @@ file_hash_newfunc (entry, table, string)
       if (ret == NULL)
 	return NULL;
     }
-  ret = ((struct file_hash_entry *)
-     	 hash_newfunc ((struct hash_entry *) ret, table, string));
   ret->args = NULL;
   ret->dir = NULL;
   ret->main = NULL;
@@ -132,21 +170,27 @@ file_hash_newfunc (entry, table, string)
   return (struct hash_entry *) ret;
 }
 
+/* Look up an entry in the file hash table.  */
+
 static struct file_hash_entry *
 file_hash_lookup (string)
      const char *string;
 {
   return ((struct file_hash_entry *)
-	  hash_lookup (&file_table, string, true, true));
+	  hash_lookup (&file_table, (hash_table_key) string, true, 
+		       &string_copy));
 }
 
 static struct hash_table demangled_table;
+
+/* Create a new entry for the demangled name hash table.
+   Passed to hash_table_init.  */
 
 static struct hash_entry *
 demangled_hash_newfunc (entry, table, string)
      struct hash_entry *entry;
      struct hash_table *table;
-     const char *string;
+     hash_table_key string;
 {
   struct demangled_hash_entry *ret = (struct demangled_hash_entry *) entry;
   if (ret == NULL)
@@ -156,11 +200,11 @@ demangled_hash_newfunc (entry, table, string)
       if (ret == NULL)
 	return NULL;
     }
-  ret = ((struct demangled_hash_entry *)
-     	 hash_newfunc ((struct hash_entry *) ret, table, string));
   ret->mangled = NULL;
   return (struct hash_entry *) ret;
 }
+
+/* Look up an entry in the demangled name hash table.  */
 
 static struct demangled_hash_entry *
 demangled_hash_lookup (string, create)
@@ -168,7 +212,8 @@ demangled_hash_lookup (string, create)
      boolean create;
 {
   return ((struct demangled_hash_entry *)
-	  hash_lookup (&demangled_table, string, create, true));
+	  hash_lookup (&demangled_table, (hash_table_key) string, 
+		       create, &string_copy));
 }
 
 /* Stack code.  */
@@ -246,14 +291,19 @@ file_pop ()
 
 /* Other machinery.  */
 
+/* Initialize the tlink machinery.  Called from do_tlink.  */
+
 static void
 tlink_init ()
 {
   char *p;
 
-  hash_table_init (&symbol_table, symbol_hash_newfunc);
-  hash_table_init (&file_table, file_hash_newfunc);
-  hash_table_init (&demangled_table, demangled_hash_newfunc);
+  hash_table_init (&symbol_table, symbol_hash_newfunc, &string_hash,
+		   &string_compare);
+  hash_table_init (&file_table, file_hash_newfunc, &string_hash, 
+		   &string_compare);
+  hash_table_init (&demangled_table, demangled_hash_newfunc,
+		   &string_hash, &string_compare);
   obstack_begin (&symbol_stack_obstack, 0);
   obstack_begin (&file_stack_obstack, 0);
 
@@ -282,7 +332,8 @@ tlink_execute (prog, argv, redir)
 
 static char *
 frob_extension (s, ext)
-     char *s, *ext;
+     char *s;
+     const char *ext;
 {
   char *p = rindex (s, '/');
   if (! p)
@@ -325,6 +376,12 @@ pfgets (stream)
 
 /* Real tlink code.  */
 
+/* Subroutine of read_repo_file.  We are reading the repo file for file F,
+   which is coming in on STREAM, and the symbol that comes next in STREAM
+   is offerred, chosen or provided if CHOSEN is 0, 1 or 2, respectively.
+
+   XXX "provided" is unimplemented, both here and in the compiler.  */
+
 static void
 freadsym (stream, f, chosen)
      FILE *stream;
@@ -340,12 +397,16 @@ freadsym (stream, f, chosen)
 
   if (sym->file == NULL)
     {
+      /* We didn't have this symbol already, so we choose this file.  */
+
       symbol_push (sym);
       sym->file = f;
       sym->chosen = chosen;
     }
   else if (chosen)
     {
+      /* We want this file; cast aside any pretender.  */
+
       if (sym->chosen && sym->file != f)
 	{
 	  if (sym->chosen == 1)
@@ -362,15 +423,18 @@ freadsym (stream, f, chosen)
     }
 }
 
+/* Read in the repo file denoted by F, and record all its information.  */
+
 static void
 read_repo_file (f)
      file *f;
 {
   char c;
-  FILE *stream = fopen (f->root.string, "r");
+  FILE *stream = fopen ((char*) f->root.key, "r");
 
   if (tlink_verbose >= 2)
-    fprintf (stderr, "collect: reading %s\n", f->root.string);
+    fprintf (stderr, "collect: reading %s\n", 
+	     (char*) f->root.key);
 
   while (fscanf (stream, "%c ", &c) == 1)
     {
@@ -404,6 +468,11 @@ read_repo_file (f)
     f->dir = ".";
 }
 
+/* We might want to modify LINE, which is a symbol line from file F.  We do
+   this if either we saw an error message referring to the symbol in
+   question, or we have already allocated the symbol to another file and
+   this one wants to emit it as well.  */
+
 static void
 maybe_tweak (line, f)
      char *line;
@@ -424,6 +493,11 @@ maybe_tweak (line, f)
     }
 }
 
+/* Update the repo files for each of the object files we have adjusted and
+   recompile.
+
+   XXX Should this use collect_execute instead of system?  */
+
 static int
 recompile_files ()
 {
@@ -432,8 +506,8 @@ recompile_files ()
   while ((f = file_pop ()) != NULL)
     {
       char *line, *command;
-      FILE *stream = fopen (f->root.string, "r");
-      char *outname = frob_extension (f->root.string, ".rnw");
+      FILE *stream = fopen ((char*) f->root.key, "r");
+      char *outname = frob_extension ((char*) f->root.key, ".rnw");
       FILE *output = fopen (outname, "w");
 
       while ((line = tfgets (stream)) != NULL)
@@ -448,7 +522,7 @@ recompile_files ()
 	}
       fclose (stream);
       fclose (output);
-      rename (outname, f->root.string);
+      rename (outname, (char*) f->root.key);
 
       obstack_grow (&temporary_obstack, "cd ", 3);
       obstack_grow (&temporary_obstack, f->dir, strlen (f->dir));
@@ -473,6 +547,9 @@ recompile_files ()
     }
   return 1;
 }
+
+/* The first phase of processing: determine which object files have
+   .rpo files associated with them, and read in the information.  */
 
 static int
 read_repo_files (object_lst)
@@ -499,6 +576,8 @@ read_repo_files (object_lst)
   return (symbol_stack != NULL);
 }
 
+/* Add the demangled forms of any new symbols to the hash table.  */
+
 static void
 demangle_new_symbols ()
 {
@@ -507,19 +586,23 @@ demangle_new_symbols ()
   while ((sym = symbol_pop ()) != NULL)
     {
       demangled *dem;
-      char *p = cplus_demangle (sym->root.string, DMGL_PARAMS | DMGL_ANSI);
+      char *p = cplus_demangle ((char*) sym->root.key, 
+				DMGL_PARAMS | DMGL_ANSI);
 
       if (! p)
 	continue;
 
       dem = demangled_hash_lookup (p, true);
-      dem->mangled = sym->root.string;
+      dem->mangled = (char*) sym->root.key;
     }
 }
 
+/* Step through the output of the linker, in the file named FNAME, and
+   adjust the settings for each symbol encountered.  */
+
 static int
 scan_linker_output (fname)
-     char *fname;
+     const char *fname;
 {
   FILE *stream = fopen (fname, "r");
   char *line;
@@ -530,13 +613,13 @@ scan_linker_output (fname)
       symbol *sym;
       int end;
       
-      while (*p && ISSPACE (*p))
+      while (*p && ISSPACE ((unsigned char)*p))
 	++p;
 
       if (! *p)
 	continue;
 
-      for (q = p; *q && ! ISSPACE (*q); ++q)
+      for (q = p; *q && ! ISSPACE ((unsigned char)*q); ++q)
 	;
 
       /* Try the first word on the line.  */
@@ -550,26 +633,29 @@ scan_linker_output (fname)
       sym = symbol_hash_lookup (p, false);
 
       if (! sym && ! end)
-	/* Try a mangled name in `quotes'.  */
+	/* Try a mangled name in quotes.  */
 	{
+	  char *oldq = q+1;
 	  demangled *dem = 0;
-	  p = index (q+1, '`');
 	  q = 0;
 
-#define MUL "multiple definition of "
-#define UND "undefined reference to "
+	  /* First try `GNU style'.  */
+	  p = index (oldq, '`');
+	  if (p)
+	    p++, q = index (p, '\'');
+	  /* Then try "double quotes".  */
+	  else if (p = index (oldq, '"'), p)
+	    p++, q = index (p, '"');
 
-	  if (p && (p - line > sizeof (MUL)))
-	    {
-	      char *beg = p - sizeof (MUL) + 1;
-	      *p = 0;
-	      if (!strcmp (beg, MUL) || !strcmp (beg, UND))
-		p++, q = index (p, '\'');
-	    }
 	  if (q)
-	    *q = 0, dem = demangled_hash_lookup (p, false);
-	  if (dem)
-	    sym = symbol_hash_lookup (dem->mangled, false);
+	    {
+	      *q = 0;
+	      dem = demangled_hash_lookup (p, false);
+	      if (dem)
+		sym = symbol_hash_lookup (dem->mangled, false);
+	      else
+		sym = symbol_hash_lookup (p, false);
+	    }
 	}
 
       if (sym && sym->tweaked)
@@ -581,7 +667,7 @@ scan_linker_output (fname)
 	{
 	  if (tlink_verbose >= 2)
 	    fprintf (stderr, "collect: tweaking %s in %s\n",
-		     sym->root.string, sym->file->root.string);
+		     (char*) sym->root.key, (char*) sym->file->root.key);
 	  sym->tweaking = 1;
 	  file_push (sym->file);
 	}
@@ -592,6 +678,15 @@ scan_linker_output (fname)
   fclose (stream);
   return (file_stack != NULL);
 }
+
+/* Entry point for tlink.  Called from main in collect2.c.
+
+   Iteratively try to provide definitions for all the unresolved symbols
+   mentioned in the linker error messages.
+
+   LD_ARGV is an array of arguments for the linker.
+   OBJECT_LST is an array of object files that we may be able to recompile
+     to provide missing definitions.  Currently ignored.  */
 
 void
 do_tlink (ld_argv, object_lst)

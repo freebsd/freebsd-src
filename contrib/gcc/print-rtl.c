@@ -1,5 +1,5 @@
 /* Print RTL for GNU C Compiler.
-   Copyright (C) 1987, 1988, 1992, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1992, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -22,8 +22,9 @@ Boston, MA 02111-1307, USA.  */
 #include "config.h"
 #include "system.h"
 #include "rtl.h"
-#include "bitmap.h"
 #include "real.h"
+#include "flags.h"
+#include "basic-block.h"
 
 
 /* How to print out a register name.
@@ -44,7 +45,7 @@ static char *reg_names[] = REGISTER_NAMES;
 
 static FILE *outfile;
 
-char spaces[] = "                                                                                                                                                                ";
+static const char xspaces[] = "                                                                                                                                                                ";
 
 static int sawclose = 0;
 
@@ -54,59 +55,93 @@ static int indent;
 
 extern char **insn_name_ptr;
 
+static void print_rtx		PROTO ((rtx));
+
+/* Nonzero means suppress output of instruction numbers and line number
+   notes in debugging dumps.
+   This must be defined here so that programs like gencodes can be linked.  */
 int flag_dump_unnumbered = 0;
+
+/* Nonzero if we are dumping graphical description.  */
+int dump_for_graph;
+
 /* Print IN_RTX onto OUTFILE.  This is the recursive part of printing.  */
 
 static void
 print_rtx (in_rtx)
      register rtx in_rtx;
 {
-  register int i, j;
+  register int i = 0;
+  register int j;
   register char *format_ptr;
   register int is_insn;
 
   if (sawclose)
     {
       fprintf (outfile, "\n%s",
-	       (spaces + (sizeof spaces - 1 - indent * 2)));
+	       (xspaces + (sizeof xspaces - 1 - indent * 2)));
       sawclose = 0;
     }
 
   if (in_rtx == 0)
     {
-      fprintf (outfile, "(nil)");
+      fputs ("(nil)", outfile);
       sawclose = 1;
       return;
     }
 
-  /* print name of expression code */
-  fprintf (outfile, "(%s", GET_RTX_NAME (GET_CODE (in_rtx)));
+  is_insn = (GET_RTX_CLASS (GET_CODE (in_rtx)) == 'i');
 
-  if (in_rtx->in_struct)
-    fprintf (outfile, "/s");
-
-  if (in_rtx->volatil)
-    fprintf (outfile, "/v");
-
-  if (in_rtx->unchanging)
-    fprintf (outfile, "/u");
-
-  if (in_rtx->integrated)
-    fprintf (outfile, "/i");
-
-  if (GET_MODE (in_rtx) != VOIDmode)
+  /* When printing in VCG format we write INSNs, NOTE, LABEL, and BARRIER
+     in separate nodes and therefore have to handle them special here.  */
+  if (dump_for_graph &&
+      (is_insn || GET_CODE (in_rtx) == NOTE || GET_CODE (in_rtx) == CODE_LABEL
+       || GET_CODE (in_rtx) == BARRIER))
     {
-      /* Print REG_NOTE names for EXPR_LIST and INSN_LIST.  */
-      if (GET_CODE (in_rtx) == EXPR_LIST || GET_CODE (in_rtx) == INSN_LIST)
-	fprintf (outfile, ":%s", GET_REG_NOTE_NAME (GET_MODE (in_rtx)));
-      else
-	fprintf (outfile, ":%s", GET_MODE_NAME (GET_MODE (in_rtx)));
+      i = 3;
+      indent = 0;
+    }
+  else
+    {
+      /* print name of expression code */
+      fprintf (outfile, "(%s", GET_RTX_NAME (GET_CODE (in_rtx)));
+
+      if (in_rtx->in_struct)
+	fputs ("/s", outfile);
+
+      if (in_rtx->volatil)
+	fputs ("/v", outfile);
+
+      if (in_rtx->unchanging)
+	fputs ("/u", outfile);
+
+      if (in_rtx->integrated)
+	fputs ("/i", outfile);
+
+      if (in_rtx->frame_related)
+	fputs ("/f", outfile);
+
+      if (in_rtx->jump)
+	fputs ("/j", outfile);
+
+      if (in_rtx->call)
+	fputs ("/c", outfile);
+
+      if (GET_MODE (in_rtx) != VOIDmode)
+	{
+	  /* Print REG_NOTE names for EXPR_LIST and INSN_LIST.  */
+	  if (GET_CODE (in_rtx) == EXPR_LIST || GET_CODE (in_rtx) == INSN_LIST)
+	    fprintf (outfile, ":%s", GET_REG_NOTE_NAME (GET_MODE (in_rtx)));
+	  else
+	    fprintf (outfile, ":%s", GET_MODE_NAME (GET_MODE (in_rtx)));
+	}
     }
 
-  is_insn = (GET_RTX_CLASS (GET_CODE (in_rtx)) == 'i');
-  format_ptr = GET_RTX_FORMAT (GET_CODE (in_rtx));
+  /* Get the format string and skip the first elements if we have handled
+     them already.  */
+  format_ptr = GET_RTX_FORMAT (GET_CODE (in_rtx)) + i;
 
-  for (i = 0; i < GET_RTX_LENGTH (GET_CODE (in_rtx)); i++)
+  for (; i < GET_RTX_LENGTH (GET_CODE (in_rtx)); i++)
     switch (*format_ptr++)
       {
       case 'S':
@@ -124,7 +159,8 @@ print_rtx (in_rtx)
 
 	if (i == 3 && GET_CODE (in_rtx) == NOTE
 	    && (NOTE_LINE_NUMBER (in_rtx) == NOTE_INSN_RANGE_START
-		|| NOTE_LINE_NUMBER (in_rtx) == NOTE_INSN_RANGE_END))
+		|| NOTE_LINE_NUMBER (in_rtx) == NOTE_INSN_RANGE_END
+		|| NOTE_LINE_NUMBER (in_rtx) == NOTE_INSN_LIVE))
 	  {
 	    indent += 2;
 	    if (!sawclose)
@@ -135,19 +171,18 @@ print_rtx (in_rtx)
 	  }
 
 	if (i == 3 && GET_CODE (in_rtx) == NOTE
-	    && NOTE_LINE_NUMBER (in_rtx) == NOTE_INSN_LIVE)
+	    && NOTE_LINE_NUMBER (in_rtx) == NOTE_INSN_BASIC_BLOCK)
 	  {
-	    if (XBITMAP (in_rtx, i) == NULL)
-	      fprintf (outfile, " {null}");
-	    else
-	      bitmap_print (outfile, XBITMAP (in_rtx, i), " {", "}");
-	    sawclose = 0;
+	    basic_block bb = NOTE_BASIC_BLOCK (in_rtx);
+	    fprintf (outfile, " [bb %d]", bb->index);
+	    break;
 	  }
 
 	if (XSTR (in_rtx, i) == 0)
-	  fprintf (outfile, " \"\"");
+	  fputs (dump_for_graph ? " \\\"\\\"" : " \"\"", outfile);
 	else
-	  fprintf (outfile, " (\"%s\")", XSTR (in_rtx, i));
+	  fprintf (outfile, dump_for_graph ? " (\\\"%s\\\")" : " (\"%s\")",
+		   XSTR (in_rtx, i));
 	sawclose = 1;
 	break;
 
@@ -169,10 +204,10 @@ print_rtx (in_rtx)
 	if (sawclose)
 	  {
 	    fprintf (outfile, "\n%s",
-		     (spaces + (sizeof spaces - 1 - indent * 2)));
+		     (xspaces + (sizeof xspaces - 1 - indent * 2)));
 	    sawclose = 0;
 	  }
-	fprintf (outfile, "[ ");
+	fputs ("[ ", outfile);
 	if (NULL != XVEC (in_rtx, i))
 	  {
 	    indent += 2;
@@ -186,9 +221,9 @@ print_rtx (in_rtx)
 	  }
 	if (sawclose)
 	  fprintf (outfile, "\n%s",
-		   (spaces + (sizeof spaces - 1 - indent * 2)));
+		   (xspaces + (sizeof xspaces - 1 - indent * 2)));
 
-	fprintf (outfile, "] ");
+	fputs ("] ", outfile);
 	sawclose = 1;
 	indent -= 2;
 	break;
@@ -196,6 +231,9 @@ print_rtx (in_rtx)
       case 'w':
 	fprintf (outfile, " ");
 	fprintf (outfile, HOST_WIDE_INT_PRINT_DEC, XWINT (in_rtx, i));
+	fprintf (outfile, " [");
+	fprintf (outfile, HOST_WIDE_INT_PRINT_HEX, XWINT (in_rtx, i));
+	fprintf (outfile, "]");
 	break;
 
       case 'i':
@@ -209,7 +247,7 @@ print_rtx (in_rtx)
 	    }
 	  else if (flag_dump_unnumbered
 		   && (is_insn || GET_CODE (in_rtx) == NOTE))
-	    fprintf (outfile, "#");
+	    fputc ('#', outfile);
 	  else
 	    fprintf (outfile, " %d", value);
 	}
@@ -234,18 +272,18 @@ print_rtx (in_rtx)
 	if (XEXP (in_rtx, i) != NULL)
 	  {
 	    if (flag_dump_unnumbered)
-	      fprintf (outfile, "#");
+	      fputc ('#', outfile);
 	    else
 	      fprintf (outfile, " %d", INSN_UID (XEXP (in_rtx, i)));
 	  }
 	else
-	  fprintf (outfile, " 0");
+	  fputs (" 0", outfile);
 	sawclose = 0;
 	break;
 
       case 'b':
 	if (XBITMAP (in_rtx, i) == NULL)
-	  fprintf (outfile, " {null}");
+	  fputs (" {null}", outfile);
 	else
 	  bitmap_print (outfile, XBITMAP (in_rtx, i), " {", "}");
 	sawclose = 0;
@@ -257,7 +295,7 @@ print_rtx (in_rtx)
 	break;
 
       case '*':
-	fprintf (outfile, " Unknown");
+	fputs (" Unknown", outfile);
 	sawclose = 0;
 	break;
 
@@ -268,6 +306,9 @@ print_rtx (in_rtx)
 	abort ();
       }
 
+  if (GET_CODE (in_rtx) == MEM)
+    fprintf (outfile, " %d", MEM_ALIAS_SET (in_rtx));
+
 #if HOST_FLOAT_FORMAT == TARGET_FLOAT_FORMAT && LONG_DOUBLE_TYPE_SIZE == 64
   if (GET_CODE (in_rtx) == CONST_DOUBLE && FLOAT_MODE_P (GET_MODE (in_rtx)))
     {
@@ -277,8 +318,18 @@ print_rtx (in_rtx)
     }
 #endif
 
-  fprintf (outfile, ")");
-  sawclose = 1;
+  if (GET_CODE (in_rtx) == CODE_LABEL)
+    fprintf (outfile, " [num uses: %d]", LABEL_NUSES (in_rtx));
+  
+  if (dump_for_graph
+      && (is_insn || GET_CODE (in_rtx) == NOTE
+	  || GET_CODE (in_rtx) == CODE_LABEL || GET_CODE (in_rtx) == BARRIER))
+    sawclose = 0;
+  else
+    {
+      fputc (')', outfile);
+      sawclose = 1;
+    }
 }
 
 /* Print an rtx on the current line of FILE.  Initially indent IND
@@ -387,7 +438,7 @@ print_rtl (outf, rtx_first)
   sawclose = 0;
 
   if (rtx_first == 0)
-    fprintf (outf, "(nil)\n");
+    fputs ("(nil)\n", outf);
   else
     switch (GET_CODE (rtx_first))
       {
@@ -415,8 +466,9 @@ print_rtl (outf, rtx_first)
 }
 
 /* Like print_rtx, except specify a file.  */
+/* Return nonzero if we actually printed anything.  */
 
-void
+int
 print_rtl_single (outf, x)
      FILE *outf;
      rtx x;
@@ -428,5 +480,7 @@ print_rtl_single (outf, x)
     {
       print_rtx (x);
       putc ('\n', outf);
+      return 1;
     }
+  return 0;
 }

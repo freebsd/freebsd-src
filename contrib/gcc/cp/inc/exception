@@ -1,5 +1,5 @@
 // Exception Handling support header for -*- C++ -*-
-// Copyright (C) 1995, 1996 Free Software Foundation
+// Copyright (C) 1995, 96-97, 1998 Free Software Foundation
 
 #ifndef __EXCEPTION__
 #define __EXCEPTION__
@@ -8,9 +8,7 @@
 
 extern "C++" {
 
-#ifdef __HONOR_STD
 namespace std {
-#endif
 
 class exception {
 public:
@@ -34,9 +32,7 @@ unexpected_handler set_unexpected (unexpected_handler);
 void unexpected () __attribute__ ((__noreturn__));
 bool uncaught_exception ();
 
-#ifdef __HONOR_STD
 } // namespace std
-#endif
 
 } // extern "C++"
 

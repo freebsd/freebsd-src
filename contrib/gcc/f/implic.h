@@ -1,6 +1,6 @@
 /* implic.h -- Public #include File (module.h template V1.0)
    Copyright (C) 1995 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -55,7 +55,7 @@ bool ffeimplic_establish_initial (char c, ffeinfoBasictype basic_type,
 bool ffeimplic_establish_symbol (ffesymbol s);
 void ffeimplic_init_2 (void);
 void ffeimplic_none (void);
-ffeinfoBasictype ffeimplic_peek_symbol_type (ffesymbol s, char *name);
+ffeinfoBasictype ffeimplic_peek_symbol_type (ffesymbol s, const char *name);
 void ffeimplic_terminate_2 (void);
 
 /* Define macros. */

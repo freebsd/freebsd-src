@@ -66,7 +66,9 @@ Boston, MA 02111-1307, USA.  */
 /* The native assembler can't compute differences between symbols in different
    sections when generating pic code, so we must put jump tables in the
    text section.  */
-#define JUMP_TABLES_IN_TEXT_SECTION 1
+/* But we now defer the tables to the end of the function, so we make
+   this 0 to not confuse the branch shortening code.  */
+#define JUMP_TABLES_IN_TEXT_SECTION 0
 
 /* Pass -K to the assembler when PIC.  */
 #undef ASM_SPEC
@@ -191,35 +193,13 @@ do { ASM_OUTPUT_ALIGN ((FILE), Pmode == SImode ? 2 : 3);		\
 #define ASM_OUTPUT_SECTION_NAME(FILE, DECL, NAME, RELOC) \
 do {									\
   if ((DECL) && TREE_CODE (DECL) == FUNCTION_DECL)			\
-    fprintf (FILE, ".section\t\"%s%s\",#alloc,#execinstr\n",		\
-	     flag_function_sections ? ".text%" : "", (NAME));		\
+    fprintf (FILE, ".section\t\"%s\",#alloc,#execinstr\n",		\
+	                                      (NAME));		\
   else if ((DECL) && DECL_READONLY_SECTION (DECL, RELOC))		\
     fprintf (FILE, ".section\t\"%s\",#alloc\n", (NAME));		\
   else									\
     fprintf (FILE, ".section\t\"%s\",#alloc,#write\n", (NAME));		\
 } while (0)
-
-/* Output assembler code to FILE to initialize this source file's
-   basic block profiling info, if that has not already been done.  */
-
-#undef FUNCTION_BLOCK_PROFILER
-#define FUNCTION_BLOCK_PROFILER(FILE, LABELNO)  \
-  do { \
-    fprintf (FILE, "\tsethi %%hi(.LLPBX0),%%o0\n\tld [%%lo(.LLPBX0)+%%o0],%%o1\n\ttst %%o1\n\tbne LPY%d\n\tadd %%o0,%%lo(.LLPBX0),%%o0\n\tcall __bb_init_func\n\tnop\nLPY%d:\n", \
-	     (LABELNO), (LABELNO)); \
-  } while (0)
-
-/* Output assembler code to FILE to increment the entry-count for
-   the BLOCKNO'th basic block in this source file.  */
-
-#undef BLOCK_PROFILER
-#define BLOCK_PROFILER(FILE, BLOCKNO) \
-{ \
-  int blockn = (BLOCKNO); \
-  fprintf (FILE, "\tsethi %%hi(.LLPBX2+%d),%%g1\n\tld [%%lo(.LLPBX2+%d)+%%g1],%%g2\n\
-\tadd %%g2,1,%%g2\n\tst %%g2,[%%lo(.LLPBX2+%d)+%%g1]\n", \
-	   4 * blockn, 4 * blockn, 4 * blockn); \
-}
 
 /* A C statement (sans semicolon) to output to the stdio stream
    FILE the assembler definition of uninitialized global DECL named
@@ -229,3 +209,8 @@ do {									\
 #undef ASM_OUTPUT_ALIGNED_BSS
 #define ASM_OUTPUT_ALIGNED_BSS(FILE, DECL, NAME, SIZE, ALIGN) \
   asm_output_aligned_bss (FILE, DECL, NAME, SIZE, ALIGN)
+
+/* Override the name of the mcount profiling function.  */
+
+#undef MCOUNT_FUNCTION
+#define MCOUNT_FUNCTION "*_mcount"

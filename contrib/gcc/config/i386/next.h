@@ -1,5 +1,5 @@
 /* Target definitions for GNU compiler for Intel x86 CPU running NeXTSTEP
-   Copyright (C) 1993, 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -24,7 +24,7 @@ Boston, MA 02111-1307, USA.  */
 /* By default, target has a 80387, with IEEE FP.  */
 
 #undef	TARGET_DEFAULT
-#define TARGET_DEFAULT  (1|0100)
+#define TARGET_DEFAULT  (MASK_80387 | MASK_IEEE_FP)
 
 /* Implicit library calls should use memcpy, not bcopy, etc.  */
 

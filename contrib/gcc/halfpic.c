@@ -1,5 +1,5 @@
 /* OSF/rose half-pic support functions.
-   Copyright (C) 1992, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -40,7 +40,6 @@ Boston, MA 02111-1307, USA.  */
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-extern char *xmalloc ();
 extern rtx eliminate_constant_term ();
 extern void assemble_name ();
 extern void output_addr_const ();
@@ -217,10 +216,9 @@ half_pic_encode (decl)
 #ifdef HALF_PIC_DEBUG
   if (HALF_PIC_DEBUG)
     {
-      if (HALF_PIC_DEBUG)
-	fprintf (stderr, "\n========== Half_pic_encode %.*s\n",
-		 IDENTIFIER_LENGTH (asm_name),
-		 IDENTIFIER_POINTER (asm_name));
+      fprintf (stderr, "\n========== Half_pic_encode %.*s\n",
+	       IDENTIFIER_LENGTH (asm_name),
+	       IDENTIFIER_POINTER (asm_name));
       debug_tree (decl);
     }
 #endif

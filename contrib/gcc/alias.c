@@ -1,5 +1,5 @@
 /* Alias analysis for GNU C
-   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998, 1999 Free Software Foundation, Inc.
    Contributed by John Carr (jfc@mit.edu).
 
 This file is part of GNU CC.
@@ -26,7 +26,51 @@ Boston, MA 02111-1307, USA.  */
 #include "regs.h"
 #include "hard-reg-set.h"
 #include "flags.h"
+#include "output.h"
 #include "toplev.h"
+#include "splay-tree.h"
+
+/* The alias sets assigned to MEMs assist the back-end in determining
+   which MEMs can alias which other MEMs.  In general, two MEMs in
+   different alias sets to not alias each other.  There is one
+   exception, however.  Consider something like:
+
+     struct S {int i; double d; };
+
+   a store to an `S' can alias something of either type `int' or type
+   `double'.  (However, a store to an `int' cannot alias a `double'
+   and vice versa.)  We indicate this via a tree structure that looks
+   like:
+           struct S
+            /   \
+	   /     \
+         |/_     _\|
+         int    double
+
+   (The arrows are directed and point downwards.)  If, when comparing
+   two alias sets, we can hold one set fixed, and trace the other set
+   downwards, and at some point find the first set, the two MEMs can
+   alias one another.  In this situation we say the alias set for
+   `struct S' is the `superset' and that those for `int' and `double'
+   are `subsets'.  
+
+   Alias set zero is implicitly a superset of all other alias sets.
+   However, this is no actual entry for alias set zero.  It is an
+   error to attempt to explicitly construct a subset of zero.  */
+
+typedef struct alias_set_entry {
+  /* The alias set number, as stored in MEM_ALIAS_SET.  */
+  int alias_set;
+
+  /* The children of the alias set.  These are not just the immediate
+     children, but, in fact, all children.  So, if we have:
+
+       struct T { struct S s; float f; } 
+
+     continuing our example above, the children here will be all of
+     `int', `double', `float', and `struct S'.  */
+  splay_tree children;
+}* alias_set_entry;
 
 static rtx canon_rtx			PROTO((rtx));
 static int rtx_equal_for_memref_p	PROTO((rtx, rtx));
@@ -35,34 +79,27 @@ static int memrefs_conflict_p		PROTO((int, rtx, int, rtx,
 					       HOST_WIDE_INT));
 static void record_set			PROTO((rtx, rtx));
 static rtx find_base_term		PROTO((rtx));
-static int base_alias_check		PROTO((rtx, rtx));
+static int base_alias_check		PROTO((rtx, rtx, enum machine_mode,
+					       enum machine_mode));
 static rtx find_base_value		PROTO((rtx));
+static int mems_in_disjoint_alias_sets_p PROTO((rtx, rtx));
+static int insert_subset_children       PROTO((splay_tree_node,
+					       void*));
+static alias_set_entry get_alias_set_entry PROTO((int));
+static rtx fixed_scalar_and_varying_struct_p PROTO((rtx, rtx, int (*)(rtx)));
+static int aliases_everything_p         PROTO((rtx));
+static int write_dependence_p           PROTO((rtx, rtx, int));
 
 /* Set up all info needed to perform alias analysis on memory references.  */
 
 #define SIZE_FOR_MODE(X) (GET_MODE_SIZE (GET_MODE (X)))
 
-/* Perform a basic sanity check.  Namely, that there are	
-   no alias sets if we're not doing strict aliasing.  This helps     
-   to catch bugs whereby someone uses PUT_CODE, but doesn't clear
-   MEM_ALIAS_SET, or where a MEM is allocated in some way other
-   than by the use of gen_rtx_MEM, and the MEM_ALIAS_SET is not
-   cleared.  */			
-#ifdef ENABLE_CHECKING	
-#define CHECK_ALIAS_SETS_FOR_CONSISTENCY(MEM1, MEM2)	\
-  (!flag_strict_aliasing				\
-   && (MEM_ALIAS_SET (MEM1) || MEM_ALIAS_SET (MEM2))	\
-   ? (abort (), 0) : 0)
-#else 
-#define CHECK_ALIAS_SETS_FOR_CONSISTENCY(MEM1, MEM2) ((void)0)
-#endif
-
 /* Returns nonzero if MEM1 and MEM2 do not alias because they are in
-   different alias sets.  */
-#define DIFFERENT_ALIAS_SETS_P(MEM1, MEM2)		\
-  (CHECK_ALIAS_SETS_FOR_CONSISTENCY(MEM1, MEM2),	\
-   MEM_ALIAS_SET (MEM1) && MEM_ALIAS_SET (MEM2)		\
-   && MEM_ALIAS_SET (MEM1) != MEM_ALIAS_SET (MEM2))
+   different alias sets.  We ignore alias sets in functions making use
+   of variable arguments because the va_arg macros on some systems are
+   not legal ANSI C.  */
+#define DIFFERENT_ALIAS_SETS_P(MEM1, MEM2)			\
+  mems_in_disjoint_alias_sets_p (MEM1, MEM2)
 
 /* Cap the number of passes we make over the insns propagating alias
    information through set chains.
@@ -89,7 +126,7 @@ rtx *reg_base_value;
 rtx *new_reg_base_value;
 unsigned int reg_base_value_size;	/* size of reg_base_value array */
 #define REG_BASE_VALUE(X) \
-	(REGNO (X) < reg_base_value_size ? reg_base_value[REGNO (X)] : 0)
+  ((unsigned) REGNO (X) < reg_base_value_size ? reg_base_value[REGNO (X)] : 0)
 
 /* Vector of known invariant relationships between registers.  Set in
    loop unrolling.  Indexed by register number, if nonzero the value
@@ -126,6 +163,148 @@ char *reg_known_equiv_p;
 
 static int copying_arguments;
 
+/* The splay-tree used to store the various alias set entries.  */
+
+static splay_tree alias_sets;
+
+/* Returns a pointer to the alias set entry for ALIAS_SET, if there is
+   such an entry, or NULL otherwise.  */
+
+static alias_set_entry
+get_alias_set_entry (alias_set)
+     int alias_set;
+{
+  splay_tree_node sn =  
+    splay_tree_lookup (alias_sets, (splay_tree_key) alias_set);
+
+  return sn ? ((alias_set_entry) sn->value) : ((alias_set_entry) 0);
+}
+
+/* Returns nonzero value if the alias sets for MEM1 and MEM2 are such
+   that the two MEMs cannot alias each other.  */
+
+static int 
+mems_in_disjoint_alias_sets_p (mem1, mem2)
+     rtx mem1;
+     rtx mem2;
+{
+  alias_set_entry ase;
+
+#ifdef ENABLE_CHECKING	
+/* Perform a basic sanity check.  Namely, that there are no alias sets
+   if we're not using strict aliasing.  This helps to catch bugs
+   whereby someone uses PUT_CODE, but doesn't clear MEM_ALIAS_SET, or
+   where a MEM is allocated in some way other than by the use of
+   gen_rtx_MEM, and the MEM_ALIAS_SET is not cleared.  If we begin to
+   use alias sets to indicate that spilled registers cannot alias each
+   other, we might need to remove this check.  */
+  if (!flag_strict_aliasing && 
+      (MEM_ALIAS_SET (mem1) || MEM_ALIAS_SET (mem2)))
+    abort ();
+#endif
+
+  /* The code used in varargs macros are often not conforming ANSI C,
+     which can trick the compiler into making incorrect aliasing
+     assumptions in these functions.  So, we don't use alias sets in
+     such a function.  FIXME: This should be moved into the front-end;
+     it is a language-dependent notion, and there's no reason not to
+     still use these checks to handle globals.  */
+  if (current_function_stdarg || current_function_varargs)
+    return 0;
+
+  if (!MEM_ALIAS_SET (mem1) || !MEM_ALIAS_SET (mem2))
+    /* We have no alias set information for one of the MEMs, so we
+       have to assume it can alias anything.  */
+    return 0;
+
+  if (MEM_ALIAS_SET (mem1) == MEM_ALIAS_SET (mem2))
+    /* The two alias sets are the same, so they may alias.  */
+    return 0;
+
+  /* Iterate through each of the children of the first alias set,
+     comparing it with the second alias set.  */
+  ase = get_alias_set_entry (MEM_ALIAS_SET (mem1));
+  if (ase && splay_tree_lookup (ase->children,
+				(splay_tree_key) MEM_ALIAS_SET (mem2)))
+    return  0;
+
+  /* Now do the same, but with the alias sets reversed.  */
+  ase = get_alias_set_entry (MEM_ALIAS_SET (mem2));
+  if (ase && splay_tree_lookup (ase->children,
+				(splay_tree_key) MEM_ALIAS_SET (mem1)))
+    return  0;
+
+  /* The two MEMs are in distinct alias sets, and neither one is the
+     child of the other.  Therefore, they cannot alias.  */
+  return 1;
+}
+
+/* Insert the NODE into the splay tree given by DATA.  Used by
+   record_alias_subset via splay_tree_foreach.  */
+
+static int
+insert_subset_children (node, data)
+     splay_tree_node node;
+     void *data;
+{
+  splay_tree_insert ((splay_tree) data,
+		     node->key,
+		     node->value);
+
+  return 0;
+}
+
+/* Indicate that things in SUBSET can alias things in SUPERSET, but
+   not vice versa.  For example, in C, a store to an `int' can alias a
+   structure containing an `int', but not vice versa.  Here, the
+   structure would be the SUPERSET and `int' the SUBSET.  This
+   function should be called only once per SUPERSET/SUBSET pair.  At
+   present any given alias set may only be a subset of one superset.  
+
+   It is illegal for SUPERSET to be zero; everything is implicitly a
+   subset of alias set zero.  */
+
+void
+record_alias_subset (superset, subset)
+     int superset;
+     int subset;
+{
+  alias_set_entry superset_entry;
+  alias_set_entry subset_entry;
+
+  if (superset == 0)
+    abort ();
+
+  superset_entry = get_alias_set_entry (superset);
+  if (!superset_entry) 
+    {
+      /* Create an entry for the SUPERSET, so that we have a place to
+	 attach the SUBSET.  */
+      superset_entry = 
+	(alias_set_entry) xmalloc (sizeof (struct alias_set_entry));
+      superset_entry->alias_set = superset;
+      superset_entry->children 
+	= splay_tree_new (splay_tree_compare_ints, 0, 0);
+      splay_tree_insert (alias_sets, 
+			 (splay_tree_key) superset,
+			 (splay_tree_value) superset_entry);
+
+    }
+
+  subset_entry = get_alias_set_entry (subset);
+  if (subset_entry) 
+    /* There is an entry for the subset.  Enter all of its children
+       (if they are not already present) as children of the SUPERSET.  */
+    splay_tree_foreach (subset_entry->children,
+			insert_subset_children,
+			superset_entry->children);
+
+  /* Enter the SUBSET itself as a child of the SUPERSET.  */
+  splay_tree_insert (superset_entry->children, 
+		     (splay_tree_key) subset,
+		     /*value=*/0);
+}
+
 /* Inside SRC, the source of a SET, find a base address.  */
 
 static rtx
@@ -153,7 +332,7 @@ find_base_value (src)
 	 The test above is not sufficient because the scheduler may move
 	 a copy out of an arg reg past the NOTE_INSN_FUNCTION_BEGIN.  */
       if (REGNO (src) >= FIRST_PSEUDO_REGISTER
-	  && REGNO (src) < reg_base_value_size
+	  && (unsigned) REGNO (src) < reg_base_value_size
 	  && reg_base_value[REGNO (src)])
 	return reg_base_value[REGNO (src)];
 
@@ -336,7 +515,7 @@ record_base_value (regno, val, invariant)
      rtx val;
      int invariant;
 {
-  if (regno >= reg_base_value_size)
+  if ((unsigned) regno >= reg_base_value_size)
     return;
 
   /* If INVARIANT is true then this value also describes an invariant
@@ -347,7 +526,7 @@ record_base_value (regno, val, invariant)
 
   if (GET_CODE (val) == REG)
     {
-      if (REGNO (val) < reg_base_value_size)
+      if ((unsigned) REGNO (val) < reg_base_value_size)
 	{
 	  reg_base_value[regno] = reg_base_value[REGNO (val)];
 	}
@@ -391,9 +570,8 @@ canon_rtx (x)
       if (addr != XEXP (x, 0))
 	{
 	  rtx new = gen_rtx_MEM (GET_MODE (x), addr);
-	  MEM_VOLATILE_P (new) = MEM_VOLATILE_P (x);
 	  RTX_UNCHANGING_P (new) = RTX_UNCHANGING_P (x);
-	  MEM_IN_STRUCT_P (new) = MEM_IN_STRUCT_P (x);
+	  MEM_COPY_ATTRIBUTES (new, x);
 	  MEM_ALIAS_SET (new) = MEM_ALIAS_SET (x);
 	  x = new;
 	}
@@ -568,10 +746,55 @@ find_base_term (x)
     case PLUS:
     case MINUS:
       {
-	rtx tmp = find_base_term (XEXP (x, 0));
-	if (tmp)
-	  return tmp;
-	return find_base_term (XEXP (x, 1));
+	rtx tmp1 = XEXP (x, 0);
+	rtx tmp2 = XEXP (x, 1);
+
+	/* This is a litle bit tricky since we have to determine which of
+	   the two operands represents the real base address.  Otherwise this
+	   routine may return the index register instead of the base register.
+
+	   That may cause us to believe no aliasing was possible, when in
+	   fact aliasing is possible.
+
+	   We use a few simple tests to guess the base register.  Additional
+	   tests can certainly be added.  For example, if one of the operands
+	   is a shift or multiply, then it must be the index register and the
+	   other operand is the base register.  */
+	
+	/* If either operand is known to be a pointer, then use it
+	   to determine the base term.  */
+	if (REG_P (tmp1) && REGNO_POINTER_FLAG (REGNO (tmp1)))
+	  return find_base_term (tmp1);
+
+	if (REG_P (tmp2) && REGNO_POINTER_FLAG (REGNO (tmp2)))
+	  return find_base_term (tmp2);
+
+	/* Neither operand was known to be a pointer.  Go ahead and find the
+	   base term for both operands.  */
+	tmp1 = find_base_term (tmp1);
+	tmp2 = find_base_term (tmp2);
+
+	/* If either base term is named object or a special address
+	   (like an argument or stack reference), then use it for the
+	   base term.  */
+	if (tmp1
+	    && (GET_CODE (tmp1) == SYMBOL_REF
+		|| GET_CODE (tmp1) == LABEL_REF
+		|| (GET_CODE (tmp1) == ADDRESS
+		    && GET_MODE (tmp1) != VOIDmode)))
+	  return tmp1;
+
+	if (tmp2
+	    && (GET_CODE (tmp2) == SYMBOL_REF
+		|| GET_CODE (tmp2) == LABEL_REF
+		|| (GET_CODE (tmp2) == ADDRESS
+		    && GET_MODE (tmp2) != VOIDmode)))
+	  return tmp2;
+
+	/* We could not determine which of the two operands was the
+	   base register and which was the index.  So we can determine
+	   nothing from the base alias check.  */
+	return 0;
       }
 
     case AND:
@@ -592,8 +815,9 @@ find_base_term (x)
    objects, 1 if they might be pointers to the same object.  */
 
 static int
-base_alias_check (x, y)
+base_alias_check (x, y, x_mode, y_mode)
      rtx x, y;
+     enum machine_mode x_mode, y_mode;
 {
   rtx x_base = find_base_term (x);
   rtx y_base = find_base_term (y);
@@ -625,17 +849,25 @@ base_alias_check (x, y)
   if (rtx_equal_p (x_base, y_base))
     return 1;
 
-  /* The base addresses of the read and write are different
-     expressions.  If they are both symbols and they are not accessed
-     via AND, there is no conflict.  */
-  /* XXX: We can bring knowledge of object alignment and offset into 
-     play here.  For example, on alpha, "char a, b;" can alias one
-     another, though "char a; long b;" cannot.  Similarly, offsets
-     into strutures may be brought into play.  Given "char a, b[40];",
-     a and b[1] may overlap, but a and b[20] do not.  */
+  /* The base addresses of the read and write are different expressions. 
+     If they are both symbols and they are not accessed via AND, there is
+     no conflict.  We can bring knowledge of object alignment into play
+     here.  For example, on alpha, "char a, b;" can alias one another,
+     though "char a; long b;" cannot.  */
   if (GET_CODE (x_base) != ADDRESS && GET_CODE (y_base) != ADDRESS)
     {
-      return GET_CODE (x) == AND || GET_CODE (y) == AND;
+      if (GET_CODE (x) == AND && GET_CODE (y) == AND)
+	return 1;
+      if (GET_CODE (x) == AND
+	  && (GET_CODE (XEXP (x, 1)) != CONST_INT
+	      || GET_MODE_UNIT_SIZE (y_mode) < -INTVAL (XEXP (x, 1))))
+	return 1;
+      if (GET_CODE (y) == AND
+	  && (GET_CODE (XEXP (y, 1)) != CONST_INT
+	      || GET_MODE_UNIT_SIZE (x_mode) < -INTVAL (XEXP (y, 1))))
+	return 1;
+      /* Differing symbols never alias.  */
+      return 0;
     }
 
   /* If one address is a stack reference there can be no alias:
@@ -654,6 +886,45 @@ base_alias_check (x, y)
 
   /* Weak noalias assertion (arguments are distinct, but may match globals). */
   return ! (GET_MODE (x_base) == VOIDmode && GET_MODE (y_base) == VOIDmode);
+}
+
+/*  Return the address of the (N_REFS + 1)th memory reference to ADDR
+    where SIZE is the size in bytes of the memory reference.  If ADDR
+    is not modified by the memory reference then ADDR is returned.  */
+
+rtx
+addr_side_effect_eval (addr, size, n_refs)
+     rtx addr;
+     int size;
+     int n_refs;
+{
+  int offset = 0;
+  
+  switch (GET_CODE (addr))
+    {
+    case PRE_INC:
+      offset = (n_refs + 1) * size;
+      break;
+    case PRE_DEC:
+      offset = -(n_refs + 1) * size;
+      break;
+    case POST_INC:
+      offset = n_refs * size;
+      break;
+    case POST_DEC:
+      offset = -n_refs * size;
+      break;
+
+    default:
+      return addr;
+    }
+  
+  if (offset)
+    addr = gen_rtx_PLUS (GET_MODE (addr), XEXP (addr, 0), GEN_INT (offset));
+  else
+    addr = XEXP (addr, 0);
+
+  return addr;
 }
 
 /* Return nonzero if X and Y (memory addresses) could reference the
@@ -685,13 +956,13 @@ memrefs_conflict_p (xsize, x, ysize, y, c)
   else if (GET_CODE (x) == LO_SUM)
     x = XEXP (x, 1);
   else
-    x = canon_rtx (x);
+    x = canon_rtx (addr_side_effect_eval (x, xsize, 0));
   if (GET_CODE (y) == HIGH)
     y = XEXP (y, 0);
   else if (GET_CODE (y) == LO_SUM)
     y = XEXP (y, 1);
   else
-    y = canon_rtx (y);
+    y = canon_rtx (addr_side_effect_eval (y, ysize, 0));
 
   if (rtx_equal_for_memref_p (x, y))
     {
@@ -726,11 +997,14 @@ memrefs_conflict_p (xsize, x, ysize, y, c)
 	  if (rtx_equal_for_memref_p (x0, y0))
 	    return memrefs_conflict_p (xsize, x1, ysize, y1, c);
 	  if (GET_CODE (x1) == CONST_INT)
-	    if (GET_CODE (y1) == CONST_INT)
-	      return memrefs_conflict_p (xsize, x0, ysize, y0,
-					 c - INTVAL (x1) + INTVAL (y1));
-	    else
-	      return memrefs_conflict_p (xsize, x0, ysize, y, c - INTVAL (x1));
+	    {
+	      if (GET_CODE (y1) == CONST_INT)
+		return memrefs_conflict_p (xsize, x0, ysize, y0,
+					   c - INTVAL (x1) + INTVAL (y1));
+	      else
+		return memrefs_conflict_p (xsize, x0, ysize, y,
+					   c - INTVAL (x1));
+	    }
 	  else if (GET_CODE (y1) == CONST_INT)
 	    return memrefs_conflict_p (xsize, x, ysize, y0, c + INTVAL (y1));
 
@@ -784,7 +1058,7 @@ memrefs_conflict_p (xsize, x, ysize, y, c)
 	/* Are these registers known not to be equal?  */
 	if (alias_invariant)
 	  {
-	    int r_x = REGNO (x), r_y = REGNO (y);
+	    unsigned int r_x = REGNO (x), r_y = REGNO (y);
 	    rtx i_x, i_y;	/* invariant relationships of X and Y */
 
 	    i_x = r_x >= reg_base_value_size ? 0 : alias_invariant[r_x];
@@ -804,18 +1078,24 @@ memrefs_conflict_p (xsize, x, ysize, y, c)
       }
 
   /* Treat an access through an AND (e.g. a subword access on an Alpha)
-     as an access with indeterminate size.
-     ??? Could instead convert an n byte reference at (and x y) to an
-     n-y byte reference at (plus x y). */
+     as an access with indeterminate size.  Assume that references 
+     besides AND are aligned, so if the size of the other reference is
+     at least as large as the alignment, assume no other overlap.  */
   if (GET_CODE (x) == AND && GET_CODE (XEXP (x, 1)) == CONST_INT)
-    return memrefs_conflict_p (-1, XEXP (x, 0), ysize, y, c);
+    {
+      if (GET_CODE (y) == AND || ysize < -INTVAL (XEXP (x, 1)))
+	xsize = -1;
+      return memrefs_conflict_p (xsize, XEXP (x, 0), ysize, y, c);
+    }
   if (GET_CODE (y) == AND && GET_CODE (XEXP (y, 1)) == CONST_INT)
     {
-      /* XXX: If we are indexing far enough into the array/structure, we
+      /* ??? If we are indexing far enough into the array/structure, we
 	 may yet be able to determine that we can not overlap.  But we 
 	 also need to that we are far enough from the end not to overlap
-	 a following reference, so we do nothing for now.  */
-      return memrefs_conflict_p (xsize, x, -1, XEXP (y, 0), c);
+	 a following reference, so we do nothing with that for now.  */
+      if (GET_CODE (x) == AND || xsize < -INTVAL (XEXP (y, 1)))
+	ysize = -1;
+      return memrefs_conflict_p (xsize, x, ysize, XEXP (y, 0), c);
     }
 
   if (CONSTANT_P (x))
@@ -883,6 +1163,56 @@ read_dependence (mem, x)
   return MEM_VOLATILE_P (x) && MEM_VOLATILE_P (mem);
 }
 
+/* Returns MEM1 if and only if MEM1 is a scalar at a fixed address and
+   MEM2 is a reference to a structure at a varying address, or returns
+   MEM2 if vice versa.  Otherwise, returns NULL_RTX.  If a non-NULL
+   value is returned MEM1 and MEM2 can never alias.  VARIES_P is used
+   to decide whether or not an address may vary; it should return
+   nozero whenever variation is possible.  */
+
+static rtx
+fixed_scalar_and_varying_struct_p (mem1, mem2, varies_p)
+     rtx mem1;
+     rtx mem2;
+     int (*varies_p) PROTO((rtx));
+{
+  rtx mem1_addr = XEXP (mem1, 0);
+  rtx mem2_addr = XEXP (mem2, 0);
+  
+  if (MEM_SCALAR_P (mem1) && MEM_IN_STRUCT_P (mem2) 
+      && !varies_p (mem1_addr) && varies_p (mem2_addr))
+    /* MEM1 is a scalar at a fixed address; MEM2 is a struct at a
+       varying address.  */
+    return mem1;
+
+  if (MEM_IN_STRUCT_P (mem1) && MEM_SCALAR_P (mem2) 
+      && varies_p (mem1_addr) && !varies_p (mem2_addr))
+    /* MEM2 is a scalar at a fixed address; MEM1 is a struct at a
+       varying address.  */
+    return mem2;
+
+  return NULL_RTX;
+}
+
+/* Returns nonzero if something about the mode or address format MEM1
+   indicates that it might well alias *anything*.  */
+
+static int
+aliases_everything_p (mem)
+     rtx mem;
+{
+  if (GET_MODE (mem) == QImode)
+    /* ANSI C says that a `char*' can point to anything.  */
+    return 1;
+
+  if (GET_CODE (XEXP (mem, 0)) == AND)
+    /* If the address is an AND, its very hard to know at what it is
+       actually pointing.  */
+    return 1;
+    
+  return 0;
+}
+
 /* True dependence: X is read after store in MEM takes place.  */
 
 int
@@ -910,59 +1240,46 @@ true_dependence (mem, mem_mode, x, varies)
   if (RTX_UNCHANGING_P (x) && ! RTX_UNCHANGING_P (mem))
     return 0;
 
-  if (! base_alias_check (XEXP (x, 0), XEXP (mem, 0)))
+  if (mem_mode == VOIDmode)
+    mem_mode = GET_MODE (mem);
+
+  if (! base_alias_check (XEXP (x, 0), XEXP (mem, 0), GET_MODE (x), mem_mode))
     return 0;
 
   x_addr = canon_rtx (XEXP (x, 0));
   mem_addr = canon_rtx (XEXP (mem, 0));
 
-  if (mem_mode == VOIDmode)
-    mem_mode = GET_MODE (mem);
-
   if (! memrefs_conflict_p (GET_MODE_SIZE (mem_mode), mem_addr,
 			    SIZE_FOR_MODE (x), x_addr, 0))
     return 0;
 
-  /* If both references are struct references, or both are not, nothing
-     is known about aliasing.
-
-     If either reference is QImode or BLKmode, ANSI C permits aliasing.
-
-     If both addresses are constant, or both are not, nothing is known
-     about aliasing.  */
-  if (MEM_IN_STRUCT_P (x) == MEM_IN_STRUCT_P (mem)
-      || mem_mode == QImode || mem_mode == BLKmode
-      || GET_MODE (x) == QImode || GET_MODE (x) == BLKmode
-      || GET_CODE (x_addr) == AND || GET_CODE (mem_addr) == AND
-      || varies (x_addr) == varies (mem_addr))
+  if (aliases_everything_p (x))
     return 1;
 
-  /* One memory reference is to a constant address, one is not.
-     One is to a structure, the other is not.
+  /* We cannot use aliases_everyting_p to test MEM, since we must look
+     at MEM_MODE, rather than GET_MODE (MEM).  */
+  if (mem_mode == QImode || GET_CODE (mem_addr) == AND)
+    return 1;
 
-     If either memory reference is a variable structure the other is a
-     fixed scalar and there is no aliasing.  */
+  /* In true_dependence we also allow BLKmode to alias anything.  Why
+     don't we do this in anti_dependence and output_dependence?  */
+  if (mem_mode == BLKmode || GET_MODE (x) == BLKmode)
+    return 1;
 
-  /* Disabled by default for egcs 1.1.x as alias analysis isn't good
-     enough yet to discover all cases where this doesn't apply.  */
-  if (flag_structure_noalias)
-    {
-      if ((MEM_IN_STRUCT_P (mem) && varies (mem_addr))
-	  || (MEM_IN_STRUCT_P (x) && varies (x_addr)))
-	return 0;
-    }
-
-  return 1;
+  return !fixed_scalar_and_varying_struct_p (mem, x, varies);
 }
 
-/* Anti dependence: X is written after read in MEM takes place.  */
+/* Returns non-zero if a write to X might alias a previous read from
+   (or, if WRITEP is non-zero, a write to) MEM.  */
 
-int
-anti_dependence (mem, x)
+static int
+write_dependence_p (mem, x, writep)
      rtx mem;
      rtx x;
+     int writep;
 {
   rtx x_addr, mem_addr;
+  rtx fixed_scalar;
 
   if (MEM_VOLATILE_P (x) && MEM_VOLATILE_P (mem))
     return 1;
@@ -970,10 +1287,11 @@ anti_dependence (mem, x)
   /* If MEM is an unchanging read, then it can't possibly conflict with
      the store to X, because there is at most one store to MEM, and it must
      have occurred somewhere before MEM.  */
-  if (RTX_UNCHANGING_P (mem))
+  if (!writep && RTX_UNCHANGING_P (mem))
     return 0;
 
-  if (! base_alias_check (XEXP (x, 0), XEXP (mem, 0)))
+  if (! base_alias_check (XEXP (x, 0), XEXP (mem, 0), GET_MODE (x),
+			  GET_MODE (mem)))
     return 0;
 
   x = canon_rtx (x);
@@ -985,16 +1303,25 @@ anti_dependence (mem, x)
   x_addr = XEXP (x, 0);
   mem_addr = XEXP (mem, 0);
 
-  return (memrefs_conflict_p (SIZE_FOR_MODE (mem), mem_addr,
-			      SIZE_FOR_MODE (x), x_addr, 0)
-	  && ! (MEM_IN_STRUCT_P (mem) && rtx_addr_varies_p (mem)
-		&& GET_MODE (mem) != QImode
-		&& GET_CODE (mem_addr) != AND
-		&& ! MEM_IN_STRUCT_P (x) && ! rtx_addr_varies_p (x))
-	  && ! (MEM_IN_STRUCT_P (x) && rtx_addr_varies_p (x)
-		&& GET_MODE (x) != QImode
-		&& GET_CODE (x_addr) != AND
-		&& ! MEM_IN_STRUCT_P (mem) && ! rtx_addr_varies_p (mem)));
+  if (!memrefs_conflict_p (SIZE_FOR_MODE (mem), mem_addr,
+			   SIZE_FOR_MODE (x), x_addr, 0))
+    return 0;
+
+  fixed_scalar 
+    = fixed_scalar_and_varying_struct_p (mem, x, rtx_addr_varies_p);
+  
+  return (!(fixed_scalar == mem && !aliases_everything_p (x))
+	  && !(fixed_scalar == x && !aliases_everything_p (mem)));
+}
+
+/* Anti dependence: X is written after read in MEM takes place.  */
+
+int
+anti_dependence (mem, x)
+     rtx mem;
+     rtx x;
+{
+  return write_dependence_p (mem, x, /*writep=*/0);
 }
 
 /* Output dependence: X is written after store in MEM takes place.  */
@@ -1004,28 +1331,7 @@ output_dependence (mem, x)
      register rtx mem;
      register rtx x;
 {
-  if (MEM_VOLATILE_P (x) && MEM_VOLATILE_P (mem))
-    return 1;
-
-  if (! base_alias_check (XEXP (x, 0), XEXP (mem, 0)))
-    return 0;
-
-  x = canon_rtx (x);
-  mem = canon_rtx (mem);
-
-  if (DIFFERENT_ALIAS_SETS_P (x, mem))
-    return 0;
-
-  return (memrefs_conflict_p (SIZE_FOR_MODE (mem), XEXP (mem, 0),
-			      SIZE_FOR_MODE (x), XEXP (x, 0), 0)
-	  && ! (MEM_IN_STRUCT_P (mem) && rtx_addr_varies_p (mem)
-		&& GET_MODE (mem) != QImode
-		&& GET_CODE (XEXP (mem, 0)) != AND
-		&& ! MEM_IN_STRUCT_P (x) && ! rtx_addr_varies_p (x))
-	  && ! (MEM_IN_STRUCT_P (x) && rtx_addr_varies_p (x)
-		&& GET_MODE (x) != QImode
-		&& GET_CODE (XEXP (x, 0)) != AND
-		&& ! MEM_IN_STRUCT_P (mem) && ! rtx_addr_varies_p (mem)));
+  return write_dependence_p (mem, x, /*writep=*/1);
 }
 
 
@@ -1046,6 +1352,8 @@ init_alias_once ()
     if (FUNCTION_ARG_REGNO_P (OUTGOING_REGNO (i))
 	&& HARD_REGNO_MODE_OK (i, Pmode))
       SET_HARD_REG_BIT (argument_registers, i);
+
+  alias_sets = splay_tree_new (splay_tree_compare_ints, 0, 0);
 }
 
 void
@@ -1054,6 +1362,7 @@ init_alias_analysis ()
   int maxreg = max_reg_num ();
   int changed, pass;
   register int i;
+  register unsigned int ui;
   register rtx insn;
 
   reg_known_value_size = maxreg;
@@ -1194,13 +1503,13 @@ init_alias_analysis ()
 	}
 
       /* Now propagate values from new_reg_base_value to reg_base_value.  */
-      for (i = 0; i < reg_base_value_size; i++)
+      for (ui = 0; ui < reg_base_value_size; ui++)
 	{
-	  if (new_reg_base_value[i]
-	      && new_reg_base_value[i] != reg_base_value[i]
-	      && ! rtx_equal_p (new_reg_base_value[i], reg_base_value[i]))
+	  if (new_reg_base_value[ui]
+	      && new_reg_base_value[ui] != reg_base_value[ui]
+	      && ! rtx_equal_p (new_reg_base_value[ui], reg_base_value[ui]))
 	    {
-	      reg_base_value[i] = new_reg_base_value[i];
+	      reg_base_value[ui] = new_reg_base_value[ui];
 	      changed = 1;
 	    }
 	}
@@ -1227,16 +1536,16 @@ init_alias_analysis ()
     {
       changed = 0;
       pass++;
-      for (i = 0; i < reg_base_value_size; i++)
+      for (ui = 0; ui < reg_base_value_size; ui++)
 	{
-	  rtx base = reg_base_value[i];
+	  rtx base = reg_base_value[ui];
 	  if (base && GET_CODE (base) == REG)
 	    {
-	      int base_regno = REGNO (base);
-	      if (base_regno == i)		/* register set from itself */
-		reg_base_value[i] = 0;
+	      unsigned int base_regno = REGNO (base);
+	      if (base_regno == ui)		/* register set from itself */
+		reg_base_value[ui] = 0;
 	      else
-		reg_base_value[i] = reg_base_value[base_regno];
+		reg_base_value[ui] = reg_base_value[base_regno];
 	      changed = 1;
 	    }
 	}

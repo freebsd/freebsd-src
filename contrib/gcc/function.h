@@ -80,8 +80,10 @@ struct function
   int has_nonlocal_label;
   int has_nonlocal_goto;
   int contains_functions;
+  int has_computed_jump;
   int is_thunk;
-  rtx nonlocal_goto_handler_slot;
+  rtx nonlocal_goto_handler_slots;
+  rtx nonlocal_goto_handler_labels;
   rtx nonlocal_goto_stack_level;
   tree nonlocal_labels;
   int args_size;
@@ -113,6 +115,7 @@ struct function
   int temp_slot_level;
   int target_temp_slot_level;
   int var_temp_slot_level;
+  int instrument_entry_exit;
   /* This slot is initialized as 0 and is added to
      during the nested function.  */
   struct var_refs_queue *fixup_var_refs_queue;
@@ -143,6 +146,7 @@ struct function
   struct label_node *caught_return_label_stack;
   tree protect_list;
   rtx ehc;
+  rtx eh_return_stub_label;
 
   /* For expr.c.  */
   rtx pending_chain;
@@ -151,6 +155,7 @@ struct function
   rtx saveregs_value;
   rtx apply_args_value;
   rtx forced_labels;
+  int check_memory_usage;
 
   /* For emit-rtl.c.  */
   int reg_rtx_no;
@@ -212,10 +217,39 @@ struct function
 /* The FUNCTION_DECL for an inline function currently being expanded.  */
 extern tree inline_function_decl;
 
+/* Label that will go on parm cleanup code, if any.
+   Jumping to this label runs cleanup code for parameters, if
+   such code must be run.  Following this code is the logical return label.  */
+
+extern rtx cleanup_label;
+
 /* Label that will go on function epilogue.
    Jumping to this label serves as a "return" instruction
    on machines which require execution of the epilogue on all returns.  */
+
 extern rtx return_label;
+
+/* Offset to end of allocated area of stack frame.
+   If stack grows down, this is the address of the last stack slot allocated.
+   If stack grows up, this is the address for the next slot.  */
+extern HOST_WIDE_INT frame_offset;
+
+/* Label to jump back to for tail recursion, or 0 if we have
+   not yet needed one for this function.  */
+extern rtx tail_recursion_label;
+
+/* Place after which to insert the tail_recursion_label if we need one.  */
+extern rtx tail_recursion_reentry;
+
+/* Location at which to save the argument pointer if it will need to be
+   referenced.  There are two cases where this is done: if nonlocal gotos
+   exist, or if vars whose is an offset from the argument pointer will be
+   needed by inner routines.  */
+
+extern rtx arg_pointer_save_area;
+
+/* Chain of all RTL_EXPRs that have insns in them.  */
+extern tree rtl_expr_chain;
 
 /* List (chain of EXPR_LISTs) of all stack slots in this function.
    Made for the sake of unshare_all_rtl.  */

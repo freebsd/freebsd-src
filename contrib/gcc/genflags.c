@@ -2,7 +2,7 @@
 
    - some flags HAVE_... saying which simple standard instructions are
    available for this machine.
-   Copyright (C) 1987, 1991, 1995, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1991, 1995, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -23,11 +23,6 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "hconfig.h"
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "system.h"
 #include "rtl.h"
 #include "obstack.h"
@@ -38,9 +33,9 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-char *xmalloc PROTO((unsigned));
-static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
-void fancy_abort PROTO((void));
+void fatal PVPROTO ((const char *, ...))
+  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+void fancy_abort PROTO((void)) ATTRIBUTE_NORETURN;
 
 /* Names for patterns.  Need to allow linking with print-rtl.  */
 char **insn_name_ptr;
@@ -180,11 +175,11 @@ gen_insn (insn)
   obstack_grow (obstack_ptr, &insn, sizeof (rtx));
 }
 
-char *
+PTR
 xmalloc (size)
-     unsigned size;
+  size_t size;
 {
-  register char *val = (char *) malloc (size);
+  register PTR val = (PTR) malloc (size);
 
   if (val == 0)
     fatal ("virtual memory exhausted");
@@ -192,29 +187,33 @@ xmalloc (size)
   return val;
 }
 
-char *
-xrealloc (ptr, size)
-     char *ptr;
-     unsigned size;
+PTR
+xrealloc (old, size)
+  PTR old;
+  size_t size;
 {
-  char *result = (char *) realloc (ptr, size);
-  if (!result)
+  register PTR ptr;
+  if (old)
+    ptr = (PTR) realloc (old, size);
+  else
+    ptr = (PTR) malloc (size);
+  if (!ptr)
     fatal ("virtual memory exhausted");
-  return result;
+  return ptr;
 }
 
-static void
-fatal VPROTO ((char *format, ...))
+void
+fatal VPROTO ((const char *format, ...))
 {
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *format;
 #endif
   va_list ap;
 
   VA_START (ap, format);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "genflags: ");
