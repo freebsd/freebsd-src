@@ -53,7 +53,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	module.9 mtx_pool.9 mutex.9 \
 	namei.9 \
 	panic.9 pbuf.9 pfil.9 pfind.9 pgfind.9 \
-	physio.9 posix4.9 printf.9 pseudofs.9 psignal.9 \
+	physio.9 printf.9 pseudofs.9 psignal.9 \
 	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
 	rtalloc.9 rtentry.9 runqueue.9  random_harvest.9 rijndael.9 \
 	sbuf.9 scheduler.9 selrecord.9 sema.9 signal.9 sleep.9 sleepqueue.9 \
@@ -169,7 +169,6 @@ MLINKS+=namei.9 NDFREE.9
 MLINKS+=pbuf.9 getpbuf.9 pbuf.9 trypbuf.9 pbuf.9 relpbuf.9
 MLINKS+=pfil.9 pfil_hook_get.9 pfil.9 pfil_add_hook.9 pfil.9 pfil_remove_hook.9
 MLINKS+=pfind.9 zpfind.9
-MLINKS+=posix4.9 p1003_1b.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
 MLINKS+=random.9 srandom.9 random.9 arc4random.9 random.9 read_random.9
 MLINKS+=rtalloc.9 rtalloc1.9 rtalloc.9 rtalloc_ign.9
