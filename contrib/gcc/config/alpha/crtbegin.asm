@@ -68,6 +68,7 @@ __EH_FRAME_BEGIN__:
 	br      $29,1f
 1:	ldgp    $29,0($29)
 	jsr     $26,__do_global_dtors_aux
+	ldgp    $29,0($26)
 
 	# Ideally this call would go in crtend.o, except that we can't
 	# get hold of __EH_FRAME_BEGIN__ there.
@@ -190,3 +191,6 @@ __do_frame_takedown:
 
 .weak __register_frame_info
 .weak __deregister_frame_info
+
+.section	.rodata
+	.ascii "$FreeBSD$\0"
