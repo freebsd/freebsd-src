@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.25 1997/09/25 00:52:31 brian Exp $
+#	$Id: Makefile,v 1.26 1997/09/27 19:11:39 brian Exp $
 
 PROG=	ppp
 SRCS=	alias_cmd.c arp.c async.c auth.c ccp.c chap.c chat.c command.c \
@@ -13,7 +13,7 @@ BINMODE=4550
 BINOWN=	root
 BINGRP=	network
 
-.if exists(${DESTDIR}/usr/include/des.h) && !defined(NOSECURE)
+.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 CFLAGS+=-DHAVE_DES
 SRCS+=	chap_ms.c
 LDADD+= -ldes
