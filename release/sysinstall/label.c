@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.84.2.3 1999/03/10 02:51:26 jkh Exp $
+ * $Id: label.c,v 1.84.2.4 1999/04/06 08:27:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -368,6 +368,7 @@ get_mountpoint(struct chunk *old)
 	old->flags &= ~CHUNK_IS_ROOT;
 
     safe_free(tmp);
+    val = string_skipwhite(string_prune(val));
     tmp = new_part(val, TRUE, 0);
     if (old) {
 	old->private_data = tmp;
