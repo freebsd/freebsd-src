@@ -546,7 +546,7 @@ pcic_pci_get_memory(device_t dev)
 	sockbase = pci_read_config(dev, sc->memrid, 4);
 	sockbase = (sockbase & 0xfffffff0) & -(sockbase & 0xfffffff0);
 #define CARDBUS_SYS_RES_MEMORY_START    0x44000000
-#define CARDBUS_SYS_RES_MEMORY_END      0xEFFFFFFF
+#define CARDBUS_SYS_RES_MEMORY_END      0xFFFFFFFF
 	sc->memres = bus_generic_alloc_resource(device_get_parent(dev),
 	    dev, SYS_RES_MEMORY, &sc->memrid,
 	    CARDBUS_SYS_RES_MEMORY_START, CARDBUS_SYS_RES_MEMORY_END,
