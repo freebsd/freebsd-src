@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.30.2.1 1996/11/09 21:11:03 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.30.2.2 1997/05/11 18:01:24 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -177,6 +177,8 @@ void nfs_convert_diskless()
 {
   bcopy(&nfs_diskless.myif, &nfsv3_diskless.myif,
 	sizeof(struct ifaliasreq));
+  bcopy(&nfs_diskless.mygateway, &nfsv3_diskless.mygateway,
+	sizeof(struct sockaddr_in));
   bcopy(&nfs_diskless.swap_args,&nfsv3_diskless.swap_args,
 	sizeof(struct nfs_args));
   nfsv3_diskless.swap_fhsize = NFSX_V2FH;
