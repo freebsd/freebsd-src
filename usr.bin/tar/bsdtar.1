@@ -350,6 +350,42 @@ Note that, unlike other
 implementations, this implementation recognizes gzip compression
 automatically when reading archives.
 .El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev BLOCKSIZE"
+.It Ev LANG
+The locale to use.
+See
+.Xr environ 7
+for more information.
+.It Ev POSIXLY_CORRECT
+If this environment variable is defined, the
+.Fl l
+option will be interpreted in accordance with
+.St -p1003.1-96 .
+.It Ev TAPE
+The default tape device.
+The
+.Fl f
+option overrides this.
+.It Ev TZ
+The timezone to use when displaying dates.
+See
+.Xr environ 7
+for more information.
+.El
+.Sh FILES
+.Bl -tag -width ".Ev BLOCKSIZE"
+.It Pa /dev/sa0
+The default tape device, if not overridden by the
+.Ev TAPE
+environment variable or the
+.Fl f
+option.
+.El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 The following creates a new archive
 called
@@ -389,42 +425,6 @@ Finally, it will switch to the
 directory and add
 .Pa foo2
 to the output archive.
-.Sh DIAGNOSTICS
-.Ex -std
-.Sh ENVIRONMENT
-The following environment variables affect the execution of
-.Nm :
-.Bl -tag -width ".Ev BLOCKSIZE"
-.It Ev LANG
-The locale to use.
-See
-.Xr environ 7
-for more information.
-.It Ev POSIXLY_CORRECT
-If this environment variable is defined, the
-.Fl l
-option will be interpreted in accordance with
-.St -p1003.1-96 .
-.It Ev TAPE
-The default tape device.
-The
-.Fl f
-option overrides this.
-.It Ev TZ
-The timezone to use when displaying dates.
-See
-.Xr environ 7
-for more information.
-.El
-.Sh FILES
-.Bl -tag -width ".Ev BLOCKSIZE"
-.It Pa /dev/sa0
-The default tape device, if not overridden by the
-.Ev TAPE
-environment variable or the
-.Fl f
-option.
-.El
 .Sh COMPATIBILITY
 The bundled-arguments format is supported for compatibility
 with historic implementations.
@@ -577,6 +577,22 @@ for tar and the current POSIX specification for pax.
 The ustar and pax interchange file formats are defined by
 .St -p1003.1-2001
 for the pax command.
+.Sh HISTORY
+A
+.Nm tar
+command appeared in Seventh Edition Unix.
+There have been numerous other implementations,
+many of which extended the file format.
+John Gilmore's
+.Nm pdtar
+public-domain implementation (circa November, 1987)
+was quite influential, and formed the basis of GNU tar.
+GNU tar was included as the standard system tar
+in FreeBSD beginning with FreeBSD 1.0.
+.Pp
+This is a complete re-implementation based on the
+.Xr libarchive 3
+library.
 .Sh BUGS
 POSIX and GNU violently disagree about the meaning of the
 .Fl l
@@ -664,19 +680,3 @@ formats store hardlink information.)
 .Pp
 There are alternative long options for many of the short options that
 are deliberately not documented.
-.Sh HISTORY
-A
-.Nm tar
-command appeared in Seventh Edition Unix.
-There have been numerous other implementations,
-many of which extended the file format.
-John Gilmore's
-.Nm pdtar
-public-domain implementation (circa November, 1987)
-was quite influential, and formed the basis of GNU tar.
-GNU tar was included as the standard system tar
-in FreeBSD beginning with FreeBSD 1.0.
-.Pp
-This is a complete re-implementation based on the
-.Xr libarchive 3
-library.

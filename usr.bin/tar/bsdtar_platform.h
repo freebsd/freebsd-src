@@ -50,6 +50,7 @@
 #define HAVE_FCHDIR 1
 #define HAVE_FCNTL_H 1
 #define HAVE_FNMATCH 1
+#define HAVE_FNM_LEADING_DIR 1
 #define HAVE_FTRUNCATE 1
 #define HAVE_GETOPT_LONG 1
 #define HAVE_INTTYPES_H 1
