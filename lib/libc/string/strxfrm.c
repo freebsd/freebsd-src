@@ -33,10 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "collate.h"
 
 size_t
-strxfrm(dest, src, len)
-	char *dest;
-	const char *src;
-	size_t len;
+strxfrm(char *__restrict dest, const char *__restrict src, size_t len)
 {
 	int prim, sec, l;
 	size_t slen;
