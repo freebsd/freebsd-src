@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.27 1995/09/24 19:51:50 dyson Exp $
+ * $Id: vm_glue.c,v 1.28 1995/10/16 05:45:49 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -213,7 +213,7 @@ vm_fork(p1, p2, isvfork)
 	 * non-inheritable
 	 */
 	(void) vm_map_inherit(&p1->p_vmspace->vm_map,
-	    UPT_MIN_ADDRESS - UPAGES * NBPG, VM_MAX_ADDRESS, VM_INHERIT_NONE);
+	    UPT_MIN_ADDRESS - UPAGES * PAGE_SIZE, VM_MAX_ADDRESS, VM_INHERIT_NONE);
 	p2->p_vmspace = vmspace_fork(p1->p_vmspace);
 
 #ifdef SYSVSHM
@@ -235,25 +235,25 @@ vm_fork(p1, p2, isvfork)
 
 	/* force in the page table encompassing the UPAGES */
 	ptaddr = trunc_page((u_int) vtopte(addr));
-	error = vm_map_pageable(vp, ptaddr, ptaddr + NBPG, FALSE);
+	error = vm_map_pageable(vp, ptaddr, ptaddr + PAGE_SIZE, FALSE);
 	if (error)
 		panic("vm_fork: wire of PT failed. error=%d", error);
 
 	/* and force in (demand-zero) the UPAGES */
-	error = vm_map_pageable(vp, addr, addr + UPAGES * NBPG, FALSE);
+	error = vm_map_pageable(vp, addr, addr + UPAGES * PAGE_SIZE, FALSE);
 	if (error)
 		panic("vm_fork: wire of UPAGES failed. error=%d", error);
 
 	/* get a kernel virtual address for the UPAGES for this proc */
-	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * NBPG);
+	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * PAGE_SIZE);
 	if (up == NULL)
 		panic("vm_fork: u_map allocation failed");
 
 	/* and force-map the upages into the kernel pmap */
 	for (i = 0; i < UPAGES; i++)
 		pmap_enter(vm_map_pmap(u_map),
-		    ((vm_offset_t) up) + NBPG * i,
-		    pmap_extract(vp->pmap, addr + NBPG * i),
+		    ((vm_offset_t) up) + PAGE_SIZE * i,
+		    pmap_extract(vp->pmap, addr + PAGE_SIZE * i),
 		    VM_PROT_READ | VM_PROT_WRITE, 1);
 
 	p2->p_addr = up;
@@ -330,19 +330,19 @@ faultin(p)
 		map = &p->p_vmspace->vm_map;
 		/* force the page table encompassing the kernel stack (upages) */
 		ptaddr = trunc_page((u_int) vtopte(kstack));
-		error = vm_map_pageable(map, ptaddr, ptaddr + NBPG, FALSE);
+		error = vm_map_pageable(map, ptaddr, ptaddr + PAGE_SIZE, FALSE);
 		if (error)
 			panic("faultin: wire of PT failed. error=%d", error);
 
 		/* wire in the UPAGES */
 		error = vm_map_pageable(map, (vm_offset_t) kstack,
-		    (vm_offset_t) kstack + UPAGES * NBPG, FALSE);
+		    (vm_offset_t) kstack + UPAGES * PAGE_SIZE, FALSE);
 		if (error)
 			panic("faultin: wire of UPAGES failed. error=%d", error);
 
 		/* and map them nicely into the kernel pmap */
 		for (i = 0; i < UPAGES; i++) {
-			vm_offset_t off = i * NBPG;
+			vm_offset_t off = i * PAGE_SIZE;
 			vm_offset_t pa = (vm_offset_t)
 				pmap_extract(&p->p_vmspace->vm_pmap,
 				    (vm_offset_t) kstack + off);
@@ -525,13 +525,13 @@ swapout(p)
 	 * let the upages be paged
 	 */
 	pmap_remove(vm_map_pmap(u_map),
-	    (vm_offset_t) p->p_addr, ((vm_offset_t) p->p_addr) + UPAGES * NBPG);
+	    (vm_offset_t) p->p_addr, ((vm_offset_t) p->p_addr) + UPAGES * PAGE_SIZE);
 
 	vm_map_pageable(map, (vm_offset_t) kstack,
-	    (vm_offset_t) kstack + UPAGES * NBPG, TRUE);
+	    (vm_offset_t) kstack + UPAGES * PAGE_SIZE, TRUE);
 
 	ptaddr = trunc_page((u_int) vtopte(kstack));
-	vm_map_pageable(map, ptaddr, ptaddr + NBPG, TRUE);
+	vm_map_pageable(map, ptaddr, ptaddr + PAGE_SIZE, TRUE);
 
 	p->p_flag &= ~P_SWAPPING;
 	p->p_swtime = 0;
