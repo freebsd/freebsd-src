@@ -118,7 +118,7 @@ eatoi(const char *s)
 	if (l > INT_MAX || *cp != '\0')
 		errx(1, "error converting to integer: %s", s);
 	return ((int)l);
-}	
+}
 
 /*
  * As atonum(), but the result of failure is death.
@@ -131,7 +131,7 @@ eatonum(const char *s)
 	if (!atonum(s, &num))
 		errx(1, "error converting to number: %s", s); /* XXX clarify */
 	return (num);
-}	
+}
 
 /*
  * Read a line from a /FILE/.  If the return value isn't 0, it is the
