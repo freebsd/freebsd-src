@@ -19,7 +19,7 @@ LDADD+=	-ll
 DEPENDFILE=
 .endif
 
-CFLAGS+= -I/usr/include -I.
+CFLAGS+= -nostdinc -I${.CURDIR}/../.. -I. -I/usr/include
 NOMAN=	noman
 
 .ifdef DEBUG
