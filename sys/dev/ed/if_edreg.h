@@ -577,6 +577,7 @@ struct ed_ring	{
 #define ED_VENDOR_NOVELL	0x02		/* Novell */
 #define ED_VENDOR_PCCARD	0x03		/* PCMCIA/PCCARD */
 #define ED_VENDOR_HP		0x04		/* Hewlett Packard */
+#define ED_VENDOR_LINKSYS	0x05		/* Linksys (Dlink) */
 
 /*
  * Compile-time config flags
