@@ -69,6 +69,7 @@ MAN=	aac.4 \
 	fla.4 \
 	fpa.4 \
 	fwe.4 \
+	fwip.4 \
 	fwohci.4 \
 	fxp.4 \
 	gbde.4 \
@@ -354,6 +355,7 @@ MLINKS+=fd.4 stderr.4 \
 	fd.4 stdout.4
 MLINKS+=fpa.4 fea.4
 MLINKS+=fwe.4 if_fwe.4
+MLINKS+=fwip.4 if_fwip.4
 MLINKS+=fxp.4 if_fxp.4
 MLINKS+=gem.4 if_gem.4
 MLINKS+=geom.4 GEOM.4
