@@ -143,7 +143,11 @@ parse(char *string)
 {
 	int len, i, j;
 	void *newval = 0;
-	int intval, newsize = 0;
+	int intval;
+	unsigned int uintval;
+	long longval;
+	unsigned long ulongval;
+	size_t newsize = 0;
 	quad_t quadval;
 	int mib[CTL_MAXNAME];
 	char *cp, *bufp, buf[BUFSIZ];
@@ -188,6 +192,20 @@ parse(char *string)
 				newval = &intval;
 				newsize = sizeof(intval);
 				break;
+			case CTLTYPE_UINT:
+				uintval = (int) strtoul(newval, NULL, 0);
+				newval = &uintval;
+				newsize = sizeof uintval;
+				break;
+			case CTLTYPE_LONG:
+				longval = strtol(newval, NULL, 0);
+				newval = &longval;
+				newsize = sizeof longval;
+				break;
+			case CTLTYPE_ULONG:
+				ulongval = strtoul(newval, NULL, 0);
+				newval = &ulongval;
+				newsize = sizeof ulongval;
 				break;
 			case CTLTYPE_STRING:
 				break;
