@@ -77,6 +77,12 @@ COMMENTS:
 
 	device pcm0 at isa ? port 0x52C ...
 
+    Actual product: Turtle Beach Malibu soundcard (CS4237).  The pnp
+    config here is adjusted to leave dma 3 clear for lpr use:
+
+    pnp 1 0 os irq0 15 irq1 0 drq0 1 drq1 0 port0 1332
+
+    That line is in my /boot/kernel.conf (C. Robey, 3/24/99)
 
 --------------------------
 CHIPSET:
