@@ -1,4 +1,12 @@
+# $FreeBSD$
+#
 # Top level Makefile for PicoBSD
+
+# Please submit any changes to the freebsd-small mailing list for
+# discussion prior to committing.
+
+MAINTAINER=	freebsd-small
+
 # install looks like a partially completed target, 
 # but I don't want to finish this work.
 # FIXME
