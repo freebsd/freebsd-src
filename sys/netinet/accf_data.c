@@ -56,12 +56,15 @@ static void
 sohasdata(struct socket *so, void *arg, int waitflag)
 {
 
+	SIGIO_SLOCK();
 	if (!soreadable(so)) {
+		SIGIO_SUNLOCK();
 		return;
 	}
 
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
+	soisconnected_locked(so);
+	SIGIO_SUNLOCK();
 	return;
 }
