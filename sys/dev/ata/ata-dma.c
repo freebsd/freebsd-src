@@ -413,6 +413,23 @@ via_generic:
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
+    case 0xc6931080:	/* Cypress 82c693 ATA controller */
+	if (wdmamode >= 2 && apiomode >= 4) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device,
+			   "%s setting up WDMA2 mode on Cypress chip\n",
+			   error ? "failed" : "success");
+	    if (!error) {
+		pci_write_config(scp->dev, scp->unit ? 0x4e : 0x4c, 0x2020, 2);
+		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
+		return;
+	    }
+	}
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	break;
+
     case 0x4d33105a:	/* Promise Ultra33 / FastTrak33 controllers */
     case 0x4d38105a:	/* Promise Ultra66 / FastTrak66 controllers */
 	/* the Promise can only do DMA on ATA disks not on ATAPI devices */
