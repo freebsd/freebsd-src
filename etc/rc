@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.138 1997/09/21 16:09:47 joerg Exp $
+#	$Id: rc,v 1.139 1997/11/16 12:52:16 steve Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -313,6 +313,10 @@ fi
 
 # Do traditional (but rather obsolete) rc.local file if it exists.
 [ -f /etc/rc.local ] && sh /etc/rc.local
+
+# Record dmesg buffer at boot
+dmesg > /var/log/dmesg.boot
+chmod 400 /var/log/dmesg.boot
 
 date
 exit 0
