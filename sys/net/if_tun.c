@@ -459,6 +459,11 @@ tunoutput(
 		return (EHOSTDOWN);
 	}
 
+	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+		m_freem (m0);
+		return (EHOSTDOWN);
+	}
+
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {
 		dst->sa_family = *(mtod(m0, int *));
@@ -706,6 +711,10 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	uint32_t	family;
 
 	TUNDEBUG("%s%d: tunwrite\n", ifp->if_name, ifp->if_unit);
+
+	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
+		/* ignore silently */
+		return (0);
 
 	if (uio->uio_resid == 0)
 		return (0);
