@@ -276,17 +276,15 @@ fail1:
 			 * a reader.  That (and not still having one)
 			 * is the condition that we must wait for.
 			 */
-			return (0);
+			mtx_lock(&fifo_mtx);
 		}
 	}
 	mtx_unlock(&fifo_mtx);
-	if (ap->a_fdidx >= 0) {
-		fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
-		if (fp->f_ops == &badfileops) {
-			fp->f_ops = &fifo_ops_f;
-			fp->f_data = fip;
-		}
-	}
+	KASSERT(ap->a_fdidx >= 0, ("can't fifo/vnode bypass %d", ap->a_fdidx));
+	fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
+	KASSERT(fp->f_ops == &badfileops, ("not badfileops in fifo_open"));
+	fp->f_ops = &fifo_ops_f;
+	fp->f_data = fip;
 	return (0);
 }
 
