@@ -447,7 +447,7 @@ struct pthread {
 	int		signo;
 
 	/* Miscellaneous data. */
-	char		flags;
+	int 		flags;
 #define PTHREAD_EXITING		0x0100
 	char		pthread_priority;
 	void		*ret;
