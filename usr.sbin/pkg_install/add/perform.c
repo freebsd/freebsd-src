@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.25.2.2 1995/06/10 09:04:13 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.26 1995/06/11 19:32:48 rgrimes Exp $";
 #endif
 
 /*
@@ -164,7 +164,8 @@ pkg_do(char *pkg)
 		goto bomb;
 	    }
 	}
-	else
+
+	if (!where_to)
 	    where_to = PlayPen;
 	/*
 	 * Apply a crude heuristic to see how much space the package will
