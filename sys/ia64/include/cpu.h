@@ -86,6 +86,7 @@ struct clockframe {
 
 /* Used by signaling code. */
 #define	cpu_getstack(td)	((td)->td_frame->tf_special.sp)
+#define	cpu_spinwait()		/* nothing */
 
 void	cpu_halt(void);
 void	cpu_reset(void);
