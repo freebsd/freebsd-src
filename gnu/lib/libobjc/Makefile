@@ -23,6 +23,7 @@ INCSDIR=${INCLUDEDIR}/objc
 CFLAGS+= -fpic
 .endif
 
+CSTD?=
 CFLAGS+= -fgnu-runtime -DHAVE_GTHR_DEFAULT -DIN_TARGET_LIBS
 CFLAGS+= -I. -I${.CURDIR}/../../usr.bin/cc/cc_tools
 CFLAGS+= -I${OBJCDIR}/objc -I${OBJCDIR} 
