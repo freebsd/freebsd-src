@@ -78,7 +78,7 @@ rtime(addrp, timep, timeout)
 	int res;
 	unsigned long thetime;
 	struct sockaddr_in from;
-	int fromlen;
+	socklen_t fromlen;
 	int type;
 	struct servent *serv;
 
