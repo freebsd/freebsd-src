@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.37 1998/09/16 22:43:36 brian Exp $
+#	$Id: rc,v 1.104.2.38 1998/11/03 16:35:46 cracauer Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -140,7 +140,9 @@ fi
 mount -a -t nfs
 
 # Whack the pty perms back into shape.
+chflags 0 /dev/tty[pqrsPQRS]*
 chmod 666 /dev/tty[pqrsPQRS]*
+chown root:wheel /dev/tty[pqrsPQRS]*
 
 # clean up left-over files
 rm -f /etc/nologin
