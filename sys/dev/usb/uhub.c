@@ -664,13 +664,11 @@ uhub_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
 	struct uhub_softc *sc = device_get_softc(cbdev);
 	usbd_device_handle devhub = sc->sc_hub;
 	usbd_device_handle dev;
-	usb_string_descriptor_t us;
 	struct usbd_interface *iface;
 	char serial[128];
 	int nports;
 	int port;
-	int i, j, size;
-	int err;
+	int i;
 
 	nports = devhub->hub->hubdesc.bNbrPorts;
 	for (port = 0; port < nports; port++) {
@@ -688,18 +686,8 @@ uhub_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
 	return (0);
 
 found_dev:
-	j = 0;
-	if (dev->ddesc.iSerialNumber != 0) {
-		err = usbd_get_string_desc(dev, dev->ddesc.iSerialNumber, 0,
-		  &us, &size);
-		if (err == 0) {
-			do {
-				serial[j] = UGETW(us.bString[j]);
-				j++;
-			} while (j < ((us.bLength - 2) / 2));
-		}
-	}
-	serial[j] = '\0';
+	serial[0] = '\0';
+	(void)usbd_get_string(dev, dev->ddesc.iSerialNumber, &serial[0]);
 	if (dev->ifacenums == NULL) {
 		snprintf(buf, buflen, "vendor=0x%04x product=0x%04x "
 		    "devclass=0x%02x devsubclass=0x%02x "
