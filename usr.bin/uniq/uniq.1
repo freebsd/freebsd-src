@@ -54,8 +54,19 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility reads the standard input comparing adjacent lines, and writes
-a copy of each unique input line to the standard output.
+utility reads the specified
+.Ar input_file
+comparing adjacent lines, and writes a copy of each unique input line to
+the
+.Ar output_file .
+If
+.Ar input_file
+is a single dash
+.Pq Sq \&-
+or absent, the standard input is read.
+If
+.Ar output_file
+is absent, standard output is used for output.
 The second and succeeding copies of identical adjacent input lines are
 not written.
 Repeated lines in the input will not be detected if they are not adjacent,
