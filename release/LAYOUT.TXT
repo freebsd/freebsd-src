@@ -9,7 +9,7 @@ HARDWARE.TXT    compat1x        des             doc             packages
 INSTALL.TXT     compat20        floppies        ports
 README.TXT      compat21        games           proflibs
 RELNOTES.TXT    info            src
-DISTRIB.TXT     XF86332
+LAYOUT.TXT      XF86332
 
 If you want to do a CDROM, FTP or NFS installation from this
 distribution directory, all you need to do is make a 1.44Mb floppy
@@ -22,7 +22,7 @@ curious about how a distribution is organized, what follows is a more
 thorough description of each item in more detail:
 
 1. The *.TXT files obviously contain documentation (this file is
-   DISTRIB.TXT) and should be read before starting an installation.
+   LAYOUT.TXT) and should be read before starting an installation.
 
 2. The XF86332 directory contains the XFree86 project's 3.3.2 release and
    consists of a series of gzip'd tar files which contain each component

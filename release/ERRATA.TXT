@@ -28,7 +28,7 @@ however user intervention is only required for systems undergoing an
 upgrade installation.
 
 Previously, the root filesystem was always mounted from the
-compatability slice, while other partitions on the same disk were
+compatibility slice, while other partitions on the same disk were
 mounted from their true slice.  This might, for example, have resulted
 in an /etc/fstab file like:
 

@@ -254,7 +254,7 @@ ctx:    Cortex-I frame grabber
 cx:     Cronyx/Sigma multiport sync/async
 cy:     Cyclades high-speed serial driver
 el:     3Com 3C501
-fea:    DEV DEFEA EISA FDDI adater
+fea:    DEV DEFEA EISA FDDI adapter
 fpa:    DEC DEFPA PCI FDDI adapter
 gp:     National Instruments AT-GPIB and AT-GPIB/TNT board
 gsc:    Genius GS-4500 hand scanner
