@@ -174,7 +174,7 @@ SUBDIR=	${_3dfx} \
 	pps \
 	procfs \
 	pseudofs \
-	pst \
+	${_pst} \
 	${_random} \
 	${_ray} \
 	rc \
@@ -326,6 +326,7 @@ _oltr=		oltr
 _pccard=	pccard
 _pcfclock=	pcfclock
 _pecoff=	pecoff
+_pst=		pst
 _ray=		ray
 _safe=		safe
 _sbni=		sbni
