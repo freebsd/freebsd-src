@@ -48,9 +48,11 @@ RST or FIN TCP segment.
 .It
 Active timeout.
 Flows cannot live more than the specified period of time.
+The default is 1800 seconds (30 minutes).
 .It
 Inactive timeout.
 A flow was inactive for the specified period of time.
+The default is 15 seconds.
 .El
 .Pp
 Export information is stored in NetFlow version 5 datagrams.
@@ -163,7 +165,7 @@ commands are:
 .It Dv NGM_NETFLOW_INFO
 .Qq Li info
 .It Dv NGM_NETFLOW_IFINFO
-.Qq Li ifinfo
+.Qq Li ifinfo %u
 .It Dv NGM_NETFLOW_SETDLT
 .Qq Li "setdlt { iface = %u dlt = %u }"
 .It Dv NGM_NETFLOW_SETIFINDEX
