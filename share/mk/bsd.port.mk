@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.3 1994/08/21 14:32:40 jkh Exp $
+# $Id: bsd.port.mk,v 1.4 1994/08/21 15:04:03 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -23,6 +23,8 @@
 # HOME_LOCATION	- site/path name (or user's email address) describing
 #		  where this package came from or can be obtained if the
 #		  tarball is missing.
+# DEPENDS	- A list of other packages this package depends on being
+#		  made first.
 # 
 #
 # Default targets and their behaviors:
@@ -41,10 +43,11 @@
 
 GMAKE?=		gmake
 
-# This needs to be absolute since we don't know how deep in the ports
+# These need to be absolute since we don't know how deep in the ports
 # tree we are and thus can't go relative.  It can, of course, be overridden
 # by individual Makefiles.
-DISTDIR?=	/usr/ports/distfiles
+PORTSDIR?=	/usr/ports
+DISTDIR?=	${PORTSDIR}/distfiles
 
 WRKDIR?=	${.CURDIR}/work
 WRKSRC?=	${WRKDIR}/${DISTNAME}
@@ -87,6 +90,16 @@ package:
 .if !target(build)
 build: configure
 	@echo "===>  Building for ${DISTNAME}"
+.if defined(DEPENDS)
+	@for i in $(DEPENDS); do \
+		echo "===>    ${DISTNAME} depends on $$i - submaking"; \
+		if [ ! -d ${PORTSDIR}/$$i ]; then \
+			echo "	No directory ${PORTSDIR}/$$i.  Skipping.."; \
+		else \
+			(cd ${PORTSDIR}/$$i; ${MAKE}) ; \
+		fi \
+	done
+.endif
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} all)
 .else defined(USE_GMAKE)
@@ -95,7 +108,12 @@ build: configure
 .endif
 
 .if !target(configure)
-configure: extract
+# This is done with a .configure because configures are often expensive,
+# and you don't want it done again gratuitously when you're trying to get
+# a make of the whole tree to work.
+configure: ${.CURDIR}/.configure_done
+
+${.CURDIR}/.configure_done: extract
 	@echo "===>  Configuring for ${DISTNAME}"
 	@if [ -d ${PATCHDIR} ]; then \
 		echo "===>  Applying patches for ${DISTNAME}" ; \
@@ -103,16 +121,23 @@ configure: extract
 			patch -d ${WRKSRC} --quiet -E -p0 < $$i; \
 		done; \
 	fi
-.if defined(HAS_CONFIGURE)
-	@(cd ${WRKSRC}; ./configure ${CONFIGURE_ARGS})
-.endif
 # We have a small convention for our local configure scripts, which
 # is that ${.CURDIR} and the package working directory get passed as
 # command-line arguments since all other methods are a little
 # problematic.
+	@if [ -f ${SCRIPTDIR}/pre-configure ]; then \
+		sh ${SCRIPTDIR}/pre-configure ${.CURDIR} ${WRKSRC}; \
+	fi
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
 		sh ${SCRIPTDIR}/configure ${.CURDIR} ${WRKSRC}; \
 	fi
+.if defined(HAS_CONFIGURE)
+	@(cd ${WRKSRC}; ./configure ${CONFIGURE_ARGS})
+.endif
+	@if [ -f ${SCRIPTDIR}/post-configure ]; then \
+		sh ${SCRIPTDIR}/post-configure ${.CURDIR} ${WRKSRC}; \
+	fi
+	@touch -f ${.CURDIR}/.configure_done
 .endif
 
 .if !target(extract)
@@ -140,7 +165,7 @@ ${.CURDIR}/.extract_done:
 .if !target(clean)
 clean:
 	@echo "===>  Cleaning for ${DISTNAME}"
-	@rm -f ${.CURDIR}/.extract_done
+	@rm -f ${.CURDIR}/.extract_done ${.CURDIR}/.configure_done
 	@rm -rf ${WRKDIR}
 .endif
 
