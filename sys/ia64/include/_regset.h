@@ -169,9 +169,9 @@ struct _caller_saved_fp {
 };
 
 #ifdef _KERNEL
-void	restore_callee_saved(struct _callee_saved *);
-void	restore_callee_saved_fp(struct _callee_saved_fp *);
-void	restore_high_fp(struct _high_fp *);
+void	restore_callee_saved(const struct _callee_saved *);
+void	restore_callee_saved_fp(const struct _callee_saved_fp *);
+void	restore_high_fp(const struct _high_fp *);
 void	save_callee_saved(struct _callee_saved *);
 void	save_callee_saved_fp(struct _callee_saved_fp *);
 void	save_high_fp(struct _high_fp *);
