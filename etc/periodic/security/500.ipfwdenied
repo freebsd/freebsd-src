@@ -39,7 +39,7 @@ then
     source_periodic_confs
 fi
 
-TMP=/var/run/_secure.$$
+TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 LOG="${daily_status_security_logdir}"
 rc=0
 
