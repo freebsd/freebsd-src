@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "lomac.h"
 #include "ps.h"
 
-static void printval(void *, VAR *);
+#define	ps_pgtok(a)	(((a) * getpagesize()) / 1024)
 
 void
 printheader(void)
@@ -477,10 +477,6 @@ mwchan(KINFO *k, VARENT *ve)
 	}
 }
 
-#ifndef pgtok
-#define pgtok(a)        (((a)*getpagesize())/1024)
-#endif
-
 void
 vsize(KINFO *k, VARENT *ve)
 {
@@ -629,7 +625,7 @@ tsize(KINFO *k, VARENT *ve)
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%*ld", v->width, (long)pgtok(k->ki_p->ki_tsize));
+	(void)printf("%*ld", v->width, (long)ps_pgtok(k->ki_p->ki_tsize));
 }
 
 void
