@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	rnordier
-
 OBJS=		btxcsu.o btxsys.o btxv86.o
 AFLAGS+=	-elf
 LDFLAGS+=	-elf
