@@ -67,7 +67,7 @@ main(int argc, char *argv[])
 
     /* open group file */
     if ((gf = fopen(gfn, "r")) == NULL)
-	err(EX_IOERR, gfn); /* XXX - is IO_ERR the correct exit code? */
+	err(EX_IOERR, "%s", gfn); /* XXX - is IO_ERR the correct exit code? */
 
     /* check line by line */
     while (++n) {
