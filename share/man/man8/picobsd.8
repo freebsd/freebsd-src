@@ -236,23 +236,65 @@ provides a few other details on how to build the image.
 .It Pa crunch.conf
 .Xr crunchgen 1
 configuration (required).
+It contains the list of directories containing program sources,
+the list of binaries to be built, and the list of libraries that
+these programs use.
 See the
 .Xr crunchgen 1
-manpage for the syntax.
+manpage for the exact details on the syntax of this file.
+.Pp
+The following issues are particularly important when dealing
+with
+.Nm
+configurations:
+.Bl -bullet
+.It
+we can pass build options to those Makefile's which understand
+that, in order to reduce the size of the programs.
+This is achieved with a line of the form
+.Bd -literal -offset indent
+buildopts -DNOPAM -DRELEASE_CRUNCH ...
+.Ed
+.It
+When providing the list of directories where source files are, it
+is convenient to list the following entry first:
+.Bd -literal
+srcdirs /usr/src/release/picobsd/tinyware
+.Ed
+so that
+.Nm
+-specific versions of the programs will be found there.
+.It
+The string
+.Pa @__CWD__@
+is replaced with the full pathname of the directory where the
+.Nm
+configuration resides (i.e. the one where we find
+.Pa PICOBSD , crunch.conf ,
+and so on).
+This can be useful to refer source code that resides within a
+configuration, e.g.
+.Bd -literal -offset indent
+srcdirs @__CWD__@/src
+.Ed
+.El
 .It Pa config
 Shell variables, sourced by the
 .Nm
 script (optional).
-The most important variables here are
-.Va MY_DEVS ,
-(not used in -CURRENT where we have DEVFS),
-which should be set to the list of devices to be created in the
+The most important variables here are:
+.Bl -tag -width MY_DEVS
+.It Va MY_DEVS
+(not used in -CURRENT where we have DEVFS).
+Should be set to the list of devices to be created in the
 .Pa /dev
 directory of the image (it is really the argument passed to
 .Xr MAKEDEV 8 ,
-so refer to that manpage for the names), and the
-.Va fd_size
-which can override the default size (in kilobytes) of the image.
+so refer to that manpage for the names).
+.It Va fd_size
+Size (in kilobytes) of the
+.Nm
+image.
 By default,
 .Va fd_size
 is set to 1440
@@ -270,12 +312,30 @@ are not restricted to one of the standard floppy sizes.
 Using a large image size per se does not waste RAM at runtime,
 because only the files that are actually loaded from the image
 contribute to the memory usage.
+.It Va import_files
+Contains a list of files to be imported in the floppy_tree.
+Absolute names refer to the standard filesystem, relative
+names refer to the root of the source tree being used
+(i.e.
+.Va SRC_PATH/..
+).
+You can normally use this option if you want to import
+files such as shared libraries, or databases, without
+having to replicate them first in your configuration
+under the
+.Pa floppy.tree/
+directory.
+.El
+.Pp
 .It Pa floppy.tree.exclude
-Files from the standard floppy tree which are not needed (optional).
+List of files from the standard floppy tree which
+we do not want to be copied (optional).
 .It Pa floppy.tree/
 Local additions to the standard floppy tree (optional).
+The content of this subtree will be copied as-is into the
+floppy image.
 .It Pa floppy.tree. Ns Aq Ar site-name
-Same as above, site-specific (optional).
+Same as above, but site-specific (optional).
 .El
 .Pp
 More information on the build process can be found in the
@@ -613,6 +673,7 @@ driver installed.
 The build process must be run as
 .Dq root
 because of the need of running
+.Xr mdconfig 8 /
 .Xr vnconfig 8
 and
 .Xr mount 8 .
