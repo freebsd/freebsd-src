@@ -165,6 +165,11 @@ struct pagerops swappagerops = {
 	swap_pager_strategy	/* pager strategy call			*/
 };
 
+static struct buf *getchainbuf(struct buf *bp, struct vnode *vp, int flags);
+static void flushchainbuf(struct buf *nbp);
+static void waitchainbuf(struct buf *bp, int count, int done);
+static void autochaindone(struct buf *bp);
+
 /*
  * dmmax is in page-sized chunks with the new swap system.  It was
  * dev-bsized chunks in the old.
@@ -1948,5 +1953,137 @@ swp_pager_meta_ctl(
 		}
 	}
 	return(r1);
+}
+
+/********************************************************
+ *		CHAINING FUNCTIONS			*
+ ********************************************************
+ *
+ *	These functions support recursion of I/O operations
+ *	on bp's, typically by chaining one or more 'child' bp's
+ *	to the parent.  Synchronous, asynchronous, and semi-synchronous
+ *	chaining is possible.
+ */
+
+/*
+ *	vm_pager_chain_iodone:
+ *
+ *	io completion routine for child bp.  Currently we fudge a bit
+ *	on dealing with b_resid.   Since users of these routines may issue
+ *	multiple children simultaneously, sequencing of the error can be lost.
+ */
+
+static void
+vm_pager_chain_iodone(struct buf *nbp)
+{
+	struct buf *bp;
+
+	if ((bp = nbp->b_chain.parent) != NULL) {
+		if (nbp->b_ioflags & BIO_ERROR) {
+			bp->b_ioflags |= BIO_ERROR;
+			bp->b_error = nbp->b_error;
+		} else if (nbp->b_resid != 0) {
+			bp->b_ioflags |= BIO_ERROR;
+			bp->b_error = EINVAL;
+		} else {
+			bp->b_resid -= nbp->b_bcount;
+		}
+		nbp->b_chain.parent = NULL;
+		--bp->b_chain.count;
+		if (bp->b_flags & B_WANT) {
+			bp->b_flags &= ~B_WANT;
+			wakeup(bp);
+		}
+		if (!bp->b_chain.count && (bp->b_flags & B_AUTOCHAINDONE)) {
+			bp->b_flags &= ~B_AUTOCHAINDONE;
+			if (bp->b_resid != 0 && !(bp->b_ioflags & BIO_ERROR)) {
+				bp->b_ioflags |= BIO_ERROR;
+				bp->b_error = EINVAL;
+			}
+			bufdone(bp);
+		}
+	}
+	nbp->b_flags |= B_DONE;
+	nbp->b_flags &= ~B_ASYNC;
+	relpbuf(nbp, NULL);
+}
+
+/*
+ *	getchainbuf:
+ *
+ *	Obtain a physical buffer and chain it to its parent buffer.  When
+ *	I/O completes, the parent buffer will be B_SIGNAL'd.  Errors are
+ *	automatically propagated to the parent
+ */
+
+struct buf *
+getchainbuf(struct buf *bp, struct vnode *vp, int flags)
+{
+	struct buf *nbp = getpbuf(NULL);
+
+	nbp->b_chain.parent = bp;
+	++bp->b_chain.count;
+
+	if (bp->b_chain.count > 4)
+		waitchainbuf(bp, 4, 0);
+
+	nbp->b_ioflags = bp->b_ioflags & BIO_ORDERED;
+	nbp->b_flags = flags;
+	nbp->b_rcred = nbp->b_wcred = proc0.p_ucred;
+	nbp->b_iodone = vm_pager_chain_iodone;
+
+	crhold(nbp->b_rcred);
+	crhold(nbp->b_wcred);
+
+	if (vp)
+		pbgetvp(vp, nbp);
+	return(nbp);
+}
+
+void
+flushchainbuf(struct buf *nbp)
+{
+	if (nbp->b_bcount) {
+		nbp->b_bufsize = nbp->b_bcount;
+		if (nbp->b_iocmd == BIO_WRITE)
+			nbp->b_dirtyend = nbp->b_bcount;
+		BUF_KERNPROC(nbp);
+		BUF_STRATEGY(nbp);
+	} else {
+		bufdone(nbp);
+	}
+}
+
+void
+waitchainbuf(struct buf *bp, int count, int done)
+{
+ 	int s;
+
+	s = splbio();
+	while (bp->b_chain.count > count) {
+		bp->b_flags |= B_WANT;
+		tsleep(bp, PRIBIO + 4, "bpchain", 0);
+	}
+	if (done) {
+		if (bp->b_resid != 0 && !(bp->b_ioflags & BIO_ERROR)) {
+			bp->b_ioflags |= BIO_ERROR;
+			bp->b_error = EINVAL;
+		}
+		bufdone(bp);
+	}
+	splx(s);
+}
+
+void
+autochaindone(struct buf *bp)
+{
+ 	int s;
+
+	s = splbio();
+	if (bp->b_chain.count == 0)
+		bufdone(bp);
+	else
+		bp->b_flags |= B_AUTOCHAINDONE;
+	splx(s);
 }
 
