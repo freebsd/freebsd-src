@@ -56,6 +56,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	struct dig64_hcdp_table *tbl;
 	struct dig64_hcdp_entry *ent;
+	bus_addr_t addr;
 	unsigned int i, ivar;
 
 	/*
@@ -74,14 +75,14 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 			    ent->type != DIG64_HCDP_DBGPORT)
 				continue;
 
+			addr = ent->address.addr_high;
+			addr = (addr << 32) + ent->address.addr_low;
 			di->ops = uart_ns8250_ops;
-			di->bas.iobase = (ent->address.addr_high << 32) +
-				ent->address.addr_low;
-			di->bas.bst = IA64_BUS_SPACE_IO;
+			di->bas.chan = 0;
 			di->bas.bst = (ent->address.addr_space == 0)
 			    ? IA64_BUS_SPACE_MEM : IA64_BUS_SPACE_IO;
-			if (bus_space_map(di->bas.bst, di->bas.iobase, 8, 0,
-					  &di->bas.bsh) != 0)
+			if (bus_space_map(di->bas.bst, addr, 8, 0,
+			    &di->bas.bsh) != 0)
 				continue;
 			di->bas.regshft = 0;
 			di->bas.rclk = ent->pclock << 4;
@@ -124,7 +125,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		 * ns8250 and successors on i386.
 		 */
 		di->ops = uart_ns8250_ops;
-		di->bas.iobase = ivar;
+		di->bas.chan = 0;
 		di->bas.bst = IA64_BUS_SPACE_IO;
 		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
 			continue;

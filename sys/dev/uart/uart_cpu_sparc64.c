@@ -55,7 +55,7 @@ uart_cpu_channel(char *dev)
 	if (len < 2 || alias[len - 2] != ':' || alias[len - 1] < 'a' ||
 	    alias[len - 1] > 'b')
 		return (0);
-	return (alias[len - 1] - 'a');
+	return (alias[len - 1] - 'a' + 1);
 }
 
 int
@@ -71,7 +71,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	char buf[32], dev[32], compat[32];
 	phandle_t input, options, output;
 	bus_addr_t addr;
-	int baud, bits, ch, error, space, stop;
+	int baud, bits, error, space, stop;
 	char flag, par;
 
 	/*
@@ -123,20 +123,21 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->bas.rclk = 0;
 	if (!strcmp(buf, "se")) {
 		di->ops = uart_sab82532_ops;
-		addr += 64 * uart_cpu_channel(dev);
+		di->bas.chan = uart_cpu_channel(dev);
+		addr += 64 * (di->bas.chan - 1);
 	} else if (!strcmp(buf, "zs")) {
 		di->ops = uart_z8530_ops;
+		di->bas.chan = uart_cpu_channel(dev);
 		di->bas.regshft = 1;
-		ch = uart_cpu_channel(dev);
-		addr += 4 - 4 * ch;
+		addr += 4 - 4 * (di->bas.chan - 1);
 	} else if (!strcmp(buf, "su") || !strcmp(buf, "su_pnp") ||
-	    !strcmp(compat, "su") || !strcmp(compat, "su16550"))
+	    !strcmp(compat, "su") || !strcmp(compat, "su16550")) {
 		di->ops = uart_ns8250_ops;
-	else
+		di->bas.chan = 0;
+	} else
 		return (ENXIO);
 
 	/* Fill in the device info. */
-	di->bas.iobase = addr;
 	di->bas.bst = &bst_store[devtype];
 	di->bas.bsh = sparc64_fake_bustag(space, addr, di->bas.bst);
 

@@ -42,9 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_RCLK	29491200
 
-#define	IS_CHANNEL_A(bas)	(((bas)->iobase & 0x40) == 0x00)
-#define	IS_CHANNEL_B(bas)	(((bas)->iobase & 0x40) == 0x40)
-
 /*
  * NOTE: To allow us to read the baudrate divisor from the chip, we
  * copy the value written to the write-only BGR register to an unused
@@ -219,7 +216,14 @@ sab82532_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	uart_barrier(bas);
 	/* Set DTR. */
 	pvr = uart_getreg(bas, SAB_PVR);
-	pvr &= IS_CHANNEL_A(bas) ? ~SAB_PVR_DTR_A : ~SAB_PVR_DTR_B;
+	switch (bas->chan) {
+	case 1:
+		pvr &= ~SAB_PVR_DTR_A;
+		break;
+	case 2:
+		pvr &= ~SAB_PVR_DTR_B;
+		break;
+	}
 	uart_setreg(bas, SAB_PVR, pvr | SAB_PVR_MAGIC);
 	uart_barrier(bas);
 
@@ -268,7 +272,14 @@ sab82532_term(struct uart_bas *bas)
 	uint8_t pvr;
 
 	pvr = uart_getreg(bas, SAB_PVR);
-	pvr |= IS_CHANNEL_A(bas) ? SAB_PVR_DTR_A : SAB_PVR_DTR_B;
+	switch (bas->chan) {
+	case 1:
+		pvr |= SAB_PVR_DTR_A;
+		break;
+	case 2:
+		pvr |= SAB_PVR_DTR_B;
+		break;
+	}
 	uart_setreg(bas, SAB_PVR, pvr);
 	uart_barrier(bas);
 }
@@ -448,7 +459,14 @@ sab82532_bus_getsig(struct uart_softc *sc)
 		vstr = uart_getreg(bas, SAB_VSTR);
 		SIGCHG(vstr & SAB_VSTR_CD, sig, UART_SIG_DCD, UART_SIG_DDCD);
 		pvr = uart_getreg(bas, SAB_PVR);
-		pvr &= (IS_CHANNEL_A(bas)) ? SAB_PVR_DSR_A : SAB_PVR_DSR_B;
+		switch (bas->chan) {
+		case 1:
+			pvr &= SAB_PVR_DSR_A;
+			break;
+		case 2:
+			pvr &= SAB_PVR_DSR_B;
+			break;
+		}
 		SIGCHG(~pvr, sig, UART_SIG_DSR, UART_SIG_DDSR);
 		mtx_unlock_spin(&sc->sc_hwmtx);
 		new = sig & ~UART_SIGMASK_DELTA;
@@ -558,15 +576,15 @@ static int
 sab82532_bus_probe(struct uart_softc *sc)
 {
 	char buf[80];
-	const char *ch, *vstr;
+	const char *vstr;
 	int error;
+	char ch;
 
 	error = sab82532_probe(&sc->sc_bas);
 	if (error)
 		return (error);
 
-	/* Assume the address range is naturally aligned. */
-	ch = IS_CHANNEL_A(&sc->sc_bas) ? "A" : "B";
+	ch = sc->sc_bas.chan - 1 + 'A';
 
 	switch (uart_getreg(&sc->sc_bas, SAB_VSTR) & SAB_VSTR_VMASK) {
 	case SAB_VSTR_V_1:
@@ -585,7 +603,7 @@ sab82532_bus_probe(struct uart_softc *sc)
 		break;
 	}
 
-	snprintf(buf, sizeof(buf), "SAB 82532 %s, channel %s", vstr, ch);
+	snprintf(buf, sizeof(buf), "SAB 82532 %s, channel %c", vstr, ch);
 	device_set_desc_copy(sc->sc_dev, buf);
 	return (0);
 }
@@ -650,10 +668,20 @@ sab82532_bus_setsig(struct uart_softc *sc, int sig)
 	mtx_lock_spin(&sc->sc_hwmtx);
 	/* Set DTR pin. */
 	pvr = uart_getreg(bas, SAB_PVR);
-	if (new & UART_SIG_DTR)
-		pvr &= (IS_CHANNEL_A(bas)) ? ~SAB_PVR_DTR_A : ~SAB_PVR_DTR_B;
-	else
-		pvr |= (IS_CHANNEL_A(bas)) ? SAB_PVR_DTR_A : SAB_PVR_DTR_B;
+	switch (bas->chan) {
+	case 1:
+		if (new & UART_SIG_DTR)
+			pvr &= ~SAB_PVR_DTR_A;
+		else
+			pvr |= SAB_PVR_DTR_A;
+		break;
+	case 2:
+		if (new & UART_SIG_DTR)
+			pvr &= ~SAB_PVR_DTR_B;
+		else
+			pvr |= SAB_PVR_DTR_B;
+		break;
+	}
 	uart_setreg(bas, SAB_PVR, pvr);
 
 	/* Set RTS pin. */
