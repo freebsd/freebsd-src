@@ -284,7 +284,7 @@ fi
 vibackup=`echo /var/tmp/vi.recover/vi.*`
 if [ "$vibackup" != '/var/tmp/vi.recover/vi.*' ]; then
 	echo 'Recovering vi editor sessions'
-	for i in $vibackup; do
+	for i in /var/tmp/vi.recover/vi.*; do
 		# Only test files that are readable.
 		if test ! -r "$i"; then
 			continue
@@ -301,7 +301,7 @@ if [ "$vibackup" != '/var/tmp/vi.recover/vi.*' ]; then
 	# crashes at the right time.
 	virecovery=`echo /var/tmp/vi.recover/recover.*`
 	if [ "$virecovery" != "/var/tmp/vi.recover/recover.*" ]; then
-		for i in $virecovery; do
+		for i in /var/tmp/vi.recover/recover.*; do
 			# Only test files that are readable.
 			if test ! -r "$i"; then
 				continue
