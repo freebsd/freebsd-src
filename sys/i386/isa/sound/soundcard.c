@@ -480,7 +480,7 @@ tenmicrosec (void)
 void
 gusintr (int unit)
 {
-  return (0);
+  return;
 }
 #endif
 
