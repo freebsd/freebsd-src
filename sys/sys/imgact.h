@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.9 1995/05/30 08:14:24 rgrimes Exp $
+ *	$Id: imgact.h,v 1.10 1995/11/06 12:52:37 davidg Exp $
  */
 
 #ifndef _SYS_IMGACT_H_
@@ -54,6 +54,7 @@ struct image_params {
 	char vmspace_destroyed;	/* flag - we've blown away original vm space */
 	char interpreted;	/* flag - this executable is interpreted */
 	char interpreter_name[64]; /* name of the interpreter */
+	void *auxargs;		/* ELF Auxinfo structure pointer */
 };
 
 #ifdef KERNEL

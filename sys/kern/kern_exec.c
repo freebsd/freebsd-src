@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.35 1996/02/24 14:32:52 peter Exp $
+ *	$Id: kern_exec.c,v 1.36 1996/03/02 19:38:08 peter Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/acct.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
+#include <sys/imgact_elf.h>
 #include <sys/wait.h>
 #include <sys/malloc.h>
 #include <sys/sysent.h>
@@ -118,6 +119,7 @@ execve(p, uap, retval)
 	imgp->vmspace_destroyed = 0;
 	imgp->interpreted = 0;
 	imgp->interpreter_name[0] = '\0';
+	imgp->auxargs = NULL;
 
 	/*
 	 * Allocate temporary demand zeroed space for argument and
@@ -475,11 +477,24 @@ exec_copyout_strings(imgp)
 			((caddr_t)arginfo - szsigcode), szsigcode);
 
 	/*
-	 * The '+ 2' is for the null pointers at the end of each of the
-	 *	arg and	env vector sets
+	 * If we have a valid auxargs ptr, prepare some room
+	 * on the stack.
 	 */
-	vectp = (char **) (destp -
-		(imgp->argc + imgp->envc + 2) * sizeof(char *));
+	if (imgp->auxargs)
+	/*
+	 * The '+ 2' is for the null pointers at the end of each of the
+	 * arg and env vector sets, and 'AT_COUNT*2' is room for the
+	 * ELF Auxargs data.
+	 */
+		vectp = (char **)(destp - (imgp->argc + imgp->envc + 2 +
+				  AT_COUNT*2) * sizeof(char*));
+	else 
+	/*
+	 * The '+ 2' is for the null pointers at the end of each of the
+	 * arg and env vector sets
+	 */
+		vectp = (char **)
+			(destp - (imgp->argc + imgp->envc + 2) * sizeof(char*));
 
 	/*
 	 * vectp also becomes our initial stack base
