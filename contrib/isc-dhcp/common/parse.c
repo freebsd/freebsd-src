@@ -3,7 +3,7 @@
    Common parser code for dhcpd and dhclient. */
 
 /*
- * Copyright (c) 1995-2001 Internet Software Consortium.
+ * Copyright (c) 1995-2002 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: parse.c,v 1.104.2.10 2002/11/03 04:31:55 dhankins Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: parse.c,v 1.104.2.12 2002/11/17 02:58:34 dhankins Exp $ Copyright (c) 1995-2002 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -3973,83 +3973,51 @@ int parse_expression (expr, cfile, lose, context, plhs, binop)
 	      case AND:
 		next_op = expr_and;
 		context = expression_context (rhs);
-		if (context != context_boolean) {
-		      needbool:
-			parse_warn (cfile, "expecting boolean expressions");
-			skip_to_semi (cfile);
-			expression_dereference (&rhs, MDL);
-			*lose = 1;
-			return 0;
-		}
 		break;
 
 	      case OR:
 		next_op = expr_or;
 		context = expression_context (rhs);
-		if (context != context_boolean)
-			goto needbool;
 		break;
 
 	      case PLUS:
 		next_op = expr_add;
 		context = expression_context (rhs);
-		if (context != context_numeric) {
-		      neednum:
-			parse_warn (cfile, "expecting numeric expressions");
-			skip_to_semi (cfile);
-			expression_dereference (&rhs, MDL);
-			*lose = 1;
-			return 0;
-		}
 		break;
 
 	      case MINUS:
 		next_op = expr_subtract;
 		context = expression_context (rhs);
-		if (context != context_numeric)
-			goto neednum;
 		break;
 
 	      case SLASH:
 		next_op = expr_divide;
 		context = expression_context (rhs);
-		if (context != context_numeric)
-			goto neednum;
 		break;
 
 	      case ASTERISK:
 		next_op = expr_multiply;
 		context = expression_context (rhs);
-		if (context != context_numeric)
-			goto neednum;
 		break;
 
 	      case PERCENT:
 		next_op = expr_remainder;
 		context = expression_context (rhs);
-		if (context != context_numeric)
-			goto neednum;
 		break;
 
 	      case AMPERSAND:
 		next_op = expr_binary_and;
 		context = expression_context (rhs);
-		if (context != context_numeric)
-			goto neednum;
 		break;
 
 	      case PIPE:
 		next_op = expr_binary_or;
 		context = expression_context (rhs);
-		if (context != context_numeric)
-			goto neednum;
 		break;
 
 	      case CARET:
 		next_op = expr_binary_xor;
 		context = expression_context (rhs);
-		if (context != context_numeric)
-			goto neednum;
 		break;
 
 	      default:
@@ -4069,6 +4037,63 @@ int parse_expression (expr, cfile, lose, context, plhs, binop)
 		binop = next_op;
 		next_token (&val, (unsigned *)0, cfile);
 		goto new_rhs;
+	}
+
+	if (binop != expr_none) {
+	  if (expression_context (rhs) != expression_context (lhs)) {
+	    parse_warn (cfile, "illegal expression relating different types");
+	    skip_to_semi (cfile);
+	    expression_dereference (&rhs, MDL);
+	    expression_dereference (&lhs, MDL);
+	    *lose = 1;
+	    return 0;
+	  }
+
+	  switch(binop) {
+	    case expr_not_equal:
+	    case expr_equal:
+		if ((expression_context(rhs) != context_data_or_numeric) &&
+		    (expression_context(rhs) != context_data) &&
+		    (expression_context(rhs) != context_numeric)) {
+			parse_warn (cfile, "expecting data/numeric expression");
+			skip_to_semi (cfile);
+			expression_dereference (&rhs, MDL);
+			*lose = 1;
+			return 0;
+		}
+		break;
+
+	    case expr_and:
+	    case expr_or:
+		if (expression_context(rhs) != context_boolean) {
+			parse_warn (cfile, "expecting boolean expressions");
+			skip_to_semi (cfile);
+			expression_dereference (&rhs, MDL);
+			*lose = 1;
+			return 0;
+		}
+		break;
+
+	    case expr_add:
+	    case expr_subtract:
+	    case expr_divide:
+	    case expr_multiply:
+	    case expr_remainder:
+	    case expr_binary_and:
+	    case expr_binary_or:
+	    case expr_binary_xor:
+		if (expression_context(rhs) != context_numeric) {
+			parse_warn (cfile, "expecting numeric expressions");
+                        skip_to_semi (cfile);
+                        expression_dereference (&rhs, MDL);
+                        *lose = 1;
+                        return 0;
+		}
+		break;
+
+	    default:
+		break;
+	  }
 	}
 
 	/* Now, if we didn't find a binary operator, we're done parsing

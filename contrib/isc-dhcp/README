@@ -143,14 +143,14 @@ information.   On Digital Unix, type ``man pfilt''.
 To build the DHCP Distribution, unpack the compressed tar file using
 the tar utility and the gzip command - type something like:
 
-	zcat dhcp-3.0.1rc10.tar.gz |tar xvf -
+	zcat dhcp-3.0.1rc11.tar.gz |tar xvf -
 
 On BSD/OS, you have to type gzcat, not zcat, and you may run into
 similar problems on other operating systems.
 
 			    CONFIGURING IT
 
-Now, cd to the dhcp-3.0.1rc10 subdirectory that you've just
+Now, cd to the dhcp-3.0.1rc11 subdirectory that you've just
 created and configure the source tree by typing:
 
 		./configure
