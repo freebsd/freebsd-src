@@ -44,34 +44,6 @@ CFLAGS+=	-I${.CURDIR}/../../usr.bin/cc/cc_tools \
 		-I${GCCDIR}/config -I${GCCDIR} -I.
 LDFLAGS=	-nostdlib
 
-# Remove any objects from LIB2FUNCS and LIB2_DIVMOD_FUNCS that are
-# defined as optimized assembly code in LIB1ASMFUNCS.
-.if defined(LIB1ASMFUNCS)
-.for sym in ${LIB1ASMFUNCS}
-LIB2FUNCS_1=	${LIB2FUNCS_1:S/${sym}//g}
-LIB2FUNCS_2=	${LIB2FUNCS_2:S/${sym}//g}
-LIB2_DIVMOD_FUNCS= ${LIB2_DIVMOD_FUNCS:S/${sym}//g}
-.endfor
-.endif
-
-SYMS=		${LIB1ASMFUNCS}		\
-		${LIB2FUNCS_1}		\
-		${LIB2FUNCS_2}		\
-		${LIB2_DIVMOD_FUNCS}
-.if ${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "sparc64"
-SYMS+=		${FPBIT_FUNCS} ${DPBIT_FUNCS}
-.endif
-SYMS_ST=	${LIB2FUNCS_ST}		\
-		${LIB2ADD_ST}
-OBJS_T=		${SYMS:S/$/.o/}  ${SYMS_ST:S/$/.o/}
-OBJS_P=		${SYMS:S/$/.po/} ${SYMS_ST:S/$/.po/}
-OBJS_S=		${SYMS:S/$/.So/}
-OBJS=		${SYMS:S/$/.o/}
-STATICOBJS=	${SYMS_ST:S/$/.o/}
-SRCS=		${LIB2ADD} ${LIB2ADDEH}
-
-
-
 #---------------------------------------------------------------------------
 #
 # When upgrading GCC, get the following defintions straight from Makefile.in
@@ -180,6 +152,32 @@ fp-bit.po: config/fp-bit.c
 	${XCC} -p -DFLOAT=1 -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
 
 #-----------------------------------------------------------------------
+
+# Remove any objects from LIB2FUNCS and LIB2_DIVMOD_FUNCS that are
+# defined as optimized assembly code in LIB1ASMFUNCS.
+.if defined(LIB1ASMFUNCS)
+.for sym in ${LIB1ASMFUNCS}
+LIB2FUNCS_1:=	${LIB2FUNCS_1:S/${sym}//g}
+LIB2FUNCS_2:=	${LIB2FUNCS_2:S/${sym}//g}
+LIB2_DIVMOD_FUNCS:= ${LIB2_DIVMOD_FUNCS:S/${sym}//g}
+.endfor
+.endif
+
+SYMS=		${LIB1ASMFUNCS}		\
+		${LIB2FUNCS_1}		\
+		${LIB2FUNCS_2}		\
+		${LIB2_DIVMOD_FUNCS}
+.if ${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "sparc64"
+SYMS+=		${FPBIT_FUNCS} ${DPBIT_FUNCS}
+.endif
+SYMS_ST=	${LIB2FUNCS_ST}		\
+		${LIB2ADD_ST}
+OBJS_T=		${SYMS:S/$/.o/}  ${SYMS_ST:S/$/.o/}
+OBJS_P=		${SYMS:S/$/.po/} ${SYMS_ST:S/$/.po/}
+OBJS_S=		${SYMS:S/$/.So/}
+OBJS=		${SYMS:S/$/.o/}
+STATICOBJS=	${SYMS_ST:S/$/.o/}
+SRCS=		${LIB2ADD} ${LIB2ADDEH}
 
 COMMONHDRS=	tconfig.h
 SRCS+=		${COMMONHDRS}
