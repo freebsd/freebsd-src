@@ -1094,15 +1094,13 @@ COMMON ITEMS:
 	install) after the buildworld before this step if you last updated
 	from current before 20020224 or from -stable before 20020408.
 
-	[6] 4.x boot blocks can be used to boot a 5.x system, however
-	it is difficult to do that at best.  If you are concerned
-	about being able to boot 4.x if the reboot to single user
-	fails, then you should do something like
-		mv /boot /boot-4x
-		mkdir /boot
-	before this step.  You may be able to then boot the 4.x boot
-	blocks if you catch boot2, and enter /boot-4x/loader rather than
-	/boot/loader.  However, this step hasn't been torture tested.
+	[6] 4.x boot loader can be used to boot a 5.x system, however
+	it is difficult to do that at best.  If you wish to try, then
+	you should interrupt the boot and at the ok prompt type:
+		ok unload
+		ok boot /boot/kernel/kernel
+	If this fails to work, you must install a new boot loader as
+	described here.
 
 	[7] Before you upgrade, please make sure that you are not using
 	compatibility slices.  These are device names of the form, on i386
