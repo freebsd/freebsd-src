@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.19.2.5 1999/05/22 22:58:27 gibbs Exp $
+ *      $Id: scsi_da.c,v 1.19.2.6 1999/07/03 21:16:44 mjacob Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -284,7 +284,7 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 	softc = (struct da_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-	    ("daopen: dev=0x%x (unit %d , partition %d)\n", dev,
+	    ("daopen: dev=0x%lx (unit %d , partition %d)\n", (long) dev,
 	     unit, part));
 
 	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0) {
@@ -1326,8 +1326,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			dp = &softc->params;
 			snprintf(announce_buf, sizeof(announce_buf),
 			        "%luMB (%u %u byte sectors: %dH %dS/T %dC)",
-				(((unsigned long) dp->secsize) *
-				 ((unsigned long) dp->sectors)) >> 20ul,
+				((unsigned long)dp->secsize * dp->sectors) /
+				((unsigned long)1024 * 1024),
 				dp->sectors, dp->secsize, dp->heads,
 				dp->secs_per_track, dp->cylinders);
 		} else {
