@@ -51,15 +51,13 @@ __FBSDID("$FreeBSD$");
 int
 wcwidth(wchar_t wc)
 {
-	int width;
+	unsigned int x;
 
 	if (wc == L'\0')
 		return (0);
 
-	width = __maskrune(wc, _CTYPE_SWM);
-
-	/* 0 is autowidth (default) */
-	return (width ? (int)((unsigned)width >> _CTYPE_SWS)
-		      : (iswprint(wc) ? 1 : -1));
+	x = (unsigned int)__maskrune(wc, _CTYPE_SWM|_CTYPE_R);
+	if ((x & _CTYPE_SWM) != 0)
+		return ((x & _CTYPE_SWM) >> _CTYPE_SWS);
+	return ((x & _CTYPE_R) != 0 ? 1 : -1);
 }
-
