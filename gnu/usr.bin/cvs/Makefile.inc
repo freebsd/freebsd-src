@@ -8,7 +8,6 @@ LIBDESTDIR=	${.OBJDIR}/../lib
 LIBDESTDIR=	${.CURDIR}/../lib
 .endif
 
-LDDESTDIR=	-L${LIBDESTDIR}
 LIBCVS=		${LIBDESTDIR}/libcvs.a
 
 .if exists(${.CURDIR}/../../Makefile.inc)
