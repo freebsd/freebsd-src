@@ -96,8 +96,6 @@ DUMMY(rt_sigreturn);
 DUMMY(rt_sigpending);
 DUMMY(rt_sigtimedwait);
 DUMMY(rt_sigqueueinfo);
-DUMMY(pread);
-DUMMY(pwrite);
 DUMMY(capget);
 DUMMY(capset);
 DUMMY(sendfile);
