@@ -28,7 +28,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	BSDI doscmd.1,v 2.3 1996/04/08 19:32:29 bostic Exp
-.\"	$Id$
+.\"	$Id: doscmd.1,v 1.9 1999/07/12 20:23:25 nik Exp $
 .\"
 .Dd January 30, 1995
 .Dt DOSCMD 1
@@ -587,8 +587,8 @@ Create a
 .Pa .doscmdrc
 with at least the following:
 .Bd -literal -offset indent
-assign A: /dev/rfd0_1440_3.5 1440
-assign A: /dev/rfd0_720_3.5 720
+assign A: /dev/rfd0.1440 1440
+assign A: /dev/rfd0.720 720
 assign hard boot_drive 80 2 2
 .Ed
 .Pp
