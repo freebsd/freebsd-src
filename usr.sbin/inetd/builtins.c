@@ -52,8 +52,21 @@
 
 #include "inetd.h"
 
-extern int	 debug;
-extern struct servtab *servtab;
+void		chargen_dg __P((int, struct servtab *));
+void		chargen_stream __P((int, struct servtab *));
+void		daytime_dg __P((int, struct servtab *));
+void		daytime_stream __P((int, struct servtab *));
+void		discard_dg __P((int, struct servtab *));
+void		discard_stream __P((int, struct servtab *));
+void		echo_dg __P((int, struct servtab *));
+void		echo_stream __P((int, struct servtab *));
+static int	getline __P((int, char *, int));
+void		iderror __P((int, int, int, const char *));
+void		ident_stream __P((int, struct servtab *));
+void		initring __P((void));
+unsigned long	machtime __P((void));
+void		machtime_dg __P((int, struct servtab *));
+void		machtime_stream __P((int, struct servtab *));
 
 char ring[128];
 char *endring;
@@ -80,11 +93,11 @@ struct biltin biltins[] = {
 	{ "chargen",	SOCK_STREAM,	1, -1,	chargen_stream },
 	{ "chargen",	SOCK_DGRAM,	0, 1,	chargen_dg },
 
-	{ "tcpmux",	SOCK_STREAM,	1, -1,	(void (*)())tcpmux },
+	{ "tcpmux",	SOCK_STREAM,	1, -1,	(bi_fn_t *)tcpmux },
 
 	{ "auth",	SOCK_STREAM,	1, -1,	ident_stream },
 
-	{ NULL }
+	{ NULL,		0,		0, 0,	NULL }
 };
 
 /*
@@ -187,11 +200,11 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 	struct servtab *sep;
 {
 	char buffer[256];
-	time_t clock;
+	time_t now;
 	struct sockaddr_storage ss;
 	socklen_t size;
 
-	clock = time((time_t *) 0);
+	now = time((time_t *) 0);
 
 	size = sizeof(ss);
 	if (recvfrom(s, buffer, sizeof(buffer), 0,
@@ -201,7 +214,7 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 	if (check_loop((struct sockaddr *)&ss, sep))
 		return;
 
-	(void) sprintf(buffer, "%.24s\r\n", ctime(&clock));
+	(void) sprintf(buffer, "%.24s\r\n", ctime(&now));
 	(void) sendto(s, buffer, strlen(buffer), 0,
 		      (struct sockaddr *)&ss, size);
 }
@@ -213,11 +226,11 @@ daytime_stream(s, sep)		/* Return human-readable time of day */
 	struct servtab *sep;
 {
 	char buffer[256];
-	time_t clock;
+	time_t now;
 
-	clock = time((time_t *) 0);
+	now = time((time_t *) 0);
 
-	(void) sprintf(buffer, "%.24s\r\n", ctime(&clock));
+	(void) sprintf(buffer, "%.24s\r\n", ctime(&now));
 	(void) send(s, buffer, strlen(buffer), MSG_EOF);
 }
 
@@ -316,7 +329,7 @@ echo_stream(s, sep)		/* Echo service -- echo data back */
 void
 iderror(lport, fport, s, er)	/* Generic ident_stream error-sending func */
 	int lport, fport, s;
-	char *er;
+	const char *er;
 {
 	char *p;
 
@@ -339,7 +352,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 {
 	struct utsname un;
 	struct stat sb;
-	struct sockaddr_in sin[2];
+	struct sockaddr_in sin4[2];
 #ifdef INET6
 	struct sockaddr_in6 sin6[2];
 #endif
@@ -377,7 +390,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	if (argc) {
 		int sec, usec;
 		size_t i;
-		u_int32_t random;
+		u_int32_t rnd32;
 
 		while ((c = getopt(argc, sep->se_argv, "d:fFgino:rt:")) != -1)
 			switch (c) {
@@ -394,9 +407,9 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 				break;
 			case 'g':
 				gflag = 1;
-				random = 0;	/* Shush, compiler. */
+				rnd32 = 0;	/* Shush, compiler. */
 				/*
-				 * The number of bits in "random" divided
+				 * The number of bits in "rnd32" divided
 				 * by the number of bits needed per iteration
 				 * gives a more optimal way to reload the
 				 * random number only when necessary.
@@ -409,9 +422,9 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 					    "0123456789"
 					    "abcdefghijklmnopqrstuvwxyz";
 					if (i % 6 == 0)
-						random = arc4random();
-					idbuf[i] = base36[random % 36];
-					random /= 36;
+						rnd32 = arc4random();
+					idbuf[i] = base36[rnd32 % 36];
+					rnd32 /= 36;
 				}
 				idbuf[i] = '\0';
 				break;
@@ -483,7 +496,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			iderror(0, 0, s, ID_UNKNOWN);
 		if (ioctl(s, FIONREAD, &onreadlen) == -1)
 			iderror(0, 0, s, ID_UNKNOWN);
-		if (onreadlen > bufsiz)
+		if ((size_t)onreadlen > bufsiz)
 			onreadlen = bufsiz;
 		ssize = read(s, &buf[size], (size_t)onreadlen);
 		if (ssize == -1)
@@ -533,12 +546,12 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	size = sizeof(uc);
 	switch (ss[0].ss_family) {
 	case AF_INET:
-		sin[0] = *(struct sockaddr_in *)&ss[0];
-		sin[0].sin_port = htons(lport);
-		sin[1] = *(struct sockaddr_in *)&ss[1];
-		sin[1].sin_port = htons(fport);
-		if (sysctlbyname("net.inet.tcp.getcred", &uc, &size, sin,
-				 sizeof(sin)) == -1)
+		sin4[0] = *(struct sockaddr_in *)&ss[0];
+		sin4[0].sin_port = htons(lport);
+		sin4[1] = *(struct sockaddr_in *)&ss[1];
+		sin4[1].sin_port = htons(fport);
+		if (sysctlbyname("net.inet.tcp.getcred", &uc, &size, sin4,
+				 sizeof(sin4)) == -1)
 			getcredfail = errno;
 		break;
 #ifdef INET6
