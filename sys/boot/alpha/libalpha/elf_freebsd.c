@@ -1,4 +1,4 @@
-/* $Id: elf_freebsd.c,v 1.5 1998/10/14 09:53:25 peter Exp $ */
+/* $Id: elf_freebsd.c,v 1.6 1998/10/15 21:55:58 dfr Exp $ */
 /* $NetBSD: loadfile.c,v 1.10 1998/06/25 06:45:46 ross Exp $ */
 
 /*-
@@ -105,6 +105,7 @@ elf_exec(struct loaded_module *mp)
     struct module_metadata	*md;
     Elf_Ehdr			*hdr;
     int				err;
+    int				flen;
 
     if ((md = mod_findmetadata(mp, MODINFOMD_ELFHDR)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
@@ -121,13 +122,33 @@ elf_exec(struct loaded_module *mp)
      */
     strncpy(bootinfo_v1.booted_kernel, mp->m_name,
 	    sizeof(bootinfo_v1.booted_kernel));
-    prom_getenv(PROM_E_BOOTED_OSFLAGS, bootinfo_v1.boot_flags,
+    flen = prom_getenv(PROM_E_BOOTED_OSFLAGS, bootinfo_v1.boot_flags,
 		sizeof(bootinfo_v1.boot_flags));
     bootinfo_v1.hwrpb = (void *)HWRPB_ADDR;
     bootinfo_v1.hwrpbsize = ((struct rpb *)HWRPB_ADDR)->rpb_size;
     bootinfo_v1.cngetc = NULL;
     bootinfo_v1.cnputc = NULL;
     bootinfo_v1.cnpollc = NULL;
+
+    /*
+     * Append the boot command flags.
+     */
+    if (mp->m_args != NULL && *mp->m_args != '\0') {
+	const char *p = mp->m_args;
+
+	do {
+	    if (*p == '-') {
+		while (*++p != ' ' && *p != '\0')
+		    if (flen < sizeof(bootinfo_v1.boot_flags) - 1)
+			bootinfo_v1.boot_flags[flen++] = *p;
+	    } else
+		while (*p != ' ' && *p != '\0')
+		    p++;
+	    while (*p == ' ')
+		p++;
+	} while (*p != '\0');
+	bootinfo_v1.boot_flags[flen] = '\0';
+    }
 
     printf("Entering %s at 0x%lx...\n", mp->m_name, hdr->e_entry);
     closeall();
