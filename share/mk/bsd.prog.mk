@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.59 1997/12/18 12:56:52 bde Exp $
+#	$Id: bsd.prog.mk,v 1.60 1998/02/07 17:19:06 helbig Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -25,6 +25,7 @@ LDFLAGS+= -static
 .endif
 
 .if defined(PROG)
+.if !target(${PROG})
 .if defined(SRCS)
 
 DPSRCS+= ${SRCS:M*.h}
@@ -46,6 +47,7 @@ OBJS=	${PROG}.o
 ${PROG}: ${DPSRCS} ${OBJS}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDDESTDIR} ${LDADD}
 
+.endif
 .endif
 
 .if	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
