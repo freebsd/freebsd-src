@@ -37,6 +37,8 @@
 #ifndef _NETINET_IN_H_
 #define _NETINET_IN_H_
 
+#include <sys/_types.h>
+
 /*
  * Constants and structures defined by the internet system,
  * Per RFC 790, September 1981, and numerous additions.
@@ -230,14 +232,29 @@
 
 #define	IPPORT_MAX		65535
 
-#ifndef _IN_ADDR_T_DECLARED_
-typedef	__uint32_t	in_addr_t;
-#define	_IN_ADDR_T_DECLARED_
+#ifndef _UINT8_T_DECLARED
+typedef	__uint8_t		uint8_t;
+#define	_UINT8_T_DECLARED
 #endif
 
-#ifndef _IN_PORT_T_DECLARED_
-typedef	__uint16_t	in_port_t;
-#define	_IN_PORT_T_DECLARED_
+#ifndef _UINT16_T_DECLARED
+typedef	__uint16_t		uint16_t;
+#define	_UINT16_T_DECLARED
+#endif
+
+#ifndef _UINT32_T_DECLARED
+typedef	__uint32_t		uint32_t;
+#define	_UINT32_T_DECLARED
+#endif
+
+#ifndef _IN_ADDR_T_DECLARED
+typedef	uint32_t		in_addr_t;
+#define	_IN_ADDR_T_DECLARED
+#endif
+
+#ifndef _IN_PORT_T_DECLARED
+typedef	uint16_t		in_port_t;
+#define	_IN_PORT_T_DECLARED
 #endif
 
 /*
@@ -503,10 +520,10 @@ char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
 __BEGIN_DECLS
-__uint32_t	htonl(__uint32_t);
-__uint16_t	htons(__uint16_t);
-__uint32_t	ntohl(__uint32_t);
-__uint16_t	ntohs(__uint16_t);
+uint32_t	htonl(uint32_t);
+uint16_t	htons(uint16_t);
+uint32_t	ntohl(uint32_t);
+uint16_t	ntohs(uint16_t);
 __END_DECLS
 #endif
 
