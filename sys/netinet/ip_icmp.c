@@ -144,7 +144,6 @@ icmp_error(n, type, code, dest, destifp)
 	register unsigned oiplen = oip->ip_hl << 2;
 	register struct icmp *icp;
 	register struct mbuf *m;
-	register struct m_tag *mtag;
 	unsigned icmplen;
 
 #ifdef ICMPPRINTFS
@@ -224,6 +223,11 @@ icmp_error(n, type, code, dest, destifp)
 	 */
 	if (m->m_data - sizeof(struct ip) < m->m_pktdat)
 		panic("icmp len");
+	/*
+	 * If the original mbuf was meant to bypass the firewall, the error
+	 * reply should bypass as well.
+	 */
+	m->m_flags |= n->m_flags & M_SKIP_FIREWALL;
 	m->m_data -= sizeof(struct ip);
 	m->m_len += sizeof(struct ip);
 	m->m_pkthdr.len = m->m_len;
@@ -235,16 +239,6 @@ icmp_error(n, type, code, dest, destifp)
 	nip->ip_hl = 5;
 	nip->ip_p = IPPROTO_ICMP;
 	nip->ip_tos = 0;
-	/* 
-	 * XXX: Move PF_GENERATED m_tag to new packet, if it exists.
-	 *	This should be replaced by unified flags/tags for
-	 *	pf/ipfw/ipf and future pfil_hook applications.
-	 */
-	mtag = m_tag_find(n, PACKET_TAG_PF_GENERATED, NULL);
-	if (mtag != NULL) {
-		m_tag_unlink(n, mtag);
-		m_tag_prepend(m, mtag);
-	}
 	icmp_reflect(m);
 
 freeit:

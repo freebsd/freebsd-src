@@ -1379,7 +1379,9 @@ pf_send_tcp(const struct pf_rule *r, sa_family_t af,
     u_int8_t flags, u_int16_t win, u_int16_t mss, u_int8_t ttl)
 {
 	struct mbuf	*m;
+#ifdef ALTQ
 	struct m_tag	*mtag;
+#endif
 	int		 len = 0, tlen;		/* make the compiler happy */
 #ifdef INET
 	struct ip	*h = NULL;		/* make the compiler happy */
@@ -1412,6 +1414,12 @@ pf_send_tcp(const struct pf_rule *r, sa_family_t af,
 	}
 
 	/* create outgoing mbuf */
+#ifdef __FreeBSD__
+	m = m_gethdr(M_DONTWAIT, MT_HEADER);
+	if (m == NULL)
+		return;
+	m->m_flags |= M_SKIP_FIREWALL;
+#else
 	mtag = m_tag_get(PACKET_TAG_PF_GENERATED, 0, M_NOWAIT);
 	if (mtag == NULL)
 		return;
@@ -1421,6 +1429,7 @@ pf_send_tcp(const struct pf_rule *r, sa_family_t af,
 		return;
 	}
 	m_tag_prepend(m, mtag);
+#endif
 #ifdef ALTQ
 	if (r != NULL && r->qid) {
 		struct altq_tag *atag;
@@ -1542,25 +1551,30 @@ void
 pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
     struct pf_rule *r)
 {
+#ifdef ALTQ
 	struct m_tag	*mtag;
+#endif
 	struct mbuf	*m0;
 #ifdef __FreeBSD__
 	struct ip *ip;
 #endif
 
+#ifdef __FreeBSD__
+	m0 = m_copypacket(m, M_DONTWAIT);
+	if (m0 == NULL)
+		return;
+	m0->m_flags |= M_SKIP_FIREWALL;
+#else
 	mtag = m_tag_get(PACKET_TAG_PF_GENERATED, 0, M_NOWAIT);
 	if (mtag == NULL)
 		return;
-#ifdef __FreeBSD__
-	m0 = m_copypacket(m, M_DONTWAIT);
-#else
 	m0 = m_copy(m, 0, M_COPYALL);
-#endif
 	if (m0 == NULL) {
 		m_tag_free(mtag);
 		return;
 	}
 	m_tag_prepend(m0, mtag);
+#endif
 
 #ifdef ALTQ
 	if (r->qid) {
@@ -5436,15 +5450,16 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	/* Cheat. */
 	if (r->rt == PF_FASTROUTE) {
-		mtag = m_tag_get(PACKET_TAG_PF_GENERATED, 0, M_NOWAIT);
-		if (mtag == NULL)
-			goto bad;
-		m_tag_prepend(m0, mtag);
 #ifdef __FreeBSD__
+		m0->m_flags |= M_SKIP_FIREWALL;
 		PF_UNLOCK();
 		ip6_output(m0, NULL, NULL, 0, NULL, NULL, NULL);
 		PF_LOCK();
 #else
+		mtag = m_tag_get(PACKET_TAG_PF_GENERATED, 0, M_NOWAIT);
+		if (mtag == NULL)
+			goto bad;
+		m_tag_prepend(m0, mtag);
 		ip6_output(m0, NULL, NULL, 0, NULL, NULL);
 #endif
 		return;
@@ -5788,9 +5803,11 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0)
 	PF_LOCK();
 #endif
 	if (!pf_status.running ||
-	    (m_tag_find(m, PACKET_TAG_PF_GENERATED, NULL) != NULL)) {
 #ifdef __FreeBSD__
+	    (m->m_flags & M_SKIP_FIREWALL)) {
 		PF_UNLOCK();
+#else
+	    (m_tag_find(m, PACKET_TAG_PF_GENERATED, NULL) != NULL)) {
 #endif
 	    	return (PF_PASS);
 	}
@@ -6113,9 +6130,11 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0)
 #endif
 
 	if (!pf_status.running ||
-	    (m_tag_find(m, PACKET_TAG_PF_GENERATED, NULL) != NULL)) {
 #ifdef __FreeBSD__
+	    (m->m_flags & M_SKIP_FIREWALL)) {
 		PF_UNLOCK();
+#else
+	    (m_tag_find(m, PACKET_TAG_PF_GENERATED, NULL) != NULL)) {
 #endif
 		return (PF_PASS);
 	}
