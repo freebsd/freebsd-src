@@ -66,7 +66,7 @@ static char sccsid[] = "@(#)registerd.c	8.1 (Berkeley) 6/1/93";
 char	*progname, msgbuf[BUFSIZ];
 
 void cleanup(void);
-void die(void);
+void die(int);
 void send_packet(char *msg, int flag);
 int net_get_principal(char *pname, char *iname, C_Block *keyp);
 int do_append(struct sockaddr_in *sinp);
@@ -91,7 +91,7 @@ main(argc, argv)
 	signal(SIGHUP, SIG_IGN);
 	signal(SIGINT, SIG_IGN);
 	signal(SIGTSTP, SIG_IGN);
-	signal(SIGPIPE, (__sighandler_t *)die);
+	signal(SIGPIPE, die);
 
 	if (setrlimit(RLIMIT_CORE, &rl) < 0) {
 		syslog(LOG_ERR, "setrlimit: %m");
@@ -346,7 +346,8 @@ cleanup()
 }
 
 void
-die()
+die(sig)
+	int sig;
 {
 	syslog(LOG_ERR, "remote end died (SIGPIPE)");
 	cleanup();
