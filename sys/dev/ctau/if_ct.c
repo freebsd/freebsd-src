@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #   include <i386/isa/intr_machdep.h>
 #   endif
 #endif
-#if __FreeBSD_version >= 500000
+#if __FreeBSD_version >= 400000
 #include <dev/cx/machdep.h>
 #include <dev/ctau/ctddk.h>
 #include <dev/cx/cronyxfw.h>
