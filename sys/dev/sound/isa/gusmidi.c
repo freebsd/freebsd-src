@@ -97,13 +97,13 @@ struct gusmidi_softc {
 	device_t dev; /* device information */
 	mididev_info *devinfo; /* midi device information */
 
+	struct mtx mtx; /* Mutex to protect the device. */
+
 	struct resource *io; /* Base of io port */
 	int io_rid; /* Io resource ID */
 	struct resource *irq; /* Irq */
 	int irq_rid; /* Irq resource ID */
 	void *ih; /* Interrupt cookie */
-
-	struct callout_handle dh; /* Callout handler for delay */
 
 	int ctl;	/* Control bits.  */
 };
@@ -129,10 +129,7 @@ static mididev_info gusmidi_op_desc = {
 
 	gusmidi_open,
 	NULL,
-	NULL,
-	NULL,
 	gusmidi_ioctl,
-	NULL,
 
 	gusmidi_callback,
 
@@ -192,21 +189,15 @@ gusmidi_init(device_t dev)
 {
 	sc_p scp;
 	mididev_info *devinfo;
-	int unit;
 
 	scp = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	/* Fill the softc. */
 	scp->dev = dev;
-	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_MIDI);
+	mtx_init(&scp->mtx, "gusmid", MTX_DEF);
+	scp->devinfo = devinfo = create_mididev_info_unit(MDT_MIDI, &gusmidi_op_desc, &midisynth_op_desc);
 
 	/* Fill the midi info. */
-	bcopy(&gusmidi_op_desc, devinfo, sizeof(gusmidi_op_desc));
-	midiinit(devinfo, dev);
-	devinfo->flags = 0;
-	bcopy(&midisynth_op_desc, &devinfo->synth, sizeof(midisynth_op_desc));
-
 	if (scp->irq != NULL)
 		snprintf(devinfo->midistat, sizeof(devinfo->midistat), "at 0x%x irq %d",
 			 (u_int)rman_get_start(scp->io), (int)rman_get_start(scp->irq));
@@ -214,10 +205,7 @@ gusmidi_init(device_t dev)
 		snprintf(devinfo->midistat, sizeof(devinfo->midistat), "at 0x%x",
 			 (u_int)rman_get_start(scp->io));
 
-	/* Init the queue. */
-	devinfo->midi_dbuf_in.unit_size = devinfo->midi_dbuf_out.unit_size = 1;
-	midibuf_init(&devinfo->midi_dbuf_in);
-	midibuf_init(&devinfo->midi_dbuf_out);
+	midiinit(devinfo, dev);
 
 	bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, gusmidi_intr, scp,
 	    &scp->ih);
@@ -241,10 +229,14 @@ gusmidi_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	}
 	scp = devinfo->softc;
 
+	mtx_lock(&scp->mtx);
+
 	gusmidi_writeport(scp, PORT_CTL, MIDICTL_MASTER_RESET);
 	DELAY(100);
 
 	gusmidi_writeport(scp, PORT_CTL, scp->ctl);
+
+	mtx_unlock(&scp->mtx);
 
 	return (0);
 }
@@ -295,7 +287,6 @@ void
 gusmidi_intr(void *arg)
 {
 	sc_p scp;
-	int s;
 	u_char c;
 	mididev_info *devinfo;
 	int stat, did_something;
@@ -303,14 +294,18 @@ gusmidi_intr(void *arg)
 	scp = (sc_p)arg;
 	devinfo = scp->devinfo;
 
-	s = splclock();
+	MIDI_DROP_GIANT_NOSWITCH();
 
 	/* XXX No framing/overrun checks...  */
+	mtx_lock(&devinfo->flagqueue_mtx);
+	mtx_lock(&scp->mtx);
+
 	do {
 		stat = gusmidi_readport(scp, PORT_ST);
 		did_something = 0;
 		if (stat & MIDIST_RXFULL) {
 			c = gusmidi_readport(scp, PORT_RX);
+			mtx_unlock(&scp->mtx);
 			if ((devinfo->flags & MIDI_F_PASSTHRU) &&
 			    (!(devinfo->flags & MIDI_F_BUSY) ||
 			     !(devinfo->fflags & FWRITE))) {
@@ -319,27 +314,35 @@ gusmidi_intr(void *arg)
 				devinfo->callback(devinfo,
 				    MIDI_CB_START | MIDI_CB_WR);
 			}
-			if ((devinfo->flags & MIDI_F_READING) && c != 0xfe)
+			if ((devinfo->flags & MIDI_F_READING) && c != 0xfe) {
 				midibuf_input_intr(&devinfo->midi_dbuf_in,
 				    &c, sizeof c);
+			}
 			did_something = 1;
-		}
+		} else
+			mtx_unlock(&scp->mtx);
 		if (stat & MIDIST_TXDONE) {
 			if (devinfo->flags & MIDI_F_WRITING) {
 				gusmidi_xmit(scp);
 				did_something = 1;
+				mtx_lock(&scp->mtx);
 			} else if (scp->ctl & MIDICTL_TX_IRQ_EN) {
 				/* This shouldn't happen.  */
-				scp->ctl &= ~MIDICTL_TX_IRQ_EN;
+				mtx_lock(&scp->mtx);
+				scp->ctl &= ~MIDICTL_TX_IRQ_EN;	
 				gusmidi_writeport(scp, PORT_CTL, scp->ctl);
 			}
-		}
+		} else
+			mtx_lock(&scp->mtx);
 	} while (did_something != 0);
+
+	mtx_unlock(&scp->mtx);
+	mtx_unlock(&devinfo->flagqueue_mtx);
 
 	/* Invoke the upper layer. */
 	midi_intr(devinfo);
 
-	splx(s);
+	MIDI_PICKUP_GIANT();
 }
 
 static int
@@ -347,6 +350,8 @@ gusmidi_callback(mididev_info *d, int reason)
 {
 	int unit;
 	sc_p scp;
+
+	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
 	if (d == NULL) {
 		DEB(printf("gusmidi_callback: device not configured.\n"));
@@ -361,7 +366,10 @@ gusmidi_callback(mididev_info *d, int reason)
 		if ((reason & MIDI_CB_RD) != 0 && (d->flags & MIDI_F_READING) == 0) {
 			/* Begin recording. */
 			d->flags |= MIDI_F_READING;
+			mtx_lock(&scp->mtx);
 			scp->ctl |= MIDICTL_RX_IRQ_EN;
+			gusmidi_writeport(scp, PORT_CTL, scp->ctl);
+			mtx_unlock(&scp->mtx);
 		}
 		if ((reason & MIDI_CB_WR) != 0 && (d->flags & MIDI_F_WRITING) == 0)
 			/* Start playing. */
@@ -369,6 +377,7 @@ gusmidi_callback(mididev_info *d, int reason)
 		break;
 	case MIDI_CB_STOP:
 	case MIDI_CB_ABORT:
+		mtx_lock(&scp->mtx);
 		if ((reason & MIDI_CB_RD) != 0 && (d->flags & MIDI_F_READING) != 0) {
 			/* Stop recording. */
 			d->flags &= ~MIDI_F_READING;
@@ -379,9 +388,10 @@ gusmidi_callback(mididev_info *d, int reason)
 			d->flags &= ~MIDI_F_WRITING;
 			scp->ctl &= ~MIDICTL_TX_IRQ_EN;
 		}
+		gusmidi_writeport(scp, PORT_CTL, scp->ctl);
+		mtx_unlock(&scp->mtx);
 		break;
 	}
-	gusmidi_writeport(scp, PORT_CTL, scp->ctl);
 
 	return (0);
 }
@@ -392,7 +402,6 @@ gusmidi_callback(mididev_info *d, int reason)
 
 /*
  * Starts to play the data in the output queue.
- * Call this at >=splclock.
  */
 static void
 gusmidi_startplay(sc_p scp)
@@ -401,12 +410,16 @@ gusmidi_startplay(sc_p scp)
 
 	devinfo = scp->devinfo;
 
+	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
+
 	/* Can we play now? */
 	if (devinfo->midi_dbuf_out.rl == 0)
 		return;
 
 	devinfo->flags |= MIDI_F_WRITING;
+	mtx_lock(&scp->mtx);
 	scp->ctl |= MIDICTL_TX_IRQ_EN;
+	mtx_unlock(&scp->mtx);
 }
 
 static void
@@ -418,6 +431,8 @@ gusmidi_xmit(sc_p scp)
 
 	devinfo = scp->devinfo;
 
+	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
+
 	/* See which source to use. */
 	if ((devinfo->flags & MIDI_F_PASSTHRU) == 0 || ((devinfo->flags & MIDI_F_BUSY) != 0 && (devinfo->fflags & FWRITE) != 0))
 		dbuf = &devinfo->midi_dbuf_out;
@@ -425,20 +440,28 @@ gusmidi_xmit(sc_p scp)
 		dbuf = &devinfo->midi_dbuf_passthru;
 
 	/* Transmit the data in the queue. */
-	while ((devinfo->flags & MIDI_F_WRITING) &&
-	    (gusmidi_readport(scp, PORT_ST) & MIDIST_TXDONE)) {
+	while (devinfo->flags & MIDI_F_WRITING) {
 		/* Do we have the data to transmit? */
 		if (dbuf->rl == 0) {
 			/* Stop playing. */
 			devinfo->flags &= ~MIDI_F_WRITING;
+			mtx_lock(&scp->mtx);
 			scp->ctl &= ~MIDICTL_TX_IRQ_EN;
 			gusmidi_writeport(scp, PORT_CTL, scp->ctl);
+			mtx_unlock(&scp->mtx);
 			break;
 		} else {
-			/* Send the data. */
-			midibuf_output_intr(dbuf, &c, sizeof(c));
-			gusmidi_writeport(scp, PORT_TX, c);
-			/* We are playing now. */
+			mtx_lock(&scp->mtx);
+			if (gusmidi_readport(scp, PORT_ST) & MIDIST_TXDONE) {
+				/* Send the data. */
+				midibuf_output_intr(dbuf, &c, sizeof(c));
+				gusmidi_writeport(scp, PORT_TX, c);
+				/* We are playing now. */
+			} else {
+				mtx_unlock(&scp->mtx);
+				break;
+			}
+			mtx_unlock(&scp->mtx);
 		}
 	}
 }

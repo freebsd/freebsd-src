@@ -457,6 +457,8 @@ struct opl_softc {
 	device_t dev; /* device information */
 	mididev_info *devinfo; /* midi device information */
 
+	struct mtx mtx; /* Mutex to protect the device. */
+
 	struct resource *io; /* Base of io port */
 	int io_rid; /* Io resource ID */
 
@@ -486,8 +488,6 @@ static int oplsbc_attach(device_t dev);
 
 static d_open_t opl_open;
 static d_close_t opl_close;
-static d_read_t opl_read;
-static d_write_t opl_write;
 static d_ioctl_t opl_ioctl;
 static midi_callback_t opl_callback;
 
@@ -496,7 +496,6 @@ static mdsy_readraw_t opl_readraw;
 static mdsy_writeraw_t opl_writeraw;
 
 /* These functions are local. */
-static void opl_startplay(sc_p scp) __unused;
 static void opl_command(sc_p scp, int ch, int addr, u_int val);
 static int opl_status(sc_p scp);
 static void opl_enter4opmode(sc_p scp);
@@ -520,10 +519,7 @@ static mididev_info opl_op_desc = {
 
 	opl_open,
 	opl_close,
-	opl_read,
-	opl_write,
 	opl_ioctl,
-	NULL,
 
 	opl_callback,
 
@@ -643,18 +639,16 @@ opl_attach(device_t dev)
 {
 	sc_p scp;
 	mididev_info *devinfo;
-	int unit, i, opl4_io, opl4_id;
+	int i, opl4_io, opl4_id;
 	struct resource *opl4;
 	u_char signature, tmp;
 
 	scp = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
-	DEB(printf("opl%d: attaching.\n", unit));
+	DEB(printf("opl: attaching.\n"));
 
 	/* Fill the softc for this unit. */
 	scp->dev = dev;
-	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_SYNTH);
 
 	/* Allocate other resources. */
 	if (opl_allocres(scp, dev)) {
@@ -723,6 +717,7 @@ opl_attach(device_t dev)
 	/* Fill the softc. */
 	bcopy(&opl_synthinfo, &scp->synthinfo, sizeof(opl_synthinfo));
 	snprintf(scp->synthinfo.name, 64, "Yamaha OPL%d FM", scp->model);
+	mtx_init(&scp->mtx, "oplmid", MTX_DEF);
 	bcopy(pv_map, scp->pv_map, sizeof(pv_map));
 	if (scp->model < MODEL_OPL3) { /* OPL2. */
 		scp->synthinfo.nr_voices = 9;
@@ -745,24 +740,19 @@ opl_attach(device_t dev)
 		opl_command(scp, USE_RIGHT, CONNECTION_SELECT_REGISTER, 0);
 	}
 
+	scp->devinfo = devinfo = create_mididev_info_unit(MDT_SYNTH, &opl_op_desc, &oplsynth_op_desc);
+
 	/* Fill the midi info. */
-	bcopy(&opl_op_desc, devinfo, sizeof(opl_op_desc));
-	midiinit(devinfo, dev);
-	devinfo->flags = 0;
-	bcopy(&oplsynth_op_desc, &devinfo->synth, sizeof(oplsynth_op_desc));
 	devinfo->synth.readraw = opl_readraw;
 	devinfo->synth.writeraw = opl_writeraw;
 	devinfo->synth.alloc.max_voice = scp->synthinfo.nr_voices;
 	strcpy(devinfo->name, scp->synthinfo.name);
 	snprintf(devinfo->midistat, sizeof(devinfo->midistat), "at 0x%x", (u_int)rman_get_start(scp->io));
 
-	/* Init the queue. */
-	devinfo->midi_dbuf_in.unit_size = devinfo->midi_dbuf_out.unit_size = 1;
-	midibuf_init(&devinfo->midi_dbuf_in);
-	midibuf_init(&devinfo->midi_dbuf_out);
+	midiinit(devinfo, dev);
 
-	DEB(printf("opl%d: attached.\n", unit));
-	DEB(printf("opl%d: the chip is OPL%d.\n", unit, scp->model));
+	DEB(printf("opl: attached.\n"));
+	DEB(printf("opl: the chip is OPL%d.\n", scp->model));
 
 	return (0);
 }
@@ -791,6 +781,7 @@ opl_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	}
 	scp = devinfo->softc;
 
+	mtx_lock(&devinfo->synth.vc_mtx);
 	if (scp->model < MODEL_OPL3)
 		devinfo->synth.alloc.max_voice = 9;
 	else
@@ -800,9 +791,13 @@ opl_open(dev_t i_dev, int flags, int mode, struct proc *p)
 		devinfo->synth.alloc.map[i] = 0;
 		devinfo->synth.alloc.alloc_times[i] = 0;
 	}
+	mtx_unlock(&devinfo->synth.vc_mtx);
 	scp->cmask = 0; /* We are in 2 OP mode initially. */
-	if (scp->model >= MODEL_OPL3)
+	if (scp->model >= MODEL_OPL3) {
+		mtx_lock(&scp->mtx);
 		opl_command(scp, USE_RIGHT, CONNECTION_SELECT_REGISTER, scp->cmask);
+		mtx_unlock(&scp->mtx);
+	}
 
 	DEB(printf("opl%d: opened.\n", unit));
 
@@ -827,10 +822,12 @@ opl_close(dev_t i_dev, int flags, int mode, struct proc *p)
 	}
 	scp = devinfo->softc;
 
+	mtx_lock(&devinfo->synth.vc_mtx);
 	if (scp->model < MODEL_OPL3)
 		devinfo->synth.alloc.max_voice = 9;
 	else
 		devinfo->synth.alloc.max_voice = 18;
+	mtx_unlock(&devinfo->synth.vc_mtx);
 
 	/* Stop the OPL. */
 	opl_reset(scp->devinfo);
@@ -838,61 +835,6 @@ opl_close(dev_t i_dev, int flags, int mode, struct proc *p)
 	DEB(printf("opl%d: closed.\n", unit));
 
 	return (0);
-}
-
-static int
-opl_read(dev_t i_dev, struct uio *buf, int flag)
-{
-	sc_p scp;
-	mididev_info *devinfo;
-	int unit, ret;
-
-	unit = MIDIUNIT(i_dev);
-
-	devinfo = get_mididev_info(i_dev, &unit);
-	if (devinfo == NULL) {
-		DEB(printf("opl_read: unit %d is not configured.\n", unit));
-		return (ENXIO);
-	}
-	scp = devinfo->softc;
-	if ((devinfo->fflags & FREAD) == 0) {
-		DEB(printf("opl_read: unit %d is not for reading.\n", unit));
-		return (EIO);
-	}
-
-	/* Drain the data. */
-	midibuf_init(&devinfo->midi_dbuf_in);
-	ret = 0;
-
-	return (ret);
-}
-
-static int
-opl_write(dev_t i_dev, struct uio *buf, int flag)
-{
-	sc_p scp;
-	mididev_info *devinfo;
-	int unit, ret;
-
-	unit = MIDIUNIT(i_dev);
-
-	devinfo = get_mididev_info(i_dev, &unit);
-	if (devinfo == NULL) {
-		DEB(printf("opl_write: unit %d is not configured.\n", unit));
-		return (ENXIO);
-	}
-	scp = devinfo->softc;
-	if ((devinfo->fflags & FWRITE) == 0) {
-		DEB(printf("opl_write: unit %d is not for writing.\n", unit));
-		return (EIO);
-	}
-
-	/* Drain the data. */
-	midibuf_init(&devinfo->midi_dbuf_out);
-	midibuf_init(&devinfo->midi_dbuf_passthru);
-	ret = 0;
-
-	return (ret);
 }
 
 static int
@@ -923,10 +865,9 @@ opl_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 			return (ENXIO);
 		bcopy(&scp->synthinfo, synthinfo, sizeof(scp->synthinfo));
 		synthinfo->device = unit;
-		if (devinfo->synth.alloc.max_voice == 12)
+		synthinfo->nr_voices = devinfo->synth.alloc.max_voice;
+		if (synthinfo->nr_voices == 12)
 			synthinfo->nr_voices = 6;
-		else
-			synthinfo->nr_voices = devinfo->synth.alloc.max_voice;
 		return (0);
 		break;
 	case SNDCTL_MIDI_INFO:
@@ -970,6 +911,8 @@ opl_callback(mididev_info *devinfo, int reason)
 {
 	int unit;
 	sc_p scp;
+
+	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
 
 	if (devinfo == NULL) {
 		DEB(printf("opl_callback: device not configured.\n"));
@@ -1059,21 +1002,26 @@ opl_killnote(mididev_info *md, int voice, int note, int vel)
 	if (voice < 0 || voice >= md->synth.alloc.max_voice)
 		return (0);
 
+	mtx_lock(&md->synth.vc_mtx);
+
 	md->synth.alloc.map[voice] = 0;
+	mtx_lock(&scp->mtx);
 	map = &scp->pv_map[scp->lv_map[voice]];
 
-	if (map->voice_mode == VOICE_NONE)
-		return (0);
+	if (map->voice_mode != VOICE_NONE) {
+		opl_command(scp, map->ch, KEYON_BLOCK + map->voice_num, scp->voc[voice].keyon_byte & ~0x20);
 
-	opl_command(scp, map->ch, KEYON_BLOCK + map->voice_num, scp->voc[voice].keyon_byte & ~0x20);
+		scp->voc[voice].keyon_byte = 0;
+		scp->voc[voice].bender = 0;
+		scp->voc[voice].volume = 64;
+		scp->voc[voice].bender_range = 200;
+		scp->voc[voice].orig_freq = 0;
+		scp->voc[voice].current_freq = 0;
+		scp->voc[voice].mode = 0;
+	}
 
-	scp->voc[voice].keyon_byte = 0;
-	scp->voc[voice].bender = 0;
-	scp->voc[voice].volume = 64;
-	scp->voc[voice].bender_range = 200;
-	scp->voc[voice].orig_freq = 0;
-	scp->voc[voice].current_freq = 0;
-	scp->voc[voice].mode = 0;
+	mtx_unlock(&scp->mtx);
+	mtx_unlock(&md->synth.vc_mtx);
 
 	return (0);
 }
@@ -1093,7 +1041,9 @@ opl_setinstr(mididev_info *md, int voice, int instr_no)
 	if (voice < 0 || voice >= md->synth.alloc.max_voice || instr_no < 0 || instr_no >= SBFM_MAXINSTR)
 		return (0);
 
+	mtx_lock(&scp->mtx);
 	scp->act_i[voice] = &scp->i_map[instr_no];
+	mtx_unlock(&scp->mtx);
 
 	return (0);
 }
@@ -1115,13 +1065,17 @@ opl_startnote(mididev_info *md, int voice, int note, int volume)
 	if (voice < 0 || voice >= md->synth.alloc.max_voice)
 		return (0);
 
+	mtx_lock(&scp->mtx);
 	map = &scp->pv_map[scp->lv_map[voice]];
-	if (map->voice_mode == VOICE_NONE)
+	if (map->voice_mode == VOICE_NONE) {
+		mtx_unlock(&scp->mtx);
 		return (0);
+	}
 
 	if (note == 255) {
 		/* Change the volume. */
 		opl_setvoicevolume(scp, voice, volume, scp->voc[voice].volume);
+		mtx_unlock(&scp->mtx);
 		return (0);
 	}
 
@@ -1138,10 +1092,12 @@ opl_startnote(mididev_info *md, int voice, int note, int volume)
 	if (instr == NULL)
 		instr = &scp->i_map[0];
 	if (instr->channel < 0) {
+		mtx_unlock(&scp->mtx);
 		printf("opl_startnote: the instrument for voice %d is undefined.\n", voice);
 		return (0);
 	}
 	if (map->voice_mode == VOICE_2OP && instr->key == OPL3_PATCH) {
+		mtx_unlock(&scp->mtx);
 		printf("opl_startnote: the voice mode %d mismatches the key 0x%x.\n", map->voice_mode, instr->key);
 		return (0);
 	}
@@ -1208,6 +1164,8 @@ opl_startnote(mididev_info *md, int voice, int note, int volume)
 	if (voice_mode == VOICE_4OP)
 		opl_command(scp, map->ch, KEYON_BLOCK + map->voice_num + 3, scp->voc[voice].keyon_byte);
 
+	mtx_unlock(&scp->mtx);
+
 	return (0);
 }
 
@@ -1216,11 +1174,15 @@ opl_reset(mididev_info *md)
 {
 	int unit, i;
 	sc_p scp;
+	struct physical_voice_info *map;
 
 	scp = md->softc;
 	unit = md->unit;
 
 	DEB(printf("opl%d: resetting.\n", unit));
+
+	mtx_lock(&md->synth.vc_mtx);
+	mtx_lock(&scp->mtx);
 
 	for (i = 0 ; i < MAX_VOICE ; i++)
 		scp->lv_map[i] = i;
@@ -1232,13 +1194,34 @@ opl_reset(mididev_info *md)
 			opl_command(scp, scp->pv_map[scp->lv_map[i]].ch, KSL_LEVEL + scp->pv_map[scp->lv_map[i]].op[2], 0xff);
 			opl_command(scp, scp->pv_map[scp->lv_map[i]].ch, KSL_LEVEL + scp->pv_map[scp->lv_map[i]].op[3], 0xff);
 		}
-		opl_killnote(md, i, 0, 64);
+		/*
+		 * opl_killnote(md, i, 0, 64) inline-expanded to avoid
+		 * unlocking and relocking mutex unnecessarily.
+		 */
+		md->synth.alloc.map[i] = 0;
+		map = &scp->pv_map[scp->lv_map[i]];
+
+		if (map->voice_mode != VOICE_NONE) {
+			opl_command(scp, map->ch, KEYON_BLOCK + map->voice_num, scp->voc[i].keyon_byte & ~0x20);
+			
+			scp->voc[i].keyon_byte = 0;
+			scp->voc[i].bender = 0;
+			scp->voc[i].volume = 64;
+			scp->voc[i].bender_range = 200;
+			scp->voc[i].orig_freq = 0;
+			scp->voc[i].current_freq = 0;
+			scp->voc[i].mode = 0;
+		}
 	}
+
 	if (scp->model >= MODEL_OPL3) {
 		md->synth.alloc.max_voice = 18;
 		for (i = 0 ; i < MAX_VOICE ; i++)
 			scp->pv_map[i].voice_mode = VOICE_2OP;
 	}
+
+	mtx_unlock(&md->synth.vc_mtx);
+	mtx_unlock(&scp->mtx);
 
 	return (0);
 }
@@ -1283,12 +1266,12 @@ opl_panning(mididev_info *md, int chn, int pan)
 	return (0);
 }
 
-#define SET_VIBRATO(cell) { \
-    int tmp; \
-		 tmp = instr->operators[(cell-1)+(((cell-1)/2)*OFFS_4OP)]; \
-									       if (press > 110) \
-												    tmp |= 0x40;		/* Vibrato on */ \
-																		     opl_command(scp, map->ch, AM_VIB + map->op[cell-1], tmp);}
+#define SET_VIBRATO(cell) do { \
+	int tmp; \
+	tmp = instr->operators[(cell-1)+(((cell-1)/2)*OFFS_4OP)]; \
+	if (press > 110) \
+		tmp |= 0x40;	/* Vibrato on */ \
+	opl_command(scp, map->ch, AM_VIB + map->op[cell-1], tmp);} while(0);
 
 static int
 opl_aftertouch(mididev_info *md, int voice, int press)
@@ -1306,9 +1289,13 @@ opl_aftertouch(mididev_info *md, int voice, int press)
 	if (voice < 0 || voice >= md->synth.alloc.max_voice)
 		return (0);
 
+	mtx_lock(&scp->mtx);
+
 	map = &scp->pv_map[scp->lv_map[voice]];
-	if (map->voice_mode == VOICE_NONE)
+	if (map->voice_mode == VOICE_NONE) {
+		mtx_unlock(&scp->mtx);
 		return (0);
+	}
 
 	/* Adjust the vibrato. */
 	instr = scp->act_i[voice];
@@ -1341,6 +1328,8 @@ opl_aftertouch(mididev_info *md, int voice, int press)
 			SET_VIBRATO(2);
 	}
 
+	mtx_unlock(&scp->mtx);
+
 	return (0);
 }
 
@@ -1356,14 +1345,18 @@ opl_bendpitch(sc_p scp, int voice, int value)
 
 	DEB(printf("opl%d: setting the pitch bend, voice %d, value %d.\n", unit, voice, value));
 
+	mtx_lock(&scp->mtx);
+
 	map = &scp->pv_map[scp->lv_map[voice]];
-	if (map->voice_mode == 0)
+	if (map->voice_mode == 0) {
+		mtx_unlock(&scp->mtx);
 		return (0);
+	}
 	scp->voc[voice].bender = value;
-	if (value == 0)
+	if (value == 0 || (scp->voc[voice].keyon_byte & 0x20) == 0) {
+		mtx_unlock(&scp->mtx);
 		return (0);
-	if ((scp->voc[voice].keyon_byte & 0x20) == 0)
-		return (0);
+	}
 
 	freq = opl_computefinetune(scp->voc[voice].orig_freq, scp->voc[voice].bender, scp->voc[voice].bender_range);
 	scp->voc[voice].current_freq = freq;
@@ -1375,6 +1368,8 @@ opl_bendpitch(sc_p scp, int voice, int value)
 	opl_command(scp, map->ch, KEYON_BLOCK + map->voice_num, scp->voc[voice].keyon_byte);
 	if (map->voice_mode == VOICE_4OP)
 		opl_command(scp, map->ch, KEYON_BLOCK + map->voice_num + 3, scp->voc[voice].keyon_byte);
+
+	mtx_unlock(&scp->mtx);
 
 	return (0);
 }
@@ -1398,10 +1393,14 @@ opl_controller(mididev_info *md, int voice, int ctrlnum, int val)
 		opl_bendpitch(scp, voice, val);
 		break;
 	case CTRL_PITCH_BENDER_RANGE:
+		mtx_lock(&scp->mtx);
 		scp->voc[voice].bender_range = val;
+		mtx_unlock(&scp->mtx);
 		break;
 	case CTRL_MAIN_VOLUME:
+		mtx_lock(&scp->mtx);
 		scp->voc[voice].volume = val / 128;
+		mtx_unlock(&scp->mtx);
 		break;
 	}
 
@@ -1440,10 +1439,14 @@ opl_allocvoice(mididev_info *md, int chn, int note, struct voice_alloc_info *all
 
 	best_time = 0x7fffffff;
 
+	mtx_lock(&md->synth.vc_mtx);
+
 	if (chn < 0 || chn >= 15)
 		instr_no = 0;
 	else
 		instr_no = md->synth.chn_info[chn].pgm_num;
+
+	mtx_lock(&scp->mtx);
 
 	instr = &scp->i_map[instr_no];
 	if (instr->channel < 0 || md->synth.alloc.max_voice != 12)
@@ -1485,6 +1488,9 @@ opl_allocvoice(mididev_info *md, int chn, int note, struct voice_alloc_info *all
 	else if (best > md->synth.alloc.max_voice)
 		best -= md->synth.alloc.max_voice;
 
+	mtx_unlock(&scp->mtx);
+	mtx_unlock(&md->synth.vc_mtx);
+
 	return best;
 }
 
@@ -1498,11 +1504,17 @@ opl_setupvoice(mididev_info *md, int voice, int chn)
 
 	DEB(printf("opl%d: setting up a voice, voice %d, chn %d.\n", unit, voice, chn));
 
+	mtx_lock(&md->synth.vc_mtx);
+
 	info = &md->synth.chn_info[chn];
 
 	opl_setinstr(md, voice, info->pgm_num);
+	mtx_lock(&scp->mtx);
 	scp->voc[voice].bender = info->bender_value;
 	scp->voc[voice].volume = info->controllers[CTL_MAIN_VOLUME];
+	mtx_unlock(&scp->mtx);
+
+	mtx_lock(&md->synth.vc_mtx);
 
 	return (0);
 }
@@ -1531,25 +1543,6 @@ opl_volumemethod(mididev_info *md, int mode)
 /*
  * The functions below here are the libraries for the above ones.
  */
-
-/*
- * Starts to play the data in the output queue.
- * Call this at >=splmidi.
- */
-static void
-opl_startplay(sc_p scp)
-{
-	mididev_info *devinfo;
-
-	devinfo = scp->devinfo;
-
-	/* Can we play now? */
-	if (devinfo->midi_dbuf_out.rl == 0)
-		return;
-
-	/* Begin playing. */
-	devinfo->callback(devinfo, MIDI_CB_START | MIDI_CB_WR);
-}
 
 /* Writes a command to the OPL chip. */
 static void
@@ -1603,6 +1596,8 @@ opl_enter4opmode(sc_p scp)
 	DEB(printf("opl%d: entering 4 OP mode.\n", unit));
 
 	/* Connect all possible 4 OP voice operators. */
+	mtx_lock(&devinfo->synth.vc_mtx);
+	mtx_lock(&scp->mtx);
 	scp->cmask = 0x3f;
 	opl_command(scp, USE_RIGHT, CONNECTION_SELECT_REGISTER, scp->cmask);
 
@@ -1617,7 +1612,9 @@ opl_enter4opmode(sc_p scp)
 
 	for (i = 0 ; i < 12 ; i++)
 		scp->lv_map[i] = v4op[i];
+	mtx_unlock(&scp->mtx);
 	devinfo->synth.alloc.max_voice = 12;
+	mtx_unlock(&devinfo->synth.vc_mtx);
 }
 
 static void

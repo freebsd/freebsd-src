@@ -89,6 +89,8 @@ struct csamidi_softc {
 	mididev_info *devinfo; /* midi device information */
 	struct csa_bridgeinfo *binfo; /* The state of the parent. */
 
+	struct mtx mtx; /* Mutex to protect the device. */
+
 	struct resource *io; /* Base of io map */
 	int io_rid; /* Io map resource ID */
 	struct resource *mem; /* Base of memory map */
@@ -130,10 +132,7 @@ static mididev_info csamidi_op_desc = {
 
 	NULL,
 	NULL,
-	NULL,
-	NULL,
 	csamidi_ioctl,
-	NULL,
 
 	csamidi_callback,
 
@@ -177,10 +176,8 @@ csamidi_attach(device_t dev)
 	sc_p scp;
 	mididev_info *devinfo;
 	struct sndcard_func *func;
-	int unit;
 
 	scp = device_get_softc(dev);
-	unit = device_get_unit(dev);
 	func = device_get_ivars(dev);
 	scp->binfo = func->varinfo;
 
@@ -192,20 +189,14 @@ csamidi_attach(device_t dev)
 
 	/* Fill the softc. */
 	scp->dev = dev;
-	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_MIDI);
+	mtx_init(&scp->mtx, "csamid", MTX_DEF);
+	scp->devinfo = devinfo = create_mididev_info_unit(MDT_MIDI, &csamidi_op_desc, &midisynth_op_desc);
 
 	/* Fill the midi info. */
-	bcopy(&csamidi_op_desc, devinfo, sizeof(csamidi_op_desc));
-	midiinit(devinfo, dev);
-	devinfo->flags = 0;
-	bcopy(&midisynth_op_desc, &devinfo->synth, sizeof(midisynth_op_desc));
 	snprintf(devinfo->midistat, sizeof(devinfo->midistat), "at irq %d",
 		 (int)rman_get_start(scp->irq));
 
-	/* Init the queue. */
-	devinfo->midi_dbuf_in.unit_size = devinfo->midi_dbuf_out.unit_size = 1;
-	midibuf_init(&devinfo->midi_dbuf_in);
-	midibuf_init(&devinfo->midi_dbuf_out);
+	midiinit(devinfo, dev);
 
 	/* Enable interrupt. */
 	if (bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, csamidi_intr, scp, &scp->ih)) {
@@ -271,26 +262,40 @@ csamidi_intr(void *arg)
 	scp = (sc_p)arg;
 	devinfo = scp->devinfo;
 
+	MIDI_DROP_GIANT_NOSWITCH();
+
+	mtx_lock(&devinfo->flagqueue_mtx);
+	mtx_lock(&scp->mtx);
+
 	/* Read the received data. */
 	while ((csamidi_status(scp) & MIDSR_RBE) == 0) {
 		/* Receive the data. */
 		c = (u_char)csamidi_readdata(scp);
+		mtx_unlock(&scp->mtx);
+
 		/* Queue into the passthru buffer and start transmitting if we can. */
 		if ((devinfo->flags & MIDI_F_PASSTHRU) != 0 && ((devinfo->flags & MIDI_F_BUSY) == 0 || (devinfo->fflags & FWRITE) == 0)) {
 			midibuf_input_intr(&devinfo->midi_dbuf_passthru, &c, sizeof(c));
 			devinfo->callback(devinfo, MIDI_CB_START | MIDI_CB_WR);
 		}
 		/* Queue if we are reading. Discard an active sensing. */
-		if ((devinfo->flags & MIDI_F_READING) != 0 && c != 0xfe)
+		if ((devinfo->flags & MIDI_F_READING) != 0 && c != 0xfe) {
 			midibuf_input_intr(&devinfo->midi_dbuf_in, &c, sizeof(c));
+		}
+		mtx_lock(&scp->mtx);
 	}
+	mtx_unlock(&scp->mtx);
 
 	/* Transmit out data. */
 	if ((devinfo->flags & MIDI_F_WRITING) != 0 && (csamidi_status(scp) & MIDSR_TBF) == 0)
 		csamidi_xmit(scp);
 
+	mtx_unlock(&devinfo->flagqueue_mtx);
+
 	/* Invoke the upper layer. */
 	midi_intr(devinfo);
+
+	MIDI_PICKUP_GIANT();
 }
 
 static int
@@ -298,6 +303,8 @@ csamidi_callback(mididev_info *d, int reason)
 {
 	int unit;
 	sc_p scp;
+
+	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
 	if (d == NULL) {
 		DEB(printf("csamidi_callback: device not configured.\n"));
@@ -336,7 +343,6 @@ csamidi_callback(mididev_info *d, int reason)
 
 /*
  * Starts to play the data in the output queue.
- * Call this at >=splclock.
  */
 static void
 csamidi_startplay(sc_p scp)
@@ -344,6 +350,8 @@ csamidi_startplay(sc_p scp)
 	mididev_info *devinfo;
 
 	devinfo = scp->devinfo;
+
+	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
 
 	/* Can we play now? */
 	if (devinfo->midi_dbuf_out.rl == 0)
@@ -362,6 +370,8 @@ csamidi_xmit(sc_p scp)
 
 	devinfo = scp->devinfo;
 
+	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
+
 	/* See which source to use. */
 	if ((devinfo->flags & MIDI_F_PASSTHRU) == 0 || ((devinfo->flags & MIDI_F_BUSY) != 0 && (devinfo->fflags & FWRITE) != 0))
 		dbuf = &devinfo->midi_dbuf_out;
@@ -369,18 +379,24 @@ csamidi_xmit(sc_p scp)
 		dbuf = &devinfo->midi_dbuf_passthru;
 
 	/* Transmit the data in the queue. */
-	while ((devinfo->flags & MIDI_F_WRITING) != 0 && (csamidi_status(scp) & MIDSR_TBF) == 0) {
+	while ((devinfo->flags & MIDI_F_WRITING) != 0) {
 		/* Do we have the data to transmit? */
 		if (dbuf->rl == 0) {
 			/* Stop playing. */
 			devinfo->flags &= ~MIDI_F_WRITING;
 			break;
 		} else {
+			mtx_lock(&scp->mtx);
+			if ((csamidi_status(scp) & MIDSR_TBF) != 0) {
+				mtx_unlock(&scp->mtx);
+				break;
+			}
 			/* Send the data. */
 			midibuf_output_intr(dbuf, &c, sizeof(c));
 			csamidi_writedata(scp, c);
 			/* We are playing now. */
 			devinfo->flags |= MIDI_F_WRITING;
+			mtx_unlock(&scp->mtx);
 		}
 	}
 }
@@ -391,6 +407,8 @@ csamidi_reset(sc_p scp)
 {
 	int i, resp;
 
+	mtx_lock(&scp->mtx);
+
 	/* Reset the midi. */
 	resp = 0;
 	for (i = 0 ; i < CSAMIDI_TRYDATA ; i++) {
@@ -398,8 +416,10 @@ csamidi_reset(sc_p scp)
 		if (resp == 0)
 			break;
 	}
-	if (resp != 0)
+	if (resp != 0) {
+		mtx_unlock(&scp->mtx);
 		return (1);
+	}
 	for (i = 0 ; i < CSAMIDI_TRYDATA ; i++) {
 		resp = csamidi_command(scp, MIDCR_TXE | MIDCR_RXE | MIDCR_RIE | MIDCR_TIE);
 		if (resp == 0)
@@ -407,6 +427,8 @@ csamidi_reset(sc_p scp)
 	}
 	if (resp != 0)
 		return (1);
+
+	mtx_unlock(&scp->mtx);
 
 	DELAY(CSAMIDI_DELAY);
 

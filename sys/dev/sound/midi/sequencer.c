@@ -58,6 +58,11 @@ enum {
 	QUEUEFULL
 };
 
+/* Lookup modes */
+#define LOOKUP_EXIST	(0)
+#define LOOKUP_OPEN	(1)
+#define LOOKUP_CLOSE	(2)
+
 /*
  * These functions goes into seq_op_desc to get called
  * from sound.c.
@@ -96,24 +101,35 @@ seqdev_info seq_op_desc = {
 	0, /* XXX This is not an *audio* device! */
 };
 
+
+
 /* Here is the parameter structure per a device. */
 struct seq_softc {
 	seqdev_info *devinfo; /* sequencer device information */
 
+	/* Flags (protected by flag_mtx of mididev_info) */
 	int fflags; /* Access mode */
+	int queueout_pending; /* Pending for the output queue */
 
+	/* Timer counters */
 	u_long seq_time; /* The beggining time of this sequence */
 	u_long prev_event_time; /* The time of the previous event output */
 	u_long prev_input_time; /* The time of the previous event input */
 	u_long prev_wakeup_time; /* The time of the previous wakeup */
-	struct callout_handle timeout_ch; /* Timer callout handler */
+	struct callout timeout_ch; /* Timer callout handler */
 	long timer_current; /* Current timer value */
 	int timer_running; /* State of timer */
-	int midi_open[NMIDI_MAX]; /* State of midi devices. */
 	int pending_timer; /* Timer change operation */
-	int output_threshould; /* Sequence output threshould */
 	int pre_event_timeout; /* Time to wait event input */
-	int queueout_pending; /* Pending for the output queue */
+
+	/* Device list */
+	TAILQ_HEAD(,_mididev_info) midi_open; /* Midi devices opened by this sequencer. */
+
+	/*
+	 * XXX not sure to which category these belong.
+	 * (and some might be no-op)
+	 */
+	int output_threshould; /* Sequence output threshould */
 	snd_sync_parm sync_parm; /* AIOSYNC parameter set */
 	struct proc *sync_proc; /* AIOSYNCing process */
 };
@@ -145,12 +161,15 @@ static struct cdevsw seq_cdevsw = {
 	/* bmaj */	-1
 };
 
-seqdev_info seq_info[NSEQ_MAX] ;
-static int seq_info_inited;
-u_long nseq = NSEQ_MAX;	/* total number of sequencers */
+static TAILQ_HEAD(,_seqdev_info) seq_info;
+/* Mutex to protect seq_info and nseq. */
+static struct mtx seqinfo_mtx;
+static u_long nseq;	/* total number of sequencers */
+static dev_t seq_alias = NODEV;
 
 /* The followings are the local function. */
 static int seq_init(void);
+static int seq_initunit(int unit);
 static int seq_queue(sc_p scp, u_char *note);
 static void seq_startplay(sc_p scp);
 static int seq_playevent(sc_p scp, u_char *event);
@@ -162,7 +181,7 @@ static int seq_copytoinput(sc_p scp, u_char *event, int len);
 static int seq_extended(sc_p scp, u_char *event);
 static int seq_chnvoice(sc_p scp, u_char *event);
 static int seq_findvoice(mididev_info *md, int chn, int note) __unused;
-static int seq_allocvoice(mididev_info *md, int chn, int note) __unused;
+static int seq_allocvoice(sc_p scp, mididev_info *md, int chn, int note) __unused;
 static int seq_chncommon(sc_p scp, u_char *event);
 static int seq_timing(sc_p scp, u_char *event);
 static int seq_local(sc_p scp, u_char *event);
@@ -175,6 +194,10 @@ static void seq_panic(sc_p scp);
 static int seq_sync(sc_p scp);
 
 static seqdev_info *get_seqdev_info(dev_t i_dev, int *unit);
+static seqdev_info *get_seqdev_info_unit(int unit);
+static seqdev_info *create_seqdev_info_unit(int unit, seqdev_info *seq);
+static int lookup_mididev(sc_p scp, int unit, int mode, mididev_info **mdp);
+static void seq_clone(void *arg, char *name, int namelen, dev_t *dev);
 
 /*
  * Here are the main functions to interact to the user process.
@@ -184,57 +207,63 @@ static seqdev_info *get_seqdev_info(dev_t i_dev, int *unit);
 static int
 seq_init(void)
 {
-	int unit;
-	sc_p scp;
-	seqdev_info *devinfo;
-
 	DEB(printf("seq: initing.\n"));
 
-	/* Have we already inited? */
-	if (seq_info_inited)
-		return (1);
+	mtx_init(&seqinfo_mtx, "seqinf", MTX_DEF);
+	TAILQ_INIT(&seq_info);
 
-	for (unit = 0 ; unit < nseq ; unit++) {
-		/* Allocate the softc. */
-		scp = malloc(sizeof(*scp), M_DEVBUF, M_NOWAIT);
-		if (scp == (sc_p)NULL) {
-			printf("seq%d: softc allocation failed.\n", unit);
-			return (1);
-		}
-		bzero(scp, sizeof(*scp));
-
-		/* Fill the softc and the seq_info for this unit. */
-		scp->seq_time = seq_gettime();
-		scp->prev_event_time = 0;
-		scp->prev_input_time = 0;
-		scp->prev_wakeup_time = scp->seq_time;
-		callout_handle_init(&scp->timeout_ch);
-		scp->timer_current = 0;
-		scp->timer_running = 0;
-		scp->queueout_pending = 0;
-
-		scp->devinfo = devinfo = &seq_info[unit];
-		bcopy(&seq_op_desc, devinfo, sizeof(seq_op_desc));
-		devinfo->unit = unit;
-		devinfo->softc = scp;
-		devinfo->flags = 0;
-		devinfo->midi_dbuf_in.unit_size = devinfo->midi_dbuf_out.unit_size = EV_SZ;
-		midibuf_init(&devinfo->midi_dbuf_in);
-		midibuf_init(&devinfo->midi_dbuf_out);
-
-		make_dev(&seq_cdevsw, MIDIMKMINOR(unit, SND_DEV_SEQ),
-			 UID_ROOT, GID_WHEEL, 0666, "sequencer%d", unit);
-	}
-
-	/* We have inited. */
-	seq_info_inited = 1;
-
-	if (nseq == 1)
-		printf("seq0: Midi sequencer.\n");
-	else
-		printf("seq0-%lu: Midi sequencers.\n", nseq - 1);
+	seq_initunit(0);
+	EVENTHANDLER_REGISTER(dev_clone, seq_clone, 0, 1000);
 
 	DEB(printf("seq: inited.\n"));
+
+	return (0);
+}
+
+static int
+seq_initunit(int unit)
+{
+	sc_p scp;
+	seqdev_info *devinfo;
+	dev_t seqdev;
+
+	/* Allocate the softc. */
+	scp = malloc(sizeof(*scp), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (scp == (sc_p)NULL) {
+		printf("seq%d: softc allocation failed.\n", unit);
+		return (1);
+	}
+
+	/* Fill the softc and the seq_info for this unit. */
+	scp->seq_time = seq_gettime();
+	scp->prev_event_time = 0;
+	scp->prev_input_time = 0;
+	scp->prev_wakeup_time = scp->seq_time;
+#if defined(MIDI_OUTOFGIANT)
+	callout_init(&scp->timeout_ch, 1);
+#else
+	callout_init(&scp->timeout_ch, 0);
+#endif /* MIDI_OUTOFGIANT */
+	scp->timer_current = 0;
+	scp->timer_running = 0;
+	scp->queueout_pending = 0;
+	TAILQ_INIT(&scp->midi_open);
+
+	scp->devinfo = devinfo = create_seqdev_info_unit(unit, &seq_op_desc);
+	devinfo->midi_dbuf_in.unit_size = devinfo->midi_dbuf_out.unit_size = EV_SZ;
+	devinfo->softc = scp;
+	devinfo->flags = 0;
+	mtx_unlock(&devinfo->flagqueue_mtx);
+
+	seqdev = make_dev(&seq_cdevsw, MIDIMKMINOR(unit, SND_DEV_SEQ),
+			  UID_ROOT, GID_WHEEL, 0666, "sequencer%d", unit);
+	mtx_lock(&seqinfo_mtx);
+	if (seq_alias != NODEV) {
+		destroy_dev(seq_alias);
+		seq_alias = NODEV;
+	}
+	seq_alias = make_dev_alias(seqdev, "sequencer");
+	mtx_unlock(&seqinfo_mtx);
 
 	return (0);
 }
@@ -242,10 +271,9 @@ seq_init(void)
 int
 seq_open(dev_t i_dev, int flags, int mode, struct proc *p)
 {
-	int unit, s, midiunit;
+	int unit;
 	sc_p scp;
 	seqdev_info *sd;
-	mididev_info *md;
 
 	unit = MIDIUNIT(i_dev);
 
@@ -263,10 +291,13 @@ seq_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	}
 	scp = sd->softc;
 
-	s = splmidi();
+	MIDI_DROP_GIANT_NOSWITCH();
+
 	/* Mark this device busy. */
+	mtx_lock(&sd->flagqueue_mtx);
 	if ((sd->flags & SEQ_F_BUSY) != 0) {
-		splx(s);
+		mtx_unlock(&sd->flagqueue_mtx);
+		MIDI_PARTIAL_PICKUP_GIANT();
 		DEB(printf("seq_open: unit %d is busy.\n", unit));
 		return (EBUSY);
 	}
@@ -275,8 +306,8 @@ seq_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	scp->fflags = flags;
 
 	/* Init the queue. */
-	midibuf_init(&sd->midi_dbuf_in);
-	midibuf_init(&sd->midi_dbuf_out);
+	midibuf_clear(&sd->midi_dbuf_in);
+	midibuf_clear(&sd->midi_dbuf_out);
 
 	/* Init timestamp. */
 	scp->seq_time = seq_gettime();
@@ -284,14 +315,9 @@ seq_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	scp->prev_input_time = 0;
 	scp->prev_wakeup_time = scp->seq_time;
 
-	splx(s);
+	mtx_unlock(&sd->flagqueue_mtx);
 
-	/* Open midi devices. */
-	for (midiunit = 0 ; midiunit < mididev_info_number() ; midiunit++) {
-		md = get_mididev_info_unit(midiunit);
-		if (MIDICONFED(md))
-			seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, p);
-	}
+	MIDI_PICKUP_GIANT();
 
 	DEB(printf("seq%d: opened.\n", unit));
 
@@ -301,7 +327,7 @@ seq_open(dev_t i_dev, int flags, int mode, struct proc *p)
 int
 seq_close(dev_t i_dev, int flags, int mode, struct proc *p)
 {
-	int unit, s, i;
+	int unit;
 	sc_p scp;
 	seqdev_info *sd;
 	mididev_info *md;
@@ -322,7 +348,9 @@ seq_close(dev_t i_dev, int flags, int mode, struct proc *p)
 	}
 	scp = sd->softc;
 
-	s = splmidi();
+	MIDI_DROP_GIANT_NOSWITCH();
+
+	mtx_lock(&sd->flagqueue_mtx);
 
 	if (!(sd->flags & MIDI_F_NBIO))
 		seq_sync(scp);
@@ -335,16 +363,16 @@ seq_close(dev_t i_dev, int flags, int mode, struct proc *p)
 	seq_sync(scp);
 
 	/* Clean up the midi device. */
-	for (i = 0 ; i < mididev_info_number() ; i++) {
-		md = get_mididev_info_unit(i);
-		if (MIDICONFED(md))
-			seq_closemidi(scp, md, scp->fflags, MIDIDEV_MODE, p);
-	}
+	TAILQ_FOREACH(md, &scp->midi_open, md_linkseq)
+		lookup_mididev(scp, md->unit, LOOKUP_CLOSE, NULL);
+	mtx_unlock(&sd->flagqueue_mtx);
 
 	/* Stop playing and unmark this device busy. */
-	sd->flags &= ~(SEQ_F_BUSY | SEQ_F_READING | SEQ_F_WRITING);
+	mtx_lock(&sd->flagqueue_mtx);
+	sd->flags &= ~(SEQ_F_BUSY | SEQ_F_READING | SEQ_F_WRITING | SEQ_F_INSYNC);
+	mtx_unlock(&sd->flagqueue_mtx);
 
-	splx(s);
+	MIDI_PICKUP_GIANT();
 
 	DEB(printf("seq%d: closed.\n", unit));
 
@@ -354,9 +382,12 @@ seq_close(dev_t i_dev, int flags, int mode, struct proc *p)
 int
 seq_read(dev_t i_dev, struct uio *buf, int flag)
 {
-	int unit, ret, s, len;
+	int unit, ret, len;
 	sc_p scp;
 	seqdev_info *sd;
+#if defined(MIDI_OUTOFGIANT)
+	char *buf2; /* XXX Until uiomove(9) becomes MP-safe. */
+#endif /* MIDI_OUTOFGIANT */
 
 	unit = MIDIUNIT(i_dev);
 
@@ -378,23 +409,49 @@ seq_read(dev_t i_dev, struct uio *buf, int flag)
 		return (EIO);
 	}
 
-	s = splmidi();
+#if defined(MIDI_OUTOFGIANT)
+	buf2 = malloc(buf->uio_resid, M_DEVBUF, M_WAITOK);
+	if (buf2 == NULL)
+		return (ENOMEM);
+#endif /* MIDI_OUTOFGIANT */
+
+	MIDI_DROP_GIANT_NOSWITCH();
+
+	mtx_lock(&sd->flagqueue_mtx);
 
 	/* Begin recording. */
-	sd->callback(sd, SEQ_CB_START | SEQ_CB_RD);
+	if ((sd->flags & SEQ_F_READING) == 0)
+		sd->callback(sd, SEQ_CB_START | SEQ_CB_RD);
+
+	len = 0;
 
 	/* Have we got the data to read? */
 	if ((sd->flags & SEQ_F_NBIO) != 0 && sd->midi_dbuf_in.rl == 0)
 		ret = EAGAIN;
 	else {
+#if defined(MIDI_OUTOFGIANT)
 		len = buf->uio_resid;
-		ret = midibuf_uioread(&sd->midi_dbuf_in, buf, len);
+		if ((sd->flags & SEQ_F_NBIO) != 0 && len > sd->midi_dbuf_in.rl)
+			len = sd->midi_dbuf_in.rl;
+		ret = midibuf_seqread(&sd->midi_dbuf_in, buf2, len, &sd->flagqueue_mtx);
+#else
+		len = buf->uio_resid;
+		ret = midibuf_uioread(&sd->midi_dbuf_in, buf, len, &sd->flagqueue_mtx);
+#endif /* MIDI_OUTOFGIANT */
 		if (ret < 0)
 			ret = -ret;
 		else
 			ret = 0;
 	}
-	splx(s);
+	mtx_unlock(&sd->flagqueue_mtx);
+
+	MIDI_PICKUP_GIANT();
+
+#if defined(MIDI_OUTOFGIANT)
+	if (ret == 0)
+		uiomove((caddr_t)buf2, len, buf);
+	free(buf2, M_DEVBUF);
+#endif /* MIDI_OUTOFGIANT */
 
 	return (ret);
 }
@@ -403,7 +460,7 @@ int
 seq_write(dev_t i_dev, struct uio *buf, int flag)
 {
 	u_char event[EV_SZ], ev_code;
-	int unit, count, countorg, midiunit, ev_size, p, ret, s;
+	int unit, count, countorg, midiunit, ev_size, p, ret;
 	sc_p scp;
 	seqdev_info *sd;
 	mididev_info *md;
@@ -432,15 +489,18 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 	countorg = buf->uio_resid;
 	count = countorg;
 
-	s = splmidi();
-	/* Begin playing. */
-	sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
-	splx(s);
+	MIDI_DROP_GIANT_NOSWITCH();
 
 	/* Pick up an event. */
 	while (count >= 4) {
+#if defined(MIDI_OUTOFGIANT)
+		mtx_lock(&Giant);
+#endif /* MIDI_OUTOFGIANT */
 		if (uiomove((caddr_t)event, 4, buf))
 			printf("seq_write: user memory mangled?\n");
+#if defined(MIDI_OUTOFGIANT)
+		mtx_unlock(&Giant);
+#endif /* MIDI_OUTOFGIANT */
 		ev_code = event[0];
 
 		/* Have a look at the event code. */
@@ -448,22 +508,18 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 
 			/* A long event, these are the patches/samples for a synthesizer. */
 			midiunit = *(u_short *)&event[2];
-			if (midiunit < 0 || midiunit >= mididev_info_number())
-				return (ENXIO);
-			md = get_mididev_info_unit(midiunit);
-			if (!MIDICONFED(md))
-				return (ENXIO);
-			s = splmidi();
-			if ((md->flags & MIDI_F_BUSY) == 0
-			    && seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc) != 0) {
-				splx(s);
-				return (ENXIO);
+			mtx_lock(&sd->flagqueue_mtx);
+			ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
+			mtx_unlock(&sd->flagqueue_mtx);
+			if (ret != 0) {
+				MIDI_PARTIAL_PICKUP_GIANT();
+				return (ret);
 			}
 
 			DEB(printf("seq_write: loading a patch to the unit %d.\n", midiunit));
 
 			ret = md->synth.loadpatch(md, *(short *)&event[0], buf, p + 4, count, 0);
-			splx(s);
+			MIDI_PARTIAL_PICKUP_GIANT();
 			return (ret);
 		}
 
@@ -472,6 +528,7 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 			/* Some sort of an extended event. The size is eight bytes. */
 #if notyet
 			if (scp->seq_mode == SEQ_2 && ev_code == SEQ_EXTENDED) {
+				MIDI_PARTIAL_PICKUP_GIANT();
 				printf("seq%d: invalid level two event %x.\n", unit, ev_code);
 				return (EINVAL);
 			}
@@ -480,19 +537,28 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 
 			if (count < ev_size) {
 				/* No more data. Start playing now. */
-				s = splmidi();
-				sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
-				splx(s);
+				mtx_lock(&sd->flagqueue_mtx);
+				if ((sd->flags & SEQ_F_WRITING) == 0)
+					sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
+				mtx_unlock(&sd->flagqueue_mtx);
 
+				MIDI_PARTIAL_PICKUP_GIANT();
 				return (0);
 			}
+#if defined(MIDI_OUTOFGIANT)
+			mtx_lock(&Giant);
+#endif /* MIDI_OUTOFGIANT */
 			if (uiomove((caddr_t)&event[4], 4, buf))
 				printf("seq_write: user memory mangled?\n");
+#if defined(MIDI_OUTOFGIANT)
+			mtx_unlock(&Giant);
+#endif /* MIDI_OUTOFGIANT */
 		} else {
 
 			/* Not an extended event. The size is four bytes. */
 #if notyet
 			if (scp->seq_mode == SEQ_2) {
+				MIDI_PARTIAL_PICKUP_GIANT();
 				printf("seq%d: four byte event in level two mode.\n", unit);
 				return (EINVAL);
 			}
@@ -502,40 +568,47 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 		if (ev_code == SEQ_MIDIPUTC) {
 			/* An event passed to the midi device itself. */
 			midiunit = event[2];
-			if (midiunit < 0 || midiunit >= mididev_info_number())
-				return (ENXIO);
-			md = get_mididev_info_unit(midiunit);
-			if (!MIDICONFED(md))
-				return (ENXIO);
-			if ((md->flags & MIDI_F_BUSY) == 0
-			    && (ret = seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc)) != 0) {
-				seq_reset(scp);
+			mtx_lock(&sd->flagqueue_mtx);
+			ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
+			mtx_unlock(&sd->flagqueue_mtx);
+			if (ret != 0) {
+				MIDI_PARTIAL_PICKUP_GIANT();
 				return (ret);
 			}
 		}
 
 		/*DEB(printf("seq_write: queueing event %d.\n", event[0]));*/
 		/* Now we queue the event. */
+		mtx_lock(&sd->flagqueue_mtx);
 		switch (seq_queue(scp, event)) {
 		case EAGAIN:
-			s = splmidi();
 			/* The queue is full. Start playing now. */
-			sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
-			splx(s);
+			if ((sd->flags & SEQ_F_WRITING) == 0)
+				sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
+			mtx_unlock(&sd->flagqueue_mtx);
+			MIDI_PARTIAL_PICKUP_GIANT();
 			return (0);
 		case EINTR:
+			mtx_unlock(&sd->flagqueue_mtx);
+			MIDI_PARTIAL_PICKUP_GIANT();
 			return (EINTR);
 		case ERESTART:
+			mtx_unlock(&sd->flagqueue_mtx);
+			MIDI_PARTIAL_PICKUP_GIANT();
 			return (ERESTART);
 		}
+		mtx_unlock(&sd->flagqueue_mtx);
 		p += ev_size;
 		count -= ev_size;
 	}
 
 	/* We have written every single data. Start playing now. */
-	s = splmidi();
-	sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
-	splx(s);
+	mtx_lock(&sd->flagqueue_mtx);
+	if ((sd->flags & SEQ_F_WRITING) == 0)
+		sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
+	mtx_unlock(&sd->flagqueue_mtx);
+
+	MIDI_PICKUP_GIANT();
 
 	return (0);
 }
@@ -543,7 +616,7 @@ seq_write(dev_t i_dev, struct uio *buf, int flag)
 int
 seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 {
-	int unit, midiunit, ret, tmp, s, arg2;
+	int unit, midiunit, ret, tmp, arg2;
 	sc_p scp;
 	seqdev_info *sd;
 	mididev_info *md;
@@ -569,6 +642,8 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 	}
 	scp = sd->softc;
 
+	MIDI_DROP_GIANT_NOSWITCH();
+
 	ret = 0;
 
 	switch (cmd) {
@@ -582,10 +657,14 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 
 	case AIOSSIZE:     /* set the current blocksize */
 		sndsize = (struct snd_size *)arg;
+		mtx_lock(&sd->flagqueue_mtx);
 		if (sndsize->play_size <= sd->midi_dbuf_out.unit_size && sndsize->rec_size <= sd->midi_dbuf_in.unit_size) {
-			sd->flags &= ~MIDI_F_HAS_SIZE;
 			sd->midi_dbuf_out.blocksize = sd->midi_dbuf_out.unit_size;
 			sd->midi_dbuf_in.blocksize = sd->midi_dbuf_in.unit_size;
+			sndsize->play_size = sd->midi_dbuf_out.blocksize;
+			sndsize->rec_size = sd->midi_dbuf_in.blocksize;
+			sd->flags &= ~MIDI_F_HAS_SIZE;
+			mtx_unlock(&sd->flagqueue_mtx);
 		}
 		else {
 			if (sndsize->play_size > sd->midi_dbuf_out.bufsize / 4)
@@ -599,53 +678,59 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 			sd->midi_dbuf_in.blocksize =
 			    ((sndsize->rec_size + sd->midi_dbuf_in.unit_size - 1)
 			     / sd->midi_dbuf_in.unit_size) * sd->midi_dbuf_in.unit_size;
+			sndsize->play_size = sd->midi_dbuf_out.blocksize;
+			sndsize->rec_size = sd->midi_dbuf_in.blocksize;
 			sd->flags |= MIDI_F_HAS_SIZE;
-		}
-		/* FALLTHROUGH */
+			mtx_unlock(&sd->flagqueue_mtx);
+		}	
+
+		ret = 0;
+		break;
+
 	case AIOGSIZE:	/* get the current blocksize */
 		sndsize = (struct snd_size *)arg;
+		mtx_lock(&sd->flagqueue_mtx);
 		sndsize->play_size = sd->midi_dbuf_out.blocksize;
 		sndsize->rec_size = sd->midi_dbuf_in.blocksize;
+		mtx_unlock(&sd->flagqueue_mtx);
 
 		ret = 0;
 		break;
 
 	case AIOSTOP:
 		if (*(int *)arg == AIOSYNC_PLAY) {
-			s = splmidi();
 
 			/* Stop writing. */
+			mtx_lock(&sd->flagqueue_mtx);
 			sd->callback(sd, SEQ_CB_ABORT | SEQ_CB_WR);
+			mtx_unlock(&sd->flagqueue_mtx);
 
 			/* Pass the ioctl to the midi devices. */
-			for (midiunit = 0 ; midiunit < mididev_info_number() ; midiunit++) {
-				md = get_mididev_info_unit(midiunit);
-				if (MIDICONFED(md) && scp->midi_open[midiunit] && (md->flags & MIDI_F_WRITING) != 0) {
+			TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
+				if ((md->flags & MIDI_F_WRITING) != 0) {
 					arg2 = *(int *)arg;
-					midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, (caddr_t)&arg2, mode, p);
+					midi_ioctl(MIDIMKDEV(major(i_dev), md->unit, SND_DEV_MIDIN), cmd, (caddr_t)&arg2, mode, p);
 				}
 			}
 
 			*(int *)arg = sd->midi_dbuf_out.rl;
-			splx(s);
 		}
 		else if (*(int *)arg == AIOSYNC_CAPTURE) {
-			s = splmidi();
 
 			/* Stop reading. */
+			mtx_lock(&sd->flagqueue_mtx);
 			sd->callback(sd, SEQ_CB_ABORT | SEQ_CB_RD);
+			mtx_unlock(&sd->flagqueue_mtx);
 
 			/* Pass the ioctl to the midi devices. */
-			for (midiunit = 0 ; midiunit < mididev_info_number() ; midiunit++) {
-				md = get_mididev_info_unit(midiunit);
-				if (MIDICONFED(md) && scp->midi_open[midiunit] && (md->flags & MIDI_F_WRITING) != 0) {
+			TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
+				if ((md->flags & MIDI_F_WRITING) != 0) {
 					arg2 = *(int *)arg;
-					midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, (caddr_t)&arg2, mode, p);
+					midi_ioctl(MIDIMKDEV(major(i_dev), md->unit, SND_DEV_MIDIN), cmd, (caddr_t)&arg2, mode, p);
 				}
 			}
 
 			*(int *)arg = sd->midi_dbuf_in.rl;
-			splx(s);
 		}
 
 		ret = 0;
@@ -692,7 +777,9 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		ret = 0;
 		break;
 	case SNDCTL_SEQ_PANIC:
+		mtx_lock(&scp->devinfo->flagqueue_mtx);
 		seq_panic(scp);
+		mtx_unlock(&scp->devinfo->flagqueue_mtx);
 		ret = 0;
 		break;
 	case SNDCTL_SEQ_SYNC:
@@ -700,24 +787,21 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 			ret = 0;
 			break;
 		}
+		mtx_lock(&scp->devinfo->flagqueue_mtx);
 		ret = seq_sync(scp);
+		mtx_unlock(&scp->devinfo->flagqueue_mtx);
 		break;
 	case SNDCTL_SEQ_RESET:
+		mtx_lock(&scp->devinfo->flagqueue_mtx);
 		seq_reset(scp);
+		mtx_unlock(&scp->devinfo->flagqueue_mtx);
 		ret = 0;
 		break;
 	case SNDCTL_SEQ_TESTMIDI:
 		midiunit = *(int *)arg;
-		if (midiunit >= mididev_info_number()) {
-			ret = ENXIO;
-			break;
-		}
-		md = get_mididev_info_unit(midiunit);
-		if (MIDICONFED(md) && !scp->midi_open[midiunit]) {
-			ret = seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
-			break;
-		}
-		ret = 0;
+		mtx_lock(&sd->flagqueue_mtx);
+		ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
+		mtx_unlock(&sd->flagqueue_mtx);
 		break;
 	case SNDCTL_SEQ_GETINCOUNT:
 		if (mode == O_WRONLY)
@@ -749,21 +833,11 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		break;
 	case SNDCTL_SEQ_RESETSAMPLES:
 		midiunit = *(int *)arg;
-		if (midiunit >= mididev_info_number()) {
-			ret = ENXIO;
+		mtx_lock(&sd->flagqueue_mtx);
+		ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (ret != 0)
 			break;
-		}
-		if (!scp->midi_open[midiunit]) {
-			md = get_mididev_info_unit(midiunit);
-			if (MIDICONFED(md)) {
-				ret = seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
-				if (ret != 0)
-					break;
-			} else {
-				ret = EBUSY;
-				break;
-			}
-		}
 		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
 		break;
 	case SNDCTL_SEQ_NRSYNTHS:
@@ -776,97 +850,66 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		break;
 	case SNDCTL_SYNTH_MEMAVL:
 		midiunit = *(int *)arg;
-		if (midiunit >= mididev_info_number()) {
-			ret = ENXIO;
+		mtx_lock(&sd->flagqueue_mtx);
+		ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (ret != 0)
 			break;
-		}
-		if (!scp->midi_open[midiunit]) {
-			md = get_mididev_info_unit(midiunit);
-			if (MIDICONFED(md)) {
-				ret = seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
-				if (ret != 0)
-					break;
-			} else {
-				ret = EBUSY;
-				break;
-			}
-		}
 		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
 		break;
 	case SNDCTL_FM_4OP_ENABLE:
 		midiunit = *(int *)arg;
-		if (midiunit >= mididev_info_number()) {
-			ret = ENXIO;
+		mtx_lock(&sd->flagqueue_mtx);
+		ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (ret != 0)
 			break;
-		}
-		if (!scp->midi_open[midiunit]) {
-			md = get_mididev_info_unit(midiunit);
-			if (MIDICONFED(md)) {
-				ret = seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
-				if (ret != 0)
-					break;
-			} else {
-				ret = EBUSY;
-				break;
-			}
-		}
 		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
 		break;
 	case SNDCTL_SYNTH_INFO:
 		synthinfo = (struct synth_info *)arg;
 		midiunit = synthinfo->device;
-		if (midiunit >= mididev_info_number()) {
-			ret = ENXIO;
+		mtx_lock(&sd->flagqueue_mtx);
+		ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (ret != 0)
 			break;
-		}
 		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
 		break;
 	case SNDCTL_SEQ_OUTOFBAND:
 		event = (struct seq_event_rec *)arg;
-		s = splmidi();
+		mtx_lock(&sd->flagqueue_mtx);
 		ret = seq_playevent(scp, event->arr);
-		splx(s);
+		mtx_unlock(&sd->flagqueue_mtx);
 		break;
 	case SNDCTL_MIDI_INFO:
 		midiinfo = (struct midi_info *)arg;
 		midiunit = midiinfo->device;
-		if (midiunit >= mididev_info_number()) {
-			ret = ENXIO;
+		mtx_lock(&sd->flagqueue_mtx);
+		ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (ret != 0)
 			break;
-		}
 		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
 		break;
 	case SNDCTL_PMGR_IFACE:
 		patinfo = (struct patmgr_info *)arg;
 		midiunit = patinfo->device;
-		if (midiunit >= mididev_info_number()) {
-			ret = ENXIO;
+		mtx_lock(&sd->flagqueue_mtx);
+		ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (ret != 0)
 			break;
-		}
-		if (!scp->midi_open[midiunit]) {
-			ret = EBUSY;
-			break;
-		}
 		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
 		break;
 	case SNDCTL_PMGR_ACCESS:
 		patinfo = (struct patmgr_info *)arg;
 		midiunit = patinfo->device;
-		if (midiunit >= mididev_info_number()) {
-			ret = ENXIO;
+		mtx_lock(&sd->flagqueue_mtx);
+		ret = lookup_mididev(scp, midiunit, LOOKUP_OPEN, &md);
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (ret != 0)
 			break;
-		}
-		if (!scp->midi_open[midiunit]) {
-			md = get_mididev_info_unit(midiunit);
-			if (MIDICONFED(md)) {
-				ret = seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
-				if (ret != 0)
-					break;
-			} else {
-				ret = EBUSY;
-				break;
-			}
-		}
 		ret = midi_ioctl(MIDIMKDEV(major(i_dev), midiunit, SND_DEV_MIDIN), cmd, arg, mode, p);
 		break;
 	case SNDCTL_SEQ_THRESHOLD:
@@ -888,20 +931,16 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 			ret = EIO;
 			break;
 		}
-		if (!scp->midi_open[0]) {
-			md = get_mididev_info_unit(0);
-			if (MIDICONFED(md)) {
-				ret = seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
-				if (ret != 0)
-					break;
-			} else {
-				ret = EBUSY;
-				break;
-			}
-		}
+		mtx_lock(&sd->flagqueue_mtx);
+		ret = lookup_mididev(scp, 0, LOOKUP_OPEN, &md);
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (ret != 0)
+			break;
 		ret = midi_ioctl(MIDIMKDEV(major(i_dev), 0, SND_DEV_MIDIN), cmd, arg, mode, p);
 		break;
 	}
+
+	MIDI_PICKUP_GIANT();
 
 	return (ret);
 }
@@ -909,7 +948,7 @@ seq_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 int
 seq_poll(dev_t i_dev, int events, struct proc *p)
 {
-	int unit, ret, s, lim;
+	int unit, ret, lim;
 	sc_p scp;
 	seqdev_info *sd;
 
@@ -928,8 +967,11 @@ seq_poll(dev_t i_dev, int events, struct proc *p)
 	}
 	scp = sd->softc;
 
+	MIDI_DROP_GIANT_NOSWITCH();
+
+	mtx_lock(&sd->flagqueue_mtx);
+
 	ret = 0;
-	s = splmidi();
 
 	/* Look up the apropriate queue and select it. */
 	if ((events & (POLLOUT | POLLWRNORM)) != 0) {
@@ -964,7 +1006,10 @@ seq_poll(dev_t i_dev, int events, struct proc *p)
 			/* We can write now. */
 			ret |= events & (POLLIN | POLLRDNORM);
 	}
-	splx(s);
+
+	mtx_unlock(&sd->flagqueue_mtx);
+
+	MIDI_PICKUP_GIANT();
 
 	return (ret);
 }
@@ -978,12 +1023,20 @@ seq_intr(void *p, mididev_info *md)
 	sd = (seqdev_info *)p;
 	scp = sd->softc;
 
+	MIDI_DROP_GIANT_NOSWITCH();
+
+	mtx_lock(&sd->flagqueue_mtx);
+
 	/* Restart playing if we have the data to output. */
 	if (scp->queueout_pending)
 		sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
 	/* Check the midi device if we are reading. */
 	if ((sd->flags & SEQ_F_READING) != 0)
 		seq_midiinput(scp, md);
+
+	mtx_unlock(&sd->flagqueue_mtx);
+
+	MIDI_PICKUP_GIANT();
 }
 
 static int
@@ -1001,6 +1054,8 @@ seq_callback(seqdev_info *sd, int reason)
 	scp = sd->softc;
 	unit = sd->unit;
 
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
 	switch (reason & SEQ_CB_REASON_MASK) {
 	case SEQ_CB_START:
 		if ((reason & SEQ_CB_RD) != 0 && (sd->flags & SEQ_F_READING) == 0)
@@ -1013,24 +1068,21 @@ seq_callback(seqdev_info *sd, int reason)
 	case SEQ_CB_STOP:
 	case SEQ_CB_ABORT:
 		if ((reason & SEQ_CB_RD) != 0 && (sd->flags & SEQ_F_READING) != 0) {
-			/* Stop the timer. */
-			scp->seq_time = seq_gettime();
-			scp->prev_input_time = 0;
-
 			/* Stop recording. */
 			sd->flags &= ~SEQ_F_READING;
+			scp->seq_time = seq_gettime();
+			scp->prev_input_time = 0;
 		}
 		if ((reason & SEQ_CB_WR) != 0 && (sd->flags & SEQ_F_WRITING) != 0) {
-			/* Stop the timer. */
-			seq_stoptimer(scp);
-			scp->seq_time = seq_gettime();
-			scp->prev_event_time = 0;
-
 			/* Stop Playing. */
 			sd->flags &= ~SEQ_F_WRITING;
 			scp->queueout_pending = 0;
+			scp->seq_time = seq_gettime();
+			scp->prev_input_time = 0;
+
+			/* Stop the timer. */
+			seq_stoptimer(scp);
 		}
-		break;
 	}
 
 	return (0);
@@ -1043,49 +1095,52 @@ seq_callback(seqdev_info *sd, int reason)
 static int
 seq_queue(sc_p scp, u_char *note)
 {
-	int unit, err, s;
+	int unit, err;
 	seqdev_info *sd;
 
 	sd = scp->devinfo;
 	unit = sd->unit;
 
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
 	/*DEB(printf("seq%d: queueing.\n", unit));*/
 
-	s = splmidi();
-
-	/* Start playing if we have some data in the queue. */
-	if (sd->midi_dbuf_out.rl >= EV_SZ)
-		sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
+	if ((sd->flags & SEQ_F_INSYNC) != 0) {
+		cv_wait(&sd->insync_cv, &sd->flagqueue_mtx);
+		cv_signal(&sd->insync_cv);
+	}
 
 	if (sd->midi_dbuf_out.fl < EV_SZ) {
 		/* We have no space. Start playing if not yet. */
-		sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
-		if ((sd->flags & SEQ_F_NBIO) != 0 && sd->midi_dbuf_out.fl < EV_SZ) {
+		if ((sd->flags & SEQ_F_WRITING) == 0)
+			sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
+		if ((sd->flags & SEQ_F_NBIO) != 0 && sd->midi_dbuf_out.fl < EV_SZ)
 			/* We would block. */
-			splx(s);
 			return (EAGAIN);
-		} else
+		else {
 			while (sd->midi_dbuf_out.fl < EV_SZ) {
 				/* We have no space. Good night. */
-				err = tsleep(&sd->midi_dbuf_out.tsleep_out, PRIBIO | PCATCH, "seqque", 0);
-				if (err == EINTR)
-					sd->callback(sd, SEQ_CB_STOP | SEQ_CB_WR);
+				err = msleep(&sd->midi_dbuf_out.tsleep_out, &sd->flagqueue_mtx, PRIBIO | PCATCH, "seqque", 0);
 				if (err == EINTR || err == ERESTART) {
-					splx(s);
+					if (err == EINTR)
+						sd->callback(sd, SEQ_CB_STOP | SEQ_CB_WR);
 					return (err);
 				}
 			}
+		}
 	}
 
 	/* We now have enough space to write. */
-	err = midibuf_seqwrite(&sd->midi_dbuf_out, note, EV_SZ);
-
-	splx(s);
+	err = midibuf_seqwrite(&sd->midi_dbuf_out, note, EV_SZ, &sd->flagqueue_mtx);
 
 	if (err < 0)
 		err = -err;
-	else
+	else {
 		err = 0;
+		/* Start playing if we have some data in the queue. */
+		if (sd->midi_dbuf_out.rl >= EV_SZ && ((sd->flags & SEQ_F_WRITING) == 0))
+			sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
+	}
 
 	return (err);
 }
@@ -1100,26 +1155,21 @@ seq_startplay(sc_p scp)
 	sd = scp->devinfo;
 	unit = sd->unit;
 
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
 	/* Dequeue the events to play. */
 	while (sd->midi_dbuf_out.rl >= EV_SZ) {
 
-		/* We are playing now. */
-		sd->flags |= SEQ_F_WRITING;
-
-		/* We only copy the event, not dequeue. */
-		midibuf_seqcopy(&sd->midi_dbuf_out, event, EV_SZ);
+		midibuf_seqread(&sd->midi_dbuf_out, event, EV_SZ, &sd->flagqueue_mtx);
 
 		switch (seq_playevent(scp, event)) {
 		case TIMERARMED:
-			/* Dequeue the event. */
-			midibuf_seqread(&sd->midi_dbuf_out, event, EV_SZ);
-			/* FALLTHRU */
+			return;
 		case QUEUEFULL:
-			/* We cannot play further. */
+			/* We cannot play any further. */
+			midibuf_sequnread(&sd->midi_dbuf_out, event, EV_SZ, &sd->flagqueue_mtx);
 			return;
 		case MORE:
-			/* Dequeue the event. */
-			midibuf_seqread(&sd->midi_dbuf_out, event, EV_SZ);
 			break;
 		}
 	}
@@ -1139,26 +1189,31 @@ seq_playevent(sc_p scp, u_char *event)
 	sd = scp->devinfo;
 	unit = sd->unit;
 
-	md = get_mididev_info_unit(0);
-	if (!MIDICONFED(md))
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
+	ret = lookup_mididev(scp, 0, LOOKUP_OPEN, &md);
+	if (ret != 0)
 		return (MORE);
 
 	switch(event[0]) {
 	case SEQ_NOTEOFF:
-		if ((md->flags & MIDI_F_BUSY) != 0 || seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc) == 0)
-			if (md->synth.killnote(md, event[1], 255, event[3]) == EAGAIN) {
-				ret = QUEUEFULL;
-				break;
-			}
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.killnote(md, event[1], 255, event[3]) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
+			ret = QUEUEFULL;
+			break;
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		ret = MORE;
 		break;
 	case SEQ_NOTEON:
-		if (((md->flags & MIDI_F_BUSY) != 0 || seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc) == 0)
-		    && (event[4] < 128 || event[4] == 255))
-			if (md->synth.startnote(md, event[1], event[2], event[3]) == EAGAIN) {
-				ret = QUEUEFULL;
-				break;
-			}
+		mtx_unlock(&sd->flagqueue_mtx);
+		if ((event[4] < 128 || event[4] == 255) && md->synth.startnote(md, event[1], event[2], event[3]) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
+			ret = QUEUEFULL;
+			break;
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		ret = MORE;
 		break;
 	case SEQ_WAIT:
@@ -1169,7 +1224,6 @@ seq_playevent(sc_p scp, u_char *event)
 		if (*delay > 0) {
 			/* Arm the timer. */
 			sd->flags |= SEQ_F_WRITING;
-			scp->prev_event_time = *delay;
 			if (seq_requesttimer(scp, *delay)) {
 				ret = TIMERARMED;
 				break;
@@ -1178,11 +1232,13 @@ seq_playevent(sc_p scp, u_char *event)
 		ret = MORE;
 		break;
 	case SEQ_PGMCHANGE:
-		if ((md->flags & MIDI_F_BUSY) != 0 || seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc) == 0)
-			if (md->synth.setinstr(md, event[1], event[2]) == EAGAIN) {
-				ret = QUEUEFULL;
-				break;
-			}
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.setinstr(md, event[1], event[2]) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
+			ret = QUEUEFULL;
+			break;
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		ret = MORE;
 		break;
 	case SEQ_SYNCTIMER:
@@ -1195,16 +1251,19 @@ seq_playevent(sc_p scp, u_char *event)
 		break;
 	case SEQ_MIDIPUTC:
 		/* Pass through to the midi device. */
-		if (event[2] < mididev_info_number()) {
-			md = get_mididev_info_unit(event[2]);
-			if (MIDICONFED(md) && ((md->flags & MIDI_F_BUSY) != 0 || seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc) == 0)) {
-				if (md->synth.writeraw(md, &event[1], sizeof(event[1]), 1) == EAGAIN) {
-					/* The queue was full. Try again later. */
-					ret = QUEUEFULL;
-					break;
-				}
-			}
+		ret = lookup_mididev(scp, event[2], LOOKUP_OPEN, &md);
+		if (ret != 0) {
+			ret = MORE;
+			break;
 		}
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.writeraw(md, &event[1], sizeof(event[1]), 1) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
+			/* The queue was full. Try again later. */
+			ret = QUEUEFULL;
+			break;
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		ret = MORE;
 		break;
 	case SEQ_ECHO:
@@ -1216,13 +1275,18 @@ seq_playevent(sc_p scp, u_char *event)
 		ret = MORE;
 		break;
 	case SEQ_PRIVATE:
-		if (event[1] < mididev_info_number()) {
-			md = get_mididev_info_unit(event[1]);
-			if (MIDICONFED(md) && md->synth.hwcontrol(md, event) == EAGAIN) {
-				ret = QUEUEFULL;
-				break;
-			}
+		ret = lookup_mididev(scp, event[1], LOOKUP_OPEN, &md);
+		if (ret != 0) {
+			ret = MORE;
+			break;
 		}
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.hwcontrol(md, event) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
+			ret = QUEUEFULL;
+			break;
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		ret = MORE;
 		break;
 	case SEQ_EXTENDED:
@@ -1282,15 +1346,20 @@ seq_requesttimer(sc_p scp, int delay)
 
 	/*DEB(printf("seq%d: requested timer at delay of %d.\n", unit, delay));*/
 
+	mtx_assert(&scp->devinfo->flagqueue_mtx, MA_OWNED);
+
 	cur_time = seq_gettime();
 
+	scp->prev_event_time = delay;
 	if (delay < 0)
 		/* Request a new timer. */
 		delay = -delay;
 	else {
 		rel_base = cur_time - scp->seq_time;
-		if (delay <= rel_base)
+		if (delay <= rel_base) {
+			seq_stoptimer(scp);
 			return 0;
+		}
 		delay -= rel_base;
 	}
 
@@ -1309,8 +1378,9 @@ seq_requesttimer(sc_p scp, int delay)
 	}
 #endif /* notdef */
 
-	scp->timeout_ch = timeout(seq_timer, (void *)scp, delay);
+	callout_reset(&scp->timeout_ch, delay, seq_timer, (void *)scp);
 	scp->timer_running = 1;
+
 	return 1;
 }
 
@@ -1319,8 +1389,10 @@ seq_stoptimer(sc_p scp)
 {
 	/*DEB(printf("seq%d: stopping timer.\n", unit));*/
 
+	mtx_assert(&scp->devinfo->flagqueue_mtx, MA_OWNED);
+
 	if (scp->timer_running) {
-		untimeout(seq_timer, (void *)scp, scp->timeout_ch);
+		callout_stop(&scp->timeout_ch);
 		scp->timer_running = 0;
 	}
 }
@@ -1333,14 +1405,17 @@ seq_midiinput(sc_p scp, mididev_info *md)
 	u_char event[4];
 	seqdev_info *sd;
 
+	mtx_assert(&scp->devinfo->flagqueue_mtx, MA_OWNED);
+
 	sd = scp->devinfo;
 	unit = sd->unit;
 
 	/* Can this midi device interrupt for input? */
 	midiunit = md->unit;
-	if (scp->midi_open[midiunit]
-	    && (md->flags & MIDI_F_READING) != 0
-	    && md->intrarg == sd)
+	if (lookup_mididev(scp, midiunit, LOOKUP_EXIST, NULL) != 0)
+		return;
+
+	if ((md->flags & MIDI_F_READING) != 0 && md->intrarg == sd) {
 		/* Read the input data. */
 		while (md->synth.readraw(md, &event[1], sizeof(event[1]), 1) == 0) {
 			tstamp = seq_gettime() - scp->seq_time;
@@ -1355,6 +1430,7 @@ seq_midiinput(sc_p scp, mididev_info *md)
 			event[3] = 0;
 			seq_copytoinput(scp, event, sizeof(event));
 		}
+	}
 }
 
 static int
@@ -1363,6 +1439,8 @@ seq_copytoinput(sc_p scp, u_char *event, int len)
 	seqdev_info *sd;
 
 	sd = scp->devinfo;
+
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
 
 	if (midibuf_input_intr(&sd->midi_dbuf_in, event, len) == -EAGAIN)
 		return (EAGAIN);
@@ -1380,42 +1458,67 @@ seq_extended(sc_p scp, u_char *event)
 	sd = scp->devinfo;
 	unit = sd->unit;
 
-	if (event[2] >= mididev_info_number())
-		return (MORE);
-	md = get_mididev_info_unit(event[2]);
-	if (!MIDICONFED(md) && (md->flags & MIDI_F_BUSY) == 0 && seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc) != 0)
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
+	if (lookup_mididev(scp, event[2], LOOKUP_OPEN, &md) != 0)
 		return (MORE);
 
 	switch (event[1]) {
 	case SEQ_NOTEOFF:
-		if (md->synth.killnote(md, event[3], event[4], event[5]) == EAGAIN)
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.killnote(md, event[3], event[4], event[5]) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
 			return (QUEUEFULL);
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		break;
 	case SEQ_NOTEON:
-		if (event[4] < 128 || event[4] == 255)
-			if (md->synth.startnote(md, event[3], event[4], event[5]) == EAGAIN)
-				return (QUEUEFULL);
+		mtx_unlock(&sd->flagqueue_mtx);
+		if ((event[4] < 128 || event[4] == 255) && md->synth.startnote(md, event[3], event[4], event[5]) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
+			return (QUEUEFULL);
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		break;
 	case SEQ_PGMCHANGE:
-		if (md->synth.setinstr(md, event[3], event[4]) == EAGAIN)
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.setinstr(md, event[3], event[4]) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
 			return (QUEUEFULL);
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		break;
 	case SEQ_AFTERTOUCH:
-		if (md->synth.aftertouch(md, event[3], event[4]) == EAGAIN)
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.aftertouch(md, event[3], event[4]) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
 			return (QUEUEFULL);
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		break;
 	case SEQ_BALANCE:
-		if (md->synth.panning(md, event[3], (char)event[4]) == EAGAIN)
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.panning(md, event[3], (char)event[4]) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
 			return (QUEUEFULL);
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		break;
 	case SEQ_CONTROLLER:
-		if (md->synth.controller(md, event[3], event[4], *(short *)&event[5]) == EAGAIN)
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.controller(md, event[3], event[4], *(short *)&event[5]) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
 			return (QUEUEFULL);
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		break;
 	case SEQ_VOLMODE:
-		if (md->synth.volumemethod != NULL)
-			if (md->synth.volumemethod(md, event[3]) == EAGAIN)
-				return (QUEUEFULL);
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.volumemethod != NULL && md->synth.volumemethod(md, event[3]) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
+			return (QUEUEFULL);
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		break;
 	}
 
@@ -1439,17 +1542,14 @@ seq_chnvoice(sc_p scp, u_char *event)
 
 	sd = scp->devinfo;
 
-	if (dev >= mididev_info_number())
-		return (MORE);
-	md = get_mididev_info_unit(dev);
-	if (!MIDICONFED(md) && (md->flags & MIDI_F_BUSY) == 0 && seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc) != 0)
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
+	if (lookup_mididev(scp, dev, LOOKUP_OPEN, &md) != 0)
 		return (MORE);
 
 #if notyet
-	if (scp->seq_mode == SEQ_2) {
-		if (md->synth.allocvoice)
-			voice = seq_allocvoice(md, chn, note);
-	}
+	if (scp->seq_mode == SEQ_2 && md->synth.allocvoice != NULL)
+		voice = seq_allocvoice(scp, md, chn, note);
 #endif /* notyet */
 	switch (cmd) {
 	case MIDI_NOTEON:
@@ -1457,38 +1557,60 @@ seq_chnvoice(sc_p scp, u_char *event)
 #if notyet
 			if (voice == -1 && scp->seq_mode == SEQ_2 && md->synth.allocvoice)
 				/* This is an internal synthesizer. (FM, GUS, etc) */
-				if ((voice = seq_allocvoice(md, chn, note)) == -EAGAIN)
+				if ((voice = seq_allocvoice(scp, md, chn, note)) == -EAGAIN)
 					return (QUEUEFULL);
 #endif /* notyet */
 			if (voice == -1)
 				voice = chn;
 
 #if notyet
-			if (scp->seq_mode == SEQ_2 && dev < mididev_info_number() && chn == 9) {
+			if (scp->seq_mode == SEQ_2 && chn == 9) {
 				/* This channel is a percussion. The note number is the patch number. */
-				if (md->synth.setinstr(md, voice, 128 + note) == EAGAIN)
+				mtx_unlock(&sd->flagqueue_mtx);
+				if (md->synth.setinstr(md, voice, 128 + note) == EAGAIN) {
+					mtx_lock(&sd->flagqueue_mtx);
 					return (QUEUEFULL);
+				}
+				mtx_lock(&sd->flagqueue_mtx);
+
 				note = 60; /* Middle C. */
 			}
-			if (scp->seq_mode == SEQ_2)
-				if (md->synth.setupvoice(md, voice, chn) == EAGAIN)
+			if (scp->seq_mode == SEQ_2) {
+				mtx_unlock(&sd->flagqueue_mtx);
+				if (md->synth.setupvoice(md, voice, chn) == EAGAIN) {
+					mtx_lock(&sd->flagqueue_mtx);
 					return (QUEUEFULL);
+				}
+				mtx_lock(&sd->flagqueue_mtx);
+			}
 #endif /* notyet */
-			if (md->synth.startnote(md, voice, note, parm) == EAGAIN)
+			mtx_unlock(&sd->flagqueue_mtx);
+			if (md->synth.startnote(md, voice, note, parm) == EAGAIN) {
+				mtx_lock(&sd->flagqueue_mtx);
 				return (QUEUEFULL);
+			}
+			mtx_lock(&sd->flagqueue_mtx);
 		}
 		break;
 	case MIDI_NOTEOFF:
 		if (voice == -1)
 			voice = chn;
-		if (md->synth.killnote(md, voice, note, parm) == EAGAIN)
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.killnote(md, voice, note, parm) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
 			return (QUEUEFULL);
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		break;
 	case MIDI_KEY_PRESSURE:
 		if (voice == -1)
 			voice = chn;
-		if (md->synth.aftertouch(md, voice, parm) == EAGAIN)
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.aftertouch(md, voice, parm) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
 			return (QUEUEFULL);
+		}
+		mtx_lock(&sd->flagqueue_mtx);
 		break;
 	}
 
@@ -1503,25 +1625,38 @@ seq_findvoice(mididev_info *md, int chn, int note)
 
 	key = (chn << 8) | (note + 1);
 
+	mtx_lock(&md->synth.vc_mtx);
 	for (i = 0 ; i < md->synth.alloc.max_voice ; i++)
-		if (md->synth.alloc.map[i] == key)
+		if (md->synth.alloc.map[i] == key) {
+			mtx_unlock(&md->synth.vc_mtx);
 			return (i);
+		}
+	mtx_unlock(&md->synth.vc_mtx);
 
 	return (-1);
 }
 
 static int
-seq_allocvoice(mididev_info *md, int chn, int note)
+seq_allocvoice(sc_p scp, mididev_info *md, int chn, int note)
 {
 	int voice;
 	u_short key;
 
+	mtx_assert(&scp->devinfo->flagqueue_mtx, MA_OWNED);
+
 	key = (chn << 8) | (note + 1);
 
-	if ((voice = md->synth.allocvoice(md, chn, note, &md->synth.alloc)) == -EAGAIN)
+	mtx_unlock(&scp->devinfo->flagqueue_mtx);
+	if ((voice = md->synth.allocvoice(md, chn, note, &md->synth.alloc)) == -EAGAIN) {
+		mtx_lock(&scp->devinfo->flagqueue_mtx);
 		return (-EAGAIN);
+	}
+	mtx_lock(&scp->devinfo->flagqueue_mtx);
+
+	mtx_lock(&md->synth.vc_mtx);
 	md->synth.alloc.map[voice] = key;
 	md->synth.alloc.alloc_times[voice] = md->synth.alloc.timestamp++;
+	mtx_unlock(&md->synth.vc_mtx);
 
 	return (voice);
 }
@@ -1544,77 +1679,113 @@ seq_chncommon(sc_p scp, u_char *event)
 	sd = scp->devinfo;
 	unit = sd->unit;
 
-	if (dev >= mididev_info_number())
-		return (MORE);
-	md = get_mididev_info_unit(dev);
-	if (!MIDICONFED(md) && (md->flags & MIDI_F_BUSY) == 0 && seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc) != 0)
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
+	if (lookup_mididev(scp, dev, LOOKUP_OPEN, &md) != 0)
 		return (MORE);
 
 	switch (cmd) {
 	case MIDI_PGM_CHANGE:
 #if notyet
 		if (scp->seq_mode == SEQ_2) {
+			mtx_lock(&md->synth.vc_mtx);
 			md->synth.chn_info[chn].pgm_num = p1;
-			if (dev < mididev_info_number())
-				if (md->synth.setinstr(md, chn, p1) == EAGAIN)
-					return (QUEUEFULL);
-		} else
+			mtx_unlock(&md->synth.vc_mtx);
+			mtx_unlock(&sd->flagqueue_mtx);
+			if (md->synth.setinstr(md, chn, p1) == EAGAIN) {
+				mtx_lock(&sd->flagqueue_mtx);
+				return (QUEUEFULL);
+			}
+			mtx_lock(&sd->flagqueue_mtx);
+		} else {
 #endif /* notyet */
 			/* For Mode 1. */
-			if (md->synth.setinstr(md, chn, p1) == EAGAIN)
+			mtx_unlock(&sd->flagqueue_mtx);
+			if (md->synth.setinstr(md, chn, p1) == EAGAIN) {	
+				mtx_lock(&sd->flagqueue_mtx);
 				return (QUEUEFULL);
+			}
+			mtx_lock(&sd->flagqueue_mtx);
+#if notyet
+		}
+#endif /* notyet */
 		break;
 	case MIDI_CTL_CHANGE:
+		/* mtx_lock(&md->giant); */
 #if notyet
 		if (scp->seq_mode == SEQ_2) {
 			if (chn < 16 && p1 < 128) {
+				mtx_lock(&md->synth.vc_mtx);
 				md->synth.chn_info[chn].controllers[p1] = w14 & 0x7f;
 				if (p1 < 32)
 					/* We have set the MSB, clear the LSB. */
 					md->synth.chn_info[chn].controllers[p1 + 32] = 0;
-				if (dev < mididev_info_number()) {
-					val = w14 & 0x7f;
-					if (p1 < 64) {
-						/* Combine the MSB and the LSB. */
-						val = ((md->synth.chn_info[chn].controllers[p1 & ~32] & 0x7f) << 7)
-						    | (md->synth.chn_info[chn].controllers[p1 | 32] & 0x7f);
-						p1 &= ~32;
+				val = w14 & 0x7f;
+				if (p1 < 64) {
+					/* Combine the MSB and the LSB. */
+					val = ((md->synth.chn_info[chn].controllers[p1 & ~32] & 0x7f) << 7)
+					    | (md->synth.chn_info[chn].controllers[p1 | 32] & 0x7f);
+					p1 &= ~32;
+				}
+				/* Handle all of the notes playing on this channel. */
+				key = ((int)chn << 8);
+				for (i = 0 ; i < md->synth.alloc.max_voice ; i++)
+					if ((md->synth.alloc.map[i] & 0xff00) == key) {
+						mtx_unlock(&md->synth.vc_mtx);
+						mtx_unlock(&sd->flagqueue_mtx);
+						if (md->synth.controller(md, i, p1, val) == EAGAIN) {
+							mtx_lock(&sd->flagqueue_mtx);
+							return (QUEUEFULL);
+						}
+						mtx_lock(&sd->flagqueue_mtx);
+						mtx_lock(&md->synth.vc_mtx);
 					}
-					/* Handle all of the notes playing on this channel. */
-					key = ((int)chn << 8);
-					for (i = 0 ; i < md->synth.alloc.max_voice ; i++)
-						if ((md->synth.alloc.map[i] & 0xff00) == key)
-							if (md->synth.controller(md, i, p1, val) == EAGAIN)
-								return (QUEUEFULL);
-				} else
-					if (md->synth.controller(md, chn, p1, w14) == EAGAIN)
-						return (QUEUEFULL);
+				mtx_unlock(&md->synth.vc_mtx);
 			}
-		} else
+		} else {
 #endif /* notyet */
 			/* For Mode 1. */
-			if (md->synth.controller(md, chn, p1, w14) == EAGAIN)
+			mtx_unlock(&sd->flagqueue_mtx);
+			if (md->synth.controller(md, chn, p1, w14) == EAGAIN) {
+				mtx_lock(&sd->flagqueue_mtx);
 				return (QUEUEFULL);
+			}
+			mtx_lock(&sd->flagqueue_mtx);
+#if notyet
+		}
+#endif /* notyet */
 		break;
 	case MIDI_PITCH_BEND:
 #if notyet
 		if (scp->seq_mode == SEQ_2) {
+			mtx_lock(&md->synth.vc_mtx);
 			md->synth.chn_info[chn].bender_value = w14;
-			if (dev < mididev_info_number()) {
-				/* Handle all of the notes playing on this channel. */
-				key = ((int)chn << 8);
-				for (i = 0 ; i < md->synth.alloc.max_voice ; i++)
-					if ((md->synth.alloc.map[i] & 0xff00) == key)
-						if (md->synth.bender(md, i, w14) == EAGAIN)
-							return (QUEUEFULL);
-			} else
-				if (md->synth.bender(md, chn, w14) == EAGAIN)
-					return (QUEUEFULL);
-		} else
+			/* Handle all of the notes playing on this channel. */
+			key = ((int)chn << 8);
+			for (i = 0 ; i < md->synth.alloc.max_voice ; i++)
+				if ((md->synth.alloc.map[i] & 0xff00) == key) {
+					mtx_unlock(&md->synth.vc_mtx);
+					mtx_unlock(&sd->flagqueue_mtx);
+					if (md->synth.bender(md, i, w14) == EAGAIN) {
+						mtx_lock(&sd->flagqueue_mtx);
+						return (QUEUEFULL);
+					}
+					mtx_lock(&sd->flagqueue_mtx);
+					mtx_lock(&md->synth.vc_mtx);
+				}
+			mtx_unlock(&md->synth.vc_mtx);
+		} else {
 #endif /* notyet */
 			/* For Mode 1. */
-			if (md->synth.bender(md, chn, w14) == EAGAIN)
+			mtx_unlock(&sd->flagqueue_mtx);
+			if (md->synth.bender(md, chn, w14) == EAGAIN) {
+				mtx_lock(&sd->flagqueue_mtx);
 				return (QUEUEFULL);
+			}
+			mtx_lock(&sd->flagqueue_mtx);
+#if notyet
+		}
+#endif /* notyet */
 		break;
 	}
 
@@ -1631,6 +1802,8 @@ seq_timing(sc_p scp, u_char *event)
 	sd = scp->devinfo;
 	unit = sd->unit;
 
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
 	parm = *(long *)&event[4];
 
 #if notyet
@@ -1639,12 +1812,11 @@ seq_timing(sc_p scp, u_char *event)
 #endif /* notyet */
 	switch (event[1]) {
 	case TMR_WAIT_REL:
-		parm += scp->prev_event_time;
-		/* FALLTHRU */
 	case TMR_WAIT_ABS:
+		if (event[1] == TMR_WAIT_REL)
+			parm += scp->prev_event_time;
 		if (parm > 0) {
 			sd->flags |= SEQ_F_WRITING;
-			scp->prev_event_time = parm;
 			if (seq_requesttimer(scp, parm))
 				return (TIMERARMED);
 		}
@@ -1687,6 +1859,8 @@ seq_local(sc_p scp, u_char *event)
 	sd = scp->devinfo;
 	unit = sd->unit;
 
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
 	switch (event[1]) {
 	case LOCL_STARTAUDIO:
 #if notyet
@@ -1708,19 +1882,22 @@ seq_sysex(sc_p scp, u_char *event)
 	sd = scp->devinfo;
 	unit = sd->unit;
 
-	if (event[1] >= mididev_info_number())
-		return (MORE);
-	md = get_mididev_info_unit(event[1]);
-	if (!MIDICONFED(md) || md->synth.sendsysex == NULL
-	    || ((md->flags & MIDI_F_BUSY) == 0 && seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc) != 0))
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
+	if (lookup_mididev(scp, event[1], LOOKUP_OPEN, &md) != 0)
 		return (MORE);
 
 	l = 0;
 	for (i = 0 ; i < 6 && event[i + 2] != 0xff ; i++)
 		l = i + 1;
-	if (l > 0)
-		if (md->synth.sendsysex(md, &event[2], l) == EAGAIN)
+	if (l > 0) {
+		mtx_unlock(&sd->flagqueue_mtx);
+		if (md->synth.sendsysex(md, &event[2], l) == EAGAIN) {
+			mtx_lock(&sd->flagqueue_mtx);
 			return (QUEUEFULL);
+		}
+		mtx_lock(&sd->flagqueue_mtx);
+	}
 
 	return (MORE);
 }
@@ -1729,44 +1906,57 @@ static void
 seq_timer(void *arg)
 {
 	sc_p scp;
+	seqdev_info *sd;
 
 	scp = arg;
+	sd = scp->devinfo;
 
 	/*DEB(printf("seq_timer: timer fired.\n"));*/
 
 	/* Record the current timestamp. */
-	scp->prev_wakeup_time = seq_gettime();
+	mtx_lock(&sd->flagqueue_mtx);
 
+	scp->timer_running = 0;
+	scp->prev_wakeup_time = seq_gettime();
 	seq_startplay(scp);
+
+	mtx_unlock(&sd->flagqueue_mtx);
 }
 
 static int
 seq_openmidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p)
 {
-	int midiunit, s, err;
+	int midiunit, err, insync;
 
-	if (md == NULL || !MIDICONFED(md)) {
-		DEB(printf("seq_openmidi: midi device does not exist.\n"));
-		return (ENXIO);
-	}
+	mtx_assert(&scp->devinfo->flagqueue_mtx, MA_OWNED);
+
 	midiunit = md->unit;
 
 	DEB(printf("seq_openmidi: opening midi unit %d.\n", midiunit));
 
-	if (!scp->midi_open[midiunit]) {
-		err = midi_open(MIDIMKDEV(MIDI_CDEV_MAJOR, midiunit, SND_DEV_MIDIN), flags, mode, p);
-		if (err != 0) {
-			printf("seq_openmidi: failed to open midi device %d.\n", midiunit);
-			return (err);
-		}
-		s = splmidi();
-		scp->midi_open[midiunit] = 1;
-		md->intr = seq_intr;
-		md->intrarg = scp->devinfo;
-		md->synth.prev_out_status = 0;
-		md->synth.sysex_state = 0;
-		splx(s);
+	err = midi_open(MIDIMKDEV(MIDI_CDEV_MAJOR, midiunit, SND_DEV_MIDIN), flags, mode, p);
+	if (err != 0) {
+		printf("seq_openmidi: failed to open midi device %d.\n", midiunit);
+		return (err);
 	}
+	mtx_lock(&md->synth.status_mtx);
+	mtx_lock(&md->flagqueue_mtx);
+	md->intr = seq_intr;
+	md->intrarg = scp->devinfo;
+	mtx_unlock(&md->flagqueue_mtx);
+	md->synth.sysex_state = 0;
+	mtx_unlock(&md->synth.status_mtx);
+
+	insync = 0;
+	if ((scp->devinfo->flags & SEQ_F_INSYNC) != 0) {
+		insync = 1;
+		cv_wait(&scp->devinfo->insync_cv, &scp->devinfo->flagqueue_mtx);
+	}
+
+	TAILQ_INSERT_TAIL(&scp->midi_open, md, md_linkseq);
+
+	if (insync)
+		cv_signal(&scp->devinfo->insync_cv);
 
 	return (0);
 }
@@ -1774,7 +1964,9 @@ seq_openmidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p)
 static int
 seq_closemidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p)
 {
-	int midiunit, s;
+	int midiunit, insync;
+
+	mtx_assert(&scp->devinfo->flagqueue_mtx, MA_OWNED);
 
 	if (md == NULL || !MIDICONFED(md)) {
 		DEB(printf("seq_closemidi: midi device does not exist.\n"));
@@ -1784,14 +1976,22 @@ seq_closemidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p)
 
 	DEB(printf("seq_closemidi: closing midi unit %d.\n", midiunit));
 
-	if (scp->midi_open[midiunit]) {
-		midi_close(MIDIMKDEV(MIDI_CDEV_MAJOR, midiunit, SND_DEV_MIDIN), flags, mode, p);
-		s = splmidi();
-		scp->midi_open[midiunit] = 0;
-		md->intr = NULL;
-		md->intrarg = NULL;
-		splx(s);
+	midi_close(MIDIMKDEV(MIDI_CDEV_MAJOR, midiunit, SND_DEV_MIDIN), flags, mode, p);
+	mtx_lock(&md->flagqueue_mtx);
+	md->intr = NULL;
+	md->intrarg = NULL;
+	mtx_unlock(&md->flagqueue_mtx);
+
+	insync = 0;
+	if ((scp->devinfo->flags & SEQ_F_INSYNC) != 0) {
+		insync = 1;
+		cv_wait(&scp->devinfo->insync_cv, &scp->devinfo->flagqueue_mtx);
 	}
+
+	TAILQ_REMOVE(&scp->midi_open, md, md_linkseq);
+
+	if (insync)
+		cv_signal(&scp->devinfo->insync_cv);
 
 	return (0);
 }
@@ -1799,13 +1999,15 @@ seq_closemidi(sc_p scp, mididev_info *md, int flags, int mode, struct proc *p)
 static void
 seq_panic(sc_p scp)
 {
+	mtx_assert(&scp->devinfo->flagqueue_mtx, MA_OWNED);
+
 	seq_reset(scp);
 }
 
 static int
 seq_reset(sc_p scp)
 {
-	int unit, i, s, chn;
+	int unit, chn;
 	seqdev_info *sd;
 	mididev_info *md;
 	u_char c[3];
@@ -1813,76 +2015,53 @@ seq_reset(sc_p scp)
 	sd = scp->devinfo;
 	unit = sd->unit;
 
-	s = splmidi();
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
+
+	if ((sd->flags & SEQ_F_INSYNC) != 0) {
+		cv_wait(&sd->insync_cv, &sd->flagqueue_mtx);
+		cv_signal(&sd->insync_cv);
+	}
 
 	/* Stop reading and writing. */
 	sd->callback(sd, SEQ_CB_ABORT | SEQ_CB_RD | SEQ_CB_WR);
 
 	/* Clear the queues. */
-	midibuf_init(&sd->midi_dbuf_in);
-	midibuf_init(&sd->midi_dbuf_out);
+	midibuf_clear(&sd->midi_dbuf_in);
+	midibuf_clear(&sd->midi_dbuf_out);
 
 #if notyet
 	/* Reset the synthesizers. */
-	for (i = 0 ; i < mididev_info_number() ; i++) {
-		md = get_mididev_info_unit(i);
-		if (MIDICONFED(md) && scp->midi_open[i])
-			md->synth.reset(md);
-	}
+	TAILQ_FOREACH(md, &scp->midi_open, md_linkseq)
+		md->synth.reset(md);
 #endif /* notyet */
 
 #if notyet
 	if (scp->seq_mode == SEQ_2) {
-		for (chn = 0 ; chn < 16 ; chn++)
-			for (i = 0 ; i < mididev_info_number() ; i++)
-				if (midi_open[i]) {
-					md = get_mididev_info_unit(i);
-					if (!MIDICONFED(md))
-						continue;
-					if (md->synth.controller(md, chn, 123, 0) == EAGAIN /* All notes off. */
-					    || md->synth.controller(md, chn, 121, 0) == EAGAIN /* Reset all controllers. */
-					    || md->synth.bender(md, chn, 1 << 13) == EAGAIN) { /* Reset pitch bend. */
-						splx(s);
-						return (EAGAIN);
-					}
-				}
-		splx(s);
+		for (chn = 0 ; chn < 16 ; chn++) {
+			TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
+				if (md->synth.controller(md, chn, 123, 0) == EAGAIN /* All notes off. */
+				    || md->synth.controller(md, chn, 121, 0) == EAGAIN /* Reset all controllers. */
+				    || md->synth.bender(md, chn, 1 << 13) == EAGAIN) /* Reset pitch bend. */
+					return (EAGAIN);
+			}
+		}
 	} else {
 #endif /* notyet */
-		splx(s);
-		for (i = 0 ; i < mididev_info_number() ; i++) {
-			md = get_mididev_info_unit(i);
-			if (!MIDICONFED(md))
-				continue;
-
-			/* Send active sensing. */
-			c[0] = 0xfe; /* Active Sensing. */
-			if (md->synth.writeraw(md, c, 1, 0) == EAGAIN)
-				return (EAGAIN);
-			/*
-			 * We need a sleep to reset a midi device using an active sensing.
-			 * SC-88 resets after 420ms...
-			 */
-			tsleep(md, PRIBIO, "seqrst", 500 * hz / 1000);
+		TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
 			for (chn = 0 ; chn < 16 ; chn++) {
 				c[0] = 0xb0 | (chn & 0x0f);
 				c[1] = (u_char)0x78; /* All sound off */
 				c[2] = (u_char)0;
-				if (md->synth.writeraw(md, c, 3, 0) == EAGAIN)
-					return (EAGAIN);
+				md->synth.writeraw(md, c, 3, 0);
 				c[1] = (u_char)0x7b; /* All note off */
-				if (md->synth.writeraw(md, c, 3, 0) == EAGAIN)
-					return (EAGAIN);
+				md->synth.writeraw(md, c, 3, 0);
 				c[1] = (u_char)0x79; /* Reset all controller */
-				if (md->synth.writeraw(md, c, 3, 0) == EAGAIN)
-					return (EAGAIN);
+				md->synth.writeraw(md, c, 3, 0);
 			}
 		}
-		for (i = 0 ; i < mididev_info_number() ; i++){
-			md = get_mididev_info_unit(i);
-			if (MIDICONFED(md))
-				seq_closemidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
-		}
+		seq_sync(scp);
+		TAILQ_FOREACH(md, &scp->midi_open, md_linkseq)
+			lookup_mididev(scp, md->unit, LOOKUP_CLOSE, NULL);
 #if notyet
 	}
 #endif /* notyet */
@@ -1890,30 +2069,61 @@ seq_reset(sc_p scp)
 	return (0);
 }
 
+#define SEQ_SYNC_TIMEOUT 8
 static int
 seq_sync(sc_p scp)
 {
-	int unit, s, i;
+	int i, rl;
 	seqdev_info *sd;
+	mididev_info *md;
 
 	sd = scp->devinfo;
-	unit = sd->unit;
 
-	s = splmidi();
+	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
 
-	if (sd->midi_dbuf_out.rl >= EV_SZ)
-		sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
+	sd->flags |= SEQ_F_INSYNC;
 
-	while ((sd->flags & SEQ_F_WRITING) != 0 && sd->midi_dbuf_out.rl >= EV_SZ) {
-		i = tsleep(&sd->midi_dbuf_out.tsleep_out, PRIBIO | PCATCH, "seqsnc", 0);
-		if (i == EINTR)
-			sd->callback(sd, SEQ_CB_STOP | SEQ_CB_WR);
+	while (sd->midi_dbuf_out.rl >= EV_SZ) {
+		if ((sd->flags & SEQ_F_WRITING) == 0)
+			sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
+		rl = sd->midi_dbuf_out.rl;
+		i = msleep(&sd->midi_dbuf_out.tsleep_out, &sd->flagqueue_mtx, PRIBIO | PCATCH, "seqsnc", SEQ_SYNC_TIMEOUT * hz);
 		if (i == EINTR || i == ERESTART) {
-			splx(s);
+			if (i == EINTR)
+				sd->callback(sd, SEQ_CB_STOP | SEQ_CB_WR);
+			sd->flags &= ~SEQ_F_INSYNC;
 			return (i);
 		}
+		if (i == EWOULDBLOCK && rl == sd->midi_dbuf_out.rl && !scp->timer_running) {
+			/* A queue seems to be stuck up. Give up and clear queues. */
+			sd->callback(sd, SEQ_CB_STOP | SEQ_CB_WR);
+			midibuf_clear(&sd->midi_dbuf_out);
+			TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
+				mtx_lock(&md->flagqueue_mtx);
+				md->callback(md, MIDI_CB_ABORT | MIDI_CB_WR);
+				midibuf_clear(&md->midi_dbuf_out);
+				mtx_unlock(&md->flagqueue_mtx);
+			}
+			break;
+		}
 	}
-	splx(s);
+
+	/*
+	 * Since syncing a midi device might block, unlock sd->flagqueue_mtx.
+	 * Keep sd->midi_dbuf_out from writing by setting SEQ_F_INSYNC.
+	 * sd->insync_cv is signalled when sync is finished.
+	 */
+	mtx_unlock(&sd->flagqueue_mtx);
+
+	TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
+		mtx_lock(&md->flagqueue_mtx);
+		midi_sync(md);
+		mtx_unlock(&md->flagqueue_mtx);
+	}
+
+	mtx_lock(&sd->flagqueue_mtx);
+	sd->flags &= ~SEQ_F_INSYNC;
+	cv_signal(&sd->insync_cv);
 
 	return (0);
 }
@@ -1927,7 +2137,6 @@ static seqdev_info *
 get_seqdev_info(dev_t i_dev, int *unit)
 {
 	int u;
-	seqdev_info *d = NULL ;
 
 	if (MIDIDEV(i_dev) != SND_DEV_SEQ && MIDIDEV(i_dev) != SND_DEV_SEQ2)
 		return NULL;
@@ -1935,13 +2144,105 @@ get_seqdev_info(dev_t i_dev, int *unit)
 	if (unit)
 		*unit = u ;
 
-	if (u >= NSEQ_MAX) {
-		DEB(printf("get_seqdev_info: unit %d is not configured.\n", u));
-		return NULL;
-	}
-	d = &seq_info[u];
+	return get_seqdev_info_unit(u);
+}
 
-	return d ;
+/*
+ * a small utility function which, given a unit number, returns
+ * a pointer to the associated mididev_info struct.
+ */
+seqdev_info *
+get_seqdev_info_unit(int unit)
+{
+	seqdev_info *sd;
+
+	mtx_lock(&seqinfo_mtx);
+	TAILQ_FOREACH(sd, &seq_info, sd_link) {
+		if (sd->unit == unit)
+			break;
+	}
+	mtx_unlock(&seqinfo_mtx);
+
+	return sd;
+}
+
+/* Create a new sequencer device info structure. */
+seqdev_info *
+create_seqdev_info_unit(int unit, seqdev_info *seq)
+{
+	seqdev_info *sd, *sdnew;
+
+	/* As malloc(9) might block, allocate seqdev_info now. */
+	sdnew = malloc(sizeof(seqdev_info), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (sdnew == NULL)
+		return NULL;
+	bcopy(seq, sdnew, sizeof(seqdev_info));
+	sdnew->unit = unit;
+	midibuf_init(&sdnew->midi_dbuf_in);
+	midibuf_init(&sdnew->midi_dbuf_out);
+	mtx_init(&sdnew->flagqueue_mtx, "seqflq", MTX_DEF);
+	cv_init(&sdnew->insync_cv, "seqins");
+
+	mtx_lock(&seqinfo_mtx);
+
+	TAILQ_FOREACH(sd, &seq_info, sd_link) {
+		if (sd->unit == unit) {
+			mtx_unlock(&seqinfo_mtx);
+			midibuf_destroy(&sdnew->midi_dbuf_in);
+			midibuf_destroy(&sdnew->midi_dbuf_out);
+			mtx_destroy(&sdnew->flagqueue_mtx);
+			cv_destroy(&sdnew->insync_cv);
+			free(sdnew, M_DEVBUF);
+			return sd;
+		}
+	}
+
+	mtx_lock(&sdnew->flagqueue_mtx);
+	TAILQ_INSERT_TAIL(&seq_info, sdnew, sd_link);
+	nseq++;
+
+	mtx_unlock(&seqinfo_mtx);
+
+	return sdnew;
+}
+
+/*
+ * Look up a midi device by its unit number opened by this sequencer.
+ * If the device is not opened and mode is LOOKUP_OPEN, open the device.
+ */
+static int
+lookup_mididev(sc_p scp, int unit, int mode, mididev_info **mdp)
+{
+	int ret;
+	mididev_info *md;
+
+	if (mdp == NULL)
+		mdp = &md;
+
+	*mdp = NULL;
+
+	mtx_assert(&scp->devinfo->flagqueue_mtx, MA_OWNED);
+
+	TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
+		if (md->unit == unit) {
+			*mdp = md;
+			if (mode == LOOKUP_CLOSE)
+				return seq_closemidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
+
+			return (md != NULL && MIDICONFED(md)) ? 0 : ENXIO;
+		}
+	}
+
+	if (mode == LOOKUP_OPEN) {
+		md = get_mididev_info_unit(unit);
+		if (md != NULL) {
+			*mdp = md;
+			ret = seq_openmidi(scp, md, scp->fflags, MIDIDEV_MODE, curproc);
+			return ret;
+		}
+	}
+
+	return ENXIO;
 }
 
 /* XXX These functions are actually redundant. */
@@ -2036,3 +2337,28 @@ seq_modevent(module_t mod, int type, void *data)
 }
 
 DEV_MODULE(seq, seq_modevent, NULL);
+
+static void
+seq_clone(arg, name, namelen, dev)
+	void *arg;
+	char *name;
+	int namelen;
+	dev_t *dev;
+{
+	int u;
+
+	if (*dev != NODEV)
+		return;
+	if (bcmp(name, "sequencer", 9) != 0)
+		return;
+	if (name[10] != '\0' && name[11] != '\0')
+		return;
+	u = name[9] - '0';
+	if (name[10] != '\0') {
+		u *= 10;
+		u += name[10] - '0';
+	}
+	seq_initunit(u);
+	*dev = MIDIMKDEV(SEQ_CDEV_MAJOR, u, MIDI_DEV_SEQ);
+	return;
+}
