@@ -142,3 +142,20 @@ The
 .Nm
 command appeared in
 .Bx 4.2 .
+.Pp
+In
+.Fx 5.2 ,
+the default behaviour of
+.Nm
+was changed to treat local-to-local talk requests as originating
+and terminating at
+.Em localhost .
+Before this change, it was required that the hostname (as per
+.Xr gethostname 3 )
+resolved to a valid IPv4 address (via
+.Xr gethostbyname 3 ) ,
+making
+.Nm
+unsuitable for use in configurations where
+.Xr talkd 8
+was bound to the loopback interface (normally for security reasons).

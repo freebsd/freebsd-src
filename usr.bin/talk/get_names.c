@@ -90,7 +90,7 @@ get_names(argc, argv)
 	if (*cp == '\0') {
 		/* this is a local to local talk */
 		his_name = argv[1];
-		his_machine_name = my_machine_name;
+		my_machine_name = his_machine_name = "localhost";
 	} else {
 		if (*cp++ == '@') {
 			/* user@host */
