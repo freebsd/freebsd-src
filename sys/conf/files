@@ -369,6 +369,9 @@ dev/iicbus/iicbus.c	optional iicbus
 dev/iicbus/iiconf.c	optional iicbus
 dev/iicbus/iicsmb.c	optional iicsmb					\
 	dependency	"iicbus_if.h"
+dev/iir/iir.c		optional iir
+dev/iir/iir_ctrl.c	optional iir
+dev/iir/iir_pci.c	optional iir pci
 dev/isp/isp.c		optional isp
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
