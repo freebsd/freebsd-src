@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: elf_machdep.c,v 1.3 1998/10/18 19:04:13 dfr Exp $
+ *      $Id: elf_machdep.c,v 1.4 1999/04/23 19:53:37 dt Exp $
  */
 
 #include <sys/param.h>
@@ -66,6 +66,9 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 	}
 
 	switch (rtype) {
+
+		case R_ALPHA_NONE:
+			break;
 
 		case R_ALPHA_REFQUAD:
 			addr = (Elf_Addr)
