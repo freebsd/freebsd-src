@@ -37,8 +37,7 @@ int
 cap_get_flag(cap_t cap_p, cap_value_t cap, cap_flag_t flag,
 	     cap_flag_value_t *value_p)
 {
-	cap_flag_value_t	result;
-	u_int32_t	*mask;
+	u_int64_t	mask;
 	
 
 	switch(flag) {
