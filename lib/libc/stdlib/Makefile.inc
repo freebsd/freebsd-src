@@ -36,4 +36,5 @@ MLINKS+=random.3 initstate.3 random.3 setstate.3 random.3 srandom.3 \
 MLINKS+=strtol.3 strtoq.3
 MLINKS+=strtoul.3 strtouq.3
 MLINKS+=malloc.3 calloc.3 malloc.3 free.3 malloc.3 realloc.3 malloc.3 reallocf.3
+MLINKS+=malloc.3 malloc.conf.5
 .endif
