@@ -56,6 +56,7 @@ struct csession {
 	TAILQ_ENTRY(csession) next;
 	u_int64_t	sid;
 	u_int32_t	ses;
+	struct mtx	lock;		/* for op submission */
 
 	u_int32_t	cipher;
 	struct enc_xform *txform;
@@ -419,12 +420,21 @@ cryptodev_op(
 		crp->crp_mac=cse->tmp_mac;
 	}
 
-	crypto_dispatch(crp);
-	error = tsleep(cse, PSOCK, "crydev", 0);
-	if (error) {
-		/* XXX can this happen?  if so, how do we recover? */
+	/*
+	 * Let the dispatch run unlocked, then, interlock against the
+	 * callback before checking if the operation completed and going
+	 * to sleep.  This insures drivers don't inherit our lock which
+	 * results in a lock order reversal between crypto_dispatch forced
+	 * entry and the crypto_done callback into us.
+	 */
+	error = crypto_dispatch(crp);
+	mtx_lock(&cse->lock);
+	if (error == 0 && (crp->crp_flags & CRYPTO_F_DONE) == 0)
+		error = msleep(crp, &cse->lock, PWAIT, "crydev", 0);
+	mtx_unlock(&cse->lock);
+
+	if (error != 0)
 		goto bail;
-	}
 
 	if (crp->crp_etype != 0) {
 		error = crp->crp_etype;
@@ -462,7 +472,9 @@ cryptodev_cb(void *op)
 	cse->error = crp->crp_etype;
 	if (crp->crp_etype == EAGAIN)
 		return crypto_dispatch(crp);
-	wakeup(cse);
+	mtx_lock(&cse->lock);
+	wakeup_one(crp);
+	mtx_unlock(&cse->lock);
 	return (0);
 }
 
@@ -661,10 +673,17 @@ csecreate(struct fcrypt *fcr, u_int64_t sid, caddr_t key, u_int64_t keylen,
 {
 	struct csession *cse;
 
+#ifdef INVARIANTS
+	/* NB: required when mtx_init is built with INVARIANTS */
+	MALLOC(cse, struct csession *, sizeof(struct csession),
+	    M_XDATA, M_NOWAIT | M_ZERO);
+#else
 	MALLOC(cse, struct csession *, sizeof(struct csession),
 	    M_XDATA, M_NOWAIT);
+#endif
 	if (cse == NULL)
 		return NULL;
+	mtx_init(&cse->lock, "cryptodev", "crypto session lock", MTX_DEF);
 	cse->key = key;
 	cse->keylen = keylen/8;
 	cse->mackey = mackey;
@@ -684,6 +703,7 @@ csefree(struct csession *cse)
 	int error;
 
 	error = crypto_freesession(cse->sid);
+	mtx_destroy(&cse->lock);
 	if (cse->key)
 		FREE(cse->key, M_XDATA);
 	if (cse->mackey)
