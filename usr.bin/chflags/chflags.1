@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)chflags.1	8.2 (Berkeley) 3/31/94
-.\"	$Id$
+.\"	$Id: chflags.1,v 1.2.6.2 1997/06/25 06:53:34 charnier Exp $
 .\"
 .Dd March 31, 1994
 .Dt CHFLAGS 1
@@ -84,9 +84,12 @@ arch	set the archived flag (super-user only)
 dump	set the dump flag
 sappnd	set the system append-only flag (super-user only)
 schg	set the system immutable flag (super-user only)
+sunlnk	set the system undeletable flag (super-user only)
 uappnd	set the user append-only flag (owner or super-user only)
 uchg	set the user immutable flag (owner or super-user only)
-archived, sappend, schange, simmutable, uappend, uchange, uimmutable
+uunlnk	set the user undeletable flag (owner or super-user only)
+archived, sappend, schange, simmutable, uappend, uchange, uimmutable,
+sunlink, uunlink
 	aliases for the above
 .Ed
 .Pp
