@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.37 1997/09/19 11:13:16 phk Exp $
+ * $Id: ffs_alloc.c,v 1.38 1997/10/14 14:22:23 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -48,7 +48,6 @@
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
@@ -1420,8 +1419,6 @@ ffs_vfree(ap)
 	int error, cg;
 
 	pip = VTOI(ap->a_pvp);
-	/* Remove the inode from its hash chain */
-	ufs_ihashrem(pip);
 	fs = pip->i_fs;
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
 		panic("ffs_vfree: range: dev = 0x%x, ino = %d, fs = %s",
