@@ -2761,7 +2761,7 @@ uhci_device_setintr(uhci_softc_t *sc, struct uhci_pipe *upipe, int ival)
 	/* Enter QHs into the controller data structures. */
 	for(i = 0; i < npoll; i++)
 		uhci_add_intr(sc, upipe->u.intr.qhs[i]);
-	splx(s)
+	splx(s);
 
 	DPRINTFN(5, ("uhci_setintr: returns %p\n", upipe));
 	return (USBD_NORMAL_COMPLETION);
