@@ -159,7 +159,7 @@ static int setescape __P((char **));
 static int setmru __P((char **));
 static int setmtu __P((char **));
 #ifdef CBCP_SUPPORT
-static int setcbcp __P((char *));
+static int setcbcp __P((char **));
 #endif
 static int nomru __P((char **));
 static int nopcomp __P((char **));
