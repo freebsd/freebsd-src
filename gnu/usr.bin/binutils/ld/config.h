@@ -28,6 +28,9 @@
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
 
+/* Define if you need to in order for stat and other things to work.  */
+/* #undef _POSIX_SOURCE */
+
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 /* #undef size_t */
 
@@ -127,6 +130,12 @@
 /* Define if you have the <sys/param.h> header file.  */
 #define HAVE_SYS_PARAM_H 1
 
+/* Define if you have the <sys/stat.h> header file.  */
+#define HAVE_SYS_STAT_H 1
+
+/* Define if you have the <sys/types.h> header file.  */
+#define HAVE_SYS_TYPES_H 1
+
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
 
@@ -137,7 +146,7 @@
 #define PACKAGE "ld"
 
 /* Version number of package */
-/* #define VERSION "2.12" */
+/* #define VERSION "2.13" */
 
 /* Define if you have the stpcpy function */
 /* #undef HAVE_STPCPY */
