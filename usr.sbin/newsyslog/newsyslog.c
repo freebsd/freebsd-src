@@ -23,13 +23,11 @@ provided "as is" without express or implied warranty.
 /*
  *      newsyslog - roll over selected logs at the appropriate time,
  *              keeping the a specified number of backup files around.
- *
- *      $Source: /home/ncvs/src/usr.sbin/newsyslog/newsyslog.c,v $
- *      $Author: jkh $
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: newsyslog.c,v 1.7.2.1 1997/02/22 07:34:11 jkh Exp $";
+static const char rcsid[] =
+	"$Id: newsyslog.c,v 1.7.2.2 1997/08/29 05:15:27 imp Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -48,16 +46,16 @@ static char rcsid[] = "$Id: newsyslog.c,v 1.7.2.1 1997/02/22 07:34:11 jkh Exp $"
 #define COMPRESS_POSTFIX ".Z"
 #endif
 
+#include <ctype.h>
+#include <err.h>
+#include <fcntl.h>
+#include <grp.h>
+#include <pwd.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <signal.h>
-#include <pwd.h>
-#include <grp.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <err.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -87,7 +85,6 @@ struct conf_entry {
         struct conf_entry       *next; /* Linked list pointer */
 };
 
-char    *progname;              /* contains argv[0] */
 int     verbose = 0;            /* Print out what's going on */
 int     needroot = 1;           /* Root privs are necessary */
 int     noaction = 0;           /* Don't do anything, just show it */
@@ -123,10 +120,8 @@ int main(argc,argv)
         struct conf_entry *p, *q;
         
         PRS(argc,argv);
-        if (needroot && getuid() && geteuid()) {
-                fprintf(stderr,"%s: must have root privs\n",progname);
-                return(1);
-        }
+        if (needroot && getuid() && geteuid())
+                errx(1, "must have root privs");
         p = q = parse_file();
         while (p) {
                 do_entry(p);
@@ -190,7 +185,6 @@ static void PRS(argc,argv)
         char    line[BUFSIZ];
 	char	*p;
 
-        progname = argv[0];
         timenow = time((time_t *) 0);
         daytime = ctime(&timenow) + 4;
         daytime[15] = '\0';
@@ -233,8 +227,7 @@ static void PRS(argc,argv)
 
 static void usage()
 {
-        fprintf(stderr,
-                "Usage: %s <-nrv> <-f config-file>\n", progname);
+        fprintf(stderr, "usage: newsyslog [-nrv] [-f config-file]\n");
         exit(1);
 }
 
@@ -281,7 +274,7 @@ static struct conf_entry *parse_file()
                         if (!(isnumber(*q))) {
                             if ((pass = getpwnam(q)) == NULL)
                                 errx(1, 
-                                  "Error in config file; unknown user:\n%s",
+                                  "error in config file; unknown user:\n%s",
                                   errline);
                             working->uid = pass->pw_uid;
                         } else
@@ -294,7 +287,7 @@ static struct conf_entry *parse_file()
                         if (!(isnumber(*q))) {
                             if ((grp = getgrnam(q)) == NULL)
                                 errx(1,
-                                  "Error in config file; unknown group:\n%s",
+                                  "error in config file; unknown group:\n%s",
                                   errline);
                             working->gid = grp->gr_gid;
                         } else
@@ -309,13 +302,13 @@ static struct conf_entry *parse_file()
                     working->uid = working->gid = NONE;
 
                 if (!sscanf(q,"%o",&working->permissions))
-                        errx(1, "Error in config file; bad permissions:\n%s",
+                        errx(1, "error in config file; bad permissions:\n%s",
                           errline);
 
                 q = parse = missing_field(sob(++parse),errline);
                 *(parse = son(parse)) = '\0';
                 if (!sscanf(q,"%d",&working->numlogs))
-                        errx(1, "Error in config file; bad number:\n%s",
+                        errx(1, "error in config file; bad number:\n%s",
                           errline);
 
                 q = parse = missing_field(sob(++parse),errline);
@@ -341,7 +334,7 @@ static struct conf_entry *parse_file()
                         else if ((*q == 'B') || (*q == 'b'))
                                 working->flags |= CE_BINARY;
                         else
-                           errx(1, "Illegal flag in config file -- %c", *q);
+                           errx(1, "illegal flag in config file -- %c", *q);
                         q++;
                 }
                 
@@ -357,7 +350,7 @@ static char *missing_field(p,errline)
         char    *p,*errline;
 {
         if (!p || !*p)
-            errx(1, "Missing field in config file:\n%s", errline);
+            errx(1, "missing field in config file:\n%s", errline);
         return(p);
 }
 
