@@ -14,7 +14,7 @@
  * 3. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
  *
- * $Id: setproctitle.c,v 1.5 1997/02/22 15:08:33 peter Exp $
+ * $Id: setproctitle.c,v 1.6 1998/04/28 06:59:14 dg Exp $
  */
 
 #include <sys/types.h>
@@ -55,7 +55,7 @@ struct old_ps_strings {
 #endif
 
 
-#define SPT_BUFSIZE 128	/* from other parts of sendmail */
+#define SPT_BUFSIZE 2048	/* from other parts of sendmail */
 extern char * __progname;	/* is this defined in a .h anywhere? */
 
 static struct ps_strings *ps_strings;
