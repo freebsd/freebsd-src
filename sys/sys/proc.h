@@ -713,22 +713,6 @@ MALLOC_DECLARE(M_ZOMBIE);
 #define	FIRST_KSE_IN_KSEGRP(kg) TAILQ_FIRST(&kg->kg_kseq)
 #define	FIRST_KSE_IN_PROC(p) FIRST_KSE_IN_KSEGRP(FIRST_KSEGRP_IN_PROC(p))
 
-static __inline int
-sigonstack(size_t sp)
-{
-	register struct thread *td = curthread;
-	struct proc *p = td->td_proc;
-
-	return ((p->p_flag & P_ALTSTACK) ?
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	    ((p->p_sigstk.ss_size == 0) ? (p->p_sigstk.ss_flags & SS_ONSTACK) :
-		((sp - (size_t)p->p_sigstk.ss_sp) < p->p_sigstk.ss_size))
-#else
-	    ((sp - (size_t)p->p_sigstk.ss_sp) < p->p_sigstk.ss_size)
-#endif
-	    : 0);
-}
-
 /*
  * We use process IDs <= PID_MAX; PID_MAX + 1 must also fit in a pid_t,
  * as it is used to represent "no process group".
@@ -892,6 +876,7 @@ int	securelevel_gt(struct ucred *cr, int level);
 void	setrunnable(struct thread *);
 void	setrunqueue(struct thread *);
 void	setsugid(struct proc *p);
+int	sigonstack(size_t sp);
 void	sleepinit(void);
 void	stopevent(struct proc *, u_int, u_int);
 void	cpu_idle(void);
