@@ -232,14 +232,18 @@ getfdtype(io)
 	if (fstat(io->fd, &sb))
 		err(1, "%s", io->name);
 	if (S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) { 
-		if (ioctl(io->fd, FIODTYPE, &type) == -1)
-			err(1, "%s", io->name);
-		if (type & D_TAPE)
-			io->flags |= ISTAPE;
-		else if (type & D_DISK)
-			io->flags |= ISDISK;
-		if (S_ISCHR(sb.st_mode) && (type & D_TAPE) == 0)
-			io->flags |= ISCHR;
+		if (ioctl(io->fd, FIODTYPE, &type) == -1) {
+			warn("%s", io->name);
+			if (S_ISCHR(sb.st_mode))
+				io->flags |= ISCHR;
+		} else {
+			if (type & D_TAPE)
+				io->flags |= ISTAPE;
+			else if (type & D_DISK)
+				io->flags |= ISDISK;
+			if (S_ISCHR(sb.st_mode) && (type & D_TAPE) == 0)
+				io->flags |= ISCHR;
+		}
 	} else if (!S_ISREG(sb.st_mode))
 		io->flags |= ISPIPE;
 }
