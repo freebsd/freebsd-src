@@ -114,17 +114,13 @@ main(int argc, char *argv[])
 	struct pam_conv	conv = {misc_conv, NULL};
 	enum tristate	iscsh;
 	login_cap_t	*lc;
-	union {
-		const char	**a;
-		char		* const b[1];
-	} 		np;
 	uid_t		ruid;
 	gid_t		gid;
 	int		asme, ch, asthem, fastlogin, prio, i, setwhat, retcode,
 			statusp, child_pid, child_pgrp, ret_pid;
 	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN],
 			myhost[MAXHOSTNAMELEN + 1];
-	const char	*p, *user, *shell, *mytty, **nargv;
+	const char	*p, *user, *shell, *mytty, **nargv, **np;
 
 	shell = class = cleanenv = NULL;
 	asme = asthem = fastlogin = statusp = 0;
@@ -169,7 +165,7 @@ main(int argc, char *argv[])
 	nargv[argc + 3] = NULL;
 	for (i = argc; i >= optind; i--)
 		nargv[i + 3] = argv[i];
-	np.a = &nargv[i + 3];
+	np = &nargv[i + 3];
 
 	argv += optind;
 
@@ -382,18 +378,18 @@ main(int argc, char *argv[])
 
 		if (iscsh == YES) {
 			if (fastlogin)
-				*np.a-- = "-f";
+				*np-- = "-f";
 			if (asme)
-				*np.a-- = "-m";
+				*np-- = "-m";
 		}
 		/* csh strips the first character... */
-		*np.a = asthem ? "-su" : iscsh == YES ? "_su" : "su";
+		*np = asthem ? "-su" : iscsh == YES ? "_su" : "su";
 
 		if (ruid != 0)
 			syslog(LOG_NOTICE, "%s to %s%s", username, user,
 			    ontty());
 
-		execv(shell, np.b);
+		execv(shell, np);
 		err(1, "%s", shell);
 	}
 }
