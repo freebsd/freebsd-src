@@ -169,8 +169,7 @@ static int nexus_dmamap_load_mbuf(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
 static int nexus_dmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
     struct uio *, bus_dmamap_callback2_t *, void *, int);
 static void nexus_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
-static void nexus_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-    bus_dmasync_op_t);
+static void nexus_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t, int);
 static int nexus_dmamem_alloc_size(bus_dma_tag_t, bus_dma_tag_t, void **, int,
     bus_dmamap_t *, u_long size);
 static int nexus_dmamem_alloc(bus_dma_tag_t, bus_dma_tag_t, void **, int,
@@ -555,7 +554,7 @@ nexus_dmamap_unload(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
  */
 static void
 nexus_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
-    bus_dmasync_op_t op)
+    int op)
 {
 
 	/*
@@ -563,7 +562,7 @@ nexus_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 	 *
 	 * Actually a #Sync is expensive.  We should optimize.
 	 */
-	if ((op == BUS_DMASYNC_PREREAD) || (op == BUS_DMASYNC_PREWRITE)) {
+	if ((op & BUS_DMASYNC_PREREAD) || (op & BUS_DMASYNC_PREWRITE)) {
 		/* 
 		 * Don't really need to do anything, but flush any pending
 		 * writes anyway. 
@@ -572,12 +571,12 @@ nexus_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 	}
 #if 0
 	/* Should not be needed. */
-	if (op == BUS_DMASYNC_POSTREAD) {
+	if (op & BUS_DMASYNC_POSTREAD) {
 		ecache_flush((vm_offset_t)map->buf,
 		    (vm_offset_t)map->buf + map->buflen - 1);
 	}
 #endif
-	if (op == BUS_DMASYNC_POSTWRITE) {
+	if (op & BUS_DMASYNC_POSTWRITE) {
 		/* Nothing to do.  Handled by the bus controller. */
 	}
 }

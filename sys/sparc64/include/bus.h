@@ -905,12 +905,10 @@ memsetw(void *d, int val, size_t size)
 struct mbuf;
 struct uio;
 
-typedef enum {
-	BUS_DMASYNC_PREREAD,
-	BUS_DMASYNC_POSTREAD,
-	BUS_DMASYNC_PREWRITE,
-	BUS_DMASYNC_POSTWRITE,
-} bus_dmasync_op_t;
+#define	BUS_DMASYNC_PREREAD	1
+#define	BUS_DMASYNC_POSTREAD	2
+#define	BUS_DMASYNC_PREWRITE	4
+#define	BUS_DMASYNC_POSTWRITE	8
 
 /*
  * A function that returns 1 if the address cannot be accessed by
@@ -977,7 +975,7 @@ struct bus_dma_tag {
 	    bus_dmamap_t, struct uio *, bus_dmamap_callback2_t *, void *, int);
 	void	(*dt_dmamap_unload)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 	void	(*dt_dmamap_sync)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
-	    bus_dmasync_op_t);
+	    int);
 
 	/*
 	 * DMA memory utility functions.
@@ -1086,8 +1084,7 @@ sparc64_dmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t p)
 	sparc64_dmamap_unload((t), (t), (p))
 
 static __inline void
-sparc64_dmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
-    bus_dmasync_op_t op)
+sparc64_dmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m, int op)
 {
 	bus_dma_tag_t lt;
 
