@@ -69,7 +69,7 @@ static int cd9660_mount __P((struct mount *,
 static int cd9660_unmount __P((struct mount *, int, struct thread *));
 static int cd9660_root __P((struct mount *, struct vnode **));
 static int cd9660_statfs __P((struct mount *, struct statfs *, struct thread *));
-static int cd9660_vget __P((struct mount *, ino_t, struct vnode **));
+static int cd9660_vget __P((struct mount *, ino_t, int, struct vnode **));
 static int cd9660_fhtovp __P((struct mount *, struct fid *, struct vnode **));
 static int cd9660_vptofh __P((struct vnode *, struct fid *));
 
@@ -578,7 +578,7 @@ cd9660_root(mp, vpp)
 	 * With RRIP we must use the `.' entry of the root directory.
 	 * Simply tell vget, that it's a relocated directory.
 	 */
-	return (cd9660_vget_internal(mp, ino, vpp,
+	return (cd9660_vget_internal(mp, ino, LK_EXCLUSIVE, vpp,
 	    imp->iso_ftype == ISO_FTYPE_RRIP, dp));
 }
 
@@ -644,7 +644,7 @@ cd9660_fhtovp(mp, fhp, vpp)
 	       ifhp->ifid_ino, ifhp->ifid_start);
 #endif
 	
-	if ((error = VFS_VGET(mp, ifhp->ifid_ino, &nvp)) != 0) {
+	if ((error = VFS_VGET(mp, ifhp->ifid_ino, LK_EXCLUSIVE, &nvp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -659,9 +659,10 @@ cd9660_fhtovp(mp, fhp, vpp)
 }
 
 int
-cd9660_vget(mp, ino, vpp)
+cd9660_vget(mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
+	int flags;
 	struct vnode **vpp;
 {
 
@@ -671,7 +672,7 @@ cd9660_vget(mp, ino, vpp)
 	 * and force the extra read, but I don't want to think about fixing
 	 * that right now.
 	 */
-	return (cd9660_vget_internal(mp, ino, vpp,
+	return (cd9660_vget_internal(mp, ino, flags, vpp,
 #if 0
 	    VFSTOISOFS(mp)->iso_ftype == ISO_FTYPE_RRIP,
 #else
@@ -681,9 +682,10 @@ cd9660_vget(mp, ino, vpp)
 }
 
 int
-cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
+cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	struct mount *mp;
 	ino_t ino;
+	int flags;
 	struct vnode **vpp;
 	int relocated;
 	struct iso_directory_record *isodir;
@@ -697,7 +699,9 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 
 	imp = VFSTOISOFS(mp);
 	dev = imp->im_dev;
-	if ((*vpp = cd9660_ihashget(dev, ino)) != NULLVP)
+	if ((error = cd9660_ihashget(dev, ino, flags, vpp)) != 0)
+		return (error);
+	if (*vpp != NULL)
 		return (0);
 
 	/* Allocate a new vnode/iso_node. */
@@ -716,6 +720,18 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 	ip->i_vnode = vp;
 	ip->i_dev = dev;
 	ip->i_number = ino;
+
+	/*
+	 * Check to be sure that it did not show up. We have to put it
+	 * on the hash chain as the cleanup from vput expects to find 
+	 * it there.
+	 */
+	if ((error = cd9660_ihashget(dev, ino, flags, vpp)) != 0 ||
+	    *vpp != NULL) {
+		cd9660_ihashins(ip);
+		vput(vp);
+		return (error);
+	}
 
 	/*
 	 * Put it onto its hash chain and lock it so that other requests for

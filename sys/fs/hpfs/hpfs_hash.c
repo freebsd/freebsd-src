@@ -122,15 +122,19 @@ loop:
 }
 #endif
 
-struct vnode *
-hpfs_hphashvget(dev, ino, td)
+int
+hpfs_hphashvget(dev, ino, flags, vpp, td)
 	dev_t dev;
 	lsn_t ino;
+	int flags;
+	struct vnode **vpp;
 	struct thread *td;
 {
 	struct hpfsnode *hp;
 	struct vnode *vp;
+	int error;
 
+	*vpp = NULLVP;
 loop:
 	mtx_lock(&hpfs_hphash_mtx);
 	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash) {
@@ -138,13 +142,17 @@ loop:
 			vp = HPTOV(hp);
 			mtx_lock(&vp->v_interlock);
 			mtx_unlock(&hpfs_hphash_mtx);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
+			error = vget(vp, flags | LK_INTERLOCK, td);
+			if (error == ENOENT)
 				goto loop;
-			return (vp);
+			if (error)
+				return (error);
+			*vpp = vp;
+			return (0);
 		}
 	}
 	mtx_unlock(&hpfs_hphash_mtx);
-	return (NULLVP);
+	return (0);
 }
 
 /*

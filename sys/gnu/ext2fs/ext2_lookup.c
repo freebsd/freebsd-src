@@ -601,7 +601,8 @@ found:
 			*vpp = vdp;
 			return (0);
 		}
-		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0)
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, LK_EXCLUSIVE,
+		    &tdp)) != 0)
 			return (error);
 		/*
 		 * If directory is "sticky", then user must own
@@ -638,7 +639,8 @@ found:
 		 */
 		if (dp->i_number == dp->i_ino)
 			return (EISDIR);
-		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0)
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, LK_EXCLUSIVE,
+		    &tdp)) != 0)
 			return (error);
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
@@ -669,7 +671,8 @@ found:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
-		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0) {
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, LK_EXCLUSIVE,
+		    &tdp)) != 0) {
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
 			return (error);
 		}
@@ -683,7 +686,8 @@ found:
 		VREF(vdp);	/* we want ourself, ie "." */
 		*vpp = vdp;
 	} else {
-		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0)
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, LK_EXCLUSIVE,
+		    &tdp)) != 0)
 			return (error);
 		if (!lockparent || !(flags & ISLASTCN))
 			VOP_UNLOCK(pdp, 0, td);
@@ -1064,7 +1068,8 @@ ext2_checkpath(source, target, cred)
 		if (dirbuf.dotdot_ino == rootino)
 			break;
 		vput(vp);
-		if ((error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino, &vp)) != 0) {
+		if ((error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino,
+		    LK_EXCLUSIVE, &vp)) != 0) {
 			vp = NULL;
 			break;
 		}

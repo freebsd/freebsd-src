@@ -254,7 +254,7 @@ struct iso_mnt {
 #define lblkno(imp, loc)	((loc) >> (imp)->im_bshift)
 #define blksize(imp, ip, lbn)	((imp)->logical_block_size)
 
-int cd9660_vget_internal __P((struct mount *, ino_t, struct vnode **, int,
+int cd9660_vget_internal __P((struct mount *, ino_t, int, struct vnode **, int,
 			      struct iso_directory_record *));
 int cd9660_init __P((struct vfsconf *));
 int cd9660_uninit __P((struct vfsconf *));

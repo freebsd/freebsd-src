@@ -93,7 +93,7 @@ int	ffs_update __P((struct vnode *, int));
 int	ffs_valloc __P((struct vnode *, int, struct ucred *, struct vnode **));
 
 int	ffs_vfree __P((struct vnode *, ino_t, int));
-int	ffs_vget __P((struct mount *, ino_t, struct vnode **));
+int	ffs_vget __P((struct mount *, ino_t, int, struct vnode **));
 int	ffs_vptofh __P((struct vnode *, struct fid *));
 
 extern vop_t **ffs_vnodeop_p;

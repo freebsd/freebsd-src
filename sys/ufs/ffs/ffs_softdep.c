@@ -165,7 +165,7 @@ static	void initiate_write_filepage __P((struct pagedep *, struct buf *));
 static	void handle_written_mkdir __P((struct mkdir *, int));
 static	void initiate_write_inodeblock __P((struct inodedep *, struct buf *));
 static	void handle_workitem_freefile __P((struct freefile *));
-static	void handle_workitem_remove __P((struct dirrem *));
+static	void handle_workitem_remove __P((struct dirrem *, struct vnode *));
 static	struct dirrem *newdirrem __P((struct buf *, struct inode *,
 	    struct inode *, int, struct dirrem **));
 static	void free_diradd __P((struct diradd *));
@@ -580,7 +580,7 @@ softdep_process_worklist(matchmnt)
 	struct mount *matchmnt;
 {
 	struct thread *td = curthread;
-	int matchcnt, loopcount;
+	int cnt, matchcnt, loopcount;
 	long starttime;
 
 	/*
@@ -618,7 +618,10 @@ softdep_process_worklist(matchmnt)
 	loopcount = 1;
 	starttime = time_second;
 	while (num_on_worklist > 0) {
-		matchcnt += process_worklist_item(matchmnt, 0);
+		if ((cnt = process_worklist_item(matchmnt, 0)) == -1)
+			break;
+		else
+			matchcnt += cnt;
 
 		/*
 		 * If a umount operation wants to run the worklist
@@ -675,7 +678,6 @@ process_worklist_item(matchmnt, flags)
 	int flags;
 {
 	struct worklist *wk;
-	struct dirrem *dirrem;
 	struct mount *mp;
 	struct vnode *vp;
 	int matchcnt = 0;
@@ -687,13 +689,19 @@ process_worklist_item(matchmnt, flags)
 	 * inodes, we have to skip over any dirrem requests whose
 	 * vnodes are resident and locked.
 	 */
+	vp = NULL;
 	LIST_FOREACH(wk, &softdep_workitem_pending, wk_list) {
+		if (wk->wk_state & INPROGRESS)
+			continue;
 		if ((flags & LK_NOWAIT) == 0 || wk->wk_type != D_DIRREM)
 			break;
-		dirrem = WK_DIRREM(wk);
-		vp = ufs_ihashlookup(VFSTOUFS(dirrem->dm_mnt)->um_dev,
-		    dirrem->dm_oldinum);
-		if (vp == NULL || !VOP_ISLOCKED(vp, curthread))
+		wk->wk_state |= INPROGRESS;
+		FREE_LOCK(&lk);
+		VFS_VGET(WK_DIRREM(wk)->dm_mnt, WK_DIRREM(wk)->dm_oldinum,
+		    LK_NOWAIT | LK_EXCLUSIVE, &vp);
+		ACQUIRE_LOCK(&lk);
+		wk->wk_state &= ~INPROGRESS;
+		if (vp != NULL)
 			break;
 	}
 	if (wk == 0) {
@@ -713,7 +721,7 @@ process_worklist_item(matchmnt, flags)
 				"process_worklist_item");
 		if (mp == matchmnt)
 			matchcnt += 1;
-		handle_workitem_remove(WK_DIRREM(wk));
+		handle_workitem_remove(WK_DIRREM(wk), vp);
 		break;
 
 	case D_FREEBLKS:
@@ -2280,8 +2288,9 @@ handle_workitem_freeblocks(freeblks, flags)
 	 * to see if the block count needs to be adjusted.
 	 */
 	if (freeblks->fb_chkcnt != blocksreleased &&
-	    (fs->fs_flags & FS_UNCLEAN) != 0 && (flags & LK_NOWAIT) == 0 &&
-	    VFS_VGET(freeblks->fb_mnt, freeblks->fb_previousinum, &vp) == 0) {
+	    (fs->fs_flags & FS_UNCLEAN) != 0 &&
+	    VFS_VGET(freeblks->fb_mnt, freeblks->fb_previousinum,
+	    (flags & LK_NOWAIT) | LK_EXCLUSIVE, &vp) == 0) {
 		ip = VTOI(vp);
 		ip->i_blocks += freeblks->fb_chkcnt - blocksreleased;
 		ip->i_flag |= IN_CHANGE;
@@ -2742,7 +2751,7 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 			    prevdirrem, dm_next);
 		dirrem->dm_dirinum = dirrem->dm_pagedep->pd_ino;
 		FREE_LOCK(&lk);
-		handle_workitem_remove(dirrem);
+		handle_workitem_remove(dirrem, NULL);
 	}
 }
 
@@ -3033,8 +3042,9 @@ softdep_releasefile(ip)
  * If the link count reaches zero, the file is removed.
  */
 static void 
-handle_workitem_remove(dirrem)
+handle_workitem_remove(dirrem, xp)
 	struct dirrem *dirrem;
+	struct vnode *xp;
 {
 	struct thread *td = curthread;
 	struct inodedep *inodedep;
@@ -3043,7 +3053,9 @@ handle_workitem_remove(dirrem)
 	ino_t oldinum;
 	int error;
 
-	if ((error = VFS_VGET(dirrem->dm_mnt, dirrem->dm_oldinum, &vp)) != 0) {
+	if ((vp = xp) == NULL &&
+	    (error = VFS_VGET(dirrem->dm_mnt, dirrem->dm_oldinum, LK_EXCLUSIVE,
+	     &vp)) != 0) {
 		softdep_error("handle_workitem_remove: vget", error);
 		return;
 	}
@@ -3112,7 +3124,7 @@ handle_workitem_remove(dirrem)
 	    check_inode_unwritten(inodedep)) {
 		FREE_LOCK(&lk);
 		vput(vp);
-		handle_workitem_remove(dirrem);
+		handle_workitem_remove(dirrem, NULL);
 		return;
 	}
 	WORKLIST_INSERT(&inodedep->id_inowait, &dirrem->dm_list);
@@ -4228,16 +4240,19 @@ softdep_fsync(vp)
 		/*
 		 * We prevent deadlock by always fetching inodes from the
 		 * root, moving down the directory tree. Thus, when fetching
-		 * our parent directory, we must unlock ourselves before
-		 * requesting the lock on our parent. See the comment in
-		 * ufs_lookup for details on possible races.
+		 * our parent directory, we first try to get the lock. If
+		 * that fails, we must unlock ourselves before requesting
+		 * the lock on our parent. See the comment in ufs_lookup
+		 * for details on possible races.
 		 */
 		FREE_LOCK(&lk);
-		VOP_UNLOCK(vp, 0, td);
-		error = VFS_VGET(mnt, parentino, &pvp);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		if (error != 0)
-			return (error);
+		if (VFS_VGET(mnt, parentino, LK_NOWAIT | LK_EXCLUSIVE, &pvp)) {
+			VOP_UNLOCK(vp, 0, td);
+			error = VFS_VGET(mnt, parentino, LK_EXCLUSIVE, &pvp);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			if (error != 0)
+				return (error);
+		}
 		/*
 		 * All MKDIR_PARENT dependencies and all the NEWBLOCK pagedeps
 		 * that are contained in direct blocks will be resolved by 
@@ -4735,7 +4750,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		inum = dap->da_newinum;
 		if (dap->da_state & MKDIR_BODY) {
 			FREE_LOCK(&lk);
-			if ((error = VFS_VGET(mp, inum, &vp)) != 0)
+			if ((error = VFS_VGET(mp, inum, LK_EXCLUSIVE, &vp)))
 				break;
 			if ((error=VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td)) ||
 			    (error=VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td))) {
@@ -4999,7 +5014,7 @@ clear_remove(td)
 			FREE_LOCK(&lk);
 			if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
 				continue;
-			if ((error = VFS_VGET(mp, ino, &vp)) != 0) {
+			if ((error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &vp))) {
 				softdep_error("clear_remove: vget", error);
 				vn_finished_write(mp);
 				return;
@@ -5072,7 +5087,7 @@ clear_inodedeps(td)
 		FREE_LOCK(&lk);
 		if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
 			continue;
-		if ((error = VFS_VGET(mp, ino, &vp)) != 0) {
+		if ((error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &vp)) != 0) {
 			softdep_error("clear_inodedeps: vget", error);
 			vn_finished_write(mp);
 			return;

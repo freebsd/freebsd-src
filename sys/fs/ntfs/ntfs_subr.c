@@ -1946,7 +1946,7 @@ ntfs_toupper_use(mp, ntmp)
 	MALLOC(ntfs_toupper_tab, wchar *, 65536 * sizeof(wchar),
 		M_NTFSRDATA, M_WAITOK);
 
-	if ((error = VFS_VGET(mp, NTFS_UPCASEINO, &vp)))
+	if ((error = VFS_VGET(mp, NTFS_UPCASEINO, LK_EXCLUSIVE, &vp)))
 		goto out;
 	error = ntfs_readattr(ntmp, VTONT(vp), NTFS_A_DATA, NULL,
 			0, 65536*sizeof(wchar), (char *) ntfs_toupper_tab, NULL);

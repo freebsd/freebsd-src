@@ -1177,7 +1177,8 @@ ffs_snapshot_mount(mp)
 	for (snaploc = 0; snaploc < FSMAXSNAP; snaploc++) {
 		if (fs->fs_snapinum[snaploc] == 0)
 			return;
-		if ((error = VFS_VGET(mp, fs->fs_snapinum[snaploc], &vp)) != 0){
+		if ((error = VFS_VGET(mp, fs->fs_snapinum[snaploc],
+		    LK_EXCLUSIVE, &vp)) != 0){
 			printf("ffs_snapshot_mount: vget failed %d\n", error);
 			continue;
 		}

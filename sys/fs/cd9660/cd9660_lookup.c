@@ -352,7 +352,8 @@ found:
 	 */
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
-		error = cd9660_vget_internal(vdp->v_mount, dp->i_ino, &tdp,
+		error = cd9660_vget_internal(vdp->v_mount, dp->i_ino,
+					     LK_EXCLUSIVE, &tdp,
 					     dp->i_ino != ino, ep);
 		brelse(bp);
 		if (error) {
@@ -373,7 +374,8 @@ found:
 		VREF(vdp);	/* we want ourself, ie "." */
 		*vpp = vdp;
 	} else {
-		error = cd9660_vget_internal(vdp->v_mount, dp->i_ino, &tdp,
+		error = cd9660_vget_internal(vdp->v_mount, dp->i_ino,
+					     LK_EXCLUSIVE, &tdp,
 					     dp->i_ino != ino, ep);
 		brelse(bp);
 		if (error)

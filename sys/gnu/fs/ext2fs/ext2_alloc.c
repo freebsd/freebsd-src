@@ -399,7 +399,7 @@ ext2_valloc(pvp, mode, cred, vpp)
 
 	if (ino == 0)
 		goto noinodes;
-	error = VFS_VGET(pvp->v_mount, ino, vpp);
+	error = VFS_VGET(pvp->v_mount, ino, LK_EXCLUSIVE, vpp);
 	if (error) {
 		UFS_VFREE(pvp, ino, mode);
 		return (error);
