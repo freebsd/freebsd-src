@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.15 1996/03/25 01:48:28 dyson Exp $
+ * $Id: sys_pipe.c,v 1.16 1996/06/12 05:07:32 gpalmer Exp $
  */
 
 #ifndef OLD_PIPE
@@ -733,8 +733,11 @@ pipewrite(wpipe, uio, nbio)
 		/*
 		 * If the transfer is large, we can gain performance if
 		 * we do process-to-process copies directly.
+		 * If the write is non-blocking, we don't use the
+		 * direct write mechanism.
 		 */
-		if ((amountpipekva < LIMITPIPEKVA) &&
+		if ((wpipe->pipe_state & PIPE_NBIO) == 0 &&
+			(amountpipekva < LIMITPIPEKVA) &&
 			(uio->uio_iov->iov_len >= PIPE_MINDIRECT)) {
 			error = pipe_direct_write( wpipe, uio);
 			if (error) {
