@@ -211,8 +211,8 @@ dumpfs(const char *name)
 	    afs.fs_sblkno, afs.fs_cblkno, afs.fs_iblkno, afs.fs_dblkno);
 	printf("cgrotor\t%d\tfmod\t%d\tronly\t%d\tclean\t%d\n",
 	    afs.fs_cgrotor, afs.fs_fmod, afs.fs_ronly, afs.fs_clean);
-	printf("avgfpdir %d\tavgfilesize %d\n",
-	    afs.fs_avgfpdir, afs.fs_avgfilesize);
+	printf("avgfilesize %d\tavgfpdir %d\n",
+	    afs.fs_avgfilesize, afs.fs_avgfpdir);
 	printf("flags\t");
 	if (afs.fs_old_flags & FS_FLAGS_UPDATED)
 		fsflags = afs.fs_flags;
