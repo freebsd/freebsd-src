@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.67 1998/03/26 20:52:58 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.68 1998/05/07 04:58:42 msmith Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1026,7 +1026,7 @@ abortit:
 		goto abortit;
 	}
 
-	error = vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, p);
+	error = vn_lock(fvp, LK_EXCLUSIVE, p);
 	if (error)
 		goto abortit;
 	dp = VTODE(fdvp);
