@@ -29,17 +29,14 @@
 #ifndef	_MACHINE_SMP_H_
 #define	_MACHINE_SMP_H_
 
-#define	CPU_INITING		1
-#define	CPU_INITED		2
-#define	CPU_REJECT		3
-#define	CPU_STARTING		4
-#define	CPU_STARTED		5
-#define	CPU_BOOTSTRAPING	6
-#define	CPU_BOOTSTRAPPED	7
+#define	CPU_CLKSYNC		1
+#define	CPU_INIT		2
+#define	CPU_BOOTSTRAP		3
 
 #ifndef	LOCORE
 
 #include <machine/intr_machdep.h>
+#include <machine/tte.h>
 
 #define	IDR_BUSY	(1<<0)
 #define	IDR_NACK	(1<<1)
@@ -53,8 +50,9 @@
 struct cpu_start_args {
 	u_int	csa_mid;
 	u_int	csa_state;
-	u_long	csa_data;
-	vm_offset_t csa_va;
+	u_long	csa_tick;
+	u_long	csa_ver;
+	struct	tte csa_ttes[PCPU_PAGES];
 };
 
 struct ipi_level_args {
@@ -82,10 +80,20 @@ void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all(u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 
+vm_offset_t mp_tramp_alloc(void);
+
 extern	struct	ipi_level_args ipi_level_args;
 extern	struct	ipi_tlb_args ipi_tlb_args;
 
 extern	int mp_ncpus;
+
+extern	vm_offset_t mp_tramp;
+extern	char *mp_tramp_code;
+extern	u_long mp_tramp_code_len;
+extern	u_long mp_tramp_tlb_slots;
+extern	u_long mp_tramp_func;
+
+extern	void mp_startup(void);
 
 extern	char tl_ipi_level[];
 extern	char tl_ipi_test[];
@@ -152,7 +160,7 @@ ipi_wait(void *cookie)
 	if ((count = cookie) != NULL) {
 		atomic_subtract_int(count, 1);
 		while (*count != 0)
-			membar(LoadStore);
+			;
 	}
 }
 

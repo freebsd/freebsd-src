@@ -38,12 +38,16 @@
 
 #define	ALT_STACK_SIZE	128
 
+struct vmspace;
+
 /*
  * Inside the kernel, the globally reserved register g7 is used to
  * point at the globaldata structure.
  */
 #define	PCPU_MD_FIELDS							\
 	struct	intr_queue pc_iq;		/* interrupt queue */	\
+	struct	vmspace *pc_vmspace;					\
+	vm_offset_t pc_addr;						\
 	u_int 	pc_mid;							\
 	u_int	pc_tlb_ctx;						\
 	u_int	pc_tlb_ctx_max;						\
