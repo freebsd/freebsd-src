@@ -270,7 +270,7 @@ ess_reset_dsp(struct ess_info *sc)
     	ess_wr(sc, SBDSP_RST, 0);
     	if (ess_get_byte(sc) != 0xAA) {
         	DEB(printf("ess_reset_dsp 0x%lx failed\n",
-			   rman_get_start(d->io_base)));
+			   rman_get_start(sc->io_base)));
 		return ENXIO;	/* Sorry */
     	}
     	ess_cmd(sc, 0xc6);

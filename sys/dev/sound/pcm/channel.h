@@ -60,6 +60,7 @@ struct pcm_channel {
 	struct snddev_info *parentsnddev;
 	struct pcm_channel *parentchannel;
 	void *devinfo;
+	device_t dev;
 	char name[CHN_NAMELEN];
 	void *lock;
 	SLIST_HEAD(, pcmchan_children) children;
