@@ -30,6 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 /*
@@ -375,7 +376,7 @@ tftp_stat(f, sb)
 	struct tftp_handle *tftpfile;
 	tftpfile = (struct tftp_handle *) f->f_fsdata;
 
-	sb->st_mode = 0444;
+	sb->st_mode = 0444 | S_IFREG;
 	sb->st_nlink = 1;
 	sb->st_uid = 0;
 	sb->st_gid = 0;
