@@ -1158,12 +1158,14 @@ cpu	EV4</programlisting>
     </sect3>
 
     <sect3>
-      <title>Evaluation Board 64plus (<quote>EB64+</quote>), Aspen 
-      Alpine</title>
+      <title>Evaluation Board 64 family</title>
 
       <para>In its attempts to popularize the Alpha CPU DEC produced a number 
-      of so called Evaluation Boards. The EB64+ family of evaluation
-      boards has the following feature set:</para>
+      of so called Evaluation Boards. Members of this family are EB64, EB64+,
+      AlphaPC64 (codename <quote>Cabriolet</quote>). 
+      A non-DEC member of this family is the Aspen Alpine.
+      The EB64 family of evaluation boards has the following 
+      feature set:</para>
 
       <para><itemizedlist>
         <listitem>
@@ -1193,7 +1195,7 @@ cpu	EV4</programlisting>
              </itemizedlist>
         </listitem>
         <listitem>
-	  <para>Bcache / L2 cache: 512 kByte, 1 Mbyte or 2 Mbytes</para>
+	  <para>Bcache / L2 cache: 0, 512 kByte, 1 Mbyte or 2 Mbytes</para>
         </listitem>
         <listitem>
           <para>21072 (<quote>APECS</quote>) chip set</para>
@@ -1206,13 +1208,19 @@ cpu	EV4</programlisting>
           <para>dual 16550A serial ports</para>
         </listitem>
         <listitem>
-          <para>Symbios 53C810 Fast-SCSI</para>
+          <para>parallel printer port</para>
         </listitem>
         <listitem>
-          <para>embedded 10 Mbit Ethernet</para>
+          <para>Symbios 53C810 Fast-SCSI (not on AlphaPC64)</para>
         </listitem>
         <listitem>
-          <para>2 PCI slots</para>
+          <para>IDE interface (only on AlphaPC64)</para>
+        </listitem>
+        <listitem>
+          <para>embedded 10 Mbit Ethernet (not on AlphaPC64)</para>
+        </listitem>
+        <listitem>
+          <para>2 PCI slots (4 slots on AlphaPC64)</para>
         </listitem>
         <listitem>
           <para>3 ISA slots</para>
@@ -1228,7 +1236,7 @@ cpu	EV4</programlisting>
       <para>36 bits SIMMs work fine, 3 bits simply remain unused. Note
       the systems use Fast Page Mode memory, not EDO memory.</para>
 
-      <para>The SRM console code is housed in an UV-erasable EPROM. No 
+      <para>The EB64+ SRM console code is housed in an UV-erasable EPROM. No 
       easy flash SRM upgrades for the EB64+ The latest SRM version available 
       for EB64+ is quite ancient anyway.</para>
 
@@ -1244,7 +1252,16 @@ cpu	EV4</programlisting>
       All of this might mean that you need to use a non-Qlogic adapter to 
       boot from.</para>
 
-      <para>For the EB64+ class machines the kernel config file must contain:</para>
+      <para>AlphaPC64 boards generally come with ARC console firmware. 
+      SRM console code can be loaded from floppy into the Flash ROM.</para>
+
+      <para>The IDE interface of the AlphaPC64 is not bootable from the 
+      SRM console.</para>
+
+      <para>Note that the boards require a power supply that supplies
+      3.3 Volts for the CPU.</para>
+
+      <para>For the EB64 family machines the kernel config file must contain:</para>
       <programlisting>options	DEC_EB64PLUS            
 cpu	EV4</programlisting>
 
@@ -1720,7 +1737,7 @@ cpu	EV5</programlisting>
 	    </itemizedlist>
           </listitem>
 	  <listitem>
-	   <para>AS800: Uses 60ns 3.3Volts EDO DIMMs</para>
+	   <para>AS800: Uses 60ns 3.3 Volts EDO DIMMs</para>
 	  </listitem>
          </itemizedlist>
        </listitem>
