@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.110 1996/11/26 03:26:31 ache Exp $
+#	$Id: Makefile,v 1.111 1996/12/20 08:18:47 asami Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -437,6 +437,8 @@ lib-tools:
 	cd ${.CURDIR}/usr.bin/nm && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/yacc && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/compile_et && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} && \
