@@ -25,11 +25,13 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char rcsid[] = "$OpenBSD: basename.c,v 1.4 1999/05/30 17:10:30 espie Exp $";
-#endif
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
