@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.33 1995/10/23 13:19:47 jkh Exp $
+ * $Id: menus.c,v 1.42.2.35 1995/10/26 08:55:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -630,7 +630,7 @@ ones right now being the FAQ and the Handbook.  You can also chose \"other\"\n\
 to enter an arbitrary URL for browsing.",
     "Press F1 for more help on what you see here.",
     "html",
-    { { "handbook",	"The FreeBSD Handbook.",
+    { { "Handbook",	"The FreeBSD Handbook.",
 	DMENU_CALL,	docShowDocument, 0, 0			},
       { "FAQ",		"The Frequently Asked Questions guide.",
 	DMENU_CALL,	docShowDocument, 0, 0			},
@@ -740,7 +740,7 @@ of installing FreeBSD.  This menu allows you to configure other\n\
 aspects of your system's network configuration.",
     NULL,
     NULL,
-{ { "Interfaces",		"Configure network interfaces",
+{ { "Interfaces",		"Configure additional network interfaces",
 	DMENU_CALL,		tcpMenuSelect, 0, 0					},
   { "NFS client",		"This machine will be an NFS client",
 	DMENU_SET_VARIABLE,	"nfs_client=YES", 0, 0, dmenuVarCheck			},

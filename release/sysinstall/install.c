@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.55 1995/10/25 21:18:00 jkh Exp $
+ * $Id: install.c,v 1.71.2.57 1995/10/26 08:55:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -275,6 +275,7 @@ installFixit(char *str)
 	else
 	    msgDebug("fixit shell: Unable to get terminal attributes!\n");
 	printf("When you're finished with this shell, please type exit.\n");
+	printf("The fixit floppy itself is mounted as /mnt2\n");
 	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt2/stand", 1);
 	execlp("sh", "-sh", 0);
 	msgDebug("fixit shell: Failed to execute shell!\n");
@@ -500,12 +501,19 @@ installFixup(char *str)
 	    }
 	}
 	/* XXX Do all the last ugly work-arounds here which we'll try and excise someday right?? XXX */
+
+	msgNotify("Fixing permissions..");
 	/* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
 	if (directoryExists("/usr/X11R6"))
 	    chmod("/usr/X11R6", 0755);
 
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
+
+	/* Now run all the mtree stuff to fix things up */
+        vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
+        vsystem("mtree -deU -f /etc/mtree/BSD.var.dist -p /var");
+        vsystem("mtree -deU -f /etc/mtree/BSD.usr.dist -p /usr");
     }
     return RET_SUCCESS;
 }
