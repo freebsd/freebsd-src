@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: getnetbynis.c,v 1.3 1995/05/30 05:40:47 rgrimes Exp $";
-static char rcsid[] = "$Id: getnetbynis.c,v 1.3 1995/05/30 05:40:47 rgrimes Exp $";
+static char sccsid[] = "@(#)$Id: getnetbynis.c,v 1.5 1996/03/23 22:16:22 wpaul Exp $";
+static char rcsid[] = "$Id: getnetbynis.c,v 1.5 1996/03/23 22:16:22 wpaul Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -34,9 +34,16 @@ static char rcsid[] = "$Id: getnetbynis.c,v 1.3 1995/05/30 05:40:47 rgrimes Exp 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include <arpa/nameser.h>
+#ifdef YP
+#include <rpc/rpc.h>
+#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/ypclnt.h>
+#endif
 
 #define	MAXALIASES	35
 #define	MAXADDRS	35
@@ -55,18 +62,18 @@ _getnetbynis(name, map)
 	int resultlen;
 	static struct netent h;
 	static char *domain = (char *)NULL;
+	static char ypbuf[YPMAXRECORD];
 
 	if (domain == (char *)NULL)
 		if (yp_get_default_domain (&domain))
 			return (NULL);
 
-	if (result) {
-		free(result);
-		result = 0;
-	}
-
 	if (yp_match(domain, map, name, strlen(name), &result, &resultlen))
 		return (NULL);
+
+	bcopy((char *)result, (char *)&ypbuf, resultlen);
+	free(result);
+	result = (char *)&ypbuf;
 
 	if ((cp = index(result, '\n')))
 		*cp = '\0';
@@ -115,19 +122,41 @@ _getnetbynisaddr(addr, type)
 	long addr;
 	int type;
 {
-	struct in_addr in;
 	char *str, *cp;
-	struct netent *np;
+	unsigned long net2;
+	int nn;
+	unsigned int netbr[4];
+	char buf[MAXDNAME];
 
 	if (type != AF_INET)
 		return (NULL);
 
-	in.s_addr = addr;
-	str = inet_ntoa(in);
-	cp = str + strlen(str) - 2;
+        for (nn = 4, net2 = addr; net2; net2 >>= 8) {
+                netbr[--nn] = net2 & 0xff;
+	}
+
+	switch (nn) {
+	case 3:		/* Class A */
+		sprintf(buf, "%u", netbr[3]);
+		break;
+        case 2:		/* Class B */
+		sprintf(buf, "%u.%u", netbr[2], netbr[3]);
+		break;
+        case 1:		/* Class C */
+		sprintf(buf, "%u.%u.%u", netbr[1], netbr[2], netbr[3]);
+                break;
+        case 0:		/* Class D - E */
+		sprintf(buf, "%u.%u.%u.%u", netbr[0], netbr[1],
+			netbr[2], netbr[3]);
+		break;
+	}
+
+	str = (char *)&buf;
+	cp = str + (strlen(str) - 2);
+
 	while(!strcmp(cp, ".0")) {
 		*cp = '\0';
-		cp = str + strlen(str) - 2;
+		cp = str + (strlen(str) - 2);
 	}
 
 	return _getnetbynis(str, "networks.byaddr");

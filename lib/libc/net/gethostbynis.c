@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.1 1994/09/25 02:12:14 pst Exp $";
-static char rcsid[] = "$Id: gethostbynis.c,v 1.1 1994/09/25 02:12:14 pst Exp $";
+static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.2 1996/03/16 21:25:58 wpaul Exp $";
+static char rcsid[] = "$Id: gethostbynis.c,v 1.2 1996/03/16 21:25:58 wpaul Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -37,6 +37,11 @@ static char rcsid[] = "$Id: gethostbynis.c,v 1.1 1994/09/25 02:12:14 pst Exp $";
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#ifdef YP
+#include <rpc/rpc.h>
+#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/ypclnt.h>
+#endif
 
 #define	MAXALIASES	35
 #define	MAXADDRS	35
@@ -57,6 +62,7 @@ _gethostbynis(name, map)
 	int resultlen;
 	static struct hostent h;
 	static char *domain = (char *)NULL;
+	static char ypbuf[YPMAXRECORD];
 
 	if (domain == (char *)NULL)
 		if (yp_get_default_domain (&domain))
@@ -64,6 +70,11 @@ _gethostbynis(name, map)
 
 	if (yp_match(domain, map, name, strlen(name), &result, &resultlen))
 		return ((struct hostent *)NULL);
+
+	/* avoid potential memory leak */
+	bcopy((char *)result, (char *)&ypbuf, resultlen);
+	free(result);
+	result = (char *)&ypbuf;
 
 	if ((cp = index(result, '\n')))
 		*cp = '\0';
@@ -108,8 +119,10 @@ _gethostbynisname(name)
 }
 
 struct hostent *
-_gethostbynisaddr(name)
-	char *name;
+_gethostbynisaddr(addr, len, type)
+	char *addr;
+	int len;
+	int type;
 {
-	return _gethostbynis(name, "hosts.byaddr");
+	return _gethostbynis(inet_ntoa(*(struct in_addr *)addr),"hosts.byaddr");
 }
