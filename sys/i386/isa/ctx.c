@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.13 1995/12/08 23:20:21 phk Exp $
+ *	$Id: ctx.c,v 1.14 1995/12/10 13:38:25 phk Exp $
  */
 
 /*
@@ -120,7 +120,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/devconf.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>

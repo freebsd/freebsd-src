@@ -45,7 +45,6 @@
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
