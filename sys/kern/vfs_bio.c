@@ -1595,7 +1595,6 @@ vfs_vmio_release(struct buf *bp)
 			 */
 			if ((bp->b_flags & B_ASYNC) == 0 && !m->valid &&
 			    m->hold_count == 0) {
-				vm_page_busy(m);
 				pmap_remove_all(m);
 				vm_page_free(m);
 			} else if (bp->b_flags & B_DIRECT) {
@@ -3687,7 +3686,6 @@ vm_hold_free_pages(struct buf *bp, vm_offset_t from, vm_offset_t to)
 			bp->b_pages[index] = NULL;
 			pmap_qremove(pg, 1);
 			vm_page_lock_queues();
-			vm_page_busy(p);
 			vm_page_unwire(p, 0);
 			vm_page_free(p);
 			vm_page_unlock_queues();
