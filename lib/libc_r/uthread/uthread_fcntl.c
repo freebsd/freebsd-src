@@ -47,6 +47,8 @@ fcntl(int fd, int cmd,...)
 	int             ret;
 	va_list         ap;
 
+	_thread_enter_cancellation_point();
+
 	/* Lock the file descriptor: */
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		/* Initialise the variable argument list: */
@@ -135,6 +137,7 @@ fcntl(int fd, int cmd,...)
 		/* Unlock the file descriptor: */
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
+	_thread_leave_cancellation_point();
 
 	/* Return the completion status: */
 	return (ret);

@@ -88,6 +88,15 @@
 #define PTHREAD_PROCESS_SHARED      1	
 
 /*
+ * Flags for cancelling threads
+ */
+#define PTHREAD_CANCEL_ENABLE		0
+#define PTHREAD_CANCEL_DISABLE		1
+#define PTHREAD_CANCEL_DEFERRED		0
+#define PTHREAD_CANCEL_ASYNCHRONOUS	2
+#define PTHREAD_CANCELED		((void *) 1)
+
+/*
  * Forward structure definitions.
  *
  * These are mostly opaque to the user.
@@ -266,12 +275,10 @@ pthread_t	pthread_self __P((void));
 int		pthread_setspecific __P((pthread_key_t, const void *));
 int		pthread_sigmask __P((int, const sigset_t *, sigset_t *));
 
-#ifdef NOT_YET
 int		pthread_cancel __P((pthread_t));
 int		pthread_setcancelstate __P((int, int *));
 int		pthread_setcanceltype __P((int, int *));
 void		pthread_testcancel __P((void));
-#endif
 
 int		pthread_getprio __P((pthread_t));
 int		pthread_setprio __P((pthread_t, int));
@@ -301,11 +308,11 @@ int		pthread_mutexattr_setprotocol __P((pthread_mutexattr_t *,
 #endif
 
 #if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
-int		pthread_attr_getinheritsched __P((pthread_attr_t *, int *));
-int		pthread_attr_getschedparam __P((pthread_attr_t *,
+int		pthread_attr_getinheritsched __P((const pthread_attr_t *, int *));
+int		pthread_attr_getschedparam __P((const pthread_attr_t *,
 			struct sched_param *));
-int		pthread_attr_getschedpolicy __P((pthread_attr_t *, int *));
-int		pthread_attr_getscope __P((pthread_attr_t *, int *));
+int		pthread_attr_getschedpolicy __P((const pthread_attr_t *, int *));
+int		pthread_attr_getscope __P((const pthread_attr_t *, int *));
 int		pthread_attr_setinheritsched __P((pthread_attr_t *, int));
 int		pthread_attr_setschedparam __P((pthread_attr_t *,
 			struct sched_param *));
@@ -314,7 +321,7 @@ int		pthread_attr_setscope __P((pthread_attr_t *, int));
 int		pthread_getschedparam __P((pthread_t pthread, int *,
 			struct sched_param *));
 int		pthread_setschedparam __P((pthread_t, int,
-			struct sched_param *));
+			const struct sched_param *));
 #endif
 
 int		pthread_attr_setfloatstate __P((pthread_attr_t *, int));

@@ -47,6 +47,7 @@ nanosleep(const struct timespec * time_to_sleep,
 	struct timespec remaining_time;
 	struct timeval  tv;
 
+	_thread_enter_cancellation_point();
 	/* Check if the time to sleep is legal: */
 	if (time_to_sleep == NULL || time_to_sleep->tv_sec < 0 ||
 		time_to_sleep->tv_nsec < 0 || time_to_sleep->tv_nsec >= 1000000000) {
@@ -116,6 +117,7 @@ nanosleep(const struct timespec * time_to_sleep,
 			ret = -1;
 		}
 	}
+	_thread_leave_cancellation_point();
 	return (ret);
 }
 #endif
