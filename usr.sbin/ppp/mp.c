@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.7 1998/04/23 03:22:59 brian Exp $
+ *	$Id: mp.c,v 1.1.2.8 1998/04/23 18:56:21 brian Exp $
  */
 
 #include <sys/types.h>
@@ -510,7 +510,7 @@ mp_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, " Short Seq: %s\n",
                   mp->local_is12bit ? "on" : "off");
   }
-  prompt_Printf(arg->prompt, " End Disc:    %s\n",
+  prompt_Printf(arg->prompt, " End Disc:   %s\n",
                 mp_Enddisc(mp->cfg.enddisc.class, mp->cfg.enddisc.address,
                            mp->cfg.enddisc.len));
 
@@ -521,7 +521,7 @@ mp_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, " Short Seq: %s\n",
                   mp->peer_is12bit ? "on" : "off");
   }
-  prompt_Printf(arg->prompt, " End Disc:  %s\n",
+  prompt_Printf(arg->prompt, " End Disc:   %s\n",
                 mp_Enddisc(mp->peer_enddisc.class, mp->peer_enddisc.address,
                            mp->peer_enddisc.len));
 
