@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.54 1997/05/19 17:32:10 jmz Exp $
+ *	$Id: scsiconf.h,v 1.55 1997/06/25 19:07:43 tegge Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -274,6 +274,7 @@ typedef struct st_mode st_modes[4];
 /* cd specific CD_Q_* */
 #define CD_Q_NO_TOUCH		0x0001
 #define CD_Q_BCD_TRACKS		0x0002
+#define CD_Q_NO_START		0x0004
 
 
 /* worm specific WORM_Q_* */

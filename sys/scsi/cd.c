@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.83 1997/05/04 15:24:22 joerg Exp $
+ *      $Id: cd.c,v 1.84 1997/09/02 20:06:30 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -277,9 +277,13 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 
 	/*
 	 * Start the drive, and take notice of error returns.
+	 * Some (arguably broken) drives go crazy on this attempt, we can
+	 * handle it.
 	 */
-	scsi_start_unit(sc_link, CD_START);
-	SC_DEBUG(sc_link, SDEV_DB3, ("'start' attempted "));
+	if ((sc_link->quirks & CD_Q_NO_START) == 0) {
+		scsi_start_unit(sc_link, CD_START);
+		SC_DEBUG(sc_link, SDEV_DB3, ("'start' attempted "));
+	}
 	sc_link->flags |= SDEV_OPEN;	/* unit attn errors are now errors */
 	if (scsi_test_unit_ready(sc_link, SCSI_SILENT) != 0) {
 		SC_DEBUG(sc_link, SDEV_DB3, ("not ready\n"));
