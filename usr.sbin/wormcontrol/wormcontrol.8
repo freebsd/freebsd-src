@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: wormcontrol.8,v 1.7 1997/02/22 16:14:11 peter Exp $
+.\" $Id: wormcontrol.8,v 1.3.2.2 1997/03/06 08:00:45 mpp Exp $
 .\"
 .\" arrgh, hilit19 needs this" :-(
 .Dd Jan 27, 1996
@@ -47,15 +47,6 @@
 .Ar command
 .Op Ar params...
 .Sh DESCRIPTION
-.Ss Options
-.Bl -tag -ident -width "XXX"
-.It Fl f Ar device
-Use
-.Ar device
-instead of the default
-.Pa /dev/rworm0 .
-.El
-.Ss Overview
 The
 .Nm
 utility is used to control the behaviour of the
@@ -85,8 +76,14 @@ Once all tracks of a session have been written, the disk must be
 .Em fixated .
 This writes the table of contents and leadout information to the disk.
 The disk won't be usable without doing this.
-.Ss Commands
-.Bl -tag -indent -width "prepdisk"
+.Pp
+The following options are available:
+.Bl -tag -width ident
+.It Fl f Ar device
+Use
+.Ar device
+instead of the default
+.Pa /dev/rworm0 .
 .It select Ar vendor-id model-id
 Unfortunately, each CD-R drive vendor decided to implement a set of
 SCSI commands of his own.  Thus, the
@@ -170,7 +167,7 @@ remains unchangeable.
 Error codes for the underlying
 .Xr ioctl 2
 commands are printed by the
-.Xr perror 3
+.Xr err 3
 facility.
 .Sh EXAMPLES
 The typical sequence of burning a data CD-R looks like:
@@ -200,7 +197,7 @@ pipe a constant data stream into the CD recorder.
 .Xr dd 1 ,
 .Xr team 1 ,
 .Xr ioctl 2 ,
-.Xr perror 3 ,
+.Xr err 3 ,
 .Xr worm 4
 .Pp
 .Pa /usr/share/examples/worm/*
