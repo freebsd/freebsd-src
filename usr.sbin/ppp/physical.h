@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.20 1998/04/10 13:19:16 brian Exp $
+ *  $Id: physical.h,v 1.1.2.21 1998/04/10 23:51:33 brian Exp $
  *
  */
 
@@ -57,6 +57,8 @@ struct physical {
   } cfg;
 
   struct termios ios;          /* To be able to reset from raw mode */
+
+  struct pppTimer Timer;       /* CD checks */
 };
 
 #define field2phys(fp, name) \

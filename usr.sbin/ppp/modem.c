@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.52 1998/04/19 15:24:46 brian Exp $
+ * $Id: modem.c,v 1.77.2.53 1998/04/19 23:08:46 brian Exp $
  *
  *  TODO:
  */
@@ -99,7 +99,7 @@ modem_Create(struct datalink *dl, int type)
   p->link.name = dl->name;
   p->link.len = sizeof *p;
   throughput_init(&p->link.throughput);
-  memset(&p->link.Timer, '\0', sizeof p->link.Timer);
+  memset(&p->Timer, '\0', sizeof p->Timer);
   memset(p->link.Queue, '\0', sizeof p->link.Queue);
   memset(p->link.proto_in, '\0', sizeof p->link.proto_in);
   memset(p->link.proto_out, '\0', sizeof p->link.proto_out);
@@ -263,11 +263,6 @@ modem_SetDevice(struct physical *physical, const char *name)
     physical->name.full : physical->name.full + 5;
 }
 
-struct timeoutArg {
-  struct bundle *bundle;
-  struct physical *modem;
-};
-
 /*
  *  modem_Timeout() watches DCD signal and notifies if it's status is changed.
  *
@@ -275,25 +270,25 @@ struct timeoutArg {
 static void
 modem_Timeout(void *data)
 {
-  struct timeoutArg *to = data;
-  int ombits = to->modem->mbits;
+  struct physical *modem = data;
+  int ombits = modem->mbits;
   int change;
 
-  StopTimer(&to->modem->link.Timer);
-  StartTimer(&to->modem->link.Timer);
+  StopTimer(&modem->Timer);
+  StartTimer(&modem->Timer);
 
-  if (to->modem->dev_is_modem) {
-    if (to->modem->fd >= 0) {
-      if (ioctl(to->modem->fd, TIOCMGET, &to->modem->mbits) < 0) {
+  if (modem->dev_is_modem) {
+    if (modem->fd >= 0) {
+      if (ioctl(modem->fd, TIOCMGET, &modem->mbits) < 0) {
 	LogPrintf(LogPHASE, "ioctl error (%s)!\n", strerror(errno));
-        datalink_Down(to->modem->dl, 0);
+        datalink_Down(modem->dl, 0);
 	return;
       }
     } else
-      to->modem->mbits = 0;
-    change = ombits ^ to->modem->mbits;
+      modem->mbits = 0;
+    change = ombits ^ modem->mbits;
     if (change & TIOCM_CD) {
-      if (to->modem->mbits & TIOCM_CD) {
+      if (modem->mbits & TIOCM_CD) {
         LogPrintf(LogDEBUG, "modem_Timeout: offline -> online\n");
 	/*
 	 * In -dedicated mode, start packet mode immediately after we've
@@ -301,16 +296,16 @@ modem_Timeout(void *data)
 	 */
       } else {
         LogPrintf(LogDEBUG, "modem_Timeout: online -> offline\n");
-        LogPrintf(LogPHASE, "%s: Carrier lost\n", to->modem->link.name);
-        datalink_Down(to->modem->dl, 0);
+        LogPrintf(LogPHASE, "%s: Carrier lost\n", modem->link.name);
+        datalink_Down(modem->dl, 0);
       }
     }
     else
       LogPrintf(LogDEBUG, "modem_Timeout: Still %sline\n",
-                Online(to->modem) ? "on" : "off");
-  } else if (!Online(to->modem)) {
+                Online(modem) ? "on" : "off");
+  } else if (!Online(modem)) {
     /* mbits was set to zero in modem_Open() */
-    to->modem->mbits = TIOCM_CD;
+    modem->mbits = TIOCM_CD;
   }
 }
 
@@ -318,17 +313,14 @@ static void
 modem_StartTimer(struct bundle *bundle, struct physical *modem)
 {
   struct pppTimer *ModemTimer;
-  static struct timeoutArg to;
 
-  to.modem = modem;
-  to.bundle = bundle;
-  ModemTimer = &modem->link.Timer;
+  ModemTimer = &modem->Timer;
 
   StopTimer(ModemTimer);
   ModemTimer->load = SECTICKS;
   ModemTimer->func = modem_Timeout;
   ModemTimer->name = "modem CD";
-  ModemTimer->arg = &to;
+  ModemTimer->arg = modem;
   LogPrintf(LogDEBUG, "ModemTimer using modem_Timeout() - %p\n", modem_Timeout);
   StartTimer(ModemTimer);
 }
@@ -649,7 +641,6 @@ modem_Speed(struct physical *modem)
 int
 modem_Raw(struct physical *modem, struct bundle *bundle)
 {
-  struct timeoutArg to;
   struct termios rstio;
   int oldflag;
 
@@ -678,9 +669,7 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
     return (-1);
   fcntl(modem->fd, F_SETFL, oldflag | O_NONBLOCK);
 
-  to.modem = modem;
-  to.bundle = bundle;
-  modem_Timeout(&to);
+  modem_Timeout(modem);
 
   return 0;
 }
@@ -705,7 +694,7 @@ modem_PhysicalClose(struct physical *modem)
   LogPrintf(LogDEBUG, "modem_PhysicalClose\n");
   close(modem->fd);
   modem->fd = -1;
-  StopTimer(&modem->link.Timer);
+  StopTimer(&modem->Timer);
   bundle_SetTtyCommandMode(modem->dl->bundle, modem->dl);
   throughput_stop(&modem->link.throughput);
   throughput_log(&modem->link.throughput, LogPHASE, "Modem");

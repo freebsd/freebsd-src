@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.4 1998/04/16 00:26:11 brian Exp $
+ *	$Id: mp.c,v 1.1.2.5 1998/04/18 01:01:26 brian Exp $
  */
 
 #include <sys/types.h>
@@ -139,7 +139,6 @@ mp_Init(struct mp *mp, struct bundle *bundle)
   mp->link.name = "mp";
   mp->link.len = sizeof *mp;
   throughput_init(&mp->link.throughput);
-  memset(&mp->link.Timer, '\0', sizeof mp->link.Timer);
   memset(mp->link.Queue, '\0', sizeof mp->link.Queue);
   memset(mp->link.proto_in, '\0', sizeof mp->link.proto_in);
   memset(mp->link.proto_out, '\0', sizeof mp->link.proto_out);

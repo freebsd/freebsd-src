@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.1.2.8 1998/04/03 19:25:38 brian Exp $
+ *  $Id: link.h,v 1.1.2.9 1998/04/18 01:01:22 brian Exp $
  *
  */
 
@@ -42,7 +42,6 @@ struct link {
   const char *name;                       /* unique id per link type */
   int len;                                /* full size of parent struct */
   struct pppThroughput throughput;        /* Link throughput statistics */
-  struct pppTimer Timer;                  /* inactivity timeout */
   struct mqueue Queue[LINK_QUEUES];       /* Our output queue of mbufs */
 
   u_long proto_in[NPROTOSTAT];            /* outgoing protocol stats */
