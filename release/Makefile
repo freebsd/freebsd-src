@@ -786,7 +786,7 @@ iso.1:
 doc.1:
 	@echo "Making docs..."
 	@for i in ${DOCPORTS}; do \
-	  cd /usr/ports/$$i && make all install clean JADETEX=no FORCE_PKG_REGISTER=yes; \
+	  cd /usr/ports/$$i && make all install clean BATCH=yes JADETEX=no FORCE_PKG_REGISTER=yes; \
 	done
 	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/bin/usr/share/doc
 	touch doc.1
