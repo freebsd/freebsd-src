@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.638
+    Original revision: 1.640
 -->
 
 <articleinfo>
@@ -181,7 +181,7 @@
 
     <para><application>OpenSSH</application> の
       PAM チャレンジ/認証サブシステムにあったいくつかの誤りが修正されました。
-      これらのバグの影響はその誤りによって異なります。
+      これらのバグの影響には、さまざまなものが存在します。
       詳細はセキュリティ勧告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>
       をご覧ください。
@@ -194,8 +194,8 @@
       をご覧ください。
       &merged;</para>
 
-    <para><application>OpenSSL</application> に
-      独立したセキュリティ上の弱点が四つあり、修正されました。
+    <para><application>OpenSSL</application> にあった 4 種類の
+      セキュリティ上の弱点が修正されました。
       このバグは、リモートの攻撃者が <application>OpenSSL</application>
       を利用するアプリケーションをクラッシュさせたり、
       アプリケーションの権限で任意のコードを実行できる可能性があります。
@@ -221,22 +221,22 @@
       この変更には、最近移植された SiS 300/305/540/630/730 ドライバの
       統合が含まれています。</para>
 
-    <para><literal>LIBICONV</literal> カーネルオプションによる
-      マルチバイト文字セットの変換メソッドに対応しました。</para>
+    <para>マルチバイト文字集合の変換メソッドに対応する
+      <literal>LIBICONV</literal> カーネルオプションが追加されました。</para>
 
     <para arch="sparc64">PCI バスの処理を改善する、Open Firmware の新しい
       PCI フレームワークが導入されました。
       <literal>OFW_NEWPCI</literal> カーネルオプションで制御することができます。
       ユーザに見える変更の一つは、検出されたデバイスの数え方が
       &solaris; に近くなったことです
-      (この結果、同じ種類のデバイスが二つ以上あると
-      デバイスの番号付けが変わるかもしれません)。
+      (この変更により、同じ種類のデバイスが二つ以上あると
+      デバイスの番号付けが変わることがあります)。
       なお、<filename>GENERIC</filename> カーネルでは
       <literal>OFW_NEWPCI</literal> カーネルオプションが
       デフォルトで有効になっています。</para>
 
     <para arch="i386,pc98">&man.hifn.4; ドライバが
-      7955 および 7956 チップセットの対称暗号処理に対応しました。
+      7955 および 7956 チップセットの対称暗号機能に対応しました。
       &merged;</para>
 
     <para arch="amd64,alpha,i386,ia64,pc98">&man.puc.4;
@@ -249,12 +249,12 @@
       &merged;
 
       <warning>
-	<para>このドライバは試験的なものと考えるべきであり、
-	  使用には注意を払ってください。</para>
+	<para>このドライバは試験的なものと考えられています。
+	  使用には注意してください。</para>
       </warning>
 
       <note>
-	<para>公開鍵暗号処理には対応していません。</para>
+	<para>公開鍵暗号機能には対応していません。</para>
       </note></para>
 
     <para>カーネルにソフトウェアウォッチドッグ機能が実装されました。
@@ -265,10 +265,10 @@
 
     <para>スワップページャの実装が刷新されました。
       ユーザに見える変更点は、
-      よりよい I/O スループットを得るためにレイアウトポリシを
-      固定幅のストライプからデバイスをまたがったラウンドロビン方式に変更、
-      スワップデバイス数の限界の撤廃、
-      メモリオーバヘッドの削減などです。</para>
+      I/O スループット向上のためにレイアウトポリシが
+      固定幅のストライピングから複数デバイスのラウンドロビン方式に変更されたこと、
+      コンパイル時に指定していたスワップデバイス数の上限がなくなったこと、
+      メモリオーバヘッドが減少したことなどがあります。</para>
 
     <sect3 id="proc">
       <title>プラットフォーム固有のハードウェアの対応状況</title>
@@ -313,13 +313,14 @@
         10Mbps で正常に動作するようになりました。</para>
 
       <para>&man.em.4; ドライバが、ドライバを再コンパイルしなくても、
-	割込みの遅延を sysctl 変数を利用して調整できるようになりました。</para>
+	割込みの遅延量を sysctl 変数を利用して調整できるようになりました。</para>
 
       <para arch="i386,pc98,sparc64">&man.harp.4; ドライバが新しく追加されました。
-	これは HARP (Host ATM  Research  Platform) に対する
-	仮想物理インタフェースドライバです。
+	これは HARP (Host ATM  Research  Platform)
+        用の仮想的な物理インタフェースドライバです。
 	システムのすべての netgraph ATM インタフェースにアタッチし、
-	HARP スタックに対する物理インタフェースとして現れます。</para>
+	HARP スタックに、
+        各インタフェースに対応する物理インタフェースを提供します。</para>
 
       <para arch="i386,pc98,sparc64">&man.hatm.4; ドライバが新しく追加されました。
         これは、Fore/Marconi HE155, HE622 ATM カードに対応しています。</para>
@@ -333,31 +334,36 @@
 	Gigabit Ethernet コントローラに対応しています。</para>
 
       <para>&man.sk.4; ドライバが SK-9521 V2.0 と 3COM 3C940 ベースの
-	Gigabit Ethernet NIC に対応しました。</para>
+	Gigabit Ethernet NIC に対応しました。
+        &merged;</para>
 
-      <para>&man.uart.4; ドライバが追加されました。
-	これは、さまざまな種類の
+      <para>さまざまな種類の
 	UART (Universal Asynchronous Receiver/Transmitter)
-	デバイスに対応しています。
-	&man.sio.4; ドライバと類似していますが、
-	より幅広いデバイスに対応しています。
-	ia64 や sparc64 のような特定のアーキテクチャで
-	シリアルポートに対応するために必要不可欠なドライバです。</para>
+	デバイスに対応する &man.uart.4; ドライバが追加されました。
+	これは &man.sio.4; ドライバと機能が類似していますが、
+	より幅広いデバイスに対応しており、
+	ia64 や sparc64 のようなアーキテクチャにおける
+	シリアルポート対応に必要となるものです。</para>
 
       <para>&man.wi.4; ドライバのサスペンド/レジューム対応が
-	デバイスを非動作状態にした時も正しく動作するようになりました。
+	デバイスを down 状態にしている時にも正しく動作するようになりました。
 	&merged;</para>
 
       <para>802.11 対応レイヤが、
         拡張や新機能の追加が可能なように書き直されました。</para>
+
+      <para>xe ドライバが CE2, CEM28, CEM33 カードに対応し、
+        マルチキャスト機能に対応しました。また、
+        ドライバにあったいくつかのバグも修正されています。</para>
     </sect3>
 
     <sect3 id="net-proto">
       <title>ネットワークプロトコル</title>
 
       <para><literal>IP_ONESBCAST</literal> オプションが追加されました。
-	これは、特定のネットワークインタフェースに送られる
-	無向 &man.ip.4; ブロードキャストを有効にします。</para>
+	これを有効にすると、特定のネットワークインタフェースに送られる
+	すべての &man.ip.4; ブロードキャストを、
+        強制的にリミテッドブロードキャストアドレスに向けることが可能です。</para>
 
       <para>&man.ipfw.4; ルールに、カンマで区切られたアドレスリスト
         (たとえば <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>)
@@ -386,7 +392,7 @@
       <para>&man.ng.atmpif.4; NetGraph ノードタイプが追加されました。
 	これは HARP 物理インタフェースをエミュレートし、
 	ハードウェアが実在しなくても
-	HARP ATM スタックを動作させることができます。
+	HARP ATM スタックを動作させることができます。</para>
 
       <para>カーネルが
 	Protocol Independent Multicast ルーティングに対応しました。
@@ -403,23 +409,22 @@
       <para>&man.amr.4; ドライバがクラッシュダンプ機構に対応しました。</para>
 
       <para>&man.ata.4; ドライバが大きく書き直されました。
-	注目に値する変更の一つは、&man.ata.4; ドライバが
-	ジャイアントカーネルロックの外に出たことです。
-	従来は <literal>device atadisk</literal> によって
-	ATA ソフトウェア RAID システムに暗示的に対応していましたが、
-	今後はカーネルコンフィグファイルに
-	<literal>device ataraid</literal> を明示的に
-	追加する必要があります。</para>
+	大きな変更の一つは、&man.ata.4; ドライバの
+	ジャイアントカーネルロックが外されたことです。
+	従来、ATA のソフトウェア RAID システムは
+        <literal>device atadisk</literal> を指定するだけで
+	自動的に利用できるようになっていましたが、
+	現在は、明示的にカーネルコンフィグファイルに
+	<literal>device ataraid</literal> を追加する必要があります。</para>
 
-      <para>&man.ccd.4; が raw ディスクと &man.geom.4;
-	が提供する他のモジュールで動作するようになりました。</para>
+      <para>&man.ccd.4; が raw ディスクおよび、その他の
+        &man.geom.4; プロバイダに対して動作するようになりました。</para>
 
       <para>&man.da.4; ドライバが、USB デバイスと Firewire デバイスに
 	6 バイトコマンドを送出しないようになりました。
-	これらのデバイスを動作させるための
-	quirk は現在は不要であり、無効にされています。
-	従来の挙動に戻すには、<literal>options DA_OLD_QUIRKS</literal> を
-	カーネルコンフィグレーションファイルに追加してください。
+	現在、この回避策は (不要になったと思われるため) 無効にされています。
+	従来の動作に戻すには、<literal>options DA_OLD_QUIRKS</literal> を
+	カーネルコンフィグファイルに追加してください。
 	&merged;</para>
 
       <para><filename>geom_apple</filename>,
@@ -508,11 +513,11 @@
       <option>-n</option> フラグが追加されました。&merged;</para>
 
     <para><filename>libalias</filename> ライブラリ、&man.natd.8; および
-      &man.ppp.8; が Cisco Skinny Station protocol に対応しました。
+      &man.ppp.8; が Cisco Skinny Station プロトコルに対応しました。
       このプロトコルは Cisco Call Manager と通信するために
-      Cisco IP フォンによって利用されています。
-      現時点では、NAT ゲートウェイの後ろに Call Manager を置く構成に
-      対応していないことに注意してください。</para>
+      Cisco 製の IP 電話によって利用されています。
+      ただし現時点では、NAT ゲートウェイの後ろに Call Manager を置く構成には
+      対応していません。</para>
 
     <para><filename>libcipher</filename> DES
       暗号ライブラリが削除されました。
@@ -522,8 +527,8 @@
       すべて <filename>libcrypto</filename>
       を使うように変更されています。</para>
 
-    <para><filename>libkiconv</filename> ライブラリが追加されました。
-      カーネル内に読み込み可能な文字セット変換表の作成を担当します。</para>
+    <para>カーネルに読み込み可能な文字集合変換テーブルの操作をおこなう
+      <filename>libkiconv</filename> ライブラリが追加されました。</para>
 
     <para arch="i386,ia64"><filename>libthr</filename> 1:1
       スレッドライブラリがデフォルトで構築されるようになりました。</para>
@@ -532,40 +537,39 @@
       標準に準拠しました。新しく追加された <option>-m</option> オプションは
       利用可能なすべてのコードセットを表示します。</para>
 
-    <para>&man.mount.8; ユーティリティを <option>-v</option> フラグありで
-      実行した際に、通常の情報に加えてファイルシステム ID
-      が表示されるようになり、
-      &man.umount.8; ユーティリティは、そのファイルシステム ID を
-      デバイスファイルやマウントポイントの代わりに使用できるようになりました。
-      この機能を使うと、同じデバイスやマウントポイント名を使って、
+    <para><option>-v</option> フラグを指定して &man.mount.8; ユーティリティを 
+      実行した場合に、通常の情報に加えて各ファイルシステムのファイルシステム ID
+      が表示されるようになりました。このファイルシステム ID は、
+      &man.umount.8; ユーティリティでデバイスファイルや
+      マウントポイントのパス名の代わりに使用することができます。
+      この機能を使うと、同じデバイス名やマウントポイント名を使って
       複数のファイルシステムをマウントしている場合に、
       アンマウントするファイルシステムを正確に指定することが可能です。</para>
 
     <para>&man.mount.cd9660.8; と &man.mount.ntfs.8; ユーティリティに
       <option>-C</option> オプションが追加されました。
-      Unicode ファイル名を変換するために、ローカルの文字セットを指定します。
-      このオプションを使用することにより、
-      マルチバイト文字セットを指定することができます。</para>
+      これは Unicode ファイル名の変換先になるローカルの文字集合を指定するもので、
+      マルチバイト文字集合を指定することが可能です。</para>
 
     <para>&man.mount.msdosfs.8; ユーティリティに、
-      ファイルシステム中のディレクトリの最大ファイルパーミションを指定する
+      ファイルシステム中のディレクトリに対する最大のファイル許可属性を指定する
       <option>-M</option> オプションが追加されました。
       &merged;</para>
 
     <para>&man.mount.msdosfs.8; ユーティリティに、
       MS-DOS コードページを指定する <option>-D</option> オプションと
-      ローカルの文字セットを指定する <option>-L</option> オプションが
+      ローカル文字集合を指定する <option>-L</option> オプションが
       追加されました。
-      これらのオプションはファイル名の文字セットの変換に使用されます。
+      これらのオプションはファイル名の文字集合変換に使われます。
       これにより、<filename>/usr/libdata/msdosfs</filename> にあった
-      文字セット変換表は役割を終えました。</para>
+      文字集合変換テーブルは廃止されました。</para>
 
     <para>&man.mount.nwfs.8;, &man.mount.portalfs.8;,
       &man.mount.smbfs.8; ユーティリティが
       <filename>/sbin</filename> から <filename>/usr/sbin</filename>
       に移動しました。</para>
 
-    <para>&man.rc.conf.5; にある、&man.ntpd.8; の振舞いを制御する変数
+    <para>&man.rc.conf.5; にある、&man.ntpd.8; の起動オプションを設定する変数
       <varname>ntpd_flags</varname> がデフォルトで
       <option>-f /var/db/ntpd.drift</option> を含むようになりました。</para>
 
@@ -580,8 +584,9 @@
       着脱可能な Ethernet NIC を認識しないというバグが修正されました。</para>
 
     <para>&man.rtld.1; がデフォルトで
-      <quote>libmap</quote> 機能が有効になりました。
-      この変更により、変数 <varname>WITH_LIBMAP</varname> は不要となっています。
+      <quote>libmap</quote> 機能に対応するようになりました。
+      この変更により、コンパイル時の変数 <varname>WITH_LIBMAP</varname>
+      は不要となり、廃止されています。
       詳細は &man.libmap.conf.5; をご覧ください。</para>
 
     <para>カーネルの全部分が ELF フォーマットに移行し、
@@ -656,7 +661,7 @@
       このオプションは、複数のスレッドライブラリ
       (具体的には <filename>libc_r</filename>、<filename>libkse</filename>
       および <filename>libthr</filename>) が存在する場合に混乱を引き起こします。
-      Ports システムでは、正しいスレッドライブラリを選択するために
+      ports では、正しいスレッドライブラリを選択するために
       変数 <varname>PTHREAD_LIBS</varname> を使用してください。</para>
 
     <para><application>GNU Readline</application> がバージョン 4.2
@@ -688,6 +693,9 @@
     <para><application>texinfo</application> がバージョン 4.5
       から、バージョン 4.6 に更新されました。
       &merged;</para>
+
+    <para>タイムゾーンデータベースが <filename>tzdata2003a</filename> リリースから
+      <filename>tzdata2003d</filename> リリースに更新されました。</para>
   </sect2>
 
 
