@@ -125,12 +125,11 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, stru
 	struct vnode *vp;
 	struct cdev *dev;
 
-	if (td == NULL)
-		td = curthread; /* XXX */
+	KASSERT(td == curthread, ("devfs_allocv: td != curthread"));
 loop:
 	vp = de->de_vnode;
 	if (vp != NULL) {
-		if (vget(vp, LK_EXCLUSIVE, td ? td : curthread))
+		if (vget(vp, LK_EXCLUSIVE, td))
 			goto loop;
 		*vpp = vp;
 		return (0);
@@ -849,8 +848,11 @@ devfs_symlink(ap)
 	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
+	struct thread *td;
 
-	error = suser(ap->a_cnp->cn_thread);
+	td = ap->a_cnp->cn_thread;
+	KASSERT(td == curthread, ("devfs_symlink: td != curthread"));
+	error = suser(td);
 	if (error)
 		return(error);
 	dmp = VFSTODEVFS(ap->a_dvp->v_mount);
@@ -864,13 +866,13 @@ devfs_symlink(ap)
 	i = strlen(ap->a_target) + 1;
 	MALLOC(de->de_symlink, char *, i, M_DEVFS, M_WAITOK);
 	bcopy(ap->a_target, de->de_symlink, i);
-	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
+	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, td);
 #ifdef MAC
 	mac_create_devfs_symlink(ap->a_cnp->cn_cred, dmp->dm_mount, dd, de);
 #endif
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
-	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, 0);
-	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
+	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, td);
+	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, td);
 	return (0);
 }
 
