@@ -2021,6 +2021,29 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 #endif
 }
 
+void
+ptracestop(struct thread *td, int sig)
+{
+	struct proc *p = td->td_proc;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
+	    &p->p_mtx.mtx_object, "Stopping for traced signal");
+
+	p->p_xstat = sig;
+	PROC_LOCK(p->p_pptr);
+	psignal(p->p_pptr, SIGCHLD);
+	PROC_UNLOCK(p->p_pptr);
+	mtx_lock_spin(&sched_lock);
+	stop(p);	/* uses schedlock too eventually */
+	thread_suspend_one(td);
+	PROC_UNLOCK(p);
+	DROP_GIANT();
+	p->p_stats->p_ru.ru_nivcsw++;
+	mi_switch();
+	mtx_unlock_spin(&sched_lock);
+	PICKUP_GIANT();
+}
+
 /*
  * If the current process has received a signal (should be caught or cause
  * termination, should interrupt current syscall), return the signal number.
@@ -2074,21 +2097,7 @@ issignal(td)
 			 * If traced, always stop.
 			 */
 			mtx_unlock(&ps->ps_mtx);
-			WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
-			    &p->p_mtx.mtx_object, "Stopping for traced signal");
-			p->p_xstat = sig;
-			PROC_LOCK(p->p_pptr);
-			psignal(p->p_pptr, SIGCHLD);
-			PROC_UNLOCK(p->p_pptr);
-			mtx_lock_spin(&sched_lock);
-			stop(p);	/* uses schedlock too eventually */
-			thread_suspend_one(td);
-			PROC_UNLOCK(p);
-			DROP_GIANT();
-			p->p_stats->p_ru.ru_nivcsw++;
-			mi_switch();
-			mtx_unlock_spin(&sched_lock);
-			PICKUP_GIANT();
+			ptracestop(td, sig);
 			PROC_LOCK(p);
 			mtx_lock(&ps->ps_mtx);
 
