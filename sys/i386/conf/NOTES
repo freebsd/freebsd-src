@@ -571,7 +571,6 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
-# rc: RISCom/8 multiport card
 # tw: TW-523 power line interface for use with X-10 home control products
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
@@ -677,10 +676,6 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
-device		rc
-hint.rc.0.at="isa"
-hint.rc.0.port="0x220"
-hint.rc.0.irq="12"
 # the port and irq for tw0 are fictitious
 device		tw	1
 hint.tw.0.at="isa"
