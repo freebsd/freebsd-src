@@ -67,8 +67,44 @@ agp_sis_match(device_t dev)
 	switch (pci_get_devid(dev)) {
 	case 0x00011039:
 		return ("SiS 5591 host to AGP bridge");
+	case 0x05301039:
+		return ("SiS 530 host to AGP bridge");
+	case 0x05401039:
+		return ("SiS 540 host to AGP bridge");
+	case 0x05501039:
+		return ("SiS 550 host to AGP bridge");
+	case 0x06201039:
+		return ("SiS 620 host to AGP bridge");
+	case 0x06301039:
+		return ("SiS 630 host to AGP bridge");
+	case 0x06451039:
+		return ("SiS 645 host to AGP bridge");
+	case 0x06461039:
+		return ("SiS 645DX host to AGP bridge");
 	case 0x06481039:
 		return ("SiS 648 host to AGP bridge");
+	case 0x06501039:
+		return ("SiS 650 host to AGP bridge");
+	case 0x06511039:
+		return ("SiS 651 host to AGP bridge");
+	case 0x06551039:
+		return ("SiS 655 host to AGP bridge");
+	case 0x06611039:
+		return ("SiS 661 host to AGP bridge");
+	case 0x07301039:
+		return ("SiS 730 host to AGP bridge");
+	case 0x07351039:
+		return ("SiS 735 host to AGP bridge");
+	case 0x07401039:
+		return ("SiS 740 host to AGP bridge");
+	case 0x07411039:
+		return ("SiS 741 host to AGP bridge");
+	case 0x07451039:
+		return ("SiS 745 host to AGP bridge");
+	case 0x07461039:
+		return ("SiS 746 host to AGP bridge");
+	case 0x07601039:
+		return ("SiS 760 host to AGP bridge");
 	};
 
 	if (pci_get_vendor(dev) == 0x1039)
