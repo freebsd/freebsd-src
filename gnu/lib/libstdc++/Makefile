@@ -63,11 +63,11 @@ INCSGROUPS=	BITSHDRS BKWHDRS EXTHDRS BASEHDRS BASEXHDRS STDHDRS \
 BITSHDRS=	basic_ios.h basic_ios.tcc basic_string.h basic_string.tcc \
 		boost_concept_check.h char_traits.h codecvt.h concept_check.h \
 		cpp_type_traits.h deque.tcc fpos.h fstream.tcc functexcept.h \
-		generic_shadow.h gslice.h gslice_array.h indirect_array.h \
+		gslice.h gslice_array.h indirect_array.h \
 		ios_base.h istream.tcc list.tcc \
 		locale_classes.h locale_facets.h locale_facets.tcc \
 		localefwd.h mask_array.h ostream.tcc pthread_allocimpl.h \
-		slice.h slice_array.h sstream.tcc stl_algo.h stl_algobase.h \
+		slice_array.h sstream.tcc stl_algo.h stl_algobase.h \
 		stl_alloc.h stl_bvector.h stl_construct.h stl_deque.h \
 		stl_function.h stl_heap.h stl_iterator.h \
 		stl_iterator_base_funcs.h stl_iterator_base_types.h \
@@ -87,7 +87,7 @@ BKWHDRS=	algo.h algobase.h alloc.h backward_warning.h bvector.h \
 		hash_map.h hash_set.h hashtable.h heap.h iomanip.h \
 		iostream.h istream.h iterator.h list.h map.h multimap.h \
 		multiset.h new.h ostream.h pair.h queue.h rope.h set.h \
-		slist.h stack.h stream.h streambuf.h strstream strstream.h \
+		slist.h stack.h stream.h streambuf.h strstream \
 		tempbuf.h tree.h vector.h
 BKWHDRS:=	${BKWHDRS:S;^;${SRCDIR}/include/backward/;}
 BKWHDRSDIR=	${INCLUDEDIR}/c++/3.3/backward
