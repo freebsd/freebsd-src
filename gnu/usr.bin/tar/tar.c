@@ -38,6 +38,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  */
 #define TAR_EXTERN		/**/
 #include "tar.h"
+#include "prepend_args.h"
 
 #include "port.h"
 #include "gnuregex.h"
@@ -171,9 +172,9 @@ struct option long_options[] =
   {"compress", 0, 0, 'Z'},
   {"uncompress", 0, 0, 'Z'},
   {"block-compress", 0, &f_compress_block, 1},
-  {"bzip", 0, 0, 'y'},
-  {"bzip2", 0, 0, 'y'},
-  {"bunzip2", 0, 0, 'y'},
+  {"bzip", 0, 0, 'j'},
+  {"bzip2", 0, 0, 'j'},
+  {"bunzip2", 0, 0, 'j'},
   {"gzip", 0, 0, 'z'},
   {"gunzip", 0, 0, 'z'},
   {"ungzip", 0, 0, 'z'},  /* for backwards compatibility with former typo */
@@ -191,7 +192,8 @@ struct option long_options[] =
   {"force-local", 0, &f_force_local, 1},
   {"atime-preserve", 0, &f_atime_preserve, 1},
 
-  {"unlink", 0, &f_unlink, 1},
+  {"unlink", 0, 0, 'U'},
+  {"unlink-first", 0 , 0, 'U'},
   {"fast-read", 0, &f_fast_read, 1},
   {"norecurse", 0, 0, 'n'},
 
@@ -318,9 +320,11 @@ options (argc, argv)
   n_ar_files = 0;
   cur_ar_file = 0;
 
+  prepend_default_options (getenv ("TAR_OPTIONS"), &argc, &argv);
+
   /* Parse options */
   while ((c = getoldopt (argc, argv,
-	       "-01234567Ab:BcC:df:F:g:GhiIkK:lL:mMnN:oOpPrRsStT:uvV:wWxX:yzZ",
+	       "-01234567Ab:BcC:df:F:g:GhiIjkK:lL:mMnN:oOpPrRsStT:uUvV:wWxX:yzZ",
 			 long_options, &ind)) != EOF)
     {
       switch (c)
@@ -507,6 +511,17 @@ options (argc, argv)
 			 */
 	  break;
 
+	case 'j':
+	case 'y':
+	  if (f_compressprog)
+	    {
+	      msg ("Only one compression option permitted\n");
+	      exit (EX_ARGSBAD);
+	    }
+	  f_compressprog = "bzip2";
+	  break;
+
+
 	case 'k':		/* Don't overwrite files */
 #ifdef NO_OPEN3
 	  msg ("can't keep old files on this system");
@@ -602,6 +617,7 @@ options (argc, argv)
 	  break;
 
 	case 'T':
+	case 'I':
 	  name_file = optarg;
 	  f_namefile++;
 	  break;
@@ -612,6 +628,10 @@ options (argc, argv)
 	  if (cmd_mode != CMD_NONE)
 	    goto badopt;
 	  cmd_mode = CMD_UPDATE;
+	  break;
+
+	case 'U':
+	  f_unlink = 1;
 	  break;
 
 	case 'v':
@@ -639,16 +659,6 @@ options (argc, argv)
 	case 'X':
 	  f_exclude++;
 	  add_exclude_file (optarg);
-	  break;
-
-	case 'I':
-	case 'y':
-	  if (f_compressprog)
-	    {
-	      msg ("Only one compression option permitted\n");
-	      exit (EX_ARGSBAD);
-	    }
-	  f_compressprog = "bzip2";
 	  break;
 
 	case 'z':
@@ -745,6 +755,8 @@ Other options:\n\
 -h, --dereference	don't dump symlinks; dump the files they point to\n\
 -i, --ignore-zeros	ignore blocks of zeros in archive (normally mean EOF)\n\
 --ignore-failed-read	don't exit with non-zero status on unreadable files\n\
+-j, -y, --bzip,\n\
+    --bzip2, --bunzip2	filter the archive through bzip2\n\
 -k, --keep-old-files	keep existing files; don't overwrite them from archive\n\
 -K, --starting-file F	begin at file F in the archive\n\
 -l, --one-file-system	stay in local file system when creating an archive\n\
@@ -774,10 +786,12 @@ Other options:\n\
 --same-owner		create extracted files with the same ownership \n\
 --show-omitted-dirs	show omitted directories while processing the archive.\n\
 -S, --sparse		handle sparse files efficiently\n\
--T, --files-from F	get names to extract or create from file F\n\
+-T, -I, --files-from F	get names to extract or create from file F\n\
 --null			-T reads null-terminated names, disable -C\n\
 --totals		print total bytes written with --create\n\
 -v, --verbose		verbosely list files processed\n\
+-U, --unlink,\n\
+    --unlink-first	unlink files before creating them\n\
 -V, --label NAME	create archive with volume name NAME\n\
 --version		print tar program version number\n\
 -w, --interactive,\n\
@@ -787,7 +801,6 @@ Other options:\n\
 -W, --verify		attempt to verify the archive after writing it\n\
 --exclude PATTERN	exclude files, given as a globbing PATTERN\n\
 -X, --exclude-from FILE	exclude files listed in FILE\n\
--y, --bzip2, --bunzip2  filter the archive through bzip2\n\
 -Z, --compress,\n\
     --uncompress      	filter the archive through compress\n\
 -z, --gzip,\n\
@@ -796,7 +809,6 @@ Other options:\n\
 			filter the archive through PROG (which must accept -d)\n\
 --block-compress	block the output of compression program for tapes\n\
 -[0-7][lmh]		specify drive and density\n\
---unlink		unlink files before creating them\n\
 --fast-read 		stop after desired names in archive have been found\n\
 ", stdout);
 }
