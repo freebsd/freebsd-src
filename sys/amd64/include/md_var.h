@@ -69,6 +69,7 @@ void	pagezero(void *addr);
 int	is_physical_memory(vm_offset_t addr);
 int	isa_nmi(int cd);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int ist);
+int	user_dbreg_trap(void);
 void	fpstate_drop(struct thread *td);
 
 #endif /* !_MACHINE_MD_VAR_H_ */
