@@ -71,8 +71,7 @@ upcall_alloc(void)
 {
 	struct kse_upcall *ku;
 
-	ku = uma_zalloc(upcall_zone, M_WAITOK);
-	bzero(ku, sizeof(*ku));
+	ku = uma_zalloc(upcall_zone, M_WAITOK | M_ZERO);
 	return (ku);
 }
 
