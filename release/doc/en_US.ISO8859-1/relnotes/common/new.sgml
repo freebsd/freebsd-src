@@ -156,6 +156,8 @@
 	Prism 2.5-based NICs.  104/128-bit WEP now works on Prism
 	cards.</para>
 
+      <para>The xe driver can now be built as a module.</para>
+
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
       <para>Selected network drivers now implement a
@@ -185,6 +187,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>A bug in the IPSec processing for IPv4, which caused the
 	inbound SPD checks to be ignored, has been fixed.</para>
+
+      <para>A new ng_eiface netgraph module has been added, which
+	appears as an Ethernet interface but delivers its Ethernet
+	frames to a Netgraph hook.</para>
 
       <para>A new &man.ng.etf.4; netgraph node allows Ethernet type
 	packets to be filtered to different hooks depending on
@@ -374,6 +380,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.pr.1; now supports the <option>-f</option> and
       <option>-p</option> flags to pause output going to a
       terminal.</para>
+
+    <para>A &man.pam.ssh.8; module has been added to allow the use of
+      SSH passphrases and keypairs for authentication.  This module
+      also handles session management by invoking
+      &man.ssh-agent.1;.</para>
 
     <para>The &man.usbhidctl.1; utility has been added to manipulate
       USB Human Interface Devices.</para>
