@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.66 1995/07/31 22:50:01 bde Exp $
+ * $Id: tty.c,v 1.67 1995/08/01 23:27:34 ache Exp $
  */
 
 /*-
@@ -834,11 +834,15 @@ ttioctl(tp, cmd, data, flag)
 		for (i = MAX_SPEED; i >= 0; i--)
 			if (t->c_ispeed == validspeed[i])
 				break;
+			else if (t->c_ispeed > validspeed[i])
+				return (EINVAL);
 		if (i < 0)
 			return (EINVAL);
 		for (i = MAX_SPEED; i >= 0; i--)
 			if (t->c_ospeed == validspeed[i])
 				break;
+			else if (t->c_ospeed > validspeed[i])
+				return (EINVAL);
 		if (i < 0)
 			return (EINVAL);
 
