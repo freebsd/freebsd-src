@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.12 1996/10/28 08:25:13 joerg Exp $";
+	"$Id: syslogd.c,v 1.13 1996/11/18 21:48:29 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -261,7 +261,7 @@ main(argc, argv)
 		setlinebuf(stdout);
 
 	consfile.f_type = F_CONSOLE;
-	(void)strcpy(consfile.f_un.f_fname, ctty);
+	(void)strcpy(consfile.f_un.f_fname, ctty + sizeof _PATH_DEV - 1);
 	(void)gethostname(LocalHostName, sizeof(LocalHostName));
 	if ((p = strchr(LocalHostName, '.')) != NULL) {
 		*p++ = '\0';
@@ -702,13 +702,6 @@ fprintlog(f, flags, msg)
 		}
 		break;
 
-	case F_CONSOLE:
-		if (flags & IGN_CONS) {
-			dprintf(" (ignored)\n");
-			break;
-		}
-		/* FALLTHROUGH */
-
 	case F_FILE:
 		dprintf(" %s\n", f->f_un.f_fname);
 		v->iov_base = "\n";
@@ -723,8 +716,15 @@ fprintlog(f, flags, msg)
 			(void)fsync(f->f_file);
 		break;
 
+	case F_CONSOLE:
+		if (flags & IGN_CONS) {
+			dprintf(" (ignored)\n");
+			break;
+		}
+		/* FALLTHROUGH */
+
 	case F_TTY:
-		dprintf(" %s\n", f->f_un.f_fname);
+		dprintf(" %s%s\n", _PATH_DEV, f->f_un.f_fname);
 		v->iov_base = "\r\n";
 		v->iov_len = 2;
 
@@ -938,10 +938,11 @@ init(signo)
 
 		switch (f->f_type) {
 		case F_FILE:
-		case F_TTY:
-		case F_CONSOLE:
 		case F_FORW:
 			(void)close(f->f_file);
+			break;
+		case F_CONSOLE:
+		case F_TTY:
 			break;
 		}
 		next = f->f_next;
@@ -1021,9 +1022,12 @@ init(signo)
 			printf("%s: ", TypeNames[f->f_type]);
 			switch (f->f_type) {
 			case F_FILE:
-			case F_TTY:
-			case F_CONSOLE:
 				printf("%s", f->f_un.f_fname);
+				break;
+
+			case F_CONSOLE:
+			case F_TTY:
+				printf("%s%s", _PATH_DEV, f->f_un.f_fname);
 				break;
 
 			case F_FORW:
@@ -1159,18 +1163,22 @@ cfline(line, f, prog)
 		break;
 
 	case '/':
-		(void)strcpy(f->f_un.f_fname, p);
 		if ((f->f_file = open(p, O_WRONLY|O_APPEND, 0)) < 0) {
 			f->f_file = F_UNUSED;
 			logerror(p);
 			break;
 		}
-		if (isatty(f->f_file))
-			f->f_type = F_TTY;
-		else
+		if (isatty(f->f_file)) {
+			if (strcmp(p, ctty) == 0)
+				f->f_type = F_CONSOLE;
+			else
+				f->f_type = F_TTY;
+			close(f->f_file);
+			(void)strcpy(f->f_un.f_fname, p + sizeof _PATH_DEV - 1);
+		} else {
+			(void)strcpy(f->f_un.f_fname, p);
 			f->f_type = F_FILE;
-		if (strcmp(p, ctty) == 0)
-			f->f_type = F_CONSOLE;
+		}
 		break;
 
 	case '*':
