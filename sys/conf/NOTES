@@ -1195,6 +1195,18 @@ options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
 # Splash screen at start up!  Screen savers require this too.
 device		splash
 
+# Various screen savers.
+device		apm_saver		# Requires APM
+device		blank_saver
+device		daemon_saver
+device		fade_saver
+device		fire_saver
+device		green_saver
+device		logo_saver
+device		rain_saver
+device		star_saver
+device		warp_saver
+
 # The pcvt console driver (vt220 compatible).
 device		vt
 hint.vt.0.at="isa"
