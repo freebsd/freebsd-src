@@ -302,17 +302,13 @@ void	 ttyflush(struct tty *tp, int rw);
 void	 ttyfree(struct tty *tp);
 void	 ttyinfo(struct tty *tp);
 int	 ttyinput(int c, struct tty *tp);
-int	 ttykqfilter(dev_t dev, struct knote *kn);
 int	 ttylclose(struct tty *tp, int flag);
 struct tty *ttymalloc(struct tty *tp);
 int	 ttymodem(struct tty *tp, int flag);
 int	 ttyopen(dev_t device, struct tty *tp);
-int	 ttypoll(dev_t dev, int events, struct thread *td);
-int	 ttyread(dev_t dev, struct uio *uio, int flag);
 void	 ttyregister(struct tty *tp);
 int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo);
 int	 ttywait(struct tty *tp);
-int	 ttywrite(dev_t dev, struct uio *uio, int flag);
 int	 unputc(struct clist *q);
 
 #endif /* _KERNEL */
