@@ -882,7 +882,7 @@ if [ "$sect_fwd" = "sf:" ]; then
 		bad_read=$(expr "$data" : '[^(]*(read)[^0-9]*\([0-9]*\)')
 		[ "$bad_seek" -o "$bad_read" ] && echo -n "$bad_seek $bad_read "
 	done)
-	[ "$badlist" ] && bad144 -a -c $drivename "$badlist"
+	[ "$badlist" ] && bad144 -a -c $drivename $badlist
 	echo " done."
 fi
 
