@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.15 1995/07/29 18:48:44 davidg Exp $
+ * 	$Id: tcp_var.h,v 1.16 1995/09/21 17:29:13 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -239,7 +239,6 @@ struct	tcpstat {
 	u_long	tcps_timeoutdrop;	/* conn. dropped in rxmt timeout */
 	u_long	tcps_rexmttimeo;	/* retransmit timeouts */
 	u_long	tcps_persisttimeo;	/* persist timeouts */
-	u_long	tcps_persistdrop;	/* conns dropped by persist timeout */
 	u_long	tcps_keeptimeo;		/* keepalive timeouts */
 	u_long	tcps_keepprobe;		/* keepalive probes sent */
 	u_long	tcps_keepdrops;		/* connections dropped in keepalive */
