@@ -278,6 +278,8 @@ dumper_t	nodump;
 
 #define NUMCDEVSW 256
 
+#define	MAJOR_AUTO	-1	/* XXX: Not GM */
+
 /*
  * nopsize is little used, so not worth having dummy functions for.
  */

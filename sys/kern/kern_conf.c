@@ -43,6 +43,9 @@
 
 static MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
 
+/* Built at compile time from sys/conf/majors */
+extern unsigned char reserved_majors[256];
+
 /*
  * This is the number of hash-buckets.  Experiements with 'real-life'
  * udev_t's show that a prime halfway between two powers of two works
@@ -281,8 +284,18 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 	va_list ap;
 	int i;
 
-	KASSERT(umajor(makeudev(devsw->d_maj, minor)) == devsw->d_maj,
-	    ("Invalid minor (%d) in make_dev", minor));
+	KASSERT((minor & ~0xffff00ff) == 0,
+	    ("Invalid minor (0x%x) in make_dev", minor));
+
+	if (devsw->d_maj == MAJOR_AUTO) {
+		for (i = NUMCDEVSW - 1; i > 0; i--)
+			if (reserved_majors[i] != i)
+				break;
+		KASSERT(i > 0, ("Out of major numbers (%s)", devsw->d_name));
+		printf("Allocating major#%d to \"%s\"\n", i, devsw->d_name);
+		devsw->d_maj = i;
+		reserved_majors[i] = i;
+	}
 
 	if (!ready_for_devs) {
 		printf("WARNING: Driver mistake: make_dev(%s) called before SI_SUB_DRIVERS\n",
