@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.61 1997/10/10 09:43:56 peter Exp $
+#	$Id: options.i386,v 1.62 1997/10/18 10:59:25 joerg Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -48,6 +48,7 @@ CLK_CALIBRATION_LOOP	  opt_clock.h
 CLK_USE_I8254_CALIBRATION opt_clock.h
 CLK_USE_I586_CALIBRATION  opt_clock.h
 
+NO_F00F_HACK			opt_cpu.h
 CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
 CPU_BLUELIGHTNING_3X		opt_cpu.h
 CPU_BTB_EN			opt_cpu.h
