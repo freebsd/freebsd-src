@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.23 1999/03/10 00:48:03 mjacob Exp $";
+	"$Id: mt.c,v 1.24 1999/03/10 18:42:20 mjacob Exp $";
 #endif /* not lint */
 
 /*
@@ -123,6 +123,10 @@ struct commands {
 	{ "sethpos",    MTIOCHLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "setspos",    MTIOCSLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "errstat",	MTIOCERRSTAT, 0 },
+	{ "setmodel",	MTIOCSETEOTMODEL, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "seteotmodel",	MTIOCSETEOTMODEL, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "getmodel",	MTIOCGETEOTMODEL },
+	{ "geteotmodel",	MTIOCGETEOTMODEL },
 #endif /* defined(__FreeBSD__) */
 	{ NULL }
 };
@@ -286,6 +290,30 @@ main(argc, argv)
 			u_int32_t block = (u_int32_t)mt_com.mt_count;
 			if (ioctl(mtfd, comp->c_code, (caddr_t)&block) < 0)
 				err(2, "%s", tape);
+			exit(0);
+			/* NOTREACHED */
+		}
+		case MTIOCGETEOTMODEL:
+		{
+			u_int32_t om;
+			if (ioctl(mtfd, MTIOCGETEOTMODEL, (caddr_t)&om) < 0)
+				err(2, "%s", tape);
+			(void)printf("%s: the model is %u filemar%s at EOT\n",
+			    tape, om, (om > 1)? "ks" : "k");
+			exit(0);
+			/* NOTREACHED */
+		}
+		case MTIOCSETEOTMODEL:
+		{
+			u_int32_t om, nm = (u_int32_t)mt_com.mt_count;
+			if (ioctl(mtfd, MTIOCGETEOTMODEL, (caddr_t)&om) < 0)
+				err(2, "%s", tape);
+			if (ioctl(mtfd, comp->c_code, (caddr_t)&nm) < 0)
+				err(2, "%s", tape);
+			(void)printf("%s: old model was %u filemar%s at EOT\n",
+			    tape, om, (om > 1)? "ks" : "k");
+			(void)printf("%s: new model  is %u filemar%s at EOT\n",
+			    tape, nm, (nm > 1)? "ks" : "k");
 			exit(0);
 			/* NOTREACHED */
 		}
