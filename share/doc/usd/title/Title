@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)Title	8.2 (Berkeley) 4/19/94
+.\"	$FreeBSD$
 .\"
 .ps 18
 .vs 22
@@ -45,7 +46,7 @@ UNIX User's Supplementary Documents
 4.4 Berkeley Software Distribution
 .sp |5.75i
 .ft R
-.pt 12
+.ps 12
 .vs 16
 .ce
 June, 1993
