@@ -62,7 +62,6 @@ main(int argc, char **argv)
     char *cp;
 
     char *remotepkg = NULL, *ptr;
-    static const char packageroot[MAXPATHLEN] = "ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/";
     static char temppackageroot[MAXPATHLEN];
 
     start = argv;
@@ -130,11 +129,7 @@ main(int argc, char **argv)
 	/* Get all the remaining package names, if any */
 	for (ch = 0; *argv; ch++, argv++) {
     	    if (Remote) {
-		strcpy(temppackageroot, packageroot);
-		if (getenv("PACKAGESITE") == NULL)
-		   strcat(temppackageroot, getpackagesite());
-		else
-	    	   strcpy(temppackageroot, (getenv("PACKAGESITE")));
+		strcpy(temppackageroot, getpackagesite());
 		remotepkg = strcat(temppackageroot, *argv);
 		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
 			ptr[2] == 'g' && ptr[3] == 'z' && !ptr[4]))
@@ -189,15 +184,42 @@ getpackagesite(void)
     static char sitepath[MAXPATHLEN];
     struct utsname u;
 
-    reldate = getosreldate();
+    if (getenv("PACKAGESITE")) {
+	strcpy(sitepath, getenv("PACKAGESITE"));
+	return sitepath;
+    }
+
+    if (getenv("PACKAGEROOT"))
+	strcpy(sitepath, getenv("PACKAGEROOT"));
+    else
+	strcpy(sitepath, "ftp://ftp.FreeBSD.org");
+
+    strcat(sitepath, "/pub/FreeBSD/ports/");
 
     uname(&u);
-    strcpy(sitepath, u.machine);
+    strcat(sitepath, u.machine);
 
+    reldate = getosreldate();
     if (reldate == 410000)
-	strcat(sitepath, "/packages-4.1-release/Latest/");
-    else if (reldate >= 410000)
-	strcat(sitepath, "/packages-4-stable/Latest/");
+	strcat(sitepath, "/packages-4.1-release");
+    else if (reldate == 420000)
+	strcat(sitepath, "/packages-4.2-release");
+    else if (reldate == 430000)
+	strcat(sitepath, "/packages-4.3-release");
+    else if (reldate == 440000)
+	strcat(sitepath, "/packages-4.4-release");
+    else if (reldate == 450000)
+	strcat(sitepath, "/packages-4.5-release");
+    else if (300000 <= reldate && reldate <= 399000)
+	strcat(sitepath, "/packages-3-stable");
+    else if (400000 <= reldate && reldate <= 499000)
+	strcat(sitepath, "/packages-4-stable");
+    else if (510000 <= reldate && reldate <= 599000)	/* get real values!! */
+	strcat(sitepath, "/packages-5-stable");
+    else
+	strcat(sitepath, "/packages-current");
+
+    strcat(sitepath, "/Latest/");
 
     return sitepath;
 
