@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ * $Id$
  */
 
 /*
@@ -73,7 +73,6 @@
 
 static int	lkm_v = 0;
 static int	lkm_state = LKMS_IDLE;
-static char	modname[MAXLKMNAME];
 
 #ifndef MAXLKMS
 #define	MAXLKMS		20
@@ -135,7 +134,8 @@ lkmunreserve()
 	if (curp && curp->area) {
 		kmem_free(kmem_map, curp->area, curp->size);/**/
 		curp->area = 0;
-		curp->private.lkm_any = NULL;
+		if (curp->private.lkm_any != NULL)
+			curp->private.lkm_any = NULL;
 	}
 
 	lkm_state = LKMS_IDLE;
@@ -214,8 +214,7 @@ lkmcioctl(dev, cmd, data, flag)
 		 * Get memory for module
 		 */
 		curp->size = resrvp->size;
-		/* XXX RIXME: Save the module name for sanity checking. */
-		strcpy(modname,resrvp->name);
+
 		curp->area = kmem_alloc(kmem_map, curp->size);/**/
 
 		curp->offset = 0;		/* load offset */
@@ -294,30 +293,7 @@ lkmcioctl(dev, cmd, data, flag)
 #endif	/* DEBUG */
 			return ENXIO;
 		}
-		/*
-		 * Check that this isn't a duplicate module (broken
-		 * modules are too stupid to check this for
-		 * themselves). We must do this *BEFORE* we call
-		 * the entry point of the module, since we might not
-		 * be able to unload the module aftwewards without
-		 * panicking the system. This defeats the purpose of
-		 * the lkmexists() checking that takes place for
-		 * properly designed modules, but I can't find a better
-		 * way to do it, so...
-		 * XXX FIXME: Name matching can easily be defeated if
-		 * the user renames the module. :(
-		 */
-		for (i = 0; i < MAXLKMS; i++) {
-			if (!lkmods[i].used || &lkmods[i] == curp)
-				continue;
-			if (!strcmp(modname,
-			lkmods[i].private.lkm_any->lkm_name)) {
-				lkm_state = LKMS_UNLOADING;
-				lkmunreserve();
-				curp->used = 0;
-				return EBUSY;
-			}
-		}
+
 		curp->entry = (int (*)()) (*((int *) (data)));
 
 		/* call entry(load)... (assigns "private" portion) */
@@ -333,34 +309,26 @@ lkmcioctl(dev, cmd, data, flag)
 			break;
 		}
 		/*
-		 * XXX FIXME: Somebody has apparently decided that we can
-		 * load modules that don't play by the rules, which means
-		 * they have no proper startup and shutdown routines,
-		 * and consequently they have no 'private' sections.
-		 * This is bad ju-ju: no private section means no lkm_name,
-		 * and no lkm_name means modstat will panic us. To
-		 * protect ourselves, we have to dummy up an lkm_any
-		 * structure by ourselves.
+		 * It's possible for a user to load a module that doesn't
+		 * initialize itself correctly. (You can even get away with
+		 * using it for a while.) Unfortunately, we are faced with
+		 * the following problems:
+		 * - we can't tell a good module from a bad one until
+		 *   after we've run its entry function (if the private
+		 *   section is uninitalized after we return from the
+		 *   entry, then something's fishy)
+		 * - now that we've called the entry function, we can't
+		 *   forcibly unload the module without risking a crash
+		 * - since we don't know what the module's entry function
+		 *   did, we can't easily clean up the mess it may have
+		 *   made, so we can't know just how unstable the system
+		 *   may be
+		 * So, being stuck between a rock and a hard place, we
+		 * have no choice but to do this...
 		 */
-		if (curp->private.lkm_any == NULL) {
-#ifdef DEBUG
-			/* chastise the module programmer for being a dolt */
-			printf("warning: module #%d has no 'private' data!\n",
-								     curp->id);
-#endif
-			/* We lose some memory here, but we can't unload
-			   this module anyway, so what the hell. */
-			curp->private.lkm_any = malloc(sizeof(struct lkm_any),
-							M_IOCTLOPS, M_WAITOK);
-			/* This is all thoroughly bogus,
-			   but it's better than a panic. */
-			curp->private.lkm_any->lkm_offset = 0;
-			curp->private.lkm_any->lkm_ver = LKM_VERSION;
-			curp->private.lkm_any->lkm_type = LM_UNKNOWN;
-			curp->private.lkm_any->lkm_name = malloc(MAXLKMNAME,
-							M_IOCTLOPS, M_WAITOK);
-			strcpy(curp->private.lkm_any->lkm_name, modname);
-		}
+		if (curp->private.lkm_any == NULL)
+			panic("loadable module initialization failed");
+
 		curp->used = 1;
 #ifdef DEBUG
 		printf("LKM: LMREADY\n");
@@ -409,24 +377,11 @@ lkmcioctl(dev, cmd, data, flag)
 			err = ENOENT;
 			break;
 		}
-		/*
-		 * XXX FIXME: Remember those modules without the 'private'
-		 * sections? Don't even *think* about unloading them.
-		 */
-		if (curp->private.lkm_any->lkm_type == LM_UNKNOWN) {
-#ifdef DEBUG
-			/* abuse the module programmer again. */
-			printf ("warning: module #%d can't be unloaded!\n",
-								curp->id);
-#endif
+
+		/* call entry(unload) */
+		if ((*(curp->entry))(curp, LKM_E_UNLOAD, LKM_VERSION)) {
 			err = EBUSY;
 			break;
-		} else {
-		/* call entry(unload) */
-			if ((*(curp->entry))(curp, LKM_E_UNLOAD, LKM_VERSION)) {
-				err = EBUSY;
-				break;
-			}
 		}
 
 		lkm_state = LKMS_UNLOADING;	/* non-idle for lkmunreserve */
