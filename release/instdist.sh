@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.8 1994/11/18 12:54:40 jkh Exp $
+# $Id: instdist.sh,v 1.9 1994/11/18 13:56:57 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -102,8 +102,8 @@ in order to more evenly distribute network load and increase \n\
 its availability users who might be far from the main ftp sites \n\
 or unable to get a connection.  Please select the site closest \n\
 to you or select \"other\" if you'd like to specify your own \n\
-choice.  Also note that not all sites carry the optional package
-or XFree86 3.1 distributions!  These are only guaranteed to be
+choice.  Also note that not all sites carry the optional package \n\
+or XFree86 3.1 distributions!  These are only guaranteed to be \n\
 available from the primary U.S. ftp site.\n\n" -1 -1 8 \
    "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" "Primary U.S. ftp site" \
    "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" "United States" \
@@ -202,7 +202,7 @@ media_install_set()
 	ftp)
 		if ! media_set_tmpdir; then return; fi
 		if ! media_cd_tmpdir; then return; fi
-		if ! echo $media_device | grep -v 'ftp://'; then
+		if ! echo $media_device | grep -q -v 'ftp://'; then
 			message "Fetching distribution using ncftp.  Use ALT-F2 to see output, ALT-F1 to return."
 			if ! ncftp $media_device/${media_distribution}/* < /dev/null > /dev/ttyv1 2>&1; then
 				error "Couldn't fetch ${media_distribution} distribution from ${media_device}!"
@@ -229,13 +229,12 @@ media_select_distribution()
 	dialog $clear --title "Please specify a distribution to load" \
 	--menu \
 "FreeBSD is separated into a number of distributions for ease \n\
-of installation.  Depending on how much hard disk space you have \n\
-available, you may chose to load one or all of them.  Optional \n\
-and mandatory distributions are so noted.  Please also note that \n\
-the secrdist is NOT FOR EXPORT from the U.S., so please don't \n\
-endanger U.S. ftp sites by getting it illegally.  Thank you!\n\n\
- Please select one of the following ${DISTNAME} distributions:" -1 -1 10 \
-  "?diskfree"  "Uh, first, how much disk space do I have free?" \
+of installation.  Through repeated passes through this screen,\n\
+you'll be given the chance to load one or all of them.  Mandatory \n\
+distributions MUST be loaded!  Please also note that the secrdist\n\
+is NOT FOR EXPORT from the U.S.  Please don't endanger U.S. ftp\n\
+sites by getting it illegally, thanks!  When finished, select Cancel\n\n" -1 -1 10 \
+  "?diskfree"  "How much disk space do I have free?" \
   "bindist" "Binary base files (mandatory - $BINSIZE)" \
   "games" "Games and other frivolities (optional - $GAMESIZE)" \
   "manpages" "Manual pages (optional - $MANSIZE)" \
@@ -378,7 +377,7 @@ floppy media.  For a hard disk, this might be something like
 For the "A" floppy drive, it's /dev/fd0, for the "B" floppy
 drive it's /dev/fd1\n\n"; then
 			media_device=$answer
-			if echo $media_device | grep -v 'fd://'; then
+			if echo $media_device | grep -q -v 'fd://'; then
 				if ! mount_msdos $media_device ${MNT} > /dev/ttyv1 2>&1; then
 					error "Unable to mount $media_device"
 					media_device=""
