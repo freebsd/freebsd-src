@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2004
+.Dd August 19, 2004
 .Dt IXGB 4
 .Os
 .Sh NAME
@@ -64,6 +64,17 @@ The maximum MTU size for Jumbo Frames is 16114.
 This driver version supports VLANs.
 For information on enabling VLANs, see the
 .Pa README .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
+.Pp
+.Bl -bullet -compact
+.It
+Intel PRO/10GbE LR Server Adapter
+.It
+Intel PRO/10GbE SR Server Adapter
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ixgb%d: Unable to allocate bus resource: memory"
