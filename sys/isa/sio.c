@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.77 1995/03/28 19:22:11 ache Exp $
+ *	$Id: sio.c,v 1.78 1995/03/29 19:05:13 ache Exp $
  */
 
 #include "sio.h"
@@ -1098,16 +1098,13 @@ siointr1(com)
 				recv_data = 0;
 			else
 				recv_data = inb(com->data_port);
-			if (line_status & (LSR_PE|LSR_OE|LSR_FE|LSR_BI)) {
-				if (line_status & LSR_OE)
-					CE_RECORD(com, CE_OVERRUN);
+			if (line_status & (LSR_PE|LSR_FE|LSR_BI)) {
 				/*
 				  Don't store PE if IGNPAR and BI if IGNBRK,
 				  this hack allows "raw" tty optimization
 				  works even if IGN* is set.
-				  Assume TTY_OE mapped to TTY_PE
 				*/
-				if (   (line_status & (LSR_PE|LSR_OE|LSR_FE))
+				if (   (line_status & (LSR_PE|LSR_FE))
 				    &&  (com->tp->t_iflag & IGNPAR)
 				    || (line_status & LSR_BI)
 				    &&  (com->tp->t_iflag & IGNBRK))
@@ -1141,6 +1138,8 @@ if (com->iptr - com->ibuf == 8)
 				    && com->state & CS_RTS_IFLOW)
 					outb(com->modem_ctl_port,
 					     com->mcr_image &= ~MCR_RTS);
+				if (line_status & LSR_OE)
+					CE_RECORD(com, CE_OVERRUN);
 			}
 		cont:
 			/*
@@ -1570,8 +1569,7 @@ repeat:
 			/* Zero PE & FE chars per POSIX spec. and 4.4 ttyinput() */
 			while (cnt--) {
 				if (   (scan[CE_INPUT_OFFSET] & LSR_FE)
-				       /* Assume TTY_OE mapped to TTY_PE */
-				    || (scan[CE_INPUT_OFFSET] & (LSR_PE|LSR_OE))
+				    || (scan[CE_INPUT_OFFSET] & LSR_PE)
 				    && (tp->t_iflag & INPCK))
 					scan[0] = 0;
 				scan++;
@@ -1599,10 +1597,8 @@ repeat:
 				recv_data = (u_char) *buf++;
 				if (line_status
 				    & (LSR_BI | LSR_FE | LSR_OE | LSR_PE)) {
-					/* char must be 0 to detect */
-					/* break in ttyinput()      */
 					if (line_status & LSR_BI)
-						recv_data = TTY_BI;
+						recv_data |= TTY_BI;
 					if (line_status & LSR_FE)
 						recv_data |= TTY_FE;
 					if (line_status & LSR_OE)
