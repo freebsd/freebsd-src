@@ -1,123 +1,101 @@
-#	$Id: bsd.man.mk,v 1.12 1996/05/25 23:09:48 wosch Exp $
-#
-# The include file <bsd.man.mk> handles installing manual pages and 
-# their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
-# if it exists.
-#
-#
-# +++ variables +++
-#
-# DESTDIR	Change the tree where the man pages gets installed. [not set]
-#
-# MANDIR	Base path for manual installation. [${SHAREDIR}/man/man]
-#
-# MANOWN	Manual owner. [${SHAREOWN}]
-#
-# MANGRP	Manual group. [${SHAREGRP}]
-#
-# MANMODE	Manual mode. [${NOBINMODE}]
-#
-# MANSUBDIR	Subdirectory under the manual page section, i.e. "/i386"
-#		or "/tahoe" for machine specific manual pages.
-#
-# MAN${sect}	The manual pages to be installed. For sections see
-#		variable ${SECTIONS}
-#
-# _MANPAGES	List of all man pages to be installed.
-#		(``_MANPAGES=$MAN1 $MAN2 ... $MANn'')
-#
-# MCOMPRESS	Program to compress man pages. Output is to
-#		stdout. [gzip -c]
-#
-# MLINKS	List of manual page links (using a suffix). The
-#		linked-to file must come first, the linked file 
-#		second, and there may be multiple pairs. The files 
-#		are hard-linked.
-#
-# NOMANCOMPRESS	If you do not want unformatted manual pages to be 
-#		compressed when they are installed. [not set]
-#
-#
-# +++ targets +++
-#
-#	maninstall:
-#		Install the manual pages and their links.
-#
-
+#	from: @(#)bsd.man.mk	5.2 (Berkeley) 5/11/90
+#	$Id: bsd.man.mk,v 1.4 1994/12/28 03:50:51 ache Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 
+MANGRP?=	bin
+MANOWN?=	bin
+MANMODE?=	444
+
+MANDIR?=	/usr/share/man/man
 MANSRC?=	${.CURDIR}
-MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
+MINSTALL=	${INSTALL}  ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
-MCOMPRESS=	gzip -c
+MCOMPRESS=	gzip -f
+BASENAME=	basename
 ZEXTENSION=	.gz
-
-SECTIONS=	1 2 3 3f 4 5 6 7 8 9
-
-.undef _MANPAGES
-.for sect in ${SECTIONS}
-.if defined(MAN${sect}) && !empty(MAN${sect})
-.SUFFIXES: .${sect}
-.PATH.${sect}: ${MANSRC}
-_MANPAGES+= ${MAN${sect}}
-.endif
-.endfor
-
-all-man: ${MANDEPEND}
-
-.if defined(NOMANCOMPRESS)
-
-COPY=		-c
-ZEXT=
-
-.else
-
+.if !defined(NOMANCOMPRESS)
 ZEXT=		${ZEXTENSION}
-
-.for sect in ${SECTIONS}
-.if defined(MAN${sect}) && !empty(MAN${sect})
-CLEANFILES+=	${MAN${sect}:T:S/$/${ZEXTENSION}/g}
-.for page in ${MAN${sect}}
-.for target in ${page:T:S/$/${ZEXTENSION}/}
-all-man: ${target}
-${target}: ${page}
-	${MCOMPRESS} ${.ALLSRC} > ${.TARGET}
-.endfor
-.endfor
-.endif
-.endfor
-
-.endif
-
-maninstall::
-.for sect in ${SECTIONS}
-.if defined(MAN${sect}) && !empty(MAN${sect})
-maninstall:: ${MAN${sect}}
-.if defined(NOMANCOMPRESS)
-	${MINSTALL} ${.ALLSRC} ${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
 .else
-	${MINSTALL} ${.ALLSRC:T:S/$/${ZEXTENSION}/g} \
-		${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
+ZEXT=
+.endif
+
+MANALL=		${MAN1} ${MAN2} ${MAN3} ${MAN3F} ${MAN4} ${MAN5}	\
+		${MAN6} ${MAN7} ${MAN8}
+
+maninstall: ${MANDEPEND}
+.if defined(MAN1) && !empty(MAN1)
+	(cd ${MANSRC}; ${MINSTALL} ${MAN1} ${DESTDIR}${MANDIR}1${MANSUBDIR})
+.endif
+.if defined(MAN2) && !empty(MAN2)
+	(cd ${MANSRC}; ${MINSTALL} ${MAN2} ${DESTDIR}${MANDIR}2${MANSUBDIR})
+.endif
+.if defined(MAN3) && !empty(MAN3)
+	(cd ${MANSRC}; ${MINSTALL} ${MAN3} ${DESTDIR}${MANDIR}3${MANSUBDIR})
+.endif
+.if defined(MAN3F) && !empty(MAN3F)
+	(cd ${MANSRC}; ${MINSTALL} ${MAN3F} ${DESTDIR}${MANDIR}3f${MANSUBDIR})
+.endif
+.if defined(MAN4) && !empty(MAN4)
+	(cd ${MANSRC}; ${MINSTALL} ${MAN4} ${DESTDIR}${MANDIR}4${MANSUBDIR})
+.endif
+.if defined(MAN5) && !empty(MAN5)
+	(cd ${MANSRC}; ${MINSTALL} ${MAN5} ${DESTDIR}${MANDIR}5${MANSUBDIR})
+.endif
+.if defined(MAN6) && !empty(MAN6)
+	(cd ${MANSRC}; ${MINSTALL} ${MAN6} ${DESTDIR}${MANDIR}6${MANSUBDIR})
+.endif
+.if defined(MAN7) && !empty(MAN7)
+	(cd ${MANSRC}; ${MINSTALL} ${MAN7} ${DESTDIR}${MANDIR}7${MANSUBDIR})
+.endif
+.if defined(MAN8) && !empty(MAN8)
+	(cd ${MANSRC}; ${MINSTALL} ${MAN8} ${DESTDIR}${MANDIR}8${MANSUBDIR})
+.endif
+
+# by default all pages are compressed
+# we don't handle .so's yet
+.if !empty(MANALL:S/ //g)
+.if !defined(NOMANCOMPRESS) 
+	@set ${MANALL} ;						\
+	while test $$# -ge 1; do					\
+		name=`${BASENAME} $$1`;					\
+		sect=`expr $$name : '.*\.\([^.]*\)'`;			\
+		${ECHO} "compressing in"				\
+			"${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}:"	\
+			"$$name -> $${name}${ZEXT}";			\
+		${MCOMPRESS} ${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name ; \
+		shift ;							\
+	done ; true
+.else
+# we are installing uncompressed pages, so nuke any compressed pages
+	@set ${MANALL} ;						\
+	while test $$# -ge 1; do					\
+		name=`${BASENAME} $$1`;					\
+		sect=`expr $$name : '.*\.\([^.]*\)'`;			\
+		rm -f ${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name${ZEXTENSION};\
+		shift ;							\
+	done ; true
 .endif
 .endif
-.endfor
 
 .if defined(MLINKS) && !empty(MLINKS)
-	@set `echo ${MLINKS} " " | sed 's/\.\([^.]*\) /.\1 \1 /g'`; \
-	while : ; do \
-		case $$# in \
-			0) break;; \
-			[123]) echo "warn: empty MLINK: $$1 $$2 $$3"; break;; \
-		esac; \
-		name=$$1; shift; sect=$$1; shift; \
-		l=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
-		name=$$1; shift; sect=$$1; shift; \
-		t=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
+	@set ${MLINKS}; \
+	while test $$# -ge 2; do \
+		name=$$1; \
+		shift; \
+		sect=`expr $$name : '.*\.\([^.]*\)'`; \
+		dir=${DESTDIR}${MANDIR}$$sect; \
+		l=$${dir}${MANSUBDIR}/$$name; \
+		name=$$1; \
+		shift; \
+		sect=`expr $$name : '.*\.\([^.]*\)'`; \
+		dir=${DESTDIR}${MANDIR}$$sect; \
+		t=$${dir}${MANSUBDIR}/$$name; \
 		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
-		rm -f $${t} $${t}${ZEXTENSION}; \
+		rm -f $${t}${ZEXTENSION}; \
+		rm -f $${t}; \
 		ln $${l}${ZEXT} $${t}${ZEXT}; \
-	done
+	done; true
 .endif

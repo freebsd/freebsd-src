@@ -67,20 +67,21 @@ static char rcsid[] = "$Id: gethostbyht.c,v 1.2 1995/05/30 05:40:44 rgrimes Exp 
 #include <string.h>
 
 #define	MAXALIASES	35
+#define	MAXADDRS	35
 
 static struct hostent host;
 static char *host_aliases[MAXALIASES];
 static char hostbuf[BUFSIZ+1];
 static FILE *hostf = NULL;
-static struct in_addr host_addr;
-static char *h_addr_ptrs[2];
+static char hostaddr[MAXADDRS];
+static char *host_addrs[2];
 static int stayopen = 0;
 
 void
 _sethosthtent(f)
 	int f;
 {
-	if (!hostf)
+	if (hostf == NULL)
 		hostf = fopen(_PATH_HOSTS, "r" );
 	else
 		rewind(hostf);
@@ -102,40 +103,33 @@ gethostent()
 	char *p;
 	register char *cp, **q;
 
-	if (!hostf && !(hostf = fopen(_PATH_HOSTS, "r" ))) {
-		h_errno = NETDB_INTERNAL;
+	if (hostf == NULL && (hostf = fopen(_PATH_HOSTS, "r" )) == NULL)
 		return (NULL);
-	}
 again:
-	if (!(p = fgets(hostbuf, sizeof hostbuf, hostf))) {
-		h_errno = HOST_NOT_FOUND;
+	if ((p = fgets(hostbuf, BUFSIZ, hostf)) == NULL)
 		return (NULL);
-	}
 	if (*p == '#')
 		goto again;
-	if (!(cp = strpbrk(p, "#\n")))
+	cp = strpbrk(p, "#\n");
+	if (cp == NULL)
 		goto again;
 	*cp = '\0';
-	if (!(cp = strpbrk(p, " \t")))
+	cp = strpbrk(p, " \t");
+	if (cp == NULL)
 		goto again;
 	*cp++ = '\0';
 	/* THIS STUFF IS INTERNET SPECIFIC */
-	if (!inet_aton(p, &host_addr))
-		goto again;
-	h_addr_ptrs[0] = (char *)&host_addr;
-	h_addr_ptrs[1] = NULL;
-#if BSD >= 43 || defined(h_addr)	/* new-style hostent structure */
-	host.h_addr_list = h_addr_ptrs;
-#else
-	host.h_addr = h_addr_ptrs[0];
-#endif
-	host.h_length = sizeof(u_int32_t);
+	host.h_addr_list = host_addrs;
+	host.h_addr = hostaddr;
+	*((u_int32_t *)host.h_addr) = inet_addr(p);
+	host.h_length = sizeof (u_int32_t);
 	host.h_addrtype = AF_INET;
 	while (*cp == ' ' || *cp == '\t')
 		cp++;
 	host.h_name = cp;
 	q = host.h_aliases = host_aliases;
-	if (cp = strpbrk(cp, " \t"))
+	cp = strpbrk(cp, " \t");
+	if (cp != NULL)
 		*cp++ = '\0';
 	while (cp && *cp) {
 		if (*cp == ' ' || *cp == '\t') {
@@ -144,11 +138,11 @@ again:
 		}
 		if (q < &host_aliases[MAXALIASES - 1])
 			*q++ = cp;
-		if (cp = strpbrk(cp, " \t"))
+		cp = strpbrk(cp, " \t");
+		if (cp != NULL)
 			*cp++ = '\0';
 	}
 	*q = NULL;
-	h_errno = NETDB_SUCCESS;
 	return (&host);
 }
 
@@ -158,9 +152,9 @@ _gethostbyhtname(name)
 {
 	register struct hostent *p;
 	register char **cp;
-	
+
 	sethostent(0);
-	while (p = gethostent()) {
+	while ((p = gethostent())) {
 		if (strcasecmp(p->h_name, name) == 0)
 			break;
 		for (cp = p->h_aliases; *cp != 0; cp++)
@@ -180,10 +174,9 @@ _gethostbyhtaddr(addr, len, type)
 	register struct hostent *p;
 
 	sethostent(0);
-	while (p = gethostent())
+	while ((p = gethostent()))
 		if (p->h_addrtype == type && !bcmp(p->h_addr, addr, len))
 			break;
 	endhostent();
 	return (p);
 }
-

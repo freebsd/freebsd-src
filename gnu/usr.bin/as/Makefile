@@ -27,6 +27,8 @@ SRCS+=		app.c as.c atof-generic.c bignum-copy.c \
 CFLAGS+=	-I$(.CURDIR) ${ADDINCLUDE} -I$(.CURDIR)/config \
 		-DOLD_GAS -DSIGTY=void -Derror=as_fatal \
 		-DSUB_SEGMENT_ALIGN=4 -DFREEBSD_AOUT
+DPADD+=		${LIBGNUMALLOC}
+LDADD+=		-lgnumalloc
 
 CONF_HEADERS=	targ-cpu.h obj-format.h host.h targ-env.h
 

@@ -11,16 +11,19 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Absolutely no warranty of function or purpose is made by the author
+ * 3. This work was done expressly for inclusion into FreeBSD.  Other use
+ *    is permitted provided this notation is included.
+ * 4. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
+ * 5. Modifications may be freely made to this file providing the above
+ *    conditions are met.
  *
- * $Id: setproctitle.c,v 1.2 1996/02/24 14:37:29 peter Exp $
+ * $Id: setproctitle.c,v 1.1 1995/12/26 22:50:08 peter Exp $
  */
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/exec.h>
-#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -68,12 +71,10 @@ setproctitle(fmt, va_alist)
 #endif
 {
 	char *p;
+	int len;
 	static char buf[SPT_BUFSIZE];
 	static char *ps_argv[2];
 	va_list ap;
-	int mib[2];
-	struct ps_strings *ps_strings;
-	size_t len;
 
 #if defined(__STDC__)
 	va_start(ap, fmt);
@@ -103,21 +104,13 @@ setproctitle(fmt, va_alist)
 
 	va_end(ap);
 
-	ps_strings = NULL;
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_PS_STRINGS;
-	len = sizeof(ps_strings);
-	if (sysctl(mib, 2, &ps_strings, &len, NULL, 0) < 0 ||
-	    ps_strings == NULL)
-		ps_strings = PS_STRINGS;
-
 	/* PS_STRINGS points to zeroed memory on a style #2 kernel */
-	if (ps_strings->ps_argvstr) {
+	if (PS_STRINGS->ps_argvstr) {
 		/* style #3 */
 		ps_argv[0] = buf;
 		ps_argv[1] = NULL;
-		ps_strings->ps_nargvstr = 1;
-		ps_strings->ps_argvstr = ps_argv;
+		PS_STRINGS->ps_nargvstr = 1;
+		PS_STRINGS->ps_argvstr = ps_argv;
 	} else {
 		/* style #2 */
 		OLD_PS_STRINGS->old_ps_nargvstr = 1;

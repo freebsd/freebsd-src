@@ -1,9 +1,5 @@
 #	$Id: Makefile,v 1.11.4.4 1996/05/28 22:51:06 jkh Exp $
 
-#	$Id$
-
-#	$Id$
-
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
 	create_chunk.c rules.c write_disk.c data.c

@@ -166,7 +166,7 @@ static int visible_first_line_len = 0;
 	\002 (^B) end non-visible characters
    all characters except \001 and \002 (following a \001) are copied to
    the returned string; all characters except those between \001 and
-   \002 are assumed to be `visible'. */	
+   \002 are assumed to be `visible'. */
 
 static char *
 expand_prompt (pmt, lp)
@@ -187,7 +187,7 @@ expand_prompt (pmt, lp)
 
   l = pmt ? strlen (pmt) : 0;
   r = ret = xmalloc (l + 1);
-  
+
   for (rl = ignoring = 0, p = pmt; p && *p; p++)
     {
       /* This code strips the invisible character string markers
@@ -377,7 +377,7 @@ rl_redisplay ()
 	      out += 4;
 	    }
 	  else
-	    line[out++] = c;	  
+	    line[out++] = c;
 	}
 #if defined (DISPLAY_TABS)
       else if (c == '\t')
@@ -693,7 +693,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
       if (old[0] && new[0])
         old[0] = new[0];
     }
-      
+
   /* Find first difference. */
   for (ofd = old, nfd = new;
        (ofd - old < omax) && *ofd && (*ofd == *nfd);

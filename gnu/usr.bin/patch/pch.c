@@ -1,4 +1,4 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.5.4.2 1996/04/11 10:33:45 markm Exp $
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/pch.c,v 1.5.4.2 1996/04/11 10:33:45 markm Exp $
  *
  * $Log: pch.c,v $
  * Revision 1.5.4.2  1996/04/11  10:33:45  markm
@@ -373,6 +373,8 @@ intuit_diff_type()
 	    else
 		filearg[0] = savestr(newname);
 	}
+	else if (indname)
+	    filearg[0] = savestr(indname);
 	else if (oldname)
 	    filearg[0] = savestr(oldname);
 	else if (newname)

@@ -39,43 +39,7 @@ static char sccsid[] = "@(#)getenv.c	8.1 (Berkeley) 6/4/93";
 #include <stddef.h>
 #include <string.h>
 
-inline char *__findenv __P((const char *, int *));
-
-/*
- * __findenv --
- *	Returns pointer to value associated with name, if any, else NULL.
- *	Sets offset to be the offset of the name/value combination in the
- *	environmental array, for use by setenv(3) and unsetenv(3).
- *	Explicitly removes '=' in argument name.
- *
- *	This routine *should* be a static; don't use it.
- */
-inline char *
-__findenv(name, offset)
-	register const char *name;
-	int *offset;
-{
-	extern char **environ;
-	register int len, i;
-	register const char *np;
-	register char **p, *cp;
-
-	if (name == NULL || environ == NULL)
-		return (NULL);
-	for (np = name; *np && *np != '='; ++np)
-		continue;
-	len = np - name;
-	for (p = environ; (cp = *p) != NULL; ++p) {
-		for (np = name, i = len; i && *cp; i--)
-			if (*cp++ != *np++)
-				break;
-		if (i == 0 && *cp++ == '=') {
-			*offset = p - environ;
-			return (cp);
-		}
-	}
-	return (NULL);
-}
+char *__findenv __P((const char *, int *));
 
 /*
  * getenv --
@@ -88,4 +52,36 @@ getenv(name)
 	int offset;
 
 	return (__findenv(name, &offset));
+}
+
+/*
+ * __findenv --
+ *	Returns pointer to value associated with name, if any, else NULL.
+ *	Sets offset to be the offset of the name/value combination in the
+ *	environmental array, for use by setenv(3) and unsetenv(3).
+ *	Explicitly removes '=' in argument name.
+ *
+ *	This routine *should* be a static; don't use it.
+ */
+char *
+__findenv(name, offset)
+	register const char *name;
+	int *offset;
+{
+	extern char **environ;
+	register int len;
+	register const char *np;
+	register char **p, *c;
+
+	if (name == NULL || environ == NULL)
+		return (NULL);
+	for (np = name; *np && *np != '='; ++np)
+		continue;
+	len = np - name;
+	for (p = environ; (c = *p) != NULL; ++p)
+		if (strncmp(c, name, len) == 0 && c[len] == '=') {
+			*offset = p - environ;
+			return (c + len + 1);
+		}
+	return (NULL);
 }

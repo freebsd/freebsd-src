@@ -49,7 +49,6 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/2/93";
 /*      Re-coding of advent in C: main program                          */
 
 #include <sys/file.h>
-#include <signal.h>
 #include <stdio.h>
 #include "hdr.h"
 

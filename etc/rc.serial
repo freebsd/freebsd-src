@@ -1,7 +1,4 @@
-#!/bin/sh
-# $Id$
-
-# Change some defaults for serial devices.
+# Change some defauls for serial devices.
 # Standard defaults are:
 #	dtrwait 300 drainwait 0
 #	initial cflag from <sys/ttydefaults.h> = cread cs8 hupcl
@@ -14,73 +11,57 @@
 
 default() {
 	# Reset everything changed by the other functions to initial defaults.
-
-	ci=$1; shift	# call in device identifier
-	co=$1; shift	# call out device identifier
-
 	for i in $*
 	do
-		comcontrol /dev/tty$ci$i dtrwait 300 drainwait 0
-		stty </dev/ttyi$ci$i -clocal  crtscts  hupcl 9600 reprint ^R
-		stty </dev/ttyl$ci$i -clocal -crtscts -hupcl 0
-		stty </dev/cuai$co$i -clocal  crtscts  hupcl 9600 reprint ^R
-		stty </dev/cual$co$i -clocal -crtscts -hupcl 0
+		comcontrol /dev/ttyd$i dtrwait 300 drainwait 0
+		stty </dev/ttyid$i -clocal  crtscts  hupcl 9600 reprint ^R
+		stty </dev/ttyld$i -clocal -crtscts -hupcl 0
+		stty </dev/cuaia$i -clocal  crtscts  hupcl 9600 reprint ^R
+		stty </dev/cuala$i -clocal -crtscts -hupcl 0
 	done
 }
 
 maybe() {
 	# Special settings.
-
-	ci=$1; shift
-	co=$1; shift
-
 	for i in $*
 	do
 		# Don't use ^R; it breaks bash's ^R when typed ahead.
-		stty </dev/ttyi$ci$i reprint undef
-		stty </dev/cuai$co$i reprint undef
+		stty </dev/ttyid$i reprint undef
+		stty </dev/cuaia$i reprint undef
 		# Lock clocal off on dialin device for security.
-		stty </dev/ttyl$ci$i clocal
+		stty </dev/ttyld$i clocal
 		# Lock the speeds to use old binaries that don't support them.
 		# Any legal speed works to lock the initial speed.
-		stty </dev/ttyl$ci$i 300
-		stty </dev/cual$co$i 300
+		stty </dev/ttyld$i 300
+		stty </dev/cuala$i 300
 	done
 }
 
 modem() {
 	# Modem that supports CTS and perhaps RTS handshaking.
-
-	ci=$1; shift
-	co=$1; shift
-
 	for i in $*
 	do
 		# may depend on modem
-		comcontrol /dev/tty$ci$i dtrwait 100 drainwait 180
+		comcontrol /dev/ttyd$i dtrwait 100 drainwait 180
 		# Lock crtscts on.
 		# Speed reasonable for V42bis.
-		stty </dev/ttyi$ci$i crtscts 57600
-		stty </dev/ttyl$ci$i crtscts
-		stty </dev/cuai$co$i crtscts 57600
-		stty </dev/cual$co$i crtscts
+		stty </dev/ttyid$i crtscts 57600
+		stty </dev/ttyld$i crtscts
+		stty </dev/cuaia$i crtscts 57600
+		stty </dev/cuala$i crtscts
 	done
 }
 
 mouse() {
 	# Mouse on either callin or callout port.
-
-	ci=$1; shift
-	co=$1; shift
-
 	for i in $*
 	do
 		# Lock clocal on, hupcl off.
 		# Standard speed for Microsoft mouse.
-		stty </dev/ttyi$ci$i clocal -hupcl 1200
-		stty </dev/ttyl$ci$i clocal  hupcl
-		stty </dev/cuai$co$i clocal -hupcl 1200
-		stty </dev/cual$co$i clocal  hupcl
+		stty </dev/ttyid$i clocal -hupcl 1200
+		stty </dev/ttyld$i clocal  hupcl
+		stty </dev/cuaia$i clocal -hupcl 1200
+		stty </dev/cuala$i clocal  hupcl
 	done
 }
 
@@ -91,37 +72,21 @@ terminal() {
 	# Also works for bidirectional communications to another pc
 	# provided at most one side runs getty.
 	# Same as modem() except we want a faster speed and no dtrwait.
-
-	ci=$1; shift
-	co=$1; shift
-
-	modem $ci $co $*
+	modem $*
 	for i in $*
 	do
-		comcontrol /dev/tty$ci$i dtrwait 0
-		stty </dev/ttyi$ci$i 115200
-		stty </dev/cuai$co$i 115200
+		comcontrol /dev/ttyd$i dtrwait 0
+		stty </dev/ttyid$i 115200
+		stty </dev/cuaia$i 115200
 	done
 }
 
 # Don't use anything from this file unless you have some buggy programs
 # that require it.
-
+#
 # Edit the functions and the examples to suit your system.
-# $1 is the call in device identifier, $2 is the call out device identifier
-# and the remainder of the line lists the device numbers.
-
-# Initialize assorted 8250-16550 (sio) ports.
-# maybe    d a  0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v
-# mouse    d a      2
-# modem    d a    1
-# terminal d a  0
-
-# Initialize all ports on a Cyclades-8yo.
-# modem    c c  0 1 2 3 4 5 6 7
-
-# Initialize all ports on a Cyclades-16ye.
-# modem    c c  0 1 2 3 4 5 6 7 8 9 a b c d e f 
-
-# Initialize all ports on a Digiboard 8.
-# modem    D D  0 1 2 3 4 5 6 7
+#
+# maybe		0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v
+# mouse		    2
+# modem		  1
+# terminal	0

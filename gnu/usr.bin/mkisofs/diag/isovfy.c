@@ -112,7 +112,7 @@ isonum_732 (char * p)
 }
 
 int
-isonum_733 (unsigned char * p)
+isonum_733 (char * p)
 {
 	return (isonum_731 (p));
 }
@@ -312,14 +312,14 @@ check_tree(int file_addr, int file_size, int parent_addr){
 		  else if(idr->name_len[0] == 1 && idr->name[0] == 0) {
 			  iline += sprintf(&lbuffer[iline],".             ");
 			  rflag = 0;
-			  if(orig_file_addr !=isonum_733(idr->extent))
+			  if(orig_file_addr !=*((unsigned int *) idr->extent))
 				  iline += sprintf(&lbuffer[iline],"***** Directory has null extent.", goof++);
 			  if(i1)
 				  iline += sprintf(&lbuffer[iline],"***** . not  first entry.", rr_goof++);
 		  } else if(idr->name_len[0] == 1 && idr->name[0] == 1) {
 			  iline += sprintf(&lbuffer[iline],"..            ");
 			  rflag = 0;
-			  if(parent_file_addr !=isonum_733(idr->extent))
+			  if(parent_file_addr !=*((unsigned int *) idr->extent))
 				  iline += sprintf(&lbuffer[iline],"***** Directory has null extent.", goof++);
 			  if(i1 != 1)
 				  iline += sprintf(&lbuffer[iline],"***** .. not second entry.", rr_goof++);
@@ -332,10 +332,7 @@ check_tree(int file_addr, int file_size, int parent_addr){
 		  };
 
 		  if(size && extent == 0) iline += sprintf(&lbuffer[iline],"****Extent==0, size != 0", goof++);
-#if 0
-		  /* This is apparently legal. */
 		  if(size == 0 && extent) iline += sprintf(&lbuffer[iline],"****Extent!=0, size == 0", goof++);
-#endif
 
 		  if(idr->flags[0] & 0xfd)
 			  iline += sprintf(&lbuffer[iline],"Flags=(%x) ", idr->flags[0], goof++);
@@ -364,8 +361,8 @@ check_tree(int file_addr, int file_size, int parent_addr){
 
 
 
-		  if(rflag && (idr->flags[0] & 2)) check_tree((isonum_733(idr->extent)) << 11,
-						   isonum_733(idr->size),
+		  if(rflag && (idr->flags[0] & 2)) check_tree((*((unsigned int *) idr->extent)) << 11,
+						   *((unsigned int *) idr->size),
 						   orig_file_addr << 11);
 		  i += buffer[i];
 		  i1++;

@@ -47,8 +47,6 @@ static char *rcsid = "$Id: auth_unix.c,v 1.4 1995/05/30 05:41:12 rgrimes Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 
 #include <sys/param.h>
 #include <rpc/types.h>
@@ -85,7 +83,7 @@ struct audata {
 };
 #define	AUTH_PRIVATE(auth)	((struct audata *)auth->ah_private)
 
-static void marshal_new_auth();
+static bool_t marshal_new_auth();
 
 /*
  * This goop is here because some servers refuse to accept a
@@ -94,7 +92,7 @@ static void marshal_new_auth();
  */
 static int authunix_maxgrouplist = 0;
 
-void
+int
 set_rpc_maxgrouplist(int num)
 {
 	authunix_maxgrouplist = num;
@@ -330,7 +328,7 @@ authunix_destroy(auth)
  * Marshals (pre-serializes) an auth struct.
  * sets private data, au_marshed and au_mpos
  */
-static void
+static bool_t
 marshal_new_auth(auth)
 	register AUTH *auth;
 {

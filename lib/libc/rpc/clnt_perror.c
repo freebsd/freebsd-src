@@ -40,7 +40,6 @@ static char *rcsid = "$Id: clnt_perror.c,v 1.2 1995/05/30 05:41:15 rgrimes Exp $
  *
  */
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <rpc/rpc.h>
 #include <rpc/types.h>
@@ -151,7 +150,7 @@ clnt_perror(rpch, s)
 	CLIENT *rpch;
 	char *s;
 {
-	(void) fprintf(stderr,"%s\n",clnt_sperror(rpch,s));
+	(void) fprintf(stderr,"%s",clnt_sperror(rpch,s));
 }
 
 
@@ -221,7 +220,7 @@ void
 clnt_perrno(num)
 	enum clnt_stat num;
 {
-	(void) fprintf(stderr,"%s\n",clnt_sperrno(num));
+	(void) fprintf(stderr,"%s",clnt_sperrno(num));
 }
 
 
@@ -262,7 +261,7 @@ void
 clnt_pcreateerror(s)
 	char *s;
 {
-	(void) fprintf(stderr,"%s\n",clnt_spcreateerror(s));
+	(void) fprintf(stderr,"%s",clnt_spcreateerror(s));
 }
 
 struct auth_errtab {

@@ -19,7 +19,7 @@ VOLUME?=	${.CURDIR:T}
 DOC?=		${.CURDIR:T}
 BINDIR?=	/usr/share/doc
 SRCDIR?=	${.CURDIR}
-DISTRIBUTION?=	doc
+DISTRIBUTION?=	bin
 SGMLFMT?=	sgmlfmt
 LPR?=		lpr
 
@@ -50,7 +50,7 @@ obj:
 .endif
 
 clean: ${FORMATS:S/^/clean-/g}
-	rm -f Errs errs mklog
+	rm -f [eE]rrs mklog
 
 cleandir: clean
 	cd ${.CURDIR}; rm -rf obj

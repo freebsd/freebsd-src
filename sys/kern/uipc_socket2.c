@@ -56,10 +56,9 @@ char	netio[] = "netio";
 char	netcon[] = "netcon";
 char	netcls[] = "netcls";
 
-/* these two are sysctl visible */
 u_long	sb_max = SB_MAX;		/* patchable */
 
-u_long	sb_efficiency = 8;		/* parameter for sbreserve() */
+static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
 /*
  * Procedures to manipulate state flags of socket

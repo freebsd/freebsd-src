@@ -62,14 +62,8 @@ main(argc, argv)
 	else
 		nflag = 0;
 
-	while (argv[0]) {
-		int len = strlen(argv[0]);
-
-		if (len >= 2 && !argv[1] && argv[0][len - 2] == '\\' && argv[0][len - 1] == 'c') {
-			argv[0][len - 2] = '\0';
-			nflag = 1;
-		}
-		(void)printf("%s", argv[0]);
+	while (*argv) {
+		(void)printf("%s", *argv);
 		if (*++argv)
 			putchar(' ');
 	}

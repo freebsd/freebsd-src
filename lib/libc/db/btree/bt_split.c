@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993, 1994
+ * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)bt_split.c	8.9 (Berkeley) 7/26/94";
+static char sccsid[] = "@(#)bt_split.c	8.3 (Berkeley) 2/21/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -79,13 +79,13 @@ u_long	bt_rootsplit, bt_split, bt_sortsplit, bt_pfxsaved;
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__bt_split(t, sp, key, data, flags, ilen, argskip)
+__bt_split(t, sp, key, data, flags, ilen, skip)
 	BTREE *t;
 	PAGE *sp;
 	const DBT *key, *data;
 	int flags;
 	size_t ilen;
-	u_int32_t argskip;
+	indx_t skip;
 {
 	BINTERNAL *bi;
 	BLEAF *bl, *tbl;
@@ -93,8 +93,7 @@ __bt_split(t, sp, key, data, flags, ilen, argskip)
 	EPGNO *parent;
 	PAGE *h, *l, *r, *lchild, *rchild;
 	indx_t nxtindex;
-	u_int16_t skip;
-	u_int32_t n, nbytes, nksize;
+	size_t n, nbytes, nksize;
 	int parentsplit;
 	char *dest;
 
@@ -104,7 +103,6 @@ __bt_split(t, sp, key, data, flags, ilen, argskip)
 	 * skip set to the offset which should be used.  Additionally, l and r
 	 * are pinned.
 	 */
-	skip = argskip;
 	h = sp->pgno == P_ROOT ?
 	    bt_root(t, sp, &l, &r, &skip, ilen) :
 	    bt_page(t, sp, &l, &r, &skip, ilen);
@@ -117,14 +115,14 @@ __bt_split(t, sp, key, data, flags, ilen, argskip)
 	 */
 	h->linp[skip] = h->upper -= ilen;
 	dest = (char *)h + h->upper;
-	if (F_ISSET(t, R_RECNO))
+	if (ISSET(t, R_RECNO))
 		WR_RLEAF(dest, data, flags)
 	else
 		WR_BLEAF(dest, key, data, flags)
 
 	/* If the root page was split, make it look right. */
 	if (sp->pgno == P_ROOT &&
-	    (F_ISSET(t, R_RECNO) ?
+	    (ISSET(t, R_RECNO) ?
 	    bt_rroot(t, sp, l, r) : bt_broot(t, sp, l, r)) == RET_ERROR)
 		goto err2;
 
@@ -232,7 +230,7 @@ __bt_split(t, sp, key, data, flags, ilen, argskip)
 		}
 
 		/* Insert the key into the parent page. */
-		switch (rchild->flags & P_TYPE) {
+		switch(rchild->flags & P_TYPE) {
 		case P_BINTERNAL:
 			h->linp[skip] = h->upper -= nbytes;
 			dest = (char *)h + h->linp[skip];
@@ -297,7 +295,7 @@ __bt_split(t, sp, key, data, flags, ilen, argskip)
 
 		/* If the root page was split, make it look right. */
 		if (sp->pgno == P_ROOT &&
-		    (F_ISSET(t, R_RECNO) ?
+		    (ISSET(t, R_RECNO) ?
 		    bt_rroot(t, sp, l, r) : bt_broot(t, sp, l, r)) == RET_ERROR)
 			goto err1;
 
@@ -390,9 +388,6 @@ bt_page(t, h, lp, rp, skip, ilen)
 		mpool_put(t->bt_mp, r, 0);
 		return (NULL);
 	}
-#ifdef PURIFY
-	memset(l, 0xff, t->bt_psize);
-#endif
 	l->pgno = h->pgno;
 	l->nextpg = r->pgno;
 	l->prevpg = h->prevpg;
@@ -408,7 +403,7 @@ bt_page(t, h, lp, rp, skip, ilen)
 			return (NULL);
 		}
 		tp->prevpg = r->pgno;
-		mpool_put(t->bt_mp, tp, MPOOL_DIRTY);
+		mpool_put(t->bt_mp, tp, 0);
 	}
 
 	/*
@@ -539,7 +534,7 @@ bt_broot(t, h, l, r)
 {
 	BINTERNAL *bi;
 	BLEAF *bl;
-	u_int32_t nbytes;
+	size_t nbytes;
 	char *dest;
 
 	/*
@@ -555,7 +550,7 @@ bt_broot(t, h, l, r)
 	dest = (char *)h + h->upper;
 	WR_BINTERNAL(dest, 0, l->pgno, 0);
 
-	switch (h->flags & P_TYPE) {
+	switch(h->flags & P_TYPE) {
 	case P_BLEAF:
 		bl = GETBLEAF(r, 0);
 		nbytes = NBINTERNAL(bl->ksize);
@@ -618,12 +613,12 @@ bt_psplit(t, h, l, r, pskip, ilen)
 {
 	BINTERNAL *bi;
 	BLEAF *bl;
-	CURSOR *c;
 	RLEAF *rl;
+	EPGNO *c;
 	PAGE *rval;
 	void *src;
 	indx_t full, half, nxt, off, skip, top, used;
-	u_int32_t nbytes;
+	size_t nbytes;
 	int bigkeycnt, isbigkey;
 
 	/*
@@ -707,16 +702,19 @@ bt_psplit(t, h, l, r, pskip, ilen)
 	 * cursor is at or past the skipped slot, the cursor is incremented by
 	 * one.  If the cursor is on the right page, it is decremented by the
 	 * number of records split to the left page.
+	 *
+	 * Don't bother checking for the B_SEQINIT flag, the page number will
+	 * be P_INVALID.
 	 */
-	c = &t->bt_cursor;
-	if (F_ISSET(c, CURS_INIT) && c->pg.pgno == h->pgno) {
-		if (c->pg.index >= skip)
-			++c->pg.index;
-		if (c->pg.index < nxt)			/* Left page. */
-			c->pg.pgno = l->pgno;
+	c = &t->bt_bcursor;
+	if (c->pgno == h->pgno) {
+		if (c->index >= skip)
+			++c->index;
+		if (c->index < nxt)			/* Left page. */
+			c->pgno = l->pgno;
 		else {					/* Right page. */
-			c->pg.pgno = r->pgno;
-			c->pg.index -= nxt;
+			c->pgno = r->pgno;
+			c->index -= nxt;
 		}
 	}
 

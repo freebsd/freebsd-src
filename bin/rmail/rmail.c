@@ -211,8 +211,6 @@ main(argc, argv)
 		/* Save off from user's address; the last one wins. */
 		for (p = addrp; *p && !isspace(*p); ++p);
 		*p = '\0';
-		if (*addrp == '\0')
-			addrp = "<>";
 		if (from_user != NULL)
 			free(from_user);
 		if ((from_user = strdup(addrp)) == NULL)

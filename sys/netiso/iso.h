@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.1 (Berkeley) 6/10/93
- * $Id: iso.h,v 1.3 1994/08/21 06:14:19 paul Exp $
+ * $Id: iso.h,v 1.4 1995/05/30 08:10:49 rgrimes Exp $
  */
 
 #ifndef _NETISO_ISO_H_
@@ -63,8 +63,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso.h,v 1.3 1994/08/21 06:14:19 paul Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/iso.h,v $ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/iso.h,v 1.4 1995/05/30 08:10:49 rgrimes Exp $ */
+/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/iso.h,v $ */
 
 /*
  *	Return true if this is a multicast address

@@ -31,7 +31,6 @@
  static hashtab *nl_cache;
  static n_nlcache;
  static hashentry **zot;
- static int colonseen;
  extern ftnlen f__typesize[];
 
  extern flag f__lquit;
@@ -248,7 +247,6 @@ getdimen(int *chp, dimen *d, ftnlen delta, ftnlen extent, ftnlen *x1)
 			if (!x3)
 				return 123;
 			x2 /= x3;
-			colonseen = 1;
 			}
 		if (x2 < 0 || x2 >= extent)
 			return 123;
@@ -296,7 +294,7 @@ x_rsne(a) cilist *a;
 x_rsne(cilist *a)
 #endif
 {
-	int ch, got1, k, n, nd, quote, readall;
+	int ch, got1, k, n, nd, quote;
 	Namelist *nl;
 	static char where[] = "namelist read";
 	char buf[64];
@@ -318,7 +316,6 @@ x_rsne(cilist *a)
  top:
 	for(;;) switch(GETC(ch)) {
 		case EOF:
- eof:
 			err(a->ciend,(EOF),where0);
 		case '&':
 		case '$':
@@ -331,13 +328,7 @@ x_rsne(cilist *a)
 		default:
 			if (ch <= ' ' && ch >= 0)
 				continue;
-#ifndef No_Namelist_Comments
-			while(GETC(ch) != '\n')
-				if (ch == EOF)
-					goto eof;
-#else
 			errfl(a->cierr, 115, where0);
-#endif
 		}
  have_amp:
 	if (ch = getname(buf,sizeof(buf)))
@@ -413,7 +404,7 @@ x_rsne(cilist *a)
 		else
 			size = f__typesize[type];
 		ivae = size;
-		iva = readall = 0;
+		iva = 0;
 		if (ch == '(' /*)*/ ) {
 			dn = dimens;
 			if (!(dims = v->dims)) {
@@ -435,7 +426,6 @@ x_rsne(cilist *a)
 			nd = (int)dims[0];
 			nomax = span = dims[1];
 			ivae = iva + size*nomax;
-			colonseen = 0;
 			if (k = getdimen(&ch, dn, size, nomax, &b))
 				errfl(a->cierr, k, where);
 			no = dn->extent;
@@ -457,7 +447,6 @@ x_rsne(cilist *a)
 				}
 			if (ch != ')')
 				errfl(a->cierr, 115, where);
-			readall = 1 - colonseen;
 			b -= b0;
 			if (b < 0 || b >= nomax)
 				errfl(a->cierr, 125, where);
@@ -481,8 +470,6 @@ x_rsne(cilist *a)
 				if (b1 < b0)
 					goto delta_adj;
 				}
-			if (readall)
-				goto delta_adj;
 			for(; dn0 < dn; dn0++) {
 				if (dn0->extent != *dims++ || dn0->stride != 1)
 					break;
@@ -526,34 +513,8 @@ x_rsne(cilist *a)
 				return k;
 			if (f__lquit == 1)
 				return 0;
-			if (readall) {
-				iva += dn0->delta;
-				if (f__lcount > 0) {
-					no1 = (ivae - iva)/size;
-					if (no1 > f__lcount)
-						no1 = f__lcount;
-					iva += no1 * dn0->delta;
-					if (k = l_read(&no1, vaddr + iva,
-							size, type))
-						return k;
-					}
-				}
  mustend:
-			GETC(ch);
-			if (readall)
-				if (iva >= ivae)
-					readall = 0;
-				else for(;;) {
-					switch(ch) {
-						case ' ':
-						case '\t':
-						case '\n':
-							GETC(ch);
-							continue;
-						}
-					break;
-					}
-			if (ch == '/' || ch == '$' || ch == '&') {
+			if (GETC(ch) == '/' || ch == '$' || ch == '&') {
 				f__lquit = 1;
 				return 0;
 				}
@@ -566,8 +527,6 @@ x_rsne(cilist *a)
 				break;
 				}
 			Ungetc(ch,f__cf);
-			if (readall && !Alpha[ch & 0xff])
-				goto readloop;
 			if ((no -= no1) <= 0)
 				break;
 			for(dn1 = dn0; dn1 <= dn; dn1++) {

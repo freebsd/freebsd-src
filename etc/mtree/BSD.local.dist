@@ -32,8 +32,6 @@
         ..
         cat8            uname=man
         ..
-        cat9            uname=man
-        ..
         catl            uname=man
         ..
         man1
@@ -52,16 +50,14 @@
         ..
         man8
         ..
-        man9
-        ..
         manl
+        ..
+        skel
         ..
     ..
     sbin
     ..
     share
-        doc
-        ..
         nls
 	    C
 	    ..
@@ -115,8 +111,6 @@
             ..
 	    sv_SE.ISO_8859-1
             ..
-        ..
-        skel
         ..
     ..
 ..

@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: tp.trans,v 5.1 88/10/12 12:22:07 root Exp $
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp.trans,v 1.1.1.1 1994/05/24 10:07:31 rgrimes Exp $
  *
  * Transition file for TP.
  *

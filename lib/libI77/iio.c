@@ -10,7 +10,7 @@ z_getc(Void)
 {
 	if(f__recpos++ < f__svic->icirlen) {
 		if(f__icptr >= f__icend) err(f__svic->iciend,(EOF),"endfile");
-		return(*(unsigned char *)f__icptr++);
+		return(*f__icptr++);
 		}
 	return '\n';
 }
@@ -95,10 +95,6 @@ integer s_rsfi(icilist *a)
 
 z_wnew(Void)
 {
-	if (f__recpos < f__hiwater) {
-		f__icptr += f__hiwater - f__recpos;
-		f__recpos = f__hiwater;
-		}
 	while(f__recpos++ < f__svic->icirlen)
 		*f__icptr++ = ' ';
 	f__recpos = 0;

@@ -48,7 +48,7 @@ struct ip_fw {
 #define IP_FW_MAX_PORTS	10      	/* A reasonable maximum */
     u_short fw_pts[IP_FW_MAX_PORTS];    /* Array of port numbers to match */
     u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset */
-    u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
+    u_char fw_tcpf,fw_tcpnf;		/* TCP flags sen/unset */
 };
 
 struct ip_fw_chain {

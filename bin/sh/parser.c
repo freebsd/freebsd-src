@@ -150,12 +150,29 @@ list(nlflag) {
 	for (;;) {
 		switch (readtoken()) {
 		case TBACKGND:
+			if (n1->type == NCMD || n1->type == NPIPE) {
+				n1->ncmd.backgnd = 1;
+			} else if (n1->type == NREDIR) {
+				n1->type = NBACKGND;
+			} else {
+				n3 = (union node *)stalloc(sizeof (struct nredir));
+				n3->type = NBACKGND;
+				n3->nredir.n = n1;
+				n3->nredir.redirect = NULL;
+				n1 = n3;
+			}
+			goto tsemi;
 		case TNL:
-			parseheredoc();
-			if (nlflag)
-				return n1;
+			tokpushback++;
 			/* fall through */
-		case TSEMI:
+tsemi:	    case TSEMI:
+			if (readtoken() == TNL) {
+				parseheredoc();
+				if (nlflag)
+					return n1;
+			} else {
+				tokpushback++;
+			}
 			checkkwd = 2;
 			if (tokendlist[peektoken()])
 				return n1;
@@ -195,19 +212,6 @@ andor() {
 		} else if (t == TOR) {
 			t = NOR;
 		} else {
-			if (t == TBACKGND) {
-				if (n1->type == NCMD || n1->type == NPIPE) {
-					n1->ncmd.backgnd = 1;
-				} else if (n1->type == NREDIR) {
-					n1->type = NBACKGND;
-				} else {
-					n3 = (union node *)stalloc(sizeof (struct nredir));
-					n3->type = NBACKGND;
-					n3->nredir.n = n1;
-					n3->nredir.redirect = NULL;
-					n1 = n3;
-				}
-			}
 			tokpushback++;
 			return n1;
 		}

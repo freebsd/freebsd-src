@@ -1,5 +1,5 @@
-.\"$Header: errors.nr,v 1.2 88/12/06 16:06:07 nhall Exp $
-.\"$Source: /usr/argo/doc/kernel/RCS/errors.nr,v $
+.\"$Header: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/errors.nr,v 1.1.1.1 1994/05/30 19:08:05 rgrimes Exp $
+.\"$Source: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/errors.nr,v $
 .NC "Error Handling"
 This section describes the various ways that the ARGO kernel 
 handles errors.

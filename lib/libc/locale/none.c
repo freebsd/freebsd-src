@@ -64,6 +64,8 @@ _none_sgetrune(string, n, result)
 	size_t n;
 	char const **result;
 {
+	int c;
+
 	if (n < 1) {
 		if (result)
 			*result = string;

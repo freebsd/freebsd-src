@@ -50,16 +50,14 @@ integer f_back(alist *a)
 #ifdef MSDOS
 	w = -1;
 #endif
-	for(ndec = 1;; ndec = 0)
+	for(ndec = 2;; ndec = 1)
 	{
-		y = x = ftell(b->ufd);
-		if(x < sizeof(buf))
-			x = 0;
-		else
-			x -= sizeof(buf);
+		y = x=ftell(b->ufd);
+		if(x<sizeof(buf)) x=0;
+		else x -= sizeof(buf);
 		(void) fseek(b->ufd,x,SEEK_SET);
 		n=fread(buf,1,(int)(y-x), b->ufd);
-		for(i = n - ndec; --i >= 0; )
+		for(i=n-ndec;i>=0;i--)
 		{
 			if(buf[i]!='\n') continue;
 #ifdef MSDOS
@@ -67,17 +65,17 @@ integer f_back(alist *a)
 				if (buf[j] == '\n')
 					k++;
 			fseek(b->ufd,x,SEEK_SET);
-			for(;;)
+			do {
 				if (getc(b->ufd) == '\n') {
-					if ((z = ftell(b->ufd)) >= y && ndec) {
+					--k;
+					if ((z = ftell(b->ufd)) >= y) {
 						if (w == -1)
 							goto break2;
 						break;
 						}
-					if (--k <= 0)
-						return 0;
 					w = z;
 					}
+				} while(k > 0);
 			fseek(b->ufd, w, SEEK_SET);
 #else
 			fseek(b->ufd,(long)(i+1-n),SEEK_CUR);

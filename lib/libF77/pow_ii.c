@@ -7,7 +7,6 @@ integer pow_ii(integer *ap, integer *bp)
 #endif
 {
 	integer pow, x, n;
-	unsigned long u;
 
 	x = *ap;
 	n = *bp;
@@ -19,12 +18,11 @@ integer pow_ii(integer *ap, integer *bp)
 			return x == 0 ? 1/x : 0;
 		n = -n;
 		}
-	u = n;
 	for(pow = 1; ; )
 		{
-		if(u & 01)
+		if(n & 01)
 			pow *= x;
-		if(u >>= 1)
+		if(n >>= 1)
 			x *= x;
 		else
 			break;

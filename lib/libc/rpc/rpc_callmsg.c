@@ -41,8 +41,7 @@ static char *rcsid = "$Id: rpc_callmsg.c,v 1.2 1995/05/30 05:41:28 rgrimes Exp $
  */
 
 #include <sys/param.h>
-#include <stdlib.h>
-#include <string.h>
+
 #include <rpc/rpc.h>
 
 /*

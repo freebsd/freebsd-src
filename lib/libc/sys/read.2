@@ -107,53 +107,6 @@ The system guarantees to read the number of bytes requested if
 the descriptor references a normal file that has that many bytes left
 before the end-of-file, but in no other case.
 .Pp
-.Sh IMPLEMENTATION NOTES
-.Pp
-In the non-threaded library
-.Fn read
-is implemented as the
-.Va read
-syscall.
-.Pp
-In the threaded library, the
-.Va read
-syscall is assembled to
-.Fn _thread_sys_read
-and
-.Fn read
-is implemented as a function which locks
-.Va d
-for read, then calls
-.Fn _thread_sys_read .
-If the call to
-.Fn _thread_sys_read
-would block, a context switch is performed. Before returning,
-.Fn read
-unlocks
-.Va d .
-.Pp
-In the non-threaded library
-.Fn readv
-is implemented as the
-.Va readv
-syscall.
-.Pp
-In the threaded library, the
-.Va readv
-syscall is assembled to
-.Fn _thread_sys_readv
-and
-.Fn readv
-is implemented as a function which locks
-.Va d
-for read, then calls
-.Fn _thread_sys_readv .
-If the call to
-.Fn _thread_sys_readv
-would block, a context switch is performed. Before returning,
-.Fn readv
-unlocks
-.Va d .
 .Sh RETURN VALUES
 If successful, the
 number of bytes actually read is returned. Upon reading end-of-file,

@@ -1,5 +1,5 @@
 #
-#ident	"@(#)cvs/examples:$Name$:$Id$"
+# $CVSid: @(#)loginfo 1.5 92/03/31 $
 #
 # The "loginfo" file is used to control where "cvs commit" log information
 # is sent.  The first entry on a line is a regular expression which is tested

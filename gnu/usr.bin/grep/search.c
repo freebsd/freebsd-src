@@ -46,7 +46,7 @@ extern char *memchr();
 #define bcopy(s, d, n) memcpy((d), (s), (n))
 #endif
 
-#if defined(isascii) && !defined(__FreeBSD__)
+#ifdef isascii
 #define ISALNUM(C) (isascii(C) && isalnum(C))
 #define ISUPPER(C) (isascii(C) && isupper(C))
 #else

@@ -38,5 +38,7 @@
 
 PROG=	modstat
 MAN8=	modstat.8
+BINGRP=	kmem
+BINMODE=2555
 
 .include <bsd.prog.mk>

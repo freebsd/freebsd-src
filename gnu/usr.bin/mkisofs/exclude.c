@@ -29,7 +29,8 @@ char * fn;
     return;
   }
 
-  excl[i] = (char *) malloc(strlen(fn)+1);
+
+  excl[i] = malloc(strlen(fn)+1);
   if (! excl[i]) {
     fprintf(stderr,"Can't allocate memory for excluded filename\n");
     return;

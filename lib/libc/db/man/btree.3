@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)btree.3	8.4 (Berkeley) 8/18/94
+.\"	@(#)btree.3	8.3 (Berkeley) 2/21/94
 .\"
-.TH BTREE 3 "August 18, 1994"
+.TH BTREE 3 "February 21, 1994"
 .\".UC 7
 .SH NAME
 btree \- btree database access method
@@ -207,13 +207,6 @@ O lg base N where base is the average fill factor.
 Often, inserting ordered data into btrees results in a low fill factor.
 This implementation has been modified to make ordered insertion the best
 case, resulting in a much better than normal page fill factor.
-.SH ERRORS
-The
-.I btree
-access method routines may fail and set
-.I errno
-for any of the errors specified for the library routine
-.IR dbopen (3).
 .SH "SEE ALSO"
 .IR dbopen (3),
 .IR hash (3),

@@ -58,7 +58,6 @@ static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <locale.h>
 
 #include "ls.h"
 #include "extern.h"
@@ -104,8 +103,6 @@ main(argc, argv)
 	struct winsize win;
 	int ch, fts_options, notused;
 	char *p;
-
-	(void) setlocale(LC_ALL, "");
 
 	/* Terminal defaults to -Cq, non-terminal defaults to -1. */
 	if (isatty(STDOUT_FILENO)) {

@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)sysctl.c	8.2 (Berkeley) 1/4/94";
 #include <paths.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <string.h>
 
 int
 sysctl(name, namelen, oldp, oldlenp, newp, newlen)

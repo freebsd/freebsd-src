@@ -22,7 +22,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: scanner.l,v 1.40 94/06/10 17:21:44 mccanne Exp $ (LBL)";
+    "@(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/scanner.l,v 1.1.1.1 1995/01/20 04:13:06 jkh Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

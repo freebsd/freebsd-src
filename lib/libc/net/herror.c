@@ -69,7 +69,7 @@ const char *h_errlist[] = {
 	"Unknown server error",			/* 3 NO_RECOVERY */
 	"No address associated with name",	/* 4 NO_ADDRESS */
 };
-int	h_nerr = { sizeof h_errlist / sizeof h_errlist[0] };
+int	h_nerr = { sizeof(h_errlist)/sizeof(h_errlist[0]) };
 
 extern int	h_errno;
 

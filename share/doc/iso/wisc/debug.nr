@@ -1,5 +1,5 @@
-.\"$Header: debug.nr,v 1.4 88/12/06 16:05:36 nhall Exp $
-.\"$Source: /usr/argo/doc/kernel/RCS/debug.nr,v $
+.\"$Header: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/debug.nr,v 1.1.1.1 1994/05/30 19:08:05 rgrimes Exp $
+.\"$Source: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/debug.nr,v $
 .\"
 .\"	Program names should be in italics
 .\"

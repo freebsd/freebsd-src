@@ -57,7 +57,6 @@ static char sccsid[] = "@(#)pax.c	8.2 (Berkeley) 4/18/94";
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <locale.h>
 #include "pax.h"
 #include "extern.h"
 static int gen_init __P((void));
@@ -228,7 +227,6 @@ main(argc, argv)
 	char **argv;
 #endif
 {
-	(void) setlocale(LC_TIME, "");
 	/*
 	 * parse options, determine operational mode, general init
 	 */

@@ -1,5 +1,5 @@
-.\"$Header: program.nr,v 1.1 88/12/05 18:10:57 nhall Exp $
-.\"$Source: /usr/argo/doc/kernel/RCS/program.nr,v $
+.\"$Header: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/program.nr,v 1.1.1.1 1994/05/30 19:08:06 rgrimes Exp $
+.\"$Source: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/program.nr,v $
 .\"
 .\"
 .\" FONT CONVENTIONS

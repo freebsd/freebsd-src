@@ -192,6 +192,7 @@ getent(cap, len, db_array, fd, name, depth, nfield)
 	int fd, depth;
 {
 	DB *capdbp;
+	DBT key, data;
 	register char *r_end, *rp, **db_p;
 	int myfd, eof, foundit, retval, clen;
 	char *record, *cbuf;
@@ -541,6 +542,8 @@ cdbget(capdbp, bp, name)
 	char **bp, *name;
 {
 	DBT key, data;
+	char *buf;
+	int st;
 
 	key.data = name;
 	key.size = strlen(name);

@@ -837,7 +837,7 @@ main()
 	for (;;)
 	    {
 		    printf("hash_test command: ");
-		    fgets(answer, 100, stdin);
+		    gets(answer);
 		    command = answer[0];
 		    if (isupper(command)) command = tolower(command);	/* ecch! */
 		    switch (command)
@@ -929,7 +929,7 @@ char * description;
 	char * malloc();
 
 	printf("   %s : ",description);
-	fgets(answer, 100, stdin);
+	gets(answer);
 	/* will one day clean up answer here */
 	retval = malloc(strlen(answer)+1);
 	if (!retval)
@@ -967,7 +967,7 @@ whattable()			/* determine number: what hash table to use */
 	for (;;)
 	    {
 		    printf("   what hash table (%d:%d) ?  ",0,TABLES-1);
-		    fgets(answer, 100, stdin);
+		    gets(answer);
 		    sscanf(answer,"%d",&number);
 		    if (number >= 0 && number<TABLES)
 			{

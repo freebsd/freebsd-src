@@ -9,7 +9,6 @@ void pow_zi(doublecomplex *p, doublecomplex *a, integer *b) 	/* p = a**b  */
 #endif
 {
 integer n;
-unsigned long u;
 double t;
 doublecomplex x;
 static doublecomplex one = {1.0, 0.0};
@@ -31,15 +30,15 @@ else
 	x.i = a->i;
 	}
 
-for(u = n; ; )
+for( ; ; )
 	{
-	if(u & 01)
+	if(n & 01)
 		{
 		t = p->r * x.r - p->i * x.i;
 		p->i = p->r * x.i + p->i * x.r;
 		p->r = t;
 		}
-	if(u >>= 1)
+	if(n >>= 1)
 		{
 		t = x.r * x.r - x.i * x.i;
 		x.i = 2 * x.r * x.i;

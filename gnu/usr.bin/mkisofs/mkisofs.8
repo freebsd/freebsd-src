@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH MKISOFS 8 "January 1995" "Version 1.04"
+.TH MKISOFS 8 "August 1993" "Version 1.03"
 .SH NAME
 mkisofs \- create a iso9660  filesystem with optional Rock Ridge attributes.
 .SH SYNOPSIS
@@ -32,21 +32,11 @@ mkisofs \- create a iso9660  filesystem with optional Rock Ridge attributes.
 .B \-l
 ]
 [
-.B \-L
-]
-[
-.B \-L
-]
-[
 .B \-V
 ]
 [
 .B \-V
 .I volid
-]
-[
-.B \-i
-.I include-list
 ]
 [
 .B \-p
@@ -98,76 +88,49 @@ example of this would be the files foo.bar and
 foo.bar.~1~ - the file foo.bar.~1~ would be  written  as FOO.000;1 and the file
 foo.bar would be written as  FOO.BAR;1
 .PP
-Note that
-.B mkisofs
-is not designed to communicate with the writer directly.  Most writers
-have proprietary command sets which vary from one manufacturer to
-another, and you need a specialized tool to actually burn the disk.
-The cdwrite utility that comes with mkisofs is capable of communicating
-with Phillips drives (newer versions of cdwrite should be available from
-Yggdrasil).  Most writers come with some version of DOS software
-that allows a direct image copy of an iso9660 image to the writer.
-.PP
-Also you should know that most cd writers are very particular about timing.
-Once you start to burn a disc, you cannot let their buffer empty before you
-are done, or you will end up with a corrupt disc.  Thus it is critical
-that you be able to maintain an uninterupted data stream to the writer
-for the entire time that the disc is being written.
-.PP
 .br
 .B path
 is the path of the directory tree to be copied into the iso9660 filesystem.
 .SH OPTIONS
 .TP
-.I \-a
+.I -a
 Include all files on the iso9660 filesystem.  Normally files that contain the
 characters '~' or '#' will not be included (these are typically backup files
 for editors under unix).
 .TP
-.I \-A application_id
+.I -A application_id
 Specifies a text string that will be written into the volume header.
 This should describe the application that will be on the disc.  There
 is space on the disc for 128 characters of information.  This parameter can
 also be set in the file .mkisofsrc with APPL=id.  If specified in both
 places, the command line version is used.
 .TP
-.I \-d
+.I -d
 Omit trailing period from files that do not have a period.  This violates the
 ISO9660 standard, but it happens to work on many systems.  Use with caution.
 .TP
-.I \-D
+.I -D
 Do not use deep directory relocation, and instead just pack them in the
 way we see them.  This violates the ISO9660 standard, but it works on many
 systems.  Use with caution.
 .TP
-.I \-f
+.I -f
 Follow symbolic links when generating the filesystem.  When this option is not
 in use, symbolic links will be entered using Rock Ridge if enabled, otherwise
 the file will be ignored.
 .TP
-.I \-i include-list
-Use the specified file as a list of files to add to the directory tree.
-This is useful for quickly repacking a CD while adding files to it.
-The format of this file is path1/file=path2 where path1 is the directory
-in the ISO9660 file system where file should appear and path2 is the
-where to find the file.
-.TP
-.I \-l
+.I -l
 Allow full 32 character filenames.  Normally the ISO9660 filename will be in an
 8.3 format which is compatible with MS-DOS, even though the ISO9660 standard
 allows filenames of up to 32 characters.  If you use this option, the disc may
 be difficult to use on a MS-DOS system, but this comes in handy on some other
 systems (such as the Amiga).  Use with caution.
 .TP
-.I \-L
-Allow filenames to begin with a period.  Ususally, a leading dot is
-replaced with an underscore in order to maintain MS-DOS compatibility.
-.TP
-.I \-N
+.I -N
 Omit version numbers from ISO9660 file names.  This may violate the ISO9660
 standard, but no one really uses the version numbers anyway.  Use with caution.
 .TP
-.I \-o filename
+.I -o filename
 is the name of the file to which the iso9660 filesystem image should be
 written.  This can be a disk file, a tape drive, or it can correspond directly
 to the device name of the optical disc writer.  If not specified, stdout is
@@ -175,7 +138,7 @@ to the device name of the optical disc writer.  If not specified, stdout is
 disk  drive, in which case  the disk partition can be mounted  and examined to
 ensure that the premastering was done correctly.
 .TP
-.I \-P publisher_id
+.I -P publisher_id
 Specifies a text string that will be written into the volume header.
 This should describe the publisher of the CDROM, usually with a
 mailing address and phone number.  There is space on the disc for 128
@@ -183,7 +146,7 @@ characters of information.  This parameter can also be set in the file
 .mkisofsrc with PUBL=.  If specified in both places, the command line
 version is used.
 .TP
-.I \-p preparer_id
+.I -p preparer_id
 Specifies a text string that will be written into the volume header.
 This should describe the preparer of the CDROM, usually with a mailing
 address and phone number.  There is space on the disc for 128
@@ -191,26 +154,26 @@ characters of information.  This parameter can also be set in the file
 .mkisofsrc with PREP=.  If specified in both places, the command
 line version is used.
 .TP
-.I \-R
+.I -R
 Generate SUSP and RR records using the Rock Ridge protocol to further describe
 the files on the iso9660 filesystem.
 .TP
-.I \-T
+.I -T
 Generate a file TRANS.TBL in each directory on the CDROM, which can be used
 on non-Rock Ridge capable systems to help establish the correct file names.
 There is also information present in the file that indicates the major and
 minor numbers for block and character devices, and each symlink has the name of
 the link file given.
 .TP
-.I \-V volid
+.I -V volid
 Specifies the volume ID to be written into the master block.  This
 parameter can also be set in the file .mkisofsrc with VOLI=id.  If
 specified in both places, the command line version is used.
 .TP
-.I \-v
+.I -v
 Verbose execution.
 .TP
-.I \-x path
+.I -x path
 Exclude 
 .I path
 from being written to CDROM. 
@@ -220,9 +183,9 @@ given as command line argument and the path relative to this directory.
 Multiple paths may be excluded (up to 1000).
 Example: 
 
-mkisofs \-o cd \-x /local/dir1 \-x /local/dir2 /local
+mkisofs -o cd -x /local/dir1 -x /local/dir2 /local
 .TP
-.I \-z
+.I -z
 Generate special SUSP records for transparently compressed files.  This is
 only of use and interest for hosts that support transparent decompression.
 This is an experimental feature, and no hosts yet support this, but there
@@ -252,7 +215,7 @@ filesystem.   The  name mkisofs  is probably a bit of a misnomer, since it
 not only creates the filesystem, but it also populates it as well.
 .PP
 .br
-Eric Youngdale <eric@aib.com> wrote both the linux isofs9660 filesystem
+Eric Youngdale <ericy@cais.com> wrote both the linux isofs9660 filesystem
 and the mkisofs utility, and is currently maintaining them.  The copyright for
 the mkisofs utility is held by Yggdrasil Computing, Incorporated.
 .SH BUGS

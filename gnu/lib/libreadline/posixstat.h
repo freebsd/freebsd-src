@@ -114,7 +114,7 @@
 /*
  * POSIX 1003.1 5.6.1.2 <sys/stat.h> File Modes
  */
- 
+
 #if !defined (S_IRWXU)
 #  if !defined (S_IREAD)
 #    define S_IREAD	00400

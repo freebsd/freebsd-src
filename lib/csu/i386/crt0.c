@@ -27,105 +27,101 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.23 1996/01/30 05:55:20 nate Exp $
+ *	$Id: crt0.c,v 1.16.4.2 1995/09/28 13:16:24 davidg Exp $
  */
 
+
+#if defined(LIBC_SCCS) && !defined(lint)
+static char sccsid[] = "%W% (Erasmus) %G%";
+#endif /* LIBC_SCCS and not lint */
+
+extern void exit();
+int _callmain();
+
 #include <sys/param.h>
+#include <locale.h>
 #include <stdlib.h>
+extern void _startup_setlocale __P((int, const char *));
 
 #ifdef DYNAMIC
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <a.out.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <link.h>
-
-/* !!!
- * This is gross, ld.so is a ZMAGIC a.out, but has `sizeof(hdr)' for
- * an entry point and not at PAGSIZ as the N_*ADDR macros assume.
- */
-#undef N_DATADDR
-#define N_DATADDR(x)	((x).a_text)
-
-#undef N_BSSADDR
-#define N_BSSADDR(x)	((x).a_text + (x).a_data)
-
 #ifndef N_GETMAGIC
 #define N_GETMAGIC(x)	((x).a_magic)
-#endif /* N_GETMAGIC */
-
-#ifndef	MAP_PRIVATE
-#define MAP_PRIVATE	MAP_COPY
-#endif /* MAP_PRIVATE */
-
-#ifndef MAP_FILE
+#endif
+#ifndef N_BSSADDR
+#define N_BSSADDR(x)	(N_DATADDR(x)+(x).a_data)
+#endif
+#include <sys/mman.h>
+#ifdef sun
+#define MAP_COPY	MAP_PRIVATE
 #define MAP_FILE	0
-#endif /* MAP_FILE */
-
-#ifndef MAP_ANON
 #define MAP_ANON	0
-#endif /* MAP_ANON */
+#else
+#ifdef BSD
+#if BSD>=199306 && !defined(MAP_FILE)
+#define MAP_FILE	0
+#endif /* BSD>=199306 */
+#endif /* BSD */
+#endif /* sun */
 
-#ifdef DEBUG 
-/*
- * We need these two because we are going to call them before the ld.so is
- * finished (as a matter of fact before we know if it exists !) so we must
- * provide these versions for them
- */
-static char		*_getenv();
-static int		_strncmp();
-#endif /* DEBUG */
+#include <link.h>
 
-#ifndef LDSO
-#define LDSO		"/usr/libexec/ld.so"
-#endif /* LDSO */
-
-extern struct _dynamic	_DYNAMIC;
+extern struct _dynamic _DYNAMIC;
 static struct ld_entry	*ld_entry;
-static void		__do_dynamic_link ();
+static void	__do_dynamic_link ();
+static char	*_getenv();
+static int	_strncmp();
+
+#ifdef sun
+#define LDSO	"/usr/lib/ld.so"
+#endif
+#ifdef BSD
+#define LDSO	"/usr/libexec/ld.so"
+#endif
+
 #endif /* DYNAMIC */
 
-int			_callmain();
-int			errno;
-static char		empty[1];
-char			*__progname = empty;
+static char		*_strrchr();
+
 char			**environ;
 
+#ifdef BSD
 extern	unsigned char	etext;
 extern	unsigned char	eprol asm ("eprol");
 extern			start() asm("start");
 extern			mcount() asm ("mcount");
-extern	int		main(int argc, char **argv, char **envp);
-int			__syscall(int syscall,...);
-#ifdef MCRT0
-void			monstartup(void *low, void *high);
-#endif /* MCRT0 */
 
+int			errno;
+static char		empty[1];
+char			*__progname = empty;
+#endif
 
 /*
- * We need these system calls, but can't use library stubs because the are
- * not accessible until we have done the ld.so stunt.
+ * We need these system calls, but can't use library stubs
  */
+#define _exit(v)		__syscall(SYS_exit, (int)(v))
+#define open(name, f, m)	__syscall(SYS_open, (char *)(name), (int)(f), (int)(m))
+#define close(fd)		__syscall(SYS_close, (int)(fd))
+#define read(fd, s, n)		__syscall(SYS_read, (int)(fd), (void *)(s), (size_t)(n))
+#define write(fd, s, n)		__syscall(SYS_write, (int)(fd), (void *)(s), (size_t)(n))
+#define dup(fd)			__syscall(SYS_dup, (int)(fd))
+#define dup2(fd, fdnew)		__syscall(SYS_dup2, (int)(fd), (int)(fdnew))
+#ifdef sun
+#define mmap(addr, len, prot, flags, fd, off)	\
+    __syscall(SYS_mmap, (addr), (len), (prot), _MAP_NEW|(flags), (fd), (off))
+#else
+#define mmap(addr, len, prot, flags, fd, off)	\
+    __syscall(SYS_mmap, (caddr_t)(addr), (size_t)(len), (int)(prot), (int)(flags), (int)(fd), (long)0L, (off_t)(off))
+#endif
 
-#define _exit(v) \
-	__syscall(SYS_exit, (int)(v))
-#define _open(name, f, m) \
-	__syscall(SYS_open, (char *)(name), (int)(f), (int)(m))
-#define _read(fd, s, n) \
-	__syscall(SYS_read, (int)(fd), (void *)(s), (size_t)(n))
-#define _write(fd, s, n) \
-	__syscall(SYS_write, (int)(fd), (void *)(s), (size_t)(n))
-#define _mmap(addr, len, prot, flags, fd, off)	\
-	(caddr_t) __syscall(SYS_mmap, (caddr_t)(addr), (size_t)(len), \
-		(int)(prot), (int)(flags), (int)(fd), (long)0L, (off_t)(off))
-
-#define _PUTNMSG(str, len)	_write(2, (str), (len))
+#define _PUTNMSG(str, len)	write(2, (str), (len))
 #define _PUTMSG(str)		_PUTNMSG((str), sizeof (str) - 1)
 #define _FATAL(str)		( _PUTMSG(str), _exit(1) )
 
 
-int
 start()
 {
 	struct kframe {
@@ -158,20 +154,22 @@ start()
 		--targv;
 	environ = targv;
 
-	if (argv[0]) {
-		register char *s;
-		__progname = argv[0];
-		for (s=__progname; *s != '\0'; s++)
-			if (*s == '/')
-				__progname = s+1;
-	}
+	if (argv[0])
+		if ((__progname = _strrchr(argv[0], '/')) == NULL)
+			__progname = argv[0];
+		else
+			++__progname;
 
 #ifdef DYNAMIC
 	/* ld(1) convention: if DYNAMIC = 0 then statically linked */
-	/* sometimes GCC is too smart/stupid for its own good */
+#ifdef stupid_gcc
+	if (&_DYNAMIC)
+		__do_dynamic_link();
+#else
 	x = (caddr_t)&_DYNAMIC;
 	if (x)
 		__do_dynamic_link();
+#endif
 #endif /* DYNAMIC */
 
 asm("eprol:");
@@ -180,6 +178,9 @@ asm("eprol:");
 	atexit(_mcleanup);
 	monstartup(&eprol, &etext);
 #endif /* MCRT0 */
+
+	if (getenv("ENABLE_STARTUP_LOCALE") != NULL)
+		_startup_setlocale(LC_ALL, "");
 
 asm ("__callmain:");		/* Defined for the benefit of debuggers */
 	exit(main(kfp->kargc, argv, environ));
@@ -201,15 +202,13 @@ __do_dynamic_link ()
 #endif
 		ldso = LDSO;
 
-	crt.crt_ldfd = _open(ldso, 0, 0);
+	crt.crt_ldfd = open(ldso, 0, 0);
 	if (crt.crt_ldfd == -1) {
-		_PUTMSG("Couldn't open ");
-		_PUTMSG(LDSO);
-		_FATAL(".\n");
+		_FATAL("No ld.so\n");
 	}
 
 	/* Read LDSO exec header */
-	if (_read(crt.crt_ldfd, &hdr, sizeof hdr) < sizeof hdr) {
+	if (read(crt.crt_ldfd, &hdr, sizeof hdr) < sizeof hdr) {
 		_FATAL("Failure reading ld.so\n");
 	}
 	if ((N_GETMAGIC_NET(hdr) != ZMAGIC) && (N_GETMAGIC(hdr) != QMAGIC)) {
@@ -220,29 +219,39 @@ __do_dynamic_link ()
 	crt.crt_dzfd = -1;
 
 	/* Map in ld.so */
-	crt.crt_ba = (int)_mmap(0, hdr.a_text,
+	crt.crt_ba = mmap(0, hdr.a_text,
 			PROT_READ|PROT_EXEC,
-			MAP_FILE|MAP_PRIVATE,
+			MAP_FILE|MAP_COPY,
 			crt.crt_ldfd, N_TXTOFF(hdr));
 	if (crt.crt_ba == -1) {
-		_FATAL("Cannot map ld.so (text)\n");
+		_FATAL("Cannot map ld.so\n");
 	}
 
+#ifdef BSD
+/* !!!
+ * This is gross, ld.so is a ZMAGIC a.out, but has `sizeof(hdr)' for
+ * an entry point and not at PAGSIZ as the N_*ADDR macros assume.
+ */
+#undef N_DATADDR
+#undef N_BSSADDR
+#define N_DATADDR(x)	((x).a_text)
+#define N_BSSADDR(x)	((x).a_text + (x).a_data)
+#endif
+
 	/* Map in data segment of ld.so writable */
-	if ((int)_mmap((caddr_t)(crt.crt_ba+N_DATADDR(hdr)), hdr.a_data,
+	if (mmap(crt.crt_ba+N_DATADDR(hdr), hdr.a_data,
 			PROT_READ|PROT_WRITE,
-			MAP_FIXED|MAP_FILE|MAP_PRIVATE,
+			MAP_FIXED|MAP_FILE|MAP_COPY,
 			crt.crt_ldfd, N_DATOFF(hdr)) == -1) {
-		_FATAL("Cannot map ld.so (data)\n");
+		_FATAL("Cannot map ld.so\n");
 	}
 
 	/* Map bss segment of ld.so zero */
-	if (hdr.a_bss && (int)_mmap((caddr_t)(crt.crt_ba+N_BSSADDR(hdr)),
-			hdr.a_bss,
+	if (hdr.a_bss && mmap(crt.crt_ba+N_BSSADDR(hdr), hdr.a_bss,
 			PROT_READ|PROT_WRITE,
-			MAP_FIXED|MAP_ANON|MAP_PRIVATE,
+			MAP_FIXED|MAP_ANON|MAP_COPY,
 			crt.crt_dzfd, 0) == -1) {
-		_FATAL("Cannot map ld.so (bss)\n");
+		_FATAL("Cannot map ld.so\n");
 	}
 
 	crt.crt_dp = &_DYNAMIC;
@@ -326,7 +335,6 @@ dlerror()
  * Support routines
  */
 
-#ifdef DEBUG
 static int
 _strncmp(s1, s2, n)
 	register char *s1, *s2;
@@ -361,8 +369,6 @@ _getenv(name)
 	return (char *)0;
 }
 
-#endif /* DEBUG */
-
 	asm("	___syscall:");
 	asm("		popl %ecx");
 	asm("		popl %eax");
@@ -378,6 +384,21 @@ _getenv(name)
 	asm("		ret");
 
 #endif /* DYNAMIC */
+
+static char *
+_strrchr(p, ch)
+register char *p, ch;
+{
+	register char *save;
+
+	for (save = NULL;; ++p) {
+		if (*p == ch)
+			save = (char *)p;
+		if (!*p)
+			return(save);
+	}
+/* NOTREACHED */
+}
 
 #ifdef MCRT0
 asm ("	.text");

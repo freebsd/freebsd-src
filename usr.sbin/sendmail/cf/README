@@ -1148,7 +1148,7 @@ Sam Leffler's FlexFAX software is still in beta test -- but he expects a
 public version out "later this week" [as of 3/1/93].  The following
 blurb is direct from Sam:
 
-	$Header: /home/ncvs/src/usr.sbin/sendmail/cf/README,v 1.1.1.3 1995/12/03 17:45:24 peter Exp $
+	$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/sendmail/cf/README,v 1.1.1.1.6.1 1996/03/25 06:52:39 peter Exp $
 
 	How To Obtain This Software (in case all you get is this file)
 	--------------------------------------------------------------

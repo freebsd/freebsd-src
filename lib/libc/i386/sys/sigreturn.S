@@ -44,13 +44,14 @@
 #include "SYS.h"
 
 /*
- * NOTE: If the profiling ENTRY() code ever changes any registers, they
- * must be saved.   On FreeBSD, this is not the case.
+ * We must preserve the state of the registers as the user has set them up.
  */
+#ifdef PROF
+#undef ENTRY
+#define	ENTRY(x) \
+	.globl _/**/x; .align 2; _/**/x:  pusha ; \
+	.data; 1:; .long 0; .text; movl $1b,%eax; call mcount; popa ; nop
+#endif /* PROF */
 
-#ifdef _THREAD_SAFE
-PSYSCALL(sigreturn,_thread_sys_sigreturn)
-#else
 SYSCALL(sigreturn)
-#endif
 	ret

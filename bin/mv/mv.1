@@ -77,25 +77,17 @@ The following options are available:
 Do not prompt for confirmation before overwriting the destination
 path.
 (The
-.Fl f
-option overrides any previous
 .Fl i
-options.)
+option is ignored if the
+.Fl f
+option is specified.)
 .It Fl i
 Causes
 .Nm mv
 to write a prompt to standard error before moving a file that would
 overwrite an existing file.
-If the response from the standard input begins with the character
-.Sq Li y 
-or
-.Sq Li Y ,
+If the response from the standard input begins with the character ``y'',
 the move is attempted.
-(The
-.Fl i
-option overrides any previous
-.Fl f
-options.)
 .El
 .Pp
 It is an error for either the
@@ -129,7 +121,6 @@ The
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr cp 1 ,
-.Xr rm 1 ,
 .Xr symlink 7
 .Sh STANDARDS
 The

@@ -39,29 +39,16 @@ static char sccsid[] = "@(#)putchar.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
 
 #undef putchar
 
 /*
  * A subroutine version of the macro putchar
  */
-int
 putchar(c)
 	int c;
 {
-	int retval;
 	register FILE *so = stdout;
 
-#ifdef _THREAD_SAFE
-	_thread_flockfile(so,__FILE__,__LINE__);
-#endif
-	retval = __sputc(c, so);
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(so);
-#endif
-	return (retval);
+	return (__sputc(c, so));
 }

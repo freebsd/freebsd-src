@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_frag.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_frag.c,v 1.2 1994/08/02 07:49:37 davidg Exp $
+ * $Id: clnp_frag.c,v 1.3 1995/05/30 08:10:17 rgrimes Exp $
  */
 
 /***********************************************************
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_frag.c,v 1.2 1994/08/02 07:49:37 davidg Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/clnp_frag.c,v $ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_frag.c,v 1.3 1995/05/30 08:10:17 rgrimes Exp $ */
+/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_frag.c,v $ */
 
 #include <sys/param.h>
 #include <sys/systm.h>

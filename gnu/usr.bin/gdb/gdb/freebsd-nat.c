@@ -480,7 +480,7 @@ kvtophys (fd, addr)
 CORE_ADDR addr;
 {
 	CORE_ADDR v;
-	unsigned int pte;
+	struct pte pte;
 	static CORE_ADDR PTD = -1;
 	CORE_ADDR current_ptd;
 
@@ -526,18 +526,18 @@ CORE_ADDR addr;
 	/*
 	 * Read the first-level page table (ptd).
 	 */
-	v = current_ptd + ((unsigned)addr >> PDRSHIFT) * sizeof pte;
-	if (physrd(fd, v, (char *)&pte, sizeof pte) < 0 || (pte&PG_V) == 0)
+	v = current_ptd + ((unsigned)addr >> PD_SHIFT) * sizeof pte;
+	if (physrd(fd, v, (char *)&pte, sizeof pte) < 0 || pte.pg_v == 0)
 		return (~0);
 
 	/*
 	 * Read the second-level page table.
 	 */
-	v = (pte&PG_FRAME) + ((addr >> PAGE_SHIFT)&(NPTEPG-1)) * sizeof pte;
-	if (physrd(fd, v, (char *) &pte, sizeof(pte)) < 0 || (pte&PG_V) == 0)
+	v = i386_ptob(pte.pg_pfnum) + ((addr&PT_MASK) >> PG_SHIFT) * sizeof pte;
+	if (physrd(fd, v, (char *) &pte, sizeof(pte)) < 0 || pte.pg_v == 0)
 		return (~0);
 
-	addr = (pte & PG_FRAME) + (addr & PAGE_MASK);
+	addr = i386_ptob(pte.pg_pfnum) + (addr & PGOFSET);
 #if 0
 	printf("vtophys(%x) -> %x\n", oldaddr, addr);
 #endif
@@ -605,7 +605,7 @@ kernel_core_file_hook(fd, addr, buf, len)
 			break;
 		}
 		/* we can't read across a page boundary */
-		i = min(len, PAGE_SIZE - (addr & PAGE_MASK));
+		i = min(len, NBPG - (addr & PGOFSET));
 		if ((cc = physrd(fd, paddr, cp, i)) <= 0) {
 			bzero(cp, len);
 			return (cp - buf);

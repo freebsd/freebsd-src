@@ -44,12 +44,11 @@ static char *rcsid = "$Id: svc_tcp.c,v 1.2 1995/05/30 05:41:38 rgrimes Exp $";
  */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <rpc/rpc.h>
 #include <sys/socket.h>
 #include <errno.h>
+extern bool_t abort();
+extern errno;
 
 /*
  * Ops vector for TCP/IP based rpc service handle
@@ -307,8 +306,8 @@ readtcp(xprt, buf, len)
 #endif /* def FD_SETSIZE */
 	do {
 		readfds = mask;
-		if (select(_rpc_dtablesize(), &readfds, (fd_set *)NULL,
-			   (fd_set *)NULL, &wait_per_try) <= 0) {
+		if (select(_rpc_dtablesize(), &readfds, (int*)NULL, (int*)NULL,
+			   &wait_per_try) <= 0) {
 			if (errno == EINTR) {
 				continue;
 			}

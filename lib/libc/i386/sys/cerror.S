@@ -43,45 +43,16 @@
 
 #include "SYS.h"
 
-	.globl HIDENAME(cerror)
-
-#ifdef _THREAD_SAFE
-	/*
-	 * Threaded version using __error().
-	 */
-	.globl	CNAME(__error)
-	.type	CNAME(__error),@function
-HIDENAME(cerror):
-	pushl	%eax
+	.globl	_errno
+cerror:
 #ifdef PIC
-	/* The caller must execute the PIC prologue before jumping to cerror. */
-	call	PIC_PLT(CNAME(__error))
-	popl	%ecx
-	PIC_EPILOGUE
-#else
-	call	CNAME(__error)
-	popl	%ecx
-#endif
-	movl	%ecx,(%eax)
-	movl	$-1,%eax
-	movl	$-1,%edx
-	ret
-
-#else /* _THREAD_SAFE */
-	/*
-	 * Non-threaded version using global errno.
-	 */
-	.globl	CNAME(errno)
-HIDENAME(cerror):
-#ifdef PIC
-	/* The caller must execute the PIC prologue before jumping to cerror. */
-	movl	PIC_GOT(CNAME(errno)),%ecx
+	PIC_PROLOGUE
+	movl	PIC_GOT(_errno),%ecx
 	movl	%eax,(%ecx)
 	PIC_EPILOGUE
 #else
-	movl	%eax,CNAME(errno)
+	movl	%eax,_errno
 #endif
 	movl	$-1,%eax
 	movl	$-1,%edx
 	ret
-#endif /* _THREAD_SAFE */

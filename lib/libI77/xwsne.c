@@ -3,8 +3,6 @@
 #include "lio.h"
 #include "fmt.h"
 
-extern int f__Aquote;
-
  static VOID
 nl_donewrec(Void)
 {
@@ -35,7 +33,6 @@ x_wsne(cilist *a)
 	for(s = nl->name; *s; s++)
 		PUT(*s);
 	PUT(' ');
-	f__Aquote = 1;
 	vd = nl->vars;
 	vde = vd + nl->nvars;
 	while(vd < vde) {
@@ -67,6 +64,5 @@ x_wsne(cilist *a)
 		else if (f__recpos+1 >= L_len)
 			nl_donewrec();
 		}
-	f__Aquote = 0;
 	PUT('/');
 	}

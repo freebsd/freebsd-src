@@ -53,11 +53,7 @@
 
 #include "DEFS.h"
 
-#ifdef _THREAD_SAFE
-ENTRY(__thread_sys_setjmp)
-#else
 ENTRY(_setjmp)
-#endif
 	movl	4(%esp),%eax
 	movl	0(%esp),%edx
 	movl	%edx, 0(%eax)		/* rta */
@@ -70,11 +66,7 @@ ENTRY(_setjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifdef _THREAD_SAFE
-ENTRY(__thread_sys_longjmp)
-#else
 ENTRY(_longjmp)
-#endif
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	movl	0(%edx),%ecx

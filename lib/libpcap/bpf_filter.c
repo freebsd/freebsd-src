@@ -38,11 +38,11 @@
  *	@(#)bpf.c	7.5 (Berkeley) 7/15/91
  *
  * static char rcsid[] =
- * "$Header: /home/ncvs/src/lib/libpcap/bpf_filter.c,v 1.1.1.1 1995/01/20 04:13:02 jkh Exp $";
+ * "$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/bpf_filter.c,v 1.2 1995/05/30 05:47:18 rgrimes Exp $";
  */
 #if !(defined(lint) || defined(KERNEL))
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/lib/libpcap/bpf_filter.c,v 1.1.1.1 1995/01/20 04:13:02 jkh Exp $ (LBL)";
+    "@(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/bpf_filter.c,v 1.2 1995/05/30 05:47:18 rgrimes Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

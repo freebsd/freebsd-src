@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Header: /home/cvs/386BSD/ports/lang/perl/eg/dus,v 1.1.1.1 1993/08/23 21:29:43 nate Exp $
+# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/eg/dus,v 1.1.1.1 1994/09/10 06:27:47 gclarkii Exp $
 
 # This script does a du -s on any directories in the current directory that
 # are not mount points for another filesystem.

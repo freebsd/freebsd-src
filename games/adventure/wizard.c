@@ -42,8 +42,6 @@ static char sccsid[] = "@(#)wizard.c	8.1 (Berkeley) 6/2/93";
 
 /*      Re-coding of advent in C: privileged operations                 */
 
-#include <sys/types.h>
-#include <stdio.h>
 # include "hdr.h"
 
 datime(d,t)

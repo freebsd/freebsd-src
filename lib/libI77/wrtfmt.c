@@ -1,8 +1,12 @@
 #include "f2c.h"
 #include "fio.h"
 #include "fmt.h"
-
 extern int f__cursor;
+#ifdef KR_headers
+extern char *f__icvt();
+#else
+extern char *f__icvt(long, int*, int*, int);
+#endif
 int f__hiwater;
 icilist *f__svic;
 char *f__icptr;
@@ -147,7 +151,7 @@ wrt_I(n,w,len, base) Uint *n; ftnlen len; register int base;
 wrt_I(Uint *n, int w, ftnlen len, register int base)
 #endif
 {	int ndigit,sign,spare,i;
-	longint x;
+	long x;
 	char *ans;
 	if(len==sizeof(integer)) x=n->il;
 	else if(len == sizeof(char)) x = n->ic;
@@ -175,13 +179,10 @@ wrt_IM(n,w,m,len,base) Uint *n; ftnlen len; int base;
 wrt_IM(Uint *n, int w, int m, ftnlen len, int base)
 #endif
 {	int ndigit,sign,spare,i,xsign;
-	longint x;
+	long x;
 	char *ans;
 	if(sizeof(integer)==len) x=n->il;
 	else if(len == sizeof(char)) x = n->ic;
-#ifdef Allow_TYQUAD
-	else if (len == sizeof(longint)) x = n->ili;
-#endif
 	else x=n->is;
 	ans=f__icvt(x,&ndigit,&sign, base);
 	if(sign || f__cplus) xsign=1;
@@ -287,9 +288,6 @@ wrt_G(ufloat *p, int w, int d, int e, ftnlen len)
 	if(x<.1) {
 		if (x != 0.)
 			return(wrt_E(p,w,d,e,len));
-#ifdef WANT_LEAD_0
-		i = 1;
-#endif
 		goto have_i;
 		}
 	for(;i<=d;i++,up*=10)

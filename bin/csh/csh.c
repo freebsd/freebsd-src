@@ -186,9 +186,7 @@ main(argc, argv)
 	AsciiOnly = k > 0377;
     }
 #else
-    AsciiOnly = getenv("LANG") == NULL &&
-		getenv("LC_ALL") == NULL &&
-		getenv("LC_CTYPE") == NULL;
+    AsciiOnly = getenv("LANG") == NULL && getenv("LC_CTYPE") == NULL;
 #endif				/* NLS */
 
     /*

@@ -47,9 +47,7 @@ static char *rcsid = "$Id: pmap_rmt.c,v 1.2 1995/05/30 05:41:27 rgrimes Exp $";
 #include <rpc/pmap_rmt.h>
 #include <sys/socket.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
-#include <string.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
@@ -171,7 +169,6 @@ getbroadcastnets(addrs, sock, buf)
 	struct ifconf ifc;
         struct ifreq ifreq, *ifr;
 	struct sockaddr_in *sin;
-	struct	in_addr addr;
         char *cp, *cplim;
         int n, i = 0;
 
@@ -199,24 +196,17 @@ getbroadcastnets(addrs, sock, buf)
 			sin = (struct sockaddr_in *)&ifr->ifr_addr;
 #ifdef SIOCGIFBRDADDR   /* 4.3BSD */
 			if (ioctl(sock, SIOCGIFBRDADDR, (char *)&ifreq) < 0) {
-				addr =
+				addrs[i++] =
 				    inet_makeaddr(inet_netof(sin->sin_addr),
 				    INADDR_ANY);
 			} else {
-				addr = ((struct sockaddr_in*)
+				addrs[i++] = ((struct sockaddr_in*)
 				  &ifreq.ifr_addr)->sin_addr;
 			}
 #else /* 4.2 BSD */
-			addr = inet_makeaddr(inet_netof(sin->sin_addr),
+			addrs[i++] = inet_makeaddr(inet_netof(sin->sin_addr),
 			    INADDR_ANY);
 #endif
-			for (n=i-1; n>=0; n--) {
-				if (addr.s_addr == addrs[n].s_addr)
-					break;
-			}
-			if (n<0) {
-				addrs[i++] = addr;
-			}
 		}
 	}
 	return (i);
@@ -338,8 +328,8 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 		msg.acpted_rply.ar_results.where = (caddr_t)&r;
                 msg.acpted_rply.ar_results.proc = xdr_rmtcallres;
 		readfds = mask;
-		switch (select(_rpc_dtablesize(), &readfds, (fd_set *)NULL,
-			       (fd_set *)NULL, &t)) {
+		switch (select(_rpc_dtablesize(), &readfds, (int *)NULL,
+			       (int *)NULL, &t)) {
 
 		case 0:  /* timed out */
 			stat = RPC_TIMEDOUT;

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-decnet.c,v 1.15 94/06/20 19:44:38 leres Exp $ (LBL)";
+    "@(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/print-decnet.c,v 1.1 1995/03/08 12:52:28 olah Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

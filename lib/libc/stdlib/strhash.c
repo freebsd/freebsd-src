@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.4.4.1 1996/02/11 09:05:56 jkh Exp $";
+static char *rcsid = "$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libc/stdlib/strhash.c,v 1.4.4.1 1996/02/11 09:05:56 jkh Exp $";
 #endif
 
 /*

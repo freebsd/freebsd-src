@@ -1,8 +1,8 @@
 \input texinfo @c -*-texinfo-*-
 
-@c $Header$
-@c $Source$
-@c $Locker$
+@c $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/doc/com_err.texinfo,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $
+@c $Source: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/doc/com_err.texinfo,v $
+@c $Locker:  $
 
 @c Note that although this source file is in texinfo format (more
 @c or less), it is not yet suitable for turning into an ``info''

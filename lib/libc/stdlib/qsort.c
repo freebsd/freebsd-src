@@ -32,17 +32,13 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 static char sccsid[] = "@(#)qsort.c	8.1 (Berkeley) 6/4/93";
-#endif
-static const char rcsid[] =
-	"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/types.h>
 #include <stdlib.h>
 
-typedef int		 cmp_t __P((const void *, const void *));
-static inline char	*med3 __P((char *, char *, char *, cmp_t *));
+static inline char	*med3 __P((char *, char *, char *, int (*)()));
 static inline void	 swapfunc __P((char *, char *, int, int));
 
 #define min(a, b)	(a) < (b) ? a : b
@@ -88,7 +84,7 @@ swapfunc(a, b, n, swaptype)
 static inline char *
 med3(a, b, c, cmp)
 	char *a, *b, *c;
-	cmp_t *cmp;
+	int (*cmp)();
 {
 	return cmp(a, b) < 0 ?
 	       (cmp(b, c) < 0 ? b : (cmp(a, c) < 0 ? c : a ))
@@ -99,7 +95,7 @@ void
 qsort(a, n, es, cmp)
 	void *a;
 	size_t n, es;
-	cmp_t *cmp;
+	int (*cmp)();
 {
 	char *pa, *pb, *pc, *pd, *pl, *pm, *pn;
 	int d, r, swaptype, swap_cnt;

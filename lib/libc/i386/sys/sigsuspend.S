@@ -44,19 +44,14 @@
 #include "SYS.h"
 
 err:
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
+	jmp	cerror
 
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_sigsuspend)
-#else
 ENTRY(sigsuspend)
-#endif
 	movl	4(%esp),%eax		# fetch mask arg
 	movl	(%eax),%eax		# indirect to mask arg
 	movl	%eax,4(%esp)
-	lea	SYS_sigsuspend,%eax
-	KERNCALL
+	movl	$ SYS_sigsuspend ,%eax
+	LCALL(0x7,0)
 	jb	err
 	xorl	%eax,%eax		# shouldn t happen
 	ret

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#)$Header: print-null.c,v 1.14 94/06/10 17:01:35 mccanne Exp $ (LBL)";
+    "@(#)$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/print-null.c,v 1.2 1995/03/08 12:52:38 olah Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

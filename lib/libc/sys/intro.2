@@ -47,48 +47,12 @@ their error returns, and other common definitions and concepts.
 .\".Pp
 .\"<more later...>
 .Sh DIAGNOSTICS
-Nearly all of the system calls provide an error number referenced via
-the external identifier errno. This identifier is defined in 
-.Aq Pa sys/errno.h
-for non-threaded programs as:
+Nearly all of the system calls provide an error number in the external
+variable
+.Va errno ,
+which is defined as:
 .Pp
 .Dl extern int errno
-.Pp
-and for threaded programs as:
-.Pp
-.Dl extern    int *       __error();
-.Dl #define   errno       (* __error())
-.Pp
-A threaded program must be compiled with
-.Va _THREAD_SAFE
-defined so that the preprocessor will output the appropriate errno
-definition to the compiler. Failure to do so will mean that error
-variables will not be thread specific.
-.Pp
-The threaded library implementation of
-.Va __error()
-returns a pointer to a field in the thread specific structure for
-threads other than the initial thread. For the initial thread,
-.Va __error()
-returns a pointer to a global
-.Va errno
-variable that is compatible with that used by non-threaded programs.
-This allows the initial thread to call functions in libraries which have
-not been compiled with
-.Va _THREAD_SAFE .
-Programmers should ensure that threads other than the initial thread only
-call functions in libraries that have been compiled with
-.Va _THREAD_SAFE .
-.Pp
-Programmers should include
-.Aq Pa sys/errno.h to obtain the definition of
-.Va errno
-rather than coding the definition as an external reference directly. It is
-planned that the
-.Va extern int errno
-definition will eventually be replaced by the threaded definition so that
-all libraries will have a thread-aware treatment of
-.Va errno .
 .Pp
 When a system call detects an error,
 it returns an integer value
@@ -159,9 +123,9 @@ or a read (write) request was made to a file that was only open for
 writing (reading).
 .It Er 10 ECHILD Em "\&No child processes" .
 A
-.Xr wait 2
+.Xr wait
 or
-.Xr waitpid 2
+.Xr waitpid
 function was executed by a process that had no existing or unwaited-for
 child processes.
 .It Er 11 EDEADLK Em "Resource deadlock avoided" .
@@ -187,7 +151,7 @@ in a manner which would have conflicted with the request.
 .It Er 17 EEXIST Em "File exists" .
 An existing file was mentioned in an inappropriate context,
 for instance, as the new link name in a
-.Xr link 2
+.Xr link
 function.
 .It Er 18 EXDEV Em "Improper link" .
 A hard link to a file on another file system
@@ -205,9 +169,9 @@ An attempt was made to open a directory with write mode specified.
 .It Er 22 EINVAL Em "Invalid argument" .
 Some invalid argument was supplied. (For example,
 specifying an undefined signal to a
-.Xr signal 3
+.Xr signal
 or
-.Xr kill 2
+.Xr kill
 function).
 .It Er 23 ENFILE Em "Too many open files in system" .
 Maximum number of file descriptors allowable on the system
@@ -227,7 +191,7 @@ special device for which the operation was inappropriate.
 The new process was a pure procedure (shared text) file
 which was open for writing by another process, or
 while the pure procedure file was being executed an
-.Xr open 2
+.Xr open
 call requested write access.
 .It Er 27 EFBIG Em "File too large" .
 The size of a file exceeded the maximum (about
@@ -236,7 +200,7 @@ The size of a file exceeded the maximum (about
 bytes).
 .It Er 28 ENOSPC Em "Device out of space" .
 A
-.Xr write 2
+.Xr write
 to an ordinary file, the creation of a
 directory or symbolic link, or the creation of a directory
 entry failed because no more disk blocks were available
@@ -245,7 +209,7 @@ created file failed because no more inodes were available
 on the file system.
 .It Er 29 ESPIPE Em "Illegal seek" .
 An
-.Xr lseek 2
+.Xr lseek
 function was issued on a socket, pipe or
 .Tn FIFO .
 .It Er 30 EROFS Em "Read-only file system" .
@@ -344,12 +308,12 @@ An operation on a socket or pipe was not performed because
 the system lacked sufficient buffer space or because a queue was full.
 .It Er 56 EISCONN Em "Socket is already connected" .
 A
-.Xr connect 2
+.Xr connect
 request was made on an already connected socket; or,
 a
-.Xr sendto 2
+.Xr sendto
 or
-.Xr sendmsg 2
+.Xr sendmsg
 request on a connected socket specified a destination
 when already connected.
 .It Er 57 ENOTCONN Em "Socket is not connected" .
@@ -363,9 +327,9 @@ had already been shut down with a previous
 call.
 .It Er 60 ETIMEDOUT Em "Operation timed out" .
 A
-.Xr connect 2
+.Xr connect
 or
-.Xr send 2
+.Xr send
 request failed because the connected party did not
 properly respond after a period of time.  (The timeout
 period is dependent on the communication protocol.)
@@ -397,7 +361,7 @@ was supplied to a remove directory or rename call.
 The quota system ran out of table entries.
 .It Er 69 EDQUOT Em "Disc quota exceeded" .
 A 
-.Xr write 2
+.Xr write
 to an ordinary file, the creation of a
 directory or symbolic link, or the creation of a directory
 entry failed because the user's quota of disk blocks was
@@ -450,7 +414,7 @@ A new process is created by a currently active process; (see
 The parent process ID of a process is initially the process ID of its creator.
 If the creating process exits,
 the parent process ID of each child is set to the ID of a system process,
-.Xr init 8 .
+.Xr init .
 .It  Process Group
 Each active process is a member of a process group that is identified by
 a non-negative integer called the process group ID.  This is the process
@@ -497,7 +461,7 @@ as the group,
 but is in a different process group.
 Note that when a process exits, the parent process for its children
 is changed to be
-.Nm init ,
+.Xr init ,
 which is in a separate session.
 Not all members of an orphaned process group are necessarily orphaned
 processes (those whose creating process has exited).
@@ -701,5 +665,4 @@ of a certain format.  An Address Family is the set of addresses
 for a specific group of protocols.  Each socket has an address
 chosen from the address family in which the socket was created.
 .Sh SEE ALSO
-.Xr intro 3 ,
-.Xr perror 3
+intro(3), perror(3)

@@ -15,9 +15,6 @@ File: dir	Node: Top	This is the top of the INFO tree
 System utilities:
 
 * AMD: (amdref).		AMD Reference Manual.
-* CVS: (cvs).			CVS Reference Manual.
-* CVS-CLIENT: (cvsclient).	CVS client/server Reference Manual.
-* DIFF: (diff).			DIFF/PATCH Reference Manual.
 * DC: (dc).			The GNU desk calculator.
 * GAWK: (gawk).			The GNU AWK language interpreter manual.
 * Info: (info).			Manual for this documentation browsing system.
@@ -46,7 +43,6 @@ Programming & development tools:
 * GXX Internals: (gxxint).	Guide to the internals of the GNU C++ compiler.
 * GDB: (gdb).			The GNU Debugger (C & C++) manual.
 * GDB Internals: (gdbint).	Guide to the internals of GDB.
-* GMP: (gmp).			The GNU MP Math library.
 * History: (history).		The GNU History library.
 * Readline: (readline).		The GNU Readline library
 * Regex: (regex).		The GNU regular expression library.

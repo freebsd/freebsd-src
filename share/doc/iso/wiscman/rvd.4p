@@ -3,9 +3,9 @@
 .\" LICENSED MATERIALS - PROPERTY OF IBM
 .\" REFER TO COPYRIGHT INSTRUCTIONS FORM NUMBER G120-2083
 .\"
-.\"$Header:rvd.4p_ca 11.0$
+.\"$Header: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wiscman/rvd.4p,v 1.1.1.1 1994/05/30 19:08:12 rgrimes Exp $
 .\"$ACIS:rvd.4p_ca 11.0$
-.\"$Source: /ibm/acis/usr/man/man4/RCS/rvd.4p_ca,v $
+.\"$Source: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wiscman/rvd.4p,v $
 .\"This file contains -man macros.
 .TH RVD 4P "July 1987" "Space overwritten by .AC macro" " "
 .AC 1 0

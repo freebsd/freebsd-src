@@ -43,9 +43,7 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 6/2/93";
 /*      Re-coding of advent in C: data initialization                   */
 
 #include <sys/types.h>
-#include <signal.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include "hdr.h"
 
 int blklin = TRUE;

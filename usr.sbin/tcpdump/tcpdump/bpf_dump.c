@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: bpf_dump.c,v 1.6 94/06/06 14:31:21 leres Exp $ (LBL)";
+    "@(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/bpf_dump.c,v 1.2 1995/03/08 12:52:10 olah Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

@@ -1,6 +1,6 @@
 /*
- * $Header: error_message.c,v 1.2 89/01/25 09:08:57 shanzer Exp $
- * $Source: /paris/source/4.3/athena.lib/et.new/RCS/error_message.c,v $
+ * $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/error_message.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $
+ * $Source: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/error_message.c,v $
  * $Locker:  $
  *
  * Copyright 1987 by the Student Information Processing Board
@@ -15,7 +15,7 @@
 #include "internal.h"
 
 static const char rcsid[] =
-    "$Header: error_message.c,v 1.2 89/01/25 09:08:57 shanzer Exp $";
+    "$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/error_message.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $";
 static const char copyright[] =
     "Copyright 1986, 1987, 1988 by the Student Information Processing Board\nand the department of Information Systems\nof the Massachusetts Institute of Technology";
 

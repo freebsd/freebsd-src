@@ -12,7 +12,7 @@
 static const char copyright[] =
     "Copyright 1987,1988 by Student Information Processing Board, Massachusetts Institute of Technology";
 static const char rcsid_et_name_c[] =
-    "$Header: et_name.c,v 1.7 89/01/01 06:14:56 raeburn Exp $";
+    "$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/et_name.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $";
 #endif
 
 static const char char_set[] =

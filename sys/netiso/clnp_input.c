@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_input.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_input.c,v 1.5 1995/05/11 00:13:20 wollman Exp $
+ * $Id: clnp_input.c,v 1.6 1995/05/30 08:10:19 rgrimes Exp $
  */
 
 /***********************************************************
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_input.c,v 1.5 1995/05/11 00:13:20 wollman Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/clnp_input.c,v $ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_input.c,v 1.6 1995/05/30 08:10:19 rgrimes Exp $ */
+/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_input.c,v $ */
 
 #include <sys/param.h>
 #include <sys/systm.h>

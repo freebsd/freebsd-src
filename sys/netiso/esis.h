@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)esis.h	8.1 (Berkeley) 6/10/93
- * $Id: esis.h,v 1.3 1994/08/21 06:14:18 paul Exp $
+ * $Id: esis.h,v 1.4 1995/05/30 08:10:36 rgrimes Exp $
  */
 
 #ifndef _NETISO_ESIS_H_
@@ -64,8 +64,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- *	$Header: /home/ncvs/src/sys/netiso/esis.h,v 1.3 1994/08/21 06:14:18 paul Exp $
- *	$Source: /home/ncvs/src/sys/netiso/esis.h,v $
+ *	$Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/esis.h,v 1.4 1995/05/30 08:10:36 rgrimes Exp $
+ *	$Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/esis.h,v $
  */
 
 #ifndef BYTE_ORDER

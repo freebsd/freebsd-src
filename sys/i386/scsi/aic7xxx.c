@@ -1560,8 +1560,6 @@ clear:
 			 	((long)xs->sc_link->fordriver & SELBUSB)
 				 	? 'B' : 'A',
 				 iobase);
-			/* Stop the selection */
-			outb(SCSISEQ + iobase, 0);
 
 			outb(SCB_CONTROL + iobase, 0);
 

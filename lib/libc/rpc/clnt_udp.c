@@ -40,9 +40,6 @@ static char *rcsid = "$Id: clnt_udp.c,v 1.3.4.1 1995/08/04 19:37:31 davidg Exp $
  */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <rpc/rpc.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -291,8 +288,8 @@ send_again:
 #endif /* def FD_SETSIZE */
 	for (;;) {
 		readfds = mask;
-		switch (select(_rpc_dtablesize(), &readfds, (fd_set *)NULL,
-			       (fd_set *)NULL, &(cu->cu_wait))) {
+		switch (select(_rpc_dtablesize(), &readfds, (int *)NULL,
+			       (int *)NULL, &(cu->cu_wait))) {
 
 		case 0:
 			time_waited.tv_sec += cu->cu_wait.tv_sec;

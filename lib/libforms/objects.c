@@ -371,21 +371,3 @@ add_menu_option(MENU_OBJECT *menu, char *option)
 
 	return (++menu->no_options);
 }
-
- 
-/* Default object functions */
- 
-void  
-draw_box(OBJECT *object) 
-{
-	/* Gross hack for now */ 
-	ncurses_draw_box(object);
-}
- 
-void
-draw_shadow(OBJECT *object)
-{ 
-	/* Gross hack for now */
-	ncurses_draw_shadow(object);
-}
-

@@ -44,7 +44,6 @@ static char sccsid[] = "@(#)io.c	8.1 (Berkeley) 5/31/93";
 
 #include "hdr.h"
 #include <stdio.h>
-#include <stdlib.h>
 
 
 getin(wrd1,wrd2)                        /* get command from user        */

@@ -170,7 +170,7 @@ rl_add_funmap_entry (name, function)
     else
       funmap =
 	(FUNMAP **)xrealloc (funmap, (funmap_size += 80) * sizeof (FUNMAP *));
-  
+
   funmap[funmap_entry] = (FUNMAP *)xmalloc (sizeof (FUNMAP));
   funmap[funmap_entry]->name = name;
   funmap[funmap_entry]->function = function;

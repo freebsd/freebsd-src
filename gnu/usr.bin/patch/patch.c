@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.5 1995/01/12 22:09:40 hsu Exp $";
+	"$Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/patch.c,v 1.6 1995/05/30 05:02:34 rgrimes Exp $";
 
 /* patch - a program to apply diffs to original files
  *
@@ -9,6 +9,9 @@ char rcsid[] =
  * money off of it, or pretend that you wrote it.
  *
  * $Log: patch.c,v $
+ * Revision 1.6  1995/05/30  05:02:34  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.5  1995/01/12  22:09:40  hsu
  * Fix bug that created new files even when running in -C check mode.
  * Reviewed by: phk

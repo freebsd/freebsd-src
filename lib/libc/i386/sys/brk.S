@@ -43,8 +43,10 @@
 
 #include "SYS.h"
 
-	.globl	HIDENAME(curbrk)
-	.globl	HIDENAME(minbrk)
+#define	SYS_brk		17
+
+	.globl	curbrk
+	.globl	minbrk
 ENTRY(_brk)
 	jmp	ok
 
@@ -52,40 +54,39 @@ ENTRY(brk)
 #ifdef PIC
 	movl	4(%esp),%eax
 	PIC_PROLOGUE
-	movl	PIC_GOT(HIDENAME(curbrk)),%edx	# set up GOT addressing
-	movl	PIC_GOT(HIDENAME(minbrk)),%ecx	#
+	movl	PIC_GOT(curbrk),%edx	# set up GOT addressing
+	movl	PIC_GOT(minbrk),%ecx	#
 	cmpl	%eax,(%ecx)
 	PIC_EPILOGUE
 	jl	ok
 	movl	(%ecx),%eax
 	movl	%eax,4(%esp)
 ok:
-	lea	SYS_break,%eax
-	KERNCALL
+	lea	SYS_brk,%eax
+	LCALL(7,0)
 	jb	err
 	movl	4(%esp),%eax
 	movl	%eax,(%edx)
 	movl	$0,%eax
 	ret
 err:
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
+	jmp	PIC_PLT(cerror)
 
 #else
 
 	movl	4(%esp),%eax
-	cmpl	%eax,HIDENAME(minbrk)
+	cmpl	%eax,minbrk
 	jl	ok
-	movl	HIDENAME(minbrk),%eax
+	movl	minbrk,%eax
 	movl	%eax,4(%esp)
 ok:
-	lea	SYS_break,%eax
-	KERNCALL
+	lea	SYS_brk,%eax
+	LCALL(7,0)
 	jb	err
 	movl	4(%esp),%eax
-	movl	%eax,HIDENAME(curbrk)
+	movl	%eax,curbrk
 	movl	$0,%eax
 	ret
 err:
-	jmp	HIDENAME(cerror)
+	jmp	cerror
 #endif

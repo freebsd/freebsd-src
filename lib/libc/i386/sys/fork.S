@@ -43,11 +43,7 @@
 
 #include "SYS.h"
 
-#ifdef _THREAD_SAFE
-PSYSCALL(fork,_thread_sys_fork)
-#else
 SYSCALL(fork)
-#endif
 	cmpl	$0,%edx	/* parent, since %edx == 0 in parent, 1 in child */
 	je	1f
 	movl	$0,%eax

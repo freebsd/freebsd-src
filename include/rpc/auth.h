@@ -7,7 +7,7 @@
  * program developed by the user.
  *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
  *
  * Sun RPC is provided with no support and without any obligation on the
@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id: auth.h,v 1.5 1996/01/31 08:02:11 hsu Exp $
+ *	$Id: auth.h,v 1.3 1995/05/30 04:55:09 rgrimes Exp $
  */
 
 /*
@@ -68,10 +68,14 @@ enum auth_stat {
 	AUTH_FAILED=7			/* some unknown reason */
 };
 
+#if (mc68000 || sparc || vax || i386 || tahoe || hp300)
+typedef u_long u_int32;	/* 32-bit unsigned integers */
+#endif
+
 union des_block {
 	struct {
-		u_int32_t high;
-		u_int32_t low;
+		u_int32 high;
+		u_int32 low;
 	} key;
 	char c[8];
 };
@@ -100,7 +104,7 @@ typedef struct {
 	struct auth_ops {
 		void	(*ah_nextverf)();
 		int	(*ah_marshal)();	/* nextverf & serialize */
-		int	(*ah_validate)();	/* validate verifier */
+		int	(*ah_validate)();	/* validate varifier */
 		int	(*ah_refresh)();	/* refresh credentials */
 		void	(*ah_destroy)();	/* destroy this structure */
 	} *ah_ops;

@@ -3,8 +3,7 @@
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)
-BINGRP=         dialer
-BINMODE=        6555
+BINMODE=        4555
 
 PROG=		uucico
 SRCS=		uucico.c trans.c send.c rec.c xcmd.c prot.c protg.c protf.c \

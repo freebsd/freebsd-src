@@ -43,53 +43,48 @@
 
 #include "SYS.h"
 
-	.globl	CNAME(end)
-	.globl	HIDENAME(minbrk)
-	.globl	HIDENAME(curbrk)
+#define	SYS_brk		17
+
+	.globl	_end
+	.globl	minbrk
+	.globl	curbrk
 
 	.data
-HIDENAME(minbrk):	.long	CNAME(end)
-HIDENAME(curbrk):	.long	CNAME(end)
+minbrk:	.long	_end
+curbrk:	.long	_end
 	.text
 
 ENTRY(sbrk)
 #ifdef PIC
 	movl	4(%esp),%ecx
 	PIC_PROLOGUE
-	movl	PIC_GOT(HIDENAME(curbrk)),%edx
+	movl	PIC_GOT(curbrk),%edx
 	movl	(%edx),%eax
 	PIC_EPILOGUE
-	testl	%ecx,%ecx
-	jz	back
 	addl	%eax,4(%esp)
-	lea	SYS_break,%eax
-	KERNCALL
+	lea	SYS_brk,%eax
+	LCALL(7,0)
 	jb	err
 	PIC_PROLOGUE
-	movl	PIC_GOT(HIDENAME(curbrk)),%edx
+	movl	PIC_GOT(curbrk),%edx
 	movl	(%edx),%eax
 	addl	%ecx,(%edx)
 	PIC_EPILOGUE
-back:
 	ret
 err:
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
+	jmp	PIC_PLT(cerror)
 
-#else /* !PIC */
+#else
 
 	movl	4(%esp),%ecx
-	movl	HIDENAME(curbrk),%eax
-	testl	%ecx,%ecx
-	jz	back
+	movl	curbrk,%eax
 	addl	%eax,4(%esp)
-	lea	SYS_break,%eax
-	KERNCALL
+	lea	SYS_brk,%eax
+	LCALL(7,0)
 	jb	err
-	movl	HIDENAME(curbrk),%eax
-	addl	%ecx,HIDENAME(curbrk)
-back:
+	movl	curbrk,%eax
+	addl	%ecx,curbrk
 	ret
 err:
-	jmp	HIDENAME(cerror)
-#endif /* PIC */
+	jmp	cerror
+#endif

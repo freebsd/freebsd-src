@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_tpdu.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_tpdu.h,v 1.3 1994/08/21 06:14:31 paul Exp $
+ * $Id: tp_tpdu.h,v 1.4 1995/05/30 08:11:38 rgrimes Exp $
  */
 
 #ifndef _NETISO_TP_TPDU_H_
@@ -66,8 +66,8 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_tpdu.h,v 1.3 1994/08/21 06:14:31 paul Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_tpdu.h,v $
+ * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_tpdu.h,v 1.4 1995/05/30 08:11:38 rgrimes Exp $
+ * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_tpdu.h,v $
  *
  * This ghastly set of macros makes it possible to
  * refer to tpdu structures without going mad.

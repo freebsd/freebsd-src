@@ -41,36 +41,21 @@ static char sccsid[] = "@(#)fflush.c	8.1 (Berkeley) 6/4/93";
 #include <errno.h>
 #include <stdio.h>
 #include "local.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
 
 /* Flush a single file, or (if fp is NULL) all files.  */
-int
 fflush(fp)
 	register FILE *fp;
 {
-	int retval;
 
 	if (fp == NULL)
 		return (_fwalk(__sflush));
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
 	if ((fp->_flags & (__SWR | __SRW)) == 0) {
 		errno = EBADF;
-		retval = EOF;
-	} else {
-		retval = __sflush(fp);
+		return (EOF);
 	}
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
-	return (retval);
+	return (__sflush(fp));
 }
 
-int
 __sflush(fp)
 	register FILE *fp;
 {

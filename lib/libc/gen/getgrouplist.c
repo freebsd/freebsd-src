@@ -50,6 +50,7 @@ getgrouplist(uname, agroup, groups, grpcnt)
 	int *grpcnt;
 {
 	register struct group *grp;
+	register struct passwd *pw;
 	register int i, ngroups;
 	int ret, maxgroups;
 

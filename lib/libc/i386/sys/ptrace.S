@@ -47,16 +47,15 @@ ENTRY(ptrace)
 	xorl	%eax,%eax
 #ifdef PIC
         PIC_PROLOGUE
-        movl    PIC_GOT(CNAME(errno)),%edx
+        movl    PIC_GOT(_errno),%edx
         movl    %eax,(%edx)
         PIC_EPILOGUE
 #else
-        movl    %eax,CNAME(errno)
+        movl    %eax,_errno
 #endif
 	lea	SYS_ptrace,%eax
-	KERNCALL
+	LCALL(7,0)
 	jb	err
 	ret
 err:
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
+	jmp	cerror

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: pcap-namedb.h,v 1.2 94/06/14 20:03:34 leres Exp $ (LBL)
+ * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/pcap-namedb.h,v 1.1.1.1 1995/01/20 04:13:05 jkh Exp $ (LBL)
  */
 
 #ifndef lib_pcap_ethers_h

@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)weekly	5.14 (Berkeley) 6/23/91
-#	$Id$
+#
 
 PATH=/bin:/sbin:/usr/sbin:/usr/bin:/usr/libexec
 export PATH
@@ -36,11 +36,33 @@ echo "Subject: $host weekly run output"
 #	rm -rf $TDIR
 #fi
 
-if [ -f /usr/libexec/uucp/clean.weekly ]; then
+if [ -f /usr/lib/uucp/clean.weekly ]; then
 	echo ""
 	echo "Cleaning up UUCP:"
-	echo /usr/libexec/uucp/clean.weekly | su daemon
+	echo /usr/lib/uucp/clean.weekly | su daemon
 fi
+echo ""
+
+echo "Rotating messages:"
+cd /var/log
+if [ -f messages.2 ]; then mv -f messages.2 messages.3; fi
+if [ -f messages.1 ]; then mv -f messages.1 messages.2; fi
+if [ -f messages.0 ]; then mv -f messages.0 messages.1; fi
+mv -f messages messages.0
+cp /dev/null messages
+chmod 644 messages
+kill -1 `cat /var/run/syslog.pid`
+cd /
+
+echo "Rotating cron log:"
+cd /var/cron
+if [ -f log.2 ]; then mv -f log.2 log.3; fi
+if [ -f log.1 ]; then mv -f log.1 log.2; fi
+if [ -f log.0 ]; then mv -f log.0 log.1; fi
+mv -f log log.0
+cp /dev/null log
+chmod 600 log
+cd /
 
 echo ""
 echo "Rebuilding locate database:"
@@ -54,14 +76,8 @@ echo ""
 echo "Rebuilding whatis database:"
 MANPATH=${MANPATH:-/usr/share/man:/usr/X11R6/man:/usr/local/man}
 
-makewhatis.local "${MANPATH}"
+makewhatis "${MANPATH}"
 
 #echo ""
 #echo "Reformatting manual pages:"
-#echo catman.local "${MANPATH}" | su -fm man
-
-echo ""
-echo "Cleaning up kernel database files:"
-kernel=`sysctl -n kern.bootfile`
-kernel=kvm_`basename ${kernel}`.db
-find /var/db -name "kvm_*.db" -a ! -name ${kernel} -a -atime +7 -exec rm -f -- {} \;
+#echo catman "${MANPATH}" | su man

@@ -83,8 +83,6 @@ integer f_open(olist *a)
 #endif
 	if(a->ounit>=MXUNIT || a->ounit<0)
 		err(a->oerr,101,"open")
-	if (!f__init)
-		f_init();
 	f__curunit = b = &f__units[a->ounit];
 	if(b->ufd) {
 		if(a->ofnm==0)

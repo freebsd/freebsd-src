@@ -483,17 +483,15 @@ __time_load_locale(const char *name)
 	struct stat		st;
 	size_t			namesize;
 	size_t			bufsize;
-	int                     save_using_locale;
 
-	save_using_locale = using_locale;
 	using_locale = 0;
 
-	if (name == NULL)
-		goto no_locale;
-
-	if (!*name || !strcmp(name, "C") || !strcmp(name, "POSIX"))
+	if (!strcmp(name, "C") || !strcmp(name, "POSIX"))
 		return 0;
 
+	if (name == NULL || *name == '\0') {
+		goto no_locale;
+	}
 	/*
 	** If the locale name is the same as our cache, use the cache.
 	*/
@@ -516,8 +514,9 @@ __time_load_locale(const char *name)
 		 "%s/%s/%s",
 		 _PathLocale, name, lc_time);
 	fd = open(filename, O_RDONLY);
-	if (fd < 0)
+	if (fd < 0) {
 		goto no_locale;
+	}
 	if (fstat(fd, &st) != 0)
 		goto bad_locale;
 	if (st.st_size <= 0)
@@ -544,7 +543,7 @@ __time_load_locale(const char *name)
 		ap < (const char **) (&localebuf + 1);
 			++ap) {
 				if (p == plim)
-					goto reset_locale;
+					goto bad_lbuf;
 				*ap = p;
 				while (*p != '\n')
 					++p;
@@ -558,19 +557,16 @@ __time_load_locale(const char *name)
 	using_locale = 1;
 	return 0;
 
-reset_locale:
+bad_lbuf:
+	free(lbuf);
+bad_locale:
+	(void) close(fd);
+no_locale:
 	/*
 	 * XXX - This may not be the correct thing to do in this case.
 	 * setlocale() assumes that we left the old locale alone.
 	 */
 	locale_buf = locale_buf_C;
 	localebuf = C_time_locale;
-	save_using_locale = 0;
-bad_lbuf:
-	free(lbuf);
-bad_locale:
-	(void) close(fd);
-no_locale:
-	using_locale = save_using_locale;
 	return -1;
 }

@@ -36,12 +36,11 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from static char sccsid[] = "@(#)crypt.c	5.11 (Berkeley) 6/25/91"; */
-static char rcsid[] = "$Header: /home/ncvs/src/lib/libc/gen/crypt.c,v 1.3 1995/05/30 05:40:10 rgrimes Exp $";
+static char rcsid[] = "$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libc/gen/crypt.c,v 1.3 1995/05/30 05:40:10 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <unistd.h>
 #include <stdio.h>
-#include <string.h>
 
 /*
  * UNIX password, and DES, encryption.
@@ -50,10 +49,6 @@ static char rcsid[] = "$Header: /home/ncvs/src/lib/libc/gen/crypt.c,v 1.3 1995/0
  * encryption, make sure you've got libcrypt.a around.
  */
 
-__warn_references(des_setkey,
-	"WARNING!  des_setkey(3) not present in the system!");
-
-int
 des_setkey(key)
 	register const char *key;
 {
@@ -61,10 +56,6 @@ des_setkey(key)
 	return (0);
 }
 
-__warn_references(des_cipher,
-	"WARNING!  des_cipher(3) not present in the system!");
-
-int
 des_cipher(in, out, salt, num_iter)
 	const char     *in;
 	char           *out;
@@ -76,10 +67,6 @@ des_cipher(in, out, salt, num_iter)
 	return (0);
 }
 
-__warn_references(setkey,
-	"WARNING!  setkey(3) not present in the system!");
-
-int
 setkey(key)
 	register const char *key;
 {
@@ -87,10 +74,6 @@ setkey(key)
 	return (0);
 }
 
-__warn_references(encrypt,
-	"WARNING!  encrypt(3) not present in the system!");
-
-int
 encrypt(block, flag)
 	register char  *block;
 	int             flag;

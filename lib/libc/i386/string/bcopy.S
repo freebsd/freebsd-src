@@ -53,10 +53,8 @@ ENTRY(bcopy)
 	movl	12(%esp),%esi
 	movl	16(%esp),%edi
 	movl	20(%esp),%ecx
-	movl	%edi,%eax
-	subl	%esi,%eax
-	cmpl	%ecx,%eax	/* overlapping? */
-	jb	1f
+	cmpl	%esi,%edi	/* potentially overlapping? */
+	jnb	1f
 	cld			/* nope, copy forwards. */
 	shrl	$2,%ecx		/* copy by words */
 	rep
@@ -71,10 +69,10 @@ ENTRY(bcopy)
 1:
 	addl	%ecx,%edi	/* copy backwards. */
 	addl	%ecx,%esi
+	std
+	andl	$3,%ecx		/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
-	andl	$3,%ecx		/* any fractional bytes? */
-	std
 	rep
 	movsb
 	movl	20(%esp),%ecx	/* copy remainder by words */

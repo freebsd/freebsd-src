@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Header: /home/cvs/386BSD/ports/lang/perl/eg/findcp,v 1.1.1.1 1993/08/23 21:29:43 nate Exp $
+# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/eg/findcp,v 1.1.1.1 1994/09/10 06:27:47 gclarkii Exp $
 
 # This is a wrapper around the find command that pretends find has a switch
 # of the form -cp host:destination.  It presumes your find implements -ls.

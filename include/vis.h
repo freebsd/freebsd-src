@@ -31,24 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)vis.h	8.1 (Berkeley) 6/2/93
- *	$Id: vis.h,v 1.3 1996/05/01 00:57:57 bde Exp $
  */
 
 #ifndef _VIS_H_
 #define	_VIS_H_
 
-#include <machine/ansi.h>
-
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
-#endif
-
 /*
  * to select alternate encoding format
  */
 #define	VIS_OCTAL	0x01	/* use octal \ddd format */
-#define	VIS_CSTYLE	0x02	/* use \[nrft0..] where appropriate */
+#define	VIS_CSTYLE	0x02	/* use \[nrft0..] where appropiate */
 
 /*
  * to alter set of characters encoded (default is to encode all

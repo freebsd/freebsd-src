@@ -57,7 +57,6 @@
 #include <sys/devconf.h>
 
 #include <machine/clock.h>
-#include <machine/cpu.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
@@ -442,8 +441,7 @@ mse_probelogi(idp)
 		outb(idp->id_iobase + MSE_PORTC, MSE_DISINTR);
 		return(1);
 	} else {
-		if (bootverbose)
-			printf("mse%d: wrong signature %x\n",idp->id_unit,sig);
+		printf("mse%d: wrong signature %x\n",idp->id_unit,sig);
 		return(0);
 	}
 }

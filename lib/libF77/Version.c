@@ -1,4 +1,4 @@
-static char junk[] = "\n@(#)LIBF77 VERSION 2.01 6 Sept. 1995\n";
+static char junk[] = "\n@(#)LIBF77 VERSION 2.01 19 Sept. 1994\n";
 
 /*
 2.00	11 June 1980.  File version.c added to library.
@@ -27,15 +27,4 @@ static char junk[] = "\n@(#)LIBF77 VERSION 2.01 6 Sept. 1995\n";
 	 2 June 1994: adjust so abnormal terminations invoke f_exit just once
 	16 Sept. 1994: s_cmp: treat characters as unsigned in comparisons.
 	19 Sept. 1994: s_paus: flush after end of PAUSE; add -DMSDOS
-	12 Jan. 1995:	pow_[dhiqrz][hiq]: adjust x**i to work on machines
-			that sign-extend right shifts when i is the most
-			negative integer.
-	26 Jan. 1995: adjust s_cat.c, s_copy.c to permit the left-hand side
-			of character assignments to appear on the right-hand
-			side (unless compiled with -DNO_OVERWRITE).
-	27 Jan. 1995: minor tweak to s_copy.c: copy forward whenever
-			possible (for better cache behavior).
-	30 May 1995:  added subroutine exit(rc) integer rc. Version not changed.
-	29 Aug. 1995: add F77_aloc.c; use it in s_cat.c and system_.c.
-	6 Sept. 1995: fix return type of system_ under -DKR_headers.
 */

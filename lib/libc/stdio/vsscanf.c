@@ -52,15 +52,14 @@ eofread(cookie, buf, len)
 	return (0);
 }
 
-int
 vsscanf(str, fmt, ap)
 	const char *str;
 	const char *fmt;
 	_BSD_VA_LIST_ ap;
 {
+	int ret;
 	FILE f;
 
-	f._file = -1;
 	f._flags = __SRD;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._r = strlen(str);

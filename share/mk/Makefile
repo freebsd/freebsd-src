@@ -2,7 +2,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
 
 FILES=	bsd.README
-FILES+=	bsd.dep.mk bsd.doc.mk bsd.info.mk bsd.kmod.mk bsd.obj.mk
+FILES+=	bsd.dep.mk bsd.doc.mk bsd.info.mk bsd.kmod.mk
 FILES+=	bsd.lib.mk bsd.man.mk bsd.own.mk bsd.port.mk
 FILES+=	bsd.port.subdir.mk bsd.prog.mk bsd.sgml.mk bsd.subdir.mk
 FILES+=	sys.mk

@@ -59,28 +59,18 @@
  *	use sigreturn() if sigreturn() works.
  */
 
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_sigsetjmp)
-#else
 ENTRY(sigsetjmp)
-#endif
 	movl	8(%esp),%eax
 	movl	4(%esp),%ecx 
 	movl	%eax,32(%ecx)
 	testl	%eax,%eax
-	jz	2f
-	PIC_PROLOGUE
+	jz	1f
 	pushl	$0
-#ifdef _THREAD_SAFE
-	call	PIC_PLT(CNAME(_thread_sys_sigblock))
-#else
-	call	PIC_PLT(CNAME(sigblock))
-#endif
+	call	PIC_PLT(_sigblock)
 	addl	$4,%esp
-	PIC_EPILOGUE
 	movl	4(%esp),%ecx 
 	movl	%eax,24(%ecx)
-2:	movl	0(%esp),%edx
+1:	movl	0(%esp),%edx
 	movl	%edx, 0(%ecx)
 	movl	%ebx, 4(%ecx)
 	movl	%esp, 8(%ecx)
@@ -91,24 +81,14 @@ ENTRY(sigsetjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_siglongjmp)
-#else
 ENTRY(siglongjmp)
-#endif
 	movl	4(%esp),%edx
 	cmpl	$0,32(%edx)
-	jz	2f
-	PIC_PROLOGUE
+	jz	1f
 	pushl	24(%edx)
-#ifdef _THREAD_SAFE
-	call	PIC_PLT(CNAME(_thread_sys_sigsetmask))
-#else
-	call	PIC_PLT(CNAME(sigsetmask))
-#endif
+	call	PIC_PLT(_sigsetmask)
 	addl	$4,%esp
-	PIC_EPILOGUE
-2:	movl	4(%esp),%edx
+1:	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	movl	0(%edx),%ecx
 	movl	4(%edx),%ebx
@@ -119,7 +99,7 @@ ENTRY(siglongjmp)
 	fninit
 	fldcw	28(%edx)
 	testl	%eax,%eax
-	jnz	1f
+	jnz	2f
 	incl	%eax
-1:	movl	%ecx,0(%esp)
+2:	movl	%ecx,0(%esp)
 	ret

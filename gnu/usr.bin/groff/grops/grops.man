@@ -609,7 +609,7 @@ The input to
 must be in the format output by
 .BR @g@troff (@MAN1EXT@).
 This is described in
-.BR groff_out (@MAN5EXT@).
+.BR groff_out (@MAN1EXT@).
 In addition the device and font description files for the device used
 must meet certain requirements.
 The device and font description files supplied for
@@ -808,7 +808,7 @@ Macros to undo the effect of
 .BI /tmp/grops XXXXXX
 Temporary file.
 .SH "SEE ALSO"
-.\" .BR afmtodit (@MAN1EXT@),
+.BR afmtodit (@MAN1EXT@),
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
 .BR psbb (@MAN1EXT@),

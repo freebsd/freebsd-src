@@ -87,10 +87,8 @@ for use with INTEGER*8.  To use it, you must modify f2c.h to
 declare longint appropriately; then add pow_qq.o to the POW =
 line in the makefile.
 
-Following Fortran 90, s_cat.c and s_copy.c allow the target of a
-(character string) assignment to be appear on its right-hand, at
-the cost of some extra overhead for all run-time concatenations.
-If you prefer the  extra efficiency that comes with the Fortran 77
-requirement that the left-hand side of a character assignment not
-be involved in the right-hand side, compile s_cat.c and s_copy.c
-with -DNO_OVERWRITE .
+If you wish to allow the target of a (character string) concatenation
+to be appear on its right-hand (at the cost of extra overhead for
+all run-time concatenations), change "s_cat.o" to "s_catow.o" in
+the makefile.  Note that the Fortran 77 Standard explicitly forbids
+the target of a concatenation from appearing on its right-hand side.

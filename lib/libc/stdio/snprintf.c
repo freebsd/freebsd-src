@@ -46,10 +46,8 @@ static char sccsid[] = "@(#)snprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 
 #if __STDC__
-int
 snprintf(char *str, size_t n, char const *fmt, ...)
 #else
-int
 snprintf(str, n, fmt, va_alist)
 	char *str;
 	size_t n;
@@ -68,7 +66,6 @@ snprintf(str, n, fmt, va_alist)
 #else
 	va_start(ap);
 #endif
-	f._file = -1;
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = n - 1;

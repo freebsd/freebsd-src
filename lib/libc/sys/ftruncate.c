@@ -37,11 +37,6 @@ static char sccsid[] = "@(#)ftruncate.c	8.1 (Berkeley) 6/17/93";
 
 #include <sys/types.h>
 #include <sys/syscall.h>
-#include <unistd.h>
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
 
 /*
  * This function provides 64-bit offset padding that
@@ -53,16 +48,5 @@ ftruncate(fd, length)
 	off_t	length;
 {
 
-#ifdef _THREAD_SAFE
-	int retval;
-	if (_thread_fd_lock(fd, FD_RDWR, NULL,__FILE__,__LINE__) != 0) {
-		retval = -1;
-	} else {
-	    retval = __syscall((quad_t)SYS_ftruncate, fd, 0, length);
-	    _thread_fd_unlock(fd, FD_RDWR);
-	}
-	return(retval);
-#else
 	return(__syscall((quad_t)SYS_ftruncate, fd, 0, length));
-#endif
 }

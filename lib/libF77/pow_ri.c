@@ -8,7 +8,6 @@ double pow_ri(real *ap, integer *bp)
 {
 double pow, x;
 integer n;
-unsigned long u;
 
 pow = 1;
 x = *ap;
@@ -21,11 +20,11 @@ if(n != 0)
 		n = -n;
 		x = 1/x;
 		}
-	for(u = n; ; )
+	for( ; ; )
 		{
-		if(u & 01)
+		if(n & 01)
 			pow *= x;
-		if(u >>= 1)
+		if(n >>= 1)
 			x *= x;
 		else
 			break;

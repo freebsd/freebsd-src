@@ -35,14 +35,10 @@
 static char sccsid[] = "@(#)abort.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
-#include <signal.h>
+#include <sys/signal.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
 
 void
 abort()
@@ -55,24 +51,15 @@ abort()
 	 * any errors -- X311J doesn't allow abort to return anyway.
 	 */
 	sigdelset(&mask, SIGABRT);
-#ifdef _THREAD_SAFE
-	(void) _thread_sys_sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
-#else
 	(void)sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
-#endif
 	(void)kill(getpid(), SIGABRT);
 
 	/*
 	 * if SIGABRT ignored, or caught and the handler returns, do
 	 * it again, only harder.
 	 */
-#ifdef _THREAD_SAFE
-	(void) _thread_sys_signal(SIGABRT, SIG_DFL);
-	(void) _thread_sys_sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
-#else
 	(void)signal(SIGABRT, SIG_DFL);
 	(void)sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
-#endif
 	(void)kill(getpid(), SIGABRT);
 	exit(1);
 }

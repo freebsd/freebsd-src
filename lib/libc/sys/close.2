@@ -78,7 +78,7 @@ of the descriptors can be rearranged with
 or deleted with
 .Fn close
 before the
-.Xr execve 2
+.Xr execve
 is attempted, but if some of these descriptors will still
 be needed if the execve fails, it is necessary to arrange for them
 to be closed if the execve succeeds.
@@ -90,28 +90,6 @@ execve; the call
 .Dq Li fcntl(d, F_SETFD, 0)
 restores the default,
 which is to not close the descriptor.
-.Sh IMPLEMENTATION NOTES
-.Pp
-In the non-threaded library
-.Fn close
-is implemented as the
-.Va close
-syscall.
-.Pp
-In the threaded library, the
-.Va close
-syscall is assembled to
-.Fn _thread_sys_close
-and
-.Fn close
-is implemented as a function which locks
-.Va d
-for read and write, then calls
-.Fn _thread_sys_close .
-Before returning,
-.Fn close
-unlocks
-.Va d .
 .Sh RETURN VALUES
 Upon successful completion, a value of 0 is returned.
 Otherwise, a value of -1 is returned and the global integer variable

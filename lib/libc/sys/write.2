@@ -115,53 +115,6 @@ and
 may write fewer bytes than requested;
 the return value must be noted,
 and the remainder of the operation should be retried when possible.
-.Sh IMPLEMENTATION NOTES
-.Pp
-In the non-threaded library
-.Fn write
-is implemented as the
-.Va write
-syscall.
-.Pp
-In the threaded library, the
-.Va write
-syscall is assembled to
-.Fn _thread_sys_write
-and
-.Fn write
-is implemented as a function which locks
-.Va d
-for read and write, then calls
-.Fn _thread_sys_write .
-If the call to
-.Fn _thread_sys_write
-would block, a context switch is performed. Before returning,
-.Fn write
-unlocks
-.Va d .
-.Pp
-In the non-threaded library
-.Fn writev
-is implemented as the
-.Va writev
-syscall.
-.Pp
-In the threaded library, the
-.Va writev
-syscall is assembled to
-.Fn _thread_sys_writev
-and
-.Fn writev
-is implemented as a function which locks
-.Va d
-for read and write, then calls
-.Fn _thread_sys_writev .
-If the call to
-.Fn _thread_sys_writev
-would block, a context switch is performed. Before returning,
-.Fn writev
-unlocks
-.Va d .
 .Sh RETURN VALUES
 Upon successful completion the number of bytes which were written
 is returned.  Otherwise a -1 is returned and the global variable

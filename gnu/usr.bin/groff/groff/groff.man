@@ -83,9 +83,6 @@ For typewriter-like devices
 .TP
 .B latin1
 For typewriter-like devices using the ISO Latin-1 character set.
-.TP
-.B koi8-r
-For typewriter-like devices using the russian KOI8-R character set.
 .LP
 The postprocessor to be used for a device is specified by the
 .B postpro
@@ -347,7 +344,7 @@ The most recent released version of groff is always available for
 anonymous ftp from prep.ai.mit.edu (18.71.0.38) in the directory
 pub/gnu.
 .SH "SEE ALSO"
-.\" .BR grog (@MAN1EXT@),
+.BR grog (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
 .BR @g@tbl (@MAN1EXT@),
 .BR @g@pic (@MAN1EXT@),
@@ -357,7 +354,7 @@ pub/gnu.
 .BR grops (@MAN1EXT@),
 .BR grodvi (@MAN1EXT@),
 .BR grotty (@MAN1EXT@),
-.\" .BR gxditview (@MAN1EXT@),
+.BR gxditview (@MAN1EXT@),
 .BR groff_font (@MAN5EXT@),
 .BR groff_out (@MAN5EXT@),
 .BR groff_ms (@MAN7EXT@),

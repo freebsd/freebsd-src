@@ -53,7 +53,7 @@ mblen(s, n)
 	if (s == 0 || *s == 0)
 		return (0);	/* No support for state dependent encodings. */
 
-	if (sgetrune(s, n, &e) == _INVALID_RUNE)
+	if (sgetrune(s, (int)n, &e) == _INVALID_RUNE)
 		return (s - e);
 	return (e - s);
 }
@@ -70,7 +70,7 @@ mbtowc(pwc, s, n)
 	if (s == 0 || *s == 0)
 		return (0);	/* No support for state dependent encodings. */
 
-	if ((r = sgetrune(s, n, &e)) == _INVALID_RUNE)
+	if ((r = sgetrune(s, (int)n, &e)) == _INVALID_RUNE)
 		return (s - e);
 	if (pwc)
 		*pwc = r;
@@ -137,12 +137,11 @@ wcstombs(s, pwcs, n)
 			*s = 0;
 			break;
 		}
-		if (!sputrune(*pwcs++, s, n, &e))
+		if (!sputrune(*pwcs++, s, (int)n, &e))
 			return (-1);		/* encoding error */
 		if (!e)			/* too long */
 			return (cnt);
 		cnt += e - s;
-		n -= e - s;
 		s = e;
 	}
 	return (cnt);

@@ -19,9 +19,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* ADD_FILES changes made by Ross Biro biro@yggdrasil.com 2/23/95 */
-
-#include <sys/types.h>
 #include <stdio.h>
 
 /* This symbol is used to indicate that we do not have things like
@@ -43,6 +40,7 @@
 #endif
 
 #include <string.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 
 #ifdef linux
@@ -102,7 +100,6 @@ struct directory_entry{
   unsigned int priority;
   char * name;
   char * table;
-  char * whole_name;
   struct directory * filedir;
   struct directory_entry * parent_rec;
   unsigned int flags;
@@ -143,23 +140,6 @@ struct deferred{
   struct directory * filedir;
   unsigned int flags;
 };
-
-#ifdef ADD_FILES
-struct file_adds {
-  char *name;
-  struct file_adds *child;
-  struct file_adds *next;
-  int add_count;
-  int used;
-  struct dirent de;
-  struct {
-    char *path;
-    char *name;
-  } *adds;
-};
-extern struct file_adds *root_file_adds;
-
-#endif
 
 extern void DECL(sort_n_finish,(struct directory *));
 extern int goof;

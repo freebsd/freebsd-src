@@ -42,10 +42,6 @@ static char sccsid[] = "@(#)ungetc.c	8.2 (Berkeley) 11/3/93";
 #include <stdlib.h>
 #include <string.h>
 #include "local.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
 
 /*
  * Expand the ungetc buffer `in place'.  That is, adjust fp->_p when
@@ -53,7 +49,7 @@ static char sccsid[] = "@(#)ungetc.c	8.2 (Berkeley) 11/3/93";
  * and move the bytes in the buffer around as necessary so that they
  * are all at the end (stack-style).
  */
-static int
+static
 __submore(fp)
 	register FILE *fp;
 {
@@ -86,7 +82,6 @@ __submore(fp)
 	return (0);
 }
 
-int
 ungetc(c, fp)
 	int c;
 	register FILE *fp;
@@ -95,27 +90,16 @@ ungetc(c, fp)
 		return (EOF);
 	if (!__sdidinit)
 		__sinit();
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
 	if ((fp->_flags & __SRD) == 0) {
 		/*
 		 * Not already reading: no good unless reading-and-writing.
 		 * Otherwise, flush any current write stuff.
 		 */
-		if ((fp->_flags & __SRW) == 0) {
-#ifdef _THREAD_SAFE
-			_thread_funlockfile(fp);
-#endif
+		if ((fp->_flags & __SRW) == 0)
 			return (EOF);
-		}
 		if (fp->_flags & __SWR) {
-			if (__sflush(fp)) {
-#ifdef _THREAD_SAFE
-				_thread_funlockfile(fp);
-#endif
+			if (__sflush(fp))
 				return (EOF);
-			}
 			fp->_flags &= ~__SWR;
 			fp->_w = 0;
 			fp->_lbfsize = 0;
@@ -129,17 +113,10 @@ ungetc(c, fp)
 	 * This may require expanding the current ungetc buffer.
 	 */
 	if (HASUB(fp)) {
-		if (fp->_r >= fp->_ub._size && __submore(fp)) {
-#ifdef _THREAD_SAFE
-			_thread_funlockfile(fp);
-#endif
+		if (fp->_r >= fp->_ub._size && __submore(fp))
 			return (EOF);
-		}
 		*--fp->_p = c;
 		fp->_r++;
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
 		return (c);
 	}
 	fp->_flags &= ~__SEOF;
@@ -153,9 +130,6 @@ ungetc(c, fp)
 	    fp->_p[-1] == c) {
 		fp->_p--;
 		fp->_r++;
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
 		return (c);
 	}
 
@@ -170,8 +144,5 @@ ungetc(c, fp)
 	fp->_ubuf[sizeof(fp->_ubuf) - 1] = c;
 	fp->_p = &fp->_ubuf[sizeof(fp->_ubuf) - 1];
 	fp->_r = 1;
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
 	return (c);
 }

@@ -5,7 +5,6 @@
 
 SRCS+=	gmon.c mcount.c
 MAN3+=	gmon/moncontrol.3
-MLINKS+= moncontrol.3 monstartup.3
 
 # mcount cannot be compiled with profiling
 mcount.po: mcount.o

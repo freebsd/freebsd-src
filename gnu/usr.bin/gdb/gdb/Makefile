@@ -1,5 +1,3 @@
-#	$Id$
-
 PROG = gdb
 BINDIR= /usr/bin
 CLEANFILES+= y.tab.h c-exp.tab.c ch-exp.tab.c m2-exp.tab.c
@@ -26,24 +24,24 @@ c-exp.tab.c: $(.CURDIR)/c-exp.y
 	sed -e '/extern.*malloc/d'  -e '/extern.*realloc/d'  -e '/extern.*free/d' \
          -e '/include.*malloc.h/d'  -e 's/malloc/xmalloc/g'  \
          -e 's/realloc/xrealloc/g'  < y.tab.c > c-exp.new
-	rm -f y.tab.c
-	mv -f c-exp.new ./c-exp.tab.c
+	rm y.tab.c
+	mv c-exp.new ./c-exp.tab.c
 
 ch-exp.tab.c: $(.CURDIR)/ch-exp.y
 	yacc -d -p ch_ $(.CURDIR)/ch-exp.y
 	sed -e '/extern.*malloc/d'  -e '/extern.*realloc/d'  -e '/extern.*free/d' \
          -e '/include.*malloc.h/d'  -e 's/malloc/xmalloc/g'  \
          -e 's/realloc/xrealloc/g'  < y.tab.c > ch-exp.new
-	rm -f y.tab.c
-	mv -f ch-exp.new ./ch-exp.tab.c
+	rm y.tab.c
+	mv ch-exp.new ./ch-exp.tab.c
 
 m2-exp.tab.c: $(.CURDIR)/m2-exp.y
 	yacc -d -p m2_ $(.CURDIR)/m2-exp.y
 	sed -e '/extern.*malloc/d'  -e '/extern.*realloc/d'  -e '/extern.*free/d' \
          -e '/include.*malloc.h/d'  -e 's/malloc/xmalloc/g'  \
          -e 's/realloc/xrealloc/g'  < y.tab.c > m2-exp.new
-	rm -f y.tab.c
-	mv -f m2-exp.new ./m2-exp.tab.c
+	rm y.tab.c
+	mv m2-exp.new ./m2-exp.tab.c
 
 
 CFLAGS+= -I$(.CURDIR)/. -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd

@@ -4,7 +4,7 @@ PROG=		lkbib
 SRCS=		lkbib.cc
 CFLAGS+=	-I${.CURDIR}/../include
 LDADD+=		${LIBBIB} ${LIBGROFF} -lm
-DPADD+=		${LIBBIB} ${LIBGROFF} ${LIBM}
+DPADD+=		${LIBBIB} ${LIBGROFF} ${LIBMATH}
 
 MANDEPEND=	lkbib.1
 CLEANFILES+=	${MANDEPEND}

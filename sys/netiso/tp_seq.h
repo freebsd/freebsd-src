@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_seq.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_seq.h,v 1.3 1994/08/21 06:14:28 paul Exp $
+ * $Id: tp_seq.h,v 1.4 1995/05/30 08:11:29 rgrimes Exp $
  */
 
 #ifndef _NETISO_TP_SEQ_H_
@@ -66,8 +66,8 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_seq.h,v 1.3 1994/08/21 06:14:28 paul Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_seq.h,v $
+ * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_seq.h,v 1.4 1995/05/30 08:11:29 rgrimes Exp $
+ * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_seq.h,v $
  *
  * These macros perform sequence number arithmetic modulo (2**7 or 2**31).
  * The relevant fields in the tpcb are:

@@ -1,4 +1,4 @@
-.\" $Header: /home/cvs/386BSD/ports/lang/perl/eg/g/gsh.man,v 1.1.1.1 1993/08/23 21:29:44 nate Exp $
+.\" $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/eg/g/gsh.man,v 1.1.1.1 1994/09/10 06:27:48 gclarkii Exp $
 .TH GSH 8 "13 May 1988"
 .SH NAME
 gsh \- global shell

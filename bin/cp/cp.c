@@ -86,7 +86,7 @@ static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 PATH_T to = { to.p_path, "" };
 
 uid_t myuid;
-int Rflag, iflag, pflag, rflag, fflag;
+int Rflag, iflag, pflag, rflag;
 int myumask;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
@@ -104,7 +104,7 @@ main(argc, argv)
 	int Hflag, Lflag, Pflag, ch, fts_options, r;
 	char *target;
 
-	Hflag = Lflag = Pflag = 0;
+	Hflag = Lflag = Pflag = Rflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRfipr")) != EOF)
 		switch (ch) {
 		case 'H':
@@ -123,12 +123,10 @@ main(argc, argv)
 			Rflag = 1;
 			break;
 		case 'f':
-			fflag = 1;
 			iflag = 0;
 			break;
 		case 'i':
-			iflag = 1;
-			fflag = 0;
+			iflag = isatty(fileno(stdin));
 			break;
 		case 'p':
 			pflag = 1;
@@ -136,6 +134,7 @@ main(argc, argv)
 		case 'r':
 			rflag = 1;
 			break;
+		case '?':
 		default:
 			usage();
 			break;

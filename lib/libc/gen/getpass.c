@@ -36,54 +36,23 @@ static char sccsid[] = "@(#)getpass.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/termios.h>
-#include <signal.h>
+#include <sys/signal.h>
 
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <unistd.h>
 
-static	struct termios oterm, term;
-static	sig_t ointhandler, oquithandler, otstphandler, oconthandler;
-static	FILE *fp;
-
-static void
-sighandler(int signo)
-{
-	/* restore tty state */
-	(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &oterm);
-
-	/* restore old sig handlers */
-	(void)signal(SIGINT, ointhandler);
-	(void)signal(SIGQUIT, oquithandler);
-	(void)signal(SIGTSTP, otstphandler);
-
-	/* resend us this signal */
-	(void)kill(getpid(), signo);
-}
-
-/* ARGSUSED */
-static void
-sigconthandler(int signo)
-{
-	/* re-install our signal handlers */
-	ointhandler = signal(SIGINT, sighandler);
-	oquithandler = signal(SIGQUIT, sighandler);
-	otstphandler = signal(SIGTSTP, sighandler);
-
-	/* turn off echo again */
-	(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &term);
-}
-
-
 char *
 getpass(prompt)
 	const char *prompt;
 {
+	struct termios term;
 	register int ch;
 	register char *p;
-	FILE *outfp;
+	FILE *fp, *outfp;
 	long omask;
+	int echo;
 	static char buf[_PASSWORD_LEN + 1];
 
 	/*
@@ -94,16 +63,16 @@ getpass(prompt)
 		outfp = stderr;
 		fp = stdin;
 	}
-
-	ointhandler = signal(SIGINT, sighandler);
-	oquithandler = signal(SIGQUIT, sighandler);
-	otstphandler = signal(SIGTSTP, sighandler);
-	oconthandler = signal(SIGCONT, sigconthandler);
-
-	(void)tcgetattr(fileno(fp), &oterm);
-	term = oterm;
-	term.c_lflag &= ~ECHO;
-	(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &term);
+	/*
+	 * note - blocking signals isn't necessarily the
+	 * right thing, but we leave it for now.
+	 */
+	omask = sigblock(sigmask(SIGINT)|sigmask(SIGTSTP));
+	(void)tcgetattr(fileno(fp), &term);
+	if (echo = (term.c_lflag & ECHO)) {
+		term.c_lflag &= ~ECHO;
+		(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &term);
+	}
 	(void)fputs(prompt, outfp);
 	rewind(outfp);			/* implied flush */
 	for (p = buf; (ch = getc(fp)) != EOF && ch != '\n';)
@@ -111,14 +80,11 @@ getpass(prompt)
 			*p++ = ch;
 	*p = '\0';
 	(void)write(fileno(outfp), "\n", 1);
-	(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &oterm);
-
-	/* restore old sig handlers */
-	(void)signal(SIGINT, ointhandler);
-	(void)signal(SIGQUIT, oquithandler);
-	(void)signal(SIGTSTP, otstphandler);
-	(void)signal(SIGCONT, oconthandler);
-
+	if (echo) {
+		term.c_lflag |= ECHO;
+		(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &term);
+	}
+	(void)sigsetmask(omask);
 	if (fp != stdin)
 		(void)fclose(fp);
 	return(buf);

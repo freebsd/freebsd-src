@@ -43,9 +43,7 @@ mkisofs.o: mkisofs.c iso9660.h mkisofs.h exclude.h
 
 clean:
 	/bin/rm -f *.o core mkisofs *~ #*#
-	(cd diag/; make clean)
-	(cd cdwrite/; make clean)
 
 dist:
-	tar -cvf - README Configure Makefile.in make.com TODO  COPYING  ChangeLog *.8 *.c *.h diag cdwrite.old cdwrite-1.5 | gzip > mkisofs-1.04.tar.gz
+	tar -cvf - README Configure Makefile.in make.com TODO  COPYING  ChangeLog *.8 *.c *.h diag | gzip > mkisofs-1.02.tar.gz
 

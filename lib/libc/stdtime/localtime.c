@@ -17,10 +17,6 @@ static char	elsieid[] = "@(#)localtime.c	7.44";
 #include "private.h"
 #include "tzfile.h"
 #include "fcntl.h"
-#ifdef	_THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
 
 /*
 ** SunOS 4.1.1 headers lack O_BINARY.
@@ -164,10 +160,6 @@ static struct state	gmtmem;
 static char		lcl_TZname[TZ_STRLEN_MAX + 1];
 static int		lcl_is_set;
 static int		gmt_is_set;
-#ifdef	_THREAD_SAFE
-static pthread_mutex_t  lcl_mutex   = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t  gmt_mutex   = PTHREAD_MUTEX_INITIALIZER;
-#endif
 
 char *			tzname[2] = {
 	wildabbr,
@@ -916,13 +908,8 @@ struct state * const	sp;
 */
 static
 #endif /* !defined STD_INSPIRED */
-#ifdef	_THREAD_SAFE
-void
-tzsetwall_basic P((void))
-#else
 void
 tzsetwall P((void))
-#endif
 {
 	if (lcl_is_set < 0)
 		return;
@@ -942,23 +929,8 @@ tzsetwall P((void))
 	settzname();
 }
 
-#ifdef	_THREAD_SAFE
-void
-tzsetwall P((void))
-{
-	pthread_mutex_lock(&lcl_mutex);
-	tzsetwall_basic();
-	pthread_mutex_unlock(&lcl_mutex);
-}
-#endif
-
-#ifdef	_THREAD_SAFE
-static void
-tzset_basic P((void))
-#else
 void
 tzset P((void))
-#endif
 {
 	register const char *	name;
 
@@ -997,16 +969,6 @@ tzset P((void))
 			(void) gmtload(lclptr);
 	settzname();
 }
-
-#ifdef	_THREAD_SAFE
-void
-tzset P((void))
-{
-	pthread_mutex_lock(&lcl_mutex);
-	tzset_basic();
-	pthread_mutex_unlock(&lcl_mutex);
-}
-#endif
 
 /*
 ** The easy way to behave "as if no library function calls" localtime
@@ -1064,55 +1026,13 @@ struct tm * const	tmp;
 #endif /* defined TM_ZONE */
 }
 
-#ifdef	_THREAD_SAFE
-int
-localtime_r(timep, p_tm)
-const time_t * const	timep;
-struct tm *p_tm;
-{
-	pthread_mutex_lock(&lcl_mutex);
-	tzset();
-	localsub(timep, 0L, p_tm);
-	pthread_mutex_unlock(&lcl_mutex);
-	return(0);
-}
-#endif
-
 struct tm *
 localtime(timep)
 const time_t * const	timep;
 {
-#ifdef	_THREAD_SAFE
-	static pthread_mutex_t localtime_mutex = PTHREAD_MUTEX_INITIALIZER;
-	static pthread_key_t localtime_key = -1;
-	struct tm *p_tm;
-
-	pthread_mutex_lock(&localtime_mutex);
-	if (localtime_key < 0) {
-		if (pthread_keycreate(&localtime_key, free) < 0) {
-			pthread_mutex_unlock(&localtime_mutex);
-			return(NULL);
-		}
-	}
-	pthread_mutex_unlock(&localtime_mutex);
-	if (pthread_getspecific(localtime_key,(void **) &p_tm) != 0) {
-		return(NULL);
-	} else if (p_tm == NULL) {
-		if ((p_tm = (struct tm *)malloc(sizeof(struct tm))) == NULL) {
-			return(NULL);
-		}
-		pthread_setspecific(localtime_key, p_tm);
-	}
-	pthread_mutex_lock(&lcl_mutex);
-	tzset();
-	localsub(timep, 0L, p_tm);
-	pthread_mutex_unlock(&lcl_mutex);
-	return p_tm;
-#else
 	tzset();
 	localsub(timep, 0L, &tm);
 	return &tm;
-#endif
 }
 
 /*
@@ -1125,9 +1045,6 @@ const time_t * const	timep;
 const long		offset;
 struct tm * const	tmp;
 {
-#ifdef	_THREAD_SAFE
-	pthread_mutex_lock(&gmt_mutex);
-#endif
 	if (!gmt_is_set) {
 		gmt_is_set = TRUE;
 #ifdef ALL_STATE
@@ -1136,9 +1053,6 @@ struct tm * const	tmp;
 #endif /* defined ALL_STATE */
 			gmtload(gmtptr);
 	}
-#ifdef	_THREAD_SAFE
-	pthread_mutex_unlock(&gmt_mutex);
-#endif
 	timesub(timep, offset, gmtptr, tmp);
 #ifdef TM_ZONE
 	/*
@@ -1165,43 +1079,9 @@ struct tm *
 gmtime(timep)
 const time_t * const	timep;
 {
-#ifdef	_THREAD_SAFE
-	static pthread_mutex_t gmtime_mutex = PTHREAD_MUTEX_INITIALIZER;
-	static pthread_key_t gmtime_key = -1;
-	struct tm *p_tm;
-
-	pthread_mutex_lock(&gmtime_mutex);
-	if (gmtime_key < 0) {
-		if (pthread_keycreate(&gmtime_key, free) < 0) {
-			pthread_mutex_unlock(&gmtime_mutex);
-			return(NULL);
-		}
-	}
-	pthread_mutex_unlock(&gmtime_mutex);
-	if (pthread_getspecific(gmtime_key,(void **) &p_tm) != 0) {
-		return(NULL);
-	} else if (p_tm == NULL) {
-		if ((p_tm = (struct tm *)malloc(sizeof(struct tm))) == NULL) {
-			return(NULL);
-		}
-		pthread_setspecific(gmtime_key, p_tm);
-	}
-	gmtsub(timep, 0L, p_tm);
-	return(p_tm);
-#else
 	gmtsub(timep, 0L, &tm);
 	return &tm;
-#endif
 }
-
-#ifdef	_THREAD_SAFE
-int
-gmtime_r(const time_t * timep, struct tm * tm)
-{
-	gmtsub(timep, 0L, tm);
-	return(0);
-}
-#endif
 
 #ifdef STD_INSPIRED
 
@@ -1604,16 +1484,8 @@ time_t
 mktime(tmp)
 struct tm * const	tmp;
 {
-	time_t mktime_return_value;
-#ifdef	_THREAD_SAFE
-	pthread_mutex_lock(&lcl_mutex);
-#endif
 	tzset();
-	mktime_return_value = time1(tmp, localsub, 0L);
-#ifdef	_THREAD_SAFE
-	pthread_mutex_unlock(&lcl_mutex);
-#endif
-	return(mktime_return_value);
+	return time1(tmp, localsub, 0L);
 }
 
 #ifdef STD_INSPIRED

@@ -41,7 +41,6 @@
 	.asciz "$Id: Ovfork.S,v 1.2 1995/01/23 01:29:37 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
-#include "DEFS.h"
 #include "SYS.h"
 
 /*
@@ -51,49 +50,30 @@
  * %eax == pid of child in parent, %eax == pid of parent in child.
  *
  */
+	.set	vfork,66
+.globl	_vfork
+.type	_vfork,@function
 
-ENTRY(vfork)
+_vfork:
 	popl	%ecx		/* my rta into ecx */
-	lea	SYS_vfork,%eax
-	KERNCALL
+	movl	$vfork, %eax
+	LCALL(7,0)
 	jb	verror
 vforkok:
 	cmpl	$0,%edx		/* child process? */
 	jne	child		/* yes */
 	jmp 	parent 
-#ifdef	_THREAD_SAFE
-	/*
-	 * Threaded version using __error().
-	 */
-	.globl	CNAME(__error)
-	.type	CNAME(__error),@function
-verror:
-	pushl	%eax
-#ifdef PIC
-	call	PIC_PLT(CNAME(__error))
-#else
-	call	CNAME(__error)
-#endif
-	popl	%ecx
-	movl	%ecx,(%eax)
-	movl	$-1,%eax
-	movl	$-1,%edx
-#else	/* !_THREAD_SAFE */
-	/*
-	 * Non-threaded version using global errno.
-	 */
-	.globl	CNAME(errno)
+.globl	_errno
 verror:
 #ifdef PIC
 	PIC_PROLOGUE
-	movl	PIC_GOT(CNAME(errno)), %edx
+	movl	PIC_GOT(_errno), %edx
 	movl	%eax,(%edx)
 	PIC_EPILOGUE
 #else
-	movl	%eax,CNAME(errno)
+	movl	%eax,_errno
 #endif
 	movl	$-1,%eax
-#endif	/* !_THREAD_SAFE */
 	jmp	%ecx
 child:
 	movl	$0,%eax

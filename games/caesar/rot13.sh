@@ -34,4 +34,4 @@
 #	@(#)rot13.sh	8.1 (Berkeley) 5/31/93
 #
 
-/usr/games/caesar 13 $*
+caesar 13 $*

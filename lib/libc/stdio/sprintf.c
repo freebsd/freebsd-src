@@ -48,10 +48,8 @@ static char sccsid[] = "@(#)sprintf.c	8.1 (Berkeley) 6/4/93";
 #include "local.h"
 
 #if __STDC__
-int
 sprintf(char *str, char const *fmt, ...)
 #else
-int
 sprintf(str, fmt, va_alist)
 	char *str;
 	char *fmt;
@@ -62,7 +60,6 @@ sprintf(str, fmt, va_alist)
 	va_list ap;
 	FILE f;
 
-	f._file = -1;
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = INT_MAX;

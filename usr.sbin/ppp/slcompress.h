@@ -1,7 +1,7 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.2 1995/02/26 12:17:58 amurai Exp $
+ * $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/ppp/slcompress.h,v 1.3 1995/05/30 03:50:58 rgrimes Exp $
  *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.
@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.h,v 1.2 1995/02/26 12:17:58 amurai Exp $
+ * $Id: slcompress.h,v 1.3 1995/05/30 03:50:58 rgrimes Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.

@@ -283,7 +283,6 @@ fxp_attach(config_id, unit)
 	ifp->if_output = ether_output;
 	ifp->if_start = fxp_start;
 	ifp->if_watchdog = fxp_watchdog;
-	ifp->if_baudrate = 100000000;
 
 	fxp_get_macaddr(sc);
 	printf("fxp%d: Ethernet address %s\n", unit,

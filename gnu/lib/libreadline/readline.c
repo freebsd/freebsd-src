@@ -216,12 +216,12 @@ int _rl_horizontal_scroll_mode = 0;
 
 /* Non-zero means to display an asterisk at the starts of history lines
    which have been modified. */
-int _rl_mark_modified_lines = 0;  
+int _rl_mark_modified_lines = 0;
 
 /* The style of `bell' notification preferred.  This can be set to NO_BELL,
    AUDIBLE_BELL, or VISIBLE_BELL. */
 int _rl_bell_preference = AUDIBLE_BELL;
-     
+
 /* Line buffer and maintenence. */
 char *rl_line_buffer = (char *)NULL;
 int rl_line_buffer_len = 0;
@@ -995,15 +995,15 @@ readline_initialize_everything ()
   t = getenv ("LC_CTYPE");
   t1 = getenv ("LANG");
   if (t && (strstr (t, "8859-1") != NULL || strstr (t, "8859_1") != NULL ||
-	  strstr (t, "KOI8-R") != NULL || strstr (t, "koi8-r") != NULL) ||
+	    strstr (t, "KOI8-R") != NULL || strstr (t, "koi8-r") != NULL) ||
       t1 && (strstr (t1, "8859-1") != NULL || strstr (t1, "8859_1") != NULL ||
-	   strstr (t1, "KOI8-R") != NULL || strstr (t1, "koi8-r") != NULL))
+	     strstr (t1, "KOI8-R") != NULL || strstr (t1, "koi8-r") != NULL))
     {
       _rl_meta_flag = 1;
       _rl_convert_meta_chars_to_ascii = 0;
       _rl_output_meta_chars = 1;
     }
-      
+
   /* Read in the init file. */
   rl_read_init_file ((char *)NULL);
 
@@ -2110,7 +2110,7 @@ rl_quoted_insert (count, key)
   int c;
 
   c = rl_read_key ();
-  return (rl_insert (count, c));  
+  return (rl_insert (count, c));
 }
 
 /* Insert a tab character. */
@@ -2224,7 +2224,7 @@ rl_delete (count, invoking_key)
     }
   else
     return (rl_delete_text (rl_point, rl_point + 1));
-  
+
 }
 
 /* Delete all spaces and tabs around point. */

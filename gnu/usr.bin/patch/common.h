@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/common.h,v 1.2 1993/09/22 16:51:03 rich Exp $
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/common.h,v 1.3 1995/05/30 05:02:30 rgrimes Exp $
  *
  * $Log: common.h,v $
+ * Revision 1.3  1995/05/30  05:02:30  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1993/09/22  16:51:03  rich
  * Increaed the fixed static buffer sizes and maximum hunk size that
  * otherwise causes the XFree86 1.3 patch set to fail.

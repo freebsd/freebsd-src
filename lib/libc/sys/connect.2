@@ -68,30 +68,6 @@ only once; datagram sockets may use
 multiple times to change their association.
 Datagram sockets may dissolve the association
 by connecting to an invalid address, such as a null address.
-.Sh IMPLEMENTATION NOTES
-.Pp
-In the non-threaded library
-.Fn connect
-is implemented as the
-.Va connect
-syscall.
-.Pp
-In the threaded library, the
-.Va connect
-syscall is assembled to
-.Fn _thread_sys_connect
-and
-.Fn connect
-is implemented as a function which locks
-.Va s
-for read and write, then calls
-.Fn _thread_sys_connect .
-If the call to
-.Fn _thread_sys_connect
-would block, a context switch is performed. Before returning,
-.Fn connect
-unlocks
-.Va s .
 .Sh RETURN VALUES
 If the connection or binding succeeds, 0 is returned.
 Otherwise a -1 is returned, and a more specific error
@@ -103,10 +79,10 @@ The
 call fails if:
 .Bl -tag -width EADDRNOTAVAILABB
 .It Bq Er EBADF
-.Fa s
+.Fa S
 is not a valid descriptor.
 .It Bq Er ENOTSOCK
-.Fa s
+.Fa S
 is a descriptor for a file, not a socket.
 .It Bq Er EADDRNOTAVAIL
 The specified address is not available on this machine.

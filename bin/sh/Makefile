@@ -23,9 +23,6 @@ CLEANFILES+=\
 token.def: mktokens
 	sh ${.CURDIR}/mktokens
 
-${.CURDIR}/builtins:
-	# just override the default rule
-
 builtins.h builtins.c: ${.CURDIR}/mkbuiltins ${.CURDIR}/builtins
 	cd ${.CURDIR}; sh mkbuiltins
 

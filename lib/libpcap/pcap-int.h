@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /home/ncvs/src/lib/libpcap/pcap-int.h,v 1.1.1.1 1995/01/20 04:13:06 jkh Exp $ (LBL)
+ * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/pcap-int.h,v 1.2 1995/05/30 05:47:23 rgrimes Exp $ (LBL)
  */
 
 #ifndef pcap_int_h

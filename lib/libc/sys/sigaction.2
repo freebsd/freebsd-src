@@ -50,7 +50,7 @@ struct sigaction {
 .Sh DESCRIPTION
 The system defines a set of signals that may be delivered to a process.
 Signal delivery resembles the occurrence of a hardware interrupt:
-the signal is normally blocked from further occurrence, the current process 
+the signal is blocked from further occurrence, the current process 
 context is saved, and a new one is built.  A process may specify a
 .Em handler
 to which a signal is delivered, or specify that a signal is to be 
@@ -68,7 +68,7 @@ of the process.  This may be changed, on a per-handler basis,
 so that signals are taken on a special
 .Em "signal stack" .
 .Pp
-Signal routines normally execute with the signal that caused their
+Signal routines execute with the signal that caused their
 invocation
 .Em blocked ,
 but other signals may yet occur.
@@ -131,7 +131,7 @@ If
 is non-zero, the previous handling information for the signal
 is returned to the user.
 .Pp
-Once a signal handler is installed, it normally remains installed
+Once a signal handler is installed, it remains installed
 until another
 .Fn sigaction
 call is made, or an 
@@ -178,16 +178,7 @@ bit is set in
 the system will deliver the signal to the process on a
 .Em "signal stack" ,
 specified with
-.Xr sigaltstack 2 .
-If the
-.Dv SA_NODEFER
-bit is set, further occurrences of the delivered signal are not
-masked during the execution of the handler.
-If the
-.Dv SA_RESETHAND
-bit is set, the handler is reset back to
-.Dv SIG_DFL
-at the moment the signal is delivered.
+.Xr sigstack 2 .
 .Pp
 If a signal is caught during the system calls listed below,
 the call may be forced to terminate
@@ -243,7 +234,7 @@ with names as in the include file
 .It Dv SIGQUIT No "	create core image" "	quit program"
 .It Dv SIGILL No "	create core image" "	illegal instruction"
 .It Dv SIGTRAP No "	create core image" "	trace trap"
-.It Dv SIGABRT No "	create core image" Xr 	abort 3
+.It Dv SIGABRT No "	create core image" Xr 	abort 2
 call (formerly
 .Dv SIGIOT )
 .It Dv SIGEMT No "	create core image" "	emulate instruction executed"
@@ -251,7 +242,7 @@ call (formerly
 .It Dv SIGKILL No "	terminate process" "	kill program"
 .It Dv SIGBUS No "	create core image" "	bus error"
 .It Dv SIGSEGV No "	create core image" "	segmentation violation"
-.It Dv SIGSYS No "	create core image" "	non-existent system call invoked"
+.It Dv SIGSYS No "	create core image" "	system call given invalid argument"
 .It Dv SIGPIPE No "	terminate process" "	write on a pipe with no reader"
 .It Dv SIGALRM No "	terminate process" "	real-time timer expired"
 .It Dv SIGTERM No "	terminate process" "	software termination signal"
@@ -361,11 +352,6 @@ and
 Those signals are available on most
 .Tn BSD Ns \-derived
 systems.
-The
-.Dv SA_NODEFER
-and
-.Dv SA_RESETHAND
-are intended for backwards compatability with other operating systems.
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr ptrace 2 ,
@@ -376,7 +362,7 @@ are intended for backwards compatability with other operating systems.
 .Xr sigblock 2 ,
 .Xr sigsetmask 2 ,
 .Xr sigpause 2 ,
-.Xr sigaltstack 2 ,
+.Xr sigstack 2 ,
 .Xr sigvec 2 ,
 .Xr setjmp 3 ,
 .Xr siginterrupt 3 ,

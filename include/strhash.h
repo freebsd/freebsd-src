@@ -1,7 +1,7 @@
 #ifndef _STRHASH_H_INCLUDE
 #define _STRHASH_H_INCLUDE
 
-/* $Header: /home/ncvs/src/include/strhash.h,v 1.1 1995/03/26 10:12:53 jkh Exp $ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/include/strhash.h,v 1.2 1995/05/30 04:54:49 rgrimes Exp $ */
 
 /*
  *

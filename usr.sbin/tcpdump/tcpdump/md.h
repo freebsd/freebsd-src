@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: md-i386.h,v 1.5 94/06/14 20:14:40 leres Exp $ (LBL)
+ * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/md.h,v 1.2 1995/03/08 12:52:17 olah Exp $ (LBL)
  */
 
 #define TCPDUMP_ALIGN

@@ -1,5 +1,5 @@
-/* $Header: /home/ncvs/src/sys/netiso/xebec/debug.h,v 1.1.1.1 1994/05/24 10:07:51 rgrimes Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/xebec/debug.h,v $ */
+/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/debug.h,v 1.2 1995/05/30 08:11:55 rgrimes Exp $ */
+/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/debug.h,v $ */
 
 #define OUT stdout
 

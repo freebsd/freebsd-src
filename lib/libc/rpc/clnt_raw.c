@@ -45,7 +45,6 @@ static char *rcsid = "$Id: clnt_raw.c,v 1.2 1995/05/30 05:41:16 rgrimes Exp $";
  */
 
 #include <rpc/rpc.h>
-#include <stdlib.h>
 
 #define MCALL_MSG_SIZE 24
 
@@ -98,7 +97,7 @@ clntraw_create(prog, vers)
 		clntraw_private = clp;
 	}
 	/*
-	 * pre-serialize the static part of the call msg and stash it away
+	 * pre-serialize the staic part of the call msg and stash it away
 	 */
 	call_msg.rm_direction = CALL;
 	call_msg.rm_call.cb_rpcvers = RPC_MSG_VERSION;

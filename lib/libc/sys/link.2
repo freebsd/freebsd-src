@@ -74,6 +74,7 @@ both
 and
 .Fa name2
 must be in the same file system.
+Unless the caller is the super-user,
 .Fa name1
 may not be a directory.
 .Sh RETURN VALUES
@@ -112,7 +113,8 @@ does exist.
 .It Bq Er EPERM
 The file named by
 .Fa name1
-is a directory.
+is a directory and the effective
+user ID is not super-user.
 .It Bq Er EXDEV
 The link named by
 .Fa name2
@@ -147,10 +149,3 @@ is outside the process's allocated address space.
 is expected to
 conform to IEEE Std 1003.1-1988
 .Pq Dq Tn POSIX .
-.Sh HISTORY
-.Pp
-The
-.Nm
-system call traditionally allows the super-user to link directories which
-corrupts the filesystem coherency.  This implementation no longer permits
-it. 

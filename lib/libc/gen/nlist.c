@@ -73,6 +73,8 @@ __fdnlist(fd, list)
 	register off_t stroff, symoff;
 	register u_long symsize;
 	register int nent;
+	size_t strsize;
+	struct nlist nbuf[1024];
 	struct exec * exec;
 	struct stat st;
 

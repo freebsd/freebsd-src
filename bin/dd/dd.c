@@ -61,7 +61,6 @@ static char sccsid[] = "@(#)dd.c	8.5 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <locale.h>
 
 #include "dd.h"
 #include "extern.h"
@@ -85,7 +84,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	(void) setlocale(LC_CTYPE, "");
 	jcl(argv);
 	setup();
 

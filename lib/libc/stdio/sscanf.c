@@ -59,10 +59,8 @@ eofread(cookie, buf, len)
 }
 
 #if __STDC__
-int
 sscanf(const char *str, char const *fmt, ...)
 #else
-int
 sscanf(str, fmt, va_alist)
 	char *str;
 	char *fmt;
@@ -73,7 +71,6 @@ sscanf(str, fmt, va_alist)
 	va_list ap;
 	FILE f;
 
-	f._file = -1;
 	f._flags = __SRD;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._r = strlen(str);
