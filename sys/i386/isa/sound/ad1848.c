@@ -157,9 +157,15 @@ wait_for_calibration (ad1848_info * devc)
    */
 
   timeout = 100000;
+#ifdef PC98
+  while (timeout > 0 && (INB (devc->base) & 0x80) == 0x80)
+    timeout--;
+  if ((INB (devc->base) & 0x80) == 0x80)
+#else
   while (timeout > 0 && INB (devc->base) & 0x80)
     timeout--;
   if (INB (devc->base) & 0x80)
+#endif
     printk ("ad1848: Auto calibration timed out(1).\n");
 
   timeout = 100;
@@ -474,7 +480,11 @@ static struct audio_operations ad1848_pcm_operations[MAX_AUDIO_DEV] =
 {
   {
     "Generic AD1848 codec",
+#ifdef PC98
+	NEEDS_RESTART,
+#else
     DMA_AUTOMODE,
+#endif
     AFMT_U8,			/* Will be set later */
     NULL,
     ad1848_open,
@@ -910,8 +920,22 @@ ad1848_prepare_for_IO (int dev, int bsize, int bcount)
    * Write to I8 starts resyncronization. Wait until it completes.
    */
   timeout = 10000;
+#ifdef PC98
+  while (timeout > 0 && (INB (devc->base) & 0x80) == 0x80)
+#else
   while (timeout > 0 && INB (devc->base) == 0x80)
+#endif
     timeout--;
+
+#ifdef PC98
+  ad_write (devc, 8, fs);
+  /*
+   * Write to I8 starts resyncronization. Wait until it completes.
+   */
+  timeout = 10000;
+  while (timeout > 0 && (INB (devc->base) & 0x80) == 0x80)
+    timeout--;
+#endif
 
   /*
      * If mode == 2 (CS4231), set I28 also. It's the capture format register.
@@ -924,10 +948,25 @@ ad1848_prepare_for_IO (int dev, int bsize, int bcount)
          * Write to I28 starts resyncronization. Wait until it completes.
        */
       timeout = 10000;
+#ifdef PC98
+      while (timeout > 0 && (INB (devc->base) & 0x80) == 0x80)
+#else
       while (timeout > 0 && INB (devc->base) == 0x80)
+#endif
 	timeout--;
 
     }
+
+#ifdef PC98
+      ad_write (devc, 28, fs);
+
+      /*
+         * Write to I28 starts resyncronization. Wait until it completes.
+       */
+      timeout = 10000;
+      while (timeout > 0 && (INB (devc->base) & 0x80) == 0x80)
+	timeout--;
+#endif
 
   ad_leave_MCE (devc);		/*
 				 * Starts the calibration process and
@@ -950,7 +989,13 @@ ad1848_halt (int dev)
   ad1848_info    *devc = (ad1848_info *) audio_devs[dev]->devc;
 
   ad_mute (devc);
+#ifdef PC98
+  ad_enter_MCE (devc);
+#endif
   ad_write (devc, 9, ad_read (devc, 9) & ~0x03);	/* Stop DMA */
+#ifdef PC98
+  ad_leave_MCE (devc);
+#endif
   OUTB (0, io_Status (devc));	/* Clear interrupt status */
 
   ad_enter_MCE (devc);
@@ -1399,7 +1444,11 @@ probe_ms_sound (struct address_info *hw_config)
       return 0;
     }
 
+#ifdef PC98
+  if (hw_config->irq > 12)
+#else
   if (hw_config->irq > 11)
+#endif
     {
       printk ("MSS: Bad IRQ %d\n", hw_config->irq);
       return 0;
@@ -1433,10 +1482,17 @@ probe_ms_sound (struct address_info *hw_config)
 long
 attach_ms_sound (long mem_start, struct address_info *hw_config)
 {
+#ifdef PC98
+  static char     interrupt_bits[13] =
+  {
+    -1, -1, -1, 0x08, -1, 0x10, -1, -1, -1, -1, 0x18, -1, 0x20
+  };
+#else
   static char     interrupt_bits[12] =
   {
     -1, -1, -1, -1, -1, -1, -1, 0x08, -1, 0x10, 0x18, 0x20
   };
+#endif
   char            bits;
 
   static char     dma_bits[4] =
