@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.22 1997/08/16 19:15:36 wollman Exp $
+ * $Id: in_pcb.h,v 1.23 1998/01/27 09:15:04 davidg Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -49,6 +49,12 @@
 LIST_HEAD(inpcbhead, inpcb);
 LIST_HEAD(inpcbporthead, inpcbport);
 
+/*
+ * NB: the zone allocator is type-stable EXCEPT FOR THE FIRST TWO LONGS
+ * of the structure.  Therefore, it is important that the members in
+ * that position not contain any information which is required to be
+ * stable.
+ */
 struct inpcb {
 	LIST_ENTRY(inpcb) inp_hash;	/* hash list */
 	struct	in_addr inp_faddr;	/* foreign host table entry */
@@ -69,7 +75,14 @@ struct inpcb {
 	struct	ip_moptions *inp_moptions; /* IP multicast options */
 	LIST_ENTRY(inpcb) inp_portlist;	/* list for this PCB's local port */
 	struct	inpcbport *inp_phd;	/* head of list for this PCB's local port */
+	u_quad_t inp_gencnt;	/* generation count of this instance */
 };
+/*
+ * The range of the generation count, as used in this implementation,
+ * is 9e19.  We would have to create 300 billion connections per
+ * second for this number to roll over in a year.  This seems sufficiently
+ * unlikely that we simply don't concern ourselves with that possibility.
+ */
 
 struct inpcbport {
 	LIST_ENTRY(inpcbport) phd_hash;
@@ -77,15 +90,18 @@ struct inpcbport {
 	u_short phd_port;
 };
 
-struct inpcbinfo {
-	struct inpcbhead *hashbase;
-	unsigned long hashmask;
-	struct inpcbporthead *porthashbase;
-	unsigned long porthashmask;
-	struct inpcbhead *listhead;
-	unsigned short lastport;
-	unsigned short lastlow;
-	unsigned short lasthi;
+struct inpcbinfo {		/* XXX documentation, prefixes */
+	struct	inpcbhead *hashbase;
+	u_long	hashmask;
+	struct	inpcbporthead *porthashbase;
+	u_long	porthashmask;
+	struct	inpcbhead *listhead;
+	u_short	lastport;
+	u_short	lastlow;
+	u_short	lasthi;
+	struct	vm_zone *ipi_zone; /* zone to allocate pcbs from */
+	u_int	ipi_count;	/* number of pcbs in this list */
+	u_quad_t ipi_gencnt;	/* current generation count */
 };
 
 #define INP_PCBHASH(faddr, lport, fport, mask) \
@@ -131,6 +147,7 @@ void	in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
 void	in_pcbrehash __P((struct inpcb *));
 int	in_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
 int	in_setsockaddr __P((struct socket *so, struct sockaddr **nam));
+
 #endif
 
 #endif

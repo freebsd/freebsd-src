@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.43 1998/01/25 17:25:41 steve Exp $
+ *	$Id: udp_usrreq.c,v 1.44 1998/01/27 09:15:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <vm/vm_zone.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -98,6 +99,8 @@ udp_init()
 	udbinfo.listhead = &udb;
 	udbinfo.hashbase = hashinit(UDBHASHSIZE, M_PCB, &udbinfo.hashmask);
 	udbinfo.porthashbase = hashinit(UDBHASHSIZE, M_PCB, &udbinfo.porthashmask);
+	udbinfo.ipi_zone = zinit("udpcb", sizeof(struct inpcb), nmbclusters,
+			     ZONE_INTERRUPT, 0);
 }
 
 void
