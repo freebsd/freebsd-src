@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.11 1996/09/07 02:15:56 adam Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.12 1996/09/14 17:18:10 alex Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -188,7 +188,7 @@ ipfw &lsqb;-N&rsqb; <em>command</em> &lsqb;<em>index</em>&rsqb;
 <p>There is one valid flag when using this form of the command:
 
 <descrip>
-<tag/-N/Resolve addresses and service names.
+<tag/-N/Resolve addresses and service names in output.
 </descrip>
 
 The <em>command</em> given can be shortened to the shortest unique
