@@ -30,6 +30,8 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/malloc.h>
+#include <sys/devicestat.h>	/* for struct devstat */
 
 #include <machine/clock.h>
 
@@ -38,6 +40,7 @@
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
 #include <cam/cam_debug.h>
+#include <cam/cam_periph.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -68,7 +71,6 @@ struct vpo_data {
 	int vpo_isplus;
 
 	struct cam_sim  *sim;
-	struct cam_path *path;
 
 	struct vpo_sense vpo_sense;
 
@@ -81,6 +83,9 @@ struct vpo_data {
 /* cam related functions */
 static void	vpo_action(struct cam_sim *sim, union ccb *ccb);
 static void	vpo_poll(struct cam_sim *sim);
+static void	vpo_cam_rescan_callback(struct cam_periph *periph,
+					union ccb *ccb);
+static void	vpo_cam_rescan(struct vpo_data *vpo);
 
 static void
 vpo_identify(driver_t *driver, device_t parent)
@@ -165,17 +170,40 @@ vpo_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (xpt_create_path(&vpo->path, /*periph*/NULL,
-			    cam_sim_path(vpo->sim), CAM_TARGET_WILDCARD,
-			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		xpt_bus_deregister(cam_sim_path(vpo->sim));
-		cam_sim_free(vpo->sim, /*free_devq*/TRUE);
-		return (ENXIO);
-	}
-
 	/* all went ok */
 
+	vpo_cam_rescan(vpo);	/* have CAM rescan the bus */
+
 	return (0);
+}
+
+static void
+vpo_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
+{
+        free(ccb, M_TEMP);
+}
+
+static void
+vpo_cam_rescan(struct vpo_data *vpo)
+{
+        struct cam_path *path;
+        union ccb *ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK);
+
+        bzero(ccb, sizeof(union ccb));
+
+        if (xpt_create_path(&path, xpt_periph, cam_sim_path(vpo->sim), 0, 0)
+            != CAM_REQ_CMP) {
+		/* A failure is benign as the user can do a manual rescan */
+                return;
+	}
+
+        xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
+        ccb->ccb_h.func_code = XPT_SCAN_BUS;
+        ccb->ccb_h.cbfcnp = vpo_cam_rescan_callback;
+        ccb->crcn.flags = CAM_FLAG_NONE;
+        xpt_action(ccb);
+
+        /* The scan is in progress now. */
 }
 
 /*
