@@ -56,7 +56,8 @@ utility checks the current directory for a file named
 .Pa calendar
 and displays lines that begin with either today's date
 or tomorrow's.
-On Fridays, events on Friday through Monday are displayed.
+On the day before a weekend (normally Friday), events for the next
+three days are displayed.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
@@ -72,6 +73,14 @@ days (forward, future).
 Print lines from today and the previous
 .Ar num
 days (backward, past).
+.It Fl F
+Specify which day of the week is ``Friday'' (the day before the
+weekend begins).
+.It Fl W Ar num
+Print lines from today and the next
+.Ar num
+days (forward, future).
+Ignore weekends when calculating the number of days.
 .It Fl f Pa calendarfile
 Use
 .Pa calendarfile
