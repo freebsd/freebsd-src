@@ -927,16 +927,16 @@ static void pcn_tick(xsc)
 	mii = device_get_softc(sc->pcn_miibus);
 	mii_tick(mii);
 
+	/* link just died */
 	if (sc->pcn_link & !(mii->mii_media_status & IFM_ACTIVE))
 		sc->pcn_link = 0;
 
-	if (!sc->pcn_link) {
-		mii_pollstat(mii);
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-			sc->pcn_link++;
-			if (ifp->if_snd.ifq_head != NULL)
-				pcn_start(ifp);
+	/* link just came up, restart */
+	if (!sc->pcn_link && mii->mii_media_status & IFM_ACTIVE &&
+	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+		sc->pcn_link++;
+		if (ifp->if_snd.ifq_head != NULL)
+			pcn_start(ifp);
 	}
 
 	sc->pcn_stat_ch = timeout(pcn_tick, sc, hz);

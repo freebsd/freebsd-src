@@ -1691,7 +1691,6 @@ static void sk_tick(xsc_if)
 	SK_XM_CLRBIT_2(sc_if, XM_IMR, XM_IMR_GP0_SET);
 	SK_XM_READ_2(sc_if, XM_ISR);
 	mii_tick(mii);
-	mii_pollstat(mii);
 	untimeout(sk_tick, sc_if, sc_if->sk_tick_ch);
 
 	SK_IF_UNLOCK(sc_if);
@@ -1744,7 +1743,6 @@ static void sk_intr_bcom(sc_if)
 			SK_IF_WRITE_1(sc_if, 0, SK_LINKLED1_CTL,
 			    SK_LINKLED_ON|SK_LINKLED_LINKSYNC_OFF|
 			    SK_LINKLED_BLINK_OFF);
-			mii_pollstat(mii);
 		} else {
 			mii_tick(mii);
 			sc_if->sk_tick_ch = timeout(sk_tick, sc_if, hz);
