@@ -15,4 +15,4 @@ opt_inet.h:
 #opt_inet6.h:
 #	echo "#define INET6 1" > opt_inet6.h
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

@@ -7,4 +7,4 @@ MAN4=		ng_bpf.4
 
 .PATH:		${.CURDIR}/../../../net
 
-.include "${.CURDIR}/../../../conf/kmod.mk"
+.include <bsd.kmod.mk>

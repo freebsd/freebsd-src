@@ -7,4 +7,4 @@ KMOD		 = ulpt
 SRCS		 = bus_if.h device_if.h vnode_if.h opt_usb.h ulpt.c
 NOMAN		 =
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

@@ -14,4 +14,4 @@ CFLAGS+= -DIPFIREWALL
 #CFLAGS+= -DIPFIREWALL_DEFAULT_TO_ACCEPT
 #
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

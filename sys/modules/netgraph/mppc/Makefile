@@ -29,4 +29,4 @@ opt_netgraph.h:
 	echo "#define NETGRAPH_MPPC_ENCRYPTION 1" >> ${.TARGET}
 .endif
 
-.include "${.CURDIR}/../../../conf/kmod.mk"
+.include <bsd.kmod.mk>

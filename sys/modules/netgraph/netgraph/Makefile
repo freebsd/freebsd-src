@@ -5,4 +5,4 @@ KMOD=		netgraph
 SRCS= 		ng_base.c ng_parse.c
 MAN4=		netgraph.4
 
-.include "${.CURDIR}/../../../conf/kmod.mk"
+.include <bsd.kmod.mk>

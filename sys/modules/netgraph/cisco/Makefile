@@ -5,4 +5,4 @@ KMOD=		ng_cisco
 SRCS= 		ng_cisco.c
 MAN4=		ng_cisco.4
 
-.include "${.CURDIR}/../../../conf/kmod.mk"
+.include <bsd.kmod.mk>
