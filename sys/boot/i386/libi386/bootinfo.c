@@ -271,7 +271,10 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
 	    break;
 	printf("root device %s invalid\n", i386_fmtdev(rootdev));
 	return(EINVAL);
-
+	
+    case DEVT_NET:
+	    break;
+	    
     default:
 	printf("WARNING - don't know how to boot from device type %d\n", rootdev->d_type);
     }
