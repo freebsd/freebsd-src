@@ -239,6 +239,13 @@ void	mtx_unlock_giant(int s);
 #define mtx_unlock(m)		mtx_unlock_flags((m), 0)
 #define mtx_unlock_spin(m)	mtx_unlock_spin_flags((m), 0)
 
+struct mtx *mtx_pool_find(void *ptr);
+struct mtx *mtx_pool_alloc(void);
+void mtx_pool_lock(void *ptr);
+void mtx_pool_unlock(void *ptr);
+
+extern int mtx_pool_valid;
+
 #ifndef LOCK_DEBUG
 #error LOCK_DEBUG not defined, include <sys/lock.h> before <sys/mutex.h>
 #endif

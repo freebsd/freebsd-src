@@ -37,7 +37,7 @@
 
 struct sx {
 	struct lock_object sx_object;	/* Common lock properties. */
-	struct mtx	sx_lock;	/* General protection lock. */
+	struct mtx	*sx_lock;	/* General protection lock. */
 	int		sx_cnt;		/* -1: xlock, > 0: slock count. */
 	struct cv	sx_shrd_cv;	/* slock waiters. */
 	int		sx_shrd_wcnt;	/* Number of slock waiters. */
