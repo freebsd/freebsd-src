@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.66 1999/02/19 13:41:35 phk Exp $
+ *	$Id: if.c,v 1.67 1999/04/16 21:22:44 peter Exp $
  */
 
 #include "opt_compat.h"
@@ -76,22 +76,23 @@ struct	ifnethead ifnet;	/* depend on static init XXX */
  *
  * Routines with ifa_ifwith* names take sockaddr *'s as
  * parameters.
- *
- * This routine assumes that it will be called at splimp() or higher.
  */
 /* ARGSUSED*/
 void
 ifinit(dummy)
 	void *dummy;
 {
-	register struct ifnet *ifp;
+	struct ifnet *ifp;
+	int s;
 
+	s = splimp();
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
 		if (ifp->if_snd.ifq_maxlen == 0) {
 			printf("%s%d XXX: driver didn't set ifq_maxlen\n",
 			    ifp->if_name, ifp->if_unit);
 			ifp->if_snd.ifq_maxlen = ifqmaxlen;
 		}
+	splx(s);
 	if_slowtimo(0);
 }
 
