@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.11.2.6 1997/05/14 08:19:21 dfr Exp $";
+	"$Id: mountd.c,v 1.11.2.7 1997/08/29 19:23:39 guido Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -883,14 +883,12 @@ get_exportlist()
 				}
 				if (netgrp) {
 				    if (get_host(hst, grp, tgrp)) {
-					syslog(LOG_ERR, "Bad netgroup %s", cp);
-					getexp_err(ep, tgrp);
-					endnetgrent();
-					goto nextline;
+					syslog(LOG_ERR, "Bad host %s in netgroup %s, skipping", hst, cp);
+					grp->gr_type = GT_IGNORE;
 				    }
 				} else if (get_host(cp, grp, tgrp)) {
-				    getexp_err(ep, tgrp);
-				    goto nextline;
+				    syslog(LOG_ERR, "Bad host %s, skipping", cp);
+				    grp->gr_type = GT_IGNORE;
 				}
 				has_host = TRUE;
 			    } while (netgrp && getnetgrent(&hst, &usr, &dom));
@@ -926,6 +924,19 @@ get_exportlist()
 		} else if ((opt_flags & OP_NET) && tgrp->gr_next) {
 			getexp_err(ep, tgrp);
 			goto nextline;
+
+        	/*
+	         * If an export list was specified on this line, make sure
+		 * that we have at least one valid entry, otherwise skip it.
+		 */
+		} else {
+			grp = tgrp;
+        		while (grp && grp->gr_type == GT_IGNORE)
+				grp = grp->gr_next;
+			if (! grp) {
+			    getexp_err(ep, tgrp);
+			    goto nextline;
+			}
 		}
 
 		/*
