@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.36 1999/02/08 05:48:46 julian Exp $
+ *	$Id: ip_divert.c,v 1.37 1999/02/08 05:53:39 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -352,7 +352,7 @@ div_attach(struct socket *so, int proto, struct proc *p)
 	inp  = sotoinpcb(so);
 	if (inp)
 		panic("div_attach");
-	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if (p && (error = suser(p)) != 0)
 		return error;
 
 	s = splnet();

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.69 1999/01/28 00:57:49 dillon Exp $
+ *	$Id: devfs_vnops.c,v 1.70 1999/02/25 16:06:51 bde Exp $
  */
 
 
@@ -378,10 +378,10 @@ found:
 		return (0);
 	/*
 	 *  Root gets to do anything.
-	 * but only use suser prives as a last resort
+	 * but only use suser_xxx prives as a last resort
 	 * (Use of super powers is recorded in ap->a_p->p_acflag)
 	 */
-	if( suser(cred, &ap->a_p->p_acflag) == 0) /* XXX what if no proc? */
+	if( suser_xxx(cred, &ap->a_p->p_acflag) == 0) /* XXX what if no proc? */
 		return 0;
 	return (EACCES);
 }
@@ -519,7 +519,7 @@ DBPRINT(("setattr\n"));
 #endif
 		if (((vap->va_vaflags & VA_UTIMES_NULL) == 0) &&
 		    (cred->cr_uid != file_node->uid)  &&
-		    suser(cred, &p->p_acflag))
+		    suser_xxx(cred, &p->p_acflag))
 			return (EPERM);
 		    if(VOP_ACCESS(vp, VWRITE, cred, p))
 			return (EACCES);
@@ -534,7 +534,7 @@ DBPRINT(("setattr\n"));
 	 */
 	if (vap->va_mode != (u_short)VNOVAL) {
 		if ((cred->cr_uid != file_node->uid)
-		 && suser(cred, &p->p_acflag))
+		 && suser_xxx(cred, &p->p_acflag))
 			return (EPERM);
 		/* set drwxwxrwx stuff */
 		file_node->mode &= ~07777;
@@ -545,7 +545,7 @@ DBPRINT(("setattr\n"));
 	 * Change the owner.. must be root to do this.
 	 */
 	if (vap->va_uid != (uid_t)VNOVAL) {
-		if (suser(cred, &p->p_acflag))
+		if (suser_xxx(cred, &p->p_acflag))
 			return (EPERM);
 		file_node->uid = vap->va_uid;
 	}
@@ -553,8 +553,8 @@ DBPRINT(("setattr\n"));
 	/*
 	 * Change the group.. must be root or owner to do this.
 	 * If we are the owner, we must be in the target group too.
-	 * don't use suser() unless you have to as it reports
-	 * whether you needed suser powers or not.
+	 * don't use suser_xxx() unless you have to as it reports
+	 * whether you needed suser_xxx powers or not.
 	 */
 	if (vap->va_gid != (gid_t)VNOVAL) {
 		if (cred->cr_uid == file_node->uid){
@@ -568,7 +568,7 @@ DBPRINT(("setattr\n"));
 		 * we can't do it with normal privs,
 		 * do we have an ace up our sleeve?
 		 */
-	 	if( suser(cred, &p->p_acflag))
+	 	if( suser_xxx(cred, &p->p_acflag))
 			return (EPERM);
 cando:
 		file_node->gid = vap->va_gid;
@@ -580,7 +580,7 @@ cando:
 	 * flags should be handled some day
 	 */
 	if (vap->va_flags != VNOVAL) {
-		if (error = suser(cred, &p->p_acflag))
+		if (error = suser_xxx(cred, &p->p_acflag))
 			return error;
 		if (cred->cr_uid == 0)
 		;

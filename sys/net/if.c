@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.67 1999/04/16 21:22:44 peter Exp $
+ *	$Id: if.c,v 1.68 1999/04/26 09:02:40 peter Exp $
  */
 
 #include "opt_compat.h"
@@ -635,7 +635,7 @@ ifioctl(so, cmd, data, p)
 		break;
 
 	case SIOCSIFFLAGS:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return (error);
 		ifr->ifr_prevflags = ifp->if_flags;
@@ -657,7 +657,7 @@ ifioctl(so, cmd, data, p)
 		break;
 
 	case SIOCSIFMETRIC:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return (error);
 		ifp->if_metric = ifr->ifr_metric;
@@ -665,7 +665,7 @@ ifioctl(so, cmd, data, p)
 		break;
 
 	case SIOCSIFPHYS:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return error;
 		if (!ifp->if_ioctl)
@@ -676,7 +676,7 @@ ifioctl(so, cmd, data, p)
 		return(error);
 
 	case SIOCSIFMTU:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return (error);
 		if (ifp->if_ioctl == NULL)
@@ -694,7 +694,7 @@ ifioctl(so, cmd, data, p)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return (error);
 
@@ -718,7 +718,7 @@ ifioctl(so, cmd, data, p)
 
         case SIOCSIFMEDIA:
 	case SIOCSIFGENERIC:
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error)
 			return (error);
 		if (ifp->if_ioctl == 0)

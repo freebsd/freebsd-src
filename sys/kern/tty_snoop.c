@@ -291,7 +291,7 @@ snpopen(dev, flag, mode, p)
 	struct snoop   *snp;
 	register int    unit, error;
 
-	if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+	if ((error = suser(p)) != 0)
 		return (error);
 
 	if ((unit = minor(dev)) >= NSNP)

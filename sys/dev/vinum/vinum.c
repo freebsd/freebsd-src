@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.24 1999/03/19 05:35:25 grog Exp grog $
+ * $Id: vinum.c,v 1.17 1999/04/17 04:15:50 grog Exp $
  */
 
 #define STATIC static					    /* nothing while we're testing XXX */
@@ -347,7 +347,7 @@ vinumopen(dev_t dev,
 	return ENODEV;					    /* don't know what to do with these */
 
     case VINUM_SUPERDEV_TYPE:
-	error = suser(p->p_ucred, &p->p_acflag);	    /* are we root? */
+	error = suser(p);	    /* are we root? */
 	if (error == 0) {				    /* yes, can do */
 	    if (dev == VINUM_DAEMON_DEV)		    /* daemon device */
 		vinum_conf.flags |= VF_DAEMONOPEN;	    /* we're open */

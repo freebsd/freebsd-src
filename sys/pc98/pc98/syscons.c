@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.115 1999/04/04 02:53:08 kato Exp $
+ *  $Id: syscons.c,v 1.116 1999/04/18 14:42:18 kato Exp $
  */
 
 #include "sc.h"
@@ -768,7 +768,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	    mouse_level = 0;		/* XXX */
     }
     else
-	if (tp->t_state & TS_XCLUDE && suser(p->p_ucred, &p->p_acflag))
+	if (tp->t_state & TS_XCLUDE && suser(p))
 	    return(EBUSY);
     if (minor(dev) < MAXCONS && !console[minor(dev)]) {
 	console[minor(dev)] = alloc_scp();
@@ -1604,7 +1604,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case KDENABIO:      	/* allow io operations */
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error != 0)
 	    return error;
 	if (securelevel > 0)

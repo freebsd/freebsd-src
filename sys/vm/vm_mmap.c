@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.92 1999/03/02 22:55:02 alc Exp $
+ * $Id: vm_mmap.c,v 1.93 1999/04/19 14:14:10 peter Exp $
  */
 
 /*
@@ -276,8 +276,7 @@ mmap(p, uap)
 			if (securelevel >= 1)
 				disablexworkaround = 1;
 			else
-				disablexworkaround = suser(p->p_ucred,
-							   &p->p_acflag);
+				disablexworkaround = suser(p);
 			if (vp->v_type == VCHR && disablexworkaround &&
 				(flags & (MAP_PRIVATE|MAP_COPY)))
 				 return (EINVAL);
@@ -873,7 +872,7 @@ mlock(p, uap)
 	    p->p_rlimit[RLIMIT_MEMLOCK].rlim_cur)
 		return (ENOMEM);
 #else
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error)
 		return (error);
 #endif
@@ -938,7 +937,7 @@ munlock(p, uap)
 		return (EINVAL);
 
 #ifndef pmap_wired_count
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error)
 		return (error);
 #endif

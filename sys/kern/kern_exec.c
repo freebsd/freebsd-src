@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.97 1999/04/03 22:20:01 jdp Exp $
+ *	$Id: kern_exec.c,v 1.98 1999/04/19 14:14:09 peter Exp $
  */
 
 #include <sys/param.h>
@@ -264,7 +264,7 @@ interpret:
 		 * Turn off syscall tracing for set-id programs, except for
 		 * root.
 		 */
-		if (p->p_tracep && suser(p->p_ucred, &p->p_acflag)) {
+		if (p->p_tracep && suser(p)) {
 			p->p_traceflag = 0;
 			vrele(p->p_tracep);
 			p->p_tracep = NULL;

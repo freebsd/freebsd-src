@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.54 1998/08/23 08:26:42 bde Exp $
+ * $Id: tty_pty.c,v 1.55 1999/01/30 12:17:37 phk Exp $
  */
 
 /*
@@ -183,7 +183,7 @@ ptsopen(dev, flag, devtype, p)
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-	} else if (tp->t_state & TS_XCLUDE && suser(p->p_ucred, &p->p_acflag))
+	} else if (tp->t_state & TS_XCLUDE && suser(p))
 		return (EBUSY);
 	if (tp->t_oproc)			/* Ctrlr still around. */
 		(void)(*linesw[tp->t_line].l_modem)(tp, 1);

@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.79 1999/01/30 12:17:34 phk Exp $
+ *	$Id: si.c,v 1.80 1999/04/24 20:17:03 peter Exp $
  */
 
 #ifndef lint
@@ -1132,7 +1132,7 @@ siopen(dev, flag, mode, p)
 
 	/* quickly let in /dev/si_control */
 	if (IS_CONTROLDEV(mynor)) {
-		if ((error = suser(p->p_ucred, &p->p_acflag)))
+		if ((error = suser(p)))
 			return(error);
 		return(0);
 	}
@@ -1210,7 +1210,7 @@ open_top:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser(p->p_ucred, &p->p_acflag)) {
+		    suser(p)) {
 			DPRINT((pp, DBG_OPEN|DBG_FAIL,
 				"already open and EXCLUSIVE set\n"));
 			error = EBUSY;
@@ -1525,7 +1525,7 @@ siioctl(dev, cmd, data, flag, p)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(p->p_ucred, &p->p_acflag);
+			error = suser(p);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -1635,7 +1635,7 @@ siioctl(dev, cmd, data, flag, p)
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error != 0) {
 			goto outspl;
 		}
@@ -1692,7 +1692,7 @@ si_Sioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 	ip = (int *)data;
 
-#define SUCHECK if ((error = suser(p->p_ucred, &p->p_acflag))) goto out
+#define SUCHECK if ((error = suser(p))) goto out
 
 	switch (cmd) {
 	case TCSIPORTS:

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.c
  *
- * $Id: ipx_pcb.c,v 1.14 1998/02/09 06:10:23 eivind Exp $
+ * $Id: ipx_pcb.c,v 1.15 1999/02/06 10:48:10 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -99,7 +99,7 @@ ipx_pcbbind(ipxp, nam, p)
 		int error;
 
 		if (aport < IPXPORT_RESERVED &&
-		    p != NULL && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
+		    p != NULL && (error = suser(p)) != 0)
 			return (error);
 		if (ipx_pcblookup(&zeroipx_addr, lport, 0))
 			return (EADDRINUSE);

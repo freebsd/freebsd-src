@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.72 1999/01/27 22:42:14 dillon Exp $
+ * $Id: if_sl.c,v 1.73 1999/02/02 00:28:29 dillon Exp $
  */
 
 /*
@@ -274,7 +274,7 @@ slopen(dev, tp)
 	register int nsl;
 	int s, error;
 
-	error = suser(p->p_ucred, &p->p_acflag);
+	error = suser(p);
 	if (error)
 		return (error);
 

@@ -73,7 +73,7 @@ ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args)
 	        int name[2];
 	        int error;
 
-		if ((error = suser(p->p_ucred, &p->p_acflag)))
+		if ((error = suser(p)))
 		  return (error);
 		name[0] = CTL_KERN;
 		name[1] = KERN_HOSTNAME;

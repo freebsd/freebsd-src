@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.46 1998/12/07 21:58:37 archie Exp $
+ *	$Id: in_pcb.c,v 1.47 1999/01/27 22:42:24 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -195,7 +195,7 @@ in_pcbbind(inp, nam, p)
 
 			/* GROSS */
 			if (ntohs(lport) < IPPORT_RESERVED && p &&
-			    suser(p->p_ucred, &p->p_acflag))
+			    suser(p))
 				return (EACCES);
 			if (so->so_uid &&
 			    !IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
@@ -227,7 +227,7 @@ in_pcbbind(inp, nam, p)
 			last  = ipport_hilastauto;
 			lastport = &pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
-			if (p && (error = suser(p->p_ucred, &p->p_acflag)))
+			if (p && (error = suser(p)))
 				return error;
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.51 1999/01/31 11:54:29 bde Exp $
+ * $Id: cd9660_vfsops.c,v 1.52 1999/04/18 10:58:02 dcs Exp $
  */
 
 #include <sys/param.h>
@@ -239,7 +239,7 @@ cd9660_mount(mp, path, data, ndp, p)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p);
 	if (error) 
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 	if (error) {
 		vput(devvp);
 		return (error);

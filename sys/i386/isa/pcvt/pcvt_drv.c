@@ -513,7 +513,7 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 		(*linesw[tp->t_line].l_modem)(tp, 1);	/* fake connection */
 		winsz = 1;			/* set winsize later */
 	}
-	else if (tp->t_state & TS_XCLUDE && suser(p->p_ucred, &p->p_acflag))
+	else if (tp->t_state & TS_XCLUDE && suser(p))
 		return (EBUSY);
 
 #if PCVT_NETBSD || (PCVT_FREEBSD >= 200)
@@ -1444,7 +1444,7 @@ pcvt_xmode_set(int on, struct proc *p)
 		 * This prevents us from granting the potential security hole
 		 * `IO priv' to insufficiently privileged processes.
 		 */
-		error = suser(p->p_ucred, &p->p_acflag);
+		error = suser(p);
 		if (error != 0)
 			return (error);
 		if (securelevel > 0)
