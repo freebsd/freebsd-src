@@ -4,13 +4,47 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.1 1995/03/21 15:20:48 jkh Exp $
+#	$Id: sysconfig,v 1.2 1995/03/21 16:44:04 wollman Exp $
 
-# Set to screen saver desired:  blank, green, snake, star (or NO for none)
+######################### Start Of Syscons Section #######################
+
+# Choose keyboard map from /usr/share/syscons/keymaps/* or NO if default.
+keymap=NO
+
+# Set keyboard rate to: slow, normal, fast or NO if default.
+keyrate=NO
+
+# Choose screen map from /usr/share/syscons/scrnmaps/* (or NO for none)
+scrnmap=NO
+
+# Choose font 8x16 from /usr/share/syscons/fonts/* (or NO for default)
+font8x16=NO
+
+# Choose font 8x14 from /usr/share/syscons/fonts/* (or NO for default)
+font8x14=NO
+
+# Choose font 8x8 from /usr/share/syscons/fonts/* (or NO for default)
+font8x8=NO
+
+# Set blank time (in seconds) or "off" to turn it off (or NO for default)
+blanktime=NO
+
+# Set to screen saver desired: blank, green, snake, star (or NO for none)
 saver=NO
 
-# Set to alternate default keyboard map file or NO if none.
-keymap=NO
+# General russian setup for example:
+# (koi8-r keyboard with cp866 screen font mapped to koi8-r)
+#
+# keymap=ru.koi8-r
+# keyrate=fast
+# scrnmap=koi8-r2cp866
+# font8x16=cp866b-8x16
+# font8x14=cp866-8x14
+# font8x8=cp866-8x8
+# blanktime=600
+# saver=snake
+
+######################### End Of Syscons Section #######################
 
 # Set to the host you'd like set as your default router, or NO of none.
 defaultrouter=NO
