@@ -1,4 +1,0 @@
-#	@(#)printcap	5.3 (Berkeley) 6/30/90
-
-#lp|local line printer:\
-#	:lp=/dev/lpt0:sd=/var/spool/output/lpd:lf=/var/log/lpd-errs:

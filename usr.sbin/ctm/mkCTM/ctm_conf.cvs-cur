@@ -1,7 +1,0 @@
-#!/usr/local/bin/tclsh
-
-set CTMname	cvs-cur
-set CTMref	/home/ncvs
-set CTMdest	$CTMSW/../CTM-priv/$CTMname
-set CTMdont	{\.core$|^/CVSROOT/history.*$|^/src/secure|^/src/eBones|^/src/kerberosIV|/#cvs|/\.#}
-set CTMmail	ctm-cvs-cur@freebsd.org

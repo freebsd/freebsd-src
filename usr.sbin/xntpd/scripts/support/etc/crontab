@@ -1,8 +1,0 @@
-#
-# NTP statistics periodic cleanup - REFERENCE SERVER ONLY
-#
-#55      23      *       *       * sh /local/NTP/etc/mvstats
-#
-# gather NTP client statistics - REFERENCE SERVER ONLY
-#
-0	8,18	*	*	*	/local/NTP/etc/cron 2>/dev/null | /usr/ucb/mail -s "NTP statistics" time@informatik.uni-erlangen.de

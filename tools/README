@@ -1,5 +1,0 @@
-This directory tree contains tools used for the maintenance of FreeBSD.
-There are no Makefile structure, but possibly Makefiles in some of the
-subdirs.
-Nothing show be installed from here and into the running system.
-This directory should contain only subdirs and this file.

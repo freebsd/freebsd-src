@@ -1,7 +1,0 @@
-- fixed a bug with respect to the parsing of the pkg_info output
-- implemented get_desc() which extracts +DESC and +COMMENT from the 
-  packages. This is still done the stupid way (slow).
-- install_batch(): two lists, one containing the to be installed 
-  packages from the chosen directory, the other containing the 
-  allready installed packages.
-
