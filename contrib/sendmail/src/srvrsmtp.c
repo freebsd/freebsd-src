@@ -16,7 +16,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.21 2003/01/15 19:17:14 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.22 2003/02/19 02:45:40 ca Exp $")
 
 #if SASL || STARTTLS
 # include <sys/time.h>
@@ -517,8 +517,6 @@ smtp(nullserver, d_flags, e)
 	}
 
 	hostname = macvalue('j', e);
-
-
 #if SASL
 	sasl_ok = bitset(SRV_OFFER_AUTH, features);
 	n_mechs = 0;

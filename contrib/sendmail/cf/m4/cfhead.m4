@@ -133,6 +133,8 @@ Q`'$1`, '`$2')')
 define(`CF_LEVEL', `10')dnl
 define(`VERSIONID', ``#####  $1  #####'')
 define(`LOCAL_RULE_0', `divert(3)')
+dnl for UUCP...
+define(`LOCAL_UUCP', `divert(4)')
 define(`LOCAL_RULE_1',
 `divert(9)dnl
 #######################################
@@ -303,4 +305,4 @@ define(`confMILTER_MACROS_ENVRCPT', ``{rcpt_mailer}, {rcpt_host}, {rcpt_addr}'')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.108.2.1 2002/08/27 20:19:08 gshapiro Exp $')
+VERSIONID(`$Id: cfhead.m4,v 8.108.2.2 2003/03/11 21:24:20 ca Exp $')

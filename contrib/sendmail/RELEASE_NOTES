@@ -1,10 +1,47 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1340.2.113 2003/02/11 19:17:41 gshapiro Exp $
+      $Id: RELEASE_NOTES,v 8.1340.2.132 2003/03/29 14:02:26 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.12.9/8.12.9	2003/03/29
+	SECURITY: Fix a buffer overflow in address parsing due to
+		a char to int conversion problem which is potentially
+		remotely exploitable.  Problem found by Michal Zalewski.
+  		Note: an MTA that is not patched might be vulnerable to
+		data that it receives from untrusted sources, which
+		includes DNS.
+	To provide partial protection to internal, unpatched sendmail MTAs,
+		8.12.9 changes by default (char)0xff to (char)0x7f in
+		headers etc.  To turn off this conversion compile with
+		-DALLOW_255 or use the command line option -d82.101.
+	To provide partial protection for internal, unpatched MTAs that may be
+		performing 7->8 or 8->7 bit MIME conversions, the default
+		for MaxMimeHeaderLength has been changed to 2048/1024.
+		Note: this does have a performance impact, and it only
+		protects against frontal attacks from the outside.
+		To disable the checks and return to pre-8.12.9 defaults,
+		set MaxMimeHeaderLength to 0/0.
+	Do not complain about -ba when submitting mail.  Problem noted
+		by Derek Wueppelmann.
+	Fix compilation with Berkeley DB 1.85 on systems that do not
+		have flock(2).  Problem noted by Andy Harper of Kings
+		College London.
+	Properly initialize data structure for dns maps to avoid various
+		errors, e.g., looping processes.  Problem noted by
+		Maurice Makaay.
+	CONFIG: Prevent multiple application of rule to add smart host.
+		Patch from Andrzej Filip.
+	CONFIG: Fix queue group declaration in MAILER(`usenet').
+	CONTRIB: buildvirtuser: New option -t builds the virtusertable
+		text file instead of the database map.
+	Portability:
+		Revert wrong change made in 8.12.7 and actually use the
+			builtin getopt() version in sendmail on Linux.
+			This can be overridden by using -DSM_CONF_GETOPT=0
+			in which case the OS supplied version will be used.
 
 8.12.8/8.12.8	2003/02/11
 	SECURITY: Fix a remote buffer overflow in header parsing by
