@@ -105,11 +105,6 @@
 #include <netinet6/in6_pcb.h>
 #endif
 
-#include "gif.h"
-#if NGIF > 0
-#include <net/if_gif.h>
-#endif
-
 #include <net/net_osdep.h>
 
 MALLOC_DEFINE(M_IPMADDR, "in6_multi", "internet multicast address");

@@ -18,8 +18,10 @@ SUBDIR=	accf_data \
 	fxp \
 	if_disc \
 	if_ef \
+	if_gif \
 	if_ppp \
 	if_sl \
+	if_stf \
 	if_tap \
 	if_tun \
 	ip6fw \

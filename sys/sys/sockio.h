@@ -100,4 +100,8 @@
 #define	SIOCGIFSTATUS	_IOWR('i', 59, struct ifstat)	/* get IF status */
 #define	SIOCSIFLLADDR	_IOW('i', 60, struct ifreq)	/* set link level addr */
 
+#define SIOCIFCREATE	_IOWR('i', 122, struct ifreq)	/* create clone if */
+#define SIOCIFDESTROY	 _IOW('i', 121, struct ifreq)	/* destroy clone if */
+#define SIOCIFGCLONERS	_IOWR('i', 120, struct if_clonereq) /* get cloners */
+
 #endif /* !_SYS_SOCKIO_H_ */
