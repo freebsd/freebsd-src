@@ -3,7 +3,7 @@
 PROG=	kadmin
 SRCS=	${KRBOBJDIR}/krb_err.h kadmin.c kadmin_cmds.c
 CLEANFILES+=	kadmin_cmds.c krb_err.c
-CFLAGS+=	-DPOSIX -I${.CURDIR}/../../lib/libkadm -I${KRBOBJDIR}
+CFLAGS+=	-DPOSIX -I${.CURDIR}/../../lib/libkadm -I${KRBOBJDIR} -DKERBEROS
 DPADD= ${LIBKRB} ${LIBDES}
 LDADD+=	-L${KADMOBJDIR} -lkadm -L${KRBOBJDIR} -lkrb -L${DESOBJDIR} -ldes
 LDADD+=	-lss -lcom_err

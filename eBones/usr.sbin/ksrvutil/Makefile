@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.5 1995/09/14 04:11:06 gibbs Exp $
+#	$Id$
 
 PROG=	ksrvutil
 SRCS=	ksrvutil.c
-CFLAGS+=	-I${.CURDIR}/../../lib/libkadm
+CFLAGS+=	-I${.CURDIR}/../../lib/libkadm -DKERBEROS
 DPADD=	${LIBKRB} ${LIBDES}
 LDADD+=	-L${KADMOBJDIR} -lkadm -L${KRBOBJDIR} -lkrb \
 	-L${DESOBJDIR} -ldes -lcom_err
