@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.102 1995/01/27 02:20:42 jkh Exp $
+#	$Id: Makefile,v 1.103 1995/02/04 11:16:47 amurai Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -150,7 +150,7 @@ descrypt:
 	done
 
 distribute:
-	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${RELEASEDIR}/bin
+	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/bin
 
 distribution:
 	(cd ${.CURDIR}; \
