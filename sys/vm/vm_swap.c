@@ -45,7 +45,6 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/namei.h>
-#include <sys/dmap.h>		/* XXX */
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
 #include <sys/blist.h>
@@ -66,6 +65,9 @@
 /*
  * Indirect driver for multi-controller paging.
  */
+
+typedef	int32_t	swblk_t;	/* swap offset */
+extern int dmmax;
 
 #ifndef NSWAPDEV
 #define NSWAPDEV	4
