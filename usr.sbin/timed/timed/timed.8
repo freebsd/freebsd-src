@@ -40,21 +40,21 @@
 .Nd time server daemon
 .Sh SYNOPSIS
 .Nm timed
-.Op Fl M
-.Op Fl t
-.Op Fl d
+.Op Fl dtM
 .Op Fl i Ar network
 .Op Fl n Ar network
-.Op Fl F Ar host1 host2 ...
+.Op Fl F Ar host ...
 .Sh DESCRIPTION
-This
-is a time server daemon and is normally invoked
-at boot time from the
-.Xr rc 8
+The
+.Nm
+daemon is a time server daemon
+which is normally invoked at boot time from the
+.Xr rc.network 8
 file.  
 It synchronizes the host's time with the time of other
-machines in a local area network running 
-.Nm Ns .
+machines, which are also running
+.Nm Ns ,
+in a local area network.
 These time servers will slow down the clocks of some machines
 and speed up the clocks of others to bring them to the average network time.
 The average network time is computed from measurements of clock differences
@@ -62,9 +62,87 @@ using the
 .Tn ICMP
 timestamp request message.
 .Pp
-The service provided by
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Enable debugging mode;
+do not detach from the terminal.
+.It Fl i Ar network
+Add
+.Ar network
+to the list of networks to ignore.
+All other networks
+to which the machine is directly connected
+are used by
+.Nm Ns .
+This option may be specified multiple times
+to add more than one network to the list.
+.It Fl F Ar host ...
+Create a list of trusted hosts.  
 .Nm
-is based  on a master-slave
+will only accept trusted hosts as masters.
+If it finds an untrusted host claiming to be master,
+.Nm
+will suppress incoming messages from that host
+and call for a new election.
+This option implies the
+.Fl M
+option.
+If this option is not specified,
+all hosts on the connected networks are treated as trustworthy.
+.It Fl M
+Allow this host to become a
+.Nm
+master if necessary.
+.It Fl n Ar network
+Add
+.Ar network
+to the list of allowed networks.
+All other networks
+to which the machine is directly connected
+are ignored by
+.Nm Ns .
+This option may be specified multiple times
+to add more than one network to the list.
+.It Fl t
+Enable tracing of received messages
+and log to the file
+.It Pa /var/log/timed.log .
+Tracing can be turned on or off while
+.Nm
+is running with the
+.Xr timedc 8
+utility.
+.El
+.Pp
+The 
+.Fl n 
+and 
+.Fl i
+are mutually exclusive
+and require as arguments real networks to which
+the host is connected
+(see
+.Xr networks 5 ) .
+If neither flag is specified,
+.Nm
+will listen on all connected networks.
+.Pp
+A
+.Nm
+running without the 
+.Fl M 
+nor 
+.Fl F 
+flags will always remain a slave.  
+If the 
+.Fl F 
+flag is not used, 
+.Nm
+will treat all machines as trustworthy.
+.Pp
+.Nm
+is based on a master-slave
 scheme.
 When
 .Nm
@@ -80,80 +158,40 @@ It also communicates with
 in order to set the date globally,
 and with 
 .Xr timedc 8 ,
-a timed control program.
-If the machine running the master crashes, then the slaves will elect
-a new master from among slaves running with the 
-.Fl M
-flag.
-A
+a 
 .Nm
-running without the
+control program.
+If the machine running the master becomes unreachable,
+the slaves will elect a new master
+from among those slaves
+which are running with at least one of the
 .Fl M
-or
+and
 .Fl F
-flags will remain a slave.
-The 
-.Fl t
-flag enables
-.Nm timed
-to trace the messages it receives in the
-file
-.Pa /var/log/timed.log .
-Tracing can be turned on or off by the program
-.Xr timedc 8 .
-The
-.Fl d
-flag is for debugging the daemon.
-It causes the program to not put itself into the background.
+flags.
 .Pp
-Normally
+At startup
 .Nm
-checks for a master time server on each network to which
-it is connected, except as modified by the options described below.
-It will request synchronization service from the first master server
-located.
-If permitted by the
-.Fl M
-flag, it will provide synchronization service on any attached networks
-on which no current master server was detected.
-Such a server propagates the time computed by the top-level master.
-The 
-.Fl n
-flag, followed by the name of a network which the host is connected to
-(see
-.Xr networks 5 ) ,
-overrides the default choice of the
-network addresses made by the program.
-Each time the
-.Fl n
-flag appears, that network name is added to a list of valid networks.
-All other networks are ignored.
-The 
-.Fl i
-flag, followed by the name of a network to which the host is connected
-(see
-.Xr networks 5 ) ,
-overrides the default choice of the network addresses made by the program.
-Each time the
-.Fl i
-flag appears, that network name is added to a list of networks to ignore.
-All other networks are used by the time daemon.
-The
-.Fl n
-and 
-.Fl i
-flags are meaningless if used together.
-.Pp
-.Nm Timed
-checks for a master time server on each network to which
+normally checks for a master time server on each network to which
 it is connected, except as modified by the
 .Fl n
 and
 .Fl i
 options described above.
-If it finds masters on more than one network, it chooses one network
-on which to be a "slave," and then periodically checks the other
-networks to see if the masters there have disappeared.
+It will request synchronization service from the first master server
+located.
+If permitted by the
+.Fl M
+or 
+.Fl F
+flags, it will provide synchronization service on any attached networks
+on which no trusted master server was detected.
+Such a server propagates the time computed by the top-level master.
+.Nm
+will periodically check for the presence of a master
+on those networks for which it is operating as a slave.
+If it finds that there are no trusted masters on a network,
+it will begin the election process on that network.
 .Pp
 One way to synchronize a group of machines is to use an
 .Tn NTP
@@ -214,6 +252,7 @@ log file for master timed
 .Xr adjtime 2 ,
 .Xr gettimeofday 2 ,
 .Xr icmp 4 ,
+.Xr networks 5 ,
 .Xr timedc 8
 .Rs
 .%T "TSP: The Time Synchronization Protocol for UNIX 4.3BSD"
