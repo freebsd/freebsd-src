@@ -32,7 +32,7 @@
 .\"	@(#)expand.1	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd April 21, 2002
 .Dt EXPAND 1
 .Os
 .Sh NAME
@@ -51,6 +51,12 @@
 .Op Ar
 .Nm unexpand
 .Op Fl a
+.Oo
+.Fl t
+.Sm off
+.Ar tab1 , tab2 , ... , tabn
+.Sm on
+.Oc
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -89,6 +95,13 @@ are reconverted to maximal strings of tabs.  If the
 option is given, then tabs are inserted whenever they would compress the
 resultant file by replacing two or more characters.
 .El
+.Sh STANDARDS
+The
+.Nm expand
+and
+.Nm unexpand
+utilities conform to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Nm
