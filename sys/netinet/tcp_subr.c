@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.49 1998/12/07 21:58:42 archie Exp $
+ *	$Id: tcp_subr.c,v 1.50 1999/02/03 08:59:30 msmith Exp $
  */
 
 #include "opt_compat.h"
@@ -136,7 +136,7 @@ tcp_init()
 	tcbinfo.listhead = &tcb;
 	if (!(getenv_int("net.inet.tcp.tcbhashsize", &hashsize)))
 		hashsize = TCBHASHSIZE;
-	if ((1 << ffs(hashsize)) != hashsize) {
+	if ((1 << (ffs(hashsize) - 1)) != hashsize) {
 		printf("WARNING: TCB hash size not a power of 2\n");
 		hashsize = 512; /* safe default */
 	}
