@@ -26,7 +26,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.11 1999/01/04 18:45:08 peter Exp $
+ *	$Id: vidconsole.c,v 1.1 1999/02/03 08:39:09 kato Exp $
  */
 
 #include <stand.h>
@@ -358,7 +358,7 @@ void
 write_char(int c, int fg, int bg)
 {
 #ifdef PC98
-        *crtat = c;
+	*crtat = (c == 0x5c ? 0xfc : c);
 	*(crtat + 0x1000) = at2pc98(fg, bg);
 #else
 	v86.ctl=0;
