@@ -89,6 +89,13 @@ An expression of the form `n.n.n.n/m.m.m.m\' is interpreted as a
 bitwise AND of the address and the `mask\'. For example, the net/mask
 pattern `131.155.72.0/255.255.254.0\' matches every address in the
 range `131.155.72.0\' through `131.155.73.255\'.
+.IP \(bu
+A string that begins with a `/\' character is treated as a file
+name. A host name or address is matched if it matches any host name
+or address pattern listed in the named file. The file format is
+zero or more lines with zero or more host name or address patterns
+separated by whitespace.  A file name pattern can be used anywhere
+a host name or address pattern can be used.
 .SH WILDCARDS
 The access control language supports explicit wildcards:
 .IP ALL
@@ -326,7 +333,7 @@ in.tftpd: ALL: (/some/where/safe_finger -l @%h | \\
 	/usr/ucb/mail -s %d-%h root) &
 .fi
 .PP
-The safe_finger command comes with the tcpd wrapper and should be
+The safe_finger command is intended for use in back-fingering and should be
 installed in a suitable place. It limits possible damage from data sent
 by the remote finger server.  It gives better protection than the
 standard finger command.
@@ -350,6 +357,12 @@ capacity of an internal buffer; when an access control rule is not
 terminated by a newline character; when the result of %<letter>
 expansion would overflow an internal buffer; when a system call fails
 that shouldn\'t.  All problems are reported via the syslog daemon.
+.SH IMPLEMENTATION NOTES
+Some operating systems are distributed with TCP Wrappers as part of the
+base system. It is common for such systems to build wrapping functionality
+into networking utilities. Notably, some systems offer an \fIinetd\fR(8)
+which does not require the use of the \fItcpd\fR(8). Check your system's
+documentation for details.
 .SH FILES
 .na
 .nf
@@ -376,3 +389,4 @@ Eindhoven University of Technology
 Den Dolech 2, P.O. Box 513, 
 5600 MB Eindhoven, The Netherlands
 \" @(#) hosts_access.5 1.20 95/01/30 19:51:46
+\" $FreeBSD$

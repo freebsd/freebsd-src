@@ -12,6 +12,8 @@
   * -v: show all rules.
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -350,6 +352,8 @@ char   *pat;
 {
     if (pat[0] == '@') {
 	tcpd_warn("%s: daemon name begins with \"@\"", pat);
+    } else if (pat[0] == '/') {
+	tcpd_warn("%s: daemon name begins with \"/\"", pat);
     } else if (pat[0] == '.') {
 	tcpd_warn("%s: daemon name begins with dot", pat);
     } else if (pat[strlen(pat) - 1] == '.') {
@@ -382,6 +386,8 @@ char   *pat;
 {
     if (pat[0] == '@') {			/* @netgroup */
 	tcpd_warn("%s: user name begins with \"@\"", pat);
+    } else if (pat[0] == '/') {
+	tcpd_warn("%s: user name begins with \"/\"", pat);
     } else if (pat[0] == '.') {
 	tcpd_warn("%s: user name begins with dot", pat);
     } else if (pat[strlen(pat) - 1] == '.') {
@@ -402,8 +408,13 @@ char   *pat;
 static int check_host(pat)
 char   *pat;
 {
+    char    buf[BUFSIZ];
     char   *mask;
     int     addr_count = 1;
+    FILE   *fp;
+    struct tcpd_context saved_context;
+    char   *cp;
+    char   *wsp = " \t\r\n";
 
     if (pat[0] == '@') {			/* @netgroup */
 #ifdef NO_NETGRENT
@@ -422,6 +433,21 @@ char   *pat;
 	tcpd_warn("netgroup support disabled");
 #endif
 #endif
+    } else if (pat[0] == '/') {			/* /path/name */
+	if ((fp = fopen(pat, "r")) != 0) {
+	    saved_context = tcpd_context;
+	    tcpd_context.file = pat;
+	    tcpd_context.line = 0;
+	    while (fgets(buf, sizeof(buf), fp)) {
+		tcpd_context.line++;
+		for (cp = strtok(buf, wsp); cp; cp = strtok((char *) 0, wsp))
+		    check_host(cp);
+	    }
+	    tcpd_context = saved_context;
+	    fclose(fp);
+	} else if (errno != ENOENT) {
+	    tcpd_warn("open %s: %m", pat);
+	}
     } else if (mask = split_at(pat, '/')) {	/* network/netmask */
 	if (dot_quad_addr(pat) == INADDR_NONE
 	    || dot_quad_addr(mask) == INADDR_NONE)

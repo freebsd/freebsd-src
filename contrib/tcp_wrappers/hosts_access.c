@@ -15,6 +15,8 @@
   * Compile with -DNETGROUP if your library provides support for netgroups.
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -240,6 +242,26 @@ struct request_info *request;
     }
 }
 
+/* hostfile_match - look up host patterns from file */
+
+static int hostfile_match(path, host)
+char   *path;
+struct hosts_info *host;
+{
+    char    tok[BUFSIZ];
+    int     match = NO;
+    FILE   *fp;
+
+    if ((fp = fopen(path, "r")) != 0) {
+	while (fscanf(fp, "%s", tok) == 1 && !(match = host_match(tok, host)))
+	     /* void */ ;
+	fclose(fp);
+    } else if (errno != ENOENT) {
+	tcpd_warn("open %s: %m", path);
+    }
+    return (match);
+}
+
 /* host_match - match host name and/or address against pattern */
 
 static int host_match(tok, host)
@@ -267,6 +289,8 @@ struct host_info *host;
 	tcpd_warn("netgroup support is disabled");	/* not tcpd_jump() */
 	return (NO);
 #endif
+    } else if (tok[0] == '/') {			/* /file hack */
+	return (hostfile_match(tok, host));
     } else if (STR_EQ(tok, "KNOWN")) {		/* check address and name */
 	char   *name = eval_hostname(host);
 	return (STR_NE(eval_hostaddr(host), unknown) && HOSTNAME_KNOWN(name));
