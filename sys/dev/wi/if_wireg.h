@@ -142,7 +142,8 @@ struct wi_softc	{
 	struct callout_handle	wi_stat_ch;
 	struct mtx		wi_mtx;
 	int			wi_prism2;
-	int			wi_prism2_ver;
+	int			wi_firmware_ver;
+	int			wi_nic_type;
 	int			wi_bus_type;	/* Bus attachment type */
 };
 
@@ -481,11 +482,12 @@ struct wi_ltv_memsz {
  * NIC Identification (0xFD0B)
  */
 #define WI_RID_CARDID		0xFD0B
-#define WI_RID_IDENT		0xFD20
 struct wi_ltv_ver {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
 	u_int16_t		wi_ver[4];
+#define WI_NIC_LUCENT	0x0001	/* Emperically derived */
+#define WI_NIC_LUCENT_ALT	0x0005	/* Emperically derived */
 #define WI_NIC_EVB2	0x8000
 #define WI_NIC_HWB3763	0x8001
 #define WI_NIC_HWB3163	0x8002

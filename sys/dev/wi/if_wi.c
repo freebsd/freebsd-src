@@ -124,11 +124,6 @@ static const char rcsid[] =
 static u_int8_t	wi_mcast_addr[6] = { 0x01, 0x60, 0x1D, 0x00, 0x01, 0x00 };
 #endif
 
-/*
- * The following is for compatibility with NetBSD.
- */
-#define LE16TOH(a)	((a) = le16toh((a)))
-
 static void wi_intr(void *);
 static void wi_reset(struct wi_softc *);
 static int wi_ioctl(struct ifnet *, u_long, caddr_t);
@@ -141,7 +136,7 @@ static void wi_txeof(struct wi_softc *, int);
 static void wi_update_stats(struct wi_softc *);
 static void wi_setmulti(struct wi_softc *);
 
-static int wi_cmd(struct wi_softc *, int, int);
+static int wi_cmd(struct wi_softc *, int, int, int, int);
 static int wi_read_record(struct wi_softc *, struct wi_ltv_gen *);
 static int wi_write_record(struct wi_softc *, struct wi_ltv_gen *);
 static int wi_read_data(struct wi_softc *, int, int, caddr_t, int);
@@ -654,63 +649,59 @@ wi_get_id(sc, dev)
 	ver.wi_len = 5;
 	wi_read_record(sc, (struct wi_ltv_gen *)&ver);
 	device_printf(dev, "using ");
-	switch (le16toh(ver.wi_ver[0])) {
+	sc->wi_prism2 = 1;
+	sc->wi_nic_type = le16toh(ver.wi_ver[0]);
+	switch (sc->wi_nic_type) {
 	case WI_NIC_EVB2:
 		printf("RF:PRISM2 MAC:HFA3841");
-		sc->wi_prism2 = 1;
 		break;
 	case WI_NIC_HWB3763:
 		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3763 rev.B");
-		sc->wi_prism2 = 1;
 		break;
 	case WI_NIC_HWB3163:
 		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.A");
-		sc->wi_prism2 = 1;
 		break;
 	case WI_NIC_HWB3163B:
 		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.B");
-		sc->wi_prism2 = 1;
 		break;
 	case WI_NIC_EVB3:
 		printf("RF:PRISM2 MAC:HFA3842");
-		sc->wi_prism2 = 1;
 		break;
 	case WI_NIC_HWB1153:
 		printf("RF:PRISM1 MAC:HFA3841 CARD:HWB1153");
-		sc->wi_prism2 = 1;
 		break;
 	case WI_NIC_P2_SST:
 		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163-SST-flash");
-		sc->wi_prism2 = 1;
 		break;
 	case WI_NIC_PRISM2_5:
 		printf("RF:PRISM2.5 MAC:ISL3873");
-		sc->wi_prism2 = 1;
 		break;
 	case WI_NIC_3874A:
 		printf("RF:PRISM2.5 MAC:ISL3874A(PCI)");
-		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_LUCENT:
+	case WI_NIC_LUCENT_ALT:
+		printf("WaveLan/Lucent/Orinoco chip");
+		sc->wi_prism2 = 0;
 		break;
 	default:
-		printf("Lucent chip or unknown chip\n");
+		printf("Lucent chip or unknown chip %04x", ver.wi_ver[0]);
 		sc->wi_prism2 = 0;
 		break;
 	}
 
-	if (sc->wi_prism2) {
-		/* try to get prism2 firm version */
-		memset(&ver, 0, sizeof(ver));
-		ver.wi_type = WI_RID_IDENT;
-		ver.wi_len = 5;
-		wi_read_record(sc, (struct wi_ltv_gen *)&ver);
-		LE16TOH(ver.wi_ver[1]);
-		LE16TOH(ver.wi_ver[2]);
-		LE16TOH(ver.wi_ver[3]);
-		printf(", Firmware: %d.%d variant %d\n", ver.wi_ver[2],
-		       ver.wi_ver[3], ver.wi_ver[1]);
-		sc->wi_prism2_ver = ver.wi_ver[2] * 100 +
-				    ver.wi_ver[3] *  10 + ver.wi_ver[1];
-	}
+	/* get firmware version */
+	memset(&ver, 0, sizeof(ver));
+	ver.wi_type = WI_RID_STA_IDENTITY;
+	ver.wi_len = 5;
+	wi_read_record(sc, (struct wi_ltv_gen *)&ver);
+	ver.wi_ver[1] = le16toh(ver.wi_ver[1]);
+	ver.wi_ver[2] = le16toh(ver.wi_ver[2]);
+	ver.wi_ver[3] = le16toh(ver.wi_ver[3]);
+	sc->wi_firmware_ver = ver.wi_ver[2] * 100 + ver.wi_ver[3] *  10 +
+	    ver.wi_ver[1];
+	printf(", Firmware: %d.%02d variant %d\n", ver.wi_ver[2],
+	    ver.wi_ver[3], ver.wi_ver[1]);
 
 	return;
 }
@@ -863,7 +854,7 @@ wi_inquire(xsc)
 	if (ifp->if_flags & IFF_OACTIVE)
 		return;
 
-	wi_cmd(sc, WI_CMD_INQUIRE, WI_INFO_COUNTERS);
+	wi_cmd(sc, WI_CMD_INQUIRE, WI_INFO_COUNTERS, 0, 0);
 
 	return;
 }
@@ -979,10 +970,12 @@ wi_intr(xsc)
 }
 
 static int
-wi_cmd(sc, cmd, val)
+wi_cmd(sc, cmd, val0, val1, val2)
 	struct wi_softc		*sc;
 	int			cmd;
-	int			val;
+	int			val0;
+	int			val1;
+	int			val2;
 {
 	int			i, s = 0;
 
@@ -998,9 +991,9 @@ wi_cmd(sc, cmd, val)
 		return(ETIMEDOUT);
 	}
 
-	CSR_WRITE_2(sc, WI_PARAM0, val);
-	CSR_WRITE_2(sc, WI_PARAM1, 0);
-	CSR_WRITE_2(sc, WI_PARAM2, 0);
+	CSR_WRITE_2(sc, WI_PARAM0, val0);
+	CSR_WRITE_2(sc, WI_PARAM1, val1);
+	CSR_WRITE_2(sc, WI_PARAM2, val2);
 	CSR_WRITE_2(sc, WI_COMMAND, cmd);
 
 	for (i = 0; i < WI_TIMEOUT; i++) {
@@ -1026,7 +1019,7 @@ wi_cmd(sc, cmd, val)
 
 	if (i == WI_TIMEOUT) {
 		device_printf(sc->dev,
-		    "timeout in wi_cmd %x; event status %x\n", cmd, s);
+		    "timeout in wi_cmd 0x%04x; event status 0x%04x\n", cmd, s);
 		return(ETIMEDOUT);
 	}
 
@@ -1041,7 +1034,7 @@ wi_reset(sc)
 	int i;
 	
 	for (i = 0; i < WI_INIT_TRIES; i++) {
-		if (wi_cmd(sc, WI_CMD_INI, 0) == 0)
+		if (wi_cmd(sc, WI_CMD_INI, 0, 0, 0) == 0)
 			break;
 		DELAY(WI_DELAY * 1000);
 	}
@@ -1086,7 +1079,7 @@ wi_read_record(sc, ltv)
 	}
 
 	/* Tell the NIC to enter record read mode. */
-	if (wi_cmd(sc, WI_CMD_ACCESS|WI_ACCESS_READ, ltv->wi_type))
+	if (wi_cmd(sc, WI_CMD_ACCESS|WI_ACCESS_READ, ltv->wi_type, 0, 0))
 		return(EIO);
 
 	/* Seek to the record. */
@@ -1241,7 +1234,7 @@ wi_write_record(sc, ltv)
 	for (i = 0; i < ltv->wi_len - 1; i++)
 		CSR_WRITE_2(sc, WI_DATA1, ptr[i]);
 
-	if (wi_cmd(sc, WI_CMD_ACCESS|WI_ACCESS_WRITE, ltv->wi_type))
+	if (wi_cmd(sc, WI_CMD_ACCESS|WI_ACCESS_WRITE, ltv->wi_type, 0, 0))
 		return(EIO);
 
 	return(0);
@@ -1375,7 +1368,7 @@ wi_alloc_nicmem(sc, len, id)
 {
 	int			i;
 
-	if (wi_cmd(sc, WI_CMD_ALLOC_MEM, len)) {
+	if (wi_cmd(sc, WI_CMD_ALLOC_MEM, len, 0, 0)) {
 		device_printf(sc->dev,
 		    "failed to allocate %d bytes on NIC\n", len);
 		return(ENOMEM);
@@ -1941,7 +1934,7 @@ wi_init(xsc)
 			 * It is under investigation for details.
 			 * (ichiro@netbsd.org)
 			 */
-			if (sc->wi_prism2_ver < 83 ) {
+			if (sc->wi_firmware_ver < 83 ) {
 				/* firm ver < 0.8 variant 3 */
 				WI_SETVAL(WI_RID_PROMISC, 1);
 			}
@@ -1960,7 +1953,7 @@ wi_init(xsc)
 	wi_setmulti(sc);
 
 	/* Enable desired port */
-	wi_cmd(sc, WI_CMD_ENABLE | sc->wi_portnum, 0);
+	wi_cmd(sc, WI_CMD_ENABLE | sc->wi_portnum, 0, 0, 0);
 
 	if (wi_alloc_nicmem(sc, ETHER_MAX_LEN + sizeof(struct wi_frame) + 8, &id))
 		device_printf(sc->dev, "tx buffer allocation failed\n");
@@ -2065,7 +2058,7 @@ wi_start(ifp)
 
 	m_freem(m0);
 
-	if (wi_cmd(sc, WI_CMD_TX|WI_RECLAIM, id))
+	if (wi_cmd(sc, WI_CMD_TX|WI_RECLAIM, id, 0, 0))
 		device_printf(sc->dev, "xmit failed\n");
 
 	ifp->if_flags |= IFF_OACTIVE;
@@ -2109,7 +2102,7 @@ wi_mgmt_xmit(sc, data, len)
 	wi_write_data(sc, id, WI_802_11_OFFSET_RAW, dptr,
 	    (len - sizeof(struct wi_80211_hdr)) + 2);
 
-	if (wi_cmd(sc, WI_CMD_TX|WI_RECLAIM, id)) {
+	if (wi_cmd(sc, WI_CMD_TX|WI_RECLAIM, id, 0, 0)) {
 		device_printf(sc->dev, "xmit failed\n");
 		return(EIO);
 	}
@@ -2139,7 +2132,7 @@ wi_stop(sc)
 	 */
 	if (CSR_READ_2(sc, WI_STATUS) != 0xffff) {
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
-		wi_cmd(sc, WI_CMD_DISABLE|sc->wi_portnum, 0);
+		wi_cmd(sc, WI_CMD_DISABLE|sc->wi_portnum, 0, 0, 0);
 	}
 
 	untimeout(wi_inquire, sc, sc->wi_stat_ch);
