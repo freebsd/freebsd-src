@@ -924,8 +924,10 @@ tryagain:
 	}
       if (q)
 	{
-	  if (chdir (p) < 0)
+	  if (chdir (p) < 0) {
 	    msg_perror ("Can't chdir to %s", p);
+	    exit(EX_BADDIR);
+	  }
 	  q = 0;
 	  goto tryagain;
 	}
@@ -1152,8 +1154,10 @@ again:
     return 1;
   if (nlp->fake)
     {
-      if (nlp->change_dir && chdir (nlp->change_dir))
+      if (nlp->change_dir && chdir (nlp->change_dir)) {
 	msg_perror ("Can't change to directory %s", nlp->change_dir);
+	exit(EX_BADDIR);
+      }
       namelist = 0;
       return 1;
     }
@@ -1175,8 +1179,10 @@ again:
 		  free ((void *) namelist);
 		  namelist = 0;
 		}
-	      if (nlp->change_dir && chdir (nlp->change_dir))
+	      if (nlp->change_dir && chdir (nlp->change_dir)) {
 		msg_perror ("Can't change to directory %s", nlp->change_dir);
+		exit(EX_BADDIR);
+	      }
 	      return 1;		/* We got a match */
 	    }
 	  continue;
@@ -1194,8 +1200,10 @@ again:
 	      free ((void *) namelist);
 	      namelist = 0;
 	    }
-	  if (nlp->change_dir && chdir (nlp->change_dir))
+	  if (nlp->change_dir && chdir (nlp->change_dir)) {
 	    msg_perror ("Can't change to directory %s", nlp->change_dir);
+	    exit(EX_BADDIR);
+	  }
 	  if (f_fast_read) {
 	      if (strcmp(p, nlp->name) == 0) {
 		  /* remove the current entry, since we found a match */
@@ -1361,8 +1369,10 @@ name_from_list ()
     {
       gnu_list_name->found++;
       if (gnu_list_name->change_dir)
-	if (chdir (gnu_list_name->change_dir) < 0)
+	if (chdir (gnu_list_name->change_dir) < 0) {
 	  msg_perror ("can't chdir to %s", gnu_list_name->change_dir);
+	  exit(EX_BADDIR);
+	}
       return gnu_list_name->name;
     }
   return (char *) 0;
