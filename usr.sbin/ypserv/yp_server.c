@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: yp_server.c,v 1.29 1999/04/30 16:44:17 wpaul Exp $";
+	"$Id: yp_server.c,v 1.30 1999/04/30 16:59:48 wpaul Exp $";
 #endif /* not lint */
 
 #include "yp.h"
@@ -536,6 +536,14 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 			break;
 		}
 	}
+
+	/*
+	 * Fix for PR #10971: don't let the child ypserv share
+	 * DB handles with the parent process.
+	 */
+#ifdef DB_CACHE
+	yp_flush_all();
+#endif
 
 	if (yp_select_map(argp->map, argp->domain,
 				&result.ypresp_all_u.val.key, 0) != YP_TRUE) {
