@@ -23,10 +23,10 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: iicbus_if.m,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
+#	$Id: iicbus_if.m,v 1.2 1998/10/31 11:31:07 nsouch Exp $
 #
 
-INTERFACE iicbus
+INTERFACE iicbus;
 
 #
 # Interpret interrupt
