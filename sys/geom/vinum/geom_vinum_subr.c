@@ -189,7 +189,7 @@ gv_format_config(struct gv_softc *sc, struct sbuf *sb, int ondisk, char *prefix)
 	 */
 	if (!ondisk) {
 		LIST_FOREACH(d, &sc->drives, drive) {
-			sbuf_printf(sb, "%sdrive %s device %s\n", prefix,
+			sbuf_printf(sb, "%sdrive %s device /dev/%s\n", prefix,
 			    d->name, d->device);
 		}
 	}
