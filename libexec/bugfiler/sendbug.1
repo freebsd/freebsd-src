@@ -1,0 +1,85 @@
+.\" Copyright (c) 1983, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sendbug.1	8.1 (Berkeley) 6/4/93
+.\"
+.Dd June 4, 1993
+.Dt SENDBUG 1
+.Os BSD 4.2
+.Sh NAME
+.Nm sendbug
+.Nd mail a system bug report to 4bsd-bugs
+.Sh SYNOPSIS
+.Nm sendbug
+.Op Ar address
+.Sh DESCRIPTION
+Bug reports sent to `4bsd-bugs@Berkeley.EDU' are intercepted
+by a program which expects bug reports to conform to a standard format.
+.Nm Sendbug
+is a shell script to help the user compose and mail bug reports
+in the correct format.
+.Nm Sendbug
+works by invoking the editor specified by the environment variable
+.Ev EDITOR
+on a temporary copy of the bug report format outline. The user must fill in the
+appropriate fields and exit the editor.
+.Nm Sendbug
+then mails the completed report to `4bsd-bugs@Berkeley.EDU' or the
+.Ar address
+specified on the command line.
+.Sh ENVIRONMENT
+.Nm Sendbug
+will utilize the following environment variable if it exists:
+.Bl -tag -width EDITOR
+.It Ev EDITOR
+Specifies the preferred editor. If
+.Ev EDITOR
+is not set,
+.Nm
+defaults to
+.Xr vi 1 .
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/misc/bugformat -compact
+.It Pa /usr/share/misc/bugformat
+Contains the bug report outline.
+.El
+.Sh SEE ALSO
+.Xr vi 1 ,
+.Xr environ 7 ,
+.Xr bugfiler 8 ,
+.Xr sendmail 8
+.Sh HISTORY
+The
+.Nm sendbug
+command
+appeared in
+.Bx 4.2 .

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)library.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)library.c	8.3 (Berkeley) 5/24/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -73,7 +73,7 @@ int
 fs_getmntinfo(buf, name, type)
 	struct	statfs	**buf;
 	char	*name;
-	int	type;
+	char	*type;
 {
 	/* allocate space for the filesystem info */
 	*buf = (struct statfs *)malloc(sizeof(struct statfs));
@@ -87,7 +87,7 @@ fs_getmntinfo(buf, name, type)
 	}
 
 	/* check to see if it's the one we want */
-	if (((*buf)->f_type != type) ||
+	if (strcmp((*buf)->f_fstypename, type) ||
 	    strncmp(name, (*buf)->f_mntonname, MNAMELEN)) {
 		/* "this is not the filesystem you're looking for */
 		free(*buf);
@@ -264,7 +264,7 @@ lfs_segmapv(fsp, seg, seg_buf, blocks, bcount)
 	struct lfs *lfsp;
 	caddr_t s, segend;
 	daddr_t pseg_addr, seg_addr;
-	int i, nelem, nblocks, sumsize;
+	int i, nelem, nblocks, nsegs, sumsize;
 	time_t timestamp;
 
 	lfsp = &fsp->fi_lfs;
@@ -281,18 +281,21 @@ lfs_segmapv(fsp, seg, seg_buf, blocks, bcount)
 #endif /* VERBOSE */
 
 	*bcount = 0;
-	for (segend = seg_buf + seg_size(lfsp), timestamp = 0; s < segend; ) {
+	for (nsegs = 0, timestamp = 0; nsegs < sup->su_nsums; nsegs++) {
 		sp = (SEGSUM *)s;
+
+		nblocks = pseg_valid(fsp, sp);
+		if (nblocks <= 0) {
+			printf("Warning: invalid segment summary at 0x%x\n",
+			    pseg_addr);
+			break;
+		}
 
 #ifdef VERBOSE
 		printf("\tpartial at: 0x%x\n", pseg_addr);
 		print_SEGSUM(lfsp, sp);
 		fflush(stdout);
 #endif /* VERBOSE */
-
-		nblocks = pseg_valid(fsp, sp);
-		if (nblocks <= 0)
-			break;
 
 		/* Check if we have hit old data */
 		if (timestamp > ((SEGSUM*)s)->ss_create)
@@ -303,7 +306,7 @@ lfs_segmapv(fsp, seg, seg_buf, blocks, bcount)
 		/* Verfiy size of summary block */
 		sumsize = sizeof(SEGSUM) +
 		    (sp->ss_ninos + INOPB(lfsp) - 1) / INOPB(lfsp);
-		for (fip = (FINFO *)(sp + 1); i < sp->ss_nfinfo; ++i) {
+		for (i = 0, fip = (FINFO *)(sp + 1); i < sp->ss_nfinfo; ++i) {
 			sumsize += sizeof(FINFO) +
 			    (fip->fi_nblocks - 1) * sizeof(daddr_t);
 			fip = (FINFO *)(&fip->fi_blocks[fip->fi_nblocks]);
@@ -368,7 +371,9 @@ add_blocks (fsp, bip, countp, sp, seg_buf, segaddr, psegaddr)
 	caddr_t	bp;
 	daddr_t	*dp, *iaddrp;
 	int db_per_block, i, j;
+	int db_frag;
 	u_long page_size;
+long *lp;
 
 #ifdef VERBOSE
 	printf("FILE INFOS\n");
@@ -400,8 +405,24 @@ add_blocks (fsp, bip, countp, sp, seg_buf, segaddr, psegaddr)
 			bip->bi_segcreate = (time_t)(sp->ss_create);
 			bip->bi_bp = bp;
 			bip->bi_version = ifp->if_version;
-			psegaddr += db_per_block;
-			bp += page_size;
+			if (fip->fi_lastlength == page_size) {
+				bip->bi_size = page_size;
+				psegaddr += db_per_block;
+				bp += page_size;
+			} else {
+				db_frag = fragstodb(&(fsp->fi_lfs), 
+				    numfrags(&(fsp->fi_lfs),
+				    fip->fi_lastlength));
+#ifdef VERBOSE
+				printf("lastlength, frags: %d, %d, %d\n", 
+				    fip->fi_lastlength, temp,
+				    bytetoda(fsp, temp));
+				fflush(stdout);
+#endif
+				bip->bi_size = fip->fi_lastlength;
+				bp += fip->fi_lastlength;
+				psegaddr += db_frag;
+			}
 			++bip;
 			++(*countp);
 		}
@@ -485,6 +506,9 @@ pseg_valid (fsp, ssp)
 	caddr_t	p;
 	int i, nblocks;
 	u_long *datap;
+
+	if (ssp->ss_magic != SS_MAGIC)
+		return(0);
 
 	if ((nblocks = dump_summary(&fsp->fi_lfs, ssp, 0, NULL)) <= 0 ||
 	    nblocks > fsp->fi_lfs.lfs_ssize - 1)

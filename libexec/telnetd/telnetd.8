@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)telnetd.8	8.3 (Berkeley) 3/1/94
+.\"	@(#)telnetd.8	8.4 (Berkeley) 6/1/94
 .\"
-.Dd March 1, 1994
+.Dd June 1, 1994
 .Dt TELNETD 8
 .Os BSD 4.2
 .Sh NAME
@@ -308,6 +308,7 @@ indicates that only dotted decimal addresses
 should be put into the
 .Pa utmp
 file.
+.ne 1i
 .It Fl U
 This option causes
 .Nm telnetd
@@ -424,6 +425,7 @@ Whenever a
 command is received, it is always responded
 to with a
 .Dv WILL TIMING-MARK
+.ne 1i
 .It "WILL LOGOUT"
 When a
 .Dv DO LOGOUT

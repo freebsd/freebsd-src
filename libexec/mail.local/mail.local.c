@@ -38,8 +38,17 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mail.local.c	8.6 (Berkeley) 4/8/94";
+static char sccsid[] = "@(#)mail.local.c	8.22 (Berkeley) 6/21/95";
 #endif /* not lint */
+
+/*
+ * This is not intended to compile on System V derived systems
+ * such as Solaris or HP-UX, since they use a totally different
+ * approach to mailboxes (essentially, they have a setgid program
+ * rather than setuid, and they rely on the ability to "give away"
+ * files to do their work).  IT IS NOT A BUG that this doesn't
+ * compile on such architectures.
+ */
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -58,6 +67,7 @@ static char sccsid[] = "@(#)mail.local.c	8.6 (Berkeley) 4/8/94";
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #if __STDC__
 #include <stdarg.h>
@@ -65,7 +75,55 @@ static char sccsid[] = "@(#)mail.local.c	8.6 (Berkeley) 4/8/94";
 #include <varargs.h>
 #endif
 
-#include "pathnames.h"
+#ifndef LOCK_EX
+# include <sys/file.h>
+#endif
+
+#ifdef BSD4_4
+# include "pathnames.h"
+#endif
+
+#ifndef __P
+# ifdef __STDC__
+#  define __P(protos)	protos
+# else
+#  define __P(protos)	()
+#  define const
+# endif
+#endif
+#ifndef __dead
+# if defined(__GNUC__) && (__GNUC__ < 2 || __GNUC_MINOR__ < 5) && !defined(__STRICT_ANSI__)
+#  define __dead	__volatile
+# else
+#  define __dead
+# endif
+#endif
+
+#ifndef BSD4_4
+# define _BSD_VA_LIST_	va_list
+extern char	*strerror __P((int));
+extern int	snprintf __P((char *, int, const char *, ...));
+#endif
+
+/*
+ * If you don't have setreuid, and you have saved uids, and you have
+ * a seteuid() call that doesn't try to emulate using setuid(), then
+ * you can try defining USE_SETEUID.
+ */
+#ifdef USE_SETEUID
+# define setreuid(r, e)		seteuid(e)
+#endif
+
+#ifndef _PATH_LOCTMP
+# define _PATH_LOCTMP	"/tmp/local.XXXXXX"
+#endif
+#ifndef _PATH_MAILDIR
+# define _PATH_MAILDIR	"/var/spool/mail"
+#endif
+
+#ifndef S_ISREG
+# define S_ISREG(mode)	(((mode) & _S_IFMT) == S_IFREG)
+#endif
 
 int eval = EX_OK;			/* sysexits.h error value. */
 
@@ -87,8 +145,21 @@ main(argc, argv)
 	int ch, fd;
 	uid_t uid;
 	char *from;
+	extern char *optarg;
+	extern int optind;
 
+	/* make sure we have some open file descriptors */
+	for (fd = 10; fd < 30; fd++)
+		(void) close(fd);
+
+	/* use a reasonable umask */
+	(void) umask(0077);
+
+#ifdef LOG_MAIL
 	openlog("mail.local", 0, LOG_MAIL);
+#else
+	openlog("mail.local", 0);
+#endif
 
 	from = NULL;
 	while ((ch = getopt(argc, argv, "df:r:")) != EOF)
@@ -144,15 +215,15 @@ store(from)
 	FILE *fp;
 	time_t tval;
 	int fd, eline;
-	char *tn, line[2048];
+	char line[2048];
+	char tmpbuf[sizeof _PATH_LOCTMP + 1];
 
-	tn = strdup(_PATH_LOCTMP);
-	if ((fd = mkstemp(tn)) == -1 || (fp = fdopen(fd, "w+")) == NULL) {
+	strcpy(tmpbuf, _PATH_LOCTMP);
+	if ((fd = mkstemp(tmpbuf)) == -1 || (fp = fdopen(fd, "w+")) == NULL) {
 		e_to_sys(errno);
 		err("unable to open temporary file");
 	}
-	(void)unlink(tn);
-	free(tn);
+	(void)unlink(tmpbuf);
 
 	(void)time(&tval);
 	(void)fprintf(fp, "From %s %s", from, ctime(&tval));
@@ -195,6 +266,7 @@ deliver(fd, name)
 	struct stat fsb, sb;
 	struct passwd *pw;
 	int mbfd, nr, nw, off;
+	char *p;
 	char biffmsg[100], buf[8*1024], path[MAXPATHLEN];
 	off_t curoff;
 
@@ -207,6 +279,25 @@ deliver(fd, name)
 			eval = EX_UNAVAILABLE;
 		warn("unknown name: %s", name);
 		return;
+	}
+	endpwent();
+
+	/*
+	 * Keep name reasonably short to avoid buffer overruns.
+	 *	This isn't necessary on BSD because of the proper
+	 *	definition of snprintf(), but it can cause problems
+	 *	on other systems.
+	 * Also, clear out any bogus characters.
+	 */
+
+	if (strlen(name) > 40)
+		name[40] = '\0';
+	for (p = name; *p != '\0'; p++)
+	{
+		if (!isascii(*p))
+			*p &= 0x7f;
+		else if (!isprint(*p))
+			*p = '.';
 	}
 
 	(void)snprintf(path, sizeof(path), "%s/%s", _PATH_MAILDIR, name);
@@ -233,6 +324,7 @@ deliver(fd, name)
 	 * open(2) should support flock'ing the file.
 	 */
 tryagain:
+	lockmbox(path);
 	if (lstat(path, &sb)) {
 		mbfd = open(path,
 		    O_APPEND|O_CREAT|O_EXCL|O_WRONLY, S_IRUSR|S_IWUSR);
@@ -242,28 +334,31 @@ tryagain:
 		} else if (fchown(mbfd, pw->pw_uid, pw->pw_gid)) {
 			e_to_sys(errno);
 			warn("chown %u.%u: %s", pw->pw_uid, pw->pw_gid, name);
-			return;
+			goto err1;
 		}
-	} else if (sb.st_nlink != 1 || S_ISLNK(sb.st_mode)) {
+	} else if (sb.st_nlink != 1 || !S_ISREG(sb.st_mode)) {
 		e_to_sys(errno);
-		warn("%s: linked file", path);
+		warn("%s: irregular file", path);
+		goto err0;
+	} else if (sb.st_uid != pw->pw_uid) {
+		warn("%s: wrong ownership (%d)", path, sb.st_uid);
+		unlockmbox();
 		return;
 	} else {
 		mbfd = open(path, O_APPEND|O_WRONLY, 0);
 		if (mbfd != -1 &&
 		    (fstat(mbfd, &fsb) || fsb.st_nlink != 1 ||
-		    S_ISLNK(fsb.st_mode) || sb.st_dev != fsb.st_dev ||
-		    sb.st_ino != fsb.st_ino)) {
+		    !S_ISREG(fsb.st_mode) || sb.st_dev != fsb.st_dev ||
+		    sb.st_ino != fsb.st_ino || sb.st_uid != fsb.st_uid)) {
 			warn("%s: file changed after open", path);
-			(void)close(mbfd);
-			return;
+			goto err1;
 		}
 	}
 
 	if (mbfd == -1) {
 		e_to_sys(errno);
 		warn("%s: %s", path, strerror(errno));
-		return;
+		goto err0;
 	}
 
 	/* Wait until we can get a lock on the file. */
@@ -275,7 +370,9 @@ tryagain:
 
 	/* Get the starting offset of the new message for biff. */
 	curoff = lseek(mbfd, (off_t)0, SEEK_END);
-	(void)snprintf(biffmsg, sizeof(biffmsg), "%s@%qd\n", name, curoff);
+	(void)snprintf(biffmsg, sizeof(biffmsg),
+		sizeof curoff > sizeof(long) ? "%s@%qd\n" : "%s@%ld\n", 
+		name, curoff);
 
 	/* Copy the message into the file. */
 	if (lseek(fd, (off_t)0, SEEK_SET) == (off_t)-1) {
@@ -283,25 +380,43 @@ tryagain:
 		warn("temporary file: %s", strerror(errno));
 		goto err1;
 	}
+	if (setreuid(0, pw->pw_uid) < 0) {
+		e_to_sys(errno);
+		warn("setreuid(0, %d): %s (r=%d, e=%d)",
+		     pw->pw_uid, strerror(errno), getuid(), geteuid());
+		goto err1;
+	}
+#ifdef DEBUG
+	printf("new euid = %d\n", geteuid());
+#endif
 	while ((nr = read(fd, buf, sizeof(buf))) > 0)
-		for (off = 0; off < nr; nr -= nw, off += nw)
-			if ((nw = write(mbfd, buf + off, nr)) < 0) {
+		for (off = 0; off < nr; off += nw)
+			if ((nw = write(mbfd, buf + off, nr - off)) < 0) {
 				e_to_sys(errno);
 				warn("%s: %s", path, strerror(errno));
-				goto err2;;
+				goto err3;
 			}
 	if (nr < 0) {
 		e_to_sys(errno);
 		warn("temporary file: %s", strerror(errno));
-		goto err2;;
+		goto err3;
 	}
 
 	/* Flush to disk, don't wait for update. */
 	if (fsync(mbfd)) {
 		e_to_sys(errno);
 		warn("%s: %s", path, strerror(errno));
+err3:
+		if (setreuid(0, 0) < 0) {
+			e_to_sys(errno);
+			warn("setreuid(0, 0): %s", strerror(errno));
+		}
+#ifdef DEBUG
+		printf("reset euid = %d\n", geteuid());
+#endif
 err2:		(void)ftruncate(mbfd, curoff);
 err1:		(void)close(mbfd);
+err0:		unlockmbox();
 		return;
 	}
 		
@@ -309,10 +424,69 @@ err1:		(void)close(mbfd);
 	if (close(mbfd)) {
 		e_to_sys(errno);
 		warn("%s: %s", path, strerror(errno));
+		unlockmbox();
 		return;
 	}
 
+	if (setreuid(0, 0) < 0) {
+		e_to_sys(errno);
+		warn("setreuid(0, 0): %s", strerror(errno));
+	}
+#ifdef DEBUG
+	printf("reset euid = %d\n", geteuid());
+#endif
+	unlockmbox();
 	notifybiff(biffmsg);
+}
+
+/*
+ * user.lock files are necessary for compatibility with other
+ * systems, e.g., when the mail spool file is NFS exported.
+ * Alas, mailbox locking is more than just a local matter.
+ * EPA 11/94.
+ */
+
+char	lockname[MAXPATHLEN];
+int	locked = 0;
+
+lockmbox(path)
+	char *path;
+{
+	int statfailed = 0;
+
+	if (locked)
+		return;
+	sprintf(lockname, "%s.lock", path);
+	for (;; sleep(5)) {
+		int fd;
+		struct stat st;
+		time_t now;
+
+		fd = open(lockname, O_WRONLY|O_EXCL|O_CREAT, 0);
+		if (fd >= 0) {
+			locked = 1;
+			close(fd);
+			return;
+		}
+		if (stat(lockname, &st) < 0) {
+			if (statfailed++ > 5)
+				return;
+			continue;
+		}
+		statfailed = 0;
+		time(&now);
+		if (now < st.st_ctime + 300)
+			continue;
+		unlink(lockname);
+	}
+}
+
+unlockmbox()
+{
+	if (!locked)
+		return;
+	unlink(lockname);
+	locked = 0;
 }
 
 void
@@ -334,7 +508,7 @@ notifybiff(msg)
 			return;
 		}
 		addr.sin_family = hp->h_addrtype;
-		memmove(&addr.sin_addr, hp->h_addr, hp->h_length);
+		memcpy(&addr.sin_addr, hp->h_addr, hp->h_length);
 		addr.sin_port = sp->s_port;
 	}
 	if (f < 0 && (f = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
@@ -413,8 +587,17 @@ vwarn(fmt, ap)
 	(void)vfprintf(stderr, fmt, ap);
 	(void)fprintf(stderr, "\n");
 
+#if !defined(ultrix) && !defined(__osf__)
 	/* Log the message to syslog. */
 	vsyslog(LOG_ERR, fmt, ap);
+#else
+	{
+		char fmtbuf[10240];
+
+		(void) sprintf(fmtbuf, fmt, ap);
+		syslog(LOG_ERR, "%s", fmtbuf);
+	}
+#endif
 }
 
 /*
@@ -499,7 +682,7 @@ e_to_sys(num)
 #ifdef ETIMEDOUT
 	case ETIMEDOUT:		/* Connection timed out */
 #endif
-#if defined(EWOULDBLOCK) && (EWOULDBLOCK != EAGAIN)
+#if defined(EWOULDBLOCK) && EWOULDBLOCK != EAGAIN && EWOULDBLOCK != EDEADLK
 	case EWOULDBLOCK:	/* Operation would block. */
 #endif
 		eval = EX_TEMPFAIL;
@@ -509,3 +692,177 @@ e_to_sys(num)
 		break;
 	}
 }
+
+#ifndef BSD4_4
+
+# ifndef __osf__
+char *
+strerror(eno)
+	int eno;
+{
+	extern int sys_nerr;
+	extern char *sys_errlist[];
+	static char ebuf[60];
+
+	if (eno >= 0 && eno <= sys_nerr)
+		return sys_errlist[eno];
+	(void) sprintf(ebuf, "Error %d", eno);
+	return ebuf;
+}
+# endif
+
+# if __STDC__
+snprintf(char *buf, int bufsiz, const char *fmt, ...)
+# else
+snprintf(buf, bufsiz, fmt, va_alist)
+	char *buf;
+	int bufsiz;
+	const char *fmt;
+	va_dcl
+# endif
+{
+	va_list ap;
+
+# if __STDC__
+	va_start(ap, fmt);
+# else
+	va_start(ap);
+# endif
+	vsprintf(buf, fmt, ap);
+	va_end(ap);
+}
+
+#endif
+
+#ifdef ultrix
+
+/*
+ * Copyright (c) 1987, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#if defined(LIBC_SCCS) && !defined(lint)
+static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
+#endif /* LIBC_SCCS and not lint */
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdio.h>
+#include <ctype.h>
+
+static int _gettemp();
+
+mkstemp(path)
+	char *path;
+{
+	int fd;
+
+	return (_gettemp(path, &fd) ? fd : -1);
+}
+
+/*
+char *
+mktemp(path)
+	char *path;
+{
+	return(_gettemp(path, (int *)NULL) ? path : (char *)NULL);
+}
+*/
+
+static
+_gettemp(path, doopen)
+	char *path;
+	register int *doopen;
+{
+	extern int errno;
+	register char *start, *trv;
+	struct stat sbuf;
+	u_int pid;
+
+	pid = getpid();
+	for (trv = path; *trv; ++trv);		/* extra X's get set to 0's */
+	while (*--trv == 'X') {
+		*trv = (pid % 10) + '0';
+		pid /= 10;
+	}
+
+	/*
+	 * check the target directory; if you have six X's and it
+	 * doesn't exist this runs for a *very* long time.
+	 */
+	for (start = trv + 1;; --trv) {
+		if (trv <= path)
+			break;
+		if (*trv == '/') {
+			*trv = '\0';
+			if (stat(path, &sbuf))
+				return(0);
+			if (!S_ISDIR(sbuf.st_mode)) {
+				errno = ENOTDIR;
+				return(0);
+			}
+			*trv = '/';
+			break;
+		}
+	}
+
+	for (;;) {
+		if (doopen) {
+			if ((*doopen =
+			    open(path, O_CREAT|O_EXCL|O_RDWR, 0600)) >= 0)
+				return(1);
+			if (errno != EEXIST)
+				return(0);
+		}
+		else if (stat(path, &sbuf))
+			return(errno == ENOENT ? 1 : 0);
+
+		/* tricky little algorithm for backward compatibility */
+		for (trv = start;;) {
+			if (!*trv)
+				return(0);
+			if (*trv == 'z')
+				*trv++ = 'a';
+			else {
+				if (isdigit(*trv))
+					*trv = 'a';
+				else
+					++*trv;
+				break;
+			}
+		}
+	}
+	/*NOTREACHED*/
+}
+
+#endif

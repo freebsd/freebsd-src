@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)rlogind.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 /*
@@ -302,11 +302,11 @@ doit(f, fromp)
 				    hostname);
 #endif
 
-			execl(_PATH_LOGIN, "login", "-p",
-			    "-h", hostname, "-f", lusername, (char *)NULL);
+			execle(_PATH_LOGIN, "login", "-p",
+			    "-h", hostname, "-f", "--", lusername, NULL, env);
 		} else
-			execl(_PATH_LOGIN, "login", "-p",
-			    "-h", hostname, lusername, (char *)NULL);
+			execle(_PATH_LOGIN, "login", "-p",
+			    "-h", hostname, "--", lusername, NULL, env);
 		fatal(STDERR_FILENO, _PATH_LOGIN, 1);
 		/*NOTREACHED*/
 	}
@@ -348,7 +348,7 @@ control(pty, cp, n)
 	if (n < 4+sizeof (w) || cp[2] != 's' || cp[3] != 's')
 		return (0);
 	oobdata[0] &= ~TIOCPKT_WINDOW;	/* we know he heard */
-	bcopy(cp+4, (char *)&w, sizeof(w));
+	memmove(&w, cp+4, sizeof(w));
 	w.ws_row = ntohs(w.ws_row);
 	w.ws_col = ntohs(w.ws_col);
 	w.ws_xpixel = ntohs(w.ws_xpixel);
@@ -596,8 +596,6 @@ getstr(buf, cnt, errmsg)
 	} while (c != 0);
 }
 
-extern	char **environ;
-
 void
 setup_term(fd)
 	int fd;
@@ -636,7 +634,6 @@ setup_term(fd)
 
 	env[0] = term;
 	env[1] = 0;
-	environ = env;
 }
 
 #ifdef	KERBEROS
