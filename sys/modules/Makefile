@@ -35,7 +35,6 @@ SUBDIR=	3dfx \
 	de \
 	digi \
 	dummynet \
-	ed \
 	fdc \
 	fdescfs \
 	firewire \
@@ -169,6 +168,7 @@ SUBDIR+=aac \
 	cm \
 	coff \
 	drm \
+	ed \
 	el \
 	em \
 	ep \
