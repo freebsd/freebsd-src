@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.12 1999/02/03 20:43:29 fenner Exp $
+ *	$Id: ftp.c,v 1.13 1999/02/05 01:01:17 fenner Exp $
  */
 
 #include <sys/types.h>
@@ -348,6 +348,7 @@ ftp_retrieve(struct fetch_state *fs)
 	time_t modtime;
 	size_t readresult, writeresult;
 
+	fs->fs_status = "logging in to FTP server";
 	ftp = ftpLogin(ftps->ftp_hostname, 
 		       (char *)(ftps->ftp_user ? ftps->ftp_user : "anonymous"),
 		       /* XXX ^^^^ bad API */
@@ -358,6 +359,7 @@ ftp_retrieve(struct fetch_state *fs)
 		      status ? ftpErrString(status) : hstrerror(h_errno));
 		return EX_IOERR;
 	}
+	fs->fs_status = "preparing for FTP transfer";
 	if (ftps->ftp_type && strcasecmp(ftps->ftp_type, "i") != 0) {
 		if (strcasecmp(ftps->ftp_type, "a") == 0)
 			ftpAscii(ftp);
@@ -432,6 +434,7 @@ ftp_retrieve(struct fetch_state *fs)
 		}
 	}
 
+	fs->fs_status = "retrieving file from FTP server";
 	remote = ftpGet(ftp, ftps->ftp_remote_file, &seekloc);
 	if (remote == 0) {
 		if (ftpErrno(ftp)) {
