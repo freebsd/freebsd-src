@@ -36,6 +36,7 @@
 .Nm
 .Op Fl v
 .Op Fl o Ar options
+.Op Fl C Ar charset
 .Ar special | node
 .Sh DESCRIPTION
 The
@@ -57,6 +58,10 @@ man page for possible options and their meanings.
 The following UDF specific options are available:
 .It Fl v
 Be verbose about mounting the UDF file system.
+.It Fl C Ar charset
+Specify local
+.Ar charset
+to convert Unicode file names.
 .El
 .Sh SEE ALSO
 .Xr cdcontrol 1 ,
