@@ -44,17 +44,21 @@ sed	-e '/	pci$/d' \
 	-e '/gzip/d' \
 	-e '/random/d' \
 	-e '/splash/d' \
+	-e '/MATH_EMULATE/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
-	-e '/SYSVMSG/d' \
+	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
+	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
+	-e '/P1003_1B/d' \
 	-e '/DEBUG/d' \
 	-e '/DDB/d' \
 	-e '/INVARIANTS/d' \
 	-e '/INVARIANT_SUPPORT/d' \
 	-e '/WITNESS/d' \
+	-e '/MSDOS/d' \
 	-e '/pcm/d' \
 	-e '/atapist/d' \
 	-e '/ugen/d' \
@@ -79,15 +83,17 @@ sed	-e '/pty/d' \
 	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
-	-e '/SYSVMSG/d' \
+	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
+	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
  	-e '/DEBUG/d' \
  	-e '/DDB/d' \
  	-e '/INVARIANTS/d' \
  	-e '/INVARIANT_SUPPORT/d' \
  	-e '/WITNESS/d' \
+	-e '/MSDOS/d' \
 	-e '/	ncr/d' \
 	-e '/pcm/d' \
 	-e '/atapist/d' \
