@@ -548,57 +548,88 @@ find_class(struct gmesh *mesh, const char *name)
 	return (NULL);
 }
 
-static struct gprovider *
-find_provider(struct gclass *classp, const char *name)
+static struct ggeom *
+find_geom(struct gclass *classp, const char *name)
 {
 	struct ggeom *gp;
-	struct gprovider *pp;
 
 	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
-		LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
-			if (strcmp(pp->lg_name, name) == 0)
-				return (pp);
-		}
+		if (strcmp(gp->lg_name, name) == 0)
+			return (gp);
 	}
 	return (NULL);
 }
 
-static char *
-genspaces(const char *text, size_t len)
-{
-	static char spaces[256];
-	size_t outlen;
-
-	if (strlen(text) >= len) {
-		spaces[0] = '\0';
-		return (spaces);
-	}
-	memset(spaces, ' ', sizeof(spaces));
-	outlen = len - strlen(text);
-	if (outlen >= sizeof(spaces)) {
-		spaces[sizeof(spaces) - 1] = '\0';
-		return (spaces);
-	}
-	spaces[outlen] = '\0';
-	return (spaces);
-}
-
 static void
-show_one(struct gprovider *pp)
+show_one_provider(struct gprovider *pp, const char *prefix)
 {
 	struct gconfig *conf;
 	char buf[5];
 
-	printf("       NAME: %s\n", pp->lg_name);
-	printf("  geom name: %s\n", pp->lg_geom->lg_name);
+	printf("Name: %s\n", pp->lg_name);
 	humanize_number(buf, sizeof(buf), (int64_t)pp->lg_mediasize, "",
 	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-	printf("  mediasize: %jd (%s)\n", (intmax_t)pp->lg_mediasize, buf);
-	printf(" sectorsize: %u\n", pp->lg_sectorsize);
-	printf("       mode: %s\n", pp->lg_mode);
+	printf("%sMediasize: %jd (%s)\n", prefix, (intmax_t)pp->lg_mediasize,
+	    buf);
+	printf("%sSectorsize: %u\n", prefix, pp->lg_sectorsize);
+	printf("%sMode: %s\n", prefix, pp->lg_mode);
 	LIST_FOREACH(conf, &pp->lg_config, lg_config) {
-		printf("%s%s: %s\n", genspaces(conf->lg_name, 11),
-		    conf->lg_name, conf->lg_val);
+		printf("%s%s: %s\n", prefix, conf->lg_name, conf->lg_val);
+	}
+}
+
+static void
+show_one_consumer(struct gconsumer *cp, const char *prefix)
+{
+	struct gprovider *pp;
+	struct gconfig *conf;
+
+	pp = cp->lg_provider;
+	if (pp == NULL)
+		printf("[no provider]\n");
+	else {
+		char buf[5];
+
+		printf("Name: %s\n", pp->lg_name);
+		humanize_number(buf, sizeof(buf), (int64_t)pp->lg_mediasize, "",
+		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+		printf("%sMediasize: %jd (%s)\n", prefix,
+		    (intmax_t)pp->lg_mediasize, buf);
+		printf("%sSectorsize: %u\n", prefix, pp->lg_sectorsize);
+		printf("%sMode: %s\n", prefix, cp->lg_mode);
+	}
+	LIST_FOREACH(conf, &cp->lg_config, lg_config) {
+		printf("%s%s: %s\n", prefix, conf->lg_name, conf->lg_val);
+	}
+}
+
+static void
+show_one_geom(struct ggeom *gp)
+{
+	struct gprovider *pp;
+	struct gconsumer *cp;
+	struct gconfig *conf;
+	unsigned n;
+
+	printf("Geom name: %s\n", gp->lg_name);
+	LIST_FOREACH(conf, &gp->lg_config, lg_config) {
+		printf("%s: %s\n", conf->lg_name, conf->lg_val);
+	}
+	if (!LIST_EMPTY(&gp->lg_provider)) {
+		printf("Providers:\n");
+		n = 1;
+		LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+			printf("%u. ", n++);
+			show_one_provider(pp, "   ");
+		}
+	}
+	if (!LIST_EMPTY(&gp->lg_consumer)) {
+		printf("Consumers:\n");
+		n = 1;
+		LIST_FOREACH(cp, &gp->lg_consumer, lg_consumer) {
+			printf("%u. ", n++);
+			show_one_consumer(cp, "   ");
+		}
 	}
 	printf("\n");
 }
@@ -632,7 +663,7 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 {
 	struct gmesh mesh;
 	struct gclass *classp;
-	struct gprovider *pp;
+	struct ggeom *gp;
 	int error, *nargs;
 
 	error = geom_gettree(&mesh);
@@ -660,21 +691,15 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 			snprintf(param, sizeof(param), "arg%d", i);
 			name = gctl_get_asciiparam(req, param);
 			assert(name != NULL);
-			pp = find_provider(classp, name);
-			if (pp != NULL)
-				show_one(pp);
-			else {
-				fprintf(stderr, "No such provider: %s.\n",
-				    name);
-			}
+			gp = find_geom(classp, name);
+			if (gp != NULL)
+				show_one_geom(gp);
+			else
+				fprintf(stderr, "No such geom: %s.\n", name);
 		}
 	} else {
-		struct ggeom *gp;
-
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
-			LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
-				show_one(pp);
-			}
+			show_one_geom(gp);
 		}
 	}
 	geom_deletetree(&mesh);
