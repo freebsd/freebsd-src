@@ -73,6 +73,7 @@ options 	SMP		# Symmetric MultiProcessor Kernel
 device		atpic		# 8259A compatability
 options 	NO_MIXED_MODE	# Don't penalize working chipsets
 
+# Bus support.  Do not remove isa, even if you have no isa slots
 device		acpi
 device		isa
 device		pci
@@ -127,6 +128,7 @@ device		dpt		# DPT Smartcache III, IV - See NOTES for options
 device		iir		# Intel Integrated RAID
 device		ips		# IBM (Adaptec) ServeRAID
 device		mly		# Mylex AcceleRAID/eXtremeRAID
+device		twa		# 3ware 9000 series PATA/SATA RAID
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID
@@ -258,6 +260,7 @@ device		aue		# ADMtek USB Ethernet
 device		axe		# ASIX Electronics USB Ethernet
 device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
+device		rue		# RealTek RTL8150 USB Ethernet
 
 # FireWire support
 device		firewire	# FireWire bus code
