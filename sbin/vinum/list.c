@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.1.1.1 1998/09/16 05:57:36 grog Exp $
+ * $Id: list.c,v 1.13 1998/09/04 05:58:19 grog Exp grog $
  */
 
 #include <ctype.h>
@@ -52,7 +52,7 @@
 #include <sys/utsname.h>
 #include "vinumhdr.h"
 #include "vext.h"
-
+#include "request.h"
 /* Take a size in sectors and return a pointer to a
  * string which represents the size best.
  * If lj is != 0, return left justified, otherwise
@@ -124,7 +124,7 @@ vinum_li(int object, enum objecttype type)
 void 
 vinum_ldi(int driveno, int recurse)
 {
-    time_t t;
+    time_t t;						    /* because Bruce says so */
 
     get_drive_info(&drive, driveno);
     if (drive.state != drive_unallocated) {
@@ -609,11 +609,26 @@ listconfig()
     vinum_ls(0, NULL, NULL);
 }
 
+/* Convert a timeval to Tue Oct 13 13:54:14.0434324
+ * Return pointer to text */
+char *
+timetext(struct timeval *time)
+{
+    static char text[30];
+    time_t t;						    /* to keep Bruce happy */
+
+    t = time->tv_sec;
+    strcpy(text, ctime(&t));				    /* to the second */
+    sprintf(&text[19], ".%06ld", time->tv_usec);	    /* and the microseconds */
+    return &text[11];
+}
+
 void 
 vinum_info(int argc, char *argv[], char *argv0[])
 {
     struct meminfo meminfo;
     struct mc malloced;
+    struct rqinfo rq;
     int i;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
@@ -631,7 +646,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	meminfo.highwater,
 	(int) meminfo.malloced);
 
-    if (Verbose)
+    if (verbose && (!Verbose))
 	for (i = 0; i < meminfo.mallocs; i++) {
 	    malloced.seq = i;
 	    if (ioctl(superdev, VINUM_MALLOCINFO, &malloced) < 0) {
@@ -648,6 +663,93 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		malloced.line,
 		(char *) &malloced.file);
 	}
+    if (Verbose) {
+	printf("\nTime\t\t Event\t     Buf\tSD\tDev\tOffset\tBytes\tDoffset\tGoffset\n\n");
+	for (i = RQINFO_SIZE - 1; i >= 0; i--) {	    /* go through the request list in order */
+	    *((int *) &rq) = i;
+	    if (ioctl(superdev, VINUM_RQINFO, &rq) < 0) {
+		perror("Can't get information");
+		return;
+	    }
+	    switch (rq.type) {
+	    case loginfo_unused:			    /* never been used */
+		break;
+
+	    case loginfo_user_bp:			    /* this is the bp when strategy is called */
+		printf("%s 1VS %s %p\t\t0x%x\t0x%x\t%ld\n",
+		    timetext(&rq.timestamp),
+		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
+		    rq.bp,
+		/* no subdisk */
+		    rq.info.b.b_dev,
+		    rq.info.b.b_blkno,
+		    rq.info.b.b_bcount);
+		break;
+
+	    case loginfo_user_bpl:			    /* and this is the bp at launch time */
+		printf("%s 2LR %s %p\t\t0x%x\t0x%x\t%ld\n",
+		    timetext(&rq.timestamp),
+		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
+		    rq.bp,
+		/* no subdisk */
+		    rq.info.b.b_dev,
+		    rq.info.b.b_blkno,
+		    rq.info.b.b_bcount);
+		break;
+
+	    case loginfo_rqe:				    /* user RQE */
+		printf("%s 3RQ %s %p\t%d\t0x%x\t0x%x\t%ld\t%x\t%x\n",
+		    timetext(&rq.timestamp),
+		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
+		    rq.bp,
+		    rq.info.rqe.sdno,
+		    rq.info.rqe.b.b_dev,
+		    rq.info.rqe.b.b_blkno,
+		    rq.info.rqe.b.b_bcount,
+		    rq.info.rqe.dataoffset,
+		    rq.info.rqe.groupoffset);
+		break;
+
+	    case loginfo_iodone:			    /* iodone called */
+		printf("%s 4DN %s %p\t%d\t0x%x\t0x%x\t%ld\t%x\t%x\n",
+		    timetext(&rq.timestamp),
+		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
+		    rq.bp,
+		    rq.info.rqe.sdno,
+		    rq.info.rqe.b.b_dev,
+		    rq.info.rqe.b.b_blkno,
+		    rq.info.rqe.b.b_bcount,
+		    rq.info.rqe.dataoffset,
+		    rq.info.rqe.groupoffset);
+		break;
+
+	    case loginfo_raid5_data:			    /* RAID-5 write data block */
+		printf("%s 5RD %s %p\t%d\t0x%x\t0x%x\t%ld\t%x\t%x\n",
+		    timetext(&rq.timestamp),
+		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
+		    rq.bp,
+		    rq.info.rqe.sdno,
+		    rq.info.rqe.b.b_dev,
+		    rq.info.rqe.b.b_blkno,
+		    rq.info.rqe.b.b_bcount,
+		    rq.info.rqe.dataoffset,
+		    rq.info.rqe.groupoffset);
+		break;
+
+	    case loginfo_raid5_parity:			    /* RAID-5 write parity block */
+		printf("%s 6RP %s %p\t%d\t0x%x\t0x%x\t%ld\t%x\t%x\n",
+		    timetext(&rq.timestamp),
+		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
+		    rq.bp,
+		    rq.info.rqe.sdno,
+		    rq.info.rqe.b.b_dev,
+		    rq.info.rqe.b.b_blkno,
+		    rq.info.rqe.b.b_bcount,
+		    rq.info.rqe.dataoffset,
+		    rq.info.rqe.groupoffset);
+	    }
+	}
+    }
 }
 
 /* Print config file to a file.  This is a userland version
