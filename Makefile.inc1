@@ -574,7 +574,7 @@ includes:
 	cd ${.CURDIR}/gnu/include;		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libmp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libobjc;		${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libreadline;	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libreadline/readline;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libstdc++;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog;	${MAKE} beforeinstall
