@@ -40,39 +40,24 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-/*
- * Offset into the jmp_buf.  This is highly machine-dependent, but is a
- * necessary evil in order to compare stack pointers and make decisions based on
- * where a *longjmp() is jumping to.
- */
-#if defined(__i386__)
-#define	JMP_BUF_SP_OFFSET 2
-#elif defined(__alpha)
-#define	JMP_BUF_SP_OFFSET (4 + R_SP)
-#else
-#error "Don't recognize this architecture!"
-#endif
-
 void
 siglongjmp(sigjmp_buf env, int savemask)
 {
 	void	*jmp_stackp;
 	void	*stack_begin, *stack_end;
+	int	frame, dst_frame;
 
-	if (_thread_run->signal_nest_level == 0)
+	if ((frame = _thread_run->sigframe_count) == 0)
 		__siglongjmp(env, savemask);
 
 	/* Get the stack pointer from the jump buffer. */
-	jmp_stackp = (void *)env->_sjb[JMP_BUF_SP_OFFSET];
+	jmp_stackp = (void *) GET_STACK_SJB(env);
 
 	/* Get the bounds of the current threads stack. */
-	if (_thread_run->stack != NULL) {
-		stack_begin = _thread_run->stack;
-		stack_end = stack_begin + _thread_run->attr.stacksize_attr;
-	} else {
-		stack_end = (void *)USRSTACK;
-		stack_begin = stack_end - PTHREAD_STACK_INITIAL;
-	}
+	PTHREAD_ASSERT(_thread_run->stack != NULL,
+	    "Thread stack pointer is null");
+	stack_begin = _thread_run->stack;
+	stack_end = stack_begin + _thread_run->attr.stacksize_attr;
 
 	/*
 	 * Make sure we aren't jumping to a different stack.  Make sure
@@ -84,19 +69,28 @@ siglongjmp(sigjmp_buf env, int savemask)
 		PANIC("siglongjmp()ing between thread contexts is undefined by "
 		    "POSIX 1003.1");
 
-	memcpy(_thread_run->nested_jmp.sigjmp, env,
-	    sizeof(_thread_run->nested_jmp.sigjmp));
-
+	if ((dst_frame = _thread_sigframe_find(_thread_run, jmp_stackp)) < 0)
+		/*
+		 * The stack pointer was verified above, so this
+		 * shouldn't happen.  Let's be anal anyways.
+		 */
+		PANIC("Error locating signal frame");
+	else if (dst_frame == frame) {
+		/*
+		 * The stack pointer is somewhere within the current
+		 * frame.  Jump to the users context.
+		 */
+		__siglongjmp(env, savemask);
+	}
 	/*
-	 * Only save oldstate once so that dispatching multiple signals will not
-	 * lose the thread's original state.
+	 * Copy the users context to the return context of the
+	 * destination frame.
 	 */
-	if (_thread_run->jmpflags == JMPFLAGS_NONE)
-		_thread_run->oldstate = _thread_run->state;
-	PTHREAD_SET_STATE(_thread_run, PS_RUNNING);
-	_thread_run->jmpflags = JMPFLAGS_SIGLONGJMP;
-	_thread_run->longjmp_val = savemask;
-	___longjmp(*_thread_run->sighandler_jmp_buf, 1);
+	memcpy(&_thread_run->sigframes[dst_frame]->ctx.sigjb, env, sizeof(*env));
+	_thread_run->sigframes[dst_frame]->ctxtype = CTX_SJB;
+	_thread_run->sigframes[dst_frame]->longjmp_val = savemask;
+	_thread_run->curframe->dst_frame = dst_frame;
+	___longjmp(*_thread_run->curframe->sig_jb, 1);
 }
 
 void
@@ -104,21 +98,19 @@ longjmp(jmp_buf env, int val)
 {
 	void	*jmp_stackp;
 	void	*stack_begin, *stack_end;
+	int	frame, dst_frame;
 
-	if (_thread_run->signal_nest_level == 0)
+	if ((frame = _thread_run->sigframe_count) == 0)
 		__longjmp(env, val);
 
 	/* Get the stack pointer from the jump buffer. */
-	jmp_stackp = (void *)env->_jb[JMP_BUF_SP_OFFSET];
+	jmp_stackp = (void *) GET_STACK_JB(env);
 
 	/* Get the bounds of the current threads stack. */
-	if (_thread_run->stack != NULL) {
-		stack_begin = _thread_run->stack;
-		stack_end = stack_begin + _thread_run->attr.stacksize_attr;
-	} else {
-		stack_end = (void *)USRSTACK;
-		stack_begin = stack_end - PTHREAD_STACK_INITIAL;
-	}
+	PTHREAD_ASSERT(_thread_run->stack != NULL,
+	    "Thread stack pointer is null");
+	stack_begin = _thread_run->stack;
+	stack_end = stack_begin + _thread_run->attr.stacksize_attr;
 
 	/*
 	 * Make sure we aren't jumping to a different stack.  Make sure
@@ -130,19 +122,29 @@ longjmp(jmp_buf env, int val)
 		PANIC("longjmp()ing between thread contexts is undefined by "
 		    "POSIX 1003.1");
 
-	memcpy(_thread_run->nested_jmp.jmp, env,
-	    sizeof(_thread_run->nested_jmp.jmp));
+	if ((dst_frame = _thread_sigframe_find(_thread_run, jmp_stackp)) < 0)
+		/*
+		 * The stack pointer was verified above, so this
+		 * shouldn't happen.  Let's be anal anyways.
+		 */
+		PANIC("Error locating signal frame");
+	else if (dst_frame == frame) {
+		/*
+		 * The stack pointer is somewhere within the current
+		 * frame.  Jump to the users context.
+		 */
+		__longjmp(env, val);
+	}
 
 	/*
-	 * Only save oldstate once so that dispatching multiple signals will not
-	 * lose the thread's original state.
+	 * Copy the users context to the return context of the
+	 * destination frame.
 	 */
-	if (_thread_run->jmpflags == JMPFLAGS_NONE)
-		_thread_run->oldstate = _thread_run->state;
-	PTHREAD_SET_STATE(_thread_run, PS_RUNNING);
-	_thread_run->jmpflags = JMPFLAGS_LONGJMP;
-	_thread_run->longjmp_val = val;
-	___longjmp(*_thread_run->sighandler_jmp_buf, 1);
+	memcpy(&_thread_run->sigframes[dst_frame]->ctx.jb, env, sizeof(*env));
+	_thread_run->sigframes[dst_frame]->ctxtype = CTX_JB;
+	_thread_run->sigframes[dst_frame]->longjmp_val = val;
+	_thread_run->curframe->dst_frame = dst_frame;
+	___longjmp(*_thread_run->curframe->sig_jb, 1);
 }
 
 void
@@ -150,21 +152,19 @@ _longjmp(jmp_buf env, int val)
 {
 	void	*jmp_stackp;
 	void	*stack_begin, *stack_end;
+	int	frame, dst_frame;
 
-	if (_thread_run->signal_nest_level == 0)
+	if ((frame = _thread_run->sigframe_count) == 0)
 		___longjmp(env, val);
 
 	/* Get the stack pointer from the jump buffer. */
-	jmp_stackp = (void *)env->_jb[JMP_BUF_SP_OFFSET];
+	jmp_stackp = (void *) GET_STACK_JB(env);
 
 	/* Get the bounds of the current threads stack. */
-	if (_thread_run->stack != NULL) {
-		stack_begin = _thread_run->stack;
-		stack_end = stack_begin + _thread_run->attr.stacksize_attr;
-	} else {
-		stack_end = (void *)USRSTACK;
-		stack_begin = stack_end - PTHREAD_STACK_INITIAL;
-	}
+	PTHREAD_ASSERT(_thread_run->stack != NULL,
+	    "Thread stack pointer is null");
+	stack_begin = _thread_run->stack;
+	stack_end = stack_begin + _thread_run->attr.stacksize_attr;
 
 	/*
 	 * Make sure we aren't jumping to a different stack.  Make sure
@@ -176,18 +176,27 @@ _longjmp(jmp_buf env, int val)
 		PANIC("_longjmp()ing between thread contexts is undefined by "
 		    "POSIX 1003.1");
 
-	memcpy(_thread_run->nested_jmp.jmp, env,
-	    sizeof(_thread_run->nested_jmp.jmp));
-
+	if ((dst_frame = _thread_sigframe_find(_thread_run, jmp_stackp)) < 0)
+		/*
+		 * The stack pointer was verified above, so this
+		 * shouldn't happen.  Let's be anal anyways.
+		 */
+		PANIC("Error locating signal frame");
+	else if (dst_frame == frame) {
+		/*
+		 * The stack pointer is somewhere within the current
+		 * frame.  Jump to the users context.
+		 */
+		___longjmp(env, val);
+	}
 	/*
-	 * Only save oldstate once so that dispatching multiple signals will not
-	 * lose the thread's original state.
+	 * Copy the users context to the return context of the
+	 * destination frame.
 	 */
-	if (_thread_run->jmpflags == JMPFLAGS_NONE)
-		_thread_run->oldstate = _thread_run->state;
-	PTHREAD_SET_STATE(_thread_run, PS_RUNNING);
-	_thread_run->jmpflags = JMPFLAGS__LONGJMP;
-	_thread_run->longjmp_val = val;
-	___longjmp(*_thread_run->sighandler_jmp_buf, 1);
+	memcpy(&_thread_run->sigframes[dst_frame]->ctx.jb, env, sizeof(*env));
+	_thread_run->sigframes[dst_frame]->ctxtype = CTX_JB_NOSIG;
+	_thread_run->sigframes[dst_frame]->longjmp_val = val;
+	_thread_run->curframe->dst_frame = dst_frame;
+	___longjmp(*_thread_run->curframe->sig_jb, 1);
 }
 #endif

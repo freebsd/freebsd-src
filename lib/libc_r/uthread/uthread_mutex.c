@@ -79,7 +79,7 @@ static spinlock_t static_init_lock = _SPINLOCK_INITIALIZER;
 int
 _mutex_reinit(pthread_mutex_t * mutex)
 {
-	int ret = 0;
+	int	ret = 0;
 
 	if (mutex == NULL)
 		ret = EINVAL;
@@ -113,7 +113,7 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 	int		protocol;
 	int		ceiling;
 	pthread_mutex_t	pmutex;
-	int             ret = 0;
+	int		ret = 0;
 
 	if (mutex == NULL)
 		ret = EINVAL;
@@ -203,7 +203,7 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 int
 pthread_mutex_destroy(pthread_mutex_t * mutex)
 {
-	int ret = 0;
+	int	ret = 0;
 
 	if (mutex == NULL || *mutex == NULL)
 		ret = EINVAL;
@@ -245,7 +245,7 @@ pthread_mutex_destroy(pthread_mutex_t * mutex)
 static int
 init_static(pthread_mutex_t *mutex)
 {
-	int ret;
+	int	ret;
 
 	_SPINLOCK(&static_init_lock);
 
@@ -262,7 +262,7 @@ init_static(pthread_mutex_t *mutex)
 int
 pthread_mutex_trylock(pthread_mutex_t * mutex)
 {
-	int             ret = 0;
+	int	ret = 0;
 
 	if (mutex == NULL)
 		ret = EINVAL;
@@ -400,7 +400,7 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 int
 pthread_mutex_lock(pthread_mutex_t * mutex)
 {
-	int             ret = 0;
+	int	ret = 0;
 
 	if (mutex == NULL)
 		ret = EINVAL;
@@ -610,9 +610,8 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 		 * Check to see if this thread was interrupted and
 		 * is still in the mutex queue of waiting threads:
 		 */
-		if (_thread_run->interrupted != 0) {
+		if (_thread_run->interrupted != 0)
 			mutex_queue_remove(*mutex, _thread_run);
-		}
 
 		/* Unlock the mutex structure: */
 		_SPINUNLOCK(&(*mutex)->lock);
@@ -647,7 +646,7 @@ _mutex_cv_unlock(pthread_mutex_t * mutex)
 int
 _mutex_cv_lock(pthread_mutex_t * mutex)
 {
-	int ret;
+	int	ret;
 	if ((ret = pthread_mutex_lock(mutex)) == 0)
 		(*mutex)->m_refcount--;
 	return (ret);
@@ -656,7 +655,7 @@ _mutex_cv_lock(pthread_mutex_t * mutex)
 static inline int
 mutex_self_trylock(pthread_mutex_t mutex)
 {
-	int ret = 0;
+	int	ret = 0;
 
 	switch (mutex->m_type) {
 
@@ -723,7 +722,7 @@ mutex_self_lock(pthread_mutex_t mutex)
 static inline int
 mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 {
-	int ret = 0;
+	int	ret = 0;
 
 	if (mutex == NULL || *mutex == NULL) {
 		ret = EINVAL;
@@ -1369,6 +1368,38 @@ _mutex_unlock_private(pthread_t pthread)
 	}
 }
 
+void
+_mutex_lock_backout(pthread_t pthread)
+{
+	struct pthread_mutex	*mutex;
+
+	/*
+	 * Defer signals to protect the scheduling queues from
+	 * access by the signal handler:
+	 */
+	_thread_kern_sig_defer();
+	if (pthread->state == PS_MUTEX_WAIT) {
+		mutex = pthread->data.mutex;
+
+		/* Lock the mutex structure: */
+		_SPINLOCK(&mutex->lock);
+
+		mutex_queue_remove(mutex, pthread);
+
+		/* This thread is no longer waiting for the mutex: */
+		mutex->m_owner->data.mutex = NULL;
+
+		/* Unlock the mutex structure: */
+		_SPINUNLOCK(&mutex->lock);
+
+	}
+	/*
+	 * Undefer and handle pending signals, yielding if
+	 * necessary:
+	 */
+	_thread_kern_sig_undefer();
+}
+
 /*
  * Dequeue a waiting thread from the head of a mutex queue in descending
  * priority order.
@@ -1379,7 +1410,7 @@ mutex_queue_deq(pthread_mutex_t mutex)
 	pthread_t pthread;
 
 	while ((pthread = TAILQ_FIRST(&mutex->m_queue)) != NULL) {
-		TAILQ_REMOVE(&mutex->m_queue, pthread, qe);
+		TAILQ_REMOVE(&mutex->m_queue, pthread, sqe);
 		pthread->flags &= ~PTHREAD_FLAGS_IN_MUTEXQ;
 
 		/*
@@ -1400,7 +1431,7 @@ static inline void
 mutex_queue_remove(pthread_mutex_t mutex, pthread_t pthread)
 {
 	if ((pthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0) {
-		TAILQ_REMOVE(&mutex->m_queue, pthread, qe);
+		TAILQ_REMOVE(&mutex->m_queue, pthread, sqe);
 		pthread->flags &= ~PTHREAD_FLAGS_IN_MUTEXQ;
 	}
 }
@@ -1413,18 +1444,19 @@ mutex_queue_enq(pthread_mutex_t mutex, pthread_t pthread)
 {
 	pthread_t tid = TAILQ_LAST(&mutex->m_queue, mutex_head);
 
+	PTHREAD_ASSERT_NOT_IN_SYNCQ(pthread);
 	/*
 	 * For the common case of all threads having equal priority,
 	 * we perform a quick check against the priority of the thread
 	 * at the tail of the queue.
 	 */
 	if ((tid == NULL) || (pthread->active_priority <= tid->active_priority))
-		TAILQ_INSERT_TAIL(&mutex->m_queue, pthread, qe);
+		TAILQ_INSERT_TAIL(&mutex->m_queue, pthread, sqe);
 	else {
 		tid = TAILQ_FIRST(&mutex->m_queue);
 		while (pthread->active_priority <= tid->active_priority)
-			tid = TAILQ_NEXT(tid, qe);
-		TAILQ_INSERT_BEFORE(tid, pthread, qe);
+			tid = TAILQ_NEXT(tid, sqe);
+		TAILQ_INSERT_BEFORE(tid, pthread, sqe);
 	}
 	pthread->flags |= PTHREAD_FLAGS_IN_MUTEXQ;
 }

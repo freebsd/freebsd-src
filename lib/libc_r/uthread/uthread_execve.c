@@ -93,9 +93,6 @@ _execve(const char *name, char *const * argv, char *const * envp)
 			act.sa_mask = _thread_sigact[i - 1].sa_mask;
 			act.sa_flags = _thread_sigact[i - 1].sa_flags;
 
-			/* Ensure the scheduling signal is masked: */
-			sigaddset(&act.sa_mask, _SCHED_SIGNAL);
-
 			/* Change the signal action for the process: */
 			_thread_sys_sigaction(i, &act, &oact);
 		}
