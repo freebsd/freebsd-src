@@ -11,7 +11,7 @@
 sys	type=link size=18 link=usr/src/sys.386bsd
 
 dev	type=dir
-	fd	type=dir
+	fd	type=dir owner=bin group=bin mode=555
 	..
 ..
 
