@@ -46,7 +46,7 @@ _pthread_attr_setscope(pthread_attr_t *attr, int contentionscope)
 		/* Return an invalid argument: */
 		ret = EINVAL;
 	} else if ((contentionscope != PTHREAD_SCOPE_PROCESS) ||
-	    (contentionscope != PTHREAD_SCOPE_SYSTEM)) {
+	    (contentionscope == PTHREAD_SCOPE_SYSTEM)) {
 		/* We don't support PTHREAD_SCOPE_SYSTEM. */
 		ret = ENOTSUP;
 	} else
