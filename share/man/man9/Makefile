@@ -28,7 +28,7 @@ MAN9=	CONDSPLASSERT.9 DELAY.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	scheduler.9 sleep.9 sleepqueue.9 spl.9 store.9 style.9 suser.9 swi.9 \
 	time.9 timeout.9 tvtohz.9 \
 	uio.9 \
-	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
+	vcount.9 vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
 
 MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	device_find_child.9 device_get_children.9 \
@@ -213,6 +213,8 @@ MLINKS+=sbuf.9 sbuf_finish.9
 MLINKS+=sbuf.9 sbuf_data.9
 MLINKS+=sbuf.9 sbuf_len.9
 MLINKS+=sbuf.9 sbuf_delete.9
+
+MLINKS+=vcount.9 count_dev.9
 
 MLINKS+=zone.9 zalloc.9
 MLINKS+=zone.9 zfree.9
