@@ -95,11 +95,11 @@ október
 november
 december
 #
-# md_order
+# Ef_fmt
 #
-dm
+%e %b
 #
-# ampm_fmt
+# EF_fmt
 #
-
+%e. %B
 # EOF
