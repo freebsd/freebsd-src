@@ -1,9 +1,10 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.54 1998/09/05 08:29:05 jb Exp $
+#	$Id: Makefile,v 1.55 1998/09/15 10:25:04 gibbs Exp $
 
 # XXX MISSING:		icheck ncheck
 
-SUBDIR= badsect \
+SUBDIR=	atm \
+	badsect \
 	camcontrol \
 	ccdconfig \
 	clri \

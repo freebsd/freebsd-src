@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.128 1998/09/12 06:58:18 rnordier Exp $
+#	$Id: Makefile,v 1.129 1998/09/15 10:29:18 gibbs Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac \
@@ -7,6 +7,7 @@ SUBDIR= ac \
 	adduser \
 	amd \
 	arp \
+	atm \
 	bootparamd \
 	cdcontrol \
 	chkgrp \

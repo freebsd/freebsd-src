@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.66 1998/09/05 15:17:34 bde Exp $
+ *	$Id: mount.h,v 1.67 1998/09/07 13:17:05 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -366,7 +366,7 @@ struct vfsops {
 #ifdef KERNEL
 #include <net/radix.h>
 
-#define	AF_MAX		30	/* XXX */
+#define	AF_MAX		31	/* XXX */
 
 /*
  * Network address lookup element
