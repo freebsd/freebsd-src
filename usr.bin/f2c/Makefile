@@ -28,4 +28,8 @@ tokdefs.h: ${.CURDIR}/tokens
 CLEANFILES+=\
 	gram.c tokdefs.h y.tab.h
 
+beforeinstall:
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/f2c.h \
+		${DESTDIR}/usr/include
+
 .include <bsd.prog.mk>

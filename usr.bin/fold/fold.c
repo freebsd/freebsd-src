@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fold.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: fold.c,v 1.1.1.1.8.1 1997/07/10 06:31:59 charnier Exp $";
+	"$Id: fold.c,v 1.1.1.1.8.2 1997/08/29 05:29:12 imp Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -71,7 +71,7 @@ main(argc, argv)
 	char *p;
 
 	width = -1;
-	while ((ch = getopt(argc, argv, "0123456789w:")) !=  -1)
+	while ((ch = getopt(argc, argv, "0123456789w:")) != -1)
 		switch (ch) {
 		case 'w':
 			if ((width = atoi(optarg)) <= 0) {

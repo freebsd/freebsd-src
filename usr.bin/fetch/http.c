@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.4.2.1 1997/03/10 07:12:51 fenner Exp $
+ *	$Id: http.c,v 1.4.2.2 1997/08/03 18:53:18 peter Exp $
  */
 
 #include <sys/types.h>
@@ -581,6 +581,20 @@ retry:
 	fs->fs_status = "sending request message";
 	setup_sigalrm();
 	alarm(timo);
+
+	/* some hosts do not properly handle T/TCP connections.  If
+	 * sendmsg() is used to establish the connection, the OS may
+	 * choose to try to use one which could cause the transfer
+	 * to fail.  Doing a connect() first ensures that the OS
+	 * does not attempt T/TCP.
+	 */
+	if (fs->fs_use_connect && (connect(s, (struct sockaddr *)&sin, 
+                                   sizeof(struct sockaddr_in)) < 0)) {
+		warn("connect: %s", https->http_hostname);
+		fclose(remote);
+		return EX_OSERR;
+	}
+
 	if (sendmsg(s, &msg, fs->fs_linux_bug ? 0 : MSG_EOF) < 0) {
 		warn("sendmsg: %s", https->http_hostname);
 		fclose(remote);

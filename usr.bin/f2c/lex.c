@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990, 1992 - 1995 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992 - 1997 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "defs.h"
@@ -309,13 +309,14 @@ doinclude(char *name)
 	chainp I;
 	extern chainp Iargs;
 
+	err_lineno = -1;
 	if(inclp)
 	{
 		inclp->incllno = thislin;
 		inclp->inclcode = code;
 		inclp->inclstno = nxtstno;
-		if(nextcd)
-			inclp->incllinp = copyn(inclp->incllen = endcd-nextcd , nextcd);
+		if(nextcd && (j = endcd - nextcd) > 0)
+			inclp->incllinp = copyn(inclp->incllen = j, nextcd);
 		else
 			inclp->incllinp = 0;
 	}
@@ -416,6 +417,7 @@ popinclude(Void)
 	free(infname);
 
 	--nincl;
+	err_lineno = -1;
 	t = inclp->inclnext;
 	free( (charptr) inclp);
 	inclp = t;
@@ -541,7 +543,13 @@ first:
 			retval = STO;
 			break;
 		}
-		retval = gettok();
+		if (tokno == 2 && stkey == SDO) {
+			intonly = 1;
+			retval = gettok();
+			intonly = 0;
+			}
+		else
+			retval = gettok();
 		break;
 
 reteos:
@@ -730,7 +738,7 @@ top:
 
 /* Handle the Comment cards (a 'C', 'c', '*', or '!' in the first column). */
 
-	else if(comstart[c & 0xfff])
+	else if(comstart[c & (Table_size-1)])
 	{
 		if (feof (infile)
 #ifdef EOF_CHAR
@@ -1101,6 +1109,8 @@ crunch(Void)
 			nh = *j0 - '0';
 			ten = 10;
 			j1 = prvstr;
+			if (j1 > sbuf && j1[-1] == MYQUOTE)
+				--j1;
 			if (j1+4 < j)
 				j1 = j-4;
 			for(;;) {
@@ -1110,13 +1120,16 @@ crunch(Void)
 				nh += ten * (*j0-'0');
 				ten*=10;
 				}
-			/* a hollerith must be preceded by a punctuation mark.
+/* A Hollerith string must be preceded by a punctuation mark.
    '*' is possible only as repetition factor in a data statement
-   not, in particular, in character*2h
-*/
+   not, in particular, in character*2h .
+   To avoid some confusion with missing commas in FORMAT statements,
+   treat a preceding string as a punctuation mark.
+ */
 
 			if( !(*j0=='*'&&sbuf[0]=='d') && *j0!='/'
-			&& *j0!='(' && *j0!=',' && *j0!='=' && *j0!='.')
+			&& *j0!='(' && *j0!=',' && *j0!='=' && *j0!='.'
+			&& *j0 != MYQUOTE)
 				goto copychar;
 			nh0 = nh;
 			if(i+nh > lastch)
@@ -1358,6 +1371,8 @@ gettok(Void)
 	struct Punctlist *pp;
 	struct Dotlist *pd;
 	register int ch;
+	static char	Exp_mi[] = "X**-Y treated as X**(-Y)",
+			Exp_pl[] = "X**+Y treated as X**(+Y)";
 
 	char *i, *j, *n1, *p;
 
@@ -1390,28 +1405,44 @@ gettok(Void)
 			if (++nextch <= lastch)
 			    switch(ch) {
 				case '/':
-					if (*nextch == '/') {
+					switch(*nextch) {
+					  case '/':
 						nextch++;
 						val = SCONCAT;
-						}
-					else if (new_dcl && parlev == 0)
-						val = SSLASHD;
+						break;
+					  case '=':
+						goto sne;
+					  default:
+						if (new_dcl && parlev == 0)
+							val = SSLASHD;
+					  }
 					return val;
 				case '*':
 					if (*nextch == '*') {
 						nextch++;
+						if (noextflag
+						 && nextch <= lastch)
+						 	switch(*nextch) {
+							  case '-':
+								errext(Exp_mi);
+								break;
+							  case '+':
+								errext(Exp_pl);
+								}
 						return SPOWER;
 						}
 					break;
 				case '<':
-					if (*nextch == '=') {
+					switch(*nextch) {
+					  case '=':
 						nextch++;
 						val = SLE;
-						}
-					if (*nextch == '>') {
+						break;
+					  case '>':
+ sne:
 						nextch++;
 						val = SNE;
-						}
+					  }
 					goto extchk;
 				case '=':
 					if (*nextch == '=') {
@@ -1487,16 +1518,16 @@ gettok(Void)
 			return(SFUNCTION);
 		}
 
-		if(toklen > 50)
+		if(toklen > MAXNAMELEN)
 		{
-			char buff[100];
-			sprintf(buff, toklen >= 60
-				? "name %.56s... too long, truncated to %.*s"
+			char buff[MAXNAMELEN+50];
+			sprintf(buff, toklen >= MAXNAMELEN+10
+				? "name %.*s... too long, truncated to %.*s"
 				: "name %s too long, truncated to %.*s",
-			    token, 50, token);
+				MAXNAMELEN+6, token, MAXNAMELEN, token);
 			err(buff);
-			toklen = 50;
-			token[50] = '\0';
+			toklen = MAXNAMELEN;
+			token[MAXNAMELEN] = '\0';
 		}
 		if(toklen==1 && *nextch==MYQUOTE) {
 			val = token[0];
@@ -1516,8 +1547,8 @@ gettok(Void)
 		/* Check for NAG's special hex constant */
 
 		if (nextch[1] == '#' && nextch < lastch
-		||  nextch[2] == '#' && isdigit(nextch[1]
-				     && lastch - nextch >= 2)) {
+		||  nextch[2] == '#' && isdigit(nextch[1])
+				     && lastch - nextch >= 2) {
 
 		    radix = atoi (nextch);
 		    if (*++nextch != '#')
@@ -1664,7 +1695,7 @@ unclassifiable(Void)
 	if (se < sbuf)
 		return;
 	lastch = s - 1;
-	if (se - s > 10)
+	if (++se - s > 10)
 		se = s + 10;
 	for(; s < se; s++)
 		if (*s == MYQUOTE) {
