@@ -31,7 +31,7 @@
 .Sh NAME
 .Nm ix
 .Nd
-EtherExpress ethernet device driver
+Intel EtherExpress Ethernet device driver
 .Sh SYNOPSIS
 .Cd "device ix0 at isa? port 0x300 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr"
 .Sh DESCRIPTION
@@ -42,7 +42,6 @@ card based on the Intel i82586 chip.
 .Pp
 If the IRQ is autodetected if the kernel configuration file has "irq?" or
 doesn't specify an IRQ at all.
-.Pp
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ix%d: WARNING: board is configured for IRQ %d, using %d"
@@ -52,26 +51,23 @@ be used in this case.
 .It "ix%d: invalid irq (%d)"
 An invalid IRQ was specified.  This is a fatal error.
 .It "ix%d: ixstart: Packet length=%d > MTU=%d"
-The length of the Ethernet packet read was larger than the maxium transfer
+The length of the Ethernet packet read was larger than the maximum transfer
 unit allowed.  This message suggests an error in the driver.  It probably
-should be concidered fatal and the driver shut down.  Currently this does
+should be considered fatal and the driver shut down.  Currently this does
 not happen though.
 .It "ix%d: device timeout"
 The device has stopped responding to the network, or there is a problem with
 the network connection (cable).  Make sure the network connection in use
 is the same one the probe read from the EEPROM.
 .El
-.Pp
 .Sh CAVEATS
 The driver will use the IRQ specified in the kernel configuration file
 if it does not match the board setting.
 The type of network connector used (AUI, BNC, TPE) is probed from the EEPROM.
 If this does not match the interface actually in use, timeout errors will
 occur.
-.Pp
 .Sh BUGS
 Currently the driver does not support multicast.
-.Pp
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
