@@ -70,6 +70,99 @@ static	int first = 1;
  * -a (all) flag is specified.
  */
 
+char *
+at_pr_net(struct sockaddr_at *sat)
+{
+static	char mybuf[50];
+
+	switch(sat->sat_addr.s_net) {
+	case ATADDR_ANYNODE:
+		return("any");
+	case ATADDR_BCAST:
+		return "bcast";
+	default:
+		sprintf(mybuf,"%hd",ntohs(sat->sat_addr.s_net));
+	}
+	return mybuf;
+}
+
+char *
+at_pr_host(struct sockaddr_at *sat)
+{
+static	char mybuf[50];
+
+	switch(sat->sat_addr.s_node) {
+	case 0:
+		return("local");
+	case /*ATADDR_ANYNET*/0xffff:
+		return "????";
+	default:
+		sprintf(mybuf,"%d",(unsigned int)sat->sat_addr.s_node);
+	}
+	return mybuf;
+}
+
+char *
+at_pr_port(struct sockaddr_at *sat)
+{
+static	char mybuf[50];
+
+	switch(sat->sat_port) {
+	case ATADDR_ANYPORT:
+		return("any");
+	case 0xff:
+		return "????";
+	default:
+		sprintf(mybuf,"%d",(unsigned int)sat->sat_port);
+	}
+	return mybuf;
+}
+
+/* what == 0 for addr only == 3 */
+/*         1 for net */
+/*         2 for host */
+/*         4 for port */
+char *
+atalk_print(sa,what)
+	register struct sockaddr *sa;
+{
+	struct sockaddr_at *sat = (struct sockaddr_at *)sa;
+static	char mybuf[50];
+
+	mybuf[0] = 0;
+	switch (what & 3 ) {
+	case 0:
+		mybuf[0] = 0;
+		break;
+	case 1:
+		sprintf(mybuf,"%s",at_pr_net(sat));
+		break;
+	case 2:
+		sprintf(mybuf,"%s",at_pr_host(sat));
+		break;
+	case 3:
+		sprintf(mybuf,"[%s.%s]",
+				at_pr_net(sat),
+				at_pr_host(sat));
+	}
+	if (what & 4) {
+		sprintf(mybuf+strlen(mybuf),"%s",at_pr_port(sat));
+	}
+#if 0
+	switch(sat->sat_hints.type) {
+	case	SATHINT_NONE:
+		sprintf(mybuf,"[no type]");
+		break;
+	case	SATHINT_CONFIG:
+	case	SATHINT_IFACE:
+		sprintf(mybuf,"[too hard for now]");
+		break;
+	default:
+		sprintf(mybuf,"[unknown type]");
+	}
+#endif
+	return mybuf;
+}
 void
 atalkprotopr(off, name)
 	u_long off;
@@ -115,9 +208,9 @@ atalkprotopr(off, name)
 		printf("%-5.5s %6d %6d ", name, sockb.so_rcv.sb_cc,
 			sockb.so_snd.sb_cc);
 		printf(Aflag?" %-18.18s":" %-22.22s", atalk_print(
-					(struct sockaddr *)&ddpcb.ddp_lsat));
+					(struct sockaddr *)&ddpcb.ddp_lsat,7));
 		printf(Aflag?" %-18.18s":" %-22.22s", atalk_print(
-					(struct sockaddr *)&ddpcb.ddp_fsat));
+					(struct sockaddr *)&ddpcb.ddp_fsat,7));
 		putchar('\n');
 	}
 }
