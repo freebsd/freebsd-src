@@ -326,7 +326,7 @@ struct	fcntl_args {
 	int arg;
 };
 struct	select_args {
-	u_int nd;
+	int nd;
 	fd_set * in;
 	fd_set * ou;
 	fd_set * ex;
