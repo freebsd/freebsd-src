@@ -13,7 +13,7 @@ static char rcsid_ksrvutil_c[] =
 "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/ksrvutil.c,v 4.1 89/09/26 09:33:49 jtkohl Exp ";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ksrvutil.c,v 1.1 1995/01/20 22:38:30 wollman Exp $";
 #endif	lint
 
 /*
@@ -37,6 +37,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <kadm.h>
 #include <err.h>
+#include <com_err.h>
 
 #ifdef NOENCRYPTION
 #define read_long_pw_string placebo_read_pw_string
@@ -395,8 +396,7 @@ main(argc,argv)
 			key_vno++;
 		    else {
 			(void) bcopy(old_key, new_key, sizeof(new_key));
-			(void) fprintf(stderr, "%s: Key NOT changed: %s\n",
-				       argv[0], krb_err_txt[status]);
+			com_err(argv[0], status, ": key NOT changed");
 			change_this_key = FALSE;
 		    }
 		}
