@@ -55,7 +55,6 @@ static char sccsid[] = "@(#)pom.c	8.1 (Berkeley) 5/31/93";
 
 #include <sys/time.h>
 #include <stdio.h>
-#include <tzfile.h>
 #include <math.h>
 
 #define	PI	  3.141592654
@@ -66,6 +65,7 @@ static char sccsid[] = "@(#)pom.c	8.1 (Berkeley) 5/31/93";
 #define	lzero	  18.251907	/* lunar mean long at EPOCH */
 #define	Pzero	  192.917585	/* lunar mean long of perigee at EPOCH */
 #define	Nzero	  55.204723	/* lunar mean long of node at EPOCH */
+#define isleap(y) (((y) % 4) == 0 && ((y) % 100) != 0 || ((y) % 400) == 0)
 
 double dtor(), potm(), adj360();
 
