@@ -68,7 +68,7 @@ main(argc, argv)
 	struct stat sb;
 	int c, mntflags, set_gid, set_uid, set_mask;
 	int forcerw = 0;
-	char *dev, *dir, ndir[MAXPATHLEN+1];
+	char *dev, *dir, ndir[MAXPATHLEN];
 
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
