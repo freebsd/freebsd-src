@@ -619,6 +619,11 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
     case SW_CG640x350: case SW_ENH_CG640:
     case SW_BG640x480: case SW_CG640x480: case SW_VGA_CG320:
     case SW_VGA_MODEX:
+#ifdef PC98
+    /* PC98 GRAPHICS MODES */
+    case SW_PC98_EGC640x400:	case SW_PC98_PEGC640x400:
+    case SW_PC98_PEGC640x480:
+#endif
 	if (!(adp->va_flags & V_ADP_MODECHANGE))
 	    return ENODEV;
 	return sc_set_graphics_mode(scp, tp, cmd & 0xff);

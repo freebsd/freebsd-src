@@ -99,7 +99,7 @@ static d_write_t	gdcwrite;
 static d_ioctl_t	gdcioctl;
 static d_mmap_t		gdcmmap;
 
-static struct cdevsw vga_cdevsw = {
+static struct cdevsw gdc_cdevsw = {
 	/* open */	gdcopen,
 	/* close */	gdcclose,
 	/* read */	gdcread,
@@ -299,7 +299,13 @@ static vi_set_hw_cursor_shape_t	gdc_set_hw_cursor_shape;
 static vi_blank_display_t	gdc_blank_display;
 static vi_mmap_t		gdc_mmap_buf;
 static vi_ioctl_t		gdc_dev_ioctl;
+static vi_clear_t		gdc_clear;
+static vi_fill_rect_t		gdc_fill_rect;
+static vi_bitblt_t		gdc_bitblt;
 static vi_diag_t		gdc_diag;
+static vi_save_palette_t	gdc_save_palette;
+static vi_load_palette_t	gdc_load_palette;
+static vi_set_win_org_t		gdc_set_origin;
 
 static video_switch_t gdcvidsw = {
 	gdc_probe,
@@ -310,21 +316,21 @@ static video_switch_t gdcvidsw = {
 	(vi_save_font_t *)gdc_err,
 	(vi_load_font_t *)gdc_err,
 	(vi_show_font_t *)gdc_err,
-	(vi_save_palette_t *)gdc_err,
-	(vi_load_palette_t *)gdc_err,
+	gdc_save_palette,
+	gdc_load_palette,
 	gdc_set_border,
 	gdc_save_state,
 	gdc_load_state,
-	(vi_set_win_org_t *)gdc_err,
+	gdc_set_origin,
 	gdc_read_hw_cursor,
 	gdc_set_hw_cursor,
 	gdc_set_hw_cursor_shape,
 	gdc_blank_display,
 	gdc_mmap_buf,
 	gdc_dev_ioctl,
-	(vi_clear_t *)gdc_err,
-	(vi_fill_rect_t *)gdc_err,
-	(vi_bitblt_t *)gdc_err,
+	gdc_clear,
+	gdc_fill_rect,
+	gdc_bitblt,
 	(int (*)(void))gdc_err,
 	(int (*)(void))gdc_err,
 	gdc_diag,
@@ -342,6 +348,22 @@ static video_info_t bios_vmode[] = {
 #ifdef LINE30
     { M_PC98_80x30, V_INFO_COLOR, 80, 30, 8, 16, 4, 1,
       TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
+#endif
+#ifndef GDC_NOGRAPHICS
+    { M_PC98_EGC640x400, V_INFO_COLOR | V_INFO_GRAPHICS,
+      640, 400, 8, 16, 4, 4,
+      GRAPHICS_BUF_BASE, GRAPHICS_BUF_SIZE, GRAPHICS_BUF_SIZE, 0, 0,
+      V_INFO_MM_OTHER },
+    { M_PC98_PEGC640x400, V_INFO_COLOR | V_INFO_GRAPHICS | V_INFO_VESA,
+      640, 400, 8, 16, 8, 1,
+      GRAPHICS_BUF_BASE, 0x00008000, 0x00008000, 0, 0,
+      V_INFO_MM_PACKED, 1 },
+#ifdef LINE30
+    { M_PC98_PEGC640x480, V_INFO_COLOR | V_INFO_GRAPHICS | V_INFO_VESA,
+      640, 480, 8, 16, 8, 1,
+      GRAPHICS_BUF_BASE, 0x00008000, 0x00008000, 0, 0,
+      V_INFO_MM_PACKED, 1 },
+#endif
 #endif
     { EOT },
 };
@@ -396,6 +418,24 @@ map_gen_mode_num(int type, int color, int mode)
     return mode;
 }
 
+static int
+verify_adapter(video_adapter_t *adp)
+{
+#ifndef GDC_NOGRAPHICS
+    int i;
+
+    if (PC98_SYSTEM_PARAMETER(0x45c) & 0x40) {		/* PEGC exists */
+	adp->va_flags |= V_ADP_VESA;			/* XXX */
+    } else {
+	for (i = 0; bios_vmode[i].vi_mode != EOT; ++i) {
+	    if (bios_vmode[i].vi_flags & V_INFO_VESA)
+		bios_vmode[i].vi_mode = NA;
+	}
+    }
+#endif
+    return 0;
+}
+
 /* probe video adapters and return the number of detected adapters */
 static int
 probe_adapters(void)
@@ -412,12 +452,9 @@ probe_adapters(void)
     biosadapter[0].va_mode = 
 	biosadapter[0].va_initial_mode = biosadapter[0].va_initial_bios_mode;
 
-    master_gdc_wait_vsync();
-    master_gdc_cmd(_GDC_START);	/* text ON */
-    gdc_wait_vsync();
-    gdc_cmd(_GDC_STOP);		/* graphics OFF */
-
     gdc_get_info(&biosadapter[0], biosadapter[0].va_initial_mode, &info);
+    initialize_gdc(T25_G400, info.vi_flags & V_INFO_GRAPHICS);
+
     biosadapter[0].va_window = BIOS_PADDRTOVADDR(info.vi_window);
     biosadapter[0].va_window_size = info.vi_window_size;
     biosadapter[0].va_window_gran = info.vi_window_gran;
@@ -443,6 +480,8 @@ probe_adapters(void)
 	biosadapter[0].va_line_width = info.vi_width;
     }
     bcopy(&info, &biosadapter[0].va_info, sizeof(info));
+
+    verify_adapter(&biosadapter[0]);
 
     return 1;
 }
@@ -514,21 +553,33 @@ static int check_gdc_clock(void)
     }
 }
 
-static void initialize_gdc(unsigned int mode)
+static void initialize_gdc(unsigned int mode, int isGraph)
 {
+#ifdef LINE30
     /* start 30line initialize */
-    int m_mode,s_mode,gdc_clock;
-    gdc_clock = check_gdc_clock();
+    int m_mode, s_mode, gdc_clock, hsync_clock;
 
-    if (mode == T25_G400){
-	m_mode = _25L;
-    }else{
-	m_mode = _30L;
+    gdc_clock = check_gdc_clock();
+    m_mode = (mode == T25_G400) ? _25L : _30L;
+    s_mode = 2*mode+gdc_clock;
+    gdc_INFO = m_mode;
+
+    if ((PC98_SYSTEM_PARAMETER(0x597) & 0x80) ||
+	(PC98_SYSTEM_PARAMETER(0x458) & 0x80)) {
+	hsync_clock = (inb(0x9a8) & 1) ? _31KHZ : _24KHZ;
+    } else {
+	hsync_clock = _24KHZ;
     }
 
-    s_mode = 2*mode+gdc_clock;
+    master_gdc_wait_vsync();
 
-    gdc_INFO = m_mode;
+    if ((gdc_clock == _2_5MHZ) &&
+	(slave_param[hsync_clock][s_mode][GDC_LF] > 400)) {
+	outb(0x6a, 0x83);
+	outb(0x6a, 0x85);
+	gdc_clock = _5MHZ;
+	s_mode = 2*mode+gdc_clock;
+    }
 
     master_gdc_cmd(_GDC_RESET);
     master_gdc_cmd(_GDC_MASTER);
@@ -538,14 +589,14 @@ static void initialize_gdc(unsigned int mode)
     /* GDC Master */
     master_gdc_cmd(_GDC_SYNC);
     master_gdc_prm(0x00);	/* flush less */ /* text & graph */
-    master_gdc_prm(master_param[m_mode][GDC_CR]);
-    master_gdc_word_prm(((master_param[m_mode][GDC_HFP] << 10) 
-		     + (master_param[m_mode][GDC_VS] << 5) 
-		     + master_param[m_mode][GDC_HS]));
-    master_gdc_prm(master_param[m_mode][GDC_HBP]);
-    master_gdc_prm(master_param[m_mode][GDC_VFP]);
-    master_gdc_word_prm(((master_param[m_mode][GDC_VBP] << 10) 
-       		     + (master_param[m_mode][GDC_LF])));
+    master_gdc_prm(master_param[hsync_clock][m_mode][GDC_CR]);
+    master_gdc_word_prm(((master_param[hsync_clock][m_mode][GDC_HFP] << 10) 
+		     + (master_param[hsync_clock][m_mode][GDC_VS] << 5) 
+		     + master_param[hsync_clock][m_mode][GDC_HS]));
+    master_gdc_prm(master_param[hsync_clock][m_mode][GDC_HBP]);
+    master_gdc_prm(master_param[hsync_clock][m_mode][GDC_VFP]);
+    master_gdc_word_prm(((master_param[hsync_clock][m_mode][GDC_VBP] << 10) 
+       		     + (master_param[hsync_clock][m_mode][GDC_LF])));
     master_gdc_fifo_empty();
     master_gdc_cmd(_GDC_PITCH);
     master_gdc_prm(MasterPCH);
@@ -554,14 +605,14 @@ static void initialize_gdc(unsigned int mode)
     /* GDC slave */
     gdc_cmd(_GDC_SYNC);
     gdc_prm(0x06);
-    gdc_prm(slave_param[s_mode][GDC_CR]);
-    gdc_word_prm((slave_param[s_mode][GDC_HFP] << 10) 
-		+ (slave_param[s_mode][GDC_VS] << 5) 
-		+ (slave_param[s_mode][GDC_HS]));
-    gdc_prm(slave_param[s_mode][GDC_HBP]);
-    gdc_prm(slave_param[s_mode][GDC_VFP]);
-    gdc_word_prm((slave_param[s_mode][GDC_VBP] << 10) 
-		+ (slave_param[s_mode][GDC_LF]));
+    gdc_prm(slave_param[hsync_clock][s_mode][GDC_CR]);
+    gdc_word_prm((slave_param[hsync_clock][s_mode][GDC_HFP] << 10) 
+		+ (slave_param[hsync_clock][s_mode][GDC_VS] << 5) 
+		+ (slave_param[hsync_clock][s_mode][GDC_HS]));
+    gdc_prm(slave_param[hsync_clock][s_mode][GDC_HBP]);
+    gdc_prm(slave_param[hsync_clock][s_mode][GDC_VFP]);
+    gdc_word_prm((slave_param[hsync_clock][s_mode][GDC_VBP] << 10) 
+		+ (slave_param[hsync_clock][s_mode][GDC_LF]));
     gdc_fifo_empty();
     gdc_cmd(_GDC_PITCH);
     gdc_prm(SlavePCH[gdc_clock]);
@@ -573,45 +624,140 @@ static void initialize_gdc(unsigned int mode)
     master_gdc_wait_vsync();
     master_gdc_cmd(_GDC_SCROLL);
     master_gdc_word_prm(0);
-    master_gdc_word_prm((master_param[m_mode][GDC_LF] << 4) | 0x0000);
+    master_gdc_word_prm((master_param[hsync_clock][m_mode][GDC_LF] << 4)
+			| 0x0000);
     master_gdc_fifo_empty();
 
     /* set Slave GDC scroll param */
     gdc_wait_vsync();
     gdc_cmd(_GDC_SCROLL);
     gdc_word_prm(0);
-    if (gdc_clock == _5MHZ){
+    if (gdc_clock == _5MHZ) {
 	gdc_word_prm((SlaveScrlLF[mode] << 4)  | 0x4000);
-    }else{
+    } else {
 	gdc_word_prm(SlaveScrlLF[mode] << 4);
     }
     gdc_fifo_empty();
 
     gdc_word_prm(0);
-    if (gdc_clock == _5MHZ){
+    if (gdc_clock == _5MHZ) {
 	gdc_word_prm((SlaveScrlLF[mode] << 4)  | 0x4000);
-    }else{
+    } else {
 	gdc_word_prm(SlaveScrlLF[mode] << 4);
     }
     gdc_fifo_empty();
 
     /* sync start */
-    gdc_cmd(_GDC_STOP);
+    gdc_cmd(isGraph ? _GDC_START : _GDC_STOP);
 
     gdc_wait_vsync();
     gdc_wait_vsync();
     gdc_wait_vsync();
 
-    master_gdc_cmd(_GDC_START);
+    master_gdc_cmd(isGraph ? _GDC_STOP : _GDC_START);
+#else
+    master_gdc_wait_vsync();
+    master_gdc_cmd(isGraph ? _GDC_STOP : _GDC_START);	/* text */
+    gdc_wait_vsync();
+    gdc_cmd(isGraph ? _GDC_START : _GDC_STOP);		/* graphics */
+#endif
 }
 
-/* entry points */
+#ifndef GDC_NOGRAPHICS
+static u_char b_palette[] = {
+    /* R     G     B */
+    0x00, 0x00, 0x00,	/* 0 */
+    0x00, 0x00, 0x7f,	/* 1 */
+    0x7f, 0x00, 0x00,	/* 2 */
+    0x7f, 0x00, 0x7f,	/* 3 */
+    0x00, 0x7f, 0x00,	/* 4 */
+    0x00, 0x7f, 0x7f,	/* 5 */
+    0x7f, 0x7f, 0x00,	/* 6 */
+    0x7f, 0x7f, 0x7f,	/* 7 */
+    0x40, 0x40, 0x40,	/* 8 */
+    0x00, 0x00, 0xff,	/* 9 */
+    0xff, 0x00, 0x00,	/* 10 */
+    0xff, 0x00, 0xff,	/* 11 */
+    0x00, 0xff, 0x00,	/* 12 */
+    0x00, 0xff, 0xff,	/* 13 */
+    0xff, 0xff, 0x00,	/* 14 */
+    0xff, 0xff, 0xff,	/* 15 */
+};
+#endif
+
+static int
+gdc_load_palette(video_adapter_t *adp, u_char *palette)
+{
+#ifndef GDC_NOGRAPHICS
+    int i;
+
+    if (adp->va_info.vi_flags & V_INFO_VESA) {
+	gdc_wait_vsync();
+	for (i = 0; i < 256; ++i) {
+	    outb(0xa8, i);
+	    outb(0xac, *palette++);	/* R */
+	    outb(0xaa, *palette++);	/* G */
+	    outb(0xae, *palette++);	/* B */
+	}
+    } else {
+	/*
+	 * XXX - Even though PC-98 text color is independent of palette,
+	 * we should set palette in text mode.
+	 * Because the background color of text mode is palette 0's one.
+	 */
+	outb(0x6a, 1);		/* 16 colors mode */
+	bcopy(palette, b_palette, sizeof(b_palette));
+
+	gdc_wait_vsync();
+	for (i = 0; i < 16; ++i) {
+	    outb(0xa8, i);
+	    outb(0xac, *palette++ >> 4);	/* R */
+	    outb(0xaa, *palette++ >> 4);	/* G */
+	    outb(0xae, *palette++ >> 4);	/* B */
+	}
+    }
+#endif
+    return 0;
+}
+
+static int
+gdc_save_palette(video_adapter_t *adp, u_char *palette)
+{
+#ifndef GDC_NOGRAPHICS
+    int i;
+
+    if (adp->va_info.vi_flags & V_INFO_VESA) {
+	for (i = 0; i < 256; ++i) {
+	    outb(0xa8, i);
+	    *palette++ = inb(0xac);	/* R */
+	    *palette++ = inb(0xaa);	/* G */
+	    *palette++ = inb(0xae);	/* B */
+	}
+    } else {
+	bcopy(b_palette, palette, sizeof(b_palette));
+    }
+#endif
+    return 0;
+}
+
+static int
+gdc_set_origin(video_adapter_t *adp, off_t offset)
+{
+#ifndef GDC_NOGRAPHICS
+    if (adp->va_info.vi_flags & V_INFO_VESA) {
+	writew(BIOS_PADDRTOVADDR(0x000e0004), offset >> 15);
+    }
+#endif
+    return 0;
+}
 
 static int
 gdc_nop(void)
 {
     return 0;
 }
+
+/* entry points */
 
 static int
 gdc_err(video_adapter_t *adp, ...)
@@ -741,16 +887,38 @@ gdc_set_mode(video_adapter_t *adp, int mode)
     if (gdc_get_info(adp, mode, &info))
 	return EINVAL;
 
-#ifdef LINE30
     switch (info.vi_mode) {
-       	case M_PC98_80x25:	/* GDC TEXT MODES */
-		initialize_gdc(T25_G400);
-		break;
-	case M_PC98_80x30:
-		initialize_gdc(T30_G400);
-		break;
+#ifndef GDC_NOGRAPHICS
+	case M_PC98_PEGC640x480:	/* PEGC 640x480 */
+	    initialize_gdc(T30_G480, info.vi_flags & V_INFO_GRAPHICS);
+	    break;
+	case M_PC98_PEGC640x400:	/* PEGC 640x400 */
+	case M_PC98_EGC640x400:		/* EGC GRAPHICS */
+#endif
+	case M_PC98_80x25:		/* VGA TEXT */
+	    initialize_gdc(T25_G400, info.vi_flags & V_INFO_GRAPHICS);
+	    break;
+	case M_PC98_80x30:		/* VGA TEXT */
+	    initialize_gdc(T30_G400, info.vi_flags & V_INFO_GRAPHICS);
+	    break;
 	default:
-		break;
+	    break;
+    }
+
+#ifndef GDC_NOGRAPHICS
+    if (info.vi_flags & V_INFO_VESA) {
+	outb(0x6a, 0x07);		/* enable mode F/F change */
+	outb(0x6a, 0x21);		/* enhanced graphics */
+	if (info.vi_height > 400)
+	    outb(0x6a, 0x69);		/* 800 lines */
+	writeb(BIOS_PADDRTOVADDR(0x000e0100), 0);	/* packed pixel */
+    } else {
+	if (adp->va_flags & V_ADP_VESA) {
+	    outb(0x6a, 0x07);		/* enable mode F/F change */
+	    outb(0x6a, 0x20);		/* normal graphics */
+	    outb(0x6a, 0x68);		/* 400 lines */
+	}
+	outb(0x6a, 1);			/* 16 colors */
     }
 #endif
 
@@ -1001,6 +1169,26 @@ gdc_mmap_buf(video_adapter_t *adp, vm_offset_t offset, int prot)
     if (offset > VIDEO_BUF_SIZE - PAGE_SIZE)
 	return -1;
     return i386_btop(adp->va_info.vi_window + offset);
+}
+
+static int
+gdc_clear(video_adapter_t *adp)
+{
+    /* FIXME */
+    return ENODEV;
+}
+
+static int
+gdc_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
+{
+    return ENODEV;
+}
+
+static int
+gdc_bitblt(video_adapter_t *adp,...)
+{
+    /* FIXME */
+    return ENODEV;
 }
 
 static int
