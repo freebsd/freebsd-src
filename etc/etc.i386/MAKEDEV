@@ -85,7 +85,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.93 1995/05/15 06:55:18 gpalmer Exp $
+#	$Id: MAKEDEV,v 1.94 1995/05/15 09:44:10 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -161,6 +161,7 @@ all)
 	sh MAKEDEV pty0 ch0 tw0 bpf0				# cdev
 	sh MAKEDEV speaker pcaudio psm0 mse0			# cdev
 	sh MAKEDEV vty4						# cdev
+	sh MAKEDEV tun0						# cdev
 	;;
 std)
 	rm -f console drum mem kmem null zero io tty klog stdin stdout stderr
