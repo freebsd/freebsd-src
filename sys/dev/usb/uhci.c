@@ -934,11 +934,8 @@ uhci_intr(void *arg)
 #endif
 
 	status = UREAD2(sc, UHCI_STS);
-	if (status == 0) {	/* The interrupt was not for us. */
-		printf("%s: interrupt, but not for us\n",
-		       USBDEVNAME(sc->sc_bus.bdev));
+	if (status == 0)	/* The interrupt was not for us. */
 		return (0);
-	}
 
 #if defined(DIAGNOSTIC) && defined(__NetBSD__)
 	if (sc->sc_suspend != PWR_RESUME)
