@@ -1698,6 +1698,10 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE3);
 		return (ioctl(td, (struct ioctl_args *)args));
 
+	case LINUX_SOUND_MIXER_INFO:
+		args->cmd = SETDIR(SOUND_MIXER_INFO);
+		return (ioctl(td, (struct ioctl_args *)args));
+
 	case LINUX_OSS_GETVERSION: {
 		int version = linux_get_oss_version(td);
 		return (copyout(&version, (void *)args->arg, sizeof(int)));
