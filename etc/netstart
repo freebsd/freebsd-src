@@ -34,41 +34,33 @@
 # the network by hand, this script will do it for you).
 #
 
-# If there is a global system configuration file, suck it in.
-if [ -f /etc/defaults/rc.conf ]; then
-	. /etc/defaults/rc.conf
-	source_rc_confs
-elif [ -f /etc/rc.conf ]; then
-	. /etc/rc.conf
-fi
+. /etc/rc.subr
 
-# Start pccard if necessary
-if [ -r /etc/rc.pccard ]; then
-	. /etc/rc.pccard
-fi
-
-if [ -r /etc/rc.network ]; then
-	. /etc/rc.network
-else
-	echo 'Sorry, I cannot find /etc/rc.network - aborting'
-	exit 1
-fi
-
-echo 'Doing stage one network startup:'
-network_pass1
-
-case ${ipv6_enable} in
-[Yy][Ee][Ss])
-	if [ -r /etc/rc.network6 ]; then
-		. /etc/rc.network6
-	else
-		echo 'Sorry, I cannot find /etc/rc.network6 - aborting'
-		exit 1
-	fi
-
-	echo 'Doing stage one network6 startup:'
-	network6_pass1
-	;;
-esac
+load_rc_config 'XXX'
+# /etc/rc.d/pccard start
+/etc/rc.d/devd start
+/etc/rc.d/hostname start
+/etc/rc.d/ipmon start
+/etc/rc.d/ipfilter start
+/etc/rc.d/ipnat start
+/etc/rc.d/ipfs start
+/etc/rc.d/sppp start
+# /etc/rc.d/atm1 start
+# . /etc/rc.d/atm2.sh start
+# . /etc/rc.d/atm3.sh start
+/etc/rc.d/netif start
+/etc/rc.d/ipsec start
+/etc/rc.d/dhclient start
+/etc/rc.d/isdnd start
+/etc/rc.d/ppp-user start
+/etc/rc.d/ipfw start
+/etc/rc.d/network2 start
+/etc/rc.d/ip6fw start
+/etc/rc.d/network_ipv6 start
+/etc/rc.d/mroute6d start
+/etc/rc.d/route6d start
+/etc/rc.d/mrouted start
+/etc/rc.d/routed start
+/etc/rc.d/nisdomain start
 
 exit 0
