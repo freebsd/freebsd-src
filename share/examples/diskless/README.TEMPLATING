@@ -183,7 +183,7 @@ be useful to set up clients and server for diskless boot.
     file in / or /usr on a target machine instead of the template machine.
     If the target machine is updated once a night from cron, the sysop
     quickly learns not to do this ( because his changes get overwritten
-    overnight ).  With a manual update, these sorts of mistakes can propogate
+    overnight ).  With a manual update, these sorts of mistakes can propagate
     for weeks or months before they are caught.
 
 			    TEMPLATE COPYING AND SAFETY
@@ -194,7 +194,7 @@ be useful to set up clients and server for diskless boot.
     softlinks, hardlinks, files, modification times, uid, gid, flags, perms,
     and so forth.  The program incorporates several major features:
 
-	*   The program refuses, absolutely, to cross partition boundries.
+	*   The program refuses, absolutely, to cross partition boundaries.
 	    i.e. if you were copying the template /usr from an NFS mount to
 	    your /usr, and you had a mount point called /usr/home, the
 	    template copying program would *NOT* descend into /usr/home on
@@ -203,7 +203,7 @@ be useful to set up clients and server for diskless boot.
 	    This is a safety.
 
 	*   The program accesses a file called .cpignore in each directory
-	    it descending into on the source to obtain a list of exceptions
+	    it descends into on the source to obtain a list of exceptions
 	    for that directory -- that is, files not to copy or mess with.
 
 	    This is a templating function.
