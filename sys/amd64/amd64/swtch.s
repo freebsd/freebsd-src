@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.37 1996/06/25 20:01:59 bde Exp $
+ *	$Id: swtch.s,v 1.38 1996/07/31 09:25:53 davidg Exp $
  */
 
 #include "apm.h"
@@ -297,9 +297,6 @@ ENTRY(cpu_switch)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
 
-	movb	_intr_nesting_level,%al
-	movb	%al,PCB_INL(%ecx)
-
 #if NNPX > 0
 	/* have we used fp, and need a save? */
 	mov	_curproc,%eax
@@ -426,9 +423,7 @@ swtch_com:
 
 	movl	%edx,_curpcb
 	movl	%ecx,_curproc			/* into next process */
-
-	movb	PCB_INL(%edx),%al
-	movb	%al,_intr_nesting_level
+	movb	$0,_intr_nesting_level
 
 #ifdef	USER_LDT
 	cmpl	$0, PCB_USERLDT(%edx)
