@@ -29,22 +29,6 @@ if [ ${FSSIZE} -eq 0 -a ${FSLABEL} = "auto" ]; then
 	FSSIZE=$(roundup $(($sk*12/10)) 1024)
 fi
 
-#
-# We don't have any bootblocks on ia64. Note that -B implies -r,
-# so we have to specifically specify -r when we don't have -B.
-# bsdlabel fails otherwise.
-#
-if [ -f "${RD}/trees/base/boot/boot" ]; then
-	BOOT="-B -b ${RD}/trees/base/boot/boot"
-elif [ -f "${RD}/trees/base/boot/boot1" ]; then
-	BOOT="-B -b ${RD}/trees/base/boot/boot1"
-	if [ -f "${RD}/trees/base/boot/boot2" ]; then
-		BOOT="${BOOT} -s ${RD}/trees/base/boot/boot2"
-	fi
-else
-	BOOT="-r"
-fi
-
 deadlock=20
 
 dofs_vn () {
@@ -137,11 +121,29 @@ dofs_md () {
     done
 }
 
+#
+# We don't have any bootblocks on ia64. Note that -B implies -r,
+# so we have to specifically specify -r when we don't have -B.
+# bsdlabel fails otherwise.
+#
 case `uname -r` in
 [1-4].*)
+	if [ -f "${RD}/trees/base/boot/boot1" ]; then
+		BOOT="-B -b ${RD}/trees/base/boot/boot1"
+		if [ -f "${RD}/trees/base/boot/boot2" ]; then
+			BOOT="${BOOT} -s ${RD}/trees/base/boot/boot2"
+		fi
+	else
+		BOOT="-r"
+	fi
 	dofs_vn
 	;;
 *)
+	if [ -f "${RD}/trees/base/boot/boot" ]; then
+		BOOT="-B -b ${RD}/trees/base/boot/boot"
+	else
+		BOOT="-r"
+	fi
 	dofs_md
 	;;
 esac
