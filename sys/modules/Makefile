@@ -15,9 +15,7 @@ SUBDIR=	3dfx \
 	aue \
 	bge \
 	bridge \
-	cam \
 	ccd \
-	cd9660 \
 	coda \
 	cue \
 	dc \
@@ -49,9 +47,7 @@ SUBDIR=	3dfx \
 	lge \
 	libiconv \
 	libmchain \
-	linprocfs \
 	lnc \
-	lomac \
 	lpt \
 	md \
 	mii \
@@ -79,8 +75,6 @@ SUBDIR=	3dfx \
 	sk \
 	sn \
 	snp \
-	sound \
-	sppp \
 	ste \
 	sym \
 	syscons \
@@ -115,7 +109,7 @@ SUBDIR=	3dfx \
 	wb \
 	xl
 
-.if !defined(NO_IPFILTER)
+.if !defined(NO_IPFILTER) && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=ipfilter
 .endif
 
@@ -133,6 +127,8 @@ SUBDIR+=aac \
 	asr \
 	atspeaker \
 	bktr \
+	cam \
+	cd9660 \
 	ciss \
 	cm \
 	coff \
@@ -143,7 +139,9 @@ SUBDIR+=aac \
 	gnufpu \
 	ibcs2 \
 	iir \
+	linprocfs \
 	linux \
+	lomac \
 	ncv \
 	nsp \
 	mly \
@@ -155,11 +153,36 @@ SUBDIR+=aac \
 	sbni \
 	scsi_low \
 	smbfs \
+	sound \
 	splash \
+	sppp \
 	sr \
 	stg \
 	streams \
 	vesa \
+	wi \
+	xe
+.endif
+
+.if ${MACHINE_ARCH} == "ia64"
+SUBDIR+=aic \
+	arcnet \
+	asr \
+	bktr \
+	ciss \
+	cm \
+	coff \
+	el \
+	em \
+	fe \
+	iir \
+	mly \
+	ray \
+	scsi_low \
+	smbfs \
+	splash \
+	sr \
+	streams \
 	wi \
 	xe
 .endif
@@ -170,8 +193,14 @@ SUBDIR+=pmc \
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=linux \
-	osf1
+SUBDIR+=cam \
+	cd9660 \
+	linprocfs \
+	linux \
+	lomac \
+	osf1 \
+	sound \
+	sppp
 .endif
 
 .if defined(WANT_EXT2FS_MODULE)
