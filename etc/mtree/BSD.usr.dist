@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.109 1998/02/22 15:12:41 ache Exp $
+#	$Id: BSD.usr.dist,v 1.110 1998/02/25 04:19:09 hanai Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -22,6 +22,8 @@
 	..
 	gcc
 	..
+	ldscripts
+	..
 	lint
 	..
 	msdosfs
@@ -34,6 +36,10 @@
 	..
     ..
     libexec
+        aout
+        ..
+        elf
+        ..
         lpr
 		ru
 		..
