@@ -139,7 +139,6 @@ void	iso88025_ifdetach	(struct ifnet *, int);
 int	iso88025_ioctl		(struct ifnet *, int , caddr_t );
 int	iso88025_output		(struct ifnet *, struct mbuf *, struct sockaddr *,
 				 struct rtentry *);
-void	iso88025_input		(struct ifnet *, struct iso88025_header *,
-				 struct mbuf *);
+void	iso88025_input		(struct ifnet *, struct mbuf *);
 
 #endif
