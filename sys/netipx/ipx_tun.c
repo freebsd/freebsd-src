@@ -31,7 +31,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)$Id$
+ *	@(#)ipx_tun.c
+ *
+ * $Id: ipx_tun.c,v 1.2 1995/10/31 23:36:38 julian Exp $
  */
 
 /*
