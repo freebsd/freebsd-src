@@ -1,4 +1,4 @@
-/*	$KAME: ip6fw.c,v 1.13 2001/06/22 05:51:16 itojun Exp $	*/
+/*	$KAME: ip6fw.c,v 1.14 2003/10/02 19:36:25 itojun Exp $	*/
 
 /*
  * Copyright (C) 1998, 1999, 2000 and 2001 WIDE Project.
@@ -446,7 +446,7 @@ list(ac, av)
 	int	ac;
 	char 	**av;
 {
-	struct ip6_fw *r, *rules;
+	struct ip6_fw *r, *rules, *n;
 	int l,i;
 	unsigned long rulenum;
 	int nalloc, bytes, maxbytes;
@@ -457,10 +457,10 @@ list(ac, av)
 	bytes = nalloc;
 	maxbytes = 65536 * sizeof *rules;
 	while (bytes >= nalloc) {
-		nalloc = nalloc * 2 + 200;
-		bytes = nalloc;
-		if ((rules = realloc(rules, bytes)) == NULL)
+		if ((n = realloc(rules, nalloc * 2 + 200)) == NULL)
 			err(EX_OSERR, "realloc");
+		bytes = nalloc = nalloc * 2 + 200;
+		rules = n;
 		i = getsockopt(s, IPPROTO_IPV6, IPV6_FW_GET, rules, &bytes);
 		if ((i < 0 && errno != EINVAL) || nalloc > maxbytes)
 			err(EX_OSERR, "getsockopt(IPV6_FW_GET)");
