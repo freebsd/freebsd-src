@@ -44,7 +44,7 @@
 .Nm zcat
 .Nd compress and expand data
 .Sh SYNOPSIS
-.Nm
+.Nm compress
 .Op Fl cfv
 .Op Fl b Ar bits
 .Op Ar
@@ -121,13 +121,13 @@ must be between 9 and 16.
 After the
 .Ar bits
 limit is reached,
-.Nm
+.Nm compress
 periodically checks the compression ratio.
 If it is increasing,
-.Nm
+.Nm compress
 continues to use the existing code dictionary.
 However, if the compression ratio decreases,
-.Nm
+.Nm compress
 discards the table of substrings and rebuilds it from scratch.  This allows
 the algorithm to adapt to the next "block" of the file.
 .Pp
@@ -154,7 +154,7 @@ coding (as used in the historical command compact), and takes less
 time to compute.
 .Pp
 The
-.Nm
+.Nm compress
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Rs
