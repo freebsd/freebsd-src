@@ -1791,7 +1791,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	re_rxeof(sc);
 	re_txeof(sc);
 
-	if (!IFQ_DRV_IS_EMPTY(ifp->if_snd))
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		re_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
