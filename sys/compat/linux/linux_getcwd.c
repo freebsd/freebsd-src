@@ -164,6 +164,7 @@ linux_getcwd_scandir(lvpp, uvpp, bpp, bufp, td)
 	cn.cn_nameptr = "..";
 	cn.cn_namelen = 2;
 	cn.cn_consume = 0;
+	cn.cn_lkflags = LK_EXCLUSIVE;
 	
 	/*
 	 * At this point, lvp is locked and will be unlocked by the lookup.
