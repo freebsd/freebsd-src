@@ -3,8 +3,8 @@
 
 PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c
-DPADD=	${LIBM}
-LDADD=	-lm
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+= -DCOLORLS
