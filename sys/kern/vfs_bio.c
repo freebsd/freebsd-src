@@ -758,7 +758,7 @@ bwrite(struct buf * bp)
 			return (0);
 		}
 		bp->b_xflags |= BX_BKGRDWAIT;
-		tsleep(&bp->b_xflags, PRIBIO, "biord", 0);
+		tsleep(&bp->b_xflags, PRIBIO, "bwrbg", 0);
 		if (bp->b_xflags & BX_BKGRDINPROG)
 			panic("bwrite: still writing");
 	}
