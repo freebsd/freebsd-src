@@ -157,7 +157,7 @@ mode = O_RDONLY | O_NONBLOCK;
 
 	if (showfmt) {
 		if (verbose) {
-			char *s;
+			const char *s;
 
 			printf("%s: %d KB media type\n", argv[0],
 			    (128 << ft.secsize) * ft.size / 1024);

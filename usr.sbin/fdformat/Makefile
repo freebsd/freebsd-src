@@ -5,7 +5,7 @@
 PROG=	fdformat
 SRCS=	fdformat.c fdutil.c
 
-WARNS?=	2
+WARNS?=	6
 CFLAGS+= -I${.CURDIR}/../fdread
 
 .if ${MACHINE} == "pc98"

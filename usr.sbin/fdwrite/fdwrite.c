@@ -21,9 +21,9 @@
 
 #include <sys/fdcio.h>
 
-int
+static int
 format_track(int fd, int cyl, int secs, int head, int rate,
-     int gaplen, int secsize, int fill,int interleave)
+     int gaplen, int secsize, int fill, int interleave)
 {
     struct fd_formb f;
     register int i,j;
@@ -55,7 +55,7 @@ format_track(int fd, int cyl, int secs, int head, int rate,
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: fdwrite [-v] [-y] [-f inputfile] [-d device]\n");
 	exit(2);
@@ -67,7 +67,8 @@ main(int argc, char **argv)
     int inputfd = -1, c, fdn = 0, i,j,fd;
     int bpt, verbose=1, nbytes=0, track;
     int interactive = 1, fdopts;
-    char *device= "/dev/fd0", *trackbuf = 0,*vrfybuf = 0;
+    const char *device= "/dev/fd0";
+    char *trackbuf = 0,*vrfybuf = 0;
     struct fd_type fdt;
     FILE *tty;
 
