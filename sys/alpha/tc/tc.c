@@ -1,4 +1,4 @@
-/* $Id: tc.c,v 1.3 1999/05/08 21:58:49 dfr Exp $ */
+/* $Id: tc.c,v 1.4 1999/05/10 15:53:33 peter Exp $ */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -73,7 +73,6 @@ static tc_offset_t tc_slot_romoffs[NTC_ROMOFFS] = {
 static int tc_probe(device_t dev);
 static int tc_attach(device_t dev);
 static void tc_print_child(device_t bus, device_t dev);
-static driver_intr_t	tc_intr;
 int    tc_checkslot(        tc_addr_t slotbase, char *namep);
 
 static device_method_t tc_methods[] = {
