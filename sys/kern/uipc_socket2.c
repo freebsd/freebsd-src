@@ -209,7 +209,9 @@ sonewconn(head, connstatus)
 	so->so_timeo = head->so_timeo;
 	so->so_cred = crhold(head->so_cred);
 #ifdef MAC
+	SOCK_LOCK(head);
 	mac_create_socket_from_socket(head, so);
+	SOCK_UNLOCK(head);
 #endif
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
 	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {

@@ -366,10 +366,13 @@ ddp_input(m, ifp, elh, phase)
     }
 
 #ifdef MAC
+    SOCK_LOCK(ddp->ddp_socket);
     if (mac_check_socket_deliver(ddp->ddp_socket, m) != 0) {
+	SOCK_UNLOCK(ddp->ddp_socket);
 	m_freem(m);
 	return;
     }
+    SOCK_UNLOCK(ddp->ddp_socket);
 #endif
 
     /* 
