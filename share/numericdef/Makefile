@@ -33,6 +33,8 @@ LOCALES=	af_ZA.ISO8859-1 \
 		ru_RU.KOI8-R \
 		sk_SK.ISO8859-2 \
 		sl_SI.ISO8859-2 \
+		sr_YU.ISO8859-2 \
+		sr_YU.ISO8859-5 \
 		sv_SE.ISO8859-1 \
 		tr_TR.ISO8859-9 \
 		uk_UA.ISO8859-5 \
