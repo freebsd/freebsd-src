@@ -283,7 +283,7 @@ trap(frame)
 #ifdef DEV_NPX
 			ucode = npxtrap();
 			if (ucode == -1)
-				goto userout;
+				goto out;
 #else
 			ucode = code;
 #endif
@@ -333,7 +333,7 @@ trap(frame)
 			}
 #endif
 			if (i == -1)
-				goto userout;
+				goto out;
 			if (i == 0)
 				goto user;
 
@@ -358,7 +358,7 @@ trap(frame)
 				lastalert = time_second;
 			}
 			mtx_unlock(&Giant);
-			goto userout;
+			goto out;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			/* XXX Giant */
@@ -373,7 +373,7 @@ trap(frame)
 					kdb_trap (type, 0, &frame);
 				}
 #endif /* DDB */
-				goto userout;
+				goto out;
 			} else if (panic_on_nmi)
 				panic("NMI indicates hardware failure");
 			break;
@@ -394,7 +394,7 @@ trap(frame)
 #ifdef DEV_NPX
 			/* transparent fault (due to context switch "late") */
 			if (npxdna())
-				goto userout;
+				goto out;
 #endif
 			if (!pmath_emulate) {
 				i = SIGFPE;
@@ -406,7 +406,7 @@ trap(frame)
 			mtx_unlock(&Giant);
 			if (i == 0) {
 				if (!(frame.tf_eflags & PSL_T))
-					goto userout;
+					goto out;
 				frame.tf_eflags &= ~PSL_T;
 				i = SIGTRAP;
 			}
@@ -650,7 +650,6 @@ trap(frame)
 user:
 	userret(td, &frame, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
-userout:
 out:
 	return;
 }
