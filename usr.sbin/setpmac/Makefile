@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=   setpmac
-NOMAN=	#true
+MAN=	setpmac.8
 SRCS=   setpmac.c
 
 WARNS?=	2
