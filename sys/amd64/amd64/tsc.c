@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.2 1997/07/20 17:02:32 smp Exp smp $
+ *	$Id: clock.c,v 1.3 1997/07/20 18:11:45 smp Exp smp $
  */
 
 /*
@@ -832,7 +832,17 @@ resettodr()
 #ifdef APIC_IO
 
 /* XXX FIXME: from icu.s: */
-#if !defined(APIC_PIN0_TIMER) || defined(DO_RTC_VEC)
+#ifdef NEW_STRATEGY
+
+extern u_int	ivectors[];
+extern u_int	vec[];
+extern void	vec8254	__P((void));
+extern u_int	Xintr8254;
+extern u_int	mask8254;
+
+#else /** NEW_STRATEGY */
+
+#if !defined(APIC_PIN0_TIMER)
 extern u_int	ivectors[];
 extern u_int	vec[];
 #endif
@@ -843,12 +853,7 @@ extern u_int	Xintr8254;
 extern u_int	mask8254;
 #endif /* APIC_PIN0_TIMER */
 
-#ifdef DO_RTC_VEC
-/** XXX FIXME: remove vevRTS stuff after several weeks of no problems */
-extern void	vecRTC	__P((void));
-extern u_int	XintrRTC;
-extern u_int	maskRTC;
-#endif /* DO_RTC_VEC */
+#endif /** NEW_STRATEGY */
 
 #endif /* APIC_IO */
 
@@ -880,6 +885,53 @@ cpu_initclocks()
 
 	/* Finish initializing 8253 timer 0. */
 #ifdef APIC_IO
+
+#ifdef NEW_STRATEGY
+	/* 1st look for ExtInt on pin 0 */
+	if (apic_int_type(0, 0) == 3) {
+		/*
+		 * Allow 8254 timer to INTerrupt 8259:
+		 *  re-initialize master 8259:
+		 *   reset; prog 4 bytes, single ICU, edge triggered
+		 */
+		outb(IO_ICU1, 0x13);
+		outb(IO_ICU1 + 1, NRSVIDT);	/* start vector */
+		outb(IO_ICU1 + 1, 0x00);	/* ignore slave */
+		outb(IO_ICU1 + 1, 0x03);	/* auto EOI, 8086 */
+		outb(IO_ICU1 + 1, 0xfe);	/* unmask INT0 */
+
+		/* program IO APIC for type 3 INT on INT0 */
+		if (ext_int_setup(0, 0) < 0)
+			panic("8254 redirect via APIC pin0 impossible!");
+
+		x = 0;
+		/** if (bootverbose */
+			printf("APIC_IO: routing 8254 via 8259 on pin 0\n");
+	}
+
+	/* failing that, look for 8254 on pin 2 */
+	else if (isa_apic_pin(0) == 2) {
+		x = 2;
+		/** if (bootverbose */
+			printf("APIC_IO: routing 8254 via pin 2\n");
+	}
+
+	/* better write that 8254 INT discover code... */
+	else 
+		panic("neither pin 0 or pin 2 works for 8254");
+
+	/* setup the vectors for the chosen method */
+	vec[x] = (u_int)vec8254;
+	Xintr8254 = (u_int)ivectors[x];
+	mask8254 = (1 << x);
+
+	register_intr(/* irq */ x, /* XXX id */ 0, /* flags */ 0,
+		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
+		      /* unit */ 0);
+	INTREN(mask8254);
+
+#else /** NEW_STRATEGY */
+
 #ifdef APIC_PIN0_TIMER
 	/*
 	 * Allow 8254 timer to INTerrupt 8259:
@@ -939,6 +991,9 @@ cpu_initclocks()
 		      /* unit */ 0);
 	INTREN(mask8254);
 #endif /* APIC_PIN0_TIMER */
+
+#endif /** NEW_STRATEGY */
+
 #else /* APIC_IO */
 	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
@@ -966,34 +1021,13 @@ cpu_initclocks()
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
 
 #ifdef APIC_IO
-
-#ifdef DO_RTC_VEC
-	if ((x = isa_apic_pin(8)) < 0)
-		panic("APIC missing RTC connection");
-	vec[x] = (u_int)vecRTC;
-	XintrRTC = (u_int)ivectors[x];	/* XXX might need Xfastintr# */
-	maskRTC = (1 << x);
-	register_intr(/* irq */ x, /* XXX id */ 1, /* flags */ 0,
-		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
-		      /* unit */ 0);
-	INTREN(maskRTC);
-#else
 	if (isa_apic_pin(8) != 8)
 		panic("APIC RTC != 8");
-	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
-		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
-		      /* unit */ 0);
-	INTREN(IRQ8);
-#endif /* DO_RTC_VEC */
-
-#else /* APIC_IO */
-
-	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
-		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
-		      /* unit */ 0);
-	INTREN(IRQ8);
-
 #endif /* APIC_IO */
+	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
+		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
+		      /* unit */ 0);
+	INTREN(IRQ8);
 
 	writertc(RTC_STATUSB, rtc_statusb);
 }
