@@ -1246,7 +1246,6 @@ thr_cleanup(struct kse *curkse, struct pthread *thread)
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
 	DBG_MSG("Adding thread %p to GC list\n", thread);
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
-	THR_GCLIST_ADD(thread);
 	/* Use thread_list_lock */
 	active_threads--;
 #ifdef SYSTEM_SCOPE_ONLY
@@ -1255,8 +1254,12 @@ thr_cleanup(struct kse *curkse, struct pthread *thread)
 	if (active_threads == 1) {
 #endif
 		KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
+		/* Possible use a signalcontext wrapper to call exit ? */
+		curkse->k_curthread = thread; 
+		_tcb_set(curkse->k_kcb, thread->tcb);
 		exit(0);
         }
+	THR_GCLIST_ADD(thread);
 	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 	if (sys_scope) {
 		/*
