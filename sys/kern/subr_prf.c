@@ -264,7 +264,7 @@ log_console(struct uio *uio)
 		c = imin(uio->uio_resid, CONSCHUNK);
 		error = uiomove(consbuffer, c, uio);
 		if (error != 0)
-			return;
+			break;
 		for (i = 0; i < c; i++) {
 			msglogchar(consbuffer[i], pri);
 			if (consbuffer[i] == '\n')
