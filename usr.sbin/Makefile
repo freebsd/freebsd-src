@@ -151,7 +151,6 @@ SUBDIR=	ac \
 	slstat \
 	${_spkrtest} \
 	spray \
-	${_stallion} \
 	${_sysinstall} \
 	syslogd \
 	tcpdchk \
@@ -273,7 +272,6 @@ _pppctl=	pppctl
 _sgsc=		sgsc
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
-_stallion=	stallion
 _wlconfig=	wlconfig
 _zzz=		zzz
 .endif
