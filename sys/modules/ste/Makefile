@@ -3,15 +3,12 @@
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= if_ste
-SRCS	= if_ste.c ste.h opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS	= if_ste.c opt_bdg.h device_if.h bus_if.h pci_if.h
 SRCS	+= miibus_if.h
-CLEANFILES	+= ste.h opt_bdg.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= opt_bdg.h device_if.h bus_if.h pci_if.h
 CLEANFILES	+= miibus_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
 KMODDEPS = miibus
-
-ste.h:
-	echo "#define NSTE 1" > ste.h
 
 opt_bdg.h:
 	touch opt_bdg.h

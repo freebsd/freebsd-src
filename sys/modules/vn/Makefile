@@ -2,14 +2,10 @@
 
 .PATH:  ${.CURDIR}/../../dev/vn
 KMOD=   vn
-SRCS=   vn.c vn.h vnode_if.h opt_devfs.h
+SRCS=   vn.c vnode_if.h opt_devfs.h
 NOMAN=
 
-NVN?=		8
-CLEANFILES+=	vn.h vnode_if.h vnode_if.c opt_devfs.h
-
-vn.h:
-	echo "#define NVN ${NVN}" > vn.h
+CLEANFILES+=	vnode_if.h vnode_if.c opt_devfs.h
 
 opt_devfs.h:
 	touch opt_devfs.h
