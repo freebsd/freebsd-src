@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.623 1999/08/06 15:59:01 phk Exp $
+#	$Id: LINT,v 1.624 1999/08/08 16:27:17 chris Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -563,7 +563,7 @@ options 	DEVFS			#devices filesystem
 # do to enable this.  ../../contrib/softupdates/README gives
 # more details on how they actually work.
 #
-#options 	SOFTUPDATES
+options 	SOFTUPDATES
 
 # Make space in the kernel for a MFS root filesystem.  Define to the number
 # of kilobytes to reserve for the filesystem.
@@ -767,7 +767,7 @@ options 	SA_ERASE_TIMEOUT="(4*60)"
 # as it is required for `telnetd', `rlogind', `screen', `emacs', and
 # `xterm', among others.
 
-pseudo-device	pty	16	#Pseudo ttys - can go as high as 256
+pseudo-device	pty		#Pseudo ttys
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
 pseudo-device	gzip		#Exec gzipped a.out's
 pseudo-device	vn		#Vnode driver (turns a file into a device)

@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.31 1999/07/11 14:53:37 wpaul Exp $
+#	$Id: GENERIC,v 1.32 1999/07/25 04:32:47 wpaul Exp $
 
 machine		alpha
 cpu		EV4
@@ -128,7 +128,7 @@ pseudo-device	ether
 pseudo-device	sl	1
 pseudo-device	ppp	1
 pseudo-device	tun	1
-pseudo-device	pty	16
+pseudo-device	pty
 
 # KTRACE enables the system-call tracing facility ktrace(2).
 # This adds 4 KB bloat to your kernel, and slightly increases

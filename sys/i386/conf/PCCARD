@@ -12,7 +12,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: PCCARD,v 1.13 1999/07/06 19:22:41 des Exp $
+#	$Id: PCCARD,v 1.14 1999/07/19 15:18:21 hosokawa Exp $
 
 machine		i386
 cpu		I386_CPU
@@ -192,7 +192,7 @@ pseudo-device	ether		# Ethernet support
 pseudo-device	sl	1	# Kernel SLIP
 pseudo-device	ppp	1	# Kernel PPP
 pseudo-device	tun	1	# Packet tunnel, for ppp(1)
-pseudo-device	pty	16	# Pseudo-ttys (telnet etc)
+pseudo-device	pty		# Pseudo-ttys (telnet etc)
 pseudo-device	gzip		# Exec gzipped a.out's
 
 # The `bpf' pseudo-device enables the Berkeley Packet Filter.
