@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
-.\"	$Id: listen.2,v 1.9 1997/02/22 15:03:59 peter Exp $
+.\"	$Id: listen.2,v 1.10 1997/04/11 18:47:06 bde Exp $
 .\"
 .Dd November 3, 1995
 .Dt LISTEN 2
@@ -74,15 +74,15 @@ the request may be ignored so that retries may succeed.
 The
 .Xr sysctl 3
 MIB variable
-.Dq Li kern.somaxconn
+.Dq Li kern.ipc.somaxconn
 specifies a hard limit on
 .Fa backlog ;
 if a  value greater than
-.Li kern.somaxconn
+.Li kern.ipc.somaxconn
 or less than zero is specified,
 .Fa backlog
 is silently forced to
-.Li kern.somaxconn .
+.Li kern.ipc.somaxconn .
 .Sh IMPLEMENTATION NOTES
 .Pp
 In the non-threaded library
