@@ -63,6 +63,7 @@ static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #include "extern.h"
 
