@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.h	8.288 (Berkeley) 1/17/97
+ *	@(#)conf.h	8.313 (Berkeley) 6/11/97
  */
 
 /*
@@ -79,6 +79,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 # define MAXMIMEARGS	20		/* max args in Content-Type: */
 # define MAXMIMENESTING	20		/* max MIME multipart nesting */
 # define QUEUESEGSIZE	1000		/* increment for queue size */
+# define MAXQFNAME	20		/* max qf file name length */
 
 /**********************************************************************
 **  Compilation options.
@@ -130,7 +131,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 **  be turned off unless absolutely necessary.
 **********************************************************************/
 
-# define LOG			/* enable logging -- don't turn off */
+# define LOG		1	/* enable logging -- don't turn off */
 
 /**********************************************************************
 **  End of site-specific configuration.
@@ -175,6 +176,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 # define HASINITGROUPS	1	/* has initgroups(3) call */
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define USESETEUID	1	/* has useable seteuid(2) call */
+# define BOGUS_O_EXCL	1	/* exclusive open follows symlinks */
 # define seteuid(e)	setresuid(-1, e, -1)
 # define IP_SRCROUTE	1	/* can check IP source routing */
 # define LA_TYPE	LA_HPUX
@@ -185,6 +187,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #  define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps */
 # endif
 # define syslog		hard_syslog
+# define SAFENFSPATHCONF 1	/* pathconf(2) pessimizes on NFS filesystems */
 
 # ifdef V4FS
 		/* HP-UX 10.x */
@@ -217,6 +220,7 @@ extern void	hard_syslog(int, char *, ...);
 */
 
 #ifdef _AIX4
+# include <sys/select.h>
 # define _AIX3		1	/* pull in AIX3 stuff */
 # define USESETEUID	1	/* seteuid(2) works */
 # define TZ_TYPE	TZ_NAME	/* use tzname[] vector */
@@ -336,6 +340,7 @@ typedef int		pid_t;
 # define SFS_BAVAIL	f_bfree		/* alternate field name */
 # ifdef IRIX6
 #  define LA_TYPE	LA_IRIX6	/* figure out at run time */
+#  define SAFENFSPATHCONF 0	/* pathconf(2) lies on NFS filesystems */
 # else
 #  define LA_TYPE	LA_INT
 
@@ -373,6 +378,7 @@ typedef int		pid_t;
 # define HASGETUSERSHELL 1	/* DOES have getusershell(3) call in libc */
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define IP_SRCROUTE	1	/* can check IP source routing */
+# define SAFENFSPATHCONF 1	/* pathconf(2) pessimizes on NFS filesystems */
 
 # ifdef SOLARIS_2_3
 #  define SOLARIS	20300	/* for back compat only -- use -DSOLARIS=20300 */
@@ -401,6 +407,9 @@ typedef int		pid_t;
 #  endif
 #  ifndef SYSLOG_BUFSIZE
 #   define SYSLOG_BUFSIZE	1024	/* allow full size syslog buffer */
+#  endif
+#  ifndef TZ_TYPE
+#   define TZ_TYPE	TZ_TZNAME
 #  endif
 #  if SOLARIS >= 20300 || (SOLARIS < 10000 && SOLARIS >= 203)
 #   define USESETEUID	1		/* seteuid works as of 2.3 */
@@ -529,6 +538,7 @@ extern long	dgux_inet_addr();
 # ifndef IDENTPROTO
 #  define IDENTPROTO	0	/* pre-4.4 TCP/IP implementation is broken */
 # endif
+# define SYSLOG_BUFSIZE	256
 #endif
 
 
@@ -558,6 +568,8 @@ extern long	dgux_inet_addr();
 # ifndef TZ_TYPE
 #  define TZ_TYPE	TZ_TZNAME	/* use tzname[] vector */
 # endif
+# define GIDSET_T	gid_t
+# define MAXNAMLEN	NAME_MAX
 #endif
 
 
@@ -600,8 +612,10 @@ extern long	dgux_inet_addr();
 # define UID_T		int	/* compiler gripes on uid_t */
 # define GID_T		int	/* ditto for gid_t */
 # define MODE_T		int	/* and mode_t */
-# define sleep		sleepX
 # define setpgid	setpgrp
+# ifndef NOT_SENDMAIL
+#  define sleep		sleepX
+# endif
 # ifndef LA_TYPE
 #  define LA_TYPE	LA_MACH
 # endif
@@ -624,12 +638,13 @@ typedef int		pid_t;
 **	See also BSD defines.
 */
 
-#if defined(BSD4_4) && !defined(__bsdi__)
+#if defined(BSD4_4) && !defined(__bsdi__) && !defined(__GNU__)
 # include <paths.h>
 # define HASUNSETENV	1	/* has unsetenv(3) call */
 # define USESETEUID	1	/* has useable seteuid(2) call */
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define HASSNPRINTF	1	/* has snprintf(3) and vsnprintf(3) */
+# define HASSTRERROR	1	/* has strerror(3) */
 # include <sys/cdefs.h>
 # define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
 # define BSD4_4_SOCKADDR	/* has sa_len */
@@ -655,6 +670,7 @@ typedef int		pid_t;
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define HASSNPRINTF	1	/* has snprintf(3) and vsnprintf(3) */
 # define HASUNAME	1	/* has uname(2) syscall */
+# define HASSTRERROR	1	/* has strerror(3) */
 # include <sys/cdefs.h>
 # define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
 # define BSD4_4_SOCKADDR	/* has sa_len */
@@ -696,10 +712,12 @@ typedef int		pid_t;
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define HASSNPRINTF	1	/* has snprintf(3) and vsnprintf(3) */
 # define HASUNAME	1	/* has uname(2) syscall */
+# define HASSTRERROR	1	/* has strerror(3) */
 # include <sys/cdefs.h>
 # define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
 # define BSD4_4_SOCKADDR	/* has sa_len */
 # define NETLINK	1	/* supports AF_LINK */
+# define SAFENFSPATHCONF 1	/* pathconf(2) pessimizes on NFS filesystems */
 # define GIDSET_T	gid_t
 # ifndef LA_TYPE
 #  define LA_TYPE	LA_SUBR
@@ -737,7 +755,7 @@ typedef int		pid_t;
 **	For mt Xinu's Mach386 system.
 */
 
-#if defined(MACH) && defined(i386)
+#if defined(MACH) && defined(i386) && !defined(__GNU__)
 # define MACH386	1
 # define HASUNSETENV	1	/* has unsetenv(3) call */
 # define HASINITGROUPS	1	/* has initgroups(3) call */
@@ -760,6 +778,50 @@ typedef int		pid_t;
 # endif
 #endif
 
+
+
+/*
+**  GNU OS (hurd)
+**	Largely BSD & posix compatible.
+**	Port contributed by Miles Bader <miles@gnu.ai.mit.edu>.
+*/
+
+#ifdef __GNU_HURD__
+# define SIOCGIFCONF_IS_BROKEN	1
+# define IP_SRCROUTE		0
+# define HASFCHMOD		1
+# define HASFLOCK		1
+# define HASUNAME		1
+# define HASUNSETENV		1
+# define HASSETSID		1
+# define HASINITGROUPS		1
+# define HASSETVBUF		1
+# define HASSETREUID		1
+# define USESETEUID		1
+# define HASLSTAT		1
+# define HASSETRLIMIT		1
+# define HASWAITPID		1
+# define HASGETDTABLESIZE	1
+# define HASSTRERROR		1
+/* # define NEEDGETOPT		1 */
+# define HASGETUSERSHELL	1
+# define ERRLIST_PREDEFINED	1
+# define BSD4_4_SOCKADDR	1
+# define GIDSET_T	gid_t
+# define LA_TYPE	LA_MACH
+
+/* GNU uses mach[34], which renames some rpcs from mach2.x.  */
+# define host_self	mach_host_self
+# define SFS_TYPE	SFS_STATFS
+# define SPT_TYPE	SPT_CHANGEARGV
+
+/* GNU has no MAXPATHLEN; ideally the code should be changed to not use it.  */
+# define MAXPATHLEN	2048
+
+/* Define device num frobbing macros.  */
+# define major(x)	((x)>>8)
+# define minor(x)	((x)&0xFF)
+#endif /* GNU */
 
 /*
 **  4.3 BSD -- this is for very old systems
@@ -1066,6 +1128,7 @@ extern void		*malloc();
 # define GIDSET_T	gid_t	/* from <linux/types.h> */
 # define HASGETUSERSHELL 0	/* getusershell(3) broken in Slackware 2.0 */
 # define IP_SRCROUTE	0	/* linux <= 1.2.8 doesn't support IP_OPTIONS */
+# define USE_SIGLONGJMP	1	/* sigsetjmp needed for signal handling */
 # ifndef HASFLOCK
 #  include <linux/version.h>
 #  if LINUX_VERSION_CODE < 66399
@@ -1117,10 +1180,12 @@ extern void		*malloc();
 # define HASUNAME	1	/* use System V uname(2) system call */
 # define HASFCHMOD	1	/* has fchmod(2) syscall */
 # define HASINITGROUPS	1	/* has initgroups(3) call */
-# define HASSETVBUF	1	/* we have setvbuf(3) in libc */
+# define HASSETVBUF	1	/* has setvbuf(3) in libc */
+# define HASSTRERROR	1	/* has strerror(3) */
 # define SIGFUNC_DEFINED	/* sigfunc_t already defined */
-# define SIGFUNC_RETURN	(0)	/* XXX this is a guess */
-# define SIGFUNC_DECL	int	/* XXX this is a guess */
+# define SIGFUNC_RETURN		/* POSIX-mode */
+# define SIGFUNC_DECL	void	/* POSIX-mode */
+# define ERRLIST_PREDEFINED	1
 # ifndef IDENTPROTO
 #  define IDENTPROTO	0	/* TCP/IP implementation is broken */
 # endif
@@ -1829,7 +1894,7 @@ typedef struct msgb		mblk_t;
 **  are closed.  Some firewalls return this error if you try to connect
 **  to the IDENT port (113), so you can't receive email from these hosts
 **  on these systems.  The firewall really should use a more specific
-**  message such as ICMP_UNREACH_PROTOCOL or _PORT or _NET_PROHIB.  If
+**  message such as ICMP_UNREACH_PROTOCOL or _PORT or _FILTER_PROHIB.  If
 **  not explicitly set to zero above, default it on.
 */
 
@@ -1930,11 +1995,20 @@ typedef struct msgb		mblk_t;
 #if !defined(S_ISLNK) && defined(S_IFLNK)
 # define S_ISLNK(foo)	((foo & S_IFMT) == S_IFLNK)
 #endif
+#ifndef S_IRUSR
+# define S_IRUSR		0400
+#endif
 #ifndef S_IWUSR
 # define S_IWUSR		0200
 #endif
+#ifndef S_IRGRP
+# define S_IRGRP		0040
+#endif
 #ifndef S_IWGRP
 # define S_IWGRP		0020
+#endif
+#ifndef S_IROTH
+# define S_IROTH		0004
 #endif
 #ifndef S_IWOTH
 # define S_IWOTH		0002
@@ -1957,6 +2031,13 @@ typedef struct msgb		mblk_t;
 
 
 /*
+**  An "impossible" file mode to indicate that the file does not exist.
+*/
+
+#define ST_MODE_NOFILE	0171147		/* unlikely to occur */
+
+
+/*
 **  These are used in a few cases where we need some special
 **  error codes, but where the system doesn't provide something
 **  reasonable.  They are printed in errstring.
@@ -1966,7 +2047,16 @@ typedef struct msgb		mblk_t;
 # define E_PSEUDOBASE	256
 #endif
 
-#define EOPENTIMEOUT	(E_PSEUDOBASE + 0)	/* timeout on open */
+#define E_SM_OPENTIMEOUT (E_PSEUDOBASE + 0)	/* Timeout on file open */
+#define E_SM_NOSLINK	(E_PSEUDOBASE + 1)	/* Symbolic links not allowed */
+#define E_SM_NOHLINK	(E_PSEUDOBASE + 2)	/* Hard links not allowed */
+#define E_SM_REGONLY	(E_PSEUDOBASE + 3)	/* Regular files only */
+#define E_SM_ISEXEC	(E_PSEUDOBASE + 4)	/* Executable files not allowed */
+#define E_SM_WWDIR	(E_PSEUDOBASE + 5)	/* World writable directory */
+#define E_SM_GWDIR	(E_PSEUDOBASE + 6)	/* Group writable directory */
+#define E_SM_FILECHANGE (E_PSEUDOBASE + 7)	/* File changed after open */
+#define E_SM_WWFILE	(E_PSEUDOBASE + 8)	/* World writable file */
+#define E_SM_GWFILE	(E_PSEUDOBASE + 9)	/* Group writable file */
 #define E_DNSBASE	(E_PSEUDOBASE + 20)	/* base for DNS h_errno */
 
 /* type of arbitrary pointer */
@@ -1978,16 +2068,8 @@ typedef struct msgb		mblk_t;
 # include "cdefs.h"
 #endif
 
-#if NAMED_BIND
-# include <arpa/nameser.h>
-# ifdef __svr4__
-#  ifdef NOERROR
-#   undef NOERROR		/* avoid compiler conflict with stream.h */
-#  endif
-# endif
-# ifndef __ksr__
-extern int h_errno;
-# endif
+#if NAMED_BIND && !defined(__ksr__)
+extern int	h_errno;
 #endif
 
 /*
@@ -2133,7 +2215,7 @@ typedef void		(*sigfunc_t) __P((int));
 # if (SYSLOG_BUFSIZE) > 768
 #  define TOBUFSIZE	(SYSLOG_BUFSIZE - 512)
 # else
-#  define TOBUFSIZE	256
+#  define TOBUFSIZE	(SYSLOG_BUFSIZE / 2)
 # endif
 #endif
 
@@ -2181,4 +2263,19 @@ typedef void		(*sigfunc_t) __P((int));
 
 #if !defined(NGROUPS_MAX) && defined(NGROUPS)
 # define NGROUPS_MAX	NGROUPS		/* POSIX naming convention */
+#endif
+
+/*
+**  If we don't have a system syslog, simulate it.
+*/
+
+#if !LOG
+# define LOG_EMERG	0	/* system is unusable */
+# define LOG_ALERT	1	/* action must be taken immediately */
+# define LOG_CRIT	2	/* critical conditions */
+# define LOG_ERR	3	/* error conditions */
+# define LOG_WARNING	4	/* warning conditions */
+# define LOG_NOTICE	5	/* normal but significant condition */
+# define LOG_INFO	6	/* informational */
+# define LOG_DEBUG	7	/* debug-level messages */
 #endif

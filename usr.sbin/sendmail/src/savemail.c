@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.103 (Berkeley) 1/18/97";
+static char sccsid[] = "@(#)savemail.c	8.110 (Berkeley) 4/7/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -349,13 +349,13 @@ savemail(e, sendbody)
 			/* we have a home directory; write dead.letter */
 			define('z', p, e);
 			expand("\201z/dead.letter", buf, sizeof buf, e);
-			flags = SFF_NOSLINK|SFF_CREAT|SFF_REGONLY|SFF_RUNASREALUID;
+			flags = SFF_NOLINK|SFF_CREAT|SFF_REGONLY|SFF_RUNASREALUID;
 			e->e_to = buf;
 			if (mailfile(buf, NULL, flags, e) == EX_OK)
 			{
-				bool oldverb = Verbose;
+				int oldverb = Verbose;
 
-				Verbose = TRUE;
+				Verbose = 1;
 				message("Saved message in %s", buf);
 				Verbose = oldverb;
 				state = ESM_DONE;
@@ -383,7 +383,7 @@ savemail(e, sendbody)
 
 			snprintf(buf, sizeof buf, "%sdead.letter", _PATH_VARTMP);
 
-			flags = SFF_NOSLINK|SFF_CREAT|SFF_REGONLY|SFF_ROOTOK|SFF_OPENASROOT;
+			flags = SFF_NOLINK|SFF_CREAT|SFF_REGONLY|SFF_OPENASROOT|SFF_MUSTOWN;
 			if (!writable(buf, NULL, flags) ||
 			    (fp = safefopen(buf, O_WRONLY|O_CREAT|O_APPEND,
 					    FileMode, flags)) == NULL)
@@ -407,15 +407,15 @@ savemail(e, sendbody)
 				state = ESM_PANIC;
 			else
 			{
-				bool oldverb = Verbose;
+				int oldverb = Verbose;
 
-				Verbose = TRUE;
+				Verbose = 1;
 				message("Saved message in %s", buf);
 				Verbose = oldverb;
-#ifdef LOG
 				if (LogLevel > 3)
-					syslog(LOG_NOTICE, "Saved message in %s", buf);
-#endif
+					sm_syslog(LOG_NOTICE, e->e_id,
+						"Saved message in %s",
+						buf);
 				state = ESM_DONE;
 			}
 			(void) xfclose(fp, "savemail", buf);
@@ -550,7 +550,6 @@ returntosender(msg, returnq, flags, e)
 			addheader("To", q->q_paddr, &ee->e_header);
 	}
 
-# ifdef LOG
 	if (LogLevel > 5)
 	{
 		if (bitset(EF_RESPONSE|EF_WARNING, e->e_flags))
@@ -559,10 +558,10 @@ returntosender(msg, returnq, flags, e)
 			p = "postmaster notify";
 		else
 			p = "DSN";
-		syslog(LOG_INFO, "%s: %s: %s: %s",
-			e->e_id, ee->e_id, p, shortenstring(msg, 203));
+		sm_syslog(LOG_INFO, e->e_id,
+			"%s: %s: %s",
+			ee->e_id, p, shortenstring(msg, 203));
 	}
-# endif
 
 	if (SendMIMEErrors)
 	{
@@ -759,11 +758,15 @@ errbody(mci, e, separator)
 	{
 		if (*ErrMsgFile == '/')
 		{
-			xfile = fopen(ErrMsgFile, "r");
+			xfile = safefopen(ErrMsgFile, O_RDONLY, 0444,
+					  SFF_ROOTOK|SFF_REGONLY);
 			if (xfile != NULL)
 			{
 				while (fgets(buf, sizeof buf, xfile) != NULL)
 				{
+#if _FFR_BUG_FIX
+					translate_dollars(buf);
+#endif
 					expand(buf, buf, sizeof buf, e);
 					putline(buf, mci);
 				}
@@ -1223,7 +1226,7 @@ smtptodsn(smtpstat)
 		return "5.2.2";
 
 	  case 553:	/* Req action not taken: mailbox name not allowed */
-		return "5.1.3";
+		return "5.1.0";
 
 	  case 554:	/* Transaction failed */
 		return "5.0.0";

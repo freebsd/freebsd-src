@@ -40,7 +40,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mailstats.c	8.8 (Berkeley) 9/25/96";
+static char sccsid[] = "@(#)mailstats.c	8.10 (Berkeley) 5/30/97";
 #endif /* not lint */
 
 #define NOT_SENDMAIL
@@ -66,7 +66,7 @@ main(argc, argv)
 	bool mnames;
 	long frmsgs = 0, frbytes = 0, tomsgs = 0, tobytes = 0;
 	char mtable[MAXMAILERS][MNAMELEN+1];
-	char sfilebuf[100];
+	char sfilebuf[MAXLINE];
 	char buf[MAXLINE];
 	extern char *ctime();
 
@@ -145,6 +145,13 @@ main(argc, argv)
 			}
 
 			/* this is the S or StatusFile option -- save it */
+			if (strlen(b) >= sizeof sfilebuf)
+			{
+				fprintf(stderr,
+					"StatusFile filename too long: %.30s...\n",
+					s);
+				exit(EX_CONFIG);
+			}
 			strcpy(sfilebuf, b);
 			b = strchr(sfilebuf, '#');
 			if (b == NULL)

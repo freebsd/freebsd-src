@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -37,13 +37,17 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.159 (Berkeley) 1/14/97 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.175 (Berkeley) 6/1/97 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.159 (Berkeley) 1/14/97 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.175 (Berkeley) 6/1/97 (without daemon mode)";
 #endif
 #endif /* not lint */
 
-#if DAEMON || defined(SOCK_STREAM)
+#if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
+# define USE_SOCK_STREAM	1
+#endif
+
+#if DAEMON || defined(USE_SOCK_STREAM)
 # include <arpa/inet.h>
 # if NAMED_BIND
 #  include <resolv.h>
@@ -54,6 +58,8 @@ static char sccsid[] = "@(#)daemon.c	8.159 (Berkeley) 1/14/97 (without daemon mo
 #endif
 
 #if DAEMON
+
+# include <sys/time.h>
 
 # if IP_SRCROUTE
 #  include <netinet/in_systm.h>
@@ -166,8 +172,12 @@ getrequests(e)
 
 	/* write the pid to the log file for posterity */
 	pidf = safefopen(PidFile, O_WRONLY|O_CREAT|O_TRUNC, 0644,
-			 SFF_NOSLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT);
-	if (pidf != NULL)
+			 SFF_NOLINK|SFF_ROOTOK|SFF_REGONLY|SFF_CREAT);
+	if (pidf == NULL)
+	{
+		sm_syslog(LOG_ERR, NOQID, "unable to write %s", PidFile);
+	}
+	else
 	{
 		extern char *CommandLineArgs;
 
@@ -200,7 +210,6 @@ getrequests(e)
 		int savederrno;
 		int pipefd[2];
 		extern bool refuseconnections();
-		extern int getla();
 
 		/* see if we are rejecting connections */
 		(void) blocksignal(SIGALRM);
@@ -234,13 +243,15 @@ getrequests(e)
 			if (!wordinclass(jbuf, 'w'))
 			{
 				dumpstate("daemon lost $j");
-				syslog(LOG_ALERT, "daemon process doesn't have $j in $=w; see syslog");
+				sm_syslog(LOG_ALERT, NOQID,
+					"daemon process doesn't have $j in $=w; see syslog");
 				abort();
 			}
 			else if (j_has_dot && strchr(jbuf, '.') == NULL)
 			{
 				dumpstate("daemon $j lost dot");
-				syslog(LOG_ALERT, "daemon process $j lost dot; see syslog");
+				sm_syslog(LOG_ALERT, NOQID,
+					"daemon process $j lost dot; see syslog");
 				abort();
 			}
 		}
@@ -260,13 +271,29 @@ getrequests(e)
 			log an error here;
 #endif
 		(void) releasesignal(SIGALRM);
-		do
+		for (;;)
 		{
+			fd_set readfds;
+			struct timeval timeout;
+
+			FD_ZERO(&readfds);
+			FD_SET(DaemonSocket, &readfds);
+			timeout.tv_sec = 60;
+			timeout.tv_usec = 0;
+
+			t = select(DaemonSocket + 1, &readfds, NULL, NULL, &timeout);
+			if (DoQueueRun)
+				(void) runqueue(TRUE, FALSE);
+			if (t <= 0 || !FD_ISSET(DaemonSocket, &readfds))
+				continue;
+
 			errno = 0;
 			lotherend = socksize;
 			t = accept(DaemonSocket,
 			    (struct sockaddr *)&RealHostAddr, &lotherend);
-		} while (t < 0 && errno == EINTR);
+			if (t >= 0 || errno != EINTR)
+				break;
+		}
 		savederrno = errno;
 		(void) blocksignal(SIGALRM);
 		if (t < 0)
@@ -381,6 +408,9 @@ getrequests(e)
 			OutChannel = outchannel;
 			DisConnected = FALSE;
 
+			/* open maps for check_relay ruleset */
+			initmaps(FALSE, e);
+
 			/* validate the connection */
 			HoldErrs = TRUE;
 			nullconn = !validate_connection(&RealHostAddr, RealHostName, e);
@@ -463,10 +493,9 @@ opendaemonsocket(firsttime)
 				saveerrno = errno;
 				syserr("opendaemonsocket: can't create server SMTP socket");
 			  severe:
-# ifdef LOG
 				if (LogLevel > 0)
-					syslog(LOG_ALERT, "problem creating SMTP socket");
-# endif /* LOG */
+					sm_syslog(LOG_ALERT, NOQID,
+						"problem creating SMTP socket");
 				DaemonSocket = -1;
 				continue;
 			}
@@ -747,7 +776,7 @@ makeconnection(host, port, mci, e)
 	register MCI *mci;
 	ENVELOPE *e;
 {
-	register volatile int i = 0;
+	register volatile int addrno = 0;
 	register volatile int s;
 	register struct hostent *volatile hp = (struct hostent *)NULL;
 	SOCKADDR addr;
@@ -870,7 +899,7 @@ gothostent:
 				hp->h_length);
 			break;
 		}
-		i = 1;
+		addrno = 1;
 	}
 
 	/*
@@ -883,10 +912,9 @@ gothostent:
 
 		if (sp == NULL)
 		{
-#ifdef LOG
 			if (LogLevel > 2)
-				syslog(LOG_ERR, "makeconnection: service \"smtp\" unknown");
-#endif
+				sm_syslog(LOG_ERR, NOQID,
+					"makeconnection: service \"smtp\" unknown");
 			port = htons(25);
 		}
 		else
@@ -988,22 +1016,23 @@ gothostent:
 
 		if (setjmp(CtxConnectTimeout) == 0)
 		{
+			int i;
+
 			if (e->e_ntries <= 0 && TimeOuts.to_iconnect != 0)
 				ev = setevent(TimeOuts.to_iconnect, connecttimeout, 0);
 			else if (TimeOuts.to_connect != 0)
 				ev = setevent(TimeOuts.to_connect, connecttimeout, 0);
 			else
 				ev = NULL;
-			if (connect(s, (struct sockaddr *) &addr, addrlen) >= 0)
-			{
-				if (ev != NULL)
-					clrevent(ev);
+			i = connect(s, (struct sockaddr *) &addr, addrlen);
+			sav_errno = errno;
+			if (ev != NULL)
+				clrevent(ev);
+			if (i >= 0)
 				break;
-			}
 		}
-		sav_errno = errno;
-		if (ev != NULL)
-			clrevent(ev);
+		else
+			sav_errno = errno;
 
 		/* if running demand-dialed connection, try again */
 		if (DialDelay > 0 && firstconnect)
@@ -1018,7 +1047,7 @@ gothostent:
 
 		/* couldn't connect.... figure out why */
 		(void) close(s);
-		if (hp != NULL && hp->h_addr_list[i])
+		if (hp != NULL && hp->h_addr_list[addrno])
 		{
 			if (tTd(16, 1))
 				printf("Connect failed (%s); trying new address....\n",
@@ -1027,14 +1056,14 @@ gothostent:
 			{
 #if NETINET
 			  case AF_INET:
-				bcopy(hp->h_addr_list[i++],
+				bcopy(hp->h_addr_list[addrno++],
 				      &addr.sin.sin_addr,
 				      INADDRSZ);
 				break;
 #endif
 
 			  default:
-				bcopy(hp->h_addr_list[i++],
+				bcopy(hp->h_addr_list[addrno++],
 					addr.sa.sa_data,
 					hp->h_length);
 				break;
@@ -1129,19 +1158,17 @@ myhostname(hostbuf, size)
 	if (strchr(hostbuf, '.') == NULL &&
 	    !getcanonname(hostbuf, size, TRUE))
 	{
-#ifdef LOG
-		syslog(LOG_CRIT, "My unqualified host name (%s) unknown; sleeping for retry",
+		sm_syslog(LOG_CRIT, NOQID,
+			"My unqualified host name (%s) unknown; sleeping for retry",
 			hostbuf);
-#endif
 		message("My unqualified host name (%s) unknown; sleeping for retry",
 			hostbuf);
 		sleep(60);
 		if (!getcanonname(hostbuf, size, TRUE))
 		{
-#ifdef LOG
-			syslog(LOG_ALERT, "unable to qualify my own domain name (%s) -- using short name",
+			sm_syslog(LOG_ALERT, NOQID,
+				"unable to qualify my own domain name (%s) -- using short name",
 				hostbuf);
-#endif
 			message("WARNING: unable to qualify my own domain name (%s) -- using short name",
 				hostbuf);
 		}
@@ -1181,6 +1208,9 @@ getauthinfo(fd)
 	int i;
 	EVENT *ev;
 	int nleft;
+	struct hostent *hp;
+	char **ha;
+	bool may_be_forged;
 	char ibuf[MAXNAME + 1];
 	static char hbuf[MAXNAME * 2 + 2];
 
@@ -1201,6 +1231,30 @@ getauthinfo(fd)
 		RealHostName = newstr(hostnamebyanyaddr(&RealHostAddr));
 		if (strlen(RealHostName) > MAXNAME)
 			RealHostName[MAXNAME - 1] = '\0';
+	}
+
+	/* cross check RealHostName with forward DNS lookup */
+	if (anynet_ntoa(&RealHostAddr)[0] == '[')
+	{
+		/* address is not a socket */
+		may_be_forged = FALSE;
+	}
+	else
+	{
+		/* try to match the reverse against the forward lookup */
+		hp = gethostbyname(RealHostName);
+
+		if (hp == NULL)
+			may_be_forged = TRUE;
+		else
+		{
+			for (ha = hp->h_addr_list; *ha != NULL; ha++)
+				if (bcmp(*ha,
+					 (char *) &RealHostAddr.sin.sin_addr,
+					 hp->h_length) == 0)
+					break;
+			may_be_forged = *ha == NULL;
+		}
 	}
 
 	if (TimeOuts.to_ident == 0)
@@ -1340,6 +1394,9 @@ noident:
 
 postident:
 #if IP_SRCROUTE
+# ifndef GET_IPOPT_DST
+#  define GET_IPOPT_DST(dst)	(dst)
+# endif
 	/*
 	**  Extract IP source routing information.
 	**
@@ -1383,21 +1440,31 @@ postident:
 
 			  case IPOPT_SSRR:
 			  case IPOPT_LSRR:
+				/*
+				**  Source routing.
+				**	o[0] is the option type (loose/strict).
+				**	o[1] is the length of this option,
+				**		including option type and
+				**		length.
+				**	o[2] is the pointer into the route
+				**		data.
+				**	o[3] begins the route data.
+				*/
+
 				p = &hbuf[strlen(hbuf)];
 				l = sizeof hbuf - (hbuf - p) - 6;
 				snprintf(p, SPACELEFT(hbuf, p), " [%s@%.*s",
 				    *o == IPOPT_SSRR ? "!" : "",
 				    l > 240 ? 120 : l / 2,
-				    inet_ntoa(ipopt.ipopt_dst));
+				    inet_ntoa(GET_IPOPT_DST(ipopt.ipopt_dst)));
 				i = strlen(p);
 				p += i;
 				l -= strlen(p);
 
-				/* o[1] is option length */
-				j = *++o / sizeof(struct in_addr) - 1;
+				j = o[1] / sizeof(struct in_addr) - 1;
 
 				/* q skips length and router pointer to data */
-				q = o + 2;
+				q = &o[3];
 				for ( ; j >= 0; j--)
 				{
 					memcpy(&addr, q, sizeof(addr));
@@ -1412,7 +1479,7 @@ postident:
 					l -= i + 1;
 					q += sizeof(struct in_addr); 
 				}
-				o += *o;
+				o += o[1];
 				break;
 
 			  default:
@@ -1433,6 +1500,11 @@ noipsr:
 		(void) snprintf(p, SPACELEFT(hbuf, p), " [%.100s]",
 			anynet_ntoa(&RealHostAddr));
 	}
+	if (may_be_forged)
+	{
+		p = &hbuf[strlen(hbuf)];
+		(void) snprintf(p, SPACELEFT(hbuf, p), " (may be forged)");
+	}
 
 postipsr:
 	if (tTd(9, 1))
@@ -1443,7 +1515,7 @@ postipsr:
 **  HOST_MAP_LOOKUP -- turn a hostname into canonical form
 **
 **	Parameters:
-**		map -- a pointer to this map (unused).
+**		map -- a pointer to this map.
 **		name -- the (presumably unqualified) hostname.
 **		av -- unused -- for compatibility with other mapping
 **			functions.
@@ -1457,7 +1529,8 @@ postipsr:
 **	Side Effects:
 **		Looks up the host specified in hbuf.  If it is not
 **		the canonical name for that host, return the canonical
-**		name.
+**		name (unless MF_MATCHONLY is set, which will cause the
+**		status only to be returned).
 */
 
 char *
@@ -1498,7 +1571,16 @@ host_map_lookup(map, name, av, statp)
 			message("851 %s: Name server timeout",
 				shortenstring(name, 33));
 		}
-		return s->s_namecanon.nc_cname;
+		if (*statp != EX_OK)
+			return NULL;
+		if (bitset(MF_MATCHONLY, map->map_mflags))
+			cp = map_rewrite(map, name, strlen(name), NULL);
+		else
+			cp = map_rewrite(map,
+					 s->s_namecanon.nc_cname,
+					 strlen(s->s_namecanon.nc_cname),
+					 av);
+		return cp;
 	}
 
 	/*
@@ -1532,16 +1614,12 @@ host_map_lookup(map, name, av, statp)
 		{
 			if (tTd(9, 1))
 				printf("%s\n", hbuf);
+			s->s_namecanon.nc_stat = EX_OK;
+			s->s_namecanon.nc_cname = newstr(hbuf);
 			if (bitset(MF_MATCHONLY, map->map_mflags))
-			{
-				cp = map_rewrite(map, name, strlen(name), av);
-				s->s_namecanon.nc_cname = newstr(hbuf);
-			}
+				cp = map_rewrite(map, name, strlen(name), NULL);
 			else
-			{
 				cp = map_rewrite(map, hbuf, strlen(hbuf), av);
-				s->s_namecanon.nc_cname = newstr(cp);
-			}
 			return cp;
 		}
 		else
@@ -1589,6 +1667,7 @@ host_map_lookup(map, name, av, statp)
 		return (NULL);
 	*cp = '\0';
 	in_addr.s_addr = inet_addr(&name[1]);
+	*cp = ']';
 
 	/* nope -- ask the name server */
 	hp = sm_gethostbyaddr((char *)&in_addr, INADDRSZ, AF_INET);
@@ -1604,9 +1683,12 @@ host_map_lookup(map, name, av, statp)
 	}
 
 	/* found a match -- copy out */
-	cp = map_rewrite(map, (char *) hp->h_name, strlen(hp->h_name), av);
 	s->s_namecanon.nc_stat = *statp = EX_OK;
-	s->s_namecanon.nc_cname = newstr(cp);
+	s->s_namecanon.nc_cname = newstr(hp->h_name);
+	if (bitset(MF_MATCHONLY, map->map_mflags))
+		cp = map_rewrite(map, name, strlen(name), NULL);
+	else
+		cp = map_rewrite(map, hp->h_name, strlen(hp->h_name), av);
 	return cp;
 }
 
@@ -1688,15 +1770,62 @@ host_map_lookup(map, name, avp, statp)
 	char *statp;
 {
 	register struct hostent *hp;
+	char *cp;
 
 	hp = sm_gethostbyname(name);
-	if (hp != NULL)
-		return hp->h_name;
-	*statp = EX_NOHOST;
-	return NULL;
+	if (hp == NULL)
+	{
+		*statp = EX_NOHOST;
+		return NULL;
+	}
+	if (bitset(MF_MATCHONLY, map->map_mflags))
+		cp = map_rewrite(map, name, strlen(name), NULL);
+	else
+		cp = map_rewrite(map, hp->h_name, strlen(hp->h_name), av);
+	return cp;
 }
 
 #endif /* DAEMON */
+/*
+**  HOST_MAP_INIT -- initialize host class structures
+*/
+
+bool
+host_map_init(map, args)
+	MAP *map;
+	char *args;
+{
+	register char *p = args;
+
+	for (;;)
+	{
+		while (isascii(*p) && isspace(*p))
+			p++;
+		if (*p != '-')
+			break;
+		switch (*++p)
+		{
+		  case 'a':
+			map->map_app = ++p;
+			break;
+
+		  case 'm':
+			map->map_mflags |= MF_MATCHONLY;
+			break;
+
+		  case 't':
+			map->map_mflags |= MF_NODEFER;
+			break;
+		}
+		while (*p != '\0' && !(isascii(*p) && isspace(*p)))
+			p++;
+		if (*p != '\0')
+			*p++ = '\0';
+	}
+	if (map->map_app != NULL)
+		map->map_app = newstr(map->map_app);
+	return TRUE;
+}
 /*
 **  ANYNET_NTOA -- convert a network address to printable form.
 **
@@ -1707,7 +1836,7 @@ host_map_lookup(map, name, avp, statp)
 **		A printable version of that sockaddr.
 */
 
-#ifdef SOCK_STREAM
+#ifdef USE_SOCK_STREAM
 
 #if NETLINK
 # include <net/if_dl.h>
