@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ksiginfo.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
