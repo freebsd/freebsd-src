@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tireg.h,v 1.43 1999/04/02 02:54:16 wpaul Exp $
+ *	$Id: if_tireg.h,v 1.44 1999/05/03 16:56:07 wpaul Exp $
  */
 
 /*
@@ -128,7 +128,7 @@
  */
 #define TI_FIRMWARE_MAJOR		0xc
 #define TI_FIRMWARE_MINOR		0x3
-#define TI_FIRMWARE_FIX			0x9
+#define TI_FIRMWARE_FIX			0xa
 
 /*
  * Miscelaneous Local Control register.
