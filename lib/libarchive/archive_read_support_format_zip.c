@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif
@@ -336,7 +337,7 @@ zip_read_data_none(struct archive *a, const void **buff,
     size_t *size, off_t *offset)
 {
 	struct zip *zip;
-	ssize_t bytes_read;
+	ssize_t bytes_avail;
 
 	zip = *(a->pformat_data);
 
@@ -346,18 +347,22 @@ zip_read_data_none(struct archive *a, const void **buff,
 		*offset = zip->entry_offset;
 		return (ARCHIVE_EOF);
 	}
-
-	bytes_read = (a->compression_read_ahead)(a, buff,
-	    zip->entry_bytes_remaining);
-	if (bytes_read <= 0) {
+	/*
+	 * Note: '1' here is a performance optimization.
+	 * Recall that the decompression layer returns a count of
+	 * available bytes; asking for more than that forces the
+	 * decompressor to combine reads by copying data.
+	 */
+	bytes_avail = (a->compression_read_ahead)(a, buff, 1);
+	if (bytes_avail <= 0) {
 		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file data");
 		return (ARCHIVE_FATAL);
 	}
-	if (bytes_read > zip->entry_bytes_remaining)
-		bytes_read = zip->entry_bytes_remaining;
-	(a->compression_read_consume)(a, bytes_read);
-	*size = bytes_read;
+	if (bytes_avail > zip->entry_bytes_remaining)
+		bytes_avail = zip->entry_bytes_remaining;
+	(a->compression_read_consume)(a, bytes_avail);
+	*size = bytes_avail;
 	*offset = zip->entry_offset;
 	zip->entry_offset += *size;
 	zip->entry_bytes_remaining -= *size;
@@ -370,7 +375,7 @@ zip_read_data_deflate(struct archive *a, const void **buff,
     size_t *size, off_t *offset)
 {
 	struct zip *zip;
-	ssize_t bytes_read;
+	ssize_t bytes_avail;
 	const void *compressed_buff;
 	int r;
 
@@ -399,16 +404,20 @@ zip_read_data_deflate(struct archive *a, const void **buff,
 		}
 	}
 
-	/* Read the next block of compressed data. */
-	bytes_read = (a->compression_read_ahead)(a, &compressed_buff,
-	    zip->entry_bytes_remaining);
-	if (bytes_read <= 0) {
+	/*
+	 * Note: '1' here is a performance optimization.
+	 * Recall that the decompression layer returns a count of
+	 * available bytes; asking for more than that forces the
+	 * decompressor to combine reads by copying data.
+	 */
+	bytes_avail = (a->compression_read_ahead)(a, &compressed_buff, 1);
+	if (bytes_avail <= 0) {
 		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file body");
 		return (ARCHIVE_FATAL);
 	}
-	if (bytes_read > zip->entry_bytes_remaining)
-		bytes_read = zip->entry_bytes_remaining;
+	if (bytes_avail > zip->entry_bytes_remaining)
+		bytes_avail = zip->entry_bytes_remaining;
 
 	/*
 	 * A bug in zlib.h: stream.next_in should be marked 'const'
@@ -417,7 +426,7 @@ zip_read_data_deflate(struct archive *a, const void **buff,
 	 * cast to remove 'const'.
 	 */
 	zip->stream.next_in = (void *)(uintptr_t)(const void *)compressed_buff;
-	zip->stream.avail_in = bytes_read;
+	zip->stream.avail_in = bytes_avail;
 	zip->stream.total_in = 0;
 	zip->stream.next_out = zip->uncompressed_buffer;
 	zip->stream.avail_out = zip->uncompressed_buffer_size;
@@ -441,9 +450,9 @@ zip_read_data_deflate(struct archive *a, const void **buff,
 	}
 
 	/* Consume as much as the compressor actually used. */
-	bytes_read = zip->stream.total_in;
-	(a->compression_read_consume)(a, bytes_read);
-	zip->entry_bytes_remaining -= bytes_read;
+	bytes_avail = zip->stream.total_in;
+	(a->compression_read_consume)(a, bytes_avail);
+	zip->entry_bytes_remaining -= bytes_avail;
 
 
 	*offset = zip->entry_offset;
@@ -471,7 +480,7 @@ zip_read_data_skip(struct archive *a, const void **buff,
     size_t *size, off_t *offset)
 {
 	struct zip *zip;
-	ssize_t bytes_read;
+	ssize_t bytes_avail;
 
 	zip = *(a->pformat_data);
 
@@ -483,17 +492,16 @@ zip_read_data_skip(struct archive *a, const void **buff,
 
 	/* Skip body of entry. */
 	while (zip->entry_bytes_remaining > 0) {
-		bytes_read = (a->compression_read_ahead)(a, buff,
-		    zip->entry_bytes_remaining);
-		if (bytes_read <= 0) {
+		bytes_avail = (a->compression_read_ahead)(a, buff, 1);
+		if (bytes_avail <= 0) {
 			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated ZIP file body");
 			return (ARCHIVE_FATAL);
 		}
-		if (bytes_read > zip->entry_bytes_remaining)
-			bytes_read = zip->entry_bytes_remaining;
-		(a->compression_read_consume)(a, bytes_read);
-		zip->entry_bytes_remaining -= bytes_read;
+		if (bytes_avail > zip->entry_bytes_remaining)
+			bytes_avail = zip->entry_bytes_remaining;
+		(a->compression_read_consume)(a, bytes_avail);
+		zip->entry_bytes_remaining -= bytes_avail;
 	}
 	return (ARCHIVE_OK);
 }
