@@ -86,7 +86,7 @@ struct socket {
 /*
  * Variables for socket buffering.
  */
-	struct	sockbuf {
+	struct sockbuf {
 		u_long	sb_cc;		/* actual chars in buffer */
 		u_long	sb_hiwat;	/* max actual char count */
 		u_long	sb_mbcnt;	/* chars of mbufs used */
@@ -114,7 +114,7 @@ struct socket {
 	/* NB: generation count must not be first; easiest to make it last. */
 	so_gen_t so_gencnt;		/* generation count */
 	void	*so_emuldata;		/* private data for emulators */
-	struct	so_accf { 
+	struct so_accf { 
 		struct	accept_filter *so_accept_filter;
 		void	*so_accept_filter_arg;	/* saved filter args */
 		char	*so_accept_filter_str;	/* saved user args */
@@ -160,7 +160,7 @@ struct xsocket {
 	u_short	so_error;
 	pid_t	so_pgid;
 	u_long	so_oobmark;
-	struct	xsockbuf {
+	struct xsockbuf {
 		u_long	sb_cc;
 		u_long	sb_hiwat;
 		u_long	sb_mbcnt;

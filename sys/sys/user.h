@@ -180,7 +180,7 @@ void fill_kinfo_proc __P((struct proc *, struct kinfo_proc *));
  * in all processes.
  */
 
-struct	user {
+struct user {
 	struct	sigacts u_sigacts;	/* *p_sigacts */
 	struct	pstats u_stats;		/* *p_stats */
 	/*

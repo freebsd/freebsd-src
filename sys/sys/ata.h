@@ -197,7 +197,7 @@ struct ata_cmd {
 	struct {
 	    int			mode[2];
 	} mode;
-	struct	{
+	struct {
 	    int			type[2];
 	    char		name[2][32];
 	    struct ata_params	params[2];

@@ -66,7 +66,7 @@ struct file {
 	int	f_count;	/* reference count */
 	int	f_msgcount;	/* references from message queue */
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
-	struct	fileops {
+	struct fileops {
 		int	(*fo_read)	__P((struct file *fp, struct uio *uio,
 					    struct ucred *cred, int flags,
 					    struct thread *td));
