@@ -207,8 +207,9 @@ show_ip6fw(struct ip6_fw *chain)
 		if (chain->timestamp)
 		{
 			char timestr[30];
+			time_t t = long_to_time(chain->timestamp);
 
-			strcpy(timestr, ctime((time_t *)&chain->timestamp));
+			strcpy(timestr, ctime(&t));
 			*strchr(timestr, '\n') = '\0';
 			printf("%s ", timestr);
 		}
