@@ -1,3 +1,3 @@
-SUBDIR=		installboot libi386 loader
+SUBDIR=		btx libi386 loader
 
 .include <bsd.subdir.mk>

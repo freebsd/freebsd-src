@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: biosdisk.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 /*
@@ -42,7 +42,8 @@
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 
-#include "bootstrap.h"
+#include <bootstrap.h>
+#include <btxv86.h>
 #include "libi386.h"
 #include "crt/biosdisk_ll.h"
 
@@ -55,21 +56,13 @@
 # define D(x)
 #endif
 
-/* biosdisk_support.S */
-extern u_long	bd_int13fn8(int unit);
-
-static int	bd_edd3probe(int unit);
-static int	bd_edd1probe(int unit);
-static int	bd_int13probe(int unit);
-
-static int	bd_init(void);
-static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
-static int	bd_open(struct open_file *f, void *vdev);
-static int	bd_close(struct open_file *f);
 
 struct open_disk {
-    struct biosdisk_ll	od_ll;			/* contains bios unit, geometry (XXX absorb) */
-    int			od_unit;		/* our unit number */
+    int			od_dkunit;		/* disk unit number */
+    int			od_unit;		/* BIOS unit number */
+    int			od_cyl;			/* BIOS geometry */
+    int			od_hds;
+    int			od_sec;
     int			od_boff;		/* block offset from beginning of BIOS disk */
     int			od_flags;
 #define	BD_MODEMASK	0x3
@@ -79,6 +72,18 @@ struct open_disk {
 #define BD_FLOPPY	(1<<2)
     u_char		od_buf[BUFSIZE];	/* transfer buffer (do we want/need this?) */
 };
+
+static int	bd_getgeom(struct open_disk *od);
+static int	bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest);
+
+static int	bd_edd3probe(int unit);
+static int	bd_edd1probe(int unit);
+static int	bd_int13probe(int unit);
+
+static int	bd_init(void);
+static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
+static int	bd_open(struct open_file *f, void *vdev);
+static int	bd_close(struct open_file *f);
 
 struct devsw biosdisk = {
     "disk", 
@@ -162,12 +167,16 @@ bd_edd1probe(int unit)
 static int
 bd_int13probe(int unit)
 {
-    u_long	geom;
-
-    /* try int 0x13, function 8 */
-    geom = bd_int13fn8(unit);
-
-    return(geom != 0);
+    v86.ctl = V86_FLAGS;
+    v86.addr = 0x13;
+    v86.eax = 0x800;
+    v86.edx = unit;
+    v86int();
+    
+    if (!(v86.efl & 0x1) &&			/* carry clear */
+	((v86.edx & 0xff) > unit & 0x7f))	/* unit # OK */
+	return(1);
+    return(0);
 }
 
 /*
@@ -202,9 +211,9 @@ bd_open(struct open_file *f, void *vdev)
     }
 
     /* Look up BIOS unit number, intialise open_disk structure */
-    od->od_unit = dev->d_kind.biosdisk.unit;
-    od->od_ll.dev = bdinfo[od->od_unit].bd_unit;
-    od->od_flags = bdinfo[od->od_unit].bd_flags;
+    od->od_dkunit = dev->d_kind.biosdisk.unit;
+    od->od_unit = bdinfo[od->od_dkunit].bd_unit;
+    od->od_flags = bdinfo[od->od_dkunit].bd_flags;
     od->od_boff = 0;
     error = 0;
 #if 0
@@ -214,7 +223,7 @@ bd_open(struct open_file *f, void *vdev)
 #endif
 
     /* Get geometry for this open (removable device may have changed) */
-    if (set_geometry(&od->od_ll)) {
+    if (bd_getgeom(od)) {
 	D(printf("bd_open: can't get geometry\n"));
 	error = ENXIO;
 	goto out;
@@ -229,7 +238,7 @@ bd_open(struct open_file *f, void *vdev)
     /*
      * Find the slice in the DOS slice table.
      */
-    if (readsects(&od->od_ll, 0, 1, od->od_buf, 0)) {
+    if (bd_read(od, 0, 1, od->od_buf)) {
 	D(printf("bd_open: error reading MBR\n"));
 	error = EIO;
 	goto out;
@@ -292,7 +301,7 @@ bd_open(struct open_file *f, void *vdev)
 	D(printf("bd_open: opening raw slice\n"));
     } else {
 	
-	if (readsects(&od->od_ll, sector + LABELSECTOR, 1, od->od_buf, 0)) {
+	if (bd_read(od, sector + LABELSECTOR, 1, od->od_buf)) {
 	    D(printf("bd_open: error reading disklabel\n"));
 	    error = EIO;
 	    goto out;
@@ -348,11 +357,11 @@ bd_close(struct open_file *f)
 #if 0
     D(printf("bd_close: open_disk %p\n", od));
 #endif
-
+#if 0
     /* XXX is this required? (especially if disk already open...) */
     if (od->od_flags & BD_FLOPPY)
 	delay(3000000);
-
+#endif
     free(od);
     return(0);
 }
@@ -387,7 +396,7 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
 
     if (rsize)
 	*rsize = 0;
-    if (blks && readsects(&od->od_ll, dblk + od->od_boff, blks, buf, 0)) {
+    if (blks && bd_read(od, dblk + od->od_boff, blks, buf)) {
 	D(printf("read error\n"));
 	return (EIO);
     }
@@ -396,7 +405,7 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
     D(printf("bd_strategy: frag read %d from %d+%d+d to %p\n", 
 #endif
 	     fragsize, od->od_boff, dblk, blks, buf + (blks * BIOSDISK_SECSIZE)));
-    if (fragsize && readsects(&od->od_ll, dblk + od->od_boff + blks, 1, fragsize, 0)) {
+    if (fragsize && bd_read(od, dblk + od->od_boff + blks, 1, fragsize)) {
 	D(printf("frag read error\n"));
 	return(EIO);
     }
@@ -405,4 +414,65 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t 
     if (rsize)
 	*rsize = size;
     return (0);
+}
+
+static int
+bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
+{
+    int		x, bpc, cyl, hd, sec;
+    
+    bpc = (od->od_sec * od->od_hds);		/* blocks per cylinder */
+    v86.ctl = V86_FLAGS;
+    v86.addr = 0x13;
+    
+    while (blks != 0) {
+	x = dblk;
+	cyl = x / bpc;			/* block # / blocks per cylinder */
+	x %= bpc;			/* block offset into cylinder */
+	hd = x / od->od_sec;		/* offset / blocks per track */
+	sec = x % od->od_sec;		/* offset into track */
+
+	/* play it safe and don't cross track boundaries */
+	x = min (od->od_sec - sec, blks);
+
+	/* correct sector number for 1-based BIOS numbering */
+	sec++;
+	
+	/* build request  XXX support EDD requests too */
+	v86.eax = 0x200 | x;
+	v86.ecx = ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec;
+	v86.edx = (hd << 8) | od->od_unit;
+	v86.es = V86SEG(dest);
+	v86.ebx = V86OFS(dest);
+	v86int();
+	if (v86.efl & 0x1)
+	    return(-1);
+	
+	dest + (x * BIOSDISK_SECSIZE);
+	dblk += x;
+	blks -= x;
+    }
+    return(0);
+}
+
+static int
+bd_getgeom(struct open_disk *od)
+{
+
+    v86.ctl = V86_FLAGS;
+    v86.addr = 0x13;
+    v86.eax = 0x800;
+    v86.edx = od->od_unit;
+    v86int();
+
+    if ((v86.efl & 0x1) ||				/* carry set */
+	((v86.edx & 0xff) <= (od->od_unit & 0x7f)))	/* unit # bad */
+	return(1);
+    
+    /* convert max cyl # -> # of cylinders */
+    od->od_cyl = ((v86.ecx & 0xc0) << 2) + ((v86.ecx & 0xff00) >> 8) + 1;
+    /* convert max head # -> # of heads */
+    od->od_hds = ((v86.edx & 0xff00) >> 8) + 1;
+    od->od_sec = v86.ecx & 0x3f;
+    return(0);
 }

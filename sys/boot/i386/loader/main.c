@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.3 1998/09/03 02:10:09 msmith Exp $
+ *	$Id: main.c,v 1.4 1998/09/14 18:27:06 msmith Exp $
  */
 
 /*
@@ -36,8 +36,7 @@
 
 #include "bootstrap.h"
 #include "libi386/libi386.h"
-
-extern int		boot_biosdev;	/* from runtime startup */
+#include "btxv86.h"
 
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
@@ -45,8 +44,6 @@ struct arch_switch	archsw;		/* MI/MD interface boundary */
 extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 
 /* XXX debugging */
-#include "libi386/crt/diskbuf.h"
-extern char stackbase, stacktop;
 extern char end[];
 
 void
@@ -56,10 +53,11 @@ main(void)
     int			i;
 
     /* 
-     * Initialise the heap as early as possible.  Once this is done, alloc() is usable.
-     * The stack is buried inside us, so this is safe 
+     * Initialise the heap as early as possible.  Once this is done, malloc() is usable.
+     *
+     * XXX better to locate end of memory and use that
      */
-    setheap((void *)end, (void *)(end + 0x80000));
+    setheap((void *)end, (void *)(end + (384 * 1024)));
     
     /* 
      * XXX Chicken-and-egg problem; we want to have console output early, but some
@@ -89,7 +87,7 @@ main(void)
     /* We're booting from a BIOS disk, try to spiff this */
     currdev.d_dev = devsw[0];				/* XXX presumes that biosdisk is first in devsw */
     currdev.d_type = currdev.d_dev->dv_type;
-    currdev.d_kind.biosdisk.unit = boot_biosdev;
+    currdev.d_kind.biosdisk.unit = 0;			/* XXX wrong, need to get from bootinfo etc. */
     currdev.d_kind.biosdisk.slice = -1;			/* XXX should be able to detect this, default to autoprobe */
     currdev.d_kind.biosdisk.partition = 0;		/* default to 'a' */
     
@@ -121,13 +119,21 @@ command_reboot(int argc, char *argv[])
 
     printf("Rebooting...\n");
     delay(1000000);
-    reboot();
-    /* Note: we shouldn't get to this point! */
-    panic("Reboot failed!");
-    exit(0);
+    __exit(0);
 }
 
+/* provide this for panic */
+void
+exit(int code)
+{
+    __exit(code);
+}
+
+#if 0 /* XXX learn to ask BTX */
+
 COMMAND_SET(stack, "stack", "show stack usage", command_stack);
+
+extern char stackbase, stacktop;
 
 static int
 command_stack(int argc, char *argv[])
@@ -141,6 +147,7 @@ command_stack(int argc, char *argv[])
     printf("%d bytes of stack used\n", &stacktop - cp);
     return(CMD_OK);
 }
+#endif
 
 COMMAND_SET(heap, "heap", "show heap usage", command_heap);
 

@@ -9,20 +9,27 @@
 #include <stand.h>
 
 #include "libi386.h"
+#include "btxv86.h"
 
 #define READIN_BUF	4096
 
 int
 i386_copyin(void *src, vm_offset_t dest, size_t len)
 {
-    vpbcopy(src, dest, len);
+    if (dest + len >= memtop)
+	return(0);
+
+    bcopy(src, PTOV(dest), len);
     return(len);
 }
 
 int
 i386_copyout(vm_offset_t src, void *dest, size_t len)
 {
-    pvbcopy(src, dest, len);
+    if (src + len >= memtop)
+	return(0);
+    
+    bcopy(PTOV(src), dest, len);
     return(len);
 }
 
@@ -32,6 +39,9 @@ i386_readin(int fd, vm_offset_t dest, size_t len)
 {
     void	*buf;
     size_t	resid, chunk, get, got;
+
+    if (dest + len >= memtop)
+	return(0);
 
     chunk = min(READIN_BUF, len);
     buf = malloc(chunk);
@@ -43,7 +53,7 @@ i386_readin(int fd, vm_offset_t dest, size_t len)
 	got = read(fd, buf, get);
 	if (got <= 0)
 	    break;
-	vpbcopy(buf, dest, chunk);
+	bcopy(buf, PTOV(dest), chunk);
     }
     free(buf);
     return(len - resid);
