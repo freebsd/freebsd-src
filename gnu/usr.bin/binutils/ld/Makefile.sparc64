@@ -7,7 +7,7 @@ NATIVE_EMULATION=	elf64_sparc_fbsd
 HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
-_sparc_path=	\"${TOOLS_PREFIX}/lib:${TOOLS_PREFIX}/usr/lib\"
+_sparc_path=	\"${TOOLS_PREFIX}/lib\":\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _sparc_path=	\"/usr/cross/sparc-freebsd/usr/lib\"
 .endif
