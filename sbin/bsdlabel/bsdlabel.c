@@ -504,8 +504,7 @@ l_perror(s)
 
 	case ESRCH:
 		warnx("%s: no disk label on disk;", s);
-		fprintf(stderr,
-		    "use \"disklabel -r\" to install initial label\n");
+		fprintf(stderr, "add \"-r\" to install initial label\n");
 		break;
 
 	case EINVAL:
