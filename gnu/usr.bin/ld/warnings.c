@@ -1,5 +1,5 @@
 /*
- * $Id: warnings.c,v 1.4 1993/11/05 12:45:25 pk Exp $
+ * $Id: warnings.c,v 1.2 1993/11/09 04:19:06 paul Exp $
  */
 
 #include <sys/param.h>
@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#include <sys/errno.h>
 #include <fcntl.h>
 #include <ar.h>
 #include <ranlib.h>
@@ -112,10 +113,8 @@ fatal_with_file (fmt, entry, va_alist)
  */
 void
 perror_name (name)
-     char *name;
+	char *name;
 {
-	extern int errno, sys_nerr;
-	extern char *sys_errlist[];
 	char *s;
 
 	if (errno < sys_nerr)
@@ -133,8 +132,6 @@ void
 perror_file (entry)
      struct file_entry *entry;
 {
-	extern int errno, sys_nerr;
-	extern char *sys_errlist[];
 	char *s;
 
 	if (errno < sys_nerr)
@@ -165,19 +162,17 @@ print_symbols(outfile)
 	for (i = 0; i < TABSIZE; i++) {
 		register symbol *sp;
 		for (sp = symtab[i]; sp; sp = sp->link) {
-			if (sp->defined == 1)
+			if (sp->defined == (N_UNDF|N_EXT))
 				fprintf(outfile, "  %s: common, length %#x\n",
 						sp->name, sp->max_common_size);
-			if ( sp->referenced) {
-				if (sp->defined)
-					fprintf(outfile, "  %s: %#x %#x\n",
-						sp->name, sp->value, sp->size);
-				else
-					fprintf(outfile, "  %s: undefined\n",
-						sp->name);
-			} else
+			if (!sp->referenced)
 				fprintf(outfile, "  %s: unreferenced\n",
-						sp->name);
+								sp->name);
+			else if (!sp->defined)
+				fprintf(outfile, "  %s: undefined\n", sp->name);
+			else
+				fprintf(outfile, "  %s: %#x, size %#x\n",
+						sp->name, sp->value, sp->size);
 		}
 	}
 
@@ -191,7 +186,7 @@ describe_file_sections(entry, outfile)
 {
 	fprintf(outfile, "  ");
 	print_file_name(entry, outfile);
-	if (entry->just_syms_flag)
+	if (entry->just_syms_flag || entry->is_dynamic)
 		fprintf(outfile, " symbols only\n", 0);
 	else
 		fprintf(outfile, " text %x(%x), data %x(%x), bss %x(%x) hex\n",
@@ -659,15 +654,17 @@ do_file_warnings (entry, outfile)
 		if (list_multiple_defs && g->multiply_defined) {
 			errfmt = "Definition of symbol %s (multiply defined)";
 			switch (s->n_type) {
+
 			case N_TEXT | N_EXT:
 				line_number = address_to_line (s->n_value, text_scan);
 				file_name = text_scan[0].filename;
 				break;
+
 			case N_DATA | N_EXT:
 				line_number = address_to_line (s->n_value, data_scan);
 				file_name = data_scan[0].filename;
 				break;
-#if 0
+
 			case N_SETA | N_EXT:
 			case N_SETT | N_EXT:
 			case N_SETD | N_EXT:
@@ -676,16 +673,16 @@ do_file_warnings (entry, outfile)
 					continue;
 				errfmt = "First set element definition of symbol %s (multiply defined)";
 				break;
-#endif
+
 			default:
-				/* Don't print out multiple defs
-					at references.*/
+printf("Multiple def: %s, type %#x\n", g->name, s->n_type);
+				/* Don't print out multiple defs at references.*/
 				continue;
 			}
 
-		} else if (BIT_SET_P (nlist_bitvector, i))
+		} else if (BIT_SET_P (nlist_bitvector, i)) {
 			continue;
-		else if (list_unresolved_refs && !g->defined && !g->so_defined) {
+		} else if (list_unresolved_refs && !g->defined && !g->so_defined) {
 			if (g->undef_refs >= MAX_UREFS_PRINTED)
 				continue;
 

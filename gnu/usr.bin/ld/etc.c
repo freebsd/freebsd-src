@@ -1,5 +1,5 @@
 /*
- * $Id: etc.c,v 1.4 1993/12/02 00:56:33 jkh Exp $
+ * $Id: etc.c,v 1.5 1993/12/04 00:52:55 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -85,7 +85,7 @@ fatal(fmt, va_alist)
 
 char *
 concat(s1, s2, s3)
-	char *s1, *s2, *s3;
+	const char *s1, *s2, *s3;
 {
 	register int	len1 = strlen (s1),
 			len2 = strlen (s2),
@@ -150,22 +150,6 @@ xrealloc(ptr, size)
 }
 
 
-#ifdef USG
-void
-bzero(p, n)
-	char *p;
-{
-	memset (p, 0, n);
-}
-
-void
-bcopy(from, to, n)
-	char *from, *to;
-{
-	memcpy (to, from, n);
-}
-#endif
-
 
 /* These must move */
 
@@ -192,8 +176,10 @@ mywrite (buf, count, eltsize, desc)
 	}
 }
 
-/* Output PADDING zero-bytes to descriptor OUTDESC.
-   PADDING may be negative; in that case, do nothing.  */
+/*
+ * Output PADDING zero-bytes to descriptor OUTDESC.
+ * PADDING may be negative; in that case, do nothing.
+ */
 
 void
 padfile (padding, outdesc)
