@@ -1,6 +1,6 @@
 
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: db_tsig.c,v 8.6 2000/04/21 06:54:04 vixie Exp $";
+static const char rcsid[] = "$Id: db_tsig.c,v 8.7 2001/06/18 14:42:59 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -110,7 +110,7 @@ typedef struct {
 #define TSIG_ALG_MD5 "HMAC-MD5.SIG-ALG.REG.INT"
 #define TSIG_ALG_MD5_SHORT "hmac-md5"
 
-char *
+const char *
 tsig_alg_name(int value) {
 	if (value == KEY_HMAC_MD5)
 		return(TSIG_ALG_MD5);

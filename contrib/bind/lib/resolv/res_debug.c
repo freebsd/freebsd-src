@@ -95,7 +95,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_debug.c,v 8.38 2001/02/13 23:12:56 marka Exp $";
+static const char rcsid[] = "$Id: res_debug.c,v 8.45 2001/12/19 12:05:56 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -187,7 +187,12 @@ do_section(const res_state statp,
 				ns_rr_name(rr),
 				p_type(ns_rr_type(rr)),
 				p_class(ns_rr_class(rr)));
-		else {
+		else if (section == ns_s_ar && ns_rr_type(rr) == ns_t_opt) {
+			u_int32_t ttl = ns_rr_ttl(rr);
+			fprintf(file,
+				"; EDNS: version: %u, udp=%u, flags=%04x\n",
+				(ttl>>16)&0xff, ns_rr_class(rr), ttl&0xffff);
+		} else {
 			n = ns_sprintrr(handle, &rr, NULL, NULL,
 					buf, buflen);
 			if (n < 0) {
@@ -356,32 +361,32 @@ p_fqname(const u_char *cp, const u_char *msg, FILE *file) {
  * C_ANY, but you can't have any records of that class in the database.)
  */
 const struct res_sym __p_class_syms[] = {
-	{C_IN,		"IN"},
-	{C_CHAOS,	"CHAOS"},
-	{C_HS,		"HS"},
-	{C_HS,		"HESIOD"},
-	{C_ANY,		"ANY"},
-	{C_NONE,	"NONE"},
-	{C_IN, 		(char *)0}
+	{C_IN,		"IN",		(char *)0},
+	{C_CHAOS,	"CHAOS",	(char *)0},
+	{C_HS,		"HS",		(char *)0},
+	{C_HS,		"HESIOD",	(char *)0},
+	{C_ANY,		"ANY",		(char *)0},
+	{C_NONE,	"NONE",		(char *)0},
+	{C_IN, 		(char *)0,	(char *)0}
 };
 
 /*
  * Names of message sections.
  */
 const struct res_sym __p_default_section_syms[] = {
-	{ns_s_qd,	"QUERY"},
-	{ns_s_an,	"ANSWER"},
-	{ns_s_ns,	"AUTHORITY"},
-	{ns_s_ar,	"ADDITIONAL"},
-	{0,             (char *)0}
+	{ns_s_qd,	"QUERY",	(char *)0},
+	{ns_s_an,	"ANSWER",	(char *)0},
+	{ns_s_ns,	"AUTHORITY",	(char *)0},
+	{ns_s_ar,	"ADDITIONAL",	(char *)0},
+	{0,             (char *)0,	(char *)0}
 };
 
 const struct res_sym __p_update_section_syms[] = {
-	{S_ZONE,	"ZONE"},
-	{S_PREREQ,	"PREREQUISITE"},
-	{S_UPDATE,	"UPDATE"},
-	{S_ADDT,	"ADDITIONAL"},
-	{0,             (char *)0}
+	{S_ZONE,	"ZONE",		(char *)0},
+	{S_PREREQ,	"PREREQUISITE",	(char *)0},
+	{S_UPDATE,	"UPDATE",	(char *)0},
+	{S_ADDT,	"ADDITIONAL",	(char *)0},
+	{0,             (char *)0,	(char *)0}
 };
 
 const struct res_sym __p_key_syms[] = {
@@ -536,7 +541,17 @@ sym_ntop(const struct res_sym *syms, int number, int *success) {
  */
 const char *
 p_type(int type) {
-	return (sym_ntos(__p_type_syms, type, (int *)0));
+	int success;
+	const char *result;
+	static char typebuf[20];
+
+	result = sym_ntos(__p_type_syms, type, &success);
+	if (success)
+		return (result);
+	if (type < 0 || type > 0xfff)
+		return ("BADTYPE");
+	sprintf(typebuf, "TYPE%d", type);
+	return (typebuf);
 }
 
 /*
@@ -562,7 +577,17 @@ p_section(int section, int opcode) {
  */
 const char *
 p_class(int class) {
-	return (sym_ntos(__p_class_syms, class, (int *)0));
+	int success;
+	const char *result;
+	static char classbuf[20];
+
+	result = sym_ntos(__p_class_syms, class, &success);
+	if (success)
+		return (result);
+	if (class < 0 || class > 0xfff)
+		return ("BADCLASS");
+	sprintf(classbuf, "CLASS%d", class);
+	return (classbuf);
 }
 
 /*
@@ -585,6 +610,24 @@ p_option(u_long option) {
 	case RES_DNSRCH:	return "dnsrch";
 	case RES_INSECURE1:	return "insecure1";
 	case RES_INSECURE2:	return "insecure2";
+	case RES_NOALIASES:	return "noaliases";
+	case RES_USE_INET6:	return "inet6";
+#ifdef RES_USE_EDNS0	/* KAME extension */
+	case RES_USE_EDNS0:	return "edns0";
+#endif
+#ifdef RES_USE_A6
+	case RES_USE_A6:	return "a6";
+#endif
+#ifdef RES_USE_DNAME
+	case RES_USE_DNAME:	return "dname";
+#endif
+#ifdef RES_USE_DNSSEC
+	case RES_USE_DNSSEC:	return "dnssec";
+#endif
+#ifdef RES_NOTLDQUERY
+	case RES_NOTLDQUERY:	return "no-tld-query";
+#endif
+
 				/* XXX nonreentrant */
 	default:		sprintf(nbuf, "?0x%lx?", (u_long)option);
 				return (nbuf);
@@ -651,14 +694,14 @@ precsize_aton(strptr)
 
 	cp = *strptr;
 
-	while (isdigit(*cp))
+	while (isdigit((unsigned char)*cp))
 		mval = mval * 10 + (*cp++ - '0');
 
 	if (*cp == '.') {		/* centimeters */
 		cp++;
-		if (isdigit(*cp)) {
+		if (isdigit((unsigned char)*cp)) {
 			cmval = (*cp++ - '0') * 10;
-			if (isdigit(*cp)) {
+			if (isdigit((unsigned char)*cp)) {
 				cmval += (*cp++ - '0');
 			}
 		}
@@ -692,44 +735,44 @@ latlon2ul(latlonstrptr,which)
 
 	cp = *latlonstrptr;
 
-	while (isdigit(*cp))
+	while (isdigit((unsigned char)*cp))
 		deg = deg * 10 + (*cp++ - '0');
 
-	while (isspace(*cp))
+	while (isspace((unsigned char)*cp))
 		cp++;
 
-	if (!(isdigit(*cp)))
+	if (!(isdigit((unsigned char)*cp)))
 		goto fndhemi;
 
-	while (isdigit(*cp))
+	while (isdigit((unsigned char)*cp))
 		min = min * 10 + (*cp++ - '0');
 
-	while (isspace(*cp))
+	while (isspace((unsigned char)*cp))
 		cp++;
 
-	if (!(isdigit(*cp)))
+	if (!(isdigit((unsigned char)*cp)))
 		goto fndhemi;
 
-	while (isdigit(*cp))
+	while (isdigit((unsigned char)*cp))
 		secs = secs * 10 + (*cp++ - '0');
 
 	if (*cp == '.') {		/* decimal seconds */
 		cp++;
-		if (isdigit(*cp)) {
+		if (isdigit((unsigned char)*cp)) {
 			secsfrac = (*cp++ - '0') * 100;
-			if (isdigit(*cp)) {
+			if (isdigit((unsigned char)*cp)) {
 				secsfrac += (*cp++ - '0') * 10;
-				if (isdigit(*cp)) {
+				if (isdigit((unsigned char)*cp)) {
 					secsfrac += (*cp++ - '0');
 				}
 			}
 		}
 	}
 
-	while (!isspace(*cp))	/* if any trailing garbage */
+	while (!isspace((unsigned char)*cp))	/* if any trailing garbage */
 		cp++;
 
-	while (isspace(*cp))
+	while (isspace((unsigned char)*cp))
 		cp++;
 
  fndhemi:
@@ -767,10 +810,10 @@ latlon2ul(latlonstrptr,which)
 
 	cp++;			/* skip the hemisphere */
 
-	while (!isspace(*cp))	/* if any trailing garbage */
+	while (!isspace((unsigned char)*cp))	/* if any trailing garbage */
 		cp++;
 
-	while (isspace(*cp))	/* move to next field */
+	while (isspace((unsigned char)*cp))	/* move to next field */
 		cp++;
 
 	*latlonstrptr = cp;
@@ -828,14 +871,14 @@ loc_aton(ascii, binary)
 	if (*cp == '+')
 		cp++;
 
-	while (isdigit(*cp))
+	while (isdigit((unsigned char)*cp))
 		altmeters = altmeters * 10 + (*cp++ - '0');
 
 	if (*cp == '.') {		/* decimal meters */
 		cp++;
-		if (isdigit(*cp)) {
+		if (isdigit((unsigned char)*cp)) {
 			altfrac = (*cp++ - '0') * 10;
-			if (isdigit(*cp)) {
+			if (isdigit((unsigned char)*cp)) {
 				altfrac += (*cp++ - '0');
 			}
 		}
@@ -843,10 +886,10 @@ loc_aton(ascii, binary)
 
 	alt = (10000000 + (altsign * (altmeters * 100 + altfrac)));
 
-	while (!isspace(*cp) && (cp < maxcp)) /* if trailing garbage or m */
+	while (!isspace((unsigned char)*cp) && (cp < maxcp)) /* if trailing garbage or m */
 		cp++;
 
-	while (isspace(*cp) && (cp < maxcp))
+	while (isspace((unsigned char)*cp) && (cp < maxcp))
 		cp++;
 
 	if (cp >= maxcp)
@@ -854,10 +897,10 @@ loc_aton(ascii, binary)
 
 	siz = precsize_aton(&cp);
 	
-	while (!isspace(*cp) && (cp < maxcp))	/* if trailing garbage or m */
+	while (!isspace((unsigned char)*cp) && (cp < maxcp))	/* if trailing garbage or m */
 		cp++;
 
-	while (isspace(*cp) && (cp < maxcp))
+	while (isspace((unsigned char)*cp) && (cp < maxcp))
 		cp++;
 
 	if (cp >= maxcp)
@@ -865,10 +908,10 @@ loc_aton(ascii, binary)
 
 	hp = precsize_aton(&cp);
 
-	while (!isspace(*cp) && (cp < maxcp))	/* if trailing garbage or m */
+	while (!isspace((unsigned char)*cp) && (cp < maxcp))	/* if trailing garbage or m */
 		cp++;
 
-	while (isspace(*cp) && (cp < maxcp))
+	while (isspace((unsigned char)*cp) && (cp < maxcp))
 		cp++;
 
 	if (cp >= maxcp)
@@ -896,14 +939,15 @@ loc_ntoa(binary, ascii)
 	const u_char *binary;
 	char *ascii;
 {
-	static char *error = "?";
+	static const char *error = "?";
 	static char tmpbuf[sizeof
 "1000 60 60.000 N 1000 60 60.000 W -12345678.00m 90000000.00m 90000000.00m 90000000.00m"];
 	const u_char *cp = binary;
 
 	int latdeg, latmin, latsec, latsecfrac;
 	int longdeg, longmin, longsec, longsecfrac;
-	char northsouth, eastwest, *altsign;
+	char northsouth, eastwest;
+	const char *altsign;
 	int altmeters, altfrac;
 
 	const u_int32_t referencealt = 100000 * 100;
@@ -975,24 +1019,24 @@ loc_ntoa(binary, ascii)
 	altfrac = altval % 100;
 	altmeters = (altval / 100);
 
-	if ((sizestr = strdup(precsize_ntoa(sizeval))) == NULL)
-		sizestr = error;
-	if ((hpstr = strdup(precsize_ntoa(hpval))) == NULL)
-		hpstr = error;
-	if ((vpstr = strdup(precsize_ntoa(vpval))) == NULL)
-		vpstr = error;
+	sizestr = strdup(precsize_ntoa(sizeval));
+	hpstr = strdup(precsize_ntoa(hpval));
+	vpstr = strdup(precsize_ntoa(vpval));
 
 	sprintf(ascii,
 	    "%d %.2d %.2d.%.3d %c %d %.2d %.2d.%.3d %c %s%d.%.2dm %sm %sm %sm",
 		latdeg, latmin, latsec, latsecfrac, northsouth,
 		longdeg, longmin, longsec, longsecfrac, eastwest,
-		altsign, altmeters, altfrac, sizestr, hpstr, vpstr);
+		altsign, altmeters, altfrac,
+		(sizestr != NULL) ? sizestr : error,
+		(hpstr != NULL) ? hpstr : error,
+		(vpstr != NULL) ? vpstr : error);
 
-	if (sizestr != error)
+	if (sizestr != NULL)
 		free(sizestr);
-	if (hpstr != error)
+	if (hpstr != NULL)
 		free(hpstr);
-	if (vpstr != error)
+	if (vpstr != NULL)
 		free(vpstr);
 
 	return (ascii);
@@ -1047,4 +1091,48 @@ p_secstodate (u_long secs) {
 		time->tm_year, time->tm_mon, time->tm_mday,
 		time->tm_hour, time->tm_min, time->tm_sec);
 	return (output);
+}
+
+u_int16_t
+res_nametoclass(const char *buf, int *successp) {
+	unsigned long result;
+	char *endptr;
+	int success;
+
+	result = sym_ston(__p_class_syms, buf, &success);
+	if (success)
+		goto done;
+
+	if (strncasecmp(buf, "CLASS", 5) != 0 ||
+	    !isdigit((unsigned char)buf[5]))
+		goto done;
+	result = strtoul(buf + 5, &endptr, 10);
+	if (*endptr == '\0' && result <= 0xffff)
+		success = 1;
+ done:
+	if (successp)
+		*successp = success;
+	return (result);
+}
+
+u_int16_t
+res_nametotype(const char *buf, int *successp) {
+	unsigned long result;
+	char *endptr;
+	int success;
+
+	result = sym_ston(__p_type_syms, buf, &success);
+	if (success)
+		goto done;
+
+	if (strncasecmp(buf, "type", 4) != 0 ||
+	    !isdigit((unsigned char)buf[4]))
+		goto done;
+	result = strtoul(buf + 4, &endptr, 10);
+	if (*endptr == '\0' && result <= 0xffff)
+		success = 1;
+ done:
+	if (successp)
+		*successp = success;
+	return (result);
 }

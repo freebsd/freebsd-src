@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_xfr.c,v 8.64 2001/02/15 00:18:46 marka Exp $";
+static const char rcsid[] = "$Id: ns_xfr.c,v 8.67 2001/07/10 05:06:50 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -107,7 +107,7 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 	 * write() data from us.
 	 */
 	(void) setsockopt(qsp->s_rfd, SOL_SOCKET, SO_SNDBUF,
-			  (char *)&sndbuf, sizeof sndbuf);
+			  (const char *)&sndbuf, sizeof sndbuf);
 #endif
 #ifdef SO_SNDLOWAT
 	/*
@@ -115,7 +115,7 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 	 * an XFER_BUFSIZE block of data.
 	 */
 	(void) setsockopt(qsp->s_rfd, SOL_SOCKET, SO_SNDLOWAT,
-			  (char *)&sndlowat, sizeof sndlowat);
+			  (const char *)&sndlowat, sizeof sndlowat);
 #endif
 	if (sq_openw(qsp, 64*1024) == -1) {
 		ns_error(ns_log_xfer_out, "ns_xfr: out of memory");
@@ -263,8 +263,7 @@ ns_freexfr(struct qstream *qsp) {
 			while ((rp = HEAD(dp->d_changes)) != NULL) {
 				UNLINK(dp->d_changes, rp, r_link);
 				if (rp->r_dp != NULL)
-					db_freedata(rp->r_dp);
-				rp->r_dp = NULL;
+					db_detach(&rp->r_dp);
 				res_freeupdrec(rp);
 			} 
 			memput(dp, sizeof *dp);
@@ -274,6 +273,10 @@ ns_freexfr(struct qstream *qsp) {
 	}
 	while (qsp->xfr.lev)
 		qsp->xfr.lev = sx_freelev(qsp->xfr.lev);
+	if (qsp->xfr.tsig_state != NULL) {
+		memput(qsp->xfr.tsig_state, sizeof(ns_tcp_tsig_state));
+		qsp->xfr.tsig_state = NULL;
+	}
 	zones[qsp->xfr.zone].z_numxfrs--;
 	qsp->flags &= ~(STREAM_AXFR | STREAM_AXFRIXFR);
 }
@@ -416,7 +419,7 @@ sx_addrr(struct qstream *qsp, const char *dname, struct databuf *dp) {
  * side effects:
  *	if progress was made, header and pointers will be advanced.
  */
-int
+static int
 sx_soarr(struct qstream *qsp) {
 	struct databuf *dp;
 	int added_soa = 0;
@@ -840,11 +843,8 @@ static struct qs_x_lev *
 sx_freelev(struct qs_x_lev *lev) {
 	struct qs_x_lev *next = lev->next;
 
-	if (lev->dp) {
-		DRCNTDEC(lev->dp);
-		if (lev->dp->d_rcnt == 0)
-			db_freedata(lev->dp);
-	}
+	if (lev->dp)
+		db_detach(&lev->dp);
 	memput(lev, sizeof *lev);
 	return (next);
 }
@@ -853,10 +853,7 @@ static struct databuf *
 db_next(struct databuf *dp) {
 	struct databuf *next = dp->d_next;
 
-	DRCNTDEC(dp);
-	if (dp->d_rcnt == 0)
-		db_freedata(dp);
-
+	db_detach(&dp);
 	if (next)
 		DRCNTINC(next);
 

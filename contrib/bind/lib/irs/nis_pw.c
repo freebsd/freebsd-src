@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_pw.c,v 1.16 1999/01/30 00:53:16 vixie Exp $";
+static const char rcsid[] = "$Id: nis_pw.c,v 1.17 2001/05/29 05:49:18 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports */
@@ -169,9 +169,11 @@ static struct passwd *
 pw_byname(struct irs_pw *this, const char *name) {
 	struct pvt *pvt = (struct pvt *)this->private;
 	int r;
+	char *tmp;
 
 	nisfree(pvt, do_val);
-	r = yp_match(pvt->nis_domain, passwd_byname, name, strlen(name),
+	DE_CONST(name, tmp);
+	r = yp_match(pvt->nis_domain, passwd_byname, tmp, strlen(tmp),
 		     &pvt->curval_data, &pvt->curval_len);
 	if (r != 0) {
 		errno = ENOENT;
@@ -206,6 +208,7 @@ pw_rewind(struct irs_pw *this) {
 
 static void
 pw_minimize(struct irs_pw *this) {
+	UNUSED(this);
 	/* NOOP */
 }
 
@@ -226,7 +229,9 @@ makepasswdent(struct irs_pw *this) {
 	pvt->passwd.pw_name = cp;
 	if (!(cp = strchr(cp, ':')))
 		goto cleanup;
+#ifdef HAS_PW_CLASS
 	pvt->passwd.pw_class = cp;	/* Needs to point at a \0. */
+#endif
 	*cp++ = '\0';
 
 	pvt->passwd.pw_passwd = cp;

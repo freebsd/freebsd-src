@@ -1,6 +1,6 @@
 
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: db_sec.c,v 8.32 2000/12/23 08:14:36 vixie Exp $";
+static const char rcsid[] = "$Id: db_sec.c,v 8.35 2001/06/18 14:42:57 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -139,7 +139,7 @@ static struct zpubkey *
 tree_srch_pubkey (const char *name) {
 	struct zpubkey tkey, *key;
 
-	tkey.zpk_name = (char *) name;
+	DE_CONST(name, tkey.zpk_name);
 	if (trusted_keys == NULL) {
 		tree_init(&trusted_keys);
 		return (NULL);
@@ -270,7 +270,7 @@ convert_databuf(struct databuf *dp, struct converted_databuf *cdp) {
 	    case ns_t_soa:
 	    case ns_t_minfo:
 	    case ns_t_rp:
-		if (eob - bp < strlen((char *)cp) + 1)
+		if (eob - bp < (int)strlen((char *)cp) + 1)
 			return (-1);
 		if (ns_name_pton((char *)cp, buf, sizeof buf) < 0)
 			return (-1);
@@ -280,7 +280,7 @@ convert_databuf(struct databuf *dp, struct converted_databuf *cdp) {
 		bp += len;
 		cp += strlen((char *)cp) + 1;
 
-		if (eob - bp < strlen((char *)cp) + 1)
+		if (eob - bp < (int)strlen((char *)cp) + 1)
 			return (-1);
 		if (ns_name_pton((char *)cp, buf, sizeof buf) < 0)
 			return (-1);
@@ -307,7 +307,7 @@ convert_databuf(struct databuf *dp, struct converted_databuf *cdp) {
 	    case ns_t_mr:
 	    case ns_t_ptr:
 	    case ns_t_nxt:
-		if (eob - bp < strlen((char *)cp) + 1)
+		if (eob - bp < (int)strlen((char *)cp) + 1)
 			return (-1);
 		if (ns_name_pton((char *)cp, buf, sizeof buf) < 0)
 			return (-1);
@@ -343,7 +343,7 @@ convert_databuf(struct databuf *dp, struct converted_databuf *cdp) {
 		bp += INT16SZ;
 		cp += INT16SZ;
 
-		if (eob - bp < strlen((char *)cp) + 1)
+		if (eob - bp < (int)strlen((char *)cp) + 1)
 			return (-1);
 		if (ns_name_pton((char *)cp, buf, sizeof buf) < 0)
 			return (-1);
@@ -354,7 +354,7 @@ convert_databuf(struct databuf *dp, struct converted_databuf *cdp) {
 		cp += strlen((char *)cp) + 1;
 
 		if (dp->d_type == ns_t_px) {
-			if (eob - bp < strlen((char *)cp) + 1)
+			if (eob - bp < (int)strlen((char *)cp) + 1)
 				return (-1);
 			if (ns_name_pton((char *)cp, buf, sizeof buf) < 0)
 				return (-1);
@@ -473,7 +473,7 @@ rrset_trim_sigs(struct db_rrset *rrset) {
 	}
 }
 
-int
+static int
 verify_set(struct db_rrset *rrset) {
 	DST_KEY *key = NULL;
 	struct sig_record *sigdata;
@@ -527,13 +527,13 @@ verify_set(struct db_rrset *rrset) {
 		 * Don't verify a set if the SIG inception time is in
 		 * the future.  This should be fixed before 2038 (BEW)
 		 */
-		if (ntohl(sigdata->sig_time_n) > now)
+		if ((time_t)ntohl(sigdata->sig_time_n) > now)
 			continue;
 
 		/* An expired set is dropped, but the data is not. */
-		if (ntohl(sigdata->sig_exp_n) < now) {
-			db_freedata(sigdp);
-			sigdn->dp = NULL;
+		if ((time_t)ntohl(sigdata->sig_exp_n) < now) {
+			db_detach(&sigdn->dp);
+			sigdp = NULL;
 			continue;
 		}
 
@@ -715,8 +715,8 @@ verify_set(struct db_rrset *rrset) {
 
 		if (ret < 0) {
 			dnssec_failed++;
-			db_freedata(sigdp);
-			sigdn->dp = NULL;
+			db_detach(&sigdn->dp);
+			sigdp = NULL;
 		}
 		else
 			dnssec_succeeded++;
@@ -746,38 +746,25 @@ end:
 }
 
 static void
-rrset_free_partial(struct db_rrset *rrset, int free_data, struct dnode *start) {
+rrset_free(struct db_rrset *rrset) {
 	struct dnode *dnp;
-	int found_start = 0;
 
 	ns_debug(ns_log_default, 5, "rrset_free(%s)", rrset->rr_name);
 
-	if (start == NULL)
-		found_start = 1;
-
 	while (rrset->rr_list) {
 		dnp = rrset->rr_list;
-		if (dnp == start)
-			found_start = 1;
 		rrset->rr_list = rrset->rr_list->dn_next;
-		if (dnp->dp != NULL && free_data == 1 && found_start == 1)
-			db_freedata(dnp->dp);
+		if (dnp->dp != NULL)
+			db_detach(&dnp->dp);
 		memput(dnp, sizeof(struct dnode));
 	}
 	while (rrset->rr_sigs) {
 		dnp = rrset->rr_sigs;
-		if (dnp == start)
-			found_start = 1;
 		rrset->rr_sigs = rrset->rr_sigs->dn_next;
-		if (dnp->dp != NULL && free_data == 1 && found_start == 1)
-			db_freedata(dnp->dp);
+		if (dnp->dp != NULL)
+			db_detach(&dnp->dp);
 		memput(dnp, sizeof(struct dnode));
 	}
-}
-
-static void
-rrset_free(struct db_rrset *rrset, int free_data) {
-	rrset_free_partial(rrset, free_data, NULL);
 }
 
 /*
@@ -838,7 +825,6 @@ rrset_db_update(struct db_rrset *rrset, int flags, struct hashbuf **htpp,
 		struct sockaddr_in from, int *rrcount)
 {
 	struct dnode *dnp;
-	struct databuf *dp;
 	int ret;
 
 	/* If we have any unattached SIG records that are DNSSEC signatures,
@@ -848,57 +834,51 @@ rrset_db_update(struct db_rrset *rrset, int flags, struct hashbuf **htpp,
 	 */ 
 	if (rrset->rr_list == NULL) {
 		if (attach_data(rrset) == 0) {
-			rrset_free(rrset, 1);
+			rrset_free(rrset);
 			return (OK);
 		}
 
 		if (rrset->rr_list != NULL &&
 		    verify_set(rrset) == DB_S_FAILED)
 		{
-			rrset_free(rrset, 1);
+			rrset_free(rrset);
 			return (OK);
 		}
 	}
 
 	for (dnp = rrset->rr_list; dnp != NULL; dnp = dnp->dn_next) {
-		dp = dnp->dp;
-		ret = db_update(rrset->rr_name, dp, dp, NULL,
+		ret = db_update(rrset->rr_name, dnp->dp, dnp->dp, NULL,
 				flags, (*htpp), from);
 		if (ret != OK) {
 			/* XXX Probably should do rollback.  */
-			db_err(ret, rrset->rr_name, dp->d_type,
+			db_err(ret, rrset->rr_name, dnp->dp->d_type,
 			       dnp->file, dnp->line);
 			if (ret != DATAEXISTS) {
-				rrset_free_partial(rrset, 1, dnp);
+				rrset_free(rrset);
 				return (ret);
 			}
-			db_freedata(dp);
 		}
 		if (rrcount != NULL)
 			(*rrcount)++;
-		dnp->dp = NULL;
 	}
 	for (dnp = rrset->rr_sigs; dnp != NULL; dnp = dnp->dn_next) {
-		dp = dnp->dp;
-		if (dp == NULL) /* verifyset() can remove sigs */
+		if (dnp->dp == NULL) /* verifyset() can remove sigs */
 			continue;
-		ret = db_update(rrset->rr_name, dp, dp, NULL,
+		ret = db_update(rrset->rr_name, dnp->dp, dnp->dp, NULL,
 				flags, (*htpp), from);
 		if (ret != OK) {
 			/* XXX Probably should do rollback.  */
-			db_err(ret, rrset->rr_name, dp->d_type,
+			db_err(ret, rrset->rr_name, dnp->dp->d_type,
 			       dnp->file, dnp->line);
 			if (ret != DATAEXISTS) {
-				rrset_free_partial(rrset, 1, dnp);
+				rrset_free(rrset);
 				return (ret);
 			}
-			db_freedata(dp);
 		}
 		if (rrcount != NULL)
 			(*rrcount)++;
-		dnp->dp = NULL;
 	}
-	rrset_free(rrset, 0);
+	rrset_free(rrset);
 	return (OK);
 }
 
@@ -927,7 +907,7 @@ add_to_rrset_list(struct db_rrset **rrsets, char *name, struct databuf *dp,
 	while (rrset != NULL) {
 		if (rrset->rr_type != ns_t_nxt || dp->d_type != ns_t_nxt) {
 			if (dp->d_type == ns_t_sig) {
-				if (SIG_COVERS(dp) == rrset->rr_type)
+				if ((int)SIG_COVERS(dp) == rrset->rr_type)
 					break;
 			} else {
 				if (dp->d_type == rrset->rr_type)
@@ -942,10 +922,7 @@ add_to_rrset_list(struct db_rrset **rrsets, char *name, struct databuf *dp,
 	if (rrset != NULL) {
 		if ((dp->d_type == ns_t_sig && rr_in_set(dp, rrset->rr_sigs)) ||
 		    (dp->d_type != ns_t_sig && rr_in_set(dp, rrset->rr_list)))
-		{
-			db_freedata(dp);
 			return (DATAEXISTS);
-		}
 	} else {
 		rrset = (struct db_rrset *) memget(sizeof(struct db_rrset));
 		if (rrset == NULL)
@@ -968,6 +945,7 @@ add_to_rrset_list(struct db_rrset **rrsets, char *name, struct databuf *dp,
 			 "add_to_rrset_list: memget failed(%s)", name);
 	memset(dnp, 0, sizeof(struct dnode));
 	dnp->dp = dp;
+	DRCNTINC(dnp->dp);
 	if (dp->d_type == ns_t_sig) {
 		if (rrset->rr_sigs != NULL) {
 			struct dnode *fdnp;
@@ -995,7 +973,7 @@ add_to_rrset_list(struct db_rrset **rrsets, char *name, struct databuf *dp,
 		} else
 			rrset->rr_list = dnp;
 	}
-	dnp->file = (char *) file;
+	dnp->file = file;
 	dnp->line = line;
 	return (0);
 }
@@ -1035,10 +1013,10 @@ update_rrset_list(struct db_rrset **rrsets, int flags, struct hashbuf **htpp,
 				result = tresult;
 		}
 		else {
-			rrset_free(rrset, 1);
+			rrset_free(rrset);
 			result = DNSSECFAIL;
 		}
-		freestr(rrset->rr_name);
+		rrset->rr_name = freestr(rrset->rr_name);
 		next = rrset->rr_next;
 		memput(rrset, sizeof(struct db_rrset));
 		rrset = next;

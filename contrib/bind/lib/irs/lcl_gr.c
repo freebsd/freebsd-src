@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_gr.c,v 1.25 1999/10/13 17:11:19 vixie Exp $";
+static const char rcsid[] = "$Id: lcl_gr.c,v 1.26 2001/05/29 05:49:03 marka Exp $";
 /* from getgrent.c 8.2 (Berkeley) 3/21/94"; */
 /* from BSDI Id: getgrent.c,v 2.8 1996/05/28 18:15:14 bostic Exp $	*/
 #endif /* LIBC_SCCS and not lint */
@@ -128,6 +128,8 @@ struct irs_gr *
 irs_lcl_gr(struct irs_acc *this) {
 	struct irs_gr *gr;
 	struct pvt *pvt;
+
+	UNUSED(this);
 
 	if (!(gr = memget(sizeof *gr))) {
 		errno = ENOMEM;
@@ -313,7 +315,7 @@ grscan(struct irs_gr *this, int search, gid_t gid, const char *name) {
 			continue;
 		}
 		pvt->group.gr_gid = atoi(p);
-		if (search && name == NULL && pvt->group.gr_gid != gid)
+		if (search && name == NULL && (gid_t)pvt->group.gr_gid != gid)
 			continue;
 
 		/* We want this record. */

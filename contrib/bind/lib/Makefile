@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.25 2000/12/23 08:02:56 vixie Exp $
+# $Id: Makefile,v 8.26 2001/08/14 05:57:58 marka Exp $
 
 SUBDIRS = resolv irs isc bsd inet nameser dst cylink dnssafe
 
@@ -59,6 +59,9 @@ LIB = libbind.${A}
 LIBTS = ${TOP}/lib/libbind.ts
 LIBR = libbind_r.${A}
 LIBRTS = ${TOP}/lib/libbindr.ts
+
+.NOTPARALLEL:
+.NO_PARALLEL:
 
 all depend clean install distclean::
 	@for x in ${SUBDIRS}; do \

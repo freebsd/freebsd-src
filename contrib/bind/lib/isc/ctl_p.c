@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ctl_p.c,v 8.7 2000/02/04 08:28:33 vixie Exp $";
+static const char rcsid[] = "$Id: ctl_p.c,v 8.8 2001/05/29 05:49:26 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -104,11 +104,30 @@ ctl_sa_ntop(const struct sockaddr *sa,
 {
 	static const char me[] = "ctl_sa_ntop";
 	static const char punt[] = "[0].-1";
-	char tmp[sizeof "255.255.255.255"];
+	char tmp[INET6_ADDRSTRLEN];
 
 	switch (sa->sa_family) {
+	case AF_INET6: {
+		const struct sockaddr_in6 *in6 =
+					(const struct sockaddr_in6 *) sa;
+
+		if (inet_ntop(in6->sin6_family, &in6->sin6_addr, tmp, sizeof tmp)
+		    == NULL) {
+			(*logger)(ctl_error, "%s: inet_ntop(%u %04x): %s",
+				  me, in6->sin6_family,
+				  in6->sin6_port, strerror(errno));
+			return (punt);
+		}
+		if (strlen(tmp) + sizeof "[].65535" > size) {
+			(*logger)(ctl_error, "%s: buffer overflow", me);
+			return (punt);
+		}
+		(void) sprintf(buf, "[%s].%u", tmp, ntohs(in6->sin6_port));
+		return (buf);
+	    }
 	case AF_INET: {
-		const struct sockaddr_in *in = (struct sockaddr_in *) sa;
+		const struct sockaddr_in *in =
+					      (const struct sockaddr_in *) sa;
 
 		if (inet_ntop(in->sin_family, &in->sin_addr, tmp, sizeof tmp)
 		    == NULL) {
@@ -127,8 +146,9 @@ ctl_sa_ntop(const struct sockaddr *sa,
 	    }
 #ifndef NO_SOCKADDR_UN
 	case AF_UNIX: {
-		const struct sockaddr_un *un = (struct sockaddr_un *) sa;
-		int x = sizeof un->sun_path;
+		const struct sockaddr_un *un = 
+					      (const struct sockaddr_un *) sa;
+		unsigned int x = sizeof un->sun_path;
 
 		if (x > size)
 			x = size;
@@ -145,12 +165,18 @@ ctl_sa_ntop(const struct sockaddr *sa,
 void
 ctl_sa_copy(const struct sockaddr *src, struct sockaddr *dst) {
 	switch (src->sa_family) {
+	case AF_INET6:
+		*((struct sockaddr_in6 *)dst) =
+					 *((const struct sockaddr_in6 *)src);
+		break;
 	case AF_INET:
-		*((struct sockaddr_in *)dst) =  *((struct sockaddr_in *)src);
+		*((struct sockaddr_in *)dst) =
+					  *((const struct sockaddr_in *)src);
 		break;
 #ifndef NO_SOCKADDR_UN
 	case AF_UNIX:
-		*((struct sockaddr_un *)dst) =  *((struct sockaddr_un *)src);
+		*((struct sockaddr_un *)dst) =
+					  *((const struct sockaddr_un *)src);
 		break;
 #endif
 	default:

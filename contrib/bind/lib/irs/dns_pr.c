@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_pr.c,v 1.14 1999/09/04 22:06:14 vixie Exp $";
+static const char rcsid[] = "$Id: dns_pr.c,v 1.15 2001/05/29 05:48:31 marka Exp $";
 #endif
 
 /* Imports */
@@ -152,17 +152,20 @@ pr_bynumber(struct irs_pr *this, int num) {
 
 static struct protoent *
 pr_next(struct irs_pr *this) {
+	UNUSED(this);
 	errno = ENODEV;
 	return (NULL);
 }
 
 static void
 pr_rewind(struct irs_pr *this) {
+	UNUSED(this);
 	/* NOOP */
 }
 
 static void
 pr_minimize(struct irs_pr *this) {
+	UNUSED(this);
 	/* NOOP */
 }
 
@@ -201,7 +204,7 @@ parse_hes_list(struct irs_pr *this, char **hes_list) {
 
 		/* Skip blank lines. */
 		p = cp;
-		while (*p && !isspace(*p))
+		while (*p && !isspace((unsigned char)*p))
 			p++;
 		if (!*p)
 			continue;
@@ -213,14 +216,14 @@ parse_hes_list(struct irs_pr *this, char **hes_list) {
 
 		p = pvt->prbuf;
 		pvt->proto.p_name = p;
-		while (*p && !isspace(*p))
+		while (*p && !isspace((unsigned char)*p))
 			p++;
 		if (!*p)
 			continue;
 		*p++ = '\0';
 
 		pvt->proto.p_proto = atoi(p);
-		while (*p && !isspace(*p))
+		while (*p && !isspace((unsigned char)*p))
 			p++;
 		if (*p)
 			*p++ = '\0';
@@ -237,7 +240,7 @@ parse_hes_list(struct irs_pr *this, char **hes_list) {
 				pvt->proto.p_aliases = new;
 			}
 			pvt->proto.p_aliases[num++] = p;
-			while (*p && !isspace(*p))
+			while (*p && !isspace((unsigned char)*p))
 				p++;
 			if (*p)
 				*p++ = '\0';

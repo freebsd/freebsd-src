@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static char     rcsid[] = "$Id: db_ixfr.c,v 8.23.2.2 2001/05/03 03:53:18 marka Exp $";
+static char     rcsid[] = "$Id: db_ixfr.c,v 8.31 2002/01/02 04:47:10 marka Exp $";
 #endif
 
 /*
@@ -52,6 +52,7 @@ static char     rcsid[] = "$Id: db_ixfr.c,v 8.23.2.2 2001/05/03 03:53:18 marka E
 #include <isc/eventlib.h>
 #include <isc/logging.h>
 #include <isc/memcluster.h>
+#include <isc/misc.h>
 
 #include "port_after.h"
 
@@ -108,25 +109,29 @@ ixfr_get_change_list(struct zoneinfo *zp,
 		case DBIXFR_ERROR:
 			ns_warning(ns_log_db, "Logical error in %s: unlinking", 
 				   zp->z_ixfr_base);
+			if (fp != NULL) {
+				(void) my_fclose(fp);
+				fp = NULL;
+			}
 			unlink(zp->z_ixfr_base);
 			goto cleanup;
 
 		case DBIXFR_FOUND_RR:
-				ns_debug(ns_log_default, 4, "ixfr_getdelta DBIXFR_FOUND_RR (%s)",
-					zp->z_origin);
+			ns_debug(ns_log_default, 4,
+				 "ixfr_getdelta DBIXFR_FOUND_RR (%s)",
+				 zp->z_origin);
 			if (EMPTY(*dlhead)) {
 				/* skip updates prior to the one we want */
 				uprec = HEAD(dl->d_changes);
 				INSIST(uprec != NULL);
-				if ((uprec->r_zone < from_serial) || 	
-					(uprec->r_zone > to_serial))  
+				if (SEQ_LT(uprec->r_zone, from_serial) || 	
+				    SEQ_GT(uprec->r_zone, to_serial))  
 				{
 					while ((uprec = HEAD(dl->d_changes)) != NULL) {
 						UNLINK(dl->d_changes, uprec, r_link);
 
 						if (uprec->r_dp != NULL)
-							db_freedata(uprec->r_dp);
-						uprec->r_dp = NULL;
+						      db_detach(&uprec->r_dp);
 						res_freeupdrec(uprec);
 					}
 					memput(dl, sizeof *dl);
@@ -174,7 +179,7 @@ ixfr_get_change_list(struct zoneinfo *zp,
 			UNLINK(dl->d_changes, uprec, r_link);
 
 			if (uprec->r_dp != NULL)
-				db_freedata(uprec->r_dp);
+				db_detach(&uprec->r_dp);
 			uprec->r_dp = NULL;
 			res_freeupdrec(uprec);
 		}
@@ -373,8 +378,9 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 	char            data[MAXDATA], dnbuf[MAXDNAME], sclass[3];
 	char           *dname, *cp, *cp1;
 	char            buf[MAXDATA];
-	u_int32_t       serial, ttl;
-	u_int32_t	current_serial;
+	long unsigned	lutmp;
+	u_int32_t       serial = 0, ttl;
+	u_int32_t	current_serial = 0;
 	int             nonempty_lineno = -1, prev_pktdone = 0, cont = 0,
 			inside_next = 0;
 	int             id;
@@ -384,7 +390,6 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 	enum transport  transport;
 	struct map     *mp;
 	int             zonelist[MAXDNAME];
-	struct databuf *dp;
 	struct in_addr  ina;
 	int             datasize;
 	ns_updrec *	rrecp;
@@ -395,7 +400,19 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 	err = 0;
 	transport = primary_trans;
 	lineno = 1;
+	zonenum = 0;
+
+	/*
+	 * Look for serial if "first" call othewise use new_serial to
+	 * for current_serial.
+	 */
+	if (*old_serial == *new_serial && *old_serial == 0)
+		current_serial = 0;
+	else
+		current_serial = *new_serial;
+
 	for (;;) {
+		dname = NULL;
 		if (!getword(buf, sizeof buf, fp, 0)) {
 			if (lineno == (nonempty_lineno + 1) && !(feof(fp))) {
 				/*
@@ -475,13 +492,15 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 		class = zp->z_class;
 		n = 0;
 		data[0] = '\0';
+		opcode = -1;
 		switch (section) {
 		case S_ZONE:
 			cp = fgets(buf, sizeof buf, fp);
 			if (!cp)
 				*buf = '\0';
 			n = sscanf(cp, "origin %s class %s serial %lu",
-				   origin, sclass, &serial);
+				   origin, sclass, &lutmp);
+			serial = lutmp;
 			if (current_serial == 0)
 				current_serial = serial;
 			else if (current_serial != serial) {
@@ -501,8 +520,7 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 
 				dname = origin;
 				type = T_SOA;
-				class = sym_ston(__p_class_syms, sclass,
-						 &success);
+				class = res_nametoclass(sclass, &success);
 				if (!success) {
 					err++;
 					break;
@@ -522,7 +540,6 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 				err++;
 				break;
 			}
-			opcode = -1;
 			if (buf[0] == '{') {
 				n = strlen(buf);
 				for (i = 0; (u_int32_t) i < n; i++)
@@ -567,8 +584,7 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 				int             success;
 				int             maybe_class;
 
-				maybe_class = sym_ston(__p_class_syms,
-						       buf, &success);
+				maybe_class = res_nametoclass(buf, &success);
 				if (success) {
 					class = maybe_class;
 					(void) getword(buf, sizeof buf, fp, 1);
@@ -579,8 +595,7 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 				int             success;
 				int             maybe_type;
 
-				maybe_type = sym_ston(__p_type_syms,
-						      buf, &success);
+				maybe_type = res_nametotype(buf, &success);
 
 				if (success) {
 					type = maybe_type;
@@ -817,7 +832,7 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 			case ns_t_nxt:
 			case ns_t_key:
 			case ns_t_cert:{
-				char *errmsg = NULL;
+				const char *errmsg = NULL;
 
 				n  = parse_sec_rdata(buf, sizeof(buf), 1,
 						     (u_char *) data,
@@ -833,7 +848,38 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 				break;
 			}
 			default:
-				err++;
+				if (strcmp(buf, "\\#") != 0) {
+					err++;
+					break;
+				}
+                                if (!getword(buf, sizeof buf, fp, 0) ||
+                                     !isdigit((unsigned char)buf[0])) {
+					err++;
+					break;
+				}
+                                n = strtoul(buf, &cp, 10);
+                                if (n > 0xffff || *cp != '\0') {
+					err++;
+					break;
+				}
+                                multiline = 0;
+                                i = isc_gethexstring((u_char *)data,
+						     sizeof(data), n, fp,
+						     &multiline);
+                                if (i == -1) {
+					err++;
+					break;
+				}
+                                if (multiline) {
+					c = getnonblank(fp, zp->z_updatelog, 1);
+					if (c != ')') {
+						ungetc(c, fp);
+						err++;
+						break;
+					}
+                                        multiline = 0;
+                                }
+				endline(fp);
 			}
 			if (section == S_PREREQ) {
 				ttl = 0;
@@ -880,6 +926,7 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 		}
 		rrecp = res_mkupdrec(section, dname, class, type, ttl);
 		if (section != S_ZONE) {
+			struct databuf *dp;
 			dp = savedata(class, type, ttl, (u_char *) data, n);
 			dp->d_zone = zonenum;
 			dp->d_cred = DB_C_ZONE;
@@ -904,13 +951,13 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 				      opcode == ADD) ||
 				     (opcode == DELETE &&
 				      arp->r_opcode == ADD)) &&
-				     arp->r_dp->d_type == dp->d_type &&
-				     arp->r_dp->d_class == dp->d_class &&
-				     arp->r_dp->d_ttl == dp->d_ttl &&
+				     arp->r_dp->d_type == rrecp->r_dp->d_type &&
+				     arp->r_dp->d_class == rrecp->r_dp->d_class &&
+				     arp->r_dp->d_ttl == rrecp->r_dp->d_ttl &&
 				     ns_samename(arp->r_dname, dname) == 1 &&
-				     db_cmp(arp->r_dp, dp) == 0) {
-					db_freedata(dp);
-					db_freedata(arp->r_dp);
+				     db_cmp(arp->r_dp, rrecp->r_dp) == 0) {
+					db_detach(&rrecp->r_dp);
+					db_detach(&arp->r_dp);
 					UNLINK(*listuprec, arp, r_link);
 					res_freeupdrec(arp);
 					res_freeupdrec(rrecp);

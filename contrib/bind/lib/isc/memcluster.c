@@ -24,7 +24,7 @@
 
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: memcluster.c,v 8.20 2001/02/13 23:14:54 marka Exp $";
+static const char rcsid[] = "$Id: memcluster.c,v 8.23 2001/06/18 14:44:05 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -67,7 +67,7 @@ typedef struct {
 	const char *		file;
 	int			line;
 #endif
-	int			size;
+	size_t			size;
 	fence_t			fencepost;
 #endif
 } memcluster_element;
@@ -173,6 +173,10 @@ __memget_record(size_t size, const char *file, int line) {
 #endif
 	void *ret;
 
+#if !defined(MEMCLUSTER_RECORD)
+	UNUSED(file);
+	UNUSED(line);
+#endif
 	if (freelists == NULL)
 		if (meminit(0, 0) == -1)
 			return (NULL);
@@ -335,12 +339,19 @@ __memput_record(void *mem, size_t size, const char *file, int line) {
 	size_t new_size = quantize(size);
 #if defined (DEBUGGING_MEMCLUSTER)
 	memcluster_element *e;
+	memcluster_element *el;
 #ifdef MEMCLUSTER_RECORD
-	memcluster_element *prev, *el;
+	memcluster_element *prev;
 #endif
-	int fp;
+	fence_t fp;
 	char *p;
 #endif
+
+#if !defined (MEMCLUSTER_RECORD)
+	UNUSED(file);
+	UNUSED(line);
+#endif
+
 	REQUIRE(freelists != NULL);
 
 	if (size == 0) {
@@ -473,7 +484,7 @@ memstats(FILE *out) {
 	for (i = 1; i <= max_size; i++) {
 		if ((e = activelists[i]) != NULL)
 			while (e != NULL) {
-				fprintf(out, "%s:%d %#p:%d\n",
+				fprintf(out, "%s:%d %p:%d\n",
 				        e->file != NULL ? e->file :
 						"<UNKNOWN>", e->line,
 					(char *)e + sizeof *e, e->size);
@@ -481,6 +492,18 @@ memstats(FILE *out) {
 			}
 	}
 #endif
+}
+
+int
+memactive(void) {
+	size_t i;
+
+	if (stats == NULL)
+		return (0);
+	for (i = 1; i <= max_size; i++)
+		if (stats[i].gets != 0)
+			return (1);
+	return (0);
 }
 
 /* Private. */
@@ -515,7 +538,7 @@ quantize(size_t size) {
 #if defined(DEBUGGING_MEMCLUSTER)
 static void
 check(unsigned char *a, int value, size_t len) {
-	int i;
+	size_t i;
 	for (i = 0; i < len; i++)
 		INSIST(a[i] == value);
 }

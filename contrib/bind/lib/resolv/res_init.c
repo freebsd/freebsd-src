@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static const char rcsid[] = "$Id: res_init.c,v 8.19 2001/03/08 03:57:16 marka Exp $";
+static const char rcsid[] = "$Id: res_init.c,v 8.28 2002/01/30 01:07:35 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -85,13 +85,18 @@ static const char rcsid[] = "$Id: res_init.c,v 8.19 2001/03/08 03:57:16 marka Ex
 #include <arpa/nameser.h>
 
 #include <ctype.h>
-#include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <netdb.h>
 
 #include "port_after.h"
+
+/* ensure that sockaddr_in6 and IN6ADDR_ANY_INIT are declared / defined */
+#include <resolv.h>
+
+#include "res_private.h"
 
 /* Options.  Should all be left alone. */
 #define RESOLVSORT
@@ -164,6 +169,9 @@ __res_vinit(res_state statp, int preinit) {
 		statp->id = res_randomid();
 	}
 
+	if ((statp->options & RES_INIT) != 0)
+		res_ndestroy(statp);
+
 #ifdef USELOOPBACK
 	statp->nsaddr.sin_addr = inet_makeaddr(IN_LOOPBACKNET, 1);
 #else
@@ -171,6 +179,9 @@ __res_vinit(res_state statp, int preinit) {
 #endif
 	statp->nsaddr.sin_family = AF_INET;
 	statp->nsaddr.sin_port = htons(NAMESERVER_PORT);
+#ifdef HAVE_SA_LEN
+	statp->nsaddr.sin_len = sizeof(struct sockaddr_in);
+#endif
 	statp->nscount = 1;
 	statp->ndots = 1;
 	statp->pfcode = 0;
@@ -179,6 +190,13 @@ __res_vinit(res_state statp, int preinit) {
 	statp->qhook = NULL;
 	statp->rhook = NULL;
 	statp->_u._ext.nscount = 0;
+	statp->_u._ext.ext = malloc(sizeof(*statp->_u._ext.ext));
+	if (statp->_u._ext.ext != NULL) {
+	        memset(statp->_u._ext.ext, 0, sizeof(*statp->_u._ext.ext));
+		statp->_u._ext.ext->nsaddrs[0].sin = statp->nsaddr;
+		strcpy(statp->_u._ext.ext->nsuffix, "ip6.int");
+		strcpy(statp->_u._ext.ext->bsuffix, "ip6.arpa");
+	}
 #ifdef RESOLVSORT
 	statp->nsort = 0;
 #endif
@@ -284,17 +302,36 @@ __res_vinit(res_state statp, int preinit) {
 		}
 		/* read nameservers to query */
 		if (MATCH(buf, "nameserver") && nserv < MAXNS) {
-		    struct in_addr a;
+		    struct addrinfo hints, *ai;
+		    char sbuf[NI_MAXSERV];
+		    const size_t minsiz =
+		        sizeof(statp->_u._ext.ext->nsaddrs[0]);
 
 		    cp = buf + sizeof("nameserver") - 1;
 		    while (*cp == ' ' || *cp == '\t')
 			cp++;
-		    if ((*cp != '\0') && (*cp != '\n') && inet_aton(cp, &a)) {
-			statp->nsaddr_list[nserv].sin_addr = a;
-			statp->nsaddr_list[nserv].sin_family = AF_INET;
-			statp->nsaddr_list[nserv].sin_port =
-				htons(NAMESERVER_PORT);
-			nserv++;
+		    cp[strcspn(cp, ";# \t\n")] = '\0';
+		    if ((*cp != '\0') && (*cp != '\n')) {
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_family = PF_UNSPEC;
+			hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
+			hints.ai_flags = AI_NUMERICHOST;
+			sprintf(sbuf, "%u", NAMESERVER_PORT);
+			if (getaddrinfo(cp, sbuf, &hints, &ai) == 0 &&
+			    ai->ai_addrlen <= minsiz) {
+			    if (statp->_u._ext.ext != NULL) {
+				memcpy(&statp->_u._ext.ext->nsaddrs[nserv],
+				    ai->ai_addr, ai->ai_addrlen);
+			    }
+			    if (ai->ai_addrlen <=
+			        sizeof(statp->nsaddr_list[nserv])) {
+				memcpy(&statp->nsaddr_list[nserv],
+				    ai->ai_addr, ai->ai_addrlen);
+			    } else
+				statp->nsaddr_list[nserv].sin_family = 0;
+			    freeaddrinfo(ai);
+			    nserv++;
+			}
 		    }
 		    continue;
 		}
@@ -310,7 +347,7 @@ __res_vinit(res_state statp, int preinit) {
 			    break;
 			net = cp;
 			while (*cp && !ISSORTMASK(*cp) && *cp != ';' &&
-			       isascii(*cp) && !isspace(*cp))
+			       isascii(*cp) && !isspace((unsigned char)*cp))
 				cp++;
 			n = *cp;
 			*cp = 0;
@@ -320,7 +357,8 @@ __res_vinit(res_state statp, int preinit) {
 				*cp++ = n;
 				net = cp;
 				while (*cp && *cp != ';' &&
-					isascii(*cp) && !isspace(*cp))
+					isascii(*cp) &&
+					!isspace((unsigned char)*cp))
 				    cp++;
 				n = *cp;
 				*cp = 0;
@@ -346,8 +384,7 @@ __res_vinit(res_state statp, int preinit) {
 		    continue;
 		}
 	    }
-
-	    if (nserv > 1)
+	    if (nserv > 1) 
 		statp->nscount = nserv;
 #ifdef RESOLVSORT
 	    statp->nsort = nsort;
@@ -404,9 +441,11 @@ __res_vinit(res_state statp, int preinit) {
 }
 
 static void
-res_setoptions(res_state statp, const char *options, const char *source) {
+res_setoptions(res_state statp, const char *options, const char *source)
+{
 	const char *cp = options;
 	int i;
+	struct __res_state_ext *ext = statp->_u._ext.ext;
 
 #ifdef DEBUG
 	if (statp->options & RES_DEBUG)
@@ -449,6 +488,11 @@ res_setoptions(res_state statp, const char *options, const char *source) {
 			}
 			printf(";;\tdebug\n");
 #endif
+		} else if (!strncmp(cp, "no_tld_query",
+				    sizeof("no_tld_query") - 1) ||
+			   !strncmp(cp, "no-tld-query",
+				    sizeof("no-tld-query") - 1)) {
+			statp->options |= RES_NOTLDQUERY;
 		} else if (!strncmp(cp, "inet6", sizeof("inet6") - 1)) {
 			statp->options |= RES_USE_INET6;
 		} else if (!strncmp(cp, "rotate", sizeof("rotate") - 1)) {
@@ -456,9 +500,52 @@ res_setoptions(res_state statp, const char *options, const char *source) {
 		} else if (!strncmp(cp, "no-check-names",
 				    sizeof("no-check-names") - 1)) {
 			statp->options |= RES_NOCHECKNAME;
-		} else {
+		}
+#ifdef RES_USE_EDNS0
+		else if (!strncmp(cp, "edns0", sizeof("edns0") - 1)) {
+			statp->options |= RES_USE_EDNS0;
+		}
+#endif
+		else if (!strncmp(cp, "a6", sizeof("a6") - 1)) {
+			statp->options |= RES_USE_A6;
+		}
+		else if (!strncmp(cp, "dname", sizeof("dname") - 1)) {
+			statp->options |= RES_USE_DNAME;
+		}
+		else if (!strncmp(cp, "nibble:", sizeof("nibble:") - 1)) {
+			if (ext == NULL)
+				goto skip;
+			cp += sizeof("nibble:") - 1;
+			i = MIN(strcspn(cp, " \t"), sizeof(ext->nsuffix) - 1);
+			strncpy(ext->nsuffix, cp, i);
+			ext->nsuffix[i] = '\0';
+		}
+		else if (!strncmp(cp, "bitstring:", sizeof("bitstring:") - 1)) {
+			if (ext == NULL)
+				goto skip;
+			cp += sizeof("bitstring:") - 1;
+			i = MIN(strcspn(cp, " \t"), sizeof(ext->bsuffix) - 1);
+			strncpy(ext->bsuffix, cp, i);
+			ext->bsuffix[i] = '\0';
+		}
+		else if (!strncmp(cp, "v6revmode:", sizeof("v6revmode:") - 1)) {
+			cp += sizeof("v6revmode:") - 1;
+			if (!strncmp(cp, "nibble", sizeof("nibble") - 1)) {
+				statp->options &= ~RES_NO_NIBBLE;
+				statp->options |= RES_NO_BITSTRING;
+			} else if (!strncmp(cp, "bitstring",
+				    sizeof("bitstring") - 1)) {
+				statp->options |= RES_NO_NIBBLE;
+				statp->options &= ~RES_NO_BITSTRING;
+			} else if (!strncmp(cp, "both", sizeof("both") - 1)) {
+				statp->options &=
+					 ~(RES_NO_NIBBLE|RES_NO_BITSTRING);
+			}
+		}
+		else {
 			/* XXX - print a warning here? */
 		}
+   skip:
 		/* skip to next run of spaces */
 		while (*cp && *cp != ' ' && *cp != '\t')
 			cp++;
@@ -511,4 +598,124 @@ res_nclose(res_state statp) {
 			statp->_u._ext.nssocks[ns] = -1;
 		}
 	}
+}
+
+void
+res_ndestroy(res_state statp) {
+	res_nclose(statp);
+	if (statp->_u._ext.ext != NULL)
+		free(statp->_u._ext.ext);
+	statp->options &= ~RES_INIT;
+	statp->_u._ext.ext = NULL;
+}
+
+const char *
+res_get_nibblesuffix(res_state statp) {
+	if (statp->_u._ext.ext)
+		return (statp->_u._ext.ext->nsuffix);
+	return ("ip6.int");
+}
+
+const char *
+res_get_bitstringsuffix(res_state statp) {
+	if (statp->_u._ext.ext)
+		return (statp->_u._ext.ext->bsuffix);
+	return ("ip6.arpa");
+}
+
+void
+res_setservers(res_state statp, const union res_sockaddr_union *set, int cnt) {
+	int i, nserv;
+	size_t size;
+
+	/* close open servers */
+	res_nclose(statp);
+
+	/* cause rtt times to be forgotten */
+	statp->_u._ext.nscount = 0;
+
+	nserv = 0;
+	for (i = 0; i < cnt && nserv < MAXNS; i++) {
+		switch (set->sin.sin_family) {
+		case AF_INET:
+			size = sizeof(set->sin);
+			if (statp->_u._ext.ext)
+				memcpy(&statp->_u._ext.ext->nsaddrs[nserv],
+					&set->sin, size);
+			if (size <= sizeof(statp->nsaddr_list[nserv]))
+				memcpy(&statp->nsaddr_list[nserv],
+					&set->sin, size);
+			else
+				statp->nsaddr_list[nserv].sin_family = 0;
+			nserv++;
+			break;
+
+#ifdef HAS_INET6_STRUCTS
+		case AF_INET6:
+			size = sizeof(set->sin6);
+			if (statp->_u._ext.ext)
+				memcpy(&statp->_u._ext.ext->nsaddrs[nserv],
+					&set->sin6, size);
+			if (size <= sizeof(statp->nsaddr_list[nserv]))
+				memcpy(&statp->nsaddr_list[nserv],
+					&set->sin6, size);
+			else
+				statp->nsaddr_list[nserv].sin_family = 0;
+			nserv++;
+			break;
+#endif
+
+		default:
+			break;
+		}
+		set++;
+	}
+	statp->nscount = nserv;
+	
+}
+
+int
+res_getservers(res_state statp, union res_sockaddr_union *set, int cnt) {
+	int i;
+	size_t size;
+	u_int16_t family;
+
+	for (i = 0; i < statp->nscount && i < cnt; i++) {
+		if (statp->_u._ext.ext)
+			family = statp->_u._ext.ext->nsaddrs[i].sin.sin_family;
+		else 
+			family = statp->nsaddr_list[i].sin_family;
+
+		switch (family) {
+		case AF_INET:
+			size = sizeof(set->sin);
+			if (statp->_u._ext.ext)
+				memcpy(&set->sin,
+				       &statp->_u._ext.ext->nsaddrs[i],
+				       size);
+			else
+				memcpy(&set->sin, &statp->nsaddr_list[i],
+				       size);
+			break;
+
+#ifdef HAS_INET6_STRUCTS
+		case AF_INET6:
+			size = sizeof(set->sin6);
+			if (statp->_u._ext.ext)
+				memcpy(&set->sin6,
+				       &statp->_u._ext.ext->nsaddrs[i],
+				       size);
+			else
+				memcpy(&set->sin6, &statp->nsaddr_list[i],
+				       size);
+			break;
+#endif
+
+		default:
+			set->sin.sin_family = 0;
+			break;
+		}
+		set++;
+	}
+	return (statp->nscount);
 }
