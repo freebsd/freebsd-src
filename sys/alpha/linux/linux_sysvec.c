@@ -60,6 +60,7 @@
 
 #include <alpha/linux/linux.h>
 #include <alpha/linux/linux_proto.h>
+#include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 #undef szsigcode
 
