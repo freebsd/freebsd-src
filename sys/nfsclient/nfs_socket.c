@@ -1364,6 +1364,7 @@ static int
 nfs_msg(struct thread *td, char *server, char *msg)
 {
 
-	tprintf(td->td_proc, LOG_INFO, "nfs server %s: %s\n", server, msg);
+	tprintf(td ? td->td_proc, NULL, LOG_INFO,
+	    "nfs server %s: %s\n", server, msg);
 	return (0);
 }
