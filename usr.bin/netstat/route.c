@@ -65,7 +65,7 @@ static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/9/94";
  * Definitions for showing gateway flags.
  */
 struct bits {
-	short	b_mask;
+	u_long	b_mask;
 	char	b_val;
 } bits[] = {
 	{ RTF_UP,	'U' },
@@ -82,6 +82,9 @@ struct bits {
 	{ RTF_STATIC,	'S' },
 	{ RTF_PROTO1,	'1' },
 	{ RTF_PROTO2,	'2' },
+	{ RTF_WASCLONED,'W' },
+	{ RTF_PRCLONING,'c' },
+	{ RTF_PROTO3,	'3' },
 	{ 0 }
 };
 
