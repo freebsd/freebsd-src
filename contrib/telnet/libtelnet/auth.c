@@ -185,6 +185,16 @@ Authenticator authenticators[] = {
 				rsaencpwd_status,
 				rsaencpwd_printsub },
 #endif
+#ifdef SRA
+	{ AUTHTYPE_SRA, AUTH_WHO_CLIENT|AUTH_HOW_ONE_WAY,
+				sra_init,
+				sra_send,
+				sra_is,
+				sra_reply,
+				sra_status,
+				sra_printsub },
+
+#endif
 	{ 0, },
 };
 
