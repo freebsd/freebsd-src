@@ -376,7 +376,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	 * by extension, all the other ports in the bundle).
 	 */
 	if (b->fec_ifcnt == 0) {
-		ifa = ifnet_addrs[ifp->if_index - 1];
+		ifa = TAILQ_FIRST(&ifp->if_addrhead);
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 		bcopy((char *)ac->ac_enaddr,
 		    priv->arpcom.ac_enaddr, ETHER_ADDR_LEN);
@@ -393,7 +393,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	    (char *)&new->fec_mac, ETHER_ADDR_LEN);
 
 	/* Set up phony MAC address. */
-	ifa = ifnet_addrs[bifp->if_index - 1];
+	ifa = TAILQ_FIRST(&bifp->if_addrhead);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	bcopy(priv->arpcom.ac_enaddr, ac->ac_enaddr, ETHER_ADDR_LEN);
 	bcopy(priv->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
@@ -446,7 +446,7 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 
 	/* Restore MAC address. */
 	ac = (struct arpcom *)bifp;
-	ifa = ifnet_addrs[bifp->if_index - 1];
+	ifa = TAILQ_FIRST(&bifp->if_addrhead);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	bcopy((char *)&p->fec_mac, ac->ac_enaddr, ETHER_ADDR_LEN);
 	bcopy((char *)&p->fec_mac, LLADDR(sdl), ETHER_ADDR_LEN);
