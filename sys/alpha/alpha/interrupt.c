@@ -329,17 +329,28 @@ int alpha_setup_intr(int vector, driver_intr_t *intr, void *arg,
 
 }
 
+/*
+ * returns 0 if interrupt vector can be disabled,
+ * 1 if it cannot
+ */
+
 int alpha_teardown_intr(void *cookie)
 {
 	struct alpha_intr *i = cookie;
-	int s;
+	int s, h;
+
+	h = HASHVEC(i->vector);
 
 	s = splhigh();
 	LIST_REMOVE(i, list);
 	splx(s);
 
 	free(i, M_DEVBUF);
-	return 0;
+	
+	if(LIST_EMPTY(&alpha_intr_hash[h]))
+		return 0;
+	else
+		return 1;
 }
 
 void
