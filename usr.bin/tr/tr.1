@@ -35,7 +35,7 @@
 .\"     @(#)tr.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2004
+.Dd July 23, 2004
 .Dt TR 1
 .Os
 .Sh NAME
@@ -169,6 +169,13 @@ as defined by the collation sequence.
 If either or both of the range endpoints are octal sequences, it
 represents the range of specific coded values between the
 range endpoints, inclusive.
+.Pp
+.Bf Em
+See the COMPATIBILITY section below for an important note regarding
+differences in the way the current
+implementation interprets range expressions differently from
+previous implementations.
+.Ef
 .It [:class:]
 Represents all characters belonging to the defined character class.
 Class names are:
@@ -274,6 +281,12 @@ Translate the contents of file1 to upper-case.
 .Pp
 .D1 Li "tr \*q[:lower:]\*q \*q[:upper:]\*q < file1"
 .Pp
+(This should be preferred over the traditional
+.Ux
+idiom of
+.Ql "tr a-z A-Z" ,
+since it works correctly in all locales.)
+.Pp
 Strip out non-printable characters from file1.
 .Pp
 .D1 Li "tr -cd \*q[:print:]\*q < file1"
@@ -285,6 +298,33 @@ Remove diacritical marks from all accented variants of the letter
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh COMPATIBILITY
+Previous
+.Fx
+implementations of
+.Nm
+did not order characters in range expressions according to the current
+locale's collation order, making it possible to convert unaccented Latin
+characters (esp. as found in English text) from upper to lower case using
+the traditional
+.Ux
+idiom of
+.Ql "tr A-Z a-z" .
+Since
+.Nm
+now obeys the locale's collation order, this idiom may not produce
+correct results when there is not a 1:1 mapping between lower and
+upper case, or when the order of characters within the two cases differs.
+As noted in the
+.Sx EXAMPLES
+section above, the character class expressions
+.Ql "[:lower:]"
+and
+.Ql "[:upper:]"
+should be used instead of explicit character ranges like
+.Ql "a-z"
+and
+.Ql "A-Z" .
+.Pp
 System V has historically implemented character ranges using the syntax
 ``[c-c]'' instead of the ``c-c'' used by historic
 .Bx
