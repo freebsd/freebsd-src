@@ -120,7 +120,7 @@
 #define COM_C_IIR_TXRDYBUG	(0x80000)
 #define COM_IIR_TXRDYBUG(flags)	((flags) & COM_C_IIR_TXRDYBUG)
 #define COM_NOSCR(flags)	((flags) & 0x100000)
-#define COM_TI16754(flags)	((flags) & 0x200000)
+#define	COM_TI16754(flags)	((flags) & 0x200000)
 #define	COM_FIFOSIZE(flags)	(((flags) & 0xff000000) >> 24)
 
 #define	sio_getreg(com, off) \
@@ -606,32 +606,28 @@ sioprobe(dev, xrid, rclk, noprobe)
 /* EXTRA DELAY? */
 
 	/*
-	 * For the TI16754 chips set prescaler to 1 (4 is often the
-	 * default after-reset value), otherwise it's impossible to
+	 * For the TI16754 chips, set prescaler to 1 (4 is often the
+	 * default after-reset value) as otherwise it's impossible to
 	 * get highest baudrates.
 	 */
 	if (COM_TI16754(flags)) {
-		u_char t1, t2;
+		u_char cfcr, efr;
 
-		/* Save LCR */
-		t1 = sio_getreg(com, com_lctl);
-		/* Enable EFR */
-		sio_setreg(com, com_lctl, 0xbf);
-		/* Save EFR */
-		t2 = sio_getreg(com, com_iir);
-		/* Unlock MCR[7] */
-		sio_setreg(com, com_iir, t2 | 0x10);
-		/* Disable EFR */
-		sio_setreg(com, com_lctl, 0);
-		/* Set prescaler to 1 */
-		sio_setreg(com, com_mcr, sio_getreg(com, com_mcr) & 0x7f);
-		/* Enable EFR */
-		sio_setreg(com, com_lctl, 0xbf);
-		/* Restore EFR */
-		sio_setreg(com, com_iir, t2);
-		/* Restore LCR */
-		sio_setreg(com, com_lctl, t1);
+		cfcr = sio_getreg(com, com_cfcr);
+		sio_setreg(com, com_cfcr, CFCR_EFR_ENABLE);
+		efr = sio_getreg(com, com_efr);
+		/* Unlock extended features to turn off prescaler. */
+		sio_setreg(com, com_efr, efr | EFR_EFE);
+		/* Disable EFR. */
+		sio_setreg(com, com_cfcr, (cfcr != CFCR_EFR_ENABLE) ? cfcr : 0);
+		/* Turn off prescaler. */
+		sio_setreg(com, com_mcr,
+			   sio_getreg(com, com_mcr) & ~MCR_PRESCALE);
+		sio_setreg(com, com_cfcr, CFCR_EFR_ENABLE);
+		sio_setreg(com, com_efr, efr);
+		sio_setreg(com, com_cfcr, cfcr);
 	}
+
 	/*
 	 * Initialize the speed and the word size and wait long enough to
 	 * drain the maximum of 16 bytes of junk in device output queues.
