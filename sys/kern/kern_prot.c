@@ -1275,12 +1275,9 @@ securelevel_gt(struct ucred *cr, int level)
 
 	active_securelevel = securelevel;
 	KASSERT(cr != NULL, ("securelevel_gt: null cr"));
-	if (cr->cr_prison != NULL) {
-		mtx_lock(&cr->cr_prison->pr_mtx);
+	if (cr->cr_prison != NULL)
 		active_securelevel = imax(cr->cr_prison->pr_securelevel,
 		    active_securelevel);
-		mtx_unlock(&cr->cr_prison->pr_mtx);
-	}
 	return (active_securelevel > level ? EPERM : 0);
 }
 
@@ -1291,12 +1288,9 @@ securelevel_ge(struct ucred *cr, int level)
 
 	active_securelevel = securelevel;
 	KASSERT(cr != NULL, ("securelevel_ge: null cr"));
-	if (cr->cr_prison != NULL) {
-		mtx_lock(&cr->cr_prison->pr_mtx);
+	if (cr->cr_prison != NULL)
 		active_securelevel = imax(cr->cr_prison->pr_securelevel,
 		    active_securelevel);
-		mtx_unlock(&cr->cr_prison->pr_mtx);
-	}
 	return (active_securelevel >= level ? EPERM : 0);
 }
 
