@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id$
+ *	$Id: bios.S,v 1.2 1993/10/16 19:11:30 rgrimes Exp $
  */
 
 /*
@@ -56,19 +56,19 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 	.text
 
 /*
-# biosread(dev, cyl, head, sec, nsec, offset)
-#	Read "nsec" sectors from disk to offset "offset" in boot segment
-# BIOS call "INT 0x13 Function 0x2" to read sectors from disk into memory
-#	Call with	%ah = 0x2
-#			%al = number of sectors
-#			%ch = cylinder
-#			%cl = sector
-#			%dh = head
-#			%dl = drive (0x80 for hard disk, 0x0 for floppy disk)
-#			%es:%bx = segment:offset of buffer
-#	Return:		
-#			%al = 0x0 on success; err code on failure
-*/
+ * biosread(dev, cyl, head, sec, nsec, offset)
+ *	Read "nsec" sectors from disk to offset "offset" in boot segment
+ * BIOS call "INT 0x13 Function 0x2" to read sectors from disk into memory
+ *	Call with	%ah = 0x2
+ *			%al = number of sectors
+ *			%ch = cylinder
+ *			%cl = sector
+ *			%dh = head
+ *			%dl = drive (0x80 for hard disk, 0x0 for floppy disk)
+ *			%es:%bx = segment:offset of buffer
+ *	Return:		
+ *			%al = 0x0 on success; err code on failure
+ */
 
 ENTRY(biosread)
 	push	%ebp
@@ -81,31 +81,33 @@ ENTRY(biosread)
 
 	movb	0x10(%ebp), %dh
 	movw	0x0c(%ebp), %cx
-	xchgb	%ch, %cl	# cylinder; the highest 2 bits of cyl is in %cl
+	/* cylinder; the highest 2 bits of cyl is in %cl */
+	xchgb	%ch, %cl
 	rorb	$2, %cl
 	movb	0x14(%ebp), %al
 	orb	%al, %cl
-	incb	%cl		# sector; sec starts from 1, not 0
-	movb	0x8(%ebp), %dl	# device
-	movl	0x1c(%ebp), %ebx	# offset
-				# prot_to_real will set %es to BOOTSEG
+	incb	%cl			/* sector; sec starts from 1, not 0 */
+	movb	0x8(%ebp), %dl		/* device */
+	movl	0x1c(%ebp), %ebx	/* offset */
 
-	call	EXT(prot_to_real)	# enter real mode
-	movb	$0x2, %ah	# subfunction
+	/* prot_to_real will set %es to BOOTSEG */
+	call	EXT(prot_to_real)	/* enter real mode */
+	movb	$0x2, %ah		/* subfunction */
 	addr32
-	movb	0x18(%ebp), %al	# number of sectors
+	movb	0x18(%ebp), %al		/* number of sectors */
 
 	sti
 	int	$0x13
 	cli
 
-	mov	%eax, %ebx	# save return value (actually movw %ax, %bx)
+	/* save return value (actually movw %ax, %bx) */
+	mov	%eax, %ebx
 
 	data32
-	call	EXT(real_to_prot) # back to protected mode
+	call	EXT(real_to_prot)	/* back to protected mode */
 
 	xor	%eax, %eax
-	movb	%bh, %al	# return value in %ax
+	movb	%bh, %al		/* return value in %ax */
 
 	pop	%es
 	pop	%edx
@@ -117,13 +119,13 @@ ENTRY(biosread)
 
 
 /*
-# putc(ch)
-# BIOS call "INT 10H Function 0Eh" to write character to console
-#	Call with	%ah = 0x0e
-#			%al = character
-#			%bh = page
-#			%bl = foreground color ( graphics modes)
-*/
+ * putc(ch)
+ * BIOS call "INT 10H Function 0Eh" to write character to console
+ *	Call with	%ah = 0x0e
+ *			%al = character
+ *			%bh = page
+ *			%bl = foreground color ( graphics modes)
+ */
 
 
 ENTRY(putc)
@@ -137,11 +139,11 @@ ENTRY(putc)
 	call	EXT(prot_to_real)
 
 	data32
-	mov	$0x1, %ebx	# %bh=0, %bl=1 (blue)
+	mov	$0x1, %ebx		/* %bh=0, %bl=1 (blue) */
 	movb	$0xe, %ah
 	movb	%cl, %al
 	sti
-	int	$0x10		# display a byte
+	int	$0x10			/* display a byte */
 	cli
 
 	data32
@@ -154,17 +156,17 @@ ENTRY(putc)
 
 
 /*
-# getc()
-# BIOS call "INT 16H Function 00H" to read character from keyboard
-#	Call with	%ah = 0x0
-#	Return:		%ah = keyboard scan code
-#			%al = ASCII character
-*/
+ * getc()
+ * BIOS call "INT 16H Function 00H" to read character from keyboard
+ *	Call with	%ah = 0x0
+ *	Return:		%ah = keyboard scan code
+ *			%al = ASCII character
+ */
 
 ENTRY(getc)
 	push	%ebp
 	mov	%esp, %ebp
-	push	%ebx		# save %ebx
+	push	%ebx			/* save %ebx */
 
 	call	EXT(prot_to_real)
 
@@ -173,7 +175,7 @@ ENTRY(getc)
 	int	$0x16
 	cli
 
-	movb	%al, %bl	# real_to_prot uses %eax
+	movb	%al, %bl		/* real_to_prot uses %eax */
 
 	data32
 	call	EXT(real_to_prot)
@@ -185,24 +187,24 @@ ENTRY(getc)
 	pop	%ebp
 	ret
 /*
-# ischar()
-#       if there is a character pending, return it; otherwise return 0
-# BIOS call "INT 16H Function 01H" to check whether a character is pending
-#	Call with	%ah = 0x1
-#	Return:
-#		If key waiting to be input:
-#			%ah = keyboard scan code
-#			%al = ASCII character
-#			Zero flag = clear
-#		else
-#			Zero flag = set
-*/
+ * ischar()
+ *	if there is a character pending, return it; otherwise return 0
+ * BIOS call "INT 16H Function 01H" to check whether a character is pending
+ *	Call with	%ah = 0x1
+ *	Return:
+ *		If key waiting to be input:
+ *			%ah = keyboard scan code
+ *			%al = ASCII character
+ *			Zero flag = clear
+ *		else
+ *			Zero flag = set
+ */
 ENTRY(ischar)
 	push	%ebp
 	mov	%esp, %ebp
 	push	%ebx
 
-	call	EXT(prot_to_real)		# enter real mode
+	call	EXT(prot_to_real)	/* enter real mode */
 
 	xor	%ebx, %ebx
 	movb	$0x1, %ah
@@ -225,11 +227,11 @@ nochar:
 	ret
 
 /*
-#
-# get_diskinfo():  return a word that represents the
-#	max number of sectors and  heads and drives for this device
-#
-*/
+ *
+ * get_diskinfo():  return a word that represents the
+ *	max number of sectors and heads and drives for this device
+ *
+ */
 
 ENTRY(get_diskinfo)
 	push	%ebp
@@ -239,10 +241,10 @@ ENTRY(get_diskinfo)
 	push	%ecx
 	push	%edx
 
-	movb	0x8(%ebp), %dl		# diskinfo(drive #)
-	call	EXT(prot_to_real)	# enter real mode
+	movb	0x8(%ebp), %dl		/* diskinfo(drive #) */
+	call	EXT(prot_to_real)	/* enter real mode */
 
-	movb	$0x8, %ah		# ask for disk info
+	movb	$0x8, %ah		/* ask for disk info */
 
 	sti
 	int	$0x13
@@ -254,27 +256,28 @@ ENTRY(get_diskinfo)
 	 * Guess it's a 15-sector floppy.  Initialize all the registers for
 	 * documentation, although we only need head and sector counts.
 	 */
-	subb	%ah, %ah		# %ax = 0
+	subb	%ah, %ah		/* %ax = 0 */
 	movb	%al, %al
-	movb	%ah, %bh		# %bh = 0
-	movb	$2, %bl			# %bl bits 0-3 = drive type, 2 = 1.2M
-	movb	$79, %ch		# max track
-	movb	$15, %cl		# max sector
-	movb	$1, %dh			# max head
-	movb	$1, %dl			# # floppy drives installed
-	# es:di = parameter table
-	# carry = 0
+	movb	%ah, %bh		/* %bh = 0 */
+	movb	$2, %bl			/* %bl	bits 0-3 = drive type,
+						bit    2 = 1.2M */
+	movb	$79, %ch		/* max track */
+	movb	$15, %cl		/* max sector */
+	movb	$1, %dh			/* max head */
+	movb	$1, %dl			/* # floppy drives installed */
+	/* es:di = parameter table */
+	/* carry = 0 */
 ok:
 
 	data32
-	call	EXT(real_to_prot)	# back to protected mode
+	call	EXT(real_to_prot)	/* back to protected mode */
 
 	xor	%eax, %eax
 
-	/*form a longword representing all this gunk*/
-	movb	%dh, %ah		# max head
-	andb	$0x3f, %cl		# mask of cylinder gunk
-	movb	%cl, %al		# max sector (and # sectors)
+	/* form a longword representing all this gunk */
+	movb	%dh, %ah		/* max head */
+	andb	$0x3f, %cl		/* mask of cylinder gunk */
+	movb	%cl, %al		/* max sector (and # sectors) */
 
 	pop	%edx
 	pop	%ecx
@@ -284,14 +287,14 @@ ok:
 	ret
 
 /*
-#
-# memsize(i) :  return the memory size in KB. i == 0 for conventional memory,
-#		i == 1 for extended memory
-#	BIOS call "INT 12H" to get conventional memory size
-#	BIOS call "INT 15H, AH=88H" to get extended memory size
-#		Both have the return value in AX.
-#
-*/
+ *
+ * memsize(i) :  return the memory size in KB. i == 0 for conventional memory,
+ *		i == 1 for extended memory
+ *	BIOS call "INT 12H" to get conventional memory size
+ *	BIOS call "INT 15H, AH=88H" to get extended memory size
+ *		Both have the return value in AX.
+ *
+ */
 
 ENTRY(memsize)
 	push	%ebp
@@ -300,7 +303,7 @@ ENTRY(memsize)
 
 	mov	8(%ebp), %ebx
 
-	call	EXT(prot_to_real)		# enter real mode
+	call	EXT(prot_to_real)	/* enter real mode */
 
 	cmpb	$0x1, %bl
 	data32
