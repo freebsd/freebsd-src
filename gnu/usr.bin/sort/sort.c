@@ -201,12 +201,25 @@ colldiff (unsigned char A, unsigned char B)
 {
 	static unsigned char s1[2], s2[2];
 
-	if (isascii(A) || isascii(B) || !isalpha(A) || !isalpha(B))
+	if (A == B)
+		return (0);
+	if (isascii(A) && isascii(B) || !isalpha(A) && !isalpha(B))
 		return ((int)A - (int)B);
 	if (isupper(A) && islower(B))
 		return (-1);
 	else if (islower(A) && isupper(B))
 		return (1);
+	if (isalpha(A) && !isalpha(B)) {
+		if (isupper(A))
+			return ('A' - (int)B);
+		else
+			return ('a' - (int)B);
+	} else if (isalpha(B) && !isalpha(A)) {
+		if (isupper(B))
+			return ((int)A - 'A');
+		else
+			return ((int)A - 'a');
+	}
 	s1[0] = A;
 	s2[0] = B;
 	return strcoll(s1, s2);
