@@ -730,7 +730,7 @@ ArchSVR4Entry(ar, name, size, arch)
 		break;
 	    }
 	if (DEBUG(ARCH)) {
-	    printf("Found svr4 archive name table with %d entries\n", entry);
+	    printf("Found svr4 archive name table with %zu entries\n", entry);
 	}
 	return 0;
     }
@@ -747,7 +747,7 @@ ArchSVR4Entry(ar, name, size, arch)
     }
     if (entry >= ar->fnamesize) {
 	if (DEBUG(ARCH)) {
-	    printf("SVR4 entry offset %s is greater than %d\n",
+	    printf("SVR4 entry offset %s is greater than %zu\n",
 		   name, ar->fnamesize);
 	}
 	return 2;
