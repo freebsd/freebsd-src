@@ -888,13 +888,6 @@ fdc_attach(device_t dev)
 	if ((error = bus_generic_attach(dev)) != 0)
 		return (error);
 
-	/* Now remove all children not successfully probed (if any). */
-	if ((error = device_get_children(dev, &children, &nchildren)) != 0)
-		return (error);
-	for (i = 0; i < nchildren; i++)
-		if (!device_is_alive(children[i]))
-			device_delete_child(dev, children[i]);
-
 	return (0);
 }
 
