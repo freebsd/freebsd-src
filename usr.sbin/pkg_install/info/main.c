@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
 #include "info.h"
 #include <err.h>
 
-static char Options[] = "abcdDe:EfgGhiIkl:LmoO:pPqQrRst:vVW:xX";
+static char Options[] = "abcdDe:EfgGhiIjkl:LmoO:pPqQrRst:vVW:xX";
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
@@ -115,12 +115,16 @@ main(int argc, char **argv)
 	    Flags |= SHOW_INSTALL;
 	    break;
 
+	case 'j':
+	    Flags |= SHOW_REQUIRE;
+	    break;
+
 	case 'k':
 	    Flags |= SHOW_DEINSTALL;
 	    break;
 
 	case 'r':
-	    Flags |= SHOW_REQUIRE;
+	    Flags |= SHOW_DEPEND;
 	    break;
 
 	case 'R':
@@ -258,7 +262,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-	"usage: pkg_info [-bcdDEfgGiIjLmopPqQrRsvVxX] [-e package] [-l prefix]",
+	"usage: pkg_info [-bcdDEfgGiIjkLmopPqQrRsvVxX] [-e package] [-l prefix]",
 	"                [-t template] -a | pkg-name ...",
 	"       pkg_info [-qQ] -W filename",
 	"       pkg_info [-qQ] -O origin",

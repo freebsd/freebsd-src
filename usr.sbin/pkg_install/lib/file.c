@@ -126,7 +126,8 @@ isURL(const char *fname)
 	return FALSE;
     while (isspace(*fname))
 	++fname;
-    if (!strncmp(fname, "ftp://", 6) || !strncmp(fname, "http://", 7))
+    if (!strncmp(fname, "ftp://", 6) || !strncmp(fname, "http://", 7) ||
+	!strncmp(fname, "https://", 8) || !strncmp(fname, "file://", 7))
 	return TRUE;
     return FALSE;
 }
@@ -328,7 +329,8 @@ copy_hierarchy(const char *dir, const char *fname, Boolean to)
 int
 unpack(const char *pkg, const char *flist)
 {
-    char *comp, suff[80], *cp;
+    const char *comp, *cp;
+    char suff[80];
 
     comp = "";
     /*

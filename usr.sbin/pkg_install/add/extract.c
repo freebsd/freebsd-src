@@ -85,7 +85,7 @@ rollback(const char *name, const char *home, PackingList start, PackingList stop
     ++(pos); \
 } while (0)
 
-int
+static int
 add_arg(char *buf, int len, const char *str)
 {
     int i = 0;
