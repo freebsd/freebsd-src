@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.65 1997/04/04 17:47:41 dfr Exp $
+ * $Id: vfs_syscalls.c,v 1.66 1997/07/17 07:17:33 dfr Exp $
  */
 
 /*
@@ -62,7 +62,6 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
-#include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 
@@ -71,7 +70,6 @@
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <sys/sysctl.h>

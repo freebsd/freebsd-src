@@ -185,14 +185,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/mbuf.h>
-#include <sys/protosw.h>
-#include <sys/socket.h>
 #include <sys/uio.h>
-#include <sys/errno.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/mman.h>
 #ifdef DEVFS
@@ -202,7 +196,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 

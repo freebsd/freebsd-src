@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.26 1997/03/24 11:52:25 bde Exp $
+ * $Id: sys_generic.c,v 1.27 1997/06/16 00:29:31 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -50,18 +50,14 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/proc.h>
-#include <sys/stat.h>
 #include <sys/signalvar.h>
-#include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
-#include <sys/stat.h>
 #include <sys/malloc.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
-#include <vm/vm.h>
 
 static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int, int *));
 

@@ -150,26 +150,18 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/mbuf.h>
-#include <sys/protosw.h>
-#include <sys/socket.h>
-#include <sys/errno.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/mman.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /* DEVFS */
-#include <machine/clock.h>
 #if defined(METEOR_FreeBSD_210)
 #include <machine/cpu.h>	/* bootverbose */
 #endif
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 

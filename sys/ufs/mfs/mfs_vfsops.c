@@ -31,25 +31,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.29 1997/03/24 11:25:10 bde Exp $
+ * $Id: mfs_vfsops.c,v 1.30 1997/04/28 09:15:18 jkh Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
-#include <sys/mbuf.h>
-#include <sys/file.h>
-#include <sys/disklabel.h>
 #include <sys/mount.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
-
-#include <miscfs/specfs/specdev.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

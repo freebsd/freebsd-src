@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.85 1997/08/09 00:02:56 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.86 1997/08/26 18:10:34 peter Exp $
  */
 
 #include "npx.h"
@@ -55,7 +55,6 @@
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
-#include <machine/pcb_ext.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

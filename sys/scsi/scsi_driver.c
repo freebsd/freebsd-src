@@ -35,21 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.24 1997/06/25 19:07:42 tegge Exp $
+ * $Id: scsi_driver.c,v 1.25 1997/09/02 04:37:57 bde Exp $
  *
  */
 
 #include "opt_scsi.h"
 
-#include <sys/types.h>
-#include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/malloc.h>
-#include <sys/fcntl.h>
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_driver.h>

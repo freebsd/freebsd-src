@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id: ufs_bmap.c,v 1.14 1997/02/22 09:47:44 peter Exp $
+ * $Id: ufs_bmap.c,v 1.15 1997/03/09 06:10:31 mpp Exp $
  */
 
 #include <sys/param.h>
@@ -46,8 +46,6 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
-
-#include <miscfs/specfs/specdev.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

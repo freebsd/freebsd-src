@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.82 1997/04/02 09:05:38 jmg Exp $
+ *      $Id: cd.c,v 1.83 1997/05/04 15:24:22 joerg Exp $
  */
 
 #include "opt_bounce.h"
@@ -22,18 +22,13 @@
 
 #define SPLCD splbio
 #define ESUCCESS 0
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/dkbad.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/stat.h>
 #include <sys/buf.h>
-#include <sys/uio.h>
-#include <sys/malloc.h>
 #include <sys/cdio.h>
-#include <sys/errno.h>
 #include <sys/disklabel.h>
 #include <sys/dkstat.h>
 #include <sys/kernel.h>

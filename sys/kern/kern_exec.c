@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.63 1997/04/23 22:07:05 ache Exp $
+ *	$Id: kern_exec.c,v 1.64 1997/08/04 05:39:24 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,6 @@
 #include <sys/malloc.h>
 #include <sys/namei.h>
 #include <sys/sysent.h>
-#include <sys/syslog.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
@@ -58,8 +57,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
-
-#include <sys/user.h>
 
 #include <machine/reg.h>
 

@@ -32,13 +32,12 @@
  *
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
- *	$Id: in_cksum.c,v 1.10 1997/02/22 09:32:20 peter Exp $
+ *	$Id: in_cksum.c,v 1.11 1997/08/16 19:14:52 wollman Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

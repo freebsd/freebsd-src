@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id$
+ * $Id: fdesc_vnops.c,v 1.23 1997/02/22 09:40:15 peter Exp $
  */
 
 /*
@@ -46,7 +46,6 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>	/* boottime */
-#include <sys/resourcevar.h>
 #include <sys/filedesc.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -55,10 +54,8 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/buf.h>
 #include <sys/dirent.h>
 #include <sys/socketvar.h>
-#include <sys/tty.h>
 #include <sys/conf.h>
 #include <miscfs/fdesc/fdesc.h>
 

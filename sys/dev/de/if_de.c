@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.65 1997/06/22 09:48:42 peter Exp $
+ * $Id: if_de.c,v 1.66 1997/08/03 13:00:42 peter Exp $
  *
  */
 
@@ -39,17 +39,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/protosw.h>
 #include <sys/socket.h>
-#if defined(__FreeBSD__)
 #include <sys/sockio.h>
-#else
-#include <sys/ioctl.h>
-#endif
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>	/* only for declaration of wakeup() used by vm.h */
 #if defined(__FreeBSD__)
 #include <machine/clock.h>
 #elif defined(__bsdi__) || defined(__NetBSD__)
@@ -60,9 +53,7 @@
 #if defined(SIOCSIFMEDIA) && !defined(TULIP_NOIFMEDIA)
 #include <net/if_media.h>
 #endif
-#include <net/if_types.h>
 #include <net/if_dl.h>
-#include <net/route.h>
 #include <net/netisr.h>
 
 #if defined(__bsdi__) && _BSDI_VERSION >= 199701
@@ -73,14 +64,10 @@
 #include "bpfilter.h"
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
 #endif
 
 #ifdef NS
@@ -89,8 +76,6 @@
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_kern.h>
 
 #if defined(__FreeBSD__)
 #include <vm/pmap.h>
