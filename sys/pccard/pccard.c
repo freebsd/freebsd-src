@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.73 1999/03/10 15:00:54 roger Exp $
+ *	$Id: pccard.c,v 1.74 1999/04/27 11:18:08 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -162,12 +162,11 @@ static void
 pccard_configure(dummy)
 	void *dummy;
 {
-	struct pccard_device **driver, *drv;
+	struct pccard_device *drv;
 
 	/* This isn't strictly correct, but works because of initialize order */
-	driver = &drivers;
 	printf("Initializing PC-card drivers:");
-	while ((drv = *driver++))
+	for (drv = drivers;  drv != NULL;  drv = drv->next)
 		printf(" %s", drv->name);
 	printf("\n");
 }
