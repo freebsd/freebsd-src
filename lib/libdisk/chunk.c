@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
+#include <err.h>
 #include "libdisk.h"
 
 #define new_chunk() memset(malloc(sizeof(struct chunk)), 0, sizeof(struct chunk))
