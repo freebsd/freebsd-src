@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.9 1998/10/22 05:58:39 bde Exp $
+ * $Id: loran.c,v 1.10 1998/10/23 10:45:10 phk Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -32,13 +32,13 @@
 #include <i386/isa/isa_device.h>
 #endif /* KERNEL */
 
+typedef TAILQ_HEAD(, datapoint) dphead_t;
+
 struct datapoint {
-	void			*ident;
-	int			index;
+	/* Fields used by kernel */
 	u_int64_t		scheduled;
-	u_int			delay;
 	u_int			code;
-	u_int			gri;
+	u_int			fri;
 	u_int			agc;
 	u_int			phase;
 	u_int			width;
@@ -47,16 +47,22 @@ struct datapoint {
 	u_int			qsig;
 	u_int			ssig;
 	u_int64_t		epoch;
-	struct timespec 	actual;
 	TAILQ_ENTRY(datapoint)	list;
+	u_char			status;
+	int			vco;
+	pid_t			pid;
+
+	int			priority;
+	dphead_t		*home;
+
+	/* Fields used only in userland */
+	void			*ident;
+	int			index;
 	double			ival;
 	double			qval;
 	double			sval;
 	double			mval;
-	u_char			status;
-	u_int			vco;
-	int			count;
-	int			remain;
+
 };
 
 /*
@@ -77,14 +83,21 @@ struct datapoint {
     #define EN5 0x40            /* enable counter 5 bit */
     #define ENG 0x80            /* enable gri bit */
 
-#define VCO 2048                /* initial vco dac (0 V)*/
+#define VCO_SHIFT 8		/* bits of fraction on VCO value */
+#define VCO (2048 << VCO_SHIFT) /* initial vco dac (0 V)*/
+
+
+#define PGUARD 990             /* program guard time (cycle) (990!) */
+
 
 #ifdef KERNEL
 
+#define NLORAN	10		/* Allow ten minor devices */
+
+#define NDUMMY 4		/* How many idlers we want */
 
 #define PORT 0x0300             /* controller port address */
 
-#define PGUARD 990             /* program guard time (cycle) (990!) */
 
 #define GRI 800                 /* pulse-group gate (cycle) */
 
@@ -183,9 +196,9 @@ struct datapoint {
 
 /**********************************************************************/
 
-static TAILQ_HEAD(qhead, datapoint)	qdone, qready;
+dphead_t minors[NLORAN], working, holding;
 
-static struct datapoint dummy;
+static struct datapoint dummy[NDUMMY];
 
 static u_int64_t ticker;
 
@@ -198,8 +211,11 @@ static MALLOC_DEFINE(M_LORAN, "Loran", "Loran datapoints");
 static int loranerror;
 static char lorantext[80];
 
-static u_int	vco_is;
-static u_int	vco_should;
+static u_int vco_is;
+static u_int vco_should;
+static u_int vco_want;
+static u_int64_t vco_when;
+static int64_t vco_error;
 
 static int	lorantc_magic;
 
@@ -214,7 +230,7 @@ static	d_close_t	loranclose;
 static	d_read_t	loranread;
 static	d_write_t	loranwrite;
 static	ointhand2_t	loranintr;
-extern	struct timecounter loran_timecounter[];
+extern	struct timecounter loran_timecounter;
 
 /**********************************************************************/
 
@@ -229,10 +245,10 @@ loranprobe(struct isa_device *dvp)
 }
 
 u_short tg_init[] = {			/* stc initialization vector	*/
-	0x0562,      12,         13,	/* counter 1 (p0)		*/
-	0x0262,  PGUARD,        GRI,	/* counter 2 (gri)		*/
+	0x0562,      12,         13,	/* counter 1 (p0)  Mode J	*/
+	0x0262,  PGUARD,        GRI,	/* counter 2 (gri) Mode J	*/
 	0x8562,     PCX, 5000 - PCX,	/* counter 3 (pcx)		*/
-	0xc562,       0,     STROBE,	/* counter 4 (stb)		*/
+	0xc562,       0,     STROBE,	/* counter 4 (stb) Mode L	*/
 	0x052a,	      0,          0	/* counter 5 (out)		*/
 };
 
@@ -265,26 +281,29 @@ loranattach(struct isa_device *isdp)
 
 	printf("loran0: LORAN-C Receiver\n");
 
-	vco_is = VCO;
-	LOAD_DAC(DACA, VCO);
+	vco_should = vco_is = VCO;
+	LOAD_DAC(DACA, vco_is >> VCO_SHIFT);
 	 
 	init_tgc();
 
 	init_timecounter(&loran_timecounter);
 
-	TAILQ_INIT(&qdone);
-	TAILQ_INIT(&qready);
+	TAILQ_INIT(&working);
+	TAILQ_INIT(&holding);
+	for (i = 0; i < NLORAN; i++) {
+		TAILQ_INIT(&minors[i]);
+		
+	}
 
-	dummy.agc = 4095;
-	dummy.code = 0xac;
-	dummy.delay = PGUARD - GRI;
-	dummy.gri = PGUARD;
-	dummy.phase = 50;
-	dummy.width = 50;
-
-	TAILQ_INSERT_HEAD(&qready, &dummy, list);
-	this = &dummy;
-	next = &dummy;
+	for (i = 0; i < NDUMMY; i++) {
+		dummy[i].agc = 4095;
+		dummy[i].code = 0xac;
+		dummy[i].fri = PGUARD;
+		dummy[i].phase = 50;
+		dummy[i].width = 50;
+		dummy[i].priority = 9999;
+		TAILQ_INSERT_TAIL(&working, &dummy[i], list);
+	}
 
 	inb(ADC);		/* Flush any old result */
 	outb(ADC, ADC_S);
@@ -300,26 +319,18 @@ loranopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	u_long ef;
 	struct datapoint *this;
+	int idx;
 
-	while (!TAILQ_EMPTY(&qdone)) {
-		ef = read_eflags();
-		disable_intr();
-		this = TAILQ_FIRST(&qdone);
-		TAILQ_REMOVE(&qdone, this, list);
-		write_eflags(ef);
-		FREE(this, M_LORAN);
-	}
-	init_tgc();
-	loranerror = 0;
+	idx = minor(dev);
+	if (idx >= NLORAN) 
+		return (ENODEV);
+
 	return(0);
 }
 
 static	int
 loranclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	/*
-	 * Lower ENG
-	 */	
 	return(0);
 }
 
@@ -329,19 +340,22 @@ loranread(dev_t dev, struct uio * uio, int ioflag)
 	u_long ef;
 	struct datapoint *this;
 	int err, c;
+	int idx;
+
+	idx = minor(dev);
 	
 	if (loranerror) {
 		printf("Loran0: %s", lorantext);
 		return(EIO);
 	}
-	if (TAILQ_EMPTY(&qdone)) 
-		tsleep ((caddr_t)&qdone, PZERO + 8 |PCATCH, "loranrd", hz*2);
-	if (TAILQ_EMPTY(&qdone)) 
+	if (TAILQ_EMPTY(&minors[idx])) 
+		tsleep ((caddr_t)&minors[idx], PZERO + 8 |PCATCH, "loranrd", hz*2);
+	if (TAILQ_EMPTY(&minors[idx])) 
 		return(0);
-	this = TAILQ_FIRST(&qdone);
+	this = TAILQ_FIRST(&minors[idx]);
 	ef = read_eflags();
 	disable_intr();
-	TAILQ_REMOVE(&qdone, this, list);
+	TAILQ_REMOVE(&minors[idx], this, list);
 	write_eflags(ef);
 
 	c = imin(uio->uio_resid, (int)sizeof *this);
@@ -351,55 +365,114 @@ loranread(dev_t dev, struct uio * uio, int ioflag)
 }
 
 static void
-loranenqueue(struct datapoint *this)
+loranenqueue(struct datapoint *dp)
 {
-	struct datapoint *p, *q;
-	u_long ef;
-	u_int64_t x;
+	struct datapoint *dpp, *dpn;
 
-	if (this->scheduled < ticker) {
-		x = (ticker - this->scheduled)  / (2 * this->gri);
-		this->scheduled += x * 2 * this->gri;
-	}
+	while(1) {
+		/*
+		 * The first two elements on "working" are sacred,
+		 * they're already partly setup in hardware, so the
+		 * earliest slot we can use is #3
+		 */
+		dpp = TAILQ_FIRST(&working);
+		dpp = TAILQ_NEXT(dpp, list);
+		dpn = TAILQ_NEXT(dpp, list);
+		while (1) {
+			/* 
+			 * We cannot bump "dpp", so if "dp" overlaps it
+			 * skip a beat.
+			 * XXX: should use better algorithm ?
+			 */
+			if (dpp->scheduled + PGUARD > dp->scheduled) {
+				dp->scheduled += dp->fri;
+				continue;
+			}		
 
-	ef = read_eflags();
-	disable_intr();
+			/*
+			 * If "dpn" will be done before "dp" wants to go,
+			 * we must look further down the list.
+			 */
+			if (dpn && dpn->scheduled + PGUARD < dp->scheduled) {
+				dpp = dpn;
+				dpn = TAILQ_NEXT(dpp, list);
+				continue;
+			}
 
-	p = TAILQ_FIRST(&qready);
-	while (1) {
-		while (this->scheduled < p->scheduled + PGUARD) 
-			this->scheduled += 2 * this->gri;
-		q = TAILQ_NEXT(p, list);
-		if (!q) {
-			this->delay = this->scheduled - p->scheduled - GRI;
-			TAILQ_INSERT_TAIL(&qready, this, list);
-			break;
+			/* 
+			 * If at end of list, put "dp" there
+			 */
+			if (!dpn) {
+				TAILQ_INSERT_AFTER(&working, dpp, dp, list);
+				break;
+			}
+
+			/*
+			 * If "dp" fits before "dpn", insert it there
+			 */
+			if (dpn->scheduled > dp->scheduled + PGUARD) {
+				TAILQ_INSERT_AFTER(&working, dpp, dp, list);
+				break;
+			}
+
+			/*
+			 * If "dpn" is less important, bump it.
+			 */
+			if (dp->priority < dpn->priority) {
+				TAILQ_REMOVE(&working, dpn, list);
+				TAILQ_INSERT_TAIL(&holding, dpn, list);
+				dpn = TAILQ_NEXT(dpp, list);
+				continue;
+			}
+
+			/*
+			 * "dpn" was more or equally important, "dp" must
+			 * take yet turn.
+			 */
+			dp->scheduled += dp->fri;
 		}
-		if (this->scheduled + PGUARD < q->scheduled) {
-			this->delay = this->scheduled - p->scheduled - GRI;
-			TAILQ_INSERT_BEFORE(q, this, list);
-			q->delay = q->scheduled - this->scheduled - GRI;
+
+		/*
+		 * If anything was bumped, put it back as best we can
+		 */
+		if (TAILQ_EMPTY(&holding))
 			break;
-		}
-		p = q;
+		dp = TAILQ_FIRST(&holding);
+		TAILQ_REMOVE(&holding, dp, list);
 	}
-	write_eflags(ef);
 }
 
 static	int
 loranwrite(dev_t dev, struct uio * uio, int ioflag)
 {
+	u_long ef;
         int err = 0, c;
 	struct datapoint *this;
+	int idx;
+	u_int64_t dt;
+
+	idx = minor(dev);
 
 	MALLOC(this, struct datapoint *, sizeof *this, M_LORAN, M_WAITOK);
 	c = imin(uio->uio_resid, (int)sizeof *this);
 	err = uiomove((caddr_t)this, c, uio);        
-	if (!err && this->gri == 0)
+	if (!err && this->fri == 0)
 		err = EINVAL;
+	/* XXX more checks */
+	this->home = &minors[idx];
+	this->priority = idx;
+	if (ticker > this->scheduled) {
+		dt = ticker - this->scheduled;
+		dt -= dt % this->fri;
+		this->scheduled += dt;
+	}
 	if (!err) {
+		ef = read_eflags();
+		disable_intr();
 		loranenqueue(this);
-		vco_should = this->vco;
+		write_eflags(ef);
+		if (this->vco >= 0)
+			vco_want = this->vco;
 	} else {
 		FREE(this, M_LORAN);
 	}
@@ -411,31 +484,14 @@ loranintr(int unit)
 {
 	u_long ef;
 	int status = 0, count = 0, i;
+	struct datapoint *this, *next;
+	int delay;
 
 	ef = read_eflags();
 	disable_intr();
 
-	if (this != &dummy) {
-		outb(TGC, DSABDPS);
-		outb(TGC, TG_LOADDP + 0x12);	/* hold counter #2 */
-		this->remain = -1;
-		i = 2;
-		for (i = 0; i < 2; i++) {
-			count = this->remain;
-			do {
-				outb(TGC, TG_SAVE + 0x12);
-				this->remain = inb(TGD) & 0xff;
-				this->remain |= inb(TGD) << 8;
-			} while (count == this->remain);
-		}
-		lorantc_magic = 1;
-		nanotime(&this->actual);
-		lorantc_magic = 0;
-		outb(TGC, TG_LOADDP + 0x0a);	
-		this->count = inb(TGD);
-		this->count |= inb(TGD) << 8;
-		LOAD_9513(0x12, GRI)
-	}
+	this = TAILQ_FIRST(&working);
+	TAILQ_REMOVE(&working, this, list);
 
 	this->ssig = inb(ADC);
 
@@ -458,29 +514,18 @@ loranintr(int unit)
 
 	this->epoch = ticker;
 
-	if (this != &dummy) {
-		TAILQ_INSERT_TAIL(&qdone, this, list);
-		wakeup((caddr_t)&qdone);
+	if (this->home) {
+		TAILQ_INSERT_TAIL(this->home, this, list);
+		wakeup((caddr_t)this->home);
+	} else {
+		loranenqueue(this);
 	}
 
-	if (next != &dummy || TAILQ_NEXT(next, list))
-		TAILQ_REMOVE(&qready, next, list);
+	this = TAILQ_FIRST(&working);
+	next = TAILQ_NEXT(this, list);
 
-	this = next;
-	ticker += GRI;
-	ticker += this->delay;
-
-	next = TAILQ_FIRST(&qready);
-	if (!next) {
-		next = &dummy;
-		TAILQ_INSERT_HEAD(&qready, next, list);
-	} else if (next->delay + GRI > PGUARD * 2) {
-		next->delay -= PGUARD;
-		next = &dummy;
-		TAILQ_INSERT_HEAD(&qready, next, list);
-	}
-	if (next == &dummy)
-		next->scheduled = ticker + GRI + next->delay;
+	delay = next->scheduled - this->scheduled;
+	delay -= GRI;
 
 	/* load this->params */
 	par &= ~(INTEG|GATE);
@@ -490,7 +535,7 @@ loranintr(int unit)
 
 	outb(CODE, this->code);
 
-	LOAD_9513(0x0a, next->delay);
+	LOAD_9513(0x0a, delay);
 
 	/*
 	 * We need to load this from the opposite register * due to some 
@@ -502,10 +547,17 @@ loranintr(int unit)
 	outb(TGC, TG_LOADARM + 0x08);
 	LOAD_9513(0x14, this->width);
 
-	if (vco_is != vco_should) {
-		LOAD_DAC(DACA, vco_should);
-		vco_is = vco_should;
+	vco_error += ((vco_is << VCO_SHIFT) - vco_should) * (ticker - vco_when);
+	vco_should = vco_want;
+	i = vco_should >> VCO_SHIFT;
+	if (vco_error < 0)
+		i++;
+	
+	if (vco_is != i) {
+		LOAD_DAC(DACA, i);
+		vco_is = i;
 	}
+	vco_when = ticker;
 
 	this->status = inb(TGC);
 #if 1
@@ -526,14 +578,11 @@ loranintr(int unit)
 
 	if (status) {
 		sprintf(lorantext, "Missed: %02x %d %d this:%p next:%p (dummy=%p)\n", 
-		    status, count, next->delay, this, next, &dummy);
+		    status, count, delay, this, next, &dummy);
 		loranerror = 1;
 	}
-	if (next->delay < PGUARD - GRI) {
-		sprintf(lorantext, "Bogus: %02x %d %d\n",
-		    status, count, next->delay);
-		loranerror = 1;
-	}
+
+	ticker = this->scheduled;
 
 	write_eflags(ef);
 }
@@ -569,7 +618,7 @@ static struct timecounter loran_timecounter = {
 };
 
 SYSCTL_OPAQUE(_debug, OID_AUTO, loran_timecounter, CTLFLAG_RD, 
-	loran_timecounter, sizeof(loran_timecounter), "S,timecounter", "");
+	&loran_timecounter, sizeof(loran_timecounter), "S,timecounter", "");
 
 
 /**********************************************************************/
