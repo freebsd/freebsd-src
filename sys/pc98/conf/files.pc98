@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.25 1997/05/31 12:39:57 kato Exp $
+#	$Id: files.pc98,v 1.26 1997/06/02 09:22:55 kato Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -134,6 +134,7 @@ i386/isa/if_wl.c		optional	wl	device-driver
 i386/isa/if_zp.c		optional	zp	device-driver
 i386/isa/ipl_funcs.c		standard				   \
 	compile-with	"${CC} -c ${CFLAGS} ${PROF:S/^$/-fomit-frame-pointer/} $<"
+i386/isa/intr_machdep.c		standard
 pc98/pc98/pc98.c		optional	isa	device-driver
 pc98/isa/istallion.c		optional	stli	device-driver
 pc98/isa/joy.c			optional        joy     device-driver
