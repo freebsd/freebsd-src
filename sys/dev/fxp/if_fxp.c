@@ -781,9 +781,6 @@ fxp_attach(device_t dev)
 
 	/* 
 	 * Hook our interrupt after all initialization is complete.
-	 * XXX This driver has been tested with the INTR_MPSAFFE flag set
-	 * however, ifp and its functions are not fully locked so MPSAFE
-	 * should not be used unless you can handle potential data loss.
 	 */
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
 			       fxp_intr, sc, &sc->ih);
