@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,34 +77,31 @@ fgetwc(FILE *fp)
 static __inline wint_t
 __fgetwc_nbf(FILE *fp)
 {
-	static const mbstate_t initial;
-	mbstate_t mbs;
-	char buf[MB_LEN_MAX];
 	size_t n, nconv;
 	int c;
+	char cc;
 	wchar_t wc;
 
 	n = 0;
-	while (n < MB_CUR_MAX) {
+	for (;;) {
 		if ((c = __sgetc(fp)) == EOF) {
 			if (n == 0)
 				return (WEOF);
 			break;
 		}
-		buf[n++] = (char)c;
-		mbs = initial;
-		nconv = mbrtowc(&wc, buf, n, &mbs);
-		if (nconv == n)
-			return (wc);
-		else if (nconv == 0)
-			return (L'\0');
+		n++;
+		cc = (char)c;
+		nconv = mbrtowc(&wc, &cc, 1, &fp->_extra->mbstate);
+		if (nconv == (size_t)-2)
+			continue;
 		else if (nconv == (size_t)-1)
 			break;
+		else if (nconv == 0)
+			return (L'\0');
+		else
+			return (wc);
 	}
-
-	while (n-- != 0)
-		__ungetc((unsigned char)buf[n], fp);
-	errno = EILSEQ;
 	fp->_flags |= __SERR;
+	errno = EILSEQ;
 	return (WEOF);
 }
