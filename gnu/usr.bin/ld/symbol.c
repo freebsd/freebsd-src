@@ -1,5 +1,5 @@
 /*
- * $Id: symbol.c,v 1.4 1994/02/13 20:41:46 jkh Exp $		- symbol table routines
+ * $Id: symbol.c,v 1.5 1994/06/15 22:39:56 rich Exp $		- symbol table routines
  */
 
 /* Create the symbol table entries for `etext', `edata' and `end'.  */
@@ -126,7 +126,7 @@ getsym(key)
 	bp->aux = 0;
 	bp->sorefs = 0;
 	bp->so_defined = 0;
-	bp->def_nlist = 0;
+	bp->def_lsp = 0;
 	bp->jmpslot_offset = -1;
 	bp->gotslot_offset = -1;
 	bp->flags = 0;
@@ -144,15 +144,15 @@ getsym(key)
 
 symbol *
 getsym_soft (key)
-     char *key;
+	char *key;
 {
 	register int hashval;
 	register symbol *bp;
 
-	/* Determine which bucket.  */
+	/* Determine which bucket. */
 	hashval = hash_string(key) % SYMTABSIZE;
 
-	/* Search the bucket.  */
+	/* Search the bucket. */
 	for (bp = symtab[hashval]; bp; bp = bp->link)
 		if (strcmp(key, bp->name) == 0)
 			return bp;
