@@ -67,7 +67,7 @@ next(s)
 	case INFINITE:
 		return (1);
 	case NORMAL:
-		switch (ch = *s->str) {
+		switch (ch = (u_char)*s->str) {
 		case '\0':
 			s->state = EOS;
 			return (0);
@@ -241,7 +241,7 @@ genrange(s)
 	char *savestart;
 
 	savestart = s->str;
-	stopval = *++s->str == '\\' ? backslash(s) : *s->str++;
+	stopval = *++s->str == '\\' ? backslash(s) : (u_char)*s->str++;
 	if (stopval < (u_char)s->lastch) {
 		s->str = savestart;
 		return (0);
