@@ -65,50 +65,28 @@ extern int etext;
 char **environ;
 const char *__progname = "";
 
-/*
- * Grab %g1 before it gets used for anything by the compiler.
- * Sparc ELF psABI specifies a termination routine (if any) will be in
- * %g1
- */
-static __inline fptr
-get_term(void)
-{
-	fptr retval;
-
-#if 0
-#ifdef	__GNUC__
-	__asm__ volatile("mov %%g1,%0" : "=r"(retval));
-#else
-	retval = (fptr)0; /* XXXX Fix this for other compilers */
-#endif
-#else
-	retval = (fptr)0; /* XXXX temporary */
-#endif
-	return(retval);
-}
-
 /* The entry function. */
 /*
- * %o0 holds ps_strings pointer.  For Solaris compat and/or shared
- * libraries, if %g1 is not 0, it is a routine to pass to atexit().
- * (By passing the pointer in the usual argument register, we avoid
- * having to do any inline assembly, except to recover %g1.)
+ * %o0 holds ps_strings pointer.
  *
  * Note: kernel may (is not set in stone yet) pass ELF aux vector in %o1,
  * but for now we do not use it here.
+ *
+ * The SPARC compliance definitions specifies that the kernel pass the
+ * address of a function to be executed on exit in %g1. We do not make
+ * use of it as it is quite broken, because gcc can use this register
+ * as a temporary, so it is not safe from C code. Its even more broken
+ * for dynamic executables since rtld runs first.
  */
 /* ARGSUSED */
 void
 _start(char **ap, void (*cleanup)(void), struct Struct_Obj_Entry *obj __unused,
     struct ps_strings *ps_strings __unused)
 {
-	void (*term)(void);	
 	int argc;
 	char **argv;
 	char **env;
 	const char *s;
-
-	term = get_term();
 
 	argc = *(long *)(void *)ap;
 	argv = ap + 1;
@@ -122,13 +100,6 @@ _start(char **ap, void (*cleanup)(void), struct Struct_Obj_Entry *obj __unused,
 	}
 
 	__sparc_utrap_setup();
-
-	/*
-	 * If the kernel or a shared library wants us to call
-	 * a termination function, arrange to do so.
-	 */
-	if (term)
-		atexit(term);
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
