@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.43 1998/08/22 15:24:09 mckay Exp $
+ * $Id: vm_page.h,v 1.44 1998/08/24 08:39:38 dfr Exp $
  */
 
 /*
@@ -292,7 +292,7 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
 
 #define PAGE_WAKEUP(m)	{ \
 	PAGE_CLEAR_FLAG(m, PG_BUSY); \
-	if (((m)->flags & PG_WANTED) && ((m)->busy == 0)) { \
+	if ((m)->flags & PG_WANTED) { \
 		PAGE_CLEAR_FLAG(m, PG_WANTED); \
 		wakeup((m)); \
 	} \
@@ -302,8 +302,7 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
 
 #define PAGE_BWAKEUP(m) { \
 	atomic_subtract_char(&(m)->busy, 1); \
-	if ((((m)->flags & (PG_WANTED | PG_BUSY)) == PG_WANTED) && \
-		((m)->busy == 0)) { \
+	if (((m)->flags & PG_WANTED) && (m)->busy == 0) { \
 		PAGE_CLEAR_FLAG(m, PG_WANTED); \
 		wakeup((m)); \
 	} \
