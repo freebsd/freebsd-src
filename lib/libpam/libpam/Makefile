@@ -58,6 +58,8 @@ HDRS2=		pam_misc.h
 # Files from ${.CURDIR}:
 SRCS+=		pam_get_pass.c pam_prompt.c pam_std_option.c
 HDRS3=		pam_mod_misc.h
+MAN+=		pam_set_item.3
+MLINKS+=	pam_set_item.3 pam_get_item.3
 
 # Static PAM modules:
 STATIC_MODULES+= ${MODOBJDIR}/pam_cleartext_pass_ok/libpam_cleartext_pass_ok.a
