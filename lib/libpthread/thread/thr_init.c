@@ -268,9 +268,6 @@ _thread_init(void)
 		memcpy((void *) &_thread_initial->attr, &pthread_attr_default,
 		    sizeof(struct pthread_attr));
 
-		/* Initialize the thread stack cache: */
-		SLIST_INIT(&_stackq);
-
 		/*
 		 * Create a red zone below the main stack.  All other stacks are
 		 * constrained to a maximum size by the paramters passed to
@@ -279,7 +276,7 @@ _thread_init(void)
 		 * thread stack that is just beyond.
 		 */
 		if (mmap((void *) USRSTACK - PTHREAD_STACK_INITIAL -
-		    PTHREAD_STACK_GUARD, PTHREAD_STACK_GUARD, 0, MAP_ANON,
+		    PTHREAD_GUARD_DEFAULT, PTHREAD_GUARD_DEFAULT, 0, MAP_ANON,
 		    -1, 0) == MAP_FAILED)
 			PANIC("Cannot allocate red zone for initial thread");
 

@@ -13,6 +13,7 @@ SRCS+= \
 	uthread_attr_destroy.c \
 	uthread_attr_init.c \
 	uthread_attr_getdetachstate.c \
+	uthread_attr_getguardsize.c \
 	uthread_attr_getinheritsched.c \
 	uthread_attr_getschedparam.c \
 	uthread_attr_getschedpolicy.c \
@@ -21,6 +22,7 @@ SRCS+= \
 	uthread_attr_getstacksize.c \
 	uthread_attr_setcreatesuspend_np.c \
 	uthread_attr_setdetachstate.c \
+	uthread_attr_setguardsize.c \
 	uthread_attr_setinheritsched.c \
 	uthread_attr_setschedparam.c \
 	uthread_attr_setschedpolicy.c \
@@ -124,6 +126,7 @@ SRCS+= \
 	uthread_socketpair.c \
 	uthread_spec.c \
 	uthread_spinlock.c \
+	uthread_stack.c \
 	uthread_suspend_np.c \
 	uthread_switch_np.c \
 	uthread_system.c \
