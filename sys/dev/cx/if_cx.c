@@ -19,7 +19,7 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
- * Cronyx Id: if_cx.c,v 1.1.2.22 2004/02/05 17:10:19 rik Exp $
+ * Cronyx Id: if_cx.c,v 1.1.2.23 2004/02/26 17:56:40 rik Exp $
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -2548,9 +2548,21 @@ static struct cdevsw cx_cdevsw = {
 	.d_dump     = nodump,
 	.d_flags    = D_TTY,
 };
-#else /* __FreeBSD_version > 501000 */
+#elif __FreeBSD_version < 502103
 static struct cdevsw cx_cdevsw = {
-	.d_version =	D_VERSION,
+	.d_open     = cx_open,
+	.d_close    = cx_close,
+	.d_read     = cx_read,
+	.d_write    = cx_write,
+	.d_ioctl    = cx_ioctl,
+	.d_poll     = ttypoll,
+	.d_name     = "cx",
+	.d_maj      = CDEV_MAJOR,
+	.d_flags    = D_TTY,
+};
+#else /* __FreeBSD_version >= 502103 */
+static struct cdevsw cx_cdevsw = {
+	.d_version  = D_VERSION,
 	.d_open     = cx_open,
 	.d_close    = cx_close,
 	.d_read     = cx_read,
@@ -3105,10 +3117,16 @@ static int cx_modevent (module_t mod, int type, void *unused)
 	static int load_count = 0;
 	struct cdevsw *cdsw;
 
+#if __FreeBSD_version >= 502103
 	dev = udev2dev (makeudev(CDEV_MAJOR, 0));
+#else
+	dev = makedev (CDEV_MAJOR, 0);
+#endif
 	switch (type) {
 	case MOD_LOAD:
-		if ((cdsw = devsw (dev)) && cdsw->d_maj == CDEV_MAJOR) {
+		if (dev != NODEV &&
+		    (cdsw = devsw (dev)) &&
+		    cdsw->d_maj == CDEV_MAJOR) {
 			printf ("Sigma driver is already in system\n");
 			return (EEXIST);
 		}
