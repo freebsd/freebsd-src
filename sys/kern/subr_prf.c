@@ -819,11 +819,24 @@ msgbufinit(void *ptr, size_t size)
 	oldp = msgbufp;
 }
 
+SYSCTL_DECL(_kern_security_bsd);
+
+static int unprivileged_read_msgbuf = 1;
+SYSCTL_INT(_kern_security_bsd, OID_AUTO, unprivileged_read_msgbuf,
+    CTLFLAG_RW, &unprivileged_read_msgbuf, 0,
+    "Unprivileged processes may read the kernel message buffer");
+
 /* Sysctls for accessing/clearing the msgbuf */
 static int
 sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 {
 	int error;
+
+	if (!unprivileged_read_msgbuf) {
+		error = suser_td(req->td);
+		if (error)
+			return (error);
+	}
 
 	/*
 	 * Unwind the buffer, so that it's linear (possibly starting with
