@@ -171,6 +171,10 @@ fore_intr(arg)
 		 */
 		if ((fup->fu_flags & CUF_INITED) == 0) {
 
+			if (fup->fu_ft4)
+				/* may not happen */
+				goto done;
+
 			/*
 			 * We're just initializing device now, so see if
 			 * the initialization command has completed
