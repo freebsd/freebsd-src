@@ -173,7 +173,7 @@ smbfs_open(ap)
 		return 0;
 	}
 	if (np->n_flag & NMODIFIED) {
-		if ((error = smbfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1)) == EINTR)
+		if ((error = smbfs_vinvalbuf(vp, ap->a_td)) == EINTR)
 			return error;
 		smbfs_attr_cacheremove(vp);
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
@@ -185,7 +185,7 @@ smbfs_open(ap)
 		if (error)
 			return error;
 		if (np->n_mtime.tv_sec != vattr.va_mtime.tv_sec) {
-			error = smbfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
+			error = smbfs_vinvalbuf(vp, ap->a_td);
 			if (error == EINTR)
 				return error;
 			np->n_mtime.tv_sec = vattr.va_mtime.tv_sec;

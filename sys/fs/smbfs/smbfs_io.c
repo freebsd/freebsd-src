@@ -224,7 +224,7 @@ smbfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		if (error)
 			return error;
 		if (np->n_mtime.tv_sec != vattr.va_mtime.tv_sec) {
-			error = smbfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+			error = smbfs_vinvalbuf(vp, td);
 			if (error)
 				return error;
 			np->n_mtime.tv_sec = vattr.va_mtime.tv_sec;
@@ -259,7 +259,7 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 	if (ioflag & (IO_APPEND | IO_SYNC)) {
 		if (np->n_flag & NMODIFIED) {
 			smbfs_attr_cacheremove(vp);
-			error = smbfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+			error = smbfs_vinvalbuf(vp, td);
 			if (error)
 				return error;
 		}
@@ -667,37 +667,25 @@ smbfs_putpages(ap)
  * doing the flush, just wait for completion.
  */
 int
-smbfs_vinvalbuf(vp, flags, cred, td, intrflg)
-	struct vnode *vp;
-	int flags;
-	struct ucred *cred;
-	struct thread *td;
-	int intrflg;
+smbfs_vinvalbuf(struct vnode *vp, struct thread *td)
 {
 	struct smbnode *np = VTOSMB(vp);
-	int error = 0, slpflag, slptimeo;
+	int error = 0;
 
 	if (vp->v_iflag & VI_XLOCK)
 		return 0;
 
-	if (intrflg) {
-		slpflag = PCATCH;
-		slptimeo = 2 * hz;
-	} else {
-		slpflag = 0;
-		slptimeo = 0;
-	}
 	while (np->n_flag & NFLUSHINPROG) {
 		np->n_flag |= NFLUSHWANT;
-		error = tsleep(&np->n_flag, PRIBIO + 2, "smfsvinv", slptimeo);
+		error = tsleep(&np->n_flag, PRIBIO + 2, "smfsvinv", 2 * hz);
 		error = smb_td_intr(td);
-		if (error == EINTR && intrflg)
+		if (error == EINTR)
 			return EINTR;
 	}
 	np->n_flag |= NFLUSHINPROG;
-	error = vinvalbuf(vp, flags, td, slpflag, 0);
+	error = vinvalbuf(vp, V_SAVE, td, PCATCH, 0);
 	while (error) {
-		if (intrflg && (error == ERESTART || error == EINTR)) {
+		if (error == ERESTART || error == EINTR) {
 			np->n_flag &= ~NFLUSHINPROG;
 			if (np->n_flag & NFLUSHWANT) {
 				np->n_flag &= ~NFLUSHWANT;
@@ -705,7 +693,7 @@ smbfs_vinvalbuf(vp, flags, cred, td, intrflg)
 			}
 			return EINTR;
 		}
-		error = vinvalbuf(vp, flags, td, slpflag, 0);
+		error = vinvalbuf(vp, V_SAVE, td, PCATCH, 0);
 	}
 	np->n_flag &= ~(NMODIFIED | NFLUSHINPROG);
 	if (np->n_flag & NFLUSHWANT) {

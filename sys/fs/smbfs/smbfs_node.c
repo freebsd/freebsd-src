@@ -362,7 +362,7 @@ smbfs_inactive(ap)
 	SMBVDEBUG("%s: %d\n", VTOSMB(vp)->n_name, vrefcnt(vp));
 	if ((np->n_flag & NOPEN) != 0) {
 		smb_makescred(&scred, td, cred);
-		smbfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+		smbfs_vinvalbuf(vp, td);
 		if (vp->v_type == VREG) {
 			VOP_GETATTR(vp, &va, cred, td);
 			smbfs_smb_close(np->n_mount->sm_share, np->n_fid,
