@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/clnt.h>
 #include <rpcsvc/yp.h>
-struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/ypxfrd.h>
 #include "ypxfr_extern.h"
