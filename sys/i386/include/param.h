@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.21 1996/05/02 22:25:17 phk Exp $
+ *	$Id: param.h,v 1.22 1996/05/03 21:01:18 phk Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -100,17 +100,18 @@
 #define btoc(x)	(((unsigned)(x)+PAGE_MASK)>>PAGE_SHIFT)
 
 /*
- * This is messy and perhaps slow because `bytes' may be an off_t.  We
- * have to shift an unsigned type to avoid sign extension and we don't
- * want to widen `bytes' unnecessarily.  Assume that off_t is long long
- * and daddr_t is unsigned long.
+ * btodb() is messy and perhaps slow because `bytes' may be an off_t.  We
+ * want to shift an unsigned type to avoid sign extension and we don't
+ * want to widen `bytes' unnecessarily.  Assume that the result fits in
+ * a daddr_t.
  */
 #define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
 	(sizeof (bytes) > sizeof(long) \
-	 ? (unsigned long)((unsigned long long)(bytes) >> DEV_BSHIFT) \
-	 : (unsigned long)((unsigned long)(bytes) >> DEV_BSHIFT))
+	 ? (daddr_t)((unsigned long long)(bytes) >> DEV_BSHIFT) \
+	 : (daddr_t)((unsigned long)(bytes) >> DEV_BSHIFT))
+
 #define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
-	((unsigned long long)(db) << DEV_BSHIFT)
+	((off_t)(db) << DEV_BSHIFT)
 
 /*
  * Mach derived conversion macros
