@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1998 Sen Schmidt
+ * Copyright (c) 1994-1998 Sen Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -393,7 +393,7 @@ DRIVER_MODULE(pca, isa, pca_driver, pca_devclass, 0, 0);
 
 
 static int
-pcaopen(dev_t dev, int flags, int fmt, struct proc *p)
+pcaopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	/* audioctl device can always be opened */
 	if (minor(dev) == 128)
@@ -421,7 +421,7 @@ pcaopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 
 static int
-pcaclose(dev_t dev, int flags, int fmt, struct proc *p)
+pcaclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	/* audioctl device can always be closed */
 	if (minor(dev) == 128)
@@ -492,7 +492,7 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 
 
 static int
-pcaioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+pcaioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	audio_info_t *auptr;
 
@@ -602,7 +602,7 @@ pcaintr(struct clockframe *frame)
 
 
 static int
-pcapoll(dev_t dev, int events, struct proc *p)
+pcapoll(dev_t dev, int events, struct thread *td)
 {
  	int s;
  	struct proc *p1;
@@ -620,7 +620,7 @@ pcapoll(dev_t dev, int events, struct proc *p)
 			    && p1->p_wchan == (caddr_t)&selwait)
 				pca_status.wsel.si_flags = SI_COLL;
 			else
-				pca_status.wsel.si_pid = p->p_pid;
+				pca_status.wsel.si_pid = td->p_pid;
 		}
 	}
 	splx(s);
