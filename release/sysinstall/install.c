@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.27 1995/10/12 08:00:16 jkh Exp $
+ * $Id: install.c,v 1.71.2.28 1995/10/13 08:19:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -194,6 +194,7 @@ installInitial(void)
     /* stick a helpful shell over on the 4th VTY */
     if (OnVTY && !fork()) {
 	int i, fd;
+	struct termios foo;
 	extern int login_tty(int);
 
 	msgDebug("Starting an emergency holographic shell over on the 4th screen\n");
@@ -207,6 +208,14 @@ installInitial(void)
 	    msgNotify("Can't set controlling terminal");
 	    exit(1);
 	}
+	signal(SIGTTOU, SIG_IGN);
+	if (tcgetattr(fd, &foo) != -1) {
+	    foo.c_cc[VERASE] = '\010';
+	    if (tcsetattr(fd, TCSANOW, &foo) == -1)
+		printf("WARNING: Unable to set erase character.\n");
+	}
+	else
+	    printf("WARNING: Unable to get terminal attributes!\n");
 	printf("Warning: This shell is chroot()'d to /mnt\n");
 	execlp("sh", "-sh", 0);
 	exit(1);
@@ -408,7 +417,7 @@ installCommit(char *str)
     if (i != RET_FAIL && distExtractAll(NULL) == RET_FAIL)
 	i = RET_FAIL;
 
-    if (i != RET_FAIL && installFixup() != RET_SUCCESS)
+    if (i != RET_FAIL && installFixup() == RET_FAIL)
 	i = RET_FAIL;
 
     dialog_clear();
@@ -420,7 +429,10 @@ installCommit(char *str)
 		       "scroll-lock feature.  Press [ENTER] to return to the\n"
 		       "installation menu.");
 	else
-	    msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
+	    msgConfirm("Installation completed successfully, now  press [ENTER] to return\n"
+		       "to the main menu. If you have any network devices you have not yet\n"
+		       "configured, see the Interface configuration item on the\n"
+		       "Configuration menu.");
     }
     return i;
 }
@@ -450,7 +462,7 @@ installFixup(void)
 	    msgConfirm("MAKEDEV returned non-zero status");
 	    return RET_FAIL;
 	}
-	
+
 	msgNotify("Resurrecting /dev entries for slices..");
 	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 	if (!devs)
@@ -494,31 +506,31 @@ installFilesystems(void)
     Disk *disk;
     Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
     Device **devs;
-    PartInfo *p;
+    PartInfo *root;
     char dname[40];
     extern int MakeDevChunk(Chunk *c, char *n);
 
     if (!checkLabels(&rootdev, &swapdev, &usrdev))
 	return RET_FAIL;
-    p = (PartInfo *)rootdev->private;
+    root = (PartInfo *)rootdev->private;
     command_clear();
 
     /* First, create and mount the root device */
     sprintf(dname, "/dev/%s", rootdev->name);
-    if (!MakeDev(rootdev, "/dev") || !file_readable(dname)) {
+    if (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname)) {
 	msgConfirm("Unable to make device node for %s in /dev!\n"
 		   "The installation will be aborted.", rootdev->name);
 	return RET_FAIL;
     }
-    
-    if (strcmp(p->mountpoint, "/"))
-	msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, p->mountpoint);
 
-    if (p->newfs) {
+    if (strcmp(root->mountpoint, "/"))
+	msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, root->mountpoint);
+
+    if (root->newfs) {
 	int i;
 
 	msgNotify("Making a new root filesystem on %s", rootdev->name);
-	i = vsystem("%s /dev/r%s", p->newfs_cmd, rootdev->name);
+	i = vsystem("%s /dev/r%s", root->newfs_cmd, rootdev->name);
 	if (i) {
 	    msgConfirm("Unable to make new root filesystem on /dev/r%s!\n"
 		       "Command returned status %d", rootdev->name, i);
@@ -535,7 +547,6 @@ installFilesystems(void)
 	    msgConfirm("Warning: fsck returned status of %d for /dev/r%s.\n"
 		       "This partition may be unsafe to use.", i, rootdev->name);
     }
-    sprintf(dname, "/dev/%s", rootdev->name);
     if (Mount("/mnt", dname)) {
 	msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
 	return RET_FAIL;
@@ -552,9 +563,9 @@ installFilesystems(void)
 	    msgConfirm("No chunk list found for %s!", disk->name);
 	    return RET_FAIL;
 	}
-	if (p->newfs) {
+	if (root->newfs) {
 	    Mkdir("/mnt/dev", NULL);
-	    MakeDevChunk(disk->chunks, "/mnt/dev");
+	    MakeDevDisk(disk, "/mnt/dev");
 	}
 
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
@@ -585,7 +596,7 @@ installFilesystems(void)
 		    }
 		}
 	    }
-	    else if (c1->type == fat && c1->private && p->newfs) {
+	    else if (c1->type == fat && c1->private && root->newfs) {
 		char name[FILENAME_MAX];
 
 		sprintf(name, "/mnt%s", ((PartInfo *)c1->private)->mountpoint);
@@ -595,7 +606,7 @@ installFilesystems(void)
     }
 
     /* Copy the boot floppy's dev files */
-    if (p->newfs && vsystem("find -x /dev | cpio -pdmv /mnt")) {
+    if (root->newfs && vsystem("find -x /dev | cpio -pdmv /mnt")) {
 	msgConfirm("Couldn't clone the /dev files!");
 	return RET_FAIL;
     }

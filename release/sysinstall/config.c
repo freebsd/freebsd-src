@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.8 1995/10/07 11:55:14 jkh Exp $
+ * $Id: config.c,v 1.16.2.9 1995/10/11 09:57:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -131,8 +131,11 @@ configFstab(void)
 	if (file_readable("/etc/fstab"))
 	    return RET_SUCCESS;
 	else
-	    msgConfirm("Attempting to rebuild your /etc/fstab file.\nWarning: If you had any CD devices in use before running\nsysinstall then they may NOT be found in this run!");
+	    msgConfirm("Attempting to rebuild your /etc/fstab file.\n"
+		       "Warning: If you had any CD devices in use before running\n"
+		       "sysinstall then they may NOT be found in this run!");
     }
+
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("No disks found!");

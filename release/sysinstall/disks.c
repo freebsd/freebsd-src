@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.10 1995/10/11 00:59:37 jkh Exp $
+ * $Id: disks.c,v 1.31.2.11 1995/10/13 08:19:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -401,8 +401,8 @@ getBootMgr(int disk)
     static char str[80];
 
     /* Figure out what kind of MBR the user wants */
-    sprintf(str, "Install Boot Manager for Drive %s?", disk == 0 ? "ZERO" :
-	    disk == 1 ? "ONE" : "<ILLEGAL>");
+    sprintf(str, "Install Boot Manager for %s drive?", disk == 0 ? "first" :
+	    disk == 1 ? "second" : "<illegal>");
     MenuMBRType.title = str;
     if (dmenuOpenSimple(&MenuMBRType)) {
 	switch (BootMgr) {
