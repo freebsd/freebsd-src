@@ -96,3 +96,4 @@ void FFree (void *mem, char *, int);
 #define Free(x)	   free ((x))				    /* just the address */
 #endif
 
+extern struct cdevsw vinum_cdevsw;
