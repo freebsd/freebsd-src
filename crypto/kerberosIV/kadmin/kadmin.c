@@ -18,6 +18,7 @@ this software for any purpose.  It is provided "as is" without express
 or implied warranty.
 
   */
+/* $FreeBSD$ */
 
 /*
  * Kerberos database administrator's tool.  
@@ -212,7 +213,7 @@ passwd_to_lowhigh(u_int32_t *low, u_int32_t *high, char *password, int byteswap)
 #ifdef NOENCRYPTION
 	memset(newkey, 0, sizeof(newkey));
 #else
-	des_new_random_key(&newkey);
+	des_random_key(newkey);
 #endif
     } else {
 #ifdef NOENCRYPTION
@@ -288,7 +289,6 @@ get_admin_password(void)
 	/* Initialize non shared random sequence from session key. */
 	memset(&c, 0, sizeof(c));
 	krb_get_cred(PWSERV_NAME, KADM_SINST, krbrlm, &c);
-	des_init_random_number_generator(&c.session);
     }
     else
 	status = KDC_PR_UNKNOWN;
