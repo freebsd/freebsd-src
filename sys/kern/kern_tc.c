@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.70 1998/05/28 09:30:16 phk Exp $
+ * $Id: kern_clock.c,v 1.71 1998/06/07 08:40:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -545,26 +545,49 @@ microtime(struct timeval *tv)
 }
 
 void
-nanotime(struct timespec *tv)
+nanotime(struct timespec *ts)
 {
 	unsigned count;
 	u_int64_t delta;
 	struct timecounter *tc;
 
 	tc = (struct timecounter *)timecounter;
-	tv->tv_sec = tc->offset_sec;
+	ts->tv_sec = tc->offset_sec;
 	count = tco_getdelta(tc);
 	delta = tc->offset_nano;
 	delta += ((u_int64_t)count * tc->scale_nano_f);
 	delta >>= 32;
 	delta += ((u_int64_t)count * tc->scale_nano_i);
 	delta += boottime.tv_usec * 1000;
-	tv->tv_sec += boottime.tv_sec;
+	ts->tv_sec += boottime.tv_sec;
 	while (delta >= 1000000000) {
 		delta -= 1000000000;
-		tv->tv_sec++;
+		ts->tv_sec++;
 	}
-	tv->tv_nsec = delta;
+	ts->tv_nsec = delta;
+}
+
+void
+timecounter_timespec(unsigned count, struct timespec *ts)
+{
+	u_int64_t delta;
+	struct timecounter *tc;
+
+	tc = (struct timecounter *)timecounter;
+	ts->tv_sec = tc->offset_sec;
+	count -= tc->offset_count;
+	count &= tc->counter_mask;
+	delta = tc->offset_nano;
+	delta += ((u_int64_t)count * tc->scale_nano_f);
+	delta >>= 32;
+	delta += ((u_int64_t)count * tc->scale_nano_i);
+	delta += boottime.tv_usec * 1000;
+	ts->tv_sec += boottime.tv_sec;
+	while (delta >= 1000000000) {
+		delta -= 1000000000;
+		ts->tv_sec++;
+	}
+	ts->tv_nsec = delta;
 }
 
 void
@@ -726,6 +749,8 @@ sync_other_counter(void)
 	struct timecounter *tc, *tco;
 	unsigned delta;
 
+	if (timecounter->poll_pps) 
+		timecounter->poll_pps(timecounter);
 	tc = timecounter->other;
 	tco = tc->other;
 	*tc = *timecounter;
@@ -814,6 +839,7 @@ dummy_get_timecount(void *tc)
 static struct timecounter dummy_timecounter[3] = {
 	{
 		dummy_get_timecount,
+		0,
 		~0u,
 		1000000,
 		"dummy"
