@@ -252,6 +252,7 @@ load()
 	printf("bss=0x%X, ",head.a_bss);
 	while(head.a_bss--) *(loadpoint++) = 0;
 
+	printf("entry=0x%X.\n\r",head.a_entry);
 
 		/* Jump to kernel */
 	bootinfo.version = 1;
