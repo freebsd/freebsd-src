@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
-.\"	$Id: syslogd.8,v 1.6.2.5 1997/11/07 07:30:40 charnier Exp $
+.\"	$Id: syslogd.8,v 1.6.2.6 1998/03/09 13:56:05 jkh Exp $
 .\"
 .Dd October 12, 1995
 .Dt SYSLOGD 8
@@ -45,6 +45,7 @@
 .Op Fl f Ar config_file
 .Op Fl m Ar mark_interval
 .Op Fl p Ar log_socket
+.Op Fl l Ar path
 .Sh DESCRIPTION
 The
 .Nm
@@ -115,11 +116,21 @@ Select the number of minutes between
 .Dq mark
 messages; the default is 20 minutes.
 .It Fl p
-Specify the pathname of an alternate log socket;
+Specify the pathname of an alternate log socket to be used instead;
 the default is
 .Pa /var/run/log .
+.It Fl l
+Specify a location where
+.Nm syslogd
+should place an additional log socket.
+Up to 19 additional logging sockets can be specified.
+The primary use for this is to place additional log sockets in
+.Pa /dev/log
+of various chroot filespaces.
 .It Fl s
-Operate in secure mode.  Do not listen for log message from remote machines.
+Operate in secure mode.  Do not log messages from remote machines.
+The messages will be received and counted and a log entry produced every time
+the count exceeds a power of two.
 .El
 .Pp
 The

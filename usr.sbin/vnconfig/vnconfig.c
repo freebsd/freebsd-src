@@ -43,7 +43,7 @@
 static char sccsid[] = "@(#)vnconfig.c	8.1 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: vnconfig.c,v 1.7 1997/10/27 07:55:31 charnier Exp $";
+	"$Id: vnconfig.c,v 1.3.6.2 1997/11/18 07:20:55 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -103,7 +103,7 @@ main(argc, argv)
 	int flags = 0;
 
 	configfile = _PATH_VNTAB;
-	while ((i = getopt(argc, argv, "acdef:gr:s:uv")) !=  -1)
+	while ((i = getopt(argc, argv, "acdef:gr:s:uv")) != -1)
 		switch (i) {
 
 		/* all -- use config file */

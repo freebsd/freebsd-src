@@ -28,16 +28,19 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vidcontrol.c,v 1.13.2.1 1997/11/18 07:14:19 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <machine/console.h>
 #include <sys/errno.h>
 #include "path.h"
+#include "decode.h"
 
 char 	legal_colors[16][16] = {
 	"black", "blue", "green", "cyan",
@@ -56,7 +59,7 @@ usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
 "usage: vidcontrol [-r fg bg] [-b color] [-c appearance] [-d] [-l scrmap]",
-"                  [-L] [-m on|off] [-f size file] [-t N|off]",
+"                  [-L] [-m on|off] [-f size file] [-s number] [-t N|off]",
 "                  [-x] [mode] [fgcol [bgcol]] [show]");
 	exit(1);
 }
@@ -98,7 +101,7 @@ mkfullname(const char *s1, const char *s2, const char *s3)
 void
 load_scrnmap(char *filename)
 {
-	FILE *fd;
+	FILE *fd = 0;
 	int i, size;
 	char *name;
 	scrmap_t scrnmap;
@@ -107,7 +110,8 @@ load_scrnmap(char *filename)
 
 	for (i=0; prefix[i]; i++) {
 		name = mkfullname(prefix[i], filename, postfix[i]);
-		if (fd = fopen(name, "r"))
+		fd = fopen(name, "r");
+		if (fd)
 			break;
 	}
 	if (fd == NULL) {
@@ -115,17 +119,17 @@ load_scrnmap(char *filename)
 		return;
 	}
 	size = sizeof(scrnmap);
-	if (decode(fd, &scrnmap) != size) {
+	if (decode(fd, (char *)&scrnmap) != size) {
 		rewind(fd);
 		if (fread(&scrnmap, 1, size, fd) != size) {
 			warnx("bad screenmap file");
-			close(fd);
+			fclose(fd);
 			return;
 		}
 	}
 	if (ioctl(0, PIO_SCRNMAP, &scrnmap) < 0)
 		warn("can't load screenmap");
-	close(fd);
+	fclose(fd);
 }
 
 void
@@ -165,15 +169,17 @@ print_scrnmap()
 void
 load_font(char *type, char *filename)
 {
-	FILE	*fd;
-	int	i, io, size;
+	FILE	*fd = 0;
+	int	i, size;
+	unsigned long io;
 	char	*name, *fontmap;
 	char	*prefix[]  = {"", "", FONT_PATH, FONT_PATH, NULL};
 	char	*postfix[] = {"", ".fnt", "", ".fnt"};
 
 	for (i=0; prefix[i]; i++) {
 		name = mkfullname(prefix[i], filename, postfix[i]);
-		if (fd = fopen(name, "r"))
+		fd = fopen(name, "r");
+		if (fd)
 			break;
 	}
 	if (fd == NULL) {
@@ -194,7 +200,7 @@ load_font(char *type, char *filename)
 	}
 	else {
 		warn("bad font size specification");
-		close(fd);
+		fclose(fd);
 		return;
 	}
 	fontmap = (char*) malloc(size);
@@ -202,14 +208,14 @@ load_font(char *type, char *filename)
 		rewind(fd);
 		if (fread(fontmap, 1, size, fd) != size) {
 			warnx("bad font file");
-			close(fd);
+			fclose(fd);
 			free(fontmap);
 			return;
 		}
 	}
 	if (ioctl(0, io, fontmap) < 0)
 		warn("can't load font");
-	close(fd);
+	fclose(fd);
 	free(fontmap);
 }
 
@@ -249,10 +255,10 @@ set_cursor_type(char *appearence)
 	ioctl(0, CONS_CURSORTYPE, &type);
 }
 
-int
+void
 video_mode(int argc, char **argv, int *index)
 {
-	int mode;
+	unsigned long mode;
 
 	if (*index < argc) {
 		if (!strcmp(argv[*index], "VGA_40x25"))
@@ -291,7 +297,7 @@ get_color_number(char *color)
 	return -1;
 }
 
-int
+void
 set_normal_colors(int argc, char **argv, int *index)
 {
 	int color;
@@ -308,6 +314,7 @@ set_normal_colors(int argc, char **argv, int *index)
 	}
 }
 
+void
 set_reverse_colors(int argc, char **argv, int *index)
 {
 	int color;
@@ -323,6 +330,24 @@ set_reverse_colors(int argc, char **argv, int *index)
 	}
 }
 
+void
+set_console(char *arg)
+{
+	int n;
+
+	if( !arg || strspn(arg,"0123456789") != strlen(arg)) {
+		warnx("bad console number");
+		return;
+	}
+
+	n = atoi(arg);
+	if (n < 1 || n > 12) {
+		warnx("console number out of range");
+	} else if (ioctl(0,VT_ACTIVATE,(char *)n) == -1)
+		warn("ioctl(VT_ACTIVATE)");
+}
+
+void
 set_border_color(char *arg)
 {
 	int color;
@@ -350,6 +375,7 @@ set_mouse(char *arg)
 	ioctl(0, CONS_MOUSECTL, &mouse);
 }
 
+void
 test_frame()
 {
 	int i;
@@ -376,7 +402,7 @@ main(int argc, char **argv)
 	info.size = sizeof(info);
 	if (ioctl(0, CONS_GETINFO, &info) < 0)
 		err(1, "must be on a virtual console");
-	while((opt = getopt(argc, argv, "b:c:df:l:Lm:r:t:x")) != -1)
+	while((opt = getopt(argc, argv, "b:c:df:l:Lm:r:s:t:x")) != -1)
 		switch(opt) {
 			case 'b':
 				set_border_color(optarg);
@@ -403,6 +429,9 @@ main(int argc, char **argv)
 			case 'r':
 				set_reverse_colors(argc, argv, &optind);
 				break;
+			case 's':
+				set_console(optarg);
+				break;
 			case 't':
 				set_screensaver_timeout(optarg);
 				break;
@@ -412,14 +441,14 @@ main(int argc, char **argv)
 			default:
 				usage();
 		}
-	if (video_mode(argc, argv, &optind)) ;
-	if (set_normal_colors(argc, argv, &optind)) ;
+	video_mode(argc, argv, &optind);
+	set_normal_colors(argc, argv, &optind);
 	if (optind < argc && !strcmp(argv[optind], "show")) {
 		test_frame();
 		optind++;
 	}
 	if ((optind != argc) || (argc == 1))
 		usage();
-	exit(0);
+	return 0;
 }
 
