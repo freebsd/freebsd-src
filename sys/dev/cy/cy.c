@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.32 1996/05/02 09:34:34 phk Exp $
+ *	$Id: cy.c,v 1.33 1996/06/12 05:03:36 gpalmer Exp $
  */
 
 #include "cy.h"
@@ -90,8 +90,6 @@
 
 #include <machine/clock.h>
 
-#include <i386/isa/icu.h>	/* XXX just to get at `imen' */
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/cyreg.h>
 #include <i386/isa/ic/cd1400.h>
@@ -132,7 +130,6 @@
 #define	sioioctl	cyioctl
 #define	siointr		cyintr
 #define	siointr1	cyintr1
-#define	siointrts	cyintrts
 #define	sioopen		cyopen
 #define	siopoll		cypoll
 #define	sioprobe	cyprobe
@@ -282,7 +279,9 @@ struct com_s {
 	struct termios	lt_out;
 
 	bool_t	do_timestamp;
+	bool_t	do_dcd_timestamp;
 	struct timeval	timestamp;
+	struct timeval	dcd_timestamp;
 
 	u_long	bytes_in;	/* statistics */
 	u_long	bytes_out;
@@ -330,8 +329,7 @@ struct com_s {
  * by `config', not here.
  */
 
-/* Interrupt handling entry points. */
-inthand2_t	siointrts;
+/* Interrupt handling entry point. */
 void	siopoll		__P((void));
 
 /* Device switch entry points. */
@@ -366,8 +364,6 @@ static char driver_name[] = "cy";
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
-
-static  struct timeval	intr_timestamp;
 
 struct isa_driver	siodriver = {
 	sioprobe, sioattach, driver_name
@@ -454,7 +450,6 @@ sioprobe(dev)
 		return (0);
 	cy_nr_cd1400s[unit] = 0;
 	sioregisterdev(dev);
-
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
 	cy_inb(iobase, CY16_RESET);	/* XXX? */
@@ -990,24 +985,6 @@ siodtrwakeup(chan)
 	wakeup(&com->dtr_wait);
 }
 
-/* Interrupt routine for timekeeping purposes */
-void
-siointrts(unit)
-	int	unit;
-{
-	/*
-	 * XXX microtime() reenables CPU interrupts.  We can't afford to
-	 * be interrupted and don't want to slow down microtime(), so lock
-	 * out interrupts in another way.
-	 */
-	outb(IO_ICU1 + 1, 0xff);
-	microtime(&intr_timestamp);
-	disable_intr();
-	outb(IO_ICU1 + 1, imen);
-
-	siointr(unit);
-}
-
 void
 siointr(unit)
 	int	unit;
@@ -1064,10 +1041,6 @@ siointr(unit)
 					  & CD1400_xIVR_CHAN));
 #endif
 
-	if (com->do_timestamp)
-		/* XXX a little bloat here... */
-		com->timestamp = intr_timestamp;
-
 		if (serv_type & CD1400_RIVR_EXCEPTION) {
 			++com->recv_exception;
 			line_status = cd_inb(iobase, CD1400_RDSR);
@@ -1109,6 +1082,8 @@ siointr(unit)
 			if (ioptr >= com->ibufend)
 				CE_RECORD(com, CE_INTERRUPT_BUF_OVERFLOW);
 			else {
+				if (com->do_timestamp)
+					microtime(&com->timestamp);
 				++com_events;
 				ioptr[0] = recv_data;
 				ioptr[CE_INPUT_OFFSET] = line_status;
@@ -1136,16 +1111,22 @@ siointr(unit)
 			if (count > ifree) {
 				count -= ifree;
 				com_events += ifree;
-				while (ifree-- != 0) {
-					recv_data = cd_inb(iobase, CD1400_RDSR);
+				if (ifree != 0) {
+					if (com->do_timestamp)
+						microtime(&com->timestamp);
+					do {
+						recv_data = cd_inb(iobase,
+								   CD1400_RDSR);
 #ifdef SOFT_HOTCHAR
-					if (com->hotchar != 0
-					    && recv_data == com->hotchar)
-						setsofttty();
+						if (com->hotchar != 0
+						    && recv_data
+						       == com->hotchar)
+							setsofttty();
 #endif
-					ioptr[0] = recv_data;
-					ioptr[CE_INPUT_OFFSET] = 0;
-					++ioptr;
+						ioptr[0] = recv_data;
+						ioptr[CE_INPUT_OFFSET] = 0;
+						++ioptr;
+					} while (--ifree != 0);
 				}
 				com->delta_error_counts
 				    [CE_INTERRUPT_BUF_OVERFLOW] += count;
@@ -1158,6 +1139,8 @@ siointr(unit)
 #endif
 				} while (--count != 0);
 			} else {
+				if (com->do_timestamp)
+					microtime(&com->timestamp);
 				if (ioptr <= com->ihighwater
 				    && ioptr + count > com->ihighwater
 				    && com->state & CS_RTS_IFLOW)
@@ -1225,6 +1208,11 @@ cont:
 			++com->mdm;
 			modem_status = cd_inb(iobase, CD1400_MSVR2);
 		if (modem_status != com->last_modem_status) {
+			if (com->do_dcd_timestamp
+			    && !(com->last_modem_status & MSR_DCD)
+			    && modem_status & MSR_DCD)
+				microtime(&com->dcd_timestamp);
+
 			/*
 			 * Schedule high level to handle DCD changes.  Note
 			 * that we don't use the delta bits anywhere.  Some
@@ -1502,6 +1490,10 @@ sioioctl(dev, cmd, data, flag, p)
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
 		*(struct timeval *)data = com->timestamp;
+		break;
+	case TIOCDCDTIMESTAMP:
+		com->do_dcd_timestamp = TRUE;
+		*(struct timeval *)data = com->dcd_timestamp;
 		break;
 	default:
 		splx(s);
