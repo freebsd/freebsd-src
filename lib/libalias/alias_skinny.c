@@ -140,7 +140,7 @@ alias_skinny_reg_msg(struct RegisterMessage *reg_msg, struct ip *pip,
 	tc->th_sum = 0;
 	tc->th_sum = TcpChecksum(pip);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -159,7 +159,7 @@ alias_skinny_startmedia(struct StartMediaTransmission *start_media,
 	 * well.
 	 */
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -172,7 +172,7 @@ alias_skinny_port_msg(struct IpPortMessage *port_msg, struct ip *pip,
 	tc->th_sum = 0;
 	tc->th_sum = TcpChecksum(pip);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -198,7 +198,7 @@ alias_skinny_opnrcvch_ack(struct libalias *la, struct OpenReceiveChannelAck *opn
 	tc->th_sum = 0;
 	tc->th_sum = TcpChecksum(pip);
 
-	return 0;
+	return (0);
 }
 
 void

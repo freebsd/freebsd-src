@@ -1045,7 +1045,7 @@ ReLink(struct alias_link *old_link,
 	}
 #endif
 	DeleteLink(old_link);
-	return new_link;
+	return (new_link);
 }
 
 static struct alias_link *
@@ -1447,7 +1447,7 @@ FindUdpTcpIn(struct libalias *la, struct in_addr dst_addr,
 		link_type = LINK_TCP;
 		break;
 	default:
-		return NULL;
+		return (NULL);
 		break;
 	}
 
@@ -1486,7 +1486,7 @@ FindUdpTcpOut(struct libalias *la, struct in_addr src_addr,
 		link_type = LINK_TCP;
 		break;
 	default:
-		return NULL;
+		return (NULL);
 		break;
 	}
 
@@ -1614,7 +1614,7 @@ FindRtspOut(struct libalias *la, struct in_addr src_addr,
 		link_type = LINK_TCP;
 		break;
 	default:
-		return NULL;
+		return (NULL);
 		break;
 	}
 
@@ -1642,12 +1642,12 @@ FindOriginalAddress(struct libalias *la, struct in_addr alias_addr)
 	if (link == NULL) {
 		la->newDefaultLink = 1;
 		if (la->targetAddress.s_addr == INADDR_ANY)
-			return alias_addr;
+			return (alias_addr);
 		else if (la->targetAddress.s_addr == INADDR_NONE)
 			return (la->aliasAddress.s_addr != INADDR_ANY) ?
 			    la->aliasAddress : alias_addr;
 		else
-			return la->targetAddress;
+			return (la->targetAddress);
 	} else {
 		if (link->server != NULL) {	/* LSNAT link */
 			struct in_addr src_addr;
@@ -1659,7 +1659,7 @@ FindOriginalAddress(struct libalias *la, struct in_addr alias_addr)
 			return (la->aliasAddress.s_addr != INADDR_ANY) ?
 			    la->aliasAddress : alias_addr;
 		else
-			return link->src_addr;
+			return (link->src_addr);
 	}
 }
 
@@ -1679,7 +1679,7 @@ FindAliasAddress(struct libalias *la, struct in_addr original_addr)
 			return (la->aliasAddress.s_addr != INADDR_ANY) ?
 			    la->aliasAddress : original_addr;
 		else
-			return link->alias_addr;
+			return (link->alias_addr);
 	}
 }
 
@@ -1775,7 +1775,7 @@ int
 GetStateIn(struct alias_link *link)
 {
 	/* TCP input state */
-	return link->data.tcp->state.in;
+	return (link->data.tcp->state.in);
 }
 
 
@@ -1783,7 +1783,7 @@ int
 GetStateOut(struct alias_link *link)
 {
 	/* TCP output state */
-	return link->data.tcp->state.out;
+	return (link->data.tcp->state.out);
 }
 
 
@@ -1791,7 +1791,7 @@ struct in_addr
 GetOriginalAddress(struct alias_link *link)
 {
 	if (link->src_addr.s_addr == INADDR_ANY)
-		return link->la->aliasAddress;
+		return (link->la->aliasAddress);
 	else
 		return (link->src_addr);
 }
@@ -1808,16 +1808,16 @@ struct in_addr
 GetAliasAddress(struct alias_link *link)
 {
 	if (link->alias_addr.s_addr == INADDR_ANY)
-		return link->la->aliasAddress;
+		return (link->la->aliasAddress);
 	else
-		return link->alias_addr;
+		return (link->alias_addr);
 }
 
 
 struct in_addr
 GetDefaultAliasAddress(struct libalias *la)
 {
-	return la->aliasAddress;
+	return (la->aliasAddress);
 }
 
 
@@ -1861,7 +1861,7 @@ SetAckModified(struct alias_link *link)
 struct in_addr
 GetProxyAddress(struct alias_link *link)
 {
-	return link->proxy_addr;
+	return (link->proxy_addr);
 }
 
 
@@ -1875,7 +1875,7 @@ SetProxyAddress(struct alias_link *link, struct in_addr addr)
 u_short
 GetProxyPort(struct alias_link *link)
 {
-	return link->proxy_port;
+	return (link->proxy_port);
 }
 
 
@@ -1890,7 +1890,7 @@ int
 GetAckModified(struct alias_link *link)
 {
 /* See if ACK numbers have been modified */
-	return link->data.tcp->state.ack_modified;
+	return (link->data.tcp->state.ack_modified);
 }
 
 
@@ -2200,7 +2200,7 @@ LibAliasRedirectPort(struct libalias *la, struct in_addr src_addr, u_short src_p
 		fprintf(stderr, "PacketAliasRedirectPort(): ");
 		fprintf(stderr, "only TCP and UDP protocols allowed\n");
 #endif
-		return NULL;
+		return (NULL);
 	}
 
 	link = AddLink(la, src_addr, dst_addr, alias_addr,
@@ -2217,7 +2217,7 @@ LibAliasRedirectPort(struct libalias *la, struct in_addr src_addr, u_short src_p
 	}
 #endif
 
-	return link;
+	return (link);
 }
 
 /* Add server to the pool of servers */
@@ -2274,7 +2274,7 @@ LibAliasRedirectProto(struct libalias *la, struct in_addr src_addr,
 	}
 #endif
 
-	return link;
+	return (link);
 }
 
 /* Static address translation */
@@ -2298,7 +2298,7 @@ LibAliasRedirectAddr(struct libalias *la, struct in_addr src_addr,
 	}
 #endif
 
-	return link;
+	return (link);
 }
 
 
@@ -2451,14 +2451,14 @@ LibAliasSetMode(
 
 /* Other flags can be set/cleared without special action */
 	la->packetAliasMode = (flags & mask) | (la->packetAliasMode & ~mask);
-	return la->packetAliasMode;
+	return (la->packetAliasMode);
 }
 
 
 int
 LibAliasCheckNewLink(struct libalias *la)
 {
-	return la->newDefaultLink;
+	return (la->newDefaultLink);
 }
 
 
@@ -2490,7 +2490,7 @@ next_cmd(ipfw_insn * cmd)
 {
 	cmd += F_LEN(cmd);
 	bzero(cmd, sizeof(*cmd));
-	return cmd;
+	return (cmd);
 }
 
 /*
