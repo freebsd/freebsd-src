@@ -25,18 +25,13 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/admin \
 		-I${ASN1OBJDIR} \
 		-I${.OBJDIR}
-.if defined(MAKE_KERBEROS4)
-_krb4libs=	-lkrb -lkafs
-_krb4deps=	${LIBKRB} ${LIBKAFS}
-.endif
 LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		-L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
-		${_krb4libs} \
 		-L${SLOBJDIR} -lsl -L${ASN1OBJDIR} -lasn1 \
 		-L${KADM5COBJDIR} -lkadm5clnt \
 		-lcrypto -lcrypt -lcom_err -lreadline
-DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
+DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} \
 		${LIBSL} ${LIBASN1} ${LIBKADM5CLNT} \
 		${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBREADLINE}
 MAN=		ktutil.8

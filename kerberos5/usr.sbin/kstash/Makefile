@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		k5stash
+PROG=		kstash
 SRCS=		kstash.c hdb_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/roken \
@@ -11,17 +11,12 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR}
-.if defined(MAKE_KERBEROS4)
-_krb4libs=	-lkrb -lkafs
-_krb4deps=	${LIBKRB} ${LIBKAFS}
-.endif
 LDADD=		-L${HDBOBJDIR} -lhdb \
 		-L${KRB5OBJDIR} -lkrb5 \
 		-L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
-		${_krb4libs} \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
-DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
+DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
 MAN=		kstash.8
 
