@@ -217,6 +217,7 @@ void		uhci_dump_td __P((uhci_soft_td_t *));
 #elif defined(__FreeBSD__)
 #define UWRITE2(sc,r,x)	outw((sc)->sc_iobase + (r), (x))
 #define UWRITE4(sc,r,x)	outl((sc)->sc_iobase + (r), (x))
+#define UREAD1(sc,r)	inb((sc)->sc_iobase + (r))
 #define UREAD2(sc,r)	inw((sc)->sc_iobase + (r))
 #define UREAD4(sc,r)	inl((sc)->sc_iobase + (r))
 #endif
@@ -391,16 +392,18 @@ uhci_dumpregs(sc)
 	uhci_softc_t *sc;
 {
 	printf("%s; regs: cmd=%04x, sts=%04x, intr=%04x, frnum=%04x, "
-	       "flbase=%08x, sof=%04x, portsc1=%04x, portsc2=%04x\n",
+	       "flbase=%08x, sof=%02x, portsc1=%04x, portsc2=%04x, "
+	       "legsup=%04x\n",
 	       USBDEVNAME(sc->sc_bus.bdev),
 	       UREAD2(sc, UHCI_CMD),
 	       UREAD2(sc, UHCI_STS),
 	       UREAD2(sc, UHCI_INTR),
 	       UREAD2(sc, UHCI_FRNUM),
-	       UREAD2(sc, UHCI_FLBASEADDR),
-	       UREAD2(sc, UHCI_SOF),
+	       UREAD4(sc, UHCI_FLBASEADDR),
+	       UREAD1(sc, UHCI_SOF),
 	       UREAD2(sc, UHCI_PORTSC1),
-	       UREAD2(sc, UHCI_PORTSC2));
+	       UREAD2(sc, UHCI_PORTSC2),
+	       UREAD2(sc, UHCI_LEGSUP));
 }
 
 int uhci_longtd = 1;
