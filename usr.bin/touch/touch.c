@@ -333,7 +333,7 @@ err:			rval = 1;
 	return (rval);
 }
 
-__dead void
+void
 usage()
 {
 	(void)fprintf(stderr,

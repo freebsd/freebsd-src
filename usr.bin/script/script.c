@@ -65,13 +65,13 @@ char	*fname;
 
 struct	termios tt;
 
-__dead	void done __P((void));
-	void dooutput __P((void));
-	void doshell __P((void));
-	void err __P((const char *, ...));
-	void fail __P((void));
-	void finish __P((int));
-	void scriptflush __P((int));
+void	done __P((void)) __dead2;
+void	dooutput __P((void));
+void	doshell __P((void));
+void	err __P((const char *, ...));
+void	fail __P((void));
+void	finish __P((int));
+void	scriptflush __P((int));
 
 int
 main(argc, argv)

@@ -67,7 +67,7 @@ err_set_exit(void (*ef)(int))
 	err_exit = ef;
 }
 
-__dead void
+void
 #ifdef __STDC__
 err(int eval, const char *fmt, ...)
 #else
@@ -87,7 +87,7 @@ err(eval, fmt, va_alist)
 	va_end(ap);
 }
 
-__dead void
+void
 verr(eval, fmt, ap)
 	int eval;
 	const char *fmt;
@@ -109,7 +109,7 @@ verr(eval, fmt, ap)
 	exit(eval);
 }
 
-__dead void
+void
 #if __STDC__
 errx(int eval, const char *fmt, ...)
 #else
@@ -129,7 +129,7 @@ errx(eval, fmt, va_alist)
 	va_end(ap);
 }
 
-__dead void
+void
 verrx(eval, fmt, ap)
 	int eval;
 	const char *fmt;

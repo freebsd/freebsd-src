@@ -122,7 +122,7 @@ void	startnewtape __P((int top));
 void	trewind __P((void));
 void	writerec __P((char *dp, int isspcl));
 
-__dead void Exit __P((int status));
+void	Exit __P((int status)) __dead2;
 void	dumpabort __P((int signo));
 void	getfstab __P((void));
 
@@ -207,7 +207,7 @@ extern char *strncpy();
 extern char *strcat();
 extern time_t time();
 extern void endgrent();
-extern __dead void exit();
+extern void exit();
 extern off_t lseek();
 extern const char *strerror();
 #endif

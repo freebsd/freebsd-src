@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.3 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_nfs.c,v 1.13 1996/05/13 17:43:06 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -196,7 +196,7 @@ int	getnfsargs __P((char *, struct nfs_args *));
 struct	iso_addr *iso_addr __P((const char *));
 #endif
 void	set_rpc_maxgrouplist __P((int));
-__dead	void usage __P((void));
+void	usage __P((void)) __dead2;
 int	xdr_dir __P((XDR *, char *));
 int	xdr_fh __P((XDR *, struct nfhret *));
 
@@ -776,7 +776,7 @@ xdr_fh(xdrsp, np)
 	return (0);
 }
 
-__dead void
+void
 usage()
 {
 	(void)fprintf(stderr, "\
