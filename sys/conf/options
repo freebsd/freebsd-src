@@ -515,6 +515,9 @@ PQ_LARGECACHE		opt_vmpage.h
 PQ_HUGECACHE		opt_vmpage.h
 PQ_CACHESIZE		opt_vmpage.h
 
+# The MemGuard replacement allocator used for tamper-after-free detection
+DEBUG_MEMGUARD		opt_vm.h
+
 # Standard SMP options
 SMP			opt_global.h
 

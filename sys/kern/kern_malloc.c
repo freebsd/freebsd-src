@@ -58,6 +58,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
 
+#ifdef DEBUG_MEMGUARD
+#include <vm/memguard.h>
+#endif
+
 #if defined(INVARIANTS) && defined(__i386__)
 #include <machine/cpu.h>
 #endif
@@ -128,6 +132,12 @@ struct {
 #endif	/* 4096 */
 	{0, NULL},
 };
+
+#ifdef DEBUG_MEMGUARD
+u_int vm_memguard_divisor;
+SYSCTL_UINT(_vm, OID_AUTO, memguard_divisor, CTLFLAG_RD, &vm_memguard_divisor,
+    0, "(kmem_size/memguard_divisor) == memguard submap size");
+#endif
 
 u_int vm_kmem_size;
 SYSCTL_UINT(_vm, OID_AUTO, kmem_size, CTLFLAG_RD, &vm_kmem_size, 0,
@@ -280,6 +290,13 @@ malloc(size, type, flags)
 	if (flags & M_WAITOK)
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
+
+#ifdef DEBUG_MEMGUARD
+	/* XXX CHANGEME! */
+	if (type == M_SUBPROC)
+		return memguard_alloc(size, flags);
+#endif
+
 	if (size <= KMEM_ZMAX) {
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
@@ -330,6 +347,14 @@ free(addr, type)
 	/* free(NULL, ...) does nothing */
 	if (addr == NULL)
 		return;
+
+#ifdef DEBUG_MEMGUARD
+	/* XXX CHANGEME! */
+	if (type == M_SUBPROC) {
+		memguard_free(addr);
+		return;
+	}
+#endif
 
 	KASSERT(type->ks_memuse > 0,
 		("malloc(9)/free(9) confusion.\n%s",
@@ -389,6 +414,14 @@ realloc(addr, size, type, flags)
 	if (addr == NULL)
 		return (malloc(size, type, flags));
 
+#ifdef DEBUG_MEMGUARD
+/* XXX: CHANGEME! */
+if (type == M_SUBPROC) {
+	slab = NULL;
+	alloc = size;
+} else {
+#endif
+
 	slab = vtoslab((vm_offset_t)addr & ~(UMA_SLAB_MASK));
 
 	/* Sanity check */
@@ -405,6 +438,10 @@ realloc(addr, size, type, flags)
 	if (size <= alloc
 	    && (size > (alloc >> REALLOC_FRACTION) || alloc == MINALLOCSIZE))
 		return (addr);
+
+#ifdef DEBUG_MEMGUARD
+}
+#endif
 
 	/* Allocate a new, bigger (or smaller) block */
 	if ((newaddr = malloc(size, type, flags)) == NULL)
@@ -501,6 +538,22 @@ kmeminit(dummy)
 	kmem_map = kmem_suballoc(kernel_map, (vm_offset_t *)&kmembase,
 		(vm_offset_t *)&kmemlimit, vm_kmem_size);
 	kmem_map->system_map = 1;
+
+#ifdef DEBUG_MEMGUARD
+	/*
+	 * Initialize MemGuard if support compiled in.  MemGuard is a
+	 * replacement allocator used for detecting tamper-after-free
+	 * scenarios as they occur.  It is only used for debugging.
+	 */
+	vm_memguard_divisor = 10;
+	TUNABLE_INT_FETCH("vm.memguard_divisor", &vm_memguard_divisor);
+
+	/* Pick a conservative value if provided value sucks. */
+	if ((vm_memguard_divisor <= 0) ||
+	    ((vm_kmem_size / vm_memguard_divisor) == 0))
+		vm_memguard_divisor = 10;
+	memguard_init(kmem_map, vm_kmem_size / vm_memguard_divisor);
+#endif
 
 	uma_startup2();
 
