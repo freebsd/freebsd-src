@@ -1,6 +1,6 @@
-# Swedish/ISO 8859-15 (backward compatible with ASCII)
+# Swedish/DIS 8859-15 (backward compatible with ASCII)
 #
-# (Based on the German de_DE.ISO8859-15)
+# (Based on the German de_DE.ISO_8859-15)
 #
 # $FreeBSD$
 #
