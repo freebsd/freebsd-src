@@ -286,9 +286,7 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 		if (platform == p_sparc64) {
 			offset = Prev_Cyl_Aligned(d, offset);
 			size = Next_Cyl_Aligned(d, size);
-			break;
-		}
-		if (platform == p_i386) {
+		} else if (platform == p_i386) {
 			if (type != freebsd)
 				break;
 			if (!(flags & CHUNK_ALIGN))
@@ -320,6 +318,7 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 			/* Convert back to size */
 			size -= offset;
 		}
+		break;
 
 /* PLATFORM POLICY END ------------------------------------- */
 	}
