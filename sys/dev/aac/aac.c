@@ -1559,6 +1559,7 @@ aac_init(struct aac_softc *sc)
 	if (sc->flags & AAC_FLAGS_BROKEN_MEMMAP) {
 		ip->HostPhysMemPages =
 		    (ip->HostPhysMemPages + AAC_PAGE_SIZE) / AAC_PAGE_SIZE;
+	}
 	ip->HostElapsedSeconds = time_second;	/* reset later if invalid */
 
 	/*
