@@ -56,8 +56,8 @@ typedef	long		vm_ooffset_t;
 typedef	unsigned long	vm_pindex_t;
 typedef	unsigned long	vm_size_t;
 
-
 typedef __int64_t		register_t;
+typedef __uint64_t		u_register_t;
 
 #ifdef _KERNEL
 typedef	long		intfptr_t;
