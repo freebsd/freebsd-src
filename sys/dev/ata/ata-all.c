@@ -115,7 +115,7 @@ ata_isaprobe(device_t dev)
 
     /* check if allready in use by a PCI device */
     for (ctlr = 0; ctlr < atanlun; ctlr++) {
-	if (atadevices[ctlr]->ioaddr == rman_get_start(port)) {
+	if (atadevices[ctlr] && atadevices[ctlr]->ioaddr==rman_get_start(port)){
 	    printf("ata-isa%d: already registered as ata%d\n", 
 		   device_get_unit(dev), ctlr);
 	    bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
