@@ -254,6 +254,7 @@ boot(int howto)
 	mtx_lock_spin(&sched_lock);
 	sched_bind(curthread, 0);
 	mtx_unlock_spin(&sched_lock);
+	KASSERT(PCPU_GET(cpuid) == 0, ("boot: not running on cpu 0"));
 #endif
 
 	/* collect extra flags that shutdown_nice might have set */
@@ -262,10 +263,6 @@ boot(int howto)
 	/* We are out of the debugger now. */
 	kdb_active = 0;
 
-#ifdef SMP
-	if (smp_active)
-		printf("boot() called on cpu#%d\n", PCPU_GET(cpuid));
-#endif
 	/*
 	 * Do any callouts that should be done BEFORE syncing the filesystems.
 	 */
