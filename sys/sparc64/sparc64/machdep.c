@@ -703,3 +703,10 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 	tf->tf_gsr = fpregs->fr_gsr;
 	return (0);
 }
+
+intptr_t
+casuptr(intptr_t *p, intptr_t old, intptr_t new)
+{
+	return (-1);
+}
+

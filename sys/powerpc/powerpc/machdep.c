@@ -752,3 +752,11 @@ kcopy(const void *src, void *dst, size_t len)
 	td->td_pcb->pcb_onfault = oldfault;
 	return (0);
 }
+
+
+intptr_t
+casuptr(intptr_t *p, intptr_t old, intptr_t new)
+{
+	return (-1);
+}
+

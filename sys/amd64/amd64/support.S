@@ -1173,6 +1173,37 @@ fastmove_tail_fault:
 #endif /* I586_CPU && defined(DEV_NPX) */
 
 /*
+ * casuptr.  Compare and set user pointer.  Returns -1 or the current value.
+ */
+ENTRY(casuptr)
+	movl	PCPU(CURPCB),%ecx
+	movl	$fusufault,PCB_ONFAULT(%ecx)
+	movl	4(%esp),%edx			/* dst */
+	movl	8(%esp),%eax			/* old */
+	movl	12(%esp),%ecx			/* new */
+
+	cmpl	$VM_MAXUSER_ADDRESS-4,%edx	/* verify address is valid */
+	ja	fusufault
+
+#if defined(SMP)
+	lock cmpxchgl %ecx, (%edx)		/* Compare and set. */
+#else	/* !SMP */
+	cmpxchgl %ecx, (%edx)
+#endif	/* !SMP */
+
+	/*
+	 * We store the current value regardless of the success of the
+	 * cmpxchg.  Calling code checks for new == return to determine
+	 * success.
+	 */
+	movl	(%edx), %eax
+	
+	movl	PCPU(CURPCB),%ecx
+	movl	$fusufault,PCB_ONFAULT(%ecx)
+	movl	$0,PCB_ONFAULT(%ecx)
+	ret
+
+/*
  * fu{byte,sword,word} - MP SAFE
  *
  *	Fetch a byte (sword, word) from user memory
