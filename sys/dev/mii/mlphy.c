@@ -72,8 +72,8 @@ struct mlphy_softc	{
 	int			ml_linked;
 };
 
-static int mlphy_probe		(device_t);
-static int mlphy_attach		(device_t);
+static int mlphy_probe(device_t);
+static int mlphy_attach(device_t);
 
 static device_method_t mlphy_methods[] = {
 	/* device interface */
@@ -98,7 +98,8 @@ static int	mlphy_service(struct mii_softc *, struct mii_data *, int);
 static void	mlphy_reset(struct mii_softc *);
 static void	mlphy_status(struct mii_softc *);
 
-static int mlphy_probe(dev)
+static int
+mlphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args	*ma;
@@ -127,7 +128,8 @@ static int mlphy_probe(dev)
 	return (0);
 }
 
-static int mlphy_attach(dev)
+static int
+mlphy_attach(dev)
 	device_t		dev;
 {
 	struct mlphy_softc *msc;
@@ -372,7 +374,8 @@ mlphy_service(xsc, mii, cmd)
  * The Micro Linear PHY comes out of reset with the 'autoneg
  * enable' bit set, which we don't want.
  */
-static void mlphy_reset(sc)
+static void
+mlphy_reset(sc)
 	struct mii_softc	*sc;
 {
 	int			reg;
@@ -389,7 +392,8 @@ static void mlphy_reset(sc)
  * If we negotiate a 10Mbps mode, we need to check for an alternate
  * PHY and make sure it's enabled and set correctly.
  */
-static void mlphy_status(sc)
+static void
+mlphy_status(sc)
 	struct mii_softc	*sc;
 {
 	struct mlphy_softc	*msc = (struct mlphy_softc *)sc;

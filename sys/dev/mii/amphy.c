@@ -60,8 +60,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int amphy_probe		(device_t);
-static int amphy_attach		(device_t);
+static int amphy_probe(device_t);
+static int amphy_attach(device_t);
 
 static device_method_t amphy_methods[] = {
 	/* device interface */
@@ -85,7 +85,8 @@ DRIVER_MODULE(amphy, miibus, amphy_driver, amphy_devclass, 0, 0);
 static int	amphy_service(struct mii_softc *, struct mii_data *, int);
 static void	amphy_status(struct mii_softc *);
 
-static int amphy_probe(dev)
+static int
+amphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;
@@ -106,7 +107,8 @@ static int amphy_probe(dev)
 	return(0);
 }
 
-static int amphy_attach(dev)
+static int
+amphy_attach(dev)
 	device_t		dev;
 {
 	struct mii_softc *sc;

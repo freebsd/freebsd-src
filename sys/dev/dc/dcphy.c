@@ -93,8 +93,8 @@ static const char rcsid[] =
  */
 #define COMPAQ_PRESARIO_ID	0xb0bb0e11
 
-static int dcphy_probe		(device_t);
-static int dcphy_attach		(device_t);
+static int dcphy_probe(device_t);
+static int dcphy_attach(device_t);
 
 static device_method_t dcphy_methods[] = {
 	/* device interface */
@@ -120,7 +120,8 @@ static void	dcphy_status(struct mii_softc *);
 static void	dcphy_reset(struct mii_softc *);
 static int	dcphy_auto(struct mii_softc *);
 
-static int dcphy_probe(dev)
+static int
+dcphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;
@@ -140,7 +141,8 @@ static int dcphy_probe(dev)
 	return (0);
 }
 
-static int dcphy_attach(dev)
+static int
+dcphy_attach(dev)
 	device_t		dev;
 {
 	struct mii_softc *sc;
