@@ -249,5 +249,5 @@ extern int acpi_debug;
 /*
  * System service interface
  */
-extern int		acpi_sleep(u_int32_t micro);
+extern int		acpi_sleep(u_int32_t milli);
 

@@ -973,7 +973,7 @@ acpi_attach_resource(acpi_softc_t *sc, int type, int *wantidx, u_long start, u_l
 #include <sys/proc.h>
 
 int
-acpi_sleep(u_int32_t micro)
+acpi_sleep(u_int32_t milli)
 {
 	static u_int8_t	count = 0;
 	int		x, error;
@@ -981,7 +981,7 @@ acpi_sleep(u_int32_t micro)
 
 	x = error = 0;
 
-	if (micro == 0) {
+	if (milli == 0) {
 		return (1);
 	}
 
@@ -989,7 +989,7 @@ acpi_sleep(u_int32_t micro)
 		return (2);
 	}
 
-	timo = ((hz * micro) / 1000000L) ? ((hz * micro) / 1000000L) : 1;
+	timo = ((hz * milli) / 1000) ? ((hz * milli) / 1000) : 1;
 	error = tsleep((caddr_t)acpi_sleep + count, PWAIT, "acpislp", timo);
 	if (error != 0 && error != EWOULDBLOCK) {
 		return (2);

@@ -32,6 +32,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <machine/clock.h>
 #include <machine/acpi_machdep.h>
 #include <machine/vmparam.h>
 #include <vm/vm.h>
@@ -282,12 +283,12 @@ OsdWritePciCfgDword(UINT32 Bus, UINT32 DeviceFunction, UINT32 Register, UINT32 V
 }
 
 _ACPICA_INLINE_ ACPI_STATUS
-OsdSleepUsec(UINT32 Microseconds)
+OsdSleep(UINT32 Seconds, UINT32 Milliseconds)
 {
 	int		error;
 	ACPI_STATUS	status;
 
-	error = acpi_sleep(Microseconds);
+	error = acpi_sleep(Seconds * 1000 + Milliseconds);
 	switch (error) {
 	case 0:
 		/* The running thread slept for the time specified */
@@ -308,8 +309,13 @@ OsdSleepUsec(UINT32 Microseconds)
 }
 
 _ACPICA_INLINE_ ACPI_STATUS
-OsdSleep(UINT32 Seconds, UINT32 Milliseconds)
+OsdSleepUsec(UINT32 Microseconds)
 {
-	return OsdSleepUsec(Seconds * 1000000L + Milliseconds * 1000);
+	if (Microseconds == 0) {
+		return (AE_BAD_PARAMETER);
+	}
+
+	DELAY(Microseconds);
+	return (AE_OK);
 }
 
