@@ -1287,44 +1287,26 @@ buf_vlist_remove(struct buf *bp)
 {
 	struct vnode *vp = bp->b_vp;
 	struct buf *root;
+	struct bufv *bv;
 
 	ASSERT_VI_LOCKED(vp, "buf_vlist_remove");
-	if (bp->b_xflags & BX_VNDIRTY) {
-		if (bp != vp->v_dirtyblkroot) {
-			root = buf_splay(bp->b_lblkno, bp->b_xflags,
-			    vp->v_dirtyblkroot);
-			KASSERT(root == bp,
-			    ("splay lookup failed during dirty remove"));
-		}
-		if (bp->b_left == NULL) {
-			root = bp->b_right;
-		} else {
-			root = buf_splay(bp->b_lblkno, bp->b_xflags,
-			    bp->b_left);
-			root->b_right = bp->b_right;
-		}
-		vp->v_dirtyblkroot = root;
-		TAILQ_REMOVE(&vp->v_dirtyblkhd, bp, b_vnbufs);
-		vp->v_dirtybufcnt--;
-	} else {
-		/* KASSERT(bp->b_xflags & BX_VNCLEAN, ("bp wasn't clean")); */
-		if (bp != vp->v_cleanblkroot) {
-			root = buf_splay(bp->b_lblkno, bp->b_xflags,
-			    vp->v_cleanblkroot);
-			KASSERT(root == bp,
-			    ("splay lookup failed during clean remove"));
-		}
-		if (bp->b_left == NULL) {
-			root = bp->b_right;
-		} else {
-			root = buf_splay(bp->b_lblkno, bp->b_xflags,
-			    bp->b_left);
-			root->b_right = bp->b_right;
-		}
-		vp->v_cleanblkroot = root;
-		TAILQ_REMOVE(&vp->v_cleanblkhd, bp, b_vnbufs);
-		vp->v_cleanbufcnt--;
+	if (bp->b_xflags & BX_VNDIRTY) 
+		bv = &vp->v_bufobj.bo_dirty;
+	else
+		bv = &vp->v_bufobj.bo_clean;
+	if (bp != bv->bv_root) {
+		root = buf_splay(bp->b_lblkno, bp->b_xflags, bv->bv_root);
+		KASSERT(root == bp, ("splay lookup failed in remove"));
 	}
+	if (bp->b_left == NULL) {
+		root = bp->b_right;
+	} else {
+		root = buf_splay(bp->b_lblkno, bp->b_xflags, bp->b_left);
+		root->b_right = bp->b_right;
+	}
+	bv->bv_root = root;
+	TAILQ_REMOVE(&bv->bv_hd, bp, b_vnbufs);
+	bv->bv_cnt--;
 	bp->b_xflags &= ~(BX_VNDIRTY | BX_VNCLEAN);
 }
 
