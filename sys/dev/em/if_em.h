@@ -247,11 +247,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define EM_MAX_SCATTER            64
 
-#ifdef __alpha__
-	#undef vtophys
-	#define vtophys(va)     alpha_XXX_dmamap((vm_offset_t)(va))
-#endif /* __alpha__ */
-
 /* ******************************************************************************
  * vendor_info_array
  *
