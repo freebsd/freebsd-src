@@ -85,19 +85,18 @@ struct ithd {
 #define	SWI_DELAY	0x2
 
 /*
- * Software interrupt bit numbers in priority order.  The priority only
- * determines which swi will be dispatched next; a higher priority swi
- * may be dispatched when a nested h/w interrupt handler returns.
+ * Software interrupt numbers in priority order.  The priority determines
+ * the priority of the corresponding interrupt thread.
  */
 #define	SWI_TTY		0
 #define	SWI_NET		1
 #define	SWI_CAMNET	2
 #define	SWI_CAMBIO	3
 #define	SWI_VM		4
-#define	SWI_TQ_FAST	5
+#define	SWI_CLOCK	5
+#define	SWI_TQ_FAST	6
+#define	SWI_TQ		6
 #define	SWI_TQ_GIANT	6
-#define	SWI_TQ		7
-#define	SWI_CLOCK	8
 
 extern struct	ithd *tty_ithd;
 extern struct	ithd *clk_ithd;
