@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.6 1994/08/04 20:39:19 wollman Exp $
+#	$Id: Makefile,v 1.7 1994/08/04 20:49:28 wollman Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -36,7 +36,7 @@ NOOBJ=	noobj
 # SHARED=	copies
 SHARED?=	symlinks
 
-install: ${SHARED}
+beforeinstall: ${SHARED}
 	@echo installing ${FILES}
 	@-for i in ${FILES}; do \
 		cmp -s $$i ${DESTDIR}/usr/include/$$i > /dev/null 2>&1 || \
