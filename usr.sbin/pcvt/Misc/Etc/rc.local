@@ -98,42 +98,42 @@ then
 # loading fonts into vga
 #--------------------------------------------------
     echo 'console driver type: pcvt'
-    if [ -x /usr/local/bin/loadfont -a -x /usr/local/bin/scon ]
+    if [ -x /usr/sbin/loadfont -a -x /usr/sbin/scon ]
     then
-      adaptor=`/usr/local/bin/scon -a`
+      adaptor=`/usr/sbin/scon -a`
       if [ $adaptor = VGA ]
       then
         echo 'loading 25 lines base font into character set 0'
-        /usr/local/bin/loadfont -c0 -f/usr/share/misc/pcvtfonts/vt220l.816
+        /usr/sbin/loadfont -c0 -f/usr/share/misc/pcvtfonts/vt220l.816
         echo 'loading 25 lines extension font into character set 1'
-        /usr/local/bin/loadfont -c1 -f/usr/share/misc/pcvtfonts/vt220h.816
+        /usr/sbin/loadfont -c1 -f/usr/share/misc/pcvtfonts/vt220h.816
         echo 'loading 28 lines base font into character set 2'
-        /usr/local/bin/loadfont -c2 -f/usr/share/misc/pcvtfonts/vt220l.814
+        /usr/sbin/loadfont -c2 -f/usr/share/misc/pcvtfonts/vt220l.814
         echo 'loading 28 lines extension font into character set 3'
-        /usr/local/bin/loadfont -c3 -f/usr/share/misc/pcvtfonts/vt220h.814
+        /usr/sbin/loadfont -c3 -f/usr/share/misc/pcvtfonts/vt220h.814
         echo 'loading 40 lines base font into character set 4'
-        /usr/local/bin/loadfont -c4 -f/usr/share/misc/pcvtfonts/vt220l.810
+        /usr/sbin/loadfont -c4 -f/usr/share/misc/pcvtfonts/vt220l.810
         echo 'loading 40 lines extension font into character set 5'
-        /usr/local/bin/loadfont -c5 -f/usr/share/misc/pcvtfonts/vt220h.810
+        /usr/sbin/loadfont -c5 -f/usr/share/misc/pcvtfonts/vt220h.810
         echo 'loading 50 lines base font into character set 6'
-        /usr/local/bin/loadfont -c6 -f/usr/share/misc/pcvtfonts/vt220l.808
+        /usr/sbin/loadfont -c6 -f/usr/share/misc/pcvtfonts/vt220l.808
         echo 'loading 50 lines extension font into character set 7'
-        /usr/local/bin/loadfont -c7 -f/usr/share/misc/pcvtfonts/vt220h.808
+        /usr/sbin/loadfont -c7 -f/usr/share/misc/pcvtfonts/vt220h.808
       elif [ $adaptor = EGA ]
       then
         echo 'loading 25 lines base font into character set 0'
-        /usr/local/bin/loadfont -c0 -f/usr/share/misc/pcvtfonts/vt220l.814
+        /usr/sbin/loadfont -c0 -f/usr/share/misc/pcvtfonts/vt220l.814
         echo 'loading 25 lines extension font into character set 1'
-        /usr/local/bin/loadfont -c1 -f/usr/share/misc/pcvtfonts/vt220h.814
+        /usr/sbin/loadfont -c1 -f/usr/share/misc/pcvtfonts/vt220h.814
         echo 'loading 35 lines base font into character set 2'
-        /usr/local/bin/loadfont -c2 -f/usr/share/misc/pcvtfonts/vt220l.810
+        /usr/sbin/loadfont -c2 -f/usr/share/misc/pcvtfonts/vt220l.810
         echo 'loading 35 lines extension font into character set 3'
-        /usr/local/bin/loadfont -c3 -f/usr/share/misc/pcvtfonts/vt220h.810
+        /usr/sbin/loadfont -c3 -f/usr/share/misc/pcvtfonts/vt220h.810
 
 #        echo 'loading 43 lines base font into character set 2'
-#        /usr/local/bin/loadfont -c2 -f/usr/share/misc/pcvtfonts/vt220l.808
+#        /usr/sbin/loadfont -c2 -f/usr/share/misc/pcvtfonts/vt220l.808
 #        echo 'loading 43 lines extension font into character set 3'
-#        /usr/local/bin/loadfont -c3 -f/usr/share/misc/pcvtfonts/vt220h.808
+#        /usr/sbin/loadfont -c3 -f/usr/share/misc/pcvtfonts/vt220h.808
 
       fi
     fi
@@ -141,7 +141,7 @@ then
 #--------------------------------------------------
 # setting screen sizes and emulation
 #--------------------------------------------------
-    if [ -x /usr/local/bin/scon ]
+    if [ -x /usr/sbin/scon ]
     then
       if [ $adaptor = VGA ]
       then
@@ -158,7 +158,7 @@ then
 
 # get monitor type (mono/color)
 
-      monitor=`/usr/local/bin/scon -m`
+      monitor=`/usr/sbin/scon -m`
 
 # for all screens do
 
@@ -167,13 +167,13 @@ then
 
 # setup HP mode
 
-        /usr/local/bin/scon -d$device $size -H
+        /usr/sbin/scon -d$device $size -H
 
 # setup cursor size
 
-        if [ X${set_cursor} = X"YES" -a -x /usr/local/bin/cursor ]
+        if [ X${set_cursor} = X"YES" -a -x /usr/sbin/cursor ]
         then
-          /usr/local/bin/cursor -d$device -s$set_cur_start -e$set_cur_end
+          /usr/sbin/cursor -d$device -s$set_cur_start -e$set_cur_end
         fi
 
 # if monochrome monitor, set color palette to use a higher intensity
@@ -182,38 +182,38 @@ then
 	then
           if [ $adaptor = VGA ]
           then
-            /usr/local/bin/scon -d$device -p8,60,60,60
+            /usr/sbin/scon -d$device -p8,60,60,60
           fi
         fi
       done
 
 # switch to screen 0
 
-      /usr/local/bin/scon -c0
+      /usr/sbin/scon -c0
 
 # set screensaver timeout to one minute
 
-      /usr/local/bin/scon -t360
+      /usr/sbin/scon -t360
     fi
 
 #------------------------------------------------------
 # if desired, setup keyboard for german keyboard layout
 #------------------------------------------------------
 
-    if [ X${set_keybd} = X"YES" -a -x /usr/local/bin/kcon ]
+    if [ X${set_keybd} = X"YES" -a -x /usr/sbin/kcon ]
     then
       echo 'switching to german keyboard layout'
-      /usr/local/bin/kcon -m de
+      /usr/sbin/kcon -m de
     fi
 
 #------------------------------------------------------
 # if desired, setup rate and delay keyboard values
 #------------------------------------------------------
 
-    if [ X${set_keydr} = X"YES" -a -x /usr/local/bin/kcon ]
+    if [ X${set_keydr} = X"YES" -a -x /usr/sbin/kcon ]
     then
       echo setting keyboard typematic rate = $set_keydr_rate and delay = $set_keydr_delay
-      /usr/local/bin/kcon -r $set_keydr_rate -d $set_keydr_delay
+      /usr/sbin/kcon -r $set_keydr_rate -d $set_keydr_delay
     fi
 
 #--------------------------------------------------
@@ -222,10 +222,10 @@ then
 
     if [ X${xdm_start} = X"YES" -a -x /usr/X386/bin/xdm ]
     then
-      /usr/local/bin/scon -c 7
+      /usr/sbin/scon -c 7
       /usr/X386/bin/xdm
       sleep 5
-      /usr/local/bin/scon -c 0
+      /usr/sbin/scon -c 0
     fi
 
 #--------------------------------------------------
