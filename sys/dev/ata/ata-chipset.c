@@ -2614,9 +2614,6 @@ ata_via_chipinit(device_t dev)
     if (ctlr->chip->cfg2 & VIABUG)
 	ata_via_southbridge_fixup(dev);
 
-    /* set prefetch, postwrite */
-    pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
-
     /* set fifo configuration half'n'half */
     pci_write_config(dev, 0x43, 
 		     (pci_read_config(dev, 0x43, 1) & 0x90) | 0x2a, 1);
