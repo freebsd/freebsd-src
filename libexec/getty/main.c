@@ -46,9 +46,10 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/ttydefaults.h>
 #include <sys/utsname.h>
 
@@ -57,7 +58,6 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <locale.h>
 #include <libutil.h>
-#include <signal.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -67,9 +67,9 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 
+#include "extern.h"
 #include "gettytab.h"
 #include "pathnames.h"
-#include "extern.h"
 
 /*
  * Set the amount of running time that getty should accumulate
