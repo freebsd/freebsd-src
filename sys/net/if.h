@@ -126,6 +126,7 @@ struct if_data {
 #define	IFF_PPROMISC	0x20000		/* user-requested promisc mode */
 #define	IFF_MONITOR	0x40000		/* user-requested monitor mode */
 #define	IFF_STATICARP	0x80000		/* static ARP */
+#define	IFF_NEEDSGIANT	0x100000	/* hold Giant over if_start calls */
 
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \

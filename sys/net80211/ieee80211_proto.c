@@ -513,7 +513,7 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int mgt
 					IEEE80211_RATE2MBS(ni->ni_rates.rs_rates[ni->ni_txrate]));
 			}
 			ic->ic_mgt_timer = 0;
-			(*ifp->if_start)(ifp);
+			if_start(ifp);
 			break;
 		}
 		break;
