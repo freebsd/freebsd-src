@@ -497,6 +497,7 @@ extern int warn_traditional;
 /* Warn about *printf or *scanf format/argument anomalies. */
 
 extern int warn_format;
+extern int warn_format_extra_args;
 
 /* Warn about a subscript that has type char.  */
 
