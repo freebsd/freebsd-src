@@ -55,7 +55,7 @@ int
 main()
 {
 	int i,j;
-	u_long l1,l2,l3,l4;
+	u_long l1,l2,l4;
 	struct bb bb;
 	char buf[128];
 

@@ -119,7 +119,6 @@ make_ipaddr(void)
 static char address[20] ="";
 struct hostent *he;
 unsigned long ipaddr;
-int i;
 
 address[0] = '\0';
 if ((he = gethostbyname(raddr)) != NULL) {

@@ -2785,9 +2785,8 @@ kidspad(u_char rxc, mousestatus_t *act)
     static int buflen = 0, b_prev = 0 , x_prev = -1, y_prev = -1 ;
     static k_status status = S_IDLE ;
     static struct timeval old, now ;
-    static int x_idle = -1, y_idle = -1 ;
 
-    int deltat, x, y ;
+    int x, y ;
 
     if (buflen > 0 && (rxc & 0x80) ) {
 	fprintf(stderr, "invalid code %d 0x%x\n", buflen, rxc);
