@@ -26,7 +26,7 @@ CLEANFILES+= ${PROG}.sym ${PROG}.nosym ${PROG}.list
 all:	${PROG}
 
 afterinstall:
-	ln -sf boot1 /usr/mdec/sdboot
+	ln -sf boot1 /usr/mdec/daboot
 
 ${PROG}.nosym: ${PROG}.sym
 	cp ${PROG}.sym ${PROG}.nosym

@@ -1,4 +1,4 @@
-/* $Id: libalpha.h,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $ */
+/* $Id: libalpha.h,v 1.2 1998/08/31 21:10:40 msmith Exp $ */
 
 /*
  * Copyright (c) 1996
@@ -75,6 +75,7 @@ extern void		delay(int);
 extern void		reboot(void);
 
 extern int		alpha_copyin(void *src, vm_offset_t dest, size_t len);
+extern int		alpha_copyout(vm_offset_t src, void *dest, size_t len);
 extern int		alpha_readin(int fd, vm_offset_t dest, size_t len);
 
 extern int		alpha_boot(void);

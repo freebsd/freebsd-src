@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.5 1998/09/14 18:27:04 msmith Exp $
+ *	$Id: bootstrap.h,v 1.6 1998/09/19 01:31:28 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -212,6 +212,7 @@ extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
 
 #ifdef __alpha__
 #define MAKE_SET(set, sym)			\
+	static void const * const __set_##set##_sym_##sym = &sym; \
 	__asm(".align 3");			\
 	__asm(".section .set." #set ",\"aw\"");	\
 	__asm(".quad " #sym);			\
