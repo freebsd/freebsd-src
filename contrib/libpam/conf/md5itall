@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# $Id$
+#
+# $Log$
+#
+# Created by Andrew G. Morgan (morgan@parc.power.net)
+#
+
+MD5SUM=md5sum
+CHKFILE1=./.md5sum
+CHKFILE2=./.md5sum-new
+
+which $MD5SUM > /dev/null
+result=$?
+
+if [ -x "$MD5SUM" ] || [ $result -eq 0 ]; then
+	rm -f $CHKFILE2
+	echo -n "computing md5 checksums."
+	for x in `cat ../.filelist` ; do
+		(cd ../.. ; $MD5SUM $x) >> $CHKFILE2
+		echo -n "."
+	done
+	echo
+	if [ -f "$CHKFILE1" ]; then
+		echo "\
+---> Note, since the last \`make check', the following file(s) have changed:
+==========================================================================="
+		diff $CHKFILE1 $CHKFILE2
+		if [ $? -eq 0 ]; then
+			echo "\
+--------------------------- Nothing has changed ---------------------------"
+		fi
+		echo "\
+==========================================================================="
+	fi
+	rm -f "$CHKFILE1"
+	mv "$CHKFILE2" "$CHKFILE1"
+	chmod 400 "$CHKFILE1"
+else
+	echo "\
+Please install \`$MD5SUM'.
+[It is used to check the integrity of this distribution]
+---> no check done."
+fi

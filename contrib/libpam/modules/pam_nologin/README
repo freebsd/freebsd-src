@@ -1,0 +1,12 @@
+# $Id: README,v 1.1 1996/10/25 03:19:36 morgan Exp $
+#
+
+This module always lets root in; it lets other users in only if the file
+/etc/nologin doesn't exist.  In any case, if /etc/nologin exists, it's
+contents are displayed to the user.
+
+module services provided:
+
+	auth		_authentication and _setcred (blank)
+
+Michael K. Johnson

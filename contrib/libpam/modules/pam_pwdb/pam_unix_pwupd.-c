@@ -1,0 +1,272 @@
+/*
+ * $Id: pam_unix_pwupd.-c,v 1.4 1997/01/04 20:35:32 morgan Exp morgan $
+ *
+ * This file contains the routines to update the passwd databases.
+ *
+ * $Log: pam_unix_pwupd.-c,v $
+ * Revision 1.4  1997/01/04 20:35:32  morgan
+ * minor comment change
+ *
+ * Revision 1.3  1996/12/01 03:05:54  morgan
+ * debugging with _pam_macros.h
+ *
+ * Revision 1.2  1996/11/10 21:05:09  morgan
+ * pwdb conversion
+ *
+ *
+ */
+
+/* Implementation */
+
+static int unix_update_db(pam_handle_t *pamh, int ctrl, const char *user,
+			  const char *pass_old, const char *pass_new)
+{
+    const struct pwdb *pw=NULL;
+    const struct pwdb_entry *pwe=NULL;
+    pwdb_flag flag;
+    int retval, i;
+
+    D(("called."));
+
+    /* obtain default user record */
+
+    retval = pwdb_locate("user", PWDB_DEFAULT, user, PWDB_ID_UNKNOWN, &pw);
+    if (retval == PWDB_PASS_PHRASE_REQD) {
+	retval = pwdb_set_entry(pw, "pass_phrase"
+				, pass_old, 1+strlen(pass_old)
+				, NULL, NULL, 0);
+	if (retval == PWDB_SUCCESS)
+	    retval = pwdb_locate("user", pw->source, user
+				 , PWDB_ID_UNKNOWN, &pw);
+    }
+    pass_old = NULL;
+    
+    if ( retval != PWDB_SUCCESS ) {
+	_log_err(LOG_ALERT, "cannot identify user %s (uid=%d)"
+		 , user, getuid() );
+	pass_new = NULL;
+	if (pw)
+	    (void) pwdb_delete(&pw);
+	return PAM_USER_UNKNOWN;
+    }
+
+    /* check that we can update all of the default databases */
+
+    retval = pwdb_flags("user", pw->source, &flag);
+
+    if ( retval != PWDB_SUCCESS || ( pwdb_on(flag,PWDB_F_NOUPDATE) ) ) {
+	_log_err(LOG_ERR, "cannot update default database for user %s"
+		 , user );
+	pass_new = NULL;
+	if (pw)
+	    (void) pwdb_delete(&pw);
+	return PAM_PERM_DENIED;
+    }
+
+    /* If there was one, we delete the "last_change" entry */
+    retval = pwdb_get_entry(pw, "last_change", &pwe);
+    if (retval == PWDB_SUCCESS) {
+	(void) pwdb_entry_delete(&pwe);
+	pwdb_set_entry(pw, "last_change", NULL, -1, NULL, NULL, 0);
+    }
+
+    /*
+     * next check for pam.conf specified databases: shadow etc...  [In
+     * other words, pam.conf indicates which database the password is
+     * to be subsequently placed in: this is password migration].
+     */
+
+    if ( on(UNIX__SET_DB, ctrl) ) {
+	const char *db_token;
+	pwdb_type pt = _PWDB_MAX_TYPES;
+
+	if ( on(UNIX_UNIX, ctrl) ) {
+	    db_token = "U";                        /* XXX - should be macro */
+	    pt = PWDB_UNIX;
+	} else if ( on(UNIX_SHADOW, ctrl) ) {
+	    db_token = "x";                        /* XXX - should be macro */
+	    pt = PWDB_SHADOW;
+	} else if ( on(UNIX_RADIUS, ctrl) ) {
+	    db_token = "R";                        /* XXX - is this ok? */
+	    pt = PWDB_RADIUS;
+	} else {
+	    _log_err(LOG_ALERT
+		     , "cannot determine database to use for authtok");
+	    pass_new = NULL;
+	    if (pw)
+		(void) pwdb_delete(&pw);
+	    return PAM_ABORT;                       /* we're in trouble */
+	}
+
+	/*
+	 * Attempt to update the indicated database (only)
+	 */
+
+	{
+	    pwdb_type tpt[2];
+	    tpt[0] = pt;
+	    tpt[1] = _PWDB_MAX_TYPES;
+
+	    /* Can we set entry in database? */
+	    retval = pwdb_flags("user", tpt, &flag);
+	    if (retval == PWDB_SUCCESS && !pwdb_on(flag,PWDB_F_NOUPDATE)) {
+		/* YES. This database is available.. */
+
+		/* Only update if it is not already in the default list */
+		for (i=0; pw->source[i] != _PWDB_MAX_TYPES
+			 && pw->source[i] != pt ; ++i);
+		if (pw->source[i] == _PWDB_MAX_TYPES) {
+		    const struct pwdb *tpw=NULL;
+
+		    /* copy database entry */
+		    if ((retval = pwdb_new(&tpw, 10)) != PWDB_SUCCESS
+			|| (retval = pwdb_merge(tpw, pw, PWDB_TRUE))
+			!= PWDB_SUCCESS) {
+			_log_err(LOG_CRIT, "failed to obtain new pwdb: %s"
+				 , pwdb_strerror(retval));
+			retval = PAM_ABORT;
+		    } else
+			retval = PAM_SUCCESS;
+		
+		    /* set db_token */
+		    if (retval == PAM_SUCCESS) {
+			retval = pwdb_set_entry(tpw, "defer_pass", db_token
+						, 1+strlen(db_token)
+						, NULL, NULL, 0);
+			if (retval != PWDB_SUCCESS) {
+			    _log_err(LOG_ALERT, "set defer_pass -> %s"
+				     , pwdb_strerror(retval));
+			    retval = PAM_PERM_DENIED;
+			} else
+			    retval = PAM_SUCCESS;
+		    }
+
+		    /* update specific database */
+		    if (retval == PAM_SUCCESS) {
+			retval = pwdb_replace("user", tpt
+					      , user, PWDB_ID_UNKNOWN, &tpw);
+			if (retval != PWDB_SUCCESS) {
+			    const char *service=NULL;
+			    (void) pam_get_item(pamh, PAM_SERVICE
+						, (const void **)&service);
+			    _log_err(LOG_ALERT
+				     , "(%s) specified database failed: %s"
+				     , service
+				     , pwdb_strerror(retval));
+			    retval = PAM_PERM_DENIED;
+			} else {
+			    retval = PAM_SUCCESS;
+			}
+		    }
+
+		    /* clean up temporary pwdb */
+		    if (tpw)
+			(void) pwdb_delete(&tpw);
+		}
+
+		/* we can properly adopt new defer_pass */
+		if (retval == PAM_SUCCESS) {
+		    /* failing here will mean we go back to former
+		       password location */
+		    (void) pwdb_set_entry(pw, "defer_pass", db_token
+					  , 1+strlen(db_token), NULL, NULL, 0);
+		}
+	    }
+	}
+    }
+
+    /*
+     * the password will now be placed in appropriate (perhaps original) db
+     */
+
+    retval = pwdb_get_entry(pw, "uid", &pwe);
+    if (retval != PWDB_SUCCESS) {
+	_log_err(LOG_ALERT, "no uid!? (%s); %s", user, pwdb_strerror(retval));
+	pass_new = NULL;
+	if (pw)
+	    (void) pwdb_delete(&pw);
+	return PAM_USER_UNKNOWN;
+    }
+
+    /* insert the passwd into the 'pw' structure */
+
+    retval = pwdb_set_entry(pw, "passwd", pass_new, 1+strlen(pass_new)
+			    , NULL, NULL, 0);
+    pass_new = NULL;
+    if (retval != PWDB_SUCCESS) {
+	_log_err(LOG_ALERT, "set2 failed; %s", pwdb_strerror(retval));
+	if (pw)
+	    (void) pwdb_delete(&pw);
+	return PAM_AUTHTOK_LOCK_BUSY;
+    }
+
+    retval = pwdb_replace("user", pw->source, user
+			  , *((uid_t *)pwe->value), &pw);
+    if (retval != PWDB_SUCCESS) {
+	_log_err(LOG_ALERT, "user (%s/%d) update failed; %s"
+		 , user, *((uid_t *)pwe->value), pwdb_strerror(retval));
+	if (pw)
+	    (void) pwdb_delete(&pw);
+	(void) pwdb_entry_delete(&pwe);
+	return PAM_ABORT;
+    }
+
+    if (retval != PWDB_SUCCESS) {
+
+	_log_err(LOG_ALERT, "user (%s/%d) update failed; %s"
+		 , user, *((uid_t *)pwe->value), pwdb_strerror(retval));
+	retval = PAM_ABORT;
+
+    } else {
+	/* password updated */
+
+	_log_err(LOG_INFO, "password for (%s/%d) changed by (%s/%d)"
+		 , user, *((uid_t *)pwe->value), getlogin(), getuid());
+	retval = PAM_SUCCESS;
+    }
+
+    /* tidy up */
+
+    (void) pwdb_entry_delete(&pwe);
+    if (pw)
+	(void) pwdb_delete(&pw);
+
+    return retval;
+}
+
+/* ******************************************************************
+ * Copyright (c) Andrew Morgan <morgan@parc.power.net> 1996,1997.
+ * Copyright (c) Cristian Gafton, <gafton@redhat.com> 1996, 1997.
+ *                                                All rights reserved
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, and the entire permission notice in its entirety,
+ *    including the disclaimer of warranties.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
+ * 
+ * ALTERNATIVELY, this product may be distributed under the terms of
+ * the GNU Public License, in which case the provisions of the GPL are
+ * required INSTEAD OF the above restrictions.  (This clause is
+ * necessary due to a potential bad interaction between the GPL and
+ * the restrictions contained in a BSD-style copyright.)
+ * 
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ */

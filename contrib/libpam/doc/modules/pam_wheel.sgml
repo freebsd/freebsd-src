@@ -1,0 +1,124 @@
+<!--
+   $Id: pam_wheel.sgml,v 1.3 1997/02/15 18:25:44 morgan Exp morgan $
+   
+   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+	from notes provided by Cristian Gafton.
+-->
+
+<sect1>The wheel module
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_wheel/
+
+<tag><bf>Author:</bf></tag>
+Cristian Gafton &lt;gafton@redhat.com&gt;
+
+<tag><bf>Maintainer:</bf></tag>
+Author.
+
+<tag><bf>Management groups provided:</bf></tag>
+authentication
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+
+<tag><bf>System dependencies:</bf></tag>
+Requires libpwdb.
+
+<tag><bf>Network aware:</bf></tag>
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+Only permit root access to members of the wheel (<tt/gid=0/) group.
+
+<sect2>Authentication component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+<tt/debug/;
+<tt/use_uid/;
+<tt/trust/;
+<tt/deny/;
+<tt/group=XXXX/
+
+<tag><bf>Description:</bf></tag>
+
+This module is used to enforce the so-called wheel group. By default,
+it permits root access to the system if the applicant user is a member
+of the <tt/wheel/ group (better described as the group with group-id
+<tt/0/).
+
+<p>
+The action of the module may be modified from this default by one or
+more of the following flags in the <tt>/etc/pam.conf</tt> file.
+<itemize>
+<item>
+<tt/debug/ -
+Supply more debugging information to <tt/syslog(3)/.
+
+<item>
+<tt/use_id/ -
+This option modifies the behavior of the module by using the current
+<tt/uid/ of the process and not the <tt/getlogin(3)/ name of the user.
+This option is useful for being able to jump from one account to
+another, for example with 'su'.
+
+<item>
+<tt/trust/ -
+This option instructs the module to return <tt/PAM_SUCCESS/ should it
+find the user applying for root privilege is a member of the wheel
+group. The default action is to return <tt/PAM_IGNORE/ in this
+situation. By using the <tt/trust/ option it is possible to arrange
+for <tt/wheel/-group members to become root without typing a
+password. <bf/USE WITH CARE/.
+
+<item>
+<tt/deny/ - 
+This is used to reverse the logic of the module's behavior.
+If the user is trying to get <tt/uid=0/ access and is a member of the wheel
+group, deny access (for the wheel group, this is perhaps nonsense!):
+it is intended for use in conjunction with the <tt/group=/ argument...
+
+<item>
+<tt/group=XXXX/ -
+Instead of checking the <tt/gid=0/ group, use the user's <tt/XXXX/
+group membership for the authentication. Here, <tt/XXXX/ is the name
+of the group and <bf/not/ its numeric identifier.
+
+</itemize>
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+To restrict access to superuser status to the members of the
+<tt/wheel/ group, use the following entries in your configuration
+file:
+<tscreen>
+<verb>
+#
+# root gains access by default (rootok), only wheel members can 
+# become root (wheel) but Unix authenticate non-root applicants.
+#
+su	auth	 sufficient	pam_rootok.so
+su	auth	 required	pam_wheel.so
+su	auth	 required	pam_unix_auth.so
+</verb>
+</tscreen>
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->
