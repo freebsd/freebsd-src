@@ -177,8 +177,12 @@ lcp_ReportStatus(struct cmdargs const *arg)
                 (u_long)lcp->want_magic, lcp->want_mrru,
                 lcp->want_shortseq ? "on" : "off", lcp->my_reject);
 
-  prompt_Printf(arg->prompt, "\n Defaults: MRU = %d (max %d), ",
-                lcp->cfg.mru, lcp->cfg.max_mru);
+  if (lcp->cfg.mru)
+    prompt_Printf(arg->prompt, "\n Defaults: MRU = %d (max %d), ",
+                  lcp->cfg.mru, lcp->cfg.max_mru);
+  else
+    prompt_Printf(arg->prompt, "\n Defaults: MRU = any (max %d), ",
+                  lcp->cfg.max_mru);
   if (lcp->cfg.mtu)
     prompt_Printf(arg->prompt, "MTU = %d (max %d), ",
                   lcp->cfg.mtu, lcp->cfg.max_mtu);
@@ -246,7 +250,7 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
   fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, mincode, LCP_MAXCODE, LogLCP,
            bundle, l, parent, &lcp_Callbacks, lcp_TimerNames);
 
-  lcp->cfg.mru = DEF_MRU;
+  lcp->cfg.mru = 0;
   lcp->cfg.max_mru = MAX_MRU;
   lcp->cfg.mtu = 0;
   lcp->cfg.max_mtu = MAX_MTU;
@@ -289,7 +293,8 @@ lcp_Setup(struct lcp *lcp, int openmode)
   lcp->his_callback.opmask = 0;
   lcp->his_shortseq = 0;
 
-  lcp->want_mru = lcp->cfg.mru;
+  if ((lcp->want_mru = lcp->cfg.mru) == 0)
+    lcp->want_mru = DEF_MRU;
   lcp->want_mrru = lcp->fsm.bundle->ncp.mp.cfg.mrru;
   lcp->want_shortseq = IsEnabled(lcp->fsm.bundle->ncp.mp.cfg.shortseq) ? 1 : 0;
   lcp->want_acfcomp = IsEnabled(lcp->cfg.acfcomp) ? 1 : 0;
@@ -695,29 +700,26 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         maxmtu = p ? physical_DeviceMTU(p) : 0;
         if (lcp->cfg.max_mtu && (!maxmtu || maxmtu > lcp->cfg.max_mtu))
           maxmtu = lcp->cfg.max_mtu;
-        if ((wantmtu = lcp->cfg.mtu) == 0 && (wantmtu = maxmtu) == 0)
-            wantmtu = DEF_MRU;
+        wantmtu = lcp->cfg.mtu;
         if (maxmtu && wantmtu > maxmtu) {
           log_Printf(LogWARN, "%s: Reducing configured MTU from %u to %u\n",
                      fp->link->name, wantmtu, maxmtu);
           wantmtu = maxmtu;
         }
-        if (wantmtu < MIN_MRU)
-          wantmtu = MIN_MRU;
 
         if (maxmtu && mru > maxmtu) {
           lcp->his_mru = maxmtu;
           memcpy(dec->nakend, cp, 2);
           ua_htons(&lcp->his_mru, dec->nakend + 2);
           dec->nakend += 4;
-        } else if (mru < wantmtu) {
+        } else if (wantmtu && mru < wantmtu) {
           /* Push him up to MTU or MIN_MRU */
           lcp->his_mru = wantmtu;
           memcpy(dec->nakend, cp, 2);
           ua_htons(&lcp->his_mru, dec->nakend + 2);
           dec->nakend += 4;
         } else {
-          lcp->his_mru = wantmtu;
+          lcp->his_mru = mru;
           memcpy(dec->ackend, cp, 4);
           dec->ackend += 4;
         }
@@ -728,8 +730,10 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           maxmru = lcp->cfg.max_mru;
         wantmru = lcp->cfg.mru > maxmru ? maxmru : lcp->cfg.mru;
 
-        if (mru > wantmru)
+        if (wantmru && mru > wantmru)
           lcp->want_mru = wantmru;
+        else if (mru > maxmru)
+          lcp->want_mru = maxmru;
         else if (mru < MIN_MRU)
           lcp->want_mru = MIN_MRU;
         else
