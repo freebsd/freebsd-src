@@ -39,8 +39,8 @@
 .Sh SYNOPSIS
 .Cd "device usb"
 .Pp
-.Cd "#include <dev/usb/usb.h>"
-.Cd "#include <dev/usb/usbhid.h>"
+.In dev/usb/usb.h
+.In dev/usb/usbhid.h
 .Sh DESCRIPTION
 .Fx
 provides machine-independent bus support and drivers for
@@ -56,10 +56,12 @@ The controller attaches to a physical bus
 .Xr pci 4 ) .
 The
 .Tn USB
-bus attaches to the controller and the root hub attaches
+bus attaches to the controller, and the root hub attaches
 to the controller.
 Any devices attached to the bus will attach to the root hub
-or another hub attached to the USB bus.
+or another hub attached to the
+.Tn USB
+bus.
 .Pp
 The
 .Nm uhub
@@ -83,7 +85,9 @@ Within each device there can be up to 16 endpoints.
 Each endpoint
 is individually addressed and the addresses are static.
 Each of these endpoints will communicate in one of four different modes:
-control, isochronous, bulk, or interrupt.
+.Em control , isochronous , bulk ,
+or
+.Em interrupt .
 A device always has at least one endpoint.
 This endpoint has address 0 and is a control
 endpoint and is used to give commands to and extract basic data,
@@ -101,7 +105,7 @@ within it.
 .Pp
 A device may operate in different configurations.
 Depending on the
-configuration the device may present different sets of endpoints
+configuration, the device may present different sets of endpoints
 and interfaces.
 .Pp
 Each device located on a hub has several
@@ -134,15 +138,15 @@ The bus enumeration of the
 bus proceeds in several steps:
 .Bl -enum
 .It
-Any device specific driver can to attach to the device.
+Any device specific driver can attach to the device.
 .It
 If none is found, any device class specific driver can attach.
 .It
 If none is found, all configurations are iterated over.
-For each configuration all the interface are iterated over and interface
+For each configuration, all the interfaces are iterated over, and interface
 drivers can attach.
 If any interface driver attached in a certain
-configuration the iteration over configurations is stopped.
+configuration, the iteration over configurations is stopped.
 .It
 If still no drivers have been found, the generic
 .Tn USB
@@ -152,12 +156,11 @@ driver can attach.
 Use the following to get access to the
 .Tn USB
 specific structures and defines.
-.Bd -literal
-#include <sys/dev/usb.h>
-.Ed
+.Pp
+.In dev/usb/usb.h
 .Pp
 The
-.Pa /dev/usbN
+.Pa /dev/usb Ns Ar N
 can be opened and a few operations can be performed on it.
 The
 .Xr poll 2
@@ -174,14 +177,14 @@ This command will cause a complete bus discovery to be initiated.
 If any devices attached or detached from the bus they will be
 processed during this command.
 This is the only way that new devices are found on the bus.
-.It Dv USB_DEVICEINFO Fa "struct usb_device_info"
+.It Dv USB_DEVICEINFO Vt "struct usb_device_info"
 This command can be used to retrieve some information about a device
 on the bus.
 The
 .Va addr
 field should be filled before the call and the other fields will
 be filled by information about the device on that address.
-Should no such device exist an error is reported.
+Should no such device exist, an error is reported.
 .Bd -literal
 struct usb_device_info {
         u_int8_t        bus;
@@ -215,8 +218,10 @@ and
 contain the topological information for the device.
 .Va devnames
 contains the device names of the connected drivers.
-For example the
-third USB Zip drive connected will be
+For example, the
+third
+.Tn USB
+Zip drive connected will be
 .Li umass2 .
 The
 .Va product , vendor
@@ -239,15 +244,15 @@ The
 field shows the power consumption in milli-amps drawn at 5 volts,
 or zero if the device is self powered.
 .Pp
-If the device is a hub the
+If the device is a hub, the
 .Va nports
-field is non-zero and the
+field is non-zero, and the
 .Va ports
 field contains the addresses of the connected devices.
-If no device is connected to a port one of the
-.Va USB_PORT_*
+If no device is connected to a port, one of the
+.Dv USB_PORT_*
 values indicates its status.
-.It Dv USB_DEVICESTATS Fa "struct usb_device_stats"
+.It Dv USB_DEVICESTATS Vt "struct usb_device_stats"
 This command retrieves statistics about the controller.
 .Bd -literal
 struct usb_device_stats {
@@ -258,10 +263,10 @@ struct usb_device_stats {
 The
 .Va requests
 field is indexed by the transfer kind, i.e.\&
-.Va UE_* ,
+.Dv UE_* ,
 and indicates how many transfers of each kind that has been completed
 by the controller.
-.It Dv USB_REQUEST Fa "struct usb_ctl_request"
+.It Dv USB_REQUEST Vt "struct usb_ctl_request"
 This command can be used to execute arbitrary requests on the control pipe.
 This is
 .Em DANGEROUS
@@ -296,7 +301,8 @@ All
 .Tn USB
 events are reported via the
 .Pa /dev/usb
-device.  This devices can be opened for reading and each
+device.
+This devices can be opened for reading and each
 .Xr read 2
 will yield an event record (if something has happened).
 The
@@ -331,38 +337,46 @@ The
 .Va ue_type
 field identifies the type of event that is described.
 The possible events are attach/detach of a host controller,
-a device, or a device driver.  The union contains information
+a device, or a device driver.
+The union contains information
 pertinent to the different types of events.
-.br
+.Pp
 The
 .Va ue_bus
 contains the number of the
 .Tn USB
 bus for host controller events.
-.br
+.Pp
 The
 .Va ue_device
 record contains information about the device in a device event event.
-.br
+.Pp
 The
 .Va ue_cookie
 is an opaque value that uniquely determines which which
 device a device driver has been attached to (i.e., it equals
 the cookie value in the device that the driver attached to).
+.Pp
 The
 .Va ue_devname
 contains the name of the device (driver) as seen in, e.g.,
 kernel messages.
 .Pp
-Note that that there is a separation between device and device
-driver events.  A device event is generated when a physical
-USB device is attached or detached.  A single USB device may
+Note that there is a separation between device and device
+driver events.
+A device event is generated when a physical
+.Tn USB
+device is attached or detached.
+A single
+.Tn USB
+device may
 have zero, one, or many device drivers associated with it.
 .Sh SEE ALSO
 The
 .Tn USB
 specifications can be found at:
-.D1 http://www.usb.org/developers/docs.html
+.Pp
+.D1 Pa http://www.usb.org/developers/docs.html
 .Pp
 .Xr usb 3 ,
 .Xr aue 4 ,
@@ -376,9 +390,9 @@ specifications can be found at:
 .Xr ukbd 4 ,
 .Xr umass 4 ,
 .Xr ums 4 ,
-.Xr usbd 8 ,
 .Xr urio 4 ,
 .Xr uscanner 4 ,
+.Xr usbd 8 ,
 .Xr usbdevs 8
 .Sh HISTORY
 The
