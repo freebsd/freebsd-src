@@ -41,13 +41,6 @@
 
 #include "SYS.h"
 
-/*
- * pid = vfork();
- *
- * %edx == 0 in parent process, %edx == 1 in child process.
- * %eax == pid of child in parent, %eax == pid of parent in child.
- *
- */
 	.weak	_vfork
 	.set	_vfork,__sys_vfork
 	.weak	vfork
@@ -56,9 +49,9 @@ ENTRY(__sys_vfork)
 	popl	%ecx		/* my rta into ecx */
 	lea	SYS_vfork,%eax
 	KERNCALL
-	jb	2f
+	jb	1f
 	jmp	*%ecx
-2:
+1:
 	pushl	%ecx
 	PIC_PROLOGUE
 	jmp     PIC_PLT(HIDENAME(cerror))
