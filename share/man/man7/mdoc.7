@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mdoc.7	8.2 (Berkeley) 12/30/93
-.\"	$Id: mdoc.7,v 1.4 1997/03/07 03:28:15 jmg Exp $
+.\"	$Id: mdoc.7,v 1.6 1997/03/20 16:04:00 mpp Exp $
 .\"
 .Dd December 30, 1993
 .Os
@@ -281,7 +281,8 @@ Produces
 .Ss Manual Domain Macros
 .Bl -column "Name" "Parsed" Callable" -compact
 .It Em Name	Parsed	Callable	Description
-.It Li \&Ad Ta Yes Ta Yes Ta Address. "(This macro may be deprecated.)"
+.It Li \&Ad Ta Yes Ta Yes Ta "Address. (This macro may be deprecated.)"
+.It Li \&An Ta Yes Ta Yes Ta "Author name."
 .It Li \&Ar Ta Yes Ta Yes Ta "Command line argument."
 .It Li \&Cd Ta \&No Ta \&No Ta "Configuration declaration (section four only)."
 .It Li \&Cm Ta Yes Ta Yes Ta "Command line argument modifier."
@@ -347,6 +348,7 @@ Produces
 .It Li \&Qq Ta Yes Ta Yes Ta "Strait Double quote."
 .It Li \&Re Ta \&No Ta \&No Ta "Reference start."
 .It Li \&Rs Ta \&No Ta \&No Ta "Reference start."
+.It Li \&Rv Ta \&No Ta \&No Ta "Return values (sections two and three only)."
 .It Li \&Sc Ta Yes Ta Yes Ta "Single close quote."
 .It Li \&So Ta Yes Ta Yes Ta "Single open quote."
 .It Li \&Sq Ta Yes Ta Yes Ta "Single quote."
@@ -356,7 +358,7 @@ Produces
 .It Li \&Tn Ta Yes Ta Yes Ta "Trade or type name (small Caps)."
 .It Li \&Ux Ta Yes Ta Yes Ta Ux
 .It Li \&Xc Ta Yes Ta Yes Ta "Extend argument list close."
-.It Li \&Xo Ta Yes Ta Yes Ta "Extend argument list close."
+.It Li \&Xo Ta Yes Ta Yes Ta "Extend argument list open."
 .El
 .\" .It Sy \&Hf Ta \&No Ta \&No Ta "Include file with header"
 .Pp
