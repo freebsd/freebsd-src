@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_main.c,v 1.3 1995/08/20 21:18:46 peter Exp $";
+static char rcsid[] = "$Id: ns_main.c,v 1.4 1995/10/23 11:11:47 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -121,8 +121,10 @@ static	struct sockaddr_in	nsaddr;
 static	u_int16_t		local_ns_port,		/* our service port */
 				nsid_state;
 static	fd_set			mask;			/* open descriptors */
+#ifdef OLD_SETPROCTITLE
 static	char			**Argv = NULL;
 static	char			*LastArg = NULL;	/* end of argv */
+#endif
 
 static	struct qstream		*sqadd __P((void));
 static	void			sq_query __P((struct qstream *)),
@@ -204,6 +206,7 @@ main(argc, argv, envp)
 	gettime(&tt);
 	srand(((unsigned)getpid()) + (unsigned)tt.tv_usec);
 
+#ifdef OLD_SETPROCTITLE
 	/*
 	**  Save start and extent of argv for ns_setproctitle().
 	*/
@@ -212,6 +215,7 @@ main(argc, argv, envp)
 	while (*argp)
 		argp++;
 	LastArg = argp[-1] + strlen(argp[-1]);
+#endif
 
 	(void) umask(022);
 	/* XXX - should use getopt here */
@@ -1618,6 +1622,7 @@ sq_done(sp)
 	FD_SET(sp->s_rfd, &mask);
 }
 
+#ifdef OLD_SETPROCTITLE
 void
 ns_setproctitle(a, s)
 	char *a;
@@ -1641,6 +1646,26 @@ ns_setproctitle(a, s)
 	while (cp < LastArg)
 		*cp++ = ' ';
 }
+#else
+void
+ns_setproctitle(a, s)
+	char *a;
+	int s;
+{
+	int size;
+	struct sockaddr_in sin;
+	char buf[80];
+
+	size = sizeof(sin);
+	if (getpeername(s, (struct sockaddr *)&sin, &size) == 0)
+		(void) sprintf(buf, "%s [%s]", a, inet_ntoa(sin.sin_addr));
+	else {
+		syslog(LOG_DEBUG, "getpeername: %m");
+		(void) sprintf(buf, "%s", a);
+	}
+	setproctitle("%s", buf);
+}
+#endif
 
 u_int32_t
 net_mask(in)
