@@ -126,7 +126,6 @@ static char *console_pausestr=
 "<pause; press any key to proceed to next line or '.' to end pause mode>";
 struct tty *constty;			/* pointer to console "window" tty */
 
-void	cndebug(char *);
 static void constty_timeout(void *arg);
 
 CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -292,21 +291,10 @@ cnavailable(struct consdev *cn, int available)
 }
 
 int
-cn_unavailable(void)
+cnunavailable(void)
 {
+
 	return (cons_avail_mask == 0);
-}
-
-void
-cndebug(char *str)
-{
-	int i, len;
-
-	len = strlen(str);
-	cnputc('>'); cnputc('>'); cnputc('>'); cnputc(' '); 
-	for (i = 0; i < len; i++)
-		cnputc(str[i]);
-	cnputc('\n');
 }
 
 /*

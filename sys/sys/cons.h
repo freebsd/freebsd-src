@@ -104,7 +104,7 @@ int	cncheckc(void);
 int	cngetc(void);
 void	cndbctl(int);
 void	cnputc(int);
-int	cn_unavailable(void);
+int	cnunavailable(void);
 
 #endif /* _KERNEL */
 
