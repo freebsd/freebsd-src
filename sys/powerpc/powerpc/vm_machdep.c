@@ -425,9 +425,7 @@ vm_page_zero_idle()
 	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
 		return(0);
 
-#ifdef SMP
-	if (KLOCK_ENTER(M_TRY)) {
-#endif
+	if (mtx_try_enter(&Giant, MTX_DEF)) {
 		s = splvm();
 		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
 		zero_state = 0;
@@ -456,13 +454,9 @@ vm_page_zero_idle()
 		}
 		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
 		splx(s);
-#ifdef SMP
-		KLOCK_EXIT;
-#endif
+		mtx_exit(&Giant, MTX_DEF);
 		return (1);
-#ifdef SMP
 	}
-#endif
 	return (0);
 }
 
