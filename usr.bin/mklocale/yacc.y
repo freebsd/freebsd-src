@@ -55,9 +55,9 @@ rune_map	types = { 0, };
 
 _RuneLocale	new_locale = { 0, };
 
-void set_map __P((rune_map *, rune_list *, u_long));
+void set_map __P((rune_map *, rune_list *, unsigned long));
 void set_digitmap __P((rune_map *, rune_list *));
-void add_map __P((rune_map *, rune_list *, u_long));
+void add_map __P((rune_map *, rune_list *, unsigned long));
 %}
 
 %union	{
@@ -251,11 +251,11 @@ xmalloc(sz)
     return(r);
 }
 
-u_long *
+unsigned long *
 xlalloc(sz)
 	unsigned int sz;
 {
-    u_long *r = (u_long *)malloc(sz * sizeof(u_long));
+    unsigned long *r = (unsigned long *)malloc(sz * sizeof(unsigned long));
     if (!r) {
 	perror("xlalloc");
 	abort();
@@ -263,12 +263,13 @@ xlalloc(sz)
     return(r);
 }
 
-u_long *
+unsigned long *
 xrelalloc(old, sz)
-	u_long *old;
+	unsigned long *old;
 	unsigned int sz;
 {
-    u_long *r = (u_long *)realloc((char *)old, sz * sizeof(u_long));
+    unsigned long *r = (unsigned long *)realloc((char *)old,
+						sz * sizeof(unsigned long));
     if (!r) {
 	perror("xrelalloc");
 	abort();
@@ -280,7 +281,7 @@ void
 set_map(map, list, flag)
 	rune_map *map;
 	rune_list *list;
-	u_long flag;
+	unsigned long flag;
 {
     while (list) {
 	rune_list *nlist = list->next;
@@ -315,7 +316,7 @@ void
 add_map(map, list, flag)
 	rune_map *map;
 	rune_list *list;
-	u_long flag;
+	unsigned long flag;
 {
     rune_t i;
     rune_list *lr = 0;
@@ -661,7 +662,8 @@ dump_tables()
 
 	if (!list->map) {
 	    if (fwrite((char *)&list->types,
-		(list->max - list->min + 1)*sizeof(u_long), 1, fp) != 1) {
+		       (list->max - list->min + 1) * sizeof(unsigned long),
+		       1, fp) != 1) {
 		perror(locale_file);
 		exit(1);
 	    }
@@ -728,7 +730,7 @@ dump_tables()
     fprintf(stderr, "\nTYPES:\n\n");
 
     for (x = 0; x < _CACHED_RUNES; ++x) {
-	u_long r = types.map[x];
+	unsigned long r = types.map[x];
 
 	if (r) {
 	    if (isprint(x))
@@ -756,7 +758,7 @@ dump_tables()
 
     for (list = types.root; list; list = list->next) {
 	if (list->map && list->min + 3 < list->max) {
-	    u_long r = list->map;
+	    unsigned long r = list->map;
 
 	    fprintf(stderr, "%04x: %2d", list->min, r & 0xff);
 
@@ -795,7 +797,7 @@ dump_tables()
 	    fprintf(stderr, "\n");
 	} else 
 	for (x = list->min; x <= list->max; ++x) {
-	    u_long r = ntohl(list->types[x - list->min]);
+	    unsigned long r = ntohl(list->types[x - list->min]);
 
 	    if (r) {
 		fprintf(stderr, "%04x: %2d", x, r & 0xff);
