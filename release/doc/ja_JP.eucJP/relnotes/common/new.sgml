@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.248
+    Original revision: 1.22.2.249
 -->
 
 <articleinfo>
@@ -612,8 +612,8 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 
 	<para><application>sendmail</application> が
 	  8.12.3 に更新されました。
-	  &man.sendmail.8; は root に set-user-ID されたバイナリとして
-	  インストールされなくなりました
+	  &man.sendmail.8; は <username>root</username> に
+	  set-user-ID されたバイナリとしてインストールされなくなりました
           (現在は smmsp に set-group-ID されています)。
 	  詳細は
 	  <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename> と
@@ -630,7 +630,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 	  <literal>NONE</literal> にセットしなければなりません。
 	  代わりに、別の MTA を利用するシステムでは
 	  <varname>mta_start_script</varname>
-	  を用いて異なる起動スクリプトを指定することが可能です
+	  変数を用いて異なる起動スクリプトを指定することが可能です
 	  (詳細は &man.rc.sendmail.8; をご覧ください)。</para>
 
 	<para><filename>/etc/mail/Makefile</filename> から構築されるときの
