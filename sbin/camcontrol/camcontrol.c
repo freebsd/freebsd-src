@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999, 2000, 2001, 2002 Kenneth D. Merry
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001, 2002, 2005 Kenneth D. Merry
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,7 +144,7 @@ struct camcontrol_opts option_table[] = {
 	{"negotiate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"rate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "IPTSXc"},
-	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "qwy"},
+	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "qrwy"},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -2857,6 +2857,7 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 	u_int32_t dxfer_len = 0;
 	u_int8_t byte2 = 0;
 	int num_warnings = 0;
+	int reportonly = 0;
 
 	ccb = cam_getccb(device);
 
@@ -2873,6 +2874,9 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 		case 'q':
 			quiet++;
 			break;
+		case 'r':
+			reportonly = 1;
+			break;
 		case 'w':
 			immediate = 0;
 			break;
@@ -2881,6 +2885,9 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 			break;
 		}
 	}
+
+	if (reportonly)
+		goto doreport;
 
 	if (quiet == 0) {
 		fprintf(stdout, "You are about to REMOVE ALL DATA from the "
@@ -3024,6 +3031,7 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 		goto scsiformat_bailout;
 	}
 
+doreport:
 	do {
 		cam_status status;
 
@@ -3065,7 +3073,7 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 
 		if ((status != CAM_REQ_CMP)
 		 && (status == CAM_SCSI_STATUS_ERROR)
-		 && ((status & CAM_AUTOSNS_VALID) != 0)) {
+		 && ((ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0)) {
 			struct scsi_sense_data *sense;
 			int error_code, sense_key, asc, ascq;
 
@@ -3176,7 +3184,7 @@ usage(int verbose)
 "                              [-D <enable|disable>][-O offset][-q]\n"
 "                              [-R syncrate][-v][-T <enable|disable>]\n"
 "                              [-U][-W bus_width]\n"
-"        camcontrol format     [dev_id][generic args][-q][-w][-y]\n"
+"        camcontrol format     [dev_id][generic args][-q][-r][-w][-y]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!verbose)
@@ -3254,6 +3262,7 @@ usage(int verbose)
 "-v                also print a Path Inquiry CCB for the controller\n"
 "format arguments:\n"
 "-q                be quiet, don't print status messages\n"
+"-r                run in report only mode\n"
 "-w                don't send immediate format command\n"
 "-y                don't ask any questions\n");
 #endif /* MINIMALISTIC */
