@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: time.c,v 1.7 1997/02/22 14:02:09 peter Exp $";
+	"$Id: time.c,v 1.8 1997/08/07 21:42:17 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -219,7 +219,7 @@ prusage(r0, r1, e, b)
 		(void) fprintf(cshout, "%ld", r1->ru_oublock - r0->ru_oublock);
 		break;
 
-	    case 'r':		/* socket messages recieved */
+	    case 'r':		/* socket messages received */
 		(void) fprintf(cshout, "%ld", r1->ru_msgrcv - r0->ru_msgrcv);
 		break;
 
@@ -227,7 +227,7 @@ prusage(r0, r1, e, b)
 		(void) fprintf(cshout, "%ld", r1->ru_msgsnd - r0->ru_msgsnd);
 		break;
 
-	    case 'k':		/* number of signals recieved */
+	    case 'k':		/* number of signals received */
 		(void) fprintf(cshout, "%ld", r1->ru_nsignals-r0->ru_nsignals);
 		break;
 

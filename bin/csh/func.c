@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)func.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: func.c,v 1.11 1998/07/27 21:15:52 nectar Exp $";
+	"$Id: func.c,v 1.12 1999/04/25 21:13:32 imp Exp $";
 #endif
 #endif /* not lint */
 
@@ -1397,7 +1397,7 @@ dosuspend(v, t)
 /* This is the dreaded EVAL built-in.
  *   If you don't fiddle with file descriptors, and reset didfds,
  *   this command will either ignore redirection inside or outside
- *   its aguments, e.g. eval "date >x"  vs.  eval "date" >x
+ *   its arguments, e.g. eval "date >x"  vs.  eval "date" >x
  *   The stuff here seems to work, but I did it by trial and error rather
  *   than really knowing what was going on.  If tpgrp is zero, we are
  *   probably a background eval, e.g. "eval date &", and we want to

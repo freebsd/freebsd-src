@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: jobs.c,v 1.23 1998/09/08 13:16:52 cracauer Exp $";
+	"$Id: jobs.c,v 1.24 1999/04/21 11:52:39 cracauer Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -693,7 +693,7 @@ forkshell(jp, n, mode)
  * the interactive program catches interrupts, the user doesn't want
  * these interrupts to also abort the loop.  The approach we take here
  * is to have the shell ignore interrupt signals while waiting for a
- * forground process to terminate, and then send itself an interrupt
+ * foreground process to terminate, and then send itself an interrupt
  * signal if the child process was terminated by an interrupt signal.
  * Unfortunately, some programs want to do a bit of cleanup and then
  * exit on interrupt; unless these processes terminate themselves by

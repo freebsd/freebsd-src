@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)tar.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id: tar.c,v 1.10 1998/05/15 06:27:47 charnier Exp $";
+	"$Id: tar.c,v 1.11 1998/10/20 05:52:33 msmith Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -289,7 +289,7 @@ uqd_oct(val, str, len, term)
 /*
  * tar_chksm()
  *	calculate the checksum for a tar block counting the checksum field as
- *	all blanks (BLNKSUM is that value pre-calculated, the sume of 8 blanks).
+ *	all blanks (BLNKSUM is that value pre-calculated, the sum of 8 blanks).
  *	NOTE: we use len to short circuit summing 0's on write since we ALWAYS
  *	pad headers with 0.
  * Return:
@@ -308,7 +308,7 @@ tar_chksm(blk, len)
 {
 	register char *stop;
 	register char *pt;
-	u_long chksm = BLNKSUM;	/* inital value is checksum field sum */
+	u_long chksm = BLNKSUM;	/* initial value is checksum field sum */
 
 	/*
 	 * add the part of the block before the checksum field
@@ -517,7 +517,7 @@ tar_rd(arcn, buf)
 		} else {
 			/*
 			 * have a file that will be followed by data. Set the
-			 * skip value to the size field and caluculate the size
+			 * skip value to the size field and calculate the size
 			 * of the padding.
 			 */
 			arcn->type = PAX_REG;
@@ -848,7 +848,7 @@ ustar_rd(arcn, buf)
 	 * If we can find the ascii names for gname and uname in the password
 	 * and group files we will use the uid's and gid they bind. Otherwise
 	 * we use the uid and gid values stored in the header. (This is what
-	 * the posix spec wants).
+	 * the POSIX spec wants).
 	 */
 	hd->gname[sizeof(hd->gname) - 1] = '\0';
 	if (gid_name(hd->gname, &(arcn->sb.st_gid)) < 0)
@@ -1161,7 +1161,7 @@ name_split(name, len)
 
 	/*
 	 * we start looking at the biggest sized piece that fits in the name
-	 * field. We walk foward looking for a slash to split at. The idea is
+	 * field. We walk forward looking for a slash to split at. The idea is
 	 * to find the biggest piece to fit in the name field (or the smallest
 	 * prefix we can find)
 	 */

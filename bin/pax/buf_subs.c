@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)buf_subs.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: buf_subs.c,v 1.10 1998/05/15 06:27:37 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -102,7 +102,7 @@ wr_start()
 	if (!wrblksz)
 		wrblksz = frmt->bsz;
 	if (wrblksz > MAXBLK) {
-		pax_warn(1, "Write block size of %d too large, maximium is: %d",
+		pax_warn(1, "Write block size of %d too large, maximum is: %d",
 			wrblksz, MAXBLK);
 		return(-1);
 	}
@@ -147,7 +147,7 @@ rd_start()
 	buf = &(bufmem[BLKMULT]);
 	if ((act == APPND) && wrblksz) {
 		if (wrblksz > MAXBLK) {
-			pax_warn(1,"Write block size %d too large, maximium is: %d",
+			pax_warn(1,"Write block size %d too large, maximum is: %d",
 				wrblksz, MAXBLK);
 			return(-1);
 		}
@@ -609,7 +609,7 @@ rd_wrbuf(in, cpcnt)
 
 /*
  * wr_skip()
- *	skip foward during a write. In other words add padding to the file.
+ *	skip forward during a write. In other words add padding to the file.
  *	we add zero filled padding as it makes flawed archives much easier to
  *	recover from. the caller tells us how many bytes of padding to add
  *	This routine was not designed to add HUGE amount of padding, just small
@@ -799,7 +799,7 @@ rd_wrfile(arcn, ofd, left)
 	/*
 	 * if the last block has a file hole (all zero), we must make sure this
 	 * gets updated in the file. We force the last block of zeros to be
-	 * written. just closing with the file offset moved foward may not put
+	 * written. just closing with the file offset moved forward may not put
 	 * a hole at the end of the file.
 	 */
 	if (isem && (arcn->sb.st_size > 0L))
@@ -899,7 +899,7 @@ cp_file(arcn, fd1, fd2)
 	/*
 	 * if the last block has a file hole (all zero), we must make sure this
 	 * gets updated in the file. We force the last block of zeros to be
-	 * written. just closing with the file offset moved foward may not put
+	 * written. just closing with the file offset moved forward may not put
 	 * a hole at the end of the file.
 	 */
 	if (!no_hole && isem && (arcn->sb.st_size > 0L))

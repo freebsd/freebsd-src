@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: options.c,v 1.11 1998/05/15 06:27:43 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -904,7 +904,7 @@ bad_opt()
  * opt_add()
  *	breaks the value supplied to -o into a option name and value. options
  *	are given to -o in the form -o name-value,name=value
- *	mulltiple -o may be specified.
+ *	multiple -o may be specified.
  * Return:
  *	0 if format in name=value format, -1 if -o is passed junk
  */

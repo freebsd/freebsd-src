@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)ar_subs.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ar_subs.c,v 1.11 1998/05/15 06:27:36 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -254,7 +254,7 @@ extract()
 		}
 
 		/*
-		 * Non standard -Y and -Z flag. When the exisiting file is
+		 * Non standard -Y and -Z flag. When the existing file is
 		 * same age or newer skip
 		 */
 		if ((Yflag || Zflag) && ((lstat(arcn->name, &sb) == 0))) {
@@ -510,7 +510,7 @@ wr_archive(arcn, is_app)
 	}
 
 	/*
-	 * tell format to write trailer; pad to block boundry; reset directory
+	 * tell format to write trailer; pad to block boundary; reset directory
 	 * mode/access times, and check if all patterns supplied by the user
 	 * were matched. block off signals to avoid chance for multiple entry
 	 * into the cleanup code
@@ -543,7 +543,7 @@ wr_archive(arcn, is_app)
  *	It is really difficult to splice in members without either re-writing
  *	the entire archive (from the point were the old version was), or having
  *	assistance of the format specification in terms of a special update
- *	header that invalidates a previous archive record. The posix spec left
+ *	header that invalidates a previous archive record. The POSIX spec left
  *	the method used to implement -u unspecified. This pax is able to
  *	over write existing files that it creates.
  */
@@ -568,7 +568,7 @@ append()
 
 	/*
 	 * Do not allow an append operation if the actual archive is of a
-	 * different format than the user specified foramt.
+	 * different format than the user specified format.
 	 */
 	if (get_arc() < 0)
 		return;
@@ -664,7 +664,7 @@ append()
 	lnk_end();
 
 	/*
-	 * try to postion for write, if this fails quit. if any error occurs,
+	 * try to position for write, if this fails quit. if any error occurs,
 	 * we will refuse to write
 	 */
 	if (appnd_start(tlen) < 0)

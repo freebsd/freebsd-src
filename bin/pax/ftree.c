@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)ftree.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftree.c,v 1.10 1998/05/15 06:27:42 charnier Exp $";
+	"$Id: ftree.c,v 1.11 1998/06/09 03:38:43 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -70,7 +70,7 @@ static const char rcsid[] =
  * pax, they are read from stdin
  */
 
-static FTS *ftsp = NULL;		/* curent FTS handle */
+static FTS *ftsp = NULL;		/* current FTS handle */
 static int ftsopts;			/* options to be used on fts_open */
 static char *farray[2];			/* array for passing each arg to fts */
 static FTREE *fthead = NULL;		/* head of linked list of file args */
@@ -328,7 +328,7 @@ ftree_arg()
 		 * watch it, fts wants the file arg stored in a array of char
 		 * ptrs, with the last one a null. we use a two element array
 		 * and set farray[0] to point at the buffer with the file name
-		 * in it. We cannnot pass all the file args to fts at one shot
+		 * in it. We cannot pass all the file args to fts at one shot
 		 * as we need to keep a handle on which file arg generates what
 		 * files (the -n and -d flags need this). If the open is
 		 * successful, return a 0.
@@ -515,7 +515,7 @@ next_file(arcn)
 			}
 			/*
 			 * set link name length, watch out readlink does not
-			 * allways NUL terminate the link path
+			 * always NUL terminate the link path
 			 */
 			arcn->ln_name[cnt] = '\0';
 			arcn->ln_nlen = cnt;
