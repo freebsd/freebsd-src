@@ -52,12 +52,12 @@ integer
 .In stdlib.h
 .In limits.h
 .Ft long
-.Fn strtol "const char *nptr" "char **endptr" "int base"
+.Fn strtol "const char *restrict nptr" "char **restrict endptr" "int base"
 .Ft long long
-.Fn strtoll "const char *nptr" "char **endptr" "int base"
+.Fn strtoll "const char *restrict nptr" "char **restrict endptr" "int base"
 .In inttypes.h
 .Ft intmax_t
-.Fn strtoimax "const char *nptr" "char **endptr" "int base"
+.Fn strtoimax "const char *restrict nptr" "char **restrict endptr" "int base"
 .In sys/types.h
 .In stdlib.h
 .In limits.h
