@@ -430,6 +430,12 @@ DiskLabel()
     hd = lbl->d_ntracks;
     sec = lbl->d_nsectors;
     tsec = lbl->d_secperunit;
+    for (i = lbl->d_npartitions; i < MAXPARTITIONS; i++) {
+       lbl->d_partitions[i].p_offset = 0;
+       lbl->d_partitions[i].p_size = 0;
+       lbl->d_partitions[i].p_fstype = 0;
+    }
+    lbl->d_npartitions = MAXPARTITIONS;
     while(!done) {
 	clear(); standend();
 	if (yip) {
@@ -447,8 +453,6 @@ DiskLabel()
         mvprintw(j++, 0, "Part  Start       End    Blocks     MB   Type       Mountpoint");
 	for (i = 0; i < MAXPARTITIONS; i++) {
 	    mvprintw(j++, 0, "%c ", 'a'+i);
-	    if (i >= lbl->d_npartitions)
-		continue;
 	    printw(" %8u  %8u  %8u  %5u  ",
 		   lbl->d_partitions[i].p_offset,
 		   lbl->d_partitions[i].p_offset+
