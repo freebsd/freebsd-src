@@ -383,6 +383,7 @@ static void
 devaddq(const char *type, const char *what, device_t dev)
 {
 	struct dev_event_info *n1 = NULL;
+	struct proc *p;
 	char *data = NULL;
 	char *loc;
 	const char *parstr;
@@ -412,8 +413,12 @@ devaddq(const char *type, const char *what, device_t dev)
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
-	if (devsoftc.async_proc)
-		psignal(devsoftc.async_proc, SIGIO);
+	p = devsoftc.async_proc;
+	if (p != NULL) {
+		PROC_LOCK(p);
+		psignal(p, SIGIO);
+		PROC_UNLOCK(p);
+	}
 	return;
 bad:;
 	free(data, M_BUS);
