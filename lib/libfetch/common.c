@@ -364,13 +364,17 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 				wait.tv_usec += 1000000;
 				wait.tv_sec--;
 			}
-			if (wait.tv_sec < 0)
-				return (rlen);
+			if (wait.tv_sec < 0) {
+				errno = ETIMEDOUT;
+				_fetch_syserr();
+				return (-1);
+			}
 			errno = 0;
 			r = select(conn->sd + 1, &readfds, NULL, NULL, &wait);
 			if (r == -1) {
 				if (errno == EINTR && fetchRestartCalls)
 					continue;
+				_fetch_syserr();
 				return (-1);
 			}
 		}
@@ -380,8 +384,12 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 		else
 #endif
 			rlen = read(conn->sd, buf, len);
-		if (rlen == 0)
-			break;
+		if (rlen == 0) {
+			/* we consider a short read a failure */
+			errno = EPIPE;
+			_fetch_syserr();
+			return (-1);
+		}
 		if (rlen < 0) {
 			if (errno == EINTR && fetchRestartCalls)
 				continue;
@@ -406,7 +414,6 @@ _fetch_getln(conn_t *conn)
 	char *tmp;
 	size_t tmpsize;
 	char c;
-	int error;
 
 	if (conn->buf == NULL) {
 		if ((conn->buf = malloc(MIN_BUF_SIZE)) == NULL) {
@@ -420,11 +427,8 @@ _fetch_getln(conn_t *conn)
 	conn->buflen = 0;
 
 	do {
-		error = _fetch_read(conn, &c, 1);
-		if (error == -1)
+		if (_fetch_read(conn, &c, 1) == -1)
 			return (-1);
-		else if (error == 0)
-			break;
 		conn->buf[conn->buflen++] = c;
 		if (conn->buflen == conn->bufsize) {
 			tmp = conn->buf;
@@ -473,6 +477,7 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 			}
 			if (wait.tv_sec < 0) {
 				errno = ETIMEDOUT;
+				_fetch_syserr();
 				return (-1);
 			}
 			errno = 0;
@@ -490,9 +495,12 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 		else
 #endif
 			wlen = write(conn->sd, buf, len);
-		if (wlen == 0)
+		if (wlen == 0) {
 			/* we consider a short write a failure */
+			errno = EPIPE;
+			_fetch_syserr();
 			return (-1);
+		}
 		if (wlen < 0) {
 			if (errno == EINTR && fetchRestartCalls)
 				continue;
