@@ -678,6 +678,14 @@ tryagain:
 	vsystem("ldconfig -aout /usr/lib/aout /usr/lib/compat/aout /usr/local/lib/aout /usr/X11R6/lib/aout");
 
     vsystem("/sbin/ifconfig lo0 127.0.0.1");
+
+    /* 
+     * execcmd may have been passed in as a command name with
+     * arguments.  Therefore, before determining if it is suitable for
+     * execution, we must split off the filename component from the
+     * command line arguments.
+     */
+
     execcmd = string_concat("/usr/X11R6/bin/", config);
     execfile = strdup(execcmd);
     if ((tmp = strchr(execfile, ' ')))
