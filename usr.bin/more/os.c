@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)os.c	8.1 (Berkeley) 6/6/93";
 #include <signal.h>
 #include <setjmp.h>
 #include <stdio.h>
+#include <string.h>
 #include <less.h>
 #include "pathnames.h"
 
