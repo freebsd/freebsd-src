@@ -117,12 +117,19 @@ int tokens;						    /* number of tokens */
 int 
 main(int argc, char *argv[])
 {
+#if __FreeBSD__ >= 3
 #if RAID5
 #define VINUMMOD "Vinum"
+#define WRONGMOD "vinum"				    /* don't want this one */
 #else
 #define VINUMMOD "vinum"
+#define WRONGMOD "Vinum"				    /* don't want this one */
 #endif
 
+    if (modfind(WRONGMOD) >= 0) {			    /* wrong module loaded, */
+	fprintf(stderr, "Wrong module loaded: %s.  Please start %s.\n", WRONGMOD, WRONGMOD);
+	exit(1);
+    }
     if (modfind(VINUMMOD) < 0) {
 	/* need to load the vinum module */
 	if (kldload(VINUMMOD) < 0 || modfind(VINUMMOD) < 0) {
@@ -130,6 +137,7 @@ main(int argc, char *argv[])
 	    return 1;
 	}
     }
+#endif
 
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open it */
 
