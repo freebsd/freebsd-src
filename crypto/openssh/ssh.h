@@ -13,7 +13,7 @@
  * 
  */
 
-/* RCSID("$Id: ssh.h,v 1.33 2000/02/01 22:32:53 d Exp $"); */
+/* RCSID("$Id: ssh.h,v 1.34 2000/03/23 22:15:33 markus Exp $"); */
 
 #ifndef SSH_H
 #define SSH_H
@@ -313,8 +313,7 @@ int     auth_rhosts(struct passwd * pw, const char *client_user);
  * its host key.  Returns true if authentication succeeds.
  */
 int 
-auth_rhosts_rsa(struct passwd * pw, const char *client_user,
-    BIGNUM * client_host_key_e, BIGNUM * client_host_key_n);
+auth_rhosts_rsa(struct passwd * pw, const char *client_user, RSA* client_host_key);
 
 /*
  * Tries to authenticate the user using password.  Returns true if
@@ -363,40 +362,11 @@ int	get_local_port(void);
 
 
 /*
- * Tries to match the host name (which must be in all lowercase) against the
- * comma-separated sequence of subpatterns (each possibly preceded by ! to
- * indicate negation).  Returns true if there is a positive match; zero
- * otherwise.
- */
-int     match_hostname(const char *host, const char *pattern, unsigned int len);
-
-/*
- * Checks whether the given host is already in the list of our known hosts.
- * Returns HOST_OK if the host is known and has the specified key, HOST_NEW
- * if the host is not known, and HOST_CHANGED if the host is known but used
- * to have a different host key.  The host must be in all lowercase.
- */
-typedef enum {
-	HOST_OK, HOST_NEW, HOST_CHANGED
-}       HostStatus;
-HostStatus 
-check_host_in_hostfile(const char *filename, const char *host,
-    BIGNUM * e, BIGNUM * n, BIGNUM * ke, BIGNUM * kn);
-
-/*
- * Appends an entry to the host file.  Returns false if the entry could not
- * be appended.
- */
-int 
-add_host_to_hostfile(const char *filename, const char *host,
-    BIGNUM * e, BIGNUM * n);
-
-/*
  * Performs the RSA authentication challenge-response dialog with the client,
  * and returns true (non-zero) if the client gave the correct answer to our
  * challenge; returns zero if the client gives a wrong answer.
  */
-int     auth_rsa_challenge_dialog(BIGNUM * e, BIGNUM * n);
+int     auth_rsa_challenge_dialog(RSA *pk);
 
 /*
  * Reads a passphrase from /dev/tty with echo turned off.  Returns the

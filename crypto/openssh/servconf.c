@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: servconf.c,v 1.29 2000/01/04 00:07:59 markus Exp $");
+RCSID("$Id: servconf.c,v 1.31 2000/03/07 20:40:41 markus Exp $");
 
 #include "ssh.h"
 #include "servconf.h"
@@ -87,7 +87,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->permit_root_login == -1)
 		options->permit_root_login = 1;			/* yes */
 	if (options->ignore_rhosts == -1)
-		options->ignore_rhosts = 0;
+		options->ignore_rhosts = 1;
 	if (options->ignore_user_known_hosts == -1)
 		options->ignore_user_known_hosts = 0;
 	if (options->check_mail == -1)
@@ -95,9 +95,9 @@ fill_default_server_options(ServerOptions *options)
 	if (options->print_motd == -1)
 		options->print_motd = 1;
 	if (options->x11_forwarding == -1)
-		options->x11_forwarding = 1;
+		options->x11_forwarding = 0;
 	if (options->x11_display_offset == -1)
-		options->x11_display_offset = 1;
+		options->x11_display_offset = 10;
 	if (options->strict_modes == -1)
 		options->strict_modes = 1;
 	if (options->keepalives == -1)
@@ -109,7 +109,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->rhosts_authentication == -1)
 		options->rhosts_authentication = 0;
 	if (options->rhosts_rsa_authentication == -1)
-		options->rhosts_rsa_authentication = 1;
+		options->rhosts_rsa_authentication = 0;
 	if (options->rsa_authentication == -1)
 		options->rsa_authentication = 1;
 #ifdef KRB4
@@ -133,7 +133,7 @@ fill_default_server_options(ServerOptions *options)
 		options->skey_authentication = 1;
 #endif
 	if (options->permit_empty_passwd == -1)
-		options->permit_empty_passwd = 1;
+		options->permit_empty_passwd = 0;
 	if (options->use_login == -1)
 		options->use_login = 0;
 }
@@ -402,7 +402,7 @@ parse_flag:
 
 		case sIgnoreUserKnownHosts:
 			intptr = &options->ignore_user_known_hosts;
-			goto parse_int;
+			goto parse_flag;
 
 		case sRhostsAuthentication:
 			intptr = &options->rhosts_authentication;
