@@ -1,4 +1,4 @@
-# RCS Info: $Revision: 1.2 $ on $Date: 1994/01/07 11:10:39 $
+# RCS Info: $Revision: 1.3 $ on $Date: 1995/05/30 04:41:16 $
 #           $Source: /home/ncvs/src/gnu/games/chess/Xchess/Makefile,v $
 # Copyright (c) 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
 #
@@ -47,15 +47,15 @@ SOURCE = $(CFILES)
 
 ALLFILES = $(SOURCE) $(HFILES)
 
-INCLUDE = -I. -I/usr/X386/include
+INCLUDE = -I. -I${X11BASE}/include
 
-DEFINES = -DDEF_PROGRAM=\"/usr/bin/chess\"
+DEFINES = -DDEF_PROGRAM=\"/usr/games/chess\"
 
 CFLAGS = $(DEFINES) $(INCLUDE)
 LINTFLAGS = -u -z -lc -DLINT $(DEFINES) $(INCLUDE)
 LINTLIB = ../lib/llib-lX.ln
 #LDFLAGS = -L/usr2/X/lib -z -lX -lm
-LDFLAGS = -L/usr/X386/lib -loldX -lX11 -z -lm
+LDFLAGS = -L${X11BASE}/lib -loldX -lX11 -z -lm
 GPLDFLAGS = -z -loldX -lX11 -lXMenu_p -lX -lm_p -g -pg
 
 .c.o: $*.c
