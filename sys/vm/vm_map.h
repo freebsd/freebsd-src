@@ -78,6 +78,8 @@
  *	vm_map_entry_t		an entry in an address map.
  */
 
+typedef u_int vm_eflags_t;
+
 /*
  *	Objects which live in maps may be either VM objects, or
  *	another map (called a "sharing map") which denotes read-write
@@ -103,7 +105,7 @@ struct vm_map_entry {
 	vm_offset_t avail_ssize;	/* amt can grow if this is a stack */
 	union vm_map_object object;	/* object I point to */
 	vm_ooffset_t offset;		/* offset into object */
-	u_char eflags;			/* map entry flags */
+	vm_eflags_t eflags;		/* map entry flags */
 	/* Only in task maps: */
 	vm_prot_t protection;		/* protection code */
 	vm_prot_t max_protection;	/* maximum protection */
@@ -112,19 +114,21 @@ struct vm_map_entry {
 	vm_pindex_t lastr;		/* last read */
 };
 
-#define MAP_ENTRY_NOSYNC		0x1
-#define MAP_ENTRY_IS_SUB_MAP		0x2
-#define MAP_ENTRY_COW			0x4
-#define MAP_ENTRY_NEEDS_COPY		0x8
-#define MAP_ENTRY_NOFAULT		0x10
-#define MAP_ENTRY_USER_WIRED		0x20
+#define MAP_ENTRY_NOSYNC		0x0001
+#define MAP_ENTRY_IS_SUB_MAP		0x0002
+#define MAP_ENTRY_COW			0x0004
+#define MAP_ENTRY_NEEDS_COPY		0x0008
+#define MAP_ENTRY_NOFAULT		0x0010
+#define MAP_ENTRY_USER_WIRED		0x0020
 
-#define MAP_ENTRY_BEHAV_NORMAL		0x00	/* default behavior */
-#define MAP_ENTRY_BEHAV_SEQUENTIAL	0x40	/* expect sequential access */
-#define MAP_ENTRY_BEHAV_RANDOM		0x80	/* expect random access */
-#define MAP_ENTRY_BEHAV_RESERVED	0xC0	/* future use */
+#define MAP_ENTRY_BEHAV_NORMAL		0x0000	/* default behavior */
+#define MAP_ENTRY_BEHAV_SEQUENTIAL	0x0040	/* expect sequential access */
+#define MAP_ENTRY_BEHAV_RANDOM		0x0080	/* expect random access */
+#define MAP_ENTRY_BEHAV_RESERVED	0x00C0	/* future use */
 
-#define MAP_ENTRY_BEHAV_MASK		0xC0
+#define MAP_ENTRY_BEHAV_MASK		0x00C0
+
+#define MAP_ENTRY_NOCOREDUMP		0x0400	/* don't include in a core */
 
 static __inline u_char   
 vm_map_entry_behavior(struct vm_map_entry *entry)
@@ -324,12 +328,13 @@ vmspace_resident_count(struct vmspace *vmspace)
 /*
  * Copy-on-write flags for vm_map operations
  */
-#define MAP_UNUSED_01		0x1
-#define MAP_COPY_ON_WRITE	0x2
-#define MAP_NOFAULT		0x4
-#define MAP_PREFAULT		0x8
-#define MAP_PREFAULT_PARTIAL	0x10
-#define MAP_DISABLE_SYNCER	0x20
+#define MAP_UNUSED_01		0x0001
+#define MAP_COPY_ON_WRITE	0x0002
+#define MAP_NOFAULT		0x0004
+#define MAP_PREFAULT		0x0008
+#define MAP_PREFAULT_PARTIAL	0x0010
+#define MAP_DISABLE_SYNCER	0x0020
+#define MAP_DISABLE_COREDUMP	0x0100
 
 /*
  * vm_fault option flags
