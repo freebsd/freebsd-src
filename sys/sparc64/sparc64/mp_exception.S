@@ -44,9 +44,9 @@
 	 nop
 
 /*
- * Invalidate a phsyical page in the data cache.
+ * Invalidate a physical page in the data cache.  For UltraSPARC I and II.
  */
-ENTRY(tl_ipi_dcache_page_inval)
+ENTRY(tl_ipi_spitfire_dcache_page_inval)
 #if KTR_COMPILE & KTR_SMP
 	CATR(KTR_SMP, "ipi_dcache_page_inval: pa=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
@@ -81,12 +81,13 @@ ENTRY(tl_ipi_dcache_page_inval)
 
 	IPI_WAIT(%g5, %g1, %g2, %g3)
 	retry
-END(tl_ipi_dcache_page_inval)
+END(tl_ipi_spitfire_dcache_page_inval)
 
 /*
- * Invalidate a phsyical page in the instruction cache.
+ * Invalidate a physical page in the instruction cache.  For UltraSPARC I and
+ * II.
  */
-ENTRY(tl_ipi_icache_page_inval)
+ENTRY(tl_ipi_spitfire_icache_page_inval)
 #if KTR_COMPILE & KTR_SMP
 	CATR(KTR_SMP, "ipi_icache_page_inval: pa=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
@@ -121,7 +122,39 @@ ENTRY(tl_ipi_icache_page_inval)
 
 	IPI_WAIT(%g5, %g1, %g2, %g3)
 	retry
-END(tl_ipi_icache_page_inval)
+END(tl_ipi_spitfire_icache_page_inval)
+
+/*
+ * Invalidate a physical page in the data cache.  For UltraSPARC III.
+ */
+ENTRY(tl_ipi_cheetah_dcache_page_inval)
+#if KTR_COMPILE & KTR_SMP
+	CATR(KTR_SMP, "ipi_dcache_page_inval: pa=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[%g5 + ICA_PA], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+9:
+#endif
+
+	ldx	[%g5 + ICA_PA], %g1
+
+	set	PAGE_SIZE, %g2
+	add	%g1, %g2, %g3
+
+	SET(cache, %g4, %g2)
+	lduw	[%g2 + DC_LINESIZE], %g2
+
+1:	stxa	%g0, [%g1] ASI_DCACHE_INVALIDATE
+	membar	#Sync
+
+	add	%g1, %g2, %g1
+	cmp	%g1, %g3
+	blt,a,pt %xcc, 1b
+	 nop
+
+	IPI_WAIT(%g5, %g1, %g2, %g3)
+	retry
+END(tl_ipi_cheetah_dcache_page_inval)
 
 /*
  * Trigger a softint at the desired level.

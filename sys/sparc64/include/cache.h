@@ -47,65 +47,14 @@
 #ifndef _MACHINE_CACHE_H_
 #define _MACHINE_CACHE_H_
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
 #include <dev/ofw/openfirm.h>
 
-/*
- * Cache diagnostic access definitions.
- */
-/* ASI offsets for I$ diagnostic access */
-#define	ICDA_SET_SHIFT		13
-#define	ICDA_SET_MASK		(1UL << ICDA_SET_SHIFT)
-#define	ICDA_SET(a)		(((a) << ICDA_SET_SHIFT) & ICDA_SET_MASK)
-/* I$ tag/valid format */
-#define	ICDT_TAG_SHIFT		8
-#define	ICDT_TAG_BITS		28
-#define	ICDT_TAG_MASK		(((1UL << ICDT_TAG_BITS) - 1) << ICDT_TAG_SHIFT)
-#define	ICDT_TAG(x)		(((x) & ICDT_TAG_MASK) >> ICDT_TAG_SHIFT)
-#define	ICDT_VALID		(1UL << 36)
-/* D$ tag/valid format */
-#define	DCDT_TAG_SHIFT		2
-#define	DCDT_TAG_BITS		28
-#define	DCDT_TAG_MASK		(((1UL << DCDT_TAG_BITS) - 1) << DCDT_TAG_SHIFT)
-#define	DCDT_TAG(x)		(((x) & DCDT_TAG_MASK) >> DCDT_TAG_SHIFT)
-#define	DCDT_VALID_BITS		2
-#define	DCDT_VALID_MASK		((1UL << DCDT_VALID_BITS) - 1)
-/* E$ ASI_ECACHE_W/ASI_ECACHE_R address flags */
-#define	ECDA_DATA		(1UL << 39)
-#define	ECDA_TAG		(1UL << 40)
-/* E$ tag/state/parity format */
-#define	ECDT_TAG_BITS		13
-#define	ECDT_TAG_SIZE		(1UL << ECDT_TAG_BITS)
-#define	ECDT_TAG_MASK		(ECDT_TAG_SIZE - 1)
-
-/*
- * Do two virtual addresses (at which the same page is mapped) form and illegal
- * alias in D$? XXX: should use cache.dc_size here.
- */
-#define	DCACHE_BOUNDARY		0x4000
-#define	DCACHE_BMASK		(DCACHE_BOUNDARY - 1)
-#define	CACHE_BADALIAS(v1, v2) \
-	(((v1) & DCACHE_BMASK) != ((v2) & DCACHE_BMASK))
-
-/*
- * Routines for dealing with the cache.
- */
-void	cache_init(phandle_t);		/* turn it on */
-void	icache_flush(vm_offset_t, vm_offset_t);
-void	icache_inval_phys(vm_offset_t, vm_offset_t);
-void	dcache_flush(vm_offset_t, vm_offset_t);
-void	dcache_inval(pmap_t, vm_offset_t, vm_offset_t);
-void	dcache_inval_phys(vm_offset_t, vm_offset_t);
-void	dcache_blast(void);
-void	ecache_flush(vm_offset_t, vm_offset_t);
-#if 0
-void	ecache_inval_phys(vm_offset_t, vm_offset_t);
-#endif
-
-void	dcache_page_inval(vm_offset_t pa);
-void	icache_page_inval(vm_offset_t pa);
+#define	DCACHE_COLOR_BITS	(1)
+#define	DCACHE_COLORS		(1 << DCACHE_COLOR_BITS)
+#define	DCACHE_COLOR_MASK	(DCACHE_COLORS - 1)
+#define	DCACHE_COLOR(va)	(((va) >> PAGE_SHIFT) & DCACHE_COLOR_MASK)
+#define	DCACHE_OTHER_COLOR(color) \
+	((color) ^ DCACHE_COLOR_BITS)
 
 #define	DC_TAG_SHIFT	2
 #define	DC_VALID_SHIFT	0
@@ -145,6 +94,19 @@ struct cacheinfo {
 	u_int	ec_linesize;
 	u_int	ec_l2linesize;
 };
+
+typedef void dcache_page_inval_t(vm_offset_t pa);
+typedef void icache_page_inval_t(vm_offset_t pa);
+
+void	cache_init(phandle_t node);
+
+void	cheetah_dcache_page_inval(vm_offset_t pa);
+void	cheetah_icache_page_inval(vm_offset_t pa);
+void	spitfire_dcache_page_inval(vm_offset_t pa);
+void	spitfire_icache_page_inval(vm_offset_t pa);
+
+extern dcache_page_inval_t *dcache_page_inval;
+extern icache_page_inval_t *icache_page_inval;
 
 extern struct cacheinfo cache;
 

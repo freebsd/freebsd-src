@@ -96,8 +96,10 @@ extern	u_long mp_tramp_func;
 
 extern	void mp_startup(void);
 
-extern	char tl_ipi_dcache_page_inval[];
-extern	char tl_ipi_icache_page_inval[];
+extern	char tl_ipi_cheetah_dcache_page_inval[];
+extern	char tl_ipi_spitfire_dcache_page_inval[];
+extern	char tl_ipi_spitfire_icache_page_inval[];
+
 extern	char tl_ipi_level[];
 extern	char tl_ipi_tlb_context_demap[];
 extern	char tl_ipi_tlb_page_demap[];
@@ -108,7 +110,7 @@ extern	char tl_ipi_tlb_range_demap[];
 #if defined(_MACHINE_PMAP_H_) && defined(_SYS_MUTEX_H_)
 
 static __inline void *
-ipi_dcache_page_inval(vm_offset_t pa)
+ipi_dcache_page_inval(void *func, vm_offset_t pa)
 {
 	struct ipi_cache_args *ica;
 
@@ -118,13 +120,12 @@ ipi_dcache_page_inval(vm_offset_t pa)
 	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
 	ica->ica_pa = pa;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0,
-	    (u_long)tl_ipi_dcache_page_inval, (u_long)ica);
+	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)func, (u_long)ica);
 	return (&ica->ica_mask);
 }
 
 static __inline void *
-ipi_icache_page_inval(vm_offset_t pa)
+ipi_icache_page_inval(void *func, vm_offset_t pa)
 {
 	struct ipi_cache_args *ica;
 
@@ -134,8 +135,7 @@ ipi_icache_page_inval(vm_offset_t pa)
 	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
 	ica->ica_pa = pa;
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0,
-	    (u_long)tl_ipi_icache_page_inval, (u_long)ica);
+	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)func, (u_long)ica);
 	return (&ica->ica_mask);
 }
 
@@ -215,13 +215,13 @@ ipi_wait(void *cookie)
 #else
 
 static __inline void *
-ipi_dcache_page_inval(vm_offset_t pa)
+ipi_dcache_page_inval(void *func, vm_offset_t pa)
 {
 	return (NULL);
 }
 
 static __inline void *
-ipi_icache_page_inval(vm_offset_t pa)
+ipi_icache_page_inval(void *func, vm_offset_t pa)
 {
 	return (NULL);
 }
