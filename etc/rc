@@ -203,10 +203,10 @@ yes)
 				# Entropy below is not great,
 				# but better than nothing.
 				(ps -gauxwww; iostat; vmstat; sysctl -a;
-				    dmesg) > /dev/random 2> /dev/random
+				    dmesg) | /bin/dd of=/dev/random bs=8k
 				( for i in /etc /var/run ; do
 					cd $i ; ls -al ; cat *
-				done ) > /dev/random 2> /dev/random
+				done ) | /bin/dd of=/dev/random bs=8k
 			fi
 		fi
 		;;
