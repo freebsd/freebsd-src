@@ -609,6 +609,7 @@ __xdrrec_getrec(xdrs, statp, expectdata)
 			rstrm->fbtbc = rstrm->in_reclen;
 			rstrm->in_boundry = rstrm->in_base + rstrm->in_reclen;
 			rstrm->in_finger = rstrm->in_base;
+			rstrm->in_reclen = rstrm->in_received = 0;
 			*statp = XPRT_MOREREQS;
 			return TRUE;
 		}
@@ -685,6 +686,14 @@ get_input_bytes(rstrm, addr, len)
 	int len;
 {
 	size_t current;
+
+	if (rstrm->nonblock) {
+		if (len > (int)(rstrm->in_boundry - rstrm->in_finger))
+			return FALSE;
+		memcpy(addr, rstrm->in_finger, (size_t)len);
+		rstrm->in_finger += len;
+		return TRUE;
+	}
 
 	while (len > 0) {
 		current = (size_t)((long)rstrm->in_boundry -
