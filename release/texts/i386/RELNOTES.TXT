@@ -151,8 +151,8 @@ release for FreeBSD/alpha.
 
 2. Supported Configurations
 ---------------------------
-FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
-based PC's, ranging from 386sx to Pentium class machines (though the
+FreeBSD currently runs on a wide variety of ISA, VLB, EISA, MCA and PCI
+bus based PC's, ranging from 386sx to Pentium class machines (though the
 386sx is not recommended).  Support for generic IDE or ESDI drive
 configurations, various SCSI controller, network and serial cards is
 also provided.
@@ -171,6 +171,7 @@ ATA
 
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
+Adaptec 164x series MCA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 Adaptec 274X/284X/2920C/294x/2950/3940/3950 (Narrow/Wide/Twin) series
 EISA/VLB/PCI SCSI controllers.
@@ -199,6 +200,9 @@ BusLogic MultiMaster "A" Series Host Adapters:
 
 AMI FastDisk controllers that are true BusLogic MultiMaster clones are also
 supported.
+
+The Buslogic/Bustek BT-640 and Storage Dimensions SDC3211B and SDC3211F
+Microchannel (MCA) bus adapters are also supported.
 
 DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
 SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
@@ -386,7 +390,8 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B/905C PCI
+3Com 3C509, 3C529 (MCA) 3C579, 3C589 (PCMCIA),
+3C590/592/595/900/905/905B/905C PCI
 and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
 3Com 3c980/3c980B Fast Etherlink XL server adapter
@@ -492,8 +497,6 @@ Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 ISA versions of these adapters are actually PCMCIA cards combined with
 an ISA to PCMCIA bridge card, so both kinds of devices work with
 the same driver.
-
-FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
 
 3. Obtaining FreeBSD
 --------------------
