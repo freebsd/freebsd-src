@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.30 1995/06/28 05:46:19 davidg Exp $
+ * $Id: if_de.c,v 1.31 1995/09/29 19:52:10 davidg Exp $
  *
  */
 
@@ -2514,8 +2514,13 @@ tulip_pci_attach(
 		   sc->tulip_name, sc->tulip_unit);
 #endif
 #if defined(__FreeBSD__)
-	if (sc->tulip_boardsw->bd_type != TULIP_DC21040_ZX314_SLAVE)
-	    pci_map_int (config_id, tulip_intr, (void*) sc, &net_imask);
+	if (sc->tulip_boardsw->bd_type != TULIP_DC21040_ZX314_SLAVE) {
+	    if (!pci_map_int(config_id, tulip_intr, (void*) sc, &net_imask)) {
+		printf("%s%d: couldn't map interrupt\n",
+			sc->tulip_name, sc->tulip_unit);
+		return;
+	    }
+	}
 #endif
 #if defined(__bsdi__)
 	if (sc->tulip_boardsw->bd_type != TULIP_DC21040_ZX314_SLAVE) {
