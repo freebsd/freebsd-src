@@ -37,7 +37,7 @@ For one or more SCSI busses:
 .Cd "device scbus0 at vpo0"
 .Sh DESCRIPTION
 The primary purpose of the
-.Em vpo
+.Nm
 driver is to provide access to the Adaptec AIC-7110 SCSI controller built
 in the Iomega ZIP drive.
 But it should also work with the Iomega Jaz Traveller
@@ -82,7 +82,7 @@ bootflags to force other modes.
 .Xr ppc 4 ,
 .Xr scsi 4
 .Sh BUGS
-During boot, the driver firstly try to detect a classic ZIP, then a ZIP+.
+During boot, the driver first tries to detect a classic ZIP, then a ZIP+.
 The ZIP+ detection is intrusive and may send errorneous charaters to your
 printer if the drive is not connected to your parallel port.
 .Sh HISTORY
