@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: kernbb.8,v 1.4 1997/02/22 16:06:05 peter Exp $
 .\"
 .Dd May 22, 1995
 .Dt KERNBB 8
@@ -50,7 +50,9 @@ with the
 option.
 .Pp
 The output format is ascii, consisting of one line per record with the
-following fields: filename, linenumber, procedure, address and count.
+following fields: filename, linenumber, procedure, address, count
+of executions, length of the basic-block in bytes and the product of
+the previous two fields.
 .Sh FILES
 .Bl -tag -width /dev/kmemx -compact
 .It Pa /kernel

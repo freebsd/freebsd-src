@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: kernbb.c,v 1.6 1997/02/22 16:06:06 peter Exp $
  *
  */
 
@@ -52,7 +52,7 @@ int
 main()
 {
 	int i,j;
-	u_long l1,l2,l3;
+	u_long l1,l2,l3,l4;
 	struct bb bb;
 	char buf[128];
 
@@ -81,9 +81,20 @@ main()
 		kvm_read(kv,bb.addr,  addr,   bb.ncounts * sizeof addr[0]);
 		kvm_read(kv,bb.file,  file,   bb.ncounts * sizeof file[0]);
 		kvm_read(kv,bb.func,  func,   bb.ncounts * sizeof func[0]);
+		l4 = 0;
 		for (i=0; i < bb.ncounts; i++) {
-			if (!counts[i])
+			if (counts[i])
+				l4++;
+			if (!func[i] && i+1 < bb.ncounts)
+				func[i] = func[i+1];
+		}
+		if (!l4)
+			continue;
+		for (i=0; i < bb.ncounts; i++) {
+
+			if (0 && !counts[i])
 				continue;
+
 			if (!pn[i] && func[i]) {
 				kvm_read(kv,func[i], buf, sizeof buf);
 				buf[sizeof buf -1] = 0;
@@ -94,7 +105,7 @@ main()
 						func[j] = 0;
 					}
 			}
-			if (!pn[i])
+			if (!pn[i] && i < bb.ncounts)
 				pn[i] = "-";
 			if (!fn[i] && file[i]) {
 				kvm_read(kv,file[i], buf, sizeof buf);
@@ -108,8 +119,11 @@ main()
 			}
 			if (!fn[i])
 				fn[i] = "-";
-			printf("%s %5lu %s %lu %lu\n",
-				fn[i],lineno[i],pn[i],addr[i],counts[i]);
+			l4 = 0;
+			if (i+1 < bb.ncounts)
+				l4 = addr[i+1] - addr[i];
+			printf("%s %5lu %s %lu %lu %lu %lu\n",
+				fn[i], lineno[i], pn[i], addr[i], counts[i], l4, counts[i] * l4);
 		}
 		for(i=0;i<bb.ncounts;i++) {
 			if (func[i] && pn[i]) 
