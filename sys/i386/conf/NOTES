@@ -1053,3 +1053,7 @@ options 	TIMER_FREQ=((14318182+6)/12)
 options 	VM_KMEM_SIZE
 options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
+
+
+# The I/O device
+device		io

@@ -71,7 +71,7 @@ alpha/alpha/in_cksum.c		optional	inet
 alpha/alpha/interrupt.c		standard
 alpha/alpha/locore.s		standard	no-obj
 alpha/alpha/machdep.c		standard
-alpha/alpha/mem.c		standard
+alpha/alpha/mem.c		optional	mem
 alpha/alpha/pmap.c		standard
 alpha/alpha/mp_machdep.c	optional	smp
 alpha/alpha/prom.c		standard
