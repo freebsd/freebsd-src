@@ -801,6 +801,9 @@ void	_thread_critical_enter(pthread_t);
 void	_thread_critical_exit(pthread_t);
 void	_thread_sigblock();
 void	_thread_sigunblock();
+void	proc_sigact_copyin(int, const struct sigaction *);
+void	proc_sigact_copyout(int, struct sigaction *);
+struct sigaction *proc_sigact_sigaction(int);
 
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
