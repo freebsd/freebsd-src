@@ -508,7 +508,7 @@ ata_pci_attach(device_t dev)
 	break;
 
     case 0x06801095: /* Sil 0680 set ATA reference clock speed */
-	if (pci_read_config(dev, 0x8a, 1) != 0x10)
+	if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
 	    pci_write_config(dev, 0x8a, 
 			     (pci_read_config(dev, 0x8a, 1) & 0x0F) | 0x10, 1);
 	if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
