@@ -500,6 +500,8 @@ aac_cam_reset_bus(struct cam_sim *sim, union ccb *ccb)
 	aac_alloc_sync_fib(sc, &fib, 0);
 
 	vmi = (struct aac_vmioctl *)&fib->data[0];
+	bzero(vmi, sizeof(struct aac_vmioctl));
+
 	vmi->Command = VM_Ioctl;
 	vmi->ObjType = FT_DRIVE;
 	vmi->MethId = sc->scsi_method_id;
@@ -544,6 +546,7 @@ aac_cam_get_tran_settings(struct aac_softc *sc, struct ccb_trans_settings *cts, 
 
 	aac_alloc_sync_fib(sc, &fib, 0);
 	vmi = (struct aac_vmioctl *)&fib->data[0];
+	bzero(vmi, sizeof(struct aac_vmioctl));
 
 	vmi->Command = VM_Ioctl;
 	vmi->ObjType = FT_DRIVE;
