@@ -71,14 +71,16 @@ SUBDIR=	adjkerntz \
 	slattach \
 	spppcontrol \
 	startslip \
-	sysctl \
 	swapon \
+	sysctl \
 	tunefs \
 	umount \
 	vinum
 
 .if ${MACHINE_ARCH} == i386
-SUBDIR+=	kget mount_nwfs mount_smbfs
+SUBDIR+=kget \
+	mount_nwfs \
+	mount_smbfs
 .endif
 
 .if exists(${.CURDIR}/${MACHINE})
