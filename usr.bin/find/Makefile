@@ -8,7 +8,3 @@ CFLAGS+= -I${.CURDIR}
 YFLAGS=
 
 .include <bsd.prog.mk>
-
-# XXX Temporary! parsedate is broken!
-.PATH:	${.CURDIR}/../../contrib/cvs/lib/
-CFLAGS+=-DHAVE_TIMEZONE
