@@ -76,6 +76,7 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_page.h>
 #include <vm/uma.h>
 #include <sys/user.h>
 
@@ -290,8 +291,10 @@ exit1(td, rv)
 	if (--vm->vm_refcnt == 0) {
 		if (vm->vm_shm)
 			shmexit(p);
+		vm_page_lock_queues();
 		pmap_remove_pages(vmspace_pmap(vm), vm_map_min(&vm->vm_map),
 		    vm_map_max(&vm->vm_map));
+		vm_page_unlock_queues();
 		(void) vm_map_remove(&vm->vm_map, vm_map_min(&vm->vm_map),
 		    vm_map_max(&vm->vm_map));
 		vm->vm_freer = p;
