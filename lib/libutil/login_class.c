@@ -55,7 +55,7 @@ static struct login_res {
     { "maxproc",      login_getcapnum,  RLIMIT_NPROC    },
     { "openfiles",    login_getcapnum,  RLIMIT_NOFILE   },
     { "coredumpsize", login_getcapsize, RLIMIT_CORE     },
-    { "sbsize",       login_getcapnum,	RLIMIT_SBSIZE	},
+    { "sbsize",       login_getcapsize,	RLIMIT_SBSIZE	},
     { NULL,	      0,		0 	        }
 };
 
