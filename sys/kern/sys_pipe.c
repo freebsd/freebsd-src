@@ -946,10 +946,10 @@ pipe_write(fp, uio, active_cred, flags, td)
 		(wpipe->pipe_buffer.cnt == 0)) {
 
 		if ((error = pipelock(wpipe, 1)) == 0) {
-			PIPE_GET_GIANT(wpipe);
+			PIPE_UNLOCK(wpipe);
 			if (pipespace(wpipe, BIG_PIPE_SIZE) == 0)
 				atomic_add_int(&nbigpipe, 1);
-			PIPE_DROP_GIANT(wpipe);
+			PIPE_LOCK(wpipe);
 			pipeunlock(wpipe);
 		}
 	}
