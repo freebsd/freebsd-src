@@ -486,7 +486,7 @@ static void *
 pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 	*flags = UMA_SLAB_PRIV;
-	return (void *)kmem_alloc(kernel_map, bytes);
+	return (void *)IA64_PHYS_TO_RR7(ia64_tpa(kmem_alloc(kernel_map, bytes)));
 }
 
 /*
