@@ -126,6 +126,9 @@ The boot loader has been updated.  The new default kernel is now
 A filesystem snapshot capability has been added to FFS.  Details can 
 be found in /usr/src/sys/ufs/ffs/README.snapshot.
 
+Support for the Adaptec FSA family of PCI-SCSI RAID controllers has
+been added, in the form of the aac(4) driver.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -294,6 +297,17 @@ Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
 and SoundBlaster SCSI cards.
 
 Adaptec 1400, 2100S, 3200S, and 3400S SCSI RAID controllers.
+
+Adaptec FSA family RAID controllers:
+    Adaptec AAC-2622
+    Adaptec AAC-364
+    Adaptec AAC-3642
+    Dell PERC 2/QC
+    Dell PERC 2/Si
+    Dell PERC 3/Di
+    Dell PERC 3/QC
+    Dell PERC 3/Si
+    HP NetRAID-4M
 
 AdvanSys SCSI controllers (all models).
 

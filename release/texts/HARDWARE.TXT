@@ -83,6 +83,7 @@ twe0	dyn	dyn	n/a	n/a	3ware Escalade RAID controllers
 asr0	dyn	dyn	dyn	dyn	DPT SmartRaid V, VI, and 
 					Adaptec SCSI RAID
 mly0	dyn	dyn	dyn	dyn	Mylex AcceleRAID/eXtremeRAID
+aac	dyn	dyn	dyn	dyn	Adaptec FSA family PCI SCSI RAID
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
 
@@ -372,6 +373,17 @@ Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
 and SoundBlaster SCSI cards.
 
 Adaptec 1400, 2100S, 3200S, and 3400S SCSI RAID controllers.
+
+Adaptec FSA family RAID controllers:
+    Adaptec AAC-2622
+    Adaptec AAC-364
+    Adaptec AAC-3642
+    Dell PERC 2/QC
+    Dell PERC 2/Si
+    Dell PERC 3/Di
+    Dell PERC 3/QC
+    Dell PERC 3/Si
+    HP NetRAID-4M
 
 AdvanSys SCSI controllers (all models).
 
