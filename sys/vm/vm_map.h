@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.43 1999/07/10 18:16:08 alc Exp $
+ * $Id: vm_map.h,v 1.44 1999/08/01 06:05:08 alc Exp $
  */
 
 /*
@@ -184,38 +184,47 @@ struct vmspace {
 /*
  *	Macros:		vm_map_lock, etc.
  *	Function:
- *		Perform locking on the data portion of a map.
+ *		Perform locking on the data portion of a map.  Note that
+ *		these macros mimic procedure calls returning void.  The
+ *		semicolon is supplied by the user of these macros, not
+ *		by the macros themselves.  The macros can safely be used
+ *		as unbraced elements in a higher level statement.
  */
 
-#define	vm_map_lock_drain_interlock(map) { \
-	lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
-		&(map)->ref_lock, curproc); \
-	(map)->timestamp++; \
-}
+#define	vm_map_lock_drain_interlock(map) \
+	do { \
+		lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
+			&(map)->ref_lock, curproc); \
+		(map)->timestamp++; \
+	} while(0)
 
 #ifdef DIAGNOSTIC
 /* #define MAP_LOCK_DIAGNOSTIC 1 */
 #ifdef MAP_LOCK_DIAGNOSTIC
-#define	vm_map_lock(map) { \
-	printf ("locking map LK_EXCLUSIVE: 0x%x\n", map); \
-	if (lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc) != 0) { \
-		panic("vm_map_lock: failed to get lock"); \
-	} \
-	(map)->timestamp++; \
-}
+#define	vm_map_lock(map) \
+	do { \
+		printf ("locking map LK_EXCLUSIVE: 0x%x\n", map); \
+		if (lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc) != 0) { \
+			panic("vm_map_lock: failed to get lock"); \
+		} \
+		(map)->timestamp++; \
+	} while(0)
 #else
-#define	vm_map_lock(map) { \
-	if (lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc) != 0) { \
-		panic("vm_map_lock: failed to get lock"); \
-	} \
-	(map)->timestamp++; \
+#define	vm_map_lock(map) \
+	do { \
+		if (lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc) != 0) { \
+			panic("vm_map_lock: failed to get lock"); \
+		} \
+		(map)->timestamp++; \
+	} while(0)
 }
 #endif
 #else
-#define	vm_map_lock(map) { \
-	lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc); \
-	(map)->timestamp++; \
-}
+#define	vm_map_lock(map) \
+	do { \
+		lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc); \
+		(map)->timestamp++; \
+	} while(0)
 #endif /* DIAGNOSTIC */
 
 #if defined(MAP_LOCK_DIAGNOSTIC)
@@ -223,24 +232,24 @@ struct vmspace {
 	do { \
 		printf ("locking map LK_RELEASE: 0x%x\n", map); \
 		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc); \
-	} while (0);
+	} while (0)
 #define	vm_map_lock_read(map) \
 	do { \
 		printf ("locking map LK_SHARED: 0x%x\n", map); \
 		lockmgr(&(map)->lock, LK_SHARED, (void *)0, curproc); \
-	} while (0);
+	} while (0)
 #define	vm_map_unlock_read(map) \
 	do { \
 		printf ("locking map LK_RELEASE: 0x%x\n", map); \
 		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc); \
-	} while (0);
+	} while (0)
 #else
 #define	vm_map_unlock(map) \
-	lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc);
+	lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc)
 #define	vm_map_lock_read(map) \
-	lockmgr(&(map)->lock, LK_SHARED, (void *)0, curproc); 
+	lockmgr(&(map)->lock, LK_SHARED, (void *)0, curproc) 
 #define	vm_map_unlock_read(map) \
-	lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc);
+	lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc)
 #endif
 
 static __inline__ int
@@ -262,22 +271,24 @@ _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 	do { \
 		printf ("locking map LK_DOWNGRADE: 0x%x\n", map); \
 		lockmgr(&(map)->lock, LK_DOWNGRADE, (void *)0, curproc); \
-	} while (0);
+	} while (0)
 #else
 #define vm_map_lock_downgrade(map) \
-	lockmgr(&(map)->lock, LK_DOWNGRADE, (void *)0, curproc);
+	lockmgr(&(map)->lock, LK_DOWNGRADE, (void *)0, curproc)
 #endif
 
-#define vm_map_set_recursive(map) { \
-	simple_lock(&(map)->lock.lk_interlock); \
-	(map)->lock.lk_flags |= LK_CANRECURSE; \
-	simple_unlock(&(map)->lock.lk_interlock); \
-}
-#define vm_map_clear_recursive(map) { \
-	simple_lock(&(map)->lock.lk_interlock); \
-	(map)->lock.lk_flags &= ~LK_CANRECURSE; \
-	simple_unlock(&(map)->lock.lk_interlock); \
-}
+#define vm_map_set_recursive(map) \
+	do { \
+		simple_lock(&(map)->lock.lk_interlock); \
+		(map)->lock.lk_flags |= LK_CANRECURSE; \
+		simple_unlock(&(map)->lock.lk_interlock); \
+	} while(0)
+#define vm_map_clear_recursive(map) \
+	do { \
+		simple_lock(&(map)->lock.lk_interlock); \
+		(map)->lock.lk_flags &= ~LK_CANRECURSE; \
+		simple_unlock(&(map)->lock.lk_interlock); \
+	} while(0)
 
 /*
  *	Functions implemented as macros
