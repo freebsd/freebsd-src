@@ -788,6 +788,7 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 	struct pcm_feeder *f;
     	struct snd_dbuf *b = c->bufhard;
     	struct snd_dbuf *bs = c->bufsoft;
+    	struct snd_dbuf *x;
 	int r, delta;
 
 	CHN_LOCKASSERT(c);
@@ -832,13 +833,15 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 		if (f == NULL)
 			goto out;
 
-		r = FEEDER_SET(f, FEEDRATE_SRC, sndbuf_getspd(bs));
-		DEB(printf("feeder_set(FEEDRATE_SRC, %d) = %d\n", sndbuf_getspd(bs), r));
+		x = (c->direction == PCMDIR_REC)? b : bs;
+		r = FEEDER_SET(f, FEEDRATE_SRC, sndbuf_getspd(x));
+		DEB(printf("feeder_set(FEEDRATE_SRC, %d) = %d\n", sndbuf_getspd(x), r));
 		if (r)
 			goto out;
 
-		r = FEEDER_SET(f, FEEDRATE_DST, sndbuf_getspd(b));
-		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", sndbuf_getspd(b), r));
+		x = (c->direction == PCMDIR_REC)? bs : b;
+		r = FEEDER_SET(f, FEEDRATE_DST, sndbuf_getspd(x));
+		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", sndbuf_getspd(x), r));
 out:
 		DEB(printf("setspeed done, r = %d\n", r));
 		return r;
