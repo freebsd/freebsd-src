@@ -351,7 +351,7 @@ loadCat(catpath)
 	return(NLERR);
     }
 
-    (void) _fcntl(fileno(cat->fp), F_SETFD, FD_CLOEXEC);
+    (void) fcntl(fileno(cat->fp), F_SETFD, FD_CLOEXEC);
 
     if (fread(&header, sizeof(header), 1, cat->fp) != 1)
     	CORRUPT();
