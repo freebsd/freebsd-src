@@ -32,35 +32,45 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mkglue.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
  * Make the bus adaptor interrupt glue files.
  */
+#include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include "config.h"
 #include "y.tab.h"
-#include <ctype.h>
+
+void vector_devtab __P((FILE *, char *, int *));
+void vector __P((void));
+void dump_ctrs __P((FILE *));
+void dump_intname __P((FILE *, char *, int));
+void dump_std __P((FILE *, FILE *));
+void dump_vbavec __P((FILE *, char *, int));
+void dump_ubavec __P((FILE *, char *, int));
 
 /*
  * Create the UNIBUS interrupt vector glue file.
  */
+void
 ubglue()
 {
 	register FILE *fp, *gp;
 	register struct device *dp, *mp;
 
 	fp = fopen(path("ubglue.s"), "w");
-	if (fp == 0) {
-		perror(path("ubglue.s"));
-		exit(1);
-	}
+	if (fp == 0)
+		err(1, "%s", path("ubglue.s"));
 	gp = fopen(path("ubvec.s"), "w");
-	if (gp == 0) {
-		perror(path("ubvec.s"));
-		exit(1);
-	}
+	if (gp == 0)
+		err(1, "%s", path("ubvec.s"));
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		mp = dp->d_conn;
 		if (mp != 0 && mp != (struct device *)-1 &&
@@ -110,6 +120,7 @@ static int cntcnt = 0;		/* number of interrupt counters allocated */
 /*
  * Print a UNIBUS interrupt vector.
  */
+void
 dump_ubavec(fp, vector, number)
 	register FILE *fp;
 	char *vector;
@@ -143,21 +154,18 @@ dump_ubavec(fp, vector, number)
 /*
  * Create the VERSAbus interrupt vector glue file.
  */
+void
 vbglue()
 {
 	register FILE *fp, *gp;
 	register struct device *dp, *mp;
 
 	fp = fopen(path("vbglue.s"), "w");
-	if (fp == 0) {
-		perror(path("vbglue.s"));
-		exit(1);
-	}
+	if (fp == 0)
+		err(1, "%s", path("vbglue.s"));
 	gp = fopen(path("vbvec.s"), "w");
-	if (gp == 0) {
-		perror(path("vbvec.s"));
-		exit(1);
-	}
+	if (gp == 0)
+		err(1, "%s", path("vbvec.s"));
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		struct idlst *id, *id2;
 
@@ -203,6 +211,7 @@ vbglue()
 /*
  * Print a VERSAbus interrupt vector
  */
+void
 dump_vbavec(fp, vector, number)
 	register FILE *fp;
 	char *vector;
@@ -229,6 +238,7 @@ dump_vbavec(fp, vector, number)
  * HP9000/300 interrupts are auto-vectored.
  * Code is hardwired in locore.s
  */
+void
 hpglue() {}
 
 static	char *vaxinames[] = {
@@ -253,6 +263,7 @@ static	struct stdintrs {
  * reference the associated counters into a separate
  * file which is prepended to locore.s.
  */
+void
 dump_std(fp, gp)
 	register FILE *fp, *gp;
 {
@@ -287,6 +298,7 @@ dump_std(fp, gp)
 	}
 }
 
+void
 dump_intname(fp, vector, number)
 	register FILE *fp;
 	char *vector;
@@ -313,6 +325,7 @@ dump_intname(fp, vector, number)
 /*
  * Reserve space for the interrupt counters.
  */
+void
 dump_ctrs(fp)
 	register FILE *fp;
 {
@@ -341,16 +354,15 @@ dump_ctrs(fp)
  * simplify the correspondence between devices and interrupt handlers.
  * The order must match that in mkioconf.c.
  */
+void
 vector()
 {
 	int dev_id;
 	FILE *fp;
 
 	fp = fopen(path("vector.h.new"), "w");
-	if (fp == NULL) {
-		perror(path("vector.h.new"));
-		exit(1);
-	}
+	if (fp == NULL)
+		err(1, "%s", path("vector.h.new"));
 	fprintf(fp, "/*\n");
 	fprintf(fp, " * vector.h\n");
 	fprintf(fp, " * Macros for interrupt vector routines\n");
@@ -378,6 +390,7 @@ vector()
 	moveifchanged(path("vector.h.new"), path("vector.h"));
 }
 
+void
 vector_devtab(fp, table, dev_idp)
 	FILE *fp;
 	char *table;

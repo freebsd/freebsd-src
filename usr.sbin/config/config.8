@@ -42,16 +42,15 @@
 .Op Fl gpn
 .Ar SYSTEM_NAME
 .Sh DESCRIPTION
-.Pp
 This is the old version of the
-.Nm config
+.Nm
 program.
 It understands the old autoconfiguration scheme
 used on the HP300, i386, DECstation, and derivative platforms.
 The new version of config is used with the
 SPARC platform.
 Only the version of 
-.Nm config
+.Nm
 applicable to the architecture that you are running
 will be installed on your machine.
 .Pp
@@ -62,45 +61,33 @@ which describes
 the system to configure.
 A second file
 tells
-.Nm config
+.Nm
 what files are needed to generate a system and
 can be augmented by configuration specific set of files
-that give alternate files for a specific machine.
+that give alternate files for a specific machine
 (see the
 .Sx FILES
-section below)
+section below).
 .Pp
 Available options and operands:
 .Pp
 .Bl -tag -width SYSTEM_NAME
 .It Fl g
-If the
-.Fl g
-option is supplied, 
-.Nm config
-will configure a system for debugging.
+Configure a system for debugging.
 .It Fl p
-If the
-.Fl p
-option is supplied, 
-.Nm config
-will configure a system for profiling; for example,
+Configure a system for profiling; for example,
 .Xr kgmon 8
 and
 .Xr gprof 1 .
 If two or more
 .Fl p
 options are supplied,
-.Nm config
+.Nm
 will configure a system for high resolution profiling.
 .It Fl n
-If the
-.Fl n
-flag is specified,
-.Nm config
-will not remove the old compile directory (see below).
+Do not remove the old compile directory (see below).
 .It Ar SYSTEM_NAME
-specifies the name of the system configuration file
+Specifies the name of the system configuration file
 containing device specifications, configuration options
 and other system parameters for one system configuration.
 .El
@@ -116,12 +103,12 @@ will create the directory
 as necessary and place all output files there.
 If the directory already exists, it will be removed
 first unless the
-.Pa -n
+.Fl n
 flag was specified or the environment variable
-.Nm NO_CONFIG_CLOBBER
+.Ev NO_CONFIG_CLOBBER
 is set.
 The output of
-.Nm config
+.Nm
 consists of a number of files; for the
 .Tn i386 ,
 they are:
@@ -155,7 +142,7 @@ prints a reminder of this when it completes.
 If any other error messages are produced by
 .Nm config ,
 the problems in the configuration file should be corrected and
-.Nm config
+.Nm
 should be run again.
 Attempts to compile a system that had configuration errors
 are likely to fail.
@@ -165,7 +152,7 @@ entire input file is embedded in the new kernel.  This means that
 .Xr strings 1
 can be used to extract it from a kernel. 
 .Pp
-strings | grep ___ will print just the configure information.
+Strings | grep ___ will print just the configure information.
 .Sh FILES
 .Bl -tag -width /sys/i386/conf/Makefile.i386 -compact
 .It Pa /sys/conf/files
