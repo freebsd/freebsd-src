@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.156 1997/08/05 22:24:08 dyson Exp $
+ *	$Id: pmap.c,v 1.157 1997/08/07 03:52:50 dyson Exp $
  */
 
 /*
@@ -232,8 +232,15 @@ pmap_pte(pmap, va)
 	register pmap_t pmap;
 	vm_offset_t va;
 {
-	if (pmap && *pmap_pde(pmap, va)) {
-		return get_ptbase(pmap) + i386_btop(va);
+	unsigned *pdeaddr;
+
+	if (pmap) {
+		pdeaddr = (unsigned *) pmap_pde(pmap, va);
+		if (*pdeaddr & PG_PS)
+			return pdeaddr;
+		if (*pdeaddr) {
+			return get_ptbase(pmap) + i386_btop(va);
+		}
 	}
 	return (0);
 }
