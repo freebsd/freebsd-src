@@ -811,6 +811,9 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		}
 	}
 
+	if (newtd) 
+		newtd->td_flags |= (td->td_flags & TDF_NEEDRESCHED);
+
 	td->td_lastcpu = td->td_oncpu;
 	td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_pflags &= ~TDP_OWEPREEMPT;
