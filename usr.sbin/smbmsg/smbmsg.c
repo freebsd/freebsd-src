@@ -249,7 +249,7 @@ main(int argc, char **argv)
 		case 'i':
 			if ((iflag = getnum(optarg)) == -1)
 				errx(EX_USAGE, "Invalid number: %s", optarg);
-			if (iflag < 0 || iflag >= SMB_MAXBLOCKSIZE)
+			if (iflag < 0 || iflag > SMB_MAXBLOCKSIZE)
 				errx(EX_USAGE,
 				     "# input bytes out of range: %d",
 				     iflag);
@@ -258,7 +258,7 @@ main(int argc, char **argv)
 		case 'o':
 			if ((oflag = getnum(optarg)) == -1)
 				errx(EX_USAGE, "Invalid number: %s", optarg);
-			if (oflag < 0 || oflag >= SMB_MAXBLOCKSIZE)
+			if (oflag < 0 || oflag > SMB_MAXBLOCKSIZE)
 				errx(EX_USAGE,
 				     "# output bytes out of range: %d",
 				     oflag);
