@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.8.2.2 1997/08/17 20:31:58 brian Exp $
+.\"	$Id: date.1,v 1.8.2.3 1997/08/18 20:28:30 brian Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -48,7 +48,9 @@
 .Op Fl t Ar minutes_west
 .Op Fl nu
 .Op Cm + Ns Ar format
-.Op [[[[yy]mm]dd]HH]MM[\&.ss]
+.Op Fl v Ar [+|-]val[ymwdHM]
+.Ar ...
+.Op Fl f Ar fmt Ar date | [[[[yy]mm]dd]HH]MM[\&.ss]
 .Sh DESCRIPTION
 .Nm
 displays the current date and time when invoked without arguments.
@@ -67,6 +69,14 @@ to
 .Xr gettimeofday 2
 will return a non-zero
 .Ql tz_dsttime  .
+.It Fl f
+Use
+.Ar fmt
+as the format string to parse the date provided rather than using
+the default
+.Ar [[[[yy]mm]dd]HH]MM[.ss]
+format.  Parsing is done using
+.Xr strptime 3 .
 .It Fl n
 The utility
 .Xr timed 8
@@ -97,6 +107,40 @@ by future calls to
 Display or set the date in
 .Tn UCT
 (universal) time.
+.It Fl v
+Adjust the minute, hour, month day, week day, month or year according to
+.Ar val .
+If
+.Ar val
+is preceeded with a plus or minus sign, the date is adjusted forwards
+or backwards according to the remaining string, otherwise the relevant
+part of the date is set.  The date can be adjusted as many times as
+required using these flags.  Flags are processed in the order given.
+.Pp
+Minutes are in the range 0-59, hours are in the range 1-12, month days
+are in the range 1-31, week days are in the range 0-6 (sun-sat), months
+are in the range 1-12 (jan-dec) and years are in the range 80-38 or
+1980-2038.
+.Pp
+If
+.Ar val
+is numeric, one of either
+.Ar y ,
+.Ar m ,
+.Ar w ,
+.Ar d ,
+.Ar H
+or
+.Ar M
+must be used to specify which part of the date is to be adjusted.
+.Pp
+The week day or month may be specified using a name rather than a
+number.  If a name is used with the plus (or minus) sign, the date
+will be put forwards (or backwards) to the next (previous) date that
+matches the given week day or month.  This will not adjust the date
+if the given week day or month is the same as the current one.
+.Pp
+Refer to the examples below for further details.
 .El
 .Pp
 An operand with a leading plus (``+'') sign signals a user-defined format
@@ -118,7 +162,7 @@ The canonical representation for setting the date and time is:
 .Pp
 .Bl -tag -width Ds -compact -offset indent
 .It Ar yy
-Year in abbreviated form (.e.g 89 for 1989).
+Year in abbreviated form (e.g. 89 for 1989, 06 for 2006).
 .It Ar mm
 Numeric month.
 A number from 1 to 12.
@@ -150,6 +194,40 @@ TIME: 13:36:16
 .Pp
 The command:
 .Bd -literal -offset indent
+date -v1m -v+1y
+.Ed
+.Pp
+will display:
+.Bd -literal -offset indent
+Sun Jan  4 03:15:24 GMT 1998
+.Ed
+.Pp
+(where it is currently Mon Aug  4 04:15:24 BST 1997).
+.Pp
+The command:
+.Bd -literal -offset indent
+date -v1d -v3m -v0y -v-1d
+.Ed
+.Pp
+will display the last day of February in the year 2000:
+.Bd -literal -offset indent
+Tue Feb 29 03:18:00 GMT 2000
+.Ed
+.Pp
+The command:
+.Bd -literal -offset indent
+date -v1d -v+1m -v-1d -v-fri
+.Ed
+.Pp
+will display the last friday of the month:
+.Bd -literal -offset indent
+Fri Aug 29 04:31:11 BST 1997
+.Ed
+.Pp
+(where it is currently Mon Aug  4 04:31:11 BST 1997).
+.Pp
+The command:
+.Bd -literal -offset indent
 date 8506131627
 .Ed
 .Pp
@@ -167,7 +245,7 @@ without modifying the date.
 .Sh ENVIRONMENT VARIABLES
 The execution of
 .Nm
-is affected by the following evironment variables:
+is affected by the following environment variables:
 .Bl -tag -width Ds
 .It Ev TZ
 The timezone to use when displaying dates.
@@ -190,6 +268,7 @@ A record of the user setting the time.
 .Sh SEE ALSO
 .Xr gettimeofday 2 ,
 .Xr strftime 3 ,
+.Xr strptime 3 ,
 .Xr utmp 5 ,
 .Xr timed 8
 .Rs
