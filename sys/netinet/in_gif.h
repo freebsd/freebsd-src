@@ -35,8 +35,6 @@
 
 #define GIF_TTL		30
 
-extern int ip_gif_ttl;
-
 void in_gif_input __P((struct mbuf *, int off));
 int in_gif_output __P((struct ifnet *, int, struct mbuf *, struct rtentry *));
 int gif_encapcheck4 __P((const struct mbuf *, int, int, void *));

@@ -69,7 +69,7 @@
 
 #include <net/net_osdep.h>
 
-int ip_gif_ttl = GIF_TTL;
+static int ip_gif_ttl = GIF_TTL;
 SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_RW,
 	&ip_gif_ttl,	0, "");
 
