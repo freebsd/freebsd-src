@@ -23,14 +23,47 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: device_if.m,v 1.2 1998/11/08 18:35:53 nsouch Exp $
+#	$Id: device_if.m,v 1.3 1998/11/14 21:58:51 wollman Exp $
 #
 
 INTERFACE device;
 
 #
+# Default implementations of some methods.
+#
+CODE {
+	static int null_shutdown(device_t dev)
+	{
+	    return 0;
+	}
+
+	static int null_suspend(device_t dev)
+	{
+	    return 0;
+	}
+
+	static int null_resume(device_t dev)
+	{
+	    return 0;
+	}
+};
+
+#
 # Probe to see if the device is present.  Return 0 if the device exists,
-# ENXIO if it cannot be found.
+# ENXIO if it cannot be found.  For cases where more than one driver
+# matches a device, a priority value can be returned.  In this case,
+# success codes are values less than or equal to zero with the highest 
+# value representing the best match.  Failure codes are represented by
+# positive values and the regular unix error codes should be used for
+# the purpose.
+#
+# If a driver returns a success code which is less than zero, it must
+# not assume that it will be the same driver which is attached to the
+# device. In particular, it must not assume that any values stored in
+# the softc structure will be available for its attach method and any
+# resources allocated during probe must be released and re-allocated
+# if the attach method is called.  If a success code of zero is
+# returned, the driver can assume that it will be the one attached.
 # 
 # Devices which implement busses should use this method to probe for
 # the existence of devices attached to the bus and add them as
@@ -66,7 +99,7 @@ METHOD int detach {
 #
 METHOD int shutdown {
 	device_t dev;
-};
+} DEFAULT null_shutdown;
 
 #
 # This is called by the power-management subsystem when a suspend has been
@@ -76,8 +109,8 @@ METHOD int shutdown {
 #
 METHOD int suspend {
 	device_t dev;
-};
+} DEFAULT null_suspend;
 
 METHOD int resume {
 	device_t dev;
-};
+} DEFAULT null_resume;
