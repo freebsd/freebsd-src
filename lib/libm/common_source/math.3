@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)math.3	8.1 (Berkeley) 6/4/93
+.\"	@(#)math.3	8.2 (Berkeley) 5/5/94
 .\"
-.TH MATH 3 "June 4, 1993"
+.TH MATH 3 "May 5, 1994"
 .UC 4
 .ds up \fIulp\fR
 .ds nn \fINaN\fR
@@ -445,9 +445,7 @@ listed below in declining order of probable importance.
 .nf
 .ta \w'Invalid Operation'u+6n +\w'Gradual Underflow'u+2n
 Exception	Default Result
-.tc \(ru
-		
-.tc
+.sp 0.5
 Invalid Operation	\*(nn, or FALSE
 .if n \{\
 Overflow	\(+-Infinity
