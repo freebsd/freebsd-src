@@ -381,6 +381,8 @@ struct fw_crom_buf {
 
 #define FWOHCI_RDREG	_IOWR('S', 80, struct fw_reg_req_t)
 #define FWOHCI_WRREG	_IOWR('S', 81, struct fw_reg_req_t)
+#define FWOHCI_RDPHYREG	_IOWR('S', 82, struct fw_reg_req_t)
+#define FWOHCI_WRPHYREG	_IOWR('S', 83, struct fw_reg_req_t)
 
 #define DUMPDMA		_IOWR('S', 82, u_int32_t)
 

@@ -332,7 +332,7 @@ again:
 	}
 	if (bootverbose || retry >= MAX_RETRY)
 		device_printf(sc->fc.dev, 
-			"fwphy_rddata: loop=%d, retry=%d\n", i, retry);
+		    "fwphy_rddata: 0x%x loop=%d, retry=%d\n", addr, i, retry);
 #undef MAX_RETRY
 	return((fun >> PHYDEV_RDDATA )& 0xff);
 }
@@ -382,7 +382,22 @@ fwohci_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			err = EINVAL;
 		}
 		break;
+/* Read/Write Phy registers */
+#define OHCI_MAX_PHY_REG 0xf
+	case FWOHCI_RDPHYREG:
+		if (reg->addr <= OHCI_MAX_PHY_REG)
+			reg->data = fwphy_rddata(fc, reg->addr);
+		else
+			err = EINVAL;
+		break;
+	case FWOHCI_WRPHYREG:
+		if (reg->addr <= OHCI_MAX_PHY_REG)
+			reg->data = fwphy_wrdata(fc, reg->addr, reg->data);
+		else
+			err = EINVAL;
+		break;
 	default:
+		err = EINVAL;
 		break;
 	}
 	return err;
