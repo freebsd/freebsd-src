@@ -332,7 +332,7 @@ sab_attach(device_t dev)
 	SAB_WRITE(sc, SAB_IPC, sc->sc_ipc);
 
 	for (i = 0; i < SAB_NCHAN; i++)
-		child[i] = device_add_child(dev, "sabtty", i);
+		child[i] = device_add_child(dev, "sabtty", -1);
 	bus_generic_attach(dev);
 	for (i = 0; i < SAB_NCHAN; i++)
 		sc->sc_child[i] = device_get_softc(child[i]);
@@ -413,11 +413,10 @@ sab_shutdown(void *v)
 static int
 sabtty_probe(device_t dev)
 {
+	char desc[32];
 
-	if ((device_get_unit(dev) & 1) == 0)
-		device_set_desc(dev, "ttya");
-	else
-		device_set_desc(dev, "ttyb");
+	snprintf(desc, sizeof(desc), "tty%c", device_get_unit(dev) + 'a');
+	device_set_desc_copy(dev, desc);
 	return (0);
 }
 
