@@ -95,7 +95,7 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, enable, CTLFLAG_RW,
     &fw_enable, 0, "Enable ipfw");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO,one_pass,CTLFLAG_RW, 
     &fw_one_pass, 0, 
-    "Only do a single pass through ipfw when using divert(4)/dummynet(4)");
+    "Only do a single pass through ipfw when using dummynet(4)");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW, 
     &fw_debug, 0, "Enable printing of debug ip_fw statements");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW, 

@@ -1043,9 +1043,11 @@ meaning:
 Controls debugging messages produced by
 .Nm ipfw .
 .It Em net.inet.ip.fw.one_pass : No 1
-When set, permits only one pass through the firewall.
-Otherwise, after a pipe or divert action, the packet is
-reinjected in the firewall starting from the next rule.
+When set, the packet exiting from the
+.Xr dummynet 4
+pipe is not passed though the firewall again.
+Otherwise, after a pipe action, the packet is
+reinjected into the firewall at the next rule.
 .It Em net.inet.ip.fw.verbose : No 1
 Enables verbose messages.
 .It Em net.inet.ip.fw.enable : No 1
