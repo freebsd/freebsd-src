@@ -1,0 +1,396 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 11, 2000
+.Dt NTP_CONF 8
+.Os
+.Sh NAME
+.Nm ntp_conf
+.Nd NTP daemon configuration options
+.Sh SYNOPSIS
+.Pa /etc/ntp.conf
+.Sh DESCRIPTION
+Following is a description of the configuration commands in NTPv4.
+These commands have the same basic functions as in NTPv3
+and in some cases new functions and new operands.
+The various modes are determined by the command keyword
+and the type of the required IP address.
+Addresses are classed by type as
+(s) a remote server or peer (IP class A, B and C),
+(b) the broadcast address of a local interface,
+(m) a multicast address (IP class D),
+or (r) a reference clock address (127.127.x.x).
+Note that,
+while autokey and burst modes are supported by these commands,
+their effect in some weird mode combinationscan be meaningless
+or even destructive.
+.Bl -tag -width indent
+.It Xo Ic peer
+.Ar address
+.Op autokey | key Ar key
+.Op burst
+.Op version Ar version
+.Op prefer
+.Op minpoll Ar minpoll
+.Op maxpoll Ar maxpoll
+.Xc
+.It Xo Ic server
+.Ar address
+.Op autokey | key Ar key
+.Op burst
+.Op version Ar version
+.Op prefer
+.Op minpoll Ar minpoll
+.Op maxpoll Ar maxpoll
+.Xc
+.It Xo Ic broadcast
+.Ar address
+.Op autokey | key Ar key
+.Op burst
+.Op version Ar version
+.Op minpoll Ar minpoll
+.Op maxpoll Ar maxpoll
+.Op ttl Ar ttl
+.Xc
+.It Xo Ic manycastclient
+.Ar address
+.Op autokey | key Ar key
+.Op burst
+.Op version Ar version
+.Op minpoll Ar minpoll
+.Op maxpoll Ar maxpoll
+.Op ttl Ar ttl
+.Xc
+These four commands specify the time server name or address
+to be used and the mode in which to operate.
+The address can be
+either a DNS name
+or an IP address in dotted-quad notation.
+Additional information on association behavior can be found in
+the
+.Qo
+Association Management
+.Qc
+page
+(available as part of the HTML documentation
+provided in
+.Pa /usr/share/doc/ntp ) .
+.Bl -tag -width indent
+.It Ic peer
+For type s addresses (only),
+this operates as the current peer command,
+which mobilizes a persistent symmetric-active mode association,
+except that additional modes are available.
+This command should
+.Em not
+be used for type b, m or r addresses.
+.Pp
+The
+.Ic peer
+command specifies that the local server is to operate
+in symmetric active mode with the remote server.
+In this mode,
+the local server can be synchronized to the remote server
+and, in addition,
+the remote server can be synchronized by the local server.
+This is useful in a network of servers where,
+depending on various failure scenarios,
+either the local or remote server may be the better source of time.
+.It Ic server
+For type s and r addresses,
+this operates as the NTPv3 server command,
+which mobilizes a persistent client mode association.
+The server command specifies
+that the local server is to operate in client mode
+with the specified remote server.
+In this mode,
+the local server can be synchronized to the remote server,
+but the remote server can never be synchronized to the local server.
+.It Ic broadcast
+For type b and m addresses (only),
+this is operates as the current NTPv3 broadcast command,
+which mobilizes a persistent broadcast mode association,
+except that additional modes are available.
+Multiple commands can be used
+to specify multiple local broadcast interfaces (subnets)
+and/or multiple multicast groups.
+Note that local broadcast messages go only to the interface
+associated with the subnet specified,
+but multicast messages go to all interfaces.
+In the current implementation,
+the source address used for these messages
+is the Unix host default address.
+.Pp
+In broadcast mode,
+the local server sends periodic broadcast messages
+to a client population at the address specified,
+which is usually the broadcast address
+on (one of) the local network(s)
+or a multicast address assigned to NTP.
+The IANA has assigned the multicast group address 224.0.1.1
+exclusively to NTP,
+but other non-conflicting addresses can be used
+to contain the messages within administrative boundaries.
+Ordinarily, this specification applies
+only to the local server operating as a sender;
+for operation as a broadcast client,
+see the
+.Ic broadcastclient
+or
+.Ic multicastclient
+commands below.
+.It Ic manycastclient
+For type m addresses (only),
+this mobilizes a manycast client-mode association
+for the multicast address specified.
+In this case a specific address must be supplied
+which matches the address used on the
+.Ic manycastserver
+command for the designated manycast servers.
+The NTP multicast address 224.0.1.1 assigned by the IANA should
+.Em not
+be used,
+unless specific means are taken
+to avoid spraying large areas of the Internet
+with these messages
+and causing a possibly massive implosion of replies at the sender.
+.Pp
+The
+.Ic manycastclient
+command specifies
+that the local server is to operate in client mode
+with the remote servers
+that are discovered as the result of broadcast/multicast messages.
+The client broadcasts a request message
+to the group address associated with the specified address
+and specifically enabled servers respond to these messages.
+The client selects the servers providing the best time
+and continues as with the
+.Ic server
+command.
+The remaining servers are discarded as if never heard.
+.El
+.Pp
+The following options to these commands are available:
+.Bl -tag -width indent
+.It autokey
+All packets sent to the address
+are to include authentication fields
+encrypted using the autokey scheme.
+.It burst
+At each poll interval,
+send a burst of eight packets spaced,
+instead of the usual one.
+.It key Ar key
+All packets sent to the address
+are to include authentication fields
+encrypted using the specified key identifier,
+which is an unsigned 32-bit integer
+less than 65536.
+The default is to include no encryption field.
+.It version Ar version
+Specifies the version number to be used for outgoing NTP packets.
+Versions 1-4 are the choices, with version 4 the default.
+.It prefer
+Marks the server as preferred.
+All other things being equal,
+this host will be chosen for synchronization
+among a set of correctly operating hosts.
+See the
+.Qo
+Mitigation Rules and the prefer Keyword
+.Qc
+page
+for further information.
+.It ttl Ar ttl
+This option is used only with broadcast mode.
+It specifies the time-to-live (TTL) to use
+on multicast packets.
+Selection of the proper value,
+which defaults to 127,
+is something of a black art
+and must be coordinated with the network administrator.
+.It minpoll Ar minpoll
+.It maxpoll Ar maxpoll
+These options specify the minimum
+and maximum polling intervals for NTP messages,
+in seconds to the power of two.
+The default range is 6 (64 s) to 10 (1,024 s).
+The allowable range is 4 (16 s) to 17 (36.4 h) inclusive.
+.El
+.It Ic broadcastclient
+This command directs the local server to listen for and respond
+to broadcast messages received on any local interface.
+Upon hearing a broadcast message for the first time,
+the local server measures the nominal network delay
+using a brief client/server exchange with the remote server,
+then enters the broadcastclient mode,
+in which it listens for
+and synchronizes to succeeding broadcast messages.
+Note that,
+in order to avoid accidental or malicious disruption in this mode,
+both the local and remote servers should operate
+using authentication and the same trusted key and key identifier.
+.It Xo Ic multicastclient
+.Op Ar address
+.Op ...
+.Xc
+This command directs the local serverto listen for
+multicast messages at the group address(es)
+of the global network.
+The default address is that assigned by the Numbers Czar
+to NTP (224.0.1.1).
+This command operates in the same way as the
+.Ic broadcastclient
+command, but uses IP multicasting.
+Support for this command requires a multicast kernel.
+.It Ic driftfile Ar driftfile
+This command specifies the name of the file used
+to record the frequency offset of the local clock oscillator.
+If the file exists,
+it is read at startup in order to set the initial frequency offset
+and then updated once per hour with the current frequency offset
+computed by the daemon.
+If the file does not exist or this command is not given,
+the initial frequency offset is assumed zero.
+In this case,
+it may take some hours for the frequency to stabilize
+and the residual timing errors to subside.
+.Pp
+The file format consists of a single line
+containing a single floating point number,
+which records the frequency offset
+measured in parts-per-million (PPM).
+The file is updated by first writing the current drift value
+into a temporary file
+and then renaming this file to replace the old version.
+This implies that
+.Nm
+must have write permission for the directory
+the drift file is located in,
+and that file system links, symbolic or otherwise, should be avoided.
+.It Xo Ic manycastserver
+.Ar address
+.Op ...
+.Xc
+This command directs the local server to listen for
+and respond to broadcast messages received on any local interface,
+and in addition enables the server to respond
+to client mode messages to the multicast group address(es)
+(type m) specified.
+At least one address is required,
+but the NTP multicast address 224.0.1.1
+assigned by the IANA should
+.Em not
+be used,
+unless specific means are taken to limit the span of the reply
+and avoid a possibly massive implosion at the original sender.
+.It Xo Ic revoke
+.Op Ar logsec
+.Xc
+Specifies the interval between recomputations
+of the private value used with the autokey feature,
+which ordinarily requires an expensive public-key computation.
+The default value is 12 (65,536 s or about 18 hours).
+For poll intervals above the specified interval,
+a new private value will be recomputed for every message sent.
+.It Xo Ic autokey
+.Op Ar logsec
+.Xc
+Specifies the interval between regenerations
+of the session key list used with the autokey feature.
+Note that the size of the key list for each association
+depends on this interval and the current poll interval.
+The default value is 12 (4096 s or about 1.1 hours).
+For poll intervals above the specified interval,
+a session key list with a single entry
+will be regenerated for every message sent.
+.It Xo Ic enable
+.Op Ar flag
+.Op ...
+.Xc
+.It Xo Ic disable
+.Op Ar flag
+.Op ...
+.Xc
+Provides a way to enable or disable various server options.
+Flags not mentioned are unaffected.
+Note that all of these flags can be controlled remotely
+using the
+.Xr ntpdc 8
+utility program.
+Following is a description of the flags.
+.Bl -tag -width indent
+.It auth
+Enables the server to synchronize with unconfigured peers
+only if the peer has been correctly authenticated
+using a trusted key and key identifier.
+The default for this flag is enable.
+.It bclient
+When enabled, this is identical to the broadcastclient
+command.
+The default for this flag is disable.
+.It kernel
+Enables the precision-time kernel support
+for the
+.Xr ntp_adjtime 2
+system call, if implemented.
+Ordinarily, support for this routine is detected automatically
+when the NTP daemon is compiled,
+so it is not necessary for the user to worry about this flag.
+It provided primarily so that this support can be disabled
+during kernel development.
+.It monitor
+Enables the monitoring facility.
+See the
+.Ic monlist
+command of the
+.Xr ntpdc 8
+program
+further information.
+The default for this flag is enable.
+.It ntp
+Enables the server to adjust its local clock by means of NTP.
+If disabled,
+the local clock free-runs at its intrinsic time and frequency offset.
+This flag is useful in case the local clock is controlled
+by some other device or protocol and NTP is used
+only to provide synchronization to other clients.
+In this case,
+the local clock driver can be used to provide this function
+and also certain time variables for error estimates
+and leap-indicators.
+See the
+.Qo
+Reference Clock Drivers
+.Qc
+page
+for further information.
+The default for this flag is enable.
+.It stats
+Enables the statistics facility.
+See the
+.Xr ntp_mon 8
+page
+for further information.
+The default for this flag is enable.
+.El
+.El
+.Sh SEE ALSO
+.Xr ntp_mon 8 ,
+.Xr ntpd 8 ,
+.Xr ntpdc 8
+.Pp
+In addition to the manual pages provided,
+comprehensive documentation is available on the world wide web
+at
+.Li http://www.ntp.org/ .
+A snapshot of this documentation is available in HTML format in
+.Pa /usr/share/doc/ntp .
+.Sh HISTORY
+Written by
+.An Dennis Ferguson
+at the University of Toronto.
+Text amended by
+.An David Mills
+at the University of Delaware.
