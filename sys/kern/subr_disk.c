@@ -10,6 +10,9 @@
  *
  */
 
+#include "opt_geom.h"
+#ifndef GEOM
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -91,7 +94,8 @@ disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
 	struct disk *dp;
 	char const *d;
-	int i, u, s, p;
+	char *e;
+	int j, u, s, p;
 	dev_t pdev;
 
 	if (*dev != NODEV)
@@ -99,16 +103,9 @@ disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 
 	LIST_FOREACH(dp, &disklist, d_list) {
 		d = dp->d_devsw->d_name;
-		i = strlen(d);
-		if (bcmp(d, name, i) != 0)
+		j = dev_stdclone(name, &e, d, &u);
+		if (j == 0)
 			continue;
-		u = 0;
-		if (!isdigit(name[i]))
-			continue;
-		while (isdigit(name[i])) {
-			u *= 10;
-			u += name[i++] - '0';
-		}
 		if (u > DKMAXUNIT)
 			continue;
 		p = RAW_PART;
@@ -116,31 +113,24 @@ disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 		pdev = makedev(dp->d_devsw->d_maj, dkmakeminor(u, s, p));
 		if (pdev->si_disk == NULL)
 			continue;
-		if (name[i] != '\0') {
-			if (name[i] == 's') {
-				s = 0;
-				i++;
-				if (!isdigit(name[i]))
-					continue;
-				while (isdigit(name[i])) {
-					s *= 10;
-					s += name[i++] - '0';
-				}
-				s += BASE_SLICE - 1;
-			} else {
+		if (*e != '\0') {
+			j = dev_stdclone(e, &e, "s", &s);
+			if (j == 0) 
 				s = COMPATIBILITY_SLICE;
-			}
-			if (name[i] == '\0')
-				;
-			else if (name[i + 1] != '\0')
-				return;
-			else if (name[i] < 'a' || name[i] > 'h')
-				continue;
+			else if (j == 1 || j == 2)
+				s += BASE_SLICE - 1;
+			if (!*e)
+				;		/* ad0s1 case */
+			else if (e[1] != '\0')
+				return;		/* can never be a disk name */
+			else if (*e < 'a' || *e > 'h')
+				return;		/* can never be a disk name */
 			else
-				p = name[i] - 'a';
+				p = *e - 'a';
 		}
-
-		if (s >= BASE_SLICE && p != RAW_PART) {
+		if (s == WHOLE_DISK_SLICE && p == RAW_PART) {
+			return;
+		} else if (s >= BASE_SLICE && p != RAW_PART) {
 			*dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
 			    UID_ROOT, GID_OPERATOR, 0640, "%s%ds%d%c",
 			    pdev->si_devsw->d_name, u, s - BASE_SLICE + 1, 
@@ -153,7 +143,8 @@ disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 			    pdev->si_devsw->d_name, u, s - BASE_SLICE + 1);
 		} else {
 			*dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
-			    UID_ROOT, GID_OPERATOR, 0640, name);
+			    UID_ROOT, GID_OPERATOR, 0640, "%s%d%c",
+			    pdev->si_devsw->d_name, u, p + 'a');
 		}
 		dev_depends(pdev, *dev);
 		return;
@@ -435,3 +426,5 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, diskslices, CTLFLAG_RD,
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, disk, CTLFLAG_RD, 
     0, sizeof(struct disk), "sizeof(struct disk)");
+
+#endif
