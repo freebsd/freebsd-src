@@ -278,9 +278,10 @@ db_command(last_cmdp, cmd_table, aux_cmd_tablep, aux_cmd_tablep_end)
 		if ((cmd_table = cmd->more) != 0) {
 		    /* XXX usually no more aux's. */
 		    aux_cmd_tablep = 0;
-		    if (cmd_table == db_show_cmds)
+		    if (cmd_table == db_show_cmds) {
 			aux_cmd_tablep = SET_BEGIN(db_show_cmd_set);
 			aux_cmd_tablep_end = SET_LIMIT(db_show_cmd_set);
+		    }
 
 		    t = db_read_token();
 		    if (t != tIDENT) {
