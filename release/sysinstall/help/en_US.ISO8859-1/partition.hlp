@@ -9,7 +9,7 @@ is optionally broken into 3 parts:
         First you have the disk name.  Assume we have two SCSI
         drives in our system, which gives us `sd0' and `sd1'.
 
-        Next you have the "Slice" (or "Master Partition") number,
+        Next you have the "Slice" (or "FDISK Partition") number,
         as seen in the Partition Editor.  Assume that our sd0 contains
         two slices, a FreeBSD slice and a DOS slice.  This gives us
         sd0s1 and sd0s2.  Let's also say that sd1 is completely devoted
@@ -74,4 +74,4 @@ When you're done, type `Q' to exit.
 
 No actual changes will be made to the disk until you (C)ommit from the
 Install menu!  You're working with what is essentially a copy of
-the disk label(s), both here and in the Master Partition Editor.
+the disk label(s), both here and in the FDISK Partition Editor.

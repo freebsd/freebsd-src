@@ -24,5 +24,5 @@ verläßt.
 
 Es werden keinerlei Änderungen auf die Platte geschrieben, solange man
 nicht mittels ,,(C)ommit'' aus dem Installationsmenü alles bestätigt hat!
-Der ,,Master Partition''-Editor (und der Disklabel-Editor) arbeiten mit
+Der ,,FDISK Partition''-Editor (und der Disklabel-Editor) arbeiten mit
 einer Art Kopie der Disklabels.

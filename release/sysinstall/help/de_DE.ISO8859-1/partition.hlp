@@ -81,5 +81,5 @@ Wenn man fertig ist, beendet man den Editor mit ,,Q''.
 
 Es werden keinerlei Änderungen auf die Platte geschrieben, solange man
 nicht mittels ,,(C)ommit'' aus dem Installationsmenü alles bestätigt
-hat!  Der Disklabel-Editor (und der ,,Master Partition''-Editor) ar-
+hat!  Der Disklabel-Editor (und der ,,FDISK Partition''-Editor) ar-
 beiten mit einer Art Kopie der Disklabels.
