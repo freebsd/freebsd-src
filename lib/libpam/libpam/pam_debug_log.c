@@ -85,6 +85,10 @@ _pam_log_retval(struct options *options, const char *file, const char *function,
 			syslog(LOG_DEBUG, "%s: %s: returning PAM_IGNORE",
 			    modname, function);
 			break;
+		case PAM_PERM_DENIED:
+			syslog(LOG_DEBUG, "%s: %s: returning PAM_PERM_DENIED",
+			    modname, function);
+			break;
 		default:
 			syslog(LOG_DEBUG, "%s: %s: returning (%d)",
 			    modname, function, retval);
