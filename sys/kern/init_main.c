@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.90 1998/04/17 22:36:49 des Exp $
+ * $Id: init_main.c,v 1.91 1998/04/19 23:31:54 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -432,7 +432,7 @@ proc0_post(dummy)
 	 */
 	microtime(&proc0.p_stats->p_start);
 	timevalclear(&proc0.p_rtime);
-	microruntime(&proc0.p_runtime);
+	microuptime(&proc0.p_runtime);
 
 	/*
 	 * Give the ``random'' number generator a thump.

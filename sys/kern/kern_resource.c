@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.34 1998/04/04 13:25:18 phk Exp $
+ * $Id: kern_resource.c,v 1.35 1998/04/05 02:59:10 peter Exp $
  */
 
 #include "opt_compat.h"
@@ -516,7 +516,7 @@ calcru(p, up, sp, ip)
 		 * important since the error here is on the order of a time
 		 * quantum, which is much greater than the sampling error.
 		 */
-		microruntime(&tv);
+		microuptime(&tv);
 		sec += tv.tv_sec - p->p_runtime.tv_sec;
 		usec += tv.tv_usec - p->p_runtime.tv_usec;
 	}

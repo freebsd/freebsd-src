@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.84 1998/04/18 05:09:07 kato Exp $
+ *  $Id: syscons.c,v 1.85 1998/05/04 07:47:29 kato Exp $
  */
 
 #include "sc.h"
@@ -1167,7 +1167,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
             return EINVAL;
 	scrn_blank_time = *(int *)data;
 	if (scrn_blank_time == 0)
-	    getmicroruntime(&scrn_time_stamp);
+	    getmicrouptime(&scrn_time_stamp);
 	return 0;
 
     case CONS_CURSORTYPE:   	/* set cursor type blink/noblink */
@@ -1535,7 +1535,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return EINVAL;
 	}
 	/* make screensaver happy */
-	getmicroruntime(&scrn_time_stamp);
+	getmicrouptime(&scrn_time_stamp);
 	return 0;
     }
 
@@ -2589,7 +2589,7 @@ scrn_timer(void *arg)
     }
 
     /* should we stop the screen saver? */
-    getmicroruntime(&tv);
+    getmicrouptime(&tv);
     if (panicstr)
 	scrn_time_stamp = tv;
     if (tv.tv_sec <= scrn_time_stamp.tv_sec + scrn_blank_time)
@@ -2723,7 +2723,7 @@ static void
 stop_scrn_saver(void (*saver)(int))
 {
     (*saver)(FALSE);
-    getmicroruntime(&scrn_time_stamp);
+    getmicrouptime(&scrn_time_stamp);
     mark_all(cur_console);
     wakeup((caddr_t)&scrn_blanked);
 }
@@ -2733,10 +2733,10 @@ wait_scrn_saver_stop(void)
 {
     int error = 0;
 
-    getmicroruntime(&scrn_time_stamp);
+    getmicrouptime(&scrn_time_stamp);
     while (scrn_blanked > 0) {
 	error = tsleep((caddr_t)&scrn_blanked, PZERO | PCATCH, "scrsav", 0);
-	getmicroruntime(&scrn_time_stamp);
+	getmicrouptime(&scrn_time_stamp);
 	if (error != ERESTART)
 	    break;
     }
@@ -3788,7 +3788,7 @@ ansi_put(scr_stat *scp, u_char *buf, int len)
 
     /* make screensaver happy */
     if (scp == cur_console)
-	getmicroruntime(&scrn_time_stamp);
+	getmicrouptime(&scrn_time_stamp);
 
     write_in_progress++;
 outloop:
@@ -4459,7 +4459,7 @@ next_code:
 
     /* make screensaver happy */
     if (!(scancode & 0x80))
-	getmicroruntime(&scrn_time_stamp);
+	getmicrouptime(&scrn_time_stamp);
 
     if (!(flags & SCGETC_CN)) {
 	/* do the /dev/random device a favour */
