@@ -2718,7 +2718,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <literal>LC_MONETARY</literal>, <literal>LC_NUMERIC</literal>,
       and <literal>LC_MESSAGES</literal> categories.  A number of
       applications have been updated to take advantage of this
-      support.</para>
+      support. &merged;</para>
 
     <para>Locale names have been changed to improve compatibility with
       the names used by X11R6, as well as a number of other UNIX
