@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.138 1999/05/05 09:37:22 jkh Exp $
+ **      $Id: userconfig.c,v 1.139 1999/05/06 18:12:19 peter Exp $
  **/
 
 /**
@@ -840,6 +840,8 @@ static void
 savelist(DEV_LIST *list, int active)
 {
     struct isa_device	*id_p,*id_pn;
+    struct isa_driver	*isa_drv;
+    char *name = list->device->id_driver->name;
 
     while (list)
     {
@@ -856,8 +858,18 @@ savelist(DEV_LIST *list, int active)
 		if (id_p->id_id == list->device->id_id) 
 		{
 		    id_pn = id_p->id_next;
+		    isa_drv = id_p->id_driver;
+		    if (isa_drv && isa_drv->name)
+			    free(isa_drv->name, M_DEVL);
+		    if (isa_drv)
+			    free(isa_drv, M_DEVL);
 		    bcopy(list->device,id_p,sizeof(struct isa_device));
 		    save_resource(list->device);
+		    isa_drv = malloc(sizeof(struct isa_driver),M_DEVL,M_WAITOK);
+		    isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+		    strcpy(isa_drv->name, name);
+		    id_p->id_driver = isa_drv;
+		    id_pn->id_next = isa_devlist;
 		    id_p->id_next = id_pn;
 		    break;
 		}
@@ -867,6 +879,10 @@ savelist(DEV_LIST *list, int active)
 		id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
 		bcopy(list->device,id_pn,sizeof(struct isa_device));
 		save_resource(list->device);
+		isa_drv = malloc(sizeof(struct isa_driver),M_DEVL, M_WAITOK);
+		isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+		strcpy(isa_drv->name, name);
+		id_pn->id_driver = isa_drv;
 		id_pn->id_next = isa_devlist;
 		isa_devlist = id_pn;			/* park at top of list */
 	    }
@@ -2523,7 +2539,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.138 1999/05/05 09:37:22 jkh Exp $
+ *      $Id: userconfig.c,v 1.139 1999/05/06 18:12:19 peter Exp $
  */
 
 #include "scbus.h"
@@ -3618,14 +3634,26 @@ save_dev(idev)
 struct isa_device 	*idev;
 {
 	struct isa_device	*id_p,*id_pn;
+	struct isa_driver	*isa_drv;
+	char *name = idev->id_driver->name;
 
 	for (id_p=isa_devlist;
 	id_p;
 	id_p=id_p->id_next) {
 		if (id_p->id_id == idev->id_id) {
 			id_pn = id_p->id_next;
+			isa_drv = id_p->id_driver;
+			if (isa_drv && isa_drv->name)
+				free(isa_drv->name, M_DEVL);
+			if (isa_drv)
+				free(isa_drv, M_DEVL);
 			bcopy(idev,id_p,sizeof(struct isa_device));
 			save_resource(idev);
+			isa_drv = malloc(sizeof(struct isa_driver),M_DEVL,
+				M_WAITOK);
+			isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+			strcpy(isa_drv->name, name);
+			id_p->id_driver = isa_drv;
 			id_p->id_next = id_pn;
 			return 1;
 		}
@@ -3633,6 +3661,10 @@ struct isa_device 	*idev;
 	id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
 	bcopy(idev,id_pn,sizeof(struct isa_device));
 	save_resource(idev);
+	isa_drv = malloc(sizeof(struct isa_driver),M_DEVL, M_WAITOK);
+	isa_drv->name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+	strcpy(isa_drv->name, name);
+	id_pn->id_driver = isa_drv;
 	id_pn->id_next = isa_devlist;
 	isa_devlist = id_pn;
 	return 0;
