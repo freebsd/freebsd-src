@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.128 1998/10/26 19:07:36 brian Exp $
+.\" $Id: ppp.8,v 1.129 1998/10/26 19:07:39 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2730,12 +2730,20 @@ links will stay active until the bundle idle timer expires.
 If no arguments are given, callback is disabled, otherwise,
 .Nm
 will request (or in
-.Ar direct
-mode, will accept) one of the given protocols.  If a request is NAK'd
+.Fl direct
+mode, will accept) one of the given protocols.  In client mode, if a
+request is NAK'd
 .Nm
 will request another, until no options remain at which point
 .Nm
-will terminate negotiations.
+will terminate negotiations.  In server mode,
+.Nm
+will accept any of the given protocols - but the client
+.Em must
+request one of them.  If you wish callback to be optional, you must include
+.Ar none
+as an option.
+.Pp
 The options are as follows (in this order of preference):
 .Pp
 .Bl -tag
@@ -2773,7 +2781,7 @@ themselves.
 If the peer does not wish to do callback at all,
 .Nm
 will accept the fact and continue without callback rather than terminating
-the connection.
+the connection.  This is required if you wish callback to be optional.
 .El
 .Pp
 .It set cbcp Op *|number[,number]... Op delay Op retry
