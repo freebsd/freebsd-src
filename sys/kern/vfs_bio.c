@@ -779,6 +779,7 @@ bwrite(struct buf * bp)
 	VI_LOCK(bp->b_vp);
 	if (bp->b_vflags & BV_BKGRDINPROG) {
 		if (bp->b_flags & B_ASYNC) {
+			VI_UNLOCK(bp->b_vp);
 			splx(s);
 			bdwrite(bp);
 			return (0);
@@ -1505,6 +1506,7 @@ bqrelse(struct buf * bp)
 			 * the buffer (most importantly: the wired pages
 			 * making up its backing store) *now*.
 			 */
+			VI_UNLOCK(bp->b_vp);
 			mtx_unlock(&bqlock);
 			splx(s);
 			brelse(bp);
