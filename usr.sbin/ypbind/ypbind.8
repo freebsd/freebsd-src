@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypbind.8,v 1.8 1997/02/22 16:14:54 peter Exp $
+.\"	$Id: ypbind.8,v 1.5.2.1 1997/03/06 08:01:03 mpp Exp $
 .\"
 .Dd April 9, 1995
 .Dt YPBIND 8
@@ -38,13 +38,13 @@
 .Nm ypbind
 .Nd "NIS domain binding daemon"
 .Sh SYNOPSIS
-.Nm ypbind
+.Nm
 .Op Fl ypset
 .Op Fl ypsetme
 .Op Fl s
 .Op Fl S Ar domainname,server1,server2,...
 .Sh DESCRIPTION
-.Nm ypbind
+.Nm
 is the process that maintains NIS binding information. At startup,
 it searches for an NIS server responsible for serving the system's
 default domain (as set by the
@@ -60,33 +60,34 @@ since it is possible for an NIS client to be bound to more than
 one domain.
 .Pp
 After a binding has been established,
-.Nm ypbind
+.Nm
 will send DOMAIN_NONACK requests to the NIS server at one minute
-intervals. If it fails to receive a reply to one of these requests
-.Nm ypbind
+intervals. If it fails to receive a reply to one of these requests,
+.Nm
 assumes that the server is no longer running and resumes its network
 broadcasts until another binding is established.
-.Nm ypbind
-will also log warning messages using the syslog(3) facility each time
-it detects that a server has stopped responding, as well as when it
-has bound to a new server.
+.Nm
+will also log warning messages using the
+.Xr syslog 3
+facility each time it detects that a server has stopped responding,
+as well as when it has bound to a new server.
 .Pp
 .Sh OPTIONS
 The following options are supported by
-.Nm ypbind :
+.Nm Ns :
 .Bl -tag -width flag
 .It Fl ypset
 It is possible to force
-.Nm ypbind
+.Nm
 to bind to a particular NIS server host for a given domain by using the
 .Xr ypset 8
 command. However,
-.Nm ypbind
+.Nm
 refuses YPBINDPROC_SETDOM requests by default since it has no way of
 knowing exactly who is sending them. Using the
 .Fl ypset
 flag causes
-.Nm ypbind
+.Nm
 to accept YPBINDPROC_SETDOM requests from any host. This option should only
 be used for diagnostic purposes and only for limited periods since allowing
 arbitrary users to reset the binding of an NIS client poses a severe
@@ -100,7 +101,7 @@ if they originated from the local host.
 The
 .Fl s
 flag causes
-.Nm ypbind
+.Nm
 to run in secure mode: it will refuse to bind to any NIS server
 that is not running as root (i.e. that is not using privileged
 TCP ports).
@@ -122,26 +123,28 @@ options, which are often considered to be security holes. The specified
 servers must have valid entries in the local
 .Pa /etc/hosts
 file. IP addresses may be specified in place of hostnames. If
-.Nm ypbind
+.Nm
 can't make sense ouf of the arguments, it will ignore
 the
 .Fl S
 flag and continue running normally.
 .Pp
 Note that
-.Nm ypbind
+.Nm
 will consider the domainname specified with the
 .Fl S
 flag to be the system default domain.
 .Sh NOTES
-.Nm ypbind
-will not make continuous attempts to keep secondary domains bound.
-If a server for a second dary domain fails to respond to a ping,
-.Nm ypbind
+The
+.Nm
+program will not make continuous attempts to keep secondary domains bound.
+If a server for a secondary domain fails to respond to a ping,
+.Nm
 will broadcast for a new server only once before giving up. If a
-client program attempts to reference the unbound domain, ypbind will
-try broadcasting again. By contrast,
-.Nm ypbind
+client program attempts to reference the unbound domain,
+.Nm
+will try broadcasting again. By contrast,
+.Nm
 will automatically maintain a binding for the default domain whether
 client programs reference it ot not.
 .Sh FILES
