@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.40 1998/04/06 09:12:23 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.41 1998/04/07 00:53:21 brian Exp $
  */
 
 #include <sys/types.h>
@@ -893,6 +893,7 @@ void
 bundle_StopIdleTimer(struct bundle *bundle)
 {
   StopTimer(&bundle->idle.timer);
+  bundle->idle.done = 0;
 }
 
 int
