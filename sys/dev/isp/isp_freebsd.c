@@ -383,12 +383,17 @@ ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		struct isp_hba_device *hba = (struct isp_hba_device *) addr;
 		MEMZERO(hba, sizeof (*hba));
 		ISP_LOCK(isp);
+		hba->fc_fw_major = ISP_FW_MAJORX(isp->isp_fwrev);
+		hba->fc_fw_minor = ISP_FW_MINORX(isp->isp_fwrev);
+		hba->fc_fw_micro = ISP_FW_MICROX(isp->isp_fwrev);
 		hba->fc_speed = FCPARAM(isp)->isp_gbspeed;
 		hba->fc_scsi_supported = 1;
 		hba->fc_topology = FCPARAM(isp)->isp_topo + 1;
 		hba->fc_loopid = FCPARAM(isp)->isp_loopid;
-		hba->active_node_wwn = FCPARAM(isp)->isp_nodewwn;
-		hba->active_port_wwn = FCPARAM(isp)->isp_portwwn;
+		hba->nvram_node_wwn = FCPARAM(isp)->isp_nodewwn;
+		hba->nvram_port_wwn = FCPARAM(isp)->isp_portwwn;
+		hba->active_node_wwn = ISP_NODEWWN(isp);
+		hba->active_port_wwn = ISP_PORTWWN(isp);
 		ISP_UNLOCK(isp);
 		retval = 0;
 		break;
@@ -590,14 +595,14 @@ get_lun_statep(struct ispsoftc *isp, int bus, lun_id_t lun)
 	return (tptr);
 }
 
-static __inline void
+static INLINE void
 rls_lun_statep(struct ispsoftc *isp, tstate_t *tptr)
 {
 	if (tptr->hold)
 		tptr->hold--;
 }
 
-static __inline int
+static INLINE int
 isp_psema_sig_rqe(struct ispsoftc *isp, int bus)
 {
 	while (isp->isp_osinfo.tmflags[bus] & TM_BUSY) {
@@ -611,7 +616,7 @@ isp_psema_sig_rqe(struct ispsoftc *isp, int bus)
 	return (0);
 }
 
-static __inline int
+static INLINE int
 isp_cv_wait_timed_rqe(struct ispsoftc *isp, int bus, int timo)
 {
 	if (tsleep(&isp->isp_osinfo.rstatus[bus], PRIBIO, "qt1", timo)) {
@@ -620,14 +625,14 @@ isp_cv_wait_timed_rqe(struct ispsoftc *isp, int bus, int timo)
 	return (0);
 }
 
-static __inline void
+static INLINE void
 isp_cv_signal_rqe(struct ispsoftc *isp, int bus, int status)
 {
 	isp->isp_osinfo.rstatus[bus] = status;
 	wakeup(&isp->isp_osinfo.rstatus[bus]);
 }
 
-static __inline void
+static INLINE void
 isp_vsema_rqe(struct ispsoftc *isp, int bus)
 {
 	if (isp->isp_osinfo.tmflags[bus] & TM_WANTED) {
@@ -637,7 +642,7 @@ isp_vsema_rqe(struct ispsoftc *isp, int bus)
 	isp->isp_osinfo.tmflags[bus] &= ~TM_BUSY;
 }
 
-static __inline atio_private_data_t *
+static INLINE atio_private_data_t *
 isp_get_atpd(struct ispsoftc *isp, int tag)
 {
 	atio_private_data_t *atp;
