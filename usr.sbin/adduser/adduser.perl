@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.9 1995/10/22 11:44:16 jkh Exp $
+# $Id: adduser.perl,v 1.10 1996/02/10 17:15:47 wosch Exp $
 #
 
 # read variables
@@ -56,9 +56,9 @@ sub variables {
     # List of directories where shells located
     @path = ('/bin', '/usr/bin', '/usr/local/bin');
     # common shells, first element has higher priority
-    @shellpref = ('bash', 'tcsh', 'ksh', 'csh', 'sh');
+    @shellpref = ('csh', 'sh', 'bash', 'tcsh', 'ksh');
 
-    $defaultshell = 'bash';	# defaultshell if not empty
+    $defaultshell = 'sh';	# defaultshell if not empty
     $group_uniq = 'USER';
     $defaultgroup = $group_uniq;# login groupname, $group_uniq means username
 
