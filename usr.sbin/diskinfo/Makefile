@@ -3,6 +3,8 @@
 PROG=	diskinfo
 MAN=	diskinfo.8
 
+WARNS?=	5
+
 .include <bsd.prog.mk>
 
 test:	${PROG}
