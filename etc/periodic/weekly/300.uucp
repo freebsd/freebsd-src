@@ -1,0 +1,12 @@
+#!/bin/sh -
+#
+# $Id: 300.uucp,v 1.1.1.1 1997/08/12 17:51:16 pst Exp $
+#
+# This is really here for backwards compatibility, clean.weekly is not
+# created by default anymore.
+
+if [ -d /var/spool/uucp -a -f /usr/libexec/uucp/clean.weekly ]; then
+    echo ""
+    echo "Cleaning up UUCP:"
+    echo /usr/libexec/uucp/clean.weekly | su daemon
+fi

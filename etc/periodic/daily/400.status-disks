@@ -1,0 +1,14 @@
+#!/bin/sh
+#
+# $Id: 400.status-disks,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+#
+
+echo ""
+echo "Disk status:"
+
+df -k -t nonfs
+
+# display which filesystems need backing up
+
+echo ""
+dump W
