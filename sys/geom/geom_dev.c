@@ -57,7 +57,6 @@ static d_open_t		g_dev_open;
 static d_close_t	g_dev_close;
 static d_strategy_t	g_dev_strategy;
 static d_ioctl_t	g_dev_ioctl;
-static d_psize_t	g_dev_psize;
 
 static struct cdevsw g_dev_cdevsw = {
 	/* open */      g_dev_open,
@@ -71,7 +70,7 @@ static struct cdevsw g_dev_cdevsw = {
 	/* name */      "g_dev",
 	/* maj */       GEOM_MAJOR,
 	/* dump */      nodump,
-	/* psize */     g_dev_psize,
+	/* psize */     nopsize,
 	/* flags */     D_DISK | D_TRACKCLOSE,
 	/* kqfilter */	nokqfilter
 };
@@ -347,18 +346,6 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	if (gio != NULL)
 		g_free(gio);
 	return (error);
-}
-
-static int
-g_dev_psize(dev_t dev)
-{
-	struct g_consumer *cp;
-	off_t mediasize;
-
-	cp = dev->si_drv2;
-
-	mediasize = cp->provider->mediasize;
-	return (mediasize >> DEV_BSHIFT);
 }
 
 static void
