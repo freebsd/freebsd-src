@@ -35,29 +35,30 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <paths.h>
 
 #include <sys/queue.h>
 
-#define GEOM_CTL_TABLE 1
+#define GCTL_TABLE 1
 #include <libgeom.h>
 
 #include <geom/geom_ext.h>
 
 void
-geom_ctl_dump(struct geom_ctl_req *req, FILE *f)
+gctl_dump(struct gctl_req *req, FILE *f)
 {
 	u_int i;
 	int j;
-	struct geom_ctl_req_arg *ap;
+	struct gctl_req_arg *ap;
 
 	if (req == NULL) {
-		fprintf(f, "Dump of geom_ctl request at NULL\n");
+		fprintf(f, "Dump of gctl request at NULL\n");
 		return;
 	}
-	fprintf(f, "Dump of geom_ctl %s request at %p:\n", req->reqt->name, req);
+	fprintf(f, "Dump of gctl %s request at %p:\n", req->reqt->name, req);
 	if (req->error != NULL)
 		fprintf(f, "  error:\t\"%s\"\n", req->error);
 	else
@@ -68,24 +69,30 @@ geom_ctl_dump(struct geom_ctl_req *req, FILE *f)
 			fprintf(f, "  param:\t\"%s\"", ap->name);
 		else
 			fprintf(f, "  meta:\t@%jd", (intmax_t)ap->offset);
+		fprintf(f, " [%s%s",
+		    ap->flag & GCTL_PARAM_RD ? "R" : "",
+		    ap->flag & GCTL_PARAM_WR ? "W" : "");
 		fflush(f);
-		if (ap->len < 0)
-			fprintf(f, " = [%d] \"%s\"", -ap->len, (char *)ap->value);
+		if (ap->flag & GCTL_PARAM_ASCII)
+			fprintf(f, "%d] = \"%s\"", ap->len, (char *)ap->value);
 		else if (ap->len > 0) {
-			fprintf(f, " = [%d]", ap->len);
+			fprintf(f, "%d] = ", ap->len);
 			fflush(f);
 			for (j = 0; j < ap->len; j++) {
 				fprintf(f, " %02x", ((u_char *)ap->value)[j]);
 			}
 		} else {
-			fprintf(f, " = [0] %p", ap->value);
+			fprintf(f, "0] = %p", ap->value);
 		}
 		fprintf(f, "\n");
 	}
 }
 
+/*
+ * Set an error message, if one does not already exist.
+ */
 static void
-geom_ctl_set_error(struct geom_ctl_req *req, const char *error, ...)
+gctl_set_error(struct gctl_req *req, const char *error, ...)
 {
 	va_list ap;
 
@@ -93,107 +100,145 @@ geom_ctl_set_error(struct geom_ctl_req *req, const char *error, ...)
 		return;
 	va_start(ap, error);
 	vasprintf(&req->error, error, ap);
+	va_end(ap);
 }
 
+/*
+ * Check that a malloc operation succeeded, and set a consistent error
+ * message if not.
+ */
 static void
-geom_ctl_check_alloc(struct geom_ctl_req *req, void *ptr)
+gctl_check_alloc(struct gctl_req *req, void *ptr)
 {
 	if (ptr != NULL)
 		return;
-	geom_ctl_set_error(req, "Could not allocate memory");
+	gctl_set_error(req, "Could not allocate memory");
+	if (req->error == NULL)
+		req->error = "Could not allocate memory";
 }
 
-struct geom_ctl_req *
-geom_ctl_get_handle(enum geom_ctl_request req)
+/*
+ * Allocate a new request handle of the specified type.
+ * XXX: Why bother checking the type ?
+ */
+struct gctl_req *
+gctl_get_handle(enum gctl_request req)
 {
-	struct geom_ctl_req_table *gtp;
-	struct geom_ctl_req *rp;
+	struct gctl_req_table *gtp;
+	struct gctl_req *rp;
 
 	rp = calloc(1, sizeof *rp);
 	if (rp == NULL)
 		return (NULL);
 	for (gtp = gcrt; gtp->request != req; gtp++)
-		if (gtp->request == GEOM_INVALID_REQUEST)
+		if (gtp->request == GCTL_INVALID_REQUEST)
 			break;
 
 	rp->request = req;
 	rp->reqt = gtp;
-	if (rp->reqt->request == GEOM_INVALID_REQUEST)
-		geom_ctl_set_error(rp, "Invalid request");
+	if (rp->reqt->request == GCTL_INVALID_REQUEST)
+		gctl_set_error(rp, "Invalid request");
 	return (rp);
 }
 
-void
-geom_ctl_set_param(struct geom_ctl_req *req, const char *name, int len, void* value)
+/*
+ * Allocate space for another argument.
+ */
+static struct gctl_req_arg *
+gctl_new_arg(struct gctl_req *req)
 {
-	struct geom_ctl_req_arg *ap;
+	struct gctl_req_arg *ap;
+
+	req->narg++;
+	req->arg = realloc(req->arg, sizeof *ap * req->narg);
+	gctl_check_alloc(req, req->arg);
+	if (req->arg == NULL) {
+		req->narg = 0;
+		return (NULL);
+	}
+	ap = req->arg + (req->narg - 1);
+	memset(ap, 0, sizeof *ap);
+	return (ap);
+}
+
+void
+gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* value)
+{
+	struct gctl_req_arg *ap;
 
 	if (req == NULL || req->error != NULL)
 		return;
-	if (req->reqt->params == 0)
-		geom_ctl_set_error(req, "Request takes no parameters");
-	req->narg++;
-	req->arg = realloc(req->arg, sizeof *ap * req->narg);
-	geom_ctl_check_alloc(req, req->arg);
-	if (req->arg != NULL) {
-		ap = req->arg + (req->narg - 1);
-		memset(ap, 0, sizeof *ap);
-		ap->name = strdup(name);
-		geom_ctl_check_alloc(req, ap->name);
-		ap->nlen = strlen(ap->name);
+	ap = gctl_new_arg(req);
+	if (ap == NULL)
+		return;
+	ap->name = strdup(name);
+	gctl_check_alloc(req, ap->name);
+	ap->nlen = strlen(ap->name) + 1;
+	ap->value = __DECONST(void *, value);
+	ap->flag = GCTL_PARAM_RD;
+	if (len >= 0)
 		ap->len = len;
-		if (len > 0) {
-			ap->value = value;
-		} else if (len < 0) {
-			ap->len = -strlen(value);	
-			ap->value = strdup(value);
-		} else {
-			ap->value = value;
-		}
-		if (len != 0)
-			geom_ctl_check_alloc(req, ap->value);
-	} else {
-		req->narg = 0;
+	else if (len < 0) {
+		ap->flag |= GCTL_PARAM_ASCII;
+		ap->len = strlen(value) + 1;	
 	}
 }
 
 void
-geom_ctl_set_meta(struct geom_ctl_req *req, off_t offset, u_int len, void* value)
+gctl_rw_param(struct gctl_req *req, const char *name, int len, void* value)
 {
-	struct geom_ctl_req_arg *ap;
-	u_int i;
+	struct gctl_req_arg *ap;
 
 	if (req == NULL || req->error != NULL)
 		return;
-	if (req->reqt->meta == 0)
-		geom_ctl_set_error(req, "Request takes no meta data");
-	for (i = 0; i < req->narg; i++) {
-		ap = &req->arg[i];
-		if (ap->name != NULL)
-			continue;
-		if (ap->offset >= offset + len)
-			continue;
-		if (ap->offset + ap->len <= offset)
-			continue;
-		geom_ctl_set_error(req, "Overlapping meta data");
+	ap = gctl_new_arg(req);
+	if (ap == NULL)
 		return;
-	}
-	req->narg++;
-	req->arg = realloc(req->arg, sizeof *ap * req->narg);
-	geom_ctl_check_alloc(req, req->arg);
-	if (req->arg != NULL) {
-		ap = req->arg + (req->narg - 1);
-		memset(ap, 0, sizeof *ap);
-		ap->value = value;
-		ap->offset = offset;
+	ap->name = strdup(name);
+	gctl_check_alloc(req, ap->name);
+	ap->nlen = strlen(ap->name) + 1;
+	ap->value = value;
+	ap->flag = GCTL_PARAM_RW;
+	if (len >= 0)
 		ap->len = len;
-	} else {
-		req->narg = 0;
-	}
+	else if (len < 0)
+		ap->len = strlen(value) + 1;	
+}
+
+void
+gctl_ro_meta(struct gctl_req *req, off_t offset, u_int len, const void* value)
+{
+	struct gctl_req_arg *ap;
+
+	if (req == NULL || req->error != NULL)
+		return;
+	ap = gctl_new_arg(req);
+	if (ap == NULL)
+		return;
+	ap->value = __DECONST(void *, value);
+	ap->flag = GCTL_PARAM_RD;
+	ap->offset = offset;
+	ap->len = len;
+}
+
+void
+gctl_rw_meta(struct gctl_req *req, off_t offset, u_int len, void* value)
+{
+	struct gctl_req_arg *ap;
+
+	if (req == NULL || req->error != NULL)
+		return;
+	ap = gctl_new_arg(req);
+	if (ap == NULL)
+		return;
+	ap->value = value;
+	ap->flag = GCTL_PARAM_RW;
+	ap->offset = offset;
+	ap->len = len;
 }
 
 const char *
-geom_ctl_issue(struct geom_ctl_req *req)
+gctl_issue(struct gctl_req *req)
 {
 	int fd, error;
 
@@ -202,16 +247,21 @@ geom_ctl_issue(struct geom_ctl_req *req)
 	if (req->error != NULL)
 		return (req->error);
 
-	req->version = GEOM_CTL_VERSION;
+	req->version = GCTL_VERSION;
 	req->lerror = BUFSIZ;		/* XXX: arbitrary number */
 	req->error = malloc(req->lerror);
+	if (req->error == NULL) {
+		gctl_check_alloc(req, req->error);
+		return (req->error);
+	}
 	memset(req->error, 0, req->lerror);
 	req->lerror--;
 	fd = open(_PATH_DEV PATH_GEOM_CTL, O_RDONLY);
 	if (fd < 0)
 		return(strerror(errno));
 	error = ioctl(fd, GEOM_CTL, req);
-	if (error && errno == EINVAL && req->error[0] != '\0')
+	close(fd);
+	if (req->error[0] != '\0')
 		return (req->error);
 	if (error != 0)
 		return(strerror(errno));
@@ -219,19 +269,18 @@ geom_ctl_issue(struct geom_ctl_req *req)
 }
 
 void
-geom_ctl_free(struct geom_ctl_req *req)
+gctl_free(struct gctl_req *req)
 {
 	u_int i;
 
+	if (req == NULL)
+		return;
 	for (i = 0; i < req->narg; i++) {
 		if (req->arg[i].name != NULL)
 			free(req->arg[i].name);
-		if (req->arg[i].len < 0)
-			free(req->arg[i].value);
 	}
+	free(req->arg);
 	if (req->error != NULL)
 		free(req->error);
-	free(req->arg);
 	free(req);
 }
-

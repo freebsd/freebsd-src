@@ -129,23 +129,17 @@ void geom_deletetree(struct gmesh *gmp);
 
 /* geom_ctl.c */
 
-struct geom_ctl_req;
+struct gctl_req;
 
 #ifdef _STDIO_H_			/* limit #include pollution */
-void geom_ctl_dump(struct geom_ctl_req *req, FILE *f);
+void gctl_dump(struct gctl_req *req, FILE *f);
 #endif
-void geom_ctl_free(struct geom_ctl_req *req);
-struct geom_ctl_req *geom_ctl_get_handle(enum geom_ctl_request req);
-const char *geom_ctl_issue(struct geom_ctl_req *req);
-void geom_ctl_set_class_by_id(struct geom_ctl_req *req, void *id);
-void geom_ctl_set_class_by_name(struct geom_ctl_req *req, const char *name);
-void geom_ctl_set_consumer_by_id(struct geom_ctl_req *req, void *id);
-void geom_ctl_set_consumer_by_name(struct geom_ctl_req *req, const char *name);
-void geom_ctl_set_geom_by_id(struct geom_ctl_req *req, void *id);
-void geom_ctl_set_geom_by_name(struct geom_ctl_req *req, const char *name);
-void geom_ctl_set_meta(struct geom_ctl_req *req, off_t offset, u_int len, void* val);
-void geom_ctl_set_param(struct geom_ctl_req *req, const char *name, int len, void* val);
-void geom_ctl_set_provider_by_id(struct geom_ctl_req *req, void *id);
-void geom_ctl_set_provider_by_name(struct geom_ctl_req *req, const char *name);
+void gctl_free(struct gctl_req *req);
+struct gctl_req *gctl_get_handle(enum gctl_request req);
+const char *gctl_issue(struct gctl_req *req);
+void gctl_ro_meta(struct gctl_req *req, off_t offset, u_int len, const void* val);
+void gctl_rw_meta(struct gctl_req *req, off_t offset, u_int len, void* val);
+void gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* val);
+void gctl_rw_param(struct gctl_req *req, const char *name, int len, void* val);
 
 #endif /* _LIBGEOM_H_ */
