@@ -7,6 +7,8 @@ other categories.
 
 Please make a subdir per program, and add a brief description to this file.
 
+commitsdb	A tool for reconstructing commit history using md5
+		checksums of the commit logs.
 editing		Editor modes and the like to help editing FreeBSD code.
 epfe 		Extract printing filter examples from printing.sgml.
 html-mv         Rename HTML generated filenames to human readable filenames.
