@@ -61,7 +61,7 @@ ENTRY(uts_to_thread)
 	je	2f
 	movl	$-1, %eax		/* bzzzt, invalid context */
 	jmp	5f
-2:	movl	8(%esp), %eax		/* get address of curthreadp */
+2:	movl	8(%esp), %ecx		/* get address of curthreadp */
 	movl	%edx, %ebx		/* save the pointer for later */
 	/*
 	 * From here on, we don't touch the old stack.
@@ -85,15 +85,21 @@ ENTRY(uts_to_thread)
 	jmp	4f
 3:	fninit
 	fldcw	MC_FP_CW_OFFSET(%edx)
-4:	pushl	68(%edx)		/* flags */
-	pushl	48(%edx)		/* eax */
-	pushl	36(%edx)		/* ebx */
-	movl	40(%edx), %edx		/* edx */
-	movl	%ebx, (%eax)		/* <---- set new mailbox pointer */
-	popl	%ebx
-	popl	%eax
-	popf
-5:	ret
+4:	movl	48(%edx), %eax		/* restore ax, bx, cx, dx */
+	pushl	68(%edx)		/* flags on stack */
+	pushl	36(%edx)		/* %ebx on stack */
+	pushl	44(%edx)		/* %ecx on stack */
+	pushl	40(%edx)		/* %edx on stack */
+	/* 
+	 * all registers are now moved out of mailbox 
+	 * it's now safe to set current thread pointer
+	 */
+	movl	%ebx,(%ecx)
+	popl	%edx			/* %edx off stack */
+	popl	%ecx			/* %ecx off stack */
+	pop	%ebx			/* %ebx off stack */
+	popf				/* flags off stack */
+5:	ret				/* %eip off stack */
 
 /*
  * int thread_to_uts(struct kse_thr_mailbox *tm, struct kse_mailbox *km);
