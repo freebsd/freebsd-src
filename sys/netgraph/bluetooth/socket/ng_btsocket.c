@@ -41,7 +41,7 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <bitstring.h>
+#include <sys/bitstring.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include "ng_bluetooth.h"
