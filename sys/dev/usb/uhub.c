@@ -104,7 +104,11 @@ struct cfattach uhub_uhub_ca = {
 };
 #elif defined(__FreeBSD__)
 USB_DECLARE_DRIVER_INIT(uhub,
-			DEVMETHOD(bus_child_detached, uhub_child_detached));
+			DEVMETHOD(bus_child_detached, uhub_child_detached),
+			DEVMETHOD(device_suspend, bus_generic_suspend),
+			DEVMETHOD(device_resume, bus_generic_resume),
+			DEVMETHOD(device_shutdown, bus_generic_shutdown)
+			);
 			
 /* Create the driver instance for the hub connected to usb case. */
 devclass_t uhubroot_devclass;
@@ -112,8 +116,10 @@ devclass_t uhubroot_devclass;
 static device_method_t uhubroot_methods[] = {
 	DEVMETHOD(device_probe, uhub_match),
 	DEVMETHOD(device_attach, uhub_attach),
-
 	/* detach is not allowed for a root hub */
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_suspend),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 	{0,0}
 };
 

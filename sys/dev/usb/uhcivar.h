@@ -177,3 +177,6 @@ int		uhci_detach __P((uhci_softc_t *, int));
 int		uhci_activate __P((device_ptr_t, enum devact));
 #endif
 
+void		uhci_shutdown __P((void *v));
+void		uhci_power __P((int state, void *priv));
+
