@@ -493,7 +493,7 @@
 
       <para>The &man.an.4; driver now supports Cisco LEAP, as well as
       the <quote>Home</quote> WEP key.  The Linux Aironet
-      utilities are now supported under emulation.</para>
+      utilities are now supported under emulation. &merged;</para>
 
       <para arch="i386">Generic support for ARCNET token-based
       networks has been added.</para>
