@@ -8,7 +8,8 @@ SRCS=	cmp.c setflags.c ls.c print.c util.c
 
 .if !defined(RELEASE_BUILD_FIXIT)
 CFLAGS+= -DCOLORLS
-LDADD=  -lncurses
+LDADD+= -ltermcap
+DPADD+= ${LIBTERMCAP}
 .endif
 
 .include <bsd.prog.mk>
