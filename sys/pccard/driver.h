@@ -17,7 +17,6 @@ int	pccard_alloc_intr __P((u_int imask, ointhand2_t *hand, int unit,
 			       u_int *maskp, u_int *pcic_imask));
 #endif
 void	pccard_remove_driver __P((struct pccard_device *));
-int	pcic_probe __P((void));	/* XXX should be linker set */
 
 enum beepstate { BEEP_ON, BEEP_OFF };
 
