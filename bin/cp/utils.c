@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: utils.c,v 1.17 1998/05/06 06:50:25 charnier Exp $";
+	"$Id: utils.c,v 1.18 1998/05/13 07:25:17 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -208,7 +208,7 @@ copy_link(p, exists)
 	int len;
 	char link[MAXPATHLEN];
 
-	if ((len = readlink(p->fts_path, link, sizeof(link))) == -1) {
+	if ((len = readlink(p->fts_path, link, sizeof(link) - 1)) == -1) {
 		warn("readlink: %s", p->fts_path);
 		return (1);
 	}
