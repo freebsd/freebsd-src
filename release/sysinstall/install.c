@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.22 1995/10/07 21:18:58 jkh Exp $
+ * $Id: install.c,v 1.71.2.23 1995/10/09 11:14:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -235,7 +235,7 @@ installFixit(char *str)
     if ((child = fork()) != 0)
 	(void)waitpid(child, &waitstatus, 0);
     else {
-	int i;
+	int i, fd;
 
 	for (i = 0; i < 64; i++)
 	    close(i);
@@ -405,7 +405,7 @@ installFixup(void)
 			     "systems and a GENERIC kernel for all other systems.  The\n"
 			     "IDE CDROM driver was still in BETA test at the time of this\n"
 			     "release and therefore got a copy of the generic kernel image\n"
-			     "all for itself).\n\n"
+			     "all for itself.\n\n"
 			     "Would you like to install the GENERIC kernel image?  Otherwise\n"
 			     "the ATAPI image will be used.")) {
 		    if (vsystem("ln -f /kernel.GENERIC /kernel")) {
