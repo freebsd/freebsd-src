@@ -49,17 +49,6 @@ _mcount() \
 #define MCOUNT_ENTER(s)
 #define MCOUNT_EXIT(s)
 #define	MCOUNT_DECL(s)
-#ifdef GUPROF
-struct gmonparam;
-
-void	nullfunc_loop_profiled(void);
-void	nullfunc_profiled(void);
-void	startguprof(struct gmonparam *p);
-void	stopguprof(struct gmonparam *p);
-#else
-#define startguprof(p)
-#define stopguprof(p)
-#endif /* GUPROF */
 #endif
 
 #endif /* !_MACHINE_PROFILE_H_ */
