@@ -35,12 +35,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/watchdog.h>
 
 #include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <math.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -49,7 +54,7 @@ static void	sighandler(int);
 static void	watchdog_loop(void);
 static int	watchdog_init(void);
 static int	watchdog_onoff(int onoff);
-static int	watchdog_tickle(void);
+static int	watchdog_patpat(void);
 static void	usage(void);
 
 int debugging = 0;
@@ -57,6 +62,12 @@ int end_program = 0;
 const char *pidfile = _PATH_VARRUN "watchdogd.pid";
 int reset_mib[3];
 size_t reset_miblen = 3;
+u_int timeout = WD_TO_16SEC;
+u_int passive = 0;
+int is_daemon = 0;
+int fd = -1;
+int nap = 1;
+char *test_cmd = NULL;
 
 /*
  * Periodically write to the debug.watchdog.reset sysctl OID
@@ -81,30 +92,40 @@ main(int argc, char *argv[])
 	if (watchdog_init() == -1)
 		errx(EX_SOFTWARE, "unable to initialize watchdog");
 
-	if (watchdog_onoff(1) == -1)
-		exit(EX_SOFTWARE);
+	if (is_daemon) {
+		if (watchdog_onoff(1) == -1)
+			exit(EX_SOFTWARE);
 
-	if (debugging == 0 && daemon(0, 0) == -1) {
+		if (debugging == 0 && daemon(0, 0) == -1) {
+			watchdog_onoff(0);
+			err(EX_OSERR, "daemon");
+		}
+
+		signal(SIGHUP, SIG_IGN);
+		signal(SIGINT, sighandler);
+		signal(SIGTERM, sighandler);
+
+		fp = fopen(pidfile, "w");
+		if (fp != NULL) {
+			fprintf(fp, "%d\n", getpid());
+			fclose(fp);
+		}
+
+		watchdog_loop();
+
+		/* exiting */
 		watchdog_onoff(0);
-		err(EX_OSERR, "daemon");
+		unlink(pidfile);
+		return (EX_OK);
+	} else {
+		if (passive)
+			timeout |= WD_PASSIVE;
+		else
+			timeout |= WD_ACTIVE;
+		if (watchdog_patpat() < 0)
+			err(EX_OSERR, "patting the dog");
+		return (EX_OK);
 	}
-
-	signal(SIGHUP, SIG_IGN);
-	signal(SIGINT, sighandler);
-	signal(SIGTERM, sighandler);
-
-	fp = fopen(pidfile, "w");
-	if (fp != NULL) {
-		fprintf(fp, "%d\n", getpid());
-		fclose(fp);
-	}
-
-	watchdog_loop();
-
-	/* exiting */
-	watchdog_onoff(0);
-	unlink(pidfile);
-	return (EX_OK);
 }
 
 /*
@@ -125,15 +146,12 @@ sighandler(int signum)
 static int
 watchdog_init()
 {
-	int error;
 
-	error = sysctlnametomib("debug.watchdog.reset", reset_mib, 
-		&reset_miblen);
-	if (error == -1) {
-		warn("could not find reset OID");
-		return (error);
-	}
-	return watchdog_tickle();
+	fd = open("/dev/" _PATH_WATCHDOG, O_RDWR);
+	if (fd >= 0)
+		return (0);
+	warn("Could not open watchdog device");
+	return (-1);
 }
 
 /*
@@ -148,11 +166,14 @@ watchdog_loop(void)
 	while (end_program == 0) {
 		failed = 0;
 
-		failed = stat("/etc", &sb);
+		if (test_cmd != NULL)
+			failed = system(test_cmd);
+		else
+			failed = stat("/etc", &sb);
 
 		if (failed == 0)
-			watchdog_tickle();
-		sleep(1);
+			watchdog_patpat();
+		sleep(nap);
 	}
 }
 
@@ -161,10 +182,10 @@ watchdog_loop(void)
  * to keep the watchdog from firing.
  */
 int
-watchdog_tickle(void)
+watchdog_patpat(void)
 {
 
-	return sysctl(reset_mib, reset_miblen, NULL, NULL, NULL, 0);
+	return ioctl(fd, WDIOCPATPAT, &timeout);
 }
 
 /*
@@ -174,22 +195,12 @@ watchdog_tickle(void)
 static int
 watchdog_onoff(int onoff)
 {
-	int mib[3];
-	int error;
-	size_t len;
 
-	len = 3;
-
-	error = sysctlnametomib("debug.watchdog.enabled", mib, &len);
-	if (error == 0)
-		error = sysctl(mib, len, NULL, NULL, &onoff, sizeof(onoff));
-
-	if (error == -1) {
-		warn("could not %s watchdog",
-			(onoff > 0) ? "enable" : "disable");
-		return (error);
-	}
-	return (0);
+	if (onoff)
+		timeout |= WD_ACTIVE;
+	else
+		timeout &= ~WD_ACTIVE;
+	return watchdog_patpat();
 }
 
 /*
@@ -198,7 +209,10 @@ watchdog_onoff(int onoff)
 static void
 usage()
 {
-	fprintf(stderr, "usage: watchdogd [-d] [-I file]\n");
+	if (is_daemon)
+		fprintf(stderr, "usage: watchdogd [-d] [-e cmd] [-I file]\n");
+	else
+		fprintf(stderr, "usage: watchdog [-d] [-t]\n");
 	exit(EX_USAGE);
 }
 
@@ -209,8 +223,14 @@ static void
 parseargs(int argc, char *argv[])
 {
 	int c;
+	char *p;
+	double a;
 
-	while ((c = getopt(argc, argv, "I:d?")) != -1) {
+	c = strlen(argv[0]);
+	if (argv[0][c - 1] == 'd')
+		is_daemon = 1;
+	while ((c = getopt(argc, argv,
+	    is_daemon ? "I:de:s:t:?" : "dt:?")) != -1) {
 		switch (c) {
 		case 'I':
 			pidfile = optarg;
@@ -218,10 +238,43 @@ parseargs(int argc, char *argv[])
 		case 'd':
 			debugging = 1;
 			break;
+		case 'e':
+			test_cmd = strdup(optarg);
+			break;
+#ifdef notyet
+		case 'p':
+			passive = 1;
+			break;
+#endif
+		case 's':
+			p = NULL;
+			errno = 0;
+			nap = strtol(optarg, &p, 0);
+			if ((p != NULL && *p != '\0') || errno != 0)
+				errx(EX_USAGE, "-s argument is not a number");
+			break;
+		case 't':
+			p = NULL;
+			errno = 0;
+			a = strtod(optarg, &p);
+			if ((p != NULL && *p != '\0') || errno != 0)
+				errx(EX_USAGE, "-t argument is not a number");
+			if (a < 0)
+				errx(EX_USAGE, "-t argument must be positive");
+			if (a == 0)
+				timeout = WD_TO_NEVER;
+			else
+				timeout = 1.0 + log(a * 1e9) / log(2.0);
+			if (debugging)
+				printf("Timeout is 2^%d nanoseconds\n",
+				    timeout);
+			break;
 		case '?':
 		default:
 			usage();
 			/* NOTREACHED */
 		}
 	}
+	if (is_daemon && timeout < WD_TO_1SEC)
+		errx(EX_USAGE, "-t argument is less than one second.");
 }
