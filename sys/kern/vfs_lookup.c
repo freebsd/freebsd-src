@@ -134,6 +134,10 @@ namei(ndp)
 
 	if (error) {
 		uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+		cnp->cn_pnbuf = NULL;
+		cnp->cn_nameptr = NULL;
+#endif
 		ndp->ni_vp = NULL;
 		return (error);
 	}
@@ -175,15 +179,23 @@ namei(ndp)
 		error = lookup(ndp);
 		if (error) {
 			uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+			cnp->cn_pnbuf = NULL;
+			cnp->cn_nameptr = NULL;
+#endif
 			return (error);
 		}
 		/*
 		 * Check for symbolic link
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
-			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0)
+			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
 				uma_zfree(namei_zone, cnp->cn_pnbuf);
-			else
+#ifdef DIAGNOSTIC
+				cnp->cn_pnbuf = NULL;
+				cnp->cn_nameptr = NULL;
+#endif
+			} else
 				cnp->cn_flags |= HASBUF;
 
 			if (vn_canvmio(ndp->ni_vp) == TRUE &&
@@ -244,6 +256,10 @@ namei(ndp)
 		dp = ndp->ni_dvp;
 	}
 	uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+	cnp->cn_pnbuf = NULL;
+	cnp->cn_nameptr = NULL;
+#endif
 	vrele(ndp->ni_dvp);
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;
