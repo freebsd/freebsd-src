@@ -47,6 +47,7 @@ MAN=	aac.4 \
 	dummynet.4 \
 	ed.4 \
 	ef.4 \
+	ehci.4 \
 	em.4 \
 	exca.4 \
 	faith.4 \
