@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 
 #include <machine/ansi.h>
-#include <machine/limits.h>
+#include <machine/_stdint.h>
 
 #ifndef _INT8_T_DECLARED
 typedef	__int8_t		int8_t;
@@ -102,20 +102,5 @@ typedef	__intptr_t		intptr_t;
 typedef	__uintptr_t		uintptr_t;
 #define	_INTPTR_T_DECLARED
 #endif
-
-#if !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS)
-#define	INT8_C(c)	__INT8_C(c)
-#define	INT16_C(c)	__INT16_C(c)
-#define	INT32_C(c)	__INT32_C(c)
-#define	INT64_C(c)	__INT64_C(c)
-
-#define	UINT8_C(c)	__UINT8_C(c)
-#define	UINT16_C(c)	__UINT16_C(c)
-#define	UINT32_C(c)	__UINT32_C(c)
-#define	UINT64_C(c)	__UINT64_C(c)
-
-#define	INTMAX_C(c)	__INTMAX_C(c)
-#define	UINTMAX_C(c)	__UINTMAX_C(c)
-#endif /* !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS) */
 
 #endif /* !_SYS_STDINT_H_ */

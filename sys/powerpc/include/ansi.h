@@ -156,19 +156,6 @@ typedef	unsigned long long	__uint_fast64_t;
 typedef	long long		__intmax_t;
 typedef	unsigned long long	__uintmax_t;
 
-#define	__INT8_C(c)		(c)
-#define	__INT16_C(c)		(c)
-#define	__INT32_C(c)		(c)
-#define	__INT64_C(c)		(c ## LL)
-
-#define	__UINT8_C(c)		(c)
-#define	__UINT16_C(c)		(c)
-#define	__UINT32_C(c)		(c ## U)
-#define	__UINT64_C(c)		(c ## ULL)
-
-#define	__INTMAX_C(c)		(c ## LL)
-#define	__UINTMAX_C(c)		(c ## ULL)
-
 /*
  * mbstate_t is an opaque object to keep conversion state, during multibyte
  * stream conversions.  The content must not be referenced by user programs.
