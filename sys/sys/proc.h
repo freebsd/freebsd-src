@@ -321,6 +321,7 @@ struct	proc {
 #define	PS_SWAPPING	0x00200	/* Process is being swapped. */
 #define	PS_ASTPENDING	0x00400	/* Process has a pending ast. */
 #define	PS_NEEDRESCHED	0x00800	/* Process needs to yield. */
+#define	PS_TIMOFAIL	0x01000	/* Timeout from sleep after we were awake. */
 
 #define	P_MAGIC		0xbeefface
 
