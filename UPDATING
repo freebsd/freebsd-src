@@ -5,6 +5,17 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010122:
+	****************************** WARNING ******************************
+			buildkernel has been changed slightly
+	****************************** WARNING ******************************
+	KERNCONF replaces the variable KERNEL for buildkernel.  You
+	should update your scripts and make.conf accordingly.
+
+20010119:
+	config has changed to allow DEV_FOO as a replacement for NFOO.
+	This requires a new config to build correctly.
+
 20010116:
 	The kerrnel option I386_CPU is now mutually exclusive with the
 	other cpu types. If you have an i386 system, be sure that it
@@ -462,8 +473,8 @@ COMMON ITEMS:
 	If you are updating from a prior version of FreeBSD (even one just
 	a few days old), you should follow this procedure. With a
 	/usr/obj tree with a fresh buildworld,
-	make buildkernel KERNEL=YOUR_KERNEL_HERE
-	make installkernel KERNEL=YOUR_KERNEL_HERE
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 
 	To just build a kernel when you know that it won't mess you up
 	--------------------------------------------------------------
@@ -486,9 +497,9 @@ COMMON ITEMS:
 	To upgrade from 4.x-stable to current
 	-------------------------------------
 	make buildworld
-	make buildkernel KERNEL=YOUR_KERNEL_HERE
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
 	cp src/sys/${MACHINE_ARCH}/GENERIC.hints /boot/device.hints [2]
-	make installkernel KERNEL=YOUR_KERNEL_HERE
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	make installworld
 	[1]
 	<reboot>
