@@ -305,7 +305,7 @@ in_pcbbind(inp, nam, p)
 			do {
 				if (count-- < 0) {	/* completely used? */
 					inp->inp_laddr.s_addr = INADDR_ANY;
-					return (EAGAIN);
+					return (EADDRNOTAVAIL);
 				}
 				--*lastport;
 				if (*lastport > first || *lastport < last)
@@ -322,7 +322,7 @@ in_pcbbind(inp, nam, p)
 			do {
 				if (count-- < 0) {	/* completely used? */
 					inp->inp_laddr.s_addr = INADDR_ANY;
-					return (EAGAIN);
+					return (EADDRNOTAVAIL);
 				}
 				++*lastport;
 				if (*lastport < first || *lastport > last)
