@@ -64,6 +64,7 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 
 #include <machine/kerneldump.h>
 #include <machine/tte.h>
+#include <machine/tlb.h>
 #include <machine/tsb.h>
 
 #include <limits.h>
@@ -198,17 +199,21 @@ _kvm_kvatop(kvm_t *kd, u_long va, u_long *pa)
 	u_long pg_off, vpn;
 	int rest;
 
-	vpn = btop(va);
 	pg_off = va & PAGE_MASK;
-	tte_off = kd->vmst->vm_tsb_off +
-	    ((vpn & kd->vmst->vm_tsb_mask) << TTE_SHIFT);
-
-	if (!_kvm_read_phys(kd, tte_off, &tte, sizeof(tte)))
-		goto invalid;
-	if (!tte_match(&tte, va))
-		goto invalid;
+	if (va >= VM_MIN_DIRECT_ADDRESS)
+		pa_off = TLB_DIRECT_TO_PHYS(va) & ~PAGE_MASK;
+	else {
+		vpn = btop(va);
+		tte_off = kd->vmst->vm_tsb_off +
+		    ((vpn & kd->vmst->vm_tsb_mask) << TTE_SHIFT);
+		if (!_kvm_read_phys(kd, tte_off, &tte, sizeof(tte)))
+			goto invalid;
+		if (!tte_match(&tte, va))
+			goto invalid;
+		pa_off = TTE_GET_PA(&tte);
+	}
 	rest = PAGE_SIZE - pg_off;
-	pa_off = _kvm_find_off(kd->vmst, TTE_GET_PA(&tte), rest);
+	pa_off = _kvm_find_off(kd->vmst, pa_off, rest);
 	if (pa_off == KVM_OFF_NOTFOUND)
 		goto invalid;
 	*pa = pa_off + pg_off;
