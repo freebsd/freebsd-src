@@ -61,6 +61,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <utmp.h>
 
@@ -70,8 +71,9 @@ static const char rcsid[] =
 int mbufsize;
 char *mbuf;
 
-void makemsg __P((char *));
+void	makemsg __P((char *));
 static void usage __P((void));
+char   *ttymsg __P((struct iovec *, int, char *, int));
 
 /* ARGSUSED */
 int
@@ -120,7 +122,7 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: rwall hostname [file]\n");
+	(void)fprintf(stderr, "usage: rwall hostname [file]\n");
 	exit(1);
 }
 
@@ -131,14 +133,15 @@ makemsg(fname)
 	struct tm *lt;
 	struct passwd *pw;
 	struct stat sbuf;
-	time_t now, time();
+	time_t now;
 	FILE *fp;
 	int fd;
-	char *whom, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
+	char *tty, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
+	const char *whom;
 
-	snprintf(tmpname, sizeof(tmpname), "%s/wall.XXXXXX", _PATH_TMP);
-	if (!(fd = mkstemp(tmpname)) || !(fp = fdopen(fd, "r+")))
-		errx(1, "can't open temporary file");
+	(void)snprintf(tmpname, sizeof(tmpname), "%s/wall.XXXXXX", _PATH_TMP);
+	if ((fd = mkstemp(tmpname)) == -1 || !(fp = fdopen(fd, "r+")))
+		err(1, "can't open temporary file");
 	(void)unlink(tmpname);
 
 	if (!(whom = getlogin()))
@@ -156,23 +159,26 @@ makemsg(fname)
 	 */
 	(void)fprintf(fp, "Remote Broadcast Message from %s@%s\n",
 	    whom, hostname);
-	(void)fprintf(fp, "        (%s) at %d:%02d ...\n", ttyname(2),
+	tty = ttyname(STDERR_FILENO);
+	if (tty == NULL)
+		tty = "no tty";
+	(void)fprintf(fp, "        (%s) at %d:%02d ...\n", tty,
 	    lt->tm_hour, lt->tm_min);
 
 	putc('\n', fp);
 
 	if (fname && !(freopen(fname, "r", stdin)))
-		errx(1, "can't read %s", fname);
+		err(1, "can't read %s", fname);
 	while (fgets(lbuf, sizeof(lbuf), stdin))
 		fputs(lbuf, fp);
 	rewind(fp);
 
 	if (fstat(fd, &sbuf))
-		errx(1, "can't stat temporary file");
+		err(1, "can't stat temporary file");
 	mbufsize = sbuf.st_size;
 	if (!(mbuf = malloc((u_int)mbufsize)))
-		errx(1, "out of memory");
+		err(1, "out of memory");
 	if (fread(mbuf, sizeof(*mbuf), mbufsize, fp) != mbufsize)
-		errx(1, "can't read temporary file");
+		err(1, "can't read temporary file");
 	(void)close(fd);
 }
