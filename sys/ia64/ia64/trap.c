@@ -346,8 +346,7 @@ trap(int vector, struct trapframe *framep)
 	user = ((framep->tf_special.iip >> 61) < 5) ? 1 : 0;
 
 	/* Short-circuit break instruction based system calls. */
-	if (vector == IA64_VEC_BREAK && user &&
-	    framep->tf_special.ifa == 0x100000) {
+	if (vector == IA64_VEC_BREAK && framep->tf_special.ifa == 0x100000) {
 		break_syscall(framep);
 		return;
 	}
