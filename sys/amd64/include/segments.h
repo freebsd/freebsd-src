@@ -64,8 +64,7 @@
  */
 struct	segment_descriptor	{
 	unsigned sd_lolimit:16 ;	/* segment extent (lsb) */
-	unsigned sd_lobase:24 __attribute__ ((packed));
-					/* segment base address (lsb) */
+	unsigned sd_lobase:24 __packed;	/* segment base address (lsb) */
 	unsigned sd_type:5 ;		/* segment type */
 	unsigned sd_dpl:2 ;		/* segment descriptor priority level */
 	unsigned sd_p:1 ;		/* segment descriptor present */
@@ -176,8 +175,8 @@ struct	soft_segment_descriptor	{
  * region descriptors, used to load gdt/idt tables before segments yet exist.
  */
 struct region_descriptor {
-	unsigned rd_limit:16;				/* segment extent */
-	unsigned rd_base:32 __attribute__ ((packed));	/* base address  */
+	unsigned rd_limit:16;		/* segment extent */
+	unsigned rd_base:32 __packed;	/* base address  */
 };
 
 /*
