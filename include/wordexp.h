@@ -68,7 +68,7 @@ typedef struct {
 #define	WRDE_SYNTAX	6		/* shell syntax error */
 
 __BEGIN_DECLS
-int	wordexp(const char *, wordexp_t *, int);
+int	wordexp(const char * __restrict, wordexp_t * __restrict, int);
 void	wordfree(wordexp_t *);
 __END_DECLS
 
