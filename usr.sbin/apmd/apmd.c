@@ -56,6 +56,7 @@ extern int	yyparse(void);
 
 int		debug_level = 0;
 int		verbose = 0;
+int		soft_power_state_change = 0;
 const char	*apmd_configfile = APMD_CONFIGFILE;
 const char	*apmd_pidfile = APMD_PIDFILE;
 int             apmctl_fd = -1, apmnorm_fd = -1;
@@ -71,7 +72,7 @@ struct event_config events[EVENT_MAX] = {
 	EVENT_CONFIG_INITIALIZER(NORMRESUME, 0)
 	EVENT_CONFIG_INITIALIZER(CRITRESUME, 0)
 	EVENT_CONFIG_INITIALIZER(BATTERYLOW, 0)
-	EVENT_CONFIG_INITIALIZER(POWERSTATECHANGE, 0)
+	EVENT_CONFIG_INITIALIZER(POWERSTATECHANG, 0)
 	EVENT_CONFIG_INITIALIZER(UPDATETIME, 0)
 	EVENT_CONFIG_INITIALIZER(CRITSUSPEND, 1)
 	EVENT_CONFIG_INITIALIZER(USERSTANDBYREQ, 1)
@@ -476,7 +477,7 @@ proc_signal(int fd)
 			break;
 		case SIGTERM:
 			syslog(LOG_NOTICE, "going down on signal %d", sig);
-			rc = 1;
+			rc = -1;
 			goto out;
 		case SIGCHLD:
 			wait_child();
@@ -515,6 +516,7 @@ check_battery()
 {
 
 	static int first_time=1, last_state;
+	int status;
 
 	struct apm_info pw_info;
 	struct battery_watch_event *p;
@@ -548,6 +550,10 @@ check_battery()
 	 * the event-caught state.
 	 */
 	if (last_state != AC_POWER_STATE) {
+		if (soft_power_state_change && fork() == 0) {
+			status = exec_event_cmd(&events[PMEV_POWERSTATECHANGE]);
+			exit(status);
+		}
 		last_state = AC_POWER_STATE;
 		for (p = battery_watch_list ; p!=NULL ; p = p -> next)
 			p->done = 0;
@@ -566,7 +572,6 @@ check_battery()
 					p -> level,
 					(p -> type == BATTERY_PERCENT)?"%":" minutes");
 			if (fork() == 0) {
-				int status;
 				status = exec_run_cmd(p -> cmdlist);
 				exit(status);
 			}
@@ -642,7 +647,7 @@ main(int ac, char* av[])
 	char	*prog;
 	int	logopt = LOG_NDELAY | LOG_PID;
 
-	while ((ch = getopt(ac, av, "df:v")) != EOF) {
+	while ((ch = getopt(ac, av, "df:sv")) != EOF) {
 		switch (ch) {
 		case 'd':
 			daemonize = 0;
@@ -650,6 +655,9 @@ main(int ac, char* av[])
 			break;
 		case 'f':
 			apmd_configfile = optarg;
+			break;
+		case 's':
+			soft_power_state_change = 1;
 			break;
 		case 'v':
 			verbose = 1;
