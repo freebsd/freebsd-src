@@ -15,7 +15,7 @@ $FreeBSD$
                                   isdn4bsd
                                   ========
 
-                      beta Version 0.96.00 / October 2000
+                         Version 1.00.00 / May 2001
 
                                  written by:
 
@@ -31,7 +31,7 @@ $FreeBSD$
 
                           The isdn4bsd package is:
 
-     Copyright (c) 1997, 2000 by Hellmuth Michaelis. All rights reserved. 
+     Copyright (c) 1997, 2001 by Hellmuth Michaelis. All rights reserved. 
 
                       For details see the file LICENSE.
 
@@ -105,8 +105,12 @@ Contents:
 Isdn4bsd (or in short i4b) is a package for interfacing a computer running
 FreeBSD, NetBSD, OpenBSD or BSD/OS to the ISDN.
 
-The only ISDN protocol currently supported is the BRI protocol specified in
-I.430, Q.921 and Q.931; better known as DSS1 or Euro-ISDN.  
+The only ISDN protocol currently supported by the drivers for passive cards
+is the BRI protocol specified in I.430, Q.921 and Q.931; better known as 
+DSS1 or Euro-ISDN.
+
+Other ISDN Protocols may be / are supported by the microcode of the supported
+active ISDN cards.
 
 Isdn4bsd allows you to make IP network connections by using either IP packets
 sent in raw HDLC frames on the B channel or by using built-in synchronous PPP
@@ -122,12 +126,8 @@ machine and now has preliminary dialout capabilities for voice and data calls.
 FreeBSD:
 --------
 
-	FreeBSD >= 4.1 and FreeBSD 5.x-CURRENT is supported
+	FreeBSD-STABLE and FreeBSD-CURRENT is supported
 	by this version of isdn4bsd.
-
-	FreeBSD 4.0 might run with minor tweaks.
-
-	FreeBSD <= 3.x is not supported by this release anymore.
 
 	I4b was integrated into FreeBSD in January 1999, so it is part
 	of the base FreeBSD system since FreeBSD 3.x.
@@ -144,13 +144,10 @@ FreeBSD:
 NetBSD/i386:
 ------------
 	The NetBSD specific support and the Diehl driver was written by 
-	Martin Husemann, (martin@netbsd.org). 
-
-	Since i do not intend to run NetBSD and/or Diehl cards, i suggest
-	contacting him in case of problems in this two areas. 
-
-	Martin has NetBSD/i386 running and is supporting isdn4bsd for
-	that platform as his time permits it.
+	Martin Husemann, (martin@netbsd.org). Isdn4bsd was integrated
+	into the NetBSD tree in January 2001, please have a look at
+	http://www.de.netbsd.org/Documentation/network/isdn/ for more
+	information.
 
 NetBSD/Amiga:
 -------------

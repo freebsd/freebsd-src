@@ -204,6 +204,15 @@ ASUSCOM Network Inc.	Mr. Ben Chen of Asuscom sent a Winbond based PCI
 			card and a Cologne Chip Design based PCI card to
 			support the development of device drivers.
 
+Cubical Solutions Ltd.	Juha-Matti Liukkonen <jml@cubical.fi> of Cubical
+			contributed the CAPI layer and the AVM B1/T1 device
+			driver to isdn4bsd.
+
+AVM GmbH		Mr. A. Ziessnitz of AVM donated an AVM B1 PCI cards
+			to support development and maintenance of a driver
+			for this card.
+
+
 
 The following people contributed in one or the other way to isdn4bsd:
 ---------------------------------------------------------------------
