@@ -67,6 +67,8 @@
 #include <sys/rtprio.h>
 #endif
 
+#include <net/if_sppp.h>
+
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_cause.h>
 
@@ -359,8 +361,6 @@ typedef struct cfg_entry {
 #define AUTH_RECHALLENGE 0x01
 #define AUTH_REQUIRED    0x02
 
-#define AUTHNAMELEN	42 /* AUTHNAMELEN must match in <machine/i4b_isppp.h> */
-#define AUTHKEYLEN	16
 	char	ppp_expect_name[AUTHNAMELEN];	/* PPP PAP/CHAP login name */
 	char	ppp_send_name[AUTHNAMELEN];
 
