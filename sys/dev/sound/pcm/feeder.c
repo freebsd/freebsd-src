@@ -29,6 +29,7 @@
 #include <dev/sound/pcm/sound.h>
 
 #define FEEDBUFSZ	8192
+#undef FEEDER_DEBUG
 
 static unsigned char ulaw_to_u8[] = {
      3,    7,   11,   15,   19,   23,   27,   31,
@@ -271,6 +272,38 @@ SYSINIT(feeder_monotostereo8, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, 
 /*****************************************************************************/
 
 static int
+feed_monotostereo16(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+{
+	int i, j, k = f->source->feed(f->source, c, b, count / 2, stream);
+	u_int8_t x, y;
+
+	j = k - 1;
+	i = j * 2 + 1;
+	while (i > 3 && j >= 1) {
+		x = b[j--];
+		y = b[j--];
+		b[i--] = x;
+		b[i--] = y;
+		b[i--] = x;
+		b[i--] = y;
+	}
+	return k * 2;
+}
+
+static struct pcm_feederdesc desc_monotostereo16[] = {
+	{FEEDER_FMT, AFMT_U16_LE, AFMT_U16_LE | AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_S16_LE, AFMT_S16_LE | AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_U16_BE, AFMT_U16_BE | AFMT_STEREO, 0},
+	{FEEDER_FMT, AFMT_S16_BE, AFMT_S16_BE | AFMT_STEREO, 0},
+	{0},
+};
+static pcm_feeder feeder_monotostereo16 =
+	{ "monotostereo16", 0, desc_monotostereo16, NULL, NULL, feed_monotostereo16 };
+SYSINIT(feeder_monotostereo16, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder_monotostereo16);
+
+/*****************************************************************************/
+
+static int
 feed_stereotomono8_init(pcm_feeder *f)
 {
 	f->data = malloc(FEEDBUFSZ, M_DEVBUF, M_NOWAIT);
@@ -307,6 +340,49 @@ static struct pcm_feederdesc desc_stereotomono8[] = {
 static pcm_feeder feeder_stereotomono8 =
 	{ "stereotomono8", 1, desc_stereotomono8, feed_stereotomono8_init, feed_stereotomono8_free, feed_stereotomono8 };
 SYSINIT(feeder_stereotomono8, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder_stereotomono8);
+
+/*****************************************************************************/
+
+static int
+feed_stereotomono16_init(pcm_feeder *f)
+{
+	f->data = malloc(FEEDBUFSZ, M_DEVBUF, M_NOWAIT);
+	return (f->data == NULL);
+}
+
+static int
+feed_stereotomono16_free(pcm_feeder *f)
+{
+	if (f->data) free(f->data, M_DEVBUF);
+	f->data = NULL;
+	return 0;
+}
+
+static int
+feed_stereotomono16(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+{
+	u_int32_t i = 0, toget = count * 2;
+	int j = 0, k;
+
+	k = f->source->feed(f->source, c, f->data, min(toget, FEEDBUFSZ), stream);
+	while (j < k) {
+		b[i++] = ((u_int8_t *)f->data)[j];
+		b[i++] = ((u_int8_t *)f->data)[j + 1];
+		j += 4;
+	}
+	return i;
+}
+
+static struct pcm_feederdesc desc_stereotomono16[] = {
+	{FEEDER_FMT, AFMT_U16_LE | AFMT_STEREO, AFMT_U16_LE, 0},
+	{FEEDER_FMT, AFMT_S16_LE | AFMT_STEREO, AFMT_S16_LE, 0},
+	{FEEDER_FMT, AFMT_U16_BE | AFMT_STEREO, AFMT_U16_BE, 0},
+	{FEEDER_FMT, AFMT_S16_BE | AFMT_STEREO, AFMT_S16_BE, 0},
+	{0},
+};
+static pcm_feeder feeder_stereotomono16 =
+	{ "stereotomono16", 1, desc_stereotomono16, feed_stereotomono16_init, feed_stereotomono16_free, feed_stereotomono16 };
+SYSINIT(feeder_stereotomono16, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder_stereotomono16);
 
 /*****************************************************************************/
 
@@ -529,17 +605,23 @@ chn_feedchain(pcm_channel *c, u_int32_t *to)
 	stop = c->feeder;
 	try = NULL;
 	max = 0;
-	while (try == NULL && max++ < 8)
+	while (try == NULL && max < 8) {
 		try = feeder_fmtchain(to, c->feeder, stop, max);
+		max++;
+	}
 	if (try == NULL)
 		return 0;
 	c->feeder = try;
 	c->align = 0;
-	/* printf("chain: "); */
+#ifdef FEEDER_DEBUG
+	printf("chain: ");
+#endif
 	while (try && (try != stop)) {
-		/* printf("%s [%d]", try->name, try->desc->idx); */
-		/* if (try->source) */
-		/* 	printf(" -> "); */
+#ifdef FEEDER_DEBUG
+		printf("%s [%d]", try->name, try->desc->idx);
+		if (try->source)
+			printf(" -> ");
+#endif
 		if (try->init)
 			try->init(try);
 		if (try->align > 0)
@@ -548,6 +630,8 @@ chn_feedchain(pcm_channel *c, u_int32_t *to)
 			c->align = -try->align;
 		try = try->source;
 	}
-	/* printf("%s [%d]", try->name, try->desc->idx); */
+#ifdef FEEDER_DEBUG
+	printf("%s [%d]\n", try->name, try->desc->idx);
+#endif
 	return c->feeder->desc->out;
 }
