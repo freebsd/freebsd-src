@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#30 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#31 $
  *
  * $FreeBSD$
  */
@@ -67,8 +67,7 @@ static ahc_device_setup_t ahc_aic7770_VL_setup;
 static ahc_device_setup_t ahc_aic7770_EISA_setup;;
 static ahc_device_setup_t ahc_aic7770_setup;
 
-
-struct aic7770_identity aic7770_ident_table [] =
+struct aic7770_identity aic7770_ident_table[] =
 {
 	{
 		ID_AHA_274x,
@@ -80,6 +79,12 @@ struct aic7770_identity aic7770_ident_table [] =
 		ID_AHA_284xB,
 		0xFFFFFFFE,
 		"Adaptec 284X SCSI adapter",
+		ahc_aic7770_VL_setup
+	},
+	{
+		ID_AHA_284x,
+		0xFFFFFFFE,
+		"Adaptec 284X SCSI adapter (BIOS Disabled)",
 		ahc_aic7770_VL_setup
 	},
 	{
