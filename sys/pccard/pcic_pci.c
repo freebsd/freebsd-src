@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcic_p.c,v 1.6 1998/08/18 00:32:48 bde Exp $
+ * $Id: pcic_p.c,v 1.7 1998/12/14 06:32:57 dillon Exp $
  */
 
 #include "pci.h"
@@ -75,6 +75,8 @@ pcic_pci_probe(pcici_t tag, pcidi_t type)
 		return ("TI 1130 PCMCIA/CardBus Bridge");
 	case PCI_DEVICE_ID_PCIC_TI1131:
 		return ("TI 1131 PCI to PCMCIA/CardBus bridge");
+	case PCI_DEVICE_ID_PCIC_TI1250:
+		return ("TI 1250 PCI to PCMCIA/CardBus bridge");
 	default:
 		break;
 	}
