@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -50,8 +52,8 @@ static char sccsid[] = "@(#)reboot.c	8.1 (Berkeley) 6/5/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <err.h>
 
-void err __P((const char *fmt, ...));
 void usage __P((void));
 
 int dohalt;
@@ -95,12 +97,14 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (geteuid())
-		err("%s", strerror(EPERM));
+	if (geteuid()) {
+		errno = EPERM;
+		err(1, NULL);
+	}
 
 	if (qflag) {
 		reboot(howto);
-		err("%s", strerror(errno));
+		err(1, NULL);
 	}
 
 	/* Log the reboot. */
@@ -128,14 +132,14 @@ main(argc, argv)
 
 	/* Just stop init -- if we fail, we'll restart it. */
 	if (kill(1, SIGTSTP) == -1)
-		err("SIGTSTP init: %s", strerror(errno));
+		err(1, "SIGTSTP init");
 
 	/* Ignore the SIGHUP we get when our parent shell dies. */
 	(void)signal(SIGHUP, SIG_IGN);
 
 	/* Send a SIGTERM first, a chance to save the buffers. */
 	if (kill(-1, SIGTERM) == -1)
-		err("SIGTERM processes: %s", strerror(errno));
+		err(1, "SIGTERM processes");
 
 	/*
 	 * After the processes receive the signal, start the rest of the
@@ -166,7 +170,7 @@ main(argc, argv)
 
 restart:
 	sverrno = errno;
-	err("%s%s", kill(1, SIGHUP) == -1 ? "(can't restart init): " : "",
+	errx(1, "%s%s", kill(1, SIGHUP) == -1 ? "(can't restart init): " : "",
 	    strerror(sverrno));
 	/* NOTREACHED */
 }
@@ -178,6 +182,7 @@ usage()
 	exit(1);
 }
 
+#ifdef 0
 #if __STDC__
 #include <stdarg.h>
 #else
@@ -206,3 +211,4 @@ err(fmt, va_alist)
 	exit(1);
 	/* NOTREACHED */
 }
+#endif
