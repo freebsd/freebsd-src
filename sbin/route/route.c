@@ -883,8 +883,7 @@ getaddr(which, s, hpp)
 				if (ifa->ifa_addr->sa_family != AF_LINK)
 					continue;
 
-				if (strcmp(s, ifa->ifa_name) ||
-				    (ifa->ifa_flags & IFF_POINTOPOINT) == 0)
+				if (strcmp(s, ifa->ifa_name))
 					continue;
 
 				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
