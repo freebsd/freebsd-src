@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: cmpdi2.c,v 1.4 1997/02/22 09:39:52 peter Exp $
+ * $FreeBSD$
  */
 
 #include <libkern/quad.h>

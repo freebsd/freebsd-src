@@ -1,4 +1,4 @@
-/*	$Id: bootsect.h,v 1.5 1997/02/22 09:40:43 peter Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: bootsect.h,v 1.9 1997/11/17 15:36:17 ws Exp $	*/
 
 /*

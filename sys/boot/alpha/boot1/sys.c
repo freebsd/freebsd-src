@@ -25,7 +25,7 @@
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
  *	fromL Id: sys.c,v 1.21 1997/06/09 05:10:56 bde Exp
- *	$Id: sys.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

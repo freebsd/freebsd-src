@@ -33,7 +33,7 @@
  *	isa_isic.c - ISA bus frontend for i4b_isic driver
  *	--------------------------------------------------
  *
- *	$Id: isa_isic.c,v 1.23 1999/07/19 14:40:47 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Mon Jul 19 16:39:02 1999]
  *

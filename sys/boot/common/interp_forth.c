@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.12 1999/02/04 17:06:46 dcs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>		/* to pick up __FreeBSD_version */

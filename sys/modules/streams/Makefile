@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.11 1999/02/01 00:52:21 grog Exp $ 
+# $FreeBSD$ 
 
 MAINTAINER  =  newton@atdot.dotat.org
 SOURCE=	${.CURDIR}/../../dev/streams

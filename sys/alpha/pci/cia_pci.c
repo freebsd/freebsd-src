@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia_pci.c,v 1.2 1999/05/08 21:58:42 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

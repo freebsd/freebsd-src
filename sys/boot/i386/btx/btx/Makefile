@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1998/09/25 17:14:15 peter Exp $
+# $FreeBSD$
 
 M4?=	m4
 

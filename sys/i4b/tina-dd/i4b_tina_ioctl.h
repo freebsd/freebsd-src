@@ -31,7 +31,7 @@
  *	i4b_tina_ioctl.h - i4b Stollman Tina-dd ioctl header file
  *	---------------------------------------------------------
  *
- *	$Id: i4b_tina_ioctl.h,v 1.2 1998/12/05 18:06:20 hm Exp $
+ * $FreeBSD$
  *
  *	last edit-date: [Sat Dec  5 18:41:51 1998]
  *

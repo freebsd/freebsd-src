@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wireg.h,v 1.4 1999/05/07 03:28:52 wpaul Exp $
+ * $FreeBSD$
  */
 
 struct wi_counters {

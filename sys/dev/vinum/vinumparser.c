@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumparser.c,v 1.16 1999/06/29 09:04:28 grog Exp grog $
+ * $FreeBSD$
  */
 
 /*

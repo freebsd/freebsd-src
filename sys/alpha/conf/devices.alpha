@@ -1,6 +1,6 @@
 # This file tells what major numbers the various possible swap devices have.
 #
-#	$Id: devices.alpha,v 1.1 1998/06/10 10:54:04 dfr Exp $
+# $FreeBSD$
 #
 wd	0
 wfd	1

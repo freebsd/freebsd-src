@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	rup
 MAN1=	rup.1

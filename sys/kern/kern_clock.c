@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.96 1999/07/18 15:07:18 bde Exp $
+ * $FreeBSD$
  */
 
 #include "opt_ntp.h"

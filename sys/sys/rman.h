@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rman.h,v 1.1 1998/10/29 01:48:30 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_RMAN_H_

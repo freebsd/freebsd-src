@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* From: NetBSD: limits.h,v 1.3 1997/04/06 08:47:31 cgd Exp */
 
 /*

@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.1 1999/01/21 17:18:34 peter Exp $ 
+# $FreeBSD$ 
 
 .PATH:  ${.CURDIR}/../../dev/vn
 KMOD=   vn

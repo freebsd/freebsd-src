@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1999/01/30 06:29:48 newton Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../i386/svr4 ${.CURDIR}/../../svr4
 KMOD=	svr4

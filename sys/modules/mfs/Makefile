@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1998/10/16 04:30:47 peter Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../ufs/mfs
 KMOD=	mfs

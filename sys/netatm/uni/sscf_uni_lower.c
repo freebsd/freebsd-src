@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscf_uni_lower.c,v 1.2 1998/09/17 09:35:01 phk Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -43,7 +43,7 @@
 #include <netatm/uni/sscf_uni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: sscf_uni_lower.c,v 1.2 1998/09/17 09:35:01 phk Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

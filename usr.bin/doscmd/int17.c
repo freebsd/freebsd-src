@@ -29,7 +29,7 @@
  *
  *	BSDI int17.c,v 2.2 1996/04/08 19:32:48 bostic Exp
  *
- * $Id: int17.c,v 1.2 1998/01/22 02:44:54 msmith Exp $
+ * $FreeBSD$
  */
 
 #include "doscmd.h"

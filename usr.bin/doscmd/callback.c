@@ -1,6 +1,6 @@
 /* No copyright?!
 **
-** $Id: callback.c,v 1.3 1996/09/24 00:02:25 miff Exp $
+** $FreeBSD$
 */
 
 

@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_txvar.h,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*      $Id: if_txvar.h,v 1.2 1999/03/14 08:30:23 semenu Exp $ */
+/* $FreeBSD$ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko

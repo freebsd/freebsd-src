@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1999/01/02 01:12:19 semen Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../ntfs
 KMOD=	ntfs

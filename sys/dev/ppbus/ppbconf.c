@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.c,v 1.13 1999/01/14 06:22:02 jdp Exp $
+ * $FreeBSD$
  *
  */
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: locore.s,v 1.7 1999/05/09 19:03:55 peter Exp $
+ * $FreeBSD$
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.

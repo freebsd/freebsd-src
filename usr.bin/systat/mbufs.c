@@ -34,7 +34,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-	"$Id: mbufs.c,v 1.7 1998/06/09 04:17:21 imp Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_mbuf.h,v 1.5 1998/08/26 23:29:22 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

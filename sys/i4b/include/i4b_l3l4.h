@@ -27,7 +27,7 @@
  *	i4b_l3l4.h - layer 3 / layer 4 interface
  *	------------------------------------------
  *
- *	$Id: i4b_l3l4.h,v 1.24 1999/03/18 14:33:40 hm Exp $
+ * $FreeBSD$
  *
  *	last edit-date: [Wed Mar 17 16:16:40 1999]
  *

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.3 (Berkeley) 7/19/93
-#	$Id$
+# $FreeBSD$
 
 PROG=	rdist
 SRCS=	docmd.c expand.c gram.y lookup.c main.c rshrcmd.c server.c

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fdc.h,v 1.13 1999/01/15 09:15:27 bde Exp $
+ * $FreeBSD$
  *
  */
 

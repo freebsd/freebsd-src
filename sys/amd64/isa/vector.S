@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.30 1997/05/26 17:58:27 fsmp Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.26 1998/09/07 13:17:01 bde Exp $
+ * $FreeBSD$
  */
 
 /*

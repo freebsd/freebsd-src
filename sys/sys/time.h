@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.38 1999/04/25 08:59:55 phk Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_TIME_H_

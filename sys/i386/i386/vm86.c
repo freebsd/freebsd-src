@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.26 1999/06/01 18:19:48 jlemon Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

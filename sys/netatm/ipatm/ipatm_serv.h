@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm_serv.h,v 1.6 1998/02/19 20:14:21 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

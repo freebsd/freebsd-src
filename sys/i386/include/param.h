@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.49 1999/02/19 19:34:48 luoqi Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_PARAM_H_

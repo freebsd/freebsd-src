@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.34 1999/08/21 06:23:50 msmith Exp $
+ * $FreeBSD$
  */
 
 #include "opt_hw_wdog.h"

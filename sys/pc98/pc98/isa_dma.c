@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa_dma.c,v 1.3 1999/05/10 09:09:08 kato Exp $
+ * $FreeBSD$
  */
 
 /*

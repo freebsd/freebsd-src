@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.4 1999/06/06 12:46:40 kato Exp $
+ * $FreeBSD$
  */
 
 #include <stand.h>

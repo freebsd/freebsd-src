@@ -39,7 +39,7 @@
  *	code is modeled after Linux i4l driver written by Karsten
  *	Keil.
  *
- *	$Id: i4b_asuscom_ipac.c,v 1.1 1999/07/05 13:46:46 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Mon May 31 20:53:17 EEST 1999]
  *

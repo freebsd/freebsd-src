@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.220 1999/08/25 12:24:34 phk Exp $
+ * $FreeBSD$
  */
 
 /*

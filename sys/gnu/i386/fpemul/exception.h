@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: exception.h,v 1.7 1997/02/22 09:29:02 peter Exp $
+ * $FreeBSD$
  *
  *
  */

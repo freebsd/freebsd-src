@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id: linux,v 1.5 1998/09/07 16:15:59 cracauer Exp $
+# $FreeBSD$
 
 FOUND=`kldstat -v | egrep 'linux(aout|elf)'`
 

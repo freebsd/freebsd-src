@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.42 1999/05/08 14:28:52 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET_IN_H_

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_init.c,v 1.17 1998/02/04 22:33:45 eivind Exp $
+ * $FreeBSD$
  */
 
 /*

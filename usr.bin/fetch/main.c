@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.51 1999/03/08 19:16:14 wollman Exp $ */
+/* $FreeBSD$ */
 
 #include <sys/types.h>
 

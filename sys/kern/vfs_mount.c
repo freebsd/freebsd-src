@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.30 1999/07/03 08:24:00 phk Exp $
+ * $FreeBSD$
  */
 
 /*

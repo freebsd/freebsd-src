@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1998/10/30 00:11:35 msmith Exp $
+# $FreeBSD$
 
 ORG=0x100000
 #AFLAGS+=	-x assembler-with-cpp

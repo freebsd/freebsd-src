@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devicestat.h,v 1.3 1998/11/14 21:58:41 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _DEVICESTAT_H

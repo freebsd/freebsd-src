@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs.h,v 1.4 1999/04/20 21:06:41 semenu Exp $
+ * $FreeBSD$
  */
 
 /*#define NTFS_DEBUG 1*/

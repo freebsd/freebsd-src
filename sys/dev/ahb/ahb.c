@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.13 1999/08/01 22:57:08 mdodd Exp $
+ * $FreeBSD$
  */
 
 #include "eisa.h"

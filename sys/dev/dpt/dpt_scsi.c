@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.25 1999/08/21 06:24:02 msmith Exp $"
+#ident "$FreeBSD$"
 
 #define _DPT_C_
 

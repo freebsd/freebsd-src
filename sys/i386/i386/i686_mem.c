@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: i686_mem.c,v 1.4 1999/07/20 06:58:51 msmith Exp $
+ * $FreeBSD$
  */
 
 #include "opt_smp.h"

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1998/05/28 13:48:40 kato Exp $
+# $FreeBSD$
 
 PROG= kztail.o kzhead.o
 BINMODE = 444	# target is a relocatable object

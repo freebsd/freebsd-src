@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: qdivrem.c,v 1.6 1997/02/22 09:39:57 peter Exp $
+ * $FreeBSD$
  */
 
 /*

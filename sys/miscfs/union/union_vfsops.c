@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.30 1998/09/07 13:17:02 bde Exp $
+ * $FreeBSD$
  */
 
 /*

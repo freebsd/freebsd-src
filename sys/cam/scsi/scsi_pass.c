@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.12 1999/05/31 11:24:05 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

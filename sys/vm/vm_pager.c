@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.50 1999/07/04 00:25:38 mckusick Exp $
+ * $FreeBSD$
  */
 
 /*

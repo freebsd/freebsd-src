@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.1 1997/07/11 05:52:38 joerg Exp $
+ * $FreeBSD$
  */
 /*
  * Extensions for El Torito CD-ROM booting:

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.75 1999/07/01 22:14:51 peter Exp $
+ * $FreeBSD$
  */
 
 /*

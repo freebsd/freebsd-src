@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppcreg.h,v 1.7 1999/01/10 16:41:13 nsouch Exp $
+ * $FreeBSD$
  *
  */
 #ifndef __PPCREG_H

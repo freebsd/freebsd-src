@@ -29,7 +29,7 @@
  *
  *	BSDI int33.c,v 2.2 1996/04/08 19:32:54 bostic Exp
  *
- * $Id: mouse.c,v 1.3 1996/09/22 15:42:58 miff Exp $
+ * $FreeBSD$
  */
 
 #include "doscmd.h"

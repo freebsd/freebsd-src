@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: aio.h,v 1.3 1998/03/23 14:05:25 bde Exp $
+ * $FreeBSD$
  */
 
 /* aio.h: P1003.1B-1993 Asynchronous I/O */

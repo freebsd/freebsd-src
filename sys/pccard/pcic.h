@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcic.h,v 1.0 1999/02/26 20:52:54 roger Exp $ 
+ * $FreeBSD$ 
 */
 
 int register_pcic_intr(int intr, int device_id, u_int flags,

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.51 1999/01/27 22:42:14 dillon Exp $
+ * $FreeBSD$
  */
 
 #include "opt_inet.h"

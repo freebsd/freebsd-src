@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_print.c,v 1.24 1999/01/27 23:45:37 dillon Exp $
+ * $FreeBSD$
  */
 
 /*

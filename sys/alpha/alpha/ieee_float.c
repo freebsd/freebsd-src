@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ieee_float.c,v 1.4 1999/06/14 11:42:30 simokawa Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.49 1999/04/27 11:17:52 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fp_emulate.c,v 1.4 1999/06/08 16:42:13 dt Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

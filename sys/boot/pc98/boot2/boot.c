@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.2 1999/03/04 10:45:06 kato Exp $
+ * $FreeBSD$
  */
 
 

@@ -29,7 +29,7 @@
  *
  *	BSDI tty.c,v 2.4 1996/04/08 22:03:27 prb Exp
  *
- * $Id: tty.c,v 1.4 1998/02/22 23:36:54 msmith Exp $
+ * $FreeBSD$
  */
 
 #ifndef NO_X

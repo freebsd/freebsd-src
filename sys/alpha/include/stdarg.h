@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* From: NetBSD: stdarg.h,v 1.7 1997/04/06 08:47:44 cgd Exp */
 
 /*-

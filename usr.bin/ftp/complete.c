@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/* $FreeBSD$	*/
 /*	$NetBSD: complete.c,v 1.11 1997/09/13 09:05:53 lukem Exp $	*/
 
 /*-
@@ -41,7 +41,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$Id$");
+__RCSID("$FreeBSD$");
 __RCSID_SOURCE("$NetBSD: complete.c,v 1.11 1997/09/13 09:05:53 lukem Exp $");
 #endif /* not lint */
 

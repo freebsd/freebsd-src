@@ -4,7 +4,7 @@
 #
 # ac - check if the FreeBSD handbook is in sync with the committers list
 #
-# $Id$
+# $FreeBSD$
 
 : ${CVSROOT=/usr/cvs}
 contrib=src/share/doc/handbook/contrib.sgml

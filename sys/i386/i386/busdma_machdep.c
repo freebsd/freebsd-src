@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.13 1999/07/02 05:12:11 mjacob Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

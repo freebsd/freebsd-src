@@ -1,4 +1,4 @@
-/* $Id: espvar.h,v 1.1 1998/08/20 08:27:10 dfr Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: espvar.h,v 1.3.4.1 1996/09/10 17:28:18 cgd Exp $	*/
 
 /*

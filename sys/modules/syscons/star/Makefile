@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1998/02/01 17:59:59 bde Exp $
+# $FreeBSD$
 
 KMOD=	star_saver
 SRCS= 	star_saver.c

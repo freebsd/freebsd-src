@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: coda.h,v 1.6 1998/11/11 20:32:20 rvb Exp $
+ * $FreeBSD$
  * 
  */
 

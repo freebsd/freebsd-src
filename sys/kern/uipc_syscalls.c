@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.55 1999/01/27 21:49:57 dillon Exp $
+ * $FreeBSD$
  */
 
 #include "opt_compat.h"

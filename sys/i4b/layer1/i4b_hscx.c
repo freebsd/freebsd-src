@@ -27,7 +27,7 @@
  *	i4b - Siemens HSCX chip (B-channel) handling
  *	--------------------------------------------
  *
- *	$Id: i4b_hscx.c,v 1.42 1999/03/17 13:44:50 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Wed Mar 17 11:59:05 1999]
  *

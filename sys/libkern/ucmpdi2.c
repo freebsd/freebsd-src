@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ucmpdi2.c,v 1.6 1999/05/14 17:39:54 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <libkern/quad.h>

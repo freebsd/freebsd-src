@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_tunvar.h,v 1.4 1999/03/24 21:20:12 des Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NET_IF_TUNVAR_H_

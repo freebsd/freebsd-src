@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filedesc.h	8.1 (Berkeley) 6/2/93
- * $Id: filedesc.h,v 1.14 1998/11/11 10:04:12 truckman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_FILEDESC_H_

@@ -1,4 +1,4 @@
-/* $Id: tc.c,v 1.5 1999/07/01 22:49:03 peter Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.

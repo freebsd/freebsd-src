@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.46 1999/05/02 23:56:23 alc Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NFS_NFS_H_

@@ -1,7 +1,7 @@
 /*
 ** No copyright ?!
 **
-** $Id: cpu.c,v 1.5 1996/09/25 11:05:54 miff Exp $
+** $FreeBSD$
 */
 #include "doscmd.h"
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isahint.c,v 1.3 1999/05/28 09:25:00 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- *	$Id: ip_input.c,v 1.119 1999/05/04 16:20:32 luigi Exp $
+ * $FreeBSD$
  */
 
 #define	_IP_VHL

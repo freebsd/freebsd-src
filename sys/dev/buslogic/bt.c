@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.22 1999/05/23 18:54:34 gibbs Exp $
+ * $FreeBSD$
  */
 
  /*

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1998/10/19 19:13:52 rnordier Exp $
+# $FreeBSD$
 
 PROG=		boot0
 NOMAN=

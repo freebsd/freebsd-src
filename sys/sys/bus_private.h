@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus_private.h,v 1.8 1999/05/14 09:13:39 dfr Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_BUS_PRIVATE_H_

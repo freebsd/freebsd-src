@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.14 1999/05/31 11:24:00 phk Exp $
+ * $FreeBSD$
  */
 /*
  * Derived from the NetBSD SCSI changer driver.

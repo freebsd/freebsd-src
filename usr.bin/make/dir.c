@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dir.c,v 1.7 1997/02/22 19:27:08 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

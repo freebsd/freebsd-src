@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.h,v 1.17 1999/01/27 23:45:37 dillon Exp $
+ * $FreeBSD$
  */
 
 #ifndef _DDB_DB_SYM_H_

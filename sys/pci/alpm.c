@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alpm.c,v 1.5 1999/07/03 20:17:00 peter Exp $
+ * $FreeBSD$
  *
  */
 

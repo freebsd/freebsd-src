@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.71 1999/07/06 13:23:56 peter Exp $
+ * $FreeBSD$
  */
 
 #include "opt_cpu.h"

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1998/02/06 23:54:19 eivind Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../isofs/cd9660
 KMOD=	cd9660

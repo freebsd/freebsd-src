@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttydefaults.h	8.4 (Berkeley) 1/21/94
- * $Id: ttydefaults.h,v 1.11 1997/02/22 09:46:16 peter Exp $
+ * $FreeBSD$
  */
 
 /*

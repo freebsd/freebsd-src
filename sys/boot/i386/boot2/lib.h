@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id:$
+ * $FreeBSD$
  */
 
 void sio_init(void);

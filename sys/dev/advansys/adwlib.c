@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adwlib.c,v 1.1 1998/10/07 03:20:46 gibbs Exp $
+ * $FreeBSD$
  */
 /*
  * Ported from:

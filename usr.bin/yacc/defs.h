@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	5.6 (Berkeley) 5/24/93
- *	$Id: defs.h,v 1.6 1997/08/28 06:33:52 charnier Exp $
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>	/* for __P macro */

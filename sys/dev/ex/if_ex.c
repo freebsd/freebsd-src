@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ex.c,v 1.17 1999/08/18 06:11:58 mdodd Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id: procfs.h,v 1.26 1999/06/13 20:53:13 phk Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alpha_module.c,v 1.2 1998/08/31 21:10:40 msmith Exp $
+ * $FreeBSD$
  */
 
 /*

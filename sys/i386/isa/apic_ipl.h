@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.h,v 1.1 1997/05/31 08:49:08 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _I386_ISA_APIC_IPL_H_

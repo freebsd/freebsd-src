@@ -1,6 +1,6 @@
 # CP866 (backward compatible with ASCII)
 #
-# $Id$
+# $FreeBSD$
 #
 charmap map.CP866
 order \

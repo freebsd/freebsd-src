@@ -33,7 +33,7 @@
  *
  *	@(#)less.h	8.1 (Berkeley) 6/6/93
  *
- *	$Id: less.h,v 1.3 1999/05/30 18:06:55 hoek Exp $
+ * $FreeBSD$
  */
 
 #define	NULL_POSITION	((off_t)(-1))

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni.h,v 1.7 1998/06/29 19:45:14 jpt Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

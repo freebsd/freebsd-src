@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1998/11/11 07:04:10 peter Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../i386/isa
 KMOD	= joy

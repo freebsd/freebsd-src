@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.92 1999/08/08 11:13:47 kato Exp $
+# $FreeBSD$
 
 DISABLE_PSE
 IDE_DELAY

@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $FreeBSD$
  * From $NetBSD: bbinfo.h,v 1.2 1997/04/06 08:40:57 cgd Exp $ 
  */
 

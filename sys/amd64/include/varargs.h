@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)varargs.h	8.2 (Berkeley) 3/22/94
- * $Id: varargs.h,v 1.6 1997/02/28 07:12:34 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _VARARGS_H_

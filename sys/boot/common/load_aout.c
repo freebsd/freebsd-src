@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_aout.c,v 1.13 1999/01/22 23:50:14 msmith Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

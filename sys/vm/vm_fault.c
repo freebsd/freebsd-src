@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.103 1999/07/20 05:46:56 alc Exp $
+ * $FreeBSD$
  */
 
 /*

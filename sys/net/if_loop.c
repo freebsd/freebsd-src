@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.40 1999/08/06 13:53:02 brian Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic.h,v 1.11 1997/08/04 17:31:24 fsmp Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_APIC_H_

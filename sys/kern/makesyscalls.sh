@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.34 1998/06/09 03:32:05 bde Exp $
+# $FreeBSD$
 
 set -e
 

@@ -1,4 +1,4 @@
-/* $Id: tcds.c,v 1.2 1999/05/08 21:58:50 dfr Exp $ */
+/* $FreeBSD$ */
 /* from $NetBSD: tcds.c,v 1.25 1998/05/26 23:43:05 thorpej Exp $ */
 
 /*-

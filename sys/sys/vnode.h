@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.97 1999/08/25 12:24:30 phk Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_VNODE_H_

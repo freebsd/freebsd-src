@@ -3,7 +3,7 @@
  * Built on Thu Jul 15 17:08:34 1999 by wpaul@xylophone
  * OS: FreeBSD 3.2-RELEASE
  *
- *	$Id: genfw.c,v 1.2 1999/03/18 17:16:43 wpaul Exp $
+ * $FreeBSD$
  */
 static int tigon2FwReleaseMajor = 0xc;
 static int tigon2FwReleaseMinor = 0x3;

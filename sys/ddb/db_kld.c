@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_kld.c,v 1.5 1999/01/27 19:00:49 dillon Exp $
+ * $FreeBSD$
  *	from db_aout.c,v 1.20 1998/06/07 17:09:36 dfr Exp
  */
 
