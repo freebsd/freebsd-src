@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic.h,v 1.2 1997/07/08 23:29:48 smp Exp smp $
+ *	$Id: apic.h,v 1.3 1997/07/15 00:09:00 smp Exp smp $
  */
 
 #ifndef _MACHINE_APIC_H_
@@ -213,7 +213,27 @@ typedef struct IOAPIC ioapic_t;
 #undef PAD4
 #undef PAD3
 
-#endif  /* LOCORE */
+#endif  /* !LOCORE */
+
+
+/******************************************************************************
+ * various code 'logical' values
+ */
+
+#define LOPRIO_LEVEL		0x00000010	/* TPR of CPUs accepting INT */
+
+/* XXX these 2 don't really belong here... */
+#define COUNT_FIELD		0x00ffffff	/* count portion of the lock */
+#define FREE_LOCK		0xffffffff	/* value of lock when free */
+
+/*
+ * XXX This code assummes that the reserved field of the
+ *      local APIC TPR can be written with all 0s.
+ *     This saves quite a few memory accesses.
+ *     If the silicon ever changes then things will break!
+ *     It affects mplock.s, swtch.s, and possibly other files.
+ */
+#define CHEAP_TPR
 
 
 /******************************************************************************
