@@ -113,6 +113,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	struct group   *grp;
 	struct stat     st;
 	char            line[_PASSWORD_LEN+1];
+	FILE	       *fp;
 
 	static struct passwd fakeuser =
 	{
@@ -730,39 +731,16 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * doesn't hurt anything to create the empty mailfile
 	 */
 	if (mode == M_ADD) {
-		FILE           *fp;
-
 		if (!PWALTDIR()) {
 			sprintf(line, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
 			close(open(line, O_RDWR | O_CREAT, 0600));	/* Preserve contents &
 									 * mtime */
 			chown(line, pwd->pw_uid, pwd->pw_gid);
-
-			/*
-			 * Send mail to the new user as well, if we are asked to
-			 */
-			if (cnf->newmail && *cnf->newmail && (fp = fopen(cnf->newmail, "r")) != NULL) {
-				FILE           *pfp = popen(_PATH_SENDMAIL " -t", "w");
-
-				if (pfp == NULL)
-					warn("sendmail");
-				else {
-					fprintf(pfp, "From: root\n" "To: %s\n" "Subject: Welcome!\n\n", pwd->pw_name);
-					while (fgets(line, sizeof(line), fp) != NULL) {
-						/* Do substitutions? */
-						fputs(line, pfp);
-					}
-					pclose(pfp);
-					pw_log(cnf, mode, W_USER, "%s(%ld) new user mail sent",
-					       pwd->pw_name, (long) pwd->pw_uid);
-				}
-				fclose(fp);
-			}
 		}
 	}
 
 	/*
-	 * Finally, let's create and populate the user's home directory. Note
+	 * Let's create and populate the user's home directory. Note
 	 * that this also `works' for editing users if -m is used, but
 	 * existing files will *not* be overwritten.
 	 */
@@ -770,6 +748,28 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		copymkdir(pwd->pw_dir, cnf->dotdir, 0755, pwd->pw_uid, pwd->pw_gid);
 		pw_log(cnf, mode, W_USER, "%s(%ld) home %s made",
 		       pwd->pw_name, (long) pwd->pw_uid, pwd->pw_dir);
+	}
+
+
+	/*
+	 * Finally, send mail to the new user as well, if we are asked to
+	 */
+	if (mode == M_ADD && !PWALTDIR() && cnf->newmail && *cnf->newmail && (fp = fopen(cnf->newmail, "r")) != NULL) {
+		FILE           *pfp = popen(_PATH_SENDMAIL " -t", "w");
+		
+		if (pfp == NULL)
+			warn("sendmail");
+		else {
+			fprintf(pfp, "From: root\n" "To: %s\n" "Subject: Welcome!\n\n", pwd->pw_name);
+			while (fgets(line, sizeof(line), fp) != NULL) {
+				/* Do substitutions? */
+				fputs(line, pfp);
+			}
+			pclose(pfp);
+			pw_log(cnf, mode, W_USER, "%s(%ld) new user mail sent",
+			    pwd->pw_name, (long) pwd->pw_uid);
+		}
+		fclose(fp);
 	}
 
 	return EXIT_SUCCESS;
