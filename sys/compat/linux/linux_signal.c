@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.3 1995/12/15 03:06:56 peter Exp $
+ *  $Id: linux_signal.c,v 1.4 1996/03/02 19:37:58 peter Exp $
  */
 
 #include <sys/param.h>
@@ -68,7 +68,7 @@ bsd_to_linux_sigset(sigset_t mask) {
     return new;
 }
 
-void
+static void
 linux_to_bsd_sigaction(linux_sigaction_t *lsa, struct sigaction *bsa)
 {
     bsa->sa_mask = linux_to_bsd_sigset(lsa->sa_mask);
@@ -86,7 +86,7 @@ linux_to_bsd_sigaction(linux_sigaction_t *lsa, struct sigaction *bsa)
 	bsa->sa_flags |= SA_NODEFER;
 }
 
-void
+static void
 bsd_to_linux_sigaction(struct sigaction *bsa, linux_sigaction_t *lsa)
 {
     lsa->sa_handler = bsa->sa_handler;
