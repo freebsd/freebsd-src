@@ -976,6 +976,7 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
 	pci_write_config(parent, 0x48, reg48 & ~(0x0001 << devno), 2);
 	pci_write_config(parent, 0x4a, (reg4a & ~(0x3 << (devno << 2))), 2);
     }
+    reg54 |= 0x0400;
     if (mode >= ATA_UDMA2)
 	pci_write_config(parent, 0x54, reg54 | (0x1 << devno), 2);
     else
