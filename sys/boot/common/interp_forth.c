@@ -244,10 +244,10 @@ bf_init(void)
     /* make all commands appear as Forth words */
     SET_FOREACH(cmdp, Xcommand_set) {
 	ficlBuild((*cmdp)->c_name, bf_command, FW_DEFAULT);
-	ficlExec(bf_vm, "also forth definitions");
+	ficlExec(bf_vm, "forth definitions builtins");
 	sprintf(create_buf, "builtin: %s", (*cmdp)->c_name);
 	ficlExec(bf_vm, create_buf);
-	ficlExec(bf_vm, "previous definitions");
+	ficlExec(bf_vm, "builtins definitions");
     }
     ficlExec(bf_vm, "only forth definitions");
 
