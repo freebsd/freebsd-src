@@ -37,8 +37,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <spinlock.h>
 #include <sys/signalvar.h>
 #include "thr_private.h"
+
+extern spinlock_t *__malloc_lock;
+#pragma weak __malloc_lock
 
 __weak_reference(_fork, fork);
 
@@ -47,6 +51,7 @@ _fork(void)
 {
 	sigset_t sigset, oldset;
 	struct pthread *curthread;
+	struct pthread_atfork *af;
 	pid_t ret;
 	int errsave;
 
@@ -66,18 +71,48 @@ _fork(void)
 		SIGFILLSET(sigset);
 		__sys_sigprocmask(SIG_SETMASK, &sigset, &oldset);
 	}
+
+	_pthread_mutex_lock(&_thr_atfork_mutex);
+
+	/* Run down atfork prepare handlers. */
+	TAILQ_FOREACH_REVERSE(af, &_thr_atfork_list, atfork_head, qe) {
+		if (af->prepare != NULL)
+			af->prepare();
+	}
+
 	/* Fork a new process: */
+	if ((_kse_isthreaded() != 0) && (__malloc_lock != NULL)) {
+		_spinlock(__malloc_lock);
+	}
 	if ((ret = __sys_fork()) == 0) {
 		/* Child process */
-		_kse_single_thread(curthread);
+		errsave = errno; 
+
 		/* Kernel signal mask is restored in _kse_single_thread */
+		_kse_single_thread(curthread);
+
+		/* Run down atfork child handlers. */
+		TAILQ_FOREACH(af, &_thr_atfork_list, qe) {
+			if (af->child != NULL)
+				af->child();
+		}
+		_thr_mutex_reinit(&_thr_atfork_mutex);
 	} else {
+		if ((_kse_isthreaded() != 0) && (__malloc_lock != NULL)) {
+			_spinunlock(__malloc_lock);
+		}
+		errsave = errno; 
 		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
-			errsave = errno; 
 			__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
-			errno = errsave;
-		}	
+		}
+		/* Run down atfork parent handlers. */
+		TAILQ_FOREACH(af, &_thr_atfork_list, qe) {
+			if (af->parent != NULL)
+				af->parent();
+		}
+		_pthread_mutex_unlock(&_thr_atfork_mutex);
 	}
+	errno = errsave;
 
 	/* Return the process ID: */
 	return (ret);

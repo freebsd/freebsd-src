@@ -461,6 +461,8 @@ init_private(void)
 	/* Initialize everything else. */
 	TAILQ_INIT(&_thread_list);
 	TAILQ_INIT(&_thread_gc_list);
+	TAILQ_INIT(&_thr_atfork_list);
+	_pthread_mutex_init(&_thr_atfork_mutex, NULL);
 
 	/*
 	 * Initialize the lock for temporary installation of signal

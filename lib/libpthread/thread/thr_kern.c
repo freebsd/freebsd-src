@@ -329,6 +329,20 @@ _kse_single_thread(struct pthread *curthread)
 	_kse_initial = NULL;
 	_libpthread_init(curthread);
 #else
+	int i;
+
+	/* Reset the current thread and KSE lock data. */
+	for (i = 0; i < curthread->locklevel; i++) {
+		_lockuser_reinit(&curthread->lockusers[i], (void *)curthread);
+	}
+	curthread->locklevel = 0;
+	for (i = 0; i < curthread->kse->k_locklevel; i++) {
+		_lockuser_reinit(&curthread->kse->k_lockusers[i],
+		    (void *)curthread->kse);
+		_LCK_SET_PRIVATE2(&curthread->kse->k_lockusers[i], NULL);
+	}
+	curthread->kse->k_locklevel = 0;
+	_thr_spinlock_init();
 	if (__isthreaded) {
 		_thr_rtld_fini();
 		_thr_signal_deinit();
@@ -2015,7 +2029,7 @@ _thr_setrunnable(struct pthread *curthread, struct pthread *thread)
 	kmbx = _thr_setrunnable_unlocked(thread);
 	KSE_SCHED_UNLOCK(curthread->kse, thread->kseg);
 	_kse_critical_leave(crit);
-	if (kmbx != NULL)
+	if ((kmbx != NULL) && (__isthreaded != 0))
 		kse_wakeup(kmbx);
 }
 
