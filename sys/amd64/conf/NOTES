@@ -217,7 +217,7 @@ options 	ACPI_MAX_THREADS=1
 # for AGP r128 and radeon cards.
 
 device		mgadrm
-device		"r128drm"
+device		r128drm
 device		radeondrm
 device		sisdrm
 device		tdfxdrm
@@ -365,20 +365,20 @@ options 	ELSA_QS1PCI
 #	ifpi2 driver for AVM Fritz!Card PCI version 2
 #
 # AVM Fritz!Card PCI version 2
-#XXX#device  "ifpi2"
+#XXX#device	ifpi2
 #
 #---------------------------------------------------------------------------
 #	iwic driver for Winbond W6692 chipset
 #
 # ASUSCOM P-IN100-ST-D (and other Winbond W6692 based cards)
-#XXX#device  iwic
+#XXX#device	iwic
 #
 #---------------------------------------------------------------------------
 #	itjc driver for Siemens ISAC / TJNet Tiger300/320 chipset
 #
 # Traverse Technologies NETjet-S
 # Teles PCI-TJ
-#XXX#device  itjc
+#XXX#device	itjc
 #
 #---------------------------------------------------------------------------
 #	iavc driver (AVM active cards, needs i4bcapi driver!)
@@ -389,34 +389,38 @@ options 	ELSA_QS1PCI
 #	ISDN Protocol Stack - mandatory for all hardware drivers
 #
 # Q.921 / layer 2 - i4b passive cards D channel handling
-#XXX#device		"i4bq921"
+#XXX#device	i4bq921
 #
 # Q.931 / layer 3 - i4b passive cards D channel handling
-#XXX#device		"i4bq931"
+#XXX#device	i4bq931
 #
 # layer 4 - i4b common passive and active card handling
-#XXX#device		"i4b"
+#XXX#device	i4b
 #
 #---------------------------------------------------------------------------
 #	ISDN devices - mandatory for all hardware drivers
 #
 # userland driver to do ISDN tracing (for passive cards only)
-#XXX#device		"i4btrc"	4
+#XXX#device	i4btrc
+#XXX#options	NI4BTRC=4
 #
 # userland driver to control the whole thing
-#XXX#device		"i4bctl"
+#XXX#device	i4bctl
 #
 #---------------------------------------------------------------------------
 #	ISDN devices - optional
 #
 # userland driver for access to raw B channel
-#XXX#device		"i4brbch"	4
+#XXX#device	i4brbch
+#XXX#options	NI4BRBCH=4
 #
 # userland driver for telephony
-#XXX#device		"i4btel"	2
+#XXX#device	i4btel
+#XXX#options 	NI4BTEL=2
 #
 # network driver for IP over raw HDLC ISDN
-#XXX#device		"i4bipr"	4
+#XXX#device	i4bipr
+#XXX#options 	NI4BIPR=4
 # enable VJ header compression detection for ipr i/f
 options 	IPR_VJ
 # enable logging of the first n IP packets to isdnd (n=32 here)
@@ -424,10 +428,15 @@ options 	IPR_LOG=32
 #
 # network driver for sync PPP over ISDN; requires an equivalent
 # number of sppp device to be configured
-#XXX#device		"i4bisppp"	4
+#XXX#device	i4bisppp
+#XXX#options 	NI4BISPPP=4
 #
 # B-channel interface to the netgraph subsystem
-#XXX#device		"i4bing"	2
+#XXX#device	i4bing
+#XXX#options	NI4BING=2
+#
+# CAPI driver needed for active ISDN cards (see iavc driver above)
+#XXX#device	i4bcapi
 #
 #---------------------------------------------------------------------------
 
