@@ -660,7 +660,7 @@ void hash_dump PROTO ((struct hash_table *));
 int if_register_socket PROTO ((struct interface_info *));
 #endif
 
-#ifdef USE_SOCKET_FALLBACK
+#if defined (USE_SOCKET_FALLBACK) && !defined (USE_SOCKET_SEND)
 void if_reinitialize_fallback PROTO ((struct interface_info *));
 void if_register_fallback PROTO ((struct interface_info *));
 ssize_t send_fallback PROTO ((struct interface_info *,
@@ -687,7 +687,7 @@ ssize_t receive_packet PROTO ((struct interface_info *,
 			       unsigned char *, size_t,
 			       struct sockaddr_in *, struct hardware *));
 #endif
-#if defined (USE_SOCKET_SEND) && !defined (USE_SOCKET_FALLBACK)
+#if defined (USE_SOCKET_SEND)
 int can_unicast_without_arp PROTO ((void));
 int can_receive_unicast_unconfigured PROTO ((struct interface_info *));
 void maybe_setup_fallback PROTO ((void));
