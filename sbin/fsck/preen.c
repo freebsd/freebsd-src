@@ -178,7 +178,6 @@ checkfstab(flags, docheck, checkit)
 				continue;
 			}
 
-
 			if (WIFEXITED(status))
 				retcode = WEXITSTATUS(status);
 			else
@@ -215,6 +214,9 @@ checkfstab(flags, docheck, checkit)
 			if (TAILQ_EMPTY(&d->d_part)) {
 				TAILQ_REMOVE(&diskh, d, d_entries);
 				ndisks--;
+			} else {
+				if ((ret = startdisk(d, checkit)) != 0)
+					return ret;
 			}
 		}
 		if (flags & CHECK_DEBUG) {
