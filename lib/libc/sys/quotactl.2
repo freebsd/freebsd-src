@@ -33,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)quotactl.2	8.2 (Berkeley) 3/10/95
+.\"	$FreeBSD$
 .\"
 .Dd March 10, 1995
 .Dt QUOTACTL 2
@@ -66,15 +67,20 @@ The address of an optional command specific data structure,
 may be given; its interpretation
 is discussed below with each command.
 .Pp
-Currently quotas are supported only for the ``ufs'' filesystem.
-For ``ufs'',
+Currently quotas are supported only for the
+.Dq ufs
+filesystem.
+For
+.Dq ufs ,
 a command is composed of a primary command (see below)
 and a command type used to interpret the
 .Fa id .
 Types are supported for interpretation of user identifiers (USRQUOTA)
 and group identifiers (GRPQUOTA).
-The ``ufs'' specific commands are:
-.Bl -tag -width Q_QUOTAON
+The
+.Dq ufs
+specific commands are:
+.Bl -tag -width Q_QUOTAOFFxx
 .It Dv Q_QUOTAON
 Enable disk quotas for the filesystem specified by
 .Fa path .

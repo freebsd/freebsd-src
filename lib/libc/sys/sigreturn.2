@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)sigreturn.2	8.1 (Berkeley) 6/4/93
+.\"	$FreeBSD$
 .\"
 .Dd June 4, 1993
 .Dt SIGRETURN 2
@@ -39,6 +40,7 @@
 .Nd return from signal
 .Sh SYNOPSIS
 .Fd #include <signal.h>
+.Pp
 .Bd -literal
 struct	sigcontext {
 	int	sc_onstack;		/* sigstack state to restore */

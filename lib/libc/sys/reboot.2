@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)reboot.2	8.1 (Berkeley) 6/4/93
+.\"	$FreeBSD$
 .\"
 .Dd June 4, 1993
 .Dt REBOOT 2
@@ -122,16 +123,18 @@ on the console.
 is actually interpreted by the
 .Xr init 8
 program in the newly booted system.
+.El
 .Pp
 When no options are given (i.e.,
 .Dv RB_AUTOBOOT
 is used), the system is
-rebooted from file ``kernel'' in the root file system of unit 0
+rebooted from file
+.Dq kernel
+in the root file system of unit 0
 of a disk chosen in a processor specific way.
 An automatic consistency check of the disks is normally performed
 (see
 .Xr fsck 8 ) .
-.El
 .Sh RETURN VALUES
 If successful, this call never returns.
 Otherwise, a -1 is returned and an error is returned in the global

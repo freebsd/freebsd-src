@@ -67,7 +67,9 @@ is set as defined by
 .It
 The parent process-ID of all of the calling process's existing child
 processes are set to 1; the initialization process
-(see the DEFINITIONS section of
+(see the
+.Sx DEFINITIONS
+section of
 .Xr intro 2 )
 inherits each of these processes.
 .It
@@ -98,7 +100,7 @@ which flushes buffers, closes streams, unlinks temporary files, etc.,
 before
 calling
 .Fn _exit .
-.Sh RETURN VALUE
+.Sh RETURN VALUES
 .Fn _exit
 can never return.
 .Sh SEE ALSO
