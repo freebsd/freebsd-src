@@ -463,9 +463,9 @@ exit1(td, rv)
 	}
 
 	if (p->p_sigparent && p->p_pptr != initproc)
-	        psignal(p->p_pptr, p->p_sigparent);
+		psignal(p->p_pptr, p->p_sigparent);
 	else
-	        psignal(p->p_pptr, SIGCHLD);
+		psignal(p->p_pptr, SIGCHLD);
 	PROC_UNLOCK(p->p_pptr);
 
 	/*
@@ -713,7 +713,7 @@ loop:
 			if (--p->p_procsig->ps_refcnt == 0) {
 				if (p->p_sigacts != &p->p_uarea->u_sigacts)
 					FREE(p->p_sigacts, M_SUBPROC);
-			        FREE(p->p_procsig, M_SUBPROC);
+				FREE(p->p_procsig, M_SUBPROC);
 				p->p_procsig = NULL;
 			}
 
