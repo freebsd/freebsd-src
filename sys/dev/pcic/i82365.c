@@ -113,6 +113,19 @@ static void st_pcic_write(struct pcic_handle *, int, u_int8_t);
 static struct pcic_handle *handles[20];
 static struct pcic_handle **lasthandle = handles;
 
+static struct pcic_handle *
+pcic_get_handle(device_t dev, device_t child)
+{
+	if (dev == child)
+		return NULL;
+	while (child && device_get_parent(child) != dev)
+		child = device_get_parent(child);
+	if (child == NULL)
+		return NULL;
+	return ((struct pcic_handle *) device_get_ivars(child));
+}
+
+
 int
 pcic_ident_ok(int ident)
 {
@@ -1184,7 +1197,7 @@ pcic_wait_ready(struct pcic_handle *h)
 int
 pcic_enable_socket(device_t dev, device_t child)
 {
-	struct pcic_handle *h = NULL;	/* XXXIMPXXX */
+	struct pcic_handle *h = pcic_get_handle(dev, child);
 	int cardtype, reg, win;
 
 	/* this bit is mostly stolen from pcic_attach_card */
@@ -1330,7 +1343,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	int sz;
 	int win;
 	bus_addr_t off;
-	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(dev);
+	struct pcic_handle *h = pcic_get_handle(dev, child);
 
 	sz = rman_get_end(r) - rman_get_start(r) + 1;
 	switch (type) {
@@ -1361,7 +1374,7 @@ int
 pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(dev);
+	struct pcic_handle *h = pcic_get_handle(dev, child);
 	int err = 0;
 
 	switch (type) {
@@ -1382,7 +1395,7 @@ int
 pcic_setup_intr(device_t dev, device_t child, struct resource *irqres,
     int flags, driver_intr_t intr, void *arg, void **cookiep)
 {
-	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(child);
+	struct pcic_handle *h = pcic_get_handle(dev, child);
 	int reg;
 	int irq;
 	int err;
@@ -1410,7 +1423,7 @@ pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookiep)
 {
 	int reg;
-	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(child);
+	struct pcic_handle *h = pcic_get_handle(dev, child);
 
 	h->ih_irq = 0;
 
@@ -1429,7 +1442,7 @@ pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	int sz;
 	int err;
 	struct resource *r;
-	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(dev);
+	struct pcic_handle *h = pcic_get_handle(dev, child);
 
 	r = bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags);
@@ -1464,7 +1477,7 @@ int
 pcic_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(dev);
+	struct pcic_handle *h = pcic_get_handle(dev, child);
 
 	switch (type) {
 	case SYS_RES_IOPORT:
