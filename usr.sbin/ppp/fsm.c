@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.33 1998/06/25 22:33:20 brian Exp $
+ * $Id: fsm.c,v 1.34 1998/06/27 23:48:43 brian Exp $
  *
  *  TODO:
  */
@@ -458,6 +458,21 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
    */
   switch (fp->state) {
   case ST_INITIAL:
+    if (fp->proto == PROTO_CCP && fp->link->lcp.fsm.state == ST_OPENED) {
+      /*
+       * ccp_SetOpenMode() leaves us in initial if we're disabling
+       * & denying everything.  This is a bit smelly, we know that
+       * ``bp'' really has ``fsmheader'' in front of it, and CCP_PROTO
+       * in front of that.  CCP_PROTO isn't compressed either 'cos it
+       * doesn't begin with 0x00....
+       */
+      bp->offset -= sizeof(struct fsmheader) + 2;
+      bp->cnt += sizeof(struct fsmheader) + 2;
+      lcp_SendProtoRej(&fp->link->lcp, MBUF_CTOP(bp), bp->cnt);
+      mbuf_Free(bp);
+      return;
+    }
+    /* Drop through */
   case ST_STARTING:
     log_Printf(fp->LogLevel, "%s: Oops, RCR in %s.\n",
               fp->link->name, State2Nam(fp->state));
