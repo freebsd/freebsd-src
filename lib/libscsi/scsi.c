@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * $Id: scsi.c,v 1.2 1995/01/25 00:33:50 dufault Exp $
+ * $Id: scsi.c,v 1.3 1995/01/26 23:48:41 dufault Exp $
  */
 #include <stdlib.h>
 #include <stdio.h>
@@ -369,6 +369,13 @@ int scsireq_buff_decode(u_char *buff, size_t len, char *fmt, ...)
 	va_list ap;
 	va_start (ap, fmt);
 	return do_buff_decode(buff, len, 0, 0, fmt, ap);
+}
+
+int scsireq_buff_decode_visit(u_char *buff, size_t len, char *fmt,
+void (*arg_put)(void *, int, void *, int, char *), void *puthook)
+{
+	va_list ap = (va_list)0;
+	return do_buff_decode(buff, len, arg_put, puthook, fmt, ap);
 }
 
 /* next_field: Return the next field in a command specifier.  This
@@ -860,7 +867,7 @@ void scsi_dump(FILE *f, char *text, u_char *p, int req, int got, int dump_print)
 
 	fprintf(f, "%s (%d of %d):\n", text, got, req);
 
-	if (behave.db_level == 0 && (behave.db_trunc != -1 && got > behave.db_trunc))
+	if (behave.db_trunc != -1 && got > behave.db_trunc)
 	{
 		trunc = 1;
 		got = behave.db_trunc;
@@ -1063,7 +1070,7 @@ int scsi_debug(FILE *f, int ret, scsireq_t *scsireq)
 
 	fputc('\n', f);
 
-	if (ret == 0 && (scsireq->status || scsireq->retsts))
+	if (ret == 0 && (scsireq->status || scsireq->retsts || behave.db_level))
 	{
 		scsi_retsts_dump(f, scsireq);
 
