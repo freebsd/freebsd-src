@@ -720,7 +720,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		errx(EX_NOUSER, "user '%s' disappeared during update", a_name->val);
 
 	grp = GETGRGID(pwd->pw_gid);
-	pw_log(cnf, mode, W_USER, "%s(%ld):%s(%d):%s:%s:%s",
+	pw_log(cnf, mode, W_USER, "%s(%ld):%s(%ld):%s:%s:%s",
 	       pwd->pw_name, (long) pwd->pw_uid,
 	    grp ? grp->gr_name : "unknown", (long) (grp ? grp->gr_gid : -1),
 	       pwd->pw_gecos, pwd->pw_dir, pwd->pw_shell);
