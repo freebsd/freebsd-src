@@ -803,7 +803,7 @@ dg450|dg6134|data general 6134:\
 dg200|data general Dasher 200:\
 	:am:bc=^Y:bs=0:ce=^K:cl=^L:cm=^P%r%+\200%+\200:co#80:do=^Z:\
 	:ho=^H:li#24:\
-	:ll=\036FP0017:se=\036E:so=\036D:up=^W:\
+	:ll=\036FP\017:se=\036E:so=\036D:up=^W:\
 	:is=\036O\036FQ2\036FB000\036FE\036FA\036FQ2:
 # Note: lesser Dasher terminals will not work with vi because vi insists upon
 # having a command to move straight down from any position on the bottom line
