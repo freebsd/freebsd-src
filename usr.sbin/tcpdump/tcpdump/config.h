@@ -104,8 +104,7 @@
 #define SIZEOF_SHORT 2
 
 /* Define if you have the bpf_dump function.  */
-/* XXX Temporary, until merge of libpcap 0.6 */
-/* #define HAVE_BPF_DUMP 1 */
+#define HAVE_BPF_DUMP 1
 
 /* Define if you have the ether_ntohost function.  */
 #define HAVE_ETHER_NTOHOST 1
