@@ -1,24 +1,15 @@
 #
 # site-specific startup actions, daemons
 #
-#	$Id: rc.local,v 1.24 1997/06/25 12:17:17 ache Exp $
+#	$Id: rc.local,v 1.25 1997/06/25 15:15:13 ache Exp $
 #
+#	put your local stuff here or in /usr/local/etc/rc.d.  If you put stuff
+#	here and want to make it programmer, bring in /etc/rc.conf and add
+#	your custom variables to /etc/rc.conf.local
+#
+#	if [ -f /etc/rc.conf ]; then
+#		. /etc/rc.conf
+#	fi
+#
+#	... additional startup conditionals ...
 
-# If there is a global system configuration file, suck it in.
-#if [ -f /etc/rc.conf ]; then
-#	. /etc/rc.conf
-#fi
-
-T=/tmp/_motd
-rm -f $T
-uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > $T
-awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> $T
-cp $T /etc/motd
-chmod 644 /etc/motd
-rm -f $T
-
-echo -n 'starting local daemons:'
-
-# put your local stuff here
-
-echo '.'
