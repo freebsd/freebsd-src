@@ -404,7 +404,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		}
 	} else {
 		CTR4(KTR_INTR, "%s: pid %d: it_need %d, state %d",
-		    __func__, p->p_pid, ithread->it_need, p->p_state);
+		    __func__, p->p_pid, ithread->it_need, td->td_state);
 	}
 	mtx_unlock_spin(&sched_lock);
 
