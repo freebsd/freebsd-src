@@ -94,8 +94,7 @@ struct acpi_cpu_device {
 
 #define PM_USEC(x)	 ((x) >> 2)	/* ~4 clocks per usec (3.57955 Mhz) */
 
-#define ACPI_CPU_NOTIFY_PERF_STATES	0x80	/* _PSS changed. */
-#define ACPI_CPU_NOTIFY_CX_STATES	0x81	/* _CST changed. */
+#define ACPI_NOTIFY_CX_STATES	0x81	/* _CST changed. */
 
 #define CPU_QUIRK_NO_C3		(1<<0)	/* C3-type states are not usable. */
 #define CPU_QUIRK_NO_BM_CTRL	(1<<2)	/* No bus mastering control. */
@@ -848,8 +847,7 @@ acpi_cpu_idle()
 }
 
 /*
- * Re-evaluate the _PSS and _CST objects when we are notified that they
- * have changed.
+ * Re-evaluate the _CST object when we are notified that it changed.
  *
  * XXX Re-evaluation disabled until locking is done.
  */
@@ -858,19 +856,11 @@ acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_cpu_softc *sc = (struct acpi_cpu_softc *)context;
 
-    switch (notify) {
-    case ACPI_CPU_NOTIFY_PERF_STATES:
-	device_printf(sc->cpu_dev, "Performance states changed\n");
-	/* acpi_cpu_px_available(sc); */
-	break;
-    case ACPI_CPU_NOTIFY_CX_STATES:
-	device_printf(sc->cpu_dev, "Cx states changed\n");
-	/* acpi_cpu_cx_cst(sc); */
-	break;
-    default:
-	device_printf(sc->cpu_dev, "Unknown notify %#x\n", notify);
-	break;
-    }
+    if (notify != ACPI_NOTIFY_CX_STATES)
+	return;
+
+    device_printf(sc->cpu_dev, "Cx states changed\n");
+    /* acpi_cpu_cx_cst(sc); */
 }
 
 static int
