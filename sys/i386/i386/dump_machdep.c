@@ -75,6 +75,15 @@ dumpsys(struct dumperinfo *di)
 		strncpy(kdh.panicstring, panicstr, sizeof kdh.panicstring);
 	kdh.parity = kerneldump_parity(&kdh);
 
+	if (di->mediasize <  
+	    ((Maxmem * (off_t)PAGE_SIZE) +	/* Memory to save */
+	    (sizeof kdh * 2) +			/* header + trailer */
+	    (64*1024)))	{			/* Room to leave untouched */
+						/* at partition head. */
+						/* (an arbitrary amount). */
+		printf("\nDump failed. Partition too small.\n");
+		return;
+	}
 	dumplo = di->mediaoffset + di->mediasize - Maxmem * (off_t)PAGE_SIZE;
 	dumplo -= sizeof kdh * 2;
 	i = di->dumper(di->priv, &kdh, 0, dumplo, sizeof kdh);
