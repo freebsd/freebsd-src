@@ -673,6 +673,7 @@ SRM quirks:
 PC164 the SRM sometimes seems to loose its variable settings. 
 "For PC164, current superstition says that, to avoid losing settings,
 you want to first downgrade to SRM 4.x and then upgrade to a 5.x"
+Other PC164 owners report they have never seen the problem. 
 
 On PC164SX the AlphaBIOS allows you a selection to select 'SRM' to
 be used as console on the next power up. This selection does not appear to
@@ -1139,6 +1140,9 @@ information.
 chip-based), Qlogic family and NCR/Symbios. Be aware of the machine-specific
 bootability issues for the various adapter types.
 
+- FibreChannel: the Qlogic QL2x00 FibreChhannel host adapters are fully
+supported.
+
 - graphics console/keyboard/mouse: in general the SRM console emulates 
 a VGA-compatibility mode on PCI VGA cards. This is, however, not guaranteed 
 to work by Compaq/DEC for each and every card type out there. When the SRM 
@@ -1155,6 +1159,12 @@ supported. For TurboChannel machines the serial ports are also supported.
 
 - multimedia: is not really supported on FreeBSD/alpha but work is underway
 
+Hardware support due soon
+-------------------------
+
+- Support for the AlphaServer 4100 ("Rawhide") machines (post-4.0)
+
+- Support for the AlphaServer 8200 ("TurboLaser") machines (post-4.0)
 
 Acknowledgments
 ----------------
