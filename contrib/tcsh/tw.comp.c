@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.comp.c,v 1.31 1998/10/25 15:10:49 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.comp.c,v 1.33 2002/06/25 19:02:11 christos Exp $ */
 /*
  * tw.comp.c: File completion builtin
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.comp.c,v 1.31 1998/10/25 15:10:49 christos Exp $")
+RCSID("$Id: tw.comp.c,v 1.33 2002/06/25 19:02:11 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -74,7 +70,7 @@ docomplete(v, t)
 	tw_prlist(&completions);
     else if (*v == 0) {
 	vp = adrof1(strip(p), &completions);
-	if (vp)
+	if (vp && vp->vec)
 	    tw_pr(vp->vec), xputchar('\n');
     }
     else
@@ -119,7 +115,8 @@ x:
 	if (p->v_parent == 0)	/* is it the header? */
 	    return;
 	xprintf("%s\t", short2str(p->v_name));
-	tw_pr(p->vec);
+	if (p->vec)
+	    tw_pr(p->vec);
 	xputchar('\n');
 	if (p->v_right) {
 	    p = p->v_right;

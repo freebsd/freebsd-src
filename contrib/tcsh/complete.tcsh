@@ -1,5 +1,5 @@
 #
-# $Id: complete.tcsh,v 1.37 2001/09/02 21:06:02 christos Exp $
+# $Id: complete.tcsh,v 1.40 2002/07/07 15:37:20 christos Exp $
 # example file using the new completion code
 #
 
@@ -21,14 +21,18 @@ endif
 
 if ($?_complete) then
     set noglob
-    set hosts
+    if ( ! $?hosts ) set hosts
     foreach f ($HOME/.hosts /usr/local/etc/csh.hosts $HOME/.rhosts /etc/hosts.equiv)
         if ( -r $f ) then
-	    set hosts = ($hosts `grep -v "+" $f | tr -s " " "	" | cut -f 1`)
+	    set hosts = ($hosts `grep -v "+" $f | grep -E -v "^#" | tr -s " " "	" | cut -f 1`)
 	endif
     end
     if ( -r $HOME/.netrc ) then
 	set f=`awk '/machine/ { print $2 }' < $HOME/.netrc` >& /dev/null
+	set hosts=($hosts $f)
+    endif
+    if ( -r $HOME/.ssh/known_hosts ) then
+	set f=`cat $HOME/.ssh/known_hosts | cut -f 1 -d \ ` >& /dev/null
 	set hosts=($hosts $f)
     endif
     unset f
@@ -416,7 +420,7 @@ if ($?_complete) then
     endif
 
     # from George Cox
-    complete acroread	'p/*/f:*.pdf/'
+    complete acroread	'p/*/f:*.{pdf,PDF}/'
     complete apachectl  'c/*/(start stop restart fullstatus status graceful \
 			configtest help)/'
     complete appletviewer	'p/*/f:*.class/'
@@ -652,30 +656,36 @@ if ($?_complete) then
     endif
     unset _maildir
 
-    if (-r /usr/share/man) then
-      set _man_dir = /usr/share/man
-    else
-      set _man_dir = /usr/man
+    if (! $?MANPATH) then
+	if (-r /usr/share/man) then
+	    setenv MANPATH /usr/share/man:
+	else
+	    setenv MANPATH /usr/man:
+	endif
     endif
+
+    # use of $MANPATH from Dan Nicolaescu <dann@ics.uci.edu>
+    # use of 'find' adapted from Lubomir Host <host8@kepler.fmph.uniba.sk>
     complete man \
-		 n@0@\`if\ \(-r\ $_man_dir/man0\)\ \\ls\ -1\ $_man_dir/man0\ \|\ sed\ s%\\\.0.\\\*\\\$%%\`@ \
-		 n@1@\`if\ \(-r\ $_man_dir/man1\)\ \\ls\ -1\ $_man_dir/man1\ \|\ sed\ s%\\\.1.\\\*\\\$%%\`@ \
-		 n@2@\`if\ \(-r\ $_man_dir/man2\)\ \\ls\ -1\ $_man_dir/man2\ \|\ sed\ s%\\\.2.\\\*\\\$%%\`@ \
-		 n@3@\`if\ \(-r\ $_man_dir/man3\)\ \\ls\ -1\ $_man_dir/man3\ \|\ sed\ s%\\\.3.\\\*\\\$%%\`@ \
-		 n@4@\`if\ \(-r\ $_man_dir/man4\)\ \\ls\ -1\ $_man_dir/man4\ \|\ sed\ s%\\\.4.\\\*\\\$%%\`@ \
-		 n@5@\`if\ \(-r\ $_man_dir/man5\)\ \\ls\ -1\ $_man_dir/man5\ \|\ sed\ s%\\\.5.\\\*\\\$%%\`@ \
-		 n@6@\`if\ \(-r\ $_man_dir/man6\)\ \\ls\ -1\ $_man_dir/man6\ \|\ sed\ s%\\\.6.\\\*\\\$%%\`@ \
-		 n@7@\`if\ \(-r\ $_man_dir/man7\)\ \\ls\ -1\ $_man_dir/man7\ \|\ sed\ s%\\\.7.\\\*\\\$%%\`@ \
-		 n@8@\`if\ \(-r\ $_man_dir/man8\)\ \\ls\ -1\ $_man_dir/man8\ \|\ sed\ s%\\\.8.\\\*\\\$%%\`@ \
-		 n@9@\`if\ \(-r\ $_man_dir/man9\)\ \\ls\ -1\ $_man_dir/man9\ \|\ sed\ s%\\\.9.\\\*\\\$%%\`@ \
-	       n@new@\`if\ \(-r\ $_man_dir/mann\)\ \\ls\ -1\ $_man_dir/mann\ \|\ sed\ s%\\\.n.\\\*\\\$%%\`@ \
-	       n@old@\`if\ \(-r\ $_man_dir/mano\)\ \\ls\ -1\ $_man_dir/mano\ \|\ sed\ s%\\\.o.\\\*\\\$%%\`@ \
-	     n@local@\`if\ \(-r\ $_man_dir/manl\)\ \\ls\ -1\ $_man_dir/manl\ \|\ sed\ s%\\\.l.\\\*\\\$%%\`@ \
-	    n@public@\`if\ \(-r\ $_man_dir/manp\)\ \\ls\ -1\ $_man_dir/manp\ \|\ sed\ s%\\\.p.\\\*\\\$%%\`@ \
-	    c@-@"(- f k M P s t)"@ n@-f@c@ n@-k@x:'<keyword>'@ n@-[MP]@d@ \
-	    n@-s@\`\\ls\ -1\ $_man_dir\ \|\ sed\ -n\ s%man%%p\`@ \
-	    N@-[MP]@'`\ls -1 $:-1/man? | sed s%\\..\*\$%%`'@ n@*@c@
-    unset _man_dir
+	    'n@1@`set q = "$MANPATH:as%:%/man1 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.1.\*\$%%`@'\
+	    'n@2@`set q = "$MANPATH:as%:%/man2 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.2.\*\$%%`@'\
+	    'n@3@`set q = "$MANPATH:as%:%/man3 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.3.\*\$%%`@'\
+	    'n@4@`set q = "$MANPATH:as%:%/man4 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.4.\*\$%%`@'\
+	    'n@5@`set q = "$MANPATH:as%:%/man5 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.5.\*\$%%`@'\
+	    'n@6@`set q = "$MANPATH:as%:%/man6 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.6.\*\$%%`@'\
+	    'n@7@`set q = "$MANPATH:as%:%/man7 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.7.\*\$%%`@'\
+	    'n@8@`set q = "$MANPATH:as%:%/man8 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.8.\*\$%%`@'\
+	    'n@9@`set q = "$MANPATH:as%:%/man9 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.9.\*\$%%`@'\
+	    'n@0@`set q = "$MANPATH:as%:%/man0 %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.0.\*\$%%`@'\
+	    'n@n@`set q = "$MANPATH:as%:%/mann %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.n.\*\$%%`@'\
+	    'n@o@`set q = "$MANPATH:as%:%/mano %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.o.\*\$%%`@'\
+	    'n@l@`set q = "$MANPATH:as%:%/manl %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.l.\*\$%%`@'\
+	    'n@p@`set q = "$MANPATH:as%:%/manp %" ; \ls -1 $q |& sed -e s%^.\*:.\*\$%% -e s%\\.p.\*\$%%`@'\
+	    c@-@"(- f k M P s S t)"@ n@-f@c@ n@-k@x:'<keyword>'@ n@-[MP]@d@   \
+	    'N@-[MP]@`\ls -1 $:-1/man? |& sed -n s%\\..\\+\$%%p`@'            \
+	    'n@-[sS]@`\ls -1 $MANPATH:as%:% % |& sed -n s%^man%%p | sort -u`@'\
+	    'n@*@`find $MANPATH:as%:% % \( -type f -o -type l \) -printf "%f " |& sed -e "s%find: .*: No such file or directory%%" -e "s%\([^\.]\+\)\.\([^ ]*\) %\1 %g"`@'
+	    #n@*@c@ # old way -- commands only
 
     complete ps	        c/-t/x:'<tty>'/ c/-/"(a c C e g k l S t u v w x)"/ \
 			n/-k/x:'<kernel>'/ N/-k/x:'<core_file>'/ n/*/x:'<PID>'/
@@ -686,15 +696,27 @@ if ($?_complete) then
     complete uudecode	c/-/"(f)"/ n/-f/f:*.{uu,UU}/ p/1/f:*.{uu,UU}/ n/*/n/
 
     complete xhost	c/[+-]/\$hosts/ n/*/\$hosts/
+    complete xpdf	c/-/"(z g remote raise quit cmap rgb papercolor       \
+			      eucjp t1lib freetype ps paperw paperh level1    \
+			      upw fullscreen cmd q v h help)"/                \
+			n/-z/x:'<zoom (-5 .. +5) or "page" or "width">'/      \
+			n/-g/x:'<geometry>'/ n/-remote/x:'<name>'/            \
+			n/-rgb/x:'<number>'/ n/-papercolor/x:'<color>'/       \
+			n/-{t1lib,freetype}/x:'<font_type>'/                  \
+			n/-ps/x:'<PS_file>'/ n/-paperw/x:'<width>'/           \
+			n/-paperh/x:'<height>'/ n/-upw/x:'<password>'/        \
+			n/-/f:*.{pdf,PDF}/                                    \
+			N/-{z,g,remote,rgb,papercolor,t1lib,freetype,ps,paperw,paperh,upw}/f:*.{pdf,PDF}/ \
+			N/-/x:'<page>'/ p/1/f:*.{pdf,PDF}/ p/2/x:'<page>'/
 
     # these conform to the latest GNU versions available at press time ...
     # updates by John Gotts <jgotts@engin.umich.edu>
     if (-X emacs) then
       # TW note:  if your version of GNU Emacs supports the "--version" option,
       #           uncomment this line and comment the next to automatically
-      #           detect the version, else replace "20.7" with your version.
-      #set _emacs_ver=`emacs --version | head -1 | sed 's%GNU Emacs %%' | cut -d . -f1-2`
-      set _emacs_ver=20.7
+      #           detect the version, else replace "21.2" with your version.
+      #set _emacs_ver=`emacs --version | sed -e 's%GNU Emacs %%' -e q | cut -d . -f1-2`
+      set _emacs_ver=21.2
       set _emacs_dir=`which emacs | sed s%/bin/emacs%%` 
       complete emacs	c/--/"(batch terminal display no-windows no-init-file \
                                user debug-init unibyte multibyte version help \
@@ -707,6 +729,7 @@ if ($?_complete) then
       unset _emacs_ver _emacs_dir
     endif
 
+    # if your "zcat" is the GNU version, change "gzcat" below to just "zcat"
     complete gzcat	c/--/"(force help license quiet version)"/ \
 			c/-/"(f h L q V -)"/ n/*/f:*.{gz,Z,z,zip}/
     complete gzip	c/--/"(stdout to-stdout decompress uncompress \
@@ -776,6 +799,11 @@ if ($?_complete) then
 				v w x)"/ \
 			p/1/x:'<fixed_string>'/ N/-*e/f/ \
 			n/-*e/x:'<fixed_string>'/ n/-*f/f/ n/*/f/
+
+    complete sed	c/--/"(quiet silent version help expression file)"/   \
+			c/-/"(n V e f -)"/ n/{-e,--expression}/x:'<script>'/  \
+			n/{-f,--file}/f:*.sed/ N/-{e,f,-{file,expression}}/f/ \
+			n/-/x:'<script>'/ N/-/f/ p/1/x:'<script>'/ p/2/f/
 
     complete users	c/--/"(help version)"/ p/1/x:'<accounting_file>'/
     complete who	c/--/"(heading idle count mesg message writable help \

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.c,v 3.95 2001/04/27 22:36:39 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.c,v 3.105 2002/07/05 16:28:16 christos Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,7 +39,7 @@ char    copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-RCSID("$Id: sh.c,v 3.95 2001/04/27 22:36:39 christos Exp $")
+RCSID("$Id: sh.c,v 3.105 2002/07/05 16:28:16 christos Exp $")
 
 #include "tc.h"
 #include "ed.h"
@@ -136,7 +132,10 @@ extern char **environ;
  */
 struct saved_state {
     int		  insource;
+    int		  OLDSTD;
     int		  SHIN;
+    int		  SHOUT;
+    int		  SHDIAG;
     int		  intty;
     struct whyle *whyles;
     Char 	 *gointr;
@@ -302,7 +301,6 @@ main(argc, argv)
     gid = getgid();
     euid = geteuid();
     egid = getegid();
-#if defined(OREO) || defined(DT_SUPPORT)
     /*
      * We are a login shell if: 1. we were invoked as -<something> with
      * optional arguments 2. or we were invoked only with the -l flag
@@ -310,16 +308,6 @@ main(argc, argv)
     loginsh = (**tempv == '-') || (argc == 2 &&
 				   tempv[1][0] == '-' && tempv[1][1] == 'l' &&
 						tempv[1][2] == '\0');
-#else
-    /*
-     * We are a login shell if: 1. we were invoked as -<something> and we had
-     * no arguments 2. or we were invoked only with the -l flag
-     */
-    loginsh = (**tempv == '-' && argc == 1) || (argc == 2 &&
-				   tempv[1][0] == '-' && tempv[1][1] == 'l' &&
-						tempv[1][2] == '\0');
-#endif
-
 #ifdef _VMS_POSIX
     /* No better way to find if we are a login shell */
     if (!loginsh) {
@@ -505,27 +493,28 @@ main(argc, argv)
     set(STRstatus, Strsave(STR0), VAR_READWRITE);
 
     /*
-     * get and set machine specific envirnment variables
+     * get and set machine specific environment variables
      */
     getmachine();
 
-    fix_version();		/* publish the shell version */
 
     /*
      * Publish the selected echo style
      */
-#if ECHO_STYLE == NONE_ECHO
-    set(STRecho_style, Strsave(STRnone), VAR_READWRITE);
-#endif /* ECHO_STYLE == NONE_ECHO */
-#if ECHO_STYLE == BSD_ECHO
-    set(STRecho_style, Strsave(STRbsd), VAR_READWRITE);
-#endif /* ECHO_STYLE == BSD_ECHO */
-#if ECHO_STYLE == SYSV_ECHO
-    set(STRecho_style, Strsave(STRsysv), VAR_READWRITE);
-#endif /* ECHO_STYLE == SYSV_ECHO */
-#if ECHO_STYLE == BOTH_ECHO
-    set(STRecho_style, Strsave(STRboth), VAR_READWRITE);
-#endif /* ECHO_STYLE == BOTH_ECHO */
+#if ECHO_STYLE != BSD_ECHO
+    if (tcsh) {
+# if ECHO_STYLE == NONE_ECHO
+	set(STRecho_style, Strsave(STRnone), VAR_READWRITE);
+# endif /* ECHO_STYLE == NONE_ECHO */
+# if ECHO_STYLE == SYSV_ECHO
+	set(STRecho_style, Strsave(STRsysv), VAR_READWRITE);
+# endif /* ECHO_STYLE == SYSV_ECHO */
+# if ECHO_STYLE == BOTH_ECHO
+	set(STRecho_style, Strsave(STRboth), VAR_READWRITE);
+# endif /* ECHO_STYLE == BOTH_ECHO */
+    } else
+#endif /* ECHO_STYLE != BSD_ECHO */
+	set(STRecho_style, Strsave(STRbsd), VAR_READWRITE);
 
     /*
      * increment the shell level.
@@ -799,6 +788,12 @@ main(argc, argv)
 #endif /* WINNT_NATIVE */
 #endif
 
+    fix_version();		/* publish the shell version */
+
+    if (argc > 1 && strcmp(argv[1], "--version") == 0) {
+	xprintf("%S\n", varval(STRversion));
+	xexit(0);
+    }
     /*
      * Process the arguments.
      * 
@@ -1009,6 +1004,13 @@ main(argc, argv)
 	 /* argc not used any more */ tempv++;
     }
 
+    /* 
+     * Call to closem() used to be part of initdesc(). Now called below where
+     * the script name argument has become stdin. Kernel may have used a file
+     * descriptor to hold the name of the script (setuid case) and this name
+     * mustn't be lost by closing the fd too soon.
+     */
+    closem();
 
     /*
      * Consider input a tty if it really is or we are interactive. but not for
@@ -1482,6 +1484,31 @@ st_save(st, unit, hflg, al, av)
 {
     st->insource	= insource;
     st->SHIN		= SHIN;
+    /* Want to preserve the meaning of "source file >output".
+     * Save old descriptors, move new 0,1,2 to safe places and assign
+     * them to SH* and let process() redo 0,1,2 from them.
+     *
+     * The macro returns true if d1 and d2 are good and they point to
+     * different things.  If you don't avoid saving duplicate
+     * descriptors, you really limit the depth of "source" recursion
+     * you can do because of all the open file descriptors.  -IAN!
+     */
+#define NEED_SAVE_FD(d1,d2) \
+    (fstat(d1, &s1) != -1 && fstat(d2, &s2) != -1 \
+	&& (s1.st_ino != s2.st_ino || s1.st_dev != s2.st_dev) )
+
+    st->OLDSTD = st->SHOUT = st->SHDIAG = -1;/* test later to restore these */
+    if (didfds) {
+	    struct stat s1, s2;
+	    if (NEED_SAVE_FD(0,OLDSTD))
+		    st->OLDSTD = OLDSTD, OLDSTD = dmove(0, -1);
+	    if (NEED_SAVE_FD(1,SHOUT))
+		    st->SHOUT = SHOUT, SHOUT = dmove(1, -1);
+	    if (NEED_SAVE_FD(2,SHDIAG))
+		    st->SHDIAG = SHDIAG, SHDIAG = dmove(2, -1);
+	    donefds();
+    }
+
     st->intty		= intty;
     st->whyles		= whyles;
     st->gointr		= gointr;
@@ -1506,7 +1533,7 @@ st_save(st, unit, hflg, al, av)
      */
     if (av != NULL && *av != NULL) {
 	struct varent *vp;
-	if ((vp = adrof(STRargv)) != NULL)
+	if ((vp = adrof(STRargv)) != NULL && vp->vec != NULL)
 	    st->argv = saveblk(vp->vec);
 	else
 	    st->argv = NULL;
@@ -1569,6 +1596,12 @@ st_restore(st, av)
 
     insource	= st->insource;
     SHIN	= st->SHIN;
+    if (st->OLDSTD != -1)
+	    (void)close(OLDSTD), OLDSTD = st->OLDSTD;
+    if (st->SHOUT != -1)
+	    (void)close(SHOUT),  SHOUT = st->SHOUT;
+    if (st->SHDIAG != -1)
+	    (void)close(SHDIAG), SHDIAG = st->SHDIAG;
     arginp	= st->arginp;
     onelflg	= st->onelflg;
     evalp	= st->evalp;
@@ -1605,9 +1638,6 @@ srcunit(unit, onlyown, hflg, av)
 
     if (unit < 0)
 	return;
-
-    if (didfds)
-	donefds();
 
     if (onlyown) {
 	struct stat stb;
@@ -2045,9 +2075,13 @@ process(catch)
 	 */
 	if ((lex(&paraml) && !seterr && intty && !tellwhat && !Expand && 
 	     !whyles) || adrof(STRverbose)) {
+	    int odidfds = didfds;
 	    haderr = 1;
+	    didfds = 0;
 	    prlex(&paraml);
+	    flush();
 	    haderr = 0;
+	    didfds = odidfds;
 	}
 	(void) alarm(0);	/* Autologout OFF */
 
@@ -2122,7 +2156,7 @@ process(catch)
 	 * Execute the parse tree From: Michael Schroeder
 	 * <mlschroe@immd4.informatik.uni-erlangen.de> was execute(t, tpgrp);
 	 */
-	execute(savet, (tpgrp > 0 ? tpgrp : -1), NULL, NULL);
+	execute(savet, (tpgrp > 0 ? tpgrp : -1), NULL, NULL, TRUE);
 
 	/*
 	 * Made it!
@@ -2130,8 +2164,10 @@ process(catch)
 	freelex(&paraml);
 	freesyn(savet), savet = NULL;
 #ifdef SIG_WINDOW
-	if (catch && intty && !whyles && !tellwhat)
-	    (void) window_change(0);	/* for window systems */
+	if (windowchg || (catch && intty && !whyles && !tellwhat)) {
+	    windowchg = 0;
+	    (void) check_window_size(0);	/* for window systems */
+	}
 #endif /* SIG_WINDOW */
 	set(STR_, Strsave(InputBuf), VAR_READWRITE | VAR_NOGLOB);
     }
@@ -2200,7 +2236,7 @@ mailchk()
     bool    new;
 
     v = adrof(STRmail);
-    if (v == 0)
+    if (v == NULL || v->vec == NULL)
 	return;
     (void) time(&t);
     vp = v->vec;
@@ -2341,7 +2377,6 @@ initdesc()
 #endif /* CLOSE_ON_EXEC */
     isdiagatty = isatty(SHDIAG);
     isoutatty = isatty(SHOUT);
-    closem();
 #ifdef NLS_BUGS
 #ifdef NLS_CATALOGS
     nlsinit();

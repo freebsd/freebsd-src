@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.sig.h,v 3.22 2000/11/11 23:03:39 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.sig.h,v 3.26 2002/07/12 13:16:19 christos Exp $ */
 /*
  * tc.sig.h: Signal handling
  *
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,7 +43,7 @@
 # include <sys/signal.h>
 #endif /* SYSVREL > 0 */
 
-#if defined(SUNOS4) || defined(DGUX) || defined(hp800) || (SYSVREL > 3 && defined(POSIXSIGS) && defined(VFORK))
+#if defined(__APPLE__) || defined(SUNOS4) || defined(DGUX) || defined(hp800) || (SYSVREL > 3 && defined(POSIXSIGS) && defined(VFORK))
 # define SAVESIGVEC
 #endif /* SUNOS4 || DGUX || hp800 || SVR4 & POSIXSIGS & VFORK */
 
@@ -66,11 +62,9 @@
 #  define HAVE_SIGVEC
 #  define mysigvec(a, b, c)	sigaction(a, b, c)
 typedef struct sigaction sigvec_t;
-#  if defined(convex) || defined(__convex__)
-     /* eliminate compiler warnings since these are defined in signal.h  */
-#    undef sv_handler
-#    undef sv_flags
-#  endif
+/* eliminate compiler warnings since these are defined in signal.h  */
+#  undef sv_handler
+#  undef sv_flags
 #  define sv_handler sa_handler
 #  define sv_flags sa_flags
 # endif /* _SEQUENT || (_POSIX_SOURCE && !hpux) */
@@ -86,6 +80,8 @@ typedef struct sigvec sigvec_t;
 #  ifdef POSIXSIGS
 #  define mysigvec(a, b, c)	sigaction(a, b, c)
 typedef struct sigaction sigvec_t;
+#   undef sv_handler
+#   undef sv_flags
 #   define sv_handler sa_handler
 #   define sv_flags sa_flags
 #  else /* BSDSIGS */

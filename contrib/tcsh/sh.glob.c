@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.glob.c,v 3.48 2001/01/04 18:51:57 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.glob.c,v 3.54 2002/07/04 19:28:29 christos Exp $ */
 /*
  * sh.glob.c: Regular expression expansion
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,9 +32,10 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.glob.c,v 3.48 2001/01/04 18:51:57 christos Exp $")
+RCSID("$Id: sh.glob.c,v 3.54 2002/07/04 19:28:29 christos Exp $")
 
 #include "tc.h"
+#include "tw.h"
 
 #include "glob.h"
 
@@ -755,7 +752,7 @@ dobackp(cp, literal)
     pnleft = LONGBSIZE - 4;
     for (;;) {
 #if defined(DSPMBYTE)
-	for (lp = cp;; lp++) {
+	for (lp = cp;; lp++) { /* } */
 	    if (*lp == '`' &&
 		(lp-1 < cp || !Ismbyte2(*lp) || !Ismbyte1(*(lp-1)))) {
 		break;
@@ -834,6 +831,7 @@ backeval(cp, literal)
 	(void) dmove(pvec[1], 1);
 	(void) dmove(SHDIAG,  2);
 	initdesc();
+	closem();
 	/*
 	 * Bugfix for nested backquotes by Michael Greim <greim@sbsvax.UUCP>,
 	 * posted to comp.bugs.4bsd 12 Sep. 1989.
@@ -842,8 +840,11 @@ backeval(cp, literal)
 	    blkfree(pargv), pargv = 0, pargsiz = 0;
 	/* mg, 21.dec.88 */
 	arginp = cp;
-	while (*cp)
-	    *cp++ &= TRIM;
+	for (arginp = cp; *cp; cp++) {
+	    *cp &= TRIM;
+	    if (*cp == '\n' || *cp == '\r')
+		*cp = ' ';
+	}
 
         /*
 	 * In the child ``forget'' everything about current aliases or
@@ -871,7 +872,7 @@ backeval(cp, literal)
 #ifdef SIGTTOU
 	(void) sigignore(SIGTTOU);
 #endif
-	execute(t, -1, NULL, NULL);
+	execute(t, -1, NULL, NULL, TRUE);
 	exitstat();
     }
     xfree((ptr_t) cp);
@@ -1125,7 +1126,7 @@ Gcat(s1, s2)
 	continue;
 }
 
-#ifdef FILEC
+#if defined(FILEC) && defined(TIOCSTI)
 int
 sortscmp(a, b)
     register Char **a, **b;

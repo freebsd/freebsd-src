@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.func.c,v 3.97 2001/08/28 23:13:44 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.func.c,v 3.105 2002/07/12 13:16:18 christos Exp $ */
 /*
  * tc.func.c: New tcsh builtins.
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.func.c,v 3.97 2001/08/28 23:13:44 christos Exp $")
+RCSID("$Id: tc.func.c,v 3.105 2002/07/12 13:16:18 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -290,7 +286,8 @@ dolist(v, c)
 	STRmCF[3] = '\0';
 	/* Look at listflags, to add -A to the flags, to get a path
 	   of ls if necessary */
-	if ((vp = adrof(STRlistflags)) != NULL && vp->vec[0] != STRNULL) {
+	if ((vp = adrof(STRlistflags)) != NULL && vp->vec != NULL &&
+	    vp->vec[0] != STRNULL) {
 	    if (vp->vec[1] != NULL && vp->vec[1][0] != '\0')
 		lspath = vp->vec[1];
 	    for (cp = vp->vec[0]; *cp; cp++)
@@ -341,7 +338,7 @@ dolist(v, c)
 	lastword = nextword;
 	for (cp = *v; cp; cp = *++v) {
 	    nextword = (struct wordent *) xcalloc(1, sizeof cmd);
-	    nextword->word = Strsave(cp);
+	    nextword->word = quote(Strsave(cp));
 	    lastword->next = nextword;
 	    nextword->prev = lastword;
 	    lastword = nextword;
@@ -356,7 +353,7 @@ dolist(v, c)
 	/* expand aliases like process() does */
 	/* alias(&cmd); */
 	/* execute the parse tree. */
-	execute(t, tpgrp > 0 ? tpgrp : -1, NULL, NULL);
+	execute(t, tpgrp > 0 ? tpgrp : -1, NULL, NULL, FALSE);
 	/* done. free the lex list and parse tree. */
 	freelex(&cmd), freesyn(t);
 	if (setintr)
@@ -504,7 +501,7 @@ cmd_expand(cmd, str)
     lexp[0].word = STRNULL;
     lexp[2].word = STRret;
 
-    if ((vp = adrof1(cmd, &aliases)) != NULL) {
+    if ((vp = adrof1(cmd, &aliases)) != NULL && vp->vec != NULL) {
 	if (str == NULL) {
 	    xprintf(CGETS(22, 1, "%S: \t aliased to "), cmd);
 	    blkpr(vp->vec);
@@ -1070,8 +1067,11 @@ job_cmd(args)
 	goto leave;
     }
     jobcmd_active = 1;
-    if (!whyles && adrof1(STRjobcmd, &aliases))
+    if (!whyles && adrof1(STRjobcmd, &aliases)) {
+	struct process *pp = pcurrjob; /* put things back after the hook */
 	aliasrun(2, STRjobcmd, args);
+	pcurrjob = pp;
+    }
 leave:
     jobcmd_active = 0;
 #ifdef BSDSIGS
@@ -1139,7 +1139,7 @@ aliasrun(cnt, s1, s2)
 	 * From: Michael Schroeder <mlschroe@immd4.informatik.uni-erlangen.de>
 	 * was execute(t, tpgrp);
 	 */
-	execute(t, tpgrp > 0 ? tpgrp : -1, NULL, NULL);	
+	execute(t, tpgrp > 0 ? tpgrp : -1, NULL, NULL, TRUE);
     /* done. free the lex list and parse tree. */
     freelex(&w), freesyn(t);
     if (haderr) {
@@ -1186,7 +1186,7 @@ setalarm(lck)
     unsigned alrm_time = 0, logout_time, lock_time;
     time_t cl, nl, sched_dif;
 
-    if ((vp = adrof(STRautologout)) != NULL) {
+    if ((vp = adrof(STRautologout)) != NULL && vp->vec != NULL) {
 	if ((cp = vp->vec[0]) != 0) {
 	    if ((logout_time = (unsigned) atoi(short2str(cp)) * 60) > 0) {
 		alrm_time = logout_time;
@@ -1575,10 +1575,12 @@ gethomedir(us)
     fix_yp_bugs();
 #endif /* YPBUGS */
     if (pp != NULL) {
+#if 0
 	/* Don't return if root */
 	if (pp->pw_dir[0] == '/' && pp->pw_dir[1] == '\0')
 	    return NULL;
 	else
+#endif
 	    return Strsave(str2short(pp->pw_dir));
     }
 #ifdef HESIOD
@@ -1610,10 +1612,13 @@ gethomedir(us)
 	}
 	for (res1 = res; *res1; res1++)
 	    free(*res1);
+#if 0
+	/* Don't return if root */
 	if (rp != NULL && rp[0] == '/' && rp[1] == '\0') {
 	    xfree((ptr_t)rp);
 	    rp = NULL;
 	}
+#endif
 	return rp;
     }
 #endif /* HESIOD */
@@ -2102,7 +2107,7 @@ getremotehost()
     const char *host = NULL;
 #ifdef INET6
     struct sockaddr_storage saddr;
-    int len = sizeof(struct sockaddr_storage);
+    socklen_t len = sizeof(struct sockaddr_storage);
     static char hbuf[NI_MAXHOST];
 #else
     struct hostent* hp;
@@ -2113,13 +2118,10 @@ getremotehost()
     char *sptr = NULL;
 #endif
 
-    if (getpeername(SHIN, (struct sockaddr *) &saddr, &len) != -1) {
 #ifdef INET6
-#if 0
-	int flag = 0;
-#else
+    if (getpeername(SHIN, (struct sockaddr *) &saddr, &len) != -1 &&
+	(saddr.ss_family == AF_INET6 || saddr.ss_family == AF_INET)) {
 	int flag = NI_NUMERICHOST;
-#endif
 
 #ifdef NI_WITHSCOPEID
 	flag |= NI_WITHSCOPEID;
@@ -2128,6 +2130,8 @@ getremotehost()
 		    NULL, 0, flag);
 	host = hbuf;
 #else
+    if (getpeername(SHIN, (struct sockaddr *) &saddr, &len) != -1 &&
+	saddr.sin_family == AF_INET) {
 #if 0
 	if ((hp = gethostbyaddr((char *)&saddr.sin_addr, sizeof(struct in_addr),
 				AF_INET)) != NULL)

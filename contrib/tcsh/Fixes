@@ -1,9 +1,76 @@
+ 57. misc cleanups.
+ 56. V6.11.05 - 20020712
+ 55. We should have socklen_t in the INET6 case, but we leave int otherwise.
+ 54. Fixed for Darwin/Rhapsody (Mark Peek)
+ 53. provide new config.sub and config.guess from ftp://ftp.gnu.org/gnu/config/
+     (Nelson Beebe)
+ 52. V6.11.04 - 20020709
+ 51. Dissallow setting of environment variables that do not contain
+     alphanumeric names (Ton Voon)
+ 50. Don't expand path components that don't resolve to path names (Jonathan
+     Chen)
+ 49. Make $ignoreeof agree with the man page (Matias Moreno Meringer)
+ 48. Fix argument passing in tc.prompt.c expdollar (Nelson Beebe)
+ 47. Completion fixes from FreeBSD (Mark Peek)
+ 46. FreeBSD's sbsize limit (Mark Peek)
+ 45. Fix repeat 3 repeat 2 echo foo
+ 44. Fix I/O redirection in scripts (Ian D Allen)
+ 43. Fix ` \\\n ` evaluation (Jean-Luc Leger)
+ 42. add --version (Nelson Beebe)
+ 41. portability fixes for sed (Nelson Beebe)
+ 40. undef sv_handler for AIX's benefit. (Nelson Beebe)
+ 39. Add a test for ss_family that disables IPV6 (linux/ppc, osf/1 have
+     problems) (Nelson Beebe)
+ 38. Disable ipv6 for Apple (Nelson Beebe)
+ 37. Fix darwin configure entry (Nelson Beebe)
+ 36. V6.11.03 - 20020701
+ 35. Add Ian D. Allen's bug list.
+ 34. If we are invoked as csh, default to bsd echo (Matej Vela)
+ 33. Don't close file descriptors too early because setuid scripts fail.
+     (Jill Pryse-Davies)
+ 32. Completion updates (Tom Warzeka)
+ 31. Fix compilation issue on SunOS4 with _POSIX_VDISABLE (Tom Warzeka)
+ 30. ukrainian update (Olexander Kunytsa)
+ 29. DSPMBYTE=utf8 patch (Jean-Luc Leger)
+ 28. fix ipv4 only compilation, remove extra sigsetmask() call (Takayuki Nakao)
+ 27. window change can cause free to be re-entered causing abort (Mark Peek)
+ 26. vp->vec vetting, suggested by Ian Dall.
+ 25. V6.11.02 - 20020516
+ 24. Fix prompt bugs in $var and %c0n (TAKAI Kousuke)
+ 23. Add Cray SV2 config (Rafal Maszkowski)
+ 22. Add pdf manual page (Warren Ferguson)
+ 21. Fix REMOTEHOST lossage in with AF_LOCAL sockets (Tom Mander)
+ 20. Fix win32 break because of TIOCSTI (Amol)
+ 19. Fix TIOCSTI for hpux 11  (Igor Schein)
+ 18. Avoid collapsing paths that refer to non-existent components
+     (Martin Kraemer)
+ 17. Make -shell invocations always treated as a login shell.
+ 16. V6.11.01 - 20020308
+ 15. Fixes to polish nls locale (Pawe³ Niewiadomski)
+ 14. russian locale fixes (Alexey Dokuchaev)
+ 13. document door support (Shaen)
+ 12. tcsh euc handling extensions (Alexey Zelkin)
+ 11. Make sure that jobcmd does not clobber the current job (Rob McMahon)
+ 10. Make sure that the output of verbose and echo do not end up in the
+     command output (Victor I. Pasko)
+  9. Add %j in prompt [needs more work; is not right the first time
+     after proclist changes] (Hr. Peter Kruse)
+  8. `` commands with embedded newlines would ignore commands following
+     the new line (Victor I. Pasko)
+  7. Re-initialize nls if NLSPATH is changed (Naoki Wakamatsu)
+  6. Fix 64 bit compilation with linux and resource limits.
+  5. Avoid double globbing when ls-F needs to fork (Joe Townsend)
+  4. put back csh filec compatible support.
+  3. add support for quads in xprintf in the presence of gcc.
+  2. unlimit should set rlim.rlim_max to rlim.rlim_cur if max < cur.
+  1. Make ~user work again when the home directory is '/'.
+
  40. V6.11.00 - 20010902
  39. Completion fixes (Tom Warzeka)
  38. make c_insert not static so that it can be used from win32 (amol)
  37. Fix rmstar not to corrupt memory when we say no. (Mark Peek)
  36. V6.10.02 - 20010806
- 35. polish nls locale (Pawe³ New)
+ 35. polish nls locale (Pawe³ Niewiadomski))
  34. Fix a tcsetattr race running background jobs as the last line on an xterm
      window (Andrew Brown)
  33. jobcmd alias (Greg Parker)

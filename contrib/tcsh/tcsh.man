@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgment:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -76,7 +72,7 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\" 
-.TH TCSH 1 "2 September 2001" "Astron 6.11.00"
+.TH TCSH 1 "23 July 2002" "Astron 6.12.00"
 .SH NAME
 tcsh \- C shell with file name completion and command line editing
 .SH SYNOPSIS
@@ -2890,15 +2886,42 @@ limits.  Only the super-user may raise the hard limits, but
 a user may lower or raise the current limits within the legal range.
 .RS +8
 .PP
-Controllable resources currently include \fIcputime\fR (the
-maximum number of cpu-seconds to be used by each process),
-\fIfilesize\fR (the largest single file which can be created),
-\fIdatasize\fR (the maximum growth of the data+stack region via
-sbrk(2) beyond the end of the program text), \fIstacksize\fR (the
-maximum size of the automatically-extended stack region),
-\fIcoredumpsize\fR (the size of the largest core dump that will be created),
-and \fImemoryuse\fR, the maximum amount of physical memory a process
-may have allocated to it at a given time.
+Controllable resources currently include (if supported by the OS):
+.TP
+\fIcputime\fR
+the maximum number of cpu-seconds to be used by each process
+.TP
+\fIfilesize\fR
+the largest single file which can be created
+.TP
+\fIdatasize\fR
+the maximum growth of the data+stack region via sbrk(2) beyond
+the end of the program text
+.TP
+\fIstacksize\fR
+the maximum size of the automatically-extended stack region
+.TP
+\fIcoredumpsize\fR
+the size of the largest core dump that will be created
+.TP
+\fImemoryuse\fR
+the maximum amount of physical memory a process
+may have allocated to it at a given time
+.TP
+\fIdescriptors\fR or \fIopenfiles\fR
+the maximum number of open files for this process
+.TP
+\fIconcurrency\fR
+the maximum number of threads for this process
+.TP
+\fImemorylocked\fR
+the maximum size which a process may lock into memory using mlock(2)
+.TP
+\fImaxproc\fR
+the maximum number of simultaneous processes for this user id
+.TP
+\fIsbsize\fR
+the maximum size of socket buffer usage for this user
 .PP
 \fImaximum-use\fR may be given as a (floating point or
 integer) number followed by a scale factor.  For all limits
@@ -3634,6 +3657,7 @@ See also the \fBcwd\fR and \fBowd\fR shell variables.
 If set to `euc', it enables display and editing EUC-kanji(Japanese) code.
 If set to `sjis', it enables display and editing Shift-JIS(Japanese) code.
 If set to `big5', it enables display and editing Big5(Chinese) code.
+If set to `utf8', it enables display and editing Utf8(Unicode) code.
 If set to the following format, it enables display and editing of original
 multi-byte code format:
 .RS +8
@@ -3677,6 +3701,11 @@ The GNU fileutils version of ls cannot display multi-byte
 filenames without the -N ( --literal ) option.   If you are using
 this version, set the second word of dspmbyte to "ls".  If not, for
 example, "ls-F -l" cannot display multi-byte filenames.
+.PP
+  Note:
+.br
+This variable can only be used if KANJI and DSPMBYTE has been defined at
+compile time.
 .RE
 .TP 8
 .B dunique \fR(+)
@@ -3727,7 +3756,10 @@ instead of `/<skipped>'.
 Lists file name suffixes to be ignored by completion.
 .TP 8
 .B filec
-In \fItcsh\fR, completion is always used and this variable is ignored.
+In \fItcsh\fR, completion is always used and this variable is ignored
+by default. If 
+.B edit
+is unset, then the traditional \fIcsh\fR completion is used.
 If set in \fIcsh\fR, filename completion is used.
 .TP 8
 .B gid \fR(+)
@@ -4021,6 +4053,9 @@ A single `%'.
 .TP 4
 %n
 The user name.
+.TP 4
+%j
+The number of jobs.
 .TP 4
 %d
 The weekday in `Day' format.
@@ -4602,6 +4637,9 @@ Named pipe (FIFO)
 so	01;35
 Socket
 .TP 12
+do	01;35
+Door
+.TP 12
 bd	01;33
 Block device
 .TP 12
@@ -5001,7 +5039,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .SH VERSION
-This manual documents tcsh 6.11.00 (Astron) 2001-09-02.
+This manual documents tcsh 6.12.00 (Astron) 2002-07-23.
 .SH AUTHORS
 .PD 0
 .TP 2

@@ -1,8 +1,8 @@
-$ $Id: set10,v 1.1 2000/11/11 23:03:42 christos Exp $
+$ $Id: set10,v 1.2 2002/07/01 20:50:22 christos Exp $
 $ ma.setp.c
 $set 10 
-1 setpath: invalid command '%s'.\n
-2 setpath: insufficient arguments to command '%s'.\n
-3 setpath: value missing in path '%s'\n
-4 setpath: %s not found in %s\n
-5 setpath: %d not valid position in %s\n
+1 setpath: нев╕рна команда '%s'.\n
+2 setpath: недостатньо аргумент╕в для команди '%s'.\n
+3 setpath: значення в╕дсутн╓ в шляху '%s'\n
+4 setpath: %s не знайдено в %s\n
+5 setpath: %d нед╕йсна позиц╕я в %s\n

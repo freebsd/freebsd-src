@@ -1,10 +1,10 @@
-$ $Id: set11,v 1.1 2000/11/11 23:03:42 christos Exp $
+$ $Id: set11,v 1.2 2002/07/01 20:50:22 christos Exp $
 $ sh.c
 $set 11 
-1 Warning: no access to tty (%s).\n
-2 Thus no job control in this shell.\n
-3 You have %d mail messages.\n
-4 You have %d mail messages in %s.\n
+1 Увага: нема╓ доступу до tty (%s).\n
+2 Все ще нема керування задачами в ц╕й оболонц╕.\n
+3 К╕льк╕сть лист╕в: %d.\n
+4 К╕льк╕сть лист╕в: %d (в %s).\n
 5 У Вас ╓ %sпошта.\n
 6 нова 
 7 У Вас ╓ %sпошта в %s.\n

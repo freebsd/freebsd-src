@@ -1,4 +1,4 @@
-$ $Id: set7,v 1.1 2000/11/11 23:03:44 christos Exp $
+$ $Id: set7,v 1.2 2002/07/01 20:50:22 christos Exp $
 $ ed.screen.c
 $set 7
 1 \n\tTcsh thinks your terminal has the\n
@@ -14,11 +14,11 @@ $set 7
 11 does not have
 12 \tIt %s magic margins\n
 13 (empty)
-14 yes
-15 no
-16 ERROR: cannot delete\r\n
+14 ΤΑΛ
+15 Ξ¦
+16 πονιμλα: cannot delete\r\n
 17 DeleteChars: num is riduculous: %d\r\n
-18 ERROR: cannot insert\r\n
+18 πονιμλα: cannot insert\r\n
 19 StartInsert: num is riduculous: %d\r\n
 20 %s: Cannot open /etc/termcap.\n
 21 %s: No entry for terminal type "%s"\n

@@ -1,4 +1,4 @@
-$ $Id: set6,v 1.1 2000/11/11 23:03:44 christos Exp $
+$ $Id: set6,v 1.2 2002/07/01 20:50:22 christos Exp $
 $ ed.inputl.c
 $set 6
 1 ERROR: illegal command from key 0%o\r\n
@@ -6,6 +6,6 @@ $set 6
 3 edit\n
 4 abort\n
 5 no\n
-6 No matching command\n
-7 Ambiguous command\n
-8 *** editor fatal ERROR ***\r\n\n
+6 Нема╓ схожо╖ команди\n
+7 Неоднозначна команда\n
+8 *** Фатальна ПОМИЛКА редактора ***\r\n\n

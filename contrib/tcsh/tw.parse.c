@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.parse.c,v 3.90 2001/03/18 19:06:32 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.parse.c,v 3.92 2002/06/25 19:02:12 christos Exp $ */
 /*
  * tw.parse.c: Everyone has taken a shot in this futile effort to
  *	       lexically analyze a csh line... Well we cannot good
@@ -17,11 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,7 +35,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.parse.c,v 3.90 2001/03/18 19:06:32 christos Exp $")
+RCSID("$Id: tw.parse.c,v 3.92 2002/06/25 19:02:12 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -827,7 +823,7 @@ recognize(exp_name, item, name_length, numitems, enhanced)
 #ifdef WINNT_NATIVE
     struct varent *vp;
     int igncase;
-    igncase = (vp = adrof(STRcomplete)) != NULL &&
+    igncase = (vp = adrof(STRcomplete)) != NULL && vp->vec != NULL &&
 	Strcmp(*(vp->vec), STRigncase) == 0;
 #endif /* WINNT_NATIVE */
 
@@ -993,7 +989,7 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
 	case RECOGNIZE_SCROLL:
 
 #ifdef WINNT_NATIVE
- 	    igncase = (vp = adrof(STRcomplete)) != NULL && 
+ 	    igncase = (vp = adrof(STRcomplete)) != NULL && vp->vec != NULL &&
 		Strcmp(*(vp->vec), STRigncase) == 0;
 #endif /* WINNT_NATIVE */
 	    enhanced = (vp = adrof(STRcomplete)) != NULL && !Strcmp(*(vp->vec),STRenhance);
@@ -1147,7 +1143,7 @@ tw_suffix(looking, exp_dir, exp_name, target, name)
 	/*
 	 * Don't consider array variables or empty variables
 	 */
-	if ((vp = adrof(exp_name)) != NULL) {
+	if ((vp = adrof(exp_name)) != NULL && vp->vec != NULL) {
 	    if ((ptr = vp->vec[0]) == NULL || *ptr == '\0' ||
 		vp->vec[1] != NULL) 
 		return ' ';

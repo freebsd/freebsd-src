@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.set.c,v 3.39 2001/03/18 19:06:30 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.set.c,v 3.44 2002/07/01 20:50:22 christos Exp $ */
 /*
  * sh.set.c: Setting and Clearing of variables
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.set.c,v 3.39 2001/03/18 19:06:30 christos Exp $")
+RCSID("$Id: sh.set.c,v 3.44 2002/07/01 20:50:22 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -186,6 +182,10 @@ update_vars(vp)
 	(void) catclose(catd);
 	nlsinit();
     }
+#if defined(FILEC) && defined(TIOCSTI)
+    else if (eq(vp, STRfilec))
+	filec = 1;
+#endif
 #endif /* NLS_CATALOGS */
 }
 
@@ -550,7 +550,8 @@ value1(var, head)
 	return (STRNULL);
 
     vp = adrof1(var, head);
-    return (vp == 0 || vp->vec[0] == 0 ? STRNULL : vp->vec[0]);
+    return ((vp == NULL || vp->vec == NULL || vp->vec[0] == NULL) ?
+	STRNULL : vp->vec[0]);
 }
 
 static struct varent *
@@ -721,6 +722,12 @@ unset(v, c)
     did_roe = adrof(STRrecognize_only_executables) != NULL;
     did_edit = adrof(STRedit) != NULL;
     unset1(v, &shvhed);
+
+#if defined(FILEC) && defined(TIOCSTI)
+    if (adrof(STRfilec) == 0)
+	filec = 0;
+#endif /* FILEC && TIOCSTI */
+
     if (adrof(STRhistchars) == 0) {
 	HIST = '!';
 	HISTSUB = '^';
@@ -862,7 +869,7 @@ shift(v, c)
     else
 	(void) strip(name);
     argv = adrof(name);
-    if (argv == 0)
+    if (argv == NULL || argv->vec == NULL)
 	udvar(name);
     if (argv->vec[0] == 0)
 	stderror(ERR_NAME | ERR_NOMORE);
@@ -1110,6 +1117,8 @@ update_dspmbyte_vars()
 	    iskcode = 2;
 	else if (eq(dstr1, STRKBIG5))
 	    iskcode = 3;
+	else if (eq(dstr1, STRKUTF8))
+	    iskcode = 4;
 	else if ((dstr1[0] - '0') >= 0 && (dstr1[0] - '0') <= 3) {
 	    iskcode = 0;
 	}
@@ -1138,6 +1147,11 @@ update_dspmbyte_vars()
 		/* 3 ... big5 */
 		_cmap[lp] = _cmap_mbyte[lp];
 		_mbmap[lp] = _mbmap_big5[lp];
+		break;
+	    case 4:
+		/* 4 ... utf8 */
+		_cmap[lp] = _cmap_mbyte[lp];
+		_mbmap[lp] = _mbmap_utf8[lp];
 		break;
 	    default:
 		xprintf(CGETS(18, 3,

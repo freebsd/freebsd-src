@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.who.c,v 3.32 2000/11/12 02:18:07 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.who.c,v 3.35 2002/07/01 21:12:04 christos Exp $ */
 /*
  * tc.who.c: Watch logins and logouts...
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.who.c,v 3.32 2000/11/12 02:18:07 christos Exp $")
+RCSID("$Id: tc.who.c,v 3.35 2002/07/01 21:12:04 christos Exp $")
 
 #include "tc.h"
 
@@ -197,7 +193,7 @@ watch_login(force)
 #endif
 
     v = adrof(STRwatch);
-    if (v == NULL && !force) {
+    if ((v == NULL || v->vec == NULL) && !force) {
 #ifdef BSDSIGS
 	(void) sigsetmask(omask);
 #else
@@ -500,7 +496,7 @@ print_who(wp)
     struct varent *vp = adrof(STRwho);
     Char buf[BUFSIZE];
 
-    if (vp && vp->vec[0])
+    if (vp && vp->vec && vp->vec[0])
 	cp = vp->vec[0];
 
     tprintf(FMT_WHO, buf, cp, BUFSIZE, NULL, wp->who_time, (ptr_t) wp);

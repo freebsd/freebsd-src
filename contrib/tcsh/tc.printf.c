@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.printf.c,v 3.21 2001/06/21 23:26:54 kim Exp $ */
+/* $Header: /src/pub/tcsh/tc.printf.c,v 3.23 2002/03/08 17:36:47 christos Exp $ */
 /*
  * tc.printf.c: A public-domain, minimal printf/sprintf routine that prints
  *	       through the putchar() routine.  Feel free to use for
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +34,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.printf.c,v 3.21 2001/06/21 23:26:54 kim Exp $")
+RCSID("$Id: tc.printf.c,v 3.23 2002/03/08 17:36:47 christos Exp $")
 
 #ifdef lint
 #undef va_arg
@@ -58,16 +54,21 @@ doprnt(addchar, sfmt, ap)
     const char   *sfmt;
     va_list ap;
 {
-    register char *bp;
-    register const char *f;
+    char *bp;
+    const char *f;
 #ifdef SHORT_STRINGS
-    register Char *Bp;
+    Char *Bp;
 #endif /* SHORT_STRINGS */
-    register long l;
-    register unsigned long u;
-    register int i;
-    register int fmt;
-    register unsigned char pad = ' ';
+#ifdef HAVE_QUAD
+    long long l;
+    unsigned long long u;
+#else
+    long l;
+    unsigned long u;
+#endif
+    int i;
+    int fmt;
+    unsigned char pad = ' ';
     int     flush_left = 0, f_width = 0, prec = INF, hash = 0, do_long = 0;
     int     sign = 0;
     int     attributes = 0;
@@ -120,8 +121,12 @@ doprnt(addchar, sfmt, ap)
 	    }
 
 	    if (*f == 'l') {	/* long format */
-		do_long = 1;
+		do_long++;
 		f++;
+		if (*f == 'l') {
+		    do_long++;
+		    f++;
+		}
 	    }
 
 	    fmt = (unsigned char) *f;
@@ -132,10 +137,23 @@ doprnt(addchar, sfmt, ap)
 	    bp = buf;
 	    switch (fmt) {	/* do the format */
 	    case 'd':
-		if (do_long)
-		    l = va_arg(ap, long);
-		else
+		switch (do_long) {
+		case 0:
 		    l = (long) (va_arg(ap, int));
+		    break;
+		case 1:
+#ifndef HAVE_QUAD
+		default:
+#endif
+		    l = va_arg(ap, long);
+		    break;
+#ifdef HAVE_QUAD
+		default:
+		    l = va_arg(ap, long long);
+		    break;
+#endif
+		}
+
 		if (l < 0) {
 		    sign = 1;
 		    l = -l;
@@ -159,10 +177,22 @@ doprnt(addchar, sfmt, ap)
 	    case 'o':
 	    case 'x':
 	    case 'u':
-		if (do_long)
-		    u = va_arg(ap, unsigned long);
-		else
+		switch (do_long) {
+		case 0:
 		    u = (unsigned long) (va_arg(ap, unsigned int));
+		    break;
+		case 1:
+#ifndef HAVE_QUAD
+		default:
+#endif
+		    u = va_arg(ap, unsigned long);
+		    break;
+#ifdef HAVE_QUAD
+		default:
+		    u = va_arg(ap, unsigned long long);
+		    break;
+#endif
+		}
 		if (fmt == 'u') {	/* unsigned decimal */
 		    do {
 			*bp++ = (char) (u % 10) + '0';
