@@ -103,6 +103,41 @@ g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 	return (0);
 }
 
+static void
+g_sunlabel_hotwrite(void *arg, int flag)
+{
+	struct bio *bp;
+	struct g_geom *gp;
+	struct g_slicer *gsp;
+	struct g_slice *gsl;
+	struct g_sunlabel_softc *ms;
+	u_char *p;
+	int error;
+
+	KASSERT(flag != EV_CANCEL, ("g_sunlabel_hotwrite cancelled"));
+	bp = arg;
+	gp = bp->bio_to->geom;
+	gsp = gp->softc;
+	ms = gsp->softc;
+	gsl = &gsp->slices[bp->bio_to->index];
+	/*
+	 * XXX: For all practical purposes, this whould be equvivalent to
+	 * XXX: "p = (u_char *)bp->bio_data;" because the label is always
+	 * XXX: in the first sector and we refuse sectors smaller than the
+	 * XXX: label.
+	 */
+	p = (u_char *)bp->bio_data - (bp->bio_offset + gsl->offset);
+
+	g_topology_unlock();
+	error = g_sunlabel_modify(gp, ms, p);
+	g_topology_lock();
+	if (error) {
+		g_io_deliver(bp, EPERM);
+		return;
+	}
+	g_slice_finish_hot(bp);
+}
+
 static int
 g_sunlabel_start(struct bio *bp)
 {
@@ -174,10 +209,10 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (LIST_EMPTY(&gp->provider)) {
 		g_std_spoiled(cp);
 		return (NULL);
-#ifdef notyet
 	} else {
-		g_slice_conf_hot(gp, 0, 0, ms->sectorsize);
-#endif
+		g_slice_conf_hot(gp, 0, 0, SUN_SIZE,
+		    G_SLICE_HOT_ALLOW, G_SLICE_HOT_DENY, G_SLICE_HOT_CALL);
+		gsp->hot = g_sunlabel_hotwrite;
 	}
 	return (gp);
 }
