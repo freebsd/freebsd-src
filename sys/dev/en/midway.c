@@ -1512,54 +1512,6 @@ en_init(struct en_softc *sc)
  * Ioctls
  */
 /*
- * Return a table of all currently open VCCs.
- */
-static struct atmio_vcctable *
-en_get_vccs(struct en_softc *sc, int flags)
-{
-	struct atmio_vcctable *vccs;
-	struct atmio_vcc *v;
-	u_int vci, alloc;
-
-	alloc = 10;
-	vccs = NULL;
-	do {
-		vccs = reallocf(vccs,
-		    sizeof(*vccs) + alloc * sizeof(vccs->vccs[0]),
-		    M_TEMP, flags);
-		if (vccs == NULL)
-			return (NULL);
-
-		vccs->count = 0;
-		v = vccs->vccs;
-		EN_LOCK(sc);
-		for (vci = 0; vci < MID_N_VC; vci++) {
-			if (sc->vccs[vci] == NULL)
-				continue;
-
-			if (vccs->count++ == alloc) {
-				alloc *= 2;
-				break;
-			}
-			bzero(v, sizeof(*v));
-			v->flags = ATMIO_FLAG_PVC | sc->vccs[vci]->vcc.flags;
-			v->vpi = 0;
-			v->vci = vci;
-			if (sc->vccs[vci]->vcc.flags & ATM_PH_AAL5)
-				v->aal = ATMIO_AAL_5;
-			else
-				v->aal = ATMIO_AAL_0;
-			v->traffic = ATMIO_TRAFFIC_UBR;
-			v->tparam.pcr = sc->ifatm.mib.pcr;
-			v++;
-		}
-		EN_UNLOCK(sc);
-	} while (vci < MID_N_VC);
-
-	return (vccs);
-}
-
-/*
  * en_ioctl: handle ioctl requests
  *
  * NOTE: if you add an ioctl to set txspeed, you should choose a new
@@ -1641,7 +1593,8 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	  case SIOCATMGETVCCS:	/* internal netgraph use */
-		vtab = en_get_vccs(sc, M_NOWAIT);
+		vtab = atm_getvccs((struct atmio_vcc **)sc->vccs,
+		    MID_N_VC, sc->vccs_open, &sc->en_mtx, 0);
 		if (vtab == NULL) {
 			error = ENOMEM;
 			break;
@@ -1650,11 +1603,8 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	  case SIOCATMGVCCS:	/* return vcc table */
-		vtab = en_get_vccs(sc, M_WAITOK);
-		if (vtab == NULL) {
-			error = ENOMEM;
-			break;
-		}
+		vtab = atm_getvccs((struct atmio_vcc **)sc->vccs,
+		    MID_N_VC, sc->vccs_open, &sc->en_mtx, 1);
 		error = copyout(vtab, ifr->ifr_data, sizeof(*vtab) +
 		    vtab->count * sizeof(vtab->vccs[0]));
 		free(vtab, M_DEVBUF);
