@@ -213,6 +213,7 @@ iir_pci_attach(device_t dev)
     gdt->sc_hanum = device_get_unit(dev);
     gdt->sc_bus = pci_get_bus(dev);
     gdt->sc_slot = pci_get_slot(dev);
+    gdt->sc_vendor = pci_get_vendor(dev);
     gdt->sc_device = pci_get_device(dev);
     gdt->sc_subdevice = pci_get_subdevice(dev);
     gdt->sc_class = GDT_MPR;
@@ -263,7 +264,7 @@ iir_pci_attach(device_t dev)
         DELAY(1);
     }
 
-    protocol = (u_int8_t)letoh32(bus_space_read_4(gdt->sc_dpmemt, gdt->sc_dpmemh,
+    protocol = (uint8_t)le32toh(bus_space_read_4(gdt->sc_dpmemt, gdt->sc_dpmemh,
                                                   GDT_MPR_IC + GDT_S_INFO));
     bus_space_write_1(gdt->sc_dpmemt, gdt->sc_dpmemh, GDT_MPR_IC + GDT_S_STATUS,
                       0);

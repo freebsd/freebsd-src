@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- *       Copyright (c) 2000-01 Intel Corporation
+ *       Copyright (c) 2000-03 Intel Corporation
  *       All Rights Reserved
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,13 +41,13 @@
  */
 
 
-#ident "$Id: iir.h 1.3 2001/07/03 11:28:57 achim Exp $"
+#ident "$Id: iir.h 1.4 2003/03/21 16:28:57 achim Exp $"
 
 #ifndef _IIR_H
 #define _IIR_H
 
 #define IIR_DRIVER_VERSION      1
-#define IIR_DRIVER_SUBVERSION   1
+#define IIR_DRIVER_SUBVERSION   3
 
 #define IIR_CDEV_MAJOR          164
 
@@ -142,6 +142,7 @@
 #define GDT_CACHE_DRV_INFO      0x07            /* cache drive info */
 #define GDT_BOARD_FEATURES      0x15            /* controller features */
 #define GDT_BOARD_INFO          0x28            /* controller info */
+#define GDT_OEM_STR_RECORD      0x84            /* OEM info */
 #define GDT_HOST_GET            0x10001         /* get host drive list */
 #define GDT_IO_CHANNEL          0x20000         /* default IO channel */
 #define GDT_INVALID_CHANNEL     0xffff          /* invalid channel */
@@ -371,10 +372,6 @@ extern int ser_printf(const char *fmt, ...);
 #define GDT_WATCH_TIMEOUT       10000000        /* 10000 * 1us = 10s */
 #define GDT_SCRATCH_SZ          3072            /* 3KB scratch buffer */
 
-/* macros */
-#define letoh32(v)      le32toh(v)
-#define letoh16(v)      le16toh(v)
-
 /* Map minor numbers to device identity */
 #define LUN_MASK                0x0007
 #define TARGET_MASK             0x03f8
@@ -457,6 +454,52 @@ typedef struct gdt_osv {
     u_int16_t revision;
     char      name[64];
 } gdt_osv_t;
+
+/* OEM */
+#define GDT_OEM_VERSION     0x00
+#define GDT_OEM_BUFSIZE     0x0c
+typedef struct {
+    u_int32_t ctl_version;
+    u_int32_t file_major_version;
+    u_int32_t file_minor_version;
+    u_int32_t buffer_size;
+    u_int32_t cpy_count;
+    u_int32_t ext_error;
+    u_int32_t oem_id;
+    u_int32_t board_id;
+} gdt_oem_param_t;
+
+typedef struct {
+    char      product_0_1_name[16];
+    char      product_4_5_name[16];
+    char      product_cluster_name[16];
+    char      product_reserved[16];
+    char      scsi_cluster_target_vendor_id[16];
+    char      cluster_raid_fw_name[16];
+    char      oem_brand_name[16];
+    char      oem_raid_type[16];
+    char      bios_type[13];
+    char      bios_title[50];
+    char      oem_company_name[37];
+    u_int32_t pci_id_1;
+    u_int32_t pci_id_2;
+    char      validation_status[80];
+    char      reserved_1[4];
+    char      scsi_host_drive_inquiry_vendor_id[16];
+    char      library_file_template[32];
+    char      tool_name_1[32];
+    char      tool_name_2[32];
+    char      tool_name_3[32];
+    char      oem_contact_1[84];
+    char      oem_contact_2[84];
+    char      oem_contact_3[84];
+} gdt_oem_record_t;
+
+typedef struct {
+    gdt_oem_param_t  parameters;
+    gdt_oem_record_t text;
+} gdt_oem_str_record_t;
+
 
 /* controller event structure */
 #define GDT_ES_ASYNC    1
@@ -545,6 +588,7 @@ struct gdt_softc {
 #define GDT_FC          0x10
 #define GDT_CLASS(gdt)  ((gdt)->sc_class & GDT_CLASS_MASK)
     int sc_bus, sc_slot;
+    u_int16_t sc_vendor;
     u_int16_t sc_device, sc_subdevice;
     u_int16_t sc_fw_vers;
     int sc_init_level;
@@ -606,6 +650,7 @@ struct gdt_softc {
     u_int16_t sc_cache_feat;
 
     gdt_evt_data sc_dvr;
+    char oem_name[8];
 
     struct cam_sim *sims[GDT_MAXBUS];
     struct cam_path *paths[GDT_MAXBUS];
@@ -676,14 +721,14 @@ static __inline__ u_int16_t
 gdt_dec16(addr)
         u_int8_t *addr;
 {
-        return letoh16(*(u_int16_t *)addr);
+        return le16toh(*(u_int16_t *)addr);
 }
 
 static __inline__ u_int32_t
 gdt_dec32(addr)
         u_int8_t *addr;
 {
-        return letoh32(*(u_int32_t *)addr);
+        return le32toh(*(u_int32_t *)addr);
 }
 #endif
 
