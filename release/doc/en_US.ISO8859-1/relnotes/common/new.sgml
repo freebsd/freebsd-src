@@ -2853,7 +2853,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>gcc</application> has been updated to
 	a snapshot of the 2.95 development branch from 20 March 2002
 	(this snapshot includes changes made after the release of
-	<application>gcc</application>2.95.3).</para>
+	<application>gcc</application> 2.95.3).</para>
 
       <para>&man.gcc.1; now uses a unified <filename>libgcc</filename>
 	rather than a separate one for threaded and non-threaded
