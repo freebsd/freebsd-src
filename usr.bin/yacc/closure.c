@@ -32,22 +32,33 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)closure.c	5.3 (Berkeley) 5/24/93";
+static char const sccsid[] = "@(#)closure.c	5.3 (Berkeley) 5/24/93";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "defs.h"
 
 short *itemset;
 short *itemsetend;
 unsigned *ruleset;
 
+static void set_EFF __P((void));
+#ifdef DEBUG
+static void print_closure __P((int));
+static void print_EFF __P(());
+static void print_first_derives __P(());
+#endif
+
 static unsigned *first_derives;
 static unsigned *EFF;
 
 
+static void
 set_EFF()
 {
     register unsigned *row;
@@ -84,13 +95,14 @@ set_EFF()
 }
 
 
+void
 set_first_derives()
 {
     register unsigned *rrow;
     register unsigned *vrow;
     register int j;
     register unsigned k;
-    register unsigned cword;
+    register unsigned cword = 0;
     register short *rp;
 
     int rule;
@@ -139,6 +151,7 @@ set_first_derives()
 }
 
 
+void
 closure(nucleus, n)
 short *nucleus;
 int n;
@@ -209,6 +222,7 @@ int n;
 
 
 
+void
 finalize_closure()
 {
   FREE(itemset);
@@ -219,6 +233,7 @@ finalize_closure()
 
 #ifdef	DEBUG
 
+static void
 print_closure(n)
 int n;
 {
@@ -230,6 +245,7 @@ int n;
 }
 
 
+static void
 print_EFF()
 {
     register int i, j;
@@ -261,6 +277,7 @@ print_EFF()
 }
 
 
+static void
 print_first_derives()
 {
     register int i;
