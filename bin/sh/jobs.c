@@ -926,7 +926,8 @@ dowait(int block, struct job *job)
 	in_dowait--;
 	if (breakwaitcmd != 0) {
 		breakwaitcmd = 0;
-		return -1;
+		if (pid <= 0)
+			return -1;
 	}
 	if (pid <= 0)
 		return pid;
