@@ -41,6 +41,10 @@
 #	pc*	devices for stock pccons
 #	vty*	virtual console devices for syscons/pcvt/codrv
 # 
+# Pointing devices:
+#	mse*	Logitech and ATI Inport bus mouse
+#	psm*	PS/2 mouse
+#
 # Terminal ports:
 #	com*	standard PC COM ports (really makes tty* entries for com)
 #	sio*	fast interrupt PC COM ports (really makes tty* entries for sio)
@@ -62,7 +66,7 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #
-#	$Id: MAKEDEV,v 1.9 1993/09/30 20:18:59 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.10 1993/10/06 03:35:03 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -77,8 +81,8 @@ all)
 	sh MAKEDEV pty0 tty0 tty1 tty2 tty3 pc0 lpt0 lpt1 lpt2	# cdev
 	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
 	sh MAKEDEV speaker mse0 sio0 sio1 sio2 sio3		# cdev
-	# NOTE: co0 and vty04 is not done by a sh MAKEDEV all, rgrimes
-	#       these are for codrv and interfere with other stuff!
+	# NOTE: co0 and vty04 are not done by a "sh MAKEDEV all"
+	# these are for codrv and interfere with other devices! - rgrimes
 	;;
 std)
 	rm -f console drum mem kmem null tty klog stdin stdout stderr
@@ -351,6 +355,31 @@ sio*|tty*)
 	rm -f tty0$unit
 	mknod tty0$unit c 28 $unit
 	chown uucp.wheel tty0$unit
+	;;
+
+mse*)
+	unit=`expr $i : 'mse\(.*\)'`
+	chr=27
+	rm -f mse$unit
+	mknod mse$unit c $chr `expr $unit '*' 2 + 1`	# non-blocking for X11
+	chown root.wheel mse$unit
+	;;
+
+psm*)
+	unit=`expr $i : 'psm\(.*\)'`
+	chr=21
+	rm -f psm$unit
+	mknod psm$unit c $chr `expr $unit '*' 2 + 1`	# non-blocking for X11
+	chown root.wheel psm$unit
+	;;
+
+mouse*)
+	name=`expr $i : 'mouse-\(.*\)'`
+	if [ ! -c $name ]; then
+		$0 $name			# make the appropriate device
+	fi
+	rm -f mouse
+	ln -s $name mouse
 	;;
 
 local)
