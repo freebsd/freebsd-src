@@ -356,6 +356,7 @@ nfs/krpc_subr.c		optional bootp
 pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
 pccard/pcic.c		optional pcic device-driver
+pci/pcic_p.c		optional pcic device-driver
 pci/aic7870.c		optional ahc device-driver			\
 	dependency	"aic7xxx_reg.h $S/pci/aic7870.c"
 pci/brooktree848.c	optional bktr device-driver
