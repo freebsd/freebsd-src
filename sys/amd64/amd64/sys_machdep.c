@@ -55,6 +55,9 @@
 #include <machine/cpu.h>
 #include <machine/pcb_ext.h>	/* pcb.h included by sys/user.h */
 #include <machine/sysarch.h>
+#ifdef SMP
+#include <machine/smp.h>
+#endif
 
 #include <vm/vm_kern.h>		/* for kernel_map */
 
