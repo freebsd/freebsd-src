@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
+<!-- $Id: ports.sgml,v 1.2 1995/05/18 03:05:19 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports:"></heading>
@@ -148,7 +148,7 @@ third party, who is I believe aware of its shortcomings)
 <p>   There is a way around this. Before starting the compilation, type:
 <verb>
 	setenv BATCH yes # (if you use csh/tcsh) or
-	BATCH=yes # (for sh/bash)
+	BATCH=yes; export BATCH # (for sh/bash)
 </verb>
     This should miss out ports which need user interaction. Unfortunately,
 ncftp doesn't know about this trick, and can often screw up and ask
