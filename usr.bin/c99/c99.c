@@ -94,7 +94,7 @@ main(int argc, char *argv[])
 void
 addarg(const char *item)
 {
-	if (nargs + 1 > cargs) {
+	if (nargs + 1 >= cargs) {
 		cargs += 16;
 		if ((args = realloc(args, sizeof(*args) * cargs)) == NULL)
 			err(1, "malloc");
