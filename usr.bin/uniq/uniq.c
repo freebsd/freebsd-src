@@ -67,6 +67,7 @@ void	 show(FILE *, char *);
 char	*skip(char *);
 void	 obsolete(char *[]);
 static void	 usage(void);
+int      stricoll(char *, char*);
 
 int
 main (argc, argv)
@@ -151,9 +152,9 @@ main (argc, argv)
 
 		/* If different, print; set previous to new value. */
 		if (iflag)
-			comp = strcasecmp(t1, t2);
+			comp = stricoll(t1, t2);
 		else
-			comp = strcmp(t1, t2);
+			comp = strcoll(t1, t2);
 
 		if (comp) {
 			show(ofp, prevline);
@@ -250,4 +251,19 @@ usage()
 	(void)fprintf(stderr,
 "usage: uniq [-c | -d | -u] [-i] [-f fields] [-s chars] [input [output]]\n");
 	exit(1);
+}
+
+int
+stricoll(s1, s2)
+	char *s1, *s2;
+{
+	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
+
+	for (p = line1; *s1; s1++)
+		*p++ = tolower((unsigned char)*s1);
+	*p = '\0';
+	for (p = line2; *s2; s2++)
+		*p++ = tolower((unsigned char)*s2);
+	*p = '\0';
+	return strcoll(line1, line2);
 }
