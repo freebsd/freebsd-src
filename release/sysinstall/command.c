@@ -160,19 +160,24 @@ command_execute(void)
 	for (j = 0; j < commandStack[i]->ncmds; j++) {
 	    /* If it's a shell command, run system on it */
 	    if (commandStack[i]->cmds[j].type == CMD_SHELL) {
-		msgNotify("Doing %s", commandStack[i]->cmds[j].ptr);
+		msgNotify("Doing %s", (char *)commandStack[i]->cmds[j].ptr);
 		ret = vsystem("%s", (char *)commandStack[i]->cmds[j].ptr);
 		if (isDebug())
-		    msgDebug("Command `%s' returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
+		    msgDebug("Command `%s' returns status %d\n", 
+		        (char *)commandStack[i]->cmds[j].ptr, ret);
 	    }
 	    else {
-		/* It's a function pointer - call it with the key and the data */
+		/* It's a function pointer - call it with the key and
+                   the data */
 		func = (commandFunc)commandStack[i]->cmds[j].ptr;
 		if (isDebug())
-		    msgDebug("%x: Execute(%s, %s)", func, commandStack[i]->key, commandStack[i]->cmds[j].data);
+		    msgDebug("%p: Execute(%s, %s)", 
+		        func, commandStack[i]->key, 
+			(char *)commandStack[i]->cmds[j].data);
 		ret = (*func)(commandStack[i]->key, commandStack[i]->cmds[j].data);
 		if (isDebug())
-		    msgDebug("Function @ %x returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
+		    msgDebug("Function @ %p returns status %d\n", 
+		        commandStack[i]->cmds[j].ptr, ret);
 	    }
 	}
     }
