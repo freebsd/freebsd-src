@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pciconf.c,v 1.5 1997/10/06 11:38:30 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -135,24 +135,54 @@ list_devs(void)
 	struct pci_conf_io pc;
 	struct pci_conf conf[255], *p;
 
-	fd = open(_PATH_DEVPCI, O_RDONLY, 0);
+	fd = open(_PATH_DEVPCI, O_RDWR, 0);
 	if (fd < 0)
 		err(1, "%s", _PATH_DEVPCI);
 
-	pc.pci_len = sizeof(conf);
-	pc.pci_buf = conf;
+	bzero(&pc, sizeof(struct pci_conf_io));
+	pc.match_buf_len = sizeof(conf);
+	pc.matches = conf;
 
-	if (ioctl(fd, PCIOCGETCONF, &pc) < 0)
-		err(1, "ioctl(PCIOCGETCONF)");
+	do {
+		if (ioctl(fd, PCIOCGETCONF, &pc) == -1)
+			err(1, "ioctl(PCIOCGETCONF)");
+
+		/*
+		 * 255 entries should be more than enough for most people,
+		 * but if someone has more devices, and then changes things
+		 * around between ioctls, we'll do the cheezy thing and
+		 * just bail.  The alternative would be to go back to the
+		 * beginning of the list, and print things twice, which may
+		 * not be desireable.
+		 */
+		if (pc.status == PCI_GETCONF_LIST_CHANGED) {
+			warnx("PCI device list changed, please try again");
+			exitstatus = 1;
+			close(fd);
+			return;
+		} else if (pc.status ==  PCI_GETCONF_ERROR) {
+			warnx("Error returned from PCIOCGETCONF ioctl");
+			exitstatus = 1;
+			close(fd);
+			return;
+		}
+		for (p = conf; p < &conf[pc.num_matches]; p++) {
+			if ((p->pd_name == NULL) || (*p->pd_name == '\0'))
+				continue;
+
+			printf("%s%d@pci%d:%d:%d:\tclass=0x%06x card=0x%08lx "
+			       "chip=0x%08lx rev=0x%02x hdr=0x%02x\n", 
+			       p->pd_name, p->pd_unit, 
+			       p->pc_sel.pc_bus, p->pc_sel.pc_dev, 
+			       p->pc_sel.pc_func, (p->pc_class << 16) |
+			       (p->pc_subclass << 8) | p->pc_progif,
+			       (p->pc_subdevice << 16) | p->pc_subvendor,
+			       (p->pc_device << 16) | p->pc_vendor,
+			       p->pc_revid, p->pc_hdr);
+		}
+	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 
 	close(fd);
-
-	for (p = conf; p < &conf[pc.pci_len / sizeof conf[0]]; p++) {
-	    printf("pci%d:%d:%d:\tclass=0x%06x card=0x%08lx chip=0x%08lx rev=0x%02x hdr=0x%02x\n",
-		   p->pc_sel.pc_bus, p->pc_sel.pc_dev, p->pc_sel.pc_func, 
-		   p->pc_class >> 8, p->pc_subid,
-		   p->pc_devid, p->pc_class & 0xff, p->pc_hdr);
-	}
 }
 
 static struct pcisel
