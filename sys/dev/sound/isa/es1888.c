@@ -148,7 +148,7 @@ es1888_identify(driver_t *driver, device_t parent)
 	/*
 	 * Create the device and program its resources.
 	 */
-	dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNP, NULL, -1);
+	dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNPBIOS, NULL, -1);
 	bus_set_resource(dev, SYS_RES_IOPORT, 0, 0x220, 0x10);
 	bus_set_resource(dev, SYS_RES_IRQ, 0, 5, 1);
 	bus_set_resource(dev, SYS_RES_DRQ, 0, 1, 1);
