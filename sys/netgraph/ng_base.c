@@ -355,12 +355,11 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	}
 
 	/* Make a node and try attach it to the type */
-	MALLOC(node, node_p, sizeof(*node), M_NETGRAPH, M_NOWAIT);
+	MALLOC(node, node_p, sizeof(*node), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (node == NULL) {
 		TRAP_ERROR;
 		return (ENOMEM);
 	}
-	bzero(node, sizeof(*node));
 	node->type = type;
 	node->refs++;				/* note reference */
 	type->refs++;
@@ -674,12 +673,11 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 	}
 
 	/* Allocate the hook and link it up */
-	MALLOC(hook, hook_p, sizeof(*hook), M_NETGRAPH, M_NOWAIT);
+	MALLOC(hook, hook_p, sizeof(*hook), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (hook == NULL) {
 		TRAP_ERROR;
 		return (ENOMEM);
 	}
-	bzero(hook, sizeof(*hook));
 	hook->refs = 1;
 	hook->flags = HK_INVALID;
 	hook->node = node;

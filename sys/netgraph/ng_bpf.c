@@ -237,10 +237,9 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 	int error;
 
 	/* Create hook private structure */
-	MALLOC(hip, hinfo_p, sizeof(*hip), M_NETGRAPH, M_NOWAIT);
+	MALLOC(hip, hinfo_p, sizeof(*hip), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (hip == NULL)
 		return (ENOMEM);
-	bzero(hip, sizeof(*hip));
 	hip->hook = hook;
 	hook->private = hip;
 	hip->node = node;

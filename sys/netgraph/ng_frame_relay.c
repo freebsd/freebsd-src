@@ -218,10 +218,9 @@ ngfrm_constructor(node_p *nodep)
 	sc_p sc;
 	int error = 0;
 
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT);
+	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (!sc)
 		return (ENOMEM);
-	bzero(sc, sizeof(*sc));
 	if ((error = ng_make_node_common(&typestruct, nodep))) {
 		FREE(sc, M_NETGRAPH);
 		return (error);
