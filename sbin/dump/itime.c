@@ -162,9 +162,9 @@ getdumptime()
 			continue;
 		if (ddp->dd_level >= level)
 			continue;
-		if (ddp->dd_ddate <= spcl.c_ddate)
+		if (ddp->dd_ddate <= time32_to_time(spcl.c_ddate))
 			continue;
-		spcl.c_ddate = ddp->dd_ddate;
+		spcl.c_ddate = time_to_time32(ddp->dd_ddate);
 		lastlevel = ddp->dd_level;
 	}
 }
@@ -177,6 +177,7 @@ putdumptime()
 	register int i;
 	int fd;
 	char *fname;
+	char *tmsg;
 
 	if(uflag == 0)
 		return;
@@ -211,7 +212,7 @@ putdumptime()
   found:
 	(void) strncpy(dtwalk->dd_name, fname, sizeof (dtwalk->dd_name));
 	dtwalk->dd_level = level;
-	dtwalk->dd_ddate = spcl.c_date;
+	dtwalk->dd_ddate = time32_to_time(spcl.c_date);
 
 	ITITERATE(i, dtwalk) {
 		dumprecout(df, dtwalk);
@@ -221,8 +222,13 @@ putdumptime()
 	if (ftruncate(fd, ftell(df)))
 		quit("ftruncate (%s): %s\n", dumpdates, strerror(errno));
 	(void) fclose(df);
-	msg("level %c dump on %s", level,
-		spcl.c_date == 0 ? "the epoch\n" : ctime(&spcl.c_date));
+	if (spcl.c_date == 0) {
+		tmsg = "the epoch\n";
+	} else {
+		time_t t = time32_to_time(spcl.c_date);
+		tmsg = ctime(&t);
+	}
+	msg("level %c dump on %s", level, tmsg);
 }
 
 static void
