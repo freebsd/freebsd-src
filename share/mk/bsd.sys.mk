@@ -8,7 +8,7 @@
 
 # for GCC:  http://gcc.gnu.org/onlinedocs/gcc-3.0.4/gcc_3.html#IDX143
 
-CSTD		?=	c99
+CSTD		?=
 .if ${CSTD} != ""
 . if ${CSTD} == "k&r"
 CFLAGS		+=	-traditional
@@ -44,7 +44,7 @@ CFLAGS		+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-al
 #.  if ${WARNS} > 4
 # BDECFLAGS
 .  if ${WARNS} > 5
-.   if defined(CSTD)
+.   if ${CSTD} != ""
 CFLAGS		+=	-pedantic
 .   endif
 CFLAGS		+=	-Wbad-function-cast -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
