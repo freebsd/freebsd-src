@@ -334,6 +334,63 @@ to be supported by
 have been superseded by the
 .Xr pam_passwdqc 8
 PAM module.
+.Sh RESERVED CAPABILITIES
+The following capabilities are reserved for the purposes indicated and
+may be supported by third-party software.
+They are not implemented in the base system.
+.Bl -column host.accounted indent indent
+.It Sy "Name	Type	Notes	Description
+.It "accounted	bool	false	Enable session time accounting for all users
+in this class.
+.It "autodelete	time		Time after expiry when account is auto-deleted.
+.It "bootfull	bool	false	Enable 'boot only if ttygroup is full' strategy
+when terminating sessions.
+.It "daytime	time		Maximum login time per day.
+.It "expireperiod	time		Time for expiry allocation.
+.It "graceexpire 	time		Grace days for expired account.
+.It "gracetime	time		Additional grace login time allowed.
+.It "host.accounted	list		List of remote host wildcards from which
+login sessions will be accounted.
+.It "host.exempt 	list		List of remote host wildcards from which
+login session accounting is exempted.
+.It "idletime	time		Maximum idle time before logout.
+.It "minpasswordlen	number	6	The minimum length a local
+password may be.
+.It "mixpasswordcase	bool	true	Whether
+.Xr passwd 1
+will warn the user if an all lower case password is entered.
+.It "monthtime 	time		Maximum login time per month.
+.It "passwordtime	time		Used by
+.Xr passwd 1
+to set next password expiry date.
+.It "refreshtime 	time		New time allowed on account refresh.
+.It "refreshperiod	str		How often account time is refreshed.
+.It "sessiontime 	time		Maximum login time per session.
+.It "sessionlimit	number		Maximum number of concurrent
+login sessions on ttys in any group.
+.It "ttys.accounted	list		List of ttys and ttygroups for which
+login accounting is active.
+.It "ttys.exempt	list		List of ttys and ttygroups for which login accounting
+is exempt.
+.It "warntime	time		Advance notice for pending out-of-time.
+.It "weektime	time		Maximum login time per week.
+.El
+.Pp
+The
+.Em ttys.accounted
+and
+.Em ttys.exempt
+fields operate in a similar manner to
+.Em ttys.allow
+and
+.Em ttys.deny
+as explained
+above.
+Similarly with the
+.Em host.accounted
+and
+.Em host.exempt
+lists.
 .Sh SEE ALSO
 .Xr cap_mkdb 1 ,
 .Xr login 1 ,
