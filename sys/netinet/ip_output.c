@@ -574,14 +574,15 @@ sendit:
 				ip_fw_fwd_addr = dst;
 				if (m->m_pkthdr.rcvif == NULL)
 					m->m_pkthdr.rcvif = ifunit("lo0");
+				if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+					m->m_pkthdr.csum_flags |=
+					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+					m0->m_pkthdr.csum_data = 0xffff;
+				}
+				m->m_pkthdr.csum_flags |=
+				    CSUM_IP_CHECKED | CSUM_IP_VALID;
 				ip->ip_len = htons((u_short)ip->ip_len);
 				ip->ip_off = htons((u_short)ip->ip_off);
-				ip->ip_sum = 0;
-				if (ip->ip_vhl == IP_VHL_BORING) {
-					ip->ip_sum = in_cksum_hdr(ip);
-				} else {
-					ip->ip_sum = in_cksum(m, hlen);
-				}
 				ip_input(m);
 				goto done;
 			}
