@@ -438,22 +438,33 @@ quotaon(p, mp, type, fname)
 	 * adding references to quota file being opened.
 	 * NB: only need to add dquot's for inodes being modified.
 	 */
+	mtx_lock(&mntvnode_mtx);
 again:
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nextvp) {
-		nextvp = LIST_NEXT(vp, v_mntvnodes);
-		if (vp->v_type == VNON || vp->v_writecount == 0)
-			continue;
-		if (vget(vp, LK_EXCLUSIVE, p))
+		if (vp->v_mount != mp)
 			goto again;
-		error = getinoquota(VTOI(vp));
-		if (error) {
-			vput(vp);
-			break;
+		nextvp = LIST_NEXT(vp, v_mntvnodes);
+		
+		mtx_unlock(&mntvnode_mtx);
+		mtx_lock(&vp->v_interlock);
+		if (vp->v_type == VNON || vp->v_writecount == 0) {
+			mtx_unlock(&vp->v_interlock);
+			mtx_lock(&mntvnode_mtx);
+			continue;
 		}
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
+			mtx_lock(&mntvnode_mtx);
+			goto again;
+		}
+		error = getinoquota(VTOI(vp));
 		vput(vp);
-		if (LIST_NEXT(vp, v_mntvnodes) != nextvp || vp->v_mount != mp)
+		mtx_lock(&mntvnode_mtx);
+		if (error)
+			break;
+		if (LIST_NEXT(vp, v_mntvnodes) != nextvp)
 			goto again;
 	}
+	mtx_unlock(&mntvnode_mtx);
 	ump->um_qflags[type] &= ~QTF_OPENING;
 	if (error)
 		quotaoff(p, mp, type);
@@ -483,21 +494,34 @@ quotaoff(p, mp, type)
 	 * Search vnodes associated with this mount point,
 	 * deleting any references to quota file being closed.
 	 */
+	mtx_lock(&mntvnode_mtx);
 again:
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nextvp) {
-		nextvp = LIST_NEXT(vp, v_mntvnodes);
-		if (vp->v_type == VNON)
-			continue;
-		if (vget(vp, LK_EXCLUSIVE, p))
+		if (vp->v_mount != mp)
 			goto again;
+		nextvp = LIST_NEXT(vp, v_mntvnodes);
+
+		mtx_unlock(&mntvnode_mtx);
+		mtx_lock(&vp->v_interlock);
+		if (vp->v_type == VNON) {
+			mtx_unlock(&vp->v_interlock);
+			mtx_lock(&mntvnode_mtx);
+			continue;
+		}
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
+			mtx_lock(&mntvnode_mtx);
+			goto again;
+		}
 		ip = VTOI(vp);
 		dq = ip->i_dquot[type];
 		ip->i_dquot[type] = NODQUOT;
 		dqrele(vp, dq);
 		vput(vp);
-		if (LIST_NEXT(vp, v_mntvnodes) != nextvp || vp->v_mount != mp)
+		mtx_lock(&mntvnode_mtx);
+		if (LIST_NEXT(vp, v_mntvnodes) != nextvp)
 			goto again;
 	}
+	mtx_unlock(&mntvnode_mtx);
 	dqflush(qvp);
 	qvp->v_flag &= ~VSYSTEM;
 	error = vn_close(qvp, FREAD|FWRITE, p->p_ucred, p);
@@ -675,10 +699,13 @@ again:
 		if (vp->v_mount != mp)
 			goto again;
 		nextvp = LIST_NEXT(vp, v_mntvnodes);
-		if (vp->v_type == VNON)
-			continue;
-		mtx_lock(&vp->v_interlock);
 		mtx_unlock(&mntvnode_mtx);
+		mtx_lock(&vp->v_interlock);
+		if (vp->v_type == VNON) {
+			mtx_unlock(&vp->v_interlock);
+			mtx_lock(&mntvnode_mtx);
+			continue;
+		}
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
 		if (error) {
 			mtx_lock(&mntvnode_mtx);
