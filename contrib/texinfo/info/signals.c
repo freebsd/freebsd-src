@@ -1,6 +1,6 @@
 /* signals.c -- install and maintain Info signal handlers.
    $Id: signals.c,v 1.4 2003/01/29 19:23:22 karl Exp $
-   $FreeBSD$
+   $FreeBSD: src/contrib/texinfo/info/signals.c,v 1.7 2003/05/02 00:50:59 ru Exp $
 
    Copyright (C) 1993, 1994, 1995, 1998, 2002, 2003 Free Software
    Foundation, Inc.

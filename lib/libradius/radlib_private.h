@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libradius/radlib_private.h,v 1.5 2002/05/07 10:47:18 brian Exp $
  */
 
 #ifndef RADLIB_PRIVATE_H

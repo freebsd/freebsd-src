@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/lca_pci.c,v 1.15 2002/04/17 14:08:22 ticso Exp $
  */
 
 #include <sys/param.h>

@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	from named.restart	5.4 (Berkeley) 6/27/89
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/named.restart/named.restart.sh,v 1.4 2001/06/14 04:34:40 dd Exp $
 #
 
 if [ -r /etc/defaults/rc.conf ]; then

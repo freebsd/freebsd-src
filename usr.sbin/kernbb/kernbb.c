@@ -9,7 +9,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/kernbb/kernbb.c,v 1.15 2003/05/03 21:06:37 obrien Exp $");
 
 #include <err.h>
 #include <fcntl.h>

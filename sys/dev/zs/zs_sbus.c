@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/zs/zs_sbus.c,v 1.3 2003/02/19 08:29:17 jake Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-// $FreeBSD$
+// $FreeBSD: src/gnu/lib/libstdc++/c++config.h,v 1.5 2003/04/29 18:10:45 kan Exp $
 
 // Predefined symbols and macros -*- C++ -*-
 

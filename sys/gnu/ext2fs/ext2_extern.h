@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/ext2fs/ext2_extern.h,v 1.29 2002/05/18 22:18:17 iedowse Exp $
  */
 
 #ifndef _SYS_GNU_EXT2FS_EXT2_EXTERN_H_

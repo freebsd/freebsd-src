@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/17/94
-# $FreeBSD$
+# $FreeBSD: src/sbin/bsdlabel/Makefile,v 1.18 2003/05/23 06:08:28 peter Exp $
 
 .PATH: ${.CURDIR}/../../sys/geom
 

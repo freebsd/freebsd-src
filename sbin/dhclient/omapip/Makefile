@@ -1,5 +1,5 @@
 # omapip
-# $FreeBSD$
+# $FreeBSD: src/sbin/dhclient/omapip/Makefile,v 1.3 2002/05/13 11:09:06 ru Exp $
 
 DIST_DIR= ${.CURDIR}/../../../contrib/isc-dhcp
 

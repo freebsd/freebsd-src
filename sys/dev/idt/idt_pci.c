@@ -35,7 +35,7 @@
  *   Copyright (c) 1996, 1997, 1998, 1999 Mark Tinguely
  *   All rights reserved.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/idt/idt_pci.c,v 1.2 2002/10/02 04:47:46 mdodd Exp $
  */
 
 #include <sys/param.h>

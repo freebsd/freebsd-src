@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libthr/arch/i386/i386/_curthread.S,v 1.1 2003/04/01 03:46:28 jeff Exp $
 
 #include <machine/asm.h>
 

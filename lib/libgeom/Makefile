@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libgeom/Makefile,v 1.6 2003/05/17 19:05:17 ru Exp $
 
 LIB=	geom
 SRCS+=	geom_getxml.c

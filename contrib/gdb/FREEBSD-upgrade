@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/gdb/FREEBSD-upgrade,v 1.2 2002/10/12 21:33:49 mp Exp $
 
 To strip down a new version of gdb for import, extract
 the files like this:

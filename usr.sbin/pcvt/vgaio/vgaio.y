@@ -33,7 +33,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/usr.sbin/pcvt/vgaio/vgaio.y,v 1.6 2002/09/17 17:59:51 mike Exp $"
 
 /*
  * $Log: vgaio.y,v $

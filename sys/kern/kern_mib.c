@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_mib.c,v 1.65 2003/04/30 12:57:39 markm Exp $
  */
 
 #include "opt_posix.h"

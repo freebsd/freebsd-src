@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/driver-desc.awk,v 1.1 2002/12/09 16:13:37 murray Exp $
 # 
 
 # This script creates the DRIVERS.TXT manifest so users know exactly what

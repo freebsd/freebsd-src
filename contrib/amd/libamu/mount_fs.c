@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: mount_fs.c,v 1.11.2.5 2001/04/14 21:08:25 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/libamu/mount_fs.c,v 1.5 2001/09/02 19:14:18 obrien Exp $
  *
  */
 

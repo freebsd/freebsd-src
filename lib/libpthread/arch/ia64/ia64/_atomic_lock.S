@@ -23,12 +23,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/arch/ia64/ia64/_atomic_lock.S,v 1.1 2002/07/20 19:22:10 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$FreeBSD$"
+	.asciz "$FreeBSD: src/lib/libpthread/arch/ia64/ia64/_atomic_lock.S,v 1.1 2002/07/20 19:22:10 peter Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include <machine/asm.h>

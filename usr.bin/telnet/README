@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/telnet/README,v 1.5 2002/07/13 22:47:40 jmallett Exp $
 
 This is a distribution of both client and server telnet.  These programs
 have been compiled on:

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_run.c,v 1.22 2002/06/23 20:03:03 mux Exp $
  */
 
 /*

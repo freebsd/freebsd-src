@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_aal5.c,v 1.16 2002/05/31 11:52:31 tanimura Exp $
  *
  */
 
@@ -57,7 +57,7 @@
 #include <netatm/atm_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/atm_aal5.c,v 1.16 2002/05/31 11:52:31 tanimura Exp $");
 #endif
 
 

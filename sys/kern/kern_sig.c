@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_sig.c,v 1.239 2003/05/16 01:34:23 obrien Exp $
  */
 
 #include "opt_compat.h"

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rarpd/Makefile,v 1.12 2001/07/20 06:20:16 obrien Exp $
 
 PROG=	rarpd
 MAN=	rarpd.8

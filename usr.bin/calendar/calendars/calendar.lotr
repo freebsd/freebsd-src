@@ -1,7 +1,7 @@
 /*
  * Lord Of The Rings
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.lotr,v 1.1 2003/02/15 10:57:20 seanc Exp $
  */
 
 #ifndef _calendar_lotr_

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_sig.c,v 1.45 2003/03/05 04:28:08 marcel Exp $
  */
 #include <sys/param.h>
 #include <sys/types.h>

@@ -26,7 +26,7 @@
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/radeon_drv.c,v 1.6 2003/04/25 01:18:46 anholt Exp $
  */
 
 #include "dev/drm/radeon.h"

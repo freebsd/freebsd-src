@@ -3,7 +3,7 @@
  *
  * $OpenBSD: uthread_msync.c,v 1.2 1999/06/09 07:16:17 d Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_msync.c,v 1.8 2003/04/18 05:04:16 deischen Exp $
  */
 
 #include <sys/types.h>

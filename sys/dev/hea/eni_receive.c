@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hea/eni_receive.c,v 1.14 2003/03/04 23:19:54 jlemon Exp $
  *
  */
 
@@ -61,7 +61,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hea/eni_receive.c,v 1.14 2003/03/04 23:19:54 jlemon Exp $");
 #endif
 
 static void	eni_recv_stack(void *, KBuffer *);

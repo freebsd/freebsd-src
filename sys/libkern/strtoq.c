@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/strtoq.c,v 1.4 2003/04/29 13:36:04 kan Exp $
  */
 
 #include <sys/param.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rune.h	8.1 (Berkeley) 6/27/93
- * $FreeBSD$
+ * $FreeBSD: src/include/rune.h,v 1.3 2002/09/06 04:22:54 mike Exp $
  */
 
 #ifndef	_RUNE_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/alpha/pci/swiz.c,v 1.1 2000/08/28 21:48:03 dfr Exp $
  */
 
 #include <sys/param.h>

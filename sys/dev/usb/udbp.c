@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/usb/udbp.c,v 1.21 2003/03/15 13:03:30 takawata Exp $
  */
 
 /* Driver for arbitrary double bulk pipe devices.

@@ -31,7 +31,7 @@
 /* For binary compat; to be removed in FreeBSD 6.0. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/gen/isinf.c,v 1.4 2003/02/12 20:03:41 mike Exp $");
 
 #include <sys/types.h>
 #include <machine/ieee.h>

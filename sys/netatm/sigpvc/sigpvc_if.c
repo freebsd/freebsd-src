@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/sigpvc/sigpvc_if.c,v 1.14 2002/05/24 00:38:25 arr Exp $
  *
  */
 
@@ -70,7 +70,7 @@
 #include <vm/uma.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/sigpvc/sigpvc_if.c,v 1.14 2002/05/24 00:38:25 arr Exp $");
 #endif
 
 

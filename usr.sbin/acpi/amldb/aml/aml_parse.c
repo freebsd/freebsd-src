@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: aml_parse.c,v 1.32 2000/08/12 15:20:45 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/amldb/aml/aml_parse.c,v 1.7 2001/10/23 14:54:15 takawata Exp $
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/fp_emulate.c,v 1.11 2001/09/12 08:36:53 julian Exp $
  */
 
 #include <sys/param.h>

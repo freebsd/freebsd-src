@@ -1,5 +1,5 @@
 \ Loader.rc
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/forth/loader.rc,v 1.2 1999/11/24 17:59:37 dcs Exp $
 \
 \ Includes additional commands
 include /boot/loader.4th

@@ -9,7 +9,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/sendmail/src/headers.c,v 1.16 2003/03/29 19:18:07 gshapiro Exp $
  *
  */
 

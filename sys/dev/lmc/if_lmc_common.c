@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/lmc/if_lmc_common.c,v 1.4 2002/06/02 20:05:44 schweikh Exp $
  *      From NetBSD: if_de.c,v 1.56.2.1 1997/10/27 02:13:25 thorpej Exp
  *	$Id: if_lmc_common.c,v 1.12 1999/03/01 15:22:37 explorer Exp $
  */

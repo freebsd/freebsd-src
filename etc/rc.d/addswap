@@ -2,7 +2,7 @@
 #
 # Add additional swap files
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/addswap,v 1.2 2002/10/12 10:31:31 schweikh Exp $
 #
 
 # PROVIDE: addswap

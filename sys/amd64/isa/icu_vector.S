@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/isa/icu_vector.S,v 1.39 2003/05/12 02:37:29 peter Exp $
  */
 
 #define	IRQ_BIT(irq_num)	(1 << ((irq_num) % 8))

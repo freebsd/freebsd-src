@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/pc/vesa.h,v 1.2 2002/09/23 18:54:31 alfred Exp $
  * from: i386/include/pc vesa.h,v 1.1
  */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/mount.h,v 1.147 2003/03/26 22:15:58 tegge Exp $
  */
 
 #ifndef _SYS_MOUNT_H_

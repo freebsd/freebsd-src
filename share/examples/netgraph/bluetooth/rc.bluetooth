@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 #
 # $Id: rc.bluetooth,v 1.5 2003/03/30 04:03:16 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/share/examples/netgraph/bluetooth/rc.bluetooth,v 1.1 2003/05/10 21:53:43 julian Exp $
 #
 
            logger="/usr/bin/logger -i -s -p user.err"

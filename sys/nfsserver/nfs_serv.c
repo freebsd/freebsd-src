@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsserver/nfs_serv.c,v 1.134 2003/05/25 06:17:33 truckman Exp $");
 
 /*
  * nfs version 2 and 3 server calls to vnode ops

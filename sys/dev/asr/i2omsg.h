@@ -76,7 +76,7 @@
  * Developer of the I2O SIG, sign up at the Web site or call 415.750.8352
  * (United States).
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/asr/i2omsg.h,v 1.6 2002/05/14 21:59:10 obrien Exp $
  *
  ****************************************************************/
 

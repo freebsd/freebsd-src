@@ -15,7 +15,7 @@
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/cx.c,v 1.56 2003/03/03 16:24:45 phk Exp $
  *
  */
 #undef DEBUG

@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsclient/nfs_vfsops.c,v 1.135 2003/05/19 22:35:00 peter Exp $");
 
 #include "opt_bootp.h"
 #include "opt_nfsroot.h"

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/ed/glbl.c,v 1.13 2002/06/30 05:13:53 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

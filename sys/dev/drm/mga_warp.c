@@ -26,7 +26,7 @@
  * Authors:
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mga_warp.c,v 1.4 2003/03/09 02:08:28 anholt Exp $
  */
 
 #define __NO_VERSION__

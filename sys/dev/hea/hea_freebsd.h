@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hea/hea_freebsd.h,v 1.1 2002/06/03 09:16:52 mdodd Exp $
  */
 
 struct hea_softc {

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/gnu/ext2fs/alpha-bitops.h,v 1.1 2000/12/09 22:32:49 mjacob Exp $ */
 #ifndef _ALPHA_BITOPS_H
 #define _ALPHA_BITOPS_H
 

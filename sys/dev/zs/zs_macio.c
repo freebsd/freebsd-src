@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/zs/zs_macio.c,v 1.1 2003/02/01 07:23:47 benno Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.3 2003/03/24 23:59:49 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/bluetooth/btsockstat/Makefile,v 1.2 2003/05/10 21:44:42 julian Exp $
 
 PROG=		btsockstat
 BINGRP=		kmem

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/12/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/netstat/Makefile,v 1.20 2003/03/05 19:20:28 peter Exp $
 
 PROG=	netstat
 SRCS=	if.c inet.c inet6.c main.c mbuf.c mroute.c ipx.c route.c \

@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/amr/amr.c,v 1.46 2003/04/01 15:06:22 phk Exp $
  */
 
 /*

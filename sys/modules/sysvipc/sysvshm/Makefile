@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sysvipc/sysvshm/Makefile,v 1.4 2001/10/10 23:06:53 ps Exp $
 
 .PATH: ${.CURDIR}/../../../kern
 

@@ -7,7 +7,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ctxreg.h,v 1.5 1999/08/28 00:44:39 peter Exp $
  */
 
 /*

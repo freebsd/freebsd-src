@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/fix_grouping.c,v 1.7 2002/03/22 21:52:18 obrien Exp $");
 
 #include <ctype.h>
 #include <limits.h>

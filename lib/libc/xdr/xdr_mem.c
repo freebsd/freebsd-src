@@ -34,7 +34,7 @@ static char *sccsid = "@(#)xdr_mem.c 1.19 87/08/11 Copyr 1984 Sun Micro";
 static char *sccsid = "@(#)xdr_mem.c	2.1 88/07/29 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/xdr/xdr_mem.c,v 1.12 2003/03/07 13:19:40 nectar Exp $");
 
 /*
  * xdr_mem.h, XDR implementation using memory buffers.

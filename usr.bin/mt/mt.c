@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/mt/mt.c,v 1.33 2002/10/15 12:53:29 joerg Exp $");
 
 /*
  * mt --

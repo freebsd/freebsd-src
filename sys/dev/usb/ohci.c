@@ -1,5 +1,5 @@
 /*	$NetBSD: ohci.c,v 1.125 2002/05/28 12:42:38 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ohci.c,v 1.118 2003/03/05 13:17:15 shiba Exp $	*/
 
 /* Also, already ported:
  *	$NetBSD: ohci.c,v 1.127 2002/08/07 20:03:19 augustss Exp $

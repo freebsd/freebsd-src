@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/Makefile,v 1.9 2003/03/14 09:01:22 ru Exp $
 
 NOOBJ=	noobj
 FILES=	README ftpd gdm imap kde login other passwd pop3 \

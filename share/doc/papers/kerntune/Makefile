@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	1.5 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/kerntune/Makefile,v 1.7 2002/10/29 15:01:55 ru Exp $
 
 VOLUME=		papers
 DOC=		kerntune

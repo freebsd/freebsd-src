@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/bios/smapi_bios.S,v 1.2 2003/01/18 04:36:12 mdodd Exp $ */
 
 #include <machine/asmacros.h>
 

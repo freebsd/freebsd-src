@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/bde/g_bde_lock.c,v 1.11 2003/04/03 11:33:51 phk Exp $
  *
  * This souce file contains routines which operates on the lock sectors, both
  * for the kernel and the userland program gbde(1).

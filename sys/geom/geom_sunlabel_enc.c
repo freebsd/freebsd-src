@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_sunlabel_enc.c,v 1.2 2003/04/21 19:42:36 phk Exp $
  *
  * Functions to encode or decode struct sun_disklabel into a bytestream
  * of correct endianess and packing.

@@ -36,7 +36,7 @@
 .\"
 .\"	@(#)m5	8.1 (Berkeley) 8/14/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/usd/21.troff/m5,v 1.3 2002/05/20 13:52:35 ru Exp $
 .ds H T
 .tr |
 .tr ~|

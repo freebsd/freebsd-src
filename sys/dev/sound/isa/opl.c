@@ -40,7 +40,7 @@
  * This handles io against /dev/midi, the midi {in, out}put event queues
  * and the event/message operation to the OPL chip.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/opl.c,v 1.9 2002/04/04 21:03:16 jhb Exp $
  *
  */
 

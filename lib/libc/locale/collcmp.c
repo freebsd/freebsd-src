@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/collcmp.c,v 1.14 2002/03/22 21:52:18 obrien Exp $");
 
 #define ASCII_COMPATIBLE_COLLATE        /* see share/colldef */
 

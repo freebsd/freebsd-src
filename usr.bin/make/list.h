@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)list.h	8.2 (Berkeley) 4/28/95
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/list.h,v 1.11 2002/09/17 21:29:06 jmallett Exp $
  */
 
 /*

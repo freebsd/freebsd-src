@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/Makefile,v 1.16 2003/04/30 22:13:36 peter Exp $
 
 .if ${MACHINE_ARCH} == "amd64"
 MACHINE_ARCH=i386

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/mcbus/mcmem.c,v 1.1 2000/05/07 04:53:04 mjacob Exp $ */
 
 /*
  * Copyright (c) 2000 by Matthew Jacob

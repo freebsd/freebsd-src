@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sbin/atm/atm/atm_subr.c,v 1.6 2002/06/07 05:25:10 mdodd Exp $
  *
  */
 
@@ -56,7 +56,7 @@
 #include "atm.h"
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sbin/atm/atm/atm_subr.c,v 1.6 2002/06/07 05:25:10 mdodd Exp $");
 #endif
 
 

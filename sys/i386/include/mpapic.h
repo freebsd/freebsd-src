@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/mpapic.h,v 1.17 2001/04/10 22:18:20 jhb Exp $
  */
 
 #ifndef _MACHINE_MPAPIC_H_

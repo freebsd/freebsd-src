@@ -22,7 +22,7 @@
  *	- pool/pool dependancy ordering cannot be depended on.
  *	- possible L1 cache mastersip contention between cpus
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_mtxpool.c,v 1.5 2002/04/04 21:03:26 jhb Exp $
  */
 
 #include <sys/param.h>

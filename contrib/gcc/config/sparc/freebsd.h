@@ -18,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/sparc/freebsd.h,v 1.5 2002/12/05 18:40:24 obrien Exp $ */
 
 /* FreeBSD needs the platform name (sparc64) defined.
    Emacs needs to know if the arch is 64 or 32-bits.  */

@@ -2,7 +2,7 @@
 # OLDCARD -- Generic kernel configuration file for FreeBSD/i386
 #            using the OLDCARD pccard system.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/OLDCARD,v 1.18 2003/02/15 02:39:13 ru Exp $
 
 include GENERIC
 

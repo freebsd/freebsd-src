@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/security/proc_to_proc/Makefile,v 1.2 2001/04/11 20:23:23 rwatson Exp $
 
 PROG=	testuid
 NOMAN=	yes

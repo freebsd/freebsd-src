@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/trap.c,v 1.259.2.1 2003/06/02 21:57:08 peter Exp $
  */
 
 /*

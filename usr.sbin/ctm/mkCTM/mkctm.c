@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/ctm/mkCTM/mkctm.c,v 1.10 2000/12/09 09:35:43 obrien Exp $ */
 
 /* Still missing:
  *

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ipresend/Makefile,v 1.10 2001/07/20 06:19:51 obrien Exp $
 
 MAINTAINER=	guido@freebsd.org
 

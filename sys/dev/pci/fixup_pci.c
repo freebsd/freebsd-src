@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/pci/fixup_pci.c,v 1.3 2001/06/03 09:45:40 peter Exp $
  */
 
 #include <sys/param.h>

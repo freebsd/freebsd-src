@@ -24,7 +24,7 @@
  *
  * capi/capi_l4if.c	The CAPI i4b L4/device interface.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/capi/capi_l4if.c,v 1.5 2002/09/02 00:52:05 brooks Exp $
  */
 
 #include <sys/param.h>

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vx/if_vx_pci.c,v 1.23 2003/04/15 06:37:28 mdodd Exp $
  */
 
 #include <sys/param.h>

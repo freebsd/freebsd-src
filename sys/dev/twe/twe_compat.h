@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/twe/twe_compat.h,v 1.7 2003/03/15 12:16:33 phk Exp $
  */
 /*
  * Portability and compatibility interfaces.

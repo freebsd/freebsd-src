@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/bios/smbios.c,v 1.1 2003/03/24 19:32:57 mdodd Exp $
  */
 
 #include <sys/param.h>

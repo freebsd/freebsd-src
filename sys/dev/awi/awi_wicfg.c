@@ -1,5 +1,5 @@
 /*	$NetBSD: awi_wicfg.c,v 1.3 2000/07/06 17:22:25 onoe Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/awi/awi_wicfg.c,v 1.8 2002/04/19 22:28:09 imp Exp $ */
 
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.

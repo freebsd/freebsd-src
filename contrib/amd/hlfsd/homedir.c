@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: homedir.c,v 1.5.2.1 2001/01/10 03:23:36 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/hlfsd/homedir.c,v 1.5 2001/09/02 18:46:35 obrien Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>

@@ -54,7 +54,7 @@
  *
  *	from: $NetBSD: ofw_machdep.c,v 1.16 2001/07/20 00:07:14 eeh Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/ofw_bus.c,v 1.6 2003/05/30 20:48:05 tmm Exp $
  */
 
 /*

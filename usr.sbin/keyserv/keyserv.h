@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/keyserv/keyserv.h,v 1.2 2001/03/22 04:31:30 alfred Exp $
  */
 extern void setmodulus __P((char *modx));
 

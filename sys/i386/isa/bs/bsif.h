@@ -1,5 +1,5 @@
 /*	$NecBSD: bsif.h,v 1.5 1997/10/23 20:52:34 honda Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/isa/bs/bsif.h,v 1.22 2003/04/16 20:52:26 phk Exp $ */
 /*
  * Copyright (c) HONDA Naofumi, KATO Takenori, 1996.  All rights reserved.
  * 

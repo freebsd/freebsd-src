@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/brandelf/brandelf.c,v 1.23 2002/06/02 20:05:57 schweikh Exp $");
 
 #include <sys/types.h>
 #include <sys/elf_common.h>

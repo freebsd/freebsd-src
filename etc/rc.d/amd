@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: amd,v 1.10 2002/04/29 12:08:17 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/amd,v 1.9 2002/10/12 10:31:31 schweikh Exp $
 #
 
 # PROVIDE: amd

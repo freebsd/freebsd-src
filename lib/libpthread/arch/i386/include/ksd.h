@@ -26,7 +26,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/arch/i386/include/ksd.h,v 1.3 2003/04/23 21:49:34 deischen Exp $
  */
 
 #ifndef	_KSD_H_

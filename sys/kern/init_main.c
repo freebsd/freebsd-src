@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/init_main.c,v 1.231 2003/05/13 20:35:59 jhb Exp $
  */
 
 #include "opt_init_path.h"

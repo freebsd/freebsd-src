@@ -31,7 +31,7 @@
  * and may only be used by libgeom.  Applications wishing to interact with
  * the geom subsystem must use libgeoms published APIs.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_ext.h,v 1.4 2003/03/27 14:34:59 phk Exp $
  */
 
 #ifndef _GEOM_GEOM_EXT_H_

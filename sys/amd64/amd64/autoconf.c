@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/autoconf.c,v 1.173 2003/05/01 01:05:21 peter Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/dec_kn300.c,v 1.9 2002/08/22 19:52:16 peter Exp $ */
 
 /*
  * Copyright (c) 2000 by Matthew Jacob

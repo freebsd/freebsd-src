@@ -18,7 +18,7 @@
  * arising in any way out of the use of this driver software, even if advised
  * of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/asr/osd_unix.h,v 1.8 2002/05/14 21:59:10 obrien Exp $
  */
 
 #ifndef		__OSD_UNIX_H

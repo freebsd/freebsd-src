@@ -64,7 +64,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/bge/if_bge.c,v 1.41 2003/05/21 07:00:49 ps Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

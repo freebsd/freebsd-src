@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/usb/Makefile,v 1.12 2003/04/14 14:04:08 ticso Exp $ 
 
 MAINTAINER=	n_hibma@freebsd.org
 

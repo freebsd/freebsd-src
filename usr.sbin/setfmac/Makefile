@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/setfmac/Makefile,v 1.5 2003/04/04 17:49:19 obrien Exp $
 
 PROG=   setfmac
 LINKS=	${BINDIR}/setfmac ${BINDIR}/setfsmac

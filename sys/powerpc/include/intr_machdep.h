@@ -22,7 +22,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/intr_machdep.h,v 1.2 2003/02/01 07:20:36 benno Exp $
  */
 
 #ifndef	_MACHINE_INTR_MACHDEP_H_

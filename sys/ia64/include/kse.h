@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/kse.h,v 1.1 2002/06/29 18:07:50 julian Exp $
  */
 
 #ifndef _MACHINE_KSE_H_

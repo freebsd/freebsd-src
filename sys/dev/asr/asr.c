@@ -103,7 +103,7 @@
  *			use proprietary packet creation instead of scsi_inquire
  *			CAM layer sends synchronize commands.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/asr/asr.c,v 1.34 2003/04/16 20:46:30 phk Exp $
  */
 
 #define	ASR_VERSION	1

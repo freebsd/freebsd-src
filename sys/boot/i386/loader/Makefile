@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/loader/Makefile,v 1.65 2003/05/31 05:25:17 scottl Exp $
 
 PROG=		loader
 STRIP=

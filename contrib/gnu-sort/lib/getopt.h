@@ -15,7 +15,7 @@
    along with this program; if not, write to the Free Software
    Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gnu-sort/lib/getopt.h,v 1.1.1.1 2002/06/08 07:47:23 ache Exp $ */
 
 #ifndef _GETOPT_H
 #define _GETOPT_H 1

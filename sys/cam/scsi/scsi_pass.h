@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_pass.h,v 1.4 2001/03/27 05:45:11 ken Exp $
  */
 
 #ifndef _SCSI_PASS_H

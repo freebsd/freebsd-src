@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)telnetd.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/libexec/telnetd/telnetd.h,v 1.2 2001/11/30 22:03:20 markm Exp $
  */
 
 

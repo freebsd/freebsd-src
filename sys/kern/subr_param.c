@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_param.c,v 1.55 2002/08/30 04:04:35 peter Exp $
  */
 
 #include "opt_param.h"

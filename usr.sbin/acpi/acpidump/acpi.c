@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: acpi.c,v 1.4 2000/08/09 14:47:52 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/acpidump/acpi.c,v 1.7 2003/04/15 05:15:50 njl Exp $
  */
 
 #include <sys/param.h>

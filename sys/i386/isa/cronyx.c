@@ -12,7 +12,7 @@
  * all derivative works or modified versions.
  *
  * Version 1.6, Wed May 31 16:03:20 MSD 1995
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/cronyx.c,v 1.11 2000/05/01 20:02:26 peter Exp $
  */
 #if defined (MSDOS) || defined (__MSDOS__)
 #   include <string.h>

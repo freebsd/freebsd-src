@@ -38,7 +38,7 @@
 	.asciz "@(#)alloca.s	5.2 (Berkeley) 5/14/90"
 #endif /* LIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/gen/alloca.S,v 1.10 2002/03/23 02:44:18 obrien Exp $");
 
 
 /* like alloc, but automatic automatic free in return */

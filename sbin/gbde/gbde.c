@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/gbde/gbde.c,v 1.13 2003/04/14 09:36:39 phk Exp $
  */
 
 #include <sys/types.h>

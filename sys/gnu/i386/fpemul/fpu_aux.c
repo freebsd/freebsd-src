@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/fpu_aux.c,v 1.14 2002/03/02 11:14:13 bde Exp $
  *
  */
 

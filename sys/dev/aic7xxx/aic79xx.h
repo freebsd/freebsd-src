@@ -39,7 +39,7 @@
  *
  * $Id: aic79xx.h,v 1.11 2003/05/26 21:10:58 gibbs Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic79xx.h,v 1.12 2003/05/30 02:14:22 scottl Exp $
  */
 
 #ifndef _AIC79XX_H_

@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/md5/md5.c,v 1.30 2003/05/03 18:41:58 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/time.h>

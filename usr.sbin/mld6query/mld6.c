@@ -1,5 +1,5 @@
 /*	$KAME: mld6.c,v 1.11 2001/05/13 15:45:07 suz Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/mld6query/mld6.c,v 1.2 2001/06/11 12:39:16 ume Exp $	*/
 
 /*
  * Copyright (C) 1998 WIDE Project.

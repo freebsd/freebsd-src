@@ -30,7 +30,7 @@ static char *RCSid = "@(#) $Id: atm_addr.c,v 1.1 1998/07/09 21:45:18 johnc Exp $
 #endif
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libatm/atm_addr.c,v 1.10 2003/04/20 18:41:16 obrien Exp $");
 
 /*
  * User Space Library Functions

@@ -35,7 +35,7 @@
  *
  * See if_ie.c for applicable license.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ie/if_ie_isa.c,v 1.1 2003/03/29 13:36:41 mdodd Exp $
  */
 
 #include <sys/param.h>

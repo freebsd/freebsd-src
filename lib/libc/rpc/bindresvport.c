@@ -35,7 +35,7 @@
 /*from: OpenBSD: bindresvport.c,v 1.7 1996/07/30 16:25:47 downsj Exp */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/bindresvport.c,v 1.15 2002/03/22 23:18:36 obrien Exp $");
 
 /*
  * Copyright (c) 1987 by Sun Microsystems, Inc.

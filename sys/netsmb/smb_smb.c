@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_smb.c,v 1.10 2003/02/19 05:47:38 imp Exp $
  */
 /*
  * various SMB requests. Most of the routines merely packs data into mbufs.

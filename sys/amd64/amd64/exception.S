@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/exception.S,v 1.110 2003/05/14 04:10:47 peter Exp $
  */
 
 #include <machine/asmacros.h>

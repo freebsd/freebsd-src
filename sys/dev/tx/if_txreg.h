@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/tx/if_txreg.h,v 1.13 2003/04/20 01:04:04 mux Exp $
  */
 
 #define	EPIC_MAX_MTU		1600	/* This is experiment-derived value */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/isa_compat.c,v 1.26 2001/06/12 09:39:59 peter Exp $
  */
 
 #include <sys/param.h>

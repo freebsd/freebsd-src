@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/systat/Makefile,v 1.13 2003/01/04 22:07:24 phk Exp $
 
 PROG=	systat
 SRCS=	cmds.c cmdtab.c devs.c fetch.c iostat.c keyboard.c main.c \

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/powerpc/loader/start.c,v 1.2 2001/10/07 13:22:25 benno Exp $ */
 /* $NetBSD: Locore.c,v 1.7 2000/08/20 07:04:59 tsubai Exp $ */
 
 /*

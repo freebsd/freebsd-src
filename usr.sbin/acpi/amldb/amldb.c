@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: amldb.c,v 1.8 2000/08/08 14:12:24 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/amldb/amldb.c,v 1.3 2001/10/22 17:25:32 iwasaki Exp $
  */
 
 #include <sys/param.h>

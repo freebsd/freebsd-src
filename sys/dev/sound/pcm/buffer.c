@@ -28,7 +28,7 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/buffer.c,v 1.19 2003/04/20 17:08:56 orion Exp $");
 
 struct snd_dbuf *
 sndbuf_create(device_t dev, char *drv, char *desc)

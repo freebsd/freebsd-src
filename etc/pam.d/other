@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/other,v 1.10 2003/04/30 21:57:54 markm Exp $
 #
 # PAM configuration for the "other" service
 #

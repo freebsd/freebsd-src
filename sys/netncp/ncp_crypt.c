@@ -1,5 +1,5 @@
 /* 
- * $FreeBSD$
+ * $FreeBSD: src/sys/netncp/ncp_crypt.c,v 1.4 2000/10/29 13:57:12 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

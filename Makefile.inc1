@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/Makefile.inc1,v 1.362 2003/05/21 21:47:20 ru Exp $
 #
 # Make command line options:
 #	-DNO_KERBEROS Do not build Heimdal (Kerberos 5)

@@ -35,7 +35,7 @@
  *
  *	$Id: i4b_ifpi_pci.c,v 1.4 2000/06/02 11:58:56 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/ifpi/i4b_ifpi_pci.c,v 1.11 2002/09/02 00:52:07 brooks Exp $
  *
  *      last edit-date: [Fri Jan 12 17:01:26 2001]
  *

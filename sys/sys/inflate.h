@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/inflate.h,v 1.13 2002/03/26 08:29:40 phk Exp $
  *
  */
 #ifndef	_SYS_INFLATE_H_

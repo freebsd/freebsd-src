@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.2 2000/07/14 18:16:29 iwasaki Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/acpi/acpidump/Makefile,v 1.6 2001/10/22 17:25:25 iwasaki Exp $
 
 PROG=	acpidump
 MAN=	acpidump.8

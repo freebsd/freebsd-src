@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/bgfsck,v 1.4 2003/04/23 15:38:02 matusita Exp $
 #
 
 # PROVIDE: bgfsck

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpthread/test/Makefile,v 1.11 2002/12/08 22:43:31 deischen Exp $
 #
 # Automated test suite for libpthread (pthreads).
 #

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/kld/syscall/module/syscall.c,v 1.3 2001/11/13 07:42:30 arr Exp $
  */
 
 #include <sys/types.h>

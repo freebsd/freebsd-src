@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.2 2003/04/27 00:44:54 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bluetooth/bcmfw/Makefile,v 1.2 2003/05/11 02:08:10 julian Exp $
 
 DESTDIR=	/usr/sbin/
 MANDIR=		../share/man/man

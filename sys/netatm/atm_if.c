@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_if.c,v 1.21 2003/02/19 05:47:30 imp Exp $
  *
  */
 
@@ -62,7 +62,7 @@
 #include <netatm/atm_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/atm_if.c,v 1.21 2003/02/19 05:47:30 imp Exp $");
 #endif
 
 

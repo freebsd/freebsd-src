@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/fstat/fstat.h,v 1.3 2002/03/30 14:03:53 dwmalone Exp $
  */
 
 #ifndef	__FSTAT_H__

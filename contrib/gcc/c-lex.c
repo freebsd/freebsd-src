@@ -19,7 +19,7 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/c-lex.c,v 1.3 2002/09/01 20:56:10 kan Exp $ */
 
 #include "config.h"
 #include "system.h"

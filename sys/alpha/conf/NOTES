@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/conf/NOTES,v 1.151 2003/04/15 20:21:56 jhb Exp $
 #
 # This file contains machine dependent kernel configuration notes.  For
 # machine independent notes, look in /sys/conf/NOTES.

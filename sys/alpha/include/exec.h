@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/exec.h,v 1.2 2000/05/01 20:17:48 peter Exp $
  */
 
 #define __LDPGSZ	8192

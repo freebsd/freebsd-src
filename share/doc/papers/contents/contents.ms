@@ -21,7 +21,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/contents/contents.ms,v 1.7 2001/06/01 10:07:26 ru Exp $
 .\"
 .OH '''Papers Contents'
 .EH 'Papers Contents'''

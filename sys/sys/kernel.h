@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/kernel.h,v 1.109 2003/02/03 19:49:35 phk Exp $
  */
 
 #ifndef _SYS_KERNEL_H_

@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ichsmb/ichsmb_pci.c,v 1.6 2002/10/18 12:06:01 nyan Exp $
  */
 
 /*

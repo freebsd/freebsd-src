@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_output.c,v 1.27 2002/03/20 05:14:28 alfred Exp $
  */
 
 /*

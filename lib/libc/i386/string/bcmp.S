@@ -29,7 +29,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/string/bcmp.S,v 1.8 2002/03/23 02:44:19 obrien Exp $");
 
 /*
  * bcmp (void *b1, void *b2, size_t len)

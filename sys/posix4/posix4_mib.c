@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/posix4/posix4_mib.c,v 1.7 2002/11/17 04:15:34 alfred Exp $
  */
 
 #include <sys/param.h>

@@ -36,7 +36,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinum.c,v 1.44 2003/05/23 00:50:55 grog Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinum.c,v 1.59 2003/05/23 01:12:16 grog Exp $
  */
 
 #define STATIC static					    /* nothing while we're testing */

@@ -38,7 +38,7 @@
  *
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/linprocfs/linprocfs.c,v 1.65 2003/05/13 20:35:57 jhb Exp $
  */
 
 #include <sys/param.h>

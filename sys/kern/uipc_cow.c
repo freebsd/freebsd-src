@@ -29,7 +29,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/uipc_cow.c,v 1.14 2003/04/11 07:02:36 alc Exp $
  */
 /*
  * This is a set of routines for enabling and disabling copy on write

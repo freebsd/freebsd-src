@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ypwhich/ypwhich.c,v 1.14 2002/02/27 14:32:43 dwmalone Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/pccard/Makefile,v 1.10 2002/01/11 20:14:02 imp Exp $
 
 .PATH: ${.CURDIR}/../../dev/pccard
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_page.h,v 1.118 2003/03/25 00:07:06 jake Exp $
  */
 
 /*

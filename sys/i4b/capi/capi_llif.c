@@ -24,7 +24,7 @@
  *
  * capi/capi_llif.c	The i4b CAPI link layer interface.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/capi/capi_llif.c,v 1.2 2002/09/02 00:52:05 brooks Exp $
  */
 
 #include <sys/param.h>

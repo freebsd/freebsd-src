@@ -23,7 +23,7 @@
 % * Copies of this Software may be made, however, the above copyright
 % * notice must be reproduced on all copies.
 % *
-% *	@(#) $FreeBSD$
+% *	@(#) $FreeBSD: src/sys/netatm/spans/spans_xdr.x,v 1.4 2002/09/17 08:57:52 peter Exp $
 % *
 % */
 %
@@ -61,7 +61,7 @@
 % */
 %
 %#ifndef lint
-%static const char RCSid[] = "@(#) $FreeBSD$";
+%static const char RCSid[] = "@(#) $FreeBSD: src/sys/netatm/spans/spans_xdr.x,v 1.4 2002/09/17 08:57:52 peter Exp $";
 %#endif
 %
 #endif

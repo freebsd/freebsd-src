@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_dagffrd.c,v 1.1 2002/10/20 08:17:35 scottl Exp $ */
 /*	$NetBSD: rf_dagffrd.c,v 1.4 2000/01/07 03:40:58 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

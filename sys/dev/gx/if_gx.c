@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/gx/if_gx.c,v 1.10 2003/04/15 06:37:24 mdodd Exp $
  */
 
 #include <sys/param.h>

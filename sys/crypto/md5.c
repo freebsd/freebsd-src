@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/md5.c,v 1.6 2003/01/25 22:41:22 silby Exp $	*/
 /*	$KAME: md5.c,v 1.5 2000/11/08 06:13:08 itojun Exp $	*/
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)talk.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/talk/talk.h,v 1.4 2002/03/22 01:42:33 imp Exp $
  */
 
 #include <sys/cdefs.h>

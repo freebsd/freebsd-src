@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/strdup.c,v 1.4 2003/02/26 01:00:29 rwatson Exp $
  */
 
 #include <sys/param.h>

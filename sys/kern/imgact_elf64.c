@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/imgact_elf64.c,v 1.2 2003/01/04 22:07:48 jake Exp $
  */
 
 #define __ELF_WORD_SIZE 64

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ipfilter/ipf.conf.sample,v 1.1 2001/10/20 04:17:07 darrenr Exp $
 block in log quick from any with ipopts
 block in log quick proto tcp from any to any with short
 pass out on ed1 all head 150

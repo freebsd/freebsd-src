@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/share/Makefile,v 1.30 2003/01/03 18:06:21 tmm Exp $
 
 # Do not include `info' in the SUBDIR list, it is handled separately.
 

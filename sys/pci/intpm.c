@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/intpm.c,v 1.28 2003/02/26 13:46:40 nyan Exp $
  */
 
 #include <sys/param.h>

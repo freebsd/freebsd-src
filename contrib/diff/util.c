@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with GNU DIFF; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/diff/util.c,v 1.5 2002/11/25 22:59:52 gad Exp $ */
 
 #include "diff.h"
 

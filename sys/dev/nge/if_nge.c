@@ -86,7 +86,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/nge/if_nge.c,v 1.45 2003/04/16 03:16:55 mdodd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libkvm/Makefile,v 1.12 2001/05/18 13:41:23 ru Exp $
 
 LIB=	kvm
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR}

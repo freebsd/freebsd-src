@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/ulpt/Makefile,v 1.11 2002/01/11 15:49:00 ru Exp $ 
 
 MAINTAINER=	n_hibma@freebsd.org
 

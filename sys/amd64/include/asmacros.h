@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/asmacros.h,v 1.25 2003/05/01 01:05:23 peter Exp $
  */
 
 #ifndef _MACHINE_ASMACROS_H_

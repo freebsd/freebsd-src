@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libregex/test/Makefile.in,v 1.6 1999/08/27 23:32:58 peter Exp $
 
 # Makefile for regex testing.
 #

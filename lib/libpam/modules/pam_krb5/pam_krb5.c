@@ -48,7 +48,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_krb5/pam_krb5.c,v 1.16 2003/03/08 10:30:49 markm Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

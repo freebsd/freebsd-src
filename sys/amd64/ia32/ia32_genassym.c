@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/amd64/ia32/ia32_genassym.c,v 1.1 2003/05/14 04:10:48 peter Exp $ */
 
 #include "opt_compat.h"
 

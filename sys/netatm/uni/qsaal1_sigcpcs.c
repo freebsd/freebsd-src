@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/qsaal1_sigcpcs.c,v 1.10 2003/02/23 22:26:39 obrien Exp $
  *
  */
 
@@ -58,7 +58,7 @@
 #include <netatm/uni/sscop_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/uni/qsaal1_sigcpcs.c,v 1.10 2003/02/23 22:26:39 obrien Exp $");
 #endif
 
 

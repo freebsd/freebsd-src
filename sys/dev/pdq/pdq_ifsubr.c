@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $NetBSD: pdq_ifsubr.c,v 1.12 1997/06/05 01:56:35 thomas Exp$
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pdq/pdq_ifsubr.c,v 1.22 2003/03/16 00:24:18 mdodd Exp $
  */
 
 /*

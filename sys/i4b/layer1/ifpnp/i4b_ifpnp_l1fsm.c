@@ -30,7 +30,7 @@
  *	$Id: i4b_ifpnp_l1fsm.c,v 1.4 2000/05/29 15:41:41 hm Exp $ 
  *	$Ust: src/i4b/layer1-nb/ifpnp/i4b_ifpnp_l1fsm.c,v 1.4 2000/04/18 08:03:05 ust Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/ifpnp/i4b_ifpnp_l1fsm.c,v 1.5 2002/09/02 00:52:08 brooks Exp $
  *
  *      last edit-date: [Mon May 29 15:25:04 2000]
  *

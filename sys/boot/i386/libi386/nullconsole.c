@@ -35,7 +35,7 @@
  *
  * Author: Doug Ambrisko <ambrisko@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/libi386/nullconsole.c,v 1.1 2000/09/20 18:13:35 archie Exp $
  */
 
 #include <stand.h>

@@ -3,7 +3,7 @@
 #
 # ent.sh -- this script checks {authors,teams}.ent files for correctness
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/diag/ac/ent.sh,v 1.2 2002/02/06 18:00:11 phantom Exp $
 
 : ${CVSROOT=/home/ncvs}
 prefix=doc/en_US.ISO8859-1/share/sgml

@@ -33,7 +33,7 @@
  * This handles io against /dev/midi, the midi {in, out}put event queues
  * and the event/message transmittion to/from an MPU401 interface.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/mpu.c,v 1.16 2002/04/04 21:03:16 jhb Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/btx/lib/Makefile,v 1.7 2002/09/19 13:43:02 nyan Exp $
 
 OBJS=		btxcsu.o btxsys.o btxv86.o
 CLEANFILES+=	crt0.o ${OBJS}

@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: svr4_util.c,v 1.5 1995/01/22 23:44:50 christos Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/ibcs2/ibcs2_util.c,v 1.15 2003/02/19 05:47:22 imp Exp $
  */
 
 #include <sys/param.h>

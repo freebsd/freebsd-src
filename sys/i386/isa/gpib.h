@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/isa/gpib.h,v 1.4 2000/05/01 20:02:28 peter Exp $ */
 
 #ifndef	_I386_ISA_GPIB_H_
 #define	_I386_ISA_GPIB_H_

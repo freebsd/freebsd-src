@@ -1,7 +1,7 @@
 /*
  * mjs copyright
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/pnp.c,v 1.15 2000/12/30 20:40:16 phk Exp $
  */
 /*
  * "Plug and Play" functionality.

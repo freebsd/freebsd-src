@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/dump_machdep.c,v 1.3 2003/01/03 00:19:54 ticso Exp $
  */
 
 #include <sys/param.h>

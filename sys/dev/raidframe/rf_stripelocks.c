@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_stripelocks.c,v 1.1 2002/10/20 08:17:37 scottl Exp $ */
 /*	$NetBSD: rf_stripelocks.c,v 1.6 2000/12/04 11:35:46 fvdl Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

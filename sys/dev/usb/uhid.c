@@ -1,5 +1,5 @@
 /*	$NetBSD: uhid.c,v 1.45 2001/10/26 17:58:21 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/uhid.c,v 1.56 2003/04/09 08:43:01 mdodd Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

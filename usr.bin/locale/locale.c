@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/locale/locale.c,v 1.1 2002/10/16 13:17:18 phantom Exp $
  */
 
 #include <sys/types.h>

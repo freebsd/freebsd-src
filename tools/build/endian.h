@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/tools/build/endian.h,v 1.2 2003/04/06 03:30:44 imp Exp $
  */
 
 #include <sys/types.h>

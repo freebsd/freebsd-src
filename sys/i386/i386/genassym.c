@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/genassym.c,v 1.140 2003/04/17 22:17:28 jhb Exp $
  */
 
 #include "opt_compat.h"

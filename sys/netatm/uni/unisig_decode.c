@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/unisig_decode.c,v 1.14 2003/02/19 05:47:31 imp Exp $
  *
  */
 
@@ -63,7 +63,7 @@
 #include <netatm/uni/unisig_decode.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/uni/unisig_decode.c,v 1.14 2003/02/19 05:47:31 imp Exp $");
 #endif
 
 #define	ALLOC_IE(ie) do {						\

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_utils.c,v 1.1 2002/10/20 08:17:37 scottl Exp $ */
 /*	$NetBSD: rf_utils.c,v 1.5 2000/01/07 03:41:03 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

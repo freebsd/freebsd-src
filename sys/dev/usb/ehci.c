@@ -1,5 +1,5 @@
 /*	$NetBSD: ehci.c,v 1.46 2003/03/09 19:51:13 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ehci.c,v 1.1 2003/04/14 14:04:07 ticso Exp $	*/
 
 /*
  * TODO

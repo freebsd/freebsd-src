@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ichsmb/ichsmb.c,v 1.7 2002/04/04 21:03:14 jhb Exp $
  */
 
 /*

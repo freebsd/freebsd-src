@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_securetty/pam_securetty.c,v 1.11 2002/04/12 22:27:23 des Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

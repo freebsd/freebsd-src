@@ -42,7 +42,7 @@
  *
  * Version 1.7, December 1995.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/spigot.c,v 1.58 2003/03/25 00:07:03 jake Exp $
  *
  */
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_usr.c,v 1.3 2002/09/18 14:21:52 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/malloc.h>

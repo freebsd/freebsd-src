@@ -56,7 +56,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powerpc/clock.c,v 1.15 2003/04/03 21:36:33 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

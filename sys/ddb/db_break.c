@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_break.c,v 1.21 2002/12/31 06:51:19 jake Exp $
  */
 
 /*

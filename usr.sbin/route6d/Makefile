@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/route6d/Makefile,v 1.8 2001/07/20 06:20:16 obrien Exp $
 
 PROG=	route6d
 MAN=	route6d.8

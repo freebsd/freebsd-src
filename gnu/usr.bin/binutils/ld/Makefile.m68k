@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.m68k,v 1.6 2002/02/07 01:37:53 obrien Exp $
 
 .if ${TARGET_ARCH} == "m68k"
 HOST=	m68k-unknown-freebsd

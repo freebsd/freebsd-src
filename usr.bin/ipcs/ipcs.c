@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ipcs/ipcs.c,v 1.21 2003/03/24 10:40:24 tjr Exp $");
 
 #include <assert.h>
 #include <err.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/busdma_machdep.c,v 1.45 2003/05/27 04:59:56 scottl Exp $
  */
 
 #include <sys/param.h>

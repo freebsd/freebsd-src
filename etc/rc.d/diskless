@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/diskless,v 1.25 2003/02/15 16:34:14 jhay Exp $
 #
 
 # PROVIDE: diskless

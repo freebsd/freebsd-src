@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/sys/agpio.h,v 1.3 2003/02/08 20:42:26 mdodd Exp $
  */
 
 #ifndef _SYS_AGPIO_H_

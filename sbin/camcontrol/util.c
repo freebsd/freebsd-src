@@ -44,7 +44,7 @@
  * from: scsi.c,v 1.17 1998/01/12 07:57:57 charnier Exp $";
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/camcontrol/util.c,v 1.9 2003/05/02 06:49:10 obrien Exp $");
 
 #include <sys/stdint.h>
 #include <sys/types.h>

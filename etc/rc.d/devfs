@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/devfs,v 1.5 2003/05/06 01:10:33 dougb Exp $
 #
 
 # PROVIDE: devfs

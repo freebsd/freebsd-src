@@ -1,5 +1,5 @@
 
-  $FreeBSD$
+  $FreeBSD: src/usr.bin/indent/README,v 1.2 2002/10/16 13:58:39 charnier Exp $
 
 This is the C indenter, it originally came from the University of Illinois
 via some distribution tape for PDP-11 Unix.  It has subsequently been

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/ufs_quota.c,v 1.63 2003/03/02 16:54:40 des Exp $
  */
 
 #include <sys/param.h>

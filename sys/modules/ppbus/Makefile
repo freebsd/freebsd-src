@@ -1,5 +1,5 @@
 
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ppbus/Makefile,v 1.3 2002/01/11 15:48:56 ru Exp $
 
 .PATH:	${.CURDIR}/../../dev/ppbus
 KMOD=	ppbus

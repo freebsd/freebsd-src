@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: srvr_nfs.c,v 1.7.2.5 2001/04/14 21:08:23 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/amd/srvr_nfs.c,v 1.5 2001/09/02 18:20:22 obrien Exp $
  *
  */
 

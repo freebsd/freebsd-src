@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sbin/bsdlabel/runtest.sh,v 1.2 2003/05/02 19:12:20 phk Exp $
 
 TMP=/tmp/$$.
 set -e

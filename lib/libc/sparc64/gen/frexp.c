@@ -39,7 +39,7 @@
 static char rcsid[] = "$OpenBSD: frexp.c,v 1.2 2001/09/10 22:37:06 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/gen/frexp.c,v 1.1 2002/06/29 03:23:18 obrien Exp $");
 
 #include <sys/types.h>
 #include <machine/ieee.h>

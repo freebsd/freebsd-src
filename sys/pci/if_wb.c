@@ -82,7 +82,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_wb.c,v 1.60 2003/04/21 18:34:04 imp Exp $");
 
 #include "opt_bdg.h"
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: network,v 1.29 2001/01/11 17:56:16 itojun Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/network,v 1.3 2002/08/12 10:04:32 schweikh Exp $
 
 # PROVIDE: network
 # REQUIRE: ipfilter ipsec mountcritlocal root tty sysctl

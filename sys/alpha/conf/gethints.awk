@@ -6,7 +6,7 @@
 # 'hints' directive.  See how GENERIC and GENERIC.hints fit together for
 # a static example.  You should use loader(8) if at all possible.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/conf/gethints.awk,v 1.2 2002/07/26 03:52:29 peter Exp $
 
 # skip commented lines, empty lines and not "device" lines
 /^[ \t]*#/ || /^[ \t]*$/ || !/[ \t]*device/ { next; }

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/lpr/Makefile,v 1.9 2001/07/20 06:19:57 obrien Exp $
 
 MAINTAINER=	wollman@FreeBSD.org
 MAINTAINER+=	gad@FreeBSD.org

@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/isa/vector.S,v 1.39 2003/05/03 00:21:43 peter Exp $
  */
 
 #include <amd64/isa/icu.h>

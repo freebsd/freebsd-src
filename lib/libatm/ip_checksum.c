@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libatm/ip_checksum.c,v 1.7 2002/03/21 23:35:20 obrien Exp $");
 
 /*
  * User Space Library Functions

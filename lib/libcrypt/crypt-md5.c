@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libcrypt/crypt-md5.c,v 1.12 2002/03/25 15:55:36 phk Exp $");
 
 #include <unistd.h>
 #include <stdio.h>

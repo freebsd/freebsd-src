@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_init.c,v 1.35 2002/11/07 23:57:17 tmm Exp $
  */
 
 /*

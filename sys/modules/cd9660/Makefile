@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/cd9660/Makefile,v 1.14 2002/01/11 15:48:37 ru Exp $
 
 .PATH: ${.CURDIR}/../../isofs/cd9660
 

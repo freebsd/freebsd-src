@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/i386/isa/pmtimer.c,v 1.3 2002/10/22 17:30:52 jhb Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/mount_nwfs/Makefile,v 1.5 2001/12/04 02:19:51 obrien Exp $
 
 PROG=	mount_nwfs
 SRCS=	mount_nwfs.c getmntopts.c

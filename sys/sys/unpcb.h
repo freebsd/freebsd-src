@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unpcb.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/unpcb.h,v 1.16 2003/02/06 01:34:43 hsu Exp $
  */
 
 #ifndef _SYS_UNPCB_H_

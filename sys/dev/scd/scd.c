@@ -40,7 +40,7 @@
  *
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/scd/scd.c,v 1.76 2003/04/01 15:06:24 phk Exp $ */
 
 #undef	SCD_DEBUG
 

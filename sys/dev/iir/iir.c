@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/iir/iir.c,v 1.6 2003/04/25 05:37:04 scottl Exp $ */
 /*
  *       Copyright (c) 2000-03 Intel Corporation
  *       All Rights Reserved

@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ofwdump/ofw_util.c,v 1.2 2003/03/14 16:12:42 jake Exp $");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

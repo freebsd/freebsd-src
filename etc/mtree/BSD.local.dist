@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mtree/BSD.local.dist,v 1.95 2003/03/24 09:39:09 ru Exp $
 #
 # Please see the file src/etc/mtree/README before making changes to this file.
 #

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/extattr.h,v 1.17 2002/05/16 21:28:30 trhodes Exp $
  */
 /*
  * Developed by the TrustedBSD Project.

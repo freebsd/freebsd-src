@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/ulimit.c,v 1.3 2003/01/04 01:11:49 tjr Exp $
  */
 
 #include <sys/types.h>

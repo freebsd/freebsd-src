@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/include/nss_tls.h,v 1.2 2003/04/21 15:44:25 nectar Exp $
  *
  * Macros which generate thread local storage handling code in NSS modules.
  */

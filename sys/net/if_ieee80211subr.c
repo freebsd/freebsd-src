@@ -1,5 +1,5 @@
 /*	$NetBSD: if_ieee80211subr.c,v 1.22 2002/10/16 11:29:30 onoe Exp $	*/
-/*	$FreeBSD$	*/ 
+/*	$FreeBSD: src/sys/net/if_ieee80211subr.c,v 1.8 2003/04/28 16:35:51 sam Exp $	*/ 
 
 /*-
  * Copyright (c) 2001 The NetBSD Foundation, Inc.

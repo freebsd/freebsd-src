@@ -49,7 +49,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/if_cue.c,v 1.34 2003/04/15 06:37:27 mdodd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

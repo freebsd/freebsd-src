@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/devicestat.h,v 1.24 2003/03/18 07:52:59 phk Exp $
  */
 
 #ifndef _DEVICESTAT_H

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_bsd.c,v 1.60 2003/05/06 19:36:13 phk Exp $
  *
  * This is the method for dealing with BSD disklabels.  It has been
  * extensively (by my standards at least) commented, in the vain hope that

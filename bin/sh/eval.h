@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)eval.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/eval.h,v 1.9 2002/07/21 06:49:14 tjr Exp $
  */
 
 extern char *commandname;	/* currently executing command */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/link_elf.c,v 1.73 2003/05/12 15:08:10 phk Exp $
  */
 
 #include "opt_ddb.h"

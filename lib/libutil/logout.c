@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/logout.c,v 1.9 2002/11/17 23:46:45 peter Exp $");
 
 #if defined(LIBC_SCCS) && !defined(lint)
 #if 0

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/tar/Makefile,v 1.17 2002/06/05 07:00:41 ru Exp $
 
 TARDIR=	${.CURDIR}/../../../contrib/tar
 .PATH: ${TARDIR}/lib ${TARDIR}/src

@@ -27,7 +27,7 @@
  *
  *	from: NetBSD: if_hme_pci.c,v 1.4 2001/08/27 22:18:49 augustss Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hme/if_hme_pci.c,v 1.6 2003/04/16 03:16:54 mdodd Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/udf/Makefile,v 1.2 2002/04/28 06:38:38 scottl Exp $
 
 .PATH: ${.CURDIR}/../../fs/udf
 

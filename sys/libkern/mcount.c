@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/mcount.c,v 1.20 2002/03/20 02:15:46 alfred Exp $
  */
 
 #include <sys/param.h>

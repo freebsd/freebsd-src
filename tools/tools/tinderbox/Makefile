@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinderbox/Makefile,v 1.5 2003/05/16 12:11:13 des Exp $
 
 BINDIR		?= ${HOME}/bin
 BINOWN		?= ${USER}

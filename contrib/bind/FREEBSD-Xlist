@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/bind/FREEBSD-Xlist,v 1.2 2002/07/01 01:23:01 dougb Exp $
 .cvsignore
 LICENSE_RSA
 OLD*

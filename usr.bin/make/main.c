@@ -46,7 +46,7 @@ static char copyright[] =
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/main.c,v 1.83 2003/04/15 14:27:21 ru Exp $");
 
 /*-
  * main.c --

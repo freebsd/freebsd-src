@@ -27,7 +27,7 @@
  *	i4b_lme.c - layer management entity
  *	-------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer2/i4b_lme.c,v 1.13 2002/09/02 00:52:10 brooks Exp $
  *
  *      last edit-date: [Sat Mar  9 17:49:42 2002]
  *

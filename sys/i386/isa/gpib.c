@@ -15,7 +15,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/gpib.c,v 1.39 2003/03/03 12:15:49 phk Exp $
  */
 
 /* Please read the README file for usage information */

@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_el.c,v 1.59 2003/02/19 05:47:22 imp Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)

@@ -1,5 +1,5 @@
 /*	$NetBSD: i82365var.h,v 1.8 1999/10/15 06:07:27 haya Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/pcic/i82365var.h,v 1.26 2001/01/07 16:31:07 imp Exp $ */
 
 /*
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.

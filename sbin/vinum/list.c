@@ -40,7 +40,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: list.c,v 1.32 2003/04/28 06:19:06 grog Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sbin/vinum/list.c,v 1.39 2003/05/05 05:25:49 grog Exp $
  */
 
 #include "vext.h"

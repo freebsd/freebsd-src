@@ -27,7 +27,7 @@
  *	i4b_l3fsm.c - layer 3 FSM
  *	-------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer3/i4b_l3fsm.c,v 1.15 2002/09/02 00:52:11 brooks Exp $
  *
  *      last edit-date: [Sat Mar  9 19:34:39 2002]
  *

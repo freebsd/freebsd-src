@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/cam_queue.c,v 1.6 2002/12/30 21:18:06 schweikh Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

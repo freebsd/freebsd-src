@@ -19,7 +19,7 @@
  * This driver is derived from the old 386bsd Wangtek streamer tape driver,
  * made by Robert Baron at CMU, based on Intel sources.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/wtio.h,v 1.4 1999/08/28 00:44:28 peter Exp $
  *
  */
 

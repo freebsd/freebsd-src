@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: sendmail,v 1.14 2002/02/12 01:26:36 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/sendmail,v 1.7 2002/10/12 10:31:31 schweikh Exp $
 #
 
 # PROVIDE: mail

@@ -29,7 +29,7 @@
  *	and
  *	from: FreeBSD: src/sys/dev/pci/pcivar.h,v 1.51 2001/02/27
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/ebus/ebusvar.h,v 1.2 2002/03/24 02:11:06 tmm Exp $
  */
 
 #ifndef _SPARC64_EBUS_EBUSVAR_H_

@@ -29,7 +29,7 @@
 
 #include <isa/isavar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/isa/es1888.c,v 1.10 2003/02/08 07:05:07 nyan Exp $");
 
 #ifdef __alpha__
 static int

@@ -65,7 +65,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/kld/cdev/module/cdevmod.c,v 1.4 2000/10/02 14:14:06 sobomax Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

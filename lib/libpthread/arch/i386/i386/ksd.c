@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/arch/i386/i386/ksd.c,v 1.3 2003/05/19 23:04:49 deischen Exp $");
 
 #include <sys/types.h>
 #include <machine/cpufunc.h>

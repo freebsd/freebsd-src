@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/mroute6d,v 1.2 2003/01/25 23:14:08 mtm Exp $
 #
 
 # PROVIDE: mroute6d

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/digi/digi.h,v 1.12 2002/04/10 14:32:55 brian Exp $
  */
 
 #define	W(p)				(*(u_int16_t *)(p))

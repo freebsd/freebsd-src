@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_interdecluster.c,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_interdecluster.c,v 1.5 2001/01/26 05:09:13 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

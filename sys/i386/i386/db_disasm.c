@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/db_disasm.c,v 1.26 2002/03/23 14:27:06 bde Exp $
  */
 
 /*

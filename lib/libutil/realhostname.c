@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/realhostname.c,v 1.15 2002/06/07 17:25:19 ume Exp $");
 
 #include <sys/param.h>
 

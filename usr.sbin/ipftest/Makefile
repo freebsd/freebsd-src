@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ipftest/Makefile,v 1.12 2002/03/20 08:57:10 darrenr Exp $
 
 MAINTAINER=	guido@freebsd.org
 

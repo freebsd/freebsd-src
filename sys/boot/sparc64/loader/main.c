@@ -6,7 +6,7 @@
  * As long as the above copyright statement and this notice remain
  * unchanged, you can do what ever you want with this file. 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/sparc64/loader/main.c,v 1.19 2003/05/01 04:39:22 peter Exp $
  */
 /*
  * FreeBSD/sparc64 kernel loader - machine dependent part

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aha/aha_mca.c,v 1.6 2003/03/29 09:46:10 mdodd Exp $
  *
  * Based on aha_isa.c
  */

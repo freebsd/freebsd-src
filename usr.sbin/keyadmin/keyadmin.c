@@ -76,7 +76,7 @@ Research Laboratory (NRL).
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/keyadmin/keyadmin.c,v 1.3 2002/10/16 15:56:13 charnier Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -27,7 +27,7 @@
  *
  *	from BSDI $Id: mutex_witness.c,v 1.1.2.20 2000/04/27 03:10:27 cp Exp $
  *	and BSDI $Id: synch_machdep.c,v 2.3.2.39 2000/04/27 03:10:25 cp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_witness.c,v 1.153 2003/05/31 06:42:37 peter Exp $
  */
 
 /*

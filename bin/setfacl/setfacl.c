@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/setfacl/setfacl.c,v 1.7 2002/12/30 15:36:29 rwatson Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

@@ -17,7 +17,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/lib/pkgwrap.c,v 1.1 2002/09/09 19:43:30 sobomax Exp $");
 
 #include "lib.h"
 #include <ctype.h>

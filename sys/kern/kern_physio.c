@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_physio.c,v 1.58 2003/04/05 23:02:58 alc Exp $
  */
 
 #include <sys/param.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_mac.c,v 1.90 2003/05/08 19:49:42 rwatson Exp $
  */
 /*
  * Developed by the TrustedBSD Project.

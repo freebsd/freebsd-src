@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/fpu_entry.c,v 1.28 2003/04/17 22:02:47 jhb Exp $
  *
  */
 

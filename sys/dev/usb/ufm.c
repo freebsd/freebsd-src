@@ -28,7 +28,7 @@
  * its contributors.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/ufm.c,v 1.12 2003/03/03 12:15:47 phk Exp $ */
 
 #include <sys/param.h>
 #include <sys/systm.h>

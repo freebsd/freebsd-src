@@ -24,7 +24,7 @@
 #
 #	Email: Mike Makonnen <mtm@identd.net>
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/adduser/rmuser.sh,v 1.6 2003/02/16 18:06:04 mtm Exp $
 #
 
 ATJOBDIR="/var/at/jobs"

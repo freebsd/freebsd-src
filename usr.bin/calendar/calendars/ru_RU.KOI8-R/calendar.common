@@ -1,7 +1,7 @@
 /*
  * Русские праздники
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/ru_RU.KOI8-R/calendar.common,v 1.11 2002/07/14 13:29:27 ache Exp $
  */
 
 #ifndef _ru_RU_KOI8_R_common_

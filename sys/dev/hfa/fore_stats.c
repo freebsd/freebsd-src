@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hfa/fore_stats.c,v 1.9 2002/06/24 05:03:44 arr Exp $
  *
  */
 
@@ -61,7 +61,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hfa/fore_stats.c,v 1.9 2002/06/24 05:03:44 arr Exp $");
 #endif
 
 

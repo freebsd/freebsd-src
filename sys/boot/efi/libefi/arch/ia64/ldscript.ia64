@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/libefi/arch/ia64/ldscript.ia64,v 1.6 2002/04/06 03:39:22 peter Exp $ */
 OUTPUT_FORMAT("elf64-ia64-little", "elf64-ia64-little", "elf64-ia64-little")
 OUTPUT_ARCH(ia64)
 ENTRY(_start_plabel)

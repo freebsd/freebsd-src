@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/rsh,v 1.5 2003/02/10 00:50:03 des Exp $
 #
 # PAM configuration for the "rsh" service
 #

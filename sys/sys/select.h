@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/select.h,v 1.18 2002/12/31 04:13:50 mike Exp $
  */
 
 #ifndef _SYS_SELECT_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ep/Makefile,v 1.4 2002/11/06 13:46:58 nyan Exp $
 
 .PATH: ${.CURDIR}/../../dev/ep
 .PATH: ${.CURDIR}/../../i386/isa

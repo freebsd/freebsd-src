@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/random.c,v 1.22 2003/02/04 11:24:08 ache Exp $");
 
 #include "namespace.h"
 #include <sys/time.h>          /* for srandomdev() */

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/pc98/pc98/canbus_if.m,v 1.2 2003/02/04 16:17:13 nyan Exp $
 #
 
 #include <sys/bus.h>

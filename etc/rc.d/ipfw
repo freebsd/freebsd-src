@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ipfw,v 1.4 2003/03/30 15:52:18 mtm Exp $
 #
 
 # PROVIDE: ipfw

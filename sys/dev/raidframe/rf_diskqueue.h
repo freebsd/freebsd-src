@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_diskqueue.h,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_diskqueue.h,v 1.5 2000/02/13 04:53:57 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_resume_np.c,v 1.17 2003/05/04 16:17:01 deischen Exp $
  */
 #include <errno.h>
 #include <pthread.h>

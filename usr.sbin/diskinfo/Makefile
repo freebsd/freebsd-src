@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/diskinfo/Makefile,v 1.1 2003/04/09 10:52:10 phk Exp $
 
 PROG=	diskinfo
 MAN=	diskinfo.8

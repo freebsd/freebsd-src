@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)3.t	8.1 (Berkeley) 6/8/93
 .\"
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/share/doc/psd/21.ipc/3.t,v 1.2 2003/01/01 18:48:47 schweikh Exp $
 .\"
 .\".ds RH "Network Library Routines
 .bp

@@ -18,7 +18,7 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gdb/gdb/config/i386/tm-fbsd.h,v 1.4 2002/10/12 17:56:56 mp Exp $ */
 
 #ifndef TM_FBSD_H
 #define TM_FBSD_H

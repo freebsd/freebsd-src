@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/tty_conf.c,v 1.18 2001/09/12 08:37:46 julian Exp $
  */
 
 #include "opt_compat.h"

@@ -27,7 +27,7 @@
  *	i4b_l1.c - isdn4bsd layer 1 handler
  *	-----------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/isic/i4b_l1.c,v 1.6 2002/09/02 00:52:08 brooks Exp $
  *
  *      last edit-date: [Wed Jan 24 09:12:03 2001]
  *

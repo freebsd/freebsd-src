@@ -29,7 +29,7 @@
  *    Keith Whitwell <keith@tungstengraphics.com>
  *    Eric Anholt <anholt@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/mga_irq.c,v 1.1 2003/03/09 02:08:28 anholt Exp $
  */
 
 #include "dev/drm/mga.h"

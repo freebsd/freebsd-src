@@ -6,7 +6,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/rpc.rquotad/rquotad.c,v 1.7 2002/07/15 18:51:57 alfred Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

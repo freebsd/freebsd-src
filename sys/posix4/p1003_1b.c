@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/posix4/p1003_1b.c,v 1.21 2003/01/07 20:10:04 alfred Exp $
  */
 
 /* p1003_1b: Real Time common code.

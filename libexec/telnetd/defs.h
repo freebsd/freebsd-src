@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/libexec/telnetd/defs.h,v 1.2 2001/08/29 14:16:16 markm Exp $
  */
 
 /*

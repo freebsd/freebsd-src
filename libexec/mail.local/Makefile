@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/mail.local/Makefile,v 1.19 2002/02/17 22:05:06 gshapiro Exp $
 
 MAINTAINER=	gshapiro@FreeBSD.org
 

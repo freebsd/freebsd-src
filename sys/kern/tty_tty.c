@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/tty_tty.c,v 1.49 2003/03/03 12:15:51 phk Exp $
  */
 
 #include <sys/param.h>

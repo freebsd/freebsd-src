@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/Makefile,v 1.4 2001/06/11 01:48:00 ache Exp $
 #
 # The user can override the default language to build and install
 # with the RELNOTES_LANG variable.

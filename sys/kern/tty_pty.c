@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/tty_pty.c,v 1.108 2003/05/13 20:35:59 jhb Exp $
  */
 
 /*

@@ -29,7 +29,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/uipc_jumbo.c,v 1.7 2003/04/19 19:13:25 alc Exp $
  */
 /*
  * This is a set of routines for allocating large-sized mbuf payload

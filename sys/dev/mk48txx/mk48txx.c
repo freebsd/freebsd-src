@@ -35,7 +35,7 @@
  *
  *	$NetBSD: mk48txx.c,v 1.7 2001/04/08 17:05:10 tsutsui Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mk48txx/mk48txx.c,v 1.1 2002/04/04 23:44:42 tmm Exp $
  */
 
 /*

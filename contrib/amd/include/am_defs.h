@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: am_defs.h,v 1.15.2.9 2001/04/07 00:47:44 ib42 Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/include/am_defs.h,v 1.12 2001/09/02 20:37:36 obrien Exp $
  *
  */
 

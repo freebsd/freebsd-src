@@ -27,7 +27,7 @@
  *	i4b_bchan.c - B channel handling L1 procedures
  *	----------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/isic/i4b_bchan.c,v 1.11 2002/09/02 00:52:08 brooks Exp $
  *
  *      last edit-date: [Sat Mar  9 16:00:56 2002]
  *

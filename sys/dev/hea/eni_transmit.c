@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hea/eni_transmit.c,v 1.16 2003/04/21 16:27:45 obrien Exp $
  *
  */
 
@@ -63,7 +63,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hea/eni_transmit.c,v 1.16 2003/04/21 16:27:45 obrien Exp $");
 #endif
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom/MdLoad/Makefile,v 1.1 2003/04/09 12:34:20 phk Exp $
 
 PROG=	MdLoad
 

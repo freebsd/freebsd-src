@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_mbr_enc.c,v 1.1 2003/04/12 08:34:39 phk Exp $
  *
  * Functions to encode or decode struct dos_partition into a bytestream
  * of correct endianess and packing.  These functions do no validation

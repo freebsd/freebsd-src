@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/pci/pci_if.m,v 1.5 2003/04/16 03:15:08 mdodd Exp $
 #
 
 #include <sys/bus.h>

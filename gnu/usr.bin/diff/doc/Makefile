@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/diff/doc/Makefile,v 1.6 1999/08/27 23:35:33 peter Exp $
 
 INFO = diff
 

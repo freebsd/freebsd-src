@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/vfs_aio.c,v 1.161 2003/04/29 13:36:03 kan Exp $
  */
 
 /*

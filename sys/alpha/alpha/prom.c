@@ -24,7 +24,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/prom.c,v 1.26 2003/02/25 00:42:39 marcel Exp $
  */
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */

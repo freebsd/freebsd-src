@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_cond.c,v 1.43.2.1 2003/06/04 01:01:18 davidxu Exp $
  */
 #include <stdlib.h>
 #include <errno.h>

@@ -29,7 +29,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ypmatch/ypmatch.c,v 1.10 2002/02/06 13:30:27 des Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Matthew Dillon.  This code is distributed under
  * the BSD copyright, /usr/src/COPYRIGHT.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/critical.c,v 1.8 2003/03/08 03:58:50 davidxu Exp $
  */
 
 #include <sys/param.h>

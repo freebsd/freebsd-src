@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/tcpd/Makefile,v 1.1 2002/01/12 13:31:30 markm Exp $
 
 MAINTAINER=	markm@FreeBSD.org
 

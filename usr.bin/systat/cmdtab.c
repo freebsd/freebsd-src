@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/systat/cmdtab.c,v 1.8 2003/01/04 22:07:24 phk Exp $");
 
 #ifdef lint
 static const char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";

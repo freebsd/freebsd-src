@@ -29,7 +29,7 @@
 
 /*
  * Additional Copyright (c) 1999 by Andrew Gallatin
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/osf1/osf1_mount.c,v 1.14 2003/03/20 21:17:38 jhb Exp $
  */
 
 #include "opt_mac.h"

@@ -1,5 +1,5 @@
 /*	
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/dev_net.c,v 1.11 2002/07/31 20:17:06 jake Exp $
  * From: $NetBSD: dev_net.c,v 1.12 1997/12/10 20:38:37 gwr Exp $
  */
 

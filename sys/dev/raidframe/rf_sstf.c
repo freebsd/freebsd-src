@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_sstf.c,v 1.1 2002/10/20 08:17:37 scottl Exp $ */
 /*	$NetBSD: rf_sstf.c,v 1.6 2001/01/27 20:18:55 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

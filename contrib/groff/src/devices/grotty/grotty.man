@@ -1,5 +1,5 @@
 .ig
-$FreeBSD$
+$FreeBSD: src/contrib/groff/src/devices/grotty/grotty.man,v 1.7 2002/10/14 09:15:17 ru Exp $
 Copyright (C) 1989-2000, 2001, 2002 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of

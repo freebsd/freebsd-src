@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)fvwrite.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/fvwrite.c,v 1.15 2002/03/22 21:53:04 obrien Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

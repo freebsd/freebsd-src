@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/tty_cons.c,v 1.110 2003/03/09 20:42:49 phk Exp $
  */
 
 #include "opt_ddb.h"

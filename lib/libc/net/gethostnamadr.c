@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/gethostnamadr.c,v 1.21 2003/04/24 18:05:48 nectar Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

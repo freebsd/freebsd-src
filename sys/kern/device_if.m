@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/device_if.m,v 1.8 2000/04/08 14:17:09 dfr Exp $
 #
 
 #include <sys/bus.h>

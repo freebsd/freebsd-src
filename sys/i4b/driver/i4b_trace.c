@@ -29,7 +29,7 @@
  *
  *	last edit-date: [Sun Mar 17 09:52:51 2002]
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/driver/i4b_trace.c,v 1.23 2003/03/03 12:15:50 phk Exp $
  *
  *	NOTE: the code assumes that SPLI4B >= splimp !
  *

@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/sys/boot/ofw/libofw/ofw_console.c,v 1.7 2002/02/23 04:33:15 jake Exp $
 /* $NetBSD: prom.c,v 1.3 1997/09/06 14:03:58 drochner Exp $ */
 
 /*  

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/netisr.c,v 1.3 2003/03/08 22:12:32 jlemon Exp $
  */
 
 #include <sys/param.h>

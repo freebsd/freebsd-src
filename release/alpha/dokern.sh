@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/alpha/dokern.sh,v 1.72 2003/05/18 03:52:22 scottl Exp $
 #
 
 #	XXX sort by order in GENERIC, not alphabetical

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: hcseriald.c,v 1.2 2003/04/27 19:45:33 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/hcseriald/hcseriald.c,v 1.2 2003/05/10 21:50:35 julian Exp $
  */
 
 #include <sys/types.h>

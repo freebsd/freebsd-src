@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/bios/apm.c,v 1.133 2003/03/25 05:19:18 mdodd Exp $
  */
 
 #include <sys/param.h>

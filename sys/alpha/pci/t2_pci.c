@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/t2_pci.c,v 1.11 2002/03/21 06:14:58 imp Exp $
  */
 
 #include <sys/param.h>

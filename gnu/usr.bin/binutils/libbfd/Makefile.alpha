@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.alpha,v 1.10 2002/12/02 10:00:44 obrien Exp $
 
 DEFAULT_VECTOR=	bfd_elf64_alpha_freebsd_vec
 

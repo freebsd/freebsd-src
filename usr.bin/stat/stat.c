@@ -41,7 +41,7 @@ __RCSID("$NetBSD: stat.c,v 1.10 2003/05/08 13:05:38 atatat Exp $");
 #endif
 #endif
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/stat/stat.c,v 1.5 2003/05/11 23:02:09 dougb Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

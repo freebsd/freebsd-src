@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_ifpi_isac.c,v 1.3 2000/05/29 15:41:41 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/ifpi/i4b_ifpi_isac.c,v 1.6 2002/09/02 00:52:07 brooks Exp $
  *
  *      last edit-date: [Mon May 29 15:22:52 2000]
  *

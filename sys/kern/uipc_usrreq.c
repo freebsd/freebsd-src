@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/uipc_usrreq.c,v 1.110 2003/03/23 19:41:34 cognet Exp $
  */
 
 #include "opt_mac.h"

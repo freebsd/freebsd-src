@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)random.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/random.c,v 1.10 2003/02/05 21:28:52 ache Exp $
  */
 
 #include <sys/libkern.h>

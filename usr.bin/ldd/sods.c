@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ldd/sods.c,v 1.15 2002/09/17 01:48:59 peter Exp $");
 
 #include <sys/types.h>
 #include <sys/mman.h>

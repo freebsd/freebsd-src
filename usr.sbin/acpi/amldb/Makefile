@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.5 2000/07/14 18:16:30 iwasaki Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/acpi/amldb/Makefile,v 1.7 2001/10/22 17:25:32 iwasaki Exp $
 
 PROG=	amldb
 MAN=	amldb.8

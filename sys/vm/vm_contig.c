@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_contig.c,v 1.17 2003/04/24 04:31:25 alc Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/kgzldr/Makefile,v 1.12 2002/09/30 20:37:57 peter Exp $
 
 FILES=	kgzldr.o
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s

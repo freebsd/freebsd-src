@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  *	From BSDI: daemon.c,v 1.2 1996/08/15 01:11:09 jch Exp
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/daemon/daemon.c,v 1.1 2001/08/30 04:48:02 mike Exp $
  */
 
 #include <sys/types.h>

@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_ioctl.h,v 1.4 2003/04/25 01:18:46 anholt Exp $
  */
 
 #include "dev/drm/drmP.h"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_eventhandler.c,v 1.20 2003/03/11 20:17:00 jhb Exp $
  */
 
 #include <sys/param.h>

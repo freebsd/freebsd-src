@@ -26,7 +26,7 @@
  *
  *	from: FreeBSD: src/sys/alpha/isa/isa.c,v 1.26 2001/07/11
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/isa/isa.c,v 1.6 2003/05/30 20:48:05 tmm Exp $
  */
 
 #include <sys/param.h>

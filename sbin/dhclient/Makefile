@@ -1,5 +1,5 @@
 # Makefile for ISC DHCP client.
-# $FreeBSD$
+# $FreeBSD: src/sbin/dhclient/Makefile,v 1.19 2003/03/25 03:16:52 mdodd Exp $
 
 SUBDIR= common dst minires omapip dhcpctl client omshell
 

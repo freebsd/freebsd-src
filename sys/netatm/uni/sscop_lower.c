@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/sscop_lower.c,v 1.13 2002/12/30 21:18:09 schweikh Exp $
  *
  */
 
@@ -59,7 +59,7 @@
 #include <netatm/uni/sscop_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/uni/sscop_lower.c,v 1.13 2002/12/30 21:18:09 schweikh Exp $");
 #endif
 
 

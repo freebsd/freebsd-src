@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/group,v 1.28 2003/04/27 05:49:53 imp Exp $
 #
 wheel:*:0:root
 daemon:*:1:

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/isa/bs/bshw_pdma.c,v 1.8 2002/03/20 07:39:49 alfred Exp $ */
 /*	$NecBSD: bshw_pdma.c,v 1.4 1997/10/31 17:43:39 honda Exp $	*/
 /*	$NetBSD$	*/
 /*

@@ -36,7 +36,7 @@
  *
  *	from: NetBSD: hme.c,v 1.20 2000/12/14 06:27:25 thorpej Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hme/if_hme.c,v 1.13 2003/02/19 05:47:05 imp Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/alpha/gen/Makefile.inc,v 1.11 2002/11/18 09:50:54 ru Exp $
 
 SRCS+=	_setjmp.S fabs.S frexp.c infinity.c isinf.c ldexp.c modf.c setjmp.S
 SRCS+=	flt_rounds.c fpgetmask.c fpgetround.c fpgetsticky.c fpsetmask.c \

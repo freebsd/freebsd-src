@@ -5,7 +5,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/pmadvise.c,v 1.2 2002/02/01 00:57:29 obrien Exp $");
 
 #include <sys/mman.h>
 

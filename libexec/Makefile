@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/Makefile,v 1.62 2003/05/24 17:38:45 peter Exp $
 
 # Present but disabled: kpasswdd
 SUBDIR=	atrun \

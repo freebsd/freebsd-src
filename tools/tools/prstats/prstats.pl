@@ -26,7 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#      $FreeBSD$
+#      $FreeBSD: src/tools/tools/prstats/prstats.pl,v 1.4 2002/04/15 06:36:22 des Exp $
 #
 
 use strict;

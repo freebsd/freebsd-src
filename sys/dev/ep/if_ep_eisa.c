@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ep/if_ep_eisa.c,v 1.23 2003/03/30 08:13:47 mdodd Exp $
  */
 
 #include <sys/param.h>

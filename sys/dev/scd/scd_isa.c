@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/scd/scd_isa.c,v 1.2 2003/04/16 20:51:48 phk Exp $
  */
 
 #include <sys/param.h>

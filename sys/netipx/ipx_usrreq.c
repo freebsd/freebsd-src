@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx_usrreq.c,v 1.37 2003/03/08 06:58:22 tjr Exp $
  */
 
 #include "opt_ipx.h"

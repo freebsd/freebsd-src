@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/utf8.c,v 1.2 2003/02/18 13:39:51 nectar Exp $");
 
 #include <rune.h>
 #include <stddef.h>

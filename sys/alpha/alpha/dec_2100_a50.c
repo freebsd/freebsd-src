@@ -1,5 +1,5 @@
 /* $NetBSD: dec_2100_a50.c,v 1.39 1998/04/17 02:45:19 mjacob Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/dec_2100_a50.c,v 1.14 2002/10/04 15:58:03 keramida Exp $ */
 
 /*
  * Copyright (c) 1995, 1996, 1997 Carnegie-Mellon University.

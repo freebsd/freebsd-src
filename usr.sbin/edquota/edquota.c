@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)edquota.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/edquota/edquota.c,v 1.20 2003/05/03 21:06:36 obrien Exp $");
 
 /*
  * Disk quota editor.

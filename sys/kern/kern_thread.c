@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_thread.c,v 1.130 2003/05/16 21:26:42 marcel Exp $
  */
 
 #include <sys/param.h>

@@ -12,7 +12,7 @@
 /* SUPPRESS 287 on yaccpar_sccsid *//* Unused static variable */
 /* SUPPRESS 288 on yyerrlab *//* Label unused */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/find/getdate.y,v 1.2 2002/04/15 19:27:41 obrien Exp $ */
 
 #include <stdio.h>
 #include <ctype.h>

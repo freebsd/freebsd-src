@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/tx/if_tx.c,v 1.72 2003/04/20 18:08:00 mux Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

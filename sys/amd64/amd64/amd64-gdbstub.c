@@ -92,7 +92,7 @@
  *
  ****************************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/amd64/amd64/amd64-gdbstub.c,v 1.23 2003/05/30 01:02:52 peter Exp $ */
 
 #include <sys/param.h>
 #include <sys/reboot.h>

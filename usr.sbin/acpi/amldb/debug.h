@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: debug.h,v 1.8 2000/08/09 14:47:57 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/amldb/debug.h,v 1.1.1.1 2000/08/31 14:45:00 iwasaki Exp $
  */
 
 #ifndef _DEBUG_H_

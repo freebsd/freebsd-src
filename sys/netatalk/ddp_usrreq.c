@@ -2,7 +2,7 @@
  * Copyright (c) 1990,1994 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/ddp_usrreq.c,v 1.30 2003/03/04 23:19:51 jlemon Exp $
  */
 
 #include <sys/param.h>

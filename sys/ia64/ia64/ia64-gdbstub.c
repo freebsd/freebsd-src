@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/ia64/ia64-gdbstub.c,v 1.4 2002/03/19 11:06:01 peter Exp $ */
 /****************************************************************************
 
 		THIS SOFTWARE IS NOT COPYRIGHTED

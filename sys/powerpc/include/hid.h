@@ -24,7 +24,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $NetBSD: hid.h,v 1.2 2001/08/22 21:05:25 matt Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/hid.h,v 1.1 2003/02/05 12:04:29 benno Exp $
  */
 
 #ifndef _POWERPC_HID_H_

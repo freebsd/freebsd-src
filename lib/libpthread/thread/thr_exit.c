@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_exit.c,v 1.33 2003/05/30 00:21:52 kan Exp $
  */
 #include <errno.h>
 #include <unistd.h>

@@ -27,7 +27,7 @@
  *	isic - I4B Siemens ISDN Chipset Driver for Creatix/Teles PnP
  *	============================================================
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/isic/i4b_ctx_s0P.c,v 1.8 2002/09/02 00:52:08 brooks Exp $
  *
  *	last edit-date: [Wed Jan 24 09:07:22 2001]
  *

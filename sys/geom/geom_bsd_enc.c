@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_bsd_enc.c,v 1.4 2003/05/04 18:48:25 phk Exp $
  *
  * Functions to encode and decode struct disklabel and struct partition into
  * a bytestream of little endianess and correct packing.

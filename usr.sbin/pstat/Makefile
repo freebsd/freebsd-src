@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pstat/Makefile,v 1.12 2003/04/04 17:49:17 obrien Exp $
 
 PROG=	pstat
 LINKS=	${BINDIR}/pstat ${BINDIR}/swapinfo

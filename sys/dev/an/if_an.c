@@ -80,7 +80,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/an/if_an.c,v 1.49 2003/04/10 05:12:44 imp Exp $");
 
 #include "opt_inet.h"
 

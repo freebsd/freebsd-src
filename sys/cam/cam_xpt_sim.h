@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/cam_xpt_sim.h,v 1.7 2000/01/14 23:08:46 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_XPT_SIM_H

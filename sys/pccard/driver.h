@@ -3,7 +3,7 @@
  * Bruce Evans, November 1995.
  * This file is in the public domain.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pccard/driver.h,v 1.14 2001/03/22 05:49:18 imp Exp $
  */
 
 #ifndef _PCCARD_DRIVER_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_pc98_enc.c,v 1.1 2003/05/01 13:44:24 nyan Exp $
  */
 
 #include <sys/types.h>

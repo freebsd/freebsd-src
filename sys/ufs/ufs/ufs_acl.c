@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ufs/ufs_acl.c,v 1.16 2002/10/15 21:28:24 rwatson Exp $
  */
 /*
  * Developed by the TrustedBSD Project.

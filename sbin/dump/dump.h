@@ -32,7 +32,7 @@
  *
  *	@(#)dump.h	8.2 (Berkeley) 4/28/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/dump/dump.h,v 1.23 2003/04/07 11:34:12 mdodd Exp $
  */
 
 /*

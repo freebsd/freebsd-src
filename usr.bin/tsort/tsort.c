@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/tsort/tsort.c,v 1.15 2002/09/04 23:29:08 dwmalone Exp $
  */
 
 #ifndef lint

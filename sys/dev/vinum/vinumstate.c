@@ -38,7 +38,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumstate.c,v 2.21 2003/04/28 02:54:43 grog Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumstate.c,v 1.33 2003/05/02 01:39:11 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>

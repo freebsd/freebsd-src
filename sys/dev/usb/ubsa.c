@@ -60,7 +60,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ubsa.c,v 1.6 2003/02/19 05:47:15 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

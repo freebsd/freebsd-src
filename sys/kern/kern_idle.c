@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2000, All rights reserved.  See /usr/src/COPYRIGHT
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_idle.c,v 1.31 2003/05/02 00:33:11 julian Exp $
  */
 
 #include "opt_ktrace.h"

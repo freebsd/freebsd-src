@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/calendar/day.c,v 1.20 2002/06/13 21:20:56 grog Exp $");
 
 #include <sys/types.h>
 #include <sys/uio.h>

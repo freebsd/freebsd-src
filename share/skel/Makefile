@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/skel/Makefile,v 1.8 2002/07/29 09:40:13 ru Exp $
 
 FILES1= dot.cshrc dot.login dot.login_conf dot.mailrc dot.profile dot.shrc
 FILES2=	dot.mail_aliases dot.rhosts 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/devd/token.l,v 1.3 2002/12/18 07:08:01 imp Exp $
  */
 
 #include <ctype.h>

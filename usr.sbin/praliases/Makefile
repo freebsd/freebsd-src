@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 9/21/96
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/praliases/Makefile,v 1.9 2002/02/17 22:05:07 gshapiro Exp $
 
 MAINTAINER=	gshapiro@FreeBSD.org
 

@@ -62,7 +62,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/trm/trm.c,v 1.8 2003/05/27 04:59:58 scottl Exp $");
 
 #include <sys/param.h>
 

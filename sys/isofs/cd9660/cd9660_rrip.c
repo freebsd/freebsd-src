@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.c	8.6 (Berkeley) 12/5/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/isofs/cd9660/cd9660_rrip.c,v 1.23 2002/08/25 13:17:18 charnier Exp $
  */
 
 #include <sys/param.h>

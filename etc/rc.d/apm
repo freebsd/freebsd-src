@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/apm,v 1.3 2003/05/05 23:55:43 obrien Exp $
 #
 
 # PROVIDE: apm

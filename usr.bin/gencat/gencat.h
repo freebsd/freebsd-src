@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/gencat/gencat.h,v 1.4 2002/03/26 12:39:08 charnier Exp $ */
 
 #ifndef GENCAT_H
 #define GENCAT_H

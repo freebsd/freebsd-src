@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/lnc/if_lnc_isa.c,v 1.14 2003/04/15 06:37:25 mdodd Exp $
  */
 
 #include <sys/param.h>

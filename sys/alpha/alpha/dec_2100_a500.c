@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/dec_2100_a500.c,v 1.13 2003/04/21 16:34:18 obrien Exp $
  */
 
 #include "opt_ddb.h"

@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/buf.c,v 1.18 2002/10/09 03:42:09 jmallett Exp $");
 
 /*-
  * buf.c --

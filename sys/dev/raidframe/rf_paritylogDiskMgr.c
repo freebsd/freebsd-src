@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_paritylogDiskMgr.c,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_paritylogDiskMgr.c,v 1.10 2000/01/15 01:57:57 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

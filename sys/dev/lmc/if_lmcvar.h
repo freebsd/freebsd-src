@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/lmc/if_lmcvar.h,v 1.3 2002/06/02 20:05:44 schweikh Exp $
  *	From NetBSD: if_devar.h,v 1.21 1997/10/16 22:02:32 matt Exp
  *	$Id: if_lmcvar.h,v 1.6 1999/01/12 14:16:58 explorer Exp $
  */

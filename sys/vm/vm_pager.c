@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_pager.c,v 1.86 2003/05/06 02:45:28 alc Exp $
  */
 
 /*

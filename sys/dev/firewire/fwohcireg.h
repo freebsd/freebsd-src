@@ -31,7 +31,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/fwohcireg.h,v 1.10 2003/04/24 07:29:52 simokawa Exp $
  *
  */
 #define		PCI_CBMEM		0x10

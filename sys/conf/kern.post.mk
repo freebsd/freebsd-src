@@ -6,7 +6,7 @@
 # should be defined in the kern.pre.mk so that port makefiles can
 # override or augment them.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/kern.post.mk,v 1.41 2003/04/30 12:19:25 markm Exp $
 #
 
 .MAIN: all

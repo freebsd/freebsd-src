@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)quotaon.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/quotaon/quotaon.c,v 1.8 2003/05/03 21:06:39 obrien Exp $");
 
 /*
  * Turn quota on/off for a filesystem.

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/amd64/db_interface.c,v 1.73 2003/05/30 01:01:07 peter Exp $
  */
 
 /*

@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/xmphy.c,v 1.12 2003/04/03 21:36:30 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/strip/Makefile,v 1.15 2002/07/29 09:40:16 ru Exp $
 
 PROG=	strip
 MAN=	strip.1aout

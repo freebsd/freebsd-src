@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)getsubopt.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/getsubopt.c,v 1.5 2003/01/03 23:31:50 tjr Exp $");
 
 #include <stdlib.h>
 #include <string.h>

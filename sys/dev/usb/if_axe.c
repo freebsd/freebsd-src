@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/usb/if_axe.c,v 1.3 2003/04/21 17:34:13 takawata Exp $
  */
 
 /*
@@ -101,7 +101,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/usb/if_axe.c,v 1.3 2003/04/21 17:34:13 takawata Exp $";
 #endif
 
 /*

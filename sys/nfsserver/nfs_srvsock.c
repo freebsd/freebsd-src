@@ -34,11 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfsserver/nfs_srvsock.c,v 1.83 2003/03/02 16:54:39 des Exp $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsserver/nfs_srvsock.c,v 1.83 2003/03/02 16:54:39 des Exp $");
 
 /*
  * Socket operations for use by nfs

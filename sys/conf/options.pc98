@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.pc98,v 1.162 2003/04/12 09:40:37 des Exp $
 # Options specific to the pc98 platform kernels
 
 MATH_EMULATE		opt_math_emulate.h

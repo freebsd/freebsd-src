@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/bzipfs.c,v 1.5 2002/03/17 12:25:48 sobomax Exp $");
 
 #include "stand.h"
 

@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: aml_region.c,v 1.10 2000/08/09 14:47:44 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/amldb/aml/aml_region.c,v 1.5 2000/11/09 06:24:45 iwasaki Exp $
  */
 
 /*

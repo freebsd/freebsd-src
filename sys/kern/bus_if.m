@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/bus_if.m,v 1.25 2003/03/25 04:32:52 mdodd Exp $
 #
 
 #include <sys/bus.h>

@@ -35,7 +35,7 @@
  *
  *	from: NetBSD: if_hme_sbus.c,v 1.9 2001/11/13 06:58:17 lukem Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hme/if_hme_sbus.c,v 1.4 2003/04/15 06:37:24 mdodd Exp $
  */
 
 /*

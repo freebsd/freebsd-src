@@ -27,7 +27,7 @@
  *	i4b_ing.c - isdn4bsd B-channel to netgraph driver
  *	-------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/driver/i4b_ing.c,v 1.16 2002/09/02 00:52:06 brooks Exp $
  *
  *	last edit-date: [Sat Mar  9 14:09:53 2002]
  *

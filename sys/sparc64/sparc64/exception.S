@@ -54,7 +54,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/exception.S,v 1.66 2003/04/29 21:30:59 jake Exp $");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"

@@ -35,7 +35,7 @@
  *
  * From: static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/strtol.c,v 1.6 2003/04/29 13:36:04 kan Exp $
  */
 
 #include <sys/param.h>

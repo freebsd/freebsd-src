@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/libkern/bcd.c,v 1.5 2000/05/01 20:06:35 peter Exp $ */
 /*
  * Some data-tables that are often used.
  * Cannot be copyrighted.

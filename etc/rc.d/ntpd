@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: ntpd,v 1.6 2002/03/22 04:33:59 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ntpd,v 1.5 2002/10/12 10:31:31 schweikh Exp $
 #
 
 # PROVIDE: ntpd

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/sockstat/sockstat.c,v 1.7 2003/05/09 09:11:27 robert Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

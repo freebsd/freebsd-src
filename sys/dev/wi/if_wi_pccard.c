@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/wi/if_wi_pccard.c,v 1.25 2003/04/27 03:34:05 imp Exp $");
 
 #include "opt_wi.h"
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/ppcreg.h,v 1.4 2001/06/26 11:53:12 nyan Exp $
  *
  */
 #ifndef __PPCREG_H

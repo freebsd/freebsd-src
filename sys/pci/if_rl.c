@@ -130,7 +130,7 @@ MODULE_DEPEND(rl, miibus, 1, 1, 1);
 
 #include <pci/if_rlreg.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_rl.c,v 1.98 2003/04/21 18:34:04 imp Exp $");
 
 /*
  * Various supported device vendors/types and their names.

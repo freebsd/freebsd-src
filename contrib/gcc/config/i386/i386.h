@@ -35,7 +35,7 @@ Boston, MA 02111-1307, USA.  */
    that start with ASM_ or end in ASM_OP.  */
 
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/i386/i386.h,v 1.16 2003/04/26 20:04:37 obrien Exp $ */
 
 
 /* Stubs for half-pic support if not OSF/1 reference platform.  */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfsclient/nfs_diskless.c,v 1.2 2002/12/22 05:35:03 hsu Exp $
  */
 
 #include <sys/param.h>

@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/rcmd.c,v 1.38 2003/02/18 13:39:52 nectar Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>

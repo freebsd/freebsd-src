@@ -21,7 +21,7 @@
  * you will (badly!) need the documentation anyway if you want to mess with
  * this gadget.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_mn.c,v 1.37 2003/02/19 05:47:41 imp Exp $
  */
 
 /*

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/acpica/OsdEnvironment.c,v 1.4 2002/12/18 08:47:07 marcel Exp $
  */
 
 /*

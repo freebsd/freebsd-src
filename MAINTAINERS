@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/MAINTAINERS,v 1.60 2003/04/27 05:51:12 imp Exp $
 
 subsystem	login	notes
 -----------------------------

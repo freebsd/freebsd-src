@@ -2,7 +2,7 @@
 /*
  * Copyright is disclaimed as to the contents of this file.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/getconf/sysconf.gperf,v 1.4 2002/10/27 04:10:34 wollman Exp $
  */
 
 #include <sys/types.h>

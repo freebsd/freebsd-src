@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/sparc64/boot1/Makefile,v 1.8 2002/06/05 12:30:45 phk Exp $
 
 PROG=		boot1
 SRCS=		_start.S boot1.c

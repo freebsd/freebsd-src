@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/udf/udf_vfsops.c,v 1.12 2003/05/04 07:41:07 scottl Exp $
  */
 
 /* udf_vfsops.c */

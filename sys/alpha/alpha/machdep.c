@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/machdep.c,v 1.202 2003/05/13 20:35:56 jhb Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

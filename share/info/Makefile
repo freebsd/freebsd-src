@@ -1,5 +1,5 @@
 #       @(#)Makefile    8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/share/info/Makefile,v 1.12 2002/07/29 09:40:12 ru Exp $
 
 NOOBJ=  noobj
 

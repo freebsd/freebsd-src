@@ -26,7 +26,7 @@
  *
  *	from: NetBSD: gem.c,v 1.21 2002/06/01 23:50:58 lukem Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/gem/if_gem.c,v 1.16 2003/05/15 16:57:55 tmm Exp $
  */
 
 /*

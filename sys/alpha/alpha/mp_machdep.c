@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/alpha/alpha/mp_machdep.c,v 1.41 2003/02/20 20:54:42 phk Exp $
  */
 
 #include <sys/param.h>

@@ -12,7 +12,7 @@
  *	related support functions residing
  *	in <arch>/<arch>/critical.c	- prototyped
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/critical.h,v 1.1 2002/04/01 23:51:23 dillon Exp $
  */
 
 #ifndef _MACHINE_CRITICAL_H_

@@ -14,7 +14,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libz/minigzip.c,v 1.13 2002/10/03 19:30:21 johan Exp $");
 
 #include <stdio.h>
 #include "zlib.h"

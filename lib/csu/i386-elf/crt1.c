@@ -110,4 +110,4 @@ __asm__("eprol:");
 __asm__(".previous");
 #endif
 
-__asm__(".ident\t\"$FreeBSD$\"");
+__asm__(".ident\t\"$FreeBSD: src/lib/csu/i386-elf/crt1.c,v 1.12 2003/01/26 23:14:47 markm Exp $\"");

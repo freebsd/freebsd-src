@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)pxin3.n	5.2 (Berkeley) 4/17/91
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/px/pxin3.n,v 1.2 2000/11/30 17:06:28 ru Exp $
 .\"
 .ta 8n 16n 24n
 .nr H1 2

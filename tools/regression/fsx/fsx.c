@@ -34,7 +34,7 @@
  *
  *	Checks for mmap last-page zero fill.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/fsx/fsx.c,v 1.2 2003/04/23 23:42:23 jkh Exp $
  *
  */
 

@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_flow.h,v 1.4 2000/05/26 02:05:46 jake Exp $
  */
 
 #ifndef _NETINET_IP_FLOW_H

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aha/ahareg.h,v 1.12 2001/02/04 16:45:39 imp Exp $
  */
 
 #ifndef _AHAREG_H_

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/ia64/libski/pal_stub.s,v 1.1 2003/02/01 22:50:08 marcel Exp $
  */
 
 #include <machine/asm.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/usb/ehci_pci.c,v 1.1 2003/04/14 14:04:07 ticso Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

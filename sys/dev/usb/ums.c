@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ums.c,v 1.57 2003/03/03 12:15:47 phk Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: aml_dump.c,v 1.3 2000/08/08 14:12:21 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/acpidump/aml_dump.c,v 1.4 2001/10/22 17:25:25 iwasaki Exp $
  */
 
 #include <sys/param.h>

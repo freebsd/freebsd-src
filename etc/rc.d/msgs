@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/msgs,v 1.1 2002/06/13 22:14:36 gordon Exp $
 #
 
 # PROVIDE: msgs

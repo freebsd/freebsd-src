@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/doc/Makefile,v 1.9 2002/10/29 20:20:36 roberto Exp $
 
 MAINTAINER=	sheldonh
 

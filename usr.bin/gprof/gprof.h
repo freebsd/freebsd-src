@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gprof.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gprof/gprof.h,v 1.18 2002/12/10 02:22:01 grehan Exp $
  */
 
 #include <sys/types.h>

@@ -27,7 +27,7 @@
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/driver/i4b_ctl.c,v 1.21 2003/03/03 12:15:50 phk Exp $
  *
  *	last edit-date: [Sun Mar 17 09:49:24 2002]
  *

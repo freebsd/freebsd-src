@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_os_freebsd.h,v 1.10 2003/04/26 06:59:38 anholt Exp $
  */
 #include <sys/param.h>
 #include <sys/queue.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/vfs_vnops.c,v 1.184 2003/04/29 13:36:03 kan Exp $
  */
 
 #include "opt_mac.h"

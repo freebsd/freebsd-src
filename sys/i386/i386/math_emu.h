@@ -3,7 +3,7 @@
  *
  * (C) 1991 Linus Torvalds
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/math_emu.h,v 1.9 2001/09/12 08:37:30 julian Exp $
  */
 #ifndef _LINUX_MATH_EMU_H
 #define _LINUX_MATH_EMU_H

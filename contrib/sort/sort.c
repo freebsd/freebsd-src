@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/sort/sort.c,v 1.2 2002/04/07 00:49:00 ache Exp $
  */
 
 /* Sort sorts a file using an optional user-defined key.

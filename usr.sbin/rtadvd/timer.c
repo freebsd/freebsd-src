@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/rtadvd/timer.c,v 1.5 2002/06/13 16:59:31 ume Exp $	*/
 /*	$KAME: timer.c,v 1.4 2000/05/27 11:30:43 jinmei Exp $	*/
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/ia64/ssc.c,v 1.15 2003/03/03 12:15:50 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/bus.h>

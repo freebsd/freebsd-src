@@ -64,7 +64,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+#	$FreeBSD: src/share/examples/kld/Makefile,v 1.3 2000/07/15 10:25:52 abial Exp $
 #
 
 SUBDIR=	cdev syscall dyn_sysctl

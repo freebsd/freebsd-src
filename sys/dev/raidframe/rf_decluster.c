@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_decluster.c,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_decluster.c,v 1.6 2001/01/26 04:40:03 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

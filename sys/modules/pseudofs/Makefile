@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/pseudofs/Makefile,v 1.3 2002/08/01 01:33:12 rwatson Exp $
 
 .PATH: ${.CURDIR}/../../fs/pseudofs
 

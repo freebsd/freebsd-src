@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.h	8.2 (Berkeley) 12/5/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/isofs/cd9660/cd9660_rrip.h,v 1.6 1999/08/28 00:46:06 peter Exp $
  */
   
 typedef struct {

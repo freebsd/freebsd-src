@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: node.c,v 1.4 2003/03/23 21:28:17 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/hccontrol/node.c,v 1.2 2003/05/10 21:50:34 julian Exp $
  */
 
 #include <sys/types.h>

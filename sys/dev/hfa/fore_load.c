@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hfa/fore_load.c,v 1.28 2003/03/03 12:15:42 phk Exp $
  *
  */
 
@@ -67,7 +67,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hfa/fore_load.c,v 1.28 2003/03/03 12:15:42 phk Exp $");
 #endif
 
 static int fore_probe(device_t);

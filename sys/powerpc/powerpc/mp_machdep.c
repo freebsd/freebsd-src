@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/powerpc/powerpc/mp_machdep.c,v 1.10 2003/02/16 14:11:53 phk Exp $
  */
 
 #include <sys/param.h>

@@ -92,7 +92,7 @@
  *
  ****************************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/i386/i386-gdbstub.c,v 1.22 2003/02/16 19:22:21 phk Exp $ */
 
 #include <sys/param.h>
 #include <sys/reboot.h>

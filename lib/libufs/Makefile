@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libufs/Makefile,v 1.7 2003/01/30 00:11:01 jmallett Exp $
 
 LIB=	ufs
 SRCS=	block.c cgroup.c inode.c sblock.c type.c

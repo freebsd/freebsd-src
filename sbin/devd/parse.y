@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/devd/parse.y,v 1.3 2003/05/15 02:23:32 imp Exp $
  */
 
 #include "devd.h"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/joy/Makefile,v 1.22 2001/12/05 09:09:48 imp Exp $
 
 .PATH: ${.CURDIR}/../../dev/joy
 

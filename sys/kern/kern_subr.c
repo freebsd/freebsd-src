@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_subr.c,v 1.74 2003/05/05 21:27:29 jhb Exp $
  */
 
 #include "opt_zero.h"

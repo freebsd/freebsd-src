@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/whois/Makefile,v 1.6 2001/12/11 22:31:01 markm Exp $
 
 MAINTAINER=	mike@FreeBSD.org
 

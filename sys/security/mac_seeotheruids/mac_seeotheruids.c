@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_seeotheruids/mac_seeotheruids.c,v 1.5 2003/03/27 19:26:39 rwatson Exp $
  */
 
 /*

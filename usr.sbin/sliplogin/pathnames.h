@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)pathnames.h	8.1 (Berkeley) 6/6/93
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/sliplogin/pathnames.h,v 1.3 2002/05/30 21:26:49 wollman Exp $
  */
 
 #ifndef COMPAT

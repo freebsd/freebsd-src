@@ -65,7 +65,7 @@
  *
  *	from: NetBSD: bmtphy.c,v 1.8 2002/07/03 06:25:50 simonb Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/bmtphy.c,v 1.3 2003/01/19 02:59:32 obrien Exp $
  */
 
 /*

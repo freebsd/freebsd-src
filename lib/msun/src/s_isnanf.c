@@ -16,7 +16,7 @@
 /* For binary compat; to be removed in FreeBSD 6.0. */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/s_isnanf.c,v 1.7 2003/02/12 20:03:41 mike Exp $";
 #endif
 
 /*

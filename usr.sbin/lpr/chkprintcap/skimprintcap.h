@@ -29,7 +29,7 @@
  * official policies, either expressed or implied, of the FreeBSD Project.
  *
  * ------+---------+---------+---------+---------+---------+---------+---------*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/lpr/chkprintcap/skimprintcap.h,v 1.1 2001/12/15 23:35:55 gad Exp $
  * ------+---------+---------+---------+---------+---------+---------+---------*
  */
 

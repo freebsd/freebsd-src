@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/ccd/Makefile,v 1.16 2002/01/11 15:48:37 ru Exp $ 
 
 .PATH: ${.CURDIR}/../../dev/ccd
 

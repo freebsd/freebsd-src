@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.sparc64,v 1.12 2002/12/05 18:25:09 obrien Exp $
 
 TARGET_TUPLE?=	sparc64-unknown-freebsd
 

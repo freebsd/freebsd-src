@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/ia64/db_interface.c,v 1.23 2003/05/16 21:26:40 marcel Exp $ */
 
 /* 
  * Mach Operating System

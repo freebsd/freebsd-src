@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/intr_machdep.c,v 1.75 2003/05/07 17:21:38 jhb Exp $
  */
 
 #include "opt_auto_eoi.h"

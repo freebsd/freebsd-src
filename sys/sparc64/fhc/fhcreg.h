@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/fhc/fhcreg.h,v 1.2 2003/02/19 08:23:38 jake Exp $
  */
 
 #ifndef _SPARC64_FHC_FHCREG_H_

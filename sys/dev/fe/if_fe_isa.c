@@ -19,7 +19,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fe/if_fe_isa.c,v 1.4 2001/09/02 06:27:07 shiba Exp $
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/regression.h,v 1.2 2002/03/19 20:18:41 alfred Exp $
  */
 #ifndef _SYS_REGRESSION_H
 #define	_SYS_REGRESSION_H

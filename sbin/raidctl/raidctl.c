@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sbin/raidctl/raidctl.c,v 1.1 2002/10/20 08:17:34 scottl Exp $
  */
 
 /*      $NetBSD: raidctl.c,v 1.25 2000/10/31 14:18:39 lukem Exp $   */

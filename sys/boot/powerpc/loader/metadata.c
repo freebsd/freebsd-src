@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/boot/sparc64/loader/metadata.c,v 1.6
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/powerpc/loader/metadata.c,v 1.3 2003/04/30 22:00:15 peter Exp $
  */
 
 #include <stand.h>

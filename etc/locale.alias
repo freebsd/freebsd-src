@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/locale.alias,v 1.11 2003/01/17 00:56:34 ache Exp $
 
 ASCII                   en_US.US-ASCII
 US-ASCII                en_US.US-ASCII

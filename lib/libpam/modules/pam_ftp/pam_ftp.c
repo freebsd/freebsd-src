@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_ftp/pam_ftp.c,v 1.11 2002/04/12 22:27:19 des Exp $");
 
 #define	PROMPT		"Password required for %s."
 #define	GUEST_PROMPT	"Guest login ok, send your e-mail address as password."

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_subr.c,v 1.34 2003/03/04 23:19:52 jlemon Exp $
  *
  */
 
@@ -58,7 +58,7 @@
 #include <vm/uma.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/atm_subr.c,v 1.34 2003/03/04 23:19:52 jlemon Exp $");
 #endif
 
 

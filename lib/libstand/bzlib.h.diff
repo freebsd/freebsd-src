@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/lib/libstand/bzlib.h.diff,v 1.1 2002/02/01 16:33:40 sobomax Exp $
 
 --- bzlib.h	2002/02/01 15:20:44	1.1
 +++ bzlib.h	2002/02/01 15:20:49

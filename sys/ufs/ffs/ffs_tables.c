@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_tables.c	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ffs/ffs_tables.c,v 1.9 2002/06/21 06:18:03 mckusick Exp $
  */
 
 #include <sys/param.h>

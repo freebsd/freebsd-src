@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/isa/gpibreg.h,v 1.4 2000/05/01 20:02:28 peter Exp $ */
 
 static int gpib_port=0x2c0;
 #define IEEE gpib_port

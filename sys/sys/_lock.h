@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/_lock.h,v 1.8 2002/06/07 14:37:09 bde Exp $
  */
 
 #ifndef _SYS__LOCK_H_

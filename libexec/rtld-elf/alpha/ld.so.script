@@ -1,5 +1,5 @@
 /*	$NetBSD: ld.so.script,v 1.2 2001/12/13 20:31:31 thorpej Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/rtld-elf/alpha/ld.so.script,v 1.2 2002/10/12 02:30:53 obrien Exp $ */
 
 OUTPUT_FORMAT("elf64-alpha-freebsd", "elf64-alpha-freebsd",
 	      "elf64-alpha-freebsd")

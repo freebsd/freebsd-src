@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/sys/i386_set_ldt.c,v 1.10 2003/02/16 17:29:09 nectar Exp $");
 
 #include <sys/cdefs.h>
 #include <machine/segments.h>

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libwrap/Makefile,v 1.12 2003/05/12 21:59:16 hmp Exp $
 #
 
 MAINTAINER=markm@FreeBSD.org

@@ -25,7 +25,7 @@
  *
  * 	from: FreeBSD: src/sys/i386/include/bus_pio.h,v 1.2 1999/08/28
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/bus_pio.h,v 1.1 2002/07/09 12:47:10 benno Exp $
  */
 
 #ifndef _MACHINE_BUS_PIO_H_

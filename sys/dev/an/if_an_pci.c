@@ -51,7 +51,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/an/if_an_pci.c,v 1.20 2003/04/15 06:37:19 mdodd Exp $");
 
 #include "opt_inet.h"
 

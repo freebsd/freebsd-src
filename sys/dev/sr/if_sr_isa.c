@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sr/if_sr_isa.c,v 1.48 2003/04/23 20:22:32 jhay Exp $
  */
 
 #include <sys/param.h>

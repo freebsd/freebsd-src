@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia32/ia32.h,v 1.1 2002/07/20 02:56:10 peter Exp $
  */
 
 #ifndef _IA64_IA32_IA32_H_

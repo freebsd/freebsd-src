@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/smbfs/smbfs_vfsops.c,v 1.18 2003/04/01 02:42:02 tjr Exp $
  */
 #include "opt_netsmb.h"
 #ifndef NETSMB

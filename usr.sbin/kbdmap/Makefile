@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/kbdmap/Makefile,v 1.13 2002/07/03 14:56:08 markm Exp $
 
 PROG=	kbdmap
 LINKS=	${BINDIR}/kbdmap ${BINDIR}/vidfont

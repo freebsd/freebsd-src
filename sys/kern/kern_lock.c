@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_lock.c,v 1.67 2003/03/11 20:00:37 jhb Exp $
  */
 
 #include <sys/param.h>

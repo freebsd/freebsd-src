@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_detach.c,v 1.22 2003/05/24 02:29:25 deischen Exp $
  */
 #include <sys/types.h>
 #include <machine/atomic.h>

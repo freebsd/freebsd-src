@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/isa_dma.c,v 1.13 2003/03/25 00:07:03 jake Exp $
  */
 
 /*

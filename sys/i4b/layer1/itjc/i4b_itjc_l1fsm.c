@@ -27,7 +27,7 @@
  *	i4b_itjc_l1fsm.c - NetJet-S layer 1 I.430 state machine
  *	------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/itjc/i4b_itjc_l1fsm.c,v 1.3 2002/09/02 00:52:09 brooks Exp $
  *
  *      last edit-date: [Wed Jan 10 17:16:33 2001]
  *

@@ -41,7 +41,7 @@
  *
  *	@(#)subr_autoconf.c	8.1 (Berkeley) 6/10/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_autoconf.c,v 1.17 2002/03/19 21:24:06 alfred Exp $
  */
 
 #include <sys/param.h>

@@ -1,6 +1,6 @@
 # CP1251 (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/bg_BG.CP1251.src,v 1.1 2001/11/05 06:58:02 ache Exp $
 #
 charmap map.CP1251
 order \

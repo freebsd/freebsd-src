@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/limits.h,v 1.5 2003/05/19 20:29:07 kan Exp $
  */
 
 #ifndef _SYS_LIMITS_H_

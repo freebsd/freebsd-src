@@ -46,7 +46,7 @@ static const char sccsid[] = "@(#)strfile.c   8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/games/fortune/strfile/strfile.c,v 1.22 2003/05/05 09:52:25 obrien Exp $");
 
 # include	<sys/param.h>
 # include	<arpa/inet.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/sys/i386_vm86.c,v 1.6 2003/02/16 17:29:09 nectar Exp $");
 
 #include <machine/sysarch.h>
 

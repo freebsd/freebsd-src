@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/security/550.ipfwlimit,v 1.5 2002/12/07 23:37:44 keramida Exp $
 #
 
 # Show ipfw rules which have reached the log limit

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_debugprint.c,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_debugprint.c,v 1.3 1999/02/05 00:06:08 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

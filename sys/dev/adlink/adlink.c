@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/adlink/adlink.c,v 1.2 2003/04/08 19:12:48 phk Exp $
  */
 
 #ifdef _KERNEL

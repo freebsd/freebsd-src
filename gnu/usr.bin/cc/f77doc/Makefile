@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/f77doc/Makefile,v 1.4 2002/05/10 08:54:48 obrien Exp $
 
 .include "../Makefile.inc"
 

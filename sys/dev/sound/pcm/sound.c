@@ -31,7 +31,7 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/sound.c,v 1.83 2003/02/19 05:47:12 imp Exp $");
 
 struct snddev_channel {
 	SLIST_ENTRY(snddev_channel) link;

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/smbfs/smbfs_subr.c,v 1.3 2003/02/03 19:49:34 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

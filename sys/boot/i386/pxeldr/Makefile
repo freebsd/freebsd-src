@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/pxeldr/Makefile,v 1.8 2002/09/17 01:48:56 peter Exp $
 
 MAINTAINER=jhb@FreeBSD.org
 

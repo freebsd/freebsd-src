@@ -27,7 +27,7 @@
  *    Kevin E. Martin <martin@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/radeon_drv.h,v 1.5 2003/04/25 01:18:46 anholt Exp $
  */
 
 #ifndef __RADEON_DRV_H__

@@ -1,6 +1,6 @@
 #!/bin/sh -x
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/network1,v 1.146 2003/04/18 17:51:54 mtm Exp $
 #
 
 # PROVIDE: network1

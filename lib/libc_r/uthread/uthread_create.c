@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_create.c,v 1.37 2003/01/06 00:56:23 marcel Exp $
  */
 #include <errno.h>
 #include <stdlib.h>

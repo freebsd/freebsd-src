@@ -89,7 +89,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/pci/if_dc.c,v 1.108 2003/05/15 16:53:29 mbr Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

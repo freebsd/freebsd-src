@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/Makefile,v 1.323 2003/05/13 11:26:08 nyan Exp $
 
 .if exists(${.CURDIR}/../opencrypto) && !defined(NOCRYPT)
 _crypto=	crypto

@@ -33,7 +33,7 @@
  *
  *	@(#)ipxip.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx_ip.h,v 1.15 2002/03/20 02:39:13 alfred Exp $
  */
 
 #ifndef _NETIPX_IPXIP_H_

@@ -216,5 +216,5 @@ o For the AA-ESTABLISH request and response signals, only BR=YES is supported
 o For the AA-DATA request signal, only PR=NO is supported (Q.SAAL1 only)
 
 
-	@(#) $FreeBSD$
+	@(#) $FreeBSD: src/share/examples/atm/sscop-design.txt,v 1.2 1999/08/28 00:19:08 peter Exp $
 

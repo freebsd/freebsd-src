@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ia64/libski/time.c,v 1.3 2003/04/03 21:36:29 obrien Exp $");
 
 #include <time.h>
 #include <sys/time.h>

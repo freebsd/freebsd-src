@@ -30,7 +30,7 @@
  *
  *	from: FreeBSD: src/sys/dev/pci/pci_pci.c,v 1.3 2000/12/13
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/pci/apb.c,v 1.4 2002/03/24 02:10:56 tmm Exp $
  */
 
 /*

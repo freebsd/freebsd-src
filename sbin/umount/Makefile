@@ -1,6 +1,6 @@
 #	@(#)Makefile	8.4 (Berkeley) 6/22/95
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/umount/Makefile,v 1.10 2003/02/23 13:22:41 johan Exp $
 
 PROG=	umount
 SRCS=	umount.c vfslist.c mounttab.c

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.3 (Berkeley) 5/8/95
-# $FreeBSD$
+# $FreeBSD: src/bin/df/Makefile,v 1.15 2002/05/12 19:24:09 phk Exp $
 
 PROG=	df
 SRCS=	df.c vfslist.c

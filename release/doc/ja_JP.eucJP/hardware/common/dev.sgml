@@ -28,13 +28,13 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-        $FreeBSD$
+        $FreeBSD: src/release/doc/ja_JP.eucJP/hardware/common/dev.sgml,v 1.14 2003/05/29 00:10:11 rushani Exp $
         Original revision: 1.156
 -->
 
 <sect1 id="support">
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/ja_JP.eucJP/hardware/common/dev.sgml,v 1.14 2003/05/29 00:10:11 rushani Exp $</pubdate>
   </sect1info>
 
   <title>対応ハードウェア</title>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/usb/ohci_pci.c,v 1.30 2003/02/28 13:21:17 imp Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

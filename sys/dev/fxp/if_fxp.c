@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fxp/if_fxp.c,v 1.180 2003/05/25 05:04:26 truckman Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

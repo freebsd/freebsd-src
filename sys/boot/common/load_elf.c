@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/load_elf.c,v 1.28 2003/05/12 05:48:09 peter Exp $
  */
 
 #include <sys/param.h>

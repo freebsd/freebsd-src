@@ -33,10 +33,10 @@
 #if defined(LIBC_SCCS) && !defined(lint) 
 static char *sccsid = "@(#)xdr_reference.c 1.11 87/08/11 SMI";
 static char *sccsid = "@(#)xdr_reference.c	2.1 88/07/29 4.0 RPCSRC";
-static char *rcsid = "$FreeBSD$";
+static char *rcsid = "$FreeBSD: src/lib/libc/xdr/xdr_reference.c,v 1.11 2002/03/22 21:53:26 obrien Exp $";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/xdr/xdr_reference.c,v 1.11 2002/03/22 21:53:26 obrien Exp $");
 
 /*
  * xdr_reference.c, Generic XDR routines impelmentation.

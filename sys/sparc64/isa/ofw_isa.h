@@ -28,7 +28,7 @@
  *
  *	from: NetBSD: ebus.c,v 1.26 2001/09/10 16:27:53 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/isa/ofw_isa.h,v 1.1 2001/11/09 20:21:21 tmm Exp $
  */
 
 #ifndef _SPARC64_ISA_OFW_ISA_H_

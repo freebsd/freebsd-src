@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/exca/exca.c,v 1.7 2003/02/14 06:21:18 imp Exp $ */
 
 /*
  * Copyright (c) 2002 M Warner Losh.  All rights reserved.

@@ -1,6 +1,6 @@
 %{
 /*  $Id: parsedate.y,v 1.9.2.1 2000/12/26 08:39:49 kondou Exp $
-**  $FreeBSD$
+**  $FreeBSD: src/usr.bin/find/parsedate.y,v 1.3 2002/03/30 13:54:53 dwmalone Exp $
 **
 **  Originally written by Steven M. Bellovin <smb@research.att.com> while
 **  at the University of North Carolina at Chapel Hill.  Later tweaked by

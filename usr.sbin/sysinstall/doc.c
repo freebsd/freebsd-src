@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/doc.c,v 1.31 2002/08/01 10:20:59 blackend Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Matthew Dillon.  This code is distributed under
  * the BSD copyright, /usr/src/COPYRIGHT.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/critical.c,v 1.3 2002/04/01 23:51:21 dillon Exp $
  */
 
 #include <sys/param.h>

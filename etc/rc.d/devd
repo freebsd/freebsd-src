@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/devd,v 1.5 2003/02/12 04:22:40 imp Exp $
 #
 
 # PROVIDE: devd

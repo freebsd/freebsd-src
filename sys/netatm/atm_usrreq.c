@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_usrreq.c,v 1.17 2002/12/22 05:35:02 hsu Exp $
  *
  */
 
@@ -55,7 +55,7 @@
 #include <netatm/atm_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/atm_usrreq.c,v 1.17 2002/12/22 05:35:02 hsu Exp $");
 #endif
 
 

@@ -25,7 +25,7 @@
  *
  */
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_context.c,v 1.5 2003/04/25 01:50:29 deischen Exp $
  */
 
 #include <sys/param.h>

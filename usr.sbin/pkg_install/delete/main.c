@@ -20,7 +20,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/delete/main.c,v 1.25 2002/04/01 09:39:06 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -50,7 +50,7 @@
  *
  *	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ccd/ccd.c,v 1.134 2003/04/14 08:49:54 phk Exp $
  */
 
 #include <sys/param.h>

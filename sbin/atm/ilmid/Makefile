@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $FreeBSD$
+#	@(#) $FreeBSD: src/sbin/atm/ilmid/Makefile,v 1.8 2002/09/30 08:59:16 mdodd Exp $
 #
 #
 

@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: aml_memman.c,v 1.10 2000/08/09 14:47:43 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/amldb/aml/aml_memman.c,v 1.2 2000/11/09 06:24:45 iwasaki Exp $
  */
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/mixer.h,v 1.11 2001/09/12 08:37:13 julian Exp $
  */
 
 int mixer_init(device_t dev, kobj_class_t cls, void *devinfo);

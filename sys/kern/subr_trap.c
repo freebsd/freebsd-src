@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_trap.c,v 1.254 2003/05/13 20:35:59 jhb Exp $
  */
 
 #include "opt_mac.h"

@@ -1,5 +1,5 @@
 /*	$NetBSD: uscanner.c,v 1.30 2002/07/11 21:14:36 augustss Exp$	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/uscanner.c,v 1.37 2003/03/03 12:15:48 phk Exp $	*/
 
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.

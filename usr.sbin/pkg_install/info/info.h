@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/info/info.h,v 1.26 2003/03/25 01:22:42 mdodd Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

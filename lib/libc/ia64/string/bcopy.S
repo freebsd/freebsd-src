@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/ia64/string/bcopy.S,v 1.2 2003/03/03 01:09:46 obrien Exp $
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/string/bcopy.S,v 1.2 2003/03/03 01:09:46 obrien Exp $");
 
 /*
  * Not the fastest bcopy in the world.

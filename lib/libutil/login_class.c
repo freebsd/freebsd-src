@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/login_class.c,v 1.21 2002/11/12 22:30:01 rwatson Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_aes.c,v 1.20 2003/05/05 15:52:11 phk Exp $
  *
  * This method provides AES encryption with a compiled in key (default
  * all zeroes).

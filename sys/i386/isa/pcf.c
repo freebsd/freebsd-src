@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/pcf.c,v 1.19 2003/01/01 18:48:53 schweikh Exp $
  *
  */
 #include <sys/param.h>

@@ -27,7 +27,7 @@
  *	i4b_tei.c - tei handling procedures
  *	-----------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer2/i4b_tei.c,v 1.14 2002/09/02 00:52:10 brooks Exp $
  *
  *      last edit-date: [Sat Mar  9 17:53:27 2002]
  *

@@ -26,7 +26,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/arch/i386/i386/thr_switch.S,v 1.7 2003/04/29 21:05:17 deischen Exp $");
 
 /*
  * Where do we define these?
