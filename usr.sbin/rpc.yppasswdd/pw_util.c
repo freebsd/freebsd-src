@@ -143,7 +143,7 @@ pw_tmp()
 
 int
 pw_mkdb(username)
-char *username;
+const char *username;
 {
 
 	yp_error("rebuilding the database...");
@@ -174,7 +174,7 @@ char *username;
 
 void
 pw_error(name, err, eval)
-	char *name;
+	const char *name;
 	int err, eval;
 {
 	if (err && name != NULL)
