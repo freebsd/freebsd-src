@@ -103,12 +103,12 @@ and can be changed in
 .It Va sendmail_enable
 .Pq Vt str
 If set to
-.Dq Li YES ,
+.Dq YES ,
 run the
 .Xr sendmail 8
 daemon at system boot time.
 If set to
-.Dq Li NONE ,
+.Dq NONE ,
 do not run any
 .Xr sendmail 8
 daemons at system boot time.
@@ -117,18 +117,18 @@ daemons at system boot time.
 If
 .Va sendmail_enable
 is set to
-.Dq Li YES ,
+.Dq YES ,
 these are the flags to pass to the
 .Xr sendmail 8
 daemon.
 .It Va sendmail_submit_enable
 .Pq Vt bool
 If set to
-.Dq Li YES
+.Dq YES
 and
 .Va sendmail_enable
 is set to
-.Dq Li NO ,
+.Dq NO ,
 run
 .Xr sendmail 8
 using
@@ -144,24 +144,24 @@ as a non-set-user-ID binary.
 If
 .Va sendmail_enable
 is set to
-.Dq Li NO
+.Dq NO
 and
 .Va sendmail_submit_enable
 is set to
-.Dq Li YES ,
+.Dq YES ,
 these are the flags to pass to the
 .Xr sendmail 8
 daemon.
 .It Va sendmail_outbound_enable
 .Pq Vt bool
 If set to
-.Dq Li YES
+.Dq YES
 and both
 .Va sendmail_enable
 and
 .Va sendmail_submit_enable
 are set to
-.Dq Li NO ,
+.Dq NO ,
 run
 .Xr sendmail 8
 using
@@ -177,18 +177,18 @@ If both
 and
 .Va sendmail_submit_enable
 are set to
-.Dq Li NO
+.Dq NO
 and
 .Va sendmail_outbound_enable
 is set to
-.Dq Li YES ,
+.Dq YES ,
 these are the flags to pass to the
 .Xr sendmail 8
 daemon.
 .It Va sendmail_msp_queue_enable
 .Pq Vt bool
 If set to
-.Dq Li YES ,
+.Dq YES ,
 start a client (MSP) queue runner
 .Xr sendmail 8
 daemon at system boot time.
@@ -201,7 +201,7 @@ left behind in the submission queue.
 If
 .Va sendmail_msp_queue_enable
 is set to
-.Dq Li YES ,
+.Dq YES ,
 these are the flags to pass to the
 .Xr sendmail 8
 daemon.
