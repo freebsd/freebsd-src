@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.24.2.4 1999/03/31 04:12:29 wpaul Exp $
+ *	$Id: if_tl.c,v 1.39 1999/07/22 16:54:10 wpaul Exp $
  */
 
 /*
@@ -221,7 +221,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_tl.c,v 1.24.2.4 1999/03/31 04:12:29 wpaul Exp $";
+	"$Id: if_tl.c,v 1.39 1999/07/22 16:54:10 wpaul Exp $";
 #endif
 
 /*
@@ -1715,7 +1715,7 @@ tl_attach(config_id, unit)
 	ifp->if_watchdog = tl_watchdog;
 	ifp->if_init = tl_init;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = TL_TX_LIST_CNT - 1;
 	callout_handle_init(&sc->tl_stat_ch);
 
 	/* Reset the adapter again. */
@@ -2254,6 +2254,9 @@ static void tl_stats_update(xsc)
 	struct ifnet		*ifp;
 	struct tl_stats		tl_stats;
 	u_int32_t		*p;
+	int			s;
+
+	s = splimp();
 
 	bzero((char *)&tl_stats, sizeof(struct tl_stats));
 
@@ -2278,6 +2281,8 @@ static void tl_stats_update(xsc)
 	ifp->if_oerrors += tl_tx_underrun(tl_stats);
 
 	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
+
+	splx(s);
 
 	return;
 }
