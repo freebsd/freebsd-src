@@ -46,11 +46,12 @@
 #include <sys/queue.h>
 #include <sys/_label.h>
 #include <sys/_lock.h>
+#include <sys/lock.h>
 #include <sys/_mutex.h>
+#include <sys/mutex.h>
 #include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/acl.h>
-#include <vm/uma.h>
 
 /*
  * The vnode is the focus of all file activity in UNIX.  There is a
@@ -361,7 +362,7 @@ extern int		vttoif_tab[];
  */
 extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	int desiredvnodes;		/* number of vnodes desired */
-extern	uma_zone_t namei_zone;
+extern	struct uma_zone *namei_zone;
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
 extern	int vfs_ioopt;
