@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.57 1998/09/24 15:02:46 luoqi Exp $
+ * $Id: buf.h,v 1.58 1998/09/25 17:34:49 peter Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -151,7 +151,7 @@ struct buf {
 #define	B_PHYS		0x00040000	/* I/O to user memory. */
 #define	B_RAW		0x00080000	/* Set by physio for raw transfers. */
 #define	B_READ		0x00100000	/* Read buffer. */
-#define	B_AVAIL3	0x00200000	/* Available flag */
+#define	B_DIRTY		0x00200000	/* Needs writing later. */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_WANTED	0x00800000	/* Process wants this buffer. */
 #define	B_WRITE		0x00000000	/* Write buffer (pseudo flag). */
@@ -165,7 +165,7 @@ struct buf {
 #define B_AVAIL1	0x80000000	/* Available flag */
 
 #define PRINT_BUF_FLAGS "\20\40avail1\37cluster\36vmio\35ram\34ordered" \
-	"\33paging\32xxx\31writeinprog\30wanted\27relbuf\26avail3" \
+	"\33paging\32xxx\31writeinprog\30wanted\27relbuf\26dirty" \
 	"\25read\24raw\23phys\22clusterok\21malloc\20nocache" \
 	"\17locked\16inval\15avail2\14error\13eintr\12done\11freebuf" \
 	"\10delwri\7call\6cache\5busy\4bad\3async\2needcommit\1age"
