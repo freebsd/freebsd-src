@@ -44,13 +44,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -288,7 +289,7 @@ main(int argc, char *argv[])
 	/* if asme and non-standard target shell, must be root */
 	if (asme) {
 		if (ruid != 0 && !chshell(pwd->pw_shell))
-			errx(1, "permission denied (shell).");
+			errx(1, "permission denied (shell)");
 	}
 	else if (pwd->pw_shell && *pwd->pw_shell) {
 		shell = pwd->pw_shell;
