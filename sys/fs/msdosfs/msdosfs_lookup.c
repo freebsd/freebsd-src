@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.16 1998/02/22 15:09:42 ache Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.17 1998/02/22 17:26:27 ache Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -256,8 +256,8 @@ msdosfs_lookup(ap)
 							    cnp->cn_namelen,
 							    (struct winentry *)dep,
 							    chksum,
-							    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
-							    pmp->pm_u2w);
+							    (pmp->pm_flags & MSDOSFSMNT_U2WTABLE) ?
+							    pmp->pm_u2w : NULL);
 					continue;
 				}
 
@@ -641,8 +641,8 @@ createde(dep, ddep, depp, cnp)
 			}
 			if (!unix2winfn(un, unlen, (struct winentry *)ndep,
 					cnt++, chksum,
-					pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
-					pmp->pm_u2w));
+					(pmp->pm_flags & MSDOSFSMNT_U2WTABLE) ?
+					pmp->pm_u2w : NULL));
 				break;
 		}
 	}

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.18 1998/02/22 15:09:39 ache Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.19 1998/02/22 17:26:24 ache Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -563,19 +563,19 @@ unix2dosfn(un, dn, unlen, gen)
  *	 i.e. doesn't consist solely of blanks and dots
  */
 int
-unix2winfn(un, unlen, wep, cnt, chksum, table_loaded, u2w)
+unix2winfn(un, unlen, wep, cnt, chksum, u2w)
 	const u_char *un;
 	int unlen;
 	struct winentry *wep;
 	int cnt;
 	int chksum;
-	int table_loaded;
 	u_int16_t *u2w;
 {
 	const u_int8_t *cp;
 	u_int8_t *wcp;
 	int i;
 	u_int16_t code;
+	int table_loaded = (u2w != NULL);
 
 	/*
 	 * Drop trailing blanks and dots
@@ -663,17 +663,17 @@ find_lcode(code, u2w)
  * Returns the checksum or -1 if no match
  */
 int
-winChkName(un, unlen, wep, chksum, table_loaded, u2w)
+winChkName(un, unlen, wep, chksum, u2w)
 	const u_char *un;
 	int unlen;
 	struct winentry *wep;
 	int chksum;
-	int table_loaded;
 	u_int16_t *u2w;
 {
 	u_int8_t *cp;
 	int i;
 	u_int16_t code;
+	int table_loaded = (u2w != NULL);
 
 	/*
 	 * First compare checksums
@@ -757,17 +757,17 @@ winChkName(un, unlen, wep, chksum, table_loaded, u2w)
  * Returns the checksum or -1 if impossible
  */
 int
-win2unixfn(wep, dp, chksum, table_loaded, u2w)
+win2unixfn(wep, dp, chksum, u2w)
 	struct winentry *wep;
 	struct dirent *dp;
 	int chksum;
-	int table_loaded;
 	u_int16_t *u2w;
 {
 	u_int8_t *cp;
 	u_int8_t *np, *ep = dp->d_name + WIN_MAXLEN;
 	u_int16_t code;
 	int i;
+	int table_loaded = (u2w != NULL);
 
 	if ((wep->weCnt&WIN_CNT) > howmany(WIN_MAXLEN, WIN_CHARS)
 	    || !(wep->weCnt&WIN_CNT))
