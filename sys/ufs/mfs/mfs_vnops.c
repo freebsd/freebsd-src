@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.30 1997/10/26 20:55:35 phk Exp $
+ * $Id: mfs_vnops.c,v 1.31 1997/10/27 13:33:47 bde Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
+#include <sys/malloc.h>
 
 #include <miscfs/specfs/specdev.h>
 
@@ -49,12 +50,15 @@
 #include <ufs/mfs/mfsnode.h>
 #include <ufs/mfs/mfs_extern.h>
 
+MALLOC_DECLARE(M_MFSNODE);
+
 static int	mfs_badop __P((struct vop_generic_args *));
 static int	mfs_bmap __P((struct vop_bmap_args *));
 static int	mfs_close __P((struct vop_close_args *));
 static int	mfs_fsync __P((struct vop_fsync_args *));
 static int	mfs_inactive __P((struct vop_inactive_args *)); /* XXX */
 static int	mfs_open __P((struct vop_open_args *));
+static int	mfs_reclaim __P((struct vop_reclaim_args *)); /* XXX */
 static int	mfs_print __P((struct vop_print_args *)); /* XXX */
 static int	mfs_strategy __P((struct vop_strategy_args *)); /* XXX */
 /*
@@ -74,7 +78,7 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_lock_desc,		(vop_t *) vop_defaultop },
 	{ &vop_open_desc,		(vop_t *) mfs_open },
 	{ &vop_print_desc,		(vop_t *) mfs_print },
-	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
+	{ &vop_reclaim_desc,		(vop_t *) mfs_reclaim },
 	{ &vop_strategy_desc,		(vop_t *) mfs_strategy },
 	{ &vop_unlock_desc,		(vop_t *) vop_defaultop },
 	{ NULL, NULL }
@@ -264,6 +268,22 @@ mfs_inactive(ap)
 		panic("mfs_inactive: not inactive (next buffer %p)",
 			bufq_first(&mfsp->buf_queue));
 	VOP_UNLOCK(vp, 0, ap->a_p);
+	return (0);
+}
+
+/*
+ * Reclaim a memory filesystem devvp so that it can be reused.
+ */
+static int
+mfs_reclaim(ap)
+	struct vop_reclaim_args /* {
+		struct vnode *a_vp;
+	} */ *ap;
+{
+	register struct vnode *vp = ap->a_vp;
+
+	FREE(vp->v_data, M_MFSNODE);
+	vp->v_data = NULL;
 	return (0);
 }
 
