@@ -105,9 +105,7 @@ _mutex_reinit(pthread_mutex_t * mutex)
 {
 	int	ret = 0;
 
-	if (mutex == NULL)
-		ret = EINVAL;
-	else if (*mutex == PTHREAD_MUTEX_INITIALIZER)
+	if (*mutex == PTHREAD_MUTEX_INITIALIZER)
 		ret = _pthread_mutex_init(mutex, NULL);
 	else {
 		/*
@@ -169,9 +167,6 @@ _pthread_mutex_init(pthread_mutex_t * mutex,
 int
 _pthread_mutex_destroy(pthread_mutex_t * mutex)
 {
-	if (mutex == NULL)
-		return (EINVAL);
-
 	/*
 	 * If this mutex was statically initialized, don't bother
 	 * initializing it in order to destroy it immediately.
@@ -271,14 +266,11 @@ __pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
 	int	ret = 0;
 
-	if (mutex == NULL)
-		ret = EINVAL;
-
 	/*
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization:
 	 */
-	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
+	if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    (ret = mutex_init(mutex, 0)) == 0)
 		ret = mutex_lock_common(mutex, 1, NULL);
 
@@ -295,14 +287,11 @@ _pthread_mutex_trylock(pthread_mutex_t *mutex)
 
 	_thread_sigblock();
 
-	if (mutex == NULL)
-		ret = EINVAL;
-
 	/*
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization marking the mutex private (delete safe):
 	 */
-	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
+	if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    (ret = mutex_init(mutex, 1)) == 0)
 		ret = mutex_lock_common(mutex, 1, NULL);
 
@@ -518,14 +507,11 @@ __pthread_mutex_lock(pthread_mutex_t *mutex)
 	if (_thread_initial == NULL)
 		_thread_init();
 
-	if (mutex == NULL)
-		ret = EINVAL;
-
 	/*
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization:
 	 */
-	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
+	if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    ((ret = mutex_init(mutex, 0)) == 0))
 		ret = mutex_lock_common(mutex, 0, NULL);
 
@@ -545,14 +531,11 @@ _pthread_mutex_lock(pthread_mutex_t *mutex)
 
 	_thread_sigblock();
 
-	if (mutex == NULL)
-		ret = EINVAL;
-
 	/*
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization marking it private (delete safe):
 	 */
-	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
+	if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    ((ret = mutex_init(mutex, 1)) == 0))
 		ret = mutex_lock_common(mutex, 0, NULL);
 
@@ -574,9 +557,7 @@ _pthread_mutex_timedlock(pthread_mutex_t *mutex, const struct timespec *abstime)
 	/*
 	 * Initialize it if it's a valid statically inited mutex.
 	 */
-	if (mutex == NULL)
-		error = EINVAL;
-	else if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
+	if ((*mutex != PTHREAD_MUTEX_INITIALIZER) ||
 	    ((error = mutex_init(mutex, 0)) == 0))
 		error = mutex_lock_common(mutex, 0, abstime);
 
@@ -660,8 +641,6 @@ mutex_unlock_common(pthread_mutex_t * mutex, int add_reference)
 	/*
 	 * Error checking.
 	 */
-	if (*mutex == NULL)
-		return (EINVAL);
 	if ((*mutex)->m_owner != curthread)
 		return (EPERM);
 	PTHREAD_ASSERT(((*mutex)->m_protocol >= PTHREAD_PRIO_NONE &&
