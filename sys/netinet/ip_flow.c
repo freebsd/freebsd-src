@@ -32,6 +32,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 #include <sys/param.h>
@@ -60,6 +62,7 @@
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
+#include <netinet/ip_flow.h>
 
 #define	IPFLOW_TIMER		(5 * PR_SLOWHZ)
 #define IPFLOW_HASHBITS		6	/* should not be a multiple of 8 */
