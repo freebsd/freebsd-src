@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.5 1994/08/04 19:04:38 wollman Exp $
+#	$Id: Makefile,v 1.6 1994/08/04 20:39:19 wollman Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -11,7 +11,8 @@ all clean cleandir depend lint tags:
 SUBDIR= rpcsvc
 # XXX MISSING:	mp.h
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
-	err.h fnmatch.h fstab.h fts.h glob.h grp.h kvm.h limits.h link.h \
+	err.h fnmatch.h fstab.h fts.h glob.h grp.h histedit.h kvm.h \
+	limits.h link.h \
 	locale.h \
 	math.h memory.h mpool.h ndbm.h netdb.h nlist.h paths.h pwd.h \
 	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h setjmp.h \
