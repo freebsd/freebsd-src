@@ -28,15 +28,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ed.4,v 1.4 1996/12/26 16:16:05 wosch Exp $
+.\"	$Id: ed.4,v 1.8 1997/02/22 13:25:18 peter Exp $
 .\"
 .Dd October 28, 1995
 .Dt ED 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm ed
-.Nd
-high performance ethernet device driver
+.Nd high performance ethernet device driver
 .Sh SYNOPSIS
 .Cd "device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr"
 .Cd "device ed1 at isa? port 0x300 net irq 5 iomem 0xd8000 vector edintr"
@@ -46,8 +45,9 @@ The
 .Nm ed
 driver provides support for 8 and 16bit ISA ethernet cards that are based on
 the National Semiconductor DS8390 and similar NICs manufactured by other companies.
+.Pp
 It supports all 80x3 series ISA ethernet cards manufatured by Western Digital and SMC,
-the SMC Ultra, the 3Com 3c503, and the Novell NE1000/NE2000.
+the SMC Ultra, the 3Com 3c503, the Novell NE1000/NE2000, and HP PC Lan+.
 .Pp
 The
 .Nm
@@ -58,12 +58,12 @@ the IEEE 802.3 CSMA ethernet is possible.
 In addition to the standard port and irq specifications, the
 .Nm
 driver also supports a number of
-.Nm flags
+.Em flags
 which can force 8/16bit mode, enable/disable multi-buffering, and select the default
 interface type (AUI/BNC, and for cards with twisted pair, AUI/10BaseT).
 .Pp
 The
-.Nm flags
+.Em flags
 are a bit field, and are summerized as follows:
 .Pp
 .Bl -hang -offset indent
@@ -89,9 +89,9 @@ reduce receiver lossage.
 .El
 .Pp
 When using a 3c503 card, the AUI connection may be selected by specifying the
-.Nm link2
+.Em link2
 option to
-.Nm ifconfig
+.Xr ifconfig 8
 (BNC is the default).
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -105,7 +105,7 @@ driver found that it could not clear the card's shared memory. This is most comm
 caused by a BIOS extension ROM being configured in the same address space as the
 ethernet card's shared memory. Either find the offending card and change its BIOS
 ROM to be at an address that doesn't conflict, or change the
-.Nm iomem
+.Em iomem
 option in the kernel config file so that the card's shared memory is mapped at a
 non-conflicting address.
 .It "ed%d: Invalid irq configuration (%d) must be 2-5 for 3c503."
@@ -147,9 +147,9 @@ dropped packets during heavy network traffic.
 .Pp
 16bit Compex cards identify themselves as being 8bit. While these cards will
 work in 8bit mode, much higher performance can be acheived by specifying
-.Nm flags 0x04
+.Em "flags 0x04"
 (force 16bit mode) in your kernel config file. In addition, you should also specify
-.Nm iosize 16384
+.Em "iosize 16384"
 to take advantage of the extra 8k of shared memory that 16bit mode provides.
 .Sh BUGS
 The

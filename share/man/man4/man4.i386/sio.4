@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.19 1996/12/26 16:16:18 wosch Exp $
+.\"	$Id: sio.4,v 1.23 1997/02/22 13:25:41 peter Exp $
 .\"
 .Dd October 10, 1995
 .Dt SIO 4 i386
@@ -49,24 +49,24 @@ For standard ports:
 .Cd "device sio1 at isa? port" \&"IO_COM2\&" tty irq 3 vector siointr
 .Cd "device sio2 at isa? port" \&"IO_COM3\&" tty irq 5 vector siointr
 .Cd "device sio3 at isa? port" \&"IO_COM4\&" tty irq 9 vector siointr
-.sp
+.Pp
 For AST compatible multiport cards with 4 ports:
 .Cd "options" \&"COM_MULTIPORT\&"
 .Cd "device sio4 at isa? port 0x2a0 tty flags 0x701"
 .Cd "device sio5 at isa? port 0x2a8 tty flags 0x701"
 .Cd "device sio6 at isa? port 0x2b0 tty flags 0x701"
 .Cd "device sio7 at isa? port 0x2b8 tty flags 0x701 irq 12 vector siointr"
-.sp
+.Pp
 For Boca Board compatible multiport cards with 8 ports:
 .Cd "options" \&"COM_MULTIPORT\&"
 .Cd "device sio4 at isa? port 0x100 tty flags 0xb05"
 .Cd "..."
 .Cd "device sio11 at isa? port 0x138 tty flags 0xb05 irq 12 vector siointr"
-.sp
+.Pp
 For Hayes ESP cards:
 .Cd "options" \&"COM_ESP\&"
 .Cd "..."
-.sp
+.Pp
 Meaning of \fBflags\fR:
 .br
 \fB0x0001\fR shared IRQs
@@ -80,7 +80,7 @@ Meaning of \fBflags\fR:
 \fB0x0080\fR enable diagnostics in probe
 .br
 \fB0x\fI??\fB00\fR minor number of master port
-.sp
+.Pp
 Minor numbering:
 .br
 0b\fIOLIMMMMM\fR
@@ -116,7 +116,7 @@ Frequently 4 ports share 1 IRQ; some 8 port cards have 2 groups of 4 ports,
 thus using 2 IRQs.
 Some cards allow the first 2 serial ports to have seperate IRQs per port
 (as per DOS PC standard).
-.sp
+.Pp
 Some cards have an IRQ control register for each group.
 Some cards require special initialization related to such registers.
 Only AST/4 compatible IRQ control registers are supported.
@@ -126,13 +126,13 @@ To work, the control and status registers for a group, if any,
 must be mapped to the scratch register (register 7)
 of a port in the group.
 Such a port is called a
-.Nm master
+.Em master
 port.
-.sp
+.Pp
 The
-.Nm flags
+.Em flags
 keyword may be used on each
-.Nm device sio
+.Em device sio
 line in the kernel configuration file
 to silence the probe
 or to disable the FIFO on 16550A UARTs
@@ -140,34 +140,34 @@ or to disable the FIFO on 16550A UARTs
 Disabling the FIFO should rarely be necessary
 since the driver automatically adjusts the receiver
 FIFO trigger level for low latency and high efficiency.
-.sp
+.Pp
 The
-.Nm flags
+.Em flags
 keyword
-.Nm must
+.Em must
 be used for all ports that are part of an IRQ sharing group.
 One bit specifies IRQ sharing; another bit specifies whether the port does
-.Nm not
+.Em not
 require AST/4 compatible initialization.
 The minor number of the device corresponding a master port
 for the group is encoded as a bitfield in the high byte.
 The same master port must be specified for all ports in a group.
-.sp
+.Pp
 The
-.Nm irq
+.Em irq
 and
-.Nm vector
+.Em vector
 specifications must be given for master ports
 and for ports that are not part of an IRQ sharing group,
 and not for other ports.
 .Pp
 In the synopsis,
-.Nm flags 0x701
+.Em flags 0x701
 means that the 8th port (sio7) is the master
 port, and that the port is on a multiport card with shared IRQs
 and an AST/4 compatible IRQ control register.
-.sp
-.Nm flags 0xb05
+.Pp
+.Em flags 0xb05
 means that the 12th port (sio11) is the master
 port, and that the port is on a multiport card with shared IRQs
 and no special IRQ control register.
@@ -214,15 +214,15 @@ Use
 .Xr stty 1
 in the normal way on the initial-state devices to program
 initial termios states suitable for your setup.
-.sp
+.Pp
 The lock termios state acts as flags to disable changing
 the termios state.  E.g., to lock a flag variable such as
 CRTSCTS, use
-.Nm stty crtscts
+.Em stty crtscts
 on the lock-state device.  Speeds and special characters
 may be locked by setting the corresponding value in the lock-state
 device to any nonzero value.
-.sp
+.Pp
 Correct programs talking to correctly wired external devices
 work with almost arbitrary initial states and almost no locking,
 but other setups may benefit from changing some of the default
@@ -247,14 +247,14 @@ for callin ports
 .It Pa /dev/ttyid?
 .It Pa /dev/ttyld?
 corresponding callin initial-state and lock-state devices
-.sp
+.Pp
 .It Pa /dev/cuaa?
 for callout ports
 .It Pa /dev/cuaia?
 .It Pa /dev/cuala?
 corresponding callout initial-state and lock-state devices
 .El
-.sp
+.Pp
 .Bl -tag -width /etc/rc.serial -compact
 .It Pa /etc/rc.serial
 examples of setting the initial-state and lock-state devices
@@ -290,8 +290,8 @@ and some has been lost.
 The
 .Nm
 driver is derived from the
-.Nm HP9000/300
-.Nm dca
+.Tn HP9000/300
+.Xr dca 4
 driver and is
 .Ud
 .Sh BUGS
@@ -305,13 +305,13 @@ implementations of the chip with non-functional FIFO hardware.
 .Pp
 The constants which define the locations
 of the various serial ports are holdovers from
-.Nm DOS .
+.Tn DOS .
 As shown, hex addresses can be and for clarity probably should be used instead.
 .Pp
 Note that on the AST/4 the card's dipswitches should
-.Nm not
+.Em not
 be set to use interrupt sharing. AST/4-like interrupt sharing is only used when
-.Nm multiple
+.Em multiple
 AST/4 cards are installed in the same system.  The sio driver does not
 support more than 1 AST/4 on one IRQ.
 .Pp

@@ -42,22 +42,22 @@ For interrupt-driven ports:
 .Cd "device lpt0 at isa? port" \&"IO_LPT1\&" tty irq 7 vector lptintr
 .Cd "device lpt1 at isa? port" \&"IO_LPT2\&" tty irq 7 vector lptintr
 .Cd "device lpt2 at isa? port" \&"IO_LPT3\&" tty irq 7 vector lptintr
-.sp
+.Pp
 For BIOS-probed ports:
 .Cd "device lpt0 at isa? port? tty irq 7 vector lptintr"
-.sp
+.Pp
 For polled ports:
 .Cd "device lpt0 at isa? port? tty"
 .Cd "device lpt1 at isa? port" \&"IO_LPT2\&" tty
 .Sh DESCRIPTION
 This driver provides access to parallel ports. 
-.sp
+.Pp
 The driver can be configured either to be either interrupt-driven, or 
 to poll the printer.  Ports that are configured to be 
 interrupt-driven can be switched to polled mode by using the
 .Xr lptcontrol 8
 command.
-.sp
+.Pp
 This driver replaces the functionality of the 
 .Xr lpa 4
 driver, which is now defunct.
@@ -70,7 +70,7 @@ first parallel port driver
 .Xr lptcontrol 8
 .Sh BUGS
 There are lots of them, especially in cheap parallel port implementations.
-.sp
+.Pp
 It is only possible to open a lpt port when a printer is connected and
 on-line, making it impossible to run 
 .Xr lptcontrol 8 

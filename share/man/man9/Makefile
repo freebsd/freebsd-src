@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11.2.4 1997/02/14 06:43:55 mpp Exp $
+#	$Id: Makefile,v 1.11.2.5 1997/02/14 07:10:05 mpp Exp $
 
 MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 boot.9 copy.9 \
 	devfs_add_devswf.9 cd.9 \
@@ -20,5 +20,6 @@ MLINKS+= spl.9 splstatclock.9 spl.9 spltty.9 spl.9 splvm.9
 MLINKS+= spl.9 spl0.9 spl.9 splx.9
 MLINKS+= store.9 subyte.9 store.9 susword.9 store.9 suswintr.9 store.9 suword.9
 MLINKS+= timeout.9 untimeout.9
+MLINKS+= uio.9 uiomove.9
 
 .include <bsd.prog.mk>

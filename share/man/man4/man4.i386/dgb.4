@@ -35,20 +35,19 @@
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
 .\"	from: sio.4,v 1.15 1994/12/06 20:14:30 bde Exp
-.\"	$Id: dgb.4,v 1.2 1996/12/26 16:16:04 wosch Exp $
+.\"	$Id: dgb.4,v 1.6 1997/02/22 13:25:17 peter Exp $
 .\"
 .Dd Oct 13, 1995
 .Dt DGB 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm dgb
-.Nd
-DigiBoard intelligent serial cards driver
+.Nd DigiBoard intelligent serial cards driver
 .Sh SYNOPSIS
 .Cd "options" \&"NDGBPORTS=8\&"
 .Cd "device dgb0 at isa? tty port 0x220 iomem 0xfc0000 iosiz ? flags 0x0
 All values are just examples.
-.sp
+.Pp
 The \fBNDGBPORTS\fR option defines the total number of ports on all cards
 installed in the system. When not defined the number is computed:
 
@@ -59,13 +58,13 @@ If it is less than the actual number of ports
 the system will be able to use only the
 first \fBNDGBPORTS\fR ports. If it is greater then all ports will be usable
 but some memory will be wasted.
-.sp
+.Pp
 Meaning of \fBflags\fR:
 .br
 \fB0x0001\fR use alternate pinout (exchange DCD and DSR lines)
 .br
 \fB0x0002\fR don't use 8K window mode of PC/Xe
-.sp
+.Pp
 Device numbering:
 .br
 0b\fICC\fRmmmmmmmm\fIOLIPPPPP\fR
@@ -103,16 +102,16 @@ DigiBoard cards have large input and output buffers (more than 1Kbyte per
 port) and hardware that allows efficiently finding the port that needs
 attention. The only problem seen with this policy is slower 
 SLIP and PPP response.
-.sp
+.Pp
 Each line in the kernel configuration file describes one card, not one port 
 as in the
-.Nm sio
+.Xr sio 4
 driver.
-.sp
+.Pp
 The
-.Nm flags
+.Em flags
 keyword may be used on each
-.Nm device dgb
+.Em "device dgb"
 line in the kernel configuration file
 to change the pinout of the interface or to use new PC/Xe cards
 which can work with an 8K memory window in compatibility mode
@@ -120,15 +119,15 @@ which can work with an 8K memory window in compatibility mode
 that using 8K memory window doesn't mean shorter input/output buffers, it means
 only that all buffers will be mapped to the same memory address and switched as
 needed.
-.sp
+.Pp
 The
-.Nm port
+.Em port
 value must be the same
 as the 
-.Nm port
+.Em port
 set on the card by jumpers.
 For PC/Xi cards the same rule is applicable to the
-.Nm iomem
+.Em iomem
 value.  It must be the same as the memory address set on the card
 by jumpers.
 .\"Some documentation gives the address as a ``paragraph'' or ``segment'';
@@ -137,10 +136,10 @@ by jumpers.
 For PC/Xe cards there is no need to use jumpers for this purpose.
 In fact there are no jumpers to do it.  Just
 write the address you want as the
-.Nm iomem
+.Em iomem
 value in kernel config file and the card will be programmed 
 to use this address.
-.sp
+.Pp
 The same range of memory addresses may be used
 for all the DigiBoards installed
 (but not for any other card or real memory). DigiBoards
@@ -192,15 +191,15 @@ Use
 .Xr stty 1
 in the normal way on the initial-state devices to program
 initial termios states suitable for your setup.
-.sp
+.Pp
 The lock termios state acts as flags to disable changing
 the termios state.  E.g., to lock a flag variable such as
 CRTSCTS, use
-.Nm stty crtscts
+.Em "stty crtscts"
 on the lock-state device.  Speeds and special characters
 may be locked by setting the corresponding value in the lock-state
 device to any nonzero value.
-.sp
+.Pp
 Correct programs talking to correctly wired external devices
 .\" XXX change next line in other man pages too, and rewrite this paragraph.
 work with almost arbitrary initial states and no locking,
@@ -226,14 +225,14 @@ for callin ports
 .It Pa /dev/ttyiD??
 .It Pa /dev/ttylD??
 corresponding callin initial-state and lock-state devices
-.sp
+.Pp
 .It Pa /dev/cuaD??
 for callout ports
 .It Pa /dev/cuaiD??
 .It Pa /dev/cualD??
 corresponding callout initial-state and lock-state devices
 .El
-.sp
+.Pp
 .Bl -tag -width /etc/rc.serial -compact
 .It Pa /etc/rc.serial
 examples of setting the initial-state and lock-state devices
@@ -344,9 +343,9 @@ Problems in hardware.
 The
 .Nm
 driver is derived from the
-.Nm sio
+.Xr sio 4
 driver and the DigiBoard driver from 
-.Nm Linux 
+.Tn Linux 
 and is
 .Ud
 .Sh BUGS

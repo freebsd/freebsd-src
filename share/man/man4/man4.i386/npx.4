@@ -28,15 +28,14 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	from: npx.4,v 1.1 1993/08/06 10:58:03 cgd Exp
-.\"	$Id$
+.\"	$Id: npx.4,v 1.4 1997/02/22 13:25:36 peter Exp $
 .\"
 .Dd August 28, 1993
 .Dt NPX 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm npx
-.Nd
-Numeric Processing Extension coprocessor and emulator
+.Nd Numeric Processing Extension coprocessor and emulator
 .Sh SYNOPSIS
 .Cd "options MATH_EMULATE"
 .\" XXX this is awful hackery to get it to work right... -- cgd
@@ -48,11 +47,11 @@ driver enables the use of the system's Numeric Processing Extension
 coprocessor,
 if one is present.  Numeric processing extensions are present in
 systems with
-.Nm 486DX
+.Sy 486DX
 CPUs and in systems with
-.Nm 387
+.Sy 387
 or
-.Nm 487SX
+.Sy 487SX
 coprocessors.  The
 .Nm npx
 driver is required for proper system functioning regardless

@@ -1,4 +1,4 @@
-.\"	$Id: scsi.4,v 1.8 1996/12/26 16:15:29 wosch Exp $
+.\"	$Id: scsi.4,v 1.11 1997/02/22 13:24:41 peter Exp $
 .\" Copyright (c) 1996
 .\"	Julian Elischer <julian@freebsd.org>.  All rights reserved.
 .\"
@@ -31,15 +31,15 @@
 .Nm scsi
 .Nd scsi system
 .Sh SYNOPSIS
-.Nm controller scbus0
-.Nm controller scbus1 at ahc0
-.Nm controller scbus3 at ahc1 bus 0
-.Nm controller scbus2 at ahc1 bus 1
-.Nm device cd0
-.Nm device ch0
-.Nm disk sd0
-.Nm tape st0
-.Nm device ch1 at scbus0 target 4 unit 0
+.Cd "controller scbus0"
+.Cd "controller scbus1 at ahc0"
+.Cd "controller scbus3 at ahc1 bus 0"
+.Cd "controller scbus2 at ahc1 bus 1"
+.Cd "device cd0"
+.Cd "device ch0"
+.Cd "disk sd0"
+.Cd "tape st0"
+.Cd "device ch1 at scbus0 target 4 unit 0"
 .Sh DESCRIPTION
 The
 .Em scsi
