@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.5 1994/10/08 23:55:36 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.6 1994/10/14 05:42:24 jkh Exp $";
 #endif
 
 /*
@@ -55,8 +55,12 @@ make_playpen(char *pen, size_t sz)
 	barf("Can't mktemp '%s'.", Pen);
     if (mkdir(Pen, 0755) == FAIL)
 	barf("Can't mkdir '%s'.", Pen);
-    if (Verbose)
-	fprintf(stderr, "Projected package size: %d bytes, free space: %d bytes\n", (int)sz, min_free(Pen));
+    if (Verbose) {
+	if (!sz)
+		fprintf(stderr, "Free temp space: %d bytes\n", min_free(Pen));
+	else
+		fprintf(stderr, "Projected package size: %d bytes, free temp space: %d bytes\n", (int)sz, min_free(Pen));
+    }
     if (min_free(Pen) < sz) {
 	rmdir(Pen);
 	barf("%s doesn't have enough free space.  Please set your TMPDIR\nenvironment variable to a location with more space and\ntry the command again.", Pen);
