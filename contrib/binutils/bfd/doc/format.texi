@@ -99,7 +99,7 @@ is not open for writing, then an error occurs.
 @subsubsection @code{bfd_format_string}
 @strong{Synopsis}
 @example
-CONST char *bfd_format_string(bfd_format format);
+const char *bfd_format_string(bfd_format format);
 @end example
 @strong{Description}@*
 Return a pointer to a const string

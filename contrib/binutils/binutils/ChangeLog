@@ -1,3 +1,16 @@
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* README: Update some version numbers.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* doc/binutils.texi (Target Selection): Fix LD crossreferences.
+	(Architecture Selection): Likewise.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* NEWS: Mark version 2.12.
+
 2002-02-15  Hans-Peter Nilsson  <hp@bitrange.com>
 
 	* NEWS: Mention support for MMIX.

@@ -1,3 +1,7 @@
+2002-02-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h (PPC_OPCODE_POWER4, PPC_OPCODE_NOPOWER4): Define.
+
 Mon Feb 18 17:26:10 CET 2002  Jan Hubicka  <jh@suse.cz>
 
 	* i386.h (push,pop): Fix Reg64 to WordReg to allow 16bit operands.

@@ -3129,7 +3129,7 @@ command line option: @option{-b} or @option{--format}
 
 @item
 script command @code{TARGET}
-(@pxref{Option Commands,,Option Commands,ld.info,Using LD})
+(@pxref{Format Commands,,Format Commands,ld.info,Using LD})
 
 @item
 environment variable @code{GNUTARGET}
@@ -3151,7 +3151,7 @@ command line option: @option{-oformat}
 
 @item
 script command @code{OUTPUT_FORMAT}
-(@pxref{Option Commands,,Option Commands,ld.info,Using LD})
+(@pxref{Format Commands,,Format Commands,ld.info,Using LD})
 
 @item
 the linker input target (see ``Linker Input Target'' above)
@@ -3206,7 +3206,7 @@ Ways to specify:
 @enumerate
 @item
 script command @code{OUTPUT_ARCH}
-(@pxref{Option Commands,,Option Commands,ld.info,Using LD})
+(@pxref{Miscellaneous Commands,,Miscellaneous Commands,ld.info,Using LD})
 
 @item
 the default architecture from the linker output target
