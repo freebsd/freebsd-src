@@ -55,9 +55,10 @@
 .in +1i
 Attach a plex to a volume, or a subdisk to a plex.
 .in
-.Cd checkparity Ar plex
+.Cd checkparity Ar plex Op Fl f 
+.Op Fl v
 .in +1i
-Check the parity blocks of a RAID-5 plex.
+Check the parity blocks of a RAID-4 or RAID-5 plex.
 .in
 .Nm concat
 .Op Fl f
@@ -88,6 +89,12 @@ Set debugging flags.
 .Op Ar plex | subdisk
 .in +1i
 Detach a plex or subdisk from the volume or plex to which it is attached.
+.in
+.Cd dumpconfig
+.Op Ar drive ...
+.in +1i
+List the configuration information stored on the specified drives, or all drives
+in the system if no drive names are specified.
 .in
 .Cd info
 .Op Fl v
@@ -221,9 +228,11 @@ XXX
 Move all the subdisks from the specified drive onto the new drive.
 .in
 ..
-.Cd rebuildparity Ar plex
+.Cd rebuildparity Ar plex Op Fl f
+.Op Fl v 
+.Op Fl V
 .in +1i
-Rebuild the parity blocks of a RAID-5 plex.
+Rebuild the parity blocks of a RAID-4 or RAID-5 plex.
 .in
 .Cd resetconfig
 .in +1i
@@ -462,6 +471,27 @@ multiplied by the stripe size.  For example, in a plex of block size 256k, the
 first subdisk will have offset 0, the second offset 256k, the third 512k, etc.
 This calculation ignores parity blocks in RAID-5 plexes.
 .El
+.It Nm checkparity
+.Ar plex
+.Op Fl f
+.Op Fl v
+.Pp
+Check the parity blocks on the specified RAID-4 or RAID-5 plex.  This operation
+maintains a pointer in the plex, so it can be stopped and later restarted from
+the same position if desired.  In addition, this pointer is used by the
+.Nm rebuildparity
+command, so rebuilding the parity blocks need only start at the location where
+the first parity problem has been detected.
+.Pp
+If the
+.Fl f
+flag is specified,
+.Nm checkparity
+starts checking at the beginning of the plex.  If the
+.Fl v
+flag is specified,
+.Nm checkparity
+prints a running progress report.
 .It Nm concat
 .Op Fl f
 .Op Fl n Ar name
@@ -627,6 +657,18 @@ does not reduce the number of subdisks in a striped or RAID-5 plex.  Instead,
 the subdisk is marked absent, and can later be replaced with the
 .Nm attach
 command.
+.It Nm dumpconfig  Op Ar drive ...
+.Pp
+.Nm
+.Ar dumpconfig
+shows the configuration information stored on the specified drives.  If no drive
+names are specified,
+.Nm dumpconfig
+searches all drives on the system for Vinum partitions and dumps the
+information.  If configuration updates are disabled, it is possible that this
+information is not the same as the information returned by the
+.Nm list
+command.  This command is used primarily for maintenance and debugging.
 .It Nm info
 .br
 .Nm
@@ -1023,6 +1065,34 @@ and
 .Nm saveconfig
 commands.  Reset bit 4 of the daemon options mask to re-enable configuration
 saves.
+.It Nm rebuildparity
+.Ar plex
+.Op Fl f
+.Op Fl v
+.Op Fl V
+.Pp
+Rebuild the parity blocks on the specified RAID-4 or RAID-5 plex.  This
+operation maintains a pointer in the plex, so it can be stopped and later
+restarted from the same position if desired.  In addition, this pointer is used
+by the
+.Nm checkparity
+command, so rebuilding the parity blocks need only start at the location where
+the first parity problem has been detected.
+.Pp
+If the
+.Fl f
+flag is specified,
+.Nm rebuildparity
+starts rebuilding at the beginning of the plex.  If the
+.Fl v
+flag is specified,
+.Nm rebuildparity
+first checks the existing parity blocks prints information about those found to
+be incorrect before rebuilding.  If the
+.Fl V
+flag is specified,
+.Nm rebuildparity
+prints a running progress report.
 .It Nm rename
 .Op Fl r
 .Ar [ drive | subdisk | plex | volume ]
@@ -1270,7 +1340,7 @@ example, if you are performing this operation in a script), use the
 option.
 .Pp
 Copying data doesn't just take a long time, it can also place a significant load
-on the system.  You can specify the transfer size in bytes with the
+on the system.  You can specify the transfer size in bytes or sectors with the
 .Fl S
 option, and an interval (in milliseconds) to wait between copying each block with
 the
