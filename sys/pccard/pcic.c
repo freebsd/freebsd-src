@@ -70,7 +70,7 @@ static struct slot_ctrl cinfo;
 
 static char *bridges[] =
 {
-	"Intel i82365",
+	"Intel i82365SL-A/B",
 	"IBM PCIC",
 	"VLSI 82C146",
 	"Cirrus logic 672x",
@@ -81,6 +81,7 @@ static char *bridges[] =
 	"Vadem 469",
 	"Ricoh RF5C396",
 	"IBM KING PCMCIA Controller",
+	"Intel i82365SL-DF"
 };
 
 /*
@@ -256,21 +257,17 @@ pcic_io(struct slot *slt, int win)
  *	Look for an Intel PCIC (or compatible).
  *	For each available slot, allocate a PC-CARD slot.
  */
-
-/*
- *	VLSI 82C146 has incompatibilities about the I/O address of slot 1.
- *	Assume it's the only PCIC whose vendor ID is 0x84,
- *	contact Warner Losh <imp@freebsd.org> if correct.
- */
 int
 pcic_probe(device_t dev)
 {
 	int slotnum, validslots = 0;
 	struct pcic_slot *sp;
+	struct pcic_slot *sp0;
+	struct pcic_slot *sp1;
+	struct pcic_slot spsave;
 	unsigned char c;
 	struct resource *r;
 	int rid;
-	static int maybe_vlsi = 0;
 	struct pcic_softc *sc;
 
 	/*
@@ -309,19 +306,43 @@ pcic_probe(device_t dev)
 		sp->index = rman_get_start(r);
 		sp->data = sp->index + 1;
 		sp->offset = slotnum * PCIC_SLOT_SIZE;
-		/*
-		 * XXX - Screwed up slot 1 on the VLSI chips.  According to
-		 * the Linux PCMCIA code from David Hinds, working chipsets
-		 * return 0x84 from their (correct) ID ports, while the broken
-		 * ones would need to be probed at the new offset we set after
-		 * we assume it's broken.
-		 */
-		if (slotnum == 1 && maybe_vlsi &&
-		    sp->getb(sp, PCIC_ID_REV) != PCIC_VLSI82C146) {
-			sp->index += 4;
-			sp->data += 4;
-			sp->offset = PCIC_SLOT_SIZE << 1;
+		sp->controller = -1;
+	}
+
+	/*
+	 * Prescan for the broken VLSI chips.
+	 *
+	 * According to the Linux PCMCIA code from David Hinds,
+	 * working chipsets return 0x84 from their (correct) ID ports,
+	 * while the broken ones would need to be probed at the new
+	 * offset we set after we assume it's broken.
+	 *
+	 * Note: because of this, we may incorrectly detect a single
+	 * slot vlsi chip as a i82365sl step D.  I cannot find a
+	 * datasheet for the affected chip, so that's the best we can
+	 * do for now.
+	 */
+	sp0 = &sc->slots[0];
+	sp1 = &sc->slots[1];
+	if (sp0->getb(sp0, PCIC_ID_REV) == PCIC_VLSI82C146 &&
+	    sp1->getb(sp1, PCIC_ID_REV) != PCIC_VLSI82C146) {
+		spsave = *sp1;
+		sp1->index += 4;
+		sp1->data += 4;
+		sp1->offset = PCIC_SLOT_SIZE << 1;
+		if (sp1->getb(sp1, PCIC_ID_REV) != PCIC_VLSI82C146) {
+			*sp1 = spsave;
+		} else {
+			sp0->controller = PCIC_VLSI;
+			sp1->controller = PCIC_VLSI;
 		}
+	}
+	
+	/*
+	 * Look for normal chipsets here.
+	 */
+	sp = &sc->slots[0];
+	for (slotnum = 0; slotnum < PCIC_CARD_SLOTS; slotnum++, sp++) {
 		/*
 		 * see if there's a PCMCIA controller here
 		 * Intel PCMCIA controllers use 0x82 and 0x83
@@ -372,11 +393,13 @@ pcic_probe(device_t dev)
 
 			break;
 		/*
-		 *	VLSI chips.
+		 *	Intel i82365D or maybe a vlsi 82c146
+		 * we detected the vlsi case earlier, so if the controller
+		 * isn't set, we know it is a i82365sl step D.
 		 */
-		case PCIC_VLSI82C146:
-			sp->controller = PCIC_VLSI;
-			maybe_vlsi = 1;
+		case PCIC_INTEL2:
+			if (sp->controller == -1)
+				sp->controller = PCIC_I82365SL_DF;
 			break;
 		case PCIC_IBM1:
 		case PCIC_IBM2:
@@ -571,10 +594,20 @@ pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
 static int
 pcic_power(struct slot *slt)
 {
+	unsigned char c;
 	unsigned char reg = PCIC_DISRST|PCIC_PCPWRE;
 	struct pcic_slot *sp = slt->cdata;
 
 	switch(sp->controller) {
+	case PCIC_I82365SL_DF:
+		/* 
+		 * Check to see if the power on bit is clear.  If so, we're
+		 * using the wrong voltage and should try 3.3V instead.
+		 */
+		c = sp->getb(sp, PCIC_CDGC);
+		if ((c & PCIC_POW) == 0)
+			slt->pwr.vcc = 33;
+		/* FALL THROUGH */
 	case PCIC_PD672X:
 	case PCIC_PD6710:
 	case PCIC_VG365:
@@ -582,9 +615,7 @@ pcic_power(struct slot *slt)
 	case PCIC_VG468:
 	case PCIC_VG469:
 	case PCIC_RF5C396:
-	case PCIC_VLSI:
 	case PCIC_IBM_KING:
-	case PCIC_I82365:
 		switch(slt->pwr.vpp) {
 		default:
 			return (EINVAL);
@@ -641,7 +672,8 @@ pcic_power(struct slot *slt)
 		sp->putb(sp, PCIC_POWER, reg);
 		DELAY(100*1000);
 	}
-	/* Some chips are smarter than us it seems, so if we weren't
+	/*
+	 * Some chips are smarter than us it seems, so if we weren't
 	 * allowed to use 5V, try 3.3 instead
 	 */
 	if (!(sp->getb(sp, PCIC_STATUS) & PCIC_POW) && slt->pwr.vcc == 50) {
