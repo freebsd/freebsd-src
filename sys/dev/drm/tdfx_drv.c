@@ -86,7 +86,6 @@ drm_chipinfo_t DRM(devicelist)[] = {
 
 
 #include "dev/drm/drm_fops.h"
-#include "dev/drm/drm_init.h"
 #include "dev/drm/drm_ioctl.h"
 #include "dev/drm/drm_lock.h"
 #include "dev/drm/drm_memory.h"

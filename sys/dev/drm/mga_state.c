@@ -889,7 +889,7 @@ int mga_dma_clear( DRM_IOCTL_ARGS )
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_clear_t clear;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( clear, (drm_mga_clear_t *)data, sizeof(clear) );
 
@@ -913,7 +913,7 @@ int mga_dma_swap( DRM_IOCTL_ARGS )
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	if ( sarea_priv->nbox > MGA_NR_SAREA_CLIPRECTS )
 		sarea_priv->nbox = MGA_NR_SAREA_CLIPRECTS;
@@ -938,7 +938,7 @@ int mga_dma_vertex( DRM_IOCTL_ARGS )
 	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_vertex_t vertex;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( vertex,
 			     (drm_mga_vertex_t *)data,
@@ -977,7 +977,7 @@ int mga_dma_indices( DRM_IOCTL_ARGS )
 	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_indices_t indices;
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( indices,
 			     (drm_mga_indices_t *)data,
@@ -1017,7 +1017,7 @@ int mga_dma_iload( DRM_IOCTL_ARGS )
 	drm_mga_iload_t iload;
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( iload, (drm_mga_iload_t *)data, sizeof(iload) );
 
@@ -1057,7 +1057,7 @@ int mga_dma_blit( DRM_IOCTL_ARGS )
 	drm_mga_blit_t blit;
 	DRM_DEBUG( "\n" );
 
-	LOCK_TEST_WITH_RETURN( dev );
+	LOCK_TEST_WITH_RETURN( dev, filp );
 
 	DRM_COPY_FROM_USER_IOCTL( blit, (drm_mga_blit_t *)data, sizeof(blit) );
 

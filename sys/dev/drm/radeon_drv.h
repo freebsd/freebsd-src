@@ -33,8 +33,8 @@
 #ifndef __RADEON_DRV_H__
 #define __RADEON_DRV_H__
 
-#define GET_RING_HEAD(ring)		DRM_READ32(  (ring)->ring_rptr, 0 ) /* (ring)->head */
-#define SET_RING_HEAD(ring,val)		DRM_WRITE32( (ring)->ring_rptr, 0, (val) ) /* (ring)->head */
+#define GET_RING_HEAD(dev_priv)		DRM_READ32(  (dev_priv)->ring_rptr, 0 )
+#define SET_RING_HEAD(dev_priv,val)	DRM_WRITE32( (dev_priv)->ring_rptr, 0, (val) )
 
 typedef struct drm_radeon_freelist {
    	unsigned int age;
@@ -49,13 +49,11 @@ typedef struct drm_radeon_ring_buffer {
 	int size;
 	int size_l2qw;
 
-	volatile u32 *head;
 	u32 tail;
 	u32 tail_mask;
 	int space;
 
 	int high_mark;
-	drm_local_map_t *ring_rptr;
 } drm_radeon_ring_buffer_t;
 
 typedef struct drm_radeon_depth_clear_t {
@@ -70,7 +68,7 @@ struct mem_block {
 	struct mem_block *prev;
 	int start;
 	int size;
-	int pid;		/* 0: free, -1: heap, other: real pids */
+	DRMFILE filp;		/* 0: free, -1: heap, other: real files */
 };
 
 typedef struct drm_radeon_private {
@@ -128,6 +126,13 @@ typedef struct drm_radeon_private {
 	u32 depth_pitch_offset;
 
 	drm_radeon_depth_clear_t depth_clear;
+	
+	unsigned long fb_offset;
+	unsigned long mmio_offset;
+	unsigned long ring_offset;
+	unsigned long ring_rptr_offset;
+	unsigned long buffers_offset;
+	unsigned long agp_textures_offset;
 
 	drm_local_map_t *sarea;
 	drm_local_map_t *fb;
@@ -186,7 +191,7 @@ extern int radeon_mem_alloc( DRM_IOCTL_ARGS );
 extern int radeon_mem_free( DRM_IOCTL_ARGS );
 extern int radeon_mem_init_heap( DRM_IOCTL_ARGS );
 extern void radeon_mem_takedown( struct mem_block **heap );
-extern void radeon_mem_release( struct mem_block *heap );
+extern void radeon_mem_release( DRMFILE filp, struct mem_block *heap );
 
 				/* radeon_irq.c */
 extern int radeon_irq_emit( DRM_IOCTL_ARGS );
@@ -772,22 +777,12 @@ extern int RADEON_READ_PLL( drm_device_t *dev, int addr );
  * Misc helper macros
  */
 
-#define LOCK_TEST_WITH_RETURN( dev )					\
-do {									\
-	if ( !_DRM_LOCK_IS_HELD( dev->lock.hw_lock->lock ) ||		\
-	     dev->lock.pid != DRM_CURRENTPID ) {			\
-		DRM_ERROR( "%s called without lock held\n", __FUNCTION__ );	\
-		return DRM_ERR(EINVAL);				\
-	}								\
-} while (0)
-
-
 /* Perfbox functionality only.  
  */
 #define RING_SPACE_TEST_WITH_RETURN( dev_priv )				\
 do {									\
 	if (!(dev_priv->stats.boxes & RADEON_BOX_DMA_IDLE)) {		\
-		u32 head = GET_RING_HEAD(&dev_priv->ring);		\
+		u32 head = GET_RING_HEAD( dev_priv );			\
 		if (head == dev_priv->ring.tail)			\
 			dev_priv->stats.boxes |= RADEON_BOX_DMA_IDLE;	\
 	}								\
@@ -859,8 +854,8 @@ do {									\
 
 #define COMMIT_RING() do {						\
 	/* Flush writes to ring */					\
-	DRM_READMEMORYBARRIER(dev_priv->mmio);					\
-	GET_RING_HEAD( &dev_priv->ring );				\
+	DRM_READMEMORYBARRIER( dev_priv->mmio );			\
+	GET_RING_HEAD( dev_priv );					\
 	RADEON_WRITE( RADEON_CP_RB_WPTR, dev_priv->ring.tail );		\
 	/* read from PCI bus to ensure correct posting */		\
 	RADEON_READ( RADEON_CP_RB_RPTR );				\
