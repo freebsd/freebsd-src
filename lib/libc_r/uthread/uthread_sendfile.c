@@ -139,8 +139,11 @@ _sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 			/*
 			 * If we're not blocking then return.
 			 */
-			if (!blocking)
+			if (!blocking) {
+				_FD_UNLOCK(s, FD_WRITE);
+				_FD_UNLOCK(fd, FD_READ);
 				goto SHORT_WRITE;
+			}
 
 			/*
 			 * Otherwise wait on the fd.
