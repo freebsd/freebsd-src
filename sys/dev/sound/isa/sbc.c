@@ -28,6 +28,8 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/isa/sb.h>
 
+#include <isa/isavar.h>
+
 SND_DECLARE_FILE("$FreeBSD$");
 
 #define IO_MAX	3

@@ -34,6 +34,8 @@
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
+#include <isa/isavar.h>
+
 #include "mixer_if.h"
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -582,7 +584,7 @@ sbchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 	ch->buffer = b;
 	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, sb->bufsize) == -1)
 		return NULL;
-	sndbuf_isadmasetup(ch->buffer, sb->drq);
+	sndbuf_dmasetup(ch->buffer, sb->drq);
 	return ch;
 }
 
@@ -621,7 +623,7 @@ sbchan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	sndbuf_isadma(ch->buffer, go);
+	sndbuf_dma(ch->buffer, go);
 	if (go == PCMTRIG_START)
 		sb_start(ch);
 	else
@@ -634,7 +636,7 @@ sbchan_getptr(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
 
-	return sndbuf_isadmaptr(ch->buffer);
+	return sndbuf_dmaptr(ch->buffer);
 }
 
 static struct pcmchan_caps *
