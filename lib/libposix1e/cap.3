@@ -45,58 +45,44 @@ state for use, if permitted.
 .Pp
 A variety of functions are provided for manipulating and managing
 process capability state and working store state:
-.Pp
-.Fn cap_init
-.Pp
+.Bl -tag -width cap_get_flagXX
+.It Fn cap_init
 This function is described in
 .Xr cap_init 3 ,
 and may be used to allocate a fresh capability structure with no capability
 flags set.
-.Pp
-.Fn cap_clear
-.Pp
+.It Fn cap_clear
 This function is described in
 .Xr cap_clear 3 ,
 and clears all capability flags in a capability structure.
-.Pp
-.Fn cap_dup
-.Pp
+.It Fn cap_dup
 This function is described in
 .Xr cap_dup 3 ,
 and may be used to duplicate a capability structure.
-.Pp
-.Fn cap_free
-.Pp
+.It Fn cap_free
 This function is described in
 .Xr cap_free 3 ,
 and may be used to free a capability structure.
-.Pp
-.Fn cap_get_flag
-.Pp
+.It Fn cap_get_flag
 This function, described in
 .Xr cap_get_flag 3 ,
 allows retrieval of a capability flag value from capability state in
 working store.
-.Pp
-.Fn cap_get_proc
-.Pp
-this function, described in
+.It Fn cap_get_proc
+This function, described in
 .Xr cap_get_proc 3 ,
 allows retrieval of capability state for the current process.
-.Pp
-.Fn cap_set_flag
-.Pp
+.It Fn cap_set_flag
 This function, described in
 .Xr cap_set_flag 3 ,
 allows setting of capability flag values in a capability structure held
 in the working store.
-.Pp
-.Fn cap_set_proc
-.Pp
+.It Fn cap_set_proc
 This function, described in
 .Xr cap_set_proc 3 ,
 allows setting of the current process capability state.
-
+.El
+.Pp
 Documentation of the internal kernel interfaces backing these calls may
 be found in
 .Xr cap 9 .
@@ -106,7 +92,7 @@ not intended to be called directly without going through the library.
 .Sh IMPLEMENTATION NOTES
 FreeBSD's support for POSIX.1e interfaces and features is still under
 development at this time.
-.Sh ENVIRONMENT
+.Pp
 POSIX.1e assigns security labels to all objects, extending the security
 functionality described in POSIX.1.  These additional labels provide
 fine-grained discretionary access control, fine-grained capabilities,
