@@ -84,6 +84,7 @@ static int readlabel(int flag);
 static void	display(FILE *, const struct disklabel *);
 static int edit(void);
 static int	editit(void);
+static void	fixlabel(struct disklabel *);
 static char	*skip(char *);
 static char	*word(char *);
 static int	getasciilabel(FILE *, struct disklabel *);
@@ -235,6 +236,7 @@ main(int argc, char *argv[])
 		if (argc != 1)
 			usage();
 		readlabel(1);
+		fixlabel(&lab);
 		error = edit();
 		break;
 
@@ -266,6 +268,7 @@ main(int argc, char *argv[])
 			usage();
 		readlabel(0);
 		makelabel(name, &lab);
+		fixlabel(&lab);
 		if (checklabel(NULL) == 0)
 			error = writelabel();
 		break;
@@ -273,6 +276,7 @@ main(int argc, char *argv[])
 	case WRITEBOOT:
 
 		readlabel(1);
+		fixlabel(&lab);
 		if (argc == 2)
 			makelabel(argv[1], &lab);
 		if (checklabel(NULL) == 0)
@@ -280,6 +284,24 @@ main(int argc, char *argv[])
 		break;
 	}
 	exit(error);
+}
+
+static void
+fixlabel(struct disklabel *lp)
+{
+	struct partition *dp;
+	int i;
+
+	for (i = 0; i < MAXPARTITIONS; i++) {
+		if (i == RAW_PART)
+			continue;
+		if (lp->d_partitions[i].p_size)
+			return;
+	}
+
+	dp = &lp->d_partitions[0];
+	dp->p_offset = BBSIZE / secsize;
+	dp->p_size = lp->d_secperunit - dp->p_offset;
 }
 
 /*
@@ -1337,10 +1359,6 @@ getvirginlabel(void)
 	loclab.d_interleave = 1;
 	strncpy(loclab.d_typename, "amnesiac",
 	    sizeof(loclab.d_typename));
-
-	dp = &loclab.d_partitions[0];
-	dp->p_offset = BBSIZE / secsize;
-	dp->p_size = loclab.d_secperunit - dp->p_offset;
 
 	dp = &loclab.d_partitions[RAW_PART];
 	dp->p_size = loclab.d_secperunit;
