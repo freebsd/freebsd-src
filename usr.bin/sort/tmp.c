@@ -39,9 +39,14 @@
 #include <ctype.h>
 
 #ifndef lint
+#if 0
 __RCSID("$NetBSD: tmp.c,v 1.7 2001/02/19 15:45:45 jdolecek Exp $");
 __SCCSID("@(#)tmp.c	8.1 (Berkeley) 6/6/93");
+#endif
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 

@@ -46,14 +46,18 @@
 #include "pathnames.h"
 
 #ifndef lint
-__COPYRIGHT("@(#) Copyright (c) 1993\n\
-	The Regents of the University of California.  All rights reserved.\n");
+__COPYRIGHT("@(#) Copyright (c) 1993\nThe Regents of the University of California.  All rights reserved.\n");
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 __RCSID("$NetBSD: sort.c,v 1.26 2001/04/30 00:25:09 ross Exp $");
 __SCCSID("@(#)sort.c	8.1 (Berkeley) 6/6/93");
+#endif
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -208,7 +212,7 @@ main(argc, argv)
 
 			/* change to /dev/stdin if '-' */
 			if (argv[i][0] == '-')
-				argv[i] = _PATH_STDIN;
+				argv[i] = strdup(_PATH_STDIN);
 
 		} else if ((ch = access(argv[i], R_OK)))
 			err(2, "%s", argv[i]);
@@ -252,7 +256,7 @@ main(argc, argv)
 	} else if (!(ch = access(outpath, 0)) &&
 	    strncmp(_PATH_DEV, outpath, 5)) {
 		static const struct sigaction act =
-		    { onsignal, {{0}}, SA_RESTART | SA_RESETHAND };
+		    { { onsignal }, SA_RESTART | SA_RESETHAND, { { 0 } } };
 		static const int sigtable[] = {SIGHUP, SIGINT, SIGPIPE,
 		    SIGXCPU, SIGXFSZ, SIGVTALRM, SIGPROF, 0};
 		int outfd;
@@ -295,7 +299,7 @@ main(argc, argv)
 
 static void
 onsignal(sig)
-	int sig;
+	int sig __unused;
 {
 	cleanup();
 }

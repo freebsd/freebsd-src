@@ -41,9 +41,14 @@
 #include "sort.h"
 
 #ifndef lint
+#if 0
 __RCSID("$NetBSD: fields.c,v 1.9 2001/02/19 19:52:27 jdolecek Exp $");
 __SCCSID("@(#)fields.c	8.1 (Berkeley) 6/6/93");
+#endif
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define blancmange(ptr) {					\
 	if (BLANK & d_mask[*(ptr)])				\
@@ -78,7 +83,7 @@ length_t
 enterkey(keybuf, line, size, fieldtable)
 	RECHEADER *keybuf;	/* pointer to start of key */
 	DBT *line;
-	int size;
+	size_t size;
 	struct field fieldtable[];
 {
 	int i;
