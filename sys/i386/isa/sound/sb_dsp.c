@@ -91,7 +91,6 @@ volatile int    sb_intr_active = 0;
 
 static int      dsp_speed (int);
 static int      dsp_set_stereo (int mode);
-int             sb_dsp_command (unsigned char val);
 
 #if !defined(EXCLUDE_MIDI) || !defined(EXCLUDE_AUDIO)
 
@@ -825,7 +824,7 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
     }
 
 #ifdef __FreeBSD__
-  printk ("snd2: <%s>", sb_dsp_operations.name);
+  printk ("sb0: <%s>", sb_dsp_operations.name);
 #else
   printk (" <%s>", sb_dsp_operations.name);
 #endif

@@ -241,7 +241,7 @@ struct sound_timer_operations {
 #ifndef EXCLUDE_AUDIO
 		{SNDCARD_SB16,	"SoundBlaster16",	sb16_dsp_init, sb16_dsp_detect},
 #endif
-#ifndef EXCLUDE_MIDI
+#if !defined(EXCLUDE_MIDI) && !defined(EXCLUDE_SB16MIDI)
 		{SNDCARD_SB16MIDI,"SB16 MIDI",	attach_sb16midi, probe_sb16midi},
 #endif
 #endif

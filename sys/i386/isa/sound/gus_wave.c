@@ -2919,7 +2919,7 @@ gus_wave_init (long mem_start, int irq, int dma)
 	      gus_mic_vol = gus_line_vol = gus_pcm_volume = 100;
 	      gus_wave_volume = 90;
 	      have_gus_max = 1;
-	      ad1848_init ("GUS MAX", gus_base + 0x10c,
+	      ad1848_init ("gusmax0: <GUS MAX>", gus_base + 0x10c,
 			   -irq,
 			   dma,
 			   dma);

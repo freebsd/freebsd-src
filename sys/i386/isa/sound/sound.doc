@@ -1,62 +1,65 @@
+$Id: sound.doc Exp $
+
 Instructions on using audio on a FreeBSD 2.1 (or 2.0-current) system.
 See also /sys/i386/conf/LINT.
+
+To enable sound driver support, the controller sound code must be included
+in your config file:
+
+# SB = SoundBlaster;  PAS = ProAudioSpectrum;  GUS = Gravis UltraSound
+# Controls all sound devices
+controller	snd0
+
+Uncomment one or more of these device entries, depending on what type of
+sound card you have:
+
+# Yamaha OPL-3 FM - for SB, SB Pro, SB16, PAS
+#device opl0     at isa? port 0x388
+
+# Yamaha OPL-3 FM - for PAS
+#device opl0     at isa? port 0x38a
+
+# SoundBlaster DSP driver - for SB, SB Pro, SB16, PAS(emulating SB)
+#device sb0      at isa? port 0x220 irq 7 drq 1 vector sbintr
+
+# SoundBlaster 16 DSP driver - for SB16 - requires sb0 device
+#device sbxvi0   at isa? drq 5
+
+# SoundBlaster 16 MIDI - for SB16 - requires sb0 device
+#device sbmidi0  at isa? port 0x300
+
+# ProAudioSpectrum PCM and Midi - for PAS
+#device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
+
+# MPU-401 - for MPU-401 standalone card
+#device mpu0     at isa? port 0x330 irq 6 drq 0
+
+# Gravis UltraSound - for GUS, GUS16, GUSMAX
+#device gus0 at isa? port 0x220 irq 11 drq 1 vector gusintr
+
+# Gravis UltraSound 16 bit option - for GUS16 - requires gus0
+#device gusxvi0 at isa? port 0x530 irq 7 drq 3 vector adintr
+
+# Gravis UltraSound MAX - for GUSMAX - requires gus0
+#device gusmax0 at isa? port 0x32c
+
+# MS Sound System
+#device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
+
+# 6850 UART Midi
+#device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 
 You may add one or more of the following depending on what you do and don't
 want compiled into your kernel.  Note:  Excluding things with EXCLUDE_... 
 is NOT recommended unless you really know what you're doing.
 
-      options         "AUDIO_MPU401"          # INCLUDE MPU401 support
-      options         AUDIO_GUS               # INCLUDE GUS support
-      options         AUDIO_SBPRO             # INCLUDE SB Pro support
-      options         "AUDIO_SB16"            # INCLUDE SB 16 support
-      options         "AUDIO_YM3812"          # INCLUDE AdLib support
-      options         AUDIO_PAS               # INCLUDE Pro Audio Studio support
-      options         AUDIO_SB                # INCLUDE SB support
-      options         AUDIO_MSS               # INCLUDE MSS support
-      options         EXCLUDE_AUDIO           # NO digital audio support
-      options         EXCLUDE_SEQUENCER       # NO sequencer support
-      options         EXCLUDE_GUS_IODETECT    # NO GUS io detection
-      options         EXCLUDE_SB_EMULATION    # NO PAS SB emulation support
-      options         "EXCLUDE_OPL3"          # NO OPL3 chip support
-      options         EXCLUDE_PRO_MIDI        # NO PAS MIDI support
-      options         EXCLUDE_CHIP_MIDI       # NO MIDI chip support
-      options	      EXCLUDE_MIDI	      # NO MIDI support whatsoever
-
-To enable sound card support, you need to uncomment and add one or more of 
-the following lines to your kernel configuration file according to the
-directions below:
-
-#device snd5 at isa? port 0x330 irq 6 vector mpuintr
-#device snd4 at isa? port 0x220 irq 15 drq 6 vector gusintr
-#device snd3 at isa? port 0x388 irq 10 drq 6 vector pasintr
-#device snd2 at isa? port 0x220 irq 7 drq 1 vector sbintr
-#device snd6 at isa? port 0x220 irq 7 drq 5 vector sbintr
-#device snd10 at isa? port 0x530 irq 10 drq 1 vector adintr
-#device snd7 at isa? port 0x300
-#device snd1 at isa? port 0x388
-
-Note for PAS user: you should change snd1 line to
-#device snd1 at isa? port 0x38a
-(next stereo port) to avoid conflict with snd3
-
-       Unit numbers are:
-                 1 for Yamaha FM synth
-                 2 for SB/SB Pro DSP
-                 3 for PAS PCM and Midi
-                 4 for GUS
-                 5 for MPU-401 (there is separate driver for the SB16)
-                 6 for SB16 (DSP)
-                 7 for SB16 Midi (MPU-401 emulation)
-                 10 for Microsoft Windows Sound System (AD1846)
-
-       If you have ProAudioSpectrum, uncomment units 3, 2 and 1
-       If you have SoundBlaster 1.0 to 2.0 or SB Pro, uncomment 2 and 1.
-       If you have SoundBlaster 16, uncomment 2, 1, 6 and 7.
-       (use the same IRQ for the cards 2, 6 and 7. The DMA of the
-       card 2 is the 8 bit one and the DMA of the card 6 is the 16 bit one.
-       the port address of the card 7 is the Midi I/O address of the SB16.
-       If you have GravisUltrasound, uncomment 4
-       If you have MPU-401, uncomment 5
+#options 	EXCLUDE_AUDIO			# NO digital audio support
+#options 	EXCLUDE_SEQUENCER		# NO sequencer support
+#options	EXCLUDE_MIDI			# NO MIDI support whatsoever
+#options 	EXCLUDE_SBPRO			# EXCLUDE SB Pro support
+#options 	EXCLUDE_SB_EMULATION		# NO PAS SB emulation support
+#options 	EXCLUDE_GUS_IODETECT		# NO GUS io detection
+#options 	EXCLUDE_PRO_MIDI		# NO PAS MIDI support
 
 NOTE:  The MPU-401 driver may or may not work, and is unfortunately
 unverifiable since no one I know has one.  If you can test this,
