@@ -349,8 +349,8 @@ fd_truncate(td, fd, flp)
 		return EINVAL;
 	}
 
-	SCARG(&ft, fd) = fd;
-	SCARG(&ft, length) = start;
+	ft.fd = fd;
+	ft.length = start;
 
 	error = ftruncate(td, &ft);
 
@@ -368,7 +368,7 @@ svr4_sys_open(td, uap)
 	struct open_args	cup;
 
 	caddr_t sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, uap->path);
 
 	(&cup)->path = uap->path;
 	(&cup)->flags = svr4_to_bsd_flags(uap->flags);
@@ -384,7 +384,7 @@ svr4_sys_open(td, uap)
 	retval = td->td_retval[0];
 
 	PROC_LOCK(p);
-	if (!(SCARG(&cup, flags) & O_NOCTTY) && SESS_LEADER(p) &&
+	if (!(cup.flags & O_NOCTTY) && SESS_LEADER(p) &&
 	    !(td->td_proc->p_flag & P_CONTROLT)) {
 #if defined(NOTYET)
 		struct file	*fp;
@@ -428,11 +428,11 @@ svr4_sys_creat(td, uap)
 	struct open_args cup;
 
 	caddr_t sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, uap->path);
 
-	SCARG(&cup, path) = SCARG(uap, path);
-	SCARG(&cup, mode) = SCARG(uap, mode);
-	SCARG(&cup, flags) = O_WRONLY | O_CREAT | O_TRUNC;
+	cup.path = uap->path;
+	cup.mode = uap->mode;
+	cup.flags = O_WRONLY | O_CREAT | O_TRUNC;
 
 	return open(td, &cup);
 }
@@ -452,16 +452,16 @@ svr4_sys_llseek(td, uap)
 {
 	struct lseek_args ap;
 
-	SCARG(&ap, fd) = SCARG(uap, fd);
+	ap.fd = uap->fd;
 
 #if BYTE_ORDER == BIG_ENDIAN
-	SCARG(&ap, offset) = (((u_int64_t) SCARG(uap, offset1)) << 32) | 
-		SCARG(uap, offset2);
+	ap.offset = (((u_int64_t) uap->offset1) << 32) | 
+		uap->offset2;
 #else
-	SCARG(&ap, offset) = (((u_int64_t) SCARG(uap, offset2)) << 32) | 
-		SCARG(uap, offset1);
+	ap.offset = (((u_int64_t) uap->offset2) << 32) | 
+		uap->offset1;
 #endif
-	SCARG(&ap, whence) = SCARG(uap, whence);
+	ap.whence = uap->whence;
 
 	return lseek(td, &ap);
 }
@@ -475,12 +475,12 @@ svr4_sys_access(td, uap)
 	int *retval;
 
 	caddr_t sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, SCARG(uap, path));
+	CHECKALTEXIST(td, &sg, uap->path);
 
 	retval = td->td_retval;
 
-	SCARG(&cup, path) = SCARG(uap, path);
-	SCARG(&cup, flags) = SCARG(uap, flags);
+	cup.path = uap->path;
+	cup.flags = uap->flags;
 
 	return access(td, &cup);
 }
@@ -497,10 +497,10 @@ svr4_sys_pread(td, uap)
 	 * Just translate the args structure and call the NetBSD
 	 * pread(2) system call (offset type is 64-bit in NetBSD).
 	 */
-	SCARG(&pra, fd) = SCARG(uap, fd);
-	SCARG(&pra, buf) = SCARG(uap, buf);
-	SCARG(&pra, nbyte) = SCARG(uap, nbyte);
-	SCARG(&pra, offset) = SCARG(uap, off);
+	pra.fd = uap->fd;
+	pra.buf = uap->buf;
+	pra.nbyte = uap->nbyte;
+	pra.offset = uap->off;
 
 	return pread(td, &pra);
 }
@@ -521,10 +521,10 @@ svr4_sys_pread64(td, v, retval)
 	 * Just translate the args structure and call the NetBSD
 	 * pread(2) system call (offset type is 64-bit in NetBSD).
 	 */
-	SCARG(&pra, fd) = SCARG(uap, fd);
-	SCARG(&pra, buf) = SCARG(uap, buf);
-	SCARG(&pra, nbyte) = SCARG(uap, nbyte);
-	SCARG(&pra, offset) = SCARG(uap, off);
+	pra.fd = uap->fd;
+	pra.buf = uap->buf;
+	pra.nbyte = uap->nbyte;
+	pra.offset = uap->off;
 
 	return (sys_pread(td, &pra, retval));
 }
@@ -542,10 +542,10 @@ svr4_sys_pwrite(td, uap)
 	 * Just translate the args structure and call the NetBSD
 	 * pwrite(2) system call (offset type is 64-bit in NetBSD).
 	 */
-	SCARG(&pwa, fd) = SCARG(uap, fd);
-	SCARG(&pwa, buf) = SCARG(uap, buf);
-	SCARG(&pwa, nbyte) = SCARG(uap, nbyte);
-	SCARG(&pwa, offset) = SCARG(uap, off);
+	pwa.fd = uap->fd;
+	pwa.buf = uap->buf;
+	pwa.nbyte = uap->nbyte;
+	pwa.offset = uap->off;
 
 	return pwrite(td, &pwa);
 }
@@ -565,10 +565,10 @@ svr4_sys_pwrite64(td, v, retval)
 	 * Just translate the args structure and call the NetBSD
 	 * pwrite(2) system call (offset type is 64-bit in NetBSD).
 	 */
-	SCARG(&pwa, fd) = SCARG(uap, fd);
-	SCARG(&pwa, buf) = SCARG(uap, buf);
-	SCARG(&pwa, nbyte) = SCARG(uap, nbyte);
-	SCARG(&pwa, offset) = SCARG(uap, off);
+	pwa.fd = uap->fd;
+	pwa.buf = uap->buf;
+	pwa.nbyte = uap->nbyte;
+	pwa.offset = uap->off;
 
 	return (sys_pwrite(td, &pwa, retval));
 }
@@ -585,18 +585,18 @@ svr4_sys_fcntl(td, uap)
 
 	retval = td->td_retval;
 
-	SCARG(&fa, fd) = SCARG(uap, fd);
-	SCARG(&fa, cmd) = svr4_to_bsd_cmd(SCARG(uap, cmd));
+	fa.fd = uap->fd;
+	fa.cmd = svr4_to_bsd_cmd(uap->cmd);
 
-	switch (SCARG(&fa, cmd)) {
+	switch (fa.cmd) {
 	case F_DUPFD:
 	case F_GETFD:
 	case F_SETFD:
-		SCARG(&fa, arg) = (long) SCARG(uap, arg);
+		fa.arg = (long) uap->arg;
 		return fcntl(td, &fa);
 
 	case F_GETFL:
-		SCARG(&fa, arg) = (long) SCARG(uap, arg);
+		fa.arg = (long) uap->arg;
 		error = fcntl(td, &fa);
 		if (error)
 			return error;
@@ -612,17 +612,17 @@ svr4_sys_fcntl(td, uap)
 			long cmd;
 			int flags;
 
-			DPRINTF(("Setting flags %p\n", SCARG(uap, arg)));
-			cmd = SCARG(&fa, cmd); /* save it for a while */
+			DPRINTF(("Setting flags %p\n", uap->arg));
+			cmd = fa.cmd; /* save it for a while */
 
-			SCARG(&fa, cmd) = F_GETFL;
+			fa.cmd = F_GETFL;
 			if ((error = fcntl(td, &fa)) != 0)
 				return error;
 			flags = *retval;
 			flags &= O_ASYNC;
-			flags |= svr4_to_bsd_flags((u_long) SCARG(uap, arg));
-			SCARG(&fa, cmd) = cmd;
-			SCARG(&fa, arg) = (long) flags;
+			flags |= svr4_to_bsd_flags((u_long) uap->arg);
+			fa.cmd = cmd;
+			fa.arg = (long) flags;
 			return fcntl(td, &fa);
 		}
 
@@ -635,9 +635,9 @@ svr4_sys_fcntl(td, uap)
 			caddr_t sg = stackgap_init();
 
 			flp = stackgap_alloc(&sg, sizeof(struct flock));
-			SCARG(&fa, arg) = (long) flp;
+			fa.arg = (long) flp;
 
-			error = copyin(SCARG(uap, arg), &ifl, sizeof ifl);
+			error = copyin(uap->arg, &ifl, sizeof ifl);
 			if (error)
 				return error;
 
@@ -648,7 +648,7 @@ svr4_sys_fcntl(td, uap)
 				return error;
 
 			error = fcntl(td, &fa);
-			if (error || SCARG(&fa, cmd) != F_GETLK)
+			if (error || fa.cmd != F_GETLK)
 				return error;
 
 			error = copyin(flp, &fl, sizeof fl);
@@ -657,20 +657,20 @@ svr4_sys_fcntl(td, uap)
 
 			bsd_to_svr4_flock(&fl, &ifl);
 
-			return copyout(&ifl, SCARG(uap, arg), sizeof ifl);
+			return copyout(&ifl, uap->arg, sizeof ifl);
 		}
 	case -1:
-		switch (SCARG(uap, cmd)) {
+		switch (uap->cmd) {
 		case SVR4_F_DUP2FD:
 			{
 				struct dup2_args du;
 
-				SCARG(&du, from) = SCARG(uap, fd);
-				SCARG(&du, to) = (int)SCARG(uap, arg);
+				du.from = uap->fd;
+				du.to = (int)uap->arg;
 				error = dup2(td, &du);
 				if (error)
 					return error;
-				*retval = SCARG(&du, to);
+				*retval = du.to;
 				return 0;
 			}
 
@@ -679,12 +679,12 @@ svr4_sys_fcntl(td, uap)
 				struct svr4_flock	 ifl;
 				struct flock		 fl;
 
-				error = copyin(SCARG(uap, arg), &ifl,
+				error = copyin(uap->arg, &ifl,
 				    sizeof ifl);
 				if (error)
 					return error;
 				svr4_to_bsd_flock(&ifl, &fl);
-				return fd_truncate(td, SCARG(uap, fd), &fl);
+				return fd_truncate(td, uap->fd, &fl);
 			}
 
 		case SVR4_F_GETLK64:
@@ -696,9 +696,9 @@ svr4_sys_fcntl(td, uap)
 				caddr_t sg = stackgap_init();
 
 				flp = stackgap_alloc(&sg, sizeof(struct flock));
-				SCARG(&fa, arg) = (long) flp;
+				fa.arg = (long) flp;
 
-				error = copyin(SCARG(uap, arg), &ifl,
+				error = copyin(uap->arg, &ifl,
 				    sizeof ifl);
 				if (error)
 					return error;
@@ -710,7 +710,7 @@ svr4_sys_fcntl(td, uap)
 					return error;
 
 				error = fcntl(td, &fa);
-				if (error || SCARG(&fa, cmd) != F_GETLK)
+				if (error || fa.cmd != F_GETLK)
 					return error;
 
 				error = copyin(flp, &fl, sizeof fl);
@@ -719,7 +719,7 @@ svr4_sys_fcntl(td, uap)
 
 				bsd_to_svr4_flock64(&fl, &ifl);
 
-				return copyout(&ifl, SCARG(uap, arg),
+				return copyout(&ifl, uap->arg,
 				    sizeof ifl);
 			}
 
@@ -728,16 +728,16 @@ svr4_sys_fcntl(td, uap)
 				struct svr4_flock64	 ifl;
 				struct flock		 fl;
 
-				error = copyin(SCARG(uap, arg), &ifl,
+				error = copyin(uap->arg, &ifl,
 				    sizeof ifl);
 				if (error)
 					return error;
 				svr4_to_bsd_flock64(&ifl, &fl);
-				return fd_truncate(td, SCARG(uap, fd), &fl);
+				return fd_truncate(td, uap->fd, &fl);
 			}
 
 		case SVR4_F_REVOKE:
-			return fd_revoke(td, SCARG(uap, fd));
+			return fd_revoke(td, uap->fd);
 
 		default:
 			return ENOSYS;

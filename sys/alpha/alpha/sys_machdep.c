@@ -76,7 +76,7 @@ sysarch(td, uap)
 {
 	int error = 0;
 
-	switch(SCARG(uap,op)) {
+	switch(uap->op) {
 	case ALPHA_SETHAE:
 		error = alpha_sethae(td, uap->parms);
 		break;

@@ -166,25 +166,25 @@ svr4_sys_socket(td, uap)
 	struct thread *td;
 	struct svr4_sys_socket_args *uap;
 {
-	switch (SCARG(uap, type)) {
+	switch (uap->type) {
 	case SVR4_SOCK_DGRAM:
-		SCARG(uap, type) = SOCK_DGRAM;
+		uap->type = SOCK_DGRAM;
 		break;
 
 	case SVR4_SOCK_STREAM:
-		SCARG(uap, type) = SOCK_STREAM;
+		uap->type = SOCK_STREAM;
 		break;
 
 	case SVR4_SOCK_RAW:
-		SCARG(uap, type) = SOCK_RAW;
+		uap->type = SOCK_RAW;
 		break;
 
 	case SVR4_SOCK_RDM:
-		SCARG(uap, type) = SOCK_RDM;
+		uap->type = SOCK_RDM;
 		break;
 
 	case SVR4_SOCK_SEQPACKET:
-		SCARG(uap, type) = SOCK_SEQPACKET;
+		uap->type = SOCK_SEQPACKET;
 		break;
 	default:
 		return EINVAL;
