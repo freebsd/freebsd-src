@@ -1,5 +1,5 @@
 /*
- * Copryight 1997 Sean Eric Fagan
+ * Copyright 1997 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -63,7 +63,7 @@ main(int ac, char **av) {
   for (i = 1; i < ac; i++) {
     char buf[32];
 
-    sprintf(buf, "/proc/%s/mem", av[i]);
+    snprintf(buf, sizeof(buf), "/proc/%s/mem", av[i]);
     fd = open(buf, O_RDWR);
     if (fd == -1) {
       if (errno == ENOENT)
