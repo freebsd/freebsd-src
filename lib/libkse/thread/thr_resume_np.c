@@ -67,6 +67,10 @@ _pthread_resume_np(pthread_t thread)
 				/* Set the thread's state back. */
 				PTHREAD_SET_STATE(thread,PS_COND_WAIT);
 				break;
+			case SUSP_JOIN:
+				/* Set the thread's state back. */
+				PTHREAD_SET_STATE(thread,PS_JOIN);
+				break;
 			case SUSP_NOWAIT:
 				/* Allow the thread to run. */
 				PTHREAD_SET_STATE(thread,PS_RUNNING);

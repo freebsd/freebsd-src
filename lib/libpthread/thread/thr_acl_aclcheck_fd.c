@@ -39,7 +39,7 @@ ___acl_aclcheck_fd(int fd, acl_type_t tp, acl_t acl)
 	int	error;
 
 	if ((error = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
-		error = __sys___acl_aclcheck_fd(fd, tp, acl);
+		error = __sys___acl_aclcheck_fd(fd, tp, (struct acl *)acl);
 		_FD_UNLOCK(fd, FD_READ);
 	}
 	return (error);
