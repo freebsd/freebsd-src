@@ -52,7 +52,6 @@ COMM=	${SYS}/conf/*.[ch] \
 	${SYS}/pci/*.[ch] \
 	${SYS}/posix4/*.[ch] \
 	${SYS}/ufs/ffs/*.[ch] \
-	${SYS}/ufs/mfs/*.[ch] \
 	${SYS}/ufs/ufs/*.[ch] \
 	${SYS}/vm/*.[ch] \
 	${SYS}/sys/*.[ch]
@@ -103,5 +102,4 @@ COMMDIR2= ${SYS}/dev/advansys \
 	${SYS}/fs/unionfs \
 	${SYS}/isofs/cd9660 \
 	${SYS}/ufs/ffs \
-	${SYS}/ufs/mfs \
 	${SYS}/ufs/ufs

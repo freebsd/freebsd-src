@@ -144,20 +144,6 @@ Revised February 2, 1989.
 
 .sp
 .IP
-.tl '\fBMemory Based Filesystem''memfs\fP'
-.if \n(.U \{\
-.br
-.>> <a href="memfs.html">memfs.html</a>
-.\}
-.QP
-A Pageable Memory Based Filesystem.
-.sp
-Marshall Kirk McKusick, Michael J. Karels, Keith Bostic.
-.sp
-Revised 1990.
-
-.sp
-.IP
 .tl '\fBFilesystem Interface''fsinterface\fP'
 .if \n(.U \{\
 .br

@@ -260,26 +260,6 @@ Some part of the information described by nfs_args
 points outside the process's allocated address space.
 .El
 .Pp
-The following errors can occur for a
-.Em mfs
-filesystem mount:
-.Bl -tag -width Er
-.It Bq Er EMFILE
-No space remains in the mount table.
-.It Bq Er EINVAL
-The super block for the filesystem had a bad magic
-number or an out of range block size.
-.It Bq Er ENOMEM
-Not enough memory was available to read the cylinder
-group information for the filesystem.
-.It Bq Er EIO
-A paging error occurred while reading the super block or
-cylinder group information.
-.It Bq Er EFAULT
-.Em Name
-points outside the process's allocated address space.
-.El
-.Pp
 The
 .Fn unmount
 function may fail with one of the following errors:
@@ -307,13 +287,10 @@ points outside the process's allocated address space.
 .Pp
 A
 .Em ufs
-or
-.Em mfs
 mount can also fail if the maximum number of filesystems are currently
 mounted.
 .Sh SEE ALSO
 .Xr lsvfs 1 ,
-.Xr mfs 8 ,
 .Xr mount 8 ,
 .Xr umount 8
 .Sh BUGS

@@ -262,7 +262,7 @@ struct linux_statfs_buf {
 
 /*
  * ext2fs uses the VT_UFS tag. A mounted ext2 filesystem will therefore
- * be seen as an ufs/mfs filesystem.
+ * be seen as an ufs filesystem.
  */
 static long
 bsd_to_linux_ftype(int tag)
