@@ -37,7 +37,7 @@
 .\" $Id: vinum.8,v 1.15 2001/05/14 01:10:37 grog Exp grog $
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2000
+.Dd May 5, 2003
 .Dt VINUM 8
 .Os
 .Sh NAME
@@ -2589,7 +2589,6 @@ and the arguments must be disk slices, such as
 not partitions such as
 .Pa /dev/da0e .
 .El
-.\"XXX.Sh BUGS
 .Sh FILES
 .Bl -tag -width /dev/vinum/control -compact
 .It Pa /dev/vinum
@@ -2641,8 +2640,10 @@ was developed for Cybernet Inc.\&
 .Pq Pa www.cybernet.com
 for its NetMAX product.
 .Sh BUGS
-.Nm
+.Xr vinum 4
 does not use the
 .Xr geom 4
-subsystem so vinum volumes can not be used with GEOM based facilities like
+subsystem so
+.Xr vinum 4
+volumes cannot be used with GEOM based facilities like
 .Xr gbde 8 .
