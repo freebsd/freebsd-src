@@ -230,9 +230,10 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 * Dump out summary information about file system.
 	 */
 #	define B2MBFACTOR (1 / (1024.0 * 1024.0))
-	printf("growfs: %.1fMB (%qd sectors) block size %d, fragment size %d\n",
+	printf("growfs: %.1fMB (%jd sectors) block size %d, fragment size %d\n",
 	    (float)sblock.fs_size * sblock.fs_fsize * B2MBFACTOR,
-	    fsbtodb(&sblock, sblock.fs_size), sblock.fs_bsize, sblock.fs_fsize);
+	    (intmax_t)fsbtodb(&sblock, sblock.fs_size), sblock.fs_bsize,
+	    sblock.fs_fsize);
 	printf("\tusing %d cylinder groups of %.2fMB, %d blks, %d inodes.\n",
 	    sblock.fs_ncg, (float)sblock.fs_fpg * sblock.fs_fsize * B2MBFACTOR,
 	    sblock.fs_fpg / sblock.fs_frag, sblock.fs_ipg);
@@ -366,7 +367,7 @@ static void
 initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("initcg")
-	static caddr_t iobuf;
+	static void *iobuf;
 	long d, dlower, dupper, blkno, start;
 	ufs2_daddr_t i, cbase, dmax;
 	struct ufs1_dinode *dp1;
@@ -1940,7 +1941,7 @@ main(int argc, char **argv)
 {
 	DBG_FUNC("main")
 	char	*device, *special, *cp;
-	char	ch;
+	int	ch;
 	unsigned int	size=0;
 	size_t	len;
 	unsigned int	Nflag=0;
