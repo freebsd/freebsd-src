@@ -132,7 +132,7 @@ struct uio;
 struct vattr;
 struct nameidata;
 
-extern struct callout_handle nfsrv_timer_handle;
+extern struct callout nfsrv_callout;
 extern struct nfsrvstats nfsrvstats;
 
 extern int	nfsrv_ticks;
