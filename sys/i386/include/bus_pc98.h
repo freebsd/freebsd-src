@@ -72,7 +72,6 @@
 #ifndef _I386_BUS_PC98_H_
 #define _I386_BUS_PC98_H_
 
-#include <sys/bus.h>
 #include <machine/cpufunc.h>
 
 /*
@@ -120,15 +119,6 @@ typedef	struct {
     struct resource	**bsh_res;
     size_t		bsh_ressz;
 }* bus_space_handle_t;
-
-/*
- * Allocate discontinuous resources for ISA bus.
- */
-struct resource *
-isa_alloc_resourcev(device_t child, int type, int *rid,
-		    bus_addr_t *res, bus_size_t count, u_int flags);
-int
-isa_load_resourcev(struct resource *re, bus_addr_t *res, bus_size_t count);
 
 /*
  * Map a region of device bus space into CPU virtual address space.
