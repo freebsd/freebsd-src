@@ -98,7 +98,6 @@ static int fddi_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		       struct rtentry *); 
 static void fddi_input(struct ifnet *ifp, struct mbuf *m);
 
-#define	IFP2AC(IFP)	((struct arpcom *)IFP)
 #define	senderr(e)	do { error = (e); goto bad; } while (0)
 
 /*

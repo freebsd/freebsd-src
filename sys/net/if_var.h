@@ -187,6 +187,10 @@ struct ifnet {
 
 typedef void if_init_f_t(void *);
 
+/*
+ * XXX These aliases are terribly dangerous because they could apply
+ * to anything.
+ */
 #define	if_mtu		if_data.ifi_mtu
 #define	if_type		if_data.ifi_type
 #define if_physical	if_data.ifi_physical
