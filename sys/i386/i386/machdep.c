@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.109 1995/02/12 09:21:04 davidg Exp $
+ *	$Id: machdep.c,v 1.110 1995/02/14 19:20:26 sos Exp $
  */
 
 #include "npx.h"
@@ -731,7 +731,7 @@ boot(arghowto)
 		 */
 		if (panicstr == 0)
 			vnode_pager_umount(NULL);
-		sync(curproc, NULL, NULL);
+		sync(&proc0, NULL, NULL);
 
 		for (iter = 0; iter < 20; iter++) {
 			nbusy = 0;
