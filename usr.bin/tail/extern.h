@@ -36,7 +36,7 @@
  */
 
 #define	WR(p, size) do { \
-	if (write(STDOUT_FILENO, p, size) != size) \
+	if (write(STDOUT_FILENO, p, size) != (ssize_t)size) \
 		oerr(); \
 	} while(0)
 
@@ -64,4 +64,4 @@ int mapprint __P((struct mapinfo *, off_t, off_t));
 int maparound __P((struct mapinfo *, off_t));
 
 extern int Fflag, fflag, rflag, rval;
-extern char *fname;
+extern const char *fname;
