@@ -353,10 +353,9 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_IRQ:
 		return (resource_list_alloc(rl, bus, child, type, rid, start,
 		    end, count, flags));
-	default:
-		panic("ebus_alloc_resource: unsupported resource type %d",
-		    type);
 	}
+
+	return (NULL);
 }
 
 int
