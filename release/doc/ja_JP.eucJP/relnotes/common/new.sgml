@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.278
+    Original revision: 1.22.2.294
 -->
 
 <articleinfo>
@@ -109,6 +109,10 @@
       制限は &man.login.conf.5; に追加された
       <varname>vmemoryuse</varname> 変数によって設定することができます。</para>
 
+    <para>&man.sendfile.2; システムコールにおいて、
+      送信ファイルサイズの計算でヘッダサイズを正しく含めていなかった
+      というバグが修正されました。</para>
+
     <para>USB モデム、USB シリアルデバイスを
       tty を使うプログラムに対応させるための
       &man.ucom.4; デバイスドライバが追加されました。
@@ -117,14 +121,16 @@
       SUNTAC Slipper U VS-10U に対応しています。</para>
 
     <para>Handspring Visors を USB 経由で接続できるようにするための
-      uvisor ドライバが追加されました。</para>
+      &man.uvisor.4; ドライバが追加されました。</para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
-      <para></para>
+      <para arch="i386">AMD &Eacute;lan SC520 に対応しました。
+	利用するには、カーネルコンフィグファイルに
+        <literal>CPU_ELAN</literal> オプションを追加する必要があります。</para>
     </sect3>
 
     <sect3>
@@ -178,10 +184,29 @@
             <filename>libalias</filename> をコンパイル・インストールする。
 	</step>
       </procedure>
+
+      <para>新しい netgraph ノードタイプ &man.ng.l2tp.4; が追加されました。
+        これは RFC 2661 に記載されている L2TP プロトコルのカプセル化レイヤを
+        実装したものです。</para>
+
+    <para>&man.tcp.4; プロトコルの再送タイマが
+      <varname>net.inet.tcp.rexmit_min</varname> と
+      <varname>net.inet.tcp.rexmit_slop</varname>
+      の、2 つの sysctl 変数で操作できるようになりました。</para>
+
+    <para>&man.tcp.4; プロトコルに、送信側のウィンドウのサイズを動的に
+      制限して、帯域を最大化し、ラウンドトリップタイムを最小にするための
+      機能が追加されました。この機能は、sysctl 変数
+      <varname>net.inet.tcp.inflight_enable</varname>
+      を使って有効化することが可能です。</para>
     </sect3>
 
     <sect3>
       <title>ディスク・記憶装置</title>
+
+      <para arch="i386">&man.ahd.4; ドライバが新しく追加されました。
+        これは Adaptec AIC7901, AIC7901A, AIC7902 Ultra320 PCI-X SCSI
+        コントローラチップに対応しています。</para>
 
       <para>&man.ata.4; のタグ付きキューイング機能で
         時々発生していた動作不良が修正されました。</para>
@@ -190,6 +215,16 @@
         この修正により、特定の ATA デバイスにアクセスした時に数多く生じていた
         <literal>READ_BIG</literal>
         エラーやその他のエラーが発生しなくなっています。</para>
+
+      <para>&man.ata.4; ドライバが新しく Sil 0680 と
+        VIA 8233/8235 コントローラに対応しました。</para>
+
+      <para arch="i386,alpha">mpt ドライバが新しく追加されました。
+	これは、LSI Logic Fusion/MP アーキテクチャ
+        ファイバチャネルコントローラに対応してます。</para>
+
+      <para arch="i386">pst ドライバが新しく追加されました。
+        これは Promise SuperTrak ATA RAID コントローラに対応しています。</para>
     </sect3>
 
     <sect3>
@@ -209,14 +244,27 @@
     <sect3>
       <title>マルチメディアへの対応状況</title>
       
-      <para></para>
+      <para arch="i386">VT8233 オーディオコントローラのドライバが
+        追加されました。これはすべてのリビジョンのハードウェアに対応しています。
+        このドライバは、カーネルコンフィグファイルに
+        <literal>device pcm</literal> を追加するか、
+        <filename>/boot/loader.conf</filename> に
+        <literal>snd_via8233="YES"</literal> と追加することで
+        起動時にロードすることが可能です。
+        このドライバは、VIA から提供された資料を用いて開発されました。</para>
 
+      <para arch="i386">ich サウンドドライバに、ich4 オーディオ対応の
+        基本部分が追加されました。</para>
+
+      <para>USB オーディオデバイス用の uaudio ドライバが追加されました。</para>
     </sect3>
 
     <sect3>
       <title>寄贈ソフトウェア</title>
 
-      <para></para>
+      <para><application>IPFilter</application> が
+	バージョン 3.4.29 に更新されました。</para>
+    </sect3>
 
   </sect2>
 
@@ -284,10 +332,35 @@
       ローカルユーザがシステムパニックを引き起こすことができる可能性のあるバグが修正されました。
       この問題の詳細は、セキュリティ勧告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink> をご覧ください。</para>
+
+    <para>カーネルメモリの大きな部分を返してしまうという、
+      いくつかのシステムコールにあった境界チェックのバグが修正されました。
+      この問題の詳細は、
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink> をご覧ください。</para>
+
+    <para><filename>libkvm</filename> を使っているアプリケーションから
+      セキュリティ上重要な記述子が漏洩する可能性があるバグが修正されました
+      この問題の詳細は <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">FreeBSD-SA-02:39</ulink>
+      をご覧ください。</para>
   </sect2>
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
+
+    <para>&man.biff.1; に、新しい引数 <option>b</option> が追加されました。
+      これは、新しいメール到着時の<quote>ベル通知</quote>を有効にします
+      (<command>biff y</command> のように、端末には表示されません).</para>
+
+    <para>&man.cp.1; に (非標準の) <option>-n</option> オプションが
+      追加されました。これは、ファイルを上書きする際の確認に対して、
+      自動的に <quote>no</quote> を回答するものです。</para>
+
+    <para>&man.daemon.3; をコマンドラインから呼び出すための、
+      &man.daemon.8; プログラムが追加されました。
+      このコマンドは制御端末を切り離して、コマンドラインに指定された
+      プログラムを実行します。ユーザは任意のプログラムを、それが
+      デーモンとして作成されているかのように実行することが可能です。</para>
 
     <para>&man.dump.8; に、単に予想ダンプサイズを表示して終了するという、
       <option>-S</option> フラグが追加されました。</para>
@@ -306,10 +379,35 @@
       <option>-b</option> オプションと、
       単語境界で改行する <option>-s</option> オプションが追加されました。</para>
 
+    <para>&man.ftp.1; が、<command>epsv4</command> コマンドに対応しました。
+      これは、IPv4 で通信している時に、新しい EPSV/EPRT
+      と従来の PASV/PORT を切り替えるものです。このコマンドは、
+      <application>IPFilter</application> などの、新しい FTP
+      要求に対応していないファイアウォールを経由して
+      &man.ftp.1; を運用する場合に発生する問題の解決を目的としています。</para>
+
+    <para>&man.ftpd.8; に、新しく <option>-m</option> オプションが追加されました。
+      これは、ファイルシステム上の許可属性に従い、ゲストユーザも既存のファイルを
+      変更できるようにするものです。これは特に、ゲストユーザが
+      アップロードする際の途中再送 (resume) を可能にします。</para>
+
+    <para>&man.ftpd.8; に、新しく <option>-M</option> オプションが追加されました。
+      これは、ゲストユーザがディレクトリを作成できないようにします。</para>
+
+    <para>&man.ftpd.8; に、新しく <option>-W</option> オプションが追加されました。
+      これは、FTP セションのログを &man.wtmp.5; に記録しないようにします。</para>
+
     <para>&man.ifconfig.8; に、IPv6 アドレスの下位 64
       ビットを自動的に設定する <option>eui64</option>
       コマンドが追加されました。この変更にともない、
       &man.prefix.8; は廃止されました。</para>
+
+    <para>&man.ifconfig.8; に、インターフェイスをプロミスキャス (promiscuous) モードに
+      する機能が追加されました。これは、新しく追加された
+      <option>promisc</option> フラグを使います。</para>
+
+    <para>&man.inetd.8; に、同一の IP アドレスからの同時アクセス数の最大値を
+      各サービスに対して設定する機能が追加されました。</para>
 
     <para>&man.ls.1; プログラムに、
       リストを一行で表示する <option>-m</option> フラグ、
@@ -317,9 +415,19 @@
       <option>-p</option> フラグ、ファイル名を行方向にソートして表示する
       <option>-x</option> フラグが追加されました。</para>
 
+    <para>&man.mv.1; に、(非標準の) <option>-n</option> オプションが
+      追加されました。これは、ファイルを上書きする際の確認に対して、
+      自動的に <quote>no</quote> を回答するものです。</para>
+
     <para>&man.nice.1; に、実行するユーティリティの <quote>nice
-        値</quote>を指定する <option>-n</option>
+      値</quote>を指定する <option>-n</option>
       オプションが追加されました。</para>
+
+    <para>&man.od.1; に、入力アドレスの起点を指定する <option>-A</option> オプション、
+      ダンプするバイト数を指定する <option>-N</option> オプション、
+      ダンプを何バイトスキップするか指定する <option>-j</option> オプション、
+      符号付きの 10 進数で出力する <option>-s</option> オプション、
+      出力形式を指定する <option>-t</option> オプションが追加されました。</para>
 
     <para><varname>no_fake_prompts</varname> が設定されている場合、
       &man.pam.opie.8; は偽のチャレンジを送出しなくなりました。</para>
@@ -398,11 +506,18 @@
     <sect3>
       <title>寄贈ソフトウェア</title>
 
-      <para><application>BIND</application> が
+      <para><application>BIND</application> がバージョン
         8.3.3 に更新されました。</para>
+
+      <para><application>binutils</application> がバージョン
+        2.12.1 (具体的には 2002 年 7 月 20 日のスナップショット)
+        に更新されました。</para>
 
       <para><application>gcc</application> がバージョン
         2.95.4 に更新されました。</para>
+
+      <para><application>Heimdal Kerberos</application> が
+	2002 年 8 月 29 日の pre-0.5 スナップショットに更新されました。</para>
 
       <para><application>libpcap</application> がバージョン
         0.7.1 に更新されました。</para>
@@ -474,26 +589,60 @@
       </para>
 
       <para><application>OpenSSL</application> がバージョン
-	0.9.6e に更新されました。</para>
+	0.9.6g に更新されました。</para>
 
       <para><application>sendmail</application> がバージョン
-        8.12.3 からバージョン 8.12.5 に更新されました。</para>
+        8.12.3 からバージョン 8.12.6 に更新されました。</para>
+
+      <para arch="i386"><application>smbfs</application> ユーザランドユーティリティの
+        バージョン 1.4.5 が統合されました。</para>
 
       <para><application>GNU tar</application> がバージョン
         1.13.25 に更新されました。</para>
 
+      <para><application>tcsh</application> が
+	バージョン 6.12 に更新されました。</para>
+
       <para><application>texinfo</application> がバージョン
 	4.2 に更新されました。</para>
 
+      <para>寄贈ソフトウェアの
+        <application>tcp_wrappers</application> に、新しく
+        &man.tcpd.8; デーモンが追加されました。厳密に言うと標準の
+        &os; インストールでは必要のないもの (&man.inetd.8; には、
+        相当の機能が搭載されています) ですが、
+        <application>xinetd</application> のような
+        &man.inetd.8; の代替物を使う場合に有用です。</para>
+
       <para><application>tcpdump</application> がバージョン
         3.7.1 に更新されました。</para>
+
+      <para><application>top</application> がバージョン
+	3.5b12 に更新されました。</para>
     </sect3>
     
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para></para>
-      
+      <para><filename role="package">emulators/linux_base</filename> の port
+        (Linux エミュレーション用に必要)
+        でインストールされるライブラリのデフォルトが更新されました。
+        現在は <application>Red Hat Linux</application>
+	7.1 に含まれるものに対応しています。</para>
+
+      <para><application>XFree86</application> がバージョン
+	4.2.1 に更新されました。このバージョンは、バージョン 4.2.0 から
+        いくつかのバグとセキュリティ上の修正が加えられています。</para>
+
+      <!--
+      <para>Ports Collection から生成される package (および、FTP サイトに
+        置かれている package) は &man.gzip.1; ではなく、デフォルトで 
+        &man.bzip2.1; を使用するように更新されました
+        (このため、拡張子が <filename>.tgz</filename> ではなく、
+        <filename>.tbz</filename> になりました)。
+        package 関連ツールも、新しい形式のファイルを
+        操作できるように更新されています。</para>
+      -->
     </sect3>
   </sect2>
 
