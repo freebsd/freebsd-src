@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 Shunsuke Akiyama.  All rights reserved.
+ * Copyright (c) 1995,1996 Shunsuke Akiyama.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -18,22 +18,30 @@
  *
  * THIS SOFTWARE IS PROVIDED BY Shunsuke Akiyama AND CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL Shunsuke Akiyama OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE.
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.14 1996/03/10 07:13:06 gibbs Exp $
+ *	$Id: od.c,v 1.15.1.3 1996/05/06 15:14:57 shun Exp $
  */
 
 /*
- * TODO:
- *   1. Add optical disk specific ioctl functions, such as eject etc.
+ * Compile option defines:
+ */
+
+/*
+ * If drive returns sense key as 0x02 with vendor specific additional
+ * sense code (ASC) and additional sense code qualifier (ASCQ), or
+ * illegal ASC and ASCQ. This cause an error (NOT READY) and retrying.
+ * To suppress this, uncomment this.
+ *
+#define OD_BOGUS_NOT_READY
  */
 
 #include "opt_bounce.h"
@@ -52,6 +60,7 @@
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
+#include <sys/cdio.h>
 #include <sys/errno.h>
 #include <sys/dkstat.h>
 #include <sys/disklabel.h>
@@ -69,10 +78,9 @@
 
 static u_int32_t odstrats, odqueues;
 
-#define SECSIZE 512
+#define SECSIZE		512	/* default sector size */
 #define	ODOUTSTANDING	4
 #define	OD_RETRIES	4
-#define	MAXTRANSFER	8		/* 1 page at a time */
 
 #define	PARTITION(dev)	dkpart(dev)
 #define	ODUNIT(dev)	dkunit(dev)
@@ -102,6 +110,8 @@ struct scsi_data {
 #endif
 };
 
+static void	od_get_geometry __P((u_int32_t, u_int16_t *,
+				     u_char *, u_char *));
 static errval	od_get_parms __P((int unit, int flags));
 static errval	od_reassign_blocks __P((int unit, int block));
 static u_int32_t	od_size __P((int unit, int flags));
@@ -145,18 +155,18 @@ SCSI_DEVICE_ENTRIES(od)
 
 static struct scsi_device od_switch =
 {
-    od_sense_handler,
-    odstart,			/* have a queue, served by this */
-    NULL,			/* have no async handler */
-    NULL,			/* Use default 'done' routine */
-    "od",
-    0,
+	od_sense_handler,
+	odstart,		/* have a queue, served by this */
+	NULL,			/* have no async handler */
+	NULL,			/* Use default 'done' routine */
+	"od",
+	0,
 	{0, 0},
-	0,				/* Link flags */
+	0,			/* Link flags */
 	odattach,
 	"Optical",
 	odopen,
-    sizeof(struct scsi_data),
+	sizeof(struct scsi_data),
 	T_OPTICAL,
 	odunit,
 	odsetunit,
@@ -194,7 +204,7 @@ od_registerdev(int unit)
 	dev_attach(kdc);
 	if(dk_ndrive < DK_NDRIVE) {
 		sprintf(dk_names[dk_ndrive], "od%d", unit);
-		dk_wpms[dk_ndrive] = (8*1024*1024/2);
+		dk_wpms[dk_ndrive] = (4*1024*1024/2);	/* 4MB/sec */
 		SCSI_DATA(&od_switch, unit)->dkunit = dk_ndrive++;
 	} else {
 		SCSI_DATA(&od_switch, unit)->dkunit = -1;
@@ -302,7 +312,7 @@ od_open(dev, mode, fmt, p, sc_link)
 	 * to look for a new device if we are not initted
 	 */
 	if ((!od) || (!(od->flags & ODINIT))) {
-		return (ENXIO);
+		return ENXIO;
 	}
 
 	SC_DEBUG(sc_link, SDEV_DB1,
@@ -360,7 +370,14 @@ od_open(dev, mode, fmt, p, sc_link)
 	if (errcode) {
 		goto bad;
 	}
-	if (od->params.secsiz != SECSIZE) {	/* XXX One day... */
+	switch (od->params.secsiz) {
+	case SECSIZE :
+	case 1024 :
+#ifdef notyet
+	case 2048 :
+#endif
+		break;
+	default :
 		printf("od%ld: Can't deal with %d bytes logical blocks\n",
 		    unit, od->params.secsiz);
 		Debugger("od");
@@ -377,8 +394,10 @@ od_open(dev, mode, fmt, p, sc_link)
 	label.d_ncylinders = od->params.cyls;
 	label.d_secpercyl = od->params.heads * od->params.sectors;
 	if (label.d_secpercyl == 0)
-		label.d_secpercyl = 100;
-		/* XXX as long as it's not 0 - readdisklabel divides by it (?) */
+		label.d_secpercyl = 64*32;
+		/* XXX as long as it's not 0
+		 *  - readdisklabel divides by it (?)
+		 */
 	label.d_secperunit = od->params.disksize;
 
 	/* Initialize slice tables. */
@@ -420,7 +439,7 @@ od_close(dev, fflag, fmt, p, sc_link)
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT | SCSI_ERR_OK);
 		sc_link->flags &= ~SDEV_OPEN;
 	}
-	return (0);
+	return 0;
 }
 
 /*
@@ -529,6 +548,7 @@ odstart(u_int32_t unit, u_int32_t flags)
 	struct buf *bp = 0;
 	struct scsi_rw_big cmd;
 	u_int32_t blkno, nblk;
+	u_int32_t secsize;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("odstart "));
 	/*
@@ -565,17 +585,17 @@ odstart(u_int32_t unit, u_int32_t flags)
 		 * We have a buf, now we know we are going to go through
 		 * With this thing..
 		 */
-		blkno = bp->b_pblkno;
-		if (bp->b_bcount & (SECSIZE - 1))
+		secsize = od->params.secsiz;
+		blkno = bp->b_pblkno / (secsize / DEV_BSIZE);
+		if (bp->b_bcount & (secsize - 1))
 		{
 		    goto bad;
 		}
-		nblk = bp->b_bcount >> 9;
+		nblk = (bp->b_bcount + (secsize - 1)) / secsize;
 
 		/*
 		 *  Fill out the scsi command
 		 */
-		bzero(&cmd, sizeof(cmd));
 		cmd.op_code = (bp->b_flags & B_READ)
 		    ? READ_BIG : WRITE_BIG;
 		cmd.addr_3 = (blkno & 0xff000000UL) >> 24;
@@ -584,6 +604,7 @@ odstart(u_int32_t unit, u_int32_t flags)
 		cmd.addr_0 = blkno & 0xff;
 		cmd.length2 = (nblk & 0xff00) >> 8;
 		cmd.length1 = (nblk & 0xff);
+		cmd.byte2 = cmd.reserved = cmd.control = 0;
 		/*
 		 * Call the routine that chats with the adapter.
 		 * Note: we cannot sleep as we may be an interrupt
@@ -633,27 +654,39 @@ od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	od = sc_link->sd;
 	SC_DEBUG(sc_link, SDEV_DB1, ("odioctl (0x%x)", cmd));
 
-#if 0
-	/* Wait until we have exclusive access to the device. */
-	/* XXX this is how wd does it.  How did we work without this? */
-	wdsleep(du->dk_ctrlr, "wdioct");
-#endif
-
 	/*
 	 * If the device is not valid.. abandon ship
 	 */
 	if (!(sc_link->flags & SDEV_MEDIA_LOADED))
-		return (EIO);
+		return EIO;
 
-	if (cmd ==  DIOCSBAD)
-		return (EINVAL);	/* XXX */
-	error = dsioctl("od", dev, cmd, addr, flag, &od->dk_slices,
-			odstrategy1, (ds_setgeom_t *)NULL);
-	if (error != -1)
-		return (error);
-	if (PARTITION(dev) != RAW_PART)
-		return (ENOTTY);
-	return (scsi_do_ioctl(dev, cmd, addr, flag, p, sc_link));
+	switch (cmd) {
+	case DIOCSBAD:
+		error = EINVAL;
+		break;
+	case CDIOCEJECT:
+		error = scsi_stop_unit(sc_link, 1, 0);
+		break;
+	case CDIOCALLOW:
+		error = scsi_prevent(sc_link, PR_ALLOW, 0);
+		break;
+	case CDIOCPREVENT:
+		error = scsi_prevent(sc_link, PR_PREVENT, 0);
+		break;
+	default:
+		error = dsioctl("od", dev, cmd, addr, flag, &od->dk_slices,
+				odstrategy1, (ds_setgeom_t *)NULL);
+		if (error == -1) {
+			if (PARTITION(dev) != RAW_PART) {
+				error = ENOTTY;
+			} else {
+				error = scsi_do_ioctl(dev, cmd, addr,
+						      flag, p, sc_link);
+			}
+		}
+		break;
+	}
+	return error;
 }
 
 /*
@@ -666,7 +699,9 @@ od_size(unit, flags)
 	struct scsi_read_cap_data rdcap;
 	struct scsi_read_capacity scsi_cmd;
 	u_int32_t size;
+	u_int32_t secsize;
 	struct scsi_link *sc_link = SCSI_LINK(&od_switch, unit);
+	struct scsi_data *od = sc_link->sd;
 
 	/*
 	 * make up a scsi command and ask the scsi driver to do
@@ -688,14 +723,21 @@ od_size(unit, flags)
 		20000,
 		NULL,
 		flags | SCSI_DATA_IN) != 0) {
-		return (0);
+		return 0;
 	} else {
-		size = rdcap.addr_0 + 1;
+		size = rdcap.addr_0;
 		size += rdcap.addr_1 << 8;
 		size += rdcap.addr_2 << 16;
 		size += rdcap.addr_3 << 24;
+		size += 1;
+		secsize = rdcap.length_0;
+		secsize += rdcap.length_1 << 8;
+		secsize += rdcap.length_2 << 16;
+		secsize += rdcap.length_3 << 24;
 	}
-	return (size);
+	od->params.disksize = size;
+	od->params.secsiz = secsize;
+	return size;
 }
 
 #ifdef notyet
@@ -721,7 +763,7 @@ od_reassign_blocks(unit, block)
 	rbdata.defect_descriptor[0].dlbaddr_1 = ((block >> 8) & 0xff);
 	rbdata.defect_descriptor[0].dlbaddr_0 = ((block) & 0xff);
 
-	return (scsi_scsi_cmd(sc_link,
+	return scsi_scsi_cmd(sc_link,
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
 		(u_char *) & rbdata,
@@ -729,10 +771,50 @@ od_reassign_blocks(unit, block)
 		OD_RETRIES,
 		20000,
 		NULL,
-		SCSI_DATA_OUT));
+		SCSI_DATA_OUT);
 }
 #endif
 #define b2tol(a)	(((unsigned)(a##_1) << 8) + (unsigned)a##_0 )
+
+/*
+ * Get ficticious geometry from total sectors.
+ */
+static void
+od_get_geometry(total, cp, hp, sp)
+	u_int32_t total;
+	u_int16_t *cp;
+	u_char *hp;
+	u_char *sp;
+{
+	u_int16_t cyls;
+	u_char heads;
+	u_char sectors;
+
+	heads = 64;
+	sectors = 32;
+
+	if (total != 0) {
+		cyls = total / (64 * 32);
+		while (cyls >= 1024) {
+			if (heads < 128) {
+				heads *= 2;
+			} else {
+				heads = 255;
+				sectors = 63;
+				cyls = total / (heads * sectors);
+				break;
+			}
+			cyls = total / (heads * sectors);
+		}
+		if (total > (cyls * heads * sectors))
+			cyls++;
+	} else
+		cyls = 0;
+
+	*cp = cyls;
+	*hp = heads;
+	*sp = sectors;
+}
 
 /*
  * Get the scsi driver to send a full inquiry to the
@@ -756,16 +838,13 @@ od_get_parms(unit, flags)
 		return 0;
 
 	/*
-	 * use adaptec standard ficticious geometry
-	 * this depends on which controller (e.g. 1542C is
-	 * different. but we have to put SOMETHING here..)
+	 * Use ficticious geometry, this depends on the size of medium.
 	 */
 	sectors = od_size(unit, flags);
-	disk_parms->heads = 64;
-	disk_parms->sectors = 32;
-	disk_parms->cyls = sectors / (64 * 32);
-	disk_parms->secsiz = SECSIZE;
-	disk_parms->disksize = sectors;
+	/* od_size() sets secsiz and disksize */
+
+	od_get_geometry(sectors, &disk_parms->cyls, &disk_parms->heads,
+			&disk_parms->sectors);
 
 	if (sectors != 0) {
 		sc_link->flags |= SDEV_MEDIA_LOADED;
@@ -796,6 +875,13 @@ od_sense_handler(struct scsi_xfer *xs)
 	 */
 	if ((sense->error_code & SSD_ERRCODE) == 0x71)
 		return SCSIRET_CONTINUE;
+
+#ifdef OD_BOGUS_NOT_READY
+	if (((sense->error_code & SSD_ERRCODE) == 0x70) &&
+		((sense->ext.extended.flags & SSD_KEY) == 0x02))
+		/* No point in retrying Not Ready */
+			return SCSIRET_CONTINUE;
+#endif
 
 	if (((sense->error_code & SSD_ERRCODE) == 0x70) &&
 		((sense->ext.extended.flags & SSD_KEY) == 0x04))
