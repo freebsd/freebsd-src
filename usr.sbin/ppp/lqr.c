@@ -85,8 +85,9 @@ lqr_RecvEcho(struct fsm *fp, struct mbuf *bp)
   struct lcp *lcp = fsm2lcp(fp);
   struct echolqr lqr;
 
-  if (m_length(bp) == sizeof lqr) {
-    bp = mbuf_Read(bp, &lqr, sizeof lqr);
+  if (m_length(bp) >= sizeof lqr) {
+    m_freem(mbuf_Read(bp, &lqr, sizeof lqr));
+    bp = NULL;
     lqr.magic = ntohl(lqr.magic);
     lqr.signature = ntohl(lqr.signature);
     lqr.sequence = ntohl(lqr.sequence);
