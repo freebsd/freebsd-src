@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.3 1994/08/02 07:42:10 davidg Exp $
+ * $Id: kern_resource.c,v 1.4 1994/09/01 05:12:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -267,8 +267,8 @@ osetrlimit(p, uap, retval)
 	struct rlimit lim;
 	int error;
 
-	if (error =
-	    copyin((caddr_t)uap->lim, (caddr_t)&olim, sizeof (struct orlimit)))
+	if ((error =
+	    copyin((caddr_t)uap->lim, (caddr_t)&olim, sizeof(struct orlimit))))
 		return (error);
 	lim.rlim_cur = olim.rlim_cur;
 	lim.rlim_max = olim.rlim_max;
@@ -314,8 +314,8 @@ setrlimit(p, uap, retval)
 	struct rlimit alim;
 	int error;
 
-	if (error =
-	    copyin((caddr_t)uap->lim, (caddr_t)&alim, sizeof (struct rlimit)))
+	if ((error =
+	    copyin((caddr_t)uap->lim, (caddr_t)&alim, sizeof (struct rlimit))))
 		return (error);
 	return (dosetrlimit(p, uap->which, &alim));
 }
@@ -334,7 +334,7 @@ dosetrlimit(p, which, limp)
 	alimp = &p->p_rlimit[which];
 	if (limp->rlim_cur > alimp->rlim_max || 
 	    limp->rlim_max > alimp->rlim_max)
-		if (error = suser(p->p_ucred, &p->p_acflag))
+		if ((error = suser(p->p_ucred, &p->p_acflag)))
 			return (error);
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.3 1994/08/02 07:41:55 davidg Exp $
+ * $Id: kern_descrip.c,v 1.4 1994/09/02 10:17:30 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,7 @@
 #include <sys/unistd.h>
 #include <sys/resourcevar.h>
 
+int finishdup(struct filedesc *fdp, int old, int new, int *retval);
 /*
  * Descriptor management.
  */
@@ -78,37 +79,6 @@ getdtablesize(p, uap, retval)
 
 	*retval = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfiles);
 	return (0);
-}
-
-/*
- * Duplicate a file descriptor.
- */
-struct dup_args {
-	u_int	fd;
-};
-/* ARGSUSED */
-int
-dup(p, uap, retval)
-	struct proc *p;
-	struct dup_args *uap;
-	int *retval;
-{
-	register struct filedesc *fdp;
-	u_int old;
-	int new, error;
-
-	old = uap->fd;
-	/*
-	 * XXX Compatibility
-	 */
-	if (old &~ 077) { uap->fd &= 077; return (dup2(p, uap, retval)); }
-
-	fdp = p->p_fd;
-	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL)
-		return (EBADF);
-	if (error = fdalloc(p, 0, &new))
-		return (error);
-	return (finishdup(fdp, (int)old, new, retval));
 }
 
 /*
@@ -139,7 +109,7 @@ dup2(p, uap, retval)
 		return (0);
 	}
 	if (new >= fdp->fd_nfiles) {
-		if (error = fdalloc(p, new, &i))
+		if ((error = fdalloc(p, new, &i)))
 			return (error);
 		if (new != i)
 			panic("dup2: fdalloc");
@@ -152,6 +122,37 @@ dup2(p, uap, retval)
 		(void) closef(fdp->fd_ofiles[new], p);
 	}
 	return (finishdup(fdp, (int)old, (int)new, retval));
+}
+
+/*
+ * Duplicate a file descriptor.
+ */
+struct dup_args {
+	u_int	fd;
+};
+/* ARGSUSED */
+int
+dup(p, uap, retval)
+	struct proc *p;
+	struct dup_args *uap;
+	int *retval;
+{
+	register struct filedesc *fdp;
+	u_int old;
+	int new, error;
+
+	old = uap->fd;
+	/*
+	 * XXX Compatibility
+	 */
+	if (old &~ 077) { uap->fd &= 077; return (dup2(p, uap, retval)); }
+
+	fdp = p->p_fd;
+	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL)
+		return (EBADF);
+	if ((error = fdalloc(p, 0, &new)))
+		return (error);
+	return (finishdup(fdp, (int)old, new, retval));
 }
 
 /*
@@ -188,7 +189,7 @@ fcntl(p, uap, retval)
 		if (newmin >= p->p_rlimit[RLIMIT_NOFILE].rlim_cur ||
 		    newmin >= maxfiles)
 			return (EINVAL);
-		if (error = fdalloc(p, newmin, &i))
+		if ((error = fdalloc(p, newmin, &i)))
 			return (error);
 		return (finishdup(fdp, uap->fd, i, retval));
 
@@ -292,7 +293,7 @@ fcntl(p, uap, retval)
 			return (error);
 		if (fl.l_whence == SEEK_CUR)
 			fl.l_start += fp->f_offset;
-		if (error = VOP_ADVLOCK(vp, (caddr_t)p, F_GETLK, &fl, F_POSIX))
+		if ((error = VOP_ADVLOCK(vp,(caddr_t)p,F_GETLK,&fl,F_POSIX)))
 			return (error);
 		return (copyout((caddr_t)&fl, (caddr_t)uap->arg, sizeof (fl)));
 
@@ -587,7 +588,7 @@ falloc(p, resultfp, resultfd)
 	register struct file *fp, *fq, **fpp;
 	int error, i;
 
-	if (error = fdalloc(p, 0, &i))
+	if ((error = fdalloc(p, 0, &i)))
 		return (error);
 	if (nfiles >= maxfiles) {
 		tablefull("file");
@@ -602,12 +603,12 @@ falloc(p, resultfp, resultfd)
 	nfiles++;
 	MALLOC(fp, struct file *, sizeof(struct file), M_FILE, M_WAITOK);
 	bzero(fp, sizeof(struct file));
-	if (fq = p->p_fd->fd_ofiles[0])
+	if ((fq = p->p_fd->fd_ofiles[0]))
 		fpp = &fq->f_filef;
 	else
 		fpp = &filehead;
 	p->p_fd->fd_ofiles[i] = fp;
-	if (fq = *fpp)
+	if ((fq = *fpp))
 		fq->f_fileb = &fp->f_filef;
 	fp->f_filef = fq;
 	fp->f_fileb = fpp;
@@ -631,7 +632,7 @@ ffree(fp)
 {
 	register struct file *fq;
 
-	if (fq = fp->f_filef)
+	if ((fq = fp->f_filef))
 		fq->f_fileb = fp->f_fileb;
 	*fp->f_fileb = fq;
 	crfree(fp->f_cred);

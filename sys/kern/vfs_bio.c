@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.10 1994/08/30 18:19:11 davidg Exp $
+ * $Id: vfs_bio.c,v 1.11 1994/08/31 06:17:37 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -28,6 +28,7 @@
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
+#include <sys/proc.h>
 #include <vm/vm.h>
 #include <vm/vm_pageout.h>
 
@@ -54,7 +55,8 @@ int vfs_update_wakeup;
 /*
  * Initialize buffer headers and related structures.
  */
-void bufinit()
+void
+bufinit()
 {
 	struct buf *bp;
 	int i;
@@ -371,19 +373,18 @@ getnewbuf(int slpflag, int slptimeo)
 	s = splbio();
 start:
 	/* can we constitute a new buffer? */
-	if (bp = bufqueues[QUEUE_EMPTY].tqh_first) {
+	if ((bp = bufqueues[QUEUE_EMPTY].tqh_first)) {
 		if( bp->b_qindex != QUEUE_EMPTY)
 			panic("getnewbuf: inconsistent EMPTY queue");
 		bremfree(bp);
 		goto fillbuf;
 	}
 
-tryfree:
-	if (bp = bufqueues[QUEUE_AGE].tqh_first) {
+	if ((bp = bufqueues[QUEUE_AGE].tqh_first)) {
 		if( bp->b_qindex != QUEUE_AGE)
 			panic("getnewbuf: inconsistent AGE queue");
 		bremfree(bp);
-	} else if (bp = bufqueues[QUEUE_LRU].tqh_first) {
+	} else if ((bp = bufqueues[QUEUE_LRU].tqh_first)) {
 		if( bp->b_qindex != QUEUE_LRU)
 			panic("getnewbuf: inconsistent LRU queue");
 		bremfree(bp);
@@ -446,7 +447,7 @@ incore(struct vnode *vp, daddr_t blkno)
 	/* Search hash chain */
 	while (bp) {
 		if( (bp < buf) || (bp >= buf + nbuf)) {
-			printf("incore: buf out of range: %lx, hash: %d\n",
+			printf("incore: buf out of range: %p, hash: %d\n",
 				bp, bh - bufhashtbl); 
 			panic("incore: buf fault");
 		}
@@ -475,7 +476,7 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 
 	s = splbio();
 loop:
-	if (bp = incore(vp, blkno)) {
+	if ((bp = incore(vp, blkno))) {
 		if (bp->b_flags & B_BUSY) {
 			bp->b_flags |= B_WANTED;
 			tsleep ((caddr_t)bp, PRIBIO, "getblk", 0);
@@ -487,7 +488,7 @@ loop:
 		 * check for size inconsistancies
 		 */
 		if (bp->b_bcount != size) {
-			printf("getblk: invalid buffer size: %d\n", bp->b_bcount);
+			printf("getblk: invalid buffer size: %ld\n", bp->b_bcount);
 			bp->b_flags |= B_INVAL;
 			bwrite(bp);
 			goto loop;
@@ -680,7 +681,6 @@ vm_hold_load_pages(vm_offset_t froma, vm_offset_t toa) {
 	vm_offset_t to = round_page(toa);
 
 	for(pg = from ; pg < to ; pg += PAGE_SIZE) {
-		vm_offset_t pa;
 
 	tryagain:
 /*
@@ -730,7 +730,8 @@ vm_hold_load_pages(vm_offset_t froma, vm_offset_t toa) {
 }
 
 void
-vm_hold_free_pages(vm_offset_t froma, vm_offset_t toa) {
+vm_hold_free_pages(vm_offset_t froma, vm_offset_t toa) 
+{
 	vm_offset_t pg;
 	vm_page_t p;
 	vm_offset_t from = round_page(froma);

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.7 1994/09/14 05:52:13 davidg Exp $
+ *	$Id: kern_exec.c,v 1.8 1994/09/24 16:58:43 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -73,9 +73,8 @@ execve(p, uap, retval)
 	int *retval;
 {
 	struct nameidata nd, *ndp;
-	char *stringbase, *stringp;
 	int *stack_base;
-	int error, resid, len, i;
+	int error, len, i;
 	struct image_params image_params, *iparams;
 	struct vnode *vnodep;
 	struct vattr attr;
@@ -385,11 +384,11 @@ exec_extract_strings(iparams)
 	argv = iparams->uap->argv; 
 
 	if (argv) {
-		while (argp = (caddr_t) fuword(argv++)) {
+		while ((argp = (caddr_t) fuword(argv++))) {
 			if (argp == (caddr_t) -1)
 				return (EFAULT);
-			if (error = copyinstr(argp, iparams->stringp,
-			    iparams->stringspace, &length)) {
+			if ((error = copyinstr(argp, iparams->stringp,
+			    iparams->stringspace, &length))) {
 				if (error == ENAMETOOLONG)
 					return(E2BIG);
 				return (error);
@@ -407,11 +406,11 @@ exec_extract_strings(iparams)
 	envv = iparams->uap->envv; 
 
 	if (envv) {
-		while (envp = (caddr_t) fuword(envv++)) {
+		while ((envp = (caddr_t) fuword(envv++))) {
 			if (envp == (caddr_t) -1)
 				return (EFAULT);
-			if (error = copyinstr(envp, iparams->stringp,
-			    iparams->stringspace, &length)) {
+			if ((error = copyinstr(envp, iparams->stringp,
+			    iparams->stringspace, &length))) {
 				if (error == ENAMETOOLONG)
 					return(E2BIG);
 				return (error);
@@ -438,7 +437,6 @@ exec_copyout_strings(iparams)
 	char **vectp;
 	char *stringp, *destp;
 	int *stack_base;
-	int vect_table_size, string_table_size;
 	struct ps_strings *arginfo;
 
 	/*
@@ -473,7 +471,7 @@ exec_copyout_strings(iparams)
 	 */
 	for (; argc > 0; --argc) {
 		*(vectp++) = destp;
-		while (*destp++ = *stringp++);
+		while ((*destp++ = *stringp++));
 	}
 
 	/* a null vector table pointer seperates the argp's from the envp's */
@@ -487,7 +485,7 @@ exec_copyout_strings(iparams)
 	 */
 	for (; envc > 0; --envc) {
 		*(vectp++) = destp;
-		while (*destp++ = *stringp++);
+		while ((*destp++ = *stringp++));
 	}
 
 	/* end of vector table is a null pointer */

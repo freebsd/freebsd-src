@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.3 1994/08/02 07:42:13 davidg Exp $
+ * $Id: kern_sig.c,v 1.4 1994/09/20 05:42:46 bde Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -112,13 +112,13 @@ sigaction(p, uap, retval)
 			sa->sa_flags |= SA_RESTART;
 		if (p->p_flag & P_NOCLDSTOP)
 			sa->sa_flags |= SA_NOCLDSTOP;
-		if (error = copyout((caddr_t)sa, (caddr_t)uap->osa,
-		    sizeof (vec)))
+		if ((error = copyout((caddr_t)sa, (caddr_t)uap->osa,
+		    sizeof (vec))))
 			return (error);
 	}
 	if (uap->nsa) {
-		if (error = copyin((caddr_t)uap->nsa, (caddr_t)sa,
-		    sizeof (vec)))
+		if ((error = copyin((caddr_t)uap->nsa, (caddr_t)sa,
+		    sizeof (vec))))
 			return (error);
 		setsigvec(p, signum, sa);
 	}
@@ -331,13 +331,13 @@ osigvec(p, uap, retval)
 		if (p->p_flag & P_NOCLDSTOP)
 			sv->sv_flags |= SA_NOCLDSTOP;
 #endif
-		if (error = copyout((caddr_t)sv, (caddr_t)uap->osv,
-		    sizeof (vec)))
+		if ((error = copyout((caddr_t)sv, (caddr_t)uap->osv,
+		    sizeof (vec))))
 			return (error);
 	}
 	if (uap->nsv) {
-		if (error = copyin((caddr_t)uap->nsv, (caddr_t)sv,
-		    sizeof (vec)))
+		if ((error = copyin((caddr_t)uap->nsv, (caddr_t)sv,
+		    sizeof (vec))))
 			return (error);
 #ifdef COMPAT_SUNOS
 		/*
@@ -479,7 +479,7 @@ sigaltstack(p, uap, retval)
 		return (error);
 	if (uap->nss == 0)
 		return (0);
-	if (error = copyin((caddr_t)uap->nss, (caddr_t)&ss, sizeof (ss)))
+	if ((error = copyin((caddr_t)uap->nss, (caddr_t)&ss, sizeof (ss))))
 		return (error);
 	if (ss.ss_flags & SA_DISABLE) {
 		if (psp->ps_sigstk.ss_flags & SA_ONSTACK)
@@ -1164,8 +1164,8 @@ coredump(p)
 		return (EFAULT);
 	sprintf(name, "%s.core", p->p_comm);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, name, p);
-	if (error = vn_open(&nd,
-	    O_CREAT | FWRITE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
+	if ((error = vn_open(&nd,
+	    O_CREAT | FWRITE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)))
 		return (error);
 	vp = nd.ni_vp;
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kern_prot.c,v 1.3 1994/08/02 07:42:08 davidg Exp $
  */
 
 /*
@@ -175,8 +175,8 @@ getgroups(p, uap, retval)
 	if (ngrp < pc->pc_ucred->cr_ngroups)
 		return (EINVAL);
 	ngrp = pc->pc_ucred->cr_ngroups;
-	if (error = copyout((caddr_t)pc->pc_ucred->cr_groups,
-	    (caddr_t)uap->gidset, ngrp * sizeof(gid_t)))
+	if ((error = copyout((caddr_t)pc->pc_ucred->cr_groups,
+	    (caddr_t)uap->gidset, ngrp * sizeof(gid_t))))
 		return (error);
 	*retval = ngrp;
 	return (0);
@@ -371,13 +371,13 @@ setgroups(p, uap, retval)
 	register u_int ngrp;
 	int error;
 
-	if (error = suser(pc->pc_ucred, &p->p_acflag))
+	if ((error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
 	if ((ngrp = uap->gidsetsize) > NGROUPS)
 		return (EINVAL);
 	pc->pc_ucred = crcopy(pc->pc_ucred);
-	if (error = copyin((caddr_t)uap->gidset,
-	    (caddr_t)pc->pc_ucred->cr_groups, ngrp * sizeof(gid_t)))
+	if ((error = copyin((caddr_t)uap->gidset,
+	    (caddr_t)pc->pc_ucred->cr_groups, ngrp * sizeof(gid_t))))
 		return (error);
 	pc->pc_ucred->cr_ngroups = ngrp;
 	p->p_flag |= P_SUGID;
@@ -578,7 +578,7 @@ setlogin(p, uap, retval)
 {
 	int error;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
 	error = copyinstr((caddr_t) uap->namebuf,
 	    (caddr_t) p->p_pgrp->pg_session->s_login,
