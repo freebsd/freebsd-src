@@ -461,7 +461,7 @@ static int
 ns8250_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
 	struct uart_bas *bas;
-	uint8_t lcr;
+	uint8_t efr, lcr;
 
 	bas = &sc->sc_bas;
 	switch (request) {
@@ -471,6 +471,36 @@ ns8250_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 			lcr |= LCR_SBREAK;
 		else
 			lcr &= ~LCR_SBREAK;
+		uart_setreg(bas, REG_LCR, lcr);
+		uart_barrier(bas);
+		break;
+	case UART_IOCTL_IFLOW:
+		lcr = uart_getreg(bas, REG_LCR);
+		uart_barrier(bas);
+		uart_setreg(bas, REG_LCR, 0xbf);
+		uart_barrier(bas);
+		efr = uart_getreg(bas, REG_EFR);
+		if (data)
+			efr |= EFR_RTS;
+		else
+			efr &= ~EFR_RTS;
+		uart_setreg(bas, REG_EFR, efr);
+		uart_barrier(bas);
+		uart_setreg(bas, REG_LCR, lcr);
+		uart_barrier(bas);
+		break;
+	case UART_IOCTL_OFLOW:
+		lcr = uart_getreg(bas, REG_LCR);
+		uart_barrier(bas);
+		uart_setreg(bas, REG_LCR, 0xbf);
+		uart_barrier(bas);
+		efr = uart_getreg(bas, REG_EFR);
+		if (data)
+			efr |= EFR_CTS;
+		else
+			efr &= ~EFR_CTS;
+		uart_setreg(bas, REG_EFR, efr);
+		uart_barrier(bas);
 		uart_setreg(bas, REG_LCR, lcr);
 		uart_barrier(bas);
 		break;
@@ -649,6 +679,12 @@ ns8250_bus_probe(struct uart_softc *sc)
 	 * interrupt happens.
 	 */
 	sc->sc_txfifosz = 16;
+
+	/* 16650s or higher have automatic flow control. */
+	if (sc->sc_rxfifosz > 16) {
+		sc->sc_hwiflow = 1;
+		sc->sc_hwoflow = 1;
+	}
 
 	return (0);
 }
