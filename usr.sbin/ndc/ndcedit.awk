@@ -1,4 +1,4 @@
-# $Id: ndcedit.awk,v 1.7 1998/05/03 05:14:04 peter Exp $
+# $Id: ndcedit.awk,v 1.8 1998/07/31 08:47:16 phk Exp $
 NR == 3 {
 	print "#"
 	print "# This file is generated automatically, do not edit it here!"
@@ -7,7 +7,9 @@ NR == 3 {
 	print ""
 
 	print "# If there is a global system configuration file, suck it in."
-	print "if [ -f /etc/rc.conf ]; then"
+	print "if [ -f /etc/defaults/rc.conf ]; then"
+	print "\t. /etc/defaults/rc.conf"
+	print "elif [ -f /etc/rc.conf ]; then"
 	print "\t. /etc/rc.conf"
 	print "fi\n"
 }
