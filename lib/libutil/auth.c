@@ -32,9 +32,11 @@
  *
  */
 
-#include <stdio.h>
+#include <unistd.h>
 #include <syslog.h>
 #include <sys/types.h>
+#include <paths.h>
+#include <fcntl.h>
 #include <libutil.h>
 
 static properties P;
@@ -42,15 +44,15 @@ static properties P;
 static int
 initauthconf(const char *path)
 {
-    FILE *fp;
+    int fd;
 
     if (!P) {
-	if ((fp = fopen(path, "r")) == NULL) {
+	if ((fd = open(path, O_RDONLY)) < 0) {
 	    syslog(LOG_ERR, "initauthconf: unable to open file: %s", path);
 	    return 1;
 	}
-	P = properties_read(fp);
-	fclose(fp);
+	P = properties_read(fd);
+	close(fd);
 	if (!P) {
 	    syslog(LOG_ERR, "initauthconf: unable to parse file: %s", path);
 	    return 1;

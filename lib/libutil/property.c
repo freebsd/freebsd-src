@@ -53,7 +53,7 @@ property_alloc(char *name, char *value)
 }
 
 properties
-properties_read(FILE *fp)
+properties_read(int fd)
 {
     properties head, ptr;
     char hold_n[MAX_NAME + 1];
@@ -75,7 +75,7 @@ properties_read(FILE *fp)
 	}
 	switch(state) {
 	case FILL:
-	    if ((max = fread(buf, 1, sizeof buf, fp)) <= 0) {
+	    if ((max = read(fd, buf, sizeof buf)) <= 0) {
 		state = STOP;
 		break;
 	    }
@@ -214,4 +214,3 @@ properties_free(properties list)
 	list = tmp;
     }
 }
-
