@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.9 1999/05/09 13:00:43 phk Exp $
+ * $Id: psm.c,v 1.10 1999/05/30 16:52:47 phk Exp $
  */
 
 /*
@@ -1838,7 +1838,7 @@ psmintr(void *arg)
 	    if ((c & ~MOUSE_PS2_BUTTONS) == 0xc8) {
 		/* the extended data packet encodes button and wheel events */
 		x = y = 0;
-		z = (sc->ipacket[1] & MOUSE_PS2PLUS_ZNEG)
+		z = (sc->ipacket[2] & MOUSE_PS2PLUS_ZNEG)
 		    ? (sc->ipacket[2] & 0x0f) - 16 : (sc->ipacket[2] & 0x0f);
 		ms.button |= (sc->ipacket[2] & MOUSE_PS2PLUS_BUTTON4DOWN)
 		    ? MOUSE_BUTTON4DOWN : 0;
