@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.46 1997/08/10 22:03:20 brian Exp $
+.\" $Id: ppp.8,v 1.47 1997/08/17 20:38:44 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -506,7 +506,7 @@ is the number of times to try to connect for each outgoing packet
 that is received. The previous value is unchanged if this parameter
 is omitted.  If a value of zero is specified for
 .Sq dial_attempts ,
-.Nm ppp
+.Nm
 will keep trying until a connection is made.
 .Bd -literal -offset indent
 set redial 10.3 4
@@ -1190,7 +1190,7 @@ add 0 0 HISADDR
 HISADDR is a macro meaning the "other side"s IP number, and is
 available once an IP number has been agreed (using LCP).
 Now, once a connection is established,
-.Nm ppp
+.Nm
 will delete all non-direct interface routes, and add a default route
 pointing at the peers IP number.  You should use the same label as the
 one used in
@@ -1670,6 +1670,21 @@ is taken before starting at the first number again.  A value of
 .Dq random
 may be used here too.
 
+.It set stopped seconds
+If this option is set,
+.Nm
+will time out after being the the stopped state for the given number of
+.Dq seconds .
+This option may be useful if you see ppp failing to respond in the
+stopped state.  Use
+.Dq set log +lcp
+to make
+.Nm
+log state transitions.
+.Pp
+The default value is zero, where ppp doesn't time out in the stopped
+state.
+
 .It set server|socket TcpPort|LocalName|none [mask]
 Normally, when not in interactive mode,
 .Nm
@@ -1778,6 +1793,9 @@ Show the current reconnect values.
 .It show redial
 Show the current redial values.
 
+.It show stopped
+Show the current stopped timeout.
+
 .It show route
 Show the current routing tables.
 
@@ -1874,7 +1892,7 @@ This command gives a summary of available alias commands.
 
 .It quit|bye [all]
 Exit
-.Nm ppp.
+.Nm ppp .
 If
 .Nm
 is in interactive mode or if the
