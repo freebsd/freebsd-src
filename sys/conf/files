@@ -1124,6 +1124,7 @@ dev/sound/pci/neomagic.c optional pcm pci
 dev/sound/pci/solo.c	optional pcm pci
 dev/sound/pci/t4dwave.c	optional pcm pci
 dev/sound/pci/via82c686.c	optional pcm pci
+dev/sound/pci/vibes.c	optional pcm pci
 #
 ac97_if.o		optional pcm					\
 	dependency	"ac97_if.c ac97_if.h"				\
