@@ -85,6 +85,7 @@
 #ifndef _IOWR
 #include <sys/ioccom.h>
 #endif  /* !_IOWR */
+#include <sys/types.h>
 
 #define SNDCTL_SEQ_RESET		_IO  ('Q', 0)
 #define SNDCTL_SEQ_SYNC			_IO  ('Q', 1)
