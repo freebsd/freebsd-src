@@ -535,6 +535,9 @@ release_aps(void *dummy __unused)
 	if (bootverbose)
 		printf("%s: releasing secondary CPUs\n", __func__);
 	atomic_store_rel_int(&aps_ready, 1);
+
+	while (smp_started == 0)
+		; /* nothing */
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
