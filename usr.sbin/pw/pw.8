@@ -146,7 +146,6 @@
 .Op group|gid
 .Op Fl C Ar config
 .Op Fl q
-.Op Fl F
 .Op Fl n Ar name
 .Op Fl g Ar gid
 .Op Fl l Ar name
@@ -688,6 +687,11 @@ option is used, the account details are shown in v7 format.
 The
 .Fl a
 option lists all users currently on file.
+Using
+.Fl F
+forces
+.Nm
+to print the details of an account even if it does not exist.
 .Pp
 The command
 .Ar usernext
