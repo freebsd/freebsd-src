@@ -26,8 +26,8 @@
     ..
 /set mode=0755
     db
-	ipf		mode=0700
-	..
+        ipf             mode=0700
+        ..
         pkg
         ..
     ..
@@ -42,10 +42,9 @@
         phantasia
         ..
     ..
-/set gname=wheel mode=0700
-    heimdal
+/set gname=wheel mode=0755
+    heimdal         mode=0700
     ..
-/set mode=0755
     log
     ..
     mail            gname=mail mode=0775
