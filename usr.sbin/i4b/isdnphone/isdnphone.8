@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1999, 2001 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,14 +22,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdnphone.8,v 1.4 1999/12/13 22:11:55 hm Exp $
-.\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:05:19 1999]
+.\"	last edit-date: [Thu Oct 18 13:36:52 2001]
 .\"
 .\"
-.Dd March 24, 1999
+.Dd October 18, 2001
 .Dt ISDNPHONE 8
 .Os
 .Sh NAME
@@ -37,7 +35,9 @@
 .Nd telephone dialing and more for isdn4bsd
 .Sh SYNOPSIS
 .Nm
+.Op Fl d
 .Op Fl h
+.Op Fl k Ar string
 .Op Fl n Ar number
 .Op Fl u Ar unit
 .Sh DESCRIPTION
@@ -51,8 +51,12 @@ a curses-based fullscreen interface.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
+.It Fl d
+enable debugging message display.
 .It Fl h
 hang up a possibly open telefone connection on the selected interface.
+.It Fl k
+send the specified string using the keypad facility information element.
 .It Fl n
 dial the specified number on the selected interface.
 .It Fl u
@@ -71,4 +75,4 @@ dials calls the number 1234 to establish a call on /dev/i4btel0
 The
 .Nm
 utility and this manpage were written by
-.An Hellmuth Michaelis Aq hm@kts.org .
+.An Hellmuth Michaelis Aq hm@freebsd.org .

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_l3l4.h - layer 3 / layer 4 interface
  *	------------------------------------------
  *
- *	$Id: i4b_l3l4.h,v 1.32 2000/08/24 11:48:57 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Jun  2 14:29:35 2000]
+ *	last edit-date: [Thu Oct 18 13:26:16 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -240,7 +238,8 @@ typedef struct
 	int	isdntxdelay;		/* isdn tx delay after connect	*/
 
 	u_char	display[DISPLAY_MAX];	/* display information element	*/
-	char	datetime[DATETIME_MAX];	/* date/time information element*/	
+	char	datetime[DATETIME_MAX];	/* date/time information element*/
+	u_char	keypad[KEYPAD_MAX];	/* keypad facility		*/	
 } call_desc_t;
 
 extern call_desc_t call_desc[N_CALL_DESC];

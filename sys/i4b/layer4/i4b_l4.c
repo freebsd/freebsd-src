@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_l4.c - kernel interface to userland
  *	-----------------------------------------
  *
- *	$Id: i4b_l4.c,v 1.54 2000/08/28 07:24:59 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Aug 27 14:53:42 2000]
+ *      last edit-date: [Thu Oct 18 13:31:22 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -241,6 +239,33 @@ i4b_l4_dialoutnumber(int driver, int driver_unit, int cmdlen, char *cmd)
 
 		if(cmdlen > TELNO_MAX)
 			cmdlen = TELNO_MAX;
+
+		md->cmdlen = cmdlen;
+		bcopy(cmd, md->cmd, cmdlen);
+		i4bputqueue(m);
+	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	send MSG_KEYPAD_IND message to userland
+ *---------------------------------------------------------------------------*/
+void
+i4b_l4_keypad(int driver, int driver_unit, int cmdlen, char *cmd)
+{
+	struct mbuf *m;
+
+	if((m = i4b_Dgetmbuf(sizeof(msg_keypad_ind_t))) != NULL)
+	{
+		msg_keypad_ind_t *md = (msg_keypad_ind_t *)m->m_data;
+
+		md->header.type = MSG_KEYPAD_IND;
+		md->header.cdid = -1;
+
+		md->driver = driver;
+		md->driver_unit = driver_unit;
+
+		if(cmdlen > KEYPAD_MAX)
+			cmdlen = KEYPAD_MAX;
 
 		md->cmdlen = cmdlen;
 		bcopy(cmd, md->cmd, cmdlen);

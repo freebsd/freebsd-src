@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000  Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001  Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_tel_ioctl.h telephony interface ioctls
  *	------------------------------------------
  *
- *	$Id: i4b_tel_ioctl.h,v 1.13 2000/01/12 14:49:36 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jan 12 15:47:11 2000]
+ *      last edit-date: [Wed Oct 17 13:47:03 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -83,6 +81,7 @@ struct i4b_tel_tones {
 
 #define CMD_DIAL        'D'     /* dial the following number string */
 #define CMD_HUP         'H'     /* hangup */
+#define CMD_KEYP        'K'     /* send keypad string */
 
 /* dialer responses */
 
