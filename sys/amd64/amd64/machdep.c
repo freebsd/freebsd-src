@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.182 1996/04/19 07:27:57 phk Exp $
+ *	$Id: machdep.c,v 1.183 1996/04/25 06:20:10 phk Exp $
  */
 
 #include "npx.h"
@@ -171,6 +171,7 @@ int _udatasel, _ucodesel;
 
 
 int physmem = 0;
+int cold = 1;
 
 static int
 sysctl_hw_physmem SYSCTL_HANDLER_ARGS

@@ -34,15 +34,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.63 1996/03/02 19:37:38 peter Exp $
- */
-
-/*
- * locore.s:	FreeBSD machine support for the Intel 386
+ *	$Id: locore.s,v 1.64 1996/03/27 17:16:29 bde Exp $
+ *
  *		originally from: locore.s, by William F. Jolitz
  *
  *		Substantially rewritten by David Greenman, Rod Grimes,
- *			Bruce Evans, Wolfgang Solfrank, and many others.
+ *			Bruce Evans, Wolfgang Solfrank, Poul-Henning Kamp
+ *			and many others.
  */
 
 #include "apm.h"
@@ -112,7 +110,7 @@ tmpstk:
 
 	.globl	_boothowto,_bootdev
 
-	.globl	_cpu,_cold,_atdevbase,_cpu_vendor,_cpu_id,_bootinfo
+	.globl	_cpu,_atdevbase,_cpu_vendor,_cpu_id,_bootinfo
 	.globl	_cpu_high, _cpu_feature
 
 _cpu:	.long	0				/* are we 386, 386sx, or 486 */
@@ -121,11 +119,12 @@ _cpu_high:	.long	0			/* highest arg to CPUID */
 _cpu_feature:	.long	0			/* features */
 _cpu_vendor:	.space	20			/* CPU origin code */
 _bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
-_cold:	.long	1				/* cold till we are not */
 _atdevbase:	.long	0			/* location of start of iomem in virtual */
-_atdevphys:	.long	0			/* location of device mapping ptes (phys) */
 
 _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
+physfree:	.long	0			/* phys addr end of kernel (just after bss) */
+upa:	.long	0			/* phys addr end of kernel (just after bss) */
+p0s:	.long	0			/* phys addr end of kernel (just after bss) */
 
 	.globl	_IdlePTD
 _IdlePTD:	.long	0			/* phys addr of kernel PTD */
@@ -135,36 +134,182 @@ _KPTphys:	.long	0			/* phys addr of kernel page tables */
 	.globl	_proc0paddr
 _proc0paddr:	.long	0			/* address of proc 0 address space */
 
-#ifdef BDE_DEBUGGER
-	.globl	_bdb_exists			/* flag to indicate BDE debugger is available */
-_bdb_exists:	.long	0
-#endif
 
-/*
- * System Initialization
+/**********************************************************************
+ *
+ * Some handy macros
+ *
  */
-	.text
+
+#define R(foo) ((foo)-KERNBASE)
+
+#define ROUND2PAGE(foo) addl $NBPG-1, foo; andl $~(NBPG-1), foo
+
+#define ALLOCPAGES(foo) \
+	movl	R(physfree), %esi ; \
+	movl	$((foo)*NBPG), %eax ; \
+	addl	%esi, %eax ; \
+	movl	%eax, R(physfree) ; \
+	movl	%esi, %edi ; \
+	movl	$((foo)*NBPG),%ecx ; \
+	xorl	%eax,%eax ; \
+	cld ; rep ; stosb
 
 /*
- * btext: beginning of text section.
- * Also the entry point (jumped to directly from the boot blocks).
+ * fillkpt
+ *	eax = (page frame address | control | status) == pte
+ *	ebx = address of page table
+ *	ecx = how many pages to map
+ */
+#define	fillkpt		\
+1:	movl	%eax,(%ebx)	; \
+	addl	$NBPG,%eax	; /* increment physical address */ \
+	addl	$4,%ebx		; /* next pte */ \
+	loop	1b		;
+
+	.text
+/**********************************************************************
+ *
+ * This is where the bootblocks start us, set the ball rolling...
+ *
  */
 NON_GPROF_ENTRY(btext)
-	movw	$0x1234,0x472			/* warm boot */
 
-	/* Set up a real frame, some day we will be doing returns */
+/* Tell the bios to warmboot next time */
+	movw	$0x1234,0x472
+
+/* Set up a real frame, some day we may be doing returns */
 	pushl	%ebp
 	movl	%esp, %ebp
 
-	/* Don't trust what the BIOS gives for eflags. */
+/* Don't trust what the BIOS gives for eflags. */
 	pushl	$PSL_KERNEL
 	popfl
-
-	/* Don't trust what the BIOS gives for %fs and %gs. */
-	mov	%ds, %ax
+	mov	%ds, %ax	/* ... or segment registers */
+	mov	%ax, %es
 	mov	%ax, %fs
 	mov	%ax, %gs
 
+	call	recover_bootinfo
+
+/* get onto a stack we know the size of */
+	movl	$R(tmpstk),%esp
+	mov	%ds, %ax
+	mov	%ax, %ss
+
+	call	identify_cpu
+
+/* clear bss */
+	movl	$R(_end),%ecx
+	movl	$R(_edata),%edi
+	subl	%edi,%ecx
+	xorl	%eax,%eax
+	cld ; rep ; stosb
+
+#if NAPM > 0
+	call	_apm_setup	/* ... in i386/apm/apm_setup.s */
+#endif /* NAPM */
+
+	call	create_pagetables
+
+/* Now enable paging */
+	movl	R(_IdlePTD), %eax
+	movl	%eax,%cr3			/* load ptd addr into mmu */
+	movl	%cr0,%eax			/* get control word */
+	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
+	movl	%eax,%cr0			/* and let's page NOW! */
+
+	pushl	$begin				/* jump to high mem */
+	ret
+
+/* now running relocated at KERNBASE where the system is linked to run */
+begin:
+	/* set up bootstrap stack */
+	movl	$_kstack+UPAGES*NBPG,%esp	/* bootstrap stack end location */
+	xorl	%eax,%eax			/* mark end of frames */
+	movl	%eax,%ebp
+	movl	_proc0paddr,%eax
+	movl	_IdlePTD, %esi
+	movl	%esi,PCB_CR3(%eax)
+
+	/*
+	 * Prepare "first" - physical address of first available page
+	 * after the kernel+pdir+upages+p0stack+page tables
+	 */
+	movl	physfree, %esi
+	pushl	%esi				/* value of first for init386(first) */
+	call	_init386			/* wire 386 chip for unix operation */
+	popl	%esi
+
+	.globl	__ucodesel,__udatasel
+
+	pushl	$0				/* unused */
+	pushl	__udatasel			/* ss */
+	pushl	$0				/* esp - filled in by execve() */
+	pushl	$PSL_USER			/* eflags (IOPL 0, int enab) */
+	pushl	__ucodesel			/* cs */
+	pushl	$0				/* eip - filled in by execve() */
+	subl	$(12*4),%esp			/* space for rest of registers */
+
+	pushl	%esp				/* call main with frame pointer */
+	call	_main				/* autoconfiguration, mountroot etc */
+
+	addl	$(13*4),%esp			/* back to a frame we can return with */
+
+	/*
+	 * now we've run main() and determined what cpu-type we are, we can
+	 * enable write protection and alignment checking on i486 cpus and
+	 * above.
+	 */
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
+	cmpl    $CPUCLASS_386,_cpu_class
+	je	1f
+	movl	%cr0,%eax			/* get control word */
+	orl	$CR0_WP|CR0_AM,%eax		/* enable i486 features */
+	movl	%eax,%cr0			/* and do it */
+#endif
+	/*
+	 * on return from main(), we are process 1
+	 * set up address space and stack so that we can 'return' to user mode
+	 */
+1:
+	movl	__ucodesel,%eax
+	movl	__udatasel,%ecx
+
+	movl	%cx,%ds
+	movl	%cx,%es
+	movl	%ax,%fs				/* double map cs to fs */
+	movl	%cx,%gs				/* and ds to gs */
+	iret					/* goto user! */
+
+#define LCALL(x,y)	.byte 0x9a ; .long y ; .word x
+
+/*
+ * Signal trampoline, copied to top of user stack
+ */
+NON_GPROF_ENTRY(sigcode)
+	call	SIGF_HANDLER(%esp)
+	lea	SIGF_SC(%esp),%eax		/* scp (the call may have clobbered the */
+						/* copy at 8(%esp)) */
+	pushl	%eax
+	pushl	%eax				/* junk to fake return address */
+	movl	$SYS_sigreturn,%eax		/* sigreturn() */
+	LCALL(0x7,0)				/* enter kernel with args on stack */
+	hlt					/* never gets here */
+	.align	2,0x90				/* long word text-align */
+_esigcode:
+
+	.data
+	.globl	_szsigcode
+_szsigcode:
+	.long	_esigcode-_sigcode
+
+/**********************************************************************
+ *
+ * Recover the bootinfo passed to us from the boot program
+ *
+ */
+recover_bootinfo:
 	/*
 	 * This code is called in different ways depending on what loaded
 	 * and started the kernel.  This is used to detect how we get the
@@ -199,7 +344,7 @@ NON_GPROF_ENTRY(btext)
 	 * address of 0.
 	 */
 	cmpl	$0,4(%ebp)
-	je	2f				/* olddiskboot: */
+	je	olddiskboot
 
 	/*
 	 * We have some form of return address, so this is either the
@@ -208,7 +353,7 @@ NON_GPROF_ENTRY(btext)
 	 * we are being booted by the new unifrom boot code.
 	 */
 	cmpl	$0,24(%ebp)
-	je	1f				/* newboot: */
+	je	newboot
 
 	/*
 	 * Seems we have been loaded by the old diskless boot code, we
@@ -222,12 +367,13 @@ NON_GPROF_ENTRY(btext)
 	 * Lets check the bootinfo version, and if we do not understand
 	 * it we return to the loader with a status of 1 to indicate this error
 	 */
-1:	/* newboot: */
+newboot:
 	movl	28(%ebp),%ebx		/* &bootinfo.version */
 	movl	BI_VERSION(%ebx),%eax
 	cmpl	$1,%eax			/* We only understand version 1 */
 	je	1f
 	movl	$1,%eax			/* Return status */
+	add	$4, %esp		/* pop recover_bootinfo's retaddr */
 	leave
 	ret
 
@@ -298,18 +444,21 @@ got_common_bi_size:
 	 * Note that the newer boot code just falls into here to pick
 	 * up howto and bootdev, cyloffset and esym are no longer used
 	 */
-2:	/* olddiskboot: */
+olddiskboot:
 	movl	8(%ebp),%eax
 	movl	%eax,_boothowto-KERNBASE
 	movl	12(%ebp),%eax
 	movl	%eax,_bootdev-KERNBASE
 
-#if NAPM > 0
-	/* call APM BIOS driver setup (i386/apm/apm_setup.s) */
-	call	_apm_setup
-#endif /* NAPM */
+	ret
 
-	/* Find out our CPU type. */
+
+/**********************************************************************
+ *
+ * Identify the CPU and initialize anything special about it
+ *
+ */
+identify_cpu:
 
 	/* Try to toggle alignment check flag; does not exist on 386. */
 	pushfl
@@ -391,9 +540,9 @@ got_common_bi_size:
 	andb	$~CCR0_NC0,%al
 #ifndef CYRIX_CACHE_REALLY_WORKS
 	orb	$(CCR0_NC1|CCR0_BARB),%al
-#else
+#else /* !CYRIX_CACHE_REALLY_WORKS */
 	orb	$CCR0_NC1,%al
-#endif
+#endif /* CYRIX_CACHE_REALLY_WORKS */
 	movb	%al,%ah
 	movb	$CCR0,%al
 	outb	%al,$0x22
@@ -458,351 +607,152 @@ got_common_bi_size:
 	/* Greater than Pentium...call it a Pentium Pro */
 	movl	$CPU_686,_cpu-KERNBASE
 3:
-
-	/*
-	 * Finished with old stack; load new %esp now instead of later so
-	 * we can trace this code without having to worry about the trace
-	 * trap clobbering the memory test or the zeroing of the bss+bootstrap
-	 * page tables.
-	 *
-	 * XXX - wdboot clears the bss after testing that this is safe.
-	 * This is too wasteful - memory below 640K is scarce.  The boot
-	 * program should check:
-	 *	text+data <= &stack_variable - more_space_for_stack
-	 *	text+data+bss+pad+space_for_page_tables <= end_of_memory
-	 * Oops, the gdt is in the carcass of the boot program so clearing
-	 * the rest of memory is still not possible.
-	 */
-	movl	$tmpstk-KERNBASE,%esp		/* bootstrap stack end location */
-
-/*
- * Virtual address space of kernel:
- *
- *	text | data | bss | [syms] | page dir | proc0 kernel stack | usr stk map | Sysmap
- *      pages:                          1         UPAGES (2)             1         NKPT (7)
- */
-
-/* find end of kernel image */
-	movl	$_end-KERNBASE,%ecx
-	addl	$NBPG-1,%ecx			/* page align up */
-	andl	$~(NBPG-1),%ecx
-	movl	%ecx,%esi			/* esi = start of free memory */
-	movl	%ecx,_KERNend-KERNBASE		/* save end of kernel */
-
-/* clear bss */
-	movl	$_edata-KERNBASE,%edi
-	subl	%edi,%ecx			/* get amount to clear */
-	xorl	%eax,%eax			/* specify zero fill */
-	cld
-	rep
-	stosb
-
-#ifdef DDB
-/* include symbols in "kernel image" if they are loaded */
-	movl	_bootinfo+BI_ESYMTAB-KERNBASE,%edi
-	testl	%edi,%edi
-	je	over_symalloc
-	addl	$NBPG-1,%edi
-	andl	$~(NBPG-1),%edi
-	movl	%edi,%esi
-	movl	%esi,_KERNend-KERNBASE
-	movl	$KERNBASE,%edi
-	addl	%edi,_bootinfo+BI_SYMTAB-KERNBASE
-	addl	%edi,_bootinfo+BI_ESYMTAB-KERNBASE
-over_symalloc:
-#endif
-
-/*
- * The value in esi is both the end of the kernel bss and a pointer to
- * the kernel page directory, and is used by the rest of locore to build
- * the tables.
- * esi + 1(page dir) + 2(UPAGES) + 1(p0stack) + NKPT(number of kernel
- * page table pages) is then passed on the stack to init386(first) as
- * the value first. esi should ALWAYS be page aligned!!
- */
-	movl	%esi,%ecx			/* Get current first availiable address */
-
-/* clear pagetables, page directory, stack, etc... */
-	movl	%esi,%edi			/* base (page directory) */
-	movl	$((1+UPAGES+1+NKPT)*NBPG),%ecx	/* amount to clear */
-	xorl	%eax,%eax			/* specify zero fill */
-	cld
-	rep
-	stosb
-
-/* physical address of Idle proc/kernel page directory */
-	movl	%esi,_IdlePTD-KERNBASE
-
-/*
- * fillkpt
- *	eax = (page frame address | control | status) == pte
- *	ebx = address of page table
- *	ecx = how many pages to map
- */
-#define	fillkpt		\
-1:	movl	%eax,(%ebx)	; \
-	addl	$NBPG,%eax	; /* increment physical address */ \
-	addl	$4,%ebx		; /* next pte */ \
-	loop	1b		;
-
-/*
- * Map Kernel
- *
- * First step - build page tables
- */
-#if defined (KGDB) || defined (BDE_DEBUGGER)
-	movl	_KERNend-KERNBASE,%ecx		/* this much memory, */
-	shrl	$PGSHIFT,%ecx			/* for this many PTEs */
-#ifdef BDE_DEBUGGER
-	cmpl	$0xa0,%ecx			/* XXX - cover debugger pages */
-	jae	1f
-	movl	$0xa0,%ecx
-1:
-#endif /* BDE_DEBUGGER */
-	movl	$PG_V|PG_KW,%eax		/* kernel R/W, valid */
-	lea	((1+UPAGES+1)*NBPG)(%esi),%ebx	/* phys addr of kernel PT base */
-	movl	%ebx,_KPTphys-KERNBASE		/* save in global */
-	fillkpt
-
-#else /* !KGDB && !BDE_DEBUGGER */
-	/* write protect kernel text (doesn't do a thing for 386's - only 486's) */
-	movl	$_etext-KERNBASE,%ecx		/* get size of text */
-	addl	$NBPG-1,%ecx			/* round up to page */
-	shrl	$PGSHIFT,%ecx			/* for this many PTEs */
-	movl	$PG_V|PG_KR,%eax		/* specify read only */
-#if 0
-	movl	$_etext,%ecx			/* get size of text */
-	subl	$_btext,%ecx
-	addl	$NBPG-1,%ecx			/* round up to page */
-	shrl	$PGSHIFT,%ecx			/* for this many PTEs */
-	movl	$_btext-KERNBASE,%eax		/* get offset to physical memory */
-	orl	$PG_V|PG_KR,%eax		/* specify read only */
-#endif
-	lea	((1+UPAGES+1)*NBPG)(%esi),%ebx	/* phys addr of kernel PT base */
-	movl	%ebx,_KPTphys-KERNBASE		/* save in global */
-	fillkpt
-
-	/* data and bss are r/w */
-	andl	$PG_FRAME,%eax			/* strip to just addr of bss */
-	movl	_KERNend-KERNBASE,%ecx		/* calculate size */
-	subl	%eax,%ecx
-	shrl	$PGSHIFT,%ecx
-	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write */
-	fillkpt
-#endif /* KGDB || BDE_DEBUGGER */
-
-/* now initialize the page dir, upages, and p0stack PT */
-
-	movl	$(1+UPAGES+1),%ecx		/* number of PTEs */
-	movl	%esi,%eax			/* phys address of PTD */
-	andl	$PG_FRAME,%eax			/* convert to PFN, should be a NOP */
-	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write */
-	movl	%esi,%ebx			/* calculate pte offset to ptd */
-	shrl	$PGSHIFT-2,%ebx
-	addl	%esi,%ebx			/* address of page directory */
-	addl	$((1+UPAGES+1)*NBPG),%ebx	/* offset to kernel page tables */
-	fillkpt
-
-/* map I/O memory map */
-
-	movl    _KPTphys-KERNBASE,%ebx		/* base of kernel page tables */
-	lea     (0xa0 * PTESIZE)(%ebx),%ebx	/* hardwire ISA hole at KERNBASE + 0xa0000 */
-	movl	$0x100-0xa0,%ecx		/* for this many pte s, */
-	movl	$(0xa0000|PG_V|PG_KW|PG_N),%eax	/* valid, kernel read/write, non-cacheable */
-	movl	%ebx,_atdevphys-KERNBASE	/* save phys addr of ptes */
-	fillkpt
-
- /* map proc 0's kernel stack into user page table page */
-
-	movl	$UPAGES,%ecx			/* for this many pte s, */
-	lea	(1*NBPG)(%esi),%eax		/* physical address in proc 0 */
-	lea	(KERNBASE)(%eax),%edx		/* change into virtual addr */
-	movl	%edx,_proc0paddr-KERNBASE	/* save VA for proc 0 init */
-	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write */
-	lea	((1+UPAGES)*NBPG)(%esi),%ebx	/* addr of stack page table in proc 0 */
-	addl	$(KSTKPTEOFF * PTESIZE),%ebx	/* offset to kernel stack PTE */
-	fillkpt
-
-/*
- * Initialize kernel page table directory
- */
-	/* install a pde for temporary double map of bottom of VA */
-	movl	_KPTphys-KERNBASE,%eax
-	orl     $PG_V|PG_KW,%eax		/* valid, kernel read/write */
-	movl	%eax,(%esi)			/* which is where temp maps! */
-
-	/* initialize kernel pde's */
-	movl	$(NKPT),%ecx			/* for this many PDEs */
-	lea	(KPTDI*PDESIZE)(%esi),%ebx	/* offset of pde for kernel */
-	fillkpt
-
-	/* install a pde recursively mapping page directory as a page table! */
-	movl	%esi,%eax			/* phys address of ptd in proc 0 */
-	orl	$PG_V|PG_KW,%eax		/* pde entry is valid */
-	movl	%eax,PTDPTDI*PDESIZE(%esi)	/* which is where PTmap maps! */
-
-	/* install a pde to map kernel stack for proc 0 */
-	lea	((1+UPAGES)*NBPG)(%esi),%eax	/* physical address of pt in proc 0 */
-	orl	$PG_V|PG_KW,%eax		/* pde entry is valid */
-	movl	%eax,KSTKPTDI*PDESIZE(%esi)	/* which is where kernel stack maps! */
-
-#ifdef BDE_DEBUGGER
-	/* copy and convert stuff from old gdt and idt for debugger */
-
-	cmpl	$0x0375c339,0x96104		/* XXX - debugger signature */
-	jne	1f
-	movb	$1,_bdb_exists-KERNBASE
-1:
-	pushal
-	subl	$2*6,%esp
-
-	sgdt	(%esp)
-	movl	2(%esp),%esi			/* base address of current gdt */
-	movl	$_gdt-KERNBASE,%edi
-	movl	%edi,2(%esp)
-	movl	$8*18/4,%ecx
-	cld
-	rep					/* copy gdt */
-	movsl
-	movl	$_gdt-KERNBASE,-8+2(%edi)	/* adjust gdt self-ptr */
-	movb	$0x92,-8+5(%edi)
-
-	sidt	6(%esp)
-	movl	6+2(%esp),%esi			/* base address of current idt */
-	movl	8+4(%esi),%eax			/* convert dbg descriptor to ... */
-	movw	8(%esi),%ax
-	movl	%eax,bdb_dbg_ljmp+1-KERNBASE	/* ... immediate offset ... */
-	movl	8+2(%esi),%eax
-	movw	%ax,bdb_dbg_ljmp+5-KERNBASE	/* ... and selector for ljmp */
-	movl	24+4(%esi),%eax			/* same for bpt descriptor */
-	movw	24(%esi),%ax
-	movl	%eax,bdb_bpt_ljmp+1-KERNBASE
-	movl	24+2(%esi),%eax
-	movw	%ax,bdb_bpt_ljmp+5-KERNBASE
-
-	movl	$_idt-KERNBASE,%edi
-	movl	%edi,6+2(%esp)
-	movl	$8*4/4,%ecx
-	cld
-	rep					/* copy idt */
-	movsl
-
-	lgdt	(%esp)
-	lidt	6(%esp)
-
-	addl	$2*6,%esp
-	popal
-#endif /* BDE_DEBUGGER */
-
-	/* load base of page directory and enable mapping */
-	movl	%esi,%eax			/* phys address of ptd in proc 0 */
-	movl	%eax,%cr3			/* load ptd addr into mmu */
-	movl	%cr0,%eax			/* get control word */
-	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
-	movl	%eax,%cr0			/* and let's page NOW! */
-
-	pushl	$begin				/* jump to high mem */
 	ret
 
-begin: /* now running relocated at KERNBASE where the system is linked to run */
-	movl	_atdevphys,%edx			/* get pte PA */
-	subl	_KPTphys,%edx			/* remove base of ptes, now have phys offset */
-	shll	$PGSHIFT-2,%edx			/* corresponding to virt offset */
-	addl	$KERNBASE,%edx			/* add virtual base */
-	movl	%edx,_atdevbase
 
-	/* set up bootstrap stack */
-	movl	$_kstack+UPAGES*NBPG,%esp	/* bootstrap stack end location */
-	xorl	%eax,%eax			/* mark end of frames */
-	movl	%eax,%ebp
-	movl	_proc0paddr,%eax
-	movl	%esi,PCB_CR3(%eax)
-
-#ifdef BDE_DEBUGGER
-	/* relocate debugger gdt entries */
-
-	movl	$_gdt+8*9,%eax			/* adjust slots 9-17 */
-	movl	$9,%ecx
-reloc_gdt:
-	movb	$KERNBASE>>24,7(%eax)		/* top byte of base addresses, was 0, */
-	addl	$8,%eax				/* now KERNBASE>>24 */
-	loop	reloc_gdt
-
-	cmpl	$0,_bdb_exists
-	je	1f
-	int	$3
-1:
-#endif /* BDE_DEBUGGER */
-
-	/*
-	 * Prepare "first" - physical address of first available page
-	 * after the kernel+pdir+upages+p0stack+page tables
-	 */
-	lea	((1+UPAGES+1+NKPT)*NBPG)(%esi),%esi
-
-	pushl	%esi				/* value of first for init386(first) */
-	call	_init386			/* wire 386 chip for unix operation */
-	popl	%esi
-
-	.globl	__ucodesel,__udatasel
-
-	pushl	$0				/* unused */
-	pushl	__udatasel			/* ss */
-	pushl	$0				/* esp - filled in by execve() */
-	pushl	$PSL_USER			/* eflags (IOPL 0, int enab) */
-	pushl	__ucodesel			/* cs */
-	pushl	$0				/* eip - filled in by execve() */
-	subl	$(12*4),%esp			/* space for rest of registers */
-
-	pushl	%esp				/* call main with frame pointer */
-	call	_main				/* autoconfiguration, mountroot etc */
-
-	addl	$(13*4),%esp			/* back to a frame we can return with */
-
-	/*
-	 * now we've run main() and determined what cpu-type we are, we can
-	 * enable write protection and alignment checking on i486 cpus and
-	 * above.
-	 */
-#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	cmpl    $CPUCLASS_386,_cpu_class
-	je	1f
-	movl	%cr0,%eax			/* get control word */
-	orl	$CR0_WP|CR0_AM,%eax		/* enable i486 features */
-	movl	%eax,%cr0			/* and do it */
-#endif
-	/*
-	 * on return from main(), we are process 1
-	 * set up address space and stack so that we can 'return' to user mode
-	 */
-1:
-	movl	__ucodesel,%eax
-	movl	__udatasel,%ecx
-
-	movl	%cx,%ds
-	movl	%cx,%es
-	movl	%ax,%fs				/* double map cs to fs */
-	movl	%cx,%gs				/* and ds to gs */
-	iret					/* goto user! */
-
-#define LCALL(x,y)	.byte 0x9a ; .long y ; .word x
-
-/*
- * Signal trampoline, copied to top of user stack
+/**********************************************************************
+ *
+ * Create the first page directory and it's page tables
+ *
  */
-NON_GPROF_ENTRY(sigcode)
-	call	SIGF_HANDLER(%esp)
-	lea	SIGF_SC(%esp),%eax		/* scp (the call may have clobbered the */
-						/* copy at 8(%esp)) */
-	pushl	%eax
-	pushl	%eax				/* junk to fake return address */
-	movl	$SYS_sigreturn,%eax		/* sigreturn() */
-	LCALL(0x7,0)				/* enter kernel with args on stack */
-	hlt					/* never gets here */
-	.align	2,0x90				/* long word text-align */
-_esigcode:
 
-	.data
-	.globl	_szsigcode
-_szsigcode:
-	.long	_esigcode-_sigcode
+create_pagetables:
+
+/* find end of kernel image */
+	movl	$R(_end),%esi
+
+/* include symbols in "kernel image" if they are loaded and useful */
+#ifdef DDB
+	movl	R(_bootinfo+BI_ESYMTAB),%edi
+	testl	%edi,%edi
+	je	1f
+	movl	%edi,%esi
+	movl	$KERNBASE,%edi
+	addl	%edi,R(_bootinfo+BI_SYMTAB)
+	addl	%edi,R(_bootinfo+BI_ESYMTAB)
+1:
+#endif
+
+	ROUND2PAGE(%esi)
+	movl	%esi,R(_KERNend)	/* save end of kernel */
+	movl	%esi,R(physfree)	/* save end of kernel */
+
+/* Allocate Kernel Page Tables */
+	ALLOCPAGES(NKPT)
+	movl	%esi,R(_KPTphys)
+
+/* Allocate Page Table Directory */
+	ALLOCPAGES(1)
+	movl	%esi,R(_IdlePTD)
+
+/* Allocate UPAGES */
+	ALLOCPAGES(UPAGES)
+	movl	%esi,R(upa);
+	addl	$KERNBASE, %esi
+	movl	%esi, R(_proc0paddr)
+
+/* Allocate P0 Stack */
+	ALLOCPAGES(1)
+	movl	%esi,R(p0s);
+
+/* Map read-only from zero to the end of the kernel text section */
+	movl	R(_KPTphys), %esi
+	movl	$R(_etext),%ecx
+	addl	$NBPG-1,%ecx
+	shrl	$PGSHIFT,%ecx
+	movl	$PG_V|PG_KR,%eax
+	movl	%esi, %ebx
+	fillkpt
+
+/* Map read-write, data, bss and symbols */
+	andl	$PG_FRAME,%eax 
+	movl	R(_KERNend),%ecx
+	subl	%eax,%ecx
+	shrl	$PGSHIFT,%ecx
+	orl	$PG_V|PG_KW,%eax
+	fillkpt
+
+/* Map PD */
+	movl	R(_IdlePTD), %eax
+	movl	$1, %ecx
+	movl	%eax, %ebx
+	shrl	$PGSHIFT-2, %ebx
+	addl	R(_KPTphys), %ebx
+	orl	$PG_V|PG_KW, %eax
+	fillkpt
+
+/* Map Proc 0 kernel stack */
+	movl	R(p0s), %eax
+	movl	$1, %ecx
+	movl	%eax, %ebx
+	shrl	$PGSHIFT-2, %ebx
+	addl	R(_KPTphys), %ebx
+	orl	$PG_V|PG_KW, %eax
+	fillkpt
+
+/* ... also in user page table page */
+	movl	R(p0s), %eax
+	movl	$1, %ecx
+	orl	$PG_V|PG_KW, %eax
+	movl	R(_KPTphys), %ebx
+	addl	$(KSTKPTEOFF * PTESIZE), %ebx
+	fillkpt
+
+/* Map UPAGES */
+	movl	R(upa), %eax
+	movl	$UPAGES, %ecx
+	movl	%eax, %ebx
+	shrl	$PGSHIFT-2, %ebx
+	addl	R(_KPTphys), %ebx
+	orl	$PG_V|PG_KW, %eax
+	fillkpt
+
+/* ... also in user page table page */
+	movl	R(upa), %eax
+	movl	$UPAGES, %ecx
+	orl	$PG_V|PG_KW, %eax
+	movl	R(p0s), %ebx
+	addl	$(KSTKPTEOFF * PTESIZE), %ebx
+	fillkpt
+
+/* and a pde entry too */
+	movl	R(p0s), %eax
+	movl	R(_IdlePTD), %esi
+	orl	$PG_V|PG_KW,%eax
+	movl	%eax,KSTKPTDI*PDESIZE(%esi)
+
+/* Map ISA hole */
+#define ISA_HOLE_START	  0xa0000
+#define ISA_HOLE_LENGTH (0x100000-ISA_HOLE_START)
+	movl	$ISA_HOLE_LENGTH>>PGSHIFT, %ecx
+	movl	ISA_HOLE_START, %eax
+	movl	%eax, %ebx
+	shrl	$PGSHIFT-2, %ebx
+	addl	R(_KPTphys), %ebx
+	orl	$PG_V|PG_KW|PG_N, %eax
+	fillkpt
+	movl	ISA_HOLE_START, %eax
+	addl	$KERNBASE, %eax
+	movl	%eax, R(_atdevbase)
+
+/* install a pde for temporary double map of bottom of VA */
+	movl	R(_IdlePTD), %esi
+	movl	R(_KPTphys), %eax
+	orl     $PG_V|PG_KW, %eax
+	movl	%eax, (%esi)
+
+/* install pde's for pt's */
+	movl	R(_IdlePTD), %esi
+	movl	R(_KPTphys), %eax
+	orl     $PG_V|PG_KW, %eax
+	movl	$(NKPT), %ecx
+	lea	(KPTDI*PDESIZE)(%esi), %ebx
+	fillkpt
+
+/* install a pde recursively mapping page directory as a page table */
+	movl	R(_IdlePTD), %esi
+	movl	%esi,%eax
+	orl	$PG_V|PG_KW,%eax
+	movl	%eax,PTDPTDI*PDESIZE(%esi)
+
+	ret
