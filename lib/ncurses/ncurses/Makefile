@@ -15,16 +15,23 @@ NCURSES_MINOR!=egrep 'NCURSES_MINOR[ 	]*=' ${NCURSES}/dist.mk | sed -e 's%^[^0-9
 NCURSES_PATCH!=egrep 'NCURSES_PATCH[ 	]*=' ${NCURSES}/dist.mk | sed -e 's%^[^0-9]*%%'
 
 # From autoconf (!)
-NCURSES_CONST=	const
-NCURSES_XNAMES=	1
-NCURSES_OSPEED=	short
-BUILTIN_BOOL=	1
-BOOL_TYPE=	0
-TYPE_OF_BOOL=	char
-TYPEOF_CHTYPE=	long
-WIDEC_SHIFT=	8
-SHIFT_LIMIT=	32
-ONEUL=		1UL
+NCURSES_CONST=		const
+NCURSES_XNAMES=		1
+NCURSES_OSPEED=		short
+NCURSES_CH_T=		chtype
+NCURSES_EXT_FUNCS=	1
+NCURSES_LIBUTF8=	0
+NCURSES_MBSTATE_T=	0
+BROKEN_LINKER=		0
+BUILTIN_BOOL=		1
+BOOL_TYPE=		0
+HAVE_VSSCANF=		1
+HEADER_STDBOOL=		1
+TYPE_OF_BOOL=		unsigned char
+TYPEOF_CHTYPE=		long
+WIDEC_SHIFT=		8
+SHIFT_LIMIT=		32
+ONEUL=			1UL
 
 .PATH:  ${NCURSES}/ncurses
 .PATH:  ${NCURSES}/ncurses/base
@@ -173,11 +180,6 @@ SRCS=	${GENHDR} ${GENSRC} \
 	lib_tparm.c \
 	lib_tputs.c \
 	lib_trace.c \
-	lib_traceatr.c \
-	lib_tracebits.c \
-	lib_tracechr.c \
-	lib_tracedmp.c \
-	lib_tracemse.c \
 	lib_tstp.c \
 	lib_ttyflags.c \
 	lib_twait.c \
@@ -198,15 +200,24 @@ SRCS=	${GENHDR} ${GENSRC} \
 	setbuf.c \
 	sigaction.c \
 	strings.c \
-	trace_buf.c \
-	trace_tries.c \
-	trace_xnames.c \
 	tries.c \
 	tty_update.c \
+	varargs.c \
 	version.c \
+	visbuf.c \
 	vsscanf.c \
 	wresize.c \
-	write_entry.c \
+	write_entry.c
+
+# Currently unused, for debugging libncurses itself.
+DBGSRCS=lib_traceatr.c \
+	lib_tracebits.c \
+	lib_tracechr.c \
+	lib_tracedmp.c \
+	lib_tracemse.c \
+	trace_buf.c \
+	trace_tries.c \
+	trace_xnames.c
 
 # From our old libtermcap.
 # Used instead of the hideous read_termcap.c abomination.
@@ -276,11 +287,10 @@ codes.c:	 namehdr ${CODESRC} codeftr
 
 lib_gen.c:	MKlib_gen.sh curses.h
 	sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
-	    "${AWK}" < curses.h >$@
+	    "${AWK}" generated < curses.h >$@
 
 lib_keyname.c:	keys.list MKkeyname.awk
-	${AWK} -f ${NCURSES}/ncurses/base/MKkeyname.awk \
-	    ${NCURSES}/ncurses/tinfo/keys.list > lib_keyname.c
+	${AWK} -f ${NCURSES}/ncurses/base/MKkeyname.awk keys.list > lib_keyname.c
 
 unctrl.c:	MKunctrl.awk
 	echo | ${AWK} -f ${NCURSES}/ncurses/base/MKunctrl.awk > unctrl.c
@@ -302,10 +312,10 @@ ncurses_def.h:	MKncurses_def.sh ncurses_defs
 
 nomacros.h:	MKlib_gen.sh curses.h
 	sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
-	    "${AWK}" < curses.h | fgrep undef > $@
+	    "${AWK}" generated < curses.h | fgrep undef > $@
 
 init_keytry.h:	keys.list make_keys
-	./make_keys ${NCURSES}/ncurses/tinfo/keys.list > init_keytry.h
+	./make_keys keys.list > init_keytry.h
 
 hashsize.h:	MKhashsize.sh Caps
 	sh ${NCURSES}/include/MKhashsize.sh ${NCURSES}/include/Caps > $@
@@ -319,6 +329,18 @@ term.h:		MKterm.h.awk edit_cfg.sh Caps
 	sh ${NCURSES}/include/edit_cfg.sh ${.CURDIR}/ncurses_cfg.h $@.new
 	mv -f $@.new $@
 
+curses.h:	curses.head MKkey_defs.sh Caps
+	cat curses.head > $@.new
+	AWK=${AWK} sh ${NCURSES}/include/MKkey_defs.sh \
+	    ${NCURSES}/include/Caps >> $@.new
+	cat ${NCURSES}/include/curses.tail >> $@.new
+	mv -f $@.new $@
+
+# Generated intermediate files
+keys.list:	MKkeys_list.sh Caps
+	AWK=${AWK} sh ${NCURSES}/ncurses/tinfo/MKkeys_list.sh \
+	    ${NCURSES}/include/Caps | sort > keys.list
+
 # Build tools
 build-tools: make_hash make_keys
 
@@ -331,34 +353,41 @@ make_hash:	comp_hash.c hashsize.h ncurses_def.h ${HEADERS}
 
 # ./configure generated
 MKterm.h.awk:	MKterm.h.awk.in
-	sed <${NCURSES}/include/$@.in >$@ \
+	sed <${NCURSES}/include/MKterm.h.awk.in >$@ \
 	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
 	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
 	    -e "/@NCURSES_XNAMES@/s%%${NCURSES_XNAMES}%"
 
 termcap.h:	termcap.h.in
-	sed <${NCURSES}/include/$@.in >$@ \
+	sed <${NCURSES}/include/termcap.h.in >$@ \
 	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
 	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
 	    -e "/@NCURSES_OSPEED@/s%%${NCURSES_OSPEED}%"
 
-curses.h:	curses.h.in
-	sed <${NCURSES}/include/$@.in >$@ \
+curses.head:	curses.h.in
+	sed <${NCURSES}/include/curses.h.in >$@ \
+	    -e "/@BROKEN_LINKER@/s%%${BROKEN_LINKER}%" \
+	    -e "/@HAVE_VSSCANF@/s%%${HAVE_VSSCANF}%" \
+	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
 	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
 	    -e "/@NCURSES_PATCH@/s%%${NCURSES_PATCH}%" \
-	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
+	    -e "/@NCURSES_CH_T@/s%%${NCURSES_CH_T}%" \
+	    -e "/@NCURSES_EXT_FUNCS@/s%%${NCURSES_EXT_FUNCS}%" \
+	    -e "/@NCURSES_LIBUTF8@/s%%${NCURSES_LIBUTF8}%" \
+	    -e "/@NCURSES_MBSTATE_T@/s%%${NCURSES_MBSTATE_T}%" \
+	    -e "s%@cf_cv_1UL@%${ONEUL}%g" \
 	    -e "s%@cf_cv_builtin_bool@%${BUILTIN_BOOL}%g" \
 	    -e "s%@cf_cv_cc_bool_type@%${BOOL_TYPE}%g" \
+	    -e "s%@cf_cv_shift_limit@%${SHIFT_LIMIT}%g" \
+	    -e "s%@cf_cv_header_stdbool_h@%${HEADER_STDBOOL}%g" \
 	    -e "s%@cf_cv_type_of_bool@%${TYPE_OF_BOOL}%g" \
 	    -e "s%@cf_cv_typeof_chtype@%${TYPEOF_CHTYPE}%g" \
 	    -e "s%@cf_cv_widec_shift@%${WIDEC_SHIFT}%g" \
-	    -e "s%@cf_cv_shift_limit@%${SHIFT_LIMIT}%g" \
-	    -e "s%@cf_cv_1UL@%${ONEUL}%g" \
 	    -e "s/ _WCHAR_T/ _BSD_WCHAR_T_/g" \
-	    -e "s/ _WINT_T/ _BSD_WINT_T_/g"
+	    -e "s/ _WINT_T/ _BSD_WINT_T_/g" \
 
 unctrl.h:	unctrl.h.in
 	sed <${NCURSES}/include/$@.in >$@ \
