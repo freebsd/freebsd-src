@@ -725,7 +725,7 @@ do_standard:
 int
 pcmmap(Dev_t dev, int offset, int nprot)
 {
-	if (offset > 0x20000)
+	if (offset > 0x20000 - PAGE_SIZE)
 		return -1;
 	return i386_btop((0xa0000 + offset));
 }
