@@ -347,6 +347,10 @@ wi_attach(device_t dev)
 			ic->ic_channels[val].ic_flags != 0,
 			("wi_attach: invalid own channel %u!", val));
 		ic->ic_ibss_chan = &ic->ic_channels[val];
+	} else {
+		device_printf(dev,
+			"WI_RID_OWN_CHNL failed, using first channel!\n");
+		ic->ic_ibss_chan = &ic->ic_channels[0];
 	}
 
 	/*
