@@ -1023,6 +1023,7 @@ static void lge_rxeof(sc, cnt)
 			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 		if (!(rxsts & LGE_RXSTS_IPCSUMERR))
 			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+#ifdef notyet
 		if ((rxsts & LGE_RXSTS_ISTCP &&
 		    !(rxsts & LGE_RXSTS_TCPCSUMERR)) ||
 		    (rxsts & LGE_RXSTS_ISUDP &&
@@ -1031,7 +1032,7 @@ static void lge_rxeof(sc, cnt)
 			    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
 			m->m_pkthdr.csum_data = 0;
 		}
-
+#endif
 		ether_input(ifp, eh, m);
 	}
 
@@ -1230,7 +1231,7 @@ static int lge_encap(sc, m_head, txidx)
 
 	cur_tx->lge_mbuf = m_head;
 	cur_tx->lge_ctl = LGE_TXCTL_WANTINTR|LGE_FRAGCNT(frag)|tot_len;
-	(*txidx)++;
+	LGE_INC((*txidx), LGE_TX_LIST_CNT);
 
 	/* Queue for transmit */
 	CSR_WRITE_4(sc, LGE_TXDESC_ADDR_LO, vtophys(cur_tx));
