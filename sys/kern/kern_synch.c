@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.23 1996/08/28 18:36:30 bde Exp $
+ * $Id: kern_synch.c,v 1.24 1996/09/01 10:30:33 davidg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -550,8 +550,7 @@ mi_switch()
 
 	/*
 	 * Check if the process exceeds its cpu resource allocation.
-	 * If over max, kill it.  In any case, if it has run for more
-	 * than 10 minutes, reduce priority to give others a chance.
+	 * If over max, kill it.
 	 */
 	if (p->p_stat != SZOMB) {
 		rlim = &p->p_rlimit[RLIMIT_CPU];
@@ -563,10 +562,6 @@ mi_switch()
 				if (rlim->rlim_cur < rlim->rlim_max)
 					rlim->rlim_cur += 5;
 			}
-		}
-		if (s > 10 * 60 && p->p_ucred->cr_uid && p->p_nice == NZERO) {
-			p->p_nice = NZERO + 4;
-			resetpriority(p);
 		}
 	}
 
