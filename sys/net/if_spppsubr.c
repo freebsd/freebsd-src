@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.36 1998/04/04 13:26:03 phk Exp $
+ * $Id: if_spppsubr.c,v 1.37 1998/04/06 09:30:39 phk Exp $
  */
 
 #include "opt_inet.h"
@@ -39,6 +39,7 @@
 #include <net/if_types.h>
 
 #include <machine/stdarg.h>
+#include <machine/random.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -990,7 +991,7 @@ sppp_cisco_input(struct sppp *sp, struct mbuf *m)
 			++sp->pp_loopcnt;
 
 			/* Generate new local sequence number */
-			read_random(&sp->pp_seq, sizeof sp->pp_seq);
+			sp->pp_seq = random();
 			break;
 		}
 		sp->pp_loopcnt = 0;
@@ -2117,7 +2118,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				if (magic == ~sp->lcp.magic) {
 					if (debug)
 						addlog("magic glitch ");
-					read_random(&sp->lcp.magic, sizeof sp->lcp.magic);
+					sp->lcp.magic = random();
 				} else {
 					sp->lcp.magic = magic;
 					if (debug)
@@ -2277,7 +2278,7 @@ sppp_lcp_scr(struct sppp *sp)
 
 	if (sp->lcp.opts & (1 << LCP_OPT_MAGIC)) {
 		if (! sp->lcp.magic)
-			read_random(&sp->lcp.magic, sizeof sp->lcp.magic);
+			sp->lcp.magic = random();
 		opt[i++] = LCP_OPT_MAGIC;
 		opt[i++] = 6;
 		opt[i++] = sp->lcp.magic >> 24;
@@ -3214,8 +3215,12 @@ sppp_chap_scr(struct sppp *sp)
 
 	/* Compute random challenge. */
 	ch = (u_long *)sp->myauth.challenge;
-	microtime(&tv);
-	seed = tv.tv_sec ^ tv.tv_usec;
+	/*
+	 * XXX: This is bad!, there is a well known relationship between the
+	 * four groups of four bytes in the challenge, that improves the
+	 * predictability quite a lot.
+	 */
+	read_random(&seed, sizeof seed);
 	ch[0] = seed ^ random();
 	ch[1] = seed ^ random();
 	ch[2] = seed ^ random();
