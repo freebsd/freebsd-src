@@ -57,6 +57,7 @@ main(int argc, char *argv[])
 	bdaddr_t	 bdaddr;
 
 	memset(&bdaddr, 0, sizeof(bdaddr));
+	local = 0;
 
 	/* Process command line arguments */
 	while ((n = getopt(argc, argv, "a:c:lh")) != -1) {
