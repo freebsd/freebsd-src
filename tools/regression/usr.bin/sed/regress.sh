@@ -9,11 +9,14 @@ cd $TESTDIR
 
 STATUS=0
 
-for test in G psl; do
+for test in G P psl; do
   echo "Running test $test"
   case "$test" in
   G)
     sed G < regress.in | diff -u regress.$test.out -
+    ;;
+  P)
+    sed P < regress.in | diff -u regress.$test.out -
     ;;
   psl)	
     sed '$!g; P; D' < regress.in | diff -u regress.$test.out -
