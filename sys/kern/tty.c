@@ -223,7 +223,8 @@ ttyopen(device, tp)
 		bzero(&tp->t_winsize, sizeof(tp->t_winsize));
 	}
 	/* XXX don't hang forever on output */
-	tp->t_timeout = drainwait*hz;
+	if (tp->t_timeout < 0)
+		tp->t_timeout = drainwait*hz;
 	ttsetwater(tp);
 	splx(s);
 	return (0);
@@ -2402,6 +2403,7 @@ ttymalloc(tp)
 		return(tp);
         tp = malloc(sizeof *tp, M_TTYS, M_WAITOK);
         bzero(tp, sizeof *tp);
+	tp->t_timeout = -1;
 	ttyregister(tp);
         return (tp);
 }
