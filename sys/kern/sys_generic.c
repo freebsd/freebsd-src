@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.12 1995/04/13 18:24:33 davidg Exp $
+ * $Id: sys_generic.c,v 1.13 1995/05/30 08:05:56 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,6 @@
 #include <sys/ktrace.h>
 #endif
 #include <vm/vm.h>
-#include <i386/ibcs2/ibcs2.h>
 
 int	selscan __P((struct proc *, fd_set *, fd_set *, int, int *));
 
@@ -408,23 +407,11 @@ ioctl(p, uap, retval)
 	if (size > IOCPARM_MAX)
 		return (ENOTTY);
 	memp = NULL;
-#ifdef COMPAT_IBCS2
-	if (size + IBCS2_RETVAL_SIZE > sizeof (stkbuf)) {
-		memp = (caddr_t)malloc((u_long)size + IBCS2_RETVAL_SIZE,
-				       M_IOCTLOPS, M_WAITOK);
-		data = memp + IBCS2_RETVAL_SIZE;
-	} else
-		data = stkbuf + IBCS2_RETVAL_SIZE;
-	*(int *)(data - IBCS2_RETVAL_SIZE) = IBCS2_MAGIC_IN;
-	*(int *)(data - (IBCS2_RETVAL_SIZE - sizeof(int))) = 0;
-	*(int *)(data - (IBCS2_RETVAL_SIZE - 2*sizeof(int))) = 0;
-#else
 	if (size > sizeof (stkbuf)) {
 		memp = (caddr_t)malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
 		data = memp;
 	} else
 		data = stkbuf;
-#endif
 	if (com&IOC_IN) {
 		if (size) {
 			error = copyin(uap->data, data, (u_int)size);
@@ -443,15 +430,6 @@ ioctl(p, uap, retval)
 		bzero(data, size);
 	else if (com&IOC_VOID)
 		*(caddr_t *)data = uap->data;
-#ifdef COMPAT_IBCS2
-	else if (com)
-		/*
-		 * Pick up such things as NIOCxx.
-		 * Any copyouts will have to be done prior
-		 * to return by their servicing code.
-		 */
-		*(caddr_t *)data = uap->data;
-#endif
 
 	switch (com) {
 
@@ -512,12 +490,6 @@ ioctl(p, uap, retval)
 			error = copyout(data, uap->data, (u_int)size);
 		break;
 	}
-#ifdef COMPAT_IBCS2
-	if ((*(int *)(data - IBCS2_RETVAL_SIZE)) == IBCS2_MAGIC_OUT) {
-		retval[0] = *(int *)(data-(IBCS2_RETVAL_SIZE - sizeof(int)));
-		retval[1] = *(int *)(data-(IBCS2_RETVAL_SIZE - 2*sizeof(int)));
-	}
-#endif
 	if (memp)
 		free(memp, M_IOCTLOPS);
 	return (error);
