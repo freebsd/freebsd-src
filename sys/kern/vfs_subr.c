@@ -43,6 +43,7 @@
  * External virtual filesystem routines
  */
 #include "opt_ddb.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -54,6 +55,7 @@
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/stat.h>
@@ -801,6 +803,9 @@ getnewvnode(tag, mp, vops, vpp)
 			uma_zfree(vnodepoll_zone, vp->v_pollinfo);
 		}
 		vp->v_pollinfo = NULL;
+#ifdef MAC
+		mac_destroy_vnode(vp);
+#endif
 		vp->v_flag = 0;
 		vp->v_lastw = 0;
 		vp->v_lasta = 0;
@@ -827,6 +832,9 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	lockinit(&vp->v_lock, PVFS, "vnlock", VLKTIMEOUT, LK_NOPAUSE);
+#ifdef MAC
+	mac_init_vnode(vp);
+#endif
 	insmntque(vp, mp);
 	*vpp = vp;
 	vp->v_usecount = 1;
