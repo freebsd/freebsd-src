@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)getdirentries.2	8.1 (Berkeley) 6/9/93
+.\"	@(#)getdirentries.2	8.2 (Berkeley) 5/3/95
 .\"
-.Dd June 9, 1993
+.Dd May 3, 1995
 .Dt GETDIRENTRIES 2
 .Os
 .Sh NAME
@@ -67,7 +67,8 @@ structures each containing the following entries:
 .Bd -literal -offset indent
 unsigned long	d_fileno;
 unsigned short	d_reclen;
-unsigned short	d_namlen;
+unsigned char	d_type;
+unsigned char	d_namlen;
 char    	d_name[MAXNAMELEN + 1]; /* see below */
 .Ed
 .Pp
@@ -82,6 +83,11 @@ have the same
 The
 .Fa d_reclen
 entry is the length, in bytes, of the directory record.
+The
+.Fa d_type
+entry is the type of the file pointed to by the directory record.
+The file type values are defined in
+.Fa <sys/dirent.h> .
 The
 .Fa d_name
 entry contains a null terminated file name.
