@@ -12,10 +12,14 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 
-struct args { int dummy; };
-
+struct	nosys_args {
+	int dummy;
+};
 struct	rexit_args {
 	int rval;
+};
+struct	fork_args {
+	int dummy;
 };
 struct	read_args {
 	int fd;
@@ -76,6 +80,9 @@ struct	getfsstat_args {
 	long bufsize;
 	int flags;
 };
+struct	getpid_args {
+	int dummy;
+};
 struct	mount_args {
 	char * type;
 	char * path;
@@ -88,6 +95,12 @@ struct	unmount_args {
 };
 struct	setuid_args {
 	uid_t uid;
+};
+struct	getuid_args {
+	int dummy;
+};
+struct	geteuid_args {
+	int dummy;
 };
 struct	ptrace_args {
 	int req;
@@ -140,12 +153,24 @@ struct	fchflags_args {
 	int fd;
 	int flags;
 };
+struct	sync_args {
+	int dummy;
+};
 struct	kill_args {
 	int pid;
 	int signum;
 };
+struct	getppid_args {
+	int dummy;
+};
 struct	dup_args {
 	u_int fd;
+};
+struct	pipe_args {
+	int dummy;
+};
+struct	getegid_args {
+	int dummy;
 };
 struct	profil_args {
 	caddr_t samples;
@@ -167,6 +192,9 @@ struct	sigaction_args {
 	struct sigaction * nsa;
 	struct sigaction * osa;
 };
+struct	getgid_args {
+	int dummy;
+};
 struct	sigprocmask_args {
 	int how;
 	sigset_t mask;
@@ -180,6 +208,9 @@ struct	setlogin_args {
 };
 struct	acct_args {
 	char * path;
+};
+struct	sigpending_args {
+	int dummy;
 };
 struct	sigaltstack_args {
 	struct sigaltstack * nss;
@@ -215,6 +246,9 @@ struct	umask_args {
 };
 struct	chroot_args {
 	char * path;
+};
+struct	getpagesize_args {
+	int dummy;
 };
 struct	msync_args {
 	caddr_t addr;
@@ -257,6 +291,9 @@ struct	setgroups_args {
 	u_int gidsetsize;
 	gid_t * gidset;
 };
+struct	getpgrp_args {
+	int dummy;
+};
 struct	setpgid_args {
 	int pid;
 	int pgid;
@@ -266,12 +303,18 @@ struct	setitimer_args {
 	struct itimerval * itv;
 	struct itimerval * oitv;
 };
+struct	owait_args {
+	int dummy;
+};
 struct	swapon_args {
 	char * name;
 };
 struct	getitimer_args {
 	u_int which;
 	struct itimerval * itv;
+};
+struct	getdtablesize_args {
+	int dummy;
 };
 struct	dup2_args {
 	u_int from;
@@ -424,11 +467,20 @@ struct	adjtime_args {
 	struct timeval * delta;
 	struct timeval * olddelta;
 };
+struct	ogethostid_args {
+	int dummy;
+};
+struct	setsid_args {
+	int dummy;
+};
 struct	quotactl_args {
 	char * path;
 	int cmd;
 	int uid;
 	caddr_t arg;
+};
+struct	oquota_args {
+	int dummy;
 };
 #ifdef NFS
 struct	nfssvc_args {
@@ -557,11 +609,11 @@ struct	fpathconf_args {
 };
 struct	__getrlimit_args {
 	u_int which;
-	struct ogetrlimit * rlp;
+	struct orlimit * rlp;
 };
 struct	__setrlimit_args {
 	u_int which;
-	struct ogetrlimit * rlp;
+	struct orlimit * rlp;
 };
 struct	getdirentries_args {
 	int fd;
@@ -610,9 +662,9 @@ struct	munlock_args {
 	caddr_t addr;
 	size_t len;
 };
-int	nosys __P((struct proc *, struct args *, int []));
+int	nosys __P((struct proc *, struct nosys_args *, int []));
 __dead void	exit __P((struct proc *, struct rexit_args *, int []));
-int	fork __P((struct proc *, struct args *, int []));
+int	fork __P((struct proc *, struct fork_args *, int []));
 int	read __P((struct proc *, struct read_args *, int []));
 int	write __P((struct proc *, struct write_args *, int []));
 int	open __P((struct proc *, struct open_args *, int []));
@@ -627,12 +679,12 @@ int	chmod __P((struct proc *, struct chmod_args *, int []));
 int	chown __P((struct proc *, struct chown_args *, int []));
 int	obreak __P((struct proc *, struct obreak_args *, int []));
 int	getfsstat __P((struct proc *, struct getfsstat_args *, int []));
-int	getpid __P((struct proc *, struct args *, int []));
+int	getpid __P((struct proc *, struct getpid_args *, int []));
 int	mount __P((struct proc *, struct mount_args *, int []));
 int	unmount __P((struct proc *, struct unmount_args *, int []));
 int	setuid __P((struct proc *, struct setuid_args *, int []));
-int	getuid __P((struct proc *, struct args *, int []));
-int	geteuid __P((struct proc *, struct args *, int []));
+int	getuid __P((struct proc *, struct getuid_args *, int []));
+int	geteuid __P((struct proc *, struct geteuid_args *, int []));
 int	ptrace __P((struct proc *, struct ptrace_args *, int []));
 int	recvmsg __P((struct proc *, struct recvmsg_args *, int []));
 int	sendmsg __P((struct proc *, struct sendmsg_args *, int []));
@@ -643,24 +695,24 @@ int	getsockname __P((struct proc *, struct getsockname_args *, int []));
 int	access __P((struct proc *, struct access_args *, int []));
 int	chflags __P((struct proc *, struct chflags_args *, int []));
 int	fchflags __P((struct proc *, struct fchflags_args *, int []));
-int	sync __P((struct proc *, struct args *, int []));
+int	sync __P((struct proc *, struct sync_args *, int []));
 int	kill __P((struct proc *, struct kill_args *, int []));
-int	getppid __P((struct proc *, struct args *, int []));
+int	getppid __P((struct proc *, struct getppid_args *, int []));
 int	dup __P((struct proc *, struct dup_args *, int []));
-int	pipe __P((struct proc *, struct args *, int []));
-int	getegid __P((struct proc *, struct args *, int []));
+int	pipe __P((struct proc *, struct pipe_args *, int []));
+int	getegid __P((struct proc *, struct getegid_args *, int []));
 int	profil __P((struct proc *, struct profil_args *, int []));
 #ifdef KTRACE
 int	ktrace __P((struct proc *, struct ktrace_args *, int []));
 #else
 #endif
 int	sigaction __P((struct proc *, struct sigaction_args *, int []));
-int	getgid __P((struct proc *, struct args *, int []));
+int	getgid __P((struct proc *, struct getgid_args *, int []));
 int	sigprocmask __P((struct proc *, struct sigprocmask_args *, int []));
 int	getlogin __P((struct proc *, struct getlogin_args *, int []));
 int	setlogin __P((struct proc *, struct setlogin_args *, int []));
 int	acct __P((struct proc *, struct acct_args *, int []));
-int	sigpending __P((struct proc *, struct args *, int []));
+int	sigpending __P((struct proc *, struct sigpending_args *, int []));
 int	sigaltstack __P((struct proc *, struct sigaltstack_args *, int []));
 int	ioctl __P((struct proc *, struct ioctl_args *, int []));
 int	reboot __P((struct proc *, struct reboot_args *, int []));
@@ -671,7 +723,7 @@ int	execve __P((struct proc *, struct execve_args *, int []));
 mode_t	umask __P((struct proc *, struct umask_args *, int []));
 int	chroot __P((struct proc *, struct chroot_args *, int []));
 int	msync __P((struct proc *, struct msync_args *, int []));
-int	vfork __P((struct proc *, struct args *, int []));
+int	vfork __P((struct proc *, struct fork_args *, int []));
 int	sbrk __P((struct proc *, struct sbrk_args *, int []));
 int	sstk __P((struct proc *, struct sstk_args *, int []));
 int	ovadvise __P((struct proc *, struct ovadvise_args *, int []));
@@ -681,12 +733,12 @@ int	madvise __P((struct proc *, struct madvise_args *, int []));
 int	mincore __P((struct proc *, struct mincore_args *, int []));
 int	getgroups __P((struct proc *, struct getgroups_args *, int []));
 int	setgroups __P((struct proc *, struct setgroups_args *, int []));
-int	getpgrp __P((struct proc *, struct args *, int []));
+int	getpgrp __P((struct proc *, struct getpgrp_args *, int []));
 int	setpgid __P((struct proc *, struct setpgid_args *, int []));
 int	setitimer __P((struct proc *, struct setitimer_args *, int []));
 int	swapon __P((struct proc *, struct swapon_args *, int []));
 int	getitimer __P((struct proc *, struct getitimer_args *, int []));
-int	getdtablesize __P((struct proc *, struct args *, int []));
+int	getdtablesize __P((struct proc *, struct getdtablesize_args *, int []));
 int	dup2 __P((struct proc *, struct dup2_args *, int []));
 int	fcntl __P((struct proc *, struct fcntl_args *, int []));
 int	select __P((struct proc *, struct select_args *, int []));
@@ -720,7 +772,7 @@ int	mkdir __P((struct proc *, struct mkdir_args *, int []));
 int	rmdir __P((struct proc *, struct rmdir_args *, int []));
 int	utimes __P((struct proc *, struct utimes_args *, int []));
 int	adjtime __P((struct proc *, struct adjtime_args *, int []));
-int	setsid __P((struct proc *, struct args *, int []));
+int	setsid __P((struct proc *, struct setsid_args *, int []));
 int	quotactl __P((struct proc *, struct quotactl_args *, int []));
 #ifdef NFS
 int	nfssvc __P((struct proc *, struct nfssvc_args *, int []));
@@ -775,7 +827,7 @@ int	ftruncate __P((struct proc *, struct ftruncate_args *, int []));
 int	__sysctl __P((struct proc *, struct sysctl_args *, int []));
 int	mlock __P((struct proc *, struct mlock_args *, int []));
 int	munlock __P((struct proc *, struct munlock_args *, int []));
-int	lkmnosys __P((struct proc *, struct args *, int []));
+int	lkmnosys __P((struct proc *, struct nosys_args *, int []));
 
 #ifdef COMPAT_43
 
@@ -803,7 +855,7 @@ struct	ofstat_args {
 	int fd;
 	struct ostat * sb;
 };
-struct	ogetkerninfo_args {
+struct	getkerninfo_args {
 	int op;
 	char * where;
 	int * size;
@@ -817,18 +869,13 @@ struct	ommap_args {
 	int fd;
 	long pos;
 };
-struct	ogethostname_args {
+struct	gethostname_args {
 	char * hostname;
 	u_int len;
 };
-struct	osethostname_args {
+struct	sethostname_args {
 	char * hostname;
 	u_int len;
-};
-struct	oaccept_args {
-	int s;
-	caddr_t name;
-	int * anamelen;
 };
 struct	osend_args {
 	int s;
@@ -867,14 +914,6 @@ struct	osendmsg_args {
 	caddr_t msg;
 	int flags;
 };
-struct	orecvfrom_args {
-	int s;
-	caddr_t buf;
-	size_t len;
-	int flags;
-	caddr_t from;
-	int * fromlenaddr;
-};
 struct	otruncate_args {
 	char * path;
 	long length;
@@ -902,11 +941,6 @@ struct	osetrlimit_args {
 struct	okillpg_args {
 	int pgid;
 	int signum;
-};
-struct	ogetsockname_args {
-	int fdec;
-	caddr_t asa;
-	int * alen;
 };
 #ifdef NFS
 #else
@@ -937,13 +971,13 @@ int	olseek __P((struct proc *, struct olseek_args *, int []));
 int	ostat __P((struct proc *, struct ostat_args *, int []));
 int	olstat __P((struct proc *, struct olstat_args *, int []));
 int	ofstat __P((struct proc *, struct ofstat_args *, int []));
-int	ogetkerninfo __P((struct proc *, struct ogetkerninfo_args *, int []));
-int	ogetpagesize __P((struct proc *, struct args *, int []));
+int	ogetkerninfo __P((struct proc *, struct getkerninfo_args *, int []));
+int	ogetpagesize __P((struct proc *, struct getpagesize_args *, int []));
 int	ommap __P((struct proc *, struct ommap_args *, int []));
-int	owait __P((struct proc *, struct args *, int []));
-int	ogethostname __P((struct proc *, struct ogethostname_args *, int []));
-int	osethostname __P((struct proc *, struct osethostname_args *, int []));
-int	oaccept __P((struct proc *, struct oaccept_args *, int []));
+int	owait __P((struct proc *, struct owait_args *, int []));
+int	ogethostname __P((struct proc *, struct gethostname_args *, int []));
+int	osethostname __P((struct proc *, struct sethostname_args *, int []));
+int	oaccept __P((struct proc *, struct accept_args *, int []));
 int	osend __P((struct proc *, struct osend_args *, int []));
 int	orecv __P((struct proc *, struct orecv_args *, int []));
 int	osigvec __P((struct proc *, struct osigvec_args *, int []));
@@ -952,17 +986,17 @@ int	osigsetmask __P((struct proc *, struct osigsetmask_args *, int []));
 int	osigstack __P((struct proc *, struct osigstack_args *, int []));
 int	orecvmsg __P((struct proc *, struct orecvmsg_args *, int []));
 int	osendmsg __P((struct proc *, struct osendmsg_args *, int []));
-int	orecvfrom __P((struct proc *, struct orecvfrom_args *, int []));
+int	orecvfrom __P((struct proc *, struct recvfrom_args *, int []));
 int	otruncate __P((struct proc *, struct otruncate_args *, int []));
 int	oftruncate __P((struct proc *, struct oftruncate_args *, int []));
 int	ogetpeername __P((struct proc *, struct ogetpeername_args *, int []));
-int	ogethostid __P((struct proc *, struct args *, int []));
+int	ogethostid __P((struct proc *, struct ogethostid_args *, int []));
 int	osethostid __P((struct proc *, struct osethostid_args *, int []));
 int	ogetrlimit __P((struct proc *, struct ogetrlimit_args *, int []));
 int	osetrlimit __P((struct proc *, struct osetrlimit_args *, int []));
 int	okillpg __P((struct proc *, struct okillpg_args *, int []));
-int	oquota __P((struct proc *, struct args *, int []));
-int	ogetsockname __P((struct proc *, struct ogetsockname_args *, int []));
+int	oquota __P((struct proc *, struct oquota_args *, int []));
+int	ogetsockname __P((struct proc *, struct getsockname_args *, int []));
 int	ogetdirentries __P((struct proc *, struct ogetdirentries_args *, int []));
 
 #endif /* COMPAT_43 */
