@@ -83,6 +83,16 @@ recognizes a number of environment variables that can be used to modify
 its behaviour as follows:
 .Pp
 .Bl -tag -width ".Ev LD_LIBMAP_DISABLE"
+.It Ev LD_DUMP_REL_POST
+If set
+.Nm
+will print (to stderr) a table containing all relocations after symbol
+binding and relocation.
+.It Ev LD_DUMP_REL_PRE
+If set
+.Nm
+will print (to stderr) a table containing all relocations before symbol
+binding and relocation.
 .It Ev LD_LIBMAP_DISABLE
 If set, disables the use of
 .Xr libmap.conf 5 .
