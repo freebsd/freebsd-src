@@ -40,7 +40,7 @@
 .Nm sema_value
 .Nd kernel counting semaphore
 .Sh SYNOPSIS
-.Fd #include <sys/sema.h>
+.In sys/sema.h
 .Ft void
 .Fn sema_init "struct sema *sema" "int value" "const char *description"
 .Ft void
@@ -69,18 +69,18 @@ equal to zero.
 Semaphores should not be used where mutexes and condition variables
 will suffice.
 Semaphores are a more complex synchronization mechanism than mutexes and
-condition variables and are not as efficient.
+condition variables, and are not as efficient.
 .Pp
 Semaphores are created with
 .Fn sema_init ,
 where
 .Fa sema
 is a pointer to space for a
-.Vt struct sema ,
+.Vt "struct sema" ,
 .Fa value
 is the initial value of the semaphore, and
 .Fa description
-is a pointer toa null-terminated character string that describes the semaphore.
+is a pointer to a null-terminated character string that describes the semaphore.
 Semaphores are destroyed with
 .Fn sema_destroy .
 A semaphore is posted (incremented) with
@@ -104,5 +104,5 @@ and
 will return 0 if waiting on the semaphore failed; otherwise a non-zero value
 will be returned to indicate success.
 .Sh SEE ALSO
+.Xr condvar 9 ,
 .Xr mutex 9
-.Xr condvar 9
