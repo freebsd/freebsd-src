@@ -34,7 +34,7 @@
 .\"
 .Sh NAME
 .Nm setkey
-.Nd manually manipulate the IPsec SA/SP database
+.Nd "manually manipulate the IPsec SA/SP database"
 .\"
 .Sh SYNOPSIS
 .Nm
@@ -56,24 +56,20 @@
 .Sh DESCRIPTION
 The
 .Nm
-command adds, updates, dumps, or flushes
+utility adds, updates, dumps, or flushes
 Security Association Database (SAD) entries
 as well as Security Policy Database (SPD) entries in the kernel.
 .Pp
 The
 .Nm
-command takes a series of operations from the standard input
-.Po
-if invoked with
-.Fl c
-.Pc
+utility takes a series of operations from the standard input
+(if invoked with
+.Fl c )
 or the file named
 .Ar filename
-.Po
-if invoked with
-.Fl f Ar filename
-.Pc .
-.Bl -tag -width Ds
+(if invoked with
+.Fl f Ar filename ) .
+.Bl -tag -width indent
 .It Fl D
 Dump the SAD entries.
 If with
@@ -85,7 +81,9 @@ If with
 .Fl P ,
 the SPD entries are flushed.
 .It Fl a
+The
 .Nm
+utility
 usually does not display dead SAD entries with
 .Fl D .
 If with
@@ -121,8 +119,10 @@ or
 on the command line,
 .Nm
 accepts the following configuration syntax.
-Lines starting with hash signs ('#') are treated as comment lines.
-.Bl -tag -width Ds
+Lines starting with hash signs
+.Pq Ql #
+are treated as comment lines.
+.Bl -tag -width indent
 .It Xo
 .Li add
 .Op Fl 46n
@@ -214,12 +214,14 @@ on the command line achieves the same functionality.
 .Pp
 Meta-arguments are as follows:
 .Pp
-.Bl -tag -compact -width Ds
+.Bl -tag -compact -width indent
 .It Ar src
 .It Ar dst
 Source/destination of the secure communication is specified as
 IPv4/v6 address.
+The
 .Nm
+utility
 can resolve a FQDN into numeric addresses.
 If the FQDN resolves into multiple addresses,
 .Nm
@@ -259,11 +261,11 @@ TCP-MD5 based on rfc2385
 .Pp
 .It Ar spi
 Security Parameter Index
-.Pq SPI
+(SPI)
 for the SAD and the SPD.
 .Ar spi
 must be a decimal number, or a hexadecimal number with
-.Dq Li 0x
+.Ql 0x
 prefix.
 SPI values between 0 and 255 are reserved for future use by IANA
 and they cannot be used.
@@ -291,7 +293,7 @@ Specify window size of bytes for replay prevention.
 must be decimal number in 32-bit word.
 If
 .Ar size
-is zero or not specified, replay check don't take place.
+is zero or not specified, replay check does not take place.
 .\"
 .It Fl u Ar id
 Specify the identifier of the policy entry in SPD.
@@ -312,7 +314,7 @@ A series of sequential increasing numbers started from 1 are set.
 .El
 .\"
 .It Fl f Li nocyclic-seq
-Don't allow cyclic sequence number.
+Do not allow cyclic sequence number.
 .\"
 .It Fl lh Ar time
 .It Fl ls Ar time
@@ -344,7 +346,7 @@ If
 is specified,
 .Ar spi
 field value will be used as the IPComp CPI
-.Pq compression parameter index
+(compression parameter index)
 on wire as is.
 If
 .Fl R
@@ -357,7 +359,7 @@ field will be used only as an index for kernel internal usage.
 .Ar key
 must be double-quoted character string, or a series of hexadecimal digits
 preceded by
-.Dq Li 0x .
+.Ql 0x .
 .Pp
 Possible values for
 .Ar ealgo ,
@@ -412,23 +414,24 @@ stands for
 .Dq any protocol .
 Also you can use the protocol number.
 You can specify a type and/or a code of ICMPv6 when
-Upper-layer protocol is ICMPv6.
-the specification can be placed after
+upper-layer protocol is ICMPv6.
+The specification can be placed after
 .Li icmp6 .
 A type is separated with a code by single comma.
 A code must be specified anytime.
 When a zero is specified, the kernel deals with it as a wildcard.
-Note that the kernel can not distinguish a wildcard from that a type
+Note that the kernel cannot distinguish a wildcard from that a type
 of ICMPv6 is zero.
-For example, the following means the policy doesn't require IPsec
-for any inbound Neighbor Solicitation.
-.Dl spdadd ::/0 ::/0 icmp6 135,0 -P in none ;
+For example, the following means the policy does not require IPsec
+for any inbound Neighbor Solicitation:
+.Pp
+.Dl "spdadd ::/0 ::/0 icmp6 135,0 -P in none;"
 .Pp
 NOTE:
 .Ar upperspec
 does not work against forwarding case at this moment,
 as it requires extra reassembly at forwarding node
-.Pq not implemented at this moment .
+(not implemented at this moment).
 We have many protocols in
 .Pa /etc/protocols ,
 but protocols except of TCP, UDP and ICMP may not be suitable to use with IPsec.
@@ -438,7 +441,7 @@ You have to consider and be careful to use them.
 .It Ar policy
 .Ar policy
 is the one of the following three formats:
-.Bd -literal -offset indent
+.Bd -ragged -offset indent
 .It Fl P Ar direction Li discard
 .It Fl P Ar direction Li none
 .It Xo Fl P Ar direction Li ipsec
@@ -503,11 +506,11 @@ If the SA is not available in every level, the kernel will request
 getting SA to the key exchange daemon.
 .Li default
 means the kernel consults to the system wide default against protocol you
-specified, e.g.
+specified, e.g.,
 .Li esp_trans_deflev
 sysctl variable, when the kernel processes the packet.
 .Li use
-means that the kernel use a SA if it's available,
+means that the kernel use a SA if it is available,
 otherwise the kernel keeps normal operation.
 .Li require
 means SA is required whenever the kernel sends a packet matched
@@ -523,10 +526,10 @@ If you configure the SA by manual keying for that policy,
 you can put the decimal number as the policy identifier after
 .Li unique
 separated by colon
-.Sq \&:
+.Ql :\&
 like the following;
 .Li unique:number .
-in order to bind this policy to the SA.
+In order to bind this policy to the SA,
 .Li number
 must be between 1 and 32767.
 It corresponds to
@@ -630,8 +633,8 @@ algorithm	comment
 deflate		rfc2394
 .Ed
 .\"
-.Sh RETURN VALUES
-The command exits with 0 on success, and non-zero on errors.
+.Sh DIAGNOSTICS
+.Ex -std
 .\"
 .Sh EXAMPLES
 .Bd -literal -offset
@@ -671,11 +674,13 @@ add 10.1.10.34 10.1.10.36 tcp 0x1000 -A tcp-md5 "TCP-MD5 BGP secret" ;
 .Sh HISTORY
 The
 .Nm
-command first appeared in WIDE Hydrangea IPv6 protocol stack kit.
-The command was completely re-designed in June 1998.
+utility first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+The utility was completely re-designed in June 1998.
 .\"
 .Sh BUGS
+The
 .Nm
+utility
 should report and handle syntax errors better.
 .Pp
 For IPsec gateway configuration,
@@ -684,4 +689,4 @@ and
 .Ar dst_range
 with TCP/UDP port number do not work, as the gateway does not reassemble
 packets
-.Pq cannot inspect upper-layer headers .
+(cannot inspect upper-layer headers).
