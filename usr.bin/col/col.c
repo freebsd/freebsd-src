@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)col.c	8.3 (Berkeley) 4/2/94";
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <locale.h>
 
 #define	BS	'\b'		/* backspace */
 #define	TAB	'\t'		/* tab */
@@ -127,6 +128,8 @@ main(argc, argv)
 	int this_line;			/* line l points to */
 	int nflushd_lines;		/* number of lines that were flushed */
 	int adjust, opt, warned;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	max_bufd_lines = 128;
 	compress_spaces = 1;		/* compress spaces into tabs */
