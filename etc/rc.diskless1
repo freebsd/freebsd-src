@@ -61,7 +61,7 @@ chkerr() {
 mount_md() {
 	/sbin/mdconfig -a -t malloc -s $1 -u $3
 	/sbin/disklabel -r -w md$3 auto
-	/sbin/newfs /dev/md$3c
+	/sbin/newfs -i 4096 /dev/md$3c
 	/sbin/mount /dev/md$3c $2
 }
 
