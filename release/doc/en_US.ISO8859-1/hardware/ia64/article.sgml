@@ -20,6 +20,13 @@
 
 <article>
   &artheader;
+
+  <abstract>
+    <para>This document is in a very preliminary state.  It is
+      incomplete, and is almost certainly not be an accurate
+      reflection of reality.</para>
+  </abstract>
+
   &sect.intro;
   &sect.proc.ia64;
   &sect.dev;
