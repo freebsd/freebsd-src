@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.13 1995/03/30 00:05:58 ache Exp $
+#	$Id: Makefile,v 1.13.4.1 1995/10/13 09:03:49 jfieber Exp $
 #
 # Doing a make install builds /usr/share/examples
 
-DIRS=etc FreeBSD_version ibcs2 lkm sunrpc sup
+DIRS=etc FreeBSD_version ibcs2 lkm startslip sunrpc sup
 
 DDIR=${DESTDIR}/usr/share/examples
 
