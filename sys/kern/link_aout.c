@@ -29,6 +29,7 @@
 #ifdef __i386__
 
 #define FREEBSD_AOUT	1
+#define _AOUT_INCLUDE_	1
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -37,9 +38,10 @@
 #include <sys/proc.h>
 #include <sys/namei.h>
 #include <sys/fcntl.h>
+#include <sys/imgact_aout.h>
 #include <sys/vnode.h>
 #include <sys/linker.h>
-
+#include <machine/reloc.h>
 
 #include "linker_if.h"
 
@@ -49,8 +51,8 @@
 #include <machine/vmparam.h>
 #endif
 
-#include <a.out.h>
-#include <link.h>
+#include <sys/nlist_aout.h>
+#include <sys/link_aout.h>
 
 typedef struct aout_file {
     struct linker_file	lf;		/* Common fields */
