@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wb.c,v 1.6.2.2 1999/05/13 21:19:31 wpaul Exp $
+ *	$Id: if_wb.c,v 1.13 1999/07/11 00:56:07 wpaul Exp $
  */
 
 /*
@@ -114,6 +114,9 @@
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -126,7 +129,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_wb.c,v 1.6.2.2 1999/05/13 21:19:31 wpaul Exp $";
+	"$Id: if_wb.c,v 1.13 1999/07/11 00:56:07 wpaul Exp $";
 #endif
 
 /*
@@ -156,9 +159,9 @@ static struct wb_type wb_phys[] = {
 	{ 0, 0, "<MII-compliant physical interface>" }
 };
 
-static unsigned long wb_count = 0;
-static const char *wb_probe	__P((pcici_t, pcidi_t));
-static void wb_attach		__P((pcici_t, int));
+static int wb_probe		__P((device_t));
+static int wb_attach		__P((device_t));
+static int wb_detach		__P((device_t));
 
 static int wb_newbuf		__P((struct wb_softc *,
 					struct wb_chain_onefrag *,
@@ -176,7 +179,7 @@ static int wb_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void wb_init		__P((void *));
 static void wb_stop		__P((struct wb_softc *));
 static void wb_watchdog		__P((struct ifnet *));
-static void wb_shutdown		__P((int, void *));
+static void wb_shutdown		__P((device_t));
 static int wb_ifmedia_upd	__P((struct ifnet *));
 static void wb_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -201,6 +204,33 @@ static void wb_setmulti		__P((struct wb_softc *));
 static void wb_reset		__P((struct wb_softc *));
 static int wb_list_rx_init	__P((struct wb_softc *));
 static int wb_list_tx_init	__P((struct wb_softc *));
+
+#ifdef WB_USEIOSPACE
+#define WB_RES			SYS_RES_IOPORT
+#define WB_RID			WB_PCI_LOIO
+#else
+#define WB_RES			SYS_RES_MEMORY
+#define WB_RID			WB_PCI_LOMEM
+#endif
+
+static device_method_t wb_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		wb_probe),
+	DEVMETHOD(device_attach,	wb_attach),
+	DEVMETHOD(device_detach,	wb_detach),
+	DEVMETHOD(device_shutdown,	wb_shutdown),
+	{ 0, 0 }
+};
+
+static driver_t wb_driver = {
+	"wb",
+	wb_methods,
+	sizeof(struct wb_softc)
+};
+
+static devclass_t wb_devclass;
+
+DRIVER_MODULE(wb, pci, wb_driver, wb_devclass, 0, 0);
 
 #define WB_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
@@ -1001,39 +1031,33 @@ static void wb_reset(sc)
  * Probe for a Winbond chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static const char *
-wb_probe(config_id, device_id)
-	pcici_t			config_id;
-	pcidi_t			device_id;
+static int wb_probe(dev)
+	device_t		dev;
 {
 	struct wb_type		*t;
 
 	t = wb_devs;
 
 	while(t->wb_name != NULL) {
-		if ((device_id & 0xFFFF) == t->wb_vid &&
-		    ((device_id >> 16) & 0xFFFF) == t->wb_did) {
-			return(t->wb_name);
+		if ((pci_get_vendor(dev) == t->wb_vid) &&
+		    (pci_get_device(dev) == t->wb_did)) {
+			device_set_desc(dev, t->wb_name);
+			return(0);
 		}
 		t++;
 	}
 
-	return(NULL);
+	return(ENXIO);
 }
 
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static void
-wb_attach(config_id, unit)
-	pcici_t			config_id;
-	int			unit;
+static int wb_attach(dev)
+	device_t		dev;
 {
 	int			s, i;
-#ifndef WB_USEIOSPACE
-	vm_offset_t		pbase, vbase;
-#endif
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct wb_softc		*sc;
@@ -1043,96 +1067,100 @@ wb_attach(config_id, unit)
 	caddr_t			roundptr;
 	struct wb_type		*p;
 	u_int16_t		phy_vid, phy_did, phy_sts;
+	int			unit, error = 0, rid;
 
 	s = splimp();
 
-	sc = malloc(sizeof(struct wb_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL) {
-		printf("wb%d: no memory for softc struct!\n", unit);
-		return;
-	}
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct wb_softc));
 
 	/*
 	 * Handle power management nonsense.
 	 */
 
-	command = pci_conf_read(config_id, WB_PCI_CAPID) & 0x000000FF;
+	command = pci_read_config(dev, WB_PCI_CAPID, 4) & 0x000000FF;
 	if (command == 0x01) {
 
-		command = pci_conf_read(config_id, WB_PCI_PWRMGMTCTRL);
+		command = pci_read_config(dev, WB_PCI_PWRMGMTCTRL, 4);
 		if (command & WB_PSTATE_MASK) {
 			u_int32_t		iobase, membase, irq;
 
 			/* Save important PCI config data. */
-			iobase = pci_conf_read(config_id, WB_PCI_LOIO);
-			membase = pci_conf_read(config_id, WB_PCI_LOMEM);
-			irq = pci_conf_read(config_id, WB_PCI_INTLINE);
+			iobase = pci_read_config(dev, WB_PCI_LOIO, 4);
+			membase = pci_read_config(dev, WB_PCI_LOMEM, 4);
+			irq = pci_read_config(dev, WB_PCI_INTLINE, 4);
 
 			/* Reset the power state. */
 			printf("wb%d: chip is in D%d power mode "
 			"-- setting to D0\n", unit, command & WB_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
-			pci_conf_write(config_id, WB_PCI_PWRMGMTCTRL, command);
+			pci_write_config(dev, WB_PCI_PWRMGMTCTRL, command, 4);
 
 			/* Restore PCI config data. */
-			pci_conf_write(config_id, WB_PCI_LOIO, iobase);
-			pci_conf_write(config_id, WB_PCI_LOMEM, membase);
-			pci_conf_write(config_id, WB_PCI_INTLINE, irq);
+			pci_write_config(dev, WB_PCI_LOIO, iobase, 4);
+			pci_write_config(dev, WB_PCI_LOMEM, membase, 4);
+			pci_write_config(dev, WB_PCI_INTLINE, irq, 4);
 		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 
 #ifdef WB_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("wb%d: failed to enable I/O ports!\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
-
-	if (!pci_map_port(config_id, WB_PCI_LOIO,
-			(pci_port_t *)&(sc->wb_bhandle))) {
-		printf ("wb%d: couldn't map ports\n", unit);
-		goto fail;
-	}
-#ifdef __i386__
-	sc->wb_btag = I386_BUS_SPACE_IO;
-#endif
-#ifdef __alpha__
-	sc->wb_btag = ALPHA_BUS_SPACE_IO;
-#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("wb%d: failed to enable memory mapping!\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+#endif
+
+	rid = WB_RID;
+	sc->wb_res = bus_alloc_resource(dev, WB_RES, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+
+	if (sc->wb_res == NULL) {
+		printf("wb%d: couldn't map ports/memory\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_mem(config_id, WB_PCI_LOMEM, &vbase, &pbase)) {
-		printf ("wb%d: couldn't map memory\n", unit);
-		goto fail;
-	}
-#ifdef __i386__
-	sc->wb_btag = I386_BUS_SPACE_MEM;
-#endif
-#ifdef __alpha__
-	sc->wb_btag = I386_BUS_SPACE_MEM;
-#endif
-	sc->wb_bhandle = vbase;
-#endif
+	sc->wb_btag = rman_get_bustag(sc->wb_res);
+	sc->wb_bhandle = rman_get_bushandle(sc->wb_res);
 
 	/* Allocate interrupt */
-	if (!pci_map_int(config_id, wb_intr, sc, &net_imask)) {
+	rid = 0;
+	sc->wb_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->wb_irq == NULL) {
 		printf("wb%d: couldn't map interrupt\n", unit);
+		bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
+		error = ENXIO;
 		goto fail;
 	}
 
+	error = bus_setup_intr(dev, sc->wb_irq, INTR_TYPE_NET,
+	    wb_intr, sc, &sc->wb_intrhand);
+
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
+		bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
+		printf("wb%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
+	
 	/* Reset the adapter. */
 	wb_reset(sc);
 
@@ -1152,9 +1180,12 @@ wb_attach(config_id, unit)
 	sc->wb_ldata_ptr = malloc(sizeof(struct wb_list_data) + 8,
 				M_DEVBUF, M_NOWAIT);
 	if (sc->wb_ldata_ptr == NULL) {
-		free(sc, M_DEVBUF);
 		printf("wb%d: no memory for list buffers!\n", unit);
-		return;
+		bus_teardown_intr(dev, sc->wb_irq, sc->wb_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
+		bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
+		error = ENXIO;
+		goto fail;
 	}
 
 	sc->wb_ldata = (struct wb_list_data *)sc->wb_ldata_ptr;
@@ -1223,6 +1254,11 @@ wb_attach(config_id, unit)
 				sc->wb_unit, sc->wb_pinfo->wb_name);
 	} else {
 		printf("wb%d: MII without any phy!\n", sc->wb_unit);
+		bus_teardown_intr(dev, sc->wb_irq, sc->wb_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
+		bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
+		free(sc->wb_ldata_ptr, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1232,9 +1268,14 @@ wb_attach(config_id, unit)
 	ifmedia_init(&sc->ifmedia, 0, wb_ifmedia_upd, wb_ifmedia_sts);
 
 	wb_getmode_mii(sc);
-	wb_autoneg_mii(sc, WB_FLAG_FORCEDELAY, 1);
+	if (cold) {
+		wb_autoneg_mii(sc, WB_FLAG_FORCEDELAY, 1);
+		wb_stop(sc);
+	} else {
+		wb_init(sc);
+		wb_autoneg_mii(sc, WB_FLAG_SCHEDDELAY, 1);
+	}
 	media = sc->ifmedia.ifm_media;
-	wb_stop(sc);
 
 	ifmedia_set(&sc->ifmedia, media);
 
@@ -1247,11 +1288,37 @@ wb_attach(config_id, unit)
 #if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-	at_shutdown(wb_shutdown, sc, SHUTDOWN_POST_SYNC);
 
 fail:
 	splx(s);
-	return;
+	return(error);
+}
+
+static int wb_detach(dev)
+	device_t		dev;
+{
+	struct wb_softc		*sc;
+	struct ifnet		*ifp;
+	int			s;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	wb_stop(sc);
+	if_detach(ifp);
+
+	bus_teardown_intr(dev, sc->wb_irq, sc->wb_intrhand);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->wb_irq);
+	bus_release_resource(dev, WB_RES, WB_RID, sc->wb_res);
+
+	free(sc->wb_ldata_ptr, M_DEVBUF);
+	ifmedia_removeall(&sc->ifmedia);
+
+	splx(s);
+
+	return(0);
 }
 
 /*
@@ -2079,6 +2146,8 @@ static void wb_watchdog(ifp)
 
 	if (sc->wb_autoneg) {
 		wb_autoneg_mii(sc, WB_FLAG_DELAYTIMEO, 1);
+		if (!(ifp->if_flags & IFF_UP))
+			wb_stop(sc);
 		return;
 	}
 
@@ -2151,22 +2220,13 @@ static void wb_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void wb_shutdown(howto, arg)
-	int			howto;
-	void			*arg;
+static void wb_shutdown(dev)
+	device_t		dev;
 {
-	struct wb_softc		*sc = (struct wb_softc *)arg;
+	struct wb_softc		*sc;
 
+	sc = device_get_softc(dev);
 	wb_stop(sc);
 
 	return;
 }
-
-static struct pci_device wb_device = {
-	"wb",
-	wb_probe,
-	wb_attach,
-	&wb_count,
-	NULL
-};
-COMPAT_PCI_DRIVER(wb, wb_device);
