@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.21 1998/05/15 19:16:35 pb Exp $
+.\"	$Id: inetd.8,v 1.22 1998/06/10 12:34:25 phk Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -382,6 +382,10 @@ Except when started in debugging mode,
 records its process ID in the file
 .Pa /var/run/inetd.pid
 to assist in reconfiguration.
+.Pp
+Support is provided for tcp_wrappers; see the relevant documentation. The
+.Pa tcpd
+daemon is not required.
 .Sh TCPMUX
 .Pp
 .Tn RFC 1078 
@@ -521,7 +525,9 @@ socket but was unable to.
 .Xr rlogind 8 ,
 .Xr rshd 8 ,
 .Xr telnetd 8 ,
-.Xr tftpd 8
+.Xr tftpd 8 ,
+.Xr hosts_access 5 ,
+.Xr hosts_options 5
 .Sh HISTORY
 The
 .Nm
