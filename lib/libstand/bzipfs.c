@@ -32,7 +32,7 @@
 
 #include <sys/stat.h>
 #include <string.h>
-#include <bzlib.h>
+#include <_bzlib.h>
 
 #define BZ_BUFSIZE 2048	/* XXX larger? */
 
