@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: db_ps.c,v 1.2 1994/09/27 20:35:55 phk Exp $
+ *	$Id: db_ps.c,v 1.3 1994/09/28 19:16:24 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -46,7 +46,7 @@ db_ps() {
 	np = nprocs;
 	p = ap = allproc;
 
-	db_printf("  pid  proc    addr     uid     ppid  pgrp   flag stat comm         wchan\n");
+	db_printf("  pid   proc     addr    uid  ppid  pgrp  flag stat wmesg   wchan   cmd\n");
 	while (--np >= 0) {
 		/*
 		 * XXX just take 20 for now...
@@ -61,16 +61,10 @@ db_ps() {
 		if (pp == 0)
 			pp = p;
 		if (p->p_stat) {
-		    db_printf("%5d %06x %06x %3d %5d %5d  %06x  %d  %s   ",
-			   p->p_pid, ap, p->p_addr, p->p_cred->p_ruid, pp->p_pid, 
-			   p->p_pgrp->pg_id, p->p_flag, p->p_stat,
-			   p->p_comm);
-		    if (p->p_wchan) {
-			if (p->p_wmesg)
-			    db_printf("%s ", p->p_wmesg);
-			db_printf("%x", p->p_wchan);
-		    }
-		    db_printf("\n");
+			db_printf("%5d %06x %06x %4d %5d %5d %06x  %d  %6s %06x %s\n",
+			    p->p_pid, ap, p->p_addr, p->p_cred->p_ruid, pp->p_pid, 
+			    p->p_pgrp->pg_id, p->p_flag, p->p_stat, p->p_wmesg ?
+			    p->p_wmesg : "", p->p_wchan, p->p_comm);
 		}
 		ap = p->p_next;
 		if (ap == 0 && np > 0)
