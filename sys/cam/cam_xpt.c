@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.26 1998/11/04 19:56:24 ken Exp $
+ *      $Id: cam_xpt.c,v 1.27 1998/11/25 13:50:10 joerg Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -871,7 +871,7 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			union ccb ccb;
 
 			/*
-			 * This is an immedaite CCB, so it's okay to
+			 * This is an immediate CCB, so it's okay to
 			 * allocate it on the stack.
 			 */
 
@@ -3049,8 +3049,11 @@ xpt_action(union ccb *start_ccb)
 					    CAM_REQ_CMP) {
 				start_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 				cam_dflags = CAM_DEBUG_NONE;
-			} else
+			} else {
 				start_ccb->ccb_h.status = CAM_REQ_CMP;
+				xpt_print_path(cam_dpath);
+				printf("debugging flags now %x\n", cam_dflags);
+			}
 		} else {
 			cam_dpath = NULL;
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
@@ -3198,7 +3201,7 @@ xpt_schedule_dev(struct camq *queue, cam_pinfo *pinfo,
 	int retval;
 	u_int32_t old_priority;
 
-	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("xpt_schedule_dev\n"));
+	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_schedule_dev\n"));
 
 	old_priority = pinfo->priority;
 
@@ -3210,7 +3213,7 @@ xpt_schedule_dev(struct camq *queue, cam_pinfo *pinfo,
 		if (new_priority < old_priority) {
 			camq_change_priority(queue, pinfo->index,
 					     new_priority);
-			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+			CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
 					("changed priority to %d\n",
 					 new_priority));
 		}
@@ -3220,7 +3223,7 @@ xpt_schedule_dev(struct camq *queue, cam_pinfo *pinfo,
 		if (new_priority < old_priority)
 			pinfo->priority = new_priority;
 
-		CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
 				("Inserting onto queue\n"));
 		if (queue->generation++ == 0) {
 			/* Generation wrap, regen all entries */
@@ -3239,10 +3242,10 @@ xpt_run_dev_allocq(struct cam_eb *bus)
 	struct	cam_devq *devq;
 	int	s;
 
-	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("xpt_run_dev_allocq\n"));
+	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_dev_allocq\n"));
 	devq = bus->sim->devq;
 
-	CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+	CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
 			("   qfrozen_cnt == 0x%x, entries == %d, "
 			 "openings == %d, active == %d\n",
 			 devq->alloc_queue.qfrozen_cnt,
@@ -3265,7 +3268,7 @@ xpt_run_dev_allocq(struct cam_eb *bus)
 							   /*position*/0);
 		device = qinfo->device;
 
-		CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
 				("running device %p\n", device));
 
 		drvq = &device->drvq;
@@ -3290,7 +3293,7 @@ xpt_run_dev_allocq(struct cam_eb *bus)
 			splx(s);
 			xpt_setup_ccb(&work_ccb->ccb_h, drv->path,
 				      drv->pinfo.priority);
-			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+			CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
 					("calling periph start\n"));
 			drv->periph_start(drv, work_ccb);
 		} else {
@@ -3324,7 +3327,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 	struct	cam_devq *devq;
 	int	s;
 
-	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("xpt_run_dev_sendq\n"));
+	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_dev_sendq\n"));
 	
 	devq = bus->sim->devq;
 
@@ -3359,7 +3362,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 			continue;
 		}
 
-		CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
 				("running device %p\n", device));
 
 		work_ccb = cam_ccbq_peek_ccb(&device->ccbq, 0);
@@ -3732,7 +3735,7 @@ xpt_release_ccb(union ccb *free_ccb)
 	struct	 cam_ed *device;
 	struct	 cam_eb *bus;
 
-	CAM_DEBUG_PRINT(CAM_DEBUG_TRACE, ("xpt_release_ccb\n"));
+	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_release_ccb\n"));
 	path = free_ccb->ccb_h.path;
 	device = path->device;
 	bus = path->bus;
