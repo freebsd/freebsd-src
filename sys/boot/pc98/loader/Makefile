@@ -15,6 +15,10 @@ CFLAGS+=	-DPC98
 SRCS=		main.c conf.c pxe.c
 .PATH:		${.CURDIR}/../../i386/loader ${.CURDIR}/../../i386/libi386
 
+# Enable PXE TFTP or NFS support, not both.
+CFLAGS+=	-DLOADER_NFS_SUPPORT
+#CFLAGS+=	-DLOADER_TFTP_SUPPORT
+
 # Enable PnP and ISA-PnP code.
 HAVE_PNP=	yes
 HAVE_ISABUS=	yes
@@ -47,8 +51,8 @@ CFLAGS+=	-I${.CURDIR}/..
 
 # where to get libstand from
 LIBSTAND=	-lstand
-#LIBSTAND=	${.CURDIR}/../../../lib/libstand/libstand.a
-#CFLAGS+=	-I${.CURDIR}/../../../lib/libstand/
+#LIBSTAND=	${.CURDIR}/../../../../lib/libstand/libstand.a
+CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 # BTX components
 .if exists(${.OBJDIR}/../btx)
