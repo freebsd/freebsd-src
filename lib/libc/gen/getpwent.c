@@ -408,7 +408,7 @@ _local_getpw(rv, cb_data, ap)
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
 	}
-	if (rval == 0) {
+	if (rval == NS_SUCCESS) {
 		_pw_passwd.pw_fields &= ~_PWF_SOURCE;
 		_pw_passwd.pw_fields |= _PWF_FILES;
 	}
@@ -558,6 +558,8 @@ _nis_getpw(rv, cb_data, ap)
 		free(data);
 		if (__pwparse(&_pw_passwd, line))
 			return NS_UNAVAIL;
+		_pw_passwd.pw_fields &= ~_PWF_SOURCE;
+		_pw_passwd.pw_fields |= _PWF_NIS;
 		return NS_SUCCESS;
 	}
 
