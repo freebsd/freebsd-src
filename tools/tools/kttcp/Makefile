@@ -4,8 +4,8 @@ SHELL=	/bin/sh
 
 PROG=	kttcp
 SRCS=	kttcp.c
-BINDIR=	/usr/local/bin
-SYSDIR=	/usr/src/sys
+BINDIR?=/usr/local/bin
+SYSDIR?=/usr/src/sys
 
 CFLAGS	+= -I${SYSDIR} -Isys
 
