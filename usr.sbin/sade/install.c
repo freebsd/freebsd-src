@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.50 1995/05/24 01:27:10 jkh Exp $
+ * $Id: install.c,v 1.51 1995/05/24 09:00:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,7 +53,6 @@ Boolean SystemWasInstalled;
 static void	make_filesystems(void);
 static void	copy_self(void);
 static void	cpio_extract(void);
-static void	do_final_setup(void);
 
 static Disk *rootdisk;
 static Chunk *rootdev;
@@ -211,7 +210,6 @@ installFinal(void)
     configFstab();
     configSysconfig();
     configResolv();
-    do_final_setup();
     alreadyDone = TRUE;
     SystemWasInstalled = TRUE;
 }
@@ -267,8 +265,14 @@ make_filesystems(void)
 	    return;
 	}
     }
-    else
+    else {
 	msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
+	sprintf(dname, "/dev/r%sa", rootdisk->name);
+	msgNotify("Checking integrity of existing %s filesystem", dname);
+	i = vsystem("fsck -y %s", dname);
+	if (i)
+	    msgConfirm("Warning: fsck returned status off %d - this partition may be\nunsafe to use.", i);
+    }
     sprintf(dname, "/dev/%sa", rootdisk->name);
     if (Mount("/mnt", dname)) {
 	msgConfirm("Unable to mount the root file system!  Giving up.");
@@ -307,6 +311,8 @@ make_filesystems(void)
 
 			if (tmp->newfs)
 			    command_shell_add(tmp->mountpoint, "%s /mnt/dev/r%s", tmp->newfs_cmd, c2->name);
+			else
+			    command_shell_add(tmp->mountpoint, "fsck -y /mnt/dev/r%s", c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
 		    else if (c2->type == part && c2->subtype == FS_SWAP) {
@@ -321,6 +327,13 @@ make_filesystems(void)
 			    msgConfirm("Unable to add %s as a swap device: %s", fname, strerror(errno));
 		    }
 		}
+	    }
+	    else if (c1->type == fat) {
+		PartInfo *tmp = (PartInfo *)c1->private;
+
+		if (!tmp)
+		    continue;
+		command_func_add(tmp->mountpoint, Mount, c1->name);
 	    }
 	}
     }
@@ -338,6 +351,24 @@ copy_self(void)
     i = vsystem("find -x /stand | cpio -pdmv /mnt");
     if (i)
 	msgConfirm("Copy returned error status of %d!", i);
+}
+
+static Device *floppyDev;
+
+static int
+floppyChoiceHook(char *str)
+{
+    Device **devs;
+
+    /* Clip garbage off the ends */
+    string_prune(str);
+    str = string_skipwhite(str);
+    if (!*str)
+	return 0;
+    devs = deviceFind(str, DEVICE_TYPE_FLOPPY);
+    if (devs)
+	floppyDev = devs[0];
+    return devs ? 1 : 0;
 }
 
 static void
@@ -360,8 +391,29 @@ cpio_extract(void)
 
  tryagain:
     while (CpioFD == -1) {
-	msgConfirm("Please Insert CPIO floppy in floppy drive 0");
-	CpioFD = open("/dev/rfd0", O_RDONLY);
+	if (!floppyDev) {
+	    Device **devs;
+	    int cnt;
+
+	    devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
+	    cnt = deviceCount(devs);
+	    if (cnt == 1)
+		floppyDev = devs[0];
+	    else if (cnt > 1) {
+		DMenu *menu;
+
+		menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyChoiceHook);
+		dmenuOpenSimple(menu);
+	    }
+	    else {
+		msgConfirm("No floppy devices found!  Something is seriously wrong!");
+		return;
+	    }
+	    if (!floppyDev)
+		continue;
+	}
+	msgConfirm("Please Insert CPIO floppy in %s", floppyDev->description);
+	CpioFD = open(floppyDev->devname, O_RDONLY);
 	if (CpioFD >= 0)
 	    break;
 	msgDebug("Error on open of cpio floppy: %s (%d)\n", strerror(errno), errno);
@@ -429,10 +481,4 @@ cpio_extract(void)
     unlink("/OK");
     if (!onCDROM)
 	msgConfirm("Please remove the CPIO floppy from the drive");
-}
-
-static void
-do_final_setup(void)
-{
-    dmenuOpenSimple(&MenuConfigure);
 }
