@@ -53,7 +53,7 @@ static const char rcsid[] =
 int
 main(int argc __unused, char *argv[])
 {
-	int nflag;
+	int nflag;	/* if not set, output a trailing newline. */
 
 	/* This utility may NOT do getopt(3) option parsing. */
 	if (*++argv && !strcmp(*argv, "-n")) {
@@ -63,12 +63,25 @@ main(int argc __unused, char *argv[])
 	else
 		nflag = 0;
 
-	while (argv[0]) {
-		size_t len = strlen(argv[0]);
+	while (argv[0] != NULL) {
 
-		if (len >= 2 && !argv[1] && argv[0][len - 2] == '\\' && argv[0][len - 1] == 'c') {
-			argv[0][len - 2] = '\0';
-			nflag = 1;
+		/*
+		 * If the next argument is NULL then this is this
+		 * the last argument, therefore we need to check
+		 * for a trailing \c.
+		 */
+		if (argv[1] == NULL) {
+			size_t len;
+			
+			len = strlen(argv[0]);
+			/* is there room for a '\c' and is there one? */
+			if (len >= 2 &&
+			    argv[0][len - 2] == '\\' &&
+			    argv[0][len - 1] == 'c') {
+				/* chop it and set the no-newline flag. */
+				argv[0][len - 2] = '\0';
+				nflag = 1;
+			}
 		}
 		(void)printf("%s", argv[0]);
 		if (*++argv)
