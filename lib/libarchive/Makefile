@@ -7,7 +7,7 @@
 
 
 LIB=	archive
-VERSION=	1.01.022
+VERSION=	1.02.002
 ARCHIVE_API_FEATURE=	2
 ARCHIVE_API_VERSION=	1
 SHLIB_MAJOR=	${ARCHIVE_API_VERSION}
@@ -42,6 +42,7 @@ SRCS=	archive.h					\
 	archive_read_support_format_cpio.c		\
 	archive_read_support_format_iso9660.c		\
 	archive_read_support_format_tar.c		\
+	archive_read_support_format_zip.c		\
 	archive_string.c				\
 	archive_string_sprintf.c			\
 	archive_util.c					\
@@ -142,6 +143,7 @@ MLINKS+=	archive_read.3 archive_read_support_format_all.3
 MLINKS+=	archive_read.3 archive_read_support_format_cpio.3
 MLINKS+=	archive_read.3 archive_read_support_format_iso9660.3
 MLINKS+=	archive_read.3 archive_read_support_format_tar.3
+MLINKS+=	archive_read.3 archive_read_support_format_zip.3
 MLINKS+=	archive_util.3 archive_compression.3
 MLINKS+=	archive_util.3 archive_compression_name.3
 MLINKS+=	archive_util.3 archive_errno.3
