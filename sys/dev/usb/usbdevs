@@ -1212,6 +1212,7 @@ product SOLIDYEAR KEYBOARD	0x2101	Solid Year USB keyboard
 /* SONY products */
 product SONY DSC		0x0010	DSC cameras
 product SONY MSACUS1		0x002d	Memorystick MSAC-US1
+product SONY HANDYCAM		0x002e	Handycam
 product SONY MSC		0x0032	MSC memory stick slot
 product SONY CLIE_35		0x0038	Sony Clie v3.5
 product SONY CLIE_40		0x0066	Sony Clie v4.0

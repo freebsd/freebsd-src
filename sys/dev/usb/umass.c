@@ -672,6 +672,10 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	id = usbd_get_interface_descriptor(iface);
 	if (id == NULL || id->bInterfaceClass != UICLASS_MASS)
 		return(UMATCH_NONE);
+	if (UGETW(dd->idVendor) == USB_VENDOR_SONY &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_SONY_HANDYCAM) {
+		sc->proto =  UMASS_PROTO_RBC | UMASS_PROTO_CBI;
+	}
 	
 	if (UGETW(dd->idVendor) == USB_VENDOR_SONY
 		&& id->bInterfaceSubClass==0xff) {
