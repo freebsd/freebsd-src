@@ -51,8 +51,6 @@
 #define	LID_SAPIC_ID(x)		((int)((x) >> 24) & 0xff)
 #define	LID_SAPIC_EID(x)	((int)((x) >> 16) & 0xff)
 
-void ia64_probe_sapics(void);
-
 static MALLOC_DEFINE(M_SMP, "smp", "SMP structures");
 
 static void ipi_send(u_int64_t, int);
@@ -71,28 +69,26 @@ int	mp_hardware = 0;
 int	mp_ipi_vector[IPI_COUNT];
 int	mp_ipi_test = 0;
 
+/* Variables used by os_boot_rendez */
+volatile void *ap_stack;
+volatile int ap_delay;
+volatile int ap_awake;
+
 TAILQ_HEAD(, mp_cpu) ia64_cpus = TAILQ_HEAD_INITIALIZER(ia64_cpus);
-
-void *
-ia64_ap_get_stack(void)
-{
-	struct mp_cpu *cpu;
-	u_int64_t lid = ia64_get_lid() & 0xffff0000L;
-
-	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
-		if (cpu->cpu_lid == lid)
-			return (cpu->cpu_stack);
-	}
-
-	panic(__func__": bad LID or RR5 misconfigured");
-}
 
 void
 ia64_ap_startup(void)
 {
+#if 0
 	struct mp_cpu *cpu;
 	u_int64_t lid = ia64_get_lid() & 0xffff0000L;
+#endif
 
+	ap_awake = 1;
+	ap_delay = 0;
+	while (1);
+
+#if 0
 	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
 		if (cpu->cpu_lid == lid)
 			break;
@@ -102,16 +98,17 @@ ia64_ap_startup(void)
 
 	cpu->cpu_lid = ia64_get_lid();
 	cpu->cpu_awake = 1;
-
-	while(1)
-		ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
+#endif
 }
 
 int
 cpu_mp_probe()
 {
-	ia64_probe_sapics();
-	return (mp_hardware);
+	/*
+	 * We've already discovered any APs when they're present.
+	 * Just return the result here.
+	 */
+	return (mp_hardware && mp_ncpus > 1);
 }
 
 void
@@ -157,9 +154,23 @@ cpu_mp_start()
 		if (!cpu->cpu_bsp) {
 			cpu->cpu_stack = malloc(KSTACK_PAGES * PAGE_SIZE,
 			    M_SMP, M_WAITOK);
+
 			if (bootverbose)
 				printf("SMP: waking up cpu%d\n", cpu->cpu_no);
+
+			ap_stack = cpu->cpu_stack;
+			ap_delay = 2000;
+			ap_awake = 0;
 			ipi_send(cpu->cpu_lid, IPI_AP_WAKEUP);
+
+			do {
+				DELAY(1000);
+			} while (--ap_delay > 0);
+			cpu->cpu_awake = (ap_awake) ? 1 : 0;
+
+			if (bootverbose && !ap_awake)
+				printf("SMP: WARNING: cpu%d did not wake up\n",
+				    cpu->cpu_no);
 		} else {
 			cpu->cpu_lid = ia64_get_lid();
 			cpu->cpu_awake = 1;
