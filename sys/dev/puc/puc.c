@@ -81,6 +81,8 @@ __FBSDID("$FreeBSD$");
  * 'com' and 'lpt' attachments to pci.
  */
 
+#include "opt_puc.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -97,9 +99,6 @@ __FBSDID("$FreeBSD$");
 
 #define PUC_ENTRAILS	1
 #include <dev/puc/pucvar.h>
-
-#include <opt_puc.h>
-
 
 struct puc_device {
 	struct resource_list resources;
