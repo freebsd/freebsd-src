@@ -1,8 +1,8 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id: Makefile,v 1.3 1997/12/02 20:46:13 wollman Exp $
+#	$Id: Makefile,v 1.4 1997/12/16 17:53:35 bde Exp $
 
 PROG=	lprm
-CFLAGS+=-I${.CURDIR}/../common_source -Wall -Werror
+CFLAGS+=-I${.CURDIR}/../common_source ${CWARNFLAGS}
 SRCS=	lprm.c
 BINOWN=	root
 BINGRP=	daemon
