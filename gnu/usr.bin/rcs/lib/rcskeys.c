@@ -167,7 +167,7 @@ setRCSLocalId(string)
 	next = copy;
 	key = strtok(next, "=");
 	if (strlen(key) > keylength)
-		error("LocalId is too long");
+		faterror("LocalId is too long");
 	VOID strcpy(local_id, key);
 	Keyword[LocalId] = local_id;
 
