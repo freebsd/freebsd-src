@@ -338,7 +338,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	/*
 	 * If this is a memory resource, unmap it.
 	 */
-	if ((rman_get_bustag(r) == I386_BUS_SPACE_MEM) && (rv->r_end >= 1024 * 1024)) {
+	if ((rman_get_bustag(r) == I386_BUS_SPACE_MEM) && (r->r_end >= 1024 * 1024)) {
 		u_int32_t psize;
 
 		psize = r->r_end - r->r_start;
