@@ -41,27 +41,35 @@
 The
 .Nm
 device driver supports network adapters based on the 3Com 3C5x9 Etherlink III
-chipset, like the following:
+Parallel Tasking chipset, like the following:
 .Pp
 .Bl -bullet -compact
 .It
-3C509 ISA
+3C1 CF
 .It
-3C529 MCA
+3C509-TP, 3C509-BNC, 3C509-Combo, 3C509-TPO, 3C509-TPC ISA
 .It
-3C579 EISA
+3C509B-TP, 3C509B-BNC, 3C509B-Combo, 3C509B-TPO, 3C509B-TPC ISA
 .It
-3CXE589EC, 3CXE589ET PCMCIA
+3C529, 3C529-TP MCA
 .It
-3C569, 3C569-TPO, 3C569B, 3C569B-COMBO
+3C579-TP, 3C579-BNC EISA
 .It
-3C589/589B/589C/589D/589E/574TX/574B PC Card/PCMCIA
+3C562/3C563 PCMCIA
 .It
-Megahertz 3CCFEM556BI, 3CXEM556, 3CCFEM556B
+3C569B-J-TPO, 3C569B-J-COMBO CBUS
 .It
-OfficeConnect 3CXSH572BT
+3C574TX, 3CCFE574BT, 3CXFE574BT, 3C3FE574BT PCMCIA
 .It
-Farallon EtherMac
+3C589, 3C589B, 3C589C, 3C589D PCMCIA
+.It
+3CXE589EC, 3CCE589EC, 3CXE589ET, 3CCE589ET PCMCIA
+.It
+Megahertz 3CCFEM556BI, 3CXEM556, 3CCFEM556B PCMCIA
+.It
+OfficeConnect 3CXSH572BT, 3CCSH572BT PCMCIA
+.It
+Farallon EtherMac PCMCIA
 .El
 .Pp
 Various models of these cards come with a different assortment of
@@ -134,6 +142,11 @@ Erase the pencil mark and reboot.
 .Xr ng_ether 4 ,
 .Xr vx 4 ,
 .Xr ifconfig 8
+.Sh BUGS
+Support for the 3COM 3C1 is not working.
+Support for the 3COM 3C556 family may not be working.
+Support for the 3COM 3C562 family may not be working.
+Support for the 3COM 3C574 family may not be working.
 .Sh STANDARDS
 are great.
 There's so many to choose from.
