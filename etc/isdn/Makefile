@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: Makefile,v 1.1 1999/01/10 14:30:44 hm Exp $
 
 I4BETCPROG=	answer		\
 		isdntel.sh	\
@@ -8,8 +8,8 @@ I4BETCPROG=	answer		\
 
 I4BETCFILE=	isdnd.rates.D	\
 		isdnd.rates.F	\
-		isdnd.rc	\
-		isdntel.alias
+		isdnd.rc.sample	\
+		isdntel.alias.sample
 
 install:
 		for i in ${I4BETCPROG} ; do \
