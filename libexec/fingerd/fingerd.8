@@ -117,6 +117,13 @@ By specifying a customized local server,
 this option allows a system manager
 to have more control over what information is
 provided to remote sites.
+If
+.Fl p
+is specified,
+.Nm
+will also set the environment variable
+.Ev FINGERD_REMOTE_HOST
+to the name of the host making the request.
 .El
 .Sh SEE ALSO
 .Xr finger 1 ,

@@ -71,22 +71,23 @@ main(int argc, char *argv[])
 	int ch;
 	char *lp;
 	struct sockaddr_storage ss;
-	int p[2], logging, secure, sval;
+	int p[2], logging, pflag, secure, sval;
 #define	ENTRIES	50
 	char **ap, *av[ENTRIES + 1], **comp, line[1024], *prog;
 	char rhost[MAXHOSTNAMELEN];
 
 	prog = _PATH_FINGER;
-	logging = secure = 0;
+	logging = pflag = secure = 0;
 	openlog("fingerd", LOG_PID | LOG_CONS, LOG_DAEMON);
 	opterr = 0;
-	while ((ch = getopt(argc, argv, "slp:")) != -1)
+	while ((ch = getopt(argc, argv, "lp:s")) != -1)
 		switch (ch) {
 		case 'l':
 			logging = 1;
 			break;
 		case 'p':
 			prog = optarg;
+			pflag = 1;
 			break;
 		case 's':
 			secure = 1;
@@ -110,6 +111,17 @@ main(int argc, char *argv[])
 	if (!fgets(line, sizeof(line), stdin))
 		exit(1);
 
+	if (logging || pflag) {
+		sval = sizeof(ss);
+		if (getpeername(0, (struct sockaddr *)&ss, &sval) < 0)
+			logerr("getpeername: %s", strerror(errno));
+		realhostname_sa(rhost, sizeof rhost - 1,
+				(struct sockaddr *)&ss, sval);
+		rhost[sizeof(rhost) - 1] = '\0';
+		if (pflag)
+			setenv("FINGERD_REMOTE_HOST", rhost, 1);
+	}
+
 	if (logging) {
 		char *t;
 		char *end;
@@ -127,12 +139,6 @@ main(int argc, char *argv[])
 		for (end = t; *end; end++)
 			if (*end == '\n' || *end == '\r')
 				*end = ' ';
-		sval = sizeof(ss);
-		if (getpeername(0, (struct sockaddr *)&ss, &sval) < 0)
-			logerr("getpeername: %s", strerror(errno));
-		realhostname_sa(rhost, sizeof rhost - 1,
-				(struct sockaddr *)&ss, sval);
-		rhost[sizeof(rhost) - 1] = '\0';
 		syslog(LOG_NOTICE, "query from %s: `%s'", rhost, t);
 	}
 
@@ -174,12 +180,17 @@ main(int argc, char *argv[])
 	switch(vfork()) {
 	case 0:
 		(void)close(p[0]);
-		if (p[1] != 1) {
-			(void)dup2(p[1], 1);
+		if (p[1] != STDOUT_FILENO) {
+			(void)dup2(p[1], STDOUT_FILENO);
 			(void)close(p[1]);
 		}
+		dup2(STDOUT_FILENO, STDERR_FILENO);
+
 		execv(prog, comp);
-		logerr("execv: %s: %s", prog, strerror(errno));
+		write(STDERR_FILENO, prog, strlen(prog));
+#define MSG ": cannot execute\n"
+		write(STDERR_FILENO, MSG, strlen(MSG));
+#undef MSG
 		_exit(1);
 	case -1:
 		logerr("fork: %s", strerror(errno));
