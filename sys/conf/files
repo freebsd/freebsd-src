@@ -186,6 +186,7 @@ dev/mii/miibus_if.m	optional miibus
 dev/mlx/mlx.c		optional mlx
 dev/mlx/mlx_disk.c	optional mlx
 dev/mlx/mlx_pci.c	optional mlx
+dev/pccard/card_if.m	optional card
 dev/pccard/card_if.m	optional pccard
 dev/pccard/pccard.c	optional pccard
 dev/pccard/pccard_cis.c	optional pccard
