@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.214 1997/05/07 10:42:06 yokota Exp $
+ *  $Id: syscons.c,v 1.215 1997/05/07 20:02:38 peter Exp $
  */
 
 #include "sc.h"
@@ -759,7 +759,13 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_BLANKTIME:    	/* set screen saver timeout (0 = no saver) */
+	if (*(int *)data < 0)
+            return EINVAL;
 	scrn_blank_time = *(int*)data;
+	if ((scrn_blank_time == 0) && scrn_blanked) {
+	    (*current_saver)(FALSE);
+	    mark_all(cur_console);
+	}
 	return 0;
 
     case CONS_CURSORTYPE:   	/* set cursor type blink/noblink */
@@ -958,6 +964,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     case SW_ENH_B40x25: case SW_ENH_C40x25:
     case SW_ENH_B80x25: case SW_ENH_C80x25:
     case SW_ENH_B80x43: case SW_ENH_C80x43:
+    case SW_EGAMONO80x25:
 
 	if (!crtc_vga || video_mode_ptr == NULL)
 	    return ENXIO;
@@ -984,6 +991,12 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    scp->xsize = 80;
 	    scp->ysize = 30;
 	    break;
+	case M_ENH_C40x25: case M_ENH_B40x25:
+	case M_ENH_C80x25: case M_ENH_B80x25:
+	case M_EGAMONO80x25:
+	    if (!(fonts_loaded & FONT_14))
+		return EINVAL;
+	    /* FALL THROUGH */
 	default:
 	    if ((cmd & 0xff) > M_VGA_CG320)
 		return EINVAL;
@@ -2176,10 +2189,11 @@ scan_esc(scr_stat *scp, u_char c)
 	    break;
 
 	case 'A':   /* set display border color */
-	    if (scp->term.num_param == 1)
+	    if ((scp->term.num_param == 1) && crtc_vga) {
 		scp->border=scp->term.param[0] & 0xff;
 		if (scp == cur_console)
 		    set_border(scp->border);
+            }
 	    break;
 
 	case 'B':   /* set bell pitch and duration */
@@ -2195,7 +2209,7 @@ scan_esc(scr_stat *scp, u_char c)
 		    flags |= BLINK_CURSOR;
 		else
 		    flags &= ~BLINK_CURSOR;
-		if (scp->term.param[0] & 0x02) {
+		if ((scp->term.param[0] & 0x02) && crtc_vga) {
 		    flags |= CHAR_CURSOR;
 		    set_destructive_cursor(scp);
 		} else
@@ -2544,7 +2558,7 @@ init_scp(scr_stat *scp)
 	else
 	    scp->mode = M_C80x25;
 
-    scp->font_size = FONT_16;
+    scp->font_size = 16;
     scp->xsize = COL;
     scp->ysize = ROW;
     scp->xpos = scp->ypos = 0;
@@ -3253,6 +3267,7 @@ special_80x50:
     case M_B80x25:     case M_C80x25:
     case M_ENH_B40x25: case M_ENH_C40x25:
     case M_ENH_B80x25: case M_ENH_C80x25:
+    case M_EGAMONO80x25:
 
 	modetable = video_mode_ptr + (scp->mode * 64);
 setup_mode:
@@ -3260,11 +3275,11 @@ setup_mode:
 	scp->font_size = *(modetable + 2);
 
 	/* set font type (size) */
-	if (scp->font_size < FONT_14) {
+	if (scp->font_size < 14) {
 	    if (fonts_loaded & FONT_8)
 		copy_font(LOAD, FONT_8, font_8);
 	    outb(TSIDX, 0x03); outb(TSREG, 0x0A);   /* font 2 */
-	} else if (scp->font_size >= FONT_16) {
+	} else if (scp->font_size >= 16) {
 	    if (fonts_loaded & FONT_16)
 		copy_font(LOAD, FONT_16, font_16);
 	    outb(TSIDX, 0x03); outb(TSREG, 0x00);   /* font 0 */
@@ -3482,6 +3497,7 @@ set_normal_mode()
     case M_B80x25:     case M_C80x25:
     case M_ENH_B40x25: case M_ENH_C40x25:
     case M_ENH_B80x25: case M_ENH_C80x25:
+    case M_EGAMONO80x25:
 
     case M_BG320:     case M_CG320:     case M_BG640:
     case M_CG320_D:   case M_CG640_E:
@@ -3576,11 +3592,11 @@ set_destructive_cursor(scr_stat *scp)
     char *font_buffer;
 
 
-    if (scp->font_size < FONT_14) {
+    if (scp->font_size < 14) {
 	font_buffer = font_8;
 	address = (caddr_t)VIDEOMEM + 0x8000;
     }
-    else if (scp->font_size >= FONT_16) {
+    else if (scp->font_size >= 16) {
 	font_buffer = font_16;
 	address = (caddr_t)VIDEOMEM;
     }
@@ -3724,11 +3740,11 @@ draw_mouse_image(scr_stat *scp)
     u_short *crt_pos = Crtat + (scp->mouse_pos - scp->scr_buf);
     int font_size = scp->font_size;
 
-    if (font_size < FONT_14) {
+    if (font_size < 14) {
 	font_buffer = font_8;
 	address = (caddr_t)VIDEOMEM + 0x8000;
     }
-    else if (font_size >= FONT_16) {
+    else if (font_size >= 16) {
 	font_buffer = font_16;
 	address = (caddr_t)VIDEOMEM;
     }
@@ -3873,7 +3889,6 @@ do_bell(scr_stat *scp, int pitch, int duration)
 	if (scp != cur_console)
 	    blink_in_progress += 2;
 	blink_screen(cur_console);
-	timeout(blink_screen, cur_console, hz / 10);
     } else {
 	if (scp != cur_console)
 	    pitch *= 2;
@@ -3886,7 +3901,13 @@ blink_screen(void *arg)
 {
     scr_stat *scp = arg;
 
-    if (blink_in_progress > 1) {
+    if ((scp->status & UNKNOWN_MODE) || (blink_in_progress <= 1)) {
+	blink_in_progress = FALSE;
+    	mark_all(scp);
+	if (delayed_next_scr)
+	    switch_scr(scp, delayed_next_scr - 1);
+    }
+    else {
 	if (blink_in_progress & 1)
 	    fillw(kernel_default.std_color | scr_map[0x20],
 		  Crtat, scp->xsize * scp->ysize);
@@ -3895,12 +3916,6 @@ blink_screen(void *arg)
 		  Crtat, scp->xsize * scp->ysize);
 	blink_in_progress--;
 	timeout(blink_screen, scp, hz / 10);
-    }
-    else {
-	blink_in_progress = FALSE;
-    	mark_all(scp);
-	if (delayed_next_scr)
-	    switch_scr(scp, delayed_next_scr - 1);
     }
 }
 
