@@ -3,8 +3,9 @@
 #
 #Line starting with #PicoBSD contains PicoBSD build parameters
 #marker                def_sz  init    MFS_inodes      floppy_inodes
-#PicoBSD       2400    init    4096            4096
-
+#PicoBSD       2200    init    4096            4096
+options	MD_ROOT_SIZE=2200	# same as def_sz
+ 
 machine		"i386"
 #cpu		"I386_CPU"
 #cpu		"I486_CPU"
