@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCS=	rcs_func.ms
 DOC=	rcs_func
+SRCS=	rcs_func.ms
 
 .include <bsd.doc.mk>
