@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
-#	$Id: Makefile,v 1.13 1996/09/01 10:19:18 peter Exp $
+#	$Id: Makefile,v 1.14 1996/09/01 10:27:49 peter Exp $
 
 PROG=	sh
 SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \
@@ -21,14 +21,12 @@ CFLAGS+=-DSHELL -I. -I${.CURDIR}
 
 .PATH:	${.CURDIR}/bltin ${.CURDIR}/../../usr.bin/printf
 
-CLEANFILES+=	builtins.h mkinit mknodes mksyntax \
+CLEANFILES+=	builtins.h mkinit mkinit.o mknodes mknodes.o \
+		mksyntax mksyntax.o \
 		nodes.h syntax.h token.h y.tab.h
 CLEANFILES+=	${GENSRCS}
 
 beforedepend: token.h
-
-token.h: mktokens
-	sh ${.CURDIR}/mktokens
 
 builtins.h builtins.c: mkbuiltins builtins.def
 	cd ${.CURDIR}; sh mkbuiltins ${.OBJDIR}
@@ -36,12 +34,27 @@ builtins.h builtins.c: mkbuiltins builtins.def
 init.c: mkinit ${SHSRCS}
 	./mkinit ${.ALLSRC:S/^mkinit$//}
 
+# XXX this is just to stop the default .c rule being used, so that the
+# intermediate object has a fixed name.
+# XXX we have a default .c rule, but no default .o rule.
+.o:
+	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
+mkinit: mkinit.o
+mkinit.o: mkinit.c		# XXX and many headers
+mknodes: mknodes.o
+mknodes.o: mknodes.c		# XXX and many headers
+mksyntax: mksyntax.o
+mksyntax.o: mksyntax.c		# XXX and many headers
+
 nodes.c nodes.h: mknodes nodetypes nodes.c.pat
 	./mknodes ${.CURDIR}/nodetypes ${.CURDIR}/nodes.c.pat
+
+parser.o: token.h
 
 syntax.c syntax.h: mksyntax
 	./mksyntax
 
-parser.o: token.h
+token.h: mktokens
+	sh ${.CURDIR}/mktokens
 
 .include <bsd.prog.mk>
