@@ -623,7 +623,7 @@ int mget(int argc, char **argv)
 	(void) Signal(SIGINT,oldintr);
 	activemcmd = 0;
 	if (!errs)
-		return NOERR;
+	return NOERR;
 	else
 		return CMDERR;
 }	/* mget */
@@ -908,10 +908,9 @@ int mdelete(int argc, char **argv)
 	}
 	(void) Signal(SIGINT, oldintr);
 	activemcmd = 0;
-	if (!errs)
-		return NOERR;
-	else
+	if (errs > 0)
 		return CMDERR;
+	return NOERR;
 }	/* mdelete */
 
 
@@ -1349,7 +1348,7 @@ close_up_shop(void)
 	int rcode = 0;
 
 	if (only_once++ > 0)
-		return;
+		return (0);
 	if (connected)
 		(void) disconnect(0, NULL);
 	rcode = WriteRecentSitesFile();
