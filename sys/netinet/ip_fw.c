@@ -51,6 +51,13 @@
 #define dprintf4(a1,a2,a3,a4)
 #endif
 
+#ifndef TRUE
+#define TRUE	1
+#endif
+
+#ifndef FALSE
+#define FALSE	0
+#endif
 
 #define print_ip(a)	 printf("%ld.%ld.%ld.%ld",(ntohl(a.s_addr)>>24)&0xFF,\
 				 		  (ntohl(a.s_addr)>>16)&0xFF,\
