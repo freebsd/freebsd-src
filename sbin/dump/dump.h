@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)dump.h	8.1 (Berkeley) 6/5/93
+ *	@(#)dump.h	8.2 (Berkeley) 4/28/95
  */
 
 #define MAXINOPB	(MAXBSIZE / sizeof(struct dinode))
@@ -186,8 +186,9 @@ void	sig __P((int signo));
  */
 #ifdef COMPAT
 #include <sys/file.h>
-extern char *index(), *rindex(), *strdup();
-extern char *ctime();
+#define	strchr(a,b)	index(a,b)
+#define	strrchr(a,b)	rindex(a,b)
+extern char *strdup(), *ctime();
 extern int read(), write();
 extern int errno;
 #endif
