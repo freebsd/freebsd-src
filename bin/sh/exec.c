@@ -144,6 +144,8 @@ shellexec(char **argv, char **envp, char *path, int index)
 		exerrno = 2;
 		break;
 	}
+	if (e == ENOENT || e == ENOTDIR)
+		exerror(EXEXEC, "%s: not found", argv[0]);
 	exerror(EXEXEC, "%s: %s", argv[0], strerror(e));
 }
 
@@ -419,8 +421,12 @@ loop:
 	/* We failed.  If there was an entry for this command, delete it */
 	if (cmdp)
 		delete_cmd_entry();
-	if (printerr)
-		outfmt(out2, "%s: %s\n", name, strerror(e));
+	if (printerr) {
+		if (e == ENOENT || e == ENOTDIR)
+			outfmt(out2, "%s: not found\n", name);
+		else
+			outfmt(out2, "%s: %s\n", name, strerror(e));
+	}
 	entry->cmdtype = CMDUNKNOWN;
 	return;
 
