@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 #include <stdarg.h>
 #include "un-namespace.h"
@@ -93,6 +94,8 @@ union arg {
 	double	doublearg;
 	long double longdoublearg;
 #endif
+	wint_t	wintarg;
+	wchar_t	*pwchararg;
 };
 
 /*
@@ -103,7 +106,7 @@ enum typeid {
 	T_LONG, T_U_LONG, TP_LONG, T_LLONG, T_U_LLONG, TP_LLONG,
 	T_PTRDIFFT, TP_PTRDIFFT, T_SIZET, TP_SIZET,
 	T_INTMAXT, T_UINTMAXT, TP_INTMAXT, TP_VOID, TP_CHAR, TP_SCHAR,
-	T_DOUBLE, T_LONG_DOUBLE
+	T_DOUBLE, T_LONG_DOUBLE, T_WINT, TP_WCHAR
 };
 
 static int	__sprint(FILE *, struct __suio *);
@@ -112,6 +115,7 @@ static char	*__ujtoa(uintmax_t, char *, int, int, char *, int, char,
 		    const char *);
 static char	*__ultoa(u_long, char *, int, int, char *, int, char,
 		    const char *);
+static char	*__wcsconv(wchar_t *, int);
 static void	__find_arguments(const char *, va_list, union arg **);
 static void	__grow_type_table(int, enum typeid **, int *);
 
@@ -329,6 +333,65 @@ __ujtoa(uintmax_t val, char *endp, int base, int octzero, char *xdigs,
 }
 
 /*
+ * Convert a wide character string argument for the %ls format to a multibyte
+ * string representation. ``prec'' specifies the maximum number of bytes
+ * to output. If ``prec'' is greater than or equal to zero, we can't assume
+ * that the wide char. string ends in a null character.
+ */
+static char *
+__wcsconv(wchar_t *wcsarg, int prec)
+{
+	char buf[MB_LEN_MAX];
+	wchar_t *p;
+	char *convbuf, *mbp;
+	size_t clen, nbytes;
+	mbstate_t mbs;
+
+	/*
+	 * Determine the number of bytes to output and allocate space for
+	 * the output.
+	 */
+	memset(&mbs, 0, sizeof(mbs));
+	if (prec >= 0) {
+		nbytes = 0;
+		p = wcsarg;
+		for (;;) {
+			clen = wcrtomb(buf, *p++, &mbs);
+			if (clen == 0 || clen == (size_t)-1 ||
+			    nbytes + clen > prec)
+				break;
+			nbytes += clen;
+		}
+	} else {
+		p = wcsarg;
+		nbytes = wcsrtombs(NULL, (const wchar_t **)&p, 0, &mbs);
+		if (nbytes == (size_t)-1)
+			return (NULL);
+	}
+	if ((convbuf = malloc(nbytes + 1)) == NULL)
+		return (NULL);
+
+	/*
+	 * Fill the output buffer with the multibyte representations of as
+	 * many wide characters as will fit.
+	 */
+	mbp = convbuf;
+	p = wcsarg;
+	memset(&mbs, 0, sizeof(mbs));
+	while (mbp - convbuf < nbytes) {
+		clen = wcrtomb(mbp, *p++, &mbs);
+		if (clen == 0 || clen == (size_t)-1)
+			break;
+		mbp += clen;
+	}
+	*mbp = '\0';
+	if (clen == (size_t)-1)
+		return (NULL);
+
+	return (convbuf);
+}
+
+/*
  * MT-safe version
  */
 int
@@ -425,6 +488,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	union arg statargtable [STATIC_ARG_TBL_SIZE];
 	int nextarg;            /* 1-based argument index */
 	va_list orgap;          /* original argument pointer */
+	char *convbuf;		/* wide to multibyte conversion result */
 
 	/*
 	 * Choose PADSIZE to trade efficiency vs. size.  If larger printf
@@ -530,6 +594,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 
 	thousands_sep = '\0';
 	grouping = NULL;
+	convbuf = NULL;
 #ifdef FLOATING_POINT
 	dtoaresult = NULL;
 	decimal_point = localeconv()->decimal_point;
@@ -684,8 +749,20 @@ reswitch:	switch (ch) {
 			flags |= SIZET;
 			goto rflag;
 		case 'c':
-			*(cp = buf) = GETARG(int);
-			size = 1;
+			if (flags & LONGINT) {
+				mbstate_t mbs;
+				size_t mbseqlen;
+
+				memset(&mbs, 0, sizeof(mbs));
+				mbseqlen = wcrtomb(cp = buf,
+				    (wchar_t)GETARG(wint_t), &mbs);
+				if (mbseqlen == (size_t)-1)
+					goto error;
+				size = (int)mbseqlen;
+			} else {
+				*(cp = buf) = GETARG(int);
+				size = 1;
+			}
 			sign = '\0';
 			break;
 		case 'D':
@@ -842,7 +919,20 @@ fp_begin:		if (prec == -1)
 			ch = 'x';
 			goto nosign;
 		case 's':
-			if ((cp = GETARG(char *)) == NULL)
+			if (flags & LONGINT) {
+				wchar_t *wcp;
+
+				if (convbuf != NULL)
+					free(convbuf);
+				if ((wcp = GETARG(wchar_t *)) == NULL)
+					cp = "(null)";
+				else {
+					convbuf = __wcsconv(wcp, prec);
+					if (convbuf == NULL)
+						goto error;
+					cp = convbuf;
+				}
+			} else if ((cp = GETARG(char *)) == NULL)
 				cp = "(null)";
 			if (prec >= 0) {
 				/*
@@ -1040,6 +1130,8 @@ error:
 	if (dtoaresult != NULL)
 		free(dtoaresult);
 #endif
+	if (convbuf != NULL)
+		free(convbuf);
 	if (__sferror(fp))
 		ret = EOF;
 	if ((argtable != NULL) && (argtable != statargtable))
@@ -1199,7 +1291,10 @@ reswitch:	switch (ch) {
 			flags |= SIZET;
 			goto rflag;
 		case 'c':
-			ADDTYPE(T_INT);
+			if (flags & LONGINT)
+				ADDTYPE(T_WINT);
+			else
+				ADDTYPE(T_INT);
 			break;
 		case 'D':
 			flags |= LONGINT;
@@ -1252,7 +1347,10 @@ reswitch:	switch (ch) {
 			ADDTYPE(TP_VOID);
 			break;
 		case 's':
-			ADDTYPE(TP_CHAR);
+			if (flags & LONGINT)
+				ADDTYPE(TP_WCHAR);
+			else
+				ADDTYPE(TP_CHAR);
 			break;
 		case 'U':
 			flags |= LONGINT;
@@ -1350,6 +1448,12 @@ done:
 			break;
 		    case TP_VOID:
 			(*argtable) [n].pvoidarg = va_arg (ap, void *);
+			break;
+		    case T_WINT:
+			(*argtable) [n].wintarg = va_arg (ap, wint_t);
+			break;
+		    case TP_WCHAR:
+			(*argtable) [n].pwchararg = va_arg (ap, wchar_t *);
 			break;
 		}
 	}
