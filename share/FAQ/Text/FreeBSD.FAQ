@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.24 1995/03/11 19:13:26 gclarkii Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.1 1995/03/21 20:19:13 jkh Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -86,14 +86,16 @@ developers.  For more information, send to
 <majordomo@FreeBSD.ORG> and include a single line saying
 ``help'' in the body of your message.
 
-announce:  For announcements about or on FreeBSD.
+announce:  For announcements concerning FreeBSD.  Low traffic.  Subscribe!
 hackers:   Useful for persons wishing to work on the internals. 
-questions: General questions on FreeBSD. 
-bugs:      Where bugs should be sent.
+questions: General questions on FreeBSD - questioners and question-answerers
+	   please! 
+bugs:      Where bug reports should be sent.
 SCSI:      Mailing list for SCSI developers. 
 current:   This list is for persons wishing to run FreeBSD-current
-           and carries announcements and discussions on current.
-security:  For issues dealing with system security. 
+           and carries announcements and discussions on current.  This list
+	   is *mandatory* if you run -current!
+security:  Information on issues dealing with system security. 
 platforms: Deals with ports to non-Intel platforms
 ports:     Discussion of /usr/ports/???
 fs:        Discussion of FreeBSD Filesystems
@@ -102,28 +104,24 @@ hardware:  Discussion on hardware requirements for FreeBSD.
 The FreeBSD-commit list has been broken up into groups dealing with different
 areas of interest.  Please see the FreeBSD mailing list FAQ in:
 
-        /usr/src/share/FAQ/mailing-list.FAQ
+        /usr/share/FAQ/mailing-list.FAQ
 
 
 0.3:  What are the various FreeBSD news groups? 
 
-While there are no groups currently dedicated to FreeBSD, you may find
-the following groups useful.
+There are two newsgroups currently dedicated to FreeBSD:
 
-comp.os.386bsd.announce:     For announcements
-comp.os.386bsd.apps:         For applications
-comp.os.386bsd.questions:    For questions
-comp.os.386bsd.development:  For working on the internals
-comp.os.386bsd.bugs:         About bugs
-comp.os.386bsd.misc:         For items that don't fit anywhere else
+comp.unix.bsd.freebsd.announce:     For announcements
+comp.unix.bsd.freebsd.misc:         General discussion
 
-NOTE: These groups cover all the *BSDs (FreeBSD, NetBSD, 386BSD).
 
-comp.os.bsd:                 General BSD topics, maybe of intrest
+The following newsgroups may also be of interest to general BSD
+enthusiasts:
 
-NOTE: As of the date of this writing, there is has been a break up of 
-newsgroups into groups for each OS.  These groups can be found under
-``comp.unix.bsd''.
+comp.unix.bsd:                      General BSD topics
+comp.os.386bsd.*:                   Ongoing, active FreeBSD discussions
+                                    (probably only for a short time longer).
+
 
 
 1 Installation
