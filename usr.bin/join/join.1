@@ -59,9 +59,13 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility performs an ``equality join'' on the specified files
+utility performs an
+.Dq equality join
+on the specified files
 and writes the result to the standard output.
-The ``join field'' is the field in each file by which the files are compared.
+The
+.Dq join field
+is the field in each file by which the files are compared.
 The first field in each line is used by default.
 There is one line in the output for each pair of lines in
 .Ar file1
@@ -109,7 +113,9 @@ where
 is a file number and
 .Ar field
 is a field number.
-The elements of list must be either comma (``,'') or whitespace separated.
+The elements of list must be either comma
+.Pf ( Dq , Ns )
+or whitespace separated.
 (The latter requires quoting to protect it from the shell, or, a simpler
 approach is to use multiple
 .Fl o
@@ -160,7 +166,9 @@ If one of the arguments
 .Ar file1
 or
 .Ar file2
-is ``-'', the standard input is used.
+is
+.Dq - ,
+the standard input is used.
 .Sh DIAGNOSTICS
 The
 .Nm
