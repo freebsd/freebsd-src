@@ -267,8 +267,8 @@ struct thread {
 	/* XXXKSE p_md is in the "on your own" section in old struct proc */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	register_t 	td_retval[2];	/* (k) Syscall aux returns. */
-	u_char		td_base_pri;	/* (j) Thread base kernel priority */
-	u_char		td_priority;	/* (j) Thread active priority */
+	u_char		td_base_pri;	/* (j) Thread base kernel priority. */
+	u_char		td_priority;	/* (j) Thread active priority. */
 #define	td_endcopy td_pcb
 
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
@@ -342,8 +342,8 @@ struct ksegrp {
 #define	kg_endzero kg_pri_class
 
 #define	kg_startcopy 	kg_endzero
-	char		kg_pri_class;	/* (j) */
-	char		kg_user_pri;	/* (j) priority when in userland */
+	u_char		kg_pri_class;	/* (j) Scheduling class. */
+	u_char		kg_user_pri;	/* (j) User pri from estcpu and nice. */
 	char		kg_nice;	/* (j?/k?) Process "nice" value. */
 	struct rtprio	kg_rtprio;	/* (j) Realtime priority. */
 #define	kg_endcopy kg_runnable
