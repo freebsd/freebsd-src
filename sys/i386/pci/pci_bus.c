@@ -344,6 +344,8 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 
 			id = nexus_pcib_read_config(0, bus, slot, func,
 						    PCIR_DEVVENDOR, 4);
+			if (id == -1)
+				continue;
 			class = nexus_pcib_read_config(0, bus, slot, func,
 						       PCIR_CLASS, 1);
 			subclass = nexus_pcib_read_config(0, bus, slot, func,
