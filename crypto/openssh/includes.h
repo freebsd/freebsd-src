@@ -11,6 +11,7 @@
  * 
  * This file includes most of the needed system headers.
  * 
+ * $FreeBSD$
  */
 
 #ifndef INCLUDES_H
@@ -24,12 +25,12 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #include <sys/select.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
-#include <sys/endian.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/un.h>
 #include <sys/resource.h>
+#include <machine/endian.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -38,7 +39,6 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include <netgroup.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
@@ -65,5 +65,30 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
  * client program.  Socketpairs do not seem to work on all systems.
  */
 #define USE_PIPES 1
+
+#if defined(__FreeBSD__) && __FreeBSD__ <= 3
+/*
+ * Data types.
+ */
+typedef u_char          sa_family_t;
+typedef u_int32_t       socklen_t;
+
+/*
+ * bsd-api-new-02a: protocol-independent placeholder for socket addresses
+ */
+#define	_SS_MAXSIZE	128
+#define	_SS_ALIGNSIZE	(sizeof(int64_t))
+#define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(u_char) * 2)
+#define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(u_char) * 2 - \
+				_SS_PAD1SIZE - _SS_ALIGNSIZE)
+
+struct sockaddr_storage {
+	u_char		ss_len;		/* address length */
+	sa_family_t	ss_family;	/* address family */
+	char		__ss_pad1[_SS_PAD1SIZE];
+	int64_t		__ss_align;	/* force desired structure storage alignment */
+	char		__ss_pad2[_SS_PAD2SIZE];
+};
+#endif
 
 #endif				/* INCLUDES_H */

@@ -11,12 +11,17 @@
  * 
  * Allocating a pseudo-terminal, and making it the controlling tty.
  * 
+ * $FreeBSD$
  */
 
 #include "includes.h"
 RCSID("$Id: pty.c,v 1.12 2000/02/15 16:52:58 markus Exp $");
 
+#ifdef __FreeBSD__
+#include <libutil.h>
+#else
 #include <util.h>
+#endif
 #include "pty.h"
 #include "ssh.h"
 
