@@ -99,7 +99,6 @@ pccard_attach_card(device_t dev)
 	device_t child;
 	int attached;
 
-	DEVPRINTF((dev, "pccard_card_attach\n"));
 	/*
 	 * this is here so that when socket_enable calls gettype, trt happens
 	 */
@@ -157,7 +156,6 @@ pccard_attach_card(device_t dev)
 		 * it might also just fall out of the FreeBSD resource model.
 		 *
 		 */
-		device_printf(dev, "Starting to attach....\n");
 		ivar = malloc(sizeof(struct pccard_ivar), M_DEVBUF, M_WAITOK);
 		bzero(ivar, sizeof *ivar);
 		child = device_add_child(dev, NULL, -1);
@@ -174,7 +172,6 @@ pccard_attach_card(device_t dev)
 		 */
 		pccard_function_init(pf);
 		pccard_function_enable(pf);
-		device_printf(dev, "pf %p pf->sc %p\n", pf, pf->sc);
 		if (device_probe_and_attach(child) == 0) {
 			attached++;
 
@@ -443,10 +440,7 @@ pccard_function_enable(struct pccard_function *pf)
 		 * XXX we have an interrupt handler, but we don't know that
 		 * XXX at this point.
 		 */
-#if 0
-		if (pf->ih_fct)
-			reg |= PCCARD_CCR_OPTION_IREQ_ENABLE;
-#endif
+		reg |= PCCARD_CCR_OPTION_IREQ_ENABLE;
 	}
 	pccard_ccr_write(pf, PCCARD_CCR_OPTION, reg);
 
@@ -673,7 +667,6 @@ pccard_attach(device_t dev)
 
 	sc->dev = dev;
 	sc->sc_enabled_count = 0;
-	DEVPRINTF((dev, "pccard_attach %p\n", dev));
 	return bus_generic_attach(dev);
 }
 
@@ -725,6 +718,8 @@ pccard_print_child(device_t dev, device_t child)
 		    "%ld");
 		pccard_print_resources(rl, "drq", SYS_RES_DRQ, PCCARD_NDRQ, 
 		    "%ld");
+		retval += printf(" function %d config %d", devi->fcn->number,
+		    devi->fcn->cfe->number);
 	}
 
 	retval += bus_print_child_footer(dev, child);
@@ -861,6 +856,7 @@ pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 	struct pccard_ivar *ivar;
 	struct pccard_function *pf;
+	struct resource *r = 0;
 
 	if (device_get_parent(child) == dev) {
 		ivar = PCCARD_IVAR(child);
@@ -869,12 +865,22 @@ pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		case SYS_RES_IRQ:
 			if (*rid > 0)
 				return NULL;
-			return (pf->cfe->irqres);
+			r = pf->cfe->irqres;
+			break;
 		case SYS_RES_IOPORT:
 			if (*rid > 3)	/* XXX */
 				return NULL;
-			return (pf->cfe->iores[*rid]);
+			r = pf->cfe->iores[*rid];
+			break;
+		default:
+			break;
 		}
+	}
+	if (r != NULL) {
+		if (flags & RF_ACTIVE)		
+			bus_generic_activate_resource(dev, child, type,
+			    *rid, r);
+		return (r);
 	}
 	return (bus_generic_alloc_resource(dev, child, type, rid, start,
 	    end, count, flags));
@@ -891,7 +897,7 @@ static int
 pccard_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	/* XXX need to write to the COR to activate this */
+	/* XXX need to write to the COR to activate this for mf cards */
 	return (bus_generic_activate_resource(dev, child, type, rid, r));
 }
 
@@ -899,7 +905,7 @@ static int
 pccard_deactivate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	/* XXX need to write to the COR to deactivate this */
+	/* XXX need to write to the COR to deactivate this for mf cards */
 	return (bus_generic_deactivate_resource(dev, child, type, rid, r));
 }
 
