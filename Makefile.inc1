@@ -46,19 +46,16 @@ SUBDIR+= share/info
 .if exists(${.CURDIR}/include)
 SUBDIR+= include
 .endif
+
+# We must do lib and libexec before bin, because if installworld
+# installs a new /bin/sh, the 'make' command will *immediately*
+# use that new version.  And the new (dynamically-linked) /bin/sh
+# will expect to find appropriate libraries in /lib and /libexec.
 .if exists(${.CURDIR}/lib)
 SUBDIR+= lib
 .endif
-
-# When upgrading to a dynamically linked root, install the runtime
-# linker early into its new location before make(1) has a chance
-# to run the dynamically linked /bin/sh.
-.if !defined(NO_DYNAMICROOT) && !defined(NOPIC) && \
-    (!defined(TARGET_ARCH) || ${TARGET_ARCH} == ${MACHINE_ARCH}) && \
-    !defined(DISTDIR) && \
-    (!defined(DESTDIR) || empty(DESTDIR) || ${DESTDIR} == "/") && \
-    !exists(/libexec/ld-elf.so.1)
-SUBDIR+= libexec/rtld-elf
+.if exists(${.CURDIR}/libexec)
+SUBDIR+= libexec
 .endif
 
 .if exists(${.CURDIR}/bin)
@@ -73,9 +70,6 @@ SUBDIR+= gnu
 .if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
     !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_KERBEROS)
 SUBDIR+= kerberos5
-.endif
-.if exists(${.CURDIR}/libexec)
-SUBDIR+= libexec
 .endif
 .if exists(${.CURDIR}/rescue) && !defined(NO_RESCUE)
 SUBDIR+= rescue
