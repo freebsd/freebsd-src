@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.h,v 1.3 1999/07/29 01:49:19 msmith Exp $
+ *      $Id: bios.h,v 1.4 1999/08/17 07:10:34 msmith Exp $
  */
 
 /* 
@@ -64,33 +64,6 @@ extern u_int32_t	bios_sigsearch(u_int32_t start, u_char *sig, int siglen,
 #define BIOS_VADDRTOPADDR(x)	(((x) - atdevbase) + ISA_HOLE_START)
 
 
-/*
- * System Management BIOS / Desktop Management Interface tables
- */
-
-struct DMI_table 
-{
-    u_int8_t	sig[5];			/* "_DMI_" */
-    u_int8_t	cksum;			/* checksum */
-    u_int16_t	st_size;		/* total length of SMBIOS table (bytes)*/
-    u_int32_t	st_base;		/* base address of the SMBIOS table (physical) */
-    u_int16_t	st_entries;		/* total number of structures present in the table */
-    u_int8_t	bcd_revision;		/* interface revision number */
-};
-
-struct SMBIOS_table 
-{
-    u_int8_t	sig[4];			/* "_SM_" */
-    u_int8_t	cksum;			/* checksum */
-    u_int8_t	len;			/* structure length */
-    u_int8_t	major, minor;		/* major/minor revision numbers */
-    u_int16_t	st_maxsize;		/* largest structure size (bytes) */
-    u_int8_t	revision;		/* entrypoint revision */
-    u_int8_t	pad[5];
-    struct DMI_table dmi;		/* follows immediately */
-};
-
-
 /* 
  * PnP BIOS presence structure
  */
@@ -116,7 +89,6 @@ struct PnPBIOS_table
  * Exported lookup results 
  */
 extern struct bios32_SDentry	PCIbios;
-extern struct SMBIOS_table	*SMBIOStable;
 extern struct PnPBIOS_table	*PnPBIOStable;
 
 struct segment_info {
