@@ -1,4 +1,4 @@
-/*	$Id: direntry.h,v 1.10 1998/02/23 16:44:26 ache Exp $ */
+/*	$Id: direntry.h,v 1.11 1998/02/24 14:13:08 ache Exp $ */
 /*	$NetBSD: direntry.h,v 1.14 1997/11/17 15:36:32 ws Exp $	*/
 
 /*-
@@ -137,4 +137,5 @@ int winChkName __P((const u_char *un, int unlen, struct winentry *wep, int chksu
 int win2unixfn __P((struct winentry *wep, struct dirent *dp, int chksum, int table_loaded, u_int16_t *u2w));
 u_int8_t winChksum __P((u_int8_t *name));
 int winSlotCnt __P((const u_char *un, int unlen));
+int winLenFixup __P((const u_char *un, int unlen));
 #endif	/* KERNEL */
