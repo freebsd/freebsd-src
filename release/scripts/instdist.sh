@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.12 1995/02/02 23:13:26 jkh Exp $
+# $Id: instdist.sh,v 1.13 1995/02/13 01:58:29 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -522,11 +522,11 @@ for this to work!\n"; then continue; fi
 		DEFAULT_VALUE="${NFS_OPTIONS}"
 		if input \
 "Do you wish to specify any options to NFS?  If you're installing
-from a Sun 4.1.x system, you may wish to specify \`-o resvport' to send
+from a Sun 4.1.x system, you may wish to specify \`-P' to send
 NFS requests over a privileged port (use this if you get nasty
 \`\`credential too weak'' errors from the server).  When using a slow
-ethernet card or network link, \`-o -r=1024,-w=1024' may also prove helpful.
-Options, if any, should be separated by commas."; then
+ethernet card or network link, \`-r 1024 -w 1024' may also prove helpful.
+Options, if any, should be separated by spaces."; then
 			if [ "${ANSWER}" != "" ]; then
 				NFS_OPTIONS="${ANSWER}"
 			fi
