@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.111 1998/02/20 16:35:37 phk Exp $
+ *	$Id: clock.c,v 1.112 1998/02/21 20:45:27 jkh Exp $
  */
 
 /*
@@ -190,6 +190,7 @@ clkintr(struct clockframe frame)
 		i8254_offset += timer0_max_count;
 	else
 		i8254_ticked = 0;
+	i8254_lastcount = 0;
 	timer_func(&frame);
 	switch (timer0_state) {
 
