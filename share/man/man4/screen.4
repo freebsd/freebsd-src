@@ -185,16 +185,32 @@ SGR	E[nm	Set character attributes:		--
 			pitch is in units of 840 nS,
 			duration is units of 0,1 S.
 
---	E[=tC	Set cursor type (see table)		--
+--	E[=tC	Set global cursor type (see table)	--
 
 		   t=0 normal non-blinking
 		   t=1 normal blinking
 		   t=2 custom non-blinking
 		   t=3 custom blinking
+		   t=4 reset cursor (resets custom
+		       cursor shape and sets current
+		       cursor type to 0)
+		   t=5 hide cursor
 
 --	E[=s;eC	Set custom cursor shape, where		--
 		s is the starting and e is the ending
 		scanlines of the cursor.
+
+--	E[=s;e;dC					--
+		Same as above, except d specifies the
+		direction.  If 0, scanlines are counted
+		from the top to the bottom.  If 1, from
+		the bottom to the top.
+
+--	E[=tS	Set local cursor type (see table)	--
+
+		   t=0 normal (global)			ve
+		   t=1 invisible			vi
+		   t=2 very visible			vs
 
 --      E[=nA   Set the border color to n               --
 		(see table) (if supported by HW)
