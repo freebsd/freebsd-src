@@ -30,12 +30,10 @@ yearistype: yearistype.sh
 
 beforeinstall:
 	umask 022; cd ${.CURDIR}; \
-	zic -d ${DESTDIR}/usr/share/zoneinfo -p ${POSIXRULES} \
+	zic -D -d ${DESTDIR}/usr/share/zoneinfo -p ${POSIXRULES} \
+	    -u ${BINOWN} -g ${BINGRP} \
 	    ${LEAPFILE} -y ${YEARISTYPE} ${TZFILES}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${.CURDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
-
-afterinstall:
-	chown -R ${BINOWN}:${BINGRP} ${DESTDIR}/usr/share/zoneinfo/*
 
 .include <bsd.prog.mk>
