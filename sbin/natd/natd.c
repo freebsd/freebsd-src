@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- *	$Id: natd.c,v 1.10 1999/03/07 18:23:56 brian Exp $
+ *	$Id: natd.c,v 1.11 1999/03/11 09:24:52 brian Exp $
  */
 
 #define SYSLOG_NAMES
@@ -52,6 +52,25 @@
 #define	DEFAULT_SERVICE	"natd"
 
 /*
+ * Definition of a port range, and macros to deal with values.
+ * FORMAT:  HI 16-bits == first port in range, 0 == all ports.
+ *          LO 16-bits == number of ports in range
+ * NOTES:   - Port values are not stored in network byte order.
+ */
+
+typedef u_long port_range;
+
+#define GETLOPORT(x)     ((x) >> 0x10)
+#define GETNUMPORTS(x)   ((x) & 0x0000ffff)
+#define GETHIPORT(x)     (GETLOPORT((x)) + GETNUMPORTS((x)))
+
+/* Set y to be the low-port value in port_range variable x. */
+#define SETLOPORT(x,y)   ((x) = ((x) & 0x0000ffff) | ((y) << 0x10))
+
+/* Set y to be the number of ports in port_range variable x. */
+#define SETNUMPORTS(x,y) ((x) = ((x) & 0xffff0000) | (y))
+
+/*
  * Function prototypes.
  */
 
@@ -73,8 +92,9 @@ static void	SetupAddressRedirect (char* parms);
 static void	SetupPptpAlias (char* parms);
 static void	StrToAddr (char* str, struct in_addr* addr);
 static u_short  StrToPort (char* str, char* proto);
+static int      StrToPortRange (char* str, char* proto, port_range *portRange);
 static int 	StrToProto (char* str);
-static u_short  StrToAddrAndPort (char* str, struct in_addr* addr, char* proto);
+static int      StrToAddrAndPortRange (char* str, struct in_addr* addr, char* proto, port_range *portRange);
 static void	ParseArgs (int argc, char** argv);
 static void	FlushPacketBuffer (int fd);
 
@@ -986,9 +1006,9 @@ static struct OptionInfo optionTable[] = {
 	{ RedirectPort,
 		0,
 		String,
-	        "tcp|udp local_addr:local_port [public_addr:]public_port"
-	 	" [remote_addr[:remote_port]]",
-		"redirect a port for incoming traffic",
+	        "tcp|udp local_addr:local_port_range [public_addr:]public_port_range"
+	 	" [remote_addr[:remote_port_range]]",
+		"redirect a port (or ports) for incoming traffic",
 		"redirect_port",
 		NULL },
 
@@ -1318,12 +1338,17 @@ void SetupPortRedirect (char* parms)
 	struct in_addr	localAddr;
 	struct in_addr	publicAddr;
 	struct in_addr	remoteAddr;
-	u_short		localPort;
-	u_short		publicPort;
-	u_short		remotePort;
+	port_range      portRange;
+	u_short         localPort      = 0;
+	u_short         publicPort     = 0;
+	u_short         remotePort     = 0;
+	u_short         numLocalPorts  = 0;
+	u_short         numPublicPorts = 0;
+	u_short         numRemotePorts = 0;
 	int		proto;
 	char*		protoName;
 	char*		separator;
+	int             i;
 
 	strcpy (buf, parms);
 /*
@@ -1341,7 +1366,12 @@ void SetupPortRedirect (char* parms)
 	if (!ptr)
 		errx (1, "redirect_port: missing local address");
 
-	localPort = StrToAddrAndPort (ptr, &localAddr, protoName);
+	if ( StrToAddrAndPortRange (ptr, &localAddr, protoName, &portRange) != 0 )
+	        errx (1, "redirect_port: invalid local port range");
+
+	localPort     = GETLOPORT(portRange);
+	numLocalPorts = GETNUMPORTS(portRange);
+
 /*
  * Extract public port and optinally address.
  */
@@ -1350,45 +1380,67 @@ void SetupPortRedirect (char* parms)
 		errx (1, "redirect_port: missing public port");
 
 	separator = strchr (ptr, ':');
-	if (separator)
-		publicPort = StrToAddrAndPort (ptr, &publicAddr, protoName);
-	else {
-
-		publicAddr.s_addr = INADDR_ANY;
-		publicPort = StrToPort (ptr, protoName);
+	if (separator) {
+	        if (StrToAddrAndPortRange (ptr, &publicAddr, protoName, &portRange) != 0 )
+		        errx (1, "redirect_port: invalid public port range");
 	}
+	else {
+		publicAddr.s_addr = INADDR_ANY;
+		if (StrToPortRange (ptr, protoName, &portRange) != 0)
+		        errx (1, "redirect_port: invalid public port range");
+	}
+
+	publicPort     = GETLOPORT(portRange);
+	numPublicPorts = GETNUMPORTS(portRange);
 
 /*
  * Extract remote address and optionally port.
  */
 	ptr = strtok (NULL, " \t");
 	if (ptr) {
-
-
 		separator = strchr (ptr, ':');
 		if (separator)
-			remotePort = StrToAddrAndPort (ptr,
-						       &remoteAddr,
-						       protoName);
+		        if (StrToAddrAndPortRange (ptr, &remoteAddr, protoName, &portRange) != 0)
+			        errx (1, "redirect_port: invalid remote port range");
 		else {
-
-			remotePort = 0;
+		        SETLOPORT(portRange, 0);
+			SETNUMPORTS(portRange, 1);
 			StrToAddr (ptr, &remoteAddr);
 		}
 	}
 	else {
-
-		remotePort = 0;
+	        SETLOPORT(portRange, 0);
+		SETNUMPORTS(portRange, 1);
 		remoteAddr.s_addr = INADDR_ANY;
 	}
 
-	PacketAliasRedirectPort (localAddr,
-				 localPort,
-				 remoteAddr,
-				 remotePort,
-				 publicAddr,
-				 publicPort,
-				 proto);
+	remotePort     = GETLOPORT(portRange);
+	numRemotePorts = GETNUMPORTS(portRange);
+
+/*
+ * Make sure port ranges match up, then add the redirect ports.
+ */
+	if (numLocalPorts != numPublicPorts)
+	        errx (1, "redirect_port: port ranges must be equal in size");
+
+	/* Remote port range is allowed to be '0' which means all ports. */
+	if (numRemotePorts != numLocalPorts && numRemotePorts != 1 && remotePort != 0)
+	        errx (1, "redirect_port: remote port must be 0 or equal to local port range in size");
+
+	for (i = 0 ; i < numPublicPorts ; ++i) {
+	        /* If remotePort is all ports, set it to 0. */
+	        u_short remotePortCopy = remotePort + i;
+	        if (numRemotePorts == 1 && remotePort == 0)
+		        remotePortCopy = 0;
+
+	        PacketAliasRedirectPort (localAddr,
+					 htons(localPort + i),
+					 remoteAddr,
+					 htons(remotePortCopy),
+					 publicAddr,
+					 htons(publicPort + i),
+					 proto);
+	}
 }
 
 void SetupAddressRedirect (char* parms)
@@ -1449,6 +1501,50 @@ u_short StrToPort (char* str, char* proto)
 	return sp->s_port;
 }
 
+int StrToPortRange (char* str, char* proto, port_range *portRange)
+{
+	char*           sep;
+	struct servent*	sp;
+	char*		end;
+	u_short         loPort;
+	u_short         hiPort;
+	
+	/* First see if this is a service, return corresponding port if so. */
+	sp = getservbyname (str,proto);
+	if (sp) {
+	        SETLOPORT(*portRange, ntohs(sp->s_port));
+		SETNUMPORTS(*portRange, 1);
+		return 0;
+	}
+	        
+	/* Not a service, see if it's a single port or port range. */
+	sep = strchr (str, '-');
+	if (sep == NULL) {
+	        SETLOPORT(*portRange, strtol(str, &end, 10));
+		if (end != str) {
+		        /* Single port. */
+		        SETNUMPORTS(*portRange, 1);
+			return 0;
+		}
+
+		/* Error in port range field. */
+		errx (1, "unknown service %s/%s", str, proto);
+	}
+
+	/* Port range, get the values and sanity check. */
+	sscanf (str, "%hu-%hu", &loPort, &hiPort);
+	SETLOPORT(*portRange, loPort);
+	SETNUMPORTS(*portRange, 0);	/* Error by default */
+	if (loPort <= hiPort)
+	        SETNUMPORTS(*portRange, hiPort - loPort + 1);
+
+	if (GETNUMPORTS(*portRange) == 0)
+	        errx (1, "invalid port range %s", str);
+
+	return 0;
+}
+
+
 int StrToProto (char* str)
 {
 	if (!strcmp (str, "tcp"))
@@ -1460,7 +1556,7 @@ int StrToProto (char* str)
 	errx (1, "unknown protocol %s. Expected tcp or udp", str);
 }
 
-u_short StrToAddrAndPort (char* str, struct in_addr* addr, char* proto)
+int StrToAddrAndPortRange (char* str, struct in_addr* addr, char* proto, port_range *portRange)
 {
 	char*	ptr;
 
@@ -1472,6 +1568,5 @@ u_short StrToAddrAndPort (char* str, struct in_addr* addr, char* proto)
 	++ptr;
 
 	StrToAddr (str, addr);
-	return StrToPort (ptr, proto);
+	return StrToPortRange (ptr, proto, portRange);
 }
-
