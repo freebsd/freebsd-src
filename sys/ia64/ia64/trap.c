@@ -74,6 +74,10 @@ u_int32_t want_resched;
 
 static int unaligned_fixup(struct trapframe *framep, struct proc *p);
 
+#ifdef WITNESS
+extern char *syscallnames[];
+#endif
+
 /*
  * Define the code needed before returning to user mode, for
  * trap and syscall.
@@ -614,6 +618,16 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	 */
 	STOPEVENT(p, S_SCX, code);
 	mtx_exit(&Giant, MTX_DEF);
+
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_NOTOWNED);
+#ifdef WITNESS
+	if (witness_list(p)) {
+		panic("system call %s returning with mutex(s) held\n",
+		    syscallnames[code]);
+	}
+#endif
+}
 }
 
 /*

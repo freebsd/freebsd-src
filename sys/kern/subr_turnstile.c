@@ -1353,17 +1353,22 @@ witness_free(struct witness *w)
 	w_free = w;
 }
 
-void
+int
 witness_list(struct proc *p)
 {
 	struct mtx *m;
+	int nheld;
 
+	nheld = 0;
 	for ((m = LIST_FIRST(&p->p_heldmtx)); m != NULL;
 	    m = LIST_NEXT(m, mtx_held)) {
 		printf("\t\"%s\" (%p) locked at %s:%d\n",
 		    m->mtx_description, m,
 		    m->mtx_witness->w_file, m->mtx_witness->w_line);
+		nheld++;
 	}
+
+	return (nheld);
 }
 
 void
