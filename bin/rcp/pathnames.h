@@ -37,4 +37,6 @@
 #include <paths.h>
 
 #define	_PATH_CP	"/bin/cp"
+#define	_PATH_RCP	"/bin/rcp"
+#define	_PATH_RLOGIN	"/usr/bin/rlogin"
 #define	_PATH_RSH	"/usr/bin/rsh"
