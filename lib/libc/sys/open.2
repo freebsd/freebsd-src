@@ -123,8 +123,7 @@ in the process being blocked for some reason (e.g., waiting for
 carrier on a dialup line),
 .Fn open
 returns immediately.
-The first time the process attempts to perform I/O on the open
-file it will block (not currently implemented).
+The descriptor remains in non-blocking mode for subsequent operations.
 .Pp
 If
 .Dv O_FSYNC
