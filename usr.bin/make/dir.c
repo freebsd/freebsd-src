@@ -1067,15 +1067,14 @@ Dir_AddDir (path, name)
 		}
 #endif /* sun && d_ino */
 
-		/* Skip the '.' and '..' entries by checking for them specifically
-		 * instead of assuming readdir() reuturns them in that order when
-		 * first going through a directory.  This is needed for XFS over
-		 * NFS filesystems since SGI does not guarantee that these are the
-		 * first two entries returned from readdir().
+		/* Skip the '.' and '..' entries by checking for them
+		 * specifically instead of assuming readdir() reuturns them in
+		 * that order when first going through a directory.  This is
+		 * needed for XFS over NFS filesystems since SGI does not
+		 * guarantee that these are * the first two entries returned
+		 * from readdir().
 		 */
-		if (dp->d_name[0] == '.' &&
-			(dp->d_name[1] == NULL ||
-			(dp->d_name[1] == '.' && dp->d_name[2] == NULL)))
+		if (ISDOT(dp->d_name) || ISDOTDOT(dp->d_name))
 			continue;
 
 		(void)Hash_CreateEntry(&p->files, dp->d_name, (Boolean *)NULL);
