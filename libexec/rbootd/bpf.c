@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)bpf.c	8.1 (Berkeley) 6/4/93
- *	$Id: bpf.c,v 1.6 1997/02/22 14:21:57 peter Exp $
+ *	$Id: bpf.c,v 1.7 1997/06/29 19:00:01 steve Exp $
  *
  * From: Utah Hdr: bpf.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
@@ -146,7 +146,7 @@ BpfOpen()
 	ifr.ifr_addr.sa_len = RMP_ADDRLEN + 2;
 #endif
 	ifr.ifr_addr.sa_family = AF_UNSPEC;
-	bcopy(&RmpMcastAddr[0], (char *)&ifr.ifr_addr.sa_data[0], RMP_ADDRLEN);
+	memmove((char *)&ifr.ifr_addr.sa_data[0], &RmpMcastAddr[0], RMP_ADDRLEN);
 	if (ioctl(BpfFd, BIOCPROMISC, (caddr_t)0) < 0) {
 		syslog(LOG_ERR, "bpf: can't set promiscuous mode: %m");
 		Exit(0);
@@ -308,7 +308,7 @@ BpfRead(rconn, doread)
 	RMPCONN *rconn;
 	int doread;
 {
-	register int datlen, caplen, hdrlen;
+	int datlen, caplen, hdrlen;
 	static u_int8_t *bp = NULL, *ep = NULL;
 	int cc;
 
@@ -345,9 +345,9 @@ BpfRead(rconn, doread)
 			       caplen);
 		else {
 			rconn->rmplen = caplen;
-			bcopy((char *)&bhp->bh_tstamp, (char *)&rconn->tstamp,
+			memmove((char *)&rconn->tstamp, (char *)&bhp->bh_tstamp,
 			      sizeof(struct timeval));
-			bcopy((char *)bp + hdrlen, (char *)&rconn->rmp, caplen);
+			memmove((char *)&rconn->rmp, (char *)bp + hdrlen, caplen);
 		}
 		bp += BPF_WORDALIGN(caplen + hdrlen);
 		return(1);
@@ -410,7 +410,7 @@ BpfClose()
 	ifr.ifr_addr.sa_len = RMP_ADDRLEN + 2;
 #endif
 	ifr.ifr_addr.sa_family = AF_UNSPEC;
-	bcopy(&RmpMcastAddr[0], (char *)&ifr.ifr_addr.sa_data[0], RMP_ADDRLEN);
+	memmove((char *)&ifr.ifr_addr.sa_data[0], &RmpMcastAddr[0], RMP_ADDRLEN);
 	if (ioctl(BpfFd, SIOCDELMULTI, (caddr_t)&ifr) < 0)
 		(void) ioctl(BpfFd, BIOCPROMISC, (caddr_t)0);
 
