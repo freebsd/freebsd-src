@@ -171,7 +171,7 @@ gettype(t, names)
 	for (nm = names; *nm; nm++)
 		if (strcasecmp(t, *nm) == 0)
 			return (nm - names);
-	if (isdigit(*t))
+	if (isdigit((unsigned char)*t))
 		return (atoi(t));
 	return (0);
 }

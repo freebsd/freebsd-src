@@ -204,7 +204,7 @@ setmode(p)
 	 * If an absolute number, get it and return; disallow non-octal digits
 	 * or illegal bits.
 	 */
-	if (isdigit(*p)) {
+	if (isdigit((unsigned char)*p)) {
 		perm = (mode_t)strtol(p, NULL, 8);
 		if (perm & ~(STANDARD_BITS|S_ISTXT)) {
 			free(saveset);
