@@ -1,7 +1,8 @@
 /* $FreeBSD$ */
 
 /* Main header file for the bfd library -- portable access to object files.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
@@ -51,13 +52,13 @@ here.  */
 extern "C" {
 #endif
 
-#include "ansidecl.h"
-
 /* FreeBSD does not adhere to the Intel386 System V ABI.  */
 #define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
 
+#include "ansidecl.h"
+
 /* These two lines get substitutions done by commands in Makefile.in.  */
-/* #define BFD_VERSION  "2.11" */
+/* #define BFD_VERSION  "2.11.2" */
 #define BFD_ARCH_SIZE 32
 #define BFD_HOST_64BIT_LONG 0
 #if 0
@@ -1119,6 +1120,10 @@ typedef struct sec
   /* A mark flag used by some of the linker backends.  */
   unsigned int linker_mark : 1;
 
+  /* Another mark flag used by some of the linker backends.  Set for
+     output sections that have a input section.  */
+  unsigned int linker_has_input : 1;
+
   /* A mark flag used by some linker backends for garbage collection.  */
   unsigned int gc_mark : 1;
 
@@ -1353,6 +1358,10 @@ enum bfd_architecture
 #define bfd_mach_m68040 6
 #define bfd_mach_m68060 7
 #define bfd_mach_cpu32  8
+#define bfd_mach_mcf5200  9
+#define bfd_mach_mcf5206e 10
+#define bfd_mach_mcf5307  11
+#define bfd_mach_mcf5407  12
   bfd_arch_vax,       /* DEC Vax */
   bfd_arch_i960,      /* Intel 960 */
     /* The order of the following is important.
@@ -1404,6 +1413,7 @@ enum bfd_architecture
 #define bfd_mach_mips6000              6000
 #define bfd_mach_mips8000              8000
 #define bfd_mach_mips10000             10000
+#define bfd_mach_mips12000             12000
 #define bfd_mach_mips16                16
 #define bfd_mach_mips32                32
 #define bfd_mach_mips32_4k             3204113 /* 32, 04, octal 'K' */
@@ -1902,7 +1912,9 @@ relocation types already defined. */
   BFD_RELOC_SPARC_GLOB_DAT,
   BFD_RELOC_SPARC_JMP_SLOT,
   BFD_RELOC_SPARC_RELATIVE,
+  BFD_RELOC_SPARC_UA16,
   BFD_RELOC_SPARC_UA32,
+  BFD_RELOC_SPARC_UA64,
 
 /* I think these are specific to SPARC a.out (e.g., Sun 4). */
   BFD_RELOC_SPARC_BASE13,
@@ -2054,6 +2066,17 @@ to compensate for the borrow when the low bits are added. */
   BFD_RELOC_MIPS_GOT_PAGE,
   BFD_RELOC_MIPS_GOT_OFST,
   BFD_RELOC_MIPS_GOT_DISP,
+  BFD_RELOC_MIPS_SHIFT5,
+  BFD_RELOC_MIPS_SHIFT6,
+  BFD_RELOC_MIPS_INSERT_A,
+  BFD_RELOC_MIPS_INSERT_B,
+  BFD_RELOC_MIPS_DELETE,
+  BFD_RELOC_MIPS_HIGHEST,
+  BFD_RELOC_MIPS_HIGHER,
+  BFD_RELOC_MIPS_SCN_DISP,
+  BFD_RELOC_MIPS_REL16,
+  BFD_RELOC_MIPS_RELGOT,
+  BFD_RELOC_MIPS_JALR,
 
 
 /* i386/elf relocations */
