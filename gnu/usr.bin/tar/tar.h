@@ -231,6 +231,7 @@ TAR_EXTERN char *f_volno_file;	/* --volno-file */
 TAR_EXTERN int f_force_local;	/* --force-local */
 TAR_EXTERN int f_atime_preserve;/* --atime-preserve */
 TAR_EXTERN int f_compress_block; /* --compress-block */
+TAR_EXTERN int f_unlink;	/* --unlink */
 
 /*
  * We default to Unix Standard format rather than 4.2BSD tar format.
