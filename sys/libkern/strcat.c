@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 
-#include <string.h>
+#include <sys/libkern.h>
 
 char *
 strcat(s, append)

@@ -36,7 +36,7 @@
  * $FreeBSD$
  */
 
-#include <string.h>
+#include <sys/libkern.h>
 
 /*
  * Copy src to dst, truncating or null-padding to always copy n bytes.
