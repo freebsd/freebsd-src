@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id: ufs_bmap.c,v 1.16 1997/09/02 20:06:56 bde Exp $
+ * $Id: ufs_bmap.c,v 1.17 1997/11/24 16:33:03 bde Exp $
  */
 
 #include <sys/param.h>
@@ -46,11 +46,13 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
+#include <sys/conf.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
+#include <miscfs/specfs/specdev.h>
 
 /*
  * Bmap converts a the logical block number of a file to its physical block
@@ -124,18 +126,48 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 #endif
 
 	if (runp) {
+		*runp = 0;
+	}
+
+	if (runb) {
+		*runb = 0;
+	}
+
+	maxrun = 0;
+	if (runp || runb || (vp->v_maxio == 0)) {
+
+		struct vnode *devvp;
+		int blksize;
+
+		blksize = mp->mnt_stat.f_iosize;
+
 		/*
 		 * XXX
 		 * If MAXPHYS is the largest transfer the disks can handle,
 		 * we probably want maxrun to be 1 block less so that we
 		 * don't create a block larger than the device can handle.
 		 */
-		*runp = 0;
-		maxrun = MAXPHYS / mp->mnt_stat.f_iosize - 1;
-	}
+		devvp = ip->i_devvp;
 
-	if (runb) {
-		*runb = 0;
+		if (devvp && devvp->v_type == VBLK &&
+			(devvp->v_rdev != NODEV) &&
+			(major(devvp->v_rdev) < nblkdev)) {
+			if (bdevsw[major(devvp->v_rdev)]->d_maxio > MAXPHYS) {
+				maxrun = MAXPHYS;
+				vp->v_maxio = MAXPHYS;
+			} else {
+				maxrun = bdevsw[major(devvp->v_rdev)]->d_maxio;
+				vp->v_maxio = bdevsw[major(devvp->v_rdev)]->d_maxio;
+			}
+			maxrun = maxrun / blksize;
+			maxrun -= 1;
+		}
+
+		if (maxrun == 0) {
+			vp->v_maxio = DFLTPHYS;
+			maxrun = DFLTPHYS / blksize;
+			maxrun -= 1;
+		}
 	}
 
 	xap = ap == NULL ? a : ap;

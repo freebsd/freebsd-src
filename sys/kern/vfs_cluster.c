@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.49 1997/11/07 08:53:05 phk Exp $
+ * $Id: vfs_cluster.c,v 1.50 1998/01/06 05:16:01 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -92,12 +92,14 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	long origtotread;
 
 	error = 0;
+	if (vp->v_maxio == 0)
+		vp->v_maxio = DFLTPHYS;
 
 	/*
 	 * Try to limit the amount of read-ahead by a few
 	 * ad-hoc parameters.  This needs work!!!
 	 */
-	racluster = MAXPHYS/size;
+	racluster = vp->v_maxio/size;
 	maxra = 2 * racluster + (totread / size);
 	if (maxra > MAXRA)
 		maxra = MAXRA;
@@ -356,11 +358,13 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	bp->b_bufsize = 0;
 	bp->b_npages = 0;
 
+	if (vp->v_maxio == 0)
+		vp->v_maxio = DFLTPHYS;
 	inc = btodb(size);
 	for (bn = blkno, i = 0; i < run; ++i, bn += inc) {
 		if (i != 0) {
 			if ((bp->b_npages * PAGE_SIZE) +
-				round_page(size) > MAXPHYS)
+				round_page(size) > vp->v_maxio)
 				break;
 
 			if (incore(vp, lbn + i))
@@ -492,6 +496,8 @@ cluster_write(bp, filesize)
 	int async;
 
 	vp = bp->b_vp;
+	if (vp->v_maxio == 0)
+		vp->v_maxio = DFLTPHYS;
 	if (vp->v_type == VREG) {
 		async = vp->v_mount->mnt_flag & MNT_ASYNC;
 		lblocksize = vp->v_mount->mnt_stat.f_iosize;
@@ -507,7 +513,7 @@ cluster_write(bp, filesize)
 
 	if (vp->v_clen == 0 || lbn != vp->v_lastw + 1 ||
 	    (bp->b_blkno != vp->v_lasta + btodb(lblocksize))) {
-		maxclen = MAXPHYS / lblocksize - 1;
+		maxclen = vp->v_maxio / lblocksize - 1;
 		if (vp->v_clen != 0) {
 			/*
 			 * Next block is not sequential.
@@ -703,7 +709,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 
 				if ((tbp->b_bcount != size) ||
 					((bp->b_blkno + dbsize * i) != tbp->b_blkno) ||
-					((tbp->b_npages + bp->b_npages) > (MAXPHYS / PAGE_SIZE))) {
+					((tbp->b_npages + bp->b_npages) > (vp->v_maxio / PAGE_SIZE))) {
 					splx(s);
 					break;
 				}

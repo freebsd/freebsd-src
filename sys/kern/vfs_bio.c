@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.143 1998/01/17 09:16:26 dyson Exp $
+ * $Id: vfs_bio.c,v 1.144 1998/01/22 17:29:51 dyson Exp $
  */
 
 /*
@@ -1132,17 +1132,26 @@ findkvaspace:
 		if (vm_map_findspace(buffer_map,
 			vm_map_min(buffer_map), maxsize, &addr)) {
 			if (kvafreespace > 0) {
-				int tfree = 0;
-				for (bp1 = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
-					bp1 != NULL; bp1 = TAILQ_NEXT(bp1, b_freelist))
-					if (bp1->b_kvasize != 0) {
-						tfree += bp1->b_kvasize;
-						bremfree(bp1);
-						bfreekva(bp1);
-						brelse(bp1);
-						if (tfree >= maxsize)
-							goto findkvaspace;
+				int totfree = 0, freed;
+				do {
+					freed = 0;
+					for (bp1 = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
+						bp1 != NULL; bp1 = TAILQ_NEXT(bp1, b_freelist)) {
+						if (bp1->b_kvasize != 0) {
+							totfree += bp1->b_kvasize;
+							freed = bp1->b_kvasize;
+							bremfree(bp1);
+							bfreekva(bp1);
+							brelse(bp1);
+							break;
+						}
 					}
+				} while (freed);
+				/*
+				 * if we found free space, then retry with the same buffer.
+				 */
+				if (totfree)
+					goto findkvaspace;
 			}
 			bp->b_flags |= B_INVAL;
 			brelse(bp);

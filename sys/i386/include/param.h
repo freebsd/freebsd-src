@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.16 1997/08/30 01:22:01 smp Exp smp $
+ *	$Id: param.h,v 1.41 1997/08/30 08:07:50 fsmp Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -76,7 +76,8 @@
 #define DEV_BSIZE	(1<<DEV_BSHIFT)
 
 #define BLKDEV_IOSIZE	2048
-#define MAXPHYS		(64 * 1024)	/* max raw I/O transfer size */
+#define DFLTPHYS	(64 * 1024)		/* default max raw I/O transfer size */
+#define MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 #define UPAGES	2		/* pages of u-area */
