@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <pw_scan.h>
 #endif
 extern int      pw_big_ids_warning;
-extern int      pw_scan __P((char *, struct passwd *));
+extern int      pw_scan(char *, struct passwd *);
 
 #include <pw_util.h>
 

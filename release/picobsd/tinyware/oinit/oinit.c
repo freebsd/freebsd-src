@@ -99,17 +99,17 @@ struct command {
 };
 
 /* Prototypes */
-int cd __P((char *));
-int pwd __P((char *));
-int echo __P((char *));
-int xit __P((char *));
-int set __P((char *));
-int unset __P((char *));
-int env __P((char *));
-int help __P((char *));
-int sourcer __P((char *));
-void do_command __P((int shell, char *cmdline));
-void transition_handler __P((int));
+int cd(char *);
+int pwd(char *);
+int echo(char *);
+int xit(char *);
+int set(char *);
+int unset(char *);
+int env(char *);
+int help(char *);
+int sourcer(char *);
+void do_command(int shell, char *cmdline);
+void transition_handler(int);
 
 /* Table of built-in functions */
 struct command bltins[]={

@@ -64,12 +64,9 @@ must provide a struct accept_filter to the system:
 .Bd -literal
 struct accept_filter {
 	char	accf_name[16];
-	void	(*accf_callback)
-		__P((struct socket *so, void *arg, int waitflag));
-	void *	(*accf_create)
-		__P((struct socket *so, char *arg));
-	void	(*accf_destroy)
-		__P((struct socket *so));
+	void	(*accf_callback)(struct socket *so, void *arg, int waitflag);
+	void *	(*accf_create)(struct socket *so, char *arg);
+	void	(*accf_destroy)(struct socket *so);
 	SLIST_ENTRY(accept_filter) accf_next;	/* next on the list */
 };
 .Ed

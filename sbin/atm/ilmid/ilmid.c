@@ -335,9 +335,9 @@ char	hostname[80];
 #define	LOG_FILE	"/var/log/ilmid"
 FILE	*Log;			/* File descriptor for log messages */
 
-void	set_reqid __P ( ( u_char *, int ) );
-void	Increment_DL __P ( ( int ) );
-void	Decrement_DL __P ( ( int ) );
+void	set_reqid( u_char *, int );
+void	Increment_DL( int );
+void	Decrement_DL( int );
 
 static char	*Months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
 			     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };

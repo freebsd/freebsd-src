@@ -64,7 +64,7 @@ __RCSID("@(#) $FreeBSD$");
 #endif
 
 
-extern int	yyparse __P((void));
+extern int	yyparse(void);
 
 /*
  * Global variables
