@@ -36,7 +36,9 @@
 .Os
 .Sh NAME
 .Nm BUF
-.Nd Kernel Buffer I/O scheme used in FreeBSD VM system
+.Nd Kernel Buffer I/O scheme used in
+.Fx
+VM system
 .Sh DESCRIPTION
 .Pp
 The kernel implements a KVM abstraction of the buffer cache which allows it
@@ -45,7 +47,8 @@ to map potentially disparate vm_page's into contiguous KVM for use by
 block sizes from DEV_BSIZE (usually 512) to upwards of several pages or more.
 It also supports a relatively primitive byte-granular valid range and dirty
 range currently hardcoded for use by NFS.  The code implementing the
-VM Buffer abstraction is mostly concentrated in /usr/src/sys/kern/vfs_bio.c.
+VM Buffer abstraction is mostly concentrated in
+.Pa /usr/src/sys/kern/vfs_bio.c .
 .Pp
 One of the most important things to remember when dealing with buffer pointers
 (struct buf) is that the underlying pages are mapped directly from the buffer
@@ -93,7 +96,7 @@ to the VFS device, not when the physical I/O is actually initiated.  This
 can create confusion within filesystem devices that use delayed-writes because
 you wind up with pages marked clean that are actually still dirty.  If not
 treated carefully, these pages could be thrown away!  Indeed, a number of
-serious bugs related to this hack were not fixed until the 2.2.8/3.0.0 release.
+serious bugs related to this hack were not fixed until the 2.2.8/3.0 release.
 The kernel uses an instantiated VM buffer (i.e. struct buf) to placemark pages
 in this special state.  The buffer is typically flagged B_DELWRI.  When a
 device no longer needs a buffer it typically flags it as B_RELBUF.  Due to
@@ -117,8 +120,9 @@ system.
 .Sh HISTORY
 The
 .Nm
-manual page was originally written by Matthew Dillon and first appeared 
-in
-.Fx 3.0.1 ,
+manual page was originally written by
+.An Matthew Dillon
+and first appeared in
+.Fx 3.1 ,
 December 1998.
 
