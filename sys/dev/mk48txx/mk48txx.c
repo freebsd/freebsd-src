@@ -33,38 +33,30 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$NetBSD: mk48txx.c,v 1.7 2001/04/08 17:05:10 tsutsui Exp $
+ *	from: NetBSD: mk48txx.c,v 1.15 2004/07/05 09:24:31 pk Exp
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 /*
- * Mostek MK48T02, MK48T08, MK48T59 time-of-day chip subroutines.
+ * Mostek MK48T02, MK48T08, MK48T18, MK48T59 time-of-day chip subroutines.
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
-#include <sys/malloc.h>
 
 #include <machine/bus.h>
 
 #include <dev/mk48txx/mk48txxreg.h>
+#include <dev/mk48txx/mk48txxvar.h>
 
 #include "clock_if.h"
 
-struct mk48txx_softc {
-	bus_space_tag_t	mk_bt;		/* bus tag & handle */
-	bus_space_handle_t mk_bh;	/* */
-	bus_size_t	mk_nvramsz;	/* Size of NVRAM on the chip */
-	bus_size_t	mk_clkoffset;	/* Offset in NVRAM to clock bits */
-	u_int		mk_year0;	/* What year is represented on the system
-					   by the chip's year counter at 0 */
-};
-
-int mk48txx_auto_century_adjust = 1;
+static uint8_t	mk48txx_def_nvrd(device_t, int);
+static void	mk48txx_def_nvwr(device_t, int, u_int8_t);
 
 struct {
 	const char *name;
@@ -75,23 +67,22 @@ struct {
 } mk48txx_models[] = {
 	{ "mk48t02", MK48T02_CLKSZ, MK48T02_CLKOFF, 0 },
 	{ "mk48t08", MK48T08_CLKSZ, MK48T08_CLKOFF, 0 },
+	{ "mk48t18", MK48T18_CLKSZ, MK48T18_CLKOFF, 0 },
 	{ "mk48t59", MK48T59_CLKSZ, MK48T59_CLKOFF, MK48TXX_EXT_REGISTERS },
 };
 
 int
-mk48txx_attach(device_t dev, bus_space_tag_t bt, bus_space_handle_t bh,
-    const char *model, int year0)
+mk48txx_attach(device_t dev)
 {
 	struct mk48txx_softc *sc;
-	bus_size_t clkoff = 0, nvramsz = 0;
 	int i;
 
-	device_printf(dev, "model %s", model);
+	sc = device_get_softc(dev);
+
+	device_printf(dev, "model %s", sc->sc_model);
 	i = sizeof(mk48txx_models) / sizeof(mk48txx_models[0]);
 	while (--i >= 0) {
-		if (strcmp(model, mk48txx_models[i].name) == 0) {
-			nvramsz = mk48txx_models[i].nvramsz;
-			clkoff = mk48txx_models[i].clkoff;
+		if (strcmp(sc->sc_model, mk48txx_models[i].name) == 0) {
 			break;
 		}
 	}
@@ -100,21 +91,21 @@ mk48txx_attach(device_t dev, bus_space_tag_t bt, bus_space_handle_t bh,
 		return (ENXIO);
 	}
 	printf("\n");
+	sc->sc_nvramsz = mk48txx_models[i].nvramsz;
+	sc->sc_clkoffset = mk48txx_models[i].clkoff;
+
+	if (sc->sc_nvrd == NULL)
+		sc->sc_nvrd = mk48txx_def_nvrd;
+	if (sc->sc_nvwr == NULL)
+		sc->sc_nvwr = mk48txx_def_nvwr;
 
 	if ((mk48txx_models[i].flags & MK48TXX_EXT_REGISTERS) &&
-	    (bus_space_read_1(bt, bh, clkoff + MK48TXX_FLAGS) &
+	    ((*sc->sc_nvrd)(dev, sc->sc_clkoffset + MK48TXX_FLAGS) &
 	    MK48TXX_FLAGS_BL)) {
 		device_printf(dev, "mk48txx_attach: battery low\n");
 		return (ENXIO);
 	}
 
-	sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
-	sc->mk_bt = bt;
-	sc->mk_bh = bh;
-	sc->mk_nvramsz = nvramsz;
-	sc->mk_clkoffset = clkoff;
-	sc->mk_year0 = year0;
-	device_set_softc(dev, sc);
 	clock_register(dev, 1000000);	/* 1 second resolution. */
 
 	return (0);
@@ -127,21 +118,21 @@ mk48txx_attach(device_t dev, bus_space_tag_t bt, bus_space_handle_t bh,
 int
 mk48txx_gettime(device_t dev, struct timespec *ts)
 {
-	struct mk48txx_softc *mk = device_get_softc(dev);
-	bus_space_tag_t bt = mk->mk_bt;
-	bus_space_handle_t bh = mk->mk_bh;
-	bus_size_t clkoff = mk->mk_clkoffset;
+	struct mk48txx_softc *sc;
+	bus_size_t clkoff;
 	struct clocktime ct;
 	int year;
 	u_int8_t csr;
 
-	/* enable read (stop time) */
-	csr = bus_space_read_1(bt, bh, clkoff + MK48TXX_ICSR);
-	csr |= MK48TXX_CSR_READ;
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_ICSR, csr);
+	sc = device_get_softc(dev);
+	clkoff = sc->sc_clkoffset;
 
-#define	FROMREG(reg, mask)						\
-	(bus_space_read_1(bt, bh, clkoff + (reg)) & (mask))
+	/* enable read (stop time) */
+	csr = (*sc->sc_nvrd)(dev, clkoff + MK48TXX_ICSR);
+	csr |= MK48TXX_CSR_READ;
+	(*sc->sc_nvwr)(dev, clkoff + MK48TXX_ICSR, csr);
+
+#define	FROMREG(reg, mask)	((*sc->sc_nvrd)(dev, clkoff + (reg)) & (mask))
 
 	ct.nsec = 0;
 	ct.sec = FROMBCD(FROMREG(MK48TXX_ISEC, MK48TXX_SEC_MASK));
@@ -157,8 +148,8 @@ mk48txx_gettime(device_t dev, struct timespec *ts)
 	 * XXX:	At least the MK48T59 (probably all MK48Txx models with
 	 *	extended registers) has a century bit in the MK48TXX_IWDAY
 	 *	register which should be used here to make up the century
-	 *	when mk48txx_auto_century_adjust (which actually means
-	 *	manually adjust the century in the driver) is set to 0.
+	 *	when MK48TXX_NO_CENT_ADJUST (which actually means don't
+	 *	_manually_ adjust the century in the driver) is set to 1.
 	 *	Sun/Solaris doesn't use this bit (probably for backwards
 	 *	compatibility with Sun hardware equipped with older MK48Txx
 	 *	models) and at present this driver is only used on sparc64
@@ -168,16 +159,17 @@ mk48txx_gettime(device_t dev, struct timespec *ts)
 
 #undef FROMREG
 
-	year += mk->mk_year0;
-	if (year < POSIX_BASE_YEAR && mk48txx_auto_century_adjust != 0)
+	year += sc->sc_year0;
+	if (year < POSIX_BASE_YEAR &&
+	    (sc->sc_flag & MK48TXX_NO_CENT_ADJUST) == 0)
 		year += 100;
 
 	ct.year = year;
 
 	/* time wears on */
-	csr = bus_space_read_1(bt, bh, clkoff + MK48TXX_ICSR);
+	csr = (*sc->sc_nvrd)(dev, clkoff + MK48TXX_ICSR);
 	csr &= ~MK48TXX_CSR_READ;
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_ICSR, csr);
+	(*sc->sc_nvwr)(dev, clkoff + MK48TXX_ICSR, csr);
 
 	return (clock_ct_to_ts(&ct, ts));
 }
@@ -189,13 +181,14 @@ mk48txx_gettime(device_t dev, struct timespec *ts)
 int
 mk48txx_settime(device_t dev, struct timespec *ts)
 {
-	struct mk48txx_softc *mk = device_get_softc(dev);
-	bus_space_tag_t bt = mk->mk_bt;
-	bus_space_handle_t bh = mk->mk_bh;
-	bus_size_t clkoff = mk->mk_clkoffset;
+	struct mk48txx_softc *sc;
+	bus_size_t clkoff;
 	struct clocktime ct;
 	u_int8_t csr;
 	int year;
+
+	sc = device_get_softc(dev);
+	clkoff = sc->sc_clkoffset;
 
 	/* Accuracy is only one second. */
 	if (ts->tv_nsec >= 500000000)
@@ -203,18 +196,18 @@ mk48txx_settime(device_t dev, struct timespec *ts)
 	ts->tv_nsec = 0;
 	clock_ts_to_ct(ts, &ct);
 
-	year = ct.year - mk->mk_year0;
-	if (year > 99 && mk48txx_auto_century_adjust != 0)
+	year = ct.year - sc->sc_year0;
+	if (year > 99 && (sc->sc_flag & MK48TXX_NO_CENT_ADJUST) == 0)
 		year -= 100;
 
 	/* enable write */
-	csr = bus_space_read_1(bt, bh, clkoff + MK48TXX_ICSR);
+	csr = (*sc->sc_nvrd)(dev, clkoff + MK48TXX_ICSR);
 	csr |= MK48TXX_CSR_WRITE;
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_ICSR, csr);
+	(*sc->sc_nvwr)(dev, clkoff + MK48TXX_ICSR, csr);
 
 #define	TOREG(reg, mask, val)						\
-	(bus_space_write_1(bt, bh, clkoff + (reg),			\
-	(bus_space_read_1(bt, bh, clkoff + (reg)) & ~(mask)) |		\
+	((*sc->sc_nvwr)(dev, clkoff + (reg),				\
+	((*sc->sc_nvrd)(dev, clkoff + (reg)) & ~(mask)) |		\
 	((val) & (mask))))
 
 	TOREG(MK48TXX_ISEC, MK48TXX_SEC_MASK, TOBCD(ct.sec));
@@ -228,24 +221,32 @@ mk48txx_settime(device_t dev, struct timespec *ts)
 
 	/*
 	 * XXX:	Use the century bit for storing the century when
-	 *	mk48txx_auto_century_adjust is set to 0.
+	 *	MK48TXX_NO_CENT_ADJUST is set to 1.
 	 */
 
 #undef TOREG
 
 	/* load them up */
-	csr = bus_space_read_1(bt, bh, clkoff + MK48TXX_ICSR);
+	csr = (*sc->sc_nvrd)(dev, clkoff + MK48TXX_ICSR);
 	csr &= ~MK48TXX_CSR_WRITE;
-	bus_space_write_1(bt, bh, clkoff + MK48TXX_ICSR, csr);
+	(*sc->sc_nvwr)(dev, clkoff + MK48TXX_ICSR, csr);
 	return (0);
 }
 
-int
-mk48txx_get_nvram_size(device_t dev, bus_size_t *vp)
+static u_int8_t
+mk48txx_def_nvrd(device_t dev, int off)
 {
-	struct mk48txx_softc *mk;
+	struct mk48txx_softc *sc;
 
-	mk = device_get_softc(dev);
-	*vp = mk->mk_nvramsz;
-	return (0);
+	sc = device_get_softc(dev);
+	return (bus_space_read_1(sc->sc_bst, sc->sc_bsh, off));
+}
+
+static void
+mk48txx_def_nvwr(device_t dev, int off, u_int8_t v)
+{
+	struct mk48txx_softc *sc;
+
+	sc = device_get_softc(dev);
+	bus_space_write_1(sc->sc_bst, sc->sc_bsh, off, v);
 }
