@@ -152,6 +152,7 @@ static SLIST_HEAD(, vn_softc) vn_list;
 
 /* sc_flags */
 #define VNF_INITED	0x01
+#define	VNF_READONLY	0x02
 
 static u_long	vn_options;
 
@@ -214,6 +215,9 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 	vn = dev->si_drv1;
 	if (!vn)
 		vn = vnfindvn(dev);
+
+	if (flags & FWRITE && vn->sc_flags & VNF_READONLY)
+		return (EACCES);
 
 	IFOPT(vn, VN_FOLLOW)
 		printf("vnopen(%s, 0x%x, 0x%x, %p)\n",
@@ -479,23 +483,25 @@ vniocattach_file(vn, vio, dev, flag, p)
 {
 	struct vattr vattr;
 	struct nameidata nd;
-	int error;
+	int error, flags;
 
-	/*
-	 * Always open for read and write.
-	 * This is probably bogus, but it lets vn_open()
-	 * weed out directories, sockets, etc. so we don't
-	 * have to worry about them.
-	 */
+	flags = FREAD|FWRITE;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, vio->vn_file, p);
-	error = vn_open(&nd, FREAD|FWRITE, 0);
-	if (error)
-		return(error);
-	error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p);
+	error = vn_open(&nd, flags, 0);
 	if (error) {
+		if (error != EACCES && error != EPERM && error != EROFS)
+			return (error);
+		flags &= ~FWRITE;
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, vio->vn_file, p);
+		error = vn_open(&nd, flags, 0);
+		if (error)
+			return (error);
+	}
+	if (nd.ni_vp->v_type != VREG ||
+	    (error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p))) {
 		VOP_UNLOCK(nd.ni_vp, 0, p);
-		(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
-		return(error);
+		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
+		return (error ? error : EINVAL);
 	}
 	VOP_UNLOCK(nd.ni_vp, 0, p);
 	vn->sc_secsize = DEV_BSIZE;
@@ -503,7 +509,7 @@ vniocattach_file(vn, vio, dev, flag, p)
 	vn->sc_size = vattr.va_size / vn->sc_secsize;	/* note truncation */
 	error = vnsetcred(vn, p->p_ucred);
 	if (error) {
-		(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
+		(void) vn_close(nd.ni_vp, flags, p->p_ucred, p);
 		return(error);
 	}
 	if (dev->si_bsize_phys < vn->sc_secsize)
@@ -511,6 +517,8 @@ vniocattach_file(vn, vio, dev, flag, p)
 	if (dev->si_bsize_best < vn->sc_secsize)
 		dev->si_bsize_best = vn->sc_secsize;
 	vn->sc_flags |= VNF_INITED;
+	if (flags == FREAD)
+		vn->sc_flags |= VNF_READONLY;
 	IFOPT(vn, VN_LABELS) {
 		/*
 		 * Reopen so that `ds' knows which devices are open.
@@ -650,9 +658,11 @@ vnclear(struct vn_softc *vn)
 		dsgone(&vn->sc_slices);
 	vn->sc_flags &= ~VNF_INITED;
 	if (vn->sc_vp != NULL) {
-		(void)vn_close(vn->sc_vp, FREAD|FWRITE, vn->sc_cred, p);
+		(void)vn_close(vn->sc_vp, vn->sc_flags & VNF_READONLY ?
+		    FREAD : (FREAD|FWRITE), vn->sc_cred, p);
 		vn->sc_vp = NULL;
 	}
+	vn->sc_flags &= ~VNF_READONLY;
 	if (vn->sc_cred) {
 		crfree(vn->sc_cred);
 		vn->sc_cred = NULL;
@@ -699,6 +709,7 @@ vn_modevent(module_t mod, int type, void *data)
 				vnclear(vn);
 			free(vn, M_DEVBUF);
 		}
+		cdevsw_remove(&vn_cdevsw);
 		break;
 	default:
 		break;
