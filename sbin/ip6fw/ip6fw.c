@@ -26,6 +26,7 @@
 #include <sys/sockio.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
+#include <sys/wait.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -38,6 +39,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
+#include <signal.h>
+#include <sysexits.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -242,7 +245,7 @@ show_ip6fw(struct ip6_fw *chain)
 			}
 			break;
 		default:
-			errx(1, "impossible");
+			errx(EX_OSERR, "impossible");
 	}
 
 	if (chain->fw_flg & IPV6_FW_F_PRN)
@@ -425,10 +428,10 @@ list(ac, av)
 		nalloc = nalloc * 2 + 200;
 		bytes = nalloc;
 		if ((rules = realloc(rules, bytes)) == NULL)
-			err(2, "realloc");
+			err(EX_OSERR, "realloc");
 		i = getsockopt(s, IPPROTO_IPV6, IPV6_FW_GET, rules, &bytes);
 		if ((i < 0 && errno != EINVAL) || nalloc > maxbytes)
-			err(2, "getsockopt(IPV6_FW_GET)");
+			err(EX_OSERR, "getsockopt(IPV6_FW_GET)");
 	}
 	if (!ac) {
 		/* display all rules */
@@ -1117,7 +1120,7 @@ badviacombo:
 		show_ip6fw(&rule);
 	i = setsockopt(s, IPPROTO_IPV6, IPV6_FW_ADD, &rule, sizeof rule);
 	if (i)
-		err(1, "setsockopt(%s)", "IPV6_FW_ADD");
+		err(EX_UNAVAILABLE, "setsockopt(%s)", "IPV6_FW_ADD");
 }
 
 static void
@@ -1130,7 +1133,7 @@ zero (ac, av)
 	if (!ac) {
 		/* clear all entries */
 		if (setsockopt(s,IPPROTO_IPV6,IPV6_FW_ZERO,NULL,0)<0)
-			err(1, "setsockopt(%s)", "IPV6_FW_ZERO");
+			err(EX_UNAVAILABLE, "setsockopt(%s)", "IPV6_FW_ZERO");
 		if (!do_quiet)
 			printf("Accounting cleared.\n");
 	} else {
@@ -1230,7 +1233,7 @@ ip6fw_main(ac,av)
 		}
 		if ( do_flush ) {
 			if (setsockopt(s,IPPROTO_IPV6,IPV6_FW_FLUSH,NULL,0) < 0)
-				err(1, "setsockopt(%s)", "IPV6_FW_FLUSH");
+				err(EX_UNAVAILABLE, "setsockopt(%s)", "IPV6_FW_FLUSH");
 			if (!do_quiet)
 				printf("Flushed all rules.\n");
 		}
@@ -1257,41 +1260,148 @@ main(ac, av)
 #define	MAX_ARGS	32
 #define	WHITESP		" \t\f\v\n\r"
 	char	buf[BUFSIZ];
-	char	*a, *args[MAX_ARGS];
+	char	*a, *p, *args[MAX_ARGS], *cmd = NULL;
 	char	linename[10];
-	int 	i;
-	FILE	*f;
+	int 	i, c, lineno, qflag, pflag, status;
+	FILE	*f = NULL;
+	pid_t	preproc = 0;
 
 	s = socket( AF_INET6, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 )
-		err(1, "socket");
+		err(EX_UNAVAILABLE, "socket");
 
 	setbuf(stdout,0);
 
-	if (av[1] && !access(av[1], R_OK)) {
-		lineno = 0;
-		if ((f = fopen(av[1], "r")) == NULL)
-			err(1, "fopen: %s", av[1]);
-		while (fgets(buf, BUFSIZ, f)) {
+	/*
+	 * this is a nasty check on the last argument!!!
+	 * If there happens to be a filename matching a keyword in the current
+	 * directory, things will fail miserably.
+	 */
 
+	if (ac > 1 && av[ac - 1][0] == '/' && access(av[ac - 1], R_OK) == 0) {
+		qflag = pflag = i = 0;
+		lineno = 0;
+
+		while ((c = getopt(ac, av, "D:U:p:q")) != -1)
+			switch(c) {
+			case 'D':
+				if (!pflag)
+					errx(EX_USAGE, "-D requires -p");
+				if (i > MAX_ARGS - 2)
+					errx(EX_USAGE,
+					     "too many -D or -U options");
+				args[i++] = "-D";
+				args[i++] = optarg;
+				break;
+
+			case 'U':
+				if (!pflag)
+					errx(EX_USAGE, "-U requires -p");
+				if (i > MAX_ARGS - 2)
+					errx(EX_USAGE,
+					     "too many -D or -U options");
+				args[i++] = "-U";
+				args[i++] = optarg;
+				break;
+
+			case 'p':
+				pflag = 1;
+				cmd = optarg;
+				args[0] = cmd;
+				i = 1;
+				break;
+
+			case 'q':
+				qflag = 1;
+				break;
+
+			default:
+				show_usage(NULL);
+			}
+
+		av += optind;
+		ac -= optind;
+		if (ac != 1)
+			show_usage("extraneous filename arguments");
+
+		if ((f = fopen(av[0], "r")) == NULL)
+			err(EX_UNAVAILABLE, "fopen: %s", av[0]);
+
+		if (pflag) {
+			/* pipe through preprocessor (cpp or m4) */
+			int pipedes[2];
+
+			args[i] = 0;
+
+			if (pipe(pipedes) == -1)
+				err(EX_OSERR, "cannot create pipe");
+
+			switch((preproc = fork())) {
+			case -1:
+				err(EX_OSERR, "cannot fork");
+
+			case 0:
+				/* child */
+				if (dup2(fileno(f), 0) == -1 ||
+				    dup2(pipedes[1], 1) == -1)
+					err(EX_OSERR, "dup2()");
+				fclose(f);
+				close(pipedes[1]);
+				close(pipedes[0]);
+				execvp(cmd, args);
+				err(EX_OSERR, "execvp(%s) failed", cmd);
+
+			default:
+				/* parent */
+				fclose(f);
+				close(pipedes[1]);
+				if ((f = fdopen(pipedes[0], "r")) == NULL) {
+					int savederrno = errno;
+
+					(void)kill(preproc, SIGTERM);
+					errno = savederrno;
+					err(EX_OSERR, "fdopen()");
+				}
+			}
+		}
+
+		while (fgets(buf, BUFSIZ, f)) {
 			lineno++;
 			sprintf(linename, "Line %d", lineno);
 			args[0] = linename;
 
 			if (*buf == '#')
 				continue;
-			for (i = 1, a = strtok(buf, WHITESP);
+			if ((p = strchr(buf, '#')) != NULL)
+				*p = '\0';
+			i=1;
+			if (qflag) args[i++]="-q";
+			for (a = strtok(buf, WHITESP);
 			    a && i < MAX_ARGS; a = strtok(NULL, WHITESP), i++)
 				args[i] = a;
-			if (i == 1)
+			if (i == (qflag? 2: 1))
 				continue;
 			if (i == MAX_ARGS)
-				errx(1, "%s: too many arguments", linename);
+				errx(EX_USAGE, "%s: too many arguments", linename);
 			args[i] = NULL;
 
 			ip6fw_main(i, args);
 		}
 		fclose(f);
+		if (pflag) {
+			if (waitpid(preproc, &status, 0) != -1) {
+				if (WIFEXITED(status)) {
+					if (WEXITSTATUS(status) != EX_OK)
+						errx(EX_UNAVAILABLE,
+						     "preprocessor exited with status %d",
+						     WEXITSTATUS(status));
+				} else if (WIFSIGNALED(status)) {
+					errx(EX_UNAVAILABLE,
+					     "preprocessor exited with signal %d",
+					     WTERMSIG(status));
+				}
+			}
+		}
 	} else
 		ip6fw_main(ac,av);
 	return 0;
