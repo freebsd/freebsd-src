@@ -153,7 +153,7 @@
 #define _Xrsvd				Xrsvd
 #define _Xspuriousint			Xspuriousint
 #define _Xstk				Xstk
-#define _Xsyscall			Xsyscall
+#define _Xlcall_syscall			Xlcall_syscall
 #define _Xtss				Xtss
 #define __default_ldt			_default_ldt
 #define __ucodesel			_ucodesel
