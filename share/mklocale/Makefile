@@ -54,8 +54,8 @@ afterinstall:
 		${LOCALEDIR}/${link}.ISO_8859-2/LC_CTYPE
 .endfor
 .for link in ${LATIN4LINKS}
-        ln -fs ../la_LN.ISO_8859-4/LC_CTYPE \
-                ${LOCALEDIR}/${link}.ISO_8859-4/LC_CTYPE
+	ln -fs ../la_LN.ISO_8859-4/LC_CTYPE \
+		${LOCALEDIR}/${link}.ISO_8859-4/LC_CTYPE
 .endfor
 	ln -fs ../ja_JP.SJIS/LC_CTYPE \
 		${LOCALEDIR}/ja_JP.Shift_JIS/LC_CTYPE
