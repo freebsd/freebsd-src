@@ -118,7 +118,7 @@
 #define	__unused
 #define	__packed
 #define	__aligned(x)
-#define __section(x)
+#define	__section(x)
 #endif
 #if __GNUC__ == 2 && __GNUC_MINOR__ >= 5 && __GNUC_MINOR__ < 7
 #define	__dead2		__attribute__((__noreturn__))
@@ -126,7 +126,7 @@
 #define	__unused
 #define	__packed	/* XXX find this out, if we care */
 #define	__aligned(x)	/* XXX find this out, if we care */
-#define __section(x)	/* XXX find this out, if we care */
+#define	__section(x)	/* XXX find this out, if we care */
 #endif
 #if __GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ == 3
 #define	__dead2		__attribute__((__noreturn__))
