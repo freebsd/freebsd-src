@@ -85,8 +85,13 @@ procfs_read_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
-	if ((p->p_flag & P_INMEM) == 0)
+
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if ((p->p_sflag & PS_INMEM) == 0) {
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return (EIO);
+	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 	return (fill_regs(p, regs));
 }
 
@@ -95,8 +100,13 @@ procfs_write_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
-	if ((p->p_flag & P_INMEM) == 0)
+
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if ((p->p_sflag & PS_INMEM) == 0) {
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return (EIO);
+	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 	return (set_regs(p, regs));
 }
 
@@ -110,7 +120,10 @@ procfs_read_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
-	if ((p->p_flag & P_INMEM) == 0)
+
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if ((p->p_sflag & PS_INMEM) == 0) {
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return (EIO);
 	return (fill_fpregs(p, fpregs));
 }
@@ -120,8 +133,13 @@ procfs_write_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
-	if ((p->p_flag & P_INMEM) == 0)
+
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if ((p->p_sflag & PS_INMEM) == 0) {
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return (EIO);
+	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 	return (set_fpregs(p, fpregs));
 }
 

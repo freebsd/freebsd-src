@@ -752,11 +752,13 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	struct proc *p = curproc;
 	struct trapframe *frame;
-	struct sigacts *psp = p->p_sigacts;
+	struct sigacts *psp;
 	struct sigframe sf, *sfp;
 	u_int64_t sbs = 0;
 	int oonstack, rndfsize;
 
+	PROC_LOCK(p);
+	psp = p->p_sigacts;
 	frame = p->p_md.md_tf;
 	oonstack = sigonstack(frame->tf_r[FRAME_SP]);
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
@@ -818,6 +820,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #endif
 	} else
 		sfp = (struct sigframe *)(frame->tf_r[FRAME_SP] - rndfsize);
+	PROC_UNLOCK(p);
 
 	(void)grow_stack(p, (u_long)sfp);
 #ifdef DEBUG
@@ -835,10 +838,12 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+		PROC_LOCK(p);
 		SIGACTION(p, SIGILL) = SIG_DFL;
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
+		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
 		return;
 	}
@@ -869,6 +874,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_cr_ipsr &= ~IA64_PSR_RI;
 	frame->tf_cr_iip = PS_STRINGS - (esigcode - sigcode);
 	frame->tf_r[FRAME_R1] = sig;
+	PROC_LOCK(p);
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
 		frame->tf_r[FRAME_R15] = (u_int64_t)&(sfp->sf_si);
 
@@ -879,6 +885,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 	else
 		frame->tf_r[FRAME_R15] = code;
+	PROC_UNLOCK(p);
 
 	frame->tf_r[FRAME_SP] = (u_int64_t)sfp - 16;
 	frame->tf_r[FRAME_R14] = sig;
@@ -986,6 +993,7 @@ sigreturn(struct proc *p,
 
 	frame->tf_r[FRAME_SP] = mcp->mc_sp;
 
+	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (uc.uc_mcontext.mc_onstack & 1)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
@@ -995,6 +1003,7 @@ sigreturn(struct proc *p,
 
 	p->p_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
+	PROC_UNLOCK(p);
 
 	/* XXX ksc.sc_ownedfp ? */
 	ia64_fpstate_drop(p);
