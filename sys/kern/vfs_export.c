@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.183 1999/01/21 08:29:05 dillon Exp $
+ * $Id: vfs_subr.c,v 1.184 1999/01/28 00:57:47 dillon Exp $
  */
 
 /*
@@ -905,7 +905,7 @@ vn_syncer_add_to_worklist(vp, delay)
 
 static void sched_sync __P((void));
 static struct	proc *updateproc;
-static struct kproc_desc up_kp = {
+static const struct kproc_desc up_kp = {
 	"syncer",
 	sched_sync,
 	&updateproc
