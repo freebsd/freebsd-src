@@ -1837,7 +1837,7 @@ END(tl1_dmmu_prot_trap)
 
 	.macro	tl1_spill_3_n
 	wr	%g0, ASI_AIUP, %asi
-	SPILL(stwa, %sp, 4, %asi) 
+	SPILL(stwa, %sp, 4, %asi)
 	saved
 	retry
 	.align	32
