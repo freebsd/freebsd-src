@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: res_stubs.c,v 1.5 1997/02/22 15:00:36 peter Exp $
  */
 
 /*
@@ -50,7 +50,6 @@ __weak_reference(__p_fqnname, p_fqnname);
 __weak_reference(__p_secstodate, p_secstodate);
 __weak_reference(__dn_count_labels, dn_count_labels);
 __weak_reference(__dn_comp, dn_comp);
-__weak_reference(__res_send, res_send);
 __weak_reference(__res_close, _res_close);
 #ifdef BIND_RES_POSIX3
 __weak_reference(__dn_expand, dn_expand);
@@ -59,4 +58,7 @@ __weak_reference(__res_query, res_query);
 __weak_reference(__res_search, res_search);
 __weak_reference(__res_querydomain, res_querydomain);
 __weak_reference(__res_mkquery, res_mkquery);
+__weak_reference(__res_send, res_send);
+#else
+__weak_reference(res_send, __res_send);
 #endif
