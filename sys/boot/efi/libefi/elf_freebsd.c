@@ -82,8 +82,6 @@
 #include <sys/param.h>
 #include <sys/linker.h>
 #include <machine/elf.h>
-#include <machine/prom.h>
-#include <machine/rpb.h>
 #include <machine/bootinfo.h>
 
 #include "bootstrap.h"
@@ -91,12 +89,8 @@
 #define _KERNEL
 
 static int	elf_exec(struct preloaded_file *amp);
-int		bi_load(struct bootinfo_v1 *, vm_offset_t *,
-			struct preloaded_file *);
 
-struct file_format alpha_elf = { elf_loadfile, elf_exec };
-
-vm_offset_t ffp_save, ptbr_save;
+struct file_format ia64_elf = { elf_loadfile, elf_exec };
 
 static int
 elf_exec(struct preloaded_file *fp)
