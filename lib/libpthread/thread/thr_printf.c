@@ -54,15 +54,20 @@ _thread_printf(int fd, const char *fmt, ...)
 {
 	static const char digits[16] = "0123456789abcdef";
 	va_list	 ap;
-	char buf[10];
+	char buf[20];
 	char *s;
-	unsigned r, u;
-	int c, d;
+	unsigned long r, u;
+	int c;
+	long d;
+	int islong;
 
 	va_start(ap, fmt);
 	while ((c = *fmt++)) {
+		islong = 0;
 		if (c == '%') {
-			c = *fmt++;
+next:			c = *fmt++;
+			if (c == '\0')
+				goto out;
 			switch (c) {
 			case 'c':
 				pchar(fd, va_arg(ap, int));
@@ -70,20 +75,31 @@ _thread_printf(int fd, const char *fmt, ...)
 			case 's':
 				pstr(fd, va_arg(ap, char *));
 				continue;
+			case 'l':
+				islong = 1;
+				goto next;
+			case 'p':
+				islong = 1;
 			case 'd':
 			case 'u':
-			case 'p':
 			case 'x':
 				r = ((c == 'u') || (c == 'd')) ? 10 : 16;
 				if (c == 'd') {
-					d = va_arg(ap, unsigned);
+					if (islong)
+						d = va_arg(ap, unsigned long);
+					else
+						d = va_arg(ap, unsigned);
 					if (d < 0) {
 						pchar(fd, '-');
-						u = (unsigned)(d * -1);
+						u = (unsigned long)(d * -1);
 					} else
-						u = (unsigned)d;
-				} else
-					u = va_arg(ap, unsigned);
+						u = (unsigned long)d;
+				} else {
+					if (islong)
+						u = va_arg(ap, unsigned long);
+					else
+						u = va_arg(ap, unsigned);
+				}
 				s = buf;
 				do {
 					*s++ = digits[u % r];
@@ -95,6 +111,7 @@ _thread_printf(int fd, const char *fmt, ...)
 		}
 		pchar(fd, c);
 	}
+out:	
 	va_end(ap);
 }
 
