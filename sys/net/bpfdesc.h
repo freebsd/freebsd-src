@@ -37,7 +37,7 @@
  *
  *      @(#)bpfdesc.h	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpfdesc.h,v 1.3 1994/08/02 07:46:00 davidg Exp $
+ * $Id: bpfdesc.h,v 1.4 1994/08/21 05:11:39 paul Exp $
  */
 
 #ifndef _NET_BPFDESC_H_
@@ -76,6 +76,9 @@ struct bpf_d {
 	u_char		bd_promisc;	/* true if listening promiscuously */
 	u_char		bd_state;	/* idle, waiting, or timed out */
 	u_char		bd_immediate;	/* true to return on packet arrival */
+	int		bd_async;	/* non-zero if packet reception should generate signal */
+	int		bd_sig;		/* signal to send upon packet reception */
+	pid_t		bd_pgid;	/* process or group id for signal */
 #if BSD < 199103
 	u_char		bd_selcoll;	/* true if selects collide */
 	int		bd_timedout;
