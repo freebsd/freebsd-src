@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.80 1994/11/21 17:59:29 ache Exp $
+ *	$Id: syscons.c,v 1.81 1994/12/06 19:32:00 sos Exp $
  */
 
 #include "sc.h"
@@ -1229,7 +1229,6 @@ pccngetc(dev_t dev)
 	int s = spltty();		/* block scintr while we poll */
 	int c = scgetc(0);
 	splx(s);
-	if (c == '\r') c = '\n';
 	return(c);
 }
 
