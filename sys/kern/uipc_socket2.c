@@ -456,24 +456,26 @@ soreserve(so, sndcc, rcvcc)
 {
 	struct thread *td = curthread;
 
-	if (sbreserve(&so->so_snd, sndcc, so, td) == 0)
-		goto bad;
-	if (sbreserve(&so->so_rcv, rcvcc, so, td) == 0)
-		goto bad2;
+	SOCKBUF_LOCK(&so->so_snd);
 	SOCKBUF_LOCK(&so->so_rcv);
+	if (sbreserve_locked(&so->so_snd, sndcc, so, td) == 0)
+		goto bad;
+	if (sbreserve_locked(&so->so_rcv, rcvcc, so, td) == 0)
+		goto bad2;
 	if (so->so_rcv.sb_lowat == 0)
 		so->so_rcv.sb_lowat = 1;
-	SOCKBUF_UNLOCK(&so->so_rcv);
-	SOCKBUF_LOCK(&so->so_snd);
 	if (so->so_snd.sb_lowat == 0)
 		so->so_snd.sb_lowat = MCLBYTES;
 	if (so->so_snd.sb_lowat > so->so_snd.sb_hiwat)
 		so->so_snd.sb_lowat = so->so_snd.sb_hiwat;
+	SOCKBUF_UNLOCK(&so->so_rcv);
 	SOCKBUF_UNLOCK(&so->so_snd);
 	return (0);
 bad2:
-	sbrelease(&so->so_snd, so);
+	sbrelease_locked(&so->so_snd, so);
 bad:
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCKBUF_UNLOCK(&so->so_snd);
 	return (ENOBUFS);
 }
 
@@ -503,13 +505,15 @@ sysctl_handle_sb_max(SYSCTL_HANDLER_ARGS)
  * if buffering efficiency is near the normal case.
  */
 int
-sbreserve(sb, cc, so, td)
+sbreserve_locked(sb, cc, so, td)
 	struct sockbuf *sb;
 	u_long cc;
 	struct socket *so;
 	struct thread *td;
 {
 	rlim_t sbsize_limit;
+
+	SOCKBUF_LOCK_ASSERT(sb);
 
 	/*
 	 * td will only be NULL when we're in an interrupt
@@ -530,6 +534,21 @@ sbreserve(sb, cc, so, td)
 	if (sb->sb_lowat > sb->sb_hiwat)
 		sb->sb_lowat = sb->sb_hiwat;
 	return (1);
+}
+
+int
+sbreserve(sb, cc, so, td)
+	struct sockbuf *sb;
+	u_long cc;
+	struct socket *so;
+	struct thread *td;
+{
+	int error;
+
+	SOCKBUF_LOCK(sb);
+	error = sbreserve_locked(sb, cc, so, td);
+	SOCKBUF_UNLOCK(sb);
+	return (error);
 }
 
 /*
