@@ -766,6 +766,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		mtx_unlock_spin(&sched_lock);
 		return;
 	}
+	setrunqueue(td1);
 
 	if (td->td_critnest == 1 && td1->td_priority < pri) {
 #ifdef notyet
