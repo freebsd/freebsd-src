@@ -227,7 +227,7 @@ interpret:
 	error = namei(ndp);
 	if (error) {
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
-			ARG_MAX + PAGE_SIZE);
+		    ARG_MAX + PAGE_SIZE);
 		goto exec_fail;
 	}
 
@@ -566,7 +566,7 @@ exec_fail_dealloc:
 
 	if (imgp->stringbase != NULL)
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
-			ARG_MAX + PAGE_SIZE);
+		    ARG_MAX + PAGE_SIZE);
 
 	if (imgp->vp) {
 		NDFREE(ndp, NDF_ONLY_PNBUF);
@@ -735,8 +735,7 @@ exec_new_vmspace(imgp, minuser, maxuser, stack_addr)
 		vm_offset_t bsaddr;
 		bsaddr = USRSTACK - 2 * maxssiz;
 		error = vm_map_find(&vmspace->vm_map, 0, 0, &bsaddr,
-				    regstkpages * PAGE_SIZE, 0,
-				    VM_PROT_ALL, VM_PROT_ALL, 0);
+		    regstkpages * PAGE_SIZE, 0, VM_PROT_ALL, VM_PROT_ALL, 0);
 		FIRST_THREAD_IN_PROC(p)->td_md.md_bspstore = bsaddr;
 	}
 #endif
@@ -845,14 +844,14 @@ exec_copyout_strings(imgp)
 	arginfo = (struct ps_strings *)PS_STRINGS;
 	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
-		roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
+	    roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
 
 	/*
 	 * install sigcode
 	 */
 	if (szsigcode)
 		copyout(imgp->proc->p_sysent->sv_sigcode,
-			((caddr_t)arginfo - szsigcode), szsigcode);
+		    ((caddr_t)arginfo - szsigcode), szsigcode);
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -871,7 +870,7 @@ exec_copyout_strings(imgp)
 		 * for argument of Runtime loader.
 		 */
 		vectp = (char **)(destp - (imgp->argc + imgp->envc + 2 +
-				       imgp->auxarg_size) * sizeof(char *));
+		    imgp->auxarg_size) * sizeof(char *));
 
 	} else 
 		/*
