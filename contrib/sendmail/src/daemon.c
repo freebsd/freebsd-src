@@ -2987,7 +2987,7 @@ getauthinfo(fd, may_be_forged)
 	if (i < 0 || p == &ibuf[0])
 		goto noident;
 
-	if (*--p == '\n' && *--p == '\r')
+	if (p >= &ibuf[2] && *--p == '\n' && *--p == '\r')
 		p--;
 	*++p = '\0';
 
