@@ -106,7 +106,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.145 1997/12/29 00:10:20 jkh Exp $
+#	$Id: MAKEDEV,v 1.146 1997/12/29 09:45:23 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -696,7 +696,7 @@ vty*)
 	units=`expr $i : 'vty\(.*\)'`
 	eval `echo ${chr} ${units} | awk ' { c=$1; n=$2 } END {
 		for (i = 0; i < n; i++)
-			printf("mknod ttyv%01x c %d %d;", i, i, c); }'`
+			printf("mknod ttyv%01x c %d %d;", i, c, i); }'`
 	ln -fs ttyv0 vga	# XXX X still needs this pccons relic
 	;;
 
