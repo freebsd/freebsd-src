@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.21 1999/05/30 16:53:19 phk Exp $
+ * $Id: mse.c,v 1.22 1999/05/31 11:28:36 phk Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -46,7 +46,6 @@
 
 #include "mse.h"
 #if NMSE > 0
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -55,9 +54,6 @@
 #include <sys/poll.h>
 #include <sys/select.h>
 #include <sys/uio.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 #include <machine/clock.h>
 #include <machine/mouse.h>
@@ -128,10 +124,6 @@ static struct mse_softc {
 	mousehw_t	hw;
 	mousemode_t	mode;
 	mousestatus_t	status;
-#ifdef DEVFS
-	void 	*devfs_token;
-	void	*n_devfs_token;
-#endif
 } mse_sc[NMSE];
 
 /* Flags */
@@ -342,14 +334,8 @@ mseattach(idp)
 	idp->id_ointr = mseintr;
 	sc->sc_port = idp->id_iobase;
 	sc->mode.accelfactor = (idp->id_flags & MSE_CONFIG_ACCEL) >> 4;
-#ifdef	DEVFS
-	sc->devfs_token = 
-		devfs_add_devswf(&mse_cdevsw, unit << 1, DV_CHR, 0, 0, 
-				 0600, "mse%d", unit);
-	sc->n_devfs_token = 
-		devfs_add_devswf(&mse_cdevsw, (unit<<1)+1, DV_CHR,0, 0, 
-				 0600, "nmse%d", unit);
-#endif
+	make_dev(&mse_cdevsw, unit << 1, 0, 0, 0600, "mse%d", unit);
+	make_dev(&mse_cdevsw, (unit<<1)+1, 0, 0, 0600, "nmse%d", unit);
 	return (1);
 }
 
