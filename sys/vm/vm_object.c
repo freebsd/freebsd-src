@@ -393,7 +393,7 @@ vm_object_vndeallocate(vm_object_t object)
 {
 	struct vnode *vp = (struct vnode *) object->handle;
 
-	GIANT_REQUIRED;
+	VFS_ASSERT_GIANT(vp->v_mount);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->type == OBJT_VNODE,
 	    ("vm_object_vndeallocate: not a vnode object"));
@@ -434,18 +434,22 @@ vm_object_deallocate(vm_object_t object)
 	vm_object_t temp;
 
 	while (object != NULL) {
+		int vfslocked;
 		/*
 		 * In general, the object should be locked when working with
 		 * its type.  In this case, in order to maintain proper lock
 		 * ordering, an exception is possible because a vnode-backed
 		 * object never changes its type.
 		 */
-		if (object->type == OBJT_VNODE)
-			mtx_lock(&Giant);
+		vfslocked = 0;
+		if (object->type == OBJT_VNODE) {
+			struct vnode *vp = (struct vnode *) object->handle;
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		}
 		VM_OBJECT_LOCK(object);
 		if (object->type == OBJT_VNODE) {
 			vm_object_vndeallocate(object);
-			mtx_unlock(&Giant);
+			VFS_UNLOCK_GIANT(vfslocked);
 			return;
 		}
 
@@ -671,7 +675,6 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	int pagerflags;
 	int curgeneration;
 
-	GIANT_REQUIRED;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->type != OBJT_VNODE ||
 		(object->flags & OBJ_MIGHTBEDIRTY) == 0)
@@ -1000,9 +1003,10 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	 */
 	if (object->type == OBJT_VNODE &&
 	    (object->flags & OBJ_MIGHTBEDIRTY) != 0) {
+		int vfslocked;
 		vp = object->handle;
 		VM_OBJECT_UNLOCK(object);
-		mtx_lock(&Giant);
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 		flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
 		flags |= invalidate ? OBJPC_INVAL : 0;
@@ -1013,7 +1017,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		    flags);
 		VM_OBJECT_UNLOCK(object);
 		VOP_UNLOCK(vp, 0, curthread);
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 		VM_OBJECT_LOCK(object);
 	}
 	if ((object->type == OBJT_VNODE ||
