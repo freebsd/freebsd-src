@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.40 1996/10/24 16:24:19 jdp Exp $
+ *	$Id: rtld.c,v 1.40.2.1 1997/01/20 19:37:13 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -304,6 +304,10 @@ struct _dynamic		*dp;
 		__progname = crtp->crt_ldso;
 	if (version >= CRT_VERSION_BSD_3)
 		main_progname = crtp->crt_prog;
+
+	/* Some buggy versions of crt0.o have crt_ldso filled in as NULL. */
+	if (__progname == NULL)
+		__progname = us;
 
 	/* Fill in some fields in _DYNAMIC or crt structure */
 	if (version >= CRT_VERSION_BSD_4)
