@@ -145,7 +145,6 @@ struct umodem_softc {
 	u_char			sc_rts;		/* current RTS state */
 
 	u_char			sc_opening;	/* lock during open */
-	u_char			sc_dying;	/* disconnecting */
 
 	int			sc_ctl_notify;	/* Notification endpoint */
 	usbd_pipe_handle	sc_notify_pipe; /* Notification pipe */
@@ -391,7 +390,6 @@ USB_ATTACH(umodem)
 
  bad:
 	ucom->sc_dying = 1;
-	sc->sc_dying = 1;
 	free(devinfo, M_USBDEV);
 	USB_ATTACH_ERROR_RETURN;
 }
@@ -447,7 +445,7 @@ umodem_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct umodem_softc *sc = priv;
 	u_char mstatus;
 
-	if (sc->sc_dying)
+	if (sc->sc_ucom.sc_dying)
 		return;
 
 	if (status != USBD_NORMAL_COMPLETION) {
@@ -588,7 +586,7 @@ umodem_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
 	struct umodem_softc *sc = addr;
 	int error = 0;
 
-	if (sc->sc_dying)
+	if (sc->sc_ucom.sc_dying)
 		return (EIO);
 
 	DPRINTF(("umodemioctl: cmd=0x%08lx\n", cmd));
@@ -785,7 +783,6 @@ USB_DETACH(umodem)
 		usbd_close_pipe(sc->sc_notify_pipe);
 		sc->sc_notify_pipe = NULL;
 	}
-	sc->sc_dying = 1;
 
 	sc->sc_ucom.sc_dying = 1;
 	rv = ucom_detach(&sc->sc_ucom);
