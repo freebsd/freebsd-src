@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.196 1996/03/10 08:26:21 asami Exp $
+# $Id: bsd.port.mk,v 1.197 1996/03/31 10:02:09 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -194,7 +194,7 @@
 # tree we are and thus can't go relative.  They can, of course, be overridden
 # by individual Makefiles.
 PORTSDIR?=		${DESTDIR}/usr/ports
-LOCAL_PREFIX?=	/usr/local
+LOCALBASE?=		/usr/local
 X11BASE?=		/usr/X11R6
 DISTDIR?=		${PORTSDIR}/distfiles/${DIST_SUBDIR}
 PACKAGES?=		${PORTSDIR}/packages
@@ -215,7 +215,7 @@ PKGDIR?=		${.CURDIR}/pkg
 .if defined(USE_IMAKE) || defined(USE_X11)
 PREFIX?=		${X11BASE}
 .else
-PREFIX?=		${LOCAL_PREFIX}
+PREFIX?=		${LOCALBASE}
 .endif
 # The following 4 lines should go away as soon as the ports are all updated
 .if defined(EXEC_DEPENDS)
