@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.81 1995/05/16 07:52:04 davidg Exp $
+ *	$Id: wd.c,v 1.82 1995/08/18 11:26:35 jkh Exp $
  */
 
 /* TODO:
@@ -652,8 +652,8 @@ loop:
 		if (atapi_start (ctrlr))
 			/* mark controller active in ATAPI mode */
 			wdtab[ctrlr].b_active = 3;
-		return;
 #endif
+		return;
 	}
 
 	/* obtain controller and drive information */
