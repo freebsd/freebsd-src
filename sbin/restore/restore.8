@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)restore.8	8.4 (Berkeley) 5/1/95
-.\"	$Id$
+.\"	$Id: restore.8,v 1.5.2.3 1997/10/15 18:33:33 markm Exp $
 .\"
 .Dd May 1, 1995
 .Dt RESTORE 8
@@ -41,32 +41,32 @@
 .Sh SYNOPSIS
 .Nm restore
 .Fl i
-.Op Fl chkmvy
+.Op Fl chkmuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm restore
 .Fl R
-.Op Fl ckvy
+.Op Fl ckuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm restore
 .Fl r
-.Op Fl ckvy
+.Op Fl ckuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm restore
 .Fl t
-.Op Fl chkvy
+.Op Fl chkuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Op file ...
 .Nm restore
 .Fl x
-.Op Fl chkmvy
+.Op Fl chkmuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
@@ -316,6 +316,13 @@ Read from the specified
 .Ar fileno
 on a multi-file tape.
 File numbering starts at 1.
+.It Fl u
+When creating certain types of files, restore may generate a warning
+diagnostic if they already exist in the target directory.
+To prevent this, the
+.Fl u
+(unlink) flag causes restore to remove old entries before attempting
+to create new ones.
 .It Fl v
 Normally
 .Nm restore
