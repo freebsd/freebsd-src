@@ -55,7 +55,7 @@
   050   'm'    'M'    cr     cr     181    186    cr     cr      C
   051   ','    ';'    nop    nop    184    171    nop    nop     O
   052   '.'    ':'    nop    nop    183    187    nop    nop     O
-  053   '-'    '_'    ns     ns     173    173    ns     ns      O
+  053   '-'    '_'    us     us     173    173    us     us      O
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
