@@ -163,10 +163,10 @@ read_seeprom(sd, buf, start_addr, count)
 		CLOCK_PULSE(sd, sd->sd_RDY);
 	}
 #ifdef AHC_DUMP_EEPROM
-	printf("\nSerial EEPROM:");
+	printf("\nSerial EEPROM:\n\t");
 	for (k = 0; k < count; k = k + 1) {
 		if (((k % 8) == 0) && (k != 0)) {
-			printf ("\n              ");
+			printf ("\n\t");
 		}
 		printf (" 0x%x", buf[k]);
 	}
