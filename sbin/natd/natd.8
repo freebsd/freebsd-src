@@ -1,0 +1,380 @@
+.\" manual page [] for natd 1.4
+.Dd 15 April 1997
+.Os FreeBSD
+.Dt NATD 8
+.Sh NAME
+.Nm natd
+.Nd
+Network Address Translation Daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl ldsmvu
+.Op Fl permanent_link
+.Op Fl dynamic
+.Op Fl i Ar inport
+.Op Fl o Ar outport
+.Op Fl p Ar port
+.Op Fl a Ar address
+.Op Fl i Ar interface
+.Op Fl f Ar configfile
+
+.Nm
+.Op Fl log
+.Op Fl deny_incoming
+.Op Fl use_sockets
+.Op Fl same_ports
+.Op Fl verbose
+.Op Fl unregistered_only
+.Op Fl permanent_link
+.Op Fl dynamic
+.Op Fl inport Ar inport
+.Op Fl outport Ar outport
+.Op Fl port Ar port
+.Op Fl alias_address Ar address
+.Op Fl interface Ar interface
+.Op Fl config Ar configfile
+
+.Sh DESCRIPTION
+This program provides a Network Address Translation facility for use
+with
+.Xr divert 4
+sockets under FreeBSD.  Most of the command line options are available
+in a single character short form or in a long form.  Use of the long
+form is encouraged as it makes things clearer to the casual observer.
+
+.Pp
+.Nm Natd
+normally runs in the background as a daemon.  It is passed raw IP packets
+as they travel into and out of the machine, and will possibly change these
+before re-injecting them back into the IP packet stream.
+
+.Pp
+.Nm Natd
+changes all packets destined for another host so that their source
+IP number is that of the current machine.  For each packet changed
+in this manner, an internal table entry is created to record this
+fact.  The source port number is also changed to indicate the
+table entry applying to the packet.  Packets that are received with
+a target IP of the current host are checked against this internal
+table.  If an entry is found, it is used to determine the correct
+target IP number and port to place in the packet.
+
+.Pp
+The following command line options are available.
+.Bl -tag -width Fl
+
+.It Fl log | l
+Log various aliasing statistics and information to the file
+.Pa /var/log/alias.log .
+This file is truncated each time natd is started.
+
+.It Fl deny_incoming | d
+Reject packets destined for the current IP number that have no entry
+in the internal translation table.
+
+.It Fl use_sockets | s
+Allocate a
+.Xr socket 2
+in order to establish an FTP data or IRC DCC send connection.  This
+option uses more system resources, but guarantees successful connections
+when port numbers conflict.
+
+.It Fl same_ports | m
+Try to keep the same port number when altering outgoing packets.
+With this option, protocols such as RPC will have a better chance
+of working.  If it is not possible to maintain the port number, it
+will be silently changed as per normal.
+
+.It Fl verbose | v
+Don't call
+.Xr fork 2
+or
+.Xr daemon 3
+on startup.  Instead, stay attached to the controling terminal and
+display all packet alterations to the standard output.  This option
+should only be used for debugging purposes.
+
+.It Fl unregistered_only | u
+Only alter outgoing packets with an unregistered source address.
+According to rfc 1918, unregistered source addresses are 10.0.0.0/8,
+172.16.0.0/12 and 192.168.0.0/16.
+
+.It Fl redirect_port Ar linkspec
+Redirect incoming connections arriving to given port to another host and port.
+Linkspec is of the form
+
+  proto targetIP:targetPORT [aliasIP:]aliasPORT [remoteIP[:remotePORT]]
+
+where proto is either tcp or udp, targetIP is the desired target IP
+number, targetPORT is the desired target PORT number, aliasPORT
+is the requested PORT number and aliasIP is the aliasing address.
+RemoteIP and remotePORT can be used to specify the connection
+more accurately if necessary.
+For example, the argument
+
+.Ar tcp inside1:telnet 6666
+
+means that tcp packets destined for port 6666 on this machine will
+be sent to the telnet port on the inside1 machine.
+
+.It Fl redirect_address Ar localIP publicIP
+Redirect traffic for public IP address to a machine on the local
+network. This function is known as "static NAT". Normally static NAT
+is useful if your ISP has allocated a small block of IP addresses to you,
+but it can even be used in the case of single address:
+
+  redirect_address 10.0.0.8 0.0.0.0
+
+The above command would redirect all incoming traffic
+to machine 10.0.0.8.
+
+If several address aliases specify the same public address
+as follows
+
+  redirect_address 192.168.0.2 public_addr
+  redirect_address 192.168.0.3 public_addr
+  redirect_address 192.168.0.4 public_addr
+  
+the incoming traffic will be directed to the last
+translated local address (192.168.0.4), but outgoing
+traffice to the first two addresses will still be aliased
+to specified public address.
+
+.It Fl permanent_link Ar linkspec
+Create a permanent entry in the internal alias table. Linkspec is
+of the form
+
+  proto targetIP:targetPORT sourceIP:sourcePORT aliasPORT
+
+where proto is either tcp or udp, targetIP is the desired target IP
+number, targetPORT is the desired target PORT number, sourceIP and
+sourcePORT match the incoming packet, and aliasPORT is the requested
+PORT number.  Values of zero are considered as wildcards.  For example,
+the argument
+
+.Ar tcp inside1:telnet outside1:0 6666
+
+means that tcp packets destined for port 6666 on this machine from the
+outside1 machine (any port) will be sent to the telnet port on the
+inside1 machine.
+
+New installations are encouraged to use redirect_port instead.
+
+.It Fl dynamic
+If the
+.Fl n
+or
+.Fl interface
+option is used,
+.Nm natd
+will monitor the routing socket for alterations to the
+.Ar interface
+passed.  If the interfaces IP number is changed,
+.Nm natd
+will dynamically alter its concept of the alias address.
+
+.It Fl i | inport Ar inport
+Read from and write to
+.Ar inport ,
+treating all packets as packets coming into the machine.
+
+.It Fl o | outport Ar outport
+Read from and write to
+.Ar outport ,
+treating all packets as packets going out of the machine.
+
+.It Fl p | port Ar port
+Read from and write to
+.Ar port ,
+distinguishing packets as incoming our outgoing using the rules specified in
+.Xr divert 4 .
+If
+.Ar port
+is not numeric, it is searched for in the
+.Pa /etc/services
+database using the
+.Xr getservbyname 3
+function.  If this flag is not specified, the divert port named natd will
+be used as a default.  An example entry in the
+.Pa /etc/services
+database would be:
+
+  natd   6668/divert  # Network Address Translation socket
+
+Refer to
+.Xr services 5
+for further details.
+
+.It Fl a | alias_address Ar address
+Use
+.Ar address
+as the alias address.  If this option is not specified, the
+.Fl n
+or
+.Fl interface
+option must be used.
+
+.It Fl n | interface Ar interface
+Use
+.Ar interface
+to determine the alias address.  If there is a possibility that the
+IP number associated with
+.Ar interface
+may change, the
+.Fl dynamic
+flag should also be used.  If this option is not specified, the
+.Fl a
+or
+.Fl alias_address
+flag must be used.
+
+.It Fl f | config Ar configfile
+Read configuration from
+.Ar configfile .
+.Ar Configfile
+contains a list of options, one per line in the same form as the
+long form of the above command line flags.  For example, the line
+
+  alias_address 158.152.17.1
+
+would specify an alias address of 158.152.17.1.  Options that don't
+take an argument are specified with an option of
+.Ar yes
+or
+.Ar no
+in the configuration file.  For example, the line
+
+  log yes
+
+is synonomous with
+.Fl log .
+Empty lines and lines beginning with '#' are ignored.
+
+.El
+
+.Sh RUNNING NATD
+The following steps are necessary before attempting to run
+.Nm natd :
+
+.Bl -enum
+.It
+Get FreeBSD version 2.2 or higher.  Versions before this do not support
+.Xr divert 4
+sockets.
+
+.It
+Build a custom kernel with the following options:
+
+  options IPFIREWALL
+  options IPDIVERT
+
+Refer to the handbook for detailed instructions on building a custom
+kernel.
+
+.It
+Ensure that your machine is acting as a gateway.  This can be done by
+specifying the line
+
+  gateway=YES
+
+in
+.Pa /etc/sysconfig ,
+or using the command
+
+  sysctl -w net.inet.ip.forwarding=1
+
+.It
+If you wish to use the
+.Fl n
+or
+.Fl interface
+flags, make sure that your interface is already configured.  If, for
+example, you wish to specify tun0 as your
+.Ar interface ,
+and you're using
+.Xr ppp 8
+on that interface, you must make sure that you start
+.Nm ppp
+prior to starting
+.Nm natd .
+
+.It
+Create an entry in
+.Pa /etc/services :
+
+  natd          6668/divert  # Network Address Translation socket
+
+This gives a default for the
+.Fl p
+or
+.Fl port
+flag.
+
+.El
+.Pp
+Running
+.Nm natd
+is fairly straight forward.  The line
+
+  natd -interface ed0
+
+should suffice in most cases (substituting the correct interface name).  Once
+.Nm natd
+is running, you must ensure that traffic is diverted to natd:
+
+.Bl -enum
+.It
+You will need to adjust the
+.Pa /etc/rc.firewall
+script to taste.  If you're not interested in having a firewall, the
+following lines will do:
+
+  /sbin/ipfw -f flush
+  /sbin/ipfw add divert 6668 all from any to any via ed0
+  /sbin/ipfw add pass all from any to any
+
+The second line depends on your interface and assumes that you've updated
+.Pa /etc/services
+as above.  If you specify real firewall rules, it's best to specify
+line 2 at the start of the script so that
+.Nm natd
+sees all packets before they are dropped by the firewall.  The firewall
+rules will be run again on each packet after translation by
+.Nm natd ,
+minus any divert rules.
+
+.It
+Enable your firewall by setting
+
+  firewall=YES
+
+in
+.Pa /etc/sysconfig .
+This tells the system startup scripts to run the
+.Pa /etc/rc.firewall
+script.  If you don't wish to reboot now, just run this by hand from the
+console.  NEVER run this from a virtual session unless you put it into
+the background.  If you do, you'll lock yourself out after the flush
+takes place, and execution of
+.Pa /etc/rc.firewall
+will stop at this point - blocking all accesses permanently.  Running
+the script in the background should be enough to prevent this disaster.
+
+.El
+
+.Sh SEE ALSO
+.Xr socket 2 ,
+.Xr getservbyname 2 ,
+.Xr divert 4 ,
+.Xr services 5 ,
+.Xr ipfw 8
+
+.Sh AUTHORS
+This program is the result of the efforts of many people at different
+times:
+
+  Divert sockets:               Archie Cobbs <archie@whistle.com>
+  Packet aliasing:              Charles Mott <cmott@srv.net>
+  IRC support & misc additions: Eivind Eklund <eivind@dimaga.com>
+  Natd:                         Ari Suutari <ari.suutari@ps.carel.fi>
+  Glue:                         Brian Somers <brian@awfulhak.org>
