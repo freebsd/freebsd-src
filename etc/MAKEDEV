@@ -76,7 +76,7 @@
 #	snd*	various sound cards
 #	pcaudio PCM audio driver 
 #
-#	$Id: MAKEDEV,v 1.32 1994/04/21 14:08:27 sos Exp $
+#	$Id: MAKEDEV,v 1.33 1994/05/10 09:18:11 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -90,9 +90,8 @@ all)
 	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0 mcd0	# bdev
 	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
 	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
-	sh MAKEDEV speaker pcaudio mse0 ttyd2 ttyd3             # cdev
-	# NOTE: co0 and vty04 are not done by a "sh MAKEDEV all"
-	# these are for codrv and interfere with other devices! - rgrimes
+	sh MAKEDEV speaker pcaudio psm0 mse0 ttyd2 ttyd3        # cdev
+	sh MAKEDEV vty4						# cdev
 	;;
 std)
 	rm -f console drum mem kmem null zero io tty klog stdin stdout stderr
