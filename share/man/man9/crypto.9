@@ -16,22 +16,24 @@
 .\" MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
 .\" PURPOSE.
 .\"
-.Dd October 3, 2002
+.Dd October 14, 2002
 .Dt CRYPTO 9
 .Os
 .Sh NAME
 .Nm crypto
 .Nd API for cryptographic services in the kernel
 .Sh SYNOPSIS
-.Fd #include <crypto/cryptodev.h>
+.Fd #include <opencrypto/cryptodev.h>
 .Ft int32_t
 .Fn crypto_get_driverid "u_int8_t"
 .Ft int
-.Fn crypto_register "u_int32_t" "int" "u_int16_t" "u_int32_t" "int (*)(u_int32_t *, struct cryptoini *)" "int (*)(u_int64_t)" "int (*)(struct cryptop *)"
+.Fn crypto_register "u_int32_t" "int" "u_int16_t" "u_int32_t" "int (*)(void *, u_int32_t *, struct cryptoini *)" "int (*)(void *, u_int64_t)" "int (*)(void *, struct cryptop *)" "void *"
 .Ft int
-.Fn crypto_kregister "u_int32_t" "int" "u_int32_t" "int (*)(struct cryptkop *)"
+.Fn crypto_kregister "u_int32_t" "int" "u_int32_t" "int (*)(void *, struct cryptkop *)" "void *"
 .Ft int
 .Fn crypto_unregister "u_int32_t" "int"
+.Ft int
+.Fn crypto_unregister_all "u_int32_t"
 .Ft void
 .Fn crypto_done "struct cryptop *"
 .Ft void
@@ -44,11 +46,16 @@
 .Fn crypto_dispatch "struct cryptop *"
 .Ft int
 .Fn crypto_kdispatch "struct cryptkop *"
+.Ft int
+.Fn crypto_unblock "u_int32_t" "int"
 .Ft struct cryptop *
 .Fn crypto_getreq "int"
 .Ft void
 .Fn crypto_freereq "void"
 .Bd -literal
+
+#define	CRYPTO_SYMQ	0x1
+#define	CRYPTO_ASYMQ	0x2
 
 #define EALG_MAX_BLOCK_LEN      16
 
@@ -71,17 +78,16 @@ struct cryptodesc {
 };
 
 struct cryptop {
+	TAILQ_ENTRY(cryptop) crp_next;
 	u_int64_t          crp_sid;
 	int                crp_ilen;
 	int                crp_olen;
-	int                crp_alloctype;
 	int                crp_etype;
 	int                crp_flags;
 	caddr_t            crp_buf;
 	caddr_t            crp_opaque;
 	struct cryptodesc *crp_desc;
 	int              (*crp_callback) (struct cryptop *);
-	struct cryptop    *crp_next;
 	caddr_t            crp_mac;
 };
 
@@ -93,17 +99,14 @@ struct crparam {
 #define CRK_MAXPARAM    8
 
 struct cryptkop {
+        TAILQ_ENTRY(cryptkop) krp_next;
         u_int              krp_op;         /* ie. CRK_MOD_EXP or other */
         u_int              krp_status;     /* return status */
         u_short            krp_iparams;    /* # of input parameters */
         u_short            krp_oparams;    /* # of output parameters */
-        u_int              krp_pad1;
+	u_int32_t	   krp_hid;
         struct crparam     krp_param[CRK_MAXPARAM];
-        struct crparam     krp_kvp[CRK_MAXPARAM];
-
-        u_int32_t          krp_hid;
         int               (*krp_callback)(struct cryptkop *);
-        struct cryptkop   *krp_next;
 };
 .Ed
 .br
@@ -112,8 +115,10 @@ struct cryptkop {
 is a framework for drivers of cryptographic hardware to register with
 the kernel so
 .Dq consumers
-(other kernel subsystems, and eventually
-users through an appropriate device) are able to make use of it.
+(other kernel subsystems, and 
+users through the
+.Pa /dev/crypto
+device) are able to make use of it.
 Drivers register with the framework the algorithms they support,
 and provide entry points (functions) the framework may call to
 establish, use, and tear down sessions.
@@ -130,8 +135,8 @@ these sessionless commands perform mathematical operations using
 input and output parameters.
 .Pp
 Since the consumers may not be associated with a process, drivers may
-not use
-.Xr tsleep 9 .
+not
+.Xr sleep 9 .
 The same holds for the framework.
 Thus, a callback mechanism is used
 to notify a consumer that a request has been completed (the
@@ -181,6 +186,9 @@ CRYPTO_AES_CBC
 CRYPTO_ARC4
 CRYPTO_MD5
 CRYPTO_SHA1
+CRYPTO_SHA2_HMAC
+CRYPTO_NULL_HMAC
+CRYPTO_NULL_CBC
 .Ed
 .Pp
 .It Fa cri_klen
@@ -232,10 +240,6 @@ Indicates the total length in bytes of the buffer to be processed.
 .It Fa crp_olen
 On return, contains the total length of the result.
 For symmetric crypto operations, this will be the same as the input length.
-.It Fa crp_alloctype
-Indicates the type of buffer, as used in the kernel
-.Xr malloc 9
-routine.
 This will be used if the framework needs to allocate a new
 buffer for the result (or for re-formatting the input).
 .It Fa crp_callback
@@ -288,8 +292,7 @@ Points to the input buffer.
 On return (when the callback is invoked),
 it contains the result of the request.
 The input buffer may be an mbuf
-chain or a contiguous buffer (of a type identified by
-.Fa crp_alloctype ) ,
+chain or a contiguous buffer,
 depending on
 .Fa crp_flags .
 .It Fa crp_opaque
@@ -428,6 +431,7 @@ The
 .Fn crypto_register ,
 .Fn crypto_kregister ,
 .Fn crypto_unregister ,
+.Fn crypto_unblock ,
 and
 .Fn crypto_done
 routines are used by drivers that provide support for cryptographic
@@ -443,26 +447,24 @@ For each algorithm the driver supports, it must then call
 .Fn crypto_register .
 The first two arguments are the driver and algorithm identifiers.
 The next two arguments specify the largest possible operator length (in bits,
-important for public key operations) and flags (e.g., whether an hardware RNG is
-available) for this algorithm.
-The last three arguments must be provided in the first call to
+important for public key operations) and flags for this algorithm.
+The last four arguments must be provided in the first call to
 .Fn crypto_register
 and are ignored in all subsequent calls.
 They are pointers to three
 driver-provided functions that the framework may call to establish new
 cryptographic context with the driver, free already established
 context, and ask for a request to be processed (encrypt, decrypt,
-etc.)
+etc.); and an opaque parameter to pass when calling each of these routines.
 .Fn crypto_unregister
 is called by drivers that wish to withdraw support for an algorithm.
 The two arguments are the driver and algorithm identifiers, respectively.
 Typically, drivers for
-.Xr pcmcia 4
+PCMCIA
 crypto cards that are being ejected will invoke this routine for all
 algorithms supported by the card.
-If called with
-.Dv CRYPTO_ALGORITHM_ALL ,
-all algorithms registered for a driver will be unregistered in one go
+.Fn crypto_unregister_all
+will unregister all algorithms registered by a driver
 and the driver will be disabled (no new sessions will be allocated on
 that driver, and any existing sessions will be migrated to other
 drivers).
@@ -471,24 +473,29 @@ unregistered one by one.
 .Pp
 The calling convention for the three driver-supplied routines is:
 .Bd -literal
-int (*newsession) (u_int32_t *, struct cryptoini *);
-int (*freesession) (u_int64_t);
-int (*process) (struct cryptop *);
-int (*kprocess) (struct cryptkop *);
+int (*newsession) (void *, u_int32_t *, struct cryptoini *);
+int (*freesession) (void *, u_int64_t);
+int (*process) (void *, struct cryptop *);
+int (*kprocess) (void *, struct cryptkop *);
 .Ed
 .Pp
 On invocation, the first argument to
+all routines is an opaque data value supplied when the algorithm
+is registered with
+.Fn crypto_register .
+The second argument to
 .Fn newsession
 contains the driver identifier obtained via
 .Fn crypto_get_driverid .
 On successfully returning, it should contain a driver-specific session
 identifier.
-The second argument is identical to that of
+The third argument is identical to that of
 .Fn crypto_newsession .
 .Pp
 The
 .Fn freesession
-routine takes as argument the SID (which is the concatenation of the
+routine takes as arguments the opaque data value and the SID
+(which is the concatenation of the
 driver identifier and the driver-specific session identifier).
 It should clear any context associated with the session (clear hardware
 registers, memory, etc.).
@@ -499,16 +506,33 @@ routine is invoked with a request to perform crypto processing.
 This routine must not block, but should queue the request and return
 immediately.
 Upon processing the request, the callback routine should be invoked.
-In case of error, the error indication must be placed in the
+In case of an unrecoverable error, the error indication must be placed in the
 .Fa crp_etype
 field of the
 .Fa cryptop
 structure.
 When the request is completed, or an error is detected, the
 .Fn process
-routine should invoked
+routine should invoke
 .Fn crypto_done .
 Session migration may be performed, as mentioned previously.
+.Pp
+In case of a temporary resource exhaustion, the 
+.FN process
+routine may return
+.Er ERESTART
+in which case the crypto services will requeue the request, mark the driver
+as ``blocked'', and stop submitting requests for processing.
+The driver is then responsible for notifying the crypto services
+when it is again able to process requests through the
+.Fn crypto_unblock
+routine.
+This simple flow control mechanism should only be used for short-lived
+resource exhaustion as it causes operations to be queued in the crypto
+layer.
+Doing so is preferrable to returning an error in such cases as
+it can cause network prrotocols to degrade performance by treating the
+failure much like a lost packet.
 .Pp
 The
 .Fn kprocess
@@ -516,7 +540,7 @@ routine is invoked with a request to perform crypto key processing.
 This routine must not block, but should queue the request and return
 immediately.
 Upon processing the request, the callback routine should be invoked.
-In case of error, the error indication must be placed in the
+In case of an unrecoverable error, the error indication must be placed in the
 .Fa krp_status
 field of the
 .Fa cryptkop
@@ -530,8 +554,9 @@ routine should invoked
 .Fn crypto_kregister ,
 .Fn crypto_unregister ,
 .Fn crypto_newsession ,
+.Fn crypto_freesession ,
 and
-.Fn crypto_freesession
+.Fb crypto_unblock
 return 0 on success, or an error code on failure.
 .Fn crypto_get_driverid
 returns a non-negative value on error, and \-1 on failure.
@@ -557,9 +582,8 @@ most of the framework code
 .El
 .Sh SEE ALSO
 .Xr ipsec 4 ,
-.Xr pcmcia 4 ,
 .Xr malloc 9 ,
-.Xr tsleep 9
+.Xr sleep 9
 .Sh HISTORY
 The cryptographic framework first appeared in
 OpenBSD 2.7
@@ -579,13 +603,3 @@ supported.
 Note that 3DES is considered one algorithm (and not three
 instances of DES).
 Thus, 3DES and DES could be mixed in the same request.
-.Pp
-A queue for completed operations should be implemented and processed
-at some software
-.Xr spl 9
-level, to avoid overall system latency issues, and potential kernel
-stack exhaustion while processing a callback.
-.Pp
-When SMP time comes, we will support use of a second processor (or
-more) as a crypto device (this is actually AMP, but we need the same
-basic support).
