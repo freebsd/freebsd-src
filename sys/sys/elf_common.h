@@ -136,7 +136,7 @@ typedef struct {
 #define EM_PPC64	21	/* PowerPC 64-bit */
 #define EM_ARM		40	/* ARM */
 #define EM_SPARCV9	43	/* SPARC v9 64-bit */
-#define EM_IA_64	50	/* Intel IA-46 Processor */
+#define EM_IA_64	50	/* Intel IA-64 Processor */
 #define EM_X86_64	62	/* Advanced Micro Devices x86-64 */
 #define EM_ALPHA	0x9026	/* Alpha (written in the absence of an ABI */
 
