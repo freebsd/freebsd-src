@@ -548,7 +548,8 @@ i686_mrinit(struct mem_range_softc *sc)
 	return;
     }
     nmdesc = mtrrcap & 0xff;
-    printf("Pentium Pro MTRR support enabled\n");
+    if (bootverbose)
+	printf("Pentium Pro MTRR support enabled\n");
 
     /* If fixed MTRRs supported and enabled */
     if ((mtrrcap & 0x100) && (mtrrdef & 0x400)) {

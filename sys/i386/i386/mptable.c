@@ -965,7 +965,8 @@ mptable_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 		    'A' + pin);
 		return (PCI_INVALID_IRQ);
 	}
-	device_printf(pcib, "slot %d INT%c routed to irq %d\n", slot, 'A' + pin,
-	    args.vector);
+	if (bootverbose)
+		device_printf(pcib, "slot %d INT%c routed to irq %d\n", slot,
+		    'A' + pin, args.vector);
 	return (args.vector);
 }

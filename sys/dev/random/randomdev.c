@@ -200,7 +200,9 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 		random_ident_hardware(&random_systat);
 		(*random_systat.init)();
 
-		printf("random: <entropy source, %s>\n", random_systat.ident);
+		if (bootverbose)
+			printf("random: <entropy source, %s>\n",
+			    random_systat.ident);
 
 		random_dev = make_dev(&random_cdevsw, RANDOM_MINOR,
 		    UID_ROOT, GID_WHEEL, 0666, "random");
