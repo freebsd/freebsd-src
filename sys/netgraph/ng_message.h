@@ -66,11 +66,11 @@
 struct ng_mesg {
 	struct	ng_msghdr {
 		u_char		version;		/*  == NGM_VERSION */
-		u_char		spare;			/* pad to 2 bytes */
-		u_int16_t	arglen;			/* length of data */
+		u_char		spare;			/* pad to 4 bytes */
+		u_int16_t	spare2;	
+		u_int32_t	arglen;			/* length of data */
 		u_int32_t	cmd;			/* command identifier */
 		u_int32_t	flags;			/* message status */
-		u_int32_t	spare2;			/* pad to 8 bytes */
 		u_int32_t	token;			/* match with reply */
 		u_int32_t	typecookie;		/* node's type cookie */
 		u_char		cmdstr[NG_CMDSTRSIZ];	/* cmd string + \0 */
@@ -85,10 +85,10 @@ struct ng_mesg {
 #define NG_GENERIC_NG_MESG_INFO(dtype)	{			\
 	  { "version",		&ng_parse_uint8_type	},	\
 	  { "spare",		&ng_parse_uint8_type	},	\
-	  { "arglen",		&ng_parse_uint16_type	},	\
+	  { "spare2",		&ng_parse_uint16_type	},	\
+	  { "arglen",		&ng_parse_uint32_type	},	\
 	  { "cmd",		&ng_parse_uint32_type	},	\
 	  { "flags",		&ng_parse_hint32_type	},	\
-	  { "spare2",		&ng_parse_uint32_type	},	\
 	  { "token",		&ng_parse_uint32_type	},	\
 	  { "typecookie",	&ng_parse_uint32_type	},	\
 	  { "cmdstr",		&ng_parse_cmdbuf_type	},	\
@@ -99,9 +99,9 @@ struct ng_mesg {
 /*
  * Netgraph message header compatibility field
  * Interfaces within the kernel are defined by a different 
- * value (see NG_ABI_VERSION in netgraph.g)
+ * value (see NG_ABI_VERSION in netgraph.h)
  */
-#define NG_VERSION	7
+#define NG_VERSION	8
 
 /* Flags field flags */
 #define NGF_ORIG	0x00000000	/* the msg is the original request */
