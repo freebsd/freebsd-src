@@ -1179,16 +1179,13 @@ kludge_oldps_options(const char *optlist, char *origval, const char *nextarg)
 static int
 check_procfs(void)
 {
-	struct statfs *mntbuf;
-	size_t mntsize, i;
+	struct statfs mnt;
 
-	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
-	for (i = 0; i < mntsize; i++)
-		if (strcmp(mntbuf[i].f_mntonname, "/proc") == 0 &&
-		    strcmp(mntbuf[i].f_fstypename, "procfs") == 0) {
-			return (1);
-		}
-	return (0);
+	if (statfs("/proc", &mnt) < 0)
+		return (0);
+	if (strcmp(mnt.f_fstypename, "procfs") != 0)
+		return (0);
+	return (1);
 }
 
 static void
