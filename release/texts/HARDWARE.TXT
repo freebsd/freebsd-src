@@ -986,6 +986,7 @@ Gravis UltraSound MAX/PnP
 MSS/WSS Compatible DSPs
 NeoMagic 256AV/ZX
 OPTi 931/82C931
+S3 Sonicvibes
 SoundBlaster, Soundblaster Pro, Soundblaster AWE-32, Soundblaster AWE-64
 Trident 4DWave DX/NX
 VIA Technologies VT82C686A

@@ -56,6 +56,13 @@ Table of contents:
 ip6fw(8) now has the ability to use a preprocessor and use the -q (quiet)
 flag when reading from a file.
 
+ping(8) now supports a -m option to set the TTL of outgoing
+packets.
+
+groff(1) and its related utilities have been updated to FSF version
+1.17.  This import brings in a new mdoc(7) macro package, which
+removes many of the limitations of its predecessor.
+
 
 2. Supported Configurations
 ---------------------------
