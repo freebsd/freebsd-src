@@ -105,7 +105,7 @@ void ss_page_stdin();
 extern ss_data **_ss_table;
 extern char *ss_et_msgs[];
 
-#ifndef __FreeBSD__
+#if !defined(__FreeBSD__) && !defined(__NetBSD__)
 extern pointer malloc PROTOTYPE((unsigned));
 extern pointer realloc PROTOTYPE((pointer, unsigned));
 extern pointer calloc PROTOTYPE((unsigned, unsigned));
