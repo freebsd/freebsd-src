@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.51 1998/08/08 07:02:07 peter Exp $
+#	$Id: bsd.kmod.mk,v 1.52 1998/09/02 14:29:09 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -46,6 +46,8 @@
 # PSEUDO_LKM	???
 #
 # SRCS          List of source files 
+#
+# KMODDEPS	List of modules which this one is dependant on
 #
 # SUBDIR        A list of subdirectories that should be built as well.
 #               Each of the targets will execute the same target in the
@@ -132,10 +134,17 @@ CFLAGS+= -DPSEUDO_LKM
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .if !defined(PROG)
+.if defined(KLDMOD)
+PROG=	${KMOD}.ko
+.else
 PROG=	${KMOD}.o
+.endif
 .endif
 
 ${PROG}: ${OBJS} ${DPADD} 
+.if defined(KLDMOD)
+	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${OBJS} ${KMODDEPS}
+.else
 	${LD} -r ${LDFLAGS:N-static} -o tmp.o ${OBJS}
 .if defined(EXPORT_SYMS)
 	rm -f symb.tmp
@@ -144,6 +153,7 @@ ${PROG}: ${OBJS} ${DPADD}
 	rm -f symb.tmp
 .endif
 	mv tmp.o ${.TARGET}
+.endif
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
