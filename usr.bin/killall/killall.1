@@ -32,12 +32,8 @@
 .Nd kill processes by name
 .Sh SYNOPSIS
 .Nm
-.Op Fl d | v
-.Op Fl h | ?\&
+.Op Fl dlmsv
 .Op Fl help
-.Op Fl l
-.Op Fl m
-.Op Fl s
 .Op Fl u Ar user
 .Op Fl t Ar tty
 .Op Fl c Ar procname
@@ -66,7 +62,6 @@ Be more verbose about what will be done.  For a single
 option, a list of the processes that will be sent the signal will be
 printed, or a message indicating that no matching processes have been
 found.
-.It Fl h | ?\&
 .It Fl help
 Give a help on the command usage and exit.
 .It Fl l
@@ -75,7 +70,7 @@ List the names of the available signals and exit, like in
 .It Fl m
 Match the argument
 .Ar procname
-as a (case insensitive) regular expression against the names
+as a (case sensitive) regular expression against the names
 of processes found.
 CAUTION!  This is dangerous, a single dot will match any process
 running under the real UID of the caller.

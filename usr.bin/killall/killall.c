@@ -51,7 +51,9 @@ static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-l] [-v] [-m] [-sig] [-u user] [-t tty] [-c cmd] [cmd]...\n", prog);
+	fprintf(stderr, "usage: killall [-dlmsv] [-help]\n");
+	fprintf(stderr,
+	    "               [-u user] [-t tty] [-c cmd] [-SIGNAL] [cmd]...\n");
 	fprintf(stderr, "At least one option or argument to specify processes must be given.\n");
 	exit(1);
 }
