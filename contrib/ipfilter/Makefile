@@ -1,18 +1,18 @@
 #
-# Copyright (C) 1993-1997 by Darren Reed.
+# Copyright (C) 1993-1998 by Darren Reed.
 #
 # Redistribution and use in source and binary forms are permitted
 # provided that this notice is preserved and due credit is given
 # to the original author and the contributors.
 #
-# $Id: Makefile,v 2.0.2.26.2.10 1998/05/23 05:01:23 darrenr Exp $
+# $Id: Makefile,v 2.2 1999/08/04 17:29:52 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
 MANDIR=/usr/local/man
 #To test prototyping
-#CC=gcc -Wstrict-prototypes -Wmissing-prototypes -Werror
-CC=gcc
+CC=gcc -Wstrict-prototypes -Wmissing-prototypes
+#CC=gcc
 #CC=cc -Dconst=
 DEBUG=-g
 CFLAGS=-I$$(TOP)
@@ -39,11 +39,12 @@ LOGFAC=-DLOGFAC=LOG_LOCAL0
 #
 POLICY=-DIPF_DEFAULT_PASS=FR_PASS
 #
-MFLAGS="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
-	'CFLAGS=$(CFLAGS) $(SOLARIS2)' "IPFLKM=$(IPFLKM)" \
+MFLAGS1="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
+	'CFLAGS=$(CFLAGS) $(ARCHINC) $(SOLARIS2)' \
 	"IPFLOG=$(IPFLOG)" "LOGFAC=$(LOGFAC)" "POLICY=$(POLICY)" \
 	"SOLARIS2=$(SOLARIS2)" "DEBUG=$(DEBUG)" "DCPU=$(CPU)" \
 	"CPUDIR=$(CPUDIR)"
+MFLAGS=$(MFLAGS1) "IPFLKM=$(IPFLKM)"
 #
 SHELL=/bin/sh
 #
@@ -58,11 +59,12 @@ INSTALL=install
 all:
 	@echo "Chose one of the following targets for making IP filter:"
 	@echo ""
-	@echo "solaris	- auto-selects SunOS4.1.x/Solaris 2.[45]/Solaris2.[45]-x86"
+	@echo "solaris	- auto-selects SunOS4.1.x/Solaris 2.3-6/Solaris2.4-6x86"
 	@echo "netbsd	- compile for NetBSD"
 	@echo "openbsd	- compile for OpenBSD"
 	@echo "freebsd	- compile for FreeBSD 2.0, 2.1 or earlier"
 	@echo "freebsd22	- compile for FreeBSD-2.2 or greater"
+	@echo "freebsd3	- compile for FreeBSD-3.x"
 	@echo "bsd	- compile for generic 4.4BSD systems"
 	@echo "bsdi	- compile for BSD/OS"
 	@echo "irix	- compile for SGI IRIX"
@@ -74,9 +76,8 @@ tests:
 	else echo test directory not present, sorry; fi
 
 include:
-	if [ ! -d netinet -o ! -f netinet/done ] ; then \
-		mkdir -p netinet; \
-		(cd netinet; ln -s ../*.h .; ln -s ../ip_ftp_pxy.c .); \
+	if [ ! -f netinet/done ] ; then \
+		(cd netinet; ln -s ../*.h .; ln -s ../ip_ftp_pxy.c .; ln -s ../ip_rcmd_pxy.c .; ln -s ../ip_raudio_pxy.c .); \
 		(cd netinet; ln -s ../ipsend/tcpip.h tcpip.h); \
 		touch netinet/done; \
 	fi
@@ -84,12 +85,12 @@ include:
 sunos solaris: include
 	./buildsunos
 
-freebsd22 freebsd30: include
+freebsd22: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
 	-rm -f BSD/$(CPUDIR)/ioconf.h
 	@if [ -n $(IPFILKERN) ] ; then \
-		if [ -f /sys/$(IPFILKERN)/compile/ioconf.h ] ; then \
-		ln -s /sys/$(IPFILKERN)/compile/ioconf.h BSD/$(CPUDIR); \
+		if [ -f /sys/compile/$(IPFILKERN)/ioconf.h ] ; then \
+		ln -s /sys/compile/$(IPFILKERN)/ioconf.h BSD/$(CPUDIR); \
 		else \
 		ln -s /sys/$(IPFILKERN)/ioconf.h BSD/$(CPUDIR); \
 		fi \
@@ -101,6 +102,11 @@ freebsd22 freebsd30: include
 		ln -s `uname -v|sed -e 's@^.*:\(/[^: ]*\).*@\1@'`/ioconf.h BSD/$(CPU) ; \
 	fi
 	make freebsd
+
+freebsd3 freebsd30: include
+	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
+	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS1) "ML=mlf_ipl.c" LKM= ; cd ..)
+	(cd BSD/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(MFLAGS1); cd ..)
 
 netbsd: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
@@ -146,10 +152,9 @@ setup:
 	-ln -s ../Makefile $(TARGOS)/$(CPUDIR)/Makefile
 	-ln -s ../Makefile.ipsend $(TARGOS)/$(CPUDIR)/Makefile.ipsend
 
-clean:
-	${RM} -rf netinet
+clean: clean-include
 	${RM} -f core *.o ipt fils ipf ipfstat ipftest ipmon if_ipl \
-	vnode_if.h $(LKM)
+	vnode_if.h $(LKM) *~
 	if [ "`uname -s`" = "SunOS" ]; then (cd SunOS4; make clean); fi
 	if [ "`uname -s`" = "SunOS" ]; then (cd SunOS5; make clean); fi
 	(cd BSD; make clean)
@@ -158,19 +163,23 @@ clean:
 	[ -d test ] && (cd test; make clean)
 	(cd ipsend; make clean)
 
-clean-bsd:
+clean-include:
+	sh -c 'cd netinet; for i in *; do if [ -h $$i ] ; then /bin/rm -f $$i; fi; done'
+	${RM} -f netinet/done
+
+clean-bsd: clean-include
 	(cd BSD; make clean)
 
-clean-sunos4:
+clean-sunos4: clean-include
 	(cd SunOS4; make clean)
 
-clean-sunos5:
+clean-sunos5: clean-include
 	(cd SunOS5; make clean)
 
-clean-irix:
+clean-irix: clean-include
 	(cd IRIX; make clean)
 
-clean-linux:
+clean-linux: clean-include
 	(cd Linux; make clean)
 
 get:

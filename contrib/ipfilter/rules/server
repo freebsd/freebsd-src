@@ -6,6 +6,6 @@
 # or 
 #
 pass in quick on le0 from 128.1.40.0/24 to any
-block in quick log on le0 from any to any
-block in quick log on le1 from 128.1.1.0/24 to any
+block in log quick on le0 from any to any
+block in log quick on le1 from 128.1.1.0/24 to any
 pass in quick on le1 from any to any

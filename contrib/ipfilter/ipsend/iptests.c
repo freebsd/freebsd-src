@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptests.c,v 2.0.2.13.2.2 1997/12/21 12:17:38 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: iptests.c,v 2.1 1999/08/04 17:31:09 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <unistd.h>
@@ -16,12 +16,18 @@ static const char rcsid[] = "@(#)$Id: iptests.c,v 2.0.2.13.2.2 1997/12/21 12:17:
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/param.h>
+#define _KERNEL
+#define KERNEL
 #if !defined(solaris) && !defined(linux) && !defined(__sgi)
-# define _KERNEL
-# define KERNEL
 # include <sys/file.h>
-# undef  _KERNEL
-# undef  KERNEL
+#else
+# ifdef solaris
+#  include <sys/dditypes.h>
+# endif
+#endif
+#undef  _KERNEL
+#undef  KERNEL
+#if !defined(solaris) && !defined(linux) && !defined(__sgi)
 # include <nlist.h>
 # include <sys/user.h>
 # include <sys/proc.h>

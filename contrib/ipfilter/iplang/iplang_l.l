@@ -1,12 +1,12 @@
 %{
 /*
- * Copyright (C) 1997 by Darren Reed.
+ * Copyright (C) 1997-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: iplang_l.l,v 2.0.2.15.2.5 1997/12/28 01:32:13 darrenr Exp $
+ * $Id: iplang_l.l,v 2.1 1999/08/04 17:30:53 darrenr Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -310,7 +310,9 @@ int nstate, fornext;
 
 void swallow()
 {
-	int c = input();
+	int c;
+
+	c = input();
 
 	if (c == '#') {
 		while ((c != '\n') && (c != EOF))

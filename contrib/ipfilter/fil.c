@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1998 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.14 1998/05/23 19:20:30 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fil.c,v 2.3.2.7 1999/10/21 14:21:40 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -15,7 +15,17 @@ static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.14 1998/05/23 19:20:30 
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/file.h>
-#include <sys/ioctl.h>
+#if defined(__NetBSD__) && (NetBSD >= 199905) && !defined(IPFILTER_LKM) && \
+    defined(_KERNEL)
+# include "opt_ipfilter_log.h"
+#endif
+#if defined(KERNEL) && defined(__FreeBSD_version) && \
+    (__FreeBSD_version >= 220000)
+# include <sys/filio.h>
+# include <sys/fcntl.h>
+#else
+# include <sys/ioctl.h>
+#endif
 #if (defined(_KERNEL) || defined(KERNEL)) && !defined(linux)
 # include <sys/systm.h>
 #else
@@ -30,8 +40,10 @@ static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.14 1998/05/23 19:20:30 
 # endif
 #else
 # include <sys/byteorder.h>
-# include <sys/dditypes.h>
-# include <sys/stream.h>
+# if SOLARIS2 < 5
+#  include <sys/dditypes.h>
+# endif
+#  include <sys/stream.h>
 #endif
 #ifndef linux
 # include <sys/protosw.h>
@@ -48,6 +60,10 @@ static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.14 1998/05/23 19:20:30 
 #ifndef linux
 # include <netinet/ip_var.h>
 #endif
+#if defined(__sgi) && defined(IFF_DRVRLOCK) /* IRIX 6 */
+# include <sys/hashing.h>
+# include <netinet/in_var.h>
+#endif
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
@@ -59,9 +75,16 @@ static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.14 1998/05/23 19:20:30 
 #include "netinet/ip_frag.h"
 #include "netinet/ip_state.h"
 #include "netinet/ip_auth.h"
+# if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
+#  include <sys/malloc.h>
+#  if defined(_KERNEL) && !defined(IPFILTER_LKM)
+#   include "opt_ipfilter.h"
+#  endif
+# endif
 #ifndef	MIN
-#define	MIN(a,b)	(((a)<(b))?(a):(b))
+# define	MIN(a,b)	(((a)<(b))?(a):(b))
 #endif
+#include "netinet/ipl.h"
 
 #ifndef	_KERNEL
 # include "ipf.h"
@@ -74,14 +97,9 @@ extern	int	opts;
 							  second; }
 # define	FR_VERBOSE(verb_pr)			verbose verb_pr
 # define	FR_DEBUG(verb_pr)			debug verb_pr
-# define	SEND_RESET(ip, qif, if, m)		send_reset(ip, if)
+# define	SEND_RESET(ip, qif, if, m, fin)		send_reset(ip, if)
 # define	IPLLOG(a, c, d, e)		ipllog()
-#  define	FR_NEWAUTH(m, fi, ip, qif)	fr_newauth((mb_t *)m, fi, ip)
-# if SOLARIS
-#  define	ICMP_ERROR(b, ip, t, c, if, src) 	icmp_error(ip)
-# else
-#  define	ICMP_ERROR(b, ip, t, c, if, src) 	icmp_error(b, ip, if)
-# endif
+# define	FR_NEWAUTH(m, fi, ip, qif)	fr_newauth((mb_t *)m, fi, ip)
 #else /* #ifndef _KERNEL */
 # define	FR_IFVERBOSE(ex,second,verb_pr)	;
 # define	FR_IFDEBUG(ex,second,verb_pr)	;
@@ -89,38 +107,25 @@ extern	int	opts;
 # define	FR_DEBUG(verb_pr)
 # define	IPLLOG(a, c, d, e)		ipflog(a, c, d, e)
 # if SOLARIS || defined(__sgi)
-extern	kmutex_t	ipf_mutex, ipf_auth;
+extern	KRWLOCK_T	ipf_mutex, ipf_auth, ipf_nat;
+extern	kmutex_t	ipf_rw;
 # endif
 # if SOLARIS
 #  define	FR_NEWAUTH(m, fi, ip, qif)	fr_newauth((mb_t *)m, fi, \
 							   ip, qif)
-#  define	SEND_RESET(ip, qif, if)		send_reset(ip, qif)
-#  define	ICMP_ERROR(b, ip, t, c, if, src) \
-			icmp_error(ip, t, c, if, src)
+#  define	SEND_RESET(ip, qif, if, fin)	send_reset(fin, ip, qif)
+#  define	ICMP_ERROR(b, ip, t, c, if, dst) \
+			icmp_error(ip, t, c, if, dst)
 # else /* SOLARIS */
 #  define	FR_NEWAUTH(m, fi, ip, qif)	fr_newauth((mb_t *)m, fi, ip)
 #  ifdef linux
-#   define	SEND_RESET(ip, qif, if)		send_reset((tcpiphdr_t *)ip,\
-							   ifp)
+#   define	SEND_RESET(ip, qif, if, fin)	send_reset(ip, ifp)
+#   define	ICMP_ERROR(b, ip, t, c, if, dst) 	icmp_send(b,t,c,0,if)
 #  else
-#   define	SEND_RESET(ip, qif, if)		send_reset((tcpiphdr_t *)ip)
-#  endif
-#  ifdef __sgi
-#   define	ICMP_ERROR(b, ip, t, c, if, src) \
-			icmp_error(b, t, c, if, src, if)
-#  else
-#   if BSD < 199103
-#    ifdef linux
-#     define	ICMP_ERROR(b, ip, t, c, if, src) 	icmp_send(b,t,c,0,if)
-#    else
-#     define	ICMP_ERROR(b, ip, t, c, if, src) \
-			icmp_error(mtod(b, ip_t *), t, c, if, src)
-#    endif /* linux */
-#   else
-#    define	ICMP_ERROR(b, ip, t, c, if, src) \
-			icmp_error(b, t, c, (src).s_addr, if)
-#   endif /* BSD < 199103 */
-#  endif /* __sgi */
+#   define	SEND_RESET(ip, qif, if, fin)	send_reset(fin, ip)
+#   define	ICMP_ERROR(b, ip, t, c, if, dst) \
+		send_icmp_err(ip, t, c, if, dst)
+#  endif /* linux */
 # endif /* SOLARIS || __sgi */
 #endif /* _KERNEL */
 
@@ -135,12 +140,12 @@ int	fr_pass = FR_NOMATCH|FR_BLOCK;
 #else
 int	fr_pass = (IPF_DEFAULT_PASS|FR_NOMATCH);
 #endif
+char	ipfilter_version[] = IPL_VERSION;
 
 fr_info_t	frcache[2];
 
-static	void	fr_makefrip __P((int, ip_t *, fr_info_t *));
 static	int	fr_tcpudpchk __P((frentry_t *, fr_info_t *));
-static	int	frflushlist __P((int, int, int *, frentry_t *, frentry_t **));
+static	int	frflushlist __P((int, minor_t, int *, frentry_t **));
 
 
 /*
@@ -188,19 +193,19 @@ struct	optlist	secopt[8] = {
  * compact the IP header into a structure which contains just the info.
  * which is useful for comparing IP headers with.
  */
-static	void	fr_makefrip(hlen, ip, fin)
+void	fr_makefrip(hlen, ip, fin)
 int hlen;
 ip_t *ip;
 fr_info_t *fin;
 {
 	struct optlist *op;
 	tcphdr_t *tcp;
-	icmphdr_t *icmp;
 	fr_ip_t *fi = &fin->fin_fi;
 	u_short optmsk = 0, secmsk = 0, auth = 0;
 	int i, mv, ol, off;
 	u_char *s, opt;
 
+	fin->fin_rev = 0;
 	fin->fin_fr = NULL;
 	fin->fin_tcpf = 0;
 	fin->fin_data[0] = 0;
@@ -216,14 +221,13 @@ fr_info_t *fin;
 	fin->fin_hlen = hlen;
 	fin->fin_dlen = ip->ip_len - hlen;
 	tcp = (tcphdr_t *)((char *)ip + hlen);
-	icmp = (icmphdr_t *)tcp;
 	fin->fin_dp = (void *)tcp;
 	(*(((u_short *)fi) + 1)) = (*(((u_short *)ip) + 4));
-	(*(((u_32_t *)fi) + 1)) = (*(((u_32_t *)ip) + 3));
-	(*(((u_32_t *)fi) + 2)) = (*(((u_32_t *)ip) + 4));
+	fi->fi_src.s_addr = ip->ip_src.s_addr;
+	fi->fi_dst.s_addr = ip->ip_dst.s_addr;
 
 	fi->fi_fl = (hlen > sizeof(ip_t)) ? FI_OPTIONS : 0;
-	off = (ip->ip_off & 0x1fff) << 3;
+	off = (ip->ip_off & IP_OFFMASK) << 3;
 	if (ip->ip_off & 0x3fff)
 		fi->fi_fl |= FI_FRAG;
 	switch (ip->ip_p)
@@ -231,10 +235,12 @@ fr_info_t *fin;
 	case IPPROTO_ICMP :
 	{
 		int minicmpsz = sizeof(struct icmp);
+		icmphdr_t *icmp;
 
-		if (!off && ip->ip_len > ICMP_MINLEN + hlen &&
-		    (icmp->icmp_type == ICMP_ECHOREPLY ||
-		     icmp->icmp_type == ICMP_UNREACH))
+		icmp = (icmphdr_t *)tcp;
+
+		if (!off && (icmp->icmp_type == ICMP_ECHOREPLY ||
+		     icmp->icmp_type == ICMP_ECHO))
 			minicmpsz = ICMP_MINLEN;
 		if ((!(ip->ip_len >= hlen + minicmpsz) && !off) ||
 		    (off && off < sizeof(struct icmp)))
@@ -267,8 +273,9 @@ getports:
 	}
 
 
-	for (s = (u_char *)(ip + 1), hlen -= sizeof(*ip); hlen; ) {
-		if (!(opt = *s))
+	for (s = (u_char *)(ip + 1), hlen -= (int)sizeof(*ip); hlen; ) {
+		opt = *s;
+		if (opt == '\0')
 			break;
 		ol = (opt == IPOPT_NOP) ? 1 : (int)*(s+1);
 		if (opt > 1 && (ol < 2 || ol > hlen))
@@ -397,7 +404,7 @@ fr_info_t *fin;
 		/*
 		 * Match the flags ?  If not, abort this match.
 		 */
-		if (fr->fr_tcpf &&
+		if (fr->fr_tcpfm &&
 		    fr->fr_tcpf != (fin->fin_tcpf & fr->fr_tcpfm)) {
 			FR_DEBUG(("f. %#x & %#x != %#x\n", fin->fin_tcpf,
 				 fr->fr_tcpfm, fr->fr_tcpf));
@@ -413,23 +420,24 @@ fr_info_t *fin;
  * kernel sauce.
  */
 int fr_scanlist(pass, ip, fin, m)
-int pass;
+u_32_t pass;
 ip_t *ip;
 register fr_info_t *fin;
 void *m;
 {
 	register struct frentry *fr;
 	register fr_ip_t *fi = &fin->fin_fi;
-	int rulen, portcmp = 0, off, skip = 0;
+	int rulen, portcmp = 0, off, skip = 0, logged = 0;
+	u_32_t passt;
 
 	fr = fin->fin_fr;
 	fin->fin_fr = NULL;
 	fin->fin_rule = 0;
 	fin->fin_group = 0;
-	off = ip->ip_off & 0x1fff;
+	off = ip->ip_off & IP_OFFMASK;
 	pass |= (fi->fi_fl << 24);
 
-	 if ((fi->fi_fl & FI_TCPUDP) && (fin->fin_dlen > 3) && !off)
+	if ((fi->fi_fl & FI_TCPUDP) && (fin->fin_dlen > 3) && !off)
 		portcmp = 1;
 
 	for (rulen = 0; fr; fr = fr->fr_next, rulen++) {
@@ -444,8 +452,16 @@ void *m;
 		 * check that we are working for the right interface
 		 */
 #ifdef	_KERNEL
-		if (fr->fr_ifa && fr->fr_ifa != fin->fin_ifp)
-			continue;
+# if BSD >= 199306
+		if (fin->fin_out != 0) {
+			if ((fr->fr_oifa &&
+			     fr->fr_oifa != ((mb_t *)m)->m_pkthdr.rcvif) ||
+			    (fr->fr_ifa && fr->fr_ifa != fin->fin_ifp))
+				continue;
+		} else
+# endif
+			if (fr->fr_ifa && fr->fr_ifa != fin->fin_ifp)
+				continue;
 #else
 		if (opts & (OPT_VERBOSE|OPT_DEBUG))
 			printf("\n");
@@ -465,10 +481,12 @@ void *m;
 			i = ((lip[0] & lm[0]) != ld[0]);
 			FR_IFDEBUG(i,continue,("0. %#08x & %#08x != %#08x\n",
 				   lip[0], lm[0], ld[0]));
-			i |= ((lip[1] & lm[1]) != ld[1]) << 21;
+			i |= ((lip[1] & lm[1]) != ld[1]) << 19;
+			i ^= (fr->fr_flags & FR_NOTSRCIP);
 			FR_IFDEBUG(i,continue,("1. %#08x & %#08x != %#08x\n",
 				   lip[1], lm[1], ld[1]));
-			i |= ((lip[2] & lm[2]) != ld[2]) << 22;
+			i |= ((lip[2] & lm[2]) != ld[2]) << 20;
+			i ^= (fr->fr_flags & FR_NOTDSTIP);
 			FR_IFDEBUG(i,continue,("2. %#08x & %#08x != %#08x\n",
 				   lip[2], lm[2], ld[2]));
 			i |= ((lip[3] & lm[3]) != ld[3]);
@@ -477,7 +495,6 @@ void *m;
 			i |= ((lip[4] & lm[4]) != ld[4]);
 			FR_IFDEBUG(i,continue,("4. %#08x & %#08x != %#08x\n",
 				   lip[4], lm[4], ld[4]));
-			i ^= (fi->fi_fl & (FR_NOTSRCIP|FR_NOTDSTIP));
 			if (i)
 				continue;
 		}
@@ -507,26 +524,29 @@ void *m;
 		/*
 		 * Just log this packet...
 		 */
-		if (!(skip = fr->fr_skip))
-			pass = fr->fr_flags;
-		if ((pass & FR_CALLNOW) && fr->fr_func)
-			pass = (*fr->fr_func)(pass, ip, fin);
+		passt = fr->fr_flags;
+		if ((passt & FR_CALLNOW) && fr->fr_func)
+			passt = (*fr->fr_func)(passt, ip, fin);
+		fin->fin_fr = fr;
 #ifdef  IPFILTER_LOG
-		if ((pass & FR_LOGMASK) == FR_LOG) {
-			if (!IPLLOG(fr->fr_flags, ip, fin, m))
-				frstats[fin->fin_out].fr_skip++;
-			frstats[fin->fin_out].fr_pkl++;
+		if ((passt & FR_LOGMASK) == FR_LOG) {
+			if (!IPLLOG(passt, ip, fin, m)) {
+				ATOMIC_INC(frstats[fin->fin_out].fr_skip);
+			}
+			ATOMIC_INC(frstats[fin->fin_out].fr_pkl);
+			logged = 1;
 		}
 #endif /* IPFILTER_LOG */
+		if (!(skip = fr->fr_skip) && (passt & FR_LOGMASK) != FR_LOG)
+			pass = passt;
 		FR_DEBUG(("pass %#x\n", pass));
-		fr->fr_hits++;
+		ATOMIC_INC(fr->fr_hits);
 		if (pass & FR_ACCOUNT)
 			fr->fr_bytes += (U_QUAD_T)ip->ip_len;
 		else
 			fin->fin_icode = fr->fr_icode;
 		fin->fin_rule = rulen;
 		fin->fin_group = fr->fr_group;
-		fin->fin_fr = fr;
 		if (fr->fr_grp) {
 			fin->fin_fr = fr->fr_grp;
 			pass = fr_scanlist(pass, ip, fin, m);
@@ -535,17 +555,21 @@ void *m;
 				fin->fin_group = fr->fr_group;
 				fin->fin_fr = fr;
 			}
+			if (pass & FR_DONTCACHE)
+				logged = 1;
 		}
 		if (pass & FR_QUICK)
 			break;
 	}
+	if (logged)
+		pass |= FR_DONTCACHE;
 	return pass;
 }
 
 
 /*
  * frcheck - filter check
- * check using source and destination addresses/pors in a packet whether
+ * check using source and destination addresses/ports in a packet whether
  * or not to pass it on or not.
  */
 int fr_check(ip, hlen, ifp, out
@@ -567,7 +591,8 @@ int out;
 	fr_info_t frinfo, *fc;
 	register fr_info_t *fin = &frinfo;
 	frentry_t *fr = NULL;
-	int pass, changed, apass, error = EHOSTUNREACH;
+	int changed, error = EHOSTUNREACH;
+	u_32_t pass, apass;
 #if !SOLARIS || !defined(_KERNEL)
 	register mb_t *m = *mp;
 #endif
@@ -580,70 +605,78 @@ int out;
 #  endif
 	int up;
 
-#ifdef M_CANFASTFWD
+#  ifdef M_CANFASTFWD
 	/*
 	 * XXX For now, IP Filter and fast-forwarding of cached flows
 	 * XXX are mutually exclusive.  Eventually, IP Filter should
 	 * XXX get a "can-fast-forward" filter rule.
 	 */
 	m->m_flags &= ~M_CANFASTFWD;
-#endif /* M_CANFASTFWD */
+#  endif /* M_CANFASTFWD */
 
 	if ((ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ||
 	     ip->ip_p == IPPROTO_ICMP)) {
 		int plen = 0;
 
-		switch(ip->ip_p)
-		{
-		case IPPROTO_TCP:
-			plen = sizeof(tcphdr_t);
-			break;
-		case IPPROTO_UDP:
-			plen = sizeof(udphdr_t);
-			break;
-		case IPPROTO_ICMP:
+		if ((ip->ip_off & IP_OFFMASK) == 0)
+			switch(ip->ip_p)
+			{
+			case IPPROTO_TCP:
+				plen = sizeof(tcphdr_t);
+				break;
+			case IPPROTO_UDP:
+				plen = sizeof(udphdr_t);
+				break;
 			/* 96 - enough for complete ICMP error IP header */
-			plen = sizeof(struct icmp) + sizeof(ip_t) + 8;
-			break;
-		}
+			case IPPROTO_ICMP:
+				plen = ICMPERR_MAXPKTLEN - sizeof(ip_t);
+				break;
+			}
 		up = MIN(hlen + plen, ip->ip_len);
 
 		if (up > m->m_len) {
-#ifdef __sgi /* Under IRIX, avoid m_pullup as it makes ping <hostname> panic */
+#  ifdef __sgi
+	/* Under IRIX, avoid m_pullup as it makes ping <hostname> panic */
 			if ((up > sizeof(hbuf)) || (m_length(m) < up)) {
-				frstats[out].fr_pull[1]++;
+				ATOMIC_INC(frstats[out].fr_pull[1]);
 				return -1;
 			}
 			m_copydata(m, 0, up, hbuf);
-			frstats[out].fr_pull[0]++;
+			ATOMIC_INC(frstats[out].fr_pull[0]);
 			ip = (ip_t *)hbuf;
-#else
-# ifndef linux
+#  else /* __ sgi */
+#   ifndef linux
 			if ((*mp = m_pullup(m, up)) == 0) {
-				frstats[out].fr_pull[1]++;
+				ATOMIC_INC(frstats[out].fr_pull[1]);
 				return -1;
 			} else {
-				frstats[out].fr_pull[0]++;
+				ATOMIC_INC(frstats[out].fr_pull[0]);
 				m = *mp;
 				ip = mtod(m, ip_t *);
 			}
-# endif
-#endif
+#   endif /* !linux */
+#  endif /* __sgi */
 		} else
 			up = 0;
 	} else
 		up = 0;
-# endif
+# endif /* !defined(__SVR4) && !defined(__svr4__) */
 # if SOLARIS
 	mb_t *m = qif->qf_m;
+
+	if ((u_int)ip & 0x3)
+		return 2;
+	fin->fin_qfm = m;
+	fin->fin_qif = qif;
 # endif
-#endif
+#endif /* _KERNEL */
 	fr_makefrip(hlen, ip, fin);
 	fin->fin_ifp = ifp;
 	fin->fin_out = out;
 	fin->fin_mp = mp;
+	pass = fr_pass;
 
-	MUTEX_ENTER(&ipf_mutex);
+	READ_ENTER(&ipf_mutex);
 
 	/*
 	 * Check auth now.  This, combined with the check below to see if apass
@@ -655,14 +688,15 @@ int out;
 	apass = fr_checkauth(ip, fin);
 
 	if (!out) {
-		changed = ip_natin(ip, hlen, fin);
+		changed = ip_natin(ip, fin);
 		if (!apass && (fin->fin_fr = ipacct[0][fr_active]) &&
-		    (FR_SCANLIST(FR_NOMATCH, ip, fin, m) & FR_ACCOUNT))
-			frstats[0].fr_acct++;
+		    (fr_scanlist(FR_NOMATCH, ip, fin, m) & FR_ACCOUNT)) {
+			ATOMIC_INC(frstats[0].fr_acct);
+		}
 	}
 
-	if (apass || (!(pass = ipfr_knownfrag(ip, fin)) &&
-	    !(pass = fr_checkstate(ip, fin)))) {
+	if (apass || (!(fr = ipfr_knownfrag(ip, fin)) &&
+	    !(fr = fr_checkstate(ip, fin)))) {
 		/*
 		 * If a packet is found in the auth table, then skip checking
 		 * the access lists for permission but we do need to consider
@@ -676,19 +710,20 @@ int out;
 				 * earlier.
 				 */
 				bcopy((char *)fc, (char *)fin, FI_COPYSIZE);
-				frstats[out].fr_chit++;
+				ATOMIC_INC(frstats[out].fr_chit);
 				if ((fr = fin->fin_fr)) {
-					fr->fr_hits++;
+					ATOMIC_INC(fr->fr_hits);
 					pass = fr->fr_flags;
-				} else
-					pass = fr_pass;
+				}
 			} else {
-				pass = fr_pass;
 				if ((fin->fin_fr = ipfilter[out][fr_active]))
-					pass = FR_SCANLIST(fr_pass, ip, fin, m);
-				bcopy((char *)fin, (char *)fc, FI_COPYSIZE);
-				if (pass & FR_NOMATCH)
-					frstats[out].fr_nom++;
+					pass = fr_scanlist(fr_pass, ip, fin, m);
+				if (!(pass & (FR_KEEPSTATE|FR_DONTCACHE)))
+					bcopy((char *)fin, (char *)fc,
+					      FI_COPYSIZE);
+				if (pass & FR_NOMATCH) {
+					ATOMIC_INC(frstats[out].fr_nom);
+				}
 			}
 			fr = fin->fin_fr;
 		} else
@@ -708,30 +743,39 @@ int out;
 #endif
 
 		if (pass & FR_PREAUTH) {
-			MUTEX_ENTER(&ipf_auth);
+			READ_ENTER(&ipf_auth);
 			if ((fin->fin_fr = ipauth) &&
-			    (pass = FR_SCANLIST(0, ip, fin, m)))
-				fr_authstats.fas_hits++;
-			else
-				fr_authstats.fas_miss++;
-			MUTEX_EXIT(&ipf_auth);
+			    (pass = fr_scanlist(0, ip, fin, m))) {
+				ATOMIC_INC(fr_authstats.fas_hits);
+			} else {
+				ATOMIC_INC(fr_authstats.fas_miss);
+			}
+			RWLOCK_EXIT(&ipf_auth);
 		}
 
-		if (pass & FR_KEEPFRAG) {
+		fin->fin_fr = fr;
+		if ((pass & (FR_KEEPFRAG|FR_KEEPSTATE)) == FR_KEEPFRAG) {
 			if (fin->fin_fi.fi_fl & FI_FRAG) {
-				if (ipfr_newfrag(ip, fin, pass) == -1)
-					frstats[out].fr_bnfr++;
-				else
-					frstats[out].fr_nfr++;
-			} else
-				frstats[out].fr_cfr++;
+				if (ipfr_newfrag(ip, fin, pass) == -1) {
+					ATOMIC_INC(frstats[out].fr_bnfr);
+				} else {
+					ATOMIC_INC(frstats[out].fr_nfr);
+				}
+			} else {
+				ATOMIC_INC(frstats[out].fr_cfr);
+			}
 		}
 		if (pass & FR_KEEPSTATE) {
-			if (fr_addstate(ip, fin, pass) == -1)
-				frstats[out].fr_bads++;
-			else
-				frstats[out].fr_ads++;
+			if (fr_addstate(ip, fin, 0) == NULL) {
+				ATOMIC_INC(frstats[out].fr_bads);
+			} else {
+				ATOMIC_INC(frstats[out].fr_ads);
+			}
 		}
+	} else if (fr != NULL) {
+		pass = fr->fr_flags;
+		if (pass & FR_LOGFIRST)
+			pass &= ~(FR_LOGFIRST|FR_LOG);
 	}
 
 	if (fr && fr->fr_func && !(pass & FR_CALLNOW))
@@ -743,34 +787,35 @@ int out;
 	 */
 	if (out && (pass & FR_PASS)) {
 		if ((fin->fin_fr = ipacct[1][fr_active]) &&
-		    (FR_SCANLIST(FR_NOMATCH, ip, fin, m) & FR_ACCOUNT))
-			frstats[1].fr_acct++;
-		fin->fin_fr = NULL;
-		changed = ip_natout(ip, hlen, fin);
-	}
-	fin->fin_fr = fr;
-	MUTEX_EXIT(&ipf_mutex);
+		    (fr_scanlist(FR_NOMATCH, ip, fin, m) & FR_ACCOUNT)) {
+			ATOMIC_INC(frstats[1].fr_acct);
+		}
+		fin->fin_fr = fr;
+		changed = ip_natout(ip, fin);
+	} else
+		fin->fin_fr = fr;
+	RWLOCK_EXIT(&ipf_mutex);
 
 #ifdef	IPFILTER_LOG
 	if ((fr_flags & FF_LOGGING) || (pass & FR_LOGMASK)) {
 		if ((fr_flags & FF_LOGNOMATCH) && (pass & FR_NOMATCH)) {
 			pass |= FF_LOGNOMATCH;
-			frstats[out].fr_npkl++;
+			ATOMIC_INC(frstats[out].fr_npkl);
 			goto logit;
 		} else if (((pass & FR_LOGMASK) == FR_LOGP) ||
 		    ((pass & FR_PASS) && (fr_flags & FF_LOGPASS))) {
 			if ((pass & FR_LOGMASK) != FR_LOGP)
 				pass |= FF_LOGPASS;
-			frstats[out].fr_ppkl++;
+			ATOMIC_INC(frstats[out].fr_ppkl);
 			goto logit;
 		} else if (((pass & FR_LOGMASK) == FR_LOGB) ||
 			   ((pass & FR_BLOCK) && (fr_flags & FF_LOGBLOCK))) {
 			if ((pass & FR_LOGMASK) != FR_LOGB)
 				pass |= FF_LOGBLOCK;
-			frstats[out].fr_bpkl++;
+			ATOMIC_INC(frstats[out].fr_bpkl);
 logit:
 			if (!IPLLOG(pass, ip, fin, m)) {
-				frstats[out].fr_skip++;
+				ATOMIC_INC(frstats[out].fr_skip);
 				if ((pass & (FR_PASS|FR_LOGORBLOCK)) ==
 				    (FR_PASS|FR_LOGORBLOCK))
 					pass ^= FR_PASS|FR_BLOCK;
@@ -795,10 +840,10 @@ logit:
 #  endif
 # endif
 #endif
-	if (pass & FR_PASS)
-		frstats[out].fr_pass++;
-	else if (pass & FR_BLOCK) {
-		frstats[out].fr_block++;
+	if (pass & FR_PASS) {
+		ATOMIC_INC(frstats[out].fr_pass);
+	} else if (pass & FR_BLOCK) {
+		ATOMIC_INC(frstats[out].fr_block);
 		/*
 		 * Should we return an ICMP packet to indicate error
 		 * status passing through the packet filter ?
@@ -810,29 +855,37 @@ logit:
 		if (!out) {
 #ifdef	_KERNEL
 			if (pass & FR_RETICMP) {
+				struct in_addr dst;
+
+				if ((pass & FR_RETMASK) == FR_FAKEICMP)
+					dst = ip->ip_dst;
+				else
+					dst.s_addr = 0;
 # if SOLARIS
 				ICMP_ERROR(q, ip, ICMP_UNREACH, fin->fin_icode,
-					   qif, ip->ip_src);
+					   qif, dst);
 # else
 				ICMP_ERROR(m, ip, ICMP_UNREACH, fin->fin_icode,
-					   ifp, ip->ip_src);
-				m = *mp = NULL;	/* freed by icmp_error() */
+					   ifp, dst);
 # endif
-
-				frstats[0].fr_ret++;
-			} else if ((pass & FR_RETRST) &&
+				ATOMIC_INC(frstats[0].fr_ret);
+			} else if (((pass & FR_RETMASK) == FR_RETRST) &&
 				   !(fin->fin_fi.fi_fl & FI_SHORT)) {
-				if (SEND_RESET(ip, qif, ifp) == 0)
-					frstats[1].fr_ret++;
+				if (SEND_RESET(ip, qif, ifp, fin) == 0) {
+					ATOMIC_INC(frstats[1].fr_ret);
+				}
 			}
 #else
-			if (pass & FR_RETICMP) {
+			if ((pass & FR_RETMASK) == FR_RETICMP) {
 				verbose("- ICMP unreachable sent\n");
-				frstats[0].fr_ret++;
-			} else if ((pass & FR_RETRST) &&
+				ATOMIC_INC(frstats[0].fr_ret);
+			} else if ((pass & FR_RETMASK) == FR_FAKEICMP) {
+				verbose("- forged ICMP unreachable sent\n");
+				ATOMIC_INC(frstats[0].fr_ret);
+			} else if (((pass & FR_RETMASK) == FR_RETRST) &&
 				   !(fin->fin_fi.fi_fl & FI_SHORT)) {
 				verbose("- TCP RST sent\n");
-				frstats[1].fr_ret++;
+				ATOMIC_INC(frstats[1].fr_ret);
 			}
 #endif
 		} else {
@@ -854,10 +907,10 @@ logit:
 	if (fr) {
 		frdest_t *fdp = &fr->fr_tif;
 
-		if ((pass & FR_FASTROUTE) ||
+		if (((pass & FR_FASTROUTE) && !out) ||
 		    (fdp->fd_ifp && fdp->fd_ifp != (struct ifnet *)-1)) {
-			ipfr_fastroute(m, fin, fdp);
-			m = *mp = NULL;
+			if (ipfr_fastroute(m, fin, fdp) == 0)
+				m = *mp = NULL;
 		}
 		if (mc)
 			ipfr_fastroute(mc, fin, &fr->fr_dif);
@@ -869,21 +922,20 @@ logit:
 		m_copyback(m, 0, up, hbuf);
 #   endif
 #  endif /* !linux */
-	return (pass & FR_PASS) ? 0 : error;
 # else /* !SOLARIS */
 	if (fr) {
 		frdest_t *fdp = &fr->fr_tif;
 
-		if ((pass & FR_FASTROUTE) ||
+		if (((pass & FR_FASTROUTE) && !out) ||
 		    (fdp->fd_ifp && fdp->fd_ifp != (struct ifnet *)-1)) {
-			ipfr_fastroute(qif, ip, m, mp, fin, fdp);
-			m = *mp = NULL;
+			if (ipfr_fastroute(qif, ip, m, mp, fin, fdp) == 0)
+				m = *mp = NULL;
 		}
 		if (mc)
 			ipfr_fastroute(qif, ip, mc, mp, fin, &fr->fr_dif);
 	}
-	return (pass & FR_PASS) ? changed : error;
 # endif /* !SOLARIS */
+	return (pass & FR_PASS) ? 0 : error;
 #else /* _KERNEL */
 	if (pass & FR_NOMATCH)
 		return 1;
@@ -928,76 +980,92 @@ register int len;
  * and the TCP header.  We also assume that data blocks aren't allocated in
  * odd sizes.
  */
-u_short fr_tcpsum(m, ip, tcp, len)
+u_short fr_tcpsum(m, ip, tcp)
 mb_t *m;
 ip_t *ip;
 tcphdr_t *tcp;
-int len;
+{
+	u_short *sp, slen, ts;
+	u_int sum, sum2;
+	int hlen;
+
+	/*
+	 * Add up IP Header portion
+	 */
+	hlen = ip->ip_hl << 2;
+	slen = ip->ip_len - hlen;
+	sum = htons((u_short)ip->ip_p);
+	sum += htons(slen);
+	sp = (u_short *)&ip->ip_src;
+	sum += *sp++;	/* ip_src */
+	sum += *sp++;
+	sum += *sp++;	/* ip_dst */
+	sum += *sp++;
+	ts = tcp->th_sum;
+	tcp->th_sum = 0;
+#ifdef	KERNEL
+# if SOLARIS
+	sum2 = ip_cksum(m, hlen, sum);	/* hlen == offset */
+	sum2 = (sum2 & 0xffff) + (sum2 >> 16);
+	sum2 = ~sum2 & 0xffff;
+# else /* SOLARIS */
+#  if defined(BSD) || defined(sun)
+#   if BSD >= 199306
+	m->m_data += hlen;
+#   else
+	m->m_off += hlen;
+#   endif
+	m->m_len -= hlen;
+	sum2 = in_cksum(m, slen);
+	m->m_len += hlen;
+#   if BSD >= 199306
+	m->m_data -= hlen;
+#   else
+	m->m_off -= hlen;
+#   endif
+	/*
+	 * Both sum and sum2 are partial sums, so combine them together.
+	 */
+	sum = (sum & 0xffff) + (sum >> 16);
+	sum = ~sum & 0xffff;
+	sum2 += sum;
+	sum2 = (sum2 & 0xffff) + (sum2 >> 16);
+#  else /* defined(BSD) || defined(sun) */
 {
 	union {
 		u_char	c[2];
 		u_short	s;
 	} bytes;
-	u_32_t sum;
-	u_short	*sp;
-# if SOLARIS || defined(__sgi)
-	int add, hlen;
-# endif
-
-# if SOLARIS
-	/* skip any leading M_PROTOs */
-	while(m && (MTYPE(m) != M_DATA))
-		m = m->b_cont;
-	PANIC((!m),("fr_tcpsum: no M_DATA"));
+	u_short len = ip->ip_len;
+# if defined(__sgi)
+	int add;
 # endif
 
 	/*
 	 * Add up IP Header portion
 	 */
-	bytes.c[0] = 0;
-	bytes.c[1] = IPPROTO_TCP;
-	len -= (ip->ip_hl << 2);
-	sum = bytes.s;
-	sum += htons((u_short)len);
 	sp = (u_short *)&ip->ip_src;
+	len -= (ip->ip_hl << 2);
+	sum = ntohs(IPPROTO_TCP);
+	sum += htons(len);
+	sum += *sp++;	/* ip_src */
 	sum += *sp++;
-	sum += *sp++;
-	sum += *sp++;
+	sum += *sp++;	/* ip_dst */
 	sum += *sp++;
 	if (sp != (u_short *)tcp)
 		sp = (u_short *)tcp;
+	sum += *sp++;	/* sport */
+	sum += *sp++;	/* dport */
+	sum += *sp++;	/* seq */
 	sum += *sp++;
+	sum += *sp++;	/* ack */
 	sum += *sp++;
-	sum += *sp++;
-	sum += *sp++;
-	sum += *sp++;
-	sum += *sp++;
-	sum += *sp++;
-	sum += *sp;
-	sp += 2;	/* Skip over checksum */
-	sum += *sp++;
+	sum += *sp++;	/* off */
+	sum += *sp++;	/* win */
+	sum += *sp++;	/* Skip over checksum */
+	sum += *sp++;	/* urp */
 
-#if SOLARIS
-	/*
-	 * In case we had to copy the IP & TCP header out of mblks,
-	 * skip over the mblk bits which are the header
-	 */
-	if ((caddr_t)ip != (caddr_t)m->b_rptr) {
-		hlen = (caddr_t)sp - (caddr_t)ip;
-		while (hlen) {
-			add = MIN(hlen, m->b_wptr - m->b_rptr);
-			sp = (u_short *)((caddr_t)m->b_rptr + add);
-			hlen -= add;
-			if ((caddr_t)sp >= (caddr_t)m->b_wptr) {
-				m = m->b_cont;
-				PANIC((!m),("fr_tcpsum: not enough data"));
-				if (!hlen)
-					sp = (u_short *)m->b_rptr;
-			}
-		}
-	}
-#endif
-#ifdef	__sgi
+# ifdef	__sgi
 	/*
 	 * In case we had to copy the IP & TCP header out of mbufs,
 	 * skip over the mbuf bits which are the header
@@ -1008,52 +1076,57 @@ int len;
 			add = MIN(hlen, m->m_len);
 			sp = (u_short *)(mtod(m, caddr_t) + add);
 			hlen -= add;
-			if (add >= m->m_len) {
+			if (add == m->m_len) {
 				m = m->m_next;
-				PANIC((!m),("fr_tcpsum: not enough data"));
-				if (!hlen)
+				if (!hlen) {
+					if (!m)
+						break;
 					sp = mtod(m, u_short *);
+				}
+				PANIC((!m),("fr_tcpsum(1): not enough data"));
 			}
 		}
 	}
-#endif
+# endif
 
 	if (!(len -= sizeof(*tcp)))
 		goto nodata;
-	while (len > 0) {
-#if SOLARIS
-		while ((caddr_t)sp >= (caddr_t)m->b_wptr) {
-			m = m->b_cont;
-			PANIC((!m),("fr_tcpsum: not enough data"));
-			sp = (u_short *)m->b_rptr;
-		}
-#else
-		while (((caddr_t)sp - mtod(m, caddr_t)) >= m->m_len)
-		{
+	while (len > 1) {
+		if (((caddr_t)sp - mtod(m, caddr_t)) >= m->m_len) {
 			m = m->m_next;
-			PANIC((!m),("fr_tcpsum: not enough data"));
+			PANIC((!m),("fr_tcpsum(2): not enough data"));
 			sp = mtod(m, u_short *);
 		}
-#endif /* SOLARIS */
-		if (len < 2)
-			break;
-		if((u_32_t)sp & 1) {
+		if (((caddr_t)(sp + 1) - mtod(m, caddr_t)) > m->m_len) {
+			bytes.c[0] = *(u_char *)sp;
+			m = m->m_next;
+			PANIC((!m),("fr_tcpsum(3): not enough data"));
+			sp = mtod(m, u_short *);
+			bytes.c[1] = *(u_char *)sp;
+			sum += bytes.s;
+			sp = (u_short *)((u_char *)sp + 1);
+		}
+		if ((u_long)sp & 1) {
 			bcopy((char *)sp++, (char *)&bytes.s, sizeof(bytes.s));
 			sum += bytes.s;
 		} else
 			sum += *sp++;
 		len -= 2;
 	}
-	if (len) {
-		bytes.c[1] = 0;
-		bytes.c[0] = *(u_char *)sp;
-		sum += bytes.s;
-	}
+	if (len)
+		sum += ntohs(*(u_char *)sp << 8);
 nodata:
-	sum = (sum >> 16) + (sum & 0xffff);
-	sum += (sum >> 16);
-	sum = (u_short)((~sum) & 0xffff);
-	return sum;
+	while (sum > 0xffff)
+		sum = (sum & 0xffff) + (sum >> 16);
+	sum2 = (u_short)(~sum & 0xffff);
+}
+#  endif /*  defined(BSD) || defined(sun) */
+# endif /* SOLARIS */
+#else /* KERNEL */
+	sum2 = 0;
+#endif /* KERNEL */
+	tcp->th_sum = ts;
+	return sum2;
 }
 
 
@@ -1091,7 +1164,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.0.2.41.2.14 1998/05/23 19:20:30 darrenr Exp $
+ * $Id: fil.c,v 2.3.2.7 1999/10/21 14:21:40 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -1191,9 +1264,10 @@ out:
 
 
 frgroup_t *fr_findgroup(num, flags, which, set, fgpp)
-u_short num;
+u_int num;
 u_32_t flags;
-int which, set;
+minor_t which;
+int set;
 frgroup_t ***fgpp;
 {
 	frgroup_t *fg, **fgp;
@@ -1206,6 +1280,7 @@ frgroup_t ***fgpp;
 		fgp = &ipfgroups[0][set];
 	else
 		return NULL;
+	num &= 0xffff;
 
 	while ((fg = *fgp))
 		if (fg->fg_num == num)
@@ -1219,18 +1294,19 @@ frgroup_t ***fgpp;
 
 
 frgroup_t *fr_addgroup(num, fp, which, set)
-u_short num;
+u_int num;
 frentry_t *fp;
-int which, set;
+minor_t which;
+int set;
 {
 	frgroup_t *fg, **fgp;
 
 	if ((fg = fr_findgroup(num, fp->fr_flags, which, set, &fgp)))
 		return fg;
 
-	KMALLOC(fg, frgroup_t *, sizeof(*fg));
+	KMALLOC(fg, frgroup_t *);
 	if (fg) {
-		fg->fg_num = num;
+		fg->fg_num = num & 0xffff;
 		fg->fg_next = *fgp;
 		fg->fg_head = fp;
 		fg->fg_start = &fp->fr_grp;
@@ -1241,9 +1317,10 @@ int which, set;
 
 
 void fr_delgroup(num, flags, which, set)
-u_short num;
+u_int num;
 u_32_t flags;
-int which, set;
+minor_t which;
+int set;
 {
 	frgroup_t *fg, **fgp;
  
@@ -1261,62 +1338,210 @@ int which, set;
  * encountered.  if a rule is the head of a group and it has lost all its
  * group members, then also delete the group reference.
  */
-static int frflushlist(set, unit, nfreedp, list, listp)
-int set, unit, *nfreedp;
-frentry_t *list, **listp;
+static int frflushlist(set, unit, nfreedp, listp)
+int set;
+minor_t unit;
+int *nfreedp;
+frentry_t **listp;
 {
-	register frentry_t *fp = list, *fpn;
-	register int freed = 0;
+	register int freed = 0, i;
+	register frentry_t *fp;
 
-	while (fp) {
-		fpn = fp->fr_next;
+	while ((fp = *listp)) {
+		*listp = fp->fr_next;
 		if (fp->fr_grp) {
-			fp->fr_ref -= frflushlist(set, unit, nfreedp,
-						  fp->fr_grp, &fp->fr_grp);
+			i = frflushlist(set, unit, nfreedp, &fp->fr_grp);
+			MUTEX_ENTER(&ipf_rw);
+			fp->fr_ref -= i;
+			MUTEX_EXIT(&ipf_rw);
 		}
 
-		if (fp->fr_ref == 1) {
+		ATOMIC_DEC(fp->fr_ref);
+		if (fp->fr_ref == 0) {
 			if (fp->fr_grhead)
-				fr_delgroup(fp->fr_grhead, fp->fr_flags, unit,
-					    set);
+				fr_delgroup((u_int)fp->fr_grhead, fp->fr_flags, 
+					    unit, set);
 			KFREE(fp);
-			*listp = fpn;
-			freed++;
-		}
-		fp = fpn;
+		} else
+			fp->fr_next = NULL;
+		freed++;
 	}
 	*nfreedp += freed;
 	return freed;
 }
 
 
-void frflush(unit, result)
-int unit;
-int *result;
+int frflush(unit, flags)
+minor_t unit;
+int flags;
 {
-	int flags = *result, flushed = 0, set = fr_active;
+	int flushed = 0, set;
 
+	if (unit != IPL_LOGIPF)
+		return 0;
+	WRITE_ENTER(&ipf_mutex);
 	bzero((char *)frcache, sizeof(frcache[0]) * 2);
 
+	set = fr_active;
 	if (flags & FR_INACTIVE)
 		set = 1 - set;
 
-	if (unit == IPL_LOGIPF) {
-		if (flags & FR_OUTQUE) {
-			(void) frflushlist(set, unit, &flushed,
-					   ipfilter[1][set],
-					   &ipfilter[1][set]);
-			(void) frflushlist(set, unit, &flushed,
-					   ipacct[1][set], &ipacct[1][set]);
-		}
-		if (flags & FR_INQUE) {
-			(void) frflushlist(set, unit, &flushed,
-					   ipfilter[0][set],
-					   &ipfilter[0][set]);
-			(void) frflushlist(set, unit, &flushed,
-					   ipacct[0][set], &ipacct[0][set]);
-		}
+	if (flags & FR_OUTQUE) {
+		(void) frflushlist(set, unit, &flushed, &ipfilter[1][set]);
+		(void) frflushlist(set, unit, &flushed, &ipacct[1][set]);
 	}
-
-	*result = flushed;
+	if (flags & FR_INQUE) {
+		(void) frflushlist(set, unit, &flushed, &ipfilter[0][set]);
+		(void) frflushlist(set, unit, &flushed, &ipacct[0][set]);
+	}
+	RWLOCK_EXIT(&ipf_mutex);
+	return flushed;
 }
+
+
+char *memstr(src, dst, slen, dlen)
+char *src, *dst;
+int slen, dlen;
+{
+	char *s = NULL;
+
+	while (dlen >= slen) {
+		if (bcmp(src, dst, slen) == 0) {
+			s = dst;
+			break;
+		}
+		dst++;
+		dlen--;
+	}
+	return s;
+}
+
+
+void fixskip(listp, rp, addremove)
+frentry_t **listp, *rp;
+int addremove;
+{
+	frentry_t *fp;
+	int rules = 0, rn = 0;
+
+	for (fp = *listp; fp && (fp != rp); fp = fp->fr_next, rules++)
+		;
+
+	if (!fp)
+		return;
+
+	for (fp = *listp; fp && (fp != rp); fp = fp->fr_next, rn++)
+		if (fp->fr_skip && (rn + fp->fr_skip >= rules))
+			fp->fr_skip += addremove;
+}
+
+
+#ifdef	_KERNEL
+/*
+ * count consecutive 1's in bit mask.  If the mask generated by counting
+ * consecutive 1's is different to that passed, return -1, else return #
+ * of bits.
+ */
+int	countbits(ip)
+u_32_t	ip;
+{
+	u_32_t	ipn;
+	int	cnt = 0, i, j;
+
+	ip = ipn = ntohl(ip);
+	for (i = 32; i; i--, ipn *= 2)
+		if (ipn & 0x80000000)
+			cnt++;
+		else
+			break;
+	ipn = 0;
+	for (i = 32, j = cnt; i; i--, j--) {
+		ipn *= 2;
+		if (j > 0)
+			ipn++;
+	}
+	if (ipn == ip)
+		return cnt;
+	return -1;
+}
+
+
+/*
+ * return the first IP Address associated with an interface
+ */
+int fr_ifpaddr(ifptr, inp)
+void *ifptr;
+struct in_addr *inp;
+{
+# if SOLARIS
+	ill_t *ill = ifptr;
+# else
+	struct ifnet *ifp = ifptr;
+# endif
+	struct in_addr in;
+
+# if SOLARIS
+	in.s_addr = ill->ill_ipif->ipif_local_addr;
+# else /* SOLARIS */
+#  if linux
+	;
+#  else /* linux */
+	struct ifaddr *ifa;
+	struct sockaddr_in *sin;
+
+#   if	(__FreeBSD_version >= 300000)
+	ifa = TAILQ_FIRST(&ifp->if_addrhead);
+#   else
+#    if defined(__NetBSD__) || defined(__OpenBSD__)
+	ifa = ifp->if_addrlist.tqh_first;
+#    else
+#     if defined(__sgi) && defined(IFF_DRVRLOCK) /* IRIX 6 */
+	ifa = &((struct in_ifaddr *)ifp->in_ifaddr)->ia_ifa;
+#     else
+	ifa = ifp->if_addrlist;
+#     endif
+#    endif /* __NetBSD__ || __OpenBSD__ */
+#   endif /* __FreeBSD_version >= 300000 */
+#   if (BSD < 199306) && !(/*IRIX6*/defined(__sgi) && defined(IFF_DRVRLOCK))
+	sin = (struct sockaddr_in *)&ifa->ifa_addr;
+#   else
+	sin = (struct sockaddr_in *)ifa->ifa_addr;
+	while (sin && ifa &&
+	       sin->sin_family != AF_INET) {
+#    if	(__FreeBSD_version >= 300000)
+		ifa = TAILQ_NEXT(ifa, ifa_link);
+#    else
+#     if defined(__NetBSD__) || defined(__OpenBSD__)
+		ifa = ifa->ifa_list.tqe_next;
+#     else
+		ifa = ifa->ifa_next;
+#     endif
+#    endif /* __FreeBSD_version >= 300000 */
+		if (ifa)
+			sin = (struct sockaddr_in *)ifa->ifa_addr;
+	}
+	if (ifa == NULL)
+		sin = NULL;
+	if (sin == NULL)
+		return -1;
+#   endif /* (BSD < 199306) && (!__sgi && IFF_DRVLOCK) */
+	in = sin->sin_addr;
+#  endif /* linux */
+# endif /* SOLARIS */
+	in.s_addr = ntohl(in.s_addr);
+	*inp = in;
+	return 0;
+}
+#else
+
+
+/*
+ * return the first IP Address associated with an interface
+ */
+int fr_ifpaddr(ifptr, inp)
+void *ifptr;
+struct in_addr *inp;
+{
+	return 0;
+}
+#endif       

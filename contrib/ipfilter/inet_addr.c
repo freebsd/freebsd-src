@@ -55,7 +55,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)inet_addr.c	8.1 (Berkeley) 6/17/93";
-static const char rcsid[] = "@(#)$Id: inet_addr.c,v 2.0.2.6 1997/10/19 15:39:21 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: inet_addr.c,v 2.1 1999/08/04 17:29:54 darrenr Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

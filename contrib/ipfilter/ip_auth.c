@@ -1,23 +1,24 @@
 /*
- * Copyright (C) 1997 by Darren Reed & Guido van Rooij.
+ * Copyright (C) 1998 by Darren Reed & Guido van Rooij.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.0.2.21.2.3 1998/04/08 13:43:29 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.1.2.1 1999/09/28 11:44:04 darrenr Exp $";
 #endif
 
-#if !defined(_KERNEL) && !defined(KERNEL)
-# include <stdlib.h>
-# include <string.h>
-#endif
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/file.h>
+#if !defined(_KERNEL) && !defined(KERNEL)
+# include <stdio.h>
+# include <stdlib.h>
+# include <string.h>
+#endif
 #if defined(KERNEL) && (__FreeBSD_version >= 220000)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
@@ -39,34 +40,39 @@ static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.0.2.21.2.3 1998/04/08 13:43:
 #else
 # include <sys/filio.h>
 # include <sys/byteorder.h>
-# include <sys/dditypes.h>
+# ifdef _KERNEL
+#  include <sys/dditypes.h>
+# endif
 # include <sys/stream.h>
 # include <sys/kmem.h>
+#endif
+#if _BSDI_VERSION >= 199802
+# include <sys/queue.h>
 #endif
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(bsdi)
 # include <machine/cpu.h>
 #endif
 #include <net/if.h>
 #ifdef sun
-#include <net/af.h>
+# include <net/af.h>
 #endif
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #ifndef	KERNEL
-#define	KERNEL
-#define	NOT_KERNEL
+# define	KERNEL
+# define	NOT_KERNEL
 #endif
 #ifndef linux
 # include <netinet/ip_var.h>
 #endif
 #ifdef	NOT_KERNEL
-#undef	KERNEL
+# undef	KERNEL
 #endif
 #ifdef __sgi
 # ifdef IFF_DRVRLOCK /* IRIX6 */
-#include <sys/hashing.h>
+#  include <sys/hashing.h>
 # endif
 #endif
 #include <netinet/tcp.h>
@@ -74,6 +80,9 @@ static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.0.2.21.2.3 1998/04/08 13:43:
 extern struct ifqueue   ipintrq;                /* ip packet input queue */
 #else
 # ifndef linux
+#  if __FreeBSD_version >= 300000
+#   include <net/if_var.h>
+#  endif
 #  include <netinet/in_var.h>
 #  include <netinet/tcp_fsm.h>
 # endif
@@ -90,10 +99,19 @@ extern struct ifqueue   ipintrq;                /* ip packet input queue */
 #  include <machine/cpufunc.h>
 # endif
 #endif
+#if (__FreeBSD_version >= 300000)
+# include <sys/malloc.h>
+# if (defined(_KERNEL) || defined(KERNEL)) && !defined(IPFILTER_LKM)
+#  include <sys/libkern.h>
+#  include <sys/systm.h>
+# endif
+#endif
+
 
 
 #if (SOLARIS || defined(__sgi)) && defined(_KERNEL)
-extern kmutex_t ipf_auth;
+extern KRWLOCK_T ipf_auth;
+extern kmutex_t ipf_authmx;
 # if SOLARIS
 extern kcondvar_t ipfauthwait;
 # endif
@@ -118,7 +136,7 @@ frentry_t	*ipauth = NULL;
  * authorization result and that would result in a feedback loop (i.e. it
  * will end up returning FR_AUTH) then return FR_BLOCK instead.
  */
-int fr_checkauth(ip, fin)
+u_32_t fr_checkauth(ip, fin)
 ip_t *ip;
 fr_info_t *fin;
 {
@@ -126,7 +144,7 @@ fr_info_t *fin;
 	u_32_t pass;
 	int i;
 
-	MUTEX_ENTER(&ipf_auth);
+	READ_ENTER(&ipf_auth);
 	for (i = fr_authstart; i != fr_authend; ) {
 		/*
 		 * index becomes -2 only after an SIOCAUTHW.  Check this in
@@ -141,6 +159,8 @@ fr_info_t *fin;
 			 */
 			if (!(pass = fr_auth[i].fra_pass) || (pass & FR_AUTH))
 				pass = FR_BLOCK;
+			RWLOCK_EXIT(&ipf_auth);
+			WRITE_ENTER(&ipf_auth);
 			fr_authstats.fas_hits++;
 			fr_auth[i].fra_index = -1;
 			fr_authused--;
@@ -158,7 +178,7 @@ fr_info_t *fin;
 					fr_authstart = fr_authend = 0;
 				}
 			}
-			MUTEX_EXIT(&ipf_auth);
+			RWLOCK_EXIT(&ipf_auth);
 			return pass;
 		}
 		i++;
@@ -166,7 +186,7 @@ fr_info_t *fin;
 			i = 0;
 	}
 	fr_authstats.fas_miss++;
-	MUTEX_EXIT(&ipf_auth);
+	RWLOCK_EXIT(&ipf_auth);
 	return 0;
 }
 
@@ -189,16 +209,17 @@ ip_t *ip;
 {
 	int i;
 
-	MUTEX_ENTER(&ipf_auth);
-	if ((fr_authstart > fr_authend) && (fr_authstart - fr_authend == -1)) {
+	WRITE_ENTER(&ipf_auth);
+	if (fr_authstart > fr_authend) {
 		fr_authstats.fas_nospace++;
-		MUTEX_EXIT(&ipf_auth);
+		RWLOCK_EXIT(&ipf_auth);
 		return 0;
-	}
-	if (fr_authend - fr_authstart == FR_NUMAUTH - 1) {
-		fr_authstats.fas_nospace++;
-		MUTEX_EXIT(&ipf_auth);
-		return 0;
+	} else {
+		if ((fr_authstart == 0) && (fr_authend == FR_NUMAUTH - 1)) {
+			fr_authstats.fas_nospace++;
+			RWLOCK_EXIT(&ipf_auth);
+			return 0;
+		}
 	}
 
 	fr_authstats.fas_added++;
@@ -206,7 +227,7 @@ ip_t *ip;
 	i = fr_authend++;
 	if (fr_authend == FR_NUMAUTH)
 		fr_authend = 0;
-	MUTEX_EXIT(&ipf_auth);
+	RWLOCK_EXIT(&ipf_auth);
 	fr_auth[i].fra_index = i;
 	fr_auth[i].fra_pass = 0;
 	fr_auth[i].fra_age = fr_defaultauthage;
@@ -288,46 +309,58 @@ frentry_t *fr, **frptr;
 			if (!fae)
 				error = ESRCH;
 			else {
+				WRITE_ENTER(&ipf_auth);
 				*faep = fae->fae_next;
 				*frptr = fr->fr_next;
+				RWLOCK_EXIT(&ipf_auth);
 				KFREE(fae);
 			}
 		} else {
-			KMALLOC(fae, frauthent_t *, sizeof(*fae));
+			KMALLOC(fae, frauthent_t *);
 			if (fae != NULL) {
 				IRCOPY((char *)data, (char *)&fae->fae_fr,
 				       sizeof(fae->fae_fr));
-				if (!fae->fae_age)
-					fae->fae_age = fr_defaultauthage;
+				WRITE_ENTER(&ipf_auth);
+				fae->fae_age = fr_defaultauthage;
 				fae->fae_fr.fr_hits = 0;
 				fae->fae_fr.fr_next = *frptr;
 				*frptr = &fae->fae_fr;
 				fae->fae_next = *faep;
 				*faep = fae;
+				ipauth = &fae_list->fae_fr;
+				RWLOCK_EXIT(&ipf_auth);
 			} else
 				error = ENOMEM;
 		}
 		break;
 	case SIOCATHST:
+		READ_ENTER(&ipf_auth);
+		fr_authstats.fas_faelist = fae_list;
+		RWLOCK_EXIT(&ipf_auth);
 		IWCOPY((char *)&fr_authstats, data, sizeof(fr_authstats));
 		break;
 	case SIOCAUTHW:
 fr_authioctlloop:
-		MUTEX_ENTER(&ipf_auth);
+		READ_ENTER(&ipf_auth);
 		if ((fr_authnext != fr_authend) && fr_authpkts[fr_authnext]) {
-			IWCOPY((char *)&fr_auth[fr_authnext++], data,
+			IWCOPY((char *)&fr_auth[fr_authnext], data,
 			       sizeof(fr_info_t));
+			RWLOCK_EXIT(&ipf_auth);
+			WRITE_ENTER(&ipf_auth);
+			fr_authnext++;
 			if (fr_authnext == FR_NUMAUTH)
 				fr_authnext = 0;
-			MUTEX_EXIT(&ipf_auth);
+			RWLOCK_EXIT(&ipf_auth);
 			return 0;
 		}
 #ifdef	_KERNEL
 # if	SOLARIS
-		if (!cv_wait_sig(&ipfauthwait, &ipf_auth)) {
-			mutex_exit(&ipf_auth);
+		mutex_enter(&ipf_authmx);
+		if (!cv_wait_sig(&ipfauthwait, &ipf_authmx)) {
+			mutex_exit(&ipf_authmx);
 			return EINTR;
 		}
+		mutex_exit(&ipf_authmx);
 # else
 #  ifdef linux
 		interruptible_sleep_on(&ipfauthwait);
@@ -338,17 +371,17 @@ fr_authioctlloop:
 # endif
 # endif
 #endif
-		MUTEX_EXIT(&ipf_auth);
+		RWLOCK_EXIT(&ipf_auth);
 		if (!error)
 			goto fr_authioctlloop;
 		break;
 	case SIOCAUTHR:
 		IRCOPY(data, (caddr_t)&auth, sizeof(auth));
-		MUTEX_ENTER(&ipf_auth);
+		WRITE_ENTER(&ipf_auth);
 		i = au->fra_index;
 		if ((i < 0) || (i > FR_NUMAUTH) ||
 		    (fr_auth[i].fra_info.fin_id != au->fra_info.fin_id)) {
-			MUTEX_EXIT(&ipf_auth);
+			RWLOCK_EXIT(&ipf_auth);
 			return EINVAL;
 		}
 		m = fr_authpkts[i];
@@ -356,14 +389,19 @@ fr_authioctlloop:
 		fr_auth[i].fra_pass = au->fra_pass;
 		fr_authpkts[i] = NULL;
 #ifdef	_KERNEL
-		MUTEX_EXIT(&ipf_auth);
+		RWLOCK_EXIT(&ipf_auth);
 		SPL_NET(s);
 # ifndef linux
 		if (m && au->fra_info.fin_out) {
 #  if SOLARIS
 			error = fr_qout(fr_auth[i].fra_q, m);
 #  else /* SOLARIS */
+#   if _BSDI_VERSION >= 199802
+			error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL,
+					  NULL);
+#   else
 			error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL);
+#   endif
 #  endif /* SOLARIS */
 			if (error)
 				fr_authstats.fas_sendfail++;
@@ -439,7 +477,7 @@ void fr_authunload()
 	register frauthent_t *fae, **faep;
 	mb_t *m;
 
-	MUTEX_ENTER(&ipf_auth);
+	WRITE_ENTER(&ipf_auth);
 	for (i = 0; i < FR_NUMAUTH; i++) {
 		if ((m = fr_authpkts[i])) {
 			FREE_MB_T(m);
@@ -453,7 +491,8 @@ void fr_authunload()
 		*faep = fae->fae_next;
 		KFREE(fae);
 	}
-	MUTEX_EXIT(&ipf_auth);
+	ipauth = NULL;
+	RWLOCK_EXIT(&ipf_auth);
 }
 
 
@@ -472,7 +511,7 @@ void fr_authexpire()
 #endif
 
 	SPL_NET(s);
-	MUTEX_ENTER(&ipf_auth);
+	WRITE_ENTER(&ipf_auth);
 	for (i = 0, fra = fr_auth; i < FR_NUMAUTH; i++, fra++) {
 		if ((!--fra->fra_age) && (m = fr_authpkts[i])) {
 			FREE_MB_T(m);
@@ -484,14 +523,15 @@ void fr_authexpire()
 	}
 
 	for (faep = &fae_list; (fae = *faep); ) {
-		if (!--fra->fra_age) {
+		if (!--fae->fae_age) {
 			*faep = fae->fae_next;
 			KFREE(fae);
 			fr_authstats.fas_expire++;
 		} else
 			faep = &fae->fae_next;
 	}
-	MUTEX_EXIT(&ipf_auth);
+	ipauth = &fae_list->fae_fr;
+	RWLOCK_EXIT(&ipf_auth);
 	SPL_X(s);
 }
 #endif

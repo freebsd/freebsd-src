@@ -31,17 +31,18 @@ proto	= "proto" protocol .
 ip	= srcdst [ flags ] [ with withopt ] [ icmp ] [ keep ] .
 group	= [ "head" decnumber ] [ "group" decnumber ] .
 
-block	= "block" [ "return-icmp"[return-code] | "return-rst" ] .
+block	= "block" [ icmp[return-code] | "return-rst" ] .
 auth    = "auth" | "preauth" .
-log	= "log" [ "body" ] [ "first" ] [ "or-block" ] .
+log	= "log" [ "body" ] [ "first" ] [ "or-block" ] [ "level" loglevel ] .
 call	= "call" [ "now" ] function-name .
 skip	= "skip" decnumber .
 dup	= "dup-to" interface-name[":"ipaddr] .
 froute	= "fastroute" | "to" interface-name .
 protocol = "tcp/udp" | "udp" | "tcp" | "icmp" | decnumber .
 srcdst	= "all" | fromto .
-fromto	= "from" object "to" object .
+fromto	= "from" [ "!" ] object "to" [ "!" ] object .
 
+icmp	= "return-icmp" | "return-icmp-as-dest" .
 object	= addr [ port-comp | port-range ] .
 addr	= "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
 port-comp = "port" compare port-num .
@@ -51,6 +52,7 @@ with	= "with" | "and" .
 icmp	= "icmp-type" icmp-type [ "code" decnumber ] .
 return-code = "("icmp-code")" .
 keep	= "keep" "state" | "keep" "frags" .
+loglevel = facility"."priority | priority .
 
 nummask	= host-name [ "/" decnumber ] .
 host-name = ipaddr | hostname | "any" .
@@ -74,6 +76,12 @@ icmp-code = decumber | "net-unr" | "host-unr" | "proto-unr" | "port-unr" |
 optlist	= "nop" | "rr" | "zsu" | "mtup" | "mtur" | "encode" | "ts" |
 	  "tr" | "sec" | "lsrr" | "e-sec" | "cipso" | "satid" | "ssrr" |
 	  "addext" | "visa" | "imitd" | "eip" | "finn" .
+facility = "kern" | "user" | "mail" | "daemon" | "auth" | "syslog" |
+	   "lpr" | "news" | "uucp" | "cron" | "ftp" | "authpriv" |
+	   "audit" | "logalert" | "local0" | "local1" | "local2" |
+	   "local3" | "local4" | "local5" | "local6" | "local7" .
+priority = "emerg" | "alert" | "crit" | "err" | "warn" | "notice" |
+	   "info" | "debug" . 
 
 hexnumber = "0" "x" hexstring .
 hexstring = hexdigit [ hexstring ] .
@@ -118,11 +126,23 @@ actions are recognised:
 .B block
 indicates that the packet should be flagged to be dropped. In response
 to blocking a packet, the filter may be instructed to send a reply
-packet, either an ICMP packet (\fBreturn-icmp\fP) or a TCP "reset"
-(\fBreturn-rst\fP).  An ICMP packet may be generated in response to
-any IP packet, and its type may optionally be specified, but a TCP
-reset may only be used with a rule which is being applied to TCP
-packets.
+packet, either an ICMP packet (\fBreturn-icmp\fP), an ICMP packet
+masquerading as being from the original packet's destination
+(\fBreturn-icmp-as-dest\fP), or a TCP "reset" (\fBreturn-rst\fP).  An
+ICMP packet may be generated in response to any IP packet, and its
+type may optionally be specified, but a TCP reset may only be used
+with a rule which is being applied to TCP packets.  When using
+\fBreturn-icmp\fP or \fBreturn-icmp-as-dest\fP, it is possible to specify
+the actual unreachable `type'.  That is, whether it is a network
+unreachable, port unreachable or even administratively
+prohibitied. This is done by enclosing the ICMP code associated with
+it in parenthesis directly following \fBreturn-icmp\fP or
+\fBreturn-icmp-as-dest\fP as follows:
+.nf
+        block return-icmp(11) ...
+.fi
+.PP
+Would return a Type-Of-Service (TOS) ICMP unreachable error.
 .TP
 .B pass
 will flag the packet to be let through the filter.  
@@ -145,10 +165,27 @@ feature is for use by knowledgeable hackers, and is not currently
 documented.
 .TP
 .B "skip <n>"
+causes the filter to skip over the next \fIn\fP filter rules.  If a rule is
+inserted or deleted inside the region being skipped over, then the value of
+\fIn\fP is adjusted appropriately.
 .TP
 .B auth
+this allows authentication to be performed by a user-space program running
+and waiting for packet information to validate.  The packet is held for a
+period of time in an internal buffer whilst it waits for the program to return
+to the kernel the \fIreal\fP flags for whether it should be allowed through
+or not.  Such a program might look at the source address and request some sort
+of authentication from the user (such as a password) before allowing the
+packet through or telling the kernel to drop it if from an unrecognised source.
 .TP
 .B preauth
+tells the filter that for packets of this class, it should look in the
+pre-authenticated list for further clarification.  If no further matching
+rule is found, the packet will be dropped (the FR_PREAUTH is not the same
+as FR_PASS).  If a further matching rule is found, the result from that is
+used in its instead.  This might be used in a situation where a person
+\fIlogs in\fP to the firewall and it sets up some temporary rules defining
+the access for that person.
 .PP
 The next word must be either \fBin\fP or \fBout\fP.  Each packet
 moving through the kernel is either inbound (just been received on an
@@ -195,7 +232,10 @@ which the specified source address would be expected, others may be
 logged and/or dropped.
 .TP
 .B dup-to
-causes the packet to be copied, and the duplicate packet to be sent outbound on the specified interface, optionally with the destination IP address changed to that specified. This is useful for off-host logging, using a network sniffer.
+causes the packet to be copied, and the duplicate packet to be sent
+outbound on the specified interface, optionally with the destination
+IP address changed to that specified. This is useful for off-host
+logging, using a network sniffer.
 .TP
 .B to
 causes the packet to be moved to the outbound queue on the
@@ -351,7 +391,7 @@ with which they are associated can be used.  The most important from
 a security point of view is the ICMP redirect.
 .SH KEEP HISTORY
 .PP
-The second last parameter which can be set for a filter rule is whether on not
+The second last parameter which can be set for a filter rule is whether or not
 to record historical information for that packet, and what sort to keep. The
 following information can be kept:
 .TP
@@ -394,10 +434,19 @@ indicates that the first 128 bytes of the packet contents will be
 logged after the headers. 
 .TP
 .B first
-??
+If log is being used in conjunction with a "keep" option, it is recommended
+that this option is also applied so that only the triggering packet is logged
+and not every packet which thereafter matches state information.
 .TP
 .B or-block
-indicates that, if for some reason the filter is unable to log the packet (such as the log reader being too slow) then the rule should be interpreted as if the action was \fBblock\fP for this packet.
+indicates that, if for some reason the filter is unable to log the
+packet (such as the log reader being too slow) then the rule should be
+interpreted as if the action was \fBblock\fP for this packet.
+.TP
+.B "level <loglevel>"
+indicates what logging facility and priority, or just priority with
+the default facility being used, will be used to log information about 
+this packet using ipmon's -s option.
 .PP
 See ipl(4) for the format of records written
 to this device. The ipmon(8) program can be used to read and format
@@ -419,7 +468,7 @@ The "fall-through" rule parsing allows for effects such as this:
 .nf
         block in from any to any port < 6000
         pass in from any to any port >= 6000
-        block in from any to port > 6003
+        block in from any to any port > 6003
 .fi
 .PP
 which sets up the range 6000-6003 as being permitted and all others being
@@ -446,9 +495,9 @@ all inbound packets, we would do something like:
 .LP
 .nf
        block in all
-       block in on le0 quick all head 100
-       block in on le1 quick all head 200
-       block in on lo0 quick all head 300
+       block in quick on le0 all head 100
+       block in quick on le1 all head 200
+       block in quick on lo0 all head 300
 .fi
 .PP
 

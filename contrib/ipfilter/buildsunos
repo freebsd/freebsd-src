@@ -1,24 +1,49 @@
 #! /bin/sh
-# $Id: buildsunos,v 2.0.2.4.2.1 1998/05/21 14:46:04 darrenr Exp $
+if [ ! -f netinet/done ] ; then
+	echo "Do NOT run this script directly, do 'make solaris'!"
+	exit 1
+fi
+# $Id: buildsunos,v 2.1.2.1 1999/08/08 13:55:20 darrenr Exp $
 :
 rev=`uname -r | sed -e 's/^\([^\.]*\)\..*/\1/'`
-cpu=`uname -m`
-cpudir=${cpu}-`uname -r`
+if [ -d /usr/ccs/bin ] ; then
+	PATH=/usr/ccs/bin:${PATH}
+fi
 if [ $rev = 5 ] ; then
+	cpu=`uname -p`
+	cpudir=${cpu}-`uname -r`
 	solrev=`uname -r | sh -c 'IFS=. read j n x; echo $n'`
-	mkdir -p SunOS5/${cpudir}
+	if [ ! -d SunOS5/${cpudir} -a ! -h  SunOS5/${cpudir} ] ; then
+		mkdir -p SunOS5/${cpudir}
+	fi
 	/bin/rm -f SunOS5/${cpudir}/Makefile
 	/bin/rm -f SunOS5/${cpudir}/Makefile.ipsend
-	ln -s ../Makefile SunOS5/${cpudir}/Makefile
-	ln -s ../Makefile.ipsend SunOS5/${cpudir}/Makefile.ipsend
+	ln -s `pwd`/SunOS5/Makefile SunOS5/${cpudir}/Makefile
+	ln -s `pwd`/SunOS5/Makefile.ipsend SunOS5/${cpudir}/Makefile.ipsend
+	ARCHINC=
+	XARCH=
+	if [ -d /opt/SUNWspro/bin ] ; then
+		CC="/opt/SUNWspro/bin/cc  ${CFL}"
+		export CC
+		/bin/optisa sparcv9 >/dev/null 2>&1
+		if [ $? -eq 0 ] ; then
+			ARCHINC="-I/usr/include/v9"
+			XARCH="-xarch=v9 -xchip=ultra -dalign -xcode=abs32"
+		fi
+	else
+		CC=gcc
+	fi
+else
+	cpu=`uname -m`
+	cpudir=${cpu}-`uname -r`
 fi
-if [ $cpu = i86pc ] ; then
-	make ${1+"$@"} sunos5x86 SOLARIS2="-DSOLARIS2=$solrev" CPU=${cpu} CPUDIR=${cpudir}
+if [ $cpu = i386 ] ; then
+	make ${1+"$@"} sunos5x86 SOLARIS2="-DSOLARIS2=$solrev" CPU= CPUDIR=${cpudir} CC="$CC $XARCH" XARCH="$XARCH" ARCHINC="$ARCHINC"
 	exit $?
 fi
 if [ x$solrev = x ] ; then
 	make ${1+"$@"} sunos$rev "ARCH=`uname -m`"
 	exit $?
 fi
-make ${1+"$@"} sunos$rev SOLARIS2="-DSOLARIS2=$solrev" CPU=${cpu} CPUDIR=${cpudir}
+make ${1+"$@"} sunos$rev SOLARIS2="-DSOLARIS2=$solrev" CPU= CPUDIR=${cpudir} CC="$CC $XARCH" XARCH="$XARCH" ARCHINC="$ARCHINC"
 exit $?

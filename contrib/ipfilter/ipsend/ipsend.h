@@ -1,5 +1,5 @@
 /*
- * ipsend.h (C) 1997 Darren Reed
+ * ipsend.h (C) 1997-1998 Darren Reed
  *
  * This was written to test what size TCP fragments would get through
  * various TCP/IP packet filters, as used in IP firewalls.  In certain
@@ -64,4 +64,6 @@ extern	int	kmemcpy __P((char *, void *, int));
 
 #define	KMCPY(a,b,c)	kmemcpy((char *)(a), (void *)(b), (int)(c))
 
+#ifndef	OPT_RAW
 #define	OPT_RAW	0x80000
+#endif
