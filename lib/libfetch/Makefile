@@ -10,7 +10,7 @@ CFLAGS+=	-DNDEBUG
 SRCS=		fetch.c common.c ftp.c http.c file.c \
 		ftperr.h httperr.h
 INCS=		fetch.h
-MAN3=		fetch.3
+MAN=		fetch.3
 CLEANFILES=	ftperr.h httperr.h
 
 SHLIB_MAJOR=    2

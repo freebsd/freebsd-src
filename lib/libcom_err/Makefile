@@ -3,7 +3,7 @@
 LIB=	com_err
 SRCS=	com_err.c error.c
 INCS=	${COM_ERRDIR}/com_err.h ${COM_ERRDIR}/com_right.h
-MAN3=	com_err.3
+MAN=	com_err.3
 COM_ERRDIR=	${.CURDIR}/../../contrib/com_err
 CFLAGS+=	-I${COM_ERRDIR}
 

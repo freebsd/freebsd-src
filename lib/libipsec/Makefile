@@ -44,7 +44,7 @@ CLEANFILES+=	y.tab.c y.tab.h
 YFLAGS+=-d -p __libipsecyy
 LFLAGS+=-P__libipsecyy
 
-MAN3=	ipsec_set_policy.3 ipsec_strerror.3
+MAN=	ipsec_set_policy.3 ipsec_strerror.3
 MLINKS+=ipsec_set_policy.3 ipsec_get_policylen.3 \
 	ipsec_set_policy.3 ipsec_dump_policy.3
 

@@ -12,11 +12,11 @@ SRCS=	_secure_path.c auth.c extattr.c fparseln.c login.c login_auth.c \
 	trimdomain.c uucplock.c
 INCS=	libutil.h login_cap.h
 
-MAN3+=	login.3 login_auth.3 login_tty.3 logout.3 logwtmp.3 pty.3 \
+MAN+=	login.3 login_auth.3 login_tty.3 logout.3 logwtmp.3 pty.3 \
 	login_cap.3 login_class.3 login_times.3 login_ok.3 \
 	_secure_path.3 uucplock.3 property.3 auth.3 realhostname.3 \
 	realhostname_sa.3 trimdomain.3 fparseln.3
-MAN5+=	login.conf.5 auth.conf.5
+MAN+=	login.conf.5 auth.conf.5
 MLINKS+= property.3 properties_read.3  property.3 properties_free.3
 MLINKS+= property.3 property_find.3
 MLINKS+= auth.3 auth_getval.3
