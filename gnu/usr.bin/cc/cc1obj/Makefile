@@ -5,10 +5,9 @@
 .PATH: ../cc_tools ${GCCDIR}/objc ${GCCDIR}
 
 PROG=	cc1obj
-SRCS=	objc-parse.c objc-parse.h objc-act.c
+SRCS=	objc-parse.c objc-parse.h objc-parse.h objc-act.c
 # Ugh, compiled twice...
-SRCS+=	c-aux-info.c c-common.c c-convert.c c-decl.c c-iterate.c c-lex.c \
-	c-pragma.c c-typeck.c
+SRCS+=	c-lex.c
 BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED=yes
