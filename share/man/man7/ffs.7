@@ -38,29 +38,73 @@
 .Nm ffs
 .Nd Berkeley fast file system
 .Sh SYNOPSIS
+In the kernel configuration file:
+.Cd options ENABLE_VFS_IOOPT
 .Cd options FFS
+.Cd options QUOTA
 .Cd options SOFTUPDATES
+.Cd options SUIDDIR
+.Cd options UFS_ACL
+.Cd options UFS_DIRHASH
+.Cd options UFS_EXTATTR
+.Cd options UFS_EXTATTR_AUTOSTART
+.Pp
+In
+.Pa /etc/fstab :
+.Cd /dev/disk0s1a	/mnt ufs rw 1 1
 .Sh DESCRIPTION
 The Berkeley fast file system
 provides facilities to store file system data onto a disk device.
-.Nm FFS
+.Nm ffs
 has been optimized over the years
 for speed and reliability
-and is the basis for the
-.Xr ufs 4
+and is the default
+.Fx
 file system.
 .Pp
-The
-.Dv SOFTUPDATES
-option is used to enable soft updates.
+.Ss VFS I/O optimization
+.Bl -tag -width 2n
+.It Cd options ENABLE_VFS_IOOPT
+This option enables the IO optimization through the VM system,
+using VM operations instead of copying operations when possible.
+This option adds a sysctl MIB,
+.Em vfs.ioopt .
+The following are values and effects for
+.Em vfs.ioopt :
+.Pp
+.Bl -tag -width "Value" -offset indent -compact
+.It Em Value
+.Em Effect
+.It Li 0
+No optimization
+.It Li 1
+VM operations if a request fits
+.It Li 2
+Aggresive optimization (VM used as much as possible)
+.El
+.El
+.Ss Quotas
+.Bl -tag -width 2n
+.It Cd options QUOTA
+This option allows system administrators
+to set limits on disk usage
+on a per-user basis.
+Quotas can be used only on file systems
+mounted with the
+.Sq quota
+option;
+see
+.Xr quota 1
+and
+.Xr edquota 8 .
+.El
+.Ss Soft Updates
+.Bl -tag -width 2n
+.It Cd options SOFTUPDATES
 The soft updates feature tracks writes to the disk
 and enforces metadata update dependancies
 (e.g. updating free block maps)
 to ensure that the file system remains consistent.
-To enable this feature,
-add the following to your kernel configuration file:
-.Pp
-.Dl Cd options SOFTUPDATES
 .Pp
 To enable soft updates on an
 .Em unmounted
@@ -76,11 +120,92 @@ can be either a mount point listed in
 or a disk device
 (e.g.
 .Pa /dev/da0s1a ) .
+.El
+.Ss File Ownership Inheritance
+.Bl -tag -width 2n
+.It Cd options SUIDDIR
+For use in file sharing environments
+on networks including Microsoft Windows
+and Apple Macintosh computers,
+this option allows files on file systems
+mounted with the
+.Sq suiddir
+option
+to inherit the ownership of its directory,
+i.e.
+.Dq "If it's my directory, it must be my file."
+.El
+.Ss Access Control Lists
+.Bl -tag -width 2n
+.It Cd options UFS_ACL
+Access control lists allow the association of
+fine-grained descretionary access control information
+with files and directories.
+This option requires the presence of the
+.Dv UFS_EXTATTR
+option, and it is recommended that
+.Dv UFS_EXTATTR_AUTOSTART
+is included as well,
+so that ACLs are enabled atomically upon mounting the file system.
+.El
+.Pp
+In order to enable support for ACLs,
+two extended attributes must be available in the
+.Dv EXTATTR_NAMESPACE_SYSTEM
+namespace:
+.Dq Li posix1e.acl_access ,
+which holds the access ACL,
+and
+.Dq Li posix1e.acl_default ,
+which holds the default ACL for directories.
+If you are using file system extended attributes,
+the following commands may be used to
+allocate space for and create the necessary EA backing files
+for ACLs in the root of each file system.
+In these examples, the root file system is used;
+see
+.Sx "Extended Attributes"
+for more details.
+.Pp
+.Bd -literal -offset indent
+mkdir -p /.attribute/system
+cd /.attribute/system
+extattrctl initattr -p / 388 posix1e.acl_access
+extattrctl initattr -p / 388 posix1e.acl_default
+.Ed
+.Pp
+On the next mount of the root file system,
+the attributes will be automatically started
+(if UFS_EXTATTR_AUTOSTART is included in the kernel configuration),
+and ACLs will be enabled.
+.Ss Directory Hashing
+.Bl -tag -width 2n
+.It Cd options UFS_DIRHASH
+Implements a hash-based lookup scheme for directories
+in order to speed up accesses to very large directories.
+.El
+.Ss Extended Attributes
+.Bl -tag -width 2n
+.It Cd options UFS_EXTATTR
+Extended attributes allow the association of
+additional arbitrary metadata with files and directories,
+which can be assigned and retrieved from userland
+as well as from within the kernel; see
+.Xr extattrctl 8 .
+.It Cd options UFS_EXTATTR_AUTOSTART
+If this option is defined,
+.Nm ffs
+will search for a
+.Dq Pa .attribute
+subdirectory of the file system root during the mount operation.
+If found, extended attribute support will be
+automatically started for that file system.
+.El
 .Pp
 The following
 .Xr sysctl 8
 MIBs are defined for use with
-.Nm FFS :
+.Nm ffs :
 .Bl -hang -width "vfs.ffs.doreallocblk" 
 .It Em vfs.ffs.doasyncfree
 Asynchronously write out modified inode and indirect blocks
@@ -92,8 +217,12 @@ to be contiguous.
 (Default: 1.)
 .El
 .Sh SEE ALSO
-.Xr ufs 4 ,
-.Xr tunefs 8
+.Xr quota 1 ,
+.Xr acl 3 ,
+.Xr extattr 3 ,
+.Xr edquota 8 ,
+.Xr extattrctl 8 ,
+.Xr sysctl 8 ,
 .Rs
 .%A M. McKusick
 .%A W. Joy
