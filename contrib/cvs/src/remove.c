@@ -100,9 +100,9 @@ cvsremove (argc, argv)
 	ign_setup ();
 	if (local)
 	    send_arg("-l");
-	send_file_names (argc, argv, 0);
 	/* FIXME: Can't we set SEND_NO_CONTENTS here?  Needs investigation.  */
 	send_files (argc, argv, local, 0, 0);
+	send_file_names (argc, argv, 0);
 	send_to_server ("remove\012", 0);
         return get_responses_and_close ();
     }
@@ -200,7 +200,9 @@ remove_fileproc (callerdat, finfo)
 			 + sizeof (CVSEXT_LOG)
 			 + 10);
 	(void) sprintf (fname, "%s/%s%s", CVSADM, finfo->file, CVSEXT_LOG);
-	(void) unlink_file (fname);
+	if (unlink_file (fname) < 0
+	    && !existence_error (errno))
+	    error (0, errno, "cannot remove %s", CVSEXT_LOG);
 	if (!quiet)
 	    error (0, 0, "removed `%s'", finfo->fullname);
 
@@ -216,7 +218,7 @@ remove_fileproc (callerdat, finfo)
 	    error (0, 0, "file `%s' already scheduled for removal",
 		   finfo->fullname);
     }
-    else if (vers->tag != NULL && isdigit (*vers->tag))
+    else if (vers->tag != NULL && isdigit ((unsigned char) *vers->tag))
     {
 	/* Commit will just give an error, and so there seems to be
 	   little reason to allow the remove.  I mean, conflicts that

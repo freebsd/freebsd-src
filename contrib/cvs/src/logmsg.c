@@ -446,7 +446,8 @@ do_verify (message, repository)
 	    {
 		/* Since following error() exits, delete the temp file
 		   now.  */
-		unlink_file (fname);
+		if (unlink_file (fname) < 0)
+		    error (0, errno, "cannot remove %s", fname);
 
 		error (1, retcode == -1 ? errno : 0, 
 		       "Message verification failed");
@@ -455,7 +456,8 @@ do_verify (message, repository)
 
 	/* Delete the temp file  */
 
-	unlink_file (fname);
+	if (unlink_file (fname) < 0)
+	    error (0, errno, "cannot remove %s", fname);
 	free (fname);
     }
 }

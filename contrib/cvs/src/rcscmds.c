@@ -147,7 +147,8 @@ call_diff_write_output (text, len)
     const char *text;
     size_t len;
 {
-    cvs_output (text, len);
+    if (len > 0)
+	cvs_output (text, len);
 }
 
 /* Call back function for the diff library to flush the output file.

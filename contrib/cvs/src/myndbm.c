@@ -263,7 +263,7 @@ mydbm_load_file (fp, list)
 	if (value[0] == '#')
 	    continue;			/* comment line */
 	vp = value;
-	while (*vp && isspace (*vp))
+	while (*vp && isspace ((unsigned char) *vp))
 	    vp++;
 	if (*vp == '\0')
 	    continue;			/* empty line */
@@ -277,12 +277,12 @@ mydbm_load_file (fp, list)
 	    char *kp;
 
 	    kp = vp;
-	    while (*vp && !isspace (*vp))
+	    while (*vp && !isspace ((unsigned char) *vp))
 		vp++;
 	    *vp++ = '\0';		/* NULL terminate the key */
 	    p->type = NDBMNODE;
 	    p->key = xstrdup (kp);
-	    while (*vp && isspace (*vp))
+	    while (*vp && isspace ((unsigned char) *vp))
 		vp++;			/* skip whitespace to value */
 	    if (*vp == '\0')
 	    {

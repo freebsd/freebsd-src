@@ -34,12 +34,8 @@ copy_file (from, to)
     int fdin, fdout;
 
     if (trace)
-#ifdef SERVER_SUPPORT
-	(void) fprintf (stderr, "%c-> copy(%s,%s)\n",
-			(server_active) ? 'S' : ' ', from, to);
-#else
-	(void) fprintf (stderr, "-> copy(%s,%s)\n", from, to);
-#endif
+	(void) fprintf (stderr, "%s-> copy(%s,%s)\n",
+			CLIENT_SERVER_STR, from, to);
     if (noexec)
 	return;
 
@@ -377,14 +373,9 @@ xchmod (fname, writable)
     }
 
     if (trace)
-#ifdef SERVER_SUPPORT
-	(void) fprintf (stderr, "%c-> chmod(%s,%o)\n",
-			(server_active) ? 'S' : ' ', fname,
+	(void) fprintf (stderr, "%s-> chmod(%s,%o)\n",
+			CLIENT_SERVER_STR, fname,
 			(unsigned int) mode);
-#else
-	(void) fprintf (stderr, "-> chmod(%s,%o)\n", fname,
-			(unsigned int) mode);
-#endif
     if (noexec)
 	return;
 
@@ -401,12 +392,8 @@ rename_file (from, to)
     const char *to;
 {
     if (trace)
-#ifdef SERVER_SUPPORT
-	(void) fprintf (stderr, "%c-> rename(%s,%s)\n",
-			(server_active) ? 'S' : ' ', from, to);
-#else
-	(void) fprintf (stderr, "-> rename(%s,%s)\n", from, to);
-#endif
+	(void) fprintf (stderr, "%s-> rename(%s,%s)\n",
+			CLIENT_SERVER_STR, from, to);
     if (noexec)
 	return;
 
@@ -422,12 +409,8 @@ unlink_file (f)
     const char *f;
 {
     if (trace)
-#ifdef SERVER_SUPPORT
-	(void) fprintf (stderr, "%c-> unlink(%s)\n",
-			(server_active) ? 'S' : ' ', f);
-#else
-	(void) fprintf (stderr, "-> unlink(%s)\n", f);
-#endif
+	(void) fprintf (stderr, "%s-> unlink(%s)\n",
+			CLIENT_SERVER_STR, f);
     if (noexec)
 	return (0);
 
@@ -506,6 +489,7 @@ deep_remove_dir (path)
 		 */
 		return -1;
 
+	    errno = 0;
 	    while ((dp = readdir (dirp)) != NULL)
 	    {
 		char *buf;
@@ -539,6 +523,15 @@ deep_remove_dir (path)
 		    }
 		}
 		free (buf);
+
+		errno = 0;
+	    }
+	    if (errno != 0)
+	    {
+		int save_errno = errno;
+		closedir (dirp);
+		errno = save_errno;
+		return -1;
 	    }
 	    closedir (dirp);
 	    return rmdir (path);

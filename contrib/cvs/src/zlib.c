@@ -430,18 +430,14 @@ compress_buffer_shutdown_output (closure)
 
 /* Here is our librarified gzip implementation.  It is very minimal
    but attempts to be RFC1952 compliant.  */
-/* Note that currently only the client uses the gzip library.  If we
-   make the server use it too (which should be straightforward), then
-   filter_stream_through_program, filter_through_gzip, and
-   filter_through_gunzip can go away.  */
 
 /* BUF should contain SIZE bytes of gzipped data (RFC1952/RFC1951).
    We are to uncompress the data and write the result to the file
-   descriptor FD.  If something goes wrong, give an error message
-   mentioning FULLNAME as the name of the file for FD (and make it a
-   fatal error if we can't recover from it).  */
+   descriptor FD.  If something goes wrong, give a nonfatal error message
+   mentioning FULLNAME as the name of the file for FD.  Return 1 if
+   it is an error we can't recover from.  */
 
-void
+int
 gunzip_and_write (fd, fullname, buf, size)
     int fd;
     char *fullname;
@@ -455,9 +451,15 @@ gunzip_and_write (fd, fullname, buf, size)
     unsigned long crc;
 
     if (buf[0] != 31 || buf[1] != 139)
-	error (1, 0, "gzipped data does not start with gzip identification");
+    {
+	error (0, 0, "gzipped data does not start with gzip identification");
+	return 1;
+    }
     if (buf[2] != 8)
-	error (1, 0, "only the deflate compression method is supported");
+    {
+	error (0, 0, "only the deflate compression method is supported");
+	return 1;
+    }
 
     /* Skip over the fixed header, and then skip any of the variable-length
        fields.  */
@@ -496,9 +498,15 @@ gunzip_and_write (fd, fullname, buf, size)
 	zstr.next_out = outbuf;
 	zstatus = inflate (&zstr, Z_NO_FLUSH);
 	if (zstatus != Z_STREAM_END && zstatus != Z_OK)
-	    compress_error (1, zstatus, &zstr, fullname);
+	{
+	    compress_error (0, zstatus, &zstr, fullname);
+	    return 1;
+	}
 	if (write (fd, outbuf, sizeof (outbuf) - zstr.avail_out) < 0)
-	    error (1, errno, "writing decompressed file %s", fullname);
+	{
+	    error (0, errno, "writing decompressed file %s", fullname);
+	    return 1;
+	}
 	crc = crc32 (crc, outbuf, sizeof (outbuf) - zstr.avail_out);
     } while (zstatus != Z_STREAM_END);
     zstatus = inflateEnd (&zstr);
@@ -509,23 +517,31 @@ gunzip_and_write (fd, fullname, buf, size)
 		+ (buf[zstr.total_in + 11] << 8)
 		+ (buf[zstr.total_in + 12] << 16)
 		+ (buf[zstr.total_in + 13] << 24)))
-	error (1, 0, "CRC error uncompressing %s", fullname);
+    {
+	error (0, 0, "CRC error uncompressing %s", fullname);
+	return 1;
+    }
 
     if (zstr.total_out != (buf[zstr.total_in + 14]
 			   + (buf[zstr.total_in + 15] << 8)
 			   + (buf[zstr.total_in + 16] << 16)
 			   + (buf[zstr.total_in + 17] << 24)))
-	error (1, 0, "invalid length uncompressing %s", fullname);
+    {
+	error (0, 0, "invalid length uncompressing %s", fullname);
+	return 1;
+    }
+
+    return 0;
 }
 
 /* Read all of FD and put the gzipped data (RFC1952/RFC1951) into *BUF,
    replacing previous contents of *BUF.  *BUF is malloc'd and *SIZE is
    its allocated size.  Put the actual number of bytes of data in
-   *LEN.  If something goes wrong, give an error message mentioning
-   FULLNAME as the name of the file for FD (and make it a fatal error
-   if we can't recover from it).  LEVEL is the compression level (1-9).  */
+   *LEN.  If something goes wrong, give a nonfatal error mentioning
+   FULLNAME as the name of the file for FD, and return 1 if we can't
+   recover from it).  LEVEL is the compression level (1-9).  */
 
-void
+int
 read_and_gzip (fd, fullname, buf, size, len, level)
     int fd;
     char *fullname;
@@ -542,8 +558,16 @@ read_and_gzip (fd, fullname, buf, size, len, level)
 
     if (*size < 1024)
     {
+	unsigned char *newbuf;
+
 	*size = 1024;
-	*buf = (unsigned char *) xrealloc (*buf, *size);
+	newbuf = realloc (*buf, *size);
+	if (newbuf == NULL)
+	{
+	    error (0, 0, "out of memory");
+	    return 1;
+	}
+	*buf = newbuf;
     }
     (*buf)[0] = 31;
     (*buf)[1] = 139;
@@ -559,7 +583,10 @@ read_and_gzip (fd, fullname, buf, size, len, level)
 			    Z_DEFAULT_STRATEGY);
     crc = crc32 (0, NULL, 0);
     if (zstatus != Z_OK)
-	compress_error (1, zstatus, &zstr, fullname);
+    {
+	compress_error (0, zstatus, &zstr, fullname);
+	return 1;
+    }
     zstr.avail_out = *size;
     zstr.next_out = *buf + 10;
 
@@ -569,7 +596,10 @@ read_and_gzip (fd, fullname, buf, size, len, level)
 
 	nread = read (fd, inbuf, sizeof inbuf);
 	if (nread < 0)
-	    error (1, errno, "cannot read %s", fullname);
+	{
+	    error (0, errno, "cannot read %s", fullname);
+	    return 1;
+	}
 	else if (nread == 0)
 	    /* End of file.  */
 	    finish = 1;
@@ -588,9 +618,17 @@ read_and_gzip (fd, fullname, buf, size, len, level)
 
 	    if (zstr.avail_out < 4096)
 	    {
+		unsigned char *newbuf;
+
 		offset = zstr.next_out - *buf;
 		*size *= 2;
-		*buf = xrealloc (*buf, *size);
+		newbuf = realloc (*buf, *size);
+		if (newbuf == NULL)
+		{
+		    error (0, 0, "out of memory");
+		    return 1;
+		}
+		*buf = newbuf;
 		zstr.next_out = *buf + offset;
 		zstr.avail_out = *size - offset;
 	    }
@@ -618,5 +656,7 @@ read_and_gzip (fd, fullname, buf, size, len, level)
     zstatus = deflateEnd (&zstr);
     if (zstatus != Z_OK)
 	compress_error (0, zstatus, &zstr, fullname);
+
+    return 0;
 }
 #endif /* defined (SERVER_SUPPORT) || defined (CLIENT_SUPPORT) */

@@ -1,3 +1,47 @@
+1999-01-19  Graham Stoney <greyham@research.canon.com.au>
+
+	* log.pl: The author commited the canonical perl "localtime" Y2K
+	offence, of printing "19$year" instead of (1900 + $year). Of
+	course, the result is non-compliance in year 2000.  Fix it.
+
+1998-10-14  Jim Kingdon
+
+	* ccvs-rsh.pl: Removed; it was not in DISTFILES so it didn't
+	actually get distributed.  I'm going to move it to the web on the
+	theory that the web is a better place for such things.
+	* README: Don't mention it.
+
+	* Makefile.in (dist-dir, distclean): Remove references to elib.
+	* elib: Remove this subdirectory and all its contents.  It went
+	with pcl-cvs, which is no longer distributed with CVS.
+
+1998-09-22  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* pvcs_to_rcs: Removed; it was not in DISTFILES so it didn't
+	actually get distributed.  I'm going to move it to the web on the
+	theory that the web is a better place for such things.
+	* README: Don't mention it.
+
+1998-09-10  Jim Kingdon
+
+	Check in Paul Eggert <eggert@twinsun.com>'s submission of
+	1998-08-15.  I also ran "cvs admin -ko" on this file so that his
+	version number would be intact (not an ideal solution, because
+	people will import it into other repositories, but I don't feel
+	like hacking the master version).
+	* rcs2log.sh: Sync with master version at gnu.org.
+
+1998-08-15  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Don't mention listener, since it was removed a while
+	ago.
+	* listen2.c, listen2.mak: Removed; because there is no easy way to
+	pass a socket (as opposed to file descriptor) from one process to
+	another on Windows, this isn't a promising approach (at least not
+	in this form).
+	* Makefile.in (DISTFILES): Remove them.
+	* .cvsignore: Remove listen2.ncb listen2.mdp Debug.
+
 1998-05-11  W. Bradley Rubenstein
 
 	* log.pl: Check for errors from open and exec.

@@ -73,6 +73,7 @@
    unneeded complication although it presumably would be faster).  */
 
 #include "cvs.h"
+#include <assert.h>
 
 struct lock {
     /* This is the directory in which we may have a lock named by the
@@ -134,12 +135,161 @@ static List *lock_tree_list;
 static char *locked_dir;
 static List *locked_list;
 
+/* LockDir from CVSROOT/config.  */
+char *lock_dir;
+
+static char *lock_name PROTO ((char *repository, char *name));
+
+/* Return a newly malloc'd string containing the name of the lock for the
+   repository REPOSITORY and the lock file name within that directory
+   NAME.  Also create the directories in which to put the lock file
+   if needed (if we need to, could save system call(s) by doing
+   that only if the actual operation fails.  But for now we'll keep
+   things simple).  */
+static char *
+lock_name (repository, name)
+    char *repository;
+    char *name;
+{
+    char *retval;
+    char *p;
+    char *q;
+    char *short_repos;
+    mode_t save_umask;
+    int saved_umask = 0;
+
+    if (lock_dir == NULL)
+    {
+	/* This is the easy case.  Because the lock files go directly
+	   in the repository, no need to create directories or anything.  */
+	retval = xmalloc (strlen (repository) + strlen (name) + 10);
+	(void) sprintf (retval, "%s/%s", repository, name);
+    }
+    else
+    {
+	struct stat sb;
+	mode_t new_mode = 0;
+
+	/* The interesting part of the repository is the part relative
+	   to CVSROOT.  */
+	assert (CVSroot_directory != NULL);
+	assert (strncmp (repository, CVSroot_directory,
+			 strlen (CVSroot_directory)) == 0);
+	short_repos = repository + strlen (CVSroot_directory);
+	assert (*short_repos++ == '/');
+
+	retval = xmalloc (strlen (lock_dir)
+			  + strlen (short_repos)
+			  + strlen (name)
+			  + 10);
+	strcpy (retval, lock_dir);
+	q = retval + strlen (retval);
+	*q++ = '/';
+
+	strcpy (q, short_repos);
+
+	/* In the common case, where the directory already exists, let's
+	   keep it to one system call.  */
+	if (CVS_STAT (retval, &sb) < 0)
+	{
+	    /* If we need to be creating more than one directory, we'll
+	       get the existence_error here.  */
+	    if (!existence_error (errno))
+		error (1, errno, "cannot stat directory %s", retval);
+	}
+	else
+	{
+	    if (S_ISDIR (sb.st_mode))
+		goto created;
+	    else
+		error (1, 0, "%s is not a directory", retval);
+	}
+
+	/* Now add the directories one at a time, so we can create
+	   them if needed.
+
+	   The idea behind the new_mode stuff is that the directory we
+	   end up creating will inherit permissions from its parent
+	   directory (we re-set new_mode with each EEXIST).  CVSUMASK
+	   isn't right, because typically the reason for LockDir is to
+	   use a different set of permissions.  We probably want to
+	   inherit group ownership also (but we don't try to deal with
+	   that, some systems do it for us either always or when g+s is on).
+
+	   We don't try to do anything about the permissions on the lock
+	   files themselves.  The permissions don't really matter so much
+	   because the locks will generally be removed by the process
+	   which created them.  */
+
+	if (CVS_STAT (lock_dir, &sb) < 0)
+	    error (1, errno, "cannot stat %s", lock_dir);
+	new_mode = sb.st_mode;
+	save_umask = umask (0000);
+	saved_umask = 1;
+
+	p = short_repos;
+	while (1)
+	{
+	    while (!ISDIRSEP (*p) && *p != '\0')
+		++p;
+	    if (ISDIRSEP (*p))
+	    {
+		strncpy (q, short_repos, p - short_repos);
+		q[p - short_repos] = '\0';
+		if (!ISDIRSEP (q[p - short_repos - 1])
+		    && CVS_MKDIR (retval, new_mode) < 0)
+		{
+		    int saved_errno = errno;
+		    if (saved_errno != EEXIST)
+			error (1, errno, "cannot make directory %s", retval);
+		    else
+		    {
+			if (CVS_STAT (retval, &sb) < 0)
+			    error (1, errno, "cannot stat %s", retval);
+			new_mode = sb.st_mode;
+		    }
+		}
+		++p;
+	    }
+	    else
+	    {
+		strcpy (q, short_repos);
+		if (CVS_MKDIR (retval, new_mode) < 0
+		    && errno != EEXIST)
+		    error (1, errno, "cannot make directory %s", retval);
+		goto created;
+	    }
+	}
+    created:;
+
+	strcat (retval, "/");
+	strcat (retval, name);
+
+	if (saved_umask)
+	{
+	    assert (umask (save_umask) == 0000);
+	    saved_umask = 0;
+	}
+    }
+    return retval;
+}
+
 /*
  * Clean up all outstanding locks
  */
 void
 Lock_Cleanup ()
 {
+    /* FIXME: error handling here is kind of bogus; we sometimes will call
+       error, which in turn can call us again.  For the moment work around
+       this by refusing to reenter this function (this is a kludge).  */
+    /* FIXME-reentrancy: the workaround isn't reentrant.  */
+    static int in_lock_cleanup = 0;
+
+    if (in_lock_cleanup)
+	return;
+    in_lock_cleanup = 1;
+
     remove_locks ();
 
     dellist (&lock_tree_list);
@@ -151,6 +301,7 @@ Lock_Cleanup ()
 	locked_dir = NULL;
 	locked_list = NULL;
     }
+    in_lock_cleanup = 0;
 }
 
 /*
@@ -199,8 +350,7 @@ lock_simple_remove (lock)
        existence_error here.  */
     if (readlock != NULL)
     {
-	tmp = xmalloc (strlen (lock->repository) + strlen (readlock) + 10);
-	(void) sprintf (tmp, "%s/%s", lock->repository, readlock);
+	tmp = lock_name (lock->repository, readlock);
 	if ( CVS_UNLINK (tmp) < 0 && ! existence_error (errno))
 	    error (0, errno, "failed to remove lock %s", tmp);
 	free (tmp);
@@ -212,8 +362,7 @@ lock_simple_remove (lock)
        existence_error here.  */
     if (writelock != NULL)
     {
-	tmp = xmalloc (strlen (lock->repository) + strlen (writelock) + 10);
-	(void) sprintf (tmp, "%s/%s", lock->repository, writelock);
+	tmp = lock_name (lock->repository, writelock);
 	if ( CVS_UNLINK (tmp) < 0 && ! existence_error (errno))
 	    error (0, errno, "failed to remove lock %s", tmp);
 	free (tmp);
@@ -221,8 +370,7 @@ lock_simple_remove (lock)
 
     if (lock->have_lckdir)
     {
-	tmp = xmalloc (strlen (lock->repository) + sizeof (CVSLCK) + 10);
-	(void) sprintf (tmp, "%s/%s", lock->repository, CVSLCK);
+	tmp = lock_name (lock->repository, CVSLCK);
 	SIG_beginCrSect ();
 	if (CVS_RMDIR (tmp) < 0)
 	    error (0, errno, "failed to remove lock dir %s", tmp);
@@ -283,8 +431,7 @@ Reader_Lock (xrepository)
     }
 
     /* write a read-lock */
-    tmp = xmalloc (strlen (xrepository) + strlen (readlock) + 10);
-    (void) sprintf (tmp, "%s/%s", xrepository, readlock);
+    tmp = lock_name (xrepository, readlock);
     if ((fp = CVS_FOPEN (tmp, "w+")) == NULL || fclose (fp) == EOF)
     {
 	error (0, errno, "cannot create read lock in repository `%s'",
@@ -432,8 +579,7 @@ write_lock (lock)
 	}
 
 	/* write the write-lock file */
-	tmp = xmalloc (strlen (lock->repository) + strlen (writelock) + 10);
-	(void) sprintf (tmp, "%s/%s", lock->repository, writelock);
+	tmp = lock_name (lock->repository, writelock);
 	if ((fp = CVS_FOPEN (tmp, "w+")) == NULL || fclose (fp) == EOF)
 	{
 	    int xerrno = errno;
@@ -577,8 +723,7 @@ set_lock (lock, will_wait)
 
     if (masterlock != NULL)
 	free (masterlock);
-    masterlock = xmalloc (strlen (lock->repository) + sizeof (CVSLCK) + 10);
-    (void) sprintf (masterlock, "%s/%s", lock->repository, CVSLCK);
+    masterlock = lock_name (lock->repository, CVSLCK);
 
     /*
      * Note that it is up to the callers of set_lock() to arrange for signal
@@ -675,13 +820,17 @@ lock_wait (repos)
     char *repos;
 {
     time_t now;
+    char *msg;
 
     (void) time (&now);
-    error (0, 0, "[%8.8s] waiting for %s's lock in %s", ctime (&now) + 11,
-	   lockers_name, repos);
+    msg = xmalloc (100 + strlen (lockers_name) + strlen (repos));
+    sprintf (msg, "[%8.8s] waiting for %s's lock in %s", ctime (&now) + 11,
+	     lockers_name, repos);
+    error (0, 0, "%s", msg);
     /* Call cvs_flusherr to ensure that the user sees this message as
        soon as possible.  */
     cvs_flusherr ();
+    free (msg);
     (void) sleep (CVSLCKSLEEP);
 }
 
@@ -693,12 +842,16 @@ lock_obtained (repos)
      char *repos;
 {
     time_t now;
+    char *msg;
 
     (void) time (&now);
-    error (0, 0, "[%8.8s] obtained lock in %s", ctime (&now) + 11, repos);
+    msg = xmalloc (100 + strlen (repos));
+    sprintf (msg, "[%8.8s] obtained lock in %s", ctime (&now) + 11, repos);
+    error (0, 0, "%s", msg);
     /* Call cvs_flusherr to ensure that the user sees this message as
        soon as possible.  */
     cvs_flusherr ();
+    free (msg);
 }
 
 static int lock_filesdoneproc PROTO ((void *callerdat, int err,
