@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: raw_cb.h,v 1.7 1997/02/22 09:41:13 peter Exp $
  */
 
 #ifndef _NET_RAW_CB_H_
@@ -42,8 +42,7 @@
  * to tie a socket to the generic raw interface.
  */
 struct rawcb {
-	struct	rawcb *rcb_next;	/* doubly linked list */
-	struct	rawcb *rcb_prev;
+	LIST_ENTRY(rawcb) list;
 	struct	socket *rcb_socket;	/* back pointer to socket */
 	struct	sockaddr *rcb_faddr;	/* destination address */
 	struct	sockaddr *rcb_laddr;	/* socket's address */
@@ -59,7 +58,7 @@ struct rawcb {
 #define	RAWRCVQ		8192
 
 #ifdef KERNEL
-extern struct rawcb rawcb;		/* head of list */
+extern LIST_HEAD(rawcb_list_head, rawcb) rawcb_list;
 
 int	 raw_attach __P((struct socket *, int));
 void	 raw_ctlinput __P((int, struct sockaddr *, void *));
