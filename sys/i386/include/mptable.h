@@ -2190,6 +2190,12 @@ start_ap(int logical_cpu, u_int boot_addr)
 	return 0;		/* return FAILURE */
 }
 
+#if defined(APIC_IO) && defined(COUNT_XINVLTLB_HITS)
+u_int xhits[MAXCPU];
+SYSCTL_OPAQUE(_debug, OID_AUTO, xhits, CTLFLAG_RW, &xhits, sizeof(xhits),
+    "IU", "");
+#endif
+
 /*
  * Flush the TLB on all other CPU's
  *
