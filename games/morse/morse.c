@@ -287,7 +287,7 @@ tone_t          sound;
 #define GETOPTOPTS "d:ef:psw:"
 #undef USAGE
 #define USAGE \
-"usage: morse [-elps] [-d device] [-w speed] [-f frequency] [string ...]\n"
+"usage: morse [-eps] [-d device] [-w speed] [-f frequency] [string ...]\n"
 #endif
 
 static const struct morsetab *hightab;
