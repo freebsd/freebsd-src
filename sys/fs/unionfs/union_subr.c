@@ -253,7 +253,7 @@ union_newsize(vp, uppersz, lowersz)
 	}
 
 	if (sz != VNOVAL) {
-#ifdef UNION_DIAGNOSTIC
+#ifdef DEBUG
 		printf("union: %s size now %ld\n",
 			uppersz != VNOVAL ? "upper" : "lower", (long) sz);
 #endif
@@ -694,7 +694,7 @@ union_copyup(un, docopy, cred, p)
 			VOP_UNLOCK(lvp, 0, p);
 			(void) VOP_CLOSE(lvp, FREAD, cred, p);
 		}
-#ifdef UNION_DIAGNOSTIC
+#ifdef DEBUG
 		if (error == 0)
 			uprintf("union: copied up %s\n", un->un_path);
 #endif
