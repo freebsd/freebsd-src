@@ -516,6 +516,9 @@ kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv,
 	struct proc *p = td->td_proc;
 	struct timeval ctv;
 
+	if (aitv == NULL)
+		return (kern_getitimer(td, which, oitv));
+
 	if (which > ITIMER_PROF)
 		return (EINVAL);
 	if (itimerfix(&aitv->it_value))
