@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include    "dir.h"
 #include    "job.h"
 
-static Lst     	toBeMade;	/* The current fringe of the graph. These
+static Lst     *toBeMade;	/* The current fringe of the graph. These
 				 * are nodes which await examination by
 				 * MakeOODate. It is added to by
 				 * Make_Update and subtracted from by
@@ -264,7 +264,7 @@ static int
 MakeAddChild(void *gnp, void *lp)
 {
     GNode *gn = gnp;
-    Lst l = lp;
+    Lst *l = lp;
 
     if (!gn->make && !(gn->type & OP_USE)) {
 	Lst_EnQueue(l, gn);
@@ -299,7 +299,7 @@ int
 Make_HandleUse(GNode *cgn, GNode *pgn)
 {
     GNode	*gn;	 	/* A child of the .USE node */
-    LstNode	ln;	 	/* An element in the children list */
+    LstNode	*ln;	 	/* An element in the children list */
 
     if (cgn->type & (OP_USE | OP_TRANSFORM)) {
 	if ((cgn->type & OP_USE) || Lst_IsEmpty(pgn->commands)) {
@@ -376,7 +376,7 @@ Make_Update(GNode *cgn)
 {
     GNode 	*pgn;		/* the parent node */
     char  	*cname;		/* the child's name */
-    LstNode	ln;	 	/* Element in parents and iParents lists */
+    LstNode	*ln;	 	/* Element in parents and iParents lists */
     char	*p1;
 
     cname = Var_Value(TARGET, cgn, &p1);
@@ -653,7 +653,7 @@ MakeStartJobs(void)
 	 * have been.
 	 */
 	if (!Lst_IsEmpty(gn->preds)) {
-	    LstNode ln;
+	    LstNode *ln;
 
 	    for (ln = Lst_First(gn->preds); ln != NULL; ln = Lst_Succ(ln)){
 		GNode	*pgn = Lst_Datum(ln);
@@ -777,10 +777,10 @@ MakePrintStatus(void *gnp, void *cyclep)
  *-----------------------------------------------------------------------
  */
 Boolean
-Make_Run(Lst targs)
+Make_Run(Lst *targs)
 {
     GNode	    *gn;	/* a temporary pointer */
-    Lst		    examine; 	/* List of targets to examine */
+    Lst	    	    *examine; 	/* List of targets to examine */
     int	    	    errors; 	/* Number of errors the Job module reports */
 
     toBeMade = Lst_Init();

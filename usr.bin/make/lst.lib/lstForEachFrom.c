@@ -66,9 +66,9 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void
-Lst_ForEachFrom(Lst list, LstNode ln, DoProc *proc, void *d)
+Lst_ForEachFrom(Lst *list, LstNode *ln, DoProc *proc, void *d)
 {
-    LstNode	next;
+    LstNode *next;
     Boolean 	done;
     int     	result;
 

@@ -40,18 +40,18 @@
  */
 
 /* arch.c */
-ReturnStatus Arch_ParseArchive(char **, Lst, GNode *);
+ReturnStatus Arch_ParseArchive(char **, Lst *, GNode *);
 void Arch_Touch(GNode *);
 void Arch_TouchLib(GNode *);
 int Arch_MTime(GNode *);
 int Arch_MemMTime(GNode *);
-void Arch_FindLib(GNode *, Lst);
+void Arch_FindLib(GNode *, Lst *);
 Boolean Arch_LibOODate(GNode *);
 void Arch_Init(void);
 void Arch_End(void);
 
 /* compat.c */
-void Compat_Run(Lst);
+void Compat_Run(Lst *);
 int Compat_RunCommand(void *, void *);
 
 /* cond.c */
@@ -88,7 +88,7 @@ void Parse_File(char *, FILE *);
 void Parse_Init(void);
 void Parse_End(void);
 void Parse_FromString(char *, int);
-Lst Parse_MainName(void);
+Lst *Parse_MainName(void);
 
 /* str.c */
 void str_init(void);
@@ -105,7 +105,7 @@ Boolean Suff_IsTransform(char *);
 GNode *Suff_AddTransform(char *);
 int Suff_EndTransform(void *, void *);
 void Suff_AddSuffix(char *);
-Lst Suff_GetPath(char *);
+Lst *Suff_GetPath(char *);
 void Suff_DoPaths(void);
 void Suff_AddInclude(char *);
 void Suff_AddLib(char *);
@@ -120,7 +120,7 @@ void Targ_Init(void);
 void Targ_End(void);
 GNode *Targ_NewGN(char *);
 GNode *Targ_FindNode(char *, int);
-Lst Targ_FindList(Lst, int);
+Lst *Targ_FindList(Lst *, int);
 Boolean Targ_Ignore(GNode *);
 Boolean Targ_Silent(GNode *);
 Boolean Targ_Precious(GNode *);

@@ -65,10 +65,10 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void
-Lst_Destroy(Lst list, FreeProc *freeProc)
+Lst_Destroy(Lst *list, FreeProc *freeProc)
 {
-    LstNode	ln;
-    LstNode	tln;
+    LstNode *ln;
+    LstNode *tln;
 
     if (!Lst_Valid(list)) {
 	/*

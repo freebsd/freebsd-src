@@ -64,10 +64,10 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void *
-Lst_DeQueue(Lst l)
+Lst_DeQueue(Lst *l)
 {
-    void *	rd;
-    LstNode	tln;
+    void *rd;
+    LstNode *tln;
 
     tln = Lst_First(l);
     if (tln == NULL) {

@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
  *	d	said datum
  *
  * Side Effects:
- *	A new ListNode is created and linked in to the List. The lastPtr
+ *	A new LstNode is created and linked in to the List. The lastPtr
  *	field of the List will be altered if ln is the last node in the
  *	list. lastPtr and firstPtr will alter if the list was empty and
  *	ln was NULL.
@@ -71,9 +71,9 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Append(Lst list, LstNode ln, void *d)
+Lst_Append(Lst *list, LstNode *ln, void *d)
 {
-    LstNode	nLNode;
+    LstNode *nLNode;
 
     if (Lst_Valid(list) && (ln == NULL && Lst_IsEmpty(list))) {
 	goto ok;
