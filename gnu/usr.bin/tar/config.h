@@ -90,7 +90,7 @@
 
 /* Define to 1 if you have the declaration of `strtoumax', and to 0 if you
    don't. */
-#define HAVE_DECL_STRTOUMAX 1
+#define HAVE_DECL_STRTOUMAX 0
 
 /* Define if you have the <dirent.h> header file, and it defines `DIR'. */
 #define HAVE_DIRENT_H 1
@@ -282,7 +282,7 @@
 #define HAVE_STDDEF_H 1
 
 /* Define if you have the <stdint.h> header file. */
-#define HAVE_STDINT_H 1
+/* #undef HAVE_STDINT_H */
 
 /* Define if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
@@ -327,10 +327,10 @@
 #define HAVE_STRTOUL 1
 
 /* Define if you have the `strtoull' function. */
-/* #undef HAVE_STRTOULL */
+#define HAVE_STRTOULL 1
 
 /* Define if you have the `strtoumax' function. */
-#define HAVE_STRTOUMAX 1
+/* #undef HAVE_STRTOUMAX */
 
 /* Define if `st_blksize' is member of `struct stat'. */
 #define HAVE_STRUCT_STAT_ST_BLKSIZE 1
@@ -398,7 +398,7 @@
 #define HAVE_SYS_TIME_H 1
 
 /* Define if you have the <sys/tprintf.h> header file. */
-/* #undef HAVE_SYS_TPRINTF_H */
+#define HAVE_SYS_TPRINTF_H 1
 
 /* Define if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
@@ -540,7 +540,7 @@
 /* #undef inline */
 
 /* Define to widest signed type if <inttypes.h> doesn't define. */
-/* #undef intmax_t */
+#define intmax_t long long
 
 /* Type of major device numbers. */
 #define major_t int
@@ -579,4 +579,4 @@
 /* #undef uid_t */
 
 /* Define to widest unsigned type if <inttypes.h> doesn't define. */
-/* #undef uintmax_t */
+#define uintmax_t unsigned long long
