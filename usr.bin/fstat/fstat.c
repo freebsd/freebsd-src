@@ -77,6 +77,7 @@ static char sccsid[] = "@(#)fstat.c	8.1 (Berkeley) 6/6/93";
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <kvm.h>
 #include <nlist.h>
 #include <paths.h>
