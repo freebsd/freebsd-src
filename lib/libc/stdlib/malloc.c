@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.4 1995/09/22 14:11:00 phk Exp $
+ * $Id: malloc.c,v 1.5 1995/10/08 18:44:20 phk Exp $
  *
  */
 
@@ -14,7 +14,7 @@
  * Defining EXTRA_SANITY will enable some checks which are related
  * to internal conditions and consistency in malloc.c
  */
-#define EXTRA_SANITY
+#undef EXTRA_SANITY
 
 /*
  * What to use for Junk
@@ -470,7 +470,6 @@ extend_pgdir(u_long index)
 static void
 malloc_init ()
 {
-    int i;
     char *p;
 
 #ifdef EXTRA_SANITY
@@ -520,9 +519,12 @@ malloc_init ()
 #endif /* malloc_maxsize */
 
 #ifndef malloc_pageshift
+    {
+    int i;
     /* determine how much we shift by to get there */
     for (i = malloc_pagesize; i > 1; i >>= 1)
 	malloc_pageshift++;
+    }
 #endif /* malloc_pageshift */
 
 #ifndef malloc_cache
@@ -530,6 +532,8 @@ malloc_init ()
 #endif /* malloc_cache */
 
 #ifndef malloc_minsize
+    {
+    int i;
     /*
      * find the smallest size allocation we will bother about.
      * this is determined as the smallest allocation that can hold
@@ -549,6 +553,7 @@ malloc_init ()
 	i += i;
     }
     malloc_minsize = i;
+    }
 #endif /* malloc_minsize */
 
     /* Allocate one page for the page directory */
@@ -1088,7 +1093,6 @@ free_bytes(void *ptr, int index, struct pginfo *info)
 void
 free(void *ptr)
 {
-    u_long page;
     struct pginfo *info;
     int index;
 
