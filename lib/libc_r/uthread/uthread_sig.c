@@ -570,6 +570,7 @@ thread_sig_add(pthread_t pthread, int sig, int has_args)
 {
 	int	restart;
 	int	suppress_handler = 0;
+	int	thread_is_active = 0;
 
 	restart = _thread_sigact[sig - 1].sa_flags & SA_RESTART;
 
@@ -602,6 +603,12 @@ thread_sig_add(pthread_t pthread, int sig, int has_args)
 		 */
 		if ((pthread->flags & PTHREAD_FLAGS_IN_PRIOQ) != 0)
 			PTHREAD_PRIOQ_REMOVE(pthread);
+		else
+			/*
+			 * This thread is running; avoid placing it in
+			 * the run queue:
+			 */
+			thread_is_active = 1;
 		break;
 
 	case PS_SUSPENDED:
@@ -751,7 +758,7 @@ thread_sig_add(pthread_t pthread, int sig, int has_args)
 		 * the thread in the run queue.
 		 */
 		pthread->active_priority |= PTHREAD_SIGNAL_PRIORITY;
-		if (pthread != _thread_run)
+		if (thread_is_active == 0)
 			PTHREAD_PRIOQ_INSERT_TAIL(pthread);
 	}
 }
