@@ -130,19 +130,19 @@ g_hexdump(void *ptr, int length)
 #endif
 
 static void __dead2
-usage(const char *reason)
+usage(void)
 {
-	const char *p;
 
-	p = getprogname();
-	fprintf(stderr, "Usage error: %s", reason);
-	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\t%s attach dest [-l lockfile] [-p pass-phrase]\n", p);
-	fprintf(stderr, "\t%s detach dest\n", p);
-	fprintf(stderr, "\t%s init /dev/dest [-i] [-f filename] [-L lockfile] [-P pass-phrase]\n", p);
-	fprintf(stderr, "\t%s setkey dest [-n key] [-l lockfile] [-p pass-phrase] [-L new-lockfile] [-P new-pass-phrase]\n", p);
-	fprintf(stderr, "\t%s destroy dest [-n key] [-l lockfile] [-p pass-phrase] [-L lockfile]\n", p);
-	exit (1);
+	(void)fprintf(stderr,
+"usage: gbde attach destination [-l lockfile] [-p pass-phrase]\n"
+"       gbde detach destination\n"
+"       gbde init destination [-i] [-f filename] [-L new-lockfile]\n"
+"            [-P new-pass-phrase]\n"
+"       gbde setkey destination [-n key] [-l lockfile] [-p pass-phrase]\n"
+"            [-L new-lockfile] [-P new-pass-phrase]\n"
+"       gbde nuke destination [-n key] [-l lockfile] [-p pass-phrase]\n"
+"       gbde destroy destination [-l lockfile] [-p pass-phrase]\n");
+	exit(1);
 }
 
 void *
@@ -720,12 +720,12 @@ main(int argc, char **argv)
 	struct g_bde_softc sc;
 
 	if (argc < 3)
-		usage("Too few arguments\n");
+		usage();
 
 	if ((i = modfind("g_bde")) < 0) {
 		/* need to load the gbde module */
 		if (kldload(GBDEMOD) < 0 || modfind("g_bde") < 0)
-			usage(GBDEMOD ": Kernel module not available\n");
+			err(1, GBDEMOD ": Kernel module not available");
 	}
 	doopen = 0;
 	if (!strcmp(argv[1], "attach")) {
@@ -751,7 +751,7 @@ main(int argc, char **argv)
 		doopen = 1;
 		opts = "l:n:p:";
 	} else {
-		usage("Unknown sub command\n");
+		usage();
 	}
 	argc--;
 	argv++;
@@ -784,9 +784,9 @@ main(int argc, char **argv)
 		case 'n':
 			n_opt = strtoul(optarg, &q, 0);
 			if (!*optarg || *q)
-				usage("-n argument not numeric\n");
+				errx(1, "-n argument not numeric");
 			if (n_opt < -1 || n_opt > G_BDE_MAXKEYS)
-				usage("-n argument out of range\n");
+				errx(1, "-n argument out of range");
 			break;
 		case 'p':
 			p_opt = optarg;
@@ -795,7 +795,7 @@ main(int argc, char **argv)
 			P_opt = optarg;
 			break;
 		default:
-			usage("Invalid option\n");
+			usage();
 		}
 
 	if (doopen) {
@@ -858,7 +858,7 @@ main(int argc, char **argv)
 		}
 		break;
 	default:
-		usage("Internal error\n");
+		errx(1, "internal error");
 	}
 
 	return(0);

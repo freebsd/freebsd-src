@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 19, 2002
+.Dd February 12, 2005
 .Dt GBDE 8
 .Os
 .Sh NAME
@@ -51,8 +51,8 @@
 .Ar destination
 .Op Fl i
 .Op Fl f Ar filename
-.Op Fl L Ar lockfile
-.Op Fl P Ar pass-phrase
+.Op Fl L Ar new-lockfile
+.Op Fl P Ar new-pass-phrase
 .Nm
 .Cm setkey
 .Ar destination
@@ -62,12 +62,16 @@
 .Op Fl L Ar new-lockfile
 .Op Fl P Ar new-pass-phrase
 .Nm
-.Cm destroy
+.Cm nuke
 .Ar destination
 .Op Fl n Ar key
 .Op Fl l Ar lockfile
 .Op Fl p Ar pass-phrase
-.Op Fl L Ar lockfile
+.Nm
+.Cm destroy
+.Ar destination
+.Op Fl l Ar lockfile
+.Op Fl p Ar pass-phrase
 .Sh DESCRIPTION
 .Bf -symbolic
 NOTICE:
@@ -97,12 +101,21 @@ The operational aspect consists of two subcommands:
 one to open and attach
 a device to the in-kernel cryptographic
 .Nm
-module,
-and one to close and detach a device.
+module
+.Pq Cm attach ,
+and one to close and detach a device
+.Pq Cm detach .
 .Pp
 The management part allows initialization of the master key and lock sectors
-on a device, initialization and replacement of pass-phrases and
-key invalidation and blackening functions.
+on a device
+.Pq Cm init ,
+initialization and replacement of pass-phrases
+.Pq Cm setkey ,
+and key invalidation
+.Pq Cm nuke
+and blackening
+.Pq Cm destroy
+functions.
 .Pp
 The
 .Fl l Ar lockfile
@@ -114,7 +127,11 @@ option is specified, the first sector is used for this purpose.
 The
 .Fl L Ar new-lockfile
 argument
-specifies the lock selector file for the key modified with the
+specifies the lock selector file for the key
+initialized with the
+.Cm init
+subcommand
+or modified with the
 .Cm setkey
 subcommand.
 .Pp
