@@ -6,6 +6,7 @@ SUBDIR=	geom_apple \
 	geom_gpt \
 	geom_mbr \
 	geom_pc98 \
-	geom_sunlabel
+	geom_sunlabel \
+	geom_vol_ffs
 
 .include <bsd.subdir.mk>
