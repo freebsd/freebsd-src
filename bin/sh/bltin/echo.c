@@ -48,9 +48,7 @@
 /* #define eflag 1 */
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	char **ap;
 	char *p;

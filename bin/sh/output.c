@@ -38,9 +38,9 @@
 #if 0
 static char sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Shell output routines.  We use our own output routines because:
@@ -58,11 +58,7 @@ static const char rcsid[] =
 
 #include <stdio.h>	/* defines BUFSIZ */
 #include <string.h>
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -72,6 +68,7 @@ static const char rcsid[] =
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
+#include "var.h"
 
 
 #define OUTBUFSIZ BUFSIZ
@@ -105,60 +102,73 @@ RESET {
 #endif
 
 
-#ifdef notdef	/* no longer used */
-/*
- * Set up an output file to write to memory rather than a file.
- */
-
 void
-open_mem(block, length, file)
-	char *block;
-	int length;
-	struct output *file;
-	{
-	file->nextc = block;
-	file->nleft = --length;
-	file->fd = BLOCK_OUT;
-	file->flags = 0;
-}
-#endif
-
-
-void
-out1str(p)
-	const char *p;
-	{
+out1str(const char *p)
+{
 	outstr(p, out1);
 }
 
+void
+out1qstr(const char *p)
+{
+	outqstr(p, out1);
+}
 
 void
-out2str(p)
-	const char *p;
-	{
+out2str(const char *p)
+{
 	outstr(p, out2);
 }
 
+void
+out2qstr(const char *p)
+{
+	outqstr(p, out2);
+}
 
 void
-outstr(p, file)
-	const char *p;
-	struct output *file;
-	{
+outstr(const char *p, struct output *file)
+{
 	while (*p)
 		outc(*p++, file);
 	if (file == out2)
 		flushout(file);
 }
 
+/* Like outstr(), but quote for re-input into the shell. */
+void
+outqstr(const char *p, struct output *file)
+{
+	char ch;
+
+	if (p[strcspn(p, "|&;<>()$`\\\"'")] == '\0' && (!ifsset() ||
+	    p[strcspn(p, ifsval())] == '\0')) {
+		outstr(p, file);
+		return;
+	}
+
+	out1c('\'');
+	while ((ch = *p++) != '\0') {
+		switch (ch) {
+		case '\'':
+			/*
+			 * Can't quote single quotes inside single quotes;
+			 * close them, write escaped single quote, open again.
+			 */
+			outstr("'\\''", file);
+			break;
+		default:
+			outc(ch, file);
+		}
+	}
+	out1c('\'');
+}
 
 char out_junk[16];
 
-
 void
-emptyoutbuf(dest)
-	struct output *dest;
-	{
+emptyoutbuf(struct output *dest)
+{
 	int offset;
 
 	if (dest->fd == BLOCK_OUT) {
@@ -187,16 +197,16 @@ emptyoutbuf(dest)
 
 
 void
-flushall() {
+flushall(void)
+{
 	flushout(&output);
 	flushout(&errout);
 }
 
 
 void
-flushout(dest)
-	struct output *dest;
-	{
+flushout(struct output *dest)
+{
 
 	if (dest->buf == NULL || dest->nextc == dest->buf || dest->fd < 0)
 		return;
@@ -208,7 +218,8 @@ flushout(dest)
 
 
 void
-freestdout() {
+freestdout(void)
+{
 	INTOFF;
 	if (output.buf) {
 		ckfree(output.buf);
@@ -219,9 +230,9 @@ freestdout() {
 }
 
 
-#ifdef __STDC__
 void
-outfmt(struct output *file, const char *fmt, ...) {
+outfmt(struct output *file, const char *fmt, ...)
+{
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -231,7 +242,8 @@ outfmt(struct output *file, const char *fmt, ...) {
 
 
 void
-out1fmt(const char *fmt, ...) {
+out1fmt(const char *fmt, ...)
+{
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -240,7 +252,8 @@ out1fmt(const char *fmt, ...) {
 }
 
 void
-dprintf(const char *fmt, ...) {
+dprintf(const char *fmt, ...)
+{
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -250,7 +263,8 @@ dprintf(const char *fmt, ...) {
 }
 
 void
-fmtstr(char *outbuf, int length, const char *fmt, ...) {
+fmtstr(char *outbuf, int length, const char *fmt, ...)
+{
 	va_list ap;
 	struct output strout;
 
@@ -264,77 +278,6 @@ fmtstr(char *outbuf, int length, const char *fmt, ...) {
 	if (strout.flags & OUTPUT_ERR)
 		outbuf[length - 1] = '\0';
 }
-
-#else /* not __STDC__ */
-
-void
-outfmt(va_alist)
-	va_dcl
-	{
-	va_list ap;
-	struct output *file;
-	const char *fmt;
-
-	va_start(ap);
-	file = va_arg(ap, struct output *);
-	fmt = va_arg(ap, char *);
-	doformat(file, fmt, ap);
-	va_end(ap);
-}
-
-
-void
-out1fmt(va_alist)
-	va_dcl
-	{
-	va_list ap;
-	const char *fmt;
-
-	va_start(ap);
-	fmt = va_arg(ap, char *);
-	doformat(out1, fmt, ap);
-	va_end(ap);
-}
-
-void
-dprintf(va_alist)
-	va_dcl
-	{
-	va_list ap;
-	const char *fmt;
-
-	va_start(ap);
-	fmt = va_arg(ap, char *);
-	doformat(out2, fmt, ap);
-	va_end(ap);
-	flushout(out2);
-}
-
-void
-fmtstr(va_alist)
-	va_dcl
-	{
-	va_list ap;
-	struct output strout;
-	char *outbuf;
-	int length;
-	const char *fmt;
-
-	va_start(ap);
-	outbuf = va_arg(ap, char *);
-	length = va_arg(ap, int);
-	fmt = va_arg(ap, char *);
-	strout.nextc = outbuf;
-	strout.nleft = length;
-	strout.fd = BLOCK_OUT;
-	strout.flags = 0;
-	doformat(&strout, fmt, ap);
-	outc('\0', &strout);
-	if (strout.flags & OUTPUT_ERR)
-		outbuf[length - 1] = '\0';
-}
-#endif /* __STDC__ */
-
 
 /*
  * Formatted output.  This routine handles a subset of the printf formats:
@@ -355,11 +298,8 @@ static const char digit[] = "0123456789ABCDEF";
 
 
 void
-doformat(dest, f, ap)
-	struct output *dest;
-	const char *f;		/* format string */
-	va_list ap;
-	{
+doformat(struct output *dest, const char *f, va_list ap)
+{
 	char c;
 	char temp[TEMPSIZE];
 	int flushleft;
@@ -529,11 +469,8 @@ number:		  /* process a number */
  */
 
 int
-xwrite(fd, buf, nbytes)
-	int fd;
-	char *buf;
-	int nbytes;
-	{
+xwrite(int fd, char *buf, int nbytes)
+{
 	int ntry;
 	int i;
 	int n;
@@ -554,22 +491,4 @@ xwrite(fd, buf, nbytes)
 			return -1;
 		}
 	}
-}
-
-
-/*
- * Version of ioctl that retries after a signal is caught.
- * XXX unused function
- */
-
-int
-xioctl(fd, request, arg)
-	int fd;
-	unsigned long request;
-	char * arg;
-{
-	int i;
-
-	while ((i = ioctl(fd, request, arg)) == -1 && errno == EINTR);
-	return i;
 }

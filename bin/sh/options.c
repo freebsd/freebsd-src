@@ -38,9 +38,9 @@
 #if 0
 static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <signal.h>
 #include <unistd.h>
@@ -73,10 +73,10 @@ char *optptr;			/* used by nextopt */
 char *minusc;			/* argument to -c option */
 
 
-STATIC void options __P((int));
-STATIC void minus_o __P((char *, int));
-STATIC void setoption __P((int, int));
-STATIC int getopts __P((char *, char *, char **, char ***, char **));
+STATIC void options(int);
+STATIC void minus_o(char *, int);
+STATIC void setoption(int, int);
+STATIC int getopts(char *, char *, char **, char ***, char **);
 
 
 /*
@@ -84,9 +84,7 @@ STATIC int getopts __P((char *, char *, char **, char ***, char **));
  */
 
 void
-procargs(argc, argv)
-	int argc;
-	char **argv;
+procargs(int argc, char **argv)
 {
 	int i;
 
@@ -127,7 +125,7 @@ procargs(argc, argv)
 
 
 void
-optschanged()
+optschanged(void)
 {
 	setinteractive(iflag);
 #ifndef NO_HISTORY
@@ -142,8 +140,7 @@ optschanged()
  */
 
 STATIC void
-options(cmdline)
-	int cmdline;
+options(int cmdline)
 {
 	char *p;
 	int val;
@@ -201,17 +198,30 @@ options(cmdline)
 }
 
 STATIC void
-minus_o(name, val)
-	char *name;
-	int val;
+minus_o(char *name, int val)
 {
-	int i;
+	int doneset, i;
 
 	if (name == NULL) {
-		out1str("Current option settings\n");
-		for (i = 0; i < NOPTS; i++)
-			out1fmt("%-16s%s\n", optlist[i].name,
-				optlist[i].val ? "on" : "off");
+		if (val) {
+			/* "Pretty" output. */
+			out1str("Current option settings\n");
+			for (i = 0; i < NOPTS; i++)
+				out1fmt("%-16s%s\n", optlist[i].name,
+					optlist[i].val ? "on" : "off");
+		} else {
+			/* Output suitable for re-input to shell. */
+			for (doneset = i = 0; i < NOPTS; i++)
+				if (optlist[i].val) {
+					if (!doneset) {
+						out1str("set");
+						doneset = 1;
+					}
+					out1fmt(" -o %s", optlist[i].name);
+				}
+			if (doneset)
+				out1c('\n');
+		}
 	} else {
 		for (i = 0; i < NOPTS; i++)
 			if (equal(name, optlist[i].name)) {
@@ -228,10 +238,8 @@ minus_o(name, val)
 
 
 STATIC void
-setoption(flag, val)
-	char flag;
-	int val;
-	{
+setoption(int flag, int val)
+{
 	int i;
 
 	for (i = 0; i < NOPTS; i++)
@@ -270,9 +278,8 @@ SHELLPROC {
  */
 
 void
-setparam(argv)
-	char **argv;
-	{
+setparam(char **argv)
+{
 	char **newparam;
 	char **ap;
 	int nparam;
@@ -296,9 +303,8 @@ setparam(argv)
  */
 
 void
-freeparam(param)
-	struct shparam *param;
-	{
+freeparam(struct shparam *param)
+{
 	char **ap;
 
 	if (param->malloc) {
@@ -315,9 +321,7 @@ freeparam(param)
  */
 
 int
-shiftcmd(argc, argv)
-	int argc;
-	char **argv;
+shiftcmd(int argc, char **argv)
 {
 	int n;
 	char **ap1, **ap2;
@@ -347,9 +351,7 @@ shiftcmd(argc, argv)
  */
 
 int
-setcmd(argc, argv)
-	int argc;
-	char **argv;
+setcmd(int argc, char **argv)
 {
 	if (argc == 1)
 		return showvarscmd(argc, argv);
@@ -365,8 +367,7 @@ setcmd(argc, argv)
 
 
 void
-getoptsreset(value)
-	const char *value;
+getoptsreset(const char *value)
 {
 	if (number(value) == 1) {
 		shellparam.optnext = NULL;
@@ -382,14 +383,12 @@ getoptsreset(value)
  */
 
 int
-getoptscmd(argc, argv)
-	int argc;
-	char **argv;
+getoptscmd(int argc, char **argv)
 {
 	char **optbase = NULL;
 
 	if (argc < 3)
-		error("Usage: getopts optstring var [arg]");
+		error("usage: getopts optstring var [arg]");
 	else if (argc == 3)
 		optbase = shellparam.p;
 	else
@@ -406,12 +405,8 @@ getoptscmd(argc, argv)
 }
 
 STATIC int
-getopts(optstr, optvar, optfirst, optnext, optptr)
-	char *optstr;
-	char *optvar;
-	char **optfirst;
-	char ***optnext;
-	char **optptr;
+getopts(char *optstr, char *optvar, char **optfirst, char ***optnext,
+    char **optptr)
 {
 	char *p, *q;
 	char c = '?';
@@ -515,9 +510,8 @@ out:
  */
 
 int
-nextopt(optstring)
-	char *optstring;
-	{
+nextopt(char *optstring)
+{
 	char *p, *q;
 	char c;
 

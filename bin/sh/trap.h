@@ -40,11 +40,11 @@
 extern int pendingsigs;
 extern int in_dotrap;
 
-int trapcmd __P((int, char **));
-void clear_traps __P((void));
-void setsignal __P((int));
-void ignoresig __P((int));
-void onsig __P((int));
-void dotrap __P((void));
-void setinteractive __P((int));
-void exitshell __P((int));
+int trapcmd(int, char **);
+void clear_traps(void);
+void setsignal(int);
+void ignoresig(int);
+void onsig(int);
+void dotrap(void);
+void setinteractive(int);
+void exitshell(int);

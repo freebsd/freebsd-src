@@ -38,9 +38,9 @@
 #if 0
 static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Miscellaneous builtins.
@@ -75,9 +75,7 @@ static const char rcsid[] =
  */
 
 int
-readcmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+readcmd(int argc __unused, char **argv __unused)
 {
 	char **ap;
 	int backslash;
@@ -171,7 +169,7 @@ readcmd(argc, argv)
 	backslash = 0;
 	STARTSTACKSTR(p);
 	for (;;) {
-		if (read(0, &c, 1) != 1) {
+		if (read(STDIN_FILENO, &c, 1) != 1) {
 			status = 1;
 			break;
 		}
@@ -194,7 +192,7 @@ readcmd(argc, argv)
 		}
 		startword = 0;
 		if (backslash && c == '\\') {
-			if (read(0, &c, 1) != 1) {
+			if (read(STDIN_FILENO, &c, 1) != 1) {
 				status = 1;
 				break;
 			}
@@ -219,9 +217,7 @@ readcmd(argc, argv)
 
 
 int
-umaskcmd(argc, argv)
-	int argc __unused;
-	char **argv;
+umaskcmd(int argc __unused, char **argv)
 {
 	char *ap;
 	int mask;
@@ -353,9 +349,7 @@ static const struct limits limits[] = {
 };
 
 int
-ulimitcmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+ulimitcmd(int argc __unused, char **argv __unused)
 {
 	int	c;
 	quad_t val = 0;

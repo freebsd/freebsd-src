@@ -71,8 +71,10 @@ struct job {
 	char state;		/* true if job is finished */
 	char used;		/* true if this entry is in used */
 	char changed;		/* true if status has changed */
+	char foreground;	/* true if running in the foreground */
 #if JOBS
 	char jobctl;		/* job running under job control */
+	struct job *next;	/* job used after this one */
 #endif
 };
 
@@ -82,18 +84,18 @@ extern int in_waitcmd;		/* are we in waitcmd()? */
 extern int in_dowait;		/* are we in dowait()? */
 extern volatile sig_atomic_t breakwaitcmd; /* break wait to process traps? */
 
-void setjobctl __P((int));
-int fgcmd __P((int, char **));
-int bgcmd __P((int, char **));
-int jobscmd __P((int, char **));
-void showjobs __P((int));
-int waitcmd __P((int, char **));
-int jobidcmd __P((int, char **));
-struct job *makejob __P((union node *, int));
-int forkshell __P((struct job *, union node *, int));
-int waitforjob __P((struct job *, int *));
-int stoppedjobs __P((void));
-char *commandtext __P((union node *));
+void setjobctl(int);
+int fgcmd(int, char **);
+int bgcmd(int, char **);
+int jobscmd(int, char **);
+void showjobs(int, int, int);
+int waitcmd(int, char **);
+int jobidcmd(int, char **);
+struct job *makejob(union node *, int);
+int forkshell(struct job *, union node *, int);
+int waitforjob(struct job *, int *);
+int stoppedjobs(void);
+char *commandtext(union node *);
 
 #if ! JOBS
 #define setjobctl(on)	/* do nothing */

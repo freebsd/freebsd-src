@@ -38,19 +38,12 @@
 #if 0
 static char sccsid[] = "@(#)show.c	8.3 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-#if DEBUG == 2
-#include <errno.h>
-#endif
 #include <errno.h>
 
 #include "shell.h"
@@ -61,16 +54,15 @@ static const char rcsid[] =
 
 
 #ifdef DEBUG
-static void shtree __P((union node *, int, char *, FILE*));
-static void shcmd __P((union node *, FILE *));
-static void sharg __P((union node *, FILE *));
-static void indent __P((int, char *, FILE *));
-static void trstring __P((char *));
+static void shtree(union node *, int, char *, FILE*);
+static void shcmd(union node *, FILE *);
+static void sharg(union node *, FILE *);
+static void indent(int, char *, FILE *);
+static void trstring(char *);
 
 
 void
-showtree(n)
-	union node *n;
+showtree(union node *n)
 {
 	trputs("showtree called\n");
 	shtree(n, 1, NULL, stdout);
@@ -78,11 +70,7 @@ showtree(n)
 
 
 static void
-shtree(n, ind, pfx, fp)
-	union node *n;
-	int ind;
-	char *pfx;
-	FILE *fp;
+shtree(union node *n, int ind, char *pfx, FILE *fp)
 {
 	struct nodelist *lp;
 	char *s;
@@ -133,9 +121,7 @@ binop:
 
 
 static void
-shcmd(cmd, fp)
-	union node *cmd;
-	FILE *fp;
+shcmd(union node *cmd, FILE *fp)
 {
 	union node *np;
 	int first;
@@ -156,6 +142,7 @@ shcmd(cmd, fp)
 			case NTO:	s = ">";  dftfd = 1; break;
 			case NAPPEND:	s = ">>"; dftfd = 1; break;
 			case NTOFD:	s = ">&"; dftfd = 1; break;
+			case NCLOBBER:	s = ">|"; dftfd = 1; break;
 			case NFROM:	s = "<";  dftfd = 0; break;
 			case NFROMTO:	s = "<>"; dftfd = 0; break;
 			case NFROMFD:	s = "<&"; dftfd = 0; break;
@@ -165,7 +152,10 @@ shcmd(cmd, fp)
 			fprintf(fp, "%d", np->nfile.fd);
 		fputs(s, fp);
 		if (np->nfile.type == NTOFD || np->nfile.type == NFROMFD) {
-			fprintf(fp, "%d", np->ndup.dupfd);
+			if (np->ndup.dupfd >= 0)
+				fprintf(fp, "%d", np->ndup.dupfd);
+			else
+				fprintf(fp, "-");
 		} else {
 			sharg(np->nfile.fname, fp);
 		}
@@ -176,10 +166,8 @@ shcmd(cmd, fp)
 
 
 static void
-sharg(arg, fp)
-	union node *arg;
-	FILE *fp;
-	{
+sharg(union node *arg, FILE *fp)
+{
 	char *p;
 	struct nodelist *bqlist;
 	int subtype;
@@ -263,10 +251,7 @@ sharg(arg, fp)
 
 
 static void
-indent(amount, pfx, fp)
-	int amount;
-	char *pfx;
-	FILE *fp;
+indent(int amount, char *pfx, FILE *fp)
 {
 	int i;
 
@@ -293,8 +278,7 @@ int debug = 0;
 
 
 void
-trputc(c)
-	int c;
+trputc(int c)
 {
 	if (tracefile == NULL)
 		return;
@@ -305,21 +289,10 @@ trputc(c)
 
 
 void
-#ifdef __STDC__
 sh_trace(const char *fmt, ...)
-#else
-sh_trace(va_alist)
-	va_dcl
-#endif
 {
 	va_list va;
-#ifdef __STDC__
 	va_start(va, fmt);
-#else
-	char *fmt;
-	va_start(va);
-	fmt = va_arg(va, char *);
-#endif
 	if (tracefile != NULL) {
 		(void) vfprintf(tracefile, fmt, va);
 		if (strchr(fmt, '\n'))
@@ -330,8 +303,7 @@ sh_trace(va_alist)
 
 
 void
-trputs(s)
-	char *s;
+trputs(char *s)
 {
 	if (tracefile == NULL)
 		return;
@@ -342,8 +314,7 @@ trputs(s)
 
 
 static void
-trstring(s)
-	char *s;
+trstring(char *s)
 {
 	char *p;
 	char c;
@@ -383,8 +354,7 @@ backslash:	  putc('\\', tracefile);
 
 
 void
-trargs(ap)
-	char **ap;
+trargs(char **ap)
 {
 	if (tracefile == NULL)
 		return;
@@ -400,7 +370,8 @@ trargs(ap)
 
 
 void
-opentrace() {
+opentrace(void)
+{
 	char s[100];
 	char *getenv();
 #ifdef O_APPEND

@@ -38,9 +38,9 @@
 #if 0
 static char sccsid[] = "@(#)input.c	8.3 (Berkeley) 6/9/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>	/* defines BUFSIZ */
 #include <fcntl.h>
@@ -107,8 +107,8 @@ int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 EditLine *el;			/* cookie for editline package */
 
-STATIC void pushfile __P((void));
-static int preadfd __P((void));
+STATIC void pushfile(void);
+static int preadfd(void);
 
 #ifdef mkinit
 INCLUDE "input.h"
@@ -137,9 +137,7 @@ SHELLPROC {
  */
 
 char *
-pfgets(line, len)
-	char *line;
-	int len;
+pfgets(char *line, int len)
 {
 	char *p = line;
 	int nleft = len;
@@ -168,14 +166,14 @@ pfgets(line, len)
  */
 
 int
-pgetc()
+pgetc(void)
 {
 	return pgetc_macro();
 }
 
 
 static int
-preadfd()
+preadfd(void)
 {
 	int nr;
 	parsenextc = parsefile->buf;
@@ -227,7 +225,7 @@ retry:
  */
 
 int
-preadbuffer()
+preadbuffer(void)
 {
 	char *p, *q;
 	int more;
@@ -314,7 +312,8 @@ check:
  */
 
 void
-pungetc() {
+pungetc(void)
+{
 	parsenleft++;
 	parsenextc--;
 }
@@ -324,11 +323,8 @@ pungetc() {
  * We handle aliases this way.
  */
 void
-pushstring(s, len, ap)
-	char *s;
-	int len;
-	void *ap;
-	{
+pushstring(char *s, int len, void *ap)
+{
 	struct strpush *sp;
 
 	INTOFF;
@@ -351,7 +347,7 @@ pushstring(s, len, ap)
 }
 
 void
-popstring()
+popstring(void)
 {
 	struct strpush *sp = parsefile->strpush;
 
@@ -374,9 +370,7 @@ popstring()
  */
 
 void
-setinputfile(fname, push)
-	char *fname;
-	int push;
+setinputfile(char *fname, int push)
 {
 	int fd;
 	int fd2;
@@ -402,8 +396,7 @@ setinputfile(fname, push)
  */
 
 void
-setinputfd(fd, push)
-	int fd, push;
+setinputfd(int fd, int push)
 {
 	(void)fcntl(fd, F_SETFD, FD_CLOEXEC);
 	if (push) {
@@ -425,10 +418,8 @@ setinputfd(fd, push)
  */
 
 void
-setinputstring(string, push)
-	char *string;
-	int push;
-	{
+setinputstring(char *string, int push)
+{
 	INTOFF;
 	if (push)
 		pushfile();
@@ -447,7 +438,8 @@ setinputstring(string, push)
  */
 
 STATIC void
-pushfile() {
+pushfile(void)
+{
 	struct parsefile *pf;
 
 	parsefile->nleft = parsenleft;
@@ -464,7 +456,8 @@ pushfile() {
 
 
 void
-popfile() {
+popfile(void)
+{
 	struct parsefile *pf = parsefile;
 
 	INTOFF;
@@ -489,7 +482,8 @@ popfile() {
  */
 
 void
-popallfiles() {
+popallfiles(void)
+{
 	while (parsefile != &basepf)
 		popfile();
 }
@@ -502,7 +496,8 @@ popallfiles() {
  */
 
 void
-closescript() {
+closescript(void)
+{
 	popallfiles();
 	if (parsefile->fd > 0) {
 		close(parsefile->fd);

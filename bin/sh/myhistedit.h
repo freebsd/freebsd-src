@@ -40,9 +40,9 @@ extern History *hist;
 extern EditLine *el;
 extern int displayhist;
 
-void histedit __P((void));
-void sethistsize __P((const char *));
-int histcmd __P((int, char **));
-int not_fcnumber __P((char *));
-int str_to_event __P((char *, int));
+void histedit(void);
+void sethistsize(const char *);
+int histcmd(int, char **);
+int not_fcnumber(char *);
+int str_to_event(char *, int);
 

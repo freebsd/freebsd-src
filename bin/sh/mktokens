@@ -81,14 +81,14 @@ const char tokendlist[] = {'
 awk '{print "\t" $2 ","}' $temp
 echo '};
 
-char *const tokname[] = {'
+const char *const tokname[] = {'
 sed -e 's/"/\\"/g' \
     -e 's/[^	 ]*[	 ][	 ]*[^	 ]*[	 ][	 ]*\(.*\)/	"\1",/' \
     $temp
 echo '};
 '
 sed 's/"//g' $temp | awk '
-/TIF/{print "#define KWDOFFSET " NR-1; print ""; print "char *const parsekwd[] = {"}
+/TIF/{print "#define KWDOFFSET " NR-1; print ""; print "const char *const parsekwd[] = {"}
 /TIF/,/neverfound/{print "	\"" $3 "\","}'
 echo '	0
 };'
