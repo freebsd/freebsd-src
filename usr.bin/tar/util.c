@@ -45,19 +45,24 @@ void
 safe_fprintf(FILE *f, const char *fmt, ...)
 {
 	char *buff;
+	char *buffheap;
+	char buffstack[256];
 	int bufflength;
 	int length;
 	va_list ap;
 	char *p;
 
-	bufflength = 512;
-	buff = malloc(bufflength);
+	/* Use a stack-allocated buffer if we can. */
+	buffheap = NULL;
+	bufflength = 256;
+	buff = buffstack;
 
 	va_start(ap, fmt);
 	length = vsnprintf(buff, bufflength, fmt, ap);
+	/* If the result is too large, allocate a buffer on the heap. */
 	if (length >= bufflength) {
 		bufflength = length+1;
-		buff = realloc(buff, bufflength);
+		buff = buffheap = malloc(bufflength);
 		length = vsnprintf(buff, bufflength, fmt, ap);
 	}
 	va_end(ap);
@@ -83,7 +88,9 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 				fprintf(f, "\\%03o", c);
 			}
 	}
-	free(buff);
+	/* If we allocated a heap-based buffer, free it now. */
+	if (buffheap != NULL)
+		free(buffheap);
 }
 
 static void
