@@ -727,14 +727,11 @@ ahc_pci_attach(device_t dev)
 	}
 
 	if ((ahc->features & AHC_DT) != 0) {
-		u_int optionmode;
 		u_int sfunct;
 
 		/* Perform ALT-Mode Setup */
 		sfunct = ahc_inb(ahc, SFUNCT) & ~ALT_MODE;
 		ahc_outb(ahc, SFUNCT, sfunct | ALT_MODE);
-		optionmode = ahc_inb(ahc, OPTIONMODE);
-		printf("OptionMode = %x\n", optionmode);
 		ahc_outb(ahc, OPTIONMODE, OPTIONMODE_DEFAULTS);
 		/* Send CRC info in target mode every 4K */
 		ahc_outb(ahc, TARGCRCCNT, 0);
