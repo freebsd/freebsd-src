@@ -1,4 +1,4 @@
-/*	$NetBSD: hid.c,v 1.9 1999/10/13 08:10:55 augustss Exp $	*/
+/*	$NetBSD: hid.c,v 1.15 2000/04/27 15:26:46 augustss Exp $	*/
 /*	$FreeBSD$ */
 
 /*
@@ -6,7 +6,7 @@
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Lennart Augustsson (augustss@carlstedt.se) at
+ * by Lennart Augustsson (lennart@augustsson.net) at
  * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,7 +126,7 @@ hid_get_item(s, h)
 {
 	struct hid_item *c = &s->cur;
 	unsigned int bTag, bType, bSize;
-	struct hid_location oldloc;
+	u_int32_t oldpos;
 	u_char *data;
 	int32_t dval;
 	u_char *p;
@@ -300,9 +300,9 @@ hid_get_item(s, h)
 				break;
 			case 11: /* Pop */
 				hi = c->next;
-				oldloc = c->loc;
+				oldpos = c->loc.pos;
 				s->cur = *hi;
-				c->loc = oldloc;
+				c->loc.pos = oldpos;
 				free(hi, M_TEMP);
 				break;
 			default:
