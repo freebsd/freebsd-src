@@ -84,6 +84,7 @@ dev/ata/atapi-tape.c		optional	atapist
 dev/ct/bshw_machdep.c		optional	ct
 dev/ct/ct.c			optional	ct
 dev/ct/ct_isa.c			optional	ct isa
+dev/dgb/dgm.c			optional	dgm
 dev/ed/if_ed.c			optional	ed
 dev/ed/if_ed_cbus.c		optional	ed isa
 dev/ed/if_ed_pccard.c		optional	ed card
@@ -139,7 +140,6 @@ gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
 gnu/i386/isa/dgb.c		optional	dgb
-gnu/i386/isa/dgm.c		optional	dgm
 gnu/i386/isa/sound/awe_wave.c	optional	awe
 pc98/apm/apm.c			optional	apm
 pc98/apm/apm_bioscall.s		optional	apm
