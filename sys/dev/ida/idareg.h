@@ -101,31 +101,58 @@
 #define CMD_WRITE_MEDIA		0x31
 #define CMD_GET_CONFIG		0x50
 #define CMD_SET_CONFIG		0x51
+#define CMD_START_FIRMWARE	0x99		/* for integrated RAID */
 #define CMD_FLUSH_CACHE		0xc2
 
 /*
  * command structures
  */
 struct ida_drive_info {
-	u_int16_t	secsize 	__attribute__ ((packed));
-	u_int32_t	secperunit 	__attribute__ ((packed));
-	u_int16_t	ncylinders 	__attribute__ ((packed));
-	u_int8_t	nheads	 	__attribute__ ((packed));
-	u_int8_t	signature 	__attribute__ ((packed));
-	u_int8_t	psectors 	__attribute__ ((packed));
-	u_int16_t	wprecomp 	__attribute__ ((packed));
-	u_int8_t	max_acc 	__attribute__ ((packed));
-	u_int8_t	control 	__attribute__ ((packed));
-	u_int16_t	pcylinders 	__attribute__ ((packed));
-	u_int8_t	ptracks 	__attribute__ ((packed));
-	u_int16_t	landing_zone 	__attribute__ ((packed));
-	u_int8_t	nsectors 	__attribute__ ((packed));
-	u_int8_t	checksum 	__attribute__ ((packed));
-	u_int8_t	mirror 		__attribute__ ((packed));
-};
+	u_int16_t	secsize;
+	u_int32_t	secperunit;
+	u_int16_t	ncylinders;
+	u_int8_t	nheads;
+	u_int8_t	signature;
+	u_int8_t	psectors;
+	u_int16_t	wprecomp;
+	u_int8_t	max_acc;
+	u_int8_t	control;
+	u_int16_t	pcylinders;
+	u_int8_t	ptracks;
+	u_int16_t	landing_zone;
+	u_int8_t	nsectors;
+	u_int8_t	checksum;
+	u_int8_t	mirror;
+} __attribute__ ((packed));
 
 struct ida_controller_info {
-	u_int8_t	num_drvs 	__attribute__ ((packed));
-	u_int32_t	signature 	__attribute__ ((packed));
-	u_int8_t	firm_rev[4] 	__attribute__ ((packed));
-};
+	u_int8_t	num_drvs;
+	u_int32_t	signature;
+	u_int8_t	firm_rev[4];
+} __attribute__ ((packed));
+
+
+struct ida_drive_status {
+	u_int8_t	status;
+	u_int32_t	failure_map;
+	u_int8_t	reserved[416];
+	u_int32_t	secrecover;
+	u_int8_t	rebuilding;
+	u_int16_t	remap_cnt[8];
+	u_int32_t	repl_map;
+	u_int32_t	spare_map;
+	u_int8_t	spare_status;
+	u_int8_t	spare_repl_map[32];
+	u_int32_t	repl_ok_map;
+	u_int8_t	media_exchange;
+	u_int8_t	cache_failure;
+	u_int8_t	expand_failure;
+	u_int8_t	unit_flags;
+	u_int16_t	big_failure_map[8];
+	u_int16_t	big_remap_cnt[128];
+	u_int16_t	big_repl_map[8];
+	u_int16_t	big_act_spare_map[8];
+	u_int8_t	big_spare_repl_map[128];
+	u_int16_t	big_repl_ok_map[8];
+	u_int8_t	big_rebuilding;
+} __attribute__ ((packed));
