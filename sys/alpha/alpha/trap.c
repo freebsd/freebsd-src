@@ -407,7 +407,7 @@ trap(a0, a1, a2, entry, framep)
 			/* FALLTHROUTH */
 		case ALPHA_IF_CODE_BPT:
 		case ALPHA_IF_CODE_BUGCHK:
-			if (td->td_md.md_flags & (MDP_STEP1|MDP_STEP2)) {
+			if (td->td_md.md_flags & (MDTD_STEP1|MDTD_STEP2)) {
 				mtx_lock(&Giant);
 				ptrace_clear_single_step(td);
 				td->td_frame->tf_regs[FRAME_PC] -= 4;
@@ -1033,8 +1033,8 @@ unaligned_fixup(va, opcode, reg, td)
 	 */
 
 	if (td) {
-		uac = td->td_md.md_flags & MDP_UAC_MASK;
 		p = td->td_proc;
+		uac = p->p_md.md_uac;
 	} else {
 		uac = 0;
 		p = NULL;

@@ -92,7 +92,7 @@ ASSYM(TD_MD_HAE, offsetof(struct thread, td_md.md_hae));
 #ifdef SMP
 ASSYM(TD_MD_KERNNEST, offsetof(struct thread, td_md.md_kernnest));
 #endif
-ASSYM(MDP_HAEUSED, MDP_HAEUSED);
+ASSYM(MDTD_HAEUSED, MDTD_HAEUSED);
 
 ASSYM(CHIPSET_WRITE_HAE, offsetof(struct alpha_chipset, write_hae));
 
