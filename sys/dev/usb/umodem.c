@@ -1,4 +1,5 @@
 /*	$NetBSD: umodem.c,v 1.1 1998/12/03 19:58:09 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

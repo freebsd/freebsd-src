@@ -1,4 +1,5 @@
 /*	$NetBSD: uhid.c,v 1.3 1998/08/01 20:52:45 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

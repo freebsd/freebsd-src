@@ -1,4 +1,5 @@
 /*	$NetBSD: ulpt.c,v 1.2 1998/07/25 15:19:09 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
