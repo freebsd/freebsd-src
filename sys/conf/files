@@ -393,42 +393,52 @@ gnu/ext2fs/ext2_lookup.c	optional ext2fs
 gnu/ext2fs/ext2_subr.c		optional ext2fs
 gnu/ext2fs/ext2_vfsops.c	optional ext2fs
 gnu/ext2fs/ext2_vnops.c		optional ext2fs
-# device drivers
-i4b/driver/i4b_trace.c	 count i4btrc
-i4b/driver/i4b_rbch.c	 count i4brbch
-i4b/driver/i4b_tel.c	 count i4btel
-i4b/driver/i4b_ipr.c	 count i4bipr
-i4b/driver/i4b_ctl.c     count i4bctl
-i4b/driver/i4b_isppp.c   count i4bisppp
-net/if_spppsubr.c        count sppp
-# needed by i4bipr
-net/slcompress.c         optional i4bipr
-# tina-dd control driver
-i4b/tina-dd/i4b_tina_dd.c count tina
-# support
-i4b/layer2/i4b_mbuf.c	 optional i4btrc
-# Q.921 handler
-i4b/layer2/i4b_l2.c	 count i4bq921
-i4b/layer2/i4b_l2fsm.c	 optional i4bq921
-i4b/layer2/i4b_uframe.c	 optional i4bq921
-i4b/layer2/i4b_tei.c	 optional i4bq921
-i4b/layer2/i4b_sframe.c	 optional i4bq921
-i4b/layer2/i4b_iframe.c	 optional i4bq921
-i4b/layer2/i4b_l2timer.c optional i4bq921
-i4b/layer2/i4b_util.c	 optional i4bq921
-i4b/layer2/i4b_lme.c	 optional i4bq921
-# Q.931 handler
-i4b/layer3/i4b_q931.c	 count i4bq931
-i4b/layer3/i4b_l3fsm.c	 optional i4bq931
-i4b/layer3/i4b_l3timer.c optional i4bq931
-i4b/layer3/i4b_l2if.c	 optional i4bq931
-i4b/layer3/i4b_l4if.c	 optional i4bq931
-i4b/layer3/i4b_q932fac.c optional i4bq931
-# isdn device driver, interface to i4bd
-i4b/layer4/i4b_i4bdrv.c	 optional i4b
-i4b/layer4/i4b_l4.c	 count i4b
-i4b/layer4/i4b_l4mgmt.c	 optional i4b
-i4b/layer4/i4b_l4timer.c optional i4b
+#
+# isdn4bsd device drivers
+#
+i4b/driver/i4b_trace.c		count i4btrc
+i4b/driver/i4b_rbch.c		count i4brbch
+i4b/driver/i4b_tel.c		count i4btel
+i4b/driver/i4b_ipr.c		count i4bipr
+net/slcompress.c		optional i4bipr
+i4b/driver/i4b_ctl.c		count i4bctl
+i4b/driver/i4b_ing.c		count i4bing
+i4b/driver/i4b_isppp.c		count i4bisppp
+i4b/driver/i4b_ispppsubr.c	optional i4bisppp
+net/slcompress.c		optional i4bisppp
+#
+# isdn4bsd support
+#
+i4b/layer2/i4b_mbuf.c		optional i4btrc
+#
+# isdn4bsd Q.921 handler
+#
+i4b/layer2/i4b_l2.c		count i4bq921
+i4b/layer2/i4b_l2fsm.c		optional i4bq921
+i4b/layer2/i4b_uframe.c		optional i4bq921
+i4b/layer2/i4b_tei.c		optional i4bq921
+i4b/layer2/i4b_sframe.c		optional i4bq921
+i4b/layer2/i4b_iframe.c		optional i4bq921
+i4b/layer2/i4b_l2timer.c	optional i4bq921
+i4b/layer2/i4b_util.c		optional i4bq921
+i4b/layer2/i4b_lme.c		optional i4bq921
+#
+# isdn4bsd Q.931 handler
+#
+i4b/layer3/i4b_q931.c		count i4bq931
+i4b/layer3/i4b_l3fsm.c		optional i4bq931
+i4b/layer3/i4b_l3timer.c	optional i4bq931
+i4b/layer3/i4b_l2if.c		optional i4bq931
+i4b/layer3/i4b_l4if.c		optional i4bq931
+i4b/layer3/i4b_q932fac.c	optional i4bq931
+#
+# isdn4bsd control device driver, interface to isdnd
+#
+i4b/layer4/i4b_i4bdrv.c		count i4b
+i4b/layer4/i4b_l4.c		optional i4b
+i4b/layer4/i4b_l4mgmt.c		optional i4b
+i4b/layer4/i4b_l4timer.c	optional i4b
+#
 isa/isa_if.m		optional isa
 isa/isa_common.c	count isa
 isa/isahint.c		optional isa
