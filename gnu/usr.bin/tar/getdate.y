@@ -613,11 +613,16 @@ Convert(Month, Day, Year, Hours, Minutes, Seconds, Meridian, DSTmode)
 
     if (Year < 0)
 	Year = -Year;
-    if (Year < 100)
+
+    /* Real horrible stuff here. Think of something better by 2037 */
+    if (Year > 37 && Year < 100)
 	Year += 1900;
+    else if (Year < 38)
+	Year += 2000;
+
     DaysInMonth[1] = Year % 4 == 0 && (Year % 100 != 0 || Year % 400 == 0)
 		    ? 29 : 28;
-    if (Year < EPOCH || Year > 1999
+    if (Year < EPOCH || Year > 2037	/* Code not valid past 2037 */
      || Month < 1 || Month > 12
      /* Lint fluff:  "conversion from long may lose accuracy" */
      || Day < 1 || Day > DaysInMonth[(int)--Month])
@@ -626,7 +631,7 @@ Convert(Month, Day, Year, Hours, Minutes, Seconds, Meridian, DSTmode)
     for (Julian = Day - 1, i = 0; i < Month; i++)
 	Julian += DaysInMonth[i];
     for (i = EPOCH; i < Year; i++)
-	Julian += 365 + (i % 4 == 0);
+	Julian += 365 + (i % 4 == 0);	/* Code not valid in 2100 */
     Julian *= SECSPERDAY;
     Julian += yyTimezone * 60L;
     if ((tod = ToSeconds(Hours, Minutes, Seconds, Meridian)) < 0)
