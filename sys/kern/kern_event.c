@@ -190,11 +190,17 @@ static int
 filt_procattach(struct knote *kn)
 {
 	struct proc *p;
+	int immediate;
 	int error;
 
+	immediate = 0;
 	p = pfind(kn->kn_id);
 	if (p == NULL)
 		return (ESRCH);
+	if (p == NULL && (kn->kn_sfflags & NOTE_EXIT)) {
+		p = zpfind(kn->kn_id);
+		immediate = 1;
+	}
 	if ((error = p_cansee(curthread, p))) {
 		PROC_UNLOCK(p);
 		return (error);
@@ -213,6 +219,15 @@ filt_procattach(struct knote *kn)
 	}
 
 	SLIST_INSERT_HEAD(&p->p_klist, kn, kn_selnext);
+
+	/*
+	 * Immediately activate any exit notes if the target process is a
+	 * zombie.  This is necessary to handle the case where the target
+	 * process, e.g. a child, dies before the kevent is registered.
+	 */
+	if (immediate && filt_proc(kn, NOTE_EXIT))
+		KNOTE_ACTIVATE(kn);
+
 	PROC_UNLOCK(p);
 
 	return (0);
