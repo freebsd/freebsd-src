@@ -895,7 +895,7 @@ pcic_pci_intr(void *arg)
 			}
 		}
 		if (stat & CB_SS_BADVCC)
-			device_printf(sc->dev, "BAD Vcc request");
+			device_printf(sc->dev, "BAD Vcc request\n");
 
 		/* Ack the interrupt */
 		bus_space_write_4(sp->bst, sp->bsh, 0, event);
