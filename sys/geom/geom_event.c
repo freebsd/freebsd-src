@@ -191,7 +191,8 @@ g_do_event(struct g_event *ep)
 				    cp, cp->geom->name, cp->geom->spoiled);
 				if (cp->geom->spoiled != NULL)
 					cp->geom->spoiled(cp);
-				cp->spoiled = 0;
+				else
+					cp->spoiled = 0;
 			}
 			cp = cp2;
 		}
