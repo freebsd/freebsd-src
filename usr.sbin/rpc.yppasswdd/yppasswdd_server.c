@@ -62,6 +62,11 @@ struct dom_binding {};
 #include "yppasswd.h"
 #include "yppasswd_private.h"
 
+struct cmessage {
+        struct cmsghdr cmsg;
+        struct cmsgcred cmcred;
+};
+
 char *tempname;
 
 void reaper(sig)
