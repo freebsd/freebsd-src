@@ -41,6 +41,8 @@
 #define F_DEBUG         0x0004          /* The media have changed since open */
 #define F_NOPLAYCD      0x0008          /* The PLAY_CD op not supported */
 
+#define WCD_LASTPLUS1	170		/* Don't ask, xcdplayer uses this */
+
 /*
  * Disc table of contents.
  */
@@ -732,18 +734,31 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		struct toc *toc = &t->toc;
 		struct toc buf;
 		u_long len;
+		u_char starting_track = te->starting_track;
 
 		if (! t->toc.hdr.ending_track)
 			return (EIO);
-		if (te->starting_track < toc->hdr.starting_track ||
-		    te->starting_track > toc->hdr.ending_track)
+
+		if (   te->data_len < sizeof(toc->tab[0])
+		    || (te->data_len % sizeof(toc->tab[0])) != 0
+		    || te->address_format != CD_MSF_FORMAT
+		    && te->address_format != CD_LBA_FORMAT
+		   )
 			return (EINVAL);
 
-		len = (toc->hdr.ending_track - te->starting_track + 2) *
+		if (starting_track == 0)
+			starting_track = toc->hdr.starting_track;
+		else if (starting_track == WCD_LASTPLUS1)
+			starting_track = toc->hdr.ending_track + 1;
+		else if (starting_track < toc->hdr.starting_track ||
+			 starting_track > toc->hdr.ending_track + 1)
+			return (EINVAL);
+
+		len = (toc->hdr.ending_track + 2 - starting_track) *
 			sizeof(toc->tab[0]);
 		if (te->data_len < len)
 			len = te->data_len;
-		if (len <= 0)
+		if (len > sizeof(toc->tab))
 			return (EINVAL);
 
 		/* Convert to MSF format, if needed. */
@@ -752,16 +767,14 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 
 			buf = t->toc;
 			toc = &buf;
-			e = toc->tab + toc->hdr.ending_track -
-				te->starting_track + 2;
+			e = toc->tab + toc->hdr.ending_track + 2 -
+				    toc->hdr.starting_track;
 			while (--e >= toc->tab)
 				lba2msf (e->addr.lba, &e->addr.msf.minute,
 				    &e->addr.msf.second, &e->addr.msf.frame);
 		}
-		if (copyout (toc->tab + te->starting_track -
-		    toc->hdr.starting_track, te->data, len) != 0)
-			error = EFAULT;
-		break;
+		return copyout (toc->tab + starting_track -
+				toc->hdr.starting_track, te->data, len);
 	}
 	case CDIOCREADSUBCHANNEL: {
 		struct ioc_read_subchannel *args =
