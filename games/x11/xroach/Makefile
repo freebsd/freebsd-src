@@ -7,4 +7,5 @@ DPADD+=		${X11BASE}/lib/libX11.a ${LIBM}
 LDDESTDIR+=	-L${X11BASE}/lib
 LDADD+=		-lX11 -lm
 
+.include "../../Makefile.inc"
 .include <bsd.prog.mk>

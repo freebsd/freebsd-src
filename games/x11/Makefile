@@ -3,7 +3,3 @@
 SUBDIR=	xneko xroach 
 
 .include <bsd.subdir.mk>
-.include "../../Makefile.inc"
-.include "../../Makefile.inc"
-.include "../../Makefile.inc"
-.include "../../Makefile.inc"
