@@ -1,4 +1,4 @@
-/*	$OpenBSD: log.h,v 1.9 2003/04/08 20:21:28 itojun Exp $	*/
+/*	$OpenBSD: log.h,v 1.10 2003/09/23 20:17:11 markus Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -70,11 +70,6 @@ void     debug(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     debug2(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     debug3(const char *, ...) __attribute__((format(printf, 1, 2)));
 
-void     fatal_cleanup(void);
-void     fatal_add_cleanup(void (*) (void *), void *);
-void     fatal_remove_cleanup(void (*) (void *), void *);
-void     fatal_remove_all_cleanups(void);
-
 void	 do_log(LogLevel, const char *, va_list);
-
+void	 cleanup_exit(int);
 #endif

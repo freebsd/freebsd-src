@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-chall.c,v 1.8 2001/05/18 14:13:28 markus Exp $");
+RCSID("$OpenBSD: auth-chall.c,v 1.9 2003/11/03 09:03:37 djm Exp $");
 RCSID("$FreeBSD$");
 
 #include "auth.h"
@@ -68,36 +68,38 @@ get_challenge(Authctxt *authctxt)
 int
 verify_response(Authctxt *authctxt, const char *response)
 {
-	char *resp[1];
-	int res;
+	char *resp[1], *name, *info, **prompts;
+	u_int i, numprompts, *echo_on;
+	int authenticated = 0;
 
 	if (device == NULL)
 		return 0;
 	if (authctxt->kbdintctxt == NULL)
 		return 0;
 	resp[0] = (char *)response;
-	res = device->respond(authctxt->kbdintctxt, 1, resp);
-	if (res == 1) {
-		/* postponed - send a null query just in case */
-		char *name, *info, **prompts;
-		u_int i, numprompts, *echo_on;
+	switch (device->respond(authctxt->kbdintctxt, 1, resp)) {
+	case 0: /* Success */
+		authenticated = 1;
+		break;
+	case 1: /* Postponed - retry with empty query for PAM */
+		if ((device->query(authctxt->kbdintctxt, &name, &info,
+		    &numprompts, &prompts, &echo_on)) != 0)
+			break;
+		if (numprompts == 0 &&
+		    device->respond(authctxt->kbdintctxt, 0, resp) == 0)
+			authenticated = 1;
 
-		res = device->query(authctxt->kbdintctxt, &name, &info,
-		    &numprompts, &prompts, &echo_on);
-		if (res == 0) {
-			for (i = 0; i < numprompts; i++)
-				xfree(prompts[i]);
-			xfree(prompts);
-			xfree(name);
-			xfree(echo_on);
-			xfree(info);
-		}
-		/* if we received more prompts, we're screwed */
-		res = (res == 0 && numprompts == 0) ? 0 : -1;
+		for (i = 0; i < numprompts; i++)
+			xfree(prompts[i]);
+		xfree(prompts);
+		xfree(name);
+		xfree(echo_on);
+		xfree(info);
+		break;
 	}
 	device->free_ctx(authctxt->kbdintctxt);
 	authctxt->kbdintctxt = NULL;
-	return res ? 0 : 1;
+	return authenticated;
 }
 void
 abandon_challenge_response(Authctxt *authctxt)

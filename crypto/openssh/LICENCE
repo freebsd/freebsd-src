@@ -45,16 +45,16 @@ OpenSSH contains no GPL code.
     software are publicly available on the Internet and at any major
     bookstore, scientific library, and patent office worldwide.  More
     information can be found e.g. at "http://www.cs.hut.fi/crypto".
-    
+
     The legal status of this program is some combination of all these
     permissions and restrictions.  Use only at your own responsibility.
     You will be responsible for any legal consequences yourself; I am not
     making any claims whether possessing or using this is legal or not in
     your country, and I am not taking any responsibility on your behalf.
-    
-    
-    			    NO WARRANTY
-    
+
+
+			    NO WARRANTY
+
     BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
     FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
     OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
@@ -64,7 +64,7 @@ OpenSSH contains no GPL code.
     TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
     PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING,
     REPAIR OR CORRECTION.
-    
+
     IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
     WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
     REDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES,
@@ -112,15 +112,15 @@ OpenSSH contains no GPL code.
     with the following license:
 
      * @version 3.0 (December 2000)
-     * 
+     *
      * Optimised ANSI C code for the Rijndael cipher (now AES)
-     * 
+     *
      * @author Vincent Rijmen <vincent.rijmen@esat.kuleuven.ac.be>
      * @author Antoon Bosselaers <antoon.bosselaers@esat.kuleuven.ac.be>
      * @author Paulo Barreto <paulo.barreto@terra.com.br>
-     * 
+     *
      * This code is hereby placed in the public domain.
-     * 
+     *
      * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
      * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
      * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -177,13 +177,12 @@ OpenSSH contains no GPL code.
 	Damien Miller
 	Kevin Steves
 	Daniel Kouril
-	Per Allansson
 	Wesley Griffin
 	Per Allansson
 	Nils Nordman
 	Simon Wilkinson
 
-    Portable OpenSSH additionally includes code from the following copyright 
+    Portable OpenSSH additionally includes code from the following copyright
     holders, also under the 2-term BSD license:
 
 	Ben Lindstrom
@@ -203,6 +202,7 @@ OpenSSH contains no GPL code.
 	Todd C. Miller
 	Wayne Schroeder
 	William Jones
+	Darren Tucker
 
      * Redistribution and use in source and binary forms, with or without
      * modification, are permitted provided that the following conditions
@@ -229,24 +229,24 @@ OpenSSH contains no GPL code.
     a) md5crypt.c, md5crypt.h
 
 	 * "THE BEER-WARE LICENSE" (Revision 42):
-	 * <phk@login.dknet.dk> wrote this file.  As long as you retain this 
-	 * notice you can do whatever you want with this stuff. If we meet 
-	 * some day, and you think this stuff is worth it, you can buy me a 
+	 * <phk@login.dknet.dk> wrote this file.  As long as you retain this
+	 * notice you can do whatever you want with this stuff. If we meet
+	 * some day, and you think this stuff is worth it, you can buy me a
 	 * beer in return.   Poul-Henning Kamp
 
     b) snprintf replacement
 
 	* Copyright Patrick Powell 1995
-	* This code is based on code written by Patrick Powell 
-	* (papowell@astart.com) It may be used for any purpose as long as this 
+	* This code is based on code written by Patrick Powell
+	* (papowell@astart.com) It may be used for any purpose as long as this
 	* notice remains intact on all source code distributions
 
     c) Compatibility code (openbsd-compat)
 
-       Apart from the previously mentioned licenses, various pieces of code 
+       Apart from the previously mentioned licenses, various pieces of code
        in the openbsd-compat/ subdirectory are licensed as follows:
 
-       Some code is licensed under a 3-term BSD license, to the following 
+       Some code is licensed under a 3-term BSD license, to the following
        copyright holders:
 
 	Todd C. Miller
@@ -279,7 +279,7 @@ OpenSSH contains no GPL code.
 	* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 	* SUCH DAMAGE.
 
-       Some code is licensed under an ISC-style license, to the following 
+       Some code is licensed under an ISC-style license, to the following
        copyright holders:
 
 	Internet Software Consortium.
@@ -297,7 +297,7 @@ OpenSSH contains no GPL code.
 	* OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 	* CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-       Some code is licensed under a MIT-style license to the following 
+       Some code is licensed under a MIT-style license to the following
        copyright holders:
 
 	Free Software Foundation, Inc.
@@ -329,4 +329,4 @@ OpenSSH contains no GPL code.
 
 
 ------
-$OpenBSD: LICENCE,v 1.17 2003/08/22 20:55:06 markus Exp $
+$OpenBSD: LICENCE,v 1.18 2003/11/21 11:57:02 djm Exp $

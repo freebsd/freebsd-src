@@ -135,6 +135,12 @@ __RCSID(msg)
 #ifdef HAVE_SYS_STRTIO_H
 #include <sys/strtio.h>	/* for TIOCCBRK on HP-UX */
 #endif
+#if defined(HAVE_SYS_PTMS_H) && defined(HAVE_DEV_PTMX)
+# if defined(HAVE_SYS_STREAM_H)
+#  include <sys/stream.h>	/* reqd for queue_t on Solaris 2.5.1 */
+# endif
+#include <sys/ptms.h>	/* for grantpt() and friends */
+#endif
 
 #include <netinet/in_systm.h> /* For typedefs */
 #include <netinet/in.h> /* For IPv6 macros */
@@ -148,7 +154,11 @@ __RCSID(msg)
 # include <rpc/types.h> /* For INADDR_LOOPBACK */
 #endif
 #ifdef USE_PAM
+#if defined(HAVE_SECURITY_PAM_APPL_H)
 # include <security/pam_appl.h>
+#elif defined (HAVE_PAM_PAM_APPL_H)
+# include <pam/pam_appl.h>
+#endif
 #endif
 #ifdef HAVE_READPASSPHRASE_H
 # include <readpassphrase.h>
@@ -164,6 +174,11 @@ __RCSID(msg)
 
 #ifdef HAVE_LIBUTIL_H
 # include <libutil.h> /* Openpty on FreeBSD at least */
+#endif
+
+#if defined(KRB5) && defined(USE_AFS)
+# include <krb5.h>
+# include <kafs.h>
 #endif
 
 #include <openssl/opensslv.h> /* For OPENSSL_VERSION_NUMBER */

@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.199 2003/08/13 08:46:31 markus Exp $
+.\" $OpenBSD: sshd.8,v 1.200 2003/10/08 08:27:36 jmc Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSHD 8
@@ -45,7 +45,7 @@
 .Sh SYNOPSIS
 .Nm sshd
 .Bk -words
-.Op Fl deiqtD46
+.Op Fl 46Ddeiqt
 .Op Fl b Ar bits
 .Op Fl f Ar config_file
 .Op Fl g Ar login_grace_time
@@ -79,9 +79,7 @@ This implementation of
 supports both SSH protocol version 1 and 2 simultaneously.
 .Nm
 works as follows:
-.Pp
 .Ss SSH protocol version 1
-.Pp
 Each host has a host-specific RSA key
 (normally 1024 bits) used to identify the host.
 Additionally, when
@@ -93,7 +91,7 @@ Whenever a client connects, the daemon responds with its public
 host and server keys.
 The client compares the
 RSA host key against its own database to verify that it has not changed.
-The client then generates a 256 bit random number.
+The client then generates a 256-bit random number.
 It encrypts this
 random number using both the host key and the server key, and sends
 the encrypted number to the server.
@@ -108,9 +106,9 @@ to use from those offered by the server.
 .Pp
 Next, the server and the client enter an authentication dialog.
 The client tries to authenticate itself using
-.Pa .rhosts
+.Em .rhosts
 authentication,
-.Pa .rhosts
+.Em .rhosts
 authentication combined with RSA host
 authentication, RSA challenge-response authentication, or password
 based authentication.
@@ -138,7 +136,8 @@ or
 .Ql \&*NP\&*
 ).
 .Pp
-Rhosts authentication is normally disabled
+.Em rhosts
+authentication is normally disabled
 because it is fundamentally insecure, but can be enabled in the server
 configuration file if desired.
 System security is not improved unless
@@ -151,9 +150,7 @@ are disabled (thus completely disabling
 and
 .Xr rsh
 into the machine).
-.Pp
 .Ss SSH protocol version 2
-.Pp
 Version 2 works similarly:
 Each host has a host-specific key (RSA or DSA) used to identify the host.
 However, when the daemon starts, it does not generate a server key.
@@ -161,7 +158,7 @@ Forward security is provided through a Diffie-Hellman key agreement.
 This key agreement results in a shared session key.
 .Pp
 The rest of the session is encrypted using a symmetric cipher, currently
-128 bit AES, Blowfish, 3DES, CAST128, Arcfour, 192 bit AES, or 256 bit AES.
+128-bit AES, Blowfish, 3DES, CAST128, Arcfour, 192-bit AES, or 256-bit AES.
 The client selects the encryption algorithm
 to use from those offered by the server.
 Additionally, session integrity is provided
@@ -172,9 +169,7 @@ Protocol version 2 provides a public key based
 user (PubkeyAuthentication) or
 client host (HostbasedAuthentication) authentication method,
 conventional password authentication and challenge response based methods.
-.Pp
 .Ss Command execution and data forwarding
-.Pp
 If the client successfully authenticates itself, a dialog for
 preparing the session is entered.
 At this time the client may request
@@ -193,8 +188,9 @@ connections have been closed, the server sends command exit status to
 the client, and both sides exit.
 .Pp
 .Nm
-can be configured using command-line options or a configuration
-file.
+can be configured using command-line options or a configuration file
+(by default
+.Xr sshd_config 5 ) .
 Command-line options override values specified in the
 configuration file.
 .Pp
@@ -206,9 +202,23 @@ by executing itself with the name it was started as, i.e.,
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
 .It Fl b Ar bits
 Specifies the number of bits in the ephemeral protocol version 1
 server key (default 768).
+.It Fl D
+When this option is specified,
+.Nm
+will not detach and does not become a daemon.
+This allows easy monitoring of
+.Nm sshd .
 .It Fl d
 Debug mode.
 The server sends verbose debug output to the system
@@ -266,7 +276,7 @@ be feasible.
 Specifies how often the ephemeral protocol version 1 server key is
 regenerated (default 3600 seconds, or one hour).
 The motivation for regenerating the key fairly
-often is that the key is not stored anywhere, and after about an hour,
+often is that the key is not stored anywhere, and after about an hour
 it becomes impossible to recover the key for decrypting intercepted
 communications even if the machine is cracked into or physically
 seized.
@@ -275,6 +285,8 @@ A value of zero indicates that the key will never be regenerated.
 Can be used to give options in the format used in the configuration file.
 This is useful for specifying options for which there is no separate
 command-line flag.
+For full details of the options, and their values, see
+.Xr sshd_config 5 .
 .It Fl p Ar port
 Specifies the port on which the server listens for connections
 (default 22).
@@ -324,20 +336,6 @@ USER@HOST pattern in
 .Cm AllowUsers
 or
 .Cm DenyUsers .
-.It Fl D
-When this option is specified
-.Nm
-will not detach and does not become a daemon.
-This allows easy monitoring of
-.Nm sshd .
-.It Fl 4
-Forces
-.Nm
-to use IPv4 addresses only.
-.It Fl 6
-Forces
-.Nm
-to use IPv6 addresses only.
 .El
 .Sh CONFIGURATION FILE
 .Nm
@@ -375,9 +373,9 @@ Changes to run with normal user privileges.
 .It
 Sets up basic environment.
 .It
-Reads
-.Pa $HOME/.ssh/environment
-if it exists and users are allowed to change their environment.
+Reads the file
+.Pa $HOME/.ssh/environment ,
+if it exists, and users are allowed to change their environment.
 See the
 .Cm PermitUserEnvironment
 option in
@@ -517,7 +515,7 @@ Limit local
 port forwarding such that it may only connect to the specified host and
 port.
 IPv6 addresses can be specified with an alternative syntax:
-.Ar host/port .
+.Ar host Ns / Ns Ar port .
 Multiple
 .Cm permitopen
 options may be applied separated by commas.
@@ -525,13 +523,13 @@ No pattern matching is performed on the specified hostnames,
 they must be literal domains or addresses.
 .El
 .Ss Examples
-1024 33 12121.\|.\|.\|312314325 ylo@foo.bar
+1024 33 12121...312314325 ylo@foo.bar
 .Pp
-from="*.niksula.hut.fi,!pc.niksula.hut.fi" 1024 35 23.\|.\|.\|2334 ylo@niksula
+from="*.niksula.hut.fi,!pc.niksula.hut.fi" 1024 35 23...2334 ylo@niksula
 .Pp
-command="dump /home",no-pty,no-port-forwarding 1024 33 23.\|.\|.\|2323 backup.hut.fi
+command="dump /home",no-pty,no-port-forwarding 1024 33 23...2323 backup.hut.fi
 .Pp
-permitopen="10.2.1.55:80",permitopen="10.2.1.56:25" 1024 33 23.\|.\|.\|2323
+permitopen="10.2.1.55:80",permitopen="10.2.1.56:25" 1024 33 23...2323
 .Sh SSH_KNOWN_HOSTS FILE FORMAT
 The
 .Pa /etc/ssh/ssh_known_hosts
@@ -589,7 +587,7 @@ or by taking
 and adding the host names at the front.
 .Ss Examples
 .Bd -literal
-closenet,.\|.\|.\|,130.233.208.41 1024 37 159.\|.\|.93 closenet.hut.fi
+closenet,...,130.233.208.41 1024 37 159...93 closenet.hut.fi
 cvs.openbsd.org,199.185.137.3 ssh-rsa AAAA1234.....=
 .Ed
 .Sh FILES
@@ -648,7 +646,7 @@ and/or
 .Pa id_rsa.pub
 files into this file, as described in
 .Xr ssh-keygen 1 .
-.It Pa "/etc/ssh/ssh_known_hosts" and "$HOME/.ssh/known_hosts"
+.It Pa "/etc/ssh/ssh_known_hosts", "$HOME/.ssh/known_hosts"
 These files are consulted when using rhosts with RSA host
 authentication or protocol version 2 hostbased authentication
 to check the public key of the host.
@@ -682,7 +680,7 @@ The file must
 be writable only by the user; it is recommended that it not be
 accessible by others.
 .Pp
-If is also possible to use netgroups in the file.
+It is also possible to use netgroups in the file.
 Either host or user
 name may be of the form +@groupname to specify all hosts or all users
 in the group.
@@ -694,7 +692,7 @@ However, this file is
 not used by rlogin and rshd, so using this permits access using SSH only.
 .It Pa /etc/hosts.equiv
 This file is used during
-.Pa .rhosts
+.Em rhosts
 authentication.
 In the simplest form, this file contains host names, one per line.
 Users on
@@ -801,9 +799,12 @@ This file should be writable only by root, and should be world-readable.
 .Xr ssh-add 1 ,
 .Xr ssh-agent 1 ,
 .Xr ssh-keygen 1 ,
+.Xr chroot 2 ,
+.Xr hosts_access 5 ,
 .Xr login.conf 5 ,
 .Xr moduli 5 ,
 .Xr sshd_config 5 ,
+.Xr inetd 8 ,
 .Xr sftp-server 8
 .Rs
 .%A T. Ylonen

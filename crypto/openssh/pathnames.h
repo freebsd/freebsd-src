@@ -1,4 +1,4 @@
-/*	$OpenBSD: pathnames.h,v 1.13 2002/05/23 19:24:30 markus Exp $	*/
+/*	$OpenBSD: pathnames.h,v 1.14 2004/01/30 09:48:57 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -148,6 +148,11 @@
 /* chroot directory for unprivileged user when UsePrivilegeSeparation=yes */
 #ifndef _PATH_PRIVSEP_CHROOT_DIR
 #define _PATH_PRIVSEP_CHROOT_DIR	"/var/empty"
+#endif
+
+/* for passwd change */
+#ifndef _PATH_PASSWD_PROG
+#define _PATH_PASSWD_PROG             "/usr/bin/passwd"
 #endif
 
 #ifndef _PATH_LS
