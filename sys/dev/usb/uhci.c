@@ -2918,7 +2918,7 @@ uhci_root_ctrl_start(usbd_xfer_handle xfer)
 		case UHF_PORT_RESET:
 			x = UREAD2(sc, port);
 			UWRITE2(sc, port, x | UHCI_PORTSC_PR);
-			usb_delay_ms(&sc->sc_bus, 10);
+			usb_delay_ms(&sc->sc_bus, USB_PORT_ROOT_RESET_DELAY);
 			UWRITE2(sc, port, x & ~UHCI_PORTSC_PR);
 			delay(100);
 			x = UREAD2(sc, port);
