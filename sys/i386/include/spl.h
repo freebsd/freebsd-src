@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.8 1995/05/11 07:44:16 bde Exp $
+ *	$Id: spl.h,v 1.11 1995/08/26 20:46:43 bde Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -94,8 +94,6 @@ extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
 
 #define	schedsofttty()	(*(unsigned *)&idelayed |= SWI_TTY_PENDING)
 
-void	unpend_V __P((void));
-
 #ifdef __GNUC__
 
 void	splz	__P((void));
@@ -105,7 +103,7 @@ static __inline int name(void)			\
 {						\
 	unsigned x;				\
 						\
-	__asm __volatile("":::"memory");		\
+	__asm __volatile("" : : : "memory");	\
 	x = cpl;				\
 	set_cpl;				\
 	return (x);				\
