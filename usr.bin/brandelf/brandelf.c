@@ -25,16 +25,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: brandelf.c,v 1.1.2.4 1997/08/29 05:28:56 imp Exp $
+ *  $Id: brandelf.c,v 1.1.2.5 1998/01/27 16:23:26 jdp Exp $
  */
 
 #include <elf.h>
-#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <err.h>
 
 static void usage __P((void));
 
@@ -46,7 +46,7 @@ main(int argc, char **argv)
 	int retval = 0;
 	int ch, change = 0, verbose = 0;
 
-	while ((ch = getopt(argc, argv, "t:v")) !=  -1)
+	while ((ch = getopt(argc, argv, "t:v")) != -1)
 		switch (ch) {
 		case 'v':
 			verbose = 1;
