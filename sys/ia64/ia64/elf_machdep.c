@@ -101,32 +101,28 @@ static int
 ia64_coredump(struct thread *td, struct vnode *vp, off_t limit)
 {
 	struct trapframe *tf;
-	uint64_t *kstk, *ustk;
-	uint64_t bspst, ndirty;
+	uint64_t bspst, kstk, ndirty, rnat;
 
 	tf = td->td_frame;
 	ndirty = tf->tf_special.ndirty;
 	if (ndirty != 0) {
-		__asm __volatile("mov   ar.rsc=0;;");
-		__asm __volatile("mov   %0=ar.bspstore" : "=r"(bspst));
+		kstk = td->td_kstack + (tf->tf_special.bspstore & 0x1ffUL);
+		__asm __volatile("mov	ar.rsc=0;;");
+		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
 		/* Make sure we have all the user registers written out. */
-		if (bspst - td->td_kstack < ndirty)
+		if (bspst - kstk < ndirty) {
 			__asm __volatile("flushrs;;");
-		__asm __volatile("mov   ar.rsc=3");
-		ustk = (uint64_t*)tf->tf_special.bspstore;
-		kstk = (uint64_t*)td->td_kstack;
-		while (ndirty > 0) {
-			*ustk++ = *kstk++;
-			if (((uintptr_t)ustk & 0x1ff) == 0x1f8)
-				*ustk++ = 0;
-			if (((uintptr_t)kstk & 0x1ff) == 0x1f8) {
-				kstk++;
-				ndirty -= 8;
-			}
-			ndirty -= 8;
+			__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
 		}
-		tf->tf_special.bspstore = (uintptr_t)ustk;
+		__asm __volatile("mov	%0=ar.rnat;;" : "=r"(rnat));
+		__asm __volatile("mov	ar.rsc=3");
+		copyout((void*)kstk, (void*)tf->tf_special.bspstore, ndirty);
+		kstk += ndirty;
+		tf->tf_special.bspstore += ndirty;
 		tf->tf_special.ndirty = 0;
+		tf->tf_special.rnat =
+		    (bspst > kstk && (bspst & 0x1ffUL) < (kstk & 0x1ffUL))
+		    ? *(uint64_t*)(kstk | 0x1f8UL) : rnat;
 	}
 	return (elf64_coredump(td, vp, limit));
 }
