@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppbconf.c,v 1.1 1997/08/14 13:57:41 msmith Exp $
  *
  */
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include <i386/isa/isa_device.h>
 
 #include <dev/ppbus/ppbconf.h>
+#include <dev/ppbus/ppb_1284.h>
 
 LIST_HEAD(, ppb_data)	ppbdata;	/* list of existing ppbus */
 
@@ -60,11 +61,6 @@ static struct ppb_driver nulldriver = {
 };
 DATA_SET(ppbdriver_set, nulldriver);
 
-
-/*
- * Parallel Port Bus sleep/wakeup queue.
- */
-#define PRIPPB	28	/* PSOCK < PRIPPB < PWAIT 		XXX */
 
 /*
  * ppb_alloc_bus()
@@ -98,6 +94,159 @@ ppb_alloc_bus(void)
 	return(ppb);
 }
 
+static char *pnp_tokens[] = {
+	"PRINTER", "MODEM", "NET", "HDC", "PCMCIA", "MEDIA",
+	"FDC", "PORTS", "SCANNER", "DIGICAM", "", NULL };
+
+static char *pnp_classes[] = {
+	"printer", "modem", "network device",
+	"hard disk", "PCMCIA", "multimedia device",
+	"floppy disk", "ports", "scanner",
+	"digital camera", "unknown device", NULL };
+
+/*
+ * search_token()
+ *
+ * Search the first occurence of a token within a string
+ */
+static char *
+search_token(char *str, int slen, char *token)
+{
+	char *p;
+	int tlen, i, j;
+
+#define UNKNOWN_LENGTH	-1
+
+	if (slen == UNKNOWN_LENGTH)
+		/* get string's length */
+		for (slen = 0, p = str; *p != '\0'; p++)
+			slen ++;
+
+	/* get token's length */
+	for (tlen = 0, p = token; *p != '\0'; p++)
+		tlen ++;
+
+	if (tlen == 0)
+		return (str);
+
+	for (i = 0; i <= slen-tlen; i++) {
+		for (j = 0; j < tlen; j++)
+			if (str[i+j] != token[j])
+				break;
+		if (j == tlen)
+			return (&str[i]);
+	}
+
+	return (NULL);
+}
+
+/*
+ * ppb_pnp_detect()
+ *
+ * Returns the class id. of the peripherial, -1 otherwise
+ */
+static int
+ppb_pnp_detect(struct ppb_data *ppb)
+{
+	char *token, *q, *class = 0;
+	int i, len, error;
+	char str[PPB_PnP_STRING_SIZE+1];
+
+	struct ppb_device pnpdev;	/* temporary device to perform I/O */
+
+	/* initialize the pnpdev structure for future use */
+	bzero(&pnpdev, sizeof(pnpdev));
+
+	pnpdev.ppb = ppb;
+
+#ifdef PnP_DEBUG
+	printf("ppb: <PnP> probing PnP devices on ppbus%d...\n",
+		ppb->ppb_link->adapter_unit);
+#endif
+
+	ppb_wctr(&pnpdev, nINIT | SELECTIN);
+
+	/* select NIBBLE_1284_REQUEST_ID mode */
+	if ((error = nibble_1284_mode(&pnpdev, NIBBLE_1284_REQUEST_ID))) {
+#ifdef PnP_DEBUG
+		printf("ppb: <PnP> nibble_1284_mode()=%d\n", error);
+#endif
+		return (-1);
+	}
+
+	len = 0;
+	for (q = str; !(ppb_rstr(&pnpdev) & ERROR); q++) {
+		if ((error = nibble_1284_inbyte(&pnpdev, q))) {
+#ifdef PnP_DEBUG
+			printf("ppb: <PnP> nibble_1284_inbyte()=%d\n", error);
+#endif
+			return (-1);
+		}
+		if (len++ >= PPB_PnP_STRING_SIZE) {
+			printf("ppb: <PnP> not space left!\n");
+			return (-1);
+		}
+	}
+	*q = '\0';
+
+	nibble_1284_sync(&pnpdev);
+
+#ifdef PnP_DEBUG
+	printf("ppb: <PnP> %d characters: ", len);
+	for (i = 0; i < len; i++)
+		printf("0x%x ", str[i]);
+	printf("\n");
+#endif
+
+	/* replace ';' characters by '\0' */
+	for (i = 0; i < len; i++)
+		str[i] = (str[i] == ';') ? '\0' : str[i];
+
+	if ((token = search_token(str, len, "MFG")) != NULL)
+		printf("ppbus%d: <%s", ppb->ppb_link->adapter_unit,
+			search_token(token, UNKNOWN_LENGTH, ":") + 1);
+	else
+		printf("ppbus%d: <unknown", ppb->ppb_link->adapter_unit);
+
+	if ((token = search_token(str, len, "MDL")) != NULL)
+		printf(" %s",
+			search_token(token, UNKNOWN_LENGTH, ":") + 1);
+	else
+		printf(" unknown");
+
+	if ((token = search_token(str, len, "VER")) != NULL)
+		printf("/%s",
+			search_token(token, UNKNOWN_LENGTH, ":") + 1);
+
+	if ((token = search_token(str, len, "REV")) != NULL)
+		printf(".%s",
+			search_token(token, UNKNOWN_LENGTH, ":") + 1);
+
+	printf(">");
+
+	if ((token = search_token(str, len, "CLS")) != NULL) {
+		class = search_token(token, UNKNOWN_LENGTH, ":") + 1;
+		printf(" %s", class);
+	}
+
+	if ((token = search_token(str, len, "CMD")) != NULL)
+		printf(" %s",
+			search_token(token, UNKNOWN_LENGTH, ":") + 1);
+
+	printf("\n");
+
+	if (class)
+		/* identify class ident */
+		for (i = 0; pnp_tokens[i] != NULL; i++) {
+			if (search_token(class, len, pnp_tokens[i]) != NULL) {
+				return (i);
+				break;
+			}
+		}
+
+	return (PPB_PnP_UNKNOWN);
+}
+
 /*
  * ppb_attachdevs()
  *
@@ -110,9 +259,12 @@ ppb_attachdevs(struct ppb_data *ppb)
 	int error;
 	struct ppb_device *dev;
 	struct ppb_driver **p_drvpp, *p_drvp;
-	
+
 	LIST_INIT(&ppb->ppb_devs);	/* initialise device/driver list */
 	p_drvpp = (struct ppb_driver **)ppbdriver_set.ls_items;
+
+	/* detect PnP devices */
+	ppb->class_id = ppb_pnp_detect(ppb);
 	
 	/*
 	 * Blindly try all probes here.  Later we should look at
@@ -134,6 +286,69 @@ ppb_attachdevs(struct ppb_data *ppb)
 }
 
 /*
+ * ppb_next_bus()
+ *
+ * Return the next bus in ppbus queue
+ */
+struct ppb_data *
+ppb_next_bus(struct ppb_data *ppb)
+{
+
+	if (ppb == NULL)
+		return (ppbdata.lh_first);
+
+	return (ppb->ppb_chain.le_next);
+}
+
+/*
+ * ppb_lookup_bus()
+ *
+ * Get ppb_data structure pointer according to the base address of the ppbus
+ */
+struct ppb_data *
+ppb_lookup_bus(int base_port)
+{
+	struct ppb_data *ppb;
+
+	for (ppb = ppbdata.lh_first; ppb; ppb = ppb->ppb_chain.le_next)
+		if (ppb->ppb_link->base == base_port)
+			break;
+
+	return (ppb);
+}
+
+/*
+ * ppb_attach_device()
+ *
+ * Called by loadable kernel modules to add a device
+ */
+int
+ppb_attach_device(struct ppb_device *dev)
+{
+	struct ppb_data *ppb = dev->ppb;
+
+	/* add the device to the list of probed devices */
+	LIST_INSERT_HEAD(&ppb->ppb_devs, dev, chain);
+
+	return (0);
+}
+
+/*
+ * ppb_remove_device()
+ *
+ * Called by loadable kernel modules to remove a device
+ */
+void
+ppb_remove_device(struct ppb_device *dev)
+{
+
+	/* remove the device from the list of probed devices */
+	LIST_REMOVE(dev, chain);
+
+	return;
+}
+
+/*
  * ppb_request_bus()
  *
  * Allocate the device to perform transfers.
@@ -146,28 +361,22 @@ ppb_request_bus(struct ppb_device *dev, int how)
 	int s, error = 0;
 	struct ppb_data *ppb = dev->ppb;
 
-	/*
-	 * During initialisation, ppb is null.
-	 */
-	if (!ppb)
-		return (0);
-
-	while (error != EINTR) {
+	while (!error) {
 		s = splhigh();	
 		if (ppb->ppb_owner) {
 			splx(s);
 
 			switch (how) {
 			case (PPB_WAIT | PPB_INTR):
-				
-				error = tsleep(ppb, PRIPPB | PCATCH,
-						"ppbreq", 0);
+				error = tsleep(ppb, PPBPRI|PCATCH, "ppbreq", 0);
 				break;
-			case (PPB_WAIT):
-				error = tsleep(ppb, PRIPPB, "ppbreq", 0);
+
+			case (PPB_WAIT | PPB_NOINTR):
+				error = tsleep(ppb, PPBPRI, "ppbreq", 0);
 				break;
+
 			default:
-				return EWOULDBLOCK;
+				return (EWOULDBLOCK);
 				break;
 			}
 
@@ -179,7 +388,7 @@ ppb_request_bus(struct ppb_device *dev, int how)
 		}
 	}
 
-	return (EINTR);
+	return (error);
 }
 
 /*
@@ -193,12 +402,6 @@ ppb_release_bus(struct ppb_device *dev)
 	int s;
 	struct ppb_data *ppb = dev->ppb;
 
-	/*
-	 * During initialisation, ppb is null.
-	 */
-	if (!ppb)
-		return (0);
-
 	s = splhigh();
 	if (ppb->ppb_owner != dev) {
 		splx(s);
@@ -208,132 +411,8 @@ ppb_release_bus(struct ppb_device *dev)
 	ppb->ppb_owner = 0;
 	splx(s);
 
-	/*
-	 * Wakeup waiting processes.
-	 */
+	/* wakeup waiting processes */
 	wakeup(ppb);
-
-	return (0);
-}
-
-/*
- * ppb_intr()
- *
- * Function called by ppcintr() when an intr occurs.
- */
-void
-ppb_intr(struct ppb_link *pl)
-{
-	struct ppb_data *ppb = pl->ppbus;
-
-	/*
-	 * Call chipset dependent code.
-	 * Should be filled at chipset initialisation if needed.
-	 */
-	if (pl->adapter->intr_handler)
-		(*pl->adapter->intr_handler)(pl->adapter_unit);
-
-	/*
-	 * Call upper handler iff the bus is owned by a device and
-	 * this device has specified an interrupt handler.
-	 */
-	if (ppb->ppb_owner && ppb->ppb_owner->intr)
-		(*ppb->ppb_owner->intr)(ppb->ppb_owner->id_unit);
-
-	return;
-}
-
-/*
- * ppb_reset_epp_timeout()
- *
- * Reset the EPP timeout bit in the status register.
- */
-int
-ppb_reset_epp_timeout(struct ppb_device *dev)
-{
-	struct ppb_data *ppb = dev->ppb;
-
-	if (ppb->ppb_owner != dev)
-		return (EACCES);
-
-	(*ppb->ppb_link->adapter->reset_epp_timeout)(dev->id_unit);
-
-	return (0);
-}
-
-/*
- * ppb_ecp_sync()
- *
- * Wait for the ECP FIFO to be empty.
- */
-int
-ppb_ecp_sync(struct ppb_device *dev)
-{
-	struct ppb_data *ppb = dev->ppb;
-
-	if (ppb->ppb_owner != dev)
-		return (EACCES);
-
-	(*ppb->ppb_link->adapter->ecp_sync)(dev->id_unit);
-
-	return (0);
-}
-
-/*
- * ppb_get_mode()
- *
- * Read the mode (SPP, EPP...) of the chipset.
- */
-int
-ppb_get_mode(struct ppb_device *dev)
-{
-	return (dev->ppb->ppb_link->mode);
-}
-
-/*
- * ppb_get_epp_protocol()
- *
- * Read the EPP protocol (1.9 or 1.7).
- */
-int
-ppb_get_epp_protocol(struct ppb_device *dev)
-{
-	return (dev->ppb->ppb_link->epp_protocol);
-}
-
-/*
- * ppb_get_irq()
- *
- * Return the irq, 0 if none.
- */
-int
-ppb_get_irq(struct ppb_device *dev)
-{
-	return (dev->ppb->ppb_link->id_irq);
-}
-
-/*
- * ppb_get_status()
- *
- * Read the status register and update the status info.
- */
-int
-ppb_get_status(struct ppb_device *dev, struct ppb_status *status)
-{
-	struct ppb_data *ppb = dev->ppb;
-	register char r;
-
-	if (ppb->ppb_owner != dev)
-		return (EACCES);
-
-	r = status->status = ppb_rstr(dev);
-
-	status->timeout	= r & TIMEOUT;
-	status->error	= !(r & nFAULT);
-	status->select	= r & SELECT;
-	status->paper_end = r & ERROR;
-	status->ack	= !(r & nACK);
-	status->busy	= !(r & nBUSY);
 
 	return (0);
 }
