@@ -415,10 +415,10 @@ void	_flockfile_debug __P((FILE *, char *, int));
 #else
 #define _FLOCKFILE(x)	flockfile(x)
 #endif
+extern int __isthreaded;
 static __inline int			\
 __getc_locked(FILE *_fp)		\
 {					\
-	extern int __isthreaded;	\
 	int _ret;			\
 	if (__isthreaded)		\
 		_FLOCKFILE(_fp);	\
@@ -430,7 +430,6 @@ __getc_locked(FILE *_fp)		\
 static __inline int			\
 __putc_locked(int _x, FILE *_fp)	\
 {					\
-	extern int __isthreaded;	\
 	int _ret;			\
 	if (__isthreaded)		\
 		_FLOCKFILE(_fp);	\
