@@ -391,8 +391,13 @@ static void wi_rxeof(sc)
 
 		bcopy((char *)&rx_frame.wi_addr1,
 		    (char *)&eh->ether_dhost, ETHER_ADDR_LEN);
-		bcopy((char *)&rx_frame.wi_addr2,
-		    (char *)&eh->ether_shost, ETHER_ADDR_LEN);
+		if (sc->wi_ptype == WI_PORTTYPE_ADHOC) {
+			bcopy((char *)&rx_frame.wi_addr2,
+			    (char *)&eh->ether_shost, ETHER_ADDR_LEN);
+		} else {
+			bcopy((char *)&rx_frame.wi_addr3,
+			    (char *)&eh->ether_shost, ETHER_ADDR_LEN);
+		}
 		bcopy((char *)&rx_frame.wi_type,
 		    (char *)&eh->ether_type, sizeof(u_int16_t));
 
