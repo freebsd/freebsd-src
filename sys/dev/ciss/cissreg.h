@@ -404,14 +404,20 @@ struct ciss_config_table
 #define CISS_TRANSPORT_BUS_TYPE_ULTRA3	(1<<1)
 #define CISS_TRANSPORT_BUS_TYPE_FIBRE1	(1<<8)
 #define CISS_TRANSPORT_BUS_TYPE_FIBRE2	(1<<9)
+    u_int32_t	transport_offset;
+    char	server_name[16];
+    u_int32_t	heartbeat;
     u_int32_t	host_driver;
 #define CISS_DRIVER_SUPPORT_UNIT_ATTENTION	(1<<0)
 #define CISS_DRIVER_QUICK_INIT			(1<<1)
 #define CISS_DRIVER_INTERRUPT_ON_LOCKUP		(1<<2)
 #define CISS_DRIVER_SUPPORT_MIXED_Q_TAGS	(1<<3)
 #define CISS_DRIVER_HOST_IS_ALPHA		(1<<4)
-    char	server_name[16];
-    u_int32_t	heartbeat;
+#define CISS_DRIVER_MULTI_LUN_SUPPORT		(1<<5)
+#define CISS_DRIVER_MESSAGE_REQUESTS_SUPPORTED	(1<<7)
+#define CISS_DRIVER_DAUGHTER_ATTACHED		(1<<8)
+#define CISS_DRIVER_SCSI_PREFETCH		(1<<9)
+    u_int32_t	max_sg_length;		/* 31 in older firmware */
 } __packed;
 
 /*
