@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.seq#55 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.seq#56 $"
 PATCH_ARG_LIST = "struct ahc_softc *ahc"
 PREFIX = "ahc_"
 
@@ -1044,11 +1044,19 @@ ultra2_fifoflush:
 			 * LAST_SEG_DONE to come true on a completed transfer
 			 * and then test to see if the data FIFO is non-empty.
 			 */
-			test	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL jz . + 4;
+			test	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL
+				jz ultra2_wait_fifoemp;
 			test	SG_CACHE_SHADOW, LAST_SEG_DONE jz .;
+			/*
+			 * FIFOEMP can lag LAST_SEG_DONE.  Wait a few
+			 * clocks before calling this an overrun.
+			 */
+			test	DFSTATUS, FIFOEMP jnz ultra2_fifoempty;
+			test	DFSTATUS, FIFOEMP jnz ultra2_fifoempty;
 			test	DFSTATUS, FIFOEMP jnz ultra2_fifoempty;
 			/* Overrun */
 			jmp	data_phase_loop;
+ultra2_wait_fifoemp:
 			test	DFSTATUS, FIFOEMP jz .;
 		}
 ultra2_fifoempty:
