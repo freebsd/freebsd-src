@@ -252,7 +252,7 @@ _vacation=	vacation
 .if !defined(NO_TOOLCHAIN)
 _c89=		c89
 _c99=		c99
-.if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} != "powerpc"
 _gprof=		gprof
 .endif
 _lex=		lex
