@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.4 1998/07/12 22:34:39 des Exp $
+ *	$Id: ftp.c,v 1.5 1998/08/17 09:30:19 des Exp $
  */
 
 /*
@@ -70,6 +70,7 @@
 #include <unistd.h>
 
 #include "fetch.h"
+#include "common.h"
 #include "ftperr.c"
 
 #define FTP_DEFAULT_TO_ANONYMOUS
@@ -93,40 +94,6 @@ static FILE *cached_socket;
 static char *_ftp_last_reply;
 
 /*
- * Map error code to string
- */
-static const char *
-_ftp_errstring(int e)
-{
-    struct ftperr *p = _ftp_errlist;
-
-    while ((p->num != -1) && (p->num != e))
-	p++;
-    
-    return p->string;
-}
-
-/*
- * Set error code
- */
-static void
-_ftp_seterr(int e)
-{
-    fetchLastErrCode = e;
-    fetchLastErrText = _ftp_errstring(e);
-}
-
-/*
- * Set error code according to errno
- */
-static void
-_ftp_syserr(void)
-{
-    fetchLastErrCode = errno;
-    fetchLastErrText = strerror(errno);
-}
-
-/*
  * Get server response, check that first digit is a '2'
  */
 static int
@@ -140,7 +107,7 @@ _ftp_chkerr(FILE *s, int *e)
     
     do {
 	if (((line = fgetln(s, &len)) == NULL) || (len < 4)) {
-	    _ftp_syserr();
+	    _fetch_syserr();
 	    return -1;
 	}
     } while (line[3] == '-');
@@ -217,7 +184,7 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, int pasv)
 
     /* open data socket */
     if ((sd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-	_ftp_syserr();
+	_fetch_syserr();
 	return NULL;
     }
     
@@ -296,7 +263,7 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, int pasv)
     return df;
 
 sysouch:
-    _ftp_syserr();
+    _fetch_syserr();
 ouch:
     close(sd);
     return NULL;
@@ -330,13 +297,13 @@ _ftp_connect(char *host, int port, char *user, char *pwd)
 
     /* check connection */
     if (sd == -1) {
-	_ftp_syserr();
+	_fetch_syserr();
 	return NULL;
     }
 
     /* streams make life easier */
     if ((f = fdopen(sd, "r+")) == NULL) {
-	_ftp_syserr();
+	_fetch_syserr();
 	goto ouch;
     }
 
