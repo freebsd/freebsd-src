@@ -407,7 +407,6 @@ Option:
 		op->op_name = ns($1);
 		op->op_next = opt;
 		op->op_value = 0;
-		op->op_line = yyline;
 		opt = op;
 		if ((s = strchr(op->op_name, '='))) {
 			/* AARGH!!!! Old-style bogon */
@@ -423,7 +422,6 @@ Option:
 		op->op_name = ns($1);
 		op->op_next = opt;
 		op->op_value = ns($3);
-		op->op_line = yyline;
 		opt = op;
 		free(temp_id);
 		free(val_id);
@@ -460,7 +458,6 @@ Mkoption:
 		op->op_ownfile = 0;	/* for now */
 		op->op_next = mkopt;
 		op->op_value = ns($3);
-		op->op_line = yyline;
 		mkopt = op;
 		free(temp_id);
 		free(val_id);
