@@ -33,15 +33,17 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/mbuf.h>
+#include <sys/sysctl.h>
 
 #include <stdlib.h>
 #include <string.h>
-#include <nlist.h>
 #include <paths.h>
 #include "systat.h"
 #include "extern.h"
@@ -102,11 +104,14 @@ showmbufs()
 		return;
 	for (j = 0; j < wnd->maxy; j++) {
 		max = 0, index = -1;
-		for (i = 0; i < wnd->maxy; i++)
+		for (i = 0; i < wnd->maxy; i++) {
+			if (i == MT_FREE)
+				continue;
 			if (mb->m_mtypes[i] > max) {
 				max = mb->m_mtypes[i];
 				index = i;
 			}
+		}
 		if (max == 0)
 			break;
 		if (j > NNAMES)
@@ -124,39 +129,58 @@ showmbufs()
 			while (max--)
 				waddch(wnd, 'X');
 		wclrtoeol(wnd);
+		mb->m_mbufs -= mb->m_mtypes[index];
 		mb->m_mtypes[index] = 0;
+	}
+	if (mb->m_mbufs) {
+		mvwprintw(wnd, 1+j, 0, "%-10.10s", "free");
+		if (mb->m_mbufs > 60) {
+			sprintf(buf, " %d", mb->m_mbufs);
+			mb->m_mbufs = 60;
+			while (mb->m_mbufs--)
+				waddch(wnd, 'X');
+			waddstr(wnd, buf);
+		} else {
+			while(mb->m_mbufs--)
+				waddch(wnd, 'X');
+		}
+		wclrtoeol(wnd);
+		j++;
 	}
 	wmove(wnd, 1+j, 0); wclrtobot(wnd);
 }
 
-static struct nlist namelist[] = {
-#define	X_MBSTAT	0
-	{ "_mbstat" },
-	{ "" }
-};
-
 int
 initmbufs()
 {
-	if (namelist[X_MBSTAT].n_type == 0) {
-		if (kvm_nlist(kd, namelist)) {
-			nlisterr(namelist);
-			return(0);
-		}
-		if (namelist[X_MBSTAT].n_type == 0) {
-			error("namelist on %s failed", getbootfile());
-			return(0);
-		}
+	size_t len;
+	int name[3];
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_IPC;
+	name[2] = KIPC_MBSTAT;
+	len = 0;
+	if (sysctl(name, 3, 0, &len, 0, 0) < 0) {
+		error("sysctl getting mbstat size failed");
+		return 0;
 	}
+
 	if (mb == 0)
-		mb = (struct mbstat *)calloc(1, sizeof (*mb));
-	return(1);
+		mb = (struct mbstat *)calloc(1, sizeof *mb);
+	return 1;
 }
 
 void
 fetchmbufs()
 {
-	if (namelist[X_MBSTAT].n_type == 0)
+	int name[3];
+	size_t len;
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_IPC;
+	name[2] = KIPC_MBSTAT;
+	len = sizeof *mb;
+
+	if (sysctl(name, 3, mb, &len, 0, 0) < 0)
 		return;
-	NREAD(X_MBSTAT, mb, sizeof (*mb));
 }
