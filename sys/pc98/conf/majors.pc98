@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.46 1999/01/08 16:02:03 kato Exp $
+$Id: majors.pc98,v 1.47 1999/01/08 16:03:11 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -128,7 +128,7 @@ chrdev	name		comments
 81	rp		RocketPort/Steve Gericke <steveg@comtrol.com>
 82	ppi		Generic Parallel I/O <Nicolas.Souchu@prism.uvsq.fr>
 83	can		CAN16-2 CAN-PC Interface
-84	ttxt		Unitext teletext decoder (arg@arg1.demon.co.uk)
+84	dtfp		Datum Time and Frequency processor (louie@UU.NET)
 85	vesa		VESA support device (j_mini@efn.org)
 86      alog            Industrial Computer Source AIO8-P driver
 87	wfd		ATAPI floppy client of "ata"
@@ -157,5 +157,7 @@ chrdev	name		comments
 110	ses		SCSI Environmental Services driver (mjacob@feral.com)
 111	ums		USB Mouse (nick.hibma@jrc.it)
 112	kbd		keyboard
+113	ulpt		USB Printer (nick.hibma@jrc.it)
+114	ugen		USB Generic device (nick.hibma@jrc.it)
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
