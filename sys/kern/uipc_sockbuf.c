@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.34 1998/05/15 20:11:30 wollman Exp $
+ *	$Id: uipc_socket2.c,v 1.35 1998/05/17 11:52:56 phk Exp $
  */
 
 #include <sys/param.h>
@@ -327,6 +327,8 @@ sowakeup(so, sb)
 		else if (so->so_pgid > 0 && (p = pfind(so->so_pgid)) != 0)
 			psignal(p, SIGIO);
 	}
+	if (sb->sb_flags & SB_UPCALL)
+		(*so->so_upcall)(so, so->so_upcallarg, M_DONTWAIT);
 }
 
 /*
