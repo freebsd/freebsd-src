@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -52,15 +56,16 @@ static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 
 #include <vm/vm_param.h>
 
-#include <signal.h>
-#include <nlist.h>
 #include <ctype.h>
-#include <utmp.h>
+#include <err.h>
+#include <nlist.h>
 #include <paths.h>
-#include <string.h>
+#include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <utmp.h>
 #include "systat.h"
 #include "extern.h"
 
@@ -626,10 +631,8 @@ allocinfo(s)
 {
 
 	s->intrcnt = (long *) calloc(nintr, sizeof(long));
-	if (s->intrcnt == NULL) {
-		fprintf(stderr, "systat: out of memory\n");
-		exit(2);
-	}
+	if (s->intrcnt == NULL)
+		errx(2, "out of memory");
 }
 
 static void
