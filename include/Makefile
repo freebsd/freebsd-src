@@ -48,7 +48,7 @@ LNOHEADERDIRS=	isofs ufs dev
 LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs cam/scsi dev/ppbus dev/usb
 
 # For SHARED=symlinks, cam is a symlink, so cam/scsi is taken care of
-LSYMSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs dev/usb
+LSYMSUBDIRS=	isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs dev/ppbus dev/usb
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
