@@ -819,7 +819,7 @@ hme_init(void *xsc)
 #endif
 
 	/* Set the current media. */
-	mii_mediachg(sc->sc_mii);
+	/* mii_mediachg(sc->sc_mii); */
 
 	/* Start the one second timer. */
 	callout_reset(&sc->sc_tick_ch, hz, hme_tick, sc);
