@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_axreg.h,v 1.5 1999/04/08 17:42:47 wpaul Exp $
+ *	$Id: if_axreg.h,v 1.6 1999/05/06 15:32:43 wpaul Exp $
  */
 
 /*
@@ -567,6 +567,5 @@ struct ax_softc {
 
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
-					+ 1*1024*1024*1024)
+#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
 #endif
