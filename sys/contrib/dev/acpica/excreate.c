@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 101 $
+ *              $Revision: 102 $
  *
  *****************************************************************************/
 
@@ -681,29 +681,36 @@ AcpiExCreateMethod (
     ObjDesc->Method.AmlStart  = AmlStart;
     ObjDesc->Method.AmlLength = AmlLength;
 
-    /* disassemble the method flags */
-
+    /*
+     * Disassemble the method flags.  Split off the Arg Count
+     * for efficiency
+     */
     MethodFlags = (UINT8) Operand[1]->Integer.Value;
 
-    ObjDesc->Method.MethodFlags = MethodFlags;
-    ObjDesc->Method.ParamCount  = (UINT8) (MethodFlags & METHOD_FLAGS_ARG_COUNT);
+    ObjDesc->Method.MethodFlags = (UINT8) (MethodFlags & ~AML_METHOD_ARG_COUNT);
+    ObjDesc->Method.ParamCount  = (UINT8) (MethodFlags & AML_METHOD_ARG_COUNT);
 
     /*
      * Get the concurrency count.  If required, a semaphore will be
      * created for this method when it is parsed.
      */
-    if (MethodFlags & METHOD_FLAGS_SERIALIZED)
+    if (AcpiGbl_AllMethodsSerialized)
+    {
+        ObjDesc->Method.Concurrency = 1;
+        ObjDesc->Method.MethodFlags |= AML_METHOD_SERIALIZED;
+    }
+    else if (MethodFlags & AML_METHOD_SERIALIZED)
     {
         /*
          * ACPI 1.0: Concurrency = 1
          * ACPI 2.0: Concurrency = (SyncLevel (in method declaration) + 1)
          */
         ObjDesc->Method.Concurrency = (UINT8)
-                        (((MethodFlags & METHOD_FLAGS_SYNCH_LEVEL) >> 4) + 1);
+                        (((MethodFlags & AML_METHOD_SYNCH_LEVEL) >> 4) + 1);
     }
     else
     {
-        ObjDesc->Method.Concurrency = INFINITE_CONCURRENCY;
+        ObjDesc->Method.Concurrency = ACPI_INFINITE_CONCURRENCY;
     }
 
     /* Attach the new object to the method Node */

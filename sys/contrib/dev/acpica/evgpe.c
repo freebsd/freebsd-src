@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evgpe - General Purpose Event handling and dispatch
- *              $Revision: 33 $
+ *              $Revision: 34 $
  *
  *****************************************************************************/
 
@@ -228,6 +228,12 @@ AcpiEvGpeDetect (
 
     ACPI_FUNCTION_NAME ("EvGpeDetect");
 
+    /* Check for the case where there are no GPEs */
+
+    if (!GpeXruptList)
+    {
+        return (IntStatus);
+    }
 
     /* Examine all GPE blocks attached to this interrupt level */
 
