@@ -28,7 +28,7 @@
 # 
 
 if ($#ARGV != 1) {
-    print STDERR "Usage: driver-remove.pl config_file BOOTMFS\n";
+    print STDERR "usage: driver-remove.pl config_file BOOTMFS\n";
     exit 1;
 }
 

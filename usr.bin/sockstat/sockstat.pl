@@ -211,7 +211,7 @@ sub print_unix($$) {
 # Print usage message and exit
 #
 sub usage() {
-    print(STDERR "Usage: sockstat [-46clu] [-p ports]\n");
+    print(STDERR "usage: sockstat [-46clu] [-p ports]\n");
     exit(1);
 }
 

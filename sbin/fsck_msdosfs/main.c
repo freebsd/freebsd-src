@@ -59,7 +59,7 @@ static void usage(void) __dead2;
 static void
 usage()
 {
-	errexit("Usage: fsck_msdos [-fnpy] filesystem ... \n");
+	errexit("usage: fsck_msdos [-fnpy] filesystem ... \n");
 }
 
 int

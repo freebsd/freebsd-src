@@ -82,7 +82,7 @@ int yield(int argc, char *argv[])
 		n = nslaves = 10;
 
 	else if (argc != 2) {
-		fprintf(stderr, "Usage: prog [n_instances]\n");
+		fprintf(stderr, "usage: prog [n_instances]\n");
 		exit(-1);
 	}
 	else

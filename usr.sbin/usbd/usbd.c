@@ -211,7 +211,7 @@ int  find_action	__P((struct usb_device_info *devinfo,
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-d] [-v] [-t timeout] [-e] [-f dev]\n"
+	fprintf(stderr, "usage: %s [-d] [-v] [-t timeout] [-e] [-f dev]\n"
 			"           [-n] [-c config]\n",
 		__progname);
 	exit(1);

@@ -215,7 +215,7 @@ nat_RedirectAddr(struct cmdargs const *arg)
     error = StrToAddr(arg->argv[arg->argn+1], &aliasaddr);
     if (error) {
       prompt_Printf(arg->prompt, "address redirect: invalid alias address\n");
-      prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+      prompt_Printf(arg->prompt, "usage: nat %s %s\n", arg->cmd->name,
                     arg->cmd->syntax);
       return 1;
     }
@@ -223,7 +223,7 @@ nat_RedirectAddr(struct cmdargs const *arg)
     if (link == NULL) {
       prompt_Printf(arg->prompt, "address redirect: packet aliasing"
                     " engine error\n");
-      prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+      prompt_Printf(arg->prompt, "usage: nat %s %s\n", arg->cmd->name,
                     arg->cmd->syntax);
     }
   } else
@@ -269,7 +269,7 @@ nat_RedirectProto(struct cmdargs const *arg)
       error = StrToAddr(arg->argv[arg->argn + 2], &publicIP);
       if (error) {
         prompt_Printf(arg->prompt, "proto redirect: invalid alias address\n");
-        prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+        prompt_Printf(arg->prompt, "usage: nat %s %s\n", arg->cmd->name,
                       arg->cmd->syntax);
         return 1;
       }
@@ -280,7 +280,7 @@ nat_RedirectProto(struct cmdargs const *arg)
       error = StrToAddr(arg->argv[arg->argn + 2], &remoteIP);
       if (error) {
         prompt_Printf(arg->prompt, "proto redirect: invalid dst address\n");
-        prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+        prompt_Printf(arg->prompt, "usage: nat %s %s\n", arg->cmd->name,
                       arg->cmd->syntax);
         return 1;
       }
@@ -291,7 +291,7 @@ nat_RedirectProto(struct cmdargs const *arg)
     if (link == NULL) {
       prompt_Printf(arg->prompt, "proto redirect: packet aliasing"
                     " engine error\n");
-      prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
+      prompt_Printf(arg->prompt, "usage: nat %s %s\n", arg->cmd->name,
                     arg->cmd->syntax);
     }
   } else

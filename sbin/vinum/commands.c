@@ -173,7 +173,7 @@ vinum_read(int argc, char *argv[], char *arg0[])
 
     reply = (struct _ioctl_reply *) &buffer;
     if (argc < 1) {					    /* wrong arg count */
-	fprintf(stderr, "Usage: read drive [drive ...]\n");
+	fprintf(stderr, "usage: read drive [drive ...]\n");
 	return;
     }
     strcpy(buffer, "read ");
@@ -241,7 +241,7 @@ vinum_rm(int argc, char *argv[], char *arg0[])
     struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
 
     if (argc == 0)					    /* start everything */
-	fprintf(stderr, "Usage: rm object [object...]\n");
+	fprintf(stderr, "usage: rm object [object...]\n");
     else {						    /* start specified objects */
 	int index;
 	enum objecttype type;
@@ -933,7 +933,7 @@ vinum_attach(int argc, char *argv[], char *argv0[])
     if ((argc < 2)
 	|| (argc > 4)) {
 	fprintf(stderr,
-	    "Usage: \tattach <subdisk> <plex> [rename] [<plexoffset>]\n"
+	    "usage: \tattach <subdisk> <plex> [rename] [<plexoffset>]\n"
 	    "\tattach <plex> <volume> [rename]\n");
 	return;
     }
@@ -1055,7 +1055,7 @@ vinum_detach(int argc, char *argv[], char *argv0[])
     if ((argc < 1)
 	|| (argc > 2)) {
 	fprintf(stderr,
-	    "Usage: \tdetach <subdisk> [rename]\n"
+	    "usage: \tdetach <subdisk> [rename]\n"
 	    "\tdetach <plex> [rename]\n");
 	return;
     }
@@ -1196,7 +1196,7 @@ void
 vinum_rename(int argc, char *argv[], char *argv0[])
 {
     if (argc != 2) {
-	fprintf(stderr, "Usage: \trename <object> <new name>\n");
+	fprintf(stderr, "usage: \trename <object> <new name>\n");
 	return;
     }
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
@@ -1225,7 +1225,7 @@ vinum_mv(int argc, char *argv[], char *argv0[])
     struct vinum_ioctl_msg *msg = (struct vinum_ioctl_msg *) &reply;
 
     if (argc < 2) {
-	fprintf(stderr, "Usage: \tmove <dest> <src> ...\n");
+	fprintf(stderr, "usage: \tmove <dest> <src> ...\n");
 	return;
     }
     /* Get current config */
@@ -1433,7 +1433,7 @@ vinum_setdaemon(int argc, char *argv[], char *argv0[])
 	break;
 
     default:
-	fprintf(stderr, "Usage: \tsetdaemon [<bitmask>]\n");
+	fprintf(stderr, "usage: \tsetdaemon [<bitmask>]\n");
     }
     checkupdates();					    /* make sure we're updating */
 }
@@ -1445,7 +1445,7 @@ vinum_saveconfig(int argc, char *argv[], char *argv0[])
     int ioctltype;
 
     if (argc != 0) {
-	printf("Usage: saveconfig\n");
+	printf("usage: saveconfig\n");
 	return;
     }
     ioctltype = 1;					    /* user saveconfig */
@@ -2248,7 +2248,7 @@ vinum_readpol(int argc, char *argv[], char *argv0[])
     int plexno;
 
     if (argc == 0) {					    /* start everything */
-	fprintf(stderr, "Usage: readpol <volume> <plex>|round\n");
+	fprintf(stderr, "usage: readpol <volume> <plex>|round\n");
 	return;
     }
     object = find_object(argv[1], &type);		    /* look for it */
@@ -2360,7 +2360,7 @@ vinum_checkparity(int argc, char *argv[], char *argv0[])
 {
     Verbose = vflag;					    /* accept -v for verbose */
     if (argc == 0)					    /* no parameters? */
-	fprintf(stderr, "Usage: checkparity object [object...]\n");
+	fprintf(stderr, "usage: checkparity object [object...]\n");
     else
 	parityops(argc, argv, checkparity);
 }
@@ -2369,7 +2369,7 @@ void
 vinum_rebuildparity(int argc, char *argv[], char *argv0[])
 {
     if (argc == 0)					    /* no parameters? */
-	fprintf(stderr, "Usage: rebuildparity object [object...]\n");
+	fprintf(stderr, "usage: rebuildparity object [object...]\n");
     else
 	parityops(argc, argv, vflag ? rebuildandcheckparity : rebuildparity);
 }

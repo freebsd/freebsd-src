@@ -1031,7 +1031,7 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
     FILE *of;
 
     if (argc > 1) {
-	fprintf(stderr, "Usage: \tprintconfig [<outfile>]\n");
+	fprintf(stderr, "usage: \tprintconfig [<outfile>]\n");
 	return;
     } else if (argc == 1)
 	of = fopen(argv[0], "w");

@@ -66,7 +66,7 @@ static const char rcsid[] =
 #include <err.h>
 #include "hdr.h"        /* SEED lives in there; keep them coordinated. */
 
-#define USAGE "Usage: setup file > data.c (file is typically glorkz)"
+#define USAGE "usage: setup file > data.c (file is typically glorkz)"
 
 #define YES 1
 #define NO  0

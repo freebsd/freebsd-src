@@ -84,7 +84,7 @@ tninit(void)
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s %s%s%s%s\n",
+	fprintf(stderr, "usage: %s %s%s%s%s\n",
 	    prompt,
 	    "[-4] [-6] [-8] [-E] [-L] [-N] [-S tos] [-c] [-d]",
 	    "\n\t[-e char] [-l user] [-n tracefile] ",

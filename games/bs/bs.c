@@ -1124,7 +1124,7 @@ char *op[];
 	    {
 	    default:
 	    case '?':
-		(void) fprintf(stderr, "Usage: battle [-s | -b] [-c]\n");
+		(void) fprintf(stderr, "usage: battle [-s | -b] [-c]\n");
 		(void) fprintf(stderr, "\tWhere the options are:\n");
 		(void) fprintf(stderr, "\t-s : play a salvo game\n");
 		(void) fprintf(stderr, "\t-b : play a blitz game\n");

@@ -130,7 +130,7 @@ main(ac, av)
 
 	if (f_usage)
 		fprintf(stderr,
-		    "Usage: %s -[u?lstp] [-[gf] game_name] [-r random seed]\n",
+		    "usage: %s -[u?lstp] [-[gf] game_name] [-r random seed]\n",
 			name);
 	if (f_showscore)
 		log_score(1);

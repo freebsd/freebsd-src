@@ -24,7 +24,7 @@
 
 
 usage () {
-	echo "Usage: $0 [-i interface] [-f /path/to/users.file] [up|down|show]"
+	echo "usage: $0 [-i interface] [-f /path/to/users.file] [up|down|show]"
 }
 
 # Defaults

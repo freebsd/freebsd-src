@@ -36,7 +36,7 @@ enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
 void
 usage()
 {
-	fprintf(stderr, "Usage:\n");
+	fprintf(stderr, "usage:\n");
 	fprintf(stderr, "\tmdconfig -a -t type [-o [no]option]... [ -f file] [-s size] [-u unit]\n");
 	fprintf(stderr, "\tmdconfig -d -u unit\n");
 	fprintf(stderr, "\tmdconfig -l [-u unit]\n");

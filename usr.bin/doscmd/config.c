@@ -106,7 +106,7 @@ read_config(FILE *fp)
     	    int ro = 0;
 
     	    if (ac < 2) {
-		fprintf(stderr, "Usage: assign device ...\n");
+		fprintf(stderr, "usage: assign device ...\n");
 		quit(1);
 	    }
 	    if (av[2] && !strcasecmp(av[2], "-ro")) {
@@ -119,7 +119,7 @@ read_config(FILE *fp)
 	    if (!strncasecmp(av[1], "lpt", 3)) {
 		if (av[1][3] < '1' || av[1][3] > '4'
 				   || av[1][4] != ':' || ac < 3) {
-		    fprintf(stderr, "Usage: assign lptn: [direct] lpr-name [ time-out]\n");
+		    fprintf(stderr, "usage: assign lptn: [direct] lpr-name [ time-out]\n");
 		    quit(1);
 		}
 		printer = av[1][3] - '1';
@@ -136,7 +136,7 @@ read_config(FILE *fp)
 		}
 	    } else if (!strncasecmp(av[1], "flop", 4)) {
 		if (ac != 4) {
-		    fprintf(stderr, "Usage: assign flop [-ro] file type\n");
+		    fprintf(stderr, "usage: assign flop [-ro] file type\n");
 		    quit(1);
 		}
 
@@ -161,7 +161,7 @@ init_soft:
 init_hard:
 		switch (ac) {
 		default:
-		    fprintf(stderr, "Usage: assign [A-Z]: [-ro] directory\n"
+		    fprintf(stderr, "usage: assign [A-Z]: [-ro] directory\n"
 			            "       assign hard [-ro] file type [boot_sector]\n"
 		    		    "       assign hard [-ro] file cylinders heads sectors/track [boot_sector]\n");
 		    quit(1);
@@ -185,7 +185,7 @@ init_hard:
 		}
 	    } else if (av[1][1] == ':') {
 		if (av[1][2] || !isalpha(av[1][0])) {
-		    fprintf(stderr, "Usage: assign [A-Z]: ...\n");
+		    fprintf(stderr, "usage: assign [A-Z]: ...\n");
 		    quit(1);
 		}
                 drive = drlton(av[1][0]);
@@ -204,31 +204,31 @@ init_hard:
                 unsigned char irq;
  
                 if ((ac != 5) || (!isdigit(av[1][3]))) {
-                    fprintf(stderr, "Usage: assign com[1-4] path addr irq\n");
+                    fprintf(stderr, "usage: assign com[1-4] path addr irq\n");
                     quit(1);
                 }
                 port = atoi(&av[1][3]) - 1;
                 if ((port < 0) || (port > (N_COMS_MAX - 1))) {
-                    fprintf(stderr, "Usage: assign com[1-4] path addr irq\n");
+                    fprintf(stderr, "usage: assign com[1-4] path addr irq\n");
                     quit(1);
                 }
                 errno = 0;
                 addr = (int)strtol(av[3], '\0', 0);
                 /* XXX DEBUG ISA-specific */
                 if ((errno != 0) || (addr > MAXPORT)) {
-                    fprintf(stderr, "Usage: assign com[1-4] path addr irq\n");
+                    fprintf(stderr, "usage: assign com[1-4] path addr irq\n");
                     quit(1);
                 }
                 errno = 0;
                 irq = (unsigned char)strtol(av[4], '\0', 0);
                 /* XXX DEBUG ISA-specific */
                 if ((errno != 0) || (irq < 2) || (irq > 7)) {
-                    fprintf(stderr, "Usage: assign com[1-4] path addr irq[2-7]\n");
+                    fprintf(stderr, "usage: assign com[1-4] path addr irq[2-7]\n");
                     quit(1);
                 }
                 init_com(port, av[2], addr, irq);
 	    } else {
-		fprintf(stderr, "Usage: assign flop ...\n");
+		fprintf(stderr, "usage: assign flop ...\n");
 		fprintf(stderr, "       assign hard ...\n");
 		fprintf(stderr, "       assign [A-Z]: ...\n");
 		fprintf(stderr, "       assign comX ...\n");
@@ -236,7 +236,7 @@ init_hard:
 	    }
     	} else if (!strcasecmp(av[0], "boot")) {
 	    if (ac != 2 || av[1][2] || !isalpha(av[1][0])) {
-		fprintf(stderr, "Usage: boot [A: | C:]\n");
+		fprintf(stderr, "usage: boot [A: | C:]\n");
 		quit(1);
 	    }
             bootdrive = drlton(av[1][0]);
@@ -248,7 +248,7 @@ init_hard:
 	    int p, c;
 	    if (ac < 2 || ac > 3 || !isdigit(av[1][0]) ||
 		    (ac == 3 && !isdigit(av[2][0]))) {
-		fprintf(stderr, "Usage: portmap port [count]\n");
+		fprintf(stderr, "usage: portmap port [count]\n");
 		quit(1);
 	    }
 	    p = strtol(av[1], 0, 0);
@@ -262,7 +262,7 @@ init_hard:
     	} else if (!strcasecmp(av[0], "setver")) {
 	    int v;
 	    if (ac != 3 || !(v = strtol(av[2], 0, 0))) {
-		fprintf(stderr, "Usage: setver command version\n");
+		fprintf(stderr, "usage: setver command version\n");
 		quit(1);
 	    }
     	    setver(av[1], v);

@@ -41,7 +41,7 @@ enum aflag { NO_AFLAG, ALTPIN_DISABLE, ALTPIN_ENABLE, ALTPIN_QUERY };
 static int
 usage(const char *prog)
 {
-	fprintf(stderr, "Usage: %s -a disable|enable|query device\n", prog);
+	fprintf(stderr, "usage: %s -a disable|enable|query device\n", prog);
 	fprintf(stderr, "       %s [-d debug] [-ir] ctrl-device...\n", prog);
 	return (EX_USAGE);
 }

@@ -76,7 +76,7 @@ main(argc, argv)
 	int uid;
 
 	if (argc > 2) {
-		printf("Usage: cfscores [user]\n");
+		printf("usage: cfscores [user]\n");
 		exit(1);
 	}
 	dbfd = open(_PATH_SCORE, O_RDONLY);

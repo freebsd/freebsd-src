@@ -167,7 +167,7 @@ case $1 in
 		bridge_stop
 		;;
 	*)
-		echo "Usage: ether.bridge [ start | stop | stats ]"
+		echo "usage: ether.bridge [ start | stop | stats ]"
 		exit 1
 esac
 

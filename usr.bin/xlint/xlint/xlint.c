@@ -283,7 +283,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "Usage: lint [-abceghprvwxzHF] [-s|-t] [-i|-nu] [-Dname[=def]]"
+	    "usage: lint [-abceghprvwxzHF] [-s|-t] [-i|-nu] [-Dname[=def]]"
 	    " [-Uname] [-X <id>[,<id>]...\n");
 	(void)fprintf(stderr,
 	    "\t[-Idirectory] [-Ldirectory] [-llibrary] [-ooutputfile]"

@@ -621,7 +621,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "Usage: fetch [-146AFMPRUadlmnpqrsv] [-o outputfile] [-S bytes]",
+	    "usage: fetch [-146AFMPRUadlmnpqrsv] [-o outputfile] [-S bytes]",
 	    "             [-B bytes] [-T seconds] [-w seconds]",
 	    "             [-h host -f file [-c dir] | URL ...]");
 }
