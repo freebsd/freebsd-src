@@ -424,8 +424,8 @@ y*|Y*)
 	;;
 esac
 
-mount -u /dev/fd0a / || {
-	if mount -u /dev/fd1a / ; then
+mount -u /dev/fd0 / || {
+	if mount -u /dev/fd1 / ; then
 		echo "[Please ignore the above error message, that's normal.]"
 	else
 		echo "Oh boy, we're in trouble here: Could not mount floppy read-write."
