@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.85 1996/11/29 15:06:09 bde Exp $
+ * $Id: tty.c,v 1.86 1996/11/29 15:23:42 bde Exp $
  */
 
 /*-
@@ -738,10 +738,12 @@ ttioctl(tp, cmd, data, flag)
 	case  TIOCSETP:
 	case  TIOCSLTC:
 #endif
-		while (isbackground(curproc, tp) &&
-		    p->p_pgrp->pg_jobc && (p->p_flag & P_PPWAIT) == 0 &&
+		while (isbackground(p, tp) &&
+		    (p->p_flag & P_PPWAIT) == 0 &&
 		    (p->p_sigignore & sigmask(SIGTTOU)) == 0 &&
 		    (p->p_sigmask & sigmask(SIGTTOU)) == 0) {
+			if (p->p_pgrp->pg_jobc == 0)
+				return (EIO);
 			pgsignal(p->p_pgrp, SIGTTOU, 1);
 			error = ttysleep(tp, &lbolt, TTOPRI | PCATCH, "ttybg1",
 					 0);
@@ -1768,8 +1770,11 @@ loop:
 	if (isbackground(p, tp) &&
 	    ISSET(tp->t_lflag, TOSTOP) && (p->p_flag & P_PPWAIT) == 0 &&
 	    (p->p_sigignore & sigmask(SIGTTOU)) == 0 &&
-	    (p->p_sigmask & sigmask(SIGTTOU)) == 0 &&
-	     p->p_pgrp->pg_jobc) {
+	    (p->p_sigmask & sigmask(SIGTTOU)) == 0) {
+		if (p->p_pgrp->pg_jobc == 0) {
+			error = EIO;
+			goto out;
+		}
 		pgsignal(p->p_pgrp, SIGTTOU, 1);
 		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ttybg4", 0);
 		if (error)
