@@ -134,30 +134,39 @@ parse_platform_interrupt(PLATFORM_INTERRUPT_SOURCE *source)
 static int
 parse_madt(APIC_TABLE *madt, int countcpus)
 {
-	char			*p, *end;
-	int			maxid = 0;
+	char *end, *p;
+	int cpus;
+
+	end = (char *)madt + madt->Header.Length;
 
 	/*
 	 * MADT header is followed by a number of variable length
 	 * structures.
 	 */
-	end = (char *) madt + madt->Header.Length;
-	for (p = (char *) (madt + 1); p < end; ) {
-		APIC_HEADER *head = (APIC_HEADER *) p;
 
-		if (countcpus) {
+	if (countcpus) {
+		cpus = 0;
+
+		for (p = (char *)(madt + 1); p < end; ) {
+			APIC_HEADER *head = (APIC_HEADER *)p;
+
 			if (head->Type == APIC_LOCAL_SAPIC) {
 				LOCAL_SAPIC *sapic = (LOCAL_SAPIC *) head;
 				if (sapic->ProcessorEnabled)
-					if (sapic->ProcessorId > maxid)
-						maxid = sapic->ProcessorId;
+					cpus++;
 			}
 			p = p + head->Length;
-			continue;
 		}
+
+		return (cpus);
+	}
+
+	for (p = (char *)(madt + 1); p < end; ) {
+		APIC_HEADER *head = (APIC_HEADER *)p;
 
 		if (bootverbose)
 			printf("\t");
+
 		switch (head->Type) {
 		case APIC_PROC:
 			if (bootverbose)
@@ -220,7 +229,7 @@ parse_madt(APIC_TABLE *madt, int countcpus)
 		p = p + head->Length;
 	}
 
-	return (maxid);
+	return (0);
 }
 
 static int
@@ -262,11 +271,11 @@ ia64_probe_sapics(void)
 }
 
 /*
- * Return the maximum cpuid used by any cpu in the system. This will
- * return zero for systems with only one cpu.
+ * Count the number of local SAPIC entries in the APIC table. Every enabled
+ * entry corresponds to a processor.
  */
 int
-ia64_count_aps(void)
+ia64_count_cpus(void)
 {
 	return (parse_table(1));
 }
