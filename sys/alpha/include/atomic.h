@@ -256,29 +256,29 @@ static __inline u_int64_t atomic_readandclear_64(volatile u_int64_t *addr)
 static __inline void							\
 atomic_##NAME##_acq_##WIDTH(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v)\
 {									\
-	alpha_mb();							\
 	atomic_##NAME##_##WIDTH(p, v);					\
+	/* alpha_mb(); */						\
 }									\
 									\
 static __inline void							\
 atomic_##NAME##_rel_##WIDTH(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v)\
 {									\
-	atomic_##NAME##_##WIDTH(p, v);					\
-	alpha_wmb();							\
-}									\
-									\
-static __inline void							\
-atomic_##NAME##_acq_##TYPE(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v)\
-{									\
 	alpha_mb();							\
 	atomic_##NAME##_##WIDTH(p, v);					\
 }									\
 									\
 static __inline void							\
-atomic_##NAME##_rel_##TYPE(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v)\
+atomic_##NAME##_acq_##TYPE(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v)\
 {									\
 	atomic_##NAME##_##WIDTH(p, v);					\
-	alpha_wmb();							\
+	/* alpha_mb(); */						\
+}									\
+									\
+static __inline void							\
+atomic_##NAME##_rel_##TYPE(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v)\
+{									\
+	alpha_mb();							\
+	atomic_##NAME##_##WIDTH(p, v);					\
 }
 
 ATOMIC_ACQ_REL(set, 8, char)
@@ -307,28 +307,34 @@ ATOMIC_ACQ_REL(subtract, 64, long)
 static __inline u_##TYPE				\
 atomic_load_acq_##WIDTH(volatile u_##TYPE *p)		\
 {							\
+	u_##TYPE v;					\
+							\
+	v = *p;						\
 	alpha_mb();					\
-	return (*p);					\
+	return (v);					\
 }							\
 							\
 static __inline void					\
 atomic_store_rel_##WIDTH(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
+	alpha_mb();					\
 	*p = v;						\
-	alpha_wmb();					\
 }							\
 static __inline u_##TYPE				\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 {							\
+	u_##TYPE v;					\
+							\
+	v = *p;						\
 	alpha_mb();					\
-	return (*p);					\
+	return (v);					\
 }							\
 							\
 static __inline void					\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
+	alpha_mb();					\
 	*p = v;						\
-	alpha_wmb();					\
 }
 
 ATOMIC_STORE_LOAD(char,		8)
@@ -408,35 +414,35 @@ atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 static __inline u_int32_t
 atomic_cmpset_acq_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
 {
+	int retval;
+
+	retval = atomic_cmpset_32(p, cmpval, newval);
 	alpha_mb();
-	return (atomic_cmpset_32(p, cmpval, newval));
+	return (retval);
 }
 
 static __inline u_int32_t
 atomic_cmpset_rel_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
 {
-	int retval;
-
-	retval = atomic_cmpset_32(p, cmpval, newval);
-	alpha_wmb();
-	return (retval);
+	alpha_mb();
+	return (atomic_cmpset_32(p, cmpval, newval));
 }
 
 static __inline u_int64_t
 atomic_cmpset_acq_64(volatile u_int64_t *p, u_int64_t cmpval, u_int64_t newval)
 {
+	int retval;
+
+	retval = atomic_cmpset_64(p, cmpval, newval);
 	alpha_mb();
-	return (atomic_cmpset_64(p, cmpval, newval));
+	return (retval);
 }
 
 static __inline u_int64_t
 atomic_cmpset_rel_64(volatile u_int64_t *p, u_int64_t cmpval, u_int64_t newval)
 {
-	int retval;
-
-	retval = atomic_cmpset_64(p, cmpval, newval);
-	alpha_wmb();
-	return (retval);
+	alpha_mb();
+	return (atomic_cmpset_64(p, cmpval, newval));
 }
 
 #define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
