@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <limits.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include "lmonetary.h"
 #include "ldpart.h"
@@ -55,7 +56,13 @@ static const struct lc_monetary_T _C_monetary_locale = {
 	numempty,	/* n_cs_precedes */
 	numempty,	/* n_sep_by_space */
 	numempty,	/* p_sign_posn */
-	numempty	/* n_sign_posn */
+	numempty,	/* n_sign_posn */
+	numempty,	/* int_p_cs_precedes */
+	numempty,	/* int_n_cs_precedes */
+	numempty,	/* int_p_sep_by_space */
+	numempty,	/* int_n_sep_by_space */
+	numempty,	/* int_p_sign_posn */
+	numempty	/* int_n_sign_posn */
 };
 
 static struct lc_monetary_T _monetary_locale;
@@ -79,7 +86,9 @@ __monetary_load_locale(const char *name)
 
 	ret = __part_load_locale(name, &_monetary_using_locale,
 		_monetary_locale_buf, "LC_MONETARY",
-		LCMONETARY_SIZE, LCMONETARY_SIZE,
+		LCMONETARY_SIZE,
+		offsetof(struct lc_monetary_T, int_p_cs_precedes) /
+		    sizeof(char *),
 		(const char **)&_monetary_locale);
 	if (ret != _LDP_ERROR)
 		__mlocale_changed = 1;
@@ -98,6 +107,27 @@ __monetary_load_locale(const char *name)
 		M_ASSIGN_CHAR(n_sep_by_space);
 		M_ASSIGN_CHAR(p_sign_posn);
 		M_ASSIGN_CHAR(n_sign_posn);
+
+		/*
+		 * The six additional C99 international monetary formatting
+		 * parameters default to the national parameters when
+		 * reading FreeBSD 4 LC_MONETARY data files.
+		 */
+#define	M_ASSIGN_ICHAR(NAME)						\
+		do {							\
+			if (_monetary_locale.int_##NAME == NULL)	\
+				_monetary_locale.int_##NAME =		\
+				    _monetary_locale.NAME;		\
+			else						\
+				M_ASSIGN_CHAR(int_##NAME);		\
+		} while (0)
+
+		M_ASSIGN_ICHAR(p_cs_precedes);
+		M_ASSIGN_ICHAR(n_cs_precedes);
+		M_ASSIGN_ICHAR(p_sep_by_space);
+		M_ASSIGN_ICHAR(n_sep_by_space);
+		M_ASSIGN_ICHAR(p_sign_posn);
+		M_ASSIGN_ICHAR(n_sign_posn);
 	}
 	return (ret);
 }
