@@ -206,7 +206,8 @@ static __inline int
 static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
 static int	icmptype_match __P((struct icmp *  icmp, struct ip_fw * f));
 static void	ipfw_report __P((struct ip_fw *f, struct ip *ip, int offset,
-				struct ifnet *rif, struct ifnet *oif));
+				int ip_len, struct ifnet *rif,
+				struct ifnet *oif));
 
 static void flush_rule_ptrs(void);
 
@@ -492,7 +493,7 @@ iface_match(struct ifnet *ifp, union ip_fw_if *ifu, int byname)
 }
 
 static void
-ipfw_report(struct ip_fw *f, struct ip *ip, int offset,
+ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
 	struct ifnet *rif, struct ifnet *oif)
 {
     struct tcphdr *const tcp = (struct tcphdr *) ((u_int32_t *) ip+ ip->ip_hl);
@@ -500,7 +501,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset,
     struct icmp *const icmp = (struct icmp *) ((u_int32_t *) ip + ip->ip_hl);
     u_int64_t count;
     char *action;
-    char action2[32], proto[47], name[18], fragment[17];
+    char action2[32], proto[47], name[18], fragment[27];
     int len;
 
     count = f ? f->fw_pcnt : ++counter;
@@ -619,9 +620,11 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset,
 	    break;
     }
 
-    if (offset != 0)
-	    snprintf(SNPARGS(fragment, 0), " Fragment = %d",
-		offset);
+    if (ip->ip_off & (IP_MF | IP_OFFMASK))
+	    snprintf(SNPARGS(fragment, 0), " (frag %d:%d@%d%s)", 
+		     ntohs(ip->ip_id), ip_len - (ip->ip_hl << 2),
+		     offset << 3,
+		     (ip->ip_off & IP_MF) ? "+" : "");
     else
 	    fragment[0] = '\0';
     if (oif)
@@ -1326,7 +1329,7 @@ check_ports:
 
 bogusfrag:
 		if (fw_verbose && ip != NULL)
-			ipfw_report(NULL, ip, offset, rif, oif);
+			ipfw_report(NULL, ip, offset, ip_len, rif, oif);
 		goto dropit;
 
 		}
@@ -1349,7 +1352,7 @@ got_match:
 
 		/* Log to console if desired */
 		if ((f->fw_flg & IP_FW_F_PRN) && fw_verbose)
-			ipfw_report(f, ip, offset, rif, oif);
+			ipfw_report(f, ip, offset, ip_len, rif, oif);
 
 		/* Take appropriate action */
 		switch (f->fw_flg & IP_FW_F_COMMAND) {
