@@ -102,6 +102,7 @@ static const char rcsid[] =
 #include <varargs.h>
 #endif
 #include <string.h>
+#include <termcap.h>
 #include <unistd.h>
 
 #include "snake.h"
@@ -110,7 +111,6 @@ int CMlength;
 int NDlength;
 int BSlength;
 int delaystr[10];
-short ospeed;
 
 static char str[80];
 
