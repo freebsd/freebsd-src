@@ -54,7 +54,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: getinfo.c,v 8.15 1999/10/13 16:39:16 vixie Exp $";
+static const char rcsid[] = "$Id: getinfo.c,v 8.16 2000/07/11 04:36:26 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -651,11 +651,11 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
      *	- there is at least one dot, there is no trailing dot,
      *	  and RES_DNSRCH is set.
      */
-    if ((n == 0 && res.options & RES_DEFNAMES) ||
-       (n != 0 && *--cp != '.' && res.options & RES_DNSRCH))
-	 for (domain = res.dnsrch; *domain; domain++) {
+    if ((n == 0 && (res.options & RES_DEFNAMES) != 0) ||
+       (n != 0 && *--cp != '.' && (res.options & RES_DNSRCH) != 0))
+	 for (domain = res.dnsrch; *domain != NULL; domain++) {
 	    result = GetHostDomain(nsAddrPtr, queryClass, queryType,
-		    name, *domain, hostPtr, isServer);
+				   name, *domain, hostPtr, isServer);
 	    /*
 	     * If no server present, give up.
 	     * If name isn't found in this domain,

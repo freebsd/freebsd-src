@@ -54,7 +54,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)debug.c	5.26 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: debug.c,v 8.15 1999/10/13 16:39:16 vixie Exp $";
+static const char rcsid[] = "$Id: debug.c,v 8.16 2000/07/11 05:59:32 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -622,8 +622,15 @@ Print_rr(const u_char *ocp, const u_char *msg, const u_char *eom, FILE *file) {
 	case T_KEY:
 	default: {
 		char buf[2048];	/* XXX need to malloc/realloc. */
+		char rrname[NS_MAXDNAME];
 
-		if (ns_sprintrrf(msg, eom - msg, "?", (ns_class)class,
+		cp2 = p_fqnname(ocp, msg, NS_MAXCDNAME, rrname, sizeof rrname);
+		if (cp2 == NULL) {
+			fprintf(file, "(name truncated?)\n");
+			return (NULL);                  /* compression error */
+		}
+
+		if (ns_sprintrrf(msg, eom - msg, rrname, (ns_class)class,
 				 (ns_type)type, rrttl, cp1, dlen, NULL, NULL,
 				 buf, sizeof buf) < 0) {
 			perror("ns_sprintrrf");
