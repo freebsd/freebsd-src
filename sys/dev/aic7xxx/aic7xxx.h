@@ -475,6 +475,7 @@ typedef enum {
 	SCB_RECOVERY_SCB	= 0x0040,
 	SCB_NEGOTIATE		= 0x0080,
 	SCB_ABORT		= 0x1000,
+	SCB_UNTAGGEDQ		= 0x2000,
 	SCB_ACTIVE		= 0x4000,
 	SCB_TARGET_IMMEDIATE	= 0x8000
 } scb_flag;
@@ -487,6 +488,7 @@ struct scb {
 	} links;
 	LIST_ENTRY(scb)		  pending_links;
 	ahc_io_ctx_t		  io_ctx;
+	struct ahc_softc	 *ahc_softc;
 	scb_flag		  flags;
 #ifndef __linux__
 	bus_dmamap_t		  dmamap;
