@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.32 1998/02/09 06:09:57 eivind Exp $
+ * $Id: if_spppsubr.c,v 1.33 1998/02/28 21:01:09 phk Exp $
  */
 
 #include "opt_inet.h"
@@ -2503,7 +2503,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			desiredaddr = p[2] << 24 | p[3] << 16 |
 				p[4] << 8 | p[5];
 			if (desiredaddr == hisaddr ||
-			   (hisaddr == 1 && desiredaddr != 0) {
+			    hisaddr == 1 && desiredaddr != 0) {
 				/*
 				 * Peer's address is same as our value,
 				 * or we have set it to 0.0.0.1 to 
