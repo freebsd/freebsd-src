@@ -1034,7 +1034,7 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 			break;
 		case MD_PRELOAD:
 			mdio->md_size = sc->nsect;
-			(u_char *)(uintptr_t)mdio->md_base = sc->pl_ptr;
+			mdio->md_base = (uint64_t)(intptr_t)sc->pl_ptr;
 			break;
 		case MD_SWAP:
 			mdio->md_size = sc->nsect * (PAGE_SIZE / DEV_BSIZE);
