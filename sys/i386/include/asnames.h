@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.17 1998/03/04 09:55:13 peter Exp $
+ * $Id: asnames.h,v 1.18 1998/04/04 13:24:22 phk Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -243,11 +243,14 @@
 #define _get_isrlock			get_isrlock
 #define _get_mplock			get_mplock
 #define _get_syscall_lock		get_syscall_lock
+#define _getmicroruntime		getmicroruntime
 #define _idqs				idqs
 #define _imen				imen
 #define _imen_lock			imen_lock
+#define _in_vm86call			in_vm86call
 #define _init386			init386
 #define _init_secondary			init_secondary
+#define _initial_bioscalls		initial_bioscalls
 #define _inside_intr			inside_intr
 #define _intr_countp			intr_countp
 #define _intr_handler			intr_handler
@@ -269,7 +272,6 @@
 #define _main				main
 #define _mask8254			mask8254
 #define _maskRTC			maskRTC
-#define _microtime			microtime
 #define _mp_gdtbase			mp_gdtbase
 #define _mp_lock			mp_lock
 #define _mp_ncpus			mp_ncpus
@@ -298,6 +300,7 @@
 #define _private_tss			private_tss
 #define _probeintr			probeintr
 #define _probetrap			probetrap
+#define _proc0				proc0
 #define _proc0paddr			proc0paddr
 #define _prv_CMAP1			prv_CMAP1
 #define _prv_CMAP2			prv_CMAP2
@@ -355,6 +358,10 @@
 #define _vec				vec
 #define _vec8254			vec8254
 #define _vecRTC				vecRTC
+#define _vm86_emulate			vm86_emulate
+#define _vm86_prepcall			vm86_prepcall
+#define _vm86_sysarch			vm86_sysarch
+#define _vm86_trap			vm86_trap
 #define _vm_page_zero_idle		vm_page_zero_idle
 #define _want_resched			want_resched
 #define _whichidqs			whichidqs
