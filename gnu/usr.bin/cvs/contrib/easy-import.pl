@@ -8,7 +8,7 @@
 #
 # Written by Jörg Wunsch, 95/03/07, and placed in the public domain.
 #
-# $Id: easy-import.pl,v 1.8 1996/08/20 20:37:47 joerg Exp $
+# $Id: easy-import.pl,v 1.9 1996/10/20 13:14:40 joerg Exp $
 
 require "complete.pl";
 require "getopts.pl";
@@ -22,7 +22,7 @@ sub scan_opts
 
     $dont_do_it = "-n" if $opt_n;
     if($opt_v) {
-	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.8 $' . "\n"; # 'emacs kludge
+	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.9 $' . "\n"; # 'emacs kludge
 	exit 0;
     }
     die "usage: $0 [-v] [-n] [moduledir]\n" .
@@ -383,6 +383,9 @@ system("cvs $dont_do_it import $area/$modpath $vtag $rtag");
 print "${so}You are done now.  Go to a different directory, perform a${se}\n".
     "${us}cvs co ${modname}${ue} ${so}command, and see if your new module" .
     " builds ok.${se}\n";
+
+print "\nPlease don't forget to edit the parent Makefile to add what you\n".
+    "just imported.\n";
 
 if($dont_do_it) {
 print <<END
