@@ -42,7 +42,10 @@
 .Nm setrunelocale ,
 .Nm setinvalidrune ,
 .Nm sgetrune ,
-.Nm sputrune
+.Nm sputrune ,
+.Nm fgetrune ,
+.Nm fungetrune ,
+.Nm fputrune
 .Nd rune support for C
 .Sh LIBRARY
 .Lb libc
@@ -82,7 +85,7 @@ type of error.
 The
 .Fn setinvalidrune
 function sets the value of the global value
-.Ev _INVALID_RUNE
+.Dv _INVALID_RUNE
 to be
 .Fa rune .
 .Pp
@@ -108,14 +111,14 @@ If the first
 bytes of
 .Fa string
 do not describe a full multibyte character,
-.Ev _INVALID_RUNE
+.Dv _INVALID_RUNE
 is returned and
 .Fa *result
 will point to
 .Fa string .
 If there is an encoding error at the start of
 .Fa string ,
-.Ev _INVALID_RUNE
+.Dv _INVALID_RUNE
 is returned and 
 .Fa *result
 will point to the second character of
@@ -170,9 +173,9 @@ function operates the same as
 with the exception that it attempts to read enough bytes from 
 .Fa stream
 to decode a single rune.  It returns either
-.Ev EOF
+.Dv EOF
 on end of file,
-.Ev _INVALID_RUNE
+.Dv _INVALID_RUNE
 on an encoding error, or the rune decoded if all went well.
 .Pp
 The
@@ -188,7 +191,7 @@ such that the next
 call will return
 .Fa rune .
 It returns
-.Ev EOF
+.Dv EOF
 if it fails and
 .Dv 0
 on success.
@@ -202,7 +205,7 @@ as provided by
 onto
 .Fa stream .
 It returns
-.Ev EOF
+.Dv EOF
 on failure and
 .Dv 0
 on success.
@@ -210,26 +213,26 @@ on success.
 The
 .Fn setrunelocale
 function returns one of the following values:
-.Bl -tag -width WWWWWWWW
+.Bl -tag -width Er
 .It Dv 0
 .Fn setrunelocale
 was successful.
-.It Ev EFAULT
+.It Er EFAULT
 .Fa locale
 was
 .Dv NULL .
-.It Ev ENOENT
+.It Er ENOENT
 The locale could not be found.
-.It Ev EFTYPE
+.It Er EFTYPE
 The file found was not a valid file.
-.It Ev EINVAL
+.It Er EINVAL
 The encoding indicated by the locale was unknown.
 .El
 .Pp
 The
 .Fn sgetrune
 function either returns the rune read or
-.Ev _INVALID_RUNE .
+.Dv _INVALID_RUNE .
 The
 .Fn sputrune
 function returns the number of bytes needed to store
@@ -242,17 +245,17 @@ as a multibyte string.
 binary LC_CTYPE file for the locale 
 .Em locale .
 .El
-.Sh "SEE ALSO
+.Sh SEE ALSO
 .Xr mbrune 3 ,
 .Xr setlocale 3 ,
 .Xr euc 4 ,
 .Xr utf2 4
-.Sh NOTE
+.Sh NOTES
 The ANSI C type
-.Ev wchar_t
+.Em wchar_t
 is the same as
-.Ev rune_t .
-.Ev Rune_t
+.Em rune_t .
+.Em Rune_t
 was chosen to accent the purposeful choice of not basing the
 system with the ANSI C
 primitives, which were, shall we say, less aesthetic.
