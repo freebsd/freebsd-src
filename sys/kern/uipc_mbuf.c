@@ -176,7 +176,7 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 			MEXT_ADD_REF(m);
 		} else
 			bcopy(mtod(m, caddr_t)+off, mtod(n, caddr_t),
-			    (unsigned)n->m_len);
+			    (u_int)n->m_len);
 		if (len != M_COPYALL)
 			len -= n->m_len;
 		off = 0;
@@ -259,7 +259,7 @@ nospace:
 void
 m_copydata(const struct mbuf *m, int off, int len, caddr_t cp)
 {
-	unsigned count;
+	u_int count;
 
 	KASSERT(off >= 0, ("m_copydata, negative off %d", off));
 	KASSERT(len >= 0, ("m_copydata, negative len %d", len));
@@ -493,7 +493,7 @@ m_pullup(struct mbuf *n, int len)
 	do {
 		count = min(min(max(len, max_protohdr), space), n->m_len);
 		bcopy(mtod(n, caddr_t), mtod(m, caddr_t) + m->m_len,
-		  (unsigned)count);
+		  (u_int)count);
 		len -= count;
 		m->m_len += count;
 		n->m_len -= count;
@@ -529,7 +529,7 @@ struct mbuf *
 m_split(struct mbuf *m0, int len0, int wait)
 {
 	struct mbuf *m, *n;
-	unsigned len = len0, remain;
+	u_int len = len0, remain;
 
 	for (m = m0; m && len > m->m_len; m = m->m_next)
 		len -= m->m_len;
@@ -635,9 +635,9 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 		}
 		m->m_len = len = min(totlen, len);
 		if (copy)
-			copy(buf, mtod(m, caddr_t), (unsigned)len);
+			copy(buf, mtod(m, caddr_t), (u_int)len);
 		else
-			bcopy(buf, mtod(m, caddr_t), (unsigned)len);
+			bcopy(buf, mtod(m, caddr_t), (u_int)len);
 		buf += len;
 		*mp = m;
 		mp = &m->m_next;
@@ -674,7 +674,7 @@ m_copyback(struct mbuf *m0, int off, int len, caddr_t cp)
 	}
 	while (len > 0) {
 		mlen = min (m->m_len - off, len);
-		bcopy(cp, off + mtod(m, caddr_t), (unsigned)mlen);
+		bcopy(cp, off + mtod(m, caddr_t), (u_int)mlen);
 		cp += mlen;
 		len -= mlen;
 		mlen += off;
@@ -711,21 +711,21 @@ m_print(const struct mbuf *m)
 	return;
 }
 
-unsigned
+u_int
 m_fixhdr(struct mbuf *m0)
 {
-	unsigned len;
+	u_int len;
 
 	len = m_length(m0, NULL);
 	m0->m_pkthdr.len = len;
 	return (len);
 }
 
-unsigned
+u_int
 m_length(struct mbuf *m0, struct mbuf **last)
 {
 	struct mbuf *m;
-	unsigned len;
+	u_int len;
 
 	len = 0;
 	for (m = m0; m != NULL; m = m->m_next) {
