@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <utime.h>
 
 #include "pathnames.h"
 
@@ -262,7 +261,7 @@ void
 install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 {
 	struct stat from_sb, temp_sb, to_sb;
-	struct utimbuf utb;
+	struct timeval tvb[2];
 	int devnull, files_match, from_fd, serrno, target;
 	int tempcopy, temp_fd, to_fd;
 	char backup[MAXPATHLEN], *p, pathbuf[MAXPATHLEN], tempfile[MAXPATHLEN];
@@ -377,9 +376,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			 * Need to preserve target file times, though.
 			 */
 			if (to_sb.st_nlink != 1) {
-				utb.actime = to_sb.st_atime;
-				utb.modtime = to_sb.st_mtime;
-				(void)utime(tempfile, &utb);
+				tvb[0].tv_sec = to_sb.st_atime;
+				tvb[0].tv_usec = 0;
+				tvb[1].tv_sec = to_sb.st_mtime;
+				tvb[1].tv_usec = 0;
+				(void)utimes(tempfile, tvb);
 			} else {
 				files_match = 1;
 				(void)unlink(tempfile);
@@ -433,9 +434,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 * Preserve the timestamp of the source file if necessary.
 	 */
 	if (dopreserve && !files_match && !devnull) {
-		utb.actime = from_sb.st_atime;
-		utb.modtime = from_sb.st_mtime;
-		(void)utime(to_name, &utb);
+		tvb[0].tv_sec = from_sb.st_atime;
+		tvb[0].tv_usec = 0;
+		tvb[1].tv_sec = from_sb.st_mtime;
+		tvb[1].tv_usec = 0;
+		(void)utimes(to_name, tvb);
 	}
 
 	if (fstat(to_fd, &to_sb) == -1) {
