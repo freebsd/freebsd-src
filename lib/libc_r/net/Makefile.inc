@@ -2,6 +2,7 @@
 
 # machine-independent net sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/net ${.CURDIR}/../libc/net
+.PATH: ${.CURDIR}/../../contrib/bind/res
 
 SRCS+=	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
