@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.21 1995/12/07 12:46:41 davidg Exp $
+ * $Id: kern_exit.c,v 1.22 1995/12/27 15:24:15 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -58,8 +58,14 @@
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/ptrace.h>
-#include <sys/shm.h>
 #include <sys/filedesc.h>
+
+#ifdef SYSVSHM
+#include <sys/shm.h>
+#endif
+#ifdef SYSVSEM
+#include <sys/sem.h>
+#endif
 
 #include <machine/cpu.h>
 #ifdef COMPAT_43
