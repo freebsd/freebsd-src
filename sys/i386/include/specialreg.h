@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.3 1993/11/07 17:43:11 wollman Exp $
+ *	$Id: specialreg.h,v 1.4 1994/09/04 19:59:24 pst Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_
@@ -57,7 +57,7 @@
  */
 
 #define CR0_NE	0x00000020	/* Numeric Error enable (EX16 vs IRQ13) */
-#define CR0_WP	0x00010000	/* Write Protect (honor ~PG_W in all modes) */
+#define CR0_WP	0x00010000	/* Write Protect (honor page protect in all modes) */
 #ifdef notyet
 #define CR0_AM	0x00040000	/* Alignment Mask (set to enable AC flag) */
 #endif
