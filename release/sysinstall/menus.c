@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.64 1998/03/09 15:04:05 jkh Exp $
+ * $Id: menus.c,v 1.89.2.65 1998/03/10 02:38:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1130,21 +1130,21 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSubmenu, NULL, &MenuStartup },
       { "8 Options",	"View/Set various installation options",
 	NULL, optionsEditor },
-      { "9 Packages",	"Install pre-packaged software for FreeBSD",
+      { "9 Distributions", "Install additional distribution sets",
+	NULL, distExtractAll },
+      { "P Packages",	"Install pre-packaged software for FreeBSD",
 	NULL, configPackages },
-      { "A Root Password", "Set the system manager's password",
+      { "R Root Password", "Set the system manager's password",
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
-      { "B HTML Docs",	"Go to the HTML documentation menu (post-install)",
+      { "D HTML Docs",	"Go to the HTML documentation menu (post-install)",
 	NULL, docBrowser },
       { "X XFree86",	"Configure XFree86",
 	NULL, configXEnvironment },
-      { "D Distributions", "Install additional distribution sets",
-	NULL, distExtractAll },
       { "L Label",	"The disk Label editor",
 	NULL, diskLabelEditor },
-      { "P Partition",	"The disk Slice (PC-style partition) Editor",
+      { "F Fdisk",	"The disk Slice (PC-style partition) Editor",
 	NULL, diskPartitionEditor },
-      { "R Register",	"Register yourself or company as a FreeBSD user.", NULL, configRegister },
+      { "U Register",	"Register yourself or company as a FreeBSD user.", NULL, configRegister },
       { "E Exit",		"Exit this menu (returning to previous)",
 	NULL,	dmenuExit },
       { NULL } },
