@@ -146,7 +146,7 @@ static int wb_probe		(device_t);
 static int wb_attach		(device_t);
 static int wb_detach		(device_t);
 
-static void wb_bfree		(caddr_t, void *args);
+static void wb_bfree		(void *addr, void *args);
 static int wb_newbuf		(struct wb_softc *,
 					struct wb_chain_onefrag *,
 					struct mbuf *);
@@ -1074,7 +1074,7 @@ static int wb_list_rx_init(sc)
 }
 
 static void wb_bfree(buf, args)
-	caddr_t			buf;
+	void			*buf;
 	void			*args;
 {
 	return;
