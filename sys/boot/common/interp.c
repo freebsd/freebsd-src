@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.4 1998/09/14 18:27:04 msmith Exp $
+ *	$Id: interp.c,v 1.5 1998/10/07 02:38:26 msmith Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -181,9 +181,9 @@ source(char *filename)
 	    flags |= SL_IGNOREERR;
 	}
 	/* Allocate script line structure and copy line, flags */
-	sp = malloc(sizeof(struct sourceline) + strlen(input) + 1);
+	sp = malloc(sizeof(struct sourceline) + strlen(cp) + 1);
 	sp->text = (char *)sp + sizeof(struct sourceline);
-	strcpy(sp->text, input);
+	strcpy(sp->text, cp);
 	sp->flags = flags;
 	sp->line = line;
 	sp->next = NULL;
@@ -211,7 +211,7 @@ source(char *filename)
 
 	/* Parse the command */
 	if (!parse(&argc, &argv, sp->text)) {
-	    if ((argc > 1) && (perform(argc, argv) != 0)) {
+	    if ((argc > 0) && (perform(argc, argv) != 0)) {
 		/* normal command */
 		printf("%s: %s\n", argv[0], command_errmsg);
 		if (!(sp->flags & SL_IGNOREERR))
