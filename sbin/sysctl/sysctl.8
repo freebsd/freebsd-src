@@ -123,7 +123,9 @@ The information available from
 consists of integers, strings, devices
 .Pq Vt dev_t ,
 and opaque types.
-.Nm Sysctl
+The
+.Nm
+utility
 only knows about a couple of opaque types, and will resort to hexdumps
 for the rest.
 The opaque information is much more useful if retrieved by special
@@ -275,14 +277,16 @@ option has been deprecated and is silently ignored.
 .Xr sysctl 3 ,
 .Xr sysctl.conf 5
 .Sh BUGS
-.Nm Sysctl
-presently exploits an undocumented interface to the kernel
+The
+.Nm
+utility presently exploits an undocumented interface to the kernel
 sysctl facility to traverse the sysctl tree and to retrieve format
 and name information.
 This correct interface is being thought about for the time being.
 .Sh HISTORY
-.Nm Sysctl
-first appeared in
+A
+.Nm
+utility first appeared in
 .Bx 4.4 .
 .Pp
 In

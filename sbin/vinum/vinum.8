@@ -175,7 +175,7 @@ Write a copy of the current configuration to
 .It Ic quit
 Exit the
 .Nm
-program when running in interactive mode.  Normally this would be done by
+utility when running in interactive mode.  Normally this would be done by
 entering the
 .Dv EOF
 character.
@@ -265,11 +265,11 @@ if no parameters are specified.
 Create a striped volume from the specified drives.
 .El
 .Sh DESCRIPTION
+The
 .Nm
-is a utility program to communicate with the kernel component of the Vinum
+utility communicates with the kernel component of the Vinum
 logical volume manager.
-.Nm
-is designed either for interactive use, when started without command line
+It is designed either for interactive use, when started without command line
 arguments, or to execute a single command if the command is supplied on the
 command line.  In interactive mode,
 .Nm
@@ -973,7 +973,7 @@ writes the list to
 .It Ic quit
 Exit the
 .Nm
-program when running in interactive mode.  Normally this would be done by
+utility when running in interactive mode.  Normally this would be done by
 entering the
 .Dv EOF
 character.
@@ -986,7 +986,9 @@ command scans the specified disks for
 partitions containing previously created configuration information.  It reads
 the configuration in order from the most recently updated to least recently
 updated configuration.
+The
 .Nm
+utility
 maintains an up-to-date copy of all configuration information on each disk
 partition.  You must specify all of the slices in a configuration as the
 parameter to this command.
@@ -1554,8 +1556,9 @@ S raid10.p1.s1          State: up       PO:      279 kB Size:        573 MB
 In this case, the usable part of the volume is even smaller, since the first
 plex has shrunken to match the smallest drive.
 .Sh CONFIGURATION FILE
+The
 .Nm
-requires that all parameters to the
+utility requires that all parameters to the
 .Ic create
 commands must be in a configuration file.  Entries in the configuration file
 define volumes, plexes and subdisks, and may be in free format, except that each
@@ -1610,7 +1613,9 @@ partition, which is reserved for the complete disk.
 Define the drive to be a
 .Dq hot spare
 drive, which is maintained to automatically replace a failed drive.
+The
 .Nm
+utility
 does not allow this drive to be used for any other purpose.  In particular, it
 is not possible to create subdisks on it.  This functionality has not been
 completely implemented.
@@ -1637,8 +1642,9 @@ may be either
 .Cm round
 or
 .Cm prefer Ar plexname .
+The
 .Nm
-satisfies a read request from only one of the plexes.  A
+utility satisfies a read request from only one of the plexes.  A
 .Cm round
 read policy specifies that each read should be performed from a different plex
 in
@@ -1861,12 +1867,15 @@ is a swap partition, and partition
 .Dq Li c
 represents the whole disk and should not be used for any other purpose.
 .Pp
+The
 .Nm
+utility
 uses the first 265 sectors on each partition for configuration information, so
 the maximum size of a subdisk is 265 sectors smaller than the drive.
 .Sh LOG FILE
+The
 .Nm
-maintains a log file, by default
+utility maintains a log file, by default
 .Pa /var/log/vinum_history ,
 in which it keeps track of the commands issued to
 .Nm .
@@ -2011,8 +2020,9 @@ filesystem is limited by the speed of the disk.  By spreading the volume across
 multiple disks, you can increase the throughput in multi-access environments.
 This technique shows little or no performance improvement in single-access
 environments.
+The
 .Nm
-uses a technique called
+utility uses a technique called
 .Dq striping ,
 or sometimes RAID-0, to increase this concurrency of access.  The name RAID-0 is
 misleading: striping does not provide any redundancy or additional reliability.
@@ -2328,7 +2338,9 @@ load: 8.01 ms latency, 2 ms transfer, 10.01 ms total.
 It appears that some hardware RAID systems have problems with large stripes:
 they appear to always transfer a complete stripe to or from disk, so that a
 large stripe size will have an adverse effect on performance.
+The
 .Nm
+utility
 does not suffer from this problem: it optimizes all disk transfers and does not
 transfer unneeded data.
 .Pp
@@ -2473,8 +2485,9 @@ This behaviour of
 is an invitation to shoot yourself in the foot: with
 .Nm ccd
 you can easily overwrite a filesystem.
+The
 .Nm
-will not permit this.
+utility will not permit this.
 .Pp
 For similar reasons, the
 .Nm Ic start
@@ -2510,8 +2523,9 @@ In practice, people aren't too interested in what was in the plex when it was
 created, and other volume managers cheat by setting them
 .Em up
 anyway.
+The
 .Nm
-provides two ways to ensure that newly created plexes are
+utility provides two ways to ensure that newly created plexes are
 .Em up :
 .Bl -bullet
 .It
@@ -2619,7 +2633,7 @@ The name of the editor to use for editing configuration files, by default
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 3.0 .
 The RAID-5 component of
 .Nm
