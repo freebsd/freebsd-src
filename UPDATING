@@ -1,4 +1,4 @@
-Updating Information for FreeBSD STABLE users
+Updating Information for FreeBSD 4.6 Security Branch (RELENG_4_6) users.
 
 This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
@@ -1176,7 +1176,7 @@ that the style, formatting, etc of this file can be maintained.
 
 Copyright information:
 
-Copyright 1998-2002 M. Warner Losh.  All Rights Reserved.
+Copyright 1998-2003 M. Warner Losh.  All Rights Reserved.
 
 Redistribution, translation and use, with or without modification, in
 full or in part, are permitted provided that the above copyright
