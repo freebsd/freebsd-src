@@ -4,7 +4,7 @@ You can install from the following types of media:
             Sony CDU 31/33A
             Matushita/Panasonic "Sound Blaster" CDROM.
             Mitsumi FX-001{A-D} (older non-IDE drives).
-            IDE CDROM (only some models - experimental!)
+            IDE CDROM
             SCSI - Any standard SCSI CDROM drive hooked to
             a supported controller (see Hardware Guide).
 
@@ -19,7 +19,10 @@ You can install from the following types of media:
 
 
    Floppy   Get distribution files from one or more DOS or UFS
-            formatted floppies.
+            formatted floppies.  Such floppies are assumed to
+            contain the appropriate distribution pieces - see
+            ABOUT.TXT for more information about making floppy
+            distribution media.
 
 
    FTP      Get the distribution files from an anonymous ftp server
