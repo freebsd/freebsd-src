@@ -1333,6 +1333,8 @@ usb_if.h		optional usb					\
 	compile-with	"perl5 $S/kern/makeops.pl -h $S/dev/usb/usb_if.m"	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"usb_if.h"
+dev/usb/ehci.c		optional ehci
+dev/usb/ehci_pci.c	optional ehci
 dev/usb/uhci.c		optional uhci
 dev/usb/ohci.c		optional ohci
 dev/usb/ucom.c		optional ucom
