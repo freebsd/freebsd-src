@@ -1,12 +1,13 @@
 # $FreeBSD$
 #
-# make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
+# make release CHROOTDIR=/some/dir BUILDNAME=somename CVSROOT=/cvs/dir \
+#	[ RELEASETAG=tag ]
 #
-# Where "/some/dir" is the pathname of a directory on a some
-# filesystem with at least 1000MB of free space, "somename" is what
-# you want the release to call itself and, optionally, which CVS "tag"
-# name should be used when checking out the sources to build the release
-# (default is HEAD).
+# Where "/some/dir" is the pathname of a directory on a some filesystem with
+# at least 1000MB of free space, "somename" is what you want the release to
+# call itself, "/cvs/dir" is where our source repo resides and, optionally,
+# which CVS "tag" name should be used when checking out the sources to build
+# the release (default is HEAD).
 #
 # Please note: the vn driver must also be compiled into your kernel,
 # otherwise the target 'release.8' and possibly others will fail.
