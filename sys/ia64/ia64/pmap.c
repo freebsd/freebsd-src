@@ -1887,6 +1887,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 				break;
 			}
 			if (((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+				(p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
@@ -1914,6 +1915,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			p = vm_page_lookup(object, tmpidx + pindex);
 			if (p &&
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+				(p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
@@ -2005,6 +2007,7 @@ pmap_prefault(pmap, addra, entry)
 			break;
 
 		if (((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+			(m->busy == 0) &&
 		    (m->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 
 			if ((m->queue - m->pc) == PQ_CACHE) {
