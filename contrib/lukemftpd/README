@@ -2,7 +2,7 @@ WHAT IS LUKEMFTPD?
 ------------------
 
 `lukemftpd' is what many users affectionately call the enhanced ftp
-server in NetBSD (http://www.netbsd.org).  The `lukem' comes from
+server in NetBSD ( http://www.netbsd.org/ ).  The `lukem' comes from
 the account name of the NetBSD developer who wrote most of the
 enhancements: Luke Mewburn <lukem@netbsd.org>.
 
@@ -38,6 +38,8 @@ include:
 		+ specify the directory to chroot(2) to
 		+ automatic in-line conversions (e.g, `.tar.gz'
 		  retrieval of directories)
+		+ deny logins after the username is provided (rather
+		  than after the password)
 		+ display a file the first time a directory is entered
 		+ specify the home directory of the session (for "cd ~")
 		+ limit the maximum number of concurrent sessions

@@ -1,6 +1,6 @@
-.\"	$NetBSD: ftpd.conf.5,v 1.15 2000/12/18 02:32:51 lukem Exp $
+.\"	$NetBSD: ftpd.conf.5,v 1.19 2002/01/15 02:20:50 wiz Exp $
 .\"
-.\" Copyright (c) 1997-2000 The NetBSD Foundation, Inc.
+.\" Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This code is derived from software contributed to The NetBSD Foundation
@@ -34,7 +34,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 18, 2000
+.Dd December 5, 2001
 .Dt FTPD.CONF 5
 .Os
 .Sh NAME
@@ -114,11 +114,15 @@ The
 .Xr ftpd 8
 .Sy STAT
 command will return the class settings for the current user as defined by
-.Nm "" .
+.Nm "" ,
+unless the
+.Sy private
+directive is set for the class.
 .Pp
 Each configuration line may be one of:
 .Bl -tag -width 4n
 .It Sy advertise Ar class Ar host
+.It Sy advertize Ar class Ar host
 Set the address to advertise in the response to the
 .Sy PASV
 and
@@ -209,7 +213,7 @@ is performed.
 Set the class type of
 .Ar class
 to
-.Ar type 
+.Ar type
 (see above).
 .It Xo Sy conversion Ar class
 .Ar suffix Op Ar "type disable command"
@@ -255,6 +259,33 @@ are replaced with the requested file (sans
 .Pp
 Conversion directives specified later in the file override earlier
 conversions with the same suffix.
+.It Sy denyquick Ar class Op Sy off
+Enforce
+.Xr ftpusers 5
+rules after the
+.Sy USER
+command is received, rather than after the
+.Sy PASS
+command is received.
+Whilst enabling this feature may allow information leakage about
+available accounts (for example, if you allow some users of a
+.Sy REAL
+or
+.Sy CHROOT
+class but not others), it is useful in preventing a denied user
+(such as
+.Sq root )
+from entering their password across an insecure connection.
+This option is
+.Em strongly
+recommended for servers which run an anonymous-only service.
+If
+.Ar class
+is
+.Dq none
+or
+.Sy off
+is given, disable this feature, otherwise enable it.
 .It Sy display Ar class Op Ar file
 If
 .Ar file
@@ -401,7 +432,7 @@ is
 .Dq none
 or
 .Sy off
-is given, disallow passive
+is given, prevent passive
 .Sy ( PASV ,
 .Sy LPSV ,
 and
@@ -414,13 +445,24 @@ Set the range of port number which will be used for the passive data port.
 must be greater than
 .Ar min ,
 and both numbers must be be between
-.Dv IPPORT_RESERVED 
+.Dv IPPORT_RESERVED
 (1024) and 65535.
 If
 .Ar class
 is
 .Dq none
 or no arguments are given, disable this.
+.It Sy private Ar class Op Sy off
+If
+.Ar class
+is
+.Dq none
+or
+.Sy off
+is given, do not display class information in the output of the
+.Sy STAT
+command.
+Otherwise, display the information.
 .It Sy rateget Ar class Ar rate
 Set the maximum get
 .Pq Sy RETR
@@ -459,7 +501,7 @@ Set the maximum put
 transfer rate throttle for
 .Ar class
 to
-.Ar rate 
+.Ar rate
 bytes per second,
 which is parsed as per
 .Sy rateget Ar rate .
@@ -521,7 +563,7 @@ is
 .Dq none
 or
 .Ar umaskval
-is not specified, set to the default of 
+is not specified, set to the default of
 .Li 027 .
 .It Sy upload Ar class Op Sy off
 If

@@ -1,4 +1,4 @@
-.\"	$NetBSD: ftpusers.5,v 1.10 2001/04/25 01:46:26 lukem Exp $
+.\"	$NetBSD: ftpusers.5,v 1.13 2001/12/01 16:24:24 wiz Exp $
 .\"
 .\" Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -87,7 +87,9 @@ either a CIDR address (refer to
 to match against the remote address
 (e.g,
 .Sq 1.2.3.4/24 ) ,
-or a glob to match against the remote hostname
+or an
+.Xr fnmatch 3
+glob to match against the remote hostname
 (e.g,
 .Sq *.netbsd.org ) .
 .It Sy directive
@@ -127,7 +129,7 @@ If neither of the above is true.
 .Pp
 No further comparisons are attempted after the first successful match.
 If no match is found, the user is granted access.
-This syntax is backward-compatable with the old syntax.
+This syntax is backward-compatible with the old syntax.
 .Pp
 If a user requests a guest login, the
 .Xr ftpd 8
@@ -163,12 +165,13 @@ except that the
 argument is ignored.
 If there's a positive match, the session's root directory is changed.
 No further comparisons are attempted after the first successful match.
-This syntax is backward-compatable with the old syntax.
+This syntax is backward-compatible with the old syntax.
 .Sh FILES
-.Bl -tag -width /etc/ftpchroot -compact
+.Bl -tag -width /usr/share/examples/ftpd/ftpusers -compact
 .It Pa /etc/ftpchroot
-List of normal users who should be
-.Xr chroot 2 ed.
+List of normal users who should have their ftp session's root directory
+changed by using
+.Xr chroot 2 .
 .It Pa /etc/ftpusers
 This file.
 .It Pa /usr/share/examples/ftpd/ftpusers
