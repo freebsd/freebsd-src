@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.215 1998/12/07 21:58:18 archie Exp $
+ *	$Id: pmap.c,v 1.216 1999/01/07 22:15:51 dt Exp $
  */
 
 /*
@@ -606,6 +606,11 @@ pmap_init(phys_start, phys_end)
 	int initial_pvs;
 
 	/*
+	 * object for kernel page table pages
+	 */
+	kptobj = vm_object_allocate(OBJT_DEFAULT, NKPDE);
+
+	/*
 	 * calculate the number of pv_entries needed
 	 */
 	vm_first_phys = phys_avail[0];
@@ -639,10 +644,6 @@ pmap_init(phys_start, phys_end)
 	pvinit = (struct pv_entry *) kmem_alloc(kernel_map,
 		initial_pvs * sizeof (struct pv_entry));
 	zbootinit(pvzone, "PV ENTRY", sizeof (struct pv_entry), pvinit, pv_npg);
-	/*
-	 * object for kernel page table pages
-	 */
-	kptobj = vm_object_allocate(OBJT_DEFAULT, NKPDE);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
