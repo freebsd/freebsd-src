@@ -143,7 +143,7 @@ soisconnected(so)
 			so->so_rcv.sb_flags |= SB_UPCALL;
 			so->so_options &= ~SO_ACCEPTFILTER;
 			SOCK_UNLOCK(so);
-			so->so_upcall(so, so->so_upcallarg, M_TRYWAIT);
+			so->so_upcall(so, so->so_upcallarg, M_DONTWAIT);
 		}
 		return;
 	}
