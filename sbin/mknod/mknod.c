@@ -56,12 +56,59 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <grp.h>
+#include <pwd.h>
+#include <string.h>
 
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: mknod name [b | c] major minor\n");
+
+	(void)fprintf(stderr,
+	    "usage: mknod name [b | c] major minor [owner:group]\n");
 	exit(1);
+}
+
+static u_long
+id(name, type)
+	char *name, *type;
+{
+	u_long val;
+	char *ep;
+
+	/*
+	 * XXX
+	 * We know that uid_t's and gid_t's are unsigned longs.
+	 */
+	errno = 0;
+	val = strtoul(name, &ep, 10);
+	if (errno)
+		err(1, "%s", name);
+	if (*ep != '\0')
+		errx(1, "%s: illegal %s name", name, type);
+	return (val);
+}
+
+static gid_t
+a_gid(s)
+	char *s;
+{
+	struct group *gr;
+
+	if (*s == '\0')			/* Argument was "uid[:.]". */
+		errx(1, "group must be specified when the owner is");
+	return ((gr = getgrnam(s)) == NULL) ? id(s, "group") : gr->gr_gid;
+}
+
+static uid_t
+a_uid(s)
+	char *s;
+{
+	struct passwd *pw;
+
+	if (*s == '\0')			/* Argument was "[:.]gid". */
+		errx(1, "owner must be specified when the group is");
+	return ((pw = getpwnam(s)) == NULL) ? id(s, "user") : pw->pw_uid;
 }
 
 int
@@ -69,13 +116,15 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	dev_t dev;
-	char *endp;
-	long mymajor, myminor;
-	mode_t mode;
 	int range_error;
+	uid_t uid;
+	gid_t gid;
+	mode_t mode;
+	dev_t dev;
+	char *cp, *endp;
+	long mymajor, myminor;
 
-	if (argc != 5)
+	if (argc != 5 && argc != 6)
 		usage();
 
 	mode = 0666;
@@ -101,7 +150,21 @@ main(argc, argv)
 	    minor(dev) != (u_int) myminor)
 		errx(1, "major or minor number too large");
 
+	uid = gid = -1;
+	if (6 == argc) {
+	    	/* have owner:group */
+		if ((cp = strchr(argv[5], ':')) != NULL) {
+			*cp++ = '\0';
+			gid = a_gid(cp);
+		} else
+		usage();
+		uid = a_uid(argv[5]);
+	}
+
 	if (mknod(argv[1], mode, dev) != 0)
 		err(1, "%s", argv[1]);
+	if (6 == argc)
+		if (chown(argv[1], uid, gid))
+			err(1, "setting ownership on %s", argv[1]);
 	exit(0);
 }
