@@ -220,9 +220,9 @@ int	eval = EX_OK;			/* sysexits.h error value. */
 int	lmtpmode = 0;
 u_char	tTdvect[100];
 
-void		deliver __P((int, char *));
+void		deliver __P((int, char *, int, int));
 void		e_to_sys __P((int));
-__dead void	err __P((const char *, ...));
+void		err __P((const char *, ...)) __dead2;
 void		notifybiff __P((char *));
 int		store __P((char *, int));
 void		usage __P((void));
@@ -231,6 +231,7 @@ void		warn __P((const char *, ...));
 void		lockmbox __P((char *));
 void		unlockmbox __P((void));
 void		mailerr __P((const char *, const char *, ...));
+void		dolmtp __P((int, int));
 
 int
 main(argc, argv)
@@ -238,12 +239,11 @@ main(argc, argv)
 	char *argv[];
 {
 	struct passwd *pw;
-	int ch, fd;
+	int ch, fd, nobiff, nofsync;
 	uid_t uid;
 	char *from;
 	extern char *optarg;
 	extern int optind;
-	extern void dolmtp __P((void));
 
 	/* make sure we have some open file descriptors */
 	for (fd = 10; fd < 30; fd++)
@@ -259,8 +259,13 @@ main(argc, argv)
 #endif
 
 	from = NULL;
-	while ((ch = getopt(argc, argv, "df:r:l")) != -1)
+	nobiff = 0;
+	nofsync = 0;
+	while ((ch = getopt(argc, argv, "bdf:r:ls")) != -1)
 		switch(ch) {
+		case 'b':
+			nobiff++;
+			break;
 		case 'd':		/* Backward compatible. */
 			break;
 		case 'f':
@@ -274,6 +279,9 @@ main(argc, argv)
 		case 'l':
 			lmtpmode++;
 			break;
+		case 's':
+			nofsync++;
+			break;
 		case '?':
 		default:
 			usage();
@@ -282,7 +290,7 @@ main(argc, argv)
 	argv += optind;
 
 	if (lmtpmode)
-		dolmtp();
+		dolmtp(nobiff, nofsync);
 
 	if (!*argv)
 		usage();
@@ -307,7 +315,7 @@ main(argc, argv)
 	 * at the expense of repeated failures and multiple deliveries.
 	 */
 	for (fd = store(from, 0); *argv; ++argv)
-		deliver(fd, *argv);
+		deliver(fd, *argv, nobiff, nofsync);
 	exit(eval);
 }
 
@@ -423,7 +431,8 @@ process_recipient(addr)
 #define RCPT_GROW	30
 
 void
-dolmtp()
+dolmtp(nobiff, nofsync)
+	int nobiff, nofsync;
 {
 	char *return_path = NULL;
 	char **rcpt_addr = NULL;
@@ -467,7 +476,8 @@ dolmtp()
 					p = strchr(rcpt_addr[i], '+');
 					if (p != NULL)
 						*p++ = '\0';
-					deliver(msgfd, rcpt_addr[i]);
+					deliver(msgfd, rcpt_addr[i], nobiff,
+					    nofsync);
 				}
 				close(msgfd);
 				goto rset;
@@ -670,9 +680,10 @@ store(from, lmtprcpts)
 }
 
 void
-deliver(fd, name)
+deliver(fd, name, nobiff, nofsync)
 	int fd;
 	char *name;
+	int nobiff, nofsync;
 {
 	struct stat fsb, sb;
 	struct passwd *pw;
@@ -801,14 +812,16 @@ tryagain:
 		goto err1;
 	}
 
-	/* Get the starting offset of the new message for biff. */
-	curoff = lseek(mbfd, (off_t)0, SEEK_END);
-	if (sizeof curoff > sizeof(long))
-		(void)snprintf(biffmsg, sizeof(biffmsg), "%s@%s\n",
-			       name, quad_to_string(curoff));
-	else
-		(void)snprintf(biffmsg, sizeof(biffmsg), "%s@%ld\n",
-			       name, curoff);
+	if (!nobiff) {
+		/* Get the starting offset of the new message for biff. */
+		curoff = lseek(mbfd, (off_t)0, SEEK_END);
+		if (sizeof curoff > sizeof(long))
+			(void)snprintf(biffmsg, sizeof(biffmsg), "%s@%s\n",
+				       name, quad_to_string(curoff));
+		else
+			(void)snprintf(biffmsg, sizeof(biffmsg), "%s@%ld\n",
+				       name, curoff);
+	}
 
 	/* Copy the message into the file. */
 	if (lseek(fd, (off_t)0, SEEK_SET) == (off_t)-1) {
@@ -838,7 +851,7 @@ tryagain:
 	}
 
 	/* Flush to disk, don't wait for update. */
-	if (fsync(mbfd)) {
+	if (!nofsync && fsync(mbfd)) {
 		mailerr("450 4.2.0", "%s: %s", path, strerror(errno));
 err3:
 		if (setreuid(0, 0) < 0) {
@@ -859,7 +872,7 @@ err0:		unlockmbox();
 	if (close(mbfd)) {
 		mailerr("450 4.2.0", "%s: %s", path, strerror(errno));
 		truncate(path, curoff);
-	} else
+	} else if (!nobiff)
 		notifybiff(biffmsg);
 
 	if (setreuid(0, 0) < 0) {
@@ -968,7 +981,7 @@ void
 usage()
 {
 	eval = EX_USAGE;
-	err("usage: mail.local [-l] [-f from] user ...");
+	err("usage: mail.local [-b] [-l] [-f from] [-s] user ...");
 }
 
 void
