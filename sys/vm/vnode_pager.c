@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.88 1998/03/01 04:18:31 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.89 1998/03/07 21:37:31 dyson Exp $
  */
 
 /*
@@ -531,15 +531,18 @@ vnode_pager_getpages(object, m, count, reqpage)
 {
 	int rtval;
 	struct vnode *vp;
+	int bytes = count * PAGE_SIZE;
 
 	vp = object->handle;
 	/* 
 	 * XXX temporary diagnostic message to help track stale FS code,
 	 * Returning EOPNOTSUPP from here may make things unhappy.
 	 */
-	rtval = VOP_GETPAGES(vp, m, count*PAGE_SIZE, reqpage, 0);
-	if (rtval == EOPNOTSUPP)
-	    printf("vnode_pager: *** WARNING *** stale FS code in system.\n");
+	rtval = VOP_GETPAGES(vp, m, bytes, reqpage, 0);
+	if (rtval == EOPNOTSUPP) {
+	    printf("vnode_pager: *** WARNING *** stale FS getpages\n");
+	    rtval = vnode_pager_generic_getpages( vp, m, bytes, reqpage);
+	}
 	return rtval;
 }
 
@@ -814,9 +817,15 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 {
 	int rtval;
 	struct vnode *vp;
+	int bytes = count * PAGE_SIZE;
 
 	vp = object->handle;
-	return VOP_PUTPAGES(vp, m, count*PAGE_SIZE, sync, rtvals, 0);
+	rtval = VOP_PUTPAGES(vp, m, bytes, sync, rtvals, 0);
+	if (rtval == EOPNOTSUPP) {
+	    printf("vnode_pager: *** WARNING *** stale FS putpages\n");
+	    rtval = vnode_pager_generic_putpages( vp, m, bytes, sync, rtvals);
+	}
+	return rtval;
 }
 
 
