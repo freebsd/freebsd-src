@@ -393,12 +393,13 @@ quotaon(p, mp, type, fname)
 	struct vnode *vp, **vpp;
 	struct vnode *nextvp;
 	struct dquot *dq;
-	int error;
+	int error, flags;
 	struct nameidata nd;
 
 	vpp = &ump->um_quotas[type];
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, p);
-	error = vn_open(&nd, FREAD|FWRITE, 0);
+	flags = FREAD | FWRITE;
+	error = vn_open(&nd, &flags, 0);
 	if (error)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);

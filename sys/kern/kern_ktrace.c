@@ -253,7 +253,7 @@ ktrace(curp, uap)
 	int ops = KTROP(uap->ops);
 	int descend = uap->ops & KTRFLAG_DESCEND;
 	int ret = 0;
-	int error = 0;
+	int flags, error = 0;
 	struct nameidata nd;
 
 	curp->p_traceflag |= KTRFAC_ACTIVE;
@@ -262,7 +262,8 @@ ktrace(curp, uap)
 		 * an operation which requires a file argument.
 		 */
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, curp);
-		error = vn_open(&nd, FREAD|FWRITE|O_NOFOLLOW, 0);
+		flags = FREAD | FWRITE | O_NOFOLLOW;
+		error = vn_open(&nd, &flags, 0);
 		if (error) {
 			curp->p_traceflag &= ~KTRFAC_ACTIVE;
 			return (error);

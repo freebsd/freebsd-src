@@ -539,13 +539,13 @@ vniocattach_file(vn, vio, dev, flag, p)
 
 	flags = FREAD|FWRITE;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, vio->vn_file, p);
-	error = vn_open(&nd, flags, 0);
+	error = vn_open(&nd, &flags, 0);
 	if (error) {
 		if (error != EACCES && error != EPERM && error != EROFS)
 			return (error);
 		flags &= ~FWRITE;
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, vio->vn_file, p);
-		error = vn_open(&nd, flags, 0);
+		error = vn_open(&nd, &flags, 0);
 		if (error)
 			return (error);
 	}
