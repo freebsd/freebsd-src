@@ -10,11 +10,13 @@ SUBDIR=	accf_data \
 	an \
 	aue \
 	bge \
+	bridge \
 	ccd \
 	cd9660 \
 	coda \
 	cue \
 	dc \
+	dummynet \
 	fdesc \
 	fxp \
 	if_disc \
