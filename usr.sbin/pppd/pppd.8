@@ -1,5 +1,5 @@
 .\" manual page [] for pppd 2.3
-.\" $Id: pppd.8,v 1.15 1997/10/10 06:30:08 peter Exp $
+.\" $Id: pppd.8,v 1.16 1997/10/10 09:28:38 peter Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -42,8 +42,9 @@ used.
 .TP
 .I <speed>
 Set the baud rate to <speed> (a decimal number).  On systems such as
-4.4BSD and NetBSD, any speed can be specified.  Other systems
-(e.g. SunOS) allow only a limited set of speeds.
+4.4BSD and NetBSD, any speed can be specified, providing that it is
+supported by the serial device driver.  Other systems
+(e.g. SunOS, Linux) allow only a limited set of speeds.
 .TP
 .B active-filter \fIfilter-expression
 Specifies a packet filter to be applied to data packets to determine
@@ -58,7 +59,7 @@ except that qualifiers which are inappropriate for a PPP link, such as
 \fBether\fR and \fBarp\fR, are not permitted.  Generally the filter
 expression should be enclosed in single-quotes to prevent whitespace
 in the expression from being interpreted by the shell. This option
-is currently only available under NetBSD, and then only
+only available
 if both the kernel and pppd were compiled with PPP_FILTER defined.
 .TP
 .B asyncmap \fI<map>
