@@ -3886,7 +3886,7 @@ is running in interactive mode, file descriptor 3 is attached to
 For example (wrapped for readability);
 .Bd -literal -offset indent
 set login "TIMEOUT 5 \\"\\" \\"\\" login:--login: ppp \e
-word: ppp \\"!sh \\\\\\\\-c \\\\\\"echo \\\\\\\\-n label: >&2\\\\\\"\\" \e
+word: ppp \\"!sh \\\\-c \\\\\\"echo \\\\-n label: >&2\\\\\\"\\" \e
 \\"!/bin/echo in\\" HELLO"
 .Ed
 .Pp

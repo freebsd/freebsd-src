@@ -98,3 +98,5 @@ o Ppp now waits either the full ``set cd'' time or until carrier is detected
 o The -alias flag has been deprecated.  The -nat flag should be used instead.
 o Unbalanced quotes in commands are now warned about and the entire command
   is ignored.
+o It is now only necessary to escape the `-' character in chat scripts twice.
+  See the example files for details.
