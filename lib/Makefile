@@ -96,7 +96,7 @@ _libpthread=	libpthread
 .endif
 .endif
 
-.if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} != "amd64"
 .if !defined(NOLIBTHR)
 _libthr=	libthr
 .endif
