@@ -20,12 +20,17 @@
  */
 
 /*
- * $Id: if_ed.c,v 2.4 93/09/29 21:24:30 davidg Exp Locker: davidg $
+ * $Id: if_ed.c,v 2.5 93/09/30 17:44:14 davidg Exp Locker: davidg $
  */
 
 /*
  * Modification history
  *
+ * Revision 2.5  93/09/30  17:44:14  davidg
+ * patch from vak@zebub.msk.su (Serge V.Vakulenko) to work around
+ * a hardware bug in cheap WD clone boards where the PROM checksum
+ * byte is always zero
+ * 
  * Revision 2.4  93/09/29  21:24:30  davidg
  * Added software NIC reset in NE probe to work around a problem
  * with some NE boards where the 8390 doesn't reset properly on
@@ -270,14 +275,21 @@ ed_probe_WD80x3(isa_dev)
 	 *	If it fails, it's probably not a SMC/WD board. There
 	 *	is a problem with this, though: some clone WD boards
 	 *	don't pass the checksum test. Danpex boards for one.
-	 *	XXX - We need to do additional checking for this case.
 	 */
 	for (sum = 0, i = 0; i < 8; ++i)
 		sum += inb(sc->asic_addr + ED_WD_PROM + i);
-	
-	if (sum != ED_WD_ROM_CHECKSUM_TOTAL)
-		return(0);
-	
+
+	if (sum != ED_WD_ROM_CHECKSUM_TOTAL) {
+		/*
+		 * Checksum is invalid. This often happens with cheap
+		 *	WD8003E clones.  In this case, the checksum byte
+		 *	(the eighth byte) seems to always be zero.
+		 */
+		if (inb(sc->asic_addr + ED_WD_CARD_ID) != ED_TYPE_WD8003E ||
+			inb(sc->asic_addr + ED_WD_PROM + 7) != 0)
+				return(0);
+	}
+
 	/* reset card to force it into a known state. */
 	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST);
 	DELAY(100);
