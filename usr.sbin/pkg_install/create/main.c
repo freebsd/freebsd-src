@@ -136,7 +136,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 'y':
-	    UseBzip2 = FALSE;
+	    UseBzip2 = TRUE;
 	    break;
 
 	case '?':
