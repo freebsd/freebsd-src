@@ -68,11 +68,11 @@ is_gpt_hdr(struct gpt_hdr *hdr)
 
 	if (memcmp(hdr->hdr_sig, GPT_HDR_SIG, sizeof(hdr->hdr_sig)))
 		return (0);
-	crc = hdr->hdr_crc_self;
+	crc = le32toh(hdr->hdr_crc_self);
 	hdr->hdr_crc_self = 0;
-	if (crc32(hdr, hdr->hdr_size) != crc)
+	if (crc32(hdr, le32toh(hdr->hdr_size)) != crc)
 		return (0);
-	hdr->hdr_crc_self = crc;
+	hdr->hdr_crc_self = htole32(crc);
 	/* We're happy... */
 	return (1);
 }
@@ -90,17 +90,17 @@ g_gpt_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 {
 	struct g_slicer *gsp = gp->softc;
 	struct g_gpt_softc *gs = gsp->softc;
-	struct uuid *uuid;
+	struct uuid uuid;
 
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
 
 	if (pp != NULL) {
-		uuid = &gs->part[pp->index]->ent_type;
+		le_uuid_dec(&gs->part[pp->index]->ent_type, &uuid);
 		if (indent != NULL)
 			sbuf_printf(sb, "%s<type>", indent);
 		else
 			sbuf_printf(sb, " ty ");
-		sbuf_printf_uuid(sb, uuid);
+		sbuf_printf_uuid(sb, &uuid);
 		if (indent != NULL)
 			sbuf_printf(sb, "</type>\n");
 	}
@@ -109,14 +109,16 @@ g_gpt_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 static struct g_geom *
 g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 {
+	struct uuid tmp;
 	struct g_consumer *cp;
 	struct g_geom *gp;
 	struct g_gpt_softc *gs;
 	u_char *buf, *mbr;
-	struct gpt_ent *ent;
+	struct gpt_ent *ent, *part;
 	struct gpt_hdr *hdr;
 	u_int i, secsz, tblsz;
 	int error, ps;
+	uint32_t entries, entsz;
 
 	g_trace(G_T_TOPOLOGY, "g_gpt_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -135,7 +137,6 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	gp->dumpconf = g_gpt_dumpconf;
 
 	do {
-
 		mbr = NULL;
 
 		if (gp->rank != 2 && insist == 0)
@@ -152,59 +153,67 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		if (mbr == NULL || error != 0)
 			break;
 #if 0
-	/*
-	 * XXX: we should ignore the GPT if there's a MBR and the MBR is
-	 * not a PMBR (Protective MBR). I believe this is what the EFI
-	 * spec is going to say eventually (this is hearsay :-)
-	 * Currently EFI (version 1.02) accepts and uses the GPT even
-	 * though there's a valid MBR. We do this too, because it allows
-	 * us to test this code without first nuking the only partitioning
-	 * scheme we grok until this is working.
-	 */
-	if (!is_pmbr((void*)mbr))
-		goto out;
+		/*
+		 * XXX: we should ignore the GPT if there's a MBR and the MBR
+		 * is not a PMBR (Protective MBR). I believe this is what the
+		 * EFI spec is going to say eventually (this is hearsay :-)
+		 * Currently EFI (version 1.02) accepts and uses the GPT even
+		 * though there's a valid MBR. We do this too, because it
+		 * allows us to test this code without first nuking the only
+		 * partitioning scheme we grok until this is working.
+		 */
+		if (!is_pmbr((void*)mbr))
+			break;
 #endif
-
 		hdr = (void*)(mbr + secsz);
 
-	/*
-	 * XXX: if we don't have a GPT header at LBA 1, we should check if
-	 * there's a backup GPT at the end of the medium. If we have a valid
-	 * backup GPT, we should restore the primary GPT and claim this lunch.
-	 */
+		/*
+		 * XXX: if we don't have a GPT header at LBA 1, we should
+		 * check if there's a backup GPT at the end of the medium. If
+		 * we have a valid backup GPT, we should restore the primary
+		 * GPT and claim this lunch.
+		 */
 		if (!is_gpt_hdr(hdr))
 			break;
 
-		tblsz = (hdr->hdr_entries * hdr->hdr_entsz + secsz - 1) &
-		    ~(secsz - 1);
-		buf = g_read_data(cp, hdr->hdr_lba_table * secsz, tblsz, &error);
-		for (i = 0; i < hdr->hdr_entries; i++) {
+		entries = le32toh(hdr->hdr_entries);
+		entsz = le32toh(hdr->hdr_entsz);
+		tblsz = (entries * entsz + secsz - 1) & ~(secsz - 1);
+		buf = g_read_data(cp, le64toh(hdr->hdr_lba_table) * secsz,
+		    tblsz, &error);
+
+		for (i = 0; i < entries; i++) {
 			struct uuid unused = GPT_ENT_TYPE_UNUSED;
 			struct uuid freebsd = GPT_ENT_TYPE_FREEBSD;
-			struct uuid tmp;
+
 			if (i >= GPT_MAX_SLICES)
 				break;
-			ent = (void*)(buf + i * hdr->hdr_entsz);
+			ent = (void*)(buf + i * entsz);
 			le_uuid_dec(&ent->ent_type, &tmp);
 			if (!memcmp(&tmp, &unused, sizeof(unused)))
 				continue;
 			/* XXX: This memory leaks */
-			gs->part[i] = g_malloc(hdr->hdr_entsz, M_WAITOK);
-			if (gs->part[i] == NULL)
+			part = gs->part[i] = g_malloc(entsz, M_WAITOK);
+			if (part == NULL)
 				break;
-			bcopy(ent, gs->part[i], hdr->hdr_entsz);
+			part->ent_type = tmp;
+			le_uuid_dec(&ent->ent_uuid, &part->ent_uuid);
+			part->ent_lba_start = le64toh(ent->ent_lba_start);
+			part->ent_lba_end = le64toh(ent->ent_lba_end);
+			part->ent_attr = le64toh(ent->ent_attr);
+			/* XXX do we need to byte-swap UNICODE-16? */
+			bcopy(ent->ent_name, part->ent_name,
+			    sizeof(part->ent_name));
 			ps = (!memcmp(&tmp, &freebsd, sizeof(freebsd)))
 			    ? 's' : 'p';
 			g_topology_lock();
 			(void)g_slice_config(gp, i, G_SLICE_CONFIG_SET,
-			    ent->ent_lba_start * secsz,
-			    (1 + ent->ent_lba_end - ent->ent_lba_start) * secsz,
-			    secsz,
-			    "%s%c%d", gp->name, ps, i + 1);
+			    part->ent_lba_start * secsz,
+			    (1 + part->ent_lba_end - part->ent_lba_start) *
+			    secsz, secsz, "%s%c%d", gp->name, ps, i + 1);
 			g_topology_unlock();
 		}
 		g_free(buf);
-
 	} while (0);
 
 	if (mbr != NULL)
