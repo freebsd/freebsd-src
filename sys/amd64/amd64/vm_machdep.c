@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.24 1994/08/06 10:25:37 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.25 1994/08/07 03:31:52 davidg Exp $
  */
 
 #include "npx.h"
@@ -243,7 +243,6 @@ int count;
 		pa = vm_bounce_page_find(1);
 		pmap_kenter(kva + i * NBPG, pa);
 	}
-	pmap_update();
 	return kva;
 }
 
@@ -356,7 +355,6 @@ vm_bounce_alloc(bp)
 			 * if we are writing, the copy the data into the page
 			 */
 			if ((bp->b_flags & B_READ) == 0) {
-				pmap_update();
 				bcopy((caddr_t) va, (caddr_t) kva + (NBPG * i), NBPG);
 			}
 		} else {
@@ -367,7 +365,6 @@ vm_bounce_alloc(bp)
 		}
 		va += NBPG;
 	}
-	pmap_update();
 
 /*
  * flag the buffer as being bounced
@@ -677,7 +674,6 @@ pagemove(from, to, size)
 		to += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
-	pmap_update();
 }
 
 /*
@@ -761,7 +757,6 @@ vmapbuf(bp)
 		addr += PAGE_SIZE;
 		kva += PAGE_SIZE;
 	}
-	pmap_update();
 }
 
 /*
