@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.198 1997/10/03 14:14:40 jkh Exp $
+ * $Id: install.c,v 1.199 1997/10/06 08:34:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -806,7 +806,7 @@ installFixup(dialogMenuItem *self)
 	/* BOGON #6: deal with new boot files */
 	vsystem("touch /kernel.config");
 	vsystem("touch /boot.config");
-	if (file_readable("/stand/boot.help"))
+	if (file_readable("/stand/boot.help") && !file_readable("/boot.help"))
 	    vsystem("mv /stand/boot.help /");
 
 	/* Now run all the mtree stuff to fix things up */
