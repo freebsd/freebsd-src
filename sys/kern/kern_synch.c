@@ -426,16 +426,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 #endif
 	WITNESS_SLEEP(0, mtx);
 	mtx_enter(&sched_lock, MTX_SPIN);
-	DROP_GIANT_NOSWITCH();
-
-	if (mtx != NULL) {
-		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
-		WITNESS_SAVE(mtx, mtx);
-		mtx_exit(mtx, MTX_DEF | MTX_NOSWITCH);
-		if (priority & PDROP)
-			mtx = NULL;
-	}
-
 	s = splhigh();
 	if (cold || panicstr) {
 		/*
@@ -444,9 +434,21 @@ msleep(ident, mtx, priority, wmesg, timo)
 		 * don't run any other procs or panic below,
 		 * in case this is the idle process and already asleep.
 		 */
+		if (mtx != NULL && priority & PDROP)
+			mtx_exit(mtx, MTX_DEF | MTX_NOSWITCH);
 		mtx_exit(&sched_lock, MTX_SPIN);
 		splx(s);
 		return (0);
+	}
+
+	DROP_GIANT_NOSWITCH();
+
+	if (mtx != NULL) {
+		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
+		WITNESS_SAVE(mtx, mtx);
+		mtx_exit(mtx, MTX_DEF | MTX_NOSWITCH);
+		if (priority & PDROP)
+			mtx = NULL;
 	}
 
 	KASSERT(p != NULL, ("msleep1"));
