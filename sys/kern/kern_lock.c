@@ -237,8 +237,10 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		pid = p->p_pid;
 
 	mtx_lock(lkp->lk_interlock);
-	if (flags & LK_INTERLOCK)
+	if (flags & LK_INTERLOCK) {
 		mtx_unlock(interlkp);
+		mtx_assert(interlkp, MA_NOTOWNED);
+	}
 
 	extflags = (flags | lkp->lk_flags) & LK_EXTFLG_MASK;
 
