@@ -50,6 +50,7 @@ SUBDIR=	apply \
 	from \
 	fstat \
 	ftp \
+	genassym \
 	gencat \
 	gensetdefs \
 	getopt \
