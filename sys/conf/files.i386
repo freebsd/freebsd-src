@@ -167,12 +167,14 @@ acpi_wakecode.h			optional	acpi			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin"
 #
+i386/acpica/madt.c		optional	acpi apic
 i386/bios/apm.c			optional	apm
 i386/bios/mca_machdep.c		optional	mca
 i386/bios/smapi.c		optional	smapi
 i386/bios/smapi_bios.S		optional	smapi
 i386/bios/smbios.c		optional	smbios
 i386/bios/vpd.c			optional	vpd
+i386/i386/apic_vector.s		optional	apic
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
@@ -194,15 +196,19 @@ i386/i386/i686_mem.c		standard
 i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional	inet
 i386/i386/initcpu.c		standard
+i386/i386/intr_machdep.c	standard
+i386/i386/io_apic.c		optional	apic
 i386/i386/k6_mem.c		standard
 i386/i386/legacy.c		standard
+i386/i386/local_apic.c		optional	apic
 i386/i386/locore.s		standard	no-obj
 i386/i386/machdep.c		standard
 i386/i386/mem.c			standard
 i386/i386/mp_clock.c		optional	smp
 i386/i386/mp_machdep.c		optional	smp
-i386/i386/mpapic.c		optional	smp
 i386/i386/mpboot.s		optional	smp
+i386/i386/mptable.c		optional	apic
+i386/i386/mptable_pci.c		optional	apic pci
 i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional	perfmon
 i386/i386/perfmon.c		optional	perfmon	profiling-routine
@@ -234,6 +240,8 @@ i386/ibcs2/ibcs2_xenix.c	optional	ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
 i386/isa/asc.c			count		asc
+i386/isa/atpic.c		standard
+i386/isa/atpic_vector.s		standard
 i386/isa/clock.c		standard
 i386/isa/cronyx.c		optional	cx
 i386/isa/ctx.c			optional	ctx
@@ -247,8 +255,6 @@ i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		count		el
 i386/isa/if_le.c		count		le
 i386/isa/if_rdp.c		count		rdp
-i386/isa/intr_machdep.c		standard
-i386/isa/ithread.c		standard
 i386/isa/isa.c			optional	isa
 i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 	warning "Old ISA driver compatibility shims present."
@@ -256,6 +262,7 @@ i386/isa/isa_dma.c		optional	isa
 i386/isa/istallion.c		optional	stli nowerror
 i386/isa/loran.c		optional	loran
 i386/isa/mse.c			optional	mse
+i386/isa/nmi.c			standard
 i386/isa/npx.c			optional	npx
 i386/isa/pcf.c			optional	pcf
 i386/isa/pcvt/pcvt_drv.c	optional	vt
