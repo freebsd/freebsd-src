@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_object.c,v 1.90 1997/02/22 09:48:28 peter Exp $
  */
 
 /*
@@ -1451,6 +1451,10 @@ vm_object_in_map( object)
 		return 1;
 	if( _vm_object_in_map( u_map, object, 0))
 		return 1;
+#if defined(SMP) && defined(SMP_PRIVPAGES)
+	if( _vm_object_in_map( ppage_map, object, 0))
+		return 1;
+#endif
 	return 0;
 }
 

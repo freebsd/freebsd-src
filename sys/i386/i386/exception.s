@@ -30,9 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.23 1997/04/07 11:42:09 peter Exp $
+ *	$Id: exception.s,v 1.24 1997/04/13 16:58:08 bde Exp $
  */
 
+#include "opt_smp.h"
 #include "npx.h"				/* NNPX */
 #include "assym.s"				/* system defines */
 #include <sys/errno.h>				/* error return codes */
@@ -42,6 +43,7 @@
 #include <sys/syscall.h>			/* syscall numbers */
 #include <machine/asmacros.h>			/* miscellaneous macros */
 #include <sys/cdefs.h>				/* CPP macros */
+#include <machine/smpasm.h>
 
 #define	KDSEL		0x10			/* kernel data selector */
 #define	SEL_RPL_MASK	0x0003
@@ -138,6 +140,9 @@ IDTVEC(fpu)
 	movl	_cpl,%eax
 	pushl	%eax
 	pushl	$0				/* dummy unit to finish building intr frame */
+#ifdef SMP
+	call	_get_mplock
+#endif /* SMP */
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,%eax
 	movl	%eax,_cpl
@@ -163,6 +168,9 @@ alltraps_with_regs_pushed:
 	movl	%ax,%es
 	FAKE_MCOUNT(12*4(%esp))
 calltrap:
+#ifdef SMP
+	call	_get_mplock
+#endif /* SMP */
 	FAKE_MCOUNT(_btrap)			/* init "from" _btrap -> calltrap */
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,_cpl
@@ -212,6 +220,9 @@ IDTVEC(syscall)
 	movl	%eax,TF_EFLAGS(%esp)
 	movl	$7,TF_ERR(%esp) 		/* sizeof "lcall 7,0" */
 	FAKE_MCOUNT(12*4(%esp))
+#ifdef SMP
+	call	_get_mplock
+#endif /* SMP */
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
@@ -238,6 +249,9 @@ IDTVEC(int0x80_syscall)
 	movl	%ax,%es
 	movl	$2,TF_ERR(%esp)			/* sizeof "int 0x80" */
 	FAKE_MCOUNT(12*4(%esp))
+#ifdef SMP
+	call	_get_mplock
+#endif /* SMP */
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
@@ -254,7 +268,13 @@ ENTRY(fork_trampoline)
 	movl	$SWI_AST_MASK,_cpl
 	call	_splz
 
+#if defined(SMP)
+	GETCPUID(%eax)
+	leal	_SMPruntime(,%eax,8), %eax
+	pushl	%eax
+#else
 	pushl	$_runtime
+#endif
 	call	_microtime
 	popl	%eax
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: kern_shutdown.c,v 1.13 1997/02/22 09:39:10 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -166,6 +166,27 @@ boot(howto)
 {
 	sle_p ep;
 
+#ifdef SMP
+	int c, spins;
+
+	/* don't accidently start it */
+	if (smp_active) {
+		smp_active = 1;
+
+		spins = 100;
+
+		printf("boot() called on cpu#%d\n", cpunumber());
+		while ((c = cpunumber()) != 0) {
+			if (spins-- < 1) {
+				printf("timeout waiting for cpu #0!\n");
+				break;
+			}
+			printf("oops, I'm on cpu#%d, I need to be on cpu#0!\n",
+				c);
+			tsleep((caddr_t)&smp_active, PZERO, "cpu0wt", 10);
+		}
+	}
+#endif
 	ep = shutdown_list1;
 	while (ep) {
 		shutdown_list1 = ep->next;
@@ -355,7 +376,11 @@ panic(const char *fmt, ...)
 	else
 		panicstr = fmt;
 
+#ifdef SMP
+	printf("panic (cpu#%d): ", cpunumber());
+#else
 	printf("panic: ");
+#endif
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);

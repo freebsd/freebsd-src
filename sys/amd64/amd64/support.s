@@ -30,9 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.50 1997/02/22 09:32:46 peter Exp $
+ *	$Id: support.s,v 1.51 1997/03/05 16:30:55 bde Exp $
  */
 
+#include "opt_smp.h"
 #include "npx.h"
 #include "opt_cpu.h"
 
@@ -40,10 +41,12 @@
 #include <machine/cputypes.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
+#include <machine/smpasm.h>
 
 #include "assym.s"
 
 #define KDSEL		0x10			/* kernel data selector */
+#define KCSEL		0x8			/* kernel code selector */
 #define IDXSHIFT	10
 
 	.data
@@ -193,7 +196,7 @@ do0:
 	ret
 #endif
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && NNPX > 0 && !defined(SMP)
 ENTRY(i586_bzero)
 	movl	4(%esp),%edx
 	movl	8(%esp),%ecx
@@ -436,7 +439,7 @@ ENTRY(generic_bcopy)
 	cld
 	ret
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && NNPX > 0 && !defined(SMP)
 ENTRY(i586_bcopy)
 	pushl	%esi
 	pushl	%edi
@@ -621,7 +624,7 @@ ENTRY(copyout)
 	jmp	*_copyout_vector
 
 ENTRY(generic_copyout)
-	movl	_curpcb,%eax
+	GETCURPCB(%eax)
 	movl	$copyout_fault,PCB_ONFAULT(%eax)
 	pushl	%esi
 	pushl	%edi
@@ -714,7 +717,7 @@ ENTRY(generic_copyout)
 3:
 	movl	%ebx,%ecx
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && NNPX > 0 && !defined(SMP)
 	ALIGN_TEXT
 slow_copyout:
 #endif
@@ -732,7 +735,7 @@ done_copyout:
 	popl	%edi
 	popl	%esi
 	xorl	%eax,%eax
-	movl	_curpcb,%edx
+	GETCURPCB(%edx)
 	movl	%eax,PCB_ONFAULT(%edx)
 	ret
 
@@ -741,12 +744,12 @@ copyout_fault:
 	popl	%ebx
 	popl	%edi
 	popl	%esi
-	movl	_curpcb,%edx
+	GETCURPCB(%edx)
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && NNPX > 0 && !defined(SMP)
 ENTRY(i586_copyout)
 	/*
 	 * Duplicated from generic_copyout.  Could be done a bit better.
@@ -806,7 +809,7 @@ ENTRY(copyin)
 	jmp	*_copyin_vector
 
 ENTRY(generic_copyin)
-	movl	_curpcb,%eax
+	GETCURPCB(%eax)
 	movl	$copyin_fault,PCB_ONFAULT(%eax)
 	pushl	%esi
 	pushl	%edi
@@ -823,7 +826,7 @@ ENTRY(generic_copyin)
 	cmpl	$VM_MAXUSER_ADDRESS,%edx
 	ja	copyin_fault
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && NNPX > 0 && !defined(SMP)
 	ALIGN_TEXT
 slow_copyin:
 #endif
@@ -837,14 +840,14 @@ slow_copyin:
 	rep
 	movsb
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && NNPX > 0 && !defined(SMP)
 	ALIGN_TEXT
 done_copyin:
 #endif
 	popl	%edi
 	popl	%esi
 	xorl	%eax,%eax
-	movl	_curpcb,%edx
+	GETCURPCB(%edx)
 	movl	%eax,PCB_ONFAULT(%edx)
 	ret
 
@@ -852,12 +855,12 @@ done_copyin:
 copyin_fault:
 	popl	%edi
 	popl	%esi
-	movl	_curpcb,%edx
+	GETCURPCB(%edx)
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && NNPX > 0 && !defined(SMP)
 ENTRY(i586_copyin)
 	/*
 	 * Duplicated from generic_copyin.  Could be done a bit better.
@@ -892,7 +895,7 @@ ENTRY(i586_copyin)
 	jmp	done_copyin
 #endif /* I586_CPU && NNPX > 0 */
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && NNPX > 0 && !defined(SMP)
 /* fastmove(src, dst, len)
 	src in %esi
 	dst in %edi
@@ -1084,7 +1087,7 @@ fastmove_tail_fault:
  * fu{byte,sword,word} : fetch a byte (sword, word) from user memory
  */
 ENTRY(fuword)
-	movl	_curpcb,%ecx
+	GETCURPCB(%ecx)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx			/* from */
 
@@ -1107,7 +1110,7 @@ ENTRY(fuswintr)
 	ret
 
 ENTRY(fusword)
-	movl	_curpcb,%ecx
+	GETCURPCB(%ecx)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
@@ -1119,7 +1122,7 @@ ENTRY(fusword)
 	ret
 
 ENTRY(fubyte)
-	movl	_curpcb,%ecx
+	GETCURPCB(%ecx)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
@@ -1132,7 +1135,7 @@ ENTRY(fubyte)
 
 	ALIGN_TEXT
 fusufault:
-	movl	_curpcb,%ecx
+	GETCURPCB(%ecx)
 	xorl	%eax,%eax
 	movl	%eax,PCB_ONFAULT(%ecx)
 	decl	%eax
@@ -1142,7 +1145,7 @@ fusufault:
  * su{byte,sword,word}: write a byte (word, longword) to user memory
  */
 ENTRY(suword)
-	movl	_curpcb,%ecx
+	GETCURPCB(%ecx)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
@@ -1186,12 +1189,12 @@ ENTRY(suword)
 	movl	8(%esp),%eax
 	movl	%eax,(%edx)
 	xorl	%eax,%eax
-	movl	_curpcb,%ecx
+	GETCURPCB(%ecx)
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
 ENTRY(susword)
-	movl	_curpcb,%ecx
+	GETCURPCB(%ecx)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
@@ -1235,13 +1238,13 @@ ENTRY(susword)
 	movw	8(%esp),%ax
 	movw	%ax,(%edx)
 	xorl	%eax,%eax
-	movl	_curpcb,%ecx			/* restore trashed register */
+	GETCURPCB(%ecx)				/* restore trashed register */
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
 ALTENTRY(suibyte)
 ENTRY(subyte)
-	movl	_curpcb,%ecx
+	GETCURPCB(%ecx)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
@@ -1284,7 +1287,7 @@ ENTRY(subyte)
 	movb	8(%esp),%al
 	movb	%al,(%edx)
 	xorl	%eax,%eax
-	movl	_curpcb,%ecx			/* restore trashed register */
+	GETCURPCB(%ecx)				/* restore trashed register */
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
@@ -1298,7 +1301,7 @@ ENTRY(subyte)
 ENTRY(copyinstr)
 	pushl	%esi
 	pushl	%edi
-	movl	_curpcb,%ecx
+	GETCURPCB(%ecx)
 	movl	$cpystrflt,PCB_ONFAULT(%ecx)
 
 	movl	12(%esp),%esi			/* %esi = from */
@@ -1346,7 +1349,7 @@ cpystrflt:
 
 cpystrflt_x:
 	/* set *lencopied and return %eax */
-	movl	_curpcb,%ecx
+	GETCURPCB(%ecx)
 	movl	$0,PCB_ONFAULT(%ecx)
 	movl	20(%esp),%ecx
 	subl	%edx,%ecx
@@ -1446,13 +1449,14 @@ ENTRY(lgdt)
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
 	movl	%ax,%es
+	movl	%ax,%fs
+	movl	%ax,%gs
 	movl	%ax,%ss
 
 	/* reload code selector by turning return into intersegmental return */
 	movl	(%esp),%eax
 	pushl	%eax
-#	movl	$KCSEL,4(%esp)
-	movl	$8,4(%esp)
+	movl	$KCSEL,4(%esp)
 	lret
 
 /*

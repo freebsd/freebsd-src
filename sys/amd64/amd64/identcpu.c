@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.15 1997/04/22 06:55:23 jdp Exp $
+ *	$Id: identcpu.c,v 1.16 1997/04/26 04:08:45 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -307,17 +307,21 @@ printcpuinfo(void)
 #endif
 #if defined(I586_CPU)
 	case CPUCLASS_586:
+#ifndef SMP
 		printf("%d.%02d-MHz ",
 		       (i586_ctr_freq + 4999) / 1000000,
 		       ((i586_ctr_freq + 4999) / 10000) % 100);
+#endif
 		printf("586");
 		break;
 #endif
 #if defined(I686_CPU)
 	case CPUCLASS_686:
+#ifndef SMP
 		printf("%d.%02d-MHz ",
 		       (i586_ctr_freq + 4999) / 1000000,
 		       ((i586_ctr_freq + 4999) / 10000) % 100);
+#endif
 		printf("686");
 		break;
 #endif

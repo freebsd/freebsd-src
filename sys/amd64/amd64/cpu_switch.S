@@ -33,16 +33,24 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.46 1997/04/20 06:41:26 phk Exp $
+ *	$Id: swtch.s,v 1.47 1997/04/22 06:55:29 jdp Exp $
  */
 
 #include "npx.h"
 #include "opt_user_ldt.h"
+#include "opt_smp.h"
+#include "opt_smp_privpages.h"
 
 #include <sys/rtprio.h>
 
 #include <machine/asmacros.h>
 #include <machine/spl.h>
+#include <machine/smpasm.h>
+#include <machine/smptests.h>		/** TEST_LOPRIO */
+
+#if defined(SMP) && defined(SMP_PRIVPAGES)
+#include <machine/pmap.h>
+#endif
 
 #include "assym.s"
 
@@ -61,8 +69,12 @@
  * queues.
  */
 	.data
+#ifndef SMP
 	.globl	_curpcb
 _curpcb:	.long	0			/* pointer to curproc's PCB area */
+#endif
+	.globl	_whichqs, _whichrtqs, _whichidqs
+
 _whichqs:	.long	0			/* which run queues have data */
 _whichrtqs:	.long	0			/* which realtime run queues have data */
 _whichidqs:	.long	0			/* which idletime run queues have data */
@@ -229,16 +241,30 @@ rem3id:	.asciz	"remrq.id"
 /*
  * When no processes are on the runq, cpu_switch() branches to _idle
  * to wait for something to come ready.
+ *
+ * NOTE: on an SMP system this routine is a startup-only code path.
+ * once initialization is over, meaning the idle procs have been
+ * created, we should NEVER branch here.
  */
 	ALIGN_TEXT
 _idle:
+#ifdef SMP
+	movl	_smp_active, %eax
+	cmpl	$0, %eax
+	jnz	badsw
+#endif /* SMP */
 	xorl	%ebp,%ebp
 	movl	$HIDENAME(tmpstk),%esp
 	movl	_IdlePTD,%ecx
 	movl	%ecx,%cr3
 
 	/* update common_tss.tss_esp0 pointer */
+#ifdef SMP
+	GETCPUID(%eax)
+	movl	_SMPcommon_tss_ptr(,%eax,4), %eax
+#else
 	movl	$_common_tss, %eax
+#endif
 	movl	%esp, TSS_ESP0(%eax)
 
 #ifdef TSS_IS_CACHED				/* example only */
@@ -288,12 +314,19 @@ ENTRY(default_halt)
  * cpu_switch()
  */
 ENTRY(cpu_switch)
+	
 	/* switch to new process. first, save context as needed */
-	movl	_curproc,%ecx
+	GETCURPROC(%ecx)
 
 	/* if no process to save, don't bother */
 	testl	%ecx,%ecx
 	je	sw1
+
+#ifdef SMP
+	movb	P_ONCPU(%ecx), %al		/* save "last" cpu */
+	movb	%al, P_LASTCPU(%ecx)
+	movb	$0xff, P_ONCPU(%ecx)		/* "leave" the cpu */
+#endif
 
 	movl	P_ADDR(%ecx),%ecx
 
@@ -305,10 +338,19 @@ ENTRY(cpu_switch)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
 
+#ifdef SMP
+	movl	_mp_lock, %eax
+	cmpl	$0xffffffff, %eax		/* is it free? */
+	je	badsw				/* yes, bad medicine! */
+	andl	$0x00ffffff, %eax		/* clear CPU portion */
+	movl	%eax,PCB_MPNEST(%ecx)		/* store it */
+#endif /* SMP */
+
 #if NNPX > 0
 	/* have we used fp, and need a save? */
-	mov	_curproc,%eax
-	cmp	%eax,_npxproc
+	GETCURPROC(%eax)
+	GETNPXPROC(%ebx)
+	cmp	%eax,%ebx
 	jne	1f
 	addl	$PCB_SAVEFPU,%ecx		/* h/w bugs make saving complicated */
 	pushl	%ecx
@@ -319,7 +361,7 @@ ENTRY(cpu_switch)
 
 	movb	$1,_intr_nesting_level		/* charge Intr, not Sys/Idle */
 
-	movl	$0,_curproc			/* out of process */
+	SETCURPROC($0, %edi)
 
 	/* save is done, now choose a new process or idle */
 sw1:
@@ -417,8 +459,29 @@ swtch_com:
 	movl	P_ADDR(%ecx),%edx
 	movl	PCB_CR3(%edx),%ebx
 
+#if defined(SMP) && defined(SMP_PRIVPAGES)
+	/* Grab the private PT pointer from the outgoing process's PTD */
+	movl	$_PTD,%esi
+	movl	4*MPPTDI(%esi), %eax		/* fetch cpu's prv pt */
+#endif
+
 	/* switch address space */
 	movl	%ebx,%cr3
+
+#if defined(SMP) && defined(SMP_PRIVPAGES)
+	/* Copy the private PT to the new process's PTD */
+	/* XXX yuck, the _PTD changes when we switch, so we have to
+	 * reload %cr3 after changing the address space.
+	 * We need to fix this by storing a pointer to the virtual
+	 * location of the per-process PTD in the PCB or something quick.
+	 * Dereferencing proc->vm_map->pmap->p_pdir[] is painful in asm.
+	 */
+	movl	$_PTD,%esi
+	movl	%eax, 4*MPPTDI(%esi)		/* restore cpu's prv page */
+
+	/* XXX: we have just changed the page tables.. reload.. */
+	movl	%ebx,%cr3
+#endif
 
 #ifdef HOW_TO_SWITCH_TSS			/* example only */
 	/* Fix up tss pointer to floating pcb/stack structure */
@@ -435,7 +498,12 @@ swtch_com:
 #endif
 
 	/* update common_tss.tss_esp0 pointer */
+#ifdef SMP
+	GETCPUID(%eax)
+	movl	_SMPcommon_tss_ptr(,%eax,4), %eax
+#else
 	movl	$_common_tss, %eax
+#endif
 	movl	%edx, %ebx			/* pcb */
 	addl	$(UPAGES * PAGE_SIZE), %ebx
 	movl	%ebx, TSS_ESP0(%eax)
@@ -457,9 +525,32 @@ swtch_com:
 	movl	PCB_EIP(%edx),%eax
 	movl	%eax,(%esp)
 
-	movl	%edx,_curpcb
-	movl	%ecx,_curproc			/* into next process */
+#ifdef SMP
+	GETCPUID(%eax)
+	movb	%al, P_ONCPU(%ecx)
+#endif
+	SETCURPCB(%edx, %eax)
+	SETCURPROC(%ecx, %eax)
+
 	movb	$0,_intr_nesting_level
+#ifdef SMP
+	movl	_apic_base, %eax		/* base addr of LOCAL APIC */
+#if defined(TEST_LOPRIO)
+	/**
+	 * FIXME: the belief here is that we ALWAYS leave here
+	 *         holding a the lock, is this TRUE???
+	 */
+	pushl	%edx
+	movl	APIC_TPR(%eax), %edx		/* get TPR register contents */
+	andl	$~0xff, %edx			/* clear the prio field */
+	movl	%edx, APIC_TPR(%eax)		/* now hold loprio for INTs */
+	popl	%edx
+#endif /* TEST_LOPRIO */
+	movl	APIC_ID(%eax), %eax		/* APIC ID register */
+	andl	$APIC_ID_MASK, %eax		/* extract ID portion */
+	orl	PCB_MPNEST(%edx), %eax		/* add count from PROC */
+	movl	%eax, _mp_lock			/* load the mp_lock */
+#endif /* SMP */
 
 #ifdef	USER_LDT
 	cmpl	$0, PCB_USERLDT(%edx)
@@ -520,7 +611,7 @@ ENTRY(savectx)
 	 * have to handle h/w bugs for reloading.  We used to lose the
 	 * parent's npx state for forks by forgetting to reload.
 	 */
-	mov	_npxproc,%eax
+	GETNPXPROC(%eax)
 	testl	%eax,%eax
 	je	1f
 
