@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.9 1995/12/19 10:11:47 gclarkii Exp $ -->
+<!-- $Id: sup.sgml,v 1.10 1996/01/03 03:18:36 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -11,16 +11,8 @@ purpose of this document is get the beginner up and running with sup.
 
 <sect1><heading>Getting setup</heading>
 
-<p>First off you will need to pick up the sup binaries.  The easiest
-way of doing this is to grab the sup.tgz package from:
-<verb>
-        ftp://ftp.FreeBSD.ORG:/pub/FreeBSD/packages/All/sup-2.0.tgz
-</verb>
-Install the sup package using pkg_add and add the following line to
-your /etc/services file (if it doesn't already exist):
-<verb>
-        supfilesrv          871/tcp        # for SUP
-</verb>
+<p>Starting with FreeBSD 2.1, sup is supplied as part of the base
+system and no separate installation is required.
 
 SUP gets the information it needs to run from a configuration file 
 called a supfile. This file should be found in 
@@ -29,7 +21,13 @@ distributions.
 This file tells sup what collections it will be updating
 and/or installing and where they go.  This supfile will sup the current source
 collection.  For ports please have a look at 
-<tt>/usr/share/examples/sup/ports-supfile</tt>.
+<tt>/usr/share/examples/sup/ports-supfile</tt>.  If you are interested 
+in obtaining the cvs files that make up the source tree, refer to 
+<tt>/usr/share/examples/sup/cvs-supfile</tt>.  If you would rather 
+track changes to the -stable release, refer to 
+<tt>/usr/share/examples/sup/stable-supfile</tt>
+instead.
+
 If you're inside the United States, you may also uncomment
 the `secure' and `eBones' collection lines to grab the DES code.  
 If you're outside the
@@ -39,6 +37,13 @@ violate U.S. export restrictions.  Instead you should use the
 connect you to the international sup site that contains a secure distribution.
 Any distributions you do not wish to receive can be commented out
 with a &num; at the beginning of the distribution line.
+
+Please consult the file
+<tt>/usr/share/examples/sup/README</tt>
+for a list of alternate sup servers.  The default sup server (sup.FreeBSD.ORG)
+listed in the above example files is currently overloaded and any traffic 
+that can be transfered to a different host will help relieve some of 
+the strain.
 
 Once this is setup, you're ready to go.  To start sup type:
 <verb>
@@ -50,37 +55,39 @@ like so:
 	sup -v supfile
 </verb>
 Thats all there is to it!  Remember that if you're running current,
-which is what you will have if you sup, please join the freebsd-current
-mailing list.  You should also be sure to read <ref id="current" 
+which is what you will have if you sup with the standard-supfile, please 
+join the freebsd-current mailing list.  You should also be sure to read 
+<ref id="current" 
 name="Staying current with FreeBSD">
 for important information on just what we can and cannot do for you as
-a -current user.  
+a -current user.    If you are using the stable-supfile, please
+join the freebsd-stable mailing list.
 
 <sect1><heading>Description of FreeBSD SUP distributions</heading>
 
 <p>For the main FreeBSD distribution using the standard-supfile:
 <verb>
-base:		/usr/src/...		misc files at the top of /usr/src
-bin:		/usr/src/bin		user and system binaries
-secure:		/usr/src/secure		DES Sources (US/Canada ONLY) 
-eBones:		/usr/src/eBones		Kerberos and DES (US/Canada ONLY)
-etc:		/usr/src/etc		system files
-games:		/usr/src/games		games
-gnu:		/usr/src/gnu		sources under the GNU Public License
-include:	/usr/src/include	include files
-sys:		/usr/src/sys		kernel sources
-lib:		/usr/src/lib		libraries
-libexec:	/usr/src/libexec	system binaries
-share:		/usr/src/share		various shared resources
-sbin:		/usr/src/sbin		single user system binaries
-usrbin:		/usr/src/usr.bin	user binaries
-usrsbin:	/usr/src/usr.sbin	system binaries
+src-base:	/usr/src/...		misc files at the top of /usr/src
+src-bin:	/usr/src/bin		user and system binaries
+src-secure:	/usr/src/secure		DES Sources (US/Canada ONLY) 
+src-eBones:	/usr/src/eBones		Kerberos and DES (US/Canada ONLY)
+src-etc:	/usr/src/etc		system files
+src-games:	/usr/src/games		games
+src-gnu:	/usr/src/gnu		sources under the GNU Public License
+src-include:	/usr/src/include	include files
+src-sys:	/usr/src/sys		kernel sources
+src-lib:	/usr/src/lib		libraries
+src-libexec:	/usr/src/libexec	system binaries
+src-share:	/usr/src/share		various shared resources
+src-sbin:	/usr/src/sbin		single user system binaries
+src-usrbin:	/usr/src/usr.bin	user binaries
+src-usrsbin:	/usr/src/usr.sbin	system binaries
 </verb>
 
 <p>For the international FreeBSD distribution using the secure-supfile:
 <verb>
-secure:		/usr/src/secure		DES Sources
-eBones:		/usr/src/eBones		Kerberos and DES
+src-secure:	/usr/src/secure		DES Sources
+src-eBones:	/usr/src/eBones		Kerberos and DES
 </verb>
 
 <p>And for the ports collection:
