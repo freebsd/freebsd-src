@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include <sys/param.h>
-#include <sys/dir.h>
+#include <dirent.h>
 #include <sys/user.h>
 #include <signal.h>
 #include <sys/ioctl.h>
