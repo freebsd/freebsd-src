@@ -40,7 +40,7 @@
 #define	TLB_DAR_SLOT(slot)		((slot) << TLB_DAR_SLOT_SHIFT)
 
 #define	TLB_TAR_VA(va)			((va) & ~PAGE_MASK)
-#define	TLB_TAR_CTX(ctx)		(ctx)
+#define	TLB_TAR_CTX(ctx)		((ctx) & PAGE_MASK)
 
 #define	TLB_DEMAP_ID_SHIFT		(4)
 #define	TLB_DEMAP_ID_PRIMARY		(0)
@@ -67,6 +67,21 @@
 #define	TLB_DTLB			(1 << 0)
 #define	TLB_ITLB			(1 << 1)
 
+#define	MMU_SFSR_ASI_SHIFT		(16)
+#define	MMU_SFSR_FT_SHIFT		(7)
+#define	MMU_SFSR_E_SHIFT		(6)
+#define	MMU_SFSR_CT_SHIFT		(4)
+#define	MMU_SFSR_PR_SHIFT		(3)
+#define	MMU_SFSR_W_SHIFT		(2)
+#define	MMU_SFSR_OW_SHIFT		(1)
+#define	MMU_SFSR_FV_SHIFT		(0)
+
+#define	MMU_SFSR_ASI_SIZE		(8)
+#define	MMU_SFSR_FT_SIZE		(6)
+#define	MMU_SFSR_CT_SIZE		(2)
+
+#define	MMU_SFSR_W			(1L << MMU_SFSR_W_SHIFT)
+
 static __inline void
 tlb_dtlb_page_demap(u_int ctx, vm_offset_t va)
 {
@@ -81,7 +96,8 @@ tlb_dtlb_page_demap(u_int ctx, vm_offset_t va)
 static __inline void
 tlb_dtlb_store(vm_offset_t va, struct tte tte)
 {
-	stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(0));
+	stxa(AA_DMMU_TAR, ASI_DMMU,
+	    TLB_TAR_VA(va) | TLB_TAR_CTX(tte_get_ctx(tte)));
 	stxa(0, ASI_DTLB_DATA_IN_REG, tte.tte_data);
 	membar(Sync);
 }
