@@ -56,7 +56,7 @@
  * 28 Jul 93	Jordan K. Hubbard	Free codrv's slot again
  *
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/conf.c,v 1.4 1993/08/09 19:02:21 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/conf.c,v 1.5 1993/08/20 12:51:53 rgrimes Exp $";
 
 #include "param.h"
 #include "systm.h"
@@ -130,6 +130,20 @@ int	chopen(),chclose(),chioctl();
 #define	chopen		enxio
 #define	chclose		enxio
 #define	chioctl		enxio
+#endif
+
+#include "sg.h"
+#if NSG > 0
+int	sgopen(),sgclose(),sgioctl(),sgstrategy();
+#define	sgdump		enxio
+#define	sgsize		NULL
+#else
+#define	sgopen		enxio
+#define	sgclose		enxio
+#define	sgstrategy	enxio
+#define	sgioctl		enxio
+#define	sgdump		enxio
+#define	sgsize		NULL
 #endif
 
 #include "wt.h"
@@ -387,9 +401,9 @@ struct cdevsw	cdevsw[] =
 	{ chopen,	chclose,	enxio,		enxio,		/*17*/
 	  chioctl,	enxio,		enxio,		NULL,	/* ch */
 	  enxio,	enxio,		enxio },
-	{ enxio,	enxio,		enxio,		enxio,		/*18*/
-	  enxio,	enxio,		enxio,		NULL,	/* scsi generic */
-	  enxio,	enxio,		enxio },
+	{ sgopen,	sgclose,	enodev,		enodev,		/*18*/
+	  sgioctl,	enodev,		nullop,		NULL,	/* scsi 'generic' */
+	  seltrue,	enodev,		sgstrategy },
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
 	  enodev,	nullop,		nullop,		NULL,	/* tw */
 	  twselect,	enodev,		enodev },
