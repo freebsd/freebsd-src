@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
  */
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -83,8 +83,6 @@ static driver_t smb_driver = {
 
 static	d_open_t	smbopen;
 static	d_close_t	smbclose;
-static	d_write_t	smbwrite;
-static	d_read_t	smbread;
 static	d_ioctl_t	smbioctl;
 
 static struct cdevsw smb_cdevsw = {
@@ -92,8 +90,6 @@ static struct cdevsw smb_cdevsw = {
 	.d_flags =	D_NEEDGIANT,
 	.d_open =	smbopen,
 	.d_close =	smbclose,
-	.d_read =	smbread,
-	.d_write =	smbwrite,
 	.d_ioctl =	smbioctl,
 	.d_name =	"smb",
 };
@@ -145,10 +141,10 @@ smbopen (dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct smb_softc *sc = IIC_SOFTC(minor(dev));
 
-	if (!sc)
-		return (EINVAL);
+	if (sc == NULL)
+		return (ENXIO);
 
-	if (sc->sc_count)
+	if (sc->sc_count != 0)
 		return (EBUSY);
 
 	sc->sc_count++;
@@ -161,11 +157,12 @@ smbclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct smb_softc *sc = IIC_SOFTC(minor(dev));
 
-	if (!sc)
-		return (EINVAL);
+	if (sc == NULL)
+		return (ENXIO);
 
-	if (!sc->sc_count)
-		return (EINVAL);
+	if (sc->sc_count == 0)
+		/* This is not supposed to happen. */
+		return (0);
 
 	sc->sc_count--;
 
@@ -173,38 +170,25 @@ smbclose(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-smbwrite(dev_t dev, struct uio * uio, int ioflag)
-{
-	/* not supported */
-
-	return (EINVAL);
-}
-
-static int
-smbread(dev_t dev, struct uio * uio, int ioflag)
-{
-	/* not supported */
-
-	return (EINVAL);
-}
-
-static int
 smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
-	device_t smbdev = IIC_DEVICE(minor(dev));
-	struct smb_softc *sc = IIC_SOFTC(minor(dev));
-	device_t parent = device_get_parent(smbdev);
 	char buf[SMB_MAXBLOCKSIZE];
-	char c;
-	short w;
-
-	int error = 0;
+	device_t parent;
 	struct smbcmd *s = (struct smbcmd *)data;
+	struct smb_softc *sc = IIC_SOFTC(minor(dev));
+	device_t smbdev = IIC_DEVICE(minor(dev));
+	int error;
+	short w;
+	char c;
 
-	if (!sc || !s)
+	if (sc == NULL)
+		return (ENXIO);
+	if (s == NULL)
 		return (EINVAL);
 
-	/* allocate the bus */
+	parent = device_get_parent(smbdev);
+
+	/* Allocate the bus. */
 	if ((error = smbus_request_bus(parent, smbdev,
 			(flags & O_NONBLOCK) ? SMB_DONTWAIT : (SMB_WAIT | SMB_INTR))))
 		return (error);
@@ -299,7 +283,6 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 		error = ENOTTY;
 	}
 
-	/* release the bus */
 	smbus_release_bus(parent, smbdev);
 
 	return (error);
