@@ -107,11 +107,9 @@ int type;
     } else {
 	if (type == NL_CAT_LOCALE)
 		lang = setlocale(LC_MESSAGES, NULL);
-	else {
-		if ((lang = (char *) getenv("LANG")) == NULL)
-			lang = "C";
-	}
-	if (strchr(lang, '/') != NULL)
+	else
+		lang = getenv("LANG");
+	if (lang == NULL || strchr(lang, '/') != NULL)
 		lang = "C";
 	if ((nlspath = (char *) getenv("NLSPATH")) == NULL
 #ifndef __NETBSD_SYSCALLS
