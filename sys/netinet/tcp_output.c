@@ -113,7 +113,7 @@ int
 tcp_output(struct tcpcb *tp)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
-	long len, win;
+	long len, recwin, sendwin;
 	int off, flags, error;
 	struct mbuf *m;
 	struct ip *ip = NULL;
@@ -173,8 +173,8 @@ tcp_output(struct tcpcb *tp)
 again:
 	sendalot = 0;
 	off = tp->snd_nxt - tp->snd_una;
-	win = min(tp->snd_wnd, tp->snd_cwnd);
-	win = min(win, tp->snd_bwnd);
+	sendwin = min(tp->snd_wnd, tp->snd_cwnd);
+	sendwin = min(sendwin, tp->snd_bwnd);
 
 	flags = tcp_outflags[tp->t_state];
 	/*
@@ -193,7 +193,7 @@ again:
 	 * and go to transmit state.
 	 */
 	if (tp->t_force) {
-		if (win == 0) {
+		if (sendwin == 0) {
 			/*
 			 * If we still have some data to send, then
 			 * clear the FIN bit.  Usually this would
@@ -212,7 +212,7 @@ again:
 			 */
 			if (off < so->so_snd.sb_cc)
 				flags &= ~TH_FIN;
-			win = 1;
+			sendwin = 1;
 		} else {
 			callout_stop(tp->tt_persist);
 			tp->t_rxtshift = 0;
@@ -222,7 +222,7 @@ again:
 	/*
 	 * If snd_nxt == snd_max and we have transmitted a FIN, the 
 	 * offset will be > 0 even if so_snd.sb_cc is 0, resulting in
-	 * a negative length.  This can also occur when tcp opens up
+	 * a negative length.  This can also occur when TCP opens up
 	 * its congestion window while receiving additional duplicate
 	 * acks after fast-retransmit because TCP will reset snd_nxt
 	 * to snd_max after the fast-retransmit.
@@ -231,7 +231,7 @@ again:
 	 * be set to snd_una, the offset will be 0, and the length may
 	 * wind up 0.
 	 */
-	len = (long)ulmin(so->so_snd.sb_cc, win) - off;
+	len = (long)ulmin(so->so_snd.sb_cc, sendwin) - off;
 
 
 	/*
@@ -274,7 +274,7 @@ again:
 		 * close completely, just wait for an ACK.
 		 */
 		len = 0;
-		if (win == 0) {
+		if (sendwin == 0) {
 			callout_stop(tp->tt_rexmt);
 			tp->t_rxtshift = 0;
 			tp->snd_nxt = tp->snd_una;
@@ -295,7 +295,7 @@ again:
 	if (SEQ_LT(tp->snd_nxt + len, tp->snd_una + so->so_snd.sb_cc))
 		flags &= ~TH_FIN;
 
-	win = sbspace(&so->so_rcv);
+	recwin = sbspace(&so->so_rcv);
 
 	/*
 	 * Sender silly window avoidance.   We transmit under the following
@@ -341,13 +341,13 @@ again:
 	 * window, then want to send a window update to peer.
 	 * Skip this if the connection is in T/TCP half-open state.
 	 */
-	if (win > 0 && !(tp->t_flags & TF_NEEDSYN)) {
+	if (recwin > 0 && !(tp->t_flags & TF_NEEDSYN)) {
 		/*
 		 * "adv" is the amount we can increase the window,
 		 * taking into account that we are limited by
 		 * TCP_MAXWIN << tp->rcv_scale.
 		 */
-		long adv = min(win, (long)TCP_MAXWIN << tp->rcv_scale) -
+		long adv = min(recwin, (long)TCP_MAXWIN << tp->rcv_scale) -
 			(tp->rcv_adv - tp->rcv_nxt);
 
 		if (adv >= (long) (2 * tp->t_maxseg))
@@ -720,13 +720,14 @@ send:
 	 * Calculate receive window.  Don't shrink window,
 	 * but avoid silly window syndrome.
 	 */
-	if (win < (long)(so->so_rcv.sb_hiwat / 4) && win < (long)tp->t_maxseg)
-		win = 0;
-	if (win < (long)(tp->rcv_adv - tp->rcv_nxt))
-		win = (long)(tp->rcv_adv - tp->rcv_nxt);
-	if (win > (long)TCP_MAXWIN << tp->rcv_scale)
-		win = (long)TCP_MAXWIN << tp->rcv_scale;
-	th->th_win = htons((u_short) (win>>tp->rcv_scale));
+	if (recwin < (long)(so->so_rcv.sb_hiwat / 4) &&
+	    recwin < (long)tp->t_maxseg)
+		recwin = 0;
+	if (recwin < (long)(tp->rcv_adv - tp->rcv_nxt))
+		recwin = (long)(tp->rcv_adv - tp->rcv_nxt);
+	if (recwin > (long)TCP_MAXWIN << tp->rcv_scale)
+		recwin = (long)TCP_MAXWIN << tp->rcv_scale;
+	th->th_win = htons((u_short) (recwin >> tp->rcv_scale));
 
 
 	/*
@@ -737,7 +738,7 @@ send:
 	 * to read more data then can be buffered prior to transmitting on
 	 * the connection.
 	 */
-	if (win == 0)
+	if (recwin == 0)
 		tp->t_flags |= TF_RXWIN0SENT;
 	else
 		tp->t_flags &= ~TF_RXWIN0SENT;
@@ -957,8 +958,8 @@ out:
 	 * then remember the size of the advertised window.
 	 * Any pending ACK has now been sent.
 	 */
-	if (win > 0 && SEQ_GT(tp->rcv_nxt+win, tp->rcv_adv))
-		tp->rcv_adv = tp->rcv_nxt + win;
+	if (recwin > 0 && SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
+		tp->rcv_adv = tp->rcv_nxt + recwin;
 	tp->last_ack_sent = tp->rcv_nxt;
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
 	if (callout_active(tp->tt_delack))
