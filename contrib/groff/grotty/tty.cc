@@ -144,7 +144,7 @@ class tty_printer : public printer {
 public:
   tty_printer();
   ~tty_printer();
-  void set_char(int, font *, const environment *, int);
+  void set_char(int, font *, const environment *, int, const char *name);
   void draw(int code, int *p, int np, const environment *env);
   void begin_page(int) { }
   void end_page(int page_length);
@@ -164,7 +164,7 @@ tty_printer::~tty_printer()
   a_delete lines;
 }
 
-void tty_printer::set_char(int i, font *f, const environment *env, int w)
+void tty_printer::set_char(int i, font *f, const environment *env, int w, const char *name)
 {
   if (w != font::hor)
     fatal("width of character not equal to horizontal resolution");

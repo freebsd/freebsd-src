@@ -9,12 +9,8 @@ Here are some things that would be useful additions to groff:
   a page-makeup postprocessor and associated macro package
   (like pm and -mpm)
 
-  a complete, self-contained manual (trent@cs.pdx.edu is working on this)
+  a complete, self-contained manual -- first results can be found in
+  doc/groff.texinfo.
 
 If you want to work on one of these, you should probably post to
 gnu.groff.bug to see if anyone else has gotten there first.
-
-As of August 1997 groff lacks a maintainer.  If you are seriously interested
-in these projects, perhaps you should volunteer.
-
-

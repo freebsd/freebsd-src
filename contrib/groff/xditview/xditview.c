@@ -57,6 +57,11 @@ static char rcsid[] = "$XConsortium: xditview.c,v 1.17 89/12/10 17:05:08 rws Exp
 extern FILE *popen();
 extern void exit();
 
+static String fallback_resources[] = {
+#include "GXditview-ad.h"
+    NULL
+};
+
 static struct app_resources {
     char *print_command;
     char *filename;
@@ -156,7 +161,7 @@ XtActionsRec xditview_actions[] = {
 
 static char	pageLabel[256] = "Page <none>";
 
-void main(argc, argv)
+int main(argc, argv)
     int argc;
     char **argv;
 {
@@ -165,14 +170,15 @@ void main(argc, argv)
     static Arg	    labelArgs[] = {
 			{XtNlabel, (XtArgVal) pageLabel},
     };
+    XtAppContext    xtcontext;
     Arg		    topLevelArgs[2];
     Widget          entry;
     Arg		    pageNumberArgs[1];
     int		    page_number;
 
-    toplevel = XtInitialize("main", "GXditview",
+    toplevel = XtAppInitialize(&xtcontext, "GXditview",
 			    options, XtNumber (options),
- 			    &argc, argv);
+ 			    &argc, argv, fallback_resources, NULL, 0);
     if (argc > 2)
 	Syntax(argv[0]);
 
@@ -182,8 +188,7 @@ void main(argc, argv)
     if (app_resources.print_command)
 	strcpy(current_print_command, app_resources.print_command);
 
-    XtAppAddActions(XtWidgetToApplicationContext(toplevel),
-		    xditview_actions, XtNumber (xditview_actions));
+    XtAppAddActions(xtcontext, xditview_actions, XtNumber (xditview_actions));
 
     XtSetArg (topLevelArgs[0], XtNiconPixmap,
 	      XCreateBitmapFromData (XtDisplay (toplevel),
@@ -228,7 +233,8 @@ void main(argc, argv)
     XtRealizeWidget (toplevel);
     if (file_name)
 	SetPageNumber (page_number);
-    XtMainLoop();
+    XtAppMainLoop(xtcontext);
+    return 0;
 }
 
 static void
@@ -515,8 +521,8 @@ void (*func)();
 char	*def;
 {
     static Arg dialogArgs[] = {
-	{XtNlabel, NULL},
-	{XtNvalue, NULL},
+	{XtNlabel, 0},
+	{XtNvalue, 0},
     };
     Arg valueArgs[1];
     Arg centerArgs[2];

@@ -1519,7 +1519,10 @@ in \\f2\\*([B\\f1, \c
 .if \n(dw=5 .ds dw Thursday
 .if \n(dw=6 .ds dw Friday
 .if \n(dw=7 .ds dw Saturday
-.ds td \*(mo \n(dy, 19\n(yr
+.nr y2 \n(yr%100
+.af y2 00
+.nr y4 \n(yr+1900
+.ds td \*(mo \n(dy, \n(y4
 .\"		*** PARAMETRIC INITIALIZATIONS ***
 .rr x
 .nr $v \n(.v00+\n(.sp-1/\n(.sp	\" vs as percentage of ps for .sz request

@@ -15,10 +15,11 @@ ifdef X100 ! define X %1% !
 ifdef X75-12 ! define X %1% !
 ifdef X100-12 ! define X %1% !
 
-ifdef ps ! define ps|X %1% !
-ifdef X ! define ps|X %1% !
+ifdef ps ! define ps|X|html %1% !
+ifdef X ! define ps|X|html %1% !
+ifdef html ! define ps|X|html %1% !
 
-ifdef ps|X ! sdefine inf %"\s[\En[.s]*13u/10u]\v'12M'\(if\v'-12M'\s0"% !
+ifdef ps|X|html ! sdefine inf %"\s[\En[.s]*13u/10u]\v'12M'\(if\v'-12M'\s0"% !
 
 ifdef dvi !
 sdefine int %{type "operator" vcenter \(is}%
@@ -46,7 +47,7 @@ set big_op_spacing5 10
 
 ifdef X ! set axis_height 32 !
 
-ifdef ps|X ! set draw_lines 1 !
+ifdef ps|X|html ! set draw_lines 1 !
 
 ifdef ascii ! define n %1% !
 ifdef latin1 ! define n %1% !
@@ -57,4 +58,5 @@ set nroff 1
 undef X
 undef ps|X
 undef n
+undef html
 .EN

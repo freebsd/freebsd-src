@@ -21,8 +21,12 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #define INT_DIGITS 19		/* enough for 64 bit integer */
 
+#ifndef HAVE_SYS_NERR
 extern int sys_nerr;
+#endif
+#ifndef HAVE_SYS_ERRLIST
 extern char *sys_errlist[];
+#endif
 
 char *strerror(n)
      int n;

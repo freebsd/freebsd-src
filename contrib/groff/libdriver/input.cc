@@ -291,6 +291,8 @@ void do_file(const char *filename)
 	  if (np > 0)
 	    env.hpos += p[0];
 	}
+	else if (c == 'f' || c == 't')
+	  ;
 	else { 
 	  int i;
 	  for (i = 0; i < np/2; i++) {
