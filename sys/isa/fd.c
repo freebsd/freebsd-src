@@ -2607,7 +2607,6 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
  	fd_p fd;
 	struct fdc_status *fsp;
 	struct fdc_readid *rid;
-	size_t fdblk;
 	int error, type;
 
  	fdu = FDUNIT(minor(dev));
@@ -2722,7 +2721,6 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		return (EAGAIN);
 	if (fd->ft == 0)
 		return (ENXIO);
-	fdblk = 128 << fd->ft->secsize;
 	error = 0;
 
 	switch (cmd) {

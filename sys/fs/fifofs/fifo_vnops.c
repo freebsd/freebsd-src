@@ -284,7 +284,7 @@ fifo_read(ap)
 	struct uio *uio = ap->a_uio;
 	struct socket *rso = ap->a_vp->v_fifoinfo->fi_readsock;
 	struct thread *td = uio->uio_td;
-	int error, startresid;
+	int error;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_READ)
@@ -294,7 +294,6 @@ fifo_read(ap)
 		return (0);
 	if (ap->a_ioflag & IO_NDELAY)
 		rso->so_state |= SS_NBIO;
-	startresid = uio->uio_resid;
 	VOP_UNLOCK(ap->a_vp, 0, td);
 	error = soreceive(rso, (struct sockaddr **)0, uio, (struct mbuf **)0,
 	    (struct mbuf **)0, (int *)0);
