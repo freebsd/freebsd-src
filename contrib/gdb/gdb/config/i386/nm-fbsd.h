@@ -28,6 +28,10 @@
 
 #include "i386/nm-i386.h"
 
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+
 /* Provide access to the i386 hardware debugging registers.  */
 
 #define I386_DR_LOW_SET_CONTROL(control) \

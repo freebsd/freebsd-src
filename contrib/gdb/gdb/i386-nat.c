@@ -230,6 +230,14 @@ i386_cleanup_dregs (void)
   dr_status_mirror  = 0;
 }
 
+/* Reset all debug registers at each new startup
+   to avoid missing watchpoints after restart.  */
+void
+child_post_startup_inferior (ptid_t ptid)
+{
+  i386_cleanup_dregs ();
+}
+
 /* Print the values of the mirrored debug registers.
    This is called when maint_show_dr is non-zero.  To set that
    up, type "maint show-debug-regs" at GDB's prompt.  */

@@ -22,6 +22,8 @@
 #if !defined (OBJFILES_H)
 #define OBJFILES_H
 
+#include "bcache.h"
+
 /* This structure maintains information on a per-objfile basis about the
    "entry point" of the objfile, and the scope within which the entry point
    exists.  It is possible that gdb will see more than one objfile that is

@@ -1,7 +1,7 @@
 		What has changed in GDB?
 	     (Organized release by release)
 
-*** Changes since GDB 5.2:
+*** Changes in GDB 5.2.1:
 
 * New targets.
 
@@ -16,6 +16,14 @@ Fix, by Joel Brobecker imported from mainline.
 gdb/439: gdb/291: On some ELF object files, gdb was reporting:
 dwarf2read.c:1072: gdb-internal-error: sect_index_text not initialize
 Fix, by Fred Fish, imported from mainline.
+
+Dwarf2 .debug_frame & .eh_frame handler improved in many ways. 
+Surprisingly enough, it works now.
+By Michal Ludvig, imported from mainline.
+
+i386 hardware watchpoint support: 
+avoid misses on second run for some targets.
+By Pierre Muller, imported from mainline.
 
 *** Changes in GDB 5.2:
 
