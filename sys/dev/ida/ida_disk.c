@@ -232,22 +232,12 @@ idad_dump(dev_t dev)
 		if (error)
 			return (error);
 
-		if (addr % (1024 * 1024) == 0) {
-#ifdef HW_WDOG
-			if (wdog_tickler)
-				(*wdog_tickler)();
-#endif
-			printf("%ld ", (long)(count * DEV_BSIZE)/(1024 * 1024));
-		}
+		if (dumpstatus(addr, (long)(count * DEV_BSIZE)) < 0)
+			return (EINTR);
 
 		blkno += blkcnt * dumppages;
 		count -= blkcnt * dumppages;
 		addr += PAGE_SIZE * dumppages;
-
-		if (cncheckc() == 0x03)
-			return (EINTR);
-		else
-			printf("[CTRL-C to abort] ");
 	}
 	return (0);
 }
