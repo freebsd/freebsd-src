@@ -26,21 +26,23 @@
  * $FreeBSD$
  */
 
-#define KEYSIZE		32	/* 32 bytes == 256 bits */
+#define KEYSIZE		32		/* in bytes - 32 bytes == 256 bits */
 
 struct yarrowhash {		/* Big! Make static! */
-	BF_KEY hashkey;		/* Data cycles through here */
-	u_char ivec[8];		/* Blowfish Internal */
+	keyInstance hashkey;	/* Data cycles through here */
+	cipherInstance cipher;	/* Rijndael internal */
 	u_char hash[KEYSIZE];	/* Repeatedly encrypted */
+	u_char accum[KEYSIZE];	/* Accumulate partial chunks */
+	u_int partial;		/* Keep track of < KEYSIZE chunks */
 };
 
 struct yarrowkey {		/* Big! Make static! */
-	BF_KEY key;		/* Key schedule */
-	u_char ivec[8];		/* Blowfish Internal */
+	keyInstance key;	/* Key schedule */
+	cipherInstance cipher;	/* Rijndael internal */
 };
 
-void yarrow_hash_init(struct yarrowhash *, void *, size_t);
+void yarrow_hash_init(struct yarrowhash *);
 void yarrow_hash_iterate(struct yarrowhash *, void *, size_t);
 void yarrow_hash_finish(struct yarrowhash *, void *);
-void yarrow_encrypt_init(struct yarrowkey *, void *, size_t);
-void yarrow_encrypt(struct yarrowkey *context, void *, void *, size_t);
+void yarrow_encrypt_init(struct yarrowkey *, void *);
+void yarrow_encrypt(struct yarrowkey *context, void *, void *);
