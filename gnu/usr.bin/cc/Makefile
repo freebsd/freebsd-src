@@ -3,7 +3,7 @@
 # The order of some of these are rather important.  Some depend on previous
 # subdirs.
 
-SUBDIR= cc_tools cc_int cc cc1 cpp0 include protoize tradcpp0 doc
+SUBDIR= cc_tools cc_int cc cc1 include protoize doc
 
 .if !defined(NO_CPP)
 SUBDIR+= cpp
