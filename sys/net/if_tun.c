@@ -765,7 +765,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (ENOBUFS);
 	mlen = MHLEN;
 
-	top = 0;
+	top = NULL;
 	mp = &top;
 	while (error == 0 && uio->uio_resid > 0) {
 		m->m_len = min(mlen, uio->uio_resid);
