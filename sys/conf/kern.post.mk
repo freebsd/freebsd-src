@@ -103,7 +103,7 @@ lint: ${LNFILES}
 HACK_EXTRA_FLAGS?= -shared
 hack.So: Makefile
 	touch hack.c
-	${CC} ${FMT} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.So
+	${CC} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.So
 	rm -f hack.c
 
 # This rule stops ./assym.s in .depend from causing problems.
@@ -112,8 +112,6 @@ hack.So: Makefile
 assym.s: $S/kern/genassym.sh genassym.o
 	NM=${NM} sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
-# XXX used to force -elf after CFLAGS to work around breakage of cc -aout
-# (genassym.sh makes some assumptions and cc stopped satisfying them).
 genassym.o: $S/$M/$M/genassym.c
 	${CC} -c ${CFLAGS:N-fno-common} -Wno-inline $S/$M/$M/genassym.c
 
