@@ -124,6 +124,14 @@ signal is
 delivered.  Because this signal may interrupt in-progress
 system calls, programs using this timer must be prepared to
 restart interrupted system calls.
+.Pp
+The maximum number of seconds allowed for
+.Fa it_interval
+and
+.Fa it_value
+in
+.Fn setitimer
+is 100000000.
 .Sh NOTES
 Three macros for manipulating time values are defined in
 .Ao Pa sys/time.h Ac .
