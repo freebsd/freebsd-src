@@ -43,9 +43,9 @@
 #define	PCIC_VG469	7
 #define	PCIC_RF5C396	8		/* Ricoh RF5C396 */
 #define	PCIC_IBM_KING	9		/* IBM KING PCMCIA Controller */
-#ifdef	PC98
 #define	PCIC_PC98	10
-#endif
+#define PCIC_TI1130	11		/* TI PCI1130 CardBus */
+
 /*
  *	Address of the controllers. Each controller can manage
  *	two PCMCIA slots. Up to 8 slots are supported in total.

@@ -35,6 +35,7 @@
 #include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -56,6 +57,17 @@
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
+SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
+
+static int pcic_resume_reset =
+#ifdef PCIC_RESUME_RESET
+	1;
+#else
+	0;
+#endif
+
+SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW, 
+	&pcic_resume_reset, 0, "");
 
 #define	PCCARD_MEMSIZE	(4*1024)
 
@@ -344,9 +356,8 @@ slot_resume(void *arg)
 	struct slot *sp = arg;
 	struct pccard_dev *dp;
 
-#ifdef PCIC_RESUME_RESET
-	sp->ctrl->resume(sp);
-#endif
+	if (pcic_resume_reset)
+		sp->ctrl->resume(sp);
 
 	if (!sp->suspend_power)
 		sp->ctrl->power(sp);
