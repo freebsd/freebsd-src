@@ -65,7 +65,7 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 
-static int	ffs_fsync __P((struct vop_fsync_args *));
+int	ffs_fsync __P((struct vop_fsync_args *));
 static int	ffs_getpages __P((struct vop_getpages_args *));
 static int	ffs_putpages __P((struct vop_putpages_args *));
 static int	ffs_read __P((struct vop_read_args *));
@@ -128,7 +128,7 @@ VNODEOP_SET(ffs_fifoop_opv_desc);
  * Synch an open file.
  */
 /* ARGSUSED */
-static int
+int
 ffs_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;

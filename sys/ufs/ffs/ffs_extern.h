@@ -87,6 +87,8 @@ int	ffs_isfreeblock __P((struct fs *, unsigned char *, ufs_daddr_t));
 int	ffs_mountfs __P((struct vnode *, struct mount *, struct proc *,
 	     struct malloc_type *));
 int	ffs_mountroot __P((void));
+int	ffs_mount __P((struct mount *, char *, caddr_t, struct nameidata *,
+	    struct proc *));
 int	ffs_reallocblks __P((struct vop_reallocblks_args *));
 int	ffs_realloccg __P((struct inode *,
 	    ufs_daddr_t, ufs_daddr_t, int, int, struct ucred *, struct buf **));

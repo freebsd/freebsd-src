@@ -973,22 +973,30 @@ posix4/ksched.c	optional _kposix_priority_scheduling
 posix4/p1003_1b.c	standard
 posix4/posix4_mib.c	standard
 ufs/ffs/ffs_alloc.c	optional ffs
+ufs/ffs/ffs_alloc.c	optional ifs
 ufs/ffs/ffs_alloc.c	optional mfs
 ufs/ffs/ffs_balloc.c	optional ffs
+ufs/ffs/ffs_balloc.c	optional ifs
 ufs/ffs/ffs_balloc.c	optional mfs
 ufs/ffs/ffs_inode.c	optional ffs
+ufs/ffs/ffs_inode.c	optional ifs
 ufs/ffs/ffs_inode.c	optional mfs
 ufs/ffs/ffs_snapshot.c	optional ffs
+ufs/ffs/ffs_snapshot.c	optional ifs
 ufs/ffs/ffs_snapshot.c	optional mfs
 ufs/ffs/ffs_softdep.c	optional softupdates
 ufs/ffs/ffs_softdep_stub.c	standard
 ufs/ffs/ffs_subr.c	optional ffs
+ufs/ffs/ffs_subr.c	optional ifs
 ufs/ffs/ffs_subr.c	optional mfs
 ufs/ffs/ffs_tables.c	optional ffs
+ufs/ffs/ffs_tables.c	optional ifs
 ufs/ffs/ffs_tables.c	optional mfs
 ufs/ffs/ffs_vfsops.c	optional ffs
+ufs/ffs/ffs_vfsops.c	optional ifs
 ufs/ffs/ffs_vfsops.c	optional mfs
 ufs/ffs/ffs_vnops.c	optional ffs
+ufs/ffs/ffs_vnops.c	optional ifs
 ufs/ffs/ffs_vnops.c	optional mfs
 ufs/mfs/mfs_vfsops.c	optional mfs
 ufs/mfs/mfs_vnops.c	optional mfs
@@ -997,6 +1005,10 @@ ufs/ufs/ufs_extattr.c	standard
 ufs/ufs/ufs_ihash.c	standard
 ufs/ufs/ufs_inode.c	standard
 ufs/ufs/ufs_lookup.c	standard
+ufs/ifs/ifs_lookup.c	optional ifs
+ufs/ifs/ifs_vfsops.c	optional ifs
+ufs/ifs/ifs_vnops.c	optional ifs
+ufs/ifs/ifs_subr.c	optional ifs
 ufs/ufs/ufs_quota.c	standard
 ufs/ufs/ufs_vfsops.c	standard
 ufs/ufs/ufs_vnops.c	standard
