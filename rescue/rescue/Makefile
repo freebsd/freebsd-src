@@ -123,10 +123,6 @@ CRUNCH_LIBS+= -latm
 CRUNCH_PROGS_sbin+= ping6
 .endif
 
-.if !defined(NO_VINUM)
-CRUNCH_PROGS_sbin+= vinum
-.endif
-
 .if !defined(NO_IPFILTER)
 CRUNCH_PROGS_sbin+= ipf ipfs ipfstat ipmon ipnat
 .endif
