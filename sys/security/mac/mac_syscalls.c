@@ -928,16 +928,38 @@ static int
 mac_policy_unregister(struct mac_policy_conf *mpc)
 {
 
+	/*
+	 * If we fail the load, we may get a request to unload.  Check
+	 * to see if we did the run-time registration, and if not,
+	 * silently succeed.
+	 */
+	MAC_POLICY_LIST_LOCK();
+	if ((mpc->mpc_runtime_flags & MPC_RUNTIME_FLAG_REGISTERED) == 0) {
+		MAC_POLICY_LIST_UNLOCK();
+		return (0);
+	}
 #if 0
 	/*
 	 * Don't allow unloading modules with private data.
 	 */
-	if (mpc->mpc_field_off != NULL)
+	if (mpc->mpc_field_off != NULL) {
+		MAC_POLICY_LIST_UNLOCK();
 		return (EBUSY);
+	}
 #endif
-	if ((mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_UNLOADOK) == 0)
+	/*
+	 * Only allow the unload to proceed if the module is unloadable
+	 * by its own definition.
+	 */
+	if ((mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_UNLOADOK) == 0) {
+		MAC_POLICY_LIST_UNLOCK();
 		return (EBUSY);
-	MAC_POLICY_LIST_LOCK();
+	}
+	/*
+	 * Right now, we EBUSY if the list is in use.  In the future,
+	 * for reliability reasons, we might want to sleep and wakeup
+	 * later to try again.
+	 */
 	if (mac_policy_list_busy > 0) {
 		MAC_POLICY_LIST_UNLOCK();
 		return (EBUSY);
