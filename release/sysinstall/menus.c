@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.7 1995/06/01 05:41:48 jkh Exp $
+ * $Id: menus.c,v 1.41.2.8 1995/06/01 05:48:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -579,10 +579,10 @@ DMenu MenuOptionsFTP = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose FTP Options",
     "Please indicate how you would like FTP to deal with potential error\n\
-conditions, the default behavior being to Abort on transfer errors.  If you\n\
-are behind an IP firewall, you will also probably wish to select passive\n\
-mode transfers (it's generally OK to set this in any case as almost all\n\
-servers support it, firewall or no).",
+conditions, the default behavior being to Abort on transfer errors.\n\
+If you are behind an IP firewall, you will also probably wish to\n\
+select passive mode transfers (it's generally OK to set this in any\n\
+case as almost all servers support it, firewalled or not).",
     NULL,
     NULL,
     { { "FTP Retry", "On transfer failure, retry same host",
@@ -593,7 +593,7 @@ servers support it, firewall or no).",
 	DMENU_SET_VARIABLE,	"ftpRetryType=abort", 0, 0	},
       { "FTP passive", "Use \"passive mode\" for firewalled FTP",
 	DMENU_SET_VARIABLE,	"ftpPassive=yes", 0, 0		},
-      { "FTP userpass", "Specify username and password instead of anon",
+      { "FTP userpass", "Specify username and password instead of anonymous",
 	DMENU_CALL, mediaSetFtpUserPass, 0, 0			},
       { NULL } },
 };

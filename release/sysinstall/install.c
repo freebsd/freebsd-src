@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.4 1995/06/01 08:20:21 jkh Exp $
+ * $Id: install.c,v 1.70.2.5 1995/06/01 09:42:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -249,7 +249,7 @@ installCommit(char *str)
 	vsystem("ln -f /kernel.GENERIC /kernel");
 
     dialog_clear();
-    msgConfirm("Installation completed successfully.\nHit return now to go back to the main menu.");
+    msgConfirm("Installation completed successfully, hit return now to go back\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
     SystemWasInstalled = TRUE;
     return 0;
 }
