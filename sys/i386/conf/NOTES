@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.516 1998/12/27 13:06:40 phk Exp $
+#	$Id: LINT,v 1.517 1998/12/27 13:40:55 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -982,12 +982,8 @@ options		ATAPI_STATIC	#Don't do it as an LKM
 #
 options		IDE_DELAY=8000	# Be optimistic about Joe IDE device
 
-# Use either the acd or the wcd device, not both!
 # IDE CD-ROM & CD-R/RW  driver - requires wdc controller and ATAPI option
 device          acd0
-
-# IDE CD-ROM driver - requires wdc controller and ATAPI option
-device          wcd0
 
 # IDE floppy driver - requires wdc controller and ATAPI option
 device          wfd0
