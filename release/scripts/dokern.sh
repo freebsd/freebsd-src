@@ -26,6 +26,7 @@ sed	-e '/	pci$/d' \
 	-e '/	fxp/d' \
 	-e '/	tx/d' \
 	-e '/	txp/d' \
+	-e '/	bge/d' \
 	-e '/	vx/d' \
 	-e '/	wx/d' \
 	-e '/	dc/d' \
@@ -40,7 +41,6 @@ sed	-e '/	pci$/d' \
 	-e '/	xl/d' \
 	-e '/	an$/d' \
 	-e '/	wi$/d' \
-	-e '/	txp$/d' \
 	-e '/pty/d' \
 	-e '/pass/d' \
 	-e '/	apm/d' \
@@ -89,9 +89,9 @@ sed	-e '/pty/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/RANDOMDEV/d' \
 	-e '/	ncr/d' \
+	-e '/	txp/d' \
 	-e '/	an$/d' \
 	-e '/	wi$/d' \
-	-e '/	txp$/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
