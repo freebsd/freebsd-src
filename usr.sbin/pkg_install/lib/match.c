@@ -204,18 +204,15 @@ rex_match(char *pattern, char *pkgname)
 static int
 storeappend(struct store *store, const char *item)
 {
-    char **tmp;
-
     if (store->used + 2 > store->currlen) {
-	tmp = store->store;
 	store->currlen += 16;
-	store->store = malloc(store->currlen * sizeof(*(store->store)));
+	store->store = reallocf(store->store,
+				store->currlen * sizeof(*(store->store)));
 	if (store->store == NULL) {
-	    warnx("%s(): malloc() failed", __FUNCTION__);
+	    store->currlen = 0;
+	    warnx("%s(): reallocf() failed", __FUNCTION__);
 	    return 1;
 	}
-	memcpy(store->store, tmp, store->used * sizeof(*(store->store)));
-	free(tmp);
     }
 
     asprintf(&(store->store[store->used]), "%s", item);
