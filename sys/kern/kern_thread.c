@@ -641,6 +641,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		ksegrp_link(newkg, p);
 		mtx_unlock_spin(&sched_lock);
 	} else {
+		if (!first && ((td->td_flags & TDF_SA) ^ sa) != 0)
+			return (EINVAL);
 		newkg = kg;
 	}
 
