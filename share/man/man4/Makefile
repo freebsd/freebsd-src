@@ -26,7 +26,6 @@ MAN=	aac.4 \
 	bpf.4 \
 	bridge.4 \
 	bt.4 \
-	card.4 \
 	cardbus.4 \
 	ccd.4 \
 	cd.4 \
@@ -292,6 +291,7 @@ MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=netintro.4 networking.4
 MLINKS+=nge.4 if_nge.4
+MLINKS+=oldcard.4 card.4
 MLINKS+=pcm.4 snd.4
 MLINKS+=pcn.4 if_pcn.4
 MLINKS+=pcvt.4 vt.4
