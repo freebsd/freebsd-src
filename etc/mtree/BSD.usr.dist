@@ -505,6 +505,8 @@
             ..
             zh_CN.eucCN
             ..
+            zh_CN.GBK
+            ..
             zh_TW.Big5
             ..
         ..
@@ -824,6 +826,8 @@
             uk_UA.KOI8-U
             ..
             zh_CN.eucCN
+            ..
+            zh_CN.GBK
             ..
             zh_TW.Big5
             ..
