@@ -981,6 +981,7 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	if (oldlenp) {
 		req.oldlen = *oldlenp;
 	}
+	req.validlen = req.oldlen;
 
 	if (old) {
 		req.oldptr= old;
@@ -999,8 +1000,8 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	error = sysctl_root(0, name, namelen, &req);
 
-	if (req.lock == REQ_WIRED && req.wiredlen > 0)
-		vsunlock(req.oldptr, req.wiredlen);
+	if (req.lock == REQ_WIRED && req.validlen > 0)
+		vsunlock(req.oldptr, req.validlen);
 
 	SYSCTL_UNLOCK();
 
@@ -1008,8 +1009,8 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		return (error);
 
 	if (retval) {
-		if (req.oldptr && req.oldidx > req.oldlen)
-			*retval = req.oldlen;
+		if (req.oldptr && req.oldidx > req.validlen)
+			*retval = req.validlen;
 		else
 			*retval = req.oldidx;
 	}
@@ -1055,7 +1056,7 @@ sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 		    "sysctl_old_user()");
 	i = l;
-	len = (req->lock == REQ_WIRED) ? req->wiredlen : req->oldlen;
+	len = req->validlen;
 	if (len <= origidx)
 		i = 0;
 	else {
@@ -1108,7 +1109,7 @@ sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 				return (ret);
 		}
 		req->lock = REQ_WIRED;
-		req->wiredlen = wiredlen;
+		req->validlen = wiredlen;
 	}
 	return (0);
 }
@@ -1278,7 +1279,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
     size_t *oldlenp, int inkernel, void *new, size_t newlen, size_t *retval)
 {
 	int error = 0;
-	struct sysctl_req req, req2;
+	struct sysctl_req req;
 
 	bzero(&req, sizeof req);
 
@@ -1293,6 +1294,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 				return (error);
 		}
 	}
+	req.validlen = req.oldlen;
 
 	if (old) {
 		if (!useracc(old, req.oldlen, VM_PROT_WRITE))
@@ -1314,13 +1316,13 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	SYSCTL_LOCK();
 
 	do {
-	    req2 = req;
-	    error = sysctl_root(0, name, namelen, &req2);
+		req.oldidx = 0;
+		req.newidx = 0;
+		error = sysctl_root(0, name, namelen, &req);
 	} while (error == EAGAIN);
 
-	req = req2;
-	if (req.lock == REQ_WIRED && req.wiredlen > 0)
-		vsunlock(req.oldptr, req.wiredlen);
+	if (req.lock == REQ_WIRED && req.validlen > 0)
+		vsunlock(req.oldptr, req.validlen);
 
 	SYSCTL_UNLOCK();
 
@@ -1328,8 +1330,8 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		return (error);
 
 	if (retval) {
-		if (req.oldptr && req.oldidx > req.oldlen)
-			*retval = req.oldlen;
+		if (req.oldptr && req.oldidx > req.validlen)
+			*retval = req.validlen;
 		else
 			*retval = req.oldidx;
 	}

@@ -139,7 +139,7 @@ struct sysctl_req {
 	size_t		newlen;
 	size_t		newidx;
 	int		(*newfunc)(struct sysctl_req *, void *, size_t);
-	size_t		wiredlen;
+	size_t		validlen;
 };
 
 SLIST_HEAD(sysctl_oid_list, sysctl_oid);
