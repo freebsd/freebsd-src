@@ -15,30 +15,111 @@
 #include <sys/clist.h>
 #include <sys/malloc.h>
 
-char cwaiting;
 struct cblock *cfreelist = 0;
-int cfreecount, nclist = 256;
+int cfreecount = 0;
 
+#ifndef INITIAL_CBLOCKS
+#define INITIAL_CBLOCKS 50
+#endif
+
+void cblock_alloc_cblocks	__P((int));
+
+#define MBUF_DIAG
+#ifdef MBUF_DIAG
+void
+print_nblocks()
+{
+	printf("There are currently %d bytes in cblocks\n", cfreecount);
+}
+#endif
+
+/*
+ * Called from init_main.c
+ */
 void
 clist_init()
+{
+	/*
+	 * Allocate an initial base set of cblocks as a 'slush'.
+	 * We allocate more with each ttyopen().
+	 */
+	cblock_alloc_cblocks(INITIAL_CBLOCKS);
+	return;
+}
+
+/*
+ * Remove a cblock from the cfreelist queue and return a pointer
+ * to it.
+ */
+static inline struct cblock *
+cblock_alloc()
+{
+	struct cblock *cblockp;
+
+	cblockp = cfreelist;
+	if (!cblockp) {
+		/* XXX should syslog a message that we're out! */
+		return (0);
+	}
+	cfreelist = cblockp->c_next;
+	cblockp->c_next = NULL;
+	cfreecount -= CBSIZE;
+	return (cblockp);
+}
+
+/*
+ * Add a cblock to the cfreelist queue.
+ */
+static inline void
+cblock_free(cblockp)
+	struct cblock *cblockp;
+{
+	cblockp->c_next = cfreelist;
+	cfreelist = cblockp;
+	cfreecount += CBSIZE;
+	return;
+}
+
+/*
+ * Allocate some cblocks for the cfreelist queue.
+ */
+void
+cblock_alloc_cblocks(number)
+	int number;
 {
 	int i;
 	struct cblock *tmp;
 
-	for (i = 0; i < nclist; ++i) {
+	for (i = 0; i < number; ++i) {
 		tmp = malloc(sizeof(struct cblock), M_TTYS, M_NOWAIT);
 		if (!tmp)
 			panic("clist_init: could not allocate cblock");
 		bzero((char *)tmp, sizeof(struct cblock));
-		tmp->c_next = cfreelist;
-		cfreelist = tmp;
-		cfreecount += CBSIZE;
+		cblock_free(tmp);
 	}
 	return;
 }
 
 /*
- * Get a character from head of clist.
+ * Free some cblocks from the cfreelist queue back to the
+ * system malloc pool.
+ */
+void
+cblock_free_cblocks(number)
+	int number;
+{
+	int i;
+	struct cblock *tmp;
+
+	for (i = 0; i < number; ++i) {
+		tmp = cblock_alloc();
+		free(tmp, M_TTYS);
+	}
+}
+
+
+/*
+ * Get a character from the head of a clist.
  */
 int
 getc(clistp)
@@ -54,24 +135,32 @@ getc(clistp)
 	if (clistp->c_cc) {
 		cblockp = (struct cblock *)((long)clistp->c_cf & ~CROUND);
 		chr = (u_char)*clistp->c_cf;
-#if 0
+
 		/*
 		 * If this char is quoted, set the flag.
 		 */
 		if (isset(cblockp->c_quote, clistp->c_cf - (char *)cblockp->c_info))
 			chr |= TTY_QUOTE;
-#endif
+
+		/*
+		 * Advance to next character.
+		 */
 		clistp->c_cf++;
 		clistp->c_cc--;
+		/*
+		 * If we have advanced the 'first' character pointer
+		 * past the end of this cblock, advance to the next one.
+		 * If there are no more characters, set the first and
+		 * last pointers to NULL. In either case, free the
+		 * current cblock.
+		 */
 		if ((clistp->c_cf >= (char *)(cblockp+1)) || (clistp->c_cc == 0)) {
 			if (clistp->c_cc > 0) {
 				clistp->c_cf = cblockp->c_next->c_info;
 			} else {
 				clistp->c_cf = clistp->c_cl = NULL;
 			}
-			cblockp->c_next = cfreelist;
-			cfreelist = cblockp;
-			cfreecount += CBSIZE;
+			cblock_free(cblockp);
 		}
 	}
 
@@ -81,7 +170,8 @@ getc(clistp)
 
 /*
  * Copy 'amount' of chars, beginning at head of clist 'clistp' to
- * destination linear buffer 'dest'.
+ * destination linear buffer 'dest'. Return number of characters
+ * actually copied.
  */
 int
 q_to_b(clistp, dest, amount)
@@ -107,15 +197,19 @@ q_to_b(clistp, dest, amount)
 		clistp->c_cf += numc;
 		clistp->c_cc -= numc;
 		dest += numc;
+		/*
+		 * If this cblock has been emptied, advance to the next
+		 * one. If there are no more characters, set the first
+		 * and last pointer to NULL. In either case, free the
+		 * current cblock.
+		 */
 		if ((clistp->c_cf >= (char *)cblockn) || (clistp->c_cc == 0)) {
 			if (clistp->c_cc > 0) {
 				clistp->c_cf = cblockp->c_next->c_info;
 			} else {
 				clistp->c_cf = clistp->c_cl = NULL;
 			}
-			cblockp->c_next = cfreelist;
-			cfreelist = cblockp;
-			cfreecount += CBSIZE;
+			cblock_free(cblockp);
 		}
 	}
 
@@ -146,15 +240,19 @@ ndflush(clistp, amount)
 		amount -= numc;
 		clistp->c_cf += numc;
 		clistp->c_cc -= numc;
+		/*
+		 * If this cblock has been emptied, advance to the next
+		 * one. If there are no more characters, set the first
+		 * and last pointer to NULL. In either case, free the
+		 * current cblock.
+		 */
 		if ((clistp->c_cf >= (char *)cblockn) || (clistp->c_cc == 0)) {
 			if (clistp->c_cc > 0) {
 				clistp->c_cf = cblockp->c_next->c_info;
 			} else {
 				clistp->c_cf = clistp->c_cl = NULL;
 			}
-			cblockp->c_next = cfreelist;
-			cfreelist = cblockp;
-			cfreecount += CBSIZE;
+			cblock_free(cblockp);
 		}
 	}
 
@@ -162,13 +260,16 @@ ndflush(clistp, amount)
 	return;
 }
 
+/*
+ * Add a character to the end of a clist. Return -1 is no
+ * more clists, or 0 for success.
+ */
 int
 putc(chr, clistp)
 	int chr;
 	struct clist *clistp;
 {
-	struct cblock *cblockp;
-	struct cblock *bclockn;
+	struct cblock *cblockp, *bclockn;
 	int s;
 
 	s = spltty();
@@ -176,11 +277,8 @@ putc(chr, clistp)
 	cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
 
 	if (clistp->c_cl == NULL) {
-		if (cfreelist) {
-			cblockp = cfreelist;
-			cfreelist = cfreelist->c_next;
-			cfreecount -= CBSIZE;
-			cblockp->c_next = NULL;
+		cblockp = cblock_alloc();
+		if (cblockp) {
 			clistp->c_cf = clistp->c_cl = cblockp->c_info;
 			clistp->c_cc = 0;
 		} else {
@@ -189,11 +287,10 @@ putc(chr, clistp)
 		}
 	} else {
 		if (((long)clistp->c_cl & CROUND) == 0) {
-			if (cfreelist) {
-				cblockp = (cblockp-1)->c_next = cfreelist;
-				cfreelist = cfreelist->c_next;
-				cfreecount -= CBSIZE;
-				cblockp->c_next = NULL;
+			struct cblock *prev = (cblockp - 1);
+			cblockp = cblock_alloc();
+			if (cblockp) {
+				prev->c_next = cblockp;
 				clistp->c_cl = cblockp->c_info;
 			} else {
 				splx(s);
@@ -202,10 +299,14 @@ putc(chr, clistp)
 		}
 	}
 
-#if 0
+	/*
+	 * If this character is quoted, set the quote bit, if not, clear it.
+	 */
 	if (chr & TTY_QUOTE)
 		setbit(cblockp->c_quote, clistp->c_cl - (char *)cblockp->c_info);
-#endif
+	else
+		clrbit(cblockp->c_quote, clistp->c_cl - (char *)cblockp->c_info);
+
 	*clistp->c_cl++ = chr;
 	clistp->c_cc++;
 
@@ -214,7 +315,8 @@ putc(chr, clistp)
 }
 
 /*
- * Copy data from linear buffer to clist chain.
+ * Copy data from linear buffer to clist chain. Return the
+ * number of characters not copied.
  */
 int
 b_to_q(src, amount, clistp)
@@ -222,10 +324,11 @@ b_to_q(src, amount, clistp)
 	int amount;
 	struct clist *clistp;
 {
-	struct cblock *cblockp;
-	struct cblock *bclockn;
+	struct cblock *cblockp, *bclockn;
+	char *firstbyte, *lastbyte;
+	u_char startmask, endmask;
+	int startbit, endbit, num_between, numc;
 	int s;
-	int numc;
 
 	s = spltty();
 
@@ -234,11 +337,8 @@ b_to_q(src, amount, clistp)
 	 * then get one.
 	 */
 	if (clistp->c_cl == NULL) {
-		if (cfreelist) {
-			cblockp = cfreelist;
-			cfreelist = cfreelist->c_next;
-			cfreecount -= CBSIZE;
-			cblockp->c_next = NULL;
+		cblockp = cblock_alloc();
+		if (cblockp) {
 			clistp->c_cf = clistp->c_cl = cblockp->c_info;
 			clistp->c_cc = 0;
 		} else {
@@ -254,11 +354,10 @@ b_to_q(src, amount, clistp)
 		 * Get another cblock if needed.
 		 */
 		if (((long)clistp->c_cl & CROUND) == 0) {
-			if (cfreelist) {
-				cblockp = (cblockp-1)->c_next = cfreelist;
-				cfreelist = cfreelist->c_next;
-				cfreecount -= CBSIZE;
-				cblockp->c_next = NULL;
+			struct cblock *prev = cblockp - 1;
+			cblockp = cblock_alloc();
+			if (cblockp) {
+				prev->c_next = cblockp;
 				clistp->c_cl = cblockp->c_info;
 			} else {
 				splx(s);
@@ -270,13 +369,38 @@ b_to_q(src, amount, clistp)
 		 * Copy a chunk of the linear buffer up to the end
 		 * of this cblock.
 		 */
-		cblockp += 1;
-		numc = min(amount, (char *)(cblockp) - clistp->c_cl);
+		numc = min(amount, (char *)(cblockp + 1) - clistp->c_cl);
 		bcopy(src, clistp->c_cl, numc);
 		
 		/*
-		 * Clear quote bits.
+		 * Clear quote bits. The following could probably be made into
+		 * a seperate "bitzero()" routine, but why bother?
 		 */
+		startbit = clistp->c_cl - (char *)cblockp->c_info;
+		endbit = startbit + numc - 1;
+
+		firstbyte = (u_char *)cblockp->c_quote + (startbit / NBBY);
+		lastbyte = (u_char *)cblockp->c_quote + (endbit / NBBY);
+
+		/*
+		 * Calculate mask of bits to preserve in first and
+		 * last bytes.
+		 */
+		startmask = NBBY - (startbit % NBBY);
+		startmask = 0xff >> startmask;
+		endmask = (endbit % NBBY);
+		endmask = 0xff << (endmask + 1);
+
+		if (firstbyte != lastbyte) {
+			*firstbyte &= startmask;
+			*lastbyte &= endmask;
+
+			num_between = lastbyte - firstbyte - 1;
+			if (num_between)
+				bzero(firstbyte + 1, num_between);
+		} else {
+			*firstbyte &= (startmask | endmask);
+		}
 
 		/*
 		 * ...and update pointer for the next chunk.
@@ -285,12 +409,26 @@ b_to_q(src, amount, clistp)
 		clistp->c_cl += numc;
 		clistp->c_cc += numc;
 		amount -= numc;
+		/*
+		 * If we go through the loop again, it's always
+		 * for data in the next cblock, so by adding one (cblock),
+		 * (which makes the pointer 1 beyond the end of this
+		 * cblock) we prepare for the assignment of 'prev'
+		 * above.
+		 */
+		cblockp += 1;
+
 	}
 
 	splx(s);
 	return (amount);
 }
 
+/*
+ * Get the next character in the clist. Store it at dst. Don't
+ * advance any clist pointers, but return a pointer to the next
+ * character position.
+ */
 char *
 nextc(clistp, cp, dst)
 	struct clist *clistp;
@@ -300,20 +438,34 @@ nextc(clistp, cp, dst)
 	struct cblock *cblockp;
 
 	++cp;
+	/*
+	 * See if the next character is beyond the end of
+	 * the clist.
+	 */
 	if (clistp->c_cc && (cp != clistp->c_cl)) {
+		/*
+		 * If the next character is beyond the end of this
+		 * cblock, advance to the next cblock.
+		 */
 		if (((long)cp & CROUND) == 0)
 			cp = ((struct cblock *)cp - 1)->c_next->c_info;
 		cblockp = (struct cblock *)((long)cp & ~CROUND);
-#if 0
-		*dst = *cp | (isset(cblockp->c_quote, cp - (char *)cblockp->c_info) ? TTY_QUOTE : 0);
-#endif
-		*dst = (u_char)*cp;
+
+		/*
+		 * Get the character. Set the quote flag if this character
+		 * is quoted.
+		 */
+		*dst = (u_char)*cp | (isset(cblockp->c_quote, cp - (char *)cblockp->c_info) ? TTY_QUOTE : 0);
+
 		return (cp);
 	}
 
 	return (NULL);
 }
 
+/*
+ * "Unput" a character from a clist.
+ */
 int
 unputc(clistp)
 	struct clist *clistp;
@@ -327,18 +479,21 @@ unputc(clistp)
 
 	if (clistp->c_cc) {
 		--clistp->c_cc;
-		chr = (u_char)*--clistp->c_cl;
-		/*
-		 * Get the quote flag and 'unput' it, too.
-		 */
+		--clistp->c_cl;
 
-		/* XXX write me! */
+		chr = (u_char)*clistp->c_cl;
 
 		cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
 
 		/*
+		 * Set quote flag if this character was quoted.	
+		 */
+		if (isset(cblockp->c_quote, (u_char *)clistp->c_cl - cblockp->c_info))
+			chr |= TTY_QUOTE;
+
+		/*
 		 * If all of the characters have been unput in this
-		 * cblock, the find the previous one and free this
+		 * cblock, then find the previous one and free this
 		 * one.
 		 */
 		if (clistp->c_cc && (clistp->c_cl <= (char *)cblockp->c_info)) {
@@ -347,10 +502,12 @@ unputc(clistp)
 			while (cbp->c_next != cblockp)
 				cbp = cbp->c_next;
 
+			/*
+			 * When the previous cblock is at the end, the 'last'
+			 * pointer always points (invalidly) one past.
+			 */
 			clistp->c_cl = (char *)(cbp+1);
-			cblockp->c_next = cfreelist;
-			cfreelist = cblockp;
-			cfreecount += CBSIZE;
+			cblock_free(cblockp);
 			cbp->c_next = NULL;
 		}
 	}
@@ -361,9 +518,7 @@ unputc(clistp)
 	 */
 	if ((clistp->c_cc == 0) && clistp->c_cl) {
 		cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
-		cblockp->c_next = cfreelist;
-		cfreelist = cblockp;
-		cfreecount += CBSIZE;
+		cblock_free(cblockp);
 		clistp->c_cf = clistp->c_cl = NULL;
 	}
 
@@ -371,17 +526,40 @@ unputc(clistp)
 	return (chr);
 }
 
+/*
+ * Move characters in source clist to destination clist,
+ * preserving quote bits.
+ */
 void
 catq(src_clistp, dest_clistp)
 	struct clist *src_clistp, *dest_clistp;
 {
-	char buffer[CBSIZE*2];
-	int amount;
+	int chr, s;
 
-	while (src_clistp->c_cc) {
-		amount = q_to_b(src_clistp, buffer, sizeof(buffer));
-		b_to_q(buffer, amount, dest_clistp);
+	s = spltty();
+	/*
+	 * If the destination clist is empty (has no cblocks atttached),
+	 * then we simply assign the current clist to the destination.
+	 */
+	if (!dest_clistp->c_cf) {
+		dest_clistp->c_cf = src_clistp->c_cf;
+		dest_clistp->c_cl = src_clistp->c_cl;
+		src_clistp->c_cf = src_clistp->c_cl = NULL;
+
+		dest_clistp->c_cc = src_clistp->c_cc;
+		src_clistp->c_cc = 0;
+
+		splx(s);
+		return;
 	}
+	splx(s);
+
+	/*
+	 * XXX  This should probably be optimized to more than one
+	 * character at a time.
+	 */
+	while ((chr = getc(src_clistp)) != -1)
+		putc(chr, dest_clistp);
 
 	return;
 }
