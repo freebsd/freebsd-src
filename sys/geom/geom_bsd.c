@@ -379,7 +379,6 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 		}
 	}
 
-
 	/* Look good, go for it... */
 	for (i = 0; i < gsp->nslice; i++) {
 		ppp = &dl->d_partitions[i];
@@ -478,6 +477,11 @@ g_bsd_ioctl(void *arg)
 	struct g_bsd_softc *ms;
 	struct disklabel *dl;
 	struct g_ioctl *gio;
+	struct g_consumer *cp;
+	u_char *buf;
+	off_t secoff;
+	u_int secsize;
+	int error;
 
 	/* We don't need topology for now */
 	g_topology_unlock();
@@ -493,10 +497,10 @@ g_bsd_ioctl(void *arg)
 	dl = gio->data;
 
 	/* Validate and modify our slice instance to match */
-	bp->bio_error = g_bsd_modify(gp, dl);	/* picks up topology lock */
-	if (bp->bio_error != 0) {
+	error = g_bsd_modify(gp, dl);	/* picks up topology lock on success */
+	if (error) {
 		g_topology_lock();
-		g_io_deliver(bp);
+		g_io_deliver(bp, error);
 		return;
 	}
 	/* Update our copy of the disklabel */
@@ -506,7 +510,8 @@ g_bsd_ioctl(void *arg)
 	/* XXX: DIOCWDINFO write to disk */
 
 	/* return the request */
-	g_io_deliver(bp);
+	g_io_deliver(bp, 0);
+	return;
 }
 
 /*-
@@ -546,8 +551,7 @@ g_bsd_start(struct bio *bp)
 	case DIOCGDINFO:
 		/* Return a copy of the disklabel to userland */
 		bcopy(&ms->inram, gio->data, sizeof ms->inram);
-		bp->bio_error = 0;
-		g_io_deliver(bp);
+		g_io_deliver(bp, 0);
 		return (1);
 	case DIOCSDINFO:
 	case DIOCWDINFO:
@@ -558,7 +562,7 @@ g_bsd_start(struct bio *bp)
 		 */
 		error = g_call_me(g_bsd_ioctl, bp);
 		if (error)
-			g_io_fail(bp, error);
+			g_io_deliver(bp, error);
 		/*
 		 * We must return non-zero to indicate that we will deal
 		 * with this bio, even though we have not done so yet.

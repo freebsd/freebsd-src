@@ -211,20 +211,6 @@ g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr)
 }
 
 void
-g_io_fail(struct bio *bp, int error)
-{
-
-	bp->bio_error = error;
-
-	g_trace(G_T_BIO,
-	    "bio_fail(%p) from %p(%s) to %p(%s) cmd %d error %d\n",
-	    bp, bp->bio_from, bp->bio_from->geom->name,
-	    bp->bio_to, bp->bio_to->name, bp->bio_cmd, bp->bio_error);
-	g_io_deliver(bp);
-	return;
-}
-
-void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	int error;
@@ -242,7 +228,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	atomic_add_int(&cp->biocount, 1);
 	/* Fail on unattached consumers */
 	if (bp->bio_to == NULL) {
-		g_io_fail(bp, ENXIO);
+		g_io_deliver(bp, ENXIO);
 		return;
 	}
 	/* Fail if access doesn't allow operation */
@@ -250,14 +236,14 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	case BIO_READ:
 	case BIO_GETATTR:
 		if (cp->acr == 0) {
-			g_io_fail(bp, EPERM);
+			g_io_deliver(bp, EPERM);
 			return;
 		}
 		break;
 	case BIO_WRITE:
 	case BIO_DELETE:
 		if (cp->acw == 0) {
-			g_io_fail(bp, EPERM);
+			g_io_deliver(bp, EPERM);
 			return;
 		}
 		break;
@@ -267,17 +253,17 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 			printf("setattr on %s mode (%d,%d,%d)\n",
 				cp->provider->name,
 				cp->acr, cp->acw, cp->ace);
-			g_io_fail(bp, EPERM);
+			g_io_deliver(bp, EPERM);
 			return;
 		}
 		break;
 	default:
-		g_io_fail(bp, EPERM);
+		g_io_deliver(bp, EPERM);
 		return;
 	}
 	/* if provider is marked for error, don't disturb. */
 	if (bp->bio_to->error) {
-		g_io_fail(bp, bp->bio_to->error);
+		g_io_deliver(bp, bp->bio_to->error);
 		return;
 	}
 	switch(bp->bio_cmd) {
@@ -286,7 +272,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	case BIO_DELETE:
 		/* Reject requests past the end of media. */
 		if (bp->bio_offset > bp->bio_to->mediasize) {
-			g_io_fail(bp, EIO);
+			g_io_deliver(bp, EIO);
 			return;
 		}
 		/* Truncate requests to the end of providers media. */
@@ -297,7 +283,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 		}
 		/* Deliver zero length transfers right here. */
 		if (bp->bio_length == 0) {
-			g_io_deliver(bp);
+			g_io_deliver(bp, 0);
 			return;
 		}
 		break;
@@ -313,14 +299,16 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 }
 
 void
-g_io_deliver(struct bio *bp)
+g_io_deliver(struct bio *bp, int error)
 {
 
 	g_trace(G_T_BIO,
 	    "g_io_deliver(%p) from %p(%s) to %p(%s) cmd %d error %d",
 	    bp, bp->bio_from, bp->bio_from->geom->name,
-	    bp->bio_to, bp->bio_to->name, bp->bio_cmd, bp->bio_error);
+	    bp->bio_to, bp->bio_to->name, bp->bio_cmd, error);
 	/* finish_stats(&bp->stats); */
+
+	bp->bio_error = error;
 
 	g_bioq_enqueue_tail(bp, &g_bio_run_up);
 

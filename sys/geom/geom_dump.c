@@ -230,19 +230,13 @@ void
 g_trace(int level, char *fmt, ...)
 {
 	va_list ap;
-	struct sbuf *sb;
 
 	g_sanity(NULL);
 	if (!(g_debugflags & level))
 		return;
 	va_start(ap, fmt);
-	mtx_lock(&Giant);
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-	sbuf_vprintf(sb, fmt, ap);
-	sbuf_finish(sb);
-	mtx_unlock(&Giant);
-	printf("%s\n", sbuf_data(sb));
-	sbuf_delete(sb);
+	vprintf(fmt, ap);
+	printf("\n");
 }
 
 void
