@@ -68,6 +68,10 @@ on a file descriptor will remove any kevents that reference the descriptor.
 .Pp
 .Fn kqueue
 creates a new kernel event queue and returns a descriptor.
+The queue is not inherited by a child created with
+.Xr fork 2 .
+However, you can perform a rfork() and share the descriptor table,
+which will allow sharing of the kqueue between two processes.
 .Pp
 .Fn kevent
 is used to register events with the queue, and return any pending
@@ -331,6 +335,11 @@ returns the number of times the signal has occurred since the last call to
 This filter automatically sets the EV_CLEAR flag internally.
 .El
 .Sh RETURN VALUES
+.Fn kqueue
+creates a new kernel event queue and returns a file descriptor.
+If there was an error creating the kernel event queue, a value of -1 is
+returned and errno set.
+.Pp
 .Fn kevent
 returns the number of events placed in the
 .Ar eventlist ,
@@ -357,6 +366,18 @@ If the time limit expires, then
 .Fn kevent
 returns 0.
 .Sh ERRORS
+The
+.Fn kqueue
+function fails if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The kernel failed to allocate enough memory for the kernel queue.
+.It Bq Er EMFILE
+The per-process descriptor table is full.
+.It Bq Er ENFILE
+The system file table is full.
+.El
+.Pp
 The
 .Fn kevent
 function fails if:
