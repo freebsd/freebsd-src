@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if.h,v 1.51 1999/04/28 11:37:33 phk Exp $
+ *	$Id: if.h,v 1.52 1999/05/08 07:00:04 phk Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -82,6 +82,7 @@ struct if_data {
 #define	IFF_DEBUG	0x4		/* turn on debugging */
 #define	IFF_LOOPBACK	0x8		/* is a loopback net */
 #define	IFF_POINTOPOINT	0x10		/* interface is point-to-point link */
+#define	IFF_SMART	0x20		/* interface manages own routes */
 #define	IFF_RUNNING	0x40		/* resources allocated */
 #define	IFF_NOARP	0x80		/* no address resolution protocol */
 #define	IFF_PROMISC	0x100		/* receive all packets */
@@ -97,7 +98,7 @@ struct if_data {
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|\
-	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI)
+	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART)
 
 #define	IFQ_MAXLEN	50
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
