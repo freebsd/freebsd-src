@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)udp.4	8.1 (Berkeley) 6/5/93
-.\"	$Id: udp.4,v 1.5 1997/02/22 13:24:51 peter Exp $
+.\"	$Id: udp.4,v 1.6 1997/03/19 19:47:43 bde Exp $
 .\"
 .Dd June 5, 1993
 .Dt UDP 4
@@ -124,6 +124,34 @@ when an attempt is made to create a
 socket with a network address for which no network interface
 exists.
 .El
+.Sh MIB VARIABLES
+The
+.Nm
+protocol implements a number of variables in the
+.Li net.inet
+branch of the
+.Xr sysctl 3
+MIB.
+.Bl -tag -width UDPCTL_RECVSPACEX
+.It UDPCTL_CHECKSUM
+.Pq udp.checksum
+Enable udp checksums (enabled by default).
+.It UDPCTL_MAXDGRAM
+.Pq udp.maxdgram
+Maximum outgoing UDP datagram size
+.It UDPCTL_RECVSPACE
+.Pq udp.recvspace
+Maximum space for incoming UDP datagrams
+.It udp.log_in_vain
+For all udp datagrams, to ports on which there is no socket
+listening, log the connection attempt (disabled by default).
+.It udp.blackhole
+When a datagram is received on a port where there is no socket
+listening, do not return an ICMP port unreachable message.
+(Disabled by default.  See
+.Xr blackhole 4
+)
+.El
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
 .Xr recv 2 ,
@@ -131,7 +159,8 @@ exists.
 .Xr socket 2 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
-.Xr ip 4
+.Xr ip 4 ,
+.Xr blackhole 4
 .Sh HISTORY
 The
 .Nm
