@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cyreg.h,v 1.1 1995/07/05 12:15:51 bde Exp $
+ *	$Id: cyreg.h,v 1.2 1996/10/04 10:33:13 davidg Exp $
  */
 
 /*
@@ -36,22 +36,21 @@
 #define	CY8_SVCACKR		0x100
 #define	CY8_SVCACKT		0x200
 #define	CY8_SVCACKM		0x300
-#define	CY_CD1400_MEMSIZE	0x400
-#define	CY16_RESET		0x1400
-#define	CY_CLEAR_INTR		0x1800	/* intr ack address */
+#define	CY16_RESET		0x0a00
+#define	CY_CLEAR_INTR		0x0c00	/* intr ack address */
 
 #define	CY_MAX_CD1400s		8	/* for Cyclom-32Y */
 
 #define	CY_CLOCK		25000000	/* baud rate clock */
 
 #ifdef CyDebug
-#define	cd_inb(iobase, reg)		(++cd_inbs, *((iobase) + 2 * (reg)))
+#define	cd_inb(iobase, reg, cy_align)	(++cd_inbs, *((iobase) + ((reg)*2 << (cy_align))))
 #define	cy_inb(iobase, reg)		(++cy_inbs, *((iobase) + (reg)))
-#define	cd_outb(iobase, reg, val)	(++cd_outbs, (void)(*((iobase) + 2 * (reg)) = (val)))
+#define	cd_outb(iobase, reg, cy_align, val)	(++cd_outbs, (void)(*((iobase) + ((reg)*2 << (cy_align))) = (val)))
 #define	cy_outb(iobase, reg, val)	(++cy_outbs, (void)(*((iobase) + (reg)) = (val)))
 #else
-#define	cd_inb(iobase, reg)		(*((iobase) + 2 * (reg)))
+#define	cd_inb(iobase, reg, cy_align)	(*((iobase) + ((reg)*2 << (cy_align))))
 #define	cy_inb(iobase, reg)		(*((iobase) + (reg)))
-#define	cd_outb(iobase, reg, val)	((void)(*((iobase) + 2 * (reg)) = (val)))
+#define	cd_outb(iobase, reg, cy_align, val)	((void)(*((iobase) + ((reg)*2 << (cy_align))) = (val)))
 #define	cy_outb(iobase, reg, val)	((void)(*((iobase) + (reg)) = (val)))
 #endif
