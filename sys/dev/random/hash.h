@@ -26,14 +26,10 @@
  * $FreeBSD$
  */
 
-#define KEYSIZE		32		/* in bytes - 32 bytes == 256 bits */
+#define KEYSIZE		32		/* (in bytes) 32 bytes == 256 bits */
 
 struct yarrowhash {		/* Big! Make static! */
-	keyInstance hashkey;	/* Data cycles through here */
-	cipherInstance cipher;	/* Rijndael internal */
-	u_char hash[KEYSIZE];	/* Repeatedly encrypted */
-	char accum[KEYSIZE];	/* Accumulate partial chunks */
-	u_int partial;		/* Keep track of < KEYSIZE chunks */
+	SHA256_CTX	sha;
 };
 
 struct yarrowkey {		/* Big! Make static! */

@@ -507,6 +507,7 @@ dev/random/yarrow.c	optional random
 dev/random/hash.c	optional random
 crypto/rijndael/rijndael-alg-fst.c	optional random
 crypto/rijndael/rijndael-api-fst.c	optional random
+crypto/sha2/sha2.c	optional random
 dev/ray/if_ray.c	optional ray card
 dev/ray/if_ray.c	optional ray pccard
 dev/rp/rp.c		optional rp
