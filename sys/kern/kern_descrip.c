@@ -1306,6 +1306,9 @@ SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc, CTLFLAG_RW,
 SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, 
     &maxfiles, 0, "Maximum number of files");
 
+SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD, 
+	&nfiles, 0, "System-wide number of open files");
+
 static void
 fildesc_drvinit(void *unused)
 {
