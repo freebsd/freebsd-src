@@ -28,7 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: brktree_reg.h,v 1.23 1998/10/31 11:26:38 nsouch Exp $
+ * $Id: brktree_reg.h,v 1.24 1999/01/23 11:28:16 roger Exp $
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
@@ -37,10 +37,16 @@
 /*
  * Definitions for the Philips SAA7116 digital video to pci interface.
  */
-#define	BROOKTREE_848_ID			0x0350109E
-#define BROOKTREE_849_ID                        0x0351109E
-#define BROOKTREE_878_ID                        0x036E109E
-#define BROOKTREE_879_ID                        0x036F109E
+#define BROOKTREE_848_PCI_ID            0x0350109E
+#define BROOKTREE_849_PCI_ID            0x0351109E
+#define BROOKTREE_878_PCI_ID            0x036E109E
+#define BROOKTREE_879_PCI_ID            0x036F109E
+
+#define BROOKTREE_848                   1
+#define BROOKTREE_848A                  2
+#define BROOKTREE_849                   3
+#define BROOKTREE_878                   4
+#define BROOKTREE_879                   5
 
 typedef volatile u_int 	bregister_t;
 /*
