@@ -256,6 +256,7 @@ ip_input(struct mbuf *m)
 	int    i, hlen;
 	u_short sum;
 	u_int16_t divert_cookie;		/* firewall cookie */
+	struct in_addr pkt_dst;
 #ifdef IPDIVERT
 	u_int32_t divert_info = 0;		/* packet divert/tee info */
 #endif
@@ -494,6 +495,13 @@ pass:
 	    (m->m_flags & (M_MCAST|M_BCAST)) == 0)
 		goto ours;
 
+	/*
+	 * Cache the destination address of the packet; this may be
+	 * changed by use of 'ipfw fwd'.
+	 */
+	pkt_dst = ip_fw_fwd_addr == NULL ?
+	    ip->ip_dst : ip_fw_fwd_addr->sin_addr;
+
 	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 
@@ -501,26 +509,22 @@ pass:
 		if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
 			goto ours;
 #endif
-#ifdef IPFIREWALL_FORWARD
 		/*
-		 * If the addr to forward to is one of ours, we pretend to
-		 * be the destination for this packet.
+		 * check that the packet is either arriving from the
+		 * correct interface or is locally generated.
 		 */
-		if (ip_fw_fwd_addr == NULL) {
-			if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
-				goto ours;
-		} else if (IA_SIN(ia)->sin_addr.s_addr ==
-					 ip_fw_fwd_addr->sin_addr.s_addr)
+		if (ia->ia_ifp != m->m_pkthdr.rcvif &&
+		     (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0)
+			continue;
+
+		if (IA_SIN(ia)->sin_addr.s_addr == pkt_dst.s_addr)
 			goto ours;
-#else
-		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
-			goto ours;
-#endif
+
 		if (ia->ia_ifp && ia->ia_ifp->if_flags & IFF_BROADCAST) {
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
-			    ip->ip_dst.s_addr)
+			    pkt_dst.s_addr)
 				goto ours;
-			if (ip->ip_dst.s_addr == ia->ia_netbroadcast.s_addr)
+			if (ia->ia_netbroadcast.s_addr == pkt_dst.s_addr)
 				goto ours;
 		}
 	}
