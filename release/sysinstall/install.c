@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.29 1995/06/05 06:53:30 jkh Exp $
+ * $Id: install.c,v 1.70.2.30 1995/06/05 10:19:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -263,18 +263,18 @@ installCommit(char *str)
     if (!mediaVerify())
 	return 0;
 
-    if (RunningAsInit) {
+    if (RunningAsInit && !SystemWasInstalled) {
 	if (!installInitial())
 	    return 0;
 	configFstab();
     }
-    if (!root_extract()) {
+    if (!SystemWasInstalled && !root_extract()) {
 	msgConfirm("Failed to load the ROOT distribution.  Please correct\nthis problem and try again.");
 	return 0;
     }
     distExtractAll();
 
-    if (access("/kernel", R_OK)) {
+    if (!SystemWasInstalled && access("/kernel", R_OK)) {
 	if (vsystem("ln -f /kernel.GENERIC /kernel")) {
 	    msgConfirm("Unable to link /kernel into place!");
 	    return 0;
@@ -283,12 +283,11 @@ installCommit(char *str)
 
     /* Resurrect /dev */
     msgNotify("Making all devices.. Please wait!");
-    if (vsystem("cd /dev; sh MAKEDEV all"))
+    if (!SystemWasInstalled && vsystem("cd /dev; sh MAKEDEV all"))
 	msgConfirm("MAKEDEV returned non-zero status");
     /* This gives us our slice entries back, which we saved for this */
-    if (vsystem("mv -f /tmp/dev/* /dev"))
+    if (!SystemWasInstalled && vsystem("mv -f /tmp/dev/* /dev; rmdir /tmp/dev"))
 	msgConfirm("Unable to move all the old devs back.  Hmmm!");
-
     dialog_clear();
     if (Dists)
 	msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
@@ -457,7 +456,7 @@ root_extract(void)
 	default:
 	    if (!(*mediaDevice->init)(mediaDevice))
 		break;
-	    fd = (*mediaDevice->get)(mediaDevice, "floppies/root.flp");
+	    fd = (*mediaDevice->get)(mediaDevice, "floppies/root.flp", NULL);
 	    if (fd < 0) {
 		msgConfirm("Couldn't get root image from %s!\nWill try to get it from floppy.", mediaDevice->name);
 		(*mediaDevice->shutdown)(mediaDevice);

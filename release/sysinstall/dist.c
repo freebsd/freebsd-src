@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.23 1995/06/05 09:52:08 jkh Exp $
+ * $Id: dist.c,v 1.35.2.24 1995/06/05 10:19:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -284,7 +284,7 @@ distExtract(char *parent, Distribution *me)
 	    msgDebug("Trying to get large piece: %s\n", buf);
 	/* Set it as an "exploratory get" so that we don't loop unnecessarily on it */
 	mediaDevice->flags |= OPT_EXPLORATORY_GET;
-	fd = (*mediaDevice->get)(mediaDevice, buf);
+	fd = (*mediaDevice->get)(mediaDevice, buf, NULL);
 	mediaDevice->flags &= ~OPT_EXPLORATORY_GET;
 	if (fd >= 0) {
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
@@ -330,7 +330,7 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(buf, 512, "%s/%s.aa", path, dist);
 	    if (isDebug())
 		msgDebug("Trying for single-piece: %s\n", buf);
-	    fd = (*mediaDevice->get)(mediaDevice, buf);
+	    fd = (*mediaDevice->get)(mediaDevice, buf, dist_attr);
 	    if (fd < 0)
 		return FALSE;
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
@@ -349,7 +349,7 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk, numchunks, buf);
-	    fd = (*mediaDevice->get)(mediaDevice, buf);
+	    fd = (*mediaDevice->get)(mediaDevice, buf, dist_attr);
 	    if (fd < 0) {
 		dialog_clear();
 		msgConfirm("failed to retreive piece file %s after retries!\nAborting the transfer", buf);
