@@ -69,7 +69,7 @@
 #include <isa/isa_common.h>
 
 void
-isa_init(void)
+isa_init(device_t dev)
 {
 }
 
