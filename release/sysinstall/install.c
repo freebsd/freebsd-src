@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.203 1997/12/29 20:07:17 jkh Exp $
+ * $Id: install.c,v 1.204 1998/01/16 15:07:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -874,7 +874,7 @@ installFilesystems(dialogMenuItem *self)
 
     if (rootdev && RunningAsInit) {
 	/* Next, create and/or mount the root device */
-	sprintf(dname, "/dev/r%sa", rootdev->disk->name);
+	sprintf(dname, "/dev/r%s", rootdev->name);
 	if (!Fake && (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname))) {
 	    msgConfirm("Unable to make device node for %s in /dev!\n"
 		       "The creation of filesystems will be aborted.", dname);
@@ -907,7 +907,7 @@ installFilesystems(dialogMenuItem *self)
 	}
 
 	/* Switch to block device */
-	sprintf(dname, "/dev/%sa", rootdev->disk->name);
+	sprintf(dname, "/dev/%s", rootdev->name);
 	if (Mount("/mnt", dname)) {
 	    msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
 	    return DITEM_FAILURE;
