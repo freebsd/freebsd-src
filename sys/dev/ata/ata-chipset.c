@@ -1254,9 +1254,6 @@ ata_serverworks_setmode(struct ata_device *atadev, int mode)
 	else
 	    pci_write_config(parent, 0x54, pci_read_config(parent, 0x54, 1) |
 					   ~(0x01 << devno), 1);
-
-	pci_write_config(parent, 0x54, pci_read_config(parent, 0x54, 1) &
-			 ~(0x01 << devno), 1);
 	pci_write_config(parent, 0x44, 
 			 (pci_read_config(parent, 0x44, 4) &
 			  ~(0xff << (offset << 8))) |
