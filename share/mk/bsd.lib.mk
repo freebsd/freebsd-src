@@ -1,9 +1,21 @@
-#	@(#)bsd.lib.mk	8.3 (Berkeley) 4/22/94
+#	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
+#	$Id: bsd.lib.mk,v 1.39 1994/06/15 10:14:40 ache Exp $
+#
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 
+.if exists(${.CURDIR}/shlib_version)
+SHLIB_MAJOR != . ${.CURDIR}/shlib_version ; echo $$major
+SHLIB_MINOR != . ${.CURDIR}/shlib_version ; echo $$minor
+.endif
+
+.if defined(DESTDIR)
+CFLAGS+= -I${DESTDIR}/usr/include
+CXXINCLUDES+= -I${DESTDIR}/usr/include/${CXX}
+.endif
+INSTALL?=	install
 LIBDIR?=	/usr/lib
 LINTLIBDIR?=	/usr/libdata/lint
 LIBGRP?=	bin
@@ -19,14 +31,12 @@ BINMODE?=	555
 .MAIN: all
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
+# .so used for PIC object files
 .SUFFIXES:
-.SUFFIXES: .out .o .po .s .c .f .y .l .8 .7 .6 .5 .4 .3 .2 .1 .0 .m4
-
-.8.0 .7.0 .6.0 .5.0 .4.0 .3.0 .2.0 .1.0:
-	nroff -man ${.IMPSRC} > ${.TARGET}
+.SUFFIXES: .out .o .po .so .s .S .c .cc .cxx .m .C .f .y .l
 
 .c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC} 
+	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -x -r ${.TARGET}
 	@mv a.out ${.TARGET}
 
@@ -34,6 +44,35 @@ BINMODE?=	555
 	${CC} -p ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -X -r ${.TARGET}
 	@mv a.out ${.TARGET}
+
+.c.so:
+	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+
+.cc.o .cxx.o .C.o:
+	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
+
+.cc.po .C.po .cxx.o:
+	${CXX} -p ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
+
+.cc.so .C.so:
+	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+
+.f.o:
+	${FC} ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
+	@${LD} -x -r ${.TARGET}
+	@mv a.out ${.TARGET}
+
+.f.po:
+	${FC} -p ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
+
+.f.so:
+	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 
 .s.o:
 	${CPP} -E ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
@@ -47,8 +86,31 @@ BINMODE?=	555
 	@${LD} -X -r ${.TARGET}
 	@mv a.out ${.TARGET}
 
-MANALL=	${MAN1} ${MAN2} ${MAN3} ${MAN4} ${MAN5} ${MAN6} ${MAN7} ${MAN8}
-manpages: ${MANALL}
+.s.so:
+	${CPP} -E -DPIC ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
+	   ${AS} -k -o ${.TARGET}
+
+.S.o:
+	${CPP} -E ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
+	    ${AS} -o ${.TARGET}
+
+.S.po:
+	${CPP} -E -DPROF ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
+	    ${AS} -o ${.TARGET}
+
+.S.so:
+	${CPP} -E -DPIC ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
+	   ${AS} -k -o ${.TARGET}
+
+.m.po:
+	${CC} ${CFLAGS} -p -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
+
+.m.o:
+	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .if !defined(NOPROFILE)
 _LIBS=lib${LIB}.a lib${LIB}_p.a
@@ -56,53 +118,86 @@ _LIBS=lib${LIB}.a lib${LIB}_p.a
 _LIBS=lib${LIB}.a
 .endif
 
-all: ${_LIBS} # llib-l${LIB}.ln
-.if !defined(NOMAN)
-all: ${MANALL}
+.if !defined(NOPIC)
+.if defined(SHLIB_MAJOR) && defined(SHLIB_MINOR)
+_LIBS+=lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+.endif
+.if defined(INSTALL_PIC_ARCHIVE)
+_LIBS+=lib${LIB}_pic.a
+.endif
 .endif
 
-OBJS+=	${SRCS:R:S/$/.o/g}
+.if !defined(PICFLAG)
+PICFLAG=-fpic
+.endif
+
+all: ${_LIBS} # llib-l${LIB}.ln
+
+OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
 lib${LIB}.a:: ${OBJS}
 	@echo building standard ${LIB} library
 	@rm -f lib${LIB}.a
 	@${AR} cTq lib${LIB}.a `lorder ${OBJS} | tsort` ${LDADD}
-	ranlib lib${LIB}.a
+	${RANLIB} lib${LIB}.a
 
 POBJS+=	${OBJS:.o=.po}
 lib${LIB}_p.a:: ${POBJS}
 	@echo building profiled ${LIB} library
 	@rm -f lib${LIB}_p.a
 	@${AR} cTq lib${LIB}_p.a `lorder ${POBJS} | tsort` ${LDADD}
-	ranlib lib${LIB}_p.a
+	${RANLIB} lib${LIB}_p.a
+
+.if defined(DESTDIR)
+LDDESTDIR?=	-L${DESTDIR}/usr/lib
+.endif
+
+.if defined(CPLUSPLUSLIB) && !make(clean) && !make(cleandir)
+SOBJS+= ${DESTDIR}/usr/lib/c++rt0.o
+.endif
+
+SOBJS+= ${OBJS:.o=.so}
+lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
+	@echo building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
+	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+	@$(LD) -Bshareable \
+	    -o lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	    ${SOBJS} ${LDDESTDIR} ${LDADD} ${SHARED_LDADD}
+
+lib${LIB}_pic.a:: ${SOBJS}
+	@echo building special pic ${LIB} library
+	@rm -f lib${LIB}_pic.a
+	@${AR} cTq lib${LIB}_pic.a ${SOBJS} ${LDADD}
+	${RANLIB} lib${LIB}_pic.a
 
 llib-l${LIB}.ln: ${SRCS}
 	${LINT} -C${LIB} ${CFLAGS} ${.ALLSRC:M*.c}
 
 .if !target(clean)
 clean:
-	rm -f ${OBJS}
-	rm -f ${POBJS}
-	rm -f a.out [Ee]rrs mklog ${CLEANFILES} \
-	    profiled/*.o lib${LIB}.a lib${LIB}_p.a llib-l${LIB}.ln
+	rm -f a.out Errs errs mklog ${CLEANFILES} ${OBJS}
+	rm -f lib${LIB}.a llib-l${LIB}.ln
+	rm -f ${POBJS} profiled/*.o lib${LIB}_p.a
+	rm -f ${SOBJS} shared/*.o
+	rm -f lib${LIB}.so.*.* lib${LIB}_pic.a
 .endif
 
 .if !target(cleandir)
 cleandir:
-	rm -f ${OBJS}
-	rm -f ${POBJS}
-	rm -f a.out [Ee]rrs mklog ${CLEANFILES} \
-	    profiled/*.o lib${LIB}.a lib${LIB}_p.a llib-l${LIB}.ln
-	rm -f ${MANALL} .depend
+	rm -f a.out Errs errs mklog ${CLEANFILES} ${OBJS}
+	rm -f lib${LIB}.a llib-l${LIB}.ln
+	rm -f ${.CURDIR}/tags .depend
+	rm -f ${POBJS} profiled/*.o lib${LIB}_p.a
+	rm -f ${SOBJS} shared/*.o
+	rm -f lib${LIB}.so.*.* lib${LIB}_pic.a
+	cd ${.CURDIR}; rm -rf obj;
 .endif
 
-.if !target(depend)
-depend: .depend
-.depend: ${SRCS}
-	mkdep ${CFLAGS:M-[ID]*} ${AINC} ${.ALLSRC}
+.if defined(SRCS)
+afterdepend:
 	@(TMP=/tmp/_depend$$$$; \
-	    sed -e 's/^\([^\.]*\).o *:/\1.o \1.po:/' < .depend > $$TMP; \
-	    mv $$TMP .depend)
+	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.so:/' < .depend > $$TMP; \
+	mv $$TMP .depend)
 .endif
 
 .if !target(install)
@@ -111,18 +206,25 @@ beforeinstall:
 .endif
 
 realinstall: beforeinstall
-	ranlib lib${LIB}.a
-	install -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} lib${LIB}.a \
+	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} lib${LIB}.a \
 	    ${DESTDIR}${LIBDIR}
 	${RANLIB} -t ${DESTDIR}${LIBDIR}/lib${LIB}.a
 .if !defined(NOPROFILE)
-	ranlib lib${LIB}_p.a
-	install -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    lib${LIB}_p.a ${DESTDIR}${LIBDIR}
 	${RANLIB} -t ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
 .endif
-#	install -c -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-#	    llib-l${LIB}.ln ${DESTDIR}${LINTLIBDIR}
+.if !defined(NOPIC)
+.if defined(SHLIB_MAJOR) && defined(SHLIB_MINOR)
+	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} ${DESTDIR}${LIBDIR}
+.endif
+.if defined(INSTALL_PIC_ARCHIVE)
+	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
+	${RANLIB} -t ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
+.endif
+.endif
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
 	while test $$# -ge 2; do \
@@ -137,9 +239,10 @@ realinstall: beforeinstall
 .endif
 
 install: afterinstall
-afterinstall: realinstall
 .if !defined(NOMAN)
-afterinstall: maninstall
+afterinstall: realinstall maninstall
+.else
+afterinstall: realinstall
 .endif
 .endif
 
@@ -149,18 +252,23 @@ lint:
 
 .if !target(tags)
 tags: ${SRCS}
-	-ctags -f /dev/stdout ${.ALLSRC:M*.c} | \
-	    sed "s;\${.CURDIR}/;;" > ${.CURDIR}/tags
+	-cd ${.CURDIR}; ctags -f /dev/stdout ${.ALLSRC:M*.c} | \
+	    sed "s;\${.CURDIR}/;;" > tags
 .endif
 
+.if !defined(NOMAN)
 .include <bsd.man.mk>
+.elif !target(maninstall)
+maninstall:
+.endif
+
 .if !target(obj)
 .if defined(NOOBJ)
 obj:
 .else
 obj:
 	@cd ${.CURDIR}; rm -rf obj; \
-	here=`pwd`; dest=/usr/obj/`echo $$here | sed 's,/usr/src/,,'`; \
+	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
 	echo "$$here -> $$dest"; ln -s $$dest obj; \
 	if test -d /usr/obj -a ! -d $$dest; then \
 		mkdir -p $$dest; \
@@ -169,3 +277,5 @@ obj:
 	fi;
 .endif
 .endif
+
+.include <bsd.dep.mk>
