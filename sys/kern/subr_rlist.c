@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.21 1997/02/22 09:39:18 peter Exp $
+ *	$Id: subr_rlist.c,v 1.22 1997/09/02 20:05:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -73,6 +73,7 @@ static int rlist_count=0;
 static struct rlist *rlfree;
 
 static struct rlist	*rlist_malloc __P((void));
+static inline void	rlist_mfree __P((struct rlist *rl));
 
 static struct rlist *
 rlist_malloc()
@@ -102,8 +103,9 @@ rlist_malloc()
 	return rl;
 }
 
-inline static void
-rlist_mfree( struct rlist *rl)
+static inline void
+rlist_mfree(rl)
+	struct rlist *rl;
 {
 	rl->rl_next = rlfree;
 	rlfree = rl;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.39 1997/04/27 20:01:05 wollman Exp $
+ *	$Id: in_proto.c,v 1.40 1997/05/25 06:09:23 peter Exp $
  */
 
 #include <sys/param.h>
@@ -196,7 +196,7 @@ struct protosw inetsw[] = {
 },
 };
 
-extern int in_inithead(void **, int);
+extern int in_inithead __P((void **, int));
 
 struct domain inetdomain =
     { AF_INET, "internet", 0, 0, 0, 

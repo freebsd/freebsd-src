@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.32 1997/09/02 01:18:28 bde Exp $
+ * $Id: bpf.c,v 1.33 1997/09/14 03:03:05 peter Exp $
  */
 
 #include "bpfilter.h"
@@ -1117,7 +1117,7 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 	register struct bpf_d *d;
 	register u_char *pkt;
 	register u_int pktlen, snaplen;
-	register void (*cpfn)(const void *, void *, u_int);
+	register void (*cpfn) __P((const void *, void *, u_int));
 {
 	register struct bpf_hdr *hp;
 	register int totlen, curlen;
@@ -1278,7 +1278,10 @@ static	void *bpf_devfs_token[NBPFILTER];
 
 static bpf_devsw_installed = 0;
 
-static void 	bpf_drvinit(void *unused)
+static void bpf_drvinit __P((void *unused));
+static void
+bpf_drvinit(unused)
+	void *unused;
 {
 	dev_t dev;
 #ifdef DEVFS

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.35 1997/03/03 09:23:36 davidg Exp $
+ *	$Id: tcp_subr.c,v 1.36 1997/04/03 05:14:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -84,7 +84,7 @@ static int	tcp_do_rfc1644 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1644, rfc1644,
 	CTLFLAG_RW, &tcp_do_rfc1644 , 0, "");
 
-static void	tcp_cleartaocache(void);
+static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));
 
 /*
@@ -641,5 +641,6 @@ tcp_gettaocache(inp)
  * nothing in the cache left over.
  */
 static void
-tcp_cleartaocache(void)
-{ }
+tcp_cleartaocache()
+{
+}

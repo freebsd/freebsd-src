@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.27 1997/06/02 05:02:36 julian Exp $
+ *	$Id: ip_fw.h,v 1.28 1997/08/08 14:36:29 alex Exp $
  */
 
 #ifndef _IP_FW_H
@@ -176,7 +176,7 @@ struct ip_fw_chain {
 /*
  * Function definitions.
  */
-void ip_fw_init(void);
+void ip_fw_init __P((void));
 
 #endif /* KERNEL */
 
