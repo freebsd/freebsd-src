@@ -33,7 +33,7 @@
  * A FreeBSD host can implement multiple logical bridges, called
  * "clusters". Each cluster is made of a set of interfaces, and
  * identified by a "cluster-id" which is a number in the range 1..2^16-1.
- * 
+ *
  * Bridging is enabled by the sysctl variable
  *	net.link.ether.bridge
  * the grouping of interfaces into clusters is done with
@@ -98,7 +98,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#if 0	/* XXX does not work yet */
+#if 0	/* XXX bridge+ipfilter not yet supported in RELENG_4 */
 #include <net/pfil.h>	/* for ipfilter */
 #endif
 #include <net/if.h>
@@ -517,7 +517,7 @@ sysctl_refresh(SYSCTL_HANDLER_ARGS)
 {
     if (req->newptr)
 	reconfigure_bridge();
-    
+
     return 0;
 }
 
@@ -583,7 +583,7 @@ static int bdg_loops ;
 static void
 bdg_timeout(void *dummy)
 {
-    static int slowtimer;	/* in BSS so initialized to 0 */
+    static int slowtimer; /* in BSS so initialized to 0 */
 
     if (do_bridge) {
 	static int age_index = 0 ; /* index of table position to age */
@@ -595,16 +595,16 @@ bdg_timeout(void *dummy)
 	if (l > HASH_SIZE)
 	    l = HASH_SIZE ;
 
-    for (i=0; i<n_clusters; i++) {
-	bdg_hash_table *bdg_table = clusters[i].ht;
-	for (; age_index < l ; age_index++)
-	    if (bdg_table[age_index].used)
-		bdg_table[age_index].used = 0 ;
-	    else if (bdg_table[age_index].name) {
-		/* printf("xx flushing stale entry %d\n", age_index); */
-		bdg_table[age_index].name = NULL ;
-	    }
-    }
+	for (i=0; i<n_clusters; i++) {
+	    bdg_hash_table *bdg_table = clusters[i].ht;
+	    for (; age_index < l ; age_index++)
+		if (bdg_table[age_index].used)
+		    bdg_table[age_index].used = 0 ;
+		else if (bdg_table[age_index].name) {
+		    /* printf("xx flushing stale entry %d\n", age_index); */
+		    bdg_table[age_index].name = NULL ;
+		}
+	}
 	if (age_index >= HASH_SIZE)
 	    age_index = 0 ;
 
