@@ -29,7 +29,7 @@ void	strnsubst(char **, const char *, const char *, size_t);
 void
 strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 {
-	char *s1, *s2;
+	char *s1, *s2, *this;
 
 	s1 = *str;
 	if (s1 == NULL)
@@ -38,14 +38,12 @@ strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 	if (s2 == NULL)
 		err(1, "calloc");
 
-	if (match == NULL || replstr == NULL || maxsize == strlen(*str)) {
+	if (match == NULL || replstr == NULL || maxsize == strlen(s1)) {
 		strlcpy(s2, s1, maxsize);
 		goto done;
 	}
 
 	for (;;) {
-		char *this;
-
 		this = strstr(s1, match);
 		if (this == NULL)
 			break;
