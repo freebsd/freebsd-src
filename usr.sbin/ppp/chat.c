@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.8 1996/03/08 13:22:21 ache Exp $
+ * $Id: chat.c,v 1.9 1996/04/06 02:00:17 ache Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -162,7 +162,7 @@ int sendmode;
 	result += strlen(phone);
 	if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER)
 	  fprintf(stderr, "Phone: %s\n", phone);
-	LogPrintf(LOG_PHASE, "Phone: %s\n", phone);
+	LogPrintf(LOG_PHASE_BIT, "Phone: %s\n", phone);
 	break;
       case 'U':
 	bcopy(VarAuthName, result, strlen(VarAuthName));
@@ -189,6 +189,40 @@ int sendmode;
   return(result);
 }
 
+#define MAXLOGBUFF 200
+static char logbuff[MAXLOGBUFF];
+static int loglen = 0;
+
+static void clear_log() {
+  memset(logbuff,0,MAXLOGBUFF);
+  loglen = 0;
+}
+
+static void flush_log() {
+  if ((loglevel & LOG_CONNECT_BIT) 
+      || ((loglevel & LOG_CARRIER_BIT) 
+	  && strstr(logbuff,"CARRIER"))) {
+    LogPrintf(LOG_CONNECT_BIT|LOG_CARRIER_BIT,"Chat: %s\n",logbuff);
+  }
+  clear_log();
+}
+
+static void connect_log(char *str, int single_p) {
+  int space = MAXLOGBUFF - loglen - 1;
+  
+  while (space--) {
+    if (*str == '\n') {
+      flush_log();
+    } else {
+      logbuff[loglen++] = *str;
+    }
+    if (single_p || !*++str) break;
+  }
+  if (!space) flush_log();
+}
+
+
+
 int
 WaitforString(estr)
 char *estr;
@@ -197,25 +231,28 @@ char *estr;
   char *s, *str, ch;
   char *inp;
   fd_set rfds;
-  int i, nfds, nb;
+  int i, nfds, nb, msg;
   char buff[200];
+
 
 #ifdef SIGALRM
   int omask;
   omask = sigblock(sigmask(SIGALRM));
 #endif
+  clear_log();
   (void) ExpandString(estr, buff, 0);
-  LogPrintf(LOG_CHAT, "Wait for (%d): %s --> %s\n", TimeoutSec, estr, buff);
+  LogPrintf(LOG_CHAT_BIT, "Wait for (%d): %s --> %s\n", TimeoutSec, estr, buff);
   str = buff;
   inp = inbuff;
 
   if (strlen(str)>=IBSIZE){
     str[IBSIZE]=0;
-    LogPrintf(LOG_CHAT, "Truncating String to %d character: %s\n", IBSIZE, str);
+    LogPrintf(LOG_CHAT_BIT, "Truncating String to %d character: %s\n", IBSIZE, str);
   }
 
   nfds = modem + 1;
   s = str;
+  msg = FALSE;
   for (;;) {
     FD_ZERO(&rfds);
     FD_SET(modem, &rfds);
@@ -241,8 +278,8 @@ char *estr;
     } else if (i == 0) { 	/* Timeout reached! */
       *inp = 0;
       if (inp != inbuff)
-      LogPrintf(LOG_CHAT, "got: %s\n", inbuff);
-      LogPrintf(LOG_CHAT, "can't get (%d).\n", timeout.tv_sec);
+      LogPrintf(LOG_CHAT_BIT, "got: %s\n", inbuff);
+      LogPrintf(LOG_CHAT_BIT, "can't get (%d).\n", timeout.tv_sec);
 #ifdef SIGALRM
       sigsetmask(omask);
 #endif
@@ -257,23 +294,27 @@ char *estr;
 	}
 	nb = read(modem, &(inbuff[length]), IBSIZE);
 	inbuff[nb + length] = 0;
+	connect_log(inbuff,0);
 	if (strstr(inbuff, str)) {
 #ifdef SIGALRM
           sigsetmask(omask);
 #endif
+	  flush_log();
 	  return(MATCH);
 	}
 	for (i = 0; i < numaborts; i++) {
 	  if (strstr(inbuff, AbortStrings[i])) {
-	    LogPrintf(LOG_CHAT, "Abort: %s\n", AbortStrings[i]);
+	    LogPrintf(LOG_CHAT_BIT, "Abort: %s\n", AbortStrings[i]);
 #ifdef SIGALRM
             sigsetmask(omask);
 #endif
+	    flush_log();
 	    return(ABORT);
 	  }
 	}
       } else {
         read(modem, &ch, 1);
+	connect_log(&ch,1);
         *inp++ = ch;
         if (ch == *s) {
 	  s++;
@@ -282,6 +323,7 @@ char *estr;
             sigsetmask(omask);
 #endif
 	    *inp = 0;
+	    flush_log();
 	    return(MATCH);
 	  }
         } else {
@@ -297,11 +339,12 @@ char *estr;
 	    s1 = AbortStrings[i];
 	    len = strlen(s1);
 	    if ((len <= inp - inbuff) && (strncmp(inp - len, s1, len) == 0)) {
-	      LogPrintf(LOG_CHAT, "Abort: %s\n", s1);
+	      LogPrintf(LOG_CHAT_BIT, "Abort: %s\n", s1);
 	      *inp = 0;
 #ifdef SIGALRM
       	      sigsetmask(omask);
 #endif
+	      flush_log();
 	      return(ABORT);
 	    }
 	  }
@@ -349,9 +392,9 @@ char *command, *out;
     close(fids[1]);
     nb = open("/dev/tty", O_RDWR);
     dup2(nb, 0);
-LogPrintf(LOG_CHAT, "exec: %s\n", command);
+LogPrintf(LOG_CHAT_BIT, "exec: %s\n", command);
     pid = execvp(command, vector);
-    LogPrintf(LOG_CHAT, "execvp failed for (%d/%d): %s\n", pid, errno, command);
+    LogPrintf(LOG_CHAT_BIT, "execvp failed for (%d/%d): %s\n", pid, errno, command);
     exit(127);
   } else {
     close(fids[1]);
@@ -393,9 +436,9 @@ char *str;
       (void) ExpandString(str, buff+2, 1);
     }
     if (strstr(str, "\\P")) { /* Do not log the password itself. */
-      LogPrintf(LOG_CHAT, "sending: %s\n", str);
+      LogPrintf(LOG_CHAT_BIT, "sending: %s\n", str);
     } else {
-      LogPrintf(LOG_CHAT, "sending: %s\n", buff+2);
+      LogPrintf(LOG_CHAT_BIT, "sending: %s\n", buff+2);
     }
     cp = buff;
     if (DEV_IS_SYNC)
@@ -422,7 +465,7 @@ char *str;
     ++timeout_next;
     return(MATCH);
   }
-  LogPrintf(LOG_CHAT, "Expecting %s\n", str);
+  LogPrintf(LOG_CHAT_BIT, "Expecting %s\n", str);
   while (*str) {
     /*
      *  Check whether if string contains sub-send-expect.

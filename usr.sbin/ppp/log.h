@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.h,v 1.4 1995/02/27 03:18:16 amurai Exp $
+ * $Id: log.h,v 1.5 1996/01/11 17:48:51 phk Exp $
  *
  *	TODO:
  */
@@ -27,20 +27,36 @@
  *  Definition of log level
  */
 #define	LOG_PHASE	0
+#define LOG_PHASE_BIT	(1 << LOG_PHASE)
 #		define	LM_PHASE	"Phase"
 #define	LOG_CHAT	1
+#define LOG_CHAT_BIT	(1 << LOG_CHAT)
 #		define	LM_CHAT		"Chat"
 #define	LOG_LQM		2
+#define LOG_LQM_BIT	(1 << LOG_LQM)
 #		define	LM_LQM		"LQM"
 #define	LOG_LCP		3
+#define LOG_LCP_BIT	(1 << LOG_LCP)
 #		define	LM_LCP		"LCP"
 #define	LOG_TCPIP	4
+#define LOG_TCPIP_BIT	(1 << LOG_TCPIP)
 #		define	LM_TCPIP	"TCP/IP"
 #define	LOG_HDLC	5
+#define LOG_HDLC_BIT	(1 << LOG_HDLC)
 #		define	LM_HDLC		"HDLC"
 #define	LOG_ASYNC	6
+#define LOG_ASYNC_BIT	(1 << LOG_ASYNC)
 #		define	LM_ASYNC	"Async"
-#define	MAXLOGLEVEL	7
+#define LOG_LINK	7
+#define LOG_LINK_BIT	(1 << LOG_LINK)
+#		define 	LM_LINK		"Link"
+#define LOG_CONNECT	8
+#define LOG_CONNECT_BIT	(1 << LOG_CONNECT)
+#		define 	LM_CONNECT	"Connect"
+#define LOG_CARRIER	9
+#define LOG_CARRIER_BIT	(1 << LOG_CARRIER)
+#		define 	LM_CARRIER	"Carrier"
+#define	MAXLOGLEVEL	10
 
 extern int loglevel;
 

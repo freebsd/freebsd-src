@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.3 1995/05/30 03:50:53 rgrimes Exp $
+ * $Id: pap.c,v 1.4 1996/01/30 11:08:45 dfr Exp $
  *
  *	TODO:
  */
@@ -54,7 +54,7 @@ int papid;
 #ifdef DEBUG
   logprintf("namelen = %d, keylen = %d\n", namelen, keylen);
 #endif
-  LogPrintf(LOG_PHASE, "PAP: %s (%s)\n", VarAuthName, VarAuthKey);
+  LogPrintf(LOG_PHASE_BIT, "PAP: %s (%s)\n", VarAuthName, VarAuthKey);
   lh.code = PAP_REQUEST;
   lh.id = papid;
   lh.length = htons(plen + sizeof(struct fsmheader));
@@ -91,7 +91,7 @@ int code;
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = mlen;
   bcopy(message, cp, mlen);
-  LogPrintf(LOG_PHASE, "PapOutput: %s\n", papcodes[code]);
+  LogPrintf(LOG_PHASE_BIT, "PapOutput: %s\n", papcodes[code]);
   HdlcOutput(PRI_LINK, PROTO_PAP, bp);
 }
 
@@ -128,7 +128,7 @@ struct mbuf *bp;
     if (len >= ntohs(php->length)) {
       if (php->code < PAP_REQUEST || php->code > PAP_NAK)
 	php->code = 0;
-      LogPrintf(LOG_PHASE, "PapInput: %s\n", papcodes[php->code]);
+      LogPrintf(LOG_PHASE_BIT, "PapInput: %s\n", papcodes[php->code]);
 
       switch (php->code) {
       case PAP_REQUEST:
@@ -148,7 +148,7 @@ struct mbuf *bp;
 	cp = (u_char *)(php + 1);
 	len = *cp++;
 	cp[len] = 0;
-	LogPrintf(LOG_PHASE, "Received PAP_ACK (%s)\n", cp);
+	LogPrintf(LOG_PHASE_BIT, "Received PAP_ACK (%s)\n", cp);
 	if (lcp->auth_iwait == PROTO_PAP) {
 	  lcp->auth_iwait = 0;
 	  if (lcp->auth_ineed == 0)
@@ -160,7 +160,7 @@ struct mbuf *bp;
 	cp = (u_char *)(php + 1);
 	len = *cp++;
 	cp[len] = 0;
-	LogPrintf(LOG_PHASE, "Received PAP_NAK (%s)\n", cp);
+	LogPrintf(LOG_PHASE_BIT, "Received PAP_NAK (%s)\n", cp);
 	LcpClose();
 	break;
       }

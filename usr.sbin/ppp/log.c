@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.c,v 1.2 1995/02/26 12:17:38 amurai Exp $
+ * $Id: log.c,v 1.3 1995/05/30 03:50:43 rgrimes Exp $
  *
  */
 #include "defs.h"
@@ -48,7 +48,7 @@ static struct mbuf *lognext;
 static int  logcnt;
 static int  mypid;
 
-int loglevel = (1 << LOG_LCP)| (1 << LOG_PHASE);
+int loglevel = LOG_LINK_BIT | LOG_CARRIER_BIT | LOG_PHASE_BIT;
 
 void
 ListLog()
@@ -273,7 +273,7 @@ va_dcl
   int = va_arg(ap, int);
   format = va_arg(ap, char *);
 #endif
-  if (!(loglevel & (1 << level)))
+  if (!(loglevel & level))
     return;
   LogTimeStamp();
   vlogprintf(format, ap);

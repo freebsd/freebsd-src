@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.22 1996/03/28 13:38:59 ache Exp $
+ * $Id: modem.c,v 1.23 1996/03/29 15:24:04 ache Exp $
  *
  *  TODO:
  */
@@ -213,8 +213,8 @@ static time_t uptime;
 void
 DownConnection()
 {
-  LogPrintf(LOG_PHASE, "Disconnected!\n");
-  LogPrintf(LOG_PHASE, "Connect time: %d secs\n", time(NULL) - uptime);
+  LogPrintf(LOG_PHASE_BIT, "Disconnected!\n");
+  LogPrintf(LOG_PHASE_BIT, "Connect time: %d secs\n", time(NULL) - uptime);
   if (!TermMode) {
     CloseModem();
     LcpDown();
@@ -243,7 +243,7 @@ ModemTimeout()
     if (change & TIOCM_CD) {
       if (Online) {
         time(&uptime);
-        LogPrintf(LOG_PHASE, "*Connected!\n");
+        LogPrintf(LOG_PHASE_BIT, "*Connected!\n");
         connect_count++;
         /*
          * In dedicated mode, start packet mode immediate
@@ -258,7 +258,7 @@ ModemTimeout()
   } else {
     if (!Online) {
       time(&uptime);
-      LogPrintf(LOG_PHASE, "Connected!\n");
+      LogPrintf(LOG_PHASE_BIT, "Connected!\n");
       mbits = TIOCM_CD;
       connect_count++;
       connect_time = 0;
@@ -356,7 +356,7 @@ char *host, *port;
       return(-1);
     }
   }
-  LogPrintf(LOG_PHASE, "Connected to %s:%s\n", host, port);
+  LogPrintf(LOG_PHASE_BIT, "Connected to %s:%s\n", host, port);
 
   sock = socket(PF_INET, SOCK_STREAM, 0);
   if (sock < 0) {
@@ -387,12 +387,12 @@ int mode;
     if (strncmp(VarDevice, "/dev", 4) == 0) {
       strcpy(uucplock, rindex(VarDevice, '/')+1);
       if (uu_lock(uucplock) < 0) {
-        LogPrintf(LOG_PHASE, "Modem %s is in use\n", VarDevice);
+        LogPrintf(LOG_PHASE_BIT, "Modem %s is in use\n", VarDevice);
         return(-1);
       }
       modem = open(VarDevice, O_RDWR|O_NONBLOCK);
       if (modem < 0) {
-        LogPrintf(LOG_PHASE, "Open Failed %s\n", VarDevice);
+        LogPrintf(LOG_PHASE_BIT, "Open Failed %s\n", VarDevice);
         (void) uu_unlock(uucplock);
         return(modem);
       }

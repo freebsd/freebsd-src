@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.4 1996/01/10 21:27:37 phk Exp $
+ * $Id: chap.c,v 1.5 1996/01/30 11:08:25 dfr Exp $
  *
  *	TODO:
  */
@@ -63,7 +63,7 @@ int count;
 #ifdef DEBUG
   DumpBp(bp);
 #endif
-  LogPrintf(LOG_LCP, "ChapOutput: %s\n", chapcodes[code]);
+  LogPrintf(LOG_LCP_BIT, "ChapOutput: %s\n", chapcodes[code]);
   HdlcOutput(PRI_LINK, PROTO_CHAP, bp);
 }
 
@@ -130,7 +130,7 @@ struct mbuf *bp;
   name = cp + valsize;
   namelen = arglen - valsize - 1;
   name[namelen] = 0;
-  LogPrintf(LOG_PHASE, " Valsize = %d, Name = %s\n", valsize, name);
+  LogPrintf(LOG_PHASE_BIT, " Valsize = %d, Name = %s\n", valsize, name);
 
   /*
    * Get a secret key corresponds to the peer
@@ -243,7 +243,7 @@ ChapInput(struct mbuf *bp)
     if (len >= ntohs(chp->length)) {
       if (chp->code < 1 || chp->code > 4)
 	chp->code = 0;
-      LogPrintf(LOG_LCP, "ChapInput: %s\n", chapcodes[chp->code]);
+      LogPrintf(LOG_LCP_BIT, "ChapInput: %s\n", chapcodes[chp->code]);
 
       bp->offset += sizeof(struct fsmheader);
       bp->cnt -= sizeof(struct fsmheader);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.5 1996/01/11 17:48:37 phk Exp $
+ * $Id: ccp.c,v 1.6 1996/01/30 20:04:24 phk Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -119,7 +119,7 @@ struct fsm *fp;
   struct ccpstate *icp = &CcpInfo;
 
   cp = ReqBuff;
-  LogPrintf(LOG_LCP, "%s: SendConfigReq\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: SendConfigReq\n", fp->name);
   if (icp->want_proto && !REJECTED(icp, TY_PRED1)) {
     *cp++ = TY_PRED1; *cp++ = 2;
   }
@@ -131,7 +131,7 @@ CcpSendResetReq(fp)
 struct fsm *fp;
 {
   Pred1Init(1);		/* Initialize Input part */
-  LogPrintf(LOG_LCP, "%s: SendResetReq\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: SendResetReq\n", fp->name);
   FsmOutput(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
 }
 
@@ -146,7 +146,7 @@ static void
 CcpSendTerminateAck(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP, "  %s: SendTerminateAck\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "  %s: SendTerminateAck\n", fp->name);
   FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
 }
 
@@ -161,21 +161,21 @@ static void
 CcpLayerStart(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP, "%s: LayerStart.\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: LayerStart.\n", fp->name);
 }
 
 static void
 CcpLayerFinish(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP, "%s: LayerFinish.\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: LayerFinish.\n", fp->name);
 }
 
 static void
 CcpLayerDown(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP, "%s: LayerDown.\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "%s: LayerDown.\n", fp->name);
 }
 
 /*
@@ -188,8 +188,8 @@ struct fsm *fp;
 #ifdef VERBOSE
   fprintf(stderr, "%s: LayerUp(%d).\r\n", fp->name, fp->state);
 #endif
-  LogPrintf(LOG_LCP, "%s: LayerUp.\n", fp->name);
-  LogPrintf(LOG_LCP, "myproto = %d, hisproto = %d\n",
+  LogPrintf(LOG_LCP_BIT, "%s: LayerUp.\n", fp->name);
+  LogPrintf(LOG_LCP_BIT, "myproto = %d, hisproto = %d\n",
 	CcpInfo.want_proto, CcpInfo.his_proto);
   Pred1Init(3);		/* Initialize Input and Output */
 }
@@ -198,7 +198,7 @@ void
 CcpUp()
 {
   FsmUp(&CcpFsm);
-  LogPrintf(LOG_LCP, "CCP Up event!!\n");
+  LogPrintf(LOG_LCP_BIT, "CCP Up event!!\n");
 }
 
 void
@@ -231,7 +231,7 @@ int mode;
     else
       sprintf(tbuff, " ");
 
-    LogPrintf(LOG_LCP, "%s\n", tbuff);
+    LogPrintf(LOG_LCP_BIT, "%s\n", tbuff);
 
     switch (type) {
     case TY_PRED1:
