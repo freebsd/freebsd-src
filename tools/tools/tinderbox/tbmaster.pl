@@ -29,8 +29,10 @@
 # $FreeBSD$
 #
 
+use 5.006_001;
 use strict;
 use POSIX qw(tzset);
+use Sys::Hostname;
 
 my %CONFIGS	= (
     # Global settings
@@ -38,8 +40,9 @@ my %CONFIGS	= (
 	'LOGDIR'	=> '/home/des/public_html',
 	'OPTIONS'	=> [ '--update', '--verbose' ],
 	'EMAIL'		=> 'des+%%arch%%-%%branch%%@freebsd.org',
+	'ENV'		=> { },
     },
-    # 5-CURRENT tinderbox
+
     'cueball' => {
 	'COMMENT'	=> "-CURRENT tinderbox",
 	'BRANCHES'	=> [ 'CURRENT' ],
@@ -50,30 +53,73 @@ my %CONFIGS	= (
 	    'ia64'	=> [ 'ia64' ],
 	    'sparc64'	=> [ 'sparc64' ],
 	},
-	'ENV'		=> [ ],
 	'EMAIL'		=> 'current@freebsd.org,%%arch%%@freebsd.org',
     },
-    # 4-STABLE tinderbox
+
     'triangle' => {
 	'COMMENT'	=> "-STABLE tinderbox",
 	'BRANCHES'	=> [ 'RELENG_4' ],
-	'TARGETS'	=> [ 'world', 'generic' ],
+	'TARGETS'	=> [ 'world', 'generic', 'lint' ],
 	'ARCHES'	=> {
 	    'alpha'	=> [ 'alpha' ],
 	    'i386'	=> [ 'i386', 'pc98' ],
 	},
-	'ENV'		=> [ 'MAKE_KERBEROS5=YES' ],
+	'ENV'		=> {
+	    'MAKE_KERBEROS5'	=> 'YES',
+	},
 #	'EMAIL'		=> 'stable@freebsd.org,%%arch%%@freebsd.org',
     },
-    # Test setup
+
     '9ball' => {
+	'COMMENT'	=> "Experimental platforms",
 	'BRANCHES'	=> [ 'CURRENT' ],
-	'TARGETS'	=> [ 'world', 'generic' ],
+	'TARGETS'	=> [ 'world', 'generic', 'lint' ],
 	'ARCHES'	=> {
 	    'amd64'	=> [ 'amd64' ],
 	    'powerpc'	=> [ 'powerpc' ],
 	},
-	'ENV'		=> [ 'NOLIBC_R=YES', 'NOFORTH=YES' ],
+	'ENV'		=> {
+	    'NOLIBC_R'	=> 'YES',
+	    'NOFORTH'	=> 'YES',
+	},
+    },
+
+    'ada' => {
+	'COMMENT'	=> "Tinderbox development",
+	'BRANCHES'	=> [ 'RELENG_4' ],
+	'TARGETS'	=> [ 'world', 'lint', 'release' ],
+	'ARCHES'	=> {
+	    'i386'	=> [ 'i386' ],
+	},
+	'ENV'		=> {
+	    'NOCRYPT'		=> 'YES',
+	    'NOLIBC_R'		=> 'YES',
+	    'NOPROFILE'		=> 'YES',
+	    'NOSECURE'		=> 'YES',
+	    'NO_BIND'		=> 'YES',
+	    'NO_FORTRAN'	=> 'YES',
+	    'NO_KERBEROS'	=> 'YES',
+	    'NO_SENDMAIL'	=> 'YES',
+	},
+    },
+
+    'dwp' => {
+	'COMMENT'	=> "Tinderbox development",
+	'BRANCHES'	=> [ 'CURRENT' ],
+	'TARGETS'	=> [ 'world', 'lint', 'release' ],
+	'ARCHES'	=> {
+	    'i386'	=> [ 'i386' ],
+	},
+	'ENV'		=> {
+	    'NOCRYPT'		=> 'YES',
+	    'NOLIBC_R'		=> 'YES',
+	    'NOPERL'		=> 'YES',
+	    'NOPROFILE'		=> 'YES',
+	    'NOSECURE'		=> 'YES',
+	    'NO_BIND'		=> 'YES',
+	    'NO_FORTRAN'	=> 'YES',
+	    'NO_SENDMAIL'	=> 'YES',
+	},
     },
 );
 my %CONFIG = ();
@@ -135,7 +181,9 @@ sub tinderbox($$$) {
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
     push(@args, @{$CONFIG{'TARGETS'}});
-    push(@args, @{$CONFIG{'ENV'}});
+    while (my ($key, $val) = each(%{$CONFIG{'ENV'}})) {
+	push(@args, "$key=$val");
+    }
     my $pid = fork();
     if (!defined($pid)) {
 	warn("fork(): $!\n");
@@ -227,9 +275,13 @@ sub usage() {
 }
 
 MAIN:{
-    usage()
-	unless (@ARGV >= 1);
-    my $config = lc(shift(@ARGV));
+    my $config;
+    if (@ARGV) {
+	$config = lc(shift(@ARGV));
+    } else {
+	$config = hostname();
+	$config =~ s/\..*//;
+    }
     usage()
 	unless (exists($CONFIGS{$config}) && $config ne 'global');
     %CONFIG = %{$CONFIGS{$config}};
