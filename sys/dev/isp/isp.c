@@ -548,15 +548,22 @@ again:
 	ISP_RESET1(isp);
 
 	/*
-	 * Wait for everything to finish firing up...
+	 * Wait for everything to finish firing up.
+	 *
+	 * Avoid doing this on the 2312 because you can generate a PCI
+	 * parity error (chip breakage).
 	 */
-	loops = MBOX_DELAY_COUNT;
-	while (ISP_READ(isp, OUTMAILBOX0) == MBOX_BUSY) {
-		USEC_DELAY(100);
-		if (--loops < 0) {
-			isp_prt(isp, ISP_LOGERR,
-			    "MBOX_BUSY never cleared on reset");
-			return;
+	if (IS_2300(isp)) {
+		USEC_DELAY(5);
+	} else {
+		loops = MBOX_DELAY_COUNT;
+		while (ISP_READ(isp, OUTMAILBOX0) == MBOX_BUSY) {
+			USEC_DELAY(100);
+			if (--loops < 0) {
+				isp_prt(isp, ISP_LOGERR,
+				    "MBOX_BUSY never cleared on reset");
+				return;
+			}
 		}
 	}
 
@@ -1223,11 +1230,11 @@ isp_fibre_init(struct ispsoftc *isp)
 				icbp->icb_fwoptions &= ~ICBOPT_FAST_POST;
 			}
 			if (isp->isp_confopts & ISP_CFG_ONEGB) {
-				icbp->icb_xfwoptions |= ICBXOPT_RATE_ONEGB;
+				icbp->icb_zfwoptions |= ICBZOPT_RATE_ONEGB;
 			} else if (isp->isp_confopts & ISP_CFG_TWOGB) {
-				icbp->icb_xfwoptions |= ICBXOPT_RATE_TWOGB;
+				icbp->icb_zfwoptions |= ICBZOPT_RATE_TWOGB;
 			} else {
-				icbp->icb_xfwoptions |= ICBXOPT_RATE_AUTO;
+				icbp->icb_zfwoptions |= ICBZOPT_RATE_AUTO;
 			}
 		}
 	}
