@@ -259,6 +259,12 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			if (error)
 				break;
 			sharelock(lkp, 1);
+#if defined(DEBUG_LOCKS)
+			lkp->lk_slockholder = pid;
+			lkp->lk_sfilename = file;
+			lkp->lk_slineno = line;
+			lkp->lk_slockername = name;
+#endif
 			break;
 		}
 		/*
