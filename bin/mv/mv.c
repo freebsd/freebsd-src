@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.8 1996/03/01 06:14:13 wosch Exp $
+ *	$Id: mv.c,v 1.8.2.1 1997/08/25 08:33:11 jkh Exp $
  */
 
 #ifndef lint
@@ -50,6 +50,7 @@ static char const sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/mount.h>
 
 #include <err.h>
 #include <errno.h>
@@ -142,7 +143,7 @@ do_move(from, to)
 	char *from, *to;
 {
 	struct stat sb;
-	int ask, ch;
+	int ask, ch, first;
 	char modep[15];
 
 	/*
@@ -157,30 +158,47 @@ do_move(from, to)
 			warn("%s", from);
 			return (1);
 		}
-		    
+
+#define YESNO "(y/n [n]) "
 		ask = 0;
 		if (iflg) {
-			(void)fprintf(stderr, "overwrite %s? ", to);
+			(void)fprintf(stderr, "overwrite %s? %s", to, YESNO);
 			ask = 1;
 		} else if (access(to, W_OK) && !stat(to, &sb)) {
 			strmode(sb.st_mode, modep);
-			(void)fprintf(stderr, "override %s%s%s/%s for %s? ",
+			(void)fprintf(stderr, "override %s%s%s/%s for %s? %s",
 			    modep + 1, modep[9] == ' ' ? "" : " ",
 			    user_from_uid(sb.st_uid, 0),
-			    group_from_gid(sb.st_gid, 0), to);
+			    group_from_gid(sb.st_gid, 0), to, YESNO);
 			ask = 1;
 		}
 		if (ask) {
-			if ((ch = getchar()) != EOF && ch != '\n')
-				while (getchar() != '\n');
-			if (ch != 'y' && ch != 'Y')
+			first = ch = getchar();
+			while (ch != '\n' && ch != EOF)
+				ch = getchar();
+			if (first != 'y' && first != 'Y') {
+				(void)fprintf(stderr, "not overwritten\n");
 				return (0);
+			}
 		}
 	}
 	if (!rename(from, to))
 		return (0);
 
-	if (errno != EXDEV) {
+	if (errno == EXDEV) {
+		struct statfs sfs;
+		char path[MAXPATHLEN];
+
+		/* Can't mv(1) a mount point. */
+		if (realpath(from, path) == NULL) {
+			warnx("cannot resolve %s: %s", from, path);
+			return (1);
+		}
+		if (!statfs(path, &sfs) && !strcmp(path, sfs.f_mntonname)) {
+			warnx("cannot rename a mount point");
+			return (1);
+		}
+	} else {
 		warn("rename %s to %s", from, to);
 		return (1);
 	}
@@ -327,7 +345,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-		      "usage: mv [-f | -i] src target",
-		      "       mv [-f | -i] src1 ... srcN directory");
+		      "usage: mv [-f | -i] source target",
+		      "       mv [-f | -i] source ... directory");
 	exit(1);
 }
