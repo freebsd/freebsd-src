@@ -95,7 +95,6 @@
 <filename>namedb</filename>,
 <filename>networks</filename>,
 <filename>newsyslog.conf</filename>,
-<filename>nsswitch.conf</filename>,
 <filename>pam.conf</filename>,
 <filename>passwd</filename>,
 <filename>periodic</filename>,
