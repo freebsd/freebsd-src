@@ -193,6 +193,10 @@ SUBDIR+=i4b
 .endif
 .endif
 
+.if ${MACHINE_ARCH} == "amd64"
+SUBDIR+= btxld
+.endif
+
 .if ${MACHINE} == "i386"
 SUBDIR+=boot0cfg
 .endif
