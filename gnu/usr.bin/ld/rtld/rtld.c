@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.49 1997/09/18 13:55:45 phk Exp $
+ *	$Id: rtld.c,v 1.50 1997/11/29 03:32:47 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -234,7 +234,7 @@ static int		reloc_map __P((struct so_map *, int));
 static void		reloc_copy __P((struct so_map *));
 static void		init_dag __P((struct so_map *));
 static void		init_sods __P((struct so_list *));
-static void		init_internal_malloc __P((struct _dynamic *));
+static void		init_internal_malloc __P((void));
 static void		init_external_malloc __P((void));
 static int		call_map __P((struct so_map *, char *));
 static char		*findhint __P((char *, int, int *));
@@ -347,7 +347,7 @@ struct _dynamic		*dp;
 		crtp->crt_dp->d_entry = &ld_entry;	/* _DYNAMIC */
 
 	/* Initialize our internal malloc package. */
-	init_internal_malloc(crtp->crt_dp);
+	init_internal_malloc();
 
 	/* Setup out (private) environ variable */
 	environ = crtp->crt_ep;
@@ -2230,26 +2230,34 @@ static char	*rtld_alloc_lev;
  * main program's sbrk arena.
  */
 static void
-init_internal_malloc(dp)
-	struct _dynamic		*dp;
+init_internal_malloc __P((void))
 {
-	struct so_map		 tmp_map;
-	struct somap_private	 map_private;
-	struct nzlist		*np;
+	const struct exec *hdr;
 
 	/*
          * Before anything calls sbrk or brk, we have to initialize
-         * its idea of the current break level to the main program's
-         * "_end" symbol, rather than that of the dynamic linker.  In
-         * order to do that, we need to look up the value of the main
-         * program's "_end" symbol.  We set up a temporary link map
-         * entry for the main program so that we can do the lookup.
+         * its idea of the current break level to just beyond the main
+         * program's address space.  Strictly speaking, the right
+         * way to do that is to look up the value of "_end" in the
+         * application's run time symbol table.
+         *
+         * That is what we used to do, and it works correctly for
+         * every valid program.  Unfortunately, it doesn't work right
+         * for "unexec"ed versions of emacs.  They are incorrectly
+         * generated with a wrong value for "_end".  (xemacs gets it
+         * right.)
+         *
+         * To work around this, we peek at the exec header to get the
+         * sizes of the text, data, and bss segments.  Luckily, the
+         * header is in memory at the start of the first mapped page.
+         * From the segment sizes, we can calculate a proper initial
+         * value for the break level.
 	 */
-	init_link_map(&tmp_map, &map_private, NULL, NULL, NULL, NULL, dp);
-	np = lookup_in_obj(END_SYM, sym_hash(END_SYM), &tmp_map, 1);
-	if (np == NULL)
-		errx(1, "Main program has no symbol \"%s\"", END_SYM);
-	rtld_alloc_lev = curbrk = minbrk = (char *)np->nz_value;
+	hdr = (const struct exec *)PAGSIZ;
+	if (N_BADMAG(*hdr))	/* Sanity check */
+		errx(1, "Cannot find program's a.out header");
+	rtld_alloc_lev = curbrk = minbrk =
+		(char *)hdr + hdr->a_text + hdr->a_data + hdr->a_bss;
 }
 
 /*
@@ -2265,6 +2273,13 @@ init_external_malloc __P((void))
          * already done.
 	 */
 	*(char **)(sym_addr(CURBRK_SYM)) = curbrk;
+
+	/*
+         * Set the minimum break level too.  Otherwise, "unexec"ed
+         * emacs sets the break too low and wipes out our tables of
+         * shared objects.
+	 */
+	*(char **)(sym_addr(MINBRK_SYM)) = curbrk;
 
 	/*
 	 * Set up pointers to the program's allocation functions, so
