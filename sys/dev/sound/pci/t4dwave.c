@@ -115,17 +115,31 @@ static void 	 tr_stopch(struct tr_info *, char);
 
 /* -------------------------------------------------------------------- */
 
-static pcmchan_caps tr_reccaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_S16_LE | AFMT_U16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t tr_recfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S8,
+	AFMT_STEREO | AFMT_S8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_U16_LE,
+	AFMT_STEREO | AFMT_U16_LE,
+	0
 };
+static pcmchan_caps tr_reccaps = {4000, 48000, tr_recfmt, 0};
 
-static pcmchan_caps tr_playcaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_S16_LE | AFMT_U16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t tr_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S8,
+	AFMT_STEREO | AFMT_S8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_U16_LE,
+	AFMT_STEREO | AFMT_U16_LE,
+	0
 };
+static pcmchan_caps tr_playcaps = {4000, 48000, tr_playfmt, 0};
 
 static pcm_channel tr_chantemplate = {
 	trchan_init,

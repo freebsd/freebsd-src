@@ -136,23 +136,38 @@ static int msschan_trigger(void *data, int go);
 static int msschan_getptr(void *data);
 static pcmchan_caps *msschan_getcaps(void *data);
 
-static pcmchan_caps mss_caps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE | AFMT_MU_LAW | AFMT_A_LAW,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t mss_fmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_MU_LAW,
+	AFMT_STEREO | AFMT_MU_LAW,
+	AFMT_A_LAW,
+	AFMT_STEREO | AFMT_A_LAW,
+	0
 };
+static pcmchan_caps mss_caps = {4000, 48000, mss_fmt, 0};
 
-static pcmchan_caps guspnp_caps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE | AFMT_A_LAW,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t guspnp_fmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_A_LAW,
+	AFMT_STEREO | AFMT_A_LAW,
+	0
 };
+static pcmchan_caps guspnp_caps = {4000, 48000, guspnp_fmt, 0};
 
-static pcmchan_caps opti931_caps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t opti931_fmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
 
 static pcm_channel mss_chantemplate = {
 	msschan_init,

@@ -1127,8 +1127,18 @@ chn_init(pcm_channel *c, void *devinfo, int dir)
 	snd_dbuf       *bs = &c->buffer2nd;
 
 	/* Initialize the hardware and DMA buffer first. */
+	c->feeder = malloc(sizeof(*(c->feeder)), M_DEVBUF, M_NOWAIT);
+	*(c->feeder) = *feeder_getroot();
+	c->feederdesc = malloc(sizeof(*(c->feeder)), M_DEVBUF, M_NOWAIT);
+	c->feederdesc->type = FEEDER_ROOT;
+	c->feederdesc->in = 0;
+	c->feederdesc->out = 0;
+	c->feederdesc->flags = 0;
+	c->feederdesc->idx = 0;
+	c->feeder->desc = c->feederdesc;
+	c->feeder->source = NULL;
+
 	c->flags = 0;
-	c->feeder = &feeder_root;
 	c->buffer.chan = -1;
 	c->devinfo = c->init(devinfo, &c->buffer, c, dir);
 	if (c->devinfo == NULL || c->buffer.bufsize == 0)
@@ -1182,6 +1192,18 @@ chn_setspeed(pcm_channel *c, int speed)
 }
 
 int
+fmtvalid(u_int32_t fmt, u_int32_t *fmtlist)
+{
+	int i;
+
+	for (i = 0; fmtlist[i]; i++)
+		if (fmt == fmtlist[i])
+			return 1;
+
+	return 0;
+}
+
+int
 chn_setformat(pcm_channel *c, u_int32_t fmt)
 {
 	snd_dbuf *b = &c->buffer;
@@ -1189,10 +1211,17 @@ chn_setformat(pcm_channel *c, u_int32_t fmt)
 
 	u_int32_t hwfmt;
 	if (CANCHANGE(c)) {
+		while (chn_removefeeder(c) == 0);
 		c->format = fmt;
-		hwfmt = chn_feedchain(c);
-		if ((c->flags & CHN_F_MAPPED) && c->format != hwfmt)
-			return EINVAL;
+		c->feederdesc->out = c->format;
+		hwfmt = c->format;
+		if (!fmtvalid(hwfmt, chn_getcaps(c)->fmtlist)) {
+			if (c->flags & CHN_F_MAPPED)
+				return EINVAL;
+			hwfmt = chn_feedchain(c, chn_getcaps(c)->fmtlist);
+			if (hwfmt == 0)
+				return EINVAL;
+		}
 		b->fmt = hwfmt;
 		bs->fmt = hwfmt;
 		chn_resetbuf(c);
@@ -1287,3 +1316,19 @@ chn_getcaps(pcm_channel *c)
 {
 	return c->getcaps(c->devinfo);
 }
+
+u_int32_t
+chn_getformats(pcm_channel *c)
+{
+	u_int32_t *fmtlist, fmts;
+	int i;
+
+	fmtlist = chn_getcaps(c)->fmtlist;
+	fmts = 0;
+	for (i = 0; fmtlist[i]; i++)
+		fmts |= fmtlist[i];
+
+	return fmts;
+}
+
+
