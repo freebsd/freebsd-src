@@ -37,9 +37,11 @@ install:
 .endif
 
 # Helper for src/etc/Makefile
-etc-sendmail.cf: freebsd.cf
+distribution: freebsd.cf
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DESTDIR}/etc/mail/sendmail.cf
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+		${DESTDIR}/var/log/sendmail.st
 
 # this is overkill, but....
 M4FILES!= find ${CFDIR} -type f -name '*.m4' -print
