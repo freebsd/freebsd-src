@@ -88,10 +88,12 @@ ENTRY(cpu_switch)
 	CATR(KTR_CT1, "cpu_switch: from=%p (%s) to=%p (%s)"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	stx	%l0, [%g1 + KTR_PARM1]
-	add	%l0, P_COMM, %g2
+	ldx	[%l0 + TD_PROC], %g2
+	add	%g2, P_COMM, %g2
 	stx	%g2, [%g1 + KTR_PARM2]
 	stx	%o0, [%g1 + KTR_PARM3]
-	add	%o0, P_COMM, %g2
+	ldx	[%o0 + TD_PROC], %g2
+	add	%g2, P_COMM, %g2
 	stx	%g2, [%g1 + KTR_PARM4]
 9:
 #endif
@@ -105,7 +107,7 @@ ENTRY(cpu_switch)
 	 * If the process was using floating point, save its context.
 	 */
 	 ldx	[%l0 + TD_FRAME], %l1
-	ldx	[PCPU(CURPCB)], %l2
+	ldx	[%l0 + TD_PCB], %l2
 	rd	%y, %l3
 	stx	%l3, [%l2 + PCB_Y]
 	rd	%fprs, %l3
@@ -253,6 +255,7 @@ ENTRY(cpu_switch)
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
+	ldx	[%g2 + TD_PROC], %g2
 	add	%g2, P_COMM, %g3
 	stx	%g3, [%g1 + KTR_PARM2]
 9:
