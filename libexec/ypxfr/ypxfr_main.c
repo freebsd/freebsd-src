@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_main.c,v 1.13 1996/01/06 19:59:41 wpaul Exp $
+ *	$Id: ypxfr_main.c,v 1.15 1996/01/10 17:41:55 wpaul Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,13 +43,14 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
+#include <rpc/clnt.h>
 #include <rpcsvc/yp.h>
 struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_main.c,v 1.13 1996/01/06 19:59:41 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_main.c,v 1.15 1996/01/10 17:41:55 wpaul Exp $";
 #endif
 
 char *progname = "ypxfr";
@@ -333,7 +334,8 @@ the local domain name isn't set");
 					     ypxfr_mapname,
 					     ypxfr_master, 0)) == 0) {
 		yp_error("failed to get order number of %s: %s",
-				ypxfr_mapname, ypxfrerr_string(yp_errno));
+				ypxfr_mapname, yp_errno == YPXFR_SUCC ?
+				"map has order 0" : ypxfrerr_string(yp_errno));
 		ypxfr_exit(YPXFR_YPERR,NULL);
 	}
 
@@ -454,7 +456,8 @@ the local domain name isn't set");
 					     ypxfr_mapname,
 					     ypxfr_master, 0)) == 0) {
 		yp_error("failed to get order number of %s: %s",
-				ypxfr_mapname, ypxfrerr_string(yp_errno));
+				ypxfr_mapname, yp_errno == YPXFR_SUCC ?
+				"map has order 0" : ypxfrerr_string(yp_errno));
 		ypxfr_exit(YPXFR_YPERR,&ypxfr_temp_map);
 	}
 
@@ -466,21 +469,26 @@ the local domain name isn't set");
 	 * The FreeBSD ypserv doesn't really need this, but we send it
 	 * here anyway for the sake of consistency.
 	 */
-	if (!ypxfr_clear) {
+	if (ypxfr_clear) {
 		char in = 0;
 		char *out = NULL;
-		if (callrpc("localhost",YPPROG,YPVERS,YPPROC_CLEAR, xdr_void,
-			(void *)&in, xdr_void, (void *)out) == NULL) {
-			yp_error("failed to send 'clear' to local ypserv");
-			ypxfr_exit(YPXFR_YPERR, &ypxfr_temp_map);
+		int stat;
+		if ((stat = callrpc("localhost",YPPROG,YPVERS,YPPROC_CLEAR,
+			xdr_void, (void *)&in,
+			xdr_void, (void *)out)) != RPC_SUCCESS) {
+			yp_error("failed to send 'clear' to local ypserv: %s",
+				 clnt_sperrno((enum clnt_stat) stat));
+			ypxfr_exit(YPXFR_CLEAR, &ypxfr_temp_map);
 		}
 	}
 
-	if (unlink(buf) == -1 && errno != ENOENT) {
-		yp_error("unlink(%s) failed: %s", buf, strerror(errno));
-		ypxfr_exit(YPXFR_FILE,NULL);
-	}
-
+	/*
+	 * Put the new map in place immediately. I'm not sure if the
+	 * kernel does an unlink() and rename() atomically in the event
+	 * that we move a new copy of a map over the top of an existing
+	 * one, but there's less chance of a race condition happening
+	 * than if we were to do the unlink() ourselves.
+	 */
 	if (rename(ypxfr_temp_map, buf) == -1) {
 		yp_error("rename(%s,%s) failed: %s", ypxfr_temp_map, buf,
 							strerror(errno));
