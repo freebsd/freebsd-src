@@ -43,7 +43,7 @@ typedef void (*fptr)(void);
 extern void _fini(void);
 extern void _init(void);
 extern int main(int, char **, char **);
-extern void _start(char *, ...);
+extern void _start(char **, void (*)(void));
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -55,33 +55,18 @@ extern int etext;
 char **environ;
 const char *__progname = "";
 
-static __inline fptr
-get_rtld_cleanup(void)
-{
-	fptr retval;
-
-#ifdef	__GNUC__
-	__asm__("movl %%edx,%0" : "=rm"(retval));
-#else
-	retval = (fptr)0; /* XXXX Fix this for other compilers */
-#endif
-	return(retval);
-}
-
 /* The entry function. */
 void
-_start(char *ap, ...)
+_start(char **ap, void (*cleanup)(void))
 {
-	fptr cleanup;
 	int argc;
 	char **argv;
 	char **env;
 	const char *s;
 
-	cleanup = get_rtld_cleanup();
-	argv = &ap;
-	argc = *(long *)(void *)(argv - 1);
-	env = argv + argc + 1;
+	argc = *(long *)(void *)ap;
+	argv = ap + 1;
+	env = ap + 2 + argc;
 	environ = env;
 	if (argc > 0 && argv[0] != NULL) {
 		__progname = argv[0];
