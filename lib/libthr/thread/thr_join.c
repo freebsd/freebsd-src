@@ -70,7 +70,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	THREAD_LIST_LOCK;
 	TAILQ_FOREACH(thread, &_thread_list, tle)
 		if (thread == pthread) {
-			THR_LOCK(&pthread->lock);
+			UMTX_LOCK(&pthread->lock);
 			break;
 		}
 
@@ -80,7 +80,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		 */
 		TAILQ_FOREACH(thread, &_dead_list, dle)
 			if (thread == pthread) {
-				THR_LOCK(&pthread->lock);
+				UMTX_LOCK(&pthread->lock);
 				break;
 			}
 
@@ -88,7 +88,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	if (thread == NULL ||
 	    ((pthread->attr.flags & PTHREAD_DETACHED) != 0)) {
 		if (thread != NULL)
-			THR_UNLOCK(&pthread->lock);
+			UMTX_UNLOCK(&pthread->lock);
 		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
 		ret = ESRCH;
@@ -98,7 +98,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	if (pthread->joiner != NULL) {
 		/* Multiple joiners are not supported. */
 		/* XXXTHR - support multiple joiners. */
-		THR_UNLOCK(&pthread->lock);
+		UMTX_UNLOCK(&pthread->lock);
 		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
 		ret = ENOTSUP;
@@ -110,7 +110,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	if (pthread->state != PS_DEAD) {
 		/* Set the running thread to be the joiner: */
 		pthread->joiner = curthread;
-		THR_UNLOCK(&pthread->lock);
+		UMTX_UNLOCK(&pthread->lock);
 		_thread_critical_enter(curthread);
 
 		/* Keep track of which thread we're joining to: */
@@ -162,7 +162,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 
 		/* Make the thread collectable by the garbage collector. */
 		pthread->attr.flags |= PTHREAD_DETACHED;
-		THR_UNLOCK(&pthread->lock);
+		UMTX_UNLOCK(&pthread->lock);
 		THREAD_LIST_UNLOCK;
 		if (pthread_cond_signal(&_gc_cond) != 0)
 			PANIC("Cannot signal gc cond");

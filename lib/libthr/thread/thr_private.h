@@ -83,20 +83,20 @@
 /*
  * Locking macros
  */
-#define	THR_LOCK(m)							\
+#define	UMTX_LOCK(m)							\
 	do {								\
 		if (umtx_lock((m), curthread->thr_id) != 0)		\
 			abort();					\
 	} while (0)
 
-#define THR_TRYLOCK(m, r)						\
+#define UMTX_TRYLOCK(m, r)						\
 	do {								\
 		(r) = umtx_trylock((m), curthread->thr_id);		\
 		if ((r) != 0 && (r) != EBUSY)				\
 			abort();					\
 	} while (0)
 
-#define	THR_UNLOCK(m)							\
+#define	UMTX_UNLOCK(m)							\
 	do {								\
 		if (umtx_unlock((m), curthread->thr_id) != 0)		\
 			abort();					\
