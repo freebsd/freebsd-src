@@ -191,7 +191,7 @@ static void (*le_intrvec[NLE])(le_softc_t *sc);
  */
 struct le_softc {
     struct arpcom le_ac;		/* Common Ethernet/ARP Structure */
-    void (*if_init) __P((le_softc_t *));/* Interface init routine */
+    void (*if_init) __P((void *));/* Interface init routine */
     void (*if_reset) __P((le_softc_t *));/* Interface reset routine */
     caddr_t le_membase;			/* Starting memory address (virtual) */
     unsigned le_iobase;			/* Starting I/O base address */
@@ -349,6 +349,7 @@ le_attach(
     ifp->if_type = IFT_ETHER;
     ifp->if_addrlen = 6;
     ifp->if_hdrlen = 14;
+    ifp->if_init = sc->if_init;
 
     ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
@@ -613,7 +614,7 @@ le_multi_op(
 #define LEMAC_32K_MODE(mbase)	(((mbase) >= 0x14) && ((mbase) <= 0x1F))
 #define LEMAC_2K_MODE(mbase)	( (mbase) >= 0x40)
 
-static void lemac_init(le_softc_t *sc);
+static void lemac_init(void *xsc);
 static void lemac_start(struct ifnet *ifp);
 static void lemac_reset(le_softc_t *sc);
 static void lemac_intr(le_softc_t *sc);
@@ -778,8 +779,9 @@ lemac_reset(
 
 static void
 lemac_init(
-    le_softc_t *sc)
+    void *xsc)
 {
+    le_softc_t *sc = (le_softc_t *)xsc;
     int s;
 
     if ((sc->le_flags & IFF_UP) == 0)
@@ -1138,7 +1140,7 @@ static int  lance_init_adapmem(le_softc_t *sc);
 static int  lance_init_ring(le_softc_t *sc, ln_ring_t *rp, lance_ring_t *ri,
 			    unsigned ndescs, unsigned bufoffset,
 			    unsigned descoffset);
-static void lance_init(le_softc_t *sc);
+static void lance_init(void *xsc);
 static void lance_reset(le_softc_t *sc);
 static void lance_intr(le_softc_t *sc);
 static int  lance_rx_intr(le_softc_t *sc);
@@ -1580,8 +1582,9 @@ lance_reset(
 
 static void
 lance_init(
-    le_softc_t *sc)
+    void *xsc)
 {
+    le_softc_t *sc = (le_softc_t *)xsc;
     lance_ring_t *ri;
     lance_descinfo_t *di;
     ln_desc_t desc;
