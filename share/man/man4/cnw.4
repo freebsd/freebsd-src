@@ -47,8 +47,8 @@
 .Cd "device cnw"
 .Sh DESCRIPTION
 The
-.Nm cnw
-interface provides access to a theoretical 1 Mb/s wireless Ethernet network
+.Nm
+interface provides access to a theoretical 1Mb/s wireless Ethernet network
 based on the Netwave AirSurfer Wireless LAN (formerly known as the Xircom
 Netwave Wireless LAN).
 .Pp
@@ -79,7 +79,7 @@ a transfer rate between 250Kb/s and 350Kb/s is typical.
 The card operates in the 2.4GHz frequency range and is subject to interference
 from microwaves, IEEE 802.11 wireless network devices, as well as earth.
 For example, it seems that IEEE 802.11 channel 14 conflicts with Netwave
-.Pq US frequency .
+(US frequency).
 They interfere with each other if they are both operated
 in the same geographic region, causing weird packet loss.
 You may be able to avoid the interference with IEEE 802.11 devices,
@@ -116,7 +116,6 @@ The
 driver was ported from
 .Nx
 by
-.An -nosplit
 .An Hiroyuki Aizu Aq aizu@jaist.ac.jp .
 It first appeared in
 .Nx 1.4 .
