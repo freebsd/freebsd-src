@@ -1413,19 +1413,28 @@ options 	NATM			#native ATM
 # The newpcm driver (use INSTEAD of snd0 and all VOXWARE drivers!).
 # Note that motherboard sound devices may require options PNPBIOS.
 #
+# Supported cards include:
+# Creative SoundBlaster ISA PnP/non-PnP
+# Supports ESS and Avance ISA chips as well.
+# Gravis UltraSound ISA PnP/non-PnP
+# Crystal Semiconductor CS461x/428x PCI
+# Neomagic 256AV (ac97)
+# Most of the more common ISA/PnP sb/mss/ess compatable cards.
+
 # For non-pnp sound cards with no bridge drivers only:
 device		pcm0 at isa? irq 10 drq 1 flags 0x0
 #
-# For PnP/PCI sound cards:
+# For PnP/PCI sound cards
 device		pcm
 
-# The bridge drivers for sound cards. Do not forget pcm as well.
+# The bridge drivers for sound cards.  These can be seperately configured
+# for providing services to the likes of new-midi (not in the tree yet).
+# When used with 'device pcm' they also provide pcm sound services.
 #
 # sbc:  Creative SoundBlaster ISA PnP/non-PnP
 #	Supports ESS and Avance ISA chips as well.
 # gusc: Gravis UltraSound ISA PnP/non-PnP
-# pcm:  Crystal Semiconductor CS461x/428x PCI
-# pcm:  Neomagic 256AV (ac97 version)
+# csa:  Crystal Semiconductor CS461x/428x PCI
 
 # For non-PnP cards:
 device		sbc0	at isa? port 0x220 irq 5 drq 1 flags 0x15
