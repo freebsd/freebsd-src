@@ -68,6 +68,8 @@
 #define	BBLOCK		((ufs_daddr_t)(0))
 #define	SBLOCK		((ufs_daddr_t)(BBLOCK + BBSIZE / DEV_BSIZE))
 
+/* Max number of fragments per block, this is not tweakable */
+#define MAXFRAG 	8
 /*
  * Addresses stored in inodes are capable of addressing fragments
  * of `blocks'. File system blocks of at most size MAXBSIZE can

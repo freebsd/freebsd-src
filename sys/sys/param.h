@@ -153,7 +153,6 @@
 #define MAXBSIZE	65536	/* must be power of 2 */
 #define BKVASIZE	16384	/* must be power of 2 */
 #define BKVAMASK	(BKVASIZE-1)
-#define MAXFRAG 	8
 
 /*
  * MAXPATHLEN defines the longest permissible path length after expanding
