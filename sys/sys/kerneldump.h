@@ -38,24 +38,46 @@
 #ifndef _SYS_KERNELDUMP_H
 #define _SYS_KERNELDUMP_H
 
+#include <machine/endian.h>
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define	dtoh32(x)	__bswap32(x)
+#define	dtoh64(x)	__bswap64(x)
+#define	htod32(x)	__bswap32(x)
+#define	htod64(x)	__bswap64(x)
+#elif BYTE_ORDER == BIG_ENDIAN
+#define	dtoh32(x)	(x)
+#define	dtoh64(x)	(x)
+#define	htod32(x)	(x)
+#define	htod64(x)	(x)
+#endif
+
+/*
+ * All uintX_t fields are in dump byte order, which is the same as
+ * network byte order. Use the macros defined above to read or
+ * write the fields.
+ */
 struct kerneldumpheader {
 	char		magic[20];
-#	    define KERNELDUMPMAGIC "FreeBSD Kernel Dump"
+#define	KERNELDUMPMAGIC		"FreeBSD Kernel Dump"
 	char		architecture[12];
 	uint32_t	version;
-#	    define KERNELDUMPVERSION	1
+#define	KERNELDUMPVERSION	1
 	uint32_t	architectureversion;
-#	    define KERNELDUMP_I386_VERSION 1
-#	    define KERNELDUMP_IA64_VERSION 1
-	uint64_t	dumplength;	/* excl headers */
-	uint32_t	blocksize;
+#define	KERNELDUMP_I386_VERSION	1
+#define	KERNELDUMP_IA64_VERSION	1
+	uint64_t	dumplength;		/* excl headers */
 	uint64_t	dumptime;
+	uint32_t	blocksize;
 	char		hostname[64];
 	char		versionstring[192];
 	char		panicstring[192];
 	uint32_t	parity;
 };
 
+/*
+ * Parity calculation is endian insensitive.
+ */
 static __inline u_int32_t
 kerneldump_parity(struct kerneldumpheader *kdhp)
 {

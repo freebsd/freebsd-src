@@ -38,6 +38,8 @@
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
+CTASSERT(sizeof(struct kerneldumpheader) == 512);
+
 #define	MD_ALIGN(x)	(((off_t)(x) + EFI_PAGE_MASK) & ~EFI_PAGE_MASK)
 
 typedef int callback_t(EFI_MEMORY_DESCRIPTOR*, int, void*);
@@ -55,21 +57,14 @@ mkdumpheader(struct kerneldumpheader *kdh, uint32_t archver, uint64_t dumplen,
     uint32_t blksz)
 {
 
-	if (sizeof(*kdh) != DEV_BSIZE) {
-		printf(
-		    "Compiled struct kerneldumpheader is %d, not %d bytes\n",
-		    sizeof(*kdh), DEV_BSIZE);
-		return;
-	}
-
 	bzero(kdh, sizeof(*kdh));
 	strncpy(kdh->magic, KERNELDUMPMAGIC, sizeof(kdh->magic));
 	strncpy(kdh->architecture, MACHINE_ARCH, sizeof(kdh->architecture));
-	kdh->version = KERNELDUMPVERSION;
-	kdh->architectureversion = archver;
-	kdh->dumplength = dumplen;
-	kdh->blocksize = blksz;
-	kdh->dumptime = time_second;
+	kdh->version = htod32(KERNELDUMPVERSION);
+	kdh->architectureversion = htod32(archver);
+	kdh->dumplength = htod64(dumplen);
+	kdh->dumptime = htod64(time_second);
+	kdh->blocksize = htod32(blksz);
 	strncpy(kdh->hostname, hostname, sizeof(kdh->hostname));
 	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
 	if (panicstr != NULL)
@@ -217,7 +212,11 @@ dumpsys(struct dumperinfo *di)
 	ehdr.e_ident[EI_MAG2] = ELFMAG2;
 	ehdr.e_ident[EI_MAG3] = ELFMAG3;
 	ehdr.e_ident[EI_CLASS] = ELFCLASS64;
+#if BYTE_ORDER == LITTLE_ENDIAN
 	ehdr.e_ident[EI_DATA] = ELFDATA2LSB;
+#else
+	ehdr.e_ident[EI_DATA] = ELFDATA2MSB;
+#endif
 	ehdr.e_ident[EI_VERSION] = EV_CURRENT;
 	ehdr.e_ident[EI_OSABI] = ELFOSABI_STANDALONE;	/* XXX big picture? */
 	ehdr.e_type = ET_CORE;
