@@ -48,7 +48,7 @@ void
 delay(int period)
 {
     v86.ctl = 0;
-    v86.addr = 0x15;		/* int 0x1a, function 0x86 */
+    v86.addr = 0x15;		/* int 0x15, function 0x86 */
     v86.eax = 0x8600;
     v86.ecx = period >> 16;
     v86.edx = period & 0xffff;
