@@ -208,8 +208,8 @@ Boston, MA 02111-1307, USA.  */
   } while (0);
 
 /* Tell final.c that we don't need a label passed to mcount.  */
-#undef  NO_PROFILE_DATA
-#define NO_PROFILE_DATA
+#undef  NO_PROFILE_COUNTERS
+#define NO_PROFILE_COUNTERS
 
 /* Output assembler code to FILE to begin profiling of the current function.
    LABELNO is an optional label.  */
