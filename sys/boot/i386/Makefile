@@ -1,5 +1,5 @@
-#	$Id: Makefile,v 1.5 1998/10/11 12:59:40 rnordier Exp $
+#	$Id: Makefile,v 1.6 1998/10/12 02:05:44 rnordier Exp $
 
-SUBDIR=		boot0 btx libi386 loader
+SUBDIR=		boot0 btx boot2 libi386 loader
 
 .include <bsd.subdir.mk>
