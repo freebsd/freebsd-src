@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.23 1995/10/05 10:32:30 phk Exp $
+ *	$Id: support.s,v 1.24 1995/10/15 18:03:42 phk Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -199,18 +199,6 @@ ENTRY(fillw)
 	popl	%edi
 	ret
 
-/* filli(pat, base, cnt) */
-ENTRY(filli)
-	pushl	%edi
-	movl	8(%esp),%eax
-	movl	12(%esp),%edi
-	movl	16(%esp),%ecx
-	cld
-	rep
-	stosl
-	popl	%edi
-	ret
-
 ENTRY(bcopyb)
 bcopyb:
 	pushl	%esi
@@ -240,55 +228,6 @@ bcopyb:
 	popl	%esi
 	cld
 	ret
-
-ENTRY(bcopyw)
-bcopyw:
-	pushl	%esi
-	pushl	%edi
-	movl	12(%esp),%esi
-	movl	16(%esp),%edi
-	movl	20(%esp),%ecx
-	cmpl	%esi,%edi			/* potentially overlapping? */
-	jnb	1f
-	shrl	$1,%ecx				/* copy by 16-bit words */
-	cld					/* nope, copy forwards */
-	rep
-	movsw
-	adc	%ecx,%ecx			/* any bytes left? */
-	rep
-	movsb
-	popl	%edi
-	popl	%esi
-	ret
-
-	ALIGN_TEXT
-1:
-	addl	%ecx,%edi			/* copy backwards */
-	addl	%ecx,%esi
-	andl	$1,%ecx				/* any fractional bytes? */
-	decl	%edi
-	decl	%esi
-	std
-	rep
-	movsb
-	movl	20(%esp),%ecx			/* copy remainder by 16-bit words */
-	shrl	$1,%ecx
-	decl	%esi
-	decl	%edi
-	rep
-	movsw
-	popl	%edi
-	popl	%esi
-	cld
-	ret
-
-ENTRY(bcopyx)
-	movl	16(%esp),%eax
-	cmpl	$2,%eax
-	je	bcopyw				/* not _bcopyw, to avoid multiple mcounts */
-	cmpl	$4,%eax
-	je	bcopy				/* XXX the shared ret's break mexitcount */
-	jmp	bcopyb
 
 /*
  * (ov)bcopy(src, dst, cnt)
@@ -542,7 +481,6 @@ copyin_fault:
 /*
  * fu{byte,sword,word} : fetch a byte (sword, word) from user memory
  */
-ALTENTRY(fuiword)
 ENTRY(fuword)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
@@ -566,19 +504,6 @@ ENTRY(fuswintr)
 	movl	$-1,%eax
 	ret
 
-ENTRY(fusword)
-	movl	_curpcb,%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
-	movl	4(%esp),%edx
-
-	cmpl	$VM_MAXUSER_ADDRESS-2,%edx
-	ja	fusufault
-
-	movzwl	(%edx),%eax
-	movl	$0,PCB_ONFAULT(%ecx)
-	ret
-
-ALTENTRY(fuibyte)
 ENTRY(fubyte)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
@@ -602,7 +527,6 @@ fusufault:
 /*
  * su{byte,sword,word}: write a byte (word, longword) to user memory
  */
-ALTENTRY(suiword)
 ENTRY(suword)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
@@ -730,120 +654,6 @@ ENTRY(subyte)
 	ret
 
 /*
- * copyoutstr(from, to, maxlen, int *lencopied)
- *	copy a string from from to to, stop when a 0 character is reached.
- *	return ENAMETOOLONG if string is longer than maxlen, and
- *	EFAULT on protection violations. If lencopied is non-zero,
- *	return the actual length in *lencopied.
- */
-ENTRY(copyoutstr)
-	pushl	%esi
-	pushl	%edi
-	movl	_curpcb,%ecx
-	movl	$cpystrflt,PCB_ONFAULT(%ecx)	/* XXX rename copyoutstr_fault */
-
-	movl	12(%esp),%esi			/* %esi = from */
-	movl	16(%esp),%edi			/* %edi = to */
-	movl	20(%esp),%edx			/* %edx = maxlen */
-	cld
-
-#if defined(I386_CPU)
-
-#if defined(I486_CPU) || defined(I586_CPU)
-	cmpl	$CPUCLASS_386,_cpu_class
-	jne	5f
-#endif /* I486_CPU || I586_CPU */
-
-1:
-	/*
-	 * It suffices to check that the first byte is in user space, because
-	 * we look at a page at a time and the end address is on a page
-	 * boundary.
-	 */
-	cmpl	$VM_MAXUSER_ADDRESS-1,%edi
-	ja	cpystrflt
-
-	movl	%edi,%eax
-	shrl	$IDXSHIFT,%eax
-	andb	$0xfc,%al
-	movb	_PTmap(%eax),%al
-	andb	$7,%al
-	cmpb	$7,%al
-	je	2f
-
-	/* simulate trap */
-	pushl	%edx
-	pushl	%edi
-	call	_trapwrite
-	cld
-	popl	%edi
-	popl	%edx
-	testl	%eax,%eax
-	jnz	cpystrflt
-
-2:	/* copy up to end of this page */
-	movl	%edi,%eax
-	andl	$NBPG-1,%eax
-	movl	$NBPG,%ecx
-	subl	%eax,%ecx			/* ecx = NBPG - (src % NBPG) */
-	cmpl	%ecx,%edx
-	jae	3f
-	movl	%edx,%ecx			/* ecx = min(ecx, edx) */
-3:
-	testl	%ecx,%ecx
-	jz	4f
-	decl	%ecx
-	decl	%edx
-	lodsb
-	stosb
-	orb	%al,%al
-	jnz	3b
-
-	/* Success -- 0 byte reached */
-	decl	%edx
-	xorl	%eax,%eax
-	jmp	6f
-
-4:	/* next page */
-	testl	%edx,%edx
-	jnz	1b
-
-	/* edx is zero -- return ENAMETOOLONG */
-	movl	$ENAMETOOLONG,%eax
-	jmp	cpystrflt_x
-#endif /* I386_CPU */
-
-#if defined(I486_CPU) || defined(I586_CPU)
-5:
-	incl	%edx
-1:
-	decl	%edx
-	jz	2f
-	/*
-	 * XXX - would be faster to rewrite this function to use
-	 * strlen() and copyout().
-	 */
-	cmpl	$VM_MAXUSER_ADDRESS-1,%edi
-	ja	cpystrflt
-
-	lodsb
-	stosb
-	orb	%al,%al
-	jnz	1b
-
-	/* Success -- 0 byte reached */
-	decl	%edx
-	xorl	%eax,%eax
-	jmp	cpystrflt_x
-2:
-	/* edx is zero -- return ENAMETOOLONG */
-	movl	$ENAMETOOLONG,%eax
-	jmp	cpystrflt_x
-
-#endif /* I486_CPU || I586_CPU */
-
-
-/*
  * copyinstr(from, to, maxlen, int *lencopied)
  *	copy a string from from to to, stop when a 0 character is reached.
  *	return ENAMETOOLONG if string is longer than maxlen, and
@@ -954,18 +764,6 @@ ENTRY(copystr)
 7:
 	popl	%edi
 	popl	%esi
-	ret
-
-/*
- * Miscellaneous kernel support functions
- */
-ENTRY(ffs)
-	bsfl	4(%esp),%eax
-	jz	1f
-	incl	%eax
-	ret
-1:
-	xorl	%eax,%eax
 	ret
 
 ENTRY(bcmp)
