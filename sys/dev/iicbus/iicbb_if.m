@@ -40,19 +40,34 @@ METHOD int callback {
 };
 
 #
-# Set I2C bus lines
+# Set I2C bus data line
 #
-METHOD void setlines {
+METHOD void setsda {
 	device_t dev;
-	int ctrl;
-	int data;
+	int val;
 };
 
 #
-# Get I2C bus lines
+# Set I2C bus clock line
+#
+METHOD void setscl {
+	device_t dev;
+	int val;
+};
+
+#
+# Get I2C bus data line
 #
 #
-METHOD int getdataline {
+METHOD int getsda {
+	device_t dev;
+};
+
+#
+# Get I2C bus clock line
+#
+#
+METHOD int getscl {
 	device_t dev;
 };
 

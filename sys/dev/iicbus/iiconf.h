@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,5 +126,15 @@ extern int iicbus_block_write(device_t, u_char, char *, int, int *);
 extern int iicbus_block_read(device_t, u_char, char *, int, int *);
 
 extern u_char iicbus_get_addr(device_t);
+
+#define IICBUS_MODVER	1
+#define IICBUS_MINVER	1
+#define IICBUS_MAXVER	1
+#define IICBUS_PREFVER	IICBUS_MODVER
+
+#define IICBB_MODVER	1
+#define IICBB_MINVER	1
+#define IICBB_MAXVER	1
+#define IICBB_PREFVER	IICBB_MODVER
 
 #endif

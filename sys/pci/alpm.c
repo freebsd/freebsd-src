@@ -37,7 +37,6 @@
 #include <sys/bus.h>
 #include <sys/uio.h>
 
-
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
@@ -122,107 +121,62 @@ static int alpm_debug = 0;
 #define SMBCLOCK_111K	0xa0
 #define SMBCLOCK_55K	0xc0
 
-struct alpm_data {
+struct alpm_softc {
 	int base;
+	struct resource *res;
         bus_space_tag_t smbst;
         bus_space_handle_t smbsh;
-};
-
-struct alsmb_softc {
-	int base;
 	device_t smbus;
-	struct alpm_data *alpm;
 };
 
-#define ALPM_SMBINB(alsmb,register) \
-	(bus_space_read_1(alsmb->alpm->smbst, alsmb->alpm->smbsh, register))
-#define ALPM_SMBOUTB(alsmb,register,value) \
-	(bus_space_write_1(alsmb->alpm->smbst, alsmb->alpm->smbsh, register, value))
-
-static int alsmb_probe(device_t);
-static int alsmb_attach(device_t);
-static int alsmb_smb_callback(device_t, int, caddr_t *);
-static int alsmb_smb_quick(device_t dev, u_char slave, int how);
-static int alsmb_smb_sendb(device_t dev, u_char slave, char byte);
-static int alsmb_smb_recvb(device_t dev, u_char slave, char *byte);
-static int alsmb_smb_writeb(device_t dev, u_char slave, char cmd, char byte);
-static int alsmb_smb_readb(device_t dev, u_char slave, char cmd, char *byte);
-static int alsmb_smb_writew(device_t dev, u_char slave, char cmd, short word);
-static int alsmb_smb_readw(device_t dev, u_char slave, char cmd, short *word);
-static int alsmb_smb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf);
-static int alsmb_smb_bread(device_t dev, u_char slave, char cmd, u_char count, char *byte);
-
-static devclass_t alsmb_devclass;
-
-static device_method_t alsmb_methods[] = {
-	/* device interface */
-	DEVMETHOD(device_probe,		alsmb_probe),
-	DEVMETHOD(device_attach,	alsmb_attach),
-
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	
-	/* smbus interface */
-	DEVMETHOD(smbus_callback,	alsmb_smb_callback),
-	DEVMETHOD(smbus_quick,		alsmb_smb_quick),
-	DEVMETHOD(smbus_sendb,		alsmb_smb_sendb),
-	DEVMETHOD(smbus_recvb,		alsmb_smb_recvb),
-	DEVMETHOD(smbus_writeb,		alsmb_smb_writeb),
-	DEVMETHOD(smbus_readb,		alsmb_smb_readb),
-	DEVMETHOD(smbus_writew,		alsmb_smb_writew),
-	DEVMETHOD(smbus_readw,		alsmb_smb_readw),
-	DEVMETHOD(smbus_bwrite,		alsmb_smb_bwrite),
-	DEVMETHOD(smbus_bread,		alsmb_smb_bread),
-	
-	{ 0, 0 }
-};
-
-static driver_t alsmb_driver = {
-	"alsmb",
-	alsmb_methods,
-	sizeof(struct alsmb_softc),
-};
-
-static int alpm_pci_probe(device_t dev);
-static int alpm_pci_attach(device_t dev);
-
-static devclass_t alpm_devclass;
-
-static device_method_t alpm_pci_methods[] = {
-	/* device interface */
-	DEVMETHOD(device_probe,		alpm_pci_probe),
-	DEVMETHOD(device_attach,	alpm_pci_attach),
-	
-	{ 0, 0 }
-};
-
-static driver_t alpm_pci_driver = {
-	"alpm",
-	alpm_pci_methods,
-	sizeof(struct alpm_data)
-};
-
+#define ALPM_SMBINB(alpm,register) \
+	(bus_space_read_1(alpm->smbst, alpm->smbsh, register))
+#define ALPM_SMBOUTB(alpm,register,value) \
+	(bus_space_write_1(alpm->smbst, alpm->smbsh, register, value))
 
 static int
-alpm_pci_probe(device_t dev)
+alpm_probe(device_t dev)
 {
+#ifdef ALPM_SMBIO_BASE_ADDR
+	u_int32_t l;
+#endif
+
 	if (pci_get_devid(dev) == ACER_M1543_PMU_ID) {
-		device_set_desc(dev, 
-		    "AcerLabs M15x3 Power Management Unit");
-		return 0;
-	} else {
-		return ENXIO;
+		device_set_desc(dev, "AcerLabs M15x3 Power Management Unit");
+
+#ifdef ALPM_SMBIO_BASE_ADDR
+		if (bootverbose || alpm_debug)
+			device_printf(dev, "forcing base I/O at 0x%x\n",
+					ALPM_SMBIO_BASE_ADDR);
+
+		/* disable I/O */
+		l = pci_read_config(dev, COM, 2);
+		pci_write_config(dev, COM, l & ~COM_ENABLE_IO, 2);
+
+		/* set the I/O base address */
+		pci_write_config(dev, SMBBA, ALPM_SMBIO_BASE_ADDR | 0x1, 4);
+
+		/* enable I/O */
+		pci_write_config(dev, COM, l | COM_ENABLE_IO, 2);
+
+		if (bus_set_resource(dev, SYS_RES_IOPORT, SMBBA,
+					ALPM_SMBIO_BASE_ADDR, 256)) {
+			device_printf(dev, "could not set bus resource\n");
+			return (ENXIO);
+		}
+#endif
+		return (0);
 	}
+
+	return (ENXIO);
 }
 
 static int
-alpm_pci_attach(device_t dev)
+alpm_attach(device_t dev)
 {
 	int rid, unit;
 	u_int32_t l;
-	struct alpm_data *alpm;
-	struct resource *res;
-	device_t smbinterface;
+	struct alpm_softc *alpm;
 
 	alpm = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -239,9 +193,9 @@ alpm_pci_attach(device_t dev)
 	pci_write_config(dev, SMBHCBC, l, 1);
 	 */
 
-	if (bootverbose) {
+	if (bootverbose || alpm_debug) {
 		l = pci_read_config(dev, SMBHSI, 1);
-		printf("alsmb%d: %s/%s", unit,
+		device_printf(dev, "%s/%s",
 			(l & SMBHSI_HOST) ? "host":"nohost",
 			(l & SMBHSI_SLAVE) ? "slave":"noslave");
 
@@ -265,76 +219,49 @@ alpm_pci_attach(device_t dev)
 		case SMBCLOCK_55K:
 			printf(" 55K");
 			break;
+		default:
+			printf("unkown");
+			break;
 		}
+		printf("\n");
 	}
 
-#ifdef ALPM_SMBIO_BASE_ADDR
-	/* XX will this even work anymore? */
-	/* disable I/O */
-	l = pci_read_config(dev, COM, 2);
-	pci_write_config(dev, COM, l & ~COM_ENABLE_IO, 2);
-
-	/* set the I/O base address */
-	pci_write_config(dev, SMBBA, ALPM_SMBIO_BASE_ADDR | 0x1, 4);
-
-	/* enable I/O */
-	pci_write_config(dev, COM, l | COM_ENABLE_IO, 2);
-
-#endif
 	rid = SMBBA;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-	    0,~0,1,RF_ACTIVE);
-	if (res == NULL) {
+	alpm->res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+
+	if (alpm->res == NULL) {
 		device_printf(dev,"Could not allocate Bus space\n");
-		return ENXIO;
+		return (ENXIO);
 	}
-	alpm->smbst = rman_get_bustag(res);
-	alpm->smbsh = rman_get_bushandle(res);
+	alpm->smbst = rman_get_bustag(alpm->res);
+	alpm->smbsh = rman_get_bushandle(alpm->res);
 
-	if (bootverbose)
-		printf(" at 0x%x\n", alpm->smbsh);
-	
-	smbinterface = device_add_child(dev, "alsmb", unit);
-	if (!smbinterface)
-		device_printf(dev, "could not add SMBus device\n");
-	else
-		device_probe_and_attach(smbinterface);
-	return 0;
-}
-
-/*
- * Not a real probe, we know the device exists since the device has
- * been added after the successfull pci probe.
- */
-static int
-alsmb_probe(device_t dev)
-{
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
-
-	/* allocate a new smbus device */
-	sc->smbus = smbus_alloc_bus(dev);
-	if (!sc->smbus)
-		return (EINVAL); 
-	device_set_desc(dev, "Aladdin IV/V/Pro2 SMBus controller");
+	/* attach the smbus */
+	alpm->smbus = device_add_child(dev, "smbus", -1);
+	bus_generic_attach(dev);
 
 	return (0);
 }
 
 static int
-alsmb_attach(device_t dev)
+alpm_detach(device_t dev)
 {
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
+	struct alpm_softc *alpm = device_get_softc(dev);
 
-	sc->alpm = device_get_softc(device_get_parent(dev));
+	if (alpm->smbus) {
+		device_delete_child(dev, alpm->smbus);
+		alpm->smbus = NULL;
+	}
 
-	/* probe and attach the smbus */
-	device_probe_and_attach(sc->smbus);
+	if (alpm->res)
+		bus_release_resource(dev, SYS_RES_IOPORT, SMBBA, alpm->res);
 
 	return (0);
 }
 
 static int
-alsmb_smb_callback(device_t dev, int index, caddr_t *data)
+alpm_callback(device_t dev, int index, caddr_t *data)
 {
 	int error = 0;
 
@@ -351,7 +278,7 @@ alsmb_smb_callback(device_t dev, int index, caddr_t *data)
 }
 
 static int
-alsmb_clear(struct alsmb_softc *sc)
+alpm_clear(struct alpm_softc *sc)
 {
 	ALPM_SMBOUTB(sc, SMBSTS, 0xff);
 	DELAY(10);
@@ -361,7 +288,7 @@ alsmb_clear(struct alsmb_softc *sc)
 
 #if 0
 static int
-alsmb_abort(struct alsmb_softc *sc)
+alpm_abort(struct alpm_softc *sc)
 {
 	ALPM_SMBOUTB(sc, SMBCMD, T_OUT_CMD | ABORT_HOST);
 
@@ -370,7 +297,7 @@ alsmb_abort(struct alsmb_softc *sc)
 #endif
 
 static int
-alsmb_idle(struct alsmb_softc *sc)
+alpm_idle(struct alpm_softc *sc)
 {
 	u_char sts;
 
@@ -385,7 +312,7 @@ alsmb_idle(struct alsmb_softc *sc)
  * Poll the SMBus controller
  */
 static int
-alsmb_wait(struct alsmb_softc *sc)
+alpm_wait(struct alpm_softc *sc)
 {
 	int count = 10000;
 	u_char sts = 0;
@@ -416,19 +343,19 @@ alsmb_wait(struct alsmb_softc *sc)
 		error |= SMB_EBUSERR;
 
 	if (error != SMB_ENOERR)
-		alsmb_clear(sc);
+		alpm_clear(sc);
 
 	return (error);
 }
 
 static int
-alsmb_smb_quick(device_t dev, u_char slave, int how)
+alpm_quick(device_t dev, u_char slave, int how)
 {
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
+	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
 	int error;
 
-	alsmb_clear(sc);
-	if (!alsmb_idle(sc))
+	alpm_clear(sc);
+	if (!alpm_idle(sc))
 		return (EBUSY);
 
 	switch (how) {
@@ -447,7 +374,7 @@ alsmb_smb_quick(device_t dev, u_char slave, int how)
 	ALPM_SMBOUTB(sc, SMBCMD, SMBQUICK);
 	ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-	error = alsmb_wait(sc);
+	error = alpm_wait(sc);
 
 	ALPM_DEBUG(printf(", error=0x%x\n", error));
 
@@ -455,13 +382,13 @@ alsmb_smb_quick(device_t dev, u_char slave, int how)
 }
 
 static int
-alsmb_smb_sendb(device_t dev, u_char slave, char byte)
+alpm_sendb(device_t dev, u_char slave, char byte)
 {
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
+	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
 	int error;
 
-	alsmb_clear(sc);
-	if (!alsmb_idle(sc))
+	alpm_clear(sc);
+	if (!alpm_idle(sc))
 		return (SMB_EBUSY);
 
 	ALPM_SMBOUTB(sc, SMBHADDR, slave & ~LSB);
@@ -469,7 +396,7 @@ alsmb_smb_sendb(device_t dev, u_char slave, char byte)
 	ALPM_SMBOUTB(sc, SMBHDATA, byte);
 	ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-	error = alsmb_wait(sc);
+	error = alpm_wait(sc);
 
 	ALPM_DEBUG(printf("alpm: SENDB to 0x%x, byte=0x%x, error=0x%x\n", slave, byte, error));
 
@@ -477,20 +404,20 @@ alsmb_smb_sendb(device_t dev, u_char slave, char byte)
 }
 
 static int
-alsmb_smb_recvb(device_t dev, u_char slave, char *byte)
+alpm_recvb(device_t dev, u_char slave, char *byte)
 {
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
+	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
 	int error;
 
-	alsmb_clear(sc);
-	if (!alsmb_idle(sc))
+	alpm_clear(sc);
+	if (!alpm_idle(sc))
 		return (SMB_EBUSY);
 
 	ALPM_SMBOUTB(sc, SMBHADDR, slave | LSB);
 	ALPM_SMBOUTB(sc, SMBCMD, SMBSRBYTE);
 	ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-	if ((error = alsmb_wait(sc)) == SMB_ENOERR)
+	if ((error = alpm_wait(sc)) == SMB_ENOERR)
 		*byte = ALPM_SMBINB(sc, SMBHDATA);
 
 	ALPM_DEBUG(printf("alpm: RECVB from 0x%x, byte=0x%x, error=0x%x\n", slave, *byte, error));
@@ -499,13 +426,13 @@ alsmb_smb_recvb(device_t dev, u_char slave, char *byte)
 }
 
 static int
-alsmb_smb_writeb(device_t dev, u_char slave, char cmd, char byte)
+alpm_writeb(device_t dev, u_char slave, char cmd, char byte)
 {
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
+	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
 	int error;
 
-	alsmb_clear(sc);
-	if (!alsmb_idle(sc))
+	alpm_clear(sc);
+	if (!alpm_idle(sc))
 		return (SMB_EBUSY);
 
 	ALPM_SMBOUTB(sc, SMBHADDR, slave & ~LSB);
@@ -514,7 +441,7 @@ alsmb_smb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	ALPM_SMBOUTB(sc, SMBHCMD, cmd);
 	ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-	error = alsmb_wait(sc);
+	error = alpm_wait(sc);
 
 	ALPM_DEBUG(printf("alpm: WRITEB to 0x%x, cmd=0x%x, byte=0x%x, error=0x%x\n", slave, cmd, byte, error));
 
@@ -522,13 +449,13 @@ alsmb_smb_writeb(device_t dev, u_char slave, char cmd, char byte)
 }
 
 static int
-alsmb_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
+alpm_readb(device_t dev, u_char slave, char cmd, char *byte)
 {
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
+	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
 	int error;
 
-	alsmb_clear(sc);
-	if (!alsmb_idle(sc))
+	alpm_clear(sc);
+	if (!alpm_idle(sc))
 		return (SMB_EBUSY);
 
 	ALPM_SMBOUTB(sc, SMBHADDR, slave | LSB);
@@ -536,7 +463,7 @@ alsmb_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	ALPM_SMBOUTB(sc, SMBHCMD, cmd);
 	ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-	if ((error = alsmb_wait(sc)) == SMB_ENOERR)
+	if ((error = alpm_wait(sc)) == SMB_ENOERR)
 		*byte = ALPM_SMBINB(sc, SMBHDATA);
 
 	ALPM_DEBUG(printf("alpm: READB from 0x%x, cmd=0x%x, byte=0x%x, error=0x%x\n", slave, cmd, *byte, error));
@@ -545,13 +472,13 @@ alsmb_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 }
 
 static int
-alsmb_smb_writew(device_t dev, u_char slave, char cmd, short word)
+alpm_writew(device_t dev, u_char slave, char cmd, short word)
 {
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
+	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
 	int error;
 
-	alsmb_clear(sc);
-	if (!alsmb_idle(sc))
+	alpm_clear(sc);
+	if (!alpm_idle(sc))
 		return (SMB_EBUSY);
 
 	ALPM_SMBOUTB(sc, SMBHADDR, slave & ~LSB);
@@ -561,7 +488,7 @@ alsmb_smb_writew(device_t dev, u_char slave, char cmd, short word)
 	ALPM_SMBOUTB(sc, SMBHCMD, cmd);
 	ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-	error = alsmb_wait(sc);
+	error = alpm_wait(sc);
 
 	ALPM_DEBUG(printf("alpm: WRITEW to 0x%x, cmd=0x%x, word=0x%x, error=0x%x\n", slave, cmd, word, error));
 
@@ -569,14 +496,14 @@ alsmb_smb_writew(device_t dev, u_char slave, char cmd, short word)
 }
 
 static int
-alsmb_smb_readw(device_t dev, u_char slave, char cmd, short *word)
+alpm_readw(device_t dev, u_char slave, char cmd, short *word)
 {
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
+	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
 	int error;
 	u_char high, low;
 
-	alsmb_clear(sc);
-	if (!alsmb_idle(sc))
+	alpm_clear(sc);
+	if (!alpm_idle(sc))
 		return (SMB_EBUSY);
 
 	ALPM_SMBOUTB(sc, SMBHADDR, slave | LSB);
@@ -584,7 +511,7 @@ alsmb_smb_readw(device_t dev, u_char slave, char cmd, short *word)
 	ALPM_SMBOUTB(sc, SMBHCMD, cmd);
 	ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-	if ((error = alsmb_wait(sc)) == SMB_ENOERR) {
+	if ((error = alpm_wait(sc)) == SMB_ENOERR) {
 		low = ALPM_SMBINB(sc, SMBHDATA);
 		high = ALPM_SMBINB(sc, SMBHDATB);
 
@@ -597,14 +524,14 @@ alsmb_smb_readw(device_t dev, u_char slave, char cmd, short *word)
 }
 
 static int
-alsmb_smb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
+alpm_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 {
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
+	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
 	u_char remain, len, i;
 	int error = SMB_ENOERR;
 
-	alsmb_clear(sc);
-	if(!alsmb_idle(sc))
+	alpm_clear(sc);
+	if(!alpm_idle(sc))
 		return (SMB_EBUSY);
 
 	remain = count;
@@ -627,7 +554,7 @@ alsmb_smb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 		ALPM_SMBOUTB(sc, SMBHCMD, cmd);
 		ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-		if ((error = alsmb_wait(sc)) != SMB_ENOERR)
+		if ((error = alpm_wait(sc)) != SMB_ENOERR)
 			goto error;
 
 		remain -= len;
@@ -640,14 +567,14 @@ error:
 }
 
 static int
-alsmb_smb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
+alpm_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 {
-	struct alsmb_softc *sc = (struct alsmb_softc *)device_get_softc(dev);
+	struct alpm_softc *sc = (struct alpm_softc *)device_get_softc(dev);
 	u_char remain, len, i;
 	int error = SMB_ENOERR;
 
-	alsmb_clear(sc);
-	if (!alsmb_idle(sc))
+	alpm_clear(sc);
+	if (!alpm_idle(sc))
 		return (SMB_EBUSY);
 
 	remain = count;
@@ -661,7 +588,7 @@ alsmb_smb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 		ALPM_SMBOUTB(sc, SMBHCMD, cmd);
 		ALPM_SMBOUTB(sc, SMBSTART, 0xff);
 
-		if ((error = alsmb_wait(sc)) != SMB_ENOERR)
+		if ((error = alpm_wait(sc)) != SMB_ENOERR)
 			goto error;
 
 		len = ALPM_SMBINB(sc, SMBHDATA);
@@ -680,5 +607,35 @@ error:
 	return (error);
 }
 
-DRIVER_MODULE(alpm, pci, alpm_pci_driver, alpm_devclass, 0, 0);
-DRIVER_MODULE(alsmb, alpm, alsmb_driver, alsmb_devclass, 0, 0);
+static devclass_t alpm_devclass;
+
+static device_method_t alpm_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_probe,		alpm_probe),
+	DEVMETHOD(device_attach,	alpm_attach),
+	DEVMETHOD(device_detach,	alpm_detach),
+	
+	/* smbus interface */
+	DEVMETHOD(smbus_callback,	alpm_callback),
+	DEVMETHOD(smbus_quick,		alpm_quick),
+	DEVMETHOD(smbus_sendb,		alpm_sendb),
+	DEVMETHOD(smbus_recvb,		alpm_recvb),
+	DEVMETHOD(smbus_writeb,		alpm_writeb),
+	DEVMETHOD(smbus_readb,		alpm_readb),
+	DEVMETHOD(smbus_writew,		alpm_writew),
+	DEVMETHOD(smbus_readw,		alpm_readw),
+	DEVMETHOD(smbus_bwrite,		alpm_bwrite),
+	DEVMETHOD(smbus_bread,		alpm_bread),
+	
+	{ 0, 0 }
+};
+
+static driver_t alpm_driver = {
+	"alpm",
+	alpm_methods,
+	sizeof(struct alpm_softc)
+};
+
+DRIVER_MODULE(alpm, pci, alpm_driver, alpm_devclass, 0, 0);
+MODULE_DEPEND(alpm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
+MODULE_VERSION(alpm, 1);

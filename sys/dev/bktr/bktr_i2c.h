@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,19 @@
 #ifndef _BT848_I2C_H
 #define _BT848_I2C_H
 
-extern int bt848_i2c_attach(int, struct bktr_softc *bktr, struct bktr_i2c_softc *);
+extern int bt848_i2c_attach(device_t);
+extern int bt848_i2c_detach(device_t);
+
+extern int bti2c_iic_callback(device_t, int, caddr_t *);
+extern void bti2c_iic_setsda(device_t, int);
+extern void bti2c_iic_setscl(device_t, int);
+extern int bti2c_iic_getsda(device_t);
+extern int bti2c_iic_getscl(device_t);
+extern int bti2c_iic_reset(device_t, u_char, u_char, u_char *);
+
+extern int bti2c_smb_callback(device_t, int, caddr_t *);
+extern int bti2c_smb_writeb(device_t dev, u_char slave, char cmd, char byte);
+extern int bti2c_smb_writew(device_t dev, u_char slave, char cmd, short word);
+extern int bti2c_smb_readb(device_t dev, u_char slave, char cmd, char *byte);
 
 #endif

@@ -83,7 +83,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#if (__FreeBSD_version >=400000) || (NSMBUS > 0)
+#if (__FreeBSD_version >=400000)
 #include <sys/bus.h>		/* used by smbus and newbus */
 #endif
 
@@ -190,11 +190,14 @@ int bktr_debug = 0;
 #include <dev/bktr/bktr_audio.h>
 #include <dev/bktr/bktr_core.h>
 #include <dev/bktr/bktr_os.h>
+
 #if defined(BKTR_USE_FREEBSD_SMBUS)
 #include <dev/bktr/bktr_i2c.h>
-#endif
-#endif
 
+#include "iicbb_if.h"
+#include "smbus_if.h"
+#endif
+#endif
 
 
 /****************************/
@@ -214,6 +217,22 @@ static device_method_t bktr_methods[] = {
 	DEVMETHOD(device_attach,        bktr_attach),
 	DEVMETHOD(device_detach,        bktr_detach),
 	DEVMETHOD(device_shutdown,      bktr_shutdown),
+
+#if defined(BKTR_USE_FREEBSD_SMBUS)
+	/* iicbb interface */
+	DEVMETHOD(iicbb_callback,	bti2c_iic_callback),
+	DEVMETHOD(iicbb_setsda,		bti2c_iic_setsda),
+	DEVMETHOD(iicbb_setscl,		bti2c_iic_setscl),
+	DEVMETHOD(iicbb_getsda,		bti2c_iic_getsda),
+	DEVMETHOD(iicbb_getscl,		bti2c_iic_getscl),
+	DEVMETHOD(iicbb_reset,		bti2c_iic_reset),
+	
+	/* smbus interface */
+	DEVMETHOD(smbus_callback,	bti2c_smb_callback),
+	DEVMETHOD(smbus_writeb,		bti2c_smb_writeb),
+	DEVMETHOD(smbus_writew,		bti2c_smb_writew),
+	DEVMETHOD(smbus_readb,		bti2c_smb_readb),
+#endif
 
 	{ 0, 0 }
 };
@@ -392,13 +411,10 @@ bktr_attach( device_t dev )
 #endif
 	pci_write_config(dev, 0x40, fun, 2);
 
-
-	/* XXX call bt848_i2c dependent attach() routine */
 #if defined(BKTR_USE_FREEBSD_SMBUS)
-	if (bt848_i2c_attach(unit, bktr, &bktr->i2c_sc))
+	if (bt848_i2c_attach(dev))
 		printf("bktr%d: i2c_attach: can't attach\n", unit);
 #endif
-
 
 /*
  * PCI latency timer.  32 is a good value for 4 bus mastering slots, if
@@ -476,6 +492,11 @@ bktr_detach( device_t dev )
 	/* Disable the brooktree device */
 	OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
 	OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_RISC_DISABLED);
+
+#if defined(BKTR_USE_FREEBSD_SMBUS)
+	if (bt848_i2c_detach(dev))
+		printf("bktr%d: i2c_attach: can't attach\n", unit);
+#endif
 
 	/* Note: We do not free memory for RISC programs, grab buffer, vbi buffers */
 	/* The memory is retained by the bktr_mem module so we can unload and */
@@ -965,13 +986,10 @@ bktr_attach( pcici_t tag, int unit )
 #endif
 	pci_conf_write(tag, 0x40, fun);
 
-
-	/* XXX call bt848_i2c dependent attach() routine */
 #if defined(BKTR_USE_FREEBSD_SMBUS)
-	if (bt848_i2c_attach(unit, bktr, &bktr->i2c_sc))
+	if (bt848_i2c_attach(dev))
 		printf("bktr%d: i2c_attach: can't attach\n", unit);
 #endif
-
 
 /*
  * PCI latency timer.  32 is a good value for 4 bus mastering slots, if

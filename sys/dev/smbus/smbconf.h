@@ -101,4 +101,9 @@ extern u_char smbus_get_addr(device_t);
 #define smbus_bread(bus,slave,cmd,count,buf) \
 	(SMBUS_BREAD(device_get_parent(bus), slave, cmd, count, buf))
 
+#define SMBUS_MODVER	1
+#define SMBUS_MINVER	1
+#define SMBUS_MAXVER	1
+#define SMBUS_PREFVER	SMBUS_MODVER
+
 #endif
