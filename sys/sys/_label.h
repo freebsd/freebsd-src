@@ -33,8 +33,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _SYS__LABEL_H
-#define	_SYS__LABEL_H
+#ifndef _SYS__LABEL_H_
+#define	_SYS__LABEL_H_
 
 /*
  * XXXMAC: This shouldn't be exported to userland, but is because of ucred.h
@@ -53,4 +53,4 @@ struct label {
 	}	l_perpolicy[MAC_MAX_SLOTS];
 };
 
-#endif /* !_SYS__LABEL_H */
+#endif /* !_SYS__LABEL_H_ */
