@@ -542,4 +542,4 @@ struct amr_passthrough
 #define AMR_SGET_INITTARG(sc)	bus_space_read_1 (sc->amr_btag, sc->amr_bhandle, AMR_SMBOX_ENABLE + 3)
 #endif
 
-#endif _KERNEL
+#endif /* _KERNEL */
