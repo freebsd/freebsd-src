@@ -672,7 +672,7 @@ found:
 struct semop_args {
 	int	semid;
 	struct	sembuf *sops;
-	int	nsops;
+	u_int	nsops;
 };
 #endif
 
@@ -682,7 +682,7 @@ semop(p, uap)
 	register struct semop_args *uap;
 {
 	int semid = uap->semid;
-	int nsops = uap->nsops;
+	u_int nsops = uap->nsops;
 	struct sembuf sops[MAX_SOPS];
 	register struct semid_ds *semaptr;
 	register struct sembuf *sopptr;
@@ -692,7 +692,7 @@ semop(p, uap)
 	int do_wakeup, do_undos;
 
 #ifdef SEM_DEBUG
-	printf("call to semop(%d, 0x%x, %d)\n", semid, sops, nsops);
+	printf("call to semop(%d, 0x%x, %u)\n", semid, sops, nsops);
 #endif
 
 	if (!jail_sysvipc_allowed && p->p_prison != NULL)
@@ -718,14 +718,14 @@ semop(p, uap)
 
 	if (nsops > MAX_SOPS) {
 #ifdef SEM_DEBUG
-		printf("too many sops (max=%d, nsops=%d)\n", MAX_SOPS, nsops);
+		printf("too many sops (max=%d, nsops=%u)\n", MAX_SOPS, nsops);
 #endif
 		return(E2BIG);
 	}
 
 	if ((eval = copyin(uap->sops, &sops, nsops * sizeof(sops[0]))) != 0) {
 #ifdef SEM_DEBUG
-		printf("eval = %d from copyin(%08x, %08x, %d)\n", eval,
+		printf("eval = %d from copyin(%08x, %08x, %u)\n", eval,
 		    uap->sops, &sops, nsops * sizeof(sops[0]));
 #endif
 		return(eval);
